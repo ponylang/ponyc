@@ -43,7 +43,7 @@ class \nodoc\ iso _DocSymContainmentTest is UnitTest
       h,
       _server,
       "document_symbol/_ds_containment.pony",
-      [(0, 0, _DocSymContainmentChecker)])
+      [_DocSymContainmentChecker])
 
 class \nodoc\ iso _DocSymRangeTest is UnitTest
   """
@@ -74,20 +74,18 @@ class \nodoc\ iso _DocSymRangeTest is UnitTest
       h,
       _server,
       "document_symbol/_ds_containment.pony",
-      [ ( 0, 0,
-          _DocSymRangeChecker(
+      [ _DocSymRangeChecker(
             "_DsContainment",
             None,
                       // range: (start_line, start_char, end_line, end_char)
             (0, 0, 18, 10),
             // selectionRange: (start_line, start_char, end_line, end_char)
-            (0, 6, 0, 20)))
-        ( 0, 1,
-          _DocSymRangeChecker(
+            (0, 6, 0, 20))
+        _DocSymRangeChecker(
             "increment",
             "_DsContainment",
             (13, 2, 15, 10),
-            (13, 10, 13, 19)))])
+            (13, 10, 13, 19))])
 
 class \nodoc\ iso _DocSymEntityKindsTest is UnitTest
   """
@@ -114,15 +112,14 @@ class \nodoc\ iso _DocSymEntityKindsTest is UnitTest
       h,
       _server,
       "document_symbol/_ds_ent_interface.pony",
-      [ ( 0, 0,
-          _DocSymTopLevelKindsChecker(
+      [ _DocSymTopLevelKindsChecker(
             [ ("_DsEntClass", 5)
               ("_DsEntActor", 5)
               ("_DsEntTrait", 11)
               ("_DsEntInterface", 11)
               ("_DsEntPrimitive", 5)
               ("_DsEntStruct", 23)
-              ("_DsEntType", 5)]))])
+              ("_DsEntType", 5)])])
 
 class \nodoc\ iso _DocSymMemberKindsTest is UnitTest
   """
@@ -149,15 +146,14 @@ class \nodoc\ iso _DocSymMemberKindsTest is UnitTest
       h,
       _server,
       "document_symbol/_ds_member_host.pony",
-      [ ( 0, 0,
-          _DocSymChildKindsChecker(
+      [ _DocSymChildKindsChecker(
             "_DsMemberHost",
             [ ("_let_field", 8)
               ("_var_field", 8)
               ("_embed_field", 8)
               ("create", 9)
               ("ds_fun", 6)
-              ("ds_be", 6)]))])
+              ("ds_be", 6)])])
 
 class \nodoc\ iso _DocSymCrossFileTraitTest is UnitTest
   """
@@ -186,8 +182,7 @@ class \nodoc\ iso _DocSymCrossFileTraitTest is UnitTest
       h,
       _server,
       "document_symbol/_ds_impl.pony",
-      [ ( 0, 0,
-          _DocSymMaxEndLineChecker("_DsImpl", 15))])
+      [ _DocSymMaxEndLineChecker("_DsImpl", 15)])
 
 class \nodoc\ iso _DocSymImplNoChildrenTest is UnitTest
   """
@@ -213,7 +208,7 @@ class \nodoc\ iso _DocSymImplNoChildrenTest is UnitTest
       h,
       _server,
       "document_symbol/_ds_impl.pony",
-      [(0, 0, _DocSymNoChildrenChecker("_DsImpl"))])
+      [_DocSymNoChildrenChecker("_DsImpl")])
 
 class \nodoc\ iso _DocSymMixedChildrenTest is UnitTest
   """
@@ -239,7 +234,7 @@ class \nodoc\ iso _DocSymMixedChildrenTest is UnitTest
       h,
       _server,
       "document_symbol/_ds_mixed.pony",
-      [(0, 0, _DocSymChildKindsChecker("_DsMixed", [("ds_mixed_method", 6)]))])
+      [_DocSymChildKindsChecker("_DsMixed", [("ds_mixed_method", 6)])])
 
 class \nodoc\ iso _DocSymTypeAliasRangeTest is UnitTest
   """
@@ -270,12 +265,11 @@ class \nodoc\ iso _DocSymTypeAliasRangeTest is UnitTest
       h,
       _server,
       "document_symbol/_ds_ent_interface.pony",
-      [ ( 0, 0,
-          _DocSymRangeChecker(
+      [ _DocSymRangeChecker(
             "_DsEntType",
             None,
             (22, 0, 22, 30),
-            (22, 5, 22, 15)))])
+            (22, 5, 22, 15))])
 
 class \nodoc\ iso _DocSymPrimitiveRangeTest is UnitTest
   """
@@ -303,12 +297,11 @@ class \nodoc\ iso _DocSymPrimitiveRangeTest is UnitTest
       h,
       _server,
       "document_symbol/_ds_ent_interface.pony",
-      [ ( 0, 0,
-          _DocSymRangeChecker(
-            "_DsEntPrimitive",
-            None,
-            (17, 0, 17, 25),
-            (17, 10, 17, 25)))])
+      [ _DocSymRangeChecker(
+          "_DsEntPrimitive",
+          None,
+          (17, 0, 17, 25),
+          (17, 10, 17, 25))])
 
 class val _DocSymContainmentChecker
   """
@@ -321,13 +314,7 @@ class val _DocSymContainmentChecker
   fun lsp_method(): String =>
     Methods.text_document().document_symbol()
 
-  fun lsp_range(): (None | (I64, I64, I64, I64)) =>
-    None
-
-  fun lsp_context(): (None | JsonObject) =>
-    None
-
-  fun lsp_extra_params(): (None | JsonObject) =>
+  fun lsp_params(): (None | JsonObject) =>
     None
 
   fun check(res: ResponseMessage val, h: TestHelper): Bool =>
@@ -422,13 +409,7 @@ class val _DocSymRangeChecker
   fun lsp_method(): String =>
     Methods.text_document().document_symbol()
 
-  fun lsp_range(): (None | (I64, I64, I64, I64)) =>
-    None
-
-  fun lsp_context(): (None | JsonObject) =>
-    None
-
-  fun lsp_extra_params(): (None | JsonObject) =>
+  fun lsp_params(): (None | JsonObject) =>
     None
 
   fun check(res: ResponseMessage val, h: TestHelper): Bool =>
@@ -530,13 +511,7 @@ class val _DocSymTopLevelKindsChecker
   fun lsp_method(): String =>
     Methods.text_document().document_symbol()
 
-  fun lsp_range(): (None | (I64, I64, I64, I64)) =>
-    None
-
-  fun lsp_context(): (None | JsonObject) =>
-    None
-
-  fun lsp_extra_params(): (None | JsonObject) =>
+  fun lsp_params(): (None | JsonObject) =>
     None
 
   fun check(res: ResponseMessage val, h: TestHelper): Bool =>
@@ -589,13 +564,7 @@ class val _DocSymChildKindsChecker
   fun lsp_method(): String =>
     Methods.text_document().document_symbol()
 
-  fun lsp_range(): (None | (I64, I64, I64, I64)) =>
-    None
-
-  fun lsp_context(): (None | JsonObject) =>
-    None
-
-  fun lsp_extra_params(): (None | JsonObject) =>
+  fun lsp_params(): (None | JsonObject) =>
     None
 
   fun check(res: ResponseMessage val, h: TestHelper): Bool =>
@@ -667,13 +636,7 @@ class val _DocSymMaxEndLineChecker
   fun lsp_method(): String =>
     Methods.text_document().document_symbol()
 
-  fun lsp_range(): (None | (I64, I64, I64, I64)) =>
-    None
-
-  fun lsp_context(): (None | JsonObject) =>
-    None
-
-  fun lsp_extra_params(): (None | JsonObject) =>
+  fun lsp_params(): (None | JsonObject) =>
     None
 
   fun check(res: ResponseMessage val, h: TestHelper): Bool =>
@@ -715,13 +678,7 @@ class val _DocSymNoChildrenChecker
   fun lsp_method(): String =>
     Methods.text_document().document_symbol()
 
-  fun lsp_range(): (None | (I64, I64, I64, I64)) =>
-    None
-
-  fun lsp_context(): (None | JsonObject) =>
-    None
-
-  fun lsp_extra_params(): (None | JsonObject) =>
+  fun lsp_params(): (None | JsonObject) =>
     None
 
   fun check(res: ResponseMessage val, h: TestHelper): Bool =>

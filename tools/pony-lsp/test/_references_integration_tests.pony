@@ -63,12 +63,15 @@ class \nodoc\ iso _RefsCountDeclIncludedTest is UnitTest
       h,
       _server,
       _fixture,
-      [ (16, 6, _RefsChecker(
-        [ ("referenced_class.pony", 16, 6, 16, 12)
-          ("referenced_class.pony", 19, 4, 19, 10)
-          ("referenced_class.pony", 22, 4, 22, 10)
-          ("referenced_class.pony", 22, 13, 22, 19)
-          ("referenced_class.pony", 23, 4, 23, 10)], true))])
+      [ _RefsChecker(
+          16,
+          6,
+          [ ("referenced_class.pony", 16, 6, 16, 12)
+            ("referenced_class.pony", 19, 4, 19, 10)
+            ("referenced_class.pony", 22, 4, 22, 10)
+            ("referenced_class.pony", 22, 13, 22, 19)
+            ("referenced_class.pony", 23, 4, 23, 10)],
+          true)])
 
 class \nodoc\ iso _RefsCountDeclExcludedTest is UnitTest
   """
@@ -90,11 +93,14 @@ class \nodoc\ iso _RefsCountDeclExcludedTest is UnitTest
       h,
       _server,
       _fixture,
-      [ (16, 6, _RefsChecker(
-        [ ("referenced_class.pony", 19, 4, 19, 10)
-          ("referenced_class.pony", 22, 4, 22, 10)
-          ("referenced_class.pony", 22, 13, 22, 19)
-          ("referenced_class.pony", 23, 4, 23, 10)], false))])
+      [ _RefsChecker(
+          16,
+          6,
+          [ ("referenced_class.pony", 19, 4, 19, 10)
+            ("referenced_class.pony", 22, 4, 22, 10)
+            ("referenced_class.pony", 22, 13, 22, 19)
+            ("referenced_class.pony", 23, 4, 23, 10)],
+          false)])
 
 class \nodoc\ iso _RefsCountRefIncludedTest is UnitTest
   """
@@ -117,12 +123,15 @@ class \nodoc\ iso _RefsCountRefIncludedTest is UnitTest
       h,
       _server,
       _fixture,
-      [ (23, 4, _RefsChecker(
-        [ ("referenced_class.pony", 16, 6, 16, 12)
-          ("referenced_class.pony", 19, 4, 19, 10)
-          ("referenced_class.pony", 22, 4, 22, 10)
-          ("referenced_class.pony", 22, 13, 22, 19)
-          ("referenced_class.pony", 23, 4, 23, 10)], true))])
+      [ _RefsChecker(
+          23,
+          4,
+          [ ("referenced_class.pony", 16, 6, 16, 12)
+            ("referenced_class.pony", 19, 4, 19, 10)
+            ("referenced_class.pony", 22, 4, 22, 10)
+            ("referenced_class.pony", 22, 13, 22, 19)
+            ("referenced_class.pony", 23, 4, 23, 10)],
+          true)])
 
 class \nodoc\ iso _RefsCountRefExcludedTest is UnitTest
   """
@@ -145,11 +154,14 @@ class \nodoc\ iso _RefsCountRefExcludedTest is UnitTest
       h,
       _server,
       _fixture,
-      [ (23, 4, _RefsChecker(
-        [ ("referenced_class.pony", 19, 4, 19, 10)
-          ("referenced_class.pony", 22, 4, 22, 10)
-          ("referenced_class.pony", 22, 13, 22, 19)
-          ("referenced_class.pony", 23, 4, 23, 10)], false))])
+      [ _RefsChecker(
+          23,
+          4,
+          [ ("referenced_class.pony", 19, 4, 19, 10)
+            ("referenced_class.pony", 22, 4, 22, 10)
+            ("referenced_class.pony", 22, 13, 22, 19)
+            ("referenced_class.pony", 23, 4, 23, 10)],
+          false)])
 
 class \nodoc\ iso _RefsIncrementCrossFileTest is UnitTest
   """
@@ -173,9 +185,12 @@ class \nodoc\ iso _RefsIncrementCrossFileTest is UnitTest
       h,
       _server,
       _fixture,
-      [ (21, 10, _RefsChecker(
-        [ ("referenced_class.pony", 21, 10, 21, 19)
-          ("references_user.pony", 12, 8, 12, 17)], true))])
+      [ _RefsChecker(
+          21,
+          10,
+          [ ("referenced_class.pony", 21, 10, 21, 19)
+            ("references_user.pony", 12, 8, 12, 17)],
+          true)])
 
 class \nodoc\ iso _RefsIncrementDeclExcludedTest is UnitTest
   """
@@ -201,8 +216,11 @@ class \nodoc\ iso _RefsIncrementDeclExcludedTest is UnitTest
       h,
       _server,
       _fixture,
-      [ (21, 10, _RefsChecker(
-        [("references_user.pony", 12, 8, 12, 17)], false))])
+      [ _RefsChecker(
+          21,
+          10,
+          [("references_user.pony", 12, 8, 12, 17)],
+          false)])
 
 class \nodoc\ iso _RefsTypeNameTest is UnitTest
   """
@@ -226,9 +244,12 @@ class \nodoc\ iso _RefsTypeNameTest is UnitTest
       h,
       _server,
       _fixture,
-      [ (0, 6, _RefsChecker(
-        [ ("referenced_class.pony", 0, 6, 0, 21)
-          ("references_user.pony", 11, 18, 11, 33)], true))])
+      [ _RefsChecker(
+          0,
+          6,
+          [ ("referenced_class.pony", 0, 6, 0, 21)
+            ("references_user.pony", 11, 18, 11, 33)],
+          true)])
 
 class \nodoc\ iso _RefsTypeNameDeclExcludedTest is UnitTest
   """
@@ -254,8 +275,11 @@ class \nodoc\ iso _RefsTypeNameDeclExcludedTest is UnitTest
       h,
       _server,
       _fixture,
-      [ (0, 6, _RefsChecker(
-        [("references_user.pony", 11, 18, 11, 33)], false))])
+      [ _RefsChecker(
+          0,
+          6,
+          [("references_user.pony", 11, 18, 11, 33)],
+          false)])
 
 class \nodoc\ iso _RefsLiteralTest is UnitTest
   """
@@ -277,7 +301,7 @@ class \nodoc\ iso _RefsLiteralTest is UnitTest
       h,
       _server,
       _fixture,
-      [(16, 20, _RefsChecker([], true))])
+      [_RefsChecker(16, 20, [], true)])
 
 class \nodoc\ iso _RefsSyntheticNewrefTest is UnitTest
   """
@@ -297,7 +321,7 @@ class \nodoc\ iso _RefsSyntheticNewrefTest is UnitTest
     "references/integration/synthetic_newref"
 
   fun apply(h: TestHelper) =>
-    _RunLspChecks(h, _server, _fixture, [(26, 4, _RefsChecker([], true))])
+    _RunLspChecks(h, _server, _fixture, [_RefsChecker(26, 4, [], true)])
 
 class \nodoc\ iso _RefsGenericTypeparamDeclIncludedTest is UnitTest
   """
@@ -325,10 +349,13 @@ class \nodoc\ iso _RefsGenericTypeparamDeclIncludedTest is UnitTest
       h,
       _server,
       "references/generic_refs.pony",
-      [ (0, 18, _RefsChecker(
-        [ ("generic_refs.pony", 0, 18, 0, 19)
-          ("generic_refs.pony", 14, 12, 14, 13)
-          ("generic_refs.pony", 14, 16, 14, 17)], true))])
+      [ _RefsChecker(
+          0,
+          18,
+          [ ("generic_refs.pony", 0, 18, 0, 19)
+            ("generic_refs.pony", 14, 12, 14, 13)
+            ("generic_refs.pony", 14, 16, 14, 17)],
+          true)])
 
 class \nodoc\ iso _RefsGenericTypeparamDeclExcludedTest is UnitTest
   """
@@ -351,9 +378,12 @@ class \nodoc\ iso _RefsGenericTypeparamDeclExcludedTest is UnitTest
       h,
       _server,
       "references/generic_refs.pony",
-      [ (0, 18, _RefsChecker(
-        [ ("generic_refs.pony", 14, 12, 14, 13)
-          ("generic_refs.pony", 14, 16, 14, 17)], false))])
+      [ _RefsChecker(
+          0,
+          18,
+          [ ("generic_refs.pony", 14, 12, 14, 13)
+            ("generic_refs.pony", 14, 16, 14, 17)],
+          false)])
 
 class \nodoc\ iso _RefsGenericTypeparamRefIncludedTest is UnitTest
   """
@@ -376,10 +406,13 @@ class \nodoc\ iso _RefsGenericTypeparamRefIncludedTest is UnitTest
       h,
       _server,
       "references/generic_refs.pony",
-      [ (14, 12, _RefsChecker(
-        [ ("generic_refs.pony", 0, 18, 0, 19)
-          ("generic_refs.pony", 14, 12, 14, 13)
-          ("generic_refs.pony", 14, 16, 14, 17)], true))])
+      [ _RefsChecker(
+          14,
+          12,
+          [ ("generic_refs.pony", 0, 18, 0, 19)
+            ("generic_refs.pony", 14, 12, 14, 13)
+            ("generic_refs.pony", 14, 16, 14, 17)],
+          true)])
 
 class \nodoc\ iso _RefsGenericTypeparamRefExcludedTest is UnitTest
   """
@@ -402,9 +435,12 @@ class \nodoc\ iso _RefsGenericTypeparamRefExcludedTest is UnitTest
       h,
       _server,
       "references/generic_refs.pony",
-      [ (14, 12, _RefsChecker(
-        [ ("generic_refs.pony", 14, 12, 14, 13)
-          ("generic_refs.pony", 14, 16, 14, 17)], false))])
+      [ _RefsChecker(
+          14,
+          12,
+          [ ("generic_refs.pony", 14, 12, 14, 13)
+            ("generic_refs.pony", 14, 16, 14, 17)],
+          false)])
 
 class \nodoc\ iso _RefsGenericActorBeIncludedTest is UnitTest
   """
@@ -436,9 +472,12 @@ class \nodoc\ iso _RefsGenericActorBeIncludedTest is UnitTest
       h,
       _server,
       "references/generic_actor.pony",
-      [ (0, 19, _RefsChecker(
-        [ ("generic_actor.pony", 0, 19, 0, 20)
-          ("generic_actor.pony", 8, 12, 8, 13)], true))])
+      [ _RefsChecker(
+          0,
+          19,
+          [ ("generic_actor.pony", 0, 19, 0, 20)
+            ("generic_actor.pony", 8, 12, 8, 13)],
+          true)])
 
 class val _RefsChecker
   """
@@ -446,27 +485,33 @@ class val _RefsChecker
   Each expected location is (filename_basename, start_line, start_char,
   end_line, end_char).
   """
+  let _line: I64
+  let _character: I64
   let _expected: Array[(String, I64, I64, I64, I64)] val
   let _include_declaration: Bool
 
   new val create(
+    line': I64,
+    character': I64,
     expected: Array[(String, I64, I64, I64, I64)] val,
     include_declaration: Bool = true)
   =>
+    _line = line'
+    _character = character'
     _expected = expected
     _include_declaration = include_declaration
 
   fun lsp_method(): String =>
     Methods.text_document().references()
 
-  fun lsp_range(): (None | (I64, I64, I64, I64)) =>
-    None
-
-  fun lsp_context(): (None | JsonObject) =>
-    JsonObject.update("includeDeclaration", _include_declaration)
-
-  fun lsp_extra_params(): (None | JsonObject) =>
-    None
+  fun lsp_params(): (None | JsonObject) =>
+    JsonObject
+      .update(
+        "position",
+        JsonObject.update("line", _line).update("character", _character))
+      .update(
+        "context",
+        JsonObject.update("includeDeclaration", _include_declaration))
 
   fun check(res: ResponseMessage val, h: TestHelper): Bool =>
     var ok = true

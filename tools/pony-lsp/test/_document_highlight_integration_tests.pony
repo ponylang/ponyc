@@ -82,12 +82,14 @@ class \nodoc\ iso _DocHighlightFieldTest
       h,
       _server,
       _fixture,
-      [ (21, 6, _DocHighlightChecker(
-        [ (21, 6, 21, 11, DocumentHighlightKind.write())
-          (24, 4, 24, 9, DocumentHighlightKind.write())
-          (24, 12, 24, 17, DocumentHighlightKind.read())
-          (27, 4, 27, 9, DocumentHighlightKind.read())
-          (30, 22, 30, 27, DocumentHighlightKind.read())]))])
+      [ _DocHighlightChecker(
+          21,
+          6,
+          [ (21, 6, 21, 11, DocumentHighlightKind.write())
+            (24, 4, 24, 9, DocumentHighlightKind.write())
+            (24, 12, 24, 17, DocumentHighlightKind.read())
+            (27, 4, 27, 9, DocumentHighlightKind.read())
+            (30, 22, 30, 27, DocumentHighlightKind.read())])])
 
 class \nodoc\ iso _DocHighlightFieldRefTest
   is UnitTest
@@ -110,12 +112,14 @@ class \nodoc\ iso _DocHighlightFieldRefTest
       h,
       _server,
       _fixture,
-      [ (27, 4, _DocHighlightChecker(
-        [ (21, 6, 21, 11, DocumentHighlightKind.write())
-          (24, 4, 24, 9, DocumentHighlightKind.write())
-          (24, 12, 24, 17, DocumentHighlightKind.read())
-          (27, 4, 27, 9, DocumentHighlightKind.read())
-          (30, 22, 30, 27, DocumentHighlightKind.read())]))])
+      [ _DocHighlightChecker(
+          27,
+          4,
+          [ (21, 6, 21, 11, DocumentHighlightKind.write())
+            (24, 4, 24, 9, DocumentHighlightKind.write())
+            (24, 12, 24, 17, DocumentHighlightKind.read())
+            (27, 4, 27, 9, DocumentHighlightKind.read())
+            (30, 22, 30, 27, DocumentHighlightKind.read())])])
 
 class \nodoc\ iso _DocHighlightLocalTest
   is UnitTest
@@ -141,10 +145,12 @@ class \nodoc\ iso _DocHighlightLocalTest
       h,
       _server,
       _fixture,
-      [ (30, 8, _DocHighlightChecker(
-        [ (30, 8, 30, 14, DocumentHighlightKind.write())
-          (31, 4, 31, 10, DocumentHighlightKind.read())
-          (31, 13, 31, 19, DocumentHighlightKind.read())]))])
+      [ _DocHighlightChecker(
+          30,
+          8,
+          [ (30, 8, 30, 14, DocumentHighlightKind.write())
+            (31, 4, 31, 10, DocumentHighlightKind.read())
+            (31, 13, 31, 19, DocumentHighlightKind.read())])])
 
 class \nodoc\ iso _DocHighlightFletTest is UnitTest
   """
@@ -170,11 +176,13 @@ class \nodoc\ iso _DocHighlightFletTest is UnitTest
       h,
       _server,
       _fixture,
-      [ (80, 6, _DocHighlightChecker(
-        [ (80, 6, 80, 11, DocumentHighlightKind.write())
-          (85, 4, 85, 9, DocumentHighlightKind.write())
-          (90, 4, 90, 9, DocumentHighlightKind.write())
-          (111, 4, 111, 9, DocumentHighlightKind.read())]))])
+      [ _DocHighlightChecker(
+          80,
+          6,
+          [ (80, 6, 80, 11, DocumentHighlightKind.write())
+            (85, 4, 85, 9, DocumentHighlightKind.write())
+            (90, 4, 90, 9, DocumentHighlightKind.write())
+            (111, 4, 111, 9, DocumentHighlightKind.read())])])
 
 class \nodoc\ iso _DocHighlightEmbedTest is UnitTest
   """
@@ -200,11 +208,13 @@ class \nodoc\ iso _DocHighlightEmbedTest is UnitTest
       h,
       _server,
       _fixture,
-      [ (81, 8, _DocHighlightChecker(
-        [ (81, 8, 81, 14, DocumentHighlightKind.write())
-          (86, 4, 86, 10, DocumentHighlightKind.write())
-          (91, 4, 91, 10, DocumentHighlightKind.write())
-          (114, 4, 114, 10, DocumentHighlightKind.read())]))])
+      [ _DocHighlightChecker(
+          81,
+          8,
+          [ (81, 8, 81, 14, DocumentHighlightKind.write())
+            (86, 4, 86, 10, DocumentHighlightKind.write())
+            (91, 4, 91, 10, DocumentHighlightKind.write())
+            (114, 4, 114, 10, DocumentHighlightKind.read())])])
 
 class \nodoc\ iso _DocHighlightNewRefTest is UnitTest
   """
@@ -229,10 +239,12 @@ class \nodoc\ iso _DocHighlightNewRefTest is UnitTest
       h,
       _server,
       _fixture,
-      [ (51, 6, _DocHighlightChecker(
-        [ (51, 6, 51, 12, DocumentHighlightKind.text())
-          (86, 20, 86, 26, DocumentHighlightKind.read())
-          (91, 20, 91, 26, DocumentHighlightKind.read())]))])
+      [ _DocHighlightChecker(
+          51,
+          6,
+          [ (51, 6, 51, 12, DocumentHighlightKind.text())
+            (86, 20, 86, 26, DocumentHighlightKind.read())
+            (91, 20, 91, 26, DocumentHighlightKind.read())])])
 
 class \nodoc\ iso _DocHighlightFunRefTest is UnitTest
   """
@@ -258,10 +270,12 @@ class \nodoc\ iso _DocHighlightFunRefTest is UnitTest
       h,
       _server,
       _fixture,
-      [ (94, 10, _DocHighlightChecker(
-        [ (94, 10, 94, 13, DocumentHighlightKind.text())
-          (102, 15, 102, 18, DocumentHighlightKind.read())
-          (107, 12, 107, 15, DocumentHighlightKind.read())]))])
+      [ _DocHighlightChecker(
+          94,
+          10,
+          [ (94, 10, 94, 13, DocumentHighlightKind.text())
+            (102, 15, 102, 18, DocumentHighlightKind.read())
+            (107, 12, 107, 15, DocumentHighlightKind.read())])])
 
 class \nodoc\ iso _DocHighlightParamTest is UnitTest
   """
@@ -286,10 +300,12 @@ class \nodoc\ iso _DocHighlightParamTest is UnitTest
       h,
       _server,
       _fixture,
-      [ (94, 14, _DocHighlightChecker(
-        [ (94, 14, 94, 15, DocumentHighlightKind.write())
-          (95, 18, 95, 19, DocumentHighlightKind.read())
-          (96, 4, 96, 5, DocumentHighlightKind.read())]))])
+      [ _DocHighlightChecker(
+          94,
+          14,
+          [ (94, 14, 94, 15, DocumentHighlightKind.write())
+            (95, 18, 95, 19, DocumentHighlightKind.read())
+            (96, 4, 96, 5, DocumentHighlightKind.read())])])
 
 class \nodoc\ iso _DocHighlightVarLocalTest is UnitTest
   """
@@ -315,11 +331,13 @@ class \nodoc\ iso _DocHighlightVarLocalTest is UnitTest
       h,
       _server,
       _fixture,
-      [ (106, 8, _DocHighlightChecker(
-        [ (106, 8, 106, 9, DocumentHighlightKind.write())
-          (107, 4, 107, 5, DocumentHighlightKind.write())
-          (107, 8, 107, 9, DocumentHighlightKind.read())
-          (108, 4, 108, 5, DocumentHighlightKind.read())]))])
+      [ _DocHighlightChecker(
+          106,
+          8,
+          [ (106, 8, 106, 9, DocumentHighlightKind.write())
+            (107, 4, 107, 5, DocumentHighlightKind.write())
+            (107, 8, 107, 9, DocumentHighlightKind.read())
+            (108, 4, 108, 5, DocumentHighlightKind.read())])])
 
 class \nodoc\ iso _DocHighlightBeRefTest is UnitTest
   """
@@ -343,9 +361,11 @@ class \nodoc\ iso _DocHighlightBeRefTest is UnitTest
       h,
       _server,
       _fixture,
-      [ (127, 5, _DocHighlightChecker(
-        [ (127, 5, 127, 8, DocumentHighlightKind.text())
-          (131, 4, 131, 7, DocumentHighlightKind.read())]))])
+      [ _DocHighlightChecker(
+          127,
+          5,
+          [ (127, 5, 127, 8, DocumentHighlightKind.text())
+            (131, 4, 131, 7, DocumentHighlightKind.read())])])
 
 class \nodoc\ iso _DocHighlightClassTypeTest is UnitTest
   """
@@ -372,11 +392,13 @@ class \nodoc\ iso _DocHighlightClassTypeTest is UnitTest
       h,
       _server,
       _fixture,
-      [ (81, 16, _DocHighlightChecker(
-        [ (33, 6, 33, 12, DocumentHighlightKind.text())
-          (81, 16, 81, 22, DocumentHighlightKind.text())
-          (86, 13, 86, 19, DocumentHighlightKind.text())
-          (91, 13, 91, 19, DocumentHighlightKind.text())]))])
+      [ _DocHighlightChecker(
+          81,
+          16,
+          [ (33, 6, 33, 12, DocumentHighlightKind.text())
+            (81, 16, 81, 22, DocumentHighlightKind.text())
+            (86, 13, 86, 19, DocumentHighlightKind.text())
+            (91, 13, 91, 19, DocumentHighlightKind.text())])])
 
 class \nodoc\ iso _DocHighlightClassDeclTest is UnitTest
   """
@@ -402,11 +424,13 @@ class \nodoc\ iso _DocHighlightClassDeclTest is UnitTest
       h,
       _server,
       _fixture,
-      [ (33, 6, _DocHighlightChecker(
-        [ (33, 6, 33, 12, DocumentHighlightKind.text())
-          (81, 16, 81, 22, DocumentHighlightKind.text())
-          (86, 13, 86, 19, DocumentHighlightKind.text())
-          (91, 13, 91, 19, DocumentHighlightKind.text())]))])
+      [ _DocHighlightChecker(
+          33,
+          6,
+          [ (33, 6, 33, 12, DocumentHighlightKind.text())
+            (81, 16, 81, 22, DocumentHighlightKind.text())
+            (86, 13, 86, 19, DocumentHighlightKind.text())
+            (91, 13, 91, 19, DocumentHighlightKind.text())])])
 
 class \nodoc\ iso _DocHighlightTypeDeclTest is UnitTest
   """
@@ -430,9 +454,11 @@ class \nodoc\ iso _DocHighlightTypeDeclTest is UnitTest
       h,
       _server,
       _fixture,
-      [ (54, 6, _DocHighlightChecker(
-        [ (54, 6, 54, 20, DocumentHighlightKind.text())
-          (98, 22, 98, 36, DocumentHighlightKind.text())]))])
+      [ _DocHighlightChecker(
+          54,
+          6,
+          [ (54, 6, 54, 20, DocumentHighlightKind.text())
+            (98, 22, 98, 36, DocumentHighlightKind.text())])])
 
 class \nodoc\ iso _DocHighlightTypeRefTest is UnitTest
   """
@@ -457,9 +483,11 @@ class \nodoc\ iso _DocHighlightTypeRefTest is UnitTest
       h,
       _server,
       _fixture,
-      [ (98, 22, _DocHighlightChecker(
-        [ (54, 6, 54, 20, DocumentHighlightKind.text())
-          (98, 22, 98, 36, DocumentHighlightKind.text())]))])
+      [ _DocHighlightChecker(
+          98,
+          22,
+          [ (54, 6, 54, 20, DocumentHighlightKind.text())
+            (98, 22, 98, 36, DocumentHighlightKind.text())])])
 
 class \nodoc\ iso _DocHighlightLiteralTest is UnitTest
   """
@@ -477,7 +505,7 @@ class \nodoc\ iso _DocHighlightLiteralTest is UnitTest
     "document_highlight/integration/literal"
 
   fun apply(h: TestHelper) =>
-    _RunLspChecks(h, _server, _fixture, [(85, 12, _DocHighlightChecker([]))])
+    _RunLspChecks(h, _server, _fixture, [_DocHighlightChecker(85, 12, [])])
 
 class \nodoc\ iso _DocHighlightNoneTest is UnitTest
   """
@@ -497,7 +525,7 @@ class \nodoc\ iso _DocHighlightNoneTest is UnitTest
     "document_highlight/integration/none_literal"
 
   fun apply(h: TestHelper) =>
-    _RunLspChecks(h, _server, _fixture, [(128, 4, _DocHighlightChecker([]))])
+    _RunLspChecks(h, _server, _fixture, [_DocHighlightChecker(128, 4, [])])
 
 class \nodoc\ iso _DocHighlightInnerXFieldTest is UnitTest
   """
@@ -521,9 +549,11 @@ class \nodoc\ iso _DocHighlightInnerXFieldTest is UnitTest
       h,
       _server,
       _fixture,
-      [ (49, 6, _DocHighlightChecker(
-        [ (49, 6, 49, 7, DocumentHighlightKind.write())
-          (52, 4, 52, 5, DocumentHighlightKind.write())]))])
+      [ _DocHighlightChecker(
+          49,
+          6,
+          [ (49, 6, 49, 7, DocumentHighlightKind.write())
+            (52, 4, 52, 5, DocumentHighlightKind.write())])])
 
 class \nodoc\ iso _DocHighlightValFieldTest is UnitTest
   """
@@ -550,12 +580,14 @@ class \nodoc\ iso _DocHighlightValFieldTest is UnitTest
       h,
       _server,
       _fixture,
-      [ (82, 6, _DocHighlightChecker(
-        [ (82, 6, 82, 10, DocumentHighlightKind.write())
-          (87, 4, 87, 8, DocumentHighlightKind.write())
-          (92, 4, 92, 8, DocumentHighlightKind.write())
-          (95, 4, 95, 8, DocumentHighlightKind.write())
-          (95, 11, 95, 15, DocumentHighlightKind.read())]))])
+      [ _DocHighlightChecker(
+          82,
+          6,
+          [ (82, 6, 82, 10, DocumentHighlightKind.write())
+            (87, 4, 87, 8, DocumentHighlightKind.write())
+            (92, 4, 92, 8, DocumentHighlightKind.write())
+            (95, 4, 95, 8, DocumentHighlightKind.write())
+            (95, 11, 95, 15, DocumentHighlightKind.read())])])
 
 class \nodoc\ iso _DocHighlightDoWorkParamTest is UnitTest
   """
@@ -580,10 +612,12 @@ class \nodoc\ iso _DocHighlightDoWorkParamTest is UnitTest
       h,
       _server,
       _fixture,
-      [ (104, 18, _DocHighlightChecker(
-        [ (104, 18, 104, 19, DocumentHighlightKind.write())
-          (105, 17, 105, 18, DocumentHighlightKind.read())
-          (107, 16, 107, 17, DocumentHighlightKind.read())]))])
+      [ _DocHighlightChecker(
+          104,
+          18,
+          [ (104, 18, 104, 19, DocumentHighlightKind.write())
+            (105, 17, 105, 18, DocumentHighlightKind.read())
+            (107, 16, 107, 17, DocumentHighlightKind.read())])])
 
 class \nodoc\ iso _DocHighlightDoWorkLetTest is UnitTest
   """
@@ -607,9 +641,11 @@ class \nodoc\ iso _DocHighlightDoWorkLetTest is UnitTest
       h,
       _server,
       _fixture,
-      [ (105, 8, _DocHighlightChecker(
-        [ (105, 8, 105, 9, DocumentHighlightKind.write())
-          (106, 17, 106, 18, DocumentHighlightKind.read())]))])
+      [ _DocHighlightChecker(
+          105,
+          8,
+          [ (105, 8, 105, 9, DocumentHighlightKind.write())
+            (106, 17, 106, 18, DocumentHighlightKind.read())])])
 
 class \nodoc\ iso _DocHighlightLetRefTest is UnitTest
   """
@@ -636,10 +672,12 @@ class \nodoc\ iso _DocHighlightLetRefTest is UnitTest
       h,
       _server,
       _fixture,
-      [ (31, 4, _DocHighlightChecker(
-        [ (30, 8, 30, 14, DocumentHighlightKind.write())
-          (31, 4, 31, 10, DocumentHighlightKind.read())
-          (31, 13, 31, 19, DocumentHighlightKind.read())]))])
+      [ _DocHighlightChecker(
+          31,
+          4,
+          [ (30, 8, 30, 14, DocumentHighlightKind.write())
+            (31, 4, 31, 10, DocumentHighlightKind.read())
+            (31, 13, 31, 19, DocumentHighlightKind.read())])])
 
 class \nodoc\ iso _DocHighlightVarRefTest is UnitTest
   """
@@ -667,11 +705,13 @@ class \nodoc\ iso _DocHighlightVarRefTest is UnitTest
       h,
       _server,
       _fixture,
-      [ (107, 4, _DocHighlightChecker(
-        [ (106, 8, 106, 9, DocumentHighlightKind.write())
-          (107, 4, 107, 5, DocumentHighlightKind.write())
-          (107, 8, 107, 9, DocumentHighlightKind.read())
-          (108, 4, 108, 5, DocumentHighlightKind.read())]))])
+      [ _DocHighlightChecker(
+          107,
+          4,
+          [ (106, 8, 106, 9, DocumentHighlightKind.write())
+            (107, 4, 107, 5, DocumentHighlightKind.write())
+            (107, 8, 107, 9, DocumentHighlightKind.read())
+            (108, 4, 108, 5, DocumentHighlightKind.read())])])
 
 class \nodoc\ iso _DocHighlightParamRefTest is UnitTest
   """
@@ -698,10 +738,12 @@ class \nodoc\ iso _DocHighlightParamRefTest is UnitTest
       h,
       _server,
       _fixture,
-      [ (95, 18, _DocHighlightChecker(
-        [ (94, 14, 94, 15, DocumentHighlightKind.write())
-          (95, 18, 95, 19, DocumentHighlightKind.read())
-          (96, 4, 96, 5, DocumentHighlightKind.read())]))])
+      [ _DocHighlightChecker(
+          95,
+          18,
+          [ (94, 14, 94, 15, DocumentHighlightKind.write())
+            (95, 18, 95, 19, DocumentHighlightKind.read())
+            (96, 4, 96, 5, DocumentHighlightKind.read())])])
 
 class \nodoc\ iso _DocHighlightNewRefCallTest is UnitTest
   """
@@ -728,10 +770,12 @@ class \nodoc\ iso _DocHighlightNewRefCallTest is UnitTest
       h,
       _server,
       _fixture,
-      [ (86, 20, _DocHighlightChecker(
-        [ (51, 6, 51, 12, DocumentHighlightKind.text())
-          (86, 20, 86, 26, DocumentHighlightKind.read())
-          (91, 20, 91, 26, DocumentHighlightKind.read())]))])
+      [ _DocHighlightChecker(
+          86,
+          20,
+          [ (51, 6, 51, 12, DocumentHighlightKind.text())
+            (86, 20, 86, 26, DocumentHighlightKind.read())
+            (91, 20, 91, 26, DocumentHighlightKind.read())])])
 
 class \nodoc\ iso _DocHighlightIntLiteralTest is UnitTest
   """
@@ -749,7 +793,7 @@ class \nodoc\ iso _DocHighlightIntLiteralTest is UnitTest
     "document_highlight/integration/int_literal"
 
   fun apply(h: TestHelper) =>
-    _RunLspChecks(h, _server, _fixture, [(87, 11, _DocHighlightChecker([]))])
+    _RunLspChecks(h, _server, _fixture, [_DocHighlightChecker(87, 11, [])])
 
 class \nodoc\ iso _DocHighlightFloatLiteralTest is UnitTest
   """
@@ -767,7 +811,7 @@ class \nodoc\ iso _DocHighlightFloatLiteralTest is UnitTest
     "document_highlight/integration/float_literal"
 
   fun apply(h: TestHelper) =>
-    _RunLspChecks(h, _server, _fixture, [(138, 16, _DocHighlightChecker([]))])
+    _RunLspChecks(h, _server, _fixture, [_DocHighlightChecker(138, 16, [])])
 
 class \nodoc\ iso _DocHighlightStringLiteralTest is UnitTest
   """
@@ -785,7 +829,7 @@ class \nodoc\ iso _DocHighlightStringLiteralTest is UnitTest
     "document_highlight/integration/string_literal"
 
   fun apply(h: TestHelper) =>
-    _RunLspChecks(h, _server, _fixture, [(139, 23, _DocHighlightChecker([]))])
+    _RunLspChecks(h, _server, _fixture, [_DocHighlightChecker(139, 23, [])])
 
 class \nodoc\ iso _DocHighlightWhitespaceTest is UnitTest
   """
@@ -803,7 +847,7 @@ class \nodoc\ iso _DocHighlightWhitespaceTest is UnitTest
     "document_highlight/integration/whitespace"
 
   fun apply(h: TestHelper) =>
-    _RunLspChecks(h, _server, _fixture, [(22, 0, _DocHighlightChecker([]))])
+    _RunLspChecks(h, _server, _fixture, [_DocHighlightChecker(22, 0, [])])
 
 class \nodoc\ iso _DocHighlightOutOfBoundsTest is UnitTest
   """
@@ -821,7 +865,7 @@ class \nodoc\ iso _DocHighlightOutOfBoundsTest is UnitTest
     "document_highlight/integration/out_of_bounds"
 
   fun apply(h: TestHelper) =>
-    _RunLspChecks(h, _server, _fixture, [(21, 100, _DocHighlightChecker([]))])
+    _RunLspChecks(h, _server, _fixture, [_DocHighlightChecker(21, 100, [])])
 
 class \nodoc\ iso _DocHighlightUninitLocalTest is UnitTest
   """
@@ -846,10 +890,12 @@ class \nodoc\ iso _DocHighlightUninitLocalTest is UnitTest
       h,
       _server,
       _fixture,
-      [ (148, 8, _DocHighlightChecker(
-        [ (148, 8, 148, 11, DocumentHighlightKind.write())
-          (149, 4, 149, 7, DocumentHighlightKind.write())
-          (150, 4, 150, 7, DocumentHighlightKind.read())]))])
+      [ _DocHighlightChecker(
+          148,
+          8,
+          [ (148, 8, 148, 11, DocumentHighlightKind.write())
+            (149, 4, 149, 7, DocumentHighlightKind.write())
+            (150, 4, 150, 7, DocumentHighlightKind.read())])])
 
 class \nodoc\ iso _DocHighlightTupleAssignATest is UnitTest
   """
@@ -874,10 +920,12 @@ class \nodoc\ iso _DocHighlightTupleAssignATest is UnitTest
       h,
       _server,
       _fixture,
-      [ (163, 8, _DocHighlightChecker(
-        [ (163, 8, 163, 10, DocumentHighlightKind.write())
-          (165, 5, 165, 7, DocumentHighlightKind.write())
-          (166, 4, 166, 6, DocumentHighlightKind.read())]))])
+      [ _DocHighlightChecker(
+          163,
+          8,
+          [ (163, 8, 163, 10, DocumentHighlightKind.write())
+            (165, 5, 165, 7, DocumentHighlightKind.write())
+            (166, 4, 166, 6, DocumentHighlightKind.read())])])
 
 class \nodoc\ iso _DocHighlightTupleAssignBTest is UnitTest
   """
@@ -902,10 +950,12 @@ class \nodoc\ iso _DocHighlightTupleAssignBTest is UnitTest
       h,
       _server,
       _fixture,
-      [ (164, 8, _DocHighlightChecker(
-        [ (164, 8, 164, 10, DocumentHighlightKind.write())
-          (165, 9, 165, 11, DocumentHighlightKind.write())
-          (166, 9, 166, 11, DocumentHighlightKind.read())]))])
+      [ _DocHighlightChecker(
+          164,
+          8,
+          [ (164, 8, 164, 10, DocumentHighlightKind.write())
+            (165, 9, 165, 11, DocumentHighlightKind.write())
+            (166, 9, 166, 11, DocumentHighlightKind.read())])])
 
 class \nodoc\ iso _DocHighlightTupleElemRefTest is UnitTest
   """
@@ -931,9 +981,11 @@ class \nodoc\ iso _DocHighlightTupleElemRefTest is UnitTest
       h,
       _server,
       _fixture,
-      [ (176, 9, _DocHighlightChecker(
-        [ (175, 8, 175, 12, DocumentHighlightKind.write())
-          (176, 4, 176, 11, DocumentHighlightKind.read())]))])
+      [ _DocHighlightChecker(
+          176,
+          9,
+          [ (175, 8, 175, 12, DocumentHighlightKind.write())
+            (176, 4, 176, 11, DocumentHighlightKind.read())])])
 
 class \nodoc\ iso _DocHighlightBeRefExprTest is UnitTest
   """
@@ -958,9 +1010,11 @@ class \nodoc\ iso _DocHighlightBeRefExprTest is UnitTest
       h,
       _server,
       _fixture,
-      [ (198, 15, _DocHighlightChecker(
-        [ (191, 5, 191, 7, DocumentHighlightKind.text())
-          (198, 15, 198, 17, DocumentHighlightKind.read())]))])
+      [ _DocHighlightChecker(
+          198,
+          15,
+          [ (191, 5, 191, 7, DocumentHighlightKind.text())
+            (198, 15, 198, 17, DocumentHighlightKind.read())])])
 
 class \nodoc\ iso _DocHighlightNewBeRefTest is UnitTest
   """
@@ -984,9 +1038,11 @@ class \nodoc\ iso _DocHighlightNewBeRefTest is UnitTest
       h,
       _server,
       _fixture,
-      [ (207, 18, _DocHighlightChecker(
-        [ (188, 6, 188, 12, DocumentHighlightKind.text())
-          (207, 18, 207, 24, DocumentHighlightKind.read())]))])
+      [ _DocHighlightChecker(
+          207,
+          18,
+          [ (188, 6, 188, 12, DocumentHighlightKind.text())
+            (207, 18, 207, 24, DocumentHighlightKind.read())])])
 
 class \nodoc\ iso _DocHighlightFletRefTest is UnitTest
   """
@@ -1012,11 +1068,13 @@ class \nodoc\ iso _DocHighlightFletRefTest is UnitTest
       h,
       _server,
       _fixture,
-      [ (111, 4, _DocHighlightChecker(
-        [ (80, 6, 80, 11, DocumentHighlightKind.write())
-          (85, 4, 85, 9, DocumentHighlightKind.write())
-          (90, 4, 90, 9, DocumentHighlightKind.write())
-          (111, 4, 111, 9, DocumentHighlightKind.read())]))])
+      [ _DocHighlightChecker(
+          111,
+          4,
+          [ (80, 6, 80, 11, DocumentHighlightKind.write())
+            (85, 4, 85, 9, DocumentHighlightKind.write())
+            (90, 4, 90, 9, DocumentHighlightKind.write())
+            (111, 4, 111, 9, DocumentHighlightKind.read())])])
 
 class \nodoc\ iso _DocHighlightEmbedRefTest is UnitTest
   """
@@ -1042,11 +1100,13 @@ class \nodoc\ iso _DocHighlightEmbedRefTest is UnitTest
       h,
       _server,
       _fixture,
-      [ (114, 4, _DocHighlightChecker(
-        [ (81, 8, 81, 14, DocumentHighlightKind.write())
-          (86, 4, 86, 10, DocumentHighlightKind.write())
-          (91, 4, 91, 10, DocumentHighlightKind.write())
-          (114, 4, 114, 10, DocumentHighlightKind.read())]))])
+      [ _DocHighlightChecker(
+          114,
+          4,
+          [ (81, 8, 81, 14, DocumentHighlightKind.write())
+            (86, 4, 86, 10, DocumentHighlightKind.write())
+            (91, 4, 91, 10, DocumentHighlightKind.write())
+            (114, 4, 114, 10, DocumentHighlightKind.read())])])
 
 class \nodoc\ iso _DocHighlightGenericMethodTTest is UnitTest
   """
@@ -1071,10 +1131,12 @@ class \nodoc\ iso _DocHighlightGenericMethodTTest is UnitTest
       h,
       _server,
       _fixture,
-      [ (217, 12, _DocHighlightChecker(
-        [ (217, 12, 217, 13, DocumentHighlightKind.text())
-          (217, 18, 217, 19, DocumentHighlightKind.text())
-          (217, 22, 217, 23, DocumentHighlightKind.text())]))])
+      [ _DocHighlightChecker(
+          217,
+          12,
+          [ (217, 12, 217, 13, DocumentHighlightKind.text())
+            (217, 18, 217, 19, DocumentHighlightKind.text())
+            (217, 22, 217, 23, DocumentHighlightKind.text())])])
 
 class \nodoc\ iso _DocHighlightGenericClassTTest is UnitTest
   """
@@ -1099,10 +1161,12 @@ class \nodoc\ iso _DocHighlightGenericClassTTest is UnitTest
       h,
       _server,
       _fixture,
-      [ (220, 29, _DocHighlightChecker(
-        [ (220, 29, 220, 30, DocumentHighlightKind.text())
-          (228, 12, 228, 13, DocumentHighlightKind.text())
-          (228, 16, 228, 17, DocumentHighlightKind.text())]))])
+      [ _DocHighlightChecker(
+          220,
+          29,
+          [ (220, 29, 220, 30, DocumentHighlightKind.text())
+            (228, 12, 228, 13, DocumentHighlightKind.text())
+            (228, 16, 228, 17, DocumentHighlightKind.text())])])
 
 class \nodoc\ iso _DocHighlightGenericPairATest is UnitTest
   """
@@ -1128,11 +1192,13 @@ class \nodoc\ iso _DocHighlightGenericPairATest is UnitTest
       h,
       _server,
       _fixture,
-      [ (231, 28, _DocHighlightChecker(
-        [ (231, 28, 231, 29, DocumentHighlightKind.text())
-          (242, 15, 242, 16, DocumentHighlightKind.text())
-          (242, 25, 242, 26, DocumentHighlightKind.text())
-          (245, 16, 245, 17, DocumentHighlightKind.text())]))])
+      [ _DocHighlightChecker(
+          231,
+          28,
+          [ (231, 28, 231, 29, DocumentHighlightKind.text())
+            (242, 15, 242, 16, DocumentHighlightKind.text())
+            (242, 25, 242, 26, DocumentHighlightKind.text())
+            (245, 16, 245, 17, DocumentHighlightKind.text())])])
 
 class \nodoc\ iso _DocHighlightGenericPairBTest is UnitTest
   """
@@ -1158,11 +1224,13 @@ class \nodoc\ iso _DocHighlightGenericPairBTest is UnitTest
       h,
       _server,
       _fixture,
-      [ (231, 31, _DocHighlightChecker(
-        [ (231, 31, 231, 32, DocumentHighlightKind.text())
-          (242, 21, 242, 22, DocumentHighlightKind.text())
-          (245, 22, 245, 23, DocumentHighlightKind.text())
-          (245, 26, 245, 27, DocumentHighlightKind.text())]))])
+      [ _DocHighlightChecker(
+          231,
+          31,
+          [ (231, 31, 231, 32, DocumentHighlightKind.text())
+            (242, 21, 242, 22, DocumentHighlightKind.text())
+            (245, 22, 245, 23, DocumentHighlightKind.text())
+            (245, 26, 245, 27, DocumentHighlightKind.text())])])
 
 class \nodoc\ iso _DocHighlightGenericClassTRefTest is UnitTest
   """
@@ -1188,10 +1256,12 @@ class \nodoc\ iso _DocHighlightGenericClassTRefTest is UnitTest
       h,
       _server,
       _fixture,
-      [ (228, 12, _DocHighlightChecker(
-        [ (220, 29, 220, 30, DocumentHighlightKind.text())
-          (228, 12, 228, 13, DocumentHighlightKind.text())
-          (228, 16, 228, 17, DocumentHighlightKind.text())]))])
+      [ _DocHighlightChecker(
+          228,
+          12,
+          [ (220, 29, 220, 30, DocumentHighlightKind.text())
+            (228, 12, 228, 13, DocumentHighlightKind.text())
+            (228, 16, 228, 17, DocumentHighlightKind.text())])])
 
 class \nodoc\ iso _DocHighlightConstrainedGenericTTest is UnitTest
   """
@@ -1218,10 +1288,12 @@ class \nodoc\ iso _DocHighlightConstrainedGenericTTest is UnitTest
       h,
       _server,
       _fixture,
-      [ (248, 35, _DocHighlightChecker(
-        [ (248, 35, 248, 36, DocumentHighlightKind.text())
-          (255, 15, 255, 16, DocumentHighlightKind.text())
-          (255, 19, 255, 20, DocumentHighlightKind.text())]))])
+      [ _DocHighlightChecker(
+          248,
+          35,
+          [ (248, 35, 248, 36, DocumentHighlightKind.text())
+            (255, 15, 255, 16, DocumentHighlightKind.text())
+            (255, 19, 255, 20, DocumentHighlightKind.text())])])
 
 class \nodoc\ iso _DocHighlightGenericActorBeTTest is UnitTest
   """
@@ -1248,27 +1320,33 @@ class \nodoc\ iso _DocHighlightGenericActorBeTTest is UnitTest
       h,
       _server,
       _fixture,
-      [ (258, 29, _DocHighlightChecker(
-        [ (258, 29, 258, 30, DocumentHighlightKind.text())
-          (266, 12, 266, 13, DocumentHighlightKind.text())]))])
+      [ _DocHighlightChecker(
+          258,
+          29,
+          [ (258, 29, 258, 30, DocumentHighlightKind.text())
+            (266, 12, 266, 13, DocumentHighlightKind.text())])])
 
 class val _DocHighlightChecker
+  let _line: I64
+  let _character: I64
   let _expected: Array[(I64, I64, I64, I64, I64)] val
 
-  new val create(expected: Array[(I64, I64, I64, I64, I64)] val) =>
+  new val create(
+    line': I64,
+    character': I64,
+    expected: Array[(I64, I64, I64, I64, I64)] val)
+  =>
+    _line = line'
+    _character = character'
     _expected = expected
 
   fun lsp_method(): String =>
     Methods.text_document().document_highlight()
 
-  fun lsp_range(): (None | (I64, I64, I64, I64)) =>
-    None
-
-  fun lsp_context(): (None | JsonObject) =>
-    None
-
-  fun lsp_extra_params(): (None | JsonObject) =>
-    None
+  fun lsp_params(): (None | JsonObject) =>
+    JsonObject.update(
+      "position",
+      JsonObject.update("line", _line).update("character", _character))
 
   fun check(res: ResponseMessage val, h: TestHelper): Bool =>
     var ok = true

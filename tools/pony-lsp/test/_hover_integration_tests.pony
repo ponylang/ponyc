@@ -37,25 +37,25 @@ class \nodoc\ iso _HoverIntegrationLiteralsTest is UnitTest
       _server,
       "hover/_literals.pony",
       [ // variable declarations show their types
-        (11, 8, _HoverChecker(["let integer: U32 val"]))
-        (12, 8, _HoverChecker(["let hex: U32 val"]))
-        (13, 8, _HoverChecker(["let binary: U32 val"]))
-        (14, 8, _HoverChecker(["let float_val: F64 val"]))
-        (15, 8, _HoverChecker(["let string_val: String val"]))
-        (16, 8, _HoverChecker(["let char_val: U32 val"]))
-        (17, 8, _HoverChecker(["let bool_true: Bool val"]))
-        (18, 8, _HoverChecker(["let bool_false: Bool val"]))
-        (19, 8, _HoverChecker(["let array_val: Array[U32 val] ref"]))
+        _HoverChecker(11, 8, ["let integer: U32 val"])
+        _HoverChecker(12, 8, ["let hex: U32 val"])
+        _HoverChecker(13, 8, ["let binary: U32 val"])
+        _HoverChecker(14, 8, ["let float_val: F64 val"])
+        _HoverChecker(15, 8, ["let string_val: String val"])
+        _HoverChecker(16, 8, ["let char_val: U32 val"])
+        _HoverChecker(17, 8, ["let bool_true: Bool val"])
+        _HoverChecker(18, 8, ["let bool_false: Bool val"])
+        _HoverChecker(19, 8, ["let array_val: Array[U32 val] ref"])
         // no hover on literal values
-        (11, 23, _HoverChecker([]))
-        (12, 19, _HoverChecker([]))
-        (13, 22, _HoverChecker([]))
-        (14, 25, _HoverChecker([]))
-        (15, 29, _HoverChecker([]))
-        (16, 24, _HoverChecker([]))
-        (17, 26, _HoverChecker([]))
-        (18, 27, _HoverChecker([]))
-        (19, 33, _HoverChecker([]))])
+        _HoverChecker(11, 23, [])
+        _HoverChecker(12, 19, [])
+        _HoverChecker(13, 22, [])
+        _HoverChecker(14, 25, [])
+        _HoverChecker(15, 29, [])
+        _HoverChecker(16, 24, [])
+        _HoverChecker(17, 26, [])
+        _HoverChecker(18, 27, [])
+        _HoverChecker(19, 33, [])])
 
 class \nodoc\ iso _HoverIntegrationClassTest is UnitTest
   let _server: _LspTestServer
@@ -70,24 +70,28 @@ class \nodoc\ iso _HoverIntegrationClassTest is UnitTest
       h,
       _server,
       "hover/_class.pony",
-      [ (0, 6, _HoverChecker(
-          ["class _Class"; "A simple class for exercising LSP hover."]))
+      [ _HoverChecker(
+          0,
+          6,
+          ["class _Class"; "A simple class for exercising LSP hover."])
         // field declarations
-        (4, 6, _HoverChecker(["let field_name: String val"]))
-        (5, 6, _HoverChecker(["var mutable_field: U32 val"]))
-        (6, 8, _HoverChecker(
-          ["embed embedded_field: Array[String val] ref"]))
+        _HoverChecker(4, 6, ["let field_name: String val"])
+        _HoverChecker(5, 6, ["var mutable_field: U32 val"])
+        _HoverChecker(
+          6,
+          8,
+          ["embed embedded_field: Array[String val] ref"])
         // constructor declaration
-        (8, 6, _HoverChecker(["new ref create(name: String val)"]))
+        _HoverChecker(8, 6, ["new ref create(name: String val)"])
         // field usages
-        (9, 4, _HoverChecker(["let field_name: String val"]))
-        (10, 4, _HoverChecker(["var mutable_field: U32 val"]))
-        (16, 4, _HoverChecker(["let field_name: String val"]))
-        (28, 4, _HoverChecker(["var mutable_field: U32 val"]))
+        _HoverChecker(9, 4, ["let field_name: String val"])
+        _HoverChecker(10, 4, ["var mutable_field: U32 val"])
+        _HoverChecker(16, 4, ["let field_name: String val"])
+        _HoverChecker(28, 4, ["var mutable_field: U32 val"])
         // no hover on docstring or blank line
-        (1, 2, _HoverChecker([]))
-        (2, 4, _HoverChecker([]))
-        (7, 0, _HoverChecker([]))])
+        _HoverChecker(1, 2, [])
+        _HoverChecker(2, 4, [])
+        _HoverChecker(7, 0, [])])
 
 class \nodoc\ iso _HoverIntegrationActorTest is UnitTest
   let _server: _LspTestServer
@@ -102,10 +106,12 @@ class \nodoc\ iso _HoverIntegrationActorTest is UnitTest
       h,
       _server,
       "hover/_actor.pony",
-      [ (0, 6, _HoverChecker(
-          ["actor _Actor"; "A simple actor for exercising LSP hover."]))
-        (6, 6, _HoverChecker(["new tag create(name': String val)"]))
-        (9, 5, _HoverChecker(["be tag do_something(value: U64 val)"]))])
+      [ _HoverChecker(
+          0,
+          6,
+          ["actor _Actor"; "A simple actor for exercising LSP hover."])
+        _HoverChecker(6, 6, ["new tag create(name': String val)"])
+        _HoverChecker(9, 5, ["be tag do_something(value: U64 val)"])])
 
 class \nodoc\ iso _HoverIntegrationAliasTest is UnitTest
   let _server: _LspTestServer
@@ -120,8 +126,10 @@ class \nodoc\ iso _HoverIntegrationAliasTest is UnitTest
       h,
       _server,
       "hover/_alias.pony",
-      [ (0, 5, _HoverChecker(
-        ["type _Alias"; "A simple alias for exercising LSP hover."]))])
+      [ _HoverChecker(
+          0,
+          5,
+          ["type _Alias"; "A simple alias for exercising LSP hover."])])
 
 class \nodoc\ iso _HoverIntegrationInterfaceTest is UnitTest
   let _server: _LspTestServer
@@ -136,9 +144,11 @@ class \nodoc\ iso _HoverIntegrationInterfaceTest is UnitTest
       h,
       _server,
       "hover/_interface.pony",
-      [ (0, 10, _HoverChecker(
-        [ "interface _Interface"
-          "A simple interface for exercising LSP hover."]))])
+      [ _HoverChecker(
+          0,
+          10,
+          [ "interface _Interface"
+            "A simple interface for exercising LSP hover."])])
 
 class \nodoc\ iso _HoverIntegrationPrimitiveTest is UnitTest
   let _server: _LspTestServer
@@ -153,9 +163,11 @@ class \nodoc\ iso _HoverIntegrationPrimitiveTest is UnitTest
       h,
       _server,
       "hover/_primitive.pony",
-      [ (0, 10, _HoverChecker(
-        [ "primitive _Primitive"
-          "A simple primitive for exercising LSP hover."]))])
+      [ _HoverChecker(
+          0,
+          10,
+          [ "primitive _Primitive"
+            "A simple primitive for exercising LSP hover."])])
 
 class \nodoc\ iso _HoverIntegrationTraitTest is UnitTest
   let _server: _LspTestServer
@@ -170,8 +182,10 @@ class \nodoc\ iso _HoverIntegrationTraitTest is UnitTest
       h,
       _server,
       "hover/_trait.pony",
-      [ (0, 6, _HoverChecker(
-        ["trait _Trait"; "A simple trait for exercising LSP hover."]))])
+      [ _HoverChecker(
+          0,
+          6,
+          ["trait _Trait"; "A simple trait for exercising LSP hover."])])
 
 class \nodoc\ iso _HoverIntegrationFunctionTest is UnitTest
   let _server: _LspTestServer
@@ -186,36 +200,46 @@ class \nodoc\ iso _HoverIntegrationFunctionTest is UnitTest
       h,
       _server,
       "hover/_function.pony",
-      [ (15, 6, _HoverChecker(
+      [ _HoverChecker(
+          15,
+          6,
           [ "fun box helper_method(input: String val): String val"
-            "A helper method that processes input."]))
-        (21, 6, _HoverChecker(
+            "A helper method that processes input."])
+        _HoverChecker(
+          21,
+          6,
           [ "fun box method_with_multiple_params" +
             "(x: U32 val, y: String val, flag: Bool val): String val"
-            "Method with multiple parameters for testing."]))
-        (11, 23, _HoverChecker(
+            "Method with multiple parameters for testing."])
+        _HoverChecker(
+          11,
+          23,
           [ "fun box helper_method(input: String val): String val"
-            "A helper method that processes input."]))
-        (12, 23, _HoverChecker(
+            "A helper method that processes input."])
+        _HoverChecker(
+          12,
+          23,
           [ "fun box method_with_multiple_params" +
             "(x: U32 val, y: String val, flag: Bool val): String val"
-            "Method with multiple parameters for testing."]))
-        (11, 8, _HoverChecker(["let result1: String val"]))
-        (12, 8, _HoverChecker(["let result2: String val"]))
+            "Method with multiple parameters for testing."])
+        _HoverChecker(11, 8, ["let result1: String val"])
+        _HoverChecker(12, 8, ["let result2: String val"])
         // parameter declarations
-        (15, 20, _HoverChecker(["input: String val"]))
-        (21, 34, _HoverChecker(["x: U32 val"]))
-        (21, 42, _HoverChecker(["y: String val"]))
-        (21, 53, _HoverChecker(["flag: Bool val"]))
+        _HoverChecker(15, 20, ["input: String val"])
+        _HoverChecker(21, 34, ["x: U32 val"])
+        _HoverChecker(21, 42, ["y: String val"])
+        _HoverChecker(21, 53, ["flag: Bool val"])
         // parameter usages
-        (19, 4, _HoverChecker(["input: String val"]))
-        (25, 4, _HoverChecker(["y: String val"]))
+        _HoverChecker(19, 4, ["input: String val"])
+        _HoverChecker(25, 4, ["y: String val"])
         // ref receiver method
-        (27, 10, _HoverChecker(
+        _HoverChecker(
+          27,
+          10,
           [ "fun ref mutable_method(value: U32 val)"
-            "A method with a ref receiver capability."]))
+            "A method with a ref receiver capability."])
         // this reference
-        (11, 18, _HoverChecker([]))])
+        _HoverChecker(11, 18, [])])
 
 class \nodoc\ iso _HoverIntegrationTypeInferenceTest is UnitTest
   let _server: _LspTestServer
@@ -230,12 +254,12 @@ class \nodoc\ iso _HoverIntegrationTypeInferenceTest is UnitTest
       h,
       _server,
       "hover/_type_inference.pony",
-      [ (18, 8, _HoverChecker(["let inferred_string: String val"]))
-        (21, 8, _HoverChecker(["let inferred_bool: Bool"]))
-        (24, 8, _HoverChecker(["let inferred_array: Array[U32 val] ref"]))
-        (26, 4, _HoverChecker(["let inferred_string: String val"]))
-        (26, 22, _HoverChecker(["let inferred_bool: Bool"]))
-        (26, 47, _HoverChecker(["let inferred_array: Array[U32 val] ref"]))])
+      [ _HoverChecker(18, 8, ["let inferred_string: String val"])
+        _HoverChecker(21, 8, ["let inferred_bool: Bool"])
+        _HoverChecker(24, 8, ["let inferred_array: Array[U32 val] ref"])
+        _HoverChecker(26, 4, ["let inferred_string: String val"])
+        _HoverChecker(26, 22, ["let inferred_bool: Bool"])
+        _HoverChecker(26, 47, ["let inferred_array: Array[U32 val] ref"])])
 
 class \nodoc\ iso _HoverIntegrationReceiverCapabilityTest is UnitTest
   let _server: _LspTestServer
@@ -250,9 +274,9 @@ class \nodoc\ iso _HoverIntegrationReceiverCapabilityTest is UnitTest
       h,
       _server,
       "hover/_receiver_capability.pony",
-      [ (5, 10, _HoverChecker(["fun box boxed_method(): String val"]))
-        (13, 10, _HoverChecker(["fun val valued_method(): String val"]))
-        (20, 10, _HoverChecker(["fun ref mutable_method()"]))])
+      [ _HoverChecker(5, 10, ["fun box boxed_method(): String val"])
+        _HoverChecker(13, 10, ["fun val valued_method(): String val"])
+        _HoverChecker(20, 10, ["fun ref mutable_method()"])])
 
 class \nodoc\ iso _HoverIntegrationComplexTypesTest is UnitTest
   let _server: _LspTestServer
@@ -267,14 +291,22 @@ class \nodoc\ iso _HoverIntegrationComplexTypesTest is UnitTest
       h,
       _server,
       "hover/_complex_types.pony",
-      [ (11, 8, _HoverChecker(
-          ["let union_type: (String val | U32 val | None val)"]))
-        (12, 8, _HoverChecker(
-          ["let tuple_type: (String val, U32 val, Bool val)"]))
-        (13, 4, _HoverChecker(
-          ["let union_type: (String val | U32 val | None val)"]))
-        (13, 26, _HoverChecker(
-          ["let tuple_type: (String val, U32 val, Bool val)"]))])
+      [ _HoverChecker(
+          11,
+          8,
+          ["let union_type: (String val | U32 val | None val)"])
+        _HoverChecker(
+          12,
+          8,
+          ["let tuple_type: (String val, U32 val, Bool val)"])
+        _HoverChecker(
+          13,
+          4,
+          ["let union_type: (String val | U32 val | None val)"])
+        _HoverChecker(
+          13,
+          26,
+          ["let tuple_type: (String val, U32 val, Bool val)"])])
 
 class \nodoc\ iso _HoverIntegrationGenericsTest is UnitTest
   let _server: _LspTestServer
@@ -290,99 +322,147 @@ class \nodoc\ iso _HoverIntegrationGenericsTest is UnitTest
       _server,
       "hover/_generics.pony",
       [ // trait _Generics
-        (0, 6, _HoverChecker(
+        _HoverChecker(
+          0,
+          6,
           [ "trait _Generics[T: _Generics[T] box]"
-            "A trait demonstrating recursive type constraints."]))
-        (5, 6, _HoverChecker(["fun box compare(that: box->T): I32 val"]))
+            "A trait demonstrating recursive type constraints."])
+        _HoverChecker(5, 6, ["fun box compare(that: box->T): I32 val"])
         // class _GenericsDemo
-        (7, 6, _HoverChecker(
+        _HoverChecker(
+          7,
+          6,
           [ "class _GenericsDemo[T: Any val]"
-            "Demonstrates hover on generic classes with type parameters."]))
-        (12, 6, _HoverChecker(["let _value: T"]))
-        (17, 6, _HoverChecker(
-          ["fun box get(): T"; "Returns the stored value."]))
-        (23, 6, _HoverChecker(
+            "Demonstrates hover on generic classes with type parameters."])
+        _HoverChecker(12, 6, ["let _value: T"])
+        _HoverChecker(
+          17,
+          6,
+          ["fun box get(): T"; "Returns the stored value."])
+        _HoverChecker(
+          23,
+          6,
           [ "fun box with_generic_param[U: Any val](other: U): (T, U)"
-            "A generic method with its own type parameter."]))
+            "A generic method with its own type parameter."])
         // class _GenericPair
-        (30, 6, _HoverChecker(
+        _HoverChecker(
+          30,
+          6,
           [ "class _GenericPair[A: Any val, B: Any val]"
-            "Demonstrates multiple type parameters."]))
-        (35, 6, _HoverChecker(["let first: A"]))
-        (36, 6, _HoverChecker(["let second: B"]))
-        (42, 6, _HoverChecker(
-          ["fun box get_first(): A"; "Returns the first element."]))
-        (48, 6, _HoverChecker(
-          ["fun box get_second(): B"; "Returns the second element."]))
+            "Demonstrates multiple type parameters."])
+        _HoverChecker(35, 6, ["let first: A"])
+        _HoverChecker(36, 6, ["let second: B"])
+        _HoverChecker(
+          42,
+          6,
+          ["fun box get_first(): A"; "Returns the first element."])
+        _HoverChecker(
+          48,
+          6,
+          ["fun box get_second(): B"; "Returns the second element."])
         // class _GenericContainer
-        (54, 6, _HoverChecker(
+        _HoverChecker(
+          54,
+          6,
           [ "class _GenericContainer[T: Stringable val]"
-            "Demonstrates type constraints on generic parameters."]))
-        (59, 6, _HoverChecker(["let _items: Array[T] ref"]))
-        (64, 10, _HoverChecker(
-          ["fun ref add(item: T)"; "Add an item to the container."]))
-        (70, 6, _HoverChecker(
+            "Demonstrates type constraints on generic parameters."])
+        _HoverChecker(59, 6, ["let _items: Array[T] ref"])
+        _HoverChecker(
+          64,
+          10,
+          ["fun ref add(item: T)"; "Add an item to the container."])
+        _HoverChecker(
+          70,
+          6,
           [ "fun box get_strings(): Array[String val] ref"
-            "Returns string representations of all items."]))
-        (75, 8, _HoverChecker(["let result: Array[String val] ref"]))
+            "Returns string representations of all items."])
+        _HoverChecker(75, 8, ["let result: Array[String val] ref"])
         // actor _GenericActor
-        (81, 6, _HoverChecker(
+        _HoverChecker(
+          81,
+          6,
           [ "actor _GenericActor[T: Any val]"
-            "Demonstrates generic actors."]))
-        (86, 6, _HoverChecker(["var _state: T"]))
-        (91, 5, _HoverChecker(
+            "Demonstrates generic actors."])
+        _HoverChecker(86, 6, ["var _state: T"])
+        _HoverChecker(
+          91,
+          5,
           [ "be tag update(new_state: T): None val"
-            "Updates the actor's state."]))
-        (97, 5, _HoverChecker(
+            "Updates the actor's state."])
+        _HoverChecker(
+          97,
+          5,
           [ "be tag process[U: Any val](data: U): None val"
-            "A generic behavior with its own type parameter."]))
+            "A generic behavior with its own type parameter."])
         // primitive _GenericHelper
-        (104, 10, _HoverChecker(
+        _HoverChecker(
+          104,
+          10,
           [ "primitive _GenericHelper"
-            "Demonstrates generic methods in primitives."]))
-        (108, 6, _HoverChecker(
+            "Demonstrates generic methods in primitives."])
+        _HoverChecker(
+          108,
+          6,
           [ "fun box identity[T: Any val](value: T): T"
-            "A generic identity function."]))
-        (115, 6, _HoverChecker(
+            "A generic identity function."])
+        _HoverChecker(
+          115,
+          6,
           [ "fun box create_pair[A: Any val, B: Any val](a: A, b: B): (A, B)"
-            "Creates a tuple from two values of different types."]))
-        (121, 6, _HoverChecker(
+            "Creates a tuple from two values of different types."])
+        _HoverChecker(
+          121,
+          6,
           [ "fun box apply[T: Any val](): Array[T] ref"
-            "Creates an empty array of any type."]))
+            "Creates an empty array of any type."])
         // class _GenericUsageDemo - instantiated generics
-        (128, 6, _HoverChecker(
+        _HoverChecker(
+          128,
+          6,
           [ "class _GenericUsageDemo"
-            "Demonstrates hover on instantiated generic types."]))
-        (141, 8, _HoverChecker(
-          ["let pair: _GenericPair[String val, U32 val] ref"]))
-        (142, 8, _HoverChecker(
-          ["let container: _GenericContainer[String val] ref"]))
-        (143, 8, _HoverChecker(["let numbers: _GenericsDemo[U64 val] ref"]))
-        (148, 8, _HoverChecker(["let first: String val"]))
-        (148, 21, _HoverChecker(
-          ["fun box get_first(): A"; "Returns the first element."]))
-        (151, 8, _HoverChecker(["let result: (U64 val, String val)"]))
-        (151, 25, _HoverChecker(
+            "Demonstrates hover on instantiated generic types."])
+        _HoverChecker(
+          141,
+          8,
+          ["let pair: _GenericPair[String val, U32 val] ref"])
+        _HoverChecker(
+          142,
+          8,
+          ["let container: _GenericContainer[String val] ref"])
+        _HoverChecker(143, 8, ["let numbers: _GenericsDemo[U64 val] ref"])
+        _HoverChecker(148, 8, ["let first: String val"])
+        _HoverChecker(
+          148,
+          21,
+          ["fun box get_first(): A"; "Returns the first element."])
+        _HoverChecker(151, 8, ["let result: (U64 val, String val)"])
+        _HoverChecker(
+          151,
+          25,
           [ "fun box with_generic_param[U: Any val](other: U): (T, U)"
-            "A generic method with its own type parameter."]))])
+            "A generic method with its own type parameter."])])
 
 class val _HoverChecker
+  let _line: I64
+  let _character: I64
   let _expected: Array[String] val
 
-  new val create(expected: Array[String] val) =>
+  new val create(
+    line': I64,
+    character': I64,
+    expected: Array[String] val)
+  =>
+    _line = line'
+    _character = character'
     _expected = expected
 
   fun lsp_method(): String =>
     Methods.text_document().hover()
 
-  fun lsp_range(): (None | (I64, I64, I64, I64)) =>
-    None
-
-  fun lsp_context(): (None | JsonObject) =>
-    None
-
-  fun lsp_extra_params(): (None | JsonObject) =>
-    None
+  fun lsp_params(): (None | JsonObject) =>
+    JsonObject.update(
+      "position",
+      JsonObject.update("line", _line).update("character", _character))
 
   fun check(res: ResponseMessage val, h: TestHelper): Bool =>
     var ok = true

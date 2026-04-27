@@ -35,14 +35,14 @@ class \nodoc\ iso _DefinitionClassIntegrationTest is UnitTest
       _server,
       "definition/_class.pony",
       [ // field usages → field declaration
-        (7, 4, _DefinitionChecker([("_class.pony", (4, 2), (4, 17))]))
-        (10, 4, _DefinitionChecker([("_class.pony", (4, 2), (4, 17))]))
+        _DefinitionChecker(7, 4, [("_class.pony", (4, 2), (4, 17))])
+        _DefinitionChecker(10, 4, [("_class.pony", (4, 2), (4, 17))])
         // parameter usage → parameter declaration (line 6, "v: U32" span)
-        (7, 13, _DefinitionChecker([("_class.pony", (6, 13), (6, 19))]))
+        _DefinitionChecker(7, 13, [("_class.pony", (6, 13), (6, 19))])
         // method call → method declaration
-        (13, 9, _DefinitionChecker([("_class.pony", (9, 2), (10, 10))]))
+        _DefinitionChecker(13, 9, [("_class.pony", (9, 2), (10, 10))])
         // no definition on docstring content
-        (1, 4, _DefinitionChecker([]))])
+        _DefinitionChecker(1, 4, [])])
 
 class \nodoc\ iso _DefinitionThisIntegrationTest is UnitTest
   let _server: _LspTestServer
@@ -58,7 +58,7 @@ class \nodoc\ iso _DefinitionThisIntegrationTest is UnitTest
       _server,
       "definition/_class.pony",
       [ // `this` in method body → enclosing class declaration
-        (13, 4, _DefinitionChecker([("_class.pony", (0, 0), (13, 13))]))])
+        _DefinitionChecker(13, 4, [("_class.pony", (0, 0), (13, 13))])])
 
 class \nodoc\ iso _DefinitionKeywordsIntegrationTest is UnitTest
   let _server: _LspTestServer
@@ -74,13 +74,13 @@ class \nodoc\ iso _DefinitionKeywordsIntegrationTest is UnitTest
       _server,
       "definition/_class.pony",
       [ // `class` keyword in a declaration → no definition
-        (0, 0, _DefinitionChecker([]))
+        _DefinitionChecker(0, 0, [])
         // `new` keyword in a constructor declaration → no definition
-        (6, 2, _DefinitionChecker([]))
+        _DefinitionChecker(6, 2, [])
         // `fun` keyword in a method declaration → no definition
-        (9, 2, _DefinitionChecker([]))
+        _DefinitionChecker(9, 2, [])
         // `:` type annotation separator → no definition
-        (9, 11, _DefinitionChecker([]))])
+        _DefinitionChecker(9, 11, [])])
 
 class \nodoc\ iso _DefinitionTraitIntegrationTest is UnitTest
   let _server: _LspTestServer
@@ -96,7 +96,7 @@ class \nodoc\ iso _DefinitionTraitIntegrationTest is UnitTest
       _server,
       "definition/_trait.pony",
       [ // call via trait-typed receiver → trait method declaration (line 7)
-        (50, 6, _DefinitionChecker([("_trait.pony", (7, 2), (7, 25))]))])
+        _DefinitionChecker(50, 6, [("_trait.pony", (7, 2), (7, 25))])])
 
 class \nodoc\ iso _DefinitionUnionIntegrationTest is UnitTest
   let _server: _LspTestServer
@@ -113,9 +113,11 @@ class \nodoc\ iso _DefinitionUnionIntegrationTest is UnitTest
       "definition/_trait.pony",
       [ // call via union-typed receiver → one definition per union member
         // _DefLeft.shared (line 29) and _DefRight.shared (line 35)
-        (53, 6, _DefinitionChecker(
+        _DefinitionChecker(
+          53,
+          6,
           [ ("_trait.pony", (29, 2), (29, 24))
-            ("_trait.pony", (35, 2), (35, 24))]))])
+            ("_trait.pony", (35, 2), (35, 24))])])
 
 class \nodoc\ iso _DefinitionCrossFileIntegrationTest is UnitTest
   let _server: _LspTestServer
@@ -131,10 +133,12 @@ class \nodoc\ iso _DefinitionCrossFileIntegrationTest is UnitTest
       _server,
       "definition/_cross_usage.pony",
       [ // type reference in parameter → class declaration in other file
-        (13, 16, _DefinitionChecker([("_cross_target.pony", (0, 0), (13, 21))]))
+        _DefinitionChecker(13, 16, [("_cross_target.pony", (0, 0), (13, 21))])
         // method call → method declaration in other file (line 13)
-        (14, 8, _DefinitionChecker(
-          [("_cross_target.pony", (13, 2), (13, 21))]))])
+        _DefinitionChecker(
+          14,
+          8,
+          [("_cross_target.pony", (13, 2), (13, 21))])])
 
 class \nodoc\ iso _DefinitionGenericsIntegrationTest is UnitTest
   let _server: _LspTestServer
@@ -150,8 +154,10 @@ class \nodoc\ iso _DefinitionGenericsIntegrationTest is UnitTest
       _server,
       "definition/_generics.pony",
       [ // `T` in return type → type parameter declaration in method header
-        (19, 22, _DefinitionChecker(
-          [("_generics.pony", (19, 12), (19, 16))]))])
+        _DefinitionChecker(
+          19,
+          22,
+          [("_generics.pony", (19, 12), (19, 16))])])
 
 class \nodoc\ iso _DefinitionTupleIntegrationTest is UnitTest
   let _server: _LspTestServer
@@ -167,7 +173,7 @@ class \nodoc\ iso _DefinitionTupleIntegrationTest is UnitTest
       _server,
       "definition/_tuple.pony",
       [ // `_1` tuple element access → `let pair` declaration
-        (16, 9, _DefinitionChecker([("_tuple.pony", (15, 4), (15, 26))]))])
+        _DefinitionChecker(16, 9, [("_tuple.pony", (15, 4), (15, 26))])])
 
 class \nodoc\ iso _DefinitionTypeAliasIntegrationTest is UnitTest
   let _server: _LspTestServer
@@ -183,15 +189,19 @@ class \nodoc\ iso _DefinitionTypeAliasIntegrationTest is UnitTest
       _server,
       "definition/_type_alias.pony",
       [ // `Map` type alias in `Map[String, U32]` → Map type alias declaration
-        (17, 13, _DefinitionChecker([("map.pony", (3, 0), (7, 7))]))
+        _DefinitionChecker(17, 13, [("map.pony", (3, 0), (7, 7))])
         // `String` type arg in `Map[String, U32]` → String class declaration
-        (17, 17, _DefinitionChecker([("string.pony", (8, 0), (1682, 25))]))
+        _DefinitionChecker(17, 17, [("string.pony", (8, 0), (1682, 25))])
         // `U32` type arg in `Map[String, U32]` → U32 primitive declaration
-        (17, 25, _DefinitionChecker(
-          [("unsigned.pony", (185, 0), (255, 60))]))
+        _DefinitionChecker(
+          17,
+          25,
+          [("unsigned.pony", (185, 0), (255, 60))])
         // `_Alias` usage → type alias declaration (line 2)
-        (19, 20, _DefinitionChecker(
-          [("_type_alias.pony", (2, 0), (2, 18))]))])
+        _DefinitionChecker(
+          19,
+          20,
+          [("_type_alias.pony", (2, 0), (2, 18))])])
 
 class \nodoc\ iso _DefinitionLastEntityBarePrimTest is UnitTest
   """
@@ -224,27 +234,31 @@ class \nodoc\ iso _DefinitionLastEntityBarePrimTest is UnitTest
       h,
       _server,
       "definition/_bare_prim.pony",
-      [ (1, 13, _DefinitionChecker([("_bare_prim.pony", (4, 0), (4, 26))]))])
+      [ _DefinitionChecker(1, 13, [("_bare_prim.pony", (4, 0), (4, 26))])])
 
 type DefinitionExpectation is (String val, (I64, I64), (I64, I64))
 
 class val _DefinitionChecker
+  let _line: I64
+  let _character: I64
   let _expected: Array[DefinitionExpectation] val
 
-  new val create(expected: Array[DefinitionExpectation] val) =>
+  new val create(
+    line': I64,
+    character': I64,
+    expected: Array[DefinitionExpectation] val)
+  =>
+    _line = line'
+    _character = character'
     _expected = expected
 
   fun lsp_method(): String =>
     Methods.text_document().definition()
 
-  fun lsp_range(): (None | (I64, I64, I64, I64)) =>
-    None
-
-  fun lsp_context(): (None | JsonObject) =>
-    None
-
-  fun lsp_extra_params(): (None | JsonObject) =>
-    None
+  fun lsp_params(): (None | JsonObject) =>
+    JsonObject.update(
+      "position",
+      JsonObject.update("line", _line).update("character", _character))
 
   fun check(res: ResponseMessage val, h: TestHelper): Bool =>
     var ok =

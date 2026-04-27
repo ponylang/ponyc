@@ -41,11 +41,12 @@ actor _LspTestServer is Channel
 
   be request(
     h: TestHelper,
-    pos: _LspPosition val,
-    checker: _ResponseChecker val)
+    workspace_file: String,
+    checker: _RoundTripCheck val,
+    action: String)
   =>
-    let file_path = Path.join(_workspace_dir, pos.workspace_file)
-    let pending = _PendingRequest(file_path, pos, h, checker)
+    let file_path = Path.join(_workspace_dir, workspace_file)
+    let pending = _PendingRequest(file_path, action, h, checker)
     if _ready then
       if not _opened.contains(file_path) then
         _opened.set(file_path)
@@ -69,33 +70,10 @@ actor _LspTestServer is Channel
     _next_id = id + 1
     try
       var params =
-        JsonObject
-          .update(
-            "textDocument",
-            JsonObject.update("uri", Uris.from_path(pending.file_path)))
-          .update(
-            "position",
-            JsonObject
-              .update("line", pending.pos.line)
-              .update("character", pending.pos.character))
-      match pending.checker.lsp_range()
-      | (let sl: I64, let sc: I64, let el: I64, let ec: I64) =>
-        params =
-          params.update(
-            "range",
-            JsonObject
-              .update(
-                "start",
-                JsonObject.update("line", sl).update("character", sc))
-              .update(
-                "end",
-                JsonObject.update("line", el).update("character", ec)))
-      end
-      match pending.checker.lsp_context()
-      | let ctx: JsonObject =>
-        params = params.update("context", ctx)
-      end
-      match pending.checker.lsp_extra_params()
+        JsonObject.update(
+          "textDocument",
+          JsonObject.update("uri", Uris.from_path(pending.file_path)))
+      match pending.checker.lsp_params()
       | let extra: JsonObject =>
         for (k, v) in extra.pairs() do
           params = params.update(k, v)
@@ -105,7 +83,7 @@ actor _LspTestServer is Channel
         RequestMessage(id, pending.checker.lsp_method(), params).into_bytes())
       _in_flight(id) = pending
     else
-      pending.h.fail_action(pending.pos.action())
+      pending.h.fail_action(pending.action)
     end
 
   be send(msg: Message val) =>
@@ -120,7 +98,7 @@ actor _LspTestServer is Channel
           | let id_i64: I64 =>
             try
               (_, let pending) = _in_flight.remove(id_i64)?
-              let action = pending.pos.action()
+              let action = pending.action
               if pending.checker.check(res, pending.h) then
                 pending.h.complete_action(action)
               else
@@ -165,7 +143,7 @@ actor _LspTestServer is Channel
 
   fun ref _fail_all_in_flight() =>
     for (_, p) in _in_flight.pairs() do
-      p.h.fail_action(p.pos.action())
+      p.h.fail_action(p.action)
     end
     _in_flight.clear()
 
@@ -195,18 +173,18 @@ actor _LspTestServer is Channel
 
 class val _PendingRequest
   let file_path: String
-  let pos: _LspPosition val
+  let action: String
   let h: TestHelper
-  let checker: _ResponseChecker val
+  let checker: _RoundTripCheck val
 
   new val create(
     file_path': String,
-    pos': _LspPosition val,
+    action': String,
     h': TestHelper,
-    checker': _ResponseChecker val)
+    checker': _RoundTripCheck val)
   =>
     file_path = file_path'
-    pos = pos'
+    action = action'
     h = h'
     checker = checker'
 
@@ -215,11 +193,11 @@ primitive _RunLspChecks
     h: TestHelper,
     server: _LspTestServer,
     workspace_file: String,
-    checks: Array[(I64, I64, _ResponseChecker val)] val)
+    checks: Array[_RoundTripCheck val] val)
   =>
     h.long_test(10_000_000_000)
-    for (line, character, checker) in checks.values() do
-      let pos = _LspPosition(workspace_file, line, character)
-      h.expect_action(pos.action())
-      server.request(h, pos, checker)
+    for checker in checks.values() do
+      let action: String = (digestof checker).string()
+      h.expect_action(action)
+      server.request(h, workspace_file, checker, action)
     end
