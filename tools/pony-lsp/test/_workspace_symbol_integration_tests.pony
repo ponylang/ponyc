@@ -38,10 +38,9 @@ class \nodoc\ iso _WsSymExactMatchTest is UnitTest
       h,
       _server,
       "workspace_symbol/_ws_sym_host.pony",
-      [ ( 0, 0,
-          _WsSymChecker(
-            "_WsSymHost",
-            [("_WsSymHost", 5, "_ws_sym_host.pony", None)]))])
+      [ _WsSymChecker(
+          "_WsSymHost",
+          [("_WsSymHost", 5, "_ws_sym_host.pony", None)])])
 
 class \nodoc\ iso _WsSymSubstringMatchTest is UnitTest
   """
@@ -61,11 +60,10 @@ class \nodoc\ iso _WsSymSubstringMatchTest is UnitTest
       h,
       _server,
       "workspace_symbol/_ws_sym_host.pony",
-      [ ( 0, 0,
-          _WsSymChecker(
-            "_WsSym",
-            [ ("_WsSymHost", 5, "_ws_sym_host.pony", None)
-              ("_WsSymInner", 5, "_ws_sym_host.pony", None)]))])
+      [ _WsSymChecker(
+          "_WsSym",
+          [ ("_WsSymHost", 5, "_ws_sym_host.pony", None)
+            ("_WsSymInner", 5, "_ws_sym_host.pony", None)])])
 
 class \nodoc\ iso _WsSymSubstringInMiddleTest is UnitTest
   """
@@ -85,10 +83,9 @@ class \nodoc\ iso _WsSymSubstringInMiddleTest is UnitTest
       h,
       _server,
       "workspace_symbol/_ws_sym_host.pony",
-      [ ( 0, 0,
-          _WsSymChecker(
-            "Host",
-            [("_WsSymHost", 5, "_ws_sym_host.pony", None)]))])
+      [ _WsSymChecker(
+          "Host",
+          [("_WsSymHost", 5, "_ws_sym_host.pony", None)])])
 
 class \nodoc\ iso _WsSymCaseInsensitiveTest is UnitTest
   """
@@ -107,10 +104,9 @@ class \nodoc\ iso _WsSymCaseInsensitiveTest is UnitTest
       h,
       _server,
       "workspace_symbol/_ws_sym_host.pony",
-      [ ( 0, 0,
-          _WsSymChecker(
-            "_wssymhost",
-            [("_WsSymHost", 5, "_ws_sym_host.pony", None)]))])
+      [ _WsSymChecker(
+          "_wssymhost",
+          [("_WsSymHost", 5, "_ws_sym_host.pony", None)])])
 
 class \nodoc\ iso _WsSymMemberTest is UnitTest
   """
@@ -130,11 +126,10 @@ class \nodoc\ iso _WsSymMemberTest is UnitTest
       h,
       _server,
       "workspace_symbol/_ws_sym_host.pony",
-      [ ( 0, 0,
-          _WsSymChecker(
-            "increment",
-            [ ("increment", 6, "_ws_sym_host.pony",
-                "_WsSymHost")]))])
+      [ _WsSymChecker(
+          "increment",
+          [ ("increment", 6, "_ws_sym_host.pony",
+              "_WsSymHost")])])
 
 class \nodoc\ iso _WsSymNoMatchTest is UnitTest
   """
@@ -153,7 +148,7 @@ class \nodoc\ iso _WsSymNoMatchTest is UnitTest
       h,
       _server,
       "workspace_symbol/_ws_sym_host.pony",
-      [(0, 0, _WsSymChecker("zzznomatch", []))])
+      [_WsSymChecker("zzznomatch", [])])
 
 class \nodoc\ iso _WsSymEmptyQueryTest is UnitTest
   """
@@ -176,17 +171,16 @@ class \nodoc\ iso _WsSymEmptyQueryTest is UnitTest
       h,
       _server,
       "workspace_symbol/_ws_sym_host.pony",
-      [ ( 0, 0,
-          _WsSymChecker(
-            "",
-            [ ("_WsSymHost", 5, "_ws_sym_host.pony", None)
-              ("_count", 8, "_ws_sym_host.pony", "_WsSymHost")
-              ("_name", 8, "_ws_sym_host.pony", "_WsSymHost")
-              ("_inner", 8, "_ws_sym_host.pony", "_WsSymHost")
-              ("create", 9, "_ws_sym_host.pony", "_WsSymHost")
-              ("increment", 6, "_ws_sym_host.pony", "_WsSymHost")
-              ("ping", 6, "_ws_sym_host.pony", "_WsSymHost")
-              ("_WsSymInner", 5, "_ws_sym_host.pony", None)]))])
+      [ _WsSymChecker(
+          "",
+          [ ("_WsSymHost", 5, "_ws_sym_host.pony", None)
+            ("_count", 8, "_ws_sym_host.pony", "_WsSymHost")
+            ("_name", 8, "_ws_sym_host.pony", "_WsSymHost")
+            ("_inner", 8, "_ws_sym_host.pony", "_WsSymHost")
+            ("create", 9, "_ws_sym_host.pony", "_WsSymHost")
+            ("increment", 6, "_ws_sym_host.pony", "_WsSymHost")
+            ("ping", 6, "_ws_sym_host.pony", "_WsSymHost")
+            ("_WsSymInner", 5, "_ws_sym_host.pony", None)])])
 
 class \nodoc\ iso _WsSymRangeTest is UnitTest
   """
@@ -219,37 +213,26 @@ class \nodoc\ iso _WsSymRangeTest is UnitTest
     "workspace_symbol/integration/range"
 
   fun apply(h: TestHelper) =>
-    // Distinct dummy (line, character) per check so the pony_test
-    // action strings are unique — failure diagnostics will point at the
-    // specific assertion rather than all sharing one action id.
     _RunLspChecks(
       h,
       _server,
       "workspace_symbol/_ws_sym_host.pony",
-      [ ( 0, 0,
-          _WsSymRangeChecker(
-            "_WsSymHost", "_WsSymHost", None, (5, 0, 18, 10)))
-        ( 0, 1,
-          _WsSymRangeChecker(
-            "_count", "_count", "_WsSymHost", (6, 2, 6, 17)))
-        ( 0, 2,
-          _WsSymRangeChecker(
-            "_name", "_name", "_WsSymHost", (7, 2, 7, 19)))
-        ( 0, 3,
-          _WsSymRangeChecker(
-            "_inner", "_inner", "_WsSymHost", (8, 2, 8, 27)))
-        ( 0, 4,
-          _WsSymRangeChecker(
-            "create", "create", "_WsSymHost", (10, 2, 11, 14)))
-        ( 0, 5,
-          _WsSymRangeChecker(
-            "increment", "increment", "_WsSymHost", (13, 2, 15, 10)))
-        ( 0, 6,
-          _WsSymRangeChecker(
-            "ping", "ping", "_WsSymHost", (17, 2, 18, 10)))
-        ( 0, 7,
-          _WsSymRangeChecker(
-            "_WsSymInner", "_WsSymInner", None, (20, 0, 20, 17)))])
+      [ _WsSymRangeChecker(
+          "_WsSymHost", "_WsSymHost", None, (5, 0, 18, 10))
+        _WsSymRangeChecker(
+          "_count", "_count", "_WsSymHost", (6, 2, 6, 17))
+        _WsSymRangeChecker(
+          "_name", "_name", "_WsSymHost", (7, 2, 7, 19))
+        _WsSymRangeChecker(
+          "_inner", "_inner", "_WsSymHost", (8, 2, 8, 27))
+        _WsSymRangeChecker(
+          "create", "create", "_WsSymHost", (10, 2, 11, 14))
+        _WsSymRangeChecker(
+          "increment", "increment", "_WsSymHost", (13, 2, 15, 10))
+        _WsSymRangeChecker(
+          "ping", "ping", "_WsSymHost", (17, 2, 18, 10))
+        _WsSymRangeChecker(
+          "_WsSymInner", "_WsSymInner", None, (20, 0, 20, 17))])
 
 class val _WsSymChecker
   """
@@ -272,13 +255,7 @@ class val _WsSymChecker
   fun lsp_method(): String =>
     Methods.workspace().symbol()
 
-  fun lsp_range(): (None | (I64, I64, I64, I64)) =>
-    None
-
-  fun lsp_context(): (None | JsonObject) =>
-    None
-
-  fun lsp_extra_params(): (None | JsonObject) =>
+  fun lsp_params(): (None | JsonObject) =>
     JsonObject.update("query", _query)
 
   fun check(res: ResponseMessage val, h: TestHelper): Bool =>
@@ -379,13 +356,7 @@ class val _WsSymRangeChecker
   fun lsp_method(): String =>
     Methods.workspace().symbol()
 
-  fun lsp_range(): (None | (I64, I64, I64, I64)) =>
-    None
-
-  fun lsp_context(): (None | JsonObject) =>
-    None
-
-  fun lsp_extra_params(): (None | JsonObject) =>
+  fun lsp_params(): (None | JsonObject) =>
     JsonObject.update("query", _query)
 
   fun check(res: ResponseMessage val, h: TestHelper): Bool =>

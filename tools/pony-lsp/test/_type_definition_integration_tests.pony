@@ -39,8 +39,10 @@ class \nodoc\ iso _TypeDefinitionLocalVarIntegrationTest is UnitTest
       h,
       _server,
       "type_definition/type_definition.pony",
-      [ (28, 4, _TypeDefinitionChecker(
-        [("type_definition.pony", (21, 0), (23, 10))]))])
+      [ _TypeDefinitionChecker(
+          28,
+          4,
+          [("type_definition.pony", (21, 0), (23, 10))])])
 
 class \nodoc\ iso _TypeDefinitionParamIntegrationTest is UnitTest
   """
@@ -64,8 +66,10 @@ class \nodoc\ iso _TypeDefinitionParamIntegrationTest is UnitTest
       h,
       _server,
       "type_definition/type_definition.pony",
-      [ (31, 4, _TypeDefinitionChecker(
-        [("type_definition.pony", (21, 0), (23, 10))]))])
+      [ _TypeDefinitionChecker(
+          31,
+          4,
+          [("type_definition.pony", (21, 0), (23, 10))])])
 
 class \nodoc\ iso _TypeDefinitionNoTypeIntegrationTest is UnitTest
   """
@@ -84,7 +88,7 @@ class \nodoc\ iso _TypeDefinitionNoTypeIntegrationTest is UnitTest
       h,
       _server,
       "type_definition/type_definition.pony",
-      [(25, 0, _TypeDefinitionChecker([]))])
+      [ _TypeDefinitionChecker(25, 0, [])])
 
 class \nodoc\ iso _TypeDefinitionInferredIntegrationTest is UnitTest
   """
@@ -110,26 +114,32 @@ class \nodoc\ iso _TypeDefinitionInferredIntegrationTest is UnitTest
       h,
       _server,
       "type_definition/type_definition.pony",
-      [ (35, 4, _TypeDefinitionChecker(
-        [("type_definition.pony", (21, 0), (23, 10))]))])
+      [ _TypeDefinitionChecker(
+          35,
+          4,
+          [("type_definition.pony", (21, 0), (23, 10))])])
 
 class val _TypeDefinitionChecker
+  let _line: I64
+  let _character: I64
   let _expected: Array[DefinitionExpectation] val
 
-  new val create(expected: Array[DefinitionExpectation] val) =>
+  new val create(
+    line': I64,
+    character': I64,
+    expected: Array[DefinitionExpectation] val)
+  =>
+    _line = line'
+    _character = character'
     _expected = expected
 
   fun lsp_method(): String =>
     Methods.text_document().type_definition()
 
-  fun lsp_range(): (None | (I64, I64, I64, I64)) =>
-    None
-
-  fun lsp_context(): (None | JsonObject) =>
-    None
-
-  fun lsp_extra_params(): (None | JsonObject) =>
-    None
+  fun lsp_params(): (None | JsonObject) =>
+    JsonObject.update(
+      "position",
+      JsonObject.update("line", _line).update("character", _character))
 
   fun check(res: ResponseMessage val, h: TestHelper): Bool =>
     var ok =

@@ -58,11 +58,10 @@ class \nodoc\ iso _FoldingRangeClassTest is UnitTest
       h,
       _server,
       "folding_range/foldable.pony",
-      [ ( 0, 0,
-          _FoldingRangeChecker(
-            [ (0, 12)
-              (6, 7)
-              (9, 10)]))])
+      [ _FoldingRangeChecker(
+          [ (0, 12)
+            (6, 7)
+            (9, 10)])])
 
 class \nodoc\ iso _FoldingRangeEntityTypesTest is UnitTest
   """
@@ -102,19 +101,18 @@ class \nodoc\ iso _FoldingRangeEntityTypesTest is UnitTest
       h,
       _server,
       "folding_range/entity_types.pony",
-      [ ( 0, 0,
-          _FoldingRangeChecker(
-            [ (0, 2)
-              (1, 2)
-              (4, 10)
-              (9, 10)
-              (12, 21)
-              (17, 18)
-              (20, 21)
-              (23, 27)
-              (26, 27)
-              (29, 33)
-              (32, 33)]))])
+      [ _FoldingRangeChecker(
+          [ (0, 2)
+            (1, 2)
+            (4, 10)
+            (9, 10)
+            (12, 21)
+            (17, 18)
+            (20, 21)
+            (23, 27)
+            (26, 27)
+            (29, 33)
+            (32, 33)])])
 
 class \nodoc\ iso _FoldingRangeExpressionsRangesTest is UnitTest
   """
@@ -148,17 +146,16 @@ class \nodoc\ iso _FoldingRangeExpressionsRangesTest is UnitTest
       h,
       _server,
       "folding_range/expressions.pony",
-      [ ( 0, 0,
-          _FoldingRangeChecker(
-            [ (0, 31)
-              (5, 9)
-              (6, 9)
-              (12, 17)
-              (13, 17)
-              (20, 25)
-              (22, 23)
-              (27, 31)
-              (28, 31)]))])
+      [ _FoldingRangeChecker(
+          [ (0, 31)
+            (5, 9)
+            (6, 9)
+            (12, 17)
+            (13, 17)
+            (20, 25)
+            (22, 23)
+            (27, 31)
+            (28, 31)])])
 
 class \nodoc\ iso _FoldingRangeTypeRangeTest is UnitTest
   """
@@ -184,7 +181,7 @@ class \nodoc\ iso _FoldingRangeTypeRangeTest is UnitTest
       h,
       _server,
       "folding_range/type_alias.pony",
-      [(0, 0, _FoldingRangeChecker([(0, 4)]))])
+      [_FoldingRangeChecker([(0, 4)])])
 
 class \nodoc\ iso _FoldingRangeMoreExpressionsRangesTest is UnitTest
   """
@@ -235,21 +232,20 @@ class \nodoc\ iso _FoldingRangeMoreExpressionsRangesTest is UnitTest
       h,
       _server,
       "folding_range/more_expressions.pony",
-      [ ( 0, 0,
-          _FoldingRangeChecker(
-            [ (0, 42)
-              (5, 10)
-              (7, 8)
-              (12, 17)
-              (14, 16)
-              (19, 21)
-              (24, 29)
-              (26, 27)
-              (31, 36)
-              (33, 34)
-              (38, 42)
-              (39, 42)
-              (45, 47)]))])
+      [ _FoldingRangeChecker(
+          [ (0, 42)
+            (5, 10)
+            (7, 8)
+            (12, 17)
+            (14, 16)
+            (19, 21)
+            (24, 29)
+            (26, 27)
+            (31, 36)
+            (33, 34)
+            (38, 42)
+            (39, 42)
+            (45, 47)])])
 
 class \nodoc\ iso _FoldingRangeIfdefTest is UnitTest
   """
@@ -278,11 +274,10 @@ class \nodoc\ iso _FoldingRangeIfdefTest is UnitTest
       h,
       _server,
       "folding_range/ifdef_expressions.pony",
-      [ ( 0, 0,
-          _FoldingRangeChecker(
-            [ (0, 8)
-              (4, 8)
-              (5, 8)]))])
+      [ _FoldingRangeChecker(
+          [ (0, 8)
+            (4, 8)
+            (5, 8)])])
 
 class \nodoc\ iso _FoldingRangeNestedExpressionsTest is UnitTest
   """
@@ -313,15 +308,14 @@ class \nodoc\ iso _FoldingRangeNestedExpressionsTest is UnitTest
       h,
       _server,
       "folding_range/nested_expressions.pony",
-      [ ( 0, 0,
-          _FoldingRangeChecker(
-            [ (0, 25)
-              (4, 13)
-              (6, 11)
-              (7, 10)
-              (15, 25)
-              (17, 20)
-              (22, 23)]))])
+      [ _FoldingRangeChecker(
+          [ (0, 25)
+            (4, 13)
+            (6, 11)
+            (7, 10)
+            (15, 25)
+            (17, 20)
+            (22, 23)])])
 
 class \nodoc\ iso _FoldingRangeForExpressionsTest is UnitTest
   """
@@ -351,14 +345,13 @@ class \nodoc\ iso _FoldingRangeForExpressionsTest is UnitTest
       h,
       _server,
       "folding_range/for_expressions.pony",
-      [ ( 0, 0,
-          _FoldingRangeChecker(
-            [ (0, 21)
-              (6, 12)
-              (8, 10)
-              (14, 21)
-              (16, 19)
-              (17, 18)]))])
+      [ _FoldingRangeChecker(
+          [ (0, 21)
+            (6, 12)
+            (8, 10)
+            (14, 21)
+            (16, 19)
+            (17, 18)])])
 
 class val _FoldingRangeChecker
   """
@@ -374,13 +367,7 @@ class val _FoldingRangeChecker
   fun lsp_method(): String =>
     Methods.text_document().folding_range()
 
-  fun lsp_range(): (None | (I64, I64, I64, I64)) =>
-    None
-
-  fun lsp_context(): (None | JsonObject) =>
-    None
-
-  fun lsp_extra_params(): (None | JsonObject) =>
+  fun lsp_params(): (None | JsonObject) =>
     None
 
   fun check(res: ResponseMessage val, h: TestHelper): Bool =>

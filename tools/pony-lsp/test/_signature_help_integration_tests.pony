@@ -51,7 +51,7 @@ class \nodoc\ iso _SigHelpSimpleParam0Test is UnitTest
       h,
       _server,
       "signature_help/signature_help.pony",
-      [(62, 25, _SigHelpChecker("simple", 0))])
+      [_SigHelpChecker(62, 25, "simple", 0)])
 
 class \nodoc\ iso _SigHelpFullLabelTest is UnitTest
   """
@@ -72,11 +72,12 @@ class \nodoc\ iso _SigHelpFullLabelTest is UnitTest
       h,
       _server,
       "signature_help/signature_help.pony",
-      [ (62, 25,
-        _SigHelpChecker(
+      [ _SigHelpChecker(
+          62,
+          25,
           "simple",
           0
-          where expected_full_label' = "fun box simple(x: U32 val): U32 val"))])
+          where expected_full_label' = "fun box simple(x: U32 val): U32 val")])
 
 class \nodoc\ iso _SigHelpMultiParam0Test is UnitTest
   """
@@ -96,7 +97,7 @@ class \nodoc\ iso _SigHelpMultiParam0Test is UnitTest
       h,
       _server,
       "signature_help/signature_help.pony",
-      [(63, 24, _SigHelpChecker("multi", 0))])
+      [_SigHelpChecker(63, 24, "multi", 0)])
 
 class \nodoc\ iso _SigHelpMultiParam1Test is UnitTest
   """
@@ -116,7 +117,7 @@ class \nodoc\ iso _SigHelpMultiParam1Test is UnitTest
       h,
       _server,
       "signature_help/signature_help.pony",
-      [(63, 28, _SigHelpChecker("multi", 1))])
+      [_SigHelpChecker(63, 28, "multi", 1)])
 
 class \nodoc\ iso _SigHelpMultiParam2Test is UnitTest
   """
@@ -136,7 +137,7 @@ class \nodoc\ iso _SigHelpMultiParam2Test is UnitTest
       h,
       _server,
       "signature_help/signature_help.pony",
-      [(63, 36, _SigHelpChecker("multi", 2))])
+      [_SigHelpChecker(63, 36, "multi", 2)])
 
 class \nodoc\ iso _SigHelpNotInCallTest is UnitTest
   """
@@ -156,7 +157,7 @@ class \nodoc\ iso _SigHelpNotInCallTest is UnitTest
       h,
       _server,
       "signature_help/signature_help.pony",
-      [(48, 10, _SigHelpChecker(None, 0))])
+      [_SigHelpChecker(48, 10, None, 0)])
 
 class \nodoc\ iso _SigHelpNoArgsTest is UnitTest
   """
@@ -177,7 +178,7 @@ class \nodoc\ iso _SigHelpNoArgsTest is UnitTest
       h,
       _server,
       "signature_help/signature_help.pony",
-      [(64, 24, _SigHelpChecker("no_args", None))])
+      [_SigHelpChecker(64, 24, "no_args", None)])
 
 class \nodoc\ iso _SigHelpConstructorTest is UnitTest
   """
@@ -198,7 +199,7 @@ class \nodoc\ iso _SigHelpConstructorTest is UnitTest
       h,
       _server,
       "signature_help/signature_help.pony",
-      [(62, 15, _SigHelpChecker("create", 0, None, "v:"))])
+      [_SigHelpChecker(62, 15, "create", 0, None, "v:")])
 
 class \nodoc\ iso _SigHelpConstructorOpenParenTest is UnitTest
   """
@@ -218,7 +219,7 @@ class \nodoc\ iso _SigHelpConstructorOpenParenTest is UnitTest
       h,
       _server,
       "signature_help/signature_help.pony",
-      [(62, 14, _SigHelpChecker(None))])
+      [_SigHelpChecker(62, 14, None)])
 
 class \nodoc\ iso _SigHelpConstructorCloseParenTest is UnitTest
   """
@@ -239,7 +240,7 @@ class \nodoc\ iso _SigHelpConstructorCloseParenTest is UnitTest
       h,
       _server,
       "signature_help/signature_help.pony",
-      [(62, 16, _SigHelpChecker(None))])
+      [_SigHelpChecker(62, 16, None)])
 
 class \nodoc\ iso _SigHelpCalleeTest is UnitTest
   """
@@ -264,10 +265,10 @@ class \nodoc\ iso _SigHelpCalleeTest is UnitTest
       h,
       _server,
       "signature_help/signature_help.pony",
-      [ (62, 17, _SigHelpChecker(None))
-        (62, 18, _SigHelpChecker(None))
-        (62, 23, _SigHelpChecker(None))
-        (62, 24, _SigHelpChecker(None)) ])
+      [ _SigHelpChecker(62, 17, None)
+        _SigHelpChecker(62, 18, None)
+        _SigHelpChecker(62, 23, None)
+        _SigHelpChecker(62, 24, None) ])
 
 class \nodoc\ iso _SigHelpDocstringTest is UnitTest
   """
@@ -288,7 +289,7 @@ class \nodoc\ iso _SigHelpDocstringTest is UnitTest
       h,
       _server,
       "signature_help/signature_help.pony",
-      [(62, 25, _SigHelpChecker("simple", 0, "Returns x plus"))])
+      [_SigHelpChecker(62, 25, "simple", 0, "Returns x plus")])
 
 class \nodoc\ iso _SigHelpParamTextTest is UnitTest
   """
@@ -309,7 +310,7 @@ class \nodoc\ iso _SigHelpParamTextTest is UnitTest
       h,
       _server,
       "signature_help/signature_help.pony",
-      [(63, 28, _SigHelpChecker("multi", 1, None, "b:"))])
+      [_SigHelpChecker(63, 28, "multi", 1, None, "b:")])
 
 class \nodoc\ iso _SigHelpAfterCommaTest is UnitTest
   """
@@ -334,7 +335,7 @@ class \nodoc\ iso _SigHelpAfterCommaTest is UnitTest
       h,
       _server,
       "signature_help/signature_help.pony",
-      [(63, 26, _SigHelpChecker("multi", 1))])
+      [_SigHelpChecker(63, 26, "multi", 1)])
 
 class \nodoc\ iso _SigHelpAfterCommaMultilineTest is UnitTest
   """
@@ -356,7 +357,7 @@ class \nodoc\ iso _SigHelpAfterCommaMultilineTest is UnitTest
       h,
       _server,
       "signature_help/signature_help.pony",
-      [(66, 8, _SigHelpChecker("multi", 1))])
+      [_SigHelpChecker(66, 8, "multi", 1)])
 
 class \nodoc\ iso _SigHelpMultilineArg0Test is UnitTest
   """
@@ -376,7 +377,7 @@ class \nodoc\ iso _SigHelpMultilineArg0Test is UnitTest
       h,
       _server,
       "signature_help/signature_help.pony",
-      [(66, 6, _SigHelpChecker("multi", 0))])
+      [_SigHelpChecker(66, 6, "multi", 0)])
 
 class \nodoc\ iso _SigHelpMultilineArg1Test is UnitTest
   """
@@ -396,7 +397,7 @@ class \nodoc\ iso _SigHelpMultilineArg1Test is UnitTest
       h,
       _server,
       "signature_help/signature_help.pony",
-      [(67, 6, _SigHelpChecker("multi", 1))])
+      [_SigHelpChecker(67, 6, "multi", 1)])
 
 class \nodoc\ iso _SigHelpMultilineArg2Test is UnitTest
   """
@@ -416,7 +417,7 @@ class \nodoc\ iso _SigHelpMultilineArg2Test is UnitTest
       h,
       _server,
       "signature_help/signature_help.pony",
-      [(68, 6, _SigHelpChecker("multi", 2))])
+      [_SigHelpChecker(68, 6, "multi", 2)])
 
 class \nodoc\ iso _SigHelpBeMethodTest is UnitTest
   """
@@ -437,7 +438,7 @@ class \nodoc\ iso _SigHelpBeMethodTest is UnitTest
       h,
       _server,
       "signature_help/signature_help.pony",
-      [(88, 12, _SigHelpChecker("greet", 0))])
+      [_SigHelpChecker(88, 12, "greet", 0)])
 
 class \nodoc\ iso _SigHelpAfterOpenParenMultilineTest is UnitTest
   """
@@ -458,7 +459,7 @@ class \nodoc\ iso _SigHelpAfterOpenParenMultilineTest is UnitTest
       h,
       _server,
       "signature_help/signature_help.pony",
-      [(65, 24, _SigHelpChecker("multi", 0))])
+      [_SigHelpChecker(65, 24, "multi", 0)])
 
 class \nodoc\ iso _SigHelpNestedTest is UnitTest
   """
@@ -501,13 +502,13 @@ class \nodoc\ iso _SigHelpNestedTest is UnitTest
       h,
       _server,
       "signature_help/signature_help.pony",
-      [ (69, 15, _SigHelpChecker("create", 0))
-        (69, 26, _SigHelpChecker("create", 0))
-        (69, 28, _SigHelpChecker("create", 0))
-        (69, 34, _SigHelpChecker("create", 0))
-        (69, 35, _SigHelpChecker("create", 0))
-        (69, 36, _SigHelpChecker("simple", 0))
-        (69, 46, _SigHelpChecker("multi", 0)) ])
+      [ _SigHelpChecker(69, 15, "create", 0)
+        _SigHelpChecker(69, 26, "create", 0)
+        _SigHelpChecker(69, 28, "create", 0)
+        _SigHelpChecker(69, 34, "create", 0)
+        _SigHelpChecker(69, 35, "create", 0)
+        _SigHelpChecker(69, 36, "simple", 0)
+        _SigHelpChecker(69, 46, "multi", 0) ])
 
 class \nodoc\ iso _SigHelpGenericTest is UnitTest
   """
@@ -533,7 +534,7 @@ class \nodoc\ iso _SigHelpGenericTest is UnitTest
       h,
       _server,
       "signature_help/signature_help.pony",
-      [(109, 36, _SigHelpChecker("typed[", 0))])
+      [_SigHelpChecker(109, 36, "typed[", 0)])
 
 class \nodoc\ iso _SigHelpNamedArgTest is UnitTest
   """
@@ -568,10 +569,10 @@ class \nodoc\ iso _SigHelpNamedArgTest is UnitTest
       h,
       _server,
       "signature_help/signature_help.pony",
-      [ (133, 41, _SigHelpChecker(None))
-        (133, 45, _SigHelpChecker("multi", 1))
-        (134, 36, _SigHelpChecker("multi", 1))
-        (134, 32, _SigHelpChecker(None)) ])
+      [ _SigHelpChecker(133, 41, None)
+        _SigHelpChecker(133, 45, "multi", 1)
+        _SigHelpChecker(134, 36, "multi", 1)
+        _SigHelpChecker(134, 32, None) ])
 
 class val _SigHelpChecker
   """
@@ -590,6 +591,8 @@ class val _SigHelpChecker
   Optional: expected_full_label asserts exact label equality, catching
   regressions in capability, parentheses, parameter list, or return type.
   """
+  let _line: I64
+  let _character: I64
   let _expected_label_fragment: (String val | None)
   let _expected_active_param: (I64 | None)
   let _expected_doc_fragment: (String val | None)
@@ -597,12 +600,16 @@ class val _SigHelpChecker
   let _expected_full_label: (String val | None)
 
   new val create(
+    line': I64,
+    character': I64,
     expected_label_fragment': (String val | None),
     expected_active_param': (I64 | None) = 0,
     expected_doc_fragment': (String val | None) = None,
     expected_param_text': (String val | None) = None,
     expected_full_label': (String val | None) = None)
   =>
+    _line = line'
+    _character = character'
     _expected_label_fragment = expected_label_fragment'
     _expected_active_param = expected_active_param'
     _expected_doc_fragment = expected_doc_fragment'
@@ -612,14 +619,10 @@ class val _SigHelpChecker
   fun lsp_method(): String =>
     Methods.text_document().signature_help()
 
-  fun lsp_range(): (None | (I64, I64, I64, I64)) =>
-    None
-
-  fun lsp_context(): (None | JsonObject) =>
-    None
-
-  fun lsp_extra_params(): (None | JsonObject) =>
-    None
+  fun lsp_params(): (None | JsonObject) =>
+    JsonObject.update(
+      "position",
+      JsonObject.update("line", _line).update("character", _character))
 
   fun check(res: ResponseMessage val, h: TestHelper): Bool =>
     var ok = true

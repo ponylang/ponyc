@@ -61,12 +61,14 @@ class \nodoc\ iso _RenameFieldTest is UnitTest
       h,
       _server,
       "rename/renameable.pony",
-      [ (16, 6, _RenameChecker(
-        "new_value",
-        [ ("renameable.pony", 16, 6, 16, 12)
-          ("renameable.pony", 19, 4, 19, 10)
-          ("renameable.pony", 22, 4, 22, 10)
-          ("renameable.pony", 25, 26, 25, 32)]))])
+      [ _RenameChecker(
+          16,
+          6,
+          "new_value",
+          [ ("renameable.pony", 16, 6, 16, 12)
+            ("renameable.pony", 19, 4, 19, 10)
+            ("renameable.pony", 22, 4, 22, 10)
+            ("renameable.pony", 25, 26, 25, 32)])])
 
 class \nodoc\ iso _RenameFieldFromRefTest is UnitTest
   """
@@ -86,12 +88,14 @@ class \nodoc\ iso _RenameFieldFromRefTest is UnitTest
       h,
       _server,
       "rename/renameable.pony",
-      [ (19, 4, _RenameChecker(
-        "new_value",
-        [ ("renameable.pony", 16, 6, 16, 12)
-          ("renameable.pony", 19, 4, 19, 10)
-          ("renameable.pony", 22, 4, 22, 10)
-          ("renameable.pony", 25, 26, 25, 32)]))])
+      [ _RenameChecker(
+          19,
+          4,
+          "new_value",
+          [ ("renameable.pony", 16, 6, 16, 12)
+            ("renameable.pony", 19, 4, 19, 10)
+            ("renameable.pony", 22, 4, 22, 10)
+            ("renameable.pony", 25, 26, 25, 32)])])
 
 class \nodoc\ iso _RenameMethodTest is UnitTest
   """
@@ -116,10 +120,12 @@ class \nodoc\ iso _RenameMethodTest is UnitTest
       h,
       _server,
       "rename/renameable.pony",
-      [ (21, 6, _RenameChecker(
-        "fetch_value",
-        [ ("renameable.pony", 21, 6, 21, 15)
-          ("rename_user.pony", 13, 6, 13, 15)]))])
+      [ _RenameChecker(
+          21,
+          6,
+          "fetch_value",
+          [ ("renameable.pony", 21, 6, 21, 15)
+            ("rename_user.pony", 13, 6, 13, 15)])])
 
 class \nodoc\ iso _RenameMethodFromCallTest is UnitTest
   """
@@ -142,10 +148,12 @@ class \nodoc\ iso _RenameMethodFromCallTest is UnitTest
       h,
       _server,
       "rename/rename_user.pony",
-      [ (13, 6, _RenameChecker(
-        "fetch_value",
-        [ ("renameable.pony", 21, 6, 21, 15)
-          ("rename_user.pony", 13, 6, 13, 15)]))])
+      [ _RenameChecker(
+          13,
+          6,
+          "fetch_value",
+          [ ("renameable.pony", 21, 6, 21, 15)
+            ("rename_user.pony", 13, 6, 13, 15)])])
 
 class \nodoc\ iso _RenameClassTest is UnitTest
   """
@@ -171,10 +179,12 @@ class \nodoc\ iso _RenameClassTest is UnitTest
       h,
       _server,
       "rename/renameable.pony",
-      [ (0, 6, _RenameChecker(
-        "RenameTarget",
-        [ ("renameable.pony", 0, 6, 0, 16)
-          ("rename_user.pony", 12, 16, 12, 26)]))])
+      [ _RenameChecker(
+          0,
+          6,
+          "RenameTarget",
+          [ ("renameable.pony", 0, 6, 0, 16)
+            ("rename_user.pony", 12, 16, 12, 26)])])
 
 class \nodoc\ iso _RenameLiteralTest is UnitTest
   """
@@ -196,7 +206,7 @@ class \nodoc\ iso _RenameLiteralTest is UnitTest
       h,
       _server,
       "rename/renameable.pony",
-      [(16, 20, _RenameErrorChecker("new_name", ErrorCodes.request_failed()))])
+      [_RenameErrorChecker(16, 20, "new_name", ErrorCodes.request_failed())])
 
 class \nodoc\ iso _RenameStdlibTest is UnitTest
   """
@@ -219,7 +229,7 @@ class \nodoc\ iso _RenameStdlibTest is UnitTest
       h,
       _server,
       "rename/renameable.pony",
-      [(16, 14, _RenameErrorChecker("MyU32", ErrorCodes.request_failed()))])
+      [_RenameErrorChecker(16, 14, "MyU32", ErrorCodes.request_failed())])
 
 class \nodoc\ iso _RenameMissingNameTest is UnitTest
   """
@@ -239,7 +249,7 @@ class \nodoc\ iso _RenameMissingNameTest is UnitTest
       h,
       _server,
       "rename/renameable.pony",
-      [(16, 6, _RenameErrorChecker(None, ErrorCodes.invalid_params()))])
+      [_RenameErrorChecker(16, 6, None, ErrorCodes.invalid_params())])
 
 class \nodoc\ iso _RenameInvalidNameTest is UnitTest
   """
@@ -260,8 +270,7 @@ class \nodoc\ iso _RenameInvalidNameTest is UnitTest
       h,
       _server,
       "rename/renameable.pony",
-      [ ( 16, 6,
-          _RenameErrorChecker("hello world", ErrorCodes.invalid_params()))])
+      [ _RenameErrorChecker(16, 6, "hello world", ErrorCodes.invalid_params())])
 
 class \nodoc\ iso _RenameClassFromRefTest is UnitTest
   """
@@ -285,10 +294,12 @@ class \nodoc\ iso _RenameClassFromRefTest is UnitTest
       h,
       _server,
       "rename/rename_user.pony",
-      [ (12, 16, _RenameChecker(
-        "RenameTarget",
-        [ ("renameable.pony", 0, 6, 0, 16)
-          ("rename_user.pony", 12, 16, 12, 26)]))])
+      [ _RenameChecker(
+          12,
+          16,
+          "RenameTarget",
+          [ ("renameable.pony", 0, 6, 0, 16)
+            ("rename_user.pony", 12, 16, 12, 26)])])
 
 class \nodoc\ iso _RenameParamTest is UnitTest
   """
@@ -312,10 +323,12 @@ class \nodoc\ iso _RenameParamTest is UnitTest
       h,
       _server,
       "rename/renameable.pony",
-      [ (18, 13, _RenameChecker(
-        "val",
-        [ ("renameable.pony", 18, 13, 18, 14)
-          ("renameable.pony", 19, 13, 19, 14)]))])
+      [ _RenameChecker(
+          18,
+          13,
+          "val",
+          [ ("renameable.pony", 18, 13, 18, 14)
+            ("renameable.pony", 19, 13, 19, 14)])])
 
 class \nodoc\ iso _RenameLocalVarTest is UnitTest
   """
@@ -340,10 +353,12 @@ class \nodoc\ iso _RenameLocalVarTest is UnitTest
       h,
       _server,
       "rename/renameable.pony",
-      [ (25, 8, _RenameChecker(
-        "value",
-        [ ("renameable.pony", 25, 8, 25, 14)
-          ("renameable.pony", 26, 4, 26, 10)]))])
+      [ _RenameChecker(
+          25,
+          8,
+          "value",
+          [ ("renameable.pony", 25, 8, 25, 14)
+            ("renameable.pony", 26, 4, 26, 10)])])
 
 class \nodoc\ iso _RenameClassTypeParamTest is UnitTest
   """
@@ -369,12 +384,14 @@ class \nodoc\ iso _RenameClassTypeParamTest is UnitTest
       h,
       _server,
       "rename/generics.pony",
-      [ (0, 15, _RenameChecker(
-        "Item",
-        [ ("generics.pony", 0, 15, 0, 16)
-          ("generics.pony", 13, 13, 13, 14)
-          ("generics.pony", 15, 19, 15, 20)
-          ("generics.pony", 18, 13, 18, 14)]))])
+      [ _RenameChecker(
+          0,
+          15,
+          "Item",
+          [ ("generics.pony", 0, 15, 0, 16)
+            ("generics.pony", 13, 13, 13, 14)
+            ("generics.pony", 15, 19, 15, 20)
+            ("generics.pony", 18, 13, 18, 14)])])
 
 class \nodoc\ iso _RenameClassTypeParamFromRefTest is UnitTest
   """
@@ -395,12 +412,14 @@ class \nodoc\ iso _RenameClassTypeParamFromRefTest is UnitTest
       h,
       _server,
       "rename/generics.pony",
-      [ (13, 13, _RenameChecker(
-        "Item",
-        [ ("generics.pony", 0, 15, 0, 16)
-          ("generics.pony", 13, 13, 13, 14)
-          ("generics.pony", 15, 19, 15, 20)
-          ("generics.pony", 18, 13, 18, 14)]))])
+      [ _RenameChecker(
+          13,
+          13,
+          "Item",
+          [ ("generics.pony", 0, 15, 0, 16)
+            ("generics.pony", 13, 13, 13, 14)
+            ("generics.pony", 15, 19, 15, 20)
+            ("generics.pony", 18, 13, 18, 14)])])
 
 class \nodoc\ iso _RenameFunTypeParamTest is UnitTest
   """
@@ -426,11 +445,13 @@ class \nodoc\ iso _RenameFunTypeParamTest is UnitTest
       h,
       _server,
       "rename/generics.pony",
-      [ (21, 16, _RenameChecker(
-        "Elem",
-        [ ("generics.pony", 21, 16, 21, 17)
-          ("generics.pony", 21, 34, 21, 35)
-          ("generics.pony", 21, 38, 21, 39)]))])
+      [ _RenameChecker(
+          21,
+          16,
+          "Elem",
+          [ ("generics.pony", 21, 16, 21, 17)
+            ("generics.pony", 21, 34, 21, 35)
+            ("generics.pony", 21, 38, 21, 39)])])
 
 class \nodoc\ iso _RenameFunTypeParamFromRefTest is UnitTest
   """
@@ -451,11 +472,13 @@ class \nodoc\ iso _RenameFunTypeParamFromRefTest is UnitTest
       h,
       _server,
       "rename/generics.pony",
-      [ (21, 38, _RenameChecker(
-        "Elem",
-        [ ("generics.pony", 21, 16, 21, 17)
-          ("generics.pony", 21, 34, 21, 35)
-          ("generics.pony", 21, 38, 21, 39)]))])
+      [ _RenameChecker(
+          21,
+          38,
+          "Elem",
+          [ ("generics.pony", 21, 16, 21, 17)
+            ("generics.pony", 21, 34, 21, 35)
+            ("generics.pony", 21, 38, 21, 39)])])
 
 class \nodoc\ iso _RenameActorBeTest is UnitTest
   """
@@ -479,10 +502,12 @@ class \nodoc\ iso _RenameActorBeTest is UnitTest
       h,
       _server,
       "rename/actor.pony",
-      [ (12, 5, _RenameChecker(
-        "process",
-        [ ("actor.pony", 12, 5, 12, 9)
-          ("actor.pony", 20, 6, 20, 10)]))])
+      [ _RenameChecker(
+          12,
+          5,
+          "process",
+          [ ("actor.pony", 12, 5, 12, 9)
+            ("actor.pony", 20, 6, 20, 10)])])
 
 class \nodoc\ iso _RenameActorBeFromCallTest is UnitTest
   """
@@ -502,10 +527,12 @@ class \nodoc\ iso _RenameActorBeFromCallTest is UnitTest
       h,
       _server,
       "rename/actor.pony",
-      [ (20, 6, _RenameChecker(
-        "process",
-        [ ("actor.pony", 12, 5, 12, 9)
-          ("actor.pony", 20, 6, 20, 10)]))])
+      [ _RenameChecker(
+          20,
+          6,
+          "process",
+          [ ("actor.pony", 12, 5, 12, 9)
+            ("actor.pony", 20, 6, 20, 10)])])
 
 class \nodoc\ iso _RenameSingleOccurrenceTest is UnitTest
   """
@@ -529,9 +556,11 @@ class \nodoc\ iso _RenameSingleOccurrenceTest is UnitTest
       h,
       _server,
       "rename/actor.pony",
-      [ (10, 6, _RenameChecker(
-        "_only",
-        [ ("actor.pony", 10, 6, 10, 15)]))])
+      [ _RenameChecker(
+          10,
+          6,
+          "_only",
+          [ ("actor.pony", 10, 6, 10, 15)])])
 
 class val _RenameErrorChecker
   """
@@ -540,26 +569,33 @@ class val _RenameErrorChecker
   include it in the request params, or None to omit `newName` entirely (to
   exercise the missing-param path).
   """
+  let _line: I64
+  let _character: I64
   let _new_name: (String val | None)
   let _expected_code: I64
 
-  new val create(new_name: (String val | None), expected_code: I64) =>
+  new val create(
+    line': I64,
+    character': I64,
+    new_name: (String val | None),
+    expected_code: I64)
+  =>
+    _line = line'
+    _character = character'
     _new_name = new_name
     _expected_code = expected_code
 
   fun lsp_method(): String =>
     Methods.text_document().rename()
 
-  fun lsp_range(): (None | (I64, I64, I64, I64)) =>
-    None
-
-  fun lsp_context(): (None | JsonObject) =>
-    None
-
-  fun lsp_extra_params(): (None | JsonObject) =>
+  fun lsp_params(): (None | JsonObject) =>
+    let pos =
+      JsonObject.update(
+        "position",
+        JsonObject.update("line", _line).update("character", _character))
     match \exhaustive\ _new_name
-    | let n: String val => JsonObject.update("newName", n)
-    | None => None
+    | let n: String val => pos.update("newName", n)
+    | None => pos
     end
 
   fun check(res: ResponseMessage val, h: TestHelper): Bool =>
@@ -578,27 +614,31 @@ class val _RenameChecker
   end_line, end_char). All edits are checked against the `changes` map in the
   response regardless of which URI they appear in.
   """
+  let _line: I64
+  let _character: I64
   let _new_name: String val
   let _expected: Array[(String, I64, I64, I64, I64)] val
 
   new val create(
+    line': I64,
+    character': I64,
     new_name: String val,
     expected: Array[(String, I64, I64, I64, I64)] val)
   =>
+    _line = line'
+    _character = character'
     _new_name = new_name
     _expected = expected
 
   fun lsp_method(): String =>
     Methods.text_document().rename()
 
-  fun lsp_range(): (None | (I64, I64, I64, I64)) =>
-    None
-
-  fun lsp_context(): (None | JsonObject) =>
-    None
-
-  fun lsp_extra_params(): (None | JsonObject) =>
-    JsonObject.update("newName", _new_name)
+  fun lsp_params(): (None | JsonObject) =>
+    JsonObject
+      .update(
+        "position",
+        JsonObject.update("line", _line).update("character", _character))
+      .update("newName", _new_name)
 
   fun check(res: ResponseMessage val, h: TestHelper): Bool =>
     var ok = true
@@ -668,12 +708,23 @@ class val _PrepareRenameChecker
   Validates a textDocument/prepareRename response against an expected
   identifier range.
   """
+  let _line: I64
+  let _character: I64
   let _expected_sl: I64
   let _expected_sc: I64
   let _expected_el: I64
   let _expected_ec: I64
 
-  new val create(sl: I64, sc: I64, el: I64, ec: I64) =>
+  new val create(
+    line': I64,
+    character': I64,
+    sl: I64,
+    sc: I64,
+    el: I64,
+    ec: I64)
+  =>
+    _line = line'
+    _character = character'
     _expected_sl = sl
     _expected_sc = sc
     _expected_el = el
@@ -682,14 +733,10 @@ class val _PrepareRenameChecker
   fun lsp_method(): String =>
     Methods.text_document().prepare_rename()
 
-  fun lsp_range(): (None | (I64, I64, I64, I64)) =>
-    None
-
-  fun lsp_context(): (None | JsonObject) =>
-    None
-
-  fun lsp_extra_params(): (None | JsonObject) =>
-    None
+  fun lsp_params(): (None | JsonObject) =>
+    JsonObject.update(
+      "position",
+      JsonObject.update("line", _line).update("character", _character))
 
   fun check(res: ResponseMessage val, h: TestHelper): Bool =>
     try
@@ -714,22 +761,22 @@ class val _PrepareRenameErrorChecker
   Validates that a textDocument/prepareRename response is an error with the
   expected error code.
   """
+  let _line: I64
+  let _character: I64
   let _expected_code: I64
 
-  new val create(expected_code: I64) =>
+  new val create(line': I64, character': I64, expected_code: I64) =>
+    _line = line'
+    _character = character'
     _expected_code = expected_code
 
   fun lsp_method(): String =>
     Methods.text_document().prepare_rename()
 
-  fun lsp_range(): (None | (I64, I64, I64, I64)) =>
-    None
-
-  fun lsp_context(): (None | JsonObject) =>
-    None
-
-  fun lsp_extra_params(): (None | JsonObject) =>
-    None
+  fun lsp_params(): (None | JsonObject) =>
+    JsonObject.update(
+      "position",
+      JsonObject.update("line", _line).update("character", _character))
 
   fun check(res: ResponseMessage val, h: TestHelper): Bool =>
     match \exhaustive\ res.err
@@ -760,7 +807,7 @@ class \nodoc\ iso _PrepareRenameFieldTest is UnitTest
       h,
       _server,
       "rename/renameable.pony",
-      [(16, 6, _PrepareRenameChecker(16, 6, 16, 12))])
+      [_PrepareRenameChecker(16, 6, 16, 6, 16, 12)])
 
 class \nodoc\ iso _PrepareRenameLiteralTest is UnitTest
   """
@@ -782,7 +829,7 @@ class \nodoc\ iso _PrepareRenameLiteralTest is UnitTest
       h,
       _server,
       "rename/renameable.pony",
-      [(16, 20, _PrepareRenameErrorChecker(ErrorCodes.request_failed()))])
+      [_PrepareRenameErrorChecker(16, 20, ErrorCodes.request_failed())])
 
 class \nodoc\ iso _PrepareRenameStdlibTest is UnitTest
   """
@@ -804,4 +851,4 @@ class \nodoc\ iso _PrepareRenameStdlibTest is UnitTest
       h,
       _server,
       "rename/renameable.pony",
-      [(16, 14, _PrepareRenameErrorChecker(ErrorCodes.request_failed()))])
+      [_PrepareRenameErrorChecker(16, 14, ErrorCodes.request_failed())])

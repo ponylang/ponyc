@@ -48,10 +48,9 @@ class \nodoc\ iso _SelectionRangeTokenTest is UnitTest
       h,
       _server,
       "selection_range/selection_range.pony",
-      [ (27, 4,
-        _SelectionRangeChecker(recover val
+      [ _SelectionRangeChecker(recover val
           [as _SrCheck: (27, 4, 3, (27, 4, 27, 5))]
-        end))])
+        end)])
 
 class \nodoc\ iso _SelectionRangeMethodTest is UnitTest
   """
@@ -75,10 +74,9 @@ class \nodoc\ iso _SelectionRangeMethodTest is UnitTest
       h,
       _server,
       "selection_range/selection_range.pony",
-      [ (30, 4,
-        _SelectionRangeChecker(recover val
+      [ _SelectionRangeChecker(recover val
           [as _SrCheck: (30, 4, 3, (30, 4, 30, 5))]
-        end))])
+        end)])
 
 class \nodoc\ iso _SelectionRangeWhitespaceTest is UnitTest
   """
@@ -98,10 +96,9 @@ class \nodoc\ iso _SelectionRangeWhitespaceTest is UnitTest
       h,
       _server,
       "selection_range/selection_range.pony",
-      [ (28, 0,
-        _SelectionRangeChecker(recover val
+      [ _SelectionRangeChecker(recover val
           [as _SrCheck: (28, 0, 0, None)]
-        end))])
+        end)])
 
 class \nodoc\ iso _SelectionRangeKeywordTest is UnitTest
   """
@@ -128,10 +125,9 @@ class \nodoc\ iso _SelectionRangeKeywordTest is UnitTest
       h,
       _server,
       "selection_range/selection_range.pony",
-      [ (26, 2,
-        _SelectionRangeChecker(recover val
+      [ _SelectionRangeChecker(recover val
           [as _SrCheck: (26, 2, 3, None)]
-        end))])
+        end)])
 
 class \nodoc\ iso _SelectionRangePositionsArrayTest is UnitTest
   """
@@ -160,10 +156,9 @@ class \nodoc\ iso _SelectionRangePositionsArrayTest is UnitTest
       h,
       _server,
       "selection_range/selection_range.pony",
-      [ (27, 4,
-        _SelectionRangeChecker(recover val
+      [ _SelectionRangeChecker(recover val
           [as _SrCheck: (27, 4, 3, (27, 4, 27, 5)); (28, 0, 0, None)]
-        end))])
+        end)])
 
 class \nodoc\ iso _SelectionRangeEmptyPositionsTest is UnitTest
   """
@@ -186,10 +181,9 @@ class \nodoc\ iso _SelectionRangeEmptyPositionsTest is UnitTest
       h,
       _server,
       "selection_range/selection_range.pony",
-      [ (0, 0,
-        _SelectionRangeChecker(recover val
+      [ _SelectionRangeChecker(recover val
           Array[_SrCheck]
-        end))])
+        end)])
 
 // (line, character, min_depth, expected_innermost)
 // min_depth = 0: expect a null response entry (no AST node at this position)
@@ -202,7 +196,7 @@ class val _SelectionRangeChecker
   Validates a textDocument/selectionRange response.
 
   Each entry in `_checks` corresponds to one requested position. Positions are
-  sent via `lsp_extra_params()` and responses are validated in order:
+  sent via `lsp_params()` and responses are validated in order:
   - min_depth = 0: expect a null entry (no AST node at that position).
   - min_depth > 0: expect a SelectionRange chain of at least that depth, with
     monotonically expanding ranges and an optional exact innermost check.
@@ -215,13 +209,7 @@ class val _SelectionRangeChecker
   fun lsp_method(): String =>
     Methods.text_document().selection_range()
 
-  fun lsp_range(): (None | (I64, I64, I64, I64)) =>
-    None
-
-  fun lsp_context(): (None | JsonObject) =>
-    None
-
-  fun lsp_extra_params(): (None | JsonObject) =>
+  fun lsp_params(): (None | JsonObject) =>
     var positions = JsonArray
     for c in _checks.values() do
       positions =
@@ -394,10 +382,9 @@ class \nodoc\ iso _SelectionRangePrimitiveBoundTest is UnitTest
       h,
       _server,
       "selection_range/_sr_edge_cases.pony",
-      [ (0, 0,
-        _SelectionRangeChecker(recover val
+      [ _SelectionRangeChecker(recover val
           [as _SrCheck: (0, 0, 2, (0, 0, 0, 18))]
-        end))])
+        end)])
 
 class \nodoc\ iso _SelectionRangeCrossFileTraitTest is UnitTest
   """
@@ -439,7 +426,6 @@ class \nodoc\ iso _SelectionRangeCrossFileTraitTest is UnitTest
       h,
       _server,
       "selection_range/_sr_cross_impl.pony",
-      [ (3, 4,
-        _SelectionRangeChecker(recover val
+      [ _SelectionRangeChecker(recover val
           [as _SrCheck: (3, 4, 3, None)]
-        end))])
+        end)])
