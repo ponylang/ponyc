@@ -132,7 +132,12 @@ message("Building targets: ${LLVM_TARGETS_TO_BUILD}")
 
 set(LLVM_ENABLE_BINDINGS OFF CACHE BOOL "ponyc specific override of LLVM cache entry")
 set(LLVM_ENABLE_OCAMLDOC OFF CACHE BOOL "ponyc specific override of LLVM cache entry")
-set(LLVM_ENABLE_PIC OFF CACHE BOOL "ponyc specific override of LLVM cache entry")
+# Historically disabled on macOS to fix an LLVM build failure there. On
+# other platforms keep LLVM's default (ON) so PIE-default distributions
+# can link the resulting static libs into pony-lsp and pony-lint.
+if(${CMAKE_HOST_SYSTEM_NAME} MATCHES "Darwin")
+    set(LLVM_ENABLE_PIC OFF CACHE BOOL "ponyc specific override of LLVM cache entry")
+endif()
 set(LLVM_ENABLE_TERMINFO OFF CACHE BOOL "ponyc specific override of LLVM cache entry")
 set(LLVM_ENABLE_WARNINGS OFF CACHE BOOL "ponyc specific override of LLVM cache entry")
 set(LLVM_ENABLE_Z3_SOLVER OFF CACHE BOOL "ponyc specific override of LLVM cache entry")
