@@ -1023,7 +1023,7 @@ bool expr_nominal(pass_opt_t* opt, ast_t** astp)
     return true;
   }
 
-  return check_constraints(typeargs, typeparams, typeargs, true, opt);
+  return check_constraints(typeargs, typeparams, typeargs, true, false, opt);
 }
 
 static bool check_return_type(pass_opt_t* opt, ast_t* ast)

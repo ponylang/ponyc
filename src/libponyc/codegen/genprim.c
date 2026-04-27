@@ -621,6 +621,74 @@ void genprim_donotoptimise_methods(compile_t* c, reach_type_t* t)
   BOX_FUNCTION(donotoptimise_observe, t);
 }
 
+// Intrinsic for `TypeInfo.size_of[T]()`. Returns the in-memory size of T in
+// bytes: the unboxed primitive size for machine words and tuples, the
+// type-descriptor pointer size for non-machine-word primitives, the heap
+// structure size (descriptor + fields, plus actor bookkeeping) for classes
+// and actors, and the C-compatible struct size for structs.
+static void typeinfo_size_of(compile_t* c, reach_type_t* t,
+  reach_method_t* m)
+{
+  m->intrinsic = true;
+  compile_type_t* c_t = (compile_type_t*)t->c_type;
+  compile_method_t* c_m = (compile_method_t*)m->c_method;
+  (void)c_m;
+
+  ast_t* typearg = ast_child(m->typeargs);
+  reach_type_t* t_elem = reach_type(c->reach, typearg);
+  compile_type_t* c_t_elem = (compile_type_t*)t_elem->c_type;
+  compile_type_t* t_result = (compile_type_t*)m->result->c_type;
+
+  start_function(c, t, m, t_result->use_type, &c_t->use_type, 1);
+
+  LLVMTypeRef sized_type = NULL;
+
+  switch(t_elem->underlying)
+  {
+    case TK_PRIMITIVE:
+      sized_type = (c_t_elem->primitive != NULL)
+        ? c_t_elem->primitive
+        : c_t_elem->structure;
+      break;
+
+    case TK_TUPLETYPE:
+      sized_type = c_t_elem->primitive;
+      break;
+
+    case TK_CLASS:
+    case TK_ACTOR:
+    case TK_STRUCT:
+      sized_type = c_t_elem->structure;
+      break;
+
+    default:
+      // Only report the error once per typearg. `fun tag` methods on a
+      // primitive are reified into tag/ref/val/box cap variants; emitting
+      // from a single cap avoids duplicate diagnostics.
+      if(m->cap == TK_TAG)
+      {
+        ast_error(c->opt->check.errors, m->fun->ast,
+          "TypeInfo.size_of[T]() requires T to be a concrete type "
+          "(primitive, class, actor, struct, or tuple); got %s",
+          ast_print_type(typearg));
+      }
+      break;
+  }
+
+  uint64_t size = (sized_type != NULL)
+    ? LLVMABISizeOfType(c->target_data, sized_type)
+    : 0;
+
+  LLVMValueRef result = LLVMConstInt(c->intptr, size, false);
+  genfun_build_ret(c, result);
+  codegen_finishfun(c);
+}
+
+void genprim_typeinfo_methods(compile_t* c, reach_type_t* t)
+{
+  GENERIC_FUNCTION("size_of", typeinfo_size_of);
+}
+
 static void trace_array_elements(compile_t* c, reach_type_t* t,
   LLVMValueRef ctx, LLVMValueRef object, LLVMValueRef pointer)
 {

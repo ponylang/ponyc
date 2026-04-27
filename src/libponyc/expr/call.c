@@ -61,7 +61,12 @@ bool method_check_type_params(pass_opt_t* opt, ast_t** astp)
     return false;
   }
 
-  if(!check_constraints(lhs, typeparams, typeargs, true, opt))
+  // Pony forbids structs as type arguments to ordinary generic methods, but
+  // `TypeInfo.size_of` accepts them as a special case so struct sizes can be
+  // queried directly. `intrinsic_allows_struct_typearg` recognises that one
+  // call site and relaxes the struct-rejection branch in `check_constraints`.
+  if(!check_constraints(lhs, typeparams, typeargs, true,
+    intrinsic_allows_struct_typearg(lhs), opt))
   {
     ast_free_unattached(typeargs);
     return false;

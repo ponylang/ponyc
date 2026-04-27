@@ -15,6 +15,10 @@
 
 #define TEST_COMPILE(src) DO(test_compile(src, "ir"))
 
+#define TEST_ERRORS_1(src, err1) \
+  { const char* errs[] = {err1, NULL}; \
+    DO(test_expected_errors(src, "ir", errs)); }
+
 
 class CodegenTest : public PassTest
 {
@@ -153,6 +157,44 @@ TEST_F(CodegenTest, DoNotOptimiseApplyPrimitive)
     "actor Main\n"
     "  new create(env: Env) =>\n"
     "    DoNotOptimise[I64](0)";
+
+  TEST_COMPILE(src);
+}
+
+TEST_F(CodegenTest, TypeInfoSizeOfPrimitive)
+{
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let _ = TypeInfo.size_of[U64]()\n"
+    "    let _ = TypeInfo.size_of[(U8, U8, U8)]()\n"
+    "    let _ = TypeInfo.size_of[None]()";
+
+  TEST_COMPILE(src);
+}
+
+TEST_F(CodegenTest, TypeInfoSizeOfAbstractTypeFails)
+{
+  const char* src =
+    "interface Shape\n"
+    "  fun area(): F64\n"
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let _ = TypeInfo.size_of[Shape]()";
+
+  TEST_ERRORS_1(src,
+    "TypeInfo.size_of[T]() requires T to be a concrete type "
+    "(primitive, class, actor, struct, or tuple); got Shape ref");
+}
+
+TEST_F(CodegenTest, TypeInfoSizeOfStruct)
+{
+  const char* src =
+    "struct S\n"
+    "  var x: U64 = 0\n"
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let _ = TypeInfo.size_of[S]()";
 
   TEST_COMPILE(src);
 }

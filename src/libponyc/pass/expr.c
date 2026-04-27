@@ -593,7 +593,8 @@ ast_result_t pass_expr(ast_t** astp, pass_opt_t* options)
         break;
       }
 
-      r = check_constraints(typeargs, typeparams, typeargs, true, options);
+      r = check_constraints(typeargs, typeparams, typeargs, true, false,
+        options);
       break;
     }
     case TK_FVAR:

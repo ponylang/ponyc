@@ -233,6 +233,21 @@ static void set_method_types(reach_t* r, reach_method_t* m,
   ast_t* r_result = deferred_reify(m->fun, result, opt);
   m->result = add_type(r, r_result, opt);
   ast_free_unattached(r_result);
+
+  // Reach method-level type arguments. Most type arguments also appear in
+  // params or result and are reached above, but some intrinsics (e.g.
+  // `TypeInfo.size_of[T]()`) only mention T in the type-arg list, and codegen
+  // needs to look up their reach_type.
+  if(m->typeargs != NULL)
+  {
+    ast_t* typearg = ast_child(m->typeargs);
+
+    while(typearg != NULL)
+    {
+      add_type(r, typearg, opt);
+      typearg = ast_sibling(typearg);
+    }
+  }
 }
 
 static void trace_kind_append(printbuf_t* buf, ast_t* type)

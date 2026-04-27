@@ -462,7 +462,8 @@ bool expr_qualify(pass_opt_t* opt, ast_t** astp)
       if(!reify_defaults(typeparams, right, true, opt))
         return false;
 
-      if(!check_constraints(left, typeparams, right, true, opt))
+      if(!check_constraints(left, typeparams, right, true,
+        intrinsic_allows_struct_typearg(left), opt))
         return false;
 
       type = reify(type, typeparams, right, opt, true);

@@ -5,6 +5,7 @@
 #include "assemble.h"
 #include "alias.h"
 #include "../ast/token.h"
+#include "../pkg/package.h"
 #include "../../libponyrt/gc/serialise.h"
 #include "../../libponyrt/mem/pool.h"
 #include "ponyassert.h"
@@ -424,8 +425,70 @@ void deferred_reify_free(deferred_reification_t* deferred)
   }
 }
 
+bool intrinsic_allows_struct_typearg(ast_t* funref)
+{
+  if(funref == NULL)
+    return false;
+
+  switch(ast_id(funref))
+  {
+    case TK_FUNREF:
+    case TK_BEREF:
+    case TK_NEWREF:
+    case TK_NEWBEREF:
+    case TK_FUNAPP:
+    case TK_BEAPP:
+    case TK_NEWAPP:
+    case TK_FUNCHAIN:
+    case TK_BECHAIN:
+      break;
+
+    default:
+      return false;
+  }
+
+  // funref children: receiver, method-id-or-qualify
+  ast_t* receiver = ast_child(funref);
+  if(receiver == NULL)
+    return false;
+
+  ast_t* method_node = ast_sibling(receiver);
+  if(method_node == NULL)
+    return false;
+
+  // After expr_qualify rewrites, the method id may be wrapped in a typeargs
+  // or shifted; tolerate either shape by recovering the leading TK_ID.
+  ast_t* method_id = method_node;
+  if(ast_id(method_id) != TK_ID)
+    method_id = ast_child(method_id);
+  if((method_id == NULL) || (ast_id(method_id) != TK_ID))
+    return false;
+  if(ast_name(method_id) != stringtab("size_of"))
+    return false;
+
+  // Receiver type tells us the owning entity. For `TypeInfo.size_of[T]` the
+  // receiver is a TK_TYPEREF to TypeInfo, whose type is the nominal form.
+  ast_t* recv_type = ast_type(receiver);
+  if((recv_type == NULL) || (ast_id(recv_type) != TK_NOMINAL))
+    return false;
+
+  ast_t* entity = (ast_t*)ast_data(recv_type);
+  if((entity == NULL) || (ast_id(entity) != TK_PRIMITIVE))
+    return false;
+
+  ast_t* entity_id = ast_child(entity);
+  if(ast_name(entity_id) != stringtab("TypeInfo"))
+    return false;
+
+  ast_t* package = ast_nearest(entity, TK_PACKAGE);
+  if(package == NULL)
+    return false;
+
+  return package_filename(package) == stringtab("builtin");
+}
+
 bool check_constraints(ast_t* orig, ast_t* typeparams, ast_t* typeargs,
-  bool report_errors, pass_opt_t* opt)
+  bool report_errors, bool allow_struct_typeargs, pass_opt_t* opt)
 {
   ast_t* typeparam = ast_child(typeparams);
   ast_t* typearg = ast_child(typeargs);
@@ -449,7 +512,7 @@ bool check_constraints(ast_t* orig, ast_t* typeparams, ast_t* typeargs,
       {
         ast_t* def = (ast_t*)ast_data(typearg);
 
-        if(ast_id(def) == TK_STRUCT)
+        if((ast_id(def) == TK_STRUCT) && !allow_struct_typeargs)
         {
           if(report_errors)
           {
@@ -486,7 +549,8 @@ bool check_constraints(ast_t* orig, ast_t* typeparams, ast_t* typeargs,
           {
             ast_t* def = (ast_t*)ast_data(unfolded);
 
-            if((def != NULL) && (ast_id(def) == TK_STRUCT))
+            if((def != NULL) && (ast_id(def) == TK_STRUCT)
+              && !allow_struct_typeargs)
             {
               ast_free_unattached(unfolded);
 

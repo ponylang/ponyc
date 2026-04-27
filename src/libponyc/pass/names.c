@@ -83,7 +83,7 @@ static bool names_typealias(pass_opt_t* opt, ast_t** astp, ast_t* def,
 
   if(expr)
   {
-    if(!check_constraints(typeargs, typeparams, typeargs, true, opt))
+    if(!check_constraints(typeargs, typeparams, typeargs, true, false, opt))
       return false;
   }
 

@@ -656,6 +656,8 @@ static void make_intrinsic_methods(compile_t* c, reach_type_t* t)
       genprim_nullable_pointer_methods(c, t);
     else if(name == c->str_DoNotOptimise)
       genprim_donotoptimise_methods(c, t);
+    else if(name == c->str_TypeInfo)
+      genprim_typeinfo_methods(c, t);
     else if(name == c->str_Platform)
       genprim_platform_methods(c, t);
   }
@@ -821,7 +823,12 @@ bool gentypes(compile_t* c)
       c_t->abi_size = (size_t)LLVMABISizeOfType(c->target_data, c_t->structure);
 
     make_debug_final(c, t);
+
+    size_t prev_errors = errors_get_count(c->opt->check.errors);
     make_intrinsic_methods(c, t);
+
+    if(errors_get_count(c->opt->check.errors) > prev_errors)
+      return false;
 
     if(!genfun_method_sigs(c, t))
       return false;

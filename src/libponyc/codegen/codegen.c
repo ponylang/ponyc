@@ -123,6 +123,7 @@ static void init_runtime(compile_t* c)
   c->str_Pointer = stringtab("Pointer");
   c->str_NullablePointer = stringtab("NullablePointer");
   c->str_DoNotOptimise = stringtab("DoNotOptimise");
+  c->str_TypeInfo = stringtab("TypeInfo");
   c->str_Array = stringtab("Array");
   c->str_String = stringtab("String");
   c->str_Platform = stringtab("Platform");
