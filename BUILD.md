@@ -82,11 +82,11 @@ Additional Requirements:
 
 Distribution | Requires
 --- | ---
-Alpine 3.17+ | binutils-gold, clang, clang-dev, cmake, make, zlib-dev
+Alpine 3.17+ | clang, clang-dev, cmake, make, zlib-dev
 CentOS 8 | clang, cmake, diffutils, libatomic, libstdc++-static, make, zlib-devel
 Fedora | clang, cmake, libatomic, libstdc++-static, make, zlib-devel
-Fedora 41 | binutils-gold, clang, cmake, libatomic, libstdc++-static, make, zlib-devel
-OpenSuse Leap | binutils-gold, cmake, zlib-devel
+Fedora 41 | clang, cmake, libatomic, libstdc++-static, make, zlib-devel
+OpenSuse Leap | cmake, zlib-devel
 Raspbian 32-bit | cmake, zlib1g-dev
 Raspbian 64-bit | cmake, clang, zlib1g-dev
 Rocky | clang, cmake, diffutils, libatomic, libstdc++-static, make, zlib-devel
