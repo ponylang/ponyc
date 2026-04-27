@@ -3,7 +3,6 @@ FROM fedora:43
 LABEL org.opencontainers.image.source="https://github.com/ponylang/ponyc"
 
 RUN dnf install -y \
-      binutils-gold \
       clang \
       cmake \
       compiler-rt \
