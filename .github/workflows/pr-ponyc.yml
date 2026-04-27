@@ -10,6 +10,8 @@ on:
       - '!**/*.yml'
       - '!.dockerfiles/**'
       - '!.ci-dockerfiles/**'
+      - '!.gitignore'
+      - '!.markdownlintignore'
       - '.github/workflows/pr-ponyc.yml'
 
 concurrency:
