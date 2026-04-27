@@ -9,6 +9,8 @@ on:
       - '!**/*.yml'
       - '!.dockerfiles/**'
       - '!.ci-dockerfiles/**'
+      - '!.gitignore'
+      - '!.markdownlintignore'
       - '.github/workflows/pr-tools.yml'
 
 concurrency:
