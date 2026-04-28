@@ -51,3 +51,7 @@ Hints appear after each type name (and after `]` for generic types). Parameters 
 
 Type parameter references (e.g. `T` in `Array[T]`) have no fixed capability, so they produce no hint.
 
+## Fix spurious pony-lsp inlay hints on primitive types
+
+Primitive types were showing extra unexpected inlay hints alongside the hints for user-defined methods. This is now fixed.
+
