@@ -213,7 +213,23 @@ class ref _InlayHintCollector is ASTVisitor
       end
 
       let src = id_node.source_contents() as String box
-      let start = _byte_offset(src, line, col)? + name.size()
+      let name_off = _byte_offset(src, line, col)?
+      // A synthetic method (e.g. eq/ne appended by add_comparable on
+      // primitives) inherits its source position from a different node.
+      // Verify first char and that the following byte is not an identifier
+      // character (distinguishing e.g. "ne" at the start of "new"). Any
+      // error here means the position is stale — skip the method.
+      try
+        if src(name_off)? != name(0)? then
+          return
+        end
+        if _is_ident_char(src(name_off + name.size())?) then
+          return
+        end
+      else
+        return
+      end
+      let start = name_off + name.size()
       var hint_line: USize = 0
       var hint_col: USize = 0
       var close_j: USize = 0
@@ -266,7 +282,11 @@ class ref _InlayHintCollector is ASTVisitor
   fun ref _try_add_receiver_cap_hint(node: AST box) =>
     """
     Emits a receiver capability hint after 'fun' when no explicit capability
-    keyword appears between 'fun' and the function name in source.
+    keyword appears between 'fun' and the function name in source. Synthetic
+    compiler-generated methods (e.g. eq/ne from add_comparable on primitives)
+    are filtered by checking that the source character at the claimed position
+    matches the method name — synthetic methods inherit a stale position that
+    points into a different method's name.
     """
     try
       let cap_node = node(0)?
@@ -280,6 +300,7 @@ class ref _InlayHintCollector is ASTVisitor
         return
       end
 
+      let name = id_node.token_value() as String
       let line = id_node.line()
       let col = id_node.pos()
       if (line == 0) or (col < 3) then
@@ -290,6 +311,18 @@ class ref _InlayHintCollector is ASTVisitor
 
       let src = id_node.source_contents() as String box
       let name_start = _byte_offset(src, line, col)?
+      // Same synthetic method guard as _try_add_return_type_hint: verify
+      // first char and trailing non-identifier byte. Fail closed on error.
+      try
+        if src(name_start)? != name(0)? then
+          return
+        end
+        if _is_ident_char(src(name_start + name.size())?) then
+          return
+        end
+      else
+        return
+      end
       if InlayHintSource.has_explicit_receiver_cap(src, name_start) then
         return
       end
@@ -356,3 +389,7 @@ class ref _InlayHintCollector is ASTVisitor
     (id == TokenIds.tk_iso()) or (id == TokenIds.tk_trn())
       or (id == TokenIds.tk_ref()) or (id == TokenIds.tk_val())
       or (id == TokenIds.tk_box()) or (id == TokenIds.tk_tag())
+
+  fun _is_ident_char(c: U8): Bool =>
+    ((c >= 'a') and (c <= 'z')) or ((c >= 'A') and (c <= 'Z'))
+      or ((c >= '0') and (c <= '9')) or (c == '_')
