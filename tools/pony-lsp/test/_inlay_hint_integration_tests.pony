@@ -496,8 +496,8 @@ class \nodoc\ iso _InlayHintPrimitiveNewFirstTest is UnitTest
       _server,
       "inlay_hint/_prim_new_first.pony",
       [ _InlayHintChecker(
-          [ (9, 5, " box")            // greet receiver cap
-            (9, 19, " val") ]         // None return cap
+          [ (10, 5, " box")           // greet receiver cap
+            (10, 19, " val") ]        // None return cap
           ) ])
 
 class \nodoc\ iso _InlayHintPrimitiveEFirstCharTest is UnitTest

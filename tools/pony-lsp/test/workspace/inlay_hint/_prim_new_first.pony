@@ -6,6 +6,7 @@ primitive _PrimNewFirst
   """
   new create() =>
     None
+
   // hints: " box" (receiver), " val" (None return)
   fun greet(): None =>
     None
