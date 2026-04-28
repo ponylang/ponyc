@@ -213,7 +213,14 @@ class ref _InlayHintCollector is ASTVisitor
       end
 
       let src = id_node.source_contents() as String box
-      let start = _byte_offset(src, line, col)? + name.size()
+      let name_off = _byte_offset(src, line, col)?
+      // A synthetic method (e.g. eq/ne appended by add_comparable on
+      // primitives) inherits its source position from a different node.
+      // The character at that position won't match the method name.
+      try
+        if src(name_off)? != name(0)? then return end
+      end
+      let start = name_off + name.size()
       var hint_line: USize = 0
       var hint_col: USize = 0
       var close_j: USize = 0
@@ -266,7 +273,11 @@ class ref _InlayHintCollector is ASTVisitor
   fun ref _try_add_receiver_cap_hint(node: AST box) =>
     """
     Emits a receiver capability hint after 'fun' when no explicit capability
-    keyword appears between 'fun' and the function name in source.
+    keyword appears between 'fun' and the function name in source. Synthetic
+    compiler-generated methods (e.g. eq/ne from add_comparable on primitives)
+    are filtered by checking that the source character at the claimed position
+    matches the method name — synthetic methods inherit a stale position that
+    points into a different method's name.
     """
     try
       let cap_node = node(0)?
@@ -280,6 +291,7 @@ class ref _InlayHintCollector is ASTVisitor
         return
       end
 
+      let name = id_node.token_value() as String
       let line = id_node.line()
       let col = id_node.pos()
       if (line == 0) or (col < 3) then
@@ -290,6 +302,12 @@ class ref _InlayHintCollector is ASTVisitor
 
       let src = id_node.source_contents() as String box
       let name_start = _byte_offset(src, line, col)?
+      // Same synthetic method guard as _try_add_return_type_hint: if the
+      // source character at the claimed position doesn't match the method
+      // name, the position is stale and the method is synthetic.
+      try
+        if src(name_start)? != name(0)? then return end
+      end
       if InlayHintSource.has_explicit_receiver_cap(src, name_start) then
         return
       end

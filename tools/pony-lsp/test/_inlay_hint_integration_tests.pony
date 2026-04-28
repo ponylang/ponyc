@@ -25,6 +25,7 @@ primitive _InlayHintIntegrationTests is TestList
     test(_InlayHintFunctionParamsExplicitTest.create(server))
     test(_InlayHintFunctionParamsGenericTest.create(server))
     test(_InlayHintFunctionParamsFullCapsTest.create(server))
+    test(_InlayHintPrimitiveTest.create(server))
 
 class \nodoc\ iso _InlayHintDemoTest is UnitTest
   let _server: _LspTestServer
@@ -444,6 +445,32 @@ class \nodoc\ iso _InlayHintFunctionParamsFullCapsTest is UnitTest
           [ (12, 5, " box")           // receiver cap only
             (12, 55, ": None val") ]  // return type; no param hints
           where range = (12, 0, 14, 0)) ])
+
+class \nodoc\ iso _InlayHintPrimitiveTest is UnitTest
+  """
+  Verifies that a primitive's user-defined method receives the expected hints
+  and that synthetic compiler-added methods (eq/ne from add_comparable) do
+  not produce spurious extra hints. The exact count of 3 hints would fail if
+  any synthetic method leaked through.
+  """
+  let _server: _LspTestServer
+
+  new iso create(server: _LspTestServer) =>
+    _server = server
+
+  fun name(): String =>
+    "inlay_hint/integration/primitive"
+
+  fun apply(h: TestHelper) =>
+    _RunLspChecks(
+      h,
+      _server,
+      "inlay_hint/_prim.pony",
+      [ _InlayHintChecker(
+          [ (6, 5, " box")            // greet receiver cap
+            (6, 24, " val")           // name: String cap
+            (6, 31, " val") ]         // None return cap
+          ) ])
 
 class val _InlayHintChecker
   """
