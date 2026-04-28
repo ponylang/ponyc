@@ -20,7 +20,7 @@ For user documentation — installation and editor configuration — see the [po
 | **[Document Symbols][spec-document-symbols]** | pony-lsp provides a list of available symbols for each opened document. |
 | **[Workspace Symbols][spec-workspace-symbols]** | Fuzzy search over all symbols across the entire workspace. |
 | **[Document Highlight][spec-document-highlight]** | All occurrences of the symbol under the cursor are highlighted simultaneously across the document. |
-| **[Inlay Hints][spec-inlay-hints]** | Inferred types are shown inline after the variable name for `let` and `var` declarations with no explicit type annotation. |
+| **[Inlay Hints][spec-inlay-hints]** | Three kinds of hints are shown inline. For `let`, `var`, and field declarations with no type annotation, the full inferred type appears after the variable name. For annotated types where the capability is omitted — in variable and field declarations, function parameter types, generic type arguments, and union and tuple members — the missing capability keyword appears after the type name. For `fun` declarations, the implicit receiver capability appears before the function name and the implicit return type appears after the closing parenthesis. |
 | **[Find References][spec-references]** | All references to the symbol under the cursor are returned, with optional inclusion of the declaration site. |
 | **[Rename][spec-rename]** | Rename a symbol and all its references across the workspace. |
 | **[Folding Range][spec-folding-range]** | Code folding ranges are provided for blocks, methods, classes, and other structured constructs. |

@@ -12,8 +12,8 @@ class _UnionTypes
     None
 
 actor _BeNewExclusion
-  be run() =>
+  be run(x: String) =>
     None
 
-  new create() =>
+  new create(x: U32) =>
     None
