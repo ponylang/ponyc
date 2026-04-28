@@ -216,9 +216,18 @@ class ref _InlayHintCollector is ASTVisitor
       let name_off = _byte_offset(src, line, col)?
       // A synthetic method (e.g. eq/ne appended by add_comparable on
       // primitives) inherits its source position from a different node.
-      // The character at that position won't match the method name.
+      // Verify first char and that the following byte is not an identifier
+      // character (distinguishing e.g. "ne" at the start of "new"). Any
+      // error here means the position is stale — skip the method.
       try
-        if src(name_off)? != name(0)? then return end
+        if src(name_off)? != name(0)? then
+          return
+        end
+        if _is_ident_char(src(name_off + name.size())?) then
+          return
+        end
+      else
+        return
       end
       let start = name_off + name.size()
       var hint_line: USize = 0
@@ -302,11 +311,17 @@ class ref _InlayHintCollector is ASTVisitor
 
       let src = id_node.source_contents() as String box
       let name_start = _byte_offset(src, line, col)?
-      // Same synthetic method guard as _try_add_return_type_hint: if the
-      // source character at the claimed position doesn't match the method
-      // name, the position is stale and the method is synthetic.
+      // Same synthetic method guard as _try_add_return_type_hint: verify
+      // first char and trailing non-identifier byte. Fail closed on error.
       try
-        if src(name_start)? != name(0)? then return end
+        if src(name_start)? != name(0)? then
+          return
+        end
+        if _is_ident_char(src(name_start + name.size())?) then
+          return
+        end
+      else
+        return
       end
       if InlayHintSource.has_explicit_receiver_cap(src, name_start) then
         return
@@ -374,3 +389,7 @@ class ref _InlayHintCollector is ASTVisitor
     (id == TokenIds.tk_iso()) or (id == TokenIds.tk_trn())
       or (id == TokenIds.tk_ref()) or (id == TokenIds.tk_val())
       or (id == TokenIds.tk_box()) or (id == TokenIds.tk_tag())
+
+  fun _is_ident_char(c: U8): Bool =>
+    ((c >= 'a') and (c <= 'z')) or ((c >= 'A') and (c <= 'Z'))
+      or ((c >= '0') and (c <= '9')) or (c == '_')

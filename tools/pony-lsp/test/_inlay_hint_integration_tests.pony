@@ -26,6 +26,9 @@ primitive _InlayHintIntegrationTests is TestList
     test(_InlayHintFunctionParamsGenericTest.create(server))
     test(_InlayHintFunctionParamsFullCapsTest.create(server))
     test(_InlayHintPrimitiveTest.create(server))
+    test(_InlayHintPrimitiveNewFirstTest.create(server))
+    test(_InlayHintPrimitiveEFirstCharTest.create(server))
+    test(_InlayHintPrimitiveEmptyTest.create(server))
 
 class \nodoc\ iso _InlayHintDemoTest is UnitTest
   let _server: _LspTestServer
@@ -471,6 +474,77 @@ class \nodoc\ iso _InlayHintPrimitiveTest is UnitTest
             (6, 24, " val")           // name: String cap
             (6, 31, " val") ]         // None return cap
           ) ])
+
+class \nodoc\ iso _InlayHintPrimitiveNewFirstTest is UnitTest
+  """
+  Verifies suppression when a primitive's first member is a constructor.
+  Synthetic ne inherits the position of 'n' in 'new', matching ne's own
+  first character. Without the boundary-byte check, ne would leak a
+  spurious : Bool val hint. The exact count of 2 hints would fail if it did.
+  """
+  let _server: _LspTestServer
+
+  new iso create(server: _LspTestServer) =>
+    _server = server
+
+  fun name(): String =>
+    "inlay_hint/integration/primitive/new_first"
+
+  fun apply(h: TestHelper) =>
+    _RunLspChecks(
+      h,
+      _server,
+      "inlay_hint/_prim_new_first.pony",
+      [ _InlayHintChecker(
+          [ (9, 5, " box")            // greet receiver cap
+            (9, 19, " val") ]         // None return cap
+          ) ])
+
+class \nodoc\ iso _InlayHintPrimitiveEFirstCharTest is UnitTest
+  """
+  Verifies that a user-defined method starting with 'e' is not suppressed
+  by the synthetic-method guard. 'e' is also the first character of synthetic
+  eq; the boundary-byte check must not fire for the user method (its name
+  ends at '(', a non-identifier character).
+  """
+  let _server: _LspTestServer
+
+  new iso create(server: _LspTestServer) =>
+    _server = server
+
+  fun name(): String =>
+    "inlay_hint/integration/primitive/e_first_char"
+
+  fun apply(h: TestHelper) =>
+    _RunLspChecks(
+      h,
+      _server,
+      "inlay_hint/_prim_e_first_char.pony",
+      [ _InlayHintChecker(
+          [ (7, 5, " box")            // engage receiver cap
+            (7, 20, " val") ]         // None return cap
+          ) ])
+
+class \nodoc\ iso _InlayHintPrimitiveEmptyTest is UnitTest
+  """
+  Verifies that a primitive with no user-defined methods produces no inlay
+  hints. Synthetic eq and ne are the only members and must be suppressed.
+  """
+  let _server: _LspTestServer
+
+  new iso create(server: _LspTestServer) =>
+    _server = server
+
+  fun name(): String =>
+    "inlay_hint/integration/primitive/empty"
+
+  fun apply(h: TestHelper) =>
+    _RunLspChecks(
+      h,
+      _server,
+      "inlay_hint/_prim_empty.pony",
+      [ _InlayHintChecker(
+          recover val Array[(I64, I64, String)].create() end) ])
 
 class val _InlayHintChecker
   """
