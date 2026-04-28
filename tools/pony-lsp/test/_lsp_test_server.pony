@@ -99,6 +99,13 @@ actor _LspTestServer is Channel
             try
               (_, let pending) = _in_flight.remove(id_i64)?
               let action = pending.action
+              match res.err
+              | let e: ResponseError val =>
+                pending.h.log(
+                  pending.checker.lsp_method() +
+                  ": server error " + e.code.string() +
+                  ": " + e.message)
+              end
               if pending.checker.check(res, pending.h) then
                 pending.h.complete_action(action)
               else
