@@ -15,6 +15,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Changed
 
+- Remove binutils-gold from nightly and release Docker images ([PR #5270](https://github.com/ponylang/ponyc/pull/5270))
 
 ## [0.63.3] - 2026-04-25
 
