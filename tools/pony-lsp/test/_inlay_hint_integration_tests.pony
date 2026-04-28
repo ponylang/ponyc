@@ -21,6 +21,10 @@ primitive _InlayHintIntegrationTests is TestList
     test(_InlayHintBeNewExclusionTest.create(server))
     test(_InlayHintExplicitReceiverCapTest.create(server))
     test(_InlayHintSyntheticNameExclusionTest.create(server))
+    test(_InlayHintFunctionParamsFullTest.create(server))
+    test(_InlayHintFunctionParamsExplicitTest.create(server))
+    test(_InlayHintFunctionParamsGenericTest.create(server))
+    test(_InlayHintFunctionParamsFullCapsTest.create(server))
 
 class \nodoc\ iso _InlayHintDemoTest is UnitTest
   let _server: _LspTestServer
@@ -270,7 +274,7 @@ class \nodoc\ iso _InlayHintUnionTupleTest is UnitTest
 class \nodoc\ iso _InlayHintBeNewExclusionTest is UnitTest
   """
   Verifies that behaviours (be) and constructors (new) produce no hints —
-  neither receiver cap hints nor return type hints.
+  neither receiver cap hints, return type hints, nor parameter type hints.
   """
   let _server: _LspTestServer
 
@@ -334,6 +338,112 @@ class \nodoc\ iso _InlayHintSyntheticNameExclusionTest is UnitTest
       [ _InlayHintChecker(
           [ (37, 12, ": String val") ] // item hint; no hint for $iterator
           where range = (37, 0, 39, 0)) ])
+
+class \nodoc\ iso _InlayHintFunctionParamsFullTest is UnitTest
+  """
+  Full-file test covering all three functions in _function_params.pony.
+  Verifies capability hints on parameter types (explicit and generic) and
+  that fully-annotated parameters produce no hints.
+  """
+  let _server: _LspTestServer
+
+  new iso create(server: _LspTestServer) =>
+    _server = server
+
+  fun name(): String =>
+    "inlay_hint/integration/function_params/full"
+
+  fun apply(h: TestHelper) =>
+    _RunLspChecks(
+      h,
+      _server,
+      "inlay_hint/_function_params.pony",
+      [ _InlayHintChecker(
+          [ (8, 5, " box")            // explicit receiver cap
+            (8, 24, " val")           // s: String cap
+            (8, 40, " val")           // arr: Array[U32] — U32 cap
+            (8, 41, " ref")           // arr: Array[U32] — Array cap
+            (8, 42, ": None val")     // explicit inferred return type
+            (12, 5, " box")           // full_caps receiver cap
+            (12, 55, ": None val")    // full_caps return type (no param hints)
+            (16, 5, " box")           // generic receiver cap
+            (16, 49, " ref")          // arr: Array[T] — Array cap
+            (16, 50, ": None val") ]  // generic inferred return type
+          ) ])
+
+class \nodoc\ iso _InlayHintFunctionParamsExplicitTest is UnitTest
+  """
+  Range covering only `fun explicit` (line 9). Verifies that
+  String and Array[U32] parameter types each receive a capability hint.
+  """
+  let _server: _LspTestServer
+
+  new iso create(server: _LspTestServer) =>
+    _server = server
+
+  fun name(): String =>
+    "inlay_hint/integration/function_params/explicit"
+
+  fun apply(h: TestHelper) =>
+    _RunLspChecks(
+      h,
+      _server,
+      "inlay_hint/_function_params.pony",
+      [ _InlayHintChecker(
+          [ (8, 5, " box")            // receiver cap
+            (8, 24, " val")           // s: String cap
+            (8, 40, " val")           // U32 cap
+            (8, 41, " ref")           // Array cap
+            (8, 42, ": None val") ]   // return type
+          where range = (8, 0, 10, 0)) ])
+
+class \nodoc\ iso _InlayHintFunctionParamsGenericTest is UnitTest
+  """
+  Range covering only `fun generic` (line 17). Verifies that Array[T]
+  receives a capability hint for Array while the typeparamref T is skipped.
+  """
+  let _server: _LspTestServer
+
+  new iso create(server: _LspTestServer) =>
+    _server = server
+
+  fun name(): String =>
+    "inlay_hint/integration/function_params/generic"
+
+  fun apply(h: TestHelper) =>
+    _RunLspChecks(
+      h,
+      _server,
+      "inlay_hint/_function_params.pony",
+      [ _InlayHintChecker(
+          [ (16, 5, " box")           // receiver cap
+            (16, 49, " ref")          // Array[T] cap
+            (16, 50, ": None val") ]  // return type
+          where range = (16, 0, 18, 0)) ])
+
+class \nodoc\ iso _InlayHintFunctionParamsFullCapsTest is UnitTest
+  """
+  Range covering only `fun full_caps` (line 13). Verifies that explicitly
+  annotated parameter capabilities (String box, Array[U32 val] ref)
+  suppress all parameter hints.
+  """
+  let _server: _LspTestServer
+
+  new iso create(server: _LspTestServer) =>
+    _server = server
+
+  fun name(): String =>
+    "inlay_hint/integration/function_params/full_caps"
+
+  fun apply(h: TestHelper) =>
+    _RunLspChecks(
+      h,
+      _server,
+      "inlay_hint/_function_params.pony",
+      [ _InlayHintChecker(
+          [ (12, 5, " box")           // receiver cap only
+            (12, 55, ": None val") ]  // return type; no param hints
+          where range = (12, 0, 14, 0)) ])
 
 class val _InlayHintChecker
   """

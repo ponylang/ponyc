@@ -7,7 +7,8 @@ primitive InlayHints
   Collects inlay hints for a module. Three kinds of hints are emitted:
   - Inferred type hints on let/var/field declarations with no type annotation.
   - Capability hints on type annotations where the capability is absent from
-    source (including generic type arguments, union, and tuple members).
+    source (including function parameter types, generic type arguments, union,
+    and tuple members).
   - Receiver capability and return type hints on fun declarations.
   """
   fun collect(
@@ -43,9 +44,11 @@ class ref _InlayHintCollector is ASTVisitor
   fun ref visit(node: AST box): VisitResult =>
     """
     Dispatches let/var/field/embed nodes to the type hint handler and fun nodes
-    to the return type and receiver cap hint handlers. Behaviours (be) and
-    constructors (new) are excluded: be has no receiver cap or return type,
-    and new always returns the constructed type which is unambiguous.
+    to the receiver cap, parameter type, and return type hint handlers.
+    Behaviours (be) and constructors (new) are excluded: be has no receiver cap
+    or return type, and new always returns the constructed type which is
+    unambiguous. Parameter hints are emitted inside _try_add_return_type_hint
+    rather than directly here to preserve the forward-cursor invariant.
 
     Invariant: nodes must be visited in non-decreasing source line order
     for _byte_offset's forward-only cursor to work correctly. This holds
@@ -191,6 +194,10 @@ class ref _InlayHintCollector is ASTVisitor
     """
     After typechecking, child(4) always contains the return type (inferred
     or explicit). Source scanning distinguishes the two cases.
+
+    Parameter type hints are emitted here, between the scan_to_close_paren
+    call and the return-type handling, so the forward cursor advances through
+    param positions before reaching the return type position.
     """
     try
       let id_node = node(1)?
@@ -214,6 +221,8 @@ class ref _InlayHintCollector is ASTVisitor
         InlayHintSource.scan_to_close_paren(
           src, start, line, col + name.size())?
 
+      _try_add_param_hints(node, src)
+
       if InlayHintSource.has_explicit_return_type(src, close_j)? then
         _add_nominal_hints(node(4)?, src)
       else
@@ -225,6 +234,33 @@ class ref _InlayHintCollector is ASTVisitor
           (hint_col - 1).i64(),
           ": " + type_str)
       end
+    end
+
+  fun ref _try_add_param_hints(node: AST box, src: String box) =>
+    """
+    Emits capability hints for each function parameter's type annotation.
+    Called from _try_add_return_type_hint, after scan_to_close_paren has
+    computed the close-paren position (a non-cursor operation) and before
+    the return type is processed. This ordering keeps the forward cursor
+    invariant: params always precede the return type in source.
+    """
+    try
+      for param in node(3)?.children() do
+        _try_add_one_param_hint(param, src)
+      end
+    end
+
+  fun ref _try_add_one_param_hint(param: AST box, src: String box) =>
+    """
+    Delegates a single parameter's type annotation to _add_nominal_hints,
+    which recurses through nominal, union, tuple, and intersection forms to
+    emit capability hints for each type name that lacks an explicit capability
+    in source.
+    """
+    try
+      let type_node = param(1)?
+      if type_node.id() == TokenIds.tk_none() then return end
+      _add_nominal_hints(type_node, src)
     end
 
   fun ref _try_add_receiver_cap_hint(node: AST box) =>
