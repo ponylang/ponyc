@@ -138,6 +138,12 @@ set(LLVM_ENABLE_OCAMLDOC OFF CACHE BOOL "ponyc specific override of LLVM cache e
 if(${CMAKE_HOST_SYSTEM_NAME} MATCHES "Darwin")
     set(LLVM_ENABLE_PIC OFF CACHE BOOL "ponyc specific override of LLVM cache entry")
 endif()
+# We statically link LLVM and don't use its plugin infrastructure. Disable
+# explicitly so it doesn't track LLVM_ENABLE_PIC: on OpenBSD that pulls in
+# the Bye example, whose include of llvm/CodeGen/GenVT.inc resolves to the
+# base-system header in /usr/include/llvm before tablegen has generated the
+# in-tree one, producing a macro-signature mismatch.
+set(LLVM_ENABLE_PLUGINS OFF CACHE BOOL "ponyc specific override of LLVM cache entry")
 set(LLVM_ENABLE_TERMINFO OFF CACHE BOOL "ponyc specific override of LLVM cache entry")
 set(LLVM_ENABLE_WARNINGS OFF CACHE BOOL "ponyc specific override of LLVM cache entry")
 set(LLVM_ENABLE_Z3_SOLVER OFF CACHE BOOL "ponyc specific override of LLVM cache entry")
