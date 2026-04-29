@@ -216,9 +216,9 @@ primitive DocumentSymbols
       file where max_pos is None. They are identified by the structural
       property of BUILD-constructed AST nodes: ponyc's BUILD macro gives every
       node in the subtree the same source position (inherited from the basis).
-      For any user-written member the keyword token (fun/be/new/var/let/embed)
-      and the name identifier appear at different source columns; for a
-      synthesized member they share the same position.
+      For any user-written method the keyword token (fun/be/new) and the name
+      identifier appear at different source columns; for a synthesized method
+      they share the same position.
     """
     let members =
       try
@@ -268,15 +268,11 @@ primitive DocumentSymbols
       // node.
       let is_synthesized: Bool =
         match entity_child.id()
-        | TokenIds.tk_new() | TokenIds.tk_fun() | TokenIds.tk_be() =>
+        | TokenIds.tk_new()
+        | TokenIds.tk_fun()
+        | TokenIds.tk_be() =>
           try
             entity_child(1)?.position() == entity_child.position()
-          else
-            false
-          end
-        | TokenIds.tk_flet() | TokenIds.tk_fvar() | TokenIds.tk_embed() =>
-          try
-            entity_child(0)?.position() == entity_child.position()
           else
             false
           end
