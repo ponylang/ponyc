@@ -98,12 +98,6 @@ class PackageState
       end
     end
 
-  fun ref add_diagnostic(run_id: USize, diagnostic: Diagnostic) =>
-    if run_id >= this._compiler_run_id then
-      this._compiler_run_id = run_id
-      // TODO:
-    end
-
   fun dispose() =>
     for doc_state in this.documents.values() do
       doc_state.dispose()
@@ -133,6 +127,10 @@ class DocumentState
     compiler_run_id = 0
 
   fun ref update(run_id: USize, module': Module val) =>
+    """
+    Update the state of this document from the successful compilation from run
+    `run_id` with the given `module'`.
+    """
     if run_id >= this.compiler_run_id then
       this.compiler_run_id = run_id
       // clear out diagnostics
@@ -144,6 +142,8 @@ class DocumentState
         FromCompilerRun[Array[DocumentSymbol]]
           .create(run_id, DocumentSymbols.from_module(module', this._channel))
       this._hash.update(run_id, module'.hash())
+      // compilation was successful, clear out document diagnostics
+      this._diagnostics.update(run_id, [])
     end
 
   fun ref add_diagnostic(run_id: USize, diagnostic: Diagnostic) =>
