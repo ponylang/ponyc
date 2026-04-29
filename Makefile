@@ -281,10 +281,10 @@ test-pony-lint: all
 # subpackages, and listing the directories means the binary rebuilds when
 # a source is deleted (directory mtime updates on add/remove, the
 # remaining files' mtimes do not).
-lint-bin-srcs := $(shell find tools/pony-lint -path tools/pony-lint/test -prune -o -name '*.pony' -print) \
-                 $(shell find tools/lib/ponylang/pony_compiler/pony_compiler -name '*.pony')
-lint-bin-dirs := $(shell find tools/pony-lint -path tools/pony-lint/test -prune -o -type d -print) \
-                 $(shell find tools/lib/ponylang/pony_compiler/pony_compiler -type d)
+lint-bin-srcs := $(shell find $(srcDir)/tools/pony-lint -path $(srcDir)/tools/pony-lint/test -prune -o -name '*.pony' -not -name '.*' -print) \
+                 $(shell find $(srcDir)/tools/lib/ponylang/pony_compiler/pony_compiler -name '*.pony' -not -name '.*')
+lint-bin-dirs := $(shell find $(srcDir)/tools/pony-lint -path $(srcDir)/tools/pony-lint/test -prune -o -type d -print) \
+                 $(shell find $(srcDir)/tools/lib/ponylang/pony_compiler/pony_compiler -type d)
 $(outDir)/pony-lint-ci: $(lint-bin-srcs) $(lint-bin-dirs) | all
 	$(SILENT)cd '$(outDir)' && PONYPATH=.:$(PONYPATH) ./ponyc --path ../../tools/lib/ponylang/pony_compiler/ -b pony-lint-ci ../../tools/pony-lint && echo Built `pwd`/pony-lint-ci
 
