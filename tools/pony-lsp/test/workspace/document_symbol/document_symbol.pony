@@ -21,4 +21,13 @@ Each file in this package targets a specific slice of `DocumentSymbols`:
     a non-overriding implementer. Regression guard for the source-file
     filter in `ASTSourceSpan`: if the filter drops, the impl class's
     range.end.line inflates into the trait file's lines.
+
+  _ds_comparable.pony — bare primitive as the last entity in its file.
+    Regression guard for synthesized `eq`/`ne` (from `add_comparable`)
+    leaking into the outline when `max_pos` is `None`.
+
+  _ds_compare_user_eq.pony — primitive with user-written `eq` as the last
+    entity in its file. Regression guard for the partial-synthesis case:
+    ponyc skips synthesizing `eq` (already present) but still synthesizes
+    `ne`; the BUILD-position filter must suppress `ne` while preserving `eq`.
 """

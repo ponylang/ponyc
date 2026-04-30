@@ -23,6 +23,8 @@ primitive _DocumentSymbolIntegrationTests is TestList
     test(_DocSymMixedChildrenTest.create(server))
     test(_DocSymTypeAliasRangeTest.create(server))
     test(_DocSymPrimitiveRangeTest.create(server))
+    test(_DocSymPrimitiveNoChildrenTest.create(server))
+    test(_DocSymPrimitivePartialSynthesisTest.create(server))
 
 class \nodoc\ iso _DocSymContainmentTest is UnitTest
   """
@@ -302,6 +304,65 @@ class \nodoc\ iso _DocSymPrimitiveRangeTest is UnitTest
           None,
           (17, 0, 17, 25),
           (17, 10, 17, 25))])
+
+class \nodoc\ iso _DocSymPrimitiveNoChildrenTest is UnitTest
+  """
+  Regression guard for synthesized `eq`/`ne` leaking into the outline of a
+  primitive that is the last entity in its file.
+
+  `_DsComparable` (in `_ds_comparable.pony`) is a bare primitive with no
+  explicit members, and it is the last entity in the file. When `find_members`
+  processes it, `max_pos` is `None`, so the max-pos filter does not apply.
+  ponyc's traits pass synthesizes `eq` and `ne` via `add_comparable` using the
+  members node as the BUILD basis, giving them the members-node position (> the
+  primitive keyword's position and >= any hypothetical max_pos). They are caught
+  by the BUILD-position filter: ponyc's BUILD macro gives every node in a
+  constructed subtree the same source position, so the synthesized method's
+  keyword node and name identifier share the same position. User-written members
+  always place the keyword before the identifier.
+  """
+  let _server: _LspTestServer
+
+  new iso create(server: _LspTestServer) =>
+    _server = server
+
+  fun name(): String =>
+    "document_symbol/integration/primitive_no_children"
+
+  fun apply(h: TestHelper) =>
+    _RunLspChecks(
+      h,
+      _server,
+      "document_symbol/_ds_comparable.pony",
+      [_DocSymNoChildrenChecker("_DsComparable")])
+
+class \nodoc\ iso _DocSymPrimitivePartialSynthesisTest is UnitTest
+  """
+  Regression guard for the partial-synthesis case: a primitive that defines
+  `eq` explicitly receives only a synthesized `ne` from `add_comparable`.
+
+  `_DsCompareUserEq` (in `_ds_partial_comparable.pony`) is the last entity in
+  its file, so `max_pos` is `None` and the max-pos filter does not apply.
+  ponyc synthesizes `ne` (but not `eq`, since `has_member("eq")` is true) using
+  the members node as the BUILD basis. The synthesized `ne` shares its keyword
+  position with its name identifier and is caught by the BUILD-position filter.
+  The user-written `eq` has its keyword at a different column from its name and
+  must survive — the symbol must have exactly one child.
+  """
+  let _server: _LspTestServer
+
+  new iso create(server: _LspTestServer) =>
+    _server = server
+
+  fun name(): String =>
+    "document_symbol/integration/primitive_partial_synthesis"
+
+  fun apply(h: TestHelper) =>
+    _RunLspChecks(
+      h,
+      _server,
+      "document_symbol/_ds_compare_user_eq.pony",
+      [_DocSymChildKindsChecker("_DsCompareUserEq", [("eq", 6)])])
 
 class val _DocSymContainmentChecker
   """

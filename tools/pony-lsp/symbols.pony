@@ -196,7 +196,7 @@ primitive DocumentSymbols
     Walk the members of `entity` and append a child DocumentSymbol for each
     explicitly written member (field, constructor, function, or behaviour).
 
-    Two categories of members are filtered out:
+    Three categories of members are filtered out:
     - Synthesized constructors: ponyc's sugar pass places the default `create`
       at the entity keyword's own source position (via token_dup). Any
       explicitly written member must appear after the entity keyword, so
@@ -208,6 +208,17 @@ primitive DocumentSymbols
       trait is defined in the same file as the implementing class, the
       merged methods share the same source_file() and are instead caught
       by the position or max_pos filters.)
+    - Comparable methods synthesized by add_comparable: ponyc's traits pass
+      appends synthesized eq/ne to every primitive. These are built with the
+      members node as the BUILD basis, so their position equals the members
+      node's position (at or after the first real member). The position-based
+      filters do not reliably catch them, especially for the last entity in a
+      file where max_pos is None. They are identified by the structural
+      property of BUILD-constructed AST nodes: ponyc's BUILD macro gives every
+      node in the subtree the same source position (inherited from the basis).
+      For any user-written method the keyword token (fun/be/new) and the name
+      identifier appear at different source columns; for a synthesized method
+      they share the same position.
     """
     let members =
       try
@@ -248,6 +259,28 @@ primitive DocumentSymbols
         | let sf: String val =>
           if sf != dp then continue end
         end
+      end
+      // Skip fully-synthesized members. ponyc's BUILD macro gives every node
+      // in a constructed subtree the same source position (inherited from the
+      // BUILD basis). Real members always place their keyword before their
+      // name identifier; synthesized ones share a single position for both.
+      // This catches add_comparable's eq/ne, whose BUILD basis is the members
+      // node.
+      let is_synthesized: Bool =
+        match entity_child.id()
+        | TokenIds.tk_new()
+        | TokenIds.tk_fun()
+        | TokenIds.tk_be() =>
+          try
+            entity_child(1)?.position() == entity_child.position()
+          else
+            false
+          end
+        else
+          false
+        end
+      if is_synthesized then
+        continue
       end
       try
         let maybe_kind_and_idx =
