@@ -75,3 +75,7 @@ main.pony:3:5: function body isn't the result type
 
 This has been fixed. Bool value patterns inside tuples now participate in exhaustiveness checking, so `(_, true)` and `(_, false)` correctly cover `(String, Bool)`. This also works with nested tuples, multiple Bool elements, and Bool type aliases.
 
+## Fix pony-lsp document symbols showing spurious eq/ne for bare primitives
+
+The document symbol outline (textDocument/documentSymbol) incorrectly included `eq` and `ne` entries for bare primitives that appeared last in their file. These methods are synthesized by the compiler and should not appear in the outline. They now correctly have no children.
+
