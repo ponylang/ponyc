@@ -30,6 +30,12 @@ static bool case_expr_matches_type_alone(pass_opt_t* opt, ast_t* case_expr)
     case TK_DONTCAREREF:
       return true;
 
+    // Bool literals match on type alone when their type is narrowed to a
+    // singleton (TK_BOOL_TRUE / TK_BOOL_FALSE) by substitute_bool_singleton_type.
+    case TK_TRUE:
+    case TK_FALSE:
+      return true;
+
     // Tuple patterns may contain a mixture of matching on types and values,
     // so we only return true if *all* elements return true.
     case TK_TUPLE:
@@ -91,17 +97,131 @@ static bool case_expr_matches_type_alone(pass_opt_t* opt, ast_t* case_expr)
   return true;
 }
 
-// Returns 1 for true, 0 for false, -1 if not a Bool literal
-static int get_bool_literal_value(ast_t* case_expr)
+// Recursively walk a type AST and replace every Bool nominal with a
+// (TK_BOOL_TRUE | TK_BOOL_FALSE) union. Returns a new AST (caller owns it).
+static ast_t* expand_bool_in_type(ast_t* type)
 {
+  switch(ast_id(type))
+  {
+    case TK_NOMINAL:
+    {
+      if(is_bool(type))
+      {
+        ast_t* union_type = ast_from(type, TK_UNIONTYPE);
+        ast_add(union_type, ast_from(type, TK_BOOL_FALSE));
+        ast_add(union_type, ast_from(type, TK_BOOL_TRUE));
+        return union_type;
+      }
+      return ast_dup(type);
+    }
+
+    case TK_TUPLETYPE:
+    {
+      ast_t* result = ast_from(type, TK_TUPLETYPE);
+      for(ast_t* child = ast_child(type); child != NULL;
+        child = ast_sibling(child))
+      {
+        ast_t* expanded = expand_bool_in_type(child);
+        ast_append(result, expanded);
+      }
+      return result;
+    }
+
+    case TK_UNIONTYPE:
+    {
+      ast_t* result = ast_from(type, TK_UNIONTYPE);
+      for(ast_t* child = ast_child(type); child != NULL;
+        child = ast_sibling(child))
+      {
+        ast_t* expanded = expand_bool_in_type(child);
+        // Flatten inner unions to avoid nesting.
+        // ast_append auto-dups parented children, so just iterate and
+        // append each inner child, then free the expanded wrapper.
+        if(ast_id(expanded) == TK_UNIONTYPE)
+        {
+          for(ast_t* inner = ast_child(expanded); inner != NULL;
+            inner = ast_sibling(inner))
+          {
+            ast_append(result, inner);
+          }
+          ast_free_unattached(expanded);
+        }
+        else
+        {
+          ast_append(result, expanded);
+        }
+      }
+      return result;
+    }
+
+    case TK_ISECTTYPE:
+    {
+      ast_t* result = ast_from(type, TK_ISECTTYPE);
+      for(ast_t* child = ast_child(type); child != NULL;
+        child = ast_sibling(child))
+      {
+        ast_t* expanded = expand_bool_in_type(child);
+        ast_append(result, expanded);
+      }
+      return result;
+    }
+
+    case TK_TYPEALIASREF:
+    {
+      ast_t* unfolded = typealias_unfold(type);
+      if(unfolded == NULL)
+        return ast_dup(type);
+      ast_t* result = expand_bool_in_type(unfolded);
+      ast_free_unattached(unfolded);
+      return result;
+    }
+
+    default:
+      return ast_dup(type);
+  }
+}
+
+// Walk a case expression and its corresponding type in parallel. Wherever
+// the expression is a Bool literal (TK_TRUE/TK_FALSE), replace the type with
+// the corresponding singleton (TK_BOOL_TRUE/TK_BOOL_FALSE). Returns a new
+// AST (caller owns it).
+static ast_t* substitute_bool_singleton_type(ast_t* case_expr,
+  ast_t* case_type)
+{
+  // Unwrap single-child TK_SEQ wrappers on the expression.
   while(ast_id(case_expr) == TK_SEQ && ast_childcount(case_expr) == 1)
     case_expr = ast_child(case_expr);
 
   switch(ast_id(case_expr))
   {
-    case TK_TRUE: return 1;
-    case TK_FALSE: return 0;
-    default: return -1;
+    case TK_TRUE:
+      return ast_from(case_type, TK_BOOL_TRUE);
+
+    case TK_FALSE:
+      return ast_from(case_type, TK_BOOL_FALSE);
+
+    case TK_TUPLE:
+    {
+      if(ast_id(case_type) != TK_TUPLETYPE)
+        return ast_dup(case_type);
+
+      ast_t* result = ast_from(case_type, TK_TUPLETYPE);
+      ast_t* expr_child = ast_child(case_expr);
+      ast_t* type_child = ast_child(case_type);
+
+      while((expr_child != NULL) && (type_child != NULL))
+      {
+        ast_t* sub = substitute_bool_singleton_type(expr_child, type_child);
+        ast_append(result, sub);
+        expr_child = ast_sibling(expr_child);
+        type_child = ast_sibling(type_child);
+      }
+
+      return result;
+    }
+
+    default:
+      return ast_dup(case_type);
   }
 }
 
@@ -120,11 +240,14 @@ static ast_t* is_match_exhaustive(pass_opt_t* opt, ast_t* expr_type,
   if(ast_checkflag(cases, AST_FLAG_JUMPS_AWAY))
     return NULL;
 
+  // Expand Bool in the discriminee type to (TK_BOOL_TRUE | TK_BOOL_FALSE).
+  // This lets Bool literals in tuple patterns participate in exhaustiveness
+  // checking through the existing tuple-of-union distribution machinery.
+  ast_t* expanded_expr_type = expand_bool_in_type(expr_type);
+
   // Construct a union of all pattern types that count toward exhaustive match.
   ast_t* cases_union_type = ast_from(cases, TK_UNIONTYPE);
   ast_t* result = NULL;
-  bool seen_true = false;
-  bool seen_false = false;
 
   for(ast_t* c = ast_child(cases); c != NULL; c = ast_sibling(c))
   {
@@ -144,42 +267,31 @@ static ast_t* is_match_exhaustive(pass_opt_t* opt, ast_t* expr_type,
     if(ast_id(guard) != TK_NONE)
       continue;
 
-    // Check for Bool literal patterns (only if no guard).
-    // Bool is a machine word, so case_expr_matches_type_alone will return
-    // false, but we can still track if both true and false are matched.
-    int bool_val = get_bool_literal_value(case_expr);
-    if(bool_val == 1) seen_true = true;
-    else if(bool_val == 0) seen_false = true;
-
     // Only cases that match on type alone can count toward exhaustive match,
     // because matches on structural equality can't be statically evaluated.
     // So, for the purposes of exhaustive match, we ignore those cases.
     if(!case_expr_matches_type_alone(opt, case_expr))
       continue;
 
-    // It counts, so add this pattern type to our running union type.
-    ast_add(cases_union_type, case_type);
+    // Substitute Bool singletons for any Bool literals in the case type,
+    // then expand any remaining Bool nominals to match the expanded
+    // discriminee, and add the result to our running union.
+    ast_t* substituted_type =
+      substitute_bool_singleton_type(case_expr, case_type);
+    ast_t* effective_type = expand_bool_in_type(substituted_type);
+    ast_free_unattached(substituted_type);
+    ast_add(cases_union_type, effective_type);
 
     // If our cases types union is a supertype of the match expression type,
     // then the match must be exhaustive, because all types are covered by cases.
-    if(is_subtype(expr_type, cases_union_type, NULL, opt))
+    if(is_subtype(expanded_expr_type, cases_union_type, NULL, opt))
     {
       result = c;
       break;
     }
   }
 
-  // If we've seen both true and false literals without guards,
-  // Bool is exhaustively covered. Add Bool to union and recheck.
-  if(result == NULL && seen_true && seen_false)
-  {
-    ast_t* bool_type = type_builtin(opt, cases, "Bool");
-    ast_add(cases_union_type, bool_type);
-
-    if(is_subtype(expr_type, cases_union_type, NULL, opt))
-      result = ast_childlast(cases);  // Point to last case
-  }
-
+  ast_free_unattached(expanded_expr_type);
   ast_free_unattached(cases_union_type);
   return result;
 }
