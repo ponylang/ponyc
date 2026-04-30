@@ -9,6 +9,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Fix linking failures on Fedora and other RPM-based distributions ([PR #5262](https://github.com/ponylang/ponyc/pull/5262))
 - Reject wrong-architecture libc startup objects on multilib hosts ([PR #5271](https://github.com/ponylang/ponyc/pull/5271))
 - Fix spurious pony-lsp inlay hints on primitive types ([PR #5275](https://github.com/ponylang/ponyc/pull/5275))
+- Fix match exhaustiveness for Bool value patterns in tuples ([PR #5226](https://github.com/ponylang/ponyc/pull/5226))
 
 ### Added
 
