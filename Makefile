@@ -272,20 +272,29 @@ test-pony-lsp: all
 test-pony-lint: all
 	$(SILENT)cd '$(outDir)' && PONYPATH=.:$(PONYPATH) ./ponyc --path ../../tools/lib/ponylang/pony_compiler/ -b pony-lint-tests ../../tools/pony-lint/test && echo Built `pwd`/pony-lint-tests && PONYPATH=../../packages:$(PONYPATH) ./pony-lint-tests --sequential
 
-# Build the lint binary once. Order-only dep on `all` so we get a built
-# compiler without forcing a rebuild every time `all` is touched (it's
-# .PHONY). Real prereqs are every .pony file in the lint tool tree (minus
-# its `test/` sub-package, which is compiled by `test-pony-lint`) and the
-# pony_compiler library it links against, plus the directories
-# themselves. Recursive `find` covers files in current or future
-# subpackages, and listing the directories means the binary rebuilds when
-# a source is deleted (directory mtime updates on add/remove, the
-# remaining files' mtimes do not).
+# Build the lint binary once across the three lint-pony-* targets.
+# Order-only `| all` so cmake builds (and refreshes) ponyc but `all`
+# being .PHONY doesn't mark this rule stale every invocation. Each
+# directory list is a prereq alongside its source list so `find`
+# notices file deletions via mtime changes on the parent directory.
+# `ponyc-bin-srcs` is necessary -- without it, a `touch src/foo.c &&
+# make lint-pony-lint` would miss the rebuild because order-only edges
+# are mtime-opaque by design.
 lint-bin-srcs := $(shell find $(srcDir)/tools/pony-lint -path $(srcDir)/tools/pony-lint/test -prune -o -name '*.pony' -not -name '.*' -print) \
                  $(shell find $(srcDir)/tools/lib/ponylang/pony_compiler/pony_compiler -name '*.pony' -not -name '.*')
 lint-bin-dirs := $(shell find $(srcDir)/tools/pony-lint -path $(srcDir)/tools/pony-lint/test -prune -o -type d -print) \
                  $(shell find $(srcDir)/tools/lib/ponylang/pony_compiler/pony_compiler -type d)
-$(outDir)/pony-lint-ci: $(lint-bin-srcs) $(lint-bin-dirs) | all
+ponyc-bin-srcs := $(shell find $(srcDir)/src -type f \( -name '*.c' -o -name '*.h' -o -name '*.cc' -o -name '*.hh' -o -name '*.ll' -o -name '*.d' \) -not -name '.*')
+ponyc-bin-dirs := $(shell find $(srcDir)/src -type d -not -name '.*')
+stdlib-srcs := $(shell find $(srcDir)/packages -name '*.pony' -not -name '.*')
+stdlib-dirs := $(shell find $(srcDir)/packages -type d -not -name '.*')
+
+# Empty recipe so $(outDir)/ponyc can be a regular prereq below
+# without "No rule to make target" on a clean checkout -- `all`
+# produces it as a side effect via cmake.
+$(outDir)/ponyc: | all ;
+
+$(outDir)/pony-lint-ci: $(lint-bin-srcs) $(lint-bin-dirs) $(ponyc-bin-srcs) $(ponyc-bin-dirs) $(stdlib-srcs) $(stdlib-dirs) $(outDir)/ponyc | all
 	$(SILENT)cd '$(outDir)' && PONYPATH=.:$(PONYPATH) ./ponyc --path ../../tools/lib/ponylang/pony_compiler/ -b pony-lint-ci ../../tools/pony-lint && echo Built `pwd`/pony-lint-ci
 
 lint-pony-lint: $(outDir)/pony-lint-ci
