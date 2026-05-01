@@ -6,7 +6,7 @@
 - **pony-doc**: `tools/pony-doc/` — Pony documentation generator
 
 ## Make Commands
-All test commands are slow (full rebuild + test run). Run each command at most once per code change — never re-run a command if the code has not changed since the last run.
+On Linux/macOS (via `make`), the first invocation of each command rebuilds its test or lint binary from Pony source (~60s); subsequent invocations skip the rebuild when nothing under the binary's source tree has changed and just run the binary, so re-running on unchanged code is cheap. The Windows `make.ps1` path always rebuilds from source.
 
 - `make test-pony-compiler`
 - `make test-pony-lsp` / `make lint-pony-lsp`
