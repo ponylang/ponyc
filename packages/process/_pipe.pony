@@ -142,7 +142,7 @@ class _Pipe
   fun ref close_far() =>
     """
     Close the far end of the pipe--the end that the other process will be
-    using. This is used to cleanup this process' handles that it wont use.
+    using. This is used to cleanup this process' handles that it won't use.
     """
     if far_fd != -1 then
       @close(far_fd)

@@ -209,7 +209,7 @@ actor TCPConnection is AsioEventNotify
   service.
 
   The proxy `TCPConnectionNotify` should decorate another implementation of
-  `TCPConnectionNotify` passing relevent data through.
+  `TCPConnectionNotify` passing relevant data through.
 
   ### Example proxy implementation
 

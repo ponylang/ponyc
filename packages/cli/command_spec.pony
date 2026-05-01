@@ -145,7 +145,7 @@ class CommandSpec
 
   fun help_string(): String =>
     """
-    Returns a formated help string for this command and all of its arguments.
+    Returns a formatted help string for this command and all of its arguments.
     """
     let s = _name.clone()
     s.append(" ")
@@ -325,7 +325,7 @@ class val OptionSpec
 
   fun help_string(): String =>
     """
-    Returns a formated help string for this option.
+    Returns a formatted help string for this option.
     """
     let s =
       match _short
@@ -473,7 +473,7 @@ class val ArgSpec
 
   fun help_string(): String =>
     """
-    Returns a formated help string for this arg.
+    Returns a formatted help string for this arg.
     """
     "<" + _name + ">"
 

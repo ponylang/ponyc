@@ -43,7 +43,7 @@ when parsing a command line or forming syntax help messages.
 
 Options and Args parse values from the command line as one of four Pony types:
 `Bool`, `String`, `I64` and `F64`. Values of each of these types can then be
-retrieved using the corresponding accessor funtions.
+retrieved using the corresponding accessor functions.
 
 In addition, there is a string_seq type that accepts string values from the
 command line and collects them into a sequence which can then be retrieved as

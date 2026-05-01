@@ -103,7 +103,7 @@ class val TestHelper
     : Bool
   =>
     """
-    Assert that the gived test function does not throw an error when run.
+    Assert that the given test function does not throw an error when run.
     """
     try
       test()?
