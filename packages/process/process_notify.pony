@@ -44,7 +44,7 @@ interface ProcessNotify
     `dispose` includes the exit status of the child process. If the process
     finished, then `child_exit_status` will be an instance of [Exited](process-Exited.md).
 
-    The childs exit code can be retrieved from the `Exited` instance by using
+    The child's exit code can be retrieved from the `Exited` instance by using
     [Exited.exit_code()](process-Exited.md#exit_code).
 
     On Posix systems, if the process has been killed by a signal (e.g. through

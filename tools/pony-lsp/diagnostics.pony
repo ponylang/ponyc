@@ -75,8 +75,8 @@ class val Diagnostic
 
   fun val expand_related(): Array[Diagnostic] val =>
     """
-    Turn all related informations in to their own
-    Diagnostic items pointing at the same place as the
+    Turn each piece of related information into its own
+    Diagnostic item pointing at the same place as the
     root diagnostic.
 
     This is necessary for some clients (e.g. neovim), as

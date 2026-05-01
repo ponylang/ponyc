@@ -113,7 +113,7 @@ class box Generator[T] is GenObj[T]
 
   When a failing sample is found, the PonyCheck engine is trying to find a
   smaller or more simple sample by shrinking it with `shrink`.
-  If the generator did not provide any shrinked samples
+  If the generator did not provide any shrunk samples
   as a result of `generate`, its `shrink` method is called
   to obtain simpler results. PonyCheck obtains more shrunken samples until
   the property is not failing anymore.
@@ -1265,7 +1265,7 @@ primitive Generators
     : Generator[String]
   =>
     """
-    Create a generator for strings withing the given `range`,
+    Create a generator for strings within the given `range`,
     with a minimum length of `min` (default: 0)
     and a maximum length of `max` (default: 100).
     """

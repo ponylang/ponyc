@@ -616,7 +616,7 @@ actor Main
   fun repeat_str(num: USize = 1, sep: String = ""): String iso^ =>
     """
     Returns a copy of the string repeated `num` times with an optional
-    separator added inbetween repeats.
+    separator added in between repeats.
     """
     var c = num
     var str = recover String((_size + sep.size()) * c) end
