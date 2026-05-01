@@ -210,8 +210,8 @@ pony-lint:
 pony-doc:
 	$(SILENT)cd '$(buildDir)' && env CC="$(CC)" CXX="$(CXX)" cmake --build '$(buildDir)' --config $(config) --target tools.pony-doc -- $(build_flags)
 
-test-pony-doc: all
-	$(SILENT)cd '$(outDir)' && PONYPATH=.:$(PONYPATH) ./ponyc --path ../../tools/lib/ponylang/pony_compiler/ -b pony-doc-tests ../../tools/pony-doc/test && echo Built `pwd`/pony-doc-tests && ./pony-doc-tests --sequential
+test-pony-doc: $(outDir)/pony-doc-tests
+	$(SILENT)cd '$(outDir)' && ./pony-doc-tests --sequential
 
 crossBuildDir := $(srcDir)/build/$(arch)/build_$(config)
 
@@ -266,11 +266,11 @@ test-validate-grammar: all
 	$(SILENT)cd '$(outDir)' && ./ponyc --antlr >> pony.g.new && diff ../../pony.g pony.g.new
 
 # TODO STA: --path entries are temporary until a ponyc bug is fixed.
-test-pony-lsp: all
-	$(SILENT)cd '$(outDir)' && PONYPATH=.:$(PONYPATH) ./ponyc --path ../../tools/lib/ponylang/peg --path ../../tools/lib/ponylang/pony_compiler/ -b pony-lsp-tests ../../tools && echo Built `pwd`/pony-lsp-tests && ./pony-lsp-tests --sequential
+test-pony-lsp: $(outDir)/pony-lsp-tests
+	$(SILENT)cd '$(outDir)' && ./pony-lsp-tests --sequential
 
-test-pony-lint: all
-	$(SILENT)cd '$(outDir)' && PONYPATH=.:$(PONYPATH) ./ponyc --path ../../tools/lib/ponylang/pony_compiler/ -b pony-lint-tests ../../tools/pony-lint/test && echo Built `pwd`/pony-lint-tests && PONYPATH=../../packages:$(PONYPATH) ./pony-lint-tests --sequential
+test-pony-lint: $(outDir)/pony-lint-tests
+	$(SILENT)cd '$(outDir)' && PONYPATH=../../packages:$(PONYPATH) ./pony-lint-tests --sequential
 
 # Build the lint binary once across the three lint-pony-* targets.
 # Order-only `| all` so cmake builds (and refreshes) ponyc but `all`
@@ -289,6 +289,25 @@ ponyc-bin-dirs := $(shell find $(srcDir)/src -type d -not -name '.*')
 stdlib-srcs := $(shell find $(srcDir)/packages -name '*.pony' -not -name '.*')
 stdlib-dirs := $(shell find $(srcDir)/packages -type d -not -name '.*')
 
+# Source/dir variables for test binaries
+pony-doc-test-srcs := $(shell find $(srcDir)/tools/pony-doc -name '*.pony' -not -name '.*')
+pony-doc-test-dirs := $(shell find $(srcDir)/tools/pony-doc -type d -not -name '.*')
+
+pony-lsp-test-srcs := $(shell find $(srcDir)/tools/pony-lsp -name '*.pony' -not -name '.*') \
+                      $(shell find $(srcDir)/tools/lib/ponylang/pony_compiler/pony_compiler -name '*.pony' -not -name '.*')
+pony-lsp-test-dirs := $(shell find $(srcDir)/tools/pony-lsp -type d -not -name '.*') \
+                      $(shell find $(srcDir)/tools/lib/ponylang/pony_compiler/pony_compiler -type d)
+
+pony-lint-test-srcs := $(shell find $(srcDir)/tools/pony-lint -name '*.pony' -not -name '.*') \
+                       $(shell find $(srcDir)/tools/lib/ponylang/pony_compiler/pony_compiler -name '*.pony' -not -name '.*')
+pony-lint-test-dirs := $(shell find $(srcDir)/tools/pony-lint -type d -not -name '.*') \
+                       $(shell find $(srcDir)/tools/lib/ponylang/pony_compiler/pony_compiler -type d)
+
+pony-compiler-test-srcs := $(shell find $(srcDir)/tools/lib/ponylang/pony_compiler/tests -name '*.pony' -not -name '.*') \
+                           $(shell find $(srcDir)/tools/lib/ponylang/pony_compiler/pony_compiler -name '*.pony' -not -name '.*')
+pony-compiler-test-dirs := $(shell find $(srcDir)/tools/lib/ponylang/pony_compiler/tests -type d -not -name '.*') \
+                            $(shell find $(srcDir)/tools/lib/ponylang/pony_compiler/pony_compiler -type d)
+
 # Empty recipe so $(outDir)/ponyc can be a regular prereq below
 # without "No rule to make target" on a clean checkout -- `all`
 # produces it as a side effect via cmake.
@@ -306,8 +325,20 @@ lint-pony-doc: $(outDir)/pony-lint-ci
 lint-pony-lsp: $(outDir)/pony-lint-ci
 	$(SILENT)cd '$(outDir)' && PONYPATH=../../tools/lib/ponylang/pony_compiler:$(PONYPATH) ./pony-lint-ci ../../tools/pony-lsp/
 
-test-pony-compiler: all
-	$(SILENT)cd '$(outDir)' && PONYPATH=.:$(PONYPATH) ./ponyc --path ../../tools/lib/ponylang/pony_compiler/ -b pony-compiler-tests ../../tools/lib/ponylang/pony_compiler/tests && echo Build `pwd`/pony-compiler-tests && PONYPATH=../../tools/lib/ponylang/pony_compiler:../../packages:$(PONYPATH) ./pony-compiler-tests --sequential
+$(outDir)/pony-doc-tests: $(pony-doc-test-srcs) $(pony-doc-test-dirs) $(ponyc-bin-srcs) $(ponyc-bin-dirs) $(stdlib-srcs) $(stdlib-dirs) $(outDir)/ponyc | all
+	$(SILENT)cd '$(outDir)' && PONYPATH=.:$(PONYPATH) ./ponyc --path ../../tools/lib/ponylang/pony_compiler/ -b pony-doc-tests ../../tools/pony-doc/test && echo Built `pwd`/pony-doc-tests
+
+$(outDir)/pony-lsp-tests: $(pony-lsp-test-srcs) $(pony-lsp-test-dirs) $(ponyc-bin-srcs) $(ponyc-bin-dirs) $(stdlib-srcs) $(stdlib-dirs) $(outDir)/ponyc | all
+	$(SILENT)cd '$(outDir)' && PONYPATH=.:$(PONYPATH) ./ponyc --path ../../tools/lib/ponylang/pony_compiler/ -b pony-lsp-tests ../../tools && echo Built `pwd`/pony-lsp-tests
+
+$(outDir)/pony-lint-tests: $(pony-lint-test-srcs) $(pony-lint-test-dirs) $(ponyc-bin-srcs) $(ponyc-bin-dirs) $(stdlib-srcs) $(stdlib-dirs) $(outDir)/ponyc | all
+	$(SILENT)cd '$(outDir)' && PONYPATH=.:$(PONYPATH) ./ponyc --path ../../tools/lib/ponylang/pony_compiler/ -b pony-lint-tests ../../tools/pony-lint/test && echo Built `pwd`/pony-lint-tests
+
+$(outDir)/pony-compiler-tests: $(pony-compiler-test-srcs) $(pony-compiler-test-dirs) $(ponyc-bin-srcs) $(ponyc-bin-dirs) $(stdlib-srcs) $(stdlib-dirs) $(outDir)/ponyc | all
+	$(SILENT)cd '$(outDir)' && PONYPATH=.:$(PONYPATH) ./ponyc --path ../../tools/lib/ponylang/pony_compiler/ -b pony-compiler-tests ../../tools/lib/ponylang/pony_compiler/tests && echo Built `pwd`/pony-compiler-tests
+
+test-pony-compiler: $(outDir)/pony-compiler-tests
+	$(SILENT)cd '$(outDir)' && PONYPATH=../../tools/lib/ponylang/pony_compiler:../../packages:$(PONYPATH) ./pony-compiler-tests --sequential
 
 test-cross-stress-release: cross_args=--triple=$(cross_triple) --cpu=$(cross_cpu) --link-arch=$(cross_arch) $(if $(cross_sysroot),--sysroot='$(cross_sysroot)') $(cross_ponyc_args)
 test-cross-stress-release: debuggercmd=
