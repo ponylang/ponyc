@@ -1,0 +1,46 @@
+name: Docker Image Validation
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    paths:
+      - '.dockerfiles/**'
+      - '.github/workflows/pr-docker-image-validation.yml'
+
+concurrency:
+  group: pr-docker-image-validation-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  packages: read
+
+jobs:
+  validate-nightly-image-builds:
+    if: github.event.pull_request.draft == false
+    name: Nightly Builds
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6.0.2
+      - name: Set up Docker Buildx
+        # v3.10.0
+        uses: docker/setup-buildx-action@v4
+      - name: Docker build
+        run: |
+          docker buildx create --name multiplatform --driver docker-container --use --bootstrap
+          docker buildx build --platform linux/amd64,linux/arm64 --pull --file=.dockerfiles/nightly/Dockerfile .
+
+  validate-release-image-builds:
+    if: github.event.pull_request.draft == false
+    name: Release Builds
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6.0.2
+      - name: Set up Docker Buildx
+        # v3.10.0
+        uses: docker/setup-buildx-action@v4
+      - name: Docker build
+        run: |
+          docker buildx create --name multiplatform --driver docker-container --use --bootstrap
+          docker buildx build --platform linux/amd64,linux/arm64 --pull --file=.dockerfiles/release/Dockerfile .

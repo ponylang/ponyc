@@ -988,6 +988,153 @@ TEST_F(SugarExprTest, MatchExhaustiveBoolUnreachableElse)
 }
 
 
+TEST_F(SugarExprTest, MatchExhaustiveBoolInTupleLast)
+{
+  const char* src =
+    "primitive Foo\n"
+    "  fun apply(x: (String, Bool)): Bool =>\n"
+    "    match x\n"
+    "    | (_, true) => true\n"
+    "    | (_, false) => false\n"
+    "    end";
+
+  TEST_COMPILE(src);
+}
+
+
+TEST_F(SugarExprTest, MatchExhaustiveBoolInTupleFirst)
+{
+  const char* src =
+    "primitive Foo\n"
+    "  fun apply(x: (Bool, String)): Bool =>\n"
+    "    match x\n"
+    "    | (true, _) => true\n"
+    "    | (false, _) => false\n"
+    "    end";
+
+  TEST_COMPILE(src);
+}
+
+
+TEST_F(SugarExprTest, MatchNonExhaustiveBoolInTuple)
+{
+  const char* src =
+    "primitive Foo\n"
+    "  fun apply(x: (String, Bool)): Bool =>\n"
+    "    match x\n"
+    "    | (_, true) => true\n"
+    "    end";
+
+  TEST_ERRORS_1(src, "function body isn't the result type");
+}
+
+
+TEST_F(SugarExprTest, MatchExhaustiveBoolInNestedTuple)
+{
+  const char* src =
+    "primitive Foo\n"
+    "  fun apply(x: ((String, U64), Bool)): Bool =>\n"
+    "    match x\n"
+    "    | ((_, _), true) => true\n"
+    "    | ((_, _), false) => false\n"
+    "    end";
+
+  TEST_COMPILE(src);
+}
+
+
+TEST_F(SugarExprTest, MatchExhaustiveBoolBoolCombinatorial)
+{
+  const char* src =
+    "primitive Foo\n"
+    "  fun apply(x: (Bool, Bool)): U32 =>\n"
+    "    match x\n"
+    "    | (true, true) => 1\n"
+    "    | (true, false) => 2\n"
+    "    | (false, true) => 3\n"
+    "    | (false, false) => 4\n"
+    "    end";
+
+  TEST_COMPILE(src);
+}
+
+
+TEST_F(SugarExprTest, MatchNonExhaustiveBoolBoolPartial)
+{
+  const char* src =
+    "primitive Foo\n"
+    "  fun apply(x: (Bool, Bool)): U32 =>\n"
+    "    match x\n"
+    "    | (true, true) => 1\n"
+    "    | (false, false) => 2\n"
+    "    end";
+
+  TEST_ERRORS_1(src, "function body isn't the result type");
+}
+
+
+TEST_F(SugarExprTest, MatchExhaustiveBoolInTupleWithUnion)
+{
+  const char* src =
+    "primitive P1\n"
+    "primitive Foo\n"
+    "  fun apply(x: (String, (Bool | P1))): Bool =>\n"
+    "    match x\n"
+    "    | (_, true) => true\n"
+    "    | (_, false) => false\n"
+    "    | (_, let _: P1) => true\n"
+    "    end";
+
+  TEST_COMPILE(src);
+}
+
+
+TEST_F(SugarExprTest, MatchExhaustiveBoolInTupleGuarded)
+{
+  const char* src =
+    "primitive Foo\n"
+    "  fun apply(x: (String, Bool)): Bool =>\n"
+    "    match x\n"
+    "    | (_, true) if false => true\n"
+    "    | (_, true) => true\n"
+    "    | (_, false) => false\n"
+    "    end";
+
+  TEST_COMPILE(src);
+}
+
+
+TEST_F(SugarExprTest, MatchExhaustiveBoolInTupleUnreachableElse)
+{
+  const char* src =
+    "primitive Foo\n"
+    "  fun apply(x: (String, Bool)): Bool =>\n"
+    "    match x\n"
+    "    | (_, true) => true\n"
+    "    | (_, false) => false\n"
+    "    else\n"
+    "      true\n"
+    "    end";
+
+  TEST_ERRORS_1(src, "match is exhaustive, the else clause is unreachable");
+}
+
+
+TEST_F(SugarExprTest, MatchExhaustiveBoolAliasInTuple)
+{
+  const char* src =
+    "type MyBool is Bool\n"
+    "primitive Foo\n"
+    "  fun apply(x: (String, MyBool)): Bool =>\n"
+    "    match x\n"
+    "    | (_, true) => true\n"
+    "    | (_, false) => false\n"
+    "    end";
+
+  TEST_COMPILE(src);
+}
+
+
 TEST_F(SugarExprTest, MatchNonExhaustivePrimitiveValuesCustomEqMethod)
 {
   const char* src =

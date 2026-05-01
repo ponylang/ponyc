@@ -1,194 +1,81 @@
-## Add style/docstring-leading-blank lint rule
+## Ubuntu 26.04 added as a supported platform
 
-pony-lint now flags docstrings where a blank line immediately follows the opening `"""`. The first line of content should begin on the line right after the opening delimiter.
+We've added arm64 and amd64 builds for Ubuntu 26.04. We'll be building ponyc releases for it until it stops receiving security updates in 2031. At that point, we'll stop building releases for it.
 
-```pony
-// Flagged — blank line after opening """
-class Foo
-  """
+## Add LSP `textDocument/signatureHelp` support
 
-  Foo docstring.
-  """
+The Pony language server now supports `textDocument/signatureHelp`, providing parameter hints when the cursor is inside a call expression. The popup shows the full method signature with the active parameter highlighted, and includes the method's docstring when present.
 
-// Clean — content starts on the next line
-class Foo
-  """
-  Foo docstring.
-  """
+Triggered by `(` and `,` characters, consistent with standard LSP conventions.
+
+Signature help is driven by the compiled AST and requires the file to be saved — it is not available mid-keystroke while the file has unsaved edits.
+
+## Fix linking failures on Fedora and other RPM-based distributions
+
+Starting with ponyc 0.61.1, attempting to link a Pony program on Fedora (and other RPM-based distributions such as RHEL, CentOS, Rocky, and openSUSE) failed with:
+
+```
+Error:
+could not find libc CRT objects in sysroot ''
 ```
 
-Types and methods annotated with `\nodoc\` are exempt, consistent with `style/docstring-format`.
+ponyc now locates the C runtime startup objects on these distributions, and linking succeeds.
 
-## Fix rare silent connection hangs on macOS and BSD
+## Remove binutils-gold from nightly and release Docker images
 
-On macOS and BSD, if the OS failed to fully register an I/O event (due to resource exhaustion or an FD race), the failure was silently ignored. Actors waiting for network events that were never registered would hang indefinitely with no error. This could appear as connections that never complete, listeners that stop accepting, or timers that stop firing — with no indication of what went wrong.
+The `binutils-gold` package has been removed from the `ponylang/ponyc` nightly and release Docker images. Nothing in ponyc uses the gold linker, and gold is upstream-deprecated and being phased out of distro repositories.
 
-The runtime now detects these registration failures and notifies the affected actor, which tears down cleanly — the same as any other I/O failure. Stdlib consumers like `TCPConnection` and `TCPListener` handle this automatically.
+If your build inside one of these images relies on `binutils-gold` being present, you will need to install it explicitly with `apk add binutils-gold`.
 
-If you implement `AsioEventNotify` outside the stdlib, you can now detect registration failures with the new `AsioEvent.errored` predicate. Without handling it, a failure is silently ignored (the same behavior as before, but now you have the option to detect it):
+## Reject wrong-architecture libc startup objects on multilib hosts
 
-```pony
-be _event_notify(event: AsioEventID, flags: U32, arg: U32) =>
-  if AsioEvent.errored(flags) then
-    // Registration failed — tear down
-    _close()
-    return
-  end
-  // ... normal event handling
+Compiling a Pony program on a multilib Linux host could fail with a confusing arch-mismatch error from the embedded linker. For example, on an x86_64 Fedora system with `glibc-devel.i686` installed, ponyc would pick up the 32-bit `/usr/lib/crt1.o` and the link would fail with:
+
+```
+ld.lld: error: /usr/lib/crt1.o is incompatible with elf_x86_64
 ```
 
-## Fix rare silent connection hangs on Linux
+ponyc now validates the architecture of each candidate `crt1.o` and skips ones that don't match the target. If no matching `crt1.o` is found, the error message names the target architecture instead of falling through to the linker's lower-level error.
 
-On Linux, if the OS failed to register an I/O event (due to resource exhaustion or an FD race), the failure was silently ignored. Actors waiting for network events that were never registered would hang indefinitely with no error. This could appear as connections that never complete, listeners that stop accepting, or timers that stop firing — with no indication of what went wrong.
+## Add pony-lsp inlay hints for function parameter types
 
-The runtime now detects these registration failures and notifies the affected actor, which tears down cleanly — the same as any other I/O failure. Stdlib consumers like `TCPConnection` and `TCPListener` handle this automatically.
+pony-lsp now shows capability hints on function parameter type annotations where the capability is omitted from source.
 
-Also fixes the ASIO backend init to correctly detect `epoll_create1` and `eventfd` failures (previously checked for 0 instead of -1), and to clean up all resources on partial init failure.
-
-## LSP: Fix goto_definition range end
-
-The Pony language server `textDocument/definition` response now returns a correct `range.end` position. Previously, it had an off-by-one error in the column value.
-
-## Add hierarchical configuration for pony-lint
-
-pony-lint now supports `.pony-lint.json` files in subdirectories, not just at the project root. A subdirectory config overrides the root config for all files in that subtree, using the same JSON format.
-
-For example, to turn off the `style/package-docstring` rule for everything under your `examples/` directory, add an `examples/.pony-lint.json`:
-
-```json
-{"rules": {"style/package-docstring": "off"}}
+```diff
+-fun box greet(name: String, items: Array[String]): None val =>
++fun box greet(name: String val, items: Array[String val] ref): None val =>
+   None
 ```
 
-Precedence follows proximity — the nearest directory with a setting wins. Category entries (e.g., `"style": "off"`) override parent rule-specific entries in that category. Omitting a rule from a subdirectory config defers to the parent, not the default.
+Hints appear after each type name (and after `]` for generic types). Parameters with explicit capabilities are unaffected — no hint is shown when the capability is already written out.
 
-Malformed subdirectory configs produce a `lint/config-error` diagnostic and fall through to the parent config — the subtree is still linted, just with the parent's rules.
+Type parameter references (e.g. `T` in `Array[T]`) have no fixed capability, so they produce no hint.
 
-## Protect pony-lint against oversize configuration files
+## Fix spurious pony-lsp inlay hints on primitive types
 
-pony-lint now rejects `.pony-lint.json` files larger than 64 KB. With hierarchical configuration, each directory in a project can have its own config file — an unexpectedly large file could cause excessive memory consumption. Config files that exceed the limit produce a `lint/config-error` diagnostic with the file size and path.
+Primitive types were showing extra unexpected inlay hints alongside the hints for user-defined methods. This is now fixed.
 
-## Protect pony-lint against oversize ignore files
+## Fix match exhaustiveness for Bool value patterns in tuples
 
-pony-lint now rejects `.gitignore` and `.ignore` files larger than 64 KB. With hierarchical ignore loading, each directory in a project can have its own ignore files — an unexpectedly large file could cause excessive memory consumption. Ignore files that exceed the limit or that cannot be opened produce a `lint/ignore-error` diagnostic with exit code 2.
-
-## Add LSP textDocument/documentHighlight support
-
-The Pony language server now handles `textDocument/documentHighlight` requests. Placing the cursor on any symbol highlights all occurrences in the file, covering fields, locals, parameters, constructors, functions, behaviours, and type names.
-
-## Fix pony-lsp failures with some code constructs
-
-Fixed go-to-definition failing for type arguments inside generic type aliases. For example, go-to-definition on `String` or `U32` in `Map[String, U32]` now correctly navigates to their definitions. Previously, these positions returned no result.
-
-## Fix silent timer hangs on Linux
-
-On Linux, if a timer system call failed (due to resource exhaustion or other system error), the failure was silently ignored. Actors waiting for timer notifications would hang indefinitely with no error — timers that should fire simply never did.
-
-The runtime now detects timer setup and arming failures and notifies the affected actor, which tears down cleanly — the same as any other I/O failure. Stdlib consumers like `Timers` handle this automatically.
-
-## Add LSP `textDocument/inlayHint` support
-
-`pony-lsp` now supports inlay hints. Editors that request `textDocument/inlayHint` will receive inline type annotations after the variable name for `let` and `var` declarations whose type is inferred rather than explicitly written.
-
-## Add LSP `textDocument/references` support
-
-The Pony language server now handles `textDocument/references` requests. References searches across all packages in the workspace, and supports the `includeDeclaration` option to optionally include the definition site in the results.
-
-## Fix pony-lsp hanging after shutdown and exit
-
-pony-lsp would hang indefinitely after receiving the LSP `shutdown` request followed by the `exit` notification. The process had to be killed manually. The exit handler now properly disposes all actors, allowing the runtime to shut down cleanly.
-
-## Fix pony-lsp hanging on startup on Windows
-
-pony-lsp was unresponsive on Windows when launched by an editor. The LSP base protocol uses explicit `\r\n` sequences in message headers, but Windows opens stdout in text mode by default, which translates every `\n` to `\r\n`. This turned the header separator `\r\n\r\n` into `\r\r\n\r\r\n` on the wire — a sequence that LSP clients don't recognize, causing them to wait forever for the end of the headers.
-
-pony-lsp now sets stdout to binary mode on Windows at startup, so `\r\n` is written to the pipe unchanged.
-
-## Fix type checking failure for interfaces with interdependent type parameters
-
-Previously, interfaces with multiple type parameters where one parameter appeared as a type argument to the same interface would fail to type check:
+Previously, matching on a `Bool` inside a tuple required an `else` clause even when both `true` and `false` were covered:
 
 ```pony
-interface State[S, I, O]
-  fun val apply(state: S, input: I): (S, O)
-  fun val bind[O2](next: State[S, O, O2]): State[S, I, O2]
+primitive Foo
+  fun apply(x: (String, Bool)): Bool =>
+    match x
+    | (_, true) => true
+    | (_, false) => false
+    end
 ```
 
 ```
 Error:
-type argument is outside its constraint
-  argument: O #any
-  constraint: O2 #any
+main.pony:3:5: function body isn't the result type
 ```
 
-The compiler replaced type variables one at a time during reification, so replacing `S` with its value could inadvertently transform a different parameter's constraint before that parameter was processed. This has been fixed by replacing all type variables in a single pass.
+This has been fixed. Bool value patterns inside tuples now participate in exhaustiveness checking, so `(_, true)` and `(_, false)` correctly cover `(String, Bool)`. This also works with nested tuples, multiple Bool elements, and Bool type aliases.
 
-## Fix incorrect code generation for `this->` in lambda type parameters
+## Fix pony-lsp document symbols showing spurious eq/ne for bare primitives
 
-When a lambda type used `this->` for viewpoint adaptation (e.g., `{(this->A)}`), the compiler desugared it into an anonymous interface where `this` incorrectly referred to the interface's own receiver rather than the enclosing class's receiver. This caused wrong vtable dispatch, incorrect results, or segfaults when the lambda was forwarded to another function.
-
-```pony
-class Container[A: Any #read]
-  fun box apply(f: {(this->A)}) =>
-    f(_value)
-```
-
-The desugaring now correctly preserves the polymorphic behavior of `this->` across different receiver capabilities.
-
-## Add LSP go-to-definition for type aliases
-
-The Pony language server now supports go-to-definition on type alias names. For example, placing the cursor on `Map` in `Map[String, U32]` and invoking go-to-definition navigates to the `type Map` declaration in the standard library. Previously, go-to-definition only worked on the type arguments (`String`, `U32`) but not on the alias name itself.
-
-This also works for local type aliases defined in the same package.
-
-## Fix soundness hole in match capture bindings
-
-Match `let` bindings with viewpoint-adapted or generic types could bypass the compiler's capability checks, allowing creation of multiple `iso` references to the same object. A direct `let x: Foo iso` capture was correctly rejected, but `let x: this->B iso` and `let x: this->T` (where T could be iso) slipped through because viewpoint adaptation through `box` erases the ephemeral marker that the existing check relies on to detect unsoundness.
-
-The compiler now checks whether a capture type has a capability that would change under aliasing (iso, trn, or a generic cap that includes them) and rejects the capture when the match expression isn't ephemeral. Previously-accepted code that hits this check was unsound and could segfault at runtime.
-
-### How to fix code broken by this change
-
-Consume the match expression so the discriminee is ephemeral:
-
-Before (unsound, now rejected):
-
-```pony
-match u
-| let ut: T =>
-  do_something(consume ut)
-else
-  (consume u, default())
-end
-```
-
-After:
-
-```pony
-match consume u
-| let ut: T =>
-  do_something(consume ut)
-| let uu: U =>
-  (consume uu, default())
-end
-```
-
-The `else` branch becomes `| let uu: U =>` because `u` is consumed and no longer available. For field access, use a destructive read (`match field_name = sentinel_value`) to get an ephemeral result.
-
-## Fix segfault when matching tuple elements against unions or interfaces via Any
-
-Matching a tuple element against a union or interface type when the tuple was accessed through `Any val` caused a segfault at runtime:
-
-```pony
-actor Main
-  new create(env: Env) =>
-    let x: Any val = ("a", U8(1))
-    match x
-    | (let a: String, let b: (U8 | U16)) =>
-      env.out.print(b.string())  // segfault
-    end
-```
-
-The same crash happened when matching against an interface like `Stringable` instead of a union. Matching against concrete types (e.g., `let b: U8`) was unaffected.
-
-This has been fixed. Tuple elements that are unboxed primitives are now correctly boxed when the match pattern requires a pointer representation.
+The document symbol outline (textDocument/documentSymbol) incorrectly included `eq` and `ne` entries for bare primitives that appeared last in their file. These methods are synthesized by the compiler and should not appear in the outline. They now correctly have no children.
 

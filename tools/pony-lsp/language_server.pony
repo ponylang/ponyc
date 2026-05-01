@@ -109,6 +109,36 @@ actor LanguageServer is (Notifier & RequestSender)
                 "[" + r.method + "] No workspace found for '" +
                 r.json().string() + "'")))
         end
+      | Methods.text_document().prepare_rename() =>
+        try
+          let document_uri = _get_document_uri(r.params)?
+          (_router.find_workspace(document_uri) as WorkspaceManager)
+            .prepare_rename(document_uri, r)
+        else
+          this._channel.send(
+            ResponseMessage.create(
+              r.id,
+              None,
+              ResponseError(
+                ErrorCodes.internal_error(),
+                "[" + r.method + "] No workspace found for '" +
+                r.json().string() + "'")))
+        end
+      | Methods.text_document().rename() =>
+        try
+          let document_uri = _get_document_uri(r.params)?
+          (_router.find_workspace(document_uri) as WorkspaceManager)
+            .rename(document_uri, r)
+        else
+          this._channel.send(
+            ResponseMessage.create(
+              r.id,
+              None,
+              ResponseError(
+                ErrorCodes.internal_error(),
+                "[" + r.method + "] No workspace found for '" +
+                r.json().string() + "'")))
+        end
       | Methods.text_document().document_highlight() =>
         try
           let document_uri = _get_document_uri(r.params)?
@@ -126,6 +156,8 @@ actor LanguageServer is (Notifier & RequestSender)
             )
           )
         end
+      // In Pony, declaration and definition are the same location.
+      | Methods.text_document().declaration()
       | Methods.text_document().definition() =>
         try
           let document_uri =
@@ -146,6 +178,21 @@ actor LanguageServer is (Notifier & RequestSender)
                 r.json().string() + "'")
             )
           )
+        end
+      | Methods.text_document().type_definition() =>
+        try
+          let document_uri = _get_document_uri(r.params)?
+          (_router.find_workspace(document_uri) as WorkspaceManager)
+            .type_definition(document_uri, r)
+        else
+          this._channel.send(
+            ResponseMessage.create(
+              r.id,
+              None,
+              ResponseError(
+                ErrorCodes.internal_error(),
+                "[" + r.method + "] No workspace found for '" +
+                r.json().string() + "'")))
         end
       | Methods.text_document().hover() =>
         try
@@ -180,6 +227,36 @@ actor LanguageServer is (Notifier & RequestSender)
             )
           )
         end
+      | Methods.text_document().folding_range() =>
+        try
+          let document_uri = _get_document_uri(r.params)?
+          (_router.find_workspace(document_uri) as WorkspaceManager)
+            .folding_range(document_uri, r)
+        else
+          this._channel.send(
+            ResponseMessage.create(
+              r.id,
+              None,
+              ResponseError(
+                ErrorCodes.internal_error(),
+                "[" + r.method + "] No workspace found for request '" +
+                r.json().string() + "'")))
+        end
+      | Methods.text_document().selection_range() =>
+        try
+          let document_uri = _get_document_uri(r.params)?
+          (_router.find_workspace(document_uri) as WorkspaceManager)
+            .selection_range(document_uri, r)
+        else
+          this._channel.send(
+            ResponseMessage.create(
+              r.id,
+              None,
+              ResponseError(
+                ErrorCodes.internal_error(),
+                "[" + r.method + "] No workspace found for request '" +
+                r.json().string() + "'")))
+        end
       | Methods.text_document().diagnostic() =>
         try
           let document_uri = _get_document_uri(r.params)?
@@ -197,6 +274,24 @@ actor LanguageServer is (Notifier & RequestSender)
             )
           )
         end
+      | Methods.text_document().signature_help() =>
+        try
+          let document_uri = _get_document_uri(r.params)?
+          (_router.find_workspace(document_uri) as WorkspaceManager)
+            .signature_help(document_uri, r)
+        else
+          this._channel.send(
+            ResponseMessage.create(
+              r.id,
+              None,
+              ResponseError(
+                ErrorCodes.internal_error(),
+                "[" + r.method + "] No workspace found for '" +
+                r.json().string() + "'")))
+        end
+      | Methods.workspace().symbol() =>
+        let query = try JsonNav(r.params)("query").as_string()? else "" end
+        _router.workspace_symbol(query, this._channel, r.id)
       | Methods.shutdown() =>
         this._state = _ShuttingDown
         this._channel.send(ResponseMessage.create(r.id, None))
@@ -423,8 +518,13 @@ actor LanguageServer is (Notifier & RequestSender)
                     .update("change", I64(0))
                     .update("openClose", true)
                     .update("save", JsonObject.update("includeText", true)))
+                .update("declarationProvider", true)
                 .update("definitionProvider", true)
+                .update("typeDefinitionProvider", true)
                 .update("referencesProvider", true)
+                .update(
+                  "renameProvider",
+                  JsonObject.update("prepareProvider", true))
                 .update(
                   "diagnosticProvider",
                   JsonObject
@@ -432,9 +532,21 @@ actor LanguageServer is (Notifier & RequestSender)
                     .update("interFileDependencies", true)
                     .update("workspaceDiagnostics", false))
                 .update("documentSymbolProvider", true)
+                .update("foldingRangeProvider", true)
+                .update("selectionRangeProvider", true)
+                .update("workspaceSymbolProvider", true)
                 .update(
                   "inlayHintProvider",
-                  JsonObject.update("resolveProvider", false)))
+                  JsonObject.update("resolveProvider", false))
+                .update(
+                  "signatureHelpProvider",
+                  JsonObject
+                    .update(
+                      "triggerCharacters",
+                      JsonArray.push("(").push(","))
+                    .update(
+                      "retriggerCharacters",
+                      JsonArray.push("(").push(","))))
             .update(
               "serverInfo",
               JsonObject

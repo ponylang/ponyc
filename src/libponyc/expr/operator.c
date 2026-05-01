@@ -69,7 +69,19 @@ static ast_t* find_infer_type(pass_opt_t* opt, ast_t* type, infer_path_t* path)
           return NULL;
         }
 
-        u_type = type_union(opt, u_type, t);
+        ast_t* prev_u = u_type;
+        u_type = type_union(opt, prev_u, t);
+
+        // type_union may return prev_u, t, or a freshly-built tree. Free
+        // any input it did not return as-is: ast_free_unattached is a
+        // no-op on aliases (still parented) and on NULL, so no ownership
+        // tracking is needed. This is safe because type_typeexpr is
+        // non-mutating — inputs are neither reparented nor freed by the
+        // call (see assemble.c's input-preservation invariant).
+        if(u_type != prev_u)
+          ast_free_unattached(prev_u);
+        if(u_type != t)
+          ast_free_unattached(t);
       }
 
       return u_type;
@@ -91,7 +103,15 @@ static ast_t* find_infer_type(pass_opt_t* opt, ast_t* type, infer_path_t* path)
           return NULL;
         }
 
-        i_type = type_isect(opt, i_type, t);
+        ast_t* prev_i = i_type;
+        i_type = type_isect(opt, prev_i, t);
+
+        // See the TK_UNIONTYPE comment above: free any input that
+        // type_isect did not return as-is.
+        if(i_type != prev_i)
+          ast_free_unattached(prev_i);
+        if(i_type != t)
+          ast_free_unattached(t);
       }
 
       return i_type;
@@ -99,14 +119,38 @@ static ast_t* find_infer_type(pass_opt_t* opt, ast_t* type, infer_path_t* path)
 
     case TK_TYPEALIASREF:
     {
-      // Don't free: find_infer_type may return a pointer into the unfolded
-      // tree (e.g., the TK_TUPLETYPE node itself or a child of it).
       ast_t* unfolded = typealias_unfold(type);
 
       if(unfolded == NULL)
         return NULL;
 
-      return find_infer_type(opt, unfolded, path);
+      ast_t* result = find_infer_type(opt, unfolded, path);
+
+      if(result == NULL)
+      {
+        ast_free_unattached(unfolded);
+        return NULL;
+      }
+
+      // The recursive call may return: (a) unfolded itself, (b) an
+      // interior descendant of unfolded, or (c) a freshly-built tree from
+      // type_union or type_isect. Dup result so the returned subtree is
+      // independent of unfolded. ast_dup copies the root's scope pointer
+      // from result->parent — which in cases (a) and (b) points inside
+      // the unfolded tree we are about to free — so clear it before the
+      // free. Do not remove the ast_set_scope call: no downstream pass
+      // reads this scope today, but any future code walking ast_parent
+      // or ast_get on the returned type would dereference freed memory.
+      // Free unfolded (collects cases a and b) and, separately, any
+      // fresh tree returned in case (c).
+      ast_t* dup_result = ast_dup(result);
+      ast_set_scope(dup_result, NULL);
+
+      if(result != unfolded)
+        ast_free_unattached(result);
+
+      ast_free_unattached(unfolded);
+      return dup_result;
     }
 
     default:

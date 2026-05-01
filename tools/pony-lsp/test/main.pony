@@ -21,13 +21,21 @@ actor Main is TestList
     test(_DidChangeConfigurationTest)
     test(_DidChangeConfigurationNullTest)
     _WorkspaceTests.make().tests(test)
+    _InlayHintSourceTests.make().tests(test)
     _HoverFormatterTests.make().tests(test)
     _DiagnosticTests.make().tests(test)
     _HoverIntegrationTests.make().tests(test)
     _DefinitionIntegrationTests.make().tests(test)
+    _TypeDefinitionIntegrationTests.make().tests(test)
     _DocumentHighlightIntegrationTests.make().tests(test)
+    _DocumentSymbolIntegrationTests.make().tests(test)
     _InlayHintIntegrationTests.make().tests(test)
     _ReferencesIntegrationTests.make().tests(test)
+    _RenameIntegrationTests.make().tests(test)
+    _FoldingRangeIntegrationTests.make().tests(test)
+    _SelectionRangeIntegrationTests.make().tests(test)
+    _WorkspaceSymbolIntegrationTests.make().tests(test)
+    _SignatureHelpIntegrationTests.make().tests(test)
 
 class \nodoc\ iso _InitializeTest is UnitTest
   fun name(): String => "initialize"

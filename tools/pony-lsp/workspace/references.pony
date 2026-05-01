@@ -18,67 +18,10 @@ primitive References
     all nodes that resolve to the same definition as `node`. Pass
     `include_declaration = false` to exclude the definition site itself.
     """
-    // Literals have no referenceable identity — no references.
-    let nid = node.id()
-    if (nid == TokenIds.tk_true()) or (nid == TokenIds.tk_false())
-      or (nid == TokenIds.tk_int()) or (nid == TokenIds.tk_float())
-      or (nid == TokenIds.tk_string())
-    then
-      return []
-    end
-
-    // Type-literal expressions such as `None` are desugared by the compiler
-    // into implicit constructor calls. The synthetic tk_newref inside a tk_call
-    // at the same position has no referenceable identity — no references.
-    if nid == TokenIds.tk_newref() then
-      try
-        let par = node.parent() as AST box
-        if (par.id() == TokenIds.tk_call()) and
-          (par.position() == node.position())
-        then
-          return []
-        end
-      end
-    end
-
-    // When the cursor lands on the name identifier of an entity declaration,
-    // promote to the entity node so that type references (which resolve to
-    // tk_class, not its tk_id child) are found by the walker.
-    let node' =
-      if nid == TokenIds.tk_id() then
-        try
-          let par = node.parent() as AST box
-          match par.id()
-          | TokenIds.tk_class()
-          | TokenIds.tk_actor()
-          | TokenIds.tk_struct()
-          | TokenIds.tk_primitive()
-          | TokenIds.tk_trait()
-          | TokenIds.tk_interface()
-          | TokenIds.tk_type() =>
-            par
-          else
-            node
-          end
-        else
-          node
-        end
-      else
-        node
-      end
-
-    // Determine the canonical target definition.
-    // If the node has no definitions it IS the definition.
-    let defs = node'.definitions()
     let target: AST val =
-      if defs.size() > 0 then
-        try
-          AST(defs(0)?.raw)
-        else
-          return []
-        end
-      else
-        AST(node'.raw)
+      match \exhaustive\ _ResolveASTTarget(node)
+      | let t: AST val => t
+      | None => return []
       end
 
     let collector = _ReferenceCollector(target)
@@ -155,6 +98,24 @@ class ref _ReferenceCollector is ASTVisitor
     end
 
     if matches then
+      // ponyc synthesizes a nominal self-type as the return type of
+      // auto-generated constructors (tk_new) and behaviours (tk_be) in generic
+      // classes and actors, forming the chain:
+      // tk_new/tk_be -> tk_nominal -> tk_typeargs -> tk_typeparamref
+      // This internal node resolves to the class's type param but is not a
+      // user-visible occurrence — skip it.
+      try
+        let p = ast.parent() as AST    // tk_typeargs?
+        let gp = p.parent() as AST     // tk_nominal?
+        let ggp = gp.parent() as AST   // tk_new or tk_be?
+        if (p.id() == TokenIds.tk_typeargs()) and
+          (gp.id() == TokenIds.tk_nominal()) and
+          ((ggp.id() == TokenIds.tk_new()) or (ggp.id() == TokenIds.tk_be()))
+        then
+          return Continue
+        end
+      end
+
       let hl_node = ASTIdentifier.identifier_node(ast)
       (let start_pos, let end_pos) = hl_node.span()
       // Deduplicate: include file in key since multiple modules share

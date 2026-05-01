@@ -75,5 +75,19 @@ ast_t* typealias_unfold(ast_t* typealiasref)
   if((tcap != TK_NONE) || (teph != TK_NONE))
     apply_cap_to_type(r_alias, tcap, teph);
 
+  // If the result is itself a TK_TYPEALIASREF (a chained alias like
+  // `type A is B; type B is (U64, U64)`), unfold transitively. This is
+  // bounded by the length of the alias chain: pass/names.c's
+  // names_resolvealias uses AST_FLAG_RECURSE_1 to detect and reject cyclic
+  // alias defs before any TK_TYPEALIASREF is emitted, so the chain is a
+  // finite DAG. Callers rely on the returned head not being a
+  // TK_TYPEALIASREF (see typealias.h).
+  if(ast_id(r_alias) == TK_TYPEALIASREF)
+  {
+    ast_t* next = typealias_unfold(r_alias);
+    ast_free_unattached(r_alias);
+    return next;
+  }
+
   return r_alias;
 }

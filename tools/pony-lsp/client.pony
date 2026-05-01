@@ -14,6 +14,8 @@ class val Client
   let _supports_publish_diagnostics: Bool
   let _supports_publish_diagnostic_related_info: Bool
   let _supports_workspace_diagnostic_refresh: Bool
+  let _supports_inlay_hint_refresh: Bool
+  let _supports_folding_range_refresh: Bool
   let _supports_window_work_done_progress: Bool
 
   new val from(initialize_params: JsonObject) =>
@@ -89,6 +91,22 @@ class val Client
       else
         false
       end
+    this._supports_inlay_hint_refresh =
+      try
+        JsonPathParser.compile(
+          "$.workspace.inlayHint.refreshSupport"
+        )?.query_one(this.capabilities) as Bool
+      else
+        false
+      end
+    this._supports_folding_range_refresh =
+      try
+        JsonPathParser.compile(
+          "$.workspace.foldingRange.refreshSupport"
+        )?.query_one(this.capabilities) as Bool
+      else
+        false
+      end
     this._supports_window_work_done_progress =
       try
         JsonPathParser.compile(
@@ -130,6 +148,21 @@ class val Client
     DiagnosticWorkspaceClientCapabilities.
     """
     this._supports_workspace_diagnostic_refresh
+
+  fun supports_inlay_hint_refresh(): Bool =>
+    """
+    Returns `true` if the client supports the `workspace/inlayHint/refresh`
+    request (InlayHintWorkspaceClientCapabilities.refreshSupport).
+    """
+    this._supports_inlay_hint_refresh
+
+  fun supports_folding_range_refresh(): Bool =>
+    """
+    Returns `true` if the client supports the
+    `workspace/foldingRange/refresh` request
+    (FoldingRangeWorkspaceClientCapabilities.refreshSupport).
+    """
+    this._supports_folding_range_refresh
 
   fun supports_window_work_done_progress(): Bool =>
     """
@@ -177,6 +210,12 @@ class val Client
       end
       if this.supports_workspace_diagnostic_refresh() then
         s.append("\trefreshing diagnostics\r\n")
+      end
+      if this.supports_inlay_hint_refresh() then
+        s.append("\trefreshing inlay hints\r\n")
+      end
+      if this.supports_folding_range_refresh() then
+        s.append("\trefreshing folding ranges\r\n")
       end
       if this.supports_window_work_done_progress() then
         s.append("\tserver-initiated workDoneProgress\r\n")

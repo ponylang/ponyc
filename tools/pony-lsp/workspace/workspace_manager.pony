@@ -287,6 +287,16 @@ actor WorkspaceManager
           Methods.workspace().diagnostic().refresh(),
           None)
       end
+      if this._client.supports_inlay_hint_refresh() then
+        // tell the client to re-request inlay hints for all open documents
+        this._request_sender.send_request(
+          Methods.workspace().inlay_hint().refresh(), None)
+      end
+      if this._client.supports_folding_range_refresh() then
+        // tell the client to re-request folding ranges for all open documents
+        this._request_sender.send_request(
+          Methods.workspace().folding_range().refresh(), None)
+      end
     else
       this._channel.log(
         "Received compilation result for run " + run.string() +
@@ -498,21 +508,32 @@ actor WorkspaceManager
     Returns None if the document or package is not found,
     or no node exists at that position.
     """
+    match _get_index_and_module(document_path)
+    | (let index: PositionIndex val, let module: Module val) =>
+      match index.find_node_at(
+        USize.from[I64](line + 1),
+        USize.from[I64](column + 1))
+      | let node: AST box => (node, module)
+      end
+    end
+
+  fun ref _get_index_and_module(
+    document_path: String): ((PositionIndex val, Module val) | None)
+  =>
+    """
+    Returns the position index and compiled module for the given document
+    path, or None if the document is not in any workspace, has not yet
+    been compiled, or its index is not yet available.
+    """
     try
       let package: FilePath = this._find_workspace_package(document_path)?
-
       match \exhaustive\ this._get_package(package)
       | let pkg_state: PackageState =>
         match \exhaustive\ pkg_state.get_document(document_path)
         | let doc: DocumentState =>
           match (doc.position_index(), doc.module())
-          | (let index: PositionIndex, let module: Module val) =>
-            match \exhaustive\ index.find_node_at(
-              USize.from[I64](line + 1),
-              USize.from[I64](column + 1))
-            | let node: AST box => (node, module)
-            | None => None
-            end
+          | (let index: PositionIndex val, let module: Module val) =>
+            (index, module)
           else
             this._channel.log(
               "No index or module available for " + document_path)
@@ -566,10 +587,14 @@ actor WorkspaceManager
     let document_path = Uris.to_path(document_uri)
     match _find_node_and_module(document_path, line, column)
     | (let node: AST box, let module: Module val) =>
-      let ranges = DocumentHighlights.collect(node, module)
+      let highlights = DocumentHighlights.collect(node, module)
       var json_arr = JsonArray
-      for range in ranges.values() do
-        json_arr = json_arr.push(JsonObject.update("range", range.to_json()))
+      for (range, kind) in highlights.values() do
+        json_arr =
+          json_arr.push(
+            JsonObject
+              .update("range", range.to_json())
+              .update("kind", kind))
       end
       this._channel.send(ResponseMessage(request.id, json_arr))
       return
@@ -606,11 +631,128 @@ actor WorkspaceManager
     end
     this._channel.send(ResponseMessage.create(request.id, None))
 
+  be prepare_rename(document_uri: String, request: RequestMessage val) =>
+    """
+    Handle textDocument/prepareRename request.
+
+    Validates that the symbol at the given position can be renamed and returns
+    its identifier range. The client uses this range to pre-select text in the
+    rename dialog. Returns an error if the symbol is not renameable (literal,
+    synthetic node, or defined outside the workspace).
+    """
+    this._channel.log("Handling textDocument/prepareRename")
+    (let line, let column) =
+      match \exhaustive\ _parse_hover_position(request)
+      | (let l: I64, let c: I64) => (l, c)
+      | None => return
+      end
+    let document_path = Uris.to_path(document_uri)
+    match _find_node_and_module(document_path, line, column)
+    | (let node: AST box, _) =>
+      let target: AST val =
+        match \exhaustive\ _ResolveASTTarget(node)
+        | let t: AST val => t
+        | None =>
+          this._channel.send(
+            ResponseMessage.create(
+              request.id,
+              None,
+              ResponseError(
+                ErrorCodes.request_failed(), "Symbol is not renameable")))
+          return
+        end
+      let target_file: String val =
+        try
+          target.source_file() as String val
+        else
+          this._channel.send(
+            ResponseMessage.create(
+              request.id,
+              None,
+              ResponseError(
+                ErrorCodes.request_failed(), "Symbol has no source location")))
+          return
+        end
+      if not target_file.at(workspace.folder.path + Path.sep(), 0) then
+        this._channel.send(
+          ResponseMessage.create(
+            request.id,
+            None,
+            ResponseError(
+              ErrorCodes.request_failed(),
+              "Symbol is defined outside the workspace")))
+        return
+      end
+      let ident_node = ASTIdentifier.identifier_node(node)
+      (let start_pos, let end_pos) = ident_node.span()
+      let range =
+        LspPositionRange(
+          LspPosition.from_ast_pos(start_pos),
+          LspPosition.from_ast_pos_end(end_pos))
+      this._channel.send(ResponseMessage(request.id, range.to_json()))
+      return
+    end
+    this._channel.send(ResponseMessage.create(request.id, None))
+
+  be rename(document_uri: String, request: RequestMessage val) =>
+    """
+    Handle textDocument/rename request.
+    """
+    this._channel.log("Handling textDocument/rename")
+    (let line, let column) =
+      match \exhaustive\ _parse_hover_position(request)
+      | (let l: I64, let c: I64) => (l, c)
+      | None => return
+      end
+    let new_name: String val =
+      try
+        JsonNav(request.params)("newName").as_string()?
+      else
+        this._channel.send(
+          ResponseMessage.create(
+            request.id,
+            None,
+            ResponseError(
+              ErrorCodes.invalid_params(),
+              "Missing or invalid newName")))
+        return
+      end
+    if not _IsValidPonyIdentifier(new_name) then
+      this._channel.send(
+        ResponseMessage.create(
+          request.id,
+          None,
+          ResponseError(
+            ErrorCodes.invalid_params(),
+            "newName is not a valid Pony identifier")))
+      return
+    end
+    let document_path = Uris.to_path(document_uri)
+    match _find_node_and_module(document_path, line, column)
+    | (let node: AST box, _) =>
+      match \exhaustive\ Rename.collect(
+        node,
+        this._packages,
+        workspace.folder.path,
+        new_name)
+      | let workspace_edit: JsonObject val =>
+        this._channel.send(ResponseMessage(request.id, workspace_edit))
+      | let err_msg: String val =>
+        this._channel.send(
+          ResponseMessage.create(
+            request.id,
+            None,
+            ResponseError(ErrorCodes.request_failed(), err_msg)))
+      end
+      return
+    end
+    this._channel.send(ResponseMessage.create(request.id, None))
+
   be goto_definition(document_uri: String, request: RequestMessage val) =>
     """
     Handling the textDocument/definition request.
     """
-    this._channel.log("handling textDocument/definition")
+    this._channel.log("handling " + request.method)
     this._current_request = request
     (let line, let column) =
       match \exhaustive\ _parse_hover_position(request)
@@ -623,20 +765,51 @@ actor WorkspaceManager
       this._channel.log(ast.debug())
       var json_arr = JsonArray
       for ast_definition in ast.definitions().values() do
-        (let start_pos, let end_pos) = ast_definition.span()
-        try
-          json_arr =
-            json_arr.push(
-              LspLocation(
-                Uris.from_path(ast_definition.source_file() as String val),
-                LspPositionRange(
-                  LspPosition.from_ast_pos(start_pos),
-                  LspPosition.from_ast_pos_end(end_pos))
-              ).to_json()
-            )
-        else
+        match \exhaustive\ _node_location(ast_definition)
+        | let loc: LspLocation val =>
+          json_arr = json_arr.push(loc.to_json())
+        | None =>
           this._channel.log(
-            "No source file found for definition: " + ast_definition.debug())
+            "No source file found for definition: " +
+              ast_definition.debug())
+        end
+      end
+      this._channel.send(ResponseMessage(request.id, json_arr))
+      return
+    | None => None
+    end
+    // send a null-response in every failure case
+    this._channel.send(ResponseMessage.create(request.id, None))
+
+  be type_definition(document_uri: String, request: RequestMessage val) =>
+    """
+    Handle textDocument/typeDefinition request.
+
+    Finds the definition of the type of the symbol at the cursor position.
+    E.g. for a local variable `x: MyClass`, this navigates to `MyClass`.
+    """
+    this._channel.log("handling textDocument/typeDefinition")
+    (let line, let column) =
+      match \exhaustive\ _parse_hover_position(request)
+      | (let l: I64, let c: I64) => (l, c)
+      | None => return
+      end
+    let document_path = Uris.to_path(document_uri)
+    match \exhaustive\ _find_node_and_module(document_path, line, column)
+    | (let ast: AST box, _) =>
+      this._channel.log(ast.debug())
+      var json_arr = JsonArray
+      match ast.ast_type()
+      | let type_ast: AST =>
+        for type_def in type_ast.definitions().values() do
+          match \exhaustive\ _node_location(type_def)
+          | let loc: LspLocation val =>
+            json_arr = json_arr.push(loc.to_json())
+          | None =>
+            this._channel.log(
+              "No source file found for type definition: " +
+                type_def.debug())
+          end
         end
       end
       this._channel.send(ResponseMessage(request.id, json_arr))
@@ -678,6 +851,94 @@ actor WorkspaceManager
     end
     // send a null-response in every failure case
     this._channel.send(ResponseMessage.create(request.id, None))
+
+  be workspace_symbol(
+    query: String val,
+    aggregator: WorkspaceSymbolAggregator)
+  =>
+    """
+    Handle workspace/symbol request.
+    Collects symbols matching the query across all packages
+    in this workspace.
+    """
+    this._channel.log("Handling workspace/symbol: '" + query + "'")
+    let query_lower: String val = query.lower()
+    var results = JsonArray
+    for pkg_state in this._packages.values() do
+      for doc_state in pkg_state.documents.values() do
+        let file_uri = Uris.from_path(doc_state.path)
+        let top_symbols = doc_state.document_symbols()
+        for symbol in top_symbols.values() do
+          if _symbol_matches(symbol.name, query_lower) then
+            results =
+              results.push(
+                JsonObject
+                  .update("name", symbol.name)
+                  .update("kind", symbol.kind)
+                  .update(
+                    "location",
+                    JsonObject
+                      .update("uri", file_uri)
+                      .update(
+                        "range",
+                        symbol.range.to_json())))
+          end
+          for child in symbol.children.values() do
+            if _symbol_matches(child.name, query_lower) then
+              results =
+                results.push(
+                  JsonObject
+                    .update("name", child.name)
+                    .update("kind", child.kind)
+                    .update("containerName", symbol.name)
+                    .update(
+                      "location",
+                      JsonObject
+                        .update("uri", file_uri)
+                        .update(
+                          "range",
+                          child.range.to_json())))
+            end
+          end
+        end
+      end
+    end
+    aggregator.add_results(results)
+
+  fun _node_location(node: AST box): (LspLocation val | None) =>
+    """
+    Builds an `LspLocation` for `node`.
+
+    Returns `None` if the node has no source file (e.g. synthesised nodes)
+    or if the computed source span is inverted.
+    """
+    try
+      let doc_path = node.source_file() as String val
+      let range =
+        match \exhaustive\ ASTClampedRange(node, doc_path, SiblingBound(node))
+        | let r: LspPositionRange => r
+        | None => error
+        end
+      LspLocation(Uris.from_path(doc_path), range)
+    else
+      None
+    end
+
+  fun _symbol_matches(name: String, query_lower: String): Bool =>
+    """
+    Returns true if `name` matches `query_lower` (already lowercased).
+    An empty query matches everything; otherwise a case-insensitive substring
+    match is performed.
+    """
+    if query_lower.size() == 0 then
+      return true
+    end
+    try
+      name.lower().find(query_lower)?
+      true
+    else
+      false
+    end
 
   be document_diagnostic(document_uri: String, request: RequestMessage val) =>
     """
@@ -771,6 +1032,130 @@ actor WorkspaceManager
       end
     else
       this._channel.log("document not in workspace: " + document_path)
+    end
+    this._channel.send(ResponseMessage.create(request.id, None))
+
+  be folding_range(document_uri: String, request: RequestMessage val) =>
+    """
+    Handle textDocument/foldingRange request.
+    """
+    this._channel.log("Handling textDocument/foldingRange")
+    let document_path = Uris.to_path(document_uri)
+    try
+      let package: FilePath = this._find_workspace_package(document_path)?
+      match \exhaustive\ this._get_package(package)
+      | let pkg_state: PackageState =>
+        match \exhaustive\ pkg_state.get_document(document_path)
+        | let doc: DocumentState =>
+          match \exhaustive\ doc.module()
+          | let module: Module val =>
+            let fold_ranges = FoldingRanges.collect(module)
+            var json_arr = JsonArray
+            for range in fold_ranges.values() do
+              json_arr = json_arr.push(range)
+            end
+            this._channel.send(ResponseMessage(request.id, json_arr))
+            return
+          | None =>
+            this._channel.log(
+              "No module available for " + document_path)
+          end
+        | None =>
+          this._channel.log(
+            "No document state available for " + document_path)
+        end
+      | None =>
+        this._channel.log(
+          "No package state available for " + document_path)
+      end
+    else
+      this._channel.log("document not in workspace: " + document_path)
+    end
+    this._channel.send(ResponseMessage.create(request.id, None))
+
+  be selection_range(document_uri: String, request: RequestMessage val) =>
+    """
+    Handle textDocument/selectionRange request.
+
+    Parses the `positions` array from the request params. For each position,
+    finds the AST node under the cursor and builds a SelectionRange linked list
+    from innermost to outermost. The response is a JsonArray parallel to the
+    request positions array; entries are null when no node is found at a
+    position. Returns null if the request has no valid `positions` array.
+    """
+    this._channel.log("Handling textDocument/selectionRange")
+    let document_path = Uris.to_path(document_uri)
+
+    // Each position maps to one response entry (null when no node found), so
+    // the output array is always parallel to the input positions array.
+    var out = JsonArray
+    try
+      let arr = JsonNav(request.params)("positions").as_array()?
+      for pos_val in arr.values() do
+        let entry: JsonValue =
+          try
+            let l = JsonNav(pos_val)("line").as_i64()?
+            let c = JsonNav(pos_val)("character").as_i64()?
+            match _find_node_and_module(document_path, l, c)
+            | (let node: AST box, _) =>
+              SelectionRanges.collect(node, document_path)
+            else
+              None
+            end
+          else
+            None // malformed position entry — keep array parallel
+          end
+        out = out.push(entry)
+      end
+    else
+      this._channel.send(
+        ResponseMessage.create(
+          request.id,
+          None,
+          ResponseError(
+            ErrorCodes.invalid_params(),
+            "Missing or invalid 'positions' array in selectionRange request")))
+      return
+    end
+    this._channel.send(ResponseMessage(request.id, out))
+
+  be signature_help(document_uri: String, request: RequestMessage val) =>
+    """
+    Handle textDocument/signatureHelp request.
+    """
+    this._channel.log("Handling textDocument/signatureHelp")
+    (let line, let column) =
+      match \exhaustive\ _parse_hover_position(request)
+      | (let l: I64, let c: I64) => (l, c)
+      | None => return
+      end
+    let document_path = Uris.to_path(document_uri)
+    // Convert LSP 0-based cursor to 1-based AST coordinates.
+    let cursor_line = USize.from[I64](line + 1)
+    let cursor_col  = USize.from[I64](column + 1)
+    match _get_index_and_module(document_path)
+    | (let index: PositionIndex val, let module: Module val) =>
+      // Scan the source text forward from the cursor, skipping whitespace
+      // and commas, to find the next real token.  This handles the case
+      // where the cursor is on a separator character or trailing whitespace
+      // where no AST node exists — without magic column limits.
+      (let tok_line, let tok_col) =
+        match \exhaustive\ module.ast.source_contents()
+        | let src: String box =>
+          SignatureHelpSource.scan_to_token(src, cursor_line, cursor_col)
+        | None =>
+          (cursor_line, cursor_col)
+        end
+      match index.find_node_at(tok_line, tok_col)
+      | let node: AST box =>
+        match \exhaustive\ SignatureHelp.collect(
+          node, tok_line, tok_col, this._channel)
+        | let result: JsonObject =>
+          this._channel.send(ResponseMessage(request.id, result))
+          return
+        | None => None
+        end
+      end
     end
     this._channel.send(ResponseMessage.create(request.id, None))
 

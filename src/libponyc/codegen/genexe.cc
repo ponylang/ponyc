@@ -377,35 +377,6 @@ static const char* system_triple(compile_t* c)
   return stringtab(result.c_str());
 }
 
-static const char* find_libc_crt_dir(const char* sysroot,
-  const char* sys_triple)
-{
-  // Search candidate paths for libc CRT objects (crt1.o).
-  const char* candidates[4];
-  char buf[PATH_MAX];
-
-  snprintf(buf, sizeof(buf), "%s/usr/lib/%s", sysroot, sys_triple);
-  candidates[0] = stringtab(buf);
-
-  snprintf(buf, sizeof(buf), "%s/usr/lib", sysroot);
-  candidates[1] = stringtab(buf);
-
-  snprintf(buf, sizeof(buf), "%s/lib/%s", sysroot, sys_triple);
-  candidates[2] = stringtab(buf);
-
-  snprintf(buf, sizeof(buf), "%s/lib", sysroot);
-  candidates[3] = stringtab(buf);
-
-  for(int i = 0; i < 4; i++)
-  {
-    snprintf(buf, sizeof(buf), "%s/crt1.o", candidates[i]);
-    if(file_exists(buf))
-      return candidates[i];
-  }
-
-  return NULL;
-}
-
 static uint16_t expected_elf_machine(compile_t* c)
 {
   llvm::Triple triple(c->opt->triple);
@@ -454,6 +425,55 @@ static bool elf_matches_target(const char* path, uint16_t target_machine)
     machine = ((uint16_t)hdr[18] << 8) | (uint16_t)hdr[19];
 
   return machine == target_machine;
+}
+
+static const char* find_libc_crt_dir(const char* sysroot,
+  const char* sys_triple, uint16_t target_machine)
+{
+  // Search candidate paths for libc CRT objects (crt1.o).
+  // The lib64 candidates cover Fedora, RHEL, and other distros that
+  // place 64-bit libc startup objects in /usr/lib64 rather than
+  // /usr/lib/<triple> or /usr/lib.
+  //
+  // Each candidate's crt1.o is validated against the target architecture
+  // via elf_matches_target. On multilib hosts (e.g. an x86_64 system
+  // with glibc-devel.i686 installed) /usr/lib/crt1.o is the 32-bit
+  // object while /usr/lib64/crt1.o is the 64-bit one — without arch
+  // validation the search would return /usr/lib and the link would
+  // fail later inside LLD with an arch-mismatch error. Validating
+  // crt1.o alone is sufficient because multilib distros ship matched
+  // sets of startup objects (crt1.o, Scrt1.o, crti.o, crtn.o) per
+  // directory, so the arch of crt1.o reliably identifies the arch of
+  // the directory.
+  const char* candidates[6];
+  char buf[PATH_MAX];
+
+  snprintf(buf, sizeof(buf), "%s/usr/lib/%s", sysroot, sys_triple);
+  candidates[0] = stringtab(buf);
+
+  snprintf(buf, sizeof(buf), "%s/usr/lib", sysroot);
+  candidates[1] = stringtab(buf);
+
+  snprintf(buf, sizeof(buf), "%s/lib/%s", sysroot, sys_triple);
+  candidates[2] = stringtab(buf);
+
+  snprintf(buf, sizeof(buf), "%s/lib", sysroot);
+  candidates[3] = stringtab(buf);
+
+  snprintf(buf, sizeof(buf), "%s/usr/lib64", sysroot);
+  candidates[4] = stringtab(buf);
+
+  snprintf(buf, sizeof(buf), "%s/lib64", sysroot);
+  candidates[5] = stringtab(buf);
+
+  for(size_t i = 0; i < sizeof(candidates) / sizeof(candidates[0]); i++)
+  {
+    snprintf(buf, sizeof(buf), "%s/crt1.o", candidates[i]);
+    if(file_exists(buf) && elf_matches_target(buf, target_machine))
+      return candidates[i];
+  }
+
+  return NULL;
 }
 
 static const char* find_ponyc_crt_dir(ast_t* program, compile_t* c)
@@ -589,19 +609,26 @@ static const char* find_gcc_lib_dir(const char* sysroot,
 static const char* resolve_sysroot(compile_t* c, const char* sys_triple,
   errors_t* errors)
 {
+  uint16_t target_machine = expected_elf_machine(c);
+
   // If user specified --sysroot, validate it.
   if(c->opt->sysroot != NULL && c->opt->sysroot[0] != '\0')
   {
-    if(find_libc_crt_dir(c->opt->sysroot, sys_triple) != NULL)
+    if(find_libc_crt_dir(c->opt->sysroot, sys_triple, target_machine) != NULL)
       return c->opt->sysroot;
 
     errorf(errors, NULL,
-      "sysroot '%s' does not contain libc CRT objects (crt1.o)\n"
-      "  Searched: %s/usr/lib/%s/, %s/usr/lib/, %s/lib/%s/, %s/lib/",
+      "sysroot '%s' does not contain a libc crt1.o matching target "
+      "architecture '%s'\n"
+      "  Searched: %s/usr/lib/%s/, %s/usr/lib/, %s/lib/%s/, %s/lib/,\n"
+      "            %s/usr/lib64/, %s/lib64/",
       c->opt->sysroot,
+      c->opt->triple,
       c->opt->sysroot, sys_triple,
       c->opt->sysroot,
       c->opt->sysroot, sys_triple,
+      c->opt->sysroot,
+      c->opt->sysroot,
       c->opt->sysroot);
     return NULL;
   }
@@ -628,7 +655,7 @@ static const char* resolve_sysroot(compile_t* c, const char* sys_triple,
 
   for(int i = 0; i < 4; i++)
   {
-    if(find_libc_crt_dir(candidates[i], sys_triple) != NULL)
+    if(find_libc_crt_dir(candidates[i], sys_triple, target_machine) != NULL)
       return candidates[i];
   }
 
@@ -680,11 +707,14 @@ static bool link_exe_lld_elf(compile_t* c, ast_t* program,
   }
 
   // Find CRT directories.
-  const char* libc_crt_dir = find_libc_crt_dir(sysroot, sys_triple);
+  uint16_t target_machine = expected_elf_machine(c);
+  const char* libc_crt_dir = find_libc_crt_dir(sysroot, sys_triple,
+    target_machine);
   if(libc_crt_dir == NULL)
   {
     errorf(errors, NULL,
-      "could not find libc CRT objects in sysroot '%s'", sysroot);
+      "could not find a libc crt1.o matching target architecture '%s' "
+      "in sysroot '%s'", c->opt->triple, sysroot);
     return false;
   }
 
@@ -836,7 +866,13 @@ static bool link_exe_lld_elf(compile_t* c, ast_t* program,
   // libraries in these locations fail. No -rpath needed since the runtime
   // linker already knows these paths.
   {
-    // /usr/lib is intentionally absent — libc_crt_dir already covers it.
+    // /usr/lib is intentionally absent. On non-multilib hosts
+    // libc_crt_dir already covers it (directly, or via a multiarch
+    // subdirectory of /usr/lib like /usr/lib/x86_64-linux-gnu). On
+    // multilib RPM hosts (Fedora, RHEL) libc_crt_dir resolves to
+    // /usr/lib64 because /usr/lib holds the 32-bit toolchain, and
+    // adding /usr/lib here would inject wrong-arch libraries into
+    // a 64-bit link.
     const char* fallback_dirs[] = {
       "%s/lib",
       "%s/usr/local/lib",

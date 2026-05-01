@@ -101,7 +101,7 @@ actor PropertyRunner[T]
     """
   let _disposables: Array[DisposableActor] = Array[DisposableActor]
     """
-    Disosable actors that are disposed of after every round.
+    Disposable actors that are disposed of after every round.
     """
   var _shrinker: Iterator[T^] = _EmptyIterator[T^]
   var _sample_repr: String = ""

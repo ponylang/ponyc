@@ -108,6 +108,12 @@ class _HighlightMore
     w = w + add(n)
     w
 
+  fun box enabled(): Bool =>
+    _flag
+
+  fun box inner_x(): U32 =>
+    _inner.x
+
 actor _HighlightRunner
   """
   Demonstrates behaviour and beref highlights.
@@ -132,3 +138,131 @@ class _LiteralExamples
   """
   let _f: F64 = 3.14
   let _s: String val = "hello"
+
+class _UninitLocal
+  """
+  Demonstrates a local variable declared without an inline initializer.
+  `acc` is declared as `var acc: U32` (no `= expr`). All declarations are
+  Write kind; the `acc = 0` assignment below is also Write; the return is Read.
+  """
+  fun ref example(): U32 =>
+    var acc: U32
+    acc = 0
+    acc
+
+class _TupleAssign
+  """
+  Demonstrates tuple destructuring assignment.
+  LHS elements of a tuple assignment are Write kind.
+
+  Place the cursor on `ta` to see both occurrences:
+    the var declaration (Write — has initializer)
+    the LHS of the tuple assign (Write)
+    the use in ta + tb (Read)
+  """
+  fun ref work(): U32 =>
+    var ta: U32 = 0
+    var tb: U32 = 0
+    (ta, tb) = (1, 2)
+    ta + tb
+
+class _TupleElemAccess
+  """
+  Demonstrates a tuple element reference (tk_tupleelemref).
+  Placing the cursor on `_1` in `pair._1` should produce a Read highlight
+  spanning the full `pair._1` expression.
+  """
+  fun box work(): U32 =>
+    let pair: (U32, U32) = (42, 7)
+    pair._1
+
+actor _BeChainActor
+  """
+  Demonstrates tk_beref (expression receiver) and tk_newberef highlights.
+
+  Place the cursor on `go` to see both occurrences: the behaviour
+  declaration and the expression-receiver call site in chain_go (tk_beref).
+
+  Place the cursor on `create` to see both occurrences: the constructor
+  declaration and the call site in _NewBeRefExample (tk_newberef).
+  """
+  new create() =>
+    None
+
+  be go(n: U32) =>
+    None
+
+  fun box get_self(): _BeChainActor tag =>
+    this
+
+  fun box chain_go(): None =>
+    get_self().go(1)
+
+class _NewBeRefExample
+  """
+  Demonstrates tk_newberef highlights.
+  Place the cursor on `create` in _BeChainActor.create() to see both
+  occurrences: the constructor declaration and this call site.
+  """
+  fun ref work(): _BeChainActor tag =>
+    _BeChainActor.create()
+
+class _HighlightGenericMethod
+  """
+  Demonstrates type parameter highlights in a generic method.
+
+  Place the cursor on `T` in `apply[T]` to see all 3 occurrences:
+  the type parameter declaration and both type annotations for the
+  parameter and return type.
+  """
+  fun apply[T](x: T): T =>
+    x
+
+class _HighlightGenericClass[T]
+  """
+  Demonstrates type parameter highlights on a generic class.
+
+  Place the cursor on `T` to see all 3 occurrences: the class-level
+  type parameter declaration and both type annotations in the
+  parameter and return type of `id`.
+  """
+  fun id(x: T): T =>
+    x
+
+class _HighlightGenericPair[A, B]
+  """
+  Demonstrates independent type parameter highlights on a class
+  with two type parameters.
+
+  Place the cursor on `A` to see its 4 occurrences: the declaration
+  in `[A, B]` and the three type annotations in `first` and `second`.
+  Place the cursor on `B` to see its 4 independent occurrences: the
+  declaration in `[A, B]` and the three type annotations in `first`
+  and `second`.
+  """
+  fun first(a: A, b: B): A =>
+    a
+
+  fun second(a: A, b: B): B =>
+    b
+
+class _HighlightConstrainedGeneric[T: Stringable]
+  """
+  Demonstrates highlights for a constrained type parameter. The constraint
+  Stringable should not be highlighted when placing the cursor on T.
+  Expects 3 occurrences: the declaration in [T: Stringable] and both type
+  annotations in apply.
+  """
+  fun apply(x: T): T =>
+    x
+
+actor _HighlightGenericActor[T: Any val]
+  """
+  Demonstrates Document Highlight on a generic actor type parameter.
+
+  Place the cursor on `T` in `actor _HighlightGenericActor[T: Any val]`
+  and invoke Document Highlight. Expect 2 occurrences: the declaration
+  and the type annotation in the `run` behaviour parameter.
+  """
+  be run(x: T) =>
+    None

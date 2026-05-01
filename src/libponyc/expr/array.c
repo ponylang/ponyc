@@ -121,11 +121,9 @@ static ast_t* detect_values_element_type(pass_opt_t* opt, ast_t* ast,
   if(ast_id(typeparams) == TK_TYPEPARAMS)
     elem_type = reify(elem_type, typeparams, typeargs, opt, true);
 
-  if((ast_id(elem_type) == TK_ARROW) &&
-    (ast_id(ast_child(elem_type)) == TK_THISTYPE))
-    elem_type = ast_childidx(elem_type, 1);
-
-  return elem_type;
+  // Strip `this->` viewpoint arrows, including any that were distributed
+  // into a union/intersection/tuple when a type alias was expanded.
+  return strip_this_arrow(opt, elem_type);
 }
 
 static void find_possible_element_types(pass_opt_t* opt, ast_t* ast,
@@ -476,7 +474,10 @@ bool expr_array(pass_opt_t* opt, ast_t** astp)
 
     ast_t* c_type = ast_type(ele);
     if(is_typecheck_error(c_type))
+    {
+      ast_free_unattached(type);
       return false;
+    }
 
     if(told_type)
     {
@@ -511,6 +512,8 @@ bool expr_array(pass_opt_t* opt, ast_t** astp)
         ast_free_unattached(w_type);
         return false;
       }
+
+      ast_free_unattached(w_type);
     }
     else
     {
@@ -522,7 +525,17 @@ bool expr_array(pass_opt_t* opt, ast_t** astp)
         return true;
       }
 
-      type = type_union(opt, type, c_type);
+      ast_t* prev_type = type;
+      type = type_union(opt, prev_type, c_type);
+
+      // type_union may return prev_type, c_type, or a freshly-built tree.
+      // Free any input it did not return as-is: ast_free_unattached is a
+      // no-op on aliases (still parented) and on NULL, so no ownership
+      // tracking is needed.
+      if(type != prev_type)
+        ast_free_unattached(prev_type);
+      if(type != c_type)
+        ast_free_unattached(c_type);
     }
   }
 

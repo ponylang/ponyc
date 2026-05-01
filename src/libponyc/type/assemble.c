@@ -31,7 +31,8 @@ static void append_one_to_union(pass_opt_t* opt, ast_t* ast, ast_t* append)
     child = next;
   }
 
-  ast_append(ast, append);
+  // Always dup `append`: see type_typeexpr's input-preservation invariant.
+  ast_append(ast, ast_dup(append));
 }
 
 static void append_one_to_isect(pass_opt_t* opt, ast_t* ast, ast_t* append)
@@ -56,7 +57,8 @@ static void append_one_to_isect(pass_opt_t* opt, ast_t* ast, ast_t* append)
     child = next;
   }
 
-  ast_append(ast, append);
+  // Always dup `append`: see type_typeexpr's input-preservation invariant.
+  ast_append(ast, ast_dup(append));
 }
 
 static void append_one_to_typeexpr(pass_opt_t* opt, ast_t* ast, ast_t* append,
@@ -86,6 +88,26 @@ static void append_to_typeexpr(pass_opt_t* opt, ast_t* ast, ast_t* append,
   }
 }
 
+// Combine two type expressions into a single tree.
+//
+// Input-preservation invariant: this function never mutates or frees
+// its inputs (`l_type`, `r_type`). Callers retain full ownership and can
+// free orphan inputs afterwards with `ast_free_unattached`. The
+// invariant is enforced by `append_one_to_union` and
+// `append_one_to_isect`, which always dup `append` before handing it to
+// `ast_append`; without that dup, `ast_append` would reparent an orphan
+// input directly into the freshly-built root, consuming it. The single-
+// element collapse path below frees its locally-built `type` and its
+// dup'd children only — no input is reachable from that free.
+//
+// The return value is one of: `l_type` or `r_type` unchanged (from an
+// early-return branch below), a freshly-built union/isect tree whose
+// children are dup'd copies of the input children, or — when a single-
+// element collapse fires — a fresh `ast_dup` of a single input child.
+// In all three cases the returned tree is independent of the inputs'
+// root nodes, so callers that need to reclaim orphan inputs can
+// compare the return value against each input and call
+// `ast_free_unattached` on any mismatch.
 static ast_t* type_typeexpr(pass_opt_t* opt, token_id t, ast_t* l_type,
   ast_t* r_type)
 {

@@ -62,6 +62,31 @@ primitive WorkspaceMethods
   fun diagnostic(): WorkspaceDiagnosticMethods =>
     WorkspaceDiagnosticMethods
 
+  fun folding_range(): WorkspaceFoldingRangeMethods =>
+    WorkspaceFoldingRangeMethods
+
+  fun inlay_hint(): WorkspaceInlayHintMethods =>
+    WorkspaceInlayHintMethods
+
+  fun symbol(): String val =>
+    "workspace/symbol"
+
+primitive WorkspaceFoldingRangeMethods
+  """
+  Collection of workspace/foldingRange related methods.
+  """
+
+  fun refresh(): String val =>
+    "workspace/foldingRange/refresh"
+
+primitive WorkspaceInlayHintMethods
+  """
+  Collection of workspace/inlayHint related methods.
+  """
+
+  fun refresh(): String val =>
+    "workspace/inlayHint/refresh"
+
 primitive WorkspaceDiagnosticMethods
   """
   Collection of workspace/diagnostic related methods.
@@ -75,8 +100,14 @@ primitive TextDocumentMethods
   Collection of textDocument scoped methods.
   """
 
+  fun declaration(): String val =>
+    "textDocument/declaration"
+
   fun definition(): String val =>
     "textDocument/definition"
+
+  fun type_definition(): String val =>
+    "textDocument/typeDefinition"
 
   fun diagnostic(): String val =>
     "textDocument/diagnostic"
@@ -96,6 +127,12 @@ primitive TextDocumentMethods
   fun document_symbol(): String val =>
     "textDocument/documentSymbol"
 
+  fun folding_range(): String val =>
+    "textDocument/foldingRange"
+
+  fun selection_range(): String val =>
+    "textDocument/selectionRange"
+
   fun hover(): String val =>
     "textDocument/hover"
 
@@ -105,8 +142,17 @@ primitive TextDocumentMethods
   fun references(): String val =>
     "textDocument/references"
 
+  fun prepare_rename(): String val =>
+    "textDocument/prepareRename"
+
+  fun rename(): String val =>
+    "textDocument/rename"
+
   fun publish_diagnostics(): String val =>
     "textDocument/publishDiagnostics"
+
+  fun signature_help(): String val =>
+    "textDocument/signatureHelp"
 
 primitive ClientMethods
   """

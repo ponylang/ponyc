@@ -261,3 +261,37 @@ primitive ErrorCodes
     detected the cancel.
     """
     -32800
+
+primitive DocumentHighlightKind
+  """
+  LSP `DocumentHighlightKind` — classifies each occurrence returned by a
+  `textDocument/documentHighlight` response.
+
+  The spec says `kind` is optional and defaults to `Text` when omitted, so
+  clients that do not support per-kind coloring are unaffected. Clients that
+  do support it (e.g. VS Code) colour read and write occurrences differently,
+  giving the user a quick visual distinction between where a symbol is read
+  and where it is written.
+  """
+
+  fun text(): I64 =>
+    """
+    A textual occurrence: the symbol appears in a context where read/write
+    semantics do not apply — e.g. a declaration site, a type annotation, or
+    a method name. This is the default when `kind` is absent.
+    """
+    1
+
+  fun read(): I64 =>
+    """
+    Read-access of a symbol: the symbol's value is consumed without being
+    reassigned — e.g. reading a variable or calling a function.
+    """
+    2
+
+  fun write(): I64 =>
+    """
+    Write-access of a symbol: the symbol is the target of an assignment —
+    e.g. the left-hand side of `x = expr`.
+    """
+    3

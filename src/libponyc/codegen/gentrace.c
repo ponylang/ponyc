@@ -541,6 +541,24 @@ static int trace_cap_nominal(pass_opt_t* opt, ast_t* type, ast_t* orig,
 
   token_id orig_cap = ast_id(cap);
 
+  // Strip ephemeral before the matchtype probes below. Tracing is a
+  // receiver-side question ("could a receiver match-extract this as cap
+  // X?"), and ephemerality is a sender-side consume-semantic concern the
+  // receiver never sees. The call sites are asymmetric: gencall.c (send
+  // side) passes the call-site expression type, which is ephemeral when
+  // the argument came from a consume, recover, or destructive read.
+  // genfun.c (receive side) passes the parameter AST, which is never
+  // ephemeral. Without the strip, the strict ephemeral check in
+  // is_cap_sub_cap (tightened as the soundness fix for #4588, codified
+  // at test/libponyc/matchtype.cc:466-477) makes the iso probe fail, the
+  // tag probe wins, and the sender emits PONY_TRACE_OPAQUE while the
+  // receiver emits PONY_TRACE_MUTABLE. The recursion mismatch crashes
+  // the GC. See #4807.
+  ast_t* eph = ast_sibling(cap);
+  token_id orig_eph = ast_id(eph);
+  if(orig_eph == TK_EPHEMERAL)
+    ast_setid(eph, TK_NONE);
+
   // We can have a non-sendable rcap if we're tracing a field in a type's trace
   // function. In this case we must always recurse and we have to trace the
   // field as mutable.
@@ -549,6 +567,7 @@ static int trace_cap_nominal(pass_opt_t* opt, ast_t* type, ast_t* orig,
     case TK_TRN:
     case TK_REF:
     case TK_BOX:
+      ast_setid(eph, orig_eph);
       return PONY_TRACE_MUTABLE;
 
     default: {}
@@ -561,6 +580,7 @@ static int trace_cap_nominal(pass_opt_t* opt, ast_t* type, ast_t* orig,
   {
     if(is_matchtype(orig, type, NULL, opt) == MATCHTYPE_ACCEPT)
     {
+      ast_setid(eph, orig_eph);
       return PONY_TRACE_MUTABLE;
     } else {
       ast_setid(cap, TK_VAL);
@@ -572,6 +592,7 @@ static int trace_cap_nominal(pass_opt_t* opt, ast_t* type, ast_t* orig,
     if(is_matchtype(orig, type, NULL, opt) == MATCHTYPE_ACCEPT)
     {
       ast_setid(cap, orig_cap);
+      ast_setid(eph, orig_eph);
       return PONY_TRACE_IMMUTABLE;
     } else {
       ast_setid(cap, TK_TAG);
@@ -585,6 +606,7 @@ static int trace_cap_nominal(pass_opt_t* opt, ast_t* type, ast_t* orig,
     ret = PONY_TRACE_OPAQUE;
 
   ast_setid(cap, orig_cap);
+  ast_setid(eph, orig_eph);
   return ret;
 }
 
@@ -814,20 +836,14 @@ static void trace_dynamic_tuple(compile_t* c, LLVMValueRef ctx,
         LLVMPositionBuilderAtEnd(c->builder, trace_block);
 
         // If we are (A, B), turn (_, _) into (A, _).
-        // If the element is a type alias for a tuple, unfold it once so the
+        // If the element is a type alias for a tuple, unfold it so the
         // recursive call sees the concrete TK_TUPLETYPE; iterating the alias
         // ref's children (TK_ID, typeargs, cap, eph) as tuple elements would
         // trip trace_type's default assertion. typealias_unfold is guaranteed
         // to succeed here because trace_type already unfolded the same child
-        // to classify it as TRACE_TUPLE; reify is deterministic. Chained
-        // aliases (alias of alias of tuple) are a known gap tracked in
-        // ponylang/ponyc#5195 — typealias_unfold only unfolds one level, so
-        // swap is still a TK_TYPEALIASREF and the recursive call hits the
-        // same assertion. Constructing a test that reaches this site with a
-        // chained alias is currently blocked by other PR #5145 regressions
-        // elsewhere in codegen (the static trace_tuple path in this file and
-        // gen_digestof_value in genreference.c), which fire first for every
-        // configuration tried.
+        // to classify it as TRACE_TUPLE; reify is deterministic. The unfold
+        // is transitive, so chained aliases (alias of alias of tuple) also
+        // resolve to a concrete TK_TUPLETYPE here.
         ast_t* swap;
 
         if(ast_id(child) == TK_TYPEALIASREF)
@@ -1048,24 +1064,63 @@ bool gentrace_needed(compile_t* c, ast_t* src_type, ast_t* dst_type)
 
     case TRACE_TUPLE:
     {
+      // Unfold type aliases so the child iteration sees concrete tuple
+      // elements rather than the alias ref's children (TK_ID, typeargs,
+      // cap, eph). Without this, a tuple-aliased operand causes the loop
+      // to walk the wrong children and trip the trailing assertion.
+      // Note: although `trace_type` handles TK_TYPEALIASREF recursively
+      // and returned TRACE_TUPLE above, it takes src_type by value and
+      // doesn't mutate the caller's pointer, so src_type and dst_type
+      // here are still the original (possibly alias) ASTs.
+      ast_t* src_unfolded = NULL;
+      ast_t* dst_unfolded = NULL;
+
+      if(ast_id(src_type) == TK_TYPEALIASREF)
+      {
+        src_unfolded = typealias_unfold(src_type);
+        if(src_unfolded != NULL)
+          src_type = src_unfolded;
+      }
+
+      if(ast_id(dst_type) == TK_TYPEALIASREF)
+      {
+        dst_unfolded = typealias_unfold(dst_type);
+        if(dst_unfolded != NULL)
+          dst_type = dst_unfolded;
+      }
+
+      bool result;
       if(ast_id(dst_type) == TK_TUPLETYPE)
       {
+        result = false;
         ast_t* src_child = ast_child(src_type);
         ast_t* dst_child = ast_child(dst_type);
         while((src_child != NULL) && (dst_child != NULL))
         {
           if(gentrace_needed(c, src_child, dst_child))
-            return true;
+          {
+            result = true;
+            break;
+          }
           src_child = ast_sibling(src_child);
           dst_child = ast_sibling(dst_child);
         }
-        pony_assert(src_child == NULL && dst_child == NULL);
+        // The assert only holds when the loop ran to completion. If we
+        // broke early with `result = true`, src_child and dst_child
+        // point to the element that needs tracing, not NULL.
+        if(!result)
+          pony_assert(src_child == NULL && dst_child == NULL);
       } else {
         // This is a boxed tuple. We'll have to trace the box anyway.
-        return true;
+        result = true;
       }
 
-      return false;
+      if(src_unfolded != NULL)
+        ast_free_unattached(src_unfolded);
+      if(dst_unfolded != NULL)
+        ast_free_unattached(dst_unfolded);
+
+      return result;
     }
 
     default:

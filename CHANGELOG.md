@@ -6,6 +6,55 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
+- Fix linking failures on Fedora and other RPM-based distributions ([PR #5262](https://github.com/ponylang/ponyc/pull/5262))
+- Reject wrong-architecture libc startup objects on multilib hosts ([PR #5271](https://github.com/ponylang/ponyc/pull/5271))
+- Fix spurious pony-lsp inlay hints on primitive types ([PR #5275](https://github.com/ponylang/ponyc/pull/5275))
+- Fix match exhaustiveness for Bool value patterns in tuples ([PR #5226](https://github.com/ponylang/ponyc/pull/5226))
+- Fix pony-lsp document symbols showing spurious eq/ne for bare primitives ([PR #5278](https://github.com/ponylang/ponyc/pull/5278))
+
+### Added
+
+- Ubuntu 26.04 added as a supported platform ([PR #5256](https://github.com/ponylang/ponyc/pull/5256))
+- Add LSP `textDocument/signatureHelp` support ([PR #5259](https://github.com/ponylang/ponyc/pull/5259))
+- Add pony-lsp inlay hints for function parameter types ([PR #5274](https://github.com/ponylang/ponyc/pull/5274))
+
+### Changed
+
+- Remove binutils-gold from nightly and release Docker images ([PR #5270](https://github.com/ponylang/ponyc/pull/5270))
+
+## [0.63.3] - 2026-04-25
+
+### Fixed
+
+- Fix compiler crash when passing an array literal to `OutStream.writev` ([PR #5192](https://github.com/ponylang/ponyc/pull/5192))
+- Fix runtime crash with iso in mixed-capability union type ([PR #4809](https://github.com/ponylang/ponyc/pull/4809))
+- Fix LSP symbol range semantics ([PR #5241](https://github.com/ponylang/ponyc/pull/5241))
+- Fix LSP definition and type-definition ranges ([PR #5247](https://github.com/ponylang/ponyc/pull/5247))
+- Fix LSP outline including synthetic and inherited members ([PR #5249](https://github.com/ponylang/ponyc/pull/5249))
+
+### Added
+
+- Add LSP `textDocument/selectionRange` support ([PR #5236](https://github.com/ponylang/ponyc/pull/5236))
+- Add LSP `workspace/symbol` support ([PR #5239](https://github.com/ponylang/ponyc/pull/5239))
+
+### Changed
+
+- Strengthen memory ordering on runtime queue pushes ([PR #5245](https://github.com/ponylang/ponyc/pull/5245))
+
+## [0.63.2] - 2026-04-19
+
+### Added
+
+- Add LSP `workspace/inlayHint/refresh` support ([PR #5224](https://github.com/ponylang/ponyc/pull/5224))
+- Extend LSP inlay hints with generic caps, return type caps, and receiver caps ([PR #5222](https://github.com/ponylang/ponyc/pull/5222))
+- Add LSP `textDocument/declaration` support ([PR #5229](https://github.com/ponylang/ponyc/pull/5229))
+- Add LSP `textDocument/rename` and `textDocument/prepareRename` support ([PR #5228](https://github.com/ponylang/ponyc/pull/5228))
+- Add LSP `textDocument/typeDefinition` support ([PR #5231](https://github.com/ponylang/ponyc/pull/5231))
+
+## [0.63.1] - 2026-04-11
+
+### Fixed
+
 - Fix rare silent connection hangs on macOS and BSD ([PR #5121](https://github.com/ponylang/ponyc/pull/5121))
 - Fix rare silent connection hangs on Linux ([PR #5131](https://github.com/ponylang/ponyc/pull/5131))
 - Fix bug in pony-lsp's goto definition ([PR #5123](https://github.com/ponylang/ponyc/pull/5123))
@@ -28,9 +77,9 @@ All notable changes to the Pony compiler and standard library will be documented
 - Add LSP `textDocument/inlayHint` support ([PR #5159](https://github.com/ponylang/ponyc/pull/5159))
 - Add LSP `textDocument/references` support ([PR #5165](https://github.com/ponylang/ponyc/pull/5165))
 - Add LSP go-to-definition for type aliases ([PR #5163](https://github.com/ponylang/ponyc/pull/5163))
-
-### Changed
-
+- Add kind to pony-lsp document highlights ([PR #5188](https://github.com/ponylang/ponyc/pull/5188))
+- Add generic type parameter highlights to pony-lsp ([PR #5190](https://github.com/ponylang/ponyc/pull/5190))
+- Add textDocument/references for generic type parameters in pony-lsp ([PR #5221](https://github.com/ponylang/ponyc/pull/5221))
 
 ## [0.63.0] - 2026-04-04
 

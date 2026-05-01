@@ -11,10 +11,6 @@ class GenericSum[T: (Int & Integer[T] val & SafeOps[T])]
     // In the issue 2408 ponyc < 0.26 was reporting this pattern to never match
     | (let res: T, false) => res
     | (_, true) => error
-    else
-      // this else is only needed because ponyc does not recognize
-      // the match above as exhaustive
-      error
     end
 
 actor Main

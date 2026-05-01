@@ -77,35 +77,35 @@ void ponyint_mpmcq_push(mpmcq_t* q, void* data)
 {
   mpmcq_node_t* node = node_alloc(data);
 
-  // Without that fence, the store to node->next in node_alloc could be
-  // reordered after the exchange on the head and after the store to prev->next
-  // done by the next push, which would result in the pop incorrectly seeing
-  // the queue as empty.
-  // Also synchronise with the pop on prev->next.
-  atomic_thread_fence(memory_order_release);
-
+  // acq_rel on the exchange:
+  //  - release: orders node_alloc's stores to node->next and node->data
+  //    before the exchange, and before any thread that later acquires q->head.
+  //  - acquire: establishes happens-before with the previous pusher's release
+  //    on q->head, so the release sequence on q->head doesn't need to be
+  //    extended across cross-thread read-modify-writes.
   mpmcq_node_t* prev = atomic_exchange_explicit(&q->head, node,
-    memory_order_relaxed);
+    memory_order_acq_rel);
 
 #ifdef USE_VALGRIND
-  // Double fence with Valgrind since we need to have prev in scope for the
-  // synchronisation annotation.
   ANNOTATE_HAPPENS_BEFORE(&prev->next);
-  atomic_thread_fence(memory_order_release);
 #endif
-  atomic_store_explicit(&prev->next, node, memory_order_relaxed);
+  // Release so ponyint_mpmcq_pop's acquire synchronises with node_alloc's
+  // stores and the stores before this push.
+  atomic_store_explicit(&prev->next, node, memory_order_release);
 }
 
 void ponyint_mpmcq_push_single(mpmcq_t* q, void* data)
 {
   mpmcq_node_t* node = node_alloc(data);
 
-  // If we have a single producer, the swap of the head need not be atomic RMW.
-  mpmcq_node_t* prev = atomic_load_explicit(&q->head, memory_order_relaxed);
-  atomic_store_explicit(&q->head, node, memory_order_relaxed);
+  // Use an acq_rel exchange rather than a relaxed load + relaxed store even
+  // though the caller promises single-producer. A non-RMW store on q->head
+  // would not extend a prior release sequence, breaking the happens-before
+  // chain from any earlier pusher (or from ponyint_mpmcq_init on the first
+  // call) to the next consumer.
+  mpmcq_node_t* prev = atomic_exchange_explicit(&q->head, node,
+    memory_order_acq_rel);
 
-  // If we have a single producer, the fence can be replaced with a store
-  // release on prev->next.
 #ifdef USE_VALGRIND
   ANNOTATE_HAPPENS_BEFORE(&prev->next);
 #endif
