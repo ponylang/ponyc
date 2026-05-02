@@ -289,6 +289,94 @@ actor LanguageServer is (Notifier & RequestSender)
                 "[" + r.method + "] No workspace found for '" +
                 r.json().string() + "'")))
         end
+      | Methods.text_document().prepare_type_hierarchy() =>
+        let document_uri =
+          try _get_document_uri(r.params)?
+          else
+            this._channel.send(
+              ResponseMessage.create(
+                r.id,
+                None,
+                ResponseError(
+                  ErrorCodes.invalid_params(),
+                  "[" + r.method + "] missing textDocument.uri")))
+            return
+          end
+        try
+          (_router.find_workspace(document_uri) as WorkspaceManager)
+            .type_hierarchy_prepare(document_uri, r)
+        else
+          this._channel.send(
+            ResponseMessage.create(
+              r.id,
+              None,
+              ResponseError(
+                ErrorCodes.internal_error(),
+                "[" + r.method + "] No workspace found for '" +
+                  document_uri + "'")))
+        end
+      | Methods.type_hierarchy().supertypes() =>
+        (let item_uri, let sel_line, let sel_col) =
+          try
+            ( JsonNav(r.params)("item")("uri").as_string()?
+            , JsonNav(r.params)("item")("selectionRange")("start")("line")
+                .as_i64()?
+            , JsonNav(r.params)("item")("selectionRange")("start")("character")
+                .as_i64()? )
+          else
+            this._channel.send(
+              ResponseMessage.create(
+                r.id,
+                None,
+                ResponseError(
+                  ErrorCodes.invalid_params(),
+                  "[" + r.method + "] missing item or selectionRange.start")))
+            return
+          end
+        try
+          (_router.find_workspace(item_uri) as WorkspaceManager)
+            .type_hierarchy_supertypes(item_uri, sel_line, sel_col, r)
+        else
+          this._channel.send(
+            ResponseMessage.create(
+              r.id,
+              None,
+              ResponseError(
+                ErrorCodes.internal_error(),
+                "[" + r.method + "] No workspace found for '" +
+                  item_uri + "'")))
+        end
+      | Methods.type_hierarchy().subtypes() =>
+        (let item_uri, let sel_line, let sel_col) =
+          try
+            ( JsonNav(r.params)("item")("uri").as_string()?
+            , JsonNav(r.params)("item")("selectionRange")("start")("line")
+                .as_i64()?
+            , JsonNav(r.params)("item")("selectionRange")("start")("character")
+                .as_i64()? )
+          else
+            this._channel.send(
+              ResponseMessage.create(
+                r.id,
+                None,
+                ResponseError(
+                  ErrorCodes.invalid_params(),
+                  "[" + r.method + "] missing item or selectionRange.start")))
+            return
+          end
+        try
+          (_router.find_workspace(item_uri) as WorkspaceManager)
+            .type_hierarchy_subtypes(item_uri, sel_line, sel_col, r)
+        else
+          this._channel.send(
+            ResponseMessage.create(
+              r.id,
+              None,
+              ResponseError(
+                ErrorCodes.internal_error(),
+                "[" + r.method + "] No workspace found for '" +
+                  item_uri + "'")))
+        end
       | Methods.workspace().symbol() =>
         let query = try JsonNav(r.params)("query").as_string()? else "" end
         _router.workspace_symbol(query, this._channel, r.id)
@@ -546,7 +634,8 @@ actor LanguageServer is (Notifier & RequestSender)
                       JsonArray.push("(").push(","))
                     .update(
                       "retriggerCharacters",
-                      JsonArray.push("(").push(","))))
+                      JsonArray.push("(").push(",")))
+                .update("typeHierarchyProvider", true))
             .update(
               "serverInfo",
               JsonObject

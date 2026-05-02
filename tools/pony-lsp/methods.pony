@@ -42,6 +42,12 @@ primitive Methods
     """
     WindowMethods
 
+  fun type_hierarchy(): TypeHierarchyMethods =>
+    """
+    Access typeHierarchy scoped methods.
+    """
+    TypeHierarchyMethods
+
   fun workspace(): WorkspaceMethods =>
     """
     Access workspace scoped methods.
@@ -153,6 +159,20 @@ primitive TextDocumentMethods
 
   fun signature_help(): String val =>
     "textDocument/signatureHelp"
+
+  fun prepare_type_hierarchy(): String val =>
+    "textDocument/prepareTypeHierarchy"
+
+primitive TypeHierarchyMethods
+  """
+  Collection of typeHierarchy scoped methods.
+  """
+
+  fun supertypes(): String val =>
+    "typeHierarchy/supertypes"
+
+  fun subtypes(): String val =>
+    "typeHierarchy/subtypes"
 
 primitive ClientMethods
   """

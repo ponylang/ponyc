@@ -1159,6 +1159,75 @@ actor WorkspaceManager
     end
     this._channel.send(ResponseMessage.create(request.id, None))
 
+  be type_hierarchy_prepare(
+    document_uri: String,
+    request: RequestMessage val)
+  =>
+    """
+    Handle textDocument/prepareTypeHierarchy request.
+    """
+    this._channel.log("Handling textDocument/prepareTypeHierarchy")
+    (let line, let column) =
+      match \exhaustive\ _parse_hover_position(request)
+      | (let l: I64, let c: I64) => (l, c)
+      | None => return
+      end
+    let document_path = Uris.to_path(document_uri)
+    match \exhaustive\ _find_node_and_module(document_path, line, column)
+    | (let node: AST box, _) =>
+      match TypeHierarchy.prepare(node)
+      | let result: JsonArray =>
+        this._channel.send(ResponseMessage(request.id, result))
+        return
+      end
+    | None => None
+    end
+    this._channel.send(ResponseMessage.create(request.id, None))
+
+  be type_hierarchy_supertypes(
+    document_uri: String,
+    sel_line: I64,
+    sel_col: I64,
+    request: RequestMessage val)
+  =>
+    """
+    Handle typeHierarchy/supertypes request.
+    """
+    this._channel.log("Handling typeHierarchy/supertypes")
+    let document_path = Uris.to_path(document_uri)
+    match \exhaustive\ _find_node_and_module(document_path, sel_line, sel_col)
+    | (let node: AST box, _) =>
+      match TypeHierarchy.supertypes(node)
+      | let result: JsonArray =>
+        this._channel.send(ResponseMessage(request.id, result))
+        return
+      end
+    | None => None
+    end
+    this._channel.send(ResponseMessage.create(request.id, None))
+
+  be type_hierarchy_subtypes(
+    document_uri: String,
+    sel_line: I64,
+    sel_col: I64,
+    request: RequestMessage val)
+  =>
+    """
+    Handle typeHierarchy/subtypes request.
+    """
+    this._channel.log("Handling typeHierarchy/subtypes")
+    let document_path = Uris.to_path(document_uri)
+    match \exhaustive\ _find_node_and_module(document_path, sel_line, sel_col)
+    | (let node: AST box, _) =>
+      match TypeHierarchy.subtypes(node, this._packages)
+      | let result: JsonArray =>
+        this._channel.send(ResponseMessage(request.id, result))
+        return
+      end
+    | None => None
+    end
+    this._channel.send(ResponseMessage.create(request.id, None))
+
   be dispose() =>
     for package_state in this._packages.values() do
       package_state.dispose()
