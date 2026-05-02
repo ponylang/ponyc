@@ -37,6 +37,7 @@ actor Main is TestList
     _WorkspaceSymbolIntegrationTests.make().tests(test)
     _SignatureHelpIntegrationTests.make().tests(test)
     _TypeHierarchyIntegrationTests.make().tests(test)
+    _CallHierarchyIntegrationTests.make().tests(test)
 
 class \nodoc\ iso _InitializeTest is UnitTest
   fun name(): String => "initialize"

@@ -28,7 +28,6 @@ actor WorkspaceManager
   let _packages: Map[String, PackageState]
   let _global_errors: Array[Diagnostic val]
   var _compile_run: USize = 0
-  var _current_request: (RequestMessage val | None) = None
   var _compiling: Bool = false
   var _awaiting_compilation_for: Map[String, (USize | None)] =
     _awaiting_compilation_for.create()
@@ -441,8 +440,6 @@ actor WorkspaceManager
     """
     Handling the textDocument/hover request.
     """
-    this._current_request = request
-
     // Parse position from request params
     (let line, let column) =
       match \exhaustive\ _parse_hover_position(request)
@@ -515,6 +512,23 @@ actor WorkspaceManager
         USize.from[I64](column + 1))
       | let node: AST box => (node, module)
       end
+    end
+
+  fun ref _find_method_node(
+    document_path: String,
+    sel_line: I64,
+    sel_col: I64): (AST box | None)
+  =>
+    """
+    Resolve the method AST node at the given position. Returns None when the
+    document has not been compiled or no method node is found at that position.
+    """
+    if (sel_line < 0) or (sel_col < 0) then
+      return None
+    end
+    match _find_node_and_module(document_path, sel_line, sel_col)
+    | (let node: AST box, _) =>
+      CallHierarchy._method_for_node(node)
     end
 
   fun ref _get_index_and_module(
@@ -753,7 +767,6 @@ actor WorkspaceManager
     Handling the textDocument/definition request.
     """
     this._channel.log("handling " + request.method)
-    this._current_request = request
     (let line, let column) =
       match \exhaustive\ _parse_hover_position(request)
       | (let l: I64, let c: I64) => (l, c)
@@ -1155,6 +1168,73 @@ actor WorkspaceManager
           return
         | None => None
         end
+      end
+    end
+    this._channel.send(ResponseMessage.create(request.id, None))
+
+  be call_hierarchy_prepare(
+    document_uri: String,
+    request: RequestMessage val)
+  =>
+    """
+    Handle textDocument/prepareCallHierarchy request.
+    """
+    this._channel.log("Handling textDocument/prepareCallHierarchy")
+    (let line, let column) =
+      match \exhaustive\ _parse_hover_position(request)
+      | (let l: I64, let c: I64) => (l, c)
+      | None => return
+      end
+    let document_path = Uris.to_path(document_uri)
+    match \exhaustive\ _find_node_and_module(document_path, line, column)
+    | (let node: AST box, _) =>
+      match CallHierarchy.prepare(node)
+      | let result: JsonArray =>
+        this._channel.send(ResponseMessage(request.id, result))
+        return
+      end
+    | None => None
+    end
+    this._channel.send(ResponseMessage.create(request.id, None))
+
+  be call_hierarchy_incoming_calls(
+    document_uri: String,
+    sel_line: I64,
+    sel_col: I64,
+    request: RequestMessage val)
+  =>
+    """
+    Handle callHierarchy/incomingCalls request.
+    """
+    this._channel.log("Handling callHierarchy/incomingCalls")
+    let document_path = Uris.to_path(document_uri)
+    match _find_method_node(document_path, sel_line, sel_col)
+    | let node: AST box =>
+      match CallHierarchy.incoming_calls(node, this._packages)
+      | let result: JsonArray =>
+        this._channel.send(ResponseMessage(request.id, result))
+        return
+      end
+    end
+    this._channel.send(ResponseMessage.create(request.id, None))
+
+  be call_hierarchy_outgoing_calls(
+    document_uri: String,
+    sel_line: I64,
+    sel_col: I64,
+    request: RequestMessage val)
+  =>
+    """
+    Handle callHierarchy/outgoingCalls request.
+    """
+    this._channel.log("Handling callHierarchy/outgoingCalls")
+    let document_path = Uris.to_path(document_uri)
+    match _find_method_node(document_path, sel_line, sel_col)
+    | let node: AST box =>
+      match CallHierarchy.outgoing_calls(node, this._packages)
+      | let result: JsonArray =>
+        this._channel.send(ResponseMessage(request.id, result))
+        return
       end
     end
     this._channel.send(ResponseMessage.create(request.id, None))
