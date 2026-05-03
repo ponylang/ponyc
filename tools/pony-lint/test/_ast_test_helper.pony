@@ -9,7 +9,7 @@ primitive \nodoc\ _ASTTestHelper
   in AST rule tests.
 
   Writes the source to a temporary directory, compiles it, and returns the
-  results. The temporary directory persists (acceptable for tiny test files).
+  results. The temporary directory is removed before returning.
 
   The PONYPATH environment variable must be set to locate the builtin
   package (e.g., the ponyc packages/ directory). Tests run from a build
@@ -44,39 +44,47 @@ primitive \nodoc\ _ASTTestHelper
 
     let pony_path = _get_ponypath(h.env.vars)
 
-    match \exhaustive\ pass
-    | ast.PassParse =>
-      match \exhaustive\ ast.Compiler.compile(
-        tmp where package_search_paths = pony_path,
-        limit = ast.PassParse)
-      | let program: ast.Program val =>
-        (program, sf)
-      | let errors: Array[ast.Error] val =>
-        h.fail(_format_errors(errors))
-        error
-      end
-    else
-      let session =
-        ast.CompileSession(
-          tmp where package_search_paths = pony_path,
-          limit = ast.PassParse)
-      match session.program()
-      | let program: ast.Program val =>
-        if not session.continue_to(pass) then
-          let err_msg = _format_errors(session.errors())
-          session.dispose()
-          h.fail(err_msg)
-          error
+    let result =
+      try
+        match \exhaustive\ pass
+        | ast.PassParse =>
+          match \exhaustive\ ast.Compiler.compile(
+            tmp where package_search_paths = pony_path,
+            limit = ast.PassParse)
+          | let program: ast.Program val =>
+            (program, sf)
+          | let errors: Array[ast.Error] val =>
+            h.fail(_format_errors(errors))
+            error
+          end
+        else
+          let session =
+            ast.CompileSession(
+              tmp where package_search_paths = pony_path,
+              limit = ast.PassParse)
+          match session.program()
+          | let program: ast.Program val =>
+            if not session.continue_to(pass) then
+              let err_msg = _format_errors(session.errors())
+              session.dispose()
+              h.fail(err_msg)
+              error
+            end
+            session.dispose()
+            (program, sf)
+          else
+            let err_msg = _format_errors(session.errors())
+            session.dispose()
+            h.fail(err_msg)
+            error
+          end
         end
-        session.dispose()
-        (program, sf)
       else
-        let err_msg = _format_errors(session.errors())
-        session.dispose()
-        h.fail(err_msg)
+        tmp.remove()
         error
       end
-    end
+    tmp.remove()
+    result
 
   fun _format_errors(errors: Array[ast.Error] val): String val =>
     """Format compilation errors into a failure message."""
