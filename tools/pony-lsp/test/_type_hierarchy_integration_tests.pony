@@ -201,7 +201,7 @@ class \nodoc\ iso _TypeHierarchyIsectypeTest is UnitTest
   """
   Supertypes of _THierIsect (provides _THierLeft & _THierRight via
   intersection type) — verifies the tk_isecttype recursion path in
-  _collect_provides_defs.
+  _append_provides_defs.
   """
   let _server: _LspTestServer
 

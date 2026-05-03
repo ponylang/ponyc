@@ -529,6 +529,23 @@ actor WorkspaceManager
       CallHierarchy._method_for_node(node)
     end
 
+  fun ref _find_entity_node(
+    document_path: String,
+    sel_line: I64,
+    sel_col: I64): (AST box | None)
+  =>
+    """
+    Resolve the entity AST node at the given position. Returns None when the
+    document has not been compiled or no entity node is found at that position.
+    """
+    if (sel_line < 0) or (sel_col < 0) then
+      return None
+    end
+    match _find_node_and_module(document_path, sel_line, sel_col)
+    | (let node: AST box, _) =>
+      TypeHierarchy._entity_for_node(node)
+    end
+
   fun ref _get_index_and_module(
     document_path: String): ((PositionIndex val, Module val) | None)
   =>
@@ -1267,14 +1284,13 @@ actor WorkspaceManager
     """
     this._channel.log("Handling typeHierarchy/supertypes")
     let document_path = Uris.to_path(document_uri)
-    match \exhaustive\ _find_node_and_module(document_path, sel_line, sel_col)
-    | (let node: AST box, _) =>
+    match _find_entity_node(document_path, sel_line, sel_col)
+    | let node: AST box =>
       match TypeHierarchy.supertypes(node)
       | let result: JsonArray =>
         this._channel.send(ResponseMessage(request.id, result))
         return
       end
-    | None => None
     end
     this._channel.send(ResponseMessage.create(request.id, None))
 
@@ -1289,14 +1305,13 @@ actor WorkspaceManager
     """
     this._channel.log("Handling typeHierarchy/subtypes")
     let document_path = Uris.to_path(document_uri)
-    match \exhaustive\ _find_node_and_module(document_path, sel_line, sel_col)
-    | (let node: AST box, _) =>
+    match _find_entity_node(document_path, sel_line, sel_col)
+    | let node: AST box =>
       match TypeHierarchy.subtypes(node, this._packages)
       | let result: JsonArray =>
         this._channel.send(ResponseMessage(request.id, result))
         return
       end
-    | None => None
     end
     this._channel.send(ResponseMessage.create(request.id, None))
 
