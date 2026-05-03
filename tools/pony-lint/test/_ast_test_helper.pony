@@ -9,7 +9,8 @@ primitive \nodoc\ _ASTTestHelper
   in AST rule tests.
 
   Writes the source to a temporary directory, compiles it, and returns the
-  results. The temporary directory is removed before returning.
+  results. The temporary directory is always cleaned up before this method
+  returns or raises.
 
   The PONYPATH environment variable must be set to locate the builtin
   package (e.g., the ponyc packages/ directory). Tests run from a build
@@ -80,10 +81,10 @@ primitive \nodoc\ _ASTTestHelper
           end
         end
       else
-        tmp.remove()
+        h.assert_true(tmp.remove(), "tmpdir cleanup failed")
         error
       end
-    tmp.remove()
+    h.assert_true(tmp.remove(), "tmpdir cleanup failed")
     result
 
   fun _format_errors(errors: Array[ast.Error] val): String val =>
