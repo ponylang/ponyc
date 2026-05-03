@@ -20,6 +20,12 @@ use "json"
 // line 0: class _THierE  name (0,6)..(0,13)  full (0,0)..(4,27)
 // (_THierE is the last entity in its file; SiblingBound returns None so
 // ASTSourceSpan includes synthesized constructor tokens, inflating by 2.)
+//
+// Fixture layout — _t_hier_dup_base.pony:
+// line 0: trait _THierDupBase   name (0,6)..(0,19)  full (0,0)..(1,19)
+// line 3: class _THierDupClass  name (3,6)..(3,20)  full (3,0)..(4,29)
+// (_THierDupClass provides _THierDupBase & _THierDupBase — the duplication
+// exercises Set[AST val] dedup in _collect_supertypes.)
 
 primitive _TypeHierarchyIntegrationTests is TestList
   new make() => None
@@ -35,6 +41,8 @@ primitive _TypeHierarchyIntegrationTests is TestList
     test(_TypeHierarchySubtypesLeafTest.create(server))
     test(_TypeHierarchyIsectypeTest.create(server))
     test(_TypeHierarchySubtypesCrossFileTest.create(server))
+    test(_TypeHierarchySubtypesIsectTest.create(server))
+    test(_TypeHierarchySupertypesDedupeTest.create(server))
 
 class \nodoc\ iso _PrepareTypeHierarchyOnEntityTest is UnitTest
   """
@@ -201,7 +209,7 @@ class \nodoc\ iso _TypeHierarchyIsectypeTest is UnitTest
   """
   Supertypes of _THierIsect (provides _THierLeft & _THierRight via
   intersection type) — verifies the tk_isecttype recursion path in
-  _collect_provides_defs.
+  _append_provides_defs.
   """
   let _server: _LspTestServer
 
@@ -269,6 +277,71 @@ class \nodoc\ iso _TypeHierarchySubtypesCrossFileTest is UnitTest
               t_hier_e,
               (0, 6, 0, 13),
               (0, 0, 4, 27)) ]) ])
+
+class \nodoc\ iso _TypeHierarchySubtypesIsectTest is UnitTest
+  """
+  Subtypes of _THierLeft — expects _THierIsect, verifying the
+  tk_isecttype recursion path in _provides_mentions and the
+  _target_name prefilter in _SubtypeCollector.
+  """
+  let _server: _LspTestServer
+
+  new iso create(server: _LspTestServer) =>
+    _server = server
+
+  fun name(): String => "type_hierarchy/integration/subtypes_isect"
+
+  fun apply(h: TestHelper) =>
+    let workspace_dir = Path.join(Path.dir(__loc.file()), "workspace")
+    let t_hier_isect = "type_hierarchy/_t_hier_isect.pony"
+    _RunLspChecks(
+      h,
+      _server,
+      t_hier_isect,
+      [ _THierItemsChecker(
+          Methods.type_hierarchy().subtypes(),
+          workspace_dir,
+          t_hier_isect,
+          (0, 6),
+          [ _THierExpected(
+              "_THierIsect",
+              11,
+              workspace_dir,
+              t_hier_isect,
+              (12, 6, 12, 17),
+              (12, 0, 19, 17)) ]) ])
+
+class \nodoc\ iso _TypeHierarchySupertypesDedupeTest is UnitTest
+  """
+  Supertypes of _THierDupClass (provides _THierDupBase & _THierDupBase) —
+  dedup by AST pointer identity returns one item, not two.
+  """
+  let _server: _LspTestServer
+
+  new iso create(server: _LspTestServer) =>
+    _server = server
+
+  fun name(): String => "type_hierarchy/integration/supertypes_dedupe"
+
+  fun apply(h: TestHelper) =>
+    let workspace_dir = Path.join(Path.dir(__loc.file()), "workspace")
+    let t_hier_dup = "type_hierarchy/_t_hier_dup_base.pony"
+    _RunLspChecks(
+      h,
+      _server,
+      t_hier_dup,
+      [ _THierItemsChecker(
+          Methods.type_hierarchy().supertypes(),
+          workspace_dir,
+          t_hier_dup,
+          (3, 6),
+          [ _THierExpected(
+              "_THierDupBase",
+              11,
+              workspace_dir,
+              t_hier_dup,
+              (0, 6, 0, 19),
+              (0, 0, 1, 19)) ]) ])
 
 class val _THierExpected
   """

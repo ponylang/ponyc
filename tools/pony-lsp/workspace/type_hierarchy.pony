@@ -72,12 +72,10 @@ primitive TypeHierarchy
     end
 
   fun _is_entity(id: TokenId): Bool =>
-    (id == TokenIds.tk_class()) or
-    (id == TokenIds.tk_actor()) or
-    (id == TokenIds.tk_trait()) or
-    (id == TokenIds.tk_interface()) or
-    (id == TokenIds.tk_primitive()) or
-    (id == TokenIds.tk_struct())
+    // Delegate to the compiler library so new entity tokens are picked up
+    // automatically. tk_object (anonymous object literals) is excluded: they
+    // have no declared name and aren't meaningful as hierarchy nodes.
+    TokenIds.is_entity(id) and (id != TokenIds.tk_object())
 
   fun _symbol_kind(id: TokenId): I64 =>
     match id
@@ -139,7 +137,7 @@ primitive TypeHierarchy
     directly referenced supertype.
     """
     var result = JsonArray
-    let seen = Set[USize]
+    let seen = Set[AST val]
     try
       // Entity child layout:
       // [0]=id [1]=type_params [2]=cap [3]=provides [4]=members
@@ -149,10 +147,10 @@ primitive TypeHierarchy
       end
       for def in _provides_defs(provides_node).values() do
         // Dedup by AST pointer identity — same invariant as _SubtypeCollector.
-        if seen.contains(digestof def) then
+        if seen.contains(def) then
           continue
         end
-        seen.set(digestof def)
+        seen.set(def)
         match _build_item(def)
         | let item: JsonObject => result = result.push(item)
         end
@@ -160,20 +158,47 @@ primitive TypeHierarchy
     end
     result
 
-  fun _provides_defs(provides: AST box): Array[AST] =>
+  fun _provides_mentions(provides: AST box, name: String): Bool =>
+    """
+    Return true if any nominal in the provides subtree has an identifier
+    matching `name`. Cheap identifier-only walk; does not call definitions().
+    """
+    let nid = provides.id()
+    if nid == TokenIds.tk_none() then
+      false
+    elseif
+      (nid == TokenIds.tk_provides()) or (nid == TokenIds.tk_isecttype())
+    then
+      for child in provides.children() do
+        if _provides_mentions(child, name) then
+          return true
+        end
+      end
+      false
+    else
+      try
+        (ASTIdentifier.identifier_node(provides).token_value() as String)
+          == name
+      else
+        true  // non-nominal type form — allow through
+      end
+    end
+
+  fun _provides_defs(provides: AST box): Array[AST val] =>
     """
     Return all entity definitions directly referenced by a provides node.
     Recursively descends through tk_provides and tk_isecttype wrappers
     until reaching resolvable type nodes (e.g. tk_nominal).
     """
-    let result = Array[AST]
+    let result = Array[AST val]
     _append_provides_defs(provides, result)
     result
 
-  fun _append_provides_defs(provides: AST box, result: Array[AST] ref) =>
-    // Valid provides shapes: tk_none (empty), tk_provides (single or union),
-    // tk_isecttype (intersection &). Anything else is a nominal; resolve it
-    // directly via definitions().
+  fun _append_provides_defs(provides: AST box, result: Array[AST val] ref) =>
+    // Valid provides shapes: tk_none (empty), tk_provides (wrapper around the
+    // provides type), tk_isecttype (intersection &). The parser rejects | at
+    // the top of a provides clause, so tk_uniontype never appears here.
+    // Anything else is a nominal; resolve it directly via definitions().
     let nid = provides.id()
     if nid == TokenIds.tk_none() then
       None
@@ -196,10 +221,20 @@ class ref _SubtypeCollector is ASTVisitor
   the target entity.
   """
   let _target: AST val
+  // Name prefilter: _provides_defs calls definitions() which is an expensive
+  // recursive type-table descent. Skip it when no nominal in the provides
+  // clause even mentions the target name. Mirrors _IncomingCallCollector.
+  let _target_name: String val
   var _result: JsonArray
 
   new ref create(target: AST val) =>
     _target = target
+    _target_name =
+      try
+        target(0)?.token_value() as String val
+      else
+        ""
+      end
     _result = JsonArray
 
   fun ref visit(ast: AST box): VisitResult =>
@@ -211,6 +246,13 @@ class ref _SubtypeCollector is ASTVisitor
       // [0]=id [1]=type_params [2]=cap [3]=provides [4]=members
       let provides_node = ast(3)?
       if provides_node.id() == TokenIds.tk_none() then
+        return Continue
+      end
+      // Name prefilter: cheap identifier-only walk before the expensive
+      // definitions() call inside _provides_defs.
+      if (_target_name.size() > 0)
+        and not TypeHierarchy._provides_mentions(provides_node, _target_name)
+      then
         return Continue
       end
       for def in TypeHierarchy._provides_defs(provides_node).values() do
