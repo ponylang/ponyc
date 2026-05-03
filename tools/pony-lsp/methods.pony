@@ -42,6 +42,12 @@ primitive Methods
     """
     WindowMethods
 
+  fun call_hierarchy(): CallHierarchyMethods =>
+    """
+    Access callHierarchy scoped methods.
+    """
+    CallHierarchyMethods
+
   fun type_hierarchy(): TypeHierarchyMethods =>
     """
     Access typeHierarchy scoped methods.
@@ -162,6 +168,20 @@ primitive TextDocumentMethods
 
   fun prepare_type_hierarchy(): String val =>
     "textDocument/prepareTypeHierarchy"
+
+  fun prepare_call_hierarchy(): String val =>
+    "textDocument/prepareCallHierarchy"
+
+primitive CallHierarchyMethods
+  """
+  Collection of callHierarchy scoped methods.
+  """
+
+  fun incoming_calls(): String val =>
+    "callHierarchy/incomingCalls"
+
+  fun outgoing_calls(): String val =>
+    "callHierarchy/outgoingCalls"
 
 primitive TypeHierarchyMethods
   """

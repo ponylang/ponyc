@@ -59,6 +59,14 @@ actor LanguageServer is (Notifier & RequestSender)
   ): String ? =>
     JsonNav(params)("textDocument")("uri").as_string()?
 
+  fun tag _get_item_uri_and_sel(
+    params: (JsonObject | JsonArray | None)
+  ): (String, I64, I64) ? =>
+    ( JsonNav(params)("item")("uri").as_string()?
+    , JsonNav(params)("item")("selectionRange")("start")("line").as_i64()?
+    , JsonNav(params)("item")("selectionRange")("start")("character")
+        .as_i64()? )
+
   be handle_parse_error(err: ParseError val) =>
     this._channel.log("Parse Error: " + err.string(), Warning)
 
@@ -289,9 +297,66 @@ actor LanguageServer is (Notifier & RequestSender)
                 "[" + r.method + "] No workspace found for '" +
                 r.json().string() + "'")))
         end
-      | Methods.text_document().prepare_type_hierarchy() =>
+      | Methods.text_document().prepare_call_hierarchy() =>
         let document_uri =
           try _get_document_uri(r.params)?
+          else
+            this._channel.send(
+              ResponseMessage.create(
+                r.id,
+                None,
+                ResponseError(
+                  ErrorCodes.invalid_params(),
+                  "[" + r.method + "] missing textDocument.uri")))
+            return
+          end
+        try
+          (_router.find_workspace(document_uri) as WorkspaceManager)
+            .call_hierarchy_prepare(document_uri, r)
+        else
+          this._channel.send(
+            ResponseMessage.create(
+              r.id,
+              None,
+              ResponseError(
+                ErrorCodes.internal_error(),
+                "[" + r.method + "] No workspace found for '" +
+                  document_uri + "'")))
+        end
+      | Methods.call_hierarchy().incoming_calls() =>
+        try
+          (let item_uri, let sel_line, let sel_col) =
+            _get_item_uri_and_sel(r.params)?
+          (_router.find_workspace(item_uri) as WorkspaceManager)
+            .call_hierarchy_incoming_calls(item_uri, sel_line, sel_col, r)
+        else
+          this._channel.send(
+            ResponseMessage.create(
+              r.id,
+              None,
+              ResponseError(
+                ErrorCodes.invalid_params(),
+                "[" + r.method + "] missing item or selectionRange.start")))
+        end
+      | Methods.call_hierarchy().outgoing_calls() =>
+        try
+          (let item_uri, let sel_line, let sel_col) =
+            _get_item_uri_and_sel(r.params)?
+          (_router.find_workspace(item_uri) as WorkspaceManager)
+            .call_hierarchy_outgoing_calls(item_uri, sel_line, sel_col, r)
+        else
+          this._channel.send(
+            ResponseMessage.create(
+              r.id,
+              None,
+              ResponseError(
+                ErrorCodes.invalid_params(),
+                "[" + r.method + "] missing item or selectionRange.start")))
+        end
+      | Methods.text_document().prepare_type_hierarchy() =>
+        let document_uri =
+          try
+            _get_document_uri(r.params)?
           else
             this._channel.send(
               ResponseMessage.create(
@@ -316,24 +381,9 @@ actor LanguageServer is (Notifier & RequestSender)
                   document_uri + "'")))
         end
       | Methods.type_hierarchy().supertypes() =>
-        (let item_uri, let sel_line, let sel_col) =
-          try
-            ( JsonNav(r.params)("item")("uri").as_string()?
-            , JsonNav(r.params)("item")("selectionRange")("start")("line")
-                .as_i64()?
-            , JsonNav(r.params)("item")("selectionRange")("start")("character")
-                .as_i64()? )
-          else
-            this._channel.send(
-              ResponseMessage.create(
-                r.id,
-                None,
-                ResponseError(
-                  ErrorCodes.invalid_params(),
-                  "[" + r.method + "] missing item or selectionRange.start")))
-            return
-          end
         try
+          (let item_uri, let sel_line, let sel_col) =
+            _get_item_uri_and_sel(r.params)?
           (_router.find_workspace(item_uri) as WorkspaceManager)
             .type_hierarchy_supertypes(item_uri, sel_line, sel_col, r)
         else
@@ -342,29 +392,13 @@ actor LanguageServer is (Notifier & RequestSender)
               r.id,
               None,
               ResponseError(
-                ErrorCodes.internal_error(),
-                "[" + r.method + "] No workspace found for '" +
-                  item_uri + "'")))
+                ErrorCodes.invalid_params(),
+                "[" + r.method + "] missing item or selectionRange.start")))
         end
       | Methods.type_hierarchy().subtypes() =>
-        (let item_uri, let sel_line, let sel_col) =
-          try
-            ( JsonNav(r.params)("item")("uri").as_string()?
-            , JsonNav(r.params)("item")("selectionRange")("start")("line")
-                .as_i64()?
-            , JsonNav(r.params)("item")("selectionRange")("start")("character")
-                .as_i64()? )
-          else
-            this._channel.send(
-              ResponseMessage.create(
-                r.id,
-                None,
-                ResponseError(
-                  ErrorCodes.invalid_params(),
-                  "[" + r.method + "] missing item or selectionRange.start")))
-            return
-          end
         try
+          (let item_uri, let sel_line, let sel_col) =
+            _get_item_uri_and_sel(r.params)?
           (_router.find_workspace(item_uri) as WorkspaceManager)
             .type_hierarchy_subtypes(item_uri, sel_line, sel_col, r)
         else
@@ -373,9 +407,8 @@ actor LanguageServer is (Notifier & RequestSender)
               r.id,
               None,
               ResponseError(
-                ErrorCodes.internal_error(),
-                "[" + r.method + "] No workspace found for '" +
-                  item_uri + "'")))
+                ErrorCodes.invalid_params(),
+                "[" + r.method + "] missing item or selectionRange.start")))
         end
       | Methods.workspace().symbol() =>
         let query = try JsonNav(r.params)("query").as_string()? else "" end
@@ -635,7 +668,8 @@ actor LanguageServer is (Notifier & RequestSender)
                     .update(
                       "retriggerCharacters",
                       JsonArray.push("(").push(",")))
-                .update("typeHierarchyProvider", true))
+                .update("typeHierarchyProvider", true)
+                .update("callHierarchyProvider", true))
             .update(
               "serverInfo",
               JsonObject

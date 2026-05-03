@@ -25,6 +25,8 @@ For user documentation — installation and editor configuration — see the [po
 | **[Rename][spec-rename]** | Rename a symbol and all its references across the workspace. |
 | **[Folding Range][spec-folding-range]** | Code folding ranges are provided for blocks, methods, classes, and other structured constructs. |
 | **[Selection Range][spec-selection-range]** | Smart expand/shrink selection based on the AST structure of the document. |
+| **[Type Hierarchy][spec-type-hierarchy]** | Navigate the type hierarchy of Pony entities. `prepareTypeHierarchy` identifies the entity under the cursor; `supertypes` returns the types in its `is` clause; `subtypes` returns all types across the compiled package that directly provide it. |
+| **[Call Hierarchy][spec-call-hierarchy]** | Navigate the call hierarchy of Pony methods. `prepareCallHierarchy` identifies the method under the cursor; `incomingCalls` returns all callers across the workspace with their call sites; `outgoingCalls` returns all callees with their call sites within the method. |
 
 [spec-diagnostics]: https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#pull-diagnostics
 [spec-hover]: https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#hover-request-leftwards_arrow_with_hook
@@ -40,6 +42,8 @@ For user documentation — installation and editor configuration — see the [po
 [spec-rename]: https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#rename-request-leftwards_arrow_with_hook
 [spec-folding-range]: https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#folding-range-request-leftwards_arrow_with_hook
 [spec-selection-range]: https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#selection-range-request-leftwards_arrow_with_hook
+[spec-type-hierarchy]: https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#textDocument_prepareTypeHierarchy
+[spec-call-hierarchy]: https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#textDocument_prepareCallHierarchy
 
 New features are actively being added. Contributions are welcome — we are happy to provide help and guidance.
 
