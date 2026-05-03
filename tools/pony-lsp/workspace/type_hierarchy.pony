@@ -180,7 +180,7 @@ primitive TypeHierarchy
         (ASTIdentifier.identifier_node(provides).token_value() as String)
           == name
       else
-        true  // unknown nominal shape — don't filter it out
+        true  // non-nominal type form — allow through
       end
     end
 
