@@ -86,7 +86,9 @@ class val WorkspaceData
         )?
       end
       let parent = Path.dir(doc_path)
-      if parent == doc_path then break end // hit filesystem root
+      if parent == doc_path then
+        break // hit filesystem root
+      end
       doc_path = parent
     end
     None

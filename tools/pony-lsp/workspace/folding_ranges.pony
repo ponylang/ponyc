@@ -234,7 +234,9 @@ primitive FoldingRanges
         var _max: USize = 0
         fun ref visit(n: AST box): VisitResult =>
           let l = n.line()
-          if (l > _max) and (l < cap) then _max = l end
+          if (l > _max) and (l < cap) then
+            _max = l
+          end
           Continue
         fun max(): USize => _max
       end

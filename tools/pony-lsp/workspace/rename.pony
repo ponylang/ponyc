@@ -73,7 +73,9 @@ primitive _IsValidPonyIdentifier
   first character must be [a-zA-Z_], subsequent characters [a-zA-Z0-9_'].
   """
   fun apply(name: String): Bool =>
-    if name.size() == 0 then return false end
+    if name.size() == 0 then
+      return false
+    end
     var first = true
     for c in name.values() do
       if first then

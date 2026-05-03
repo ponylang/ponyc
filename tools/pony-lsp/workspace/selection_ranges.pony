@@ -65,7 +65,12 @@ primitive SelectionRanges
     var i = chain.size()
     while i > 0 do
       i = i - 1
-      let n = try chain(i)? else continue end
+      let n =
+        try
+          chain(i)?
+        else
+          continue
+        end
       match \exhaustive\ ASTSourceSpan(n, doc_path, SiblingBound(n))
       | (let s: Position, let e: Position) =>
         // Note: no clamped-start correction here, unlike _symbol_ranges and
@@ -108,4 +113,3 @@ primitive SelectionRanges
       end
     end
     result
-

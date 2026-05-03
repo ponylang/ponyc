@@ -50,7 +50,9 @@ primitive SignatureHelpSource
           scan_col = scan_col + 1
           while byte_offset < src.size() do
             try
-              if src(byte_offset)? == '\n' then break end
+              if src(byte_offset)? == '\n' then
+                break
+              end
               byte_offset = byte_offset + 1
               scan_col = scan_col + 1
             else

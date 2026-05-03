@@ -160,12 +160,20 @@ primitive SignatureHelp
           pos_arg_child = current
         elseif pid == TokenIds.tk_call() then
           let from_callee: Bool =
-            try current == parent(0)? else false end
+            try
+              current == parent(0)?
+            else
+              false
+            end
 
           if from_callee then
             // Zero-arg call: cursor is naturally on the callee — show sig.
             let is_zero_args: Bool =
-              try parent(1)?.child() is None else true end
+              try
+                parent(1)?.child() is None
+              else
+                true
+              end
             if is_zero_args then
               try
                 return (parent, parent(0)?, 0)
@@ -201,7 +209,9 @@ primitive SignatureHelp
                     let args = parent(1)?
                     var idx: USize = 0
                     for arg in args.children() do
-                      if arg == fc then break end
+                      if arg == fc then
+                        break
+                      end
                       idx = idx + 1
                     end
                     idx

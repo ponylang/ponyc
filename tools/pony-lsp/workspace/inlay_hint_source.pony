@@ -14,7 +14,12 @@ primitive InlayHintSource
     | ('i', 's', 'o') | ('t', 'r', 'n') | ('r', 'e', 'f')
     | ('v', 'a', 'l') | ('b', 'o', 'x') | ('t', 'a', 'g')
     =>
-      let next = try src(j + 3)? else return true end
+      let next =
+        try
+          src(j + 3)?
+        else
+          return true
+        end
       not ((next >= 'a') and (next <= 'z'))
     else
       false
