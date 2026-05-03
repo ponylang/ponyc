@@ -192,15 +192,13 @@ actor WorkspaceManager
           end
           if requires_another_compilation then
             this._channel.log(
-              program_dir.path +
-              " needs another compilation...")
+              program_dir.path + " needs another compilation...")
             this._compile(program_dir)
           end
         end
       | let errors: Array[Error val] val =>
         this._channel.log(
-          "Compilation failed with " +
-          errors.size().string() + " errors")
+          "Compilation failed with " + errors.size().string() + " errors")
 
         let diag_iter =
           Iter[Error](errors.values())
@@ -783,8 +781,7 @@ actor WorkspaceManager
           json_arr = json_arr.push(loc.to_json())
         | None =>
           this._channel.log(
-            "No source file found for definition: " +
-              ast_definition.debug())
+            "No source file found for definition: " + ast_definition.debug())
         end
       end
       this._channel.send(ResponseMessage(request.id, json_arr))
@@ -820,8 +817,7 @@ actor WorkspaceManager
             json_arr = json_arr.push(loc.to_json())
           | None =>
             this._channel.log(
-              "No source file found for type definition: " +
-                type_def.debug())
+              "No source file found for type definition: " + type_def.debug())
           end
         end
       end
@@ -892,9 +888,7 @@ actor WorkspaceManager
                     "location",
                     JsonObject
                       .update("uri", file_uri)
-                      .update(
-                        "range",
-                        symbol.range.to_json())))
+                      .update("range", symbol.range.to_json())))
           end
           for child in symbol.children.values() do
             if _symbol_matches(child.name, query_lower) then
@@ -908,9 +902,7 @@ actor WorkspaceManager
                       "location",
                       JsonObject
                         .update("uri", file_uri)
-                        .update(
-                          "range",
-                          child.range.to_json())))
+                        .update("range", child.range.to_json())))
             end
           end
         end

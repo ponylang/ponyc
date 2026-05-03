@@ -163,7 +163,8 @@ class ref _InlayHintCollector is ASTVisitor
       var has_targs = false
       for child in targs.children() do
         if child.id() != TokenIds.tk_none() then
-          has_targs = true; break
+          has_targs = true
+          break
         end
       end
 
@@ -275,7 +276,9 @@ class ref _InlayHintCollector is ASTVisitor
     """
     try
       let type_node = param(1)?
-      if type_node.id() == TokenIds.tk_none() then return end
+      if type_node.id() == TokenIds.tk_none() then
+        return
+      end
       _add_nominal_hints(type_node, src)
     end
 
