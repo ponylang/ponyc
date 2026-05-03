@@ -164,7 +164,11 @@ primitive DocumentSymbols
       match maybe_kind
       | let kind: I64 =>
         let max_pos: (Position | None) =
-          try entity_starts(entity_idx + 1)? else None end
+          try
+            entity_starts(entity_idx + 1)?
+          else
+            None
+          end
         entity_idx = entity_idx + 1
         try
           let id = module_child(0)?
@@ -241,14 +245,20 @@ primitive DocumentSymbols
       // Skip members whose position is at or beyond max_pos.
       match max_pos
       | let m: Position =>
-        if entity_child.position() >= m then continue end
+        if entity_child.position() >= m then
+          continue
+        end
       end
+
       // Skip members at or before the entity's keyword position.
       // ponyc places synthesized constructors (the default `create`
       // added to bare classes/actors/primitives/structs) at the entity
       // keyword's own source position via token_dup(). Any explicitly
       // written member must appear after the entity keyword.
-      if entity_child.position() <= entity_pos then continue end
+      if entity_child.position() <= entity_pos then
+        continue
+      end
+
       // Skip members from other source files. ponyc merges trait
       // default method bodies into implementing classes; those merged
       // nodes carry the trait file's source_file(). Nodes with
@@ -257,9 +267,12 @@ primitive DocumentSymbols
       | let dp: String val =>
         match entity_child.source_file()
         | let sf: String val =>
-          if sf != dp then continue end
+          if sf != dp then
+            continue
+          end
         end
       end
+
       // Skip fully-synthesized members. ponyc's BUILD macro gives every node
       // in a constructed subtree the same source position (inherited from the
       // BUILD basis). Real members always place their keyword before their
