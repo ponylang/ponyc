@@ -218,7 +218,7 @@ class \nodoc\ iso _WsSymRangeTest is UnitTest
       _server,
       "workspace_symbol/_ws_sym_host.pony",
       [ _WsSymRangeChecker(
-          "_WsSymHost", "_WsSymHost", None, (5, 0, 18, 10))
+          "_WsSymHost", "_WsSymHost", None, (5, 0, 18, 8))
         _WsSymRangeChecker(
           "_count", "_count", "_WsSymHost", (6, 2, 6, 17))
         _WsSymRangeChecker(
@@ -230,7 +230,7 @@ class \nodoc\ iso _WsSymRangeTest is UnitTest
         _WsSymRangeChecker(
           "increment", "increment", "_WsSymHost", (13, 2, 15, 10))
         _WsSymRangeChecker(
-          "ping", "ping", "_WsSymHost", (17, 2, 18, 10))
+          "ping", "ping", "_WsSymHost", (17, 2, 18, 8))
         _WsSymRangeChecker(
           "_WsSymInner", "_WsSymInner", None, (20, 0, 20, 17))])
 

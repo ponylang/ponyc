@@ -15,6 +15,12 @@ primitive ASTSourceSpan
   bare primitives, bare classes, etc.) from inflating the entity's range
   into the next entity's lines.
 
+  A second guard caps the final `_max` column to the actual length of
+  that source line. Synthesized constructors for entities with explicit
+  members and desugared value expressions (e.g. `None => None`) can
+  produce `end_pos()` values past the actual line end. Reading the
+  source text caps the column to a position that exists in the file.
+
   Seeded with the node's own position and end_pos (if any) so that
   declaration keywords (tk_fun, tk_class, etc.) are included even though
   they are the node's token rather than a child.
@@ -105,11 +111,51 @@ primitive ASTSourceSpan
     n.visit(visitor)
 
     let min = visitor.min()
-    let max = visitor.max()
+    let max =
+      match \exhaustive\ n.source_contents()
+      | let src: String box => _cap_to_line_length(src, visitor.max())
+      | None => visitor.max()
+      end
     if min <= max then
       (min, max)
     else
       None
+    end
+
+  fun tag _cap_to_line_length(src: String box, pos: Position): Position =>
+    """
+    Cap pos.column() to the number of characters on that line in src.
+    Guards against synthesized-node end_pos() overshoots past line end.
+    """
+    if pos.line() == 0 then
+      return pos
+    end
+    try
+      let tgt = pos.line()
+      let line_len: USize =
+        if tgt <= 1 then
+          try
+            src.find("\n")?.usize()
+          else
+            src.size()
+          end
+        else
+          // nth=k finds the (k+1)th newline (0-indexed)
+          let prev_nl = src.find("\n" where nth = (tgt - 2))?.usize()
+          let ls = prev_nl + 1
+          try
+            src.find("\n" where nth = (tgt - 1))?.usize() - ls
+          else
+            src.size() - ls
+          end
+        end
+      if (line_len > 0) and (pos.column() > line_len) then
+        Position(tgt, line_len)
+      else
+        pos
+      end
+    else
+      pos
     end
 
 primitive ASTClampedRange

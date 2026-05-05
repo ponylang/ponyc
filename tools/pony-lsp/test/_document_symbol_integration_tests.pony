@@ -80,7 +80,7 @@ class \nodoc\ iso _DocSymRangeTest is UnitTest
             "_DsContainment",
             None,
                       // range: (start_line, start_char, end_line, end_char)
-            (0, 0, 18, 10),
+            (0, 0, 18, 8),
             // selectionRange: (start_line, start_char, end_line, end_char)
             (0, 6, 0, 20))
         _DocSymRangeChecker(
