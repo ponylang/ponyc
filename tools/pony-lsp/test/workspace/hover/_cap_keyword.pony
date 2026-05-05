@@ -22,3 +22,12 @@ class ref _CapKeyword
   fun local_cap() =>
     let local: String val = ""
     None
+
+  fun iso iso_method(): None =>
+    None
+
+  fun trn trn_method(): None =>
+    None
+
+  fun tag tag_method(): None =>
+    None

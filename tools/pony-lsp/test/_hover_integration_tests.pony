@@ -580,7 +580,24 @@ class \nodoc\ iso _HoverIntegrationCapKeywordTest is UnitTest
         _HoverChecker(18, 26, [])
         // local variable type cap: 'let local: String val'
         _HoverChecker(22, 22, [])
-        _HoverChecker(22, 24, [])])
+        _HoverChecker(22, 24, [])
+        // iso receiver cap: 'fun iso iso_method()'
+        _HoverChecker(25, 6, [])
+        _HoverChecker(25, 8, [])
+        // trn receiver cap: 'fun trn trn_method()'
+        _HoverChecker(28, 6, [])
+        _HoverChecker(28, 8, [])
+        // tag receiver cap: 'fun tag tag_method()'
+        _HoverChecker(31, 6, [])
+        _HoverChecker(31, 8, [])
+        // positive: method name resolves on same line as suppressed cap
+        _HoverChecker(12, 10, ["fun val recv_val(): String val"])
+        // positive: local var name resolves on same line as suppressed cap
+        _HoverChecker(22, 10, ["let local: String val"])
+        // positive: iso/trn/tag method names resolve
+        _HoverChecker(25, 10, ["fun iso iso_method(): None"])
+        _HoverChecker(28, 10, ["fun trn trn_method(): None"])
+        _HoverChecker(31, 10, ["fun tag tag_method(): None"])])
 
 class val _HoverChecker
   let _line: I64
