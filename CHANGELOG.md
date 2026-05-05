@@ -7,6 +7,7 @@ All notable changes to the Pony compiler and standard library will be documented
 ### Fixed
 
 - Fix LSP range end positions overshooting past source line ends ([PR #5305](https://github.com/ponylang/ponyc/pull/5305))
+- Fix LSP hover showing on declaration keywords ([PR #5306](https://github.com/ponylang/ponyc/pull/5306))
 
 ### Added
 
