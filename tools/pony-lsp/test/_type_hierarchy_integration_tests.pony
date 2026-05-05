@@ -3,6 +3,17 @@ use "pony_test"
 use "files"
 use "json"
 
+// Fixture layout — _t_hier_kind_iface.pony (0-indexed lines, 0-indexed cols):
+// line  0: interface _THierKindIface   name (0,10)..(0,25)  full (0,0)..(1,15)
+// line  3: struct _THierKindStruct     name (3,7)..(3,23)   full (3,0)..(4,17)
+// line  6: actor _THierKindActor    name (6,6)..(6,21)   full (6,0)..(7,25)*
+// line  9: primitive _THierKindPrim name (9,10)..(9,24)  full (9,0)..(10,25)*
+// * col 25 exceeds 23-char source line; end_pos from `=> expr` AST body node
+//
+// Fixture layout — _t_hier_ref_user.pony:
+// line 0: class _THierRefUser
+// line 1:   fun demo(x: _THierKindIface)...  _THierKindIface ref at (1,14)
+//
 // Fixture layout — _t_hier_b.pony (0-indexed lines, 0-indexed cols):
 // line  0: trait _THierA  name (0,6)..(0,13)   full (0,0)..(4,17)
 // line  6: trait _THierB  name (6,6)..(6,13)   full (6,0)..(11,17)
@@ -43,6 +54,10 @@ primitive _TypeHierarchyIntegrationTests is TestList
     test(_TypeHierarchySubtypesCrossFileTest.create(server))
     test(_TypeHierarchySubtypesIsectTest.create(server))
     test(_TypeHierarchySupertypesDedupeTest.create(server))
+    test(_TypeHierarchyKindInterfaceTest.create(server))
+    test(_TypeHierarchyKindStructTest.create(server))
+    test(_TypeHierarchyKindSubtypesTest.create(server))
+    test(_TypeHierarchyRefCursorTest.create(server))
 
 class \nodoc\ iso _PrepareTypeHierarchyOnEntityTest is UnitTest
   """
@@ -550,3 +565,138 @@ primitive _THierCheckItem
           + " (expected: " + exp.name + ")")
       false
     end
+
+class \nodoc\ iso _TypeHierarchyKindInterfaceTest is UnitTest
+  """
+  Prepare on interface declaration (line 0, col 10 of _t_hier_kind_iface.pony)
+  — verifies tk_interface in _is_entity and sk_interface (kind=11) in
+  _symbol_kind.
+  """
+  let _server: _LspTestServer
+
+  new iso create(server: _LspTestServer) =>
+    _server = server
+
+  fun name(): String => "type_hierarchy/integration/kind_interface"
+
+  fun apply(h: TestHelper) =>
+    let workspace_dir = Path.join(Path.dir(__loc.file()), "workspace")
+    let t_hier_kind_iface = "type_hierarchy/_t_hier_kind_iface.pony"
+    _RunLspChecks(
+      h,
+      _server,
+      t_hier_kind_iface,
+      [ _PrepareTypeHierarchyChecker(
+          (0, 10),
+          _THierExpected(
+            "_THierKindIface",
+            11,
+            workspace_dir,
+            t_hier_kind_iface,
+            (0, 10, 0, 25),
+            (0, 0, 1, 15))) ])
+
+class \nodoc\ iso _TypeHierarchyKindStructTest is UnitTest
+  """
+  Prepare on struct declaration (line 3, col 7 of _t_hier_kind_iface.pony) —
+  verifies tk_struct in _is_entity and sk_struct (kind=23) in _symbol_kind.
+  The struct has no provides clause, so it doesn't appear in supertypes or
+  subtypes results; prepare is the only direction that exercises this entity
+  kind.
+  """
+  let _server: _LspTestServer
+
+  new iso create(server: _LspTestServer) =>
+    _server = server
+
+  fun name(): String => "type_hierarchy/integration/kind_struct"
+
+  fun apply(h: TestHelper) =>
+    let workspace_dir = Path.join(Path.dir(__loc.file()), "workspace")
+    let t_hier_kind_iface = "type_hierarchy/_t_hier_kind_iface.pony"
+    _RunLspChecks(
+      h,
+      _server,
+      t_hier_kind_iface,
+      [ _PrepareTypeHierarchyChecker(
+          (3, 7),
+          _THierExpected(
+            "_THierKindStruct",
+            23,
+            workspace_dir,
+            t_hier_kind_iface,
+            (3, 7, 3, 23),
+            (3, 0, 4, 17))) ])
+
+class \nodoc\ iso _TypeHierarchyKindSubtypesTest is UnitTest
+  """
+  Subtypes of _THierKindIface — expects two items: _THierKindActor (kind=5,
+  sk_class) and _THierKindPrim (kind=5, sk_class). Exercises tk_actor and
+  tk_primitive in _is_entity (SubtypeCollector path) and sk_class for both
+  entity kinds. Items appear in file order within _t_hier_kind_iface.pony.
+  """
+  let _server: _LspTestServer
+
+  new iso create(server: _LspTestServer) =>
+    _server = server
+
+  fun name(): String => "type_hierarchy/integration/kind_subtypes"
+
+  fun apply(h: TestHelper) =>
+    let workspace_dir = Path.join(Path.dir(__loc.file()), "workspace")
+    let t_hier_kind_iface = "type_hierarchy/_t_hier_kind_iface.pony"
+    _RunLspChecks(
+      h,
+      _server,
+      t_hier_kind_iface,
+      [ _THierItemsChecker(
+          Methods.type_hierarchy().subtypes(),
+          workspace_dir,
+          t_hier_kind_iface,
+          (0, 10),
+          [ _THierExpected(
+              "_THierKindActor",
+              5,
+              workspace_dir,
+              t_hier_kind_iface,
+              (6, 6, 6, 21),
+              (6, 0, 7, 25))
+            _THierExpected(
+              "_THierKindPrim",
+              5,
+              workspace_dir,
+              t_hier_kind_iface,
+              (9, 10, 9, 24),
+              (9, 0, 10, 25)) ]) ])
+
+class \nodoc\ iso _TypeHierarchyRefCursorTest is UnitTest
+  """
+  Prepare with cursor on a type reference in a method parameter (line 1,
+  col 14 of _t_hier_ref_user.pony) — the most common user interaction.
+  Verifies that prepare resolves through the reference to the entity
+  declaration in another file, returning the correct item (not null).
+  """
+  let _server: _LspTestServer
+
+  new iso create(server: _LspTestServer) =>
+    _server = server
+
+  fun name(): String => "type_hierarchy/integration/prepare_ref_cursor"
+
+  fun apply(h: TestHelper) =>
+    let workspace_dir = Path.join(Path.dir(__loc.file()), "workspace")
+    let t_hier_ref_user = "type_hierarchy/_t_hier_ref_user.pony"
+    let t_hier_kind_iface = "type_hierarchy/_t_hier_kind_iface.pony"
+    _RunLspChecks(
+      h,
+      _server,
+      t_hier_ref_user,
+      [ _PrepareTypeHierarchyChecker(
+          (1, 14),
+          _THierExpected(
+            "_THierKindIface",
+            11,
+            workspace_dir,
+            t_hier_kind_iface,
+            (0, 10, 0, 25),
+            (0, 0, 1, 15))) ])
