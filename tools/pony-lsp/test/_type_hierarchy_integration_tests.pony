@@ -6,9 +6,8 @@ use "json"
 // Fixture layout — _t_hier_kind_iface.pony (0-indexed lines, 0-indexed cols):
 // line  0: interface _THierKindIface   name (0,10)..(0,25)  full (0,0)..(1,15)
 // line  3: struct _THierKindStruct     name (3,7)..(3,23)   full (3,0)..(4,17)
-// line  6: actor _THierKindActor    name (6,6)..(6,21)   full (6,0)..(7,25)*
-// line  9: primitive _THierKindPrim name (9,10)..(9,24)  full (9,0)..(10,25)*
-// * col 25 exceeds 23-char source line; end_pos from `=> expr` AST body node
+// line  6: actor _THierKindActor    name (6,6)..(6,21)   full (6,0)..(7,23)
+// line  9: primitive _THierKindPrim name (9,10)..(9,24)  full (9,0)..(10,23)
 //
 // Fixture layout — _t_hier_ref_user.pony:
 // line 0: class _THierRefUser
@@ -28,9 +27,10 @@ use "json"
 // line 0: trait _THierD  name (0,6)..(0,13)  full (0,0)..(6,17)
 //
 // Fixture layout — _t_hier_e.pony:
-// line 0: class _THierE  name (0,6)..(0,13)  full (0,0)..(4,27)
+// line 0: class _THierE  name (0,6)..(0,13)  full (0,0)..(4,25)
 // (_THierE is the last entity in its file; SiblingBound returns None so
-// ASTSourceSpan includes synthesized constructor tokens, inflating by 2.)
+// ASTSourceSpan walks synthesized constructor tokens; _cap_to_line_length
+// then clamps the end column to the actual line length.)
 //
 // Fixture layout — _t_hier_dup_base.pony:
 // line 0: trait _THierDupBase   name (0,6)..(0,19)  full (0,0)..(1,19)
@@ -291,7 +291,7 @@ class \nodoc\ iso _TypeHierarchySubtypesCrossFileTest is UnitTest
               workspace_dir,
               t_hier_e,
               (0, 6, 0, 13),
-              (0, 0, 4, 27)) ]) ])
+              (0, 0, 4, 25)) ]) ])
 
 class \nodoc\ iso _TypeHierarchySubtypesIsectTest is UnitTest
   """
@@ -660,14 +660,14 @@ class \nodoc\ iso _TypeHierarchyKindSubtypesTest is UnitTest
               workspace_dir,
               t_hier_kind_iface,
               (6, 6, 6, 21),
-              (6, 0, 7, 25))
+              (6, 0, 7, 23))
             _THierExpected(
               "_THierKindPrim",
               5,
               workspace_dir,
               t_hier_kind_iface,
               (9, 10, 9, 24),
-              (9, 0, 10, 25)) ]) ])
+              (9, 0, 10, 23)) ]) ])
 
 class \nodoc\ iso _TypeHierarchyRefCursorTest is UnitTest
   """

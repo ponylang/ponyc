@@ -5,7 +5,7 @@ use "json"
 
 // Fixture layout (0-indexed lines, 0-indexed cols):
 // _t_call_a.pony  class _TCallA
-// f_a  name (1,6)..(1,9)  full (1,2)..(1,27)  [end inflated: None desugars]
+// f_a  name (1,6)..(1,9)  full (1,2)..(1,25)
 // _t_call_b.pony  class _TCallB
 // f_b  name (1,6)..(1,9)  full (1,2)..(2,10)  [end at '(' - ')' not tracked]
 // a.f_a()  call site f_a (2,6)..(2,9)
@@ -22,16 +22,13 @@ use "json"
 // act  be, name (4,5)..(4,8)  full (4,2)..(5,10)
 // a.f_a()  call site f_a (5,6)..(5,9)
 // _t_call_lambda.pony  class _TCallLambda
-// f_lambda  name (1,6)..(1,14)  full (1,2)..(9,10)
-// [end inflated: None desugars]
+// f_lambda  name (1,6)..(1,14)  full (1,2)..(9,8)
 // a.f_a()  first call site f_a (2,6)..(2,9)
 // a.f_a()  second call site f_a (8,6)..(8,9) — after the object literal
 // object literal g() has no calls  [nested method; excluded by _nested_depth]
 // _t_poly.pony  _TPolyA, _TPolyB, _TPolyUser (same-name method, two entities)
-// _TPolyA.poly_method  name (1,6)..(1,17)  full (1,2)..(1,35)
-// [end inflated: None desugars]
-// _TPolyB.poly_method  name (4,6)..(4,17)  full (4,2)..(4,35)
-// [end inflated: None desugars]
+// _TPolyA.poly_method  name (1,6)..(1,17)  full (1,2)..(1,33)
+// _TPolyB.poly_method  name (4,6)..(4,17)  full (4,2)..(4,33)
 // _TPolyUser.call_a  name (7,6)..(7,12)  full (7,2)..(8,18)
 // a.poly_method() call site poly_method (8,6)..(8,17)
 // _TPolyUser.call_b  name (10,6)..(10,12)  full (10,2)..(11,18)
@@ -40,12 +37,10 @@ use "json"
 // cross_call  name (3,6)..(3,16)  full (3,2)..(4,20)
 // c.callee_method() call site callee_method (4,6)..(4,19)
 // callee/t_callee.pony  TCallee (public; sub-package; no ".." import; no cycle)
-// callee_method  name (4,6)..(4,19)  full (4,2)..(4,37)
-// [end inflated: None desugars]
+// callee_method  name (4,6)..(4,19)  full (4,2)..(4,35)
 // _t_call_constructor.pony  classes _TConstructed, _TCallConstructorCaller,
 // _TConstructorWithBody
-// _TConstructed.create  new, name (1,6)..(1,12)  full (1,2)..(1,24)
-// [end inflated: None desugars]
+// _TConstructed.create  new, name (1,6)..(1,12)  full (1,2)..(1,22)
 // _TCallConstructorCaller.f_new_explicit  name (4,6)..(4,20)
 // _TConstructed.create()  create at (5,18)..(5,24)
 // _TConstructorWithBody.create  new, name (9,6)..(9,12)  full (9,2)..(10,10)
@@ -412,7 +407,7 @@ class \nodoc\ iso _PrepareCallHierarchyOnMethodTest is UnitTest
             workspace_dir,
             t_call_a,
             (1, 6, 1, 9),
-            (1, 2, 1, 27))) ])
+            (1, 2, 1, 25))) ])
 
 class \nodoc\ iso _PrepareCallHierarchyOnNonMethodTest is UnitTest
   """
@@ -517,7 +512,7 @@ class \nodoc\ iso _IncomingCallsForFaTest is UnitTest
                 workspace_dir,
                 t_call_lambda,
                 (1, 6, 1, 14),
-                (1, 2, 9, 10)),
+                (1, 2, 9, 8)),
               [(2, 6, 2, 9); (8, 6, 8, 9)])
             _CHierExpected(
               _CHierItem(
@@ -618,7 +613,7 @@ class \nodoc\ iso _OutgoingCallsForFbTest is UnitTest
                 workspace_dir,
                 t_call_a,
                 (1, 6, 1, 9),
-                (1, 2, 1, 27)),
+                (1, 2, 1, 25)),
               [(2, 6, 2, 9)]) ]) ])
 
 class \nodoc\ iso _OutgoingCallsForFcTest is UnitTest
@@ -655,7 +650,7 @@ class \nodoc\ iso _OutgoingCallsForFcTest is UnitTest
                 workspace_dir,
                 t_call_a,
                 (1, 6, 1, 9),
-                (1, 2, 1, 27)),
+                (1, 2, 1, 25)),
               [(2, 6, 2, 9)])
             _CHierExpected(
               _CHierItem(
@@ -703,7 +698,7 @@ class \nodoc\ iso _OutgoingCallsForFdTest is UnitTest
                 workspace_dir,
                 t_call_a,
                 (1, 6, 1, 9),
-                (1, 2, 1, 27)),
+                (1, 2, 1, 25)),
               [(2, 6, 2, 9); (3, 6, 3, 9)]) ]) ])
 
 class val _PrepareKindChecker
@@ -834,7 +829,7 @@ class \nodoc\ iso _OutgoingCallsForActTest is UnitTest
                 workspace_dir,
                 t_call_a,
                 (1, 6, 1, 9),
-                (1, 2, 1, 27)),
+                (1, 2, 1, 25)),
               [(5, 6, 5, 9)]) ]) ])
 
 class \nodoc\ iso _PrepareFromCallRefTest is UnitTest
@@ -867,7 +862,7 @@ class \nodoc\ iso _PrepareFromCallRefTest is UnitTest
             workspace_dir,
             t_call_a,
             (1, 6, 1, 9),
-            (1, 2, 1, 27))) ])
+            (1, 2, 1, 25))) ])
 
 class \nodoc\ iso _OutgoingCallsNoLambdaCallsTest is UnitTest
   """
@@ -911,7 +906,7 @@ class \nodoc\ iso _OutgoingCallsNoLambdaCallsTest is UnitTest
                 workspace_dir,
                 t_call_a,
                 (1, 6, 1, 9),
-                (1, 2, 1, 27)),
+                (1, 2, 1, 25)),
               [(2, 6, 2, 9); (8, 6, 8, 9)]) ]) ])
 
 class \nodoc\ iso _IncomingCallsPolyATest is UnitTest
@@ -1038,7 +1033,7 @@ class \nodoc\ iso _OutgoingCallsCrossPackageTest is UnitTest
                 workspace_dir,
                 "call_hierarchy/callee/t_callee.pony",
                 (4, 6, 4, 19),
-                (4, 2, 4, 37)),
+                (4, 2, 4, 35)),
               [(4, 6, 4, 19)]) ]) ])
 
 class \nodoc\ iso _OutgoingCallsForFNewExplicitTest is UnitTest
@@ -1077,7 +1072,7 @@ class \nodoc\ iso _OutgoingCallsForFNewExplicitTest is UnitTest
                 workspace_dir,
                 t_ctor,
                 (1, 6, 1, 12),
-                (1, 2, 1, 24)),
+                (1, 2, 1, 22)),
               [(5, 18, 5, 24)]) ]) ])
 
 class \nodoc\ iso _OutgoingCallsFromConstructorTest is UnitTest
@@ -1117,5 +1112,5 @@ class \nodoc\ iso _OutgoingCallsFromConstructorTest is UnitTest
                 workspace_dir,
                 t_call_a,
                 (1, 6, 1, 9),
-                (1, 2, 1, 27)),
+                (1, 2, 1, 25)),
               [(10, 6, 10, 9)]) ]) ])

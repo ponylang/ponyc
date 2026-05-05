@@ -189,7 +189,7 @@ class \nodoc\ iso _DefinitionTypeAliasIntegrationTest is UnitTest
       _server,
       "definition/_type_alias.pony",
       [ // `Map` type alias in `Map[String, U32]` → Map type alias declaration
-        _DefinitionChecker(17, 13, [("map.pony", (3, 0), (7, 7))])
+        _DefinitionChecker(17, 13, [("map.pony", (3, 0), (7, 5))])
         // `String` type arg in `Map[String, U32]` → String class declaration
         _DefinitionChecker(17, 17, [("string.pony", (8, 0), (1682, 25))])
         // `U32` type arg in `Map[String, U32]` → U32 primitive declaration
@@ -201,7 +201,7 @@ class \nodoc\ iso _DefinitionTypeAliasIntegrationTest is UnitTest
         _DefinitionChecker(
           19,
           20,
-          [("_type_alias.pony", (2, 0), (2, 18))])])
+          [("_type_alias.pony", (2, 0), (2, 17))])])
 
 class \nodoc\ iso _DefinitionLastEntityBarePrimTest is UnitTest
   """
