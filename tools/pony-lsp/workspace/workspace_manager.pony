@@ -453,10 +453,12 @@ actor WorkspaceManager
       this._channel.log("Found AST node: " + hover_node.debug())
 
       // Suppress hover when the cursor lands directly on a declaration keyword
-      // (fun/be/new, let/var/embed for fields, let/var for locals).
-      // _refine_node promotes the name tk_id to its parent keyword node, so
-      // compare the cursor column against the keyword span to distinguish
-      // "on keyword" (suppress) from "on name".
+      // (fun/be/new, let/var/embed for fields, let/var for locals) or a
+      // capability keyword (iso/trn/ref/val/box/tag).
+      // _refine_node promotes the name tk_id and cap keywords to their parent
+      // node, so compare the cursor position against each keyword's span.
+      let cursor_line = USize.from[I64](line + 1)
+      let cursor_col = USize.from[I64](column + 1)
       let keyword_len: USize =
         match hover_node.id()
         | TokenIds.tk_fun() | TokenIds.tk_new()
@@ -469,14 +471,31 @@ actor WorkspaceManager
       if keyword_len > 0 then
         let node_line = hover_node.position().line()
         let node_col = hover_node.position().column()
-        let cursor_line = USize.from[I64](line + 1)
-        let cursor_col = USize.from[I64](column + 1)
         if (cursor_line == node_line) and
           (cursor_col >= node_col) and
           (cursor_col <= ((node_col + keyword_len) - 1))
         then
           this._channel.send(ResponseMessage.create(request.id, None))
           return
+        end
+      end
+      // Suppress hover on capability keywords (iso/trn/ref/val/box/tag).
+      // _refine_node navigates from cap keywords to their parent, so scan
+      // the refined node's children for a cap keyword covering the cursor.
+      for child in hover_node.children() do
+        let child_id = child.id()
+        if (child_id == TokenIds.tk_iso()) or (child_id == TokenIds.tk_trn())
+          or (child_id == TokenIds.tk_ref()) or (child_id == TokenIds.tk_val())
+          or (child_id == TokenIds.tk_box()) or (child_id == TokenIds.tk_tag())
+        then
+          let cap_col = child.position().column()
+          if (cursor_line == child.position().line()) and
+            (cursor_col >= cap_col) and
+            (cursor_col <= (cap_col + 2))
+          then
+            this._channel.send(ResponseMessage.create(request.id, None))
+            return
+          end
         end
       end
 
