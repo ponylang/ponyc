@@ -16,6 +16,7 @@ primitive _HoverIntegrationTests is TestList
     test(_HoverIntegrationInterfaceTest.create(server))
     test(_HoverIntegrationPrimitiveTest.create(server))
     test(_HoverIntegrationTraitTest.create(server))
+    test(_HoverIntegrationStructTest.create(server))
     test(_HoverIntegrationTypeInferenceTest.create(server))
     test(_HoverIntegrationReceiverCapabilityTest.create(server))
     test(_HoverIntegrationComplexTypesTest.create(server))
@@ -81,6 +82,13 @@ class \nodoc\ iso _HoverIntegrationClassTest is UnitTest
           6,
           8,
           ["embed embedded_field: Array[String val] ref"])
+        // no hover on field declaration keywords
+        _HoverChecker(4, 2, [])
+        _HoverChecker(4, 4, [])
+        _HoverChecker(5, 2, [])
+        _HoverChecker(5, 4, [])
+        _HoverChecker(6, 2, [])
+        _HoverChecker(6, 6, [])
         // constructor declaration
         _HoverChecker(8, 6, ["new ref create(name: String val)"])
         // field usages
@@ -88,6 +96,12 @@ class \nodoc\ iso _HoverIntegrationClassTest is UnitTest
         _HoverChecker(10, 4, ["var mutable_field: U32 val"])
         _HoverChecker(16, 4, ["let field_name: String val"])
         _HoverChecker(28, 4, ["var mutable_field: U32 val"])
+        // no hover on 'class' keyword
+        _HoverChecker(0, 0, [])
+        _HoverChecker(0, 2, [])
+        // no hover on 'new' keyword
+        _HoverChecker(8, 2, [])
+        _HoverChecker(8, 4, [])
         // no hover on docstring or blank line
         _HoverChecker(1, 2, [])
         _HoverChecker(2, 4, [])
@@ -111,7 +125,16 @@ class \nodoc\ iso _HoverIntegrationActorTest is UnitTest
           6,
           ["actor _Actor"; "A simple actor for exercising LSP hover."])
         _HoverChecker(6, 6, ["new tag create(name': String val)"])
-        _HoverChecker(9, 5, ["be tag do_something(value: U64 val)"])])
+        _HoverChecker(9, 5, ["be tag do_something(value: U64 val)"])
+        // no hover on 'actor' keyword
+        _HoverChecker(0, 0, [])
+        _HoverChecker(0, 2, [])
+        // no hover on 'new' keyword
+        _HoverChecker(6, 2, [])
+        _HoverChecker(6, 4, [])
+        // no hover on 'be' keyword
+        _HoverChecker(9, 2, [])
+        _HoverChecker(9, 3, [])])
 
 class \nodoc\ iso _HoverIntegrationAliasTest is UnitTest
   let _server: _LspTestServer
@@ -129,7 +152,10 @@ class \nodoc\ iso _HoverIntegrationAliasTest is UnitTest
       [ _HoverChecker(
           0,
           5,
-          ["type _Alias"; "A simple alias for exercising LSP hover."])])
+          ["type _Alias"; "A simple alias for exercising LSP hover."])
+        // no hover on 'type' keyword
+        _HoverChecker(0, 0, [])
+        _HoverChecker(0, 2, [])])
 
 class \nodoc\ iso _HoverIntegrationInterfaceTest is UnitTest
   let _server: _LspTestServer
@@ -148,7 +174,10 @@ class \nodoc\ iso _HoverIntegrationInterfaceTest is UnitTest
           0,
           10,
           [ "interface _Interface"
-            "A simple interface for exercising LSP hover."])])
+            "A simple interface for exercising LSP hover."])
+        // no hover on 'interface' keyword
+        _HoverChecker(0, 0, [])
+        _HoverChecker(0, 4, [])])
 
 class \nodoc\ iso _HoverIntegrationPrimitiveTest is UnitTest
   let _server: _LspTestServer
@@ -167,7 +196,10 @@ class \nodoc\ iso _HoverIntegrationPrimitiveTest is UnitTest
           0,
           10,
           [ "primitive _Primitive"
-            "A simple primitive for exercising LSP hover."])])
+            "A simple primitive for exercising LSP hover."])
+        // no hover on 'primitive' keyword
+        _HoverChecker(0, 0, [])
+        _HoverChecker(0, 4, [])])
 
 class \nodoc\ iso _HoverIntegrationTraitTest is UnitTest
   let _server: _LspTestServer
@@ -185,7 +217,10 @@ class \nodoc\ iso _HoverIntegrationTraitTest is UnitTest
       [ _HoverChecker(
           0,
           6,
-          ["trait _Trait"; "A simple trait for exercising LSP hover."])])
+          ["trait _Trait"; "A simple trait for exercising LSP hover."])
+        // no hover on 'trait' keyword
+        _HoverChecker(0, 0, [])
+        _HoverChecker(0, 2, [])])
 
 class \nodoc\ iso _HoverIntegrationFunctionTest is UnitTest
   let _server: _LspTestServer
@@ -224,6 +259,11 @@ class \nodoc\ iso _HoverIntegrationFunctionTest is UnitTest
             "Method with multiple parameters for testing."])
         _HoverChecker(11, 8, ["let result1: String val"])
         _HoverChecker(12, 8, ["let result2: String val"])
+        // no hover on local variable declaration keywords
+        _HoverChecker(11, 4, [])
+        _HoverChecker(11, 6, [])
+        _HoverChecker(12, 4, [])
+        _HoverChecker(12, 6, [])
         // parameter declarations
         _HoverChecker(15, 20, ["input: String val"])
         _HoverChecker(21, 34, ["x: U32 val"])
@@ -238,8 +278,35 @@ class \nodoc\ iso _HoverIntegrationFunctionTest is UnitTest
           10,
           [ "fun ref mutable_method(value: U32 val)"
             "A method with a ref receiver capability."])
+        // no hover on 'fun' keyword
+        _HoverChecker(15, 2, [])
+        _HoverChecker(15, 4, [])
+        _HoverChecker(27, 2, [])
+        _HoverChecker(27, 3, [])
+        _HoverChecker(27, 4, [])
         // this reference
         _HoverChecker(11, 18, [])])
+
+class \nodoc\ iso _HoverIntegrationStructTest is UnitTest
+  let _server: _LspTestServer
+
+  new iso create(server: _LspTestServer) =>
+    _server = server
+
+  fun name(): String => "hover/integration/struct"
+
+  fun apply(h: TestHelper) =>
+    _RunLspChecks(
+      h,
+      _server,
+      "hover/_struct.pony",
+      [ _HoverChecker(
+          0,
+          7,
+          ["struct _Struct"; "A simple struct for exercising LSP hover."])
+        // no hover on 'struct' keyword
+        _HoverChecker(0, 0, [])
+        _HoverChecker(0, 5, [])])
 
 class \nodoc\ iso _HoverIntegrationTypeInferenceTest is UnitTest
   let _server: _LspTestServer
