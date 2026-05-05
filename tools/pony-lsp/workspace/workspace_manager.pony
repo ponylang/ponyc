@@ -452,6 +452,34 @@ actor WorkspaceManager
     | (let hover_node: AST box, _) =>
       this._channel.log("Found AST node: " + hover_node.debug())
 
+      // Suppress hover when the cursor lands directly on a declaration keyword
+      // (fun/be/new, let/var/embed for fields, let/var for locals).
+      // _refine_node promotes the name tk_id to its parent keyword node, so
+      // compare the cursor column against the keyword span to distinguish
+      // "on keyword" (suppress) from "on name".
+      let keyword_len: USize =
+        match hover_node.id()
+        | TokenIds.tk_fun() | TokenIds.tk_new()
+        | TokenIds.tk_flet() | TokenIds.tk_let()
+        | TokenIds.tk_fvar() | TokenIds.tk_var() => 3
+        | TokenIds.tk_be() => 2
+        | TokenIds.tk_embed() => 5
+        else 0
+        end
+      if keyword_len > 0 then
+        let node_line = hover_node.position().line()
+        let node_col = hover_node.position().column()
+        let cursor_line = USize.from[I64](line + 1)
+        let cursor_col = USize.from[I64](column + 1)
+        if (cursor_line == node_line) and
+          (cursor_col >= node_col) and
+          (cursor_col <= ((node_col + keyword_len) - 1))
+        then
+          this._channel.send(ResponseMessage.create(request.id, None))
+          return
+        end
+      end
+
       // Extract hover information and build response
       match \exhaustive\ HoverFormatter.create_hover(hover_node, this._channel)
       | let hover_text: String =>

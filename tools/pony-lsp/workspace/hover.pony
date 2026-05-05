@@ -117,15 +117,6 @@ primitive HoverFormatter
     None if no hover info available.
     """
     match ast.id()
-    // Entity types
-    | TokenIds.tk_class() => _format_entity(ast, "class", channel)
-    | TokenIds.tk_actor() => _format_entity(ast, "actor", channel)
-    | TokenIds.tk_trait() => _format_entity(ast, "trait", channel)
-    | TokenIds.tk_interface() => _format_entity(ast, "interface", channel)
-    | TokenIds.tk_primitive() => _format_entity(ast, "primitive", channel)
-    | TokenIds.tk_type() => _format_entity(ast, "type", channel)
-    | TokenIds.tk_struct() => _format_entity(ast, "struct", channel)
-
     // Method types
     | TokenIds.tk_fun() => _format_method(ast, "fun", channel)
     | TokenIds.tk_be() => _format_method(ast, "be", channel)
