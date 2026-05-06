@@ -23,6 +23,7 @@ primitive _HoverIntegrationTests is TestList
     test(_HoverIntegrationFunctionTest.create(server))
     test(_HoverIntegrationGenericsTest.create(server))
     test(_HoverIntegrationLiteralsTest.create(server))
+    test(_HoverIntegrationCapKeywordTest.create(server))
 
 class \nodoc\ iso _HoverIntegrationLiteralsTest is UnitTest
   let _server: _LspTestServer
@@ -102,6 +103,9 @@ class \nodoc\ iso _HoverIntegrationClassTest is UnitTest
         // no hover on 'new' keyword
         _HoverChecker(8, 2, [])
         _HoverChecker(8, 4, [])
+        // no hover on receiver capability keyword
+        _HoverChecker(24, 6, [])
+        _HoverChecker(24, 8, [])
         // no hover on docstring or blank line
         _HoverChecker(1, 2, [])
         _HoverChecker(2, 4, [])
@@ -177,7 +181,10 @@ class \nodoc\ iso _HoverIntegrationInterfaceTest is UnitTest
             "A simple interface for exercising LSP hover."])
         // no hover on 'interface' keyword
         _HoverChecker(0, 0, [])
-        _HoverChecker(0, 4, [])])
+        _HoverChecker(0, 4, [])
+        // no hover on return type capability keyword
+        _HoverChecker(4, 31, [])
+        _HoverChecker(4, 33, [])])
 
 class \nodoc\ iso _HoverIntegrationPrimitiveTest is UnitTest
   let _server: _LspTestServer
@@ -278,12 +285,14 @@ class \nodoc\ iso _HoverIntegrationFunctionTest is UnitTest
           10,
           [ "fun ref mutable_method(value: U32 val)"
             "A method with a ref receiver capability."])
-        // no hover on 'fun' keyword
+        // no hover on 'fun' keyword or receiver capability keyword
         _HoverChecker(15, 2, [])
         _HoverChecker(15, 4, [])
         _HoverChecker(27, 2, [])
         _HoverChecker(27, 3, [])
         _HoverChecker(27, 4, [])
+        _HoverChecker(27, 6, [])
+        _HoverChecker(27, 8, [])
         // this reference
         _HoverChecker(11, 18, [])])
 
@@ -343,7 +352,14 @@ class \nodoc\ iso _HoverIntegrationReceiverCapabilityTest is UnitTest
       "hover/_receiver_capability.pony",
       [ _HoverChecker(5, 10, ["fun box boxed_method(): String val"])
         _HoverChecker(13, 10, ["fun val valued_method(): String val"])
-        _HoverChecker(20, 10, ["fun ref mutable_method()"])])
+        _HoverChecker(20, 10, ["fun ref mutable_method()"])
+        // no hover on receiver capability keywords
+        _HoverChecker(5, 6, [])
+        _HoverChecker(5, 8, [])
+        _HoverChecker(13, 6, [])
+        _HoverChecker(13, 8, [])
+        _HoverChecker(20, 6, [])
+        _HoverChecker(20, 8, [])])
 
 class \nodoc\ iso _HoverIntegrationComplexTypesTest is UnitTest
   let _server: _LspTestServer
@@ -507,7 +523,81 @@ class \nodoc\ iso _HoverIntegrationGenericsTest is UnitTest
           151,
           25,
           [ "fun box with_generic_param[U: Any val](other: U): (T, U)"
-            "A generic method with its own type parameter."])])
+            "A generic method with its own type parameter."])
+        // no hover on capability keywords in type parameter constraints
+        _HoverChecker(0, 32, [])   // trait _Generics[T: _Generics[T] box]
+        _HoverChecker(5, 20, [])   // fun compare(that: box->T) -- arrow type
+        _HoverChecker(7, 27, [])   // class _GenericsDemo[T: Any val]
+        _HoverChecker(23, 32, [])  // fun with_generic_param[U: Any val]
+        _HoverChecker(30, 26, [])  // class _GenericPair[A: Any val, ...]
+        _HoverChecker(30, 38, [])  // class _GenericPair[..., B: Any val]
+        _HoverChecker(54, 38, [])  // class _GenericContainer[T: Stringable val]
+        _HoverChecker(64, 6, [])   // fun ref add -- receiver cap
+        _HoverChecker(81, 27, [])  // actor _GenericActor[T: Any val]
+        _HoverChecker(97, 20, [])  // be process[U: Any val]
+        _HoverChecker(108, 22, []) // fun identity[T: Any val]
+        _HoverChecker(115, 25, []) // fun create_pair[A: Any val, ...]
+        _HoverChecker(115, 37, []) // fun create_pair[..., B: Any val]
+        _HoverChecker(121, 19, []) // fun apply[T: Any val]
+        ])
+
+class \nodoc\ iso _HoverIntegrationCapKeywordTest is UnitTest
+  let _server: _LspTestServer
+
+  new iso create(server: _LspTestServer) =>
+    _server = server
+
+  fun name(): String => "hover/integration/cap_keyword"
+
+  fun apply(h: TestHelper) =>
+    _RunLspChecks(
+      h,
+      _server,
+      "hover/_cap_keyword.pony",
+      [ // entity default cap: 'ref' in 'class ref _CapKeyword'
+        _HoverChecker(0, 6, [])
+        _HoverChecker(0, 8, [])
+        // field type cap: 'val' in 'let _data: String val'
+        _HoverChecker(7, 20, [])
+        _HoverChecker(7, 22, [])
+        // constructor receiver cap: 'ref' in 'new ref create()'
+        _HoverChecker(9, 6, [])
+        _HoverChecker(9, 8, [])
+        // receiver and return type caps: 'fun val recv_val(): String val'
+        _HoverChecker(12, 6, [])   // receiver val
+        _HoverChecker(12, 8, [])
+        _HoverChecker(12, 29, [])  // return type val
+        _HoverChecker(12, 31, [])
+        // receiver and parameter type caps: 'fun ref recv_ref(x: String val)'
+        _HoverChecker(15, 6, [])   // receiver ref
+        _HoverChecker(15, 8, [])
+        _HoverChecker(15, 29, [])  // parameter type val
+        _HoverChecker(15, 31, [])
+        // receiver and arrow type caps: 'fun box arrow_type(x: box->String)'
+        _HoverChecker(18, 6, [])   // receiver box
+        _HoverChecker(18, 8, [])
+        _HoverChecker(18, 24, [])  // arrow type box (viewpoint adaptation)
+        _HoverChecker(18, 26, [])
+        // local variable type cap: 'let local: String val'
+        _HoverChecker(22, 22, [])
+        _HoverChecker(22, 24, [])
+        // iso receiver cap: 'fun iso iso_method()'
+        _HoverChecker(25, 6, [])
+        _HoverChecker(25, 8, [])
+        // trn receiver cap: 'fun trn trn_method()'
+        _HoverChecker(28, 6, [])
+        _HoverChecker(28, 8, [])
+        // tag receiver cap: 'fun tag tag_method()'
+        _HoverChecker(31, 6, [])
+        _HoverChecker(31, 8, [])
+        // positive: method name resolves on same line as suppressed cap
+        _HoverChecker(12, 10, ["fun val recv_val(): String val"])
+        // positive: local var name resolves on same line as suppressed cap
+        _HoverChecker(22, 10, ["let local: String val"])
+        // positive: iso/trn/tag method names resolve
+        _HoverChecker(25, 10, ["fun iso iso_method(): None"])
+        _HoverChecker(28, 10, ["fun trn trn_method(): None"])
+        _HoverChecker(31, 10, ["fun tag tag_method(): None"])])
 
 class val _HoverChecker
   let _line: I64
