@@ -167,7 +167,14 @@ actor UDPSocket is AsioEventNotify
 
   be writev(data: ByteSeqIter, to: NetAddress) =>
     """
-    Write a sequence of sequences of bytes.
+    Write a sequence of byte sequences. Each `ByteSeq` in `data` is sent
+    as a separate UDP datagram; this method does not combine them into a
+    single packet.
+
+    Note that this differs from the POSIX `writev` system call, which
+    for record-based protocols like UDP would produce a single datagram.
+    If you need a single datagram, concatenate the data yourself and call
+    `write`.
     """
     for bytes in data.values() do
       _write(bytes, to)
