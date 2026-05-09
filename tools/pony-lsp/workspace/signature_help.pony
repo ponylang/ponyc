@@ -1,4 +1,3 @@
-use ".."
 use "pony_compiler"
 use "json"
 
@@ -13,8 +12,7 @@ primitive SignatureHelp
   fun collect(
     node: AST box,
     cursor_line: USize,
-    cursor_col: USize,
-    channel: Channel): (JsonObject | None)
+    cursor_col: USize): (JsonObject | None)
   =>
     match \exhaustive\ _find_enclosing_call(node, cursor_line, cursor_col)
     | (_, let callee: AST box, let active_param: USize) =>
@@ -59,13 +57,13 @@ primitive SignatureHelp
 
         let param_strs: Array[String] =
           try
-            _extract_param_list(def(3)?, channel)
+            _extract_param_list(def(3)?)
           else
             Array[String]
           end
 
         (let label, let offsets) =
-          _build_label(def, keyword, param_strs, channel)
+          _build_label(def, keyword, param_strs)
 
         var params_json = JsonArray
         for (p_start, p_end) in offsets.values() do
@@ -234,7 +232,7 @@ primitive SignatureHelp
     end
     None
 
-  fun _extract_param_list(params: AST box, channel: Channel): Array[String] =>
+  fun _extract_param_list(params: AST box): Array[String] =>
     """
     Returns one string per parameter in the form "name: Type".
     """
@@ -249,7 +247,7 @@ primitive SignatureHelp
               try
                 let ptype = param(1)?
                 if ptype.id() != TokenIds.tk_none() then
-                  ": " + _TypeFormatter.extract_type(ptype, channel)
+                  ": " + _TypeFormatter.extract_type(ptype)
                 else
                   ""
                 end
@@ -266,8 +264,7 @@ primitive SignatureHelp
   fun _build_label(
     def: AST box,
     keyword: String val,
-    param_strs: Array[String] box,
-    channel: Channel): (String, Array[(USize, USize)])
+    param_strs: Array[String] box): (String, Array[(USize, USize)])
   =>
     """
     Builds the full signature label string and computes per-parameter
@@ -294,7 +291,7 @@ primitive SignatureHelp
     try
       let tp = def(2)?
       if tp.id() == TokenIds.tk_typeparams() then
-        label = label + _TypeFormatter.extract_type_params(tp, channel)
+        label = label + _TypeFormatter.extract_type_params(tp)
       end
     end
     label = label + "("
@@ -320,7 +317,7 @@ primitive SignatureHelp
     if (keyword == "fun") or (keyword == "be") then
       try
         let rt = def(4)?
-        let rt_str = _TypeFormatter.extract_type(rt, channel)
+        let rt_str = _TypeFormatter.extract_type(rt)
         if rt_str.size() > 0 then
           label = label + ": " + rt_str
         end
