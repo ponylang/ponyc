@@ -1,4 +1,3 @@
-use ".."
 use "pony_compiler"
 
 primitive _TypeFormatter
@@ -6,7 +5,7 @@ primitive _TypeFormatter
   Pure AST-to-string type formatting utilities shared across LSP features.
   """
 
-  fun extract_type(type_node: AST box, channel: Channel): String =>
+  fun extract_type(type_node: AST box): String =>
     """
     Extract type information from a type node.
     """
@@ -22,7 +21,7 @@ primitive _TypeFormatter
             if type_id.id() == TokenIds.tk_id() then
               type_id.token_value() as String
             else
-              extract_type(type_id, channel)
+              extract_type(type_id)
             end
 
           // Check for type arguments
@@ -32,7 +31,7 @@ primitive _TypeFormatter
                 type_node,
                 TokenIds.tk_typeargs(),
                 2)
-            | let ta: AST box => _extract_typeargs(ta, channel)
+            | let ta: AST box => _extract_typeargs(ta)
             | None => ""
             end
 
@@ -73,7 +72,7 @@ primitive _TypeFormatter
           if type_id.id() == TokenIds.tk_id() then
             type_id.token_value() as String
           else
-            extract_type(type_id, channel)
+            extract_type(type_id)
           end
 
         // Check for type arguments at child(1)
@@ -83,7 +82,7 @@ primitive _TypeFormatter
               type_node,
               TokenIds.tk_typeargs(),
               1)
-          | let ta: AST box => _extract_typeargs(ta, channel)
+          | let ta: AST box => _extract_typeargs(ta)
           | None => ""
           end
 
@@ -137,19 +136,19 @@ primitive _TypeFormatter
       end
     | TokenIds.tk_uniontype() =>
       // Union type: (Type1 | Type2 | Type3)
-      _extract_composite_type(type_node, " | ", channel)
+      _extract_composite_type(type_node, " | ")
     | TokenIds.tk_isecttype() =>
       // Intersection type
-      _extract_composite_type(type_node, " & ", channel)
+      _extract_composite_type(type_node, " & ")
     | TokenIds.tk_tupletype() =>
       // Tuple type: (Type1, Type2, Type3)
-      _extract_composite_type(type_node, ", ", channel)
+      _extract_composite_type(type_node, ", ")
     | TokenIds.tk_arrow() =>
       // Arrow type: left->right
       try
         let left_child = type_node(0)?
         let left_cap = extract_capability(left_child.id())
-        let right = extract_type(type_node(1)?, channel)
+        let right = extract_type(type_node(1)?)
         if left_cap.size() > 0 then
           left_cap + "->" + right
         else
@@ -178,10 +177,7 @@ primitive _TypeFormatter
       ""
     end
 
-  fun extract_type_params(
-    type_params: AST box,
-    channel: Channel): String
-  =>
+  fun extract_type_params(type_params: AST box): String =>
     """
     Extract type parameters from typeparams node.
     """
@@ -194,7 +190,7 @@ primitive _TypeFormatter
           let constraint =
             try
               let constraint_node = type_param(1)?
-              ": " + extract_type(constraint_node, channel)
+              ": " + extract_type(constraint_node)
             else
               ""
             end
@@ -208,13 +204,13 @@ primitive _TypeFormatter
       ""
     end
 
-  fun _extract_typeargs(typeargs_node: AST box, channel: Channel): String =>
+  fun _extract_typeargs(typeargs_node: AST box): String =>
     """
     Extract type arguments from a tk_typeargs node.
     """
     let arg_strs = Array[String]
     for arg in typeargs_node.children() do
-      arg_strs.push(extract_type(arg, channel))
+      arg_strs.push(extract_type(arg))
     end
     if arg_strs.size() > 0 then
       "[" + ", ".join(arg_strs.values()) + "]"
@@ -224,8 +220,7 @@ primitive _TypeFormatter
 
   fun _extract_composite_type(
     type_node: AST box,
-    separator: String,
-    channel: Channel): String
+    separator: String): String
   =>
     """
     Extract composite types (union, intersection, tuple) by recursively
@@ -233,7 +228,7 @@ primitive _TypeFormatter
     """
     let type_strs = Array[String]
     for child in type_node.children() do
-      type_strs.push(extract_type(child, channel))
+      type_strs.push(extract_type(child))
     end
     if type_strs.size() > 0 then
       "(" + separator.join(type_strs.values()) + ")"

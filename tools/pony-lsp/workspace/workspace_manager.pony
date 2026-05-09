@@ -500,7 +500,7 @@ actor WorkspaceManager
       end
 
       // Extract hover information and build response
-      match \exhaustive\ HoverFormatter.create_hover(hover_node, this._channel)
+      match \exhaustive\ HoverFormatter.create_hover(hover_node)
       | let hover_text: String =>
         // Use the original hover node for highlighting,
         // not any definition it may reference
@@ -1218,7 +1218,7 @@ actor WorkspaceManager
       match index.find_node_at(tok_line, tok_col)
       | let node: AST box =>
         match \exhaustive\ SignatureHelp.collect(
-          node, tok_line, tok_col, this._channel)
+          node, tok_line, tok_col)
         | let result: JsonObject =>
           this._channel.send(ResponseMessage(request.id, result))
           return

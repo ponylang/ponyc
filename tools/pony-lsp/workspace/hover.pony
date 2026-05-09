@@ -1,4 +1,3 @@
-use ".."
 use "pony_compiler"
 
 class val EntityInfo
@@ -111,57 +110,57 @@ primitive HoverFormatter
     _wrap_code_block(consume declaration)
 
   // ======= AST Extraction and Dispatch =======
-  fun tag create_hover(ast: AST box, channel: Channel): (String | None) =>
+  fun tag create_hover(ast: AST box): (String | None) =>
     """
     Main entry point. Returns markdown string or
     None if no hover info available.
     """
     match ast.id()
     // Method types
-    | TokenIds.tk_fun() => _format_method(ast, "fun", channel)
-    | TokenIds.tk_be() => _format_method(ast, "be", channel)
-    | TokenIds.tk_new() => _format_method(ast, "new", channel)
+    | TokenIds.tk_fun() => _format_method(ast, "fun")
+    | TokenIds.tk_be() => _format_method(ast, "be")
+    | TokenIds.tk_new() => _format_method(ast, "new")
 
     // Field types
-    | TokenIds.tk_flet() => _format_field(ast, "let", channel)
-    | TokenIds.tk_fvar() => _format_field(ast, "var", channel)
-    | TokenIds.tk_embed() => _format_field(ast, "embed", channel)
+    | TokenIds.tk_flet() => _format_field(ast, "let")
+    | TokenIds.tk_fvar() => _format_field(ast, "var")
+    | TokenIds.tk_embed() => _format_field(ast, "embed")
 
     // Local variable declarations
-    | TokenIds.tk_let() => _format_local_var(ast, "let", channel)
-    | TokenIds.tk_var() => _format_local_var(ast, "var", channel)
+    | TokenIds.tk_let() => _format_local_var(ast, "let")
+    | TokenIds.tk_var() => _format_local_var(ast, "var")
 
     // Parameter declarations
-    | TokenIds.tk_param() => _format_param(ast, channel)
+    | TokenIds.tk_param() => _format_param(ast)
 
     // Type references - follow to definition
-    | TokenIds.tk_reference() => _format_reference(ast, channel)
-    | TokenIds.tk_typeref() => _format_reference(ast, channel)
-    | TokenIds.tk_typealiasref() => _format_reference(ast, channel)
-    | TokenIds.tk_nominal() => _format_reference(ast, channel)
+    | TokenIds.tk_reference() => _format_reference(ast)
+    | TokenIds.tk_typeref() => _format_reference(ast)
+    | TokenIds.tk_typealiasref() => _format_reference(ast)
+    | TokenIds.tk_nominal() => _format_reference(ast)
 
     // Function/method/constructor calls
-    | TokenIds.tk_funref() => _format_reference(ast, channel)
-    | TokenIds.tk_beref() => _format_reference(ast, channel)
-    | TokenIds.tk_newref() => _format_reference(ast, channel)
-    | TokenIds.tk_newberef() => _format_reference(ast, channel)
-    | TokenIds.tk_funchain() => _format_reference(ast, channel)
-    | TokenIds.tk_bechain() => _format_reference(ast, channel)
+    | TokenIds.tk_funref() => _format_reference(ast)
+    | TokenIds.tk_beref() => _format_reference(ast)
+    | TokenIds.tk_newref() => _format_reference(ast)
+    | TokenIds.tk_newberef() => _format_reference(ast)
+    | TokenIds.tk_funchain() => _format_reference(ast)
+    | TokenIds.tk_bechain() => _format_reference(ast)
 
     // Field references
-    | TokenIds.tk_fletref() => _format_reference(ast, channel)
-    | TokenIds.tk_fvarref() => _format_reference(ast, channel)
-    | TokenIds.tk_embedref() => _format_reference(ast, channel)
+    | TokenIds.tk_fletref() => _format_reference(ast)
+    | TokenIds.tk_fvarref() => _format_reference(ast)
+    | TokenIds.tk_embedref() => _format_reference(ast)
 
     // Local variable references
-    | TokenIds.tk_letref() => _format_reference(ast, channel)
-    | TokenIds.tk_varref() => _format_reference(ast, channel)
+    | TokenIds.tk_letref() => _format_reference(ast)
+    | TokenIds.tk_varref() => _format_reference(ast)
 
     // Parameter references
-    | TokenIds.tk_paramref() => _format_reference(ast, channel)
+    | TokenIds.tk_paramref() => _format_reference(ast)
 
     // Identifier
-    | TokenIds.tk_id() => _format_id(ast, channel)
+    | TokenIds.tk_id() => _format_id(ast)
 
     else
       // For other node types, return None
@@ -170,21 +169,19 @@ primitive HoverFormatter
 
   fun tag _format_entity(
     ast: AST box,
-    keyword: String,
-    channel: Channel): (String | None)
+    keyword: String): (String | None)
   =>
     """
     Format entity declarations.
     """
-    match \exhaustive\ extract_entity_info(ast, keyword, channel)
+    match \exhaustive\ extract_entity_info(ast, keyword)
     | let info: EntityInfo => format_entity(info)
     | None => None
     end
 
   fun tag extract_entity_info(
     ast: AST box,
-    keyword: String,
-    channel: Channel): (EntityInfo | None)
+    keyword: String): (EntityInfo | None)
   =>
     """
     Extract entity information from AST node.
@@ -198,7 +195,7 @@ primitive HoverFormatter
         let type_params_str =
           match \exhaustive\ _TypeFormatter._find_child_by_type(
             ast, TokenIds.tk_typeparams(), 1)
-          | let tp: AST box => _TypeFormatter.extract_type_params(tp, channel)
+          | let tp: AST box => _TypeFormatter.extract_type_params(tp)
           | None => ""
           end
 
@@ -225,21 +222,19 @@ primitive HoverFormatter
 
   fun tag _format_method(
     ast: AST box,
-    keyword: String,
-    channel: Channel): (String | None)
+    keyword: String): (String | None)
   =>
     """
     Format method declarations.
     """
-    match \exhaustive\ extract_method_info(ast, keyword, channel)
+    match \exhaustive\ extract_method_info(ast, keyword)
     | let info: MethodInfo => format_method(info)
     | None => None
     end
 
   fun tag extract_method_info(
     ast: AST box,
-    keyword: String,
-    channel: Channel): (MethodInfo | None)
+    keyword: String): (MethodInfo | None)
   =>
     """
     Extract method information from AST node.
@@ -263,7 +258,7 @@ primitive HoverFormatter
           try
             let type_params = ast(2)?
             if type_params.id() == TokenIds.tk_typeparams() then
-              _TypeFormatter.extract_type_params(type_params, channel)
+              _TypeFormatter.extract_type_params(type_params)
             else
               ""
             end
@@ -275,7 +270,7 @@ primitive HoverFormatter
         let params_str =
           try
             let params = ast(3)?
-            _extract_params(params, channel)
+            _extract_params(params)
           else
             "()"
           end
@@ -285,7 +280,7 @@ primitive HoverFormatter
           if (keyword == "fun") or (keyword == "be") then
             try
               let return_type = ast(4)?
-              ": " + _TypeFormatter.extract_type(return_type, channel)
+              ": " + _TypeFormatter.extract_type(return_type)
             else
               ""
             end
@@ -323,21 +318,19 @@ primitive HoverFormatter
 
   fun tag _format_field(
     ast: AST box,
-    keyword: String,
-    channel: Channel): (String | None)
+    keyword: String): (String | None)
   =>
     """
     Format field declarations.
     """
-    match \exhaustive\ _extract_field_info(ast, keyword, channel)
+    match \exhaustive\ _extract_field_info(ast, keyword)
     | let info: FieldInfo => format_field(info)
     | None => None
     end
 
   fun tag _extract_field_info(
     ast: AST box,
-    keyword: String,
-    channel: Channel): (FieldInfo | None)
+    keyword: String): (FieldInfo | None)
   =>
     """
     Extract field information from AST node.
@@ -351,7 +344,7 @@ primitive HoverFormatter
         let type_str =
           try
             let field_type = ast(1)?
-            ": " + _TypeFormatter.extract_type(field_type, channel)
+            ": " + _TypeFormatter.extract_type(field_type)
           else
             ""
           end
@@ -366,21 +359,19 @@ primitive HoverFormatter
 
   fun tag _format_local_var(
     ast: AST box,
-    keyword: String,
-    channel: Channel): (String | None)
+    keyword: String): (String | None)
   =>
     """
     Format local variable declarations.
     """
-    match \exhaustive\ _extract_local_var_info(ast, keyword, channel)
+    match \exhaustive\ _extract_local_var_info(ast, keyword)
     | let info: FieldInfo => format_field(info)
     | None => None
     end
 
   fun tag _extract_local_var_info(
     ast: AST box,
-    keyword: String,
-    channel: Channel): (FieldInfo | None)
+    keyword: String): (FieldInfo | None)
   =>
     """
     Extract local variable information from AST node.
@@ -395,7 +386,7 @@ primitive HoverFormatter
           try
             let var_type = ast(1)?
             if var_type.id() != TokenIds.tk_none() then
-              ": " + _TypeFormatter.extract_type(var_type, channel)
+              ": " + _TypeFormatter.extract_type(var_type)
             else
               ""
             end
@@ -411,19 +402,16 @@ primitive HoverFormatter
       None
     end
 
-  fun tag _format_param(ast: AST box, channel: Channel): (String | None) =>
+  fun tag _format_param(ast: AST box): (String | None) =>
     """
     Format parameter declarations.
     """
-    match \exhaustive\ _extract_param_info(ast, channel)
+    match \exhaustive\ _extract_param_info(ast)
     | let info: FieldInfo => format_field(info)
     | None => None
     end
 
-  fun tag _extract_param_info(
-    ast: AST box,
-    channel: Channel): (FieldInfo | None)
-  =>
+  fun tag _extract_param_info(ast: AST box): (FieldInfo | None) =>
     """
     Extract parameter information from AST node.
     """
@@ -437,7 +425,7 @@ primitive HoverFormatter
           try
             let param_type = ast(1)?
             if param_type.id() != TokenIds.tk_none() then
-              ": " + _TypeFormatter.extract_type(param_type, channel)
+              ": " + _TypeFormatter.extract_type(param_type)
             else
               ""
             end
@@ -453,7 +441,7 @@ primitive HoverFormatter
       None
     end
 
-  fun tag _format_id(ast: AST box, channel: Channel): (String | None) =>
+  fun tag _format_id(ast: AST box): (String | None) =>
     """
     Format identifier nodes - look at parent to
     get full context, or follow to definition.
@@ -466,51 +454,48 @@ primitive HoverFormatter
       | let parent: AST =>
         // Check what kind of declaration this ID belongs to
         match parent.id()
-        | TokenIds.tk_class() => _format_entity(parent, "class", channel)
-        | TokenIds.tk_actor() => _format_entity(parent, "actor", channel)
-        | TokenIds.tk_trait() => _format_entity(parent, "trait", channel)
+        | TokenIds.tk_class() => _format_entity(parent, "class")
+        | TokenIds.tk_actor() => _format_entity(parent, "actor")
+        | TokenIds.tk_trait() => _format_entity(parent, "trait")
         | TokenIds.tk_interface() =>
-          _format_entity(parent, "interface", channel)
+          _format_entity(parent, "interface")
         | TokenIds.tk_primitive() =>
-          _format_entity(parent, "primitive", channel)
-        | TokenIds.tk_type() => _format_entity(parent, "type", channel)
-        | TokenIds.tk_struct() => _format_entity(parent, "struct", channel)
-        | TokenIds.tk_fun() => _format_method(parent, "fun", channel)
-        | TokenIds.tk_be() => _format_method(parent, "be", channel)
-        | TokenIds.tk_new() => _format_method(parent, "new", channel)
-        | TokenIds.tk_flet() => _format_field(parent, "let", channel)
-        | TokenIds.tk_fvar() => _format_field(parent, "var", channel)
-        | TokenIds.tk_embed() => _format_field(parent, "embed", channel)
-        | TokenIds.tk_let() => _format_local_var(parent, "let", channel)
-        | TokenIds.tk_var() => _format_local_var(parent, "var", channel)
-        | TokenIds.tk_letref() => _format_reference(parent, channel)
-        | TokenIds.tk_varref() => _format_reference(parent, channel)
-        | TokenIds.tk_fletref() => _format_reference(parent, channel)
-        | TokenIds.tk_fvarref() => _format_reference(parent, channel)
-        | TokenIds.tk_embedref() => _format_reference(parent, channel)
-        | TokenIds.tk_paramref() => _format_reference(parent, channel)
+          _format_entity(parent, "primitive")
+        | TokenIds.tk_type() => _format_entity(parent, "type")
+        | TokenIds.tk_struct() => _format_entity(parent, "struct")
+        | TokenIds.tk_fun() => _format_method(parent, "fun")
+        | TokenIds.tk_be() => _format_method(parent, "be")
+        | TokenIds.tk_new() => _format_method(parent, "new")
+        | TokenIds.tk_flet() => _format_field(parent, "let")
+        | TokenIds.tk_fvar() => _format_field(parent, "var")
+        | TokenIds.tk_embed() => _format_field(parent, "embed")
+        | TokenIds.tk_let() => _format_local_var(parent, "let")
+        | TokenIds.tk_var() => _format_local_var(parent, "var")
+        | TokenIds.tk_letref() => _format_reference(parent)
+        | TokenIds.tk_varref() => _format_reference(parent)
+        | TokenIds.tk_fletref() => _format_reference(parent)
+        | TokenIds.tk_fvarref() => _format_reference(parent)
+        | TokenIds.tk_embedref() => _format_reference(parent)
+        | TokenIds.tk_paramref() => _format_reference(parent)
         else
           // Parent is not a declaration - try to follow to definition
-          _format_from_definition(ast, channel)
+          _format_from_definition(ast)
         end
       else
         // No parent - follow to definition
-        _format_from_definition(ast, channel)
+        _format_from_definition(ast)
       end
     else
       None
     end
 
-  fun tag _format_reference(ast: AST box, channel: Channel): (String | None) =>
+  fun tag _format_reference(ast: AST box): (String | None) =>
     """
     Format type reference nodes by following to their definition.
     """
-    _format_from_definition(ast, channel)
+    _format_from_definition(ast)
 
-  fun tag _format_from_definition(
-    ast: AST box,
-    channel: Channel): (String | None)
-  =>
+  fun tag _format_from_definition(ast: AST box): (String | None) =>
     """
     Follow an identifier or reference to its definition and format that.
     """
@@ -520,7 +505,7 @@ primitive HoverFormatter
       if defs.size() > 0 then
         // Get the first definition
         let definition = defs(0)?
-        _format_from_found_definition(definition, channel)
+        _format_from_found_definition(definition)
       else
         None
       end
@@ -528,38 +513,35 @@ primitive HoverFormatter
       None
     end
 
-  fun tag _format_from_found_definition(
-    definition: AST box,
-    channel: Channel): (String | None)
-  =>
+  fun tag _format_from_found_definition(definition: AST box): (String | None) =>
     """
     Format a definition AST node based on its type.
     """
     match definition.id()
-    | TokenIds.tk_class() => _format_entity(definition, "class", channel)
-    | TokenIds.tk_actor() => _format_entity(definition, "actor", channel)
-    | TokenIds.tk_trait() => _format_entity(definition, "trait", channel)
+    | TokenIds.tk_class() => _format_entity(definition, "class")
+    | TokenIds.tk_actor() => _format_entity(definition, "actor")
+    | TokenIds.tk_trait() => _format_entity(definition, "trait")
     | TokenIds.tk_interface() =>
-      _format_entity(definition, "interface", channel)
+      _format_entity(definition, "interface")
     | TokenIds.tk_primitive() =>
-      _format_entity(definition, "primitive", channel)
-    | TokenIds.tk_type() => _format_entity(definition, "type", channel)
-    | TokenIds.tk_struct() => _format_entity(definition, "struct", channel)
-    | TokenIds.tk_fun() => _format_method(definition, "fun", channel)
-    | TokenIds.tk_be() => _format_method(definition, "be", channel)
-    | TokenIds.tk_new() => _format_method(definition, "new", channel)
-    | TokenIds.tk_flet() => _format_field(definition, "let", channel)
-    | TokenIds.tk_fvar() => _format_field(definition, "var", channel)
-    | TokenIds.tk_embed() => _format_field(definition, "embed", channel)
-    | TokenIds.tk_let() => _format_local_var(definition, "let", channel)
-    | TokenIds.tk_var() => _format_local_var(definition, "var", channel)
-    | TokenIds.tk_param() => _format_param(definition, channel)
+      _format_entity(definition, "primitive")
+    | TokenIds.tk_type() => _format_entity(definition, "type")
+    | TokenIds.tk_struct() => _format_entity(definition, "struct")
+    | TokenIds.tk_fun() => _format_method(definition, "fun")
+    | TokenIds.tk_be() => _format_method(definition, "be")
+    | TokenIds.tk_new() => _format_method(definition, "new")
+    | TokenIds.tk_flet() => _format_field(definition, "let")
+    | TokenIds.tk_fvar() => _format_field(definition, "var")
+    | TokenIds.tk_embed() => _format_field(definition, "embed")
+    | TokenIds.tk_let() => _format_local_var(definition, "let")
+    | TokenIds.tk_var() => _format_local_var(definition, "var")
+    | TokenIds.tk_param() => _format_param(definition)
     else
       // Unknown definition type
       None
     end
 
-  fun tag _extract_params(params: AST box, channel: Channel): String =>
+  fun tag _extract_params(params: AST box): String =>
     """
     Extract parameter list from params node.
     """
@@ -573,7 +555,7 @@ primitive HoverFormatter
             let param_type =
               try
                 let ptype = param(1)?
-                ": " + _TypeFormatter.extract_type(ptype, channel)
+                ": " + _TypeFormatter.extract_type(ptype)
               else
                 ""
               end
@@ -591,4 +573,3 @@ primitive HoverFormatter
     Wrap content in a Pony code block for markdown formatting.
     """
     "```pony\n" + content + "\n```"
-
