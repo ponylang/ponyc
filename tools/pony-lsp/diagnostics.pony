@@ -118,10 +118,10 @@ primitive DiagnosticSeverities
   """
   LSP diagnostic severity constants.
   """
-  fun tag err(): I64 => 1
-  fun tag warning(): I64 => 2
-  fun tag information(): I64 => 3
-  fun tag hint(): I64 => 4
+  fun err(): I64 => 1
+  fun warning(): I64 => 2
+  fun information(): I64 => 3
+  fun hint(): I64 => 4
 
 class val DiagnosticRelatedInformation
   """

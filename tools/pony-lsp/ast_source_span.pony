@@ -34,7 +34,7 @@ primitive ASTSourceSpan
   well-formed AST nodes).
   """
 
-  fun tag apply(
+  fun apply(
     n: AST box,
     doc_path: String val,
     max_pos: (Position | None) = None)
@@ -122,7 +122,7 @@ primitive ASTSourceSpan
       None
     end
 
-  fun tag _cap_to_line_length(src: String box, pos: Position): Position =>
+  fun _cap_to_line_length(src: String box, pos: Position): Position =>
     """
     Cap pos.column() to the number of characters on that line in src.
     Guards against synthesized-node end_pos() overshoots past line end.
@@ -169,7 +169,7 @@ primitive ASTClampedRange
 
   Returns `None` when `ASTSourceSpan` returns an inverted span.
   """
-  fun tag apply(
+  fun apply(
     node: AST box,
     doc_path: String val,
     max_pos: (Position | None) = None)
