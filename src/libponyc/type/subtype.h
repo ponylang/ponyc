@@ -26,6 +26,15 @@ bool is_subtype_fun(ast_t* sub, ast_t* super, errorframe_t* errorf,
 
 bool is_eqtype(ast_t* a, ast_t* b, errorframe_t* errorf, pass_opt_t* opt);
 
+// Structural AST equality on type expressions: same kind, same definition
+// pointer for nominals/typeparamrefs, same caps and ephemerality, recursing
+// into typeargs and other compound forms. Cheaper than is_eqtype (does not
+// re-enter is_subtype) and stricter on identity (distinguishes types that
+// share a source name but live in different scopes or namespaces). Used
+// internally to recognize previously-pushed assume-stack entries; exposed
+// here for testing.
+bool is_exact_type(ast_t* a, ast_t* b);
+
 bool is_sub_provides(ast_t* type, ast_t* provides, errorframe_t* errorf,
   pass_opt_t* opt);
 
