@@ -279,8 +279,25 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6.0.2
       - name: Install Dependencies
+        # Pin mingw-w64 LLVM family to 22.1.4-1.
+        #
+        # mingw-w64-x86_64-lldb-22.1.4-2 (msys2 PKGBUILD pkgrel bump on
+        # 2026-05-03, "llvm: emutls rebuild") crashes in liblldb.dll with
+        # 0xC0000005 when wrapping Pony test executables on windows-2025.
+        # The crash reproduces across multiple unrelated branches; see
+        # ponylang/ponyc Discussion #5007.
+        #
+        # lldb, clang-libs, and llvm-libs share one PKGBUILD and must
+        # version-match. Installed via `pacman -U` from explicit URLs so
+        # subsequent mirror upgrades cannot re-introduce 22.1.4-2.
         run: |
-          function msys() { C:\msys64\usr\bin\bash.exe @('-lc') + @Args }; msys ' '; msys 'pacman --noconfirm -Syuu'; msys 'pacman --noconfirm -Syuu'; msys 'pacman --noconfirm -S --needed base-devel mingw-w64-x86_64-lldb'; msys 'pacman --noconfirm -Scc'
+          function msys() { C:\msys64\usr\bin\bash.exe @('-lc') + @Args }
+          msys ' '
+          msys 'pacman --noconfirm -Syuu'
+          msys 'pacman --noconfirm -Syuu'
+          msys 'pacman --noconfirm -S --needed base-devel'
+          msys 'pacman --noconfirm -U https://repo.msys2.org/mingw/mingw64/mingw-w64-x86_64-llvm-libs-22.1.4-1-any.pkg.tar.zst https://repo.msys2.org/mingw/mingw64/mingw-w64-x86_64-clang-libs-22.1.4-1-any.pkg.tar.zst https://repo.msys2.org/mingw/mingw64/mingw-w64-x86_64-lldb-22.1.4-1-any.pkg.tar.zst'
+          msys 'pacman --noconfirm -Scc'
           python.exe -m pip install --upgrade cloudsmith-cli
       - name: Restore Libs Cache
         id: restore-libs
