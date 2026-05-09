@@ -28,35 +28,35 @@ primitive Err
   """
   Error message type (severity 1).
   """
-  fun tag apply(): I64 => 1
+  fun apply(): I64 => 1
   fun string(): String => "ERROR"
 
 primitive Warning
   """
   Warning message type (severity 2).
   """
-  fun tag apply(): I64 => 2
+  fun apply(): I64 => 2
   fun string(): String => "WARNING"
 
 primitive Info
   """
   Info message type (severity 3).
   """
-  fun tag apply(): I64 => 3
+  fun apply(): I64 => 3
   fun string(): String => "INFO"
 
 primitive Log
   """
   Log message type (severity 4).
   """
-  fun tag apply(): I64 => 4
+  fun apply(): I64 => 4
   fun string(): String => "LOG"
 
 primitive Debug
   """
   Debug message type (severity 5).
   """
-  fun tag apply(): I64 => 5
+  fun apply(): I64 => 5
   fun string(): String => "DEBUG"
 
 type MessageType is (Err | Warning | Info | Log | Debug)

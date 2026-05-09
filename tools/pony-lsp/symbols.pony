@@ -7,38 +7,38 @@ primitive SymbolKinds
   """
   LSP document symbol kind constants.
   """
-  fun tag file(): I64 => 1
-  fun tag module(): I64 => 2
-  fun tag namespace(): I64 => 3
-  fun tag package(): I64 => 4
-  fun tag sk_class(): I64 => 5
-  fun tag method(): I64 => 6
-  fun tag property(): I64 => 7
-  fun tag field(): I64 => 8
-  fun tag constructor(): I64 => 9
-  fun tag enum(): I64 => 10
-  fun tag sk_interface(): I64 => 11
-  fun tag function(): I64 => 12
-  fun tag variable(): I64 => 13
-  fun tag constant(): I64 => 14
-  fun tag string(): I64 => 15
-  fun tag number(): I64 => 16
-  fun tag boolean(): I64 => 17
-  fun tag array(): I64 => 8
-  fun tag sk_object(): I64 => 19
-  fun tag key(): I64 => 20
-  fun tag null(): I64 => 21
-  fun tag enum_member(): I64 => 22
-  fun tag sk_struct(): I64 => 23
-  fun tag event(): I64 => 24
-  fun tag operator(): I64 => 25
-  fun tag type_parameter(): I64 => 26
+  fun file(): I64 => 1
+  fun module(): I64 => 2
+  fun namespace(): I64 => 3
+  fun package(): I64 => 4
+  fun sk_class(): I64 => 5
+  fun method(): I64 => 6
+  fun property(): I64 => 7
+  fun field(): I64 => 8
+  fun constructor(): I64 => 9
+  fun enum(): I64 => 10
+  fun sk_interface(): I64 => 11
+  fun function(): I64 => 12
+  fun variable(): I64 => 13
+  fun constant(): I64 => 14
+  fun string(): I64 => 15
+  fun number(): I64 => 16
+  fun boolean(): I64 => 17
+  fun array(): I64 => 8
+  fun sk_object(): I64 => 19
+  fun key(): I64 => 20
+  fun null(): I64 => 21
+  fun enum_member(): I64 => 22
+  fun sk_struct(): I64 => 23
+  fun event(): I64 => 24
+  fun operator(): I64 => 25
+  fun type_parameter(): I64 => 26
 
 primitive SymbolTags
   """
   LSP document symbol tag constants.
   """
-  fun tag deprecated(): I64 => 1
+  fun deprecated(): I64 => 1
 
 class DocumentSymbol
   """
@@ -123,7 +123,7 @@ primitive DocumentSymbols
   Extracts document symbols from a compiled module.
   """
 
-  fun tag from_module(
+  fun from_module(
     module: Module,
     channel: Channel): Array[DocumentSymbol] ref
   =>
@@ -190,7 +190,7 @@ primitive DocumentSymbols
     end
     symbols
 
-  fun tag find_members(
+  fun find_members(
     entity: AST,
     symbol: DocumentSymbol ref,
     channel: Channel,
@@ -325,7 +325,7 @@ primitive DocumentSymbols
       end
     end
 
-  fun tag _symbol_ranges(
+  fun _symbol_ranges(
     node: AST box,
     id: AST box,
     name: String,

@@ -110,7 +110,7 @@ primitive HoverFormatter
     _wrap_code_block(consume declaration)
 
   // ======= AST Extraction and Dispatch =======
-  fun tag create_hover(ast: AST box): (String | None) =>
+  fun create_hover(ast: AST box): (String | None) =>
     """
     Main entry point. Returns markdown string or
     None if no hover info available.
@@ -167,7 +167,7 @@ primitive HoverFormatter
       None
     end
 
-  fun tag _format_entity(
+  fun _format_entity(
     ast: AST box,
     keyword: String): (String | None)
   =>
@@ -179,7 +179,7 @@ primitive HoverFormatter
     | None => None
     end
 
-  fun tag extract_entity_info(
+  fun extract_entity_info(
     ast: AST box,
     keyword: String): (EntityInfo | None)
   =>
@@ -220,7 +220,7 @@ primitive HoverFormatter
       None
     end
 
-  fun tag _format_method(
+  fun _format_method(
     ast: AST box,
     keyword: String): (String | None)
   =>
@@ -232,7 +232,7 @@ primitive HoverFormatter
     | None => None
     end
 
-  fun tag extract_method_info(
+  fun extract_method_info(
     ast: AST box,
     keyword: String): (MethodInfo | None)
   =>
@@ -316,7 +316,7 @@ primitive HoverFormatter
       None
     end
 
-  fun tag _format_field(
+  fun _format_field(
     ast: AST box,
     keyword: String): (String | None)
   =>
@@ -328,7 +328,7 @@ primitive HoverFormatter
     | None => None
     end
 
-  fun tag _extract_field_info(
+  fun _extract_field_info(
     ast: AST box,
     keyword: String): (FieldInfo | None)
   =>
@@ -357,7 +357,7 @@ primitive HoverFormatter
       None
     end
 
-  fun tag _format_local_var(
+  fun _format_local_var(
     ast: AST box,
     keyword: String): (String | None)
   =>
@@ -369,7 +369,7 @@ primitive HoverFormatter
     | None => None
     end
 
-  fun tag _extract_local_var_info(
+  fun _extract_local_var_info(
     ast: AST box,
     keyword: String): (FieldInfo | None)
   =>
@@ -402,7 +402,7 @@ primitive HoverFormatter
       None
     end
 
-  fun tag _format_param(ast: AST box): (String | None) =>
+  fun _format_param(ast: AST box): (String | None) =>
     """
     Format parameter declarations.
     """
@@ -411,7 +411,7 @@ primitive HoverFormatter
     | None => None
     end
 
-  fun tag _extract_param_info(ast: AST box): (FieldInfo | None) =>
+  fun _extract_param_info(ast: AST box): (FieldInfo | None) =>
     """
     Extract parameter information from AST node.
     """
@@ -441,7 +441,7 @@ primitive HoverFormatter
       None
     end
 
-  fun tag _format_id(ast: AST box): (String | None) =>
+  fun _format_id(ast: AST box): (String | None) =>
     """
     Format identifier nodes - look at parent to
     get full context, or follow to definition.
@@ -489,13 +489,13 @@ primitive HoverFormatter
       None
     end
 
-  fun tag _format_reference(ast: AST box): (String | None) =>
+  fun _format_reference(ast: AST box): (String | None) =>
     """
     Format type reference nodes by following to their definition.
     """
     _format_from_definition(ast)
 
-  fun tag _format_from_definition(ast: AST box): (String | None) =>
+  fun _format_from_definition(ast: AST box): (String | None) =>
     """
     Follow an identifier or reference to its definition and format that.
     """
@@ -513,7 +513,7 @@ primitive HoverFormatter
       None
     end
 
-  fun tag _format_from_found_definition(definition: AST box): (String | None) =>
+  fun _format_from_found_definition(definition: AST box): (String | None) =>
     """
     Format a definition AST node based on its type.
     """
@@ -541,7 +541,7 @@ primitive HoverFormatter
       None
     end
 
-  fun tag _extract_params(params: AST box): String =>
+  fun _extract_params(params: AST box): String =>
     """
     Extract parameter list from params node.
     """
@@ -568,7 +568,7 @@ primitive HoverFormatter
       "()"
     end
 
-  fun tag _wrap_code_block(content: String): String =>
+  fun _wrap_code_block(content: String): String =>
     """
     Wrap content in a Pony code block for markdown formatting.
     """
