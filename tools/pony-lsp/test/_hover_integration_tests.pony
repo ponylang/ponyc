@@ -493,7 +493,7 @@ class \nodoc\ iso _HoverIntegrationGenericsTest is UnitTest
           97,
           5,
           [ "be tag process[U: Any val](data: U)"
-            "A generic behavior with its own type parameter."],
+            "A generic behaviour with its own type parameter."],
           ["): None val"])
         // primitive _GenericHelper
         _HoverChecker(

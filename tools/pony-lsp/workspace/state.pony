@@ -90,7 +90,7 @@ class PackageState
       // for each open document, update the
       // document state if we have a module for it
       for (doc_path, doc_state) in this.documents.pairs() do
-        // TODO: ensure both module and package-state paths are normalized
+        // TODO: ensure both module and package-state paths are normalised
         match \exhaustive\ result.find_module(doc_path)
         | let m: Module val => doc_state.update(run_id, m)
         | None => this._channel.log("No module found for " + doc_path)

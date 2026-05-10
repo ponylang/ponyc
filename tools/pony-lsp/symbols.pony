@@ -91,7 +91,7 @@ class DocumentSymbol
 
   fun to_json(): JsonValue =>
     """
-    Serialize this symbol to JSON.
+    Serialise this symbol to JSON.
     """
     var obj = JsonObject
       .update("name", this.name)

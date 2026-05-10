@@ -750,7 +750,7 @@ actor LanguageServer is (Notifier & RequestSender)
         "[workspace/didChangeConfiguration] No or invalid pony-lsp settings " +
         "provided.")
       // this is all we got, we still have to
-      // initialize the compiler at least once
+      // initialise the compiler at least once
       this._compiler.apply_settings(None)
     end
 
@@ -768,7 +768,7 @@ actor LanguageServer is (Notifier & RequestSender)
         this._channel.log("[workspace/configuration] No setting provided.")
       end
     // even if we have no valid settings, we still call the compiler,
-    // as it has to be initialized with apply_settings at least once
+    // as it has to be initialised with apply_settings at least once
     this._compiler.apply_settings(maybe_settings)
 
   fun handle_register_capability_response(r: ResponseMessage val) =>

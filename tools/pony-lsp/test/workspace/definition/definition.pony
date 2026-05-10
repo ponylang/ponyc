@@ -14,7 +14,7 @@ To manually test goto definition functionality:
    - `get` in the `demo` method body — navigates to the method declaration
    - `this` in the `demo` method body — navigates to the class declaration
 
-Expected goto definition behavior:
+Expected goto definition behaviour:
 - Navigate to the declaration of the symbol under the cursor
 - Return no result when the cursor is on a docstring, a keyword (`class`,
   `fun`, `new`), an operator, or any other non-symbol token

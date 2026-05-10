@@ -61,7 +61,7 @@ class \nodoc\ iso _DocHighlightFieldTest
   """
   Highlights the `count` field from its declaration site.
   Expects all 5 occurrences to be found:
-    line 21 col  6  (var count: U32 = 0 declaration — Write, has initializer)
+    line 21 col  6  (var count: U32 = 0 declaration — Write, has initialiser)
     line 24 col  4  (tick LHS — Write)
     line 24 col 12  (tick RHS — Read)
     line 27 col  4  (value() body — Read)
@@ -126,7 +126,7 @@ class \nodoc\ iso _DocHighlightLocalTest
   """
   Highlights the `result` local variable from its declaration site.
   Expects 3 occurrences:
-    line 30 col  8  (let result: U32 = count — Write, has initializer)
+    line 30 col  8  (let result: U32 = count — Write, has initialiser)
     line 31 col  4  (first use in result + result)
     line 31 col 13  (second use in result + result)
   """
@@ -311,7 +311,7 @@ class \nodoc\ iso _DocHighlightVarLocalTest is UnitTest
   """
   Highlights the `w` var local from its declaration.
   Expects 4 occurrences:
-    line 106 col  8  (var w: U32 = v — Write, has initializer)
+    line 106 col  8  (var w: U32 = v — Write, has initialiser)
     line 107 col  4  (w = w + ... LHS)
     line 107 col  8  (w = w + ... RHS)
     line 108 col  4  (w return value)
@@ -531,7 +531,7 @@ class \nodoc\ iso _DocHighlightInnerXFieldTest is UnitTest
   """
   Highlights the `x` fvar field of _Inner from its declaration.
   Expects 2 occurrences:
-    line 49 col 6  (var x: U32 = 0 — Write, has inline initializer)
+    line 49 col 6  (var x: U32 = 0 — Write, has inline initialiser)
     line 52 col 4  (x = 0 assignment in create — Write)
   """
   let _server: _LspTestServer
@@ -623,7 +623,7 @@ class \nodoc\ iso _DocHighlightDoWorkLetTest is UnitTest
   """
   Highlights the `v` let local of do_work from its declaration.
   Expects 2 occurrences:
-    line 105 col  8  (let v: U32 = n — Write, has initializer)
+    line 105 col  8  (let v: U32 = n — Write, has initialiser)
     line 106 col 17  (var w: U32 = v)
   """
   let _server: _LspTestServer
@@ -869,7 +869,7 @@ class \nodoc\ iso _DocHighlightOutOfBoundsTest is UnitTest
 
 class \nodoc\ iso _DocHighlightUninitLocalTest is UnitTest
   """
-  Highlights `acc` — a local var declared without an initializer.
+  Highlights `acc` — a local var declared without an initialiser.
   Expects 3 occurrences:
     line 148 col  8  (var acc: U32 — Write, declaration)
     line 149 col  4  (acc = 0 LHS — Write)
@@ -901,7 +901,7 @@ class \nodoc\ iso _DocHighlightTupleAssignATest is UnitTest
   """
   Highlights `ta` in a tuple destructuring assignment.
   Expects 3 occurrences:
-    line 163 col  8  (var ta: U32 = 0 — Write, has initializer)
+    line 163 col  8  (var ta: U32 = 0 — Write, has initialiser)
     line 165 col  5  ((ta, tb) = ... LHS — Write, tuple destructuring)
     line 166 col  4  (ta + tb — Read)
   """
@@ -931,7 +931,7 @@ class \nodoc\ iso _DocHighlightTupleAssignBTest is UnitTest
   """
   Highlights `tb` in a tuple destructuring assignment.
   Expects 3 occurrences:
-    line 164 col  8  (var tb: U32 = 0 — Write, has initializer)
+    line 164 col  8  (var tb: U32 = 0 — Write, has initialiser)
     line 165 col  9  ((ta, tb) = ... LHS — Write, tuple destructuring)
     line 166 col  9  (ta + tb — Read)
   """
@@ -963,7 +963,7 @@ class \nodoc\ iso _DocHighlightTupleElemRefTest is UnitTest
   The resolver follows the receiver, so this highlights all occurrences of
   `pair`. Crucially, the tk_tupleelemref itself must be kind=Read (not Text).
   Expects 2 occurrences:
-    line 175 col  8  (let pair declaration — Write, has initializer)
+    line 175 col  8  (let pair declaration — Write, has initialiser)
     line 176 col  4  (pair._1 full expression — Read, tk_tupleelemref)
   """
   let _server: _LspTestServer

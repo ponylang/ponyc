@@ -268,7 +268,7 @@ primitive DocumentHighlightKind
   `textDocument/documentHighlight` response.
 
   The spec says `kind` is optional and defaults to `Text` when omitted, so
-  clients that do not support per-kind coloring are unaffected. Clients that
+  clients that do not support per-kind colouring are unaffected. Clients that
   do support it (e.g. VS Code) colour read and write occurrences differently,
   giving the user a quick visual distinction between where a symbol is read
   and where it is written.

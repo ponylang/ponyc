@@ -421,7 +421,7 @@ class \nodoc\ iso _SigHelpMultilineArg2Test is UnitTest
 
 class \nodoc\ iso _SigHelpBeMethodTest is UnitTest
   """
-  Cursor on `"` in `"hello"` (line 88, col 12) — first arg of `greet` behavior.
+  Cursor on `"` in `"hello"` (line 88, col 12) — first arg of `greet` behaviour.
   Exercises the tk_be branch in SignatureHelp.collect.
   Expects signature for `greet` with activeParameter=0.
   """

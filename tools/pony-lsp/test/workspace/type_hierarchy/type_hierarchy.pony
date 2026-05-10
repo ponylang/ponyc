@@ -16,7 +16,7 @@ To manually test type hierarchy functionality:
 4. Open _t_hier_d.pony and place your cursor on `_THierD` to verify that
    subtypes defined in other files are found.
 
-Expected type hierarchy behavior:
+Expected type hierarchy behaviour:
 - prepareTypeHierarchy returns a single item when the cursor is on a type
   name, or null when the cursor is not on a type name
 - typeHierarchy/supertypes returns the types in the entity's provides clause,

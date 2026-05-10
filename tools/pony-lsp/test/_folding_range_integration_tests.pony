@@ -67,7 +67,7 @@ class \nodoc\ iso _FoldingRangeEntityTypesTest is UnitTest
   """
   FoldingRange for entity_types.pony. Verifies that fold ranges are produced
   for all entity types (primitive, struct, actor, trait, interface) and their
-  multi-line members, including be behaviors.
+  multi-line members, including be behaviours.
 
   Struct and actor receive explicit single-line constructors so that ponyc
   does not generate synthetic constructors, which would appear as extra ranges.
@@ -254,7 +254,7 @@ class \nodoc\ iso _FoldingRangeIfdefTest is UnitTest
 
   `ifdef` is resolved to `if` by resolve_ifdef() during the expr pass, so the
   fold range is produced by the tk_if arm, not a tk_ifdef arm. The test
-  verifies the correct user-facing behavior regardless of the internal token.
+  verifies the correct user-facing behaviour regardless of the internal token.
 
   ifdef_expressions.pony layout (0-indexed lines):
     line 0: class IfdefExpressions          → (0, 8)

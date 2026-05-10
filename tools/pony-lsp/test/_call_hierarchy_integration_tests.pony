@@ -705,7 +705,7 @@ class val _PrepareKindChecker
   """
   Prepare checker that asserts kind, name, and detail fields.
   Used when the range assertions are secondary to testing kind values
-  (e.g. constructors returning kind=9, behaviors returning kind=6).
+  (e.g. constructors returning kind=9, behaviours returning kind=6).
   """
   let _pos: (I64, I64)
   let _expected_kind: I64
