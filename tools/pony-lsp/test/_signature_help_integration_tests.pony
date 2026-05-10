@@ -438,7 +438,13 @@ class \nodoc\ iso _SigHelpBeMethodTest is UnitTest
       h,
       _server,
       "signature_help/signature_help.pony",
-      [_SigHelpChecker(88, 12, "greet", 0)])
+      [ _SigHelpChecker(
+          88,
+          12,
+          "greet",
+          0
+          where expected_full_label' =
+            "be tag greet(name: String val, count: U32 val)")])
 
 class \nodoc\ iso _SigHelpAfterOpenParenMultilineTest is UnitTest
   """

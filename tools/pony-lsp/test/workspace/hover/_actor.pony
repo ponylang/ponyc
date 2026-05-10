@@ -9,3 +9,6 @@ actor _Actor
 
   be do_something(value: U64) =>
     None
+
+  be trigger() =>
+    do_something(0)
