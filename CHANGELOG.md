@@ -10,6 +10,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Fix LSP hover showing on declaration keywords ([PR #5306](https://github.com/ponylang/ponyc/pull/5306))
 - Fix LSP hover showing on capability keywords ([PR #5307](https://github.com/ponylang/ponyc/pull/5307))
 - Fix compiler hang and crash on recursive generic types ([PR #5197](https://github.com/ponylang/ponyc/pull/5197))
+- LSP: drop behaviour return type from hover and signature help ([PR #5315](https://github.com/ponylang/ponyc/pull/5315))
 
 ### Added
 
