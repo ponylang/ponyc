@@ -46,3 +46,7 @@ The root cause was that `exact_nominal` in the structural subtype checker compar
 
 Hover popups and signature help for `be` behaviours no longer display a return type. Behaviour return types are always `None val` inserted by the compiler and cannot be written explicitly in source, so showing them was unnecessary and did not add information.
 
+## Fix LSP parameter hover to show valid Pony syntax
+
+Hovering over a method parameter in the LSP previously showed `param name: String` — a `param` keyword that does not exist in Pony. It now shows `name: String`, which is the correct representation of a parameter.
+
