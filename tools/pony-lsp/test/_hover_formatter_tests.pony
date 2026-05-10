@@ -15,6 +15,7 @@ primitive _HoverFormatterTests is TestList
     test(_HoverFormatMethodWithTypeParamsTest)
     test(_HoverFormatFieldTest)
     test(_HoverFormatFieldWithTypeTest)
+    test(_HoverFormatFieldWithDocstringTest)
     test(_HoverFormatEntityWithMultipleTypeParamsTest)
     test(_HoverFormatFieldWithGenericTypeTest)
     test(_HoverFormatMethodWithArrowTypeTest)
@@ -125,6 +126,16 @@ class \nodoc\ iso _HoverFormatFieldWithTypeTest is UnitTest
     let info = FieldInfo("var", "count", ": U32")
     let result = HoverFormatter.format_field(info)
     h.assert_eq[String]("```pony\nvar count: U32\n```", result)
+
+class \nodoc\ iso _HoverFormatFieldWithDocstringTest is UnitTest
+  fun name(): String =>
+    "hover/formatter/field_with_docstring"
+
+  fun apply(h: TestHelper) =>
+    let info = FieldInfo("let", "name", ": String", "Has a docstring.")
+    let result = HoverFormatter.format_field(info)
+    h.assert_eq[String](
+      "```pony\nlet name: String\n```\n\nHas a docstring.", result)
 
 class \nodoc\ iso _HoverFormatMethodWithTypeParamsTest is UnitTest
   fun name(): String =>
