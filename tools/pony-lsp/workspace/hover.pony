@@ -51,7 +51,7 @@ class val MethodInfo
 
 class val FieldInfo
   """
-  Information about a field declaration.
+  Information about a class field declaration (let, var, or embed).
   """
   let keyword: String
   let name: String
@@ -61,6 +61,30 @@ class val FieldInfo
     keyword = keyword'
     name = name'
     field_type = field_type'
+
+class val LocalVarInfo
+  """
+  Information about a local variable declaration (let or var in a method body).
+  """
+  let keyword: String
+  let name: String
+  let var_type: String
+
+  new val create(keyword': String, name': String, var_type': String = "") =>
+    keyword = keyword'
+    name = name'
+    var_type = var_type'
+
+class val ParamInfo
+  """
+  Information about a method parameter.
+  """
+  let name: String
+  let param_type: String
+
+  new val create(name': String, param_type': String = "") =>
+    name = name'
+    param_type = param_type'
 
 primitive HoverFormatter
   """
@@ -107,6 +131,20 @@ primitive HoverFormatter
     Format field declaration as markdown hover text.
     """
     let declaration = info.keyword + " " + info.name + info.field_type
+    _wrap_code_block(consume declaration)
+
+  fun format_local_var(info: LocalVarInfo): String =>
+    """
+    Format local variable declaration as markdown hover text.
+    """
+    let declaration = info.keyword + " " + info.name + info.var_type
+    _wrap_code_block(consume declaration)
+
+  fun format_param(info: ParamInfo): String =>
+    """
+    Format parameter declaration as markdown hover text.
+    """
+    let declaration = info.name + info.param_type
     _wrap_code_block(consume declaration)
 
   // ======= AST Extraction and Dispatch =======
@@ -351,7 +389,6 @@ primitive HoverFormatter
       if id.id() == TokenIds.tk_id() then
         let name = id.token_value() as String
 
-        // Extract type annotation
         let type_str =
           try
             let field_type = ast(1)?
@@ -373,11 +410,11 @@ primitive HoverFormatter
     Format local variable declarations.
     """
     match \exhaustive\ _extract_local_var_info(ast)
-    | let info: FieldInfo => format_field(info)
+    | let info: LocalVarInfo => format_local_var(info)
     | None => None
     end
 
-  fun _extract_local_var_info(ast: AST box): (FieldInfo | None) =>
+  fun _extract_local_var_info(ast: AST box): (LocalVarInfo | None) =>
     """
     Extract local variable information from AST node.
     """
@@ -393,7 +430,6 @@ primitive HoverFormatter
       if id.id() == TokenIds.tk_id() then
         let name = id.token_value() as String
 
-        // Extract type annotation if present
         let type_str =
           try
             let var_type = ast(1)?
@@ -406,7 +442,7 @@ primitive HoverFormatter
             ""
           end
 
-        FieldInfo(keyword, name, type_str)
+        LocalVarInfo(keyword, name, type_str)
       else
         None
       end
@@ -419,20 +455,23 @@ primitive HoverFormatter
     Format parameter declarations.
     """
     match \exhaustive\ _extract_param_info(ast)
-    | let info: FieldInfo => format_field(info)
+    | let info: ParamInfo => format_param(info)
     | None => None
     end
 
-  fun _extract_param_info(ast: AST box): (FieldInfo | None) =>
+  fun _extract_param_info(ast: AST box): (ParamInfo | None) =>
     """
     Extract parameter information from AST node.
     """
+    if ast.id() != TokenIds.tk_param() then
+      return None
+    end
+
     try
       let id = ast(0)?
       if id.id() == TokenIds.tk_id() then
         let name = id.token_value() as String
 
-        // Extract type annotation
         let type_str =
           try
             let param_type = ast(1)?
@@ -445,7 +484,7 @@ primitive HoverFormatter
             ""
           end
 
-        FieldInfo("param", name, type_str)
+        ParamInfo(name, type_str)
       else
         None
       end

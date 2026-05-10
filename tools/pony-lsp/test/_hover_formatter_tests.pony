@@ -25,6 +25,9 @@ primitive _HoverFormatterTests is TestList
     test(_HoverFormatFieldWithNestedGenericTypeTest)
     test(_HoverFormatParameterTest)
     test(_HoverFormatParameterWithTypeTest)
+    test(_HoverFormatParameterWithGenericTypeTest)
+    test(_HoverFormatLocalVarTest)
+    test(_HoverFormatLocalVarWithTypeTest)
     test(_HoverFormatMethodWithReceiverCapTest)
 
 class \nodoc\ iso _HoverFormatEntityTest
@@ -256,18 +259,44 @@ class \nodoc\ iso _HoverFormatParameterTest is UnitTest
   fun name(): String => "hover/formatter/parameter"
 
   fun apply(h: TestHelper) =>
-    let info = FieldInfo("param", "value")
-    let result = HoverFormatter.format_field(info)
-    h.assert_eq[String]("```pony\nparam value\n```", result)
+    let info = ParamInfo("value")
+    let result = HoverFormatter.format_param(info)
+    h.assert_eq[String]("```pony\nvalue\n```", result)
 
 class \nodoc\ iso _HoverFormatParameterWithTypeTest is UnitTest
   fun name(): String =>
     "hover/formatter/parameter_with_type"
 
   fun apply(h: TestHelper) =>
-    let info = FieldInfo("param", "name", ": String")
-    let result = HoverFormatter.format_field(info)
-    h.assert_eq[String]("```pony\nparam name: String\n```", result)
+    let info = ParamInfo("name", ": String")
+    let result = HoverFormatter.format_param(info)
+    h.assert_eq[String]("```pony\nname: String\n```", result)
+
+class \nodoc\ iso _HoverFormatParameterWithGenericTypeTest is UnitTest
+  fun name(): String =>
+    "hover/formatter/parameter_with_generic_type"
+
+  fun apply(h: TestHelper) =>
+    let info = ParamInfo("items", ": Array[String val] ref")
+    let result = HoverFormatter.format_param(info)
+    h.assert_eq[String]("```pony\nitems: Array[String val] ref\n```", result)
+
+class \nodoc\ iso _HoverFormatLocalVarTest is UnitTest
+  fun name(): String => "hover/formatter/local_var"
+
+  fun apply(h: TestHelper) =>
+    let info = LocalVarInfo("let", "x")
+    let result = HoverFormatter.format_local_var(info)
+    h.assert_eq[String]("```pony\nlet x\n```", result)
+
+class \nodoc\ iso _HoverFormatLocalVarWithTypeTest is UnitTest
+  fun name(): String =>
+    "hover/formatter/local_var_with_type"
+
+  fun apply(h: TestHelper) =>
+    let info = LocalVarInfo("var", "count", ": U32")
+    let result = HoverFormatter.format_local_var(info)
+    h.assert_eq[String]("```pony\nvar count: U32\n```", result)
 
 class \nodoc\ iso _HoverFormatMethodWithReceiverCapTest is UnitTest
   fun name(): String =>
