@@ -129,7 +129,17 @@ class \nodoc\ iso _HoverIntegrationActorTest is UnitTest
           6,
           ["actor _Actor"; "A simple actor for exercising LSP hover."])
         _HoverChecker(6, 6, ["new tag create(name': String val)"])
-        _HoverChecker(9, 5, ["be tag do_something(value: U64 val)"])
+        _HoverChecker(
+          9,
+          5,
+          ["be tag do_something(value: U64 val)"],
+          ["): None val"])
+        // beref call site: same signature, no return type
+        _HoverChecker(
+          13,
+          4,
+          ["be tag do_something(value: U64 val)"],
+          ["): None val"])
         // no hover on 'actor' keyword
         _HoverChecker(0, 0, [])
         _HoverChecker(0, 2, [])
@@ -476,13 +486,15 @@ class \nodoc\ iso _HoverIntegrationGenericsTest is UnitTest
         _HoverChecker(
           91,
           5,
-          [ "be tag update(new_state: T): None val"
-            "Updates the actor's state."])
+          [ "be tag update(new_state: T)"
+            "Updates the actor's state."],
+          ["): None val"])
         _HoverChecker(
           97,
           5,
-          [ "be tag process[U: Any val](data: U): None val"
-            "A generic behavior with its own type parameter."])
+          [ "be tag process[U: Any val](data: U)"
+            "A generic behavior with its own type parameter."],
+          ["): None val"])
         // primitive _GenericHelper
         _HoverChecker(
           104,
@@ -609,15 +621,18 @@ class val _HoverChecker
   let _line: I64
   let _character: I64
   let _expected: Array[String] val
+  let _not_expected: Array[String] val
 
   new val create(
     line': I64,
     character': I64,
-    expected: Array[String] val)
+    expected: Array[String] val,
+    not_expected: Array[String] val = recover val Array[String] end)
   =>
     _line = line'
     _character = character'
     _expected = expected
+    _not_expected = not_expected
 
   fun lsp_method(): String =>
     Methods.text_document().hover()
@@ -629,15 +644,12 @@ class val _HoverChecker
 
   fun check(res: ResponseMessage val, h: TestHelper): Bool =>
     var ok = true
-    if _expected.size() == 0 then
-      try
-        JsonNav(res.result)("contents")("value").as_string()?
+    try
+      let value = JsonNav(res.result)("contents")("value").as_string()?
+      if _expected.size() == 0 then
         ok = false
         h.log("Expected no hover result but got: " + res.string())
-      end
-    else
-      try
-        let value = JsonNav(res.result)("contents")("value").as_string()?
+      else
         for s in _expected.values() do
           if not h.assert_true(
             value.contains(s),
@@ -646,7 +658,17 @@ class val _HoverChecker
             ok = false
           end
         end
-      else
+      end
+      for s in _not_expected.values() do
+        if not h.assert_true(
+          not value.contains(s),
+          "Expected '" + s + "' NOT in hover, got: " + value)
+        then
+          ok = false
+        end
+      end
+    else
+      if _expected.size() > 0 then
         ok = false
         let expected_str: String val =
           recover val

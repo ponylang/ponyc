@@ -314,7 +314,7 @@ primitive SignatureHelp
       offsets.push((start, label.size()))
     end
     label = label + ")"
-    if (keyword == "fun") or (keyword == "be") then
+    if keyword == "fun" then
       try
         let rt = def(4)?
         let rt_str = _TypeFormatter.extract_type(rt)

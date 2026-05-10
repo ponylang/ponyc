@@ -283,11 +283,10 @@ primitive HoverFormatter
             "()"
           end
 
-        // Extract return type (only for fun/be, not new)
+        // Extract return type for fun only; be always returns None val
+        // (compiler-inserted, cannot be written in source)
         let return_type_str =
-          if (token_id == TokenIds.tk_fun()) or
-            (token_id == TokenIds.tk_be())
-          then
+          if token_id == TokenIds.tk_fun() then
             try
               let return_type = ast(4)?
               ": " + _TypeFormatter.extract_type(return_type)
