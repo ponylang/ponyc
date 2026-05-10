@@ -441,52 +441,55 @@ primitive HoverFormatter
       None
     end
 
+  fun _format_declaration(ast: AST box): (String | None) =>
+    """
+    Format a declaration AST node based on its type. Returns None for
+    non-declaration node types.
+    """
+    match ast.id()
+    | TokenIds.tk_class() => _format_entity(ast, "class")
+    | TokenIds.tk_actor() => _format_entity(ast, "actor")
+    | TokenIds.tk_trait() => _format_entity(ast, "trait")
+    | TokenIds.tk_interface() => _format_entity(ast, "interface")
+    | TokenIds.tk_primitive() => _format_entity(ast, "primitive")
+    | TokenIds.tk_type() => _format_entity(ast, "type")
+    | TokenIds.tk_struct() => _format_entity(ast, "struct")
+    | TokenIds.tk_fun() => _format_method(ast, "fun")
+    | TokenIds.tk_be() => _format_method(ast, "be")
+    | TokenIds.tk_new() => _format_method(ast, "new")
+    | TokenIds.tk_flet() => _format_field(ast, "let")
+    | TokenIds.tk_fvar() => _format_field(ast, "var")
+    | TokenIds.tk_embed() => _format_field(ast, "embed")
+    | TokenIds.tk_let() => _format_local_var(ast, "let")
+    | TokenIds.tk_var() => _format_local_var(ast, "var")
+    | TokenIds.tk_param() => _format_param(ast)
+    else
+      None
+    end
+
   fun _format_id(ast: AST box): (String | None) =>
     """
     Format identifier nodes - look at parent to
     get full context, or follow to definition.
     """
-    try
-      let name = ast.token_value() as String
-
-      // First, try to get the parent node to determine if this is a declaration
-      match ast.parent()
-      | let parent: AST =>
-        // Check what kind of declaration this ID belongs to
-        match parent.id()
-        | TokenIds.tk_class() => _format_entity(parent, "class")
-        | TokenIds.tk_actor() => _format_entity(parent, "actor")
-        | TokenIds.tk_trait() => _format_entity(parent, "trait")
-        | TokenIds.tk_interface() =>
-          _format_entity(parent, "interface")
-        | TokenIds.tk_primitive() =>
-          _format_entity(parent, "primitive")
-        | TokenIds.tk_type() => _format_entity(parent, "type")
-        | TokenIds.tk_struct() => _format_entity(parent, "struct")
-        | TokenIds.tk_fun() => _format_method(parent, "fun")
-        | TokenIds.tk_be() => _format_method(parent, "be")
-        | TokenIds.tk_new() => _format_method(parent, "new")
-        | TokenIds.tk_flet() => _format_field(parent, "let")
-        | TokenIds.tk_fvar() => _format_field(parent, "var")
-        | TokenIds.tk_embed() => _format_field(parent, "embed")
-        | TokenIds.tk_let() => _format_local_var(parent, "let")
-        | TokenIds.tk_var() => _format_local_var(parent, "var")
-        | TokenIds.tk_letref() => _format_reference(parent)
-        | TokenIds.tk_varref() => _format_reference(parent)
-        | TokenIds.tk_fletref() => _format_reference(parent)
-        | TokenIds.tk_fvarref() => _format_reference(parent)
-        | TokenIds.tk_embedref() => _format_reference(parent)
-        | TokenIds.tk_paramref() => _format_reference(parent)
-        else
-          // Parent is not a declaration - try to follow to definition
-          _format_from_definition(ast)
-        end
+    match ast.parent()
+    | let parent: AST =>
+      match parent.id()
+      | TokenIds.tk_letref()
+      | TokenIds.tk_varref()
+      | TokenIds.tk_fletref()
+      | TokenIds.tk_fvarref()
+      | TokenIds.tk_embedref()
+      | TokenIds.tk_paramref() =>
+        _format_reference(parent)
       else
-        // No parent - follow to definition
-        _format_from_definition(ast)
+        match \exhaustive\ _format_declaration(parent)
+        | let s: String => s
+        | None => _format_from_definition(ast)
+        end
       end
     else
-      None
+      _format_from_definition(ast)
     end
 
   fun _format_reference(ast: AST box): (String | None) =>
@@ -500,44 +503,13 @@ primitive HoverFormatter
     Follow an identifier or reference to its definition and format that.
     """
     try
-      // Use definitions() to find where this is defined
       let defs = ast.definitions()
       if defs.size() > 0 then
-        // Get the first definition
-        let definition = defs(0)?
-        _format_from_found_definition(definition)
+        _format_declaration(defs(0)?)
       else
         None
       end
     else
-      None
-    end
-
-  fun _format_from_found_definition(definition: AST box): (String | None) =>
-    """
-    Format a definition AST node based on its type.
-    """
-    match definition.id()
-    | TokenIds.tk_class() => _format_entity(definition, "class")
-    | TokenIds.tk_actor() => _format_entity(definition, "actor")
-    | TokenIds.tk_trait() => _format_entity(definition, "trait")
-    | TokenIds.tk_interface() =>
-      _format_entity(definition, "interface")
-    | TokenIds.tk_primitive() =>
-      _format_entity(definition, "primitive")
-    | TokenIds.tk_type() => _format_entity(definition, "type")
-    | TokenIds.tk_struct() => _format_entity(definition, "struct")
-    | TokenIds.tk_fun() => _format_method(definition, "fun")
-    | TokenIds.tk_be() => _format_method(definition, "be")
-    | TokenIds.tk_new() => _format_method(definition, "new")
-    | TokenIds.tk_flet() => _format_field(definition, "let")
-    | TokenIds.tk_fvar() => _format_field(definition, "var")
-    | TokenIds.tk_embed() => _format_field(definition, "embed")
-    | TokenIds.tk_let() => _format_local_var(definition, "let")
-    | TokenIds.tk_var() => _format_local_var(definition, "var")
-    | TokenIds.tk_param() => _format_param(definition)
-    else
-      // Unknown definition type
       None
     end
 

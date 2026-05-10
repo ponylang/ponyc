@@ -294,7 +294,13 @@ class \nodoc\ iso _HoverIntegrationFunctionTest is UnitTest
         _HoverChecker(27, 6, [])
         _HoverChecker(27, 8, [])
         // this reference
-        _HoverChecker(11, 18, [])])
+        _HoverChecker(11, 18, [])
+        // var local declaration and usage
+        _HoverChecker(37, 8, ["var counter: U32 val"])
+        _HoverChecker(38, 17, ["var counter: U32 val"])
+        // no hover on var declaration keyword
+        _HoverChecker(37, 4, [])
+        _HoverChecker(37, 6, [])])
 
 class \nodoc\ iso _HoverIntegrationStructTest is UnitTest
   let _server: _LspTestServer

@@ -30,3 +30,11 @@ class _Function
     A method with a ref receiver capability.
     """
     None
+
+  fun with_mutable_local(): U32 =>
+    """
+    A method with a mutable local variable.
+    """
+    var counter: U32 = 0
+    let result = counter + 1
+    result
