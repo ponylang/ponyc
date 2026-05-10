@@ -12,7 +12,7 @@ use @ponyint_pool_free_size[None](size: USize, p: Pointer[U8] tag)
 actor PonyCompiler is LspCompiler
   """
   Actor wrapping the pony_compiler `Compiler`
-  primitive to serialize compilation requests
+  primitive to serialise compilation requests
   (libponyc is not fully thread-safe).
 
   Determines the ponyc standard library location
@@ -30,7 +30,7 @@ actor PonyCompiler is LspCompiler
   var _got_settings: Bool
     """
     The compiler will only start compiling after it
-    got initialized by calling `apply_settings`.
+    got initialised by calling `apply_settings`.
     """
   var _run_id_gen: USize
 
@@ -155,10 +155,10 @@ trait tag LspCompiler
 
   be apply_settings(settings: (Settings | None))
     """
-    Provide settings to initialize or reconfigure the compiler.
+    Provide settings to initialise or reconfigure the compiler.
 
     `None` can be provided when no new settings should be applied,
-    but the initialization step should be completed.
+    but the initialisation step should be completed.
     """
 
   be compile(

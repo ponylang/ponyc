@@ -6,7 +6,7 @@ class val Diagnostic
   LSP diagnostic representing a compiler error or
   warning at a specific location.
   """
-  // only the range is serialized, but useful to keep
+  // only the range is serialised, but useful to keep
   // the actual file around for expanding related info
   let location: LspLocation
   let severity: I64

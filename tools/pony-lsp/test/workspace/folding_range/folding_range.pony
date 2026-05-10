@@ -73,7 +73,7 @@ Expected fold regions per file:
     - `ifdef debug then` (line 6) → folds through the else branch value
         (via tk_if after compiler resolution)
 
-  entity_types.pony — all entity kinds and be behaviors
+  entity_types.pony — all entity kinds and be behaviours
     - `primitive P` (line 1) → folds through `42`
     - `fun value(): U32 =>` (line 2) → folds through `42`
     - `struct S` (line 5) → folds through `x`

@@ -170,7 +170,7 @@ class ref _HighlightCollector is ASTVisitor
       let kind: I64 =
         if _is_assign_lhs(ast) then
           // LHS of any assignment — covers regular writes,
-          // local decl-with-initializer (tk_assign(tk_let/tk_var, expr)),
+          // local decl-with-initialiser (tk_assign(tk_let/tk_var, expr)),
           // and tuple destructuring LHS (tk_assign(tk_tuple(...), ...)).
           DocumentHighlightKind.write()
         else

@@ -141,7 +141,7 @@ class _LiteralExamples
 
 class _UninitLocal
   """
-  Demonstrates a local variable declared without an inline initializer.
+  Demonstrates a local variable declared without an inline initialiser.
   `acc` is declared as `var acc: U32` (no `= expr`). All declarations are
   Write kind; the `acc = 0` assignment below is also Write; the return is Read.
   """
@@ -156,7 +156,7 @@ class _TupleAssign
   LHS elements of a tuple assignment are Write kind.
 
   Place the cursor on `ta` to see both occurrences:
-    the var declaration (Write — has initializer)
+    the var declaration (Write — has initialiser)
     the LHS of the tuple assign (Write)
     the use in ta + tb (Read)
   """

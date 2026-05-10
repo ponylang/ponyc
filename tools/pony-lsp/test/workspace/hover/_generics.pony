@@ -97,8 +97,8 @@ actor _GenericActor[T: Any val]
 
   be process[U: Any val](data: U) =>
     """
-    A generic behavior with its own type parameter.
-    Demonstrates that behaviors can be generic too.
+    A generic behaviour with its own type parameter.
+    Demonstrates that behaviours can be generic too.
     """
     None
 

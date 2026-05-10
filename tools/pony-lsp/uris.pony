@@ -10,7 +10,7 @@ primitive Uris
     """
     Convert an LSP document URI to a local filesystem path by stripping the
     scheme. On Windows, also strips the leading `/` before a drive letter
-    (e.g., `/D:/path` becomes `D:/path`) and normalizes forward slashes to
+    (e.g., `/D:/path` becomes `D:/path`) and normalises forward slashes to
     the native separator.
     """
     let result = uri.split_by("://", 2)
@@ -42,7 +42,7 @@ primitive Uris
 
   fun from_path(path: String): String =>
     """
-    Convert a local filesystem path to an LSP file URI. On Windows, normalizes
+    Convert a local filesystem path to an LSP file URI. On Windows, normalises
     backslashes to forward slashes and uses the `file:///` prefix required for
     drive-letter paths.
     """
