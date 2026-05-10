@@ -50,3 +50,7 @@ Hover popups and signature help for `be` behaviours no longer display a return t
 
 Hovering over a method parameter in the LSP previously showed `param name: String` — a `param` keyword that does not exist in Pony. It now shows `name: String`, which is the correct representation of a parameter.
 
+## LSP now shows docstrings for class fields on hover
+
+Docstrings on class fields are now shown when you hover over a field in your editor, consistent with how docstrings on classes, actors, primitives, and methods are already displayed.
+
