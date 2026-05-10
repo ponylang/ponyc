@@ -24,6 +24,7 @@ primitive _HoverIntegrationTests is TestList
     test(_HoverIntegrationGenericsTest.create(server))
     test(_HoverIntegrationLiteralsTest.create(server))
     test(_HoverIntegrationCapKeywordTest.create(server))
+    test(_HoverIntegrationFieldDocstringTest.create(server))
 
 class \nodoc\ iso _HoverIntegrationLiteralsTest is UnitTest
   let _server: _LspTestServer
@@ -616,6 +617,32 @@ class \nodoc\ iso _HoverIntegrationCapKeywordTest is UnitTest
         _HoverChecker(25, 10, ["fun iso iso_method(): None"])
         _HoverChecker(28, 10, ["fun trn trn_method(): None"])
         _HoverChecker(31, 10, ["fun tag tag_method(): None"])])
+
+class \nodoc\ iso _HoverIntegrationFieldDocstringTest is UnitTest
+  let _server: _LspTestServer
+
+  new iso create(server: _LspTestServer) =>
+    _server = server
+
+  fun name(): String => "hover/integration/field_docstring"
+
+  fun apply(h: TestHelper) =>
+    _RunLspChecks(
+      h,
+      _server,
+      "hover/_field_docstring.pony",
+      [ // declaration site: let field with docstring
+        _HoverChecker(
+          1,
+          6,
+          ["let documented_field: String val"; "Has a docstring."])
+        // declaration site: var field with default value and docstring
+        _HoverChecker(5, 6, ["var counter: U32 val"; "Has a default value."])
+        // usage site: docstring shown at reference
+        _HoverChecker(
+          11,
+          4,
+          ["let documented_field: String val"; "Has a docstring."])])
 
 class val _HoverChecker
   let _line: I64

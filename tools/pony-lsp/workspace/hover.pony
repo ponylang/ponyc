@@ -56,11 +56,18 @@ class val FieldInfo
   let keyword: String
   let name: String
   let field_type: String
+  let docstring: String
 
-  new val create(keyword': String, name': String, field_type': String = "") =>
+  new val create(
+    keyword': String,
+    name': String,
+    field_type': String = "",
+    docstring': String = "")
+  =>
     keyword = keyword'
     name = name'
     field_type = field_type'
+    docstring = docstring'
 
 class val LocalVarInfo
   """
@@ -131,7 +138,12 @@ primitive HoverFormatter
     Format field declaration as markdown hover text.
     """
     let declaration = info.keyword + " " + info.name + info.field_type
-    _wrap_code_block(consume declaration)
+    let code_block = _wrap_code_block(consume declaration)
+    if info.docstring.size() > 0 then
+      code_block + "\n\n" + info.docstring
+    else
+      code_block
+    end
 
   fun format_local_var(info: LocalVarInfo): String =>
     """
@@ -397,7 +409,19 @@ primitive HoverFormatter
             ""
           end
 
-        FieldInfo(keyword, name, type_str)
+        let docstring: String =
+          try
+            let doc_node = ast(3)?
+            if doc_node.id() == TokenIds.tk_string() then
+              doc_node.token_value() as String
+            else
+              ""
+            end
+          else
+            ""
+          end
+
+        FieldInfo(keyword, name, type_str, docstring)
       else
         None
       end
