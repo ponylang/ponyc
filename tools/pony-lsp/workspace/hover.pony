@@ -117,9 +117,9 @@ primitive HoverFormatter
     """
     match ast.id()
     // Method types
-    | TokenIds.tk_fun() => _format_method(ast, "fun")
-    | TokenIds.tk_be() => _format_method(ast, "be")
-    | TokenIds.tk_new() => _format_method(ast, "new")
+    | TokenIds.tk_fun() => _format_method(ast)
+    | TokenIds.tk_be() => _format_method(ast)
+    | TokenIds.tk_new() => _format_method(ast)
 
     // Field types
     | TokenIds.tk_flet() => _format_field(ast, "let")
@@ -221,24 +221,30 @@ primitive HoverFormatter
     end
 
   fun _format_method(
-    ast: AST box,
-    keyword: String): (String | None)
+    ast: AST box): (String | None)
   =>
     """
     Format method declarations.
     """
-    match \exhaustive\ extract_method_info(ast, keyword)
+    match \exhaustive\ extract_method_info(ast)
     | let info: MethodInfo => format_method(info)
     | None => None
     end
 
   fun extract_method_info(
-    ast: AST box,
-    keyword: String): (MethodInfo | None)
+    ast: AST box): (MethodInfo | None)
   =>
     """
     Extract method information from AST node.
     """
+    let token_id = ast.id()
+    let keyword: String val =
+      if token_id == TokenIds.tk_fun() then "fun"
+      elseif token_id == TokenIds.tk_be() then "be"
+      elseif token_id == TokenIds.tk_new() then "new"
+      else return None
+      end
+
     try
       // Extract receiver capability from child(0)
       let receiver_cap =
@@ -277,7 +283,9 @@ primitive HoverFormatter
 
         // Extract return type (only for fun/be, not new)
         let return_type_str =
-          if (keyword == "fun") or (keyword == "be") then
+          if (token_id == TokenIds.tk_fun()) or
+            (token_id == TokenIds.tk_be())
+          then
             try
               let return_type = ast(4)?
               ": " + _TypeFormatter.extract_type(return_type)
@@ -454,9 +462,9 @@ primitive HoverFormatter
     | TokenIds.tk_primitive() => _format_entity(ast, "primitive")
     | TokenIds.tk_type() => _format_entity(ast, "type")
     | TokenIds.tk_struct() => _format_entity(ast, "struct")
-    | TokenIds.tk_fun() => _format_method(ast, "fun")
-    | TokenIds.tk_be() => _format_method(ast, "be")
-    | TokenIds.tk_new() => _format_method(ast, "new")
+    | TokenIds.tk_fun() => _format_method(ast)
+    | TokenIds.tk_be() => _format_method(ast)
+    | TokenIds.tk_new() => _format_method(ast)
     | TokenIds.tk_flet() => _format_field(ast, "let")
     | TokenIds.tk_fvar() => _format_field(ast, "var")
     | TokenIds.tk_embed() => _format_field(ast, "embed")
