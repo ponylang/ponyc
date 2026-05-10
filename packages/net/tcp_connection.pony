@@ -450,7 +450,8 @@ actor TCPConnection is AsioEventNotify
   be writev(data: ByteSeqIter) =>
     """
     Write a sequence of sequences of bytes. Data will be silently discarded if
-    the connection has not yet been established though.
+    the connection has not yet been established though. On an error, close
+    the connection.
     """
     if _connected and not _closed then
       _in_sent = true
@@ -483,6 +484,9 @@ actor TCPConnection is AsioEventNotify
           else
             _pending_sent = _pending_sent + len
           end
+        else
+          // Non-graceful shutdown on error.
+          hard_close()
         end
       else
         for bytes in _notify.sentv(this, data).values() do
@@ -728,6 +732,9 @@ actor TCPConnection is AsioEventNotify
           else
             _pending_sent = _pending_sent + len
           end
+        else
+          // Non-graceful shutdown on error.
+          hard_close()
         end
       else
         _pending_writev_posix .> push((data.cpointer(), data.size()))
@@ -739,7 +746,7 @@ actor TCPConnection is AsioEventNotify
   fun ref _complete_writes(len: U32) =>
     """
     The OS has informed us that `len` bytes of pending writes have completed.
-    This occurs only with IOCP on Windows.
+    This occurs only with IOCP on Windows. On an error, close the connection.
     """
     ifdef windows then
       if len == 0 then
@@ -751,6 +758,10 @@ actor TCPConnection is AsioEventNotify
       try
         _manage_pending_buffer(len.usize(),
           _pending_writev_total, _pending_writev_windows.size())?
+      else
+        // Non-graceful shutdown on error.
+        hard_close()
+        return
       end
 
       if _pending_sent < 16 then
