@@ -170,12 +170,12 @@ primitive HoverFormatter
     """
     Format entity declarations.
     """
-    match \exhaustive\ extract_entity_info(ast)
+    match \exhaustive\ _extract_entity_info(ast)
     | let info: EntityInfo => format_entity(info)
     | None => None
     end
 
-  fun extract_entity_info(ast: AST box): (EntityInfo | None) =>
+  fun _extract_entity_info(ast: AST box): (EntityInfo | None) =>
     """
     Extract entity information from AST node.
     """
@@ -229,12 +229,12 @@ primitive HoverFormatter
     """
     Format method declarations.
     """
-    match \exhaustive\ extract_method_info(ast)
+    match \exhaustive\ _extract_method_info(ast)
     | let info: MethodInfo => format_method(info)
     | None => None
     end
 
-  fun extract_method_info(ast: AST box): (MethodInfo | None) =>
+  fun _extract_method_info(ast: AST box): (MethodInfo | None) =>
     """
     Extract method information from AST node.
     """
