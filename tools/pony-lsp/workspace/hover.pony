@@ -117,43 +117,43 @@ primitive HoverFormatter
     """
     match ast.id()
     // Method types
-    | TokenIds.tk_fun() => _format_method(ast)
-    | TokenIds.tk_be() => _format_method(ast)
+    | TokenIds.tk_fun()
+    | TokenIds.tk_be()
     | TokenIds.tk_new() => _format_method(ast)
 
     // Field types
-    | TokenIds.tk_flet() => _format_field(ast, "let")
-    | TokenIds.tk_fvar() => _format_field(ast, "var")
-    | TokenIds.tk_embed() => _format_field(ast, "embed")
+    | TokenIds.tk_flet()
+    | TokenIds.tk_fvar()
+    | TokenIds.tk_embed() => _format_field(ast)
 
     // Local variable declarations
-    | TokenIds.tk_let() => _format_local_var(ast, "let")
-    | TokenIds.tk_var() => _format_local_var(ast, "var")
+    | TokenIds.tk_let()
+    | TokenIds.tk_var() => _format_local_var(ast)
 
     // Parameter declarations
     | TokenIds.tk_param() => _format_param(ast)
 
     // Type references - follow to definition
-    | TokenIds.tk_reference() => _format_reference(ast)
-    | TokenIds.tk_typeref() => _format_reference(ast)
-    | TokenIds.tk_typealiasref() => _format_reference(ast)
+    | TokenIds.tk_reference()
+    | TokenIds.tk_typeref()
+    | TokenIds.tk_typealiasref()
     | TokenIds.tk_nominal() => _format_reference(ast)
 
     // Function/method/constructor calls
-    | TokenIds.tk_funref() => _format_reference(ast)
-    | TokenIds.tk_beref() => _format_reference(ast)
-    | TokenIds.tk_newref() => _format_reference(ast)
-    | TokenIds.tk_newberef() => _format_reference(ast)
-    | TokenIds.tk_funchain() => _format_reference(ast)
+    | TokenIds.tk_funref()
+    | TokenIds.tk_beref()
+    | TokenIds.tk_newref()
+    | TokenIds.tk_newberef()
+    | TokenIds.tk_funchain()
     | TokenIds.tk_bechain() => _format_reference(ast)
 
     // Field references
-    | TokenIds.tk_fletref() => _format_reference(ast)
-    | TokenIds.tk_fvarref() => _format_reference(ast)
+    | TokenIds.tk_fletref()
+    | TokenIds.tk_fvarref()
     | TokenIds.tk_embedref() => _format_reference(ast)
 
     // Local variable references
-    | TokenIds.tk_letref() => _format_reference(ast)
+    | TokenIds.tk_letref()
     | TokenIds.tk_varref() => _format_reference(ast)
 
     // Parameter references
@@ -163,29 +163,34 @@ primitive HoverFormatter
     | TokenIds.tk_id() => _format_id(ast)
 
     else
-      // For other node types, return None
       None
     end
 
-  fun _format_entity(
-    ast: AST box,
-    keyword: String): (String | None)
-  =>
+  fun _format_entity(ast: AST box): (String | None) =>
     """
     Format entity declarations.
     """
-    match \exhaustive\ extract_entity_info(ast, keyword)
+    match \exhaustive\ extract_entity_info(ast)
     | let info: EntityInfo => format_entity(info)
     | None => None
     end
 
-  fun extract_entity_info(
-    ast: AST box,
-    keyword: String): (EntityInfo | None)
-  =>
+  fun extract_entity_info(ast: AST box): (EntityInfo | None) =>
     """
     Extract entity information from AST node.
     """
+    let keyword: String val =
+      match ast.id()
+      | TokenIds.tk_class() => "class"
+      | TokenIds.tk_actor() => "actor"
+      | TokenIds.tk_trait() => "trait"
+      | TokenIds.tk_interface() => "interface"
+      | TokenIds.tk_primitive() => "primitive"
+      | TokenIds.tk_type() => "type"
+      | TokenIds.tk_struct() => "struct"
+      else return None
+      end
+
     try
       let id = ast(0)?
       if id.id() == TokenIds.tk_id() then
@@ -220,9 +225,7 @@ primitive HoverFormatter
       None
     end
 
-  fun _format_method(
-    ast: AST box): (String | None)
-  =>
+  fun _format_method(ast: AST box): (String | None) =>
     """
     Format method declarations.
     """
@@ -231,17 +234,16 @@ primitive HoverFormatter
     | None => None
     end
 
-  fun extract_method_info(
-    ast: AST box): (MethodInfo | None)
-  =>
+  fun extract_method_info(ast: AST box): (MethodInfo | None) =>
     """
     Extract method information from AST node.
     """
     let token_id = ast.id()
     let keyword: String val =
-      if token_id == TokenIds.tk_fun() then "fun"
-      elseif token_id == TokenIds.tk_be() then "be"
-      elseif token_id == TokenIds.tk_new() then "new"
+      match token_id
+      | TokenIds.tk_fun() => "fun"
+      | TokenIds.tk_be() => "be"
+      | TokenIds.tk_new() => "new"
       else return None
       end
 
@@ -324,25 +326,27 @@ primitive HoverFormatter
       None
     end
 
-  fun _format_field(
-    ast: AST box,
-    keyword: String): (String | None)
-  =>
+  fun _format_field(ast: AST box): (String | None) =>
     """
     Format field declarations.
     """
-    match \exhaustive\ _extract_field_info(ast, keyword)
+    match \exhaustive\ _extract_field_info(ast)
     | let info: FieldInfo => format_field(info)
     | None => None
     end
 
-  fun _extract_field_info(
-    ast: AST box,
-    keyword: String): (FieldInfo | None)
-  =>
+  fun _extract_field_info(ast: AST box): (FieldInfo | None) =>
     """
     Extract field information from AST node.
     """
+    let keyword: String val =
+      match ast.id()
+      | TokenIds.tk_flet() => "let"
+      | TokenIds.tk_fvar() => "var"
+      | TokenIds.tk_embed() => "embed"
+      else return None
+      end
+
     try
       let id = ast(0)?
       if id.id() == TokenIds.tk_id() then
@@ -365,25 +369,26 @@ primitive HoverFormatter
       None
     end
 
-  fun _format_local_var(
-    ast: AST box,
-    keyword: String): (String | None)
-  =>
+  fun _format_local_var(ast: AST box): (String | None) =>
     """
     Format local variable declarations.
     """
-    match \exhaustive\ _extract_local_var_info(ast, keyword)
+    match \exhaustive\ _extract_local_var_info(ast)
     | let info: FieldInfo => format_field(info)
     | None => None
     end
 
-  fun _extract_local_var_info(
-    ast: AST box,
-    keyword: String): (FieldInfo | None)
-  =>
+  fun _extract_local_var_info(ast: AST box): (FieldInfo | None) =>
     """
     Extract local variable information from AST node.
     """
+    let keyword: String val =
+      match ast.id()
+      | TokenIds.tk_let() => "let"
+      | TokenIds.tk_var() => "var"
+      else return None
+      end
+
     try
       let id = ast(0)?
       if id.id() == TokenIds.tk_id() then
@@ -455,21 +460,25 @@ primitive HoverFormatter
     non-declaration node types.
     """
     match ast.id()
-    | TokenIds.tk_class() => _format_entity(ast, "class")
-    | TokenIds.tk_actor() => _format_entity(ast, "actor")
-    | TokenIds.tk_trait() => _format_entity(ast, "trait")
-    | TokenIds.tk_interface() => _format_entity(ast, "interface")
-    | TokenIds.tk_primitive() => _format_entity(ast, "primitive")
-    | TokenIds.tk_type() => _format_entity(ast, "type")
-    | TokenIds.tk_struct() => _format_entity(ast, "struct")
-    | TokenIds.tk_fun() => _format_method(ast)
-    | TokenIds.tk_be() => _format_method(ast)
+    | TokenIds.tk_class()
+    | TokenIds.tk_actor()
+    | TokenIds.tk_trait()
+    | TokenIds.tk_interface()
+    | TokenIds.tk_primitive()
+    | TokenIds.tk_type()
+    | TokenIds.tk_struct() => _format_entity(ast)
+
+    | TokenIds.tk_fun()
+    | TokenIds.tk_be()
     | TokenIds.tk_new() => _format_method(ast)
-    | TokenIds.tk_flet() => _format_field(ast, "let")
-    | TokenIds.tk_fvar() => _format_field(ast, "var")
-    | TokenIds.tk_embed() => _format_field(ast, "embed")
-    | TokenIds.tk_let() => _format_local_var(ast, "let")
-    | TokenIds.tk_var() => _format_local_var(ast, "var")
+
+    | TokenIds.tk_flet()
+    | TokenIds.tk_fvar()
+    | TokenIds.tk_embed() => _format_field(ast)
+
+    | TokenIds.tk_let()
+    | TokenIds.tk_var() => _format_local_var(ast)
+
     | TokenIds.tk_param() => _format_param(ast)
     else
       None
