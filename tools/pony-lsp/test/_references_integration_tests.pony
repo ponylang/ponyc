@@ -26,6 +26,7 @@ primitive _ReferencesIntegrationTests is TestList
     test(_RefsGenericTypeparamRefIncludedTest.create(server))
     test(_RefsGenericTypeparamRefExcludedTest.create(server))
     test(_RefsGenericActorBeIncludedTest.create(server))
+    test(_RefsCrossPackageTest.create(server))
 
 class \nodoc\ iso _RefsCountDeclIncludedTest is UnitTest
   """
@@ -477,6 +478,49 @@ class \nodoc\ iso _RefsGenericActorBeIncludedTest is UnitTest
           19,
           [ ("generic_actor.pony", 0, 19, 0, 20)
             ("generic_actor.pony", 8, 12, 8, 13)],
+          true)])
+
+class \nodoc\ iso _RefsCrossPackageTest is UnitTest
+  """
+  Find references to `RefBase` from its type-annotation usage in
+  `ref_base_user.pony` (line 7, col 18), with includeDeclaration = true.
+  Expects 2 locations across two different packages:
+    ref_base.pony      (4, 6)-(4, 13)   class declaration (ref_base/ package)
+    ref_base_user.pony (7, 18)-(7, 25)  type annotation   (references/ package)
+
+  `ref_base_user.pony` uses "ref_base", so ponyc compiles both packages in
+  one run. WorkspaceWalk must traverse both packages to find both locations.
+
+  ref_base.pony layout (0-indexed):
+    lines 0-2:  package docstring
+    line 4:     class RefBase                        RefBase at (4,6)-(4,13)
+    lines 5-7:  class docstring
+    line 8:     fun value(): U32 => 42
+  ref_base_user.pony layout (0-indexed):
+    line 0:     use "ref_base"
+    line 2:     class RefBaseUser
+    lines 3-6:  class docstring
+    line 7:     fun use_it(obj: RefBase): U32 =>    RefBase at (7,18)-(7,25)
+    line 8:       obj.value()
+  """
+  let _server: _LspTestServer
+
+  new iso create(server: _LspTestServer) =>
+    _server = server
+
+  fun name(): String =>
+    "references/integration/cross_package"
+
+  fun apply(h: TestHelper) =>
+    _RunLspChecks(
+      h,
+      _server,
+      "references/ref_base_user.pony",
+      [ _RefsChecker(
+          7,
+          18,
+          [ ("ref_base.pony", 4, 6, 4, 13)
+            ("ref_base_user.pony", 7, 18, 7, 25)],
           true)])
 
 class val _RefsChecker
