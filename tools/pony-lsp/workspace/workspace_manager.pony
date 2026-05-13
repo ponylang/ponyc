@@ -440,7 +440,7 @@ actor WorkspaceManager
     """
     // Parse position from request params
     (let line, let column) =
-      match \exhaustive\ _parse_hover_position(request)
+      match \exhaustive\ _parse_position(request)
       | (let l: I64, let c: I64) => (l, c)
       | None => return // Error already sent
       end
@@ -519,11 +519,11 @@ actor WorkspaceManager
     // Send null response on failure
     this._channel.send(ResponseMessage.create(request.id, None))
 
-  fun ref _parse_hover_position(
+  fun ref _parse_position(
     request: RequestMessage val
   ): ((I64, I64) | None) =>
     """
-    Extract line and column from hover request params.
+    Extract line and column from request params.
     Sends error response and returns None if invalid.
     """
     try
@@ -656,7 +656,7 @@ actor WorkspaceManager
     """
     this._channel.log("Handling textDocument/documentHighlight")
     (let line, let column) =
-      match \exhaustive\ _parse_hover_position(request)
+      match \exhaustive\ _parse_position(request)
       | (let l: I64, let c: I64) => (l, c)
       | None => return
       end
@@ -683,7 +683,7 @@ actor WorkspaceManager
     """
     this._channel.log("Handling textDocument/references")
     (let line, let column) =
-      match \exhaustive\ _parse_hover_position(request)
+      match \exhaustive\ _parse_position(request)
       | (let l: I64, let c: I64) => (l, c)
       | None => return
       end
@@ -718,7 +718,7 @@ actor WorkspaceManager
     """
     this._channel.log("Handling textDocument/prepareRename")
     (let line, let column) =
-      match \exhaustive\ _parse_hover_position(request)
+      match \exhaustive\ _parse_position(request)
       | (let l: I64, let c: I64) => (l, c)
       | None => return
       end
@@ -776,7 +776,7 @@ actor WorkspaceManager
     """
     this._channel.log("Handling textDocument/rename")
     (let line, let column) =
-      match \exhaustive\ _parse_hover_position(request)
+      match \exhaustive\ _parse_position(request)
       | (let l: I64, let c: I64) => (l, c)
       | None => return
       end
@@ -830,7 +830,7 @@ actor WorkspaceManager
     """
     this._channel.log("handling " + request.method)
     (let line, let column) =
-      match \exhaustive\ _parse_hover_position(request)
+      match \exhaustive\ _parse_position(request)
       | (let l: I64, let c: I64) => (l, c)
       | None => return
       end
@@ -864,7 +864,7 @@ actor WorkspaceManager
     """
     this._channel.log("handling textDocument/typeDefinition")
     (let line, let column) =
-      match \exhaustive\ _parse_hover_position(request)
+      match \exhaustive\ _parse_position(request)
       | (let l: I64, let c: I64) => (l, c)
       | None => return
       end
@@ -1194,7 +1194,7 @@ actor WorkspaceManager
     """
     this._channel.log("Handling textDocument/signatureHelp")
     (let line, let column) =
-      match \exhaustive\ _parse_hover_position(request)
+      match \exhaustive\ _parse_position(request)
       | (let l: I64, let c: I64) => (l, c)
       | None => return
       end
@@ -1237,7 +1237,7 @@ actor WorkspaceManager
     """
     this._channel.log("Handling textDocument/prepareCallHierarchy")
     (let line, let column) =
-      match \exhaustive\ _parse_hover_position(request)
+      match \exhaustive\ _parse_position(request)
       | (let l: I64, let c: I64) => (l, c)
       | None => return
       end
@@ -1304,7 +1304,7 @@ actor WorkspaceManager
     """
     this._channel.log("Handling textDocument/prepareTypeHierarchy")
     (let line, let column) =
-      match \exhaustive\ _parse_hover_position(request)
+      match \exhaustive\ _parse_position(request)
       | (let l: I64, let c: I64) => (l, c)
       | None => return
       end
