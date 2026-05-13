@@ -42,14 +42,7 @@ primitive CallHierarchy
     match \exhaustive\ _method_for_node(node)
     | let target: AST val =>
       let collector = _IncomingCallCollector(target)
-      for pkg_state in packages.values() do
-        match pkg_state.package()
-        | let pkg: Package =>
-          for module in pkg.modules() do
-            module.ast.visit(collector)
-          end
-        end
-      end
+      _WorkspaceWalk(packages, collector)
       collector.result()
     | None => None
     end

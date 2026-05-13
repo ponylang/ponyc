@@ -44,14 +44,7 @@ primitive TypeHierarchy
     match \exhaustive\ _entity_for_node(node)
     | let entity: AST val =>
       let collector = _SubtypeCollector(entity)
-      for pkg_state in packages.values() do
-        match pkg_state.package()
-        | let pkg: Package =>
-          for module in pkg.modules() do
-            module.ast.visit(collector)
-          end
-        end
-      end
+      _WorkspaceWalk(packages, collector)
       collector.result()
     | None => None
     end
