@@ -1,10 +1,6 @@
 use @memcmp[I32](dst: Pointer[None] tag, src: Pointer[None] tag, len: USize)
 use @memset[Pointer[None]](dst: Pointer[None], set: U32, len: USize)
 use @memmove[Pointer[None]](dst: Pointer[None], src: Pointer[None], len: USize)
-use @strtof[F32](nptr: Pointer[U8] tag, endptr: Pointer[Pointer[U8] box] ref)
-use @strtod[F64](nptr: Pointer[U8] tag, endptr: Pointer[Pointer[U8] box] ref)
-use @pony_os_clear_errno[None]()
-use @pony_os_errno[I32]()
 
 class val String is (Seq[U8] & Comparable[String box] & Stringable)
   """
@@ -1606,20 +1602,8 @@ actor Main
     ```
     """
     let index = offset_to_index(offset)
-    if index < _size then
-      let ptr = this.cstring()
-      var endp: Pointer[U8] box = Pointer[U8]
-      @pony_os_clear_errno()
-      let res = @strtof(ptr.offset(index), addressof endp)
-      let errno: I32 = @pony_os_errno()
-      if (errno != 0) or (endp != ptr.offset(_size)) then
-        error
-      else
-        res
-      end
-    else
-      error
-    end
+    if index >= _size then error end
+    _StringToF32.parse(_ptr, index, _size)?
 
   fun f64(offset: ISize = 0): F64 ? =>
     """
@@ -1640,20 +1624,8 @@ actor Main
     ```
     """
     let index = offset_to_index(offset)
-    if index < _size then
-      let ptr = this.cstring()
-      var endp: Pointer[U8] box = Pointer[U8]
-      @pony_os_clear_errno()
-      let res = @strtod(ptr.offset(index), addressof endp)
-      let errno: I32 = @pony_os_errno()
-      if (errno != 0) or (endp != ptr.offset(_size)) then
-        error
-      else
-        res
-      end
-    else
-      error
-    end
+    if index >= _size then error end
+    _StringToF64.parse(_ptr, index, _size)?
 
   fun hash(): USize =>
     @ponyint_hash_block(_ptr, _size)
