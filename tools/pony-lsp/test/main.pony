@@ -20,6 +20,7 @@ actor Main is TestList
     test(_WorkspaceConfigurationTest)
     test(_DidChangeConfigurationTest)
     test(_DidChangeConfigurationNullTest)
+    test(_PrepareMissingURITest)
     _WorkspaceTests.make().tests(test)
     _InlayHintSourceTests.make().tests(test)
     _HoverFormatterTests.make().tests(test)
@@ -304,3 +305,66 @@ class \nodoc\ iso _DidChangeConfigurationNullTest is UnitTest
           supports_configuration = true
       )
     )
+
+class \nodoc\ iso _PrepareMissingURITest is UnitTest
+  """
+  _route_prepare must send invalid_params (not internal_error) when
+  textDocument.uri is absent from the request params. This is the
+  documented contract that distinguishes _route_prepare from _route_doc.
+  """
+  fun name(): String =>
+    "routing/prepare_missing_uri"
+
+  fun apply(h: TestHelper) =>
+    h.long_test(10_000_000_000)
+
+    let harness =
+      TestHarness.create(
+        h,
+        TestCompiler(h),
+        object iso is MessageHandler
+          var _seen: USize = 0
+
+          fun ref handle_response(
+            h: TestHelper,
+            res: ResponseMessage val,
+            server: BaseProtocol)
+          =>
+            _seen = _seen + 1
+            if _seen == 1 then
+              // Initialize response received — put the server into
+              // the Initialized state, then send prepareCallHierarchy
+              // with no textDocument key to exercise the missing-URI
+              // branch of _route_prepare.
+              server(LspMsg.initialized())
+              server(
+                RequestMessage(
+                  I64(200),
+                  Methods.text_document().prepare_call_hierarchy(),
+                  JsonObject.update(
+                    "position",
+                    JsonObject
+                      .update("line", I64(0))
+                      .update("character", I64(0))))
+                .into_bytes())
+            elseif _seen == 2 then
+              match \exhaustive\ res.err
+              | let e: ResponseError val =>
+                h.assert_eq[I64](
+                  ErrorCodes.invalid_params(),
+                  e.code,
+                  "expected invalid_params, got " + e.code.string())
+              | None =>
+                h.fail(
+                  "expected invalid_params error, got success response")
+              end
+              h.complete(true)
+            end
+        end,
+        {(h: TestHelper, harness: TestHarness ref): Bool => true }
+        where
+          after_sends = USize.max_value(),
+          after_logs = USize.max_value()
+      )
+    let workspace_dir = Path.join(Path.dir(__loc.file()), "workspace")
+    harness.send_to_server(LspMsg.initialize(workspace_dir))

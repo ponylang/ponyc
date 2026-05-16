@@ -70,7 +70,119 @@ actor LanguageServer is (Notifier & RequestSender)
   be handle_parse_error(err: ParseError val) =>
     this._channel.log("Parse Error: " + err.string(), Warning)
 
+  fun ref _send_no_workspace(r: RequestMessage val) =>
+    """
+    Send an internal error response indicating no workspace was found,
+    embedding the full raw request JSON as context.
+    """
+    this._channel.send(
+      ResponseMessage.create(
+        r.id,
+        None,
+        ResponseError(
+          ErrorCodes.internal_error(),
+          "[" + r.method + "] No workspace found for '" +
+          r.json().string() + "'")))
+
+  fun ref _send_no_workspace_for(r: RequestMessage val, uri: String val) =>
+    """
+    Send an internal error response indicating no workspace was found
+    for the given document URI.
+    """
+    this._channel.send(
+      ResponseMessage.create(
+        r.id,
+        None,
+        ResponseError(
+          ErrorCodes.internal_error(),
+          "[" + r.method + "] No workspace found for '" + uri + "'")))
+
+  fun ref _send_invalid_params(r: RequestMessage val, detail: String val) =>
+    """
+    Send an invalid params error response with the given detail message.
+    """
+    this._channel.send(
+      ResponseMessage.create(
+        r.id,
+        None,
+        ResponseError(ErrorCodes.invalid_params(), detail)))
+
+  fun ref _route_doc(
+    r: RequestMessage val,
+    dispatch: {(WorkspaceManager, String val, RequestMessage val)} val)
+  =>
+    """
+    Extract the textDocument URI from the request params, resolve its
+    workspace, then call dispatch. Sends an internal error response if
+    the URI is absent or has no matching workspace.
+    """
+    try
+      let document_uri = _get_document_uri(r.params)?
+      dispatch(
+        _router.find_workspace(document_uri) as WorkspaceManager,
+        document_uri,
+        r)
+    else
+      _send_no_workspace(r)
+    end
+
+  fun ref _route_prepare(
+    r: RequestMessage val,
+    dispatch: {(WorkspaceManager, String val, RequestMessage val)} val)
+  =>
+    """
+    Like _route_doc, but sends an invalid params response if the
+    textDocument URI is absent rather than folding that into the
+    workspace-not-found error. Used for two-stage requests (prepare
+    call/type hierarchy) where a missing URI is a client error, not a
+    routing failure.
+    """
+    let document_uri =
+      try
+        _get_document_uri(r.params)?
+      else
+        _send_invalid_params(r, "[" + r.method + "] missing textDocument.uri")
+        return
+      end
+    try
+      dispatch(
+        _router.find_workspace(document_uri) as WorkspaceManager,
+        document_uri,
+        r)
+    else
+      _send_no_workspace_for(r, document_uri)
+    end
+
+  fun ref _route_item(
+    r: RequestMessage val,
+    dispatch: {(WorkspaceManager, String val, I64, I64,
+      RequestMessage val)} val)
+  =>
+    """
+    Extract the item URI and selection range start from the request
+    params, resolve its workspace, then call dispatch. Sends an invalid
+    params response if the item or selection range is absent. Used for
+    call/type hierarchy resolve requests.
+    """
+    try
+      (let item_uri, let sel_line, let sel_col) =
+        _get_item_uri_and_sel(r.params)?
+      dispatch(
+        _router.find_workspace(item_uri) as WorkspaceManager,
+        item_uri,
+        sel_line,
+        sel_col,
+        r)
+    else
+      _send_invalid_params(
+        r, "[" + r.method + "] missing item or selectionRange.start")
+    end
+
   fun ref handle_request(r: RequestMessage val) =>
+    """
+    Dispatch an incoming client request to the appropriate handler
+    based on the current LSP lifecycle state and request method.
+    """
     match this._state
     | _Uninitialized =>
       match r.method
@@ -88,328 +200,63 @@ actor LanguageServer is (Notifier & RequestSender)
       this._channel.log("\n\n<-\n" + r.json().string())
       match \exhaustive\ r.method
       | Methods.text_document().inlay_hint() =>
-        try
-          let document_uri = _get_document_uri(r.params)?
-          (_router.find_workspace(document_uri) as WorkspaceManager)
-            .inlay_hint(document_uri, r)
-        else
-          this._channel.send(
-            ResponseMessage.create(
-              r.id,
-              None,
-              ResponseError(
-                ErrorCodes.internal_error(),
-                "[" + r.method + "] No workspace found for '" +
-                r.json().string() + "'")))
-        end
+        _route_doc(r, {(wm, uri, req) => wm.inlay_hint(uri, req) })
       | Methods.text_document().references() =>
-        try
-          let document_uri = _get_document_uri(r.params)?
-          (_router.find_workspace(document_uri) as WorkspaceManager)
-            .references(document_uri, r)
-        else
-          this._channel.send(
-            ResponseMessage.create(
-              r.id,
-              None,
-              ResponseError(
-                ErrorCodes.internal_error(),
-                "[" + r.method + "] No workspace found for '" +
-                r.json().string() + "'")))
-        end
+        _route_doc(r, {(wm, uri, req) => wm.references(uri, req) })
       | Methods.text_document().prepare_rename() =>
-        try
-          let document_uri = _get_document_uri(r.params)?
-          (_router.find_workspace(document_uri) as WorkspaceManager)
-            .prepare_rename(document_uri, r)
-        else
-          this._channel.send(
-            ResponseMessage.create(
-              r.id,
-              None,
-              ResponseError(
-                ErrorCodes.internal_error(),
-                "[" + r.method + "] No workspace found for '" +
-                r.json().string() + "'")))
-        end
+        _route_doc(r, {(wm, uri, req) => wm.prepare_rename(uri, req) })
       | Methods.text_document().rename() =>
-        try
-          let document_uri = _get_document_uri(r.params)?
-          (_router.find_workspace(document_uri) as WorkspaceManager)
-            .rename(document_uri, r)
-        else
-          this._channel.send(
-            ResponseMessage.create(
-              r.id,
-              None,
-              ResponseError(
-                ErrorCodes.internal_error(),
-                "[" + r.method + "] No workspace found for '" +
-                r.json().string() + "'")))
-        end
+        _route_doc(r, {(wm, uri, req) => wm.rename(uri, req) })
       | Methods.text_document().document_highlight() =>
-        try
-          let document_uri = _get_document_uri(r.params)?
-          (_router.find_workspace(document_uri) as WorkspaceManager)
-            .document_highlight(document_uri, r)
-        else
-          this._channel.send(
-            ResponseMessage.create(
-              r.id,
-              None,
-              ResponseError(
-                ErrorCodes.internal_error(),
-                "[" + r.method + "] No workspace found for '" +
-                r.json().string() + "'")
-            )
-          )
-        end
+        _route_doc(r, {(wm, uri, req) => wm.document_highlight(uri, req) })
       // In Pony, declaration and definition are the same location.
       | Methods.text_document().declaration()
       | Methods.text_document().definition() =>
-        try
-          let document_uri =
-            _get_document_uri(r.params)?
-          // TODO: exptract params into class
-          // according to spec
-          (_router.find_workspace(document_uri)
-            as WorkspaceManager)
-            .goto_definition(document_uri, r)
-        else
-          this._channel.send(
-            ResponseMessage.create(
-              r.id,
-              None,
-              ResponseError(
-                ErrorCodes.internal_error(),
-                "[" + r.method + "] No workspace found for '" +
-                r.json().string() + "'")
-            )
-          )
-        end
+        _route_doc(r, {(wm, uri, req) => wm.goto_definition(uri, req) })
       | Methods.text_document().type_definition() =>
-        try
-          let document_uri = _get_document_uri(r.params)?
-          (_router.find_workspace(document_uri) as WorkspaceManager)
-            .type_definition(document_uri, r)
-        else
-          this._channel.send(
-            ResponseMessage.create(
-              r.id,
-              None,
-              ResponseError(
-                ErrorCodes.internal_error(),
-                "[" + r.method + "] No workspace found for '" +
-                r.json().string() + "'")))
-        end
+        _route_doc(r, {(wm, uri, req) => wm.type_definition(uri, req) })
       | Methods.text_document().hover() =>
-        try
-          let document_uri = _get_document_uri(r.params)?
-          // TODO: exptract params into class according to spec
-          (_router.find_workspace(document_uri) as WorkspaceManager)
-            .hover(document_uri, r)
-        else
-          this._channel.send(
-            ResponseMessage.create(
-              r.id,
-              None,
-              ResponseError(
-                ErrorCodes.internal_error(),
-                "[" + r.method + "] No workspace found for request '" +
-                r.json().string() + "'")))
-        end
+        _route_doc(r, {(wm, uri, req) => wm.hover(uri, req) })
       | Methods.text_document().document_symbol() =>
-        try
-          let document_uri = _get_document_uri(r.params)?
-          (_router.find_workspace(document_uri) as WorkspaceManager)
-            .document_symbols(document_uri, r)
-        else
-          this._channel.send(
-            ResponseMessage.create(
-              r.id,
-              None,
-              ResponseError(
-                ErrorCodes.internal_error(),
-                "[" + r.method + "] No workspace found for request '" +
-                r.json().string() + "'")
-            )
-          )
-        end
+        _route_doc(r, {(wm, uri, req) => wm.document_symbols(uri, req) })
       | Methods.text_document().folding_range() =>
-        try
-          let document_uri = _get_document_uri(r.params)?
-          (_router.find_workspace(document_uri) as WorkspaceManager)
-            .folding_range(document_uri, r)
-        else
-          this._channel.send(
-            ResponseMessage.create(
-              r.id,
-              None,
-              ResponseError(
-                ErrorCodes.internal_error(),
-                "[" + r.method + "] No workspace found for request '" +
-                r.json().string() + "'")))
-        end
+        _route_doc(r, {(wm, uri, req) => wm.folding_range(uri, req) })
       | Methods.text_document().selection_range() =>
-        try
-          let document_uri = _get_document_uri(r.params)?
-          (_router.find_workspace(document_uri) as WorkspaceManager)
-            .selection_range(document_uri, r)
-        else
-          this._channel.send(
-            ResponseMessage.create(
-              r.id,
-              None,
-              ResponseError(
-                ErrorCodes.internal_error(),
-                "[" + r.method + "] No workspace found for request '" +
-                r.json().string() + "'")))
-        end
+        _route_doc(r, {(wm, uri, req) => wm.selection_range(uri, req) })
       | Methods.text_document().diagnostic() =>
-        try
-          let document_uri = _get_document_uri(r.params)?
-          (_router.find_workspace(document_uri) as WorkspaceManager)
-            .document_diagnostic(document_uri, r)
-        else
-          this._channel.send(
-            ResponseMessage.create(
-              r.id,
-              None,
-              ResponseError(
-                ErrorCodes.internal_error(),
-                "[" + r.method + "] No workspace found for request '" +
-                r.json().string() + "'")
-            )
-          )
-        end
+        _route_doc(r, {(wm, uri, req) => wm.document_diagnostic(uri, req) })
       | Methods.text_document().signature_help() =>
-        try
-          let document_uri = _get_document_uri(r.params)?
-          (_router.find_workspace(document_uri) as WorkspaceManager)
-            .signature_help(document_uri, r)
-        else
-          this._channel.send(
-            ResponseMessage.create(
-              r.id,
-              None,
-              ResponseError(
-                ErrorCodes.internal_error(),
-                "[" + r.method + "] No workspace found for '" +
-                r.json().string() + "'")))
-        end
+        _route_doc(r, {(wm, uri, req) => wm.signature_help(uri, req) })
       | Methods.text_document().prepare_call_hierarchy() =>
-        let document_uri =
-          try _get_document_uri(r.params)?
-          else
-            this._channel.send(
-              ResponseMessage.create(
-                r.id,
-                None,
-                ResponseError(
-                  ErrorCodes.invalid_params(),
-                  "[" + r.method + "] missing textDocument.uri")))
-            return
-          end
-        try
-          (_router.find_workspace(document_uri) as WorkspaceManager)
-            .call_hierarchy_prepare(document_uri, r)
-        else
-          this._channel.send(
-            ResponseMessage.create(
-              r.id,
-              None,
-              ResponseError(
-                ErrorCodes.internal_error(),
-                "[" + r.method + "] No workspace found for '" +
-                  document_uri + "'")))
-        end
+        _route_prepare(
+          r, {(wm, uri, req) => wm.call_hierarchy_prepare(uri, req) })
       | Methods.call_hierarchy().incoming_calls() =>
-        try
-          (let item_uri, let sel_line, let sel_col) =
-            _get_item_uri_and_sel(r.params)?
-          (_router.find_workspace(item_uri) as WorkspaceManager)
-            .call_hierarchy_incoming_calls(item_uri, sel_line, sel_col, r)
-        else
-          this._channel.send(
-            ResponseMessage.create(
-              r.id,
-              None,
-              ResponseError(
-                ErrorCodes.invalid_params(),
-                "[" + r.method + "] missing item or selectionRange.start")))
-        end
+        _route_item(
+          r,
+          {(wm, uri, l, c, req) =>
+            wm.call_hierarchy_incoming_calls(uri, l, c, req)
+          })
       | Methods.call_hierarchy().outgoing_calls() =>
-        try
-          (let item_uri, let sel_line, let sel_col) =
-            _get_item_uri_and_sel(r.params)?
-          (_router.find_workspace(item_uri) as WorkspaceManager)
-            .call_hierarchy_outgoing_calls(item_uri, sel_line, sel_col, r)
-        else
-          this._channel.send(
-            ResponseMessage.create(
-              r.id,
-              None,
-              ResponseError(
-                ErrorCodes.invalid_params(),
-                "[" + r.method + "] missing item or selectionRange.start")))
-        end
+        _route_item(
+          r,
+          {(wm, uri, l, c, req) =>
+            wm.call_hierarchy_outgoing_calls(uri, l, c, req)
+          })
       | Methods.text_document().prepare_type_hierarchy() =>
-        let document_uri =
-          try
-            _get_document_uri(r.params)?
-          else
-            this._channel.send(
-              ResponseMessage.create(
-                r.id,
-                None,
-                ResponseError(
-                  ErrorCodes.invalid_params(),
-                  "[" + r.method + "] missing textDocument.uri")))
-            return
-          end
-        try
-          (_router.find_workspace(document_uri) as WorkspaceManager)
-            .type_hierarchy_prepare(document_uri, r)
-        else
-          this._channel.send(
-            ResponseMessage.create(
-              r.id,
-              None,
-              ResponseError(
-                ErrorCodes.internal_error(),
-                "[" + r.method + "] No workspace found for '" +
-                  document_uri + "'")))
-        end
+        _route_prepare(
+          r, {(wm, uri, req) => wm.type_hierarchy_prepare(uri, req) })
       | Methods.type_hierarchy().supertypes() =>
-        try
-          (let item_uri, let sel_line, let sel_col) =
-            _get_item_uri_and_sel(r.params)?
-          (_router.find_workspace(item_uri) as WorkspaceManager)
-            .type_hierarchy_supertypes(item_uri, sel_line, sel_col, r)
-        else
-          this._channel.send(
-            ResponseMessage.create(
-              r.id,
-              None,
-              ResponseError(
-                ErrorCodes.invalid_params(),
-                "[" + r.method + "] missing item or selectionRange.start")))
-        end
+        _route_item(
+          r,
+          {(wm, uri, l, c, req) =>
+            wm.type_hierarchy_supertypes(uri, l, c, req)
+          })
       | Methods.type_hierarchy().subtypes() =>
-        try
-          (let item_uri, let sel_line, let sel_col) =
-            _get_item_uri_and_sel(r.params)?
-          (_router.find_workspace(item_uri) as WorkspaceManager)
-            .type_hierarchy_subtypes(item_uri, sel_line, sel_col, r)
-        else
-          this._channel.send(
-            ResponseMessage.create(
-              r.id,
-              None,
-              ResponseError(
-                ErrorCodes.invalid_params(),
-                "[" + r.method + "] missing item or selectionRange.start")))
-        end
+        _route_item(
+          r,
+          {(wm, uri, l, c, req) =>
+            wm.type_hierarchy_subtypes(uri, l, c, req)
+          })
       | Methods.workspace().symbol() =>
         let query =
           try
@@ -428,19 +275,14 @@ actor LanguageServer is (Notifier & RequestSender)
             None,
             ResponseError(
               ErrorCodes.method_not_found(),
-              "Method not implemented: " + r.method)
-          )
-        )
+              "Method not implemented: " + r.method)))
       end
     | _ShuttingDown =>
-      // we don't handle no requests no more
       this._channel.send(
         ResponseMessage.create(
           r.id,
           None,
-          ResponseError(ErrorCodes.invalid_request(), "shutting down")
-        )
-      )
+          ResponseError(ErrorCodes.invalid_request(), "shutting down")))
     end
 
   fun ref handle_response(r: ResponseMessage val) =>
@@ -448,9 +290,7 @@ actor LanguageServer is (Notifier & RequestSender)
     | _Initialized | _Uninitialized =>
       for i in Range[USize](0, this._expect_responses_for.size()) do
         try
-          (let expected_request_id,
-            let expected_method,
-            let maybe_notify) =
+          (let expected_request_id, let expected_method, let maybe_notify) =
             this._expect_responses_for(i)?
           if
             try
@@ -467,8 +307,7 @@ actor LanguageServer is (Notifier & RequestSender)
               this.handle_configuration(r)
             | Methods.client().register_capability() =>
               this.handle_register_capability_response(r)
-            | Methods.window().work_done_progress().create()
-            =>
+            | Methods.window().work_done_progress().create() =>
               this.handle_work_done_progress_create_response(r)
             | let other: String =>
               this._channel.log("Unhandled response method " + other)
