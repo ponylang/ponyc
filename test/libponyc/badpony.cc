@@ -2034,3 +2034,91 @@ TEST_F(BadPonyTest, FBoundedTraitWithSelfApplyEmitsConstraintError)
     "type argument is outside its constraint",
     "type argument is outside its constraint");
 }
+
+TEST_F(BadPonyTest, WhileBodyAndElseJumpAwayInSeparateFunction)
+{
+  // From issue #2792 (first example). A while loop whose body and else
+  // both jump away (break + return) used to trigger a typecheck assertion
+  // when the loop appeared in a separate function rather than directly in
+  // create. expr_seq tried to type the jumps-away while and reported a
+  // typecheck error without registering an actual error message,
+  // tripping the "errors must be > 0" assertion in pass_expr.
+  const char* src =
+    "actor Main\n"
+    "  fun a() =>\n"
+    "    while true do\n"
+    "      break\n"
+    "    else\n"
+    "      return\n"
+    "    end\n"
+
+    "  new create(env: Env) =>\n"
+    "    a()";
+
+  TEST_COMPILE(src);
+}
+
+TEST_F(BadPonyTest, RepeatBodyAndElseJumpAwayInSeparateFunction)
+{
+  // Same shape as WhileBodyAndElseJumpAwayInSeparateFunction but for
+  // repeat. The fix in expr_seq is loop-agnostic; this guards against a
+  // future regression that special-cases one loop kind.
+  const char* src =
+    "actor Main\n"
+    "  fun a() =>\n"
+    "    repeat\n"
+    "      break\n"
+    "    until true\n"
+    "    else\n"
+    "      return\n"
+    "    end\n"
+
+    "  new create(env: Env) =>\n"
+    "    a()";
+
+  TEST_COMPILE(src);
+}
+
+TEST_F(BadPonyTest, WhileWithLiteralBreakValueAndJumpsAwayElse)
+{
+  // Regression test for the literal-break-value variant of #2792. A while
+  // whose body breaks with a literal value and whose else jumps away
+  // gives the loop a literal type. The fix for #2792 must not skip the
+  // unused-literal check on jumps-away children, otherwise the literal
+  // type propagates to codegen and trips a reach.c assertion.
+  const char* src =
+    "actor Main\n"
+    "  fun a(): U32 =>\n"
+    "    while true do\n"
+    "      break 5\n"
+    "    else\n"
+    "      return 6\n"
+    "    end\n"
+    "    7\n"
+
+    "  new create(env: Env) =>\n"
+    "    a()";
+
+  TEST_ERRORS_1(src, "Cannot infer type of unused literal");
+}
+
+TEST_F(BadPonyTest, RepeatWithLiteralBreakValueAndJumpsAwayElse)
+{
+  // Same shape as WhileWithLiteralBreakValueAndJumpsAwayElse but for
+  // repeat.
+  const char* src =
+    "actor Main\n"
+    "  fun a(): U32 =>\n"
+    "    repeat\n"
+    "      break 5\n"
+    "    until true\n"
+    "    else\n"
+    "      return 6\n"
+    "    end\n"
+    "    7\n"
+
+    "  new create(env: Env) =>\n"
+    "    a()";
+
+  TEST_ERRORS_1(src, "Cannot infer type of unused literal");
+}

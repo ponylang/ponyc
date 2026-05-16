@@ -31,6 +31,12 @@ bool expr_seq(pass_opt_t* opt, ast_t* ast)
 
     if(is_typecheck_error(p_type))
     {
+      // An expression that jumps away with no value legitimately has a NULL
+      // type — that's not a typecheck error. Skip it without flagging,
+      // otherwise we set ok=false and return false without registering an
+      // error, tripping the "errors must be > 0" assertion in pass_expr.
+      if(ast_checkflag(p, AST_FLAG_JUMPS_AWAY))
+        continue;
       ok = false;
     } else if(is_type_literal(p_type)) {
       ast_error(opt->check.errors, p, "Cannot infer type of unused literal");
