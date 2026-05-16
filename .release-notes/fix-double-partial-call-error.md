@@ -23,3 +23,5 @@ main.pony:3:15: call is not partial but the method is - a question mark is requi
 ```
 
 The same duplication occurred for the reverse mistake — a `?` on a call to a non-partial method with type parameters. It also occurred for chained `.>` calls, for partial constructor calls, and when type arguments were filled in from defaults rather than written explicitly. The compiler now emits each diagnostic exactly once.
+
+Additionally, taking the address of a partial method with type arguments (e.g. `addressof obj.method[U32]`) previously triggered a compiler assertion failure. The same construct now compiles correctly.
