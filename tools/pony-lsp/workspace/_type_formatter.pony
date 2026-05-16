@@ -17,11 +17,25 @@ primitive _TypeFormatter
         let num_children = type_node.num_children()
         if num_children > 1 then
           let type_id = type_node(1)?
-          let base_name =
-            if type_id.id() == TokenIds.tk_id() then
-              type_id.token_value() as String
+          // Lambda literals become anonymous classes with hygienic IDs (e.g.
+          // "$0"). The human-readable form (e.g. "{(): String val}") is stored
+          // as the nice_name on the definition's first child, matching what
+          // ast_print_type does in C.
+          let base_name: String =
+            try
+              let def = type_node.definitions()(0)?
+              let def_name = def.apply(0)?
+              if def_name.id() == TokenIds.tk_id() then
+                def_name.nice_name()
+              else
+                error
+              end
             else
-              extract_type(type_id)
+              if type_id.id() == TokenIds.tk_id() then
+                type_id.token_value() as String
+              else
+                extract_type(type_id)
+              end
             end
 
           // Check for type arguments
