@@ -73,6 +73,23 @@ static void signal_handler(int sig)
   eventfd_write(ev->fd, 1);
 }
 
+static bool read_signal_count(int fd, uint32_t* out_count)
+{
+  uint64_t missed = 0;
+  ssize_t rc = read(fd, &missed, sizeof(uint64_t));
+
+  if(rc != sizeof(uint64_t))
+    return false;
+
+  *out_count = (uint32_t)missed;
+  return true;
+}
+
+bool ponyint_asio_epoll_read_signal_count(int fd, uint32_t* out_count)
+{
+  return read_signal_count(fd, out_count);
+}
+
 #if !defined(USE_SCHEDULER_SCALING_PTHREADS)
 static void empty_signal_handler(int sig)
 {
@@ -288,9 +305,13 @@ DECLARE_THREAD_FN(ponyint_asio_backend_dispatch)
       {
         if(ep->events & (EPOLLIN | EPOLLRDHUP | EPOLLHUP | EPOLLERR))
         {
-          uint64_t missed;
+          uint64_t missed = 0;
           ssize_t rc = read(ev->fd, &missed, sizeof(uint64_t));
+          /* missed is intentionally unused for timer events: the ASIO timer
+           * backend does not coalesce based on missed count today.
+           */
           (void)rc;
+          (void)missed;
           flags |= ASIO_TIMER;
         }
       }
@@ -299,11 +320,8 @@ DECLARE_THREAD_FN(ponyint_asio_backend_dispatch)
       {
         if(ep->events & (EPOLLIN | EPOLLRDHUP | EPOLLHUP | EPOLLERR))
         {
-          uint64_t missed;
-          ssize_t rc = read(ev->fd, &missed, sizeof(uint64_t));
-          (void)rc;
-          flags |= ASIO_SIGNAL;
-          count = (uint32_t)missed;
+          if(read_signal_count(ev->fd, &count))
+            flags |= ASIO_SIGNAL;
         }
       }
 

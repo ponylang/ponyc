@@ -14,6 +14,7 @@ class \nodoc\ _TestSighupNotify is SignalNotify
     _h = h
 
   fun ref apply(count: U32): Bool =>
+    _h.assert_true(count >= 1)
     _h.complete(true)
     false
 

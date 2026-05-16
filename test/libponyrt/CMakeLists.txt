@@ -4,6 +4,7 @@ project(libponyrt.tests VERSION ${PONYC_PROJECT_VERSION} LANGUAGES C CXX)
 
 add_executable(libponyrt.tests
     util.cc
+    asio_epoll.cc
     ds/fun.cc
     ds/hash.cc
     ds/list.cc
