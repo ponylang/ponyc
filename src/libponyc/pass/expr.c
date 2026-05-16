@@ -672,12 +672,16 @@ ast_result_t pass_expr(ast_t** astp, pass_opt_t* options)
       break;
 
     case TK_INT:
-      // Integer literals can be integers or floats
-      make_literal_type(ast);
-      break;
-
     case TK_FLOAT:
-      make_literal_type(ast);
+      // Integer literals can be integers or floats. Skip if a concrete
+      // type was already assigned: the expr pass can re-run on a literal
+      // whose type was previously coerced (e.g. a default expression
+      // duplicated into a partial-application lambda that gets lifted to
+      // an anonymous class whose pass flags are reset). Overwriting that
+      // type with TK_LITERAL leaves the enclosing call inconsistent with
+      // its receiver and trips an assertion later in `lookup`.
+      if(ast_type(ast) == NULL)
+        make_literal_type(ast);
       break;
 
     case TK_STRING:
