@@ -14,12 +14,12 @@ you want to handle entries as they are parsed, react to errors, or stop early.
 # Format support
 
 Sections are written `[name]` on a line of their own. Anything after the
-closing `]` is discarded, so `[name] ; trailing` is the section `name`. The
-text between the brackets is taken as-is and is not trimmed, so `[ name ]` is
-the section `" name "`. `[]` is a valid section whose name is the empty
-string. Section nesting is not interpreted: `[a.b]` is a section literally
-named `a.b`. Keys that appear before the first section header belong to the
-section named `""`.
+closing `]` is discarded, so `[name] ; trailing` is the section `name`.
+Whitespace around the section name is trimmed, so `[ name ]` is the section
+`name`. `[]` and `[   ]` are both the empty-string section. Internal
+whitespace is preserved: `[a b]` is the section `"a b"`. Section nesting is
+not interpreted: `[a.b]` is a section literally named `a.b`. Keys that appear
+before the first section header belong to the section named `""`.
 
 Comments start with `;` or `#`. A line whose first non-whitespace character is
 `;` or `#` is a comment and is skipped. A comment may also appear at the end
@@ -185,6 +185,7 @@ primitive Ini
           try
             current.delete(current.find("]", 1)?, -1)
             current.delete(0)
+            current.strip()
             section = consume current
             if not f.add_section(section) then
               return ok
