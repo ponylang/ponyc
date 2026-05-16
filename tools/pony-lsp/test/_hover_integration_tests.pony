@@ -25,6 +25,7 @@ primitive _HoverIntegrationTests is TestList
     test(_HoverIntegrationLiteralsTest.create(server))
     test(_HoverIntegrationCapKeywordTest.create(server))
     test(_HoverIntegrationFieldDocstringTest.create(server))
+    test(_HoverIntegrationLambdaTest.create(server))
 
 class \nodoc\ iso _HoverIntegrationLiteralsTest is UnitTest
   let _server: _LspTestServer
@@ -643,6 +644,32 @@ class \nodoc\ iso _HoverIntegrationFieldDocstringTest is UnitTest
           11,
           4,
           ["let documented_field: String val"; "Has a docstring."])])
+
+class \nodoc\ iso _HoverIntegrationLambdaTest is UnitTest
+  let _server: _LspTestServer
+
+  new iso create(server: _LspTestServer) =>
+    _server = server
+
+  fun name(): String => "hover/integration/lambda"
+
+  fun apply(h: TestHelper) =>
+    _RunLspChecks(
+      h,
+      _server,
+      "hover/_lambda.pony",
+      [ // field with lambda type
+        _HoverChecker(5, 6, ["let _callback: {(String val): None val} val"])
+        // constructor parameter with lambda type
+        _HoverChecker(7, 13, ["callback: {(String val): None val} val"])
+        // local variable assigned a no-arg lambda (inferred type)
+        _HoverChecker(11, 8, ["let f: {(): String} val"])
+        // local variable assigned a lambda with parameters (inferred type)
+        _HoverChecker(12, 8, ["let add: {(U32, U32): U32} val"])
+        // method parameter with lambda type — declaration site
+        _HoverChecker(15, 24, ["callback: {(U32 val): String val} val"])
+        // method parameter with lambda type — usage site follows to declaration
+        _HoverChecker(16, 4, ["callback: {(U32 val): String val} val"])])
 
 class val _HoverChecker
   let _line: I64
