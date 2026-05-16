@@ -23,6 +23,7 @@ actor Main is TestList
     test(_PrepareMissingURITest)
     _WorkspaceTests.make().tests(test)
     _InlayHintSourceTests.make().tests(test)
+    _SymbolKindsTests.make().tests(test)
     _HoverFormatterTests.make().tests(test)
     _DiagnosticTests.make().tests(test)
     _HoverIntegrationTests.make().tests(test)
