@@ -1119,10 +1119,8 @@ PONY_API size_t pony_os_recvfrom(asio_event_t* ev, char* buf, size_t len,
   if(recvd < 0)
   {
     if(errno == EWOULDBLOCK || errno == EAGAIN)
-      return 0;
+      return (size_t)-1;
 
-    pony_error();
-  } else if(recvd == 0) {
     pony_error();
   }
 

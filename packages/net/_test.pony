@@ -27,6 +27,7 @@ actor \nodoc\ Main is TestList
     test(_TestTCPProxy)
     test(_TestTCPUnmute)
     test(_TestTCPWritev)
+    test(_TestUDPZeroByteDatagram)
 
     // Tests below exclude windows and are listed alphabetically
     ifdef not windows then
@@ -154,6 +155,79 @@ class \nodoc\ iso _TestBroadcast is UnitTest
       If it does, try re-running the tests with the firewall de-activated, or
       exclude this test by passing the --exclude="net/Broadcast" option.
     """)
+
+class \nodoc\ _TestUDPZeroByteDatagramReceiver is UDPNotify
+  let _h: TestHelper
+
+  new create(h: TestHelper) =>
+    _h = h
+
+  fun ref not_listening(sock: UDPSocket ref) =>
+    _h.fail_action("receiver listen")
+
+  fun ref listening(sock: UDPSocket ref) =>
+    _h.complete_action("receiver listen")
+
+    let ip = sock.local_address()
+    let h = _h
+    if ip.ip4() then
+      _h.dispose_when_done(
+        UDPSocket.ip4(UDPAuth(h.env.root),
+          recover _TestUDPZeroByteDatagramSender(h, ip) end))
+    else
+      _h.dispose_when_done(
+        UDPSocket.ip6(UDPAuth(h.env.root),
+          recover _TestUDPZeroByteDatagramSender(h, ip) end))
+    end
+
+  fun ref received(
+    sock: UDPSocket ref,
+    data: Array[U8] iso,
+    from: NetAddress)
+  =>
+    _h.complete_action("receiver receive")
+    _h.assert_eq[USize](0, data.size())
+    _h.complete(true)
+
+class \nodoc\ _TestUDPZeroByteDatagramSender is UDPNotify
+  let _h: TestHelper
+  let _ip: NetAddress
+
+  new create(h: TestHelper, ip: NetAddress) =>
+    _h = h
+    _ip = ip
+
+  fun ref not_listening(sock: UDPSocket ref) =>
+    _h.fail_action("sender listen")
+
+  fun ref listening(sock: UDPSocket ref) =>
+    _h.complete_action("sender listen")
+    sock.write("", _ip)
+
+  fun ref received(
+    sock: UDPSocket ref,
+    data: Array[U8] iso,
+    from: NetAddress)
+  =>
+    _h.fail("sender received unexpected datagram")
+
+class \nodoc\ iso _TestUDPZeroByteDatagram is UnitTest
+  """
+  Test receiving an empty UDP datagram.
+  """
+  fun name(): String => "net/UDPZeroByteDatagram"
+  fun exclusion_group(): String => "network"
+
+  fun ref apply(h: TestHelper) =>
+    h.expect_action("receiver listen")
+    h.expect_action("sender listen")
+    h.expect_action("receiver receive")
+
+    h.dispose_when_done(
+      UDPSocket(UDPAuth(h.env.root),
+        recover _TestUDPZeroByteDatagramReceiver(h) end))
+
+    h.long_test(TimeoutValue())
 
 class \nodoc\ _TestTCP is TCPListenNotify
   """

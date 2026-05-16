@@ -306,7 +306,7 @@ actor UDPSocket is AsioEventNotify
             @pony_os_recvfrom(_event, data.cpointer(), data.space(),
               from) ?
 
-          if len == 0 then
+          if len == USize.max_value() then
             _readable = false
             return
           end
@@ -314,7 +314,7 @@ actor UDPSocket is AsioEventNotify
           data.truncate(len)
           _notify.received(this, consume data, consume from)
 
-          sum = sum + len
+          sum = sum + len.max(1)
 
           if sum > (1 << 12) then
             _read_again()
