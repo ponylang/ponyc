@@ -48,7 +48,8 @@ static bool check_partial_function_call(pass_opt_t* opt, ast_t* ast)
   // from a trait, we don't want to check partiality of the call site here -
   // it should only be checked in the context of the original trait.
   ast_t* body_donor = (ast_t*)ast_data(opt->check.frame->method);
-  if((body_donor != NULL) && (ast_id(body_donor) == TK_TRAIT))
+  if((body_donor != NULL) && (ast_id(body_donor) == TK_TRAIT)
+    && (opt->check.frame->type != body_donor))
     skip_partial_check = true;
 
   // Verify that the call partiality matches that of the method.
