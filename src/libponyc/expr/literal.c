@@ -126,6 +126,20 @@ bool expr_literal(pass_opt_t* opt, ast_t* ast, const char* name)
 
 void make_literal_type(ast_t* ast)
 {
+  // Don't overwrite a previously-coerced concrete type. The expr pass
+  // can re-run on an already-typed node when defaults are duplicated
+  // into a partial-application lambda that gets lifted to an anonymous
+  // class whose pass flags are reset (see partial_application in
+  // expr/call.c and expr_object in expr/lambda.c). Overwriting a
+  // concrete type with TK_LITERAL leaves the enclosing expression
+  // inconsistent with its children and trips an assertion later in
+  // `lookup`. TK_INFERTYPE is the one re-type request we honour: it is
+  // set deliberately by on-demand default-arg typing in `lookup` to ask
+  // for re-typing.
+  ast_t* existing = ast_type(ast);
+  if(existing != NULL && ast_id(existing) != TK_INFERTYPE)
+    return;
+
   ast_t* type = ast_from(ast, TK_LITERAL);
   ast_settype(ast, type);
 }

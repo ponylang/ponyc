@@ -958,6 +958,13 @@ static bool partial_application(pass_opt_t* opt, ast_t** astp)
       AST_GET_CHILDREN(target_param, p_id, p_type, p_default);
 
       // Parameter: `b: B = b_default`
+      // p_default is dup'd from the target method's already-coerced
+      // default. After this lambda is lifted to an anonymous class by
+      // expr_object (in expr/lambda.c), ast_resetpass strips pass flags
+      // on the dup'd subtree and expr re-runs on it. make_literal_type
+      // in expr/literal.c guards against retyping the leaf literals back
+      // to TK_LITERAL; keep that invariant in mind if you change how the
+      // default is propagated here.
       BUILD(lambda_param, target_param,
         NODE(TK_PARAM,
           TREE(p_id)

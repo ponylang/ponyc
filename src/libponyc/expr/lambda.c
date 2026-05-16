@@ -917,6 +917,14 @@ bool expr_object(pass_opt_t* opt, ast_t** astp)
   }
 
   ast_free_unattached(captures);
+
+  // Resetting pass flags on the whole def causes the expr pass to
+  // re-walk subtrees that were duplicated from already-processed code
+  // (notably parameter defaults dup'd by partial_application in
+  // expr/call.c). Re-walking nodes whose types have already been
+  // coerced is what make_literal_type's idempotency guard in
+  // expr/literal.c exists to tolerate. If you change this reset, make
+  // sure callers downstream still cope with already-typed leaves.
   ast_resetpass(def, PASS_SUGAR);
 
   // Handle capability and whether the anonymous type is a class, primitive or
