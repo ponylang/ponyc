@@ -9,6 +9,17 @@ static bool check_partial_function_call(pass_opt_t* opt, ast_t* ast)
 {
   pony_assert((ast_id(ast) == TK_FUNREF) || (ast_id(ast) == TK_FUNCHAIN) ||
     (ast_id(ast) == TK_NEWREF));
+
+  // When a method is qualified with type arguments (e.g. `f1[U32](42)`),
+  // the qualification wraps the original funref/newref in another node of
+  // the same kind. The outer node performs the partiality check by
+  // unwrapping its receiver below, so skip this inner node to avoid
+  // emitting the same error twice.
+  ast_t* parent = ast_parent(ast);
+  if((parent != NULL) && (ast_id(parent) == ast_id(ast)) &&
+    (ast_child(parent) == ast))
+    return true;
+
   AST_GET_CHILDREN(ast, receiver, method);
 
   // Receiver might be wrapped in another funref/newref
