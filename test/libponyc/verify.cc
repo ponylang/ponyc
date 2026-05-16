@@ -6077,3 +6077,104 @@ TEST_F(VerifyTest, TryElseNoFieldInitializationInElse)
     "field left undefined in constructor",
     "constructor with undefined fields is here");
 }
+
+// The compile-time disjoint-concrete check from #1977 must not flag these
+// cases. Each test pins down a specific shape the rule is intentionally
+// blind to (same type, alias, trait/interface, union, type parameter, or
+// generic reified with different type args).
+
+TEST_F(VerifyTest, IsBetweenSameClass)
+{
+  const char* src =
+    "class C\n"
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let a: C = C\n"
+    "    let b: C = C\n"
+    "    if a is b then None end";
+
+  TEST_COMPILE(src);
+}
+
+TEST_F(VerifyTest, IsBetweenSameClassDifferentCaps)
+{
+  const char* src =
+    "class C\n"
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let a: C iso = C\n"
+    "    let b: C val = C\n"
+    "    if (consume a) is b then None end";
+
+  TEST_COMPILE(src);
+}
+
+TEST_F(VerifyTest, IsBetweenClassAndTrait)
+{
+  const char* src =
+    "trait T\n"
+    "class C\n"
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let c: C = C\n"
+    "    let t: (T | None) = None\n"
+    "    if c is t then None end";
+
+  TEST_COMPILE(src);
+}
+
+TEST_F(VerifyTest, IsBetweenClassAndUnion)
+{
+  const char* src =
+    "class C\n"
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let c: C = C\n"
+    "    let u: (C | None) = C\n"
+    "    if c is u then None end";
+
+  TEST_COMPILE(src);
+}
+
+TEST_F(VerifyTest, IsBetweenSameTypeViaAlias)
+{
+  const char* src =
+    "class C\n"
+    "type CA is C\n"
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let c: C = C\n"
+    "    let ca: CA = C\n"
+    "    if c is ca then None end";
+
+  TEST_COMPILE(src);
+}
+
+TEST_F(VerifyTest, IsBetweenTypeParamAndClass)
+{
+  const char* src =
+    "class C\n"
+    "class Box[A]\n"
+    "  let value: A\n"
+    "  new create(value': A) => value = consume value'\n"
+    "  fun ref check(c: C): Bool => value is c\n"
+    "actor Main\n"
+    "  new create(env: Env) => None";
+
+  TEST_COMPILE(src);
+}
+
+TEST_F(VerifyTest, IsBetweenDifferentReificationsOfSameGeneric)
+{
+  // Reified generics share a root entity def pointer, so the disjoint-
+  // concrete rule treats Array[U64] and Array[U32] as the same type. The
+  // rule is deliberately silent on type-arg disjointness.
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let a: Array[U64] = []\n"
+    "    let b: Array[U32] = []\n"
+    "    if a is b then None end";
+
+  TEST_COMPILE(src);
+}
