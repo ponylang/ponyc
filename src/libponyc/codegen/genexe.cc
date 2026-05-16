@@ -2219,6 +2219,105 @@ static bool link_exe(compile_t* c, ast_t* program,
 #endif
 }
 
+#ifdef PLATFORM_IS_HAIKU
+const char* genrsrc(compile_t* c)
+{
+  errors_t* errors = c->opt->check.errors;
+
+  const char* file_rdef =
+    suffix_filename(c, c->opt->output, "", c->filename, ".rdef");
+
+  if (!file_exists(file_rdef))
+    return NULL;
+
+  const char* file_rsrc =
+    suffix_filename(c, c->opt->output, "", c->filename, ".rsrc");
+
+  if(c->opt->verbosity >= VERBOSITY_MINIMAL)
+    fprintf(stderr, "Generating %s\n", file_rsrc);
+
+  const char* rc_format = "rc -o %s %s";
+  size_t rc_len = strlen(rc_format) + strlen(file_rdef) + strlen(file_rsrc);
+  char* rc_cmd = (char*)ponyint_pool_alloc_size(rc_len);
+
+  if (snprintf(rc_cmd, rc_len, rc_format, file_rsrc, file_rdef) >= rc_len)
+  {
+    ponyint_pool_free_size(rc_len, rc_cmd);
+    return NULL;
+  }
+
+  int result = system(rc_cmd);
+  if (result != 0)
+  {
+    errorf(errors, NULL, "unable to generate rsrc file: %s: %d", rc_cmd, result);
+    ponyint_pool_free_size(rc_len, rc_cmd);
+    return NULL;
+  }
+
+  ponyint_pool_free_size(rc_len, rc_cmd);
+  return file_rsrc;
+}
+
+bool rsrc_exe(compile_t* c, const char* file_rsrc)
+{
+  errors_t* errors = c->opt->check.errors;
+
+  if (!file_exists(file_rsrc))
+    return false;
+
+  if(c->opt->verbosity >= VERBOSITY_MINIMAL)
+    fprintf(stderr, "Applying %s\n", file_rsrc);
+
+  const char* xres_format = "xres -o %s %s";
+  size_t xres_len = strlen(xres_format) + strlen(c->filename) + strlen(file_rsrc);
+  char* xres_cmd = (char*)ponyint_pool_alloc_size(xres_len);
+
+  if (snprintf(xres_cmd, xres_len, xres_format, c->filename, file_rsrc) >= xres_len)
+  {
+    ponyint_pool_free_size(xres_len, xres_cmd);
+    return false;
+  }
+
+  int result = system(xres_cmd);
+  if (result != 0)
+    errorf(errors, NULL, "unable to apply rsrc file: %s: %d", xres_cmd, result);
+
+  ponyint_pool_free_size(xres_len, xres_cmd);
+  return result == 0;
+}
+
+bool mime_exe(compile_t* c)
+{
+  errors_t* errors = c->opt->check.errors;
+
+  const char* file_exe =
+    suffix_filename(c, c->opt->output, "", c->filename, "");
+
+  if (!file_exists(file_exe))
+    return false;
+
+  if(c->opt->verbosity >= VERBOSITY_MINIMAL)
+    fprintf(stderr, "Setting mime of %s\n", file_exe);
+
+  const char* mimeset_format = "mimeset -f %s";
+  size_t mimeset_len = strlen(mimeset_format) + strlen(file_exe);
+  char* mimeset_cmd = (char*)ponyint_pool_alloc_size(mimeset_len);
+
+  if (snprintf(mimeset_cmd, mimeset_len, mimeset_format, file_exe) >= mimeset_len)
+  {
+    ponyint_pool_free_size(mimeset_len, mimeset_cmd);
+    return false;
+  }
+
+  int result = system(mimeset_cmd);
+  if (result != 0)
+    errorf(errors, NULL, "unable to set mime of: %s: %d", mimeset_cmd, result);
+
+  ponyint_pool_free_size(mimeset_len, mimeset_cmd);
+  return result == 0;
+}
+#endif
+
 bool genexe(compile_t* c, ast_t* program)
 {
   errors_t* errors = c->opt->check.errors;
@@ -2358,6 +2457,19 @@ bool genexe(compile_t* c, ast_t* program)
 
   for(size_t i = 0; i < c_object_count; i++)
     unlink(program_c_object_at(program, i));
+#endif
+
+#ifdef PLATFORM_IS_HAIKU
+  // On Haiku, if there's an .rdef file with the same name as "file_exe",
+  // compile it into a .rsrc file, link it to the exe and then set mime.
+  // If rsrc file is generated, but applying it to exe fails,
+  // leave the file for investigation.
+  const char* file_rsrc = genrsrc(c);
+  if(file_rsrc != NULL && rsrc_exe(c, file_rsrc))
+  {
+    mime_exe(c);
+    unlink(file_rsrc);
+  }
 #endif
 
   return true;
