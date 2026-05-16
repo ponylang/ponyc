@@ -9,7 +9,6 @@ actor \nodoc\ Main is TestList
     // Tests below function across all systems and are listed alphabetically.
     test(_TestIniParse)
     test(_TestIniParseBlankLinesIgnored)
-    test(_TestIniParseBracketSectionPreservesInnerWhitespace)
     test(_TestIniParseCaseSensitive)
     test(_TestIniParseCommentCharsInKeyLiteral)
     test(_TestIniParseCommentMarkerAtValueIndexZeroLiteral)
@@ -34,6 +33,7 @@ actor \nodoc\ Main is TestList
     test(_TestIniParseRepeatedSectionMerges)
     test(_TestIniParseSectionEmptyMap)
     test(_TestIniParseSectionHeaderBeatsKv)
+    test(_TestIniParseSectionNameWhitespaceHandling)
     test(_TestIniParseSectionNameWithDelimitersAndCommentChars)
     test(_TestIniParseSemicolonShadowsLaterComment)
     test(_TestIniParseSingleCharLines)
@@ -48,7 +48,7 @@ actor \nodoc\ Main is TestList
     test(_TestIniStreamingApplyHaltsCleanReturnsTrue)
     test(_TestIniStreamingBareOpenBracketReportsIncompleteSection)
     test(_TestIniStreamingCallOrderPreservesInputOrder)
-    test(_TestIniStreamingCaseSensitiveVerbatim)
+    test(_TestIniStreamingCaseSensitive)
     test(_TestIniStreamingDefaultErrorsContinuesParsing)
     test(_TestIniStreamingDuplicateKeyFiresAll)
     test(_TestIniStreamingEmptyIteratorReturnsTrue)
@@ -58,6 +58,7 @@ actor \nodoc\ Main is TestList
     test(_TestIniStreamingLineNumbersOneBased)
     test(_TestIniStreamingNoAddSectionForImplicitGlobal)
     test(_TestIniStreamingNoDelimiterReports)
+    test(_TestIniStreamingSectionNameWhitespaceHandling)
 
 // A recording IniNotify used by the streaming tests. Each test creates its
 // own instance; nothing is shared between tests. The three `*_returns`
@@ -126,23 +127,6 @@ class \nodoc\ iso _TestIniParseBlankLinesIgnored is UnitTest
     let map = IniParse(input.values())?
     h.assert_eq[USize](map.size(), 1)
     h.assert_eq[String](map("")?("k")?, "v")
-
-class \nodoc\ iso _TestIniParseBracketSectionPreservesInnerWhitespace is
-  UnitTest
-  // Pins the documented quirk that text between `[` and `]` is not trimmed.
-  // Tracked as a potential bug in ponylang/ponyc#5326; this test pins the
-  // current behavior. If the parser is changed to trim section names, update
-  // this test to match the new behavior.
-  fun name(): String => "ini/ParseBracketSectionPreservesInnerWhitespace"
-
-  fun apply(h: TestHelper) ? =>
-    let input: Array[String] = [ as String:
-      "[ name ]"
-      "k=v" ]
-    let map = IniParse(input.values())?
-    h.assert_true(map.contains(" name "))
-    h.assert_false(map.contains("name"))
-    h.assert_eq[String](map(" name ")?("k")?, "v")
 
 class \nodoc\ iso _TestIniParseCaseSensitive is UnitTest
   fun name(): String => "ini/ParseCaseSensitive"
@@ -507,6 +491,38 @@ class \nodoc\ iso _TestIniParseSectionHeaderBeatsKv is UnitTest
     // never gets created.
     h.assert_false(map.contains(""))
 
+class \nodoc\ iso _TestIniParseSectionNameWhitespaceHandling is UnitTest
+  fun name(): String => "ini/ParseSectionNameWhitespaceHandling"
+
+  fun apply(h: TestHelper) ? =>
+    let input: Array[String] = [ as String:
+      "[ name ]"
+      "k1=v1"
+      "[\ttabbed\t]"
+      "k2=v2"
+      "[a b]"
+      "k3=v3"
+      "[   ]"
+      "k4=v4"
+      "[ [a ]"
+      "k5=v5" ]
+    let map = IniParse(input.values())?
+    // Leading/trailing spaces and tabs are stripped.
+    h.assert_true(map.contains("name"))
+    h.assert_false(map.contains(" name "))
+    h.assert_eq[String](map("name")?("k1")?, "v1")
+    h.assert_true(map.contains("tabbed"))
+    h.assert_eq[String](map("tabbed")?("k2")?, "v2")
+    // Internal whitespace is preserved.
+    h.assert_true(map.contains("a b"))
+    h.assert_eq[String](map("a b")?("k3")?, "v3")
+    // A bracket pair containing only whitespace is the empty-string section,
+    // the same as `[]`.
+    h.assert_eq[String](map("")?("k4")?, "v4")
+    // Strip combines with first-`]`-wins: `[ [a ]` discards from the first
+    // `]` onward, leaving ` [a ` between the brackets, which strips to `[a`.
+    h.assert_eq[String](map("[a")?("k5")?, "v5")
+
 class \nodoc\ iso _TestIniParseSectionNameWithDelimitersAndCommentChars is
   UnitTest
   fun name(): String => "ini/ParseSectionNameWithDelimitersAndCommentChars"
@@ -798,12 +814,12 @@ class \nodoc\ iso _TestIniStreamingCallOrderPreservesInputOrder is UnitTest
     h.assert_eq[String](k2, "c")
     h.assert_eq[String](v2, "3")
 
-class \nodoc\ iso _TestIniStreamingCaseSensitiveVerbatim is UnitTest
+class \nodoc\ iso _TestIniStreamingCaseSensitive is UnitTest
   // The parser itself does no case-folding. This test asserts the section
-  // and key strings passed to the notifier are byte-for-byte what was on the
-  // input — confirming the case-sensitivity guarantee in `IniParse` is
-  // upstream of the `Map`, not a property of the `Map` alone.
-  fun name(): String => "ini/StreamingCaseSensitiveVerbatim"
+  // and key strings passed to the notifier preserve the input case —
+  // confirming the case-sensitivity guarantee in `IniParse` is upstream of
+  // the `Map`, not a property of the `Map` alone.
+  fun name(): String => "ini/StreamingCaseSensitive"
 
   fun apply(h: TestHelper) ? =>
     let n = _RecordingNotify
@@ -1001,3 +1017,40 @@ class \nodoc\ iso _TestIniStreamingNoDelimiterReports is UnitTest
     (let line2, let err2) = n2.errs(0)?
     h.assert_eq[USize](line2, 1)
     h.assert_true(err2 is IniNoDelimiter)
+
+class \nodoc\ iso _TestIniStreamingSectionNameWhitespaceHandling is UnitTest
+  // The streaming parser dispatches the stripped section name to both
+  // `add_section` and `apply`. Mirrors the dimensions covered by the
+  // parse-side `_TestIniParseSectionNameWhitespaceHandling` so both code paths get
+  // parallel rigor.
+  fun name(): String => "ini/StreamingSectionNameWhitespaceHandling"
+
+  fun apply(h: TestHelper) ? =>
+    let n = _RecordingNotify
+    let input: Array[String] = [as String:
+      "[ name ]"
+      "k1=v1"
+      "[\ttabbed\t]"
+      "k2=v2"
+      "[a b]"
+      "k3=v3"
+      "[   ]"
+      "k4=v4" ]
+    let ok = Ini(input.values(), n)
+    h.assert_true(ok)
+    h.assert_eq[USize](n.sections.size(), 4)
+    h.assert_eq[String](n.sections(0)?, "name")
+    h.assert_eq[String](n.sections(1)?, "tabbed")
+    h.assert_eq[String](n.sections(2)?, "a b")
+    // A bracket pair containing only whitespace dispatches `add_section("")`,
+    // the same as `[]`.
+    h.assert_eq[String](n.sections(3)?, "")
+    h.assert_eq[USize](n.kvs.size(), 4)
+    (let s0, _, _) = n.kvs(0)?
+    (let s1, _, _) = n.kvs(1)?
+    (let s2, _, _) = n.kvs(2)?
+    (let s3, _, _) = n.kvs(3)?
+    h.assert_eq[String](s0, "name")
+    h.assert_eq[String](s1, "tabbed")
+    h.assert_eq[String](s2, "a b")
+    h.assert_eq[String](s3, "")
