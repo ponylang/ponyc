@@ -14,6 +14,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Fix LSP parameter hover to show valid Pony syntax ([PR #5319](https://github.com/ponylang/ponyc/pull/5319))
 - Fix Windows TCP connection silently leaking state on IOCP errors ([PR #5317](https://github.com/ponylang/ponyc/pull/5317))
 - Fix LSP hover for lambda types ([PR #5344](https://github.com/ponylang/ponyc/pull/5344))
+- Trim whitespace from INI section names ([PR #5338](https://github.com/ponylang/ponyc/pull/5338))
 
 ### Added
 
