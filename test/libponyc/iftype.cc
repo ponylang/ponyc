@@ -308,3 +308,95 @@ TEST_F(IftypeTest, InsideLambda)
 
     TEST_COMPILE(src);
 }
+
+TEST_F(IftypeTest, AsAroundIftypeWithNarrowedCall)
+{
+  // Regression test for #2042: `as` wrapping an `iftype` whose body calls a
+  // method on a narrowed type parameter previously crashed the compiler with
+  // a use-after-free during AST replacement in expr_as.
+  const char* src =
+    "class LitString\n"
+    "interface AST\n"
+    "interface HasDocs\n"
+    "  fun val docs(): (LitString | None)\n"
+
+    "actor Main\n"
+    "  new create(env: Env) => None\n"
+    "  fun foo[A: AST val](node: A) =>\n"
+    "    try\n"
+    "      iftype A <: HasDocs\n"
+    "      then node.docs()\n"
+    "      end as LitString\n"
+    "    end";
+
+  TEST_COMPILE(src);
+}
+
+TEST_F(IftypeTest, AsAroundIftypeTupleTypeparam)
+{
+  // Variant of #2042 with a tuple typeparam constraint that narrows two
+  // type parameters at once.
+  const char* src =
+    "class LitString\n"
+    "interface AST\n"
+    "interface HasDocs\n"
+    "  fun val docs(): (LitString | None)\n"
+
+    "actor Main\n"
+    "  new create(env: Env) => None\n"
+    "  fun foo[A: AST val, B: AST val](a: A, b: B) =>\n"
+    "    try\n"
+    "      iftype (A, B) <: (HasDocs, HasDocs)\n"
+    "      then a.docs()\n"
+    "      end as LitString\n"
+    "    end";
+
+  TEST_COMPILE(src);
+}
+
+TEST_F(IftypeTest, AsAroundNestedIftypeWithNarrowedCall)
+{
+  // Variant of #2042 with a doubly-nested iftype that narrows the same
+  // type parameter further before the method call.
+  const char* src =
+    "class LitString\n"
+    "interface AST\n"
+    "interface HasText\n"
+    "interface HasDocs is HasText\n"
+    "  fun val docs(): (LitString | None)\n"
+
+    "actor Main\n"
+    "  new create(env: Env) => None\n"
+    "  fun foo[A: AST val](node: A) =>\n"
+    "    try\n"
+    "      iftype A <: HasText then\n"
+    "        iftype A <: HasDocs\n"
+    "        then node.docs()\n"
+    "        end\n"
+    "      end as LitString\n"
+    "    end";
+
+  TEST_COMPILE(src);
+}
+
+TEST_F(IftypeTest, AsTupleAroundIftypeWithNarrowedCall)
+{
+  // Variant of #2042 with a tuple target type, exercising add_as_type's
+  // tuple-recursion branch.
+  const char* src =
+    "class LitString\n"
+    "interface AST\n"
+    "interface HasDocs\n"
+    "  fun val docs(): (LitString, LitString)\n"
+
+    "actor Main\n"
+    "  new create(env: Env) => None\n"
+    "  fun foo[A: AST val](node: A) =>\n"
+    "    try\n"
+    "      iftype A <: HasDocs\n"
+    "      then node.docs()\n"
+    "      end as (LitString, LitString)\n"
+    "    end";
+
+  TEST_COMPILE(src);
+}

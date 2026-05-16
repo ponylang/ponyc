@@ -930,6 +930,12 @@ bool expr_as(pass_opt_t* opt, ast_t** astp)
   ast_t* pattern = ast_pop(ast_child(pattern_root));
   ast_free(pattern_root);
 
+  // Detach expr from ast so REPLACE reuses it directly rather than
+  // duplicating it. Duplicating would leave AST data pointers in expr
+  // (e.g. typeparamref data pointing into an iftype's typeparam_store)
+  // pointing at the original subtree, which ast_replace then frees.
+  ast_pop(ast);
+
   REPLACE(astp,
     NODE(TK_MATCH, AST_SCOPE
       NODE(TK_SEQ, TREE(expr))
