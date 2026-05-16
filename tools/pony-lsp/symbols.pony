@@ -24,7 +24,7 @@ primitive SymbolKinds
   fun string(): I64 => 15
   fun number(): I64 => 16
   fun boolean(): I64 => 17
-  fun array(): I64 => 8
+  fun array(): I64 => 18
   fun sk_object(): I64 => 19
   fun key(): I64 => 20
   fun null(): I64 => 21
