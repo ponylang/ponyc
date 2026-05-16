@@ -60,3 +60,19 @@ When a Windows TCP connection's underlying socket failed during an IOCP write, o
 
 The connection now closes non-gracefully when these errors occur, matching the POSIX behavior.
 
+## Fix LSP hover for lambda types
+
+Hovering over a field, parameter, or variable with a lambda type annotation now shows the human-readable lambda type instead of a compiler-internal hygienic ID.
+
+Before:
+
+```pony
+let _callback: $0 val
+```
+
+After:
+
+```pony
+let _callback: {(String val): None val} val
+```
+
