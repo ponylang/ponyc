@@ -648,7 +648,9 @@ actor TCPConnection is AsioEventNotify
     else
       // At this point, it's our event.
       if AsioEvent.writeable(flags) then
-        _writeable = true
+        if _connected and not _closed then
+          _writeable = true
+        end
         _complete_writes(arg)
         ifdef not windows then
           if _pending_writes() then
@@ -659,7 +661,9 @@ actor TCPConnection is AsioEventNotify
       end
 
       if AsioEvent.readable(flags) then
-        _readable = true
+        if _connected and not _closed then
+          _readable = true
+        end
         _complete_reads(arg)
         _pending_reads()
       end

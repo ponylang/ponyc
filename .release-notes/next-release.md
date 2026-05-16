@@ -1,3 +1,7 @@
+## Fix TCPConnection writeable state after hard close on Windows
+
+Late IOCP completion notifications can no longer mark a `TCPConnection` as readable or writeable after `hard_close`.
+
 ## Fix IOCP use-after-free crash
 
 The fix for this issue in 0.62.0 was incomplete. That fix checked for specific Windows error codes (`ERROR_OPERATION_ABORTED` and `ERROR_NETNAME_DELETED`) in the IOCP completion callback to detect orphaned I/O operations. However, Windows can deliver completions with other error codes after the socket is closed, and `ERROR_NETNAME_DELETED` can also arrive from legitimate remote peer disconnects — making error-code matching the wrong approach entirely.
