@@ -37,6 +37,9 @@ void* ponyint_virt_alloc(size_t bytes)
 #elif defined(PLATFORM_IS_OPENBSD)
   p = mmap(0, bytes, PROT_READ | PROT_WRITE,
     MAP_PRIVATE | MAP_ANON, -1, 0);
+#elif defined(PLATFORM_IS_HAIKU)
+  p = mmap(0, bytes, PROT_READ | PROT_WRITE,
+    MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE, -1, 0);
 #elif defined(PLATFORM_IS_BSD)
 #ifndef MAP_ALIGNED_SUPER
 #define MAP_ALIGNED_SUPER 0

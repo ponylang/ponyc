@@ -8,12 +8,13 @@ primitive Sig
   fun quit(): U32 => 3
 
   fun ill(): U32 =>
-    ifdef linux or bsd or osx then 4
+    ifdef linux or bsd or osx or haiku then 4
     else compile_error "no SIGINT"
     end
 
   fun trap(): U32 =>
     ifdef linux or bsd or osx then 5
+    elseif haiku then 22
     else compile_error "no SIGTRAP"
     end
 
@@ -25,7 +26,7 @@ primitive Sig
     end
 
   fun fpe(): U32 =>
-    ifdef linux or bsd or osx then 8
+    ifdef linux or bsd or osx or haiku then 8
     else compile_error "no SIGFPE"
     end
 
@@ -34,22 +35,25 @@ primitive Sig
   fun bus(): U32 =>
     ifdef bsd or osx then 10
     elseif linux then 7
+    elseif haiku then 30
     else compile_error "no SIGBUS"
     end
 
   fun segv(): U32 =>
-    ifdef linux or bsd or osx then 11
+    ifdef linux or bsd or osx or haiku then 11
     else compile_error "no SIGSEGV"
     end
 
   fun sys(): U32 =>
     ifdef bsd or osx then 12
     elseif linux then 31
+    elseif haiku then 25
     else compile_error "no SIGSYS"
     end
 
   fun pipe(): U32 =>
     ifdef linux or bsd or osx then 13
+    elseif haiku then 7
     else compile_error "no SIGPIPE"
     end
 
@@ -59,6 +63,7 @@ primitive Sig
   fun urg(): U32 =>
     ifdef bsd or osx then 16
     elseif linux then 23
+    elseif haiku then 26
     else compile_error "no SIGURG"
     end
 
@@ -70,34 +75,40 @@ primitive Sig
   fun stop(): U32 =>
     ifdef bsd or osx then 17
     elseif linux then 19
+    elseif haiku then 10
     else compile_error "no SIGSTOP"
     end
 
   fun tstp(): U32 =>
     ifdef bsd or osx then 18
     elseif linux then 20
+    elseif haiku then 13
     else compile_error "no SIGTSTP"
     end
 
   fun cont(): U32 =>
     ifdef bsd or osx then 19
     elseif linux then 18
+    elseif haiku then 12
     else compile_error "no SIGCONT"
     end
 
   fun chld(): U32 =>
     ifdef bsd or osx then 20
     elseif linux then 17
+    elseif haiku then 5
     else compile_error "no SIGCHLD"
     end
 
   fun ttin(): U32 =>
     ifdef linux or bsd or osx then 21
+    elseif haiku then 16
     else compile_error "no SIGTTIN"
     end
 
   fun ttou(): U32 =>
     ifdef linux or bsd or osx then 22
+    elseif haiku then 17
     else compile_error "no SIGTTOU"
     end
 
@@ -109,26 +120,31 @@ primitive Sig
 
   fun xcpu(): U32 =>
     ifdef linux or bsd or osx then 24
+    elseif haiku then 28
     else compile_error "no SIGXCPU"
     end
 
   fun xfsz(): U32 =>
     ifdef linux or bsd or osx then 25
+    elseif haiku then 29
     else compile_error "no SIGXFSZ"
     end
 
   fun vtalrm(): U32 =>
     ifdef linux or bsd or osx then 26
+    elseif haiku then 27
     else compile_error "no SIGVTALRM"
     end
 
   fun prof(): U32 =>
     ifdef linux or bsd or osx then 27
+    elseif haiku then 24
     else compile_error "no SIGPROF"
     end
 
   fun winch(): U32 =>
     ifdef linux or bsd or osx then 28
+    elseif haiku then 20
     else compile_error "no SIGWINCH"
     end
 
@@ -145,6 +161,7 @@ primitive Sig
   fun usr1(): U32 =>
     ifdef bsd or osx then 30
     elseif linux then 10
+    elseif haiku then 18
     else compile_error "no SIGUSR1"
     end
 
@@ -152,10 +169,11 @@ primitive Sig
     ifdef not "scheduler_scaling_pthreads" then
       ifdef bsd or osx then 31
       elseif linux then 12
+      elseif haiku then 19
       else compile_error "no SIGUSR2"
       end
     else
-      ifdef linux or bsd or osx then
+      ifdef linux or bsd or osx or haiku then
         compile_error "SIGUSR2 reserved for runtime use"
       else
         compile_error "no SIGUSR2"

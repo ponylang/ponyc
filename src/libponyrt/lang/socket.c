@@ -86,6 +86,9 @@ typedef int SOCKET;
 #ifdef PLATFORM_IS_WINDOWS
 // TODO
 #endif
+#ifdef PLATFORM_IS_HAIKU
+#include <os/kernel/OS.h>
+#endif
 
 PONY_EXTERN_C_BEGIN
 
@@ -171,7 +174,7 @@ static struct addrinfo* os_addrinfo_intern(int family, int socktype,
   return result;
 }
 
-#if defined(PLATFORM_IS_MACOSX) || defined(PLATFORM_IS_BSD)
+#if defined(PLATFORM_IS_MACOSX) || defined(PLATFORM_IS_BSD) || defined(PLATFORM_IS_HAIKU)
 static int set_nonblocking(int s)
 {
   int flags = fcntl(s, F_GETFL, 0);
@@ -232,7 +235,7 @@ static int socket_from_addrinfo(struct addrinfo* p, bool reuse)
       (const char*)&reuseaddr, sizeof(int));
   }
 
-#if defined(PLATFORM_IS_MACOSX) || defined(PLATFORM_IS_BSD)
+#if defined(PLATFORM_IS_MACOSX) || defined(PLATFORM_IS_BSD) || defined(PLATFORM_IS_HAIKU)
   r |= set_nonblocking(fd);
 #endif
 

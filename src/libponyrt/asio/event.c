@@ -37,6 +37,12 @@ PONY_API asio_event_t* pony_asio_event_create(pony_actor_t* owner, int fd,
   ev->removing = false;
 #endif
 
+
+#ifdef ASIO_USE_WFO
+  ev->wfo_id = -1;
+  ev->timerID = NULL;
+#endif
+
   owner->live_asio_events = owner->live_asio_events + 1;
 
   // The event is effectively being sent to another thread, so mark it here.

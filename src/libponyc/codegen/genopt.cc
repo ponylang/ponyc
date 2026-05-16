@@ -1198,12 +1198,19 @@ bool target_is_windows(char* t)
   return triple.isOSWindows();
 }
 
+bool target_is_haiku(char* t)
+{
+  Triple triple = Triple(t);
+
+  return triple.isOSHaiku();
+}
+
 bool target_is_posix(char* t)
 {
   Triple triple = Triple(t);
 
   return triple.isMacOSX() || triple.isOSFreeBSD() || triple.isOSLinux()
-    || triple.isOSDragonFly() || triple.isOSOpenBSD();
+    || triple.isOSDragonFly() || triple.isOSOpenBSD() || triple.isOSHaiku();
 }
 
 bool target_is_x86(char* t)

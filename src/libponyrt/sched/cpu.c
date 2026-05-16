@@ -21,6 +21,8 @@
 #elif defined(PLATFORM_IS_EMSCRIPTEN)
   #include <emscripten.h>
   #include <emscripten/threading.h>
+#elif defined(PLATFORM_IS_HAIKU)
+  #include <os/kernel/OS.h>
 #endif
 
 #include "cpu.h"
@@ -52,6 +54,21 @@ static uint32_t cpus_online(void)
 {
   int value = (int) sysconf(_SC_NPROCESSORS_ONLN);
   return value;
+}
+
+#endif
+
+#if defined(PLATFORM_IS_HAIKU)
+
+static uint32_t haiku_cpu_count(void)
+{
+  system_info info;
+  if(get_system_info(&info) < B_OK)
+  {
+    return 1;
+  }
+
+  return info.cpu_count;
 }
 
 #endif
@@ -173,6 +190,8 @@ void ponyint_cpu_init()
   hw_cpu_count = property("hw.physicalcpu");
 #elif defined(PLATFORM_IS_EMSCRIPTEN)
   hw_cpu_count = emscripten_num_logical_cores();
+#elif defined(PLATFORM_IS_HAIKU)
+  hw_cpu_count = haiku_cpu_count();
 #elif defined(PLATFORM_IS_WINDOWS)
   PSYSTEM_LOGICAL_PROCESSOR_INFORMATION info = NULL;
   PSYSTEM_LOGICAL_PROCESSOR_INFORMATION ptr = NULL;
@@ -218,6 +237,9 @@ void ponyint_cpu_init()
 
   if(ptr != NULL)
     ponyint_pool_free_size(len, ptr);
+#else
+  #warning Missing hw_cpu_count on unsupported platform
+  hw_cpu_count = 1;
 #endif
 }
 
@@ -326,6 +348,8 @@ void ponyint_cpu_affinity(uint32_t cpu)
     sched_setaffinity(0, sizeof(cpu_set_t), &set);
 #elif defined(PLATFORM_IS_BSD)
   // No pinning, since we cannot yet determine hyperthreads vs physical cores.
+#elif defined(PLATFORM_IS_HAIKU)
+  // TODO: Not implemented yet!
 #elif defined(PLATFORM_IS_MACOSX)
   thread_affinity_policy_data_t policy;
   policy.affinity_tag = cpu;
