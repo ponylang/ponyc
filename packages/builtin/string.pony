@@ -1618,7 +1618,16 @@ actor Main
       let res = @strtof(ptr.offset(index), addressof endp)
       let errno: I32 = @pony_os_errno()
       if (errno != 0) or (endp != ptr.offset(_size)) then
-        error
+        ifdef haiku then
+          // Workaround haiku bug with parsing "nan(123)": https://dev.haiku-os.org/ticket/20092
+          if (errno == 0) and (endp == ptr.offset(_size - 1)) and (this.at_offset(_size.isize() - 1)? == 0x29) then
+            res
+          else
+            error
+          end
+        else
+          error
+        end
       else
         res
       end
@@ -1652,7 +1661,16 @@ actor Main
       let res = @strtod(ptr.offset(index), addressof endp)
       let errno: I32 = @pony_os_errno()
       if (errno != 0) or (endp != ptr.offset(_size)) then
-        error
+        ifdef haiku then
+          // Workaround haiku bug with parsing "nan(123)": https://dev.haiku-os.org/ticket/20092
+          if (errno == 0) and (endp == ptr.offset(_size - 1)) and (this.at_offset(_size.isize() - 1)? == 0x29) then
+            res
+          else
+            error
+          end
+        else
+          error
+        end
       else
         res
       end
