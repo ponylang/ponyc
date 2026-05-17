@@ -11,7 +11,7 @@ class PackageState
   State of a compiled package, containing its modules and document states.
   """
   let path: FilePath
-  let documents: Map[String, DocumentState]
+  let _documents: Map[String, DocumentState]
   let _channel: Channel
   var _package: FromCompilerRun[Package]
   var _compiler_run_id: USize
@@ -19,7 +19,7 @@ class PackageState
   new create(path': FilePath, channel: Channel) =>
     path = path'
     _channel = channel
-    documents = documents.create()
+    _documents = _documents.create()
     _package = _package.empty()
     _compiler_run_id = 0
 
@@ -31,7 +31,7 @@ class PackageState
         ""
       end
     ) + "):\n\t" + "\n\t".join(
-      Iter[(String box, DocumentState box)](documents.pairs())
+      Iter[(String box, DocumentState box)](_documents.pairs())
         .map[String]({(kv) =>
           kv._1 + " (" +
             if kv._2.module() isnt None then
@@ -47,11 +47,20 @@ class PackageState
 
   fun get_document(document_path: String): (this->DocumentState | None) =>
     try
-      this.documents(document_path)?
+      this._documents(document_path)?
     end
 
   fun has_document(document_path: String): Bool =>
-    this.documents.contains(document_path)
+    this._documents.contains(document_path)
+
+  fun document_paths(): Iterator[String val]^ =>
+    _documents.keys()
+
+  fun ref document_states(): Iterator[DocumentState ref]^ =>
+    _documents.values()
+
+  fun ref remove_document(document_path: String) ? =>
+    _documents.remove(document_path)?._2.dispose()
 
   fun ref insert_new(document_path: String): DocumentState =>
     """
@@ -65,7 +74,7 @@ class PackageState
       let module = pkg.find_module(document_path) as Module
       doc_state.update(this._compiler_run_id, module)
     end
-    this.documents.insert(document_path, doc_state)
+    this._documents.insert(document_path, doc_state)
 
   fun ref ensure_document(document_path: String): DocumentState =>
     """
@@ -89,7 +98,7 @@ class PackageState
       this._channel.log(this.debug())
       // for each open document, update the
       // document state if we have a module for it
-      for (doc_path, doc_state) in this.documents.pairs() do
+      for (doc_path, doc_state) in this._documents.pairs() do
         // TODO: ensure both module and package-state paths are normalised
         match \exhaustive\ result.find_module(doc_path)
         | let m: Module val => doc_state.update(run_id, m)
@@ -105,7 +114,7 @@ class PackageState
     end
 
   fun dispose() =>
-    for doc_state in this.documents.values() do
+    for doc_state in this._documents.values() do
       doc_state.dispose()
     end
 
