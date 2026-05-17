@@ -19,6 +19,10 @@
 #include <stdlib.h>
 #endif
 
+#if defined(PLATFORM_IS_HAIKU)
+#  include <os/kernel/OS.h>
+#endif
+
 #ifdef USE_RUNTIMESTATS
 #include <stdio.h>
 #endif
@@ -1333,6 +1337,10 @@ static DECLARE_THREAD_FN(run_thread)
   this_scheduler = sched;
   ponyint_cpu_affinity(sched->cpu);
   TRACING_THREAD_START(this_scheduler);
+
+#if defined(PLATFORM_IS_HAIKU)
+  rename_thread(get_pthread_thread_id(pthread_self()), "scheduler::run_thread");
+#endif
 
 #if !defined(PLATFORM_IS_WINDOWS) && !defined(USE_SCHEDULER_SCALING_PTHREADS)
   // Make sure we block signals related to scheduler sleeping/waking

@@ -133,9 +133,13 @@ static void send_request(asio_event_t* ev, int32 req)
   LOG("sending request %s (req = %d)", wfo_event_names[req], req);
   status_t result = write_port(b->port, req, &msg, sizeof(msg));
   if(result < B_OK)
+  {
     LOG("ERROR: sending request failed: %d", result);
+  }
   else
+  {
     LOG("sending request result: %d", result);
+  }
 }
 
 static void signal_handler(int sig, void* userData)
@@ -493,7 +497,7 @@ DECLARE_THREAD_FN(ponyint_asio_backend_dispatch)
   asio_backend_t* b = arg;
   pony_assert(b != NULL);
 
-  rename_thread(get_pthread_thread_id(pthread_self()), "wfo_asio_backend_dispatch");
+  rename_thread(get_pthread_thread_id(pthread_self()), "wfo::ponyint_asio_backend_dispatch");
 //  set_thread_priority(get_pthread_thread_id(pthread_self()), B_DISPLAY_PRIORITY);
 
 #if !defined(USE_SCHEDULER_SCALING_PTHREADS)
