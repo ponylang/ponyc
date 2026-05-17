@@ -243,6 +243,3 @@ class ref FromCompilerRun[T: Any #read]
     else
       None
     end
-
-  fun apply(): this->T ? =>
-    this._thing as this->T
