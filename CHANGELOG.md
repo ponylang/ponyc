@@ -16,6 +16,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Fix LSP hover for lambda types ([PR #5344](https://github.com/ponylang/ponyc/pull/5344))
 - Trim whitespace from INI section names ([PR #5338](https://github.com/ponylang/ponyc/pull/5338))
 - Fix spurious LSP inlay hints inside lambda type annotations ([PR #5349](https://github.com/ponylang/ponyc/pull/5349))
+- Fix LSP document symbol outline dropping class members after lambda field initialisers ([PR #5350](https://github.com/ponylang/ponyc/pull/5350))
 
 ### Added
 
