@@ -93,3 +93,7 @@ Section names are now trimmed of leading and trailing whitespace. `[ name ]` par
 
 This is a behavior change: any existing INI input that relied on the old quirk to distinguish sections by surrounding whitespace (e.g., treating `[section]` and `[ section ]` as different sections) will now see those sections collapse into one. Because `IniParse` overwrites duplicate keys with the last value seen, keys from the earlier section can be silently overwritten.
 
+## Fix spurious LSP inlay hints inside lambda type annotations
+
+Nominal types appearing inside lambda type annotations (e.g. `{(String): None} val` or `{(): String} val`) were causing spurious capability inlay hints at incorrect source positions — for example, a ` val` hint would appear in the middle of a type name. These hints no longer appear.
+
