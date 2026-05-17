@@ -204,6 +204,20 @@ class DocumentState
 class ref FromCompilerRun[T: Any #read]
   """
   Something associated with a certain compiler run, identified by a `USize`.
+
+  ## Staleness contract
+
+  `update` and `update_with` accept any run ID `>=` the stored one, so that
+  multiple writes within the same run (e.g. diagnostics trickling in) are all
+  accepted, and advancing to a newer run is also accepted.
+
+  `get` requires an exact `==` match. This is deliberate: a caller holding an
+  older run ID must not receive data that was written for a newer run, and a
+  caller holding a newer run ID must not receive stale data from an older run.
+  The result is a window — between the first `add_diagnostic` call for a new
+  run and the subsequent `update` call for that run — during which `get`
+  returns `None` even though data exists. This keeps the visible state
+  consistent: data only surfaces once the full state for a given run is ready.
   """
   var _thing: (T | None)
   var _compiler_run_id: USize
