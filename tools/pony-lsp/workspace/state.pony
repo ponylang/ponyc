@@ -120,7 +120,7 @@ class DocumentState
   var _position_index: FromCompilerRun[PositionIndex val]
   var _document_symbols: FromCompilerRun[Array[DocumentSymbol]]
   var _hash: FromCompilerRun[USize]
-  var compiler_run_id: USize
+  var _compiler_run_id: USize
 
   new create(path': String, channel': Channel) =>
     path = path'
@@ -130,11 +130,11 @@ class DocumentState
     _position_index = _position_index.empty()
     _document_symbols = _document_symbols.empty()
     _hash = _hash.empty()
-    compiler_run_id = 0
+    _compiler_run_id = 0
 
   fun ref update(run_id: USize, module': Module val) =>
-    if run_id >= this.compiler_run_id then
-      this.compiler_run_id = run_id
+    if run_id >= this._compiler_run_id then
+      this._compiler_run_id = run_id
       // clear out diagnostics
       this._module.update(run_id, module')
       this._position_index =
@@ -149,7 +149,7 @@ class DocumentState
   fun ref add_diagnostic(run_id: USize, diagnostic: Diagnostic) =>
     // also accept diagnostics from the last/current run,
     // as they trickle in one after the other
-    if run_id == this.compiler_run_id then
+    if run_id == this._compiler_run_id then
       // same run, update diagnostics
       this._diagnostics.update_with(
         run_id,
@@ -163,7 +163,7 @@ class DocumentState
               [diagnostic]
             end
         })
-    elseif run_id > this.compiler_run_id then
+    elseif run_id > this._compiler_run_id then
       // new run, discard old diagnostics
       this._diagnostics.update(run_id, [diagnostic])
     end
@@ -172,16 +172,16 @@ class DocumentState
     (this.module() is None) and (this.diagnostics() is None)
 
   fun box module(): (Module val | None) =>
-    this._module.get(compiler_run_id)
+    this._module.get(_compiler_run_id)
 
   fun box diagnostics(): (Array[Diagnostic] box | None) =>
-    this._diagnostics.get(compiler_run_id)
+    this._diagnostics.get(_compiler_run_id)
 
   fun box position_index(): (PositionIndex val | None) =>
-    this._position_index.get(compiler_run_id)
+    this._position_index.get(_compiler_run_id)
 
   fun box module_hash(): (USize | None) =>
-    this._hash.get(compiler_run_id)
+    this._hash.get(_compiler_run_id)
 
   fun ref document_symbols(): Array[DocumentSymbol] =>
     """
@@ -190,7 +190,7 @@ class DocumentState
     match this.module()
     | let mod: Module val =>
       let created = DocumentSymbols.from_module(mod, this._channel)
-      this._document_symbols.update(this.compiler_run_id, created)
+      this._document_symbols.update(this._compiler_run_id, created)
       created
     else
       // no module available yet, no documentsymbols available yet
@@ -206,20 +206,20 @@ class ref FromCompilerRun[T: Any #read]
   Something associated with a certain compiler run, identified by a `USize`.
   """
   var _thing: (T | None)
-  var compiler_run_id: USize
+  var _compiler_run_id: USize
 
   new ref empty() =>
-    this.compiler_run_id = 0
+    this._compiler_run_id = 0
     this._thing = None
 
   new ref create(compiler_run_id': USize, thing': T) =>
-    this.compiler_run_id = compiler_run_id'
+    this._compiler_run_id = compiler_run_id'
     this._thing = thing'
 
   fun ref update(compiler_run_id': USize, new_thing: (T | None)) =>
     // ignore update if the compiler_run_id' is old
-    if compiler_run_id' >= this.compiler_run_id then
-      this.compiler_run_id = compiler_run_id'
+    if compiler_run_id' >= this._compiler_run_id then
+      this._compiler_run_id = compiler_run_id'
       this._thing = new_thing
     end
 
@@ -232,13 +232,13 @@ class ref FromCompilerRun[T: Any #read]
     Execute the given closure on the current state
     of the encapsulated thing, which might be `None`.
     """
-    if compiler_run_id' >= this.compiler_run_id then
-      this.compiler_run_id = compiler_run_id'
+    if compiler_run_id' >= this._compiler_run_id then
+      this._compiler_run_id = compiler_run_id'
       this._thing = closure.apply(this._thing)
     end
 
   fun get(current_run_id: USize): (this->T | None) =>
-    if current_run_id == compiler_run_id then
+    if current_run_id == _compiler_run_id then
       this._thing
     else
       None
