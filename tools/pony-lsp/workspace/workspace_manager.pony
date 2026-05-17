@@ -146,7 +146,7 @@ actor WorkspaceManager
         // pre-fill with empty list of errors for
         // all files for which we have errors now
         for pkg in this._packages.values() do
-          for doc in pkg.documents.keys() do
+          for doc in pkg.document_paths() do
             errors_by_file(doc) = pc.Vec[JsonValue]
           end
         end
@@ -403,8 +403,7 @@ actor WorkspaceManager
       let package: FilePath = this._find_workspace_package(document_path)?
       let package_state = this._ensure_package(package)
       try
-        let document_state = package_state.documents.remove(document_path)?._2
-        document_state.dispose()
+        package_state.remove_document(document_path)?
       end
     else
       _channel.log("document not in workspace: " + document_path)
@@ -938,7 +937,7 @@ actor WorkspaceManager
     let query_lower: String val = query.lower()
     var results = JsonArray
     for pkg_state in this._packages.values() do
-      for doc_state in pkg_state.documents.values() do
+      for doc_state in pkg_state.document_states() do
         let file_uri = Uris.from_path(doc_state.path)
         let top_symbols = doc_state.document_symbols()
         for symbol in top_symbols.values() do
