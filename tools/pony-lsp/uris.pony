@@ -18,8 +18,7 @@ primitive Uris
       try
         result(result.size() - 1)?
       else
-        _Unreachable()
-        return uri
+        uri
       end
     ifdef windows then
       // file:///D:/path -> /D:/path after stripping scheme; remove leading /
