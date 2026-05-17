@@ -29,6 +29,16 @@ primitive _InlayHintIntegrationTests is TestList
     test(_InlayHintPrimitiveNewFirstTest.create(server))
     test(_InlayHintPrimitiveEFirstCharTest.create(server))
     test(_InlayHintPrimitiveEmptyTest.create(server))
+    test(_InlayHintLambdaInferredTest.create(server))
+    test(_InlayHintLambdaAnnotatedTest.create(server))
+    test(_InlayHintLambdaAnnotatedExplicitTest.create(server))
+    test(_InlayHintLambdaParamTest.create(server))
+    test(_InlayHintLambdaParamExplicitTest.create(server))
+    test(_InlayHintLambdaReturnTest.create(server))
+    test(_InlayHintLambdaReturnExplicitTest.create(server))
+    test(_InlayHintLambdaGenericParamTest.create(server))
+    test(_InlayHintLambdaNestedLambdaTest.create(server))
+    test(_InlayHintLambdaUnionParamTest.create(server))
 
 class \nodoc\ iso _InlayHintDemoTest is UnitTest
   let _server: _LspTestServer
@@ -545,6 +555,244 @@ class \nodoc\ iso _InlayHintPrimitiveEmptyTest is UnitTest
       "inlay_hint/_prim_empty.pony",
       [ _InlayHintChecker(
           recover val Array[(I64, I64, String)].create() end) ])
+
+class \nodoc\ iso _InlayHintLambdaInferredTest is UnitTest
+  """
+  Range covering demo_inferred (lines 5-9). Verifies that local variables
+  assigned lambda expressions receive a full inferred-type hint even though
+  lambda type annotations are not processed for inner capability hints.
+  """
+  let _server: _LspTestServer
+
+  new iso create(server: _LspTestServer) =>
+    _server = server
+
+  fun name(): String =>
+    "inlay_hint/integration/lambda/inferred"
+
+  fun apply(h: TestHelper) =>
+    _RunLspChecks(
+      h,
+      _server,
+      "inlay_hint/_lambda_hints.pony",
+      [ _InlayHintChecker(
+          [ (6, 9, ": {(): String} val")  // f: no-arg lambda
+            (7, 11, ": {(U32, U32): U32} val") ]  // add: two-arg lambda
+          where range = (5, 0, 9, 0)) ])
+
+class \nodoc\ iso _InlayHintLambdaAnnotatedTest is UnitTest
+  """
+  Range covering demo_annotated (lines 10-12). Receiver cap and return type
+  are explicit, so no function-level hints are emitted. Verifies that no
+  spurious cap hints appear inside the lambda type annotation {(String): None}
+  on the local variable: tk_lambdatype nodes are not processed by
+  _add_nominal_hints.
+  """
+  let _server: _LspTestServer
+
+  new iso create(server: _LspTestServer) =>
+    _server = server
+
+  fun name(): String =>
+    "inlay_hint/integration/lambda/annotated"
+
+  fun apply(h: TestHelper) =>
+    _RunLspChecks(
+      h,
+      _server,
+      "inlay_hint/_lambda_hints.pony",
+      [ _InlayHintChecker(
+          []
+          where range = (10, 0, 13, 0)) ])
+
+class \nodoc\ iso _InlayHintLambdaAnnotatedExplicitTest is UnitTest
+  """
+  Range covering demo_annotated_explicit (lines 14-16). Same as
+  _InlayHintLambdaAnnotatedTest but the lambda type annotation includes
+  explicit inner caps: {(String val): None val} val. Verifies that no
+  spurious cap hints appear even when explicit caps are present inside the
+  lambda type annotation.
+  """
+  let _server: _LspTestServer
+
+  new iso create(server: _LspTestServer) =>
+    _server = server
+
+  fun name(): String =>
+    "inlay_hint/integration/lambda/annotated_explicit"
+
+  fun apply(h: TestHelper) =>
+    _RunLspChecks(
+      h,
+      _server,
+      "inlay_hint/_lambda_hints.pony",
+      [ _InlayHintChecker(
+          []
+          where range = (14, 0, 17, 0)) ])
+
+class \nodoc\ iso _InlayHintLambdaParamTest is UnitTest
+  """
+  Range covering with_callback (lines 18-19). Receiver cap and return type
+  are explicit. Verifies that no spurious cap hints appear inside the lambda
+  type used as a function parameter: {(String): None} val.
+  """
+  let _server: _LspTestServer
+
+  new iso create(server: _LspTestServer) =>
+    _server = server
+
+  fun name(): String =>
+    "inlay_hint/integration/lambda/param"
+
+  fun apply(h: TestHelper) =>
+    _RunLspChecks(
+      h,
+      _server,
+      "inlay_hint/_lambda_hints.pony",
+      [ _InlayHintChecker(
+          []
+          where range = (18, 0, 20, 0)) ])
+
+class \nodoc\ iso _InlayHintLambdaParamExplicitTest is UnitTest
+  """
+  Range covering with_callback_explicit (lines 21-24). Same as
+  _InlayHintLambdaParamTest but with explicit inner caps in the lambda type
+  parameter: {(String val): None val} val. Verifies that no spurious cap
+  hints appear inside the lambda type annotation.
+  """
+  let _server: _LspTestServer
+
+  new iso create(server: _LspTestServer) =>
+    _server = server
+
+  fun name(): String =>
+    "inlay_hint/integration/lambda/param_explicit"
+
+  fun apply(h: TestHelper) =>
+    _RunLspChecks(
+      h,
+      _server,
+      "inlay_hint/_lambda_hints.pony",
+      [ _InlayHintChecker(
+          []
+          where range = (21, 0, 24, 0)) ])
+
+class \nodoc\ iso _InlayHintLambdaReturnTest is UnitTest
+  """
+  Range covering make_cb (lines 26-27). Receiver cap and return type are
+  both explicit ({(): String} val), so no function-level hints are emitted.
+  Verifies that no spurious cap hints appear inside the lambda type used as
+  the explicit return type annotation.
+  """
+  let _server: _LspTestServer
+
+  new iso create(server: _LspTestServer) =>
+    _server = server
+
+  fun name(): String =>
+    "inlay_hint/integration/lambda/return_type"
+
+  fun apply(h: TestHelper) =>
+    _RunLspChecks(
+      h,
+      _server,
+      "inlay_hint/_lambda_hints.pony",
+      [ _InlayHintChecker(
+          []
+          where range = (25, 0, 27, 0)) ])
+
+class \nodoc\ iso _InlayHintLambdaReturnExplicitTest is UnitTest
+  """
+  Range covering make_cb_explicit (lines 29-30). Same as
+  _InlayHintLambdaReturnTest but with an explicit inner cap in the lambda
+  return type: {(): String val} val. Verifies that no spurious cap hints
+  appear inside the lambda type annotation.
+  """
+  let _server: _LspTestServer
+
+  new iso create(server: _LspTestServer) =>
+    _server = server
+
+  fun name(): String =>
+    "inlay_hint/integration/lambda/return_type_explicit"
+
+  fun apply(h: TestHelper) =>
+    _RunLspChecks(
+      h,
+      _server,
+      "inlay_hint/_lambda_hints.pony",
+      [ _InlayHintChecker(
+          []
+          where range = (28, 0, 30, 0)) ])
+
+class \nodoc\ iso _InlayHintLambdaGenericParamTest is UnitTest
+  """
+  Range covering with_generic_param (lines 31-33). Verifies that a generic
+  type inside a lambda type annotation ({(Array[U32]): None} val) produces
+  no spurious cap hints, including no hint from Array or U32.
+  """
+  let _server: _LspTestServer
+
+  new iso create(server: _LspTestServer) =>
+    _server = server
+
+  fun name(): String =>
+    "inlay_hint/integration/lambda/generic_param"
+
+  fun apply(h: TestHelper) =>
+    _RunLspChecks(
+      h,
+      _server,
+      "inlay_hint/_lambda_hints.pony",
+      [ _InlayHintChecker(
+          []
+          where range = (31, 0, 34, 0)) ])
+
+class \nodoc\ iso _InlayHintLambdaNestedLambdaTest is UnitTest
+  """
+  Range covering with_nested_lambda (lines 35-37). Verifies that a nested
+  lambda type inside a lambda type annotation ({({(): String}): None} val)
+  produces no spurious cap hints.
+  """
+  let _server: _LspTestServer
+
+  new iso create(server: _LspTestServer) =>
+    _server = server
+
+  fun name(): String =>
+    "inlay_hint/integration/lambda/nested_lambda"
+
+  fun apply(h: TestHelper) =>
+    _RunLspChecks(
+      h,
+      _server,
+      "inlay_hint/_lambda_hints.pony",
+      [ _InlayHintChecker(
+          []
+          where range = (35, 0, 38, 0)) ])
+
+class \nodoc\ iso _InlayHintLambdaUnionParamTest is UnitTest
+  """
+  Range covering with_union_param (lines 39-41). Verifies that a union type
+  inside a lambda type annotation ({((String | None)): None} val) produces
+  no spurious cap hints from String or None.
+  """
+  let _server: _LspTestServer
+
+  new iso create(server: _LspTestServer) =>
+    _server = server
+
+  fun name(): String =>
+    "inlay_hint/integration/lambda/union_param"
+
+  fun apply(h: TestHelper) =>
+    _RunLspChecks(
+      h,
+      _server,
+      "inlay_hint/_lambda_hints.pony",
+      [ _InlayHintChecker(
+          []
+          where range = (39, 0, 42, 0)) ])
 
 class val _InlayHintChecker
   """

@@ -155,7 +155,23 @@ class ref _InlayHintCollector is ASTVisitor
         return
       end
 
-      var j = _byte_offset(src, line, col)? + name.size()
+      let name_off = _byte_offset(src, line, col)?
+      // Position guard: if the character at the claimed position does not
+      // match the type name's first byte, the AST position is stale (e.g.
+      // a nominal type nested inside a tk_lambdatype annotation reports the
+      // column of the enclosing ':' separator instead of the type name).
+      // Fail closed on any access error.
+      try
+        if src(name_off)? != name(0)? then
+          return
+        end
+        if _is_ident_char(src(name_off + name.size())?) then
+          return
+        end
+      else
+        return
+      end
+      var j = name_off + name.size()
       var j_line = line
       var j_col = col + name.size()
 
