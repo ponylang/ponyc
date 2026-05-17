@@ -25,6 +25,7 @@ primitive _DocumentSymbolIntegrationTests is TestList
     test(_DocSymPrimitiveRangeTest.create(server))
     test(_DocSymPrimitiveNoChildrenTest.create(server))
     test(_DocSymPrimitivePartialSynthesisTest.create(server))
+    test(_DocSymLambdaMembersTest.create(server))
 
 class \nodoc\ iso _DocSymContainmentTest is UnitTest
   """
@@ -363,6 +364,45 @@ class \nodoc\ iso _DocSymPrimitivePartialSynthesisTest is UnitTest
       _server,
       "document_symbol/_ds_compare_user_eq.pony",
       [_DocSymChildKindsChecker("_DsCompareUserEq", [("eq", 6)])])
+
+class \nodoc\ iso _DocSymLambdaMembersTest is UnitTest
+  """
+  Regression guard for lambda-related expressions not leaking into the outline.
+
+  `_DsLambda` (in `_ds_lambda.pony`) has six explicitly written members:
+    - `_callback`: a `let` field whose type is a lambda type → field (8)
+    - `ds_no_lambda`: a plain method → method (6)
+    - `ds_with_lambda`: a method with a lambda literal in its body → method (6)
+    - `ds_returns_lambda`: a method with a lambda return type → method (6)
+    - `ds_lambda_arg`: a method with a lambda-typed parameter → method (6)
+    - `ds_local_lambda_type`: a method with a lambda-typed local
+      variable → method (6)
+
+  Lambda type annotations and lambda literals must not appear as extra child
+  symbols. The children array must contain exactly these six members.
+  """
+  let _server: _LspTestServer
+
+  new iso create(server: _LspTestServer) =>
+    _server = server
+
+  fun name(): String =>
+    "document_symbol/integration/lambda_members"
+
+  fun apply(h: TestHelper) =>
+    _RunLspChecks(
+      h,
+      _server,
+      "document_symbol/_ds_lambda.pony",
+      [ _DocSymTopLevelKindsChecker([("_DsLambda", 5)])
+        _DocSymChildKindsChecker(
+          "_DsLambda",
+          [ ("_callback", 8)
+            ("ds_no_lambda", 6)
+            ("ds_with_lambda", 6)
+            ("ds_returns_lambda", 6)
+            ("ds_lambda_arg", 6)
+            ("ds_local_lambda_type", 6)])])
 
 class val _DocSymContainmentChecker
   """

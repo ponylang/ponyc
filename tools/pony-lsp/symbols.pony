@@ -144,7 +144,10 @@ primitive DocumentSymbols
       | TokenIds.tk_class()
       | TokenIds.tk_type()
       | TokenIds.tk_actor()
-      | TokenIds.tk_struct() => entity_starts.push(module_child.position())
+      | TokenIds.tk_struct() =>
+        if not _is_synthetic_entity(module_child) then
+          entity_starts.push(module_child.position())
+        end
       end
     end
     var entity_idx: USize = 0
@@ -163,28 +166,30 @@ primitive DocumentSymbols
         end
       match maybe_kind
       | let kind: I64 =>
-        let max_pos: (Position | None) =
+        if not _is_synthetic_entity(module_child) then
+          let max_pos: (Position | None) =
+            try
+              entity_starts(entity_idx + 1)?
+            else
+              None
+            end
+          entity_idx = entity_idx + 1
           try
-            entity_starts(entity_idx + 1)?
+            let id = module_child(0)?
+            if id.id() == TokenIds.tk_id() then
+              let name = id.token_value() as String
+              (let full_range, let selection_range) =
+                this._symbol_ranges(module_child, id, name, channel, max_pos)?
+              let symbol =
+                DocumentSymbol(name, kind, full_range, selection_range)
+              this.find_members(module_child, symbol, channel, max_pos)
+              symbols.push(symbol)
+            else
+              channel.log("Expecred TK_ID, got " + TokenIds.string(id.id()))
+            end
           else
-            None
+            channel.log("No id node at idx 1")
           end
-        entity_idx = entity_idx + 1
-        try
-          let id = module_child(0)?
-          if id.id() == TokenIds.tk_id() then
-            let name = id.token_value() as String
-            (let full_range, let selection_range) =
-              this._symbol_ranges(module_child, id, name, channel, max_pos)?
-            let symbol =
-              DocumentSymbol(name, kind, full_range, selection_range)
-            this.find_members(module_child, symbol, channel, max_pos)
-            symbols.push(symbol)
-          else
-            channel.log("Expecred TK_ID, got " + TokenIds.string(id.id()))
-          end
-        else
-          channel.log("No id node at idx 1")
         end
       end
     end
@@ -323,6 +328,21 @@ primitive DocumentSymbols
           symbol.push_child(member_symbol)
         end
       end
+    end
+
+  fun _is_synthetic_entity(entity: AST box): Bool =>
+    """
+    Returns true if `entity` is a compiler-generated anonymous entity.
+    ponyc desugars lambda and object literals to anonymous classes appended
+    to the module AST; those classes have hygienic names beginning with '$'
+    (e.g. `$0`, `$1`). They must be excluded from `entity_starts` and from
+    symbol generation so they neither appear in the outline nor corrupt the
+    entity-boundary tracking used to compute `max_pos`.
+    """
+    match try entity(0)?.token_value() else None end
+    | let n: String => try n(0)? == '$' else false end
+    else
+      false
     end
 
   fun _symbol_ranges(
