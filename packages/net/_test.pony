@@ -216,6 +216,7 @@ class \nodoc\ iso _TestUDPZeroByteDatagram is UnitTest
   Test receiving an empty UDP datagram.
   """
   fun name(): String => "net/UDPZeroByteDatagram"
+  fun label(): String => "unreliable-appveyor-osx"
   fun exclusion_group(): String => "network"
 
   fun ref apply(h: TestHelper) =>

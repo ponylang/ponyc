@@ -290,9 +290,11 @@ actor UDPSocket is AsioEventNotify
 
   fun ref _pending_reads() =>
     """
-    Read while data is available, guessing the next packet length as we go. If
-    we read 4 kb of data, send ourself a resume message and stop reading, to
-    avoid starving other actors.
+    Read while data is available, guessing the next packet length as we go.
+    After roughly 4 KB worth of read work, send ourself a resume message and
+    stop reading, to avoid starving other actors. Zero-byte datagrams count as
+    1 byte against this budget so a stream of empty datagrams cannot keep this
+    loop running forever.
     """
     ifdef not windows then
       try
@@ -314,6 +316,9 @@ actor UDPSocket is AsioEventNotify
           data.truncate(len)
           _notify.received(this, consume data, consume from)
 
+          // .max(1) charges 1 byte against the budget for a zero-byte
+          // datagram, preventing this loop from starving other actors on a
+          // stream of empty datagrams.
           sum = sum + len.max(1)
 
           if sum > (1 << 12) then
