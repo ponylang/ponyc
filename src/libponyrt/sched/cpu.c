@@ -22,6 +22,7 @@
   #include <emscripten.h>
   #include <emscripten/threading.h>
 #elif defined(PLATFORM_IS_HAIKU)
+  #include <sched.h>
   #include <os/kernel/OS.h>
 #endif
 
@@ -60,15 +61,111 @@ static uint32_t cpus_online(void)
 
 #if defined(PLATFORM_IS_HAIKU)
 
+// Haiku supports up to 64 CPUs anyway, so let's make our life easier,
+// and void alloc/free multiple times.
+typedef unsigned long long cpu_map;
+const uint8 MAX_CPU = sizeof(cpu_map) * CHAR_BIT;
+static cpu_map cpu_cores = 0;
+static cpu_map cpu_smts = 0;
+
 static uint32_t haiku_cpu_count(void)
 {
-  system_info info;
-  if(get_system_info(&info) < B_OK)
+  system_info system;
+  if(get_system_info(&system) < B_OK)
   {
-    return 1;
+    cpu_cores = 1;
+    cpu_smts = 1;
+    return 1; // Bail early, since if this didn't work, everything is broken.
   }
 
-  return info.cpu_count;
+  // `system_info.cpu_count` reflects all SMTs, not just cores or physical dies.
+  // But it does not care if some of them are disabled at the moment.
+
+  // Get info about all cpus to know which ones are enabled at the moment.
+  cpu_info info[MAX_CPU];
+  if(get_cpu_info(0, MAX_CPU, info) != B_OK)
+    goto failure;
+
+  // Check how many topology nodes there will be.
+  uint32 topology_count = 0;
+  if(get_cpu_topology_info(NULL, &topology_count) != B_OK)
+    goto failure;
+
+  uint32 cpus_size = topology_count * sizeof(cpu_topology_node_info);
+  cpu_topology_node_info *cpus =
+    (cpu_topology_node_info*)ponyint_pool_alloc_size(cpus_size);
+  if(cpus == NULL)
+    goto failure;
+
+  // Get all topology nodes.
+  if(get_cpu_topology_info(cpus, &topology_count) != B_OK)
+  {
+    ponyint_pool_free_size(cpus_size, cpus);
+    goto failure;
+  }
+
+  // Topology goes like this:
+  // - ROOT
+  // -- PACKAGE
+  // --- CORE
+  // ---- SMT
+  // PACKAGE is a CPU die, so a "socket" in QEmu.
+  // Every CORE has at least one SMT node (AFAIK).
+  // We treat every first SMT's Id of core as a "core_id", others "more_id".
+  bool next_smt_is_core = false;
+  for(uint32 i = 0; i < topology_count; i++)
+  {
+    if(cpus[i].type == B_TOPOLOGY_CORE)
+    {
+      next_smt_is_core = true;
+    }
+    else if(cpus[i].type == B_TOPOLOGY_SMT)
+    {
+      if(cpus[i].id >= MAX_CPU)
+        break;
+      if(!info[cpus[i].id].enabled)
+      {
+        // Ignore disabled cpus.
+        // TODO: find a way to observe dynamically when cpu gets (re)enabled?
+      }
+      else if(next_smt_is_core)
+      {
+        cpu_cores |= 1L << cpus[i].id;
+        next_smt_is_core = false;
+      }
+      else
+      {
+        cpu_smts |= 1L << cpus[i].id;
+      }
+    }
+  }
+
+  ponyint_pool_free_size(cpus_size, cpus);
+
+  // success:
+  return __builtin_popcountll(cpu_cores);
+
+  failure:
+  for(uint8 i = 0; i < system.cpu_count; i++)
+  {
+    cpu_cores |= 1LL << i;
+  }
+  cpu_smts = cpu_cores;
+  return system.cpu_count;
+}
+
+static uint8 next_cpu_id(uint8 *last_pos, cpu_map *cpus, bool *cpus_are_cores)
+{
+  if(*cpus == 0)
+  {
+    *last_pos = 0;
+    *cpus_are_cores = !(*cpus_are_cores);
+    *cpus = *cpus_are_cores ? cpu_smts : cpu_cores;
+  }
+  uint8 pos = (uint8)__builtin_ctzll(*cpus) + 1;
+  *cpus = *cpus >> pos;
+  *last_pos += pos;
+  return *last_pos - 1;
 }
 
 #endif
@@ -308,6 +405,27 @@ uint32_t ponyint_cpu_assign(uint32_t count, scheduler_t* scheduler,
     scheduler[i].cpu = i % hw_cpu_count;
     scheduler[i].node = 0;
   }
+#elif defined(PLATFORM_IS_HAIKU)
+  uint8 cookie = 0;
+  cpu_map curr_map = cpu_cores;
+  bool curr_are_cores = true;
+
+  for(uint32_t i = 0; i < count; i++)
+  {
+    scheduler[i].cpu = next_cpu_id(&cookie, &curr_map, &curr_are_cores);
+    scheduler[i].node = 0;
+  }
+
+  // If pinning asio thread to a core is requested override the default
+  // asio_cpu of -1
+  if(pinasio)
+    asio_cpu = next_cpu_id(&cookie, &curr_map, &curr_are_cores);
+
+  if(pinpat)
+    pat_cpu = next_cpu_id(&cookie, &curr_map, &curr_are_cores);
+
+  if(pin_tracing_thread)
+    *tracing_cpu = next_cpu_id(&cookie, &curr_map, &curr_are_cores);
 #else
   // Affinity groups rather than processor numbers.
   for(uint32_t i = 0; i < count; i++)
@@ -349,7 +467,11 @@ void ponyint_cpu_affinity(uint32_t cpu)
 #elif defined(PLATFORM_IS_BSD)
   // No pinning, since we cannot yet determine hyperthreads vs physical cores.
 #elif defined(PLATFORM_IS_HAIKU)
-  // TODO: Not implemented yet!
+  cpu_set_t set;
+  CPU_ZERO(&set);
+  CPU_SET(cpu, &set);
+
+  sched_setaffinity(0, sizeof(cpu_set_t), &set);
 #elif defined(PLATFORM_IS_MACOSX)
   thread_affinity_policy_data_t policy;
   policy.affinity_tag = cpu;

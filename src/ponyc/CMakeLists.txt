@@ -39,7 +39,7 @@ else()
     elseif(${CMAKE_HOST_SYSTEM_NAME} MATCHES "DragonFly")
         target_link_libraries(ponyc PRIVATE execinfo atomic)
     elseif(${CMAKE_HOST_SYSTEM_NAME} MATCHES "Haiku")
-        target_link_libraries(ponyc PRIVATE execinfo atomic stdc++ root)
+        target_link_libraries(ponyc PRIVATE execinfo atomic stdc++ root gnu)
     else()
         execute_process(COMMAND ${CMAKE_CXX_COMPILER} --print-file-name=libstdc++.a
             OUTPUT_VARIABLE LIBSTDCXX_PATH
