@@ -446,7 +446,7 @@ uint32_t ponyint_cpu_assign(uint32_t count, scheduler_t* scheduler,
     *tracing_cpu = (count + 2);
 #endif
 
-  // set the affinity of the current thread (nain thread) which is the pinned
+  // set the affinity of the current thread (main thread) which is the pinned
   // actor thread
   ponyint_cpu_affinity(pat_cpu);
 
