@@ -18,6 +18,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Fix spurious LSP inlay hints inside lambda type annotations ([PR #5349](https://github.com/ponylang/ponyc/pull/5349))
 - Fix LSP document symbol outline dropping class members after lambda field initialisers ([PR #5350](https://github.com/ponylang/ponyc/pull/5350))
 - Fix compiler crash when combining `iftype` and `as` ([PR #5330](https://github.com/ponylang/ponyc/pull/5330))
+- Fix missing question mark check for partial calls in trait default bodies ([PR #5333](https://github.com/ponylang/ponyc/pull/5333))
 
 ### Added
 
