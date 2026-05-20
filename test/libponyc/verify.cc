@@ -492,6 +492,93 @@ TEST_F(VerifyTest, InterfaceNonPartialFunctionError)
     "function body can raise an error");
 }
 
+TEST_F(VerifyTest, TraitPartialCallMissingQuestionMark)
+{
+  const char* src =
+    "trait T\n"
+    "  fun f1() ? => error\n"
+    "  fun f2() ? => f1()";
+
+  TEST_ERRORS_1(src, "call is not partial but the method is");
+}
+
+TEST_F(VerifyTest, TraitPartialCallWithQuestionMark)
+{
+  const char* src =
+    "trait T\n"
+    "  fun f1() ? => error\n"
+    "  fun f2() ? => f1()?";
+
+  TEST_COMPILE(src);
+}
+
+TEST_F(VerifyTest, TraitPartialChainCallMissingQuestionMark)
+{
+  const char* src =
+    "trait T\n"
+    "  fun f1() ? => error\n"
+    "  fun f2() ? => this.>f1()";
+
+  TEST_ERRORS_1(src, "call is not partial but the method is");
+}
+
+TEST_F(VerifyTest, TraitNonPartialCallWithQuestionMark)
+{
+  const char* src =
+    "trait T\n"
+    "  fun f1() => None\n"
+    "  fun f2() => f1()?";
+
+  TEST_ERRORS_1(src, "call is partial but the method is not");
+}
+
+TEST_F(VerifyTest, TraitPartialConstructorCallMissingQuestionMark)
+{
+  const char* src =
+    "class C\n"
+    "  new partial() ? => error\n"
+    "trait T\n"
+    "  fun f() ? => C.partial()";
+
+  TEST_ERRORS_1(src, "call is not partial but the method is");
+}
+
+TEST_F(VerifyTest, TraitInheritsTraitPartialBodyStillCompiles)
+{
+  const char* src =
+    "trait T1\n"
+    "  fun f1() ? => error\n"
+    "  fun f2() ? => f1()?\n"
+    "trait T2 is T1\n"
+    "class C is T2";
+
+  TEST_COMPILE(src);
+}
+
+TEST_F(VerifyTest, TraitInheritsTraitPartialCallMissingQuestionMark)
+{
+  const char* src =
+    "trait T1\n"
+    "  fun f1() ? => error\n"
+    "trait T2 is T1\n"
+    "  fun f2() ? => f1()";
+
+  TEST_ERRORS_1(src, "call is not partial but the method is");
+}
+
+// Defensive regression: interfaces have always errored correctly here
+// (the trait-skip in verify/call.c only matches TK_TRAIT). This guards
+// against accidentally broadening that skip to interfaces.
+TEST_F(VerifyTest, InterfacePartialCallMissingQuestionMark)
+{
+  const char* src =
+    "interface I\n"
+    "  fun f1() ? => error\n"
+    "  fun f2() ? => f1()";
+
+  TEST_ERRORS_1(src, "call is not partial but the method is");
+}
+
 TEST_F(VerifyTest, IfTypeError)
 {
   const char* src =
