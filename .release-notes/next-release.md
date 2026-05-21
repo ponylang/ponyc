@@ -232,3 +232,117 @@ type A is Array[A]
 
 When you write something illegal, the compiler reports `type alias 'X' can't be infinitely recursive` along with a note suggesting the fix. Either thread the recursion through the type argument of a generic class (or other nominal type) like `Array[X]`, or add a non-recursive alternative in a union (`(None | <body>)`).
 
+## Replace stack-unwinding error handling with error-flag returns
+
+Pony's `error` keyword no longer unwinds the stack to propagate errors. Partial functions now return an error flag alongside their result, which `try` and `?` check directly. For pure Pony code the change is invisible: `error`, `try`, and `?` behave exactly as they did before.
+
+The change is visible at the boundary with C. The `pony_error()` runtime function has been removed. C code that signalled a Pony error by calling `pony_error()` must now report failure through its return value, and the Pony side must check that value and raise `error` itself.
+
+Because `pony_error()` was the only way a partial FFI function could signal an error, partial FFI is no longer supported. A `?` on an FFI declaration (`use @foo(...) ?`) or on an FFI call (`@foo()?`) is now a compile error; remove it.
+
+Bare lambdas (`@{...}`) that raise `error` outside a `try` now abort the program rather than unwinding, so a bare partial lambda can no longer propagate an error across a C stack frame.
+
+If you have C code that calls `pony_error()`:
+
+```c
+// Before: signal failure by raising a Pony error from C.
+PONY_API size_t my_read(...)
+{
+  if(failed)
+    pony_error();
+  return bytes_read;
+}
+```
+
+```c
+// After: report failure through the return value. The mechanism is up
+// to you; here, a sentinel the Pony caller knows to treat as failure.
+PONY_API size_t my_read(...)
+{
+  if(failed)
+    return SIZE_MAX;
+  return bytes_read;
+}
+```
+
+```pony
+// Before: the FFI declaration is partial and the call site uses `?`.
+use @my_read[USize](...) ?
+
+fun read(...): USize ? =>
+  @my_read(...)?
+```
+
+```pony
+// After: the declaration is not partial; check the sentinel yourself.
+use @my_read[USize](...)
+
+fun read(...): USize ? =>
+  let r = @my_read(...)
+  if r == USize.max_value() then error end
+  r
+```
+
+## Remove the serialise package from the standard library
+
+The `serialise` package has been removed from the standard library. Code that does `use "serialise"` will no longer compile.
+
+The package was a security footgun: it was only safe when used with fully trusted data, and deserializing untrusted data could crash the program or hand hostile code access to the machine. The capability tokens gating the API did nothing to make deserialization of untrusted input safe. Rather than rework the package, the maintainers chose to remove it. This was ratified as RFC #83.
+
+If you relied on `serialise`, you will need to implement serialization suited to your own use case and security requirements.
+
+## Change socket runtime functions to use three-state result type
+
+The five `PONY_API` socket runtime functions — `pony_os_writev`, `pony_os_send`, `pony_os_recv`, `pony_os_sendto`, and `pony_os_recvfrom` — have a new signature. Previously they were partial Pony functions returning `USize` that called `pony_error()` on failure, with `0` doubling as a "would-block" signal. They now return a three-state result (`PONY_SOCKET_OK = 0`, `PONY_SOCKET_RETRY = 1`, `PONY_SOCKET_ERROR = 2`) and write the operation's byte count through a new trailing `size_t* count_out` parameter.
+
+Anyone calling these functions from Pony via FFI must update both their `use @...` declarations and their call sites.
+
+The recommended call-site pattern uses a Pony-side dual of the result type with `match \exhaustive\`, so a future state addition on the C side surfaces as a compile error rather than a silent fall-through. The Pony stdlib's dual lives at `packages/net/_socket_result.pony` and is package-private — downstream FFI consumers should define their own dual following the same shape.
+
+Before:
+```pony
+use @pony_os_recv[USize](event: AsioEventID, buffer: Pointer[U8] tag,
+  size: USize) ?
+
+try
+  let len = @pony_os_recv(event, buffer, size)?
+  if len == 0 then
+    // would-block path
+  else
+    // len bytes were received
+  end
+else
+  // pony_error() fired in the C runtime
+end
+```
+
+After:
+```pony
+use @pony_os_recv[U8](event: AsioEventID, buffer: Pointer[U8] tag,
+  size: USize, count_out: Pointer[USize])
+
+// Define the dual once, in your package:
+primitive MyOk    fun apply(): U8 => 0
+primitive MyRetry fun apply(): U8 => 1
+primitive MyError fun apply(): U8 => 2
+
+type MyResult is (MyOk | MyRetry | MyError)
+
+primitive MyResultDecoder
+  fun apply(v: U8): MyResult =>
+    match v
+    | MyOk()    => MyOk
+    | MyRetry() => MyRetry
+    else MyError
+    end
+
+// At each call site:
+var count: USize = 0
+match \exhaustive\ MyResultDecoder(
+  @pony_os_recv(event, buffer, size, addressof count))
+| MyOk    => // count holds the bytes received
+| MyRetry => // would-block, try again later
+| MyError => // unrecoverable error
+end
+```
+

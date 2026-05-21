@@ -6,10 +6,10 @@ use @pony_os_listen_udp4[AsioEventID](owner: AsioEventNotify,
   host: Pointer[U8] tag, service: Pointer[U8] tag)
 use @pony_os_listen_udp6[AsioEventID](owner: AsioEventNotify,
   host: Pointer[U8] tag, service: Pointer[U8] tag)
-use @pony_os_sendto[USize](fd: U32, buffer: Pointer[U8] tag,
-  size: USize, to: NetAddress tag) ?
-use @pony_os_recvfrom[USize](event: AsioEventID, buffer: Pointer[U8] tag,
-  size: USize, from: NetAddress tag) ?
+use @pony_os_sendto[U8](fd: U32, buffer: Pointer[U8] tag,
+  size: USize, to: NetAddress tag, count_out: Pointer[USize])
+use @pony_os_recvfrom[U8](event: AsioEventID, buffer: Pointer[U8] tag,
+  size: USize, from: NetAddress tag, count_out: Pointer[USize])
 use @pony_os_multicast_join[None](fd: U32, group: Pointer[U8] tag,
   to: Pointer[U8] tag)
 use @pony_os_multicast_leave[None](fd: U32, group: Pointer[U8] tag,
@@ -314,23 +314,24 @@ actor UDPSocket is AsioEventNotify
           let size = _packet_size
           let data = _read_buf = recover Array[U8] .> undefined(size) end
           let from = recover NetAddress end
-          let len =
+          var count: USize = 0
+          match \exhaustive\ _SocketResultDecoder(
             @pony_os_recvfrom(_event, data.cpointer(), data.space(),
-              from) ?
+              from, addressof count))
+          | _SocketResultOk =>
+            data.truncate(count)
+            _notify.received(this, consume data, consume from)
 
-          if len == 0 then
+            sum = sum + count
+
+            if sum > (1 << 12) then
+              _read_again()
+              return
+            end
+          | _SocketResultRetry =>
             _readable = false
             return
-          end
-
-          data.truncate(len)
-          _notify.received(this, consume data, consume from)
-
-          sum = sum + len
-
-          if sum > (1 << 12) then
-            _read_again()
-            return
+          | _SocketResultError => error
           end
         end
       else
@@ -371,10 +372,23 @@ actor UDPSocket is AsioEventNotify
     This is used only with IOCP on Windows.
     """
     ifdef windows then
-      try
+      // `count` is unused on this path: Windows IOCP `pony_os_recvfrom`
+      // returns OK with count=0 because the actual byte count arrives
+      // asynchronously via `_complete_reads`. The local is required by
+      // the FFI shape.
+      //
+      // `_SocketResultRetry` is unreachable here — `iocp_recvfrom` only
+      // distinguishes "queued" from "failed" — but `\exhaustive\`
+      // requires the arm. Treat it as failure to be safe.
+      var count: USize = 0
+      match \exhaustive\ _SocketResultDecoder(
         @pony_os_recvfrom(_event, _read_buf.cpointer(),
-          _read_buf.space(), _read_from) ?
-      else
+          _read_buf.space(), _read_from, addressof count))
+      | _SocketResultOk => None
+      | _SocketResultRetry =>
+        _readable = false
+        _close()
+      | _SocketResultError =>
         _readable = false
         _close()
       end
@@ -385,10 +399,23 @@ actor UDPSocket is AsioEventNotify
     Write the datagram to the socket.
     """
     if not _closed then
-      try
-        @pony_os_sendto(_fd, data.cpointer(), data.size(), to) ?
-      else
-        _close()
+      // On Windows, `count` is unused — IOCP `pony_os_sendto` returns OK
+      // with count=0; the byte count arrives asynchronously. On POSIX,
+      // `count` holds bytes sent on Ok but is also discarded here (UDP is
+      // unreliable; we don't track partial-send progress). The local is
+      // required by the FFI shape on both platforms.
+      //
+      // POSIX `_SocketResultRetry` (EWOULDBLOCK/EAGAIN) silently drops
+      // the datagram, matching pre-change UDP semantics. Windows
+      // IOCP `pony_os_sendto` cannot return Retry — `\exhaustive\`
+      // requires the arm regardless.
+      var count: USize = 0
+      match \exhaustive\ _SocketResultDecoder(
+        @pony_os_sendto(_fd, data.cpointer(), data.size(), to,
+          addressof count))
+      | _SocketResultOk => None
+      | _SocketResultRetry => None
+      | _SocketResultError => _close()
       end
     end
 

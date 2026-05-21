@@ -10,12 +10,12 @@ use @pony_asio_event_resubscribe_write[None](event: AsioEventID)
 use @pony_asio_event_get_disposable[Bool](event: AsioEventID)
 use @pony_asio_event_set_writeable[None](event: AsioEventID, writeable: Bool)
 use @pony_asio_event_set_readable[None](event: AsioEventID, readable: Bool)
-use @pony_os_recv[USize](event: AsioEventID, buffer: Pointer[U8] tag,
-  size: USize) ?
-use @pony_os_writev[USize](ev: AsioEventID, wsa: Pointer[(USize, Pointer[U8] tag)] tag,
-  wsacnt: I32) ? if windows
-use @pony_os_writev[USize](ev: AsioEventID, iov: Pointer[(Pointer[U8] tag, USize)] tag,
-  iovcnt: I32) ? if not windows
+use @pony_os_recv[U8](event: AsioEventID, buffer: Pointer[U8] tag,
+  size: USize, count_out: Pointer[USize])
+use @pony_os_writev[U8](ev: AsioEventID, wsa: Pointer[(USize, Pointer[U8] tag)] tag,
+  wsacnt: I32, count_out: Pointer[USize]) if windows
+use @pony_os_writev[U8](ev: AsioEventID, iov: Pointer[(Pointer[U8] tag, USize)] tag,
+  iovcnt: I32, count_out: Pointer[USize]) if not windows
 use @pony_os_writev_max[I32]()
 use @pony_os_keepalive[None](fd: U32, secs: U32)
 use @pony_os_socket_close[None](fd: U32)
@@ -473,16 +473,15 @@ actor TCPConnection is AsioEventNotify
           end
 
           // Write as much data as possible.
-          // Returns how many we sent or 0 if we are experiencing backpressure
-          let len =
+          var count: USize = 0
+          match \exhaustive\ _SocketResultDecoder(
             @pony_os_writev(_event,
               _pending_writev_windows.cpointer(_pending_sent),
-              num_to_send)?
-
-          if len == 0 then
-            _apply_backpressure()
-          else
-            _pending_sent = _pending_sent + len
+              num_to_send,
+              addressof count))
+          | _SocketResultOk => _pending_sent = _pending_sent + count
+          | _SocketResultRetry => _apply_backpressure()
+          | _SocketResultError => error
           end
         else
           // Non-graceful shutdown on error.
@@ -722,15 +721,16 @@ actor TCPConnection is AsioEventNotify
           _pending_writev_windows .> push((data.size(), data.cpointer()))
           _pending_writev_total = _pending_writev_total + data.size()
 
-          // Write as much data as possible
-          // Returns how many we sent or 0 if we are experiencing backpressure
-          let len = @pony_os_writev(_event,
-            _pending_writev_windows.cpointer(_pending_sent), I32(1))?
-
-          if len == 0 then
-            _apply_backpressure()
-          else
-            _pending_sent = _pending_sent + len
+          // Write as much data as possible.
+          var count: USize = 0
+          match \exhaustive\ _SocketResultDecoder(
+            @pony_os_writev(_event,
+              _pending_writev_windows.cpointer(_pending_sent),
+              I32(1),
+              addressof count))
+          | _SocketResultOk => _pending_sent = _pending_sent + count
+          | _SocketResultRetry => _apply_backpressure()
+          | _SocketResultError => error
           end
         else
           // Non-graceful shutdown on error.
@@ -813,14 +813,19 @@ actor TCPConnection is AsioEventNotify
           end
 
           // Write as much data as possible.
-          var len = @pony_os_writev(_event,
-            _pending_writev_posix.cpointer(), num_to_send.i32()) ?
-
-          if _manage_pending_buffer(len, bytes_to_send, num_to_send)? then
-            return true
+          var count: USize = 0
+          match \exhaustive\ _SocketResultDecoder(
+            @pony_os_writev(_event,
+              _pending_writev_posix.cpointer(), num_to_send.i32(),
+              addressof count))
+          | _SocketResultOk =>
+            if _manage_pending_buffer(count, bytes_to_send, num_to_send)? then
+              return true
+            end
+            bytes_sent = bytes_sent + count
+          | _SocketResultRetry => _apply_backpressure()
+          | _SocketResultError => error
           end
-
-          bytes_sent = bytes_sent + len
         else
           // Non-graceful shutdown on error.
           hard_close()
@@ -949,13 +954,24 @@ actor TCPConnection is AsioEventNotify
     Begin an IOCP read on Windows.
     """
     ifdef windows then
-      try
+      // `count` is unused on this path: Windows IOCP `pony_os_recv`
+      // returns OK with count=0 because the actual byte count arrives
+      // asynchronously via `_complete_reads`. The local is required by
+      // the FFI shape.
+      //
+      // `_SocketResultRetry` is unreachable here — `iocp_recv` only
+      // distinguishes "queued" from "failed" — but `\exhaustive\`
+      // requires the arm. Treat it as failure to be safe.
+      var count: USize = 0
+      match \exhaustive\ _SocketResultDecoder(
         @pony_os_recv(
           _event,
           _read_buf.cpointer(_read_buf_offset),
-          _read_buf.size() - _read_buf_offset) ?
-      else
-        hard_close()
+          _read_buf.size() - _read_buf_offset,
+          addressof count))
+      | _SocketResultOk => None
+      | _SocketResultRetry => hard_close()
+      | _SocketResultError => hard_close()
       end
     end
 
@@ -1011,12 +1027,17 @@ actor TCPConnection is AsioEventNotify
           _read_buf_size()
 
           // Read as much data as possible.
-          let len = @pony_os_recv(
-            _event,
-            _read_buf.cpointer(_read_buf_offset),
-            _read_buf.size() - _read_buf_offset) ?
-
-          if len == 0 then
+          var count: USize = 0
+          match \exhaustive\ _SocketResultDecoder(
+            @pony_os_recv(
+              _event,
+              _read_buf.cpointer(_read_buf_offset),
+              _read_buf.size() - _read_buf_offset,
+              addressof count))
+          | _SocketResultOk =>
+            _read_buf_offset = _read_buf_offset + count
+            sum = sum + count
+          | _SocketResultRetry =>
             // Would block, try again later.
             // this is safe because asio thread isn't currently subscribed
             // for a read event so will not be writing to the readable flag
@@ -1025,13 +1046,13 @@ actor TCPConnection is AsioEventNotify
             _reading = false
             @pony_asio_event_resubscribe_read(_event)
             return
+          | _SocketResultError => error
           end
-
-          _read_buf_offset = _read_buf_offset + len
-          sum = sum + len
         end
       else
-        // The socket has been closed from the other side.
+        // The recv loop above raised — either an errno failure or a
+        // peer-closed condition (POSIX recv returning 0). Both surface
+        // through `_SocketResultError` and land here.
         _shutdown_peer = true
         hard_close()
       end

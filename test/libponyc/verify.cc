@@ -653,54 +653,6 @@ TEST_F(VerifyTest, PartialSugaredApplyCallAfterSugaredConstructor)
   TEST_COMPILE(src);
 }
 
-TEST_F(VerifyTest, FFICallPartialWithPartialDeclaration)
-{
-  const char* src =
-    "use @foo[U64]() ?\n"
-
-    "primitive Foo\n"
-    "  fun apply(): U64 ? =>\n"
-    "    @foo()?";
-
-  TEST_COMPILE(src);
-}
-
-TEST_F(VerifyTest, FFICallWithPartialDeclaration)
-{
-  const char* src =
-    "use @foo[U64]() ?\n"
-
-    "primitive Foo\n"
-    "  fun apply(): U64 ? =>\n"
-    "    @foo()?";
-
-  TEST_COMPILE(src);
-}
-
-TEST_F(VerifyTest, FFICallPartialWithNonPartialDeclaration)
-{
-  const char* src =
-    "use @foo[U64]()\n"
-
-    "primitive Foo\n"
-    "  fun apply(): U64 =>\n"
-    "    @foo() ?";
-
-  TEST_ERRORS_1(src, "call is partial but the declaration is not");
-}
-
-TEST_F(VerifyTest, FFICallNonPartialWithPartialDeclaration)
-{
-  const char* src =
-    "use @foo[U64]() ?\n"
-
-    "primitive Foo\n"
-    "  fun apply(): U64 ? =>\n"
-    "    @foo()";
-
-  TEST_ERRORS_1(src, "call is not partial but the declaration is");
-}
-
 TEST_F(VerifyTest, NonPartialSugaredBinaryOperatorCall)
 {
   const char* src =

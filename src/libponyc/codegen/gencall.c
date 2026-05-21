@@ -86,28 +86,6 @@ static void ffi_decl_free(ffi_decl_t* d)
 DEFINE_HASHMAP(ffi_decls, ffi_decls_t, ffi_decl_t, ffi_decl_hash, ffi_decl_cmp,
   ffi_decl_free);
 
-static LLVMValueRef invoke_fun(compile_t* c, LLVMTypeRef fun_type,
-  LLVMValueRef fun, LLVMValueRef* args, int count, const char* ret, bool setcc)
-{
-  if(fun == NULL)
-    return NULL;
-
-  LLVMBasicBlockRef this_block = LLVMGetInsertBlock(c->builder);
-  LLVMBasicBlockRef then_block = LLVMInsertBasicBlockInContext(c->context,
-    this_block, "invoke");
-  LLVMMoveBasicBlockAfter(then_block, this_block);
-  LLVMBasicBlockRef else_block = c->frame->invoke_target;
-
-  LLVMValueRef invoke = LLVMBuildInvoke2(c->builder, fun_type, fun, args, count,
-    then_block, else_block, ret);
-
-  if(setcc)
-    LLVMSetInstructionCallConv(invoke, c->callconv);
-
-  LLVMPositionBuilderAtEnd(c->builder, then_block);
-  return invoke;
-}
-
 static bool special_case_operator(compile_t* c, ast_t* ast,
   LLVMValueRef *value, bool short_circuit, bool native128)
 {
@@ -917,19 +895,58 @@ LLVMValueRef gen_call(compile_t* c, ast_t* ast)
 
     if(func != NULL)
     {
-      // If we can error out and we have an invoke target, generate an invoke
-      // instead of a call.
       codegen_debugloc(c, ast);
-
-      if(ast_canerror(ast) && (c->frame->invoke_target != NULL))
-        r = invoke_fun(c, func_type, func, args + arg_offset, i, "", !bare);
-      else
-        r = codegen_call(c, func_type, func, args + arg_offset, i, !bare);
+      r = codegen_call(c, func_type, func, args + arg_offset, i, !bare);
 
       if(is_new_call)
       {
         LLVMValueRef md = LLVMMDNodeInContext(c->context, NULL, 0);
         LLVMSetMetadataStr(r, "pony.newcall", md);
+      }
+
+      compile_method_t* c_m = (compile_method_t*)m->c_method;
+      if(c_m->is_partial)
+      {
+        // Callee returns {T, i1} or i1. Extract the error flag and branch.
+        LLVMValueRef error_flag = unwrap_error(c, r);
+        LLVMBasicBlockRef error_block = codegen_block(c, "call_error");
+        LLVMBasicBlockRef continue_block = codegen_block(c, "call_continue");
+        LLVMBuildCondBr(c->builder, error_flag, error_block, continue_block);
+
+        LLVMPositionBuilderAtEnd(c->builder, error_block);
+        if(c->frame->error_target != NULL)
+        {
+          LLVMBuildBr(c->builder, c->frame->error_target);
+        }
+        else
+        {
+          // Propagate error return. This path is only valid when the
+          // enclosing function is partial.
+          pony_assert(c->frame->is_partial);
+
+          LLVMTypeRef f_type = LLVMGlobalGetValueType(codegen_fun(c));
+          LLVMTypeRef ret_type = LLVMGetReturnType(f_type);
+
+          if(ret_type == c->i1)
+          {
+            genfun_build_ret(c, LLVMConstInt(c->i1, 1, false));
+          }
+          else
+          {
+            LLVMValueRef undef_val =
+              LLVMGetUndef(LLVMStructGetTypeAtIndex(ret_type, 0));
+            LLVMValueRef err_ret = wrap_result(c, undef_val,
+              LLVMConstInt(c->i1, 1, false));
+            genfun_build_ret(c, err_ret);
+          }
+        }
+
+        LLVMPositionBuilderAtEnd(c->builder, continue_block);
+
+        // Extract the real value from the non-error return.
+        LLVMTypeRef callee_ret = LLVMGetReturnType(func_type);
+        if(callee_ret != c->i1)
+          r = unwrap_result(c, r);
       }
 
       codegen_debugloc(c, NULL);
@@ -1183,7 +1200,6 @@ static LLVMValueRef cast_ffi_arg(compile_t* c, ffi_decl_t* decl, ast_t* ast,
 LLVMValueRef gen_ffi(compile_t* c, ast_t* ast)
 {
   AST_GET_CHILDREN(ast, id, typeargs, args, named_args, can_err);
-  bool err = (ast_id(can_err) == TK_QUESTION);
 
   // Get the function name, +1 to skip leading @
   const char* f_name = ast_name(id) + 1;
@@ -1216,7 +1232,7 @@ LLVMValueRef gen_ffi(compile_t* c, ast_t* ast)
 
     bool is_intrinsic = (!strncmp(f_name, "llvm.", 5) || !strncmp(f_name, "internal.", 9));
     AST_GET_CHILDREN(decl, decl_id, decl_ret, decl_params, decl_named_params, decl_err);
-    err = (ast_id(decl_err) == TK_QUESTION);
+
     func = declare_ffi(c, f_name, t, decl_params, is_intrinsic);
 
     size_t index = HASHMAP_UNKNOWN;
@@ -1299,15 +1315,9 @@ LLVMValueRef gen_ffi(compile_t* c, ast_t* ast)
     arg = ast_sibling(arg);
   }
 
-  // If we can error out and we have an invoke target, generate an invoke
-  // instead of a call.
   LLVMValueRef result;
   codegen_debugloc(c, ast);
-
-  if(err && (c->frame->invoke_target != NULL))
-    result = invoke_fun(c, f_type, func, f_args, count, "", false);
-  else
-    result = LLVMBuildCall2(c->builder, f_type, func, f_args, count, "");
+  result = LLVMBuildCall2(c->builder, f_type, func, f_args, count, "");
 
   codegen_debugloc(c, NULL);
   ponyint_pool_free_size(buf_size, f_args);
@@ -1422,17 +1432,47 @@ LLVMValueRef gencall_allocstruct(compile_t* c, reach_type_t* t)
   return result;
 }
 
-void gencall_error(compile_t* c)
+LLVMTypeRef error_flag_type(compile_t* c, LLVMTypeRef real_type)
 {
-  LLVMValueRef func = LLVMGetNamedFunction(c->module, "pony_error");
-  LLVMTypeRef func_type = LLVMGlobalGetValueType(func);
+  if(real_type == c->void_type)
+    return c->i1;
 
-  if(c->frame->invoke_target != NULL)
-    invoke_fun(c, func_type, func, NULL, 0, "", false);
-  else
-    LLVMBuildCall2(c->builder, func_type, func, NULL, 0, "");
+  LLVMTypeRef elements[2];
+  elements[0] = real_type;
+  elements[1] = c->i1;
+  return LLVMStructTypeInContext(c->context, elements, 2, false);
+}
 
-  LLVMBuildUnreachable(c->builder);
+LLVMValueRef wrap_result(compile_t* c, LLVMValueRef value,
+  LLVMValueRef is_error)
+{
+  if(value == NULL)
+    return is_error;
+
+  LLVMTypeRef elements[2];
+  elements[0] = LLVMTypeOf(value);
+  elements[1] = c->i1;
+  LLVMTypeRef struct_type = LLVMStructTypeInContext(c->context, elements, 2,
+    false);
+
+  LLVMValueRef result = LLVMGetUndef(struct_type);
+  result = LLVMBuildInsertValue(c->builder, result, value, 0, "");
+  result = LLVMBuildInsertValue(c->builder, result, is_error, 1, "");
+  return result;
+}
+
+LLVMValueRef unwrap_result(compile_t* c, LLVMValueRef tuple)
+{
+  (void)c;
+  return LLVMBuildExtractValue(c->builder, tuple, 0, "");
+}
+
+LLVMValueRef unwrap_error(compile_t* c, LLVMValueRef tuple)
+{
+  LLVMTypeRef type = LLVMTypeOf(tuple);
+  if(LLVMGetTypeKind(type) == LLVMStructTypeKind)
+    return LLVMBuildExtractValue(c->builder, tuple, 1, "");
+  return tuple;
 }
 
 void gencall_memcpy(compile_t* c, LLVMValueRef dst, LLVMValueRef src,

@@ -19,6 +19,7 @@ actor \nodoc\ Main is TestList
   fun tag tests(test: PonyTest) =>
     // Tests below function across all systems and are listed alphabetically
     test(_TestOsIpString)
+    test(_TestSocketResultDecoder)
     test(_TestTCPConnectionFailed)
     test(_TestTCPExpect)
     test(_TestTCPExpectOverBufferSize)
@@ -126,6 +127,41 @@ class \nodoc\ _TestPong is UDPNotify
     sock.writev(
       recover val [[U8('p'); U8('o'); U8('n'); U8('g'); U8('!')]] end,
       from)
+
+class \nodoc\ iso _TestSocketResultDecoder is UnitTest
+  """
+  Verify _SocketResultDecoder maps every U8 to the expected union variant.
+  The wire values 0/1/2 must match the C-side PONY_SOCKET_OK/RETRY/ERROR
+  in `src/libponyrt/lang/socket.h`. Anything else falls through to Error
+  so unknown C-side values fail closed.
+  """
+  fun name(): String => "net/SocketResultDecoder"
+
+  fun ref apply(h: TestHelper) =>
+    // Anchor the wire contract: the apply() values must equal the
+    // PONY_SOCKET_* constants in socket.h.
+    h.assert_eq[U8](_SocketResultOk(), 0)
+    h.assert_eq[U8](_SocketResultRetry(), 1)
+    h.assert_eq[U8](_SocketResultError(), 2)
+
+    // Sweep every U8: 0 → Ok, 1 → Retry, anything else → Error.
+    var v: U8 = 0
+    while true do
+      let r = _SocketResultDecoder(v)
+      match v
+      | 0 =>
+        h.assert_true(r is _SocketResultOk,
+          "decoder(" + v.string() + ") should be Ok")
+      | 1 =>
+        h.assert_true(r is _SocketResultRetry,
+          "decoder(" + v.string() + ") should be Retry")
+      else
+        h.assert_true(r is _SocketResultError,
+          "decoder(" + v.string() + ") should be Error")
+      end
+      if v == U8.max_value() then break end
+      v = v + 1
+    end
 
 class \nodoc\ iso _TestBroadcast is UnitTest
   """

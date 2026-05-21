@@ -7,7 +7,6 @@ add_executable(libponyrt.tests
     ds/fun.cc
     ds/hash.cc
     ds/list.cc
-    lang/error.cc
     mem/heap.cc
     mem/pagemap.cc
     mem/pool.cc

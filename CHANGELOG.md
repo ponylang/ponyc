@@ -30,6 +30,9 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Changed
 
+- Replace stack-unwinding error handling with error-flag returns ([PR #5002](https://github.com/ponylang/ponyc/pull/5002))
+- Remove the serialise package from the standard library ([PR #5002](https://github.com/ponylang/ponyc/pull/5002))
+- Change socket runtime functions to use three-state result type ([PR #5002](https://github.com/ponylang/ponyc/pull/5002))
 
 ## [0.63.4] - 2026-05-02
 

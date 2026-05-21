@@ -254,3 +254,58 @@ TEST_F(FFITest, DeclarationWithNullablePointer)
         "the type argument to NullablePointer must be a struct");
 
 }
+
+TEST_F(FFITest, DeclarationCannotBePartial)
+{
+  const char* src =
+    "use @foo[U64]() ?\n"
+
+    "primitive Foo\n"
+    "  fun apply(): U64 =>\n"
+    "    @foo()";
+
+  TEST_ERRORS_1(src, "an FFI declaration can no longer be partial");
+}
+
+TEST_F(FFITest, CallCannotBePartial)
+{
+  const char* src =
+    "use @foo[U64]()\n"
+
+    "primitive Foo\n"
+    "  fun apply(): U64 =>\n"
+    "    @foo() ?";
+
+  TEST_ERRORS_1(src, "an FFI call can no longer be partial");
+}
+
+TEST_F(FFITest, DeclarationAndCallCannotBePartial)
+{
+  const char* src =
+    "use @foo[U64]() ?\n"
+
+    "primitive Foo\n"
+    "  fun apply(): U64 =>\n"
+    "    @foo()?";
+
+  TEST_ERRORS_2(src,
+    "an FFI declaration can no longer be partial",
+    "an FFI call can no longer be partial");
+}
+
+// A `?` on a method call on an FFI's result (here S.get) binds to that call,
+// not the FFI call, so it remains legal.
+TEST_F(FFITest, CallOnFFIResultMayBePartial)
+{
+  const char* src =
+    "use @foo[S]()\n"
+
+    "struct S\n"
+    "  fun get(): U8 ? => error\n"
+
+    "primitive Foo\n"
+    "  fun apply(): U8 ? =>\n"
+    "    @foo().get()?";
+
+  TEST_COMPILE(src);
+}

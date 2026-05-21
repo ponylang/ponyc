@@ -600,13 +600,23 @@ static ast_result_t syntax_ffi(pass_opt_t* opt, ast_t* ast,
   pony_assert(ast != NULL);
   ast_result_t r = AST_OK;
 
-  AST_GET_CHILDREN(ast, id, typeargs, ffi_args, ffi_named_args);
+  AST_GET_CHILDREN(ast, id, typeargs, ffi_args, ffi_named_args, question);
   // We don't check FFI names are legal, if the lexer allows it so do we
   if((ast_child(typeargs) == NULL && is_declaration) ||
     ast_childidx(typeargs, 1) != NULL)
   {
     ast_error(opt->check.errors, typeargs,
       "FFI functions must specify a single return type");
+    r = AST_ERROR;
+  }
+
+  if(ast_id(question) == TK_QUESTION)
+  {
+    ast_error(opt->check.errors, question, is_declaration
+      ? "Partial FFI is no longer supported. 'pony_error()' has been removed, "
+        "so an FFI declaration can no longer be partial. Remove the '?'."
+      : "Partial FFI is no longer supported. 'pony_error()' has been removed, "
+        "so an FFI call can no longer be partial. Remove the '?'.");
     r = AST_ERROR;
   }
 
