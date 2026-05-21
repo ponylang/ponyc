@@ -441,6 +441,20 @@ static reach_method_t* add_rmethod(reach_t* r, reach_type_t* t,
   reach_method_name_t* n, token_id cap, ast_t* typeargs, pass_opt_t* opt,
   bool internal)
 {
+  // reach_method (the lookup) normalizes the requested cap to n->cap for every
+  // method name except a `fun` whose receiver cap is box or tag — the one case
+  // that legitimately has several concrete entries (the reachability pass marks
+  // distinct ref/val and box versions). Apply the same rule here on insert so
+  // the concrete entry is keyed where the lookup will later search for it.
+  // Otherwise add_rmethod_to_subtype, which propagates an interface method's
+  // cap onto a subtype's own method, keys an actor's `be` under "box_<name>"
+  // (the interface cap) while the forwarding lookup — normalizing the
+  // behavior's cap to tag — searches "tag_<name>", misses, and asserts in
+  // genfun_forward. The forwarding entry in r_mangled is independent and keeps
+  // its own interface-cap mangled name.
+  if(!((n->id == TK_FUN) && ((n->cap == TK_BOX) || (n->cap == TK_TAG))))
+    cap = n->cap;
+
   const char* name = genname_fun(cap, n->name, typeargs);
   reach_method_t* m = reach_rmethod(n, name);
 
