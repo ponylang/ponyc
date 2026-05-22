@@ -26,6 +26,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 - Add LSP call hierarchy support ([PR #5300](https://github.com/ponylang/ponyc/pull/5300))
 - LSP now shows docstrings for class fields on hover ([PR #5320](https://github.com/ponylang/ponyc/pull/5320))
+- Allow finite recursive type aliases ([PR #5246](https://github.com/ponylang/ponyc/pull/5246))
 
 ### Changed
 
