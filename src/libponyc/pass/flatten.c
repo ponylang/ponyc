@@ -61,7 +61,7 @@ static ast_result_t flatten_isect(pass_opt_t* opt, ast_t* ast)
   return AST_OK;
 }
 
-bool constraint_contains_tuple(pass_opt_t* opt, ast_t* constraint, ast_t* scan)
+bool constraint_contains_tuple(ast_t* constraint, ast_t* scan)
 {
   switch(ast_id(scan))
   {
@@ -79,7 +79,7 @@ bool constraint_contains_tuple(pass_opt_t* opt, ast_t* constraint, ast_t* scan)
 
       while(child != NULL)
       {
-        if(constraint_contains_tuple(opt, constraint, child))
+        if(constraint_contains_tuple(constraint, child))
           r = true;
         child = ast_sibling(child);
       }
@@ -97,7 +97,7 @@ bool constraint_contains_tuple(pass_opt_t* opt, ast_t* constraint, ast_t* scan)
       // Pass unfolded as both constraint and scan: after unfolding, the
       // concrete type IS the effective constraint. The TK_UNIONTYPE case
       // iterates constraint's children, which must be the union members.
-      bool r = constraint_contains_tuple(opt, unfolded, unfolded);
+      bool r = constraint_contains_tuple(unfolded, unfolded);
       ast_free_unattached(unfolded);
       return r;
     }
@@ -132,7 +132,7 @@ ast_result_t flatten_typeparamref(pass_opt_t* opt, ast_t* ast)
   // the one used in syntax.
   ast_t* constraint = typeparam_constraint(ast);
   if(constraint != NULL
-    && constraint_contains_tuple(opt, constraint, constraint))
+    && constraint_contains_tuple(constraint, constraint))
   {
     ast_error(opt->check.errors, constraint,
       "constraint contains a tuple; tuple types can't be used as type constraints");
@@ -191,7 +191,7 @@ static ast_result_t flatten_sendable_params(pass_opt_t* opt, ast_t* params)
   {
     AST_GET_CHILDREN(param, id, type, def);
 
-    if(!sendable(type))
+    if(!sendable(type, opt))
     {
       ast_error(opt->check.errors, param,
         "this parameter must be sendable (iso, val or tag)");
@@ -245,7 +245,7 @@ static ast_result_t flatten_arrow(pass_opt_t* opt, ast_t** astp)
     case TK_THISTYPE:
     case TK_TYPEPARAMREF:
     {
-      ast_t* r_ast = viewpoint_type(left, right);
+      ast_t* r_ast = viewpoint_type(left, right, opt);
       ast_replace(astp, r_ast);
       return AST_OK;
     }

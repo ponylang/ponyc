@@ -265,6 +265,13 @@ static void trace_kind_append(printbuf_t* buf, ast_t* type)
 
     case TK_TYPEALIASREF:
     {
+      // The recursive descent through 'unfolded' terminates because
+      // PASS_TYPEALIAS_RECURSION (pass/typealias_recursion.c) rejects
+      // any alias whose recursive arm lives outside a TK_NOMINAL
+      // typearg, and this function does not descend into typeargs.
+      // The body produced by typealias_unfold has its recursive arm
+      // behind a nominal, so the next visit hits a TK_NOMINAL case
+      // and returns without re-entering this branch.
       ast_t* unfolded = typealias_unfold(type);
 
       if(unfolded != NULL)
@@ -276,6 +283,7 @@ static void trace_kind_append(printbuf_t* buf, ast_t* type)
       {
         printbuf(buf, "x");
       }
+
       return;
     }
 

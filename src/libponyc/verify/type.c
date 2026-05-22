@@ -1,4 +1,5 @@
 #include "type.h"
+#include "../type/typealias.h"
 #include "ponyassert.h"
 
 
@@ -6,6 +7,25 @@ static bool embed_struct_field_has_finaliser(pass_opt_t* opt, ast_t* field,
   ast_t* base)
 {
   ast_t* type = ast_type(field);
+
+  // Embed fields with a typealias-typed declaration carry the
+  // TK_TYPEALIASREF in ast_type; flatten validates that the unfolded
+  // form is a class, but doesn't rewrite the field's type. Unfold
+  // here to reach the concrete def.
+  ast_t* unfolded = NULL;
+  if(ast_id(type) == TK_TYPEALIASREF)
+  {
+    unfolded = typealias_unfold(type);
+    if(unfolded != NULL)
+      type = unfolded;
+  }
+
+  // The TK_NOMINAL assertion holds because flatten's TK_EMBED handling
+  // (pass/flatten.c) rejects any embed field whose unfolded type isn't
+  // a class — a struct-or-class with a known concrete def. If a
+  // future flatten change ever leaves a non-nominal type past that
+  // gate, the assertion fires here at the point of first use rather
+  // than allowing a corrupt def_data lookup downstream.
   pony_assert(ast_id(type) == TK_NOMINAL);
 
   ast_t* def = (ast_t*)ast_data(type);
@@ -22,6 +42,8 @@ static bool embed_struct_field_has_finaliser(pass_opt_t* opt, ast_t* field,
 
     ast_error_continue(opt->check.errors, final, "_final method is here");
 
+    if(unfolded != NULL)
+      ast_free_unattached(unfolded);
     return false;
   }
 
@@ -41,6 +63,8 @@ static bool embed_struct_field_has_finaliser(pass_opt_t* opt, ast_t* field,
     member = ast_sibling(member);
   }
 
+  if(unfolded != NULL)
+    ast_free_unattached(unfolded);
   return ok;
 }
 

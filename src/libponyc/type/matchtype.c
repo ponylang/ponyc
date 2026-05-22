@@ -355,7 +355,7 @@ static matchtype_t is_tuple_match_tuple(ast_t* operand, ast_t* pattern,
 static matchtype_t is_nominal_match_tuple(ast_t* operand, ast_t* pattern,
   errorframe_t* errorf, bool report_reject, pass_opt_t* opt)
 {
-  if(!is_top_type(operand, true))
+  if(!is_top_type(operand, true, opt))
   {
     if((errorf != NULL) && report_reject)
     {
@@ -497,9 +497,9 @@ static matchtype_t is_arrow_match_x(ast_t* operand, ast_t* pattern,
   AST_GET_CHILDREN(operand, left, right);
 
   if(ast_id(left) == TK_THISTYPE)
-    operand_view = viewpoint_upper(operand);
+    operand_view = viewpoint_upper(operand, opt);
   else
-    operand_view = viewpoint_lower(operand);
+    operand_view = viewpoint_lower(operand, opt);
 
   if(operand_view == NULL)
   {
@@ -905,7 +905,7 @@ static matchtype_t is_x_match_arrow(ast_t* operand, ast_t* pattern,
   // T1 match upperbound(T2->T3)
   // ---
   // T1 match T2->T3
-  ast_t* pattern_upper = viewpoint_upper(pattern);
+  ast_t* pattern_upper = viewpoint_upper(pattern, opt);
 
   if(pattern_upper == NULL)
   {
@@ -946,7 +946,8 @@ static matchtype_t is_x_match_x(ast_t* operand, ast_t* pattern,
       return is_x_match_nominal(operand, pattern, errorf, report_reject, opt);
 
     case TK_TYPEPARAMREF:
-      return is_x_match_typeparam(operand, pattern, errorf, report_reject, opt);
+      return is_x_match_typeparam(operand, pattern, errorf, report_reject,
+        opt);
 
     case TK_ARROW:
       return is_x_match_arrow(operand, pattern, errorf, report_reject, opt);
@@ -956,6 +957,7 @@ static matchtype_t is_x_match_x(ast_t* operand, ast_t* pattern,
       ast_t* unfolded = typealias_unfold(pattern);
       if(unfolded == NULL)
         return MATCHTYPE_REJECT;
+
       matchtype_t ok = is_x_match_x(operand, unfolded, errorf, report_reject,
         opt);
       ast_free_unattached(unfolded);
@@ -965,11 +967,10 @@ static matchtype_t is_x_match_x(ast_t* operand, ast_t* pattern,
     case TK_FUNTYPE:
       return MATCHTYPE_DENY_CAP;
 
-    default: {}
+    default:
+      pony_assert(0);
+      return MATCHTYPE_DENY_CAP;
   }
-
-  pony_assert(0);
-  return MATCHTYPE_DENY_CAP;
 }
 
 matchtype_t is_matchtype(ast_t* operand, ast_t* pattern, errorframe_t* errorf,
@@ -981,7 +982,7 @@ matchtype_t is_matchtype(ast_t* operand, ast_t* pattern, errorframe_t* errorf,
 matchtype_t is_matchtype_with_consumed_pattern(ast_t* operand, ast_t* pattern, errorframe_t* errorf,
   pass_opt_t* opt)
 {
-  ast_t* consumed_pattern = consume_type(pattern, TK_NONE, false);
+  ast_t* consumed_pattern = consume_type(pattern, TK_NONE, false, opt);
   if (consumed_pattern == NULL)
     return MATCHTYPE_REJECT;
 

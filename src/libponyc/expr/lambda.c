@@ -92,14 +92,14 @@ static bool make_capture_field(pass_opt_t* opt, ast_t* capture,
 
     BUILD(capture_rhs, id_node, NODE(TK_REFERENCE, ID(name)));
 
-    type = alias(ast_type(def));
+    type = alias(ast_type(def), opt);
     value = capture_rhs;
   } else if(ast_id(type) == TK_NONE) {
     // No type specified, use type of the captured expression
     if(ast_type(value) == NULL)
       return false;
 
-    type = alias(ast_type(value));
+    type = alias(ast_type(value), opt);
   } else {
     // Type given, infer literals
     if(!coerce_literals(&value, type, opt))
@@ -109,7 +109,7 @@ static bool make_capture_field(pass_opt_t* opt, ast_t* capture,
     // discarded.
     if(is_dontcare)
     {
-      ast_t* p_type = consume_type(type, TK_NONE, false);
+      ast_t* p_type = consume_type(type, TK_NONE, false, opt);
       ast_t* v_type = ast_type(value);
       errorframe_t info = NULL;
       errorframe_t frame = NULL;
@@ -605,7 +605,7 @@ static bool capture_from_reference(pass_opt_t* opt, ast_t* ctx, ast_t* ast,
       return true;
   }
 
-  ast_t* type = alias(ast_type(refdef));
+  ast_t* type = alias(ast_type(refdef), opt);
 
   if(is_typecheck_error(type))
     return false;

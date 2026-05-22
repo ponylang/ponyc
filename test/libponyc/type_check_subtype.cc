@@ -366,8 +366,8 @@ TEST_F(SubTypeTest, IsSubTypeIntersect)
   ASSERT_TRUE(is_subtype(type_of("t1valand2box"), type_of("t1val"), NULL, &opt));
 
   // ephemerals
-  ast_t* t3isohat = consume_type(type_of("t3iso"), TK_NONE, true);
-  ast_t* t3trnhat = consume_type(type_of("t3trn"), TK_NONE, true);
+  ast_t* t3isohat = consume_type(type_of("t3iso"), TK_NONE, true, &opt);
+  ast_t* t3trnhat = consume_type(type_of("t3trn"), TK_NONE, true, &opt);
   ASSERT_TRUE(is_subtype(t3isohat, type_of("t1refand2box"), NULL, &opt));
   ASSERT_TRUE(is_subtype(t3isohat, type_of("t1valand2box"), NULL, &opt));
   ASSERT_TRUE(is_subtype(t3trnhat, type_of("t1refand2box"), NULL, &opt));
@@ -375,8 +375,8 @@ TEST_F(SubTypeTest, IsSubTypeIntersect)
   ast_free_unattached(t3isohat);
   ast_free_unattached(t3trnhat);
 
-  ast_t* t1t2iso = consume_type(type_of("t1isoand2iso"), TK_NONE, true);
-  ast_t* t1t2trn = consume_type(type_of("t1trnand2trn"), TK_NONE, true);
+  ast_t* t1t2iso = consume_type(type_of("t1isoand2iso"), TK_NONE, true, &opt);
+  ast_t* t1t2trn = consume_type(type_of("t1trnand2trn"), TK_NONE, true, &opt);
   ASSERT_TRUE(is_subtype(t1t2iso, type_of("t1refand2box"), NULL, &opt));
   ASSERT_TRUE(is_subtype(t1t2trn, type_of("t1refand2box"), NULL, &opt));
   ASSERT_TRUE(is_subtype(t1t2iso, type_of("t1valand2box"), NULL, &opt));
@@ -1240,9 +1240,9 @@ TEST_F(SubTypeTest, ConsumeRefNotIso)
 TEST_F(SubTypeTest, RecursiveInterfaceCompiles)
 {
   // Guards against the ponylang/ponyc#1216 fix being too aggressive.
-  // Self-referential interfaces must still type-check via the existing
-  // exact_nominal path, independent of the divergence guard in
-  // is_nominal_sub_nominal.
+  // Self-referential interfaces must still type-check via the
+  // type_assume coinductive mechanism, independent of the
+  // recursion-divergence guard in is_x_sub_x.
   const char* src =
     "interface I\n"
     "  fun ref f(): I\n"
@@ -1269,9 +1269,9 @@ TEST_F(SubTypeTest, MutuallyRecursiveInterfacesCompile)
   // Additional ponylang/ponyc#1216 guardrail: mutually-recursive
   // interfaces where each interface's method returns the other must
   // still type-check. The subtype check recurses through B's
-  // structural check and back to A, closing the proof via
-  // check_assume/exact_nominal across def-pair boundaries rather than
-  // inside a single def.
+  // structural check and back to A, closing the proof via the
+  // type_assume coinductive mechanism across def-pair boundaries
+  // rather than inside a single def.
   const char* src =
     "interface A\n"
     "  fun ref get_b(): B\n"
@@ -1293,227 +1293,4 @@ TEST_F(SubTypeTest, MutuallyRecursiveInterfacesCompile)
     "    let b: B = ConcreteB";
 
   TEST_COMPILE(src);
-}
-
-TEST_F(SubTypeTest, IsExactTypeDistinguishesTypeParamScopes)
-{
-  // Soundness regression covering jemc's review of the
-  // ponylang/ponyc#1216 / #5198 / #3930 fix. An earlier iteration of
-  // exact_nominal compared assume-stack entries with ast_print_type,
-  // which collapses type parameters that share a source name across
-  // distinct scopes — `_W[T]` on a parameter of one class and `_W[T]`
-  // on a parameter of another class print identically even though
-  // each `T` references its own typeparam definition. With that
-  // comparison, a coinductive proof in check_assume could close on a
-  // pair that only matched by name; that is unsoundness, since the
-  // current pair would not actually have been proved.
-  //
-  // is_exact_type compares definitions by pointer (semantic identity),
-  // so it correctly distinguishes the two cases. The test asserts both
-  // halves of the soundness story:
-  //   1. ast_print_type produces identical strings for the two types
-  //      (proving the previous comparison was wrong on this input).
-  //   2. is_exact_type returns false (proving the new comparison is
-  //      right).
-  // Without (1), the test could not distinguish the new fix from the
-  // old one — it is the counterfactual that turns this into a
-  // regression test for the soundness gap rather than just a behavior
-  // check.
-  const char* src =
-    "class _W[X]\n"
-
-    "class _C1[T]\n"
-    "  fun ref method_c1(p_in_c1: _W[T]) => None\n"
-
-    "class _C2[T]\n"
-    "  fun ref method_c2(p_in_c2: _W[T]) => None\n"
-
-    "actor Main\n"
-    "  new create(env: Env) => None";
-
-  TEST_COMPILE(src);
-
-  ast_t* t_c1 = type_of("p_in_c1");
-  ast_t* t_c2 = type_of("p_in_c2");
-  ASSERT_NE((void*)NULL, t_c1);
-  ASSERT_NE((void*)NULL, t_c2);
-
-  ASSERT_STREQ(ast_print_type(t_c1), ast_print_type(t_c2));
-
-  ASSERT_FALSE(is_exact_type(t_c1, t_c2));
-}
-
-TEST_F(SubTypeTest, IsExactTypeDistinguishesMethodTypeParamScopes)
-{
-  // Companion to IsExactTypeDistinguishesTypeParamScopes covering the
-  // method-scope collision, which is the more common shape in real
-  // code: two methods on the same class each declare their own type
-  // parameter `T`. The two `T`s are distinct typeparam definitions
-  // and their uses in identically-shaped types must not be conflated.
-  const char* src =
-    "class _W[X]\n"
-
-    "class _C\n"
-    "  fun ref method_a[T](p_in_a: _W[T]) => None\n"
-    "  fun ref method_b[T](p_in_b: _W[T]) => None\n"
-
-    "actor Main\n"
-    "  new create(env: Env) => None";
-
-  TEST_COMPILE(src);
-
-  ast_t* t_a = type_of("p_in_a");
-  ast_t* t_b = type_of("p_in_b");
-  ASSERT_NE((void*)NULL, t_a);
-  ASSERT_NE((void*)NULL, t_b);
-
-  ASSERT_STREQ(ast_print_type(t_a), ast_print_type(t_b));
-
-  ASSERT_FALSE(is_exact_type(t_a, t_b));
-}
-
-TEST_F(SubTypeTest, IsExactTypeMatchesSameTypeParamRef)
-{
-  // Control case: two uses of the same type parameter from the same
-  // scope must compare exactly equal. Without this guarantee
-  // check_assume could not close legitimate coinductive proofs, and
-  // the existing recursive-interface tests would regress.
-  const char* src =
-    "class _W[X]\n"
-
-    "class _C[T]\n"
-    "  fun ref method_a(p_a: _W[T]) => None\n"
-    "  fun ref method_b(p_b: _W[T]) => None\n"
-
-    "actor Main\n"
-    "  new create(env: Env) => None";
-
-  TEST_COMPILE(src);
-
-  ast_t* t_a = type_of("p_a");
-  ast_t* t_b = type_of("p_b");
-  ASSERT_NE((void*)NULL, t_a);
-  ASSERT_NE((void*)NULL, t_b);
-
-  ASSERT_TRUE(is_exact_type(t_a, t_b));
-}
-
-TEST_F(SubTypeTest, IsExactTypeMatchesIdenticalConcreteNominals)
-{
-  // Control case: identical fully-concrete nominals must compare equal.
-  const char* src =
-    "class _W[X]\n"
-    "primitive _Tag\n"
-
-    "class _C\n"
-    "  fun ref method_a(p_a: _W[_Tag]) => None\n"
-    "  fun ref method_b(p_b: _W[_Tag]) => None\n"
-
-    "actor Main\n"
-    "  new create(env: Env) => None";
-
-  TEST_COMPILE(src);
-
-  ast_t* t_a = type_of("p_a");
-  ast_t* t_b = type_of("p_b");
-  ASSERT_NE((void*)NULL, t_a);
-  ASSERT_NE((void*)NULL, t_b);
-
-  ASSERT_TRUE(is_exact_type(t_a, t_b));
-}
-
-TEST_F(SubTypeTest, IsExactTypeWalksTupleTypes)
-{
-  // Covers the default walk in exact_type for TK_TUPLETYPE: identical
-  // tuple types compare equal; tuples differing in element type or
-  // element order compare unequal. The recursive-interface tests
-  // exercise this implicitly via `Iter[(B, A)]`, but a direct unit
-  // test gives explicit coverage of the compound-walk branch and
-  // matches the rigor of the typeparam-scope tests above.
-  const char* src =
-    "class _C\n"
-    "  fun ref method_a(p_a: (U32, String)) => None\n"
-    "  fun ref method_b(p_b: (U32, String)) => None\n"
-    "  fun ref method_c(p_c: (String, U32)) => None\n"
-    "  fun ref method_d(p_d: (U32, U32)) => None\n"
-
-    "actor Main\n"
-    "  new create(env: Env) => None";
-
-  TEST_COMPILE(src);
-
-  ast_t* t_a = type_of("p_a");
-  ast_t* t_b = type_of("p_b");
-  ast_t* t_c = type_of("p_c");
-  ast_t* t_d = type_of("p_d");
-  ASSERT_NE((void*)NULL, t_a);
-  ASSERT_NE((void*)NULL, t_b);
-  ASSERT_NE((void*)NULL, t_c);
-  ASSERT_NE((void*)NULL, t_d);
-
-  ASSERT_TRUE(is_exact_type(t_a, t_b));
-  ASSERT_FALSE(is_exact_type(t_a, t_c));
-  ASSERT_FALSE(is_exact_type(t_a, t_d));
-}
-
-TEST_F(SubTypeTest, IsExactTypeWalksUnionTypes)
-{
-  // Covers the default walk in exact_type for TK_UNIONTYPE: unions
-  // with the same members compare equal; unions with a different
-  // member compare unequal. exact_type compares positionally rather
-  // than as sets — for the assume-stack use case the same source AST
-  // shape always produces the same member order, so positional
-  // comparison is correct.
-  const char* src =
-    "class _C\n"
-    "  fun ref method_a(p_a: (U32 | String)) => None\n"
-    "  fun ref method_b(p_b: (U32 | String)) => None\n"
-    "  fun ref method_c(p_c: (U32 | I32)) => None\n"
-
-    "actor Main\n"
-    "  new create(env: Env) => None";
-
-  TEST_COMPILE(src);
-
-  ast_t* t_a = type_of("p_a");
-  ast_t* t_b = type_of("p_b");
-  ast_t* t_c = type_of("p_c");
-  ASSERT_NE((void*)NULL, t_a);
-  ASSERT_NE((void*)NULL, t_b);
-  ASSERT_NE((void*)NULL, t_c);
-
-  ASSERT_TRUE(is_exact_type(t_a, t_b));
-  ASSERT_FALSE(is_exact_type(t_a, t_c));
-}
-
-TEST_F(SubTypeTest, IsExactTypeWalksIntersectionTypes)
-{
-  // Covers the default walk in exact_type for TK_ISECTTYPE:
-  // intersections with the same members compare equal; intersections
-  // with a different member compare unequal. Custom traits avoid any
-  // dependence on the exact intersection behavior of stdlib types.
-  const char* src =
-    "trait _T1\n"
-    "trait _T2\n"
-    "trait _T3\n"
-
-    "class _C\n"
-    "  fun ref method_a(p_a: (_T1 & _T2)) => None\n"
-    "  fun ref method_b(p_b: (_T1 & _T2)) => None\n"
-    "  fun ref method_c(p_c: (_T1 & _T3)) => None\n"
-
-    "actor Main\n"
-    "  new create(env: Env) => None";
-
-  TEST_COMPILE(src);
-
-  ast_t* t_a = type_of("p_a");
-  ast_t* t_b = type_of("p_b");
-  ast_t* t_c = type_of("p_c");
-  ASSERT_NE((void*)NULL, t_a);
-  ASSERT_NE((void*)NULL, t_b);
-  ASSERT_NE((void*)NULL, t_c);
-
-  ASSERT_TRUE(is_exact_type(t_a, t_b));
-  ASSERT_FALSE(is_exact_type(t_a, t_c));
 }

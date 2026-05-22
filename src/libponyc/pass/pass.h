@@ -214,6 +214,7 @@ typedef enum pass_id
   PASS_SCOPE,
   PASS_IMPORT,
   PASS_NAME_RESOLUTION,
+  PASS_TYPEALIAS_RECURSION,
   PASS_FLATTEN,
   PASS_TRAITS,
   PASS_REFER,
@@ -241,6 +242,7 @@ typedef enum pass_id
     "    =scope\n" \
     "    =import\n" \
     "    =name\n" \
+    "    =typealias_recursion\n" \
     "    =flatten\n" \
     "    =traits\n" \
     "    =refer\n" \

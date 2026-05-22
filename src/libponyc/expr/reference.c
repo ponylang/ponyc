@@ -168,7 +168,7 @@ bool expr_param(pass_opt_t* opt, ast_t* ast)
       return false;
 
     ast_t* declared_type = type;
-    type = consume_type(type, TK_NONE, false);
+    type = consume_type(type, TK_NONE, false, opt);
     errorframe_t err = NULL;
     errorframe_t err2 = NULL;
 
@@ -256,11 +256,11 @@ bool expr_fieldref(pass_opt_t* opt, ast_t* ast, ast_t* find, token_id tid)
   f_type = typeparam_current(opt, f_type, ast);
 
   // Viewpoint adapted type of the field.
-  ast_t* type = viewpoint_type(l_type, f_type);
+  ast_t* type = viewpoint_type(l_type, f_type, opt);
 
   if(ast_id(type) == TK_ARROW)
   {
-    ast_t* upper = viewpoint_upper(type);
+    ast_t* upper = viewpoint_upper(type, opt);
 
     if(upper == NULL)
     {
@@ -278,9 +278,9 @@ bool expr_fieldref(pass_opt_t* opt, ast_t* ast, ast_t* find, token_id tid)
   ast_t* nearest_recover = opt->check.frame->recover;
   if(nearest_recover != NULL && !expr_contained_in_recover(left, nearest_recover))
   {
-    if(!sendable(type))
+    if(!sendable(type, opt))
     {
-      if(!sendable(l_type))
+      if(!sendable(l_type, opt))
       {
         errorframe_t frame = NULL;
         ast_error_frame(&frame, ast, "can't access non-sendable field of "
@@ -505,7 +505,7 @@ bool expr_localref(pass_opt_t* opt, ast_t* ast)
 
   type = typeparam_current(opt, type, ast);
 
-  if(!sendable(type))
+  if(!sendable(type, opt))
   {
     if(opt->check.frame->recover != NULL)
     {
@@ -543,7 +543,7 @@ bool expr_localref(pass_opt_t* opt, ast_t* ast)
   // Automatically consume a local if the function is done.
   ast_t* r_type = type;
   if(is_method_return(&opt->check, ast))
-    r_type = consume_type(type, TK_NONE, false);
+    r_type = consume_type(type, TK_NONE, false, opt);
 
   ast_settype(ast, r_type);
   return true;
@@ -563,7 +563,7 @@ bool expr_paramref(pass_opt_t* opt, ast_t* ast)
 
   type = typeparam_current(opt, type, ast);
 
-  if(!sendable(type) && (opt->check.frame->recover != NULL))
+  if(!sendable(type, opt) && (opt->check.frame->recover != NULL))
   {
     ast_t* parent = ast_parent(ast);
     if((ast_id(parent) != TK_DOT) && (ast_id(parent) != TK_CHAIN))
@@ -574,7 +574,7 @@ bool expr_paramref(pass_opt_t* opt, ast_t* ast)
   // Automatically consume a parameter if the function is done.
   ast_t* r_type = type;
   if(is_method_return(&opt->check, ast))
-    r_type = consume_type(type, TK_NONE, false);
+    r_type = consume_type(type, TK_NONE, false, opt);
 
   ast_settype(ast, r_type);
   return true;

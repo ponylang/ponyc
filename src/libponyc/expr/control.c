@@ -406,7 +406,7 @@ bool expr_recover(pass_opt_t* opt, ast_t* ast)
     return true;
   }
 
-  ast_t* r_type = recover_type(type, ast_id(cap));
+  ast_t* r_type = recover_type(type, ast_id(cap), opt);
 
   if(r_type == NULL)
   {
@@ -537,7 +537,7 @@ bool expr_return(pass_opt_t* opt, ast_t* ast)
       ast_t* r_type = NULL;
       if (is_local_or_param(body))
       {
-          r_type = consume_type(body_type, TK_NONE, false);
+          r_type = consume_type(body_type, TK_NONE, false, opt);
           if (r_type != NULL)
           {
             // n.b. r_type should almost never be NULL

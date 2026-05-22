@@ -241,7 +241,7 @@ static ast_t* consume_single(ast_t* type, token_id ccap, bool keep_double_epheme
   return type;
 }
 
-ast_t* alias(ast_t* type)
+ast_t* alias(ast_t* type, pass_opt_t* opt)
 {
   switch(ast_id(type))
   {
@@ -255,7 +255,7 @@ ast_t* alias(ast_t* type)
 
       while(child != NULL)
       {
-        ast_append(r_type, alias(child));
+        ast_append(r_type, alias(child, opt));
         child = ast_sibling(child);
       }
 
@@ -273,7 +273,7 @@ ast_t* alias(ast_t* type)
       if(unfolded == NULL)
         return NULL;
 
-      ast_t* result = alias(unfolded);
+      ast_t* result = alias(unfolded, opt);
 
       if(result != unfolded)
         ast_free_unattached(unfolded);
@@ -298,7 +298,7 @@ ast_t* alias(ast_t* type)
       BUILD(r_type, type,
         NODE(TK_ARROW,
           TREE(left)
-          TREE(alias(right))));
+          TREE(alias(right, opt))));
 
       return r_type;
     }
@@ -318,7 +318,8 @@ ast_t* alias(ast_t* type)
   return NULL;
 }
 
-ast_t* consume_type(ast_t* type, token_id cap, bool keep_double_ephemeral)
+ast_t* consume_type(ast_t* type, token_id cap, bool keep_double_ephemeral,
+  pass_opt_t* opt)
 {
   switch(ast_id(type))
   {
@@ -333,7 +334,7 @@ ast_t* consume_type(ast_t* type, token_id cap, bool keep_double_ephemeral)
 
       while(child != NULL)
       {
-        ast_t* r_right = consume_type(child, cap, keep_double_ephemeral);
+        ast_t* r_right = consume_type(child, cap, keep_double_ephemeral, opt);
 
         if(r_right == NULL)
         {
@@ -355,7 +356,7 @@ ast_t* consume_type(ast_t* type, token_id cap, bool keep_double_ephemeral)
       // which consists of incompatible caps
       ast_t* first = ast_child(type);
       ast_t* second = ast_sibling(first);
-      if (!is_compat_type(first, second))
+      if (!is_compat_type(first, second, opt))
       {
         return NULL;
       }
@@ -369,7 +370,7 @@ ast_t* consume_type(ast_t* type, token_id cap, bool keep_double_ephemeral)
 
       while(child != NULL)
       {
-        ast_t* r_right = consume_type(child, cap, keep_double_ephemeral);
+        ast_t* r_right = consume_type(child, cap, keep_double_ephemeral, opt);
 
         if(r_right != NULL)
         {
@@ -393,7 +394,7 @@ ast_t* consume_type(ast_t* type, token_id cap, bool keep_double_ephemeral)
       if(unfolded == NULL)
         return NULL;
 
-      ast_t* result = consume_type(unfolded, cap, keep_double_ephemeral);
+      ast_t* result = consume_type(unfolded, cap, keep_double_ephemeral, opt);
 
       if(result != unfolded)
         ast_free_unattached(unfolded);
@@ -407,7 +408,7 @@ ast_t* consume_type(ast_t* type, token_id cap, bool keep_double_ephemeral)
       // parameter, and stays the same.
       AST_GET_CHILDREN(type, left, right);
 
-      ast_t* r_right = consume_type(right, cap, keep_double_ephemeral);
+      ast_t* r_right = consume_type(right, cap, keep_double_ephemeral, opt);
       if (r_right == NULL)
       {
         return NULL;
@@ -433,10 +434,10 @@ ast_t* consume_type(ast_t* type, token_id cap, bool keep_double_ephemeral)
   return NULL;
 }
 
-static ast_t* recover_type_inner(ast_t* type, token_id cap,
+static ast_t* recover_type_inner(ast_t* type, token_id cap, pass_opt_t* opt,
   recovery_t* tuple_elem_recover);
 
-static ast_t* recover_complex(ast_t* type, token_id cap,
+static ast_t* recover_complex(ast_t* type, token_id cap, pass_opt_t* opt,
   recovery_t* tuple_elem_recover)
 {
   switch(ast_id(type))
@@ -457,7 +458,7 @@ static ast_t* recover_complex(ast_t* type, token_id cap,
 
   while(child != NULL)
   {
-    ast_t* r_right = recover_type_inner(child, cap, tuple_elem_recover);
+    ast_t* r_right = recover_type_inner(child, cap, opt, tuple_elem_recover);
 
     if(r_right == NULL)
     {
@@ -473,21 +474,21 @@ static ast_t* recover_complex(ast_t* type, token_id cap,
 }
 
 static ast_t* recover_type_inner(ast_t* type, token_id cap,
-  recovery_t* tuple_elem_recover)
+  pass_opt_t* opt, recovery_t* tuple_elem_recover)
 {
   switch(ast_id(type))
   {
     case TK_UNIONTYPE:
     case TK_ISECTTYPE:
-      return recover_complex(type, cap, tuple_elem_recover);
+      return recover_complex(type, cap, opt, tuple_elem_recover);
 
     case TK_TUPLETYPE:
     {
       if(tuple_elem_recover)
-        return recover_complex(type, cap, tuple_elem_recover);
+        return recover_complex(type, cap, opt, tuple_elem_recover);
 
       recovery_t elem_recover = RECOVERY_NONE;
-      return recover_complex(type, cap, &elem_recover);
+      return recover_complex(type, cap, opt, &elem_recover);
     }
 
     case TK_NOMINAL:
@@ -501,7 +502,7 @@ static ast_t* recover_type_inner(ast_t* type, token_id cap,
       if(unfolded == NULL)
         return NULL;
 
-      ast_t* result = recover_type_inner(unfolded, cap, tuple_elem_recover);
+      ast_t* result = recover_type_inner(unfolded, cap, opt, tuple_elem_recover);
 
       if(result != unfolded)
         ast_free_unattached(unfolded);
@@ -514,7 +515,7 @@ static ast_t* recover_type_inner(ast_t* type, token_id cap,
       // recover just the right side. the left side is either 'this' or a type
       // parameter, and stays the same.
       AST_GET_CHILDREN(type, left, right);
-      ast_t* r_right = recover_type_inner(right, cap, tuple_elem_recover);
+      ast_t* r_right = recover_type_inner(right, cap, opt, tuple_elem_recover);
 
       if(r_right == NULL)
         return NULL;
@@ -537,12 +538,13 @@ static ast_t* recover_type_inner(ast_t* type, token_id cap,
   return NULL;
 }
 
-ast_t* recover_type(ast_t* type, token_id cap)
+ast_t* recover_type(ast_t* type, token_id cap, pass_opt_t* opt)
 {
-  return recover_type_inner(type, cap, NULL);
+  return recover_type_inner(type, cap, opt, NULL);
 }
 
-ast_t* chain_type(ast_t* type, token_id fun_cap, bool recovered_call)
+ast_t* chain_type(ast_t* type, token_id fun_cap, bool recovered_call,
+  pass_opt_t* opt)
 {
   switch(ast_id(type))
   {
@@ -555,7 +557,7 @@ ast_t* chain_type(ast_t* type, token_id fun_cap, bool recovered_call)
 
       while(child != NULL)
       {
-        ast_append(c_type, chain_type(child, fun_cap, recovered_call));
+        ast_append(c_type, chain_type(child, fun_cap, recovered_call, opt));
         child = ast_sibling(child);
       }
 
@@ -569,7 +571,7 @@ ast_t* chain_type(ast_t* type, token_id fun_cap, bool recovered_call)
       if(unfolded == NULL)
         return NULL;
 
-      ast_t* result = chain_type(unfolded, fun_cap, recovered_call);
+      ast_t* result = chain_type(unfolded, fun_cap, recovered_call, opt);
 
       if(result != unfolded)
         ast_free_unattached(unfolded);
@@ -630,7 +632,7 @@ ast_t* chain_type(ast_t* type, token_id fun_cap, bool recovered_call)
               return ast_dup(type);
 
             case TK_ISO:
-              return alias(alias(type));
+              return alias(alias(type, opt), opt);
 
             default: {}
           }
@@ -644,7 +646,7 @@ ast_t* chain_type(ast_t* type, token_id fun_cap, bool recovered_call)
               return ast_dup(type);
 
             case TK_TRN:
-              return alias(alias(type));
+              return alias(alias(type, opt), opt);
 
             default: {}
           }
@@ -663,7 +665,7 @@ ast_t* chain_type(ast_t* type, token_id fun_cap, bool recovered_call)
       // Chain just the right side. the left side is either 'this' or a type
       // parameter, and stays the same.
       AST_GET_CHILDREN(type, left, right);
-      ast_t* c_right = chain_type(right, fun_cap, recovered_call);
+      ast_t* c_right = chain_type(right, fun_cap, recovered_call, opt);
 
       ast_t* c_type = ast_from(type, TK_ARROW);
       ast_add(c_type, c_right);
@@ -683,7 +685,7 @@ ast_t* chain_type(ast_t* type, token_id fun_cap, bool recovered_call)
   return NULL;
 }
 
-bool sendable(ast_t* type)
+bool sendable(ast_t* type, pass_opt_t* opt)
 {
   switch(ast_id(type))
   {
@@ -696,7 +698,7 @@ bool sendable(ast_t* type)
 
       while(child != NULL)
       {
-        if(!sendable(child))
+        if(!sendable(child, opt))
           return false;
 
         child = ast_sibling(child);
@@ -789,12 +791,12 @@ bool sendable(ast_t* type)
       if(num_caps == 0)
       {
         // Single concrete cap: use viewpoint_upper directly.
-        ast_t* upper = viewpoint_upper(type);
+        ast_t* upper = viewpoint_upper(type, opt);
 
         if(upper == NULL)
           return false;
 
-        bool ok = sendable(upper);
+        bool ok = sendable(upper, opt);
         ast_free_unattached(upper);
         return ok;
       }
@@ -809,13 +811,13 @@ bool sendable(ast_t* type)
             TREE(temp_left)
             TREE(ast_dup(right))));
 
-        ast_t* upper = viewpoint_upper(temp_arrow);
+        ast_t* upper = viewpoint_upper(temp_arrow, opt);
         ast_free_unattached(temp_arrow);
 
         if(upper == NULL)
           return false;
 
-        bool ok = sendable(upper);
+        bool ok = sendable(upper, opt);
         ast_free_unattached(upper);
 
         if(!ok)
@@ -844,7 +846,7 @@ bool sendable(ast_t* type)
       if(unfolded == NULL)
         return false;
 
-      bool ok = sendable(unfolded);
+      bool ok = sendable(unfolded, opt);
       ast_free_unattached(unfolded);
       return ok;
     }
@@ -860,3 +862,4 @@ bool sendable(ast_t* type)
   pony_assert(0);
   return false;
 }
+

@@ -40,19 +40,18 @@ class CountdownIter[T: (Int & Integer[T] val) = USize] is Iterator[T]
     _cur = res
     res
 
-// NOTE: The structural shape of `GenObj[T]` — combined with
-// `GenerateResult[T]` above and uses like `shuffled_iter[T]():
-// Generator[Iterator[this->T!]]` below — anchors the divergence
-// guard `SAME_DEF_LIMIT` in ponyc's subtype checker
-// (src/libponyc/type/subtype.c, see ponylang/ponyc#1216). During
-// that fix's investigation, pony_check's generator chains were
-// empirically shown to require SAME_DEF_LIMIT >= 3: at K = 2 the
-// guard falsely rejected legitimate compositions here. If you
-// restructure `GenObj` or `GenerateResult` (changing method return
-// types, introducing deeper nesting, or altering which methods are
-// declared versus defaulted), rebuild ponyc and rerun `make test`
-// to confirm pony_check still type-checks. If it does not, the
-// guard's K value may need to be raised.
+// COUPLING: GenObj combined with `type GenerateResult[T2] is (T2^ |
+// ValueAndShrink[T2])` and uses like `shuffled_iter[T](): Generator[
+// Iterator[this->T!]]` produce drifting same-def recursion chains in
+// the structural subtype check. The recursion-divergence guard in
+// is_x_sub_x (src/libponyc/type/subtype.c) bounds those chains at
+// SAME_DEF_LIMIT = 4, an empirical floor chosen to leave headroom
+// above the depths these shapes need to converge. If you restructure
+// GenObj or GenerateResult — especially to add another nesting level
+// or another self-reference — rebuild ponyc and confirm pony_check
+// still type-checks. If it doesn't, the guard's threshold is now too
+// low for this stdlib; raise SAME_DEF_LIMIT and update the comment
+// in subtype.c.
 trait box GenObj[T]
   fun generate(rnd: Randomness): GenerateResult[T] ?
 

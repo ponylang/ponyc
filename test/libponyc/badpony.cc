@@ -1,6 +1,9 @@
 #include <gtest/gtest.h>
 #include <platform.h>
 
+#include <chrono>
+#include <cstring>
+
 #include "util.h"
 
 
@@ -28,6 +31,14 @@
 #define TEST_ERRORS_3(src, err1, err2, err3) \
   { const char* errs[] = {err1, err2, err3, NULL}; \
     DO(test_expected_errors(src, "ir", errs)); }
+
+// Single error with its primary message plus a continuation frame.
+// 'primary' and 'note' are matched as substrings.
+#define TEST_ERROR_WITH_NOTE(src, primary, note) \
+  { const char* errs[] = {primary, NULL}; \
+    const char* frame_strs[] = {note, NULL}; \
+    const char** frames[] = {frame_strs, NULL}; \
+    DO(test_expected_error_frames(src, "ir", errs, frames)); }
 
 
 class BadPonyTest : public PassTest
@@ -168,14 +179,568 @@ TEST_F(BadPonyTest, LambdaCaptureVariableBeforeDeclarationWithTypeInferenceExpre
 
 TEST_F(BadPonyTest, TypeAliasRecursionThroughTypeParameterInTuple)
 {
-  // From issue #901
+  // From issue #901. The recursion has a constructive edge (Foo
+  // appears inside Array's typearg position). The body is a tuple
+  // around a union-free shape — there is no union anywhere reachable
+  // from Foo's body to provide a non-recursive alternative, so the
+  // legality pass rejects it for lack of a base case.
   const char* src =
-    "type Foo is (Map[Foo, Foo], None)\n"
+    "type Foo is (Array[Foo], None)\n"
     "actor Main\n"
     "  new create(env: Env) =>\n"
     "    None";
 
-  TEST_ERRORS_1(src, "type aliases can't be recursive");
+  TEST_ERROR_WITH_NOTE(src,
+    "can't be infinitely recursive",
+    "add a non-recursive alternative");
+}
+
+
+TEST_F(BadPonyTest, TypeAliasDirectUnionSelfReference)
+{
+  // type A is (A | None) — A appears directly as a union member of its
+  // own body. The recursive arm has no constructor wrapping it (no
+  // class, no nominal typearg position), so there's no constructive
+  // edge in the cycle and the legality pass rejects.
+  const char* src =
+    "type A is (A | None)\n"
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    None";
+
+  TEST_ERRORS_1(src,
+    "can't be infinitely recursive");
+}
+
+
+TEST_F(BadPonyTest, TypeAliasMutualThroughUnionMembers)
+{
+  // X and Y mutually recurse through union members only. Each cycle
+  // edge is a bare alias reference inside a union — no constructor
+  // wraps the recursion, so it's unproductive even though each union
+  // has a non-recursive member. Pin the multi-alias variant of the
+  // hint so a refactor that changes the wording is caught.
+  const char* src =
+    "type X is (Y | String)\n"
+    "type Y is (X | U32)\n"
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    None";
+
+  const char* errs[] = {"can't be infinitely recursive", NULL};
+  const char* frame_strs[] = {
+    "alias 'Y' is part of the same cycle",
+    "the recursion must thread through a class's type argument "
+    "(e.g., 'Array[<typearg>]'); recursion through union members or tuple "
+    "elements has no finite layout",
+    NULL};
+  const char** frames[] = {frame_strs, NULL};
+  test_expected_error_frames(src, "ir", errs, frames);
+}
+
+
+TEST_F(BadPonyTest, TypeAliasLargeCycleTruncatesPerAliasFramesSingular)
+{
+  // Smallest cycle that hides exactly one alias behind the cap.
+  // scc_size = 5 with cap = 3 leaves 1 alias hidden, so the summary
+  // frame must read "alias is" not "aliases are". Pins the singular
+  // form so a future refactor that drops the singular branch is caught.
+  const char* src =
+    "type A1 is (None | A2)\n"
+    "type A2 is (None | A3)\n"
+    "type A3 is (None | A4)\n"
+    "type A4 is (None | A5)\n"
+    "type A5 is (None | A1)\n"
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    None";
+
+  const char* errs[] = {"can't be infinitely recursive", NULL};
+  const char* frame_strs[] = {
+    "alias 'A2' is part of the same cycle",
+    "alias 'A3' is part of the same cycle",
+    "alias 'A4' is part of the same cycle",
+    "(and 1 more alias is part of this cycle)",
+    "the recursion must thread through a class's type argument "
+    "(e.g., 'Array[<typearg>]'); recursion through union members or tuple "
+    "elements has no finite layout",
+    NULL};
+  const char** frames[] = {frame_strs, NULL};
+  test_expected_error_frames(src, "ir", errs, frames);
+}
+
+
+TEST_F(BadPonyTest, TypeAliasLargeCycleTruncatesPerAliasFrames)
+{
+  // Ten aliases in a cycle. Caps the per-alias "is part of the same
+  // cycle" fan-out at three frames plus a summary frame counting the
+  // remaining aliases. Beyond a handful, source pointers stop helping
+  // the user diagnose the cycle, and ast_error_frame's tail-walking
+  // append makes the unbounded loop O(N^2) — at scc_size = 50000 the
+  // pre-cap loop took ~22s walking the frame chain. The cycle path in
+  // the headline names every alias in order, so the per-alias frames
+  // are redundant detail past the first few.
+  //
+  // Pin: A2..A4 each get a frame, A5..A9 do NOT, the summary frame
+  // names the remaining count, and the suggestion frame still emits
+  // last. Counterfactual: removing the cap restores the unbounded
+  // fan-out and the frame count below would fail (10 aliases would
+  // produce 9 alias frames + 1 suggestion = 10, not 4 + summary +
+  // suggestion = 5).
+  const char* src =
+    "type A1 is (None | A2)\n"
+    "type A2 is (None | A3)\n"
+    "type A3 is (None | A4)\n"
+    "type A4 is (None | A5)\n"
+    "type A5 is (None | A6)\n"
+    "type A6 is (None | A7)\n"
+    "type A7 is (None | A8)\n"
+    "type A8 is (None | A9)\n"
+    "type A9 is (None | A10)\n"
+    "type A10 is (None | A1)\n"
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    None";
+
+  const char* errs[] = {"can't be infinitely recursive", NULL};
+  const char* frame_strs[] = {
+    "alias 'A2' is part of the same cycle",
+    "alias 'A3' is part of the same cycle",
+    "alias 'A4' is part of the same cycle",
+    "(and 6 more aliases are part of this cycle)",
+    "the recursion must thread through a class's type argument "
+    "(e.g., 'Array[<typearg>]'); recursion through union members or tuple "
+    "elements has no finite layout",
+    NULL};
+  const char** frames[] = {frame_strs, NULL};
+  test_expected_error_frames(src, "ir", errs, frames);
+}
+
+
+TEST_F(BadPonyTest, TypeAliasRecursionThroughTuple)
+{
+  // type IntList is (None | (U32, IntList)) — IntList recurs through
+  // a tuple element. Tuples are inline value types in Pony, so the
+  // tuple's layout would have to inline another IntList, which would
+  // have to inline another tuple, and so on without bound. There is
+  // no finite layout. Recursion through a nominal's typeargs (Array[T]
+  // etc.) is legal because nominal classes break the recursion at the
+  // heap pointer.
+  //
+  // Pin the headline cycle suffix and the suggestion text with the
+  // alias name interpolated so a reword of report_illegal_cycle is
+  // caught.
+  const char* src =
+    "type IntList is (None | (U32, IntList))\n"
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    None";
+
+  TEST_ERROR_WITH_NOTE(src,
+    "can't be infinitely recursive (cycle: IntList -> IntList)",
+    "the recursion must thread through a class's type argument, "
+    "e.g., 'Array[IntList]'");
+}
+
+TEST_F(BadPonyTest, TypeAliasRecursionWithoutBaseCase)
+{
+  // type A is Array[A] — the cycle has a constructive edge (A appears
+  // inside Array's typearg position, which is sound), but the alias
+  // body is a bare nominal with no union to provide a non-recursive
+  // alternative. Without a base case in any reachable union, the type
+  // has no constructible inhabitant, so the legality pass rejects it.
+  // Pin the suggestion text so a refactor that changes the hint
+  // silently is caught.
+  const char* src =
+    "type A is Array[A]\n"
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    None";
+
+  TEST_ERROR_WITH_NOTE(src,
+    "can't be infinitely recursive",
+    "add a non-recursive alternative in a union, e.g., "
+    "'type A is (None | <body>)'");
+}
+
+TEST_F(BadPonyTest, TypeAliasWrapWithoutBaseCase)
+{
+  // Wrap[T] = Array[T] is non-recursive but has no union anywhere in
+  // its body. X = Wrap[X] is rejected because the base-case walker
+  // (which does follow cross-SCC alias references) finds no union
+  // reachable from X's body, so there's no base case.
+  const char* src =
+    "type Wrap[T] is Array[T]\n"
+    "type X is Wrap[X]\n"
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    None";
+
+  TEST_ERRORS_1(src,
+    "can't be infinitely recursive");
+}
+
+TEST_F(BadPonyTest, TypeAliasMutualThroughWrapWithoutBaseCase)
+{
+  // SCC {A, B} mutually recursive through a non-recursive Wrap that
+  // has no union. Cross-SCC ref to Wrap, followed into Wrap's body,
+  // finds Array[T] — no union, no base case. Should be rejected.
+  // Pin the multi-alias base-case hint so a refactor that changes the
+  // wording is caught.
+  const char* src =
+    "type Wrap[T] is Array[T]\n"
+    "type A is Wrap[B]\n"
+    "type B is Wrap[A]\n"
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    None";
+
+  const char* errs[] = {"can't be infinitely recursive", NULL};
+  const char* frame_strs[] = {
+    "alias 'B' is part of the same cycle",
+    "add a non-recursive alternative in a union somewhere in the "
+    "cycle (e.g., '(None | ...)') so the type has a base case",
+    NULL};
+  const char** frames[] = {frame_strs, NULL};
+  test_expected_error_frames(src, "ir", errs, frames);
+}
+
+TEST_F(BadPonyTest, TypeAliasDirectSelfReference)
+{
+  // type A is A — bare self-reference at the alias body's top level.
+  // No constructor, no union, no class wraps the recursion. The
+  // legality pass rejects: there's no constructive edge in the
+  // cycle. From the Phase 3 plan's TypeAliasDirectPositionSelfRecursion
+  // case. Pin the suggestion text too so a refactor that changes the
+  // hint silently is caught.
+  const char* src =
+    "type A is A\n"
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    None";
+
+  TEST_ERROR_WITH_NOTE(src,
+    "can't be infinitely recursive",
+    "the recursion must thread through a class's type argument, "
+    "e.g., 'Array[A]'");
+}
+
+TEST_F(BadPonyTest, TypeAliasIntersectionNotBaseCase)
+{
+  // type A is Array[(A & Any)] — A appears inside an intersection
+  // inside Array's typearg position. The cycle has a constructive
+  // edge (Array breaks the recursion at the heap), but no union is
+  // reachable from A's body, so no base case exists. Confirms D1:
+  // intersections don't offer a base-case escape.
+  const char* src =
+    "type A is Array[(A & Any)]\n"
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    None";
+
+  TEST_ERROR_WITH_NOTE(src,
+    "can't be infinitely recursive",
+    "add a non-recursive alternative");
+}
+
+TEST_F(BadPonyTest, TypeAliasTupleInsideTypeargWithoutUnion)
+{
+  // type A is Array[(A, None)] — A appears inside a tuple inside
+  // Array's typearg. The cycle has a constructive edge through
+  // Array's typearg position (preserved through the tuple). But no
+  // union is reachable, so no base case. Distinct from the
+  // TypeAliasRecursionThroughTuple case where the tuple is at the
+  // alias body's top level (no constructive edge).
+  const char* src =
+    "type A is Array[(A, None)]\n"
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    None";
+
+  TEST_ERROR_WITH_NOTE(src,
+    "can't be infinitely recursive",
+    "add a non-recursive alternative");
+}
+
+TEST_F(BadPonyTest, TypeAliasConservativeRuleChangingTypeargs)
+{
+  // type A[T] is (T | B[T]); type B[T] is A[Array[T]].
+  // A's body has a union with T as a member, B's body wraps T inside
+  // Array. A future "let's analyze post-substitution" change might
+  // try to reason about how T flows through and conclude the cycle
+  // is fine, but the conservative rule (D3) treats the SCC's edges
+  // as static: A -> B and B -> A both non-constructive (the
+  // typealiasref appears at top-level positions, not inside a
+  // nominal). No constructive edges in cycle, rejected.
+  const char* src =
+    "type A[T] is (T | B[T])\n"
+    "type B[T] is A[Array[T]]\n"
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    None";
+
+  const char* errs[] = {"can't be infinitely recursive", NULL};
+  const char* frame_strs[] = {
+    "alias 'B' is part of the same cycle",
+    "recursion must thread through",
+    NULL};
+  const char** frames[] = {frame_strs, NULL};
+  test_expected_error_frames(src, "ir", errs, frames);
+}
+
+TEST_F(BadPonyTest, TypeAliasWrapLaundersMixedTypeparamUse)
+{
+  // type Wrap[T] is (T | Array[T] | None); type X is Wrap[X].
+  // Wrap uses T both constructively (Array[T]) and non-constructively
+  // (bare in union). The unfolded form is (X | Array[X] | None) which
+  // accepts on its own, but laundering the same shape through Wrap
+  // used to crash downstream codegen. The legality classification has
+  // to take the worst case: a typeparam used non-constructively
+  // anywhere in the wrap's body propagates non-constructively, even
+  // if some other use is constructive.
+  const char* src =
+    "type Wrap[T] is (T | Array[T] | None)\n"
+    "type X is Wrap[X]\n"
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    None";
+
+  TEST_ERROR_WITH_NOTE(src,
+    "can't be infinitely recursive",
+    "recursion must thread through");
+}
+
+TEST_F(BadPonyTest, TypeAliasWrapLaundersBareTypeparamRecursion)
+{
+  // type Wrap[T] is (T | None); type X is Wrap[X]. The unfolded form
+  // is (X | None) — bare X in a union with no constructor wrapping
+  // it, semantically the same as type A is (A | None) which is
+  // illegal. Without checking that the wrap alias actually uses its
+  // typeparam at a constructive position, the legality pass would
+  // accept this (the graph-level X -> X via Wrap's typearg looks
+  // constructive). The fix walks Wrap's body to confirm T appears
+  // inside a TK_NOMINAL's typeargs; here it doesn't, so X -> X is
+  // reclassified as non-constructive and the cycle is rejected.
+  const char* src =
+    "type Wrap[T] is (T | None)\n"
+    "type X is Wrap[X]\n"
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    None";
+
+  TEST_ERROR_WITH_NOTE(src,
+    "can't be infinitely recursive",
+    "recursion must thread through");
+}
+
+TEST_F(BadPonyTest, TypeAliasWrapLaundersBareTypeparamUnderArrow)
+{
+  // type Wrap[T] is (None | (box->T)); type X is Wrap[X].
+  // Wrap puts T at the RHS of an arrow viewpoint — that's a structural
+  // occurrence (D5: only the LHS of an arrow is a viewpoint slot). Bare
+  // typeparam at a non-constructive position; legality must reject.
+  const char* src =
+    "type Wrap[T] is (None | (box->T))\n"
+    "type X is Wrap[X]\n"
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    None";
+
+  TEST_ERROR_WITH_NOTE(src,
+    "can't be infinitely recursive",
+    "recursion must thread through");
+}
+
+TEST_F(BadPonyTest, TypeAliasWrapLaundersBareTypeparamInIntersection)
+{
+  // type Wrap[T] is (None | (T & Any tag)); type X is Wrap[X].
+  // T appears as a member of an intersection — same shape as a union
+  // member from a constructiveness standpoint. No constructor wraps
+  // it, so the typeparam-use classifier must mark X non-constructive.
+  const char* src =
+    "type Wrap[T] is (None | (T & Any tag))\n"
+    "type X is Wrap[X]\n"
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    None";
+
+  TEST_ERROR_WITH_NOTE(src,
+    "can't be infinitely recursive",
+    "recursion must thread through");
+}
+
+TEST_F(BadPonyTest, TypeAliasWrapMultipleTypeparamsBareSlot)
+{
+  // type Wrap[T, U] is (T | Array[U] | None); type X is Wrap[X, U64].
+  // U is used constructively (Array[U]); T is used non-constructively
+  // (bare in union). Substituting X into T's slot threads X through a
+  // bare position, so the cycle is non-constructive even though
+  // another slot in Wrap is constructive.
+  const char* src =
+    "type Wrap[T, U] is (T | Array[U] | None)\n"
+    "type X is Wrap[X, U64]\n"
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    None";
+
+  TEST_ERROR_WITH_NOTE(src,
+    "can't be infinitely recursive",
+    "recursion must thread through");
+}
+
+TEST_F(BadPonyTest, TypeAliasWrapBaseCaseFalsePositiveTypeparamUnion)
+{
+  // type Wrap[T] is (T | T); type X is (Array[X] | Wrap[X]).
+  // Without the inside-wrap-body flag in subtree_references_scc, the
+  // legality walker would visit Wrap[X]'s body, see (T | T), classify
+  // each member as a TK_TYPEPARAMREF (not in the SCC), and conclude
+  // that Wrap supplies a base case. After substitution T = X, both
+  // members ARE the SCC member, so there's no real base case and
+  // codegen later crashes. The fix: when walking inside a non-SCC
+  // alias's body, treat any TK_TYPEPARAMREF as referencing the SCC
+  // because at the call site it could have been substituted with an
+  // SCC member.
+  const char* src =
+    "type Wrap[T] is (T | T)\n"
+    "type X is (Array[X] | Wrap[X])\n"
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    None";
+
+  TEST_ERROR_WITH_NOTE(src,
+    "can't be infinitely recursive",
+    "recursion must thread through");
+}
+
+TEST_F(BadPonyTest, TypeAliasMixedConstructiveAndBareSelfReference)
+{
+  // type X is (X | None | Array[X]). The cycle has both a constructive
+  // arm (Array[X], heap-broken) and a non-constructive arm (bare X at
+  // top of union, no constructor). The bare arm makes typealias_unfold
+  // loop downstream — picking that branch reproduces X with X still at
+  // top. Pre-fix, the legality pass accepted because there was at
+  // least one constructive intra-SCC edge; post-fix, it rejects
+  // because the non-constructive intra-SCC subgraph contains a self-
+  // loop X -> X. Other shapes that should still pass: 'type Y is
+  // (None | Array[Y])' (no bare arm), and the cross-alias wrap shape
+  // 'type J is (S | A); type A is Array[J]' (J -> A non-constructively,
+  // but A -> J only constructively, so the non-constructive subgraph
+  // has no cycle).
+  const char* src =
+    "type X is (X | None | Array[X])\n"
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let x: X = None";
+
+  TEST_ERROR_WITH_NOTE(src,
+    "can't be infinitely recursive",
+    "recursion must thread through");
+}
+
+TEST_F(BadPonyTest, TypeAliasArrowRhsRecursion)
+{
+  // type A is (box->A) — A appears as the RHS of a TK_ARROW. Per D5
+  // arrow's LHS is a viewpoint (cap or typeparam), not a structural
+  // occurrence; the RHS IS a structural occurrence. The legality
+  // pass walks into the arrow's RHS only, finds A, records a
+  // non-constructive edge. No constructive edge, rejected.
+  const char* src =
+    "type A is (box->A)\n"
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    None";
+
+  TEST_ERROR_WITH_NOTE(src,
+    "can't be infinitely recursive",
+    "recursion must thread through");
+}
+
+TEST_F(BadPonyTest, TypeAliasUnrelatedSiblingMasksNonConstructive)
+{
+  // Regression test for the visited-set leak in typeparam_use_in_body
+  // (pass/typealias_recursion.c). The wrap-alias classifier walks a
+  // union body looking for how each sibling propagates the outer
+  // typeparam. An earlier implementation pushed each visited
+  // TK_TYPEALIASREF def onto a scratch set and never popped, and its
+  // typearg recursion also left aliases on visited across siblings.
+  // The combined effect: a first sibling whose typearg doesn't mention
+  // the outer typeparam (Foo[I32]) still pushed Foo onto visited; a
+  // later sibling whose typearg referenced Foo (Bar[Foo[T]]) then hit
+  // the leaked Foo and classified the typearg as TP_UNUSED rather
+  // than TP_USED_NON_CONSTRUCTIVE. collect_edges skipped the slot,
+  // the alias graph missed the A -> A non-constructive edge, and
+  // 'type A is Outer[A]' compiled past the legality pass — its
+  // expansion '(None2 | I32 | A)' is a bare self-referential union
+  // with no finite layout, which then crashed the expr pass.
+  const char* src =
+    "primitive None2\n"
+    "type Foo[X] is (X | None2)\n"
+    "type Bar[Y] is (Y | None2)\n"
+    "type Outer[T] is (Foo[I32] | Bar[Foo[T]])\n"
+    "type A is Outer[A]\n"
+    "actor Main\n"
+    "  new create(env: Env) => None";
+
+  TEST_ERROR_WITH_NOTE(src,
+    "can't be infinitely recursive",
+    "recursion must thread through");
+}
+
+TEST_F(BadPonyTest, TypeAliasIllegalCycleBadHint)
+{
+  // Bare self-reference under a union: type Bad is (Bad | None). The
+  // recursive arm has no constructor wrapping it, so every value
+  // would just be None. Pin the cycle suffix and the suggestion text
+  // so a reword of report_illegal_cycle is caught.
+  const char* src =
+    "type Bad is (Bad | None)\n"
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    None";
+
+  TEST_ERROR_WITH_NOTE(src,
+    "can't be infinitely recursive (cycle: Bad -> Bad)",
+    "the recursion must thread through a class's type argument, "
+    "e.g., 'Array[Bad]'");
+}
+
+TEST_F(BadPonyTest, TypeAliasIllegalCycleParametricNoConstructiveEdge)
+{
+  // Parametric variant of TypeAliasDirectSelfReference / the 'Bad'
+  // shape: Bad[T] = (Bad[T] | None). The bare-name suggestion
+  // 'Array[Bad]' wouldn't compile if pasted because Bad is parametric
+  // — it needs T. Pin the parameterized form so a regression that
+  // drops the typeparams again is caught.
+  const char* src =
+    "type Bad[T] is (Bad[T] | None)\n"
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    None";
+
+  TEST_ERROR_WITH_NOTE(src,
+    "can't be infinitely recursive (cycle: Bad[T] -> Bad[T])",
+    "the recursion must thread through a class's type argument, "
+    "e.g., 'Array[Bad[T]]'");
+}
+
+TEST_F(BadPonyTest, TypeAliasIllegalCycleParametricNoBaseCase)
+{
+  // Parametric variant of TypeAliasRecursionWithoutBaseCase: Wrap[T]
+  // is Array[Wrap[T]]. The bare-name suggestion 'type Wrap is ...'
+  // wouldn't compile if pasted because Wrap is parametric — the
+  // suggestion needs to include the [T] declaration. Pin the
+  // parameterized form so a regression that drops the typeparams
+  // again is caught.
+  const char* src =
+    "type Wrap[T] is Array[Wrap[T]]\n"
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    None";
+
+  TEST_ERROR_WITH_NOTE(src,
+    "can't be infinitely recursive (cycle: Wrap[T] -> Wrap[T])",
+    "add a non-recursive alternative in a union, e.g., "
+    "'type Wrap[T] is (None | <body>)'");
 }
 
 TEST_F(BadPonyTest, ParenthesisedReturn)
@@ -1847,42 +2412,66 @@ TEST_F(BadPonyTest, RecursiveGenericInterfaceDoesNotHang)
 {
   // Regression test for ponylang/ponyc#1216. A recursive generic
   // interface whose method return type references the same interface
-  // with strictly larger type arguments caused the compiler to hang
-  // indefinitely in the structural subtype check. The divergence guard
-  // in is_nominal_sub_nominal now terminates the check and produces a
-  // normal type error.
+  // with strictly larger type arguments hangs the structural subtype
+  // check: each level has the same def pointer (Iter) but drifting
+  // typeargs (Iter[A], Iter[(B, A)], Iter[(B, (B, A))], ...). The
+  // structural cycle-detection in is_assumption_match
+  // (src/libponyc/type/type_assume.c) requires exact structural
+  // equality of typeargs and never matches drifting chains.
+  //
+  // The divergence guard in is_x_sub_x bounds the chain at
+  // SAME_DEF_LIMIT same-def ancestors and bails with a diagnostic.
   //
   // The specific message matched below is incidental — the critical
-  // property under test is that compilation terminates with a diagnostic
-  // rather than hanging. If the error text is refactored, update the
-  // match; the test still serves its purpose as long as it asserts
-  // bounded-time failure on this source.
+  // property under test is that compilation terminates with a
+  // diagnostic rather than hanging. The chrono budget is the
+  // termination assertion; its 15-second cap is generous given the
+  // post-fix run finishes in tens of milliseconds, with headroom for
+  // Windows MSVC CI runners.
+  //
+  // Counterfactual reproduction (when the guard is reverted): the
+  // program hangs indefinitely, so the ASSERT_LT below never fires —
+  // the test is detected by running the binary under a shell-level
+  // `timeout` and observing exit 124. See the commit introducing
+  // the divergence guard in src/libponyc/type/subtype.c for the
+  // counterfactual procedure.
   const char* src =
     "interface Iter[A]\n"
     "  fun enum[B](): Iter[(B, A)] => this\n"
 
     "actor Main\n"
-    "  new create(env: Env) => None";
+    "  new create(env: Env) => None\n";
 
+  auto start = std::chrono::steady_clock::now();
   TEST_ERRORS_1(src, "function body isn't the result type");
+  auto elapsed = std::chrono::steady_clock::now() - start;
+
+  auto seconds =
+    std::chrono::duration_cast<std::chrono::seconds>(elapsed).count();
+  ASSERT_LT(seconds, 15)
+    << "Recursive generic interface compile took " << seconds
+    << "s; expected <15s. Suggests the divergence guard in "
+       "is_x_sub_x (src/libponyc/type/subtype.c) regressed. (Post-fix "
+       "this finishes in tens of milliseconds; the 15s budget is "
+       "headroom for Windows MSVC CI runners.)";
 }
 
 TEST_F(BadPonyTest, RecursiveGenericInterfaceEmitsGuardDiagnostic)
 {
   // Companion to RecursiveGenericInterfaceDoesNotHang: when the
-  // divergence guard in is_nominal_sub_nominal bails on a drifting
-  // recursion it must write an ast_error_frame naming the guard, so a
-  // user who trips it knows they hit a compiler safeguard rather than
-  // a real subtype error. Without this diagnostic breadcrumb, bug
-  // reports from guard-tripping stdlib authors would be
-  // incomprehensible — they would see only a generic "not a subtype"
-  // error with no indication it came from SAME_DEF_LIMIT.
+  // divergence guard in is_x_sub_x bails on a drifting recursion it
+  // must write an ast_error_frame naming the guard, so a user who
+  // trips it knows they hit a compiler safeguard rather than a real
+  // subtype error. Without this diagnostic breadcrumb, bug reports
+  // from guard-tripping stdlib authors would be incomprehensible —
+  // they would see only a generic "not a subtype" error with no
+  // indication it came from SAME_DEF_LIMIT.
   const char* src =
     "interface Iter[A]\n"
     "  fun enum[B](): Iter[(B, A)] => this\n"
 
     "actor Main\n"
-    "  new create(env: Env) => None";
+    "  new create(env: Env) => None\n";
 
   const char* errs[] = {"function body isn't the result type", NULL};
   DO(test_expected_errors(src, "ir", errs));
@@ -1908,25 +2497,23 @@ TEST_F(BadPonyTest, RecursiveGenericInterfaceEmitsGuardDiagnostic)
   ASSERT_TRUE(found_guard_frame)
     << "Expected the divergence guard diagnostic frame to be present in "
     << "the error output, but it was not found. The guard in "
-    << "is_nominal_sub_nominal (src/libponyc/type/subtype.c) must call "
+    << "is_x_sub_x (src/libponyc/type/subtype.c) must call "
     << "ast_error_frame when it bails so users know they hit "
     << "SAME_DEF_LIMIT rather than a real subtype error.";
 }
 
 TEST_F(BadPonyTest, RecursiveGenericInterfaceNestedWrappingDoesNotHang)
 {
-  // Project-level regression guard for ponylang/ponyc#5198. The
-  // original issue report describes a hang on this program — drifting
-  // by wrapping the interface around itself (I[A] -> I[I[A]]) rather
-  // than via tuple typeargs as in #1216 — but the program already
-  // terminates cleanly with type errors on the parent of this PR's
-  // first commit. Some earlier change incidentally fixed it. This
-  // test is kept as a guard against the shape regressing in future
-  // work, not as proof that this PR is what fixes #5198.
+  // Companion regression for ponylang/ponyc#5198. The original issue
+  // describes a hang on a recursive generic that drifts by wrapping
+  // the interface around itself (I[A] -> I[I[A]]) rather than via
+  // tuple typeargs as in #1216. Same divergence shape (drifting
+  // same-def chain), same cause, same fix — the divergence guard in
+  // is_x_sub_x bounds it.
   //
   // The specific error messages below are incidental — the critical
   // property under test is bounded-time failure with diagnostics.
-  // Unlike the tupling drift shape, the nested-wrapping shape also
+  // Unlike the tupling-drift shape, the nested-wrapping shape also
   // fails the typearg-constraint check on the wrapped I[A], so two
   // errors are emitted.
   const char* src =
@@ -1934,27 +2521,39 @@ TEST_F(BadPonyTest, RecursiveGenericInterfaceNestedWrappingDoesNotHang)
     "  fun f(): I[I[A]] => this\n"
 
     "actor Main\n"
-    "  new create(env: Env) => None";
+    "  new create(env: Env) => None\n";
 
+  auto start = std::chrono::steady_clock::now();
   TEST_ERRORS_2(src,
     "type argument is outside its constraint",
     "function body isn't the result type");
+  auto elapsed = std::chrono::steady_clock::now() - start;
+
+  auto seconds =
+    std::chrono::duration_cast<std::chrono::seconds>(elapsed).count();
+  ASSERT_LT(seconds, 15)
+    << "Nested-wrapping recursive generic interface compile took "
+    << seconds << "s; expected <15s. Suggests the divergence guard in "
+       "is_x_sub_x (src/libponyc/type/subtype.c) regressed. (Post-fix "
+       "this finishes in tens of milliseconds; the 15s budget is "
+       "headroom for Windows MSVC CI runners.)";
 }
 
 TEST_F(BadPonyTest, RecursiveTypeParameterConstraintCompiles)
 {
   // Regression test for ponylang/ponyc#3930. A type parameter whose
   // constraint references the parameter itself
-  // (`A: Array[Array[A]]`) previously caused a stack overflow in
-  // exact_nominal's semantic typearg equality, crashing the compiler.
+  // (`A: Array[Array[A]]`) previously caused a stack overflow in the
+  // subtype checker's semantic typearg equality, crashing the
+  // compiler.
   //
   // This test lives alongside the recursive-interface regression
   // tests because the underlying fix is shared: both symptoms come
-  // from exact_nominal calling is_eq_typeargs, which re-enters the
-  // subtype checker and eventually re-enters check_assume for the
-  // same pair — unbounded at depth for recursive type parameter
-  // constraints, and exponentially at each guard-capped chain for
-  // nested-wrapping interfaces.
+  // from typearg equality re-entering the subtype checker, which
+  // eventually re-enters the coinductive assume machinery
+  // (type_assume) for the same pair — unbounded at depth for
+  // recursive type parameter constraints, and exponentially at each
+  // guard-capped chain for nested-wrapping interfaces.
   //
   // Unlike the other recursive-shape tests in this file, this source
   // is well-formed and must compile successfully.

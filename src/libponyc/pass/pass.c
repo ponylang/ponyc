@@ -4,6 +4,7 @@
 #include "scope.h"
 #include "import.h"
 #include "names.h"
+#include "typealias_recursion.h"
 #include "flatten.h"
 #include "traits.h"
 #include "refer.h"
@@ -57,6 +58,7 @@ const char* pass_name(pass_id pass)
     case PASS_SCOPE: return "scope";
     case PASS_IMPORT: return "import";
     case PASS_NAME_RESOLUTION: return "name";
+    case PASS_TYPEALIAS_RECURSION: return "typealias_recursion";
     case PASS_FLATTEN: return "flatten";
     case PASS_TRAITS: return "traits";
     case PASS_REFER: return "refer";
@@ -248,6 +250,13 @@ static bool ast_passes(ast_t** astp, pass_opt_t* options, pass_id last)
 
   if(is_program)
     plugin_visit_ast(*astp, options, PASS_NAME_RESOLUTION);
+
+  if(!visit_pass(astp, options, last, &r, PASS_TYPEALIAS_RECURSION,
+    pass_typealias_recursion, NULL))
+    return r;
+
+  if(is_program)
+    plugin_visit_ast(*astp, options, PASS_TYPEALIAS_RECURSION);
 
   if(!visit_pass(astp, options, last, &r, PASS_FLATTEN, NULL, pass_flatten))
     return r;

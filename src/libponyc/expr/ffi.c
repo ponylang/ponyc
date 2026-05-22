@@ -65,7 +65,7 @@ static bool declared_ffi(pass_opt_t* opt, ast_t* call, ast_t* decl)
       return false;
     }
 
-    ast_t* a_type = alias(arg_type);
+    ast_t* a_type = alias(arg_type, opt);
     errorframe_t info = NULL;
 
     if(!void_star_param(p_type, a_type) &&
