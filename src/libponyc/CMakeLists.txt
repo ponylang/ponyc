@@ -66,6 +66,7 @@ add_library(libponyc STATIC
     pass/sugar.c
     pass/syntax.c
     pass/traits.c
+    pass/typealias_recursion.c
     pass/verify.c
     pkg/buildflagset.c
     pkg/ifdef.c
@@ -89,6 +90,8 @@ add_library(libponyc STATIC
     type/safeto.c
     type/sanitise.c
     type/subtype.c
+    type/subtype_cache.c
+    type/type_assume.c
     type/typealias.c
     type/typeparam.c
     type/viewpoint.c

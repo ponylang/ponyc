@@ -36,10 +36,12 @@ add_executable(libponyc.tests
     program.cc
     reach.cc
     recover.cc
+    recursive_type_alias.cc
     refer.cc
     scope.cc
     signature.cc
     stable_type.cc
+    subtype_cache.cc
     sugar.cc
     sugar_expr.cc
     sugar_traits.cc

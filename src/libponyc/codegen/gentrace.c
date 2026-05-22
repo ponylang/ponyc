@@ -370,7 +370,15 @@ static trace_t trace_type(ast_t* type)
     case TK_TYPEALIASREF:
     {
       ast_t* unfolded = typealias_unfold(type);
-      pony_assert(unfolded != NULL);
+      if(unfolded == NULL)
+      {
+        // Reify failure or escaped legality-pass cycle (depth cap).
+        // At codegen, neither should happen. Fall back to TRACE_DYNAMIC
+        // — the most conservative classification — so a runtime trace
+        // call still happens even if the type's exact shape is lost.
+        pony_assert(false);
+        return TRACE_DYNAMIC;
+      }
 
       trace_t result = trace_type(unfolded);
       ast_free_unattached(unfolded);
@@ -835,21 +843,26 @@ static void trace_dynamic_tuple(compile_t* c, LLVMValueRef ctx,
           LLVMGetInsertBlock(c->builder));
         LLVMPositionBuilderAtEnd(c->builder, trace_block);
 
-        // If we are (A, B), turn (_, _) into (A, _).
-        // If the element is a type alias for a tuple, unfold it so the
-        // recursive call sees the concrete TK_TUPLETYPE; iterating the alias
-        // ref's children (TK_ID, typeargs, cap, eph) as tuple elements would
-        // trip trace_type's default assertion. typealias_unfold is guaranteed
-        // to succeed here because trace_type already unfolded the same child
-        // to classify it as TRACE_TUPLE; reify is deterministic. The unfold
-        // is transitive, so chained aliases (alias of alias of tuple) also
-        // resolve to a concrete TK_TUPLETYPE here.
+        // If we are (A, B), turn (_, _) into (A, _). If the element is a
+        // chained type alias for a tuple, unfold it so the recursive call
+        // sees the concrete TK_TUPLETYPE; iterating the alias ref's
+        // children (TK_ID, typeargs, cap, eph) as tuple elements would
+        // trip trace_type's default assertion. Termination is guaranteed
+        // because pass/typealias_recursion.c rejects tuple-element cycles,
+        // so any alias chain that reaches a tuple is acyclic.
         ast_t* swap;
 
         if(ast_id(child) == TK_TYPEALIASREF)
         {
           swap = typealias_unfold(child);
-          pony_assert(swap != NULL);
+          if(swap == NULL)
+          {
+            // Reify failure or escaped legality cycle. Fall back to
+            // duplicating the alias ref itself; downstream may
+            // mishandle the shape but won't crash on a NULL deref.
+            pony_assert(false);
+            swap = ast_dup(child);
+          }
         } else {
           swap = ast_dup(child);
         }
@@ -1198,7 +1211,7 @@ void gentrace(compile_t* c, LLVMValueRef ctx, LLVMValueRef src_value,
   {
     case TRACE_NONE:
       pony_assert(0);
-      return;
+      break;
 
     case TRACE_MACHINE_WORD:
     {
@@ -1214,43 +1227,43 @@ void gentrace(compile_t* c, LLVMValueRef ctx, LLVMValueRef src_value,
       if(boxed)
         trace_known(c, ctx, dst_value, src_type, PONY_TRACE_IMMUTABLE);
 
-      return;
+      break;
     }
 
     case TRACE_PRIMITIVE:
-      return;
+      break;
 
     case TRACE_NULLABLE_POINTER:
       trace_nullable_pointer(c, ctx, dst_value, src_type);
-      return;
+      break;
 
     case TRACE_VAL_KNOWN:
       trace_known(c, ctx, dst_value, src_type, PONY_TRACE_IMMUTABLE);
-      return;
+      break;
 
     case TRACE_VAL_UNKNOWN:
       trace_unknown(c, ctx, dst_value, PONY_TRACE_IMMUTABLE);
-      return;
+      break;
 
     case TRACE_MUT_KNOWN:
       trace_known(c, ctx, dst_value, src_type, PONY_TRACE_MUTABLE);
-      return;
+      break;
 
     case TRACE_MUT_UNKNOWN:
       trace_unknown(c, ctx, dst_value, PONY_TRACE_MUTABLE);
-      return;
+      break;
 
     case TRACE_TAG_KNOWN:
       trace_known(c, ctx, dst_value, src_type, PONY_TRACE_OPAQUE);
-      return;
+      break;
 
     case TRACE_TAG_UNKNOWN:
       trace_unknown(c, ctx, dst_value, PONY_TRACE_OPAQUE);
-      return;
+      break;
 
     case TRACE_STATIC:
       trace_static(c, ctx, dst_value, src_type, dst_type);
-      return;
+      break;
 
     case TRACE_DYNAMIC:
     {
@@ -1259,11 +1272,16 @@ void gentrace(compile_t* c, LLVMValueRef ctx, LLVMValueRef src_value,
       LLVMBuildBr(c->builder, next_block);
       LLVMMoveBasicBlockAfter(next_block, LLVMGetInsertBlock(c->builder));
       LLVMPositionBuilderAtEnd(c->builder, next_block);
-      return;
+      break;
     }
 
     case TRACE_TUPLE:
       trace_tuple(c, ctx, src_value, dst_value, src_type, dst_type);
-      return;
+      break;
   }
+
+  if(src_unfolded != NULL)
+    ast_free_unattached(src_unfolded);
+  if(dst_unfolded != NULL)
+    ast_free_unattached(dst_unfolded);
 }

@@ -248,6 +248,8 @@ static ast_t* is_match_exhaustive(pass_opt_t* opt, ast_t* expr_type,
   // Construct a union of all pattern types that count toward exhaustive match.
   ast_t* cases_union_type = ast_from(cases, TK_UNIONTYPE);
   ast_t* result = NULL;
+  bool seen_true = false;
+  bool seen_false = false;
 
   for(ast_t* c = ast_child(cases); c != NULL; c = ast_sibling(c))
   {
@@ -266,6 +268,24 @@ static ast_t* is_match_exhaustive(pass_opt_t* opt, ast_t* expr_type,
     // So, for the purposes of exhaustive match, we ignore those cases.
     if(ast_id(guard) != TK_NONE)
       continue;
+
+    // Track Bool literal patterns separately. expand_bool_in_type expands
+    // Bool nominals to (True | False), but viewpoint-adapted Bool (e.g.
+    // this->T where T: Bool val) reaches us as TK_ARROW or TK_TYPEPARAMREF
+    // and isn't expanded. The seen_true/seen_false fallback below covers
+    // those cases by adding Bool nominal to the cases union and rechecking.
+    {
+      ast_t* unwrapped = case_expr;
+      while(ast_id(unwrapped) == TK_SEQ && ast_childcount(unwrapped) == 1)
+        unwrapped = ast_child(unwrapped);
+
+      switch(ast_id(unwrapped))
+      {
+        case TK_TRUE: seen_true = true; break;
+        case TK_FALSE: seen_false = true; break;
+        default: {}
+      }
+    }
 
     // Only cases that match on type alone can count toward exhaustive match,
     // because matches on structural equality can't be statically evaluated.
@@ -289,6 +309,21 @@ static ast_t* is_match_exhaustive(pass_opt_t* opt, ast_t* expr_type,
       result = c;
       break;
     }
+  }
+
+  // Fallback: if the cases include both `true` and `false` literals (without
+  // guards) and the expanded-type subtype check did not declare the match
+  // exhaustive, add Bool nominal to the cases union and recheck against the
+  // original expr_type. This catches discriminees where the Bool nominal is
+  // hidden behind a viewpoint adapter or a typeparamref constraint, which
+  // expand_bool_in_type cannot rewrite directly.
+  if(result == NULL && seen_true && seen_false)
+  {
+    ast_t* bool_type = type_builtin(opt, cases, "Bool");
+    ast_add(cases_union_type, bool_type);
+
+    if(is_subtype(expr_type, cases_union_type, NULL, opt))
+      result = ast_childlast(cases);
   }
 
   ast_free_unattached(expanded_expr_type);

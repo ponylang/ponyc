@@ -144,6 +144,10 @@ static void errors_push(errors_t* errors, errormsg_t* e)
   errors->count++;
 }
 
+// Appends to the tail of the frame chain. Walks p->frame to find the
+// tail on each call — O(N) per append, so callers building large frame
+// chains in a loop see O(N^2) overall. Cap the chain length where the
+// loop count is unbounded (e.g., per-alias fan-out in legality errors).
 static void append_to_frame(errorframe_t* frame, errormsg_t* e)
 {
   pony_assert(frame != NULL);

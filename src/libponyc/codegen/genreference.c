@@ -93,6 +93,23 @@ LLVMValueRef gen_fieldptr(compile_t* c, ast_t* ast)
     return NULL;
 
   ast_t* l_type = deferred_reify(c->frame->reify, ast_type(left), c->opt);
+
+  // deferred_reify reifies typeparams against typeargs but doesn't
+  // unfold typealiasrefs. For an alias-typed receiver (whether a
+  // direct alias like `AliasInner is Inner` or a chain), l_type
+  // arrives as TK_TYPEALIASREF and make_fieldptr's TK_NOMINAL
+  // assertion fires. Unfold to the concrete head before passing in.
+  ast_t* unfolded = NULL;
+  if(ast_id(l_type) == TK_TYPEALIASREF)
+  {
+    unfolded = typealias_unfold(l_type);
+    if(unfolded != NULL)
+    {
+      ast_free_unattached(l_type);
+      l_type = unfolded;
+    }
+  }
+
   LLVMValueRef ret = make_fieldptr(c, l_value, l_type, right);
   ast_free_unattached(l_type);
   return ret;

@@ -680,7 +680,7 @@ static bool static_tuple(compile_t* c, LLVMValueRef value, ast_t* type,
     case TK_ISECTTYPE:
     case TK_NOMINAL:
     {
-      pony_assert((ast_id(type) != TK_NOMINAL) || is_top_type(type, true));
+      pony_assert((ast_id(type) != TK_NOMINAL) || is_top_type(type, true, c->opt));
 
       // Read the dynamic type and get a base pointer.
       LLVMValueRef desc = gendesc_fetch(c, value);

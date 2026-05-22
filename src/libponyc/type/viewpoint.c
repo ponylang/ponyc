@@ -2,6 +2,7 @@
 #include "alias.h"
 #include "assemble.h"
 #include "cap.h"
+#include "type_assume.h"
 #include "typealias.h"
 #include "../ast/astbuild.h"
 #include "ponyassert.h"
@@ -13,7 +14,8 @@ enum
   VIEW_UPPER_FORCE
 };
 
-ast_t* viewpoint_type(ast_t* l_type, ast_t* r_type)
+static ast_t* viewpoint_type_impl(ast_t* l_type, ast_t* r_type,
+  pass_opt_t* opt)
 {
   int upper = VIEW_UPPER_NO;
 
@@ -29,7 +31,7 @@ ast_t* viewpoint_type(ast_t* l_type, ast_t* r_type)
 
       while(child != NULL)
       {
-        ast_append(type, viewpoint_type(l_type, child));
+        ast_append(type, viewpoint_type(l_type, child, opt));
         child = ast_sibling(child);
       }
 
@@ -47,7 +49,7 @@ ast_t* viewpoint_type(ast_t* l_type, ast_t* r_type)
       if(unfolded == NULL)
         return NULL;
 
-      ast_t* result = viewpoint_type(l_type, unfolded);
+      ast_t* result = viewpoint_type(l_type, unfolded, opt);
       ast_free_unattached(unfolded);
       return result;
     }
@@ -131,8 +133,8 @@ ast_t* viewpoint_type(ast_t* l_type, ast_t* r_type)
     {
       // (T1->T2)->T3 --> T1->(T2->T3)
       AST_GET_CHILDREN(l_type, left, right);
-      ast_t* r_right = viewpoint_type(right, r_type);
-      return viewpoint_type(left, r_right);
+      ast_t* r_right = viewpoint_type(right, r_type, opt);
+      return viewpoint_type(left, r_right, opt);
     }
 
     case TK_TYPEALIASREF:
@@ -142,7 +144,7 @@ ast_t* viewpoint_type(ast_t* l_type, ast_t* r_type)
       if(unfolded == NULL)
         return NULL;
 
-      ast_t* result = viewpoint_type(unfolded, r_type);
+      ast_t* result = viewpoint_type(unfolded, r_type, opt);
       ast_free_unattached(unfolded);
       return result;
     }
@@ -157,7 +159,7 @@ ast_t* viewpoint_type(ast_t* l_type, ast_t* r_type)
 
   if(upper != VIEW_UPPER_NO)
   {
-    ast_t* arrow_upper = viewpoint_upper(arrow);
+    ast_t* arrow_upper = viewpoint_upper(arrow, opt);
 
     if(arrow_upper == NULL)
       return arrow;
@@ -172,7 +174,21 @@ ast_t* viewpoint_type(ast_t* l_type, ast_t* r_type)
   return arrow;
 }
 
-ast_t* viewpoint_upper(ast_t* type)
+ast_t* viewpoint_type(ast_t* l_type, ast_t* r_type, pass_opt_t* opt)
+{
+  // Cycle base case for ASSUME_VIEWPOINT: viewpoint adaptation of a
+  // self-reference propagates the rhs identity. ast_dup so callers that
+  // re-parent the result via ast_append don't detach r_type from its
+  // current parent.
+  if(!type_assume_enter(TYPE_ASSUME_VIEWPOINT, l_type, r_type))
+    return ast_dup(r_type);
+
+  ast_t* result = viewpoint_type_impl(l_type, r_type, opt);
+  type_assume_leave(TYPE_ASSUME_VIEWPOINT);
+  return result;
+}
+
+ast_t* viewpoint_upper(ast_t* type, pass_opt_t* opt)
 {
   // T = N | A
   // s = {k}
@@ -196,14 +212,14 @@ ast_t* viewpoint_upper(ast_t* type)
       if(unfolded == NULL)
         return NULL;
 
-      ast_t* result = viewpoint_type(left, unfolded);
+      ast_t* result = viewpoint_type(left, unfolded, opt);
       ast_free_unattached(unfolded);
       return result;
     }
 
     case TK_ARROW:
       // Arrow types are right associative.
-      r_right = viewpoint_upper(right);
+      r_right = viewpoint_upper(right, opt);
 
       if(r_right == NULL)
         return NULL;
@@ -255,7 +271,7 @@ ast_t* viewpoint_upper(ast_t* type)
         return NULL;
       }
 
-      ast_t* result = viewpoint_type(unfolded, r_right);
+      ast_t* result = viewpoint_type(unfolded, r_right, opt);
 
       if(r_right != right)
         ast_free_unattached(r_right);
@@ -287,7 +303,7 @@ ast_t* viewpoint_upper(ast_t* type)
   return rr_right;
 }
 
-ast_t* viewpoint_lower(ast_t* type)
+ast_t* viewpoint_lower(ast_t* type, pass_opt_t* opt)
 {
   // T = N | A
   // s = {k}
@@ -311,14 +327,14 @@ ast_t* viewpoint_lower(ast_t* type)
       if(unfolded == NULL)
         return NULL;
 
-      ast_t* result = viewpoint_type(left, unfolded);
+      ast_t* result = viewpoint_type(left, unfolded, opt);
       ast_free_unattached(unfolded);
       return result;
     }
 
     case TK_ARROW:
       // Arrow types are right associative.
-      r_right = viewpoint_lower(right);
+      r_right = viewpoint_lower(right, opt);
 
       if(r_right == NULL)
         return NULL;
@@ -370,7 +386,7 @@ ast_t* viewpoint_lower(ast_t* type)
         return NULL;
       }
 
-      ast_t* result = viewpoint_type(unfolded, r_right);
+      ast_t* result = viewpoint_type(unfolded, r_right, opt);
 
       if(r_right != right)
         ast_free_unattached(r_right);
@@ -402,21 +418,21 @@ ast_t* viewpoint_lower(ast_t* type)
   return rr_right;
 }
 
-static void replace_type(ast_t** astp, ast_t* target, ast_t* with)
+static void replace_type(ast_t** astp, ast_t* target, ast_t* with, pass_opt_t* opt)
 {
   ast_t* ast = *astp;
   ast_t* child = ast_child(ast);
 
   while(child != NULL)
   {
-    replace_type(&child, target, with);
+    replace_type(&child, target, with, opt);
     child = ast_sibling(child);
   }
 
   ast_t* node_type = ast_type(ast);
 
   if(node_type != NULL)
-    replace_type(&node_type, target, with);
+    replace_type(&node_type, target, with, opt);
 
   if(ast_id(ast) == ast_id(target))
   {
@@ -442,7 +458,7 @@ static void replace_type(ast_t** astp, ast_t* target, ast_t* with)
           {
             case TK_EPHEMERAL:
             {
-              ast_t* c_with = consume_type(with, TK_NONE, true);
+              ast_t* c_with = consume_type(with, TK_NONE, true, opt);
               if (c_with != NULL)
               {
                 a_with = c_with;
@@ -451,7 +467,7 @@ static void replace_type(ast_t** astp, ast_t* target, ast_t* with)
             }
 
             case TK_ALIASED:
-              a_with = alias(with);
+              a_with = alias(with, opt);
               break;
 
             default: {}
@@ -471,12 +487,12 @@ static void replace_type(ast_t** astp, ast_t* target, ast_t* with)
   } else if(ast_id(ast) == TK_ARROW) {
     // Recalculate all arrow types.
     AST_GET_CHILDREN(ast, left, right);
-    ast_t* r_type = viewpoint_type(left, right);
+    ast_t* r_type = viewpoint_type(left, right, opt);
     ast_replace(astp, r_type);
   }
 }
 
-ast_t* viewpoint_replace(ast_t* ast, ast_t* target, ast_t* with, bool duplicate)
+ast_t* viewpoint_replace(ast_t* ast, ast_t* target, ast_t* with, bool duplicate, pass_opt_t* opt)
 {
   // Target is thistype or a typeparamref. With is a type (when replacing
   // `this` in a reified method signature) or a single capability (when
@@ -492,23 +508,23 @@ ast_t* viewpoint_replace(ast_t* ast, ast_t* target, ast_t* with, bool duplicate)
   else
     r_ast = ast;
 
-  replace_type(&r_ast, target, with);
+  replace_type(&r_ast, target, with, opt);
   return r_ast;
 }
 
-ast_t* viewpoint_replacethis(ast_t* ast, ast_t* with, bool duplicate)
+ast_t* viewpoint_replacethis(ast_t* ast, ast_t* with, bool duplicate, pass_opt_t* opt)
 {
   ast_t* thistype = ast_from(ast, TK_THISTYPE);
-  ast_t* r_ast = viewpoint_replace(ast, thistype, with, duplicate);
+  ast_t* r_ast = viewpoint_replace(ast, thistype, with, duplicate, opt);
   ast_free_unattached(thistype);
   return r_ast;
 }
 
-static void replace_typeparam(ast_t* tuple, ast_t* type, ast_t* typeparamref,
+static void replace_typeparam(ast_t* tuple, ast_t* type, ast_t* typeparamref, pass_opt_t* opt,
   token_id cap, token_id eph)
 {
   ast_t* r_tp = set_cap_and_ephemeral(typeparamref, cap, eph);
-  ast_t* r_type = viewpoint_replace(type, typeparamref, r_tp, true);
+  ast_t* r_type = viewpoint_replace(type, typeparamref, r_tp, true, opt);
   ast_append(tuple, r_type);
 }
 
@@ -534,7 +550,7 @@ static ast_t* find_typeparamref_in(ast_t* ast, ast_t* target)
   return NULL;
 }
 
-ast_t* viewpoint_reifytypeparam(ast_t* type, ast_t* typeparamref)
+ast_t* viewpoint_reifytypeparam(ast_t* type, ast_t* typeparamref, pass_opt_t* opt)
 {
   pony_assert(ast_id(typeparamref) == TK_TYPEPARAMREF);
 
@@ -564,48 +580,48 @@ ast_t* viewpoint_reifytypeparam(ast_t* type, ast_t* typeparamref)
     case TK_CAP_SEND:
     {
       ast_t* tuple = ast_from(type, TK_TUPLETYPE);
-      replace_typeparam(tuple, type, typeparamref, TK_ISO, ast_id(eph));
-      replace_typeparam(tuple, type, typeparamref, TK_VAL, TK_NONE);
-      replace_typeparam(tuple, type, typeparamref, TK_TAG, TK_NONE);
+      replace_typeparam(tuple, type, typeparamref, opt, TK_ISO, ast_id(eph));
+      replace_typeparam(tuple, type, typeparamref, opt, TK_VAL, TK_NONE);
+      replace_typeparam(tuple, type, typeparamref, opt, TK_TAG, TK_NONE);
       return tuple;
     }
 
     case TK_CAP_SHARE:
     {
       ast_t* tuple = ast_from(type, TK_TUPLETYPE);
-      replace_typeparam(tuple, type, typeparamref, TK_VAL, TK_NONE);
-      replace_typeparam(tuple, type, typeparamref, TK_TAG, TK_NONE);
+      replace_typeparam(tuple, type, typeparamref, opt, TK_VAL, TK_NONE);
+      replace_typeparam(tuple, type, typeparamref, opt, TK_TAG, TK_NONE);
       return tuple;
     }
 
     case TK_CAP_READ:
     {
       ast_t* tuple = ast_from(type, TK_TUPLETYPE);
-      replace_typeparam(tuple, type, typeparamref, TK_REF, TK_NONE);
-      replace_typeparam(tuple, type, typeparamref, TK_VAL, TK_NONE);
-      replace_typeparam(tuple, type, typeparamref, TK_BOX, TK_NONE);
+      replace_typeparam(tuple, type, typeparamref, opt, TK_REF, TK_NONE);
+      replace_typeparam(tuple, type, typeparamref, opt, TK_VAL, TK_NONE);
+      replace_typeparam(tuple, type, typeparamref, opt, TK_BOX, TK_NONE);
       return tuple;
     }
 
     case TK_CAP_ALIAS:
     {
       ast_t* tuple = ast_from(type, TK_TUPLETYPE);
-      replace_typeparam(tuple, type, typeparamref, TK_REF, TK_NONE);
-      replace_typeparam(tuple, type, typeparamref, TK_VAL, TK_NONE);
-      replace_typeparam(tuple, type, typeparamref, TK_BOX, TK_NONE);
-      replace_typeparam(tuple, type, typeparamref, TK_TAG, TK_NONE);
+      replace_typeparam(tuple, type, typeparamref, opt, TK_REF, TK_NONE);
+      replace_typeparam(tuple, type, typeparamref, opt, TK_VAL, TK_NONE);
+      replace_typeparam(tuple, type, typeparamref, opt, TK_BOX, TK_NONE);
+      replace_typeparam(tuple, type, typeparamref, opt, TK_TAG, TK_NONE);
       return tuple;
     }
 
     case TK_CAP_ANY:
     {
       ast_t* tuple = ast_from(type, TK_TUPLETYPE);
-      replace_typeparam(tuple, type, typeparamref, TK_ISO, ast_id(eph));
-      replace_typeparam(tuple, type, typeparamref, TK_TRN, ast_id(eph));
-      replace_typeparam(tuple, type, typeparamref, TK_REF, TK_NONE);
-      replace_typeparam(tuple, type, typeparamref, TK_VAL, TK_NONE);
-      replace_typeparam(tuple, type, typeparamref, TK_BOX, TK_NONE);
-      replace_typeparam(tuple, type, typeparamref, TK_TAG, TK_NONE);
+      replace_typeparam(tuple, type, typeparamref, opt, TK_ISO, ast_id(eph));
+      replace_typeparam(tuple, type, typeparamref, opt, TK_TRN, ast_id(eph));
+      replace_typeparam(tuple, type, typeparamref, opt, TK_REF, TK_NONE);
+      replace_typeparam(tuple, type, typeparamref, opt, TK_VAL, TK_NONE);
+      replace_typeparam(tuple, type, typeparamref, opt, TK_BOX, TK_NONE);
+      replace_typeparam(tuple, type, typeparamref, opt, TK_TAG, TK_NONE);
       return tuple;
     }
 
@@ -616,26 +632,26 @@ ast_t* viewpoint_reifytypeparam(ast_t* type, ast_t* typeparamref)
   return NULL;
 }
 
-ast_t* viewpoint_reifythis(ast_t* type)
+ast_t* viewpoint_reifythis(ast_t* type, pass_opt_t* opt)
 {
   ast_t* tuple = ast_from(type, TK_TUPLETYPE);
 
   ast_t* this_ref = ast_from(type, TK_REF);
-  ast_append(tuple, viewpoint_replacethis(type, this_ref, true));
+  ast_append(tuple, viewpoint_replacethis(type, this_ref, true, opt));
   ast_free_unattached(this_ref);
 
   ast_t* this_val = ast_from(type, TK_VAL);
-  ast_append(tuple, viewpoint_replacethis(type, this_val, true));
+  ast_append(tuple, viewpoint_replacethis(type, this_val, true, opt));
   ast_free_unattached(this_val);
 
   ast_t* this_box = ast_from(type, TK_BOX);
-  ast_append(tuple, viewpoint_replacethis(type, this_box, true));
+  ast_append(tuple, viewpoint_replacethis(type, this_box, true, opt));
   ast_free_unattached(this_box);
 
   return tuple;
 }
 
-bool viewpoint_reifypair(ast_t* a, ast_t* b, ast_t** r_a, ast_t** r_b)
+bool viewpoint_reifypair(ast_t* a, ast_t* b, ast_t** r_a, ast_t** r_b, pass_opt_t* opt)
 {
   pony_assert(ast_id(a) == TK_ARROW);
   pony_assert(ast_id(b) == TK_ARROW);
@@ -657,15 +673,15 @@ bool viewpoint_reifypair(ast_t* a, ast_t* b, ast_t** r_a, ast_t** r_b)
       case TK_THISTYPE:
       {
         // Reify on both sides.
-        *r_a = viewpoint_reifythis(a);
-        *r_b = viewpoint_reifythis(b);
+        *r_a = viewpoint_reifythis(a, opt);
+        *r_b = viewpoint_reifythis(b, opt);
         return true;
       }
 
       case TK_TYPEPARAMREF:
       {
         // If we can reify a, we can reify b.
-        ast_t* r = viewpoint_reifytypeparam(a, left_a);
+        ast_t* r = viewpoint_reifytypeparam(a, left_a, opt);
 
         if(r == NULL)
           break;
@@ -683,7 +699,7 @@ bool viewpoint_reifypair(ast_t* a, ast_t* b, ast_t** r_a, ast_t** r_b)
             left_b = candidate;
         }
 
-        *r_b = viewpoint_reifytypeparam(b, left_b);
+        *r_b = viewpoint_reifytypeparam(b, left_b, opt);
         return true;
       }
 
@@ -697,7 +713,7 @@ bool viewpoint_reifypair(ast_t* a, ast_t* b, ast_t** r_a, ast_t** r_b)
 
   if(ast_id(test_a) == TK_TYPEPARAMREF)
   {
-    ast_t* r = viewpoint_reifytypeparam(a, test_a);
+    ast_t* r = viewpoint_reifytypeparam(a, test_a, opt);
 
     if(r == NULL)
       return false;
@@ -711,7 +727,7 @@ bool viewpoint_reifypair(ast_t* a, ast_t* b, ast_t** r_a, ast_t** r_b)
       (ast_data(test_b) == ast_data(test_a)))
       tp_b = test_b;
 
-    *r_b = viewpoint_reifytypeparam(b, tp_b);
+    *r_b = viewpoint_reifytypeparam(b, tp_b, opt);
     return true;
   }
 

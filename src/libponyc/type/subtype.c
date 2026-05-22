@@ -4,12 +4,15 @@
 #include "cap.h"
 #include "matchtype.h"
 #include "reify.h"
+#include "subtype_cache.h"
+#include "type_assume.h"
 #include "typealias.h"
 #include "typeparam.h"
 #include "viewpoint.h"
 #include "../ast/astbuild.h"
 #include "../expr/literal.h"
 #include "ponyassert.h"
+#include <limits.h>
 #include <string.h>
 
 
@@ -37,8 +40,6 @@ static bool is_typeparam_sub_x(ast_t* sub, ast_t* super, check_cap_t check_cap,
 static bool is_x_sub_x(ast_t* sub, ast_t* super, check_cap_t check_cap,
   errorframe_t* errorf, pass_opt_t* opt);
 
-static __pony_thread_local ast_t* subtype_assume;
-
 static void struct_cant_be_x(ast_t* sub, ast_t* super, errorframe_t* errorf,
   const char* entity)
 {
@@ -48,174 +49,6 @@ static void struct_cant_be_x(ast_t* sub, ast_t* super, errorframe_t* errorf,
   ast_error_frame(errorf, sub,
     "%s is not a subtype of %s: a struct can't be a subtype of %s",
     ast_print_type(sub), ast_print_type(super), entity);
-}
-
-// Structural AST equality on type expressions, used by check_assume to
-// recognize when the current (sub, super) pair has already been pushed
-// onto the assume stack. This must NOT call back into the subtype
-// machinery: the original is_eq_typeargs path went is_eqtype ->
-// is_subtype -> check_assume, which on recursive generic shapes
-// stack-overflowed (ponylang/ponyc#3930), hung indefinitely
-// (ponylang/ponyc#5198), or produced exponential fan-out that hid the
-// SAME_DEF_LIMIT divergence guard from itself (ponylang/ponyc#1216).
-//
-// We compare semantic identity, not source-name identity. For nominals
-// and type parameter references that means comparing the definition
-// AST by pointer (ast_data), with the same dig-through-aliases walk
-// is_typeparam_sub_typeparam uses. Two types that share a source name
-// but live in different namespaces — public types not `use`d together,
-// private types in different packages, or type parameters with the
-// same name from different scopes — are correctly distinguished. A
-// previous iteration of this fix used ast_print_type for the
-// comparison, which collapsed those cases together and was therefore
-// unsound: the printer emits `T` for a type parameter regardless of
-// scope, so a coinductive proof could close on a pair that only looked
-// the same by name.
-static bool exact_type(ast_t* a, ast_t* b)
-{
-  if(a == b)
-    return true;
-
-  if(ast_id(a) != ast_id(b))
-    return false;
-
-  switch(ast_id(a))
-  {
-    case TK_NOMINAL:
-    {
-      // Definition pointer is the type's identity. Package and id
-      // children are redundant given the def and can confusingly print
-      // the same for distinct defs in different namespaces.
-      if(ast_data(a) != ast_data(b))
-        return false;
-
-      // Children of TK_NOMINAL: package, id, typeargs, cap, ephemeral.
-      return exact_type(ast_childidx(a, 2), ast_childidx(b, 2))
-        && (ast_id(ast_childidx(a, 3)) == ast_id(ast_childidx(b, 3)))
-        && (ast_id(ast_childidx(a, 4)) == ast_id(ast_childidx(b, 4)));
-    }
-
-    case TK_TYPEPARAMREF:
-    {
-      // Same dig-through-aliases walk as is_typeparam_sub_typeparam.
-      // Two type parameters with the same source name in different
-      // scopes have different defs and are distinct here.
-      ast_t* a_def = (ast_t*)ast_data(a);
-      ast_t* b_def = (ast_t*)ast_data(b);
-      while((ast_data(a_def) != NULL) && (a_def != ast_data(a_def)))
-        a_def = (ast_t*)ast_data(a_def);
-      while((ast_data(b_def) != NULL) && (b_def != ast_data(b_def)))
-        b_def = (ast_t*)ast_data(b_def);
-      if(a_def != b_def)
-        return false;
-
-      // Children of TK_TYPEPARAMREF: id, cap, ephemeral.
-      return (ast_id(ast_childidx(a, 1)) == ast_id(ast_childidx(b, 1)))
-        && (ast_id(ast_childidx(a, 2)) == ast_id(ast_childidx(b, 2)));
-    }
-
-    case TK_TYPEALIASREF:
-    {
-      // Type aliases are normally unfolded before subtype checking, so
-      // this case is unlikely to fire in practice — but if one ever
-      // reaches here, definition-pointer equality is the right
-      // semantic identity check (the same reasoning as TK_NOMINAL).
-      if(ast_data(a) != ast_data(b))
-        return false;
-
-      // Children of TK_TYPEALIASREF: id, typeargs, cap, ephemeral.
-      return exact_type(ast_childidx(a, 1), ast_childidx(b, 1))
-        && (ast_id(ast_childidx(a, 2)) == ast_id(ast_childidx(b, 2)))
-        && (ast_id(ast_childidx(a, 3)) == ast_id(ast_childidx(b, 3)));
-    }
-
-    default:
-    {
-      // Default walk: compare children pairwise. Compound type forms
-      // (TK_ARROW, TK_TUPLETYPE, TK_UNIONTYPE, TK_ISECTTYPE,
-      // TK_TYPEARGS) descend into their children. Leaf nodes (caps
-      // like TK_REF/TK_VAL/TK_BOX, TK_THISTYPE, TK_DONTCARETYPE,
-      // TK_NONE, etc.) have no children and pass once their kinds
-      // matched the ast_id check above.
-      //
-      // This is safe because nodes whose identity is carried by
-      // payload data (TK_NOMINAL, TK_TYPEPARAMREF, TK_TYPEALIASREF
-      // and similar) are explicitly handled in their own cases
-      // above. Anything that arrives here is either a structural
-      // composite or a kind-only leaf.
-      ast_t* a_child = ast_child(a);
-      ast_t* b_child = ast_child(b);
-      while((a_child != NULL) && (b_child != NULL))
-      {
-        if(!exact_type(a_child, b_child))
-          return false;
-        a_child = ast_sibling(a_child);
-        b_child = ast_sibling(b_child);
-      }
-      return (a_child == NULL) && (b_child == NULL);
-    }
-  }
-}
-
-static bool exact_nominal(ast_t* a, ast_t* b)
-{
-  pony_assert(ast_id(a) == TK_NOMINAL);
-  pony_assert(ast_id(b) == TK_NOMINAL);
-  return exact_type(a, b);
-}
-
-static ast_t* push_assume(ast_t* sub, ast_t* super, pass_opt_t* opt)
-{
-  (void)opt;
-  if(subtype_assume == NULL)
-    subtype_assume = ast_from(sub, TK_NONE);
-
-  BUILD(assume, sub, NODE(TK_NONE, TREE(ast_dup(sub)) TREE(ast_dup(super))));
-  ast_add(subtype_assume, assume);
-  return assume;
-}
-
-static void pop_assume()
-{
-  ast_t* assumption = ast_pop(subtype_assume);
-  ast_free_unattached(assumption);
-
-  if(ast_child(subtype_assume) == NULL)
-  {
-    ast_free_unattached(subtype_assume);
-    subtype_assume = NULL;
-  }
-}
-
-static bool check_assume(ast_t* sub, ast_t* super, pass_opt_t* opt)
-{
-  bool ret = false;
-  // Returns true if we have already assumed sub is a subtype of super.
-  if(subtype_assume != NULL)
-  {
-    ast_t* assumption = ast_child(subtype_assume);
-    ast_t* new_assume = NULL;
-    new_assume = push_assume(sub, super, opt);
-
-    while(assumption != NULL && assumption != new_assume)
-    {
-      AST_GET_CHILDREN(assumption, assume_sub, assume_super);
-
-      if(exact_nominal(sub, assume_sub) &&
-        exact_nominal(super, assume_super))
-      {
-        ret = true;
-        break;
-      }
-
-      assumption = ast_sibling(assumption);
-    }
-    pony_assert(ret || (assumption == NULL));
-    pony_assert(ast_child(subtype_assume) == new_assume);
-    pop_assume();
-  }
-
-  return ret;
 }
 
 static bool is_sub_cap_and_eph(ast_t* sub, ast_t* super, check_cap_t check_cap,
@@ -371,8 +204,8 @@ static bool is_reified_fun_sub_fun(ast_t* sub, ast_t* super,
       }
 
       // Covariant result. See the coupling note on the TK_FUN/TK_BE
-      // branch below about divergence on recursive generic interfaces
-      // and the is_nominal_sub_nominal divergence guard.
+      // covariant-result branch below about divergence on recursive
+      // generic interfaces and the divergence guard in is_x_sub_x.
       if(!is_subtype(sub_result, super_result, errorf, opt))
       {
         if(errorf != NULL)
@@ -416,8 +249,8 @@ static bool is_reified_fun_sub_fun(ast_t* sub, ast_t* super,
       // structurally-recursive generic interfaces (e.g. an interface
       // method whose return type, parameter type, or type-parameter
       // constraint references the same interface with strictly larger
-      // type arguments). Termination relies on the divergence guard in
-      // is_nominal_sub_nominal. If you change how any of these four
+      // type arguments). Termination relies on the recursion-divergence
+      // guard in is_x_sub_x. If you change how any of these four
       // recursions work, revisit that guard. See ponylang/ponyc#1216.
       if(!is_subtype(sub_result, super_result, errorf, opt))
       {
@@ -447,7 +280,7 @@ static bool is_reified_fun_sub_fun(ast_t* sub, ast_t* super,
 
     // Contravariant recursion. See the coupling note on the TK_FUN/TK_BE
     // covariant-result branch above about divergence on recursive
-    // generic interfaces and the is_nominal_sub_nominal divergence guard.
+    // generic interfaces and the divergence guard in is_x_sub_x.
     if(!is_x_sub_x(super_constraint, sub_constraint, CHECK_CAP_EQ, errorf,
       opt))
     {
@@ -472,8 +305,8 @@ static bool is_reified_fun_sub_fun(ast_t* sub, ast_t* super,
   while((sub_param != NULL) && (super_param != NULL))
   {
     // observational: must pass K^ to argument of type K
-    ast_t* sub_type = consume_type(ast_childidx(sub_param, 1), TK_NONE, false);
-    ast_t* super_type = consume_type(ast_childidx(super_param, 1), TK_NONE, false);
+    ast_t* sub_type = consume_type(ast_childidx(sub_param, 1), TK_NONE, false, opt);
+    ast_t* super_type = consume_type(ast_childidx(super_param, 1), TK_NONE, false, opt);
     if (sub_type == NULL || super_type == NULL)
     {
       // invalid function types
@@ -483,7 +316,7 @@ static bool is_reified_fun_sub_fun(ast_t* sub, ast_t* super,
     // Contravariant: the super type must be a subtype of the sub type.
     // See the coupling note on the TK_FUN/TK_BE covariant-result branch
     // above about divergence on recursive generic interfaces and the
-    // is_nominal_sub_nominal divergence guard.
+    // divergence guard in is_x_sub_x.
     if(!is_x_sub_x(super_type, sub_type, CHECK_CAP_SUB, errorf, opt))
     {
       if(errorf != NULL)
@@ -1032,7 +865,7 @@ static bool is_single_sub_tuple(ast_t* sub, ast_t* super, check_cap_t check_cap,
 static bool is_tuple_sub_nominal(ast_t* sub, ast_t* super,
   check_cap_t check_cap, errorframe_t* errorf, pass_opt_t* opt)
 {
-  if(is_top_type(super, true))
+  if(is_top_type(super, true, opt))
   {
     for(ast_t* child = ast_child(sub);
       child != NULL;
@@ -1441,97 +1274,10 @@ static bool is_nominal_sub_trait(ast_t* sub, ast_t* super,
 static bool is_nominal_sub_nominal(ast_t* sub, ast_t* super,
   check_cap_t check_cap, errorframe_t* errorf, pass_opt_t* opt)
 {
-  // N k <: N' k'
-  ast_t* sub_def = (ast_t*)ast_data(sub);
+  // N k <: N' k'. Cycle protection lives at is_x_sub_x's entry — the
+  // outer wrapper catches every pair, including this one, before the
+  // dispatch reaches here.
   ast_t* super_def = (ast_t*)ast_data(super);
-  if(check_assume(sub, super, opt))
-    return true;
-
-  // Guard against structural divergence on recursive generic interfaces.
-  // The coinductive mechanism above (check_assume / exact_nominal) closes
-  // a proof when the same (sub, super) pair recurs with equal type args.
-  // It does not close when the same def pair recurs with drifting type
-  // args, because exact_nominal requires exact structural equality and
-  // drifting typeargs are not structurally equal — so each new frame
-  // fails to match any earlier one on the assume stack. In that case
-  // the recursion grows without bound (see ponylang/ponyc#1216: the
-  // covariant result recursion in is_reified_fun_sub_fun can drive this
-  // via methods like `fun f[B](): I[(B, A)]` on `interface I[A]`).
-  //
-  // If the same (sub_def, super_def) pair has already accumulated
-  // SAME_DEF_LIMIT entries on the assume stack without any of them
-  // matching exactly, the chain is diverging and bailing with `false`
-  // is sound: a convergent proof would have closed through check_assume
-  // by now. Worst case if that reasoning is wrong: programs that should
-  // type check get a spurious "not a subtype" error, still preferable
-  // to a hang. When bailing, we write an ast_error_frame naming the
-  // guard so a user who trips it knows to report it (rather than
-  // assuming their code has a real subtype error).
-  //
-  // SAME_DEF_LIMIT was chosen empirically. The real-world regression
-  // surface is packages/pony_check/generator.pony: the `GenObj[T]`
-  // trait combined with `type GenerateResult[T2] is (T2^ |
-  // ValueAndShrink[T2])` and uses like `shuffled_iter[T]():
-  // Generator[Iterator[this->T!]]` produce drifting same-def chains
-  // during structural subtype checks. K = 2 was empirically refuted:
-  // it rejected pony_check shapes that need more than one drifting
-  // round to reach a closing frame, so the real-world minimum
-  // observed is K >= 3. K = 4 is the current value and leaves one
-  // round of headroom above the observed floor. Validation
-  // procedure if you change K: rebuild ponyc and confirm that
-  // `make test` still cleanly compiles pony_check — if pony_check
-  // fails to type-check, K is too low. Raising K is always safe;
-  // lowering it requires empirical re-verification against
-  // pony_check and any other stdlib shape that might have grown
-  // since. If you restructure GenObj or GenerateResult in
-  // pony_check, rerun the same validation — there is a back-pointer
-  // comment on GenObj in packages/pony_check/generator.pony.
-  //
-  // Coupled to is_reified_fun_sub_fun's covariant-result is_subtype
-  // recursion; if that recursion changes, revisit this guard.
-  {
-    const int SAME_DEF_LIMIT = 4;
-    int count = 0;
-    if(subtype_assume != NULL)
-    {
-      for(ast_t* a = ast_child(subtype_assume); a != NULL; a = ast_sibling(a))
-      {
-        AST_GET_CHILDREN(a, a_sub, a_super);
-        if(((ast_t*)ast_data(a_sub) == sub_def) &&
-           ((ast_t*)ast_data(a_super) == super_def))
-        {
-          if(++count >= SAME_DEF_LIMIT)
-          {
-            // NOTE: The "recursion-divergence guard" substring below is
-            // the marker that BadPonyTest.
-            // RecursiveGenericInterfaceEmitsGuardDiagnostic asserts on.
-            // If you rename it, update that test.
-            if(errorf != NULL)
-            {
-              ast_error_frame(errorf, sub,
-                "%s is not a subtype of %s: the structural subtype "
-                "check was aborted by the recursion-divergence guard "
-                "after %d drifting same-def frames. This is a compiler "
-                "safeguard against unbounded recursion on "
-                "structurally-recursive generic interfaces "
-                "(ponylang/ponyc#1216). If you believe this program "
-                "should type-check, please report it with a minimal "
-                "reproducer so the guard's SAME_DEF_LIMIT can be "
-                "re-evaluated.",
-                ast_print_type(sub), ast_print_type(super),
-                SAME_DEF_LIMIT);
-            }
-            return false;
-          }
-        }
-      }
-    }
-  }
-
-  // Add an assumption: sub <: super
-  push_assume(sub, super, opt);
-
-  bool ret = false;
 
   switch(ast_id(super_def))
   {
@@ -1539,23 +1285,18 @@ static bool is_nominal_sub_nominal(ast_t* sub, ast_t* super,
     case TK_STRUCT:
     case TK_CLASS:
     case TK_ACTOR:
-      ret = is_nominal_sub_entity(sub, super, check_cap, errorf, opt);
-      break;
+      return is_nominal_sub_entity(sub, super, check_cap, errorf, opt);
 
     case TK_INTERFACE:
-      ret = is_nominal_sub_interface(sub, super, check_cap, errorf, opt);
-      break;
+      return is_nominal_sub_interface(sub, super, check_cap, errorf, opt);
 
     case TK_TRAIT:
-      ret = is_nominal_sub_trait(sub, super, check_cap, errorf, opt);
-      break;
+      return is_nominal_sub_trait(sub, super, check_cap, errorf, opt);
 
     default:
       pony_assert(0);
+      return false;
   }
-
-  pop_assume();
-  return ret;
 }
 
 static bool is_x_sub_typeparam(ast_t* sub, ast_t* super,
@@ -1621,7 +1362,7 @@ static bool is_x_sub_arrow(ast_t* sub, ast_t* super,
   // N k <: lowerbound(T1->T2)
   // ---
   // N k <: T1->T2
-  ast_t* super_lower = viewpoint_lower(super);
+  ast_t* super_lower = viewpoint_lower(super, opt);
 
   if(super_lower == NULL)
   {
@@ -1778,8 +1519,8 @@ static bool is_typeparam_sub_arrow(ast_t* sub, ast_t* super,
   // forall k' in k . A k' <: lowerbound(T1->T2 {A k |-> A k'})
   // ---
   // A k <: T1->T2
-  ast_t* r_sub = viewpoint_reifytypeparam(sub, sub);
-  ast_t* r_super = viewpoint_reifytypeparam(super, sub);
+  ast_t* r_sub = viewpoint_reifytypeparam(sub, sub, opt);
+  ast_t* r_super = viewpoint_reifytypeparam(super, sub, opt);
 
   if(r_sub != NULL)
   {
@@ -1794,7 +1535,7 @@ static bool is_typeparam_sub_arrow(ast_t* sub, ast_t* super,
   // A k <: lowerbound(T1->T2)
   // ---
   // A k <: T1->T2
-  ast_t* super_lower = viewpoint_lower(super);
+  ast_t* super_lower = viewpoint_lower(super, opt);
 
   if(super_lower == NULL)
   {
@@ -1921,7 +1662,7 @@ static bool is_arrow_sub_nominal(ast_t* sub, ast_t* super,
   // upperbound(T1->T2) <: N k
   // ---
   // T1->T2 <: N k
-  ast_t* sub_upper = viewpoint_upper(sub);
+  ast_t* sub_upper = viewpoint_upper(sub, opt);
 
   if(sub_upper == NULL)
   {
@@ -1957,8 +1698,8 @@ static bool is_arrow_sub_typeparam(ast_t* sub, ast_t* super,
   // forall k' in k . T1->T2 {A k |-> A k'} <: A k'
   // ---
   // T1->T2 <: A k
-  ast_t* r_sub = viewpoint_reifytypeparam(sub, super);
-  ast_t* r_super = viewpoint_reifytypeparam(super, super);
+  ast_t* r_sub = viewpoint_reifytypeparam(sub, super, opt);
+  ast_t* r_super = viewpoint_reifytypeparam(super, super, opt);
 
   if(r_sub != NULL)
   {
@@ -1998,7 +1739,7 @@ static bool is_arrow_sub_arrow(ast_t* sub, ast_t* super, check_cap_t check_cap,
   ast_t* r_sub;
   ast_t* r_super;
 
-  if(viewpoint_reifypair(sub, super, &r_sub, &r_super))
+  if(viewpoint_reifypair(sub, super, &r_sub, &r_super, opt))
   {
     bool ok = is_x_sub_x(r_sub, r_super, check_cap, errorf, opt);
     ast_free_unattached(r_sub);
@@ -2011,8 +1752,8 @@ static bool is_arrow_sub_arrow(ast_t* sub, ast_t* super, check_cap_t check_cap,
   // upperbound(T1->T2) <: lowerbound(T3->T4)
   // ---
   // T1->T2 <: T3->T4
-  ast_t* sub_upper = viewpoint_upper(sub);
-  ast_t* super_lower = viewpoint_lower(super);
+  ast_t* sub_upper = viewpoint_upper(sub, opt);
+  ast_t* super_lower = viewpoint_lower(super, opt);
   bool ok = true;
 
   if(sub_upper == NULL)
@@ -2092,12 +1833,237 @@ static bool is_arrow_sub_x(ast_t* sub, ast_t* super, check_cap_t check_cap,
   return false;
 }
 
+static bool is_x_sub_x_impl(ast_t* sub, ast_t* super, check_cap_t check_cap,
+  errorframe_t* errorf, pass_opt_t* opt);
+
 static bool is_x_sub_x(ast_t* sub, ast_t* super, check_cap_t check_cap,
   errorframe_t* errorf, pass_opt_t* opt)
 {
   pony_assert(sub != NULL);
   pony_assert(super != NULL);
 
+  size_t my_depth = type_assume_depth(TYPE_ASSUME_SUBTYPE);
+
+  // Top-level boundary: drop any cache state from a prior user-level
+  // subtype call. Two reasons combine here.
+  //
+  // 1. Soundness anchor for CACHE_DEPENDS_ON_TOP_LEVEL entries.
+  //    Such an entry can only be consulted while the same depth-0
+  //    entry that was on the stack at insert time is still on the
+  //    stack. Soundness rests on two facts:
+  //
+  //      a. Conditional entries are only consulted when stack.len
+  //         > 0 (gated at the call site below; see also
+  //         subtype_cache_lookup's docstring).
+  //      b. Every is_x_sub_x entry at my_depth == 0 clears the
+  //         cache before any lookup. After the depth-0 frame that
+  //         owns a conditional entry pops (stack returns to
+  //         empty), the next user-level subtype call must enter at
+  //         my_depth == 0 and clears.
+  //
+  //    Together these guarantee a conditional entry is only ever
+  //    consulted under the same depth-0 entry that was active at
+  //    insert time. The cross-sibling case — an unguarded outer
+  //    pair where is_union_sub_x dispatches to is_x_sub_x per child
+  //    and the outer pair did not push an assumption frame, so
+  //    each child re-enters at my_depth == 0 — gets a fresh cache
+  //    per sibling: the clear wipes the whole map, so even
+  //    CACHE_UNCONDITIONAL entries from a prior sibling don't carry
+  //    over. No inter-sibling reuse, no contamination.
+  //
+  // 2. Prevents fingerprint pointer reuse. The fingerprint mixes
+  //    ast_data into the structural identity. Across user-level
+  //    calls, a freed AST's address can be re-used by a freshly-
+  //    allocated AST with a different def. Without the clear, a
+  //    stale entry could collide with a same-address-but-different-
+  //    def query in a later call.
+  //
+  // Cost is O(cache_size) — free entries, destroy and re-create the
+  // hashmap (see subtype_cache_clear for the exact mechanics). Cache
+  // size is bounded by one top-level call's working set, and the
+  // clear runs at most once per user-level subtype call. No
+  // explicit "exit" hook is needed: stale entries can linger if a
+  // thread does no further is_x_sub_x calls, but they cause no
+  // correctness issue, and any heap-spilled fingerprint storage is
+  // reclaimed at the next clear.
+  if(my_depth == 0)
+    subtype_cache_clear();
+
+  // Skip the cache when the caller is collecting diagnostics. Two
+  // reasons gate this together:
+  //   (1) Correctness: a cache hit would short-circuit the recursion
+  //       and skip the side-effect of emitting error frames. Callers
+  //       passing errorf need the frames, not just the bool answer.
+  //   (2) Perf: the errorf-bearing path dominates the typechecker
+  //       workload but is absent from the reach pass that drives the
+  //       SCC compile-time DoS the cache exists to fix. Bypassing
+  //       costs nothing on the path the cache is meant to help.
+  const bool cache_lookup_allowed = (errorf == NULL);
+  if(cache_lookup_allowed)
+  {
+    subtype_cache_value_t hit;
+    if(subtype_cache_lookup(sub, super, (uint8_t)check_cap, &hit) &&
+      (hit.kind == CACHE_UNCONDITIONAL || my_depth > 0))
+    {
+      // Propagate the cached entry's dependence so the caller's
+      // classification reflects it. CACHE_DEPENDS_ON_TOP_LEVEL means
+      // the producing descent fired a cycle hit at stack index 0;
+      // surface that as a cycle-hit-at-0 in the accumulator.
+      if(hit.kind == CACHE_DEPENDS_ON_TOP_LEVEL)
+      {
+        if(subtype_cache_min_match_idx_get() > 0)
+          subtype_cache_min_match_idx_set(0);
+      }
+      return hit.result;
+    }
+  }
+
+  // Co-inductive cycle protection at recurrence-prone pairs. Cycles
+  // form at:
+  //   - TK_NOMINAL pairs (recursive interface back-references and
+  //     parameterized types with recursive aliases as type arguments)
+  //   - pairs where at least one side is a TK_TYPEALIASREF (recursive
+  //     alias unfolds, e.g., None <: A where A is (A | None) recurses
+  //     to None <: A through the union dispatch).
+  // Compound shapes (union/isect/tuple/arrow) decompose to per-child
+  // is_x_sub_x calls in the impl, so any cycle they could form must
+  // pass through one of the leaf shapes above; gating only on those
+  // catches the cycles without paying the wrapper cost on every
+  // structural decomposition. Pushing on every pair would incorrectly
+  // treat ordinary structural subtype recursion that happens to
+  // revisit the same shape as a cycle.
+  bool guard = (ast_id(sub) == TK_TYPEALIASREF)
+    || (ast_id(super) == TK_TYPEALIASREF)
+    || ((ast_id(sub) == TK_NOMINAL) && (ast_id(super) == TK_NOMINAL));
+
+  bool entered = false;
+  if(guard)
+  {
+    // Recursion-divergence guard for drifting same-def chains
+    // (ponylang/ponyc#1216). Recursive generic interfaces such as
+    //
+    //     interface Iter[A]
+    //       fun enum[B](): Iter[(B, A)] => this
+    //
+    // produce subtype queries where every level shares the same def
+    // pair (Iter, Iter) but has strictly larger typeargs at each step
+    // (Iter[A] <: Iter[(B, A)], then Iter[(B', A)] <: Iter[(B', (B, A))],
+    // ...). is_assumption_match is purely structural, so drifting
+    // typeargs never match earlier entries; the structural cycle
+    // detection below cannot terminate the chain. Without a divergence
+    // bound the recursion grows without limit.
+    //
+    // When the new query is a (NOMINAL, NOMINAL) pair and the SUBTYPE
+    // assume stack already holds SAME_DEF_LIMIT entries with the same
+    // (sub_def, super_def), bail with `false` rather than push another
+    // frame. Bailing with `false` is the conservative answer: a
+    // convergent proof would have closed structurally by this depth;
+    // the alternative (returning true coinductively when typeargs
+    // differ) is unsound.
+    //
+    // The four call sites in is_reified_fun_sub_fun (covariant result
+    // for TK_NEW and TK_FUN/TK_BE, contravariant type-parameter
+    // constraints, contravariant parameter types) are the recursions
+    // that drive this divergence on recursive generic interfaces; if
+    // those change, revisit this guard.
+    //
+    // SAME_DEF_LIMIT was inherited from upstream's empirical floor in
+    // 0483f9d99: K=2 was refuted by pony_check shapes that need more
+    // than one drifting round to converge; K=4 leaves headroom.
+    // Lowering K requires re-validating against pony_check
+    // (packages/pony_check/) and any other stdlib shape that exercises
+    // drifting same-def recursion. Raising K is always safe.
+    if((ast_id(sub) == TK_NOMINAL) && (ast_id(super) == TK_NOMINAL))
+    {
+      const size_t SAME_DEF_LIMIT = 4;
+      size_t same_def = type_assume_same_def_count(TYPE_ASSUME_SUBTYPE,
+        ast_data(sub), ast_data(super));
+      if(same_def >= SAME_DEF_LIMIT)
+      {
+        if(errorf != NULL)
+        {
+          ast_error_frame(errorf, sub,
+            "%s is not a subtype of %s: recursion through generic "
+            "typeargs that grow at each level. The "
+            "recursion-divergence guard aborted after %zu same-def "
+            "frames (ponylang/ponyc#1216).",
+            ast_print_type(sub), ast_print_type(super), SAME_DEF_LIMIT);
+        }
+
+        // Mark the subtree as poisoned so neither this frame nor any
+        // ancestor caches the bailed result. The bailed `false` is a
+        // conservative answer; caching it could give wrong answers in
+        // another stack context within the same top-level call.
+        subtype_cache_subtree_poisoned_set(true);
+        return false;
+      }
+    }
+
+    int matched = type_assume_enter_indexed(TYPE_ASSUME_SUBTYPE, sub, super);
+    if(matched >= 0)
+    {
+      // Cycle base case. Record the matched stack index as a cycle
+      // hit so the caller's classification can see how shallow this
+      // cycle reaches.
+      if(matched < subtype_cache_min_match_idx_get())
+        subtype_cache_min_match_idx_set(matched);
+      return true;
+    }
+    entered = true;
+  }
+
+  // Save the caller's accumulator state and run the impl with a fresh
+  // baseline. The accumulator state the impl finishes with is this
+  // frame's own (my_min, my_poisoned), used below for classification.
+  int saved_min = subtype_cache_min_match_idx_get();
+  bool saved_poisoned = subtype_cache_subtree_poisoned_get();
+  subtype_cache_min_match_idx_set(INT_MAX);
+  subtype_cache_subtree_poisoned_set(false);
+
+  bool result = is_x_sub_x_impl(sub, super, check_cap, errorf, opt);
+
+  if(entered)
+    type_assume_leave(TYPE_ASSUME_SUBTYPE);
+
+  int my_min = subtype_cache_min_match_idx_get();
+  bool my_poisoned = subtype_cache_subtree_poisoned_get();
+
+  // Categorize and cache. Errorf-bearing calls skip insertion (same
+  // reason as the lookup bypass above). Poisoned subtrees skip
+  // insertion (the divergence-guard bail is conservative, not a real
+  // subtype refutation). Intermediate min_match_idx (in the open range
+  // (0, my_depth)) is intentionally not cached: the entry would depend
+  // on an intermediate assumption with no clean invalidation hook. SCC
+  // reach-pass workloads collapse entirely to {INT_MAX, 0, >= my_depth};
+  // the intermediate case matters only for nested-top-level scenarios
+  // and is parked.
+  if((errorf == NULL) && !my_poisoned)
+  {
+    if((my_min == INT_MAX) || (my_min >= (int)my_depth))
+    {
+      subtype_cache_insert(sub, super, (uint8_t)check_cap, result,
+        CACHE_UNCONDITIONAL);
+    }
+    else if(my_min == 0)
+    {
+      subtype_cache_insert(sub, super, (uint8_t)check_cap, result,
+        CACHE_DEPENDS_ON_TOP_LEVEL);
+    }
+  }
+
+  // Propagate to caller: take the min of caller's saved and my own,
+  // and OR the poison flags so any ancestor that picks up our
+  // poisoned subtree also skips caching.
+  int new_min = (saved_min < my_min) ? saved_min : my_min;
+  subtype_cache_min_match_idx_set(new_min);
+  subtype_cache_subtree_poisoned_set(saved_poisoned || my_poisoned);
+
+  return result;
+}
+
+static bool is_x_sub_x_impl(ast_t* sub, ast_t* super, check_cap_t check_cap,
+  errorframe_t* errorf, pass_opt_t* opt)
+{
   if((ast_id(super) == TK_DONTCARETYPE) || (ast_id(sub) == TK_DONTCARETYPE))
     return true;
 
@@ -2186,11 +2152,6 @@ bool is_subtype_fun(ast_t* sub, ast_t* super, errorframe_t* errorf,
 bool is_eqtype(ast_t* a, ast_t* b, errorframe_t* errorf, pass_opt_t* opt)
 {
   return is_subtype(a, b, errorf, opt) && is_subtype(b, a, errorf, opt);
-}
-
-bool is_exact_type(ast_t* a, ast_t* b)
-{
-  return exact_type(a, b);
 }
 
 bool is_sub_provides(ast_t* type, ast_t* provides, errorframe_t* errorf,
@@ -2574,7 +2535,7 @@ bool is_bare(ast_t* type)
   return false;
 }
 
-bool is_top_type(ast_t* type, bool ignore_cap)
+bool is_top_type(ast_t* type, bool ignore_cap, pass_opt_t* opt)
 {
   if(type == NULL)
     return false;
@@ -2588,7 +2549,7 @@ bool is_top_type(ast_t* type, bool ignore_cap)
 
       while(child != NULL)
       {
-        if(!is_top_type(child, ignore_cap))
+        if(!is_top_type(child, ignore_cap, opt))
           return false;
 
         child = ast_sibling(child);
@@ -2619,14 +2580,14 @@ bool is_top_type(ast_t* type, bool ignore_cap)
     case TK_ARROW:
     {
       if(ignore_cap)
-        return is_top_type(ast_childidx(type, 1), true);
+        return is_top_type(ast_childidx(type, 1), true, opt);
 
-      ast_t* type_lower = viewpoint_lower(type);
+      ast_t* type_lower = viewpoint_lower(type, opt);
 
       if(type_lower == NULL)
         return false;
 
-      bool r = is_top_type(type_lower, false);
+      bool r = is_top_type(type_lower, false, opt);
 
       ast_free_unattached(type_lower);
       return r;
@@ -2637,7 +2598,7 @@ bool is_top_type(ast_t* type, bool ignore_cap)
       ast_t* unfolded = typealias_unfold(type);
       if(unfolded == NULL)
         return false;
-      bool ok = is_top_type(unfolded, ignore_cap);
+      bool ok = is_top_type(unfolded, ignore_cap, opt);
       ast_free_unattached(unfolded);
       return ok;
     }

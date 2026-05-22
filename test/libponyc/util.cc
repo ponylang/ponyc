@@ -8,6 +8,7 @@
 #include <ast/stringtab.h>
 #include <pass/pass.h>
 #include <pkg/package.h>
+#include <type/subtype_cache.h>
 #include <../libponyrt/pony.h>
 #include <../libponyrt/mem/pool.h>
 #include <ponyassert.h>
@@ -249,6 +250,14 @@ extern const char* test_argv0;
 
 void PassTest::SetUp()
 {
+  // Reset thread-local subtype-cache state so tests can't inherit it
+  // from one another. The cache otherwise clears at every depth-0
+  // is_x_sub_x entry, but a test that exits without making any
+  // subtype query leaves the previous test's accumulator and
+  // hashmap pinned on this thread. Future cache tests should be
+  // free to assume an empty cache on entry without remembering to
+  // call subtype_cache_clear themselves.
+  subtype_cache_clear();
   pass_opt_init(&opt);
   opt.argv0 = test_argv0;
   codegen_pass_init(&opt);

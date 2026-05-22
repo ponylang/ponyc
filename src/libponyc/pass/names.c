@@ -5,49 +5,6 @@
 #include "../pkg/package.h"
 #include "ponyassert.h"
 
-// Resolve a type alias definition, rejecting cyclic chains. Note that
-// `typealias_unfold` (in src/libponyc/type/typealias.c) relies on this
-// rejection: its transitive recursion is bounded by the assumption that
-// alias chains form a finite DAG, which only holds because cycles are
-// rejected here. If you change the cycle detection mechanism, also update
-// the safety argument in `typealias_unfold`.
-static bool names_resolvealias(pass_opt_t* opt, ast_t* def, ast_t** type)
-{
-  int state = ast_checkflag(def,
-    AST_FLAG_RECURSE_1 | AST_FLAG_DONE_1 | AST_FLAG_ERROR_1);
-
-  switch(state)
-  {
-    case 0:
-      ast_setflag(def, AST_FLAG_RECURSE_1);
-      break;
-
-    case AST_FLAG_RECURSE_1:
-      ast_error(opt->check.errors, def, "type aliases can't be recursive");
-      ast_clearflag(def, AST_FLAG_RECURSE_1);
-      ast_setflag(def, AST_FLAG_ERROR_1);
-      return false;
-
-    case AST_FLAG_DONE_1:
-      return true;
-
-    case AST_FLAG_ERROR_1:
-      return false;
-
-    default:
-      pony_assert(0);
-      return false;
-  }
-
-  if(ast_visit_scope(type, NULL, pass_names, opt,
-    PASS_NAME_RESOLUTION) != AST_OK)
-    return false;
-
-  ast_clearflag(def, AST_FLAG_RECURSE_1);
-  ast_setflag(def, AST_FLAG_DONE_1);
-  return true;
-}
-
 static bool names_typeargs(pass_opt_t* opt, ast_t* typeargs)
 {
   for(ast_t* typearg = ast_child(typeargs);
@@ -68,12 +25,10 @@ static bool names_typealias(pass_opt_t* opt, ast_t** astp, ast_t* def,
   ast_t* ast = *astp;
   AST_GET_CHILDREN(ast, pkg, id, typeargs, cap, eph);
 
-  // Make sure the alias is resolved,
+  // The alias body is name-resolved by the top-down names-pass walk;
+  // recursion through aliases is legal and checked later by
+  // PASS_TYPEALIAS_RECURSION.
   AST_GET_CHILDREN(def, alias_id, typeparams, def_cap, provides);
-  ast_t* alias = ast_child(provides);
-
-  if(!names_resolvealias(opt, def, &alias))
-    return false;
 
   if(!reify_defaults(typeparams, typeargs, true, opt))
     return false;

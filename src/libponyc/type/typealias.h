@@ -7,22 +7,24 @@
 PONY_EXTERN_C_BEGIN
 
 /**
- * Unfold a TK_TYPEALIASREF to its underlying type. Reifies the alias
- * definition with the stored type arguments and applies the cap and
- * ephemeral modifiers. If the result is itself a TK_TYPEALIASREF (a chained
- * alias), unfolds transitively until the head is a concrete type.
+ * Unfold a TK_TYPEALIASREF until its head is no longer an alias.
+ * Reifies the alias definition with the stored type arguments, applies
+ * the cap and ephemeral modifiers, and follows chained aliases (e.g.,
+ * `type A is B; type B is (U64, U64)`) so the returned head is always
+ * a concrete type node (TK_NOMINAL, TK_UNIONTYPE, TK_TUPLETYPE, etc.)
+ * — never another TK_TYPEALIASREF.
  *
- * Guarantees that a non-NULL result has a head that is not TK_TYPEALIASREF.
- * Callers dispatching on the head of the result can therefore rely on the
- * full set of non-alias heads (TK_NOMINAL, TK_UNIONTYPE, TK_ISECTTYPE,
- * TK_TUPLETYPE, TK_TYPEPARAMREF, TK_ARROW, etc.) without a TK_TYPEALIASREF
- * case. Nested aliases inside a compound type (a member of a TK_UNIONTYPE,
- * TK_ISECTTYPE, or TK_TUPLETYPE that is itself an alias) are not unfolded;
- * callers that recurse into compound types must still dispatch on
- * TK_TYPEALIASREF for interior positions.
+ * Termination: PASS_TYPEALIAS_RECURSION rejects bare alias-only cycles,
+ * and constructive recursion threads through a TK_NOMINAL typearg
+ * position whose head isn't an alias, so the loop reaches a non-alias
+ * head in finite steps for any input that passed legality. As a
+ * defense against a legality-pass bug that lets an alias-only cycle
+ * through, the implementation tracks visited alias defs and aborts
+ * with a source-positioned compiler-internal-error if a cycle is
+ * detected. May only be called after PASS_TYPEALIAS_RECURSION has run.
  *
  * Returns a newly allocated AST node, or NULL if reification fails.
- * The caller must free a non-NULL result with ast_free_unattached when done.
+ * Caller must free a non-NULL result with ast_free_unattached.
  */
 ast_t* typealias_unfold(ast_t* typealiasref);
 

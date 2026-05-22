@@ -22,7 +22,7 @@ static deferred_reification_t* lookup_base(pass_opt_t* opt, ast_t* from,
 // This method (recursively) replaces occurences of iso and trn in `receiver` by
 // ref. If a modification was required then a copy is returned, otherwise the
 // original pointer is.
-static ast_t* downcast_iso_trn_receiver_to_ref(ast_t* receiver) {
+static ast_t* downcast_iso_trn_receiver_to_ref(ast_t* receiver, pass_opt_t* opt) {
   switch (ast_id(receiver))
   {
     case TK_NOMINAL:
@@ -44,7 +44,7 @@ static ast_t* downcast_iso_trn_receiver_to_ref(ast_t* receiver) {
       if(unfolded == NULL)
         return receiver;
 
-      ast_t* result = downcast_iso_trn_receiver_to_ref(unfolded);
+      ast_t* result = downcast_iso_trn_receiver_to_ref(unfolded, opt);
 
       if(result != unfolded)
         ast_free_unattached(unfolded);
@@ -56,9 +56,9 @@ static ast_t* downcast_iso_trn_receiver_to_ref(ast_t* receiver) {
     {
       AST_GET_CHILDREN(receiver, left, right);
 
-      ast_t* downcasted_right = downcast_iso_trn_receiver_to_ref(right);
+      ast_t* downcasted_right = downcast_iso_trn_receiver_to_ref(right, opt);
       if(right != downcasted_right)
-        return viewpoint_type(left, downcasted_right);
+        return viewpoint_type(left, downcasted_right, opt);
       else
         return receiver;
     }
@@ -257,7 +257,7 @@ static deferred_reification_t* lookup_nominal(pass_opt_t* opt, ast_t* from,
 
   ast_t* orig_initial = orig;
   if(ast_id(find) == TK_FUN && ast_id(ast_child(find)) == TK_BOX)
-    orig = downcast_iso_trn_receiver_to_ref(orig);
+    orig = downcast_iso_trn_receiver_to_ref(orig, opt);
 
   deferred_reification_t* reified = deferred_reify_new(find, typeparams,
     typeargs, orig);

@@ -9,6 +9,26 @@
 
 static void types_append(printbuf_t* buf, ast_t* elements);
 
+// Recursive aliases unfold to bodies that contain the same alias again.
+// type_append walks structural type AST, so without protection it loops
+// when it crosses a recursive alias. Track aliases currently being
+// expanded; if we'd re-enter one, emit a placeholder and stop. The cap
+// is a soft limit — exceeding it falls back to placeholder emission
+// rather than crashing, even though real programs are nowhere near it.
+#define MAX_ALIAS_DEPTH 64
+static __pony_thread_local ast_t* unfold_stack[MAX_ALIAS_DEPTH];
+static __pony_thread_local size_t unfold_depth;
+
+static bool unfold_seen(ast_t* def)
+{
+  for(size_t i = 0; i < unfold_depth; i++)
+  {
+    if(unfold_stack[i] == def)
+      return true;
+  }
+  return false;
+}
+
 static void type_append(printbuf_t* buf, ast_t* type, bool first)
 {
   switch(ast_id(type))
@@ -60,11 +80,47 @@ static void type_append(printbuf_t* buf, ast_t* type, bool first)
 
     case TK_TYPEALIASREF:
     {
+      ast_t* def = (ast_t*)ast_data(type);
+
+      if(unfold_seen(def) || unfold_depth >= MAX_ALIAS_DEPTH)
+      {
+        // Either we're re-entering a recursive alias (the def is on
+        // the stack) or the chain is deeper than the soft cap. Either
+        // way, emit the alias name as a terminator. For recursive
+        // aliases, every encounter of the same alias produces the
+        // same suffix, so two structurally identical types still
+        // hash the same. For very deep non-recursive chains, the
+        // truncation could in principle conflate two distinct types,
+        // but the cap is far above any realistic nesting depth.
+        AST_GET_CHILDREN(type, id);
+        printbuf(buf, "%s", ast_name(id));
+        return;
+      }
+
+      unfold_stack[unfold_depth++] = def;
+
       ast_t* unfolded = typealias_unfold(type);
-      pony_assert(unfolded != NULL);
+      if(unfolded == NULL)
+      {
+        // typealias_unfold returns NULL only when reify fails (which
+        // is caught at typecheck) or when the defensive depth cap
+        // triggers (which means a legality-pass bug let an
+        // alias-only cycle through). At codegen, neither should
+        // happen. Fall back to emitting the alias name as a
+        // terminator so the mangled name is well-formed even if a
+        // future bug regresses; the asserted invariant is loud
+        // enough in debug builds to catch it.
+        pony_assert(false);
+        AST_GET_CHILDREN(type, id);
+        printbuf(buf, "%s", ast_name(id));
+        unfold_depth--;
+        return;
+      }
 
       type_append(buf, unfolded, first);
       ast_free_unattached(unfolded);
+
+      unfold_depth--;
       return;
     }
 

@@ -199,7 +199,7 @@ static bool apply_default_arg(pass_opt_t* opt, ast_t* param, ast_t** argp)
 
 static ast_t* method_receiver_type(ast_t* method);
 
-bool check_auto_recover_newref(ast_t* dest_type, ast_t* ast)
+bool check_auto_recover_newref(ast_t* dest_type, ast_t* ast, pass_opt_t* opt)
 {
   // we're not going to try auto-recovering to a complex type
   token_id dest_id = ast_id(dest_type);
@@ -240,8 +240,8 @@ bool check_auto_recover_newref(ast_t* dest_type, ast_t* ast)
     if (is_typecheck_error(arg_type))
       return false;
 
-    ast_t* arg_type_aliased = alias(arg_type);
-    bool ok = safe_to_autorecover(dest_type, arg_type_aliased, WRITE);
+    ast_t* arg_type_aliased = alias(arg_type, opt);
+    bool ok = safe_to_autorecover(dest_type, arg_type_aliased, WRITE, opt);
     ast_free_unattached(arg_type_aliased);
 
     if (!ok)
@@ -297,11 +297,11 @@ static bool check_arg_types(pass_opt_t* opt, ast_t* params, ast_t* positional,
     }
 
     errorframe_t info = NULL;
-    ast_t* wp_type = consume_type(p_type, TK_NONE, false);
-    if((wp_type != NULL) && check_auto_recover_newref(wp_type, arg))
+    ast_t* wp_type = consume_type(p_type, TK_NONE, false, opt);
+    if((wp_type != NULL) && check_auto_recover_newref(wp_type, arg, opt))
     {
       token_id arg_cap = ast_id(cap_fetch(wp_type));
-      ast_t* recovered_arg_type = recover_type(arg_type, arg_cap);
+      ast_t* recovered_arg_type = recover_type(arg_type, arg_cap, opt);
       if (recovered_arg_type)
         arg_type = recovered_arg_type;
     }
@@ -348,7 +348,7 @@ static bool check_arg_types(pass_opt_t* opt, ast_t* params, ast_t* positional,
   return true;
 }
 
-static bool auto_recover_call(ast_t* ast, ast_t* receiver_type,
+static bool auto_recover_call(ast_t* ast, ast_t* receiver_type, pass_opt_t* opt,
   ast_t* positional, ast_t* result)
 {
   switch(ast_id(ast))
@@ -367,7 +367,7 @@ static bool auto_recover_call(ast_t* ast, ast_t* receiver_type,
   // arguments are safe and the result is either safe or unused.
   // The result of a chained method is always unused.
   ast_t* call = ast_parent(ast);
-  if(is_result_needed(call) && !safe_to_autorecover(receiver_type, result, EXTRACT))
+  if(is_result_needed(call) && !safe_to_autorecover(receiver_type, result, EXTRACT, opt))
     return false;
 
   ast_t* arg = ast_child(positional);
@@ -381,8 +381,8 @@ static bool auto_recover_call(ast_t* ast, ast_t* receiver_type,
       if(is_typecheck_error(arg_type))
         return false;
 
-      ast_t* a_type = alias(arg_type);
-      bool ok = safe_to_autorecover(receiver_type, a_type, WRITE);
+      ast_t* a_type = alias(arg_type, opt);
+      bool ok = safe_to_autorecover(receiver_type, a_type, WRITE, opt);
       ast_free_unattached(a_type);
 
       if(!ok)
@@ -442,7 +442,7 @@ static bool check_receiver_cap(pass_opt_t* opt, ast_t* ast, bool* recovered)
   ast_t* a_type;
 
   // If we can recover the receiver, we don't alias it here.
-  bool can_recover = auto_recover_call(lhs, r_type, positional, result);
+  bool can_recover = auto_recover_call(lhs, r_type, opt, positional, result);
   bool cap_recover = false;
 
   switch(ast_id(cap))
@@ -488,7 +488,7 @@ static bool check_receiver_cap(pass_opt_t* opt, ast_t* ast, bool* recovered)
     switch (ast_id(a_type)) { // provide better information if the refcap is `this->*`
       case TK_ARROW:
         ast_error_frame(&frame, ast_child(lhs),
-          "receiver type: %s (which becomes '%s' in this context)", ast_print_type(a_type), ast_print_type(viewpoint_upper(a_type)));
+          "receiver type: %s (which becomes '%s' in this context)", ast_print_type(a_type), ast_print_type(viewpoint_upper(a_type, opt)));
         break;
 
       default:
@@ -538,7 +538,7 @@ static bool check_receiver_cap(pass_opt_t* opt, ast_t* ast, bool* recovered)
   return ok;
 }
 
-static bool is_receiver_safe(typecheck_t* t, ast_t* ast)
+static bool is_receiver_safe(typecheck_t* t, ast_t* ast, pass_opt_t* opt)
 {
   switch(ast_id(ast))
   {
@@ -550,7 +550,7 @@ static bool is_receiver_safe(typecheck_t* t, ast_t* ast)
      case TK_TUPLEELEMREF:
      {
        ast_t* type = ast_type(ast);
-       return sendable(type);
+       return sendable(type, opt);
      }
 
      case TK_LETREF:
@@ -562,7 +562,7 @@ static bool is_receiver_safe(typecheck_t* t, ast_t* ast)
        if(t->frame->recover == def_recover)
          return true;
        ast_t* type = ast_type(ast);
-       return sendable(type);
+       return sendable(type, opt);
      }
 
      default:
@@ -592,7 +592,7 @@ static bool check_nonsendable_recover(pass_opt_t* opt, ast_t* ast)
        (ast_id(receiver) == TK_FUNCHAIN))
       receiver = ast_child(receiver);
 
-    if(!is_receiver_safe(&opt->check, receiver))
+    if(!is_receiver_safe(&opt->check, receiver, opt))
     {
       ast_t* arg = ast_child(positional);
       bool args_sendable = true;
@@ -603,7 +603,7 @@ static bool check_nonsendable_recover(pass_opt_t* opt, ast_t* ast)
           // Don't typecheck arg_type, this was already done in
           // auto_recover_call.
           ast_t* arg_type = ast_type(arg);
-          if(!sendable(arg_type))
+          if(!sendable(arg_type, opt))
           {
             args_sendable = false;
             break;
@@ -611,7 +611,7 @@ static bool check_nonsendable_recover(pass_opt_t* opt, ast_t* ast)
         }
         arg = ast_sibling(arg);
       }
-      if(!args_sendable || !sendable(result))
+      if(!args_sendable || !sendable(result, opt))
       {
         ast_error(opt->check.errors, ast, "can't call method on non-sendable "
           "object inside of a recover expression");
@@ -710,7 +710,7 @@ static token_id partial_application_cap(pass_opt_t* opt, ast_t* ftype,
   AST_GET_CHILDREN(ftype, cap, typeparams, params, result);
 
   ast_t* type = ast_type(receiver);
-  ast_t* view_type = viewpoint_type(ast_from(type, TK_BOX), type);
+  ast_t* view_type = viewpoint_type(ast_from(type, TK_BOX), type, opt);
   ast_t* need_type = set_cap_and_ephemeral(type, ast_id(cap), TK_NONE);
 
   bool ok = is_subtype(view_type, need_type, NULL, opt);
@@ -728,7 +728,7 @@ static token_id partial_application_cap(pass_opt_t* opt, ast_t* ftype,
     if(ast_id(arg) != TK_NONE)
     {
       type = ast_type(arg);
-      view_type = viewpoint_type(ast_from(type, TK_BOX), type);
+      view_type = viewpoint_type(ast_from(type, TK_BOX), type, opt);
       need_type = ast_childidx(param, 1);
 
       ok = is_subtype(view_type, need_type, NULL, opt);
@@ -1072,7 +1072,7 @@ static bool method_chain(pass_opt_t* opt, ast_t* ast)
     ast_t* f_type = ast_type(lhs);
     token_id f_cap = ast_id(ast_child(f_type));
 
-    ast_t* c_type = chain_type(r_type, f_cap, recovered);
+    ast_t* c_type = chain_type(r_type, f_cap, recovered, opt);
     ast_settype(ast, c_type);
   } else {
     ast_settype(ast, r_type);

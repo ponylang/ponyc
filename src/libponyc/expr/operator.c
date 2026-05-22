@@ -233,7 +233,7 @@ static infer_ret_t infer_local_inner(pass_opt_t* opt, ast_t* left,
       }
 
       // Variable type is the alias of the inferred type
-      ast_t* a_type = alias(infer_type);
+      ast_t* a_type = alias(infer_type, opt);
       ast_settype(left, a_type);
       ast_settype(ast_child(left), a_type);
 
@@ -629,11 +629,11 @@ bool expr_assign(pass_opt_t* opt, ast_t* ast)
     default: {}
   }
 
-  ast_t* wl_type = consume_type(fl_type, TK_NONE, false);
-  if((wl_type != NULL) && check_auto_recover_newref(fl_type, right))
+  ast_t* wl_type = consume_type(fl_type, TK_NONE, false, opt);
+  if((wl_type != NULL) && check_auto_recover_newref(fl_type, right, opt))
   {
     token_id left_cap = ast_id(cap_fetch(wl_type));
-    ast_t* recovered_left_type = recover_type(r_type, left_cap);
+    ast_t* recovered_left_type = recover_type(r_type, left_cap, opt);
     if (recovered_left_type)
       r_type = recovered_left_type;
   }
@@ -724,7 +724,7 @@ bool expr_assign(pass_opt_t* opt, ast_t* ast)
     return false;
   }
 
-  bool ok_safe = safe_to_move(left, r_type, WRITE);
+  bool ok_safe = safe_to_move(left, r_type, WRITE, opt);
 
   if(!ok_safe)
   {
@@ -770,7 +770,7 @@ bool expr_assign(pass_opt_t* opt, ast_t* ast)
   if(!check_embed_construction(opt, left, right))
     return false;
 
-  ast_settype(ast, consume_type(l_type, TK_NONE, false));
+  ast_settype(ast, consume_type(l_type, TK_NONE, false, opt));
   return true;
 }
 
@@ -854,7 +854,7 @@ static bool add_as_type(pass_opt_t* opt, ast_t* ast, ast_t* expr,
         return false;
       }
 
-      ast_t* a_type = alias(type);
+      ast_t* a_type = alias(type, opt);
 
       BUILD(pattern_elem, pattern,
         NODE(TK_SEQ,
@@ -975,7 +975,7 @@ bool expr_consume(pass_opt_t* opt, ast_t* ast)
     return false;
 
   token_id tcap = ast_id(cap);
-  ast_t* c_type = consume_type(type, tcap, false);
+  ast_t* c_type = consume_type(type, tcap, false, opt);
 
   if(c_type == NULL)
   {

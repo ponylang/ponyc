@@ -94,7 +94,7 @@ static void reify_typeparamref(pass_opt_t* opt, ast_t** astp, ast_t* typeparams,
   {
     case TK_EPHEMERAL:
     {
-      ast_t* new_typearg = consume_type(typearg, TK_NONE, true);
+      ast_t* new_typearg = consume_type(typearg, TK_NONE, true, opt);
       // Will be NULL when instantiation produces double ephemerals A^^
       // or equivalent.
       //
@@ -115,7 +115,7 @@ static void reify_typeparamref(pass_opt_t* opt, ast_t** astp, ast_t* typeparams,
       break;
 
     case TK_ALIASED:
-      typearg = alias(typearg);
+      typearg = alias(typearg, opt);
       break;
 
     default:
@@ -125,7 +125,7 @@ static void reify_typeparamref(pass_opt_t* opt, ast_t** astp, ast_t* typeparams,
   ast_replace(astp, typearg);
 }
 
-static void reify_arrow(ast_t** astp)
+static void reify_arrow(ast_t** astp, pass_opt_t* opt)
 {
   ast_t* ast = *astp;
   pony_assert(ast_id(ast) == TK_ARROW);
@@ -138,10 +138,10 @@ static void reify_arrow(ast_t** astp)
   {
     AST_GET_CHILDREN(left, l_left, l_right);
     r_left = l_left;
-    r_right = viewpoint_type(l_right, right);
+    r_right = viewpoint_type(l_right, right, opt);
   }
 
-  ast_t* r_type = viewpoint_type(r_left, r_right);
+  ast_t* r_type = viewpoint_type(r_left, r_right, opt);
   ast_replace(astp, r_type);
 }
 
@@ -242,7 +242,7 @@ static void reify_ast(ast_t** astp, ast_t* typeparams, ast_t* typeargs, pass_opt
       break;
 
     case TK_ARROW:
-      reify_arrow(astp);
+      reify_arrow(astp, opt);
       break;
 
     case TK_REFERENCE:
@@ -331,8 +331,8 @@ void deferred_reify_add_method_typeparams(deferred_reification_t* deferred,
 
   // Must replace `this` before typeparam reification.
   if(deferred->thistype != NULL)
-    r_typeparams = viewpoint_replacethis(r_typeparams, deferred->thistype,
-      false);
+    r_typeparams = viewpoint_replacethis(r_typeparams, deferred->thistype, false,
+      opt);
 
   if(deferred->type_typeparams != NULL)
     r_typeparams = reify(r_typeparams, deferred->type_typeparams,
@@ -348,7 +348,7 @@ ast_t* deferred_reify(deferred_reification_t* deferred, ast_t* ast,
 
   // Must replace `this` before typeparam reification.
   if(deferred->thistype != NULL)
-    r_ast = viewpoint_replacethis(r_ast, deferred->thistype, false);
+    r_ast = viewpoint_replacethis(r_ast, deferred->thistype, false, opt);
 
   if(deferred->type_typeparams != NULL)
     r_ast = reify(r_ast, deferred->type_typeparams, deferred->type_typeargs,
@@ -381,7 +381,7 @@ ast_t* deferred_reify_method_def(deferred_reification_t* deferred, ast_t* ast,
 
   // Must replace `this` before typeparam reification.
   if(deferred->thistype != NULL)
-    r_ast = viewpoint_replacethis(r_ast, deferred->thistype, false);
+    r_ast = viewpoint_replacethis(r_ast, deferred->thistype, false, opt);
 
   if(deferred->type_typeparams != NULL)
     r_ast = reify(r_ast, deferred->type_typeparams, deferred->type_typeargs,

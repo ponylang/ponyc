@@ -1135,6 +1135,28 @@ TEST_F(SugarExprTest, MatchExhaustiveBoolAliasInTuple)
 }
 
 
+// Regression test: a discriminee typed `this->T` where T is a typeparam
+// constrained to Bool reaches is_match_exhaustive as a TK_ARROW around a
+// TK_TYPEPARAMREF. expand_bool_in_type cannot rewrite that into
+// (True | False), so the seen_true/seen_false fallback in is_match_exhaustive
+// is what recognizes the match as exhaustive. Compiles on main.
+TEST_F(SugarExprTest, MatchExhaustiveBoolViaTypeparamViewpoint)
+{
+  const char* src =
+    "class Holder[T: Bool val]\n"
+    "  let _v: T\n"
+    "  new create(v: T) => _v = v\n"
+    "  fun box do_match(): String =>\n"
+    "    let r: this->T = _v\n"
+    "    match r\n"
+    "    | true => \"t\"\n"
+    "    | false => \"f\"\n"
+    "    end\n";
+
+  TEST_COMPILE(src);
+}
+
+
 TEST_F(SugarExprTest, MatchNonExhaustivePrimitiveValuesCustomEqMethod)
 {
   const char* src =
