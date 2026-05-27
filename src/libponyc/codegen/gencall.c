@@ -1455,7 +1455,7 @@ void gencall_memmove(compile_t* c, LLVMValueRef dst, LLVMValueRef src,
   LLVMValueRef func = LLVMMemmove(c->module, target_is_ilp32(c->opt->triple));
   LLVMTypeRef func_type = LLVMGlobalGetValueType(func);
 
-  LLVMValueRef args[5];
+  LLVMValueRef args[4];
   args[0] = dst;
   args[1] = src;
   args[2] = n;
