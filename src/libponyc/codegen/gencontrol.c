@@ -613,7 +613,27 @@ LLVMValueRef gen_return(compile_t* c, ast_t* ast)
 
   codegen_debugloc(c, ast);
 
-  if(LLVMGetTypeKind(r_type) != LLVMVoidTypeKind)
+  if(c->frame->is_partial)
+  {
+    if(r_type == c->i1)
+    {
+      // Partial class constructor: return false (no error).
+      codegen_scope_lifetime_end(c);
+      genfun_build_ret(c, LLVMConstInt(c->i1, 0, false));
+    }
+    else
+    {
+      // Partial value-returning: cast to unwrapped type, wrap with false.
+      LLVMTypeRef unwrapped = LLVMStructGetTypeAtIndex(r_type, 0);
+      ast_t* type = deferred_reify(c->frame->reify, ast_type(expr), c->opt);
+      LLVMValueRef ret = gen_assign_cast(c, unwrapped, value, type);
+      ast_free_unattached(type);
+      codegen_scope_lifetime_end(c);
+      ret = wrap_result(c, ret, LLVMConstInt(c->i1, 0, false));
+      genfun_build_ret(c, ret);
+    }
+  }
+  else if(LLVMGetTypeKind(r_type) != LLVMVoidTypeKind)
   {
     ast_t* type = deferred_reify(c->frame->reify, ast_type(expr), c->opt);
     LLVMValueRef ret = gen_assign_cast(c, r_type, value, type);
@@ -653,7 +673,6 @@ LLVMValueRef gen_try(compile_t* c, ast_t* ast)
   if(!ast_checkflag(ast, AST_FLAG_JUMPS_AWAY))
     post_block = codegen_block(c, "try_post");
 
-  // Keep a reference to the else block.
   codegen_pushtry(c, else_block);
 
   // Body block.
@@ -681,22 +700,9 @@ LLVMValueRef gen_try(compile_t* c, ast_t* ast)
   // Pop the try before generating the else block.
   codegen_poptry(c);
 
-  // Else block.
+  // Else block. Error-flag branches land here directly.
   LLVMMoveBasicBlockAfter(else_block, LLVMGetInsertBlock(c->builder));
   LLVMPositionBuilderAtEnd(c->builder, else_block);
-
-  // The landing pad is marked as a cleanup, since exceptions are typeless and
-  // valueless. The first landing pad is always the destination.
-  LLVMTypeRef lp_elements[2];
-  lp_elements[0] = c->ptr;
-  lp_elements[1] = c->i32;
-  LLVMTypeRef lp_type = LLVMStructTypeInContext(c->context, lp_elements, 2,
-    false);
-
-  LLVMValueRef landing = LLVMBuildLandingPad(c->builder, lp_type,
-    c->personality, 1, "");
-
-  LLVMAddClause(landing, LLVMConstNull(c->ptr));
 
   LLVMValueRef else_value = gen_expr(c, else_clause);
 
@@ -769,7 +775,6 @@ LLVMValueRef gen_disposing_block_can_error(compile_t* c, ast_t* ast)
   if(!ast_checkflag(ast, AST_FLAG_JUMPS_AWAY))
     post_block = codegen_block(c, "disposing_block_post");
 
-  // Keep a reference to the else block.
   codegen_pushtry(c, else_block);
 
   // Body block.
@@ -797,23 +802,10 @@ LLVMValueRef gen_disposing_block_can_error(compile_t* c, ast_t* ast)
   // Pop the try before generating the else block.
   codegen_poptry(c);
 
-  // we need to create an else that rethrows the error
-  // Else block.
+  // Else block. Error-flag branches land here directly.
+  // Run the dispose clause and re-raise the error.
   LLVMMoveBasicBlockAfter(else_block, LLVMGetInsertBlock(c->builder));
   LLVMPositionBuilderAtEnd(c->builder, else_block);
-
-  // The landing pad is marked as a cleanup, since exceptions are typeless and
-  // valueless. The first landing pad is always the destination.
-  LLVMTypeRef lp_elements[2];
-  lp_elements[0] = c->ptr;
-  lp_elements[1] = c->i32;
-  LLVMTypeRef lp_type = LLVMStructTypeInContext(c->context, lp_elements, 2,
-    false);
-
-  LLVMValueRef landing = LLVMBuildLandingPad(c->builder, lp_type,
-    c->personality, 1, "");
-
-  LLVMAddClause(landing, LLVMConstNull(c->ptr));
 
   gen_expr(c, dispose_clause);
   gen_error(c, ast_parent(ast));
@@ -942,7 +934,44 @@ LLVMValueRef gen_error(compile_t* c, ast_t* ast)
 
   codegen_scope_lifetime_end(c);
   codegen_debugloc(c, ast);
-  gencall_error(c);
+
+  if(c->frame->error_target != NULL)
+  {
+    // Inside a try block: branch to the error handler.
+    LLVMBuildBr(c->builder, c->frame->error_target);
+  }
+  else if(c->frame->is_partial)
+  {
+    // Propagate error: return error tuple. The enclosing function is partial,
+    // so its return type is {T, i1} or i1.
+    LLVMTypeRef f_type = LLVMGlobalGetValueType(codegen_fun(c));
+    LLVMTypeRef r_type = LLVMGetReturnType(f_type);
+
+    if(r_type == c->i1)
+    {
+      genfun_build_ret(c, LLVMConstInt(c->i1, 1, false));
+    }
+    else
+    {
+      LLVMValueRef undef_val =
+        LLVMGetUndef(LLVMStructGetTypeAtIndex(r_type, 0));
+      LLVMValueRef ret = wrap_result(c, undef_val,
+        LLVMConstInt(c->i1, 1, false));
+      genfun_build_ret(c, ret);
+    }
+  }
+  else
+  {
+    // Bare function with no error handler: abort. Bare functions have
+    // is_partial=false (they can't use error-flag returns since C callers
+    // don't understand them), so this is the only remaining path.
+    pony_assert(c->frame->bare_function);
+    LLVMValueRef func = LLVMGetNamedFunction(c->module, "abort");
+    LLVMTypeRef func_type = LLVMGlobalGetValueType(func);
+    LLVMBuildCall2(c->builder, func_type, func, NULL, 0, "");
+    LLVMBuildUnreachable(c->builder);
+  }
+
   codegen_debugloc(c, NULL);
 
   return GEN_NOVALUE;

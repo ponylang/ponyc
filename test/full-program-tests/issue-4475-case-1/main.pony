@@ -3,7 +3,8 @@ Before issue #4475 was fixed, LLVM module checking failed in the very specific
 case of generating the Pony statement error before generating a termination
 instruction (e.g. ret).
 
-Here's an example of code generation that was problematic:
+Here's an example of code generation that was problematic (before error-flag
+returns replaced pony_error):
 
 define private fastcc void @Foo_ref_create_Io(ptr %this, i32 %a) unnamed_addr !dbg !882 !pony.abi !4 {
 entry:
@@ -18,8 +19,13 @@ entry:
   call void @pony_error(), !dbg !890
   unreachable, !dbg !890
   ;;;;;;;;;;;;
-  ret void, !dbg !890 ; => problematic instruction, because the previous instruction is terminator 
+  ret void, !dbg !890 ; => problematic instruction, because the previous instruction is terminator
 }
+
+With error-flag returns, error now generates a return of the error flag
+(i1 true for class constructors, {undef, true} for value-returning partials)
+instead of calling pony_error(), so the unreachable/ret conflict no longer
+occurs. This test verifies the fix still holds.
 """
 class Foo
   new create(a: U32) ? =>

@@ -7,6 +7,7 @@
 
 #include "../asio/asio.h"
 #include "../asio/event.h"
+#include "socket.h"
 #include "ponyassert.h"
 #include <stdbool.h>
 #include <string.h>
@@ -973,7 +974,8 @@ PONY_API bool pony_os_host_ip6(const char* host)
 }
 
 #ifdef PLATFORM_IS_WINDOWS
-PONY_API size_t pony_os_writev(asio_event_t* ev, LPWSABUF wsa, int wsacnt)
+PONY_API pony_socket_result_t pony_os_writev(asio_event_t* ev, LPWSABUF wsa,
+  int wsacnt, size_t* count_out)
 {
   SOCKET s = (SOCKET)ev->fd;
   iocp_t* iocp = iocp_create(IOCP_SEND, ev);
@@ -984,37 +986,47 @@ PONY_API size_t pony_os_writev(asio_event_t* ev, LPWSABUF wsa, int wsacnt)
     switch (GetLastError())
     {
       case WSA_IO_PENDING:
-        return wsacnt;
+        *count_out = (size_t)wsacnt;
+        return PONY_SOCKET_OK;
       case WSAEWOULDBLOCK :
         iocp_destroy(iocp);
-        return 0;
+        *count_out = 0;
+        return PONY_SOCKET_RETRY;
       default:
         iocp_destroy(iocp);
-        pony_error();
-        return 0;
+        *count_out = 0;
+        return PONY_SOCKET_ERROR;
     }
   }
 
-  return wsacnt;
+  *count_out = (size_t)wsacnt;
+  return PONY_SOCKET_OK;
 }
 #else
-PONY_API size_t pony_os_writev(asio_event_t* ev, const struct iovec *iov, int iovcnt)
+PONY_API pony_socket_result_t pony_os_writev(asio_event_t* ev,
+  const struct iovec *iov, int iovcnt, size_t* count_out)
 {
   ssize_t sent = writev(ev->fd, iov, iovcnt);
 
   if(sent < 0)
   {
     if(errno == EWOULDBLOCK || errno == EAGAIN)
-      return 0;
+    {
+      *count_out = 0;
+      return PONY_SOCKET_RETRY;
+    }
 
-    pony_error();
+    *count_out = 0;
+    return PONY_SOCKET_ERROR;
   }
 
-  return (size_t)sent;
+  *count_out = (size_t)sent;
+  return PONY_SOCKET_OK;
 }
 #endif
 
-PONY_API size_t pony_os_send(asio_event_t* ev, const char* buf, size_t len)
+PONY_API pony_socket_result_t pony_os_send(asio_event_t* ev, const char* buf,
+  size_t len, size_t* count_out)
 {
 #ifdef PLATFORM_IS_WINDOWS
   SOCKET s = (SOCKET)ev->fd;
@@ -1030,70 +1042,98 @@ PONY_API size_t pony_os_send(asio_event_t* ev, const char* buf, size_t len)
     switch (GetLastError())
     {
       case WSA_IO_PENDING:
-        return len;
+        *count_out = len;
+        return PONY_SOCKET_OK;
       case WSAEWOULDBLOCK :
         iocp_destroy(iocp);
-        return 0;
+        *count_out = 0;
+        return PONY_SOCKET_RETRY;
       default:
         iocp_destroy(iocp);
-        pony_error();
-        return 0;
+        *count_out = 0;
+        return PONY_SOCKET_ERROR;
     }
   }
 
-  return sent;
+  *count_out = sent;
+  return PONY_SOCKET_OK;
 #else
   ssize_t sent = send(ev->fd, buf, len, 0);
 
   if(sent < 0)
   {
     if(errno == EWOULDBLOCK || errno == EAGAIN)
-      return 0;
+    {
+      *count_out = 0;
+      return PONY_SOCKET_RETRY;
+    }
 
-    pony_error();
+    *count_out = 0;
+    return PONY_SOCKET_ERROR;
   }
 
-  return (size_t)sent;
+  *count_out = (size_t)sent;
+  return PONY_SOCKET_OK;
 #endif
 }
 
-PONY_API size_t pony_os_recv(asio_event_t* ev, char* buf, size_t len)
+PONY_API pony_socket_result_t pony_os_recv(asio_event_t* ev, char* buf,
+  size_t len, size_t* count_out)
 {
 #ifdef PLATFORM_IS_WINDOWS
+  // Windows IOCP: the actual byte count arrives asynchronously through
+  // the completion port (see iocp_callback IOCP_RECV branch), so the
+  // synchronous return is OK with count=0 on success, ERROR otherwise.
+  *count_out = 0;
   if(!iocp_recv(ev, buf, len))
-    pony_error();
+    return PONY_SOCKET_ERROR;
 
-  return 0;
+  return PONY_SOCKET_OK;
 #else
+  // POSIX OK paths must write a non-zero count: the Pony stdlib
+  // (`packages/net/tcp_connection.pony` `_pending_reads`) advances
+  // `_read_buf_offset` and `sum` by the count and would loop forever
+  // if OK ever carried 0 bytes. `received == 0` (peer closed) is
+  // surfaced as ERROR for that reason.
   ssize_t received = recv(ev->fd, buf, len, 0);
 
   if(received < 0)
   {
     if(errno == EWOULDBLOCK || errno == EAGAIN)
-      return 0;
+    {
+      *count_out = 0;
+      return PONY_SOCKET_RETRY;
+    }
 
-    pony_error();
+    *count_out = 0;
+    return PONY_SOCKET_ERROR;
   } else if(received == 0) {
-    pony_error();
+    *count_out = 0;
+    return PONY_SOCKET_ERROR;
   }
 
-  return (size_t)received;
+  *count_out = (size_t)received;
+  return PONY_SOCKET_OK;
 #endif
 }
 
-PONY_API size_t pony_os_sendto(int fd, const char* buf, size_t len,
-  ipaddress_t* ipaddr)
+PONY_API pony_socket_result_t pony_os_sendto(int fd, const char* buf,
+  size_t len, ipaddress_t* ipaddr, size_t* count_out)
 {
 #ifdef PLATFORM_IS_WINDOWS
+  *count_out = 0;
   if(!iocp_sendto(fd, buf, len, ipaddr))
-    pony_error();
+    return PONY_SOCKET_ERROR;
 
-  return 0;
+  return PONY_SOCKET_OK;
 #else
   socklen_t addrlen = ponyint_address_length(ipaddr);
 
   if(addrlen == (socklen_t)-1)
-    pony_error();
+  {
+    *count_out = 0;
+    return PONY_SOCKET_ERROR;
+  }
 
   ssize_t sent = sendto(fd, buf, len, 0, (struct sockaddr*)&ipaddr->addr,
     addrlen);
@@ -1101,23 +1141,29 @@ PONY_API size_t pony_os_sendto(int fd, const char* buf, size_t len,
   if(sent < 0)
   {
     if(errno == EWOULDBLOCK || errno == EAGAIN)
-      return 0;
+    {
+      *count_out = 0;
+      return PONY_SOCKET_RETRY;
+    }
 
-    pony_error();
+    *count_out = 0;
+    return PONY_SOCKET_ERROR;
   }
 
-  return (size_t)sent;
+  *count_out = (size_t)sent;
+  return PONY_SOCKET_OK;
 #endif
 }
 
-PONY_API size_t pony_os_recvfrom(asio_event_t* ev, char* buf, size_t len,
-  ipaddress_t* ipaddr)
+PONY_API pony_socket_result_t pony_os_recvfrom(asio_event_t* ev, char* buf,
+  size_t len, ipaddress_t* ipaddr, size_t* count_out)
 {
 #ifdef PLATFORM_IS_WINDOWS
+  *count_out = 0;
   if(!iocp_recvfrom(ev, buf, len, ipaddr))
-    pony_error();
+    return PONY_SOCKET_ERROR;
 
-  return 0;
+  return PONY_SOCKET_OK;
 #else
   socklen_t addrlen = sizeof(struct sockaddr_storage);
 
@@ -1127,14 +1173,20 @@ PONY_API size_t pony_os_recvfrom(asio_event_t* ev, char* buf, size_t len,
   if(recvd < 0)
   {
     if(errno == EWOULDBLOCK || errno == EAGAIN)
-      return 0;
+    {
+      *count_out = 0;
+      return PONY_SOCKET_RETRY;
+    }
 
-    pony_error();
+    *count_out = 0;
+    return PONY_SOCKET_ERROR;
   } else if(recvd == 0) {
-    pony_error();
+    *count_out = 0;
+    return PONY_SOCKET_ERROR;
   }
 
-  return (size_t)recvd;
+  *count_out = (size_t)recvd;
+  return PONY_SOCKET_OK;
 #endif
 }
 

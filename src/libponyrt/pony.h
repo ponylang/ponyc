@@ -130,12 +130,6 @@ typedef char* (*pony_behavior_name_fn)(uint32_t id);
  */
 typedef void (*pony_final_fn)(void* p);
 
-/** Partial function.
- *
- * A callback for the pony_try() function, which is allowed to raise errors.
- */
-typedef void (*pony_partial_fn)(void* data);
-
 /// Describes a type to the runtime.
 typedef const struct _pony_type_t
 {
@@ -509,25 +503,6 @@ PONY_API int pony_get_exitcode();
  * A thread must ponyint_become an actor before it can pony_poll.
  */
 PONY_API void pony_poll(pony_ctx_t* ctx);
-
-/**
- * The pony_try function can be used to handle Pony errors from C code.
- * callback is invoked with data passed as its argument.
- * Returns false if an error was raised, true otherwise.
- */
-PONY_API bool pony_try(pony_partial_fn callback, void* data);
-
-/**
- * Raise a Pony error.
- *
- * This should only be called from pony_try() or from a Pony try block. In both
- * cases, arbitrarily deep call stacks are allowed between the call to
- * pony_error() and the error destination.
- *
- * If pony_error() is called and neither pony_try() nor a try block exist higher
- * in the call stack, the runtime calls the C abort() function.
- */
-PONY_API void pony_error();
 
 #if defined(__cplusplus)
 }

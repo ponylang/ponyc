@@ -90,15 +90,11 @@ void format_invalid_parameter_handler(const wchar_t* expression,
   unsigned int line,
   uintptr_t p_reserved)
 {
-  // Cast all parameters to void to silence unused parameter warning
   (void) expression;
   (void) function;
   (void) file;
   (void) line;
   (void) p_reserved;
-
-  // Throw a pony error
-  pony_error();
 }
 
 PONY_API char* ponyint_formattime(date_t* date, const char* fmt)
@@ -148,9 +144,16 @@ PONY_API char* ponyint_formattime(date_t* date, const char* fmt)
 
   while(r == 0)
   {
+    // If the buffer has grown past 8192 bytes and strftime still returns 0,
+    // the format string is invalid rather than the buffer being too small.
+    // Return NULL to signal an error to the Pony caller.
+    if(len > 8192)
+      return NULL;
+
     buffer = (char*)pony_alloc(ctx, len);
 
-    // Set up an invalid parameter handler on Windows to throw a Pony error
+    // On Windows, register a handler so strftime returns 0 for invalid
+    // parameters instead of terminating the process.
     #ifdef PLATFORM_IS_WINDOWS
       _invalid_parameter_handler old_handler, new_handler;
       new_handler = format_invalid_parameter_handler;
@@ -159,7 +162,6 @@ PONY_API char* ponyint_formattime(date_t* date, const char* fmt)
 
     r = strftime(buffer, len, fmt, &tm);
 
-    // Reset the invalid parameter handler
     #ifdef PLATFORM_IS_WINDOWS
       _set_thread_local_invalid_parameter_handler(old_handler);
     #endif
