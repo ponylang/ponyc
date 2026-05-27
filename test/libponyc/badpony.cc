@@ -1779,6 +1779,199 @@ TEST_F(BadPonyTest, TypeErrorDuringArrayLiteralInference)
   TEST_ERRORS_1(src, "type argument is outside its constraint");
 }
 
+// From issue #1977. Identity comparisons between two distinct concrete
+// entity types can never be true, so reject them at compile time. Scope is
+// deliberately limited to TK_NOMINAL operands bound to concrete entity
+// definitions (class, actor, primitive, struct); unions, tuples, type
+// parameters, and trait/interface operands are intentionally not flagged.
+TEST_F(BadPonyTest, IsBetweenDifferentClasses)
+{
+  const char* src =
+    "class C\n"
+    "class D\n"
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let c: C = C\n"
+    "    let d: D = D\n"
+    "    if c is d then None end";
+
+  TEST_ERRORS_1(src,
+    "identity comparison between disjoint concrete types");
+}
+
+TEST_F(BadPonyTest, IsntBetweenDifferentClasses)
+{
+  const char* src =
+    "class C\n"
+    "class D\n"
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let c: C = C\n"
+    "    let d: D = D\n"
+    "    if c isnt d then None end";
+
+  TEST_ERRORS_1(src,
+    "identity comparison between disjoint concrete types");
+}
+
+TEST_F(BadPonyTest, IsBetweenClassAndActor)
+{
+  const char* src =
+    "class C\n"
+    "actor A\n"
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let c: C = C\n"
+    "    let a: A = A\n"
+    "    if c is a then None end";
+
+  TEST_ERRORS_1(src,
+    "identity comparison between disjoint concrete types");
+}
+
+TEST_F(BadPonyTest, IsBetweenClassAndPrimitive)
+{
+  const char* src =
+    "class C\n"
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let c: C = C\n"
+    "    let n: None = None\n"
+    "    if c is n then None end";
+
+  TEST_ERRORS_1(src,
+    "identity comparison between disjoint concrete types");
+}
+
+TEST_F(BadPonyTest, IsBetweenDifferentPrimitives)
+{
+  const char* src =
+    "primitive P\n"
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let p: P = P\n"
+    "    let n: None = None\n"
+    "    if p is n then None end";
+
+  TEST_ERRORS_1(src,
+    "identity comparison between disjoint concrete types");
+}
+
+TEST_F(BadPonyTest, IsBetweenClassAndStruct)
+{
+  const char* src =
+    "class C\n"
+    "struct S\n"
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let c: C = C\n"
+    "    let s: S = S\n"
+    "    if c is s then None end";
+
+  TEST_ERRORS_1(src,
+    "identity comparison between disjoint concrete types");
+}
+
+TEST_F(BadPonyTest, IsBetweenDifferentNumericPrimitives)
+{
+  // Machine-word numeric types (U8/U16/.../F64) are concrete primitives, so
+  // cross-width identity comparison is statically disjoint and rejected.
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    if U32(0) isnt U64(0) then None end";
+
+  TEST_ERRORS_1(src,
+    "identity comparison between disjoint concrete types");
+}
+
+TEST_F(BadPonyTest, IsBetweenDifferentActors)
+{
+  const char* src =
+    "actor A\n"
+    "actor B\n"
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let a: A = A\n"
+    "    let b: B = B\n"
+    "    if a is b then None end";
+
+  TEST_ERRORS_1(src,
+    "identity comparison between disjoint concrete types");
+}
+
+TEST_F(BadPonyTest, IsBetweenDisjointConcreteTypesViaAlias)
+{
+  // Both operands have alias types. The check must unwrap the aliases
+  // before comparing definitions; otherwise the error would not fire.
+  const char* src =
+    "class C\n"
+    "class D\n"
+    "type CA is C\n"
+    "type DA is D\n"
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let ca: CA = C\n"
+    "    let da: DA = D\n"
+    "    if ca is da then None end";
+
+  TEST_ERRORS_1(src,
+    "identity comparison between disjoint concrete types");
+}
+
+TEST_F(BadPonyTest, IsBetweenDisjointFieldsThroughThisArrow)
+{
+  // Field reads inside a method body produce viewpoint-adapted types like
+  // `this->C`. The check must unwrap the arrow before classifying the
+  // nominal underneath.
+  const char* src =
+    "class C\n"
+    "class D\n"
+    "class Holder\n"
+    "  let c: C = C\n"
+    "  let d: D = D\n"
+    "  fun ref check(): Bool => c is d\n"
+    "actor Main\n"
+    "  new create(env: Env) => None";
+
+  TEST_ERRORS_1(src,
+    "identity comparison between disjoint concrete types");
+}
+
+TEST_F(BadPonyTest, IsBetweenDisjointClassesViaSugar)
+{
+  // Pony desugars a bare type name in expression position to a default
+  // constructor call (`C` -> `C.create()`). The existing "new object"
+  // diagnostic in verify_is_comparand fires first; the && short-circuit in
+  // verify_is suppresses the new disjoint-concrete check so the user sees
+  // exactly one error per identity comparison, not two.
+  const char* src =
+    "class C\n"
+    "class D\n"
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    if C is D then None end";
+
+  TEST_ERRORS_1(src,
+    "identity comparison with a new object will always be false");
+}
+
+TEST_F(BadPonyTest, IsBetweenDistinctObjectLiterals)
+{
+  // Per the design decision in #1977: each `object end` literal synthesizes
+  // a distinct anonymous class, so two literals are statically disjoint
+  // concrete types. The comparison can never be true and is rejected.
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let a = object end\n"
+    "    let b = object end\n"
+    "    if a is b then None end";
+
+  TEST_ERRORS_1(src,
+    "identity comparison between disjoint concrete types");
+}
+
 TEST_F(BadPonyTest, NosupertypeAnnotationProvides)
 {
   const char* src =
