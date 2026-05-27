@@ -23,6 +23,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Fix compiler crash when a behavior satisfies a non-tag interface method ([PR #5191](https://github.com/ponylang/ponyc/pull/5191))
 - Fix duplicate error for partial call with type arguments ([PR #5335](https://github.com/ponylang/ponyc/pull/5335))
 - Fix incorrect #any capability for type parameters with union constraints ([PR #5337](https://github.com/ponylang/ponyc/pull/5337))
+- Reject adjacent string literals ([PR #5340](https://github.com/ponylang/ponyc/pull/5340))
 
 ### Added
 
