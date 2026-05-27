@@ -21,6 +21,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Fix missing question mark check for partial calls in trait default bodies ([PR #5333](https://github.com/ponylang/ponyc/pull/5333))
 - Fix typecheck assertion failure on loops whose branches all jump away ([PR #5334](https://github.com/ponylang/ponyc/pull/5334))
 - Fix compiler crash when a behavior satisfies a non-tag interface method ([PR #5191](https://github.com/ponylang/ponyc/pull/5191))
+- Fix duplicate error for partial call with type arguments ([PR #5335](https://github.com/ponylang/ponyc/pull/5335))
 
 ### Added
 
