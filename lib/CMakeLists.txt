@@ -58,7 +58,7 @@ install(TARGETS blake2
 
 find_package(Git)
 
-set(LLVM_DESIRED_HASH "2078da43e25a4623cab2d0d60decddf709aaea28")
+set(LLVM_DESIRED_HASH "fc4aad7b5db3fff421df9a9637605b9ca5667881")
 set(PATCHES_DESIRED_HASH "67e7ef4bf24f3d3e0f4d9e7959311d9ef0d966f61bdbfdeb9de6d599d573f89e")
 
 if(GIT_FOUND)

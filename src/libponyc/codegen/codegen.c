@@ -1080,7 +1080,7 @@ void codegen_local_lifetime_start(compile_t* c, const char* name)
 
     if(p != NULL && !p->alive)
     {
-      gencall_lifetime_start(c, p->alloca, LLVMGetAllocatedType(p->alloca));
+      gencall_lifetime_start(c, p->alloca);
       p->alive = true;
       return;
     }
@@ -1106,7 +1106,7 @@ void codegen_local_lifetime_end(compile_t* c, const char* name)
 
     if(p != NULL && p->alive)
     {
-      gencall_lifetime_end(c, p->alloca, LLVMGetAllocatedType(p->alloca));
+      gencall_lifetime_end(c, p->alloca);
       p->alive = false;
       return;
     }
@@ -1129,7 +1129,7 @@ void codegen_scope_lifetime_end(compile_t* c)
     while ((p = compile_locals_next(&frame->locals, &i)) != NULL)
     {
       if(p->alive)
-        gencall_lifetime_end(c, p->alloca, LLVMGetAllocatedType(p->alloca));
+        gencall_lifetime_end(c, p->alloca);
     }
     c->frame->early_termination = true;
   }
