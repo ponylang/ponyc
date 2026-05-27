@@ -9,6 +9,8 @@
 #include "llvm_config_begin.h"
 
 #include <llvm/IR/Constants.h>
+#include <llvm/IR/IntrinsicInst.h>
+#include <llvm/IR/Intrinsics.h>
 #include <llvm/IR/Module.h>
 
 #include "llvm_config_end.h"
@@ -366,4 +368,51 @@ TEST_F(CodegenTest, RepeatLoopBreakOnlyInBranches)
         "end";
 
   TEST_COMPILE(src);
+}
+
+
+TEST_F(CodegenTest, LifetimeIntrinsicsHaveSinglePointerArgument)
+{
+  // LLVM 22 dropped the leading size argument from llvm.lifetime.start and
+  // llvm.lifetime.end; they now take a single pointer. A two-argument call
+  // is rejected by the module verifier, so confirm codegen emits exactly one
+  // argument. The union plus match capture below forces scoped locals, which
+  // is what makes codegen emit lifetime markers.
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let x: (U64 | None) = U64(1)\n"
+    "    match x\n"
+    "    | let n: U64 => None\n"
+    "    end";
+
+  TEST_COMPILE(src);
+
+  auto module = llvm::unwrap(compile->module);
+
+  size_t lifetime_calls = 0;
+  for(auto& function : *module)
+  {
+    for(auto& block : function)
+    {
+      for(auto& inst : block)
+      {
+        auto intrinsic = llvm::dyn_cast<llvm::IntrinsicInst>(&inst);
+        if(intrinsic == nullptr)
+          continue;
+
+        auto id = intrinsic->getIntrinsicID();
+        if((id == llvm::Intrinsic::lifetime_start) ||
+          (id == llvm::Intrinsic::lifetime_end))
+        {
+          lifetime_calls++;
+          ASSERT_EQ(intrinsic->arg_size(), 1u);
+        }
+      }
+    }
+  }
+
+  // Guard against a vacuous pass: the program above must actually emit
+  // lifetime markers, or the per-call assertion never runs.
+  ASSERT_GT(lifetime_calls, 0u);
 }

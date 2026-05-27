@@ -1503,26 +1503,16 @@ void gencall_memmove(compile_t* c, LLVMValueRef dst, LLVMValueRef src,
   LLVMBuildCall2(c->builder, func_type, func, args, 4, "");
 }
 
-void gencall_lifetime_start(compile_t* c, LLVMValueRef ptr, LLVMTypeRef type)
+void gencall_lifetime_start(compile_t* c, LLVMValueRef ptr)
 {
   LLVMValueRef func = LLVMLifetimeStart(c->module, c->ptr);
   LLVMTypeRef func_type = LLVMGlobalGetValueType(func);
-  size_t size = (size_t)LLVMABISizeOfType(c->target_data, type);
-
-  LLVMValueRef args[2];
-  args[0] = LLVMConstInt(c->i64, size, false);
-  args[1] = ptr;
-  LLVMBuildCall2(c->builder, func_type, func, args, 2, "");
+  LLVMBuildCall2(c->builder, func_type, func, &ptr, 1, "");
 }
 
-void gencall_lifetime_end(compile_t* c, LLVMValueRef ptr, LLVMTypeRef type)
+void gencall_lifetime_end(compile_t* c, LLVMValueRef ptr)
 {
   LLVMValueRef func = LLVMLifetimeEnd(c->module, c->ptr);
   LLVMTypeRef func_type = LLVMGlobalGetValueType(func);
-  size_t size = (size_t)LLVMABISizeOfType(c->target_data, type);
-
-  LLVMValueRef args[2];
-  args[0] = LLVMConstInt(c->i64, size, false);
-  args[1] = ptr;
-  LLVMBuildCall2(c->builder, func_type, func, args, 2, "");
+  LLVMBuildCall2(c->builder, func_type, func, &ptr, 1, "");
 }
