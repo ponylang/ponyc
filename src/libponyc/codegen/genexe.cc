@@ -291,6 +291,18 @@ static const char* elf_emulation(compile_t* c)
 {
   llvm::Triple triple(c->opt->triple);
 
+  // FreeBSD: the _fbsd suffix makes lld set ELFOSABI_FREEBSD. ponyc supports
+  // x86-64 only on FreeBSD; other arches return NULL so the link errors
+  // cleanly rather than producing a mis-branded binary.
+  if(target_is_freebsd(c->opt->triple))
+  {
+    switch(triple.getArch())
+    {
+      case llvm::Triple::x86_64: return "elf_x86_64_fbsd";
+      default: return NULL;
+    }
+  }
+
   switch(triple.getArch())
   {
     case llvm::Triple::x86_64: return "elf_x86_64";
@@ -337,6 +349,11 @@ static bool host_is_musl(compile_t* c, llvm::Triple::ArchType arch)
 static const char* dynamic_linker_path(compile_t* c)
 {
   llvm::Triple triple(c->opt->triple);
+
+  // FreeBSD uses a single rtld for all arches (ponyc supports x86-64 only).
+  if(target_is_freebsd(c->opt->triple))
+    return "/libexec/ld-elf.so.1";
+
   bool is_musl = triple.isMusl() || host_is_musl(c, triple.getArch());
 
   switch(triple.getArch())
@@ -683,6 +700,12 @@ static bool link_exe_lld_elf(compile_t* c, ast_t* program,
   program_lib_build_args_embedded(program, c->opt);
 
   const char* sys_triple = system_triple(c);
+  bool is_freebsd = target_is_freebsd(c->opt->triple);
+  // FreeBSD executables are non-PIE by default (matching the base toolchain),
+  // and non-PIE is required to link the non-PIC static libraries some programs
+  // pull in (e.g. the system libc++ bundled into libponyc-standalone, which
+  // the Pony-based tools link). PIE stays the default everywhere else.
+  bool pie = !c->opt->staticbin && !is_freebsd;
 
   // Resolve sysroot.
   const char* sysroot = resolve_sysroot(c, sys_triple, errors);
@@ -718,12 +741,28 @@ static bool link_exe_lld_elf(compile_t* c, ast_t* program,
     return false;
   }
 
-  const char* ponyc_crt_dir = find_ponyc_crt_dir(program, c);
-  if(ponyc_crt_dir == NULL)
+  // crtbegin/crtend come from ponyc's shipped compiler-rt CRT on most
+  // platforms (on Linux they'd otherwise come from GCC, which the embedded
+  // linker must not require). On FreeBSD they're part of the base system in
+  // /usr/lib alongside crt1.o, so source them from libc_crt_dir and don't
+  // ship our own. ponyc_crt_dir stays NULL on FreeBSD; the libponyrt block
+  // below handles that.
+  const char* ponyc_crt_dir = NULL;
+  const char* compiler_crt_dir;
+  if(is_freebsd)
   {
-    errorf(errors, NULL,
-      "could not find compiler-rt CRT objects (crtbeginS.o) in lib paths");
-    return false;
+    compiler_crt_dir = libc_crt_dir;
+  }
+  else
+  {
+    ponyc_crt_dir = find_ponyc_crt_dir(program, c);
+    if(ponyc_crt_dir == NULL)
+    {
+      errorf(errors, NULL,
+        "could not find compiler-rt CRT objects (crtbeginS.o) in lib paths");
+      return false;
+    }
+    compiler_crt_dir = ponyc_crt_dir;
   }
 
   // GCC lib dir is optional.
@@ -771,7 +810,8 @@ static bool link_exe_lld_elf(compile_t* c, ast_t* program,
   }
   else
   {
-    args.push_back("-pie");
+    if(pie)
+      args.push_back("-pie");
     args.push_back("-dynamic-linker");
     args.push_back(dynlinker);
   }
@@ -785,14 +825,9 @@ static bool link_exe_lld_elf(compile_t* c, ast_t* program,
     args.push_back("--strip-debug");
 
   // CRT startup objects.
-  if(c->opt->staticbin)
+  if(pie)
   {
-    snprintf(buf, sizeof(buf), "%s/crt1.o", libc_crt_dir);
-    args.push_back(stringtab(buf));
-  }
-  else
-  {
-    // Prefer Scrt1.o (PIE startup) if available, fall back to crt1.o.
+    // PIE startup: prefer Scrt1.o, fall back to crt1.o.
     snprintf(buf, sizeof(buf), "%s/Scrt1.o", libc_crt_dir);
     if(file_exists(buf))
       args.push_back(stringtab(buf));
@@ -802,18 +837,30 @@ static bool link_exe_lld_elf(compile_t* c, ast_t* program,
       args.push_back(stringtab(buf));
     }
   }
+  else
+  {
+    // Static or non-PIE dynamic (FreeBSD): plain crt1.o startup.
+    snprintf(buf, sizeof(buf), "%s/crt1.o", libc_crt_dir);
+    args.push_back(stringtab(buf));
+  }
 
   snprintf(buf, sizeof(buf), "%s/crti.o", libc_crt_dir);
   args.push_back(stringtab(buf));
 
   if(c->opt->staticbin)
   {
-    snprintf(buf, sizeof(buf), "%s/crtbeginT.o", ponyc_crt_dir);
+    snprintf(buf, sizeof(buf), "%s/crtbeginT.o", compiler_crt_dir);
+    args.push_back(stringtab(buf));
+  }
+  else if(pie)
+  {
+    snprintf(buf, sizeof(buf), "%s/crtbeginS.o", compiler_crt_dir);
     args.push_back(stringtab(buf));
   }
   else
   {
-    snprintf(buf, sizeof(buf), "%s/crtbeginS.o", ponyc_crt_dir);
+    // Non-PIE dynamic (FreeBSD).
+    snprintf(buf, sizeof(buf), "%s/crtbegin.o", compiler_crt_dir);
     args.push_back(stringtab(buf));
   }
 
@@ -914,32 +961,53 @@ static bool link_exe_lld_elf(compile_t* c, ast_t* program,
     }
   }
 
-  // Pony runtime. Use the full path from ponyc_crt_dir to ensure we
-  // pick the target-architecture library, not a native-arch copy that
-  // might appear earlier in the -L search path.
+  // Pony runtime.
   if(!c->opt->runtimebc)
   {
-    const char* rt_name = c->opt->staticbin ? "libponyrt.a"
-      : (c->opt->pic ? "libponyrt-pic.a" : "libponyrt.a");
-
-    snprintf(buf, sizeof(buf), "%s/%s", ponyc_crt_dir, rt_name);
-    if(file_exists(buf))
+    // FreeBSD ships a single libponyrt.a (PIC-enabled) and no compiler-rt
+    // CRT, so ponyc_crt_dir is NULL there; resolve -lponyrt via the -L lib
+    // paths, with no -pic variant (matching the external FreeBSD path).
+    if(ponyc_crt_dir == NULL)
     {
-      args.push_back(stringtab(buf));
+      args.push_back("-lponyrt");
     }
     else
     {
-      if(c->opt->staticbin)
-        args.push_back("-lponyrt");
+      // Use the full path from ponyc_crt_dir to pick the target-architecture
+      // library, not a native-arch copy that might appear earlier in -L.
+      const char* rt_name = c->opt->staticbin ? "libponyrt.a"
+        : (c->opt->pic ? "libponyrt-pic.a" : "libponyrt.a");
+
+      snprintf(buf, sizeof(buf), "%s/%s", ponyc_crt_dir, rt_name);
+      if(file_exists(buf))
+      {
+        args.push_back(stringtab(buf));
+      }
       else
-        args.push_back(c->opt->pic ? "-lponyrt-pic" : "-lponyrt");
+      {
+        if(c->opt->staticbin)
+          args.push_back("-lponyrt");
+        else
+          args.push_back(c->opt->pic ? "-lponyrt-pic" : "-lponyrt");
+      }
     }
   }
 
   args.push_back("-lpthread");
   args.push_back("-lm");
-  args.push_back("-ldl");
-  args.push_back("-latomic");
+  if(is_freebsd)
+  {
+    // dlopen is in libc and there's no libatomic on FreeBSD. backtrace() is
+    // in libexecinfo; the static libexecinfo.a additionally needs libelf.
+    args.push_back("-lexecinfo");
+    if(c->opt->staticbin)
+      args.push_back("-lelf");
+  }
+  else
+  {
+    args.push_back("-ldl");
+    args.push_back("-latomic");
+  }
 
   // ARM-specific exclude-libs.
   if(target_is_arm(c->opt->triple))
@@ -962,7 +1030,9 @@ static bool link_exe_lld_elf(compile_t* c, ast_t* program,
     args.push_back("-lgcc_eh");
     args.push_back("-lc");
     args.push_back("--end-group");
-    args.push_back("-lssp_nonshared");
+    // libssp_nonshared is a glibc artifact; FreeBSD has no such library.
+    if(!is_freebsd)
+      args.push_back("-lssp_nonshared");
   }
   else
   {
@@ -974,14 +1044,15 @@ static bool link_exe_lld_elf(compile_t* c, ast_t* program,
   }
 
   // CRT finalization objects.
-  if(c->opt->staticbin)
+  if(pie)
   {
-    snprintf(buf, sizeof(buf), "%s/crtend.o", ponyc_crt_dir);
+    snprintf(buf, sizeof(buf), "%s/crtendS.o", compiler_crt_dir);
     args.push_back(stringtab(buf));
   }
   else
   {
-    snprintf(buf, sizeof(buf), "%s/crtendS.o", ponyc_crt_dir);
+    // Static or non-PIE dynamic (FreeBSD): plain crtend.o.
+    snprintf(buf, sizeof(buf), "%s/crtend.o", compiler_crt_dir);
     args.push_back(stringtab(buf));
   }
 
@@ -1472,6 +1543,20 @@ static bool link_exe(compile_t* c, ast_t* program,
   {
     return link_exe_lld_macho(c, program, file_o);
   }
+
+  // FreeBSD routes to embedded LLD unless ponyc was built with dtrace, in
+  // which case the external path below handles the -ldtrace_probes linking.
+#if !defined(USE_DYNAMIC_TRACE)
+  if(c->opt->linker == NULL
+    && target_is_freebsd(c->opt->triple)
+#if defined(PONY_SANITIZER)
+    && is_cross_compiling(c)
+#endif
+    )
+  {
+    return link_exe_lld_elf(c, program, file_o);
+  }
+#endif
 #endif
 
 #ifdef PLATFORM_IS_WINDOWS

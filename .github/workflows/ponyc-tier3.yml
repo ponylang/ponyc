@@ -152,6 +152,14 @@ jobs:
           gmake libs build_flags=-j4
           gmake configure config=debug
           gmake build config=debug
+          # Smoke-test the --static embedded-LLD link path; the test targets
+          # below only exercise dynamic linking. Covers actor init plus
+          # exception unwinding through the static recipe.
+          mkdir -p /tmp/static-smoke
+          printf 'actor Main\n  new create(env: Env) =>\n    try error else env.out.print("static ok") end\n' > /tmp/static-smoke/main.pony
+          PONYPATH="$PWD/packages" ./build/debug/ponyc --static -o /tmp/static-smoke /tmp/static-smoke
+          file /tmp/static-smoke/static-smoke | grep -q 'statically linked'
+          /tmp/static-smoke/static-smoke
           gmake test-ci-core config=debug
           gmake test-pony-doc config=debug
           gmake test-pony-lint config=debug
