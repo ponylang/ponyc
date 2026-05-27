@@ -360,6 +360,11 @@ size_t token_line_number(token_t* token);
 /// Report the position within the line that the given token was found at
 size_t token_line_position(token_t* token);
 
+/// Report whether a real newline character separated this token from the
+/// previously emitted one. Set by the lexer; used by the parser to detect
+/// statement separators.
+bool token_newline(token_t* token);
+
 /// Report whether debug info should be generated.
 bool token_debug(token_t* token);
 
@@ -390,6 +395,10 @@ void token_set_int(token_t* token, lexint_t* value);
 /// source file.
 /// Set source to NULL to keep current file.
 void token_set_pos(token_t* token, source_t* source, size_t line, size_t pos);
+
+/// Set whether a real newline character separated this token from the
+/// previously emitted one.
+void token_set_newline(token_t* token, bool newline);
 
 /// Set whether debug info should be generated.
 void token_set_debug(token_t* token, bool state);

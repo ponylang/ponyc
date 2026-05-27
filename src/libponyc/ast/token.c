@@ -15,6 +15,7 @@ struct token_t
   size_t line;
   size_t pos;
   char* printed;
+  bool newline;
 
   union
   {
@@ -365,6 +366,23 @@ void token_set_pos(token_t* token, source_t* source, size_t line, size_t pos)
   token->pos = pos;
 }
 
+
+bool token_newline(token_t* token)
+{
+  pony_assert(token != NULL);
+  return token->newline;
+}
+
+
+void token_set_newline(token_t* token, bool newline)
+{
+  pony_assert(token != NULL);
+#ifndef PONY_NDEBUG
+  pony_assert(!token->frozen);
+#endif
+  token->newline = newline;
+}
+
 // Serialisation
 
 static void token_signature_serialise_trace(pony_ctx_t* ctx, void* object)
@@ -524,6 +542,7 @@ static void token_serialise(pony_ctx_t* ctx, void* object, void* buf,
   dst->line = token->line;
   dst->pos = token->pos;
   dst->printed = NULL;
+  dst->newline = token->newline;
 #ifndef PONY_NDEBUG
   dst->frozen = token->frozen;
 #endif

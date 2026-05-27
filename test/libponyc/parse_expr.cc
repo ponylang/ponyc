@@ -109,3 +109,68 @@ TEST_F(ParseExprTest, CompileErrorNotAllowedOutsideIfdef)
 
   TEST_ERROR(src);
 }
+
+
+// A string literal whose closing quote is immediately followed by another
+// quote starts a second string with no separator. Without a real newline or
+// semicolon between them this is two expressions on the same line, even when
+// the first string spans multiple source lines.
+TEST_F(ParseExprTest, AdjacentStringLiteralsRequireSeparator)
+{
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    env.out.print(\"\n"
+    "      line\n"
+    "    \"\"\")";
+
+  TEST_ERRORS_1(src,
+    "Use a semi colon to separate expressions on the same line");
+}
+
+
+// Same as above for two single-quoted strings on the same physical line.
+TEST_F(ParseExprTest, SameLineAdjacentStringLiteralsRequireSeparator)
+{
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    env.out.print(\"a\"\"b\")";
+
+  TEST_ERRORS_1(src,
+    "Use a semi colon to separate expressions on the same line");
+}
+
+
+// A multi-line string followed by an operator continues a single expression.
+// Regression guard: the closing quote sits on a different source line from
+// where the string started, but no actual newline separates it from the `+`.
+TEST_F(ParseExprTest, MultilineStringFollowedByOperator)
+{
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    env.out.print(\"\n"
+    "      first\n"
+    "    \" + \" second\")";
+
+  TEST_COMPILE(src);
+}
+
+
+// A block comment containing newlines must not swallow the real newline that
+// preceded it. The two `let`s here sit on different physical lines and should
+// parse as two statements.
+TEST_F(ParseExprTest, BlockCommentPreservesPrecedingNewline)
+{
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let a: I32 = 5\n"
+    "    /* multi\n"
+    "    line\n"
+    "    comment */ let b: I32 = 6\n"
+    "    env.out.print((a + b).string())";
+
+  TEST_COMPILE(src);
+}
