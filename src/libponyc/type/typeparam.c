@@ -23,7 +23,16 @@ static token_id cap_union_constraint(token_id a, token_id b)
   if(b == TK_NONE)
     return a;
 
-  // If we're in a set together, return the set. Otherwise, use #any.
+  // Return the smallest cap-set that contains both a and b. The reachable
+  // cap-sets and their members are:
+  //   #read  = ref | val | box
+  //   #send  = iso | val | tag
+  //   #share = val | tag                 (a subset of both #send and #alias)
+  //   #alias = ref | val | box | tag     (a superset of #read and #share)
+  //   #any   = everything
+  // The result falls through to #any when no narrower set contains both. The
+  // function is called via a left-fold by cap_from_constraint, so the table
+  // must handle the result of a previous union as the `a` argument.
   switch(a)
   {
     case TK_ISO:
@@ -47,6 +56,11 @@ static token_id cap_union_constraint(token_id a, token_id b)
         case TK_CAP_READ:
           return TK_CAP_READ;
 
+        case TK_TAG:
+        case TK_CAP_SHARE:
+        case TK_CAP_ALIAS:
+          return TK_CAP_ALIAS;
+
         default: {}
       }
       break;
@@ -67,8 +81,12 @@ static token_id cap_union_constraint(token_id a, token_id b)
         case TK_CAP_SEND:
           return TK_CAP_SEND;
 
+        case TK_CAP_ALIAS:
+          return TK_CAP_ALIAS;
+
         default: {}
       }
+      break;
 
     case TK_BOX:
       switch(b)
@@ -77,6 +95,11 @@ static token_id cap_union_constraint(token_id a, token_id b)
         case TK_VAL:
         case TK_CAP_READ:
           return TK_CAP_READ;
+
+        case TK_TAG:
+        case TK_CAP_SHARE:
+        case TK_CAP_ALIAS:
+          return TK_CAP_ALIAS;
 
         default: {}
       }
@@ -93,6 +116,12 @@ static token_id cap_union_constraint(token_id a, token_id b)
         case TK_CAP_SEND:
           return TK_CAP_SEND;
 
+        case TK_REF:
+        case TK_BOX:
+        case TK_CAP_READ:
+        case TK_CAP_ALIAS:
+          return TK_CAP_ALIAS;
+
         default: {}
       }
       break;
@@ -104,6 +133,11 @@ static token_id cap_union_constraint(token_id a, token_id b)
         case TK_VAL:
         case TK_BOX:
           return TK_CAP_READ;
+
+        case TK_TAG:
+        case TK_CAP_SHARE:
+        case TK_CAP_ALIAS:
+          return TK_CAP_ALIAS;
 
         default: {}
       }
@@ -133,6 +167,12 @@ static token_id cap_union_constraint(token_id a, token_id b)
         case TK_CAP_SEND:
           return TK_CAP_SEND;
 
+        case TK_REF:
+        case TK_BOX:
+        case TK_CAP_READ:
+        case TK_CAP_ALIAS:
+          return TK_CAP_ALIAS;
+
         default: {}
       }
       break;
@@ -145,6 +185,7 @@ static token_id cap_union_constraint(token_id a, token_id b)
         case TK_BOX:
         case TK_TAG:
         case TK_CAP_READ:
+        case TK_CAP_SHARE:
           return TK_CAP_ALIAS;
 
         default: {}
