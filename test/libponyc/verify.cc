@@ -419,6 +419,94 @@ TEST_F(VerifyTest, NonPartialFunctionCallPartialFunction)
   TEST_ERRORS_1(src, "call is not partial but the method is");
 }
 
+TEST_F(VerifyTest, NonPartialFunctionCallPartialFunctionWithTypeArgs)
+{
+  // Regression test for https://github.com/ponylang/ponyc/issues/5332
+  // A qualified call to a partial method should emit the error exactly once.
+  const char* src =
+    "class Foo\n"
+    "  fun partial[A: Any val](x: A): A ? => error\n"
+    "  fun apply() ? =>\n"
+    "    partial[U32](42)";
+
+  TEST_ERRORS_1(src, "call is not partial but the method is");
+}
+
+TEST_F(VerifyTest, PartialFunctionCallNonPartialFunctionWithTypeArgs)
+{
+  // Regression test for https://github.com/ponylang/ponyc/issues/5332
+  // A qualified call to a non-partial method should emit the error
+  // exactly once when an extraneous question mark is present.
+  const char* src =
+    "class Foo\n"
+    "  fun non_partial[A: Any val](x: A): A => x\n"
+    "  fun apply() =>\n"
+    "    non_partial[U32](42)?";
+
+  TEST_ERRORS_1(src, "call is partial but the method is not");
+}
+
+TEST_F(VerifyTest, NonPartialFunctionCallPartialFunctionWithTypeArgsChain)
+{
+  // Regression test for https://github.com/ponylang/ponyc/issues/5332
+  // A qualified `.>` chain call to a partial method should also emit
+  // the error exactly once.
+  const char* src =
+    "class Foo\n"
+    "  fun partial[A: Any val](x: A): A ? => error\n"
+    "  fun apply() ? =>\n"
+    "    this.>partial[U32](42)";
+
+  TEST_ERRORS_1(src, "call is not partial but the method is");
+}
+
+TEST_F(VerifyTest, NonPartialConstructorCallPartialConstructorWithTypeArgs)
+{
+  // Regression test for https://github.com/ponylang/ponyc/issues/5332
+  // A qualified call to a partial constructor with type arguments should
+  // emit the error exactly once.
+  const char* src =
+    "class Foo\n"
+    "  new create[A: Any val](x: A) ? => error\n"
+    "primitive Bar\n"
+    "  fun apply() ? =>\n"
+    "    Foo.create[U32](42)";
+
+  TEST_ERRORS_1(src, "call is not partial but the method is");
+}
+
+TEST_F(VerifyTest, NonPartialFunctionCallPartialFunctionWithDefaultTypeArgs)
+{
+  // Regression test for https://github.com/ponylang/ponyc/issues/5332
+  // The wrap shape also arises when a method's type parameters have
+  // defaults and the caller omits explicit type arguments. The error
+  // must still be emitted exactly once.
+  const char* src =
+    "class Foo\n"
+    "  fun partial[A: Any val = U32](x: A): A ? => error\n"
+    "  fun apply() ? =>\n"
+    "    partial(U32(42))";
+
+  TEST_ERRORS_1(src, "call is not partial but the method is");
+}
+
+TEST_F(VerifyTest, AddressOfPartialFunctionWithTypeArgs)
+{
+  // Regression test for https://github.com/ponylang/ponyc/issues/5332
+  // Taking the address of a partial method with type arguments must not
+  // trigger a compiler assertion. The inner funref of the wrapped node
+  // walks up through its TK_ADDRESS grandparent and used to fail the
+  // `pony_assert(ast_id(call) == TK_CALL)` in check_partial_function_call.
+  const char* src =
+    "use @foo[None](fn: Pointer[None] tag)\n"
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    @foo(addressof fn[U32])\n"
+    "  fun fn[A: Any val]() ? => error";
+
+  TEST_COMPILE(src);
+}
+
 TEST_F(VerifyTest, NonPartialFunctionError)
 {
   const char* src =
