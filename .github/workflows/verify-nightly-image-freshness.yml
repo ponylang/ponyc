@@ -1,0 +1,56 @@
+name: Verify nightly image freshness
+
+# Watchdog that asserts ghcr.io/ponylang/ponyc:nightly has been updated
+# within the last 36 hours. The other workflows' Zulip "alert on failure"
+# steps only fire when their workflow runs — a never-delivered
+# repository_dispatch (e.g. when the Cloudsmith webhook is auto-disabled)
+# produces zero runs and zero alerts. This check runs once a day so any
+# break in the publish chain surfaces within ~2 days regardless of where
+# in the chain it occurred.
+
+on:
+  schedule:
+    # 06:00 UTC: ~6 hours after the Nightlies cron (00:00 UTC) and the
+    # downstream image build should both have completed.
+    - cron: "0 6 * * *"
+  workflow_dispatch:
+
+permissions:
+  packages: read
+
+jobs:
+  check:
+    name: Check :nightly image age
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify ghcr.io/ponylang/ponyc:nightly is recent
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          pushed_at=$(gh api '/orgs/ponylang/packages/container/ponyc/versions?per_page=100' \
+            --jq '.[] | select(.metadata.container.tags[]? == "nightly") | .updated_at' | head -1)
+          if [ -z "$pushed_at" ]; then
+            echo "::error::Could not find a version tagged 'nightly' for ghcr.io/ponylang/ponyc"
+            exit 1
+          fi
+          now_s=$(date -u +%s)
+          pushed_s=$(date -u -d "$pushed_at" +%s)
+          age_h=$(( (now_s - pushed_s) / 3600 ))
+          echo "ghcr.io/ponylang/ponyc:nightly last updated at $pushed_at (${age_h}h ago)"
+          if [ "$age_h" -gt 36 ]; then
+            echo "::error::nightly image is ${age_h}h old (exceeds 36h threshold)"
+            exit 1
+          fi
+          echo "OK: within 36h threshold"
+      - name: Send alert on failure
+        if: ${{ failure() }}
+        uses: zulip/github-actions-zulip/send-message@bd8ec52de371d139ae8313661b7d8318c19266aa
+        with:
+          api-key: ${{ secrets.ZULIP_SCHEDULED_JOB_FAILURE_API_KEY }}
+          email: ${{ secrets.ZULIP_SCHEDULED_JOB_FAILURE_EMAIL }}
+          organization-url: 'https://ponylang.zulipchat.com/'
+          to: notifications
+          type: stream
+          topic: ${{ github.repository }} scheduled job failure
+          content: ${{ github.server_url}}/${{ github.repository }}/actions/runs/${{ github.run_id }} failed.
