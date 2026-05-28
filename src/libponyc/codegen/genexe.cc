@@ -303,6 +303,20 @@ static const char* elf_emulation(compile_t* c)
     }
   }
 
+  // DragonFly: no OSABI suffix exists in lld for DragonFly and DragonFly's
+  // kernel accepts ELFOSABI_NONE binaries (existing system binaries are
+  // stamped that way). ponyc supports x86-64 only; explicit NULL for other
+  // arches prevents non-x86 DragonFly from falling through to the default
+  // Linux-style switch below.
+  if(target_is_dragonfly(c->opt->triple))
+  {
+    switch(triple.getArch())
+    {
+      case llvm::Triple::x86_64: return "elf_x86_64";
+      default: return NULL;
+    }
+  }
+
   switch(triple.getArch())
   {
     case llvm::Triple::x86_64: return "elf_x86_64";
@@ -353,6 +367,12 @@ static const char* dynamic_linker_path(compile_t* c)
   // FreeBSD uses a single rtld for all arches (ponyc supports x86-64 only).
   if(target_is_freebsd(c->opt->triple))
     return "/libexec/ld-elf.so.1";
+
+  // DragonFly's base toolchain uses /libexec/ld-elf.so.2 (verified: all
+  // base binaries' INTERP points here). /usr/libexec/ld-elf.so.2 is a
+  // symlink and works, but /libexec/ is the convention.
+  if(target_is_dragonfly(c->opt->triple))
+    return "/libexec/ld-elf.so.2";
 
   bool is_musl = triple.isMusl() || host_is_musl(c, triple.getArch());
 
@@ -508,6 +528,178 @@ static const char* find_ponyc_crt_dir(ast_t* program, compile_t* c)
   }
 
   return NULL;
+}
+
+// DragonFly-specific GCC runtime directory finder. Two layouts coexist:
+//
+//   nested (pkg gccNN):  <sysroot>/usr/local/lib/gccNN/gcc/<triple>/<ver>/
+//   flat   (base gccNN): <sysroot>/usr/lib/gccNN/
+//
+// Pkg gcc is preferred because libponyrt is built with it (per BUILD.md).
+// The flat (base) layout exists but uses libgcc_pic rather than libgcc_s
+// and ships no libatomic/libexecinfo of its own, so an embedded LLD link
+// against it will fail to resolve symbols — we warn and proceed (rather
+// than abort) so the linker emits the actionable diagnostic, matching the
+// failure mode of the external-linker path on the same configuration.
+//
+// The generic find_gcc_lib_dir below assumes <base>/<triple>/<ver>/
+// nesting under fixed base_patterns (/usr/lib/gcc, /usr/lib/gcc-cross,
+// /usr/local/lib/gcc, ...). Neither DragonFly layout matches: pkg gcc
+// installs to /usr/local/lib/gccNN (NN suffix, not the bare /gcc dir),
+// and base gcc has no <triple>/<ver>/ nesting. Hence a separate helper.
+//
+// Return contract: when pass 1 finds a result, the returned path is the
+// deepest layer (gccNN/gcc/<triple>/<ver>/) — the gcc-root (where
+// libgcc_s.so and libatomic.so live) is exactly 3 levels above it. The
+// caller depends on this for -L<gcc_root> and -rpath=<gcc_root>; if the
+// return contract changes the call site in link_exe_lld_elf must change
+// in lockstep.
+static const char* find_dragonfly_gcc_lib_dir(const char* sysroot,
+  const char* arch_prefix)
+{
+  char buf[PATH_MAX];
+
+  // Pass 1: nested pkg layout. Walk /usr/local/lib/gccNN/gcc/<triple>/<ver>/.
+  // Filter <triple> by arch_prefix so a host with both x86_64 and aarch64
+  // gcc installs (cross toolchains) picks the right one, mirroring
+  // find_gcc_lib_dir below. Today ponyc-on-DragonFly is x86_64-only but
+  // the filter is cheap defense in depth.
+  int best_gcc_major = -1;
+  int best_ver = -1;
+  const char* best_dir = NULL;
+  size_t prefix_len = strlen(arch_prefix);
+
+  snprintf(buf, sizeof(buf), "%s/usr/local/lib", sysroot);
+  DIR* base_dir = opendir(buf);
+  if(base_dir != NULL)
+  {
+    struct dirent* entry;
+    while((entry = readdir(base_dir)) != NULL)
+    {
+      if(strncmp(entry->d_name, "gcc", 3) != 0)
+        continue;
+      int gcc_major = atoi(entry->d_name + 3);
+      if(gcc_major <= 0)
+        continue;
+
+      char gcc_subdir[PATH_MAX];
+      int n = snprintf(gcc_subdir, sizeof(gcc_subdir),
+        "%s/usr/local/lib/%s/gcc", sysroot, entry->d_name);
+      if(n < 0 || (size_t)n >= sizeof(gcc_subdir))
+        continue;
+      DIR* gcc_sub = opendir(gcc_subdir);
+      if(gcc_sub == NULL)
+        continue;
+
+      struct dirent* triple_entry;
+      while((triple_entry = readdir(gcc_sub)) != NULL)
+      {
+        if(triple_entry->d_name[0] == '.')
+          continue;
+        if(strncmp(triple_entry->d_name, arch_prefix, prefix_len) != 0)
+          continue;
+
+        char triple_dir[PATH_MAX];
+        n = snprintf(triple_dir, sizeof(triple_dir), "%s/%s",
+          gcc_subdir, triple_entry->d_name);
+        if(n < 0 || (size_t)n >= sizeof(triple_dir))
+          continue;
+        DIR* ver_dir = opendir(triple_dir);
+        if(ver_dir == NULL)
+          continue;
+
+        struct dirent* ver_entry;
+        while((ver_entry = readdir(ver_dir)) != NULL)
+        {
+          if(ver_entry->d_name[0] == '.')
+            continue;
+          int ver = atoi(ver_entry->d_name);
+          if(ver <= 0)
+            continue;
+
+          char libgcc[PATH_MAX];
+          n = snprintf(libgcc, sizeof(libgcc), "%s/%s/libgcc.a",
+            triple_dir, ver_entry->d_name);
+          if(n < 0 || (size_t)n >= sizeof(libgcc))
+            continue;
+          if(!file_exists(libgcc))
+            continue;
+
+          if(gcc_major > best_gcc_major
+            || (gcc_major == best_gcc_major && ver > best_ver))
+          {
+            best_gcc_major = gcc_major;
+            best_ver = ver;
+            char result[PATH_MAX];
+            n = snprintf(result, sizeof(result), "%s/%s",
+              triple_dir, ver_entry->d_name);
+            if(n < 0 || (size_t)n >= sizeof(result))
+              continue;
+            best_dir = stringtab(result);
+          }
+        }
+        closedir(ver_dir);
+      }
+      closedir(gcc_sub);
+    }
+    closedir(base_dir);
+  }
+
+  if(best_dir != NULL)
+    return best_dir;
+
+  // Pass 2: flat base layout. Walk /usr/lib/gccNN/. Base gcc lacks
+  // libgcc_s, libatomic, and libexecinfo's static-link companion, so the
+  // link will fail downstream — but the linker's "cannot find -lX" output
+  // is the actionable diagnostic for the user. Warn loudly here so the
+  // root cause is visible before the linker error.
+  best_gcc_major = -1;
+
+  snprintf(buf, sizeof(buf), "%s/usr/lib", sysroot);
+  base_dir = opendir(buf);
+  if(base_dir != NULL)
+  {
+    struct dirent* entry;
+    while((entry = readdir(base_dir)) != NULL)
+    {
+      if(strncmp(entry->d_name, "gcc", 3) != 0)
+        continue;
+      int gcc_major = atoi(entry->d_name + 3);
+      if(gcc_major <= 0)
+        continue;
+
+      char libgcc[PATH_MAX];
+      int n = snprintf(libgcc, sizeof(libgcc), "%s/usr/lib/%s/libgcc.a",
+        sysroot, entry->d_name);
+      if(n < 0 || (size_t)n >= sizeof(libgcc))
+        continue;
+      if(!file_exists(libgcc))
+        continue;
+
+      if(gcc_major > best_gcc_major)
+      {
+        best_gcc_major = gcc_major;
+        char result[PATH_MAX];
+        n = snprintf(result, sizeof(result), "%s/usr/lib/%s",
+          sysroot, entry->d_name);
+        if(n < 0 || (size_t)n >= sizeof(result))
+          continue;
+        best_dir = stringtab(result);
+      }
+    }
+    closedir(base_dir);
+  }
+
+  if(best_dir != NULL)
+  {
+    fprintf(stderr,
+      "Warning: DragonFly pkg gcc not found; falling back to base GCC at"
+      " %s.\n  The link will likely fail to resolve -lgcc_s/-latomic — base"
+      " gcc lacks them.\n  Install pkg gcc (e.g. gcc13) to fix.\n",
+      best_dir);
+  }
+
+  return best_dir;
 }
 
 static const char* find_gcc_lib_dir(const char* sysroot,
@@ -701,11 +893,13 @@ static bool link_exe_lld_elf(compile_t* c, ast_t* program,
 
   const char* sys_triple = system_triple(c);
   bool is_freebsd = target_is_freebsd(c->opt->triple);
-  // FreeBSD executables are non-PIE by default (matching the base toolchain),
-  // and non-PIE is required to link the non-PIC static libraries some programs
-  // pull in (e.g. the system libc++ bundled into libponyc-standalone, which
-  // the Pony-based tools link). PIE stays the default everywhere else.
-  bool pie = !c->opt->staticbin && !is_freebsd;
+  bool is_dragonfly = target_is_dragonfly(c->opt->triple);
+  // FreeBSD and DragonFly executables are non-PIE by default (matching
+  // the base toolchain), and non-PIE is required to link the non-PIC
+  // static libraries some programs pull in (e.g. the system libc++ bundled
+  // into libponyc-standalone, which the Pony-based tools link). PIE stays
+  // the default everywhere else.
+  bool pie = !c->opt->staticbin && !is_freebsd && !is_dragonfly;
 
   // Resolve sysroot.
   const char* sysroot = resolve_sysroot(c, sys_triple, errors);
@@ -745,13 +939,33 @@ static bool link_exe_lld_elf(compile_t* c, ast_t* program,
   // platforms (on Linux they'd otherwise come from GCC, which the embedded
   // linker must not require). On FreeBSD they're part of the base system in
   // /usr/lib alongside crt1.o, so source them from libc_crt_dir and don't
-  // ship our own. ponyc_crt_dir stays NULL on FreeBSD; the libponyrt block
-  // below handles that.
+  // ship our own. On DragonFly they're under a pkg-installed gccNN
+  // directory (/usr/local/lib/gccNN/gcc/<triple>/<ver>/) or, as a fallback,
+  // under base /usr/lib/gccNN/; the DragonFly-specific resolver finds
+  // either layout. ponyc_crt_dir stays NULL on FreeBSD and DragonFly; the
+  // libponyrt block below handles that.
+  llvm::Triple target_triple(c->opt->triple);
+  std::string arch_prefix = std::string(target_triple.getArchName()) + "-";
+
   const char* ponyc_crt_dir = NULL;
   const char* compiler_crt_dir;
   if(is_freebsd)
   {
     compiler_crt_dir = libc_crt_dir;
+  }
+  else if(is_dragonfly)
+  {
+    compiler_crt_dir = find_dragonfly_gcc_lib_dir(sysroot,
+      arch_prefix.c_str());
+    if(compiler_crt_dir == NULL)
+    {
+      errorf(errors, NULL,
+        "could not find GCC runtime directory on DragonFly (searched"
+        " %s/usr/local/lib/gcc*/gcc/<triple>/<ver>/ and"
+        " %s/usr/lib/gcc*/); install pkg gcc (e.g. gcc13)",
+        sysroot, sysroot);
+      return false;
+    }
   }
   else
   {
@@ -765,10 +979,19 @@ static bool link_exe_lld_elf(compile_t* c, ast_t* program,
     compiler_crt_dir = ponyc_crt_dir;
   }
 
-  // GCC lib dir is optional.
-  llvm::Triple target_triple(c->opt->triple);
-  std::string arch_prefix = std::string(target_triple.getArchName()) + "-";
-  const char* gcc_lib_dir = find_gcc_lib_dir(sysroot, arch_prefix.c_str());
+  // GCC lib dir is optional. On DragonFly the GCC dir is the same as
+  // compiler_crt_dir (found above by find_dragonfly_gcc_lib_dir); the
+  // generic find_gcc_lib_dir's patterns don't match either DragonFly
+  // layout.
+  const char* gcc_lib_dir;
+  if(is_dragonfly)
+  {
+    gcc_lib_dir = compiler_crt_dir;
+  }
+  else
+  {
+    gcc_lib_dir = find_gcc_lib_dir(sysroot, arch_prefix.c_str());
+  }
 
   if(c->opt->link_ldcmd != NULL)
   {
@@ -839,7 +1062,7 @@ static bool link_exe_lld_elf(compile_t* c, ast_t* program,
   }
   else
   {
-    // Static or non-PIE dynamic (FreeBSD): plain crt1.o startup.
+    // Static or non-PIE dynamic (FreeBSD/DragonFly): plain crt1.o startup.
     snprintf(buf, sizeof(buf), "%s/crt1.o", libc_crt_dir);
     args.push_back(stringtab(buf));
   }
@@ -847,7 +1070,7 @@ static bool link_exe_lld_elf(compile_t* c, ast_t* program,
   snprintf(buf, sizeof(buf), "%s/crti.o", libc_crt_dir);
   args.push_back(stringtab(buf));
 
-  if(c->opt->staticbin)
+  if(c->opt->staticbin && !is_dragonfly)
   {
     snprintf(buf, sizeof(buf), "%s/crtbeginT.o", compiler_crt_dir);
     args.push_back(stringtab(buf));
@@ -859,7 +1082,8 @@ static bool link_exe_lld_elf(compile_t* c, ast_t* program,
   }
   else
   {
-    // Non-PIE dynamic (FreeBSD).
+    // Non-PIE dynamic (FreeBSD), or static on DragonFly (no crtbeginT.o
+    // exists; gcc's own -static link uses plain crtbegin.o here).
     snprintf(buf, sizeof(buf), "%s/crtbegin.o", compiler_crt_dir);
     args.push_back(stringtab(buf));
   }
@@ -873,20 +1097,52 @@ static bool link_exe_lld_elf(compile_t* c, ast_t* program,
     snprintf(buf, sizeof(buf), "-L%s", gcc_lib_dir);
     args.push_back(stringtab(buf));
 
-    // GCC installs shared runtime libraries (libatomic, libgcc_s) in
-    // <prefix>/<triple>/lib/ while static libraries (libgcc.a) go in
-    // <prefix>/lib/gcc[-cross]/<triple>/<version>/. Derive the former
-    // from the latter.
-    char gcc_target_lib[PATH_MAX];
-    snprintf(gcc_target_lib, sizeof(gcc_target_lib),
-      "%s/../../../../%s/lib", gcc_lib_dir, sys_triple);
-
-    struct stat gcc_target_stat;
-    if(stat(gcc_target_lib, &gcc_target_stat) == 0
-      && S_ISDIR(gcc_target_stat.st_mode))
+    if(is_dragonfly)
     {
-      snprintf(buf, sizeof(buf), "-L%s", gcc_target_lib);
-      args.push_back(stringtab(buf));
+      // Pkg gcc layout: libgcc.a and crtbegin/end live at
+      // /usr/local/lib/gccNN/gcc/<triple>/<ver>/, but the shared runtime
+      // (libgcc_s.so, libatomic) lives 3 dirs up at /usr/local/lib/gccNN/.
+      // Add the root as a -L and as -rpath so libgcc_s.so resolves at
+      // runtime (gcc13 doesn't auto-rpath the way base cc does). The flat
+      // base layout has no shared libgcc_s anyway — skip both.
+      //
+      // realpath() the derivation before stamping it into DT_RUNPATH so
+      // the binary doesn't carry literal "../../.." segments (visible
+      // under readelf -d, and brittle if the binary later moves between
+      // sysroots).
+      char gcc_root_buf[PATH_MAX];
+      snprintf(gcc_root_buf, sizeof(gcc_root_buf), "%s/../../..",
+        gcc_lib_dir);
+      char gcc_root_canonical[PATH_MAX];
+      const char* gcc_root_dir = realpath(gcc_root_buf, gcc_root_canonical)
+        != NULL ? gcc_root_canonical : gcc_root_buf;
+      char check[PATH_MAX];
+      snprintf(check, sizeof(check), "%s/libgcc_s.so", gcc_root_dir);
+      if(file_exists(check))
+      {
+        snprintf(buf, sizeof(buf), "-L%s", gcc_root_dir);
+        args.push_back(stringtab(buf));
+        args.push_back("-rpath");
+        args.push_back(stringtab(gcc_root_dir));
+      }
+    }
+    else
+    {
+      // GCC installs shared runtime libraries (libatomic, libgcc_s) in
+      // <prefix>/<triple>/lib/ while static libraries (libgcc.a) go in
+      // <prefix>/lib/gcc[-cross]/<triple>/<version>/. Derive the former
+      // from the latter.
+      char gcc_target_lib[PATH_MAX];
+      snprintf(gcc_target_lib, sizeof(gcc_target_lib),
+        "%s/../../../../%s/lib", gcc_lib_dir, sys_triple);
+
+      struct stat gcc_target_stat;
+      if(stat(gcc_target_lib, &gcc_target_stat) == 0
+        && S_ISDIR(gcc_target_stat.st_mode))
+      {
+        snprintf(buf, sizeof(buf), "-L%s", gcc_target_lib);
+        args.push_back(stringtab(buf));
+      }
     }
   }
 
@@ -964,9 +1220,10 @@ static bool link_exe_lld_elf(compile_t* c, ast_t* program,
   // Pony runtime.
   if(!c->opt->runtimebc)
   {
-    // FreeBSD ships a single libponyrt.a (PIC-enabled) and no compiler-rt
-    // CRT, so ponyc_crt_dir is NULL there; resolve -lponyrt via the -L lib
-    // paths, with no -pic variant (matching the external FreeBSD path).
+    // FreeBSD and DragonFly ship a single libponyrt.a (PIC-enabled) and no
+    // compiler-rt CRT, so ponyc_crt_dir is NULL on those targets; resolve
+    // -lponyrt via the -L lib paths, with no -pic variant (matching the
+    // external BSD path).
     if(ponyc_crt_dir == NULL)
     {
       args.push_back("-lponyrt");
@@ -1003,6 +1260,20 @@ static bool link_exe_lld_elf(compile_t* c, ast_t* program,
     if(c->opt->staticbin)
       args.push_back("-lelf");
   }
+  else if(is_dragonfly)
+  {
+    // dlopen is in libc. backtrace() is in libexecinfo. libatomic isn't
+    // shipped in base — it comes from pkg gcc (libgcc_s's adjacent
+    // libatomic) or cxx_atomics. The pkg-gcc nested layout puts libatomic
+    // at the gcc-root dir added above, so -latomic resolves there. The
+    // base-gcc flat fallback has no libatomic; the link will fail
+    // alongside the missing -lgcc_s — the user has already been warned
+    // that the flat fallback isn't a complete toolchain.
+    // DragonFly's libexecinfo has no libelf dependency, so -lelf isn't
+    // needed even for static links (and no libelf is installed anyway).
+    args.push_back("-lexecinfo");
+    args.push_back("-latomic");
+  }
   else
   {
     args.push_back("-ldl");
@@ -1030,8 +1301,8 @@ static bool link_exe_lld_elf(compile_t* c, ast_t* program,
     args.push_back("-lgcc_eh");
     args.push_back("-lc");
     args.push_back("--end-group");
-    // libssp_nonshared is a glibc artifact; FreeBSD has no such library.
-    if(!is_freebsd)
+    // libssp_nonshared is a glibc artifact; the BSDs have no such library.
+    if(!is_freebsd && !is_dragonfly)
       args.push_back("-lssp_nonshared");
   }
   else
@@ -1051,7 +1322,7 @@ static bool link_exe_lld_elf(compile_t* c, ast_t* program,
   }
   else
   {
-    // Static or non-PIE dynamic (FreeBSD): plain crtend.o.
+    // Static or non-PIE dynamic (FreeBSD/DragonFly): plain crtend.o.
     snprintf(buf, sizeof(buf), "%s/crtend.o", compiler_crt_dir);
     args.push_back(stringtab(buf));
   }
@@ -1544,11 +1815,15 @@ static bool link_exe(compile_t* c, ast_t* program,
     return link_exe_lld_macho(c, program, file_o);
   }
 
-  // FreeBSD routes to embedded LLD unless ponyc was built with dtrace, in
-  // which case the external path below handles the -ldtrace_probes linking.
+  // FreeBSD and DragonFly route to embedded LLD unless ponyc was built
+  // with dtrace, in which case the external path below handles the
+  // -ldtrace_probes linking. (DragonFly has no dtrace_probes/libelf libs
+  // available — use=dtrace builds for DragonFly are already broken; the
+  // guard preserves that failure mode rather than introducing a new one.)
 #if !defined(USE_DYNAMIC_TRACE)
   if(c->opt->linker == NULL
-    && target_is_freebsd(c->opt->triple)
+    && (target_is_freebsd(c->opt->triple)
+        || target_is_dragonfly(c->opt->triple))
 #if defined(PONY_SANITIZER)
     && is_cross_compiling(c)
 #endif
