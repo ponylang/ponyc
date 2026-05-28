@@ -38,6 +38,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Change socket runtime functions to use three-state result type ([PR #5002](https://github.com/ponylang/ponyc/pull/5002))
 - Reject identity comparison between distinct concrete types ([PR #5345](https://github.com/ponylang/ponyc/pull/5345))
 - Update to LLVM 22.1.6 ([PR #5364](https://github.com/ponylang/ponyc/pull/5364))
+- Use embedded LLD for native FreeBSD builds ([PR #5368](https://github.com/ponylang/ponyc/pull/5368))
 
 ## [0.63.4] - 2026-05-02
 
