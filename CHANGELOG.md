@@ -39,6 +39,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Reject identity comparison between distinct concrete types ([PR #5345](https://github.com/ponylang/ponyc/pull/5345))
 - Update to LLVM 22.1.6 ([PR #5364](https://github.com/ponylang/ponyc/pull/5364))
 - Use embedded LLD for native FreeBSD builds ([PR #5368](https://github.com/ponylang/ponyc/pull/5368))
+- Use embedded LLD for native DragonFly builds ([PR #5377](https://github.com/ponylang/ponyc/pull/5377))
 
 ## [0.63.4] - 2026-05-02
 
