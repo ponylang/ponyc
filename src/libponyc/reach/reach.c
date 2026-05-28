@@ -318,6 +318,14 @@ static const char* make_mangled_name(reach_method_t* m)
   // sender and receiver can cause ORCA GC problems. Functions don't have
   // dispatch cases, and their symbol names may be hard-coded in the runtime
   // (e.g. Main_runtime_override_defaults).
+  //
+  // Partiality is intentionally NOT included: the painter assigns vtable
+  // indices by mangled name, so partial and non-partial methods that match
+  // here share a vtable slot. Codegen reconciles the calling conventions
+  // via the error-flag wrapper — see `reach_vtable_index_has_partial` and
+  // its consumers in gendesc.c and gencall.c. If a future change starts
+  // segregating slots by partiality, the entire wrap mechanism becomes
+  // dead code and should be removed.
   bool include_trace_kind = false;
 
   if(m->fun != NULL)
@@ -1682,6 +1690,53 @@ uint32_t reach_vtable_index(reach_type_t* t, const char* name)
     return (uint32_t)-1;
 
   return m->vtable_index;
+}
+
+bool reach_vtable_index_has_partial(reach_t* r, uint32_t vtable_index)
+{
+  // Walk every reachable method and return true on the first partial method
+  // at this vtable index. See the header for why both sides of the
+  // gendesc.c/gencall.c wrap split rely on this query.
+  //
+  // An unpainted slot (the painter never assigned this index — bare-method
+  // types are skipped, internal methods may not get one) can never have a
+  // partial vtable-shared sibling because it doesn't share a slot with
+  // anything. Reject the sentinel before walking.
+  if(vtable_index == (uint32_t)-1)
+    return false;
+
+  size_t i = HASHMAP_BEGIN;
+  reach_type_t* t;
+
+  while((t = reach_types_next(&r->types, &i)) != NULL)
+  {
+    size_t j = HASHMAP_BEGIN;
+    reach_method_name_t* n;
+
+    while((n = reach_method_names_next(&t->methods, &j)) != NULL)
+    {
+      size_t k = HASHMAP_BEGIN;
+      reach_method_t* m;
+
+      while((m = reach_mangled_next(&n->r_mangled, &k)) != NULL)
+      {
+        // Bare methods don't use the error-flag return convention — a bare
+        // partial function aborts on error rather than returning `{T, i1}` —
+        // so the AST's `?` on a bare method does not mean its vtable slot
+        // is wrapped, and it should not contribute to the wrap decision.
+        if((m->vtable_index == vtable_index) && (m->fun != NULL) &&
+          (m->cap != TK_AT))
+        {
+          ast_t* err = ast_childidx(m->fun->ast, 5);
+
+          if((err != NULL) && (ast_id(err) == TK_QUESTION))
+            return true;
+        }
+      }
+    }
+  }
+
+  return false;
 }
 
 uint32_t reach_max_type_id(reach_t* r)

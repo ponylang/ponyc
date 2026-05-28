@@ -156,60 +156,23 @@ static LLVMValueRef make_desc_ptr(compile_t* c, LLVMValueRef func)
   return func == NULL ? LLVMConstNull(c->ptr) : func;
 }
 
-static bool method_needs_error_wrap(reach_type_t* t, reach_method_t* m)
+static bool method_needs_error_wrap(reach_t* r, reach_method_t* m)
 {
-  // Check if a non-partial method needs an error-wrapping vtable entry.
-  // This happens when the method is dispatched through a trait/interface/union
-  // where the same method IS partial. The vtable entry must match the dispatch
-  // type's return type ({T, i1} instead of T).
+  // A non-partial method needs an error-wrapping vtable entry whenever the
+  // painter has put it at the same vtable index as a partial method (same
+  // mangled name, since mangling ignores partiality). The vtable slot then
+  // returns `{T, i1}` regardless of which side called it.
+  //
+  // COUPLING: the interface-dispatch site in gencall.c (gen_call) keys off
+  // the SAME `reach_vtable_index_has_partial` query to decide when to unwrap
+  // the result. If the predicate here changes, the call site must change to
+  // match — see the header comment on `reach_vtable_index_has_partial`.
   compile_method_t* c_m = (compile_method_t*)m->c_method;
 
-  if(c_m->is_partial)
+  if(c_m->is_partial || m->internal)
     return false;
 
-  size_t i = HASHMAP_BEGIN;
-  reach_type_t* st;
-
-  while((st = reach_type_cache_next(&t->subtypes, &i)) != NULL)
-  {
-    // Only check dispatch types. Skip concrete types that appear in subtypes
-    // due to the bidirectional relationship in the reach module.
-    switch(st->underlying)
-    {
-      case TK_UNIONTYPE:
-      case TK_ISECTTYPE:
-      case TK_INTERFACE:
-      case TK_TRAIT:
-        break;
-
-      default:
-        continue;
-    }
-
-    // Look for any method on this dispatch type with the same vtable index
-    // that is partial.
-    size_t j = HASHMAP_BEGIN;
-    reach_method_name_t* mn;
-
-    while((mn = reach_method_names_next(&st->methods, &j)) != NULL)
-    {
-      size_t k = HASHMAP_BEGIN;
-      reach_method_t* sm;
-
-      while((sm = reach_mangled_next(&mn->r_mangled, &k)) != NULL)
-      {
-        if((sm->vtable_index == m->vtable_index) && (sm->fun != NULL))
-        {
-          ast_t* err = ast_childidx(sm->fun->ast, 5);
-
-          if((err != NULL) && (ast_id(err) == TK_QUESTION))
-            return true;
-        }
-      }
-    }
-  }
-
-  return false;
+  return reach_vtable_index_has_partial(r, m->vtable_index);
 }
 
 static LLVMValueRef make_error_wrap_function(compile_t* c,
@@ -486,7 +449,7 @@ static LLVMValueRef make_vtable(compile_t* c, reach_type_t* t)
       pony_assert(vtable[index] == NULL);
       compile_method_t* c_m = (compile_method_t*)m->c_method;
 
-      bool needs_wrap = !m->internal && method_needs_error_wrap(t, m);
+      bool needs_wrap = method_needs_error_wrap(c->reach, m);
 
       if((c_t->primitive != NULL) && !m->internal)
         vtable[index] = make_unbox_function(c, t, m, needs_wrap);
