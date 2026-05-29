@@ -294,6 +294,21 @@ jobs:
           rm -rf build/build_libs
           gmake configure config=debug
           gmake build config=debug
+          # Smoke-test the --static embedded-LLD link path; the test
+          # targets below only exercise dynamic linking. Covers actor init
+          # plus exception unwinding through the static recipe. OpenBSD
+          # static is static-PIE (rcrt0.o startup), so the binary's `file`
+          # output is "ELF 64-bit LSB shared object" — confirm via
+          # `readelf -d` showing zero DT_NEEDED entries instead. The
+          # readelf invocation runs under set -e so any failure of the
+          # command propagates; `! ... | grep -q '(NEEDED)'` asserts the
+          # absence rather than a count of zero (which is what a failing
+          # readelf would also produce).
+          mkdir -p /tmp/static-smoke
+          printf 'actor Main\n  new create(env: Env) =>\n    try error else env.out.print("static ok") end\n' > /tmp/static-smoke/main.pony
+          PONYPATH="$PWD/packages" ./build/debug/ponyc --static -o /tmp/static-smoke /tmp/static-smoke
+          ! readelf -d /tmp/static-smoke/static-smoke | grep -q '(NEEDED)'
+          /tmp/static-smoke/static-smoke | grep -q 'static ok'
           gmake test-ci-core config=debug
           gmake test-pony-doc config=debug
           gmake test-pony-lint config=debug
