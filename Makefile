@@ -260,7 +260,7 @@ test-examples: all
 	$(SILENT)cd '$(outDir)' && PONYPATH=.:$(PONYPATH) find ../../examples/*/* -name '*.pony' -print | xargs -n 1 dirname | sort -u | grep -v ffi- | xargs -n 1 -I {} ./ponyc -d -s --checktree -o {} {}
 
 test-validate-grammar: all
-	$(SILENT)cd '$(outDir)' && ./ponyc --antlr >> pony.g.new && diff ../../pony.g pony.g.new
+	$(SILENT)cd '$(outDir)' && ./ponyc --antlr > pony.g.new && diff ../../pony.g pony.g.new
 
 # File-target rules below provide incremental rebuild for the five
 # Pony-source binaries this Makefile builds outside cmake:
