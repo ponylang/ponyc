@@ -40,6 +40,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Update to LLVM 22.1.6 ([PR #5364](https://github.com/ponylang/ponyc/pull/5364))
 - Use embedded LLD for native FreeBSD builds ([PR #5368](https://github.com/ponylang/ponyc/pull/5368))
 - Use embedded LLD for native DragonFly builds ([PR #5377](https://github.com/ponylang/ponyc/pull/5377))
+- Use embedded LLD for native OpenBSD builds ([PR #5380](https://github.com/ponylang/ponyc/pull/5380))
 
 ## [0.63.4] - 2026-05-02
 
