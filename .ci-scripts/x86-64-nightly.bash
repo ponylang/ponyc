@@ -24,6 +24,20 @@ if [[ -z "${TRIPLE_OS}" ]]; then
   exit 1
 fi
 
+if [[ -z "${GITHUB_REPOSITORY}" ]]; then
+  echo -e "\e[31mName of this repository needs to be set in GITHUB_REPOSITORY."
+  echo -e "\e[31mShould be in the form OWNER/REPO, for example:"
+  echo -e "\e[31m     ponylang/ponyc"
+  echo -e "\e[31mExiting.\e[0m"
+  exit 1
+fi
+
+if [[ -z "${GITHUB_TOKEN}" ]]; then
+  echo -e "\e[31mGITHUB_TOKEN needs to be set for GHCR publishing."
+  echo -e "Exiting.\e[0m"
+  exit 1
+fi
+
 TODAY=$(date +%Y%m%d)
 
 # Compiler target parameters
@@ -69,3 +83,10 @@ echo "Uploading package to cloudsmith..."
 cloudsmith push raw --version "${CLOUDSMITH_VERSION}" \
   --api-key "${CLOUDSMITH_API_KEY}" --summary "${ASSET_SUMMARY}" \
   --description "${ASSET_DESCRIPTION}" ${ASSET_PATH} "${ASSET_FILE}"
+
+# Additionally publish to GHCR as an OCI artifact. Runs after the Cloudsmith
+# push (the current primary) and reuses TODAY and ASSET_FILE so both
+# destinations get the same date and bytes.
+echo "Uploading package to GHCR..."
+python3 "$(dirname "$0")/release/ghcr_nightly.py" push ponyc "${TRIPLE}" \
+  "${TODAY}" "${ASSET_FILE}"

@@ -35,3 +35,7 @@ packages/stdlib/stdlib
 tools/pony-lsp/version.pony
 tools/pony-lint/version.pony
 tools/pony-doc/version.pony
+
+# Python bytecode
+__pycache__/
+*.pyc
