@@ -121,7 +121,33 @@ if(GIT_FOUND)
                 message(FATAL_ERROR "Unable to apply ${PATCH}")
             endif()
         else()
-            message("    Already applied ${PATCH}")
+            # The forward check failed. That means either the patch is
+            # already applied, or `git apply` could not evaluate it at all.
+            # The latter happens when lib/llvm/src has a dangling submodule
+            # gitlink: a `.git` file pointing at a `.git/modules/...` target
+            # that isn't present (e.g. the tree was copied or rsynced without
+            # the parent's `.git/modules`). In that case `git apply` aborts
+            # with "fatal: not a git repository" and a non-zero exit. Note
+            # this loop runs unconditionally inside `if(GIT_FOUND)`, even when
+            # the `EXISTS ../.git` submodule-update guard above is false, so
+            # the dangling-gitlink tree reaches this point unchecked.
+            #
+            # Distinguish the two with a reverse check: if the patch
+            # reverse-applies cleanly it is genuinely in the tree and we skip
+            # it; otherwise fail loudly rather than silently build an
+            # unpatched source tree.
+            execute_process(COMMAND ${GIT_EXECUTABLE} apply --reverse --check -p 1 --ignore-whitespace --whitespace=nowarn ${PATCH}
+                            WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}/llvm/src"
+                            ERROR_VARIABLE _reverse_err_out
+                            RESULT_VARIABLE git_apply_reverse_check_result)
+            if(git_apply_reverse_check_result EQUAL "0")
+                message("    Already applied ${PATCH}")
+            else()
+                message(FATAL_ERROR "Unable to apply or verify ${PATCH}.\n"
+                        "The patch does not apply and is not already applied; the source tree may be missing its git metadata (e.g. a dangling submodule gitlink).\n"
+                        "Forward check error:\n${_err_out}\n"
+                        "Reverse check error:\n${_reverse_err_out}")
+            endif()
         endif()
     endforeach()
 else()
