@@ -317,6 +317,30 @@ static const char* elf_emulation(compile_t* c)
     }
   }
 
+  // OpenBSD: `_obsd` suffix tells lld's parseEmulation to set
+  // ctx.arg.osabi = ELFOSABI_OPENBSD on the output, which gates emission
+  // of OpenBSD-specific program headers (PT_OPENBSD_RANDOMIZE,
+  // PT_OPENBSD_MUTABLE, PT_OPENBSD_SYSCALLS) and is what the OpenBSD
+  // kernel uses to enable per-binary security features (random retguard
+  // cookies, syscall pinning). Stock lld doesn't ship the `_obsd` suffix;
+  // ponyc adds it via the lld-openbsd-section-merge.diff patch in
+  // lib/llvm/patches, modeled on lld's existing `_fbsd` handling. The
+  // alternative path of letting lld infer osabi from input objects only
+  // fires when `-m` is absent (Driver.cpp inferMachineType bails when
+  // ekind is already set), so the brand must come from the emulation
+  // string.
+  //
+  // ponyc supports x86-64 only on OpenBSD; explicit NULL on other arches
+  // errors cleanly rather than mis-branding.
+  if(target_is_openbsd(c->opt->triple))
+  {
+    switch(triple.getArch())
+    {
+      case llvm::Triple::x86_64: return "elf_x86_64_obsd";
+      default: return NULL;
+    }
+  }
+
   switch(triple.getArch())
   {
     case llvm::Triple::x86_64: return "elf_x86_64";
@@ -373,6 +397,13 @@ static const char* dynamic_linker_path(compile_t* c)
   // symlink and works, but /libexec/ is the convention.
   if(target_is_dragonfly(c->opt->triple))
     return "/libexec/ld-elf.so.2";
+
+  // OpenBSD: single rtld at /usr/libexec/ld.so for all arches (ponyc
+  // supports x86-64 only). Verified: /libexec/ld.so does NOT exist on
+  // OpenBSD; /usr/libexec/ld.so is the only one. Base binaries' INTERP
+  // points here.
+  if(target_is_openbsd(c->opt->triple))
+    return "/usr/libexec/ld.so";
 
   bool is_musl = triple.isMusl() || host_is_musl(c, triple.getArch());
 
@@ -467,21 +498,21 @@ static bool elf_matches_target(const char* path, uint16_t target_machine)
 static const char* find_libc_crt_dir(const char* sysroot,
   const char* sys_triple, uint16_t target_machine)
 {
-  // Search candidate paths for libc CRT objects (crt1.o).
+  // Search candidate paths for libc CRT objects.
   // The lib64 candidates cover Fedora, RHEL, and other distros that
   // place 64-bit libc startup objects in /usr/lib64 rather than
   // /usr/lib/<triple> or /usr/lib.
   //
-  // Each candidate's crt1.o is validated against the target architecture
-  // via elf_matches_target. On multilib hosts (e.g. an x86_64 system
-  // with glibc-devel.i686 installed) /usr/lib/crt1.o is the 32-bit
-  // object while /usr/lib64/crt1.o is the 64-bit one — without arch
-  // validation the search would return /usr/lib and the link would
-  // fail later inside LLD with an arch-mismatch error. Validating
-  // crt1.o alone is sufficient because multilib distros ship matched
-  // sets of startup objects (crt1.o, Scrt1.o, crti.o, crtn.o) per
-  // directory, so the arch of crt1.o reliably identifies the arch of
-  // the directory.
+  // Per candidate, try crt1.o first (Linux/FreeBSD/DragonFly), then
+  // crt0.o (OpenBSD, which has no crt1.o at all). The sentinel is
+  // validated against the target architecture via elf_matches_target.
+  // On multilib hosts (e.g. an x86_64 system with glibc-devel.i686
+  // installed) /usr/lib/crt1.o is the 32-bit object while
+  // /usr/lib64/crt1.o is the 64-bit one — without arch validation the
+  // search would return /usr/lib and the link would fail later inside
+  // LLD with an arch-mismatch error. Validating the sentinel alone is
+  // sufficient because the multilib/per-OS layouts ship matched sets of
+  // startup objects in each directory.
   const char* candidates[6];
   char buf[PATH_MAX];
 
@@ -503,11 +534,16 @@ static const char* find_libc_crt_dir(const char* sysroot,
   snprintf(buf, sizeof(buf), "%s/lib64", sysroot);
   candidates[5] = stringtab(buf);
 
+  static const char* sentinels[] = { "crt1.o", "crt0.o" };
+
   for(size_t i = 0; i < sizeof(candidates) / sizeof(candidates[0]); i++)
   {
-    snprintf(buf, sizeof(buf), "%s/crt1.o", candidates[i]);
-    if(file_exists(buf) && elf_matches_target(buf, target_machine))
-      return candidates[i];
+    for(size_t j = 0; j < sizeof(sentinels) / sizeof(sentinels[0]); j++)
+    {
+      snprintf(buf, sizeof(buf), "%s/%s", candidates[i], sentinels[j]);
+      if(file_exists(buf) && elf_matches_target(buf, target_machine))
+        return candidates[i];
+    }
   }
 
   return NULL;
@@ -827,8 +863,8 @@ static const char* resolve_sysroot(compile_t* c, const char* sys_triple,
       return c->opt->sysroot;
 
     errorf(errors, NULL,
-      "sysroot '%s' does not contain a libc crt1.o matching target "
-      "architecture '%s'\n"
+      "sysroot '%s' does not contain a libc crt startup object "
+      "(crt1.o or crt0.o) matching target architecture '%s'\n"
       "  Searched: %s/usr/lib/%s/, %s/usr/lib/, %s/lib/%s/, %s/lib/,\n"
       "            %s/usr/lib64/, %s/lib64/",
       c->opt->sysroot,
@@ -894,11 +930,18 @@ static bool link_exe_lld_elf(compile_t* c, ast_t* program,
   const char* sys_triple = system_triple(c);
   bool is_freebsd = target_is_freebsd(c->opt->triple);
   bool is_dragonfly = target_is_dragonfly(c->opt->triple);
+  bool is_openbsd = target_is_openbsd(c->opt->triple);
   // FreeBSD and DragonFly executables are non-PIE by default (matching
   // the base toolchain), and non-PIE is required to link the non-PIC
   // static libraries some programs pull in (e.g. the system libc++ bundled
   // into libponyc-standalone, which the Pony-based tools link). PIE stays
-  // the default everywhere else.
+  // the default for dynamic links everywhere else, including OpenBSD which
+  // enforces PIE strictly (the kernel refuses to exec non-PIE binaries).
+  // This `pie` flag only gates the dynamic-side `-pie` push at the static/
+  // dynamic split below; for OpenBSD static, where the binary is still
+  // static-PIE, an explicit `-pie` is passed alongside `-static` in the
+  // static branch (see comment there for why both flags are needed
+  // together).
   bool pie = !c->opt->staticbin && !is_freebsd && !is_dragonfly;
 
   // Resolve sysroot.
@@ -930,8 +973,9 @@ static bool link_exe_lld_elf(compile_t* c, ast_t* program,
   if(libc_crt_dir == NULL)
   {
     errorf(errors, NULL,
-      "could not find a libc crt1.o matching target architecture '%s' "
-      "in sysroot '%s'", c->opt->triple, sysroot);
+      "could not find a libc crt startup object (crt1.o or crt0.o) "
+      "matching target architecture '%s' in sysroot '%s'",
+      c->opt->triple, sysroot);
     return false;
   }
 
@@ -942,14 +986,16 @@ static bool link_exe_lld_elf(compile_t* c, ast_t* program,
   // ship our own. On DragonFly they're under a pkg-installed gccNN
   // directory (/usr/local/lib/gccNN/gcc/<triple>/<ver>/) or, as a fallback,
   // under base /usr/lib/gccNN/; the DragonFly-specific resolver finds
-  // either layout. ponyc_crt_dir stays NULL on FreeBSD and DragonFly; the
+  // either layout. On OpenBSD they live in /usr/lib alongside crt0.o
+  // (base toolchain is clang + compiler-rt), so the FreeBSD shape applies
+  // — source from libc_crt_dir. ponyc_crt_dir stays NULL on the BSDs; the
   // libponyrt block below handles that.
   llvm::Triple target_triple(c->opt->triple);
   std::string arch_prefix = std::string(target_triple.getArchName()) + "-";
 
   const char* ponyc_crt_dir = NULL;
   const char* compiler_crt_dir;
-  if(is_freebsd)
+  if(is_freebsd || is_openbsd)
   {
     compiler_crt_dir = libc_crt_dir;
   }
@@ -1019,6 +1065,18 @@ static bool link_exe_lld_elf(compile_t* c, ast_t* program,
   args.push_back("--build-id");
   args.push_back("--eh-frame-hdr");
 
+  // OpenBSD's libc CRT defines the program entry point as `__start`
+  // (double underscore). lld defaults to `_start` (single underscore) on
+  // ELF, so without an explicit override the link fails with an
+  // undefined-symbol error for `_start`. Set the entry point on OpenBSD
+  // to match what crt0.o/rcrt0.o actually export. Confirmed by the base
+  // `cc -v` link recipe on OpenBSD 7.8.
+  if(is_openbsd)
+  {
+    args.push_back("-e");
+    args.push_back("__start");
+  }
+
   // Sysroot lets LLD resolve absolute paths in linker scripts (e.g.
   // libc.so referencing /lib/libpthread.so.0) by prepending the sysroot.
   // Our patched LLD falls back to the original path when the
@@ -1030,6 +1088,15 @@ static bool link_exe_lld_elf(compile_t* c, ast_t* program,
   {
     args.push_back("-static");
     args.push_back("--as-needed");
+    // OpenBSD's static linkage is static-PIE: the startup is rcrt0.o and
+    // the binary has a PT_DYNAMIC section for self-relocation. lld with
+    // bare -static suppresses PT_DYNAMIC, which leaves the weak _DYNAMIC
+    // reference in libpthread.a's rthread_fork.o unresolved (a hard
+    // link-time error). Adding -pie alongside -static tells lld "produce
+    // static-PIE", which keeps PT_DYNAMIC and lets lld synthesize the
+    // _DYNAMIC symbol pointing at it (Writer.cpp:1828-1832).
+    if(is_openbsd)
+      args.push_back("-pie");
   }
   else
   {
@@ -1048,7 +1115,18 @@ static bool link_exe_lld_elf(compile_t* c, ast_t* program,
     args.push_back("--strip-debug");
 
   // CRT startup objects.
-  if(pie)
+  if(is_openbsd)
+  {
+    // OpenBSD startup-file naming is unique among the supported targets:
+    // dynamic PIE uses crt0.o and static uses rcrt0.o (static-PIE
+    // startup; the static binary's DYN type comes from rcrt0.o, not from
+    // passing -pie alongside -static). Neither matches Linux/FreeBSD/
+    // DragonFly's Scrt1.o/crt1.o naming.
+    const char* startup = c->opt->staticbin ? "rcrt0.o" : "crt0.o";
+    snprintf(buf, sizeof(buf), "%s/%s", libc_crt_dir, startup);
+    args.push_back(stringtab(buf));
+  }
+  else if(pie)
   {
     // PIE startup: prefer Scrt1.o, fall back to crt1.o.
     snprintf(buf, sizeof(buf), "%s/Scrt1.o", libc_crt_dir);
@@ -1067,10 +1145,25 @@ static bool link_exe_lld_elf(compile_t* c, ast_t* program,
     args.push_back(stringtab(buf));
   }
 
-  snprintf(buf, sizeof(buf), "%s/crti.o", libc_crt_dir);
-  args.push_back(stringtab(buf));
+  // OpenBSD doesn't ship crti.o/crtn.o — its CRT model uses crt0.o (or
+  // rcrt0.o) + crtbegin.o + crtend.o only. Skip the init wrapper here and
+  // the matching finalization wrapper at the end of the link line.
+  if(!is_openbsd)
+  {
+    snprintf(buf, sizeof(buf), "%s/crti.o", libc_crt_dir);
+    args.push_back(stringtab(buf));
+  }
 
-  if(c->opt->staticbin && !is_dragonfly)
+  if(is_openbsd)
+  {
+    // OpenBSD uses plain crtbegin.o for both static (rcrt0.o-based
+    // static-PIE) and dynamic PIE — the S variant (crtbeginS.o) exists in
+    // /usr/lib but base cc -v never selects it; the static-PIE path picks
+    // up the same crtbegin.o as the dynamic-PIE path.
+    snprintf(buf, sizeof(buf), "%s/crtbegin.o", compiler_crt_dir);
+    args.push_back(stringtab(buf));
+  }
+  else if(c->opt->staticbin && !is_dragonfly)
   {
     snprintf(buf, sizeof(buf), "%s/crtbeginT.o", compiler_crt_dir);
     args.push_back(stringtab(buf));
@@ -1274,6 +1367,21 @@ static bool link_exe_lld_elf(compile_t* c, ast_t* program,
     args.push_back("-lexecinfo");
     args.push_back("-latomic");
   }
+  else if(is_openbsd)
+  {
+    // dlopen is in libc and there's no libatomic in base (matching FreeBSD).
+    // No -ldl, no -latomic, and no -lexecinfo HERE — backtrace() is in
+    // libexecinfo, but libexecinfo.a's new_handler.o defines
+    // std::{get,set}_new_handler as strong T symbols, and libc++abi.a's
+    // cxa_*_handlers.o do too. If -lexecinfo precedes -lc++abi in the
+    // command line, both .o files get pulled in and lld rejects the
+    // duplicate. The external-linker OpenBSD path in link_exe below
+    // avoids this by positioning -lc++abi before -lexecinfo in the line;
+    // we mirror that by emitting -lexecinfo inside the runtime block
+    // below, after -lc++abi. No -lelf even for static links —
+    // libexecinfo.a has no libelf dependency (libelf.a does exist on
+    // OpenBSD 7.8, but nothing here uses it).
+  }
   else
   {
     args.push_back("-ldl");
@@ -1294,7 +1402,44 @@ static bool link_exe_lld_elf(compile_t* c, ast_t* program,
   }
 
   // GCC runtime and libc linkage.
-  if(c->opt->staticbin)
+  if(is_openbsd)
+  {
+    // OpenBSD's base toolchain is clang + compiler-rt, not gcc. _Unwind_*
+    // symbols (used by Pony's backtrace path through libexecinfo) come
+    // from libcompiler_rt, not libgcc/libgcc_s/libunwind — libunwind has
+    // no standalone library on OpenBSD; its objects are bundled into
+    // libcompiler_rt and libexecinfo.a. Base cc -v uses a
+    // `-lcompiler_rt -lc -lcompiler_rt` sandwich so libc and compiler_rt
+    // can cross-reference; we wrap it in --start-group/--end-group to
+    // make ordering between libc and compiler_rt not load-bearing.
+    //
+    // Library order inside the group is load-bearing in a way -lpthread/
+    // -lm aren't:
+    //   -lc++abi    — operator new/delete (weak in stdlib_new_delete.o)
+    //                 plus std::{get,set}_new_handler (strong in
+    //                 cxa_*_handlers.o). libponyc-standalone aggregates
+    //                 LLVM/libc++ object code that requires operator new.
+    //   -lexecinfo  — backtrace(); must come AFTER -lc++abi because
+    //                 libexecinfo.a's new_handler.o defines
+    //                 std::{get,set}_new_handler as strong T symbols too,
+    //                 and lld rejects the duplicate if both .o files end
+    //                 up in the link. With -lc++abi first, the new_handler
+    //                 symbols resolve from libc++abi and libexecinfo's
+    //                 new_handler.o is never pulled in. This mirrors the
+    //                 external-linker OpenBSD path in link_exe below,
+    //                 where -lc++abi precedes -lexecinfo in the format
+    //                 string for the same reason.
+    //   -lcompiler_rt -lc -lcompiler_rt — the base-cc sandwich for libc
+    //                 and the unwinder/builtins.
+    args.push_back("--start-group");
+    args.push_back("-lc++abi");
+    args.push_back("-lexecinfo");
+    args.push_back("-lcompiler_rt");
+    args.push_back("-lc");
+    args.push_back("-lcompiler_rt");
+    args.push_back("--end-group");
+  }
+  else if(c->opt->staticbin)
   {
     args.push_back("--start-group");
     args.push_back("-lgcc");
@@ -1302,7 +1447,7 @@ static bool link_exe_lld_elf(compile_t* c, ast_t* program,
     args.push_back("-lc");
     args.push_back("--end-group");
     // libssp_nonshared is a glibc artifact; the BSDs have no such library.
-    if(!is_freebsd && !is_dragonfly)
+    if(!target_is_bsd(c->opt->triple))
       args.push_back("-lssp_nonshared");
   }
   else
@@ -1315,7 +1460,15 @@ static bool link_exe_lld_elf(compile_t* c, ast_t* program,
   }
 
   // CRT finalization objects.
-  if(pie)
+  if(is_openbsd)
+  {
+    // OpenBSD uses plain crtend.o for both PIE and static (matching the
+    // crtbegin.o choice above; base cc -v never selects crtendS.o on
+    // OpenBSD even though the S variant exists in /usr/lib).
+    snprintf(buf, sizeof(buf), "%s/crtend.o", compiler_crt_dir);
+    args.push_back(stringtab(buf));
+  }
+  else if(pie)
   {
     snprintf(buf, sizeof(buf), "%s/crtendS.o", compiler_crt_dir);
     args.push_back(stringtab(buf));
@@ -1327,8 +1480,12 @@ static bool link_exe_lld_elf(compile_t* c, ast_t* program,
     args.push_back(stringtab(buf));
   }
 
-  snprintf(buf, sizeof(buf), "%s/crtn.o", libc_crt_dir);
-  args.push_back(stringtab(buf));
+  // OpenBSD doesn't ship crtn.o — see the crti.o skip earlier.
+  if(!is_openbsd)
+  {
+    snprintf(buf, sizeof(buf), "%s/crtn.o", libc_crt_dir);
+    args.push_back(stringtab(buf));
+  }
 
   args.push_back("-o");
   args.push_back(file_exe);
@@ -1815,15 +1972,17 @@ static bool link_exe(compile_t* c, ast_t* program,
     return link_exe_lld_macho(c, program, file_o);
   }
 
-  // FreeBSD and DragonFly route to embedded LLD unless ponyc was built
-  // with dtrace, in which case the external path below handles the
-  // -ldtrace_probes linking. (DragonFly has no dtrace_probes/libelf libs
-  // available — use=dtrace builds for DragonFly are already broken; the
-  // guard preserves that failure mode rather than introducing a new one.)
+  // FreeBSD, DragonFly, and OpenBSD route to embedded LLD unless ponyc
+  // was built with dtrace, in which case the external path below handles
+  // the -ldtrace_probes linking. (DragonFly and OpenBSD have no
+  // dtrace_probes/libelf libs available — use=dtrace builds for those
+  // targets are already broken; the guard preserves that failure mode
+  // rather than introducing a new one.)
 #if !defined(USE_DYNAMIC_TRACE)
   if(c->opt->linker == NULL
     && (target_is_freebsd(c->opt->triple)
-        || target_is_dragonfly(c->opt->triple))
+        || target_is_dragonfly(c->opt->triple)
+        || target_is_openbsd(c->opt->triple))
 #if defined(PONY_SANITIZER)
     && is_cross_compiling(c)
 #endif
@@ -1992,7 +2151,12 @@ static bool link_exe(compile_t* c, ast_t* program,
     "-rdynamic "
 #endif
 #ifdef PLATFORM_IS_OPENBSD
-    // On OpenBSD, the unwind symbols are contained within libc++abi.
+    // On OpenBSD, -lc++abi is preserved here for ABI compatibility with
+    // historical external-linker links. The unwind symbols (_Unwind_*)
+    // that Pony's backtrace path resolves actually come from
+    // libcompiler_rt (verified empirically — libc++abi.a does not define
+    // them); the embedded-LLD path in link_exe_lld_elf above documents
+    // this and includes -lcompiler_rt explicitly in the runtime block.
     "%s %s%s %s %s -lpthread %s %s %s -lm -lc++abi %s %s %s "
 #else
     "%s %s%s %s %s -lpthread %s %s %s -lm %s %s %s "
