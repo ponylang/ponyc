@@ -2264,6 +2264,24 @@ bool is_constructable(ast_t* type)
   switch(ast_id(type))
   {
     case TK_UNIONTYPE:
+    {
+      // A union is constructable only if every member is constructable. A
+      // constructor call dispatched through the union must resolve on all
+      // members, so a single non-constructable member makes the union
+      // non-constructable.
+      ast_t* child = ast_child(type);
+
+      while(child != NULL)
+      {
+        if(!is_constructable(child))
+          return false;
+
+        child = ast_sibling(child);
+      }
+
+      return true;
+    }
+
     case TK_TUPLETYPE:
       return false;
 
