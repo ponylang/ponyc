@@ -140,7 +140,11 @@ primitive Base64
     not an error. Non-base64 data, other than whitespace (which can appear at
     any time), is an error.
     """
-    let len = (data.size() * 4) / 3
+    // Upper bound on the decoded size: every 4 input characters yield at most
+    // 3 output bytes, so the decoded data is ceil(data.size() * 3 / 4) bytes.
+    // Whitespace and padding only reduce the output, so this never
+    // under-allocates (and over-allocates by at most one byte).
+    let len = ((data.size() * 3) + 3) / 4
     let out = recover A(len) end
 
     var state = U8(0)
