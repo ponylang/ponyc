@@ -319,19 +319,59 @@ static const char* make_mangled_name(reach_method_t* m)
   // dispatch cases, and their symbol names may be hard-coded in the runtime
   // (e.g. Main_runtime_override_defaults).
   //
-  // Partiality is intentionally NOT included: the painter assigns vtable
-  // indices by mangled name, so partial and non-partial methods that match
-  // here share a vtable slot. Codegen reconciles the calling conventions
-  // via the error-flag wrapper — see `reach_vtable_index_has_partial` and
-  // its consumers in gendesc.c and gencall.c. If a future change starts
-  // segregating slots by partiality, the entire wrap mechanism becomes
-  // dead code and should be removed.
+  // Partiality IS included (via a trailing "_p"): the painter assigns vtable
+  // indices by mangled name, so partial and non-partial methods that would
+  // otherwise match here are kept in separate vtable slots. This matters
+  // because partiality is part of a method's calling convention — a partial
+  // function returns `{T, i1}` while a non-partial one returns `T`. Keeping
+  // them in distinct slots means the slot's calling convention is never
+  // ambiguous. A non-partial concrete reached through a partial interface
+  // still gets a wrapper, but via the forwarding mechanism (genfun_forward),
+  // which lands the wrapper in the partial-only slot.
+  //
+  // Bare methods (cap TK_AT) are excluded: a bare partial function aborts on
+  // error rather than returning `{T, i1}`, so partiality does not change its
+  // calling convention and must not split its slot.
+  //
+  // The marker is collision-free by construction, decided by the FINAL
+  // character of the mangle. For a non-internal method the result type's
+  // mangle is appended last, and every type mangle ends in a character from
+  // the fixed set {o, c, s, i, w, q, l, z, C, S, I, W, Q, L, Z, f, d, b} (the
+  // t->mangle assignments later in this file; a tuple's mangle ends in its
+  // last field's mangle, recursively in that same set). 'p' is not in the set,
+  // so a non-partial method's mangle never ends in 'p', while a partial
+  // method's always ends in 'p' (the marker). The two are disjoint, so no
+  // partial method can ever share a mangled name — hence a vtable slot — with
+  // a non-partial one.
+  //
+  // 'p' does appear EARLIER in some mangles: trace_kind_append emits 'p' for a
+  // primitive parameter. That is harmless, because trace-kind characters are
+  // only ever emitted just before a parameter's own type mangle, never as the
+  // final character. Only the terminal character matters here. Internal
+  // methods omit the result mangle, but they are never partial (no fun, so
+  // is_partial stays false), so they never carry the marker either.
+  //
+  // Do NOT change the marker to a letter that IS a type mangle character (e.g.
+  // 'q'), and do NOT add a t->mangle value ending in 'p', or this guarantee is
+  // lost. There is a reciprocal note at the t->mangle assignments.
   bool include_trace_kind = false;
+  bool is_partial = false;
 
   if(m->fun != NULL)
   {
     token_id fun_id = ast_id(m->fun->ast);
     include_trace_kind = (fun_id == TK_BE) || (fun_id == TK_NEW);
+
+    // COUPLING: this partiality test decides which vtable slot a method lands
+    // in. It MUST stay byte-identical to the `c_m->is_partial` test in
+    // make_function_type (codegen/genfun.c), which decides that slot's LLVM
+    // calling convention (`{T, i1}` for partial, `T` for non-partial). If the
+    // two diverge, a method lands in a slot whose ABI doesn't match its body —
+    // silently reintroducing the calling-convention crash this segregation
+    // exists to prevent. Child index 5 is the error/partial token (fixed by
+    // the parser's method REORDER).
+    ast_t* can_error = ast_childidx(m->fun->ast, 5);
+    is_partial = (m->cap != TK_AT) && (ast_id(can_error) == TK_QUESTION);
   }
 
   printbuf_t* buf = printbuf_new();
@@ -347,6 +387,10 @@ static const char* make_mangled_name(reach_method_t* m)
 
   if(!m->internal)
     printbuf(buf, "%s", m->result->mangle);
+
+  if(is_partial)
+    printbuf(buf, "_p");
+
   const char* name = stringtab(buf->m);
   printbuf_free(buf);
   return name;
@@ -1099,6 +1143,13 @@ static reach_type_t* add_nominal(reach_t* r, ast_t* type, pass_opt_t* opt)
   if(strcmp(ast_name(pkg), "$0"))
     return t;
 
+  // INVARIANT: no t->mangle value may be, or end in, 'p'. make_mangled_name
+  // appends a trailing "_p" to partial methods so they get their own vtable
+  // slot, and relies on no non-partial mangle ever ending in 'p' to keep that
+  // marker collision-free. Assigning a mangle of "p" here (or any value whose
+  // final character is 'p') would let a non-partial method collide with a
+  // partial one in the same slot, reviving the calling-convention crash that
+  // segregation prevents. See the collision-free note in make_mangled_name.
   const char* name = ast_name(id);
 
   if(name[0] == 'I')
@@ -1690,53 +1741,6 @@ uint32_t reach_vtable_index(reach_type_t* t, const char* name)
     return (uint32_t)-1;
 
   return m->vtable_index;
-}
-
-bool reach_vtable_index_has_partial(reach_t* r, uint32_t vtable_index)
-{
-  // Walk every reachable method and return true on the first partial method
-  // at this vtable index. See the header for why both sides of the
-  // gendesc.c/gencall.c wrap split rely on this query.
-  //
-  // An unpainted slot (the painter never assigned this index — bare-method
-  // types are skipped, internal methods may not get one) can never have a
-  // partial vtable-shared sibling because it doesn't share a slot with
-  // anything. Reject the sentinel before walking.
-  if(vtable_index == (uint32_t)-1)
-    return false;
-
-  size_t i = HASHMAP_BEGIN;
-  reach_type_t* t;
-
-  while((t = reach_types_next(&r->types, &i)) != NULL)
-  {
-    size_t j = HASHMAP_BEGIN;
-    reach_method_name_t* n;
-
-    while((n = reach_method_names_next(&t->methods, &j)) != NULL)
-    {
-      size_t k = HASHMAP_BEGIN;
-      reach_method_t* m;
-
-      while((m = reach_mangled_next(&n->r_mangled, &k)) != NULL)
-      {
-        // Bare methods don't use the error-flag return convention — a bare
-        // partial function aborts on error rather than returning `{T, i1}` —
-        // so the AST's `?` on a bare method does not mean its vtable slot
-        // is wrapped, and it should not contribute to the wrap decision.
-        if((m->vtable_index == vtable_index) && (m->fun != NULL) &&
-          (m->cap != TK_AT))
-        {
-          ast_t* err = ast_childidx(m->fun->ast, 5);
-
-          if((err != NULL) && (ast_id(err) == TK_QUESTION))
-            return true;
-        }
-      }
-    }
-  }
-
-  return false;
 }
 
 uint32_t reach_max_type_id(reach_t* r)
