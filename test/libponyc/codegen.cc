@@ -370,6 +370,18 @@ TEST_F(CodegenTest, RepeatLoopBreakOnlyInBranches)
   TEST_COMPILE(src);
 }
 
+TEST_F(CodegenTest, RepeatLoopElseClauseJumpsAway)
+{
+  // From issue #3326
+  // The else clause `error` jumps away and so has no type. gen_repeat must not
+  // try to reify that absent type, which previously crashed the compiler.
+  const char* src =
+    "actor Main\n"
+      "new create(env: Env) =>\n"
+        "try let x: U8 = repeat 1 until false else error end end";
+
+  TEST_COMPILE(src);
+}
 
 TEST_F(CodegenTest, LifetimeIntrinsicsHaveSinglePointerArgument)
 {

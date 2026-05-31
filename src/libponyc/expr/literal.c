@@ -951,6 +951,9 @@ bool literal_call(ast_t* ast, pass_opt_t* opt)
 
   AST_GET_CHILDREN(ast, receiver, positional_args, named_args, question);
 
+  if(jumps_away_no_value(opt, receiver, "a receiver"))
+    return false;
+
   ast_t* recv_type = ast_type(receiver);
 
   if(is_typecheck_error(recv_type))
@@ -1015,6 +1018,10 @@ bool literal_is(ast_t* ast, pass_opt_t* opt)
   pony_assert(ast_id(ast) == TK_IS || ast_id(ast) == TK_ISNT);
 
   AST_GET_CHILDREN(ast, left, right);
+
+  if(jumps_away_no_value(opt, left, "an operand of an identity comparison") ||
+    jumps_away_no_value(opt, right, "an operand of an identity comparison"))
+    return false;
 
   ast_t* l_type = ast_type(left);
   ast_t* r_type = ast_type(right);

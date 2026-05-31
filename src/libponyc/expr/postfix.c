@@ -437,8 +437,12 @@ bool expr_qualify(pass_opt_t* opt, ast_t** astp)
   ast_t* ast = *astp;
   pony_assert(ast_id(ast) == TK_QUALIFY);
   AST_GET_CHILDREN(ast, left, right);
-  ast_t* type = ast_type(left);
   pony_assert(ast_id(right) == TK_TYPEARGS);
+
+  if(jumps_away_no_value(opt, left, "a receiver"))
+    return false;
+
+  ast_t* type = ast_type(left);
 
   if(is_typecheck_error(type))
     return false;
@@ -503,6 +507,9 @@ static bool entity_access(pass_opt_t* opt, ast_t** astp)
 
     default: {}
   }
+
+  if(jumps_away_no_value(opt, left, "a receiver"))
+    return false;
 
   ast_t* type = ast_type(left);
 

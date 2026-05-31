@@ -2914,3 +2914,288 @@ TEST_F(BadPonyTest, RepeatWithLiteralBreakValueAndJumpsAwayElse)
 
   TEST_ERRORS_1(src, "Cannot infer type of unused literal");
 }
+
+// A control expression that jumps away with no value (`error`, `return`,
+// `break`, `continue`) has no type. Used in a value-operand position it must
+// produce a clean error, not crash the compiler. These were all assertion
+// crashes in the expr pass; uncovered while investigating issue #3326.
+
+TEST_F(BadPonyTest, IfConditionJumpsAway)
+{
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    try let x: U8 = if error then U8(1) else U8(2) end end";
+
+  TEST_ERRORS_1(src,
+    "a condition can't be an expression that jumps away with no value");
+}
+
+TEST_F(BadPonyTest, WhileConditionJumpsAway)
+{
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    try let x: U8 = while error do U8(1) else U8(2) end end";
+
+  TEST_ERRORS_1(src,
+    "a condition can't be an expression that jumps away with no value");
+}
+
+TEST_F(BadPonyTest, RepeatConditionJumpsAway)
+{
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    try let x: U8 = repeat U8(1) until error else U8(2) end end";
+
+  TEST_ERRORS_1(src,
+    "a condition can't be an expression that jumps away with no value");
+}
+
+TEST_F(BadPonyTest, RecoverOperandJumpsAway)
+{
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    try let x: U8 = recover error end end";
+
+  TEST_ERRORS_1(src,
+    "a recover operand can't be an expression that jumps away with no value");
+}
+
+TEST_F(BadPonyTest, MatchOperandJumpsAway)
+{
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    try let x: U8 = match error | let y: U8 => y else U8(0) end end";
+
+  TEST_ERRORS_1(src,
+    "a match operand can't be an expression that jumps away with no value");
+}
+
+TEST_F(BadPonyTest, MatchOperandJumpsAwayMultipleCases)
+{
+  // The operand is checked per-case and once at the match; with multiple cases
+  // the error must be reported exactly once (TEST_ERRORS_1 enforces the count).
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    try\n"
+    "      let x: U8 = match error\n"
+    "      | let y: U8 => y\n"
+    "      | let z: U16 => U8(0)\n"
+    "      else U8(0) end\n"
+    "    end";
+
+  TEST_ERRORS_1(src,
+    "a match operand can't be an expression that jumps away with no value");
+}
+
+TEST_F(BadPonyTest, MatchGuardJumpsAway)
+{
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    try let x: U8 = match U8(1) | let y: U8 if error => y else U8(0) end "
+    "end";
+
+  TEST_ERRORS_1(src,
+    "a match guard can't be an expression that jumps away with no value");
+}
+
+TEST_F(BadPonyTest, FunctionArgumentJumpsAway)
+{
+  const char* src =
+    "actor Main\n"
+    "  fun f(n: U8): U8 => n\n"
+    "  new create(env: Env) =>\n"
+    "    try let x: U8 = f(error) end";
+
+  TEST_ERRORS_1(src,
+    "an argument can't be an expression that jumps away with no value");
+}
+
+TEST_F(BadPonyTest, ArgumentReturnsAway)
+{
+  // The guard keys on AST_FLAG_JUMPS_AWAY, which `return` sets just like
+  // `error`; confirm a non-error jump is rejected the same way.
+  const char* src =
+    "actor Main\n"
+    "  fun f(n: U8): U8 => n\n"
+    "  new create(env: Env) =>\n"
+    "    let x: U8 = f(return)";
+
+  TEST_ERRORS_1(src,
+    "an argument can't be an expression that jumps away with no value");
+}
+
+TEST_F(BadPonyTest, ConstructorArgumentJumpsAway)
+{
+  const char* src =
+    "class C\n"
+    "  new create(n: U8) => None\n"
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    try let x: C = C(error) end";
+
+  TEST_ERRORS_1(src,
+    "an argument can't be an expression that jumps away with no value");
+}
+
+TEST_F(BadPonyTest, MethodReceiverJumpsAway)
+{
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    try let x: String = (error).string() end";
+
+  TEST_ERRORS_1(src,
+    "a receiver can't be an expression that jumps away with no value");
+}
+
+TEST_F(BadPonyTest, QualifiedReceiverJumpsAway)
+{
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    try let x = (error)[U8] end";
+
+  TEST_ERRORS_1(src,
+    "a receiver can't be an expression that jumps away with no value");
+}
+
+TEST_F(BadPonyTest, AsOperandJumpsAway)
+{
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    try let x = (error) as U8 end";
+
+  TEST_ERRORS_1(src,
+    "a cast operand can't be an expression that jumps away with no value");
+}
+
+TEST_F(BadPonyTest, IsOperandJumpsAway)
+{
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    try let x: Bool = (error) is U8(1) end";
+
+  TEST_ERRORS_1(src,
+    "an operand of an identity comparison can't be an expression that jumps "
+    "away with no value");
+}
+
+TEST_F(BadPonyTest, IsntRightOperandJumpsAway)
+{
+  // Jump-away on the right operand, exercising the second `||` clause that the
+  // left-operand tests above can't reach.
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    try let x: Bool = U8(1) isnt (error) end";
+
+  TEST_ERRORS_1(src,
+    "an operand of an identity comparison can't be an expression that jumps "
+    "away with no value");
+}
+
+TEST_F(BadPonyTest, FFIArgumentJumpsAway)
+{
+  const char* src =
+    "use @exit[None](code: I32)\n"
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    try @exit(error) end";
+
+  TEST_ERRORS_1(src,
+    "an argument can't be an expression that jumps away with no value");
+}
+
+TEST_F(BadPonyTest, FFIVariadicArgumentJumpsAway)
+{
+  // Exercises the second FFI argument loop (variadic args past the declared
+  // parameters), a separate guard from the declared-parameter loop above.
+  const char* src =
+    "use @f[None](a: U8, ...)\n"
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    try @f(U8(1), error) end";
+
+  TEST_ERRORS_1(src,
+    "an argument can't be an expression that jumps away with no value");
+}
+
+TEST_F(BadPonyTest, CallReceiverJumpsAway)
+{
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    try let x = (error)(U8(1)) end";
+
+  TEST_ERRORS_1(src,
+    "a receiver can't be an expression that jumps away with no value");
+}
+
+TEST_F(BadPonyTest, DefaultArgumentJumpsAway)
+{
+  const char* src =
+    "actor Main\n"
+    "  fun f(a: U8 = (error)): U8 => a\n"
+    "  new create(env: Env) =>\n"
+    "    None";
+
+  TEST_ERRORS_1(src,
+    "a default argument can't be an expression that jumps away with no value");
+}
+
+TEST_F(BadPonyTest, LambdaCaptureJumpsAway)
+{
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let l = {()(x = (error)) => x}";
+
+  TEST_ERRORS_1(src,
+    "a lambda capture can't be an expression that jumps away with no value");
+}
+
+TEST_F(BadPonyTest, LambdaDontcareCaptureJumpsAway)
+{
+  // A typed capture into `_` takes a different branch (a subtype check) than
+  // the untyped capture above; both must reject a jump-away value.
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let l = {()(_: U8 = (error)) => None}";
+
+  TEST_ERRORS_1(src,
+    "a lambda capture can't be an expression that jumps away with no value");
+}
+
+TEST_F(BadPonyTest, TupleElementJumpsAwayAfterLiteral)
+{
+  // The jumps-away element follows a literal element, which used to take a
+  // short-circuit that skipped the later element's check.
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    try let t: (U8, U8) = (1, (error)) end";
+
+  TEST_ERRORS_1(src,
+    "a tuple can't contain an expression that jumps away with no value");
+}
+
+TEST_F(BadPonyTest, TuplePatternElementJumpsAwayAfterLiteral)
+{
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    try match (U8(1), U8(2)) | (1, (error)) => None end end";
+
+  TEST_ERRORS_1(src,
+    "a tuple can't contain an expression that jumps away with no value");
+}

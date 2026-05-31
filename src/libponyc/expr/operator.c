@@ -882,6 +882,9 @@ bool expr_as(pass_opt_t* opt, ast_t** astp)
   pony_assert(ast_id(ast) == TK_AS);
   AST_GET_CHILDREN(ast, expr, type);
 
+  if(jumps_away_no_value(opt, expr, "a cast operand"))
+    return false;
+
   ast_t* expr_type = ast_type(expr);
   if(is_typecheck_error(expr_type))
     return false;

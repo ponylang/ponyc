@@ -337,6 +337,9 @@ bool expr_match(pass_opt_t* opt, ast_t* ast)
   pony_assert(ast_id(ast) == TK_MATCH);
   AST_GET_CHILDREN(ast, expr, cases, else_clause);
 
+  if(jumps_away_no_value(opt, expr, "a match operand"))
+    return false;
+
   // A literal match expression should have been caught by the cases, but check
   // again to avoid an assert if we've missed a case
   ast_t* expr_type = ast_type(expr);
@@ -922,8 +925,13 @@ bool expr_case(pass_opt_t* opt, ast_t* ast)
   ast_t* match_expr = ast_child(match);
   ast_t* match_type = ast_type(match_expr);
 
-  if(ast_checkflag(match_expr, AST_FLAG_JUMPS_AWAY) ||
-    is_typecheck_error(match_type))
+  // If the match operand jumps away (no value), the match is invalid and
+  // expr_match reports it once. Skip this case rather than reporting here too,
+  // which would duplicate the error once per case.
+  if(ast_checkflag(match_expr, AST_FLAG_JUMPS_AWAY))
+    return true;
+
+  if(is_typecheck_error(match_type))
     return false;
 
   if(!infer_pattern_type(&pattern, match_type, opt))
@@ -1019,6 +1027,9 @@ bool expr_case(pass_opt_t* opt, ast_t* ast)
 
     if(ast_id(guard) != TK_NONE)
     {
+      if(jumps_away_no_value(opt, guard, "a match guard"))
+        return false;
+
       ast_t* guard_type = ast_type(guard);
 
       if(is_typecheck_error(guard_type))
