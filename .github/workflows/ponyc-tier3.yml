@@ -132,10 +132,17 @@ jobs:
             "su: Sorry" { puts "su failed - wrong password or nuageinit didn't set it"; exit 1 }
             timeout { puts "Timeout waiting for root shell"; exit 1 }
           }
-          send "pkg install -y cmake gmake libunwind git python3 rsync\r"
+          send "pkg install -y cmake gmake libunwind git python3 rsync doas\r"
           expect {
             "#" {}
             timeout { puts "Timeout during pkg install"; exit 1 }
+          }
+          # Let the freebsd user load the dtrace kernel module and run dtrace
+          # non-interactively for the use=dtrace probe-firing smoke test.
+          send "echo 'permit nopass freebsd' > /usr/local/etc/doas.conf\r"
+          expect {
+            "#" {}
+            timeout { puts "Timeout writing doas.conf"; exit 1 }
           }
           send "exit\r"
           expect eof
@@ -167,6 +174,8 @@ jobs:
           gmake configure config=release
           gmake build config=release
           gmake test-ci-core config=release
+          # use=dtrace smoke test — see the script for details.
+          sh .ci-scripts/freebsd-dtrace-smoke.sh
           EOF
       - name: Shutdown VM
         if: always()

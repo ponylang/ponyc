@@ -415,6 +415,7 @@ install: build
 	@mkdir -p $(ponydir)/lib/$(arch)
 	@mkdir -p $(ponydir)/include/pony/detail
 	$(SILENT)cp $(buildDir)/src/libponyrt/libponyrt.a $(ponydir)/lib/$(arch)
+	$(SILENT)if [ -f $(buildDir)/src/libponyrt/libdtrace_probes.a ]; then cp $(buildDir)/src/libponyrt/libdtrace_probes.a $(ponydir)/lib/$(arch); fi
 	$(SILENT)if [ -f $(outDir)/libponyc.a ]; then cp $(outDir)/libponyc.a $(ponydir)/lib/$(arch); fi
 	$(SILENT)if [ -f $(outDir)/libponyc-standalone.a ]; then cp $(outDir)/libponyc-standalone.a $(ponydir)/lib/$(arch); fi
 	$(SILENT)if [ -f $(outDir)/libponyrt-pic.a ]; then cp $(outDir)/libponyrt-pic.a $(ponydir)/lib/$(arch); fi
@@ -441,6 +442,7 @@ ifeq ($(symlink),yes)
 	$(SILENT)if [ -f $(ponydir)/lib/$(arch)/libponyc-standalone.a ]; then ln -s -f $(ponydir)/lib/$(arch)/libponyc-standalone.a $(prefix)/lib/libponyc-standalone.a; fi
 	$(SILENT)if [ -f $(ponydir)/lib/$(arch)/libponyrt.a ]; then ln -s -f $(ponydir)/lib/$(arch)/libponyrt.a $(prefix)/lib/libponyrt.a; fi
 	$(SILENT)if [ -f $(ponydir)/lib/$(arch)/libponyrt-pic.a ]; then ln -s -f $(ponydir)/lib/$(arch)/libponyrt-pic.a $(prefix)/lib/libponyrt-pic.a; fi
+	$(SILENT)if [ -f $(ponydir)/lib/$(arch)/libdtrace_probes.a ]; then ln -s -f $(ponydir)/lib/$(arch)/libdtrace_probes.a $(prefix)/lib/libdtrace_probes.a; fi
 	$(SILENT)ln -s -f $(ponydir)/include/pony.h $(prefix)/include/pony.h
 	$(SILENT)ln -s -f $(ponydir)/include/pony/detail/atomics.h $(prefix)/include/pony/detail/atomics.h
 endif
@@ -453,6 +455,7 @@ uninstall:
 	-$(SILENT)rm -f $(prefix)/bin/pony-doc ||:
 	-$(SILENT)rm -f $(prefix)/lib/libponyc*.a ||:
 	-$(SILENT)rm -f $(prefix)/lib/libponyrt*.a ||:
+	-$(SILENT)rm -f $(prefix)/lib/libdtrace_probes.a ||:
 	-$(SILENT)rm -rf $(prefix)/lib/pony ||:
 	-$(SILENT)rm -f $(prefix)/include/pony.h ||:
 	-$(SILENT)rm -rf $(prefix)/include/pony ||:
