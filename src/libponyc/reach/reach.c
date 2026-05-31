@@ -29,6 +29,144 @@ static void reachable_method(reach_t* r, deferred_reification_t* reify,
 static void reachable_expr(reach_t* r, deferred_reification_t* reify,
   ast_t* ast, pass_opt_t* opt);
 
+// Infinitely recursive generic instantiation — a generic function or type that
+// instantiates itself with an ever-growing type argument, e.g.
+// Foo[Bar[Bar[...]]] (deepens one level per step) or Foo[(A, A)] (doubles in
+// size per step) — is undecidable in general, so rather than diverging until we
+// exhaust memory we bound each instantiated type and report a useful error.
+//
+// We bound on two axes, because each catches a shape the other misses cheaply:
+//
+//  * Nesting DEPTH (REACH_TYPE_DEPTH_LIMIT). "Linear" recursion adds one type
+//    level per step with ~constant nodes per level. Each individual type stays
+//    small, but the chain of O(depth) intermediate types costs O(depth^2)
+//    cumulatively, so we must stop it at a shallow depth — the depth cap trips
+//    at 128 (real generic nesting is a handful of levels), keeping the
+//    cumulative cost tiny.
+//
+//  * Node-count SIZE (REACH_TYPE_SIZE_LIMIT). A "branching" type argument like
+//    (A, A) doubles in node count each step while its nesting depth grows by
+//    only one, so the depth cap would let it reach ~2^128 nodes — a single,
+//    shallow, astronomically large type. The size cap bounds that directly,
+//    catching any branching factor at a small depth. The whole standard library
+//    plus its test suite never builds a type bigger than ~130 nodes, so 2048 is
+//    generous headroom.
+//
+// (Both are a different axis from genname.c's MAX_ALIAS_DEPTH, which bounds
+// recursive *type alias* unfolding.)
+#define REACH_TYPE_DEPTH_LIMIT 128
+#define REACH_TYPE_SIZE_LIMIT 2048
+
+// Accumulate the AST node count of a type subtree into *count, stopping the
+// descent as soon as it exceeds the limit so the walk stays O(limit) even on a
+// pathologically large (e.g. exponentially branching) input.
+static void reach_type_size_acc(ast_t* type, size_t* count)
+{
+  if(*count > REACH_TYPE_SIZE_LIMIT)
+    return;
+
+  (*count)++;
+
+  for(ast_t* child = ast_child(type); child != NULL; child = ast_sibling(child))
+    reach_type_size_acc(child, count);
+}
+
+// AST node count of a type, capped: returns the true size if it is at most
+// REACH_TYPE_SIZE_LIMIT, otherwise some value greater than the limit. Used to
+// detect branching runaway generic instantiation in add_nominal and add_rmethod.
+static size_t reach_type_size(ast_t* type)
+{
+  size_t count = 0;
+  reach_type_size_acc(type, &count);
+  return count;
+}
+
+static size_t reach_type_depth(ast_t* type);
+
+// Greatest reach_type_depth over a sibling list — the type arguments of a
+// nominal, or the elements of a union/intersection/tuple. `first` is the first
+// sibling (NULL for an empty list, which is depth 0). Stops climbing once the
+// running max exceeds the limit so the walk stays cheap.
+static size_t reach_siblings_max_depth(ast_t* first)
+{
+  size_t max = 0;
+
+  for(ast_t* p = first; p != NULL; p = ast_sibling(p))
+  {
+    size_t d = reach_type_depth(p);
+
+    if(d > max)
+      max = d;
+
+    if(max > REACH_TYPE_DEPTH_LIMIT)
+      break;
+  }
+
+  return max;
+}
+
+// Structural nesting depth of a type AST: a non-generic nominal is 1, a generic
+// nominal is 1 + the deepest of its type arguments, and unions/intersections/
+// tuples are 1 + the deepest of their elements. Used to detect linear runaway
+// generic instantiation in add_nominal and add_rmethod. Only ever called on
+// types that already passed the size check, so it is bounded by that.
+//
+// Aliases are not unfolded: a recursive alias (e.g. `type Tree is (None |
+// Array[Tree])`) would unfold forever, and an alias resolves to a bounded type
+// regardless, so it can't be the source of the unbounded instantiation we're
+// detecting — when add_type resolves an alias to its underlying nominal, that
+// nominal is measured by the add_nominal check.
+static size_t reach_type_depth(ast_t* type)
+{
+  switch(ast_id(type))
+  {
+    case TK_NOMINAL:
+      // typeargs is the third child; ast_child of a non-generic nominal's
+      // TK_NONE typeargs is NULL, giving depth 1.
+      return 1 + reach_siblings_max_depth(ast_child(ast_childidx(type, 2)));
+
+    case TK_UNIONTYPE:
+    case TK_ISECTTYPE:
+    case TK_TUPLETYPE:
+      return 1 + reach_siblings_max_depth(ast_child(type));
+
+    default:
+      return 1;
+  }
+}
+
+// Report a runaway generic instantiation and flag the run as failed. The two
+// reporters share the emit-once guard (the same flag) so a run reports at most
+// one limit error regardless of how many over-limit types or methods we hit;
+// the genexe / codegen_gen_test drivers check reach_limit_exceeded after
+// reach() and fail the build (see reach_limit_exceeded). `ast` should be the
+// user's generic definition so the error lands on their source.
+static void report_type_size_exceeded(reach_t* r, ast_t* ast, pass_opt_t* opt)
+{
+  if(r->limit_exceeded)
+    return;
+
+  r->limit_exceeded = true;
+  ast_error(opt->check.errors, ast,
+    "a generic instantiation produced a type argument that grew too large "
+    "during reachability analysis. This usually means a generic function or "
+    "type instantiates itself with an ever-growing type argument; infinitely "
+    "recursive generic types are not supported");
+}
+
+static void report_type_depth_exceeded(reach_t* r, ast_t* ast, pass_opt_t* opt)
+{
+  if(r->limit_exceeded)
+    return;
+
+  r->limit_exceeded = true;
+  ast_error(opt->check.errors, ast,
+    "reached the maximum type instantiation depth of %d during reachability "
+    "analysis. This usually means a generic function or type instantiates "
+    "itself with an ever-growing type argument; infinitely recursive generic "
+    "types are not supported", REACH_TYPE_DEPTH_LIMIT);
+}
+
 static size_t reach_method_hash(reach_method_t* m)
 {
   return ponyint_hash_str(m->name);
@@ -564,6 +702,30 @@ static reach_method_t* add_rmethod(reach_t* r, reach_type_t* t,
 
   if(!internal)
   {
+    // Bound worklist recursion: a generic method that instantiates itself with
+    // an ever-larger type argument (the issue #1544 shape) grows the worklist
+    // without bound. m is fully built and in the tables, so callers that link
+    // it (e.g. reachable_method's subordinate chaining) stay valid; we just
+    // refuse to trace its body or propagate it to subtypes, which is what would
+    // queue the next, larger instantiation. We also bail if the flag was set
+    // while building m's own types (set_method_types above add_type's the param
+    // and result types, which can trip the limit on a result/param that is
+    // itself the ever-growing generic).
+    // Check size before depth: the size walk is O(limit) on any input, and a
+    // branching argument that trips it would make the depth walk exponential,
+    // so short-circuiting on size keeps the depth walk bounded.
+    if(typeargs != NULL)
+    {
+      if(reach_type_size(typeargs) > REACH_TYPE_SIZE_LIMIT)
+        report_type_size_exceeded(r, m->fun->ast, opt);
+      else if(reach_siblings_max_depth(ast_child(typeargs)) >
+        REACH_TYPE_DEPTH_LIMIT)
+        report_type_depth_exceeded(r, m->fun->ast, opt);
+    }
+
+    if(r->limit_exceeded)
+      return m;
+
     // Put on a stack of reachable methods to trace.
     r->method_stack = reach_method_stack_push(r->method_stack, m);
 
@@ -944,6 +1106,13 @@ static reach_type_t* add_isect_or_union(reach_t* r, ast_t* type,
     return t;
 
   t = add_reach_type(r, type);
+
+  // Stop recursing once a runaway instantiation has been detected (here or on a
+  // sibling branch of a fan-out); otherwise the blow-up keeps expanding through
+  // nested unions/intersections. The stub is never painted — we fail first.
+  if(r->limit_exceeded)
+    return t;
+
   t->underlying = ast_id(t->ast);
   t->is_trait = true;
 
@@ -974,6 +1143,13 @@ static reach_type_t* add_tuple(reach_t* r, ast_t* type, pass_opt_t* opt)
     return t;
 
   t = add_reach_type(r, type);
+
+  // Stop recursing once a runaway instantiation has been detected; returning
+  // before the field allocation below leaves a usable stub with no fields, and
+  // we fail before painting/codegen would read them.
+  if(r->limit_exceeded)
+    return t;
+
   t->underlying = TK_TUPLETYPE;
   t->type_id = get_new_tuple_id(r);
   t->can_be_boxed = true;
@@ -1036,6 +1212,26 @@ static reach_type_t* add_nominal(reach_t* r, ast_t* type, pass_opt_t* opt)
   t = add_reach_type(r, type);
   ast_t* def = (ast_t*)ast_data(type);
   t->underlying = ast_id(def);
+
+  // Bound synchronous type-structure recursion. The size/depth checks detect a
+  // runaway instantiation; the flag bail then stops ALL further type creation
+  // and recursion, not just this chain. That second part is essential for
+  // fan-out recursion (a type with several growing fields): the check trips on
+  // the first over-limit chain, but without halting we would keep expanding
+  // every sibling branch that hasn't yet reached the limit — an exponential
+  // blow-up. The flag may also already be set by a sibling branch when we get
+  // here. add_reach_type has given t a name, mangle and initialised method/
+  // subtype maps and registered it, so returning the stub (no fields/methods)
+  // is safe: the build fails before painting/codegen would read those. Size is
+  // checked before depth so the (bounded) size walk short-circuits the
+  // otherwise-exponential depth walk on a branching argument.
+  if(reach_type_size(type) > REACH_TYPE_SIZE_LIMIT)
+    report_type_size_exceeded(r, def, opt);
+  else if(reach_type_depth(type) > REACH_TYPE_DEPTH_LIMIT)
+    report_type_depth_exceeded(r, def, opt);
+
+  if(r->limit_exceeded)
+    return t;
 
   AST_GET_CHILDREN(type, pkg, id, typeargs);
   ast_t* typearg = ast_child(typeargs);
@@ -1622,6 +1818,11 @@ static void handle_method_stack(reach_t* r, pass_opt_t* opt)
 {
   while(r->method_stack != NULL)
   {
+    // Stop draining once we've decided to fail: tracing more bodies only adds
+    // work we're going to throw away when the build fails.
+    if(r->limit_exceeded)
+      break;
+
     reach_method_t* m;
     r->method_stack = reach_method_stack_pop(r->method_stack, &m);
 
@@ -1639,6 +1840,7 @@ reach_t* reach_new()
   r->tuple_type_count = 0;
   r->total_type_count = 0;
   r->trait_type_count = 0;
+  r->limit_exceeded = false;
   reach_types_init(&r->types, 64);
   return r;
 }
@@ -1741,6 +1943,11 @@ uint32_t reach_vtable_index(reach_type_t* t, const char* name)
     return (uint32_t)-1;
 
   return m->vtable_index;
+}
+
+bool reach_limit_exceeded(reach_t* r)
+{
+  return r->limit_exceeded;
 }
 
 uint32_t reach_max_type_id(reach_t* r)
@@ -2290,6 +2497,10 @@ static void reach_serialise(pony_ctx_t* ctx, void* object, void* buf,
   dst->tuple_type_count = r->tuple_type_count;
   dst->total_type_count = r->total_type_count;
   dst->trait_type_count = r->trait_type_count;
+  // limit_exceeded is per-run and transient — a run that sets it fails the
+  // build before reach is ever serialised — so the serialised image always
+  // carries false rather than the source value.
+  dst->limit_exceeded = false;
 }
 
 static void reach_deserialise(pony_ctx_t* ctx, void* object)

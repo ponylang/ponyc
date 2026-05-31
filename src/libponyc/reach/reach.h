@@ -118,6 +118,12 @@ typedef struct reach_t
   uint32_t tuple_type_count;
   uint32_t total_type_count;
   uint32_t trait_type_count;
+
+  // Set when reachability aborted because a generic instantiation exceeded
+  // REACH_TYPE_DEPTH_LIMIT or REACH_TYPE_SIZE_LIMIT. Per-run and transient: not
+  // serialised, because a run that sets it fails the build before any
+  // serialisation happens.
+  bool limit_exceeded;
 } reach_t;
 
 /// Allocate a new set of reachable types.
@@ -145,6 +151,16 @@ reach_method_name_t* reach_method_name(reach_type_t* t,
   const char* name);
 
 uint32_t reach_vtable_index(reach_type_t* t, const char* name);
+
+/** Return true if reachability analysis aborted because a generic instantiation
+ * exceeded the maximum type depth or size.
+ *
+ * The reach() worklist cannot signal failure through its void return, so the
+ * codegen drivers must call this after reach() and fail the build when it
+ * returns true. They must do so before the painting/codegen stages, which
+ * would touch the partially-built (stub) types reach left behind.
+ */
+bool reach_limit_exceeded(reach_t* r);
 
 uint32_t reach_max_type_id(reach_t* r);
 

@@ -752,6 +752,12 @@ bool gentypes(compile_t* c)
   reach_type_t* t;
   size_t i;
 
+  // A run that hit the type depth/size limit left partially-built stub types
+  // behind; the codegen drivers must fail before reaching codegen. Assert the
+  // contract here so a future driver that forgets the reach_limit_exceeded
+  // check fails loudly in debug builds instead of generating code for stubs.
+  pony_assert(!reach_limit_exceeded(c->reach));
+
   if(target_is_ilp32(c->opt->triple))
     c->trait_bitmap_size = ((c->reach->trait_type_count + 31) & ~31) >> 5;
   else

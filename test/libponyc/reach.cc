@@ -59,6 +59,142 @@ TEST_F(ReachTest, IsectHasSubtypes)
   ASSERT_TRUE(found);
 }
 
+// A generic function that instantiates itself with an ever-deeper type
+// argument (Bar.apply[A] calls Bar.apply[Pair[A]]) requires an unbounded number
+// of reachable types/methods. Reachability used to chase this until it ran out
+// of memory; it must now stop at the instantiation-depth limit and report an
+// error rather than diverging. With the limit in place the compile aborts at a
+// bounded depth — fast — so this test is safe to run in CI.
+TEST_F(ReachTest, InfinitelyRecursiveGenericInstantiation)
+{
+  const char* src =
+    "interface IFoo\n"
+    "  new create()\n"
+    "  fun depth(): USize\n"
+
+    "class Foo is IFoo\n"
+    "  new create() => None\n"
+    "  fun depth(): USize => 0\n"
+
+    "class Pair[A: IFoo] is IFoo\n"
+    "  new create() => None\n"
+    "  fun depth(): USize => A.depth() + 1\n"
+
+    "primitive Bar\n"
+    "  fun apply[A: IFoo](n: USize): IFoo =>\n"
+    "    if n == 0 then\n"
+    "      A\n"
+    "    else\n"
+    "      Bar.apply[Pair[A]](n - 1)\n"
+    "    end\n"
+
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    env.out.print(Bar.apply[Foo](0).depth().string())";
+
+  // Needs the real builtin: the recursion runs through USize arithmetic, and
+  // the divergence only happens once reachability traces the method bodies.
+  set_builtin(nullptr);
+
+  // Assert the depth-specific message: this linear shape trips the depth limit.
+  // Asserting the distinguishing text (not the shared tail) means a regression
+  // that broke only the depth check would fail here instead of being masked by
+  // the size check catching the same runaway.
+  const char* errs[] = {"type instantiation depth", NULL};
+  DO(test_expected_errors(src, "reach", errs));
+}
+
+// A generic type whose field is an ever-larger instantiation of itself
+// (Wrap[A] has a field of type Wrap[Wrap[A]]) makes an unbounded number of
+// types reachable through field expansion alone — no recursive method call
+// needed. This diverges synchronously inside add_type rather than through the
+// method worklist, exercising the add_nominal depth check (the error points at
+// the type definition, not a method). It too must abort at the depth limit.
+TEST_F(ReachTest, InfinitelyRecursiveGenericType)
+{
+  const char* src =
+    "class Wrap[A]\n"
+    "  let next: (Wrap[Wrap[A]] | None) = None\n"
+
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    Wrap[U8]";
+
+  const char* errs[] = {"type instantiation depth", NULL};
+  DO(test_expected_errors(src, "reach", errs));
+}
+
+// A generic type whose fields fan out into several distinct, ever-larger
+// instantiations of itself (Wrap[A] has fields of type Wrap[L[A]] and
+// Wrap[R[A]]) makes an exponential number of types reachable. The depth check
+// trips on the first over-deep chain, but detection must also HALT the
+// remaining sibling branches — otherwise every branch that hasn't yet reached
+// the limit keeps expanding, an exponential blow-up that still exhausts memory.
+// This guards that the limit flag stops all type-creation recursion, not just
+// the chain that tripped it.
+TEST_F(ReachTest, InfinitelyRecursiveGenericTypeFanOut)
+{
+  const char* src =
+    "class L[A]\n"
+    "class R[A]\n"
+    "class Wrap[A]\n"
+    "  let a: (Wrap[L[A]] | None) = None\n"
+    "  let b: (Wrap[R[A]] | None) = None\n"
+
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    Wrap[U8]";
+
+  const char* errs[] = {"type instantiation depth", NULL};
+  DO(test_expected_errors(src, "reach", errs));
+}
+
+// A generic function whose type argument *doubles* in size each step
+// (Bar.apply[A] calls Bar.apply[(A, A)]) grows the type's node count
+// exponentially while its nesting depth grows only linearly. A nesting-depth
+// limit would let this consume ~2^depth memory before tripping; the node-count
+// (size) limit catches it while the type is still small. This is the shape that
+// a depth-based check could not catch.
+TEST_F(ReachTest, InfinitelyRecursiveGenericTypeArgumentDoubles)
+{
+  const char* src =
+    "primitive Bar\n"
+    "  fun apply[A: Any val](n: USize): None =>\n"
+    "    if n == 0 then None else Bar.apply[(A, A)](n - 1) end\n"
+
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    Bar.apply[U8](4)";
+
+  set_builtin(nullptr);
+
+  // Assert the size-specific message: this branching shape trips the size limit
+  // (not depth), which is the case a depth-only check could not catch.
+  const char* errs[] = {"grew too large", NULL};
+  DO(test_expected_errors(src, "reach", errs));
+}
+
+// A recursive type alias is finite and legal — `Tree` is `None` or an array of
+// `Tree`, which bottoms out. reach_type_size/reach_type_depth deliberately do
+// not unfold aliases, so this must still compile cleanly through reachability
+// rather than tripping a limit. Guards that the checks don't false-positive on
+// legitimate recursive aliases.
+TEST_F(ReachTest, RecursiveTypeAliasCompiles)
+{
+  const char* src =
+    "use \"collections\"\n"
+    "type Tree is (None | Array[Tree])\n"
+
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let t: Tree = None\n"
+    "    env.out.print(\"ok\")";
+
+  set_builtin(nullptr);
+
+  TEST_COMPILE(src, "reach");
+}
+
 struct reach_deleter
 {
   void operator()(reach_t* r)
