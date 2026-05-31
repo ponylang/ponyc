@@ -13,6 +13,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Changed
 
+- Use embedded LLD for native Linux sanitizer builds ([PR #5409](https://github.com/ponylang/ponyc/pull/5409))
 
 ## [0.64.0] - 2026-05-30
 
