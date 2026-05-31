@@ -91,7 +91,6 @@ jobs:
         repo:
           - ponylang/appdirs
           - ponylang/corral
-          - ponylang/http
           - ponylang/lori
           - ponylang/ponyup
           - ponylang/regex
