@@ -111,6 +111,13 @@ target_include_directories(libponyc
     PRIVATE ../../lib/blake2
 )
 
+# In sanitizer builds, genexe.cc includes the generated sanitizer_link_args.h
+# (the captured sanitizer runtime link fragment; see the PONY_SANITIZERS_ENABLED
+# block in the top-level CMakeLists.txt).
+if(PONY_SANITIZERS_ENABLED)
+    target_include_directories(libponyc PRIVATE ${CMAKE_BINARY_DIR}/pony_generated)
+endif()
+
 if(${CMAKE_HOST_SYSTEM_NAME} MATCHES "Darwin")
     set(CMAKE_OSX_DEPLOYMENT_TARGET ${PONY_OSX_PLATFORM})
 endif()

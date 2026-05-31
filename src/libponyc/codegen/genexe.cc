@@ -35,6 +35,13 @@ LLD_HAS_DRIVER(wasm)
 #  include <llvm/TargetParser/Triple.h>
 #endif
 
+#if defined(PONY_SANITIZER)
+// Generated at configure time (top-level CMakeLists.txt, PONY_SANITIZERS_ENABLED
+// block): the sanitizer runtime link fragment captured from the compiler driver.
+// Exists only in sanitizer builds, so the include is guarded to match.
+#  include "sanitizer_link_args.h"
+#endif
+
 #define STR(x) STR2(x)
 #define STR2(x) #x
 
@@ -1291,6 +1298,47 @@ static bool link_exe_lld_elf(compile_t* c, ast_t* program,
     }
   }
 
+#if defined(PONY_SANITIZER)
+  // Sanitizer runtime. When ponyc is built with sanitizers, libponyrt's C code
+  // is instrumented, so the executable references __asan_*/ubsan symbols and
+  // must link the sanitizer runtime. PONY_SANITIZER_LINK_ARGS is the exact
+  // fragment the compiler driver emits for -fsanitize=<PONY_SANITIZER>, captured
+  // at ponyc build time (see the PONY_SANITIZERS_ENABLED block in the top-level
+  // CMakeLists.txt). Its contents are compiler-specific (clang: whole-archived
+  // clang_rt static archives + --dynamic-list + a few syslibs; gcc:
+  // libasan_preinit.o + shared -lasan/-lubsan) and its library paths are
+  // absolute on the build machine.
+  //
+  // This function serves both the Linux and the BSD branches of link_exe.
+  // Native sanitizer linking via embedded LLD has only been done and verified
+  // for Linux; there is no native-ASan support for the BSDs yet. So the splice
+  // is gated on target_is_linux explicitly, rather than relying on the BSD
+  // branch of link_exe continuing to route native sanitizer builds to the
+  // legacy driver. The !is_cross_compiling gate additionally keeps the
+  // host-arch-absolute fragment out of any cross link routed here.
+  //
+  // The fragment is spliced as one contiguous block immediately before file_o.
+  // That order is correct for every piece: objects and static archives that
+  // provide symbols (clang's whole-archived clang_rt, gcc's preinit object)
+  // must precede the instrumented object/runtime so their members are pulled
+  // in, and shared libraries (gcc's -lasan/-lubsan, clang's -lrt/-lresolv) are
+  // position-insensitive (DT_NEEDED), so emitting them here rather than after
+  // the object is harmless. Any linker-state flags in the fragment (clang emits
+  // --no-as-needed) only re-assert the ELF linker's default state, so they have
+  // no lasting effect on the libraries ponyc emits afterward. Pieces ponyc also
+  // emits after the object (e.g. -lpthread) simply appear twice, harmlessly.
+  //
+  // gcc's fragment carries bare -lasan/-lubsan (not absolute paths); they
+  // resolve via the -L search paths ponyc already emits earlier in this
+  // function (the gcc lib dir and the standard system fallbacks), so don't drop
+  // those without accounting for the sanitizer runtime.
+  if(target_is_linux(c->opt->triple) && !is_cross_compiling(c))
+  {
+    for(size_t i = 0; i < PONY_SANITIZER_LINK_ARGS_COUNT; i++)
+      args.push_back(PONY_SANITIZER_LINK_ARGS[i]);
+  }
+#endif
+
   // Object file.
   args.push_back(file_o);
 
@@ -1948,16 +1996,14 @@ static bool link_exe(compile_t* c, ast_t* program,
   errors_t* errors = c->opt->check.errors;
 
   // Use embedded LLD for Linux, macOS, and Windows targets unless --linker
-  // escape hatch is specified. Sanitizer builds fall back to the system
-  // compiler driver for native compilation since sanitizer runtime libraries
-  // need compiler-specific link logic; cross-compilation still uses LLD.
+  // escape hatch is specified. On Linux, native sanitizer builds use embedded
+  // LLD too: link_exe_lld_elf links the sanitizer runtime explicitly from a
+  // fragment captured at ponyc build time. On macOS and the BSDs, native
+  // sanitizer builds still fall back to the system compiler driver (which
+  // links the runtime via -fsanitize=); cross-compilation always uses LLD.
 #ifdef PLATFORM_IS_POSIX_BASED
   if(c->opt->linker == NULL
-    && target_is_linux(c->opt->triple)
-#if defined(PONY_SANITIZER)
-    && is_cross_compiling(c)
-#endif
-    )
+    && target_is_linux(c->opt->triple))
   {
     return link_exe_lld_elf(c, program, file_o);
   }
