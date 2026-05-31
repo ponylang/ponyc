@@ -3199,3 +3199,21 @@ TEST_F(BadPonyTest, TuplePatternElementJumpsAwayAfterLiteral)
   TEST_ERRORS_1(src,
     "a tuple can't contain an expression that jumps away with no value");
 }
+
+TEST_F(BadPonyTest, PartialApplicationOfMethodWithUninferableLiteralCallDefault)
+{
+  // From issue #5342. Partially applying a method whose default argument is a
+  // method call on a literal whose type cannot be inferred (`(-1).abs()` -- the
+  // literal never gets a type because `abs` is not a literal operator) used to
+  // crash the compiler in `uifset`. It must instead report the same error a
+  // direct use of the construct reports, rather than asserting.
+  const char* src =
+    "primitive Foo\n"
+    "  fun apply(prec: USize = (-1).abs()): USize => prec\n"
+
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    Foo~apply()";
+
+  TEST_ERRORS_1(src, "Cannot look up member abs on a literal");
+}
