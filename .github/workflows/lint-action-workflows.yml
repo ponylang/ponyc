@@ -17,6 +17,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6.0.2
       - name: Check workflow files
-        uses: docker://ghcr.io/ponylang/shared-docker-ci-actionlint:20260311
+        uses: docker://ghcr.io/ponylang/shared-docker-ci-actionlint:20260529
         with:
           args: -color

@@ -8,7 +8,7 @@ permissions:
 
 jobs:
    x86_64-windows:
-    runs-on: windows-2025
+    runs-on: windows-2025-vs2026
     defaults:
       run:
         shell: pwsh
@@ -53,7 +53,7 @@ jobs:
           path: |
             build/libs
             lib/llvm/src/compiler-rt/lib/builtins
-          key: libs-windows-2025-${{ hashFiles('make.ps1', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
+          key: libs-windows-2025-vs2026-${{ hashFiles('make.ps1', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
       - name: Build Libs
         if: steps.restore-libs.outputs.cache-hit != 'true'
         run: .\make.ps1 -Command libs
@@ -64,7 +64,7 @@ jobs:
           path: |
             build/libs
             lib/llvm/src/compiler-rt/lib/builtins
-          key: libs-windows-2025-${{ hashFiles('make.ps1', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
+          key: libs-windows-2025-vs2026-${{ hashFiles('make.ps1', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
       - name: Configure
         run: .\make.ps1 -Command configure -Config Release -Prefix "build\install\release" -Version nightly
       - name: Build
