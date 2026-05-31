@@ -228,7 +228,7 @@ elseif(${CMAKE_HOST_SYSTEM_NAME} MATCHES "OpenBSD")
 elseif(${CMAKE_HOST_SYSTEM_NAME} MATCHES "DragonFly")
     # add a rule to generate the standalone library if needed
     add_custom_command(OUTPUT libponyc-standalone.a
-        COMMAND cp `${CMAKE_CXX_COMPILER} --print-file-name='libstdc++.a'` libstdcpp.a
+        COMMAND cp -f `${CMAKE_CXX_COMPILER} --print-file-name='libstdc++.a'` libstdcpp.a
         COMMAND echo "create libponyc-standalone.a" > standalone.mri
         COMMAND echo "addlib ${PROJECT_SOURCE_DIR}/../../build/libs/lib/libblake2.a" >> standalone.mri
         COMMAND echo "addlib libstdcpp.a" >> standalone.mri
@@ -273,7 +273,7 @@ else()
 
     # add a rule to generate the standalone library if needed
     add_custom_command(OUTPUT libponyc-standalone.a
-        COMMAND cp ${CXX_STDLIB_PATH} libstdcpp.a
+        COMMAND cp -f ${CXX_STDLIB_PATH} libstdcpp.a
         COMMAND echo "create libponyc-standalone.a" > standalone.mri
         COMMAND echo "addlib ${PROJECT_SOURCE_DIR}/../../build/libs/lib/libblake2.a" >> standalone.mri
         COMMAND echo "addlib libstdcpp.a" >> standalone.mri
