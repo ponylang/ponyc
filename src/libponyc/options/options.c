@@ -405,5 +405,20 @@ ponyc_opt_process_t ponyc_opt_process(opt_state_t* s, pass_opt_t* opt,
     }
   }
 
+#if defined(USE_DYNAMIC_TRACE)
+  // A compiler built with use=dtrace cannot honour --runtimebc: the bitcode
+  // runtime is compiled without the DTrace/SystemTap probe instrumentation, and
+  // probe generation (`dtrace -G`) operates on native object files rather than
+  // LLVM bitcode, so a --runtimebc binary would carry no probes. On FreeBSD the
+  // combination also fails to link. Reject it up front instead of producing a
+  // probe-free binary or a confusing link error.
+  if(opt->runtimebc)
+  {
+    printf("Error: --runtimebc cannot be used with a compiler built for "
+      "DTrace/SystemTap (use=dtrace); the bitcode runtime has no probes.\n");
+    exit_code = EXIT_255;
+  }
+#endif
+
   return exit_code;
 }
