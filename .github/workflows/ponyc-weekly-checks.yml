@@ -88,6 +88,11 @@ jobs:
         run: |
           make configure arch=x86-64 config=debug use=${{ matrix.directives }}
           make build config=debug
+      - name: Verify dtrace build leaves the source tree clean
+        if: matrix.directives == 'dtrace'
+        # #5401: dtrace_probes.h must be generated into the build tree,
+        # never written back into src/common.
+        run: test ! -f src/common/dtrace_probes.h
       - name: Test with Debug Runtime
         run: make test-ci-core config=debug usedebugger='${{ matrix.debugger }}' test_full_program_timeout=120
       - name: Build Release Runtime

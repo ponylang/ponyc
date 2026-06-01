@@ -60,36 +60,24 @@ add_library(libponyrt STATIC
     ${_c_src}
 )
 
-if(PONY_USE_DTRACE AND CMAKE_SYSTEM_NAME STREQUAL "FreeBSD")
-    # FreeBSD ships the illumos-derived dtrace(1), whose `-G` step works very
-    # differently from the SystemTap `dtrace` on Linux and the macOS one:
-    #
-    #   * It does NOT synthesize the probe object from the .d script alone.
-    #     It scans the *compiled* runtime objects for probe call sites,
-    #     rewrites those sites in place (turning the undefined __dtrace_*
-    #     references into resolved absolute symbols), and emits a separate
-    #     object that carries only the DOF plus a constructor that registers
-    #     the probes at process start.
-    #   * Because the call sites are rewritten in the runtime objects, those
-    #     same objects must be the ones archived into libponyrt. The emitted
-    #     DOF object must then be linked separately, whole-archive, so its
-    #     (otherwise unreferenced) registration constructor survives the link.
-    #     genexe.cc already does this via `--whole-archive -ldtrace_probes`.
-    #
-    # So after libponyrt.a is built we extract its (pristine) objects, run
-    # `dtrace -G` over them, re-archive libponyrt.a from the patched objects,
-    # and stash the DOF object in its own libdtrace_probes.a. Doing it in a
-    # POST_BUILD step over the archive keeps CMake's tracked objects pristine,
-    # so every rebuild redoes the rewrite from clean objects (no "dtrace -G over
-    # an already-patched object" hazard) and works under the Makefile generator,
-    # where an OBJECT library's outputs aren't usable as custom-command deps.
-    # The non-FreeBSD path below keeps the simpler scheme: generate the probe
-    # object from the .d alone and fold it straight into libponyrt.
+if(PONY_USE_DTRACE)
     set(_dtrace_d "${CMAKE_CURRENT_SOURCE_DIR}/../common/dtrace_probes.d")
 
+    # A use=dtrace build before #5401 wrote the generated header into the
+    # source tree at src/common/dtrace_probes.h. We now generate it into the
+    # build tree, but dtrace.h includes it with a quoted
+    # #include "dtrace_probes.h", which searches dtrace.h's own directory
+    # (src/common) before any -I path — so a leftover source-tree copy would
+    # still shadow the build-tree one. Remove any stale copy so only the
+    # build-tree header can be found.
+    file(REMOVE "${CMAKE_CURRENT_SOURCE_DIR}/../common/dtrace_probes.h")
+
     # The runtime sources include the generated dtrace_probes.h (via dtrace.h),
-    # so it must exist before they compile. Generate it into the build tree
-    # (not the source tree) and make libponyrt depend on it.
+    # so it must exist before they compile. Generate it into the build tree (not
+    # the source tree) and make libponyrt depend on it. Both the SystemTap
+    # dtrace on Linux and the illumos-derived dtrace on FreeBSD emit the header
+    # the same way with `dtrace -h`; only the object-generation step below
+    # differs between them.
     set(_dtrace_header "${libponyrt_BINARY_DIR}/dtrace_probes.h")
     add_custom_command(OUTPUT "${_dtrace_header}"
         COMMAND dtrace -h -s "${_dtrace_d}" -o "${_dtrace_header}"
@@ -99,26 +87,58 @@ if(PONY_USE_DTRACE AND CMAKE_SYSTEM_NAME STREQUAL "FreeBSD")
     add_dependencies(libponyrt dtrace_probes_header)
     target_include_directories(libponyrt PRIVATE "${libponyrt_BINARY_DIR}")
 
-    # POST_BUILD runs whenever libponyrt.a is (re)built, which covers source
-    # changes. It also produces libdtrace_probes.a as a side effect, so both
-    # archives only regenerate when libponyrt relinks. Two consequences: editing
-    # dtrace_probes.d alone (without touching a .c) won't re-run this, and
-    # deleting libdtrace_probes.a by hand won't recreate it on its own — do a
-    # clean rebuild in either case.
-    add_custom_command(TARGET libponyrt POST_BUILD
-        COMMAND sh "${CMAKE_CURRENT_SOURCE_DIR}/dtrace_freebsd_postbuild.sh"
-                "$<TARGET_FILE:libponyrt>"
-                "${libponyrt_BINARY_DIR}/libdtrace_probes.a"
-                "${_dtrace_d}"
-                "${CMAKE_AR}"
-        VERBATIM
-    )
-elseif(PONY_USE_DTRACE)
-    add_custom_command(OUTPUT dtrace_probes.o
-        COMMAND dtrace -h -s "${CMAKE_CURRENT_SOURCE_DIR}/../common/dtrace_probes.d" -o "${CMAKE_CURRENT_SOURCE_DIR}/../common/dtrace_probes.h"
-        COMMAND dtrace -G -s "${CMAKE_CURRENT_SOURCE_DIR}/../common/dtrace_probes.d" -o dtrace_probes.o
-    )
-    target_sources(libponyrt PRIVATE dtrace_probes.o)
+    if(CMAKE_SYSTEM_NAME STREQUAL "FreeBSD")
+        # FreeBSD ships the illumos-derived dtrace(1), whose `-G` step works
+        # very differently from the SystemTap `dtrace` on Linux and the macOS
+        # one:
+        #
+        #   * It does NOT synthesize the probe object from the .d script alone.
+        #     It scans the *compiled* runtime objects for probe call sites,
+        #     rewrites those sites in place (turning the undefined __dtrace_*
+        #     references into resolved absolute symbols), and emits a separate
+        #     object that carries only the DOF plus a constructor that
+        #     registers the probes at process start.
+        #   * Because the call sites are rewritten in the runtime objects,
+        #     those same objects must be the ones archived into libponyrt. The
+        #     emitted DOF object must then be linked separately, whole-archive,
+        #     so its (otherwise unreferenced) registration constructor survives
+        #     the link. genexe.cc already does this via
+        #     `--whole-archive -ldtrace_probes`.
+        #
+        # So after libponyrt.a is built we extract its (pristine) objects, run
+        # `dtrace -G` over them, re-archive libponyrt.a from the patched
+        # objects, and stash the DOF object in its own libdtrace_probes.a.
+        # Doing it in a POST_BUILD step over the archive keeps CMake's tracked
+        # objects pristine, so every rebuild redoes the rewrite from clean
+        # objects (no "dtrace -G over an already-patched object" hazard) and
+        # works under the Makefile generator, where an OBJECT library's outputs
+        # aren't usable as custom-command deps. The non-FreeBSD path below
+        # keeps the simpler scheme: generate the probe object from the .d alone
+        # and fold it straight into libponyrt.
+        #
+        # POST_BUILD runs whenever libponyrt.a is (re)built, which covers
+        # source changes. It also produces libdtrace_probes.a as a side effect,
+        # so both archives only regenerate when libponyrt relinks. Two
+        # consequences: editing dtrace_probes.d alone (without touching a .c)
+        # won't re-run this, and deleting libdtrace_probes.a by hand won't
+        # recreate it on its own — do a clean rebuild in either case.
+        add_custom_command(TARGET libponyrt POST_BUILD
+            COMMAND sh "${CMAKE_CURRENT_SOURCE_DIR}/dtrace_freebsd_postbuild.sh"
+                    "$<TARGET_FILE:libponyrt>"
+                    "${libponyrt_BINARY_DIR}/libdtrace_probes.a"
+                    "${_dtrace_d}"
+                    "${CMAKE_AR}"
+            VERBATIM
+        )
+    else()
+        # SystemTap (Linux): `dtrace -G` builds the probe object from the .d
+        # alone; fold it straight into libponyrt.
+        add_custom_command(OUTPUT dtrace_probes.o
+            COMMAND dtrace -G -s "${_dtrace_d}" -o dtrace_probes.o
+            DEPENDS "${_dtrace_d}"
+        )
+        target_sources(libponyrt PRIVATE dtrace_probes.o)
+    endif()
 endif()
 
 if (NOT MSVC)
