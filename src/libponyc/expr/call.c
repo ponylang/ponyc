@@ -22,6 +22,23 @@
 #include "../type/viewpoint.h"
 #include "ponyassert.h"
 
+static bool type_contains_thistype(ast_t* ast)
+{
+  if(ast == NULL)
+    return false;
+
+  if(ast_id(ast) == TK_THISTYPE)
+    return true;
+
+  for(ast_t* child = ast_child(ast); child != NULL; child = ast_sibling(child))
+  {
+    if(type_contains_thistype(child))
+      return true;
+  }
+
+  return false;
+}
+
 static bool insert_apply(pass_opt_t* opt, ast_t** astp)
 {
   // Sugar .apply()
@@ -329,6 +346,18 @@ static bool check_arg_types(pass_opt_t* opt, ast_t* params, ast_t* positional,
       if(ast_checkflag(ast_type(arg), AST_FLAG_INCOMPLETE))
         ast_error_frame(&frame, arg,
           "this might be possible if all fields were already defined");
+
+      // Only explain the 'this->' viewpoint when it is actually the cause: the
+      // reified requirement still carries the arrow (so it genuinely depends on
+      // the receiver), and the argument would be assignable if capabilities
+      // were ignored (so the failure is about the capability, not the entity).
+      if(type_contains_thistype(wp_type) &&
+        is_subtype_ignore_cap(arg_type, wp_type, NULL, opt))
+        ast_error_frame(&frame, param,
+          "this parameter's type is adapted through the receiver's "
+          "viewpoint (the 'this->' arrow), so the capability it requires "
+          "depends on how the receiver is viewed, not just the capability "
+          "written in the type");
 
       errorframe_append(&frame, &info);
       errorframe_report(&frame, opt->check.errors);

@@ -85,6 +85,22 @@ static bool is_sub_cap_and_eph(ast_t* sub, ast_t* super, check_cap_t check_cap,
           ast_error_frame(errorf, sub_cap,
             "this would be possible if the subcap were more ephemeral. "
             "Perhaps you meant to consume this variable");
+
+        const char* generic = NULL;
+        switch(ast_id(super_cap))
+        {
+          case TK_CAP_READ:  generic = "ref, val, box"; break;
+          case TK_CAP_SEND:  generic = "iso, val, tag"; break;
+          case TK_CAP_SHARE: generic = "val, tag"; break;
+          case TK_CAP_ANY:   generic = "iso, trn, ref, val, box, tag"; break;
+          default: break;
+        }
+
+        if(generic != NULL)
+          ast_error_frame(errorf, sub_cap,
+            "%s is a generic capability standing for {%s}; a capability is a "
+            "subcap of it only if it is a subcap of every one of those",
+            ast_print_type(super_cap), generic);
       }
 
       return false;
