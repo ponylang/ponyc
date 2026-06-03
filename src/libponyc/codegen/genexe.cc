@@ -2353,6 +2353,17 @@ bool genexe(compile_t* c, ast_t* program)
   reach(c->reach, main_ast, stringtab("runtime_override_defaults"), NULL, c->opt);
   reach(c->reach, env_ast, c->str__create, NULL, c->opt);
 
+  // reach() can't signal failure through its void return. If it aborted on an
+  // over-large generic instantiation it left stub types behind and already
+  // reported the error, so fail now — before painting/codegen, which would
+  // touch those stubs.
+  if(reach_limit_exceeded(c->reach))
+  {
+    ast_free(main_ast);
+    ast_free(env_ast);
+    return false;
+  }
+
   if(c->opt->limit == PASS_REACH)
   {
     ast_free(main_ast);

@@ -961,6 +961,12 @@ bool codegen_gen_test(compile_t* c, ast_t* program, pass_opt_t* opt,
     deferred_reify_free(main_create);
   }
 
+  // reach() can't signal failure through its void return. If it aborted on an
+  // over-large generic instantiation it already reported the error and left
+  // stub types behind, so fail before painting/codegen would touch them.
+  if(reach_limit_exceeded(c->reach))
+    return false;
+
   if(opt->limit == PASS_REACH)
     return true;
 
