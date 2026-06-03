@@ -54,6 +54,9 @@ static bool declared_ffi(pass_opt_t* opt, ast_t* call, ast_t* decl)
     if(!coerce_literals(&arg, p_type, opt))
       return false;
 
+    if(jumps_away_no_value(opt, arg, "an argument"))
+      return false;
+
     ast_t* arg_type = ast_type(arg);
 
     if(is_typecheck_error(arg_type))
@@ -102,6 +105,9 @@ static bool declared_ffi(pass_opt_t* opt, ast_t* call, ast_t* decl)
 
   for(; arg != NULL; arg = ast_sibling(arg))
   {
+    if(jumps_away_no_value(opt, arg, "an argument"))
+      return false;
+
     ast_t* a_type = ast_type(arg);
 
     if((a_type != NULL) && is_type_literal(a_type))

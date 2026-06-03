@@ -92,6 +92,9 @@ bool expr_if(pass_opt_t* opt, ast_t* ast)
 
   if(ast_id(ast) == TK_IF)
   {
+    if(jumps_away_no_value(opt, cond, "a condition"))
+      return false;
+
     ast_t* cond_type = ast_type(cond);
 
     if(is_typecheck_error(cond_type))
@@ -190,6 +193,9 @@ bool expr_while(pass_opt_t* opt, ast_t* ast)
   pony_assert(ast_id(ast) == TK_WHILE);
   AST_GET_CHILDREN(ast, cond, body, else_clause);
 
+  if(jumps_away_no_value(opt, cond, "a condition"))
+    return false;
+
   ast_t* cond_type = ast_type(cond);
 
   if(is_typecheck_error(cond_type))
@@ -244,6 +250,9 @@ bool expr_repeat(pass_opt_t* opt, ast_t* ast)
 {
   pony_assert(ast_id(ast) == TK_REPEAT);
   AST_GET_CHILDREN(ast, body, cond, else_clause);
+
+  if(jumps_away_no_value(opt, cond, "a condition"))
+    return false;
 
   ast_t* cond_type = ast_type(cond);
 
@@ -395,6 +404,10 @@ bool expr_recover(pass_opt_t* opt, ast_t* ast)
 {
   pony_assert(ast_id(ast) == TK_RECOVER);
   AST_GET_CHILDREN(ast, cap, expr);
+
+  if(jumps_away_no_value(opt, expr, "a recover operand"))
+    return false;
+
   ast_t* type = ast_type(expr);
 
   if(is_typecheck_error(type))

@@ -219,6 +219,16 @@ bool is_typecheck_error(ast_t* type)
   return false;
 }
 
+bool jumps_away_no_value(pass_opt_t* opt, ast_t* ast, const char* what)
+{
+  if(!ast_checkflag(ast, AST_FLAG_JUMPS_AWAY))
+    return false;
+
+  ast_error(opt->check.errors, ast,
+    "%s can't be an expression that jumps away with no value", what);
+  return true;
+}
+
 static ast_t* find_tuple_type(pass_opt_t* opt, ast_t* ast, size_t child_count)
 {
   if((ast_id(ast) == TK_TUPLETYPE) && (ast_childcount(ast) == child_count))

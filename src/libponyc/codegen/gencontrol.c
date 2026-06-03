@@ -430,18 +430,20 @@ LLVMValueRef gen_repeat(compile_t* c, ast_t* ast)
   LLVMValueRef else_value = gen_expr(c, else_clause);
   LLVMBasicBlockRef else_from = NULL;
 
-  if(else_value == NULL)
-    return NULL;
-
-  if(needed)
-  {
-    ast_t* else_type = deferred_reify(reify, ast_type(else_clause), c->opt);
-    else_value = gen_assign_cast(c, phi_type->use_type, else_value, else_type);
-    ast_free_unattached(else_type);
-  }
-
+  // If the else clause jumps away (e.g. `error`), it produces no value and has
+  // no type to reify, so skip the cast entirely. Mirrors gen_while.
   if(else_value != GEN_NOVALUE)
   {
+    if(else_value == NULL)
+      return NULL;
+
+    if(needed)
+    {
+      ast_t* else_type = deferred_reify(reify, ast_type(else_clause), c->opt);
+      else_value = gen_assign_cast(c, phi_type->use_type, else_value, else_type);
+      ast_free_unattached(else_type);
+    }
+
     else_from = LLVMGetInsertBlock(c->builder);
     LLVMBuildBr(c->builder, post_block);
   }

@@ -39,6 +39,12 @@ static bool make_capture_field(pass_opt_t* opt, ast_t* capture,
   // x = y -> capture expression y, type inferred from expression type
   // x: T = y -> capture expression y, type T
 
+  // The two `= y` forms capture an arbitrary expression, which can't jump away
+  // with no value. (The bare `x` form has a TK_NONE value, which the helper
+  // ignores.)
+  if(jumps_away_no_value(opt, value, "a lambda capture"))
+    return false;
+
   if(ast_id(value) == TK_NONE)
   {
     // Variable capture

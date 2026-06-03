@@ -162,6 +162,9 @@ bool expr_param(pass_opt_t* opt, ast_t* ast)
     if(!coerce_literals(&init, type, opt))
       return false;
 
+    if(jumps_away_no_value(opt, init, "a default argument"))
+      return false;
+
     ast_t* init_type = ast_type(init);
 
     if(is_typecheck_error(init_type))
@@ -888,15 +891,22 @@ bool expr_tuple(pass_opt_t* opt, ast_t* ast)
   } else {
     type = ast_from(ast, TK_TUPLETYPE);
 
-    while(child != NULL)
+    // A tuple can't contain an expression that jumps away with no value. Check
+    // every child up front: the literal short-circuit below returns before the
+    // type-building loop visits later children, so an earlier literal element
+    // would otherwise hide a later jumps-away element.
+    for(ast_t* c = child; c != NULL; c = ast_sibling(c))
     {
-      if(ast_checkflag(child, AST_FLAG_JUMPS_AWAY))
+      if(ast_checkflag(c, AST_FLAG_JUMPS_AWAY))
       {
-        ast_error(opt->check.errors, child,
+        ast_error(opt->check.errors, c,
           "a tuple can't contain an expression that jumps away with no value");
         return false;
       }
+    }
 
+    while(child != NULL)
+    {
       ast_t* c_type = ast_type(child);
 
       if((c_type == NULL) || (ast_id(c_type) == TK_ERRORTYPE))

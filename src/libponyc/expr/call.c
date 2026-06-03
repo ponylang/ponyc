@@ -284,17 +284,13 @@ static bool check_arg_types(pass_opt_t* opt, ast_t* params, ast_t* positional,
 
     coerce_tuple_to_target(opt, arg, p_type);
 
+    if(jumps_away_no_value(opt, arg, "an argument"))
+      return false;
+
     ast_t* arg_type = ast_type(arg);
 
     if(is_typecheck_error(arg_type))
       return false;
-
-    if(ast_checkflag(arg, AST_FLAG_JUMPS_AWAY))
-    {
-      ast_error(opt->check.errors, arg,
-        "can't use a control expression in an argument");
-      return false;
-    }
 
     errorframe_t info = NULL;
     ast_t* wp_type = consume_type(p_type, TK_NONE, false, opt);
