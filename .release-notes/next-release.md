@@ -40,3 +40,13 @@ let n: U8 = some_function(error)
 let t: (U8, U8) = (1, (error))
 ```
 
+## Reject self-referential type parameter constraints
+
+A generic type parameter whose constraint referred back to itself used to crash the compiler. For example:
+
+```pony
+class A[B: (B | C)]
+```
+
+The compiler now reports a clear error for these constraints instead of crashing.
+
