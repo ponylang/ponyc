@@ -61,9 +61,9 @@ static ast_result_t flatten_isect(pass_opt_t* opt, ast_t* ast)
   return AST_OK;
 }
 
-bool constraint_contains_tuple(ast_t* constraint, ast_t* scan)
+static bool constraint_contains_tuple(ast_t* type)
 {
-  switch(ast_id(scan))
+  switch(ast_id(type))
   {
     case TK_TUPLETYPE:
     {
@@ -72,32 +72,28 @@ bool constraint_contains_tuple(ast_t* constraint, ast_t* scan)
 
     case TK_UNIONTYPE:
     {
-      bool r = false;
-
-      ast_t* child = ast_child(constraint);
-      child = ast_sibling(child);
-
-      while(child != NULL)
+      // Recurse into every member. Members can themselves be unions (a
+      // constraint isn't fully flattened when this runs during the visit
+      // of a contained typeparamref) or type aliases, so we must descend
+      // each one rather than scanning a single level.
+      for(ast_t* child = ast_child(type); child != NULL;
+        child = ast_sibling(child))
       {
-        if(constraint_contains_tuple(constraint, child))
-          r = true;
-        child = ast_sibling(child);
+        if(constraint_contains_tuple(child))
+          return true;
       }
 
-      return r;
+      return false;
     }
 
     case TK_TYPEALIASREF:
     {
-      ast_t* unfolded = typealias_unfold(scan);
+      ast_t* unfolded = typealias_unfold(type);
 
       if(unfolded == NULL)
         return false;
 
-      // Pass unfolded as both constraint and scan: after unfolding, the
-      // concrete type IS the effective constraint. The TK_UNIONTYPE case
-      // iterates constraint's children, which must be the union members.
-      bool r = constraint_contains_tuple(unfolded, unfolded);
+      bool r = constraint_contains_tuple(unfolded);
       ast_free_unattached(unfolded);
       return r;
     }
@@ -106,6 +102,136 @@ bool constraint_contains_tuple(ast_t* constraint, ast_t* scan)
   }
 
   return false;
+}
+
+// Resolve a type parameter to the constraint we should walk, collapsing bare
+// self/mutual chains to NULL the way typeparam_constraint does. A bare
+// typeparamref constraint is the internal form of an unconstrained parameter
+// (`[A]` becomes `A: A`) or a bare chain; typeparam_constraint collapses such
+// self/mutual loops to NULL, so they are not self-referential. A compound
+// constraint is returned as-is. The result is borrowed, not owned.
+static ast_t* effective_constraint(ast_t* def)
+{
+  ast_t* constraint = ast_childidx(def, 1);
+
+  if(ast_id(constraint) == TK_TYPEPARAMREF)
+    return typeparam_constraint(constraint);
+
+  return constraint;
+}
+
+// Walk a type's structure looking for a reference back to 'root' — the type
+// parameter whose constraint we are validating. Descent passes through the
+// structural positions that the subtype checker inlines a constraint into
+// (union/intersection/tuple members, arrow RHS, alias unfolds) but STOPS at
+// TK_NOMINAL: a reference reached behind a constructor (F-bounded
+// polymorphism, e.g. `A: Comparable[A]`) is productive and terminates in the
+// subtype checker via its nominal cycle guard, so it stays legal.
+//
+// '*visited' accumulates every other type parameter whose constraint has been
+// expanded during this walk. A parameter is added the first time it is
+// reached and never removed, so each one is expanded at most once per root.
+// This both bounds the walk (re-encountering a parameter — including a cycle
+// back-edge — ends that branch) and keeps it linear on constraint graphs that
+// fan out, where a path-scoped set would re-walk shared sub-graphs
+// exponentially. Suppressing a re-visit can't hide a real cycle: 'root' is
+// matched before the visited check, and a reachable 'root' returns true on the
+// parameter's first expansion, which short-circuits all the way out.
+//
+// A reported cycle isn't necessarily centred on 'root': a cycle routed through
+// a bare-chain member (collapsed by effective_constraint) may be flagged at a
+// neighbouring parameter instead. Every cycle has at least one member flagged
+// at its own definition, so the constraint is always rejected; an all-compound
+// cycle flags every member.
+static bool constraint_reaches_root(ast_t* root, ast_t* type,
+  astlist_t** visited)
+{
+  switch(ast_id(type))
+  {
+    case TK_UNIONTYPE:
+    case TK_ISECTTYPE:
+    case TK_TUPLETYPE:
+    {
+      for(ast_t* child = ast_child(type); child != NULL;
+        child = ast_sibling(child))
+      {
+        if(constraint_reaches_root(root, child, visited))
+          return true;
+      }
+
+      return false;
+    }
+
+    case TK_TYPEPARAMREF:
+    {
+      ast_t* def = (ast_t*)ast_data(type);
+
+      if(def == root)
+        return true;
+
+      if(astlist_find(*visited, def) != NULL)
+        return false;
+
+      *visited = astlist_push(*visited, def);
+
+      ast_t* constraint = effective_constraint(def);
+
+      if(constraint == NULL)
+        return false;
+
+      return constraint_reaches_root(root, constraint, visited);
+    }
+
+    case TK_TYPEALIASREF:
+    {
+      ast_t* unfolded = typealias_unfold(type);
+
+      if(unfolded == NULL)
+        return false;
+
+      bool r = constraint_reaches_root(root, unfolded, visited);
+      ast_free_unattached(unfolded);
+      return r;
+    }
+
+    case TK_ARROW:
+      // Arrows are rejected as constraints in the syntax pass, so a directly
+      // written arrow constraint never reaches here; this is only reachable
+      // when an alias unfolds to an arrow. Walk the RHS for completeness.
+      return constraint_reaches_root(root, ast_childidx(type, 1), visited);
+
+    default:
+      // TK_NOMINAL and leaves stop the walk.
+      return false;
+  }
+}
+
+static ast_result_t flatten_typeparam(pass_opt_t* opt, ast_t* ast)
+{
+  ast_t* constraint = effective_constraint(ast);
+
+  if(constraint == NULL)
+    return AST_OK;
+
+  astlist_t* visited = NULL;
+  bool reaches = constraint_reaches_root(ast, constraint, &visited);
+
+  // The list never owns the AST nodes it points at (the astlist free fn is
+  // NULL), so this frees the cells only.
+  astlist_free(visited);
+
+  if(reaches)
+  {
+    ast_t* id = ast_child(ast);
+
+    ast_error(opt->check.errors, ast, "type parameter '%s' can't appear "
+      "directly in its own constraint", ast_name(id));
+    ast_error_continue(opt->check.errors, ast_childidx(ast, 1),
+      "constraint is here");
+    return AST_ERROR;
+  }
+
+  return AST_OK;
 }
 
 ast_result_t flatten_typeparamref(pass_opt_t* opt, ast_t* ast)
@@ -132,7 +258,7 @@ ast_result_t flatten_typeparamref(pass_opt_t* opt, ast_t* ast)
   // the one used in syntax.
   ast_t* constraint = typeparam_constraint(ast);
   if(constraint != NULL
-    && constraint_contains_tuple(constraint, constraint))
+    && constraint_contains_tuple(constraint))
   {
     ast_error(opt->check.errors, constraint,
       "constraint contains a tuple; tuple types can't be used as type constraints");
@@ -380,6 +506,9 @@ ast_result_t pass_flatten(ast_t** astp, pass_opt_t* options)
 
     case TK_ARROW:
       return flatten_arrow(options, astp);
+
+    case TK_TYPEPARAM:
+      return flatten_typeparam(options, ast);
 
     case TK_TYPEPARAMREF:
       return flatten_typeparamref(options, ast);
