@@ -9,6 +9,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Fix `use=dtrace` builds on FreeBSD ([PR #5400](https://github.com/ponylang/ponyc/pull/5400))
 - Fix compiler crashes from control expressions that jump away in value positions ([PR #5406](https://github.com/ponylang/ponyc/pull/5406))
 - Reject self-referential type parameter constraints ([PR #5403](https://github.com/ponylang/ponyc/pull/5403))
+- Report an error for infinitely recursive generic types ([PR #5411](https://github.com/ponylang/ponyc/pull/5411))
 
 ### Added
 
