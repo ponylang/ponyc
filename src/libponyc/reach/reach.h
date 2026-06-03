@@ -146,30 +146,6 @@ reach_method_name_t* reach_method_name(reach_type_t* t,
 
 uint32_t reach_vtable_index(reach_type_t* t, const char* name);
 
-/** Return true if any reachable method has the given vtable index and is
- * partial.
- *
- * The painter assigns vtable indices by mangled name, and Pony's mangling
- * does not include partiality, so a partial and a non-partial method with
- * the same parameter and return types share a vtable index. Codegen needs
- * to know when such sharing happens so the slot's calling convention is
- * uniform across both sides:
- *
- *   - The vtable population in gendesc.c wraps a non-partial concrete
- *     method's return as `{T, i1}` whenever this returns true for the
- *     method's vtable index, so a partial caller through the slot sees
- *     the wrapped return type it expects.
- *
- *   - The interface dispatch in gencall.c (gen_call) unwraps the result
- *     whenever this returns true for the dispatch method's vtable index,
- *     so a non-partial caller through the slot sees the unwrapped return
- *     type it expects.
- *
- * Both sides must agree on the same answer for the same vtable index, so
- * they share this query.
- */
-bool reach_vtable_index_has_partial(reach_t* r, uint32_t vtable_index);
-
 uint32_t reach_max_type_id(reach_t* r);
 
 void reach_dump(reach_t* r);

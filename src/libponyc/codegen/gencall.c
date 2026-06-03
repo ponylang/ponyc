@@ -252,54 +252,6 @@ static bool special_case_call(compile_t* c, ast_t* ast, LLVMValueRef* value)
   return false;
 }
 
-// Detect vtable slots that are wrapped on the callee side because they share
-// a vtable index with a partial method elsewhere — see the header doc on
-// `reach_vtable_index_has_partial`. When this returns true, the dispatch
-// method's compiled return type does not match the slot's actual return; the
-// caller must use the wrapped `{T, i1}` return for the LLVM call and then
-// unwrap the always-false error flag. *func_type is rewritten in place to the
-// wrapped type when true. When the dispatch method is itself partial,
-// c_m->func_type already has the wrapped return, the partial-handling block
-// in `gen_call` unwraps it, and this returns false.
-//
-// COUPLING: mirrors the decision made by `method_needs_error_wrap` in
-// gendesc.c. Both sides key off `reach_vtable_index_has_partial` and must
-// stay in lockstep.
-static bool adjust_for_wrapped_vtable_slot(compile_t* c, reach_type_t* t,
-  reach_method_t* m, LLVMTypeRef* func_type)
-{
-  compile_method_t* c_m = (compile_method_t*)m->c_method;
-
-  bool is_vtable_dispatch =
-    (t->underlying == TK_UNIONTYPE) ||
-    (t->underlying == TK_ISECTTYPE) ||
-    (t->underlying == TK_INTERFACE) ||
-    (t->underlying == TK_TRAIT);
-
-  // is_partial/internal short-circuit here on the CURRENT method: a partial
-  // dispatch method is already handled by the partial-handling block in
-  // gen_call, and internal methods aren't wrapped on the callee side.
-  // reach_vtable_index_has_partial then asks about siblings at the same
-  // vtable index.
-  if(!is_vtable_dispatch || c_m->is_partial || m->internal ||
-    !reach_vtable_index_has_partial(c->reach, m->vtable_index))
-    return false;
-
-  // Build the wrapped function type so the call uses the slot's actual
-  // calling convention. Param types are unchanged; only the return is wrapped
-  // with the error flag.
-  LLVMTypeRef ret_type = LLVMGetReturnType(*func_type);
-  LLVMTypeRef wrapped_ret = error_flag_type(c, ret_type);
-  unsigned count = LLVMCountParamTypes(*func_type);
-  size_t params_size = count * sizeof(LLVMTypeRef);
-  LLVMTypeRef* fparams =
-    (LLVMTypeRef*)ponyint_pool_alloc_size(params_size);
-  LLVMGetParamTypes(*func_type, fparams);
-  *func_type = LLVMFunctionType(wrapped_ret, fparams, count, false);
-  ponyint_pool_free_size(params_size, fparams);
-  return true;
-}
-
 static LLVMValueRef dispatch_function(compile_t* c, reach_type_t* t,
   reach_method_t* m, LLVMValueRef l_value)
 {
@@ -872,9 +824,6 @@ LLVMValueRef gen_call(compile_t* c, ast_t* ast)
   LLVMValueRef func = dispatch_function(c, t, m, args[0]);
   LLVMTypeRef func_type = ((compile_method_t*)m->c_method)->func_type;
 
-  bool unwrap_nonpartial_slot = adjust_for_wrapped_vtable_slot(c, t, m,
-    &func_type);
-
   bool is_message = false;
 
   if((ast_id(postfix) == TK_NEWBEREF) || (ast_id(postfix) == TK_BEREF) ||
@@ -956,22 +905,7 @@ LLVMValueRef gen_call(compile_t* c, ast_t* ast)
       }
 
       compile_method_t* c_m = (compile_method_t*)m->c_method;
-      if(unwrap_nonpartial_slot)
-      {
-        // The vtable slot is wrapped (see the slot-wrap detection above)
-        // but the dispatch method we called through is non-partial, so the
-        // error flag is always false. Drop it and keep the value.
-        //
-        // Void returns can't reach here: this branch only runs for
-        // interface/trait/union/isect dispatch, and the only methods with
-        // a void compiled return — bare functions, class constructors,
-        // and `_final` — don't go through that dispatch path. The wrapped
-        // return must therefore be `{T, i1}`, not the void-form `i1`.
-        LLVMTypeRef callee_ret = LLVMGetReturnType(func_type);
-        pony_assert(callee_ret != c->i1);
-        r = unwrap_result(c, r);
-      }
-      else if(c_m->is_partial)
+      if(c_m->is_partial)
       {
         // Callee returns {T, i1} or i1. Extract the error flag and branch.
         LLVMValueRef error_flag = unwrap_error(c, r);

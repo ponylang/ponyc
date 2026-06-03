@@ -60,7 +60,7 @@
 #endif
 
 static LLVMValueRef make_unbox_function(compile_t* c, reach_type_t* t,
-  reach_method_t* m, bool needs_error_wrap)
+  reach_method_t* m)
 {
   // Create a new unboxing function that forwards to the real function.
   compile_method_t* c_m = (compile_method_t*)m->c_method;
@@ -73,9 +73,12 @@ static LLVMValueRef make_unbox_function(compile_t* c, reach_type_t* t,
   LLVMGetParamTypes(f_type, params);
   LLVMTypeRef ret_type = LLVMGetReturnType(f_type);
 
-  // If error wrapping is needed, the unbox function returns the wrapped type.
-  LLVMTypeRef unbox_ret_type = needs_error_wrap ?
-    error_flag_type(c, ret_type) : ret_type;
+  // The unbox function returns whatever the real function returns. When the
+  // real function is a partial-slot forwarding wrapper it already returns the
+  // `{T, i1}` error-flag form, so no extra wrapping happens here: partiality
+  // is segregated into its own vtable slot (and thus its own forwarding
+  // function) by the mangled name.
+  LLVMTypeRef unbox_ret_type = ret_type;
 
   const char* unbox_name = genname_unbox(m->full_name);
   compile_type_t* c_t = (compile_type_t*)t->c_type;
@@ -126,23 +129,7 @@ static LLVMValueRef make_unbox_function(compile_t* c, reach_type_t* t,
   LLVMValueRef result = codegen_call(c, LLVMGlobalGetValueType(c_m->func),
     c_m->func, args, count, m->cap != TK_AT);
 
-  if(needs_error_wrap)
-  {
-    if(ret_type == c->void_type)
-    {
-      genfun_build_ret(c, LLVMConstInt(c->i1, 0, false));
-    }
-    else
-    {
-      LLVMValueRef wrapped = wrap_result(c, result,
-        LLVMConstInt(c->i1, 0, false));
-      genfun_build_ret(c, wrapped);
-    }
-  }
-  else
-  {
-    genfun_build_ret(c, result);
-  }
+  genfun_build_ret(c, result);
 
   codegen_finishfun(c);
 
@@ -154,78 +141,6 @@ static LLVMValueRef make_unbox_function(compile_t* c, reach_type_t* t,
 static LLVMValueRef make_desc_ptr(compile_t* c, LLVMValueRef func)
 {
   return func == NULL ? LLVMConstNull(c->ptr) : func;
-}
-
-static bool method_needs_error_wrap(reach_t* r, reach_method_t* m)
-{
-  // A non-partial method needs an error-wrapping vtable entry whenever the
-  // painter has put it at the same vtable index as a partial method (same
-  // mangled name, since mangling ignores partiality). The vtable slot then
-  // returns `{T, i1}` regardless of which side called it.
-  //
-  // COUPLING: the interface-dispatch site in gencall.c (gen_call) keys off
-  // the SAME `reach_vtable_index_has_partial` query to decide when to unwrap
-  // the result. If the predicate here changes, the call site must change to
-  // match — see the header comment on `reach_vtable_index_has_partial`.
-  compile_method_t* c_m = (compile_method_t*)m->c_method;
-
-  if(c_m->is_partial || m->internal)
-    return false;
-
-  return reach_vtable_index_has_partial(r, m->vtable_index);
-}
-
-static LLVMValueRef make_error_wrap_function(compile_t* c,
-  reach_method_t* m)
-{
-  // Create a wrapper function that calls the non-partial concrete method and
-  // wraps its return value with an error flag (always false = no error).
-  // This is used for vtable entries where the dispatch type expects a partial
-  // return type but the concrete method is not partial.
-  compile_method_t* c_m = (compile_method_t*)m->c_method;
-  LLVMTypeRef f_type = LLVMGlobalGetValueType(c_m->func);
-  int count = LLVMCountParamTypes(f_type);
-  LLVMTypeRef ret_type = LLVMGetReturnType(f_type);
-
-  size_t buf_size = count * sizeof(LLVMTypeRef);
-  LLVMTypeRef* params = (LLVMTypeRef*)ponyint_pool_alloc_size(buf_size);
-  LLVMGetParamTypes(f_type, params);
-
-  // Wrap the return type with an error flag.
-  LLVMTypeRef wrapped_ret = error_flag_type(c, ret_type);
-
-  const char* wrap_name = genname_error_wrap(m->full_name);
-  LLVMTypeRef wrap_type = LLVMFunctionType(wrapped_ret, params, count, false);
-  LLVMValueRef wrap_fun = codegen_addfun(c, wrap_name, wrap_type, true);
-  codegen_startfun(c, wrap_fun, NULL, NULL, NULL, false);
-
-  // Forward all parameters to the real function.
-  size_t args_size = count * sizeof(LLVMValueRef);
-  LLVMValueRef* args = (LLVMValueRef*)ponyint_pool_alloc_size(args_size);
-
-  for(int i = 0; i < count; i++)
-    args[i] = LLVMGetParam(wrap_fun, i);
-
-  LLVMValueRef result = codegen_call(c, f_type, c_m->func, args, count,
-    m->cap != TK_AT);
-
-  // Wrap the result with error flag = false (no error).
-  if(ret_type == c->void_type)
-  {
-    genfun_build_ret(c, LLVMConstInt(c->i1, 0, false));
-  }
-  else
-  {
-    LLVMValueRef wrapped = wrap_result(c, result,
-      LLVMConstInt(c->i1, 0, false));
-    genfun_build_ret(c, wrapped);
-  }
-
-  codegen_finishfun(c);
-
-  ponyint_pool_free_size(buf_size, params);
-  ponyint_pool_free_size(args_size, args);
-  return wrap_fun;
 }
 
 static LLVMValueRef* trait_bitmap32(compile_t* c, reach_type_t* t)
@@ -449,12 +364,8 @@ static LLVMValueRef make_vtable(compile_t* c, reach_type_t* t)
       pony_assert(vtable[index] == NULL);
       compile_method_t* c_m = (compile_method_t*)m->c_method;
 
-      bool needs_wrap = method_needs_error_wrap(c->reach, m);
-
       if((c_t->primitive != NULL) && !m->internal)
-        vtable[index] = make_unbox_function(c, t, m, needs_wrap);
-      else if(needs_wrap)
-        vtable[index] = make_error_wrap_function(c, m);
+        vtable[index] = make_unbox_function(c, t, m);
       else
         vtable[index] = make_desc_ptr(c, c_m->func);
     }

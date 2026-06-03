@@ -131,9 +131,16 @@ static void make_signature(compile_t* c, reach_type_t* t,
       mparams[i + offset + 2] = p_c_t->mem_type;
   }
 
-  // Detect if the method is partial.
+  // Detect if the method is partial. This decides the LLVM calling convention
+  // of the method's vtable slot (`{T, i1}` for partial, `T` for non-partial).
   // Bare functions are excluded: they are called from C code that doesn't
   // understand error-flag returns, so they abort on unhandled error instead.
+  //
+  // COUPLING: this test MUST stay byte-identical to the partiality test in
+  // make_mangled_name (reach/reach.c), which decides WHICH slot a method lands
+  // in. If they diverge, a method's slot and its ABI disagree — the calling-
+  // convention crash that partial/non-partial slot segregation exists to
+  // prevent.
   ast_t* can_error = ast_childidx(m->fun->ast, 5);
   c_m->is_partial = (m->cap != TK_AT) && (ast_id(can_error) == TK_QUESTION);
 
