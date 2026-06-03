@@ -74,7 +74,7 @@ class val WorkspaceData
       .update("folder", folder.path)
       .update("dependencies", dp_arr)
       .update("packages", pp_arr)
-      .string()
+      .print()
 
   fun find_package(document_path: String): (FilePath | None) =>
     var doc_path: String val = document_path

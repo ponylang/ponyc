@@ -68,6 +68,8 @@ actor \nodoc\ Main is TestList
     test(_TestPrintCompact)
     test(_TestPrintFloats)
     test(_TestPrintPretty)
+    test(_TestPrinterPretty)
+    test(_TestPrinterScalars)
     test(_TestTokenParserAbort)
 
 // ===================================================================
@@ -199,10 +201,10 @@ class \nodoc\ iso _ParsePrintRoundtripProperty is Property1[String]
     let first_parse = JsonParser.parse(sample)
     match \exhaustive\ first_parse
     | let j1: JsonValue =>
-      let s1: String val = _JsonPrint.compact(j1)
+      let s1: String val = JsonPrinter.print(j1)
       match \exhaustive\ JsonParser.parse(s1)
       | let j2: JsonValue =>
-        let s2: String val = _JsonPrint.compact(j2)
+        let s2: String val = JsonPrinter.print(j2)
         ph.assert_eq[String val](s1, s2)
       | let e: JsonParseError =>
         ph.fail("Re-parse failed: " + e.string())
@@ -254,7 +256,7 @@ class \nodoc\ iso _F64RoundtripProperty is Property1[F64]
   fun ref property(sample: F64, ph: PropertyHelper) =>
     // Serialize as a JSON array element to handle the formatting
     let arr = JsonArray.push(sample)
-    let s: String val = _JsonPrint.compact(arr)
+    let s: String val = JsonPrinter.print(arr)
     match \exhaustive\ JsonParser.parse(s)
     | let j: JsonValue =>
       try
@@ -277,7 +279,7 @@ class \nodoc\ iso _StringEscapeRoundtripProperty is Property1[String]
   fun ref property(sample: String, ph: PropertyHelper) =>
     // Embed string in a JSON array, serialize, parse, extract
     let arr = JsonArray.push(sample)
-    let serialized: String val = _JsonPrint.compact(arr)
+    let serialized: String val = JsonPrinter.print(arr)
     match \exhaustive\ JsonParser.parse(serialized)
     | let j: JsonValue =>
       try
@@ -733,17 +735,17 @@ class \nodoc\ iso _TestPrintCompact is UnitTest
 
   fun apply(h: TestHelper) =>
     // Empty containers
-    h.assert_eq[String]("{}", JsonObject.string())
-    h.assert_eq[String]("[]", JsonArray.string())
+    h.assert_eq[String]("{}", JsonObject.print())
+    h.assert_eq[String]("[]", JsonArray.print())
 
     // Object with entries
     let obj = JsonObject.update("a", I64(1))
-    let obj_s: String val = obj.string()
+    let obj_s: String val = obj.print()
     h.assert_eq[String]("""{"a":1}""", obj_s)
 
     // Array with entries
     let arr = JsonArray.push(I64(1)).push(I64(2))
-    let arr_s: String val = arr.string()
+    let arr_s: String val = arr.print()
     h.assert_eq[String]("[1,2]", arr_s)
 
     // Boolean, null via array
@@ -751,12 +753,12 @@ class \nodoc\ iso _TestPrintCompact is UnitTest
       .push(true)
       .push(false)
       .push(None)
-    let mixed_s: String val = mixed.string()
+    let mixed_s: String val = mixed.print()
     h.assert_eq[String]("[true,false,null]", mixed_s)
 
     // String with special chars
     let str_arr = JsonArray.push("a\"b\\c\nd")
-    let str_s: String val = str_arr.string()
+    let str_s: String val = str_arr.print()
     h.assert_eq[String]("""["a\"b\\c\nd"]""", str_s)
 
 class \nodoc\ iso _TestPrintPretty is UnitTest
@@ -764,27 +766,27 @@ class \nodoc\ iso _TestPrintPretty is UnitTest
 
   fun apply(h: TestHelper) =>
     // Empty containers stay compact
-    h.assert_eq[String]("{}", JsonObject.pretty_string())
-    h.assert_eq[String]("[]", JsonArray.pretty_string())
+    h.assert_eq[String]("{}", JsonObject.pretty_print())
+    h.assert_eq[String]("[]", JsonArray.pretty_print())
 
     // Simple object
     let obj = JsonObject.update("a", I64(1))
     let expected = "{\n  \"a\": 1\n}"
-    h.assert_eq[String](expected, obj.pretty_string())
+    h.assert_eq[String](expected, obj.pretty_print())
 
     // Nested
     let inner = JsonObject.update("x", I64(42))
     let outer = JsonObject.update("inner", inner)
-    let nested_s: String val = outer.pretty_string()
+    let nested_s: String val = outer.pretty_print()
     h.assert_true(nested_s.contains("    \"x\": 42"))
 
     // Custom indent
-    let tab_s: String val = obj.pretty_string("\t")
+    let tab_s: String val = obj.pretty_print("\t")
     h.assert_true(tab_s.contains("\t\"a\": 1"))
 
     // Array
     let arr = JsonArray.push(I64(1)).push(I64(2))
-    let arr_s: String val = arr.pretty_string()
+    let arr_s: String val = arr.pretty_print()
     let arr_expected = "[\n  1,\n  2\n]"
     h.assert_eq[String](arr_expected, arr_s)
 
@@ -794,23 +796,93 @@ class \nodoc\ iso _TestPrintFloats is UnitTest
   fun apply(h: TestHelper) =>
     // Whole-number float gets .0 suffix
     let whole = JsonArray.push(F64(1))
-    let whole_s: String val = whole.string()
+    let whole_s: String val = whole.print()
     h.assert_eq[String]("[1.0]", whole_s)
 
     // Decimal float kept as-is
     let dec = JsonArray.push(F64(1.5))
-    let dec_s: String val = dec.string()
+    let dec_s: String val = dec.print()
     h.assert_eq[String]("[1.5]", dec_s)
 
     // Negative float
     let neg = JsonArray.push(F64(-3.25))
-    let neg_s: String val = neg.string()
+    let neg_s: String val = neg.print()
     h.assert_eq[String]("[-3.25]", neg_s)
 
     // Zero
     let zero = JsonArray.push(F64(0))
-    let zero_s: String val = zero.string()
+    let zero_s: String val = zero.print()
     h.assert_eq[String]("[0.0]", zero_s)
+
+class \nodoc\ iso _TestPrinterPretty is UnitTest
+  fun name(): String => "json/printer/pretty"
+
+  fun apply(h: TestHelper) =>
+    // Scalars are unaffected by pretty-printing.
+    h.assert_eq[String]("null", JsonPrinter.pretty(None))
+    h.assert_eq[String]("42", JsonPrinter.pretty(I64(42)))
+
+    // Objects are indented.
+    let obj = JsonObject.update("a", I64(1))
+    h.assert_eq[String]("{\n  \"a\": 1\n}", JsonPrinter.pretty(obj))
+
+    // Arrays are indented.
+    let arr = JsonArray.push(I64(1)).push(I64(2))
+    h.assert_eq[String]("[\n  1,\n  2\n]", JsonPrinter.pretty(arr))
+
+    // Nested containers indent one level deeper.
+    let nested = JsonObject.update("inner", JsonObject.update("x", I64(42)))
+    h.assert_eq[String](
+      "{\n  \"inner\": {\n    \"x\": 42\n  }\n}",
+      JsonPrinter.pretty(nested))
+
+    // Custom indent string.
+    let tab_s: String val = JsonPrinter.pretty(obj, "\t")
+    h.assert_true(tab_s.contains("\t\"a\": 1"))
+
+class \nodoc\ iso _TestPrinterScalars is UnitTest
+  fun name(): String => "json/printer/scalars"
+
+  fun apply(h: TestHelper) =>
+    // JSON null is None — must serialize as `null`, not `None`.
+    h.assert_eq[String]("null", JsonPrinter.print(None))
+
+    // Booleans
+    h.assert_eq[String]("true", JsonPrinter.print(true))
+    h.assert_eq[String]("false", JsonPrinter.print(false))
+
+    // Integers
+    h.assert_eq[String]("42", JsonPrinter.print(I64(42)))
+    h.assert_eq[String]("-7", JsonPrinter.print(I64(-7)))
+
+    // Floats — whole numbers keep a `.0` so they stay floats on re-parse.
+    h.assert_eq[String]("1.0", JsonPrinter.print(F64(1)))
+    h.assert_eq[String]("2.5", JsonPrinter.print(F64(2.5)))
+
+    // Bare strings are quoted.
+    h.assert_eq[String]("\"hello\"", JsonPrinter.print("hello"))
+
+    // A lone double-quote must be escaped (not copied verbatim).
+    h.assert_eq[String]("\"\\\"\"", JsonPrinter.print("\""))
+
+    // Every named control-char escape produces its short form, not \u00xx.
+    h.assert_eq[String]("\"\\b\"", JsonPrinter.print("\b"))
+    h.assert_eq[String]("\"\\f\"", JsonPrinter.print("\f"))
+    h.assert_eq[String]("\"\\n\"", JsonPrinter.print("\n"))
+    h.assert_eq[String]("\"\\r\"", JsonPrinter.print("\r"))
+    h.assert_eq[String]("\"\\t\"", JsonPrinter.print("\t"))
+
+    // Control chars below 0x20 without a named escape use \u00xx.
+    h.assert_eq[String]("\"\\u0001\"", JsonPrinter.print(""))
+
+    // Whole objects and arrays route through the same public entry point,
+    // including the empty-container fast paths.
+    h.assert_eq[String]("{}", JsonPrinter.print(JsonObject))
+    h.assert_eq[String]("[]", JsonPrinter.print(JsonArray))
+    h.assert_eq[String]("""{"a":1}""",
+      JsonPrinter.print(JsonObject.update("a", I64(1))))
+    h.assert_eq[String]("[1,2]",
+      JsonPrinter.print(JsonArray.push(I64(1)).push(I64(2))))
 
 // ===================================================================
 // Example Tests — Collections

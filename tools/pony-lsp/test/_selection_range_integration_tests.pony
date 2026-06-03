@@ -237,7 +237,7 @@ class val _SelectionRangeChecker
           if not h.assert_true(
             entry is None,
             "positions[" + i.string() + "]: expected null, got: " +
-            entry.string())
+            JsonPrinter.print(entry))
           then
             ok = false
           end

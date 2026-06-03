@@ -106,7 +106,7 @@ An interactive command-line prompt with tab completion and command history. Demo
 
 ### [json](json/)
 
-Demonstrates the `json` standard library package: building JSON documents with `JsonObject` and `JsonArray`, parsing JSON text with `JsonParser`, reading nested values with `JsonNav`, composable get/set/remove with `JsonLens`, and string-based queries with `JsonPath` including filters, slicing, and function extensions (`match`, `search`, `length`, `count`).
+Demonstrates the `json` standard library package: building JSON documents with `JsonObject` and `JsonArray`, serializing any value with `JsonPrinter`, parsing JSON text with `JsonParser`, reading nested values with `JsonNav`, composable get/set/remove with `JsonLens`, and string-based queries with `JsonPath` including filters, slicing, and function extensions (`match`, `search`, `length`, `count`).
 
 ## C FFI
 

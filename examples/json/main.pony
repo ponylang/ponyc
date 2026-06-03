@@ -6,6 +6,10 @@ actor Main
     _build_example(env)
     env.out.print("")
 
+    env.out.print("=== Serializing (JsonPrinter) ===")
+    _printer_example(env)
+    env.out.print("")
+
     env.out.print("=== Parsing JSON ===")
     _parse_example(env)
     env.out.print("")
@@ -45,9 +49,32 @@ actor Main
         .update("city", "Portland")
         .update("state", "OR"))
 
-    env.out.print("Compact: " + doc.string())
+    env.out.print("Compact: " + doc.print())
     env.out.print("Pretty:")
-    env.out.print(doc.pretty_string())
+    env.out.print(doc.pretty_print())
+
+  fun _printer_example(env: Env) =>
+    // JsonPrinter.print serializes any JsonValue — objects, arrays, and
+    // scalars alike — which is what JsonObject.print()/JsonArray.print()
+    // cannot do on their own.
+    let doc = json.JsonObject
+      .update("ok", true)
+      .update("count", I64(3))
+      .update("ratio", F64(1.5))
+      .update("note", None)
+      .update("items", json.JsonArray.push("a").push("b"))
+
+    env.out.print("Whole value: " + json.JsonPrinter.print(doc))
+
+    // Scalars and JSON null serialize correctly on their own.
+    env.out.print("Bool:   " + json.JsonPrinter.print(true))
+    env.out.print("Int:    " + json.JsonPrinter.print(I64(42)))
+    env.out.print("Float:  " + json.JsonPrinter.print(F64(2)))
+    env.out.print("String: " + json.JsonPrinter.print("hi\"there"))
+    env.out.print("Null:   " + json.JsonPrinter.print(None))
+
+    env.out.print("Pretty:")
+    env.out.print(json.JsonPrinter.pretty(doc))
 
   fun _parse_example(env: Env) =>
     let source =
@@ -109,7 +136,7 @@ actor Main
       let host_lens = json.JsonLens("config")("database")("host")
       match \exhaustive\ host_lens.get(j)
       | let host: json.JsonValue =>
-        env.out.print("Host: " + host.string())
+        env.out.print("Host: " + json.JsonPrinter.print(host))
       | json.JsonNotFound =>
         env.out.print("Host not found")
       end
@@ -119,7 +146,7 @@ actor Main
       let port_lens = db_lens.compose(json.JsonLens("port"))
       match \exhaustive\ port_lens.get(j)
       | let port: json.JsonValue =>
-        env.out.print("Port: " + port.string())
+        env.out.print("Port: " + json.JsonPrinter.print(port))
       | json.JsonNotFound =>
         env.out.print("Port not found")
       end
@@ -143,7 +170,7 @@ actor Main
         match updated
         | let obj: json.JsonObject =>
           env.out.print("After host change:")
-          env.out.print(obj.pretty_string())
+          env.out.print(obj.pretty_print())
         end
       | json.JsonNotFound =>
         env.out.print("Could not set host — path not found")
@@ -156,7 +183,7 @@ actor Main
         match updated
         | let obj: json.JsonObject =>
           env.out.print("After removing debug:")
-          env.out.print(obj.pretty_string())
+          env.out.print(obj.pretty_print())
         end
       | json.JsonNotFound =>
         env.out.print("Could not remove debug — path not found")
@@ -197,7 +224,7 @@ actor Main
           json.JsonPathParser.compile("$.store.book[0].title")?
         match \exhaustive\ first_title.query_one(doc)
         | let title: json.JsonValue =>
-          env.out.print("First title: " + title.string())
+          env.out.print("First title: " + json.JsonPrinter.print(title))
         | json.JsonNotFound =>
           env.out.print("No title found")
         end
@@ -254,7 +281,7 @@ actor Main
         let results = cheap.query(doc)
         env.out.print("Books under $10 (" + results.size().string() + "):")
         for book in results.values() do
-          env.out.print("  " + book.string())
+          env.out.print("  " + json.JsonPrinter.print(book))
         end
       end
 
@@ -340,7 +367,7 @@ actor Main
     for v in results.values() do
       if not first then buf.append(", ") end
       first = false
-      buf.append(v.string())
+      buf.append(json.JsonPrinter.print(v))
     end
     buf.push(']')
     consume buf

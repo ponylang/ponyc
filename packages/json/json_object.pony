@@ -1,7 +1,7 @@
 use col = "collections"
 use pc = "collections/persistent"
 
-class val JsonObject is Stringable
+class val JsonObject
   """
   Immutable JSON object backed by a persistent hash map.
 
@@ -58,10 +58,10 @@ class val JsonObject is Stringable
     """Iterate over (key, value) pairs."""
     _data.pairs()
 
-  fun string(): String iso^ =>
+  fun print(): String iso^ =>
     """Compact JSON serialization."""
     _JsonPrint.compact_object(this)
 
-  fun pretty_string(indent: String = "  "): String iso^ =>
+  fun pretty_print(indent: String = "  "): String iso^ =>
     """Pretty-printed JSON serialization."""
     _JsonPrint.pretty_object(this, indent)
