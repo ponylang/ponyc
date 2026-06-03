@@ -10,6 +10,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Fix compiler crashes from control expressions that jump away in value positions ([PR #5406](https://github.com/ponylang/ponyc/pull/5406))
 - Reject self-referential type parameter constraints ([PR #5403](https://github.com/ponylang/ponyc/pull/5403))
 - Report an error for infinitely recursive generic types ([PR #5411](https://github.com/ponylang/ponyc/pull/5411))
+- Fix compiler crash on partial application of a method with a literal default argument ([PR #5412](https://github.com/ponylang/ponyc/pull/5412))
 
 ### Added
 
