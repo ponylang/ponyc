@@ -1,6 +1,6 @@
 use pc = "collections/persistent"
 
-class val JsonArray is Stringable
+class val JsonArray
   """
   Immutable JSON array backed by a persistent vector.
 
@@ -55,10 +55,10 @@ class val JsonArray is Stringable
     """Iterate over (index, value) pairs."""
     _data.pairs()
 
-  fun string(): String iso^ =>
+  fun print(): String iso^ =>
     """Compact JSON serialization."""
     _JsonPrint.compact_array(this)
 
-  fun pretty_string(indent: String = "  "): String iso^ =>
+  fun pretty_print(indent: String = "  "): String iso^ =>
     """Pretty-printed JSON serialization."""
     _JsonPrint.pretty_array(this, indent)

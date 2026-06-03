@@ -3,9 +3,75 @@
 
 JSON library for Pony. All JSON values are `val` — construction
 uses chained method calls that return new values with structural sharing
-via persistent collections. Three access patterns are available for
-reading and modifying JSON structures, from simple one-shot lookups to
-composable paths to string-based multi-match queries.
+via persistent collections.
+
+The two ends of the library are `JsonParser` (JSON text → `JsonValue`) and
+`JsonPrinter` (`JsonValue` → JSON text). On top of `JsonValue`, three access
+patterns are available for reading and modifying structures, from simple
+one-shot lookups to composable paths to string-based multi-match queries.
+
+## Parsing JSON
+
+`JsonParser.parse()` returns errors as data — no exceptions to catch:
+
+```pony
+match json.JsonParser.parse(source)
+| let j: json.JsonValue =>
+  // j is the parsed document (object, array, or scalar)
+  match j
+  | let obj: json.JsonObject =>
+    env.out.print("Root is object with " + obj.size().string() + " keys")
+  end
+| let err: json.JsonParseError =>
+  env.out.print("Error at offset " + err.offset.string() + ": "
+    + err.message)
+end
+```
+
+## Serializing JSON
+
+`JsonPrinter` is the dual of `JsonParser`: it encodes any `JsonValue` —
+objects, arrays, and scalars alike — into valid JSON. `print()` produces
+compact output; `pretty()` produces indented output:
+
+```pony
+let doc = json.JsonObject
+  .update("a", I64(1))
+  .update("b", json.JsonArray.push(I64(2)).push(I64(3)))
+
+env.out.print(json.JsonPrinter.print(doc))
+// {"a":1,"b":[2,3]}
+
+env.out.print(json.JsonPrinter.pretty(doc))
+// {
+//   "a": 1,
+//   "b": [
+//     2,
+//     3
+//   ]
+// }
+
+// Custom indent string (default is two spaces)
+env.out.print(json.JsonPrinter.pretty(doc, "\t"))
+
+// Scalars and JSON null serialize correctly too
+env.out.print(json.JsonPrinter.print(None))  // null
+env.out.print(json.JsonPrinter.print(true))  // true
+```
+
+This is also how you serialize Pony data as JSON: build a `JsonValue`, then
+hand it to `JsonPrinter.print()`.
+
+`JsonPrinter.print` is the general entry point and the form to reach for
+first: it is the only one that serializes scalars (`String`, `I64`,
+`F64`, `Bool`) and JSON null (`None`). For convenience, `JsonObject` and
+`JsonArray` also expose `print()` and `pretty_print()` directly,
+equivalent to passing them to `JsonPrinter`:
+
+```pony
+env.out.print(doc.print())         // same as JsonPrinter.print(doc)
+env.out.print(doc.pretty_print())  // same as JsonPrinter.pretty(doc)
+```
 
 ## Building JSON
 
@@ -30,24 +96,6 @@ let doc = json.JsonObject
 Values in the `JsonValue` union — `JsonObject`, `JsonArray`, `String`,
 `I64`, `F64`, `Bool`, and `None` — can be stored in objects and arrays.
 JSON null is Pony's `None`.
-
-## Parsing JSON
-
-`JsonParser.parse()` returns errors as data — no exceptions to catch:
-
-```pony
-match json.JsonParser.parse(source)
-| let j: json.JsonValue =>
-  // j is the parsed document (object, array, or scalar)
-  match j
-  | let obj: json.JsonObject =>
-    env.out.print("Root is object with " + obj.size().string() + " keys")
-  end
-| let err: json.JsonParseError =>
-  env.out.print("Error at offset " + err.offset.string() + ": "
-    + err.message)
-end
-```
 
 ## Reading Values: JsonNav
 
@@ -89,7 +137,8 @@ let host_lens = json.JsonLens("config")("database")("host")
 
 // Read
 match host_lens.get(doc)
-| let host: json.JsonValue => env.out.print("Host: " + host.string())
+| let host: json.JsonValue =>
+  env.out.print("Host: " + json.JsonPrinter.print(host))
 | json.JsonNotFound => env.out.print("no host configured")
 end
 
@@ -130,7 +179,7 @@ match json.JsonPathParser.parse("$.store.book[*].author")
 | let path: json.JsonPath =>
   let authors = path.query(doc) // Array[JsonValue] val
   for author in authors.values() do
-    env.out.print(author.string())
+    env.out.print(json.JsonPrinter.print(author))
   end
 | let err: json.JsonPathParseError =>
   env.out.print(err.string())
@@ -159,32 +208,6 @@ Supported JSONPath syntax:
 * `$[?match(@.name, "[A-Z].*")]` — function extensions (`length`, `count`,
   `match`, `search`, `value`)
 * `query_one()` — convenience returning first match or `JsonNotFound`
-
-## Serialization
-
-`JsonObject` and `JsonArray` implement `Stringable`. Compact output
-uses `string()`; indented output uses `pretty_string()`:
-
-```pony
-let obj = json.JsonObject
-  .update("a", I64(1))
-  .update("b", json.JsonArray.push(I64(2)).push(I64(3)))
-
-env.out.print(obj.string())
-// {"a":1,"b":[2,3]}
-
-env.out.print(obj.pretty_string())
-// {
-//   "a": 1,
-//   "b": [
-//     2,
-//     3
-//   ]
-// }
-
-// Custom indent string (default is two spaces)
-env.out.print(obj.pretty_string("\t"))
-```
 
 ## Choosing an Access Pattern
 

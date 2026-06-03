@@ -82,7 +82,7 @@ actor LanguageServer is (Notifier & RequestSender)
         ResponseError(
           ErrorCodes.internal_error(),
           "[" + r.method + "] No workspace found for '" +
-          r.json().string() + "'")))
+          r.json().print() + "'")))
 
   fun ref _send_no_workspace_for(r: RequestMessage val, uri: String val) =>
     """
@@ -197,7 +197,7 @@ actor LanguageServer is (Notifier & RequestSender)
               "Expected initialize, got " + r.method)))
       end
     | _Initialized =>
-      this._channel.log("\n\n<-\n" + r.json().string())
+      this._channel.log("\n\n<-\n" + r.json().print())
       match \exhaustive\ r.method
       | Methods.text_document().inlay_hint() =>
         _route_doc(r, {(wm, uri, req) => wm.inlay_hint(uri, req) })
@@ -317,7 +317,7 @@ actor LanguageServer is (Notifier & RequestSender)
             end
             return // no need to iterate further
           else
-            this._channel.log("Unhandled response\n" + r.json().string())
+            this._channel.log("Unhandled response\n" + r.json().print())
           end
         end
       else
@@ -351,7 +351,7 @@ actor LanguageServer is (Notifier & RequestSender)
       else
         this._channel.log(
           "[" + n.method + "] No workspace found for '" +
-          n.json().string() + "'")
+          n.json().print() + "'")
       end
     | Methods.text_document().did_save() =>
       try
@@ -362,7 +362,7 @@ actor LanguageServer is (Notifier & RequestSender)
       else
         this._channel.log(
           "[" + n.method + "] No workspace found for '" +
-          n.json().string() + "'")
+          n.json().print() + "'")
       end
     | Methods.text_document().did_close() =>
       try
@@ -373,7 +373,7 @@ actor LanguageServer is (Notifier & RequestSender)
       else
         this._channel.log(
           "[" + n.method + "] No workspace found for '" +
-          n.json().string() + "'")
+          n.json().print() + "'")
       end
     | Methods.workspace().did_change_configuration()
     =>
@@ -564,7 +564,7 @@ actor LanguageServer is (Notifier & RequestSender)
     // example output: for settings: {"pony-lsp":{"defines":["FOO","BAR"]}}
     this._channel.log(
       "Received didChangeConfiguration response: " +
-      settings.string())
+      JsonPrinter.print(settings))
     match settings
     | None =>
       // this is a signal to pull the settings again, so we do it here
@@ -601,7 +601,7 @@ actor LanguageServer is (Notifier & RequestSender)
         let json_settings = (r.result as JsonArray)(0)? as JsonObject
         this._channel.log(
           "Received workspace/configuration response = " +
-          json_settings.string())
+          json_settings.print())
         Settings.from_json(json_settings)
       else
         this._channel.log("[workspace/configuration] No setting provided.")

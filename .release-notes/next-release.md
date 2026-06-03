@@ -82,3 +82,37 @@ actor Main
 
 Relatedly, partially applying a method whose default argument is itself invalid — such as `(-1).abs()`, where the literal has no type to look up `abs` on — now reports a normal compile error instead of crashing the compiler.
 
+## Add JsonPrinter for serializing any JsonValue
+
+The `json` package can now serialize any `JsonValue` — objects, arrays, and scalars alike — to a JSON string via the new `JsonPrinter` primitive. It is the dual of `JsonParser`: where `JsonParser.parse` turns a `String` into a `JsonValue`, `JsonPrinter.print` turns a `JsonValue` back into JSON.
+
+Previously only `JsonObject` and `JsonArray` could be serialized; scalar values had no correct serializer (printing `None` produced `None` instead of `null`, and strings were not escaped). `JsonPrinter` handles the whole `JsonValue` union, so this is also the answer to "how do I serialize my data as JSON?": build a `JsonValue`, then hand it to `JsonPrinter`.
+
+```pony
+let doc = JsonObject
+  .update("name", "Alice")
+  .update("age", I64(30))
+
+JsonPrinter.print(doc)         // {"name":"Alice","age":30}
+JsonPrinter.pretty(doc)        // pretty-printed, two-space indent by default
+JsonPrinter.print(None)        // null
+JsonPrinter.print("hi\"there") // "hi\"there"
+```
+
+## Rename JsonObject and JsonArray serialization methods
+
+`JsonObject` and `JsonArray` no longer implement `Stringable`. Their `string()` and `pretty_string()` methods have been renamed to `print()` and `pretty_print()`, matching the new `JsonPrinter` and the `parse`/`print` naming in the package.
+
+This is a breaking change. Code that serialized a `JsonObject` or `JsonArray` needs to call the new method names, and code that relied on these types being `Stringable` (for example passing one where a `Stringable` is expected) should use `JsonPrinter.print` instead.
+
+```pony
+// Before
+let s = my_object.string()
+let p = my_array.pretty_string()
+
+// After
+let s = my_object.print()
+let p = my_array.pretty_print()
+// or, for any JsonValue including scalars:
+let s' = JsonPrinter.print(my_value)
+```

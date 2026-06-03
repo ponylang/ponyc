@@ -10,7 +10,7 @@ trait Message is Stringable
     """
 
   fun string(): String iso^ =>
-    let content: String val = this.json().string()
+    let content: String val = this.json().print()
     let size_str: String val = content.size().string()
     recover iso
       String.create(

@@ -39,7 +39,7 @@ class \nodoc\ iso _DiagnosticTest is UnitTest
             req: RequestMessage val,
             server: BaseProtocol)
           =>
-            h.log("Received request: " + req.json().string())
+            h.log("Received request: " + req.json().print())
             match req.method
             | Methods.workspace().configuration() =>
               // this will initialize the compiler
@@ -68,7 +68,7 @@ class \nodoc\ iso _DiagnosticTest is UnitTest
             notification: Notification,
             server: BaseProtocol)
           =>
-            h.log("received notification: " + notification.json().string())
+            h.log("received notification: " + notification.json().print())
             match notification.method
             | Methods.text_document().publish_diagnostics() =>
               try
@@ -79,7 +79,7 @@ class \nodoc\ iso _DiagnosticTest is UnitTest
                   received_diagnostics = received_diagnostics + 1
                   h.log(
                     "received diagnostic " + received_diagnostics.string() +
-                    ": " + notification.json().string())
+                    ": " + notification.json().print())
                   // strip off linebreak from error message
                   let message: String val =
                     recover val
@@ -108,7 +108,7 @@ class \nodoc\ iso _DiagnosticTest is UnitTest
             res: ResponseMessage,
             server: BaseProtocol)
           =>
-            h.log("received response: " + res.json().string())
+            h.log("received response: " + res.json().print())
             try
               h.assert_true(RequestIds.eq(I64(0), res.id as RequestId))
             else

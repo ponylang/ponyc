@@ -10,7 +10,7 @@ primitive _JsonPrint
     _value(recover iso String(256) end, value, indent, 0, true)
 
   fun compact_object(obj: JsonObject box): String iso^ =>
-    """Compact serialization from a box reference (for Stringable)."""
+    """Compact serialization from a box reference (backs JsonObject.print)."""
     _object(recover iso String(256) end, obj, "", 0, false)
 
   fun pretty_object(obj: JsonObject box, indent: String = "  "): String iso^ =>
@@ -18,7 +18,7 @@ primitive _JsonPrint
     _object(recover iso String(256) end, obj, indent, 0, true)
 
   fun compact_array(arr: JsonArray box): String iso^ =>
-    """Compact serialization from a box reference (for Stringable)."""
+    """Compact serialization from a box reference (backs JsonArray.print)."""
     _array(recover iso String(256) end, arr, "", 0, false)
 
   fun pretty_array(arr: JsonArray box, indent: String = "  "): String iso^ =>
