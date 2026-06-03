@@ -989,6 +989,18 @@ static bool partial_application(pass_opt_t* opt, ast_t** astp)
           TREE(sanitise_type(p_type))
           TREE(p_default)));
 
+      // ISSUE-2480: the default argument was already typed at the method
+      // definition and is a self-contained expression. Mark it PRESERVE so it
+      // is used as-is rather than re-walked when this synthesized lambda is
+      // lifted to an anonymous class. expr_lambda clears PRESERVE on the params
+      // node, but that clear is non-recursive, so a flag on the default-arg
+      // subtree survives and shields it from expr_object's ast_resetpass +
+      // expr re-walk -- which would otherwise corrupt an already-typed
+      // literal-operator default (e.g. `USize = -1` -> `(1).neg()`).
+      ast_t* lambda_default = ast_childidx(lambda_param, 2);
+      if(ast_id(lambda_default) != TK_NONE)
+        ast_setflag(lambda_default, AST_FLAG_PRESERVE);
+
       ast_append(lambda_params, lambda_param);
       ast_setid(lambda_params, TK_PARAMS);
 
