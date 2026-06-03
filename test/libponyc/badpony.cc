@@ -2827,6 +2827,170 @@ TEST_F(BadPonyTest, FBoundedTraitWithSelfApplyEmitsConstraintError)
     "type argument is outside its constraint");
 }
 
+TEST_F(BadPonyTest, SelfReferentialConstraintInUnionErrors)
+{
+  // Regression test for ponylang/ponyc#2497. A type parameter that
+  // references itself as a member of a union in its own constraint used
+  // to crash the compiler with a stack overflow: the subtype checker
+  // replaces the parameter with its constraint and re-decomposes the
+  // union back into the parameter forever (is_typeparam_sub_x in
+  // src/libponyc/type/subtype.c, which has no cycle guard for
+  // typeparamref pairs). It must now be a clean compile error.
+  const char* src =
+    "class C\n"
+    "class A[B: (B | C)]\n"
+
+    "actor Main\n"
+    "  new create(env: Env) => None";
+
+  TEST_ERROR_WITH_NOTE(src,
+    "type parameter 'B' can't appear directly in its own constraint",
+    "constraint is here");
+}
+
+TEST_F(BadPonyTest, SelfReferentialConstraintInUnionReversedErrors)
+{
+  // The same illegal shape as SelfReferentialConstraintInUnionErrors with
+  // the union members reversed. This order happened to compile before the
+  // fix (the crash was evaluation-order dependent), so it guards against
+  // the order-sensitive half-fix.
+  const char* src =
+    "class C\n"
+    "class A[B: (C | B)]\n"
+
+    "actor Main\n"
+    "  new create(env: Env) => None";
+
+  TEST_ERROR_WITH_NOTE(src,
+    "type parameter 'B' can't appear directly in its own constraint",
+    "constraint is here");
+}
+
+TEST_F(BadPonyTest, SelfReferentialConstraintInIntersectionErrors)
+{
+  // The self-reference sits in an intersection member rather than a union
+  // member. The intersection is itself a union member so the constraint
+  // resolves a capability (otherwise the "no valid capability" check fires
+  // first); this exercises the intersection arm of the cycle walk.
+  const char* src =
+    "trait T\n"
+    "class A[B: (None | (B & T))]\n"
+
+    "actor Main\n"
+    "  new create(env: Env) => None";
+
+  TEST_ERROR_WITH_NOTE(src,
+    "type parameter 'B' can't appear directly in its own constraint",
+    "constraint is here");
+}
+
+TEST_F(BadPonyTest, MutuallyRecursiveConstraintInUnionErrors)
+{
+  // Mutual recursion through compound constraints (Praetonus's example in
+  // ponylang/ponyc#2497): A's constraint names B, B's names A. Each is
+  // self-referential as a cycle, so it must be rejected. Bare mutual
+  // chains (`[A: B, B: A]`) collapse to "unconstrained" and stay legal;
+  // this case does not, because the references are union members.
+  const char* src =
+    "class C\n"
+    "  fun foo[A: (B | None), B: (A | None)]() =>\n"
+    "    None\n"
+
+    "actor Main\n"
+    "  new create(env: Env) => None";
+
+  // Both A and B sit in the cycle, so each is flagged at its own definition.
+  TEST_ERRORS_2(src,
+    "type parameter 'A' can't appear directly in its own constraint",
+    "type parameter 'B' can't appear directly in its own constraint");
+}
+
+TEST_F(BadPonyTest, TransitiveSelfReferentialConstraintErrors)
+{
+  // The self-reference is reached transitively: X is constrained by Y,
+  // and Y's constraint names X as a union member. typeparam_constraint
+  // resolves X's effective constraint to Y's `(X | None)`, which contains
+  // X, so the cycle must be rejected.
+  const char* src =
+    "class A[X: Y, Y: (X | None)]\n"
+
+    "actor Main\n"
+    "  new create(env: Env) => None";
+
+  TEST_ERROR_WITH_NOTE(src,
+    "can't appear directly in its own constraint",
+    "constraint is here");
+}
+
+TEST_F(BadPonyTest, NestedSelfReferentialConstraintInUnionErrors)
+{
+  // The self-reference is nested one level deeper than
+  // SelfReferentialConstraintInUnionErrors. Reaching it depends on the
+  // constraint-tuple scan in the flatten pass terminating on nested
+  // unions (it previously recursed forever on the inner union, crashing
+  // before this check could run). It must produce the same clean error.
+  const char* src =
+    "class C\n"
+    "class A[B: (B | (C | B))]\n"
+
+    "actor Main\n"
+    "  new create(env: Env) => None";
+
+  TEST_ERROR_WITH_NOTE(src,
+    "type parameter 'B' can't appear directly in its own constraint",
+    "constraint is here");
+}
+
+TEST_F(BadPonyTest, SelfReferentialConstraintViaParameterizedAliasErrors)
+{
+  // The self-reference is revealed by unfolding a parameterized type
+  // alias: `MyU[B]` expands to `(B | None)`, so B appears as a bare union
+  // member of its own constraint. This exercises the alias-unfold arm of
+  // the cycle walk and must be rejected.
+  const char* src =
+    "type MyU[X] is (X | None)\n"
+    "class A[B: MyU[B]]\n"
+
+    "actor Main\n"
+    "  new create(env: Env) => None";
+
+  TEST_ERROR_WITH_NOTE(src,
+    "type parameter 'B' can't appear directly in its own constraint",
+    "constraint is here");
+}
+
+TEST_F(BadPonyTest, SelfReferenceBehindNominalConstraintCompiles)
+{
+  // The carve-out for ponylang/ponyc#2497: a type parameter may reference
+  // itself when the reference is behind a constructor (a nominal typearg).
+  // Here B appears only inside `Array[B]`, a union member, so the subtype
+  // checker terminates via its nominal cycle guard. This is well-formed
+  // and must compile.
+  const char* src =
+    "class A[B: (None | Array[B])]\n"
+
+    "actor Main\n"
+    "  new create(env: Env) => None";
+
+  TEST_COMPILE(src);
+}
+
+TEST_F(BadPonyTest, UnconstrainedTypeParameterCompiles)
+{
+  // Guard against the #2497 fix over-reaching. An unconstrained type
+  // parameter `[A]` is sugared to `A: A` and resolves to a self-
+  // referential typeparamref, which typeparam_constraint collapses to
+  // "no constraint". This must not be mistaken for an illegal self-
+  // referential constraint.
+  const char* src =
+    "class A[B]\n"
+
+    "actor Main\n"
+    "  new create(env: Env) => None";
+
+  TEST_COMPILE(src);
+}
+
 TEST_F(BadPonyTest, WhileBodyAndElseJumpAwayInSeparateFunction)
 {
   // From issue #2792 (first example). A while loop whose body and else

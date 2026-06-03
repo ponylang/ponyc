@@ -249,6 +249,25 @@ TEST_F(IftypeTest, Tuple_MutuallyRecursiveConstraint)
 }
 
 
+TEST_F(IftypeTest, SelfReferentialSubtypeConstraint)
+{
+  // An iftype whose subtype bound names the tested parameter through a
+  // union desugars to a synthetic type parameter whose constraint
+  // references itself. That self-referential constraint used to crash the
+  // compiler (same recursion as ponylang/ponyc#2497); it must now be a
+  // clean error.
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    foo[U8](0)\n"
+
+    "  fun foo[A](x: A) =>\n"
+    "    iftype A <: (A | None) then None end";
+
+  TEST_ERROR(src, "can't appear directly in its own constraint");
+}
+
+
 TEST_F(IftypeTest, NestedCond)
 {
   const char* src =
