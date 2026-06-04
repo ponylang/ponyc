@@ -265,6 +265,25 @@ bool expr_repeat(pass_opt_t* opt, ast_t* ast)
     return false;
   }
 
+  // The refer pass flags the loop AST_FLAG_JUMPS_AWAY (refer_repeat in
+  // refer.c) when it determines the loop produces no value. The else clause
+  // may still be reached and evaluated -- a continue in the body routes to it
+  // (see gen_repeat) -- but its value is then discarded, since the loop yields
+  // nothing. A concrete-typed else is harmless: the branch logic below records
+  // its type and codegen ignores it (gen_repeat returns GEN_NOVALUE for a
+  // jumps-away loop). But a bare literal there has nothing to unify against and
+  // so can never be given a type; left in place it reaches and crashes the
+  // reach pass. Report the same uninferable-literal error a bare literal with
+  // no valid type gets elsewhere -- including the equivalent `while` form --
+  // rather than letting it reach that pass.
+  if(ast_checkflag(ast, AST_FLAG_JUMPS_AWAY)
+    && is_type_literal(ast_type(else_clause)))
+  {
+    ast_error(opt->check.errors, else_clause,
+      "could not infer literal type, no valid types found");
+    return false;
+  }
+
   // Union with any existing type due to a break expression.
   ast_t* type = ast_type(ast);
 

@@ -310,6 +310,10 @@ LLVMValueRef gen_while(compile_t* c, ast_t* ast)
     if(r_value == NULL)
       return NULL;
 
+    // Unlike gen_repeat, no JUMPS_AWAY guard is needed before this cast:
+    // refer_while counts every non-jumps-away else as a branch, so a jumps-away
+    // while always has a jumps-away else, whose value is GEN_NOVALUE and is
+    // skipped by the check above. phi_type is therefore never NULL here.
     if(needed)
     {
       ast_t* else_type = deferred_reify(reify, ast_type(else_clause), c->opt);
@@ -437,7 +441,13 @@ LLVMValueRef gen_repeat(compile_t* c, ast_t* ast)
     if(else_value == NULL)
       return NULL;
 
-    if(needed)
+    // A jumps-away loop produces no value: phi_type was never built and the
+    // post block returns GEN_NOVALUE below, discarding whatever the else clause
+    // evaluated to. So skip the cast rather than dereferencing a NULL phi_type.
+    // (refer_repeat can flag the loop jumps-away while still leaving a
+    // value-producing else, because it omits the else from its branch count
+    // when the body has no break.)
+    if(needed && !ast_checkflag(ast, AST_FLAG_JUMPS_AWAY))
     {
       ast_t* else_type = deferred_reify(reify, ast_type(else_clause), c->opt);
       else_value = gen_assign_cast(c, phi_type->use_type, else_value, else_type);

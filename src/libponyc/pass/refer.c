@@ -1508,8 +1508,10 @@ static bool refer_while(pass_opt_t* opt, ast_t* ast)
 
   ast_consolidate_branches(ast, branch_count);
 
-  // If all branches jump away with no value, then we do too.
-  if(branch_count == 0)
+  // If all branches jump away with no value, then we do too -- unless the body
+  // contains a break with a value, which gives the loop a value and an exit to
+  // the code after it, so control can still resume past the loop.
+  if((branch_count == 0) && !ast_checkflag(body, AST_FLAG_MAY_BREAK_VALUE))
     ast_setflag(ast, AST_FLAG_JUMPS_AWAY);
 
   // Push our symbol status to our parent scope.
@@ -1560,8 +1562,10 @@ static bool refer_repeat(pass_opt_t* opt, ast_t* ast)
 
   ast_consolidate_branches(ast, branch_count);
 
-  // If all branches jump away with no value, then we do too.
-  if(branch_count == 0)
+  // If all branches jump away with no value, then we do too -- unless the body
+  // contains a break with a value, which gives the loop a value and an exit to
+  // the code after it, so control can still resume past the loop.
+  if((branch_count == 0) && !ast_checkflag(body, AST_FLAG_MAY_BREAK_VALUE))
     ast_setflag(ast, AST_FLAG_JUMPS_AWAY);
 
   // Push our symbol status to our parent scope.
@@ -1726,6 +1730,15 @@ static bool refer_break(pass_opt_t* opt, ast_t* ast)
   }
 
   ast_setflag(opt->check.frame->loop_body, AST_FLAG_MAY_BREAK);
+
+  // A break that carries a value gives the loop both a value and an exit to the
+  // code after it, so the loop does not jump away. Record this separately from
+  // AST_FLAG_MAY_BREAK (which covers any break, including a valueless one that
+  // exits without contributing a value) so the loop's refer pass can keep
+  // flagging itself jumps-away in the valueless case while clearing that verdict
+  // when a value break is present.
+  if(ast_id(ast_child(ast)) != TK_NONE)
+    ast_setflag(opt->check.frame->loop_body, AST_FLAG_MAY_BREAK_VALUE);
 
   errorframe_t errorf = NULL;
   if(!ast_all_consumes_in_scope(opt->check.frame->loop_body, ast, &errorf))
