@@ -5,7 +5,6 @@
 #include "../mem/heap.h"
 #include "../actor/actor.h"
 #include "../gc/cycle.h"
-#include "../gc/serialise.h"
 #include "../lang/process.h"
 #include "../lang/socket.h"
 #include "../options/options.h"
@@ -399,15 +398,6 @@ PONY_API bool pony_start(bool library, int* exit_code,
       sizeof(pony_language_features_init_t));
 
     if(language_init.init_network && !ponyint_os_sockets_init())
-    {
-      atomic_store_explicit(&running, NOT_RUNNING, memory_order_relaxed);
-      return false;
-    }
-
-    if(language_init.init_serialisation &&
-      !ponyint_serialise_setup(language_init.descriptor_table,
-        language_init.descriptor_table_size,
-        language_init.desc_table_offset_lookup))
     {
       atomic_store_explicit(&running, NOT_RUNNING, memory_order_relaxed);
       return false;

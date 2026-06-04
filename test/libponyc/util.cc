@@ -99,7 +99,6 @@ static const char* const _builtin =
   // - create array literals
   // - call .values() iterator in a for loop
   // - be a subtype of Seq
-  // - call genprim_array_serialise_trace (which expects the three fields)
   "class ArrayValues[A]\n"
   "  fun ref has_next(): Bool => false\n"
   "  fun ref next(): A ? => error\n"

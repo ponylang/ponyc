@@ -43,15 +43,6 @@ size_t ponyint_list_length(list_t* list);
 
 void ponyint_list_free(list_t* list, free_fn f);
 
-void ponyint_list_serialise_trace(pony_ctx_t* ctx, void* object,
-  pony_type_t* list_type, pony_type_t* elem_type);
-
-void ponyint_list_serialise(pony_ctx_t* ctx, void* object, void* buf,
-  size_t offset);
-
-void ponyint_list_deserialise(pony_ctx_t* ctx, void* object,
-  pony_type_t* list_type, pony_type_t* elem_type);
-
 #define DECLARE_LIST(name, name_t, elem) \
   typedef struct name_t name_t; \
   typedef bool (*name##_cmp_fn)(elem* a, elem* b); \
@@ -71,14 +62,6 @@ void ponyint_list_deserialise(pony_ctx_t* ctx, void* object,
   name_t* name##_reverse(name_t* list); \
   size_t name##_length(name_t* list); \
   void name##_free(name_t* list); \
-
-#define DECLARE_LIST_SERIALISE(name, name_t, type) \
-  DECLARE_LIST(name, name_t, type) \
-  void name##_serialise_trace(pony_ctx_t* ctx, void* object); \
-  void name##_serialise(pony_ctx_t* ctx, void* object, void* buf, \
-    size_t offset, int mutability); \
-  void name##_deserialise(pony_ctx_t* ctx, void* object); \
-  const pony_type_t* name##_pony_type(); \
 
 #define DEFINE_LIST(name, name_t, elem, cmpf, freef) \
   struct name_t {list_t contents;}; \
@@ -151,57 +134,6 @@ void ponyint_list_deserialise(pony_ctx_t* ctx, void* object,
     if (freef != NULL) \
       free_fn = name##_freef; \
     ponyint_list_free((list_t*)list, free_fn); \
-  } \
-
-#if defined(USE_RUNTIME_TRACING)
-#define LIST_TRACING_DESC_FIELDS  NULL, \
-  NULL,
-#else
-#define LIST_TRACING_DESC_FIELDS 
-#endif
-
-#define DEFINE_LIST_SERIALISE(name, name_t, elem, cmpf, freef, elem_type) \
-  DEFINE_LIST(name, name_t, elem, cmpf, freef) \
-  void name##_serialise_trace(pony_ctx_t* ctx, void* object) \
-  { \
-    ponyint_list_serialise_trace(ctx, object, name##_pony_type(), elem_type); \
-  } \
-  void name##_serialise(pony_ctx_t* ctx, void* object, void* buf, \
-    size_t offset, int mutability) \
-  { \
-    (void)mutability; \
-    ponyint_list_serialise(ctx, object, buf, offset); \
-  } \
-  void name##_deserialise(pony_ctx_t* ctx, void* object) \
-  { \
-    ponyint_list_deserialise(ctx, object, name##_pony_type(), elem_type); \
-  } \
-  static pony_type_t name##_pony = \
-  { \
-    0, \
-    sizeof(name_t), \
-    0, \
-    0, \
-    0, \
-    NULL, \
-    LIST_TRACING_DESC_FIELDS \
-    NULL, \
-    name##_serialise_trace, \
-    name##_serialise, \
-    name##_deserialise, \
-    NULL, \
-    NULL, \
-    NULL, \
-    NULL, \
-    0, \
-    0, \
-    NULL, \
-    NULL, \
-    NULL, \
-  }; \
-  const pony_type_t* name##_pony_type() \
-  { \
-    return &name##_pony; \
   } \
 
 PONY_EXTERN_C_END

@@ -9,7 +9,6 @@
 #include "../type/lookup.h"
 #include "../type/subtype.h"
 #include "../type/typealias.h"
-#include "../../libponyrt/gc/serialise.h"
 #include "../../libponyrt/mem/pool.h"
 #include "ponyassert.h"
 #include <stdio.h>
@@ -177,8 +176,8 @@ static bool reach_method_cmp(reach_method_t* a, reach_method_t* b)
   return a->name == b->name;
 }
 
-DEFINE_HASHMAP_SERIALISE(reach_methods, reach_methods_t, reach_method_t,
-  reach_method_hash, reach_method_cmp, NULL, reach_method_pony_type());
+DEFINE_HASHMAP(reach_methods, reach_methods_t, reach_method_t,
+  reach_method_hash, reach_method_cmp, NULL);
 
 static size_t reach_mangled_hash(reach_method_t* m)
 {
@@ -207,9 +206,8 @@ static void reach_mangled_free(reach_method_t* m)
   POOL_FREE(reach_method_t, m);
 }
 
-DEFINE_HASHMAP_SERIALISE(reach_mangled, reach_mangled_t, reach_method_t,
-  reach_mangled_hash, reach_mangled_cmp, reach_mangled_free,
-  reach_method_pony_type());
+DEFINE_HASHMAP(reach_mangled, reach_mangled_t, reach_method_t,
+  reach_mangled_hash, reach_mangled_cmp, reach_mangled_free);
 
 static size_t reach_method_name_hash(reach_method_name_t* n)
 {
@@ -229,9 +227,9 @@ static void reach_method_name_free(reach_method_name_t* n)
   POOL_FREE(reach_method_name_t, n);
 }
 
-DEFINE_HASHMAP_SERIALISE(reach_method_names, reach_method_names_t,
+DEFINE_HASHMAP(reach_method_names, reach_method_names_t,
   reach_method_name_t, reach_method_name_hash, reach_method_name_cmp,
-  reach_method_name_free, reach_method_name_pony_type());
+  reach_method_name_free);
 
 static size_t reach_type_hash(reach_type_t* t)
 {
@@ -266,11 +264,11 @@ static void reach_type_free(reach_type_t* t)
   POOL_FREE(reach_type_t, t);
 }
 
-DEFINE_HASHMAP_SERIALISE(reach_types, reach_types_t, reach_type_t,
-  reach_type_hash, reach_type_cmp, reach_type_free, reach_type_pony_type());
+DEFINE_HASHMAP(reach_types, reach_types_t, reach_type_t,
+  reach_type_hash, reach_type_cmp, reach_type_free);
 
-DEFINE_HASHMAP_SERIALISE(reach_type_cache, reach_type_cache_t, reach_type_t,
-  reach_type_hash, reach_type_cmp, NULL, reach_type_pony_type());
+DEFINE_HASHMAP(reach_type_cache, reach_type_cache_t, reach_type_t,
+  reach_type_hash, reach_type_cmp, NULL);
 
 static reach_method_t* reach_rmethod(reach_method_name_t* n, const char* name)
 {
@@ -1085,7 +1083,6 @@ static reach_type_t* add_reach_type(reach_t* r, ast_t* type)
   t->ast = set_cap_and_ephemeral(type, TK_REF, TK_NONE);
   t->ast_cap = ast_dup(type);
   t->type_id = (uint32_t)-1;
-  t->serialise_id = (uint64_t)-1;
 
   ast_set_scope(t->ast, NULL);
   ast_set_scope(t->ast_cap, NULL);
@@ -1153,15 +1150,6 @@ static reach_type_t* add_tuple(reach_t* r, ast_t* type, pass_opt_t* opt)
   t->underlying = TK_TUPLETYPE;
   t->type_id = get_new_tuple_id(r);
   t->can_be_boxed = true;
-
-  // TODO: ideally should be hashing AST tree for type name, fields and their types/names
-  // Only use 63/31 bits of the hash because we need the high bit for primitive types
-  if(target_is_ilp32(opt->triple))
-    t->serialise_id = (ponyint_hash_str_custom_key32(opt->serialise_id_hash_key, t->name) >> 1);
-  else
-    t->serialise_id = (ponyint_hash_str_custom_key64(opt->serialise_id_hash_key, t->name) >> 1);
-
-  pony_assert(t->serialise_id != ((uint64_t)-1)); // -1 is for `Pointer`s
 
   t->field_count = (uint32_t)ast_childcount(t->ast);
   t->fields = (reach_field_t*)ponyint_pool_alloc_size(
@@ -1266,9 +1254,6 @@ static reach_type_t* add_nominal(reach_t* r, ast_t* type, pass_opt_t* opt)
     case TK_CLASS:
       add_traits_to_type(r, t, opt);
       add_special(r, t, type, "_final", opt);
-      add_special(r, t, type, "_serialise_space", opt);
-      add_special(r, t, type, "_serialise", opt);
-      add_special(r, t, type, "_deserialise", opt);
       add_fields(r, t, opt);
       break;
 
@@ -1323,15 +1308,6 @@ static reach_type_t* add_nominal(reach_t* r, ast_t* type, pass_opt_t* opt)
     else if(t->underlying != TK_STRUCT)
       t->type_id = get_new_object_id(r);
   }
-
-  // TODO: ideally should be hashing AST tree for type name, fields and their types/names
-  // Only use 63/31 bits of the hash because we need the high bit for primitive types
-  if(target_is_ilp32(opt->triple))
-    t->serialise_id = (ponyint_hash_str_custom_key32(opt->serialise_id_hash_key, t->name) >> 1);
-  else
-    t->serialise_id = (ponyint_hash_str_custom_key64(opt->serialise_id_hash_key, t->name) >> 1);
-
-  pony_assert(t->serialise_id != ((uint64_t)-1)); // -1 is for `Pointer`s
 
   if(ast_id(def) != TK_PRIMITIVE)
     return t;
@@ -1950,23 +1926,6 @@ bool reach_limit_exceeded(reach_t* r)
   return r->limit_exceeded;
 }
 
-uint32_t reach_max_type_id(reach_t* r)
-{
-  uint32_t object_id_max = (r->object_type_count * 2) + 1;
-  uint32_t numeric_id_max = r->numeric_type_count * 4;
-  uint32_t tuple_id_max = (r->tuple_type_count * 4) + 2;
-
-  uint32_t len = object_id_max;
-
-  if(len < numeric_id_max)
-    len = numeric_id_max;
-
-  if(len < tuple_id_max)
-    len = tuple_id_max;
-
-  return len;
-}
-
 void reach_dump(reach_t* r)
 {
   printf("REACH\n");
@@ -1980,7 +1939,6 @@ void reach_dump(reach_t* r)
     size_t j = HASHMAP_BEGIN;
     reach_method_name_t* n;
 
-    printf("    serialise_id: %" PRIu64 "\n", t->serialise_id);
     printf("    is_trait: %s\n", (t->is_trait)?"true":"false");
     printf("    can_be_boxed: %s\n", (t->can_be_boxed)?"true":"false");
 
@@ -2005,539 +1963,4 @@ void reach_dump(reach_t* r)
   }
 
   printf("  Total Type Count: %d\n", r->total_type_count);
-}
-
-static void reach_param_serialise_trace(pony_ctx_t* ctx, void* object)
-{
-  reach_param_t* p = (reach_param_t*)object;
-
-  string_trace(ctx, p->name);
-  pony_traceknown(ctx, p->ast, ast_pony_type(), PONY_TRACE_MUTABLE);
-  pony_traceknown(ctx, p->type, reach_type_pony_type(), PONY_TRACE_MUTABLE);
-}
-
-static void reach_param_serialise(pony_ctx_t* ctx, void* object, void* buf,
-  size_t offset, int mutability)
-{
-  (void)mutability;
-
-  reach_param_t* p = (reach_param_t*)object;
-  reach_param_t* dst = (reach_param_t*)((uintptr_t)buf + offset);
-
-  dst->name = (const char*)pony_serialise_offset(ctx, (char*)p->name);
-  dst->ast = (ast_t*)pony_serialise_offset(ctx, p->ast);
-  dst->type = (reach_type_t*)pony_serialise_offset(ctx, p->type);
-  dst->cap = p->cap;
-}
-
-static void reach_param_deserialise(pony_ctx_t* ctx, void* object)
-{
-  reach_param_t* p = (reach_param_t*)object;
-
-  p->name = string_deserialise_offset(ctx, (uintptr_t)p->name);
-  p->type = (reach_type_t*)pony_deserialise_offset(ctx, reach_type_pony_type(),
-    (uintptr_t)p->type);
-  p->ast = (ast_t*)pony_deserialise_offset(ctx, ast_pony_type(),
-    (uintptr_t)p->ast);
-}
-
-static pony_type_t reach_param_pony =
-{
-  0,
-  sizeof(reach_param_t),
-  0,
-  0,
-  0,
-  NULL,
-#if defined(USE_RUNTIME_TRACING)
-  NULL,
-  NULL,
-#endif
-  NULL,
-  reach_param_serialise_trace,
-  reach_param_serialise,
-  reach_param_deserialise,
-  NULL,
-  NULL,
-  NULL,
-  NULL,
-  0,
-  0,
-  NULL,
-  NULL,
-  NULL
-};
-
-pony_type_t* reach_param_pony_type()
-{
-  return &reach_param_pony;
-}
-
-static void reach_method_serialise_trace(pony_ctx_t* ctx, void* object)
-{
-  reach_method_t* m = (reach_method_t*)object;
-
-  string_trace(ctx, m->name);
-  string_trace(ctx, m->mangled_name);
-  string_trace(ctx, m->full_name);
-
-  if(m->fun != NULL)
-    pony_traceknown(ctx, m->fun, deferred_reification_pony_type(),
-      PONY_TRACE_MUTABLE);
-
-  if(m->typeargs != NULL)
-    pony_traceknown(ctx, m->typeargs, ast_pony_type(), PONY_TRACE_MUTABLE);
-
-  if(m->subordinate != NULL)
-    pony_traceknown(ctx, m->subordinate, reach_method_pony_type(),
-      PONY_TRACE_MUTABLE);
-
-  if(m->params != NULL)
-  {
-    pony_serialise_reserve(ctx, m->params,
-      m->param_count * sizeof(reach_param_t));
-
-    for(size_t i = 0; i < m->param_count; i++)
-      reach_param_serialise_trace(ctx, &m->params[i]);
-  }
-
-  if(m->result != NULL)
-    pony_traceknown(ctx, m->result, reach_type_pony_type(), PONY_TRACE_MUTABLE);
-}
-
-static void reach_method_serialise(pony_ctx_t* ctx, void* object, void* buf,
-   size_t offset, int mutability)
-{
-  (void)mutability;
-
-  reach_method_t* m = (reach_method_t*)object;
-  reach_method_t* dst = (reach_method_t*)((uintptr_t)buf + offset);
-
-  dst->name = (const char*)pony_serialise_offset(ctx, (char*)m->name);
-  dst->mangled_name = (const char*)pony_serialise_offset(ctx,
-    (char*)m->mangled_name);
-  dst->full_name = (const char*)pony_serialise_offset(ctx, (char*)m->full_name);
-
-  dst->cap = m->cap;
-  dst->fun = (deferred_reification_t*)pony_serialise_offset(ctx, m->fun);
-  dst->typeargs = (ast_t*)pony_serialise_offset(ctx, m->typeargs);
-  dst->vtable_index = m->vtable_index;
-
-  dst->intrinsic = m->intrinsic;
-  dst->internal = m->internal;
-  dst->forwarding = m->forwarding;
-
-  dst->subordinate = (reach_method_t*)pony_serialise_offset(ctx,
-    m->subordinate);
-
-  dst->param_count = m->param_count;
-  dst->params = (reach_param_t*)pony_serialise_offset(ctx, m->params);
-
-  if(m->params != NULL)
-  {
-    size_t param_offset = (size_t)dst->params;
-
-    for(size_t i = 0; i < m->param_count; i++)
-    {
-      reach_param_serialise(ctx, &m->params[i], buf, param_offset,
-        PONY_TRACE_MUTABLE);
-      param_offset += sizeof(reach_param_t);
-    }
-  }
-
-  dst->result = (reach_type_t*)pony_serialise_offset(ctx, m->result);
-  dst->c_method = NULL;
-}
-
-static void reach_method_deserialise(pony_ctx_t* ctx, void* object)
-{
-  reach_method_t* m = (reach_method_t*)object;
-
-  m->name = string_deserialise_offset(ctx, (uintptr_t)m->name);
-  m->mangled_name = string_deserialise_offset(ctx, (uintptr_t)m->mangled_name);
-  m->full_name = string_deserialise_offset(ctx, (uintptr_t)m->full_name);
-
-  m->fun = (deferred_reification_t*)pony_deserialise_offset(ctx,
-    deferred_reification_pony_type(), (uintptr_t)m->fun);
-
-  m->typeargs = (ast_t*)pony_deserialise_offset(ctx, ast_pony_type(),
-    (uintptr_t)m->typeargs);
-
-  m->subordinate = (reach_method_t*)pony_deserialise_offset(ctx,
-    reach_method_pony_type(), (uintptr_t)m->subordinate);
-
-  if(m->param_count > 0)
-  {
-    m->params = (reach_param_t*)pony_deserialise_block(ctx, (uintptr_t)m->params,
-      m->param_count * sizeof(reach_param_t));
-
-    for(size_t i = 0; i < m->param_count; i++)
-      reach_param_deserialise(ctx, &m->params[i]);
-  } else {
-    m->params = NULL;
-  }
-
-  m->result = (reach_type_t*)pony_deserialise_offset(ctx, reach_type_pony_type(),
-    (uintptr_t)m->result);
-}
-
-static pony_type_t reach_method_pony =
-{
-  0,
-  sizeof(reach_method_t),
-  0,
-  0,
-  0,
-  NULL,
-#if defined(USE_RUNTIME_TRACING)
-  NULL,
-  NULL,
-#endif
-  NULL,
-  reach_method_serialise_trace,
-  reach_method_serialise,
-  reach_method_deserialise,
-  NULL,
-  NULL,
-  NULL,
-  NULL,
-  0,
-  0,
-  NULL,
-  NULL,
-  NULL
-};
-
-pony_type_t* reach_method_pony_type()
-{
-  return &reach_method_pony;
-}
-
-static void reach_method_name_serialise_trace(pony_ctx_t* ctx, void* object)
-{
-  reach_method_name_t* n = (reach_method_name_t*)object;
-
-  string_trace(ctx, n->name);
-  reach_methods_serialise_trace(ctx, &n->r_methods);
-  reach_mangled_serialise_trace(ctx, &n->r_mangled);
-}
-
-static void reach_method_name_serialise(pony_ctx_t* ctx, void* object,
-  void* buf, size_t offset, int mutability)
-{
-  (void)mutability;
-
-  reach_method_name_t* n = (reach_method_name_t*)object;
-  reach_method_name_t* dst = (reach_method_name_t*)((uintptr_t)buf + offset);
-
-  dst->id = n->id;
-  dst->cap = n->cap;
-  dst->name = (const char*)pony_serialise_offset(ctx, (char*)n->name);
-  dst->internal = n->internal;
-  reach_methods_serialise(ctx, &n->r_methods, buf,
-    offset + offsetof(reach_method_name_t, r_methods), PONY_TRACE_MUTABLE);
-  reach_mangled_serialise(ctx, &n->r_mangled, buf,
-    offset + offsetof(reach_method_name_t, r_mangled), PONY_TRACE_MUTABLE);
-}
-
-static void reach_method_name_deserialise(pony_ctx_t* ctx, void* object)
-{
-  reach_method_name_t* n = (reach_method_name_t*)object;
-
-  n->name = string_deserialise_offset(ctx, (uintptr_t)n->name);
-  reach_methods_deserialise(ctx, &n->r_methods);
-  reach_mangled_deserialise(ctx, &n->r_mangled);
-}
-
-static pony_type_t reach_method_name_pony =
-{
-  0,
-  sizeof(reach_method_name_t),
-  0,
-  0,
-  0,
-  NULL,
-#if defined(USE_RUNTIME_TRACING)
-  NULL,
-  NULL,
-#endif
-  NULL,
-  reach_method_name_serialise_trace,
-  reach_method_name_serialise,
-  reach_method_name_deserialise,
-  NULL,
-  NULL,
-  NULL,
-  NULL,
-  0,
-  0,
-  NULL,
-  NULL,
-  NULL
-};
-
-pony_type_t* reach_method_name_pony_type()
-{
-  return &reach_method_name_pony;
-}
-
-static void reach_field_serialise_trace(pony_ctx_t* ctx, void* object)
-{
-  reach_field_t* f = (reach_field_t*)object;
-
-  pony_traceknown(ctx, f->ast, ast_pony_type(), PONY_TRACE_MUTABLE);
-  pony_traceknown(ctx, f->type, reach_type_pony_type(), PONY_TRACE_MUTABLE);
-}
-
-static void reach_field_serialise(pony_ctx_t* ctx, void* object, void* buf,
-  size_t offset, int mutability)
-{
-  (void)mutability;
-
-  reach_field_t* f = (reach_field_t*)object;
-  reach_field_t* dst = (reach_field_t*)((uintptr_t)buf + offset);
-
-  dst->ast = (ast_t*)pony_serialise_offset(ctx, f->ast);
-  dst->type = (reach_type_t*)pony_serialise_offset(ctx, f->type);
-  dst->embed = f->embed;
-}
-
-static void reach_field_deserialise(pony_ctx_t* ctx, void* object)
-{
-  reach_field_t* f = (reach_field_t*)object;
-
-  f->ast = (ast_t*)pony_deserialise_offset(ctx, ast_pony_type(),
-    (uintptr_t)f->ast);
-  f->type = (reach_type_t*)pony_deserialise_offset(ctx, reach_type_pony_type(),
-    (uintptr_t)f->type);
-}
-
-static pony_type_t reach_field_pony =
-{
-  0,
-  sizeof(reach_field_t),
-  0,
-  0,
-  0,
-  NULL,
-#if defined(USE_RUNTIME_TRACING)
-  NULL,
-  NULL,
-#endif
-  NULL,
-  reach_field_serialise_trace,
-  reach_field_serialise,
-  reach_field_deserialise,
-  NULL,
-  NULL,
-  NULL,
-  NULL,
-  0,
-  0,
-  NULL,
-  NULL,
-  NULL
-};
-
-pony_type_t* reach_field_pony_type()
-{
-  return &reach_field_pony;
-}
-
-static void reach_type_serialise_trace(pony_ctx_t* ctx, void* object)
-{
-  reach_type_t* t = (reach_type_t*)object;
-
-  string_trace(ctx, t->name);
-  string_trace(ctx, t->mangle);
-  pony_traceknown(ctx, t->ast, ast_pony_type(), PONY_TRACE_MUTABLE);
-  pony_traceknown(ctx, t->ast_cap, ast_pony_type(), PONY_TRACE_MUTABLE);
-
-  reach_method_names_serialise_trace(ctx, &t->methods);
-
-  if(t->bare_method != NULL)
-    pony_traceknown(ctx, t->bare_method, reach_method_pony_type(),
-      PONY_TRACE_MUTABLE);
-
-  reach_type_cache_serialise_trace(ctx, &t->subtypes);
-
-  if(t->fields != NULL)
-  {
-    pony_serialise_reserve(ctx, t->fields,
-      t->field_count * sizeof(reach_field_t));
-
-    for(size_t i = 0; i < t->field_count; i++)
-      reach_field_serialise_trace(ctx, &t->fields[i]);
-  }
-}
-
-static void reach_type_serialise(pony_ctx_t* ctx, void* object, void* buf,
-  size_t offset, int mutability)
-{
-  (void)mutability;
-
-  reach_type_t* t = (reach_type_t*)object;
-  reach_type_t* dst = (reach_type_t*)((uintptr_t)buf + offset);
-
-  dst->name = (const char*)pony_serialise_offset(ctx, (char*)t->name);
-  dst->mangle = (const char*)pony_serialise_offset(ctx, (char*)t->mangle);
-  dst->ast = (ast_t*)pony_serialise_offset(ctx, t->ast);
-  dst->ast_cap = (ast_t*)pony_serialise_offset(ctx, t->ast_cap);
-  dst->underlying = t->underlying;
-
-  reach_method_names_serialise(ctx, &t->methods, buf,
-    offset + offsetof(reach_type_t, methods), PONY_TRACE_MUTABLE);
-  dst->bare_method = (reach_method_t*)pony_serialise_offset(ctx, t->bare_method);
-  reach_type_cache_serialise(ctx, &t->subtypes, buf,
-    offset + offsetof(reach_type_t, subtypes), PONY_TRACE_MUTABLE);
-  dst->type_id = t->type_id;
-  dst->vtable_size = t->vtable_size;
-  dst->can_be_boxed = t->can_be_boxed;
-  dst->is_trait = t->is_trait;
-  dst->serialise_id = t->serialise_id;
-
-  dst->field_count = t->field_count;
-  dst->fields = (reach_field_t*)pony_serialise_offset(ctx, t->fields);
-
-  if(t->fields != NULL)
-  {
-    size_t field_offset = (size_t)dst->fields;
-
-    for(size_t i = 0; i < t->field_count; i++)
-    {
-      reach_field_serialise(ctx, &t->fields[i], buf, field_offset,
-        PONY_TRACE_MUTABLE);
-      field_offset += sizeof(reach_field_t);
-    }
-  }
-
-  dst->c_type = NULL;
-}
-
-static void reach_type_deserialise(pony_ctx_t* ctx, void* object)
-{
-  reach_type_t* t = (reach_type_t*)object;
-
-  t->name = string_deserialise_offset(ctx, (uintptr_t)t->name);
-  t->mangle = string_deserialise_offset(ctx, (uintptr_t)t->mangle);
-  t->ast = (ast_t*)pony_deserialise_offset(ctx, ast_pony_type(),
-    (uintptr_t)t->ast);
-  t->ast_cap = (ast_t*)pony_deserialise_offset(ctx, ast_pony_type(),
-    (uintptr_t)t->ast_cap);
-
-  reach_method_names_deserialise(ctx, &t->methods);
-  t->bare_method = (reach_method_t*)pony_deserialise_offset(ctx,
-    reach_method_pony_type(), (uintptr_t)t->bare_method);
-  reach_type_cache_deserialise(ctx, &t->subtypes);
-
-  if(t->field_count > 0)
-  {
-    t->fields = (reach_field_t*)pony_deserialise_block(ctx, (uintptr_t)t->fields,
-      t->field_count * sizeof(reach_field_t));
-
-    for(size_t i = 0; i < t->field_count; i++)
-      reach_field_deserialise(ctx, &t->fields[i]);
-  } else {
-    t->fields = NULL;
-  }
-}
-
-static pony_type_t reach_type_pony =
-{
-  0,
-  sizeof(reach_type_t),
-  0,
-  0,
-  0,
-  NULL,
-#if defined(USE_RUNTIME_TRACING)
-  NULL,
-  NULL,
-#endif
-  NULL,
-  reach_type_serialise_trace,
-  reach_type_serialise,
-  reach_type_deserialise,
-  NULL,
-  NULL,
-  NULL,
-  NULL,
-  0,
-  0,
-  NULL,
-  NULL,
-  NULL
-};
-
-pony_type_t* reach_type_pony_type()
-{
-  return &reach_type_pony;
-}
-
-static void reach_serialise_trace(pony_ctx_t* ctx, void* object)
-{
-  reach_t* r = (reach_t*)object;
-
-  reach_types_serialise_trace(ctx, &r->types);
-}
-
-static void reach_serialise(pony_ctx_t* ctx, void* object, void* buf,
-  size_t offset, int mutability)
-{
-  (void)mutability;
-
-  reach_t* r = (reach_t*)object;
-  reach_t* dst = (reach_t*)((uintptr_t)buf + offset);
-
-  reach_types_serialise(ctx, &r->types, buf, offset + offsetof(reach_t, types),
-    PONY_TRACE_MUTABLE);
-  dst->method_stack = NULL;
-  dst->object_type_count = r->object_type_count;
-  dst->numeric_type_count = r->numeric_type_count;
-  dst->tuple_type_count = r->tuple_type_count;
-  dst->total_type_count = r->total_type_count;
-  dst->trait_type_count = r->trait_type_count;
-  // limit_exceeded is per-run and transient — a run that sets it fails the
-  // build before reach is ever serialised — so the serialised image always
-  // carries false rather than the source value.
-  dst->limit_exceeded = false;
-}
-
-static void reach_deserialise(pony_ctx_t* ctx, void* object)
-{
-  reach_t* r = (reach_t*)object;
-
-  reach_types_deserialise(ctx, &r->types);
-}
-
-static pony_type_t reach_pony =
-{
-  0,
-  sizeof(reach_t),
-  0,
-  0,
-  0,
-  NULL,
-#if defined(USE_RUNTIME_TRACING)
-  NULL,
-  NULL,
-#endif
-  NULL,
-  reach_serialise_trace,
-  reach_serialise,
-  reach_deserialise,
-  NULL,
-  NULL,
-  NULL,
-  NULL,
-  0,
-  0,
-  NULL,
-  NULL,
-  NULL
-};
-
-pony_type_t* reach_pony_type()
-{
-  return &reach_pony;
 }

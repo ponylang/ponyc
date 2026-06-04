@@ -6218,3 +6218,24 @@ TEST_F(VerifyTest, IsBetweenDifferentReificationsOfSameGeneric)
 
   TEST_COMPILE(src);
 }
+
+TEST_F(VerifyTest, SerialiseHooksAreOrdinaryMethods)
+{
+  // The _serialise_space/_serialise/_deserialise hooks are no longer a
+  // recognised language feature, so a type may define them with any signature
+  // and they compile as ordinary methods. Each signature below would have
+  // failed the old verify-pass checks (_serialise_space must return USize;
+  // _serialise must be box with one parameter returning None; _deserialise
+  // must be ref with one parameter returning None).
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    None\n"
+
+    "class C\n"
+    "  fun _serialise_space(): None => None\n"
+    "  fun ref _serialise() => None\n"
+    "  fun box _deserialise(a: U8, b: U8): U8 => a";
+
+  TEST_COMPILE(src);
+}

@@ -15,7 +15,6 @@
 #include "../../libponyrt/mem/pool.h"
 #include "ponyassert.h"
 
-#include <blake2.h>
 #include <platform.h>
 #include <llvm-c/DebugInfo.h>
 #include <llvm-c/Linker.h>
@@ -168,9 +167,6 @@ static void init_runtime(compile_t* c)
   c->str__init = stringtab("_init");
   c->str__final = stringtab("_final");
   c->str__event_notify = stringtab("_event_notify");
-  c->str__serialise_space = stringtab("_serialise_space");
-  c->str__serialise = stringtab("_serialise");
-  c->str__deserialise = stringtab("_deserialise");
 
   LLVMTypeRef type;
   LLVMTypeRef params[5];
@@ -202,38 +198,11 @@ static void init_runtime(compile_t* c)
   c->msg_type = LLVMStructCreateNamed(c->context, "__message");
   LLVMStructSetBody(c->msg_type, params, 2, false);
 
-  // descriptor_offset_lookup
-  // uint32_t (*)(size_t)
-  params[0] = target_is_ilp32(c->opt->triple) ? c->i32 : c->i64;
-  c->descriptor_offset_lookup_type = LLVMFunctionType(c->i32, params, 1, false);
-  c->descriptor_offset_lookup_fn =
-    LLVMPointerType(c->descriptor_offset_lookup_type, 0);
-
   // trace
   // void (*)(i8*, __object*)
   params[0] = c->ptr;
   params[1] = c->ptr;
   c->trace_fn = LLVMFunctionType(c->void_type, params, 2, false);
-
-  // serialise
-  // void (*)(i8*, __object*, i8*, intptr, i32)
-  params[0] = c->ptr;
-  params[1] = c->ptr;
-  params[2] = c->ptr;
-  params[3] = c->intptr;
-  params[4] = c->i32;
-  c->serialise_fn = LLVMFunctionType(c->void_type, params, 5, false);
-
-  // serialise_space
-  // i64 (__object*)
-  params[0] = c->ptr;
-  c->custom_serialise_space_fn = LLVMFunctionType(c->i64, params, 1, false);
-
-  // custom_deserialise
-  // void (*)(__object*, void*)
-  params[0] = c->ptr;
-  params[1] = c->ptr;
-  c->custom_deserialise_fn = LLVMFunctionType(c->void_type, params, 2, false);
 
 #if defined(USE_RUNTIME_TRACING)
   // get_behavior_name
@@ -524,49 +493,6 @@ static void init_runtime(compile_t* c)
 
   LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex, nounwind_attr);
 
-  // void pony_serialise_reserve(i8*, i8*, intptr)
-  params[0] = c->ptr;
-  params[1] = c->ptr;
-  params[2] = c->intptr;
-  type = LLVMFunctionType(c->void_type, params, 3, false);
-  value = LLVMAddFunction(c->module, "pony_serialise_reserve", type);
-
-  LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex, nounwind_attr);
-  LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex,
-    inacc_or_arg_mem_attr);
-  LLVMAddAttributeAtIndex(value, 2, readnone_attr);
-
-  // intptr pony_serialise_offset(i8*, i8*)
-  params[0] = c->ptr;
-  params[1] = c->ptr;
-  type = LLVMFunctionType(c->intptr, params, 2, false);
-  value = LLVMAddFunction(c->module, "pony_serialise_offset", type);
-
-  LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex, nounwind_attr);
-  LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex,
-    inacc_or_arg_mem_attr);
-  LLVMAddAttributeAtIndex(value, 2, readonly_attr);
-
-  // i8* pony_deserialise_offset(i8*, __desc*, intptr)
-  params[0] = c->ptr;
-  params[1] = c->ptr;
-  params[2] = c->intptr;
-  type = LLVMFunctionType(c->ptr, params, 3, false);
-  value = LLVMAddFunction(c->module, "pony_deserialise_offset", type);
-
-  LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex,
-    inacc_or_arg_mem_attr);
-
-  // i8* pony_deserialise_block(i8*, intptr, intptr)
-  params[0] = c->ptr;
-  params[1] = c->intptr;
-  params[2] = c->intptr;
-  type = LLVMFunctionType(c->ptr, params, 3, false);
-  value = LLVMAddFunction(c->module, "pony_deserialise_block", type);
-
-  LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex,
-    inacc_or_arg_mem_attr);
-
   // i32 pony_init(i32, i8**)
   params[0] = c->i32;
   params[1] = c->ptr;
@@ -854,21 +780,6 @@ bool codegen_pass_init(pass_opt_t* opt)
   else
     opt->cpu = LLVMGetHostCPUName();
 
-  opt->serialise_id_hash_key = (unsigned char*)ponyint_pool_alloc_size(16);
-
-  const char* version = "pony-" PONY_VERSION;
-  const char* data_model = target_is_ilp32(opt->triple) ? "ilp32" : (target_is_lp64(opt->triple) ? "lp64" : (target_is_llp64(opt->triple) ? "llp64" : "unknown"));
-  const char* endian = target_is_bigendian(opt->triple) ? "be" : "le";
-
-  printbuf_t* target_version_buf = printbuf_new();
-  printbuf(target_version_buf, "%s-%s-%s", version, data_model, endian);
-
-  int status = blake2b(opt->serialise_id_hash_key, 16, target_version_buf->m, target_version_buf->offset, NULL, 0);
-  (void)status;
-  pony_assert(status == 0);
-
-  printbuf_free(target_version_buf);
-
   return true;
 }
 
@@ -885,9 +796,6 @@ void codegen_pass_cleanup(pass_opt_t* opt)
   opt->triple = NULL;
   opt->cpu = NULL;
   opt->features = NULL;
-
-  ponyint_pool_free_size(16, opt->serialise_id_hash_key);
-  opt->serialise_id_hash_key = NULL;
 }
 
 bool codegen(ast_t* program, pass_opt_t* opt)

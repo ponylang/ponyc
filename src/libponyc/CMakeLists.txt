@@ -36,7 +36,6 @@ add_library(libponyc STATIC
     codegen/genoperator.c
     codegen/genprim.c
     codegen/genreference.c
-    codegen/genserialise.c
     codegen/gentrace.c
     codegen/gentype.c
     codegen/gendebug.cc
@@ -62,7 +61,6 @@ add_library(libponyc STATIC
     pass/pass.c
     pass/refer.c
     pass/scope.c
-    pass/serialisers.c
     pass/sugar.c
     pass/syntax.c
     pass/traits.c
@@ -108,7 +106,6 @@ target_compile_definitions(libponyc PRIVATE
 target_include_directories(libponyc
     PUBLIC ../common
     PRIVATE ../../build/libs/include
-    PRIVATE ../../lib/blake2
 )
 
 # In sanitizer builds, genexe.cc includes the generated sanitizer_link_args.h
@@ -146,7 +143,7 @@ if (MSVC)
     set(libponyc_standalone_path "${CMAKE_BINARY_DIR}/${libponyc_standalone_file}")
     add_custom_target(libponyc-standalone ALL
         # CMAKE_AR finds the appropriate version of lib.exe according to desired target and host architecture
-        COMMAND ${CMAKE_AR} /NOLOGO /VERBOSE /OUT:${libponyc_standalone_path} "$<TARGET_FILE:libponyc>" ${LLVM_OBJS} ${LLD_OBJS} "${PROJECT_SOURCE_DIR}/../../build/libs/lib/blake2.lib"
+        COMMAND ${CMAKE_AR} /NOLOGO /VERBOSE /OUT:${libponyc_standalone_path} "$<TARGET_FILE:libponyc>" ${LLVM_OBJS} ${LLD_OBJS}
         DEPENDS libponyc)
     add_custom_command(TARGET libponyc-standalone POST_BUILD
         COMMAND $<$<CONFIG:Debug>:${CMAKE_COMMAND}> ARGS -E copy ${libponyc_standalone_path} ${CMAKE_RUNTIME_OUTPUT_DIRECTORY_DEBUG}/${libponyc_standalone_file}
@@ -161,7 +158,7 @@ elseif(${CMAKE_HOST_SYSTEM_NAME} MATCHES "Darwin")
     file(GLOB_RECURSE LLVM_OBJS "${PROJECT_SOURCE_DIR}/../../build/libs/lib/libLLVM*.a")
     file(GLOB_RECURSE LLD_OBJS "${PROJECT_SOURCE_DIR}/../../build/libs/lib/liblld*.a")
     add_custom_target(libponyc-standalone ALL
-        COMMAND libtool -static -o libponyc-standalone.a $<TARGET_FILE:libponyc> ${PROJECT_SOURCE_DIR}/../../build/libs/lib/libblake2.a ${LLVM_OBJS} ${LLD_OBJS}
+        COMMAND libtool -static -o libponyc-standalone.a $<TARGET_FILE:libponyc> ${LLVM_OBJS} ${LLD_OBJS}
         DEPENDS $<TARGET_FILE:libponyc> ${STANDALONE_ARCHIVES}
     )
     # copy the generated file after it is built
@@ -176,7 +173,6 @@ elseif(${CMAKE_HOST_SYSTEM_NAME} MATCHES "FreeBSD")
     add_custom_command(OUTPUT libponyc-standalone.a
         COMMAND cp -f `${CMAKE_CXX_COMPILER} --print-file-name='libc++.a'` libcpp.a
         COMMAND echo "create libponyc-standalone.a" > standalone.mri
-        COMMAND echo "addlib ${PROJECT_SOURCE_DIR}/../../build/libs/lib/libblake2.a" >> standalone.mri
         COMMAND echo "addlib libcpp.a" >> standalone.mri
         COMMAND find ${PROJECT_SOURCE_DIR}/../../build/libs/ -name "libLLVM*.a" | xargs -I % -n 1 echo 'addlib %' >> standalone.mri
         COMMAND find ${PROJECT_SOURCE_DIR}/../../build/libs/ -name "liblld*.a" | xargs -I % -n 1 echo 'addlib %' >> standalone.mri
@@ -203,7 +199,6 @@ elseif(${CMAKE_HOST_SYSTEM_NAME} MATCHES "OpenBSD")
     add_custom_command(OUTPUT libponyc-standalone.a
         COMMAND cp -f `${CMAKE_CXX_COMPILER} --print-file-name='libc++.a'` libcpp.a
         COMMAND echo "create libponyc-standalone.a" > standalone.mri
-        COMMAND echo "addlib ${PROJECT_SOURCE_DIR}/../../build/libs/lib/libblake2.a" >> standalone.mri
         COMMAND echo "addlib libcpp.a" >> standalone.mri
         COMMAND find ${PROJECT_SOURCE_DIR}/../../build/libs/ -name "libLLVM*.a" | xargs -I % -n 1 echo 'addlib %' >> standalone.mri
         COMMAND find ${PROJECT_SOURCE_DIR}/../../build/libs/ -name "liblld*.a" | xargs -I % -n 1 echo 'addlib %' >> standalone.mri
@@ -230,7 +225,6 @@ elseif(${CMAKE_HOST_SYSTEM_NAME} MATCHES "DragonFly")
     add_custom_command(OUTPUT libponyc-standalone.a
         COMMAND cp -f `${CMAKE_CXX_COMPILER} --print-file-name='libstdc++.a'` libstdcpp.a
         COMMAND echo "create libponyc-standalone.a" > standalone.mri
-        COMMAND echo "addlib ${PROJECT_SOURCE_DIR}/../../build/libs/lib/libblake2.a" >> standalone.mri
         COMMAND echo "addlib libstdcpp.a" >> standalone.mri
         COMMAND find ${PROJECT_SOURCE_DIR}/../../build/libs/ -name "libLLVM*.a" | xargs -I % -n 1 echo 'addlib %' >> standalone.mri
         COMMAND find ${PROJECT_SOURCE_DIR}/../../build/libs/ -name "liblld*.a" | xargs -I % -n 1 echo 'addlib %' >> standalone.mri
@@ -275,7 +269,6 @@ else()
     add_custom_command(OUTPUT libponyc-standalone.a
         COMMAND cp -f ${CXX_STDLIB_PATH} libstdcpp.a
         COMMAND echo "create libponyc-standalone.a" > standalone.mri
-        COMMAND echo "addlib ${PROJECT_SOURCE_DIR}/../../build/libs/lib/libblake2.a" >> standalone.mri
         COMMAND echo "addlib libstdcpp.a" >> standalone.mri
         COMMAND find ${PROJECT_SOURCE_DIR}/../../build/libs/ -name "libLLVM*.a" | xargs -I % -n 1 echo 'addlib %' >> standalone.mri
         COMMAND find ${PROJECT_SOURCE_DIR}/../../build/libs/ -name "liblld*.a" | xargs -I % -n 1 echo 'addlib %' >> standalone.mri

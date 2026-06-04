@@ -18,12 +18,6 @@ const char* genname_fieldlist(const char* type);
 
 const char* genname_trace(const char* type);
 
-const char* genname_serialise_trace(const char* type);
-
-const char* genname_serialise(const char* type);
-
-const char* genname_deserialise(const char* type);
-
 const char* genname_dispatch(const char* type);
 
 #if defined(USE_RUNTIME_TRACING)
@@ -47,8 +41,6 @@ const char* genname_unbox(const char* name);
 const char* genname_unsafe(const char* name);
 
 const char* genname_program_fn(const char* program, const char* name);
-
-const char* genname_type_with_id(const char* type, uint64_t type_id);
 
 PONY_EXTERN_C_END
 

@@ -2,7 +2,6 @@
 #include "stringtab.h"
 #include "ast.h"
 #include "id.h"
-#include "../../libponyrt/gc/serialise.h"
 #include "../../libponyrt/mem/pool.h"
 #include "ponyassert.h"
 #include <stdlib.h>
@@ -32,8 +31,7 @@ static void sym_free(symbol_t* sym)
   POOL_FREE(symbol_t, sym);
 }
 
-DEFINE_HASHMAP_SERIALISE(symtab, symtab_t, symbol_t, sym_hash, sym_cmp,
-  sym_free, symbol_pony_type());
+DEFINE_HASHMAP(symtab, symtab_t, symbol_t, sym_hash, sym_cmp, sym_free);
 
 static const char* name_without_case(const char* name)
 {
@@ -347,70 +345,4 @@ void symtab_print(symtab_t* symtab)
         break;
     }
   }
-}
-
-static void symbol_serialise_trace(pony_ctx_t* ctx, void* object)
-{
-  symbol_t* sym = (symbol_t*)object;
-
-  string_trace(ctx, (char*)sym->name);
-
-  if(sym->def != NULL)
-    pony_traceknown(ctx, sym->def, ast_pony_type(), PONY_TRACE_MUTABLE);
-}
-
-static void symbol_serialise(pony_ctx_t* ctx, void* object, void* buf,
-  size_t offset, int mutability)
-{
-  (void)mutability;
-
-  symbol_t* sym = (symbol_t*)object;
-  symbol_t* dst = (symbol_t*)((uintptr_t)buf + offset);
-
-  dst->name = (const char*)pony_serialise_offset(ctx, (char*)sym->name);
-  dst->def = (ast_t*)pony_serialise_offset(ctx, sym->def);
-  dst->status = sym->status;
-  dst->branch_count = sym->branch_count;
-}
-
-static void symbol_deserialise(pony_ctx_t* ctx, void* object)
-{
-  (void)ctx;
-  symbol_t* sym = (symbol_t*)object;
-
-  sym->name = string_deserialise_offset(ctx, (uintptr_t)sym->name);
-  sym->def = (ast_t*)pony_deserialise_offset(ctx, ast_pony_type(),
-    (uintptr_t)sym->def);
-}
-
-static pony_type_t symbol_pony =
-{
-  0,
-  sizeof(symbol_t),
-  0,
-  0,
-  0,
-  NULL,
-#if defined(USE_RUNTIME_TRACING)
-  NULL,
-  NULL,
-#endif
-  NULL,
-  symbol_serialise_trace,
-  symbol_serialise,
-  symbol_deserialise,
-  NULL,
-  NULL,
-  NULL,
-  NULL,
-  0,
-  0,
-  NULL,
-  NULL,
-  NULL
-};
-
-pony_type_t* symbol_pony_type()
-{
-  return &symbol_pony;
 }
