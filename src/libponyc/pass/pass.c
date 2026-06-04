@@ -303,6 +303,12 @@ static bool ast_passes(ast_t** astp, pass_opt_t* options, pass_id last)
   if(is_program)
     plugin_visit_ast(*astp, options, PASS_FINALISER);
 
+  // Freezing the AST is the last step of the AST passes. Tools that limit
+  // compilation to the finaliser pass inspect and mutate the AST afterwards,
+  // so it must stay unfrozen unless compilation proceeds into reach.
+  if(!check_limit(astp, options, PASS_REACH, last))
+    return true;
+
   if(options->check_tree)
     check_tree(*astp, options);
 
