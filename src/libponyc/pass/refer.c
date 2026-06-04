@@ -1562,10 +1562,18 @@ static bool refer_repeat(pass_opt_t* opt, ast_t* ast)
 
   ast_consolidate_branches(ast, branch_count);
 
-  // If all branches jump away with no value, then we do too -- unless the body
-  // contains a break with a value, which gives the loop a value and an exit to
-  // the code after it, so control can still resume past the loop.
-  if((branch_count == 0) && !ast_checkflag(body, AST_FLAG_MAY_BREAK_VALUE))
+  // The loop produces no value -- and so jumps away -- only when none of its
+  // exits yields one. branch_count is 0 when the body never falls through to
+  // the condition. On top of that, a break carrying a value gives the loop that
+  // value, and a continue routes to the else clause (see gen_repeat), so a body
+  // that may continue past a non-jumps-away else gives the loop that else's
+  // value. Any of those is a value-producing exit that lets control resume past
+  // the loop.
+  bool value_via_continue = ast_checkflag(body, AST_FLAG_MAY_CONTINUE) &&
+    !ast_checkflag(else_clause, AST_FLAG_JUMPS_AWAY);
+
+  if((branch_count == 0) && !ast_checkflag(body, AST_FLAG_MAY_BREAK_VALUE) &&
+    !value_via_continue)
     ast_setflag(ast, AST_FLAG_JUMPS_AWAY);
 
   // Push our symbol status to our parent scope.
@@ -1764,6 +1772,12 @@ static bool refer_continue(pass_opt_t* opt, ast_t* ast)
     ast_error(opt->check.errors, ast, "must be in a loop");
     return false;
   }
+
+  // A continue jumps to the loop's else clause (via the condition). If the else
+  // produces a value, the loop can yield it and resume past the loop, so the
+  // loop does not jump away. Record the continue so refer_repeat can account for
+  // that value path (refer_while already counts its else unconditionally).
+  ast_setflag(opt->check.frame->loop_body, AST_FLAG_MAY_CONTINUE);
 
   errorframe_t errorf = NULL;
   if(!ast_all_consumes_in_scope(opt->check.frame->loop_body, ast, &errorf))

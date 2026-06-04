@@ -2993,12 +2993,17 @@ TEST_F(BadPonyTest, UnconstrainedTypeParameterCompiles)
 
 TEST_F(BadPonyTest, WhileBodyAndElseJumpAwayInSeparateFunction)
 {
-  // From issue #2792 (first example). A while loop whose body and else
-  // both jump away (break + return) used to trigger a typecheck assertion
-  // when the loop appeared in a separate function rather than directly in
-  // create. expr_seq tried to type the jumps-away while and reported a
-  // typecheck error without registering an actual error message,
-  // tripping the "errors must be > 0" assertion in pass_expr.
+  // From issue #2792 (first example). A while loop whose body and else both
+  // jump away (a valueless break runs the else, which returns) produces no
+  // value and never resumes past the loop -- it jumps away. The sugar pass
+  // appends an implicit `None` to the None-returning function body, which is
+  // then unreachable. This is rejected as "unreachable code", the same error
+  // an equivalent `if true then return else return end` gets. (Previously the
+  // loop compiled, relying on the implicit `None` to luckily terminate the
+  // dead post block; once that block is terminated as unreachable in codegen
+  // -- required for the try-wrapped case -- the implicit `None` would land
+  // after the terminator, producing invalid IR. The expr pass now rejects the
+  // shape before codegen sees it.)
   const char* src =
     "actor Main\n"
     "  fun a() =>\n"
@@ -3011,14 +3016,14 @@ TEST_F(BadPonyTest, WhileBodyAndElseJumpAwayInSeparateFunction)
     "  new create(env: Env) =>\n"
     "    a()";
 
-  TEST_COMPILE(src);
+  TEST_ERRORS_1(src, "unreachable code");
 }
 
 TEST_F(BadPonyTest, RepeatBodyAndElseJumpAwayInSeparateFunction)
 {
-  // Same shape as WhileBodyAndElseJumpAwayInSeparateFunction but for
-  // repeat. The fix in expr_seq is loop-agnostic; this guards against a
-  // future regression that special-cases one loop kind.
+  // Same shape as WhileBodyAndElseJumpAwayInSeparateFunction but for repeat.
+  // The guard in expr_repeat mirrors the one in expr_while; this guards against
+  // a future regression that special-cases one loop kind.
   const char* src =
     "actor Main\n"
     "  fun a() =>\n"
@@ -3032,7 +3037,7 @@ TEST_F(BadPonyTest, RepeatBodyAndElseJumpAwayInSeparateFunction)
     "  new create(env: Env) =>\n"
     "    a()";
 
-  TEST_COMPILE(src);
+  TEST_ERRORS_1(src, "unreachable code");
 }
 
 TEST_F(BadPonyTest, WhileWithLiteralBreakValueAndJumpsAwayElse)

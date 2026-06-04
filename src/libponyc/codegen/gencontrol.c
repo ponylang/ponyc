@@ -330,7 +330,14 @@ LLVMValueRef gen_while(compile_t* c, ast_t* ast)
   LLVMPositionBuilderAtEnd(c->builder, post_block);
 
   if(ast_checkflag(ast, AST_FLAG_JUMPS_AWAY))
+  {
+    // The loop produces no value and control never resumes past it, so the post
+    // block is dead. A dead else clause may still branch into it, so terminate
+    // it as unreachable rather than leaving it dangling, which would produce
+    // invalid IR. (Same handling as gen_repeat.)
+    LLVMBuildUnreachable(c->builder);
     return GEN_NOVALUE;
+  }
 
   if(needed)
   {
@@ -463,7 +470,16 @@ LLVMValueRef gen_repeat(compile_t* c, ast_t* ast)
   LLVMPositionBuilderAtEnd(c->builder, post_block);
 
   if(ast_checkflag(ast, AST_FLAG_JUMPS_AWAY))
+  {
+    // The loop produces no value and control never resumes past it (refer flags
+    // this only when no exit yields a value: the body always jumps away, no
+    // break carries a value, and no continue reaches a value-producing else).
+    // The post block is therefore dead -- but a dead else clause may still
+    // branch into it -- so it needs a terminator. Mark it unreachable rather
+    // than leaving it dangling, which would produce invalid IR.
+    LLVMBuildUnreachable(c->builder);
     return GEN_NOVALUE;
+  }
 
   if(needed)
   {

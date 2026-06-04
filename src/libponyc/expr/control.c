@@ -240,6 +240,22 @@ bool expr_while(pass_opt_t* opt, ast_t* ast)
       ast_free_unattached(prev_type);
   }
 
+  // A loop with no value-producing exit yields nothing and control never
+  // resumes past it (the refer pass flags it AST_FLAG_JUMPS_AWAY). Any sibling
+  // in the enclosing sequence is therefore unreachable. This includes the
+  // implicit `None` the sugar pass appends to a None-returning function body
+  // (fun_defaults in sugar.c), which would otherwise be emitted after the
+  // loop's unreachable-terminated post block in codegen, producing invalid IR.
+  // Mirrors the same guard in expr_if/expr_iftype.
+  if(ast_checkflag(ast, AST_FLAG_JUMPS_AWAY))
+  {
+    if((ast_id(ast_parent(ast)) == TK_SEQ) && ast_sibling(ast) != NULL)
+    {
+      ast_error(opt->check.errors, ast_sibling(ast), "unreachable code");
+      return false;
+    }
+  }
+
   ast_settype(ast, type);
   literal_unify_control(ast, opt);
 
@@ -312,6 +328,17 @@ bool expr_repeat(pass_opt_t* opt, ast_t* ast)
 
     if(type != prev_type)
       ast_free_unattached(prev_type);
+  }
+
+  // See the matching comment in expr_while: a jumps-away loop makes any sibling
+  // unreachable, including the sugar-appended implicit `None`.
+  if(ast_checkflag(ast, AST_FLAG_JUMPS_AWAY))
+  {
+    if((ast_id(ast_parent(ast)) == TK_SEQ) && ast_sibling(ast) != NULL)
+    {
+      ast_error(opt->check.errors, ast_sibling(ast), "unreachable code");
+      return false;
+    }
   }
 
   ast_settype(ast, type);
