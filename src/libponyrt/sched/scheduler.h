@@ -10,7 +10,6 @@ typedef struct scheduler_t scheduler_t;
 
 #include "../actor/messageq.h"
 #include "../gc/gc.h"
-#include "../gc/serialise.h"
 #include "../pony.h"
 #include <platform.h>
 #include "mutemap.h"
@@ -89,13 +88,6 @@ typedef struct pony_ctx_t
   uint64_t last_tsc;
   schedulerstats_t schedulerstats;
 #endif
-
-  void* serialise_buffer;
-  size_t serialise_size;
-  ponyint_serialise_t serialise;
-  serialise_alloc_fn serialise_alloc;
-  serialise_alloc_fn serialise_alloc_final;
-  serialise_throw_fn serialise_throw;
 } pony_ctx_t;
 
 struct scheduler_t

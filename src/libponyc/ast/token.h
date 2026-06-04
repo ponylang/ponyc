@@ -5,15 +5,12 @@
 
 #include "lexint.h"
 #include "source.h"
-#include "../libponyrt/pony.h"
 #include <stdbool.h>
 #include <stddef.h>
 
 PONY_EXTERN_C_BEGIN
 
 typedef struct token_t token_t;
-
-typedef struct token_signature_t token_signature_t;
 
 typedef enum token_id
 {
@@ -300,16 +297,6 @@ void token_free(token_t* token);
 
 /// Set the token as read-only.
 void token_freeze(token_t* token);
-
-/// Get a pony_type_t for token_t. Should only be used for signature computation.
-pony_type_t* token_signature_pony_type();
-
-/// Get a pony_type_t for a docstring token_t. Should only be used for signature
-/// computation.
-pony_type_t* token_docstring_signature_pony_type();
-
-/// Get a pony_type_t for token_t. Should only be used for serialisation.
-pony_type_t* token_pony_type();
 
 
 // Read accessors

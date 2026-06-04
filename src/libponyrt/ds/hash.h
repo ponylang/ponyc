@@ -121,15 +121,6 @@ size_t ponyint_hashmap_alloc_size(hashmap_t* map);
 void* ponyint_hashmap_next(size_t* i, size_t count, bitmap_t* item_bitmap,
   size_t size, hashmap_entry_t* buckets);
 
-void ponyint_hashmap_serialise_trace(pony_ctx_t* ctx, void* object,
-  pony_type_t* elem_type);
-
-void ponyint_hashmap_serialise(pony_ctx_t* ctx, void* object, void* buf,
-  size_t offset);
-
-void ponyint_hashmap_deserialise(pony_ctx_t* ctx, void* object,
-  pony_type_t* elem_type);
-
 #define DECLARE_HASHMAP(name, name_t, type) \
   typedef struct name_t { hashmap_t contents; } name_t; \
   void name##_init(name_t* map, size_t size); \
@@ -146,14 +137,6 @@ void ponyint_hashmap_deserialise(pony_ctx_t* ctx, void* object,
   size_t name##_mem_size(name_t* map); \
   size_t name##_alloc_size(name_t* map); \
   type* name##_next(name_t* map, size_t* i); \
-
-#define DECLARE_HASHMAP_SERIALISE(name, name_t, type) \
-  DECLARE_HASHMAP(name, name_t, type) \
-  void name##_serialise_trace(pony_ctx_t* ctx, void* object); \
-  void name##_serialise(pony_ctx_t* ctx, void* object, void* buf, \
-    size_t offset, int mutability); \
-  void name##_deserialise(pony_ctx_t* ctx, void* object); \
-  const pony_type_t* name##_pony_type(); \
 
 #define DEFINE_HASHMAP(name, name_t, type, hash, cmp, free_elem) \
   typedef struct name_t name_t; \
@@ -234,57 +217,6 @@ void ponyint_hashmap_deserialise(pony_ctx_t* ctx, void* object,
     hashmap_t* h = (hashmap_t*)map; \
     return (type*)ponyint_hashmap_next(i, h->count, h->item_bitmap, \
       h->size, h->buckets); \
-  } \
-
-#if defined(USE_RUNTIME_TRACING)
-#define HASH_TRACING_DESC_FIELDS  NULL, \
-    NULL,
-#else
-#define HASH_TRACING_DESC_FIELDS 
-#endif
-
-#define DEFINE_HASHMAP_SERIALISE(name, name_t, type, hash, cmp, free_elem, elem_type) \
-  DEFINE_HASHMAP(name, name_t, type, hash, cmp, free_elem) \
-  void name##_serialise_trace(pony_ctx_t* ctx, void* object) \
-  { \
-    ponyint_hashmap_serialise_trace(ctx, object, elem_type); \
-  } \
-  void name##_serialise(pony_ctx_t* ctx, void* object, void* buf, \
-    size_t offset, int mutability) \
-  { \
-    (void)mutability; \
-    ponyint_hashmap_serialise(ctx, object, buf, offset); \
-  } \
-  void name##_deserialise(pony_ctx_t* ctx, void* object) \
-  { \
-    ponyint_hashmap_deserialise(ctx, object, elem_type); \
-  } \
-  static pony_type_t name##_pony = \
-  { \
-    0, \
-    sizeof(name_t), \
-    0, \
-    0, \
-    0, \
-    NULL, \
-    HASH_TRACING_DESC_FIELDS \
-    NULL, \
-    name##_serialise_trace, \
-    name##_serialise, \
-    name##_deserialise, \
-    NULL, \
-    NULL, \
-    NULL, \
-    NULL, \
-    0, \
-    0, \
-    NULL, \
-    NULL, \
-    NULL, \
-  }; \
-  const pony_type_t* name##_pony_type() \
-  { \
-    return &name##_pony; \
   } \
 
 #define HASHMAP_INIT {0, 0, NULL}

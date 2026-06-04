@@ -222,7 +222,6 @@ typedef enum pass_id
   PASS_COMPLETENESS,
   PASS_VERIFY,
   PASS_FINALISER,
-  PASS_SERIALISER,
   PASS_REACH,
   PASS_PAINT,
   PASS_LLVM_IR,
@@ -250,7 +249,6 @@ typedef enum pass_id
     "    =completeness\n" \
     "    =verify\n" \
     "    =final\n" \
-    "    =serialise\n" \
     "    =reach\n" \
     "    =paint\n" \
     "    =ir            Output LLVM IR.\n" \
@@ -305,7 +303,6 @@ typedef struct pass_opt_t
   char* abi;
   char* cpu;
   char* features;
-  unsigned char* serialise_id_hash_key;
 
   typecheck_t check;
 

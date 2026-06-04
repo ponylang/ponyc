@@ -74,17 +74,10 @@ static LLVMValueRef make_lang_features_init(compile_t* c)
   else
     boolean = c->i8;
 
-  uint32_t desc_table_size = reach_max_type_id(c->reach);
-  LLVMValueRef desc_table_lookup_fn = c->desc_table_offset_lookup_fn;
-
-  LLVMTypeRef f_params[5];
+  LLVMTypeRef f_params[1];
   f_params[0] = boolean;
-  f_params[1] = boolean;
-  f_params[2] = c->ptr;
-  f_params[3] = c->intptr;
-  f_params[4] = c->descriptor_offset_lookup_fn;
 
-  LLVMTypeRef lfi_type = LLVMStructTypeInContext(c->context, f_params, 5,
+  LLVMTypeRef lfi_type = LLVMStructTypeInContext(c->context, f_params, 1,
     false);
 
   LLVMBasicBlockRef this_block = LLVMGetInsertBlock(c->builder);
@@ -103,20 +96,6 @@ static LLVMValueRef make_lang_features_init(compile_t* c)
   LLVMValueRef field = LLVMBuildStructGEP2(c->builder, lfi_type, lfi_object, 0,
     "");
   LLVMBuildStore(c->builder, LLVMConstInt(boolean, 1, false), field);
-
-  field = LLVMBuildStructGEP2(c->builder, lfi_type, lfi_object, 1, "");
-  LLVMBuildStore(c->builder, LLVMConstInt(boolean, 1, false), field);
-
-  field = LLVMBuildStructGEP2(c->builder, lfi_type, lfi_object, 2, "");
-  LLVMBuildStore(c->builder, c->desc_table, field);
-
-  field = LLVMBuildStructGEP2(c->builder, lfi_type, lfi_object, 3, "");
-  LLVMBuildStore(c->builder, LLVMConstInt(c->intptr, desc_table_size, false),
-    field);
-
-  field = LLVMBuildStructGEP2(c->builder, lfi_type, lfi_object, 4, "");
-  LLVMBuildStore(c->builder, LLVMBuildBitCast(c->builder, desc_table_lookup_fn,
-    c->descriptor_offset_lookup_fn, ""), field);
 
   return lfi_object;
 }

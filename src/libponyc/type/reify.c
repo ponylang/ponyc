@@ -5,7 +5,6 @@
 #include "assemble.h"
 #include "alias.h"
 #include "../ast/token.h"
-#include "../../libponyrt/gc/serialise.h"
 #include "../../libponyrt/mem/pool.h"
 #include "ponyassert.h"
 
@@ -560,99 +559,4 @@ bool check_constraints(ast_t* orig, ast_t* typeparams, ast_t* typeargs,
   pony_assert(typeparam == NULL);
   pony_assert(typearg == NULL);
   return true;
-}
-
-static void deferred_reification_serialise_trace(pony_ctx_t* ctx, void* object)
-{
-  deferred_reification_t* d = (deferred_reification_t*)object;
-
-  pony_traceknown(ctx, d->ast, ast_pony_type(), PONY_TRACE_MUTABLE);
-
-  if(d->type_typeparams != NULL)
-    pony_traceknown(ctx, d->type_typeparams, ast_pony_type(),
-      PONY_TRACE_MUTABLE);
-
-  if(d->type_typeargs != NULL)
-    pony_traceknown(ctx, d->type_typeargs, ast_pony_type(),
-      PONY_TRACE_MUTABLE);
-
-  if(d->method_typeparams != NULL)
-    pony_traceknown(ctx, d->method_typeparams, ast_pony_type(),
-      PONY_TRACE_MUTABLE);
-
-  if(d->method_typeargs != NULL)
-    pony_traceknown(ctx, d->method_typeargs, ast_pony_type(),
-      PONY_TRACE_MUTABLE);
-
-  if(d->thistype != NULL)
-    pony_traceknown(ctx, d->thistype, ast_pony_type(),
-      PONY_TRACE_MUTABLE);
-}
-
-static void deferred_reification_serialise(pony_ctx_t* ctx, void* object,
-  void* buf, size_t offset, int mutability)
-{
-  (void)mutability;
-
-  deferred_reification_t* d = (deferred_reification_t*)object;
-  deferred_reification_t* dst =
-    (deferred_reification_t*)((uintptr_t)buf + offset);
-
-  dst->ast = (ast_t*)pony_serialise_offset(ctx, d->ast);
-  dst->type_typeparams = (ast_t*)pony_serialise_offset(ctx, d->type_typeparams);
-  dst->type_typeargs = (ast_t*)pony_serialise_offset(ctx, d->type_typeargs);
-  dst->method_typeparams = (ast_t*)pony_serialise_offset(ctx,
-    d->method_typeparams);
-  dst->method_typeargs = (ast_t*)pony_serialise_offset(ctx, d->method_typeargs);
-  dst->thistype = (ast_t*)pony_serialise_offset(ctx, d->thistype);
-}
-
-static void deferred_reification_deserialise(pony_ctx_t* ctx, void* object)
-{
-  deferred_reification_t* d = (deferred_reification_t*)object;
-
-  d->ast = (ast_t*)pony_deserialise_offset(ctx, ast_pony_type(),
-    (uintptr_t)d->ast);
-  d->type_typeparams = (ast_t*)pony_deserialise_offset(ctx, ast_pony_type(),
-    (uintptr_t)d->type_typeparams);
-  d->type_typeargs = (ast_t*)pony_deserialise_offset(ctx, ast_pony_type(),
-    (uintptr_t)d->type_typeargs);
-  d->method_typeparams = (ast_t*)pony_deserialise_offset(ctx, ast_pony_type(),
-    (uintptr_t)d->method_typeparams);
-  d->method_typeargs = (ast_t*)pony_deserialise_offset(ctx, ast_pony_type(),
-    (uintptr_t)d->method_typeargs);
-  d->thistype = (ast_t*)pony_deserialise_offset(ctx, ast_pony_type(),
-    (uintptr_t)d->thistype);
-}
-
-static pony_type_t deferred_reification_pony =
-{
-  0,
-  sizeof(deferred_reification_t),
-  0,
-  0,
-  0,
-  NULL,
-#if defined(USE_RUNTIME_TRACING)
-  NULL,
-  NULL,
-#endif
-  NULL,
-  deferred_reification_serialise_trace,
-  deferred_reification_serialise,
-  deferred_reification_deserialise,
-  NULL,
-  NULL,
-  NULL,
-  NULL,
-  0,
-  0,
-  NULL,
-  NULL,
-  NULL
-};
-
-pony_type_t* deferred_reification_pony_type()
-{
-  return &deferred_reification_pony;
 }

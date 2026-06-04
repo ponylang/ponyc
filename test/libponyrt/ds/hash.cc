@@ -7,7 +7,6 @@
 #include <ds/fun.h>
 #include <ds/hash.h>
 #include <mem/pool.h>
-#include <sched/scheduler.h>
 
 #include <memory>
 
@@ -16,7 +15,7 @@
 
 typedef struct hash_elem_t hash_elem_t;
 
-DECLARE_HASHMAP_SERIALISE(testmap, testmap_t, hash_elem_t);
+DECLARE_HASHMAP(testmap, testmap_t, hash_elem_t);
 
 class HashMapTest: public testing::Test
 {
@@ -41,60 +40,8 @@ struct hash_elem_t
   size_t val;
 };
 
-static void hash_elem_serialise_trace(pony_ctx_t* ctx, void* object)
-{
-  (void)ctx;
-  (void)object;
-}
-
-static void hash_elem_serialise(pony_ctx_t* ctx, void* object, void* buf,
-  size_t offset, int mutability)
-{
-  (void)ctx;
-  (void)mutability;
-
-  hash_elem_t* elem = (hash_elem_t*)object;
-  hash_elem_t* dst = (hash_elem_t*)((uintptr_t)buf + offset);
-
-  dst->key = elem->key;
-  dst->val = elem->val;
-}
-
-static void hash_elem_deserialise(pony_ctx_t* ctx, void* object)
-{
-  (void)ctx;
-  (void)object;
-}
-
-static pony_type_t hash_elem_pony =
-{
-  0,
-  sizeof(hash_elem_t),
-  0,
-  0,
-  0,
-  NULL,
-#if defined(USE_RUNTIME_TRACING)
-  NULL,
-  NULL,
-#endif
-  NULL,
-  hash_elem_serialise_trace,
-  hash_elem_serialise,
-  hash_elem_deserialise,
-  NULL,
-  NULL,
-  NULL,
-  NULL,
-  0,
-  0,
-  NULL,
-  NULL,
-  NULL
-};
-
-DEFINE_HASHMAP_SERIALISE(testmap, testmap_t, hash_elem_t, HashMapTest::hash_tst,
-  HashMapTest::cmp_tst, HashMapTest::free_elem, &hash_elem_pony);
+DEFINE_HASHMAP(testmap, testmap_t, hash_elem_t, HashMapTest::hash_tst,
+  HashMapTest::cmp_tst, HashMapTest::free_elem);
 
 void HashMapTest::SetUp()
 {
@@ -390,89 +337,4 @@ TEST_F(HashMapTest, NotEmptyPutByIndex)
   hash_elem_t* m = testmap_get(&_map, e, &index);
 
   ASSERT_EQ(e->val, m->val);
-}
-
-struct testmap_deleter
-{
-  void operator()(testmap_t* ptr)
-  {
-    testmap_destroy(ptr);
-    POOL_FREE(testmap_t, ptr);
-  }
-};
-
-struct pool_size_deleter
-{
-  size_t size;
-
-  void operator()(void* ptr)
-  {
-    ponyint_pool_free_size(size, ptr);
-  }
-};
-
-std::unique_ptr<char, pool_size_deleter> manage_array(ponyint_array_t& array)
-{
-  std::unique_ptr<char, pool_size_deleter> p{array.ptr};
-  p.get_deleter().size = array.alloc;
-  return p;
-}
-
-TEST_F(HashMapTest, Serialisation)
-{
-  for(uint32_t i = 0; i < 100; i++)
-  {
-    hash_elem_t* curr = get_element();
-
-    curr->key = i;
-    curr->val = i;
-
-    testmap_put(&_map, curr);
-  }
-
-  auto alloc_fn = [](pony_ctx_t* ctx, size_t size)
-    {
-      (void)ctx;
-      return ponyint_pool_alloc_size(size);
-    };
-  auto throw_fn = [](){throw std::exception{}; };
-
-  pony_ctx_t ctx;
-  memset(&ctx, 0, sizeof(pony_ctx_t));
-  ponyint_array_t array;
-  memset(&array, 0, sizeof(ponyint_array_t));
-
-  pony_serialise(&ctx, &_map, testmap_pony_type(), &array, alloc_fn, throw_fn);
-  auto array_guard = manage_array(array);
-  std::unique_ptr<testmap_t, testmap_deleter> out_guard{
-    (testmap_t*)pony_deserialise(&ctx, testmap_pony_type(), &array, alloc_fn,
-      alloc_fn, throw_fn)};
-
-  testmap_t* out = out_guard.get();
-
-  ASSERT_NE(out, (void*)NULL);
-
-  size_t i = HASHMAP_BEGIN;
-  size_t j = i;
-
-  hash_elem_t* orig_elem;
-  hash_elem_t* out_elem;
-
-  while((orig_elem = testmap_next(&_map, &i)) != NULL)
-  {
-    out_elem = testmap_get(out, orig_elem, &j);
-    ASSERT_NE(out_elem, (void*)NULL);
-    ASSERT_EQ(i, j);
-    ASSERT_EQ(orig_elem->val, out_elem->val);
-  }
-
-  i = j = HASHMAP_BEGIN;
-
-  while((out_elem = testmap_next(out, &j)) != NULL)
-  {
-    orig_elem = testmap_get(&_map, out_elem, &i);
-    ASSERT_NE(orig_elem, (void*)NULL);
-    ASSERT_EQ(j, i);
-    ASSERT_EQ(out_elem->val, orig_elem->val);
-  }
 }

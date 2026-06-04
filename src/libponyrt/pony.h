@@ -73,37 +73,6 @@ typedef struct pony_msgp_t
  */
 typedef void (*pony_trace_fn)(pony_ctx_t* ctx, void* p);
 
-/** Serialise function.
- *
- * Each type may supply a serialise function. It is invoked with the currently
- * executing context, the object being serialised, and an address to serialise
- * to.
- *
- * A serialise function must not raise errors.
- */
-typedef void (*pony_serialise_fn)(pony_ctx_t* ctx, void* p, void* addr,
-  size_t offset, int m);
-
-/** Serialise Space function.
- *
- * Each class may supply a group of custom serialisation function. This
- * function returns the amount of extra space that the object needs for
- * custom serialisation.
- *
- * A serialise space function must not raise errors.
- */
-typedef size_t (*pony_custom_serialise_space_fn)(void* p);
-
-/** Custom Deserialise function.
- *
- * Each class may supply a group of custom serialisation function. This
- * function takes a pointer to a byte array and does whatever user-defined
- * deserialization.
- *
- * A custom deserialise function must not raise errors.
- */
-typedef size_t (*pony_custom_deserialise_fn)(void* p, void *addr);
-
 /** Dispatch function.
  *
  * Each actor has a dispatch function that is invoked when the actor handles
@@ -135,7 +104,6 @@ typedef const struct _pony_type_t
 {
   uint32_t id;
   uint32_t size;
-  size_t serialise_id;
   uint32_t field_count;
   uint32_t field_offset;
   void* instance;
@@ -144,11 +112,6 @@ typedef const struct _pony_type_t
   pony_behavior_name_fn get_behavior_name;
   #endif
   pony_trace_fn trace;
-  pony_trace_fn serialise_trace;
-  pony_serialise_fn serialise;
-  pony_trace_fn deserialise;
-  pony_custom_serialise_space_fn custom_serialise_space;
-  pony_custom_deserialise_fn custom_deserialise;
   pony_dispatch_fn dispatch;
   pony_final_fn final;
   uint32_t event_notify;
@@ -158,12 +121,6 @@ typedef const struct _pony_type_t
   void* vtable;
 } pony_type_t;
 
-/** Desc table lookup function.
- *
- * A function to convert `serialise_id`s to offsets in the desc table
- */
-typedef uint32_t (*desc_offset_lookup_fn)(size_t serialise_id);
-
 /** Language feature initialiser.
  *
  * Contains initialisers for the various language features initialised by
@@ -172,27 +129,7 @@ typedef uint32_t (*desc_offset_lookup_fn)(size_t serialise_id);
 typedef struct pony_language_features_init_t
 {
   /// Network-related initialisers.
-
   bool init_network;
-
-
-  /// Serialisation-related initialisers.
-
-  bool init_serialisation;
-
-  /** Type descriptor table pointer.
-   *
-   * Should point to an array of type descriptors. For each element in the
-   * array, the id field should correspond to the array index. The array can
-   * contain NULL elements.
-   */
-  pony_type_t** descriptor_table;
-
-  /// The total size of the descriptor_table array.
-  size_t descriptor_table_size;
-
-  /// The function to translate `serialise_id`s to offsets in the desc_table
-  desc_offset_lookup_fn desc_table_offset_lookup;
 } pony_language_features_init_t;
 
 /// The currently executing context.
@@ -446,7 +383,7 @@ PONY_API int pony_init(int argc, char** argv);
  * the return value of pony_stop() in that case.
  *
  * language_features specifies which features of the runtime specific to the
- * Pony language, such as network or serialisation, should be initialised.
+ * Pony language, such as network, should be initialised.
  * If language_features is NULL, no feature will be initialised.
  *
  * It is not safe to call this again before the runtime has terminated.

@@ -1190,17 +1190,11 @@ static pony_type_t cycle_type =
   sizeof(detector_t),
   0,
   0,
-  0,
   NULL,
 #if defined(USE_RUNTIME_TRACING)
   "cycle detector",
   NULL,
 #endif
-  NULL,
-  NULL,
-  NULL,
-  NULL,
-  NULL,
   NULL,
   cycle_dispatch,
   NULL,

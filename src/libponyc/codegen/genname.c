@@ -200,21 +200,6 @@ const char* genname_trace(const char* type)
   return stringtab_two(type, "Trace");
 }
 
-const char* genname_serialise_trace(const char* type)
-{
-  return stringtab_two(type, "SerialiseTrace");
-}
-
-const char* genname_serialise(const char* type)
-{
-  return stringtab_two(type, "Serialise");
-}
-
-const char* genname_deserialise(const char* type)
-{
-  return stringtab_two(type, "Deserialise");
-}
-
 const char* genname_dispatch(const char* type)
 {
   return stringtab_two(type, "Dispatch");
@@ -279,11 +264,4 @@ const char* genname_unsafe(const char* name)
 const char* genname_program_fn(const char* program, const char* name)
 {
   return stringtab_two(program, name);
-}
-
-const char* genname_type_with_id(const char* type, uint64_t type_id)
-{
-  printbuf_t* buf = printbuf_new();
-  printbuf(buf, "%s_%" PRIu64, type, type_id);
-  return stringtab_buf(buf);
 }
