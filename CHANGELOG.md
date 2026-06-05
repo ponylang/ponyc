@@ -11,6 +11,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Reject self-referential type parameter constraints ([PR #5403](https://github.com/ponylang/ponyc/pull/5403))
 - Report an error for infinitely recursive generic types ([PR #5411](https://github.com/ponylang/ponyc/pull/5411))
 - Fix compiler crash on partial application of a method with a literal default argument ([PR #5412](https://github.com/ponylang/ponyc/pull/5412))
+- Fix compiler crashes in while and repeat loops that jump away ([PR #5418](https://github.com/ponylang/ponyc/pull/5418))
 
 ### Added
 
@@ -21,7 +22,6 @@ All notable changes to the Pony compiler and standard library will be documented
 - Use embedded LLD for native Linux sanitizer builds ([PR #5409](https://github.com/ponylang/ponyc/pull/5409))
 - Remove serialization methods from JsonObject and JsonArray ([PR #5397](https://github.com/ponylang/ponyc/pull/5397))
 - Rename JsonObject and JsonArray serialization methods ([PR #5397](https://github.com/ponylang/ponyc/pull/5397))
-
 
 ## [0.64.0] - 2026-05-30
 
