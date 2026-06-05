@@ -47,6 +47,8 @@ enum
   AST_FLAG_MAY_BREAK    = 0x800000, // This loop has seen a break statement in it.
   AST_FLAG_CNSM_REASGN  = 0x1000000, // A variable is reassigned after a consume in the same expression
   AST_FLAG_FCNSM_REASGN = 0x2000000, // A field is reassigned after a consume in the same expression
+  AST_FLAG_MAY_BREAK_VALUE = 0x4000000, // This loop has seen a break with a value in it.
+  AST_FLAG_MAY_CONTINUE = 0x8000000, // This loop has seen a continue statement in it.
 };
 
 DECLARE_LIST(astlist, astlist_t, ast_t);

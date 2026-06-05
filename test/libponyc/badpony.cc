@@ -2993,12 +2993,17 @@ TEST_F(BadPonyTest, UnconstrainedTypeParameterCompiles)
 
 TEST_F(BadPonyTest, WhileBodyAndElseJumpAwayInSeparateFunction)
 {
-  // From issue #2792 (first example). A while loop whose body and else
-  // both jump away (break + return) used to trigger a typecheck assertion
-  // when the loop appeared in a separate function rather than directly in
-  // create. expr_seq tried to type the jumps-away while and reported a
-  // typecheck error without registering an actual error message,
-  // tripping the "errors must be > 0" assertion in pass_expr.
+  // From issue #2792 (first example). A while loop whose body and else both
+  // jump away (a valueless break runs the else, which returns) produces no
+  // value and never resumes past the loop -- it jumps away. The sugar pass
+  // appends an implicit `None` to the None-returning function body, which is
+  // then unreachable. This is rejected as "unreachable code", the same error
+  // an equivalent `if true then return else return end` gets. (Previously the
+  // loop compiled, relying on the implicit `None` to luckily terminate the
+  // dead post block; once that block is terminated as unreachable in codegen
+  // -- required for the try-wrapped case -- the implicit `None` would land
+  // after the terminator, producing invalid IR. The expr pass now rejects the
+  // shape before codegen sees it.)
   const char* src =
     "actor Main\n"
     "  fun a() =>\n"
@@ -3011,14 +3016,14 @@ TEST_F(BadPonyTest, WhileBodyAndElseJumpAwayInSeparateFunction)
     "  new create(env: Env) =>\n"
     "    a()";
 
-  TEST_COMPILE(src);
+  TEST_ERRORS_1(src, "unreachable code");
 }
 
 TEST_F(BadPonyTest, RepeatBodyAndElseJumpAwayInSeparateFunction)
 {
-  // Same shape as WhileBodyAndElseJumpAwayInSeparateFunction but for
-  // repeat. The fix in expr_seq is loop-agnostic; this guards against a
-  // future regression that special-cases one loop kind.
+  // Same shape as WhileBodyAndElseJumpAwayInSeparateFunction but for repeat.
+  // The guard in expr_repeat mirrors the one in expr_while; this guards against
+  // a future regression that special-cases one loop kind.
   const char* src =
     "actor Main\n"
     "  fun a() =>\n"
@@ -3032,7 +3037,7 @@ TEST_F(BadPonyTest, RepeatBodyAndElseJumpAwayInSeparateFunction)
     "  new create(env: Env) =>\n"
     "    a()";
 
-  TEST_COMPILE(src);
+  TEST_ERRORS_1(src, "unreachable code");
 }
 
 TEST_F(BadPonyTest, WhileWithLiteralBreakValueAndJumpsAwayElse)
@@ -3380,4 +3385,152 @@ TEST_F(BadPonyTest, PartialApplicationOfMethodWithUninferableLiteralCallDefault)
     "    Foo~apply()";
 
   TEST_ERRORS_1(src, "Cannot look up member abs on a literal");
+}
+
+TEST_F(BadPonyTest, RepeatLoopJumpsAwayWithLiteralElse)
+{
+  // From issue #5407. A repeat loop whose body always jumps away (here `error`)
+  // produces no value, so the refer pass flags it jumps-away and its else
+  // clause's value is discarded. A bare integer literal in that else can never
+  // be inferred -- there is nothing to unify it against -- and it used to slip
+  // through the expr pass and crash the reach pass. It must instead be rejected
+  // with an inference error, as an uninferable literal is anywhere else.
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    try repeat error until false else 2 end end";
+
+  TEST_ERRORS_1(src, "could not infer literal type, no valid types found");
+}
+
+TEST_F(BadPonyTest, RepeatLoopJumpsAwayWithConcreteElse)
+{
+  // Companion to RepeatLoopJumpsAwayWithLiteralElse. The else clause of a
+  // jumps-away repeat has its value discarded, but a concretely-typed else
+  // needs no inference, so it must still compile -- only an uninferable literal
+  // is an error.
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    try repeat error until false else U8(2) end end";
+
+  TEST_COMPILE(src);
+}
+
+TEST_F(BadPonyTest, RepeatLoopJumpsAwayViaContinueWithLiteralElse)
+{
+  // Variant of RepeatLoopJumpsAwayWithLiteralElse where the body jumps away via
+  // `continue` rather than `error`. The loop is still flagged jumps-away and the
+  // bare literal else is likewise uninferable, so it must hit the same
+  // inference error. (This particular input did not crash before the fix -- the
+  // enclosing try shielded it -- but pins that the continue route reaches the
+  // guard and reports the same error as the error-body form.)
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    try repeat continue until false else 2 end end";
+
+  TEST_ERRORS_1(src, "could not infer literal type, no valid types found");
+}
+
+TEST_F(BadPonyTest, RepeatLoopJumpsAwayConcreteElseResultUsed)
+{
+  // From issue #5407 (codegen variant). A repeat whose body always jumps away
+  // is flagged jumps-away even though its else clause produces a value; that
+  // else is dead (no break, no continue reaches it). When the loop's result was
+  // needed, gen_repeat dereferenced a NULL phi_type casting the dead else value.
+  // It must compile: the loop produces no value, so the enclosing try falls back
+  // to its own else. The function return type makes the loop's result needed,
+  // which is what drove the NULL phi_type deref.
+  const char* src =
+    "actor Main\n"
+    "  fun a(): U8 =>\n"
+    "    try repeat error until false else U8(2) end else U8(0) end\n"
+
+    "  new create(env: Env) =>\n"
+    "    a()";
+
+  TEST_COMPILE(src);
+}
+
+TEST_F(BadPonyTest, RepeatLoopBreakValueElseJumpsAway)
+{
+  // A repeat whose body breaks with a value and whose else jumps away. The break
+  // gives the loop a value and an exit, so the loop does not jump away -- but
+  // refer used to flag it jumps-away from its branch count alone (body and else
+  // both jump away), and codegen then crashed with nowhere to put the break
+  // value. It must compile.
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    try repeat break U8(3) until false else error end end";
+
+  TEST_COMPILE(src);
+}
+
+TEST_F(BadPonyTest, RepeatLoopBreakValueElseJumpsAwayResultUsed)
+{
+  // As RepeatLoopBreakValueElseJumpsAway, but the loop's result is needed (the
+  // function return type), so codegen must build a result phi for the break
+  // value rather than treating the loop as valueless.
+  const char* src =
+    "actor Main\n"
+    "  fun a(): U8 =>\n"
+    "    try repeat break U8(3) until false else error end else U8(0) end\n"
+
+    "  new create(env: Env) =>\n"
+    "    a()";
+
+  TEST_COMPILE(src);
+}
+
+TEST_F(BadPonyTest, WhileLoopBreakValueElseJumpsAway)
+{
+  // Same shape as RepeatLoopBreakValueElseJumpsAway but for while -- the bug and
+  // fix are shared by both loops.
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    try while true do break U8(3) else error end end";
+
+  TEST_COMPILE(src);
+}
+
+TEST_F(BadPonyTest, WhileLoopBreakValueElseJumpsAwayResultUsed)
+{
+  // While counterpart of RepeatLoopBreakValueElseJumpsAwayResultUsed.
+  const char* src =
+    "actor Main\n"
+    "  fun a(): U8 =>\n"
+    "    try while true do break U8(3) else error end else U8(0) end\n"
+
+    "  new create(env: Env) =>\n"
+    "    a()";
+
+  TEST_COMPILE(src);
+}
+
+TEST_F(BadPonyTest, RepeatLoopBreakLiteralElseJumpsAway)
+{
+  // A repeat that breaks with a bare literal while its else jumps away. The loop
+  // no longer jumps away (the break is a value-producing exit), so the literal
+  // flows through normal inference -- and, with nothing to anchor it and its
+  // value unused, is rejected as uninferable rather than crashing the reach pass.
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    try repeat break 3 until false else error end end";
+
+  TEST_ERRORS_1(src, "could not infer literal type, no valid types found");
+}
+
+TEST_F(BadPonyTest, WhileLoopBreakLiteralElseJumpsAway)
+{
+  // While counterpart of RepeatLoopBreakLiteralElseJumpsAway.
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    try while true do break 3 else error end end";
+
+  TEST_ERRORS_1(src, "could not infer literal type, no valid types found");
 }
