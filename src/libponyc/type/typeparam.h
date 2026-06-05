@@ -11,6 +11,17 @@ PONY_EXTERN_C_BEGIN
 // The raw constraint. Returns null if unconstrained.
 ast_t* typeparam_constraint(ast_t* typeparamref);
 
+// Resolve a type-parameter definition (TK_TYPEPARAM) to the canonical root of
+// its ast_data chain. Every TK_TYPEPARAM's data points one step toward the
+// original definition set during the scope pass; copies — made via ast_dup or
+// collect_type_params — retain that link, so a parameter bound through several
+// layers (e.g. an iftype condition in a lambda inside a generic method) forms
+// a chain that a single dereference would not fully resolve. Comparing two
+// roots tests whether the parameters denote the same type variable. A null
+// input or a null link stops the walk, so the result is null only when 'def'
+// is.
+ast_t* typeparam_root(ast_t* def);
+
 /**
  * If the upper bounds of a typeparamref is a subtype of a type T, then every
  * possible binding of the typeparamref is a subtype of T.

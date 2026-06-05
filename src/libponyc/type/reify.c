@@ -1,6 +1,7 @@
 #include "reify.h"
 #include "subtype.h"
 #include "typealias.h"
+#include "typeparam.h"
 #include "viewpoint.h"
 #include "assemble.h"
 #include "alias.h"
@@ -18,25 +19,17 @@ static ast_t* find_typearg(pass_opt_t* opt, ast_t* ast, ast_t* typeparams, ast_t
       if(ref_def == NULL)
         return NULL;
 
-      // Follow the ast_data chain to the root for TK_TYPEPARAM nodes,
+      // Resolve to the root of the ast_data chain for TK_TYPEPARAM nodes,
       // same as the TK_TYPEPARAMREF case below.
       if(ast_id(ref_def) == TK_TYPEPARAM)
-      {
-        while((ast_t*)ast_data(ref_def) != ref_def)
-          ref_def = (ast_t*)ast_data(ref_def);
-      }
+        ref_def = typeparam_root(ref_def);
 
       break;
 
     case TK_TYPEPARAMREF:
       ref_def = (ast_t*)ast_data(ast);
       pony_assert(ref_def != NULL);
-      // Follow the ast_data chain to the root (self-referential node set
-      // during the scope pass). A single-level follow is insufficient when
-      // type parameters are copied multiple times, e.g. a lambda inside an
-      // object literal inside a generic method.
-      while((ast_t*)ast_data(ref_def) != ref_def)
-        ref_def = (ast_t*)ast_data(ref_def);
+      ref_def = typeparam_root(ref_def);
       break;
 
     default:
@@ -52,8 +45,7 @@ static ast_t* find_typearg(pass_opt_t* opt, ast_t* ast, ast_t* typeparams, ast_t
   {
     ast_t* param_def = (ast_t*)ast_data(typeparam);
     pony_assert(param_def != NULL);
-    while((ast_t*)ast_data(param_def) != param_def)
-      param_def = (ast_t*)ast_data(param_def);
+    param_def = typeparam_root(param_def);
 
     if(ref_def == param_def)
       return typearg;

@@ -268,6 +268,97 @@ TEST_F(IftypeTest, SelfReferentialSubtypeConstraint)
 }
 
 
+TEST_F(IftypeTest, SelfReferentialSubtypeConstraintInLambda)
+{
+  // Same self-referential iftype constraint as above, but inside a lambda.
+  // The lambda's body is processed through the object-literal catch-up
+  // path, where the constraint's reference binds back to the original type
+  // parameter rather than the synthetic iftype one. The self-reference
+  // check must recognize both bindings, so this is rejected just like the
+  // method-scope case (ponylang/ponyc#5404).
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let f = {[A](x: A) =>\n"
+    "      iftype A <: (A | None) then None end}\n"
+    "    f[U8](0)";
+
+  TEST_ERROR(src, "can't appear directly in its own constraint");
+}
+
+
+TEST_F(IftypeTest, SelfReferentialSubtypeConstraintInObjectLiteral)
+{
+  // The same self-referential iftype constraint inside an object literal's
+  // method. Object literals share the lambda catch-up path, so this must be
+  // rejected too (ponylang/ponyc#5404).
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let o = object\n"
+    "      fun foo[A](x: A) =>\n"
+    "        iftype A <: (A | None) then None end\n"
+    "    end\n"
+    "    o.foo[U8](0)";
+
+  TEST_ERROR(src, "can't appear directly in its own constraint");
+}
+
+
+TEST_F(IftypeTest, SelfReferentialSubtypeConstraintTupleInLambda)
+{
+  // A tuple iftype condition whose first element's supertype names that
+  // element through a union, inside a lambda. The self-reference reaches the
+  // synthetic parameter through a tuple member rather than a bare union, so
+  // it exercises a distinct branch of the constraint walk (ponylang/ponyc
+  // #5404).
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let f = {[A, B](x: A, y: B) =>\n"
+    "      iftype (A, B) <: ((A | None), B) then None end}\n"
+    "    f[U8, U8](0, 0)";
+
+  TEST_ERROR(src, "can't appear directly in its own constraint");
+}
+
+
+TEST_F(IftypeTest, SelfReferentialSubtypeConstraintIntersectionInLambda)
+{
+  // The self-referential supertype reaches the synthetic parameter through an
+  // intersection member rather than a union, inside a lambda (ponylang/ponyc
+  // #5404).
+  const char* src =
+    "trait Tr\n"
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let f = {[A](x: A) =>\n"
+    "      iftype A <: (A & Tr) then None end}\n"
+    "    f[U8](0)";
+
+  TEST_ERROR(src, "can't appear directly in its own constraint");
+}
+
+
+TEST_F(IftypeTest, SelfReferentialSubtypeConstraintInNestedLambda)
+{
+  // The self-referential iftype is two catch-up copies deep — a lambda nested
+  // inside another lambda. Resolving the parameter to the root of its
+  // ast_data chain must still collapse both copies to one identity so this is
+  // rejected like the single-level cases (ponylang/ponyc#5404).
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let outer = {() =>\n"
+    "      let inner = {[A](x: A) =>\n"
+    "        iftype A <: (A | None) then None end}\n"
+    "      inner[U8](0)}\n"
+    "    outer()";
+
+  TEST_ERROR(src, "can't appear directly in its own constraint");
+}
+
+
 TEST_F(IftypeTest, NestedCond)
 {
   const char* src =

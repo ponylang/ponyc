@@ -166,7 +166,14 @@ static bool constraint_reaches_root(ast_t* root, ast_t* type,
     {
       ast_t* def = (ast_t*)ast_data(type);
 
-      if(def == root)
+      // Match on canonical type-parameter identity, not AST node identity.
+      // A self-reference in the constraint can bind to a different AST node
+      // than 'root' yet denote the same type parameter: an iftype condition
+      // desugars to a synthetic parameter whose constraint reference binds to
+      // the synthetic node at method scope but back to the original it
+      // narrows on the lambda/object-literal catch-up path.
+      // typeparam_root collapses these copies to one identity.
+      if(typeparam_root(def) == typeparam_root(root))
         return true;
 
       if(astlist_find(*visited, def) != NULL)
