@@ -1273,10 +1273,10 @@ DEF(module);
 
 // external API
 bool pass_parse(ast_t* package, source_t* source, errors_t* errors,
-  bool allow_test_symbols, bool trace)
+  strtable_t* strtab, bool allow_test_symbols, bool trace)
 {
   return parse(package, source, module, "class, actor, primitive or trait",
-    errors, allow_test_symbols, trace);
+    errors, strtab, allow_test_symbols, trace);
 }
 
 #endif

@@ -5,6 +5,7 @@
 #include <ast/lexer.h>
 #include <ast/source.h>
 #include <ast/token.h>
+#include <ast/stringtab.h>
 
 #include "util.h"
 
@@ -14,10 +15,17 @@ class LexerTest : public testing::Test
 {
 protected:
   string _expected;
+  strtable_t* _strtab;
 
   virtual void SetUp()
   {
     _expected = "";
+    _strtab = stringtab_new();
+  }
+
+  virtual void TearDown()
+  {
+    stringtab_free(_strtab);
   }
 
   // Add an expected token to our list
@@ -36,7 +44,7 @@ protected:
   {
     errors_t* errors = errors_alloc();
     source_t* source = source_open_string(src);
-    lexer_t* lexer = lexer_open(source, errors, false);
+    lexer_t* lexer = lexer_open(source, errors, _strtab, false);
     token_id id = TK_LEX_ERROR;
     string actual;
 

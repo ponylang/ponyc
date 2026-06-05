@@ -256,7 +256,7 @@ static bool package_finalisers(pass_opt_t* opt, ast_t* package,
 bool pass_finalisers(ast_t* program, pass_opt_t* options)
 {
   ast_t* package = ast_child(program);
-  const char* final = stringtab("_final");
+  const char* final = stringtab(options->strtab, "_final");
   bool ok = true;
 
   while(package != NULL)

@@ -30,7 +30,7 @@ static bool embed_struct_field_has_finaliser(pass_opt_t* opt, ast_t* field,
 
   ast_t* def = (ast_t*)ast_data(type);
 
-  ast_t* final = ast_get(def, stringtab("_final"), NULL);
+  ast_t* final = ast_get(def, stringtab(opt->strtab, "_final"), NULL);
 
   if(final != NULL)
   {

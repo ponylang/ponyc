@@ -31,7 +31,7 @@ LLVMValueRef gen_seq(compile_t* c, ast_t* ast)
 
 LLVMValueRef gen_if(compile_t* c, ast_t* ast)
 {
-  bool needed = is_result_needed(ast);
+  bool needed = is_result_needed(ast, c->opt);
   AST_GET_CHILDREN(ast, cond, left, right);
 
   LLVMValueRef c_value = gen_expr(c, cond);
@@ -47,7 +47,7 @@ LLVMValueRef gen_if(compile_t* c, ast_t* ast)
   if(needed && !ast_checkflag(ast, AST_FLAG_JUMPS_AWAY))
   {
     ast_t* type = deferred_reify(reify, ast_type(ast), c->opt);
-    phi_type = (compile_type_t*)reach_type(c->reach, type)->c_type;
+    phi_type = (compile_type_t*)reach_type(c->reach, type, c->opt)->c_type;
     ast_free_unattached(type);
   }
 
@@ -75,7 +75,7 @@ LLVMValueRef gen_if(compile_t* c, ast_t* ast)
 
   LLVMValueRef br = LLVMBuildCondBr(c->builder, c_value, then_block, else_block);
 
-  handle_branch_prediction_default(c->context, br, ast);
+  handle_branch_prediction_default(c->context, br, ast, c);
 
   // Left branch.
   LLVMPositionBuilderAtEnd(c->builder, then_block);
@@ -177,7 +177,7 @@ LLVMValueRef gen_if(compile_t* c, ast_t* ast)
 
 LLVMValueRef gen_iftype(compile_t* c, ast_t* ast)
 {
-  bool needed = is_result_needed(ast);
+  bool needed = is_result_needed(ast, c->opt);
   AST_GET_CHILDREN(ast, left, right);
   AST_GET_CHILDREN(left, subtype, supertype, body);
 
@@ -204,7 +204,7 @@ LLVMValueRef gen_iftype(compile_t* c, ast_t* ast)
   if(needed && !ast_checkflag(ast, AST_FLAG_JUMPS_AWAY))
   {
     ast_t* type = deferred_reify(reify, ast_type(ast), c->opt);
-    compile_type_t* c_t = (compile_type_t*)reach_type(c->reach, type)->c_type;
+    compile_type_t* c_t = (compile_type_t*)reach_type(c->reach, type, c->opt)->c_type;
 
     ast_t* branch_type = deferred_reify(reify, ast_type(branch), c->opt);
     value = gen_assign_cast(c, c_t->use_type, value, branch_type);
@@ -217,7 +217,7 @@ LLVMValueRef gen_iftype(compile_t* c, ast_t* ast)
 
 LLVMValueRef gen_while(compile_t* c, ast_t* ast)
 {
-  bool needed = is_result_needed(ast);
+  bool needed = is_result_needed(ast, c->opt);
   AST_GET_CHILDREN(ast, cond, body, else_clause);
 
   deferred_reification_t* reify = c->frame->reify;
@@ -227,7 +227,7 @@ LLVMValueRef gen_while(compile_t* c, ast_t* ast)
   if(needed && !ast_checkflag(ast, AST_FLAG_JUMPS_AWAY))
   {
     ast_t* type = deferred_reify(reify, ast_type(ast), c->opt);
-    phi_type = (compile_type_t*)reach_type(c->reach, type)->c_type;
+    phi_type = (compile_type_t*)reach_type(c->reach, type, c->opt)->c_type;
     ast_free_unattached(type);
   }
 
@@ -259,7 +259,7 @@ LLVMValueRef gen_while(compile_t* c, ast_t* ast)
 
   LLVMValueRef br = LLVMBuildCondBr(c->builder, i_value, body_block, else_block);
 
-  handle_branch_prediction_default(c->context, br, ast);
+  handle_branch_prediction_default(c->context, br, ast, c);
 
   // Body.
   LLVMPositionBuilderAtEnd(c->builder, body_block);
@@ -291,7 +291,7 @@ LLVMValueRef gen_while(compile_t* c, ast_t* ast)
     body_from = LLVMGetInsertBlock(c->builder);
     br = LLVMBuildCondBr(c->builder, c_value, body_block, post_block);
 
-    handle_branch_prediction_default(c->context, br, ast);
+    handle_branch_prediction_default(c->context, br, ast, c);
   }
 
   // Don't need loop status for the else block.
@@ -344,7 +344,7 @@ LLVMValueRef gen_while(compile_t* c, ast_t* ast)
 
 LLVMValueRef gen_repeat(compile_t* c, ast_t* ast)
 {
-  bool needed = is_result_needed(ast);
+  bool needed = is_result_needed(ast, c->opt);
   AST_GET_CHILDREN(ast, body, cond, else_clause);
 
   deferred_reification_t* reify = c->frame->reify;
@@ -354,7 +354,7 @@ LLVMValueRef gen_repeat(compile_t* c, ast_t* ast)
   if(needed && !ast_checkflag(ast, AST_FLAG_JUMPS_AWAY))
   {
     ast_t* type = deferred_reify(reify, ast_type(ast), c->opt);
-    phi_type = (compile_type_t*)reach_type(c->reach, type)->c_type;
+    phi_type = (compile_type_t*)reach_type(c->reach, type, c->opt)->c_type;
     ast_free_unattached(type);
   }
 
@@ -406,7 +406,7 @@ LLVMValueRef gen_repeat(compile_t* c, ast_t* ast)
     LLVMValueRef br = LLVMBuildCondBr(c->builder, c_value, post_block,
       body_block);
 
-    handle_branch_prediction_default(c->context, br, cond);
+    handle_branch_prediction_default(c->context, br, cond, c);
   }
 
   // cond block
@@ -418,7 +418,7 @@ LLVMValueRef gen_repeat(compile_t* c, ast_t* ast)
 
   LLVMValueRef br = LLVMBuildCondBr(c->builder, i_value, else_block, body_block);
 
-  handle_branch_prediction_default(c->context, br, cond);
+  handle_branch_prediction_default(c->context, br, cond, c);
 
   // Don't need loop status for the else block.
   codegen_poploop(c);
@@ -474,12 +474,12 @@ LLVMValueRef gen_recover(compile_t* c, ast_t* ast)
   ast_t* body = ast_childidx(ast, 1);
   LLVMValueRef ret = gen_expr(c, body);
 
-  if(is_result_needed(ast))
+  if(is_result_needed(ast, c->opt))
   {
     deferred_reification_t* reify = c->frame->reify;
 
     ast_t* type = deferred_reify(reify, ast_type(ast), c->opt);
-    compile_type_t* c_t = (compile_type_t*)reach_type(c->reach, type)->c_type;
+    compile_type_t* c_t = (compile_type_t*)reach_type(c->reach, type, c->opt)->c_type;
     ast_free_unattached(type);
 
     type = deferred_reify(reify, ast_type(body), c->opt);
@@ -653,7 +653,7 @@ LLVMValueRef gen_return(compile_t* c, ast_t* ast)
 
 LLVMValueRef gen_try(compile_t* c, ast_t* ast)
 {
-  bool needed = is_result_needed(ast);
+  bool needed = is_result_needed(ast, c->opt);
   AST_GET_CHILDREN(ast, body, else_clause, then_clause);
 
   deferred_reification_t* reify = c->frame->reify;
@@ -664,7 +664,7 @@ LLVMValueRef gen_try(compile_t* c, ast_t* ast)
   if(needed && !ast_checkflag(ast, AST_FLAG_JUMPS_AWAY))
   {
     ast_t* type = deferred_reify(reify, ast_type(ast), c->opt);
-    phi_type = (compile_type_t*)reach_type(c->reach, type)->c_type;
+    phi_type = (compile_type_t*)reach_type(c->reach, type, c->opt)->c_type;
     ast_free_unattached(type);
   }
 
@@ -753,7 +753,7 @@ LLVMValueRef gen_try(compile_t* c, ast_t* ast)
 
 LLVMValueRef gen_disposing_block_can_error(compile_t* c, ast_t* ast)
 {
-  bool needed = is_result_needed(ast);
+  bool needed = is_result_needed(ast, c->opt);
   AST_GET_CHILDREN(ast, body, dispose_clause);
 
   deferred_reification_t* reify = c->frame->reify;
@@ -764,7 +764,7 @@ LLVMValueRef gen_disposing_block_can_error(compile_t* c, ast_t* ast)
   if(needed && !ast_checkflag(ast, AST_FLAG_JUMPS_AWAY))
   {
     ast_t* type = deferred_reify(reify, ast_type(ast), c->opt);
-    phi_type = (compile_type_t*)reach_type(c->reach, type)->c_type;
+    phi_type = (compile_type_t*)reach_type(c->reach, type, c->opt)->c_type;
     ast_free_unattached(type);
   }
 
@@ -834,7 +834,7 @@ LLVMValueRef gen_disposing_block_can_error(compile_t* c, ast_t* ast)
 
 LLVMValueRef gen_disposing_block_cant_error(compile_t* c, ast_t* ast)
 {
-  bool needed = is_result_needed(ast);
+  bool needed = is_result_needed(ast, c->opt);
   AST_GET_CHILDREN(ast, body, dispose_clause);
 
   deferred_reification_t* reify = c->frame->reify;
@@ -845,7 +845,7 @@ LLVMValueRef gen_disposing_block_cant_error(compile_t* c, ast_t* ast)
   if(needed && !ast_checkflag(ast, AST_FLAG_JUMPS_AWAY))
   {
     ast_t* type = deferred_reify(reify, ast_type(ast), c->opt);
-    phi_type = (compile_type_t*)reach_type(c->reach, type)->c_type;
+    phi_type = (compile_type_t*)reach_type(c->reach, type, c->opt)->c_type;
     ast_free_unattached(type);
   }
 
@@ -1001,14 +1001,14 @@ void attach_branchweights_metadata(LLVMContextRef ctx, LLVMValueRef branch,
 }
 
 void handle_branch_prediction_default(LLVMContextRef ctx, LLVMValueRef branch,
-  ast_t* ast)
+  ast_t* ast, compile_t* c)
 {
-  if(ast_has_annotation(ast, "likely"))
+  if(ast_has_annotation(ast, "likely", c->opt->strtab))
   {
     unsigned int weights[] =
       {PONY_BRANCHWEIGHT_LIKELY, PONY_BRANCHWEIGHT_UNLIKELY};
     attach_branchweights_metadata(ctx, branch, weights, 2);
-  } else if(ast_has_annotation(ast, "unlikely")) {
+  } else if(ast_has_annotation(ast, "unlikely", c->opt->strtab)) {
     unsigned int weights[] =
       {PONY_BRANCHWEIGHT_UNLIKELY, PONY_BRANCHWEIGHT_LIKELY};
     attach_branchweights_metadata(ctx, branch, weights, 2);

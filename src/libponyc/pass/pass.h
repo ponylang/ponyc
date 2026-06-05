@@ -312,6 +312,14 @@ typedef struct pass_opt_t
   userflags_t* user_flags;
 
   void* data; // User-defined data for unit test callbacks.
+
+  // Interned-string table for this compilation. Owns every interned string
+  // produced while this pass_opt is live (lexer identifiers, scope names,
+  // package paths, generated names, ...). Created in pass_opt_init and freed in
+  // pass_opt_done, so it must outlive any AST or symtab built under this opt.
+  // Appended last to keep the Pony-side _PassOpt mirror's existing field offsets
+  // (tools/.../pony_compiler/pass.pony).
+  strtable_t* strtab;
 } pass_opt_t;
 
 /** Limit processing to the specified pass. All passes up to and including the

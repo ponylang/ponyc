@@ -12,7 +12,7 @@
 
 
 // Normalise the given ifdef condition.
-static void cond_normalise(ast_t** astp)
+static void cond_normalise(ast_t** astp, pass_opt_t* opt)
 {
   pony_assert(astp != NULL);
 
@@ -28,8 +28,8 @@ static void cond_normalise(ast_t** astp)
       AST_GET_CHILDREN(ast, left, right, question);
       pony_assert(ast_id(question) == TK_NONE);
       ast_remove(question);
-      cond_normalise(&left);
-      cond_normalise(&right);
+      cond_normalise(&left, opt);
+      cond_normalise(&right, opt);
       break;
     }
 
@@ -40,8 +40,8 @@ static void cond_normalise(ast_t** astp)
       AST_GET_CHILDREN(ast, left, right, question);
       pony_assert(ast_id(question) == TK_NONE);
       ast_remove(question);
-      cond_normalise(&left);
-      cond_normalise(&right);
+      cond_normalise(&left, opt);
+      cond_normalise(&right, opt);
       break;
     }
 
@@ -50,7 +50,7 @@ static void cond_normalise(ast_t** astp)
       ast_setid(ast, TK_IFDEFNOT);
 
       AST_GET_CHILDREN(ast, child);
-      cond_normalise(&child);
+      cond_normalise(&child, opt);
       break;
     }
 
@@ -90,7 +90,7 @@ static void cond_normalise(ast_t** astp)
       ast_t* child = ast_pop(ast);
       pony_assert(child != NULL);
 
-      cond_normalise(&child);
+      cond_normalise(&child, opt);
       ast_replace(astp, child);
       break;
     }
@@ -308,7 +308,7 @@ static bool find_decl_for_config(ast_t* call, ast_t* package,
               // messages later. We stringtab it because the version we are
               // given is in a temporary buffer.
               decl_info->decl = decl;
-              decl_info->config = stringtab(buildflagset_print(config));
+              decl_info->config = stringtab(opt->strtab, buildflagset_print(config));
             }
           }
         }
@@ -415,7 +415,7 @@ bool ifdef_cond_normalise(ast_t** astp, pass_opt_t* opt)
   if(ast_id(*astp) == TK_NONE)  // No condition to normalise.
     return true;
 
-  cond_normalise(astp);
+  cond_normalise(astp, opt);
 
   // Check whether condition can ever be true.
   buildflagset_t* config = buildflagset_create();
@@ -480,12 +480,12 @@ bool ffi_get_decl(typecheck_t* t, ast_t* ast, ast_t** out_decl,
     if(!find_ffi_decl(ast, t->frame->package, t->frame->ifdef_cond, &decl, opt))
     {
       // That went wrong. Record that so we don't try again.
-      symtab_add(symtab, ffi_name, NULL, SYM_ERROR);
+      symtab_add(symtab, ffi_name, NULL, SYM_ERROR, opt->strtab);
       return false;
     }
 
     // Store declaration found for next time, including if we found nothing.
-    symtab_add(symtab, ffi_name, decl, SYM_FFIDECL);
+    symtab_add(symtab, ffi_name, decl, SYM_FFIDECL, opt->strtab);
   }
 
   *out_decl = decl;

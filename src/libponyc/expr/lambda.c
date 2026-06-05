@@ -124,7 +124,7 @@ static bool make_capture_field(pass_opt_t* opt, ast_t* capture,
       {
         ast_error_frame(&frame, type,
           "invalid parameter type: %s",
-          ast_print_type(type));
+          ast_print_type(type, opt->strtab));
         errorframe_append(&frame, &info);
         errorframe_report(&frame, opt->check.errors);
         ast_free_unattached(p_type);
@@ -134,9 +134,9 @@ static bool make_capture_field(pass_opt_t* opt, ast_t* capture,
       {
         ast_error_frame(&frame, value, "argument not assignable to parameter");
         ast_error_frame(&frame, value, "argument type is %s",
-                        ast_print_type(v_type));
+                        ast_print_type(v_type, opt->strtab));
         ast_error_frame(&frame, id_node, "parameter type requires %s",
-                        ast_print_type(p_type));
+                        ast_print_type(p_type, opt->strtab));
         errorframe_append(&frame, &info);
         errorframe_report(&frame, opt->check.errors);
         ast_free_unattached(p_type);
@@ -156,7 +156,7 @@ static bool make_capture_field(pass_opt_t* opt, ast_t* capture,
     return true;
   }
 
-  type = sanitise_type(type);
+  type = sanitise_type(type, opt);
 
   BUILD(field, id_node,
     NODE(TK_FVAR,
@@ -509,13 +509,13 @@ bool expr_lambda(pass_opt_t* opt, ast_t** astp)
     else
       printbuf(buf, ", ");
 
-    printbuf(buf, "%s", ast_print_type(ast_childidx(p, 1)));
+    printbuf(buf, "%s", ast_print_type(ast_childidx(p, 1), opt->strtab));
   }
 
   printbuf(buf, ")");
 
   if(ast_id(ret_type) != TK_NONE)
-    printbuf(buf, ": %s", ast_print_type(ret_type));
+    printbuf(buf, ": %s", ast_print_type(ret_type, opt->strtab));
 
   if(ast_id(raises) != TK_NONE)
     printbuf(buf, " ?");
@@ -524,7 +524,7 @@ bool expr_lambda(pass_opt_t* opt, ast_t** astp)
 
   // Replace lambda with object literal
   REPLACE(astp,
-    NODE(TK_OBJECT, DATA(stringtab(buf->m))
+    NODE(TK_OBJECT, DATA(stringtab(opt->strtab, buf->m))
       TREE(obj_cap)
       NONE  // Provides list
       TREE(members)));
@@ -616,7 +616,7 @@ static bool capture_from_reference(pass_opt_t* opt, ast_t* ctx, ast_t* ast,
   if(is_typecheck_error(type))
     return false;
 
-  type = sanitise_type(type);
+  type = sanitise_type(type, opt);
 
   BUILD(field, ast,
     NODE(TK_FVAR,
@@ -700,7 +700,7 @@ static void add_field_to_object(pass_opt_t* opt, ast_t* field,
   ast_t* call_args)
 {
   AST_GET_CHILDREN(field, id, type, init);
-  ast_t* p_id = ast_from_string(id, package_hygienic_id(&opt->check));
+  ast_t* p_id = ast_from_string(id, package_hygienic_id(&opt->check, opt), opt->strtab);
 
   // The param is: $0: type
   BUILD(param, field,
@@ -805,11 +805,11 @@ bool expr_object(pass_opt_t* opt, ast_t** astp)
   ast_clearflag(members, AST_FLAG_PRESERVE);
 
   ast_t* annotation = ast_consumeannotation(ast);
-  const char* c_id = package_hygienic_id(&opt->check);
+  const char* c_id = package_hygienic_id(&opt->check, opt);
 
   ast_t* t_params;
   ast_t* t_args;
-  collect_type_params(ast, &t_params, &t_args);
+  collect_type_params(ast, &t_params, &t_args, opt);
 
   const char* nice_id = (const char*)ast_data(ast);
 
@@ -952,7 +952,7 @@ bool expr_object(pass_opt_t* opt, ast_t** astp)
   }
 
   if(ast_id(def) != TK_PRIMITIVE)
-    pony_assert(!ast_has_annotation(def, "ponyint_bare"));
+    pony_assert(!ast_has_annotation(def, "ponyint_bare", opt->strtab));
 
   // Reset constructor to pick up the correct defaults.
   ast_setid(ast_child(create), cap_id);

@@ -10,7 +10,7 @@ primitive Types
       | TokenIds.tk_letref() | TokenIds.tk_varref() | TokenIds.tk_match_capture() =>
         let def: Pointer[_AST] val = @ast_data[Pointer[_AST] val](ast.raw)
         if not def.is_null() then
-          AST(def).ast_type_string()
+          AST(def, ast.strtab).ast_type_string()
         end
       | TokenIds.tk_beref() =>
         // hard-coding to implicit return type of a behavior

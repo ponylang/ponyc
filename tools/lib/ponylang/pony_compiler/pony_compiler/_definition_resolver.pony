@@ -23,7 +23,7 @@ primitive DefinitionResolver
     if ptr.is_null() then
       [as AST:]
     else
-      [AST(ptr)]
+      [AST(ptr, ast.strtab)]
     end
 
   fun _find_in_type(ttype: AST, name: String box, result: Array[AST]): Array[AST] ? =>

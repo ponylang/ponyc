@@ -218,7 +218,7 @@ static deferred_reification_t* lookup_nominal(pass_opt_t* opt, ast_t* from,
         return NULL;
     }
 
-    if(name == stringtab("_final"))
+    if(name == stringtab(opt->strtab, "_final"))
     {
       switch(ast_id(find))
       {
@@ -233,7 +233,7 @@ static deferred_reification_t* lookup_nominal(pass_opt_t* opt, ast_t* from,
 
         default: {}
       }
-    } else if((name == stringtab("_init")) && (ast_id(def) == TK_PRIMITIVE)) {
+    } else if((name == stringtab(opt->strtab, "_init")) && (ast_id(def) == TK_PRIMITIVE)) {
       switch(ast_id(find))
       {
         case TK_NEW:
@@ -356,7 +356,7 @@ static deferred_reification_t* lookup_union(pass_opt_t* opt, ast_t* from,
       if(errors)
       {
         ast_error(opt->check.errors, from, "couldn't find %s in %s",
-          name, ast_print_type(child));
+          name, ast_print_type(child, opt->strtab));
       }
 
       ok = false;
@@ -370,7 +370,7 @@ static deferred_reification_t* lookup_union(pass_opt_t* opt, ast_t* from,
           {
             ast_error(opt->check.errors, from,
               "can't lookup field %s in %s in a union type",
-              name, ast_print_type(child));
+              name, ast_print_type(child, opt->strtab));
           }
 
           deferred_reify_free(r);

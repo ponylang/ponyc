@@ -146,14 +146,14 @@ static void types_append(printbuf_t* buf, ast_t* elements)
   }
 }
 
-static const char* stringtab_buf(printbuf_t* buf)
+static const char* stringtab_buf(printbuf_t* buf, strtable_t* strtab)
 {
-  const char* r = stringtab(buf->m);
+  const char* r = stringtab(strtab, buf->m);
   printbuf_free(buf);
   return r;
 }
 
-static const char* stringtab_two(const char* a, const char* b)
+static const char* stringtab_two(const char* a, const char* b, strtable_t* strtab)
 {
   if(a == NULL)
     a = "_";
@@ -161,75 +161,75 @@ static const char* stringtab_two(const char* a, const char* b)
   pony_assert(b != NULL);
   printbuf_t* buf = printbuf_new();
   printbuf(buf, "%s_%s", a, b);
-  return stringtab_buf(buf);
+  return stringtab_buf(buf, strtab);
 }
 
-const char* genname_type(ast_t* ast)
+const char* genname_type(ast_t* ast, strtable_t* strtab)
 {
   // package_Type[_Arg1_Arg2]
   printbuf_t* buf = printbuf_new();
   type_append(buf, ast, true);
-  return stringtab_buf(buf);
+  return stringtab_buf(buf, strtab);
 }
 
-const char* genname_type_and_cap(ast_t* ast)
+const char* genname_type_and_cap(ast_t* ast, strtable_t* strtab)
 {
   // package_Type[_Arg1_Arg2]_cap
   printbuf_t* buf = printbuf_new();
   type_append(buf, ast, false);
-  return stringtab_buf(buf);
+  return stringtab_buf(buf, strtab);
 }
 
-const char* genname_alloc(const char* type)
+const char* genname_alloc(const char* type, strtable_t* strtab)
 {
-  return stringtab_two(type, "Alloc");
+  return stringtab_two(type, "Alloc", strtab);
 }
 
-const char* genname_traitmap(const char* type)
+const char* genname_traitmap(const char* type, strtable_t* strtab)
 {
-  return stringtab_two(type, "Traits");
+  return stringtab_two(type, "Traits", strtab);
 }
 
-const char* genname_fieldlist(const char* type)
+const char* genname_fieldlist(const char* type, strtable_t* strtab)
 {
-  return stringtab_two(type, "Fields");
+  return stringtab_two(type, "Fields", strtab);
 }
 
-const char* genname_trace(const char* type)
+const char* genname_trace(const char* type, strtable_t* strtab)
 {
-  return stringtab_two(type, "Trace");
+  return stringtab_two(type, "Trace", strtab);
 }
 
-const char* genname_dispatch(const char* type)
+const char* genname_dispatch(const char* type, strtable_t* strtab)
 {
-  return stringtab_two(type, "Dispatch");
+  return stringtab_two(type, "Dispatch", strtab);
 }
 
 #if defined(USE_RUNTIME_TRACING)
-const char* genname_get_behavior_name(const char* type)
+const char* genname_get_behavior_name(const char* type, strtable_t* strtab)
 {
-  return stringtab_two(type, "GetBehaviourName");
+  return stringtab_two(type, "GetBehaviourName", strtab);
 }
 
-const char* genname_behavior_name(const char* type, const char* name)
+const char* genname_behavior_name(const char* type, const char* name, strtable_t* strtab)
 {
   printbuf_t* buf = printbuf_new();
   printbuf(buf, "%s.%s", type, name);
-  return stringtab_buf(buf);
+  return stringtab_buf(buf, strtab);
 }
 #endif
 
-const char* genname_descriptor(const char* type)
+const char* genname_descriptor(const char* type, strtable_t* strtab)
 {
-  return stringtab_two(type, "Desc");
+  return stringtab_two(type, "Desc", strtab);
 }
 
-const char* genname_instance(const char* type)
+const char* genname_instance(const char* type, strtable_t* strtab)
 {
-  return stringtab_two(type, "Inst");
+  return stringtab_two(type, "Inst", strtab);
 }
 
-const char* genname_fun(token_id cap, const char* name, ast_t* typeargs)
+const char* genname_fun(token_id cap, const char* name, ast_t* typeargs, strtable_t* strtab)
 {
   // cap_name[_Arg1_Arg2]
   printbuf_t* buf = printbuf_new();
@@ -238,30 +238,30 @@ const char* genname_fun(token_id cap, const char* name, ast_t* typeargs)
   else
     printbuf(buf, "%s_%s", lexer_print(cap), name);
   types_append(buf, typeargs);
-  return stringtab_buf(buf);
+  return stringtab_buf(buf, strtab);
 }
 
-const char* genname_be(const char* name)
+const char* genname_be(const char* name, strtable_t* strtab)
 {
-  return stringtab_two(name, "_send");
+  return stringtab_two(name, "_send", strtab);
 }
 
-const char* genname_box(const char* name)
+const char* genname_box(const char* name, strtable_t* strtab)
 {
-  return stringtab_two(name, "Box");
+  return stringtab_two(name, "Box", strtab);
 }
 
-const char* genname_unbox(const char* name)
+const char* genname_unbox(const char* name, strtable_t* strtab)
 {
-  return stringtab_two(name, "Unbox");
+  return stringtab_two(name, "Unbox", strtab);
 }
 
-const char* genname_unsafe(const char* name)
+const char* genname_unsafe(const char* name, strtable_t* strtab)
 {
-  return stringtab_two(name, "unsafe");
+  return stringtab_two(name, "unsafe", strtab);
 }
 
-const char* genname_program_fn(const char* program, const char* name)
+const char* genname_program_fn(const char* program, const char* name, strtable_t* strtab)
 {
-  return stringtab_two(program, name);
+  return stringtab_two(program, name, strtab);
 }

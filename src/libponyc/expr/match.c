@@ -69,7 +69,7 @@ static bool case_expr_matches_type_alone(pass_opt_t* opt, ast_t* case_expr)
   if((def == NULL) || (ast_id(def) != TK_PRIMITIVE) || is_machine_word(type))
     return false;
 
-  ast_t* eq_def = ast_get(def, stringtab("eq"), NULL);
+  ast_t* eq_def = ast_get(def, stringtab(opt->strtab, "eq"), NULL);
   pony_assert(ast_id(eq_def) == TK_FUN);
 
   ast_t* eq_params = ast_childidx(eq_def, 3);
@@ -354,12 +354,12 @@ bool expr_match(pass_opt_t* opt, ast_t* ast)
     return false;
   }
 
-  if(is_bare(expr_type))
+  if(is_bare(expr_type, opt))
   {
     ast_error(opt->check.errors, expr,
       "a match operand cannot have a bare type");
     ast_error_continue(opt->check.errors, expr_type,
-      "type is %s", ast_print_type(expr_type));
+      "type is %s", ast_print_type(expr_type, opt->strtab));
     return false;
   }
 
@@ -394,7 +394,7 @@ bool expr_match(pass_opt_t* opt, ast_t* ast)
       // match might not be exhaustive
       if ((ast_id(else_clause) == TK_NONE))
       {
-        if(ast_has_annotation(ast, "exhaustive"))
+        if(ast_has_annotation(ast, "exhaustive", opt->strtab))
         {
           ast_error(opt->check.errors, ast,
             "match marked \\exhaustive\\ is not exhaustive");
@@ -526,12 +526,12 @@ static ast_t* make_pattern_type(pass_opt_t* opt, ast_t* pattern)
   if(is_typecheck_error(pattern_type))
     return NULL;
 
-  if(is_bare(pattern_type))
+  if(is_bare(pattern_type, opt))
   {
     ast_error(opt->check.errors, pattern,
       "a match pattern cannot have a bare type");
     ast_error_continue(opt->check.errors, pattern_type,
-      "type is %s", ast_print_type(pattern_type));
+      "type is %s", ast_print_type(pattern_type, opt->strtab));
     return NULL;
   }
 
@@ -591,7 +591,7 @@ static ast_t* make_pattern_type(pass_opt_t* opt, ast_t* pattern)
 
   // Structural equality, pattern.eq(match).
   deferred_reification_t* fun = lookup(opt, pattern, pattern_type,
-    stringtab("eq"));
+    stringtab(opt->strtab, "eq"));
 
   if(fun == NULL)
   {
@@ -849,9 +849,9 @@ static bool check_capture_soundness(pass_opt_t* opt, ast_t* pattern,
           "this capture is unsound: the capture type can grant capabilities "
           "that require consuming the match expression");
         ast_error_frame(&frame, pattern, "capture type: %s",
-          ast_print_type(capture_type));
+          ast_print_type(capture_type, opt->strtab));
         ast_error_frame(&frame, match_expr, "match type: %s",
-          ast_print_type(match_type));
+          ast_print_type(match_type, opt->strtab));
         ast_error_frame(&frame, pattern,
           "if you need to capture with this capability, "
           "consume the match expression");
@@ -973,10 +973,10 @@ bool expr_case(pass_opt_t* opt, ast_t* ast)
         errorframe_t frame = NULL;
         ast_error_frame(&frame, pattern, "this pattern can never match");
         ast_error_frame(&frame, match_type, "match type: %s",
-          ast_print_type(match_type));
+          ast_print_type(match_type, opt->strtab));
         // TODO report unaliased type when body is consume !
         ast_error_frame(&frame, pattern, "pattern type: %s",
-          ast_print_type(pattern_type));
+          ast_print_type(pattern_type, opt->strtab));
         errorframe_append(&frame, &info);
         errorframe_report(&frame, opt->check.errors);
 
@@ -994,9 +994,9 @@ bool expr_case(pass_opt_t* opt, ast_t* ast)
         ast_error_frame(&frame, match_type, "the match type allows for more than "
           "one possibility with the same type as pattern type, but different "
           "capabilities. match type: %s",
-          ast_print_type(match_type));
+          ast_print_type(match_type, opt->strtab));
         ast_error_frame(&frame, pattern, "pattern type: %s",
-          ast_print_type(pattern_type));
+          ast_print_type(pattern_type, opt->strtab));
         errorframe_append(&frame, &info);
         ast_error_frame(&frame, match_expr,
           "the match expression with the inadequate capability is here");
@@ -1012,12 +1012,12 @@ bool expr_case(pass_opt_t* opt, ast_t* ast)
         ast_error_frame(&frame, pattern,
           "this capture cannot match, since the type %s "
           "is a struct and lacks a type descriptor",
-          ast_print_type(pattern_type));
+          ast_print_type(pattern_type, opt->strtab));
         ast_error_frame(&frame, match_type,
           "a struct cannot be part of a union type. match type: %s",
-          ast_print_type(match_type));
+          ast_print_type(match_type, opt->strtab));
         ast_error_frame(&frame, pattern, "pattern type: %s",
-          ast_print_type(pattern_type));
+          ast_print_type(pattern_type, opt->strtab));
         errorframe_append(&frame, &info);
         errorframe_report(&frame, opt->check.errors);
         ok = false;

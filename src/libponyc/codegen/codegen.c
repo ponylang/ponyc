@@ -101,72 +101,72 @@ static LLVMTargetMachineRef make_machine(pass_opt_t* opt)
 
 static void init_runtime(compile_t* c)
 {
-  c->str_builtin = stringtab("$0");
-  c->str_Bool = stringtab("Bool");
-  c->str_I8 = stringtab("I8");
-  c->str_I16 = stringtab("I16");
-  c->str_I32 = stringtab("I32");
-  c->str_I64 = stringtab("I64");
-  c->str_I128 = stringtab("I128");
-  c->str_ILong = stringtab("ILong");
-  c->str_ISize = stringtab("ISize");
-  c->str_U8 = stringtab("U8");
-  c->str_U16 = stringtab("U16");
-  c->str_U32 = stringtab("U32");
-  c->str_U64 = stringtab("U64");
-  c->str_U128 = stringtab("U128");
-  c->str_ULong = stringtab("ULong");
-  c->str_USize = stringtab("USize");
-  c->str_F32 = stringtab("F32");
-  c->str_F64 = stringtab("F64");
-  c->str_Pointer = stringtab("Pointer");
-  c->str_NullablePointer = stringtab("NullablePointer");
-  c->str_DoNotOptimise = stringtab("DoNotOptimise");
-  c->str_Array = stringtab("Array");
-  c->str_String = stringtab("String");
-  c->str_Platform = stringtab("Platform");
-  c->str_Main = stringtab("Main");
-  c->str_Env = stringtab("Env");
+  c->str_builtin = stringtab(c->opt->strtab, "$0");
+  c->str_Bool = stringtab(c->opt->strtab, "Bool");
+  c->str_I8 = stringtab(c->opt->strtab, "I8");
+  c->str_I16 = stringtab(c->opt->strtab, "I16");
+  c->str_I32 = stringtab(c->opt->strtab, "I32");
+  c->str_I64 = stringtab(c->opt->strtab, "I64");
+  c->str_I128 = stringtab(c->opt->strtab, "I128");
+  c->str_ILong = stringtab(c->opt->strtab, "ILong");
+  c->str_ISize = stringtab(c->opt->strtab, "ISize");
+  c->str_U8 = stringtab(c->opt->strtab, "U8");
+  c->str_U16 = stringtab(c->opt->strtab, "U16");
+  c->str_U32 = stringtab(c->opt->strtab, "U32");
+  c->str_U64 = stringtab(c->opt->strtab, "U64");
+  c->str_U128 = stringtab(c->opt->strtab, "U128");
+  c->str_ULong = stringtab(c->opt->strtab, "ULong");
+  c->str_USize = stringtab(c->opt->strtab, "USize");
+  c->str_F32 = stringtab(c->opt->strtab, "F32");
+  c->str_F64 = stringtab(c->opt->strtab, "F64");
+  c->str_Pointer = stringtab(c->opt->strtab, "Pointer");
+  c->str_NullablePointer = stringtab(c->opt->strtab, "NullablePointer");
+  c->str_DoNotOptimise = stringtab(c->opt->strtab, "DoNotOptimise");
+  c->str_Array = stringtab(c->opt->strtab, "Array");
+  c->str_String = stringtab(c->opt->strtab, "String");
+  c->str_Platform = stringtab(c->opt->strtab, "Platform");
+  c->str_Main = stringtab(c->opt->strtab, "Main");
+  c->str_Env = stringtab(c->opt->strtab, "Env");
 
-  c->str_add = stringtab("add");
-  c->str_sub = stringtab("sub");
-  c->str_mul = stringtab("mul");
-  c->str_div = stringtab("div");
-  c->str_rem = stringtab("rem");
-  c->str_neg = stringtab("neg");
-  c->str_add_unsafe = stringtab("add_unsafe");
-  c->str_sub_unsafe = stringtab("sub_unsafe");
-  c->str_mul_unsafe = stringtab("mul_unsafe");
-  c->str_div_unsafe = stringtab("div_unsafe");
-  c->str_rem_unsafe = stringtab("rem_unsafe");
-  c->str_neg_unsafe = stringtab("neg_unsafe");
-  c->str_and = stringtab("op_and");
-  c->str_or = stringtab("op_or");
-  c->str_xor = stringtab("op_xor");
-  c->str_not = stringtab("op_not");
-  c->str_shl = stringtab("shl");
-  c->str_shr = stringtab("shr");
-  c->str_shl_unsafe = stringtab("shl_unsafe");
-  c->str_shr_unsafe = stringtab("shr_unsafe");
-  c->str_eq = stringtab("eq");
-  c->str_ne = stringtab("ne");
-  c->str_lt = stringtab("lt");
-  c->str_le = stringtab("le");
-  c->str_ge = stringtab("ge");
-  c->str_gt = stringtab("gt");
-  c->str_eq_unsafe = stringtab("eq_unsafe");
-  c->str_ne_unsafe = stringtab("ne_unsafe");
-  c->str_lt_unsafe = stringtab("lt_unsafe");
-  c->str_le_unsafe = stringtab("le_unsafe");
-  c->str_ge_unsafe = stringtab("ge_unsafe");
-  c->str_gt_unsafe = stringtab("gt_unsafe");
+  c->str_add = stringtab(c->opt->strtab, "add");
+  c->str_sub = stringtab(c->opt->strtab, "sub");
+  c->str_mul = stringtab(c->opt->strtab, "mul");
+  c->str_div = stringtab(c->opt->strtab, "div");
+  c->str_rem = stringtab(c->opt->strtab, "rem");
+  c->str_neg = stringtab(c->opt->strtab, "neg");
+  c->str_add_unsafe = stringtab(c->opt->strtab, "add_unsafe");
+  c->str_sub_unsafe = stringtab(c->opt->strtab, "sub_unsafe");
+  c->str_mul_unsafe = stringtab(c->opt->strtab, "mul_unsafe");
+  c->str_div_unsafe = stringtab(c->opt->strtab, "div_unsafe");
+  c->str_rem_unsafe = stringtab(c->opt->strtab, "rem_unsafe");
+  c->str_neg_unsafe = stringtab(c->opt->strtab, "neg_unsafe");
+  c->str_and = stringtab(c->opt->strtab, "op_and");
+  c->str_or = stringtab(c->opt->strtab, "op_or");
+  c->str_xor = stringtab(c->opt->strtab, "op_xor");
+  c->str_not = stringtab(c->opt->strtab, "op_not");
+  c->str_shl = stringtab(c->opt->strtab, "shl");
+  c->str_shr = stringtab(c->opt->strtab, "shr");
+  c->str_shl_unsafe = stringtab(c->opt->strtab, "shl_unsafe");
+  c->str_shr_unsafe = stringtab(c->opt->strtab, "shr_unsafe");
+  c->str_eq = stringtab(c->opt->strtab, "eq");
+  c->str_ne = stringtab(c->opt->strtab, "ne");
+  c->str_lt = stringtab(c->opt->strtab, "lt");
+  c->str_le = stringtab(c->opt->strtab, "le");
+  c->str_ge = stringtab(c->opt->strtab, "ge");
+  c->str_gt = stringtab(c->opt->strtab, "gt");
+  c->str_eq_unsafe = stringtab(c->opt->strtab, "eq_unsafe");
+  c->str_ne_unsafe = stringtab(c->opt->strtab, "ne_unsafe");
+  c->str_lt_unsafe = stringtab(c->opt->strtab, "lt_unsafe");
+  c->str_le_unsafe = stringtab(c->opt->strtab, "le_unsafe");
+  c->str_ge_unsafe = stringtab(c->opt->strtab, "ge_unsafe");
+  c->str_gt_unsafe = stringtab(c->opt->strtab, "gt_unsafe");
 
-  c->str_this = stringtab("this");
-  c->str_create = stringtab("create");
-  c->str__create = stringtab("_create");
-  c->str__init = stringtab("_init");
-  c->str__final = stringtab("_final");
-  c->str__event_notify = stringtab("_event_notify");
+  c->str_this = stringtab(c->opt->strtab, "this");
+  c->str_create = stringtab(c->opt->strtab, "create");
+  c->str__create = stringtab(c->opt->strtab, "_create");
+  c->str__init = stringtab(c->opt->strtab, "_init");
+  c->str__final = stringtab(c->opt->strtab, "_final");
+  c->str__event_notify = stringtab(c->opt->strtab, "_event_notify");
 
   LLVMTypeRef type;
   LLVMTypeRef params[5];
@@ -224,7 +224,7 @@ static void init_runtime(compile_t* c)
 
   // descriptor, opaque version
   // We need this in order to build our own structure.
-  const char* desc_name = genname_descriptor(NULL);
+  const char* desc_name = genname_descriptor(NULL, c->opt->strtab);
   c->descriptor_type = LLVMStructCreateNamed(c->context, desc_name);
 
   // field descriptor
@@ -1262,5 +1262,5 @@ const char* suffix_filename(compile_t* c, const char* dir, const char* prefix,
     return NULL;
   }
 
-  return stringtab_consume(filename, len);
+  return stringtab_consume(c->opt->strtab, filename, len);
 }

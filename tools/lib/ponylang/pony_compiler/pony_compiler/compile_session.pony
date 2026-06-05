@@ -60,7 +60,7 @@ class CompileSession
       if _raw.is_null() then
         None
       else
-        Program.create(AST(_raw))
+        Program.create(AST(_raw, _pass_opt.strtab))
       end
 
   fun program(): (Program val | None) =>
@@ -105,5 +105,15 @@ class CompileSession
       _disposed = true
       @package_done(_pass_opt)
       @codegen_pass_cleanup(_pass_opt)
+      // If a Program was produced, it owns the interned-string table and frees
+      // it in its _final, so detach it here before pass_opt_done so the table
+      // is not freed while the Program's AST still references its strings. (It
+      // is held by the AST until then; resumable passes (continue_to) needed it
+      // on the pass_opt, which is why this happens at dispose rather than at
+      // creation.) If compilation failed there is no Program to own it, so
+      // leave it attached and let pass_opt_done free it, else it would leak.
+      match _program
+      | let _: Program val => _pass_opt.strtab = Pointer[_StrTable]
+      end
       @pass_opt_done(_pass_opt)
     end

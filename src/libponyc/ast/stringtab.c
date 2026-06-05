@@ -14,12 +14,12 @@ static bool ptr_cmp(const char* a, const char* b)
 
 DEFINE_LIST(strlist, strlist_t, const char, ptr_cmp, NULL);
 
-typedef struct stringtab_entry_t
+struct stringtab_entry_t
 {
   const char* str;
   size_t len;
   size_t buf_size;
-} stringtab_entry_t;
+};
 
 static size_t stringtab_hash(stringtab_entry_t* a)
 {
@@ -31,39 +31,47 @@ static bool stringtab_cmp(stringtab_entry_t* a, stringtab_entry_t* b)
   return (a->len == b->len) && (memcmp(a->str, b->str, a->len) == 0);
 }
 
-static void stringtab_free(stringtab_entry_t* a)
+static void stringtab_entry_free(stringtab_entry_t* a)
 {
   ponyint_pool_free_size(a->buf_size, (char*)a->str);
   POOL_FREE(stringtab_entry_t, a);
 }
 
-DECLARE_HASHMAP(strtable, strtable_t, stringtab_entry_t);
 DEFINE_HASHMAP(strtable, strtable_t, stringtab_entry_t, stringtab_hash,
-  stringtab_cmp, stringtab_free);
+  stringtab_cmp, stringtab_entry_free);
 
-static strtable_t table;
-
-void stringtab_init()
+strtable_t* stringtab_new()
 {
-  strtable_init(&table, 4096);
+  strtable_t* table = POOL_ALLOC(strtable_t);
+  strtable_init(table, 4096);
+  return table;
 }
 
-const char* stringtab(const char* string)
+void stringtab_free(strtable_t* table)
+{
+  if(table == NULL)
+    return;
+
+  strtable_destroy(table);
+  POOL_FREE(strtable_t, table);
+}
+
+const char* stringtab(strtable_t* table, const char* string)
 {
   if(string == NULL)
     return NULL;
 
-  return stringtab_len(string, strlen(string));
+  return stringtab_len(table, string, strlen(string));
 }
 
-const char* stringtab_len(const char* string, size_t len)
+const char* stringtab_len(strtable_t* table, const char* string, size_t len)
 {
   if(string == NULL)
     return NULL;
 
   stringtab_entry_t key = {string, len, 0};
   size_t index = HASHMAP_UNKNOWN;
-  stringtab_entry_t* n = strtable_get(&table, &key, &index);
+  stringtab_entry_t* n = strtable_get(table, &key, &index);
 
   if(n != NULL)
     return n->str;
@@ -79,11 +87,12 @@ const char* stringtab_len(const char* string, size_t len)
 
   // didn't find it in the map but index is where we can put the
   // new one without another search
-  strtable_putindex(&table, n, index);
+  strtable_putindex(table, n, index);
   return n->str;
 }
 
-const char* stringtab_consume(const char* string, size_t buf_size)
+const char* stringtab_consume(strtable_t* table, const char* string,
+  size_t buf_size)
 {
   if(string == NULL)
     return NULL;
@@ -91,7 +100,7 @@ const char* stringtab_consume(const char* string, size_t buf_size)
   size_t len = strlen(string);
   stringtab_entry_t key = {string, len, 0};
   size_t index = HASHMAP_UNKNOWN;
-  stringtab_entry_t* n = strtable_get(&table, &key, &index);
+  stringtab_entry_t* n = strtable_get(table, &key, &index);
 
   if(n != NULL)
   {
@@ -106,12 +115,6 @@ const char* stringtab_consume(const char* string, size_t buf_size)
 
   // didn't find it in the map but index is where we can put the
   // new one without another search
-  strtable_putindex(&table, n, index);
+  strtable_putindex(table, n, index);
   return n->str;
-}
-
-void stringtab_done()
-{
-  strtable_destroy(&table);
-  memset(&table, 0, sizeof(strtable_t));
 }

@@ -2,13 +2,19 @@
 #include <platform.h>
 
 #include <pkg/buildflagset.h>
+#include <ast/stringtab.h>
 
 class UserFlagsTest: public testing::Test
-{};
-
-TEST(UserFlagsTest, UserFlagNoneDefined)
 {
-  userflags_t* flags = userflags_create();
+protected:
+  strtable_t* tab;
+  void SetUp() override { tab = stringtab_new(); }
+  void TearDown() override { stringtab_free(tab); }
+};
+
+TEST_F(UserFlagsTest, UserFlagNoneDefined)
+{
+  userflags_t* flags = userflags_create(tab);
 
   define_userflag(flags, "foo");
   clear_userflags(flags);
@@ -17,9 +23,9 @@ TEST(UserFlagsTest, UserFlagNoneDefined)
 }
 
 
-TEST(UserFlagsTest, UserFlagDefined)
+TEST_F(UserFlagsTest, UserFlagDefined)
 {
-  userflags_t* flags = userflags_create();
+  userflags_t* flags = userflags_create(tab);
   define_userflag(flags, "foo");
 
   ASSERT_TRUE(is_userflag_defined(flags, "foo"));
@@ -27,9 +33,9 @@ TEST(UserFlagsTest, UserFlagDefined)
 }
 
 
-TEST(UserFlagsTest, UserFlagNotDefined)
+TEST_F(UserFlagsTest, UserFlagNotDefined)
 {
-  userflags_t* flags = userflags_create();
+  userflags_t* flags = userflags_create(tab);
   define_userflag(flags, "foo");
 
   ASSERT_TRUE(is_userflag_defined(flags, "foo"));
@@ -38,9 +44,9 @@ TEST(UserFlagsTest, UserFlagNotDefined)
 }
 
 
-TEST(UserFlagsTest, UserFlagCaseSensitive)
+TEST_F(UserFlagsTest, UserFlagCaseSensitive)
 {
-  userflags_t* flags = userflags_create();
+  userflags_t* flags = userflags_create(tab);
   define_userflag(flags, "foo");
 
   ASSERT_TRUE(is_userflag_defined(flags, "foo"));
@@ -49,9 +55,9 @@ TEST(UserFlagsTest, UserFlagCaseSensitive)
 }
 
 
-TEST(UserFlagsTest, UserFlagMultiple)
+TEST_F(UserFlagsTest, UserFlagMultiple)
 {
-  userflags_t* flags = userflags_create();
+  userflags_t* flags = userflags_create(tab);
   define_userflag(flags, "foo");
   define_userflag(flags, "BAR");
   define_userflag(flags, "Wombat");

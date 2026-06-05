@@ -42,7 +42,7 @@ typedef enum
 static void trace_dynamic(compile_t* c, LLVMValueRef ctx, LLVMValueRef object,
   ast_t* type, ast_t* orig, ast_t* tuple, LLVMBasicBlockRef next_block);
 
-static trace_t trace_type(ast_t* type);
+static trace_t trace_type(ast_t* type, compile_t* c);
 
 static trace_t trace_union_machine_word(trace_t a)
 {
@@ -179,7 +179,7 @@ static trace_t trace_union_tag(trace_t a)
   return TRACE_NONE;
 }
 
-static trace_t trace_type_union(ast_t* type)
+static trace_t trace_type_union(ast_t* type, compile_t* c)
 {
   trace_t trace = TRACE_NONE;
 
@@ -187,7 +187,7 @@ static trace_t trace_type_union(ast_t* type)
     child != NULL;
     child = ast_sibling(child))
   {
-    trace_t t = trace_type(child);
+    trace_t t = trace_type(child, c);
 
     switch(trace)
     {
@@ -237,7 +237,7 @@ static trace_t trace_type_union(ast_t* type)
   return trace;
 }
 
-static trace_t trace_type_isect(ast_t* type)
+static trace_t trace_type_isect(ast_t* type, compile_t* c)
 {
   trace_t trace = TRACE_DYNAMIC;
 
@@ -245,7 +245,7 @@ static trace_t trace_type_isect(ast_t* type)
     child != NULL;
     child = ast_sibling(child))
   {
-    trace_t t = trace_type(child);
+    trace_t t = trace_type(child, c);
 
     switch(t)
     {
@@ -290,9 +290,9 @@ static trace_t trace_type_isect(ast_t* type)
   return trace;
 }
 
-static trace_t trace_type_nominal(ast_t* type)
+static trace_t trace_type_nominal(ast_t* type, compile_t* c)
 {
-  if(is_bare(type))
+  if(is_bare(type, c->opt))
   {
     return TRACE_PRIMITIVE;
   }
@@ -351,21 +351,21 @@ static trace_t trace_type_nominal(ast_t* type)
   return TRACE_NONE;
 }
 
-static trace_t trace_type(ast_t* type)
+static trace_t trace_type(ast_t* type, compile_t* c)
 {
   switch(ast_id(type))
   {
     case TK_UNIONTYPE:
-      return trace_type_union(type);
+      return trace_type_union(type, c);
 
     case TK_ISECTTYPE:
-      return trace_type_isect(type);
+      return trace_type_isect(type, c);
 
     case TK_TUPLETYPE:
       return TRACE_TUPLE;
 
     case TK_NOMINAL:
-      return trace_type_nominal(type);
+      return trace_type_nominal(type, c);
 
     case TK_TYPEALIASREF:
     {
@@ -380,7 +380,7 @@ static trace_t trace_type(ast_t* type)
         return TRACE_DYNAMIC;
       }
 
-      trace_t result = trace_type(unfolded);
+      trace_t result = trace_type(unfolded, c);
       ast_free_unattached(unfolded);
       return result;
     }
@@ -511,7 +511,7 @@ static void trace_nullable_pointer(compile_t* c, LLVMValueRef ctx,
 static void trace_known(compile_t* c, LLVMValueRef ctx, LLVMValueRef object,
   ast_t* type, int mutability)
 {
-  reach_type_t* t = reach_type(c->reach, type);
+  reach_type_t* t = reach_type(c->reach, type, c->opt);
 
   LLVMValueRef args[4];
   args[0] = ctx;
@@ -732,7 +732,7 @@ static void trace_dynamic_tuple(compile_t* c, LLVMValueRef ctx,
 
   while(child != NULL)
   {
-    switch(trace_type(child))
+    switch(trace_type(child, c))
     {
       case TRACE_MACHINE_WORD:
       case TRACE_PRIMITIVE:
@@ -1036,7 +1036,7 @@ static void trace_dynamic(compile_t* c, LLVMValueRef ctx, LLVMValueRef object,
 
 bool gentrace_needed(compile_t* c, ast_t* src_type, ast_t* dst_type)
 {
-  switch(trace_type(src_type))
+  switch(trace_type(src_type, c))
   {
     case TRACE_NONE:
       pony_assert(0);
@@ -1173,7 +1173,7 @@ void gentrace_prototype(compile_t* c, reach_type_t* t)
     return;
 
   ((compile_type_t*)t->c_type)->trace_fn = codegen_addfun(c,
-    genname_trace(t->name), c->trace_fn, true);
+    genname_trace(t->name, c->opt->strtab), c->trace_fn, true);
 }
 
 void gentrace(compile_t* c, LLVMValueRef ctx, LLVMValueRef src_value,
@@ -1200,10 +1200,10 @@ void gentrace(compile_t* c, LLVMValueRef ctx, LLVMValueRef src_value,
       dst_type = dst_unfolded;
   }
 
-  trace_t trace_method = trace_type(src_type);
+  trace_t trace_method = trace_type(src_type, c);
   if(src_type != dst_type)
   {
-    trace_method = trace_type_dst_cap(trace_method, trace_type(dst_type),
+    trace_method = trace_type_dst_cap(trace_method, trace_type(dst_type, c),
       src_type);
   }
 

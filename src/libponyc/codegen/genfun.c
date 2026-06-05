@@ -294,7 +294,7 @@ static void make_prototype(compile_t* c, reach_type_t* t,
     LLVMGetParamTypes(c_m->func_type, tparams);
 
     // Generate the sender prototype.
-    const char* sender_name = genname_be(m->full_name);
+    const char* sender_name = genname_be(m->full_name, c->opt->strtab);
     c_m->func = codegen_addfun(c, sender_name, c_m->func_type, true);
     genfun_param_attrs(c, t, m, c_m->func);
 
@@ -354,7 +354,7 @@ static void add_get_behavior_name_case(compile_t* c, reach_type_t* t,
   LLVMPositionBuilderAtEnd(c->builder, block);
 
   // hack to get the behavior name since it's always a "tag_" prefix
-  const char* name = genname_behavior_name(t->name, be_name + 4);
+  const char* name = genname_behavior_name(t->name, be_name + 4, c->opt->strtab);
 
   LLVMValueRef ret = codegen_string(c, name, strlen(name));
   genfun_build_ret(c, ret);
@@ -784,7 +784,7 @@ static bool genfun_allocator(compile_t* c, reach_type_t* t)
   if((c_t->primitive != NULL) || is_pointer(t->ast) || is_nullable_pointer(t->ast))
     return true;
 
-  const char* funname = genname_alloc(t->name);
+  const char* funname = genname_alloc(t->name, c->opt->strtab);
   LLVMTypeRef ftype = LLVMFunctionType(c_t->use_type, NULL, 0, false);
   LLVMValueRef fun = codegen_addfun(c, funname, ftype, true);
   if(t->underlying != TK_PRIMITIVE)
@@ -835,7 +835,7 @@ static bool genfun_forward(compile_t* c, reach_type_t* t,
   compile_method_t* c_m = (compile_method_t*)m->c_method;
   pony_assert(c_m->func != NULL);
 
-  reach_method_t* m2 = reach_method(t, m->cap, n->name, m->typeargs);
+  reach_method_t* m2 = reach_method(t, m->cap, n->name, m->typeargs, c->opt);
   pony_assert(m2 != NULL);
   pony_assert(m2 != m);
   compile_method_t* c_m2 = (compile_method_t*)m2->c_method;
@@ -1232,7 +1232,7 @@ static void primitive_call(compile_t* c, const char* method)
     if(t->underlying != TK_PRIMITIVE)
       continue;
 
-    reach_method_t* m = reach_method(t, TK_NONE, method, NULL);
+    reach_method_t* m = reach_method(t, TK_NONE, method, NULL, c->opt);
 
     if(m == NULL)
       continue;
@@ -1254,7 +1254,7 @@ void genfun_primitive_calls(compile_t* c)
   if(need_primitive_call(c, c->str__init))
   {
     fn_type = LLVMFunctionType(c->void_type, NULL, 0, false);
-    const char* fn_name = genname_program_fn(c->filename, "primitives_init");
+    const char* fn_name = genname_program_fn(c->filename, "primitives_init", c->opt->strtab);
     c->primitives_init = LLVMAddFunction(c->module, fn_name, fn_type);
 
     codegen_startfun(c, c->primitives_init, NULL, NULL, NULL, false);
@@ -1267,7 +1267,7 @@ void genfun_primitive_calls(compile_t* c)
   {
     if(fn_type == NULL)
       fn_type = LLVMFunctionType(c->void_type, NULL, 0, false);
-    const char* fn_name = genname_program_fn(c->filename, "primitives_final");
+    const char* fn_name = genname_program_fn(c->filename, "primitives_final", c->opt->strtab);
     c->primitives_final = LLVMAddFunction(c->module, fn_name, fn_type);
 
     codegen_startfun(c, c->primitives_final, NULL, NULL, NULL, false);

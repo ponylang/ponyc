@@ -93,12 +93,12 @@ primitive DocumentHighlights
     let target: AST val =
       if defs.size() > 0 then
         try
-          AST(defs(0)?.raw)
+          AST(defs(0)?.raw, defs(0)?.strtab)
         else
           return []
         end
       else
-        AST(node'.raw)
+        AST(node'.raw, node'.strtab)
       end
 
     let collector = _HighlightCollector(target)

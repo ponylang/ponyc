@@ -263,7 +263,7 @@ static LLVMValueRef assign_to_tuple(compile_t* c, LLVMTypeRef l_type,
 static LLVMValueRef assign_union_to_tuple(compile_t* c, LLVMTypeRef l_type,
   LLVMValueRef r_value, ast_t* type)
 {
-  reach_type_t* t = reach_type(c->reach, type);
+  reach_type_t* t = reach_type(c->reach, type, c->opt);
   pony_assert(t != NULL);
   pony_assert(t->underlying == TK_UNIONTYPE);
 

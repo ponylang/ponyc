@@ -69,7 +69,7 @@ static int find_handler(pass_opt_t* opt, ast_t* uri, const char** out_locator)
   if(colon == NULL)
   {
     // No scheme specified, use default
-    *out_locator = stringtab(text);
+    *out_locator = stringtab(opt->strtab, text);
     return 0;
   }
 
@@ -85,7 +85,7 @@ static int find_handler(pass_opt_t* opt, ast_t* uri, const char** out_locator)
         break;
 
       // Matching scheme found
-      *out_locator = stringtab(colon + 1);
+      *out_locator = stringtab(opt->strtab, colon + 1);
       return i;
     }
   }

@@ -55,7 +55,7 @@ ast_t* ast_new(token_t* t, token_id id);
 ast_t* ast_blank(token_id id);
 ast_t* ast_token(token_t* t);
 ast_t* ast_from(ast_t* ast, token_id id);
-ast_t* ast_from_string(ast_t* ast, const char* name);
+ast_t* ast_from_string(ast_t* ast, const char* name, strtable_t* strtab);
 ast_t* ast_from_int(ast_t* ast, uint64_t value);
 ast_t* ast_from_float(ast_t* ast, double value);
 ast_t* ast_dup(ast_t* ast);
@@ -92,8 +92,9 @@ const char* ast_get_print(ast_t* ast);
 const char* ast_name(ast_t* ast);
 const char* ast_nice_name(ast_t* ast);
 size_t ast_name_len(ast_t* ast);
-void ast_set_name(ast_t* ast, const char* name);
-void ast_set_name_len(ast_t* ast, const char* name, size_t len);
+void ast_set_name(ast_t* ast, const char* name, strtable_t* strtab);
+void ast_set_name_len(ast_t* ast, const char* name, size_t len,
+  strtable_t* strtab);
 double ast_float(ast_t* ast);
 lexint_t* ast_int(ast_t* ast);
 ast_t* ast_type(ast_t* ast);
@@ -101,7 +102,7 @@ void ast_settype(ast_t* ast, ast_t* type);
 ast_t* ast_annotation(ast_t* ast);
 void ast_setannotation(ast_t* ast, ast_t* annotation);
 ast_t* ast_consumeannotation(ast_t* ast);
-bool ast_has_annotation(ast_t* ast, const char* name);
+bool ast_has_annotation(ast_t* ast, const char* name, strtable_t* strtab);
 void ast_erase(ast_t* ast);
 
 ast_t* ast_nearest(ast_t* ast, token_id id);
@@ -117,15 +118,14 @@ ast_t* ast_previous(ast_t* ast);
 size_t ast_index(ast_t* ast);
 
 ast_t* ast_get(ast_t* ast, const char* name, sym_status_t* status);
-ast_t* ast_get_case(ast_t* ast, const char* name, sym_status_t* status);
+ast_t* ast_get_case(ast_t* ast, const char* name, sym_status_t* status,
+  strtable_t* strtab);
 bool ast_set(ast_t* ast, const char* name, ast_t* value, sym_status_t status,
-  bool allow_shadowing);
+  bool allow_shadowing, strtable_t* strtab);
 void ast_setstatus(ast_t* ast, const char* name, sym_status_t status);
 void ast_inheritstatus(ast_t* dst, ast_t* src);
 void ast_inheritbranch(ast_t* dst, ast_t* src);
 void ast_consolidate_branches(ast_t* ast, size_t count);
-bool ast_canmerge(ast_t* dst, ast_t* src);
-bool ast_merge(ast_t* dst, ast_t* src);
 bool ast_within_scope(ast_t* outer, ast_t* inner, const char* name);
 bool ast_all_consumes_in_scope(ast_t* outer, ast_t* inner,
   errorframe_t* errorf);
@@ -152,8 +152,8 @@ void ast_print(ast_t* ast, size_t width);
 void ast_printverbose(ast_t* ast);
 void ast_fprint(FILE* fp, ast_t* ast, size_t width);
 void ast_fprintverbose(FILE* fp, ast_t* ast);
-const char* ast_print_type(ast_t* type);
-const char* ast_print_type_no_cap(ast_t* type);
+const char* ast_print_type(ast_t* type, strtable_t* strtab);
+const char* ast_print_type_no_cap(ast_t* type, strtable_t* strtab);
 
 void ast_error(errors_t* errors, ast_t* ast, const char* fmt, ...)
   __attribute__((format(printf, 3, 4)));

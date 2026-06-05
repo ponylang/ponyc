@@ -306,7 +306,7 @@ static LLVMValueRef make_short_circuit(compile_t* c, ast_t* left, ast_t* right,
 static LLVMValueRef assign_local(compile_t* c, LLVMValueRef l_value,
   LLVMValueRef r_value, ast_t* l_type, ast_t* r_type)
 {
-  reach_type_t* t = reach_type(c->reach, l_type);
+  reach_type_t* t = reach_type(c->reach, l_type, c->opt);
   compile_type_t* c_t = (compile_type_t*)t->c_type;
 
   LLVMValueRef result = LLVMBuildLoad2(c->builder,
@@ -328,7 +328,7 @@ static LLVMValueRef assign_local(compile_t* c, LLVMValueRef l_value,
 static LLVMValueRef assign_field(compile_t* c, LLVMValueRef l_value,
   LLVMValueRef r_value, ast_t* l_type, ast_t* r_type)
 {
-  reach_type_t* t = reach_type(c->reach, l_type);
+  reach_type_t* t = reach_type(c->reach, l_type, c->opt);
   pony_assert(t != NULL);
   compile_type_t* c_t = (compile_type_t*)t->c_type;
 

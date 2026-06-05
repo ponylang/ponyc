@@ -1,4 +1,4 @@
-use @userflags_create[Pointer[_UserFlags] val]()
+use @userflags_create[Pointer[_UserFlags] val](strtab: Pointer[_StrTable] tag)
 use @userflags_free[None](userflags: Pointer[_UserFlags] box)
 use @define_userflag[Bool](userflags: Pointer[_UserFlags] box, name: Pointer[U8] tag)
 use @is_userflag_defined[Bool](userflags: Pointer[_UserFlags] box, name: Pointer[U8] tag)

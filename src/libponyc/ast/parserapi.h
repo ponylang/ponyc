@@ -136,7 +136,7 @@ ast_t* parse_rule_complete(parser_t* parser, rule_state_t* state);
  * failure.
  */
 bool parse(ast_t* package, source_t* source, rule_t start, const char* expected,
-  errors_t* errors, bool allow_test_symbols, bool trace);
+  errors_t* errors, strtable_t* strtab, bool allow_test_symbols, bool trace);
 
 
 /* The API for parser rules starts here */

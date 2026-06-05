@@ -602,14 +602,14 @@ ast_t* parse_rule_complete(parser_t* parser, rule_state_t* state)
 // Top level functions
 
 bool parse(ast_t* package, source_t* source, rule_t start, const char* expected,
-  errors_t* errors, bool allow_test_symbols, bool trace)
+  errors_t* errors, strtable_t* strtab, bool allow_test_symbols, bool trace)
 {
   pony_assert(package != NULL);
   pony_assert(source != NULL);
   pony_assert(expected != NULL);
 
   // Open the lexer
-  lexer_t* lexer = lexer_open(source, errors, allow_test_symbols);
+  lexer_t* lexer = lexer_open(source, errors, strtab, allow_test_symbols);
 
   if(lexer == NULL)
     return false;

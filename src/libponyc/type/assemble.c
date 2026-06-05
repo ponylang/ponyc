@@ -153,7 +153,7 @@ static ast_t* type_typeexpr(pass_opt_t* opt, token_id t, ast_t* l_type,
 }
 
 static ast_t* type_base(ast_t* from, const char* package, const char* name,
-  ast_t* typeargs)
+  ast_t* typeargs, pass_opt_t* opt)
 {
   if(typeargs == NULL)
     typeargs = ast_from(from, TK_NONE);
@@ -177,7 +177,7 @@ ast_t* type_builtin(pass_opt_t* opt, ast_t* from, const char* name)
 ast_t* type_builtin_args(pass_opt_t* opt, ast_t* from, const char* name,
   ast_t* typeargs)
 {
-  ast_t* ast = type_base(from, NULL, name, typeargs);
+  ast_t* ast = type_base(from, NULL, name, typeargs, opt);
 
   if(!names_nominal(opt, from, &ast, false))
   {
@@ -205,7 +205,7 @@ ast_t* type_pointer_to(pass_opt_t* opt, ast_t* to)
   if(!names_nominal(opt, to, &pointer, false))
   {
     ast_error(opt->check.errors, to, "unable to create Pointer[%s]",
-      ast_print_type(to));
+      ast_print_type(to, opt->strtab));
     ast_free(pointer);
     return NULL;
   }
@@ -213,15 +213,15 @@ ast_t* type_pointer_to(pass_opt_t* opt, ast_t* to)
   return pointer;
 }
 
-ast_t* type_sugar(ast_t* from, const char* package, const char* name)
+ast_t* type_sugar(ast_t* from, const char* package, const char* name, pass_opt_t* opt)
 {
-  return type_base(from, package, name, NULL);
+  return type_base(from, package, name, NULL, opt);
 }
 
 ast_t* type_sugar_args(ast_t* from, const char* package, const char* name,
-  ast_t* typeargs)
+  ast_t* typeargs, pass_opt_t* opt)
 {
-  return type_base(from, package, name, typeargs);
+  return type_base(from, package, name, typeargs, opt);
 }
 
 ast_t* control_type_add_branch(pass_opt_t* opt, ast_t* control_type,
@@ -315,7 +315,7 @@ ast_t* type_for_class(pass_opt_t* opt, ast_t* def, ast_t* ast,
     while(typeparam != NULL)
     {
       ast_t* typeparam_id = ast_child(typeparam);
-      ast_t* typearg = type_sugar(ast, NULL, ast_name(typeparam_id));
+      ast_t* typearg = type_sugar(ast, NULL, ast_name(typeparam_id), opt);
       ast_append(typeargs, typearg);
 
       if(expr)

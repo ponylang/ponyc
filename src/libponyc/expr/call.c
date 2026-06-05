@@ -46,7 +46,7 @@ static bool insert_apply(pass_opt_t* opt, ast_t** astp)
   AST_GET_CHILDREN(ast, lhs, positional, namedargs, question);
 
   ast_t* dot = ast_from(ast, TK_DOT);
-  ast_add(dot, ast_from_string(ast, "apply"));
+  ast_add(dot, ast_from_string(ast, "apply", opt->strtab));
   ast_swap(lhs, dot);
   ast_add(dot, lhs);
 
@@ -195,7 +195,7 @@ static bool apply_default_arg(pass_opt_t* opt, ast_t* param, ast_t** argp)
   {
     // Default argument is __loc. Expand call location.
     ast_t* arg = *argp;
-    ast_t* location = expand_location(arg);
+    ast_t* location = expand_location(arg, opt);
     ast_add(arg, location);
     ast_setid(arg, TK_SEQ);
 
@@ -324,7 +324,7 @@ static bool check_arg_types(pass_opt_t* opt, ast_t* params, ast_t* positional,
       errorframe_t frame = NULL;
       ast_error_frame(&frame, arg, "argument not assignable to parameter");
       ast_error_frame(&frame, param, "parameter type is illegal: %s",
-                      ast_print_type(p_type));
+                      ast_print_type(p_type, opt->strtab));
       errorframe_append(&frame, &info);
       errorframe_report(&frame, opt->check.errors);
 
@@ -335,9 +335,9 @@ static bool check_arg_types(pass_opt_t* opt, ast_t* params, ast_t* positional,
       errorframe_t frame = NULL;
       ast_error_frame(&frame, arg, "argument not assignable to parameter");
       ast_error_frame(&frame, arg, "argument type is %s",
-                      ast_print_type(arg_type));
+                      ast_print_type(arg_type, opt->strtab));
       ast_error_frame(&frame, param, "parameter type requires %s",
-                      ast_print_type(wp_type));
+                      ast_print_type(wp_type, opt->strtab));
 
       if (ast_childcount(arg) > 1)
         ast_error_frame(&frame, arg,
@@ -392,7 +392,7 @@ static bool auto_recover_call(ast_t* ast, ast_t* receiver_type, pass_opt_t* opt,
   // arguments are safe and the result is either safe or unused.
   // The result of a chained method is always unused.
   ast_t* call = ast_parent(ast);
-  if(is_result_needed(call) && !safe_to_autorecover(receiver_type, result, EXTRACT, opt))
+  if(is_result_needed(call, opt) && !safe_to_autorecover(receiver_type, result, EXTRACT, opt))
     return false;
 
   ast_t* arg = ast_child(positional);
@@ -513,16 +513,16 @@ static bool check_receiver_cap(pass_opt_t* opt, ast_t* ast, bool* recovered)
     switch (ast_id(a_type)) { // provide better information if the refcap is `this->*`
       case TK_ARROW:
         ast_error_frame(&frame, ast_child(lhs),
-          "receiver type: %s (which becomes '%s' in this context)", ast_print_type(a_type), ast_print_type(viewpoint_upper(a_type, opt)));
+          "receiver type: %s (which becomes '%s' in this context)", ast_print_type(a_type, opt->strtab), ast_print_type(viewpoint_upper(a_type, opt), opt->strtab));
         break;
 
       default:
         ast_error_frame(&frame, ast_child(lhs),
-          "receiver type: %s", ast_print_type(a_type));
+          "receiver type: %s", ast_print_type(a_type, opt->strtab));
     }
 
     ast_error_frame(&frame, cap,
-      "target type: %s", ast_print_type(t_type));
+      "target type: %s", ast_print_type(t_type, opt->strtab));
     errorframe_append(&frame, &info);
 
     if(ast_checkflag(ast_type(method_receiver(lhs)), AST_FLAG_INCOMPLETE))
@@ -838,7 +838,7 @@ static bool partial_application(pass_opt_t* opt, ast_t** astp)
     apply_cap = partial_application_cap(opt, type, receiver, positional);
 
   token_id can_error = ast_id(ast_childidx(method_ast, 5));
-  const char* recv_name = package_hygienic_id(t);
+  const char* recv_name = package_hygienic_id(t, opt);
 
   // Build lambda expression.
   ast_t* call_receiver = NULL;
@@ -858,7 +858,7 @@ static bool partial_application(pass_opt_t* opt, ast_t** astp)
     }
 
     ast_t* receiver_type = ast_type(receiver);
-    if(is_bare(receiver_type))
+    if(is_bare(receiver_type, opt))
     {
       // Partial application on a bare object, simply return the object itself.
       ast_replace(astp, receiver);
@@ -872,13 +872,13 @@ static bool partial_application(pass_opt_t* opt, ast_t** astp)
 
     ast_t* module = ast_nearest(ast, TK_MODULE);
     ast_t* package = ast_parent(module);
-    ast_t* pkg_id = package_id(package);
+    ast_t* pkg_id = package_id(package, opt);
     const char* pkg_str = ast_name(pkg_id);
 
     const char* pkg_alias = NULL;
 
     if(recv_package_str != pkg_str)
-      pkg_alias = package_alias_from_id(module, recv_package_str);
+      pkg_alias = package_alias_from_id(module, recv_package_str, opt);
 
     ast_free_unattached(pkg_id);
 
@@ -910,13 +910,13 @@ static bool partial_application(pass_opt_t* opt, ast_t** astp)
 
     ast_t* module = ast_nearest(ast, TK_MODULE);
     ast_t* package = ast_parent(module);
-    ast_t* pkg_id = package_id(package);
+    ast_t* pkg_id = package_id(package, opt);
     const char* pkg_str = ast_name(pkg_id);
 
     const char* pkg_alias = NULL;
 
     if(recv_package_str != pkg_str)
-      pkg_alias = package_alias_from_id(module, recv_package_str);
+      pkg_alias = package_alias_from_id(module, recv_package_str, opt);
 
     ast_free_unattached(pkg_id);
 
@@ -986,7 +986,7 @@ static bool partial_application(pass_opt_t* opt, ast_t** astp)
       BUILD(lambda_param, target_param,
         NODE(TK_PARAM,
           TREE(p_id)
-          TREE(sanitise_type(p_type))
+          TREE(sanitise_type(p_type, opt))
           TREE(p_default)));
 
       // ISSUE-2480: the default argument was already typed at the method
@@ -1060,7 +1060,7 @@ static bool partial_application(pass_opt_t* opt, ast_t** astp)
       NONE  // Lambda type params.
       TREE(lambda_params)
       TREE(captures)
-      TREE(sanitise_type(result))
+      TREE(sanitise_type(result, opt))
       NODE(can_error)
       NODE(TK_SEQ,
         NODE(TK_CALL,

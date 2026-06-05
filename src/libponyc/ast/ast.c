@@ -420,14 +420,14 @@ ast_t* ast_from(ast_t* ast, token_id id)
   return new_ast;
 }
 
-ast_t* ast_from_string(ast_t* ast, const char* name)
+ast_t* ast_from_string(ast_t* ast, const char* name, strtable_t* strtab)
 {
   if(name == NULL)
     return ast_from(ast, TK_NONE);
 
   token_t* t = token_dup(ast->t);
   token_set_id(t, TK_ID);
-  token_set_string(t, name, 0);
+  token_set_string(t, name, 0, strtab);
 
   ast_t* new_ast = ast_token(t);
   set_scope_no_parent(new_ast, ast->parent);
@@ -768,22 +768,23 @@ size_t ast_name_len(ast_t* ast)
   return token_string_len(ast->t);
 }
 
-void ast_set_name(ast_t* ast, const char* name)
+void ast_set_name(ast_t* ast, const char* name, strtable_t* strtab)
 {
   pony_assert(ast != NULL);
 #ifndef PONY_NDEBUG
   pony_assert(!ast->frozen);
 #endif
-  token_set_string(ast->t, name, 0);
+  token_set_string(ast->t, name, 0, strtab);
 }
 
-void ast_set_name_len(ast_t* ast, const char* name, size_t len)
+void ast_set_name_len(ast_t* ast, const char* name, size_t len,
+  strtable_t* strtab)
 {
   pony_assert(ast != NULL);
 #ifndef PONY_NDEBUG
   pony_assert(!ast->frozen);
 #endif
-  token_set_string(ast->t, name, len);
+  token_set_string(ast->t, name, len, strtab);
 }
 
 double ast_float(ast_t* ast)
@@ -935,7 +936,7 @@ ast_t* ast_consumeannotation(ast_t* ast)
   return prev_annotation;
 }
 
-bool ast_has_annotation(ast_t* ast, const char* name)
+bool ast_has_annotation(ast_t* ast, const char* name, strtable_t* strtab)
 {
   pony_assert(ast != NULL);
 
@@ -943,7 +944,7 @@ bool ast_has_annotation(ast_t* ast, const char* name)
 
   if((annotation != NULL) && (ast_id(annotation) == TK_ANNOTATION))
   {
-    const char* strtab_name = stringtab(name);
+    const char* strtab_name = stringtab(strtab, name);
     ast_t* elem = ast_child(annotation);
     while(elem != NULL)
     {
@@ -1139,7 +1140,8 @@ ast_t* ast_get(ast_t* ast, const char* name, sym_status_t* status)
   return NULL;
 }
 
-ast_t* ast_get_case(ast_t* ast, const char* name, sym_status_t* status)
+ast_t* ast_get_case(ast_t* ast, const char* name, sym_status_t* status,
+  strtable_t* strtab)
 {
   // Same as ast_get, but is partially case insensitive. That is, type names
   // are compared as uppercase and other symbols are compared as lowercase.
@@ -1151,7 +1153,8 @@ ast_t* ast_get_case(ast_t* ast, const char* name, sym_status_t* status)
     if(ast->symtab != NULL)
     {
       sym_status_t status2;
-      ast_t* value = (ast_t*)symtab_find_case(ast->symtab, name, &status2);
+      ast_t* value = (ast_t*)symtab_find_case(ast->symtab, name, &status2,
+        strtab);
 
       if((status != NULL) && (*status == SYM_NONE))
         *status = status2;
@@ -1167,7 +1170,7 @@ ast_t* ast_get_case(ast_t* ast, const char* name, sym_status_t* status)
 }
 
 bool ast_set(ast_t* ast, const char* name, ast_t* value, sym_status_t status,
-  bool allow_shadowing)
+  bool allow_shadowing, strtable_t* strtab)
 {
   pony_assert(ast != NULL);
 
@@ -1182,10 +1185,10 @@ bool ast_set(ast_t* ast, const char* name, ast_t* value, sym_status_t status,
   if(allow_shadowing)
   {
     // Only check the local scope.
-    find = symtab_find_case(ast->symtab, name, NULL);
+    find = symtab_find_case(ast->symtab, name, NULL, strtab);
   } else {
     // Check the local scope and all parent scopes.
-    find = ast_get_case(ast, name, NULL);
+    find = ast_get_case(ast, name, NULL, strtab);
   }
 
   // Pretend we succeeded if the mapping in the symbol table wouldn't change.
@@ -1195,7 +1198,7 @@ bool ast_set(ast_t* ast, const char* name, ast_t* value, sym_status_t status,
   if(find != NULL)
     return false;
 
-  return symtab_add(ast->symtab, name, value, status);
+  return symtab_add(ast->symtab, name, value, status, strtab);
 }
 
 void ast_setstatus(ast_t* ast, const char* name, sym_status_t status)
@@ -1269,31 +1272,6 @@ void ast_consolidate_branches(ast_t* ast, size_t count)
       }
     }
   }
-}
-
-bool ast_canmerge(ast_t* dst, ast_t* src)
-{
-  pony_assert(dst != NULL);
-  pony_assert(src != NULL);
-
-  while(dst->symtab == NULL)
-    dst = dst->parent;
-
-  return symtab_can_merge_public(dst->symtab, src->symtab);
-}
-
-bool ast_merge(ast_t* dst, ast_t* src)
-{
-  pony_assert(dst != NULL);
-  pony_assert(src != NULL);
-
-  while(dst->symtab == NULL)
-    dst = dst->parent;
-
-#ifndef PONY_NDEBUG
-  pony_assert(!dst->frozen);
-#endif
-  return symtab_merge_public(dst->symtab, src->symtab);
 }
 
 bool ast_within_scope(ast_t* outer, ast_t* inner, const char* name)
@@ -1904,23 +1882,23 @@ static void print_type(printbuf_t* buffer, ast_t* type, bool print_cap)
   }
 }
 
-const char* ast_print_type(ast_t* type)
+const char* ast_print_type(ast_t* type, strtable_t* strtab)
 {
   printbuf_t* buffer = printbuf_new();
   print_type(buffer, type, true);
 
-  const char* s = stringtab(buffer->m);
+  const char* s = stringtab(strtab, buffer->m);
   printbuf_free(buffer);
 
   return s;
 }
 
-const char* ast_print_type_no_cap(ast_t* type)
+const char* ast_print_type_no_cap(ast_t* type, strtable_t* strtab)
 {
   printbuf_t* buffer = printbuf_new();
   print_type(buffer, type, false);
 
-  const char* s = stringtab(buffer->m);
+  const char* s = stringtab(strtab, buffer->m);
   printbuf_free(buffer);
 
   return s;

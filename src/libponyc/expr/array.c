@@ -62,7 +62,7 @@ static ast_t* strip_this_arrow(pass_opt_t* opt, ast_t* ast)
 static ast_t* detect_apply_element_type(pass_opt_t* opt, ast_t* ast, ast_t* def)
 {
   // The interface must have an apply method for us to find it.
-  ast_t* apply = ast_get(def, stringtab("apply"), NULL);
+  ast_t* apply = ast_get(def, stringtab(opt->strtab, "apply"), NULL);
   if((apply == NULL) || (ast_id(apply) != TK_FUN))
     return NULL;
 
@@ -77,7 +77,7 @@ static ast_t* detect_apply_element_type(pass_opt_t* opt, ast_t* ast, ast_t* def)
 
   ast_t* param = ast_child(params);
   ast_t* param_type = ast_childidx(param, 1);
-  if(ast_name(ast_childidx(param_type, 1)) != stringtab("USize"))
+  if(ast_name(ast_childidx(param_type, 1)) != stringtab(opt->strtab, "USize"))
     return NULL;
 
   // Based on the return type we try to figure out the element type.
@@ -95,7 +95,7 @@ static ast_t* detect_values_element_type(pass_opt_t* opt, ast_t* ast,
   ast_t* def)
 {
   // The interface must have an apply method for us to find it.
-  ast_t* values = ast_get(def, stringtab("values"), NULL);
+  ast_t* values = ast_get(def, stringtab(opt->strtab, "values"), NULL);
   if((values == NULL) || (ast_id(values) != TK_FUN))
     return NULL;
 
@@ -109,7 +109,7 @@ static ast_t* detect_values_element_type(pass_opt_t* opt, ast_t* ast,
     return NULL;
 
   if((ast_id(ret_type) != TK_NOMINAL) ||
-    (ast_name(ast_childidx(ret_type, 1)) != stringtab("Iterator")) ||
+    (ast_name(ast_childidx(ret_type, 1)) != stringtab(opt->strtab, "Iterator")) ||
     (ast_childcount(ast_childidx(ret_type, 2)) != 1))
     return NULL;
 
@@ -136,7 +136,7 @@ static void find_possible_element_types(pass_opt_t* opt, ast_t* ast,
       AST_GET_CHILDREN(ast, package, name, typeargs, cap, eph);
 
       // If it's an actual Array type, note it as a possibility and move on.
-      if(stringtab("Array") == ast_name(name))
+      if(stringtab(opt->strtab, "Array") == ast_name(name))
       {
         *list = astlist_push(*list, ast_child(typeargs));
         return;
@@ -223,7 +223,7 @@ static void find_possible_iterator_element_types(pass_opt_t* opt, ast_t* ast,
     {
       AST_GET_CHILDREN(ast, package, name, typeargs, cap, eph);
 
-      if(stringtab("Iterator") == ast_name(name))
+      if(stringtab(opt->strtab, "Iterator") == ast_name(name))
       {
         *list = astlist_push(*list, ast_child(typeargs));
       }
@@ -278,7 +278,7 @@ static bool infer_element_type(pass_opt_t* opt, ast_t* ast,
     // If the ast parent is a call to values() and the antecedent of that call
     // is an Iterator, then we can get possible element types that way.
     if((ast_id(ast_parent(ast)) == TK_DOT) &&
-      (ast_name(ast_sibling(ast)) == stringtab("values")))
+      (ast_name(ast_sibling(ast)) == stringtab(opt->strtab, "values")))
     {
       ast_t* dot = ast_parent(ast);
       antecedent_type = find_antecedent_type(opt, dot, NULL);
@@ -495,7 +495,7 @@ bool expr_array(pass_opt_t* opt, ast_t** astp)
       {
         ast_error_frame(&frame, ele,
           "invalid specified array element type: %s",
-          ast_print_type(type));
+          ast_print_type(type, opt->strtab));
         errorframe_append(&frame, &info);
         errorframe_report(&frame, opt->check.errors);
         return false;
@@ -505,9 +505,9 @@ bool expr_array(pass_opt_t* opt, ast_t** astp)
         ast_error_frame(&frame, ele,
           "array element not a subtype of specified array type");
         ast_error_frame(&frame, type_spec, "array type: %s",
-          ast_print_type(type));
+          ast_print_type(type, opt->strtab));
         ast_error_frame(&frame, c_type, "element type: %s",
-          ast_print_type(c_type));
+          ast_print_type(c_type, opt->strtab));
         errorframe_append(&frame, &info);
         errorframe_report(&frame, opt->check.errors);
         ast_free_unattached(w_type);

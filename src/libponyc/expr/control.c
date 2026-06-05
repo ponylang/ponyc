@@ -425,7 +425,7 @@ bool expr_recover(pass_opt_t* opt, ast_t* ast)
   {
     ast_error(opt->check.errors, ast, "can't recover to this capability");
     ast_error_continue(opt->check.errors, expr, "expression type is %s",
-      ast_print_type(type));
+      ast_print_type(type, opt->strtab));
     return false;
   }
 
@@ -566,9 +566,9 @@ bool expr_return(pass_opt_t* opt, ast_t* ast)
         ast_t* last = ast_childlast(body);
         ast_error_frame(&frame, last, "returned value isn't the return type");
         ast_error_frame(&frame, type, "function return type: %s",
-          ast_print_type(type));
+          ast_print_type(type, opt->strtab));
         ast_error_frame(&frame, body_type, "returned value type: %s",
-          ast_print_type(body_type));
+          ast_print_type(body_type, opt->strtab));
         errorframe_append(&frame, &info);
         errorframe_report(&frame, opt->check.errors);
         ok = false;

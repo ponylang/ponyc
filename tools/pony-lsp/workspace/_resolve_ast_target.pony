@@ -68,8 +68,8 @@ primitive _ResolveASTTarget
     let defs = node'.definitions()
     if defs.size() > 0 then
       try
-        AST(defs(0)?.raw)
+        AST(defs(0)?.raw, defs(0)?.strtab)
       end
     else
-      AST(node'.raw)
+      AST(node'.raw, node'.strtab)
     end

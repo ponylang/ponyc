@@ -126,7 +126,7 @@ static bool parse_source_file(ast_t* package, const char* file_path,
     printf("Opening %s\n", file_path);
 
   const char* error_msg = NULL;
-  source_t* source = source_open(file_path, &error_msg);
+  source_t* source = source_open(file_path, &error_msg, opt->strtab);
 
   if(source == NULL)
   {
@@ -227,7 +227,7 @@ static bool parse_files_in_dir(ast_t* package, const char* dir_path,
   {
     // Handle only files with the specified extension that don't begin with
     // a dot. This avoids including UNIX hidden files in a build.
-    const char* name = stringtab(pony_dir_info_name(d));
+    const char* name = stringtab(opt->strtab, pony_dir_info_name(d));
 
     if(name[0] == '.')
       continue;
@@ -272,7 +272,7 @@ static bool parse_files_in_dir(ast_t* package, const char* dir_path,
 // @return The resulting directory path, which should not be deleted and is
 // valid indefinitely. NULL is directory cannot be found.
 static const char* try_path(const char* base, const char* path,
-  bool* out_found_notdir)
+  bool* out_found_notdir, pass_opt_t* opt)
 {
   char composite[FILENAME_MAX];
   char file[FILENAME_MAX];
@@ -296,7 +296,7 @@ static const char* try_path(const char* base, const char* path,
     return NULL;
   }
 
-  return stringtab(file);
+  return stringtab(opt->strtab, file);
 }
 
 
@@ -325,7 +325,7 @@ static bool is_root(const char* path)
 // Try base/../pony_packages/path, and keep adding .. to look another level up
 // until we are looking in /pony_packages/path
 static const char* try_package_path(const char* base, const char* path,
-  bool* out_found_notdir)
+  bool* out_found_notdir, pass_opt_t* opt)
 {
   char path1[FILENAME_MAX];
   char path2[FILENAME_MAX];
@@ -340,7 +340,7 @@ static const char* try_package_path(const char* base, const char* path,
 
     path_cat(path1, "pony_packages", path2);
 
-    const char* result = try_path(path2, path, out_found_notdir);
+    const char* result = try_path(path2, path, out_found_notdir, opt);
 
     if(result != NULL)
       return result;
@@ -364,7 +364,7 @@ static const char* find_path(ast_t* from, const char* path,
 
   // First check for an absolute path
   if(is_path_absolute(path))
-    return try_path(NULL, path, out_found_notdir);
+    return try_path(NULL, path, out_found_notdir, opt);
 
   // Get the base directory
   const char* base;
@@ -379,7 +379,7 @@ static const char* find_path(ast_t* from, const char* path,
   }
 
   // Try a path relative to the base
-  const char* result = try_path(base, path, out_found_notdir);
+  const char* result = try_path(base, path, out_found_notdir, opt);
 
   if(result != NULL)
   {
@@ -395,7 +395,7 @@ static const char* find_path(ast_t* from, const char* path,
     // Check ../pony_packages and further up the tree
     if(base != NULL)
     {
-      result = try_package_path(base, path, out_found_notdir);
+      result = try_package_path(base, path, out_found_notdir, opt);
 
       if(result != NULL)
         return result;
@@ -407,7 +407,7 @@ static const char* find_path(ast_t* from, const char* path,
         package_t* pkg = (package_t*)ast_data(target);
         base = pkg->path;
 
-        result = try_package_path(base, path, out_found_notdir);
+        result = try_package_path(base, path, out_found_notdir, opt);
 
         if(result != NULL)
           return result;
@@ -418,7 +418,7 @@ static const char* find_path(ast_t* from, const char* path,
     for(strlist_t* p = opt->package_search_paths; p != NULL;
       p = strlist_next(p))
     {
-      result = try_path(strlist_data(p), path, out_found_notdir);
+      result = try_path(strlist_data(p), path, out_found_notdir, opt);
 
       if(result != NULL)
         return result;
@@ -431,7 +431,7 @@ static const char* find_path(ast_t* from, const char* path,
 
 // Convert the given ID to a hygenic string. The resulting string should not be
 // deleted and is valid indefinitely.
-static const char* id_to_string(const char* prefix, size_t id)
+static const char* id_to_string(const char* prefix, size_t id, pass_opt_t* opt)
 {
   if(prefix == NULL)
     prefix = "";
@@ -440,7 +440,7 @@ static const char* id_to_string(const char* prefix, size_t id)
   size_t buf_size = len + 32;
   char* buffer = (char*)ponyint_pool_alloc_size(buf_size);
   snprintf(buffer, buf_size, "%s$" __zu, prefix, id);
-  return stringtab_consume(buffer, buf_size);
+  return stringtab_consume(opt->strtab, buffer, buf_size);
 }
 
 
@@ -462,7 +462,7 @@ static bool symbol_in_use(ast_t* program, const char* symbol)
 }
 
 
-static const char* string_to_symbol(const char* string)
+static const char* string_to_symbol(const char* string, pass_opt_t* opt)
 {
   bool prefix = false;
 
@@ -499,29 +499,31 @@ static const char* string_to_symbol(const char* string)
     }
   }
 
-  return stringtab_consume(buf, buf_size);
+  return stringtab_consume(opt->strtab, buf, buf_size);
 }
 
 
-static const char* symbol_suffix(const char* symbol, size_t suffix)
+static const char* symbol_suffix(const char* symbol, size_t suffix,
+  pass_opt_t* opt)
 {
   size_t len = strlen(symbol);
   size_t buf_size = len + 32;
   char* buf = (char*)ponyint_pool_alloc_size(buf_size);
   snprintf(buf, buf_size, "%s" __zu, symbol, suffix);
 
-  return stringtab_consume(buf, buf_size);
+  return stringtab_consume(opt->strtab, buf, buf_size);
 }
 
 
-static const char* create_package_symbol(ast_t* program, const char* filename)
+static const char* create_package_symbol(ast_t* program, const char* filename,
+  pass_opt_t* opt)
 {
-  const char* symbol = string_to_symbol(filename);
+  const char* symbol = string_to_symbol(filename, opt);
   size_t suffix = 1;
 
   while(symbol_in_use(program, symbol))
   {
-    symbol = symbol_suffix(symbol, suffix);
+    symbol = symbol_suffix(symbol, suffix, opt);
     suffix++;
   }
 
@@ -539,7 +541,7 @@ ast_t* create_package(ast_t* program, const char* name,
   package_t* pkg = POOL_ALLOC(package_t);
   pkg->path = name;
   pkg->qualified_name = qualified_name;
-  pkg->id = id_to_string(NULL, pkg_id);
+  pkg->id = id_to_string(NULL, pkg_id, opt);
 
   const char* p = strrchr(pkg->path, PATH_SLASH);
 
@@ -548,10 +550,10 @@ ast_t* create_package(ast_t* program, const char* name,
   else
     p = p + 1;
 
-  pkg->filename = stringtab(p);
+  pkg->filename = stringtab(opt->strtab, p);
 
   if(pkg_id > 1)
-    pkg->symbol = create_package_symbol(program, pkg->filename);
+    pkg->symbol = create_package_symbol(program, pkg->filename, opt);
   else
     pkg->symbol = NULL;
 
@@ -565,8 +567,8 @@ ast_t* create_package(ast_t* program, const char* name,
 
   ast_scope(package);
   ast_append(program, package);
-  ast_set(program, pkg->path, package, SYM_NONE, false);
-  ast_set(program, pkg->id, package, SYM_NONE, false);
+  ast_set(program, pkg->path, package, SYM_NONE, false, opt->strtab);
+  ast_set(program, pkg->id, package, SYM_NONE, false, opt->strtab);
 
   strlist_t* safe = opt->safe_packages;
 
@@ -604,7 +606,7 @@ static bool add_path(const char* path, pass_opt_t* opt)
 
   if((err != -1) && S_ISDIR(s.st_mode))
   {
-    path = stringtab(path);
+    path = stringtab(opt->strtab, path);
     strlist_t* search = opt->package_search_paths;
 
     if(strlist_find(search, path) == NULL)
@@ -631,7 +633,7 @@ static bool add_relative_path(const char* path, const char* relpath,
 
 static bool add_safe(const char* path, pass_opt_t* opt)
 {
-  path = stringtab(path);
+  path = stringtab(opt->strtab, path);
   strlist_t* safe = opt->safe_packages;
 
   if(strlist_find(safe, path) == NULL)
@@ -863,7 +865,7 @@ bool package_add_safe(const char* paths, pass_opt_t* opt)
 void package_add_magic_src(const char* path, const char* src, pass_opt_t* opt)
 {
   magic_package_t* n = POOL_ALLOC(magic_package_t);
-  n->path = stringtab(path);
+  n->path = stringtab(opt->strtab, path);
   n->src = src;
   n->mapped_path = NULL;
   n->next = opt->magic_packages;
@@ -875,9 +877,9 @@ void package_add_magic_path(const char* path, const char* mapped_path,
   pass_opt_t* opt)
 {
   magic_package_t* n = POOL_ALLOC(magic_package_t);
-  n->path = stringtab(path);
+  n->path = stringtab(opt->strtab, path);
   n->src = NULL;
-  n->mapped_path = stringtab(mapped_path);
+  n->mapped_path = stringtab(opt->strtab, mapped_path);
   n->next = opt->magic_packages;
   opt->magic_packages = n;
 }
@@ -906,7 +908,7 @@ ast_t* program_load(const char* path, pass_opt_t* opt)
   opt->program_pass = PASS_PARSE;
 
   // Always load builtin package first, then the specified one.
-  if(package_load(program, stringtab("builtin"), opt) == NULL ||
+  if(package_load(program, stringtab(opt->strtab, "builtin"), opt) == NULL ||
     package_load(program, path, opt) == NULL)
   {
     ast_free(program);
@@ -1002,7 +1004,7 @@ ast_t* package_load(ast_t* from, const char* path, pass_opt_t* opt)
         q_name[base_name_len] = '/';
         memcpy(q_name + base_name_len + 1, package_path, package_path_len);
         q_name[len - 1] = '\0';
-        qualified_name = stringtab_consume(q_name, len);
+        qualified_name = stringtab_consume(opt->strtab, q_name, len);
       }
     }
 
@@ -1086,9 +1088,9 @@ const char* package_name(ast_t* ast)
 }
 
 
-ast_t* package_id(ast_t* ast)
+ast_t* package_id(ast_t* ast, pass_opt_t* opt)
 {
-  return ast_from_string(ast, package_name(ast));
+  return ast_from_string(ast, package_name(ast), opt->strtab);
 }
 
 
@@ -1134,13 +1136,13 @@ const char* package_symbol(ast_t* package)
 }
 
 
-const char* package_hygienic_id(typecheck_t* t)
+const char* package_hygienic_id(typecheck_t* t, pass_opt_t* opt)
 {
   pony_assert(t->frame->package != NULL);
   package_t* pkg = (package_t*)ast_data(t->frame->package);
   size_t id = pkg->next_hygienic_id++;
 
-  return id_to_string(pkg->id, id);
+  return id_to_string(pkg->id, id, opt);
 }
 
 
@@ -1152,11 +1154,12 @@ bool package_allow_ffi(typecheck_t* t)
 }
 
 
-const char* package_alias_from_id(ast_t* module, const char* id)
+const char* package_alias_from_id(ast_t* module, const char* id,
+  pass_opt_t* opt)
 {
   pony_assert(ast_id(module) == TK_MODULE);
 
-  const char* strtab_id = stringtab(id);
+  const char* strtab_id = stringtab(opt->strtab, id);
 
   ast_t* use = ast_child(module);
   while(ast_id(use) == TK_USE)

@@ -125,7 +125,7 @@ static bool names_type(pass_opt_t* opt, ast_t** astp, ast_t* def)
 
   // We keep the actual package id for printing out in errors, etc.
   ast_append(ast, package);
-  ast_replace(&package, package_id(def));
+  ast_replace(&package, package_id(def, opt));
 
   // Store our definition for later use.
   ast_setdata(ast, def);

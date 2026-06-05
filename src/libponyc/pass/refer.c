@@ -141,7 +141,7 @@ static const char* generate_multi_dot_name(pass_opt_t *opt, ast_t* ast, ast_t** 
     default:
     {
       if (def == NULL)
-        return stringtab("");
+        return stringtab(opt->strtab, "");
       else if (in_consume_ctx) {
         pony_assert(has_consume_error);
 
@@ -153,7 +153,7 @@ static const char* generate_multi_dot_name(pass_opt_t *opt, ast_t* ast, ast_t** 
                   " single lowercase identifier, with no dots) or a field"
                   " of this (this followed by a dot and a single lowercase"
                   " identifier).");
-         return stringtab("");
+         return stringtab(opt->strtab, "");
       }
 
       pony_assert(0);
@@ -164,7 +164,7 @@ static const char* generate_multi_dot_name(pass_opt_t *opt, ast_t* ast, ast_t** 
   {
     *def_found = def;
     if(def == NULL)
-      return stringtab("");
+      return stringtab(opt->strtab, "");
   }
 
   // for the \0 at the end
@@ -193,7 +193,7 @@ static const char* generate_multi_dot_name(pass_opt_t *opt, ast_t* ast, ast_t** 
   pony_assert((offset + 1) == len);
   buf[offset] = '\0';
 
-  return stringtab_consume(buf, len);
+  return stringtab_consume(opt->strtab, buf, len);
 }
 
 static bool is_matching_assign_lhs(pass_opt_t *opt, ast_t* a, ast_t* b)
@@ -233,7 +233,7 @@ static bool is_assigned_to(pass_opt_t *opt, ast_t* ast, bool check_result_needed
           return true;
 
         // The result of that assignment can't be used.
-        return !is_result_needed(parent);
+        return !is_result_needed(parent, opt);
       }
 
       case TK_SEQ:
@@ -374,7 +374,8 @@ static bool valid_reference(pass_opt_t* opt, ast_t* ast, sym_status_t status)
   return false;
 }
 
-static const char* suggest_alt_name(ast_t* ast, const char* name)
+static const char* suggest_alt_name(ast_t* ast, const char* name,
+  pass_opt_t* opt)
 {
   pony_assert(ast != NULL);
   pony_assert(name != NULL);
@@ -384,7 +385,7 @@ static const char* suggest_alt_name(ast_t* ast, const char* name)
   if(is_name_private(name))
   {
     // Try without leading underscore
-    const char* try_name = stringtab(name + 1);
+    const char* try_name = stringtab(opt->strtab, name + 1);
 
     if(ast_get(ast, try_name, NULL) != NULL)
       return try_name;
@@ -395,14 +396,14 @@ static const char* suggest_alt_name(ast_t* ast, const char* name)
     char* buf = (char*)ponyint_pool_alloc_size(name_len + 2);
     buf[0] = '_';
     memcpy(buf + 1, name, name_len + 1);
-    const char* try_name = stringtab_consume(buf, name_len + 2);
+    const char* try_name = stringtab_consume(opt->strtab, buf, name_len + 2);
 
     if(ast_get(ast, try_name, NULL) != NULL)
       return try_name;
   }
 
   // Try with a different case (without crossing type/value boundary)
-  ast_t* case_ast = ast_get_case(ast, name, NULL);
+  ast_t* case_ast = ast_get_case(ast, name, NULL, opt->strtab);
   if(case_ast != NULL)
   {
     ast_t* id = case_ast;
@@ -443,7 +444,7 @@ static bool refer_this(pass_opt_t* opt, ast_t* ast)
 
   // Can only use a this reference if it hasn't been consumed yet.
   sym_status_t status;
-  ast_get(ast, stringtab("this"), &status);
+  ast_get(ast, stringtab(opt->strtab, "this"), &status);
 
   if((status == SYM_CONSUMED) || (status == SYM_CONSUMED_SAME_EXPR))
   {
@@ -482,7 +483,7 @@ bool refer_reference(pass_opt_t* opt, ast_t** astp)
   // If nothing was found, we fail, but also try to suggest an alternate name.
   if(def == NULL)
   {
-    const char* alt_name = suggest_alt_name(ast, name);
+    const char* alt_name = suggest_alt_name(ast, name, opt);
 
     if(alt_name == NULL)
       ast_error(opt->check.errors, ast, "can't find declaration of '%s'", name);
@@ -645,7 +646,7 @@ static bool refer_this_dot(pass_opt_t* opt, ast_t* ast)
   // If nothing was found, we fail, but also try to suggest an alternate name.
   if(def == NULL)
   {
-    const char* alt_name = suggest_alt_name(ast, name);
+    const char* alt_name = suggest_alt_name(ast, name, opt);
 
     if(alt_name == NULL)
       ast_error(opt->check.errors, ast, "can't find declaration of '%s'", name);
@@ -764,7 +765,7 @@ bool refer_qualify(pass_opt_t* opt, ast_t* ast)
   return true;
 }
 
-static void error_check_used_decl(errorframe_t* frame, ast_t* ast)
+static void error_check_used_decl(errorframe_t* frame, ast_t* ast, pass_opt_t* opt)
 {
   // Prints an info about why the lvalue is needed
   ast_t* parent = ast_parent(ast);
@@ -772,7 +773,7 @@ static void error_check_used_decl(errorframe_t* frame, ast_t* ast)
   token_id parent_id = ast_id(parent);
 
   if (parent_id == TK_VAR || parent_id == TK_LET) {
-    ast_error_frame(frame, parent, "the previous value of '%s' is used because you are trying to use the resulting value of this %s declaration", ast_print_type(ast), ast_print_type(parent));
+    ast_error_frame(frame, parent, "the previous value of '%s' is used because you are trying to use the resulting value of this %s declaration", ast_print_type(ast, opt->strtab), ast_print_type(parent, opt->strtab));
   }
 }
 
@@ -783,7 +784,7 @@ static void error_consumed_but_used(pass_opt_t* opt, ast_t* ast)
   ast_error_frame(&frame, ast,
     "the left side is consumed but its value is used");
 
-  error_check_used_decl(&frame, ast);
+  error_check_used_decl(&frame, ast, opt);
 
   errorframe_report(&frame, opt->check.errors);
 }
@@ -795,7 +796,7 @@ static void error_undefined_but_used(pass_opt_t* opt, ast_t* ast)
   ast_error_frame(&frame, ast,
     "the left side is undefined but its value is used");
 
-  error_check_used_decl(&frame, ast);
+  error_check_used_decl(&frame, ast, opt);
 
   errorframe_report(&frame, opt->check.errors);
 }
@@ -1069,7 +1070,7 @@ static bool refer_assign(pass_opt_t* opt, ast_t* ast)
   pony_assert(ast_id(ast) == TK_ASSIGN);
   AST_GET_CHILDREN(ast, left, right);
 
-  switch(is_lvalue(opt, left, is_result_needed(ast)))
+  switch(is_lvalue(opt, left, is_result_needed(ast, opt)))
   {
     case NOT_LVALUE:
       if(ast_id(left) == TK_DONTCAREREF)
@@ -1190,7 +1191,7 @@ static bool refer_consume(pass_opt_t* opt, ast_t* ast)
 
     case TK_THIS:
     {
-      name = stringtab("this");
+      name = stringtab(opt->strtab, "this");
       break;
     }
 
