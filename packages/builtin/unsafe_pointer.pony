@@ -12,9 +12,15 @@ struct UnsafePointer[A]
   fresh memory and copies). It also should never be exposed in a public
   interface.
 
+  Its API is deliberately a small subset of `Pointer`'s. An `UnsafePointer` is
+  only ever held as an opaque handle (created null, null-checked, inspected as
+  an address for sentinel comparisons) or read so its contents can be copied
+  into Pony-managed memory. It has no allocation, pointer-arithmetic, mutation,
+  or array-manipulation methods — those belong to `Pointer`, which backs
+  Pony-managed memory.
+
   Like `Pointer[A]`, it has no descriptor and thus can't be included in a union
-  or intersection, or be a subtype of any interface. Most functions on an
-  `UnsafePointer[A]` are private to maintain memory safety.
+  or intersection, or be a subtype of any interface.
   """
   new create() =>
     """
@@ -22,73 +28,10 @@ struct UnsafePointer[A]
     """
     compile_intrinsic
 
-  new _alloc(len: USize) =>
-    """
-    Space for len instances of A.
-    """
-    compile_intrinsic
-
-  fun ref _realloc(len: USize, copy: USize): UnsafePointer[A] =>
-    """
-    Keep the contents, but reserve space for len instances of A.
-    """
-    compile_intrinsic
-
-  fun tag _unsafe(): UnsafePointer[A] ref =>
-    """
-    Unsafe change in reference capability.
-    """
-    compile_intrinsic
-
-  fun _convert[B](): this->UnsafePointer[B] =>
-    """
-    Convert from UnsafePointer[A] to UnsafePointer[B].
-    """
-    compile_intrinsic
-
   fun _apply(i: USize): this->A =>
     """
-    Retrieve index i.
-    """
-    compile_intrinsic
-
-  fun ref _update(i: USize, value: A!): A^ =>
-    """
-    Set index i and return the previous value.
-    """
-    compile_intrinsic
-
-  fun _offset(n: USize): this->UnsafePointer[A] =>
-    """
-    Return a pointer to the n-th element.
-    """
-    compile_intrinsic
-
-  fun tag offset(n: USize): UnsafePointer[A] tag =>
-    """
-    Return a tag pointer to the n-th element.
-    """
-     _unsafe()._offset(n)
-
-  fun tag _element_size(): USize =>
-    """
-    Return the size of a single element in an array of type A.
-    """
-    compile_intrinsic
-
-  fun ref _insert(n: USize, len: USize): UnsafePointer[A] =>
-    """
-    Creates space for n new elements at the head, moving following elements.
-    The array length before this should be len, and the available space should
-    be at least n + len.
-    """
-    compile_intrinsic
-
-  fun ref _delete(n: USize, len: USize): A^ =>
-    """
-    Delete n elements from the head of pointer, compact remaining elements of
-    the underlying array. The array length before this should be n + len.
-    Returns the first deleted element.
+    Retrieve index i. Used by `String.copy_*` to read foreign data on the way
+    to copying it into Pony-managed memory.
     """
     compile_intrinsic
 
@@ -101,7 +44,8 @@ struct UnsafePointer[A]
 
   fun tag usize(): USize =>
     """
-    Convert the pointer into an integer.
+    Convert the pointer into an integer, e.g. to compare a returned handle
+    against a non-null sentinel.
     """
     compile_intrinsic
 
@@ -113,29 +57,7 @@ struct UnsafePointer[A]
 
   fun tag eq(that: UnsafePointer[A] tag): Bool =>
     """
-    Return true if this address is that address.
+    Return true if this address is that address. Enables matching a held handle
+    against another (e.g. dispatching an ASIO event to its owner).
     """
     compile_intrinsic
-
-  fun tag lt(that: UnsafePointer[A] tag): Bool =>
-    """
-    Return true if this address is less than that address.
-    """
-    compile_intrinsic
-
-  fun tag ne(that: UnsafePointer[A] tag): Bool => not eq(that)
-  fun tag le(that: UnsafePointer[A] tag): Bool => lt(that) or eq(that)
-  fun tag ge(that: UnsafePointer[A] tag): Bool => not lt(that)
-  fun tag gt(that: UnsafePointer[A] tag): Bool => not le(that)
-
-  fun tag hash(): USize =>
-    """
-    Returns a hash of the address.
-    """
-    usize().hash()
-
-  fun tag hash64(): U64 =>
-    """
-    Returns a 64-bit hash of the address.
-    """
-    usize().hash64()

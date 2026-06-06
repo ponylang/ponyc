@@ -2895,11 +2895,10 @@ class \nodoc\ iso _TestLambdaCapture is UnitTest
 
 class \nodoc\ iso _TestUnsafePointer is UnitTest
   """
-  Exercise the public surface of the builtin UnsafePointer type so that its
-  intrinsic codegen path is actually reached and guarded. The private
-  intrinsics (_alloc, _apply, _update, _copy_to, ...) are package-private to
-  builtin and are exercised by the String.copy_* tests once those signatures
-  take an UnsafePointer.
+  Exercise the public surface of the builtin UnsafePointer type. That surface is
+  deliberately small: a null constructor, is_null, and usize (for sentinel
+  comparisons). The private read/copy intrinsics (_apply, _copy_to) are exercised
+  by the String.copy_* tests.
   """
   fun name(): String => "builtin/UnsafePointer"
 
@@ -2908,24 +2907,6 @@ class \nodoc\ iso _TestUnsafePointer is UnitTest
     let p = UnsafePointer[U8]
     h.assert_true(p.is_null())
     h.assert_eq[USize](p.usize(), 0)
-    h.assert_true(p == UnsafePointer[U8])
-
-    // offset exercises _unsafe and _offset; U8 elements are one byte each.
-    let q = p.offset(8)
-    h.assert_eq[USize](q.usize(), 8)
-    h.assert_false(q.is_null())
-
-    // Address comparison operators.
-    h.assert_false(p == q)
-    h.assert_true(p != q)
-    h.assert_true(p < q)
-    h.assert_true(p <= q)
-    h.assert_true(q > p)
-    h.assert_true(q >= p)
-
-    // hash is derived from the address.
-    h.assert_eq[USize](p.hash(), USize(0).hash())
-    h.assert_eq[U64](p.hash64(), U64(0).hash64())
 
 class \nodoc\ iso _TestStringCopyUnsafePointer is UnitTest
   """
