@@ -1751,8 +1751,6 @@ TEST_F(BadPonyTest, IfLiteralBranchWithTypecheckError)
   TEST_ERRORS_1(src, "argument not assignable to parameter");
 }
 
-<<<<<<< HEAD
-=======
 
 TEST_F(BadPonyTest, IfLiteralBranchWithTypecheckError)
 {
@@ -1770,7 +1768,6 @@ TEST_F(BadPonyTest, IfLiteralBranchWithTypecheckError)
   TEST_ERRORS_1(src, "argument not assignable to parameter");
 }
 
->>>>>>> 0ea00f2ae (Close error-path leaks of unparented TK_LITERAL nodes (#5219))
 TEST_F(BadPonyTest, IftypeLiteralBranchWithTypecheckError)
 {
   // Same pattern for iftype (#5214).
