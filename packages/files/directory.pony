@@ -20,21 +20,21 @@ use @futimesat[I32](fd: I32, path: Pointer[U8] tag,
 use @fchownat[I32](fd: I32, path: Pointer[U8] tag, uid: U32, gid: U32, flags: I32) if linux or bsd
 use @fchmodat[I32](fd: I32, path: Pointer[U8] tag, mode: U32, flag: I32) if linux or bsd
 use @mkdirat[I32](fd: I32, path: Pointer[U8] tag, mode: U32)
-use @fdopendir[Pointer[_DirectoryHandle]](fd: I32) if posix
-use @opendir[Pointer[_DirectoryHandle]](name: Pointer[U8] tag) if posix
-use @closedir[I32](dir: Pointer[_DirectoryHandle] tag) if posix
-use @ponyint_unix_readdir[Pointer[U8] iso^](dir: Pointer[None] tag)
-use @ponyint_windows_find_data[Pointer[_DirectoryEntry]]()
+use @fdopendir[UnsafePointer[_DirectoryHandle]](fd: I32) if posix
+use @opendir[UnsafePointer[_DirectoryHandle]](name: Pointer[U8] tag) if posix
+use @closedir[I32](dir: UnsafePointer[_DirectoryHandle] tag) if posix
+use @ponyint_unix_readdir[Pointer[U8] iso^](dir: UnsafePointer[None] tag)
+use @ponyint_windows_find_data[UnsafePointer[_DirectoryEntry]]()
   if windows
-use @ponyint_windows_find_data_free[None](data: Pointer[_DirectoryEntry])
+use @ponyint_windows_find_data_free[None](data: UnsafePointer[_DirectoryEntry])
   if windows
-use @ponyint_windows_readdir[Pointer[U8] iso^](data: Pointer[_DirectoryEntry])
+use @ponyint_windows_readdir[Pointer[U8] iso^](data: UnsafePointer[_DirectoryEntry])
   if windows
-use @FindFirstFileA[Pointer[_DirectoryHandle]](file_name: Pointer[U8] tag, data: Pointer[_DirectoryEntry])
+use @FindFirstFileA[UnsafePointer[_DirectoryHandle]](file_name: Pointer[U8] tag, data: UnsafePointer[_DirectoryEntry])
   if windows
-use @FindNextFileA[Bool](handle: Pointer[None] tag, data: Pointer[_DirectoryEntry])
+use @FindNextFileA[Bool](handle: UnsafePointer[None] tag, data: UnsafePointer[_DirectoryEntry])
   if windows
-use @FindClose[Bool](handle: Pointer[_DirectoryHandle] tag) if windows
+use @FindClose[Bool](handle: UnsafePointer[_DirectoryHandle] tag) if windows
 
 primitive _DirectoryHandle
 primitive _DirectoryEntry

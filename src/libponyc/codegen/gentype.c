@@ -146,7 +146,7 @@ static bool make_opaque_struct(compile_t* c, reach_type_t* t)
 
           return true;
         }
-        else if(name == c->str_Pointer)
+        else if((name == c->str_Pointer) || (name == c->str_UnsafePointer))
         {
           c_t->use_type = c->ptr;
           c_t->mem_type = c->ptr;
@@ -649,7 +649,7 @@ static void make_intrinsic_methods(compile_t* c, reach_type_t* t)
 
   if(package == c->str_builtin)
   {
-    if(name == c->str_Pointer)
+    if((name == c->str_Pointer) || (name == c->str_UnsafePointer))
       genprim_pointer_methods(c, t);
     else if(name == c->str_NullablePointer)
       genprim_nullable_pointer_methods(c, t);

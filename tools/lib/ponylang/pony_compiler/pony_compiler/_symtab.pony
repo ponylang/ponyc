@@ -24,7 +24,7 @@ struct _Symbol
     size_t branch_count;
   } symbol_t;
   """
-  let name: Pointer[U8] val = name.create()
+  let name: UnsafePointer[U8] val = name.create()
   let def: Pointer[_AST] val = def.create()
   let status: SymStatus = status.create()
   let branch_count: USize = 0
