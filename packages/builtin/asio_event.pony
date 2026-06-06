@@ -1,4 +1,4 @@
-type AsioEventID is Pointer[AsioEvent] tag
+type AsioEventID is UnsafePointer[AsioEvent] tag
 
 trait tag AsioEventNotify
   be _event_notify(event: AsioEventID, flags: U32, arg: U32)

@@ -1,8 +1,8 @@
-use @pony_os_addrinfo[Pointer[U8]](family: U32, host: Pointer[U8] tag,
+use @pony_os_addrinfo[UnsafePointer[U8]](family: U32, host: Pointer[U8] tag,
   service: Pointer[U8] tag)
-use @pony_os_getaddr[None](addr: Pointer[None] tag, ipaddr: NetAddress tag)
-use @pony_os_nextaddr[Pointer[U8]](addr: Pointer[None] tag)
-use @freeaddrinfo[None](addr: Pointer[None] tag)
+use @pony_os_getaddr[None](addr: UnsafePointer[None] tag, ipaddr: NetAddress tag)
+use @pony_os_nextaddr[UnsafePointer[U8]](addr: UnsafePointer[None] tag)
+use @freeaddrinfo[None](addr: UnsafePointer[None] tag)
 use @pony_os_host_ip4[Bool](host: Pointer[U8] tag)
 use @pony_os_host_ip6[Bool](host: Pointer[U8] tag)
 

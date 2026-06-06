@@ -12,7 +12,10 @@ bool void_star_param(ast_t* param_type, ast_t* arg_type)
   pony_assert(param_type != NULL);
   pony_assert(arg_type != NULL);
 
-  if(!is_pointer(param_type))
+  bool param_safe = is_pointer(param_type);
+  bool param_unsafe = is_unsafe_pointer(param_type);
+
+  if(!param_safe && !param_unsafe)
     return false;
 
   ast_t* type_args = ast_childidx(param_type, 2);
@@ -20,17 +23,22 @@ bool void_star_param(ast_t* param_type, ast_t* arg_type)
   if(ast_childcount(type_args) != 1 || !is_none(ast_child(type_args)))
     return false;
 
-  // Parameter type is Pointer[None]
-  // If the argument is Pointer[A], NullablePointer[A] or USize, allow it
+  // Parameter type is Pointer[None] or UnsafePointer[None]. A C void* means
+  // nothing to us, so we map it to whichever raw pointer the parameter actually
+  // declares: the two kinds do not interchange. A Pointer[None] param accepts
+  // Pointer[A], NullablePointer[A] or USize; an UnsafePointer[None] param
+  // accepts UnsafePointer[A] or USize. USize is provenance-neutral (a raw
+  // integer address), so it is allowed for either kind.
   while(ast_id(arg_type) == TK_ARROW)
     arg_type = ast_childidx(arg_type, 1);
 
-  if(is_pointer(arg_type) ||
-    is_nullable_pointer(arg_type) ||
-    is_literal(arg_type, "USize"))
+  if(is_literal(arg_type, "USize"))
     return true;
 
-  return false;
+  if(param_safe)
+    return is_pointer(arg_type) || is_nullable_pointer(arg_type);
+
+  return is_unsafe_pointer(arg_type);
 }
 
 static bool declared_ffi(pass_opt_t* opt, ast_t* call, ast_t* decl)

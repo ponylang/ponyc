@@ -18,12 +18,12 @@ use @ast_free[None](ast: Pointer[_AST] box)
 // only free the AST if it has no parent
 use @ast_free_unattached[None](ast: Pointer[_AST])
 // only for string or id
-use @ast_name[Pointer[U8] val](ast: Pointer[_AST] box)
+use @ast_name[UnsafePointer[U8] val](ast: Pointer[_AST] box)
 use @ast_name_len[USize](ast: Pointer[_AST] box)
-use @ast_nice_name[Pointer[U8] val](ast: Pointer[_AST] box)
+use @ast_nice_name[UnsafePointer[U8] val](ast: Pointer[_AST] box)
 use @ast_type[Pointer[_AST] val](ast: Pointer[_AST] box)
-use @ast_print_type[Pointer[U8] val](ast: Pointer[_AST] box)
-use @ast_print[Pointer[U8] val](ast: Pointer[_AST] box, width: USize)
+use @ast_print_type[UnsafePointer[U8] val](ast: Pointer[_AST] box)
+use @ast_print[UnsafePointer[U8] val](ast: Pointer[_AST] box, width: USize)
 // mark the given AST as having its own scope
 //use @ast_scope[None](ast: _AST ref)
 use @ast_get[Pointer[_AST] val](ast: Pointer[_AST] box, name: Pointer[U8] tag, status: NullablePointer[SymStatus])
@@ -38,7 +38,7 @@ use @ast_childcount[USize](ast: Pointer[_AST] box)
 use @ast_data[Pointer[None]](ast: Pointer[_AST] box)
 use @ast_index[USize](ast: Pointer[_AST] box)
 use @ast_has_annotation[Bool](ast: Pointer[_AST] box, name: Pointer[U8] tag)
-use @ast_get_print[Pointer[U8] val](ast: Pointer[_AST] box)
+use @ast_get_print[UnsafePointer[U8] val](ast: Pointer[_AST] box)
 
 
 primitive _AST

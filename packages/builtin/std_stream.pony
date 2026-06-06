@@ -1,9 +1,9 @@
-use @pony_os_stdout[Pointer[U8]]()
-use @pony_os_stderr[Pointer[U8]]()
-use @pony_os_std_flush[None](file: Pointer[None] tag)
-use @pony_os_std_print[None](file: Pointer[None] tag, buffer: Pointer[U8] tag,
+use @pony_os_stdout[UnsafePointer[U8]]()
+use @pony_os_stderr[UnsafePointer[U8]]()
+use @pony_os_std_flush[None](file: UnsafePointer[None] tag)
+use @pony_os_std_print[None](file: UnsafePointer[None] tag, buffer: Pointer[U8] tag,
   size: USize)
-use @pony_os_std_write[None](file: Pointer[None] tag, buffer: Pointer[U8] tag,
+use @pony_os_std_write[None](file: UnsafePointer[None] tag, buffer: Pointer[U8] tag,
   size: USize)
 type ByteSeq is (String | Array[U8] val)
 
@@ -47,7 +47,7 @@ actor StdStream
   Asynchronous access to stdout and stderr. The constructors are private to
   ensure that access is provided only via an environment.
   """
-  var _stream: Pointer[U8]
+  var _stream: UnsafePointer[U8]
 
   new _out() =>
     """

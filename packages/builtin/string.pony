@@ -125,9 +125,11 @@ actor Main
       _ptr = str
     end
 
-  new copy_cpointer(str: Pointer[U8] box, len: USize) =>
+  new copy_cpointer(str: UnsafePointer[U8] box, len: USize) =>
     """
-    Create a string by copying a fixed number of bytes from a pointer.
+    Create a string by copying a fixed number of bytes from a pointer. The
+    source is an `UnsafePointer` because copying is how data from outside Pony's
+    memory-safety guarantees is brought into a Pony-managed `String`.
     """
     if str.is_null() then
       _size = 0
@@ -141,12 +143,14 @@ actor Main
       str._copy_to(_ptr, _alloc)
     end
 
-  new copy_cstring(str: Pointer[U8] box) =>
+  new copy_cstring(str: UnsafePointer[U8] box) =>
     """
     Create a string by copying a null-terminated C string. Note that
     the scan is unbounded; the pointed to data must be null-terminated
     within the allocated array to preserve memory safety. If a null
-    pointer is given then an empty string is returned.
+    pointer is given then an empty string is returned. The source is an
+    `UnsafePointer` because copying is how data from outside Pony's
+    memory-safety guarantees is brought into a Pony-managed `String`.
     """
     if str.is_null() then
       _size = 0

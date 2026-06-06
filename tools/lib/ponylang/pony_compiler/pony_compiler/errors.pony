@@ -111,11 +111,11 @@ class val Error
 
 
 struct val _ErrorMsg
-  var file: Pointer[U8] val = recover val file.create() end
+  var file: UnsafePointer[U8] val = recover val file.create() end
   var line: USize = 0
   var pos: USize = 0
-  var msg: Pointer[U8] val = recover val msg.create() end
-  var source: Pointer[U8] val = recover val source.create() end
+  var msg: UnsafePointer[U8] val = recover val msg.create() end
+  var source: UnsafePointer[U8] val = recover val source.create() end
   var frame: NullablePointer[_ErrorMsg] val = frame.none()
   var next: NullablePointer[_ErrorMsg] val = next.none()
 
