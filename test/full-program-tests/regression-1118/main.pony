@@ -1,47 +1,45 @@
-use "collections"
-use @printf[I32](fmt: Pointer[U8] tag, ...)
-use "time"
+use "lib:regression-1118-additional"
+use @pony_exitcode[None](code: I32)
+use @gc_foreign[Pointer[None]](recv: Receiver)
+use @actormap_has_actor[Bool](map: Pointer[None], target: Target tag)
+use @actormap_actor_rc[USize](map: Pointer[None], target: Target tag)
 
-actor _BoomActor
-  be dispatch(request: Payload) =>
-    request.holder = _BoomActorHolder(this)
-    boom_behavior(consume request, Payload)
+// Regression test for https://github.com/ponylang/ponyc/issues/1118.
+//
+// #1118 was caused by an unsafe garbage collection optimization: an immutable
+// object sent between actors was not traced, on the assumption that immutable
+// roots don't need per-object reference counting. When such an object contained
+// a reference to an actor, the actor's foreign reference count was never
+// incremented, so the actor could be reaped while a live reference to it still
+// existed inside the object. That produced an intermittent use-after-free
+// segfault. The fix (#4256) traces any type the compiler marks as
+// `might_reference_actor`.
+//
+// Rather than racing to reproduce the crash with a stress loop (which is timing
+// dependent and times out on slow CI hardware), this test asserts the invariant
+// the fix restores: when an immutable object carrying an actor reference
+// crosses an inter-actor send, the reference is counted. `Receiver` sends back
+// exit code 1 only when the carried actor is present in its foreign actormap
+// with the expected reference count; with the bug present the actor is absent
+// and the exit code is 0.
 
-  be boom_behavior(request: Payload val, response: Payload val) =>
-    None
+actor Target
 
-class val _BoomActorHolder
-  let boom_actor: _BoomActor
-  new val create(boom_actor': _BoomActor) => boom_actor = boom_actor'
+class val Holder
+  let t: Target
+  new val create(t': Target) => t = t'
 
-class iso Payload
-  var holder: (_BoomActorHolder | None) = None
+actor Receiver
+  be take(h: Holder) =>
+    // `h.t` reached this actor only inside the immutable `Holder`. If it was
+    // traced on send, `Target` is now in our foreign actormap with rc == 1.
+    let map = @gc_foreign(this)
+    let ok = @actormap_has_actor(map, h.t) and
+      (@actormap_actor_rc(map, h.t) == 1)
+    @pony_exitcode(I32(if ok then 1 else 0 end))
 
 actor Main
   new create(env: Env) =>
-    // Skip on arm64 Windows: the CI runners are too slow for this stress test
-    // and it regularly times out for reasons unrelated to the regression.
-    ifdef windows and arm then
-      return
-    end
-
-    let t = Test
-
-    @printf("starting loop\n".cstring())
-    for i in Range(0, 500_000) do
-      t.do_it()
-    end
-    @printf("finished loop\n".cstring())
-
-  fun @runtime_override_defaults(rto: RuntimeOptions) =>
-     rto.ponynoblock = true
-
-actor Test
-  var c: U64 = 0
-
-  be do_it() =>
-    c = c + 1
-    if (c % 10_000) == 0 then
-      @printf("Boom actor dispatch number: %ld at %ld\n".cstring(), c, Time.seconds())
-    end
-    _BoomActor.dispatch(Payload)
+    let target = Target
+    let h = recover val Holder(target) end
+    Receiver.take(consume h)
