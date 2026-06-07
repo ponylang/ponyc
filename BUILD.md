@@ -55,6 +55,18 @@ doas gmake install
 
 Note that you only need to run `gmake libs` once the first time you build (or if the version of LLVM in the `lib/llvm/src` Git submodule changes).
 
+### Unsupported build options
+
+Several `use=` build options aren't supported on OpenBSD, because OpenBSD doesn't ship the runtime, headers, or tooling they depend on:
+
+- `use=address_sanitizer` and `use=thread_sanitizer` — OpenBSD's base clang rejects `-fsanitize=address`/`-fsanitize=thread`; there is no AddressSanitizer or ThreadSanitizer runtime in base.
+- `use=undefined_behavior_sanitizer` — OpenBSD ships only the minimal UndefinedBehaviorSanitizer runtime (`libclang_rt.ubsan_minimal.a`), not the standalone runtime ponyc links against, so the link fails.
+- `use=coverage` — OpenBSD's base profiling runtime (`libclang_rt.profile.a`) is incomplete, so coverage-instrumented builds fail to link.
+- `use=valgrind` — Valgrind has no OpenBSD port, so its development headers aren't available to build against.
+- `use=dtrace` — OpenBSD ships no DTrace-compatible probe-generation tool (its `btrace` is a separate tracer with no USDT support).
+
+`gmake configure` rejects these uses on OpenBSD with an error rather than letting the build fail partway through with a confusing compiler, linker, or missing-tool message.
+
 ## DragonFly
 
 DragonFly BSD's base compiler (GCC 8.3) cannot build the vendored LLVM. Install GCC 13 and the required atomics package, then build with the packaged compiler:

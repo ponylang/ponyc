@@ -67,8 +67,10 @@ else ifneq (,$(shell $(CC) --version 2>&1 | grep "Free Software Foundation"))
   endif
 endif
 
+HOST_OS := $(shell uname -s)
+
 # Make sure the compiler gets all relevant search paths on FreeBSD/OpenBSD/DragonFly
-ifneq (,$(filter FreeBSD OpenBSD DragonFly,$(shell uname -s)))
+ifneq (,$(filter FreeBSD OpenBSD DragonFly,$(HOST_OS)))
   ifeq (,$(findstring /usr/local/include,$(shell echo $CPATH)))
     export CPATH = /usr/local/include:$CPATH
   endif
@@ -124,14 +126,29 @@ space:= $(empty) $(empty)
 define USE_CHECK
   $$(info Enabling use option: $1)
   ifeq ($1,valgrind)
+    ifeq ($$(HOST_OS),OpenBSD)
+      $$(error Valgrind is not supported on OpenBSD: Valgrind has no OpenBSD port, so its development headers aren't available. See BUILD.md)
+    endif
     PONY_USES += -DPONY_USE_VALGRIND=true
   else ifeq ($1,thread_sanitizer)
+    ifeq ($$(HOST_OS),OpenBSD)
+      $$(error ThreadSanitizer is not supported on OpenBSD: the base toolchain ships no ThreadSanitizer runtime. See BUILD.md)
+    endif
     PONY_USES += -DPONY_USE_THREAD_SANITIZER=true
   else ifeq ($1,address_sanitizer)
+    ifeq ($$(HOST_OS),OpenBSD)
+      $$(error AddressSanitizer is not supported on OpenBSD: the base toolchain ships no AddressSanitizer runtime. See BUILD.md)
+    endif
     PONY_USES += -DPONY_USE_ADDRESS_SANITIZER=true
   else ifeq ($1,undefined_behavior_sanitizer)
+    ifeq ($$(HOST_OS),OpenBSD)
+      $$(error UndefinedBehaviorSanitizer is not supported on OpenBSD: the base toolchain ships only the minimal UBSan runtime, not the standalone runtime ponyc links against. See BUILD.md)
+    endif
     PONY_USES += -DPONY_USE_UNDEFINED_BEHAVIOR_SANITIZER=true
   else ifeq ($1,coverage)
+    ifeq ($$(HOST_OS),OpenBSD)
+      $$(error Coverage instrumentation is not supported on OpenBSD: the base toolchain's profiling runtime is incomplete, so coverage builds fail to link. See BUILD.md)
+    endif
     PONY_USES += -DPONY_USE_COVERAGE=true
   else ifeq ($1,pooltrack)
     PONY_USES += -DPONY_USE_POOLTRACK=true
@@ -236,7 +253,7 @@ test-libponyrt: all
 test-libponyc: all
 	$(SILENT)cd '$(outDir)' && $(debuggercmd) ./libponyc.tests --gtest_shuffle $(testextras)
 
-ifneq (,$(filter FreeBSD OpenBSD DragonFly Darwin,$(shell uname -s)))
+ifneq (,$(filter FreeBSD OpenBSD DragonFly Darwin,$(HOST_OS)))
   num_cores := `sysctl -n hw.ncpu`
 else
   num_cores := `nproc --all`
