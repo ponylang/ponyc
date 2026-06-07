@@ -55,7 +55,7 @@ doas gmake install
 
 Note that you only need to run `gmake libs` once the first time you build (or if the version of LLVM in the `lib/llvm/src` Git submodule changes).
 
-### Unsupported build options
+### Unsupported OpenBSD build options
 
 Several `use=` build options aren't supported on OpenBSD, because OpenBSD doesn't ship the runtime, headers, or tooling they depend on:
 
@@ -81,7 +81,7 @@ sudo gmake install
 
 Note that you only need to run `gmake libs` once the first time you build (or if the version of LLVM in the `lib/llvm/src` Git submodule changes).
 
-### Unsupported build options
+### Unsupported DragonFly BSD build options
 
 The sanitizer `use=` build options aren't supported on DragonFly, because the `gcc13` toolchain ponyc builds with doesn't ship their runtimes (GCC's libsanitizer has no DragonFly target, so no `libasan`/`libtsan`/`libubsan` is built):
 
