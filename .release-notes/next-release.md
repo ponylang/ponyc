@@ -142,3 +142,7 @@ This is fixed:
 
 One related change: a `while` or `repeat` loop that jumps away makes any code after it unreachable, so the compiler now reports `unreachable code` for it — the same error an equivalent `if` already gives. This affects a loop used as the body of a function with no explicit return, such as `while true do break else return end`, which previously compiled.
 
+## Use embedded LLD for native FreeBSD sanitizer builds
+
+When ponyc is built with sanitizers (such as `address_sanitizer` or `undefined_behavior_sanitizer`) on FreeBSD, it now links the programs it compiles with its built-in LLD linker, the same as every other build, instead of falling back to your system C compiler to perform the link. Sanitizer-enabled native FreeBSD compilation no longer depends on having an external compiler driver present and usable as a linker.
+
