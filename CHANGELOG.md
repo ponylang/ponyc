@@ -22,6 +22,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Use embedded LLD for native Linux sanitizer builds ([PR #5409](https://github.com/ponylang/ponyc/pull/5409))
 - Remove serialization methods from JsonObject and JsonArray ([PR #5397](https://github.com/ponylang/ponyc/pull/5397))
 - Rename JsonObject and JsonArray serialization methods ([PR #5397](https://github.com/ponylang/ponyc/pull/5397))
+- Use embedded LLD for native FreeBSD sanitizer builds ([PR #5426](https://github.com/ponylang/ponyc/pull/5426))
 
 ## [0.64.0] - 2026-05-30
 
