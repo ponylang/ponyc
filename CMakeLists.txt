@@ -148,8 +148,8 @@ endif()
 # clang_rt static archives + --dynamic-list) and gcc (preinit object + shared
 # -lasan/-lubsan). The fragment's library paths are absolute on the build
 # machine, which is fine: a sanitizer ponyc is a developer/CI artifact that runs
-# where it was built. Linux native sanitizer builds are the only ones that
-# consume this today (see genexe.cc); the splice is gated on !is_cross_compiling.
+# where it was built. Native Linux and native FreeBSD sanitizer builds consume
+# this (see genexe.cc); the splice is gated on !is_cross_compiling.
 
 # Extract the linker subcommand's arguments from a compiler "-###" stderr dump.
 # The link subcommand is the line naming the probe object (clang emits a direct

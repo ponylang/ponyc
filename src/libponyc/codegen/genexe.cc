@@ -1051,6 +1051,25 @@ static bool link_exe_lld_elf(compile_t* c, ast_t* program,
   args.push_back("--build-id");
   args.push_back("--eh-frame-hdr");
 
+#if defined(PONY_SANITIZER)
+  // FreeBSD: the self-hosted tools link libponyc-standalone.a, which bundles
+  // the base system libc++.a — and FreeBSD's libc++.a carries libcxxrt (the
+  // C++ ABI) as members (cxxrt_exception.o etc.). The sanitizer fragment
+  // spliced below whole-archives libclang_rt.asan, which provides its own
+  // __cxa_throw / __cxa_rethrow_primary_exception interceptors; those collide
+  // with libcxxrt's, which gets pulled in to satisfy the other C++ ABI symbols
+  // (__cxa_begin_catch etc.) the bundled LLVM/lld code references. Allow the
+  // duplicate so the asan interceptor (emitted first) wins. Which copy wins is
+  // immaterial in practice: the vendored LLVM/lld are built with exceptions
+  // disabled (LLVM_ENABLE_EH OFF), so nothing actually throws through
+  // __cxa_throw here — the collision is a pure ABI-completeness artifact, not a
+  // live unwinding path. Programs that don't bundle a C++ ABI statically — the
+  // common case, including any normal Pony program linking only libponyrt —
+  // have no duplicate and are unaffected.
+  if(is_freebsd)
+    args.push_back("--allow-multiple-definition");
+#endif
+
   // OpenBSD's libc CRT defines the program entry point as `__start`
   // (double underscore). lld defaults to `_start` (single underscore) on
   // ELF, so without an explicit override the link fails with an
@@ -1283,35 +1302,43 @@ static bool link_exe_lld_elf(compile_t* c, ast_t* program,
   // must link the sanitizer runtime. PONY_SANITIZER_LINK_ARGS is the exact
   // fragment the compiler driver emits for -fsanitize=<PONY_SANITIZER>, captured
   // at ponyc build time (see the PONY_SANITIZERS_ENABLED block in the top-level
-  // CMakeLists.txt). Its contents are compiler-specific (clang: whole-archived
-  // clang_rt static archives + --dynamic-list + a few syslibs; gcc:
-  // libasan_preinit.o + shared -lasan/-lubsan) and its library paths are
-  // absolute on the build machine.
+  // CMakeLists.txt). Its contents are compiler- and platform-specific:
+  //   - Linux clang: whole-archived clang_rt static archives + --dynamic-list
+  //     + a few syslibs.
+  //   - Linux gcc: libasan_preinit.o + shared -lasan/-lubsan.
+  //   - FreeBSD base clang: the asan_static + asan clang_rt archives, each
+  //     whole-archived, then --export-dynamic and
+  //     --no-as-needed -lpthread -lrt -lm -lexecinfo.
+  // The clang_rt archive paths are absolute on the build machine.
   //
-  // This function serves both the Linux and the BSD branches of link_exe.
-  // Native sanitizer linking via embedded LLD has only been done and verified
-  // for Linux; there is no native-ASan support for the BSDs yet. So the splice
-  // is gated on target_is_linux explicitly, rather than relying on the BSD
-  // branch of link_exe continuing to route native sanitizer builds to the
-  // legacy driver. The !is_cross_compiling gate additionally keeps the
-  // host-arch-absolute fragment out of any cross link routed here.
+  // This function serves the Linux and FreeBSD branches of link_exe — the
+  // native sanitizer builds that reach embedded LLD. macOS, DragonFly, and
+  // OpenBSD native sanitizer builds still route through the legacy compiler
+  // driver (which pulls the runtime in via -fsanitize=), so they never reach
+  // this splice; it is gated on the targets explicitly rather than relying on
+  // link_exe's routing alone. The !is_cross_compiling gate additionally keeps
+  // the host-arch-absolute fragment out of any cross link routed here.
   //
   // The fragment is spliced as one contiguous block immediately before file_o.
-  // That order is correct for every piece: objects and static archives that
-  // provide symbols (clang's whole-archived clang_rt, gcc's preinit object)
-  // must precede the instrumented object/runtime so their members are pulled
-  // in, and shared libraries (gcc's -lasan/-lubsan, clang's -lrt/-lresolv) are
-  // position-insensitive (DT_NEEDED), so emitting them here rather than after
-  // the object is harmless. Any linker-state flags in the fragment (clang emits
-  // --no-as-needed) only re-assert the ELF linker's default state, so they have
-  // no lasting effect on the libraries ponyc emits afterward. Pieces ponyc also
-  // emits after the object (e.g. -lpthread) simply appear twice, harmlessly.
+  // That order is correct for every piece on both platforms: objects and static
+  // archives that provide symbols (clang's whole-archived clang_rt, gcc's
+  // preinit object) must precede the instrumented object/runtime so their
+  // members are pulled in, and shared libraries (gcc's -lasan/-lubsan, FreeBSD
+  // clang's -lrt/-lpthread/-lm/-lexecinfo) are position-insensitive (DT_NEEDED),
+  // so emitting them here rather than after the object is harmless. Any
+  // linker-state flags in the fragment (clang's --no-as-needed, FreeBSD clang's
+  // --export-dynamic) either re-assert the ELF linker's default state or set a
+  // whole-link property the sanitizer runtime needs, so their position in the
+  // fragment is immaterial. Pieces ponyc also emits after the object (FreeBSD's
+  // -lpthread/-lm/-lexecinfo) simply appear twice, harmlessly.
   //
-  // gcc's fragment carries bare -lasan/-lubsan (not absolute paths); they
-  // resolve via the -L search paths ponyc already emits earlier in this
-  // function (the gcc lib dir and the standard system fallbacks), so don't drop
-  // those without accounting for the sanitizer runtime.
-  if(target_is_linux(c->opt->triple) && !is_cross_compiling(c))
+  // Bare -l fragments (gcc's -lasan/-lubsan, FreeBSD's -lrt/-lpthread/-lm/
+  // -lexecinfo — not absolute paths) resolve via the -L search paths ponyc
+  // already emits earlier in this function: on Linux the gcc lib dir and the
+  // standard system fallbacks, on FreeBSD the -L<libc_crt_dir> (/usr/lib) push.
+  // Don't drop those without accounting for the sanitizer runtime.
+  if((target_is_linux(c->opt->triple) || target_is_freebsd(c->opt->triple))
+    && !is_cross_compiling(c))
   {
     for(size_t i = 0; i < PONY_SANITIZER_LINK_ARGS_COUNT; i++)
       args.push_back(PONY_SANITIZER_LINK_ARGS[i]);
@@ -1975,11 +2002,12 @@ static bool link_exe(compile_t* c, ast_t* program,
   errors_t* errors = c->opt->check.errors;
 
   // Use embedded LLD for Linux, macOS, and Windows targets unless --linker
-  // escape hatch is specified. On Linux, native sanitizer builds use embedded
-  // LLD too: link_exe_lld_elf links the sanitizer runtime explicitly from a
-  // fragment captured at ponyc build time. On macOS and the BSDs, native
-  // sanitizer builds still fall back to the system compiler driver (which
-  // links the runtime via -fsanitize=); cross-compilation always uses LLD.
+  // escape hatch is specified. On Linux and FreeBSD, native sanitizer builds
+  // use embedded LLD too: link_exe_lld_elf links the sanitizer runtime
+  // explicitly from a fragment captured at ponyc build time. On macOS,
+  // DragonFly, and OpenBSD, native sanitizer builds still fall back to the
+  // system compiler driver (which links the runtime via -fsanitize=);
+  // cross-compilation always uses LLD.
 #ifdef PLATFORM_IS_POSIX_BASED
   if(c->opt->linker == NULL
     && target_is_linux(c->opt->triple))
@@ -2003,13 +2031,21 @@ static bool link_exe(compile_t* c, ast_t* program,
   // dtrace_probes/libelf libs available — use=dtrace builds for those
   // targets are already broken; the guard preserves that failure mode
   // rather than introducing a new one.)
+  //
+  // In a sanitizer build, native FreeBSD also routes here: link_exe_lld_elf
+  // splices in the captured sanitizer fragment (see the splice above), and the
+  // capture has been verified against FreeBSD base clang. Native DragonFly and
+  // OpenBSD sanitizer builds stay on the legacy driver — their fragment shapes
+  // are unverified — so the sanitizer sub-gate admits only native FreeBSD (and
+  // any cross link, whose runtime is host-arch-absolute and handled by the
+  // !is_cross_compiling gate at the splice).
 #if !defined(USE_DYNAMIC_TRACE)
   if(c->opt->linker == NULL
     && (target_is_freebsd(c->opt->triple)
         || target_is_dragonfly(c->opt->triple)
         || target_is_openbsd(c->opt->triple))
 #if defined(PONY_SANITIZER)
-    && is_cross_compiling(c)
+    && (is_cross_compiling(c) || target_is_freebsd(c->opt->triple))
 #endif
     )
   {
