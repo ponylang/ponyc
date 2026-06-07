@@ -81,6 +81,16 @@ sudo gmake install
 
 Note that you only need to run `gmake libs` once the first time you build (or if the version of LLVM in the `lib/llvm/src` Git submodule changes).
 
+### Unsupported build options
+
+The sanitizer `use=` build options aren't supported on DragonFly, because the `gcc13` toolchain ponyc builds with doesn't ship their runtimes (GCC's libsanitizer has no DragonFly target, so no `libasan`/`libtsan`/`libubsan` is built):
+
+- `use=address_sanitizer` — no AddressSanitizer runtime, so the link fails (`cannot find -lasan`).
+- `use=thread_sanitizer` — no ThreadSanitizer runtime, so the link fails (`cannot find -ltsan`).
+- `use=undefined_behavior_sanitizer` — no UndefinedBehaviorSanitizer runtime, so the link fails (`cannot find -lubsan`).
+
+`gmake configure` rejects these uses on DragonFly with an error rather than letting the build fail partway through with a confusing linker message.
+
 ## Linux
 
 ```bash
