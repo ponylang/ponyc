@@ -91,6 +91,11 @@ The sanitizer `use=` build options aren't supported on DragonFly, because the `g
 
 `gmake configure` rejects these uses on DragonFly with an error rather than letting the build fail partway through with a confusing linker message.
 
+`use=coverage` and `use=valgrind` aren't rejected, but neither currently works on DragonFly:
+
+- `use=coverage` — the coverage-instrumented runtime needs `libgcov`, which ponyc's embedded linker doesn't supply, so linking any Pony program fails ([#5434](https://github.com/ponylang/ponyc/issues/5434)).
+- `use=valgrind` — builds, and the Pony programs it compiles link, but DragonFly ships Valgrind 3.15, which is too old to run a Pony program ([#5435](https://github.com/ponylang/ponyc/issues/5435)).
+
 ## Linux
 
 ```bash
@@ -204,7 +209,7 @@ make build
 
 ## dtrace
 
-BSD and Linux based versions of Pony support using DTrace and SystemTap for collecting Pony runtime events. MacOS while being "BSD-like" in places does not support Dtrace due to functionality having been removed by Apple.
+Linux and FreeBSD support collecting Pony runtime events, through SystemTap on Linux and DTrace on FreeBSD. No other platform is supported: macOS removed DTrace, and neither DragonFly BSD nor OpenBSD ships a DTrace-compatible probe-generation tool.
 
 DTrace support is enabled by setting `use=dtrace` in the build command line like:
 
