@@ -208,12 +208,42 @@ static ast_result_t scope_iftype(pass_opt_t* opt, ast_t* ast)
   pony_assert(ast_id(ast) == TK_IFTYPE);
 
   AST_GET_CHILDREN(ast, subtype, supertype, body, typeparam_store);
-  // Prevent this from running again, if, for example, the iftype
-  // occurs inside an object literal (or lambda). In those cases,
-  // a "catch up" will take place and the compiler will try to run
-  // this pass again.
+  // When the iftype occurs inside an object literal (or lambda), this pass
+  // runs again during the "catch up" that processes the anonymous type. We've
+  // already built the synthetic narrowed type parameters on the first run and
+  // parked them in typeparam_store, so we don't rebuild them. But the catch up
+  // empties this node's symbol table (capture_from_type clears every symtab in
+  // the subtree via ast_clear), which drops the scope binding set_scope
+  // established on the first run. Without it, references to the narrowed type
+  // parameter in the supertype and body bind back to the original, un-narrowed
+  // parameter, so a narrowing condition — including a valid F-bounded one such
+  // as `iftype A <: T[A]` against `trait T[X: T[X]]` — fails to type-check.
+  // Re-install the stored parameters so name resolution finds them again,
+  // exactly as at method scope.
   if(ast_id(typeparam_store) != TK_NONE)
-    return AST_IGNORE;
+  {
+    for(ast_t* typeparam = ast_child(typeparam_store); typeparam != NULL;
+      typeparam = ast_sibling(typeparam))
+    {
+      // Re-install the stored node itself, never a copy. The symtab was just
+      // emptied, so this is a fresh add; but the AST_OK descent below visits
+      // typeparam_store and runs set_scope on these same nodes again, where
+      // set_scope no-ops because the name already maps to this exact node. A
+      // copy would be a different node and would error as a name clash there.
+      if(!set_scope(opt, ast, ast_child(typeparam), typeparam, true))
+        return AST_ERROR;
+    }
+
+    // Return AST_OK, not AST_IGNORE, so the scope pass still descends into
+    // the children on the catch up, exactly as the first run does. This
+    // matters for a nested iftype in the then branch: its own scope_iftype
+    // must run here to re-install its narrowed parameter. AST_IGNORE would
+    // skip the descent, so the inner condition would never be re-scoped and
+    // its references would bind to the un-narrowed parameter — the same bug
+    // this fix addresses, one level in. It also leaves the then branch's own
+    // local bindings unscoped, which crashes a later pass (see #5441).
+    return AST_OK;
+  }
 
   ast_t* typeparams = ast_from(ast, TK_TYPEPARAMS);
 
