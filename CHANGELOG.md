@@ -12,6 +12,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Report an error for infinitely recursive generic types ([PR #5411](https://github.com/ponylang/ponyc/pull/5411))
 - Fix compiler crash on partial application of a method with a literal default argument ([PR #5412](https://github.com/ponylang/ponyc/pull/5412))
 - Fix compiler crashes in while and repeat loops that jump away ([PR #5418](https://github.com/ponylang/ponyc/pull/5418))
+- Reject tuple types hidden in an intersection within a type constraint ([PR #5439](https://github.com/ponylang/ponyc/pull/5439))
 
 ### Added
 
