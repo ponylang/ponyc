@@ -1364,6 +1364,27 @@ static bool link_exe_lld_elf(compile_t* c, ast_t* program,
     }
   }
 
+#if defined(USE_DYNAMIC_TRACE)
+  // FreeBSD use=dtrace builds: pull in the DOF object and its probe-
+  // registration constructor. `dtrace -G` on FreeBSD rewrites the probe
+  // sites inside libponyrt's objects and emits the DOF plus a constructor
+  // into a separate libdtrace_probes.a (see src/libponyrt/CMakeLists.txt);
+  // the constructor is otherwise unreferenced, so --whole-archive is what
+  // keeps it in the link. libdtrace_probes.a sits in the same lib dir as
+  // libponyrt.a, so it resolves from the -L paths already pushed above; the
+  // DOF object needs libelf, found on the system -L paths. This mirrors the
+  // legacy path's dtrace_args (placed before -lponyrt there too). Gated on
+  // is_freebsd (target), not the build platform: DragonFly/OpenBSD have no
+  // dtrace_probes/libelf and never route here for dtrace builds.
+  if(is_freebsd)
+  {
+    args.push_back("--whole-archive");
+    args.push_back("-ldtrace_probes");
+    args.push_back("--no-whole-archive");
+    args.push_back("-lelf");
+  }
+#endif
+
   // Pony runtime.
   if(!c->opt->runtimebc)
   {
@@ -2025,12 +2046,14 @@ static bool link_exe(compile_t* c, ast_t* program,
     return link_exe_lld_macho(c, program, file_o);
   }
 
-  // FreeBSD, DragonFly, and OpenBSD route to embedded LLD unless ponyc
-  // was built with dtrace, in which case the external path below handles
-  // the -ldtrace_probes linking. (DragonFly and OpenBSD have no
-  // dtrace_probes/libelf libs available — use=dtrace builds for those
-  // targets are already broken; the guard preserves that failure mode
-  // rather than introducing a new one.)
+  // FreeBSD, DragonFly, and OpenBSD route to embedded LLD. FreeBSD does so
+  // even in a use=dtrace build: link_exe_lld_elf adds the
+  // -ldtrace_probes/-lelf linking that the legacy path below adds via
+  // dtrace_args. DragonFly and OpenBSD route here only when ponyc was NOT
+  // built with dtrace — they have no dtrace_probes/libelf libs available, so
+  // their use=dtrace builds are already broken; excluding them from the gate
+  // keeps them on the legacy path and preserves that failure mode rather than
+  // introducing a new one.
   //
   // In a sanitizer build, native FreeBSD also routes here: link_exe_lld_elf
   // splices in the captured sanitizer fragment (see the splice above), and the
@@ -2039,11 +2062,14 @@ static bool link_exe(compile_t* c, ast_t* program,
   // are unverified — so the sanitizer sub-gate admits only native FreeBSD (and
   // any cross link, whose runtime is host-arch-absolute and handled by the
   // !is_cross_compiling gate at the splice).
+  bool bsd_embed = target_is_freebsd(c->opt->triple)
 #if !defined(USE_DYNAMIC_TRACE)
+    || target_is_dragonfly(c->opt->triple)
+    || target_is_openbsd(c->opt->triple)
+#endif
+    ;
   if(c->opt->linker == NULL
-    && (target_is_freebsd(c->opt->triple)
-        || target_is_dragonfly(c->opt->triple)
-        || target_is_openbsd(c->opt->triple))
+    && bsd_embed
 #if defined(PONY_SANITIZER)
     && (is_cross_compiling(c) || target_is_freebsd(c->opt->triple))
 #endif
@@ -2051,7 +2077,6 @@ static bool link_exe(compile_t* c, ast_t* program,
   {
     return link_exe_lld_elf(c, program, file_o);
   }
-#endif
 #endif
 
 #ifdef PLATFORM_IS_WINDOWS

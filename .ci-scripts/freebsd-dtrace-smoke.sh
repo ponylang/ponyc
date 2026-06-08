@@ -37,7 +37,20 @@ actor Spinner
   be noop() => None
 PONY
 
-PONYPATH="$PWD/packages" ./build/debug-dtrace/ponyc -o "$smoke" "$smoke"
+# Link at -V 3 (VERBOSITY_TOOL_INFO) so the linker invocation is printed, and
+# assert it went through embedded LLD with the dtrace_probes whole-archive.
+# This pins the routing: the legacy compiler-driver path also links a working
+# dtrace program, so without this assertion a silent regression back to the
+# legacy driver would still build, link, run, and fire probes — passing the
+# rest of this smoke. The grep targets `ld.lld` (embedded LLD's argv[0], never
+# emitted by the legacy `cc` recipe) and the dtrace whole-archive fragment.
+PONYPATH="$PWD/packages" ./build/debug-dtrace/ponyc -V 3 -o "$smoke" "$smoke" \
+  2>"$smoke/link.log"
+grep -q 'ld\.lld' "$smoke/link.log" || {
+  echo "FAIL: dtrace link did not route through embedded LLD (no ld.lld)"; exit 1; }
+grep -q -- '--whole-archive -ldtrace_probes' "$smoke/link.log" || {
+  echo "FAIL: dtrace link missing --whole-archive -ldtrace_probes"; exit 1; }
+echo "dtrace link routed through embedded LLD"
 "$smoke/dtrace-smoke"
 
 # If the VM can load the dtrace device, assert a pony provider probe actually
