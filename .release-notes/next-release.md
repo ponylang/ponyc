@@ -165,3 +165,9 @@ constraint contains a tuple; tuple types can't be used as type constraints
 
 When ponyc is built with `use=dtrace` on FreeBSD, it now links the programs it compiles with its built-in LLD linker, the same as every other build, instead of falling back to your system C compiler to perform the link. A `use=dtrace` compiler no longer depends on having an external compiler driver present and usable as a linker, and the programs it builds register and fire their `pony` provider DTrace probes exactly as before.
 
+## Update supported OpenBSD version to 7.9
+
+The supported version of OpenBSD is now 7.9. Our continuous integration builds and tests ponyc against OpenBSD 7.9.
+
+We won't intentionally break OpenBSD 7.8, but we are no longer actively maintaining support for it. If you need ponyc on OpenBSD, we recommend running 7.9.
+
