@@ -134,15 +134,24 @@ define USE_CHECK
     ifeq ($$(HOST_OS),OpenBSD)
       $$(error ThreadSanitizer is not supported on OpenBSD: the base toolchain ships no ThreadSanitizer runtime. See BUILD.md)
     endif
+    ifeq ($$(HOST_OS),DragonFly)
+      $$(error ThreadSanitizer is not supported on DragonFly: the gcc toolchain ships no ThreadSanitizer runtime. See BUILD.md)
+    endif
     PONY_USES += -DPONY_USE_THREAD_SANITIZER=true
   else ifeq ($1,address_sanitizer)
     ifeq ($$(HOST_OS),OpenBSD)
       $$(error AddressSanitizer is not supported on OpenBSD: the base toolchain ships no AddressSanitizer runtime. See BUILD.md)
     endif
+    ifeq ($$(HOST_OS),DragonFly)
+      $$(error AddressSanitizer is not supported on DragonFly: the gcc toolchain ships no AddressSanitizer runtime. See BUILD.md)
+    endif
     PONY_USES += -DPONY_USE_ADDRESS_SANITIZER=true
   else ifeq ($1,undefined_behavior_sanitizer)
     ifeq ($$(HOST_OS),OpenBSD)
       $$(error UndefinedBehaviorSanitizer is not supported on OpenBSD: the base toolchain ships only the minimal UBSan runtime, not the standalone runtime ponyc links against. See BUILD.md)
+    endif
+    ifeq ($$(HOST_OS),DragonFly)
+      $$(error UndefinedBehaviorSanitizer is not supported on DragonFly: the gcc toolchain ships no UndefinedBehaviorSanitizer runtime. See BUILD.md)
     endif
     PONY_USES += -DPONY_USE_UNDEFINED_BEHAVIOR_SANITIZER=true
   else ifeq ($1,coverage)

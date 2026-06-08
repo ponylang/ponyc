@@ -539,6 +539,13 @@ jobs:
         run: |
           rsync -az -e "ssh -o StrictHostKeyChecking=no -i vm_key -p 2222" \
             "$GITHUB_WORKSPACE/" root@localhost:/build/ponyc/
+      - name: Assert unsupported build options are rejected
+        run: |
+          ssh -o StrictHostKeyChecking=no -i vm_key -p 2222 root@localhost /bin/sh <<'EOF'
+          set -e
+          cd /build/ponyc
+          sh .ci-scripts/dragonfly-reject-unsupported-builds.sh
+          EOF
       - name: Build and test
         run: |
           ssh -o StrictHostKeyChecking=no -o ServerAliveInterval=60 -i vm_key -p 2222 root@localhost /bin/sh <<'EOF'
