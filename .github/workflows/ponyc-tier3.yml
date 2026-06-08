@@ -201,7 +201,7 @@ jobs:
     needs: check-for-changes
     if: needs.check-for-changes.outputs.has-changes == 'true'
     runs-on: ubuntu-latest
-    name: x86-64 OpenBSD 7.8
+    name: x86-64 OpenBSD 7.9
     steps:
       - name: Checkout
         uses: actions/checkout@v6.0.2
@@ -221,7 +221,7 @@ jobs:
       - name: Download OpenBSD image
         run: |
           curl -L -o openbsd.qcow2 \
-            "https://github.com/hcartiaux/openbsd-cloud-image/releases/download/v7.8_2025-10-22-09-25/openbsd-generic.qcow2"
+            "https://github.com/hcartiaux/openbsd-cloud-image/releases/download/v7.9_2026-06-03-20-46/openbsd-generic.qcow2"
           # Build-workspace disk. OpenBSD's default disklabel confines the
           # build to /home (~10.8G), which the LLVM 22 build overflows, so
           # build on a dedicated disk instead, mirroring the DragonFly job.
