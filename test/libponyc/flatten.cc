@@ -149,6 +149,65 @@ TEST_F(FlattenTest, TupleConstraintFirstInUnion)
   ASSERT_EQ(16, errormsg->pos);
 }
 
+// regression for #5405
+TEST_F(FlattenTest, TupleConstraintInIsect)
+{
+  // The tuple is hidden inside an intersection within an aliased constraint.
+  // The constraint-tuple scan must descend intersections as well as unions;
+  // an earlier version only descended unions, letting this compile.
+  const char* src =
+    "type Blocksize is (U8 & (U8, U32))\n"
+    "class Block[T: Blocksize]";
+
+  TEST_ERRORS_1(
+    src,
+    "constraint contains a tuple; tuple types can't be used as type constraints"
+  );
+  errormsg_t* errormsg = errors_get_first(opt.check.errors);
+
+  ASSERT_EQ(2, errormsg->line);
+  ASSERT_EQ(16, errormsg->pos);
+}
+
+// regression for #5405
+TEST_F(FlattenTest, TupleConstraintInIsectWithinUnion)
+{
+  // The tuple is nested inside an intersection that is itself a member of a
+  // union. The scan must descend through both compound types to reach it.
+  const char* src =
+    "type Blocksize is (U8 | (U32 & (U8, U32)))\n"
+    "class Block[T: Blocksize]";
+
+  TEST_ERRORS_1(
+    src,
+    "constraint contains a tuple; tuple types can't be used as type constraints"
+  );
+  errormsg_t* errormsg = errors_get_first(opt.check.errors);
+
+  ASSERT_EQ(2, errormsg->line);
+  ASSERT_EQ(16, errormsg->pos);
+}
+
+// regression for #5405
+TEST_F(FlattenTest, TupleConstraintInUnionWithinIsect)
+{
+  // The tuple is nested inside a union that is itself a member of an
+  // intersection. The scan must descend from the intersection into the union
+  // to reach it — the mirror of TupleConstraintInIsectWithinUnion.
+  const char* src =
+    "type Blocksize is (U8 & (U8 | (U8, U32)))\n"
+    "class Block[T: Blocksize]";
+
+  TEST_ERRORS_1(
+    src,
+    "constraint contains a tuple; tuple types can't be used as type constraints"
+  );
+  errormsg_t* errormsg = errors_get_first(opt.check.errors);
+
+  ASSERT_EQ(2, errormsg->line);
+  ASSERT_EQ(16, errormsg->pos);
+}
+
 TEST_F(FlattenTest, TupleConstraintInNestedUnion)
 {
   // The tuple is nested inside a union within a union. The scan used to

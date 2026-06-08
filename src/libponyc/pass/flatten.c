@@ -71,11 +71,14 @@ static bool constraint_contains_tuple(ast_t* type)
     }
 
     case TK_UNIONTYPE:
+    case TK_ISECTTYPE:
     {
-      // Recurse into every member. Members can themselves be unions (a
-      // constraint isn't fully flattened when this runs during the visit
-      // of a contained typeparamref) or type aliases, so we must descend
-      // each one rather than scanning a single level.
+      // Recurse into every member. Members can themselves be unions,
+      // intersections (a constraint isn't fully flattened when this runs
+      // during the visit of a contained typeparamref) or type aliases, so we
+      // must descend each one rather than scanning a single level. A tuple in
+      // any member of an intersection still makes the constraint contain a
+      // tuple, so intersections descend the same way unions do.
       for(ast_t* child = ast_child(type); child != NULL;
         child = ast_sibling(child))
       {
