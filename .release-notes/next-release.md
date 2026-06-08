@@ -161,3 +161,7 @@ The compiler now rejects this with the same error it already gives for tuples in
 constraint contains a tuple; tuple types can't be used as type constraints
 ```
 
+## Use embedded LLD for FreeBSD use=dtrace builds
+
+When ponyc is built with `use=dtrace` on FreeBSD, it now links the programs it compiles with its built-in LLD linker, the same as every other build, instead of falling back to your system C compiler to perform the link. A `use=dtrace` compiler no longer depends on having an external compiler driver present and usable as a linker, and the programs it builds register and fire their `pony` provider DTrace probes exactly as before.
+
