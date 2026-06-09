@@ -268,8 +268,17 @@ static bool is_cross_compiling(compile_t* c)
   llvm::Triple host(default_triple_str);
   LLVMDisposeMessage(default_triple_str);
 
-  return target.getArch() != host.getArch()
-    || target.getOS() != host.getOS()
+  if(target.getArch() != host.getArch())
+    return true;
+
+  // Darwin and MacOSX are different Triple::OSType enum values but the same
+  // platform. The target triple uses "macosx" (after ponyc normalization)
+  // while LLVMGetDefaultTargetTriple returns "darwin"; comparing OS enums
+  // directly misidentifies every native macOS build as cross-compilation.
+  if(target.isMacOSX() && host.isMacOSX())
+    return false;
+
+  return target.getOS() != host.getOS()
     || target.getEnvironment() != host.getEnvironment();
 }
 
@@ -1312,7 +1321,9 @@ static bool link_exe_lld_elf(compile_t* c, ast_t* program,
   // The clang_rt archive paths are absolute on the build machine.
   //
   // This function serves the Linux and FreeBSD branches of link_exe — the
-  // native sanitizer builds that reach embedded LLD. macOS, DragonFly, and
+  // native ELF sanitizer builds that reach embedded LLD. macOS native
+  // sanitizer builds use the same captured fragment but splice it in
+  // link_exe_lld_macho (see that function's sanitizer block). DragonFly and
   // OpenBSD native sanitizer builds still route through the legacy compiler
   // driver (which pulls the runtime in via -fsanitize=), so they never reach
   // this splice; it is gated on the targets explicitly rather than relying on
@@ -1795,6 +1806,22 @@ static bool link_exe_lld_macho(compile_t* c, ast_t* program,
     }
   }
 
+#if defined(PONY_SANITIZER)
+  // Sanitizer runtime. The fragment captured at configure time
+  // (PONY_SANITIZER_LINK_ARGS) contains the Apple clang driver's sanitizer
+  // additions: an absolute path to the clang_rt dylib plus -rpath entries.
+  // Apple clang folds UBSan into ASan when both are enabled, so
+  // -fsanitize=address,undefined produces the same fragment as address alone.
+  // The fragment uses Mach-O linker flags compatible with ld64.lld.
+  // Only splice for native builds — the host-arch-absolute paths are wrong
+  // for cross links.
+  if(target_is_macosx(c->opt->triple) && !is_cross_compiling(c))
+  {
+    for(size_t i = 0; i < PONY_SANITIZER_LINK_ARGS_COUNT; i++)
+      args.push_back(PONY_SANITIZER_LINK_ARGS[i]);
+  }
+#endif
+
   // System library and Pony runtime.
   args.push_back("-lSystem");
 
@@ -2023,10 +2050,10 @@ static bool link_exe(compile_t* c, ast_t* program,
   errors_t* errors = c->opt->check.errors;
 
   // Use embedded LLD for Linux, macOS, and Windows targets unless --linker
-  // escape hatch is specified. On Linux and FreeBSD, native sanitizer builds
-  // use embedded LLD too: link_exe_lld_elf links the sanitizer runtime
-  // explicitly from a fragment captured at ponyc build time. On macOS,
-  // DragonFly, and OpenBSD, native sanitizer builds still fall back to the
+  // escape hatch is specified. On Linux, FreeBSD, and macOS, native sanitizer
+  // builds use embedded LLD too: the ELF and Mach-O link functions splice
+  // the sanitizer runtime from a fragment captured at ponyc build time.
+  // DragonFly and OpenBSD native sanitizer builds still fall back to the
   // system compiler driver (which links the runtime via -fsanitize=);
   // cross-compilation always uses LLD.
 #ifdef PLATFORM_IS_POSIX_BASED
@@ -2037,11 +2064,7 @@ static bool link_exe(compile_t* c, ast_t* program,
   }
 
   if(c->opt->linker == NULL
-    && target_is_macosx(c->opt->triple)
-#if defined(PONY_SANITIZER)
-    && is_cross_compiling(c)
-#endif
-    )
+    && target_is_macosx(c->opt->triple))
   {
     return link_exe_lld_macho(c, program, file_o);
   }

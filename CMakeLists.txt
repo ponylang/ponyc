@@ -137,7 +137,7 @@ endif()
 # through the compiler driver, so it cannot rely on -fsanitize= to pull the
 # runtime in. Instead we ask the driver, at configure time, for the exact link
 # fragment it emits for -fsanitize=${PONY_SANITIZERS_VALUE} and embed it as a
-# generated header that the embedded ELF linker splices in (genexe.cc).
+# generated header that the embedded linker splices in (genexe.cc).
 #
 # Asking the driver (rather than locating the runtime libraries ourselves)
 # avoids re-implementing its per-compiler library selection, ubsan-folding, and
@@ -146,10 +146,12 @@ endif()
 # vs gcc's libasan_preinit.o + shared libasan): the driver emits whatever paths
 # and flags are correct for itself. This works for both clang (whole-archived
 # clang_rt static archives + --dynamic-list) and gcc (preinit object + shared
-# -lasan/-lubsan). The fragment's library paths are absolute on the build
-# machine, which is fine: a sanitizer ponyc is a developer/CI artifact that runs
-# where it was built. Native Linux and native FreeBSD sanitizer builds consume
-# this (see genexe.cc); the splice is gated on !is_cross_compiling.
+# -lasan/-lubsan). On macOS, Apple clang emits the clang_rt dylib by absolute
+# path plus -rpath entries (and folds UBSan into ASan when both are enabled).
+# The fragment's library paths are absolute on the build machine, which is fine:
+# a sanitizer ponyc is a developer/CI artifact that runs where it was built.
+# Native Linux, FreeBSD, and macOS sanitizer builds consume this (see
+# genexe.cc); the splice is gated on !is_cross_compiling.
 
 # Extract the linker subcommand's arguments from a compiler "-###" stderr dump.
 # The link subcommand is the line naming the probe object (clang emits a direct
