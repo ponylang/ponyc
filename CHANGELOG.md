@@ -26,6 +26,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Use embedded LLD for native FreeBSD sanitizer builds ([PR #5426](https://github.com/ponylang/ponyc/pull/5426))
 - Use embedded LLD for FreeBSD use=dtrace builds ([PR #5440](https://github.com/ponylang/ponyc/pull/5440))
 - Update supported OpenBSD version to 7.9 ([PR #5442](https://github.com/ponylang/ponyc/pull/5442))
+- Use embedded LLD for native macOS sanitizer builds ([PR #5444](https://github.com/ponylang/ponyc/pull/5444))
 
 ## [0.64.0] - 2026-05-30
 
