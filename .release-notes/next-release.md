@@ -171,3 +171,7 @@ The supported version of OpenBSD is now 7.9. Our continuous integration builds a
 
 We won't intentionally break OpenBSD 7.8, but we are no longer actively maintaining support for it. If you need ponyc on OpenBSD, we recommend running 7.9.
 
+## Use embedded LLD for native macOS sanitizer builds
+
+Native macOS sanitizer builds (`use=address_sanitizer`, `use=undefined_behavior_sanitizer`) now link through the embedded ld64.lld linker instead of requiring an external linker.
+
