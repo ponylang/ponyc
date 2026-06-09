@@ -209,7 +209,9 @@ make build
 
 ## dtrace
 
-Linux and FreeBSD support collecting Pony runtime events, through SystemTap on Linux and DTrace on FreeBSD. No other platform is supported: macOS removed DTrace, and neither DragonFly BSD nor OpenBSD ships a DTrace-compatible probe-generation tool.
+Linux, FreeBSD, and macOS support collecting Pony runtime events, through SystemTap on Linux and DTrace on FreeBSD and macOS. Neither DragonFly BSD nor OpenBSD ships a DTrace-compatible probe-generation tool.
+
+On macOS, actually tracing a running program with `dtrace` requires System Integrity Protection (SIP) to permit DTrace. See the [examples/dtrace README](examples/dtrace/README.md) for details.
 
 DTrace support is enabled by setting `use=dtrace` in the build command line like:
 

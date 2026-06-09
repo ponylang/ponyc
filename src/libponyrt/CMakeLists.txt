@@ -73,10 +73,10 @@ if(PONY_USE_DTRACE)
 
     # The runtime sources include the generated dtrace_probes.h (via dtrace.h),
     # so it must exist before they compile. Generate it into the build tree (not
-    # the source tree) and make libponyrt depend on it. Both the SystemTap
-    # dtrace on Linux and the illumos-derived dtrace on FreeBSD emit the header
-    # the same way with `dtrace -h`; only the object-generation step below
-    # differs between them.
+    # the source tree) and make libponyrt depend on it. The macOS, SystemTap
+    # (Linux), and illumos-derived (FreeBSD) dtrace all emit the header the
+    # same way with `dtrace -h`; only the object-generation step below differs
+    # between them.
     set(_dtrace_header "${libponyrt_BINARY_DIR}/dtrace_probes.h")
     add_custom_command(OUTPUT "${_dtrace_header}"
         COMMAND dtrace -h -s "${_dtrace_d}" -o "${_dtrace_header}"
@@ -129,7 +129,11 @@ if(PONY_USE_DTRACE)
                     "${CMAKE_AR}"
             VERBATIM
         )
-    else()
+    elseif(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
+        # macOS: `dtrace -h` (above) is sufficient. The macOS dtrace has no
+        # `-G` flag; instead, the LLD MachO linker resolves __dtrace_probe$
+        # and __dtrace_isenabled$ symbols natively — no probe object needed.
+    elseif(CMAKE_SYSTEM_NAME STREQUAL "Linux")
         # SystemTap (Linux): `dtrace -G` builds the probe object from the .d
         # alone; fold it straight into libponyrt.
         add_custom_command(OUTPUT dtrace_probes.o
@@ -137,6 +141,8 @@ if(PONY_USE_DTRACE)
             DEPENDS "${_dtrace_d}"
         )
         target_sources(libponyrt PRIVATE dtrace_probes.o)
+    else()
+        message(WARNING "use=dtrace: no probe-generation support for ${CMAKE_SYSTEM_NAME}; probes will be no-ops")
     endif()
 endif()
 
