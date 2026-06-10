@@ -41,7 +41,7 @@ TEST_F(ReachTest, IsectHasSubtypes)
   ASSERT_NE(ab_ast, (void*)NULL);
 
   reach_t* reach = compile->reach;
-  reach_type_t* ab_reach = reach_type(reach, ab_ast);
+  reach_type_t* ab_reach = reach_type(reach, ab_ast, &opt);
   ASSERT_NE(ab_reach, (void*)NULL);
 
   size_t i = HASHMAP_BEGIN;
@@ -50,7 +50,7 @@ TEST_F(ReachTest, IsectHasSubtypes)
   bool found = false;
   while((subtype = reach_type_cache_next(&ab_reach->subtypes, &i)) != NULL)
   {
-    if(subtype->name == stringtab("Main"))
+    if(subtype->name == stringtab(opt.strtab, "Main"))
     {
       found = true;
       break;
@@ -330,7 +330,7 @@ TEST_F(ReachTest, UnionReachedMethod)
   ASSERT_NE(p_ast, (void*)NULL);
 
   reach_t* reach = compile->reach;
-  reach_type_t* p_reach = reach_type(reach, p_ast);
+  reach_type_t* p_reach = reach_type(reach, p_ast, &opt);
   ASSERT_NE(p_reach, (void*)NULL);
 
   bool found = false;
@@ -338,7 +338,7 @@ TEST_F(ReachTest, UnionReachedMethod)
   reach_method_name_t* n;
   while((n = reach_method_names_next(&p_reach->methods, &i)) != NULL)
   {
-    if(n->name == stringtab("example"))
+    if(n->name == stringtab(opt.strtab, "example"))
     {
       found = true;
       break;
@@ -360,14 +360,15 @@ TEST_F(ReachTest, UnionReachedMethod)
 // relationships, both invariant across the cap variants. Do not use this to
 // assert a full mangled string.
 static const char* any_mangled_name(reach_t* r, const char* type_name,
-  const char* method_name)
+  const char* method_name, pass_opt_t* opt)
 {
-  reach_type_t* t = reach_type_name(r, type_name);
+  reach_type_t* t = reach_type_name(r, type_name, opt);
 
   if(t == NULL)
     return NULL;
 
-  reach_method_name_t* n = reach_method_name(t, stringtab(method_name));
+  reach_method_name_t* n = reach_method_name(t, stringtab(opt->strtab,
+    method_name));
 
   if(n == NULL)
     return NULL;
@@ -416,8 +417,8 @@ TEST_F(ReachTest, PartialAndNonPartialMangleDistinctly)
 
   reach_t* reach = compile->reach;
 
-  const char* partial = any_mangled_name(reach, "C1", "f");
-  const char* non_partial = any_mangled_name(reach, "C2", "f");
+  const char* partial = any_mangled_name(reach, "C1", "f", &opt);
+  const char* non_partial = any_mangled_name(reach, "C2", "f", &opt);
 
   ASSERT_NE(partial, (void*)NULL);
   ASSERT_NE(non_partial, (void*)NULL);
@@ -453,8 +454,8 @@ TEST_F(ReachTest, BareMethodsNotSplitByPartiality)
 
   reach_t* reach = compile->reach;
 
-  const char* bare_partial = any_mangled_name(reach, "P1", "g");
-  const char* bare_non_partial = any_mangled_name(reach, "P2", "g");
+  const char* bare_partial = any_mangled_name(reach, "P1", "g", &opt);
+  const char* bare_non_partial = any_mangled_name(reach, "P2", "g", &opt);
 
   ASSERT_NE(bare_partial, (void*)NULL);
   ASSERT_NE(bare_non_partial, (void*)NULL);
@@ -524,7 +525,7 @@ TEST_F(ReachTest, NonPartialMangleNeverEndsInMarker)
 
   for(size_t i = 0; i < (sizeof(cases) / sizeof(cases[0])); i++)
   {
-    const char* mangled = any_mangled_name(reach, "R", cases[i].method);
+    const char* mangled = any_mangled_name(reach, "R", cases[i].method, &opt);
     ASSERT_NE(mangled, (void*)NULL) << "method " << cases[i].method;
 
     size_t len = strlen(mangled);
@@ -614,8 +615,8 @@ TEST_F(ReachTest, InteriorTraceKindMarkerDoesNotCollide)
 
   reach_t* reach = compile->reach;
 
-  const char* non_partial = any_mangled_name(reach, "C", "safe");
-  const char* partial = any_mangled_name(reach, "C", "risky");
+  const char* non_partial = any_mangled_name(reach, "C", "safe", &opt);
+  const char* partial = any_mangled_name(reach, "C", "risky", &opt);
 
   ASSERT_NE(non_partial, (void*)NULL);
   ASSERT_NE(partial, (void*)NULL);

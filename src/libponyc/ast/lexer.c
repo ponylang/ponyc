@@ -15,6 +15,8 @@ struct lexer_t
 {
   source_t* source;
   errors_t* errors;
+  strtable_t* strtab; // Interned-string table for this compilation; identifier
+                      // and string-literal token text is interned into it.
   bool allow_test_symbols;
 
   // Information about next unused character in file
@@ -384,11 +386,13 @@ static token_t* make_token_with_text(lexer_t* lexer, token_id id)
 {
   token_t* t = make_token(lexer, id);
 
-  if(lexer->buffer == NULL) // No text for token
-    token_set_string(t, stringtab(""), 0);
+  // An empty token (no buffer, or a zero-length buffer) must intern the empty
+  // string explicitly: passing a 0 length to token_set_string would make it
+  // fall back to strlen() over the (possibly stale, non-terminated) buffer.
+  if(lexer->buffer == NULL || lexer->buflen == 0)
+    token_set_string(t, "", 0, lexer->strtab);
   else
-    token_set_string(t, stringtab_len(lexer->buffer, lexer->buflen),
-      lexer->buflen);
+    token_set_string(t, lexer->buffer, lexer->buflen, lexer->strtab);
 
   return t;
 }
@@ -1271,7 +1275,7 @@ static token_t* symbol(lexer_t* lexer)
 }
 
 
-lexer_t* lexer_open(source_t* source, errors_t* errors,
+lexer_t* lexer_open(source_t* source, errors_t* errors, strtable_t* strtab,
   bool allow_test_symbols)
 {
   pony_assert(source != NULL);
@@ -1281,6 +1285,7 @@ lexer_t* lexer_open(source_t* source, errors_t* errors,
 
   lexer->source = source;
   lexer->errors = errors;
+  lexer->strtab = strtab;
   lexer->allow_test_symbols = allow_test_symbols;
   lexer->len = source->len - 1; // because we don't want the null terminator to be parsed.
   lexer->line = 1;

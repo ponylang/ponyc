@@ -332,7 +332,7 @@ size_t PassTest::ref_count(ast_t* ast, const char* name)
   size_t count = 0;
   symtab_t* symtab = ast_get_symtab(ast);
 
-  if(symtab != NULL && symtab_find(symtab, stringtab(name), NULL) != NULL)
+  if(symtab != NULL && symtab_find(symtab, stringtab(opt.strtab, name), NULL) != NULL)
     count = 1;
 
   for(ast_t* p = ast_child(ast); p != NULL; p = ast_sibling(p))
@@ -488,7 +488,7 @@ ast_t* PassTest::lookup_in(ast_t* ast, const char* name)
   symtab_t* symtab = ast_get_symtab(ast);
   pony_assert(symtab != NULL);
 
-  return symtab_find(symtab, stringtab(name), NULL);
+  return symtab_find(symtab, stringtab(opt.strtab, name), NULL);
 }
 
 
@@ -552,7 +552,7 @@ void PassTest::build_package(const char* pass, const char* src,
     package_add_magic_src(package_name, src, &opt);
 
     limit_passes(&opt, pass);
-    program = program_load(stringtab(package_name), &opt);
+    program = program_load(stringtab(opt.strtab, package_name), &opt);
 
     if((program != NULL) && (opt.limit >= PASS_REACH))
     {

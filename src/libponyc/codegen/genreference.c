@@ -76,7 +76,7 @@ static LLVMValueRef make_fieldptr(compile_t* c, LLVMValueRef l_value,
   if(ast_id(def) == TK_ACTOR)
     index++;
 
-  reach_type_t* l_t = reach_type(c->reach, l_type);
+  reach_type_t* l_t = reach_type(c->reach, l_type, c->opt);
   pony_assert(l_t != NULL);
   compile_type_t* l_c_t = (compile_type_t*)l_t->c_type;
 
@@ -127,7 +127,7 @@ LLVMValueRef gen_fieldload(compile_t* c, ast_t* ast)
   deferred_reification_t* reify = c->frame->reify;
 
   ast_t* type = deferred_reify(reify, ast_type(right), c->opt);
-  reach_type_t* t = reach_type(c->reach, type);
+  reach_type_t* t = reach_type(c->reach, type, c->opt);
   pony_assert(t != NULL);
   ast_free_unattached(type);
   compile_type_t* c_t = (compile_type_t*)t->c_type;
@@ -170,7 +170,7 @@ LLVMValueRef gen_tupleelemptr(compile_t* c, ast_t* ast)
   deferred_reification_t* reify = c->frame->reify;
 
   ast_t* type = deferred_reify(reify, ast_type(ast), c->opt);
-  reach_type_t* t = reach_type(c->reach, type);
+  reach_type_t* t = reach_type(c->reach, type, c->opt);
   pony_assert(t != NULL);
   ast_free_unattached(type);
   compile_type_t* c_t = (compile_type_t*)t->c_type;
@@ -199,7 +199,7 @@ LLVMValueRef gen_tuple(compile_t* c, ast_t* ast)
     return GEN_NOTNEEDED;
   }
 
-  reach_type_t* t = reach_type(c->reach, type);
+  reach_type_t* t = reach_type(c->reach, type, c->opt);
   ast_free_unattached(type);
   compile_type_t* c_t = (compile_type_t*)t->c_type;
   int count = LLVMCountStructElementTypes(c_t->primitive);
@@ -254,7 +254,7 @@ LLVMValueRef gen_localdecl(compile_t* c, ast_t* ast)
     return GEN_NOVALUE;
 
   ast_t* type = deferred_reify(c->frame->reify, ast_type(id), c->opt);
-  reach_type_t* t = reach_type(c->reach, type);
+  reach_type_t* t = reach_type(c->reach, type, c->opt);
   ast_free_unattached(type);
   compile_type_t* c_t = (compile_type_t*)t->c_type;
 
@@ -312,7 +312,7 @@ LLVMValueRef gen_localload(compile_t* c, ast_t* ast)
     return NULL;
 
   ast_t* type = deferred_reify(c->frame->reify, ast_type(ast), c->opt);
-  reach_type_t* t = reach_type(c->reach, type);
+  reach_type_t* t = reach_type(c->reach, type, c->opt);
   ast_free_unattached(type);
   compile_type_t* c_t = (compile_type_t*)t->c_type;
 
@@ -373,7 +373,7 @@ static LLVMValueRef gen_digestof_box(compile_t* c, reach_type_t* type,
 
   // Call the type-specific __digestof function, which will unbox the value.
   reach_method_t* digest_fn = reach_method(type, TK_BOX,
-    stringtab("__digestof"), NULL);
+    stringtab(c->opt->strtab, "__digestof"), NULL, c->opt);
   pony_assert(digest_fn != NULL);
   LLVMValueRef func = gendesc_vtable(c, desc, digest_fn->vtable_index);
   LLVMTypeRef fn_type = LLVMFunctionType(c->intptr, &c->ptr, 1, false);
@@ -488,7 +488,7 @@ static LLVMValueRef gen_digestof_value(compile_t* c, ast_t* type,
     case LLVMPointerTypeKind:
       if(!is_known(type))
       {
-        reach_type_t* t = reach_type(c->reach, type);
+        reach_type_t* t = reach_type(c->reach, type, c->opt);
         int sub_kind = subtype_kind(t);
 
         if((sub_kind & SUBTYPE_KIND_BOXED) != 0)
@@ -518,7 +518,7 @@ void gen_digestof_fun(compile_t* c, reach_type_t* t)
 {
   pony_assert(t->can_be_boxed);
 
-  reach_method_t* m = reach_method(t, TK_BOX, stringtab("__digestof"), NULL);
+  reach_method_t* m = reach_method(t, TK_BOX, stringtab(c->opt->strtab, "__digestof"), NULL, c->opt);
 
   if(m == NULL)
     return;
@@ -540,7 +540,7 @@ void gen_digestof_fun(compile_t* c, reach_type_t* t)
 LLVMValueRef gen_int(compile_t* c, ast_t* ast)
 {
   ast_t* type = deferred_reify(c->frame->reify, ast_type(ast), c->opt);
-  reach_type_t* t = reach_type(c->reach, type);
+  reach_type_t* t = reach_type(c->reach, type, c->opt);
   ast_free_unattached(type);
   compile_type_t* c_t = (compile_type_t*)t->c_type;
 
@@ -563,7 +563,7 @@ LLVMValueRef gen_int(compile_t* c, ast_t* ast)
 LLVMValueRef gen_float(compile_t* c, ast_t* ast)
 {
   ast_t* type = deferred_reify(c->frame->reify, ast_type(ast), c->opt);
-  reach_type_t* t = reach_type(c->reach, type);
+  reach_type_t* t = reach_type(c->reach, type, c->opt);
   ast_free_unattached(type);
   compile_type_t* c_t = (compile_type_t*)t->c_type;
 
@@ -584,7 +584,7 @@ LLVMValueRef gen_string(compile_t* c, ast_t* ast)
 
   ast_t* type = ast_type(ast);
   pony_assert(is_literal(type, "String"));
-  reach_type_t* t = reach_type(c->reach, type);
+  reach_type_t* t = reach_type(c->reach, type, c->opt);
   compile_type_t* c_t = (compile_type_t*)t->c_type;
 
   size_t len = ast_name_len(ast);

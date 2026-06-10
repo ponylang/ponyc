@@ -1,7 +1,7 @@
 use @symtab_new[Pointer[_Symtab] ref]()
 use @symtab_free[None](symtab: Pointer[_Symtab] box) // box is needed as this is
 // called in a finalizer
-use @symtab_add[Bool](symtab: Pointer[_Symtab] ref, name: Pointer[U8] tag, def: Pointer[_AST] box, status: NullablePointer[SymStatus])
+use @symtab_add[Bool](symtab: Pointer[_Symtab] ref, name: Pointer[U8] tag, def: Pointer[_AST] box, status: NullablePointer[SymStatus], strtab: Pointer[_StrTable] tag)
 use @symtab_find[Pointer[_AST] val](symtab: Pointer[_Symtab] box, name: Pointer[U8] tag, status: NullablePointer[SymStatus])
 use @symtab_init[None](symtab: Pointer[_Symtab] ref, size: USize)
 use @symtab_destroy[None](symtab: Pointer[_Symtab] ref)
@@ -68,15 +68,20 @@ primitive SymStati
 
 class ref SymbolTable
   let ptr: Pointer[_Symtab]
+  // Interned-string table of the owning compilation, carried so AST nodes
+  // looked up here can be wrapped with the same table (see AST.strtab).
+  let strtab: Pointer[_StrTable] tag
   let _owned_alloc: Bool
 
-  new from_pointer(ptr': Pointer[_Symtab]) =>
+  new from_pointer(ptr': Pointer[_Symtab], strtab': Pointer[_StrTable] tag) =>
     ptr = ptr'
+    strtab = strtab'
     _owned_alloc = false
 
-  new iso create(size': USize = 0) =>
+  new iso create(strtab': Pointer[_StrTable] tag, size': USize = 0) =>
     ptr = @symtab_new()
     @symtab_init(ptr, size')
+    strtab = strtab'
     _owned_alloc = true
 
   fun box apply(name: String box): (AST | None) =>
@@ -85,7 +90,7 @@ class ref SymbolTable
     if ptr'.is_null() then
       None
     else
-      AST(ptr')
+      AST(ptr', strtab)
     end
 
   fun box size(): USize =>
@@ -131,4 +136,4 @@ class _SymbolTableIter[S: SymbolTable #read] is Iterator[(String, AST)]
       recover val
         String.copy_cstring(symbol.name)
       end
-    (symbol_name, AST(symbol.def))
+    (symbol_name, AST(symbol.def, _table.strtab))

@@ -13,23 +13,26 @@ class PaintTest: public testing::Test
 protected:
   reach_t* _set;
   reach_type_t* _current_type;
+  strtable_t* _strtab;
 
   virtual void SetUp()
   {
     _set = reach_new();
     _current_type = NULL;
+    _strtab = stringtab_new();
   }
 
   virtual void TearDown()
   {
     reach_free(_set);
+    stringtab_free(_strtab);
   }
 
   void add_type(const char* name)
   {
     _current_type = POOL_ALLOC(reach_type_t);
     memset(_current_type, 0, sizeof(reach_type_t));
-    _current_type->name = stringtab(name);
+    _current_type->name = stringtab(_strtab, name);
     _current_type->ast = NULL;
     reach_method_names_init(&_current_type->methods, 0);
     reach_type_cache_init(&_current_type->subtypes, 0);
@@ -42,7 +45,7 @@ protected:
   {
     reach_method_name_t* n = POOL_ALLOC(reach_method_name_t);
     memset(n, 0, sizeof(reach_method_name_t));
-    n->name = stringtab(name);
+    n->name = stringtab(_strtab, name);
     reach_methods_init(&n->r_methods, 0);
     reach_mangled_init(&n->r_mangled, 0);
 
@@ -50,7 +53,7 @@ protected:
 
     reach_method_t* method = POOL_ALLOC(reach_method_t);
     memset(method, 0, sizeof(reach_method_t));
-    method->name = stringtab(name);
+    method->name = stringtab(_strtab, name);
     method->mangled_name = method->name;
     method->fun = NULL;
     method->typeargs = NULL;
@@ -69,7 +72,7 @@ protected:
     uint32_t max_expected, uint32_t* actual)
   {
     reach_type_t t;
-    t.name = stringtab(name);
+    t.name = stringtab(_strtab, name);
     size_t index = HASHMAP_UNKNOWN;
     reach_type_t* type = reach_types_get(&_set->types, &t, &index);
     ASSERT_NE((void*)NULL, type);
@@ -112,14 +115,14 @@ protected:
     while((type = reach_types_next(&_set->types, &i)) != NULL)
     {
       reach_method_name_t m1;
-      m1.name = stringtab(name);
+      m1.name = stringtab(_strtab, name);
       reach_method_name_t* n = reach_method_names_get(&type->methods, &m1, &index);
 
       if(n != NULL)
       {
         reach_method_t m2;
         memset(&m2, 0, sizeof(reach_method_t));
-        m2.name = stringtab(name);
+        m2.name = stringtab(_strtab, name);
         reach_method_t* method = reach_methods_get(&n->r_methods, &m2, &index);
 
         ASSERT_NE((void*)NULL, method);

@@ -43,6 +43,9 @@ primitive _MagicPackage
 primitive _Plugins
   """STUB"""
 
+struct _StrTable
+  """Opaque mirror of libponyc's strtable_t (the interned-string table)."""
+
 struct _PassOpt
   var limit: I32 = PassParse()
   var programm_pass: I32 = PassParse()
@@ -78,7 +81,8 @@ struct _PassOpt
   var link_ldcmd: Pointer[U8] ref = link_ldcmd.create()
   var sysroot: Pointer[U8] ref = sysroot.create()
 
-  // this field is only present in debug builds
+  // Mirrors pass_opt_t.llvm_args (pass.h), which is unconditional; this field
+  // must stay present in all builds to keep the struct layout matching C.
   var llvm_args: Pointer[U8] val = recover val llvm_args.create() end
 
   var triple: Pointer[U8] ref = triple.create()
@@ -91,5 +95,9 @@ struct _PassOpt
   var userflags: Pointer[_UserFlags] ref = userflags.create()
     """user-provided defines"""
   var data: Pointer[None] ref = data.create() // user-defined data for unit test callbacks
+  // Interned-string table for this compilation. Mirrors the strtab field
+  // appended to pass_opt_t (src/libponyc/pass/pass.h); kept last so the offsets
+  // of every field above are unchanged.
+  var strtab: Pointer[_StrTable] ref = strtab.create()
 
   new ref create() => None

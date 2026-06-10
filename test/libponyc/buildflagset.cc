@@ -6,10 +6,15 @@
 
 
 class BuildFlagSetTest: public testing::Test
-{};
+{
+protected:
+  strtable_t* tab;
+  void SetUp() override { tab = stringtab_new(); }
+  void TearDown() override { stringtab_free(tab); }
+};
 
 
-TEST(BuildFlagSetTest, PrintEmpty)
+TEST_F(BuildFlagSetTest, PrintEmpty)
 {
   buildflagset_t* set = buildflagset_create();
   ASSERT_NE((void*)NULL, set);
@@ -26,7 +31,7 @@ TEST(BuildFlagSetTest, PrintEmpty)
 }
 
 
-TEST(BuildFlagSetTest, EmptyHas1Config)
+TEST_F(BuildFlagSetTest, EmptyHas1Config)
 {
   buildflagset_t* set = buildflagset_create();
   ASSERT_NE((void*)NULL, set);
@@ -37,12 +42,12 @@ TEST(BuildFlagSetTest, EmptyHas1Config)
 }
 
 
-TEST(BuildFlagSetTest, Flag)
+TEST_F(BuildFlagSetTest, Flag)
 {
   buildflagset_t* set = buildflagset_create();
   ASSERT_NE((void*)NULL, set);
 
-  buildflagset_add(set, stringtab("foo"));
+  buildflagset_add(set, stringtab(tab, "foo"));
   ASSERT_EQ(2, buildflagset_configcount(set));
 
   buildflagset_startenum(set);
@@ -55,7 +60,7 @@ TEST(BuildFlagSetTest, Flag)
   {
     count++;
 
-    if(buildflagset_get(set, stringtab("foo")))
+    if(buildflagset_get(set, stringtab(tab, "foo")))
     {
       had_true = true;
       ASSERT_STREQ("foo", buildflagset_print(set));
@@ -75,12 +80,12 @@ TEST(BuildFlagSetTest, Flag)
 }
 
 
-TEST(BuildFlagSetTest, PlatformOS)
+TEST_F(BuildFlagSetTest, PlatformOS)
 {
   buildflagset_t* set = buildflagset_create();
   ASSERT_NE((void*)NULL, set);
 
-  buildflagset_add(set, stringtab("windows"));
+  buildflagset_add(set, stringtab(tab, "windows"));
   ASSERT_LT(2, buildflagset_configcount(set));
 
   // Check we get at least "windows" and "linux" configs. Don't check for all
@@ -107,14 +112,14 @@ TEST(BuildFlagSetTest, PlatformOS)
   buildflagset_free(set);
 }
 
-TEST(BuildFlagSetTest, MultipleFlags)
+TEST_F(BuildFlagSetTest, MultipleFlags)
 {
   buildflagset_t* set = buildflagset_create();
   ASSERT_NE((void*)NULL, set);
 
-  buildflagset_add(set, stringtab("a"));
-  buildflagset_add(set, stringtab("b"));
-  buildflagset_add(set, stringtab("c"));
+  buildflagset_add(set, stringtab(tab, "a"));
+  buildflagset_add(set, stringtab(tab, "b"));
+  buildflagset_add(set, stringtab(tab, "c"));
   ASSERT_EQ(8, buildflagset_configcount(set));
 
   buildflagset_startenum(set);
@@ -127,9 +132,9 @@ TEST(BuildFlagSetTest, MultipleFlags)
     count++;
     int config = 0;
 
-    if(buildflagset_get(set, stringtab("a"))) config += 1;
-    if(buildflagset_get(set, stringtab("b"))) config += 2;
-    if(buildflagset_get(set, stringtab("c"))) config += 4;
+    if(buildflagset_get(set, stringtab(tab, "a"))) config += 1;
+    if(buildflagset_get(set, stringtab(tab, "b"))) config += 2;
+    if(buildflagset_get(set, stringtab(tab, "c"))) config += 4;
 
     ASSERT_FALSE(had[config]);
     had[config] = true;

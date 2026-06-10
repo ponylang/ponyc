@@ -47,32 +47,12 @@ static const char* _endian_flags[] =
   NULL  // Terminator.
 };
 
-static bool _stringtabed = false;
-
-
-// Replace all the strings in the _{os,arch,size,endian}_flags
-// arrays with stringtab'ed versions the first time this is called.
-// This method of initialisation is obviously not at all concurrency safe, but
-// it works with unit tests trivially.
-static void stringtab_mutexgroups()
-{
-  if(_stringtabed)
-    return;
-
-  for(size_t i = 0; _os_flags[i] != NULL; i++)
-    _os_flags[i] = stringtab(_os_flags[i]);
-
-  for(size_t i = 0; _arch_flags[i] != NULL; i++)
-    _arch_flags[i] = stringtab(_arch_flags[i]);
-
-  for(size_t i = 0; _size_flags[i] != NULL; i++)
-    _size_flags[i] = stringtab(_size_flags[i]);
-
-  for(size_t i = 0; _endian_flags[i] != NULL; i++)
-    _endian_flags[i] = stringtab(_endian_flags[i]);
-
-  _stringtabed = true;
-}
+// The _{os,arch,size,endian}_flags arrays stay as raw string literals. The
+// mutually-exclusive-group checks below compare against them with strcmp rather
+// than interned-pointer identity, so there is no process-global interned cache
+// to mutate (the old approach was, per its own comment, "not at all concurrency
+// safe"). User flags stored in a buildflagset's flagtab still use interned
+// pointers supplied by the caller, all from one compilation's table.
 
 
 typedef struct flag_t
@@ -175,10 +155,8 @@ static ssize_t os_index(const char* flag)
 {
   pony_assert(flag != NULL);
 
-  stringtab_mutexgroups();
-
   for(size_t i = 0; _os_flags[i] != NULL; i++)
-    if(flag == _os_flags[i])  // Match found.
+    if(strcmp(flag, _os_flags[i]) == 0)  // Match found.
       return i;
 
   // Match not found.
@@ -192,10 +170,8 @@ static ssize_t arch_index(const char* flag)
 {
   pony_assert(flag != NULL);
 
-  stringtab_mutexgroups();
-
   for(size_t i = 0; _arch_flags[i] != NULL; i++)
-    if(flag == _arch_flags[i])  // Match found.
+    if(strcmp(flag, _arch_flags[i]) == 0)  // Match found.
       return i;
 
   // Match not found.
@@ -209,10 +185,8 @@ static ssize_t size_index(const char* flag)
 {
   pony_assert(flag != NULL);
 
-  stringtab_mutexgroups();
-
   for(size_t i = 0; _size_flags[i] != NULL; i++)
-    if(flag == _size_flags[i])  // Match found.
+    if(strcmp(flag, _size_flags[i]) == 0)  // Match found.
       return i;
 
   // Match not found.
@@ -226,10 +200,8 @@ static ssize_t endian_index(const char* flag)
 {
   pony_assert(flag != NULL);
 
-  stringtab_mutexgroups();
-
   for(size_t i = 0; _endian_flags[i] != NULL; i++)
-    if(flag == _endian_flags[i])  // Match found.
+    if(strcmp(flag, _endian_flags[i]) == 0)  // Match found.
       return i;
 
   // Match not found.
@@ -577,13 +549,18 @@ const char* buildflagset_print(buildflagset_t* set)
 // just a thin wrapper around the private flagtab_t
 typedef struct userflags_t {
   flagtab_t inner;
+  // Interned-string table for this compilation. User flag names are interned
+  // into it so the flagtab's pointer-identity comparison works; all access to a
+  // given userflags_t happens within one compilation, so one table suffices.
+  strtable_t* strtab;
 } userflags_t;
 
-userflags_t* userflags_create()
+userflags_t* userflags_create(strtable_t* strtab)
 {
   userflags_t* u = POOL_ALLOC(userflags_t);
   pony_assert(u != NULL);
   flagtab_init(&(u->inner), 4);
+  u->strtab = strtab;
   return u;
 }
 
@@ -592,7 +569,9 @@ void userflags_free(userflags_t *flags)
   if(flags != NULL)
   {
     flagtab_destroy(&flags->inner);
-    POOL_FREE(flagtab_t, flags);
+    // Must free as userflags_t, not flagtab_t: POOL_FREE derives the size class
+    // from the type, and userflags_t (flagtab_t + strtab pointer) is larger.
+    POOL_FREE(userflags_t, flags);
   }
 }
 
@@ -601,7 +580,7 @@ bool define_userflag(userflags_t* flags, const char* name)
   pony_assert(flags != NULL);
   pony_assert(name != NULL);
 
-  flag_t f1 = {stringtab(name), false};
+  flag_t f1 = {stringtab(flags->strtab, name), false};
   size_t index = HASHMAP_UNKNOWN;
   flag_t* f2 = flagtab_get(&(flags->inner), &f1, &index);
 
@@ -624,7 +603,7 @@ bool remove_userflags(userflags_t* flags, const char* flags_to_remove[])
   size_t removed = 0;
   for(const char** next = flags_to_remove; *next != NULL; next += 1)
   {
-    flag_t f1 = {stringtab(*next), false};
+    flag_t f1 = {stringtab(flags->strtab, *next), false};
     flag_t* found = flagtab_remove(&(flags->inner), &f1);
     if(found != NULL)
     {
@@ -642,7 +621,7 @@ bool is_userflag_defined(userflags_t* flags, const char* name)
   pony_assert(flags != NULL);
   pony_assert(name != NULL);
 
-  flag_t f1 = { stringtab(name), false };
+  flag_t f1 = { stringtab(flags->strtab, name), false };
   size_t index = HASHMAP_UNKNOWN;
   flag_t* f2 = flagtab_get(&(flags->inner), &f1, &index);
 

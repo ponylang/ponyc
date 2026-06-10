@@ -644,7 +644,7 @@ bool expr_assign(pass_opt_t* opt, ast_t* ast)
   if(wl_type == NULL)
   {
     ast_error_frame(&frame, ast, "Invalid type for field of assignment: %s",
-        ast_print_type(fl_type));
+        ast_print_type(fl_type, opt->strtab));
 
     if(ast_checkflag(ast_type(right), AST_FLAG_INCOMPLETE))
       ast_error_frame(&frame, right,
@@ -689,7 +689,7 @@ bool expr_assign(pass_opt_t* opt, ast_t* ast)
           "can't destructure a union using assignment, use pattern matching "
           "instead");
         ast_error_continue(opt->check.errors, right,
-          "inferred type of expression: %s", ast_print_type(r_type));
+          "inferred type of expression: %s", ast_print_type(r_type, opt->strtab));
         break;
 
       case TK_ISECTTYPE:
@@ -697,7 +697,7 @@ bool expr_assign(pass_opt_t* opt, ast_t* ast)
           "can't destructure an intersection using assignment, use pattern "
           "matching instead");
         ast_error_continue(opt->check.errors, right,
-          "inferred type of expression: %s", ast_print_type(r_type));
+          "inferred type of expression: %s", ast_print_type(r_type, opt->strtab));
         break;
 
       default:
@@ -755,11 +755,11 @@ bool expr_assign(pass_opt_t* opt, ast_t* ast)
     ast_error(opt->check.errors, ast,
       "not safe to write right side to left side");
     ast_error_continue(opt->check.errors, wl_type, "right side type: %s",
-      ast_print_type(wl_type));
+      ast_print_type(wl_type, opt->strtab));
     if(ast_child(left) != NULL)
     {
       ast_error_continue(opt->check.errors, ast_child(left), "left side type: %s",
-      ast_print_type(ast_type(ast_child(left))));
+      ast_print_type(ast_type(ast_child(left)), opt->strtab));
     }
     ast_free_unattached(wl_type);
     return false;
@@ -819,7 +819,7 @@ static bool add_as_type(pass_opt_t* opt, ast_t* ast, ast_t* expr,
 
     default:
     {
-      const char* name = package_hygienic_id(&opt->check);
+      const char* name = package_hygienic_id(&opt->check, opt);
 
       ast_t* expr_type = ast_type(expr);
       errorframe_t info = NULL;
@@ -830,9 +830,9 @@ static bool add_as_type(pass_opt_t* opt, ast_t* ast, ast_t* expr,
         ast_error_frame(&frame, ast,
           "this capture violates capabilities");
         ast_error_frame(&frame, type,
-          "match type: %s", ast_print_type(type));
+          "match type: %s", ast_print_type(type, opt->strtab));
         ast_error_frame(&frame, expr,
-          "pattern type: %s", ast_print_type(expr_type));
+          "pattern type: %s", ast_print_type(expr_type, opt->strtab));
         errorframe_append(&frame, &info);
         errorframe_report(&frame, opt->check.errors);
 
@@ -842,12 +842,12 @@ static bool add_as_type(pass_opt_t* opt, ast_t* ast, ast_t* expr,
         ast_error_frame(&frame, ast,
           "matching variable of type %s with %s is not possible, "
           "since a struct lacks a type descriptor",
-          ast_print_type(expr_type), ast_print_type(type));
+          ast_print_type(expr_type, opt->strtab), ast_print_type(type, opt->strtab));
         ast_error_frame(&frame, type,
-          "match type: %s", ast_print_type(type));
+          "match type: %s", ast_print_type(type, opt->strtab));
         ast_error_frame(&frame, expr,
           "a struct cannot be part of a union type. "
-          "pattern type: %s", ast_print_type(expr_type));
+          "pattern type: %s", ast_print_type(expr_type, opt->strtab));
         errorframe_append(&frame, &info);
         errorframe_report(&frame, opt->check.errors);
 
@@ -901,13 +901,13 @@ bool expr_as(pass_opt_t* opt, ast_t** astp)
     {
       ast_error(opt->check.errors, ast, "Cannot cast to same type");
       ast_error_continue(opt->check.errors, expr,
-        "Expression is already of type %s", ast_print_type(type));
+        "Expression is already of type %s", ast_print_type(type, opt->strtab));
     }
     else
     {
       ast_error(opt->check.errors, ast, "Cannot cast to subtype");
       ast_error_continue(opt->check.errors, expr,
-        "%s is a subtype of this Expression. 'as' is not needed here.", ast_print_type(type));
+        "%s is a subtype of this Expression. 'as' is not needed here.", ast_print_type(type, opt->strtab));
     }
     return false;
   }
@@ -984,7 +984,7 @@ bool expr_consume(pass_opt_t* opt, ast_t* ast)
   {
     ast_error(opt->check.errors, ast, "can't consume to this capability");
     ast_error_continue(opt->check.errors, term, "expression type is %s",
-      ast_print_type(type));
+      ast_print_type(type, opt->strtab));
     return false;
   }
 

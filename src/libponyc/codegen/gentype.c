@@ -296,7 +296,7 @@ static void make_box_type(compile_t* c, reach_type_t* t)
   if(c_t->primitive == NULL)
     return;
 
-  const char* box_name = genname_box(t->name);
+  const char* box_name = genname_box(t->name, c->opt->strtab);
   c_t->structure = LLVMStructCreateNamed(c->context, box_name);
 
   LLVMTypeRef elements[2];
@@ -323,7 +323,7 @@ static void make_global_instance(compile_t* c, reach_type_t* t)
     return;
 
   // Create a unique global instance.
-  const char* inst_name = genname_instance(t->name);
+  const char* inst_name = genname_instance(t->name, c->opt->strtab);
   LLVMValueRef value = LLVMConstNamedStruct(c_t->structure, &c_t->desc, 1);
   c_t->instance = LLVMAddGlobal(c->module, c_t->structure, inst_name);
   LLVMSetInitializer(c_t->instance, value);
@@ -340,7 +340,7 @@ static void make_get_behavior_name(compile_t* c, reach_type_t* t)
 
   // Create a dispatch function.
   compile_type_t* c_t = (compile_type_t*)t->c_type;
-  const char* get_behavior_name_name = genname_get_behavior_name(t->name);
+  const char* get_behavior_name_name = genname_get_behavior_name(t->name, c->opt->strtab);
   c_t->get_behavior_name_fn = codegen_addfun(c, get_behavior_name_name, c->get_behavior_name_fn, true);
   LLVMSetFunctionCallConv(c_t->get_behavior_name_fn, LLVMCCallConv);
   LLVMSetLinkage(c_t->get_behavior_name_fn, LLVMExternalLinkage);
@@ -357,7 +357,7 @@ static void make_get_behavior_name(compile_t* c, reach_type_t* t)
 
   // Mark the default case as unreachable.
   LLVMPositionBuilderAtEnd(c->builder, default_block);
-  const char* name = genname_behavior_name(t->name, "*UNKNOWN*");
+  const char* name = genname_behavior_name(t->name, "*UNKNOWN*", c->opt->strtab);
   LLVMValueRef ret = codegen_string(c, name, strlen(name));
   genfun_build_ret(c, ret);
 
@@ -373,7 +373,7 @@ static void make_dispatch(compile_t* c, reach_type_t* t)
 
   // Create a dispatch function.
   compile_type_t* c_t = (compile_type_t*)t->c_type;
-  const char* dispatch_name = genname_dispatch(t->name);
+  const char* dispatch_name = genname_dispatch(t->name, c->opt->strtab);
   c_t->dispatch_fn = codegen_addfun(c, dispatch_name, c->dispatch_fn, true);
   LLVMSetFunctionCallConv(c_t->dispatch_fn, LLVMCCallConv);
   LLVMSetLinkage(c_t->dispatch_fn, LLVMExternalLinkage);
@@ -428,7 +428,7 @@ static bool make_struct(compile_t* c, reach_type_t* t)
 
       type = c_t->structure;
       ast_t* def = (ast_t*)ast_data(t->ast);
-      if(ast_has_annotation(def, "packed"))
+      if(ast_has_annotation(def, "packed", c->opt->strtab))
         packed = true;
 
       break;
@@ -802,7 +802,7 @@ bool gentypes(compile_t* c)
 
   // Cache the instance of None, which is used as the return value for
   // behaviour calls.
-  t = reach_type_name(c->reach, "None");
+  t = reach_type_name(c->reach, "None", c->opt);
   pony_assert(t != NULL);
   compile_type_t* c_t = (compile_type_t*)t->c_type;
   c->none_instance = c_t->instance;

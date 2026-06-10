@@ -80,7 +80,7 @@ static bool load_plugin(const char* path, pass_opt_t* opt)
 
   plugin_t* p = POOL_ALLOC(plugin_t);
   p->handle = handle;
-  p->path = stringtab(path);
+  p->path = stringtab(opt->strtab, path);
   p->user_data = NULL;
 
   p->init_fn = (plugin_init_fn)PLUGIN_SYMBOL(handle, "pony_plugin_init");

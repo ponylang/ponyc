@@ -370,7 +370,8 @@ void token_set_id(token_t* token, token_id id);
   * If the given string is nul terminated then 0 may be passed for length, in
   * which case strlen will be called on the string.
   */
-void token_set_string(token_t* token, const char* value, size_t length);
+void token_set_string(token_t* token, const char* value, size_t length,
+  strtable_t* strtab);
 
 /// Set the given token's literal value. Only valid for TK_FLOAT tokens.
 void token_set_float(token_t* token, double value);

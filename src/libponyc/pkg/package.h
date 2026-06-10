@@ -111,7 +111,7 @@ const char* package_name(ast_t* ast);
  * Gets an AST ID node with a string set to the unique ID of the packaged. The
  * first package loaded will be $0, the second $1, etc.
  */
-ast_t* package_id(ast_t* ast);
+ast_t* package_id(ast_t* ast, pass_opt_t* opt);
 
 /**
  * Gets the package path.
@@ -138,7 +138,7 @@ const char* package_symbol(ast_t* package);
  * per-package basis. The first one will be $0, the second $1, etc.
  * The returned string will be a string table entry and should not be freed.
  */
-const char* package_hygienic_id(typecheck_t* t);
+const char* package_hygienic_id(typecheck_t* t, pass_opt_t* opt);
 
 /**
  * Returns true if the current package is allowed to do C FFI.
@@ -155,7 +155,7 @@ bool package_allow_ffi(typecheck_t* t);
  * `package_alias_from_id(current_module_ast, "$2")` will return the string
  * "foo".
  */
-const char* package_alias_from_id(ast_t* module, const char* id);
+const char* package_alias_from_id(ast_t* module, const char* id, pass_opt_t* opt);
 
 /**
  * Adds a package to the dependency list of another package.

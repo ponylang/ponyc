@@ -138,17 +138,17 @@ void reach_free(reach_t* r);
 void reach(reach_t* r, ast_t* type, const char* name, ast_t* typeargs,
   pass_opt_t* opt);
 
-reach_type_t* reach_type(reach_t* r, ast_t* type);
+reach_type_t* reach_type(reach_t* r, ast_t* type, pass_opt_t* opt);
 
-reach_type_t* reach_type_name(reach_t* r, const char* name);
+reach_type_t* reach_type_name(reach_t* r, const char* name, pass_opt_t* opt);
 
 reach_method_t* reach_method(reach_type_t* t, token_id cap,
-  const char* name, ast_t* typeargs);
+  const char* name, ast_t* typeargs, pass_opt_t* opt);
 
 reach_method_name_t* reach_method_name(reach_type_t* t,
   const char* name);
 
-uint32_t reach_vtable_index(reach_type_t* t, const char* name);
+uint32_t reach_vtable_index(reach_type_t* t, const char* name, pass_opt_t* opt);
 
 /** Return true if reachability analysis aborted because a generic instantiation
  * exceeded the maximum type depth or size.

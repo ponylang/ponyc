@@ -102,7 +102,7 @@ primitive CallHierarchy
     let nid = node.id()
 
     if _is_method(nid) then
-      result.push(AST(node.raw))
+      result.push(AST(node.raw, node.strtab))
       return result
     end
 
@@ -355,7 +355,7 @@ class ref _IncomingCallCollector is ASTVisitor
       var cur = node.parent() as AST box
       while true do
         if CallHierarchy._is_method(cur.id()) then
-          return AST(cur.raw)
+          return AST(cur.raw, cur.strtab)
         end
         cur = cur.parent() as AST box
       end

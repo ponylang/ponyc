@@ -63,7 +63,12 @@ primitive Compiler
             end
           end
         else
-          Program.create(AST(program_ast))
+          let p = Program.create(AST(program_ast, pass_opt.strtab))
+          // Hand the interned-string table to the Program (it frees it in
+          // _final). Detach it from the pass_opt so pass_opt_done below does
+          // not free it while the returned AST still references its strings.
+          pass_opt.strtab = Pointer[_StrTable]
+          p
         end
 
     @package_done(pass_opt)

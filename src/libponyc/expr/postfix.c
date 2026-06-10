@@ -60,19 +60,19 @@ static bool constructor_type(pass_opt_t* opt, ast_t* ast, token_id cap,
         case TK_TYPE:
           ast_error(opt->check.errors, ast,
             "can't call a constructor on a type alias: %s",
-            ast_print_type(type));
+            ast_print_type(type, opt->strtab));
           return false;
 
         case TK_INTERFACE:
           ast_error(opt->check.errors, ast,
             "can't call a constructor on an interface: %s",
-            ast_print_type(type));
+            ast_print_type(type, opt->strtab));
           return false;
 
         case TK_TRAIT:
           ast_error(opt->check.errors, ast,
             "can't call a constructor on a trait: %s",
-            ast_print_type(type));
+            ast_print_type(type, opt->strtab));
           return false;
 
         default:
@@ -120,7 +120,7 @@ static bool constructor_type(pass_opt_t* opt, ast_t* ast, token_id cap,
     {
       ast_error(opt->check.errors, ast,
         "can't call a constructor on a type union: %s",
-        ast_print_type(type));
+        ast_print_type(type, opt->strtab));
       return false;
     }
 
@@ -128,7 +128,7 @@ static bool constructor_type(pass_opt_t* opt, ast_t* ast, token_id cap,
     {
       ast_error(opt->check.errors, ast,
         "can't call a constructor on a type intersection: %s",
-        ast_print_type(type));
+        ast_print_type(type, opt->strtab));
       return false;
     }
 
@@ -250,7 +250,7 @@ static bool type_access(pass_opt_t* opt, ast_t** astp)
       }
 
       ast_t* dot = ast_from(ast, TK_DOT);
-      ast_add(dot, ast_from_string(ast, "create"));
+      ast_add(dot, ast_from_string(ast, "create", opt->strtab));
       ast_swap(left, dot);
       ast_add(dot, left);
 
@@ -483,7 +483,7 @@ bool expr_qualify(pass_opt_t* opt, ast_t** astp)
 
   // Otherwise, sugar as qualified call to .apply()
   ast_t* dot = ast_from(left, TK_DOT);
-  ast_add(dot, ast_from_string(left, "apply"));
+  ast_add(dot, ast_from_string(left, "apply", opt->strtab));
   ast_swap(left, dot);
   ast_add(dot, left);
 

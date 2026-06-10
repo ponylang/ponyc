@@ -121,7 +121,7 @@ DEFINE_HASHMAP(consume_funs, consume_funs_t, ast_t, funref_hash,
 // being consumed for tracking its `consume`d status via the ast `symtab`. It is
 // used to ensure that no parent (e.g. `a.b.c`) of a consumed field
 // (e.g. `a.b.c.d.e`) is consumed.
-static const char* get_multi_ref_name(ast_t* ast)
+static const char* get_multi_ref_name(ast_t* ast, pass_opt_t* opt)
 {
   ast_t* def = NULL;
   size_t len = 0;
@@ -214,7 +214,7 @@ static const char* get_multi_ref_name(ast_t* ast)
   pony_assert((offset + 1) == len);
   buf[offset] = '\0';
 
-  return stringtab_consume(buf, len);
+  return stringtab_consume(opt->strtab, buf, len);
 }
 
 static ast_t* get_fun_def(pass_opt_t* opt, ast_t* ast)
@@ -361,7 +361,7 @@ static bool verify_fun_field_not_referenced(pass_opt_t* opt, ast_t* ast,
       // ensure we're in the same object type as original consume
       if((ctype_name != NULL) && (ctype_name == origin_type_name))
       {
-        const char* cname = get_multi_ref_name(cfield);
+        const char* cname = get_multi_ref_name(cfield, opt);
 
         if(strncmp(cname, consumed_field_full_name, strlen(cname)) == 0)
         {
@@ -411,7 +411,7 @@ static bool verify_consume_field_not_referenced(pass_opt_t* opt,
     ast_t* consumed_type = ast_type(ast_child(cfield));
     const char* consumed_field = ast_name(ast_sibling(ast_child(cfield)));
 
-    const char* cname = get_multi_ref_name(cfield);
+    const char* cname = get_multi_ref_name(cfield, opt);
 
     const char* origin_type_name = ast_name(ast_child(opt->check.frame->type));
 
@@ -705,7 +705,7 @@ static bool verify_not_disjoint_concrete(pass_opt_t* opt, ast_t* ast,
     ast_error(opt->check.errors, ast,
       "identity comparison between disjoint concrete types %s and %s will"
       " always be false",
-      ast_print_type(l_type), ast_print_type(r_type));
+      ast_print_type(l_type, opt->strtab), ast_print_type(r_type, opt->strtab));
     ok = false;
   }
 

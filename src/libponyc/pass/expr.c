@@ -16,29 +16,29 @@
 #include "../type/reify.h"
 #include "ponyassert.h"
 
-static bool is_numeric_primitive(const char* name)
+static bool is_numeric_primitive(const char* name, pass_opt_t* opt)
 {
-  if(name == stringtab("U8") ||
-     name == stringtab("I8") ||
-     name == stringtab("U16") ||
-     name == stringtab("I16") ||
-     name == stringtab("U32") ||
-     name == stringtab("I32") ||
-     name == stringtab("U64") ||
-     name == stringtab("I64") ||
-     name == stringtab("U128") ||
-     name == stringtab("I128") ||
-     name == stringtab("ULong") ||
-     name == stringtab("ILong") ||
-     name == stringtab("USize") ||
-     name == stringtab("ISize") ||
-     name == stringtab("F32") ||
-     name == stringtab("F64"))
+  if(name == stringtab(opt->strtab, "U8") ||
+     name == stringtab(opt->strtab, "I8") ||
+     name == stringtab(opt->strtab, "U16") ||
+     name == stringtab(opt->strtab, "I16") ||
+     name == stringtab(opt->strtab, "U32") ||
+     name == stringtab(opt->strtab, "I32") ||
+     name == stringtab(opt->strtab, "U64") ||
+     name == stringtab(opt->strtab, "I64") ||
+     name == stringtab(opt->strtab, "U128") ||
+     name == stringtab(opt->strtab, "I128") ||
+     name == stringtab(opt->strtab, "ULong") ||
+     name == stringtab(opt->strtab, "ILong") ||
+     name == stringtab(opt->strtab, "USize") ||
+     name == stringtab(opt->strtab, "ISize") ||
+     name == stringtab(opt->strtab, "F32") ||
+     name == stringtab(opt->strtab, "F64"))
     return true;
   return false;
 }
 
-bool is_result_needed(ast_t* ast)
+bool is_result_needed(ast_t* ast, pass_opt_t* opt)
 {
   ast_t* parent = ast_parent(ast);
 
@@ -49,7 +49,7 @@ bool is_result_needed(ast_t* ast)
       if(ast_sibling(ast) != NULL)
         return false;
 
-      return is_result_needed(parent);
+      return is_result_needed(parent, opt);
 
     case TK_IF:
     case TK_IFDEF:
@@ -59,28 +59,28 @@ bool is_result_needed(ast_t* ast)
       if(ast_child(parent) == ast)
         return true;
 
-      return is_result_needed(parent);
+      return is_result_needed(parent, opt);
 
     case TK_IFTYPE:
       // Sub/supertype not needed, body needed only if parent needed.
       if((ast_child(parent) == ast) || (ast_childidx(parent, 1) == ast))
         return false;
 
-      return is_result_needed(parent);
+      return is_result_needed(parent, opt);
 
     case TK_REPEAT:
       // Cond needed, body/else needed only if parent needed.
       if(ast_childidx(parent, 1) == ast)
         return true;
 
-      return is_result_needed(parent);
+      return is_result_needed(parent, opt);
 
     case TK_CASE:
       // Pattern, guard needed, body needed only if parent needed
       if(ast_childidx(parent, 2) != ast)
         return true;
 
-      return is_result_needed(parent);
+      return is_result_needed(parent, opt);
 
     case TK_CASES:
     case TK_IFTYPE_SET:
@@ -89,7 +89,7 @@ bool is_result_needed(ast_t* ast)
     case TK_RECOVER:
     case TK_DISPOSING_BLOCK:
       // Only if parent needed.
-      return is_result_needed(parent);
+      return is_result_needed(parent, opt);
 
     case TK_NEW:
     {
@@ -98,8 +98,8 @@ bool is_result_needed(ast_t* ast)
       pony_assert(ast_id(type) == TK_NOMINAL);
       const char* pkg_name = ast_name(ast_child(type));
       const char* type_name = ast_name(ast_childidx(type, 1));
-      if(pkg_name == stringtab("$0")) // Builtin package.
-        return is_numeric_primitive(type_name);
+      if(pkg_name == stringtab(opt->strtab, "$0")) // Builtin package.
+        return is_numeric_primitive(type_name, opt);
       return false;
     }
 
@@ -112,7 +112,7 @@ bool is_result_needed(ast_t* ast)
       // Result of the receiver expression is needed if the chain result is
       // needed
       if(ast_childidx(parent, 0) == ast)
-        return is_result_needed(parent);
+        return is_result_needed(parent, opt);
 
       // Result of a chained method isn't needed.
       return false;
@@ -341,7 +341,7 @@ ast_t* find_antecedent_type(pass_opt_t* opt, ast_t* ast, bool* is_recovered)
       if(ast_id(funtype) != TK_FUNTYPE)
       {
         deferred_reification_t* fun = lookup(opt, receiver, funtype,
-          stringtab("apply"));
+          stringtab(opt->strtab, "apply"));
 
         if(fun == NULL)
           return NULL;

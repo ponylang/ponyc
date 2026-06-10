@@ -53,7 +53,7 @@ static void print_base_type(compile_t* c, printbuf_t* buf, ast_t* type)
 {
   if(ast_id(type) == TK_NOMINAL)
   {
-    const char* name = genname_type(type);
+    const char* name = genname_type(type, c->opt->strtab);
     const char* c_name = c_type_name(c, name);
 
     if(c_name != NULL)

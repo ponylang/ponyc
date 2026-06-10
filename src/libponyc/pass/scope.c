@@ -58,10 +58,10 @@ static bool set_scope(pass_opt_t* opt, ast_t* scope, ast_t* name, ast_t* value,
       return false;
   }
 
-  if(!ast_set(scope, s, value, status, allow_shadowing))
+  if(!ast_set(scope, s, value, status, allow_shadowing, opt->strtab))
   {
     ast_t* prev = ast_get(scope, s, NULL);
-    ast_t* prev_nocase = ast_get_case(scope, s, NULL);
+    ast_t* prev_nocase = ast_get_case(scope, s, NULL, opt->strtab);
 
     ast_error(opt->check.errors, name, "can't reuse name '%s'", s);
     ast_error_continue(opt->check.errors, prev_nocase,
@@ -245,7 +245,7 @@ static ast_result_t scope_iftype(pass_opt_t* opt, ast_t* ast)
         ast_error(opt->check.errors, subtype, "iftype subtype is a tuple but "
           "supertype isn't");
         ast_error_continue(opt->check.errors, supertype, "Supertype is %s",
-          ast_print_type(supertype));
+          ast_print_type(supertype, opt->strtab));
         ast_free_unattached(typeparams);
         return AST_ERROR;
       }

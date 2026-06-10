@@ -179,7 +179,7 @@ bool expr_param(pass_opt_t* opt, ast_t* ast)
     {
       ast_error_frame(&err2, declared_type,
         "invalid parameter type for a parameter with a default argument: %s",
-        ast_print_type(declared_type));
+        ast_print_type(declared_type, opt->strtab));
       errorframe_append(&err2, &err);
       errorframe_report(&err2, opt->check.errors);
       ok = false;
@@ -268,7 +268,7 @@ bool expr_fieldref(pass_opt_t* opt, ast_t* ast, ast_t* find, token_id tid)
     if(upper == NULL)
     {
       ast_error(opt->check.errors, ast, "can't read a field through %s",
-        ast_print_type(l_type));
+        ast_print_type(l_type, opt->strtab));
       return false;
     }
 
@@ -335,7 +335,7 @@ bool expr_typeref(pass_opt_t* opt, ast_t** astp)
     const char* name = ast_name(id);
     const char* package_name =
       (ast_id(package) != TK_NONE) ? ast_name(ast_child(package)) : NULL;
-    type = type_sugar_args(ast, package_name, name, typeargs);
+    type = type_sugar_args(ast, package_name, name, typeargs, opt);
     ast_settype(ast, type);
 
     if(is_typecheck_error(type))
@@ -365,7 +365,7 @@ bool expr_typeref(pass_opt_t* opt, ast_t** astp)
     {
       // Transform to a default constructor.
       ast_t* dot = ast_from(ast, TK_DOT);
-      ast_add(dot, ast_from_string(ast, "create"));
+      ast_add(dot, ast_from_string(ast, "create", opt->strtab));
       ast_swap(ast, dot);
       *astp = dot;
       ast_add(dot, ast);
@@ -409,7 +409,7 @@ bool expr_typeref(pass_opt_t* opt, ast_t** astp)
 
           // Add a dot node.
           ast_t* apply = ast_from(call, TK_DOT);
-          ast_add(apply, ast_from_string(call, "apply"));
+          ast_add(apply, ast_from_string(call, "apply", opt->strtab));
           ast_swap(call, apply);
           *astp = apply;
           ast_add(apply, call);
@@ -429,7 +429,7 @@ bool expr_typeref(pass_opt_t* opt, ast_t** astp)
     {
       // Transform to a default constructor.
       ast_t* dot = ast_from(ast, TK_DOT);
-      ast_add(dot, ast_from_string(ast, "create"));
+      ast_add(dot, ast_from_string(ast, "create", opt->strtab));
       ast_swap(ast, dot);
       ast_add(dot, ast);
 
@@ -465,7 +465,7 @@ bool expr_dontcareref(pass_opt_t* opt, ast_t* ast)
 {
   pony_assert(ast_id(ast) == TK_DONTCAREREF);
 
-  if(is_result_needed(ast) && !is_legal_dontcare_read(ast))
+  if(is_result_needed(ast, opt) && !is_legal_dontcare_read(ast))
   {
     ast_error(opt->check.errors, ast, "can't read from '_'");
     return false;
@@ -1025,7 +1025,7 @@ bool expr_nominal(pass_opt_t* opt, ast_t** astp)
       ast_error(opt->check.errors, ast,
         "%s is not allowed: "
         "the type argument to NullablePointer must be a struct",
-        ast_print_type(ast));
+        ast_print_type(ast, opt->strtab));
 
       return false;
     }
@@ -1062,9 +1062,9 @@ static bool check_return_type(pass_opt_t* opt, ast_t* ast)
     ast_t* last = ast_childlast(body);
     ast_error_frame(&frame, last, "function body isn't the result type");
     ast_error_frame(&frame, type, "function return type: %s",
-      ast_print_type(type));
+      ast_print_type(type, opt->strtab));
     ast_error_frame(&frame, body_type, "function body type: %s",
-      ast_print_type(body_type));
+      ast_print_type(body_type, opt->strtab));
     errorframe_append(&frame, &info);
     errorframe_report(&frame, opt->check.errors);
     ok = false;

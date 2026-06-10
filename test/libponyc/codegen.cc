@@ -36,7 +36,7 @@ TEST_F(CodegenTest, PackedStructIsPacked)
   TEST_COMPILE(src);
 
   reach_t* reach = compile->reach;
-  reach_type_t* foo = reach_type_name(reach, "Foo");
+  reach_type_t* foo = reach_type_name(reach, "Foo", &opt);
   ASSERT_TRUE(foo != NULL);
 
   LLVMTypeRef type = ((compile_type_t*)foo->c_type)->structure;
@@ -58,7 +58,7 @@ TEST_F(CodegenTest, NonPackedStructIsntPacked)
   TEST_COMPILE(src);
 
   reach_t* reach = compile->reach;
-  reach_type_t* foo = reach_type_name(reach, "Foo");
+  reach_type_t* foo = reach_type_name(reach, "Foo", &opt);
   ASSERT_TRUE(foo != NULL);
 
   LLVMTypeRef type = ((compile_type_t*)foo->c_type)->structure;

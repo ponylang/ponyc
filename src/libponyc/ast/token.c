@@ -293,7 +293,8 @@ void token_set_id(token_t* token, token_id id)
 }
 
 
-void token_set_string(token_t* token, const char* value, size_t length)
+void token_set_string(token_t* token, const char* value, size_t length,
+  strtable_t* strtab)
 {
   pony_assert(token != NULL);
   pony_assert(token->id == TK_STRING || token->id == TK_ID);
@@ -305,7 +306,7 @@ void token_set_string(token_t* token, const char* value, size_t length)
   if(length == 0)
     length = strlen(value);
 
-  token->string = stringtab_len(value, length);
+  token->string = stringtab_len(strtab, value, length);
   token->str_length = length;
 }
 

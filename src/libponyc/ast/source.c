@@ -6,7 +6,8 @@
 #include <string.h>
 #include <stdio.h>
 
-source_t* source_open(const char* file, const char** error_msgp)
+source_t* source_open(const char* file, const char** error_msgp,
+  strtable_t* strtab)
 {
   FILE* fp = fopen(file, "rb");
 
@@ -29,7 +30,7 @@ source_t* source_open(const char* file, const char** error_msgp)
   fseek(fp, 0, SEEK_SET);
 
   source_t* source = POOL_ALLOC(source_t);
-  source->file = stringtab(file);
+  source->file = stringtab(strtab, file);
   source->m = (char*)ponyint_pool_alloc_size(size + 1);
   source->len = size + 1;
 

@@ -71,8 +71,6 @@ static bool compile_package(const char* path, pass_opt_t* opt,
 
 int main(int argc, char* argv[])
 {
-  stringtab_init();
-
   pass_opt_t opt;
   pass_opt_init(&opt);
 

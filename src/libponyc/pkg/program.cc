@@ -131,7 +131,7 @@ static const char* quoted_locator(pass_opt_t* opt, ast_t* use,
   quoted[len + 1] = '"';
   quoted[len + 2] = '\0';
 
-  return stringtab_consume(quoted, len + 3);
+  return stringtab_consume(opt->strtab, quoted, len + 3);
 }
 
 /// Process a "lib:" scheme use command.
@@ -284,7 +284,7 @@ const char* program_lib_args(ast_t* program)
 
 
 // Strip the surrounding quotes added by quoted_locator().
-static const char* unquote(const char* quoted)
+static const char* unquote(const char* quoted, pass_opt_t* opt)
 {
   pony_assert(quoted != NULL);
 
@@ -298,7 +298,7 @@ static const char* unquote(const char* quoted)
   memcpy(buf, quoted + 1, unquoted_len);
   buf[unquoted_len] = '\0';
 
-  return stringtab_consume(buf, unquoted_len + 1);
+  return stringtab_consume(opt->strtab, buf, unquoted_len + 1);
 }
 
 
@@ -332,14 +332,14 @@ void program_lib_build_args_embedded(ast_t* program, pass_opt_t* opt)
 
     size_t i = 0;
     for(strlist_t* p = data->libpaths; p != NULL; p = strlist_next(p))
-      data->embedded_paths[i++] = unquote(strlist_data(p));
+      data->embedded_paths[i++] = unquote(strlist_data(p), opt);
 
     for(strlist_t* p = opt->package_search_paths; p != NULL;
       p = strlist_next(p))
     {
       const char* quoted = quoted_locator(opt, NULL, strlist_data(p));
       if(quoted != NULL)
-        data->embedded_paths[i++] = unquote(quoted);
+        data->embedded_paths[i++] = unquote(quoted, opt);
     }
   }
 
@@ -357,7 +357,7 @@ void program_lib_build_args_embedded(ast_t* program, pass_opt_t* opt)
 
     size_t i = 0;
     for(strlist_t* p = data->libs; p != NULL; p = strlist_next(p))
-      data->embedded_libs[i++] = unquote(strlist_data(p));
+      data->embedded_libs[i++] = unquote(strlist_data(p), opt);
   }
 }
 

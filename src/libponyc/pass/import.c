@@ -45,10 +45,11 @@ static bool import_use(pass_opt_t* opt, ast_t* ast)
       (strcmp(sym->name, "Main") == 0))
       continue;
 
-    ast_t* existing = symtab_find_case(pkg_symtab, sym->name, NULL);
+    ast_t* existing = symtab_find_case(pkg_symtab, sym->name, NULL,
+      opt->strtab);
 
     if(existing == NULL)
-      existing = symtab_find_case(mod_symtab, sym->name, NULL);
+      existing = symtab_find_case(mod_symtab, sym->name, NULL, opt->strtab);
 
     if(existing != NULL)
     {
@@ -79,7 +80,7 @@ static bool import_use(pass_opt_t* opt, ast_t* ast)
     else
     {
       // OK to add symbol.
-      symtab_add(mod_symtab, sym->name, sym->def, sym->status);
+      symtab_add(mod_symtab, sym->name, sym->def, sym->status, opt->strtab);
     }
 
   }

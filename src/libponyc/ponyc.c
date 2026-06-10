@@ -23,5 +23,7 @@ void ponyc_shutdown(pass_opt_t* options)
   package_done(options);
   codegen_pass_cleanup(options);
   codegen_llvm_shutdown();
-  stringtab_done();
+  // The interned-string table is freed by pass_opt_done, which the caller runs
+  // after this; it must stay live through the cleanup above (error printing,
+  // package teardown) since those still read interned strings.
 }

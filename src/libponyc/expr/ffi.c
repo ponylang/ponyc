@@ -77,9 +77,9 @@ static bool declared_ffi(pass_opt_t* opt, ast_t* call, ast_t* decl)
       errorframe_t frame = NULL;
       ast_error_frame(&frame, arg, "argument not a assignable to parameter");
       ast_error_frame(&frame, arg, "argument type is %s",
-                      ast_print_type(a_type));
+                      ast_print_type(a_type, opt->strtab));
       ast_error_frame(&frame, param, "parameter type requires %s",
-                      ast_print_type(p_type));
+                      ast_print_type(p_type, opt->strtab));
       errorframe_append(&frame, &info);
       errorframe_report(&frame, opt->check.errors);
       ast_free_unattached(a_type);

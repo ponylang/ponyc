@@ -582,12 +582,12 @@ TEST_F(SubTypeTest, IsSubTypeNosupertypeInterface)
 
   TEST_COMPILE(src);
 
-  pass_opt_t opt;
-  pass_opt_init(&opt);
-
+  // Use the same pass_opt (and so the same interned-string table) that compiled
+  // the code. is_subtype checks the `nosupertype` annotation by interning that
+  // name and comparing it by pointer identity against the annotation already on
+  // the AST. A fresh pass_opt would have a different table, so the comparison
+  // would never match.
   ASSERT_FALSE(is_subtype(type_of("p"), type_of("a"), NULL, &opt));
-
-  pass_opt_init(&opt);
 }
 
 

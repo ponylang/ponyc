@@ -16,8 +16,8 @@
 #include <string.h>
 
 #define FIND_METHOD(name, cap) \
-  const char* strtab_name = stringtab(name); \
-  reach_method_t* m = reach_method(t, cap, strtab_name, NULL); \
+  const char* strtab_name = stringtab(c->opt->strtab, name); \
+  reach_method_t* m = reach_method(t, cap, strtab_name, NULL, c->opt); \
   if(m == NULL) return; \
   m->intrinsic = true; \
   compile_type_t* c_t = (compile_type_t*)t->c_type; \
@@ -31,7 +31,7 @@
   gen(c, gen_data, TK_VAL);
 
 #define GENERIC_FUNCTION(name, gen) \
-  generic_function(c, t, stringtab(name), gen);
+  generic_function(c, t, stringtab(c->opt->strtab, name), gen);
 
 typedef void (*generate_gen_fn)(compile_t*, reach_type_t*, reach_method_t*);
 
@@ -428,7 +428,7 @@ void genprim_pointer_methods(compile_t* c, reach_type_t* t)
 {
   ast_t* typeargs = ast_childidx(t->ast, 2);
   ast_t* typearg = ast_child(typeargs);
-  reach_type_t* t_elem = reach_type(c->reach, typearg);
+  reach_type_t* t_elem = reach_type(c->reach, typearg, c->opt);
   compile_type_t* c_t_elem = (compile_type_t*)t_elem->c_type;
 
   void* box_args[2];
@@ -531,7 +531,7 @@ void genprim_nullable_pointer_methods(compile_t* c, reach_type_t* t)
   ast_t* typeargs = ast_childidx(t->ast, 2);
   ast_t* typearg = ast_child(typeargs);
   compile_type_t* t_elem =
-    (compile_type_t*)reach_type(c->reach, typearg)->c_type;
+    (compile_type_t*)reach_type(c->reach, typearg, c->opt)->c_type;
 
   void* box_args[2];
   box_args[0] = t;
@@ -552,7 +552,7 @@ static void donotoptimise_apply(compile_t* c, reach_type_t* t,
 
   ast_t* typearg = ast_child(m->typeargs);
   compile_type_t* t_elem =
-    (compile_type_t*)reach_type(c->reach, typearg)->c_type;
+    (compile_type_t*)reach_type(c->reach, typearg, c->opt)->c_type;
   compile_type_t* t_result = (compile_type_t*)m->result->c_type;
 
   LLVMTypeRef params[2];
@@ -632,7 +632,7 @@ static void trace_array_elements(compile_t* c, reach_type_t* t,
   if(!gentrace_needed(c, typearg, typearg))
     return;
 
-  reach_type_t* t_elem = reach_type(c->reach, typearg);
+  reach_type_t* t_elem = reach_type(c->reach, typearg, c->opt);
   compile_type_t* c_t_elem = (compile_type_t*)t_elem->c_type;
 
   LLVMBasicBlockRef entry_block = LLVMGetInsertBlock(c->builder);
@@ -925,7 +925,7 @@ typedef struct num_conv_t
 
 static void number_value(compile_t* c, num_conv_t* type, token_id cap)
 {
-  reach_type_t* t = reach_type_name(c->reach, type->type_name);
+  reach_type_t* t = reach_type_name(c->reach, type->type_name, c->opt);
 
   if(t == NULL)
     return;
@@ -1163,7 +1163,7 @@ static void number_conversion(compile_t* c, void** data, token_id cap)
     return;
   }
 
-  reach_type_t* t = reach_type_name(c->reach, from->type_name);
+  reach_type_t* t = reach_type_name(c->reach, from->type_name, c->opt);
 
   if(t == NULL)
     return;
@@ -1235,12 +1235,12 @@ static void unsafe_number_conversion(compile_t* c, void** data, token_id cap)
     return;
   }
 
-  reach_type_t* t = reach_type_name(c->reach, from->type_name);
+  reach_type_t* t = reach_type_name(c->reach, from->type_name, c->opt);
 
   if(t == NULL)
     return;
 
-  const char* name = genname_unsafe(to->fun_name);
+  const char* name = genname_unsafe(to->fun_name, c->opt->strtab);
 
   FIND_METHOD(name, cap);
   start_function(c, t, m, to->type, &from->type, 1);
@@ -1493,7 +1493,7 @@ static void fp_intrinsics(compile_t* c)
 {
   reach_type_t* t;
 
-  if((t = reach_type_name(c->reach, "F32")) != NULL)
+  if((t = reach_type_name(c->reach, "F32", c->opt)) != NULL)
   {
     f32__nan(c, t);
     f32__inf(c, t);
@@ -1501,7 +1501,7 @@ static void fp_intrinsics(compile_t* c)
     BOX_FUNCTION(f32_bits, t);
   }
 
-  if((t = reach_type_name(c->reach, "F64")) != NULL)
+  if((t = reach_type_name(c->reach, "F64", c->opt)) != NULL)
   {
     f64__nan(c, t);
     f64__inf(c, t);
