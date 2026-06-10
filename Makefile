@@ -443,7 +443,7 @@ distclean:
 	$(SILENT)([ -d build ] && rm -rf build) || true
 
 install: all
-	$(SILENT)cd '$(buildDir)' && env CC="$(CC)" CXX="$(CXX)" cmake --install '$(buildDir)' --prefix $(ponydir) --config $(config)
+	$(SILENT)cd '$(buildDir)' && env DESTDIR= CC="$(CC)" CXX="$(CXX)" cmake --install '$(buildDir)' --prefix $(ponydir) --config $(config)
 ifeq ($(symlink),yes)
 	@mkdir -p $(prefix)/bin
 	@mkdir -p $(prefix)/lib
@@ -453,12 +453,13 @@ ifeq ($(symlink),yes)
 	$(SILENT)if [ -f $(ponydir)/bin/pony-lint ]; then ln -s -f $(ponydir)/bin/pony-lint $(prefix)/bin/pony-lint; fi
 	$(SILENT)if [ -f $(ponydir)/bin/pony-doc ]; then ln -s -f $(ponydir)/bin/pony-doc $(prefix)/bin/pony-doc; fi
 	$(SILENT)cmake_arch=`grep '^PONY_ARCH:' '$(buildDir)/CMakeCache.txt' | cut -d= -f2`; \
-	libdir=$(ponydir)/lib/$$cmake_arch; \
-	if [ -f $$libdir/libponyc.a ]; then ln -s -f $$libdir/libponyc.a $(prefix)/lib/libponyc.a; fi; \
-	if [ -f $$libdir/libponyc-standalone.a ]; then ln -s -f $$libdir/libponyc-standalone.a $(prefix)/lib/libponyc-standalone.a; fi; \
-	if [ -f $$libdir/libponyrt.a ]; then ln -s -f $$libdir/libponyrt.a $(prefix)/lib/libponyrt.a; fi; \
-	if [ -f $$libdir/libponyrt-pic.a ]; then ln -s -f $$libdir/libponyrt-pic.a $(prefix)/lib/libponyrt-pic.a; fi; \
-	if [ -f $$libdir/libdtrace_probes.a ]; then ln -s -f $$libdir/libdtrace_probes.a $(prefix)/lib/libdtrace_probes.a; fi
+	if [ -z "$$cmake_arch" ]; then echo "install: could not read PONY_ARCH from $(buildDir)/CMakeCache.txt; run 'make configure' first" >&2; exit 1; fi; \
+	libdir="$(ponydir)/lib/$$cmake_arch"; \
+	if [ -f "$$libdir/libponyc.a" ]; then ln -s -f "$$libdir/libponyc.a" "$(prefix)/lib/libponyc.a"; fi; \
+	if [ -f "$$libdir/libponyc-standalone.a" ]; then ln -s -f "$$libdir/libponyc-standalone.a" "$(prefix)/lib/libponyc-standalone.a"; fi; \
+	if [ -f "$$libdir/libponyrt.a" ]; then ln -s -f "$$libdir/libponyrt.a" "$(prefix)/lib/libponyrt.a"; fi; \
+	if [ -f "$$libdir/libponyrt-pic.a" ]; then ln -s -f "$$libdir/libponyrt-pic.a" "$(prefix)/lib/libponyrt-pic.a"; fi; \
+	if [ -f "$$libdir/libdtrace_probes.a" ]; then ln -s -f "$$libdir/libdtrace_probes.a" "$(prefix)/lib/libdtrace_probes.a"; fi
 	$(SILENT)ln -s -f $(ponydir)/include/pony.h $(prefix)/include/pony.h
 	$(SILENT)ln -s -f $(ponydir)/include/pony/detail/atomics.h $(prefix)/include/pony/detail/atomics.h
 endif
