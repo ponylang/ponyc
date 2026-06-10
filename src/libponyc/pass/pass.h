@@ -294,8 +294,6 @@ typedef struct pass_opt_t
   const char* output;
   const char* bin_name;
   char* link_arch;
-  char* linker;
-  char* link_ldcmd;
   char* sysroot;
   const char* llvm_args;
 
