@@ -689,7 +689,11 @@ static bool capture_from_type(pass_opt_t* opt, ast_t* ctx, ast_t** def,
     }
   }
 
-  // Reset the scope.
+  // Reset the scope. This empties every symtab in the subtree, so the scope
+  // pass re-runs over it during the catch up. Passes that establish scope
+  // bindings must therefore be idempotent on re-entry and must re-establish
+  // those bindings here — see scope_iftype, which re-installs the narrowed
+  // type parameters its first run parked in typeparam_store.
   ast_clear(*def);
   return ok;
 }

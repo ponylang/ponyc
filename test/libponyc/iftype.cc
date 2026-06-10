@@ -249,6 +249,220 @@ TEST_F(IftypeTest, Tuple_MutuallyRecursiveConstraint)
 }
 
 
+TEST_F(IftypeTest, RecursiveConstraintInLambda)
+{
+  // The RecursiveConstraint case (a valid F-bounded iftype condition) inside a
+  // lambda. The lambda's body is processed through the object-literal "catch
+  // up" path, which empties the iftype node's scope; the narrowed type
+  // parameter must be re-installed so the condition's `T[A]` and the narrowed
+  // `x.m()` call both resolve, exactly as at method scope. This compiled at
+  // method scope but was wrongly rejected here (ponylang/ponyc#5422).
+  const char* src =
+    "trait T[X: T[X] #any]\n"
+    "  fun tag m(): X\n"
+
+    "class val C is T[C]\n"
+    "  fun tag m(): C => C.create()\n"
+
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let f = {[A](x': A) =>\n"
+    "      var x = x'\n"
+    "      iftype A <: T[A] then\n"
+    "        x = x.m()\n"
+    "      end}\n"
+    "    f[C](C)";
+
+  TEST_COMPILE(src);
+}
+
+
+TEST_F(IftypeTest, RecursiveConstraintInObjectLiteral)
+{
+  // The same valid F-bounded condition inside an object literal's method.
+  // Object literals share the lambda catch-up path (ponylang/ponyc#5422).
+  const char* src =
+    "trait T[X: T[X] #any]\n"
+    "  fun tag m(): X\n"
+
+    "class val C is T[C]\n"
+    "  fun tag m(): C => C.create()\n"
+
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let o = object\n"
+    "      fun foo[A](x': A) =>\n"
+    "        var x = x'\n"
+    "        iftype A <: T[A] then\n"
+    "          x = x.m()\n"
+    "        end\n"
+    "    end\n"
+    "    o.foo[C](C)";
+
+  TEST_COMPILE(src);
+}
+
+
+TEST_F(IftypeTest, RecursiveConstraintInNestedLambda)
+{
+  // The valid F-bounded condition is two catch-up copies deep: a lambda nested
+  // inside another lambda. The narrowed parameter must be re-installed at each
+  // level (ponylang/ponyc#5422).
+  const char* src =
+    "trait T[X: T[X] #any]\n"
+    "  fun tag m(): X\n"
+
+    "class val C is T[C]\n"
+    "  fun tag m(): C => C.create()\n"
+
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let outer = {() =>\n"
+    "      let inner = {[A](x': A) =>\n"
+    "        var x = x'\n"
+    "        iftype A <: T[A] then\n"
+    "          x = x.m()\n"
+    "        end}\n"
+    "      inner[C](C)}\n"
+    "    outer()";
+
+  TEST_COMPILE(src);
+}
+
+
+TEST_F(IftypeTest, RecursiveConstraintTupleInLambda)
+{
+  // A valid F-bounded tuple condition inside a lambda. The catch-up must
+  // re-install both narrowed parameters (ponylang/ponyc#5422). The then branch
+  // calls the narrowed method on both `x` (A) and `y` (B), so a fix that
+  // re-installed only the first parameter would fail to resolve `y.m()`.
+  const char* src =
+    "trait T[X: T[X] #any]\n"
+    "  fun tag m(): X\n"
+
+    "class val C is T[C]\n"
+    "  fun tag m(): C => C.create()\n"
+
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let f = {[A, B](x': A, y': B) =>\n"
+    "      var x = x'\n"
+    "      var y = y'\n"
+    "      iftype (A, B) <: (T[A], T[B]) then\n"
+    "        x = x.m()\n"
+    "        y = y.m()\n"
+    "      end}\n"
+    "    f[C, C](C, C)";
+
+  TEST_COMPILE(src);
+}
+
+
+TEST_F(IftypeTest, RecursiveConstraintNestedIftypeInLambda)
+{
+  // A second iftype nested in the then branch of the first, inside a lambda.
+  // The catch-up must descend into the outer then branch so the inner iftype's
+  // own narrowing is re-established; otherwise the inner `T[B]` reference binds
+  // to the un-narrowed `B` and fails its constraint check (ponylang/ponyc
+  // #5422). This is the case that requires scope_iftype to return AST_OK rather
+  // than AST_IGNORE on the catch-up.
+  const char* src =
+    "trait T[X: T[X] #any]\n"
+    "  fun tag m(): X\n"
+
+    "class val C is T[C]\n"
+    "  fun tag m(): C => C.create()\n"
+
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let f = {[A, B](x': A, y': B) =>\n"
+    "      var x = x'\n"
+    "      var y = y'\n"
+    "      iftype A <: T[A] then\n"
+    "        iftype B <: T[B] then\n"
+    "          x = x.m()\n"
+    "          y = y.m()\n"
+    "        end\n"
+    "      end}\n"
+    "    f[C, C](C, C)";
+
+  TEST_COMPILE(src);
+}
+
+
+TEST_F(IftypeTest, NarrowedTypeparamUsedInLambdaBody)
+{
+  // The fix is not specific to F-bounded constraints: any narrowing condition
+  // whose narrowed parameter is used in the then branch was rejected inside a
+  // lambda and compiles at method scope. Here `hello()` only resolves once `A`
+  // is narrowed to `Speak`, so this exercises the same re-install path with a
+  // plain (non-recursive) constraint (ponylang/ponyc#5422).
+  const char* src =
+    "trait Speak\n"
+    "  fun tag hello(): None\n"
+
+    "class val Dog is Speak\n"
+    "  fun tag hello(): None => None\n"
+
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let f = {[A](x': A) =>\n"
+    "      iftype A <: Speak then\n"
+    "        x'.hello()\n"
+    "      end}\n"
+    "    f[Dog](Dog)";
+
+  TEST_COMPILE(src);
+}
+
+
+TEST_F(IftypeTest, LocalBindingInLambdaIftypeThenBranch)
+{
+  // A local binding in the then branch of an iftype inside a lambda. Before
+  // the catch-up re-scoped the branch, the binding's symbol status was never
+  // set and a later pass asserted on it. Returning AST_OK so the scope pass
+  // descends into the branch fixes this (ponylang/ponyc#5441).
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let f = {[A](x': A) =>\n"
+    "      iftype A <: U8 then\n"
+    "        let z = x'\n"
+    "        None\n"
+    "      end}\n"
+    "    f[U8](0)";
+
+  TEST_COMPILE(src);
+}
+
+
+TEST_F(IftypeTest, ElseClause_NoTypeConstraintInLambda)
+{
+  // The re-installed narrowing must not leak into the else branch: in the
+  // else clause `A` is not narrowed, so the narrowed method does not resolve.
+  // Mirrors ElseClause_NoTypeConstraint on the lambda catch-up path
+  // (ponylang/ponyc#5422).
+  const char* src =
+    "trait Speak\n"
+    "  fun tag hello(): None\n"
+
+    "class val Dog is Speak\n"
+    "  fun tag hello(): None => None\n"
+
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let f = {[A](x': A) =>\n"
+    "      iftype A <: Speak then\n"
+    "        None\n"
+    "      else\n"
+    "        x'.hello()\n"
+    "      end}\n"
+    "    f[Dog](Dog)";
+
+  TEST_ERROR(src, "couldn't find 'hello' in 'A'");
+}
+
+
 TEST_F(IftypeTest, SelfReferentialSubtypeConstraint)
 {
   // An iftype whose subtype bound names the tested parameter through a
@@ -328,6 +542,14 @@ TEST_F(IftypeTest, SelfReferentialSubtypeConstraintIntersectionInLambda)
   // The self-referential supertype reaches the synthetic parameter through an
   // intersection member rather than a union, inside a lambda (ponylang/ponyc
   // #5404).
+  //
+  // This produces the same diagnostics as the equivalent method-scope
+  // condition (parity restored by ponylang/ponyc#5422, which re-installs the
+  // narrowed parameter on the lambda catch-up path). An intersection whose
+  // members can't agree on a capability yields three "no valid capability"
+  // errors in addition to the self-reference error; both method and lambda
+  // scope emit all four. (A union supertype, as in the tests above, does not
+  // hit the capability error and so reports only the self-reference error.)
   const char* src =
     "trait Tr\n"
     "actor Main\n"
@@ -336,7 +558,14 @@ TEST_F(IftypeTest, SelfReferentialSubtypeConstraintIntersectionInLambda)
     "      iftype A <: (A & Tr) then None end}\n"
     "    f[U8](0)";
 
-  TEST_ERROR(src, "can't appear directly in its own constraint");
+  const char* errs[] = {
+    "type parameter constraint has no valid capability",
+    "type parameter constraint has no valid capability",
+    "type parameter constraint has no valid capability",
+    "type parameter 'A' can't appear directly in its own constraint",
+    NULL
+  };
+  DO(test_expected_errors(src, "ir", errs));
 }
 
 
