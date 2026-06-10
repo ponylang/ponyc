@@ -31,6 +31,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Update supported OpenBSD version to 7.9 ([PR #5442](https://github.com/ponylang/ponyc/pull/5442))
 - Use embedded LLD for native macOS sanitizer builds ([PR #5444](https://github.com/ponylang/ponyc/pull/5444))
 - Reject use=dtrace at configure time on DragonFly and OpenBSD ([PR #5449](https://github.com/ponylang/ponyc/pull/5449))
+- Remove the `--linker` and `--link-ldcmd` command line options ([PR #5452](https://github.com/ponylang/ponyc/pull/5452))
 
 ## [0.64.0] - 2026-05-30
 
