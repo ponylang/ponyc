@@ -181,3 +181,9 @@ Building ponyc with `use=dtrace` failed on macOS because the build tried to run 
 
 `use=dtrace` now builds and links correctly on macOS. Programs compiled by a dtrace-enabled ponyc expose their `pony` provider probes to DTrace. Actually tracing a running program requires System Integrity Protection (SIP) to permit DTrace; see the examples/dtrace README for details.
 
+## Fix intermittent crashes when compiling on multiple threads at once
+
+The compiler could crash intermittently when more than one compilation ran at the same time within a single process, as the Pony language server does while you edit. Because the failure depended on thread timing, it appeared as occasional, hard-to-reproduce crashes rather than a consistent error.
+
+Concurrent compilations no longer share state that simultaneous access could corrupt, so these crashes no longer happen.
+
