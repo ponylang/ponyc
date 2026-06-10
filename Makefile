@@ -162,6 +162,12 @@ define USE_CHECK
   else ifeq ($1,pooltrack)
     PONY_USES += -DPONY_USE_POOLTRACK=true
   else ifeq ($1,dtrace)
+    ifeq ($$(HOST_OS),OpenBSD)
+      $$(error DTrace is not supported on OpenBSD. See BUILD.md)
+    endif
+    ifeq ($$(HOST_OS),DragonFly)
+      $$(error DTrace is not supported on DragonFly. See BUILD.md)
+    endif
     DTRACE ?= $(shell which dtrace)
     ifeq (, $$(DTRACE))
       $$(error No dtrace compatible user application static probe generation tool found)
