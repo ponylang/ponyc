@@ -14,6 +14,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Fix compiler crashes in while and repeat loops that jump away ([PR #5418](https://github.com/ponylang/ponyc/pull/5418))
 - Reject tuple types hidden in an intersection within a type constraint ([PR #5439](https://github.com/ponylang/ponyc/pull/5439))
 - Fix use=dtrace builds on macOS ([PR #5445](https://github.com/ponylang/ponyc/pull/5445))
+- Fix intermittent crashes when compiling on multiple threads at once ([PR #5420](https://github.com/ponylang/ponyc/pull/5420))
 
 ### Added
 
