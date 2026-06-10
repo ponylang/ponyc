@@ -526,11 +526,15 @@ else()
         DESTINATION bin)
 
     # Static libraries that are real CMake targets; CMake resolves their archive
-    # paths regardless of where they are emitted.
+    # paths regardless of where they are emitted. They MUST go in lib/${PONY_ARCH}
+    # because the compiler looks for its runtime at "../lib/<arch>" relative to
+    # the ponyc binary, where <arch> is the compiled-in PONY_ARCH (see
+    # add_exec_dir() in src/libponyc/pkg/package.c). PONY_ARCH is the single
+    # source of truth shared by the compiled binary and this install rule.
     install(TARGETS
         libponyc
         libponyrt
-        DESTINATION lib)
+        DESTINATION lib/${PONY_ARCH})
 
     # Static libs and crt objects produced by custom build steps into the output
     # directory. OPTIONAL because which ones exist is platform/config dependent:
@@ -544,7 +548,7 @@ else()
         ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/crtendS.o
         ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/crtbeginT.o
         ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/crtend.o
-        DESTINATION lib
+        DESTINATION lib/${PONY_ARCH}
         OPTIONAL)
 
     # Public headers.
