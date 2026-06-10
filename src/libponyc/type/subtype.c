@@ -973,7 +973,7 @@ static bool is_nominal_sub_entity(ast_t* sub, ast_t* super,
   ast_t* super_def = (ast_t*)ast_data(super);
   bool ret = true;
 
-  if(is_bare(sub) && is_pointer(super))
+  if(is_bare(sub) && is_raw_pointer(super))
   {
     ast_t* super_typeargs = ast_childidx(super, 2);
     ast_t* super_typearg = ast_child(super_typeargs);
@@ -2204,6 +2204,16 @@ bool is_literal(ast_t* type, const char* name)
 bool is_pointer(ast_t* type)
 {
   return is_literal(type, "Pointer");
+}
+
+bool is_unsafe_pointer(ast_t* type)
+{
+  return is_literal(type, "UnsafePointer");
+}
+
+bool is_raw_pointer(ast_t* type)
+{
+  return is_pointer(type) || is_unsafe_pointer(type);
 }
 
 bool is_nullable_pointer(ast_t* type)

@@ -12,6 +12,12 @@ use @pony_exitcode[None](code: I32)
 use @pony_get_exitcode[I32]()
 use @pony_triggergc[None](ctx: Pointer[None])
 use @ponyint_pagemap_get_chunk[Pointer[None]](p: Pointer[None] tag)
+// Used to simulate genuinely-foreign (non-pony_alloc'd) memory so that the
+// UnsafePointer copy constructors can be exercised on real data.
+use @malloc[UnsafePointer[U8]](size: USize)
+use @free[None](p: UnsafePointer[U8])
+use @memcpy[Pointer[None]](dst: UnsafePointer[U8], src: Pointer[U8] tag,
+  n: USize)
 
 use "pony_test"
 use "collections"
@@ -30,6 +36,7 @@ actor \nodoc\ Main is TestList
     test(_TestArrayConcat)
     test(_TestArrayFind)
     test(_TestArrayFromCPointer)
+    test(_TestUnsafePointer)
     test(_TestArrayCopyTo)
     test(_TestArrayInsert)
     test(_TestArraySlice)
@@ -68,6 +75,7 @@ actor \nodoc\ Main is TestList
     test(_TestStringCut)
     test(_TestStringFromArray)
     test(_TestStringFromCPointer)
+    test(_TestStringCopyUnsafePointer)
     test(_TestStringFromIsoArray)
     test(_TestStringIsNullTerminated)
     test(_TestStringJoin)
@@ -2884,3 +2892,60 @@ class \nodoc\ iso _TestLambdaCapture is UnitTest
     let x = "hi"
     let f = {(y: String): String => x + y}
     h.assert_eq[String]("hi there", f(" there"))
+
+class \nodoc\ iso _TestUnsafePointer is UnitTest
+  """
+  Exercise the public surface of the builtin UnsafePointer type. That surface is
+  deliberately small: a null constructor, is_null, and usize (for sentinel
+  comparisons). The private read/copy intrinsics (_apply, _copy_to) are exercised
+  by the String.copy_* tests.
+  """
+  fun name(): String => "builtin/UnsafePointer"
+
+  fun apply(h: TestHelper) =>
+    // A default UnsafePointer is null.
+    let p = UnsafePointer[U8]
+    h.assert_true(p.is_null())
+    h.assert_eq[USize](p.usize(), 0)
+
+class \nodoc\ iso _TestStringCopyUnsafePointer is UnitTest
+  """
+  String.copy_cstring and String.copy_cpointer take an UnsafePointer and copy
+  its bytes into Pony-managed memory. We simulate genuinely-foreign memory with
+  malloc (the honest UnsafePointer source) and confirm the data is copied. This
+  exercises UnsafePointer's private _apply and _copy_to intrinsics on real data.
+  """
+  fun name(): String => "builtin/String.copy_cpointer/copy_cstring(UnsafePointer)"
+
+  fun apply(h: TestHelper) =>
+    // A null UnsafePointer yields an empty string.
+    h.assert_eq[USize](0, String.copy_cstring(UnsafePointer[U8]).size())
+    h.assert_eq[USize](0, String.copy_cpointer(UnsafePointer[U8], 0).size())
+
+    // copy_cstring scans for the null terminator. The foreign buffer is built
+    // and freed inside the recover so the resulting String can be val; the data
+    // is copied, so freeing the buffer afterward is safe.
+    let src = "hello"
+    let copied_cstring =
+      recover val
+        let buf = @malloc(src.size() + 1)
+        @memcpy(buf, src.cstring(), src.size() + 1)
+        let s = String.copy_cstring(buf)
+        @free(buf)
+        s
+      end
+    h.assert_eq[String]("hello", copied_cstring)
+    h.assert_eq[USize](5, copied_cstring.size())
+
+    // copy_cpointer copies a fixed number of bytes (no null scan).
+    let bin = "world"
+    let copied_cpointer =
+      recover val
+        let buf = @malloc(bin.size())
+        @memcpy(buf, bin.cstring(), bin.size())
+        let s = String.copy_cpointer(buf, bin.size())
+        @free(buf)
+        s
+      end
+    h.assert_eq[String]("world", copied_cpointer)
+    h.assert_eq[USize](5, copied_cpointer.size())

@@ -537,7 +537,7 @@ ast_result_t pass_flatten(ast_t** astp, pass_opt_t* options)
 
       if(ok &&
         (ast_id(check_type) != TK_NOMINAL ||
-          is_pointer(check_type) || is_nullable_pointer(check_type)))
+          is_raw_pointer(check_type) || is_nullable_pointer(check_type)))
         ok = false;
 
       if(ok)
