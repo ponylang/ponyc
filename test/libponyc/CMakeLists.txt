@@ -3,6 +3,7 @@ cmake_minimum_required(VERSION 3.21 FATAL_ERROR)
 project(libponyc.tests VERSION ${PONYC_PROJECT_VERSION} LANGUAGES C CXX)
 
 add_executable(libponyc.tests
+    alias.cc
     annotations.cc
     array.cc
     badpony.cc

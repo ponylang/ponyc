@@ -287,13 +287,22 @@ ast_t* alias(ast_t* type, pass_opt_t* opt)
       // parameter, and stays the same.
       AST_GET_CHILDREN(type, left, right);
 
-      // A val viewpoint produces only val or tag results for any right-hand
-      // type, and both alias to themselves. Aliasing inside the arrow would
-      // give val->(A!) which differs from (val->A)! when A=iso:
-      // val->(iso!) = val->tag = tag, but (val->iso)! = val! = val.
-      // Return the arrow unchanged to avoid this over-conservative result.
-      if(ast_id(left) == TK_VAL)
-        return type;
+      // For val, box, and tag viewpoints, K->A is self-aliasing for every
+      // instantiation of A, so alias(K->A) = K->A and the arrow is returned
+      // unchanged. These viewpoints yield only self-aliasing caps: val yields
+      // val, tag, or #share; box yields those plus box; tag yields only tag.
+      // Aliasing inside the arrow instead gives K->(A!), an over-conservative
+      // result: e.g. for val with A=iso, val->(iso!) = val->tag = tag, but the
+      // correct (val->iso)! = val! = val.
+      switch(ast_id(left))
+      {
+        case TK_VAL:
+        case TK_BOX:
+        case TK_TAG:
+          return type;
+
+        default: {}
+      }
 
       BUILD(r_type, type,
         NODE(TK_ARROW,
