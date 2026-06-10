@@ -15,6 +15,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Reject tuple types hidden in an intersection within a type constraint ([PR #5439](https://github.com/ponylang/ponyc/pull/5439))
 - Fix use=dtrace builds on macOS ([PR #5445](https://github.com/ponylang/ponyc/pull/5445))
 - Fix intermittent crashes when compiling on multiple threads at once ([PR #5420](https://github.com/ponylang/ponyc/pull/5420))
+- Reject self-referential iftype constraints inside lambdas and object literals ([PR #5423](https://github.com/ponylang/ponyc/pull/5423))
 
 ### Added
 
