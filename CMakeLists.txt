@@ -519,16 +519,38 @@ else()
     add_subdirectory(tools/pony-lint)
     add_subdirectory(tools/pony-doc)
 
+    # The ponyc compiler binary. Test and benchmark binaries are deliberately
+    # NOT installed — they are build artifacts, not part of a user install.
     install(TARGETS
         ponyc
-        libponyc.tests
-        libponyc.benchmarks
-        libponyrt.benchmarks
-        libponyrt.tests
         DESTINATION bin)
+
+    # Static libraries that are real CMake targets; CMake resolves their archive
+    # paths regardless of where they are emitted.
     install(TARGETS
+        libponyc
         libponyrt
         DESTINATION lib)
+
+    # Static libs and crt objects produced by custom build steps into the output
+    # directory. OPTIONAL because which ones exist is platform/config dependent:
+    # libponyrt-pic.a (Linux), libponyc-standalone.a, the crt objects (Linux),
+    # and libdtrace_probes.a (FreeBSD + DTrace).
+    install(FILES
+        ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/libponyc-standalone.a
+        ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/libponyrt-pic.a
+        ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/libdtrace_probes.a
+        ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/crtbeginS.o
+        ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/crtendS.o
+        ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/crtbeginT.o
+        ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/crtend.o
+        DESTINATION lib
+        OPTIONAL)
+
+    # Public headers.
+    install(FILES src/libponyrt/pony.h DESTINATION include)
+    install(FILES src/common/pony/detail/atomics.h DESTINATION include/pony/detail)
+
     install(DIRECTORY packages/ DESTINATION packages)
     install(DIRECTORY examples/ DESTINATION examples PATTERN .gitignore EXCLUDE)
     install(PROGRAMS
