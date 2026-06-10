@@ -225,3 +225,30 @@ use "lib:Foo"
 
 `use "path:..."` adds a library search path the same way. There is no longer a way to pass arbitrary linker flags directly; if your build relies on that, let us know in [this discussion](https://github.com/ponylang/ponyc/discussions/5448).
 
+## Fix incorrect rejection and crashes for iftype conditions inside lambdas and object literals
+
+An `iftype` condition behaved differently inside a lambda or object literal than it does at method scope, in two ways that are now fixed.
+
+A condition that narrows a type parameter and then uses that narrowed parameter in the `then` branch compiled at method scope but was wrongly rejected inside a lambda or object literal. This was most visible with a recursively-constrained trait — for example `trait T[X: T[X]]` with the condition `iftype A <: T[A]`, which failed with "type argument is outside its constraint" — but it affected any narrowing condition whose narrowed parameter was used in the branch.
+
+A `let` or `var` binding in the `then` branch of such a condition crashed the compiler with an internal assertion failure instead of compiling.
+
+Both now behave inside a lambda or object literal exactly as they do at method scope. The following program previously failed to compile but now works:
+
+```pony
+trait T[X: T[X] #any]
+  fun tag m(): X
+
+class val C is T[C]
+  fun tag m(): C => C.create()
+
+actor Main
+  new create(env: Env) =>
+    let f = {[A](x': A) =>
+      var x = x'
+      iftype A <: T[A] then
+        x = x.m()
+      end}
+    f[C](C)
+```
+
