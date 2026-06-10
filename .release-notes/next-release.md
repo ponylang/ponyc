@@ -187,3 +187,17 @@ The compiler could crash intermittently when more than one compilation ran at th
 
 Concurrent compilations no longer share state that simultaneous access could corrupt, so these crashes no longer happen.
 
+## Reject self-referential iftype constraints inside lambdas and object literals
+
+A self-referential `iftype` subtype condition — one whose subtype check refers back to the tested type parameter through a union, intersection, or tuple — is meaningless and is rejected when written in a method. The same condition inside a lambda or object literal was silently accepted. It is now rejected everywhere with the same error.
+
+The following program previously compiled but now reports a clear error:
+
+```pony
+actor Main
+  new create(env: Env) =>
+    let f = {[A](x: A) =>
+      iftype A <: (A | None) then None end}
+    f[U8](0)
+```
+
