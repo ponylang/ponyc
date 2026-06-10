@@ -63,7 +63,7 @@ Several `use=` build options aren't supported on OpenBSD, because OpenBSD doesn'
 - `use=undefined_behavior_sanitizer` — OpenBSD ships only the minimal UndefinedBehaviorSanitizer runtime (`libclang_rt.ubsan_minimal.a`), not the standalone runtime ponyc links against, so the link fails.
 - `use=coverage` — OpenBSD's base profiling runtime (`libclang_rt.profile.a`) is incomplete, so coverage-instrumented builds fail to link.
 - `use=valgrind` — Valgrind has no OpenBSD port, so its development headers aren't available to build against.
-- `use=dtrace` — OpenBSD ships no DTrace-compatible probe-generation tool (its `btrace` is a separate tracer with no USDT support).
+- `use=dtrace` — not supported on OpenBSD.
 
 `gmake configure` rejects these uses on OpenBSD with an error rather than letting the build fail partway through with a confusing compiler, linker, or missing-tool message.
 
@@ -90,6 +90,8 @@ The sanitizer `use=` build options aren't supported on DragonFly, because the `g
 - `use=undefined_behavior_sanitizer` — no UndefinedBehaviorSanitizer runtime, so the link fails (`cannot find -lubsan`).
 
 `gmake configure` rejects these uses on DragonFly with an error rather than letting the build fail partway through with a confusing linker message.
+
+`use=dtrace` isn't supported on DragonFly either, and `gmake configure` rejects it.
 
 `use=coverage` and `use=valgrind` aren't rejected, but neither currently works on DragonFly:
 
@@ -209,7 +211,7 @@ make build
 
 ## dtrace
 
-Linux, FreeBSD, and macOS support collecting Pony runtime events, through SystemTap on Linux and DTrace on FreeBSD and macOS. Neither DragonFly BSD nor OpenBSD ships a DTrace-compatible probe-generation tool.
+Linux, FreeBSD, and macOS support collecting Pony runtime events, through SystemTap on Linux and DTrace on FreeBSD and macOS. DTrace isn't supported on DragonFly BSD or OpenBSD.
 
 On macOS, actually tracing a running program with `dtrace` requires System Integrity Protection (SIP) to permit DTrace. See the [examples/dtrace README](examples/dtrace/README.md) for details.
 

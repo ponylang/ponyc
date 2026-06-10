@@ -5,16 +5,16 @@
 #
 # OpenBSD's base toolchain ships no AddressSanitizer/ThreadSanitizer runtime and
 # only the minimal (not standalone) UndefinedBehaviorSanitizer runtime, has an
-# incomplete profiling runtime, and has no Valgrind port, so these use= options
-# can't link or compile there. `gmake configure` rejects them with a clear error
-# at make-parse time, before `gmake libs` runs, so this assertion needs no LLVM
+# incomplete profiling runtime, and has no Valgrind port; and OpenBSD ships no
+# DTrace-compatible probe-generation tool. So these use= options can't link,
+# compile, or run there. `gmake configure` rejects them with a clear error at
+# make-parse time, before `gmake libs` runs, so this assertion needs no LLVM
 # build. Check each fails AND fails for the documented reason: a typo in the OS
 # string would otherwise silently regress to the confusing partway-through build
-# failure the guards exist to prevent. (use=dtrace is also rejected on OpenBSD,
-# but by its own which-dtrace check with a different message.)
+# failure the guards exist to prevent.
 set -eu
 
-for u in address_sanitizer thread_sanitizer undefined_behavior_sanitizer coverage valgrind; do
+for u in address_sanitizer thread_sanitizer undefined_behavior_sanitizer coverage valgrind dtrace; do
   if out=$(gmake configure use="$u" 2>&1); then
     echo "FAIL: use=$u was not rejected on OpenBSD"
     exit 1

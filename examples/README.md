@@ -150,7 +150,7 @@ Simulates gravitational interaction among five planetary bodies (Sun, Jupiter, S
 
 ### [dtrace](dtrace/)
 
-Example DTrace scripts for tracing Pony runtime behavior on macOS/BSD, including GC events, actor scheduling, and message throughput. Demonstrates the Pony runtime's DTrace provider interface with probes for garbage collection, scheduling, and telemetry aggregation.
+Example DTrace scripts for tracing Pony runtime behavior on macOS and FreeBSD, including GC events, actor scheduling, and message throughput. Demonstrates the Pony runtime's DTrace provider interface with probes for garbage collection, scheduling, and telemetry aggregation.
 
 ### [runtime_info](runtime_info/)
 

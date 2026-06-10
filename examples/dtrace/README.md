@@ -5,7 +5,7 @@ tracing of events. This document describes the implementation of DTrace within
 the Pony compiler. In particular, it focuses on how to use and extend the DTrace
 implementation within Pony.
 
-DTrace is only available for MacOS and BSD. For Linux there is an alternative
+DTrace is only available for macOS and FreeBSD. For Linux there is an alternative
 called [SystemTap](https://sourceware.org/systemtap/). SystemTap uses the same
 resources as DTrace, but uses different scripts. You will find more information
 on using SystemTap within the Pony compiler [here](../systemtap/README.md).
@@ -22,9 +22,9 @@ We can also execute a script using the dtrace command. This is necessary if the
 script does not contain a "Shebang". We can do it using the following command:
 `dtrace -s [script] -c [binary]`.
 
-### MacOS 10.11+
+### macOS 10.11+
 
-MacOS El Capitan for the first time included "System Integrity Protection". This
+macOS El Capitan for the first time included "System Integrity Protection". This
 feature does not allow for all DTrace features to be used. This includes custom
 DTrace providers. To get around this problem, the following steps can be
 followed:
