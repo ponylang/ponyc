@@ -41,8 +41,6 @@ enum
   OPT_TRIPLE,
   OPT_STATS,
   OPT_LINK_ARCH,
-  OPT_LINKER,
-  OPT_LINK_LDCMD,
   OPT_SYSROOT,
   OPT_PLUGIN,
 
@@ -86,8 +84,6 @@ static opt_arg_t std_args[] =
   {"triple", '\0', OPT_ARG_REQUIRED, OPT_TRIPLE},
   {"stats", '\0', OPT_ARG_NONE, OPT_STATS},
   {"link-arch", '\0', OPT_ARG_REQUIRED, OPT_LINK_ARCH},
-  {"linker", '\0', OPT_ARG_REQUIRED, OPT_LINKER},
-  {"link-ldcmd", '\0', OPT_ARG_REQUIRED, OPT_LINK_LDCMD},
   {"sysroot", '\0', OPT_ARG_REQUIRED, OPT_SYSROOT},
   {"plugin", '\0', OPT_ARG_REQUIRED, OPT_PLUGIN},
 
@@ -155,14 +151,9 @@ static void usage(void)
     "  --triple         Set the target triple.\n"
     "    =name          Defaults to the host triple.\n"
     "  --stats          Print some compiler stats.\n"
-    "  --link-arch      Set the linking architecture.\n"
+    "  --link-arch      Architecture subdirectory for finding the Pony\n"
+    "                   runtime libraries (lib/<arch>).\n"
     "    =name          Default is the host architecture.\n"
-    "  --linker         Set the linker command to use.\n"
-    "    =name          Default is embedded LLD for Linux targets;\n"
-    "                   the compiler used to compile ponyc otherwise.\n"
-    "  --link-ldcmd     Set the ld command to use.\n"
-    "    =name          Ignored when using embedded LLD. Default is\n"
-    "                   `gold` on linux and system default otherwise.\n"
     "  --sysroot        Path to target system root.\n"
     "    =path          Used by embedded LLD to find libc CRT objects and\n"
     "                   system libraries. Defaults to host root for native\n"
@@ -321,8 +312,6 @@ ponyc_opt_process_t ponyc_opt_process(opt_state_t* s, pass_opt_t* opt,
       case OPT_TRIPLE: opt->triple = s->arg_val; break;
       case OPT_STATS: opt->print_stats = true; break;
       case OPT_LINK_ARCH: opt->link_arch = s->arg_val; break;
-      case OPT_LINKER: opt->linker = s->arg_val; break;
-      case OPT_LINK_LDCMD: opt->link_ldcmd = s->arg_val; break;
       case OPT_SYSROOT: opt->sysroot = s->arg_val; break;
       case OPT_PLUGIN:
         if(!plugin_load(opt, s->arg_val))

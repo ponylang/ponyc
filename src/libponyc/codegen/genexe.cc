@@ -247,19 +247,6 @@ LLVMValueRef gen_main(compile_t* c, reach_type_t* t_main, reach_type_t* t_env)
   return func;
 }
 
-#if defined(PLATFORM_IS_LINUX) || defined(PLATFORM_IS_BSD)
-static const char* env_cc_or_pony_compiler(bool* out_fallback_linker)
-{
-  const char* cc = getenv("CC");
-  if(cc == NULL)
-  {
-    *out_fallback_linker = true;
-    return PONY_COMPILER;
-  }
-  return cc;
-}
-#endif
-
 #ifdef PLATFORM_IS_POSIX_BASED
 static bool is_cross_compiling(compile_t* c)
 {
@@ -570,8 +557,8 @@ static const char* find_ponyc_crt_dir(ast_t* program, compile_t* c)
 // The flat (base) layout exists but uses libgcc_pic rather than libgcc_s
 // and ships no libatomic/libexecinfo of its own, so an embedded LLD link
 // against it will fail to resolve symbols — we warn and proceed (rather
-// than abort) so the linker emits the actionable diagnostic, matching the
-// failure mode of the external-linker path on the same configuration.
+// than abort) so the linker emits the actionable diagnostic rather than
+// ponyc failing first with a vaguer one.
 //
 // The generic find_gcc_lib_dir below assumes <base>/<triple>/<ver>/
 // nesting under fixed base_patterns (/usr/lib/gcc, /usr/lib/gcc-cross,
@@ -1034,12 +1021,6 @@ static bool link_exe_lld_elf(compile_t* c, ast_t* program,
     gcc_lib_dir = find_gcc_lib_dir(sysroot, arch_prefix.c_str(), c->opt->strtab);
   }
 
-  if(c->opt->link_ldcmd != NULL)
-  {
-    fprintf(stderr,
-      "Warning: --link-ldcmd is ignored when using embedded LLD\n");
-  }
-
   // Build argument vector.
   std::vector<const char*> args;
   char buf[PATH_MAX];
@@ -1324,11 +1305,11 @@ static bool link_exe_lld_elf(compile_t* c, ast_t* program,
   // native ELF sanitizer builds that reach embedded LLD. macOS native
   // sanitizer builds use the same captured fragment but splice it in
   // link_exe_lld_macho (see that function's sanitizer block). DragonFly and
-  // OpenBSD native sanitizer builds still route through the legacy compiler
-  // driver (which pulls the runtime in via -fsanitize=), so they never reach
-  // this splice; it is gated on the targets explicitly rather than relying on
-  // link_exe's routing alone. The !is_cross_compiling gate additionally keeps
-  // the host-arch-absolute fragment out of any cross link routed here.
+  // OpenBSD native sanitizer builds are rejected at configure time, so they
+  // never reach this splice; it is gated on the targets explicitly rather than
+  // relying on link_exe's routing alone. The !is_cross_compiling gate
+  // additionally keeps the host-arch-absolute fragment out of any cross link
+  // routed here.
   //
   // The fragment is spliced as one contiguous block immediately before file_o.
   // That order is correct for every piece on both platforms: objects and static
@@ -1383,10 +1364,10 @@ static bool link_exe_lld_elf(compile_t* c, ast_t* program,
   // the constructor is otherwise unreferenced, so --whole-archive is what
   // keeps it in the link. libdtrace_probes.a sits in the same lib dir as
   // libponyrt.a, so it resolves from the -L paths already pushed above; the
-  // DOF object needs libelf, found on the system -L paths. This mirrors the
-  // legacy path's dtrace_args (placed before -lponyrt there too). Gated on
-  // is_freebsd (target), not the build platform: DragonFly/OpenBSD have no
-  // dtrace_probes/libelf and never route here for dtrace builds.
+  // DOF object needs libelf, found on the system -L paths. These come before
+  // -lponyrt (pushed below). Gated on is_freebsd (target), not the build
+  // platform: DragonFly/OpenBSD have no dtrace_probes/libelf and never route
+  // here for dtrace builds.
   if(is_freebsd)
   {
     args.push_back("--whole-archive");
@@ -1461,10 +1442,8 @@ static bool link_exe_lld_elf(compile_t* c, ast_t* program,
     // std::{get,set}_new_handler as strong T symbols, and libc++abi.a's
     // cxa_*_handlers.o do too. If -lexecinfo precedes -lc++abi in the
     // command line, both .o files get pulled in and lld rejects the
-    // duplicate. The external-linker OpenBSD path in link_exe below
-    // avoids this by positioning -lc++abi before -lexecinfo in the line;
-    // we mirror that by emitting -lexecinfo inside the runtime block
-    // below, after -lc++abi. No -lelf even for static links —
+    // duplicate. We avoid this by emitting -lexecinfo inside the runtime
+    // block below, after -lc++abi. No -lelf even for static links —
     // libexecinfo.a has no libelf dependency (libelf.a does exist on
     // OpenBSD 7.8, but nothing here uses it).
   }
@@ -1511,10 +1490,7 @@ static bool link_exe_lld_elf(compile_t* c, ast_t* program,
     //                 and lld rejects the duplicate if both .o files end
     //                 up in the link. With -lc++abi first, the new_handler
     //                 symbols resolve from libc++abi and libexecinfo's
-    //                 new_handler.o is never pulled in. This mirrors the
-    //                 external-linker OpenBSD path in link_exe below,
-    //                 where -lc++abi precedes -lexecinfo in the format
-    //                 string for the same reason.
+    //                 new_handler.o is never pulled in.
     //   -lcompiler_rt -lc -lcompiler_rt — the base-cc sandwich for libc
     //                 and the unwinder/builtins.
     args.push_back("--start-group");
@@ -1658,7 +1634,7 @@ static const char* find_macos_sdk_path(strtable_t* strtab)
     pclose(f);
   }
 
-  // Hardcoded fallback (same as legacy code).
+  // Hardcoded fallback.
   const char* fallback =
     "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/lib";
 
@@ -1738,15 +1714,8 @@ static bool link_exe_lld_macho(compile_t* c, ast_t* program,
   {
     errorf(errors, NULL,
       "could not find macOS SDK library path\n"
-      "  Install Xcode or CommandLineTools, or use --linker to specify an"
-      " external linker");
+      "  Install Xcode or CommandLineTools");
     return false;
-  }
-
-  if(c->opt->link_ldcmd != NULL)
-  {
-    fprintf(stderr,
-      "Warning: --link-ldcmd is ignored when using embedded LLD\n");
   }
 
   // Build argument vector.
@@ -1930,12 +1899,6 @@ static bool link_exe_lld_coff(compile_t* c, ast_t* program,
   const char* arch = "";
 #endif
 
-  if(c->opt->link_ldcmd != NULL)
-  {
-    fprintf(stderr,
-      "Warning: --link-ldcmd is ignored when using embedded LLD\n");
-  }
-
   // Build argument vector.
   std::vector<const char*> args;
   char buf[MAX_PATH + 32];
@@ -2057,42 +2020,29 @@ static bool link_exe_lld_coff(compile_t* c, ast_t* program,
 static bool link_exe(compile_t* c, ast_t* program,
   const char* file_o)
 {
-  errors_t* errors = c->opt->check.errors;
-
-  // Use embedded LLD for Linux, macOS, and Windows targets unless --linker
-  // escape hatch is specified. On Linux, FreeBSD, and macOS, native sanitizer
-  // builds use embedded LLD too: the ELF and Mach-O link functions splice
-  // the sanitizer runtime from a fragment captured at ponyc build time.
-  // DragonFly and OpenBSD native sanitizer builds still fall back to the
-  // system compiler driver (which links the runtime via -fsanitize=);
-  // cross-compilation always uses LLD.
+  // Link with embedded LLD, selecting the driver by target triple. On Linux,
+  // FreeBSD, and macOS, native sanitizer builds use embedded LLD too: the ELF
+  // and Mach-O link functions splice the sanitizer runtime from a fragment
+  // captured at ponyc build time. DragonFly and OpenBSD native sanitizer
+  // builds are rejected at configure time. Cross-compilation always uses LLD.
 #ifdef PLATFORM_IS_POSIX_BASED
-  if(c->opt->linker == NULL
-    && target_is_linux(c->opt->triple))
-  {
+  if(target_is_linux(c->opt->triple))
     return link_exe_lld_elf(c, program, file_o);
-  }
 
-  if(c->opt->linker == NULL
-    && target_is_macosx(c->opt->triple))
-  {
+  if(target_is_macosx(c->opt->triple))
     return link_exe_lld_macho(c, program, file_o);
-  }
 
-  // FreeBSD, DragonFly, and OpenBSD route to embedded LLD. FreeBSD does so
-  // even in a use=dtrace build: link_exe_lld_elf adds the
-  // -ldtrace_probes/-lelf linking that the legacy path below adds via
-  // dtrace_args. DragonFly and OpenBSD route here only when ponyc was NOT
-  // built with dtrace — they have no dtrace_probes/libelf libs available, so
-  // their use=dtrace builds are already broken; excluding them from the gate
-  // keeps them on the legacy path and preserves that failure mode rather than
-  // introducing a new one.
+  // FreeBSD always links through embedded LLD, including use=dtrace builds:
+  // link_exe_lld_elf adds the -ldtrace_probes/-lelf linking dtrace needs.
+  // DragonFly and OpenBSD route here only when ponyc was NOT built with
+  // dtrace — they have no dtrace_probes/libelf, so their use=dtrace builds
+  // fall through to the error below (a configure-time rejection is tracked in
+  // #5447).
   //
   // In a sanitizer build, native FreeBSD also routes here: link_exe_lld_elf
-  // splices in the captured sanitizer fragment (see the splice above), and the
-  // capture has been verified against FreeBSD base clang. Native DragonFly and
-  // OpenBSD sanitizer builds stay on the legacy driver — their fragment shapes
-  // are unverified — so the sanitizer sub-gate admits only native FreeBSD (and
+  // splices in the captured sanitizer fragment, verified against FreeBSD base
+  // clang. Native DragonFly and OpenBSD sanitizer builds are rejected at
+  // configure time, so the sanitizer sub-gate admits only native FreeBSD (and
   // any cross link, whose runtime is host-arch-absolute and handled by the
   // !is_cross_compiling gate at the splice).
   bool bsd_embed = target_is_freebsd(c->opt->triple)
@@ -2101,8 +2051,7 @@ static bool link_exe(compile_t* c, ast_t* program,
     || target_is_openbsd(c->opt->triple)
 #endif
     ;
-  if(c->opt->linker == NULL
-    && bsd_embed
+  if(bsd_embed
 #if defined(PONY_SANITIZER)
     && (is_cross_compiling(c) || target_is_freebsd(c->opt->triple))
 #endif
@@ -2110,277 +2059,17 @@ static bool link_exe(compile_t* c, ast_t* program,
   {
     return link_exe_lld_elf(c, program, file_o);
   }
-#endif
 
-#ifdef PLATFORM_IS_WINDOWS
-  if(c->opt->linker == NULL)
-  {
-    return link_exe_lld_coff(c, program, file_o);
-  }
-#endif
-
-  const char* ponyrt = c->opt->runtimebc ? "" :
-#if defined(PLATFORM_IS_WINDOWS)
-    "libponyrt.lib";
-#elif defined(PLATFORM_IS_LINUX)
-    c->opt->pic ? "-lponyrt-pic" : "-lponyrt";
-#else
-    "-lponyrt";
-#endif
-
-#if defined(PLATFORM_IS_MACOSX)
-  char* arch = strchr(c->opt->triple, '-');
-
-  if(arch == NULL)
-  {
-    errorf(errors, NULL, "couldn't determine architecture from %s",
-      c->opt->triple);
-    return false;
-  }
-
-  const char* file_exe =
-    suffix_filename(c, c->opt->output, "", c->filename, "");
-
-  if(c->opt->verbosity >= VERBOSITY_MINIMAL)
-    fprintf(stderr, "Linking %s\n", file_exe);
-
-  program_lib_build_args(program, c->opt, "-L", NULL, "", "", "-l", "");
-  const char* lib_args = program_lib_args(program);
-
-  size_t arch_len = arch - c->opt->triple;
-  const char* linker = c->opt->linker != NULL ? c->opt->linker : "ld";
-  const char* sanitizer_arg =
-#if defined(PONY_SANITIZER)
-    "-fsanitize=" PONY_SANITIZER;
-#else
-    "";
-#endif
-
-  size_t ld_len = 256 + arch_len + strlen(linker) + strlen(file_exe) +
-    strlen(file_o) + strlen(lib_args) + strlen(sanitizer_arg);
-
-  char* ld_cmd = (char*)ponyint_pool_alloc_size(ld_len);
-
-  snprintf(ld_cmd, ld_len,
-    "%s -execute -arch %.*s "
-    "-o %s %s %s %s "
-    "-L/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/lib -lSystem %s -platform_version macos '" STR(PONY_OSX_PLATFORM) "' '0.0.0'",
-           linker, (int)arch_len, c->opt->triple, file_exe, file_o,
-           lib_args, ponyrt, sanitizer_arg
-    );
-
-  if(c->opt->verbosity >= VERBOSITY_TOOL_INFO)
-    fprintf(stderr, "%s\n", ld_cmd);
-
-  if(system(ld_cmd) != 0)
-  {
-    errorf(errors, NULL, "unable to link: %s", ld_cmd);
-    ponyint_pool_free_size(ld_len, ld_cmd);
-    return false;
-  }
-
-  ponyint_pool_free_size(ld_len, ld_cmd);
-
-  if(!c->opt->strip_debug)
-  {
-    size_t dsym_len = 16 + strlen(file_exe);
-    char* dsym_cmd = (char*)ponyint_pool_alloc_size(dsym_len);
-
-    snprintf(dsym_cmd, dsym_len, "rm -rf %s.dSYM", file_exe);
-    system(dsym_cmd);
-
-    snprintf(dsym_cmd, dsym_len, "dsymutil %s", file_exe);
-
-    if(system(dsym_cmd) != 0)
-      errorf(errors, NULL, "unable to create dsym");
-
-    ponyint_pool_free_size(dsym_len, dsym_cmd);
-  }
-
-#elif defined(PLATFORM_IS_LINUX) || defined(PLATFORM_IS_BSD)
-  const char* file_exe =
-    suffix_filename(c, c->opt->output, "", c->filename, "");
-
-  if(c->opt->verbosity >= VERBOSITY_MINIMAL)
-    fprintf(stderr, "Linking %s\n", file_exe);
-
-  program_lib_build_args(program, c->opt, "-L", "-Wl,-rpath,",
-    "-Wl,--start-group ", "-Wl,--end-group ", "-l", "");
-  const char* lib_args = program_lib_args(program);
-
-  const char* arch = c->opt->link_arch != NULL ? c->opt->link_arch : PONY_ARCH;
-  bool fallback_linker = false;
-  const char* linker = c->opt->linker != NULL ? c->opt->linker :
-    env_cc_or_pony_compiler(&fallback_linker);
-  const char* mcx16_arg = (target_is_lp64(c->opt->triple)
-    && target_is_x86(c->opt->triple)) ? "-mcx16" : "";
-  const char* fuseldcmd = c->opt->link_ldcmd != NULL ? c->opt->link_ldcmd :
-    "";
-  const char* fuseld = strlen(fuseldcmd) ? "-fuse-ld=" : "";
-  const char* ldl = target_is_linux(c->opt->triple) ? "-ldl" : "";
-  const char* atomic =
-    (target_is_linux(c->opt->triple) || target_is_dragonfly(c->opt->triple))
-    ? "-latomic" : "";
-  const char* staticbin = c->opt->staticbin ? "-static" : "";
-  const char* dtrace_args =
-#if defined(PLATFORM_IS_BSD) && defined(USE_DYNAMIC_TRACE)
-   "-Wl,--whole-archive -ldtrace_probes -Wl,--no-whole-archive -lelf";
-#else
-    "";
-#endif
-  const char* lexecinfo =
-#if (defined(PLATFORM_IS_BSD))
-   "-lexecinfo";
-#else
-    "";
-#endif
-
-  const char* sanitizer_arg =
-#if defined(PONY_SANITIZER)
-    "-fsanitize=" PONY_SANITIZER;
-#else
-    "";
-#endif
-
-  const char* arm_linker_args = target_is_arm(c->opt->triple)
-    ? " -Wl,--exclude-libs,libgcc.a -Wl,--exclude-libs,libgcc_real.a -Wl,--exclude-libs,libgnustl_shared.so -Wl,--exclude-libs,libunwind.a"
-    : "";
-
-  size_t ld_len = 512 + strlen(file_exe) + strlen(file_o) + strlen(lib_args)
-                  + strlen(arch) + strlen(mcx16_arg) + strlen(fuseld)
-                  + strlen(ldl) + strlen(atomic) + strlen(staticbin)
-                  + strlen(dtrace_args) + strlen(lexecinfo) + strlen(fuseldcmd)
-                  + strlen(sanitizer_arg) + strlen(arm_linker_args);
-
-  char* ld_cmd = (char*)ponyint_pool_alloc_size(ld_len);
-
-#ifdef PONY_USE_LTO
-  if (strcmp(arch, "x86_64") == 0)
-    arch = "x86-64";
-#endif
-  snprintf(ld_cmd, ld_len, "%s -o %s -O3 -march=%s "
-    "%s "
-#ifdef PONY_USE_LTO
-    "-flto -fuse-linker-plugin "
-#endif
-// The use of NDEBUG instead of PONY_NDEBUG here is intentional.
-#ifndef NDEBUG
-    // Allows the implementation of `pony_assert` to correctly get symbol names
-    // for backtrace reporting.
-    "-rdynamic "
-#endif
-#ifdef PLATFORM_IS_OPENBSD
-    // On OpenBSD, -lc++abi is preserved here for ABI compatibility with
-    // historical external-linker links. The unwind symbols (_Unwind_*)
-    // that Pony's backtrace path resolves actually come from
-    // libcompiler_rt (verified empirically — libc++abi.a does not define
-    // them); the embedded-LLD path in link_exe_lld_elf above documents
-    // this and includes -lcompiler_rt explicitly in the runtime block.
-    "%s %s%s %s %s -lpthread %s %s %s -lm -lc++abi %s %s %s "
-#else
-    "%s %s%s %s %s -lpthread %s %s %s -lm %s %s %s "
-#endif
-    "%s",
-    linker, file_exe, arch, mcx16_arg, staticbin, fuseld, fuseldcmd, file_o,
-    arm_linker_args,
-    lib_args, dtrace_args, ponyrt, ldl, lexecinfo, atomic, sanitizer_arg
-    );
-
-  if(c->opt->verbosity >= VERBOSITY_TOOL_INFO)
-    fprintf(stderr, "%s\n", ld_cmd);
-
-  if(system(ld_cmd) != 0)
-  {
-    if((c->opt->verbosity >= VERBOSITY_MINIMAL) && fallback_linker)
-    {
-      fprintf(stderr,
-        "Warning: environment variable $CC undefined, using %s as the linker\n",
-        PONY_COMPILER);
-    }
-
-    errorf(errors, NULL, "unable to link: %s", ld_cmd);
-    ponyint_pool_free_size(ld_len, ld_cmd);
-    return false;
-  }
-
-  ponyint_pool_free_size(ld_len, ld_cmd);
+  errorf(c->opt->check.errors, NULL,
+    "ponyc has no linker support for target %s", c->opt->triple);
+  return false;
 #elif defined(PLATFORM_IS_WINDOWS)
-  vcvars_t vcvars;
-
-  if(!vcvars_get(c, &vcvars, errors))
-  {
-    errorf(errors, NULL, "unable to link: no vcvars");
-    return false;
-  }
-
-  const char* file_exe = suffix_filename(c, c->opt->output, "", c->filename,
-    ".exe");
-  if(c->opt->verbosity >= VERBOSITY_MINIMAL)
-    fprintf(stderr, "Linking %s\n", file_exe);
-
-  program_lib_build_args(program, c->opt,
-    "/LIBPATH:", NULL, "", "", "", ".lib");
-  const char* lib_args = program_lib_args(program);
-
-  char ucrt_lib[MAX_PATH + 12];
-  if (strlen(vcvars.ucrt) > 0)
-    snprintf(ucrt_lib, MAX_PATH + 12, "/LIBPATH:\"%s\"", vcvars.ucrt);
-  else
-    ucrt_lib[0] = '\0';
-
-
-#ifdef _M_ARM64
-  const char* arch = "ARM64";
-#elif defined(_M_X64)
-  const char* arch="x64";
+  return link_exe_lld_coff(c, program, file_o);
 #else
-  const char* arch = "";
+  errorf(c->opt->check.errors, NULL,
+    "ponyc has no linker support for target %s", c->opt->triple);
+  return false;
 #endif
-
-  size_t ld_len = 253 + strlen(arch) + strlen(file_exe) + strlen(file_o) +
-    strlen(vcvars.kernel32) + strlen(vcvars.msvcrt) + strlen(lib_args);
-  char* ld_cmd = (char*)ponyint_pool_alloc_size(ld_len);
-
-  char* linker = vcvars.link;
-  if (c->opt->linker != NULL && strlen(c->opt->linker) > 0)
-    linker = c->opt->linker;
-
-  while (true)
-  {
-    size_t num_written = snprintf(ld_cmd, ld_len,
-      "cmd /C \"\"%s\" /DEBUG /NOLOGO /MACHINE:%s /ignore:4099 "
-      "/OUT:%s "
-      "%s %s "
-      "/LIBPATH:\"%s\" "
-      "/LIBPATH:\"%s\" "
-      "%s %s %s \"",
-      linker, arch, file_exe, file_o, ucrt_lib, vcvars.kernel32,
-      vcvars.msvcrt, lib_args, vcvars.default_libs, ponyrt
-    );
-
-    if (num_written < ld_len)
-      break;
-
-    ponyint_pool_free_size(ld_len, ld_cmd);
-    ld_len += 256;
-    ld_cmd = (char*)ponyint_pool_alloc_size(ld_len);
-  }
-
-  if(c->opt->verbosity >= VERBOSITY_TOOL_INFO)
-    fprintf(stderr, "%s\n", ld_cmd);
-
-  int result = system(ld_cmd);
-  if (result != 0)
-  {
-    errorf(errors, NULL, "unable to link: %s: %d", ld_cmd, result);
-    ponyint_pool_free_size(ld_len, ld_cmd);
-    return false;
-  }
-
-  ponyint_pool_free_size(ld_len, ld_cmd);
-#endif
-
-  return true;
 }
 
 bool genexe(compile_t* c, ast_t* program)

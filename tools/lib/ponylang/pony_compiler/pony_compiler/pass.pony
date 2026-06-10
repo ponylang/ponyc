@@ -77,8 +77,6 @@ struct _PassOpt
   var bin_name: Pointer[U8] val = recover val bin_name.create() end
 
   var link_arch: Pointer[U8] ref = link_arch.create()
-  var linker: Pointer[U8] ref = linker.create()
-  var link_ldcmd: Pointer[U8] ref = link_ldcmd.create()
   var sysroot: Pointer[U8] ref = sysroot.create()
 
   // Mirrors pass_opt_t.llvm_args (pass.h), which is unconditional; this field
