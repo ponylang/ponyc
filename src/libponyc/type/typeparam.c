@@ -634,6 +634,15 @@ ast_t* typeparam_constraint(ast_t* typeparamref)
   return constraint;
 }
 
+ast_t* typeparam_root(ast_t* def)
+{
+  while((def != NULL) && (ast_data(def) != NULL) &&
+    ((ast_t*)ast_data(def) != def))
+    def = (ast_t*)ast_data(def);
+
+  return def;
+}
+
 ast_t* typeparam_upper(ast_t* typeparamref)
 {
   pony_assert(ast_id(typeparamref) == TK_TYPEPARAMREF);

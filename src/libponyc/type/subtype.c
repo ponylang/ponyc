@@ -1499,10 +1499,8 @@ static bool is_typeparam_sub_typeparam(ast_t* sub, ast_t* super,
 
   // Dig through defs if there are multiple layers of directly-bound
   // type params (created through the collect_type_params function).
-  while((ast_data(sub_def) != NULL) && (sub_def != ast_data(sub_def)))
-    sub_def = (ast_t*)ast_data(sub_def);
-  while((ast_data(super_def) != NULL) && (super_def != ast_data(super_def)))
-    super_def = (ast_t*)ast_data(super_def);
+  sub_def = typeparam_root(sub_def);
+  super_def = typeparam_root(super_def);
 
   if(sub_def == super_def)
     return is_sub_cap_and_eph(sub, super, check_cap, errorf, opt);

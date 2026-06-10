@@ -414,10 +414,8 @@ static matchtype_t is_typeparam_match_typeparam(ast_t* operand, ast_t* pattern,
 
   // Dig through defs if there are multiple layers of directly-bound
   // type params (created through the collect_type_params function).
-  while((ast_data(operand_def) != NULL) && (operand_def != ast_data(operand_def)))
-    operand_def = (ast_t*)ast_data(operand_def);
-  while((ast_data(pattern_def) != NULL) && (pattern_def != ast_data(pattern_def)))
-    pattern_def = (ast_t*)ast_data(pattern_def);
+  operand_def = typeparam_root(operand_def);
+  pattern_def = typeparam_root(pattern_def);
 
   ast_t* o_cap = cap_fetch(operand);
   ast_t* o_eph = ast_sibling(o_cap);
