@@ -28,6 +28,10 @@ PONY_EXTERN_C_BEGIN
 #define POOL_MAX_BITS 20
 #define POOL_ALIGN_BITS 10
 
+// POOL_MIN is the minimum (and guaranteed) alignment of every pool allocation.
+// codegen declares it to LLVM as the `align` return attribute of the pool
+// allocators (pony_create, pony_alloc_msg; init_runtime in codegen.c), so it
+// must not be lowered below a target's maximum field alignment. See #5462.
 #define POOL_MIN (1 << POOL_MIN_BITS)
 #define POOL_MAX (1 << POOL_MAX_BITS)
 #define POOL_ALIGN (1 << POOL_ALIGN_BITS)
