@@ -17,6 +17,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Fix intermittent crashes when compiling on multiple threads at once ([PR #5420](https://github.com/ponylang/ponyc/pull/5420))
 - Reject self-referential iftype constraints inside lambdas and object literals ([PR #5423](https://github.com/ponylang/ponyc/pull/5423))
 - Fix incorrect rejection and crashes for iftype conditions inside lambdas and object literals ([PR #5443](https://github.com/ponylang/ponyc/pull/5443))
+- Fix runtime crash in optimized builds for types with 128-bit fields ([PR #5464](https://github.com/ponylang/ponyc/pull/5464))
 
 ### Added
 
