@@ -614,7 +614,12 @@ static void add_rmethod_to_subtypes(reach_t* r, reach_type_t* t,
 
       for(; child != NULL; child = ast_sibling(child))
       {
-        deferred_reification_t* find = lookup_try(NULL, NULL, child, n->name,
+        // Pass from=NULL so lookup skips its private-access checks (which are
+        // gated on from != NULL && opt != NULL). Reachability must not enforce
+        // access control, which is why this historically passed a NULL opt; but
+        // opt is now needed so the subtype machinery (is_bare) can intern into
+        // this compilation's table when child is a union or intersection.
+        deferred_reification_t* find = lookup_try(opt, NULL, child, n->name,
           false);
 
         if(find == NULL)
@@ -907,7 +912,14 @@ static void add_special(reach_t* r, reach_type_t* t, ast_t* type,
   const char* special, pass_opt_t* opt)
 {
   special = stringtab(opt->strtab, special);
-  deferred_reification_t* find = lookup_try(NULL, NULL, type, special, false);
+  // Pass from=NULL so lookup skips its private-access checks (which are gated
+  // on from != NULL && opt != NULL). Reachability must not enforce access
+  // control, which is why this historically passed a NULL opt. Unlike the
+  // union/intersection member lookup in add_rmethod_to_subtypes, `type` here
+  // is always a concrete nominal, so this never reaches the subtype machinery
+  // that requires opt (is_bare); opt is threaded only so that no lookup passes
+  // opt == NULL.
+  deferred_reification_t* find = lookup_try(opt, NULL, type, special, false);
 
   if(find != NULL)
   {

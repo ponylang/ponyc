@@ -60,6 +60,60 @@ TEST_F(ReachTest, IsectHasSubtypes)
   ASSERT_TRUE(found);
 }
 
+// Reaching a method on an intersection type one of whose members is a union
+// must compile cleanly. add_rmethod_to_subtypes walks an intersection's
+// members and looks the reached method up on each; when a member is a union,
+// that lookup runs is_subtype_fun across the union's arms to reconcile their
+// signatures, and that reconciliation calls is_bare. The member lookup used to
+// pass opt == NULL, but is_bare needs a non-NULL opt (it interns into opt's
+// string table), so the reconciliation aborted. `foo` lives in both arms of the
+// `(T1 | T2)` member, which is what forces the multi-arm reconciliation; the
+// method must reach without crashing.
+TEST_F(ReachTest, IsectMemberUnionMethodReached)
+{
+  const char* src =
+    "trait T1\n"
+    "  fun foo()\n"
+
+    "trait T2\n"
+    "  fun foo()\n"
+
+    "trait Other\n"
+    "  fun bar()\n"
+
+    "class C is (T1 & Other)\n"
+    "  fun foo() => None\n"
+    "  fun bar() => None\n"
+
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let x: ((T1 | T2) & Other) = C\n"
+    "    x.foo()";
+
+  TEST_COMPILE(src, "reach");
+
+  ast_t* x_ast = type_of("x");
+  ASSERT_NE(x_ast, (void*)NULL);
+
+  reach_t* reach = compile->reach;
+  reach_type_t* x_reach = reach_type(reach, x_ast, &opt);
+  ASSERT_NE(x_reach, (void*)NULL);
+
+  bool found = false;
+  size_t i = HASHMAP_BEGIN;
+  reach_method_name_t* n;
+  while((n = reach_method_names_next(&x_reach->methods, &i)) != NULL)
+  {
+    if(n->name == stringtab(opt.strtab, "foo"))
+    {
+      found = true;
+      break;
+    }
+  }
+
+  ASSERT_TRUE(found);
+}
+
 // A generic function that instantiates itself with an ever-deeper type
 // argument (Bar.apply[A] calls Bar.apply[Pair[A]]) requires an unbounded number
 // of reachable types/methods. Reachability used to chase this until it ran out
