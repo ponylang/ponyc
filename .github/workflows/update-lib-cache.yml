@@ -26,6 +26,7 @@ jobs:
           - image: ghcr.io/ponylang/ponyc-ci-x86-64-unknown-linux-fedora43-builder:20260427
           - image: ghcr.io/ponylang/ponyc-ci-alpine3.22-builder:20251022
           - image: ghcr.io/ponylang/ponyc-ci-alpine3.23-builder:20260201
+          - image: ghcr.io/ponylang/ponyc-ci-alpine3.24-builder:20260611
           - image: ghcr.io/ponylang/ponyc-ci-ubuntu26.04-builder:20260425
           - image: ghcr.io/ponylang/ponyc-ci-cross-arm:20250223
           - image: ghcr.io/ponylang/ponyc-ci-cross-armhf:20250223
@@ -70,6 +71,7 @@ jobs:
           - image: ghcr.io/ponylang/ponyc-ci-arm64-unknown-linux-alpine3.21-builder:20250510
           - image: ghcr.io/ponylang/ponyc-ci-alpine3.22-builder:20251022
           - image: ghcr.io/ponylang/ponyc-ci-alpine3.23-builder:20260201
+          - image: ghcr.io/ponylang/ponyc-ci-alpine3.24-builder:20260611
           - image: ghcr.io/ponylang/ponyc-ci-ubuntu26.04-builder:20260425
 
     name: ${{ matrix.image }}

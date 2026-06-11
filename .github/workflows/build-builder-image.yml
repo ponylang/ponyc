@@ -10,6 +10,7 @@ on:
         options:
           - alpine3.22-builder
           - alpine3.23-builder
+          - alpine3.24-builder
           - arm64-unknown-linux-alpine3.21-builder
           - arm64-unknown-linux-ubuntu24.04-builder
           - cross-arm
@@ -72,6 +73,30 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
       - name: Build and push
         run: bash .ci-dockerfiles/alpine3.23-builder/build-and-push.bash
+
+  alpine3_24-builder:
+    if: ${{ github.event.inputs.builder-name == 'alpine3.24-builder' }}
+    runs-on: ubuntu-latest
+
+    name: alpine3.24-builder
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6.0.2
+      - name: Set up Docker Buildx
+        # v3.10.0
+        uses: docker/setup-buildx-action@v4
+        with:
+          version: v0.23.0
+          cache-binary: false
+      - name: Login to GitHub Container Registry
+        # v2.2.0
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build and push
+        run: bash .ci-dockerfiles/alpine3.24-builder/build-and-push.bash
 
   arm64-unknown-linux-alpine3_21-builder:
     if: ${{ github.event.inputs.builder-name == 'arm64-unknown-linux-alpine3.21-builder' }}
