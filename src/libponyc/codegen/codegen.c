@@ -242,6 +242,18 @@ static void init_runtime(compile_t* c)
 
   unsigned int align_value = target_is_ilp32(c->opt->triple) ? 4 : 8;
 
+  // The runtime allocators hand back memory aligned to at least the largest
+  // fundamental alignment any Pony value can require (e.g. U128/I128 fields
+  // need 16-byte alignment). The pointer-sized `align_value` understates this;
+  // declaring it as the alignment of allocations lets LLVM build an
+  // under-aligned stack slot when it promotes a heap allocation to the stack,
+  // after which an aligned 128-bit store into that slot faults. Advertise the
+  // ABI alignment of the most-aligned scalar instead.
+  unsigned int alloc_align_value =
+    (unsigned int)LLVMABIAlignmentOfType(c->target_data, c->i128);
+  if(alloc_align_value < align_value)
+    alloc_align_value = align_value;
+
   LLVM_DECLARE_ATTRIBUTEREF(nounwind_attr, nounwind, 0);
   LLVM_DECLARE_ATTRIBUTEREF(readnone_attr, readnone, 0);
   LLVM_DECLARE_ATTRIBUTEREF(readonly_attr, readonly, 0);
@@ -254,7 +266,7 @@ static void init_runtime(compile_t* c)
   LLVM_DECLARE_ATTRIBUTEREF(noreturn_attr, noreturn, 0);
   LLVM_DECLARE_ATTRIBUTEREF(deref_actor_attr, dereferenceable,
     PONY_ACTOR_PAD_SIZE + align_value);
-  LLVM_DECLARE_ATTRIBUTEREF(align_attr, align, align_value);
+  LLVM_DECLARE_ATTRIBUTEREF(align_attr, align, alloc_align_value);
   LLVM_DECLARE_ATTRIBUTEREF(deref_or_null_alloc_attr, dereferenceable_or_null,
     HEAP_MIN);
   LLVM_DECLARE_ATTRIBUTEREF(deref_alloc_small_attr, dereferenceable, HEAP_MIN);
