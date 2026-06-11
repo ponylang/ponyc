@@ -22,6 +22,7 @@ All notable changes to the Pony compiler and standard library will be documented
 ### Added
 
 - Add JsonPrinter for serializing any JsonValue ([PR #5397](https://github.com/ponylang/ponyc/pull/5397))
+- Add Alpine 3.24 as a supported platform ([PR #5466](https://github.com/ponylang/ponyc/pull/5466))
 
 ### Changed
 
