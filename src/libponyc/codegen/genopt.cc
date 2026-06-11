@@ -227,6 +227,11 @@ public:
     // TODO: for variable size alloca, don't insert at the beginning.
     BasicBlock::iterator begin = call.getCaller()->getEntryBlock().begin();
 
+    // The alloca's alignment comes from the allocator's `align` return
+    // attribute, declared in init_runtime (codegen.c). Keep that attribute
+    // truthful to the runtime's guarantee: too weak here under-aligns object
+    // fields (e.g. U128) and crashes optimised builds (#5462); stronger than
+    // the runtime actually provides would be undefined behaviour.
     AllocaInst* replace = new AllocaInst(builder.getInt8Ty(), 0, int_size,
       inst->getPointerAlignment(*unwrap(c->target_data)), "", begin);
 
