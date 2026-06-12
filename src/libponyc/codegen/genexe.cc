@@ -347,6 +347,8 @@ static bool file_exists(const char* path)
 // may report "gnu" on musl systems (e.g., Alpine's LLVM reports
 // x86_64-unknown-linux-gnu). For native compilation, probe the filesystem
 // rather than trusting the triple.
+// genc.cc's c_host_is_musl mirrors this (genc runs before a compile_t
+// exists). Keep the two in sync.
 static bool host_is_musl(compile_t* c, llvm::Triple::ArchType arch)
 {
   if(is_cross_compiling(c))

@@ -1,4 +1,4 @@
-use "cdefine:SHIM_BASE=40"
+use "cdefine:SHIM_BASE=30"
 use "cinclude:./include"
 
 use @shim_answer[I32]()

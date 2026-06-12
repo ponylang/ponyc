@@ -49,6 +49,14 @@ const char* program_lib_args(ast_t* program);
  */
 void program_lib_build_args_embedded(ast_t* program, pass_opt_t* opt);
 
+/** Has genc already compiled this program's shims? Makes genc idempotent
+ * when ast_passes_program is run again on the same program (e.g. a
+ * resumable compile session). */
+bool program_genc_done(ast_t* program);
+
+/** Mark the program's shims as compiled. */
+void program_set_genc_done(ast_t* program);
+
 /** Record a C shim object emitted by genc. Paths accumulate in genc's
  * package-walk order, which the platform linkers preserve. */
 void program_add_c_object(ast_t* program, const char* path);

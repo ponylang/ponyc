@@ -15,7 +15,11 @@ typedef struct program_t
   strlist_t* libs;
   // C shim objects emitted by genc, in package-walk order (deterministic).
   // The platform linkers append these to the link line in this order.
+  // genc_done makes genc idempotent: AST passes are re-entry-guarded per
+  // node, but a resumed ast_passes_program would otherwise recompile every
+  // shim and append its objects to this list a second time.
   strlist_t* c_objects;
+  bool genc_done;
   size_t lib_args_size;
   size_t lib_args_alloced;
   char* lib_args;
@@ -60,6 +64,7 @@ program_t* program_create()
   p->libpaths = NULL;
   p->libs = NULL;
   p->c_objects = NULL;
+  p->genc_done = false;
   p->lib_args_size = -1;
   p->lib_args = NULL;
 
@@ -364,6 +369,30 @@ void program_lib_build_args_embedded(ast_t* program, pass_opt_t* opt)
     for(strlist_t* p = data->libs; p != NULL; p = strlist_next(p))
       data->embedded_libs[i++] = unquote(strlist_data(p), opt);
   }
+}
+
+
+bool program_genc_done(ast_t* program)
+{
+  pony_assert(program != NULL);
+  pony_assert(ast_id(program) == TK_PROGRAM);
+
+  program_t* data = (program_t*)ast_data(program);
+  pony_assert(data != NULL);
+
+  return data->genc_done;
+}
+
+
+void program_set_genc_done(ast_t* program)
+{
+  pony_assert(program != NULL);
+  pony_assert(ast_id(program) == TK_PROGRAM);
+
+  program_t* data = (program_t*)ast_data(program);
+  pony_assert(data != NULL);
+
+  data->genc_done = true;
 }
 
 

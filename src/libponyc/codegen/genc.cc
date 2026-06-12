@@ -108,9 +108,10 @@ public:
       case clang::DiagnosticsEngine::Note:
         // Notes elaborate on the diagnostic immediately before them, so
         // they follow it to its sink: an error's notes join its error
-        // frame, a warning's notes join it on stderr. prev_ deliberately
-        // stays unchanged here: a chain of notes after one diagnostic all
-        // belong to it.
+        // frame, anything else's (a warning's, or the rare note with no
+        // preceding diagnostic) go to stderr. prev_ deliberately stays
+        // unchanged here: a chain of notes after one diagnostic all belong
+        // to it.
         if(prev_ == SINK_ERROR)
         {
           if(file != NULL)
@@ -119,7 +120,7 @@ public:
           else
             errorf_continue(errors_, NULL, "%s", text.c_str());
         }
-        else if(prev_ == SINK_WARNING)
+        else
         {
           if(file != NULL)
             fprintf(stderr, "%s:%u:%u: note: %s\n", file, line, col,
@@ -171,6 +172,64 @@ static bool c_is_cross_compiling(pass_opt_t* opt)
 
   return target.getOS() != host.getOS()
     || target.getEnvironment() != host.getEnvironment();
+}
+
+
+// macOS-to-macOS builds resolve headers through the SDK, which serves
+// every arch, so an arm64 mac building x86_64-apple-macosx (arch-cross by
+// c_is_cross_compiling) needs no sysroot — the same way the MachO link
+// path never consults resolve_sysroot.
+static bool c_is_mac_on_mac(pass_opt_t* opt)
+{
+  char* default_triple_str = LLVMGetDefaultTargetTriple();
+  llvm::Triple target(opt->triple);
+  llvm::Triple host(default_triple_str);
+  LLVMDisposeMessage(default_triple_str);
+
+  return target.isMacOSX() && host.isMacOSX();
+}
+
+
+// Mirrors host_is_musl in genexe.cc (which takes compile_t). Keep the two
+// in sync: the vendored LLVM's default triple may claim "gnu" on musl
+// systems, so native compilation probes for the musl loader instead of
+// trusting the triple.
+static bool c_host_is_musl(pass_opt_t* opt)
+{
+  if(c_is_cross_compiling(opt))
+    return false;
+
+  llvm::Triple triple(opt->triple);
+  const char* musl_linker = NULL;
+
+  switch(triple.getArch())
+  {
+    case llvm::Triple::x86_64:
+      musl_linker = "/lib/ld-musl-x86_64.so.1";
+      break;
+
+    case llvm::Triple::aarch64:
+      musl_linker = "/lib/ld-musl-aarch64.so.1";
+      break;
+
+    case llvm::Triple::riscv64:
+      musl_linker = "/lib/ld-musl-riscv64.so.1";
+      break;
+
+    case llvm::Triple::arm:
+    case llvm::Triple::thumb:
+    {
+      struct stat st;
+      return (stat("/lib/ld-musl-armhf.so.1", &st) == 0)
+        || (stat("/lib/ld-musl-arm.so.1", &st) == 0);
+    }
+
+    default:
+      return false;
+  }
+
+  struct stat st;
+  return stat(musl_linker, &st) == 0;
 }
 
 
@@ -241,7 +300,7 @@ static const char* c_shim_sysroot(pass_opt_t* opt, errors_t* errors)
   if(opt->sysroot != NULL && opt->sysroot[0] != '\0')
     return stringtab(opt->strtab, opt->sysroot);
 
-  if(!c_is_cross_compiling(opt))
+  if(!c_is_cross_compiling(opt) || c_is_mac_on_mac(opt))
     return "";
 
   errorf(errors, NULL,
@@ -307,17 +366,29 @@ static const char* find_macos_sdk_include(pass_opt_t* opt)
 #endif
 
 
-static void push_isystem(pass_opt_t* opt, std::vector<const char*>& args,
-  const char* flag, const char* sysroot, const char* suffix)
+// Returns true when the directory exists and was pushed.
+static bool push_isystem(pass_opt_t* opt, std::vector<const char*>& args,
+  errors_t* errors, const char* flag, const char* sysroot,
+  const char* suffix)
 {
   char buf[FILENAME_MAX];
-  snprintf(buf, sizeof(buf), "%s%s", sysroot, suffix);
+  int written = snprintf(buf, sizeof(buf), "%s%s", sysroot, suffix);
+
+  if((written < 0) || ((size_t)written >= sizeof(buf)))
+  {
+    // Without this, a too-long sysroot would silently skip the directory
+    // and surface later as a confusing header-not-found in the shim.
+    errorf(errors, NULL, "system include path '%s%s' is too long", sysroot,
+      suffix);
+    return false;
+  }
 
   if(!dir_exists(buf))
-    return;
+    return false;
 
   args.push_back(flag);
   args.push_back(stringtab(opt->strtab, buf));
+  return true;
 }
 
 
@@ -345,15 +416,9 @@ static bool add_system_include_args(pass_opt_t* opt, const char* sysroot,
     // be the wrong ones.
     if(sysroot[0] != '\0')
     {
-      char buf[FILENAME_MAX];
-      snprintf(buf, sizeof(buf), "%s/usr/include", sysroot);
-
-      if(dir_exists(buf))
-      {
-        args.push_back("-internal-isystem");
-        args.push_back(stringtab(opt->strtab, buf));
+      if(push_isystem(opt, args, errors, "-internal-isystem", sysroot,
+        "/usr/include"))
         return true;
-      }
 
       errorf(errors, NULL, "sysroot '%s' has no usr/include directory",
         sysroot);
@@ -386,16 +451,39 @@ static bool add_system_include_args(pass_opt_t* opt, const char* sysroot,
     return false;
   }
 
-  // Linux and the BSDs share the classic layout.
-  push_isystem(opt, args, "-internal-isystem", sysroot, "/usr/local/include");
+  // Linux and the BSDs share the classic layout; the order and the
+  // directory set mirror what the clang driver emits for these targets
+  // (including <sysroot>/include, which musl-style sysroots use).
+  bool any = false;
+
+  any |= push_isystem(opt, args, errors, "-internal-isystem", sysroot,
+    "/usr/local/include");
 
   char multiarch[FILENAME_MAX];
-  snprintf(multiarch, sizeof(multiarch), "/usr/include/%s",
+  int written = snprintf(multiarch, sizeof(multiarch), "/usr/include/%s",
     c_system_triple(opt));
-  push_isystem(opt, args, "-internal-externc-isystem", sysroot, multiarch);
 
-  push_isystem(opt, args, "-internal-externc-isystem", sysroot,
-    "/usr/include");
+  if((written >= 0) && ((size_t)written < sizeof(multiarch)))
+    any |= push_isystem(opt, args, errors, "-internal-externc-isystem",
+      sysroot, multiarch);
+
+  any |= push_isystem(opt, args, errors, "-internal-externc-isystem",
+    sysroot, "/include");
+
+  any |= push_isystem(opt, args, errors, "-internal-externc-isystem",
+    sysroot, "/usr/include");
+
+  // Per-directory skipping is right (multiarch and /usr/local are
+  // legitimately absent on many systems), but an explicit --sysroot that
+  // yields nothing at all deserves a direct answer, like the macOS branch
+  // gives, instead of header-not-found errors from the shim.
+  if(!any && (sysroot[0] != '\0'))
+  {
+    errorf(errors, NULL, "sysroot '%s' has no usable include directories\n"
+      "  Searched: usr/local/include, usr/include/<triple>, include, "
+      "usr/include", sysroot);
+    return false;
+  }
 
   return true;
 }
@@ -461,9 +549,12 @@ static bool compile_shim(pass_opt_t* opt, ast_t* package, const char* src,
     return false;
   }
 
-  // A clang internal error (ICE, report_fatal_error, assertion) would
-  // otherwise abort the ponyc process with no attribution. The recovery
-  // context turns it into a per-shim failure instead.
+  // A clang internal error that crashes or aborts (ICE, assertion) would
+  // otherwise take the ponyc process down with no attribution; the
+  // recovery context turns those into a per-shim failure. Not contained:
+  // the exit()-flavored llvm::report_fatal_error paths, which terminate
+  // the process before the context can intervene — the same exposure
+  // Pony's own codegen has.
   bool ok = false;
   llvm::CrashRecoveryContext crc;
 
@@ -497,6 +588,16 @@ bool genc(ast_t* program, pass_opt_t* opt)
   pony_assert(opt != NULL);
 
   errors_t* errors = opt->check.errors;
+
+  // genc is not an AST pass with per-node re-entry flags, so guard
+  // explicitly: a second ast_passes_program over the same program (a
+  // resumable compile session) must not recompile shims and record their
+  // objects a second time. Marked done up front — even a failed run has
+  // already recorded its successfully-compiled objects.
+  if(program_genc_done(program))
+    return true;
+
+  program_set_genc_done(program);
 
   // Fast path: most programs have no shims, and they must not pay for (or
   // depend on) resource-dir and sysroot discovery.
@@ -616,14 +717,43 @@ bool genc(ast_t* program, pass_opt_t* opt)
   common.push_back("-resource-dir");
   common.push_back(resource_dir);
 
-  // Builtin headers first, then the target's system headers, mirroring the
-  // driver's order.
-  snprintf(buf, sizeof(buf), "%s%cinclude", resource_dir, PATH_SLASH);
-  common.push_back("-internal-isystem");
-  common.push_back(stringtab(opt->strtab, buf));
+  // Builtin headers and system headers, ordered the way the driver orders
+  // them: builtins first in general, but on musl AFTER the system
+  // directories — musl systems prefer /usr/include's copies of the shared
+  // headers, and the vendored driver does the same (clang's
+  // ToolChains/Linux.cpp). Diverging here would give Alpine shims
+  // different headers than every other clang compile on that platform.
+  bool builtin_include_last;
+  {
+    llvm::Triple target_triple(opt->triple);
+    builtin_include_last = target_triple.isMusl() || c_host_is_musl(opt);
+  }
+
+  int written = snprintf(buf, sizeof(buf), "%s%cinclude", resource_dir,
+    PATH_SLASH);
+
+  if((written < 0) || ((size_t)written >= sizeof(buf)))
+  {
+    errorf(errors, NULL, "clang's resource include path is too long");
+    return false;
+  }
+
+  const char* builtin_include = stringtab(opt->strtab, buf);
+
+  if(!builtin_include_last)
+  {
+    common.push_back("-internal-isystem");
+    common.push_back(builtin_include);
+  }
 
   if(!add_system_include_args(opt, sysroot, common, errors))
     return false;
+
+  if(builtin_include_last)
+  {
+    common.push_back("-internal-isystem");
+    common.push_back(builtin_include);
+  }
 
   if(sysroot[0] != '\0')
   {

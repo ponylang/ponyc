@@ -243,6 +243,39 @@ TEST_F(CShimTest, CDefineMayNotHaveAlias)
   TEST_ERRORS_1(src, "scope", "may not have an alias");
 }
 
+TEST_F(CShimTest, CIncludeGuardedOk)
+{
+  // allow_guard is a per-scheme flag on cinclude's own handlers[] row;
+  // cdefine's guard test doesn't cover it.
+  const char* src =
+    "use \"cinclude:./linux-inc\" if linux\n"
+    "use \"cinclude:./windows-inc\" if windows\n"
+    "actor Main\n"
+    "  new create(env: Env) => None";
+
+  TEST_COMPILE(src, "scope");
+}
+
+TEST_F(CShimTest, CIncludePathWithSpacesStoredVerbatim)
+{
+  // Spaces in include paths are the design's stated reason cinclude:
+  // bypasses quoted_locator; pin that side of the decision like
+  // CDefineValueStoredVerbatim pins the cdefine side.
+  const char* src =
+    "use \"cinclude:dir with spaces\"\n"
+    "actor Main\n"
+    "  new create(env: Env) => None";
+
+  TEST_COMPILE(src, "scope");
+
+  char expected[FILENAME_MAX];
+  path_cat(package_path(package), "dir with spaces", expected);
+
+  strlist_t* includes = package_c_includes(package);
+  ASSERT_NE((void*)NULL, includes);
+  EXPECT_STREQ(expected, strlist_data(includes));
+}
+
 
 // Deterministic ordering of the per-package C state. genc consumes these
 // lists head->tail, so insertion order here is the clang argv order and (for
@@ -581,6 +614,110 @@ TEST_F(CShimTest, ShimWarningDoesNotFailBuild)
 
   ASSERT_EQ((size_t)1, program_c_object_count(program));
   remove(program_c_object_at(program, 0));
+  remove_fixture(fixture, names);
+}
+
+TEST_F(CShimTest, MultipleShimsCompileAndRecordInSortedOrder)
+{
+  SKIP_ON_WINDOWS();
+
+  // The within-package compile/record order is a documented determinism
+  // contract (sorted sources -> object record order -> link order); no
+  // other test compiles more than one source per package, so a future
+  // change (say, parallel shim compiles) recording out of order must fail
+  // here.
+  const char* fixture = "cshim_fixture_multi";
+  const char* names[] = {"dummy.pony", "zeta.c", "alpha.c", NULL};
+  const char* contents[] = {
+    "primitive ShimPkg\n",
+    "int shim_zeta(void) { return 1; }\n",
+    "int shim_alpha(void) { return 2; }\n",
+    NULL};
+
+  DO(write_fixture(fixture, names, contents));
+  package_add_magic_path("shimpkg", fixture, &opt);
+
+  const char* src =
+    "use \"shimpkg\"\n"
+    "actor Main\n"
+    "  new create(env: Env) => None";
+
+  TEST_COMPILE(src, "c");
+
+  ASSERT_EQ((size_t)2, program_c_object_count(program));
+  const char* first = program_c_object_at(program, 0);
+  const char* second = program_c_object_at(program, 1);
+  EXPECT_TRUE(strstr(first, "alpha") != NULL) << "first: " << first;
+  EXPECT_TRUE(strstr(second, "zeta") != NULL) << "second: " << second;
+  EXPECT_TRUE(strstr(first, ".shim.") != NULL) << "marker: " << first;
+
+  remove(first);
+  remove(second);
+  remove_fixture(fixture, names);
+}
+
+TEST_F(CShimTest, ShimWarningWithNoteDoesNotFailBuild)
+{
+  SKIP_ON_WINDOWS();
+
+  // A macro redefinition emits a warning WITH a "previous definition"
+  // note; both must stay on stderr — a regression routing warning-notes
+  // into errors_t would fail user builds.
+  const char* fixture = "cshim_fixture_warnnote";
+  const char* names[] = {"dummy.pony", "redef_macro.c", NULL};
+  const char* contents[] = {
+    "primitive ShimPkg\n",
+    "#define TWICE 1\n"
+    "#define TWICE 2\n"
+    "int shim_redef(void) { return TWICE; }\n",
+    NULL};
+
+  DO(write_fixture(fixture, names, contents));
+  package_add_magic_path("shimpkg", fixture, &opt);
+
+  const char* src =
+    "use \"shimpkg\"\n"
+    "actor Main\n"
+    "  new create(env: Env) => None";
+
+  TEST_COMPILE(src, "c");
+
+  EXPECT_EQ((size_t)0, errors_get_count(opt.check.errors));
+  ASSERT_EQ((size_t)1, program_c_object_count(program));
+  remove(program_c_object_at(program, 0));
+  remove_fixture(fixture, names);
+}
+
+TEST_F(CShimTest, ShimObjectPathTooLongIsAnError)
+{
+  SKIP_ON_WINDOWS();
+
+  const char* fixture = "cshim_fixture_longout";
+  const char* names[] = {"dummy.pony", "good.c", NULL};
+  const char* contents[] = {
+    "primitive ShimPkg\n",
+    "int shim_long(void) { return 1; }\n",
+    NULL};
+
+  DO(write_fixture(fixture, names, contents));
+  package_add_magic_path("shimpkg", fixture, &opt);
+
+  // An output path so long the object name can't fit FILENAME_MAX must be
+  // a clear error, not a mangled filename.
+  static char long_output[FILENAME_MAX + 64];
+  memset(long_output, 'x', sizeof(long_output) - 1);
+  long_output[sizeof(long_output) - 1] = '\0';
+  opt.output = long_output;
+
+  const char* src =
+    "use \"shimpkg\"\n"
+    "actor Main\n"
+    "  new create(env: Env) => None";
+
+  const char* errs[] =
+    {"output path for C shim object is too long", NULL};
+  DO(test_expected_errors(src, "c", errs));
+
   remove_fixture(fixture, names);
 }
 
