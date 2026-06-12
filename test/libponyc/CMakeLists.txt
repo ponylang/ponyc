@@ -14,6 +14,7 @@ add_executable(libponyc.tests
     chain.cc
     codegen.cc
     codegen_ffi.cc
+    cshim.cc
     codegen_optimisation.cc
     dontcare.cc
     ffi.cc

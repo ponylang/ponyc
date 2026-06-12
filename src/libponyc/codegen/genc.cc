@@ -383,8 +383,7 @@ static bool compile_shim(pass_opt_t* opt, ast_t* package, const char* src,
   PonyDiagConsumer consumer(errors);
 
   clang::CompilerInstance ci;
-  ci.createDiagnostics(*llvm::vfs::getRealFileSystem(), &consumer,
-    /* ShouldOwnClient */ false);
+  ci.createDiagnostics(&consumer, /* ShouldOwnClient */ false);
 
   if(!clang::CompilerInvocation::CreateFromArgs(ci.getInvocation(), args,
     ci.getDiagnostics()))
