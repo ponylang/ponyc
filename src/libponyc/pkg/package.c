@@ -307,6 +307,14 @@ static bool parse_files_in_dir(ast_t* package, const char* dir_path,
   {
     char fullpath[FILENAME_MAX];
     path_cat(dir_path, c_entries[i], fullpath);
+
+    if(fullpath[0] == '\0')
+    {
+      errorf(errors, c_entries[i], "path to C source is too long");
+      r = false;
+      continue;
+    }
+
     pkg->c_sources = strlist_append(pkg->c_sources,
       stringtab(opt->strtab, fullpath));
   }

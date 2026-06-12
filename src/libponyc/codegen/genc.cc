@@ -26,7 +26,6 @@
 #include <llvm/ADT/SmallString.h>
 #include <llvm/Support/CrashRecoveryContext.h>
 #include <llvm/Support/TargetSelect.h>
-#include <llvm/Support/VirtualFileSystem.h>
 #include <llvm/TargetParser/Triple.h>
 
 #ifdef _MSC_VER
@@ -61,7 +60,7 @@ class PonyDiagConsumer : public clang::DiagnosticConsumer
 {
 public:
   explicit PonyDiagConsumer(errors_t* errors)
-    : errors_(errors), saw_error_(false)
+    : errors_(errors), prev_was_error_(false)
   {}
 
   void HandleDiagnostic(clang::DiagnosticsEngine::Level level,
@@ -99,11 +98,16 @@ public:
         else
           errorf(errors_, NULL, "%s", text.c_str());
 
-        saw_error_ = true;
+        prev_was_error_ = true;
         break;
 
       case clang::DiagnosticsEngine::Note:
-        if(saw_error_)
+        // Notes elaborate on the diagnostic immediately before them; only
+        // attach ones that follow an error, so a warning's notes don't end
+        // up on an unrelated error's frame. prev_was_error_ deliberately
+        // stays unchanged here: a chain of notes after one error all belong
+        // to it.
+        if(prev_was_error_)
         {
           if(file != NULL)
             errorf_continue(errors_, file, "%u:%u: %s", line, col,
@@ -119,13 +123,15 @@ public:
             text.c_str());
         else
           fprintf(stderr, "warning: %s\n", text.c_str());
+
+        prev_was_error_ = false;
         break;
     }
   }
 
 private:
   errors_t* errors_;
-  bool saw_error_;
+  bool prev_was_error_;
 };
 
 
@@ -387,7 +393,15 @@ static bool compile_shim(pass_opt_t* opt, ast_t* package, const char* src,
 
   if(!clang::CompilerInvocation::CreateFromArgs(ci.getInvocation(), args,
     ci.getDiagnostics()))
+  {
+    // The argv is built by genc, so a parse failure is a ponyc bug; make
+    // sure it can't fail the build silently if clang didn't say anything.
+    if(consumer.getNumErrors() == 0)
+      errorf(errors, src, "internal error: the embedded clang rejected the "
+        "compiler arguments for this C shim");
+
     return false;
+  }
 
   // A clang internal error (ICE, report_fatal_error, assertion) would
   // otherwise abort the ponyc process with no attribution. The recovery
@@ -540,6 +554,11 @@ bool genc(ast_t* program, pass_opt_t* opt)
   }
 
   const char* output = (opt->output != NULL) ? opt->output : ".";
+
+  // codegen creates the output directory too, but genc runs first; without
+  // this, -o <new-dir> would fail only for programs with shims.
+  pony_mkdir(output);
+
   bool ok = true;
   size_t index = 0;
 

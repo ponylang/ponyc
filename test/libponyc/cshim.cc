@@ -360,6 +360,44 @@ TEST_F(CShimTest, GoodShimProducesLinkableObject)
   remove_fixture(fixture, names);
 }
 
+TEST_F(CShimTest, ShimObjectGoesToCreatedOutputDir)
+{
+  const char* fixture = "cshim_fixture_outdir";
+  const char* names[] = {"dummy.pony", "good.c", NULL};
+  const char* contents[] = {
+    "primitive ShimPkg\n",
+    "int shim_outdir(void) { return 1; }\n",
+    NULL};
+
+  DO(write_fixture(fixture, names, contents));
+  package_add_magic_path("shimpkg", fixture, &opt);
+
+  // -o names a directory that doesn't exist yet. codegen creates it, but
+  // genc runs first and must create it too, or only shim programs would
+  // fail this invocation.
+  const char* outdir = "cshim_outdir_new";
+  remove(outdir);
+  opt.output = outdir;
+
+  const char* src =
+    "use \"shimpkg\"\n"
+    "actor Main\n"
+    "  new create(env: Env) => None";
+
+  TEST_COMPILE(src, "c");
+
+  ASSERT_EQ((size_t)1, program_c_object_count(program));
+  const char* obj = program_c_object_at(program, 0);
+  EXPECT_TRUE(strstr(obj, outdir) != NULL) << "object not in -o dir: " << obj;
+
+  struct stat st;
+  ASSERT_EQ(0, stat(obj, &st)) << "missing shim object: " << obj;
+
+  remove(obj);
+  remove(outdir);
+  remove_fixture(fixture, names);
+}
+
 TEST_F(CShimTest, ShimRespectsCDefine)
 {
   const char* fixture = "cshim_fixture_define";
