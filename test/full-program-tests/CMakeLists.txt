@@ -7,7 +7,7 @@ project(libponyc.tests.run VERSION ${PONYC_PROJECT_VERSION} LANGUAGES C)
 # compiles (see genc), and building it here too would shadow the
 # `use "lib:"` path the external-lib tests exist to cover.
 # Assumes that there is only 1 C source file per test
-file(GLOB test_c_sources RELATIVE ${CMAKE_CURRENT_LIST_DIR} */c-src/*.c */c-src/*.cc)
+file(GLOB test_c_sources RELATIVE ${CMAKE_CURRENT_LIST_DIR} CONFIGURE_DEPENDS */c-src/*.c */c-src/*.cc)
 
 foreach(test_c_source ${test_c_sources})
   string(FIND ${test_c_source} "/" slash_pos)
