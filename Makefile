@@ -465,6 +465,8 @@ install: build
 	$(SILENT)if [ -f $(outDir)/crtendS.o ]; then cp $(outDir)/crtendS.o $(ponydir)/lib/$(arch); fi
 	$(SILENT)if [ -f $(outDir)/crtbeginT.o ]; then cp $(outDir)/crtbeginT.o $(ponydir)/lib/$(arch); fi
 	$(SILENT)if [ -f $(outDir)/crtend.o ]; then cp $(outDir)/crtend.o $(ponydir)/lib/$(arch); fi
+	$(SILENT)if [ -d $(libsOutDir)/lib/clang ]; then cp -r $(libsOutDir)/lib/clang $(ponydir)/lib/; fi
+	$(SILENT)if [ -d $(libsOutDir)/lib64/clang ]; then cp -r $(libsOutDir)/lib64/clang $(ponydir)/lib/; fi
 	$(SILENT)cp $(outDir)/ponyc $(ponydir)/bin
 	$(SILENT)if [ -f $(outDir)/pony-lsp ]; then cp $(outDir)/pony-lsp $(ponydir)/bin; fi
 	$(SILENT)if [ -f $(outDir)/pony-lint ]; then cp $(outDir)/pony-lint $(ponydir)/bin; fi
