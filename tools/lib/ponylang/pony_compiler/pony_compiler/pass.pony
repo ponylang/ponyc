@@ -7,6 +7,7 @@ type PassId is (
   PassImport     | PassNameResolution | PassTypeAliasRecursion |
   PassFlatten    | PassTraits         |
   PassRefer      | PassExpr           | PassCompleteness | PassVerify | PassFinaliser |
+  PassC          |
   PassReach      | PassPaint          | PassLLVMIR       | PassBitcode |
   PassASM        | PassObj            | PassAll
 )
@@ -25,13 +26,14 @@ primitive PassExpr fun apply(): I32 => 10
 primitive PassCompleteness fun apply(): I32 => 11
 primitive PassVerify fun apply(): I32 => 12
 primitive PassFinaliser fun apply(): I32 => 13
-primitive PassReach fun apply(): I32 => 14
-primitive PassPaint fun apply(): I32 => 15
-primitive PassLLVMIR fun apply(): I32 => 16
-primitive PassBitcode fun apply(): I32 => 17
-primitive PassASM fun apply(): I32 => 18
-primitive PassObj fun apply(): I32 => 19
-primitive PassAll fun apply(): I32 => 20
+primitive PassC fun apply(): I32 => 14
+primitive PassReach fun apply(): I32 => 15
+primitive PassPaint fun apply(): I32 => 16
+primitive PassLLVMIR fun apply(): I32 => 17
+primitive PassBitcode fun apply(): I32 => 18
+primitive PassASM fun apply(): I32 => 19
+primitive PassObj fun apply(): I32 => 20
+primitive PassAll fun apply(): I32 => 21
 
 primitive _StrList
   """STUB"""

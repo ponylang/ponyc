@@ -222,6 +222,7 @@ typedef enum pass_id
   PASS_COMPLETENESS,
   PASS_VERIFY,
   PASS_FINALISER,
+  PASS_C,
   PASS_REACH,
   PASS_PAINT,
   PASS_LLVM_IR,
@@ -249,6 +250,7 @@ typedef enum pass_id
     "    =completeness\n" \
     "    =verify\n" \
     "    =final\n" \
+    "    =c             Compile C shim objects.\n" \
     "    =reach\n" \
     "    =paint\n" \
     "    =ir            Output LLVM IR.\n" \

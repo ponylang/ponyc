@@ -1340,6 +1340,13 @@ static bool link_exe_lld_elf(compile_t* c, ast_t* program,
   // Object file.
   args.push_back(file_o);
 
+  // C shim objects (genc), in deterministic package-walk order. Objects are
+  // always fully included, so they sit after the Pony object and before the
+  // user libraries that may satisfy their references.
+  size_t c_object_count = program_c_object_count(program);
+  for(size_t i = 0; i < c_object_count; i++)
+    args.push_back(program_c_object_at(program, i));
+
   // User libraries.
   size_t lib_count = program_lib_count(program);
   for(size_t i = 0; i < lib_count; i++)
@@ -1769,6 +1776,13 @@ static bool link_exe_lld_macho(compile_t* c, ast_t* program,
   // Object file.
   args.push_back(file_o);
 
+  // C shim objects (genc), in deterministic package-walk order. Objects are
+  // always fully included, so they sit after the Pony object and before the
+  // user libraries that may satisfy their references.
+  size_t c_object_count = program_c_object_count(program);
+  for(size_t i = 0; i < c_object_count; i++)
+    args.push_back(program_c_object_at(program, i));
+
   // User libraries.
   size_t lib_count = program_lib_count(program);
   for(size_t i = 0; i < lib_count; i++)
@@ -1917,6 +1931,13 @@ static bool link_exe_lld_coff(compile_t* c, ast_t* program,
 
   // Object file.
   args.push_back(file_o);
+
+  // C shim objects (genc), in deterministic package-walk order. These are
+  // absolute object paths, so they don't depend on the /LIBPATH entries
+  // pushed below; only library-name resolution does.
+  size_t c_object_count = program_c_object_count(program);
+  for(size_t i = 0; i < c_object_count; i++)
+    args.push_back(program_c_object_at(program, i));
 
   // UCRT library path (Windows 10+ SDK).
   if(strlen(vcvars.ucrt) > 0)
@@ -2195,10 +2216,22 @@ bool genexe(compile_t* c, ast_t* program)
   if(!link_exe(c, program, file_o))
     return false;
 
+  // Shim objects share the Pony object's lifetime: removed only here, after
+  // a successful PASS_ALL link. Under --pass c/obj/asm/ir they persist
+  // (handing objects to another linker is the point of those modes), and a
+  // failed link leaves them too.
+  size_t c_object_count = program_c_object_count(program);
+
 #ifdef PLATFORM_IS_WINDOWS
   _unlink(file_o);
+
+  for(size_t i = 0; i < c_object_count; i++)
+    _unlink(program_c_object_at(program, i));
 #else
   unlink(file_o);
+
+  for(size_t i = 0; i < c_object_count; i++)
+    unlink(program_c_object_at(program, i));
 #endif
 
   return true;

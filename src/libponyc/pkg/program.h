@@ -49,6 +49,16 @@ const char* program_lib_args(ast_t* program);
  */
 void program_lib_build_args_embedded(ast_t* program, pass_opt_t* opt);
 
+/** Record a C shim object emitted by genc. Paths accumulate in genc's
+ * package-walk order, which the platform linkers preserve. */
+void program_add_c_object(ast_t* program, const char* path);
+
+/** Return the number of C shim objects recorded by genc. */
+size_t program_c_object_count(ast_t* program);
+
+/** Return a C shim object path by index. */
+const char* program_c_object_at(ast_t* program, size_t index);
+
 /** Return the number of library search paths.
  * Only valid after program_lib_build_args_embedded(). */
 size_t program_lib_path_count(ast_t* program);
