@@ -379,7 +379,12 @@ jobs:
         uses: actions/checkout@v6.0.2
       - name: Install Dependencies
         run: |
-          python.exe -m pip install --upgrade cloudsmith-cli
+          # Pin cloudsmith-cli below 1.19.0: 1.19.0 added a PyJWT[crypto]
+          # dependency that pulls in cryptography, which has no prebuilt
+          # win_arm64 wheel and fails to build from source on this runner.
+          # Remove once arm64 Windows can install the latest cloudsmith-cli
+          # again.
+          python.exe -m pip install --upgrade "cloudsmith-cli<1.19.0"
       - name: Restore Libs Cache
         id: restore-libs
         uses: actions/cache/restore@v5.0.3
