@@ -616,6 +616,11 @@ bool genc(ast_t* program, pass_opt_t* opt)
   if(!any)
     return true;
 
+  // The target description comes from codegen_pass_init; every in-tree
+  // driver runs it at startup. An embedder that skips it would otherwise
+  // crash on the NULL triple below instead of getting an attributed abort.
+  pony_assert(opt->triple != NULL);
+
   if(opt->verbosity >= VERBOSITY_MINIMAL)
     fprintf(stderr, "Compiling C shims\n");
 

@@ -243,6 +243,42 @@ TEST_F(CShimTest, CDefineMayNotHaveAlias)
   TEST_ERRORS_1(src, "scope", "may not have an alias");
 }
 
+TEST_F(CShimTest, CIncludeAbsolutePathStoredVerbatim)
+{
+#ifdef PLATFORM_IS_WINDOWS
+  GTEST_SKIP() << "uses a POSIX absolute path form";
+#endif
+
+  // An absolute cinclude: path skips package-dir resolution and is stored
+  // as given.
+  const char* src =
+    "use \"cinclude:/absolute/include dir\"\n"
+    "actor Main\n"
+    "  new create(env: Env) => None";
+
+  TEST_COMPILE(src, "scope");
+
+  strlist_t* includes = package_c_includes(package);
+  ASSERT_NE((void*)NULL, includes);
+  EXPECT_STREQ("/absolute/include dir", strlist_data(includes));
+}
+
+TEST_F(CShimTest, ErrorfAtContinueWithNoPriorErrorBecomesPrimary)
+{
+  // errorf_at_continue's empty-collection branch promotes the would-be
+  // continuation to a primary error instead of dropping it; unreachable
+  // through clang fixtures, so pin it directly.
+  errorf_at_continue(opt.check.errors, "orphan.c", 4, 7, "lone note");
+
+  ASSERT_EQ((size_t)1, errors_get_count(opt.check.errors));
+  errormsg_t* e = errors_get_first(opt.check.errors);
+  ASSERT_NE((void*)NULL, e);
+  EXPECT_TRUE(strstr(e->file, "orphan.c") != NULL);
+  EXPECT_EQ((size_t)4, e->line);
+  EXPECT_EQ((size_t)7, e->pos);
+  EXPECT_STREQ("lone note", e->msg);
+}
+
 TEST_F(CShimTest, CIncludeGuardedOk)
 {
   // allow_guard is a per-scheme flag on cinclude's own handlers[] row;
