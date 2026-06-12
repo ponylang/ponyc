@@ -1,7 +1,13 @@
 project(libponyc.tests.run VERSION ${PONYC_PROJECT_VERSION} LANGUAGES C)
 
+# External-lib fixtures keep their C source in <test>/c-src/; it is built
+# here into a <test>-additional library that the test links with
+# `use "lib:<test>-additional"`. Only c-src/ is globbed, deliberately: a C
+# file in a test's top directory is a shim that ponyc itself discovers and
+# compiles (see genc), and building it here too would shadow the
+# `use "lib:"` path the external-lib tests exist to cover.
 # Assumes that there is only 1 C source file per test
-file(GLOB_RECURSE test_c_sources RELATIVE ${CMAKE_CURRENT_LIST_DIR} *.c *.cc)
+file(GLOB test_c_sources RELATIVE ${CMAKE_CURRENT_LIST_DIR} */c-src/*.c */c-src/*.cc)
 
 foreach(test_c_source ${test_c_sources})
   string(FIND ${test_c_source} "/" slash_pos)

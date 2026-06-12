@@ -19,6 +19,7 @@
 
 
 #define EXTENSION ".pony"
+#define C_EXTENSION ".c"
 
 
 #ifdef PLATFORM_IS_WINDOWS
@@ -55,6 +56,18 @@ struct package_t
   size_t group_index;
   size_t next_hygienic_id;
   size_t low_index;
+  // C shim state. These strlists preserve insertion order (tail-append) and
+  // genc reads them head->tail: c_includes/c_defines accumulate in AST order
+  // (sorted-file order, then source order within a file) as the scope pass
+  // visits use commands, and c_sources is appended in sorted-directory order.
+  // That ordering is what makes the clang argv and the shim object link order
+  // deterministic for reproducible builds - don't replace these with an
+  // unordered container. c_define_uses parallels c_defines (the use command
+  // that added each define) for the duplicate-definition error frame.
+  strlist_t* c_includes;
+  strlist_t* c_defines;
+  astlist_t* c_define_uses;
+  strlist_t* c_sources;
   bool allow_ffi;
   bool on_stack;
 };
@@ -221,11 +234,14 @@ static bool parse_files_in_dir(ast_t* package, const char* dir_path,
   size_t count = 0;
   size_t buf_size = 4 * sizeof(const char*);
   const char** entries = (const char**)ponyint_pool_alloc_size(buf_size);
+  size_t c_count = 0;
+  size_t c_buf_size = 4 * sizeof(const char*);
+  const char** c_entries = (const char**)ponyint_pool_alloc_size(c_buf_size);
   PONY_DIRINFO* d;
 
   while((d = pony_dir_entry_next(dir)) != NULL)
   {
-    // Handle only files with the specified extension that don't begin with
+    // Handle only files with the specified extensions that don't begin with
     // a dot. This avoids including UNIX hidden files in a build.
     const char* name = stringtab(opt->strtab, pony_dir_info_name(d));
 
@@ -234,7 +250,10 @@ static bool parse_files_in_dir(ast_t* package, const char* dir_path,
 
     const char* p = strrchr(name, '.');
 
-    if((p != NULL) && (strcmp(p, EXTENSION) == 0))
+    if(p == NULL)
+      continue;
+
+    if(strcmp(p, EXTENSION) == 0)
     {
       if((count * sizeof(const char*)) == buf_size)
       {
@@ -245,6 +264,21 @@ static bool parse_files_in_dir(ast_t* package, const char* dir_path,
       }
 
       entries[count++] = name;
+    }
+    else if(strcmp(p, C_EXTENSION) == 0)
+    {
+      // C shim sources. These are not parsed as Pony (they never join
+      // entries[]); genc compiles them with the embedded clang and links
+      // the objects into the program.
+      if((c_count * sizeof(const char*)) == c_buf_size)
+      {
+        size_t new_buf_size = c_buf_size * 2;
+        c_entries = (const char**)ponyint_pool_realloc_size(c_buf_size,
+          new_buf_size, c_entries);
+        c_buf_size = new_buf_size;
+      }
+
+      c_entries[c_count++] = name;
     }
   }
 
@@ -262,7 +296,23 @@ static bool parse_files_in_dir(ast_t* package, const char* dir_path,
     r &= parse_source_file(package, fullpath, opt);
   }
 
+  // C shim sources are recorded in sorted order for the same reason: genc
+  // compiles c_sources head->tail and appends each object to the link line
+  // in that order, so this sort is what keeps the output reproducible.
+  qsort(c_entries, c_count, sizeof(const char*), string_compare);
+
+  package_t* pkg = (package_t*)ast_data(package);
+
+  for(size_t i = 0; i < c_count; i++)
+  {
+    char fullpath[FILENAME_MAX];
+    path_cat(dir_path, c_entries[i], fullpath);
+    pkg->c_sources = strlist_append(pkg->c_sources,
+      stringtab(opt->strtab, fullpath));
+  }
+
   ponyint_pool_free_size(buf_size, entries);
+  ponyint_pool_free_size(c_buf_size, c_entries);
   return r;
 }
 
@@ -563,6 +613,10 @@ ast_t* create_package(ast_t* program, const char* name,
   pkg->group_index = -1;
   pkg->next_hygienic_id = 0;
   pkg->low_index = -1;
+  pkg->c_includes = NULL;
+  pkg->c_defines = NULL;
+  pkg->c_define_uses = NULL;
+  pkg->c_sources = NULL;
   ast_setdata(package, pkg);
 
   ast_scope(package);
@@ -1055,8 +1109,11 @@ ast_t* package_load(ast_t* from, const char* path, pass_opt_t* opt)
 
   if(ast_child(package) == NULL)
   {
+    // A .c shim contributes no Pony AST, so a directory holding only .c
+    // files is still not a package: shims travel with Pony code, they don't
+    // replace it.
     ast_error(opt->check.errors, package,
-      "no source files in package '%s'", path);
+      "no Pony source files in package '%s'", path);
     return NULL;
   }
 
@@ -1076,6 +1133,10 @@ void package_free(package_t* package)
   if(package != NULL)
   {
     package_set_destroy(&package->dependencies);
+    strlist_free(package->c_includes);
+    strlist_free(package->c_defines);
+    astlist_free(package->c_define_uses);
+    strlist_free(package->c_sources);
     POOL_FREE(package_t, package);
   }
 }
@@ -1151,6 +1212,149 @@ bool package_allow_ffi(typecheck_t* t)
   pony_assert(t->frame->package != NULL);
   package_t* pkg = (package_t*)ast_data(t->frame->package);
   return pkg->allow_ffi;
+}
+
+
+// The macro name of a cdefine: directive is the text before '=' (or the
+// whole directive when there is no '='); the value after '=' is opaque.
+static bool c_define_name_eq(const char* a, const char* b)
+{
+  size_t a_len = strcspn(a, "=");
+  size_t b_len = strcspn(b, "=");
+
+  return (a_len == b_len) && (strncmp(a, b, a_len) == 0);
+}
+
+
+bool use_cinclude(ast_t* use, const char* locator, ast_t* name,
+  pass_opt_t* options)
+{
+  (void)name;
+  pony_assert(use != NULL);
+  pony_assert(locator != NULL);
+
+  if(locator[0] == '\0')
+  {
+    ast_error(options->check.errors, use, "cinclude: requires a path");
+    return false;
+  }
+
+  char absolute[FILENAME_MAX];
+  const char* prefix = NULL;
+
+  if(!is_path_absolute(locator))
+    prefix = package_path(ast_nearest(use, TK_PACKAGE));
+
+  path_cat(prefix, locator, absolute);
+
+  if(absolute[0] == '\0')
+  {
+    ast_error(options->check.errors, use, "cinclude: path is too long");
+    return false;
+  }
+
+  // The path is stored raw - not through quoted_locator() - because include
+  // paths may legitimately contain characters that helper rejects (spaces in
+  // particular). That's safe: it is handed to clang as a single argv element,
+  // never through a shell. Duplicates are allowed; an include search list is
+  // additive, so repeats are harmless.
+  ast_t* pkg_ast = ast_nearest(use, TK_PACKAGE);
+  package_t* pkg = (package_t*)ast_data(pkg_ast);
+  pkg->c_includes = strlist_append(pkg->c_includes,
+    stringtab(options->strtab, absolute));
+
+  return true;
+}
+
+
+bool use_cdefine(ast_t* use, const char* locator, ast_t* name,
+  pass_opt_t* options)
+{
+  (void)name;
+  pony_assert(use != NULL);
+  pony_assert(locator != NULL);
+
+  size_t name_len = strcspn(locator, "=");
+
+  if(name_len == 0)
+  {
+    ast_error(options->check.errors, use, "cdefine: requires a macro name");
+    return false;
+  }
+
+  ast_t* pkg_ast = ast_nearest(use, TK_PACKAGE);
+  package_t* pkg = (package_t*)ast_data(pkg_ast);
+
+  // A macro name is a declaration: defining it twice for one package is an
+  // error even when the values match, like `let a = 1` twice. Guards have
+  // already been evaluated (a guarded-out directive never reaches this
+  // handler), so only directives active for the current target are checked.
+  strlist_t* d = pkg->c_defines;
+  astlist_t* u = pkg->c_define_uses;
+
+  while(d != NULL)
+  {
+    const char* prior = strlist_data(d);
+
+    if(c_define_name_eq(prior, locator))
+    {
+      if(strcmp(prior, locator) == 0)
+        ast_error(options->check.errors, use,
+          "C macro '%.*s' is already defined for this package",
+          (int)name_len, locator);
+      else
+        ast_error(options->check.errors, use,
+          "C macro '%.*s' is already defined for this package as '%s'",
+          (int)name_len, locator, prior);
+
+      ast_error_continue(options->check.errors, astlist_data(u),
+        "first definition is here");
+      return false;
+    }
+
+    d = strlist_next(d);
+    u = astlist_next(u);
+  }
+
+  // The value (everything after '=', if any) is stored raw and handed to
+  // clang as a single argv element - see use_cinclude() for why that's safe.
+  pkg->c_defines = strlist_append(pkg->c_defines, locator);
+  pkg->c_define_uses = astlist_append(pkg->c_define_uses, use);
+
+  return true;
+}
+
+
+strlist_t* package_c_includes(ast_t* package)
+{
+  pony_assert(package != NULL);
+  pony_assert(ast_id(package) == TK_PACKAGE);
+  package_t* pkg = (package_t*)ast_data(package);
+  pony_assert(pkg != NULL);
+
+  return pkg->c_includes;
+}
+
+
+strlist_t* package_c_defines(ast_t* package)
+{
+  pony_assert(package != NULL);
+  pony_assert(ast_id(package) == TK_PACKAGE);
+  package_t* pkg = (package_t*)ast_data(package);
+  pony_assert(pkg != NULL);
+
+  return pkg->c_defines;
+}
+
+
+strlist_t* package_c_sources(ast_t* package)
+{
+  pony_assert(package != NULL);
+  pony_assert(ast_id(package) == TK_PACKAGE);
+  package_t* pkg = (package_t*)ast_data(package);
+  pony_assert(pkg != NULL);
+
+  return pkg->c_sources;
 }
 
 
