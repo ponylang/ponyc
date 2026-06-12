@@ -41,7 +41,7 @@ jobs:
           key: libs-ghcr.io/ponylang/ponyc-ci-alpine3.23-builder:20260201-${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
       - name: Build Libs
         if: steps.restore-libs.outputs.cache-hit != 'true'
-        run: make libs build_flags=-j8
+        run: make libs llvm_tools=false build_flags=-j8
       - name: Build
         run: |
           make configure config=debug
@@ -77,7 +77,7 @@ jobs:
           key: libs-arm64-macos-26-${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
       - name: Build Libs
         if: steps.restore-libs.outputs.cache-hit != 'true'
-        run: make libs build_flags=-j4
+        run: make libs llvm_tools=false build_flags=-j4
       - name: Build
         run: |
           make configure arch=armv8 config=debug
@@ -112,7 +112,7 @@ jobs:
           key: libs-windows-2025-vs2026-${{ hashFiles('make.ps1', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
       - name: Build Libs
         if: steps.restore-libs.outputs.cache-hit != 'true'
-        run: .\make.ps1 -Command libs
+        run: .\make.ps1 -Command libs -LlvmTools false
       - name: Build
         run: |
           .\make.ps1 -Command configure -Config Debug

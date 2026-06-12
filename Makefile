@@ -5,6 +5,7 @@ tune ?= generic
 build_flags ?= -j2
 llvm_archs ?= X86;ARM;AArch64;WebAssembly;RISCV
 llvm_config ?= Release
+llvm_tools ?= true
 llc_arch ?= x86-64
 pic_flag ?=
 open_close_stress_connections ?= 10000000
@@ -106,6 +107,10 @@ ifeq ($(lto),yes)
   LTO_CONFIG_FLAGS = -DPONY_USE_LTO=true
 else
   LTO_CONFIG_FLAGS =
+endif
+
+ifeq ($(filter $(llvm_tools),true false),)
+  $(error llvm_tools must be 'true' or 'false', got '$(llvm_tools)')
 endif
 
 ifeq ($(runtime-bitcode),yes)
@@ -214,7 +219,7 @@ endif
 
 libs:
 	$(SILENT)mkdir -p '$(libsBuildDir)'
-	$(SILENT)cd '$(libsBuildDir)' && env CC="$(CC)" CXX="$(CXX)" cmake -B '$(libsBuildDir)' -S '$(libsSrcDir)' -DPONY_PIC_FLAG=$(pic_flag) -DCMAKE_INSTALL_PREFIX="$(libsOutDir)" -DCMAKE_BUILD_TYPE="$(llvm_config)" -DLLVM_TARGETS_TO_BUILD="$(llvm_archs)" $(CMAKE_FLAGS)
+	$(SILENT)cd '$(libsBuildDir)' && env CC="$(CC)" CXX="$(CXX)" cmake -B '$(libsBuildDir)' -S '$(libsSrcDir)' -DPONY_PIC_FLAG=$(pic_flag) -DCMAKE_INSTALL_PREFIX="$(libsOutDir)" -DCMAKE_BUILD_TYPE="$(llvm_config)" -DLLVM_TARGETS_TO_BUILD="$(llvm_archs)" -DPONY_LLVM_TOOLS=$(llvm_tools) $(CMAKE_FLAGS)
 	$(SILENT)cd '$(libsBuildDir)' && env CC="$(CC)" CXX="$(CXX)" cmake --build '$(libsBuildDir)' --target install --config $(llvm_config) -- $(build_flags)
 
 cleanlibs:

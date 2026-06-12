@@ -83,7 +83,7 @@ jobs:
           key: libs-${{ matrix.image }}-${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
       - name: Build Libs
         if: steps.restore-libs.outputs.cache-hit != 'true'
-        run: make libs build_flags=-j8
+        run: make libs llvm_tools=false build_flags=-j8
       - name: Build Debug Runtime
         run: |
           make configure arch=x86-64 config=debug use=${{ matrix.directives }}
@@ -145,7 +145,7 @@ jobs:
           key: libs-${{ matrix.image }}-${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
       - name: Build Libs
         if: steps.restore-libs.outputs.cache-hit != 'true'
-        run: make libs build_flags=-j8
+        run: make libs llvm_tools=false build_flags=-j8
       - name: Build Debug Runtime
         run: |
           ASAN_OPTIONS=detect_leaks=0:external_symbolizer_path=$PWD/build/libs/bin/llvm-symbolizer UBSAN_OPTIONS=external_symbolizer_path=$PWD/build/libs/bin/llvm-symbolizer make configure arch=x86-64 config=debug use=${{ matrix.directives }}
@@ -191,7 +191,7 @@ jobs:
           key: libs-arm64-macos-26-${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
       - name: Build Libs
         if: steps.restore-libs.outputs.cache-hit != 'true'
-        run: make libs build_flags=-j4
+        run: make libs llvm_tools=false build_flags=-j4
       - name: Sanitizer Smoke Test
         run: bash .ci-scripts/macos-sanitizer-smoke.sh
       - name: Send alert on failure
@@ -227,7 +227,7 @@ jobs:
           key: libs-x86-macos-15-intel-${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
       - name: Build Libs
         if: steps.restore-libs.outputs.cache-hit != 'true'
-        run: make libs build_flags=-j2
+        run: make libs llvm_tools=false build_flags=-j2
       - name: Sanitizer Smoke Test
         run: bash .ci-scripts/macos-sanitizer-smoke.sh
       - name: Send alert on failure
@@ -263,7 +263,7 @@ jobs:
           key: libs-arm64-macos-26-${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
       - name: Build Libs
         if: steps.restore-libs.outputs.cache-hit != 'true'
-        run: make libs build_flags=-j4
+        run: make libs llvm_tools=false build_flags=-j4
       - name: DTrace Smoke Test
         run: bash .ci-scripts/macos-dtrace-smoke.sh
       - name: Send alert on failure
@@ -299,7 +299,7 @@ jobs:
           key: libs-x86-macos-15-intel-${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
       - name: Build Libs
         if: steps.restore-libs.outputs.cache-hit != 'true'
-        run: make libs build_flags=-j2
+        run: make libs llvm_tools=false build_flags=-j2
       - name: DTrace Smoke Test
         run: bash .ci-scripts/macos-dtrace-smoke.sh
       - name: Send alert on failure

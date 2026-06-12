@@ -79,7 +79,7 @@ jobs:
           key: libs-windows-2025-vs2026-${{ hashFiles('make.ps1', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
       - name: Build Libs
         if: steps.restore-libs.outputs.cache-hit != 'true'
-        run: .\make.ps1 -Command libs
+        run: .\make.ps1 -Command libs -LlvmTools false
       - name: Save Libs Cache
         if: steps.restore-libs.outputs.cache-hit != 'true'
         uses: actions/cache/save@v5.0.3

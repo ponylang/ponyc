@@ -62,7 +62,7 @@ jobs:
           key: libs-${{ matrix.image }}-${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
       - name: Build Libs
         if: steps.restore-libs.outputs.cache-hit != 'true'
-        run: make libs build_flags=-j8
+        run: make libs llvm_tools=false build_flags=-j8
       - name: Save Libs Cache
         if: steps.restore-libs.outputs.cache-hit != 'true'
         uses: actions/cache/save@v5.0.3
@@ -153,7 +153,7 @@ jobs:
             -v ${{ github.workspace }}:/home/pony/project \
             -w /home/pony/project \
             ${{ matrix.image }} \
-            make libs build_flags=-j8
+            make libs llvm_tools=false build_flags=-j8
       - name: Save Libs Cache
         if: steps.restore-libs.outputs.cache-hit != 'true'
         uses: actions/cache/save@v5.0.3
@@ -204,7 +204,7 @@ jobs:
           key: libs-x86-macos-15-intel-${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
       - name: Build Libs
         if: steps.restore-libs.outputs.cache-hit != 'true'
-        run: make libs build_flags=-j2
+        run: make libs llvm_tools=false build_flags=-j2
       - name: Save Libs Cache
         if: steps.restore-libs.outputs.cache-hit != 'true'
         uses: actions/cache/save@v5.0.3
@@ -251,7 +251,7 @@ jobs:
           key: libs-arm64-macos-26-${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
       - name: Build Libs
         if: steps.restore-libs.outputs.cache-hit != 'true'
-        run: make libs build_flags=-j4
+        run: make libs llvm_tools=false build_flags=-j4
       - name: Save Libs Cache
         if: steps.restore-libs.outputs.cache-hit != 'true'
         uses: actions/cache/save@v5.0.3
@@ -328,7 +328,7 @@ jobs:
           key: libs-windows-2025-vs2026-${{ hashFiles('make.ps1', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
       - name: Build Libs
         if: steps.restore-libs.outputs.cache-hit != 'true'
-        run: .\make.ps1 -Command libs
+        run: .\make.ps1 -Command libs -LlvmTools false
       - name: Save Libs Cache
         if: steps.restore-libs.outputs.cache-hit != 'true'
         uses: actions/cache/save@v5.0.3
@@ -399,7 +399,7 @@ jobs:
           key: libs-windows-11-arm-${{ hashFiles('make.ps1', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
       - name: Build Libs
         if: steps.restore-libs.outputs.cache-hit != 'true'
-        run: .\make.ps1 -Command libs -Arch ARM64
+        run: .\make.ps1 -Command libs -LlvmTools false -Arch ARM64
       - name: Save Libs Cache
         if: steps.restore-libs.outputs.cache-hit != 'true'
         uses: actions/cache/save@v5.0.3
