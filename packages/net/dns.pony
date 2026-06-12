@@ -46,7 +46,8 @@ primitive DNS
     : Array[NetAddress] iso^
   =>
     """
-    Link-local IP6 broadcast address.
+    The IPv6 all-nodes multicast address (FF02::1). IPv6 has no broadcast;
+    the all-nodes group is the closest equivalent.
     """
     ip6(auth, "FF02::1", service)
 
