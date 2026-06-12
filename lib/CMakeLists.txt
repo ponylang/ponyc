@@ -200,4 +200,13 @@ endif()
 
 set(LLVM_ENABLE_PROJECTS "lld;clang" CACHE STRING "ponyc: build LLD and clang as LLVM sub-projects")
 
+# ponyc consumes clang as a set of static libraries (genc's in-process shim
+# compiles) plus the resource headers; the clang driver binary, the other
+# clang tools, and the static analyzer / ARC migrator libraries would only
+# add build time and libs-cache size. clang-resource-headers is part of the
+# library build and is unaffected by these.
+set(CLANG_BUILD_TOOLS OFF CACHE BOOL "ponyc specific override of clang cache entry")
+set(CLANG_ENABLE_STATIC_ANALYZER OFF CACHE BOOL "ponyc specific override of clang cache entry")
+set(CLANG_ENABLE_ARCMT OFF CACHE BOOL "ponyc specific override of clang cache entry")
+
 add_subdirectory(llvm/src/llvm)

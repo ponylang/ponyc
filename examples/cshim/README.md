@@ -9,6 +9,8 @@ Two `use` schemes configure how a package's shims are compiled:
 
 Both schemes accept guards for platform-specific flags, e.g. `use "cdefine:USE_EPOLL" if linux`. The shim sources themselves are always compiled on every platform; a platform-specific `.c` file wraps its whole body in `#ifdef` so it compiles to an empty object elsewhere.
 
+One platform isn't there yet: compiling for Windows fails with "C shims are not yet supported when targeting Windows" until MSVC header discovery is implemented, so this example doesn't build on Windows.
+
 ## How to Compile
 
 With a minimal Pony installation, in the same directory as this README file run `ponyc`. The shim is compiled and linked automatically:

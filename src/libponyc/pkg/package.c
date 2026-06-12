@@ -9,6 +9,7 @@
 #include "../expr/literal.h"
 #include "../../libponyrt/mem/pool.h"
 #include "ponyassert.h"
+#include <ctype.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdbool.h>
@@ -1287,6 +1288,27 @@ bool use_cdefine(ast_t* use, const char* locator, ast_t* name,
   if(name_len == 0)
   {
     ast_error(options->check.errors, use, "cdefine: requires a macro name");
+    return false;
+  }
+
+  // The macro name must be a C identifier. This is what keeps the duplicate
+  // check sound: clang's -D accepts trickier forms (function-like macros
+  // "FOO(x)=...", "NAME VALUE" with a space) whose effective macro name is
+  // not the text before '=', so they would dodge the check and silently
+  // shadow. Rejecting them is also the conservative scope: function-like
+  // macro support can be added later if demand shows; un-rejecting is easy.
+  bool valid_name = (locator[0] == '_') || isalpha((unsigned char)locator[0]);
+
+  for(size_t i = 1; valid_name && (i < name_len); i++)
+  {
+    valid_name = (locator[i] == '_')
+      || isalnum((unsigned char)locator[i]);
+  }
+
+  if(!valid_name)
+  {
+    ast_error(options->check.errors, use,
+      "cdefine: macro name (the text before '=') must be a C identifier");
     return false;
   }
 

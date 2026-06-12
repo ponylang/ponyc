@@ -94,8 +94,11 @@ public:
     {
       case clang::DiagnosticsEngine::Error:
       case clang::DiagnosticsEngine::Fatal:
+        // errorf_at carries the location in errormsg_t's fields, so shim
+        // errors print as "file:line:pos: msg" exactly like native ponyc
+        // errors and stay machine-parseable (editors, CI annotators).
         if(file != NULL)
-          errorf(errors_, file, "%u:%u: %s", line, col, text.c_str());
+          errorf_at(errors_, file, line, col, "%s", text.c_str());
         else
           errorf(errors_, NULL, "%s", text.c_str());
 
@@ -111,7 +114,7 @@ public:
         if(prev_ == SINK_ERROR)
         {
           if(file != NULL)
-            errorf_continue(errors_, file, "%u:%u: %s", line, col,
+            errorf_at_continue(errors_, file, line, col, "%s",
               text.c_str());
           else
             errorf_continue(errors_, NULL, "%s", text.c_str());
@@ -330,10 +333,16 @@ static bool add_system_include_args(pass_opt_t* opt, const char* sysroot,
 {
   if(target_is_macosx(opt->triple))
   {
-#ifndef PLATFORM_IS_WINDOWS
-    // An explicit --sysroot (a cross build per D11, or an unusual native
-    // setup) takes precedence over probing for a local SDK, whose headers
-    // would be the wrong ones.
+#ifdef PLATFORM_IS_WINDOWS
+    // The SDK discovery below is POSIX (popen/xcrun); rather than silently
+    // compiling with no system headers, say so.
+    errorf(errors, NULL, "compiling C shims for a macOS target is not "
+      "supported from a Windows host");
+    return false;
+#else
+    // An explicit --sysroot (a cross build, or an unusual native setup)
+    // takes precedence over probing for a local SDK, whose headers would
+    // be the wrong ones.
     if(sysroot[0] != '\0')
     {
       char buf[FILENAME_MAX];
@@ -362,8 +371,8 @@ static bool add_system_include_args(pass_opt_t* opt, const char* sysroot,
 
     args.push_back("-internal-isystem");
     args.push_back(sdk_include);
-#endif
     return true;
+#endif
   }
 
   if(target_is_windows(opt->triple))
@@ -416,6 +425,14 @@ static bool compile_shim(pass_opt_t* opt, ast_t* package, const char* src,
     args.push_back(stringtab(opt->strtab, include.c_str()));
   }
 
+  // Without this, debug info names every shim's compile unit "<stdin>"
+  // (cc1 default); gdb's source listings, coverage, and profilers then
+  // can't tell shims apart.
+  const char* src_base = strrchr(src, PATH_SLASH);
+  src_base = (src_base != NULL) ? src_base + 1 : src;
+  args.push_back("-main-file-name");
+  args.push_back(src_base);
+
   args.push_back("-o");
   args.push_back(obj);
   args.push_back("-x");
@@ -424,6 +441,11 @@ static bool compile_shim(pass_opt_t* opt, ast_t* package, const char* src,
 
   PonyDiagConsumer consumer(errors);
 
+  // Invocation parsing runs outside the crash-recovery context below: genc
+  // builds this argv itself, so a malformed-argv abort would be a ponyc bug
+  // to fix, not hostile input to contain (only the string values inside
+  // fixed flags are user-controlled, and clang diagnoses rather than
+  // crashes on bad values).
   clang::CompilerInstance ci;
   ci.createDiagnostics(&consumer, /* ShouldOwnClient */ false);
 
@@ -458,6 +480,12 @@ static bool compile_shim(pass_opt_t* opt, ast_t* package, const char* src,
     return false;
   }
 
+  // Mirror the CreateFromArgs fallback above: a failure that produced no
+  // diagnostic must not fail the build silently.
+  if(!ok && consumer.getNumErrors() == 0)
+    errorf(errors, src, "internal error: the embedded clang failed without "
+      "reporting an error");
+
   return ok && (consumer.getNumErrors() == 0);
 }
 
@@ -490,9 +518,11 @@ bool genc(ast_t* program, pass_opt_t* opt)
   if(opt->verbosity >= VERBOSITY_MINIMAL)
     fprintf(stderr, "Compiling C shims\n");
 
-  // genc runs before codegen initializes LLVM, and clang needs the target
-  // backends registered to emit objects. These are idempotent; codegen
-  // calls them again later.
+  // In-tree drivers (ponyc's main, the test harness) register the LLVM
+  // target backends at process startup via codegen_llvm_init, before genc
+  // can run. These idempotent calls are defensive coverage for libponyc
+  // embedders that skip that init; clang needs the backends registered to
+  // emit objects.
   llvm::InitializeAllTargetInfos();
   llvm::InitializeAllTargets();
   llvm::InitializeAllTargetMCs();
@@ -564,8 +594,20 @@ bool genc(ast_t* program, pass_opt_t* opt)
 
   common.push_back(opt->release ? "-O2" : "-O0");
 
-  if(!opt->release)
+  if(!opt->release && !opt->strip_debug)
     common.push_back("-debug-info-kind=standalone");
+
+  // Driver hygiene defaults that cc1 alone omits. Unwind tables keep
+  // backtraces (crash reporters, perf, gdb) working through shim frames in
+  // optimised builds; the frame pointer matches the driver's -O0 behavior.
+  common.push_back("-funwind-tables=2");
+
+  if(!opt->release)
+    common.push_back("-mframe-pointer=all");
+
+  // Our consumer formats every diagnostic itself; without this, clang's
+  // caret printer also emits its own "N errors generated." tally to stderr.
+  common.push_back("-fno-caret-diagnostics");
 
   // glibc's headers condition on __GNUC__; the driver always claims this
   // baseline, so mimic it.
@@ -595,6 +637,16 @@ bool genc(ast_t* program, pass_opt_t* opt)
   // this, -o <new-dir> would fail only for programs with shims.
   pony_mkdir(output);
 
+  // Object names carry the program name (like the Pony object does) so two
+  // programs sharing a shim package and an output directory don't collide
+  // on shim objects.
+  const char* prog_name;
+
+  if((opt->bin_name != NULL) && (opt->bin_name[0] != '\0'))
+    prog_name = opt->bin_name;
+  else
+    prog_name = package_filename(ast_child(program));
+
   bool ok = true;
   size_t index = 0;
 
@@ -606,10 +658,10 @@ bool genc(ast_t* program, pass_opt_t* opt)
     {
       const char* src = strlist_data(s);
 
-      // Object name: <source base>.shim.<index>.o in the output directory.
-      // The index makes names unique when same-named sources appear in
-      // different packages; the .shim. marker separates these from the
-      // Pony object.
+      // Object name: <program>-<source base>.shim.<index>.o in the output
+      // directory. The index makes names unique when same-named sources
+      // appear in different packages; the .shim. marker separates these
+      // from the Pony object.
       const char* base = strrchr(src, PATH_SLASH);
       base = (base != NULL) ? base + 1 : src;
 
@@ -617,8 +669,9 @@ bool genc(ast_t* program, pass_opt_t* opt)
       if(base_len > 2 && strcmp(base + base_len - 2, ".c") == 0)
         base_len -= 2;
 
-      int written = snprintf(buf, sizeof(buf), "%s%c%.*s.shim." __zu ".o",
-        output, PATH_SLASH, (int)base_len, base, index);
+      int written = snprintf(buf, sizeof(buf),
+        "%s%c%s-%.*s.shim." __zu ".o", output, PATH_SLASH, prog_name,
+        (int)base_len, base, index);
 
       if((written < 0) || ((size_t)written >= sizeof(buf)))
       {

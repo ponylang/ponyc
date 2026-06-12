@@ -367,6 +367,9 @@ void program_lib_build_args_embedded(ast_t* program, pass_opt_t* opt)
 }
 
 
+// Unlike the embedded_libs accessors these walk the strlist (O(count) /
+// O(index)), a deliberate divergence: shim counts are small (one entry per
+// .c file in the program) and the list never converts to an array.
 void program_add_c_object(ast_t* program, const char* path)
 {
   pony_assert(program != NULL);
