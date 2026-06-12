@@ -110,6 +110,10 @@ Demonstrates the `json` standard library package: building JSON documents with `
 
 ## C FFI
 
+### [cshim](cshim/)
+
+Calls C code that `ponyc` compiles itself: a `.c` shim placed next to the `.pony` files is discovered, compiled with the embedded clang, and linked into the program — no separate C build step or `use "lib:..."` directive. Demonstrates the `cdefine:` and `cinclude:` use schemes for setting C preprocessor macros and include search paths per package. Start here if you're new to calling C from Pony.
+
 ### [ffi-callbacks](ffi-callbacks/)
 
 Passes Pony functions as callbacks to C code using three mechanisms: bare functions with `@` annotation, bare lambdas with `@{...}` syntax, and partial application with the `~` operator. Each mechanism requires compiling and linking a companion C library.

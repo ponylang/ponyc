@@ -248,6 +248,8 @@ LLVMValueRef gen_main(compile_t* c, reach_type_t* t_main, reach_type_t* t_env)
 }
 
 #ifdef PLATFORM_IS_POSIX_BASED
+// genc.cc's c_is_cross_compiling mirrors this (genc runs before a compile_t
+// exists). Keep the two in sync.
 static bool is_cross_compiling(compile_t* c)
 {
   char* default_triple_str = LLVMGetDefaultTargetTriple();
@@ -418,6 +420,8 @@ static const char* dynamic_linker_path(compile_t* c)
   }
 }
 
+// genc.cc's c_system_triple mirrors this (genc runs before a compile_t
+// exists). Keep the two in sync.
 static const char* system_triple(compile_t* c)
 {
   llvm::Triple triple(c->opt->triple);
@@ -1597,6 +1601,8 @@ static bool link_exe_lld_elf(compile_t* c, ast_t* program,
   return true;
 }
 
+// genc.cc's find_macos_sdk_include resolves the SDK's include directory the
+// same way this resolves its lib directory. Keep the two in sync.
 static const char* find_macos_sdk_path(strtable_t* strtab)
 {
   // Cache the discovered path as a raw string (not interned) so the expensive
