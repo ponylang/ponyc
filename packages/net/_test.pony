@@ -1,5 +1,6 @@
 use "files"
 use "pony_test"
+use "time"
 
 use @pony_os_ip_string[Pointer[U8]](src: Pointer[U8] tag, len: I32)
 
@@ -51,18 +52,10 @@ class \nodoc\ _TestPing is UDPNotify
       let auth = DNSAuth(h.env.root)
       (_, let service) = ip.name()?
 
-      let list = if ip.ip4() then
-        ifdef bsd then
-          DNS.ip4(auth, "", service)
-        else
-          DNS.broadcast_ip4(auth, service)
-        end
+      let list = ifdef bsd then
+        DNS.ip4(auth, "", service)
       else
-        ifdef bsd then
-          DNS.ip6(auth, "", service)
-        else
-          DNS.broadcast_ip6(auth, service)
-        end
+        DNS.broadcast_ip4(auth, service)
       end
 
       list(0)?
@@ -79,6 +72,25 @@ class \nodoc\ _TestPing is UDPNotify
 
     sock.set_broadcast(true)
     sock.write("ping!", _ip)
+
+    // UDP is best-effort, so a one-shot ping fails the test on any dropped
+    // datagram. Retransmit until the test completes: passing still requires
+    // a successful send to the broadcast address and a reply. Duplicate
+    // replies are harmless - completing an already-completed action is a
+    // no-op. The timer is disposed at test teardown; a firing that races
+    // teardown either sends one last harmless datagram or writes to the
+    // closed socket, which drops it.
+    let udp: UDPSocket tag = sock
+    let to = _ip
+    let timers = Timers
+    timers(Timer(
+      object iso is TimerNotify
+        fun ref apply(timer: Timer, count: U64): Bool =>
+          udp.write("ping!", to)
+          true
+      end,
+      250_000_000, 250_000_000))
+    _h.dispose_when_done(timers)
 
   fun ref received(
     sock: UDPSocket ref,
@@ -107,13 +119,8 @@ class \nodoc\ _TestPong is UDPNotify
     let ip = sock.local_address()
 
     let h = _h
-    if ip.ip4() then
-      _h.dispose_when_done(
-        UDPSocket.ip4(UDPAuth(h.env.root), recover _TestPing(h, ip) end))
-    else
-      _h.dispose_when_done(
-        UDPSocket.ip6(UDPAuth(h.env.root), recover _TestPing(h, ip) end))
-    end
+    _h.dispose_when_done(
+      UDPSocket.ip4(UDPAuth(h.env.root), recover _TestPing(h, ip) end))
 
   fun ref received(
     sock: UDPSocket ref,
@@ -165,7 +172,20 @@ class \nodoc\ iso _TestSocketResultDecoder is UnitTest
 
 class \nodoc\ iso _TestBroadcast is UnitTest
   """
-  Test broadcasting with UDP.
+  Test broadcasting with UDP. A pong socket listens; a ping socket sends
+  "ping!" to the IPv4 broadcast address at the pong socket's port (except on
+  BSD, where the destination is a local address instead) and the pong socket
+  replies "pong!" to the ping socket's address by ordinary unicast. Passing
+  proves a successful send to the broadcast address with SO_BROADCAST set,
+  plus the reply; the receiving socket is bound to INADDR_ANY, so reception
+  itself is not broadcast-specific.
+
+  Both sockets are explicitly IPv4. The default UDPSocket constructor binds
+  whichever address family getaddrinfo returns first, and IPv6 has no
+  broadcast - that path sent to all-nodes multicast (FF02::1) instead, which
+  is unreliable on multi-interface hosts. The ping is retransmitted on a
+  timer until the test completes, since UDP delivery is best-effort and a
+  single dropped datagram would otherwise fail the test.
   """
   fun name(): String => "net/Broadcast"
   fun label(): String => "unreliable-appveyor-osx"
@@ -180,7 +200,7 @@ class \nodoc\ iso _TestBroadcast is UnitTest
     h.expect_action("ping receive")
 
     h.dispose_when_done(
-      UDPSocket(UDPAuth(h.env.root), recover _TestPong(h) end))
+      UDPSocket.ip4(UDPAuth(h.env.root), recover _TestPong(h) end))
 
     h.long_test(TimeoutValue())
 
