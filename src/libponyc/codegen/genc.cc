@@ -54,13 +54,14 @@ static bool dir_exists(const char* path)
 
 // Routes clang diagnostics into ponyc's error collection. Errors and fatals
 // become ponyc errors (with the C file and line:column in the message);
-// notes attach to the preceding error, mirroring clang's own presentation;
-// warnings go to stderr so they're visible without failing the build.
+// warnings go to stderr so they're visible without failing the build; notes
+// follow whichever diagnostic they elaborate on, mirroring clang's own
+// presentation.
 class PonyDiagConsumer : public clang::DiagnosticConsumer
 {
 public:
   explicit PonyDiagConsumer(errors_t* errors)
-    : errors_(errors), prev_was_error_(false)
+    : errors_(errors), prev_(SINK_NONE)
   {}
 
   void HandleDiagnostic(clang::DiagnosticsEngine::Level level,
@@ -98,22 +99,30 @@ public:
         else
           errorf(errors_, NULL, "%s", text.c_str());
 
-        prev_was_error_ = true;
+        prev_ = SINK_ERROR;
         break;
 
       case clang::DiagnosticsEngine::Note:
-        // Notes elaborate on the diagnostic immediately before them; only
-        // attach ones that follow an error, so a warning's notes don't end
-        // up on an unrelated error's frame. prev_was_error_ deliberately
-        // stays unchanged here: a chain of notes after one error all belong
-        // to it.
-        if(prev_was_error_)
+        // Notes elaborate on the diagnostic immediately before them, so
+        // they follow it to its sink: an error's notes join its error
+        // frame, a warning's notes join it on stderr. prev_ deliberately
+        // stays unchanged here: a chain of notes after one diagnostic all
+        // belong to it.
+        if(prev_ == SINK_ERROR)
         {
           if(file != NULL)
             errorf_continue(errors_, file, "%u:%u: %s", line, col,
               text.c_str());
           else
             errorf_continue(errors_, NULL, "%s", text.c_str());
+        }
+        else if(prev_ == SINK_WARNING)
+        {
+          if(file != NULL)
+            fprintf(stderr, "%s:%u:%u: note: %s\n", file, line, col,
+              text.c_str());
+          else
+            fprintf(stderr, "note: %s\n", text.c_str());
         }
         break;
 
@@ -124,14 +133,21 @@ public:
         else
           fprintf(stderr, "warning: %s\n", text.c_str());
 
-        prev_was_error_ = false;
+        prev_ = SINK_WARNING;
         break;
     }
   }
 
 private:
+  enum sink_t
+  {
+    SINK_NONE,
+    SINK_ERROR,
+    SINK_WARNING
+  };
+
   errors_t* errors_;
-  bool prev_was_error_;
+  sink_t prev_;
 };
 
 
@@ -315,6 +331,26 @@ static bool add_system_include_args(pass_opt_t* opt, const char* sysroot,
   if(target_is_macosx(opt->triple))
   {
 #ifndef PLATFORM_IS_WINDOWS
+    // An explicit --sysroot (a cross build per D11, or an unusual native
+    // setup) takes precedence over probing for a local SDK, whose headers
+    // would be the wrong ones.
+    if(sysroot[0] != '\0')
+    {
+      char buf[FILENAME_MAX];
+      snprintf(buf, sizeof(buf), "%s/usr/include", sysroot);
+
+      if(dir_exists(buf))
+      {
+        args.push_back("-internal-isystem");
+        args.push_back(stringtab(opt->strtab, buf));
+        return true;
+      }
+
+      errorf(errors, NULL, "sysroot '%s' has no usr/include directory",
+        sysroot);
+      return false;
+    }
+
     const char* sdk_include = find_macos_sdk_include(opt);
 
     if(sdk_include == NULL)
@@ -581,8 +617,17 @@ bool genc(ast_t* program, pass_opt_t* opt)
       if(base_len > 2 && strcmp(base + base_len - 2, ".c") == 0)
         base_len -= 2;
 
-      snprintf(buf, sizeof(buf), "%s%c%.*s.shim." __zu ".o", output,
-        PATH_SLASH, (int)base_len, base, index);
+      int written = snprintf(buf, sizeof(buf), "%s%c%.*s.shim." __zu ".o",
+        output, PATH_SLASH, (int)base_len, base, index);
+
+      if((written < 0) || ((size_t)written >= sizeof(buf)))
+      {
+        errorf(errors, src, "output path for C shim object is too long");
+        ok = false;
+        index++;
+        continue;
+      }
+
       const char* obj = stringtab(opt->strtab, buf);
 
       if(opt->verbosity >= VERBOSITY_INFO)
