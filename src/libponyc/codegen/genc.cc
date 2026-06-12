@@ -15,6 +15,10 @@
 #  pragma warning(disable:4624)
 #  pragma warning(disable:4141)
 #  pragma warning(disable:4146)
+// clang's own headers (TemplateName.h, TypeBase.h) mix bool into |
+// expressions; this set was inherited from the LLVM-include pattern, which
+// never needed 4805.
+#  pragma warning(disable:4805)
 #endif
 
 #include <clang/Basic/Diagnostic.h>
