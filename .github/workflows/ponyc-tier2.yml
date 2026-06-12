@@ -70,7 +70,7 @@ jobs:
           key: libs-${{ matrix.image }}-${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
       - name: Build Libs
         if: steps.restore-libs.outputs.cache-hit != 'true'
-        run: make libs build_flags=-j8
+        run: make libs llvm_tools=false build_flags=-j8
       - name: Build Debug Runtime
         run: |
           make configure config=debug
@@ -136,7 +136,7 @@ jobs:
           key: libs-${{ matrix.image }}-${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
       - name: Build Libs
         if: steps.restore-libs.outputs.cache-hit != 'true'
-        run: make libs build_flags=-j8
+        run: make libs llvm_tools=false build_flags=-j8
       - name: Build Debug Runtime
         run: |
           make configure config=debug
@@ -202,7 +202,7 @@ jobs:
           key: libs-${{ matrix.image }}-${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
       - name: Build Libs
         if: steps.restore-libs.outputs.cache-hit != 'true'
-        run: make libs build_flags=-j8
+        run: make libs llvm_tools=false build_flags=-j8
       - name: Build Debug Runtime
         run: |
           make configure config=debug
@@ -261,7 +261,7 @@ jobs:
           key: libs-ghcr.io/ponylang/ponyc-ci-x86-64-unknown-linux-fedora43-builder:20260427-${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
       - name: Build Libs
         if: steps.restore-libs.outputs.cache-hit != 'true'
-        run: make libs build_flags=-j8
+        run: make libs llvm_tools=false build_flags=-j8
       - name: Build Debug Runtime
         run: |
           make configure arch=x86-64 config=debug
@@ -313,7 +313,7 @@ jobs:
           key: libs-x86-macos-15-intel-${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
       - name: Build Libs
         if: steps.restore-libs.outputs.cache-hit != 'true'
-        run: make libs build_flags=-j2
+        run: make libs llvm_tools=false build_flags=-j2
       - name: Build Debug Runtime
         run: |
           make configure arch=x86-64 config=debug
@@ -397,7 +397,7 @@ jobs:
             -v ${{ github.workspace }}:/home/pony/project \
             -w /home/pony/project \
             ${{ matrix.image }} \
-            make libs build_flags=-j8
+            make libs llvm_tools=false build_flags=-j8
       - name: Build Debug Runtime
         run: |
           docker run --rm \
@@ -496,7 +496,7 @@ jobs:
           key: libs-windows-11-arm-${{ hashFiles('make.ps1', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
       - name: Build Libs
         if: steps.restore-libs.outputs.cache-hit != 'true'
-        run: .\make.ps1 -Command libs -Arch ARM64
+        run: .\make.ps1 -Command libs -LlvmTools false -Arch ARM64
       - name: Build Debug Runtime
         run: |
           .\make.ps1 -Command configure -Config Debug -Arch ARM64

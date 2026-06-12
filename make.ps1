@@ -27,6 +27,11 @@
     [string]
     $Lto = "no",
 
+    [Parameter(HelpMessage="Whether to build the LLVM command-line tools (true/false). They are large and unused by a normal build; set false to omit them.")]
+    [ValidateSet("true", "false")]
+    [string]
+    $LlvmTools = "true",
+
     [Parameter(HelpMessage="Whether or not to run tests in LLDB debugger")]
     [string]
     $Uselldb = "no",
@@ -169,12 +174,12 @@ switch ($Command.ToLower())
         Write-Output "Configuring libraries..."
         if ($Arch.Length -gt 0)
         {
-            & cmake.exe -B "$libsBuildDir" -S "$libsSrcDir" -G "$Generator" -A $Arch -Thost="$Thost" -DCMAKE_INSTALL_PREFIX="$libsDir" -DCMAKE_BUILD_TYPE=Release -DLLVM_TARGETS_TO_BUILD="X86;ARM;AArch64;WebAssembly;RISCV"
+            & cmake.exe -B "$libsBuildDir" -S "$libsSrcDir" -G "$Generator" -A $Arch -Thost="$Thost" -DCMAKE_INSTALL_PREFIX="$libsDir" -DCMAKE_BUILD_TYPE=Release -DLLVM_TARGETS_TO_BUILD="X86;ARM;AArch64;WebAssembly;RISCV" -DPONY_LLVM_TOOLS="$LlvmTools"
             $err = $LastExitCode
         }
         else
         {
-            & cmake.exe -B "$libsBuildDir" -S "$libsSrcDir" -G "$Generator" -Thost="$Thost" -DCMAKE_INSTALL_PREFIX="$libsDir" -DCMAKE_BUILD_TYPE=Release -DLLVM_TARGETS_TO_BUILD="X86;ARM;AArch64;WebAssembly;RISCV"
+            & cmake.exe -B "$libsBuildDir" -S "$libsSrcDir" -G "$Generator" -Thost="$Thost" -DCMAKE_INSTALL_PREFIX="$libsDir" -DCMAKE_BUILD_TYPE=Release -DLLVM_TARGETS_TO_BUILD="X86;ARM;AArch64;WebAssembly;RISCV" -DPONY_LLVM_TOOLS="$LlvmTools"
             $err = $LastExitCode
         }
         if ($err -ne 0) { throw "Error: exit code $err" }

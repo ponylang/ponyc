@@ -200,6 +200,16 @@ Note that you only need to run `.\make.ps1 libs` once the first time you build (
 
 ## Additional Build Options on Unix
 
+### llvm_tools
+
+`make libs` builds the LLVM command-line tools (`llc`, `opt`, `llvm-link`, the various `llvm-*` utilities, and the standalone `lld`/`clang` driver binaries) by default. ponyc links LLVM and LLD as static libraries and never runs these binaries, so for a normal build they are dead weight — roughly 1.6 GB in `build/libs/bin` and a significant share of the libs build time. If you don't need them for local LLVM debugging, omit them by setting `llvm_tools` to `false`:
+
+```bash
+make libs llvm_tools=false
+```
+
+The default is `true`. The value only takes effect on a fresh libs build, so run `make cleanlibs` first if you have already built the libraries. Building the runtime as bitcode (see [runtime-bitcode](#runtime-bitcode) below) needs `llvm-link`, which is one of the omitted tools, so build the libs with `llvm_tools=true` if you intend to use it.
+
 ### arch
 
 You can specify the CPU architecture to build Pony for via the `arch` make option:
@@ -251,6 +261,8 @@ Then, you can pass the `--runtimebc` option to ponyc in order to use the bitcode
 ```bash
 ponyc --runtimebc
 ```
+
+This requires `llvm-link`, which is one of the LLVM tools `make libs` builds by default. If you built the libraries with [`llvm_tools=false`](#llvm_tools), rebuild them with the tools (`make cleanlibs && make libs`) before configuring with `runtime-bitcode=yes`.
 
 This functionality boils down to "super LTO" for the runtime. The Pony compiler will have full knowledge of the runtime and will perform advanced interprocedural optimisations between your Pony code and the runtime. If you're looking for maximum performance, you should consider this option. Note that this can result in very long optimisation times.
 
