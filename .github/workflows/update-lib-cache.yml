@@ -49,7 +49,7 @@ jobs:
           key: libs-${{ matrix.image }}-${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
       - name: Build Libs
         if: steps.cache-libs.outputs.cache-hit != 'true'
-        run: make libs llvm_tools=false build_flags=-j8
+        run: make libs llvm_tools=false build_flags=-j4
 
   # Currently, Github actions supplied by GH like checkout and cache do not work
   # in musl libc environments on arm64. We can work around this by running
@@ -104,7 +104,7 @@ jobs:
             -v ${{ github.workspace }}:/home/pony/project \
             -w /home/pony/project \
             ${{ matrix.image }} \
-            make libs llvm_tools=false build_flags=-j8
+            make libs llvm_tools=false build_flags=-j4
 
   x86_64-macos:
     runs-on: macos-15-intel
@@ -123,7 +123,7 @@ jobs:
           key: libs-x86-macos-15-intel-${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
       - name: Build Libs
         if: steps.restore-libs.outputs.cache-hit != 'true'
-        run: make libs llvm_tools=false build_flags=-j2
+        run: make libs llvm_tools=false build_flags=-j4
 
   arm64-macos:
     runs-on: macos-26
@@ -142,7 +142,7 @@ jobs:
           key: libs-arm64-macos-26-${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
       - name: Build Libs
         if: steps.restore-libs.outputs.cache-hit != 'true'
-        run: make libs llvm_tools=false build_flags=-j4
+        run: make libs llvm_tools=false build_flags=-j3
 
   x86_64-windows:
     runs-on: windows-2025-vs2026

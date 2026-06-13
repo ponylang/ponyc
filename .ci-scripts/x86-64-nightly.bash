@@ -47,7 +47,6 @@ ARCH=x86-64
 TRIPLE=${ARCH}-${TRIPLE_VENDOR}-${TRIPLE_OS}
 
 # Build parameters
-MAKE_PARALLELISM=8
 BUILD_PREFIX=$(mktemp -d)
 DESTINATION=${BUILD_PREFIX}/lib/pony
 PONY_VERSION="nightly-${TODAY}"
@@ -67,7 +66,7 @@ ASSET_DESCRIPTION="https://github.com/ponylang/ponyc"
 
 # Build pony installation
 echo "Building ponyc installation..."
-make configure arch=${ARCH} cpu=${ARCH} build_flags=-j${MAKE_PARALLELISM} \
+make configure arch=${ARCH} cpu=${ARCH} \
   version="${PONY_VERSION}"
 make build version="${PONY_VERSION}"
 make install arch=${ARCH} prefix="${BUILD_PREFIX}" symlink=no version="${PONY_VERSION}"
