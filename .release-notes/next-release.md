@@ -262,3 +262,15 @@ These objects are now correctly aligned in optimized builds, and the crash no lo
 
 We've added arm64 and amd64 builds for Alpine Linux 3.24. We'll be building ponyc releases for it until it stops receiving security updates in 2028. At that point, we'll stop building releases for it.
 
+## Fix `UDPSocket.set_multicast_interface` not setting the interface
+
+`UDPSocket.set_multicast_interface` never actually set the interface used for outgoing multicast. It handed the operating system the address of an internal pointer rather than the resolved interface address, so the kernel received meaningless bytes and the socket's multicast interface was left unchanged, on both IPv4 and IPv6.
+
+It now sets the interface correctly. For an IPv4 interface, pass the interface's IPv4 address. For an IPv6 interface, the interface is taken from the scope id of the resolved address, so a scoped address such as `"fe80::1%eth0"` is needed to select an interface.
+
+## Fix `UDPSocket.set_multicast_loopback` and `set_multicast_ttl` having no effect
+
+`UDPSocket.set_multicast_loopback` and `set_multicast_ttl` did not change a socket's IPv4 multicast loopback or TTL behavior. They applied the options at the wrong socket level, so the request either failed or set an unrelated option, leaving the multicast loopback and TTL at their defaults.
+
+Both now take effect for IPv4 multicast.
+

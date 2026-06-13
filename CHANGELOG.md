@@ -18,6 +18,8 @@ All notable changes to the Pony compiler and standard library will be documented
 - Reject self-referential iftype constraints inside lambdas and object literals ([PR #5423](https://github.com/ponylang/ponyc/pull/5423))
 - Fix incorrect rejection and crashes for iftype conditions inside lambdas and object literals ([PR #5443](https://github.com/ponylang/ponyc/pull/5443))
 - Fix runtime crash in optimized builds for types with 128-bit fields ([PR #5464](https://github.com/ponylang/ponyc/pull/5464))
+- Fix `UDPSocket.set_multicast_interface` not setting the interface ([PR #5481](https://github.com/ponylang/ponyc/pull/5481))
+- Fix `UDPSocket.set_multicast_loopback` and `set_multicast_ttl` having no effect ([PR #5481](https://github.com/ponylang/ponyc/pull/5481))
 
 ### Added
 
