@@ -320,6 +320,20 @@ static bool parse_files_in_dir(ast_t* package, const char* dir_path,
       continue;
     }
 
+    // Compiling a C shim is the package doing C, so --safe gates it exactly
+    // like a C FFI call (verify_ffi_call): a package not on the safe list
+    // doesn't get its .c compiled. The file is allowed to be there; what's
+    // gated is compiling it. Checked here, at discovery, so it fails as
+    // early as an unsafe FFI call would -- allow_ffi is already set
+    // (create_package runs before this).
+    if(!pkg->allow_ffi)
+    {
+      errorf(errors, fullpath, "this package isn't allowed to do C FFI, so "
+        "its C source files can't be compiled as shims");
+      r = false;
+      continue;
+    }
+
     pkg->c_sources = strlist_append(pkg->c_sources,
       stringtab(opt->strtab, fullpath));
   }

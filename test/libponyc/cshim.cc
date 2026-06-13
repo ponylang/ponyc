@@ -353,6 +353,45 @@ TEST_F(CShimTest, CDefinesAndIncludesPreserveSourceOrder)
   EXPECT_EQ((void*)NULL, strlist_next(includes));
 }
 
+TEST_F(CShimTest, ShimInUnsafePackageRejected)
+{
+  // --safe gates compiling a shim exactly like a C FFI call: a package not
+  // on the safe list doesn't get its .c compiled, and a .c there is an
+  // error. The check is at discovery, so this fails as early as an unsafe
+  // FFI call and needs no clang (no SKIP_ON_WINDOWS).
+  const char* fixture = "cshim_fixture_unsafe";
+  const char* names[] = {"dummy.pony", "shim.c", NULL};
+  const char* contents[] = {
+    "primitive ShimPkg\n",
+    "int shim_unsafe(void) { return 1; }\n",
+    NULL};
+
+  DO(write_fixture(fixture, names, contents));
+  package_add_magic_path("shimpkg", fixture, &opt);
+
+  // package_add_safe("") adds only builtin to the safe list;
+  // re-running package_init normalizes it to builtin's real path (the
+  // normalization lives in package_init). shimpkg isn't on the list, so
+  // its .c is rejected; builtin stays allowed so its own FFI is fine.
+  package_add_safe("", &opt);
+  package_init(&opt);
+
+  const char* src =
+    "use \"shimpkg\"\n"
+    "actor Main\n"
+    "  new create(env: Env) => None";
+
+  // The shim denial, plus the cascading load failure for the package that
+  // requested it.
+  { const char* errs[] = {
+      "this package isn't allowed to do C FFI, so its C source files can't "
+      "be compiled as shims",
+      "can't load package 'shimpkg'", NULL};
+    DO(test_expected_errors(src, "scope", errs)); }
+
+  remove_fixture(fixture, names);
+}
+
 TEST_F(CShimTest, CDefineValueStoredVerbatim)
 {
   // Decision 7 in the design doc: directive values bypass quoted_locator
