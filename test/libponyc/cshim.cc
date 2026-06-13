@@ -653,6 +653,35 @@ TEST_F(CShimTest, ShimWarningDoesNotFailBuild)
   remove_fixture(fixture, names);
 }
 
+// A cdefine:/cinclude: directive in a package with no .c is an error: the
+// flags only affect .c files in the same package, so the directive is inert
+// (usually it belongs in the package that holds the shim). The check is in
+// genc, before any clang work, so it fires identically on every platform —
+// no SKIP_ON_WINDOWS. The main package here is inline source with no .c, so
+// it is itself the orphaned package.
+
+TEST_F(CShimTest, CDefineWithoutCSourceErrors)
+{
+  const char* src =
+    "use \"cdefine:FOO=1\"\n"
+    "actor Main\n"
+    "  new create(env: Env) => None";
+
+  TEST_ERRORS_1(src, "c",
+    "cdefine:/cinclude: in a package with no C source files");
+}
+
+TEST_F(CShimTest, CIncludeWithoutCSourceErrors)
+{
+  const char* src =
+    "use \"cinclude:./inc\"\n"
+    "actor Main\n"
+    "  new create(env: Env) => None";
+
+  TEST_ERRORS_1(src, "c",
+    "cdefine:/cinclude: in a package with no C source files");
+}
+
 TEST_F(CShimTest, MultipleShimsCompileAndRecordInSortedOrder)
 {
   SKIP_ON_WINDOWS();

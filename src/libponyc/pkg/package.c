@@ -69,6 +69,10 @@ struct package_t
   strlist_t* c_defines;
   astlist_t* c_define_uses;
   strlist_t* c_sources;
+  // The first cdefine:/cinclude: directive seen for this package, used to
+  // locate the error when such a directive lands in a package with no .c
+  // sources to apply it to.
+  ast_t* c_first_flag_use;
   bool allow_ffi;
   bool on_stack;
 };
@@ -626,6 +630,7 @@ ast_t* create_package(ast_t* program, const char* name,
   pkg->c_defines = NULL;
   pkg->c_define_uses = NULL;
   pkg->c_sources = NULL;
+  pkg->c_first_flag_use = NULL;
   ast_setdata(package, pkg);
 
   ast_scope(package);
@@ -1272,6 +1277,9 @@ bool use_cinclude(ast_t* use, const char* locator, ast_t* name,
   pkg->c_includes = strlist_append(pkg->c_includes,
     stringtab(options->strtab, absolute));
 
+  if(pkg->c_first_flag_use == NULL)
+    pkg->c_first_flag_use = use;
+
   return true;
 }
 
@@ -1351,6 +1359,9 @@ bool use_cdefine(ast_t* use, const char* locator, ast_t* name,
   pkg->c_defines = strlist_append(pkg->c_defines, locator);
   pkg->c_define_uses = astlist_append(pkg->c_define_uses, use);
 
+  if(pkg->c_first_flag_use == NULL)
+    pkg->c_first_flag_use = use;
+
   return true;
 }
 
@@ -1385,6 +1396,17 @@ strlist_t* package_c_sources(ast_t* package)
   pony_assert(pkg != NULL);
 
   return pkg->c_sources;
+}
+
+
+ast_t* package_c_first_flag_use(ast_t* package)
+{
+  pony_assert(package != NULL);
+  pony_assert(ast_id(package) == TK_PACKAGE);
+  package_t* pkg = (package_t*)ast_data(package);
+  pony_assert(pkg != NULL);
+
+  return pkg->c_first_flag_use;
 }
 
 

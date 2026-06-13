@@ -173,6 +173,13 @@ strlist_t* package_c_defines(ast_t* package);
 strlist_t* package_c_sources(ast_t* package);
 
 /**
+ * The first cdefine:/cinclude: directive recorded for the package, or NULL
+ * if none. Used to locate the error when such a directive lands in a
+ * package with no C sources.
+ */
+ast_t* package_c_first_flag_use(ast_t* package);
+
+/**
  * Gets the alias of a package in the current module from the hygienic ID
  * of that package. Returns NULL if there is no alias. The package must have
  * been imported in the current module.

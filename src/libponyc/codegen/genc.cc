@@ -632,19 +632,47 @@ bool genc(ast_t* program, pass_opt_t* opt)
 
   program_set_genc_done(program);
 
-  // Fast path: most programs have no shims, and they must not pay for (or
-  // depend on) resource-dir and sysroot discovery.
+  // Single package walk: detect whether any shims exist (the fast-path
+  // signal) and, in the same pass, reject cdefine:/cinclude: directives in
+  // a package with no C sources. Those flags only affect .c files in the
+  // same package, so such a directive is always inert — almost always the
+  // user put it in the consuming package instead of the one holding the
+  // shim. Checked here rather than at the use handler so the inline-source
+  // tests for scheme handling (which carry no .c) needn't move to disk, and
+  // because it's a package-level property: one error per package, not one
+  // per directive.
   bool any = false;
+  bool orphan_free = true;
 
   for(ast_t* package = ast_child(program); package != NULL;
     package = ast_sibling(package))
   {
-    if(package_c_sources(package) != NULL)
-    {
+    bool has_sources = package_c_sources(package) != NULL;
+
+    if(has_sources)
       any = true;
-      break;
+
+    bool has_flags = (package_c_defines(package) != NULL)
+      || (package_c_includes(package) != NULL);
+
+    if(has_flags && !has_sources)
+    {
+      ast_t* site = package_c_first_flag_use(package);
+
+      if(site != NULL)
+        ast_error(errors, site, "cdefine:/cinclude: in a package with no C "
+          "source files; these flags only apply to .c files in the same "
+          "package, so this directive has no effect");
+      else
+        errorf(errors, NULL, "cdefine:/cinclude: in a package with no C "
+          "source files");
+
+      orphan_free = false;
     }
   }
+
+  if(!orphan_free)
+    return false;
 
   if(!any)
     return true;

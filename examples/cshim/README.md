@@ -9,6 +9,8 @@ Two `use` schemes configure how a package's shims are compiled:
 - `use "cdefine:NAME"` or `use "cdefine:NAME=VALUE"` defines a C preprocessor macro (clang's `-D`). Defining the same macro name twice in one package is a compile error.
 - `use "cinclude:PATH"` adds an include search directory (clang's `-I`). Relative paths resolve against the package's directory.
 
+Both apply only to the package that declares them; a directive in a package with no `.c` files is an error (the shim it was meant for is usually in another package).
+
 Both schemes accept guards for platform-specific flags, e.g. `use "cdefine:USE_EPOLL" if linux`. The shim sources themselves are always compiled on every platform; a platform-specific `.c` file wraps its whole body in `#ifdef` so it compiles to an empty object elsewhere.
 
 One platform isn't there yet: compiling for Windows fails with "C shims are not yet supported when targeting Windows" until MSVC header discovery is implemented, so this example doesn't build on Windows.
