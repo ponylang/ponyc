@@ -1341,12 +1341,40 @@ PONY_API void pony_os_multicast_interface(int fd, const char* from)
   // Use the first reported address.
   struct addrinfo* p = os_addrinfo_intern(AF_UNSPEC, 0, 0, from, NULL, true);
 
-  if(p != NULL)
+  if(p == NULL)
+    return;
+
+  SOCKET s = (SOCKET)fd;
+
+  switch(p->ai_family)
   {
-    setsockopt((SOCKET)fd, IPPROTO_IP, IP_MULTICAST_IF,
-      (const char*)&p->ai_addr, (int)p->ai_addrlen);
-    freeaddrinfo(p);
+    case AF_INET:
+    {
+      // IP_MULTICAST_IF takes the interface's IPv4 address as a struct
+      // in_addr.
+      struct in_addr addr = ((struct sockaddr_in*)p->ai_addr)->sin_addr;
+
+      setsockopt(s, IPPROTO_IP, IP_MULTICAST_IF, (const char*)&addr,
+        sizeof(addr));
+      break;
+    }
+
+    case AF_INET6:
+    {
+      // IPV6_MULTICAST_IF takes an interface index, not an address. The
+      // index comes from the resolved address's scope id, which is only
+      // non-zero for scoped (e.g. link-local) addresses.
+      uint32_t index = ((struct sockaddr_in6*)p->ai_addr)->sin6_scope_id;
+
+      setsockopt(s, IPPROTO_IPV6, IPV6_MULTICAST_IF, (const char*)&index,
+        sizeof(index));
+      break;
+    }
+
+    default: {}
   }
+
+  freeaddrinfo(p);
 }
 
 // API deprecated: use UDPSocket.set_ip_multicast_loop
