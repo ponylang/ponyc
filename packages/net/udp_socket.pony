@@ -107,7 +107,9 @@ actor UDPSocket is AsioEventNotify
     size: USize = 1024)
   =>
     """
-    Listens for both IPv4 and IPv6 datagrams.
+    Listens for datagrams. The address family is whichever the resolver
+    returns first for `host`/`service`, so it depends on the environment;
+    use `ip4` or `ip6` to pin a specific family.
     """
     _notify = consume notify
     _event =
@@ -188,13 +190,22 @@ actor UDPSocket is AsioEventNotify
 
   be set_broadcast(state: Bool) =>
     """
-    Enable or disable broadcasting from this socket.
+    Enable or disable broadcasting from this socket. This sets the
+    `SO_BROADCAST` socket option, a sender-side permission to send to
+    IPv4 broadcast addresses (see `DNS.broadcast_ip4`).
+
+    On an IPv6 socket this is a no-op: IPv6 has no broadcast. Sending to
+    a multicast address such as the all-nodes group (see
+    `DNS.broadcast_ip6`) requires no permission; to receive traffic for
+    a multicast group, use `multicast_join`.
+
+    The default constructor binds whichever address family the resolver
+    returns first, so construct the socket with `ip4` if you need
+    broadcast; otherwise `set_broadcast` may silently be a no-op.
     """
     if not _closed then
       if _ip.ip4() then
         set_so_broadcast(state)
-      elseif _ip.ip6() then
-        @pony_os_multicast_join(_fd, "FF02::1".cstring(), "".cstring())
       end
     end
 
