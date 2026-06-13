@@ -10,7 +10,7 @@ concurrency:
   group: "update-lib-cache"
 
 permissions:
-  packages: read
+  packages: write
 
 jobs:
   x86_64-linux:
@@ -39,27 +39,20 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6.0.2
-      - name: Cache Libs
-        id: cache-libs
-        uses: actions/cache@v5.0.3
-        with:
-          path: |
-            build/libs
-            lib/llvm/src/compiler-rt/lib/builtins
-          key: libs-${{ matrix.image }}-${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
-      - name: Build Libs
-        if: steps.cache-libs.outputs.cache-hit != 'true'
-        run: make libs llvm_tools=false build_flags=-j4
+      - name: Build and push libs
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          LIBS_IMAGE: ${{ matrix.image }}
+          LIBS_TAG: ${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
+        run: |
+          make libs-ci llvm_tools=false build_flags=-j4 libs_cache_image="$LIBS_IMAGE" libs_cache_tag="$LIBS_TAG"
+          make libs-push libs_cache_image="$LIBS_IMAGE" libs_cache_tag="$LIBS_TAG"
 
-  # Currently, Github actions supplied by GH like checkout and cache do not work
-  # in musl libc environments on arm64. We can work around this by running
-  # those actions on the host and then "manually" doing our work that would
-  # normally be done "in the musl container" by starting the container ourselves
-  # for various steps by invoking docker directly.
-  #
-  # This is not in line with our standard pattern of "just do it all in the
-  # container" but is required to work around the GitHub actions limitation
-  # documented above.
+  # Currently, Github actions supplied by GH like checkout do not work in musl
+  # libc environments on arm64. We work around this by running checkout on the
+  # host and doing the build inside the container we start ourselves via docker.
+  # The libs cache push/pull runs inside that container too (the builder images
+  # all ship python3), so no host-side registry handling is needed.
   arm64-linux:
     runs-on: ubuntu-24.04-arm
 
@@ -78,33 +71,29 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6.0.2
-      - name: Cache Libs
-        id: cache-libs
-        uses: actions/cache@v5.0.3
-        with:
-          path: |
-            build/libs
-            lib/llvm/src/compiler-rt/lib/builtins
-          key: libs-${{ matrix.image }}-${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
       - name: Login to GitHub Container Registry
-        if: steps.cache-libs.outputs.cache-hit != 'true'
         uses: docker/login-action@v4
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
       - name: Pull Docker image
-        if: steps.cache-libs.outputs.cache-hit != 'true'
         run: docker pull ${{ matrix.image }}
-      - name: Build Libs
-        if: steps.cache-libs.outputs.cache-hit != 'true'
+      - name: Build and push libs
+        env:
+          LIBS_TAG: ${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
         run: |
           docker run --rm \
             --user pony \
+            -e GITHUB_TOKEN=${{ secrets.GITHUB_TOKEN }} \
+            -e GITHUB_REPOSITORY \
+            -e GITHUB_ACTOR \
+            -e LIBS_IMAGE="${{ matrix.image }}" \
+            -e LIBS_TAG="$LIBS_TAG" \
             -v ${{ github.workspace }}:/home/pony/project \
             -w /home/pony/project \
             ${{ matrix.image }} \
-            make libs llvm_tools=false build_flags=-j4
+            sh -c 'make libs-ci llvm_tools=false build_flags=-j4 libs_cache_image="$LIBS_IMAGE" libs_cache_tag="$LIBS_TAG" && make libs-push libs_cache_image="$LIBS_IMAGE" libs_cache_tag="$LIBS_TAG"'
 
   x86_64-macos:
     runs-on: macos-15-intel
@@ -113,17 +102,13 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6.0.2
-      - name: Cache Libs
-        id: restore-libs
-        uses: actions/cache@v5.0.3
-        with:
-          path: |
-            build/libs
-            lib/llvm/src/compiler-rt/lib/builtins
-          key: libs-x86-macos-15-intel-${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
-      - name: Build Libs
-        if: steps.restore-libs.outputs.cache-hit != 'true'
-        run: make libs llvm_tools=false build_flags=-j4
+      - name: Build and push libs
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          LIBS_TAG: ${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
+        run: |
+          make libs-ci llvm_tools=false build_flags=-j4 libs_cache_package=x86-macos-15-intel libs_cache_tag="$LIBS_TAG"
+          make libs-push libs_cache_package=x86-macos-15-intel libs_cache_tag="$LIBS_TAG"
 
   arm64-macos:
     runs-on: macos-26
@@ -132,17 +117,13 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6.0.2
-      - name: Cache Libs
-        id: restore-libs
-        uses: actions/cache@v5.0.3
-        with:
-          path: |
-            build/libs
-            lib/llvm/src/compiler-rt/lib/builtins
-          key: libs-arm64-macos-26-${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
-      - name: Build Libs
-        if: steps.restore-libs.outputs.cache-hit != 'true'
-        run: make libs llvm_tools=false build_flags=-j3
+      - name: Build and push libs
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          LIBS_TAG: ${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
+        run: |
+          make libs-ci llvm_tools=false build_flags=-j3 libs_cache_package=arm64-macos-26 libs_cache_tag="$LIBS_TAG"
+          make libs-push libs_cache_package=arm64-macos-26 libs_cache_tag="$LIBS_TAG"
 
   x86_64-windows:
     runs-on: windows-2025-vs2026
@@ -153,17 +134,13 @@ jobs:
         run: Set-MpPreference -DisableRealtimeMonitoring $true
       - name: Checkout
         uses: actions/checkout@v6.0.2
-      - name: Cache Libs
-        id: restore-libs
-        uses: actions/cache@v5.0.3
-        with:
-          path: |
-            build/libs
-            lib/llvm/src/compiler-rt/lib/builtins
-          key: libs-windows-2025-vs2026-${{ hashFiles('make.ps1', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
-      - name: Build Libs
-        if: steps.restore-libs.outputs.cache-hit != 'true'
-        run: .\make.ps1 -Command libs -LlvmTools false
+      - name: Build and push libs
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          LIBS_TAG: ${{ hashFiles('make.ps1', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
+        run: |
+          .\make.ps1 -Command libs-ci -LlvmTools false -LibsCachePackage windows-2025-vs2026 -LibsCacheTag $env:LIBS_TAG
+          .\make.ps1 -Command libs-push -LibsCachePackage windows-2025-vs2026 -LibsCacheTag $env:LIBS_TAG
 
   arm64-windows:
     runs-on: windows-11-arm
@@ -174,14 +151,468 @@ jobs:
         run: Set-MpPreference -DisableRealtimeMonitoring $true
       - name: Checkout
         uses: actions/checkout@v6.0.2
-      - name: Cache Libs
-        id: restore-libs
-        uses: actions/cache@v5.0.3
-        with:
-          path: |
-            build/libs
-            lib/llvm/src/compiler-rt/lib/builtins
-          key: libs-windows-11-arm-${{ hashFiles('make.ps1', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
-      - name: Build Libs
-        if: steps.restore-libs.outputs.cache-hit != 'true'
-        run: .\make.ps1 -Command libs -LlvmTools false -Arch ARM64
+      - name: Build and push libs
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          LIBS_TAG: ${{ hashFiles('make.ps1', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
+        run: |
+          .\make.ps1 -Command libs-ci -LlvmTools false -Arch ARM64 -LibsCachePackage windows-11-arm -LibsCacheTag $env:LIBS_TAG
+          .\make.ps1 -Command libs-push -LibsCachePackage windows-11-arm -LibsCacheTag $env:LIBS_TAG
+
+  freebsd:
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - version: '14.3'
+            name: x86-64 FreeBSD 14.3
+          - version: '15.0'
+            name: x86-64 FreeBSD 15.0
+
+    name: ${{ matrix.name }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6.0.2
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /usr/local/lib/android
+          sudo rm -rf /opt/hostedtoolcache
+          df -h /
+      - name: Install QEMU
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y -q qemu-utils qemu-system-x86 cloud-image-utils expect
+          sudo chmod 666 /dev/kvm
+      - name: Download FreeBSD image
+        run: |
+          curl -L -o freebsd.qcow2.xz \
+            "https://download.freebsd.org/releases/VM-IMAGES/${{ matrix.version }}-RELEASE/amd64/Latest/FreeBSD-${{ matrix.version }}-RELEASE-amd64-BASIC-CLOUDINIT-ufs.qcow2.xz"
+          xz -d freebsd.qcow2.xz
+          qemu-img resize freebsd.qcow2 60G
+      - name: Prepare VM access
+        run: |
+          ssh-keygen -t ed25519 -f vm_key -N ""
+          PUB_KEY=$(cat vm_key.pub)
+
+          # nuageinit seed: SSH key for freebsd, set root password for su access
+          cat > user-data <<USERDATA
+          #cloud-config
+          ssh_authorized_keys:
+            - ${PUB_KEY}
+          chpasswd:
+            expire: false
+            list:
+              - root:ciroot
+          USERDATA
+          cat > meta-data <<METADATA
+          instance-id: freebsd-ci
+          local-hostname: freebsd-ci
+          METADATA
+          cloud-localds seed.img user-data meta-data
+      - name: Boot FreeBSD VM
+        run: |
+          qemu-system-x86_64 \
+            -machine pc,accel=kvm \
+            -cpu host \
+            -smp 4 \
+            -m 12G \
+            -drive file=freebsd.qcow2,format=qcow2,if=virtio \
+            -drive file=seed.img,format=raw,if=virtio \
+            -netdev user,id=net0,hostfwd=tcp::2222-:22 \
+            -device virtio-net-pci,netdev=net0 \
+            -display none \
+            -daemonize
+      - name: Wait for VM
+        run: |
+          timeout 300 bash -c '
+            while ! ssh -o StrictHostKeyChecking=no -o ConnectTimeout=2 -i vm_key -p 2222 freebsd@localhost true 2>/dev/null; do
+              sleep 2
+            done
+          '
+          echo "SSH available"
+      - name: Install build dependencies
+        run: |
+          export PUB_KEY=$(cat vm_key.pub)
+          expect <<'EXPECT'
+          set timeout 600
+          spawn ssh -o StrictHostKeyChecking=no -i vm_key -p 2222 -t freebsd@localhost su -m root
+          expect {
+            "Password:" { send "ciroot\r" }
+            timeout { puts "Timeout waiting for password prompt"; exit 1 }
+          }
+          expect {
+            "#" {}
+            "su: Sorry" { puts "su failed - wrong password or nuageinit didn't set it"; exit 1 }
+            timeout { puts "Timeout waiting for root shell"; exit 1 }
+          }
+          send "pkg install -y cmake gmake libunwind git python3 rsync\r"
+          expect {
+            "#" {}
+            timeout { puts "Timeout during pkg install"; exit 1 }
+          }
+          send "exit\r"
+          expect eof
+          EXPECT
+      - name: Copy source to VM
+        run: |
+          rsync -az -e "ssh -o StrictHostKeyChecking=no -i vm_key -p 2222" \
+            "$GITHUB_WORKSPACE/" freebsd@localhost:/home/freebsd/ponyc/
+      - name: Build and push libs
+        env:
+          LIBS_TAG: ${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
+        run: |
+          ssh -o StrictHostKeyChecking=no -i vm_key -p 2222 freebsd@localhost \
+            "cd /home/freebsd/ponyc && \
+             export GITHUB_TOKEN='${{ secrets.GITHUB_TOKEN }}' GITHUB_REPOSITORY='${{ github.repository }}' GITHUB_ACTOR='${{ github.actor }}' && \
+             gmake libs-ci llvm_tools=false build_flags=-j4 libs_cache_package=freebsd-${{ matrix.version }} libs_cache_tag='${LIBS_TAG}' && \
+             gmake libs-push libs_cache_package=freebsd-${{ matrix.version }} libs_cache_tag='${LIBS_TAG}'"
+      - name: Shutdown VM
+        if: always()
+        run: |
+          pkill -f qemu-system-x86 || true
+
+  openbsd:
+    runs-on: ubuntu-latest
+    name: x86-64 OpenBSD 7.9
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6.0.2
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /usr/local/lib/android
+          sudo rm -rf /opt/hostedtoolcache
+          df -h /
+      - name: Install QEMU
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y -q qemu-utils qemu-system-x86 genisoimage
+          sudo chmod 666 /dev/kvm
+      - name: Download OpenBSD image
+        run: |
+          curl -L -o openbsd.qcow2 \
+            "https://github.com/hcartiaux/openbsd-cloud-image/releases/download/v7.9_2026-06-03-20-46/openbsd-generic.qcow2"
+          # Build-workspace disk. OpenBSD's default disklabel confines the
+          # build to /home (~10.8G), which the LLVM 22 build overflows, so
+          # build on a dedicated disk instead, mirroring the DragonFly job.
+          qemu-img create -f qcow2 openbsd-data.qcow2 50G
+      - name: Prepare VM access
+        run: |
+          ssh-keygen -t ed25519 -f vm_key -N ""
+          PUB_KEY=$(cat vm_key.pub)
+
+          cat > user-data <<USERDATA
+          #cloud-config
+          users:
+          - name: openbsd
+            groups: wheel
+            ssh_authorized_keys:
+            - ${PUB_KEY}
+          write_files:
+          - path: /etc/doas.conf
+            content: |
+              permit nopass keepenv :wheel
+            owner: root:wheel
+            permissions: '0600'
+          USERDATA
+          cat > meta-data <<METADATA
+          instance-id: openbsd-ci
+          local-hostname: openbsd-ci
+          METADATA
+          genisoimage -output seed.iso -volid cidata -joliet -rock user-data meta-data
+      - name: Boot OpenBSD VM
+        run: |
+          qemu-system-x86_64 \
+            -machine pc,accel=kvm \
+            -cpu host \
+            -smp 4 \
+            -m 6G \
+            -drive file=openbsd.qcow2,format=qcow2,if=virtio \
+            -drive file=openbsd-data.qcow2,format=qcow2,if=virtio \
+            -drive file=seed.iso,media=cdrom \
+            -netdev user,id=net0,hostfwd=tcp::2222-:22 \
+            -device virtio-net-pci,netdev=net0 \
+            -display none \
+            -daemonize
+      - name: Wait for VM
+        run: |
+          timeout 300 bash -c '
+            while ! ssh -o StrictHostKeyChecking=no -o ConnectTimeout=2 -i vm_key -p 2222 openbsd@localhost true 2>/dev/null; do
+              sleep 2
+            done
+          '
+          echo "SSH available"
+      - name: Set up build disk
+        run: |
+          ssh -o StrictHostKeyChecking=no -i vm_key -p 2222 openbsd@localhost <<'EOF'
+          set -e
+          # The image disk confines builds to /home (~10.8G). Build on the
+          # dedicated second disk (sd1) instead: one 4.2BSD partition spanning
+          # the disk, newfs'd and mounted at /build.
+          printf 'a a\n\n\n\nw\nq\n' | doas disklabel -E sd1
+          doas newfs /dev/rsd1a
+          doas mkdir -p /build
+          doas mount /dev/sd1a /build
+          doas chown openbsd:wheel /build
+          EOF
+      - name: Install build dependencies
+        run: |
+          ssh -o StrictHostKeyChecking=no -i vm_key -p 2222 openbsd@localhost \
+            "doas pkg_add -u && doas pkg_add cmake gmake git python%3 rsync--"
+      - name: Raise datasize limit
+        run: |
+          ssh -o StrictHostKeyChecking=no -i vm_key -p 2222 openbsd@localhost \
+            "doas sed -i 's/datasize-max=1536M/datasize-max=4096M/' /etc/login.conf && doas sed -i 's/datasize-cur=1536M/datasize-cur=4096M/' /etc/login.conf"
+      - name: Copy source to VM
+        run: |
+          rsync -az -e "ssh -o StrictHostKeyChecking=no -i vm_key -p 2222" \
+            "$GITHUB_WORKSPACE/" openbsd@localhost:/build/ponyc/
+      - name: Build and push libs
+        env:
+          LIBS_TAG: ${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
+        run: |
+          ssh -o StrictHostKeyChecking=no -o ServerAliveInterval=60 -i vm_key -p 2222 openbsd@localhost \
+            "cd /build/ponyc && \
+             export GITHUB_TOKEN='${{ secrets.GITHUB_TOKEN }}' GITHUB_REPOSITORY='${{ github.repository }}' GITHUB_ACTOR='${{ github.actor }}' && \
+             gmake libs-ci llvm_tools=false build_flags=-j4 libs_cache_package=openbsd-7.9 libs_cache_tag='${LIBS_TAG}' && \
+             rm -rf build/build_libs && \
+             gmake libs-push libs_cache_package=openbsd-7.9 libs_cache_tag='${LIBS_TAG}'"
+      - name: Shutdown VM
+        if: always()
+        run: |
+          pkill -f qemu-system-x86 || true
+
+  dragonflybsd:
+    runs-on: ubuntu-latest
+    name: x86-64 DragonFly BSD 6.4.2
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6.0.2
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /usr/local/lib/android
+          sudo rm -rf /opt/hostedtoolcache
+          df -h /
+      - name: Install QEMU
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y -q qemu-utils qemu-system-x86
+          sudo chmod 666 /dev/kvm
+      - name: Download DragonFly BSD image
+        run: |
+          curl -L -o dfly.img.bz2 \
+            "https://mirror-master.dragonflybsd.org/iso-images/dfly-x86_64-6.4.2_REL.img.bz2"
+          bunzip2 dfly.img.bz2
+          qemu-img convert -f raw -O qcow2 dfly.img dfly.qcow2
+          rm dfly.img
+          qemu-img resize dfly.qcow2 60G
+          # Second disk for build workspace (root partition is only ~1.8GB)
+          qemu-img create -f qcow2 dfly-data.qcow2 50G
+      - name: Download DragonFly BSD ISO
+        run: |
+          # The raw image lacks /usr/include (system headers). Extract
+          # them from the ISO which contains the full base system.
+          curl -L -o dfly.iso.bz2 \
+            "https://mirror-master.dragonflybsd.org/iso-images/dfly-x86_64-6.4.2_REL.iso.bz2"
+          bunzip2 dfly.iso.bz2
+          mkdir -p dfly-iso
+          sudo mount -o loop,ro dfly.iso dfly-iso
+          tar cf dfly-include.tar -C dfly-iso/usr include
+          sudo umount dfly-iso
+          rm dfly.iso
+      - name: Prepare VM access
+        run: |
+          ssh-keygen -t ed25519 -f vm_key -N ""
+      - name: Boot DragonFly BSD VM
+        run: |
+          qemu-system-x86_64 \
+            -machine pc,accel=kvm \
+            -cpu host \
+            -smp 4 \
+            -m 12G \
+            -drive file=dfly.qcow2,format=qcow2,if=virtio \
+            -drive file=dfly-data.qcow2,format=qcow2,if=virtio \
+            -netdev user,id=net0,hostfwd=tcp::2222-:22 \
+            -device virtio-net-pci,netdev=net0 \
+            -object rng-random,id=rng0,filename=/dev/urandom \
+            -device virtio-rng-pci,rng=rng0 \
+            -monitor unix:dfly-monitor.sock,server,nowait \
+            -display none \
+            -daemonize
+      - name: Configure VM
+        run: |
+          PUB_KEY=$(cat vm_key.pub)
+
+          # Wait for the VM to boot
+          sleep 90
+
+          # DragonFly BSD raw images boot to a login prompt with root
+          # having no password and no cloud-init support. Use QEMU
+          # monitor sendkey to type commands into the VGA console.
+          python3 <<PYEOF
+          import socket, time
+
+          KEYMAP = {
+              ' ': 'spc', '\n': 'ret', '-': 'minus', '=': 'equal',
+              '/': 'slash', '.': 'dot', ',': 'comma', ';': 'semicolon',
+              "'": 'apostrophe', '\\\\': 'backslash', '\`': 'grave_accent',
+              '[': 'bracket_left', ']': 'bracket_right',
+              '_': 'shift-minus', '+': 'shift-equal', ':': 'shift-semicolon',
+              '"': 'shift-apostrophe', '<': 'shift-comma', '>': 'shift-dot',
+              '?': 'shift-slash', '{': 'shift-bracket_left', '}': 'shift-bracket_right',
+              '|': 'shift-backslash', '~': 'shift-grave_accent',
+              '!': 'shift-1', '@': 'shift-2', '#': 'shift-3', '\$': 'shift-4',
+              '%': 'shift-5', '^': 'shift-6', '&': 'shift-7', '*': 'shift-8',
+              '(': 'shift-9', ')': 'shift-0',
+          }
+
+          def send_hmp(sock, cmd):
+              sock.sendall((cmd + '\n').encode())
+              time.sleep(0.1)
+              sock.settimeout(0.3)
+              try: sock.recv(4096)
+              except socket.timeout: pass
+              sock.settimeout(None)
+
+          def send_line(sock, text):
+              for ch in text + '\n':
+                  if ch in KEYMAP: key = KEYMAP[ch]
+                  elif ch.isalpha(): key = f'shift-{ch.lower()}' if ch.isupper() else ch
+                  elif ch.isdigit(): key = ch
+                  else: continue
+                  send_hmp(sock, f'sendkey {key}')
+                  time.sleep(0.03)
+
+          sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+          sock.connect('dfly-monitor.sock')
+          time.sleep(0.5)
+          sock.recv(4096)
+
+          # Press enter and login as root (no password)
+          send_line(sock, '')
+          time.sleep(2)
+          send_line(sock, 'root')
+          time.sleep(3)
+
+          # Configure network
+          send_line(sock, 'dhclient vtnet0')
+          time.sleep(15)
+
+          # Configure sshd
+          send_line(sock, 'echo "PermitRootLogin yes" >> /etc/ssh/sshd_config')
+          time.sleep(0.5)
+          send_line(sock, 'echo "PermitEmptyPasswords yes" >> /etc/ssh/sshd_config')
+          time.sleep(0.5)
+
+          # Install SSH key
+          send_line(sock, 'mkdir -p /root/.ssh && chmod 700 /root/.ssh')
+          time.sleep(0.5)
+          send_line(sock, 'echo "${PUB_KEY}" > /root/.ssh/authorized_keys')
+          time.sleep(0.5)
+          send_line(sock, 'chmod 600 /root/.ssh/authorized_keys')
+          time.sleep(0.5)
+
+          # Generate host keys (virtio-rng provides entropy) and start sshd
+          send_line(sock, 'ssh-keygen -A')
+          time.sleep(10)
+          send_line(sock, '/usr/sbin/sshd')
+          time.sleep(3)
+
+          # Format and mount build disk
+          send_line(sock, 'newfs /dev/vbd1')
+          time.sleep(10)
+          send_line(sock, 'mkdir -p /build && mount /dev/vbd1 /build')
+          time.sleep(2)
+
+          sock.close()
+          PYEOF
+      - name: Wait for VM
+        run: |
+          timeout 300 bash -c '
+            while ! ssh -o StrictHostKeyChecking=no -o ConnectTimeout=2 -i vm_key -p 2222 root@localhost true 2>/dev/null; do
+              sleep 2
+            done
+          '
+          echo "SSH available"
+      - name: Install build dependencies
+        run: |
+          # Move /usr/local to /build disk before installing packages.
+          # The root partition is only ~1.8GB and gcc13 alone needs 418MB.
+          ssh -o StrictHostKeyChecking=no -i vm_key -p 2222 root@localhost /bin/sh <<'EOF'
+          set -e
+          cpdup /usr/local /build/usr_local
+          rm -rf /usr/local
+          ln -s /build/usr_local /usr/local
+          EOF
+
+          # Install system headers from ISO (raw image ships without /usr/include)
+          scp -o StrictHostKeyChecking=no -i vm_key -P 2222 \
+            dfly-include.tar root@localhost:/build/
+          ssh -o StrictHostKeyChecking=no -i vm_key -p 2222 root@localhost /bin/sh <<'EOF'
+          set -e
+          tar xf /build/dfly-include.tar -C /build
+          ln -s /build/include /usr/include
+          rm /build/dfly-include.tar
+          EOF
+
+          # Install packages (now goes to /build disk via symlink)
+          ssh -o StrictHostKeyChecking=no -i vm_key -p 2222 root@localhost /bin/sh <<'EOF'
+          set -e
+          pkg install -y cmake gmake git python3 cxx_atomics rsync gcc13 ca_root_nss
+          pkg clean -ay
+          git config --global --add safe.directory /build/ponyc
+          EOF
+      - name: Copy source to VM
+        run: |
+          rsync -az -e "ssh -o StrictHostKeyChecking=no -i vm_key -p 2222" \
+            "$GITHUB_WORKSPACE/" root@localhost:/build/ponyc/
+      - name: Build and push libs
+        env:
+          LIBS_TAG: ${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
+        run: |
+          ssh -o StrictHostKeyChecking=no -o ServerAliveInterval=60 -i vm_key -p 2222 root@localhost /bin/sh <<EOF
+          set -e
+          cd /build/ponyc
+          export CC=/usr/local/bin/gcc13 CXX=/usr/local/bin/g++13 LD_LIBRARY_PATH=/usr/local/lib/gcc13 SSL_CERT_FILE=/usr/local/share/certs/ca-root-nss.crt
+          export GITHUB_TOKEN='${{ secrets.GITHUB_TOKEN }}' GITHUB_REPOSITORY='${{ github.repository }}' GITHUB_ACTOR='${{ github.actor }}'
+          gmake libs-ci llvm_tools=false build_flags=-j4 libs_cache_package=dragonfly-6.4.2 libs_cache_tag='${LIBS_TAG}'
+          rm -rf build/build_libs
+          gmake libs-push libs_cache_package=dragonfly-6.4.2 libs_cache_tag='${LIBS_TAG}'
+          EOF
+      - name: Shutdown VM
+        if: always()
+        run: |
+          pkill -f qemu-system-x86 || true
+
+  # Keep storage bounded: keep the 2 newest versions of each ponyc-libs-cache/*
+  # package, delete older ones. Only the warmer pushes (on every main commit), so
+  # the newest version is always the current main hash and is never pruned. Uses
+  # GITHUB_TOKEN, not snok/the org PAT: these packages are repo-scoped, so only
+  # the repo token can delete their versions (the PAT 404s on them). Runs only on
+  # real pushes to main, not on workflow_dispatch test runs.
+  prune:
+    name: Prune old libs caches
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs:
+      - x86_64-linux
+      - arm64-linux
+      - x86_64-macos
+      - arm64-macos
+      - x86_64-windows
+      - arm64-windows
+      - freebsd
+      - openbsd
+      - dragonflybsd
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6.0.2
+      - name: Prune
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PONYLANG_MAIN_READ_PACKAGE_TOKEN: ${{ secrets.PONYLANG_MAIN_READ_PACKAGE_TOKEN }}
+        run: python3 .ci-scripts/prune_libs_cache.py --keep 2

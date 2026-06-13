@@ -1,0 +1,45 @@
+name: Clear libs cache
+
+# Deletes the GHCR libs-cache packages and re-warms them. This forces a full
+# cold rebuild of every platform -- the exact expense the cache exists to avoid
+# -- so it is the deliberate "nuke it and rebuild" escape hatch for when the
+# cached libs might be bad. Triggering the workflow is itself the deliberate act;
+# there is no extra confirmation guard.
+
+on:
+  workflow_dispatch:
+    inputs:
+      prefix:
+        description: "Package-name prefix to clear (leave default to clear the whole libs cache)"
+        required: false
+        default: "ponyc-libs-cache/"
+      dry_run:
+        description: "List what would be deleted without deleting"
+        type: boolean
+        required: false
+        default: false
+
+# Share the warmer's concurrency group so a clear never races a warm; the warmer
+# this dispatches at the end queues behind this job.
+concurrency:
+  group: "update-lib-cache"
+
+permissions:
+  packages: write
+  actions: write
+
+jobs:
+  clear:
+    name: Clear and re-warm the libs cache
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6.0.2
+      - name: Clear and re-warm
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PONYLANG_MAIN_READ_PACKAGE_TOKEN: ${{ secrets.PONYLANG_MAIN_READ_PACKAGE_TOKEN }}
+        run: |
+          python3 .ci-scripts/clear_libs_cache.py \
+            --prefix '${{ inputs.prefix }}' \
+            ${{ inputs.dry_run && '--dry-run' || '' }}

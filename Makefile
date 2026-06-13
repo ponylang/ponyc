@@ -11,6 +11,15 @@ pic_flag ?=
 open_close_stress_connections ?= 10000000
 test_full_program_timeout ?= 60
 
+# GHCR-backed libs cache (CI). Provide either libs_cache_image (a builder image
+# reference) or libs_cache_package (a literal platform label, for the
+# non-container platforms), plus libs_cache_tag (the hashFiles content hash).
+# The script turns either into the full package name. See
+# .ci-scripts/oci_libs_cache.py.
+libs_cache_image ?=
+libs_cache_package ?=
+libs_cache_tag ?=
+
 ifndef version
   version := $(shell cat VERSION)
   ifneq ($(wildcard .git),)
@@ -92,6 +101,7 @@ endif
 libsSrcDir := $(srcDir)/lib
 libsBuildDir := $(srcDir)/build/build_libs
 libsOutDir := $(srcDir)/build/libs
+libsCacheScript := $(srcDir)/.ci-scripts/oci_libs_cache.py
 
 ifndef verbose
   SILENT = @
@@ -215,12 +225,48 @@ else ifneq ($(strip $(usedebugger)),)
 endif
 
 .DEFAULT_GOAL := build
-.PHONY: all libs cleanlibs configure cross-configure build test test-ci-core test-check-version test-core test-stdlib-debug test-stdlib-release test-examples test-stress test-validate-grammar clean test-pony-lsp pony-lint test-pony-lint lint-pony-lint lint-pony-doc lint-pony-lsp pony-doc test-pony-doc test-pony-compiler
+.PHONY: all libs libs-ci libs-push cleanlibs configure cross-configure build test test-ci-core test-check-version test-core test-stdlib-debug test-stdlib-release test-examples test-stress test-validate-grammar clean test-pony-lsp pony-lint test-pony-lint lint-pony-lint lint-pony-doc lint-pony-lsp pony-doc test-pony-doc test-pony-compiler
 
 libs:
 	$(SILENT)mkdir -p '$(libsBuildDir)'
 	$(SILENT)cd '$(libsBuildDir)' && env CC="$(CC)" CXX="$(CXX)" cmake -B '$(libsBuildDir)' -S '$(libsSrcDir)' -DPONY_PIC_FLAG=$(pic_flag) -DCMAKE_INSTALL_PREFIX="$(libsOutDir)" -DCMAKE_BUILD_TYPE="$(llvm_config)" -DLLVM_TARGETS_TO_BUILD="$(llvm_archs)" -DPONY_LLVM_TOOLS=$(llvm_tools) $(CMAKE_FLAGS)
 	$(SILENT)cd '$(libsBuildDir)' && env CC="$(CC)" CXX="$(CXX)" cmake --build '$(libsBuildDir)' --target install --config $(llvm_config) -- $(build_flags)
+
+# Restore the prebuilt libs from GHCR, falling back to a source build on a miss.
+# CI uses this instead of `libs` so the slow LLVM build is skipped on a cache
+# hit. Command-line vars (llvm_tools, build_flags) propagate to the fallback
+# `$(MAKE) libs` automatically.
+libs-ci:
+	$(SILENT)set -e; \
+	if [ -n "$(libs_cache_image)" ]; then \
+	  sel="--image $(libs_cache_image)"; \
+	elif [ -n "$(libs_cache_package)" ]; then \
+	  sel="--platform $(libs_cache_package)"; \
+	else \
+	  echo 'libs-ci: set libs_cache_image or libs_cache_package' >&2; exit 1; \
+	fi; \
+	if [ -z '$(libs_cache_tag)' ]; then \
+	  echo 'libs-ci: set libs_cache_tag' >&2; exit 1; \
+	fi; \
+	if python3 '$(libsCacheScript)' pull --tag '$(libs_cache_tag)' $$sel; then \
+	  echo 'Restored libs from GHCR.'; \
+	else \
+	  echo 'Libs cache miss; building from source.'; \
+	  $(MAKE) libs; \
+	fi
+
+# Push the freshly built libs to GHCR. Warmer only; needs GITHUB_TOKEN with
+# packages: write.
+libs-push:
+	$(SILENT)set -e; \
+	if [ -n "$(libs_cache_image)" ]; then \
+	  sel="--image $(libs_cache_image)"; \
+	elif [ -n "$(libs_cache_package)" ]; then \
+	  sel="--platform $(libs_cache_package)"; \
+	else \
+	  echo 'libs-push: set libs_cache_image or libs_cache_package' >&2; exit 1; \
+	fi; \
+	python3 '$(libsCacheScript)' push --tag '$(libs_cache_tag)' $$sel
 
 cleanlibs:
 	$(SILENT)rm -rf '$(libsBuildDir)'

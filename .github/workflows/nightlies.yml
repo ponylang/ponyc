@@ -52,25 +52,12 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6.0.2
-      - name: Restore Libs Cache
-        id: restore-libs
-        uses: actions/cache/restore@v5.0.3
-        with:
-          path: |
-            build/libs
-            lib/llvm/src/compiler-rt/lib/builtins
-          key: libs-${{ matrix.image }}-${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
-      - name: Build Libs
-        if: steps.restore-libs.outputs.cache-hit != 'true'
-        run: make libs llvm_tools=false build_flags=-j4
-      - name: Save Libs Cache
-        if: steps.restore-libs.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v5.0.3
-        with:
-          path: |
-            build/libs
-            lib/llvm/src/compiler-rt/lib/builtins
-          key: libs-${{ matrix.image }}-${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
+      - name: Build libs
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          LIBS_IMAGE: ${{ matrix.image }}
+          LIBS_TAG: ${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
+        run: make libs-ci llvm_tools=false build_flags=-j4 libs_cache_image="$LIBS_IMAGE" libs_cache_tag="$LIBS_TAG"
       - name: Nightly
         run: bash .ci-scripts/x86-64-nightly.bash
         env:
@@ -137,31 +124,21 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
       - name: Pull Docker image
         run: docker pull ${{ matrix.image }}
-      - name: Restore Libs Cache
-        id: restore-libs
-        uses: actions/cache/restore@v5.0.3
-        with:
-          path: |
-            build/libs
-            lib/llvm/src/compiler-rt/lib/builtins
-          key: libs-${{ matrix.image }}-${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
-      - name: Build Libs
-        if: steps.restore-libs.outputs.cache-hit != 'true'
+      - name: Build libs
+        env:
+          LIBS_TAG: ${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
         run: |
           docker run --rm \
             --user pony \
+            -e GITHUB_TOKEN=${{ secrets.GITHUB_TOKEN }} \
+            -e GITHUB_REPOSITORY \
+            -e GITHUB_ACTOR \
+            -e LIBS_IMAGE="${{ matrix.image }}" \
+            -e LIBS_TAG="$LIBS_TAG" \
             -v ${{ github.workspace }}:/home/pony/project \
             -w /home/pony/project \
             ${{ matrix.image }} \
-            make libs llvm_tools=false build_flags=-j4
-      - name: Save Libs Cache
-        if: steps.restore-libs.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v5.0.3
-        with:
-          path: |
-            build/libs
-            lib/llvm/src/compiler-rt/lib/builtins
-          key: libs-${{ matrix.image }}-${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
+            sh -c 'make libs-ci llvm_tools=false build_flags=-j4 libs_cache_image="$LIBS_IMAGE" libs_cache_tag="$LIBS_TAG"'
       - name: Nightly
         run: |
           docker run --rm \
@@ -194,25 +171,11 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6.0.2
-      - name: Restore Libs Cache
-        id: restore-libs
-        uses: actions/cache/restore@v5.0.3
-        with:
-          path: |
-            build/libs
-            lib/llvm/src/compiler-rt/lib/builtins
-          key: libs-x86-macos-15-intel-${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
-      - name: Build Libs
-        if: steps.restore-libs.outputs.cache-hit != 'true'
-        run: make libs llvm_tools=false build_flags=-j4
-      - name: Save Libs Cache
-        if: steps.restore-libs.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v5.0.3
-        with:
-          path: |
-            build/libs
-            lib/llvm/src/compiler-rt/lib/builtins
-          key: libs-x86-macos-15-intel-${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
+      - name: Build libs
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          LIBS_TAG: ${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
+        run: make libs-ci llvm_tools=false build_flags=-j4 libs_cache_package=x86-macos-15-intel libs_cache_tag="$LIBS_TAG"
       - name: Install Cloudsmith
         run: pip3 install --break-system-packages --upgrade cloudsmith-cli
       - name: Nightly
@@ -241,25 +204,11 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6.0.2
-      - name: Restore Libs Cache
-        id: restore-libs
-        uses: actions/cache/restore@v5.0.3
-        with:
-          path: |
-            build/libs
-            lib/llvm/src/compiler-rt/lib/builtins
-          key: libs-arm64-macos-26-${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
-      - name: Build Libs
-        if: steps.restore-libs.outputs.cache-hit != 'true'
-        run: make libs llvm_tools=false build_flags=-j3
-      - name: Save Libs Cache
-        if: steps.restore-libs.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v5.0.3
-        with:
-          path: |
-            build/libs
-            lib/llvm/src/compiler-rt/lib/builtins
-          key: libs-arm64-macos-26-${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
+      - name: Build libs
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          LIBS_TAG: ${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
+        run: make libs-ci llvm_tools=false build_flags=-j3 libs_cache_package=arm64-macos-26 libs_cache_tag="$LIBS_TAG"
       - name: Install Cloudsmith
         run: pip3 install --upgrade --break-system-packages cloudsmith-cli
       - name: Nightly
@@ -318,25 +267,11 @@ jobs:
           msys 'pacman --noconfirm -U https://repo.msys2.org/mingw/mingw64/mingw-w64-x86_64-llvm-libs-22.1.4-1-any.pkg.tar.zst https://repo.msys2.org/mingw/mingw64/mingw-w64-x86_64-clang-libs-22.1.4-1-any.pkg.tar.zst https://repo.msys2.org/mingw/mingw64/mingw-w64-x86_64-lldb-22.1.4-1-any.pkg.tar.zst https://repo.msys2.org/mingw/mingw64/mingw-w64-x86_64-gcc-libs-16.1.0-2-any.pkg.tar.zst https://repo.msys2.org/mingw/mingw64/mingw-w64-x86_64-expat-2.8.0-1-any.pkg.tar.zst https://repo.msys2.org/mingw/mingw64/mingw-w64-x86_64-mpdecimal-4.0.1-2-any.pkg.tar.zst https://repo.msys2.org/mingw/mingw64/mingw-w64-x86_64-python-3.14.4-2-any.pkg.tar.zst'
           msys 'pacman --noconfirm -Scc'
           python.exe -m pip install --upgrade cloudsmith-cli
-      - name: Restore Libs Cache
-        id: restore-libs
-        uses: actions/cache/restore@v5.0.3
-        with:
-          path: |
-            build/libs
-            lib/llvm/src/compiler-rt/lib/builtins
-          key: libs-windows-2025-vs2026-${{ hashFiles('make.ps1', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
-      - name: Build Libs
-        if: steps.restore-libs.outputs.cache-hit != 'true'
-        run: .\make.ps1 -Command libs -LlvmTools false
-      - name: Save Libs Cache
-        if: steps.restore-libs.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v5.0.3
-        with:
-          path: |
-            build/libs
-            lib/llvm/src/compiler-rt/lib/builtins
-          key: libs-windows-2025-vs2026-${{ hashFiles('make.ps1', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
+      - name: Build libs
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          LIBS_TAG: ${{ hashFiles('make.ps1', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
+        run: .\make.ps1 -Command libs-ci -LlvmTools false -LibsCachePackage windows-2025-vs2026 -LibsCacheTag $env:LIBS_TAG
       - name: Configure
         run: .\make.ps1 -Command configure -Config Release -Prefix "build\install\release" -Version nightly
       - name: Build
@@ -389,25 +324,11 @@ jobs:
           # Remove once arm64 Windows can install the latest cloudsmith-cli
           # again.
           python.exe -m pip install --upgrade "cloudsmith-cli<1.19.0"
-      - name: Restore Libs Cache
-        id: restore-libs
-        uses: actions/cache/restore@v5.0.3
-        with:
-          path: |
-            build/libs
-            lib/llvm/src/compiler-rt/lib/builtins
-          key: libs-windows-11-arm-${{ hashFiles('make.ps1', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
-      - name: Build Libs
-        if: steps.restore-libs.outputs.cache-hit != 'true'
-        run: .\make.ps1 -Command libs -LlvmTools false -Arch ARM64
-      - name: Save Libs Cache
-        if: steps.restore-libs.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v5.0.3
-        with:
-          path: |
-            build/libs
-            lib/llvm/src/compiler-rt/lib/builtins
-          key: libs-windows-11-arm-${{ hashFiles('make.ps1', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
+      - name: Build libs
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          LIBS_TAG: ${{ hashFiles('make.ps1', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
+        run: .\make.ps1 -Command libs-ci -LlvmTools false -Arch ARM64 -LibsCachePackage windows-11-arm -LibsCacheTag $env:LIBS_TAG
       - name: Configure
         run: .\make.ps1 -Command configure -Config Release -Prefix "build\install\release" -Version nightly -Arch ARM64
       - name: Build

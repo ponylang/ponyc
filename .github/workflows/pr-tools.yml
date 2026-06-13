@@ -31,17 +31,12 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6.0.2
-      - name: Restore Libs Cache
-        id: restore-libs
-        uses: actions/cache/restore@v5.0.3
-        with:
-          path: |
-            build/libs
-            lib/llvm/src/compiler-rt/lib/builtins
-          key: libs-ghcr.io/ponylang/ponyc-ci-alpine3.23-builder:20260201-${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
-      - name: Build Libs
-        if: steps.restore-libs.outputs.cache-hit != 'true'
-        run: make libs llvm_tools=false build_flags=-j4
+      - name: Build libs
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          LIBS_IMAGE: ghcr.io/ponylang/ponyc-ci-alpine3.23-builder:20260201
+          LIBS_TAG: ${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
+        run: make libs-ci llvm_tools=false build_flags=-j4 libs_cache_image="$LIBS_IMAGE" libs_cache_tag="$LIBS_TAG"
       - name: Build
         run: |
           make configure config=debug
@@ -67,17 +62,11 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6.0.2
-      - name: Restore Libs Cache
-        id: restore-libs
-        uses: actions/cache/restore@v5.0.3
-        with:
-          path: |
-            build/libs
-            lib/llvm/src/compiler-rt/lib/builtins
-          key: libs-arm64-macos-26-${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
-      - name: Build Libs
-        if: steps.restore-libs.outputs.cache-hit != 'true'
-        run: make libs llvm_tools=false build_flags=-j3
+      - name: Build libs
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          LIBS_TAG: ${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
+        run: make libs-ci llvm_tools=false build_flags=-j3 libs_cache_package=arm64-macos-26 libs_cache_tag="$LIBS_TAG"
       - name: Build
         run: |
           make configure arch=armv8 config=debug
@@ -102,17 +91,11 @@ jobs:
         run: Set-MpPreference -DisableRealtimeMonitoring $true
       - name: Checkout
         uses: actions/checkout@v6.0.2
-      - name: Restore Libs Cache
-        id: restore-libs
-        uses: actions/cache/restore@v5.0.3
-        with:
-          path: |
-            build/libs
-            lib/llvm/src/compiler-rt/lib/builtins
-          key: libs-windows-2025-vs2026-${{ hashFiles('make.ps1', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
-      - name: Build Libs
-        if: steps.restore-libs.outputs.cache-hit != 'true'
-        run: .\make.ps1 -Command libs -LlvmTools false
+      - name: Build libs
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          LIBS_TAG: ${{ hashFiles('make.ps1', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
+        run: .\make.ps1 -Command libs-ci -LlvmTools false -LibsCachePackage windows-2025-vs2026 -LibsCacheTag $env:LIBS_TAG
       - name: Build
         run: |
           .\make.ps1 -Command configure -Config Debug

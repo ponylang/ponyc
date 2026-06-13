@@ -44,17 +44,12 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6.0.2
-      - name: Restore Libs Cache
-        id: restore-libs
-        uses: actions/cache/restore@v5.0.3
-        with:
-          path: |
-            build/libs
-            lib/llvm/src/compiler-rt/lib/builtins
-          key: libs-${{ matrix.image }}-${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
-      - name: Build Libs
-        if: steps.restore-libs.outputs.cache-hit != 'true'
-        run: make libs llvm_tools=false build_flags=-j4
+      - name: Build libs
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          LIBS_IMAGE: ${{ matrix.image }}
+          LIBS_TAG: ${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
+        run: make libs-ci llvm_tools=false build_flags=-j4 libs_cache_image="$LIBS_IMAGE" libs_cache_tag="$LIBS_TAG"
       - name: Build Debug Runtime
         run: |
           make configure arch=x86-64 config=debug
@@ -76,17 +71,11 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6.0.2
-      - name: Restore Libs Cache
-        id: restore-libs
-        uses: actions/cache/restore@v5.0.3
-        with:
-          path: |
-            build/libs
-            lib/llvm/src/compiler-rt/lib/builtins
-          key: libs-arm64-macos-26-${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
-      - name: Build Libs
-        if: steps.restore-libs.outputs.cache-hit != 'true'
-        run: make libs llvm_tools=false build_flags=-j3
+      - name: Build libs
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          LIBS_TAG: ${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
+        run: make libs-ci llvm_tools=false build_flags=-j3 libs_cache_package=arm64-macos-26 libs_cache_tag="$LIBS_TAG"
       - name: Build Debug Runtime
         run: |
           make configure arch=armv8 config=debug
@@ -139,17 +128,11 @@ jobs:
           msys 'pacman --noconfirm -S --needed base-devel'
           msys 'pacman --noconfirm -U https://repo.msys2.org/mingw/mingw64/mingw-w64-x86_64-llvm-libs-22.1.4-1-any.pkg.tar.zst https://repo.msys2.org/mingw/mingw64/mingw-w64-x86_64-clang-libs-22.1.4-1-any.pkg.tar.zst https://repo.msys2.org/mingw/mingw64/mingw-w64-x86_64-lldb-22.1.4-1-any.pkg.tar.zst https://repo.msys2.org/mingw/mingw64/mingw-w64-x86_64-gcc-libs-16.1.0-2-any.pkg.tar.zst https://repo.msys2.org/mingw/mingw64/mingw-w64-x86_64-expat-2.8.0-1-any.pkg.tar.zst https://repo.msys2.org/mingw/mingw64/mingw-w64-x86_64-mpdecimal-4.0.1-2-any.pkg.tar.zst https://repo.msys2.org/mingw/mingw64/mingw-w64-x86_64-python-3.14.4-2-any.pkg.tar.zst'
           msys 'pacman --noconfirm -Scc'
-      - name: Restore Libs Cache
-        id: restore-libs
-        uses: actions/cache/restore@v5.0.3
-        with:
-          path: |
-            build/libs
-            lib/llvm/src/compiler-rt/lib/builtins
-          key: libs-windows-2025-vs2026-${{ hashFiles('make.ps1', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
-      - name: Build Libs
-        if: steps.restore-libs.outputs.cache-hit != 'true'
-        run: .\make.ps1 -Command libs -LlvmTools false
+      - name: Build libs
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          LIBS_TAG: ${{ hashFiles('make.ps1', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
+        run: .\make.ps1 -Command libs-ci -LlvmTools false -LibsCachePackage windows-2025-vs2026 -LibsCacheTag $env:LIBS_TAG
       - name: Build Debug Runtime
         run: |
           .\make.ps1 -Command configure -Config Debug
