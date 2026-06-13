@@ -32,6 +32,7 @@ actor \nodoc\ Main is TestList
     test(_TestTCPProxy)
     test(_TestTCPUnmute)
     test(_TestTCPWritev)
+    test(_TestUDPListenFailure)
     test(_TestUnicastIP6Loopback)
 
     // Tests below run only on linux and are listed alphabetically
@@ -44,7 +45,6 @@ actor \nodoc\ Main is TestList
     ifdef not windows then
       test(_TestTCPConnectionToClosedServerFailed)
       test(_TestTCPThrottle)
-      test(_TestUDPListenFailure)
     end
 
     // Tests below run only on linux and freebsd
@@ -956,10 +956,12 @@ class \nodoc\ iso _TestUDPListenFailure is UnitTest
   added intentionally, this test fails loudly (listening fires) and must
   be updated -- that is the pin working as intended, not flake.
 
-  Not on Windows: a failed UDP listen there crashes the process before
-  anything could be observed (issue #5474). No exclusion_group: neither
-  arm ever binds successfully or emits a datagram, so there is no
-  interference surface.
+  Runs on Windows too: a failed UDP listen there used to crash the process
+  before anything could be observed (issue #5474), which is now fixed -- the
+  runtime's IOCP recv path guards the null event a failed listen leaves
+  behind instead of dereferencing it. No exclusion_group: neither arm ever
+  binds successfully or emits a datagram, so there is no interference
+  surface.
   """
   fun name(): String => "net/UDPListenFailure"
 
