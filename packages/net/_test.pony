@@ -60,6 +60,14 @@ actor \nodoc\ Main is TestList
       test(_TestBroadcast)
     end
 
+    // Tests below exclude osx and bsd and are listed alphabetically.
+    // They read IPv4 multicast options back with getsockopt_u32, which
+    // expects a 4-byte value; osx and bsd return these options as a 1-byte
+    // u_char, so the read-back fails there regardless of correctness.
+    ifdef (not osx) and (not bsd) then
+      test(_TestMulticastSockopt)
+    end
+
 class \nodoc\ _TestPing is UDPNotify
   let _h: TestHelper
   let _ip: NetAddress
@@ -172,6 +180,58 @@ class \nodoc\ _TestPong is UDPNotify
     sock.writev(
       recover val [[U8('p'); U8('o'); U8('n'); U8('g'); U8('!')]] end,
       from)
+
+class \nodoc\ _TestMulticastNotify is UDPNotify
+  let _h: TestHelper
+
+  new create(h: TestHelper) =>
+    _h = h
+
+  fun ref not_listening(sock: UDPSocket ref) =>
+    _h.fail_action("multicast listen")
+
+  fun ref listening(sock: UDPSocket ref) =>
+    _h.complete_action("multicast listen")
+
+    // Round-trip the IPv4 multicast TTL and loopback options. These are
+    // IPPROTO_IP-level options; setting them at the wrong level (the prior
+    // SOL_SOCKET bug) either fails or fails to take effect, so the value
+    // read back would not match what was set.
+    sock.set_ip_multicast_ttl(7)
+    (let ttl_err: U32, let ttl: U32) =
+      sock.getsockopt_u32(OSSockOpt.ipproto_ip(), OSSockOpt.ip_multicast_ttl())
+    _h.assert_eq[U32](ttl_err, 0, "getsockopt IP_MULTICAST_TTL failed")
+    _h.assert_eq[U32](ttl, 7, "IP_MULTICAST_TTL did not round-trip")
+
+    sock.set_ip_multicast_loop(false)
+    (let loop_err: U32, let loop: U32) =
+      sock.getsockopt_u32(OSSockOpt.ipproto_ip(),
+        OSSockOpt.ip_multicast_loop())
+    _h.assert_eq[U32](loop_err, 0, "getsockopt IP_MULTICAST_LOOP failed")
+    _h.assert_eq[U32](loop, 0, "IP_MULTICAST_LOOP did not round-trip")
+
+    _h.complete(true)
+
+  fun ref received(
+    sock: UDPSocket ref,
+    data: Array[U8] iso,
+    from: NetAddress)
+  =>
+    None
+
+class \nodoc\ iso _TestMulticastSockopt is UnitTest
+  """
+  Verify UDPSocket applies the IPv4 multicast TTL and loopback options at the
+  IPPROTO_IP level by setting each and reading the value back.
+  """
+  fun name(): String => "net/MulticastSockopt"
+  fun exclusion_group(): String => "network"
+
+  fun ref apply(h: TestHelper) =>
+    h.expect_action("multicast listen")
+    h.dispose_when_done(
+      UDPSocket.ip4(UDPAuth(h.env.root), recover _TestMulticastNotify(h) end))
+    h.long_test(TimeoutValue())
 
 class \nodoc\ iso _TestSocketResultDecoder is UnitTest
   """

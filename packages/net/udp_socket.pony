@@ -201,8 +201,14 @@ actor UDPSocket is AsioEventNotify
   be set_multicast_interface(from: String = "") =>
     """
     By default, the OS will choose which address is used to send packets bound
-    for multicast addresses. This can be used to force a specific interface. To
-    revert to allowing the OS to choose, call with an empty string.
+    for multicast addresses. This can be used to force a specific interface.
+
+    For an IPv4 interface, pass the interface's IPv4 address. For an IPv6
+    interface, the interface is taken from the scope id of the resolved
+    address, so only a scoped address such as `"fe80::1%eth0"` selects an
+    interface; a plain IPv6 address does not.
+
+    Calling with an empty string currently has no effect.
     """
     if not _closed then
       @pony_os_multicast_interface(_fd, from.cstring())
@@ -578,18 +584,18 @@ actor UDPSocket is AsioEventNotify
 
   fun ref set_ip_multicast_loop(loopback: Bool): U32 =>
     """
-    Wrapper for the FFI call `setsockopt(fd, SOL_SOCKET, IP_MULTICAST_LOOP, ...)`
+    Wrapper for the FFI call `setsockopt(fd, IPPROTO_IP, IP_MULTICAST_LOOP, ...)`
     """
     var word: Array[U8] ref =
       _OSSocket.u32_to_bytes4(if loopback then 1 else 0 end)
-    _OSSocket.setsockopt(_fd, OSSockOpt.sol_socket(), OSSockOpt.ip_multicast_loop(), word)
+    _OSSocket.setsockopt(_fd, OSSockOpt.ipproto_ip(), OSSockOpt.ip_multicast_loop(), word)
 
   fun ref set_ip_multicast_ttl(ttl: U8): U32 =>
     """
-    Wrapper for the FFI call `setsockopt(fd, SOL_SOCKET, IP_MULTICAST_TTL, ...)`
+    Wrapper for the FFI call `setsockopt(fd, IPPROTO_IP, IP_MULTICAST_TTL, ...)`
     """
     var word: Array[U8] ref = _OSSocket.u32_to_bytes4(ttl.u32())
-    _OSSocket.setsockopt(_fd, OSSockOpt.sol_socket(), OSSockOpt.ip_multicast_ttl(), word)
+    _OSSocket.setsockopt(_fd, OSSockOpt.ipproto_ip(), OSSockOpt.ip_multicast_ttl(), word)
 
   fun ref set_so_broadcast(state: Bool): U32 =>
     """
