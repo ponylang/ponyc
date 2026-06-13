@@ -32,6 +32,18 @@
     [string]
     $LlvmTools = "true",
 
+    [Parameter(HelpMessage="GHCR libs-cache builder image reference (libs-ci/libs-push); the package name is derived from it.")]
+    [string]
+    $LibsCacheImage = "",
+
+    [Parameter(HelpMessage="GHCR libs-cache package name (libs-ci/libs-push); use instead of -LibsCacheImage on non-container platforms.")]
+    [string]
+    $LibsCachePackage = "",
+
+    [Parameter(HelpMessage="GHCR libs-cache tag, i.e. the hashFiles content hash (libs-ci/libs-push).")]
+    [string]
+    $LibsCacheTag = "",
+
     [Parameter(HelpMessage="Whether or not to run tests in LLDB debugger")]
     [string]
     $Uselldb = "no",
@@ -142,7 +154,8 @@ elseif (![System.IO.Path]::IsPathRooted($Prefix))
 
 Write-Output "make.ps1 $Command -Config $Config -Generator `"$Generator`" -Prefix `"$Prefix`" -Version `"$Version`""
 
-if (($Command.ToLower() -ne "libs") -and ($Command.ToLower() -ne "distclean") -and !(Test-Path -Path $libsDir))
+$libsOptionalCommands = @("libs", "libs-ci", "libs-push", "distclean")
+if (($libsOptionalCommands -notcontains $Command.ToLower()) -and !(Test-Path -Path $libsDir))
 {
     throw "Libs directory '$libsDir' does not exist; you may need to run 'make.ps1 libs' first."
 }
@@ -189,6 +202,60 @@ switch ($Command.ToLower())
         & cmake.exe --build "$libsBuildDir" --target install --config Release --parallel 4
         $err = $LastExitCode
         if ($err -ne 0) { throw "Error: exit code $err" }
+        break
+    }
+    "libs-ci"
+    {
+        # Restore the prebuilt libs from GHCR, falling back to a source build on
+        # a miss. See .ci-scripts/oci_libs_cache.py.
+        $cacheScript = Join-Path -Path $srcDir -ChildPath ".ci-scripts\oci_libs_cache.py"
+        if (-not [string]::IsNullOrEmpty($LibsCacheImage))
+        {
+            $sel = @("--image", $LibsCacheImage)
+        }
+        elseif (-not [string]::IsNullOrEmpty($LibsCachePackage))
+        {
+            $sel = @("--platform", $LibsCachePackage)
+        }
+        else
+        {
+            throw "libs-ci: set -LibsCacheImage or -LibsCachePackage"
+        }
+        if ([string]::IsNullOrEmpty($LibsCacheTag)) { throw "libs-ci: set -LibsCacheTag" }
+
+        & python "$cacheScript" pull --tag "$LibsCacheTag" @sel
+        if ($LastExitCode -eq 0)
+        {
+            Write-Output "Restored libs from GHCR."
+        }
+        else
+        {
+            Write-Output "Libs cache miss; building from source."
+            & "$PSCommandPath" -Command libs -Config $Config -Generator $Generator -Arch $Arch -LlvmTools $LlvmTools
+            if ($LastExitCode -ne 0) { throw "Error: exit code $LastExitCode" }
+        }
+        break
+    }
+    "libs-push"
+    {
+        # Push the freshly built libs to GHCR. Warmer only; needs GITHUB_TOKEN
+        # with packages: write. See .ci-scripts/oci_libs_cache.py.
+        $cacheScript = Join-Path -Path $srcDir -ChildPath ".ci-scripts\oci_libs_cache.py"
+        if (-not [string]::IsNullOrEmpty($LibsCacheImage))
+        {
+            $sel = @("--image", $LibsCacheImage)
+        }
+        elseif (-not [string]::IsNullOrEmpty($LibsCachePackage))
+        {
+            $sel = @("--platform", $LibsCachePackage)
+        }
+        else
+        {
+            throw "libs-push: set -LibsCacheImage or -LibsCachePackage"
+        }
+
+        & python "$cacheScript" push --tag "$LibsCacheTag" @sel
+        if ($LastExitCode -ne 0) { throw "Error: exit code $LastExitCode" }
         break
     }
     "cleanlibs"
@@ -729,6 +796,6 @@ switch ($Command.ToLower())
     }
     default
     {
-        throw "Unknown command '$Command'. use: {libs, cleanlibs, configure, build, clean, test, install, package, distclean}"
+        throw "Unknown command '$Command'. use: {libs, libs-ci, libs-push, cleanlibs, configure, build, clean, test, install, package, distclean}"
     }
 }

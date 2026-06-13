@@ -151,12 +151,17 @@ jobs:
         run: |
           rsync -az -e "ssh -o StrictHostKeyChecking=no -i vm_key -p 2222" \
             "$GITHUB_WORKSPACE/" freebsd@localhost:/home/freebsd/ponyc/
+      - name: Restore or build libs
+        env:
+          LIBS_TAG: ${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
+        run: |
+          ssh -o StrictHostKeyChecking=no -i vm_key -p 2222 freebsd@localhost \
+            "cd /home/freebsd/ponyc && export GITHUB_TOKEN='${{ secrets.GITHUB_TOKEN }}' GITHUB_REPOSITORY='${{ github.repository }}' && gmake libs-ci llvm_tools=false build_flags=-j4 libs_cache_package=freebsd-${{ matrix.version }} libs_cache_tag='${LIBS_TAG}'"
       - name: Build and test
         run: |
           ssh -o StrictHostKeyChecking=no -i vm_key -p 2222 freebsd@localhost <<'EOF'
           set -e
           cd /home/freebsd/ponyc
-          gmake libs llvm_tools=false build_flags=-j4
           gmake configure config=debug
           gmake build config=debug
           # Smoke-test the --static embedded-LLD link path; the test targets
@@ -301,14 +306,18 @@ jobs:
         run: |
           ssh -o StrictHostKeyChecking=no -i vm_key -p 2222 openbsd@localhost \
             "cd /build/ponyc && sh .ci-scripts/openbsd-reject-unsupported-builds.sh"
+      - name: Restore or build libs
+        env:
+          LIBS_TAG: ${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
+        run: |
+          ssh -o StrictHostKeyChecking=no -o ServerAliveInterval=60 -i vm_key -p 2222 openbsd@localhost \
+            "cd /build/ponyc && export GITHUB_TOKEN='${{ secrets.GITHUB_TOKEN }}' GITHUB_REPOSITORY='${{ github.repository }}' && gmake libs-ci llvm_tools=false build_flags=-j4 libs_cache_package=openbsd-7.9 libs_cache_tag='${LIBS_TAG}' && rm -rf build/build_libs"
       - name: Build and test
         run: |
           ssh -o StrictHostKeyChecking=no -o ServerAliveInterval=60 -i vm_key -p 2222 openbsd@localhost <<'EOF'
           set -e
           cd /build/ponyc
           df -h
-          gmake libs llvm_tools=false build_flags=-j4
-          rm -rf build/build_libs
           gmake configure config=debug
           gmake build config=debug
           # Smoke-test the --static embedded-LLD link path; the test
@@ -501,7 +510,7 @@ jobs:
           PYEOF
       - name: Wait for VM
         run: |
-          timeout 120 bash -c '
+          timeout 300 bash -c '
             while ! ssh -o StrictHostKeyChecking=no -o ConnectTimeout=2 -i vm_key -p 2222 root@localhost true 2>/dev/null; do
               sleep 2
             done
@@ -546,6 +555,17 @@ jobs:
           cd /build/ponyc
           sh .ci-scripts/dragonfly-reject-unsupported-builds.sh
           EOF
+      - name: Restore or build libs
+        env:
+          LIBS_TAG: ${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
+        run: |
+          ssh -o StrictHostKeyChecking=no -o ServerAliveInterval=60 -i vm_key -p 2222 root@localhost /bin/sh <<EOF
+          set -e
+          cd /build/ponyc
+          export GITHUB_TOKEN='${{ secrets.GITHUB_TOKEN }}' GITHUB_REPOSITORY='${{ github.repository }}' CC=/usr/local/bin/gcc13 CXX=/usr/local/bin/g++13 LD_LIBRARY_PATH=/usr/local/lib/gcc13 SSL_CERT_FILE=/usr/local/share/certs/ca-root-nss.crt
+          gmake libs-ci llvm_tools=false build_flags=-j4 libs_cache_package=dragonfly-6.4.2 libs_cache_tag='${LIBS_TAG}'
+          rm -rf build/build_libs
+          EOF
       - name: Build and test
         run: |
           ssh -o StrictHostKeyChecking=no -o ServerAliveInterval=60 -i vm_key -p 2222 root@localhost /bin/sh <<'EOF'
@@ -555,8 +575,6 @@ jobs:
           export LD_LIBRARY_PATH=/usr/local/lib/gcc13
           export SSL_CERT_FILE=/usr/local/share/certs/ca-root-nss.crt
           cd /build/ponyc
-          gmake libs llvm_tools=false build_flags=-j4
-          rm -rf build/build_libs
           gmake configure config=debug
           gmake build config=debug
           # Smoke-test the --static embedded-LLD link path; the test targets
