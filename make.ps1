@@ -185,8 +185,8 @@ switch ($Command.ToLower())
         if ($err -ne 0) { throw "Error: exit code $err" }
 
         # Write-Output "Building libraries..."
-        Write-Output "cmake.exe --build `"$libsBuildDir`" --target install --config Release"
-        & cmake.exe --build "$libsBuildDir" --target install --config Release
+        Write-Output "cmake.exe --build `"$libsBuildDir`" --target install --config Release --parallel 4"
+        & cmake.exe --build "$libsBuildDir" --target install --config Release --parallel 4
         $err = $LastExitCode
         if ($err -ne 0) { throw "Error: exit code $err" }
         break
