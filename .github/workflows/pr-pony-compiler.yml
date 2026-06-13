@@ -13,7 +13,10 @@ concurrency:
   cancel-in-progress: true
 
 permissions:
-  packages: read
+  # write (not read) so non-fork PR runs can push to the per-PR branch libs
+  # cache. A pull_request run from a fork gets a read-only GITHUB_TOKEN
+  # regardless, so this grants effective write only to non-fork runs.
+  packages: write
 
 jobs:
   linux:
@@ -31,7 +34,8 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           LIBS_IMAGE: ghcr.io/ponylang/ponyc-ci-alpine3.23-builder:20260201
           LIBS_TAG: ${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
-        run: make libs-ci llvm_tools=false build_flags=-j4 libs_cache_image="$LIBS_IMAGE" libs_cache_tag="$LIBS_TAG"
+          LIBS_PR: ${{ github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.number || '' }}
+        run: python3 .ci-scripts/pr_libs_cache.py --image "$LIBS_IMAGE" --tag "$LIBS_TAG" --pr "$LIBS_PR" -- make libs llvm_tools=false build_flags=-j4
       - name: Build
         run: |
           make configure config=debug
@@ -51,7 +55,8 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           LIBS_TAG: ${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
-        run: make libs-ci llvm_tools=false build_flags=-j3 libs_cache_package=arm64-macos-26 libs_cache_tag="$LIBS_TAG"
+          LIBS_PR: ${{ github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.number || '' }}
+        run: python3 .ci-scripts/pr_libs_cache.py --platform arm64-macos-26 --tag "$LIBS_TAG" --pr "$LIBS_PR" -- make libs llvm_tools=false build_flags=-j3
       - name: Build
         run: |
           make configure arch=armv8 config=debug
@@ -76,7 +81,8 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           LIBS_TAG: ${{ hashFiles('make.ps1', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
-        run: .\make.ps1 -Command libs-ci -LlvmTools false -LibsCachePackage windows-2025-vs2026 -LibsCacheTag $env:LIBS_TAG
+          LIBS_PR: ${{ github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.number || '' }}
+        run: python .ci-scripts/pr_libs_cache.py --platform windows-2025-vs2026 --tag "$env:LIBS_TAG" --pr "$env:LIBS_PR" '--' pwsh -File make.ps1 -Command libs -LlvmTools false
       - name: Build
         run: |
           .\make.ps1 -Command configure -Config Debug

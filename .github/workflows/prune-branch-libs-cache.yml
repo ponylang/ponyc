@@ -1,0 +1,48 @@
+name: Prune branch libs cache
+
+# Age-prunes the per-PR branch libs cache (`ponyc-branch-libs-cache/*`). Each
+# non-fork PR that changes an LLVM-determining input gets its own scratch
+# package; this daily sweep deletes anything older than two weeks (stale versions
+# individually, a whole package once all its versions are stale) so closed and
+# abandoned PRs don't accumulate in GHCR. It only ever touches the branch
+# namespace; the main `ponyc-libs-cache` is left alone. See
+# .ci-scripts/prune_branch_libs_cache.py.
+
+on:
+  schedule:
+    # Daily at 04:37 UTC.
+    - cron: "37 4 * * *"
+  workflow_dispatch:
+    inputs:
+      max_age_days:
+        description: "Delete branch-cache artifacts older than this many days"
+        required: false
+        default: "14"
+      dry_run:
+        description: "List what would be deleted without deleting"
+        type: boolean
+        required: false
+        default: false
+
+permissions:
+  packages: write
+
+jobs:
+  prune:
+    name: Prune the branch libs cache
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6.0.2
+      - name: Prune
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PONYLANG_MAIN_READ_PACKAGE_TOKEN: ${{ secrets.PONYLANG_MAIN_READ_PACKAGE_TOKEN }}
+          # Via env, not inline ${{ }}, so a dispatch input can't inject into the
+          # run line. The dry-run flag below resolves to a fixed literal (not raw
+          # input), so it's safe to keep inline.
+          MAX_AGE_DAYS: ${{ inputs.max_age_days || 14 }}
+        run: |
+          python3 .ci-scripts/prune_branch_libs_cache.py \
+            --max-age-days "$MAX_AGE_DAYS" \
+            ${{ inputs.dry_run && '--dry-run' || '' }}
