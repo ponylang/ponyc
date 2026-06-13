@@ -333,11 +333,16 @@ test-full-programs-debug: all
 	@mkdir -p $(outDir)/full-program-tests/debug
 	$(SILENT)cd '$(outDir)' && $(buildDir)/test/full-program-runner/full-program-runner --debugger='$(debuggercmd)' --timeout_s=$(test_full_program_timeout) --max_parallel=1 --compiler=$(outDir)/ponyc --debug --output=$(outDir)/full-program-tests/debug --test_lib=$(outDir)/test_lib $(srcDir)/test/full-program-tests
 
+# stdlib_test_excludes is appended to the stdlib test runner invocation and is
+# empty by default. Set it on the make command line (e.g.
+# stdlib_test_excludes='--exclude=net/Broadcast') to skip environment-sensitive
+# tests on a specific CI leg without affecting any other leg. See the riscv64
+# job in .github/workflows/ponyc-tier3.yml.
 test-stdlib-release: all
-	$(SILENT)cd '$(outDir)' && PONYPATH=.:$(PONYPATH) ./ponyc -b stdlib-release --pic --checktree $(cross_args) ../../packages/stdlib && echo Built `pwd`/stdlib-release && $(cross_runner) $(debuggercmd) ./stdlib-release --sequential
+	$(SILENT)cd '$(outDir)' && PONYPATH=.:$(PONYPATH) ./ponyc -b stdlib-release --pic --checktree $(cross_args) ../../packages/stdlib && echo Built `pwd`/stdlib-release && $(cross_runner) $(debuggercmd) ./stdlib-release --sequential $(stdlib_test_excludes)
 
 test-stdlib-debug: all
-	$(SILENT)cd '$(outDir)' && PONYPATH=.:$(PONYPATH) ./ponyc -d -b stdlib-debug --pic --strip --checktree $(cross_args) ../../packages/stdlib && echo Built `pwd`/stdlib-debug && $(cross_runner) $(debuggercmd) ./stdlib-debug --sequential
+	$(SILENT)cd '$(outDir)' && PONYPATH=.:$(PONYPATH) ./ponyc -d -b stdlib-debug --pic --strip --checktree $(cross_args) ../../packages/stdlib && echo Built `pwd`/stdlib-debug && $(cross_runner) $(debuggercmd) ./stdlib-debug --sequential $(stdlib_test_excludes)
 
 test-examples: all
 	$(SILENT)cd '$(outDir)' && PONYPATH=.:$(PONYPATH) find ../../examples/*/* -name '*.pony' -print | xargs -n 1 dirname | sort -u | grep -v ffi- | xargs -n 1 -I {} ./ponyc -d -s --checktree -o {} {}
