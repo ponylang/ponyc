@@ -248,28 +248,8 @@ LLVMValueRef gen_main(compile_t* c, reach_type_t* t_main, reach_type_t* t_env)
 }
 
 #ifdef PLATFORM_IS_POSIX_BASED
-// genc.cc's c_is_cross_compiling mirrors this (genc runs before a compile_t
-// exists). Keep the two in sync.
-static bool is_cross_compiling(compile_t* c)
-{
-  char* default_triple_str = LLVMGetDefaultTargetTriple();
-  llvm::Triple target(c->opt->triple);
-  llvm::Triple host(default_triple_str);
-  LLVMDisposeMessage(default_triple_str);
-
-  if(target.getArch() != host.getArch())
-    return true;
-
-  // Darwin and MacOSX are different Triple::OSType enum values but the same
-  // platform. The target triple uses "macosx" (after ponyc normalization)
-  // while LLVMGetDefaultTargetTriple returns "darwin"; comparing OS enums
-  // directly misidentifies every native macOS build as cross-compilation.
-  if(target.isMacOSX() && host.isMacOSX())
-    return false;
-
-  return target.getOS() != host.getOS()
-    || target.getEnvironment() != host.getEnvironment();
-}
+// is_cross_compiling, host_is_musl, and system_triple are shared with genc
+// and live in genopt (declared in genopt.h); both take pass_opt_t.
 
 static const char* elf_emulation(compile_t* c)
 {
@@ -343,33 +323,6 @@ static bool file_exists(const char* path)
   return stat(path, &st) == 0;
 }
 
-// Check whether the host is actually musl. LLVM's default target triple
-// may report "gnu" on musl systems (e.g., Alpine's LLVM reports
-// x86_64-unknown-linux-gnu). For native compilation, probe the filesystem
-// rather than trusting the triple.
-// genc.cc's c_host_is_musl mirrors this (genc runs before a compile_t
-// exists). Keep the two in sync.
-static bool host_is_musl(compile_t* c, llvm::Triple::ArchType arch)
-{
-  if(is_cross_compiling(c))
-    return false;
-
-  const char* musl_linker = NULL;
-  switch(arch)
-  {
-    case llvm::Triple::x86_64:  musl_linker = "/lib/ld-musl-x86_64.so.1"; break;
-    case llvm::Triple::aarch64: musl_linker = "/lib/ld-musl-aarch64.so.1"; break;
-    case llvm::Triple::riscv64: musl_linker = "/lib/ld-musl-riscv64.so.1"; break;
-    case llvm::Triple::arm:
-    case llvm::Triple::thumb:
-      return file_exists("/lib/ld-musl-armhf.so.1")
-        || file_exists("/lib/ld-musl-arm.so.1");
-    default: return false;
-  }
-
-  return file_exists(musl_linker);
-}
-
 static const char* dynamic_linker_path(compile_t* c)
 {
   llvm::Triple triple(c->opt->triple);
@@ -391,7 +344,7 @@ static const char* dynamic_linker_path(compile_t* c)
   if(target_is_openbsd(c->opt->triple))
     return "/usr/libexec/ld.so";
 
-  bool is_musl = triple.isMusl() || host_is_musl(c, triple.getArch());
+  bool is_musl = triple.isMusl() || host_is_musl(c->opt);
 
   switch(triple.getArch())
   {
@@ -420,17 +373,6 @@ static const char* dynamic_linker_path(compile_t* c)
     }
     default: return NULL;
   }
-}
-
-// genc.cc's c_system_triple mirrors this (genc runs before a compile_t
-// exists). Keep the two in sync.
-static const char* system_triple(compile_t* c)
-{
-  llvm::Triple triple(c->opt->triple);
-  std::string result = std::string(triple.getArchName()) + "-"
-    + std::string(triple.getOSName()) + "-"
-    + std::string(triple.getEnvironmentName());
-  return stringtab(c->opt->strtab, result.c_str());
 }
 
 static uint16_t expected_elf_machine(compile_t* c)
@@ -867,7 +809,7 @@ static const char* resolve_sysroot(compile_t* c, const char* sys_triple,
   }
 
   // Native compilation: use host root filesystem.
-  if(!is_cross_compiling(c))
+  if(!is_cross_compiling(c->opt))
     return "";
 
   // Auto-detect from common cross-toolchain locations.
@@ -915,7 +857,7 @@ static bool link_exe_lld_elf(compile_t* c, ast_t* program,
 
   program_lib_build_args_embedded(program, c->opt);
 
-  const char* sys_triple = system_triple(c);
+  const char* sys_triple = system_triple(c->opt);
   bool is_freebsd = target_is_freebsd(c->opt->triple);
   bool is_dragonfly = target_is_dragonfly(c->opt->triple);
   bool is_openbsd = target_is_openbsd(c->opt->triple);
@@ -1336,7 +1278,7 @@ static bool link_exe_lld_elf(compile_t* c, ast_t* program,
   // standard system fallbacks, on FreeBSD the -L<libc_crt_dir> (/usr/lib) push.
   // Don't drop those without accounting for the sanitizer runtime.
   if((target_is_linux(c->opt->triple) || target_is_freebsd(c->opt->triple))
-    && !is_cross_compiling(c))
+    && !is_cross_compiling(c->opt))
   {
     for(size_t i = 0; i < PONY_SANITIZER_LINK_ARGS_COUNT; i++)
       args.push_back(PONY_SANITIZER_LINK_ARGS[i]);
@@ -1816,7 +1758,7 @@ static bool link_exe_lld_macho(compile_t* c, ast_t* program,
   // The fragment uses Mach-O linker flags compatible with ld64.lld.
   // Only splice for native builds — the host-arch-absolute paths are wrong
   // for cross links.
-  if(target_is_macosx(c->opt->triple) && !is_cross_compiling(c))
+  if(target_is_macosx(c->opt->triple) && !is_cross_compiling(c->opt))
   {
     for(size_t i = 0; i < PONY_SANITIZER_LINK_ARGS_COUNT; i++)
       args.push_back(PONY_SANITIZER_LINK_ARGS[i]);
@@ -2082,7 +2024,7 @@ static bool link_exe(compile_t* c, ast_t* program,
     ;
   if(bsd_embed
 #if defined(PONY_SANITIZER)
-    && (is_cross_compiling(c) || target_is_freebsd(c->opt->triple))
+    && (is_cross_compiling(c->opt) || target_is_freebsd(c->opt->triple))
 #endif
     )
   {

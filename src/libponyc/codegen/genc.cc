@@ -159,30 +159,10 @@ private:
 };
 
 
-// Mirrors is_cross_compiling in genexe.cc (which takes compile_t; genc runs
-// before a compile_t exists). Keep the two in sync.
-static bool c_is_cross_compiling(pass_opt_t* opt)
-{
-  char* default_triple_str = LLVMGetDefaultTargetTriple();
-  llvm::Triple target(opt->triple);
-  llvm::Triple host(default_triple_str);
-  LLVMDisposeMessage(default_triple_str);
-
-  if(target.getArch() != host.getArch())
-    return true;
-
-  if(target.isMacOSX() && host.isMacOSX())
-    return false;
-
-  return target.getOS() != host.getOS()
-    || target.getEnvironment() != host.getEnvironment();
-}
-
-
 // macOS-to-macOS builds resolve headers through the SDK, which serves
 // every arch, so an arm64 mac building x86_64-apple-macosx (arch-cross by
-// c_is_cross_compiling) needs no sysroot — the same way the MachO link
-// path never consults resolve_sysroot.
+// is_cross_compiling) needs no sysroot — the same way the MachO link path
+// never consults resolve_sysroot.
 static bool c_is_mac_on_mac(pass_opt_t* opt)
 {
   char* default_triple_str = LLVMGetDefaultTargetTriple();
@@ -191,61 +171,6 @@ static bool c_is_mac_on_mac(pass_opt_t* opt)
   LLVMDisposeMessage(default_triple_str);
 
   return target.isMacOSX() && host.isMacOSX();
-}
-
-
-// Mirrors host_is_musl in genexe.cc (which takes compile_t). Keep the two
-// in sync: the vendored LLVM's default triple may claim "gnu" on musl
-// systems, so native compilation probes for the musl loader instead of
-// trusting the triple.
-static bool c_host_is_musl(pass_opt_t* opt)
-{
-  if(c_is_cross_compiling(opt))
-    return false;
-
-  llvm::Triple triple(opt->triple);
-  const char* musl_linker = NULL;
-
-  switch(triple.getArch())
-  {
-    case llvm::Triple::x86_64:
-      musl_linker = "/lib/ld-musl-x86_64.so.1";
-      break;
-
-    case llvm::Triple::aarch64:
-      musl_linker = "/lib/ld-musl-aarch64.so.1";
-      break;
-
-    case llvm::Triple::riscv64:
-      musl_linker = "/lib/ld-musl-riscv64.so.1";
-      break;
-
-    case llvm::Triple::arm:
-    case llvm::Triple::thumb:
-    {
-      struct stat st;
-      return (stat("/lib/ld-musl-armhf.so.1", &st) == 0)
-        || (stat("/lib/ld-musl-arm.so.1", &st) == 0);
-    }
-
-    default:
-      return false;
-  }
-
-  struct stat st;
-  return stat(musl_linker, &st) == 0;
-}
-
-
-// The arch-os-environment form distros use for multiarch directories
-// (e.g. x86_64-linux-gnu). Mirrors system_triple in genexe.cc.
-static const char* c_system_triple(pass_opt_t* opt)
-{
-  llvm::Triple triple(opt->triple);
-  std::string result = std::string(triple.getArchName()) + "-"
-    + std::string(triple.getOSName()) + "-"
-    + std::string(triple.getEnvironmentName());
-  return stringtab(opt->strtab, result.c_str());
 }
 
 
@@ -304,7 +229,7 @@ static const char* c_shim_sysroot(pass_opt_t* opt, errors_t* errors)
   if(opt->sysroot != NULL && opt->sysroot[0] != '\0')
     return stringtab(opt->strtab, opt->sysroot);
 
-  if(!c_is_cross_compiling(opt) || c_is_mac_on_mac(opt))
+  if(!is_cross_compiling(opt) || c_is_mac_on_mac(opt))
     return "";
 
   errorf(errors, NULL,
@@ -465,7 +390,7 @@ static bool add_system_include_args(pass_opt_t* opt, const char* sysroot,
 
   char multiarch[FILENAME_MAX];
   int written = snprintf(multiarch, sizeof(multiarch), "/usr/include/%s",
-    c_system_triple(opt));
+    system_triple(opt));
 
   if((written >= 0) && ((size_t)written < sizeof(multiarch)))
     any |= push_isystem(opt, args, errors, "-internal-externc-isystem",
@@ -792,7 +717,7 @@ bool genc(ast_t* program, pass_opt_t* opt)
   bool builtin_include_last;
   {
     llvm::Triple target_triple(opt->triple);
-    builtin_include_last = target_triple.isMusl() || c_host_is_musl(opt);
+    builtin_include_last = target_triple.isMusl() || host_is_musl(opt);
   }
 
   int written = snprintf(buf, sizeof(buf), "%s%cinclude", resource_dir,

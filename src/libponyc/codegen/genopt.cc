@@ -29,7 +29,10 @@
 #include "llvm_config_end.h"
 
 #include "../../libponyrt/mem/heap.h"
+#include "../ast/stringtab.h"
 #include "ponyassert.h"
+
+#include <sys/stat.h>
 
 using namespace llvm;
 
@@ -1260,4 +1263,63 @@ bool target_is_littleendian(char* t)
   Triple triple = Triple(t);
 
   return triple.isLittleEndian();
+}
+
+bool is_cross_compiling(pass_opt_t* opt)
+{
+  char* default_triple_str = LLVMGetDefaultTargetTriple();
+  Triple target(opt->triple);
+  Triple host(default_triple_str);
+  LLVMDisposeMessage(default_triple_str);
+
+  if(target.getArch() != host.getArch())
+    return true;
+
+  // Darwin and MacOSX are different Triple::OSType enum values but the same
+  // platform. The target triple uses "macosx" (after ponyc normalization)
+  // while LLVMGetDefaultTargetTriple returns "darwin"; comparing OS enums
+  // directly misidentifies every native macOS build as cross-compilation.
+  if(target.isMacOSX() && host.isMacOSX())
+    return false;
+
+  return target.getOS() != host.getOS()
+    || target.getEnvironment() != host.getEnvironment();
+}
+
+bool host_is_musl(pass_opt_t* opt)
+{
+  if(is_cross_compiling(opt))
+    return false;
+
+  Triple triple(opt->triple);
+  const char* musl_linker = NULL;
+
+  switch(triple.getArch())
+  {
+    case Triple::x86_64:  musl_linker = "/lib/ld-musl-x86_64.so.1"; break;
+    case Triple::aarch64: musl_linker = "/lib/ld-musl-aarch64.so.1"; break;
+    case Triple::riscv64: musl_linker = "/lib/ld-musl-riscv64.so.1"; break;
+
+    case Triple::arm:
+    case Triple::thumb:
+    {
+      struct stat st;
+      return (stat("/lib/ld-musl-armhf.so.1", &st) == 0)
+        || (stat("/lib/ld-musl-arm.so.1", &st) == 0);
+    }
+
+    default: return false;
+  }
+
+  struct stat st;
+  return stat(musl_linker, &st) == 0;
+}
+
+const char* system_triple(pass_opt_t* opt)
+{
+  Triple triple(opt->triple);
+  std::string result = std::string(triple.getArchName()) + "-"
+    + std::string(triple.getOSName()) + "-"
+    + std::string(triple.getEnvironmentName());
+  return stringtab(opt->strtab, result.c_str());
 }
