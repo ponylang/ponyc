@@ -20,6 +20,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Fix runtime crash in optimized builds for types with 128-bit fields ([PR #5464](https://github.com/ponylang/ponyc/pull/5464))
 - Fix `UDPSocket.set_multicast_interface` not setting the interface ([PR #5481](https://github.com/ponylang/ponyc/pull/5481))
 - Fix `UDPSocket.set_multicast_loopback` and `set_multicast_ttl` having no effect ([PR #5481](https://github.com/ponylang/ponyc/pull/5481))
+- Fix Windows process crash when a UDP socket fails to listen ([PR #5483](https://github.com/ponylang/ponyc/pull/5483))
 
 ### Added
 
