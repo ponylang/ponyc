@@ -378,6 +378,12 @@ actor UDPSocket is AsioEventNotify
     This is used only with IOCP on Windows.
     """
     ifdef windows then
+      // On a failed listen `_event` is null; the constructors still call us
+      // unconditionally right after `_notify_listening`. Passing the null
+      // event to `pony_os_recvfrom` is safe -- the runtime guards it and
+      // returns an error (issue #5474) -- which lands in the error arm
+      // below and closes the already-dead socket.
+      //
       // `count` is unused on this path: Windows IOCP `pony_os_recvfrom`
       // returns OK with count=0 because the actual byte count arrives
       // asynchronously via `_complete_reads`. The local is required by

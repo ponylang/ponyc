@@ -432,6 +432,12 @@ static bool iocp_accept(asio_event_t* ev)
 
 static bool iocp_recv(asio_event_t* ev, char* data, size_t len)
 {
+  // Uphold the same null-event contract as iocp_recvfrom (see issue #5474):
+  // a null event means the socket never came up, so report failure instead
+  // of dereferencing it and crashing the process.
+  if(ev == NULL)
+    return false;
+
   SOCKET s = (SOCKET)ev->fd;
   iocp_t* iocp = iocp_create(IOCP_RECV, ev);
   DWORD received;
@@ -483,6 +489,13 @@ static bool iocp_sendto(int fd, const char* data, size_t len,
 static bool iocp_recvfrom(asio_event_t* ev, char* data, size_t len,
   ipaddress_t* ipaddr)
 {
+  // A failed UDP listen leaves the Pony-side socket with a null event
+  // (pony_os_listen_udp* returns NULL; see issue #5474). Dereferencing it
+  // here would crash the process, so report failure instead and let the
+  // caller close.
+  if(ev == NULL)
+    return false;
+
   SOCKET s = (SOCKET)ev->fd;
   iocp_t* iocp = iocp_create(IOCP_RECV, ev);
   DWORD flags = 0;
