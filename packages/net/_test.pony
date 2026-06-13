@@ -3,6 +3,7 @@ use "pony_test"
 use "time"
 
 use @pony_os_ip_string[Pointer[U8]](src: Pointer[U8] tag, len: I32)
+use @if_indextoname[Pointer[U8]](ifindex: U32, ifname: Pointer[U8] tag)
 
 primitive TimeoutValue
   fun apply(): U64 =>
@@ -19,6 +20,8 @@ actor \nodoc\ Main is TestList
 
   fun tag tests(test: PonyTest) =>
     // Tests below function across all systems and are listed alphabetically
+    test(_TestDNSBroadcastIP4)
+    test(_TestDNSBroadcastIP6)
     test(_TestOsIpString)
     test(_TestSocketResultDecoder)
     test(_TestTCPConnectionFailed)
@@ -29,11 +32,27 @@ actor \nodoc\ Main is TestList
     test(_TestTCPProxy)
     test(_TestTCPUnmute)
     test(_TestTCPWritev)
+    test(_TestUnicastIP6Loopback)
+
+    // Tests below run only on linux and are listed alphabetically
+    ifdef linux then
+      test(_TestBroadcastReceive)
+      test(_TestUDPCloseOnSendFailure)
+    end
 
     // Tests below exclude windows and are listed alphabetically
     ifdef not windows then
       test(_TestTCPConnectionToClosedServerFailed)
       test(_TestTCPThrottle)
+      test(_TestUDPListenFailure)
+    end
+
+    // Tests below run only on linux and freebsd
+    ifdef linux or freebsd then
+      // macOS, DragonFly, and OpenBSD: the lo0 multicast send fails in
+      // the GitHub Actions CI environment (socket closed before
+      // delivery); see _TestMulticastIP6's docstring.
+      test(_TestMulticastIP6)
     end
 
     // Tests below exclude osx and are listed alphabetically
@@ -58,9 +77,28 @@ class \nodoc\ _TestPing is UDPNotify
         DNS.broadcast_ip4(auth, service)
       end
 
-      list(0)?
+      let addr = list(0)?
+
+      // Pin the destination actually used for the ping. Without this, a
+      // broadcast_ip4 regression (or a quiet retargeting of this test) is
+      // masked by the pong socket's INADDR_ANY bind, which completes the
+      // test on any datagram reaching the port.
+      _h.assert_true(addr.ip4())
+      _h.assert_eq[U16](addr.port(), service.u16()?)
+      ifdef bsd then
+        // The empty-host result is rewritten by the runtime's
+        // map_any_to_loopback, deterministically 127.0.0.1.
+        _h.assert_eq[U32](addr.ipv4_addr(), 0x7F00_0001)
+      else
+        _h.assert_eq[U32](addr.ipv4_addr(), U32.max_value())
+      end
+
+      addr
     else
-      _h.fail("Couldn't make broadcast address")
+      // Coarse on purpose: this else also covers the port-conversion
+      // error path above, which is unreachable for the numeric service
+      // strings name() produces.
+      _h.fail("Couldn't make or verify broadcast address")
       ip
     end
 
@@ -178,7 +216,10 @@ class \nodoc\ iso _TestBroadcast is UnitTest
   replies "pong!" to the ping socket's address by ordinary unicast. Passing
   proves a successful send to the broadcast address with SO_BROADCAST set,
   plus the reply; the receiving socket is bound to INADDR_ANY, so reception
-  itself is not broadcast-specific.
+  itself is not broadcast-specific (net/BroadcastReceive covers that on
+  linux). The resolved destination is asserted in _TestPing, so a regression
+  in DNS.broadcast_ip4 or a quiet retargeting of the ping cannot keep this
+  test green.
 
   Both sockets are explicitly IPv4. The default UDPSocket constructor binds
   whichever address family getaddrinfo returns first, and IPv6 has no
@@ -192,9 +233,7 @@ class \nodoc\ iso _TestBroadcast is UnitTest
   fun exclusion_group(): String => "network"
 
   fun ref apply(h: TestHelper) =>
-    h.expect_action("pong create")
     h.expect_action("pong listen")
-    h.expect_action("ping create")
     h.expect_action("ping listen")
     h.expect_action("pong receive")
     h.expect_action("ping receive")
@@ -210,6 +249,820 @@ class \nodoc\ iso _TestBroadcast is UnitTest
       If it does, try re-running the tests with the firewall de-activated, or
       exclude this test by passing the --exclude="net/Broadcast" option.
     """)
+
+class \nodoc\ _TestBroadcastReceiver is UDPNotify
+  let _h: TestHelper
+  var _expected: String = ""
+
+  new create(h: TestHelper) =>
+    _h = h
+
+  fun ref not_listening(sock: UDPSocket ref) =>
+    _h.fail_action("broadcast receive listen")
+
+  fun ref listening(sock: UDPSocket ref) =>
+    _h.complete_action("broadcast receive listen")
+
+    let ip = sock.local_address()
+
+    // Bind-address pin: a receiver that silently fell back to INADDR_ANY
+    // would still receive the broadcast datagram (net/Broadcast's pong
+    // socket proves so), quietly voiding this test's discrimination claim.
+    // The wildcard case is observable because the runtime rewrites an
+    // any-bound sockname to loopback, so this fails loudly. It pins the
+    // bind address only -- 0xFFFFFFFF is a byte-swap palindrome, so it
+    // makes no byte-order claim (that pin lives in net/DNSBroadcastIP4).
+    _h.assert_true(ip.ip4())
+    _h.assert_eq[U32](ip.ipv4_addr(), U32.max_value())
+
+    // The port-embedded payload makes a false match require a foreign
+    // sender hitting our ephemeral port with a payload naming that same
+    // port -- designed out rather than assumed away.
+    _expected = "bcast:" + ip.port().string()
+
+    let h = _h
+    _h.dispose_when_done(
+      UDPSocket.ip4(UDPAuth(h.env.root),
+        recover _TestBroadcastSender(h, ip.port(), _expected) end))
+
+  fun ref received(
+    sock: UDPSocket ref,
+    data: Array[U8] iso,
+    from: NetAddress)
+  =>
+    let s = String .> append(consume data)
+    if s == _expected then
+      // Not claimed as from-fidelity coverage; consistency with the other
+      // receive handlers in this file.
+      _h.assert_true(from.ip4())
+      // Completing the last expected action completes the test; the
+      // delivery action is what makes completion require delivery.
+      _h.complete_action("broadcast receive")
+    else
+      // A 255.255.255.255-bound receiver sees any broadcast datagram that
+      // reaches its port; foreign traffic is environmental, not a
+      // regression. Keep waiting -- the retransmit timer guarantees a
+      // matching datagram if delivery works.
+      _h.log("ignoring unexpected datagram (" + s.size().string() +
+        " bytes)")
+    end
+
+class \nodoc\ _TestBroadcastSender is UDPNotify
+  """
+  No closed handler: broadcast send is known-good on the linux legs this
+  test runs on, so a send-error close is a regression and surfaces as a
+  timeout failure.
+  """
+  let _h: TestHelper
+  let _port: U16
+  let _payload: String
+
+  new create(h: TestHelper, port: U16, payload: String) =>
+    _h = h
+    _port = port
+    _payload = payload
+
+  fun ref not_listening(sock: UDPSocket ref) =>
+    _h.fail_action("broadcast send listen")
+
+  fun ref listening(sock: UDPSocket ref) =>
+    _h.complete_action("broadcast send listen")
+
+    try
+      let list: Array[NetAddress] val =
+        DNS.broadcast_ip4(DNSAuth(_h.env.root), _port.string())
+      let dest = list(0)?
+
+      // Anchor the discrimination claim to this test's own destination.
+      _h.assert_eq[U32](dest.ipv4_addr(), U32.max_value())
+
+      sock.set_broadcast(true)
+      sock.write(_payload, dest)
+
+      // Retransmit until completion: UDP loss is in-spec (see
+      // net/Broadcast).
+      let udp: UDPSocket tag = sock
+      let payload = _payload
+      let timers = Timers
+      timers(Timer(
+        object iso is TimerNotify
+          fun ref apply(timer: Timer, count: U64): Bool =>
+            udp.write(payload, dest)
+            true
+        end,
+        250_000_000, 250_000_000))
+      _h.dispose_when_done(timers)
+    else
+      // complete(false) so the failure reports immediately instead of
+      // burning the long-test timeout on actions that can never complete.
+      _h.fail("couldn't resolve broadcast destination")
+      _h.complete(false)
+    end
+
+class \nodoc\ iso _TestBroadcastReceive is UnitTest
+  """
+  Broadcast-discriminating delivery: the receiver is bound to
+  255.255.255.255 itself, which on Linux receives only broadcast-addressed
+  datagrams -- unicast to the same port is not delivered. (Binding a
+  specific unicast interface address receives no broadcast at all, so that
+  is not a usable discriminator.) Completion therefore proves the datagram
+  that arrived was broadcast-addressed -- the proof net/Broadcast cannot
+  give, since its receiver binds INADDR_ANY.
+
+  net/Broadcast already makes set_broadcast load-bearing on these legs via
+  its send side; what this test adds is the receive-side discrimination.
+  Linux-only: bind-to-broadcast semantics are Linux-verified; BSD differs
+  and macOS/Windows are unverified.
+  """
+  fun name(): String => "net/BroadcastReceive"
+  fun exclusion_group(): String => "network"
+
+  fun ref apply(h: TestHelper) =>
+    h.expect_action("broadcast receive listen")
+    h.expect_action("broadcast send listen")
+    h.expect_action("broadcast receive")
+
+    h.dispose_when_done(
+      UDPSocket.ip4(UDPAuth(h.env.root),
+        recover _TestBroadcastReceiver(h) end,
+        "255.255.255.255"))
+
+    h.long_test(TimeoutValue())
+
+  fun ref timed_out(h: TestHelper) =>
+    h.log("""
+      This test may fail if you have a firewall (such as firewalld) running.
+      If it does, try re-running the tests with the firewall de-activated,
+      or exclude this test by passing the --exclude="net/Broadcast" option.
+      That prefix also matching this test is deliberate: both tests depend
+      on the same broadcast capability.
+    """)
+
+class \nodoc\ iso _TestDNSBroadcastIP4 is UnitTest
+  """
+  DNS.broadcast_ip4 must resolve to exactly 255.255.255.255 at the
+  requested port. Before the destination pin in _TestPing, a regression
+  here was masked by net/Broadcast's receive side; this test remains the
+  only broadcast_ip4 coverage on macOS (where net/Broadcast doesn't run)
+  and on BSD (where net/Broadcast's BSD branch bypasses broadcast_ip4).
+
+  The service sweep 1/12345/65534 (0x0001/0x3039/0xFFFE) is byte-order
+  asymmetric so a dropped ntohs in NetAddress.port() fails; 0 and 65535
+  are excluded as byte-swap palindromes (0x0000/0xFFFF) that cannot catch
+  one. One value suffices to pin the ntohs placement -- the service value
+  crosses no branch in net code, so a generated property over services
+  would exercise libc's parsing, not this package; the extra values
+  document the boundary shape.
+
+  The companion 127.0.0.1 resolve pins NetAddress.ipv4_addr() byte order:
+  255.255.255.255 (0xFFFFFFFF) is itself a byte-swap palindrome, so only
+  the asymmetric 0x7F000001 catches a dropped ntohl.
+  """
+  fun name(): String => "net/DNSBroadcastIP4"
+
+  fun ref apply(h: TestHelper) =>
+    let auth = DNSAuth(h.env.root)
+
+    for (service, port) in
+      [as (String, U16): ("1", 1); ("12345", 12345); ("65534", 65534)]
+        .values()
+    do
+      let broadcast: Array[NetAddress] val = DNS.broadcast_ip4(auth, service)
+      h.assert_true(broadcast.size() >= 1,
+        "broadcast_ip4(" + service + ") resolved no addresses")
+      for addr in broadcast.values() do
+        h.assert_true(addr.ip4())
+        h.assert_false(addr.ip6())
+        h.assert_eq[U32](addr.ipv4_addr(), U32.max_value())
+        h.assert_eq[U16](addr.port(), port)
+      end
+
+      let loopback: Array[NetAddress] val =
+        DNS.ip4(auth, "127.0.0.1", service)
+      h.assert_true(loopback.size() >= 1,
+        "ip4(127.0.0.1, " + service + ") resolved no addresses")
+      for addr in loopback.values() do
+        h.assert_true(addr.ip4())
+        h.assert_false(addr.ip6())
+        h.assert_eq[U32](addr.ipv4_addr(), 0x7F00_0001)
+        h.assert_eq[U16](addr.port(), port)
+      end
+    end
+
+class \nodoc\ iso _TestDNSBroadcastIP6 is UnitTest
+  """
+  DNS.broadcast_ip6 must resolve to exactly FF02::1 (the all-nodes
+  multicast address) at the requested port. Same sweep rationale as
+  net/DNSBroadcastIP4.
+
+  Gate: ::1 is first resolved with no family pinned (DNS.apply). If no
+  IPv6 address comes back on linux, the environment has no usable IPv6
+  (the resolver applies AI_ADDRCONFIG; true of the glibc containers CI
+  uses) and the test passes vacuously with a log line; elsewhere an
+  unresolvable ::1 is itself treated as a failure. The gate deliberately
+  avoids DNS.ip6: a family-routing regression in ip6/_resolve would break
+  a DNS.ip6 gate too and convert this test into a vacuous pass on the
+  linux legs, while with the family-0 gate the mix-up reaches the body and
+  fails wherever the gate passed.
+
+  Which legs run the strict body is an environment fact, not a code fact
+  (no glibc/musl ifdef exists to pin it): if a CI image loses IPv6, the
+  body flips to a vacuous pass there with nothing failing, and the skip
+  log is visible only under --verbose. The musl container runs the body
+  strictly today but is itself drift-exposed; the durable strict legs are
+  macOS (per-PR and nightly Intel) and the BSDs (weekly). The other
+  IPv6 tests' gates (net/MulticastIP6, net/UnicastIP6Loopback) share this
+  drift risk. scope() is deliberately not asserted -- unzoned resolution
+  scope is OS-determined, not part of broadcast_ip6's promise.
+  """
+  fun name(): String => "net/DNSBroadcastIP6"
+
+  fun ref apply(h: TestHelper) =>
+    let auth = DNSAuth(h.env.root)
+
+    // Environment gate: runs once, before the sweep.
+    var gate_ip6 = false
+    let gate: Array[NetAddress] val = DNS(auth, "::1", "1")
+    for addr in gate.values() do
+      if addr.ip6() then gate_ip6 = true end
+    end
+    if not gate_ip6 then
+      ifdef linux then
+        h.log("no usable IPv6 (::1 unresolvable); skipping assertions")
+      else
+        h.fail("::1 did not resolve to an IPv6 address")
+      end
+      return
+    end
+
+    for (service, port) in
+      [as (String, U16): ("1", 1); ("12345", 12345); ("65534", 65534)]
+        .values()
+    do
+      let list: Array[NetAddress] val = DNS.broadcast_ip6(auth, service)
+      h.assert_true(list.size() >= 1,
+        "broadcast_ip6(" + service + ") resolved no addresses")
+      for addr in list.values() do
+        h.assert_true(addr.ip6())
+        h.assert_false(addr.ip4())
+        (let a1, let a2, let a3, let a4) = addr.ipv6_addr()
+        h.assert_eq[U32](a1, 0xFF02_0000)
+        h.assert_eq[U32](a2, 0)
+        h.assert_eq[U32](a3, 0)
+        h.assert_eq[U32](a4, 1)
+        h.assert_eq[U16](addr.port(), port)
+      end
+    end
+
+class \nodoc\ _TestMulticastIP6Notify is UDPNotify
+  let _h: TestHelper
+  let _group: String
+  var _expected: String = ""
+  var _done: Bool = false
+
+  new create(h: TestHelper, group: String) =>
+    _h = h
+    _group = group
+
+  fun ref not_listening(sock: UDPSocket ref) =>
+    _h.fail_action("multicast listen")
+
+  fun ref listening(sock: UDPSocket ref) =>
+    _h.complete_action("multicast listen")
+
+    _h.assert_true(sock.local_address().ip6())
+
+    // Execution-only smoke for set_broadcast's IPv6 arm: it joins FF02::1
+    // on an unpinned interface and ignores its argument (issue #5472).
+    // Delivery in this test does not depend on this call, and no assertion
+    // targets its effect -- kernel auto-membership in the all-nodes group
+    // makes the join unobservable from here. The IPv6 arm is NOT
+    // behaviorally covered.
+    sock.set_broadcast(true)
+
+    // Join on the interface carried by the scoped literal's zone id. The
+    // `to` argument is resolved by the runtime and its sin6_scope_id
+    // selects the join interface, so it must be a scoped literal -- a bare
+    // interface name would fail resolution and silently degrade to
+    // interface 0.
+    sock.multicast_join(_group, _group)
+
+    try
+      let port = sock.local_address().port()
+      let list: Array[NetAddress] val =
+        DNS.ip6(DNSAuth(_h.env.root), _group, port.string())
+      // Hard fail on empty: the group-resolution gate in the test's apply
+      // already proved this literal resolves here, so an empty result now
+      // is a regression, not environment.
+      let dest = list(0)?
+
+      _h.assert_true(dest.ip6())
+      // Full-tuple pin: all four words nonzero, pairwise distinct, and
+      // byte-order asymmetric, so a dropped ntohl on ANY word of
+      // ipv6_addr() fails here -- live even on legs whose send is
+      // environmentally absorbed in closed() below.
+      (let a1, let a2, let a3, let a4) = dest.ipv6_addr()
+      _h.assert_eq[U32](a1, 0xFF12_1122)
+      _h.assert_eq[U32](a2, 0x3344_5566)
+      _h.assert_eq[U32](a3, 0x7788_99AA)
+      _h.assert_eq[U32](a4, 0xBBCC_DDEE)
+      // Swap-invariant (!= 0) on purpose: scope()'s byte order is suspect;
+      // what matters here is that the zone id survived resolution into the
+      // NetAddress at all.
+      _h.assert_ne[U32](dest.scope(), 0)
+
+      _expected = "mc6:" + port.string()
+      sock.write(_expected, dest)
+
+      // Retransmit until completion: UDP loss is in-spec (see
+      // net/Broadcast).
+      let udp: UDPSocket tag = sock
+      let payload = _expected
+      let timers = Timers
+      timers(Timer(
+        object iso is TimerNotify
+          fun ref apply(timer: Timer, count: U64): Bool =>
+            udp.write(payload, dest)
+            true
+        end,
+        250_000_000, 250_000_000))
+      _h.dispose_when_done(timers)
+    else
+      // complete(false) so the failure reports immediately instead of
+      // burning the long-test timeout on actions that can never complete.
+      _h.fail("couldn't resolve " + _group + " after the gate proved it")
+      _h.complete(false)
+    end
+
+  fun ref received(
+    sock: UDPSocket ref,
+    data: Array[U8] iso,
+    from: NetAddress)
+  =>
+    let s = String .> append(consume data)
+    if s == _expected then
+      _h.assert_true(from.ip6())
+      _done = true
+      // Strict-path completion marker: counterfactual runs key on this
+      // line (see the test docstring).
+      _h.log("mc6 delivered on " + _group)
+      // Completing the last expected action completes the test; the
+      // delivery action is what makes completion require delivery.
+      _h.complete_action("multicast receive")
+    else
+      _h.log("ignoring unexpected datagram (" + s.size().string() +
+        " bytes)")
+    end
+
+  fun ref closed(sock: UDPSocket ref) =>
+    if not _done then
+      ifdef linux then
+        // Environmental absorber: on the musl CI leg (and routeless hosts)
+        // the multicast send fails ENETUNREACH and the runtime closes the
+        // socket. Vacuous on this leg BY DESIGN; the send path stays
+        // strict on FreeBSD (weekly tier-3) and on multicast-capable
+        // dev machines. complete(true) finishes
+        // immediately, without waiting for the outstanding "multicast
+        // receive" action.
+        _h.log("socket closed before delivery; treating as environmental" +
+          " (no IPv6 multicast route)")
+        _h.complete(true)
+      else
+        _h.fail("socket closed before delivery")
+        _h.complete(false)
+      end
+    end
+
+class \nodoc\ iso _TestMulticastIP6 is UnitTest
+  """
+  Deterministic IPv6 multicast round trip: a single socket joins a
+  transient multicast group on an explicitly chosen interface, sends a
+  datagram to the scoped group at its own port, and receives it back via
+  the default-on IPV6_MULTICAST_LOOP.
+
+  The group is transient (ff12::/16) by necessity, not whim: every
+  interface is implicitly a member of the FF02::1 all-nodes group, so an
+  FF02::1 round trip succeeds even with the join deleted -- it cannot
+  prove the join works. Delivery of a transient group requires the
+  explicit join, which makes multicast_join (and the runtime's
+  scope-derived interface selection behind it) load-bearing here. The
+  group's four 32-bit words are nonzero, pairwise distinct, and byte-order
+  asymmetric on purpose; see the tuple pin in the notify.
+
+  Interface/scope handling is explicit throughout because unscoped
+  multicast sends fail (EADDRNOTAVAIL) on hosts without a default
+  multicast route -- the nondeterminism that made the old accidental IPv6
+  coverage flaky. On Linux the loopback interface has no MULTICAST flag,
+  so a real interface is scanned for; on FreeBSD lo0 is multicast-capable
+  and used directly (verified by tier-3 CI: the full strict round trip
+  delivers there). macOS, DragonFly, and OpenBSD are excluded at
+  registration: lo0 advertises MULTICAST on all three, yet in the GitHub
+  Actions CI environment the send to the group via lo0 fails identically
+  on each (socket closed before delivery; PR #5475's first macOS and
+  tier-3 runs).
+
+  Environment gates (log-visible vacuous passes, linux only): no usable
+  IPv6 at all (glibc docker CI); no candidate interface; scoped-literal
+  resolution failure. After the gates, failures are real failures --
+  except a pre-delivery socket close on linux, which is the musl docker
+  leg's ENETUNREACH (see the notify's closed()). No per-PR CI leg runs
+  the full strict round trip (Linux gates or absorbs as above; Windows,
+  macOS, DragonFly, and OpenBSD are excluded), so strict delivery
+  enforcement lives on the weekly tier-3 FreeBSD legs and on
+  multicast-capable dev machines; which legs run strict is an
+  environment fact and can drift with CI images (see the drift note in
+  net/DNSBroadcastIP6).
+
+  Counterfactual protocol: confirm the "mc6 delivered on" marker appears
+  (--verbose) BEFORE trusting any mutation run -- a mutation "timeout"
+  against a vacuously-passing baseline proves nothing.
+  """
+  fun name(): String => "net/MulticastIP6"
+  fun exclusion_group(): String => "network"
+
+  fun ref apply(h: TestHelper) =>
+    let auth = DNSAuth(h.env.root)
+
+    // Environment pre-gate: any usable IPv6 at all?
+    if not _resolves_ip6(auth, "::1") then
+      ifdef linux then
+        h.log("no usable IPv6 (::1 unresolvable); skipping")
+      else
+        h.fail("::1 did not resolve to an IPv6 address")
+      end
+      return
+    end
+
+    match _scoped_group()
+    | None =>
+      ifdef linux then
+        h.log("no candidate multicast interface among if_indextoname " +
+          "indices 1..64; skipping")
+      else
+        h.fail("no candidate multicast interface")
+      end
+    | let group: String =>
+      // Group-resolution gate: the scoped literal must resolve here for
+      // the body's resolution to be a hard assertion.
+      if not _resolves_ip6(auth, group) then
+        ifdef linux then
+          h.log("scoped group " + group + " unresolvable; skipping")
+        else
+          h.fail("scoped group " + group + " did not resolve")
+        end
+        return
+      end
+
+      h.log("using scoped group " + group)
+      h.expect_action("multicast listen")
+      h.expect_action("multicast receive")
+      h.dispose_when_done(
+        UDPSocket.ip6(UDPAuth(h.env.root),
+          recover _TestMulticastIP6Notify(h, group) end))
+      h.long_test(TimeoutValue())
+    end
+
+  fun ref timed_out(h: TestHelper) =>
+    h.log("""
+      This test needs an UP, multicast-capable, IPv6-enabled interface. A
+      firewall may also block link-local multicast. You can exclude this
+      test by passing the --exclude="net/MulticastIP6" option.
+    """)
+
+  fun _resolves_ip6(auth: DNSAuth, host: String): Bool =>
+    let list: Array[NetAddress] val = DNS.ip6(auth, host, "0")
+    list.size() > 0
+
+  fun _scoped_group(): (String | None) =>
+    """
+    The transient group pinned to a multicast-capable interface, or None
+    when no candidate interface exists.
+    """
+    let group = "ff12:1122:3344:5566:7788:99aa:bbcc:ddee"
+    ifdef freebsd then
+      // Loopback multicast delivery is verified working on FreeBSD
+      // (tier-3 CI); the other lo0 platforms are excluded at
+      // registration.
+      group + "%lo0"
+    elseif linux then
+      match _linux_interface()
+      | let name': String => group + "%" + name'
+      | None => None
+      end
+    else
+      // Never registered elsewhere (windows, osx, dragonfly, and
+      // openbsd are excluded at registration).
+      None
+    end
+
+  fun _linux_interface(): (String | None) =>
+    """
+    The first interface from if_indextoname indices 1..64 that isn't "lo"
+    (the Linux loopback has no MULTICAST flag). Indices are neither
+    contiguous nor bounded by 64, but 1..64 covers realistic hosts; a miss
+    is a log-visible vacuous pass upstream, never a failure. No
+    IFF_MULTICAST check is made: a multicast-incapable pick funnels into
+    the notify's closed() absorber, which is also log-visible.
+    """
+    var i: U32 = 1
+    while i <= 64 do
+      let name' = recover val
+        // if_indextoname requires a buffer of at least IF_NAMESIZE (16)
+        // bytes and returns NULL when the index names no interface.
+        let buf = Array[U8] .> undefined(16)
+        if @if_indextoname(i, buf.cpointer()).is_null() then
+          ""
+        else
+          var len: USize = 0
+          for b in buf.values() do
+            if b == 0 then break end
+            len = len + 1
+          end
+          buf.truncate(len)
+          String .> append(buf)
+        end
+      end
+      if (name' != "") and (name' != "lo") then
+        return name'
+      end
+      i = i + 1
+    end
+    None
+
+class \nodoc\ _TestCloseOnSendFailureNotify is UDPNotify
+  let _h: TestHelper
+
+  new create(h: TestHelper) =>
+    _h = h
+
+  fun ref not_listening(sock: UDPSocket ref) =>
+    _h.fail_action("send failure listen")
+
+  fun ref listening(sock: UDPSocket ref) =>
+    _h.complete_action("send failure listen")
+
+    try
+      // The destination port is the socket's own; its value is irrelevant
+      // because the datagram never leaves -- the send fails EACCES.
+      let list: Array[NetAddress] val =
+        DNS.broadcast_ip4(DNSAuth(_h.env.root),
+          sock.local_address().port().string())
+      let dest = list(0)?
+
+      // Deliberately NO set_broadcast(true): sending to the broadcast
+      // address without SO_BROADCAST fails EACCES, and the contract under
+      // test is _write's error arm -- a failed send closes the socket and
+      // delivers closed().
+      sock.write("denied", dest)
+    else
+      // complete(false) so the failure reports immediately instead of
+      // burning the long-test timeout on actions that can never complete.
+      _h.fail("couldn't resolve broadcast destination")
+      _h.complete(false)
+    end
+
+  fun ref closed(sock: UDPSocket ref) =>
+    _h.complete_action("send failure close")
+
+class \nodoc\ iso _TestUDPCloseOnSendFailure is UnitTest
+  """
+  A failed send closes the socket and delivers closed() -- the error arm
+  of UDPSocket._write. The deterministic trigger: sending to the broadcast
+  address without SO_BROADCAST fails EACCES on Linux; this socket
+  deliberately never calls set_broadcast.
+
+  Counterfactual: add set_broadcast(true) and the send succeeds, closed()
+  never fires during the test, and the test fails by timeout -- the
+  closed() expectation is load-bearing.
+
+  Linux-only: the EACCES-without-SO_BROADCAST behavior is Linux-verified.
+  No exclusion_group: the socket binds an ephemeral port and its only
+  datagram never leaves the host (the send fails at the socket layer), so
+  there is no interference surface.
+  """
+  fun name(): String => "net/UDPCloseOnSendFailure"
+
+  fun ref apply(h: TestHelper) =>
+    h.expect_action("send failure listen")
+    h.expect_action("send failure close")
+
+    h.dispose_when_done(
+      UDPSocket.ip4(UDPAuth(h.env.root),
+        recover _TestCloseOnSendFailureNotify(h) end))
+
+    h.long_test(TimeoutValue())
+
+class \nodoc\ _TestListenFailureNotify is UDPNotify
+  let _h: TestHelper
+  let _label: String
+
+  new create(h: TestHelper, label': String) =>
+    _h = h
+    _label = label'
+
+  fun ref not_listening(sock: UDPSocket ref) =>
+    _h.complete_action(_label)
+
+  fun ref listening(sock: UDPSocket ref) =>
+    // The premise broke: this platform produced a listener from a
+    // cross-family literal (e.g. a resolver applying AI_V4MAPPED). Log the
+    // bound address for diagnosis, then fail this arm immediately
+    // (fail_action completes the action as failed; no timeout burn).
+    try
+      (let host, let port) = sock.local_address().name()?
+      _h.log(_label + ": bound to " + host + ":" + port)
+    end
+    _h.log(_label + ": unexpectedly listening -- re-evaluate the test " +
+      "premise on this platform; see the test docstring")
+    sock.dispose()
+    _h.fail_action(_label)
+
+class \nodoc\ iso _TestUDPListenFailure is UnitTest
+  """
+  Asserts that not_listening actually fires. It is the only UDPNotify
+  callback with no default body -- every user is forced to implement it --
+  yet no other test asserts it as an outcome (everywhere else it is a fail
+  path).
+
+  Constructor family x literal family is a 2x2 matrix: the valid cells
+  are covered elsewhere in this file (ip4+v4 by net/Broadcast and
+  net/BroadcastReceive; ip6+v6 by net/MulticastIP6's and
+  net/UnicastIP6Loopback's binds); this test covers both invalid cells
+  (ip6 with a v4 literal, ip4 with a v6 literal). The triggers are
+  implementation-conditioned, deliberately: the runtime resolves with the
+  socket's family and
+  AI_ADDRCONFIG and never AI_V4MAPPED, so a cross-family literal cannot
+  resolve and the listen fails. If dual-stack/AI_V4MAPPED support is ever
+  added intentionally, this test fails loudly (listening fires) and must
+  be updated -- that is the pin working as intended, not flake.
+
+  Not on Windows: a failed UDP listen there crashes the process before
+  anything could be observed (issue #5474). No exclusion_group: neither
+  arm ever binds successfully or emits a datagram, so there is no
+  interference surface.
+  """
+  fun name(): String => "net/UDPListenFailure"
+
+  fun ref apply(h: TestHelper) =>
+    h.expect_action("ip6 ctor with v4 literal refuses to listen")
+    h.expect_action("ip4 ctor with v6 literal refuses to listen")
+
+    h.dispose_when_done(
+      UDPSocket.ip6(UDPAuth(h.env.root),
+        recover
+          _TestListenFailureNotify(h,
+            "ip6 ctor with v4 literal refuses to listen")
+        end,
+        "127.0.0.1"))
+    h.dispose_when_done(
+      UDPSocket.ip4(UDPAuth(h.env.root),
+        recover
+          _TestListenFailureNotify(h,
+            "ip4 ctor with v6 literal refuses to listen")
+        end,
+        "::1"))
+
+    h.long_test(TimeoutValue())
+
+class \nodoc\ _TestUnicastIP6Receiver is UDPNotify
+  let _h: TestHelper
+
+  new create(h: TestHelper) =>
+    _h = h
+
+  fun ref not_listening(sock: UDPSocket ref) =>
+    _h.fail_action("unicast receive listen")
+
+  fun ref listening(sock: UDPSocket ref) =>
+    _h.complete_action("unicast receive listen")
+
+    let ip = sock.local_address()
+    _h.assert_true(ip.ip6())
+    // Sockname pin: deterministic for a ::1-bound socket; the last word
+    // (0x00000001) is byte-order asymmetric. This is the suite's only
+    // value-level pin of pony_os_sockname's IPv6 marshaling. Word-order
+    // coverage of ipv6_addr() across all four words is delegated to
+    // net/MulticastIP6's group tuple.
+    (let a1, let a2, let a3, let a4) = ip.ipv6_addr()
+    _h.assert_eq[U32](a1, 0)
+    _h.assert_eq[U32](a2, 0)
+    _h.assert_eq[U32](a3, 0)
+    _h.assert_eq[U32](a4, 1)
+
+    let h = _h
+    _h.dispose_when_done(
+      UDPSocket.ip6(UDPAuth(h.env.root),
+        recover _TestUnicastIP6Sender(h, ip) end,
+        "::1"))
+
+  fun ref received(
+    sock: UDPSocket ref,
+    data: Array[U8] iso,
+    from: NetAddress)
+  =>
+    let s = String .> append(consume data)
+    _h.assert_eq[String box](s, "ping6!")
+    // The sender is explicitly ::1-bound, so the from address is
+    // determined by this test's inputs, not OS source selection.
+    _h.assert_true(from.ip6())
+    (let a1, let a2, let a3, let a4) = from.ipv6_addr()
+    _h.assert_eq[U32](a1, 0)
+    _h.assert_eq[U32](a2, 0)
+    _h.assert_eq[U32](a3, 0)
+    _h.assert_eq[U32](a4, 1)
+    sock.write("pong6!", from)
+
+class \nodoc\ _TestUnicastIP6Sender is UDPNotify
+  let _h: TestHelper
+  let _dest: NetAddress
+
+  new create(h: TestHelper, dest: NetAddress) =>
+    _h = h
+    _dest = dest
+
+  fun ref not_listening(sock: UDPSocket ref) =>
+    _h.fail_action("unicast send listen")
+
+  fun ref listening(sock: UDPSocket ref) =>
+    _h.complete_action("unicast send listen")
+
+    sock.write("ping6!", _dest)
+
+    // Retransmit until completion: UDP loss is in-spec (see
+    // net/Broadcast).
+    let udp: UDPSocket tag = sock
+    let dest = _dest
+    let timers = Timers
+    timers(Timer(
+      object iso is TimerNotify
+        fun ref apply(timer: Timer, count: U64): Bool =>
+          udp.write("ping6!", dest)
+          true
+      end,
+      250_000_000, 250_000_000))
+    _h.dispose_when_done(timers)
+
+  fun ref received(
+    sock: UDPSocket ref,
+    data: Array[U8] iso,
+    from: NetAddress)
+  =>
+    let s = String .> append(consume data)
+    _h.assert_eq[String box](s, "pong6!")
+    // Completing the last expected action completes the test; the echo
+    // action is what makes completion require the round trip.
+    _h.complete_action("unicast echo")
+
+class \nodoc\ iso _TestUnicastIP6Loopback is UnitTest
+  """
+  IPv6 unicast echo over ::1: pins sockaddr_in6 marshaling on both
+  runtime paths (pony_os_sockname via the receiver's bound-address tuple;
+  pony_os_recvfrom via the from address) and reply-to-from fidelity. Both
+  sockets bind ::1 explicitly so every asserted address is determined by
+  this test's inputs, not by OS source-address selection. The explicit
+  host is executed, not pinned: a host-ignoring wildcard bind produces
+  the same sockname tuple (map_any_to_loopback rewrites :: to ::1) and
+  still receives the echo, so that mutation is not caught here -- the v4
+  analogue IS pinned by net/BroadcastReceive's bind assertion.
+
+  No closed handlers: nothing environmental closes these sockets on any
+  leg past the gate, so timeout is the failure signal. The receive
+  handlers also assert strictly instead of log-and-ignore (unlike
+  net/BroadcastReceive and net/MulticastIP6): only loopback-sourced
+  datagrams can reach these ::1-bound ephemeral ports, so a payload
+  mismatch is our bug, not environment.
+
+  Gate: on linux, an unresolvable ::1 means no usable IPv6 (glibc docker
+  CI) -- a logged vacuous pass; elsewhere it is a failure. Which legs run
+  the strict body is an environment fact and can drift with CI images
+  (see net/DNSBroadcastIP6).
+  """
+  fun name(): String => "net/UnicastIP6Loopback"
+  fun exclusion_group(): String => "network"
+
+  fun ref apply(h: TestHelper) =>
+    let auth = DNSAuth(h.env.root)
+
+    let gate: Array[NetAddress] val = DNS.ip6(auth, "::1", "0")
+    if gate.size() == 0 then
+      ifdef linux then
+        h.log("no usable IPv6 (::1 unresolvable); skipping")
+      else
+        h.fail("::1 did not resolve to an IPv6 address")
+      end
+      return
+    end
+
+    h.expect_action("unicast receive listen")
+    h.expect_action("unicast send listen")
+    h.expect_action("unicast echo")
+
+    h.dispose_when_done(
+      UDPSocket.ip6(UDPAuth(h.env.root),
+        recover _TestUnicastIP6Receiver(h) end,
+        "::1"))
+
+    h.long_test(TimeoutValue())
 
 class \nodoc\ _TestTCP is TCPListenNotify
   """
