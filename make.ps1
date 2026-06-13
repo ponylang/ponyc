@@ -354,7 +354,7 @@ switch ($Command.ToLower())
                 # C shims aren't supported when targeting Windows yet (genc
                 # errors; MSVC include discovery is unimplemented), so the
                 # shim tests are excluded here.
-                $shimExcludes = "c-shim,c-shim-constructor,c-shim-subpackage"
+                $shimExcludes = "c-shim,c-shim-constructor,c-shim-pony-header,c-shim-subpackage"
                 Write-Output "$buildDir\test\full-program-runner\full-program-runner.exe --debug=$debugFlag --debugger=$debuggercmd --timeout_s=120 --max_parallel=1 --debug=$debugFlag --exclude=$shimExcludes --test_lib=$outDir\test_lib --compiler=$outDir\ponyc.exe --output=$runOutDir $srcDir\test\full-program-tests"
                 & $buildDir\test\full-program-runner\full-program-runner.exe --debugger=$debuggercmd --timeout_s=120 --max_parallel=1 --debug=$debugFlag --exclude=$shimExcludes --test_lib=$outDir\test_lib --compiler=$outDir\ponyc.exe --output=$runOutDir $srcDir\test\full-program-tests
                 $err = $LastExitCode

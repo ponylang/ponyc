@@ -757,6 +757,43 @@ TEST_F(CShimTest, ShimObjectPathTooLongIsAnError)
   remove_fixture(fixture, names);
 }
 
+TEST_F(CShimTest, ShimCanIncludePonyHeader)
+{
+  SKIP_ON_WINDOWS();
+
+  // pony.h resolves relative to the running compiler (like stdlib
+  // discovery), so shims can use runtime APIs without the user hard-coding
+  // an installation path in cinclude:. In a build tree this exercises the
+  // ../../src/libponyrt and ../../src/common offsets; pony.h's own
+  // <pony/detail/atomics.h> include covers the second. ponyassert.h is the
+  // load-bearing include for the test: on a dev machine with an installed
+  // ponyc, pony.h ALSO resolves via /usr/local/include (a system include
+  // dir), but ponyassert.h is never installed, so it only resolves through
+  // the compiler-relative dirs this test pins.
+  const char* fixture = "cshim_fixture_ponyh";
+  const char* names[] = {"dummy.pony", "uses_pony_h.c", NULL};
+  const char* contents[] = {
+    "primitive ShimPkg\n",
+    "#include <pony.h>\n"
+    "#include <ponyassert.h>\n"
+    "int shim_msg_size(void) { return (int)sizeof(pony_msg_t); }\n",
+    NULL};
+
+  DO(write_fixture(fixture, names, contents));
+  package_add_magic_path("shimpkg", fixture, &opt);
+
+  const char* src =
+    "use \"shimpkg\"\n"
+    "actor Main\n"
+    "  new create(env: Env) => None";
+
+  TEST_COMPILE(src, "c");
+
+  ASSERT_EQ((size_t)1, program_c_object_count(program));
+  remove(program_c_object_at(program, 0));
+  remove_fixture(fixture, names);
+}
+
 TEST_F(CShimTest, ShimErrorNoteJoinsErrorFrame)
 {
   SKIP_ON_WINDOWS();

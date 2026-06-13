@@ -25,6 +25,8 @@ int32_t shim_answer(void)
 }
 ```
 
+ponyc's own headers are on the include path by default, resolved relative to the running compiler the same way the standard library is found — so a shim can `#include <pony.h>` and call runtime APIs without any configuration, and without hard-coding an installation path that breaks on the next toolchain update.
+
 Two new `use` schemes configure how a package's shims are compiled. `use "cdefine:NAME"` or `use "cdefine:NAME=VALUE"` defines a C preprocessor macro (clang's `-D`), and `use "cinclude:PATH"` adds an include search directory (clang's `-I`), with relative paths resolved against the package's directory. Both apply only to the package that declares them, and both accept guards: `use "cdefine:USE_EPOLL" if linux`. Defining the same macro name twice in one package is an error, whether or not the values match — platform-specific values belong behind guards, where only the active target's definition counts. The macro name must be a plain C identifier: function-like macros (`cdefine:CALLBACK(x)=...`), which clang's `-D` accepts, are rejected — define a regular macro and let the C do the rest. Note that `cdefine:` is a C preprocessor macro for shims only; it is unrelated to ponyc's own `--define`/`-D` flag, which drives Pony's `ifdef`.
 
 The shim sources themselves have no per-file guard: every `.c` in the package directory is compiled on every platform. A platform-specific shim wraps its whole body in `#ifdef` so it compiles to an empty object elsewhere. On macOS, shims resolve system headers through the SDK's `usr/include`; framework-style includes (clang's `-F`) are not supported.

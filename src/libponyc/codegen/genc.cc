@@ -493,6 +493,35 @@ static bool add_system_include_args(pass_opt_t* opt, const char* sysroot,
 }
 
 
+// ponyc's own runtime headers (pony.h and the pony/detail/atomics.h it
+// includes) are on every shim's include path: calling runtime APIs is a
+// core shim use case, and without this users hard-code their installation
+// path in cinclude: ("/home/me/.local/ponyup/ponyc-.../include"), which
+// breaks on every toolchain update. Installed layout: <ponydir>/include,
+// copied by the Makefile install target. Build tree: the headers live in
+// the source tree, split between src/libponyrt (pony.h) and src/common
+// (pony/detail/atomics.h). Directories that don't exist are skipped, so a
+// layout without the headers degrades to a clear pony.h-not-found error,
+// and only for shims that include it.
+static void add_pony_include_args(pass_opt_t* opt,
+  std::vector<const char*>& args, errors_t* errors)
+{
+  char exec_dir[FILENAME_MAX];
+
+  // clang_resource_dir already failed the build if the exe path can't be
+  // determined; this is unreachable in practice.
+  if(!get_compiler_exe_directory(exec_dir, opt->argv0))
+    return;
+
+  push_isystem(opt, args, errors, "-internal-isystem", exec_dir,
+    "../include");
+  push_isystem(opt, args, errors, "-internal-isystem", exec_dir,
+    "../../src/libponyrt");
+  push_isystem(opt, args, errors, "-internal-isystem", exec_dir,
+    "../../src/common");
+}
+
+
 // Compile one C shim source to an object file with the embedded clang.
 static bool compile_shim(pass_opt_t* opt, ast_t* package, const char* src,
   const char* obj, const std::vector<const char*>& common_args)
@@ -763,6 +792,10 @@ bool genc(ast_t* program, pass_opt_t* opt)
     common.push_back("-internal-isystem");
     common.push_back(builtin_include);
   }
+
+  // Like stdlib discovery, ponyc's own headers resolve relative to the
+  // running compiler binary.
+  add_pony_include_args(opt, common, errors);
 
   if(sysroot[0] != '\0')
   {

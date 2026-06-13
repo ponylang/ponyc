@@ -2,6 +2,8 @@
 
 This program calls C code that `ponyc` compiles itself. A `.c` file placed in a package's directory (next to its `.pony` files) is a *C shim*: `ponyc` compiles it with the embedded clang and links the resulting object into the program. There is no separate C build step, no shared library, and no `use "lib:..."` directive — compare with the [ffi-callbacks](../ffi-callbacks/) and [ffi-struct](../ffi-struct/) examples, which link prebuilt libraries.
 
+ponyc's own headers are on the include path by default (resolved relative to the running compiler, like the standard library), so a shim can `#include <pony.h>` and use runtime APIs with no configuration.
+
 Two `use` schemes configure how a package's shims are compiled:
 
 - `use "cdefine:NAME"` or `use "cdefine:NAME=VALUE"` defines a C preprocessor macro (clang's `-D`). Defining the same macro name twice in one package is a compile error.
