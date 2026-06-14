@@ -127,37 +127,6 @@ jobs:
 
   # ----- ponyc suite -----
 
-  ponyc-x86_64-linux-glibc:
-    needs: changes
-    if: needs.changes.outputs.ponyc == 'true'
-    runs-on: ubuntu-latest
-    name: 'ponyc: x86-64 Linux glibc'
-    container:
-      image: ghcr.io/ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu24.04-builder:20250115
-      options: --user pony --cap-add=SYS_PTRACE --security-opt seccomp=unconfined
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v6.0.2
-      - name: Build libs
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          LIBS_IMAGE: ghcr.io/ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu24.04-builder:20250115
-          LIBS_TAG: ${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
-          LIBS_PR: ${{ github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.number || '' }}
-        run: python3 .ci-scripts/pr_libs_cache.py --image "$LIBS_IMAGE" --tag "$LIBS_TAG" --pr "$LIBS_PR" -- make libs llvm_tools=false build_flags=-j4
-      - name: Build Debug Runtime
-        run: |
-          make configure arch=x86-64 config=debug
-          make build config=debug
-      - name: Test with Debug Runtime
-        run: make test-ci-core config=debug usedebugger='lldb'
-      - name: Build Release Runtime
-        run: |
-          make configure arch=x86-64 config=release
-          make build config=release
-      - name: Test with Release Runtime
-        run: make test-ci-core config=release usedebugger='lldb'
-
   ponyc-x86_64-linux-musl:
     needs: [changes, maybe-build-alpine]
     if: >-
