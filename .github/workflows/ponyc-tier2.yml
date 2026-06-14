@@ -44,9 +44,18 @@ jobs:
     if: needs.check-for-changes.outputs.has-changes == 'true'
     runs-on: ubuntu-latest
 
-    name: x86-64 Linux glibc
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - image: ghcr.io/ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu24.04-builder:20250115
+            name: x86-64 Linux glibc deb
+          - image: ghcr.io/ponylang/ponyc-ci-x86-64-unknown-linux-fedora43-builder:20260427
+            name: x86-64 Linux glibc rpm
+
+    name: ${{ matrix.name }}
     container:
-      image: ghcr.io/ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu24.04-builder:20250115
+      image: ${{ matrix.image }}
       options: --user pony --cap-add=SYS_PTRACE --security-opt seccomp=unconfined
     steps:
       - name: Checkout
@@ -56,57 +65,7 @@ jobs:
       - name: Build libs
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          LIBS_IMAGE: ghcr.io/ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu24.04-builder:20250115
-          LIBS_TAG: ${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
-        run: make libs-ci llvm_tools=false build_flags=-j4 libs_cache_image="$LIBS_IMAGE" libs_cache_tag="$LIBS_TAG"
-      - name: Build Debug Runtime
-        run: |
-          make configure arch=x86-64 config=debug
-          make build config=debug
-      - name: Test with Debug Runtime
-        run: make test-ci-core config=debug
-      - name: Build Release Runtime
-        run: |
-          make configure arch=x86-64 config=release
-          make build config=release
-      - name: Test with Release Runtime
-        run: make test-ci-core config=release
-      - name: Test pony-doc
-        run: make test-pony-doc config=debug
-      - name: Test pony-lint
-        run: make test-pony-lint config=debug
-      - name: Test pony-lsp
-        run: make test-pony-lsp config=debug
-      - name: Send alert on failure
-        if: ${{ failure() }}
-        uses: zulip/github-actions-zulip/send-message@bd8ec52de371d139ae8313661b7d8318c19266aa
-        with:
-          api-key: ${{ secrets.ZULIP_SCHEDULED_JOB_FAILURE_API_KEY }}
-          email: ${{ secrets.ZULIP_SCHEDULED_JOB_FAILURE_EMAIL }}
-          organization-url: 'https://ponylang.zulipchat.com/'
-          to: notifications
-          type: stream
-          topic: ${{ github.repository }} scheduled job failure
-          content: ${{ github.server_url}}/${{ github.repository }}/actions/runs/${{ github.run_id }} failed.
-
-  x86_64-linux-fedora:
-    needs: check-for-changes
-    if: needs.check-for-changes.outputs.has-changes == 'true'
-    runs-on: ubuntu-latest
-
-    name: x86-64 Linux Fedora
-    container:
-      image: ghcr.io/ponylang/ponyc-ci-x86-64-unknown-linux-fedora43-builder:20260427
-      options: --user pony --cap-add=SYS_PTRACE --security-opt seccomp=unconfined
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v6.0.2
-        with:
-          ref: ${{ inputs.ref || github.sha }}
-      - name: Build libs
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          LIBS_IMAGE: ghcr.io/ponylang/ponyc-ci-x86-64-unknown-linux-fedora43-builder:20260427
+          LIBS_IMAGE: ${{ matrix.image }}
           LIBS_TAG: ${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
         run: make libs-ci llvm_tools=false build_flags=-j4 libs_cache_image="$LIBS_IMAGE" libs_cache_tag="$LIBS_TAG"
       - name: Build Debug Runtime
