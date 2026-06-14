@@ -432,7 +432,11 @@ class \nodoc\ iso _TestBroadcastReceive is UnitTest
   net/Broadcast already makes set_broadcast load-bearing on these legs via
   its send side; what this test adds is the receive-side discrimination.
   Linux-only: bind-to-broadcast semantics are Linux-verified; BSD differs
-  and macOS/Windows are unverified.
+  and macOS/Windows are unverified. The riscv64 cross leg additionally
+  excludes this test (and net/Broadcast) at the CI runner level, because
+  under qemu-riscv64 the broadcast datagram is not delivered to the
+  255.255.255.255-bound socket; see the riscv64 job in
+  .github/workflows/ponyc-tier3.yml.
   """
   fun name(): String => "net/BroadcastReceive"
   fun exclusion_group(): String => "network"
