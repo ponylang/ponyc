@@ -86,8 +86,34 @@ typedef int SOCKET;
 #ifdef PLATFORM_IS_WINDOWS
 // TODO
 #endif
+
 #ifdef PLATFORM_IS_HAIKU
-#include <os/kernel/OS.h>
+# include <os/kernel/OS.h>
+// On Haiku ntohl and ntohs are pure defines that end up as __builtin swaps.
+// Pony's net package tries to load symbols dynamically, and it fails.
+// So we declare thin wrappers here.
+# ifdef ntohs
+#   undef ntohs
+PONY_API uint16_t ntohs(uint16_t x)
+{
+#if BYTE_ORDER == LITTLE_ENDIAN
+  return (uint16_t)__builtin_bswap16(x);
+#else
+  return x;
+#endif
+}
+# endif
+# ifdef ntohl
+#   undef ntohl
+PONY_API uint32_t ntohl(uint32_t x)
+{
+#if BYTE_ORDER == LITTLE_ENDIAN
+  return (uint32_t)__builtin_bswap32(x);
+#else
+  return x;
+#endif
+}
+# endif
 #endif
 
 PONY_EXTERN_C_BEGIN
