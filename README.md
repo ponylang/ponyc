@@ -18,18 +18,22 @@ Pony is still pre-1.0 and as such, semi-regularly introduces breaking changes. T
 
 * Full support for 64-bit platforms
   * x86, ARM and RISC-V CPUs only
-* Partial support for 32-bit platforms
-  * The `arm` and `armhf` architectures are tested via CI (Continuous
-    Integration testing)
+
+## Additionally tested platforms
+
+These platforms are supported. We run CI on a regular schedule rather than on every pull request, putting less effort into CI coverage than for the platforms above.
+
+* DragonFly BSD (x86-64)
+* FreeBSD (x86-64)
+* Linux arm (32-bit)
+* Linux armhf (32-bit)
+* OpenBSD (x86-64)
 
 ## Best effort platforms
 
 Best-effort platforms are operating systems where Pony _should_ work, but with low confidence. We don't have automated testing or continuous integration for these platforms to ensure they remain functional. We won't intentionally break a best-effort platform. However, we make no effort to maintain compatibility with them. When building ponyc from source on a best-effort platform, you may encounter failures. We welcome thoughtful pull requests to restore Pony compatibility with the platform.
 
-* DragonFlyBSD (x86 only)
-* FreeBSD (x86 only)
-* OpenBSD (x86 only)
-* Windows 10 (x86 only)
+* Windows 10 (x86-64 only)
 
 ## More Information
 
