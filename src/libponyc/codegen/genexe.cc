@@ -1841,7 +1841,7 @@ static bool link_exe_lld_coff(compile_t* c, ast_t* program,
 
   vcvars_t vcvars;
 
-  if(!vcvars_get(c, &vcvars, errors))
+  if(!vcvars_get(c->opt, &vcvars, errors))
   {
     errorf(errors, NULL, "unable to link: no vcvars");
     return false;

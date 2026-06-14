@@ -473,6 +473,14 @@ install: build
 	$(SILENT)if [ -f $(outDir)/pony-doc ]; then cp $(outDir)/pony-doc $(ponydir)/bin; fi
 	$(SILENT)cp src/libponyrt/pony.h $(ponydir)/include
 	$(SILENT)cp src/common/pony/detail/atomics.h $(ponydir)/include/pony/detail
+	# platform.h's closure, so a C shim can also #include <ponyassert.h>. These
+	# are internal headers shipped as a convenience; only pony.h is a stable
+	# interface (see the release notes). vcvars.h is Windows-only, shipped by
+	# the cmake install, not here.
+	$(SILENT)cp src/common/ponyassert.h $(ponydir)/include
+	$(SILENT)cp src/common/platform.h $(ponydir)/include
+	$(SILENT)cp src/common/threads.h $(ponydir)/include
+	$(SILENT)cp src/common/paths.h $(ponydir)/include
 	$(SILENT)cp -r packages $(ponydir)/
 ifeq ($(symlink),yes)
 	@mkdir -p $(prefix)/bin
@@ -489,6 +497,10 @@ ifeq ($(symlink),yes)
 	$(SILENT)if [ -f $(ponydir)/lib/$(arch)/libdtrace_probes.a ]; then ln -s -f $(ponydir)/lib/$(arch)/libdtrace_probes.a $(prefix)/lib/libdtrace_probes.a; fi
 	$(SILENT)ln -s -f $(ponydir)/include/pony.h $(prefix)/include/pony.h
 	$(SILENT)ln -s -f $(ponydir)/include/pony/detail/atomics.h $(prefix)/include/pony/detail/atomics.h
+	$(SILENT)ln -s -f $(ponydir)/include/ponyassert.h $(prefix)/include/ponyassert.h
+	$(SILENT)ln -s -f $(ponydir)/include/platform.h $(prefix)/include/platform.h
+	$(SILENT)ln -s -f $(ponydir)/include/threads.h $(prefix)/include/threads.h
+	$(SILENT)ln -s -f $(ponydir)/include/paths.h $(prefix)/include/paths.h
 endif
 
 uninstall:
@@ -503,3 +515,7 @@ uninstall:
 	-$(SILENT)rm -rf $(prefix)/lib/pony ||:
 	-$(SILENT)rm -f $(prefix)/include/pony.h ||:
 	-$(SILENT)rm -rf $(prefix)/include/pony ||:
+	-$(SILENT)rm -f $(prefix)/include/ponyassert.h ||:
+	-$(SILENT)rm -f $(prefix)/include/platform.h ||:
+	-$(SILENT)rm -f $(prefix)/include/threads.h ||:
+	-$(SILENT)rm -f $(prefix)/include/paths.h ||:

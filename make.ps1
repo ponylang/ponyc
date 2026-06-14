@@ -351,12 +351,8 @@ switch ($Command.ToLower())
                 }
 
                 if (-not (Test-Path $runOutDir)) { New-Item -ItemType Directory -Force -Path $runOutDir }
-                # C shims aren't supported when targeting Windows yet (genc
-                # errors; MSVC include discovery is unimplemented), so the
-                # shim tests are excluded here.
-                $shimExcludes = "c-shim,c-shim-constructor,c-shim-pony-header,c-shim-subpackage"
-                Write-Output "$buildDir\test\full-program-runner\full-program-runner.exe --debug=$debugFlag --debugger=$debuggercmd --timeout_s=120 --max_parallel=1 --debug=$debugFlag --exclude=$shimExcludes --test_lib=$outDir\test_lib --compiler=$outDir\ponyc.exe --output=$runOutDir $srcDir\test\full-program-tests"
-                & $buildDir\test\full-program-runner\full-program-runner.exe --debugger=$debuggercmd --timeout_s=120 --max_parallel=1 --debug=$debugFlag --exclude=$shimExcludes --test_lib=$outDir\test_lib --compiler=$outDir\ponyc.exe --output=$runOutDir $srcDir\test\full-program-tests
+                Write-Output "$buildDir\test\full-program-runner\full-program-runner.exe --debug=$debugFlag --debugger=$debuggercmd --timeout_s=120 --max_parallel=1 --debug=$debugFlag --test_lib=$outDir\test_lib --compiler=$outDir\ponyc.exe --output=$runOutDir $srcDir\test\full-program-tests"
+                & $buildDir\test\full-program-runner\full-program-runner.exe --debugger=$debuggercmd --timeout_s=120 --max_parallel=1 --debug=$debugFlag --test_lib=$outDir\test_lib --compiler=$outDir\ponyc.exe --output=$runOutDir $srcDir\test\full-program-tests
                 $err = $LastExitCode
                 if ($err -ne 0) { $failedTestSuites += "libponyc.run.tests.$runConfig" }
             }
@@ -583,12 +579,9 @@ switch ($Command.ToLower())
     "build-examples"
     {
         # Find all example subdirectories that contain .pony files and build each one.
-        # cshim is excluded like the ffi-* examples: it needs C compilation
-        # that the Windows build can't do yet (C shims error on Windows
-        # targets until MSVC include discovery is implemented).
+        # ffi-* examples need a separately-built C library, so they're skipped here.
         $examples = Get-ChildItem -Path "$srcDir\examples" -Directory |
                 Where-Object { $_.Name -notlike "ffi-*" } |
-                Where-Object { $_.Name -ne "cshim" } |
                 Where-Object { (Get-ChildItem -Path $_.FullName -Filter "*.pony" -File).Count -gt 0 } |
                 Select-Object -ExpandProperty FullName
 

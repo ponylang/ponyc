@@ -102,17 +102,6 @@ protected:
   }
 };
 
-// The four tests that invoke the embedded clang skip on Windows, where genc
-// deliberately errors (MSVC include discovery is unimplemented);
-// WindowsShimsReportNotSupported pins that contract instead.
-#ifdef PLATFORM_IS_WINDOWS
-#  define SKIP_ON_WINDOWS() \
-    GTEST_SKIP() << "C shims are not supported when targeting Windows yet"
-#else
-#  define SKIP_ON_WINDOWS() do {} while(false)
-#endif
-
-
 // cdefine: scheme handling (no .c or clang needed; runs in the scope pass).
 
 TEST_F(CShimTest, CDefineDuplicateConflictingValues)
@@ -358,7 +347,7 @@ TEST_F(CShimTest, ShimInUnsafePackageRejected)
   // --safe gates compiling a shim exactly like a C FFI call: a package not
   // on the safe list doesn't get its .c compiled, and a .c there is an
   // error. The check is at discovery, so this fails as early as an unsafe
-  // FFI call and needs no clang (no SKIP_ON_WINDOWS).
+  // FFI call and needs no clang.
   const char* fixture = "cshim_fixture_unsafe";
   const char* names[] = {"dummy.pony", "shim.c", NULL};
   const char* contents[] = {
@@ -539,8 +528,6 @@ TEST_F(CShimTest, COnlyDirectoryIsNotAPackage)
 
 TEST_F(CShimTest, BadShimReportsClangErrorWithLocation)
 {
-  SKIP_ON_WINDOWS();
-
   const char* fixture = "cshim_fixture_bad";
   const char* names[] = {"dummy.pony", "bad.c", NULL};
   const char* contents[] = {
@@ -576,38 +563,8 @@ TEST_F(CShimTest, BadShimReportsClangErrorWithLocation)
   remove_fixture(fixture, names);
 }
 
-#ifdef PLATFORM_IS_WINDOWS
-TEST_F(CShimTest, WindowsShimsReportNotSupported)
-{
-  const char* fixture = "cshim_fixture_windows";
-  const char* names[] = {"dummy.pony", "good.c", NULL};
-  const char* contents[] = {
-    "primitive ShimPkg\n",
-    "int shim_win(void) { return 1; }\n",
-    NULL};
-
-  DO(write_fixture(fixture, names, contents));
-  package_add_magic_path("shimpkg", fixture, &opt);
-
-  const char* src =
-    "use \"shimpkg\"\n"
-    "actor Main\n"
-    "  new create(env: Env) => None";
-
-  // Until MSVC include discovery is implemented, a shim on a Windows
-  // target is a clear error, not a cryptic header-not-found cascade.
-  const char* errs[] =
-    {"C shims are not yet supported when targeting Windows", NULL};
-  DO(test_expected_errors(src, "c", errs));
-
-  remove_fixture(fixture, names);
-}
-#endif
-
 TEST_F(CShimTest, GoodShimProducesLinkableObject)
 {
-  SKIP_ON_WINDOWS();
-
   const char* fixture = "cshim_fixture_good";
   const char* names[] = {"dummy.pony", "good.c", NULL};
   const char* contents[] = {
@@ -665,8 +622,6 @@ TEST_F(CShimTest, BadShimIgnoredBelowPassC)
 
 TEST_F(CShimTest, ShimWarningDoesNotFailBuild)
 {
-  SKIP_ON_WINDOWS();
-
   const char* fixture = "cshim_fixture_warn";
   const char* names[] = {"dummy.pony", "warny.c", NULL};
   const char* contents[] = {
@@ -695,9 +650,9 @@ TEST_F(CShimTest, ShimWarningDoesNotFailBuild)
 // A cdefine:/cinclude: directive in a package with no .c is an error: the
 // flags only affect .c files in the same package, so the directive is inert
 // (usually it belongs in the package that holds the shim). The check is in
-// genc, before any clang work, so it fires identically on every platform —
-// no SKIP_ON_WINDOWS. The main package here is inline source with no .c, so
-// it is itself the orphaned package.
+// genc, before any clang work, so it fires identically on every platform.
+// The main package here is inline source with no .c, so it is itself the
+// orphaned package.
 
 TEST_F(CShimTest, CDefineWithoutCSourceErrors)
 {
@@ -723,8 +678,6 @@ TEST_F(CShimTest, CIncludeWithoutCSourceErrors)
 
 TEST_F(CShimTest, MultipleShimsCompileAndRecordInSortedOrder)
 {
-  SKIP_ON_WINDOWS();
-
   // The within-package compile/record order is a documented determinism
   // contract (sorted sources -> object record order -> link order); no
   // other test compiles more than one source per package, so a future
@@ -762,8 +715,6 @@ TEST_F(CShimTest, MultipleShimsCompileAndRecordInSortedOrder)
 
 TEST_F(CShimTest, ShimWarningWithNoteDoesNotFailBuild)
 {
-  SKIP_ON_WINDOWS();
-
   // A macro redefinition emits a warning WITH a "previous definition"
   // note; both must stay on stderr — a regression routing warning-notes
   // into errors_t would fail user builds.
@@ -794,8 +745,6 @@ TEST_F(CShimTest, ShimWarningWithNoteDoesNotFailBuild)
 
 TEST_F(CShimTest, ShimObjectPathTooLongIsAnError)
 {
-  SKIP_ON_WINDOWS();
-
   const char* fixture = "cshim_fixture_longout";
   const char* names[] = {"dummy.pony", "good.c", NULL};
   const char* contents[] = {
@@ -827,17 +776,15 @@ TEST_F(CShimTest, ShimObjectPathTooLongIsAnError)
 
 TEST_F(CShimTest, ShimCanIncludePonyHeader)
 {
-  SKIP_ON_WINDOWS();
-
-  // pony.h resolves relative to the running compiler (like stdlib
-  // discovery), so shims can use runtime APIs without the user hard-coding
-  // an installation path in cinclude:. In a build tree this exercises the
-  // ../../src/libponyrt and ../../src/common offsets; pony.h's own
-  // <pony/detail/atomics.h> include covers the second. ponyassert.h is the
-  // load-bearing include for the test: on a dev machine with an installed
-  // ponyc, pony.h ALSO resolves via /usr/local/include (a system include
-  // dir), but ponyassert.h is never installed, so it only resolves through
-  // the compiler-relative dirs this test pins.
+  // pony.h and ponyassert.h resolve relative to the running compiler (like
+  // stdlib discovery), so shims can use runtime APIs without the user hard-
+  // coding an installation path in cinclude:. In a build tree this exercises
+  // the ../../src/libponyrt and ../../src/common offsets; pony.h's own
+  // <pony/detail/atomics.h> include covers the second, and ponyassert.h pulls
+  // in platform.h's closure (threads.h/paths.h, plus vcvars.h on Windows),
+  // confirming the whole shim-reachable header set resolves. The test binary
+  // has no installed-tree sibling ../include, so these resolve through the
+  // build-tree offsets even though the install now ships them too.
   const char* fixture = "cshim_fixture_ponyh";
   const char* names[] = {"dummy.pony", "uses_pony_h.c", NULL};
   const char* contents[] = {
@@ -862,10 +809,41 @@ TEST_F(CShimTest, ShimCanIncludePonyHeader)
   remove_fixture(fixture, names);
 }
 
+#ifdef PLATFORM_IS_WINDOWS
+// Windows-only: <windows.h> lives in the Windows SDK 'um'/'shared' include
+// dirs. The other clang-invoking tests only reach 'ucrt' (<string.h>) and the
+// MSVC include dir, so without this a wrong um/shared derivation would ship
+// silently — add_system_include_args' "none of the dirs exist" guard stays
+// satisfied by ucrt. Compiling a shim that includes <windows.h> and calls a
+// Win32 API pins all four include dirs and the MS-extension flags together.
+TEST_F(CShimTest, ShimCanIncludeWindowsHeader)
+{
+  const char* fixture = "cshim_fixture_winhdr";
+  const char* names[] = {"dummy.pony", "win.c", NULL};
+  const char* contents[] = {
+    "primitive ShimPkg\n",
+    "#include <windows.h>\n"
+    "int shim_pid_nonzero(void) { return GetCurrentProcessId() != 0; }\n",
+    NULL};
+
+  DO(write_fixture(fixture, names, contents));
+  package_add_magic_path("shimpkg", fixture, &opt);
+
+  const char* src =
+    "use \"shimpkg\"\n"
+    "actor Main\n"
+    "  new create(env: Env) => None";
+
+  TEST_COMPILE(src, "c");
+
+  ASSERT_EQ((size_t)1, program_c_object_count(program));
+  remove(program_c_object_at(program, 0));
+  remove_fixture(fixture, names);
+}
+#endif
+
 TEST_F(CShimTest, ShimErrorNoteJoinsErrorFrame)
 {
-  SKIP_ON_WINDOWS();
-
   const char* fixture = "cshim_fixture_note";
   const char* names[] = {"dummy.pony", "redef.c", NULL};
   const char* contents[] = {
@@ -893,8 +871,6 @@ TEST_F(CShimTest, ShimErrorNoteJoinsErrorFrame)
 
 TEST_F(CShimTest, CrossCompiledShimRequiresSysroot)
 {
-  SKIP_ON_WINDOWS();
-
   const char* fixture = "cshim_fixture_cross";
   const char* names[] = {"dummy.pony", "good.c", NULL};
   const char* contents[] = {
@@ -927,8 +903,6 @@ TEST_F(CShimTest, CrossCompiledShimRequiresSysroot)
 
 TEST_F(CShimTest, ShimObjectGoesToCreatedOutputDir)
 {
-  SKIP_ON_WINDOWS();
-
   const char* fixture = "cshim_fixture_outdir";
   const char* names[] = {"dummy.pony", "good.c", NULL};
   const char* contents[] = {
@@ -967,8 +941,6 @@ TEST_F(CShimTest, ShimObjectGoesToCreatedOutputDir)
 
 TEST_F(CShimTest, ShimRespectsCDefine)
 {
-  SKIP_ON_WINDOWS();
-
   const char* fixture = "cshim_fixture_define";
   const char* names[] = {"dummy.pony", "gated.c", NULL};
   const char* contents[] = {

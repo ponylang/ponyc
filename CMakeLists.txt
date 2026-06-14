@@ -560,6 +560,25 @@ else()
     # this rule covers cmake-driven installs (Windows make.ps1). OPTIONAL so
     # an LLD-only libs build (e.g. an older cached build/libs) doesn't fail.
     install(DIRECTORY build/libs/lib/clang DESTINATION lib OPTIONAL)
+    # ponyc's own runtime headers, so a C shim can #include <pony.h>. genc puts
+    # <prefix>/include on the shim include path (add_pony_include_args); the
+    # Makefile install target ships these on Linux/macOS, this rule covers the
+    # cmake-driven (Windows) install. Layout must match what genc expects:
+    # pony.h at include/, atomics at include/pony/detail/.
+    install(FILES src/libponyrt/pony.h DESTINATION include)
+    install(FILES src/common/pony/detail/atomics.h
+        DESTINATION include/pony/detail)
+    # platform.h's closure, so a C shim can also #include <ponyassert.h>. These
+    # are internal headers shipped as a convenience; only pony.h is a stable
+    # interface (see the release notes). vcvars.h is in the closure on Windows
+    # (platform.h includes it); the Makefile install omits it on Linux/macOS.
+    install(FILES
+        src/common/ponyassert.h
+        src/common/platform.h
+        src/common/threads.h
+        src/common/paths.h
+        src/common/vcvars.h
+        DESTINATION include)
     install(PROGRAMS
         $<TARGET_FILE_DIR:ponyc>/pony-lsp${CMAKE_EXECUTABLE_SUFFIX}
         DESTINATION bin)

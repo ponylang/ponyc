@@ -232,6 +232,22 @@ static const char* c_shim_sysroot(pass_opt_t* opt, errors_t* errors)
   if(!is_cross_compiling(opt) || c_is_mac_on_mac(opt))
     return "";
 
+#ifndef PLATFORM_IS_WINDOWS
+  // A Windows target's headers come from the Win32 registry / vswhere, which
+  // exist only on a Windows host; --sysroot can't substitute. Give the
+  // host-requirement error directly rather than the generic sysroot one that
+  // would send the user down a path that can't work. (Cross-compiling shims
+  // to/from Windows isn't supported yet; this is just a clear diagnostic for
+  // anyone who tries. The same message backstops the with-sysroot case in
+  // add_system_include_args.)
+  if(target_is_windows(opt->triple))
+  {
+    errorf(errors, NULL, "compiling C shims for a Windows target is only "
+      "supported from a Windows host");
+    return NULL;
+  }
+#endif
+
   errorf(errors, NULL,
     "cross-compiling C shims for %s requires --sysroot=<path>", opt->triple);
   return NULL;
@@ -371,13 +387,68 @@ static bool add_system_include_args(pass_opt_t* opt, const char* sysroot,
 
   if(target_is_windows(opt->triple))
   {
-    // MSVC / Windows SDK include discovery (the compile-side mirror of the
-    // vcvars lib-dir discovery the COFF linker uses) is not implemented
-    // yet. Tracked for the Windows platform work; failing here is clearer
-    // than letting every #include in a shim fail one header at a time.
-    errorf(errors, NULL, "C shims are not yet supported when targeting "
-      "Windows: MSVC include discovery is not implemented");
+#ifdef PLATFORM_IS_WINDOWS
+    // The compile-side mirror of the vcvars lib-dir discovery the COFF linker
+    // uses (genexe.cc): the same MSVC + Windows SDK toolchain, so a shim
+    // compiles against the headers whose libs the link resolves. The include
+    // dirs are siblings of the lib dirs vcvars finds.
+    vcvars_t vcvars;
+    memset(&vcvars, 0, sizeof(vcvars));
+
+    if(!vcvars_get(opt, &vcvars, errors))
+      return false;
+
+    // MS-compatibility cc1 flags the driver injects for an MSVC target and
+    // cc1 does NOT infer from the triple. Without these a shim compiles with
+    // _MSC_VER undefined and MS extensions off, and the SDK/UCRT headers
+    // below won't parse. -fms-compatibility-version sets _MSC_VER; cc1 leaves
+    // it 0 (no _MSC_VER) when the flag is absent — unlike the driver, it
+    // supplies no default — so we must pass a version. Use the toolchain's own
+    // cl.exe version (vcvars) so it matches; fall back to 19.33 (clang's own
+    // driver default when it can't read cl.exe) if the read failed.
+    const char* msc_ver = (vcvars.msvc_version[0] != '\0')
+      ? vcvars.msvc_version : "19.33";
+    char verbuf[64];
+    snprintf(verbuf, sizeof(verbuf), "-fms-compatibility-version=%s", msc_ver);
+
+    args.push_back("-fms-extensions");
+    args.push_back("-fms-compatibility");
+    args.push_back(stringtab(opt->strtab, verbuf));
+
+    if(target_is_x86(opt->triple))
+      args.push_back("-fms-volatile");
+
+    // clang's MSVC system-include order (Driver/ToolChains/MSVC.cpp): the
+    // MSVC headers, then the SDK's ucrt, shared, um. All -internal-isystem;
+    // unlike the Unix libc dirs, clang does not wrap these in extern "C".
+    // Each is dir_exists-guarded (push_isystem), so a partial toolchain
+    // degrades to a clear header-not-found instead of a silent miss.
+    bool any = false;
+    any |= push_isystem(opt, args, errors, "-internal-isystem",
+      vcvars.msvc_include, "");
+    any |= push_isystem(opt, args, errors, "-internal-isystem",
+      vcvars.ucrt_include, "");
+    any |= push_isystem(opt, args, errors, "-internal-isystem",
+      vcvars.shared_include, "");
+    any |= push_isystem(opt, args, errors, "-internal-isystem",
+      vcvars.um_include, "");
+
+    if(!any)
+    {
+      errorf(errors, NULL, "found an MSVC toolchain but none of its C include "
+        "directories exist; cannot compile C shims");
+      return false;
+    }
+
+    return true;
+#else
+    // Discovery needs the Win32 registry / vswhere, so a Windows target can
+    // only get its headers from a Windows host. Say so rather than compiling
+    // with no system headers.
+    errorf(errors, NULL, "compiling C shims for a Windows target is only "
+      "supported from a Windows host");
     return false;
+#endif
   }
 
   // Linux and the BSDs share the classic layout; the order and the
@@ -702,8 +773,12 @@ bool genc(ast_t* program, pass_opt_t* opt)
   common.push_back("-fno-caret-diagnostics");
 
   // glibc's headers condition on __GNUC__; the driver always claims this
-  // baseline, so mimic it.
-  common.push_back("-fgnuc-version=4.2.1");
+  // baseline, so mimic it — but only off-Windows. clang's driver pushes
+  // -fgnuc-version ONLY when ms-compatibility is off (Clang.cpp), leaving
+  // __GNUC__ undefined for MSVC targets; the MS-compat flags that replace it
+  // for Windows are added in add_system_include_args, where vcvars is found.
+  if(!target_is_windows(opt->triple))
+    common.push_back("-fgnuc-version=4.2.1");
 
   common.push_back("-resource-dir");
   common.push_back(resource_dir);
@@ -750,7 +825,11 @@ bool genc(ast_t* program, pass_opt_t* opt)
   // running compiler binary.
   add_pony_include_args(opt, common, errors);
 
-  if(sysroot[0] != '\0')
+  // -isysroot is a POSIX/Darwin sysroot; it's meaningless to the MSVC header
+  // search, which add_system_include_args resolves via vcvars. On a native
+  // Windows build sysroot is "" anyway, but guard it so a stray --sysroot
+  // can't push a flag the Windows toolchain ignores.
+  if((sysroot[0] != '\0') && !target_is_windows(opt->triple))
   {
     common.push_back("-isysroot");
     common.push_back(sysroot);
