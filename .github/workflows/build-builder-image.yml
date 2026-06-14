@@ -18,7 +18,7 @@ on:
           - cross-riscv64
           - ubuntu26.04-builder
           - x86-64-unknown-linux-alpine3.21-builder
-          - x86-64-unknown-linux-fedora43-builder
+          - x86-64-unknown-linux-fedora44-builder
           - x86-64-unknown-linux-ubuntu22.04-builder
           - x86-64-unknown-linux-ubuntu24.04-builder
 
@@ -266,11 +266,11 @@ jobs:
       - name: Build and push
         run: bash .ci-dockerfiles/x86-64-unknown-linux-alpine3.21-builder/build-and-push.bash
 
-  x86-64-unknown-linux-fedora43-builder:
-    if: ${{ github.event.inputs.builder-name == 'x86-64-unknown-linux-fedora43-builder' }}
+  x86-64-unknown-linux-fedora44-builder:
+    if: ${{ github.event.inputs.builder-name == 'x86-64-unknown-linux-fedora44-builder' }}
     runs-on: ubuntu-latest
 
-    name: x86-64-unknown-linux-fedora43-builder
+    name: x86-64-unknown-linux-fedora44-builder
     steps:
       - name: Checkout
         uses: actions/checkout@v6.0.2
@@ -288,7 +288,7 @@ jobs:
           username: ${{ github.repository_owner }}
           password: ${{ secrets.GITHUB_TOKEN }}
       - name: Build and push
-        run: bash .ci-dockerfiles/x86-64-unknown-linux-fedora43-builder/build-and-push.bash
+        run: bash .ci-dockerfiles/x86-64-unknown-linux-fedora44-builder/build-and-push.bash
 
   x86-64-unknown-linux-ubuntu22_04-builder:
     if: ${{ github.event.inputs.builder-name == 'x86-64-unknown-linux-ubuntu22.04-builder' }}

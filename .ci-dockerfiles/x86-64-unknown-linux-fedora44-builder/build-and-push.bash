@@ -7,7 +7,7 @@ set -o nounset
 # *** You should already be logged in to GHCR when you run this ***
 #
 
-NAME="ghcr.io/ponylang/ponyc-ci-x86-64-unknown-linux-fedora43-builder"
+NAME="ghcr.io/ponylang/ponyc-ci-x86-64-unknown-linux-fedora44-builder"
 TODAY=$(date +%Y%m%d)
 DOCKERFILE_DIR="$(dirname "$0")"
 
