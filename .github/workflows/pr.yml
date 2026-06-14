@@ -80,7 +80,7 @@ jobs:
           LIBS_IMAGE: ghcr.io/ponylang/ponyc-ci-alpine3.23-builder:20260201
           LIBS_TAG: ${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
           LIBS_PR: ${{ github.event.pull_request.number }}
-        run: python3 .ci-scripts/pr_libs_cache.py --ensure --image "$LIBS_IMAGE" --tag "$LIBS_TAG" --pr "$LIBS_PR" -- make libs llvm_tools=false build_flags=-j4
+        run: python3 .ci-scripts/libs-cache/pr_libs_cache.py --ensure --image "$LIBS_IMAGE" --tag "$LIBS_TAG" --pr "$LIBS_PR" -- make libs llvm_tools=false build_flags=-j4
 
   maybe-build-macos:
     needs: changes
@@ -99,7 +99,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           LIBS_TAG: ${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
           LIBS_PR: ${{ github.event.pull_request.number }}
-        run: python3 .ci-scripts/pr_libs_cache.py --ensure --platform arm64-macos-26 --tag "$LIBS_TAG" --pr "$LIBS_PR" -- make libs llvm_tools=false build_flags=-j3
+        run: python3 .ci-scripts/libs-cache/pr_libs_cache.py --ensure --platform arm64-macos-26 --tag "$LIBS_TAG" --pr "$LIBS_PR" -- make libs llvm_tools=false build_flags=-j3
 
   maybe-build-windows:
     needs: changes
@@ -123,7 +123,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           LIBS_TAG: ${{ hashFiles('make.ps1', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
           LIBS_PR: ${{ github.event.pull_request.number }}
-        run: python .ci-scripts/pr_libs_cache.py --ensure --platform windows-2025-vs2026 --tag "$env:LIBS_TAG" --pr "$env:LIBS_PR" '--' pwsh -File make.ps1 -Command libs -LlvmTools false
+        run: python .ci-scripts/libs-cache/pr_libs_cache.py --ensure --platform windows-2025-vs2026 --tag "$env:LIBS_TAG" --pr "$env:LIBS_PR" '--' pwsh -File make.ps1 -Command libs -LlvmTools false
 
   # ----- ponyc suite -----
 
@@ -147,7 +147,7 @@ jobs:
           LIBS_IMAGE: ghcr.io/ponylang/ponyc-ci-alpine3.23-builder:20260201
           LIBS_TAG: ${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
           LIBS_PR: ${{ github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.number || '' }}
-        run: python3 .ci-scripts/pr_libs_cache.py --image "$LIBS_IMAGE" --tag "$LIBS_TAG" --pr "$LIBS_PR" -- make libs llvm_tools=false build_flags=-j4
+        run: python3 .ci-scripts/libs-cache/pr_libs_cache.py --image "$LIBS_IMAGE" --tag "$LIBS_TAG" --pr "$LIBS_PR" -- make libs llvm_tools=false build_flags=-j4
       - name: Build Debug Runtime
         run: |
           make configure arch=x86-64 config=debug
@@ -177,7 +177,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           LIBS_TAG: ${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
           LIBS_PR: ${{ github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.number || '' }}
-        run: python3 .ci-scripts/pr_libs_cache.py --platform arm64-macos-26 --tag "$LIBS_TAG" --pr "$LIBS_PR" -- make libs llvm_tools=false build_flags=-j3
+        run: python3 .ci-scripts/libs-cache/pr_libs_cache.py --platform arm64-macos-26 --tag "$LIBS_TAG" --pr "$LIBS_PR" -- make libs llvm_tools=false build_flags=-j3
       - name: Build Debug Runtime
         run: |
           make configure arch=armv8 config=debug
@@ -214,7 +214,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           LIBS_TAG: ${{ hashFiles('make.ps1', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
           LIBS_PR: ${{ github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.number || '' }}
-        run: python .ci-scripts/pr_libs_cache.py --platform windows-2025-vs2026 --tag "$env:LIBS_TAG" --pr "$env:LIBS_PR" '--' pwsh -File make.ps1 -Command libs -LlvmTools false
+        run: python .ci-scripts/libs-cache/pr_libs_cache.py --platform windows-2025-vs2026 --tag "$env:LIBS_TAG" --pr "$env:LIBS_PR" '--' pwsh -File make.ps1 -Command libs -LlvmTools false
       - name: Build Debug Runtime
         run: |
           .\make.ps1 -Command configure -Config Debug
@@ -252,7 +252,7 @@ jobs:
           LIBS_IMAGE: ghcr.io/ponylang/ponyc-ci-alpine3.23-builder:20260201
           LIBS_TAG: ${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
           LIBS_PR: ${{ github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.number || '' }}
-        run: python3 .ci-scripts/pr_libs_cache.py --image "$LIBS_IMAGE" --tag "$LIBS_TAG" --pr "$LIBS_PR" -- make libs llvm_tools=false build_flags=-j4
+        run: python3 .ci-scripts/libs-cache/pr_libs_cache.py --image "$LIBS_IMAGE" --tag "$LIBS_TAG" --pr "$LIBS_PR" -- make libs llvm_tools=false build_flags=-j4
       - name: Build
         run: |
           make configure config=debug
@@ -276,7 +276,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           LIBS_TAG: ${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
           LIBS_PR: ${{ github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.number || '' }}
-        run: python3 .ci-scripts/pr_libs_cache.py --platform arm64-macos-26 --tag "$LIBS_TAG" --pr "$LIBS_PR" -- make libs llvm_tools=false build_flags=-j3
+        run: python3 .ci-scripts/libs-cache/pr_libs_cache.py --platform arm64-macos-26 --tag "$LIBS_TAG" --pr "$LIBS_PR" -- make libs llvm_tools=false build_flags=-j3
       - name: Build
         run: |
           make configure arch=armv8 config=debug
@@ -305,7 +305,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           LIBS_TAG: ${{ hashFiles('make.ps1', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
           LIBS_PR: ${{ github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.number || '' }}
-        run: python .ci-scripts/pr_libs_cache.py --platform windows-2025-vs2026 --tag "$env:LIBS_TAG" --pr "$env:LIBS_PR" '--' pwsh -File make.ps1 -Command libs -LlvmTools false
+        run: python .ci-scripts/libs-cache/pr_libs_cache.py --platform windows-2025-vs2026 --tag "$env:LIBS_TAG" --pr "$env:LIBS_PR" '--' pwsh -File make.ps1 -Command libs -LlvmTools false
       - name: Build
         run: |
           .\make.ps1 -Command configure -Config Debug
@@ -335,7 +335,7 @@ jobs:
           LIBS_IMAGE: ghcr.io/ponylang/ponyc-ci-alpine3.23-builder:20260201
           LIBS_TAG: ${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
           LIBS_PR: ${{ github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.number || '' }}
-        run: python3 .ci-scripts/pr_libs_cache.py --image "$LIBS_IMAGE" --tag "$LIBS_TAG" --pr "$LIBS_PR" -- make libs llvm_tools=false build_flags=-j4
+        run: python3 .ci-scripts/libs-cache/pr_libs_cache.py --image "$LIBS_IMAGE" --tag "$LIBS_TAG" --pr "$LIBS_PR" -- make libs llvm_tools=false build_flags=-j4
       - name: Build
         run: |
           make configure config=debug
@@ -369,7 +369,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           LIBS_TAG: ${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
           LIBS_PR: ${{ github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.number || '' }}
-        run: python3 .ci-scripts/pr_libs_cache.py --platform arm64-macos-26 --tag "$LIBS_TAG" --pr "$LIBS_PR" -- make libs llvm_tools=false build_flags=-j3
+        run: python3 .ci-scripts/libs-cache/pr_libs_cache.py --platform arm64-macos-26 --tag "$LIBS_TAG" --pr "$LIBS_PR" -- make libs llvm_tools=false build_flags=-j3
       - name: Build
         run: |
           make configure arch=armv8 config=debug
@@ -402,7 +402,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           LIBS_TAG: ${{ hashFiles('make.ps1', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
           LIBS_PR: ${{ github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.number || '' }}
-        run: python .ci-scripts/pr_libs_cache.py --platform windows-2025-vs2026 --tag "$env:LIBS_TAG" --pr "$env:LIBS_PR" '--' pwsh -File make.ps1 -Command libs -LlvmTools false
+        run: python .ci-scripts/libs-cache/pr_libs_cache.py --platform windows-2025-vs2026 --tag "$env:LIBS_TAG" --pr "$env:LIBS_PR" '--' pwsh -File make.ps1 -Command libs -LlvmTools false
       - name: Build
         run: |
           .\make.ps1 -Command configure -Config Debug

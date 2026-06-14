@@ -1,47 +1,19 @@
 #!/usr/bin/env python3
-"""Store and retrieve the prebuilt LLVM `build/libs` tree as a GHCR artifact.
+"""Docker registry v2 client for the libs-cache artifacts (shared support lib).
 
-Building the vendored LLVM is slow, so CI caches the built `build/libs` (plus
-`lib/llvm/src/compiler-rt/lib/builtins`) keyed on the inputs that determine the
-build. This script is the storage backend: it pushes that tree to GHCR as a
-single-blob OCI artifact and pulls it back, using the Docker registry v2 API
-directly so the same code path works on every platform without the `oras` CLI.
-It mirrors the registry plumbing in `release/ghcr_nightly.py`.
+The prebuilt vendored LLVM (`build/libs` plus
+`lib/llvm/src/compiler-rt/lib/builtins`) is cached as a single-blob GHCR OCI
+artifact. This module pushes that tree, pulls it back, and checks for it via the
+registry v2 API directly so the same code path works on every platform without
+the `oras` CLI. It mirrors the registry plumbing in `release/ghcr_nightly.py`.
+
+It is namespace-agnostic: the entry scripts (`oci_libs_cache.py` for the main
+cache, `branch_libs_cache.py` for the per-PR branch cache) compute the full
+package name -- `<namespace>/<platform>-<arch>[-pr<N>]` -- and hand it to the
+`cmd_*` handlers here. `build_parser`/`dispatch` assemble the shared CLI so each
+entry script is just its namespace, its `cache_package`, and a `main`.
 
 Stdlib only so no pip install is required on any CI runner.
-
-Package naming (the full GHCR package name is assembled in one place,
-`cache_package`):
-
-    ponyc-libs-cache/<platform>-<arch>
-
-  - `ponyc-libs-cache/` is a path namespace, so the cache packages sit apart
-    from distributable containers (and a `ponyc-libs-cache/*` glob can never
-    sweep up an unrelated container).
-  - `<platform>` is the builder image's name + date (`derive_platform`), or a
-    literal label for the non-container platforms (macOS/Windows/BSD).
-  - `<arch>` is read from the machine doing the build (`platform.machine()`).
-    The alpine and ubuntu26.04 builder images are multi-arch: the same image
-    reference is built on both x86-64 and arm64 runners, so the arch must be in
-    the package name or the two arches would clobber each other's artifact.
-
-The tag is the `hashFiles(...)` content hash. `package:tag` is keyed on the same
-inputs as the old `actions/cache` key: a branch that changes any LLVM-determining
-input gets a different tag (files) or platform (builder image), so a stale
-artifact can never be served — the only outcomes are an exact hit or a miss.
-
-Usage:
-    oci_libs_cache.py package-name (--image <ref> | --platform <label>)
-    oci_libs_cache.py exists --tag <hash> (--image <ref> | --platform <label>)
-    oci_libs_cache.py pull --tag <hash> (--image <ref> | --platform <label>)
-    oci_libs_cache.py push --tag <hash> (--image <ref> | --platform <label>)
-
-`package-name` prints the full package name (for debugging). `exists` reports
-whether the artifact is cached (exit 0 present / 1 absent) without downloading
-the blob -- the cheap check a maybe-build job gates on. `pull` restores the
-artifact into the working tree, exiting non-zero on a miss so the caller can fall
-back to building. `push` (warmer only) uploads the blob before the manifest;
-auth uses GITHUB_TOKEN (needs `packages: write`).
 """
 
 import argparse
@@ -51,7 +23,6 @@ import hashlib
 import io
 import json
 import os
-import platform
 import re
 import sys
 import tarfile
@@ -59,12 +30,9 @@ import urllib.error
 import urllib.parse
 import urllib.request
 
-ENDC = '\033[0m'
-ERROR = '\033[31m'
-INFO = '\033[34m'
+from common import die, info, require_env
 
 REGISTRY = 'https://ghcr.io'
-NAMESPACE = 'ponyc-libs-cache'
 REQUEST_TIMEOUT = 600
 
 ARTIFACT_TYPE = 'application/vnd.ponylang.libs-cache.v1'
@@ -87,24 +55,12 @@ CACHED_PATHS = [
 ]
 
 
-def die(message):
-    print(ERROR + message + ENDC, file=sys.stderr)
-    sys.exit(1)
-
-
-def info(message):
-    print(INFO + message + ENDC)
-
-
-def require_env(name):
-    value = os.environ.get(name, '')
-    if not value:
-        die(f"{name} needs to be set in env. Exiting.")
-    return value
-
-
 def repo_root():
-    return os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    # This module lives at .ci-scripts/libs-cache/registry.py, so the repo root
+    # is three directories up. If it moves, update the dirname depth here --
+    # build_archive/extract_archive locate build/libs relative to this.
+    return os.path.dirname(os.path.dirname(os.path.dirname(
+        os.path.abspath(__file__))))
 
 
 def owner():
@@ -122,28 +78,11 @@ def derive_platform(image):
     if not match:
         die(f"Builder image '{image}' does not match the expected format "
             "ghcr.io/ponylang/ponyc-ci-<name>:<YYYYMMDD>. If the builder image "
-            "naming changed, update IMAGE_RE in oci_libs_cache.py.")
+            "naming changed, update IMAGE_RE in registry.py.")
     name, date = match.group(1), match.group(2)
     # `:` -> `_` is injective here: image names use only `-` and `.`, never `_`,
     # so two distinct images can never collide onto one platform string.
     return f'{name}_{date}'
-
-
-def cache_package(platform_id):
-    """Assemble the full GHCR package name from a platform identity.
-
-    The one place the namespace and architecture are attached, so the warmer and
-    every consumer always agree on the name for a given platform on a given arch.
-    """
-    return f'{NAMESPACE}/{platform_id}-{platform.machine().lower()}'
-
-
-def resolve_package(args):
-    if args.image:
-        platform_id = derive_platform(args.image)
-    else:
-        platform_id = args.platform
-    return cache_package(platform_id)
 
 
 def digest_of(data):
@@ -387,23 +326,26 @@ def cmd_push(package, tag):
     info("Push complete.")
 
 
-def build_parser():
-    parser = argparse.ArgumentParser(description=__doc__)
+def build_parser(description, with_pr=False):
+    """The shared CLI: package-name/exists/pull/push, with --image|--platform and
+    --tag. `with_pr` adds the branch cache's required --pr to every subcommand."""
+    parser = argparse.ArgumentParser(description=description)
     sub = parser.add_subparsers(dest='command', required=True)
     for name in ('package-name', 'exists', 'pull', 'push'):
         p = sub.add_parser(name)
         target = p.add_mutually_exclusive_group(required=True)
         target.add_argument('--image', help='builder image reference')
         target.add_argument('--platform', help='literal platform label')
+        if with_pr:
+            p.add_argument('--pr', required=True, help='pull-request number')
         if name != 'package-name':
             p.add_argument('--tag', required=True,
                            help='hashFiles content hash')
     return parser
 
 
-def main(argv):
-    args = build_parser().parse_args(argv[1:])
-    package = resolve_package(args)
+def dispatch(args, package):
+    """Run the parsed subcommand against an already-resolved package name."""
     if args.command == 'package-name':
         cmd_package_name(package)
     elif args.command == 'exists':
@@ -412,7 +354,3 @@ def main(argv):
         cmd_pull(package, args.tag)
     elif args.command == 'push':
         cmd_push(package, args.tag)
-
-
-if __name__ == '__main__':
-    main(sys.argv)

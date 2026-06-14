@@ -39,7 +39,12 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PONYLANG_MAIN_READ_PACKAGE_TOKEN: ${{ secrets.PONYLANG_MAIN_READ_PACKAGE_TOKEN }}
+          # Route the free-form `prefix` input through env, never inline into the
+          # shell: an inline ${{ inputs.prefix }} could break out of the quotes
+          # and inject. (dry_run is a server-evaluated boolean -> fixed literal,
+          # carries no attacker-controlled string, so it stays inline.)
+          PREFIX: ${{ inputs.prefix }}
         run: |
-          python3 .ci-scripts/clear_libs_cache.py \
-            --prefix '${{ inputs.prefix }}' \
+          python3 .ci-scripts/libs-cache/clear_libs_cache.py \
+            --prefix "$PREFIX" \
             ${{ inputs.dry_run && '--dry-run' || '' }}

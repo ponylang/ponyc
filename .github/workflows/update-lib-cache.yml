@@ -44,9 +44,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           LIBS_IMAGE: ${{ matrix.image }}
           LIBS_TAG: ${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
-        run: |
-          make libs-ci llvm_tools=false build_flags=-j4 libs_cache_image="$LIBS_IMAGE" libs_cache_tag="$LIBS_TAG"
-          make libs-push libs_cache_image="$LIBS_IMAGE" libs_cache_tag="$LIBS_TAG"
+        run: python3 .ci-scripts/libs-cache/resolve_libs_cache.py --warm --image "$LIBS_IMAGE" --tag "$LIBS_TAG" -- make libs llvm_tools=false build_flags=-j4
 
   # Currently, Github actions supplied by GH like checkout do not work in musl
   # libc environments on arm64. We work around this by running checkout on the
@@ -93,7 +91,7 @@ jobs:
             -v ${{ github.workspace }}:/home/pony/project \
             -w /home/pony/project \
             ${{ matrix.image }} \
-            sh -c 'make libs-ci llvm_tools=false build_flags=-j4 libs_cache_image="$LIBS_IMAGE" libs_cache_tag="$LIBS_TAG" && make libs-push libs_cache_image="$LIBS_IMAGE" libs_cache_tag="$LIBS_TAG"'
+            sh -c 'python3 .ci-scripts/libs-cache/resolve_libs_cache.py --warm --image "$LIBS_IMAGE" --tag "$LIBS_TAG" -- make libs llvm_tools=false build_flags=-j4'
 
   x86_64-macos:
     runs-on: macos-15-intel
@@ -106,9 +104,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           LIBS_TAG: ${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
-        run: |
-          make libs-ci llvm_tools=false build_flags=-j4 libs_cache_package=x86-macos-15-intel libs_cache_tag="$LIBS_TAG"
-          make libs-push libs_cache_package=x86-macos-15-intel libs_cache_tag="$LIBS_TAG"
+        run: python3 .ci-scripts/libs-cache/resolve_libs_cache.py --warm --platform x86-macos-15-intel --tag "$LIBS_TAG" -- make libs llvm_tools=false build_flags=-j4
 
   arm64-macos:
     runs-on: macos-26
@@ -121,9 +117,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           LIBS_TAG: ${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
-        run: |
-          make libs-ci llvm_tools=false build_flags=-j3 libs_cache_package=arm64-macos-26 libs_cache_tag="$LIBS_TAG"
-          make libs-push libs_cache_package=arm64-macos-26 libs_cache_tag="$LIBS_TAG"
+        run: python3 .ci-scripts/libs-cache/resolve_libs_cache.py --warm --platform arm64-macos-26 --tag "$LIBS_TAG" -- make libs llvm_tools=false build_flags=-j3
 
   x86_64-windows:
     runs-on: windows-2025-vs2026
@@ -138,9 +132,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           LIBS_TAG: ${{ hashFiles('make.ps1', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
-        run: |
-          .\make.ps1 -Command libs-ci -LlvmTools false -LibsCachePackage windows-2025-vs2026 -LibsCacheTag $env:LIBS_TAG
-          .\make.ps1 -Command libs-push -LibsCachePackage windows-2025-vs2026 -LibsCacheTag $env:LIBS_TAG
+        run: python .ci-scripts/libs-cache/resolve_libs_cache.py --warm --platform windows-2025-vs2026 --tag $env:LIBS_TAG '--' pwsh -File make.ps1 -Command libs -LlvmTools false
 
   arm64-windows:
     runs-on: windows-11-arm
@@ -155,9 +147,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           LIBS_TAG: ${{ hashFiles('make.ps1', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
-        run: |
-          .\make.ps1 -Command libs-ci -LlvmTools false -Arch ARM64 -LibsCachePackage windows-11-arm -LibsCacheTag $env:LIBS_TAG
-          .\make.ps1 -Command libs-push -LibsCachePackage windows-11-arm -LibsCacheTag $env:LIBS_TAG
+        run: python .ci-scripts/libs-cache/resolve_libs_cache.py --warm --platform windows-11-arm --tag $env:LIBS_TAG '--' pwsh -File make.ps1 -Command libs -LlvmTools false -Arch ARM64
 
   freebsd:
     runs-on: ubuntu-latest
@@ -175,24 +165,39 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6.0.2
+      - name: Check libs cache
+        id: check
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          LIBS_TAG: ${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
+        run: |
+          if python3 .ci-scripts/libs-cache/oci_libs_cache.py exists --platform freebsd-${{ matrix.version }} --tag "$LIBS_TAG"; then
+            echo "hit=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "hit=false" >> "$GITHUB_OUTPUT"
+          fi
       - name: Free disk space
+        if: steps.check.outputs.hit != 'true'
         run: |
           sudo rm -rf /usr/share/dotnet
           sudo rm -rf /usr/local/lib/android
           sudo rm -rf /opt/hostedtoolcache
           df -h /
       - name: Install QEMU
+        if: steps.check.outputs.hit != 'true'
         run: |
           sudo apt-get update -q
           sudo apt-get install -y -q qemu-utils qemu-system-x86 cloud-image-utils expect
           sudo chmod 666 /dev/kvm
       - name: Download FreeBSD image
+        if: steps.check.outputs.hit != 'true'
         run: |
           curl -L -o freebsd.qcow2.xz \
             "https://download.freebsd.org/releases/VM-IMAGES/${{ matrix.version }}-RELEASE/amd64/Latest/FreeBSD-${{ matrix.version }}-RELEASE-amd64-BASIC-CLOUDINIT-ufs.qcow2.xz"
           xz -d freebsd.qcow2.xz
           qemu-img resize freebsd.qcow2 60G
       - name: Prepare VM access
+        if: steps.check.outputs.hit != 'true'
         run: |
           ssh-keygen -t ed25519 -f vm_key -N ""
           PUB_KEY=$(cat vm_key.pub)
@@ -213,6 +218,7 @@ jobs:
           METADATA
           cloud-localds seed.img user-data meta-data
       - name: Boot FreeBSD VM
+        if: steps.check.outputs.hit != 'true'
         run: |
           qemu-system-x86_64 \
             -machine pc,accel=kvm \
@@ -226,6 +232,7 @@ jobs:
             -display none \
             -daemonize
       - name: Wait for VM
+        if: steps.check.outputs.hit != 'true'
         run: |
           timeout 300 bash -c '
             while ! ssh -o StrictHostKeyChecking=no -o ConnectTimeout=2 -i vm_key -p 2222 freebsd@localhost true 2>/dev/null; do
@@ -234,6 +241,7 @@ jobs:
           '
           echo "SSH available"
       - name: Install build dependencies
+        if: steps.check.outputs.hit != 'true'
         run: |
           export PUB_KEY=$(cat vm_key.pub)
           expect <<'EXPECT'
@@ -257,18 +265,20 @@ jobs:
           expect eof
           EXPECT
       - name: Copy source to VM
+        if: steps.check.outputs.hit != 'true'
         run: |
           rsync -az -e "ssh -o StrictHostKeyChecking=no -i vm_key -p 2222" \
             "$GITHUB_WORKSPACE/" freebsd@localhost:/home/freebsd/ponyc/
       - name: Build and push libs
+        if: steps.check.outputs.hit != 'true'
         env:
           LIBS_TAG: ${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
         run: |
           ssh -o StrictHostKeyChecking=no -i vm_key -p 2222 freebsd@localhost \
             "cd /home/freebsd/ponyc && \
              export GITHUB_TOKEN='${{ secrets.GITHUB_TOKEN }}' GITHUB_REPOSITORY='${{ github.repository }}' GITHUB_ACTOR='${{ github.actor }}' && \
-             gmake libs-ci llvm_tools=false build_flags=-j4 libs_cache_package=freebsd-${{ matrix.version }} libs_cache_tag='${LIBS_TAG}' && \
-             gmake libs-push libs_cache_package=freebsd-${{ matrix.version }} libs_cache_tag='${LIBS_TAG}'"
+             gmake libs llvm_tools=false build_flags=-j4 && \
+             python3 .ci-scripts/libs-cache/oci_libs_cache.py push --platform freebsd-${{ matrix.version }} --tag '${LIBS_TAG}'"
       - name: Shutdown VM
         if: always()
         run: |
@@ -280,18 +290,32 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6.0.2
+      - name: Check libs cache
+        id: check
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          LIBS_TAG: ${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
+        run: |
+          if python3 .ci-scripts/libs-cache/oci_libs_cache.py exists --platform openbsd-7.9 --tag "$LIBS_TAG"; then
+            echo "hit=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "hit=false" >> "$GITHUB_OUTPUT"
+          fi
       - name: Free disk space
+        if: steps.check.outputs.hit != 'true'
         run: |
           sudo rm -rf /usr/share/dotnet
           sudo rm -rf /usr/local/lib/android
           sudo rm -rf /opt/hostedtoolcache
           df -h /
       - name: Install QEMU
+        if: steps.check.outputs.hit != 'true'
         run: |
           sudo apt-get update -q
           sudo apt-get install -y -q qemu-utils qemu-system-x86 genisoimage
           sudo chmod 666 /dev/kvm
       - name: Download OpenBSD image
+        if: steps.check.outputs.hit != 'true'
         run: |
           curl -L -o openbsd.qcow2 \
             "https://github.com/hcartiaux/openbsd-cloud-image/releases/download/v7.9_2026-06-03-20-46/openbsd-generic.qcow2"
@@ -300,6 +324,7 @@ jobs:
           # build on a dedicated disk instead, mirroring the DragonFly job.
           qemu-img create -f qcow2 openbsd-data.qcow2 50G
       - name: Prepare VM access
+        if: steps.check.outputs.hit != 'true'
         run: |
           ssh-keygen -t ed25519 -f vm_key -N ""
           PUB_KEY=$(cat vm_key.pub)
@@ -324,6 +349,7 @@ jobs:
           METADATA
           genisoimage -output seed.iso -volid cidata -joliet -rock user-data meta-data
       - name: Boot OpenBSD VM
+        if: steps.check.outputs.hit != 'true'
         run: |
           qemu-system-x86_64 \
             -machine pc,accel=kvm \
@@ -338,6 +364,7 @@ jobs:
             -display none \
             -daemonize
       - name: Wait for VM
+        if: steps.check.outputs.hit != 'true'
         run: |
           timeout 300 bash -c '
             while ! ssh -o StrictHostKeyChecking=no -o ConnectTimeout=2 -i vm_key -p 2222 openbsd@localhost true 2>/dev/null; do
@@ -346,6 +373,7 @@ jobs:
           '
           echo "SSH available"
       - name: Set up build disk
+        if: steps.check.outputs.hit != 'true'
         run: |
           ssh -o StrictHostKeyChecking=no -i vm_key -p 2222 openbsd@localhost <<'EOF'
           set -e
@@ -359,27 +387,31 @@ jobs:
           doas chown openbsd:wheel /build
           EOF
       - name: Install build dependencies
+        if: steps.check.outputs.hit != 'true'
         run: |
           ssh -o StrictHostKeyChecking=no -i vm_key -p 2222 openbsd@localhost \
             "doas pkg_add -u && doas pkg_add cmake gmake git python%3 rsync--"
       - name: Raise datasize limit
+        if: steps.check.outputs.hit != 'true'
         run: |
           ssh -o StrictHostKeyChecking=no -i vm_key -p 2222 openbsd@localhost \
             "doas sed -i 's/datasize-max=1536M/datasize-max=4096M/' /etc/login.conf && doas sed -i 's/datasize-cur=1536M/datasize-cur=4096M/' /etc/login.conf"
       - name: Copy source to VM
+        if: steps.check.outputs.hit != 'true'
         run: |
           rsync -az -e "ssh -o StrictHostKeyChecking=no -i vm_key -p 2222" \
             "$GITHUB_WORKSPACE/" openbsd@localhost:/build/ponyc/
       - name: Build and push libs
+        if: steps.check.outputs.hit != 'true'
         env:
           LIBS_TAG: ${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
         run: |
           ssh -o StrictHostKeyChecking=no -o ServerAliveInterval=60 -i vm_key -p 2222 openbsd@localhost \
             "cd /build/ponyc && \
              export GITHUB_TOKEN='${{ secrets.GITHUB_TOKEN }}' GITHUB_REPOSITORY='${{ github.repository }}' GITHUB_ACTOR='${{ github.actor }}' && \
-             gmake libs-ci llvm_tools=false build_flags=-j4 libs_cache_package=openbsd-7.9 libs_cache_tag='${LIBS_TAG}' && \
+             gmake libs llvm_tools=false build_flags=-j4 && \
              rm -rf build/build_libs && \
-             gmake libs-push libs_cache_package=openbsd-7.9 libs_cache_tag='${LIBS_TAG}'"
+             python3 .ci-scripts/libs-cache/oci_libs_cache.py push --platform openbsd-7.9 --tag '${LIBS_TAG}'"
       - name: Shutdown VM
         if: always()
         run: |
@@ -391,18 +423,32 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6.0.2
+      - name: Check libs cache
+        id: check
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          LIBS_TAG: ${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
+        run: |
+          if python3 .ci-scripts/libs-cache/oci_libs_cache.py exists --platform dragonfly-6.4.2 --tag "$LIBS_TAG"; then
+            echo "hit=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "hit=false" >> "$GITHUB_OUTPUT"
+          fi
       - name: Free disk space
+        if: steps.check.outputs.hit != 'true'
         run: |
           sudo rm -rf /usr/share/dotnet
           sudo rm -rf /usr/local/lib/android
           sudo rm -rf /opt/hostedtoolcache
           df -h /
       - name: Install QEMU
+        if: steps.check.outputs.hit != 'true'
         run: |
           sudo apt-get update -q
           sudo apt-get install -y -q qemu-utils qemu-system-x86
           sudo chmod 666 /dev/kvm
       - name: Download DragonFly BSD image
+        if: steps.check.outputs.hit != 'true'
         run: |
           curl -L -o dfly.img.bz2 \
             "https://mirror-master.dragonflybsd.org/iso-images/dfly-x86_64-6.4.2_REL.img.bz2"
@@ -413,6 +459,7 @@ jobs:
           # Second disk for build workspace (root partition is only ~1.8GB)
           qemu-img create -f qcow2 dfly-data.qcow2 50G
       - name: Download DragonFly BSD ISO
+        if: steps.check.outputs.hit != 'true'
         run: |
           # The raw image lacks /usr/include (system headers). Extract
           # them from the ISO which contains the full base system.
@@ -425,9 +472,11 @@ jobs:
           sudo umount dfly-iso
           rm dfly.iso
       - name: Prepare VM access
+        if: steps.check.outputs.hit != 'true'
         run: |
           ssh-keygen -t ed25519 -f vm_key -N ""
       - name: Boot DragonFly BSD VM
+        if: steps.check.outputs.hit != 'true'
         run: |
           qemu-system-x86_64 \
             -machine pc,accel=kvm \
@@ -444,6 +493,7 @@ jobs:
             -display none \
             -daemonize
       - name: Configure VM
+        if: steps.check.outputs.hit != 'true'
         run: |
           PUB_KEY=$(cat vm_key.pub)
 
@@ -531,6 +581,7 @@ jobs:
           sock.close()
           PYEOF
       - name: Wait for VM
+        if: steps.check.outputs.hit != 'true'
         run: |
           timeout 300 bash -c '
             while ! ssh -o StrictHostKeyChecking=no -o ConnectTimeout=2 -i vm_key -p 2222 root@localhost true 2>/dev/null; do
@@ -539,6 +590,7 @@ jobs:
           '
           echo "SSH available"
       - name: Install build dependencies
+        if: steps.check.outputs.hit != 'true'
         run: |
           # Move /usr/local to /build disk before installing packages.
           # The root partition is only ~1.8GB and gcc13 alone needs 418MB.
@@ -567,10 +619,12 @@ jobs:
           git config --global --add safe.directory /build/ponyc
           EOF
       - name: Copy source to VM
+        if: steps.check.outputs.hit != 'true'
         run: |
           rsync -az -e "ssh -o StrictHostKeyChecking=no -i vm_key -p 2222" \
             "$GITHUB_WORKSPACE/" root@localhost:/build/ponyc/
       - name: Build and push libs
+        if: steps.check.outputs.hit != 'true'
         env:
           LIBS_TAG: ${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
         run: |
@@ -579,9 +633,9 @@ jobs:
           cd /build/ponyc
           export CC=/usr/local/bin/gcc13 CXX=/usr/local/bin/g++13 LD_LIBRARY_PATH=/usr/local/lib/gcc13 SSL_CERT_FILE=/usr/local/share/certs/ca-root-nss.crt
           export GITHUB_TOKEN='${{ secrets.GITHUB_TOKEN }}' GITHUB_REPOSITORY='${{ github.repository }}' GITHUB_ACTOR='${{ github.actor }}'
-          gmake libs-ci llvm_tools=false build_flags=-j4 libs_cache_package=dragonfly-6.4.2 libs_cache_tag='${LIBS_TAG}'
+          gmake libs llvm_tools=false build_flags=-j4
           rm -rf build/build_libs
-          gmake libs-push libs_cache_package=dragonfly-6.4.2 libs_cache_tag='${LIBS_TAG}'
+          python3 .ci-scripts/libs-cache/oci_libs_cache.py push --platform dragonfly-6.4.2 --tag '${LIBS_TAG}'
           EOF
       - name: Shutdown VM
         if: always()
@@ -615,4 +669,4 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PONYLANG_MAIN_READ_PACKAGE_TOKEN: ${{ secrets.PONYLANG_MAIN_READ_PACKAGE_TOKEN }}
-        run: python3 .ci-scripts/prune_libs_cache.py --keep 2
+        run: python3 .ci-scripts/libs-cache/prune_libs_cache.py --keep 2
