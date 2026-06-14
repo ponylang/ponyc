@@ -27,13 +27,10 @@ actor \nodoc\ Main is TestList
   fun tag tests(test: PonyTest) =>
     // Tests below function across all systems and are listed alphabetically
     test(_TestDNSBroadcastIP4)
-    test(_TestDNSBroadcastIP6)
     test(_TestDNSUnresolvableEmpty)
     test(_TestMulticastIP4)
-    test(_TestMulticastIP6)
     test(_TestNetAddressIP6Scope)
     test(_TestNetAddressNameRoundTripIP4)
-    test(_TestNetAddressNameRoundTripIP6)
     test(_TestOsIpString)
     test(_TestSocketResultDecoder)
     test(_TestTCPConnectionFailed)
@@ -51,12 +48,19 @@ actor \nodoc\ Main is TestList
     test(_TestUDPListenFailure)
     test(_TestUDPOversizedDatagramTruncated)
     test(_TestUDPUndersizedDatagramDelivered)
-    test(_TestUnicastIP6Loopback)
 
     // The deterministic send-failure trigger (send to broadcast without
     // SO_BROADCAST -> EACCES/WSAEACCES) is verified on linux and windows.
     ifdef linux or windows then
       test(_TestUDPCloseOnSendFailure)
+    end
+    
+    // Tests below exclude haiku and are listed alphabetically
+    ifdef not haiku then
+      test(_TestDNSBroadcastIP6)
+      test(_TestMulticastIP6)
+      test(_TestNetAddressNameRoundTripIP6)
+      test(_TestUnicastIP6Loopback)
     end
 
     // Tests below run only on linux and are listed alphabetically
