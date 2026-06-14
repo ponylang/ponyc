@@ -21,6 +21,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Fix `UDPSocket.set_multicast_interface` not setting the interface ([PR #5481](https://github.com/ponylang/ponyc/pull/5481))
 - Fix `UDPSocket.set_multicast_loopback` and `set_multicast_ttl` having no effect ([PR #5481](https://github.com/ponylang/ponyc/pull/5481))
 - Fix Windows process crash when a UDP socket fails to listen ([PR #5483](https://github.com/ponylang/ponyc/pull/5483))
+- Make `UDPSocket.set_broadcast` a no-op on IPv6 sockets ([PR #5497](https://github.com/ponylang/ponyc/pull/5497))
 
 ### Added
 
