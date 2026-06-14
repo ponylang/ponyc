@@ -50,7 +50,7 @@ jobs:
         include:
           - image: ghcr.io/ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu24.04-builder:20250115
             name: x86-64 Linux glibc deb
-          - image: ghcr.io/ponylang/ponyc-ci-x86-64-unknown-linux-fedora43-builder:20260427
+          - image: ghcr.io/ponylang/ponyc-ci-x86-64-unknown-linux-fedora44-builder:20260614
             name: x86-64 Linux glibc rpm
 
     name: ${{ matrix.name }}

@@ -1,4 +1,4 @@
-FROM fedora:43
+FROM fedora:44
 
 LABEL org.opencontainers.image.source="https://github.com/ponylang/ponyc"
 
