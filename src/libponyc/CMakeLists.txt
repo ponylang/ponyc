@@ -259,7 +259,6 @@ elseif(${CMAKE_HOST_SYSTEM_NAME} MATCHES "Haiku")
     # there's no static libstdc++, so it needs to be linked separately
     add_custom_command(OUTPUT libponyc-standalone.a
         COMMAND echo "create libponyc-standalone.a" > standalone.mri
-        COMMAND echo "addlib ${PROJECT_SOURCE_DIR}/../../build/libs/lib/libblake2.a" >> standalone.mri
         COMMAND find ${PROJECT_SOURCE_DIR}/../../build/libs/ -name "libLLVM*.a" | xargs -I % -n 1 echo 'addlib %' >> standalone.mri
         COMMAND find ${PROJECT_SOURCE_DIR}/../../build/libs/ -name "liblld*.a" | xargs -I % -n 1 echo 'addlib %' >> standalone.mri
         COMMAND echo "addlib $<TARGET_FILE:libponyc>" >> standalone.mri
