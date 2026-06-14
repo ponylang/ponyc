@@ -299,8 +299,22 @@ class \nodoc\ iso _TestStringToFloat is UnitTest
     h.assert_true("NaN".f32()?.nan())
     h.assert_true("+nAn".f64()?.nan())
     h.assert_true(" -nan".f64()?.nan())
-    h.assert_true("NaN(123)".f64()?.nan()) // nan-boxing ftw
-    h.assert_true("NaN(123)".f32()?.nan()) // nan-boxing ftw
+    ifdef haiku then
+      h.log("""
+        Parsing `NaN(123)` on Haiku is broken.
+        See: https://dev.haiku-os.org/ticket/20092
+      """)
+      // assert it errors, so once it gets fixed, we'll know to clean this up here.
+      h.assert_error({() ? =>
+        h.assert_true("NaN(123)".f64()?.nan())
+      }, "NaN(123).f64()?.nan() was broken on Haiku")
+      h.assert_error({() ? =>
+        h.assert_true("NaN(123)".f32()?.nan())
+      }, "NaN(123).f32()?.nan() was broken on Haiku")
+    else
+      h.assert_true("NaN(123)".f64()?.nan()) // nan-boxing ftw
+      h.assert_true("NaN(123)".f32()?.nan()) // nan-boxing ftw
+    end
 
     // infinity
     h.assert_no_error({() ? =>
