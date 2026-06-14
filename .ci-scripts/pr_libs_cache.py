@@ -16,20 +16,30 @@ not reimplement any caching itself: it just sequences the existing
 build command the workflow hands it.
 
 Flow (per platform, per job):
-  1. pull the main cache              -> hit -> done, no build, no push.
-  2. (non-fork) pull this PR's branch -> hit -> done, no build, no push.
+  1. check the main cache             -> hit -> done, no build, no push.
+  2. (non-fork) check this PR's branch -> hit -> done, no build, no push.
   3. miss -> run the build command -> (non-fork) push to this PR's branch cache.
 
+Two modes select how "check" and "push failure" behave:
+
+  - consumer mode (default): step 1/2 `pull` (download the blob into the working
+    tree on a hit) and the branch push is best-effort -- the libs are already
+    built, so a cache-write hiccup degrades to "rebuild next push" rather than
+    failing the job.
+  - maybe-build mode (`--ensure`, non-fork only): step 1/2 `exists` (no download
+    -- the job only needs to know whether to build, not the blob itself, so a hit
+    is seconds) and a branch push failure HARD-fails the job, so a registry write
+    problem surfaces instead of silently leaving consumers to each cold-build.
+
 `--pr` is empty for forks (and the build command still runs), so a fork behaves
-exactly like the plain pull-main-or-build: no branch pull, no push. The branch
-push is best-effort -- the libs are already built, so a cache-write hiccup
-degrades to "rebuild next push" rather than failing the job. A build failure does
-fail the job. A main-cache hit short-circuits before any push, so a PR job never
-writes the main cache (the warmer stays its only writer).
+exactly like the plain pull-main-or-build: no branch pull, no push; `--ensure` is
+rejected for forks. A build failure does fail the job. A main-cache hit
+short-circuits before any push, so a PR job never writes the main cache (the
+warmer stays its only writer).
 
 Stdlib only. Usage:
-    pr_libs_cache.py (--image <ref> | --platform <label>) --tag <hash> \
-        [--pr <N>] -- <build command...>
+    pr_libs_cache.py [--ensure] (--image <ref> | --platform <label>) \
+        --tag <hash> [--pr <N>] -- <build command...>
 
 Everything after `--` is the build command, run as-is on a cache miss (e.g.
 `make libs llvm_tools=false build_flags=-j4`, or on Windows
@@ -89,18 +99,25 @@ def main(argv):
     parser.add_argument('--tag', required=True, help='hashFiles content hash')
     parser.add_argument('--pr', default='',
                         help='PR number (empty for forks: no branch cache)')
+    parser.add_argument('--ensure', action='store_true',
+                        help='maybe-build mode: check existence (no download); '
+                             'on miss build and HARD-push the branch cache. '
+                             'Requires --pr (non-fork only).')
     args = parser.parse_args(ours)
     if not build_cmd:
         die("pr_libs_cache.py: no build command after '--'.")
+    if args.ensure and not args.pr:
+        die("pr_libs_cache.py --ensure requires --pr (non-fork only).")
 
     base = cache_args(args)
     branch = base + ['--pr', args.pr]
+    verb = 'exists' if args.ensure else 'pull'
 
-    if run([sys.executable, MAIN_CACHE, 'pull'] + base) == 0:
-        info("Restored libs from the main GHCR cache.")
+    if run([sys.executable, MAIN_CACHE, verb] + base) == 0:
+        info("Libs present in/restored from the main GHCR cache.")
         return
-    if args.pr and run([sys.executable, BRANCH_CACHE, 'pull'] + branch) == 0:
-        info("Restored libs from the branch GHCR cache.")
+    if args.pr and run([sys.executable, BRANCH_CACHE, verb] + branch) == 0:
+        info("Libs present in/restored from the branch GHCR cache.")
         return
 
     info("Libs cache miss; building from source.")
@@ -110,7 +127,10 @@ def main(argv):
 
     if args.pr:
         info("Pushing freshly built libs to the branch GHCR cache.")
-        if run([sys.executable, BRANCH_CACHE, 'push'] + branch) != 0:
+        push_rc = run([sys.executable, BRANCH_CACHE, 'push'] + branch)
+        if push_rc != 0:
+            if args.ensure:
+                die("branch libs cache push failed.")
             info("warning: branch libs cache push failed; will rebuild next "
                  "push.")
 
