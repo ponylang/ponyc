@@ -35,9 +35,12 @@ cache, so a branch that changes any LLVM-determining input gets a different tag
 
 Usage:
     branch_libs_cache.py package-name --pr <N> (--image <ref> | --platform <lbl>)
+    branch_libs_cache.py exists --tag <hash> --pr <N> (--image <ref> | --platform <lbl>)
     branch_libs_cache.py pull --tag <hash> --pr <N> (--image <ref> | --platform <lbl>)
     branch_libs_cache.py push --tag <hash> --pr <N> (--image <ref> | --platform <lbl>)
 
+`exists` reports whether the artifact is cached (exit 0 present / 1 absent)
+without downloading the blob -- the cheap check a maybe-build job gates on.
 `pull` restores the artifact, exiting non-zero on a miss so the caller can fall
 back to building. `push` uploads the blob before the manifest; auth uses
 GITHUB_TOKEN (needs `packages: write`, which only non-fork PR runs get).
@@ -287,6 +290,23 @@ def cmd_package_name(package):
     print(package)
 
 
+def cmd_exists(package, tag):
+    """Report whether the artifact exists, without downloading the blob.
+
+    Exits 0 when the manifest is present, 1 otherwise. A miss returns None from
+    get_manifest; any other HTTP code or a network failure routes through
+    check/request -> die (exit 1). So every non-present outcome exits non-zero,
+    and a caller gating a build always fails safe to building.
+    """
+    repo = repository(package)
+    info(f"Checking branch libs cache {REGISTRY}/{repo}:{tag}")
+    token = auth_token(package, 'pull')
+    if get_manifest(repo, tag, token) is None:
+        info("Branch libs cache miss.")
+        sys.exit(1)
+    info("Branch libs cache present.")
+
+
 def cmd_pull(package, tag):
     repo = repository(package)
     info(f"Pulling branch libs cache from {REGISTRY}/{repo}:{tag}")
@@ -364,7 +384,7 @@ def cmd_push(package, tag):
 def build_parser():
     parser = argparse.ArgumentParser(description=__doc__)
     sub = parser.add_subparsers(dest='command', required=True)
-    for name in ('package-name', 'pull', 'push'):
+    for name in ('package-name', 'exists', 'pull', 'push'):
         p = sub.add_parser(name)
         target = p.add_mutually_exclusive_group(required=True)
         target.add_argument('--image', help='builder image reference')
@@ -381,6 +401,8 @@ def main(argv):
     package = resolve_package(args)
     if args.command == 'package-name':
         cmd_package_name(package)
+    elif args.command == 'exists':
+        cmd_exists(package, args.tag)
     elif args.command == 'pull':
         cmd_pull(package, args.tag)
     elif args.command == 'push':

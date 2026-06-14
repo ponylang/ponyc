@@ -13,7 +13,7 @@ Use this skill when adding a new distro/version (e.g. Ubuntu 26.04) so ponyc pro
 The procedure encodes the **multi-platform builder pattern** — a single `.ci-dockerfiles/<distro><version>-builder/` directory containing one Dockerfile and one `build-and-push.bash` that builds and publishes a multi-arch image (linux/amd64 + linux/arm64) under `ghcr.io/ponylang/ponyc-ci-<distro><version>-builder`. This is the pattern used by Alpine 3.22+. New release-target adds — including new Ubuntu versions — should use it. Older builders still use a per-arch pattern (separate `x86-64-unknown-linux-...-builder/` and `arm64-unknown-linux-...-builder/` directories); leave those alone, don't migrate them as part of an add.
 
 **Out of scope:**
-- CI test-only workflows: `pr-ponyc.yml`, `ponyc-tier2.yml`, `ponyc-weekly-checks.yml`, `stress-test-*.yml`. These reference Linux images for testing ponyc itself, not for producing release artifacts. Don't touch them.
+- CI test-only workflows: `pr.yml`, `ponyc-tier2.yml`, `ponyc-weekly-checks.yml`, `stress-test-*.yml`. These reference Linux images for testing ponyc itself, not for producing release artifacts. Don't touch them.
 - `pr-docker-image-validation.yml` validates the user-facing `.dockerfiles/{nightly,release}/Dockerfile` images (Alpine-based). Not affected by adding a release target.
 - Removing EOL'd distros. Different procedure, not covered here.
 - Migrating an existing per-arch builder to the multi-platform pattern. Different procedure, not covered here.
