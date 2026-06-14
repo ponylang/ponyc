@@ -35,14 +35,6 @@ On Linux/macOS (via `make`), the first invocation of each command rebuilds its t
 - `make test-pony-lint` / `make lint-pony-lint`
 - `make test-pony-doc` / `make lint-pony-doc`
 
-## CI
-
-**Libs caches are written only on main.** The LLVM/libs caches that PR jobs restore (keyed on the hash of `Makefile`/`make.ps1`, `CMakeLists.txt`, `lib/CMakeLists.txt`, and `lib/llvm/patches/*`) are restore-only everywhere except the `update-lib-cache` job, which runs on pushes to main and saves only on success. PR and branch runs never write caches: the org sits at GitHub's total cache size limit with main's entries alone, and branch caching causes eviction thrashing that slows every build. The consequence: a PR that changes any keyed file pays a full LLVM rebuild on every platform on **every push** until it merges. When iterating on such a PR, diagnose all platforms' failures from a CI run first and batch every fix into a single push — never push fixups serially.
-
-**Never merge a cache-invalidating PR without explicit permission.** Merging a PR that changes a keyed file blows out the caches on main, and until `update-lib-cache` finishes rebuilding them, every scheduled job that fires in that window (nightlies in particular) rebuilds LLVM itself instead of restoring. The human decides when that window opens.
-
-**Check for an active cache rebuild on main before opening a PR.** If `update-lib-cache` is currently rebuilding (a cache-invalidating change just landed), a PR opened now misses the cache and rebuilds LLVM in every job — wait for the main rebuild to finish first. Exception: a PR that itself invalidates the cache misses either way, so there's nothing to wait for.
-
 ## Release Notes
 
 Use the `/pony-release-notes` skill if available. Otherwise: create `.release-notes/<slug>.md` (e.g., `fix-foo.md`). Do NOT edit `next-release.md` directly — CI aggregates the individual files. Format: `## Title` (matching the PR title exactly) followed by a user-facing description. Include code examples for new API; include before/after for breaking changes.
