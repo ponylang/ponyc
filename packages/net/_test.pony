@@ -283,10 +283,10 @@ class \nodoc\ iso _TestBroadcast is UnitTest
 
   Both sockets are explicitly IPv4. The default UDPSocket constructor binds
   whichever address family getaddrinfo returns first, and IPv6 has no
-  broadcast - that path sent to all-nodes multicast (FF02::1) instead, which
-  is unreliable on multi-interface hosts. The ping is retransmitted on a
-  timer until the test completes, since UDP delivery is best-effort and a
-  single dropped datagram would otherwise fail the test.
+  broadcast - on an IPv6 socket set_broadcast is a no-op and the test would
+  have nothing to exercise. The ping is retransmitted on a timer until the
+  test completes, since UDP delivery is best-effort and a single dropped
+  datagram would otherwise fail the test.
   """
   fun name(): String => "net/Broadcast"
   fun label(): String => "unreliable-appveyor-osx"
@@ -595,14 +595,6 @@ class \nodoc\ _TestMulticastIP6Notify is UDPNotify
     _h.complete_action("multicast listen")
 
     _h.assert_true(sock.local_address().ip6())
-
-    // Execution-only smoke for set_broadcast's IPv6 arm: it joins FF02::1
-    // on an unpinned interface and ignores its argument (issue #5472).
-    // Delivery in this test does not depend on this call, and no assertion
-    // targets its effect -- kernel auto-membership in the all-nodes group
-    // makes the join unobservable from here. The IPv6 arm is NOT
-    // behaviorally covered.
-    sock.set_broadcast(true)
 
     // Join on the interface carried by the scoped literal's zone id. The
     // `to` argument is resolved by the runtime and its sin6_scope_id
