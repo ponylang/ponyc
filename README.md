@@ -8,32 +8,21 @@ Pony is still pre-1.0 and as such, semi-regularly introduces breaking changes. T
 
 ## Supported platforms
 
-### Operating Systems
+<!-- Keep this matrix in sync with the copy in the ponylang-website repo: docs/learn/installing-pony.md -->
 
-* Linux
-* macOS
-* Windows 11
+| OS \ CPU | `amd64` | `arm64` | `arm32` | `riscv64` |
+|---|---|---|---|---|
+| **Linux** | ✅ Released | ✅ Released | 🧪 Tested | 🧪 Tested |
+| **macOS** | ✅ Released | ✅ Released | — | — |
+| **Windows** | ✅ Released | ✅ Released | — | — |
+| **FreeBSD** | 🧪 Tested | ✗ Unsupported | — | — |
+| **OpenBSD** | 🧪 Tested | ✗ Unsupported | — | — |
+| **DragonFly BSD** | 🧪 Tested | — | — | — |
 
-### CPUs
-
-* Full support for 64-bit platforms
-  * x86, ARM and RISC-V CPUs only
-
-## Additionally tested platforms
-
-These platforms are supported. We run CI on a regular schedule rather than on every pull request, putting less effort into CI coverage than for the platforms above.
-
-* DragonFly BSD (x86-64)
-* FreeBSD (x86-64)
-* Linux arm (32-bit)
-* Linux armhf (32-bit)
-* OpenBSD (x86-64)
-
-## Best effort platforms
-
-Best-effort platforms are operating systems where Pony _should_ work, but with low confidence. We don't have automated testing or continuous integration for these platforms to ensure they remain functional. We won't intentionally break a best-effort platform. However, we make no effort to maintain compatibility with them. When building ponyc from source on a best-effort platform, you may encounter failures. We welcome thoughtful pull requests to restore Pony compatibility with the platform.
-
-* Windows 10 (x86-64 only)
+* ✅ **Released** — official prebuilt binaries; also tested in CI
+* 🧪 **Tested** — tested in CI; build from source (no prebuilt binary)
+* ✗ **Unsupported** — no support
+* — **Not applicable** — combination doesn't exist
 
 ## More Information
 
