@@ -4,12 +4,13 @@
 Run: python3 .ci-scripts/libs-cache/resolve_libs_cache_test.py
 Exits 0 if every check passes, 1 otherwise.
 
-resolve_libs_cache.py is the consumer/warmer orchestration every non-BSD libs
-build job calls. Its `main()` shells the oci_libs_cache.py primitives and the
-build command out through `run()`, so monkeypatching `run` lets us assert the
-exact primitive sequence and exit code for every mode/path without any
-subprocess or network. The load-bearing invariant -- consumer mode never pushes
-the main cache (the warmer is its only writer) -- is pinned here.
+resolve_libs_cache.py is the consumer/warmer/require-cache-hit orchestration the
+non-PR libs build jobs call. Its `main()` shells the oci_libs_cache.py primitives
+and the build command out through `run()`, so monkeypatching `run` lets us assert
+the exact primitive sequence and exit code for every mode/path without any
+subprocess or network. The load-bearing invariants -- consumer mode never pushes
+the main cache (the warmer is its only writer) and require-cache-hit mode never
+builds (it fails loudly on a miss) -- are pinned here.
 """
 import sys
 
@@ -51,6 +52,8 @@ def run_main(argv, results):
 
 CONSUMER = ['--platform', 'p', '--tag', 't', '--', 'make', 'libs']
 WARM = ['--warm', '--platform', 'p', '--tag', 't', '--', 'make', 'libs']
+REQUIRE_HIT = ['--require-cache-hit', '--platform', 'p', '--tag', 't']
+REQUIRE_HIT_IMAGE = ['--require-cache-hit', '--image', 'i', '--tag', 't']
 
 
 def test_consumer_hit():
@@ -104,6 +107,36 @@ def test_warm_push_failure_hard_fails():
     check('warm push-fail code', code, 1)
 
 
+def test_require_hit_hit():
+    # pull succeeds -> libs restored, no build, no push.
+    calls, code = run_main(REQUIRE_HIT, {'pull': 0})
+    check('require-hit hit calls', calls, ['pull'])
+    check('require-hit hit code', code, 0)
+
+
+def test_require_hit_miss_dies_never_builds():
+    # pull misses -> die loudly. MUST NOT build, MUST NOT push.
+    calls, code = run_main(REQUIRE_HIT, {'pull': 1})
+    check('require-hit miss calls', calls, ['pull'])
+    check('require-hit miss code', code, 1)
+    check('require-hit never builds', 'BUILD' in calls, False)
+    check('require-hit never pushes', 'push' in calls, False)
+
+
+def test_require_hit_hit_with_image():
+    # the --image selector (the form the Linux stress jobs use) also works.
+    calls, code = run_main(REQUIRE_HIT_IMAGE, {'pull': 0})
+    check('require-hit image hit calls', calls, ['pull'])
+    check('require-hit image hit code', code, 0)
+
+
+def test_require_hit_rejects_build_command():
+    # a build command after `--` is an error -> die before any primitive.
+    calls, code = run_main(REQUIRE_HIT + ['--', 'make', 'libs'], {})
+    check('require-hit build-cmd calls', calls, [])
+    check('require-hit build-cmd code', code, 1)
+
+
 def test_missing_double_dash():
     # no `--` separator -> die before doing anything.
     calls, code = run_main(['--platform', 'p', '--tag', 't', 'make', 'libs'],
@@ -122,7 +155,10 @@ def test_empty_build_command():
 TESTS = [test_consumer_hit, test_consumer_miss_builds_never_pushes,
          test_consumer_build_failure_propagates, test_warm_hit,
          test_warm_miss_builds_then_pushes, test_warm_build_failure_no_push,
-         test_warm_push_failure_hard_fails, test_missing_double_dash,
+         test_warm_push_failure_hard_fails, test_require_hit_hit,
+         test_require_hit_hit_with_image,
+         test_require_hit_miss_dies_never_builds,
+         test_require_hit_rejects_build_command, test_missing_double_dash,
          test_empty_build_command]
 
 

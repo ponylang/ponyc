@@ -37,11 +37,11 @@ jobs:
         uses: actions/checkout@v6.0.2
         with:
           ref: ${{ github.event.inputs.sha || 'main' }}
-      - name: Build libs
+      - name: Restore prebuilt libs
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           LIBS_TAG: ${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
-        run: python3 .ci-scripts/libs-cache/resolve_libs_cache.py --platform x86-macos-15-intel --tag "$LIBS_TAG" -- make libs llvm_tools=false build_flags=-j4
+        run: python3 .ci-scripts/libs-cache/resolve_libs_cache.py --require-cache-hit --platform x86-macos-15-intel --tag "$LIBS_TAG"
       - name: Build Debug Runtime
         run: |
           make configure arch=x86-64 config=debug
@@ -84,11 +84,11 @@ jobs:
         uses: actions/checkout@v6.0.2
         with:
           ref: ${{ github.event.inputs.sha || 'main' }}
-      - name: Build libs
+      - name: Restore prebuilt libs
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           LIBS_TAG: ${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
-        run: python3 .ci-scripts/libs-cache/resolve_libs_cache.py --platform arm64-macos-26 --tag "$LIBS_TAG" -- make libs llvm_tools=false build_flags=-j3
+        run: python3 .ci-scripts/libs-cache/resolve_libs_cache.py --require-cache-hit --platform arm64-macos-26 --tag "$LIBS_TAG"
       - name: Build Debug Runtime
         run: |
           make configure config=debug
