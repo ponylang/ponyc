@@ -31,6 +31,12 @@ Two modes select how "check" and "push failure" behave:
     is seconds) and a branch push failure HARD-fails the job, so a registry write
     problem surfaces instead of silently leaving consumers to each cold-build.
 
+The sibling `resolve_libs_cache.py` (the non-PR consumer/warmer orchestration)
+spells its build-and-push mode `--warm`, not `--ensure`, on purpose: it pushes
+the *main* cache, where a push failure is fatal differently. Don't "harmonize"
+the two flag names -- the modes target different caches with different push
+semantics.
+
 `--pr` is empty for forks (and the build command still runs), so a fork behaves
 exactly like the plain pull-main-or-build: no branch pull, no push; `--ensure` is
 rejected for forks. A build failure does fail the job. A main-cache hit
@@ -50,44 +56,13 @@ PR runs get.
 
 import argparse
 import os
-import subprocess
 import sys
 
-ENDC = '\033[0m'
-ERROR = '\033[31m'
-INFO = '\033[34m'
+from common import cache_args, die, info, run, split_build_command
 
 SCRIPTS_DIR = os.path.dirname(os.path.abspath(__file__))
 MAIN_CACHE = os.path.join(SCRIPTS_DIR, 'oci_libs_cache.py')
 BRANCH_CACHE = os.path.join(SCRIPTS_DIR, 'branch_libs_cache.py')
-
-
-def die(message):
-    print(ERROR + message + ENDC, file=sys.stderr)
-    sys.exit(1)
-
-
-def info(message):
-    print(INFO + message + ENDC)
-
-
-def split_build_command(argv):
-    """Split argv at the first `--`: (our args, the build command after it)."""
-    if '--' not in argv:
-        die("pr_libs_cache.py: missing '--' followed by the build command.")
-    cut = argv.index('--')
-    return argv[:cut], argv[cut + 1:]
-
-
-def cache_args(args):
-    """The selector (+ tag) shared by both cache scripts."""
-    sel = ['--image', args.image] if args.image else ['--platform', args.platform]
-    return sel + ['--tag', args.tag]
-
-
-def run(cmd):
-    """Run a subprocess, streaming its output; return the exit code."""
-    return subprocess.run(cmd).returncode
 
 
 def main(argv):
@@ -105,9 +80,9 @@ def main(argv):
                              'Requires --pr (non-fork only).')
     args = parser.parse_args(ours)
     if not build_cmd:
-        die("pr_libs_cache.py: no build command after '--'.")
+        die("no build command after '--'.")
     if args.ensure and not args.pr:
-        die("pr_libs_cache.py --ensure requires --pr (non-fork only).")
+        die("--ensure requires --pr (non-fork only).")
 
     base = cache_args(args)
     branch = base + ['--pr', args.pr]

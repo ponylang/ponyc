@@ -6,7 +6,7 @@ name: Prune branch libs cache
 # individually, a whole package once all its versions are stale) so closed and
 # abandoned PRs don't accumulate in GHCR. It only ever touches the branch
 # namespace; the main `ponyc-libs-cache` is left alone. See
-# .ci-scripts/prune_branch_libs_cache.py.
+# .ci-scripts/libs-cache/prune_branch_libs_cache.py.
 
 on:
   schedule:
@@ -43,6 +43,6 @@ jobs:
           # input), so it's safe to keep inline.
           MAX_AGE_DAYS: ${{ inputs.max_age_days || 14 }}
         run: |
-          python3 .ci-scripts/prune_branch_libs_cache.py \
+          python3 .ci-scripts/libs-cache/prune_branch_libs_cache.py \
             --max-age-days "$MAX_AGE_DAYS" \
             ${{ inputs.dry_run && '--dry-run' || '' }}

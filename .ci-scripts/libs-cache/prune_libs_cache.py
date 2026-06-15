@@ -14,80 +14,19 @@ a single token):
   - GITHUB_TOKEN (repo-scoped, `packages: write`) DELETES versions (204). The org
     PAT can't (404 on these repo-scoped packages).
 
+The REST plumbing (gh_request/paginate/encode) is shared via `ghpackages.py`.
+
 Usage:
     prune_libs_cache.py [--keep N] [--dry-run]
 """
 
 import argparse
-import json
-import os
 import sys
-import urllib.error
-import urllib.parse
-import urllib.request
 
-ENDC = '\033[0m'
-ERROR = '\033[31m'
-INFO = '\033[34m'
+from common import die, info, require_env
+from ghpackages import encode, gh_request, paginate
 
-API = 'https://api.github.com'
-API_VERSION = '2026-03-10'
 NAMESPACE = 'ponyc-libs-cache'
-REQUEST_TIMEOUT = 120
-
-
-def die(message):
-    print(ERROR + message + ENDC, file=sys.stderr)
-    sys.exit(1)
-
-
-def info(message):
-    print(INFO + message + ENDC)
-
-
-def require_env(name):
-    value = os.environ.get(name, '')
-    if not value:
-        die(f"{name} needs to be set in env. Exiting.")
-    return value
-
-
-def gh_request(method, path, token):
-    url = path if path.startswith('http') else f'{API}{path}'
-    req = urllib.request.Request(url, headers={
-        'Authorization': f'Bearer {token}',
-        'Accept': 'application/vnd.github+json',
-        'X-GitHub-Api-Version': API_VERSION,
-    }, method=method)
-    try:
-        with urllib.request.urlopen(req, timeout=REQUEST_TIMEOUT) as r:
-            return r.status, r.read()
-    except urllib.error.HTTPError as e:
-        return e.code, e.read()
-    except (urllib.error.URLError, OSError) as e:
-        die(f"{method} {url} failed: {e}")
-
-
-def paginate(path, token):
-    page = 1
-    while True:
-        sep = '&' if '?' in path else '?'
-        url = f'{path}{sep}per_page=100&page={page}'
-        status, body = gh_request('GET', url, token)
-        if status != 200:
-            text = body.decode('utf-8', errors='replace') if body else ''
-            die(f"GET {url} returned {status}\n{text}")
-        items = json.loads(body)
-        if not items:
-            return
-        yield from items
-        if len(items) < 100:
-            return
-        page += 1
-
-
-def encode(name):
-    return urllib.parse.quote(name, safe='')
 
 
 def cache_packages(owner, token):
@@ -108,7 +47,7 @@ def prune_package(owner, name, keep, read_token, write_token, dry_run):
             info(f"  would delete version {v['id']} ({v['created_at']})")
             continue
         del_path = f'/orgs/{owner}/packages/container/{encode(name)}/versions/{v["id"]}'
-        status, body = gh_request('DELETE', del_path, write_token)
+        status, _, body = gh_request('DELETE', del_path, write_token)
         if status not in (204, 404):
             text = body.decode('utf-8', errors='replace') if body else ''
             die(f"DELETE {del_path} returned {status}\n{text}")
