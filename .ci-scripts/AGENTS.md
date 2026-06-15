@@ -48,3 +48,7 @@ when you want to exercise them).
 - The GHCR libs cache (the `libs-cache/` scripts: warmer, consumers, branch
   cache, retention, clear) is documented in `.github/workflows/AGENTS.md` under
   "Known Couplings".
+- The `bsd/` scripts (`{freebsd,openbsd,dragonfly}-provision.bash` +
+  `dfly_configure_vm.py`) provision the BSD CI VMs and are shared by
+  `update-lib-cache.yml` and `ponyc-tier3.yml`; see the GHCR libs cache coupling
+  in `.github/workflows/AGENTS.md`.
