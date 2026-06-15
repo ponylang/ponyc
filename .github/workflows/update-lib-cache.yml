@@ -335,7 +335,6 @@ jobs:
       - name: Install build dependencies
         if: steps.check.outputs.hit != 'true'
         run: |
-          export PUB_KEY=$(cat vm_key.pub)
           expect <<'EXPECT'
           set timeout 600
           spawn ssh -o StrictHostKeyChecking=no -i vm_key -p 2222 -t freebsd@localhost su -m root
@@ -728,6 +727,9 @@ jobs:
         env:
           LIBS_TAG: ${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
         run: |
+          # Unquoted heredoc on purpose: ${LIBS_TAG} must expand on the runner
+          # (it is not set inside the VM), so EOF must stay unquoted.
+          # shellcheck disable=SC2087
           ssh -o StrictHostKeyChecking=no -o ServerAliveInterval=60 -i vm_key -p 2222 root@localhost /bin/sh <<EOF
           set -e
           cd /build/ponyc
