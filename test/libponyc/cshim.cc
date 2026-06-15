@@ -881,7 +881,12 @@ TEST_F(CShimTest, CrossCompiledShimRequiresSysroot)
   DO(write_fixture(fixture, names, contents));
   package_add_magic_path("shimpkg", fixture, &opt);
 
-  // A riscv64 target is foreign on every host that runs this suite.
+  // A riscv64 cross-toolchain is not installed on any host that runs this
+  // suite, so the shared cross-toolchain probe (find_cross_toolchain_sysroot,
+  // the same one the linker uses) finds nothing in the standard
+  // /usr/<triple> locations and emits the "requires --sysroot" error. This
+  // exercises the probe's not-found path; its success path is covered by the
+  // cross-compile CI jobs through the linker.
   // opt.triple is LLVM-owned (codegen_pass_cleanup disposes it), so swap
   // in an LLVM-allocated copy and restore the original afterwards.
   char* saved_triple = opt.triple;

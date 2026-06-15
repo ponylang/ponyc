@@ -1,5 +1,6 @@
 #include "genc.h"
 #include "genopt.h"
+#include "genexe.h"
 #include "../pkg/package.h"
 #include "../pkg/program.h"
 #include "../ast/error.h"
@@ -232,7 +233,7 @@ static const char* c_shim_sysroot(pass_opt_t* opt, errors_t* errors)
   if(!is_cross_compiling(opt) || c_is_mac_on_mac(opt))
     return "";
 
-#ifndef PLATFORM_IS_WINDOWS
+#ifdef PLATFORM_IS_POSIX_BASED
   // A Windows target's headers come from the Win32 registry / vswhere, which
   // exist only on a Windows host; --sysroot can't substitute. Give the
   // host-requirement error directly rather than the generic sysroot one that
@@ -246,11 +247,20 @@ static const char* c_shim_sysroot(pass_opt_t* opt, errors_t* errors)
       "supported from a Windows host");
     return NULL;
   }
-#endif
 
+  // Otherwise this is an ELF cross build with no --sysroot: resolve the
+  // sysroot exactly the way the linker does, via the shared
+  // find_cross_toolchain_sysroot. So a cross build that links without
+  // --sysroot also compiles its shims without one, and the two can't drift.
+  return find_cross_toolchain_sysroot(opt, errors);
+#else
+  // Cross-compiling shims from a Windows host: the POSIX cross-toolchain
+  // probe doesn't exist here, and cross-from-Windows isn't link-supported
+  // anyway.
   errorf(errors, NULL,
     "cross-compiling C shims for %s requires --sysroot=<path>", opt->triple);
   return NULL;
+#endif
 }
 
 
