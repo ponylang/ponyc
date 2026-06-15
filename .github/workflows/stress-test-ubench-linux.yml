@@ -39,19 +39,19 @@ jobs:
             target: test-stress-ubench-with-cd-debug
             debugger: lldb
           - image: ghcr.io/ponylang/ponyc-ci-alpine3.23-builder:20260201
-            name: x86-64-unknown-linux-alpine3.21 [release]
+            name: x86-64-unknown-linux-alpine3.23 [release]
             target: test-stress-ubench-release
             debugger: lldb
           - image: ghcr.io/ponylang/ponyc-ci-alpine3.23-builder:20260201
-            name: x86-64-unknown-linux-alpine3.21 [debug]
+            name: x86-64-unknown-linux-alpine3.23 [debug]
             target: test-stress-ubench-debug
             debugger: lldb
           - image: ghcr.io/ponylang/ponyc-ci-alpine3.23-builder:20260201
-            name: x86-64-unknown-linux-alpine3.21 [cd] [release]
+            name: x86-64-unknown-linux-alpine3.23 [cd] [release]
             target: test-stress-ubench-with-cd-release
             debugger: lldb
           - image: ghcr.io/ponylang/ponyc-ci-alpine3.23-builder:20260201
-            name: x86-64-unknown-linux-alpine3.21 [cd] [debug]
+            name: x86-64-unknown-linux-alpine3.23 [cd] [debug]
             target: test-stress-ubench-with-cd-debug
             debugger: lldb
 
@@ -122,19 +122,19 @@ jobs:
             target: test-stress-ubench-with-cd-debug
             debugger: lldb
           - image: ghcr.io/ponylang/ponyc-ci-alpine3.23-builder:20260201
-            name: arm64-unknown-linux-alpine3.21 [release]
+            name: arm64-unknown-linux-alpine3.23 [release]
             target: test-stress-ubench-release
             debugger: lldb
           - image: ghcr.io/ponylang/ponyc-ci-alpine3.23-builder:20260201
-            name: arm64-unknown-linux-alpine3.21 [debug]
+            name: arm64-unknown-linux-alpine3.23 [debug]
             target: test-stress-ubench-debug
             debugger: lldb
           - image: ghcr.io/ponylang/ponyc-ci-alpine3.23-builder:20260201
-            name: arm64-unknown-linux-alpine3.21 [cd] [release]
+            name: arm64-unknown-linux-alpine3.23 [cd] [release]
             target: test-stress-ubench-with-cd-release
             debugger: lldb
           - image: ghcr.io/ponylang/ponyc-ci-alpine3.23-builder:20260201
-            name: arm64-unknown-linux-alpine3.21 [cd] [debug]
+            name: arm64-unknown-linux-alpine3.23 [cd] [debug]
             target: test-stress-ubench-with-cd-debug
             debugger: lldb
     name: ${{matrix.target}}:${{ matrix.name }}
