@@ -38,7 +38,21 @@
 
     [Parameter(HelpMessage="Tests to run")]
     [string]
-    $TestsToRun = 'libponyrt.tests,libponyc.tests,libponyc.run.tests.debug,libponyc.run.tests.release,stdlib-debug,stdlib-release,grammar'
+    $TestsToRun = 'libponyrt.tests,libponyc.tests,libponyc.run.tests.debug,libponyc.run.tests.release,stdlib-debug,stdlib-release,grammar',
+
+    [Parameter(HelpMessage="Extra runtime args to pass to Pony test executables")]
+    [string]
+    $PonyTestArgs = "",
+
+    [Parameter(HelpMessage="Enable flight recorder runtime flags for Pony test executables")]
+    [ValidateSet("yes", "no")]
+    [string]
+    $FlightRecorderCi = "no",
+
+    [Parameter(HelpMessage="use= directive for configure (e.g. runtime_tracing)")]
+    [ValidateSet("", "runtime_tracing")]
+    [string]
+    $Use = ""
 )
 
 # Function to extract process exit code from LLDB output
@@ -56,7 +70,15 @@ function Get-ProcessExitCodeFromLLDB {
     }
 }
 
+$FlightRecorderPonyTestArgs = '--ponytracingmode flight_recorder --ponytracingoutput=~ --ponytracingcategories actor,actor_behavior,actor_gc,actor_state_change,scheduler,scheduler_messaging --ponytracingflightrecorderhandletermint'
+
+if ($FlightRecorderCi -eq "yes" -and [string]::IsNullOrEmpty($PonyTestArgs))
+{
+    $PonyTestArgs = $FlightRecorderPonyTestArgs
+}
+
 $srcDir = Split-Path $script:MyInvocation.MyCommand.Path
+$ponyTestArgv = $PonyTestArgs.Split(' ', [System.StringSplitOptions]::RemoveEmptyEntries)
 
 switch ($Version)
 {
@@ -209,6 +231,12 @@ switch ($Command.ToLower())
             $lto_flag = "-DPONY_USE_LTO=true"
         }
 
+        $use_flags = @()
+        if ($Use -eq "runtime_tracing")
+        {
+            $use_flags = @("-DPONY_USE_RUNTIME_TRACING=true")
+        }
+
         $PonyCpu = switch ($Arch.ToLower()) {
             "x64"   { "x86-64" }
             "arm64" { "generic" }
@@ -218,12 +246,12 @@ switch ($Command.ToLower())
         if ($Arch.Length -gt 0)
         {
             Write-Output "cmake.exe -B `"$buildDir`" -S `"$srcDir`" -G `"$Generator`" -A $Arch -Thost="$Thost" -DCMAKE_INSTALL_PREFIX=`"$Prefix`" -DCMAKE_BUILD_TYPE=`"$Config`" -DPONYC_VERSION=`"$Version`" -DPONY_CPU=`"$PonyCpu`""
-            & cmake.exe -B "$buildDir" -S "$srcDir" -G "$Generator" -A $Arch -Thost="$Thost" -DCMAKE_INSTALL_PREFIX="$Prefix" -DCMAKE_BUILD_TYPE="$Config" -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DPONYC_VERSION="$Version" -DPONY_CPU="$PonyCpu" $lto_flag --no-warn-unused-cli
+            & cmake.exe -B "$buildDir" -S "$srcDir" -G "$Generator" -A $Arch -Thost="$Thost" -DCMAKE_INSTALL_PREFIX="$Prefix" -DCMAKE_BUILD_TYPE="$Config" -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DPONYC_VERSION="$Version" -DPONY_CPU="$PonyCpu" $lto_flag @use_flags --no-warn-unused-cli
         }
         else
         {
             Write-Output "cmake.exe -B `"$buildDir`" -S `"$srcDir`" -G `"$Generator`" -Thost="$Thost" -DCMAKE_INSTALL_PREFIX=`"$Prefix`" -DCMAKE_BUILD_TYPE=`"$Config`" -DPONYC_VERSION=`"$Version`" -DPONY_CPU=`"$PonyCpu`""
-            & cmake.exe -B "$buildDir" -S "$srcDir" -G "$Generator" -Thost="$Thost" -DCMAKE_INSTALL_PREFIX="$Prefix" -DCMAKE_BUILD_TYPE="$Config" -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DPONYC_VERSION="$Version" -DPONY_CPU="$PonyCpu" $lto_flag --no-warn-unused-cli
+            & cmake.exe -B "$buildDir" -S "$srcDir" -G "$Generator" -Thost="$Thost" -DCMAKE_INSTALL_PREFIX="$Prefix" -DCMAKE_BUILD_TYPE="$Config" -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DPONYC_VERSION="$Version" -DPONY_CPU="$PonyCpu" $lto_flag @use_flags --no-warn-unused-cli
         }
         $err = $LastExitCode
         if ($err -ne 0) { throw "Error: exit code $err" }
@@ -370,15 +398,15 @@ switch ($Command.ToLower())
                 {
                     if ($Uselldb -eq "yes")
                     {
-                        Write-Output "$lldbcmd $lldbargs $outDir\stdlib-debug.exe --sequential"
-                        $lldboutput = & $lldbcmd $lldbargs $outDir\stdlib-debug.exe --sequential
+                        Write-Output "$lldbcmd $lldbargs $outDir\stdlib-debug.exe --sequential $ponyTestArgv"
+                        $lldboutput = & $lldbcmd $lldbargs $outDir\stdlib-debug.exe --sequential $ponyTestArgv
                         Write-Output $lldboutput
                         $err = Get-ProcessExitCodeFromLLDB -LLDBOutput $lldboutput
                     }
                     else
                     {
-                        Write-Output "$outDir\stdlib-debug.exe --sequential"
-                        & $outDir\stdlib-debug.exe --sequential
+                        Write-Output "$outDir\stdlib-debug.exe --sequential $ponyTestArgv"
+                        & $outDir\stdlib-debug.exe --sequential $ponyTestArgv
                         $err = $LastExitCode
                     }
                 }
@@ -406,15 +434,15 @@ switch ($Command.ToLower())
                 {
                     if ($Uselldb -eq "yes")
                     {
-                        Write-Output "$lldbcmd $lldbargs $outDir\stdlib-release.exe --sequential"
-                        $lldboutput = & $lldbcmd $lldbargs $outDir\stdlib-release.exe --sequential
+                        Write-Output "$lldbcmd $lldbargs $outDir\stdlib-release.exe --sequential $ponyTestArgv"
+                        $lldboutput = & $lldbcmd $lldbargs $outDir\stdlib-release.exe --sequential $ponyTestArgv
                         Write-Output $lldboutput
                         $err = Get-ProcessExitCodeFromLLDB -LLDBOutput $lldboutput
                     }
                     else
                     {
-                        Write-Output "$outDir\stdlib-release.exe --sequential"
-                        & $outDir\stdlib-release.exe --sequential
+                        Write-Output "$outDir\stdlib-release.exe --sequential $ponyTestArgv"
+                        & $outDir\stdlib-release.exe --sequential $ponyTestArgv
                         $err = $LastExitCode
                     }
                 }
@@ -610,7 +638,7 @@ switch ($Command.ToLower())
         $lldbargs = @('--batch', '--one-line', 'run', '--one-line-on-crash', '"frame variable"', '--one-line-on-crash', '"register read"', '--one-line-on-crash', '"bt all"', '--one-line-on-crash', '"quit 1"', '--')
 
         & $outDir\ponyc.exe --bin-name=ubench --output=$outDir test\rt-stress\string-message-ubench
-        $lldboutput = & $lldbcmd $lldbargs $outDir\ubench.exe --pingers 320 --initial-pings 5 --report-count 40 --report-interval 300 --ponynoscale --ponynoblock
+        $lldboutput = & $lldbcmd $lldbargs $outDir\ubench.exe --pingers 320 --initial-pings 5 --report-count 40 --report-interval 300 --ponynoscale --ponynoblock $ponyTestArgv
         Write-Output $lldboutput
         $err = Get-ProcessExitCodeFromLLDB -LLDBOutput $lldboutput
         exit $err
@@ -622,7 +650,7 @@ switch ($Command.ToLower())
         $lldbargs = @('--batch', '--one-line', 'run', '--one-line-on-crash', '"frame variable"', '--one-line-on-crash', '"register read"', '--one-line-on-crash', '"bt all"', '--one-line-on-crash', '"quit 1"', '--')
 
         & $outDir\ponyc.exe --bin-name=ubench --output=$outDir test\rt-stress\string-message-ubench
-        $lldboutput = & $lldbcmd $lldbargs $outDir\ubench.exe --pingers 320 --initial-pings 5 --report-count 40 --report-interval 300 --ponynoscale
+        $lldboutput = & $lldbcmd $lldbargs $outDir\ubench.exe --pingers 320 --initial-pings 5 --report-count 40 --report-interval 300 --ponynoscale $ponyTestArgv
         Write-Output $lldboutput
         $err = Get-ProcessExitCodeFromLLDB -LLDBOutput $lldboutput
         exit $err
@@ -634,7 +662,7 @@ switch ($Command.ToLower())
         $lldbargs = @('--batch', '--one-line', 'run', '--one-line-on-crash', '"frame variable"', '--one-line-on-crash', '"register read"', '--one-line-on-crash', '"bt all"', '--one-line-on-crash', '"quit 1"', '--')
 
         & $outDir\ponyc.exe --debug --bin-name=ubench --output=$outDir test\rt-stress\string-message-ubench
-        $lldboutput = & $lldbcmd $lldbargs $outDir\ubench.exe --pingers 320 --initial-pings 5 --report-count 40 --report-interval 300 --ponynoscale --ponynoblock
+        $lldboutput = & $lldbcmd $lldbargs $outDir\ubench.exe --pingers 320 --initial-pings 5 --report-count 40 --report-interval 300 --ponynoscale --ponynoblock $ponyTestArgv
         Write-Output $lldboutput
         $err = Get-ProcessExitCodeFromLLDB -LLDBOutput $lldboutput
         exit $err
@@ -646,7 +674,7 @@ switch ($Command.ToLower())
         $lldbargs = @('--batch', '--one-line', 'run', '--one-line-on-crash', '"frame variable"', '--one-line-on-crash', '"register read"', '--one-line-on-crash', '"bt all"', '--one-line-on-crash', '"quit 1"', '--')
 
         & $outDir\ponyc.exe --debug --bin-name=ubench --output=$outDir test\rt-stress\string-message-ubench
-        $lldboutput = & $lldbcmd $lldbargs $outDir\ubench.exe --pingers 320 --initial-pings 5 --report-count 40 --report-interval 300 --ponynoscale
+        $lldboutput = & $lldbcmd $lldbargs $outDir\ubench.exe --pingers 320 --initial-pings 5 --report-count 40 --report-interval 300 --ponynoscale $ponyTestArgv
         Write-Output $lldboutput
         $err = Get-ProcessExitCodeFromLLDB -LLDBOutput $lldboutput
         exit $err
@@ -658,7 +686,7 @@ switch ($Command.ToLower())
         $lldbargs = @('--batch', '--one-line', 'run', '--one-line-on-crash', '"frame variable"', '--one-line-on-crash', '"register read"', '--one-line-on-crash', '"bt all"', '--one-line-on-crash', '"quit 1"', '--')
 
         & $outDir\ponyc.exe --bin-name=open-close --output=$outDir test\rt-stress\tcp-open-close
-        $lldboutput = & $lldbcmd $lldbargs $outDir\open-close.exe --ponynoblock 1000
+        $lldboutput = & $lldbcmd $lldbargs $outDir\open-close.exe --ponynoblock 1000 $ponyTestArgv
         Write-Output $lldboutput
         $err = Get-ProcessExitCodeFromLLDB -LLDBOutput $lldboutput
         exit $err
@@ -670,7 +698,7 @@ switch ($Command.ToLower())
         $lldbargs = @('--batch', '--one-line', 'run', '--one-line-on-crash', '"frame variable"', '--one-line-on-crash', '"register read"', '--one-line-on-crash', '"bt all"', '--one-line-on-crash', '"quit 1"', '--')
 
         & $outDir\ponyc.exe --bin-name=open-close --output=$outDir test\rt-stress\tcp-open-close
-        $lldboutput = & $lldbcmd $lldbargs $outDir\open-close.exe 1000
+        $lldboutput = & $lldbcmd $lldbargs $outDir\open-close.exe 1000 $ponyTestArgv
         Write-Output $lldboutput
         $err = Get-ProcessExitCodeFromLLDB -LLDBOutput $lldboutput
         exit $err
@@ -682,7 +710,7 @@ switch ($Command.ToLower())
         $lldbargs = @('--batch', '--one-line', 'run', '--one-line-on-crash', '"frame variable"', '--one-line-on-crash', '"register read"', '--one-line-on-crash', '"bt all"', '--one-line-on-crash', '"quit 1"', '--')
 
         & $outDir\ponyc.exe --debug --bin-name=open-close --output=$outDir test\rt-stress\tcp-open-close
-        $lldboutput = & $lldbcmd $lldbargs $outDir\open-close.exe --ponynoblock 1000
+        $lldboutput = & $lldbcmd $lldbargs $outDir\open-close.exe --ponynoblock 1000 $ponyTestArgv
         Write-Output $lldboutput
         $err = Get-ProcessExitCodeFromLLDB -LLDBOutput $lldboutput
         exit $err
@@ -694,7 +722,7 @@ switch ($Command.ToLower())
         $lldbargs = @('--batch', '--one-line', 'run', '--one-line-on-crash', '"frame variable"', '--one-line-on-crash', '"register read"', '--one-line-on-crash', '"bt all"', '--one-line-on-crash', '"quit 1"', '--')
 
         & $outDir\ponyc.exe --debug --bin-name=open-close --output=$outDir test\rt-stress\tcp-open-close
-        $lldboutput = & $lldbcmd $lldbargs $outDir\open-close.exe 1000
+        $lldboutput = & $lldbcmd $lldbargs $outDir\open-close.exe 1000 $ponyTestArgv
         Write-Output $lldboutput
         $err = Get-ProcessExitCodeFromLLDB -LLDBOutput $lldboutput
         exit $err

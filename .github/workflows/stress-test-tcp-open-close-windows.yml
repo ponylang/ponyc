@@ -75,11 +75,11 @@ jobs:
           LIBS_TAG: ${{ hashFiles('make.ps1', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
         run: python .ci-scripts/libs-cache/resolve_libs_cache.py --platform windows-2025-vs2026 --tag $env:LIBS_TAG '--' pwsh -File make.ps1 -Command libs -LlvmTools false
       - name: Configure
-        run: .\make.ps1 -Command configure -Config Debug
+        run: .\make.ps1 -Command configure -Config Debug -Use runtime_tracing
       - name: Build Debug Runtime
         run: .\make.ps1 -Command build -Config Debug
       - name: Run Stress Test
-        run: .\make.ps1 -Command ${{ matrix.target }} -Config Debug
+        run: .\make.ps1 -Command ${{ matrix.target }} -Config Debug -FlightRecorderCi yes
       - name: Send alert on failure
         if: ${{ failure() }}
         uses: zulip/github-actions-zulip/send-message@bd8ec52de371d139ae8313661b7d8318c19266aa

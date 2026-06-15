@@ -62,7 +62,7 @@ jobs:
             directives: runtimestats
           - image: ghcr.io/ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu24.04-builder:20250115
             debugger: lldb
-            directives: runtime_tracing
+            directives: vanilla
 
     name: use ${{ matrix.directives }}
     container:
@@ -81,7 +81,11 @@ jobs:
         run: python3 .ci-scripts/libs-cache/resolve_libs_cache.py --image "$LIBS_IMAGE" --tag "$LIBS_TAG" -- make libs llvm_tools=false build_flags=-j4
       - name: Build Debug Runtime
         run: |
-          make configure arch=x86-64 config=debug use=${{ matrix.directives }}
+          if [ "${{ matrix.directives }}" = "vanilla" ]; then
+            make configure arch=x86-64 config=debug
+          else
+            make configure arch=x86-64 config=debug use=${{ matrix.directives }}
+          fi
           make build config=debug
       - name: Verify dtrace build leaves the source tree clean
         if: matrix.directives == 'dtrace'
@@ -92,7 +96,11 @@ jobs:
         run: make test-ci-core config=debug usedebugger='${{ matrix.debugger }}' test_full_program_timeout=120
       - name: Build Release Runtime
         run: |
-          make configure arch=x86-64 config=release use=${{ matrix.directives }}
+          if [ "${{ matrix.directives }}" = "vanilla" ]; then
+            make configure arch=x86-64 config=release
+          else
+            make configure arch=x86-64 config=release use=${{ matrix.directives }}
+          fi
           make build config=release
       - name: Test with Release Runtime
         run: make test-ci-core config=release usedebugger='${{ matrix.debugger }}'
