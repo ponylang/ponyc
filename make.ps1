@@ -66,6 +66,7 @@ function Get-ProcessExitCodeFromLLDB {
 }
 
 $srcDir = Split-Path $script:MyInvocation.MyCommand.Path
+$ponyTestArgv = $PonyTestArgs.Split(' ', [System.StringSplitOptions]::RemoveEmptyEntries)
 
 switch ($Version)
 {
@@ -385,15 +386,15 @@ switch ($Command.ToLower())
                 {
                     if ($Uselldb -eq "yes")
                     {
-                        Write-Output "$lldbcmd $lldbargs $outDir\stdlib-debug.exe --sequential"
-                        $lldboutput = & $lldbcmd $lldbargs $outDir\stdlib-debug.exe --sequential ($PonyTestArgs.Split(' ', [System.StringSplitOptions]::RemoveEmptyEntries))
+                        Write-Output "$lldbcmd $lldbargs $outDir\stdlib-debug.exe --sequential $ponyTestArgv"
+                        $lldboutput = & $lldbcmd $lldbargs $outDir\stdlib-debug.exe --sequential $ponyTestArgv
                         Write-Output $lldboutput
                         $err = Get-ProcessExitCodeFromLLDB -LLDBOutput $lldboutput
                     }
                     else
                     {
-                        Write-Output "$outDir\stdlib-debug.exe --sequential"
-                        & $outDir\stdlib-debug.exe --sequential ($PonyTestArgs.Split(' ', [System.StringSplitOptions]::RemoveEmptyEntries))
+                        Write-Output "$outDir\stdlib-debug.exe --sequential $ponyTestArgv"
+                        & $outDir\stdlib-debug.exe --sequential $ponyTestArgv
                         $err = $LastExitCode
                     }
                 }
@@ -421,15 +422,15 @@ switch ($Command.ToLower())
                 {
                     if ($Uselldb -eq "yes")
                     {
-                        Write-Output "$lldbcmd $lldbargs $outDir\stdlib-release.exe --sequential"
-                        $lldboutput = & $lldbcmd $lldbargs $outDir\stdlib-release.exe --sequential ($PonyTestArgs.Split(' ', [System.StringSplitOptions]::RemoveEmptyEntries))
+                        Write-Output "$lldbcmd $lldbargs $outDir\stdlib-release.exe --sequential $ponyTestArgv"
+                        $lldboutput = & $lldbcmd $lldbargs $outDir\stdlib-release.exe --sequential $ponyTestArgv
                         Write-Output $lldboutput
                         $err = Get-ProcessExitCodeFromLLDB -LLDBOutput $lldboutput
                     }
                     else
                     {
-                        Write-Output "$outDir\stdlib-release.exe --sequential"
-                        & $outDir\stdlib-release.exe --sequential ($PonyTestArgs.Split(' ', [System.StringSplitOptions]::RemoveEmptyEntries))
+                        Write-Output "$outDir\stdlib-release.exe --sequential $ponyTestArgv"
+                        & $outDir\stdlib-release.exe --sequential $ponyTestArgv
                         $err = $LastExitCode
                     }
                 }
@@ -625,7 +626,7 @@ switch ($Command.ToLower())
         $lldbargs = @('--batch', '--one-line', 'run', '--one-line-on-crash', '"frame variable"', '--one-line-on-crash', '"register read"', '--one-line-on-crash', '"bt all"', '--one-line-on-crash', '"quit 1"', '--')
 
         & $outDir\ponyc.exe --bin-name=ubench --output=$outDir test\rt-stress\string-message-ubench
-        $lldboutput = & $lldbcmd $lldbargs $outDir\ubench.exe --pingers 320 --initial-pings 5 --report-count 40 --report-interval 300 --ponynoscale --ponynoblock ($PonyTestArgs.Split(' ', [System.StringSplitOptions]::RemoveEmptyEntries))
+        $lldboutput = & $lldbcmd $lldbargs $outDir\ubench.exe --pingers 320 --initial-pings 5 --report-count 40 --report-interval 300 --ponynoscale --ponynoblock $ponyTestArgv
         Write-Output $lldboutput
         $err = Get-ProcessExitCodeFromLLDB -LLDBOutput $lldboutput
         exit $err
@@ -637,7 +638,7 @@ switch ($Command.ToLower())
         $lldbargs = @('--batch', '--one-line', 'run', '--one-line-on-crash', '"frame variable"', '--one-line-on-crash', '"register read"', '--one-line-on-crash', '"bt all"', '--one-line-on-crash', '"quit 1"', '--')
 
         & $outDir\ponyc.exe --bin-name=ubench --output=$outDir test\rt-stress\string-message-ubench
-        $lldboutput = & $lldbcmd $lldbargs $outDir\ubench.exe --pingers 320 --initial-pings 5 --report-count 40 --report-interval 300 --ponynoscale ($PonyTestArgs.Split(' ', [System.StringSplitOptions]::RemoveEmptyEntries))
+        $lldboutput = & $lldbcmd $lldbargs $outDir\ubench.exe --pingers 320 --initial-pings 5 --report-count 40 --report-interval 300 --ponynoscale $ponyTestArgv
         Write-Output $lldboutput
         $err = Get-ProcessExitCodeFromLLDB -LLDBOutput $lldboutput
         exit $err
@@ -649,7 +650,7 @@ switch ($Command.ToLower())
         $lldbargs = @('--batch', '--one-line', 'run', '--one-line-on-crash', '"frame variable"', '--one-line-on-crash', '"register read"', '--one-line-on-crash', '"bt all"', '--one-line-on-crash', '"quit 1"', '--')
 
         & $outDir\ponyc.exe --debug --bin-name=ubench --output=$outDir test\rt-stress\string-message-ubench
-        $lldboutput = & $lldbcmd $lldbargs $outDir\ubench.exe --pingers 320 --initial-pings 5 --report-count 40 --report-interval 300 --ponynoscale --ponynoblock ($PonyTestArgs.Split(' ', [System.StringSplitOptions]::RemoveEmptyEntries))
+        $lldboutput = & $lldbcmd $lldbargs $outDir\ubench.exe --pingers 320 --initial-pings 5 --report-count 40 --report-interval 300 --ponynoscale --ponynoblock $ponyTestArgv
         Write-Output $lldboutput
         $err = Get-ProcessExitCodeFromLLDB -LLDBOutput $lldboutput
         exit $err
@@ -661,7 +662,7 @@ switch ($Command.ToLower())
         $lldbargs = @('--batch', '--one-line', 'run', '--one-line-on-crash', '"frame variable"', '--one-line-on-crash', '"register read"', '--one-line-on-crash', '"bt all"', '--one-line-on-crash', '"quit 1"', '--')
 
         & $outDir\ponyc.exe --debug --bin-name=ubench --output=$outDir test\rt-stress\string-message-ubench
-        $lldboutput = & $lldbcmd $lldbargs $outDir\ubench.exe --pingers 320 --initial-pings 5 --report-count 40 --report-interval 300 --ponynoscale ($PonyTestArgs.Split(' ', [System.StringSplitOptions]::RemoveEmptyEntries))
+        $lldboutput = & $lldbcmd $lldbargs $outDir\ubench.exe --pingers 320 --initial-pings 5 --report-count 40 --report-interval 300 --ponynoscale $ponyTestArgv
         Write-Output $lldboutput
         $err = Get-ProcessExitCodeFromLLDB -LLDBOutput $lldboutput
         exit $err
@@ -673,7 +674,7 @@ switch ($Command.ToLower())
         $lldbargs = @('--batch', '--one-line', 'run', '--one-line-on-crash', '"frame variable"', '--one-line-on-crash', '"register read"', '--one-line-on-crash', '"bt all"', '--one-line-on-crash', '"quit 1"', '--')
 
         & $outDir\ponyc.exe --bin-name=open-close --output=$outDir test\rt-stress\tcp-open-close
-        $lldboutput = & $lldbcmd $lldbargs $outDir\open-close.exe --ponynoblock 1000 ($PonyTestArgs.Split(' ', [System.StringSplitOptions]::RemoveEmptyEntries))
+        $lldboutput = & $lldbcmd $lldbargs $outDir\open-close.exe --ponynoblock 1000 $ponyTestArgv
         Write-Output $lldboutput
         $err = Get-ProcessExitCodeFromLLDB -LLDBOutput $lldboutput
         exit $err
@@ -685,7 +686,7 @@ switch ($Command.ToLower())
         $lldbargs = @('--batch', '--one-line', 'run', '--one-line-on-crash', '"frame variable"', '--one-line-on-crash', '"register read"', '--one-line-on-crash', '"bt all"', '--one-line-on-crash', '"quit 1"', '--')
 
         & $outDir\ponyc.exe --bin-name=open-close --output=$outDir test\rt-stress\tcp-open-close
-        $lldboutput = & $lldbcmd $lldbargs $outDir\open-close.exe 1000 ($PonyTestArgs.Split(' ', [System.StringSplitOptions]::RemoveEmptyEntries))
+        $lldboutput = & $lldbcmd $lldbargs $outDir\open-close.exe 1000 $ponyTestArgv
         Write-Output $lldboutput
         $err = Get-ProcessExitCodeFromLLDB -LLDBOutput $lldboutput
         exit $err
@@ -697,7 +698,7 @@ switch ($Command.ToLower())
         $lldbargs = @('--batch', '--one-line', 'run', '--one-line-on-crash', '"frame variable"', '--one-line-on-crash', '"register read"', '--one-line-on-crash', '"bt all"', '--one-line-on-crash', '"quit 1"', '--')
 
         & $outDir\ponyc.exe --debug --bin-name=open-close --output=$outDir test\rt-stress\tcp-open-close
-        $lldboutput = & $lldbcmd $lldbargs $outDir\open-close.exe --ponynoblock 1000 ($PonyTestArgs.Split(' ', [System.StringSplitOptions]::RemoveEmptyEntries))
+        $lldboutput = & $lldbcmd $lldbargs $outDir\open-close.exe --ponynoblock 1000 $ponyTestArgv
         Write-Output $lldboutput
         $err = Get-ProcessExitCodeFromLLDB -LLDBOutput $lldboutput
         exit $err
@@ -709,7 +710,7 @@ switch ($Command.ToLower())
         $lldbargs = @('--batch', '--one-line', 'run', '--one-line-on-crash', '"frame variable"', '--one-line-on-crash', '"register read"', '--one-line-on-crash', '"bt all"', '--one-line-on-crash', '"quit 1"', '--')
 
         & $outDir\ponyc.exe --debug --bin-name=open-close --output=$outDir test\rt-stress\tcp-open-close
-        $lldboutput = & $lldbcmd $lldbargs $outDir\open-close.exe 1000 ($PonyTestArgs.Split(' ', [System.StringSplitOptions]::RemoveEmptyEntries))
+        $lldboutput = & $lldbcmd $lldbargs $outDir\open-close.exe 1000 $ponyTestArgv
         Write-Output $lldboutput
         $err = Get-ProcessExitCodeFromLLDB -LLDBOutput $lldboutput
         exit $err
