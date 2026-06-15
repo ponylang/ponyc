@@ -382,7 +382,7 @@ jobs:
         uses: snok/container-retention-policy@d3bdcf5ce9b05f685154e4a16c39233b245e3d53
         with:
           account: ponylang
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.PONYLANG_MAIN_DELETE_PACKAGE_TOKEN }}
           image-names: "nightly/ponyc-*"
           tag-selection: tagged
           cut-off: 90d
