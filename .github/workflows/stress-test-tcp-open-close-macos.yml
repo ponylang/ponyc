@@ -44,12 +44,12 @@ jobs:
         run: python3 .ci-scripts/libs-cache/resolve_libs_cache.py --platform x86-macos-15-intel --tag "$LIBS_TAG" -- make libs llvm_tools=false build_flags=-j4
       - name: Build Debug Runtime
         run: |
-          make configure arch=x86-64 config=debug
+          make configure arch=x86-64 config=debug use=runtime_tracing
           make build config=debug
       - name: Configure networking
         run: bash .ci-scripts/macOS-configure-networking.bash
       - name: Run Stress Test
-        run: make ${{ matrix.target }} open_close_stress_connections=1000000 config=debug usedebugger=lldb
+        run: make ${{ matrix.target }} open_close_stress_connections=1000000 config=debug usedebugger=lldb pony_test_args='--ponytracingmode flight_recorder --ponytracingoutput=~ --ponytracingcategories actor,actor_behavior,actor_gc,actor_state_change,scheduler,scheduler_messaging --ponytracingflightrecorderhandletermint'
       - name: Send alert on failure
         if: ${{ failure() }}
         uses: zulip/github-actions-zulip/send-message@bd8ec52de371d139ae8313661b7d8318c19266aa
@@ -91,12 +91,12 @@ jobs:
         run: python3 .ci-scripts/libs-cache/resolve_libs_cache.py --platform arm64-macos-26 --tag "$LIBS_TAG" -- make libs llvm_tools=false build_flags=-j3
       - name: Build Debug Runtime
         run: |
-          make configure config=debug
+          make configure config=debug use=runtime_tracing
           make build config=debug
       - name: Configure networking
         run: bash .ci-scripts/macOS-configure-networking.bash
       - name: Run Stress Test
-        run: make ${{ matrix.target }} config=debug usedebugger=lldb
+        run: make ${{ matrix.target }} config=debug usedebugger=lldb pony_test_args='--ponytracingmode flight_recorder --ponytracingoutput=~ --ponytracingcategories actor,actor_behavior,actor_gc,actor_state_change,scheduler,scheduler_messaging --ponytracingflightrecorderhandletermint'
       - name: Send alert on failure
         if: ${{ failure() }}
         uses: zulip/github-actions-zulip/send-message@bd8ec52de371d139ae8313661b7d8318c19266aa

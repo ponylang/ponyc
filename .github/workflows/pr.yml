@@ -150,16 +150,16 @@ jobs:
         run: python3 .ci-scripts/libs-cache/pr_libs_cache.py --image "$LIBS_IMAGE" --tag "$LIBS_TAG" --pr "$LIBS_PR" -- make libs llvm_tools=false build_flags=-j4
       - name: Build Debug Runtime
         run: |
-          make configure arch=x86-64 config=debug
+          make configure arch=x86-64 config=debug use=runtime_tracing
           make build config=debug
       - name: Test with Debug Runtime
-        run: make test-ci-core config=debug usedebugger='lldb'
+        run: make test-ci-core config=debug usedebugger='lldb' pony_test_args='--ponytracingmode flight_recorder --ponytracingoutput=~ --ponytracingcategories actor,actor_behavior,actor_gc,actor_state_change,scheduler,scheduler_messaging --ponytracingflightrecorderhandletermint'
       - name: Build Release Runtime
         run: |
-          make configure arch=x86-64 config=release
+          make configure arch=x86-64 config=release use=runtime_tracing
           make build config=release
       - name: Test with Release Runtime
-        run: make test-ci-core config=release usedebugger='lldb'
+        run: make test-ci-core config=release usedebugger='lldb' pony_test_args='--ponytracingmode flight_recorder --ponytracingoutput=~ --ponytracingcategories actor,actor_behavior,actor_gc,actor_state_change,scheduler,scheduler_messaging --ponytracingflightrecorderhandletermint'
 
   ponyc-arm64-macos:
     needs: [changes, maybe-build-macos]
@@ -180,16 +180,16 @@ jobs:
         run: python3 .ci-scripts/libs-cache/pr_libs_cache.py --platform arm64-macos-26 --tag "$LIBS_TAG" --pr "$LIBS_PR" -- make libs llvm_tools=false build_flags=-j3
       - name: Build Debug Runtime
         run: |
-          make configure arch=armv8 config=debug
+          make configure arch=armv8 config=debug use=runtime_tracing
           make build config=debug
       - name: Test with Debug Runtime
-        run: make test-ci-core config=debug
+        run: make test-ci-core config=debug pony_test_args='--ponytracingmode flight_recorder --ponytracingoutput=~ --ponytracingcategories actor,actor_behavior,actor_gc,actor_state_change,scheduler,scheduler_messaging --ponytracingflightrecorderhandletermint'
       - name: Build Release Runtime
         run: |
-          make configure arch=armv8 config=release
+          make configure arch=armv8 config=release use=runtime_tracing
           make build config=release
       - name: Test with Release Runtime
-        run: make test-ci-core config=release
+        run: make test-ci-core config=release pony_test_args='--ponytracingmode flight_recorder --ponytracingoutput=~ --ponytracingcategories actor,actor_behavior,actor_gc,actor_state_change,scheduler,scheduler_messaging --ponytracingflightrecorderhandletermint'
 
   ponyc-x86_64-windows:
     needs: [changes, maybe-build-windows]
@@ -217,16 +217,16 @@ jobs:
         run: python .ci-scripts/libs-cache/pr_libs_cache.py --platform windows-2025-vs2026 --tag "$env:LIBS_TAG" --pr "$env:LIBS_PR" '--' pwsh -File make.ps1 -Command libs -LlvmTools false
       - name: Build Debug Runtime
         run: |
-          .\make.ps1 -Command configure -Config Debug
+          .\make.ps1 -Command configure -Config Debug -Use runtime_tracing
           .\make.ps1 -Command build -Config Debug
       - name: Test with Debug Runtime
-        run: .\make.ps1 -Command test -Config Debug -Uselldb yes
+        run: .\make.ps1 -Command test -Config Debug -Uselldb yes -PonyTestArgs '--ponytracingmode flight_recorder --ponytracingoutput=~ --ponytracingcategories actor,actor_behavior,actor_gc,actor_state_change,scheduler,scheduler_messaging --ponytracingflightrecorderhandletermint'
       - name: Build Release Runtime
         run: |
-          .\make.ps1 -Command configure -Config Release
+          .\make.ps1 -Command configure -Config Release -Use runtime_tracing
           .\make.ps1 -Command build -Config Release
       - name: Test with Release Runtime
-        run: .\make.ps1 -Command test -Config Release -Uselldb yes
+        run: .\make.ps1 -Command test -Config Release -Uselldb yes -PonyTestArgs '--ponytracingmode flight_recorder --ponytracingoutput=~ --ponytracingcategories actor,actor_behavior,actor_gc,actor_state_change,scheduler,scheduler_messaging --ponytracingflightrecorderhandletermint'
       - name: Build examples
         run: .\make.ps1 -Command build-examples
 
