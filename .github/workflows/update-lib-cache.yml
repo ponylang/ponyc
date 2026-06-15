@@ -13,7 +13,55 @@ permissions:
   packages: write
 
 jobs:
-  x86_64-linux:
+  # The warmer pushes a freshly built LLVM ("libs") cache for every platform any
+  # CI consumer pulls. On a cold push (an LLVM-input change) every platform
+  # cold-builds LLVM at once, which would saturate the org-wide runner pool. To
+  # keep the most-used caches ahead of the rarely-used ones, the build-outs run
+  # in three sequential stages:
+  #
+  #   Stage 1 - platforms PR CI pulls: x86_64-linux-pr, arm64-macos,
+  #             x86_64-windows
+  #   Stage 2 - platforms releases/nightlies pull: x86_64-linux-release,
+  #             arm64-linux, x86_64-macos, arm64-windows
+  #   Stage 3 - everything else: x86_64-linux-other (fedora + cross), freebsd,
+  #             openbsd, dragonflybsd
+  #
+  # Each later stage gates (`needs:`) on the prior stage's FAST jobs only - Linux
+  # and macOS - and deliberately NOT on Windows, whose builds are slow: a Windows
+  # job kicks off in its stage but must never block the next one. Stages use
+  # `if: ${{ !cancelled() }}` so a prior-stage build FAILURE delays but does not
+  # cancel the later stages. The jobs below are not grouped by stage in file
+  # order; each job's `needs:` and comment state its stage.
+
+  # Stage 1 (PR). No gate; starts immediately.
+  x86_64-linux-pr:
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - image: ghcr.io/ponylang/ponyc-ci-alpine3.23-builder:20260201
+
+    name: ${{ matrix.image }}
+    container:
+      image: ${{ matrix.image }}
+      options: --user pony
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6.0.2
+      - name: Build and push libs
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          LIBS_IMAGE: ${{ matrix.image }}
+          LIBS_TAG: ${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
+        run: python3 .ci-scripts/libs-cache/resolve_libs_cache.py --warm --image "$LIBS_IMAGE" --tag "$LIBS_TAG" -- make libs llvm_tools=false build_flags=-j4
+
+  # Stage 2 (release/nightly). Gate on stage-1 fast jobs only, never
+  # x86_64-windows (slow).
+  x86_64-linux-release:
+    needs: [x86_64-linux-pr, arm64-macos]
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
 
     strategy:
@@ -23,11 +71,36 @@ jobs:
           - image: ghcr.io/ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu24.04-builder:20250115
           - image: ghcr.io/ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu22.04-builder:20230924
           - image: ghcr.io/ponylang/ponyc-ci-x86-64-unknown-linux-alpine3.21-builder:20250510
-          - image: ghcr.io/ponylang/ponyc-ci-x86-64-unknown-linux-fedora44-builder:20260614
           - image: ghcr.io/ponylang/ponyc-ci-alpine3.22-builder:20251022
-          - image: ghcr.io/ponylang/ponyc-ci-alpine3.23-builder:20260201
           - image: ghcr.io/ponylang/ponyc-ci-alpine3.24-builder:20260611
           - image: ghcr.io/ponylang/ponyc-ci-ubuntu26.04-builder:20260425
+
+    name: ${{ matrix.image }}
+    container:
+      image: ${{ matrix.image }}
+      options: --user pony
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6.0.2
+      - name: Build and push libs
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          LIBS_IMAGE: ${{ matrix.image }}
+          LIBS_TAG: ${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
+        run: python3 .ci-scripts/libs-cache/resolve_libs_cache.py --warm --image "$LIBS_IMAGE" --tag "$LIBS_TAG" -- make libs llvm_tools=false build_flags=-j4
+
+  # Stage 3 (everything else). Gate on stage-2 fast jobs only, never
+  # arm64-windows (slow).
+  x86_64-linux-other:
+    needs: [x86_64-linux-release, arm64-linux, x86_64-macos]
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - image: ghcr.io/ponylang/ponyc-ci-x86-64-unknown-linux-fedora44-builder:20260614
           - image: ghcr.io/ponylang/ponyc-ci-cross-arm:20250223
           - image: ghcr.io/ponylang/ponyc-ci-cross-armhf:20250223
           - image: ghcr.io/ponylang/ponyc-ci-cross-riscv64:20240427
@@ -52,6 +125,10 @@ jobs:
   # The libs cache push/pull runs inside that container too (the builder images
   # all ship python3), so no host-side registry handling is needed.
   arm64-linux:
+    # Stage 2 (release/nightly). Gate on stage-1 fast jobs only, never
+    # x86_64-windows (slow).
+    needs: [x86_64-linux-pr, arm64-macos]
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-24.04-arm
 
     strategy:
@@ -94,6 +171,10 @@ jobs:
             sh -c 'python3 .ci-scripts/libs-cache/resolve_libs_cache.py --warm --image "$LIBS_IMAGE" --tag "$LIBS_TAG" -- make libs llvm_tools=false build_flags=-j4'
 
   x86_64-macos:
+    # Stage 2 (release/nightly). Gate on stage-1 fast jobs only, never
+    # x86_64-windows (slow).
+    needs: [x86_64-linux-pr, arm64-macos]
+    if: ${{ !cancelled() }}
     runs-on: macos-15-intel
 
     name: x86-64 Apple Darwin
@@ -107,6 +188,7 @@ jobs:
         run: python3 .ci-scripts/libs-cache/resolve_libs_cache.py --warm --platform x86-macos-15-intel --tag "$LIBS_TAG" -- make libs llvm_tools=false build_flags=-j4
 
   arm64-macos:
+    # Stage 1 (PR). No gate; starts immediately.
     runs-on: macos-26
 
     name: arm64 Apple Darwin
@@ -120,6 +202,8 @@ jobs:
         run: python3 .ci-scripts/libs-cache/resolve_libs_cache.py --warm --platform arm64-macos-26 --tag "$LIBS_TAG" -- make libs llvm_tools=false build_flags=-j3
 
   x86_64-windows:
+    # Stage 1 (PR). No gate; starts immediately. Slow, so no later stage gates
+    # on it.
     runs-on: windows-2025-vs2026
 
     name: x86-64 Windows MSVC
@@ -135,6 +219,10 @@ jobs:
         run: python .ci-scripts/libs-cache/resolve_libs_cache.py --warm --platform windows-2025-vs2026 --tag $env:LIBS_TAG '--' pwsh -File make.ps1 -Command libs -LlvmTools false
 
   arm64-windows:
+    # Stage 2 (release/nightly). Gate on stage-1 fast jobs only, never
+    # x86_64-windows (slow). Slow itself, so no later stage gates on it.
+    needs: [x86_64-linux-pr, arm64-macos]
+    if: ${{ !cancelled() }}
     runs-on: windows-11-arm
 
     name: arm64 Windows MSVC
@@ -150,6 +238,10 @@ jobs:
         run: python .ci-scripts/libs-cache/resolve_libs_cache.py --warm --platform windows-11-arm --tag $env:LIBS_TAG '--' pwsh -File make.ps1 -Command libs -LlvmTools false -Arch ARM64
 
   freebsd:
+    # Stage 3 (everything else). Gate on stage-2 fast jobs only, never
+    # arm64-windows (slow).
+    needs: [x86_64-linux-release, arm64-linux, x86_64-macos]
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
 
     strategy:
@@ -285,6 +377,10 @@ jobs:
           pkill -f qemu-system-x86 || true
 
   openbsd:
+    # Stage 3 (everything else). Gate on stage-2 fast jobs only, never
+    # arm64-windows (slow).
+    needs: [x86_64-linux-release, arm64-linux, x86_64-macos]
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     name: x86-64 OpenBSD 7.9
     steps:
@@ -418,6 +514,10 @@ jobs:
           pkill -f qemu-system-x86 || true
 
   dragonflybsd:
+    # Stage 3 (everything else). Gate on stage-2 fast jobs only, never
+    # arm64-windows (slow).
+    needs: [x86_64-linux-release, arm64-linux, x86_64-macos]
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     name: x86-64 DragonFly BSD 6.4.2
     steps:
@@ -653,7 +753,9 @@ jobs:
     runs-on: ubuntu-latest
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     needs:
-      - x86_64-linux
+      - x86_64-linux-pr
+      - x86_64-linux-release
+      - x86_64-linux-other
       - arm64-linux
       - x86_64-macos
       - arm64-macos
