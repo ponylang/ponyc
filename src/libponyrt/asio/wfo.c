@@ -18,11 +18,6 @@
 #include <os/kernel/OS.h>
 #include <os/support/SupportDefs.h>
 
-#if defined(USE_SYSTEMATIC_TESTING) && !defined(USE_LOGGER_THREAD)
-  #define USE_LOGGER_THREAD
-  #include <stdio.h>
-#endif
-
 #define MAX_SIGNAL __MAX_SIGNO + 1
 
 enum // Internal WFO event requests
@@ -35,13 +30,12 @@ enum // Internal WFO event requests
   WFO_UNSUBSCRIBE = 5,
 };
 
-const char* const wfo_event_names[] = {
-  "ASIO_DISPOSABLE",
-  "WFO_WAKEUP",
-  "WFO_TIMER_FIRED",
-  "WFO_SUBSCRIBE",
-  "WFO_RESUBSCRIBE",
-  "WFO_UNSUBSCRIBE",
+enum // Internal WFO errors
+{
+  WFO_ERROR_WAIT_LIST_FULL = -1,
+  WFO_ERROR_EVENT_ALREADY_SUBSCRIBED = -2,
+  WFO_ERROR_INVALID_OBJECT = -3,
+  WFO_ERROR_EVENT_MISMATCH = -4,
 };
 
 struct asio_backend_t
@@ -54,10 +48,6 @@ struct asio_backend_t
   int32 wait_list_count;
 
   PONY_ATOMIC(asio_event_t*) sighandlers[MAX_SIGNAL];
-
-#if defined(USE_LOGGER_THREAD)
-  thread_id logger;
-#endif
 };
 
 struct wfo_message_t
@@ -66,83 +56,26 @@ struct wfo_message_t
   uint32_t flags;
 };
 
-#if defined(USE_LOGGER_THREAD)
-#  define LOG_MSG_SIZE 128
-#  define LOG(format, ...) if(true){                                     \
-    asio_backend_t* b = ponyint_asio_get_backend();                      \
-    if(b->logger > 0)                                                    \
-    {                                                                    \
-      char log_msg[LOG_MSG_SIZE];                                        \
-      memset(log_msg, 0, LOG_MSG_SIZE);                                  \
-      snprintf(log_msg, LOG_MSG_SIZE, format __VA_OPT__(,) __VA_ARGS__); \
-      send_data(b->logger, B_OK, log_msg, LOG_MSG_SIZE);                 \
-    }                                                                    \
-  }                                                                      \
-
-  static status_t logger(void* data)
-  {
-    (void)data;
-    while(true)
-    {
-      thread_id sender;
-      char msg[LOG_MSG_SIZE];
-      int32 code = receive_data(&sender, &msg, LOG_MSG_SIZE);
-      if(code == B_SHUTTING_DOWN)
-        return B_OK;
-      printf("wfo: %d: %s\n", sender, msg);
-      fflush(stdout);
-    }
-    return B_OK;
-  }
-
-  static void dump_wait_list(asio_backend_t* b, const char* prefix)
-  {
-    for(int32 i = 0; i < b->wait_list_count; i++)
-    {
-      LOG("%s: wait_list[%d] = type %d, id %d, read? %d, write? %d, oneshot? %d",
-        prefix,
-        i,
-        b->wait_list[i].type,
-        b->wait_list[i].object,
-        (b->wait_list[i].events & B_EVENT_READ) > 0,
-        (b->wait_list[i].events & B_EVENT_WRITE) > 0,
-        (b->wait_list[i].events & (B_EVENT_HIGH_PRIORITY_READ | B_EVENT_HIGH_PRIORITY_WRITE)) > 0);
-    }
-  }
-#  define LOGLIST(prefix) dump_wait_list(ponyint_asio_get_backend(), prefix)
-#else
-#  define LOG(...)
-#  define LOGLIST(...)
-#endif
-
-static void send_request(asio_event_t* ev, int32 req)
+static status_t wfo_send_request(asio_event_t* ev, int32 req)
 {
   asio_backend_t* b = ponyint_asio_get_backend();
   if(b == NULL || b->port < 0)
   {
-    LOG("tried to send request %s (req = %d) after backend finalization already happened", wfo_event_names[req], req);
-    return;
+    // Something tried to send request after backend finalization already happened?
+    pony_assert(0);
+    return B_SHUTTING_DOWN;
   }
 
   struct wfo_message_t msg;
   msg.ev = ev;
-  // We store event flags as they are at moment of sending message,
-  // becuase handle_queue might be called after ev->flags are changed in meantime.
+  // We store event flags as they are at moment of sending message, because
+  // wfo_handle_queue might be called after ev->flags are changed in meantime.
   msg.flags = ev->flags;
 
-  LOG("sending request %s (req = %d)", wfo_event_names[req], req);
-  status_t result = write_port(b->port, req, &msg, sizeof(msg));
-  if(result < B_OK)
-  {
-    LOG("ERROR: sending request failed: %d", result);
-  }
-  else
-  {
-    LOG("sending request result: %d", result);
-  }
+  return write_port(b->port, req, &msg, sizeof(msg));
 }
 
-static void signal_handler(int sig, void* userData)
+static void wfo_signal_handler(int sig, void* userData)
 {
   if(sig >= MAX_SIGNAL)
     return;
@@ -159,9 +92,8 @@ static void signal_handler(int sig, void* userData)
   pony_asio_event_send(ev, ASIO_SIGNAL, 1);
 }
 
-static void timer_handler(union sigval val)
+static void wfo_timer_handler(union sigval val)
 {
-  LOG("timer_handler");
   asio_event_t* ev = (asio_event_t*)val.sival_ptr;
 
   if(ev == NULL || ev->timerID == NULL)
@@ -171,7 +103,6 @@ static void timer_handler(union sigval val)
   if(b == NULL || b->port < 0)
     return;
 
-  LOG("handling event for timer %p", ev->timerID);
   // We're making Haiku kernel call our `timer_handler` from a "new thread"
   // (or same one for all timer calls, but still not owned by us AFAIK).
   // When it calls us, and we try to call pony_asio_event_send, pony context is not set.
@@ -182,18 +113,20 @@ static void timer_handler(union sigval val)
   // With examples/timers it worked fine, but with examples/under_pressure it consistently crashes.
 //  pony_asio_event_send(ev, ASIO_TIMER, 0);
   // That's why we send request to our own thread, which will in turn send the pony event.
-  send_request(ev, WFO_TIMER_FIRED);
-  LOG("done event for timer %p", ev->timerID);
+  if(wfo_send_request(ev, WFO_TIMER_FIRED) < B_OK)
+  {
+    pony_assert(0);
+  }
 }
 
 #if !defined(USE_SCHEDULER_SCALING_PTHREADS)
-static void empty_signal_handler(int sig)
+static void wfo_empty_signal_handler(int sig)
 {
   (void) sig;
 }
 #endif
 
-int32 event_add(asio_backend_t* b, asio_event_t* ev, int32 object, uint16 type, uint16 events)
+int32 wfo_event_add(asio_backend_t* b, asio_event_t* ev, int32 object, uint16 type, uint16 events)
 {
   pony_assert(b != NULL);
 
@@ -201,20 +134,17 @@ int32 event_add(asio_backend_t* b, asio_event_t* ev, int32 object, uint16 type, 
 
   if(index >= (int32)B_COUNT_OF(b->wait_list))
   {
-    LOG("ERROR: cannot add any more events");
-    return -1;
+    return WFO_ERROR_WAIT_LIST_FULL;
   }
 
   if(ev != NULL && ev->wfo_id != -1)
   {
-    LOG("ERROR: event already subscribed, unsubscribe it first!");
-    return -1;
+    return WFO_ERROR_EVENT_ALREADY_SUBSCRIBED;
   }
 
   if(object < 0)
   {
-    LOG("ERROR: Invalid object: %d", object);
-    return -1;
+    return WFO_ERROR_INVALID_OBJECT;
   }
 
   b->wait_list_count += 1;
@@ -233,12 +163,12 @@ int32 event_add(asio_backend_t* b, asio_event_t* ev, int32 object, uint16 type, 
   return index;
 }
 
-int32 event_update(asio_backend_t* b, asio_event_t* ev, int32 index, int32 object, uint16 type, uint16 events)
+int32 wfo_event_update(asio_backend_t* b, asio_event_t* ev, int32 index, int32 object, uint16 type, uint16 events)
 {
   pony_assert(b != NULL);
 
   if(index >= MAX_EVENTS || index < 0)
-    return event_add(b, ev, object, type, events);
+    return wfo_event_add(b, ev, object, type, events);
 
   object_wait_info* info = &b->wait_list[index];
 
@@ -256,7 +186,7 @@ int32 event_update(asio_backend_t* b, asio_event_t* ev, int32 index, int32 objec
   return index;
 }
 
-int32 event_remove(asio_backend_t* b, asio_event_t* ev)
+int32 wfo_event_remove(asio_backend_t* b, asio_event_t* ev)
 {
   pony_assert(b != NULL);
   pony_assert(ev != NULL);
@@ -265,15 +195,11 @@ int32 event_remove(asio_backend_t* b, asio_event_t* ev)
   if(index < 0)
     return -1;
 
-  LOG("REMOVE %d, wfo_id = %d", ev->fd, index);
-  LOGLIST("before removal");
-
   ev->wfo_id = -1;
 
   if(b->events[index] != ev)
   {
-    LOG("ERROR: event mismatch");
-    return -1;
+    return WFO_ERROR_EVENT_MISMATCH;
   }
 
   int32 last = b->wait_list_count - 1;
@@ -283,7 +209,6 @@ int32 event_remove(asio_backend_t* b, asio_event_t* ev)
 
   if(last <= index)
   {
-    LOGLIST("after trimming");
     return 0;
   }
 
@@ -291,20 +216,18 @@ int32 event_remove(asio_backend_t* b, asio_event_t* ev)
   b->wait_events[index] = b->wait_events[last];
   b->events[index] = b->events[last];
 
-  // We could be called after wait_for_objects modified events, before they were refreshed,
-  // so refresh them here.
+  // We could be called after wait_for_objects modified events,
+  // before they were refreshed, so refresh them here.
   b->wait_list[index].events = b->wait_events[index];
 
   asio_event_t* ev2 = b->events[index];
   if(ev2 != NULL && ev2->wfo_id >= 0)
     ev2->wfo_id = index;
 
-  LOGLIST("after removal");
-
   return 0;
 }
 
-static uint16 asio_flags_to_wfo_events(uint32_t flags)
+static uint16 wfo_events_from_asio_flags(uint32_t flags)
 {
   uint16 events = 0;
 
@@ -314,7 +237,7 @@ static uint16 asio_flags_to_wfo_events(uint32_t flags)
   //          Which means that we'll be using either both READ and HIGHT_PRIORITY_READ,
   //          or just the HIGH_PRIORITY_READ.
   //          This allows us to emulate ONESHOT, without a need for dispatch function to
-  //          accessing asio_event_t's readable/writeable in a race condition manner,
+  //          access asio_event_t's readable/writeable in a race condition manner,
   //          and without a need to remove and re-add the event to our wait_list.
   if(flags & ASIO_READ)
   {
@@ -336,7 +259,7 @@ static uint16 asio_flags_to_wfo_events(uint32_t flags)
   return events;
 }
 
-static void handle_queue(asio_backend_t* b)
+static void wfo_handle_queue(asio_backend_t* b)
 {
   int32 req;
   struct wfo_message_t msg;
@@ -344,14 +267,10 @@ static void handle_queue(asio_backend_t* b)
 
   while((read_size = read_port_etc(b->port, &req, &msg, sizeof(msg), B_TIMEOUT, 0)) >= 0)
   {
-    LOG("handle_queue got message: %s (req = %d)", wfo_event_names[req], req);
     if(read_size != sizeof(msg))
     {
-      // 0 means it was just a wakeup-type message
-      if(read_size > 0)
-      {
-        LOG("ERROR: handle_queue got invalid size of data for a msg: %ld != %ld", read_size, sizeof(msg));
-      }
+      // 0 means it was just a wakeup-type message.
+      pony_assert(read_size == 0);
       continue;
     }
 
@@ -359,56 +278,44 @@ static void handle_queue(asio_backend_t* b)
     uint32_t flags = msg.flags;
     uint16 events = 0;
 
-    pony_assert(req < (int32)B_COUNT_OF(wfo_event_names));
-    LOG("handle_queue message targets event with ev->fd set to %d", ev->fd);
-
     switch(req)
     {
       case ASIO_DISPOSABLE:
-        LOG("DISPOSE %d", ev->fd);
         pony_asio_event_send(ev, ASIO_DISPOSABLE, 0);
         break;
 
       case WFO_TIMER_FIRED:
-        LOG("handling WFO_TIMER_FIRED for timer %p", ev->timerID);
         if(ev->timerID != NULL)
           pony_asio_event_send(ev, ASIO_TIMER, 0);
-        LOG("done handling WFO_TIMER_FIRED for timer %p", ev->timerID);
         break;
 
       case WFO_SUBSCRIBE:
         if(ev->fd < 0) continue;
 
-        events = asio_flags_to_wfo_events(flags);
+        events = wfo_events_from_asio_flags(flags);
 
-        LOG("SUBSCRIBE %d for: READ %d, WRITE %d, ONESHOT %d", ev->fd, (flags & ASIO_READ) > 0, (flags & ASIO_WRITE) > 0, (flags & ASIO_ONESHOT) > 1);
-        LOG("ev->wfo_id was %d", ev->wfo_id);
-        LOG("ev is %p", ev);
+        int32 result = -1;
+        if(ev->wfo_id >= 0)
+          result = wfo_event_update(b, ev, ev->wfo_id, ev->fd, B_OBJECT_TYPE_FD, events);
+        else
+          result = wfo_event_add(b, ev, ev->fd, B_OBJECT_TYPE_FD, events);
 
-        if(ev->wfo_id >= 0 && event_update(b, ev, ev->wfo_id, ev->fd, B_OBJECT_TYPE_FD, events) < B_OK)
-          pony_asio_event_send(ev, ASIO_ERROR, 0);
-        else if(event_add(b, ev, ev->fd, B_OBJECT_TYPE_FD, events) < B_OK)
+        if (result < B_OK)
           pony_asio_event_send(ev, ASIO_ERROR, 0);
         break;
 
       case WFO_RESUBSCRIBE:
         if(ev->fd < 0) continue;
 
-        events = asio_flags_to_wfo_events(flags);
+        events = wfo_events_from_asio_flags(flags);
 
-        LOG("RESUBSCRIBE %d for: READ %d, WRITE %d, ONESHOT %d", ev->fd, (flags & ASIO_READ) > 0, (flags & ASIO_WRITE) > 0, (flags & ASIO_ONESHOT) > 1);
-        LOG("ev->wfo_id was %d", ev->wfo_id);
-        LOG("ev is %p", ev);
-
-        if(event_update(b, ev, ev->wfo_id, ev->fd, B_OBJECT_TYPE_FD, events) < B_OK)
+        if(wfo_event_update(b, ev, ev->wfo_id, ev->fd, B_OBJECT_TYPE_FD, events) < B_OK)
           pony_asio_event_send(ev, ASIO_ERROR, 0);
         break;
 
       case WFO_UNSUBSCRIBE:
-        LOG("UNSUBSCRIBE %d", ev->fd);
-        // Don't send ASIO_ERROR on delete failure — the actor is tearing down,
-        // and ENOENT/EBADF is expected (FD already closed or never registered).
-        event_remove(b, ev);
+        // Don't send ASIO_ERROR on failure — the actor is tearing down anyway.
+        wfo_event_remove(b, ev);
         break;
 
       default: {}
@@ -429,25 +336,20 @@ asio_backend_t* ponyint_asio_backend_init()
   }
 
   b->wait_list_count = 0;
-  event_add(b, NULL, b->port, B_OBJECT_TYPE_PORT, B_EVENT_READ);
+  wfo_event_add(b, NULL, b->port, B_OBJECT_TYPE_PORT, B_EVENT_READ);
 
 #if !defined(USE_SCHEDULER_SCALING_PTHREADS)
   // Make sure we ignore signals related to scheduler sleeping/waking
   // as the default for those signals is termination.
   struct sigaction new_action;
-  new_action.sa_handler = empty_signal_handler;
+  new_action.sa_handler = wfo_empty_signal_handler;
   new_action.sa_userdata = NULL;
   sigemptyset (&new_action.sa_mask);
 
-  // ask to restart interrupted syscalls to match `signal` behavior
+  // Ask to restart interrupted syscalls to match `signal` behavior.
   new_action.sa_flags = SA_RESTART;
 
   sigaction(PONY_SCHED_SLEEP_WAKE_SIGNAL, &new_action, NULL);
-#endif
-
-#if defined(USE_LOGGER_THREAD)
-  b->logger = spawn_thread(logger, "pony wfo logger", B_DISPLAY_PRIORITY, NULL);
-  resume_thread(b->logger);
 #endif
 
   return b;
@@ -458,10 +360,10 @@ void ponyint_asio_backend_final(asio_backend_t* b)
   delete_port(b->port);
 }
 
-// Single function for resubscribing to both reads and writes for an event
+// Single function for resubscribing to both reads and writes for an event.
 PONY_API void pony_asio_event_resubscribe(asio_event_t* ev)
 {
-  // needs to be a valid event that is one shot enabled
+  // Needs to be a valid event that is one shot enabled.
   if((ev == NULL) ||
     (ev->flags == ASIO_DISPOSABLE) ||
     (ev->flags == ASIO_DESTROYED) ||
@@ -471,12 +373,15 @@ PONY_API void pony_asio_event_resubscribe(asio_event_t* ev)
     return;
   }
 
-  send_request(ev, WFO_RESUBSCRIBE);
+  if(wfo_send_request(ev, WFO_RESUBSCRIBE) < B_OK)
+  {
+    pony_asio_event_send(ev, ASIO_ERROR, 0);
+  }
 }
 
 // Kept to maintain backwards compatibility so folks don't
 // have to change their code to use `pony_asio_event_resubscribe`
-// immediately
+// immediately.
 PONY_API void pony_asio_event_resubscribe_write(asio_event_t* ev)
 {
   pony_asio_event_resubscribe(ev);
@@ -484,7 +389,7 @@ PONY_API void pony_asio_event_resubscribe_write(asio_event_t* ev)
 
 // Kept to maintain backwards compatibility so folks don't
 // have to change their code to use `pony_asio_event_resubscribe`
-// immediately
+// immediately.
 PONY_API void pony_asio_event_resubscribe_read(asio_event_t* ev)
 {
   pony_asio_event_resubscribe(ev);
@@ -498,11 +403,10 @@ DECLARE_THREAD_FN(ponyint_asio_backend_dispatch)
   pony_assert(b != NULL);
 
   rename_thread(get_pthread_thread_id(pthread_self()), "wfo::ponyint_asio_backend_dispatch");
-//  set_thread_priority(get_pthread_thread_id(pthread_self()), B_DISPLAY_PRIORITY);
 
 #if !defined(USE_SCHEDULER_SCALING_PTHREADS)
   // Make sure we block signals related to scheduler sleeping/waking
-  // so they queue up to avoid race conditions
+  // so they queue up to avoid race conditions.
   sigset_t set;
   sigemptyset(&set);
   sigaddset(&set, PONY_SCHED_SLEEP_WAKE_SIGNAL);
@@ -510,7 +414,7 @@ DECLARE_THREAD_FN(ponyint_asio_backend_dispatch)
 #endif
 
 #if defined(USE_SYSTEMATIC_TESTING)
-  // sleep thread until we're ready to start processing
+  // Sleep thread until we're ready to start processing.
   SYSTEMATIC_TESTING_WAIT_START(ponyint_asio_get_backend_tid(), ponyint_asio_get_backend_sleep_object());
 #endif
 
@@ -526,36 +430,33 @@ DECLARE_THREAD_FN(ponyint_asio_backend_dispatch)
       should_refresh_events = false;
     }
 
-    LOGLIST("before wait");
-
 #if defined(USE_SYSTEMATIC_TESTING)
-    // wait only for 10 milliseconds
+    // Wait only for 10 milliseconds.
     ssize_t result = wait_for_objects_etc(b->wait_list, wait_count, B_RELATIVE_TIMEOUT, 10000);
 #else
-    // wait indefinitely
+    // Wait indefinitely.
     ssize_t result = wait_for_objects(b->wait_list, wait_count);
 #endif
 
     SYSTEMATIC_TESTING_YIELD();
-    LOGLIST("results");
 
-    if(result == B_TIMED_OUT || result == B_WOULD_BLOCK)
+    if(result == B_TIMED_OUT || result == B_WOULD_BLOCK || result == B_INTERRUPTED)
     {
       ssize_t count = port_count(b->port);
       if(count == B_BAD_PORT_ID)
       {
-        // `ponyint_asio_backend_final` simply deletes port, so we know it's time to quit.
-        LOG("dispatch: shutdown requested");
+        // `ponyint_asio_backend_final` simply deletes b->port, so we know it's time to quit.
         break;
       }
       else if(count < 0)
       {
-        LOG("ERROR: dispatch port_count returned %ld", count);
+        // Some unknown error happened!
+        pony_assert(0);
       }
       else if(count > 0)
       {
-        LOG("dispatch: timed out, has %ld messages in queue, calling handle_queue...", count);
-        handle_queue(b);
+        // Timed out and there are more than 0 messages in queue, so call wfo_handle_queue.
+        wfo_handle_queue(b);
       }
 
       should_refresh_events = true;
@@ -563,7 +464,7 @@ DECLARE_THREAD_FN(ponyint_asio_backend_dispatch)
     }
     else if(result < B_OK)
     {
-      LOG("dispatch: ERROR: %ld", result);
+      pony_assert(0);
       break;
     }
 
@@ -585,7 +486,6 @@ DECLARE_THREAD_FN(ponyint_asio_backend_dispatch)
         {
           should_handle_queue = ((events & B_EVENT_READ) == B_EVENT_READ) && port_count(b->port) > 0;
           should_quit = (events & B_EVENT_INVALID) == B_EVENT_INVALID;
-          LOG("dispatch port update: has messages %d, shutting down %d", should_handle_queue, should_quit);
         }
 
         if(should_handle_queue || should_quit)
@@ -617,8 +517,10 @@ DECLARE_THREAD_FN(ponyint_asio_backend_dispatch)
 
         if(info->events & B_EVENT_HIGH_PRIORITY_READ)
         {
-          // Since this is an ASIO_ONESHOT event, set only high priority read (which is not triggered by Haiku),
-          // to keep it a valid object info, but not trigger again until a call to resubscribe and B_EVENT_READ is set.
+          // Since this is an ASIO_ONESHOT event, set only high priority read
+          // (which is not triggered by Haiku, so we're repurposing that one),
+          // to keep it a valid object info without triggering it again
+          // until a call to resubscribe and B_EVENT_READ is set.
           info->events = info->events & ~(B_EVENT_READ);
           b->wait_events[i] = info->events;
         }
@@ -641,7 +543,6 @@ DECLARE_THREAD_FN(ponyint_asio_backend_dispatch)
       {
         if(events & B_EVENT_DISCONNECTED)
         {
-          LOG("B_EVENT_DISCONNECTED info->object %d, ev->fd %d", info->object, ev->fd);
           if(!(info->events & B_EVENT_HIGH_PRIORITY_READ) || !ev->readable)
           {
             ev->readable = true;
@@ -650,44 +551,34 @@ DECLARE_THREAD_FN(ponyint_asio_backend_dispatch)
         }
         if(events & B_EVENT_ERROR)
         {
-          LOG("B_EVENT_ERROR info->object %d, ev->fd %d", info->object, ev->fd);
+          flags |= ASIO_ERROR;
         }
         if(events & B_EVENT_INVALID)
         {
-          LOG("B_EVENT_INVALID info->object %d, ev->fd %d", info->object, ev->fd);
+          flags |= ASIO_ERROR;
         }
       }
 
-      // if we had a valid event of some type that needs to be sent
-      // to an actor
+      // If we had a valid event of some type...
       if(flags != 0)
       {
-        LOG("SEND event for info->object %d, ev->fd %d", info->object, ev->fd);
-        // send the event to the actor
+        // ...send it to the actor.
         pony_asio_event_send(ev, flags, count);
       }
     }
 
     if(should_handle_queue)
     {
-      LOG("Handling queue...");
-      handle_queue(b);
+      wfo_handle_queue(b);
     }
 
     if(should_quit) break;
   }
 
-  LOG("Shutting down... handling queue for the last time...");
-  handle_queue(b);
+  wfo_handle_queue(b);
 
   delete_port(b->port);
   b->port = B_BAD_PORT_ID;
-
-#if defined(USE_LOGGER_THREAD)
-  send_data(b->logger, B_SHUTTING_DOWN, NULL, 0);
-  wait_for_thread(b->logger, NULL);
-  b->logger = -1;
-#endif
 
   POOL_FREE(asio_backend_t, b);
 
@@ -698,7 +589,7 @@ DECLARE_THREAD_FN(ponyint_asio_backend_dispatch)
   return NULL;
 }
 
-static bool timer_set_nsec(asio_event_t* ev)
+static bool wfo_timer_set_nsec(asio_event_t* ev)
 {
   struct itimerspec ts;
 
@@ -712,8 +603,6 @@ static bool timer_set_nsec(asio_event_t* ev)
   ts.it_value.tv_sec = (time_t)(nsec / 1000000000);
   ts.it_value.tv_nsec = (long)(nsec - (ts.it_value.tv_sec * 1000000000));
 
-  LOG("setting timer %p", timerID);
-
   return timer_settime(timerID, 0, &ts, NULL) == B_OK;
 }
 
@@ -722,19 +611,17 @@ static bool wfo_remove_timer(asio_event_t* ev)
   if (ev->timerID != NULL)
   {
     timer_delete(ev->timerID);
-    LOG("timer %p" " removed", ev->timerID);
+    ev->timerID = NULL;
   }
-  ev->timerID = NULL;
   return true;
 }
 
 static bool wfo_set_timer(asio_event_t* ev)
 {
-  LOG("creating timer");
   struct sigevent event;
   event.sigev_notify = SIGEV_THREAD;
   event.sigev_value.sival_ptr = (void*)ev;
-  event.sigev_notify_function = timer_handler;
+  event.sigev_notify_function = wfo_timer_handler;
   event.sigev_notify_attributes = NULL;
 
   if(timer_create(CLOCK_MONOTONIC, &event, &ev->timerID) != B_OK)
@@ -742,20 +629,15 @@ static bool wfo_set_timer(asio_event_t* ev)
     goto failure;
   }
 
-  LOG("timer %p" " created", ev->timerID);
-
-  if(!timer_set_nsec(ev))
+  if(!wfo_timer_set_nsec(ev))
   {
     goto failure;
   }
-
-  LOG("timer %p" " set", ev->timerID);
 
 //success:
     return true;
 
   failure:
-    LOG("ERROR: failed to create timer");
     wfo_remove_timer(ev);
     return false;
 }
@@ -771,7 +653,7 @@ static bool wfo_remove_signal(asio_event_t* ev, int sig)
   // as the default for those signals is termination.
   if(sig == PONY_SCHED_SLEEP_WAKE_SIGNAL)
   {
-    new_action.sa_handler = empty_signal_handler;
+    new_action.sa_handler = wfo_empty_signal_handler;
     new_action.sa_userdata = NULL;
   }
   else
@@ -780,7 +662,7 @@ static bool wfo_remove_signal(asio_event_t* ev, int sig)
 
   sigemptyset (&new_action.sa_mask);
 
-  // ask to restart interrupted syscalls to match `signal` behavior
+  // Ask to restart interrupted syscalls to match `signal` behavior.
   new_action.sa_flags = SA_RESTART;
 
   sigaction(sig, &new_action, NULL);
@@ -791,11 +673,11 @@ static bool wfo_remove_signal(asio_event_t* ev, int sig)
 static bool wfo_set_signal(asio_event_t* ev, int sig)
 {
   struct sigaction new_action;
-  new_action.sa_handler = (__sighandler_t)(void*)signal_handler;
+  new_action.sa_handler = (__sighandler_t)(void*)wfo_signal_handler;
   new_action.sa_userdata = (void*)ev;
   sigemptyset (&new_action.sa_mask);
 
-  // ask to restart interrupted syscalls to match `signal` behavior
+  // Ask to restart interrupted syscalls to match `signal` behavior.
   new_action.sa_flags = SA_RESTART;
 
   sigaction(sig, &new_action, NULL);
@@ -819,22 +701,19 @@ PONY_API void pony_asio_event_subscribe(asio_event_t* ev)
   if(ev->noisy)
   {
     uint64_t old_count = ponyint_asio_noisy_add();
-    // tell scheduler threads that asio has at least one noisy actor
-    // if the old_count was 0
+    // Tell scheduler threads that asio has at least one noisy actor
+    // if the old_count was 0.
     if (old_count == 0)
       ponyint_sched_noisy_asio(pony_scheduler_index());
   }
 
   if(ev->flags & ASIO_TIMER)
   {
-    LOG("init timer event");
     if (!wfo_set_timer(ev))
     {
-      LOG("failed to init timer event");
       pony_asio_event_send(ev, ASIO_ERROR, 0);
       return;
     }
-    LOG("subscribe timer event");
     return;
   }
 
@@ -846,7 +725,7 @@ PONY_API void pony_asio_event_subscribe(asio_event_t* ev)
     // TODO: somehow warn about this?
     if(sig == SIGKILL || sig == SIGSTOP)
     {
-      // KILL and STOP are not catchable
+      // KILL and STOP are not catchable.
     }
 
     if((sig < MAX_SIGNAL) &&
@@ -865,7 +744,10 @@ PONY_API void pony_asio_event_subscribe(asio_event_t* ev)
 
   if(ev->flags & (ASIO_READ | ASIO_WRITE))
   {
-    send_request(ev, WFO_SUBSCRIBE);
+    if(wfo_send_request(ev, WFO_SUBSCRIBE) < B_OK)
+    {
+      pony_asio_event_send(ev, ASIO_ERROR, 0);
+    }
   }
 }
 
@@ -882,7 +764,7 @@ PONY_API void pony_asio_event_setnsec(asio_event_t* ev, uint64_t nsec)
   if(ev->flags & ASIO_TIMER)
   {
     ev->nsec = nsec;
-    if(!timer_set_nsec(ev))
+    if(!wfo_timer_set_nsec(ev))
       pony_asio_event_send(ev, ASIO_ERROR, 0);
   }
 }
@@ -902,9 +784,7 @@ PONY_API void pony_asio_event_unsubscribe(asio_event_t* ev)
 
   if(ev->flags & ASIO_TIMER)
   {
-    LOG("removing timer...");
     wfo_remove_timer(ev);
-    LOG("... done removing timer");
   }
 
   if(ev->flags & ASIO_SIGNAL)
@@ -922,11 +802,13 @@ PONY_API void pony_asio_event_unsubscribe(asio_event_t* ev)
 
   if(ev->flags & (ASIO_READ | ASIO_WRITE))
   {
-    send_request(ev, WFO_UNSUBSCRIBE);
+    // Don't send ASIO_ERROR on failure — the actor is tearing down anyway.
+    wfo_send_request(ev, WFO_UNSUBSCRIBE);
   }
 
+  // Don't send ASIO_ERROR on failure — the actor is tearing down anyway.
   ev->flags = ASIO_DISPOSABLE;
-  send_request(ev, ASIO_DISPOSABLE);
+  wfo_send_request(ev, ASIO_DISPOSABLE);
 }
 
 #endif
