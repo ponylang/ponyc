@@ -30,8 +30,11 @@ LLD_HAS_DRIVER(wasm)
 
 #ifdef PLATFORM_IS_POSIX_BASED
 #  include <unistd.h>
+#  include <errno.h>
 #  include <sys/stat.h>
+#  include <sys/wait.h>
 #  include <dirent.h>
+#  include <spawn.h>
 #  include <llvm/TargetParser/Triple.h>
 #endif
 
@@ -1679,6 +1682,89 @@ static const char* macho_platform_version(compile_t* c)
   return stringtab(c->opt->strtab, buf);
 }
 
+// Run a command and wait for it to finish. The executable is looked up on
+// PATH (like the shell did) and the arguments are passed as an explicit argv
+// terminated by a NULL element, so no shell is involved and nothing in the
+// argument list — including the user-controlled output path — is subject to
+// shell parsing. Returns the command's exit status, or -1 if the process
+// could not be spawned or did not exit normally.
+static int run_command(const char* const argv[])
+{
+  extern char** environ;
+
+  pid_t pid;
+  int err = posix_spawnp(&pid, argv[0], NULL, NULL,
+    (char* const*)argv, environ);
+  if(err != 0)
+    return -1;
+
+  // Retry on EINTR so a signal delivered while we wait doesn't masquerade as
+  // a tool failure. system(), which this replaces, did the same internally.
+  int status;
+  int wait_result;
+  do
+  {
+    wait_result = waitpid(pid, &status, 0);
+  } while((wait_result == -1) && (errno == EINTR));
+
+  if(wait_result == -1)
+    return -1;
+
+  if(!WIFEXITED(status))
+    return -1;
+
+  return WEXITSTATUS(status);
+}
+
+// Recursively delete a directory tree using direct filesystem calls — no
+// shell, no external `rm`, so the path is only ever a syscall argument and
+// can carry no injection. Symlinks are removed as links, never followed
+// (lstat reports a symlink as a non-directory, so it is unlinked rather than
+// descended into). Best effort: errors are ignored, matching the `rm -rf`
+// this replaces — a missing bundle is not an error, and dsymutil overwrites
+// whatever remains.
+static void remove_directory_tree(const char* path)
+{
+  DIR* dir = opendir(path);
+  if(dir == NULL)
+  {
+    // Not an openable directory: either the path is absent (nothing to do)
+    // or a plain file sits where the bundle should be. unlink removes the
+    // file case and harmlessly no-ops when the path is absent.
+    unlink(path);
+    return;
+  }
+
+  // Each entry is removed as readdir returns it. Deleting the just-returned
+  // entry and continuing to iterate is the standard recursive-delete idiom
+  // (glibc, macOS, and the BSDs all tolerate it); don't "fix" this into a
+  // collect-then-delete pass.
+  struct dirent* entry;
+  while((entry = readdir(dir)) != NULL)
+  {
+    if((strcmp(entry->d_name, ".") == 0) ||
+      (strcmp(entry->d_name, "..") == 0))
+      continue;
+
+    char child[PATH_MAX];
+    int n = snprintf(child, sizeof(child), "%s/%s", path, entry->d_name);
+
+    // Skip rather than act on a truncated path: a shortened path could name a
+    // different filesystem object, and this code deletes.
+    if((n < 0) || ((size_t)n >= sizeof(child)))
+      continue;
+
+    struct stat st;
+    if((lstat(child, &st) == 0) && S_ISDIR(st.st_mode))
+      remove_directory_tree(child);
+    else
+      unlink(child);
+  }
+
+  closedir(dir);
+  rmdir(path);
+}
+
 static bool link_exe_lld_macho(compile_t* c, ast_t* program,
   const char* file_o)
 {
@@ -1851,18 +1937,22 @@ static bool link_exe_lld_macho(compile_t* c, ast_t* program,
   // Run dsymutil unless stripping debug info.
   if(!c->opt->strip_debug)
   {
-    size_t dsym_len = 16 + strlen(file_exe);
-    char* dsym_cmd = (char*)ponyint_pool_alloc_size(dsym_len);
+    // Remove any stale dSYM bundle, then regenerate it. The bundle is removed
+    // in-process with direct filesystem calls (no shell, no external rm), and
+    // dsymutil is invoked via run_command with an explicit argv rather than
+    // system(). Either way the user-controlled output path is only ever a
+    // syscall or single-argument value, never interpreted by a shell.
+    size_t dsym_path_len = strlen(file_exe) + 6; // ".dSYM" + NUL
+    char* dsym_path = (char*)ponyint_pool_alloc_size(dsym_path_len);
+    snprintf(dsym_path, dsym_path_len, "%s.dSYM", file_exe);
 
-    snprintf(dsym_cmd, dsym_len, "rm -rf %s.dSYM", file_exe);
-    system(dsym_cmd);
+    remove_directory_tree(dsym_path);
 
-    snprintf(dsym_cmd, dsym_len, "dsymutil %s", file_exe);
-
-    if(system(dsym_cmd) != 0)
+    const char* dsymutil_argv[] = {"dsymutil", file_exe, NULL};
+    if(run_command(dsymutil_argv) != 0)
       errorf(errors, NULL, "unable to create dsym");
 
-    ponyint_pool_free_size(dsym_len, dsym_cmd);
+    ponyint_pool_free_size(dsym_path_len, dsym_path);
   }
 
   return true;
