@@ -45,6 +45,13 @@ LLD_HAS_DRIVER(wasm)
 #  include "sanitizer_link_args.h"
 #endif
 
+#if defined(PONY_COVERAGE)
+// Generated at configure time (top-level CMakeLists.txt, coverage capture block):
+// the coverage runtime (libgcov) link fragment captured from the compiler
+// driver. Exists only in gcc coverage builds, so the include is guarded to match.
+#  include "coverage_link_args.h"
+#endif
+
 #define STR(x) STR2(x)
 #define STR2(x) #x
 
@@ -1340,6 +1347,39 @@ static bool link_exe_lld_elf(compile_t* c, ast_t* program,
   }
 #endif
 
+#if defined(PONY_COVERAGE)
+  // Coverage runtime (libgcov). When ponyc is built with gcc coverage
+  // (-fprofile-arcs), libponyrt's C objects carry gcov constructors that
+  // reference __gcov_init/__gcov_exit from gcc's libgcov, so every Pony program
+  // ponyc links needs libgcov on the link line (issue #5434).
+  // PONY_COVERAGE_LINK_ARGS is the fragment the gcc driver emits for
+  // -fprofile-arcs — just -lgcov — captured at ponyc build time (see the
+  // coverage capture block in the top-level CMakeLists.txt). It is defined only
+  // in gcc coverage builds; clang coverage (-fprofile-instr-generate) links
+  // fine without a splice, so this code is absent there.
+  //
+  // Gated to the native ELF targets where gcc coverage is allowed and reaches
+  // embedded LLD: Linux, FreeBSD, and DragonFly. Unlike the sanitizer gate
+  // above, DragonFly is INCLUDED — coverage is allowed there (sanitizers are
+  // not), and DragonFly only builds ponyc with gcc, so it is the platform that
+  // needs this most. OpenBSD coverage is rejected at configure time; macOS and
+  // Windows are not gcc-coverage paths. !is_cross_compiling keeps the host
+  // fragment out of any cross link routed here.
+  //
+  // -lgcov is a bare archive reference, resolved via the gcc lib -L path ponyc
+  // already emits earlier in this function (the same dir libgcov.a and the gcc
+  // sanitizer libs live in). Position is immaterial: LLD resolves __gcov_init
+  // from libgcov.a whether -lgcov precedes or follows the instrumented libponyrt
+  // archive, so splicing here (before file_o, alongside the sanitizer fragment)
+  // is fine.
+  if((target_is_linux(c->opt->triple) || target_is_freebsd(c->opt->triple)
+    || target_is_dragonfly(c->opt->triple)) && !is_cross_compiling(c))
+  {
+    for(size_t i = 0; i < PONY_COVERAGE_LINK_ARGS_COUNT; i++)
+      args.push_back(PONY_COVERAGE_LINK_ARGS[i]);
+  }
+#endif
+
   // Object file.
   args.push_back(file_o);
 
@@ -2114,7 +2154,10 @@ static bool link_exe(compile_t* c, ast_t* program,
   // FreeBSD, and macOS, native sanitizer builds use embedded LLD too: the ELF
   // and Mach-O link functions splice the sanitizer runtime from a fragment
   // captured at ponyc build time. DragonFly and OpenBSD native sanitizer
-  // builds are rejected at configure time. Cross-compilation always uses LLD.
+  // builds are rejected at configure time. Native gcc coverage builds
+  // (Linux/FreeBSD/DragonFly) likewise splice the libgcov fragment in
+  // link_exe_lld_elf (see its PONY_COVERAGE block). Cross-compilation always
+  // uses LLD.
 #ifdef PLATFORM_IS_POSIX_BASED
   if(target_is_linux(c->opt->triple))
     return link_exe_lld_elf(c, program, file_o);
