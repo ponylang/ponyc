@@ -23,6 +23,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Fix Windows process crash when a UDP socket fails to listen ([PR #5483](https://github.com/ponylang/ponyc/pull/5483))
 - Make `UDPSocket.set_broadcast` a no-op on IPv6 sockets ([PR #5497](https://github.com/ponylang/ponyc/pull/5497))
 - Fix crash when a directory is named like a Pony source file ([PR #5514](https://github.com/ponylang/ponyc/pull/5514))
+- Fix NetAddress.scope() returning a byte-swapped value on little-endian platforms ([PR #5511](https://github.com/ponylang/ponyc/pull/5511))
 
 ### Added
 
