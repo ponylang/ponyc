@@ -232,6 +232,18 @@ static bool parse_files_in_dir(ast_t* package, const char* dir_path,
     if(name[0] == '.')
       continue;
 
+    // A directory is never a source file, whatever its name. Skip it before
+    // classifying by extension: otherwise a directory named like a source
+    // file (e.g. foo.pony) reaches source_open, which on some filesystems
+    // opens it, misreads its length via ftell, and aborts the compiler with a
+    // huge allocation. Filtering here covers every source extension.
+    char fullpath[FILENAME_MAX];
+    path_cat(dir_path, name, fullpath);
+
+    struct stat s;
+    if((stat(fullpath, &s) == 0) && S_ISDIR(s.st_mode))
+      continue;
+
     const char* p = strrchr(name, '.');
 
     if((p != NULL) && (strcmp(p, EXTENSION) == 0))

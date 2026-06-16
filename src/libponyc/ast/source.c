@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
+#include <sys/stat.h>
 
 source_t* source_open(const char* file, const char** error_msgp,
   strtable_t* strtab)
@@ -14,6 +15,20 @@ source_t* source_open(const char* file, const char** error_msgp,
   if(fp == NULL)
   {
     *error_msgp = "can't open file";
+    return NULL;
+  }
+
+  // fopen("dir", "rb") succeeds on some platforms; the size logic below then
+  // reads a meaningless length from ftell. On common Linux filesystems that
+  // value is SSIZE_MAX, which overflows `size + 1` into a huge allocation that
+  // aborts the compiler. Reject a directory here with a clear error. Source
+  // discovery already skips directories; this is the backstop for any other
+  // caller.
+  struct stat s;
+  if((stat(file, &s) == 0) && S_ISDIR(s.st_mode))
+  {
+    *error_msgp = "is a directory";
+    fclose(fp);
     return NULL;
   }
 
