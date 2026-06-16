@@ -12,10 +12,16 @@ PONY_EXTERN_C_BEGIN
 #define HEAP_MINBITS 5
 #define HEAP_MAXBITS (POOL_ALIGN_BITS - 1)
 #define HEAP_SIZECLASSES (HEAP_MAXBITS - HEAP_MINBITS + 1)
-// HEAP_MIN is the minimum (and guaranteed) alignment of every heap allocation.
-// codegen declares it to LLVM as the allocators' `align` return attribute
-// (init_runtime in codegen.c); lowering it below a target's maximum field
-// alignment would silently under-align object fields. See issue #5462.
+// HEAP_MIN is the minimum (and guaranteed) alignment and size of every heap
+// allocation. codegen reads it in two places:
+//   1. as the allocators' `align` return attribute (init_runtime in
+//      codegen.c); lowering it below a target's maximum field alignment would
+//      silently under-align object fields. See issue #5462.
+//   2. in `pointer_min_alloc` (genprim.c), which lowers `Pointer._min_alloc()`
+//      to `max(1, HEAP_MIN / element_size)` — the floor String/Array use when
+//      allocating (constructors, reserve, compact) so they never record a
+//      capacity smaller than the block the allocator actually returns. Changing
+//      HEAP_MIN changes that floor.
 #define HEAP_MIN (1 << HEAP_MINBITS)
 #define HEAP_MAX (1 << HEAP_MAXBITS)
 

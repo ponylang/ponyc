@@ -256,9 +256,9 @@ class File
       let result = recover String(len) end
 
       let r = (ifdef windows then
-        @_read(_fd, result.cpointer(), result.space().i32())
+        @_read(_fd, result.cpointer(), len.i32())
       else
-        @read(_fd, result.cpointer(), result.space())
+        @read(_fd, result.cpointer(), len)
       end).isize()
 
       match r
