@@ -139,7 +139,11 @@ TEST_F(SourceTest, SourceOpenRejectsDirectory)
   const char* error_msg = NULL;
   source_t* source = source_open(".", &error_msg, opt.strtab);
 
+  // Rejected with an error, not aborted. The exact message is platform-
+  // dependent, so don't assert it: where fopen opens a directory
+  // (Linux/macOS) source_open's own check reports "is a directory"; on Windows
+  // fopen refuses the directory first, so the failure is "can't open file".
+  // Either way it is a clean error rather than the misread-length abort.
   ASSERT_EQ((void*)NULL, source);
   ASSERT_NE((void*)NULL, (void*)error_msg);
-  ASSERT_STREQ("is a directory", error_msg);
 }
