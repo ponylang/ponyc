@@ -4,6 +4,7 @@ use "time"
 
 use @pony_os_ip_string[Pointer[U8]](src: Pointer[U8] tag, len: I32)
 use @if_indextoname[Pointer[U8]](ifindex: U32, ifname: Pointer[U8] tag)
+use @if_nametoindex[U32](ifname: Pointer[U8] tag)
 
 primitive TimeoutValue
   fun apply(): U64 =>
@@ -22,6 +23,7 @@ actor \nodoc\ Main is TestList
     // Tests below function across all systems and are listed alphabetically
     test(_TestDNSBroadcastIP4)
     test(_TestDNSBroadcastIP6)
+    test(_TestNetAddressIP6Scope)
     test(_TestOsIpString)
     test(_TestSocketResultDecoder)
     test(_TestTCPConnectionFailed)
@@ -578,6 +580,63 @@ class \nodoc\ iso _TestDNSBroadcastIP6 is UnitTest
       end
     end
 
+class \nodoc\ iso _TestNetAddressIP6Scope is UnitTest
+  """
+  NetAddress.scope() returns the IPv6 scope zone id (`sin6_scope_id`) in
+  host byte order, NOT byte-swapped. The kernel and `getaddrinfo` keep
+  scope ids in host order -- unlike the address and port fields, which are
+  network order -- so scope() must not apply `ntohl`. Regression test for
+  the bug where it did: on little-endian hosts scope() returned 0x07000000
+  instead of 7.
+
+  The numeric zone literal `%7` pins an exact value independent of which
+  interfaces exist: `getaddrinfo` parses it straight into `sin6_scope_id`
+  whether or not interface index 7 is live, so wherever the literal
+  resolves the scope is exactly 7. An unscoped `::1` then pins scope() == 0
+  -- the documented value for a global address -- though as a byte-swap
+  palindrome that guards the contract, not the byte order. scope() for an
+  IPv4 address is documented invalid and is deliberately left unpinned.
+
+  Gate: an unresolvable literal is a logged vacuous pass on every platform,
+  never a failure. `getaddrinfo` returns IPv6 results only on a host with
+  usable IPv6 (AI_ADDRCONFIG), so a no- or loopback-only-IPv6 environment
+  (e.g. the glibc docker leg) skips here -- the same no-IPv6 reality the
+  sibling IPv6 tests gate on. The skip stays tolerant on every platform
+  rather than failing off-linux like net/UnicastIP6Loopback: a scoped
+  numeric-zone literal is a narrower getaddrinfo path not verified on every
+  target, and a logged skip on a platform that rejects it is better than a
+  false failure.
+  """
+  fun name(): String => "net/NetAddressIP6Scope"
+
+  fun ref apply(h: TestHelper) =>
+    let auth = DNSAuth(h.env.root)
+
+    // Scoped literal: scope() is the zone's interface index, here 7. This
+    // is the byte-order regression guard -- 7 is asymmetric under swapping.
+    let scoped: Array[NetAddress] val = DNS.ip6(auth, "ff12::1%7", "0")
+    try
+      let addr = scoped(0)?
+      h.assert_true(addr.ip6())
+      h.assert_eq[U32](addr.scope(), 7)
+    else
+      // Unresolvable (empty list): logged vacuous pass, not a failure.
+      // See the docstring for why this is a skip rather than a fail.
+      h.log("ff12::1%7 unresolvable; skipping")
+    end
+
+    // Unscoped address: scope() is 0. Pins the documented "0 for global
+    // addresses" contract. 0 is a byte-swap palindrome, so this guards the
+    // value, not the byte order (the scoped case above does that).
+    let unscoped: Array[NetAddress] val = DNS.ip6(auth, "::1", "0")
+    try
+      let addr = unscoped(0)?
+      h.assert_true(addr.ip6())
+      h.assert_eq[U32](addr.scope(), 0)
+    else
+      h.log("::1 unresolvable; skipping")
+    end
+
 class \nodoc\ _TestMulticastIP6Notify is UDPNotify
   let _h: TestHelper
   let _group: String
@@ -622,10 +681,13 @@ class \nodoc\ _TestMulticastIP6Notify is UDPNotify
       _h.assert_eq[U32](a2, 0x3344_5566)
       _h.assert_eq[U32](a3, 0x7788_99AA)
       _h.assert_eq[U32](a4, 0xBBCC_DDEE)
-      // Swap-invariant (!= 0) on purpose: scope()'s byte order is suspect;
-      // what matters here is that the zone id survived resolution into the
-      // NetAddress at all.
-      _h.assert_ne[U32](dest.scope(), 0)
+      // Exact pin: scope() returns sin6_scope_id in host byte order -- the
+      // interface index the zone resolved to -- so it must equal
+      // if_nametoindex of the zone name carried by _group. A reintroduced
+      // ntohl on scope() would byte-swap this and fail here.
+      let zone: String val =
+        _group.substring(try _group.find("%")? + 1 else 0 end)
+      _h.assert_eq[U32](dest.scope(), @if_nametoindex(zone.cstring()))
 
       _expected = "mc6:" + port.string()
       sock.write(_expected, dest)

@@ -12,7 +12,8 @@ class val NetAddress is Equatable[NetAddress]
   Represents an IPv4 or IPv6 address. The family field indicates the address
   type. The addr field is either the IPv4 address or the IPv6 flow info. The
   addr1-4 fields are the IPv6 address, or invalid for an IPv4 address. The
-  scope field is the IPv6 scope, or invalid for an IPv4 address.
+  scope field is the IPv6 scope zone identifier, or invalid for an IPv4
+  address.
 
   This class is modelled after the C data structure for holding socket
   addresses for both IPv4 and IPv6 `sockaddr_storage`.
@@ -59,7 +60,14 @@ class val NetAddress is Equatable[NetAddress]
     """
 
   let _scope: U32 = 0
-    """IPv6 scope identifier: Unicast, Anycast, Multicast and unassigned scopes."""
+    """
+    IPv6 scope zone identifier (`sin6_scope_id`) in host byte order.
+
+    For scoped addresses -- link-local and scoped multicast -- this is the
+    interface index that scopes the address; `0` for global addresses and
+    invalid for an IPv4 address. Unlike the address and port fields, this is
+    kept in host byte order, not network order.
+    """
 
   fun ip4(): Bool =>
     """
@@ -169,11 +177,18 @@ class val NetAddress is Equatable[NetAddress]
 
     fun scope() : U32 =>
       """
-        Returns IPv6 scope identifier: Unicast, Anycast, Multicast and
-        unassigned scopes.
+        Returns the IPv6 scope zone identifier (`sin6_scope_id`).
+
+        For scoped addresses -- link-local and scoped multicast -- this is
+        the interface index that scopes the address (e.g. the zone of
+        `fe80::1%eth0`). It is `0` for global addresses and invalid for an
+        IPv4 address.
       """
 
-      @ntohl(_scope)
+      // No `@ntohl` here, unlike `port`/`ipv4_addr`/`ipv6_addr`: the kernel
+      // and `getaddrinfo` keep `sin6_scope_id` in host byte order, so byte
+      // swapping would mangle the value on little-endian platforms.
+      _scope
 
     fun ipv4_addr() : U32 =>
       """
