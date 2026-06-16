@@ -288,3 +288,9 @@ IPv6 has no broadcast, and sending to a multicast address such as the all-nodes 
 
 Previously, if a directory inside a package was named like a Pony source file — that is, with a name ending in `.pony` — ponyc would abort with an out-of-memory error instead of compiling your program. Such directories are now ignored, like any other non-source entry in a package directory, and compilation proceeds normally.
 
+## Fix NetAddress.scope() returning a byte-swapped value on little-endian platforms
+
+`NetAddress.scope()` returned the IPv6 scope zone identifier -- the interface index of a scoped address, such as the `eth0` in `fe80::1%eth0` -- with its bytes reversed on little-endian platforms. An address scoped to interface index 2, for instance, returned 33554432 (0x02000000) instead of 2, making the value useless for identifying the interface.
+
+`scope()` now returns the zone identifier correctly. Big-endian platforms were unaffected and are unchanged.
+
