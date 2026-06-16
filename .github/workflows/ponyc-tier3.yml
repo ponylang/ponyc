@@ -434,6 +434,10 @@ jobs:
           gmake configure config=release
           gmake build config=release
           gmake test-ci-core config=release
+          # gcc coverage link smoke test (#5434) — see the script for details. It
+          # does a clean + reconfigure of the debug build with use=coverage, so it
+          # runs last, after the release tests that depend on the prior builds.
+          sh .ci-scripts/dragonfly-coverage-smoke.sh
           EOF
       - name: Shutdown VM
         if: always()

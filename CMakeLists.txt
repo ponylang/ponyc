@@ -129,29 +129,29 @@ if(NOT DEFINED PONY_ARCH)
     set(PONY_ARCH "native")
 endif()
 
-# Sanitizer link fragment capture.
+# Driver link-fragment capture (used by sanitizer and coverage builds).
 #
-# When ponyc is built with sanitizers, libponyrt's C code is instrumented, so
-# every executable ponyc links references the sanitizer runtime (__asan_* etc.)
-# and must link it. ponyc links natively via embedded LLD, which does not go
-# through the compiler driver, so it cannot rely on -fsanitize= to pull the
+# Some build options instrument libponyrt's C code so that every executable
+# ponyc links references a runtime library the compiler driver would normally
+# pull in: the sanitizer runtime for -fsanitize=, or libgcov (__gcov_init etc.)
+# for gcc's -fprofile-arcs. ponyc links natively via embedded LLD, which does
+# NOT go through the driver, so it cannot rely on those flags to pull the
 # runtime in. Instead we ask the driver, at configure time, for the exact link
-# fragment it emits for -fsanitize=${PONY_SANITIZERS_VALUE} and embed it as a
-# generated header that the embedded linker splices in (genexe.cc).
+# fragment it emits for the flag and embed it as a generated header the embedded
+# linker splices in (genexe.cc).
 #
 # Asking the driver (rather than locating the runtime libraries ourselves)
-# avoids re-implementing its per-compiler library selection, ubsan-folding, and
-# wrapping rules, and avoids depending on a compiler's runtime-directory layout
-# (clang's libclang_rt.asan-<arch>.a vs per-target lib/<triple>/libclang_rt.asan.a
-# vs gcc's libasan_preinit.o + shared libasan): the driver emits whatever paths
-# and flags are correct for itself. This works for both clang (whole-archived
-# clang_rt static archives + --dynamic-list) and gcc (preinit object + shared
-# -lasan/-lubsan). On macOS, Apple clang emits the clang_rt dylib by absolute
-# path plus -rpath entries (and folds UBSan into ASan when both are enabled).
-# The fragment's library paths are absolute on the build machine, which is fine:
-# a sanitizer ponyc is a developer/CI artifact that runs where it was built.
-# Native Linux, FreeBSD, and macOS sanitizer builds consume this (see
-# genexe.cc); the splice is gated on !is_cross_compiling.
+# avoids re-implementing its per-compiler library selection and wrapping rules,
+# and avoids depending on a compiler's runtime-directory layout: the driver
+# emits whatever paths and flags are correct for itself. A fragment's library
+# paths may be absolute on the build machine, which is fine: such a ponyc is a
+# developer/CI artifact that runs where it was built. The splice is gated on
+# !is_cross_compiling (see genexe.cc).
+#
+# The capture is the same algorithm for every flag (probe the driver with and
+# without the flag via -###, then take the ordered set difference); only the
+# flag, the sanity-check pattern, and the output names vary. It lives in one
+# function so a fix to the (subtle) supersequence diff covers every caller.
 
 # Extract the linker subcommand's arguments from a compiler "-###" stderr dump.
 # The link subcommand is the line naming the probe object (clang emits a direct
@@ -160,9 +160,9 @@ endif()
 # leaves most bare, and separate_arguments handles both. Drop volatile tokens:
 # gcc's LTO plugin injects "-plugin-opt=-fresolution=<tmp>.res" with a fresh
 # temp path on every invocation, which otherwise differs between the baseline
-# and sanitized probe runs and desyncs the ordered diff below.
-function(_pony_sanitizer_link_tokens raw outvar)
-    string(REGEX MATCH "[^\n]*pony_sanitizer_probe\\.o[^\n]*" _line "${raw}")
+# and flagged probe runs and desyncs the ordered diff below.
+function(_pony_driver_link_tokens raw marker outvar)
+    string(REGEX MATCH "[^\n]*${marker}[^\n]*" _line "${raw}")
     separate_arguments(_toks UNIX_COMMAND "${_line}")
     set(_out "")
     foreach(_t IN LISTS _toks)
@@ -173,123 +173,186 @@ function(_pony_sanitizer_link_tokens raw outvar)
     set(${outvar} "${_out}" PARENT_SCOPE)
 endfunction()
 
-if(PONY_SANITIZERS_ENABLED)
-    set(_san_probe_c "${CMAKE_BINARY_DIR}/pony_sanitizer_probe.c")
-    set(_san_probe_o "${CMAKE_BINARY_DIR}/pony_sanitizer_probe.o")
-    set(_san_probe_bin "${CMAKE_BINARY_DIR}/pony_sanitizer_probe.bin")
-    file(WRITE "${_san_probe_c}" "int main(void){return 0;}\n")
+# Capture the link fragment the driver inserts for `flag` and write it as a
+# generated C header. Args:
+#   flag         - the compiler flag to probe (e.g. -fsanitize=address,undefined
+#                  or -fprofile-arcs).
+#   sanity_regex - a regex the captured fragment must match, else FATAL_ERROR
+#                  (guards against the extraction silently producing nothing).
+#   header_name  - output header filename, written under pony_generated/.
+#   sym_prefix   - C symbol prefix: emits ${sym_prefix}_LINK_ARGS[] and
+#                  ${sym_prefix}_LINK_ARGS_COUNT.
+#   what         - short noun for diagnostics (e.g. "sanitizer", "coverage").
+function(_pony_capture_driver_link_fragment flag sanity_regex header_name sym_prefix what)
+    # Scratch files are named from `what` (a lowercase, regex/path-safe noun),
+    # not `sym_prefix` (a C identifier), so the names stay clean and distinct
+    # per caller (pony_sanitizer_probe.* vs pony_coverage_probe.*).
+    set(_probe_c "${CMAKE_BINARY_DIR}/pony_${what}_probe.c")
+    set(_probe_o "${CMAKE_BINARY_DIR}/pony_${what}_probe.o")
+    set(_probe_bin "${CMAKE_BINARY_DIR}/pony_${what}_probe.bin")
+    # The marker is matched as a regex in _pony_driver_link_tokens; escape the
+    # '.' before the extension so it matches literally (as the old hardcoded
+    # pattern did). `what` itself contains no regex metacharacters.
+    get_filename_component(_marker "${_probe_o}" NAME)
+    string(REPLACE "." "\\." _marker "${_marker}")
+    file(WRITE "${_probe_c}" "int main(void){return 0;}\n")
 
     # -### prints the link command without running it, but only for an input
     # that exists, so compile a real (uninstrumented) object first. No -march or
-    # other arch flag is passed to any probe: the sanitizer runtime the driver
-    # selects depends on the target (the driver's default target == this native
-    # host, which is what we link for), not on -march, so an arch flag would only
-    # add an unrelated way for the probe to fail.
+    # other arch flag is passed to any probe: the runtime the driver selects
+    # depends on the target (the driver's default target == this native host,
+    # which is what we link for), not on -march, so an arch flag would only add
+    # an unrelated way for the probe to fail.
     execute_process(
-        COMMAND ${CMAKE_C_COMPILER} -c ${_san_probe_c} -o ${_san_probe_o}
-        RESULT_VARIABLE _san_probe_rc
+        COMMAND ${CMAKE_C_COMPILER} -c ${_probe_c} -o ${_probe_o}
+        RESULT_VARIABLE _probe_rc
         OUTPUT_QUIET ERROR_QUIET)
-    if(NOT _san_probe_rc EQUAL 0)
-        message(FATAL_ERROR "sanitizer link capture: failed to compile probe object")
+    if(NOT _probe_rc EQUAL 0)
+        message(FATAL_ERROR "${what} link capture: failed to compile probe object")
     endif()
 
-    # Capture the driver's link line with and without -fsanitize=. -### writes
-    # the subcommands to stderr. Check the exit codes: if the driver can't emit
-    # a link line at all (e.g. an unrecognized -fsanitize= value), fail here with
-    # the real cause rather than letting it surface downstream as a confusing
-    # "not a supersequence" error. (A mutually-exclusive combo like
+    # Capture the driver's link line with and without the flag. -### writes the
+    # subcommands to stderr. Check the exit codes: if the driver can't emit a
+    # link line at all (e.g. an unrecognized flag value), fail here with the real
+    # cause rather than letting it surface downstream as a confusing "not a
+    # supersequence" error. (A mutually-exclusive combo like -fsanitize=
     # thread,address is accepted by -### but rejected later when libponyrt
     # compiles with those flags, so it fails loudly there - not caught here.)
     execute_process(
-        COMMAND ${CMAKE_C_COMPILER} "-###" ${_san_probe_o} -o ${_san_probe_bin}
-        RESULT_VARIABLE _san_baseline_rc
-        ERROR_VARIABLE _san_baseline_raw OUTPUT_QUIET)
+        COMMAND ${CMAKE_C_COMPILER} "-###" ${_probe_o} -o ${_probe_bin}
+        RESULT_VARIABLE _baseline_rc
+        ERROR_VARIABLE _baseline_raw OUTPUT_QUIET)
     execute_process(
-        COMMAND ${CMAKE_C_COMPILER} -fsanitize=${PONY_SANITIZERS_VALUE} "-###" ${_san_probe_o} -o ${_san_probe_bin}
-        RESULT_VARIABLE _san_sanitized_rc
-        ERROR_VARIABLE _san_sanitized_raw OUTPUT_QUIET)
-    if(NOT _san_baseline_rc EQUAL 0 OR NOT _san_sanitized_rc EQUAL 0)
+        COMMAND ${CMAKE_C_COMPILER} ${flag} "-###" ${_probe_o} -o ${_probe_bin}
+        RESULT_VARIABLE _flagged_rc
+        ERROR_VARIABLE _flagged_raw OUTPUT_QUIET)
+    if(NOT _baseline_rc EQUAL 0 OR NOT _flagged_rc EQUAL 0)
         message(FATAL_ERROR
-            "sanitizer link capture: ${CMAKE_C_COMPILER} failed to emit a link "
-            "line for -fsanitize=${PONY_SANITIZERS_VALUE} (-### exited non-zero)")
+            "${what} link capture: ${CMAKE_C_COMPILER} failed to emit a link "
+            "line for ${flag} (-### exited non-zero)")
     endif()
 
-    _pony_sanitizer_link_tokens("${_san_baseline_raw}" _san_base_toks)
-    _pony_sanitizer_link_tokens("${_san_sanitized_raw}" _san_san_toks)
+    _pony_driver_link_tokens("${_baseline_raw}" "${_marker}" _base_toks)
+    _pony_driver_link_tokens("${_flagged_raw}" "${_marker}" _flag_toks)
 
-    # Ordered diff. The sanitized link line is a supersequence of the baseline
-    # (-fsanitize only inserts arguments, never removes or reorders existing
-    # ones, once the volatile LTO token is filtered out). A two-pointer scan
-    # over the sanitized tokens, advancing the baseline pointer on each match,
-    # collects exactly the inserted arguments in driver order: clang's
-    # whole-archive/clang_rt/--dynamic-list block plus extra syslibs, or gcc's
-    # libasan_preinit.o + -lasan/-lubsan. Nothing is hardcoded. If the baseline
-    # is not fully consumed in order the supersequence assumption is violated (a
-    # new volatile token, or a driver that reorders existing args); we stop with
-    # a clear error rather than emit a fragment we can't trust.
-    list(LENGTH _san_base_toks _san_base_len)
-    set(_san_j 0)
-    set(_san_fragment "")
-    foreach(_t IN LISTS _san_san_toks)
-        set(_san_matched FALSE)
-        if(_san_j LESS _san_base_len)
-            list(GET _san_base_toks ${_san_j} _san_bt)
-            if(_t STREQUAL _san_bt)
-                math(EXPR _san_j "${_san_j} + 1")
-                set(_san_matched TRUE)
+    # Ordered diff. The flagged link line is a supersequence of the baseline (the
+    # flag only inserts arguments, never removes or reorders existing ones, once
+    # the volatile LTO token is filtered out). A two-pointer scan over the
+    # flagged tokens, advancing the baseline pointer on each match, collects
+    # exactly the inserted arguments in driver order (e.g. for sanitizers clang's
+    # whole-archive/clang_rt/--dynamic-list block, or gcc's libasan_preinit.o +
+    # -lasan/-lubsan; for coverage gcc's -lgcov). Nothing is hardcoded. If the
+    # baseline is not fully consumed in order the supersequence assumption is
+    # violated (a new volatile token, or a driver that reorders existing args);
+    # we stop with a clear error rather than emit a fragment we can't trust.
+    list(LENGTH _base_toks _base_len)
+    set(_j 0)
+    set(_fragment "")
+    foreach(_t IN LISTS _flag_toks)
+        set(_matched FALSE)
+        if(_j LESS _base_len)
+            list(GET _base_toks ${_j} _bt)
+            if(_t STREQUAL _bt)
+                math(EXPR _j "${_j} + 1")
+                set(_matched TRUE)
             endif()
         endif()
-        if(NOT _san_matched)
-            list(APPEND _san_fragment "${_t}")
+        if(NOT _matched)
+            list(APPEND _fragment "${_t}")
         endif()
     endforeach()
 
-    if(NOT _san_j EQUAL _san_base_len)
+    if(NOT _j EQUAL _base_len)
         message(FATAL_ERROR
-            "sanitizer link capture: the -fsanitize link line is not a "
+            "${what} link capture: the ${flag} link line is not a "
             "supersequence of the baseline after filtering volatile tokens "
             "(a new non-deterministic token, or a driver that reorders existing "
             "arguments). See discussion ponylang/ponyc#5399.")
     endif()
 
-    # Sanity: the captured fragment must reference a sanitizer runtime, or the
-    # extraction silently produced nothing useful. clang names it libclang_rt.*,
-    # gcc names it libasan/-lasan/libubsan/libtsan; matching the sanitizer
-    # substrings covers both.
-    string(REGEX MATCH "asan|ubsan|tsan" _san_has_rt "${_san_fragment}")
-    if(_san_has_rt STREQUAL "")
+    # Sanity: the captured fragment must reference the expected runtime, or the
+    # extraction silently produced nothing useful (e.g. for sanitizers clang's
+    # libclang_rt.* / gcc's -lasan; for coverage gcc's -lgcov).
+    string(REGEX MATCH "${sanity_regex}" _has_rt "${_fragment}")
+    if(_has_rt STREQUAL "")
         message(FATAL_ERROR
-            "sanitizer link capture: no sanitizer runtime (asan/ubsan/tsan) "
-            "found in the captured fragment for -fsanitize=${PONY_SANITIZERS_VALUE}")
+            "${what} link capture: no expected runtime (matching '${sanity_regex}') "
+            "found in the captured fragment for ${flag}")
     endif()
 
     # Emit each token as a C string literal, escaping backslash then quote so a
     # toolchain path containing either can't break out of the literal. (Linux
     # toolchain paths don't normally contain these, but a malformed header is a
     # confusing failure mode worth closing off.)
-    set(_san_array "")
-    foreach(_a IN LISTS _san_fragment)
+    set(_array "")
+    foreach(_a IN LISTS _fragment)
         string(REPLACE "\\" "\\\\" _a_esc "${_a}")
         string(REPLACE "\"" "\\\"" _a_esc "${_a_esc}")
-        string(APPEND _san_array "  \"${_a_esc}\",\n")
+        string(APPEND _array "  \"${_a_esc}\",\n")
     endforeach()
 
-    set(_san_gen_dir "${CMAKE_BINARY_DIR}/pony_generated")
-    file(MAKE_DIRECTORY "${_san_gen_dir}")
-    file(WRITE "${_san_gen_dir}/sanitizer_link_args.h"
-"// Generated by CMake (PONY_SANITIZERS_ENABLED block in the top-level\n"
-"// CMakeLists.txt). Do not edit. The sanitizer runtime link fragment captured\n"
-"// from the compiler driver for -fsanitize=${PONY_SANITIZERS_VALUE}.\n"
+    set(_gen_dir "${CMAKE_BINARY_DIR}/pony_generated")
+    file(MAKE_DIRECTORY "${_gen_dir}")
+    file(WRITE "${_gen_dir}/${header_name}"
+"// Generated by CMake (top-level CMakeLists.txt). Do not edit. The ${what}\n"
+"// runtime link fragment captured from the compiler driver for ${flag}.\n"
 "#pragma once\n"
 "#include <stddef.h>\n"
-"static const char* const PONY_SANITIZER_LINK_ARGS[] = {\n${_san_array}};\n"
-"static const size_t PONY_SANITIZER_LINK_ARGS_COUNT =\n"
-"  sizeof(PONY_SANITIZER_LINK_ARGS) / sizeof(PONY_SANITIZER_LINK_ARGS[0]);\n")
-    message("-- Captured sanitizer link fragment for "
-        "-fsanitize=${PONY_SANITIZERS_VALUE}")
+"static const char* const ${sym_prefix}_LINK_ARGS[] = {\n${_array}};\n"
+"static const size_t ${sym_prefix}_LINK_ARGS_COUNT =\n"
+"  sizeof(${sym_prefix}_LINK_ARGS) / sizeof(${sym_prefix}_LINK_ARGS[0]);\n")
+    message("-- Captured ${what} link fragment for ${flag}")
 
     # The probe scratch files have served their purpose at configure time.
-    file(REMOVE "${_san_probe_c}" "${_san_probe_o}" "${_san_probe_bin}")
+    file(REMOVE "${_probe_c}" "${_probe_o}" "${_probe_bin}")
+endfunction()
+
+# Sanitizer build: ponyc links references the sanitizer runtime (__asan_* etc.).
+# The driver fragment differs per compiler — clang emits whole-archived clang_rt
+# static archives + --dynamic-list, gcc a libasan_preinit.o + shared
+# -lasan/-lubsan, Apple clang the clang_rt dylib by absolute path + -rpath (and
+# folds UBSan into ASan). Native Linux, FreeBSD, and macOS sanitizer builds
+# consume this (see genexe.cc); DragonFly/OpenBSD sanitizer builds are rejected
+# at configure time. The matching include dir is wired in below via
+# PONY_GENERATED_INCLUDE_NEEDED, and the splice lives in genexe.cc under
+# #if defined(PONY_SANITIZER).
+if(PONY_SANITIZERS_ENABLED)
+    _pony_capture_driver_link_fragment(
+        "-fsanitize=${PONY_SANITIZERS_VALUE}"
+        "asan|ubsan|tsan"
+        "sanitizer_link_args.h"
+        "PONY_SANITIZER"
+        "sanitizer")
+    set(PONY_GENERATED_INCLUDE_NEEDED TRUE)
+endif()
+
+# Coverage build with gcc: -fprofile-arcs instruments libponyrt's C objects with
+# gcov constructors that reference __gcov_init/__gcov_exit from gcc's libgcov, so
+# every Pony program ponyc links needs libgcov (issue #5434). Capture the
+# driver's coverage fragment (just -lgcov) and splice it in genexe.cc under
+# #if defined(PONY_COVERAGE). Only real gcc needs this: -lgcov is gcc's coverage
+# runtime specifically. clang's -fprofile-instr-generate (the PONY_USE_COVERAGE
+# clang branch above) links fine without a splice, and a non-GNU compiler that
+# takes the -fprofile-arcs instrumentation branch instead — e.g. Apple clang on
+# macOS, which CMake reports as "AppleClang" — emits its own profile runtime
+# (clang_rt.profile), NOT libgcov, so -lgcov would be wrong for it. Gating on
+# CMAKE_C_COMPILER_ID == GNU restricts the capture to gcc, where libgcov is the
+# correct runtime (the instrumented code needing it is libponyrt's C). Since
+# PONY_COVERAGE is defined only here, no other compiler or platform pulls in the
+# spliced fragment.
+if(PONY_USE_COVERAGE AND CMAKE_C_COMPILER_ID STREQUAL "GNU")
+    _pony_capture_driver_link_fragment(
+        "-fprofile-arcs"
+        "gcov"
+        "coverage_link_args.h"
+        "PONY_COVERAGE"
+        "coverage")
+    # -DPONY_COVERAGE gates the genexe.cc include + splice; it is a compile-time
+    # preprocessor define with no link-time meaning, so it goes on compile
+    # options only (unlike the sanitizer block's -fsanitize=, which the linker
+    # genuinely needs).
+    add_compile_options(-DPONY_COVERAGE)
+    set(PONY_GENERATED_INCLUDE_NEEDED TRUE)
 endif()
 
 if(DEFINED PONY_CPU AND NOT PONY_CPU STREQUAL "")

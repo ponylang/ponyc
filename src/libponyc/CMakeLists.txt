@@ -108,10 +108,12 @@ target_include_directories(libponyc
     PRIVATE ../../build/libs/include
 )
 
-# In sanitizer builds, genexe.cc includes the generated sanitizer_link_args.h
-# (the captured sanitizer runtime link fragment; see the PONY_SANITIZERS_ENABLED
-# block in the top-level CMakeLists.txt).
-if(PONY_SANITIZERS_ENABLED)
+# In sanitizer builds (and gcc coverage builds), genexe.cc includes a generated
+# header from pony_generated/ (sanitizer_link_args.h / coverage_link_args.h —
+# the captured runtime link fragment; see the driver link-fragment capture in
+# the top-level CMakeLists.txt). PONY_GENERATED_INCLUDE_NEEDED is set there when
+# either capture runs, so both builds get the dir on the include path.
+if(PONY_GENERATED_INCLUDE_NEEDED)
     target_include_directories(libponyc PRIVATE ${CMAKE_BINARY_DIR}/pony_generated)
 endif()
 

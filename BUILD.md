@@ -93,10 +93,9 @@ The sanitizer `use=` build options aren't supported on DragonFly, because the `g
 
 `use=dtrace` isn't supported on DragonFly either, and `gmake configure` rejects it.
 
-`use=coverage` and `use=valgrind` aren't rejected, but neither currently works on DragonFly:
+`use=coverage` works on DragonFly: ponyc splices the gcc coverage runtime (`libgcov`) into the Pony programs it links, so coverage-instrumented programs build and run.
 
-- `use=coverage` — the coverage-instrumented runtime needs `libgcov`, which ponyc's embedded linker doesn't supply, so linking any Pony program fails ([#5434](https://github.com/ponylang/ponyc/issues/5434)).
-- `use=valgrind` — builds, and the Pony programs it compiles link, but DragonFly ships Valgrind 3.15, which is too old to run a Pony program ([#5435](https://github.com/ponylang/ponyc/issues/5435)).
+`use=valgrind` isn't rejected but doesn't work on DragonFly: it builds, and the Pony programs it compiles link, but DragonFly ships Valgrind 3.15, which is too old to run a Pony program ([#5435](https://github.com/ponylang/ponyc/issues/5435)).
 
 ## Linux
 
