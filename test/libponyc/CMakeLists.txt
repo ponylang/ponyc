@@ -39,6 +39,7 @@ add_executable(libponyc.tests
     recursive_type_alias.cc
     refer.cc
     scope.cc
+    source.cc
     stable_type.cc
     subtype_cache.cc
     sugar.cc
