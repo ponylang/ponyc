@@ -787,6 +787,21 @@ bool codegen_pass_init(pass_opt_t* opt)
 
   if(opt->cpu != NULL)
     opt->cpu = LLVMCreateMessage(opt->cpu);
+  else if(is_cross_compiling(opt))
+    // No --cpu on a cross build: default to the target's generic CPU (the empty
+    // string), not the host's. is_cross_compiling is true whenever the target
+    // arch, OS, OR environment differs from the host, and generic is right for
+    // all three. For an arch-cross target a host CPU name (e.g. x86's "znver3")
+    // is outright invalid: LLVM's target machine silently falls back to
+    // generic, but the clang gencshim drives to compile C shims rejects it
+    // ("unknown target CPU"). For a same-arch OS/env-cross target (e.g.
+    // x86_64-linux-musl on a glibc host) the host CPU would be valid, but
+    // generic is still the right default -- features are already "" for any
+    // explicit --triple (see above), so this keeps CPU and features consistent
+    // for explicit-triple builds. An empty string lets each tool pick the
+    // target baseline; a literal like "generic" can't (riscv rejects it,
+    // wanting "generic-rv64").
+    opt->cpu = LLVMCreateMessage("");
   else
     opt->cpu = LLVMGetHostCPUName();
 

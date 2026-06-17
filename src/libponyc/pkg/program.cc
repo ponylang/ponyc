@@ -13,6 +13,13 @@ typedef struct program_t
   uint32_t next_package_id;
   strlist_t* libpaths;
   strlist_t* libs;
+  // C shim objects emitted by gencshim, in package-walk order (deterministic).
+  // The platform linkers append these to the link line in this order.
+  // gencshim_done makes gencshim idempotent: AST passes are re-entry-guarded per
+  // node, but a resumed ast_passes_program would otherwise recompile every
+  // shim and append its objects to this list a second time.
+  strlist_t* c_objects;
+  bool gencshim_done;
   size_t lib_args_size;
   size_t lib_args_alloced;
   char* lib_args;
@@ -56,6 +63,8 @@ program_t* program_create()
   p->next_package_id = 0;
   p->libpaths = NULL;
   p->libs = NULL;
+  p->c_objects = NULL;
+  p->gencshim_done = false;
   p->lib_args_size = -1;
   p->lib_args = NULL;
 
@@ -76,6 +85,7 @@ void program_free(program_t* program)
 
   strlist_free(program->libpaths);
   strlist_free(program->libs);
+  strlist_free(program->c_objects);
 
   if(program->lib_args != NULL)
     ponyint_pool_free_size(program->lib_args_alloced, program->lib_args);
@@ -359,6 +369,84 @@ void program_lib_build_args_embedded(ast_t* program, pass_opt_t* opt)
     for(strlist_t* p = data->libs; p != NULL; p = strlist_next(p))
       data->embedded_libs[i++] = unquote(strlist_data(p), opt);
   }
+}
+
+
+bool program_gencshim_done(ast_t* program)
+{
+  pony_assert(program != NULL);
+  pony_assert(ast_id(program) == TK_PROGRAM);
+
+  program_t* data = (program_t*)ast_data(program);
+  pony_assert(data != NULL);
+
+  return data->gencshim_done;
+}
+
+
+void program_set_gencshim_done(ast_t* program)
+{
+  pony_assert(program != NULL);
+  pony_assert(ast_id(program) == TK_PROGRAM);
+
+  program_t* data = (program_t*)ast_data(program);
+  pony_assert(data != NULL);
+
+  data->gencshim_done = true;
+}
+
+
+// Unlike the embedded_libs accessors these walk the strlist (O(count) /
+// O(index)), a deliberate divergence: shim counts are small (one entry per
+// .c file in the program) and the list never converts to an array.
+void program_add_c_object(ast_t* program, const char* path)
+{
+  pony_assert(program != NULL);
+  pony_assert(ast_id(program) == TK_PROGRAM);
+  pony_assert(path != NULL);
+
+  program_t* data = (program_t*)ast_data(program);
+  pony_assert(data != NULL);
+
+  data->c_objects = strlist_append(data->c_objects, path);
+}
+
+
+size_t program_c_object_count(ast_t* program)
+{
+  pony_assert(program != NULL);
+  pony_assert(ast_id(program) == TK_PROGRAM);
+
+  program_t* data = (program_t*)ast_data(program);
+  pony_assert(data != NULL);
+
+  size_t count = 0;
+
+  for(strlist_t* p = data->c_objects; p != NULL; p = strlist_next(p))
+    count++;
+
+  return count;
+}
+
+
+const char* program_c_object_at(ast_t* program, size_t index)
+{
+  pony_assert(program != NULL);
+  pony_assert(ast_id(program) == TK_PROGRAM);
+
+  program_t* data = (program_t*)ast_data(program);
+  pony_assert(data != NULL);
+
+  strlist_t* p = data->c_objects;
+
+  for(size_t i = 0; i < index; i++)
+  {
+    pony_assert(p != NULL);
+    p = strlist_next(p);
+  }
+
+  pony_assert(p != NULL);
+  return strlist_data(p);
 }
 
 

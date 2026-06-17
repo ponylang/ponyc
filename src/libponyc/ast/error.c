@@ -321,6 +321,48 @@ static errormsg_t* make_errorfv(const char* file, const char* fmt, va_list ap)
   return e;
 }
 
+static errormsg_t* make_errorfv_at(const char* file, size_t line, size_t pos,
+  const char* fmt, va_list ap)
+{
+  errormsg_t* e = make_errorfv(file, fmt, ap);
+  e->line = line;
+  e->pos = pos;
+  return e;
+}
+
+
+void errorf_at(errors_t* errors, const char* file, size_t line, size_t pos,
+  const char* fmt, ...)
+{
+  va_list ap;
+  va_start(ap, fmt);
+  errors_push(errors, make_errorfv_at(file, line, pos, fmt, ap));
+  va_end(ap);
+}
+
+
+void errorf_at_continue(errors_t* errors, const char* file, size_t line,
+  size_t pos, const char* fmt, ...)
+{
+  va_list ap;
+  va_start(ap, fmt);
+
+  if(errors->tail == NULL)
+  {
+    errors_push(errors, make_errorfv_at(file, line, pos, fmt, ap));
+    va_end(ap);
+    return;
+  }
+
+  errormsg_t* p = errors->tail;
+  while(p->frame != NULL)
+    p = p->frame;
+
+  p->frame = make_errorfv_at(file, line, pos, fmt, ap);
+  va_end(ap);
+}
+
+
 void errorfv(errors_t* errors, const char* file, const char* fmt, va_list ap)
 {
   errors_push(errors, make_errorfv(file, fmt, ap));

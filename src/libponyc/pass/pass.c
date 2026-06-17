@@ -16,6 +16,7 @@
 #include "../ast/parser.h"
 #include "../ast/treecheck.h"
 #include "../codegen/codegen.h"
+#include "../codegen/gencshim.h"
 #include "../pkg/program.h"
 #include "../pkg/buildflagset.h"
 #include "../plugin/plugin.h"
@@ -65,6 +66,7 @@ const char* pass_name(pass_id pass)
     case PASS_COMPLETENESS: return "completeness";
     case PASS_VERIFY: return "verify";
     case PASS_FINALISER: return "final";
+    case PASS_C: return "c";
     case PASS_REACH: return "reach";
     case PASS_PAINT: return "paint";
     case PASS_LLVM_IR: return "ir";
@@ -334,7 +336,19 @@ static bool ast_passes(ast_t** astp, pass_opt_t* options, pass_id last)
 
 bool ast_passes_program(ast_t* ast, pass_opt_t* options)
 {
-  return ast_passes(&ast, options, PASS_ALL);
+  if(!ast_passes(&ast, options, PASS_ALL))
+    return false;
+
+  // PASS_C is not an AST pass: it compiles each package's C shim sources
+  // with the embedded clang, recording the objects on the program for the
+  // link. It runs here, on the shared side of the REACH boundary, so both
+  // real builds and the test harness reach it through this single call
+  // site, and so clang errors fail the build before codegen starts.
+  // Front-end tools stop at limit <= PASS_FINALISER and never invoke clang.
+  if(options->limit >= PASS_C)
+    return gencshim(ast, options);
+
+  return true;
 }
 
 

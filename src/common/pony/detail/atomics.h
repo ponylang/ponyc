@@ -13,8 +13,12 @@
 #  include <stdalign.h>
 #endif
 
-#ifdef _MSC_VER
-// MSVC has no support of C11 atomics.
+// The MSVC compiler (cl.exe) has no support for C11 atomics, so it uses the
+// C++ <atomic> types. clang targeting MSVC also defines _MSC_VER, but it does
+// support C11 atomics, so exclude it here (like the __GNUC__ branch below
+// excludes clang) and let it take the __clang__ branch — this is what lets a
+// C shim, compiled by the embedded clang, #include <pony.h> on Windows.
+#if defined(_MSC_VER) && !defined(__clang__)
 #  include <atomic>
 #  define PONY_ATOMIC(T) std::atomic<T>
 #  define PONY_ATOMIC_RVALUE(T) std::atomic<T>
@@ -81,7 +85,9 @@ using std::atomic_thread_fence;
 #  error "Unsupported compiler"
 #endif
 
-#ifdef _MSC_VER
+// As above: the cl.exe path is C++ (namespace + template); clang-targeting-MSVC
+// takes the C union path in the #else so a C shim can compile this header.
+#if defined(_MSC_VER) && !defined(__clang__)
 namespace ponyint_atomics
 {
   template <typename T>
@@ -125,7 +131,10 @@ namespace ponyint_atomics
     alignas(sizeof(PONY_ABA_PROTECTED_PTR(T))) PONY_ABA_PROTECTED_PTR(T)
 
 #ifdef PONY_WANT_ATOMIC_DEFS
-#  ifdef _MSC_VER
+// Same cl.exe-vs-clang distinction as the two blocks above: clang-targeting-
+// MSVC takes the GCC-builtin big-atomic path in the #else, keeping the whole
+// header coherent (clang-MSVC behaves as clang throughout).
+#  if defined(_MSC_VER) && !defined(__clang__)
 #    pragma warning(push)
 #    pragma warning(disable:4164)
 #    pragma warning(disable:4800)

@@ -258,26 +258,8 @@ LLVMValueRef gen_main(compile_t* c, reach_type_t* t_main, reach_type_t* t_env)
 }
 
 #ifdef PLATFORM_IS_POSIX_BASED
-static bool is_cross_compiling(compile_t* c)
-{
-  char* default_triple_str = LLVMGetDefaultTargetTriple();
-  llvm::Triple target(c->opt->triple);
-  llvm::Triple host(default_triple_str);
-  LLVMDisposeMessage(default_triple_str);
-
-  if(target.getArch() != host.getArch())
-    return true;
-
-  // Darwin and MacOSX are different Triple::OSType enum values but the same
-  // platform. The target triple uses "macosx" (after ponyc normalization)
-  // while LLVMGetDefaultTargetTriple returns "darwin"; comparing OS enums
-  // directly misidentifies every native macOS build as cross-compilation.
-  if(target.isMacOSX() && host.isMacOSX())
-    return false;
-
-  return target.getOS() != host.getOS()
-    || target.getEnvironment() != host.getEnvironment();
-}
+// is_cross_compiling, host_is_musl, and system_triple are shared with gencshim
+// and live in genopt (declared in genopt.h); both take pass_opt_t.
 
 static const char* elf_emulation(compile_t* c)
 {
@@ -351,31 +333,6 @@ static bool file_exists(const char* path)
   return stat(path, &st) == 0;
 }
 
-// Check whether the host is actually musl. LLVM's default target triple
-// may report "gnu" on musl systems (e.g., Alpine's LLVM reports
-// x86_64-unknown-linux-gnu). For native compilation, probe the filesystem
-// rather than trusting the triple.
-static bool host_is_musl(compile_t* c, llvm::Triple::ArchType arch)
-{
-  if(is_cross_compiling(c))
-    return false;
-
-  const char* musl_linker = NULL;
-  switch(arch)
-  {
-    case llvm::Triple::x86_64:  musl_linker = "/lib/ld-musl-x86_64.so.1"; break;
-    case llvm::Triple::aarch64: musl_linker = "/lib/ld-musl-aarch64.so.1"; break;
-    case llvm::Triple::riscv64: musl_linker = "/lib/ld-musl-riscv64.so.1"; break;
-    case llvm::Triple::arm:
-    case llvm::Triple::thumb:
-      return file_exists("/lib/ld-musl-armhf.so.1")
-        || file_exists("/lib/ld-musl-arm.so.1");
-    default: return false;
-  }
-
-  return file_exists(musl_linker);
-}
-
 static const char* dynamic_linker_path(compile_t* c)
 {
   llvm::Triple triple(c->opt->triple);
@@ -397,7 +354,7 @@ static const char* dynamic_linker_path(compile_t* c)
   if(target_is_openbsd(c->opt->triple))
     return "/usr/libexec/ld.so";
 
-  bool is_musl = triple.isMusl() || host_is_musl(c, triple.getArch());
+  bool is_musl = triple.isMusl() || host_is_musl(c->opt);
 
   switch(triple.getArch())
   {
@@ -436,7 +393,8 @@ static const char* dynamic_linker_path(compile_t* c)
 // environment (gnueabihf vs gnueabi), not the arch. The other architectures
 // this embedded linker supports (see expected_elf_machine: x86_64, aarch64,
 // riscv64, riscv32) already match LLVM's spelling, so fall back to
-// getArchName() there.
+// getArchName() there. system_triple (genopt) carries a twin of this for the
+// multiarch tuple it builds; keep the two in sync.
 static std::string gnu_multiarch_arch(const llvm::Triple& triple)
 {
   switch(triple.getArch())
@@ -449,18 +407,9 @@ static std::string gnu_multiarch_arch(const llvm::Triple& triple)
   }
 }
 
-static const char* system_triple(compile_t* c)
+static uint16_t expected_elf_machine(char* target_triple)
 {
-  llvm::Triple triple(c->opt->triple);
-  std::string result = gnu_multiarch_arch(triple) + "-"
-    + std::string(triple.getOSName()) + "-"
-    + std::string(triple.getEnvironmentName());
-  return stringtab(c->opt->strtab, result.c_str());
-}
-
-static uint16_t expected_elf_machine(compile_t* c)
-{
-  llvm::Triple triple(c->opt->triple);
+  llvm::Triple triple(target_triple);
 
   switch(triple.getArch())
   {
@@ -564,7 +513,7 @@ static const char* find_libc_crt_dir(const char* sysroot,
 
 static const char* find_ponyc_crt_dir(ast_t* program, compile_t* c)
 {
-  uint16_t target_machine = expected_elf_machine(c);
+  uint16_t target_machine = expected_elf_machine(c->opt->triple);
   size_t count = program_lib_path_count(program);
   char buf[PATH_MAX];
 
@@ -864,10 +813,55 @@ static const char* find_gcc_lib_dir(const char* sysroot,
   return best_dir;
 }
 
+// The cross-toolchain sysroot to use when cross-compiling without an
+// explicit --sysroot: the four standard /usr/<triple> locations, each
+// validated by an arch-matching libc crt object. SHARED between the ELF
+// linker (resolve_sysroot, below) and the C shim compiler (gencshim's
+// c_shim_sysroot) so a cross build resolves the SAME sysroot whether it is
+// linking or compiling a shim — one definition, so the two can't drift.
+// Returns the sysroot path, or NULL after emitting the "requires --sysroot"
+// error when none of the candidates holds a matching libc.
+const char* find_cross_toolchain_sysroot(pass_opt_t* opt, errors_t* errors)
+{
+  const char* sys_triple = system_triple(opt);
+  uint16_t target_machine = expected_elf_machine(opt->triple);
+
+  const char* candidates[4];
+  char buf[PATH_MAX];
+
+  snprintf(buf, sizeof(buf), "/usr/%s", sys_triple);
+  candidates[0] = stringtab(opt->strtab, buf);
+
+  snprintf(buf, sizeof(buf), "/usr/local/%s", sys_triple);
+  candidates[1] = stringtab(opt->strtab, buf);
+
+  snprintf(buf, sizeof(buf), "/usr/%s/libc", sys_triple);
+  candidates[2] = stringtab(opt->strtab, buf);
+
+  snprintf(buf, sizeof(buf), "/usr/local/%s/libc", sys_triple);
+  candidates[3] = stringtab(opt->strtab, buf);
+
+  for(int i = 0; i < 4; i++)
+  {
+    if(find_libc_crt_dir(candidates[i], sys_triple, target_machine,
+      opt->strtab) != NULL)
+      return candidates[i];
+  }
+
+  errorf(errors, NULL,
+    "cross-compiling for %s requires --sysroot=<path>\n"
+    "  Searched: /usr/%s/, /usr/local/%s/,\n"
+    "           /usr/%s/libc/, /usr/local/%s/libc/\n"
+    "  Install a cross-toolchain or specify --sysroot explicitly.",
+    opt->triple,
+    sys_triple, sys_triple, sys_triple, sys_triple);
+  return NULL;
+}
+
 static const char* resolve_sysroot(compile_t* c, const char* sys_triple,
   errors_t* errors)
 {
-  uint16_t target_machine = expected_elf_machine(c);
+  uint16_t target_machine = expected_elf_machine(c->opt->triple);
 
   // If user specified --sysroot, validate it.
   if(c->opt->sysroot != NULL && c->opt->sysroot[0] != '\0')
@@ -892,39 +886,12 @@ static const char* resolve_sysroot(compile_t* c, const char* sys_triple,
   }
 
   // Native compilation: use host root filesystem.
-  if(!is_cross_compiling(c))
+  if(!is_cross_compiling(c->opt))
     return "";
 
-  // Auto-detect from common cross-toolchain locations.
-  const char* candidates[4];
-  char buf[PATH_MAX];
-
-  snprintf(buf, sizeof(buf), "/usr/%s", sys_triple);
-  candidates[0] = stringtab(c->opt->strtab, buf);
-
-  snprintf(buf, sizeof(buf), "/usr/local/%s", sys_triple);
-  candidates[1] = stringtab(c->opt->strtab, buf);
-
-  snprintf(buf, sizeof(buf), "/usr/%s/libc", sys_triple);
-  candidates[2] = stringtab(c->opt->strtab, buf);
-
-  snprintf(buf, sizeof(buf), "/usr/local/%s/libc", sys_triple);
-  candidates[3] = stringtab(c->opt->strtab, buf);
-
-  for(int i = 0; i < 4; i++)
-  {
-    if(find_libc_crt_dir(candidates[i], sys_triple, target_machine, c->opt->strtab) != NULL)
-      return candidates[i];
-  }
-
-  errorf(errors, NULL,
-    "cross-compiling for %s requires --sysroot=<path>\n"
-    "  Searched: /usr/%s/, /usr/local/%s/,\n"
-    "           /usr/%s/libc/, /usr/local/%s/libc/\n"
-    "  Install a cross-toolchain or specify --sysroot explicitly.",
-    c->opt->triple,
-    sys_triple, sys_triple, sys_triple, sys_triple);
-  return NULL;
+  // Cross build with no --sysroot: auto-detect from the standard
+  // cross-toolchain locations. The shim compiler shares this function.
+  return find_cross_toolchain_sysroot(c->opt, errors);
 }
 
 static bool link_exe_lld_elf(compile_t* c, ast_t* program,
@@ -940,7 +907,7 @@ static bool link_exe_lld_elf(compile_t* c, ast_t* program,
 
   program_lib_build_args_embedded(program, c->opt);
 
-  const char* sys_triple = system_triple(c);
+  const char* sys_triple = system_triple(c->opt);
   bool is_freebsd = target_is_freebsd(c->opt->triple);
   bool is_dragonfly = target_is_dragonfly(c->opt->triple);
   bool is_openbsd = target_is_openbsd(c->opt->triple);
@@ -980,7 +947,7 @@ static bool link_exe_lld_elf(compile_t* c, ast_t* program,
   }
 
   // Find CRT directories.
-  uint16_t target_machine = expected_elf_machine(c);
+  uint16_t target_machine = expected_elf_machine(c->opt->triple);
   const char* libc_crt_dir = find_libc_crt_dir(sysroot, sys_triple,
     target_machine, c->opt->strtab);
   if(libc_crt_dir == NULL)
@@ -1361,7 +1328,7 @@ static bool link_exe_lld_elf(compile_t* c, ast_t* program,
   // standard system fallbacks, on FreeBSD the -L<libc_crt_dir> (/usr/lib) push.
   // Don't drop those without accounting for the sanitizer runtime.
   if((target_is_linux(c->opt->triple) || target_is_freebsd(c->opt->triple))
-    && !is_cross_compiling(c))
+    && !is_cross_compiling(c->opt))
   {
     for(size_t i = 0; i < PONY_SANITIZER_LINK_ARGS_COUNT; i++)
       args.push_back(PONY_SANITIZER_LINK_ARGS[i]);
@@ -1394,7 +1361,7 @@ static bool link_exe_lld_elf(compile_t* c, ast_t* program,
   // archive, so splicing here (before file_o, alongside the sanitizer fragment)
   // is fine.
   if((target_is_linux(c->opt->triple) || target_is_freebsd(c->opt->triple)
-    || target_is_dragonfly(c->opt->triple)) && !is_cross_compiling(c))
+    || target_is_dragonfly(c->opt->triple)) && !is_cross_compiling(c->opt))
   {
     for(size_t i = 0; i < PONY_COVERAGE_LINK_ARGS_COUNT; i++)
       args.push_back(PONY_COVERAGE_LINK_ARGS[i]);
@@ -1403,6 +1370,13 @@ static bool link_exe_lld_elf(compile_t* c, ast_t* program,
 
   // Object file.
   args.push_back(file_o);
+
+  // C shim objects (gencshim), in deterministic package-walk order. Objects are
+  // always fully included, so they sit after the Pony object and before the
+  // user libraries that may satisfy their references.
+  size_t c_object_count = program_c_object_count(program);
+  for(size_t i = 0; i < c_object_count; i++)
+    args.push_back(program_c_object_at(program, i));
 
   // User libraries.
   size_t lib_count = program_lib_count(program);
@@ -1654,6 +1628,8 @@ static bool link_exe_lld_elf(compile_t* c, ast_t* program,
   return true;
 }
 
+// gencshim.cc's find_macos_sdk_include resolves the SDK's include directory the
+// same way this resolves its lib directory. Keep the two in sync.
 static const char* find_macos_sdk_path(strtable_t* strtab)
 {
   // Cache the discovered path as a raw string (not interned) so the expensive
@@ -1916,6 +1892,13 @@ static bool link_exe_lld_macho(compile_t* c, ast_t* program,
   // Object file.
   args.push_back(file_o);
 
+  // C shim objects (gencshim), in deterministic package-walk order. Objects are
+  // always fully included, so they sit after the Pony object and before the
+  // user libraries that may satisfy their references.
+  size_t c_object_count = program_c_object_count(program);
+  for(size_t i = 0; i < c_object_count; i++)
+    args.push_back(program_c_object_at(program, i));
+
   // User libraries.
   size_t lib_count = program_lib_count(program);
   for(size_t i = 0; i < lib_count; i++)
@@ -1941,7 +1924,7 @@ static bool link_exe_lld_macho(compile_t* c, ast_t* program,
   // The fragment uses Mach-O linker flags compatible with ld64.lld.
   // Only splice for native builds — the host-arch-absolute paths are wrong
   // for cross links.
-  if(target_is_macosx(c->opt->triple) && !is_cross_compiling(c))
+  if(target_is_macosx(c->opt->triple) && !is_cross_compiling(c->opt))
   {
     for(size_t i = 0; i < PONY_SANITIZER_LINK_ARGS_COUNT; i++)
       args.push_back(PONY_SANITIZER_LINK_ARGS[i]);
@@ -2028,7 +2011,7 @@ static bool link_exe_lld_coff(compile_t* c, ast_t* program,
 
   vcvars_t vcvars;
 
-  if(!vcvars_get(c, &vcvars, errors))
+  if(!vcvars_get(c->opt, &vcvars, errors))
   {
     errorf(errors, NULL, "unable to link: no vcvars");
     return false;
@@ -2068,6 +2051,13 @@ static bool link_exe_lld_coff(compile_t* c, ast_t* program,
 
   // Object file.
   args.push_back(file_o);
+
+  // C shim objects (gencshim), in deterministic package-walk order. These are
+  // absolute object paths, so they don't depend on the /LIBPATH entries
+  // pushed below; only library-name resolution does.
+  size_t c_object_count = program_c_object_count(program);
+  for(size_t i = 0; i < c_object_count; i++)
+    args.push_back(program_c_object_at(program, i));
 
   // UCRT library path (Windows 10+ SDK).
   if(strlen(vcvars.ucrt) > 0)
@@ -2207,7 +2197,7 @@ static bool link_exe(compile_t* c, ast_t* program,
     ;
   if(bsd_embed
 #if defined(PONY_SANITIZER)
-    && (is_cross_compiling(c) || target_is_freebsd(c->opt->triple))
+    && (is_cross_compiling(c->opt) || target_is_freebsd(c->opt->triple))
 #endif
     )
   {
@@ -2349,10 +2339,22 @@ bool genexe(compile_t* c, ast_t* program)
   if(!link_exe(c, program, file_o))
     return false;
 
+  // Shim objects share the Pony object's lifetime: removed only here, after
+  // a successful PASS_ALL link. Under --pass c/obj/asm/ir they persist
+  // (handing objects to another linker is the point of those modes), and a
+  // failed link leaves them too.
+  size_t c_object_count = program_c_object_count(program);
+
 #ifdef PLATFORM_IS_WINDOWS
   _unlink(file_o);
+
+  for(size_t i = 0; i < c_object_count; i++)
+    _unlink(program_c_object_at(program, i));
 #else
   unlink(file_o);
+
+  for(size_t i = 0; i < c_object_count; i++)
+    unlink(program_c_object_at(program, i));
 #endif
 
   return true;

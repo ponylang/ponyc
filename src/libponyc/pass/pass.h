@@ -172,6 +172,18 @@ Within finalisers uses the data field of the top body node and any TK_CALL
 nodes as ast_send flags.
 
 
+* C pass (program-wide, not AST)
+
+Compiles each package's C shim sources (.c files discovered next to the .pony
+files) with the embedded clang, recording the resulting object paths on the
+program for the platform linkers to append. Unlike the AST passes it runs once
+over the whole program from ast_passes_program (not via ast_visit per node) and
+reads the target description from pass_opt_t, so it needs nothing from
+compile_t. See gencshim.h / gencshim.cc.
+
+Does not mutate the AST.
+
+
 * Adding a new pass
 
 It's usually best to start with an existing pass, look through the contents
@@ -222,6 +234,7 @@ typedef enum pass_id
   PASS_COMPLETENESS,
   PASS_VERIFY,
   PASS_FINALISER,
+  PASS_C,
   PASS_REACH,
   PASS_PAINT,
   PASS_LLVM_IR,
@@ -249,6 +262,7 @@ typedef enum pass_id
     "    =completeness\n" \
     "    =verify\n" \
     "    =final\n" \
+    "    =c             Compile C shim objects.\n" \
     "    =reach\n" \
     "    =paint\n" \
     "    =ir            Output LLVM IR.\n" \
