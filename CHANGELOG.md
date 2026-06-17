@@ -26,6 +26,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Fix NetAddress.scope() returning a byte-swapped value on little-endian platforms ([PR #5511](https://github.com/ponylang/ponyc/pull/5511))
 - Fix `use=coverage` builds failing to link with gcc ([PR #5515](https://github.com/ponylang/ponyc/pull/5515))
 - Fix crash when tracing actor behaviors without forced actor tracing ([PR #5522](https://github.com/ponylang/ponyc/pull/5522))
+- Fix unnecessary reallocations when building small Strings and Arrays ([PR #5518](https://github.com/ponylang/ponyc/pull/5518))
 
 ### Added
 
