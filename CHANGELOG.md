@@ -25,6 +25,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Fix crash when a directory is named like a Pony source file ([PR #5514](https://github.com/ponylang/ponyc/pull/5514))
 - Fix NetAddress.scope() returning a byte-swapped value on little-endian platforms ([PR #5511](https://github.com/ponylang/ponyc/pull/5511))
 - Fix `use=coverage` builds failing to link with gcc ([PR #5515](https://github.com/ponylang/ponyc/pull/5515))
+- Fix crash when tracing actor behaviors without forced actor tracing ([PR #5522](https://github.com/ponylang/ponyc/pull/5522))
 
 ### Added
 
