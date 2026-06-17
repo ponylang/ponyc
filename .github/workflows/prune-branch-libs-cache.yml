@@ -1,12 +1,12 @@
 name: Prune branch libs cache
 
-# Age-prunes the per-PR branch libs cache (`ponyc-branch-libs-cache/*`). Each
-# non-fork PR that changes an LLVM-determining input gets its own scratch
-# package; this daily sweep deletes anything older than two weeks (stale versions
-# individually, a whole package once all its versions are stale) so closed and
-# abandoned PRs don't accumulate in GHCR. It only ever touches the branch
-# namespace; the main `ponyc-libs-cache` is left alone. See
-# .ci-scripts/libs-cache/prune_branch_libs_cache.py.
+# Age-prunes the branch libs cache (`ponyc-branch-libs-cache/*`). The cache is
+# tag-addressable, one package per `<platform>-<arch>`, written by non-fork PR
+# jobs and ad-hoc tier dispatches that change an LLVM-determining input; this daily
+# sweep deletes anything older than two weeks (stale versions individually, a whole
+# package once all its versions are stale) so old builds don't accumulate in GHCR.
+# It only ever touches the branch namespace; the main `ponyc-libs-cache` is left
+# alone. See .ci-scripts/libs-cache/prune_branch_libs_cache.py.
 
 on:
   schedule:

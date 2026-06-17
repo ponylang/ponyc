@@ -8,10 +8,13 @@ registry v2 API directly so the same code path works on every platform without
 the `oras` CLI. It mirrors the registry plumbing in `release/ghcr_nightly.py`.
 
 It is namespace-agnostic: the entry scripts (`oci_libs_cache.py` for the main
-cache, `branch_libs_cache.py` for the per-PR branch cache) compute the full
-package name -- `<namespace>/<platform>-<arch>[-pr<N>]` -- and hand it to the
-`cmd_*` handlers here. `build_parser`/`dispatch` assemble the shared CLI so each
-entry script is just its namespace, its `cache_package`, and a `main`.
+cache, `branch_libs_cache.py` for the branch scratch cache) compute the full
+package name -- `<namespace>/<platform>-<arch>` -- and hand it to the `cmd_*`
+handlers here. `build_parser`/`dispatch` assemble the shared CLI so each entry
+script is just its namespace, its `cache_package`, and a `main`. `copy` is the
+cross-namespace promote (`promote_libs_cache.py`): it copies an artifact from one
+package to another at the same tag, which the warmer uses to reuse a branch build
+instead of cold-building.
 
 Stdlib only so no pip install is required on any CI runner.
 """
@@ -326,9 +329,102 @@ def cmd_push(package, tag):
     info("Push complete.")
 
 
-def build_parser(description, with_pr=False):
+def copy(src_package, dst_package, tag):
+    """Promote: copy a cached artifact from one package to another at the same tag.
+
+    Registry-to-registry: download the source archive blob and re-upload it under
+    the destination package, then write a fresh manifest. The warmer calls this on
+    a main-cache miss to reuse a branch-cache build (`ponyc-branch-libs-cache/...`
+    -> `ponyc-libs-cache/...`) instead of cold-building LLVM. The source and
+    destination package names differ only in their namespace prefix, so the
+    artifact built for one is a valid build for the other (same platform, arch, and
+    content-hash tag).
+
+    The manifest is rebuilt fresh (not copied) so every field stays internally
+    consistent: the archive layer block is reused verbatim (its digest is verified
+    against the downloaded bytes), but the config blob is rewritten to name the
+    destination and record the promotion provenance, and the manifest's config size
+    is recomputed for the new config. It copies the bytes (download from src,
+    re-upload to dst) rather than a cross-repo blob mount: a mount would avoid moving
+    the bytes but depends on GHCR honoring `?mount=&from=` and adds complexity, so
+    the straight copy is the simpler and more robust choice.
+    """
+    src_repo = repository(src_package)
+    dst_repo = repository(dst_package)
+    info(f"Promoting {REGISTRY}/{src_repo}:{tag} -> {REGISTRY}/{dst_repo}:{tag}")
+
+    token_src = auth_token(src_package, 'pull')
+    src_manifest = get_manifest(src_repo, tag, token_src)
+    if src_manifest is None:
+        die(f"Source artifact {src_repo}:{tag} not found; nothing to promote.")
+    layers = src_manifest.get('layers') or []
+    if not layers:
+        die("Source manifest has no layers; cannot promote.")
+    layer = layers[0]
+    archive_digest = layer['digest']
+
+    # token_src is held across this (few-hundred-MB) download -- the same
+    # single-token span as cmd_pull, so not a new constraint.
+    info(f"Downloading archive blob {archive_digest}...")
+    archive = get_blob(src_repo, archive_digest, token_src)
+    if digest_of(archive) != archive_digest:
+        die("Downloaded archive digest mismatch; refusing to promote it.")
+
+    # Read the source config to carry its original built_at forward (the artifact
+    # was built then, not at promotion time). `.get` so a pre-built_at artifact
+    # doesn't KeyError. The config blob has no reader anywhere (cmd_pull consumes
+    # only the layer digest), so the added promotion keys are inert.
+    config_src_digest = src_manifest['config']['digest']
+    config_bytes = get_blob(src_repo, config_src_digest, token_src)
+    if digest_of(config_bytes) != config_src_digest:
+        die("Downloaded config digest mismatch; refusing to promote it.")
+    src_config = json.loads(config_bytes)
+
+    # Fetch the destination push token AFTER the download, so it is live only for
+    # the upload window.
+    token_dst = auth_token(dst_package, 'pull,push')
+    promoted_at = (datetime.datetime.now(datetime.timezone.utc)
+                   .strftime('%Y-%m-%dT%H:%M:%SZ'))
+    config = json.dumps({
+        'package': dst_package,
+        'tag': tag,
+        'sha512': sha512_hex(archive),
+        'built_at': src_config.get('built_at'),
+        'promoted_at': promoted_at,
+        'promoted_from': src_package,
+    }, sort_keys=True).encode('utf-8')
+    config_digest = digest_of(config)
+
+    # Blob before manifest: a consumer pulling mid-promote never sees a manifest
+    # that references a blob that is not yet fully uploaded.
+    info("Uploading config blob...")
+    upload_blob(dst_repo, config, config_digest, token_dst)
+    info("Uploading archive blob...")
+    upload_blob(dst_repo, archive, archive_digest, token_dst)
+
+    manifest = json.dumps({
+        'schemaVersion': 2,
+        'mediaType': MANIFEST_TYPE,
+        'artifactType': ARTIFACT_TYPE,
+        'config': {
+            'mediaType': CONFIG_TYPE,
+            'digest': config_digest,
+            'size': len(config),
+        },
+        'layers': [layer],
+        'annotations': {
+            'org.opencontainers.image.created': promoted_at,
+        },
+    }).encode('utf-8')
+
+    info(f"Putting manifest {tag}...")
+    put_manifest(dst_repo, tag, manifest, token_dst)
+    info("Promote complete.")
+
+
+def build_parser(description):
     """The shared CLI: package-name/exists/pull/push, with --image|--platform and
-    --tag. `with_pr` adds the branch cache's required --pr to every subcommand."""
+    --tag."""
     parser = argparse.ArgumentParser(description=description)
     sub = parser.add_subparsers(dest='command', required=True)
     for name in ('package-name', 'exists', 'pull', 'push'):
@@ -336,8 +432,6 @@ def build_parser(description, with_pr=False):
         target = p.add_mutually_exclusive_group(required=True)
         target.add_argument('--image', help='builder image reference')
         target.add_argument('--platform', help='literal platform label')
-        if with_pr:
-            p.add_argument('--pr', required=True, help='pull-request number')
         if name != 'package-name':
             p.add_argument('--tag', required=True,
                            help='hashFiles content hash')

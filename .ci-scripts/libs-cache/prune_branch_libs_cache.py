@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
 """Age-based retention for the branch libs cache (`ponyc-branch-libs-cache/*`).
 
-The branch libs cache (`branch_libs_cache.py`) holds a per-PR scratch copy of the
-prebuilt LLVM so a non-fork PR doesn't rebuild LLVM on every push. Each PR is its
-own package, so a closed/abandoned PR's package would otherwise sit in GHCR
-forever. This sweep, run daily, deletes anything older than the cutoff: stale
-versions individually, and a package outright once all of its versions are stale.
+The branch libs cache (`branch_libs_cache.py`) holds a tag-addressable scratch copy
+of the prebuilt LLVM, one package per `<platform>-<arch>`, so a changed-libs build
+(a non-fork PR, or an ad-hoc tier dispatch) doesn't rebuild LLVM on every run. The
+versions accumulate as branches come and go, so this sweep, run daily, deletes
+anything older than the cutoff: stale versions individually, and a package outright
+once all of its versions are stale (a platform nobody has pushed to in the window,
+e.g. a retired builder image).
 
 This is the branch cache's OWN retention -- deliberately different from the main
 cache's `prune_libs_cache.py` (which keeps the N newest versions per package and
@@ -69,11 +71,11 @@ def prune_package(owner, name, cutoff, read_token, write_token, dry_run):
     stale = [v for v in versions if parse_time(v['created_at']) < cutoff]
     if not stale:
         return 0
-    # Every version is stale -> drop the whole package in one call. This is the
-    # closed/abandoned-PR reclaim: a package nobody has pushed to in the window.
-    # Benign TOCTOU: if a still-open PR pushes a fresh version between the list
+    # Every version is stale -> drop the whole package in one call. This reclaims a
+    # platform nobody has pushed to in the window (e.g. a retired builder image).
+    # Benign TOCTOU: if a concurrent build pushes a fresh version between the list
     # above and this delete, that version is dropped too -> a single cache miss
-    # and one rebuild on its next push, which recreates the package. Acceptable
+    # and one rebuild on its next run, which recreates the package. Acceptable
     # for a best-effort cache; not worth a guard.
     if len(stale) == len(versions):
         if dry_run:

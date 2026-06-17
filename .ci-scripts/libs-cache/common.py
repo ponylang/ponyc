@@ -21,6 +21,16 @@ ENDC = '\033[0m'
 ERROR = '\033[31m'
 INFO = '\033[34m'
 
+# Paths to the cache entry scripts, shared so the orchestrators
+# (resolve_libs_cache.py, pr_libs_cache.py) agree on one spelling. They are
+# strings, not imports, so there is no import cycle; each orchestrator still calls
+# its own `run` on them (which keeps the test monkeypatch of `<module>.run` able to
+# intercept the subprocess).
+SCRIPTS_DIR = os.path.dirname(os.path.abspath(__file__))
+MAIN_CACHE = os.path.join(SCRIPTS_DIR, 'oci_libs_cache.py')
+BRANCH_CACHE = os.path.join(SCRIPTS_DIR, 'branch_libs_cache.py')
+PROMOTE = os.path.join(SCRIPTS_DIR, 'promote_libs_cache.py')
+
 
 def die(message):
     print(ERROR + message + ENDC, file=sys.stderr)
