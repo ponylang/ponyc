@@ -218,6 +218,40 @@ make configure arch=arm7
 make build
 ```
 
+### sanitizers
+
+ponyc can be built with the Clang/LLVM sanitizers to catch bugs in the compiler and the Pony runtime at runtime. Three `use=` options are available: `address_sanitizer` (AddressSanitizer — buffer overflows, use-after-free, double-free), `thread_sanitizer` (ThreadSanitizer — data races), and `undefined_behavior_sanitizer` (UndefinedBehaviorSanitizer — signed integer overflow, misaligned access, and other undefined behavior). AddressSanitizer and ThreadSanitizer can't be combined; either can be combined with UndefinedBehaviorSanitizer.
+
+Pair `address_sanitizer` with `pool_memalign` so AddressSanitizer can track the Pony runtime's own allocations: `pool_memalign` routes every runtime allocation through `posix_memalign`/`free`, which AddressSanitizer intercepts and surrounds with redzones. The combination CI builds and tests is:
+
+```bash
+make configure config=debug use=pool_memalign,address_sanitizer,undefined_behavior_sanitizer
+make build config=debug
+```
+
+The build lands in a suffixed directory — `build/debug-address_sanitizer-undefined_behavior_sanitizer-pool_memalign` for the configuration above. The suffix lists the enabled options in a fixed order set by CMake, independent of the `use=` order. These commands use `config=debug`; the sanitizers build under `config=release` too, and CI tests both.
+
+The instrumented `ponyc` runs both during its own build (it compiles the self-hosted tools) and every time you use it to compile a program, so AddressSanitizer's runtime options must be set in the environment for `make build` and for any later `ponyc` invocation:
+
+- ponyc isn't LeakSanitizer-clean, so `detect_leaks=0` suppresses the compiler's own leak reports at exit.
+- On platforms whose base system C++ runtime is libc++ (FreeBSD, macOS), the instrumented compiler shares `std::vector`/`std::string` with the non-instrumented vendored LLVM, and libc++'s container annotations then abort on false-positive container overflows; `detect_container_overflow=0` suppresses them. Linux uses libstdc++ and doesn't need it.
+
+Platform | `ASAN_OPTIONS`
+--- | ---
+Linux | `detect_leaks=0`
+FreeBSD, macOS | `detect_leaks=0:detect_container_overflow=0`
+
+Both options concern `ponyc` itself, not the programs it compiles. A correct Pony program is LeakSanitizer-clean at exit, so run a program you compiled with LeakSanitizer left on — it will report genuine leaks in your own code, such as memory you allocate through FFI and never free. The container-overflow false positive is likewise specific to the compiler's libc++/LLVM sharing; a compiled program links the C runtime, not libc++ or LLVM, so it can't occur there.
+
+For example, on Linux:
+
+```bash
+ASAN_OPTIONS=detect_leaks=0 make build config=debug
+ASAN_OPTIONS=detect_leaks=0 ./build/debug-address_sanitizer-undefined_behavior_sanitizer-pool_memalign/ponyc path/to/your/program
+```
+
+The sanitizers can't be built on OpenBSD or DragonFly BSD; see [Unsupported OpenBSD build options](#unsupported-openbsd-build-options) and [Unsupported DragonFly BSD build options](#unsupported-dragonfly-bsd-build-options).
+
 ### dtrace
 
 Linux, FreeBSD, and macOS support collecting Pony runtime events, through SystemTap on Linux and DTrace on FreeBSD and macOS. DTrace isn't supported on DragonFly BSD or OpenBSD.
