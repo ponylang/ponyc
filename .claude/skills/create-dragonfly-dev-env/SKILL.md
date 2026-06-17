@@ -222,7 +222,7 @@ logged in.
 VMDIR=~/vms/dragonfly-6.4.2; cd "$VMDIR"
 up=""
 for i in $(seq 1 150); do   # ~5 min, matching CI's timeout
-  if ssh -o StrictHostKeyChecking=no -o ConnectTimeout=2 -i vm_key -p 2222 \
+  if ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR -o ConnectTimeout=2 -i vm_key -p 2222 \
        root@localhost true 2>/dev/null; then up=1; echo "SSH up"; break; fi
   sleep 2
 done
@@ -234,7 +234,7 @@ and define `$SSH` in the same block you use it (it does not carry between blocks
 
 ```sh
 VMDIR=~/vms/dragonfly-6.4.2
-SSH="ssh -o StrictHostKeyChecking=no -i $VMDIR/vm_key -p 2222 root@localhost"
+SSH="ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR -i $VMDIR/vm_key -p 2222 root@localhost"
 $SSH /bin/sh <<'EOF'
 uname -a
 EOF
@@ -246,7 +246,7 @@ Root is only ~1.8G; `gcc13` alone is ~418M, so package installs must land on `/b
 
 ```sh
 VMDIR=~/vms/dragonfly-6.4.2
-SSH="ssh -o StrictHostKeyChecking=no -i $VMDIR/vm_key -p 2222 root@localhost"
+SSH="ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR -i $VMDIR/vm_key -p 2222 root@localhost"
 $SSH /bin/sh <<'EOF'
 set -e
 cpdup /usr/local /build/usr_local
@@ -254,7 +254,7 @@ rm -rf /usr/local
 ln -s /build/usr_local /usr/local
 EOF
 
-scp -o StrictHostKeyChecking=no -i "$VMDIR/vm_key" -P 2222 "$VMDIR/dfly-include.tar" root@localhost:/build/
+scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR -i "$VMDIR/vm_key" -P 2222 "$VMDIR/dfly-include.tar" root@localhost:/build/
 $SSH /bin/sh <<'EOF'
 set -e
 tar xf /build/dfly-include.tar -C /build
@@ -279,7 +279,7 @@ under `lib/llvm/src` IS transferred — the VM needs it for `make libs`.
 ```sh
 VMDIR=~/vms/dragonfly-6.4.2
 rsync -az --exclude='/build' \
-  -e "ssh -o StrictHostKeyChecking=no -i $VMDIR/vm_key -p 2222" \
+  -e "ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR -i $VMDIR/vm_key -p 2222" \
   "$(git rev-parse --show-toplevel)/" root@localhost:/build/ponyc/
 ```
 
@@ -292,7 +292,7 @@ above the marker):
 
 ```sh
 VMDIR=~/vms/dragonfly-6.4.2
-SSH="ssh -o StrictHostKeyChecking=no -i $VMDIR/vm_key -p 2222 root@localhost"
+SSH="ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR -i $VMDIR/vm_key -p 2222 root@localhost"
 $SSH /bin/sh <<'EOF'
 set -e
 cat > /build/run-libs.sh <<'S'
@@ -314,7 +314,7 @@ Once `libs` is built (it persists in the VM), build and test with the same env:
 
 ```sh
 VMDIR=~/vms/dragonfly-6.4.2
-SSH="ssh -o StrictHostKeyChecking=no -i $VMDIR/vm_key -p 2222 root@localhost"
+SSH="ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR -i $VMDIR/vm_key -p 2222 root@localhost"
 $SSH /bin/sh <<'EOF'
 set -e
 export CC=/usr/local/bin/gcc13 CXX=/usr/local/bin/g++13
@@ -339,7 +339,7 @@ CI-matching issue.
 ```sh
 VMDIR=~/vms/dragonfly-6.4.2; cd "$VMDIR"
 pgrep -af "qemu-system-x86_64 -name dragonfly"        # status
-ssh -o StrictHostKeyChecking=no -i vm_key -p 2222 root@localhost   # interactive shell
+ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR -i vm_key -p 2222 root@localhost   # interactive shell
 # stop: DragonFly's default install has no ACPI shutdown handler, so system_powerdown
 # usually does nothing — kill the process instead. Disks persist for next time.
 kill "$(cat dfly.pid)" 2>/dev/null || pkill -f "qemu-system-x86_64 -name dragonfly"
@@ -361,6 +361,10 @@ unchanged**. The local setup deliberately differs from CI, and each difference i
   your host already has qemu and a usable hardware accelerator (Step 0 verified it).
 - `bsdtar` instead of `sudo mount -o loop` for the ISO headers — no privilege needed.
 - Persistent VM instead of built-fresh-and-killed per run.
+- ssh adds `-o UserKnownHostsFile=/dev/null -o LogLevel=ERROR` to quiet the host-key
+  warning: a persistent VM reused on `localhost:2222` collides with the stale
+  `known_hosts` entry from a prior VM. CI's ephemeral runners never reuse the port, so
+  `dragonfly-provision.bash` doesn't bother.
 - `-smp 8` for build speed (CI uses 4).
 - Screendump-verified boot instead of a blind `sleep 90`.
 - No GHCR libs cache (that's token-gated CI plumbing) — you just `make libs` once.
