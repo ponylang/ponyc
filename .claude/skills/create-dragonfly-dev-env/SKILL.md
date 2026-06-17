@@ -370,6 +370,7 @@ unchanged**. The local setup deliberately differs from CI, and each difference i
 - No GHCR libs cache (that's token-gated CI plumbing) — you just `make libs` once.
 
 The FreeBSD and OpenBSD CI VMs follow the same shape
-(`.ci-scripts/bsd/{freebsd,openbsd}-provision.bash`); FreeBSD takes a `FREEBSD_VERSION`,
-and OpenBSD differs in its static-link checks and rejects `use=coverage`. This skill is
-DragonFly-only; adapt from those scripts if you need a sibling.
+(`.ci-scripts/bsd/{freebsd,openbsd}-provision.bash`) and each has its own skill:
+`create-freebsd-dev-env` (takes a `FREEBSD_VERSION`) and `create-openbsd-dev-env` (its
+static-link checks expect static-PIE, and it rejects the unsupported `use=` options). This
+skill is DragonFly-only; load a sibling if you need one of those.

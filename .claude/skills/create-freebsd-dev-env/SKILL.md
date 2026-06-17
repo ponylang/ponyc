@@ -344,7 +344,8 @@ difference is safe:
 - No GHCR libs cache (that's token-gated CI plumbing) — you just `make libs` once.
 
 The DragonFly and OpenBSD CI VMs follow the same shape
-(`.ci-scripts/bsd/{dragonfly,openbsd}-provision.bash`); DragonFly is gcc-only and drives a
-VGA console (it has its own `create-dragonfly-dev-env` skill), and OpenBSD differs in its
-static-link checks and `datasize` limit. This skill is FreeBSD-only; adapt from those
-scripts if you need a sibling.
+(`.ci-scripts/bsd/{dragonfly,openbsd}-provision.bash`) and each has its own skill:
+`create-dragonfly-dev-env` (gcc-only, and it drives a VGA console) and
+`create-openbsd-dev-env` (also cloud-init, but with static-PIE static-link checks, a raised
+`datasize` limit, and the source under a `/build` disk). This skill is FreeBSD-only; load a
+sibling if you need one of those.
