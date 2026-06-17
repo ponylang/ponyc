@@ -1351,7 +1351,13 @@ void ponyint_tracing_actor_behavior_run_schedule(pony_actor_t* actor, pony_actor
   if(!tracing_category_enabled(TRACING_CATEGORY_ACTOR_BEHAVIOR))
     return;
 
-  if(!force_actor_tracing_enabled && !ponyint_actor_tracing_enabled(actor))
+  // The sending actor is NULL when a schedule originates from a thread that is
+  // not running an actor: the ASIO thread delivering an event, or a message
+  // injected (e.g. a cycle detector check) from a scheduler thread between
+  // actor runs. In that case there is no per-actor trace flag to consult, so
+  // we only emit the trace when tracing is forced on.
+  if(!force_actor_tracing_enabled
+    && ((actor == NULL) || !ponyint_actor_tracing_enabled(actor)))
     return;
 
   tracing_actor_behavior_run_schedule_t* m = (tracing_actor_behavior_run_schedule_t*)pony_alloc_msg(
