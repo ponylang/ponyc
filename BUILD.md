@@ -218,7 +218,7 @@ make configure arch=arm7
 make build
 ```
 
-## dtrace
+### dtrace
 
 Linux, FreeBSD, and macOS support collecting Pony runtime events, through SystemTap on Linux and DTrace on FreeBSD and macOS. DTrace isn't supported on DragonFly BSD or OpenBSD.
 
