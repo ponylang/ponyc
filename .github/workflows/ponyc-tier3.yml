@@ -15,7 +15,11 @@ concurrency:
   cancel-in-progress: true
 
 permissions:
-  packages: read
+  # write (not read) so a non-`main` workflow_dispatch can push its libs build to
+  # the branch scratch cache (`--branch-cache`), to reuse across dispatches and to
+  # let the warmer promote it after merge. workflow_dispatch/schedule are non-fork,
+  # so the write token is only ever available to repo-authorized actors.
+  packages: write
 
 jobs:
   check-for-changes:
@@ -67,7 +71,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           LIBS_IMAGE: ${{ matrix.image }}
           LIBS_TAG: ${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
-        run: python3 .ci-scripts/libs-cache/resolve_libs_cache.py --image "$LIBS_IMAGE" --tag "$LIBS_TAG" -- make libs llvm_tools=false build_flags=-j4
+        run: python3 .ci-scripts/libs-cache/resolve_libs_cache.py --branch-cache --image "$LIBS_IMAGE" --tag "$LIBS_TAG" -- make libs llvm_tools=false build_flags=-j4
       - name: Build Debug Runtime
         run: |
           make configure config=debug
@@ -134,7 +138,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           LIBS_IMAGE: ${{ matrix.image }}
           LIBS_TAG: ${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
-        run: python3 .ci-scripts/libs-cache/resolve_libs_cache.py --image "$LIBS_IMAGE" --tag "$LIBS_TAG" -- make libs llvm_tools=false build_flags=-j4
+        run: python3 .ci-scripts/libs-cache/resolve_libs_cache.py --branch-cache --image "$LIBS_IMAGE" --tag "$LIBS_TAG" -- make libs llvm_tools=false build_flags=-j4
       - name: Build Debug Runtime
         run: |
           make configure config=debug
@@ -195,7 +199,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           LIBS_IMAGE: ${{ matrix.image }}
           LIBS_TAG: ${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
-        run: python3 .ci-scripts/libs-cache/resolve_libs_cache.py --image "$LIBS_IMAGE" --tag "$LIBS_TAG" -- make libs llvm_tools=false build_flags=-j4
+        run: python3 .ci-scripts/libs-cache/resolve_libs_cache.py --branch-cache --image "$LIBS_IMAGE" --tag "$LIBS_TAG" -- make libs llvm_tools=false build_flags=-j4
       - name: Build Debug Runtime
         run: |
           make configure config=debug
@@ -259,7 +263,7 @@ jobs:
           LIBS_TAG: ${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
         run: |
           ssh -o StrictHostKeyChecking=no -i vm_key -p 2222 freebsd@localhost \
-            "cd /home/freebsd/ponyc && export GITHUB_TOKEN='${{ secrets.GITHUB_TOKEN }}' GITHUB_REPOSITORY='${{ github.repository }}' && python3 .ci-scripts/libs-cache/resolve_libs_cache.py --platform freebsd-${{ matrix.version }} --tag '${LIBS_TAG}' -- gmake libs llvm_tools=false build_flags=-j4"
+            "cd /home/freebsd/ponyc && export GITHUB_TOKEN='${{ secrets.GITHUB_TOKEN }}' GITHUB_REPOSITORY='${{ github.repository }}' GITHUB_ACTOR='${{ github.actor }}' && python3 .ci-scripts/libs-cache/resolve_libs_cache.py --branch-cache --platform freebsd-${{ matrix.version }} --tag '${LIBS_TAG}' -- gmake libs llvm_tools=false build_flags=-j4"
       - name: Build and test
         run: |
           ssh -o StrictHostKeyChecking=no -i vm_key -p 2222 freebsd@localhost <<'EOF'
@@ -326,7 +330,7 @@ jobs:
           LIBS_TAG: ${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
         run: |
           ssh -o StrictHostKeyChecking=no -o ServerAliveInterval=60 -i vm_key -p 2222 openbsd@localhost \
-            "cd /build/ponyc && export GITHUB_TOKEN='${{ secrets.GITHUB_TOKEN }}' GITHUB_REPOSITORY='${{ github.repository }}' && python3 .ci-scripts/libs-cache/resolve_libs_cache.py --platform openbsd-7.9 --tag '${LIBS_TAG}' -- gmake libs llvm_tools=false build_flags=-j4 && rm -rf build/build_libs"
+            "cd /build/ponyc && export GITHUB_TOKEN='${{ secrets.GITHUB_TOKEN }}' GITHUB_REPOSITORY='${{ github.repository }}' GITHUB_ACTOR='${{ github.actor }}' && python3 .ci-scripts/libs-cache/resolve_libs_cache.py --branch-cache --platform openbsd-7.9 --tag '${LIBS_TAG}' -- gmake libs llvm_tools=false build_flags=-j4 && rm -rf build/build_libs"
       - name: Build and test
         run: |
           ssh -o StrictHostKeyChecking=no -o ServerAliveInterval=60 -i vm_key -p 2222 openbsd@localhost <<'EOF'
@@ -403,8 +407,8 @@ jobs:
           ssh -o StrictHostKeyChecking=no -o ServerAliveInterval=60 -i vm_key -p 2222 root@localhost /bin/sh <<EOF
           set -e
           cd /build/ponyc
-          export GITHUB_TOKEN='${{ secrets.GITHUB_TOKEN }}' GITHUB_REPOSITORY='${{ github.repository }}' CC=/usr/local/bin/gcc13 CXX=/usr/local/bin/g++13 LD_LIBRARY_PATH=/usr/local/lib/gcc13 SSL_CERT_FILE=/usr/local/share/certs/ca-root-nss.crt
-          python3 .ci-scripts/libs-cache/resolve_libs_cache.py --platform dragonfly-6.4.2 --tag '${LIBS_TAG}' -- gmake libs llvm_tools=false build_flags=-j4
+          export GITHUB_TOKEN='${{ secrets.GITHUB_TOKEN }}' GITHUB_REPOSITORY='${{ github.repository }}' GITHUB_ACTOR='${{ github.actor }}' CC=/usr/local/bin/gcc13 CXX=/usr/local/bin/g++13 LD_LIBRARY_PATH=/usr/local/lib/gcc13 SSL_CERT_FILE=/usr/local/share/certs/ca-root-nss.crt
+          python3 .ci-scripts/libs-cache/resolve_libs_cache.py --branch-cache --platform dragonfly-6.4.2 --tag '${LIBS_TAG}' -- gmake libs llvm_tools=false build_flags=-j4
           rm -rf build/build_libs
           EOF
       - name: Build and test

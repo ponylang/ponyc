@@ -32,11 +32,15 @@ when you want to exercise them).
 - A subdirectory mixes **entry scripts** (runnable by full path, each with a
   `main` and a CLI) with **support-library modules** (import-only, no `main`). In
   `libs-cache/` the library modules are `common.py` (die/info/`require_env`/the
-  orchestrator helpers), `registry.py` (the GHCR registry-v2 push/pull client),
-  `ghpackages.py` (the GitHub-packages REST client), and `cache_arch.py` (arch
-  normalization); the entry scripts (`*_libs_cache.py`, `resolve_libs_cache.py`)
-  are thin layers over them. Shared logic belongs in a library module, not copied
-  across entry scripts.
+  orchestrator helpers, plus the shared entry-script path constants
+  `MAIN_CACHE`/`BRANCH_CACHE`/`PROMOTE`), `registry.py` (the GHCR registry-v2
+  push/pull client, including `copy` — the cross-namespace promote the warmer uses
+  to reuse a branch build), `ghpackages.py` (the GitHub-packages REST client), and
+  `cache_arch.py` (arch normalization); the entry scripts (`*_libs_cache.py`,
+  `resolve_libs_cache.py`) are thin layers over them — `promote_libs_cache.py`
+  resolves the branch (source) and main (destination) names and calls
+  `registry.copy`. Shared logic belongs in a library module, not copied across
+  entry scripts.
 - A module that derives the **repo root** from `__file__` (e.g.
   `libs-cache/registry.py`'s `repo_root()`) hardcodes the directory depth with a
   fixed number of `os.path.dirname` calls. If you move it to a different depth,

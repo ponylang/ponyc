@@ -268,13 +268,33 @@ jobs:
           else
             echo "hit=false" >> "$GITHUB_OUTPUT"
           fi
-      - name: Provision VM
+      - name: Promote branch libs if present
+        id: promote
         if: steps.check.outputs.hit != 'true'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          LIBS_TAG: ${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
+        run: |
+          # Host-side promote (no VM boot): if a branch artifact exists for this
+          # tag, copy it into the main cache instead of provisioning the VM to
+          # rebuild. A promote failure is non-fatal -- promoted=false falls through
+          # to the VM build below.
+          if python3 .ci-scripts/libs-cache/branch_libs_cache.py exists --platform freebsd-${{ matrix.version }} --tag "$LIBS_TAG"; then
+            if python3 .ci-scripts/libs-cache/promote_libs_cache.py --platform freebsd-${{ matrix.version }} --tag "$LIBS_TAG"; then
+              echo "promoted=true" >> "$GITHUB_OUTPUT"
+            else
+              echo "promoted=false" >> "$GITHUB_OUTPUT"
+            fi
+          else
+            echo "promoted=false" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Provision VM
+        if: steps.check.outputs.hit != 'true' && steps.promote.outputs.promoted != 'true'
         env:
           FREEBSD_VERSION: ${{ matrix.version }}
         run: bash .ci-scripts/bsd/freebsd-provision.bash
       - name: Build and push libs
-        if: steps.check.outputs.hit != 'true'
+        if: steps.check.outputs.hit != 'true' && steps.promote.outputs.promoted != 'true'
         env:
           LIBS_TAG: ${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
         run: |
@@ -309,11 +329,31 @@ jobs:
           else
             echo "hit=false" >> "$GITHUB_OUTPUT"
           fi
-      - name: Provision VM
+      - name: Promote branch libs if present
+        id: promote
         if: steps.check.outputs.hit != 'true'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          LIBS_TAG: ${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
+        run: |
+          # Host-side promote (no VM boot): if a branch artifact exists for this
+          # tag, copy it into the main cache instead of provisioning the VM to
+          # rebuild. A promote failure is non-fatal -- promoted=false falls through
+          # to the VM build below.
+          if python3 .ci-scripts/libs-cache/branch_libs_cache.py exists --platform openbsd-7.9 --tag "$LIBS_TAG"; then
+            if python3 .ci-scripts/libs-cache/promote_libs_cache.py --platform openbsd-7.9 --tag "$LIBS_TAG"; then
+              echo "promoted=true" >> "$GITHUB_OUTPUT"
+            else
+              echo "promoted=false" >> "$GITHUB_OUTPUT"
+            fi
+          else
+            echo "promoted=false" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Provision VM
+        if: steps.check.outputs.hit != 'true' && steps.promote.outputs.promoted != 'true'
         run: bash .ci-scripts/bsd/openbsd-provision.bash
       - name: Build and push libs
-        if: steps.check.outputs.hit != 'true'
+        if: steps.check.outputs.hit != 'true' && steps.promote.outputs.promoted != 'true'
         env:
           LIBS_TAG: ${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
         run: |
@@ -349,11 +389,31 @@ jobs:
           else
             echo "hit=false" >> "$GITHUB_OUTPUT"
           fi
-      - name: Provision VM
+      - name: Promote branch libs if present
+        id: promote
         if: steps.check.outputs.hit != 'true'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          LIBS_TAG: ${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
+        run: |
+          # Host-side promote (no VM boot): if a branch artifact exists for this
+          # tag, copy it into the main cache instead of provisioning the VM to
+          # rebuild. A promote failure is non-fatal -- promoted=false falls through
+          # to the VM build below.
+          if python3 .ci-scripts/libs-cache/branch_libs_cache.py exists --platform dragonfly-6.4.2 --tag "$LIBS_TAG"; then
+            if python3 .ci-scripts/libs-cache/promote_libs_cache.py --platform dragonfly-6.4.2 --tag "$LIBS_TAG"; then
+              echo "promoted=true" >> "$GITHUB_OUTPUT"
+            else
+              echo "promoted=false" >> "$GITHUB_OUTPUT"
+            fi
+          else
+            echo "promoted=false" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Provision VM
+        if: steps.check.outputs.hit != 'true' && steps.promote.outputs.promoted != 'true'
         run: bash .ci-scripts/bsd/dragonfly-provision.bash
       - name: Build and push libs
-        if: steps.check.outputs.hit != 'true'
+        if: steps.check.outputs.hit != 'true' && steps.promote.outputs.promoted != 'true'
         env:
           LIBS_TAG: ${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
         run: |
