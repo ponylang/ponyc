@@ -67,6 +67,25 @@ jobs:
           make build config=release
       - name: Test with Release Runtime
         run: make test-ci-core config=release usedebugger='${{ matrix.debugger }}'
+      - name: Verify install honors configured arch (issue #3898)
+        run: |
+          set -eux
+          prefix="$(mktemp -d)"
+          make install config=release prefix="$prefix"
+          # Configured arch is x86-64; the runtime MUST install into lib/x86-64,
+          # not lib/native. A lib/native here is the exact #3898 regression.
+          ls -R "$prefix"/lib/pony/*/lib
+          test -f "$prefix"/lib/pony/*/lib/x86-64/libponyrt.a
+          if ls -d "$prefix"/lib/pony/*/lib/native 2>/dev/null; then
+            echo "FAIL: runtime installed into lib/native instead of lib/x86-64"; exit 1
+          fi
+          # Convenience symlink (symlink=yes default) must resolve into lib/x86-64.
+          test -L "$prefix"/lib/libponyrt.a
+          # End-to-end: the installed compiler must find its runtime and link.
+          mkdir -p hello
+          printf 'actor Main\n  new create(env: Env) =>\n    env.out.print("ok")\n' > hello/main.pony
+          "$prefix"/bin/ponyc hello --output hello
+          ./hello/hello
 
   arm64-macos:
     if: github.event.pull_request.draft == false
@@ -99,6 +118,25 @@ jobs:
           make build config=release
       - name: Test with Release Runtime
         run: make test-ci-core config=release
+      - name: Verify install honors configured arch (issue #3898)
+        run: |
+          set -eux
+          prefix="$(mktemp -d)"
+          make install config=release prefix="$prefix"
+          # Configured arch is armv8; the runtime MUST install into lib/armv8,
+          # not lib/native. A lib/native here is the exact #3898 regression.
+          ls -R "$prefix"/lib/pony/*/lib
+          test -f "$prefix"/lib/pony/*/lib/armv8/libponyrt.a
+          if ls -d "$prefix"/lib/pony/*/lib/native 2>/dev/null; then
+            echo "FAIL: runtime installed into lib/native instead of lib/armv8"; exit 1
+          fi
+          # Convenience symlink (symlink=yes default) must resolve into lib/armv8.
+          test -L "$prefix"/lib/libponyrt.a
+          # End-to-end: the installed compiler must find its runtime and link.
+          mkdir -p hello
+          printf 'actor Main\n  new create(env: Env) =>\n    env.out.print("ok")\n' > hello/main.pony
+          "$prefix"/bin/ponyc hello --output hello
+          ./hello/hello
 
   x86_64-windows:
     if: github.event.pull_request.draft == false
