@@ -63,21 +63,25 @@ class Array[A] is Seq[A]
   Different data types require different amounts of memory. Array[U64] with size
   of 6 will take more memory than an Array[U8] of the same size.
 
-  When creating an Array or adding more elements will calculate the next power
-  of 2 of the requested number of elements and allocate that much space, with a
-  lower bound of space for 8 elements.
+  When creating an Array or adding more elements, the space allocated is the
+  next power of 2 of the requested number of elements, with a lower bound: the
+  larger of 8 elements and the number of elements that fill the runtime
+  allocator's minimum block (32 bytes). For small element types the block bound
+  dominates — an `Array[U8]` always has space for at least 32 elements and an
+  `Array[U16]` at least 16 — while for elements of 4 bytes or more the 8-element
+  bound applies.
 
-  Here's a few examples of the space allocated when initialising an Array with
-  various number of elements:
+  Here's a few examples of the space allocated for an `Array[U8]` with various
+  numbers of elements:
 
   | size | space |
   |------|-------|
   | 0    | 0     |
-  | 1    | 8     |
-  | 8    | 8     |
-  | 9    | 16    |
-  | 16   | 16    |
-  | 17   | 32    |
+  | 1    | 32    |
+  | 32   | 32    |
+  | 33   | 64    |
+  | 64   | 64    |
+  | 65   | 128   |
 
   Call the `compact()` method to ask the GC to reclaim unused space. There are
   no guarantees that the GC will actually reclaim any space.
@@ -93,7 +97,7 @@ class Array[A] is Seq[A]
     _size = 0
 
     if len > 0 then
-      _alloc = len.next_pow2().max(len).max(8)
+      _alloc = len.next_pow2().max(len).max(8).max(Pointer[A]._min_alloc())
       _ptr = Pointer[A]._alloc(_alloc)
     else
       _alloc = 0
@@ -107,7 +111,7 @@ class Array[A] is Seq[A]
     _size = len
 
     if len > 0 then
-      _alloc = len.next_pow2().max(len).max(8)
+      _alloc = len.next_pow2().max(len).max(8).max(Pointer[A]._min_alloc())
       _ptr = Pointer[A]._alloc(_alloc)
 
       var i: USize = 0
@@ -174,10 +178,12 @@ class Array[A] is Seq[A]
   fun ref reserve(len: USize) =>
     """
     Reserve space for len elements, including whatever elements are already in
-    the array. Array space grows geometrically.
+    the array. Array space grows geometrically. The space reserved is never
+    smaller than the runtime allocator's minimum block, so for small element
+    types it may exceed len.
     """
     if _alloc < len then
-      _alloc = len.next_pow2().max(len).max(8)
+      _alloc = len.next_pow2().max(len).max(8).max(_ptr._min_alloc())
       _ptr = _ptr._realloc(_alloc, _size)
     end
 
@@ -193,8 +199,9 @@ class Array[A] is Seq[A]
     request may be ignored.
     """
     if _size <= (512 / _ptr._element_size()) then
-      if _size.next_pow2() != _alloc.next_pow2() then
-        _alloc = _size.next_pow2()
+      let target = _size.next_pow2().max(_ptr._min_alloc())
+      if target < _alloc then
+        _alloc = target
         let old_ptr = _ptr = Pointer[A]._alloc(_alloc)
         old_ptr._copy_to(_ptr._convert[A!](), _size)
       end

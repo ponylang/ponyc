@@ -272,6 +272,23 @@ static void pointer_element_size(compile_t* c, reach_type_t* t,
   codegen_finishfun(c);
 }
 
+static void pointer_min_alloc(compile_t* c, reach_type_t* t,
+  compile_type_t* t_elem)
+{
+  FIND_METHOD("_min_alloc", TK_NONE);
+  start_function(c, t, m, c->intptr, &c_t->use_type, 1);
+
+  // The smallest element count whose byte size reaches the allocator's minimum
+  // block (HEAP_MIN). One element for zero-sized or larger-than-block elements;
+  // otherwise HEAP_MIN / element size.
+  size_t size = (size_t)LLVMABISizeOfType(c->target_data, t_elem->mem_type);
+  size_t min = ((size == 0) || (size > HEAP_MIN)) ? 1 : (HEAP_MIN / size);
+  LLVMValueRef l_min = LLVMConstInt(c->intptr, min, false);
+
+  genfun_build_ret(c, l_min);
+  codegen_finishfun(c);
+}
+
 static void pointer_insert(compile_t* c, reach_type_t* t,
   compile_type_t* t_elem)
 {
@@ -449,6 +466,7 @@ void genprim_pointer_methods(compile_t* c, reach_type_t* t)
   pointer_update(c, t, t_elem);
   BOX_FUNCTION(pointer_offset, c_box_args);
   pointer_element_size(c, t, c_t_elem);
+  pointer_min_alloc(c, t, c_t_elem);
   pointer_insert(c, t, c_t_elem);
   pointer_delete(c, t, t_elem);
   BOX_FUNCTION(pointer_copy_to, c_box_args);

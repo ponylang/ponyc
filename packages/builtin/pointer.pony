@@ -64,6 +64,17 @@ struct Pointer[A]
     """
     compile_intrinsic
 
+  fun tag _min_alloc(): USize =>
+    """
+    Return how many elements fill the runtime allocator's minimum block
+    (`HEAP_MIN / element_size`), but always at least one. A smaller allocation is
+    rounded up to the same block by the allocator anyway, so String and Array
+    use this as a capacity floor (in their constructors, reserve, and compact)
+    to avoid recording less space than the block actually provides (which would
+    force pointless reallocations as the collection grows).
+    """
+    compile_intrinsic
+
   fun ref _insert(n: USize, len: USize): Pointer[A] =>
     """
     Creates space for n new elements at the head, moving following elements.

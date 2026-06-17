@@ -27,11 +27,14 @@ actor \nodoc\ Main is TestList
     test(_TestArrayAppend)
     test(_TestArrayChop)
     test(_TestArrayChopWithPush)
+    test(_TestArrayCompactMinAlloc)
+    test(_TestArrayCreateMinAlloc)
     test(_TestArrayConcat)
     test(_TestArrayFind)
     test(_TestArrayFromCPointer)
     test(_TestArrayCopyTo)
     test(_TestArrayInsert)
+    test(_TestArrayReserveMinAlloc)
     test(_TestArraySlice)
     test(_TestArraySwapElements)
     test(_TestArrayTrim)
@@ -61,6 +64,8 @@ actor \nodoc\ Main is TestList
     test(_TestStringAdd)
     test(_TestStringChop)
     test(_TestStringChopWithPush)
+    test(_TestStringCompactMinAlloc)
+    test(_TestStringCreateMinAlloc)
     test(_TestStringCompare)
     test(_TestStringConcatOffsetLen)
     test(_TestStringContains)
@@ -77,6 +82,7 @@ actor \nodoc\ Main is TestList
     test(_TestStringRemove)
     test(_TestStringRepeatStr)
     test(_TestStringReplace)
+    test(_TestStringReserveMinAlloc)
     test(_TestStringRFind)
     test(_TestStringRstrip)
     test(_TestStringRunes)
@@ -1229,6 +1235,154 @@ class \nodoc\ iso _TestStringTruncate is UnitTest
     h.assert_true(s.is_null_terminated())
     h.assert_eq[USize](3, s.size())
     h.assert_eq[String]("111", s.clone())
+
+class \nodoc\ iso _TestStringReserveMinAlloc is UnitTest
+  """
+  reserve floors a String's capacity at the runtime allocator's minimum block
+  (HEAP_MIN, 32 bytes), so a small reservation does not record a capacity below
+  the block the allocator actually returns.
+  """
+  fun name(): String => "builtin/String.reserve_min_alloc"
+
+  fun apply(h: TestHelper) =>
+    let s = String
+    s.reserve(1)
+    // _alloc is floored to 32. space() is 31 or 32 depending on whether the
+    // (uninitialised) null-terminator byte reads as 0, so bound both sides: the
+    // lower bound catches a missing floor (without it _alloc would be 2), the
+    // upper bound catches over-allocation.
+    h.assert_true(s.space() >= 31)
+    h.assert_true(s.space() <= 32)
+
+class \nodoc\ iso _TestStringCompactMinAlloc is UnitTest
+  """
+  compact floors a String's capacity at the minimum block, shrinks genuine
+  over-allocations, and never grows the allocation.
+  """
+  fun name(): String => "builtin/String.compact_min_alloc"
+
+  fun apply(h: TestHelper) =>
+    // A large over-allocation shrinks toward the block, but not below it.
+    let over = String
+    over.reserve(200)             // _alloc = 256
+    over.append("abc")
+    let over_before = over.space()
+    over.compact()
+    h.assert_true(over.space() < over_before)
+    h.assert_true(over.space() >= 31)
+
+    // Already within the block: compact must not grow.
+    let small = String
+    small.reserve(1)              // _alloc = 32
+    small.append("abc")
+    let small_before = small.space()
+    small.compact()
+    h.assert_true(small.space() <= small_before)
+    h.assert_true(small.space() >= 31)
+
+    // Non-power-of-two _alloc from a middle trim_in_place: compact must not grow
+    // it. Guards the `target < _alloc` guard against regressing to `!=`, which
+    // would grow this case (40 -> 64).
+    let trimmed = String
+    var i: USize = 0
+    while i < 50 do trimmed.push('x'); i = i + 1 end
+    trimmed.trim_in_place(5, 45)  // middle trim leaves _alloc = 40 (not pow2)
+    let trimmed_before = trimmed.space()
+    trimmed.compact()
+    h.assert_true(trimmed.space() <= trimmed_before)
+
+class \nodoc\ iso _TestArrayReserveMinAlloc is UnitTest
+  """
+  reserve floors an Array's capacity at the minimum block (32 bytes). Small
+  element types are raised to fill the block; element types whose existing
+  8-element minimum already meets or exceeds the block are unchanged.
+  """
+  fun name(): String => "builtin/Array.reserve_min_alloc"
+
+  fun apply(h: TestHelper) =>
+    h.assert_eq[USize](32, Array[U8].>reserve(1).space())   // raised 8 -> 32
+    h.assert_eq[USize](16, Array[U16].>reserve(1).space())  // raised 8 -> 16
+    h.assert_eq[USize](8, Array[U32].>reserve(1).space())   // unchanged (= 8)
+    h.assert_eq[USize](8, Array[U64].>reserve(1).space())   // unchanged (4 < 8)
+
+class \nodoc\ iso _TestArrayCompactMinAlloc is UnitTest
+  """
+  compact floors an Array's capacity at the minimum block, shrinks genuine
+  over-allocations, and never grows — including a non-power-of-two capacity left
+  by trim_in_place.
+  """
+  fun name(): String => "builtin/Array.compact_min_alloc"
+
+  fun apply(h: TestHelper) =>
+    // A large over-allocation shrinks to the block, not below it.
+    let over = Array[U8]
+    over.reserve(200)             // _alloc = 256
+    over.push(0)
+    let over_before = over.space()
+    over.compact()
+    h.assert_true(over.space() < over_before)
+    h.assert_eq[USize](32, over.space())
+
+    // Already at the block: compact must not grow.
+    let small = Array[U8]
+    small.reserve(1)              // _alloc = 32
+    small.push(0)
+    h.assert_eq[USize](32, small.space())
+    small.compact()
+    h.assert_eq[USize](32, small.space())
+
+    // Non-power-of-two _alloc from trim_in_place: compact must not grow it.
+    // Guards the `target < _alloc` guard against regressing to `!=`, which would
+    // grow this case (48 -> 64).
+    let trimmed = Array[U8]
+    trimmed.reserve(40)           // _alloc = 64
+    var i: USize = 0
+    while i < 64 do trimmed.push(0); i = i + 1 end
+    trimmed.trim_in_place(16, 64) // _alloc -> 48 (not a power of two), size 48
+    let trimmed_before = trimmed.space()
+    h.assert_eq[USize](48, trimmed_before)
+    trimmed.compact()
+    h.assert_true(trimmed.space() <= trimmed_before)
+
+    // Non-power-of-two _alloc with small content: compact shrinks it to the
+    // block (the shrink branch reached from a non-power-of-two capacity).
+    let shrink = Array[U8]
+    shrink.reserve(200)           // _alloc = 256
+    var j: USize = 0
+    while j < 200 do shrink.push(0); j = j + 1 end
+    shrink.trim_in_place(190, 200) // _alloc -> 66 (not a power of two), size 10
+    h.assert_eq[USize](66, shrink.space())
+    shrink.compact()
+    h.assert_eq[USize](32, shrink.space()) // shrank from 66 to the 32-byte block
+
+class \nodoc\ iso _TestStringCreateMinAlloc is UnitTest
+  """
+  String's size-taking constructor floors capacity at the allocator's minimum
+  block (32 bytes), the same as reserve.
+  """
+  fun name(): String => "builtin/String.create_min_alloc"
+
+  fun apply(h: TestHelper) =>
+    // String(1) allocates a 32-byte block and is null-terminated, so space() is
+    // _alloc - 1 = 31. Without the floor _alloc would be 2, giving space() 1.
+    h.assert_eq[USize](31, String(1).space())
+    // from_utf32 (a fresh copy/encode constructor) floors too.
+    h.assert_eq[USize](31, String.from_utf32('a').space())
+
+class \nodoc\ iso _TestArrayCreateMinAlloc is UnitTest
+  """
+  Array's size-taking constructors (create, init) floor capacity at the minimum
+  block (32 bytes), the same as reserve. An empty array allocates nothing.
+  """
+  fun name(): String => "builtin/Array.create_min_alloc"
+
+  fun apply(h: TestHelper) =>
+    h.assert_eq[USize](32, Array[U8](1).space())          // raised 8 -> 32
+    h.assert_eq[USize](16, Array[U16](1).space())         // raised 8 -> 16
+    h.assert_eq[USize](8, Array[U32](1).space())          // unchanged (= 8)
+    h.assert_eq[USize](8, Array[U64](1).space())          // unchanged (4 < 8)
+    h.assert_eq[USize](32, Array[U8].init(0, 1).space())  // init floors too
+    h.assert_eq[USize](0, Array[U8].space())              // empty: no allocation
 
 class \nodoc\ iso _TestStringChop is UnitTest
   """
