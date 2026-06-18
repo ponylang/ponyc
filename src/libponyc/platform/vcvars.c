@@ -1,6 +1,6 @@
 #include <platform.h>
 #include "../ast/error.h"
-#include "../codegen/codegen.h"
+#include "../pass/pass.h"
 #include "../../libponyrt/mem/pool.h"
 #include <string.h>
 #include <stdlib.h>
@@ -18,6 +18,7 @@ typedef struct vsinfo_t
   char* search_path; // install subdir; must have trailing '\\' if present
   char* bin_path;    // bin subdir; must have trailing '\\'
   char* lib_path;    // lib subdir; must NOT have trailing '\\'
+  char* include_path;// include subdir (sibling of lib_path); no trailing '\\'
 } vsinfo_t;
 
 static const vsinfo_t vs_infos[] =
@@ -25,28 +26,30 @@ static const vsinfo_t vs_infos[] =
 #ifdef _M_ARM64
   { // VS2022 full install & Visual C++ Build Tools 2022
     "17.0", "SOFTWARE\\WOW6432Node\\Microsoft\\VisualStudio",
-    "17.0", "VC\\Tools\\MSVC\\", "bin\\Hostarm64\\arm64\\", "lib\\arm64"
+    "17.0", "VC\\Tools\\MSVC\\", "bin\\Hostarm64\\arm64\\", "lib\\arm64",
+    "include"
   },
 #elif defined(_M_X64)
   { // VS2017 full install & Visual C++ Build Tools 2017
     "15.0", "SOFTWARE\\WOW6432Node\\Microsoft\\VisualStudio\\SxS\\VS7",
-    "15.0", "VC\\Tools\\MSVC\\", "bin\\HostX64\\x64\\", "lib\\x64"
+    "15.0", "VC\\Tools\\MSVC\\", "bin\\HostX64\\x64\\", "lib\\x64", "include"
   },
   { // VS2017 full install & Visual C++ Build Tools 2017
     "15.0", "SOFTWARE\\WOW6432Node\\Microsoft\\VisualStudio\\SxS\\VS7",
-    "15.0", "VC\\Tools\\MSVC\\", "bin\\HostX64\\x64\\", "lib\\x64"
+    "15.0", "VC\\Tools\\MSVC\\", "bin\\HostX64\\x64\\", "lib\\x64", "include"
   },
   { // VS2015 full install
     "14.0", "SOFTWARE\\WOW6432Node\\Microsoft\\VisualStudio\\SxS\\VS7",
-    "14.0", NULL, "VC\\bin\\amd64\\", "VC\\lib\\amd64"
+    "14.0", NULL, "VC\\bin\\amd64\\", "VC\\lib\\amd64", "VC\\include"
   },
   { // Visual C++ Build Tools 2015
     "14.0", "SOFTWARE\\WOW6432Node\\Microsoft\\VisualStudio\\SxS\\VC7",
-    "14.0", NULL, "bin\\amd64\\", "lib\\amd64"
+    "14.0", NULL, "bin\\amd64\\", "lib\\amd64", "include"
   },
   { // VS2015 fallback
     "14.0", "SOFTWARE\\WOW6432Node\\Microsoft\\VisualStudio\\14.0",
-    "InstallDir", NULL, "..\\..\\VC\\bin\\amd64\\", "..\\..\\VC\\lib\\amd64"
+    "InstallDir", NULL, "..\\..\\VC\\bin\\amd64\\", "..\\..\\VC\\lib\\amd64",
+    "..\\..\\VC\\include"
   },
 #endif
   {
@@ -257,6 +260,24 @@ static bool find_kernel32(vcvars_t* vcvars, errors_t* errors)
     }
 
     strcpy(vcvars->ucrt, vcvars->kernel32);
+
+    // The SDK include dirs are siblings of these lib dirs: Include\<ver>
+    // instead of Lib\<ver>, and with no arch subdir. kernel32 is currently
+    // "<sdk>Lib\<ver>"; the .0-adjusted <ver> is its tail, which the arch
+    // suffixes below (\um\x64 onto kernel32, \ucrt\x64 onto ucrt) append
+    // onto — so read it here, before those strcats, and build the include
+    // dirs the C-shim compile (gencshim) needs to resolve <stdio.h>, <windows.h>.
+    {
+      const char* sdk_ver = vcvars->kernel32 + strlen(sdk.path)
+        + strlen("Lib\\");
+      snprintf(vcvars->ucrt_include, MAX_PATH, "%sInclude\\%s\\ucrt",
+        sdk.path, sdk_ver);
+      snprintf(vcvars->shared_include, MAX_PATH, "%sInclude\\%s\\shared",
+        sdk.path, sdk_ver);
+      snprintf(vcvars->um_include, MAX_PATH, "%sInclude\\%s\\um",
+        sdk.path, sdk_ver);
+    }
+
 #ifdef _M_ARM64
     strcat(vcvars->ucrt, "\\ucrt\\ARM64");
 #elif defined(_M_X64)
@@ -336,11 +357,76 @@ static bool find_executable(const char* path, const char* name,
   return false;
 }
 
-static bool find_executables(compile_t *c, const vsinfo_t *info, vcvars_t *vcvars,
-  TCHAR *install_path, TCHAR *link_path, TCHAR *lib_path, errors_t *errors)
+#include <winver.h>
+// version.lib provides the GetFileVersionInfo* / VerQueryValue APIs used to
+// read cl.exe's version below. The pragma keeps the dependency local to this
+// Windows-only TU rather than threading it through the build files.
+#pragma comment(lib, "version.lib")
+
+// Read cl.exe's file version (e.g. "19.50.35727") into dest, for
+// -fms-compatibility-version so a C shim's _MSC_VER matches the toolchain.
+// Mirrors clang's getMSVCVersionFromExe. Leaves dest empty on any failure;
+// gencshim supplies a default version in that case.
+static void read_cl_version(const char* cl_path, char* dest, size_t dest_len)
+{
+  dest[0] = '\0';
+
+  DWORD handle = 0;
+  DWORD size = GetFileVersionInfoSize(cl_path, &handle);
+  if(size == 0)
+    return;
+
+  void* data = ponyint_pool_alloc_size(size);
+
+  // GetFileVersionInfo ignores its dwHandle arg, and GetFileVersionInfoSize
+  // already zeroed `handle`; passing it through is documented-harmless.
+  if(GetFileVersionInfo(cl_path, handle, size, data))
+  {
+    VS_FIXEDFILEINFO* ffi = NULL;
+    UINT ffi_len = 0;
+
+    if(VerQueryValue(data, "\\", (LPVOID*)&ffi, &ffi_len) && (ffi != NULL))
+    {
+      unsigned major = HIWORD(ffi->dwFileVersionMS);
+      unsigned minor = LOWORD(ffi->dwFileVersionMS);
+      unsigned build = HIWORD(ffi->dwFileVersionLS);
+      snprintf(dest, dest_len, "%u.%u.%u", major, minor, build);
+    }
+  }
+
+  ponyint_pool_free_size(size, data);
+}
+
+// cl.exe sits beside the link.exe vcvars just found; record its version.
+static void record_cl_version(vcvars_t* vcvars)
+{
+  // Empty unless cl.exe is read successfully, so vcvars_t's "empty if cl.exe
+  // couldn't be read" contract holds even if the caller didn't zero the
+  // struct and the basename lookup below fails (read_cl_version, which also
+  // zeroes, isn't reached then).
+  vcvars->msvc_version[0] = '\0';
+
+  char cl_path[MAX_PATH];
+  strncpy(cl_path, vcvars->link, MAX_PATH - 1);
+  cl_path[MAX_PATH - 1] = '\0';
+
+  char* slash = strrchr(cl_path, '\\');
+
+  if(slash != NULL)
+  {
+    // vcvars->link ends in "link.exe"; "cl.exe" is shorter, so this fits.
+    strcpy(slash + 1, "cl.exe");
+    read_cl_version(cl_path, vcvars->msvc_version,
+      sizeof(vcvars->msvc_version));
+  }
+}
+
+static bool find_executables(pass_opt_t* opt, const vsinfo_t *info,
+  vcvars_t *vcvars, TCHAR *install_path, TCHAR *link_path, TCHAR *lib_path,
+  errors_t *errors)
 {
   strncat(install_path, info->search_path, MAX_PATH - strlen(install_path));
-  if(c->opt->verbosity >= VERBOSITY_TOOL_INFO)
+  if(opt->verbosity >= VERBOSITY_TOOL_INFO)
     fprintf(stderr, "searching for %s .. \\%s and \\%s\n",
       install_path, link_path, lib_path);
 
@@ -354,13 +440,22 @@ static bool find_executables(compile_t *c, const vsinfo_t *info, vcvars_t *vcvar
     {
       strncpy(vcvars->msvcrt, install_path, MAX_PATH);
       strncat(vcvars->msvcrt, info->lib_path,
-        MAX_PATH - strlen(vcvars->msvcrt));
+        MAX_PATH - strlen(vcvars->msvcrt) - 1);
 
-      if(c->opt->verbosity >= VERBOSITY_TOOL_INFO)
+      // The MSVC include dir is the sibling of the lib dir under the same
+      // toolset base (install_path), with no arch subdir.
+      strncpy(vcvars->msvc_include, install_path, MAX_PATH);
+      strncat(vcvars->msvc_include, info->include_path,
+        MAX_PATH - strlen(vcvars->msvc_include) - 1);
+
+      record_cl_version(vcvars);
+
+      if(opt->verbosity >= VERBOSITY_TOOL_INFO)
       {
         fprintf(stderr, "linker:  %s\n", vcvars->link);
         fprintf(stderr, "libtool: %s\n", vcvars->ar);
         fprintf(stderr, "libdir:  %s\n", vcvars->msvcrt);
+        fprintf(stderr, "incdir:  %s\n", vcvars->msvc_include);
       }
 
       return true;
@@ -372,7 +467,7 @@ static bool find_executables(compile_t *c, const vsinfo_t *info, vcvars_t *vcvar
 static const TCHAR* VSWHERE_PATH =
   "\"\"%ProgramFiles(x86)%\\Microsoft Visual Studio\\Installer\\vswhere.exe\" -prerelease -products *\"";
 
-static bool find_msvcrt_and_linker(compile_t *c, vcvars_t* vcvars,
+static bool find_msvcrt_and_linker(pass_opt_t* opt, vcvars_t* vcvars,
   errors_t *errors)
 {
   TCHAR link_path[MAX_PATH + 1];
@@ -380,7 +475,7 @@ static bool find_msvcrt_and_linker(compile_t *c, vcvars_t* vcvars,
   const vsinfo_t* info;
 
   // try using vswhere to find Visual Studio
-  if (c->opt->verbosity >= VERBOSITY_TOOL_INFO)
+  if (opt->verbosity >= VERBOSITY_TOOL_INFO)
     fprintf(stderr, "detecting Visual Studio via %s\n", VSWHERE_PATH);
 
   TCHAR buffer[MAX_PATH * 2];
@@ -408,7 +503,7 @@ static bool find_msvcrt_and_linker(compile_t *c, vcvars_t* vcvars,
         strncpy(lib_path, vs_infos[0].bin_path, MAX_PATH);
         strncat(lib_path, "lib.exe", MAX_PATH - strlen(lib_path));
 
-        if (find_executables(c, &vs_infos[0], vcvars, buffer + 18, link_path,
+        if (find_executables(opt, &vs_infos[0], vcvars, buffer + 18, link_path,
           lib_path, errors))
         {
           _pclose(output);
@@ -423,7 +518,7 @@ static bool find_msvcrt_and_linker(compile_t *c, vcvars_t* vcvars,
   search_t vs;
   for (info = vs_infos; info->version != NULL; info++)
   {
-    if (c->opt->verbosity >= VERBOSITY_TOOL_INFO)
+    if (opt->verbosity >= VERBOSITY_TOOL_INFO)
       fprintf(stderr, "searching for VS in registry: %s\\%s\n",
         info->reg_path, info->reg_key);
 
@@ -438,7 +533,7 @@ static bool find_msvcrt_and_linker(compile_t *c, vcvars_t* vcvars,
     // VS2017 may have multiple VC++ installs; search for the latest one
     if (info->search_path != NULL)
     {
-      if (find_executables(c, info, vcvars, vs.path, link_path, lib_path,
+      if (find_executables(opt, info, vcvars, vs.path, link_path, lib_path,
         errors))
       {
         return true;
@@ -453,13 +548,20 @@ static bool find_msvcrt_and_linker(compile_t *c, vcvars_t* vcvars,
 
         strncpy(vcvars->msvcrt, vs.path, MAX_PATH);
         strncat(vcvars->msvcrt, info->lib_path,
-          MAX_PATH - strlen(vcvars->msvcrt));
+          MAX_PATH - strlen(vcvars->msvcrt) - 1);
 
-        if(c->opt->verbosity >= VERBOSITY_TOOL_INFO)
+        strncpy(vcvars->msvc_include, vs.path, MAX_PATH);
+        strncat(vcvars->msvc_include, info->include_path,
+          MAX_PATH - strlen(vcvars->msvc_include) - 1);
+
+        record_cl_version(vcvars);
+
+        if(opt->verbosity >= VERBOSITY_TOOL_INFO)
         {
           fprintf(stderr, "linker:  %s\n", vcvars->link);
           fprintf(stderr, "libtool: %s\n", vcvars->ar);
           fprintf(stderr, "libdir:  %s\n", vcvars->msvcrt);
+          fprintf(stderr, "incdir:  %s\n", vcvars->msvc_include);
         }
 
         return true;
@@ -472,14 +574,33 @@ static bool find_msvcrt_and_linker(compile_t *c, vcvars_t* vcvars,
   return false;
 }
 
-bool vcvars_get(compile_t *c, vcvars_t* vcvars, errors_t* errors)
+bool vcvars_get(pass_opt_t* opt, vcvars_t* vcvars, errors_t* errors)
 {
+  // The MSVC + Windows SDK toolchain doesn't change within a process, and
+  // discovery isn't free (a vswhere spawn + registry walk + cl.exe version
+  // read). Both consumers call this once per compile — the COFF linker
+  // (genexe) for the lib dirs and the C-shim compiler (gencshim) for the include
+  // dirs — so without caching a shimful Windows build discovers twice. ponyc
+  // compiles sequentially, so a single process-wide cache is safe (the same
+  // memoization find_macos_sdk_include uses in gencshim.cc). Only successes are
+  // cached; a discovery failure is reported afresh each time it's asked for.
+  static vcvars_t cache;
+  static bool cached = false;
+
+  if(cached)
+  {
+    memcpy(vcvars, &cache, sizeof(vcvars_t));
+    return true;
+  }
+
   if(!find_kernel32(vcvars, errors))
     return false;
 
-  if(!find_msvcrt_and_linker(c, vcvars, errors))
+  if(!find_msvcrt_and_linker(opt, vcvars, errors))
     return false;
 
+  memcpy(&cache, vcvars, sizeof(vcvars_t));
+  cached = true;
   return true;
 }
 

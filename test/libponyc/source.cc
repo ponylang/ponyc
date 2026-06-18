@@ -126,7 +126,7 @@ TEST_F(SourceTest, DirectoryOnlyPackageHasNoSourceFiles)
     "  new create(env: Env) => None";
 
   const char* errs[] =
-    { "no source files in package", "can't load package", NULL };
+    { "no Pony source files in package", "can't load package", NULL };
   DO(test_expected_errors(src, "scope", errs));
 }
 

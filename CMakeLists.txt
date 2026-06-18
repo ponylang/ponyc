@@ -26,6 +26,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 if(NOT PONY_CROSS_LIBPONYRT)
     find_package(LLVM REQUIRED CONFIG PATHS "build/libs/lib/cmake/llvm" "build/libs/lib64/cmake/llvm" NO_DEFAULT_PATH)
     find_package(LLD REQUIRED CONFIG PATHS "build/libs/lib/cmake/lld" "build/libs/lib64/cmake/lld" NO_DEFAULT_PATH)
+    find_package(Clang REQUIRED CONFIG PATHS "build/libs/lib/cmake/clang" "build/libs/lib64/cmake/clang" NO_DEFAULT_PATH)
     find_package(GTest REQUIRED CONFIG PATHS "build/libs/lib/cmake/GTest" "build/libs/lib64/cmake/GTest" NO_DEFAULT_PATH)
     find_package(benchmark REQUIRED CONFIG PATHS "build/libs/lib/cmake/benchmark" "build/libs/lib64/cmake/benchmark" NO_DEFAULT_PATH)
 endif()
@@ -450,6 +451,27 @@ if(NOT PONY_CROSS_LIBPONYRT)
     # message("PONYC_LLVM_LIBS: ${PONYC_LLVM_LIBS}")
 
     set(PONYC_LLD_LIBS lldELF lldMachO lldCOFF lldWasm lldMinGW lldCommon)
+
+    # Imported targets exported by ClangConfig.cmake (found above). Each target
+    # carries its transitive clang/LLVM dependencies, so this list only needs
+    # the components gencshim uses directly: the frontend driving an in-process
+    # compile (CompilerInstance/CompilerInvocation) and object emission
+    # (EmitObjAction), plus the layers they sit on.
+    set(PONYC_CLANG_LIBS
+        clangFrontend
+        clangCodeGen
+        clangDriver
+        clangParse
+        clangSema
+        clangAnalysis
+        clangAST
+        clangLex
+        clangBasic
+        clangSerialization
+        clangEdit
+        clangSupport
+    )
+
     set(PONYC_SELFHOSTED_TOOL_PATH_ARGS "")
 
     if(NOT MSVC)
@@ -594,6 +616,32 @@ else()
         DESTINATION lib)
     install(DIRECTORY packages/ DESTINATION packages)
     install(DIRECTORY examples/ DESTINATION examples PATTERN .gitignore EXCLUDE)
+    # Clang's resource directory (builtin headers such as stddef.h), built by
+    # the libs step alongside LLVM/LLD. ponyc's in-process clang needs it at a
+    # known offset from the binary (lib/clang/<ver>/include, like the bundled
+    # packages/ dir). The Makefile install target carries it on Linux/macOS;
+    # this rule covers cmake-driven installs (Windows make.ps1). OPTIONAL so
+    # an LLD-only libs build (e.g. an older cached build/libs) doesn't fail.
+    install(DIRECTORY build/libs/lib/clang DESTINATION lib OPTIONAL)
+    # ponyc's own runtime headers, so a C shim can #include <pony.h>. gencshim puts
+    # <prefix>/include on the shim include path (add_pony_include_args); the
+    # Makefile install target ships these on Linux/macOS, this rule covers the
+    # cmake-driven (Windows) install. Layout must match what gencshim expects:
+    # pony.h at include/, atomics at include/pony/detail/.
+    install(FILES src/libponyrt/pony.h DESTINATION include)
+    install(FILES src/common/pony/detail/atomics.h
+        DESTINATION include/pony/detail)
+    # platform.h's closure, so a C shim can also #include <ponyassert.h>. These
+    # are internal headers shipped as a convenience; only pony.h is a stable
+    # interface (see the release notes). vcvars.h is in the closure on Windows
+    # (platform.h includes it); the Makefile install omits it on Linux/macOS.
+    install(FILES
+        src/common/ponyassert.h
+        src/common/platform.h
+        src/common/threads.h
+        src/common/paths.h
+        src/common/vcvars.h
+        DESTINATION include)
     install(PROGRAMS
         $<TARGET_FILE_DIR:ponyc>/pony-lsp${CMAKE_EXECUTABLE_SUFFIX}
         DESTINATION bin)

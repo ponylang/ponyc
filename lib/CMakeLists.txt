@@ -50,7 +50,7 @@ ExternalProject_Add(googletest
 find_package(Git)
 
 set(LLVM_DESIRED_HASH "fc4aad7b5db3fff421df9a9637605b9ca5667881")
-set(PATCHES_DESIRED_HASH "13b39b2de75d035854176945a7877997ad3e37ec8f90eb28ca743713f06f78a3")
+set(PATCHES_DESIRED_HASH "49d865c5ab194d7b59781e8e99c68e1b8bc8b27e0cdaa0d1b498c5474e7ed060")
 
 if(GIT_FOUND)
     if(EXISTS "${PROJECT_SOURCE_DIR}/../.git")
@@ -198,6 +198,26 @@ if(${CMAKE_HOST_SYSTEM_NAME} MATCHES "Darwin")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -stdlib=libc++ -mmacosx-version-min=10.14")
 endif()
 
-set(LLVM_ENABLE_PROJECTS "lld" CACHE STRING "ponyc: build LLD as an LLVM sub-project")
+set(LLVM_ENABLE_PROJECTS "lld;clang" CACHE STRING "ponyc: build LLD and clang as LLVM sub-projects")
+
+# ponyc consumes clang as a set of static libraries (gencshim's in-process shim
+# compiles) plus the resource headers, so skip the clang driver binary and
+# the other tool executables (verified: ~0.8G less in the install). The
+# resource headers (clang-resource-headers) are part of the library build
+# and unaffected. Note the analyzer archives and the libclang dylibs are
+# library components that build regardless; CLANG_ENABLE_STATIC_ANALYZER
+# only stops the (not-built) driver from wiring the analyzer in.
+set(CLANG_BUILD_TOOLS OFF CACHE BOOL "ponyc specific override of clang cache entry")
+set(CLANG_ENABLE_STATIC_ANALYZER OFF CACHE BOOL "ponyc specific override of clang cache entry")
+
+# clang-fuzzer is clang's libFuzzer harness; ponyc never uses it. Its
+# handle-llvm object library (clangHandleLLVM) reaches into LLVM internals and
+# has a fragile build dependency on a generated header (TargetLibraryInfo.inc)
+# that races under parallel builds -- it broke the OpenBSD libs build, whose
+# -j4 timing lost the race while every other platform happened to win it.
+# add_clang_subdirectory gates each tool on a CLANG_TOOL_<NAME>_BUILD option
+# (AddLLVM.cmake's add_llvm_subdirectory), so turning this off skips the whole
+# clang-fuzzer subtree on every platform.
+set(CLANG_TOOL_CLANG_FUZZER_BUILD OFF CACHE BOOL "ponyc: skip the unused clang-fuzzer subtree")
 
 add_subdirectory(llvm/src/llvm)

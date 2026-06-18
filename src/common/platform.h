@@ -213,7 +213,17 @@
 // printf-like functions a no-op for Visual Studio.
 // That way, the known semantics of __attribute__(...)
 // remains clear and no wrapper needs to be used.
-#  define __attribute__(X)
+// clang targeting MSVC also defines _MSC_VER (so PLATFORM_IS_VISUAL_STUDIO),
+// but it DOES support __attribute__, and its own intrinsic headers — e.g.
+// mmintrin.h, pulled in via <intrin.h> below — rely on
+// __attribute__((vector_size)). Stripping it there breaks them, so only do
+// this for cl.exe. This is what lets the embedded clang compile this header
+// for a C shim on Windows when a shim pulls it in (e.g. via <ponyassert.h>),
+// in a build tree or an installed tree (the install ships platform.h's header
+// closure for shims, as unstable internal headers).
+#  if !defined(__clang__)
+#    define __attribute__(X)
+#  endif
 #  define __zu "%Iu"
 #  define strdup _strdup
 
