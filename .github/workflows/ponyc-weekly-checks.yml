@@ -112,6 +112,58 @@ jobs:
           topic: ${{ github.repository }} scheduled job failure
           content: ${{ github.server_url}}/${{ github.repository }}/actions/runs/${{ github.run_id }} failed.
 
+  coverage:
+    needs: check-for-changes
+    if: needs.check-for-changes.outputs.has-changes == 'true'
+    runs-on: ubuntu-latest
+
+    # use=coverage takes a different runtime path per toolchain: clang's
+    # -fprofile-instr-generate (libclang_rt.profile / .profraw) and gcc's
+    # -fprofile-arcs (libgcov / .gcda). The embedded LLD link splices each in (see
+    # genexe.cc + the top-level CMakeLists.txt), so exercise both compilers.
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - image: ghcr.io/ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu24.04-builder:20250115
+            cc: clang
+            cxx: clang++
+          - image: ghcr.io/ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu24.04-builder:20250115
+            cc: gcc
+            cxx: g++
+
+    name: use coverage (${{ matrix.cc }})
+    container:
+      image: ${{ matrix.image }}
+      options: --user pony --cap-add=SYS_PTRACE --security-opt seccomp=unconfined
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6.0.2
+        with:
+          ref: ${{ inputs.ref || github.sha }}
+      - name: Build libs
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          LIBS_IMAGE: ${{ matrix.image }}
+          LIBS_TAG: ${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
+        run: python3 .ci-scripts/libs-cache/resolve_libs_cache.py --branch-cache --image "$LIBS_IMAGE" --tag "$LIBS_TAG" -- make libs llvm_tools=false build_flags=-j4
+      - name: Coverage smoke test
+        env:
+          CC: ${{ matrix.cc }}
+          CXX: ${{ matrix.cxx }}
+        run: sh .ci-scripts/linux-coverage-smoke.sh
+      - name: Send alert on failure
+        if: ${{ failure() }}
+        uses: zulip/github-actions-zulip/send-message@bd8ec52de371d139ae8313661b7d8318c19266aa
+        with:
+          api-key: ${{ secrets.ZULIP_SCHEDULED_JOB_FAILURE_API_KEY }}
+          email: ${{ secrets.ZULIP_SCHEDULED_JOB_FAILURE_EMAIL }}
+          organization-url: 'https://ponylang.zulipchat.com/'
+          to: notifications
+          type: stream
+          topic: ${{ github.repository }} scheduled job failure
+          content: ${{ github.server_url}}/${{ github.repository }}/actions/runs/${{ github.run_id }} failed.
+
   with_sanitizers:
     needs: check-for-changes
     if: needs.check-for-changes.outputs.has-changes == 'true'

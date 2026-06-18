@@ -292,6 +292,10 @@ jobs:
           sh .ci-scripts/freebsd-sanitizer-smoke.sh
           # use=dtrace smoke test — see the script for details.
           sh .ci-scripts/freebsd-dtrace-smoke.sh
+          # use=coverage smoke test — see the script for details. Runs last; it
+          # does the same clean+reconfigure of the debug build as the smokes
+          # above.
+          sh .ci-scripts/freebsd-coverage-smoke.sh
           EOF
       - name: Shutdown VM
         if: always()
@@ -438,9 +442,9 @@ jobs:
           gmake configure config=release
           gmake build config=release
           gmake test-ci-core config=release
-          # gcc coverage link smoke test (#5434) — see the script for details. It
-          # does a clean + reconfigure of the debug build with use=coverage, so it
-          # runs last, after the release tests that depend on the prior builds.
+          # gcc use=coverage smoke test — see the script for details. It does a
+          # clean + reconfigure of the debug build with use=coverage, so it runs
+          # last, after the release tests that depend on the prior builds.
           sh .ci-scripts/dragonfly-coverage-smoke.sh
           EOF
       - name: Shutdown VM
