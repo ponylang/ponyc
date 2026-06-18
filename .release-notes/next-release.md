@@ -318,3 +318,7 @@ Building a small `String` or `Array` incrementally — appending or pushing thro
 
 A side effect is that `space()` may report a larger capacity than before for a small collection; the extra capacity is memory the allocator had already reserved, so a program's memory use is unchanged.
 
+## Fix linking of Pony programs on 32-bit ARM Linux
+
+Pony programs failed to link on 32-bit ARM Linux systems, such as a Raspberry Pi running a 32-bit OS. They now build and run correctly.
+
