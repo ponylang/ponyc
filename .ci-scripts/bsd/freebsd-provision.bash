@@ -88,7 +88,7 @@ expect {
   "su: Sorry" { puts "su failed - wrong password or nuageinit didn't set it"; exit 1 }
   timeout { puts "Timeout waiting for root shell"; exit 1 }
 }
-send "pkg install -y cmake gmake libunwind git python3 rsync doas\r"
+send "pkg install -y cmake gmake libunwind git python3 rsync doas valgrind\r"
 expect {
   "#" {}
   timeout { puts "Timeout during pkg install"; exit 1 }

@@ -292,10 +292,23 @@ jobs:
           sh .ci-scripts/freebsd-sanitizer-smoke.sh
           # use=dtrace smoke test — see the script for details.
           sh .ci-scripts/freebsd-dtrace-smoke.sh
-          # use=coverage smoke test — see the script for details. Runs last; it
-          # does the same clean+reconfigure of the debug build as the smokes
-          # above.
+          # use=coverage smoke test — see the script for details. Runs last of
+          # the smokes in this step; it does the same clean+reconfigure of the
+          # debug build as the smokes above. (The use=valgrind smoke runs after,
+          # in its own step, so it can be gated to FreeBSD 14.3.)
           sh .ci-scripts/freebsd-coverage-smoke.sh
+          EOF
+      - name: Valgrind smoke
+        # FreeBSD 14.3 only: Valgrind 3.26 there runs a Pony program to
+        # completion; 15.0 is unverified, so it doesn't gate the matrix. Its own
+        # step so the matrix-version `if` can scope it — the script does its own
+        # clean+configure+build, so it's self-contained.
+        if: matrix.version == '14.3'
+        run: |
+          ssh -o StrictHostKeyChecking=no -i vm_key -p 2222 freebsd@localhost <<'EOF'
+          set -e
+          cd /home/freebsd/ponyc
+          sh .ci-scripts/freebsd-valgrind-smoke.sh
           EOF
       - name: Shutdown VM
         if: always()
