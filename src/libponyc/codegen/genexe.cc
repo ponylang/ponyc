@@ -428,10 +428,31 @@ static const char* dynamic_linker_path(compile_t* c)
   }
 }
 
+// The GNU/Debian-family multiarch architecture component for a target.
+// LLVM spells 32-bit little-endian ARM as the raw triple arch — "armv7l",
+// "armv6", "armv7", etc. — but Debian/Ubuntu/Raspbian multiarch directories
+// (/usr/lib/<tuple>, /usr/lib/gcc/<tuple>/) and GNU cross-toolchain triples
+// normalize all of them to "arm"; the EABI float variant is carried in the
+// environment (gnueabihf vs gnueabi), not the arch. The other architectures
+// this embedded linker supports (see expected_elf_machine: x86_64, aarch64,
+// riscv64, riscv32) already match LLVM's spelling, so fall back to
+// getArchName() there.
+static std::string gnu_multiarch_arch(const llvm::Triple& triple)
+{
+  switch(triple.getArch())
+  {
+    case llvm::Triple::arm:
+    case llvm::Triple::thumb:
+      return "arm";
+    default:
+      return std::string(triple.getArchName());
+  }
+}
+
 static const char* system_triple(compile_t* c)
 {
   llvm::Triple triple(c->opt->triple);
-  std::string result = std::string(triple.getArchName()) + "-"
+  std::string result = gnu_multiarch_arch(triple) + "-"
     + std::string(triple.getOSName()) + "-"
     + std::string(triple.getEnvironmentName());
   return stringtab(c->opt->strtab, result.c_str());
@@ -983,7 +1004,7 @@ static bool link_exe_lld_elf(compile_t* c, ast_t* program,
   // — source from libc_crt_dir. ponyc_crt_dir stays NULL on the BSDs; the
   // libponyrt block below handles that.
   llvm::Triple target_triple(c->opt->triple);
-  std::string arch_prefix = std::string(target_triple.getArchName()) + "-";
+  std::string arch_prefix = gnu_multiarch_arch(target_triple) + "-";
 
   const char* ponyc_crt_dir = NULL;
   const char* compiler_crt_dir;
