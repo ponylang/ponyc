@@ -51,6 +51,23 @@
 #  define PATH_SLASH '/'
 #endif
 
+#ifdef PLATFORM_IS_HAIKU
+// This is the same as the one in genexe.cc. They should be kept in sync.
+#  include <FindDirectory.h>
+static char** get_haiku_path_candidates(const char* arch, path_base_directory base, const char* sub_path, size_t* result_count)
+{
+  char** result = NULL;
+  // We don't use B_FIND_PATH_EXISTING_ONLY or any other flag, because we need to support sysroot overrides.
+  status_t status = find_paths_etc(arch, base, sub_path, 0, &result, result_count);
+  if(status != B_OK || *result_count < 1)
+  {
+    free(result);
+    result = NULL;
+  }
+  return result;
+}
+#endif
+
 
 static bool dir_exists(const char* path)
 {
@@ -459,6 +476,73 @@ static bool add_system_include_args(pass_opt_t* opt, const char* sysroot,
     // with no system headers.
     errorf(errors, NULL, "compiling C shims for a Windows target is only "
       "supported from a Windows host");
+    return false;
+#endif
+  }
+
+  if(target_is_haiku(opt->triple))
+  {
+#ifdef PLATFORM_IS_HAIKU
+  	char buf[PATH_MAX];
+    snprintf(buf, sizeof(buf), "%.*s", strcspn(opt->triple, "-"), opt->triple);
+    size_t path_count = 0;
+    char** candidates = get_haiku_path_candidates(buf, B_FIND_PATH_HEADERS_DIRECTORY, "", &path_count);
+    bool any = false;
+    if(candidates != NULL)
+    {
+      for(size_t i = 0; i < path_count; i++)
+      {
+        bool found = push_isystem(opt, args, errors, "-internal-isystem",
+          sysroot, candidates[i]);
+        any |= found;
+        if(!found)
+          continue;
+
+        snprintf(buf, sizeof(buf), "%s/%s", candidates[i], "os");
+        any |= push_isystem(opt, args, errors, "-internal-isystem",
+          sysroot, buf);
+        snprintf(buf, sizeof(buf), "%s/%s", candidates[i], "posix");
+        any |= push_isystem(opt, args, errors, "-internal-isystem",
+          sysroot, buf);
+        snprintf(buf, sizeof(buf), "%s/%s", candidates[i], "glibc");
+        any |= push_isystem(opt, args, errors, "-internal-isystem",
+          sysroot, buf);
+        snprintf(buf, sizeof(buf), "%s/%s", candidates[i], "gnu");
+        any |= push_isystem(opt, args, errors, "-internal-isystem",
+          sysroot, buf);
+        snprintf(buf, sizeof(buf), "%s/%s", candidates[i], "os/locale");
+        any |= push_isystem(opt, args, errors, "-internal-isystem",
+          sysroot, buf);
+        snprintf(buf, sizeof(buf), "%s/%s", candidates[i], "os/net");
+        any |= push_isystem(opt, args, errors, "-internal-isystem",
+          sysroot, buf);
+        snprintf(buf, sizeof(buf), "%s/%s", candidates[i], "os/kernel");
+        any |= push_isystem(opt, args, errors, "-internal-isystem",
+          sysroot, buf);
+        snprintf(buf, sizeof(buf), "%s/%s", candidates[i], "os/storage");
+        any |= push_isystem(opt, args, errors, "-internal-isystem",
+          sysroot, buf);
+        snprintf(buf, sizeof(buf), "%s/%s", candidates[i], "os/support");
+        any |= push_isystem(opt, args, errors, "-internal-isystem",
+          sysroot, buf);
+      }
+      free(candidates);
+    }
+
+    if(!any)
+    {
+      errorf(errors, NULL, "could not find any C include directories"
+        "that exist; cannot compile C shims");
+      return false;
+    }
+
+    return true;
+#else
+    // Discovery needs the FindDirectory functionality, so a Haiku target can
+    // only get its headers from a Haiku host. Say so rather than compiling
+    // with no system headers.
+    errorf(errors, NULL, "compiling C shims for a Haiku target is only "
+      "supported from a Haiku host");
     return false;
 #endif
   }

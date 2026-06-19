@@ -43,6 +43,7 @@ LLD_HAS_DRIVER(wasm)
 static char** get_haiku_path_candidates(const char* arch, path_base_directory base, const char* sub_path, size_t* result_count)
 {
   char** result = NULL;
+  // We don't use B_FIND_PATH_EXISTING_ONLY or any other flag, because we need to support sysroot overrides.
   status_t status = find_paths_etc(arch, base, sub_path, 0, &result, result_count);
   if(status != B_OK || *result_count < 1)
   {

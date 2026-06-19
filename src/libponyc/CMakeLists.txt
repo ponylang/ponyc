@@ -261,6 +261,7 @@ elseif(${CMAKE_HOST_SYSTEM_NAME} MATCHES "Haiku")
         COMMAND echo "create libponyc-standalone.a" > standalone.mri
         COMMAND find ${PROJECT_SOURCE_DIR}/../../build/libs/ -name "libLLVM*.a" | xargs -I % -n 1 echo 'addlib %' >> standalone.mri
         COMMAND find ${PROJECT_SOURCE_DIR}/../../build/libs/ -name "liblld*.a" | xargs -I % -n 1 echo 'addlib %' >> standalone.mri
+        COMMAND find ${PROJECT_SOURCE_DIR}/../../build/libs/ -name "libclang*.a" | xargs -I % -n 1 echo 'addlib %' >> standalone.mri
         COMMAND echo "addlib $<TARGET_FILE:libponyc>" >> standalone.mri
         COMMAND echo "save" >> standalone.mri
         COMMAND echo "end" >> standalone.mri
