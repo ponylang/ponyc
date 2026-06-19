@@ -8,6 +8,12 @@ The first step is to compile our C code to a shared library. The exact details m
 
 Note that the C source lives in `c-src/` rather than next to the `.pony` file. A `.c` file in a package's directory is compiled by `ponyc` itself as a C shim and linked directly, which would shadow the library this example builds by hand — and this example exists to show linking a prebuilt library. See the `cshim` example for the shim workflow.
 
+### Haiku
+
+```console
+gcc -shared -Wall -Wextra -g -o libffi-callbacks.so c-src/callbacks.c
+```
+
 ### MacOS
 
 ```console
