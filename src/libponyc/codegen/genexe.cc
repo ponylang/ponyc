@@ -333,9 +333,8 @@ static const char* elf_emulation(compile_t* c)
     }
   }
 
-  // Haiku: ponyc supports x86-64 only; explicit NULL for other
-  // arches prevents non-x86 Haiku from falling through to the default
-  // Linux-style switch below.
+  // ponyc supports x86-64 only on Haiku; explicit NULL on other arches
+  // errors cleanly rather than mis-branding.
   if(target_is_haiku(c->opt->triple))
   {
     switch(triple.getArch())
@@ -1188,7 +1187,7 @@ static bool link_exe_lld_elf(compile_t* c, ast_t* program,
       errorf(errors, NULL,
         "could not find GCC runtime directory on Haiku (searched"
         " %s/<B_FIND_PATH_DEVELOP_DIRECTORY>/tools/lib/gcc/<triple>/<ver>/);"
-        "install pkg gcc (e.g. gcc13)",
+        "install gcc package (e.g. pkgman install gcc)",
         sysroot, sysroot);
       return false;
     }
@@ -1205,10 +1204,10 @@ static bool link_exe_lld_elf(compile_t* c, ast_t* program,
     compiler_crt_dir = ponyc_crt_dir;
   }
 
-  // GCC lib dir is optional. On DragonFly the GCC dir is the same as
-  // compiler_crt_dir (found above by find_dragonfly_gcc_lib_dir); the
-  // generic find_gcc_lib_dir's patterns don't match either DragonFly
-  // layout.
+  // GCC lib dir is optional. On DragonFly and Haiku the GCC dir is the
+  // same as compiler_crt_dir (found above by find_dragonfly_gcc_lib_dir);
+  // the generic find_gcc_lib_dir's patterns don't match either DragonFly
+  // nor Haiku layout.
   const char* gcc_lib_dir;
   if(is_dragonfly || is_haiku)
   {
@@ -1368,7 +1367,7 @@ static bool link_exe_lld_elf(compile_t* c, ast_t* program,
     snprintf(buf, sizeof(buf), "%s/crtbegin.o", compiler_crt_dir);
     args.push_back(stringtab(c->opt->strtab, buf));
   }
-  else if(c->opt->staticbin && !is_dragonfly)
+  else if(c->opt->staticbin && !is_dragonfly && !is_haiku)
   {
     snprintf(buf, sizeof(buf), "%s/crtbeginT.o", compiler_crt_dir);
     args.push_back(stringtab(c->opt->strtab, buf));
@@ -1669,10 +1668,10 @@ static bool link_exe_lld_elf(compile_t* c, ast_t* program,
   // Pony runtime.
   if(!c->opt->runtimebc)
   {
-    // FreeBSD and DragonFly ship a single libponyrt.a (PIC-enabled) and no
-    // compiler-rt CRT, so ponyc_crt_dir is NULL on those targets; resolve
-    // -lponyrt via the -L lib paths, with no -pic variant (matching the
-    // external BSD path).
+    // FreeBSD, DragonFly and Haiku ship a single libponyrt.a (PIC-enabled)
+    // and no compiler-rt CRT, so ponyc_crt_dir is NULL on those targets;
+    // resolve -lponyrt via the -L lib paths, with no -pic variant
+    // (matching the external BSD path).
     if(ponyc_crt_dir == NULL)
     {
       args.push_back("-lponyrt");
