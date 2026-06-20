@@ -20,7 +20,7 @@
 #include <stdio.h>
 #endif
 
-#define PONY_SCHED_BLOCK_THRESHOLD 1000000
+#define PONY_SCHED_BLOCK_THRESHOLD 2000000
 
 PONY_EXTERN_C_BEGIN
 
@@ -974,13 +974,13 @@ static pony_actor_t* steal(scheduler_t* sched)
     //    we will have also tried getting work off the ASIO inject queue
     //    multiple times
     // 4. We've been trying to steal for at least PONY_SCHED_BLOCK_THRESHOLD
-    //    cycles (currently 1000000).
+    //    cycles (currently 2000000).
     //    In many work stealing scenarios, we immediately get steal an actor.
     //    Sending a block/unblock pair in that scenario is very wasteful.
     //    Same applies to other "quick" steal scenarios.
-    //    1 million cycles is roughly 1 millisecond, depending on clock speed.
-    //    By waiting 1 millisecond before sending a block message, we are going to
-    //    delay quiescence by a small amount of time but also optimize work
+    //    2 million cycles is roughly 1 millisecond, depending on clock speed.
+    //    By waiting 1 millisecond before sending a block message, we are going
+    //    to delay quiescence by a small amount of time but also optimize work
     //    stealing for generating far fewer block/unblock messages.
     uint32_t current_active_scheduler_count = get_active_scheduler_count();
     uint64_t clocks_elapsed = tsc2 - tsc;
@@ -1675,7 +1675,7 @@ pony_ctx_t* ponyint_sched_init(uint32_t threads, bool noyield, bool pin,
   // convert to cycles for use with ponyint_cpu_tick()
   // 1 second = 2000000000 cycles (approx.)
   // based on same scale as ponyint_cpu_core_pause() uses
-  scheduler_suspend_threshold = (uint64_t)thread_suspend_threshold * 1000000;
+  scheduler_suspend_threshold = (uint64_t)thread_suspend_threshold * 2000000;
 
   scheduler_count = threads;
   min_scheduler_count = min_threads;
