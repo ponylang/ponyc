@@ -28,6 +28,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Fix unnecessary reallocations when building small Strings and Arrays ([PR #5518](https://github.com/ponylang/ponyc/pull/5518))
 - Fix linking of Pony programs on 32-bit ARM Linux ([PR #5526](https://github.com/ponylang/ponyc/pull/5526))
 - Fix scheduler threads suspending after half the configured idle time ([PR #5535](https://github.com/ponylang/ponyc/pull/5535))
+- Fix scheduler timing calculation bugs ([PR #5538](https://github.com/ponylang/ponyc/pull/5538))
 
 ### Added
 
