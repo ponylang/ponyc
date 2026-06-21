@@ -917,6 +917,7 @@ static pony_actor_t* perhaps_suspend_scheduler(
 static pony_actor_t* steal(scheduler_t* sched)
 {
   bool block_sent = false;
+  bool suspend_eligible = false;
   uint32_t steal_attempts = 0;
   uint64_t tsc = ponyint_cpu_tick();
   pony_actor_t* actor;
@@ -985,6 +986,15 @@ static pony_actor_t* steal(scheduler_t* sched)
     uint32_t current_active_scheduler_count = get_active_scheduler_count();
     uint64_t clocks_elapsed = ponyint_cpu_tick_diff(tsc, tsc2);
 
+    // Once we've been trying to steal long enough to be eligible to suspend,
+    // stay eligible. tsc is a fixed baseline taken on entry, so a suspend can
+    // make clocks_elapsed span more than ponyint_cpu_tick()'s wrap period and
+    // read small again; latching keeps an idle scheduler suspending promptly
+    // instead of busy-spinning until the elapsed count grows back past the
+    // threshold.
+    if(clocks_elapsed > scheduler_suspend_threshold)
+      suspend_eligible = true;
+
     if (!block_sent)
     {
       // make sure thread scaling order is still valid. we should never be
@@ -1007,7 +1017,7 @@ static pony_actor_t* steal(scheduler_t* sched)
         }
 
         // only try and suspend if enough time has passed
-        if(clocks_elapsed > scheduler_suspend_threshold)
+        if(suspend_eligible)
         {
           // in case active scheduler count changed
           current_active_scheduler_count = get_active_scheduler_count();
@@ -1030,7 +1040,7 @@ static pony_actor_t* steal(scheduler_t* sched)
       pony_assert(current_active_scheduler_count > (uint32_t)sched->index);
 
       // only try and suspend if enough time has passed
-      if(clocks_elapsed > scheduler_suspend_threshold)
+      if(suspend_eligible)
       {
         actor = perhaps_suspend_scheduler(sched, current_active_scheduler_count,
           &steal_attempts);
@@ -1442,6 +1452,7 @@ static void run_pinned_actors()
 
   pony_actor_t* actor = NULL;
   uint64_t tsc = ponyint_cpu_tick();
+  bool suspend_eligible = false;
 
   while(true)
   {
@@ -1504,9 +1515,16 @@ static void run_pinned_actors()
       uint64_t tsc2 = ponyint_cpu_tick();
       uint64_t clocks_elapsed = ponyint_cpu_tick_diff(tsc, tsc2);
 
+      // Latch suspend-eligibility (see the same pattern in steal()): tsc here is
+      // the last time we did work, so a long idle can make clocks_elapsed span
+      // more than ponyint_cpu_tick()'s wrap period and read small again. The
+      // latch is cleared below when we next do work and reset tsc.
+      if(clocks_elapsed > scheduler_suspend_threshold)
+        suspend_eligible = true;
+
       // We had an empty queue and no actor. need to suspend or sleep only if
       // mutemap is empty as this thread doesn't participate in work stealing
-      if(ponyint_mutemap_size(&sched->mute_mapping) == 0 && clocks_elapsed > scheduler_suspend_threshold)
+      if(ponyint_mutemap_size(&sched->mute_mapping) == 0 && suspend_eligible)
       {
         // suspend
         perhaps_suspend_pinned_actor_scheduler(sched, tsc, tsc2);
@@ -1536,8 +1554,10 @@ static void run_pinned_actors()
       pony_actor_t* next = pop(sched);
 
       // update the last time the scheduler did meaningful work (used for
-      // deciding when to suspend the thread)
+      // deciding when to suspend the thread); this also clears the
+      // suspend-eligibility latch so we wait idle again before suspending
       tsc = ponyint_cpu_tick();
+      suspend_eligible = false;
 
       if(reschedule)
       {
