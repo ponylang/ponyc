@@ -1515,10 +1515,10 @@ static void run_pinned_actors()
       uint64_t tsc2 = ponyint_cpu_tick();
       uint64_t clocks_elapsed = ponyint_cpu_tick_diff(tsc, tsc2);
 
-      // Latch suspend-eligibility (see the same pattern in steal()): tsc here is
-      // the last time we did work, so a long idle can make clocks_elapsed span
-      // more than ponyint_cpu_tick()'s wrap period and read small again. The
-      // latch is cleared below when we next do work and reset tsc.
+      // Latch suspend-eligibility, as in steal(). tsc here is the last time we
+      // did work, so a long idle can make clocks_elapsed span more than
+      // ponyint_cpu_tick()'s wrap period and read small again. The latch is
+      // cleared below when we next do work and reset tsc.
       if(clocks_elapsed > scheduler_suspend_threshold)
         suspend_eligible = true;
 
