@@ -442,7 +442,13 @@ uint64_t ponyint_cpu_tick()
     {
       // The counter is set up to count every 64th cycle
       asm volatile ("mrc p15, 0, %0, c9, c13, 0" : "=r" (pmccntr));
-      return pmccntr << 6;
+      // Widen before shifting: pmccntr is 32 bits, so a bare `pmccntr << 6`
+      // is 32-bit arithmetic and discards the top 6 bits, wrapping every 2^32
+      // cycles. The cast keeps all 38 significant bits (32-bit counter scaled
+      // by 64). This is the only ponyint_cpu_tick() path that wraps within a
+      // process lifetime; PONY_CPU_TICK_BITS below and ponyint_cpu_tick_diff()
+      // depend on this 38-bit width, so keep them in sync with this shift.
+      return ((uint64_t)pmccntr) << 6;
     }
   }
 #   endif
@@ -476,15 +482,55 @@ uint64_t ponyint_cpu_tick()
 #endif
 }
 
-// Some implementations of tick might wrap around because we are doing using
-// `clock_gettime` or similiar because a cycle counter isn't available.
+// Width, in bits, of the value ponyint_cpu_tick() returns. Every path is an
+// effectively non-wrapping 64-bit value (rdtsc, clock_gettime nanoseconds,
+// QueryPerformanceCounter, rdcycle, emscripten) except the AArch32 hardware
+// PMU path, which returns a 32-bit PMCCNTR scaled to 38 bits and wraps every
+// 2^38 cycles (a couple of minutes at GHz clocks). This condition must stay
+// byte-identical to the one guarding the `pmccntr` return in
+// ponyint_cpu_tick(): if it drifts, diffs are masked at the wrong width.
+#if defined PLATFORM_IS_ARM && !defined(__APPLE__) && \
+  !defined(PLATFORM_IS_WINDOWS) && defined ARMV6
+#  define PONY_CPU_TICK_BITS 38
+#else
+#  define PONY_CPU_TICK_BITS 64
+#endif
+
+// Elapsed ticks between two ponyint_cpu_tick() readings, correct across a
+// single wrap of a `bits`-wide counter. For a 64-bit counter the unsigned
+// subtraction is already correct modulo 2^64, so we return it directly (and
+// avoid the undefined `1 << 64`). For a narrower counter we take the result
+// modulo 2^bits, which recovers the true elapsed value as long as it is
+// smaller than 2^bits. A longer interval reads as its value modulo 2^bits; see
+// ponyint_cpu_tick_diff for the one place that happens and why it stays
+// harmless.
+uint64_t ponyint_cpu_tick_diff_bits(uint64_t supposedly_earlier,
+  uint64_t supposedly_later, uint32_t bits)
+{
+  uint64_t raw = supposedly_later - supposedly_earlier;
+
+  if(bits >= 64)
+    return raw;
+
+  return raw & ((UINT64_C(1) << bits) - 1);
+}
+
+// The wrapping cycle counter is the AArch32 PMU path in ponyint_cpu_tick(),
+// not the `clock_gettime` fallback: the nanosecond clock is 64 bits and would
+// take centuries to wrap. On an ARMV6 build either counter may be live at
+// runtime (the PMU value when user-mode access is enabled, otherwise the
+// nanosecond clock), so we mask at the narrower 38-bit width. Nearly every
+// elapsed value the scheduler compares against a threshold is far below 2^38 in
+// its unit, so the mask returns the true value. The exception is the steal
+// loop, which diffs against a baseline taken on entry and can span an
+// arbitrarily long idle/suspend: when that exceeds the wrap period the value
+// read is the true elapsed modulo the counter width. The worst case is a single
+// transient, self-correcting timing decision (a delayed suspend, never an early
+// one, never a correctness error) -- still far better than the raw subtraction
+// this replaces, which misfired on every wrap.
 uint64_t ponyint_cpu_tick_diff(uint64_t supposedly_earlier,
   uint64_t supposedly_later)
 {
-  if (supposedly_earlier == supposedly_later)
-    return 0;
-  else if (supposedly_earlier > supposedly_later)
-    return (UINT64_MAX - supposedly_earlier) + supposedly_later;
-  else
-    return supposedly_later - supposedly_earlier;
+  return ponyint_cpu_tick_diff_bits(supposedly_earlier, supposedly_later,
+    PONY_CPU_TICK_BITS);
 }

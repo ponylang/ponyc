@@ -10,6 +10,8 @@ add_executable(libponyrt.tests
     mem/heap.cc
     mem/pagemap.cc
     mem/pool.cc
+    sched/cpu.cc
+    sched/scheduler.cc
 )
 
 target_include_directories(libponyrt.tests

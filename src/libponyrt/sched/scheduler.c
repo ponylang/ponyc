@@ -62,7 +62,7 @@ static PONY_ATOMIC(bool) scheduler_count_changing;
 static size_t mem_allocated;
 static size_t mem_used;
 static bool print_stats;
-static size_t print_stats_interval;
+static uint64_t print_stats_interval;
 
 void print_scheduler_stats(scheduler_t* sched)
 {
@@ -983,7 +983,7 @@ static pony_actor_t* steal(scheduler_t* sched)
     //    to delay quiescence by a small amount of time but also optimize work
     //    stealing for generating far fewer block/unblock messages.
     uint32_t current_active_scheduler_count = get_active_scheduler_count();
-    uint64_t clocks_elapsed = tsc2 - tsc;
+    uint64_t clocks_elapsed = ponyint_cpu_tick_diff(tsc, tsc2);
 
     if (!block_sent)
     {
@@ -1118,7 +1118,7 @@ uint64_t ponyint_sched_cpu_used(pony_ctx_t* ctx)
   uint64_t last_tsc = ctx->last_tsc;
   uint64_t current_tsc = ponyint_cpu_tick();
   ctx->last_tsc = current_tsc;
-  return current_tsc - last_tsc;
+  return ponyint_cpu_tick_diff(last_tsc, current_tsc);
 }
 #endif
 
@@ -1154,7 +1154,8 @@ static void run(scheduler_t* sched)
       // 1 second = 2000000000 cycles (approx.)
       // based on same scale as ponyint_cpu_core_pause() uses
       uint64_t new_tsc = ponyint_cpu_tick();
-      if((new_tsc - last_stats_print_tsc) > print_stats_interval)
+      if(ponyint_cpu_tick_diff(last_stats_print_tsc, new_tsc) >
+        print_stats_interval)
       {
         last_stats_print_tsc = new_tsc;
         print_scheduler_stats(sched);
@@ -1451,7 +1452,8 @@ static void run_pinned_actors()
       // 1 second = 2000000000 cycles (approx.)
       // based on same scale as ponyint_cpu_core_pause() uses
       uint64_t new_tsc = ponyint_cpu_tick();
-      if((new_tsc - last_stats_print_tsc) > print_stats_interval)
+      if(ponyint_cpu_tick_diff(last_stats_print_tsc, new_tsc) >
+        print_stats_interval)
       {
         last_stats_print_tsc = new_tsc;
         print_scheduler_stats(sched);
@@ -1500,7 +1502,7 @@ static void run_pinned_actors()
     if(actor == NULL)
     {
       uint64_t tsc2 = ponyint_cpu_tick();
-      uint64_t clocks_elapsed = tsc2 - tsc;
+      uint64_t clocks_elapsed = ponyint_cpu_tick_diff(tsc, tsc2);
 
       // We had an empty queue and no actor. need to suspend or sleep only if
       // mutemap is empty as this thread doesn't participate in work stealing
@@ -1630,6 +1632,16 @@ static void ponyint_sched_shutdown()
   ponyint_mpmcq_destroy(&inject);
 }
 
+uint64_t ponyint_sched_stats_interval_cycles(uint32_t interval_seconds)
+{
+  // Compute at 64-bit width so the multiply cannot overflow: an interval of a
+  // few seconds already exceeds 2^32 cycles, and a 32-bit multiply would
+  // truncate it (storing the result in a 32-bit type would too -- hence the
+  // uint64_t print_stats_interval). 1 second is ~2000000000 cycles, the same
+  // approximation the other scheduler timing thresholds use.
+  return (uint64_t)interval_seconds * 2000000000;
+}
+
 pony_ctx_t* ponyint_sched_init(uint32_t threads, bool noyield, bool pin,
   bool pinasio, bool pinpat, uint32_t min_threads, uint32_t thread_suspend_threshold,
   uint32_t stats_interval, bool pin_tracing_thread
@@ -1644,10 +1656,7 @@ pony_ctx_t* ponyint_sched_init(uint32_t threads, bool noyield, bool pin,
 #ifdef USE_RUNTIMESTATS
   if(stats_interval != UINT32_MAX)
   {
-    // convert to cycles for use with ponyint_cpu_tick()
-    // 1 second = 2000000000 cycles (approx.)
-    // based on same scale as ponyint_cpu_core_pause() uses
-    print_stats_interval = stats_interval * 2000000;
+    print_stats_interval = ponyint_sched_stats_interval_cycles(stats_interval);
     print_stats = true;
   }
   else
