@@ -30,6 +30,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Fix scheduler threads suspending after half the configured idle time ([PR #5535](https://github.com/ponylang/ponyc/pull/5535))
 - Fix scheduler timing calculation bugs ([PR #5538](https://github.com/ponylang/ponyc/pull/5538))
 - Fix brief scheduler busy-spin after a long idle on 32-bit ARM ([PR #5539](https://github.com/ponylang/ponyc/pull/5539))
+- Truncate oversized UDP datagrams on Windows instead of dropping them ([PR #5552](https://github.com/ponylang/ponyc/pull/5552))
 
 ### Added
 
