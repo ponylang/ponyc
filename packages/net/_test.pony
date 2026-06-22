@@ -23,7 +23,10 @@ actor \nodoc\ Main is TestList
     // Tests below function across all systems and are listed alphabetically
     test(_TestDNSBroadcastIP4)
     test(_TestDNSBroadcastIP6)
+    test(_TestDNSUnresolvableEmpty)
     test(_TestNetAddressIP6Scope)
+    test(_TestNetAddressNameRoundTripIP4)
+    test(_TestNetAddressNameRoundTripIP6)
     test(_TestOsIpString)
     test(_TestSocketResultDecoder)
     test(_TestTCPConnectionFailed)
@@ -635,6 +638,171 @@ class \nodoc\ iso _TestNetAddressIP6Scope is UnitTest
       h.assert_eq[U32](addr.scope(), 0)
     else
       h.log("::1 unresolvable; skipping")
+    end
+
+class \nodoc\ iso _TestDNSUnresolvableEmpty is UnitTest
+  """
+  An unresolvable host name resolves to an empty array, not an error. The
+  DNS resolvers (`DNS.apply`/`ip4`/`ip6`) are total: `_resolve` returns the
+  addresses `getaddrinfo` reports, and when `getaddrinfo` fails the empty
+  list it started with -- it never raises and never substitutes a sentinel.
+  All three public resolvers share that branch, so all three are pinned.
+
+  The unresolvable name lives in `.invalid`, the RFC 6761 special-use TLD
+  reserved so it never resolves; `getaddrinfo` fails it locally with no
+  network query, deterministically on every platform.
+
+  The positive control (127.0.0.1 resolves) is load-bearing, not decoration:
+  without it a `_resolve` that always returned empty would pass the three
+  size-0 assertions vacuously. The control proves the resolver works, so the
+  empty results mean "this name does not resolve", not "resolution is broken".
+
+  This pins observed behavior; the empty-on-failure contract is not stated in
+  the DNS docstrings. A resolver that hijacks NXDOMAIN (synthesizes an address
+  for names that should not resolve) is out of spec and would break this -- an
+  environment fault, not a regression.
+  """
+  fun name(): String => "net/DNSUnresolvableEmpty"
+
+  fun ref apply(h: TestHelper) =>
+    let auth = DNSAuth(h.env.root)
+
+    // Positive control (anti-vacuity): if the resolver itself were broken,
+    // every name would come back empty and the size-0 pins below would pass
+    // for the wrong reason. 127.0.0.1 must resolve.
+    let control: Array[NetAddress] val = DNS.ip4(auth, "127.0.0.1", "0")
+    h.assert_true(control.size() > 0, "127.0.0.1 control did not resolve")
+
+    let unresolvable = "nonexistent.invalid"
+    let any: Array[NetAddress] val = DNS(auth, unresolvable, "0")
+    h.assert_eq[USize](any.size(), 0, "DNS.apply resolved an .invalid name")
+    let v4: Array[NetAddress] val = DNS.ip4(auth, unresolvable, "0")
+    h.assert_eq[USize](v4.size(), 0, "DNS.ip4 resolved an .invalid name")
+    let v6: Array[NetAddress] val = DNS.ip6(auth, unresolvable, "0")
+    h.assert_eq[USize](v6.size(), 0, "DNS.ip6 resolved an .invalid name")
+
+class \nodoc\ iso _TestNetAddressNameRoundTripIP4 is UnitTest
+  """
+  `NetAddress.name()` with no reverse DNS returns the numeric host and
+  service, and re-resolving them yields the same address. This is the first
+  test to ASSERT `pony_os_nameinfo`'s output -- `name()` already runs
+  unasserted elsewhere in this suite (feeding TCP connects and log lines).
+
+  `name(reversedns = None)` does no `ntoh` in Pony: it calls `pony_os_nameinfo`
+  with NI_NUMERICHOST. So the round trip pins the FFI wiring -- the two `iso`
+  out-pointers (host vs service) and the numeric-host flag -- and the
+  self-consistency of the resolve -> getaddr -> name -> re-resolve pipeline,
+  not a Pony-side byte swap.
+
+  The exact host/service string pins ("127.0.0.1", "12345") catch a swapped
+  host/service out-pointer, which `host_eq` alone would miss. The absolute
+  value pin (`ipv4_addr() == 0x7F000001`) catches a byte mangling that
+  `host_eq` -- comparing two identically marshaled operands -- cannot see. The
+  negative `host_eq` control (against 127.0.0.2) forces the v4 arm to compare
+  `_addr` rather than an always-equal field.
+
+  This claims round-trip FIDELITY, not byte-order coverage (net/DNSBroadcastIP4
+  owns that) and not the `servicename` flag (12345 has no service-name entry,
+  so a numeric service is returned either way). 0x7F000001 and 0x3039 are both
+  byte-order asymmetric, so the fidelity pins have teeth.
+  """
+  fun name(): String => "net/NetAddressNameRoundTripIP4"
+
+  fun ref apply(h: TestHelper) =>
+    let auth = DNSAuth(h.env.root)
+    try
+      let resolved: Array[NetAddress] val = DNS.ip4(auth, "127.0.0.1", "12345")
+      let orig = resolved(0)?
+      (let host, let serv) = orig.name()?
+      h.assert_eq[String](host, "127.0.0.1")
+      h.assert_eq[String](serv, "12345")
+
+      let reresolved: Array[NetAddress] val = DNS.ip4(auth, host, serv)
+      let again = reresolved(0)?
+      h.assert_true(orig.host_eq(again))
+      h.assert_eq[U32](again.ipv4_addr(), 0x7F00_0001)
+      h.assert_eq[U16](again.port(), 12345)
+      h.assert_true(again.ip4())
+      h.assert_false(again.ip6())
+
+      // Negative control: a different host must NOT be host_eq, forcing the
+      // v4 arm to compare _addr rather than an always-equal field.
+      let different: Array[NetAddress] val = DNS.ip4(auth, "127.0.0.2", "0")
+      h.assert_false(orig.host_eq(different(0)?))
+    else
+      h.fail("IPv4 name() round trip errored")
+    end
+
+class \nodoc\ iso _TestNetAddressNameRoundTripIP6 is UnitTest
+  """
+  IPv6 analogue of net/NetAddressNameRoundTripIP4: resolve ::1, round-trip it
+  through `name()` (numeric host) and re-resolution, and assert the same
+  address comes back. Pins the IPv6 arm of `pony_os_nameinfo`'s marshaling and
+  `host_eq`.
+
+  The gate uses `DNS.apply` (family 0), NOT `DNS.ip6`: an ip6 gate would skip
+  vacuously if family-2 routing regressed, hiding the very bug this test pins
+  -- net/DNSBroadcastIP6 makes the same family-0 choice for the same reason. A
+  plain size check suffices here (where DNSBroadcastIP6 scans for an ip6()
+  entry) because a numeric IPv6 literal can never resolve to an IPv4 address,
+  so a non-empty family-0 result for ::1 always carries the v6 address. Once
+  the gate passes, an empty ip6 result in the body is a real failure, not a
+  skip.
+
+  ::1 only exercises the last address word asymmetrically (the high words are
+  zero, byte-swap palindromes); full four-word byte-order proof lives in
+  net/DNSBroadcastIP6 and net/MulticastIP6. This test's job is the name()
+  round trip and the v6 `host_eq` arm, which the negative control (::2 must not
+  be host_eq ::1) forces to actually discriminate. The exact host pin "::1"
+  assumes loopback's zero scope id: getnameinfo appends a "%zone" suffix only
+  for a non-zero scope, which loopback does not carry, so a scoped ::1 would be
+  an environment anomaly.
+
+  Gate: on linux an unresolvable ::1 means no usable IPv6 (glibc docker CI) --
+  a logged vacuous pass; elsewhere it is a failure. Which legs run the strict
+  body is an environment fact and can drift with CI images (see
+  net/DNSBroadcastIP6).
+  """
+  fun name(): String => "net/NetAddressNameRoundTripIP6"
+
+  fun ref apply(h: TestHelper) =>
+    let auth = DNSAuth(h.env.root)
+
+    let gate: Array[NetAddress] val = DNS(auth, "::1", "0")
+    if gate.size() == 0 then
+      ifdef linux then
+        h.log("no usable IPv6 (::1 unresolvable); skipping")
+      else
+        h.fail("::1 did not resolve to an IPv6 address")
+      end
+      return
+    end
+
+    try
+      let resolved: Array[NetAddress] val = DNS.ip6(auth, "::1", "12345")
+      let orig = resolved(0)?
+      (let host, let serv) = orig.name()?
+      h.assert_eq[String](host, "::1")
+      h.assert_eq[String](serv, "12345")
+
+      let reresolved: Array[NetAddress] val = DNS.ip6(auth, host, serv)
+      let again = reresolved(0)?
+      h.assert_true(orig.host_eq(again))
+      (let w1, let w2, let w3, let w4) = again.ipv6_addr()
+      h.assert_eq[U32](w1, 0)
+      h.assert_eq[U32](w2, 0)
+      h.assert_eq[U32](w3, 0)
+      h.assert_eq[U32](w4, 1)
+      h.assert_eq[U16](again.port(), 12345)
+      h.assert_true(again.ip6())
+      h.assert_false(again.ip4())
+
+      // Negative control: ::2 must NOT be host_eq ::1, forcing the v6 arm to
+      // discriminate rather than compare an always-equal field.
+      let different: Array[NetAddress] val = DNS.ip6(auth, "::2", "0")
+      h.assert_false(orig.host_eq(different(0)?))
+    else
+      h.fail("IPv6 name() round trip errored after a successful gate")
     end
 
 class \nodoc\ _TestMulticastIP6Notify is UDPNotify
