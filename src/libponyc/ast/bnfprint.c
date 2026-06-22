@@ -12,7 +12,11 @@
  * readable and ANTLR file form. This is intended as a form of documentation,
  * as well as allowing us to use ANTLR to check for grammar errors (such as
  * ambiguities). Since the printed grammar is generated from the actual parse
- * macros we are guaranteed that it is accurate and up to date.
+ * macros it stays up to date with them. It can however be an over-
+ * approximation of the accepted language: a macro may enforce a constraint at
+ * parse time that has no grammar form (e.g. SEQ_STOP_AFTER_CHILD stops a repetition
+ * once a particular statement is seen, which the generated `*` does not
+ * express), so the grammar may admit input the parser rejects.
  *
  * We generate a BNF tree structure from the parser source. To do this we
  * define an alternative set of the parse macros defined in parserapi.h, and
@@ -838,6 +842,18 @@ static void bnf_mark_used_rules(bnf_t* tree)
 #define SEQ(desc, ...)  \
   { \
     static const char* const tokens[] = { FOREACH(STRINGIFY, __VA_ARGS__) NULL }; \
+    bnf_t* p = bnf_add(bnf_create(BNF_REPEAT), parent); \
+    p = bnf_add(bnf_create(BNF_OR), p); \
+    bnf_rule_set(p, tokens); \
+  }
+
+// The runtime terminator-token stop has no grammar analogue; render as the
+// repetition of the two rules (the trailing token args are not part of the
+// grammar).
+#define SEQ_STOP_AFTER_CHILD(desc, rule1, rule2, ...)  \
+  { \
+    static const char* const tokens[] = \
+      { STRINGIFY(rule1) STRINGIFY(rule2) NULL }; \
     bnf_t* p = bnf_add(bnf_create(BNF_REPEAT), parent); \
     p = bnf_add(bnf_create(BNF_OR), p); \
     bnf_rule_set(p, tokens); \
