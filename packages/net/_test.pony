@@ -2,6 +2,11 @@ use "files"
 use "pony_test"
 use "time"
 
+// if_indextoname/if_nametoindex live in iphlpapi on Windows (ws2_32, which
+// the runtime already links, does not export them); the multicast tests call
+// them. Other platforms provide them in libc.
+use "lib:iphlpapi" if windows
+
 use @pony_os_ip_string[Pointer[U8]](src: Pointer[U8] tag, len: I32)
 use @if_indextoname[Pointer[U8]](ifindex: U32, ifname: Pointer[U8] tag)
 use @if_nametoindex[U32](ifname: Pointer[U8] tag)
@@ -59,8 +64,8 @@ actor \nodoc\ Main is TestList
       test(_TestUDPUndersizedDatagramDelivered)
     end
 
-    // Tests below run only on linux and freebsd
-    ifdef linux or freebsd then
+    // Tests below run only on linux, freebsd, and windows
+    ifdef linux or freebsd or windows then
       // macOS, DragonFly, and OpenBSD: the lo0 multicast send fails in
       // the GitHub Actions CI environment (socket closed before
       // delivery); see _TestMulticastIP6's docstring.
@@ -857,12 +862,26 @@ class \nodoc\ _TestMulticastIP6Notify is UDPNotify
       _h.assert_eq[U32](a3, 0x7788_99AA)
       _h.assert_eq[U32](a4, 0xBBCC_DDEE)
       // Exact pin: scope() returns sin6_scope_id in host byte order -- the
-      // interface index the zone resolved to -- so it must equal
-      // if_nametoindex of the zone name carried by _group. A reintroduced
-      // ntohl on scope() would byte-swap this and fail here.
+      // interface index the zone resolved to -- so it must equal the index
+      // the zone names. linux/freebsd carry an interface NAME in the zone,
+      // mapped to its index via if_nametoindex; windows carries the numeric
+      // index directly (Windows getaddrinfo resolves only a numeric zone, not
+      // an interface name), so the expected index is the zone parsed as a
+      // U32. A reintroduced ntohl on scope() would byte-swap this and fail
+      // here on every platform.
       let zone: String val =
         _group.substring(try _group.find("%")? + 1 else 0 end)
-      _h.assert_eq[U32](dest.scope(), @if_nametoindex(zone.cstring()))
+      let expected_scope =
+        ifdef windows then
+          // zone is a pure-numeric index by construction (see
+          // _windows_loopback_index); a parse error is unreachable and, if it
+          // somehow fired, propagates to this try's else as a loud failure
+          // rather than a masked default.
+          zone.u32()?
+        else
+          @if_nametoindex(zone.cstring())
+        end
+      _h.assert_eq[U32](dest.scope(), expected_scope)
 
       _expected = "mc6:" + port.string()
       sock.write(_expected, dest)
@@ -912,11 +931,14 @@ class \nodoc\ _TestMulticastIP6Notify is UDPNotify
       ifdef linux then
         // Environmental absorber: on the musl CI leg (and routeless hosts)
         // the multicast send fails ENETUNREACH and the runtime closes the
-        // socket. Vacuous on this leg BY DESIGN; the send path stays
-        // strict on FreeBSD (weekly tier-3) and on multicast-capable
-        // dev machines. complete(true) finishes
-        // immediately, without waiting for the outstanding "multicast
-        // receive" action.
+        // socket. Vacuous on this leg BY DESIGN. Gated on linux: the send
+        // path stays strict everywhere else it runs -- FreeBSD (weekly
+        // tier-3), Windows (per-PR CI; the loopback adapter is always
+        // present and its multicast loopback is kernel-local, so there is
+        // nothing environmental to absorb and a pre-delivery close falls to
+        // the strict else below), and multicast-capable dev machines.
+        // complete(true) finishes immediately, without waiting for the
+        // outstanding "multicast receive" action.
         _h.log("socket closed before delivery; treating as environmental" +
           " (no IPv6 multicast route)")
         _h.complete(true)
@@ -948,7 +970,13 @@ class \nodoc\ iso _TestMulticastIP6 is UnitTest
   coverage flaky. On Linux the loopback interface has no MULTICAST flag,
   so a real interface is scanned for; on FreeBSD lo0 is multicast-capable
   and used directly (verified by tier-3 CI: the full strict round trip
-  delivers there). macOS, DragonFly, and OpenBSD are excluded at
+  delivers there). Windows is like FreeBSD in that its loopback is
+  multicast-capable and delivers, but with a twist: Windows getaddrinfo
+  resolves only a numeric zone, not an interface name, so the scoped
+  literal carries the loopback's interface index (found by name via
+  if_indextoname, then embedded as a number) rather than its name, and the
+  scope pin in the notify compares against that numeric index instead of
+  if_nametoindex. macOS, DragonFly, and OpenBSD are excluded at
   registration: lo0 advertises MULTICAST on all three, yet in the GitHub
   Actions CI environment the send to the group via lo0 fails identically
   on each (socket closed before delivery; PR #5475's first macOS and
@@ -958,13 +986,15 @@ class \nodoc\ iso _TestMulticastIP6 is UnitTest
   IPv6 at all (glibc docker CI); no candidate interface; scoped-literal
   resolution failure. After the gates, failures are real failures --
   except a pre-delivery socket close on linux, which is the musl docker
-  leg's ENETUNREACH (see the notify's closed()). No per-PR CI leg runs
-  the full strict round trip (Linux gates or absorbs as above; Windows,
-  macOS, DragonFly, and OpenBSD are excluded), so strict delivery
-  enforcement lives on the weekly tier-3 FreeBSD legs and on
-  multicast-capable dev machines; which legs run strict is an
-  environment fact and can drift with CI images (see the drift note in
-  net/DNSBroadcastIP6).
+  leg's ENETUNREACH (see the notify's closed()). The Windows per-PR CI leg
+  runs the full strict round trip: loopback multicast is kernel-local, so
+  the gate conditions above don't arise, the gates' vacuous-pass branch is
+  linux-only anyway, and there is no absorber -- a gate condition or a
+  non-delivery on Windows is a real failure. On Linux the per-PR legs gate
+  or absorb as above, so Linux strict enforcement lives on
+  multicast-capable dev machines, and FreeBSD runs strict on the weekly
+  tier-3 legs. Which legs run strict is an environment fact and can drift
+  with CI images (see the drift note in net/DNSBroadcastIP6).
 
   Counterfactual protocol: confirm the "mc6 delivered on" marker appears
   (--verbose) BEFORE trusting any mutation run -- a mutation "timeout"
@@ -1042,9 +1072,22 @@ class \nodoc\ iso _TestMulticastIP6 is UnitTest
       | let name': String => group + "%" + name'
       | None => None
       end
+    elseif windows then
+      // The Windows loopback adapter is multicast-capable and delivers IPv6
+      // multicast loopback (unlike Linux lo), so it is used directly. But
+      // Windows getaddrinfo resolves only a NUMERIC zone, not an interface
+      // name (verified: "<group>%loopback_0" fails host-not-found while
+      // "<group>%1" resolves), so the scoped literal carries the loopback's
+      // interface index, not its name. The index is discovered by name via
+      // if_indextoname rather than hardcoded, so it does not assume the
+      // loopback is index 1.
+      match _windows_loopback_index()
+      | let idx: U32 => group + "%" + idx.string()
+      | None => None
+      end
     else
-      // Never registered elsewhere (windows, osx, dragonfly, and
-      // openbsd are excluded at registration).
+      // Never registered elsewhere (osx, dragonfly, and openbsd are
+      // excluded at registration).
       None
     end
 
@@ -1059,28 +1102,61 @@ class \nodoc\ iso _TestMulticastIP6 is UnitTest
     """
     var i: U32 = 1
     while i <= 64 do
-      let name' = recover val
-        // if_indextoname requires a buffer of at least IF_NAMESIZE (16)
-        // bytes and returns NULL when the index names no interface.
-        let buf = Array[U8] .> undefined(16)
-        if @if_indextoname(i, buf.cpointer()).is_null() then
-          ""
-        else
-          var len: USize = 0
-          for b in buf.values() do
-            if b == 0 then break end
-            len = len + 1
-          end
-          buf.truncate(len)
-          String .> append(buf)
-        end
-      end
+      let name' = _if_name(i)
       if (name' != "") and (name' != "lo") then
         return name'
       end
       i = i + 1
     end
     None
+
+  fun _windows_loopback_index(): (U32 | None) =>
+    """
+    The interface index of the Windows loopback adapter, found by scanning
+    if_indextoname indices 1..64 for the name "loopback_0" (Windows' loopback
+    naming convention), or None if no such interface is found. The index --
+    not the name -- is what callers want, because Windows getaddrinfo resolves
+    only a numeric zone. Scanning rather than hardcoding 1 avoids assuming the
+    loopback's index; a miss returns None and is failed upstream (windows has
+    no closed() absorber), so a naming surprise on a CI image surfaces loudly
+    rather than passing vacuously.
+    """
+    var i: U32 = 1
+    while i <= 64 do
+      // Exact match, not a prefix: a Windows host can expose more than one
+      // "loopback"-prefixed pseudo-interface (e.g. a secondary "loopback_1"),
+      // and only the primary "loopback_0" is the delivering loopback. A prefix
+      // match could bind a non-delivering one if it enumerated at a lower
+      // index.
+      if _if_name(i) == "loopback_0" then
+        return i
+      end
+      i = i + 1
+    end
+    None
+
+  fun _if_name(i: U32): String val =>
+    """
+    The interface name at if_indextoname index `i`, or "" when the index
+    names no interface. Shared by _linux_interface and
+    _windows_loopback_index, which differ only in how they match the name.
+    """
+    recover val
+      // if_indextoname requires a buffer of at least IF_NAMESIZE (16)
+      // bytes and returns NULL when the index names no interface.
+      let buf = Array[U8] .> undefined(16)
+      if @if_indextoname(i, buf.cpointer()).is_null() then
+        ""
+      else
+        var len: USize = 0
+        for b in buf.values() do
+          if b == 0 then break end
+          len = len + 1
+        end
+        buf.truncate(len)
+        String .> append(buf)
+      end
+    end
 
 class \nodoc\ _TestMulticastIP4Notify is UDPNotify
   let _h: TestHelper
