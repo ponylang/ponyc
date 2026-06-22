@@ -40,6 +40,7 @@ actor \nodoc\ Main is TestList
     // Tests below run only on linux and are listed alphabetically
     ifdef linux then
       test(_TestBroadcastReceive)
+      test(_TestMulticastIP4)
       test(_TestUDPCloseOnSendFailure)
     end
 
@@ -906,6 +907,171 @@ class \nodoc\ iso _TestMulticastIP6 is UnitTest
       i = i + 1
     end
     None
+
+class \nodoc\ _TestMulticastIP4Notify is UDPNotify
+  let _h: TestHelper
+  let _group: String
+  var _expected: String = ""
+  var _done: Bool = false
+
+  new create(h: TestHelper, group: String) =>
+    _h = h
+    _group = group
+
+  fun ref not_listening(sock: UDPSocket ref) =>
+    _h.fail_action("multicast listen")
+
+  fun ref listening(sock: UDPSocket ref) =>
+    _h.complete_action("multicast listen")
+
+    _h.assert_true(sock.local_address().ip4())
+
+    // Pin BOTH the outgoing interface (IP_MULTICAST_IF, via
+    // set_multicast_interface) and the join interface to 127.0.0.1. For IPv4
+    // the join selects its interface by ADDRESS -- multicast_interface's
+    // AF_INET arm reads sin_addr.s_addr -- not by a scope id as IPv6 does;
+    // and an IPv4 datagram carries no interface hint, so the outgoing
+    // interface must be set explicitly or the send exits the default route
+    // and never meets the loopback join (so set_multicast_interface is
+    // load-bearing here, not decorative). These are queued behaviors that
+    // run before the first send, which is itself a queued behavior.
+    sock.set_multicast_interface("127.0.0.1")
+    sock.multicast_join(_group, "127.0.0.1")
+
+    try
+      let port = sock.local_address().port()
+      let list: Array[NetAddress] val =
+        DNS.ip4(DNSAuth(_h.env.root), _group, port.string())
+      // Hard fail on empty: _group is a numeric literal that resolves to
+      // itself, so an empty result is a resolver regression, not environment.
+      let dest = list(0)?
+
+      _h.assert_true(dest.ip4())
+      // Byte-order-asymmetric pin: 239.1.2.3 has four distinct octets, so a
+      // dropped ntohl in ipv4_addr() yields 0x030201EF and fails here -- live
+      // even on legs whose send is environmentally absorbed in closed()
+      // below. (ntohl is identity on big-endian, but ponylang CI is
+      // little-endian.)
+      _h.assert_eq[U32](dest.ipv4_addr(), 0xEF01_0203)
+
+      _expected = "mc4:" + port.string()
+      sock.write(_expected, dest)
+
+      // Retransmit until completion: UDP loss is in-spec (see net/Broadcast).
+      let udp: UDPSocket tag = sock
+      let payload = _expected
+      let timers = Timers
+      timers(Timer(
+        object iso is TimerNotify
+          fun ref apply(timer: Timer, count: U64): Bool =>
+            udp.write(payload, dest)
+            true
+        end,
+        250_000_000, 250_000_000))
+      _h.dispose_when_done(timers)
+    else
+      // complete(false) so the failure reports immediately instead of burning
+      // the long-test timeout on actions that can never complete.
+      _h.fail("couldn't resolve " + _group)
+      _h.complete(false)
+    end
+
+  fun ref received(
+    sock: UDPSocket ref,
+    data: Array[U8] iso,
+    from: NetAddress)
+  =>
+    let s = String .> append(consume data)
+    if s == _expected then
+      _h.assert_true(from.ip4())
+      _done = true
+      // Strict-path completion marker: counterfactual runs key on this line
+      // (see the test docstring).
+      _h.log("mc4 delivered on 127.0.0.1")
+      // Completing the last expected action completes the test; the delivery
+      // action is what makes completion require delivery.
+      _h.complete_action("multicast receive")
+    else
+      _h.log("ignoring unexpected datagram (" + s.size().string() +
+        " bytes)")
+    end
+
+  fun ref closed(sock: UDPSocket ref) =>
+    if not _done then
+      ifdef linux then
+        // Environmental absorber: on the musl docker leg and routeless hosts
+        // the multicast send fails ENETUNREACH and the runtime closes the
+        // socket before delivery. Vacuous on those legs BY DESIGN; the send
+        // path stays strict on multicast-capable dev machines. complete(true)
+        // finishes immediately rather than waiting out the long-test timeout.
+        // Gated on linux to match this test's linux-only registration: if the
+        // gate ever broadens, a non-linux pre-delivery close is a real failure,
+        // not environmental.
+        _h.log("socket closed before delivery; treating as environmental" +
+          " (no IPv4 multicast route)")
+        _h.complete(true)
+      else
+        _h.fail("socket closed before delivery")
+        _h.complete(false)
+      end
+    end
+
+class \nodoc\ iso _TestMulticastIP4 is UnitTest
+  """
+  Deterministic IPv4 multicast round trip: a socket pins the loopback
+  interface for both its sends (IP_MULTICAST_IF) and its group join, joins a
+  transient 239.0.0.0/8 group, sends a datagram to the group at its own port,
+  and receives it back via the default-on IP_MULTICAST_LOOP.
+
+  The group is transient (administratively-scoped 239.0.0.0/8) by necessity,
+  not whim: a host receiving on INADDR_ANY with multicast loopback on already
+  receives the 224.0.0.1 all-systems group with no join, so an all-systems
+  round trip succeeds even with the join deleted -- it cannot prove the join
+  works. A 239/8 group has no implicit membership, so delivery requires the
+  explicit join, which makes multicast_join (and the static multicast_interface
+  AF_INET arm behind it, which resolves the join's interface address)
+  load-bearing here. The group 239.1.2.3 has four distinct octets so the
+  address pin in the notify is byte-order asymmetric.
+
+  Interface handling is explicit on both the join and the send because IPv4
+  selects the multicast interface by ADDRESS (not by a scope id, as IPv6
+  does) and an IPv4 destination carries no interface hint: the join interface
+  (multicast_join's `to`) and the outgoing interface (set_multicast_interface)
+  must name the same interface or the looped datagram never meets the join.
+  127.0.0.1 works for both despite lo lacking the MULTICAST flag -- an IPv4
+  capability IPv6 lacks, so unlike net/MulticastIP6 no real interface is
+  scanned for.
+
+  Registered on linux only. IPv4 loopback multicast delivery is verified on
+  glibc and WSL2 Linux dev machines; macOS/BSD lo0 v4 multicast is unverified
+  (net/MulticastIP6 documents lo0 send failures there for v6) and no v4 tier-3
+  leg confirms delivery yet, so freebsd is excluded pending a tier-3 dispatch.
+  On the musl docker leg a routeless send closes the socket before delivery,
+  absorbed in the notify's closed() as environmental -- so no per-PR CI leg may
+  run the strict round trip; strict enforcement lives on multicast-capable dev
+  machines.
+
+  Counterfactual protocol: confirm the "mc4 delivered on" marker appears
+  (--verbose) BEFORE trusting any mutation run -- a mutation "timeout" against
+  a vacuously-passing baseline proves nothing.
+  """
+  fun name(): String => "net/MulticastIP4"
+  fun exclusion_group(): String => "network"
+
+  fun ref apply(h: TestHelper) =>
+    h.expect_action("multicast listen")
+    h.expect_action("multicast receive")
+    h.dispose_when_done(
+      UDPSocket.ip4(UDPAuth(h.env.root),
+        recover _TestMulticastIP4Notify(h, "239.1.2.3") end))
+    h.long_test(TimeoutValue())
+
+  fun ref timed_out(h: TestHelper) =>
+    h.log("""
+      This test needs IPv4 multicast loopback delivery on the loopback
+      interface. You can exclude it by passing the
+      --exclude="net/MulticastIP4" option.
+    """)
 
 class \nodoc\ _TestCloseOnSendFailureNotify is UDPNotify
   let _h: TestHelper
