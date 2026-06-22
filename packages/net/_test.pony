@@ -50,6 +50,8 @@ actor \nodoc\ Main is TestList
     ifdef not windows then
       test(_TestTCPConnectionToClosedServerFailed)
       test(_TestTCPThrottle)
+      test(_TestUDPOversizedDatagramTruncated)
+      test(_TestUDPUndersizedDatagramDelivered)
     end
 
     // Tests below run only on linux and freebsd
@@ -1349,6 +1351,178 @@ class \nodoc\ iso _TestUnicastIP6Loopback is UnitTest
       UDPSocket.ip6(UDPAuth(h.env.root),
         recover _TestUnicastIP6Receiver(h) end,
         "::1"))
+
+    h.long_test(TimeoutValue())
+
+primitive \nodoc\ _AscendingBytes
+  fun apply(n: USize): Array[U8] val =>
+    """
+    A `val` array of `n` bytes where byte `i` holds `i.u8()`, so for `n <= 256`
+    every byte is distinct. The truncation tests send and expect this content
+    so the delivered prefix is checked position by position: a wrong-offset,
+    reordered, duplicated, or stale-memory delivery would not match, where an
+    all-identical payload could pass on length alone.
+    """
+    recover val
+      let a = Array[U8](n)
+      var i: USize = 0
+      while i < n do
+        a.push(i.u8())
+        i = i + 1
+      end
+      a
+    end
+
+class \nodoc\ _TestUDPReadBufferReceiver is UDPNotify
+  let _h: TestHelper
+  let _expected: Array[U8] val
+  let _payload: Array[U8] val
+
+  new create(h: TestHelper, expected: Array[U8] val, payload: Array[U8] val) =>
+    _h = h
+    _expected = expected
+    _payload = payload
+
+  fun ref not_listening(sock: UDPSocket ref) =>
+    _h.fail_action("receiver listen")
+
+  fun ref listening(sock: UDPSocket ref) =>
+    _h.complete_action("receiver listen")
+
+    // The sender binds loopback and aims at our bound ephemeral port, so the
+    // only datagrams that reach us are the ones it sends; a payload mismatch
+    // is our bug, not a stray datagram (as in net/UnicastIP6Loopback).
+    let h = _h
+    _h.dispose_when_done(
+      UDPSocket.ip4(UDPAuth(h.env.root),
+        recover _TestUDPReadBufferSender(h, sock.local_address(), _payload) end,
+        "127.0.0.1"))
+
+  fun ref received(
+    sock: UDPSocket ref,
+    data: Array[U8] iso,
+    from: NetAddress)
+  =>
+    let got: Array[U8] = consume data
+    // Exact length, then exact byte content. The length check is a fail-fast
+    // diagnostic -- assert_array_eq also compares sizes, but a bare size
+    // mismatch reads more clearly than an element diff. Compared as Array[U8]
+    // rather than String because the payload includes 0x00 and other
+    // non-printable bytes.
+    _h.assert_eq[USize](got.size(), _expected.size())
+    _h.assert_array_eq[U8](_expected, got)
+    _h.complete_action("receive")
+
+class \nodoc\ _TestUDPReadBufferSender is UDPNotify
+  let _h: TestHelper
+  let _dest: NetAddress
+  let _payload: Array[U8] val
+
+  new create(h: TestHelper, dest: NetAddress, payload: Array[U8] val) =>
+    _h = h
+    _dest = dest
+    _payload = payload
+
+  fun ref not_listening(sock: UDPSocket ref) =>
+    _h.fail_action("sender listen")
+
+  fun ref listening(sock: UDPSocket ref) =>
+    _h.complete_action("sender listen")
+
+    sock.write(_payload, _dest)
+
+    // Retransmit until completion: UDP loss is in-spec (see net/Broadcast).
+    let udp: UDPSocket tag = sock
+    let dest = _dest
+    let payload = _payload
+    let timers = Timers
+    timers(Timer(
+      object iso is TimerNotify
+        fun ref apply(timer: Timer, count: U64): Bool =>
+          udp.write(payload, dest)
+          true
+      end,
+      250_000_000, 250_000_000))
+    _h.dispose_when_done(timers)
+
+  fun ref received(
+    sock: UDPSocket ref,
+    data: Array[U8] iso,
+    from: NetAddress)
+  =>
+    None
+
+class \nodoc\ iso _TestUDPOversizedDatagramTruncated is UnitTest
+  """
+  A datagram larger than the receiver's read buffer is delivered to `received`
+  truncated to exactly the buffer size, holding the payload's first `size`
+  bytes; the excess is silently discarded.
+
+  The receiver's buffer `size` is an explicit 64 -- a power of two at or above
+  the array allocator's minimum, so the backing array's `space()` is exactly
+  64 and the buffer is unambiguously 64 bytes. The sender transmits a 200-byte
+  datagram of ascending bytes, so the delivered prefix is asserted position by
+  position against `[0, 1, ..., 63]`, not merely by length.
+
+  POSIX only. On POSIX the truncation is `recvfrom` called without `MSG_TRUNC`
+  discarding the excess (src/libponyrt/lang/socket.c `pony_os_recvfrom`). On
+  Windows an oversized datagram completes the IOCP read with `WSAEMSGSIZE`,
+  which UDPSocket surfaces as a zero-byte read rather than a first-N-bytes
+  truncation; that path behaves differently and needs its own test on Windows.
+  """
+  fun name(): String => "net/UDPOversizedDatagramTruncated"
+  fun exclusion_group(): String => "network"
+
+  fun ref apply(h: TestHelper) =>
+    h.expect_action("receiver listen")
+    h.expect_action("sender listen")
+    h.expect_action("receive")
+
+    // Buffer 64, payload 200: delivered = min(64, 200) = 64, the first 64
+    // bytes of the payload.
+    h.dispose_when_done(
+      UDPSocket.ip4(UDPAuth(h.env.root),
+        recover
+          _TestUDPReadBufferReceiver(h, _AscendingBytes(64),
+            _AscendingBytes(200))
+        end,
+        "127.0.0.1", "0", 64))
+
+    h.long_test(TimeoutValue())
+
+class \nodoc\ iso _TestUDPUndersizedDatagramDelivered is UnitTest
+  """
+  A datagram smaller than the receiver's read buffer is delivered whole, with
+  no truncation and no trailing buffer bytes. This is the companion to
+  net/UDPOversizedDatagramTruncated: together they pin the receive contract
+  that a datagram is delivered as its first `min(size, length)` bytes.
+
+  Where the oversized case leaves `UDPSocket._pending_reads`' `truncate(count)`
+  a no-op (the buffer is full, so `count` equals the buffer size), here `count`
+  (20) is below the buffer's 64, so `truncate(count)` does the shrinking.
+  Without it the receiver would hand back the full 64-byte buffer with 44 bytes
+  of uninitialized memory; the length assertion (64 != 20) catches that.
+
+  POSIX only, gated with its sibling: it exercises the same POSIX receive path
+  (`_pending_reads`), while the Windows IOCP receive path (`_complete_reads`)
+  is a separate, deferred concern.
+  """
+  fun name(): String => "net/UDPUndersizedDatagramDelivered"
+  fun exclusion_group(): String => "network"
+
+  fun ref apply(h: TestHelper) =>
+    h.expect_action("receiver listen")
+    h.expect_action("sender listen")
+    h.expect_action("receive")
+
+    // Buffer 64, payload 20: delivered = min(64, 20) = 20, the whole payload.
+    h.dispose_when_done(
+      UDPSocket.ip4(UDPAuth(h.env.root),
+        recover
+          _TestUDPReadBufferReceiver(h, _AscendingBytes(20),
+            _AscendingBytes(20))
+        end,
+        "127.0.0.1", "0", 64))
 
     h.long_test(TimeoutValue())
 
