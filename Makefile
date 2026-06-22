@@ -473,10 +473,10 @@ install: build
 	$(SILENT)if [ -f $(outDir)/pony-doc ]; then cp $(outDir)/pony-doc $(ponydir)/bin; fi
 	$(SILENT)cp src/libponyrt/pony.h $(ponydir)/include
 	$(SILENT)cp src/common/pony/detail/atomics.h $(ponydir)/include/pony/detail
-	# platform.h's closure, so a C shim can also #include <ponyassert.h>. These
-	# are internal headers shipped as a convenience; only pony.h is a stable
-	# interface (see the release notes). vcvars.h is Windows-only, shipped by
-	# the cmake install, not here.
+# platform.h's closure, so a C shim can also #include <ponyassert.h>. These
+# are internal headers shipped as a convenience; only pony.h is a stable
+# interface (see the release notes). vcvars.h is Windows-only, shipped by
+# the cmake install, not here.
 	$(SILENT)cp src/common/ponyassert.h $(ponydir)/include
 	$(SILENT)cp src/common/platform.h $(ponydir)/include
 	$(SILENT)cp src/common/threads.h $(ponydir)/include
