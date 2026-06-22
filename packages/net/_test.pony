@@ -64,6 +64,12 @@ actor \nodoc\ Main is TestList
       test(_TestUDPUndersizedDatagramDelivered)
     end
 
+    // Tests below run only on windows and are listed alphabetically
+    ifdef windows then
+      test(_TestUDPOversizedDatagramTruncatedWindows)
+      test(_TestUDPUndersizedDatagramDeliveredWindows)
+    end
+
     // Tests below run only on linux, freebsd, and windows
     ifdef linux or freebsd or windows then
       // macOS, DragonFly, and OpenBSD: the lo0 multicast send fails in
@@ -1723,10 +1729,10 @@ class \nodoc\ iso _TestUDPOversizedDatagramTruncated is UnitTest
   position against `[0, 1, ..., 63]`, not merely by length.
 
   POSIX only. On POSIX the truncation is `recvfrom` called without `MSG_TRUNC`
-  discarding the excess (src/libponyrt/lang/socket.c `pony_os_recvfrom`). On
-  Windows an oversized datagram completes the IOCP read with `WSAEMSGSIZE`,
-  which UDPSocket surfaces as a zero-byte read rather than a first-N-bytes
-  truncation; that path behaves differently and needs its own test on Windows.
+  discarding the excess (src/libponyrt/lang/socket.c `pony_os_recvfrom`). The
+  Windows IOCP receive path delivers the same prefix contract by a different
+  mechanism and is pinned separately by
+  net/UDPOversizedDatagramTruncatedWindows.
   """
   fun name(): String => "net/UDPOversizedDatagramTruncated"
   fun exclusion_group(): String => "network"
@@ -1761,9 +1767,9 @@ class \nodoc\ iso _TestUDPUndersizedDatagramDelivered is UnitTest
   Without it the receiver would hand back the full 64-byte buffer with 44 bytes
   of uninitialized memory; the length assertion (64 != 20) catches that.
 
-  POSIX only, gated with its sibling: it exercises the same POSIX receive path
+  POSIX only, gated with its sibling: it exercises the POSIX receive path
   (`_pending_reads`), while the Windows IOCP receive path (`_complete_reads`)
-  is a separate, deferred concern.
+  is pinned by net/UDPUndersizedDatagramDeliveredWindows.
   """
   fun name(): String => "net/UDPUndersizedDatagramDelivered"
   fun exclusion_group(): String => "network"
@@ -1774,6 +1780,88 @@ class \nodoc\ iso _TestUDPUndersizedDatagramDelivered is UnitTest
     h.expect_action("receive")
 
     // Buffer 64, payload 20: delivered = min(64, 20) = 20, the whole payload.
+    h.dispose_when_done(
+      UDPSocket.ip4(UDPAuth(h.env.root),
+        recover
+          _TestUDPReadBufferReceiver(h, _AscendingBytes(20),
+            _AscendingBytes(20))
+        end,
+        "127.0.0.1", "0", 64))
+
+    h.long_test(TimeoutValue())
+
+class \nodoc\ iso _TestUDPOversizedDatagramTruncatedWindows is UnitTest
+  """
+  A datagram larger than the receiver's read buffer is delivered to `received`
+  truncated to the buffer's first `size` bytes -- the same contract
+  net/UDPOversizedDatagramTruncated pins on POSIX, here on the Windows IOCP
+  receive path (UDPSocket._complete_reads). The receiver's buffer is an
+  explicit 64 and the sender transmits a 200-byte datagram of ascending bytes,
+  so the delivered prefix is asserted position by position against
+  `[0, 1, ..., 63]`.
+
+  On Windows an oversized datagram completes the IOCP read with the NTSTATUS
+  STATUS_BUFFER_OVERFLOW carrying the count copied into the buffer (its first
+  bytes); src/libponyrt/lang/socket.c `iocp_callback` dispatches that count so
+  `_complete_reads` delivers the truncated prefix. Before the #5551 fix the
+  IOCP_RECV arm dispatched zero bytes for that completion, so `_complete_reads`
+  delivered an empty array and the whole datagram was lost rather than
+  truncated.
+
+  Windows only (net/UDPOversizedDatagramTruncated covers the POSIX
+  `pony_os_recvfrom` path).
+  """
+  fun name(): String => "net/UDPOversizedDatagramTruncatedWindows"
+  fun exclusion_group(): String => "network"
+
+  fun ref apply(h: TestHelper) =>
+    h.expect_action("receiver listen")
+    h.expect_action("sender listen")
+    h.expect_action("receive")
+
+    // Buffer 64, payload 200: delivered = min(64, 200) = 64, the first 64
+    // bytes of the payload (matching POSIX). See the docstring and #5551.
+    h.dispose_when_done(
+      UDPSocket.ip4(UDPAuth(h.env.root),
+        recover
+          _TestUDPReadBufferReceiver(h, _AscendingBytes(64),
+            _AscendingBytes(200))
+        end,
+        "127.0.0.1", "0", 64))
+
+    h.long_test(TimeoutValue())
+
+class \nodoc\ iso _TestUDPUndersizedDatagramDeliveredWindows is UnitTest
+  """
+  On Windows a datagram smaller than the receiver's read buffer is delivered
+  whole, the same as on POSIX. This is the companion to
+  net/UDPOversizedDatagramTruncatedWindows: it exercises the success path of
+  the Windows IOCP receive (a read that completes with a byte count), guarding
+  whole-datagram delivery against regression from the oversized-datagram fix
+  (#5551).
+
+  The IOCP read completes successfully with 20 bytes, so
+  `UDPSocket._complete_reads` hands back the whole payload via `truncate(20)`,
+  shrinking the 64-byte buffer. Without that shrink the receiver would get 64
+  bytes with 44 of uninitialized memory; the length assertion (20 != 64)
+  catches that. This exercises the Windows `_complete_reads` path, the
+  counterpart to net/UDPUndersizedDatagramDelivered's POSIX `_pending_reads`.
+
+  Windows only.
+
+  Counterfactual: send an oversized payload (200) and the delivered length is 64
+  (the truncated prefix, see net/UDPOversizedDatagramTruncatedWindows), failing
+  the length assertion (64 != 20).
+  """
+  fun name(): String => "net/UDPUndersizedDatagramDeliveredWindows"
+  fun exclusion_group(): String => "network"
+
+  fun ref apply(h: TestHelper) =>
+    h.expect_action("receiver listen")
+    h.expect_action("sender listen")
+    h.expect_action("receive")
+
+    // Buffer 64, payload 20: a successful IOCP read delivers all 20 bytes.
     h.dispose_when_done(
       UDPSocket.ip4(UDPAuth(h.env.root),
         recover

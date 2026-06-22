@@ -183,6 +183,18 @@ static int set_nonblocking(int s)
 
 #define IOCP_ACCEPT_ADDR_LEN (sizeof(struct sockaddr_storage) + 16)
 
+// The NTSTATUS a bound I/O completion callback receives when a datagram
+// arrives larger than the supplied receive buffer. The completion routine
+// installed via BindIoCompletionCallback is handed the raw NTSTATUS from the
+// I/O status block, not the translated Winsock error (WSAEMSGSIZE) that
+// WSAGetOverlappedResult would report -- verified empirically (issue #5551).
+// We define it locally because <ntstatus.h> redefines status codes already
+// pulled in transitively by <winsock2.h>/<winnt.h>, producing macro-conflict
+// warnings if included here.
+#ifndef STATUS_BUFFER_OVERFLOW
+#define STATUS_BUFFER_OVERFLOW ((DWORD)0x80000005L)
+#endif
+
 static LPFN_CONNECTEX g_ConnectEx;
 static LPFN_ACCEPTEX g_AcceptEx;
 
@@ -363,6 +375,20 @@ static void CALLBACK iocp_callback(DWORD err, DWORD bytes, OVERLAPPED* ov)
       if(err == ERROR_SUCCESS)
       {
         // Dispatch a read event with the number of bytes read.
+        pony_asio_event_send(iocp->ev, ASIO_READ, bytes);
+      } else if(err == STATUS_BUFFER_OVERFLOW) {
+        // A UDP datagram arrived larger than the receive buffer. `bytes` holds
+        // the count copied into the buffer -- the datagram's first N bytes --
+        // and the OS discards the excess. Dispatch that count as the read size,
+        // matching POSIX recvfrom (called without MSG_TRUNC), which likewise
+        // delivers the truncated prefix (issue #5551). The consumer,
+        // UDPSocket._complete_reads (packages/net/udp_socket.pony), truncates
+        // the read buffer to this value, so it must be the bytes-copied count,
+        // not the datagram's original length. Dispatching 0 here instead (as
+        // the generic error arm below does) would make _complete_reads deliver
+        // an empty array and lose the datagram. Stream/TCP reads never raise
+        // this status -- a byte stream has no message boundary to overflow --
+        // so this affects only UDP receives.
         pony_asio_event_send(iocp->ev, ASIO_READ, bytes);
       } else {
         // Dispatch a read event with zero bytes to indicate a close.
