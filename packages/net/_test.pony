@@ -43,8 +43,12 @@ actor \nodoc\ Main is TestList
     // Tests below run only on linux and are listed alphabetically
     ifdef linux then
       test(_TestBroadcastReceive)
-      test(_TestMulticastIP4)
       test(_TestUDPCloseOnSendFailure)
+    end
+
+    // Tests below run only on linux and windows and are listed alphabetically
+    ifdef linux or windows then
+      test(_TestMulticastIP4)
     end
 
     // Tests below exclude windows and are listed alphabetically
@@ -1174,9 +1178,12 @@ class \nodoc\ _TestMulticastIP4Notify is UDPNotify
         // socket before delivery. Vacuous on those legs BY DESIGN; the send
         // path stays strict on multicast-capable dev machines. complete(true)
         // finishes immediately rather than waiting out the long-test timeout.
-        // Gated on linux to match this test's linux-only registration: if the
-        // gate ever broadens, a non-linux pre-delivery close is a real failure,
-        // not environmental.
+        // Gated on linux deliberately: the absorber covers only the
+        // musl/routeless Linux case. The test also registers on windows,
+        // where the loopback adapter is always present and its multicast
+        // loopback is kernel-local -- there is no environmental non-delivery
+        // to absorb, so a Windows pre-delivery close (or a timeout) is a real
+        // failure, handled by the else branch.
         _h.log("socket closed before delivery; treating as environmental" +
           " (no IPv4 multicast route)")
         _h.complete(true)
@@ -1208,18 +1215,27 @@ class \nodoc\ iso _TestMulticastIP4 is UnitTest
   does) and an IPv4 destination carries no interface hint: the join interface
   (multicast_join's `to`) and the outgoing interface (set_multicast_interface)
   must name the same interface or the looped datagram never meets the join.
-  127.0.0.1 works for both despite lo lacking the MULTICAST flag -- an IPv4
-  capability IPv6 lacks, so unlike net/MulticastIP6 no real interface is
-  scanned for.
+  127.0.0.1 works for both the join and the send, so unlike net/MulticastIP6
+  no real interface is scanned for: on Linux this holds despite lo lacking the
+  MULTICAST flag (an IPv4 capability IPv6 lacks), and on Windows the loopback
+  adapter is multicast-capable outright.
 
-  Registered on linux only. IPv4 loopback multicast delivery is verified on
-  glibc and WSL2 Linux dev machines; macOS/BSD lo0 v4 multicast is unverified
-  (net/MulticastIP6 documents lo0 send failures there for v6) and no v4 tier-3
-  leg confirms delivery yet, so freebsd is excluded pending a tier-3 dispatch.
-  On the musl docker leg a routeless send closes the socket before delivery,
-  absorbed in the notify's closed() as environmental -- so no per-PR CI leg may
-  run the strict round trip; strict enforcement lives on multicast-capable dev
-  machines.
+  Registered on linux and windows. IPv4 loopback multicast delivery is
+  verified on glibc and WSL2 Linux dev machines and on a Windows dev machine
+  (Winsock loops a 239/8 datagram back on 127.0.0.1, and the join interface
+  and IP_MULTICAST_IF are independently load-bearing there too -- a mismatch
+  delivers nothing); macOS/BSD lo0 v4 multicast is unverified (net/MulticastIP6
+  documents lo0 send failures there for v6) and no v4 tier-3 leg confirms
+  delivery yet, so freebsd is excluded pending a tier-3 dispatch.
+
+  The two registered platforms differ in how delivery can fail. On the musl
+  docker leg a routeless send closes the socket before delivery, absorbed in
+  the notify's closed() as environmental (linux only) -- so on Linux no per-PR
+  CI leg runs the strict round trip and strict enforcement lives on
+  multicast-capable dev machines. Windows has no such absorber: the loopback
+  adapter is always present and its multicast loopback is kernel-local, so the
+  windows per-PR CI leg is expected to run the full strict round trip, and a
+  non-delivery there -- pre-delivery close or timeout -- is a real failure.
 
   Counterfactual protocol: confirm the "mc4 delivered on" marker appears
   (--verbose) BEFORE trusting any mutation run -- a mutation "timeout" against
