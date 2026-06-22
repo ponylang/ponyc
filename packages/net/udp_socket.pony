@@ -110,6 +110,11 @@ actor UDPSocket is AsioEventNotify
     Listens for datagrams. The address family is whichever the resolver
     returns first for `host`/`service`, so it depends on the environment;
     use `ip4` or `ip6` to pin a specific family.
+
+    `size` is the read buffer size in bytes (default 1024) and therefore the
+    maximum datagram length delivered to `UDPNotify.received`; a larger datagram
+    is truncated to `size` and the excess is silently discarded (see
+    `UDPNotify.received`).
     """
     _notify = consume notify
     _event =
@@ -130,6 +135,11 @@ actor UDPSocket is AsioEventNotify
   =>
     """
     Listens for IPv4 datagrams.
+
+    `size` is the read buffer size in bytes (default 1024) and therefore the
+    maximum datagram length delivered to `UDPNotify.received`; a larger datagram
+    is truncated to `size` and the excess is silently discarded (see
+    `UDPNotify.received`).
     """
     _notify = consume notify
     _event =
@@ -150,6 +160,11 @@ actor UDPSocket is AsioEventNotify
   =>
     """
     Listens for IPv6 datagrams.
+
+    `size` is the read buffer size in bytes (default 1024) and therefore the
+    maximum datagram length delivered to `UDPNotify.received`; a larger datagram
+    is truncated to `size` and the excess is silently discarded (see
+    `UDPNotify.received`).
     """
     _notify = consume notify
     _event =
@@ -358,7 +373,7 @@ actor UDPSocket is AsioEventNotify
 
   fun ref _complete_reads(len: U32) =>
     """
-    The OS has informed as that len bytes of pending reads have completed.
+    The OS has informed us that len bytes of pending reads have completed.
     This occurs only with IOCP on Windows.
     """
     ifdef windows then
