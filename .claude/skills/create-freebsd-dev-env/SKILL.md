@@ -114,7 +114,7 @@ is OS-agnostic, so macOS goes through the same steps with the HVF accelerator
 
 Pick a persistent VM directory and a FreeBSD version that **matches ponyc CI** (the tier-3
 `freebsd` job in `.github/workflows/ponyc-tier3.yml` runs a matrix — currently 14.3 and
-15.0; the image URL is in `.ci-scripts/bsd/freebsd-provision.bash`). Use the same two
+15.1; the image URL is in `.ci-scripts/bsd/freebsd-provision.bash`). Use the same two
 values in every block below.
 
 ### 1. Download the image (one time; keep the `.xz` to avoid re-downloading)

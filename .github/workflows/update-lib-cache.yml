@@ -250,8 +250,8 @@ jobs:
         include:
           - version: '14.3'
             name: x86-64 FreeBSD 14.3
-          - version: '15.0'
-            name: x86-64 FreeBSD 15.0
+          - version: '15.1'
+            name: x86-64 FreeBSD 15.1
 
     name: ${{ matrix.name }}
     steps:
