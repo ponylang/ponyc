@@ -194,6 +194,10 @@ class ref JsonTokenParser
     _eat('n')?; _eat('u')?; _eat('l')?; _eat('l')?
     _emit(JsonTokenNull)?
 
+  // COUPLING: the RFC 8259 number rules here (leading-zero rejection, >18
+  // integer digits force F64, fraction/exponent handling) are mirrored by
+  // `_NumberParse` in `_json_stream.pony` for the streaming parser. Keep the two
+  // in sync; `_TestStreamDifferential` guards that they agree.
   fun ref _parse_number() ? =>
     let sign: I64 = if _peek_safe() == '-' then _next()?; -1 else 1 end
     let int_start = _offset
@@ -296,6 +300,9 @@ class ref JsonTokenParser
     if count == 0 then error end
     result
 
+  // COUPLING: the string escape and `\uXXXX`/surrogate rules here are mirrored
+  // by `_resume_string`/`_apply_unicode` in `json_stream_parser.pony` for the
+  // streaming parser. Keep the two in sync.
   fun ref _parse_string(is_key: Bool) ? =>
     // token_start is already anchored at the opening '"' by the caller
     // (_read_value for a string value, _parse_value for a key). Don't

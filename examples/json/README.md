@@ -1,7 +1,8 @@
 # json
 
 Demonstrates the standard library JSON package: building JSON documents,
-parsing JSON text, reading values with `JsonNav`, composable paths with
+parsing JSON text, incremental parsing of a chunked stream with
+`JsonStreamParser`, reading values with `JsonNav`, composable paths with
 `JsonLens`, string-based queries with `JsonPath` (including filters and
 function extensions), and serialization.
 

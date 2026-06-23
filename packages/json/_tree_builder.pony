@@ -1,89 +1,33 @@
-use pc = "collections/persistent"
-
-primitive _NoResult
-
-class ref _ObjectInProgress
-  var map: pc.Map[String, JsonValue]
-  var pending_key: (String | None)
-
-  new ref create() =>
-    map = pc.Map[String, JsonValue]
-    pending_key = None
-
-class ref _ArrayInProgress
-  var vec: pc.Vec[JsonValue]
-
-  new ref create() =>
-    vec = pc.Vec[JsonValue]
-
 class ref _TreeBuilder is JsonTokenNotify
   """
   Internal token consumer that assembles a JsonValue tree from token events.
-  Used by JsonParser to build the full parse result.
+  Used by JsonParser to build the full parse result. The actual tree assembly
+  is delegated to a shared _TreeAssembler (also used by JsonStreamParser), so
+  this type is only the adapter from the batch token callback — reading the
+  parser's last_string/last_number side-channel — to assembler calls.
   """
-
-  var _stack: Array[(_ObjectInProgress | _ArrayInProgress)]
-  var _result: (JsonValue | _NoResult)
+  embed _assembler: _TreeAssembler
 
   new ref create() =>
-    _stack = Array[(_ObjectInProgress | _ArrayInProgress)]
-    _result = _NoResult
+    _assembler = _TreeAssembler
 
   fun ref apply(parser: JsonTokenParser, token: JsonToken) =>
     match \exhaustive\ token
-    | JsonTokenObjectStart =>
-      _stack.push(_ObjectInProgress)
-    | JsonTokenArrayStart =>
-      _stack.push(_ArrayInProgress)
-    | JsonTokenKey =>
-      try
-        match _stack(_stack.size() - 1)?
-        | let obj: _ObjectInProgress =>
-          obj.pending_key = parser.last_string
-        end
-      end
-    | JsonTokenString =>
-      _add_value(parser.last_string)
+    | JsonTokenObjectStart => _assembler.begin_object()
+    | JsonTokenArrayStart => _assembler.begin_array()
+    | JsonTokenKey => _assembler.key(parser.last_string)
+    | JsonTokenString => _assembler.value(parser.last_string)
     | JsonTokenNumber =>
       match \exhaustive\ parser.last_number
-      | let n: I64 => _add_value(n)
-      | let n: F64 => _add_value(n)
+      | let n: I64 => _assembler.value(n)
+      | let n: F64 => _assembler.value(n)
       end
-    | JsonTokenTrue =>
-      _add_value(true)
-    | JsonTokenFalse =>
-      _add_value(false)
-    | JsonTokenNull =>
-      _add_value(None)
-    | JsonTokenObjectEnd =>
-      try
-        let obj = _stack.pop()? as _ObjectInProgress
-        _add_value(JsonObject(obj.map))
-      end
-    | JsonTokenArrayEnd =>
-      try
-        let arr = _stack.pop()? as _ArrayInProgress
-        _add_value(JsonArray(arr.vec))
-      end
-    end
-
-  fun ref _add_value(value: JsonValue) =>
-    if _stack.size() == 0 then
-      _result = value
-    else
-      try
-        match \exhaustive\ _stack(_stack.size() - 1)?
-        | let obj: _ObjectInProgress =>
-          match obj.pending_key
-          | let key: String =>
-            obj.map = obj.map(key) = value
-            obj.pending_key = None
-          end
-        | let arr: _ArrayInProgress =>
-          arr.vec = arr.vec.push(value)
-        end
-      end
+    | JsonTokenTrue => _assembler.value(true)
+    | JsonTokenFalse => _assembler.value(false)
+    | JsonTokenNull => _assembler.value(None)
+    | JsonTokenObjectEnd => _assembler.end_object()
+    | JsonTokenArrayEnd => _assembler.end_array()
     end
 
   fun result(): (JsonValue | _NoResult) =>
-    _result
+    _assembler.result()
