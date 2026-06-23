@@ -1514,6 +1514,7 @@ static void multicast_change(int fd, const char* group, const char* to,
       else
         setsockopt(s, IPPROTO_IPV6, IPV6_LEAVE_GROUP, (const char*)&req,
           sizeof(req));
+      break;
     }
 
     default: {}
