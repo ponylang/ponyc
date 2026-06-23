@@ -251,8 +251,8 @@ jobs:
         include:
           - version: '14.3'
             name: x86-64 FreeBSD 14.3
-          - version: '15.0'
-            name: x86-64 FreeBSD 15.0
+          - version: '15.1'
+            name: x86-64 FreeBSD 15.1
 
     name: ${{ matrix.name }}
     steps:
@@ -306,7 +306,7 @@ jobs:
           EOF
       - name: Valgrind smoke
         # FreeBSD 14.3 only: Valgrind 3.26 there runs a Pony program to
-        # completion; 15.0 is unverified, so it doesn't gate the matrix. Its own
+        # completion; 15.1 is unverified, so it doesn't gate the matrix. Its own
         # step so the matrix-version `if` can scope it — the script does its own
         # clean+configure+build, so it's self-contained.
         if: matrix.version == '14.3'
