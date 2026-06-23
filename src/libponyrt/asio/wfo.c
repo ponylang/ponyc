@@ -402,7 +402,9 @@ DECLARE_THREAD_FN(ponyint_asio_backend_dispatch)
   asio_backend_t* b = arg;
   pony_assert(b != NULL);
 
-  rename_thread(get_pthread_thread_id(pthread_self()), "wfo::ponyint_asio_backend_dispatch");
+  thread_id dispatch_tid = get_pthread_thread_id(pthread_self());
+
+  rename_thread(dispatch_tid, "wfo::ponyint_asio_backend_dispatch");
 
 #if !defined(USE_SCHEDULER_SCALING_PTHREADS)
   // Make sure we block signals related to scheduler sleeping/waking
@@ -487,6 +489,12 @@ DECLARE_THREAD_FN(ponyint_asio_backend_dispatch)
           should_handle_queue = ((events & B_EVENT_READ) == B_EVENT_READ) && port_count(b->port) > 0;
           should_quit = (events & B_EVENT_INVALID) == B_EVENT_INVALID;
         }
+        else if(info->type == B_OBJECT_TYPE_THREAD && info->object == dispatch_tid)
+        {
+          // Dummy event used for disconnected/invalid/errored FDs
+          // that are not unsubscribed yet.
+          // Do nothing.
+        }
 
         if(should_handle_queue || should_quit)
         {
@@ -548,6 +556,11 @@ DECLARE_THREAD_FN(ponyint_asio_backend_dispatch)
             ev->readable = true;
             flags |= ASIO_READ;
           }
+          if(!(info->events & B_EVENT_HIGH_PRIORITY_WRITE) || !ev->writeable)
+          {
+            ev->writeable = true;
+            flags |= ASIO_WRITE;
+          }
         }
         if(events & B_EVENT_ERROR)
         {
@@ -557,6 +570,18 @@ DECLARE_THREAD_FN(ponyint_asio_backend_dispatch)
         {
           flags |= ASIO_ERROR;
         }
+        // From now on, if we'll keep waiting for the id, we'll keep getting
+        // B_EVENT_INVALID or B_EVENT_ERROR. It would be incorrect to report
+        // ASIO_ERROR every time, especially when pony-side might have not 
+        // resolved first event yet.
+        // Removing object from list is messy because it requires reindexing,
+        // which would require re-starting loop and might lose some events.
+        // So, we replace object info with a dummy one. Index is kept,
+        // no events will happen (or if they will, they can be safely ignored).
+        info->object = dispatch_tid;
+        info->type = B_OBJECT_TYPE_THREAD;
+        info->events = B_EVENT_INVALID;
+        b->wait_events[i] = info->events;
       }
 
       // If we had a valid event of some type...
