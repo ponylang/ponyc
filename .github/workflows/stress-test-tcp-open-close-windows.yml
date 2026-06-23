@@ -2,7 +2,7 @@ name: "Stress Test: Windows TCP Open/Close"
 
 on:
   schedule:
-    - cron: "45 5 * * *"
+    - cron: "0 17 * * *"
   workflow_dispatch:
     inputs:
       sha:
@@ -14,6 +14,15 @@ on:
 permissions:
   packages: read
 
+# Serialize the scheduled stress loop to one workflow at a time (groups are
+# repo-wide, so all six stress workflows share `stress-scheduled`). Manual runs
+# get a unique group (github.run_id) so a branch check never queues behind the
+# loop. Relies on these workflows having exactly two triggers (schedule +
+# workflow_dispatch) -- see the per-event flag/alert conditions below.
+concurrency:
+  group: stress-${{ github.event_name == 'workflow_dispatch' && github.run_id || 'scheduled' }}
+  cancel-in-progress: false
+
 jobs:
   x86_64-windows:
     runs-on: windows-2025-vs2026
@@ -23,6 +32,7 @@ jobs:
 
     strategy:
       fail-fast: false
+      max-parallel: 2
       matrix:
         include:
           - name: "x86-64 Windows [release]"
@@ -73,15 +83,22 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           LIBS_TAG: ${{ hashFiles('make.ps1', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
-        run: python .ci-scripts/libs-cache/resolve_libs_cache.py --require-cache-hit --platform windows-2025-vs2026 --tag $env:LIBS_TAG
+          # schedule -> skip the run on a cache miss (the loop overlaps an empty/
+          # refilling cache); manual dispatch -> also pull the branch cache so a
+          # branch run finds the libs it already built, and fail loudly otherwise.
+          LIBS_CACHE_FLAGS: ${{ github.event_name == 'schedule' && '--skip-on-miss' || '--branch-cache' }}
+        run: python .ci-scripts/libs-cache/resolve_libs_cache.py --require-cache-hit $env:LIBS_CACHE_FLAGS --platform windows-2025-vs2026 --tag $env:LIBS_TAG
       - name: Configure
+        if: ${{ hashFiles('.libs-cache-miss') == '' }}
         run: .\make.ps1 -Command configure -Config Debug
       - name: Build Debug Runtime
+        if: ${{ hashFiles('.libs-cache-miss') == '' }}
         run: .\make.ps1 -Command build -Config Debug
       - name: Run Stress Test
+        if: ${{ hashFiles('.libs-cache-miss') == '' }}
         run: .\make.ps1 -Command ${{ matrix.target }} -Config Debug
       - name: Send alert on failure
-        if: ${{ failure() }}
+        if: ${{ failure() && github.event_name == 'schedule' }}
         uses: zulip/github-actions-zulip/send-message@bd8ec52de371d139ae8313661b7d8318c19266aa
         with:
           api-key: ${{ secrets.ZULIP_SCHEDULED_JOB_FAILURE_API_KEY }}
