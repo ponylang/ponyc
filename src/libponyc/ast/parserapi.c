@@ -387,6 +387,18 @@ static ast_t* handle_not_found(parser_t* parser, rule_state_t* state,
 }
 
 
+bool token_id_in_set(token_id id, const token_id* set)
+{
+  for(const token_id* p = set; *p != TK_NONE; p++)
+  {
+    if(*p == id)
+      return true;
+  }
+
+  return false;
+}
+
+
 /* Check if current token matches any in given set and consume on match.
  * Args:
  *    terminating is the description of the structure this token terminates,
