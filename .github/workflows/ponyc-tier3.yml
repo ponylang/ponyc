@@ -78,22 +78,24 @@ jobs:
           make build config=debug
       - name: Build Debug Cross-Compiled Runtime
         run: make cross-libponyrt config=debug CC=riscv64-linux-gnu-gcc-10 CXX=riscv64-linux-gnu-g++-10 arch=rv64gc cross_cflags="-march=rv64gc -mtune=rocket" cross_llc_flags="-march=riscv64"
-      # net/Broadcast and net/BroadcastReceive are excluded here only: under
-      # qemu-riscv64 a datagram sent to the limited-broadcast address is not
-      # delivered to a 255.255.255.255-bound socket, so net/BroadcastReceive
-      # times out. The other cross legs (arm/armhf) deliver it and keep running
-      # both tests. See _TestBroadcastReceive in packages/net/_test.pony.
+      # net/ tests are excluded on the qemu-user cross legs. User-mode emulation
+      # translates instructions faithfully -- so codegen is still exercised --
+      # but does not faithfully emulate the kernel: e.g. setsockopt
+      # IP_MULTICAST_IF returns ENOPROTOOPT, which no real kernel does, so the
+      # multicast round trip times out. net tests here validate qemu, not ponyc.
+      # The net code is architecture-independent and is tested against real
+      # kernels on x86, arm64 macOS, and the BSD VMs.
       - name: Test with Debug Cross-Compiled Runtime
-        run: make test-cross-ci config=debug PONYPATH=../rv64gc/debug cross_triple=riscv64-unknown-linux-gnu cross_arch=rv64gc cross_cpu=generic-rv64 cross_sysroot=/usr/riscv64-linux-gnu cross_ponyc_args='--abi=lp64d --features=+m,+a,+f,+d,+c' cross_runner="qemu-riscv64 -L /usr/riscv64-linux-gnu/lib/" stdlib_test_excludes='--exclude=net/Broadcast'
+        run: make test-cross-ci config=debug PONYPATH=../rv64gc/debug cross_triple=riscv64-unknown-linux-gnu cross_arch=rv64gc cross_cpu=generic-rv64 cross_sysroot=/usr/riscv64-linux-gnu cross_ponyc_args='--abi=lp64d --features=+m,+a,+f,+d,+c' cross_runner="qemu-riscv64 -L /usr/riscv64-linux-gnu/lib/" stdlib_test_excludes='--exclude=net/'
       - name: Build Release Runtime
         run: |
           make configure config=release
           make build config=release
       - name: Build Release Cross-Compiled Runtime
         run: make cross-libponyrt config=release CC=riscv64-linux-gnu-gcc-10 CXX=riscv64-linux-gnu-g++-10 arch=rv64gc cross_cflags="-march=rv64gc -mtune=rocket" cross_llc_flags="-march=riscv64"
-      # See the debug step above for why net/Broadcast is excluded on riscv64.
+      # See the debug step above for why net/ tests are excluded under qemu-user.
       - name: Test with Release Cross-Compiled Runtime
-        run: make test-cross-ci config=release PONYPATH=../rv64gc/release cross_triple=riscv64-unknown-linux-gnu cross_arch=rv64gc cross_cpu=generic-rv64 cross_sysroot=/usr/riscv64-linux-gnu cross_ponyc_args='--abi=lp64d --features=+m,+a,+f,+d,+c' cross_runner="qemu-riscv64 -L /usr/riscv64-linux-gnu/lib/" stdlib_test_excludes='--exclude=net/Broadcast'
+        run: make test-cross-ci config=release PONYPATH=../rv64gc/release cross_triple=riscv64-unknown-linux-gnu cross_arch=rv64gc cross_cpu=generic-rv64 cross_sysroot=/usr/riscv64-linux-gnu cross_ponyc_args='--abi=lp64d --features=+m,+a,+f,+d,+c' cross_runner="qemu-riscv64 -L /usr/riscv64-linux-gnu/lib/" stdlib_test_excludes='--exclude=net/'
       - name: Test pony-doc
         run: make test-pony-doc config=debug
       - name: Test pony-lint
@@ -145,16 +147,18 @@ jobs:
           make build config=debug
       - name: Build Debug Cross-Compiled Runtime
         run: make cross-libponyrt config=debug CC=arm-linux-gnueabi-gcc CXX=arm-linux-gnueabi-g++ arch=armv7-a cross_cflags="-march=armv7-a -mtune=cortex-a9" cross_llc_flags="-O3;-march=arm"
+      # net/ tests are excluded under qemu-user; see the riscv64 leg above.
       - name: Test with Debug Cross-Compiled Runtime
-        run: make test-cross-ci config=debug PONYPATH=../armv7-a/debug cross_triple=arm-unknown-linux-gnueabi cross_arch=armv7-a cross_cpu=cortex-a9 cross_sysroot=/usr/local/arm-linux-gnueabi/libc cross_ponyc_args='' cross_runner="qemu-arm-static -cpu cortex-a9 -L /usr/local/arm-linux-gnueabi/libc"
+        run: make test-cross-ci config=debug PONYPATH=../armv7-a/debug cross_triple=arm-unknown-linux-gnueabi cross_arch=armv7-a cross_cpu=cortex-a9 cross_sysroot=/usr/local/arm-linux-gnueabi/libc cross_ponyc_args='' cross_runner="qemu-arm-static -cpu cortex-a9 -L /usr/local/arm-linux-gnueabi/libc" stdlib_test_excludes='--exclude=net/'
       - name: Build Release Runtime
         run: |
           make configure config=release
           make build config=release
       - name: Build Release Cross-Compiled Runtime
         run: make cross-libponyrt config=release CC=arm-linux-gnueabi-gcc CXX=arm-linux-gnueabi-g++ arch=armv7-a cross_cflags="-march=armv7-a -mtune=cortex-a9" cross_llc_flags="-O3;-march=arm"
+      # net/ tests are excluded under qemu-user; see the riscv64 leg above.
       - name: Test with Release Cross-Compiled Runtime
-        run: make test-cross-ci config=release PONYPATH=../armv7-a/release cross_triple=arm-unknown-linux-gnueabi cross_arch=armv7-a cross_cpu=cortex-a9 cross_sysroot=/usr/local/arm-linux-gnueabi/libc cross_ponyc_args='' cross_runner="qemu-arm-static -cpu cortex-a9 -L /usr/local/arm-linux-gnueabi/libc"
+        run: make test-cross-ci config=release PONYPATH=../armv7-a/release cross_triple=arm-unknown-linux-gnueabi cross_arch=armv7-a cross_cpu=cortex-a9 cross_sysroot=/usr/local/arm-linux-gnueabi/libc cross_ponyc_args='' cross_runner="qemu-arm-static -cpu cortex-a9 -L /usr/local/arm-linux-gnueabi/libc" stdlib_test_excludes='--exclude=net/'
       - name: Test pony-doc
         run: make test-pony-doc config=debug
       - name: Test pony-lint
@@ -206,16 +210,18 @@ jobs:
           make build config=debug
       - name: Build Debug Cross-Compiled Runtime
         run: make cross-libponyrt config=debug CC=arm-linux-gnueabihf-gcc CXX=arm-linux-gnueabihf-g++ arch=armv7-a cross_cflags="-march=armv7-a -mtune=cortex-a9" cross_llc_flags="-O3;-march=arm"
+      # net/ tests are excluded under qemu-user; see the riscv64 leg above.
       - name: Test with Debug Cross-Compiled Runtime
-        run: make test-cross-ci config=debug PONYPATH=../armv7-a/debug cross_triple=arm-unknown-linux-gnueabihf cross_arch=armv7-a cross_cpu=cortex-a9 cross_sysroot=/usr/local/arm-linux-gnueabihf/libc cross_ponyc_args='' cross_runner="qemu-arm-static -cpu cortex-a9 -L /usr/local/arm-linux-gnueabihf/libc"
+        run: make test-cross-ci config=debug PONYPATH=../armv7-a/debug cross_triple=arm-unknown-linux-gnueabihf cross_arch=armv7-a cross_cpu=cortex-a9 cross_sysroot=/usr/local/arm-linux-gnueabihf/libc cross_ponyc_args='' cross_runner="qemu-arm-static -cpu cortex-a9 -L /usr/local/arm-linux-gnueabihf/libc" stdlib_test_excludes='--exclude=net/'
       - name: Build Release Runtime
         run: |
           make configure config=release
           make build config=release
       - name: Build Release Cross-Compiled Runtime
         run: make cross-libponyrt config=release CC=arm-linux-gnueabihf-gcc CXX=arm-linux-gnueabihf-g++ arch=armv7-a cross_cflags="-march=armv7-a -mtune=cortex-a9" cross_llc_flags="-O3;-march=arm"
+      # net/ tests are excluded under qemu-user; see the riscv64 leg above.
       - name: Test with Release Cross-Compiled Runtime
-        run: make test-cross-ci config=release PONYPATH=../armv7-a/release cross_triple=arm-unknown-linux-gnueabihf cross_arch=armv7-a cross_cpu=cortex-a9 cross_sysroot=/usr/local/arm-linux-gnueabihf/libc cross_ponyc_args='' cross_runner="qemu-arm-static -cpu cortex-a9 -L /usr/local/arm-linux-gnueabihf/libc"
+        run: make test-cross-ci config=release PONYPATH=../armv7-a/release cross_triple=arm-unknown-linux-gnueabihf cross_arch=armv7-a cross_cpu=cortex-a9 cross_sysroot=/usr/local/arm-linux-gnueabihf/libc cross_ponyc_args='' cross_runner="qemu-arm-static -cpu cortex-a9 -L /usr/local/arm-linux-gnueabihf/libc" stdlib_test_excludes='--exclude=net/'
       - name: Test pony-doc
         run: make test-pony-doc config=debug
       - name: Test pony-lint
