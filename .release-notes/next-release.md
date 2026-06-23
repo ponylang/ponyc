@@ -391,3 +391,7 @@ On Windows, a UDP datagram larger than the receiving socket's read buffer was de
 
 Windows now matches that behavior: an oversized datagram is delivered truncated to the buffer's first bytes instead of being dropped entirely. This does not prevent data loss -- the bytes beyond the buffer are still discarded, on every platform. To receive a datagram whole, size the `UDPSocket` read buffer (the `size` argument to the listen constructors) to your protocol's largest expected datagram.
 
+## Fix compiler crash when compiling very long expression sequences
+
+The compiler could crash when compiling a very long sequence of expressions, such as a large array or tuple literal, a long argument list, or a long function or method body — the kind of thing code generators often produce. Sequences of this kind now compile without crashing, regardless of how many expressions they contain.
+
