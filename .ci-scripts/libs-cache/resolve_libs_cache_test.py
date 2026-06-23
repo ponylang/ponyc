@@ -16,9 +16,15 @@ load-bearing invariants pinned here:
   - `--branch-cache` consumer mode pulls the branch cache for reuse and pushes it
     best-effort (a push failure does NOT fail the job), and a MAIN hit short-circuits
     before any branch op (so the flag self-gates on a warm main cache);
-  - require-cache-hit mode never builds (it fails loudly on a miss).
+  - require-cache-hit mode never builds: a miss fails loudly by default, pulls the
+    branch cache first when --branch-cache is set (manual branch runs), or skips
+    quietly (writes the .libs-cache-miss marker, exit 0) under --skip-on-miss (the
+    scheduled stress loop).
 """
+import os
+import shutil
 import sys
+import tempfile
 
 import resolve_libs_cache as r
 
@@ -61,11 +67,36 @@ def run_main(argv, results):
     return calls, code
 
 
+def run_main_ws(argv, results):
+    """Like run_main, but with GITHUB_WORKSPACE pointed at a fresh temp dir so a
+    --skip-on-miss marker write is captured there (never in the repo). Returns
+    (calls, code, marker_written). Restores env and removes the temp dir."""
+    tmp = tempfile.mkdtemp()
+    saved_ws = os.environ.get('GITHUB_WORKSPACE')
+    os.environ['GITHUB_WORKSPACE'] = tmp
+    try:
+        calls, code = run_main(argv, results)
+        marker = os.path.exists(os.path.join(tmp, '.libs-cache-miss'))
+    finally:
+        if saved_ws is None:
+            os.environ.pop('GITHUB_WORKSPACE', None)
+        else:
+            os.environ['GITHUB_WORKSPACE'] = saved_ws
+        shutil.rmtree(tmp, ignore_errors=True)
+    return calls, code, marker
+
+
 CONSUMER = ['--platform', 'p', '--tag', 't', '--', 'make', 'libs']
 BRANCH = ['--branch-cache', '--platform', 'p', '--tag', 't', '--', 'make', 'libs']
 WARM = ['--warm', '--platform', 'p', '--tag', 't', '--', 'make', 'libs']
 REQUIRE_HIT = ['--require-cache-hit', '--platform', 'p', '--tag', 't']
 REQUIRE_HIT_IMAGE = ['--require-cache-hit', '--image', 'i', '--tag', 't']
+REQUIRE_HIT_BRANCH = ['--require-cache-hit', '--branch-cache',
+                      '--platform', 'p', '--tag', 't']
+REQUIRE_HIT_SKIP = ['--require-cache-hit', '--skip-on-miss',
+                    '--platform', 'p', '--tag', 't']
+REQUIRE_HIT_BRANCH_SKIP = ['--require-cache-hit', '--branch-cache',
+                           '--skip-on-miss', '--platform', 'p', '--tag', 't']
 
 
 # ----- plain consumer (no branch cache) -----
@@ -216,6 +247,59 @@ def test_require_hit_rejects_build_command():
     check('require-hit build-cmd code', code, 1)
 
 
+# ----- require-cache-hit + --branch-cache (manual branch runs) -----
+
+def test_require_hit_branch_main_hit_short_circuits():
+    # A MAIN hit returns before any branch op (same as a PR consumer).
+    calls, code = run_main(REQUIRE_HIT_BRANCH, {'main:pull': 0})
+    check('require-hit branch main-hit calls', calls, ['main:pull'])
+    check('require-hit branch main-hit code', code, 0)
+
+
+def test_require_hit_branch_reuse_on_main_miss():
+    # main miss -> branch hit -> run against the branch-built libs, no fail.
+    calls, code = run_main(REQUIRE_HIT_BRANCH, {'main:pull': 1, 'branch:pull': 0})
+    check('require-hit branch reuse calls', calls, ['main:pull', 'branch:pull'])
+    check('require-hit branch reuse code', code, 0)
+
+
+def test_require_hit_branch_both_miss_dies_never_builds():
+    # neither cache has it for this target -> fail loudly (no --skip-on-miss).
+    calls, code = run_main(REQUIRE_HIT_BRANCH, {'main:pull': 1, 'branch:pull': 1})
+    check('require-hit branch both-miss calls', calls, ['main:pull', 'branch:pull'])
+    check('require-hit branch both-miss code', code, 1)
+    check('require-hit branch both-miss never builds', 'BUILD' in calls, False)
+    check('require-hit branch both-miss never pushes',
+          any('push' in c for c in calls), False)
+
+
+# ----- require-cache-hit + --skip-on-miss (scheduled stress loop) -----
+
+def test_require_hit_skip_hit_no_marker():
+    calls, code, marker = run_main_ws(REQUIRE_HIT_SKIP, {'main:pull': 0})
+    check('require-hit skip hit calls', calls, ['main:pull'])
+    check('require-hit skip hit code', code, 0)
+    check('require-hit skip hit no marker', marker, False)
+
+
+def test_require_hit_skip_miss_writes_marker_exits_zero():
+    # miss -> write the marker and exit 0 (the workflow skips build/run), no build.
+    calls, code, marker = run_main_ws(REQUIRE_HIT_SKIP, {'main:pull': 1})
+    check('require-hit skip miss calls', calls, ['main:pull'])
+    check('require-hit skip miss code', code, 0)
+    check('require-hit skip miss wrote marker', marker, True)
+    check('require-hit skip miss never builds', 'BUILD' in calls, False)
+
+
+def test_require_hit_branch_skip_both_miss_skips():
+    # --branch-cache + --skip-on-miss: branch is tried before the quiet skip.
+    calls, code, marker = run_main_ws(REQUIRE_HIT_BRANCH_SKIP,
+                                      {'main:pull': 1, 'branch:pull': 1})
+    check('require-hit branch+skip calls', calls, ['main:pull', 'branch:pull'])
+    check('require-hit branch+skip code', code, 0)
+    check('require-hit branch+skip wrote marker', marker, True)
+
+
 # ----- flag validation -----
 
 def test_branch_cache_rejected_with_warm():
@@ -225,11 +309,12 @@ def test_branch_cache_rejected_with_warm():
     check('branch+warm code', code, 1)
 
 
-def test_branch_cache_rejected_with_require_hit():
-    calls, code = run_main(['--require-cache-hit', '--branch-cache', '--platform',
-                            'p', '--tag', 't'], {})
-    check('branch+require calls', calls, [])
-    check('branch+require code', code, 1)
+def test_skip_on_miss_rejected_without_require_hit():
+    # --skip-on-miss is require-cache-hit only; rejected in consumer/warm mode.
+    calls, code = run_main(['--skip-on-miss', '--platform', 'p', '--tag', 't',
+                            '--', 'make', 'libs'], {})
+    check('skip-on-miss reject calls', calls, [])
+    check('skip-on-miss reject code', code, 1)
 
 
 def test_missing_double_dash():
@@ -257,8 +342,14 @@ TESTS = [test_consumer_hit, test_consumer_miss_builds_never_pushes,
          test_warm_build_failure_no_push, test_warm_push_failure_hard_fails,
          test_require_hit_hit, test_require_hit_miss_dies_never_builds,
          test_require_hit_hit_with_image, test_require_hit_rejects_build_command,
+         test_require_hit_branch_main_hit_short_circuits,
+         test_require_hit_branch_reuse_on_main_miss,
+         test_require_hit_branch_both_miss_dies_never_builds,
+         test_require_hit_skip_hit_no_marker,
+         test_require_hit_skip_miss_writes_marker_exits_zero,
+         test_require_hit_branch_skip_both_miss_skips,
          test_branch_cache_rejected_with_warm,
-         test_branch_cache_rejected_with_require_hit,
+         test_skip_on_miss_rejected_without_require_hit,
          test_missing_double_dash, test_empty_build_command]
 
 

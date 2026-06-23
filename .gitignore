@@ -24,6 +24,9 @@ CppProperties.json
 build/
 work/
 output/
+# CI stress-test marker: resolve_libs_cache.py --skip-on-miss writes this on a
+# cache miss so the workflow skips its build/run steps.
+.libs-cache-miss
 _ReSharper.*
 .vscode/
 .clangd/

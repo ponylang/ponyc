@@ -2,7 +2,7 @@ name: "Stress Test: Linux TCP Open/Close"
 
 on:
   schedule:
-    - cron: "30 5 * * *"
+    - cron: "0 7 * * *"
   workflow_dispatch:
     inputs:
       sha:
@@ -14,12 +14,22 @@ on:
 permissions:
   packages: read
 
+# Serialize the scheduled stress loop to one workflow at a time (groups are
+# repo-wide, so all six stress workflows share `stress-scheduled`). Manual runs
+# get a unique group (github.run_id) so a branch check never queues behind the
+# loop. Relies on these workflows having exactly two triggers (schedule +
+# workflow_dispatch) -- see the per-event flag/alert conditions below.
+concurrency:
+  group: stress-${{ github.event_name == 'workflow_dispatch' && github.run_id || 'scheduled' }}
+  cancel-in-progress: false
+
 jobs:
   x86_64-linux:
     runs-on: ubuntu-latest
 
     strategy:
       fail-fast: false
+      max-parallel: 2
       matrix:
         include:
           - image: ghcr.io/ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu24.04-builder:20250115
@@ -70,15 +80,21 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           LIBS_IMAGE: ${{ matrix.image }}
           LIBS_TAG: ${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
-        run: python3 .ci-scripts/libs-cache/resolve_libs_cache.py --require-cache-hit --image "$LIBS_IMAGE" --tag "$LIBS_TAG"
+          # schedule -> skip the run on a cache miss (the loop overlaps an empty/
+          # refilling cache); manual dispatch -> also pull the branch cache so a
+          # branch run finds the libs it already built, and fail loudly otherwise.
+          LIBS_CACHE_FLAGS: ${{ github.event_name == 'schedule' && '--skip-on-miss' || '--branch-cache' }}
+        run: python3 .ci-scripts/libs-cache/resolve_libs_cache.py --require-cache-hit $LIBS_CACHE_FLAGS --image "$LIBS_IMAGE" --tag "$LIBS_TAG"
       - name: Build Debug Runtime
+        if: ${{ hashFiles('.libs-cache-miss') == '' }}
         run: |
           make configure config=debug
           make build config=debug
       - name: Run Stress Test
+        if: ${{ hashFiles('.libs-cache-miss') == '' }}
         run: make ${{ matrix.target }} config=debug usedebugger='${{ matrix.debugger }}'
       - name: Send alert on failure
-        if: ${{ failure() }}
+        if: ${{ failure() && github.event_name == 'schedule' }}
         uses: zulip/github-actions-zulip/send-message@bd8ec52de371d139ae8313661b7d8318c19266aa
         with:
           api-key: ${{ secrets.ZULIP_SCHEDULED_JOB_FAILURE_API_KEY }}
@@ -100,9 +116,15 @@ jobs:
   # documented above.
   arm64-linux:
     runs-on: ubuntu-24.04-arm
+    # Run after the x86 job so the whole workflow is never more than 2 cells at
+    # once (max-parallel: 2 per matrix); !cancelled() keeps arm64 running even
+    # when an x86 cell had a real failure.
+    needs: x86_64-linux
+    if: ${{ !cancelled() }}
 
     strategy:
       fail-fast: false
+      max-parallel: 2
       matrix:
         include:
           - image: ghcr.io/ponylang/ponyc-ci-arm64-unknown-linux-ubuntu24.04-builder:20250510
@@ -155,6 +177,9 @@ jobs:
       - name: Restore prebuilt libs
         env:
           LIBS_TAG: ${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
+          # schedule -> skip the run on a cache miss; manual dispatch -> also pull
+          # the branch cache so a branch run finds the libs it already built.
+          LIBS_CACHE_FLAGS: ${{ github.event_name == 'schedule' && '--skip-on-miss' || '--branch-cache' }}
         run: |
           docker run --rm \
             --user pony \
@@ -163,11 +188,13 @@ jobs:
             -e GITHUB_ACTOR \
             -e LIBS_IMAGE="${{ matrix.image }}" \
             -e LIBS_TAG="$LIBS_TAG" \
+            -e LIBS_CACHE_FLAGS="$LIBS_CACHE_FLAGS" \
             -v ${{ github.workspace }}:/home/pony/project \
             -w /home/pony/project \
             ${{ matrix.image }} \
-            sh -c 'python3 .ci-scripts/libs-cache/resolve_libs_cache.py --require-cache-hit --image "$LIBS_IMAGE" --tag "$LIBS_TAG"'
+            sh -c 'python3 .ci-scripts/libs-cache/resolve_libs_cache.py --require-cache-hit $LIBS_CACHE_FLAGS --image "$LIBS_IMAGE" --tag "$LIBS_TAG"'
       - name: Build Debug Runtime
+        if: ${{ hashFiles('.libs-cache-miss') == '' }}
         run: |
           docker run --rm \
             --user pony \
@@ -176,6 +203,7 @@ jobs:
             ${{ matrix.image }} \
             bash -c "make configure arch=armv8-a config=debug && make build config=debug"
       - name: Run Stress Test
+        if: ${{ hashFiles('.libs-cache-miss') == '' }}
         run: |
           docker run --rm \
             --user pony \
@@ -186,7 +214,7 @@ jobs:
             ${{ matrix.image }} \
             make ${{ matrix.target }} config=debug usedebugger='${{ matrix.debugger }}'
       - name: Send alert on failure
-        if: ${{ failure() }}
+        if: ${{ failure() && github.event_name == 'schedule' }}
         uses: zulip/github-actions-zulip/send-message@bd8ec52de371d139ae8313661b7d8318c19266aa
         with:
           api-key: ${{ secrets.ZULIP_SCHEDULED_JOB_FAILURE_API_KEY }}

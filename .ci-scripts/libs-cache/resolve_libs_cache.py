@@ -26,13 +26,27 @@ Modes:
     it build and `push` the main cache. `--warm` is the only path that writes the
     main cache; by workflow convention only the warmer passes it.
   - require-cache-hit mode (`--require-cache-hit`): `pull` the main cache -> hit ->
-    done. miss -> FAIL LOUDLY (no build). Takes no build command. For nice-to-have
-    jobs (the stress tests) that must rely on a pre-warmed cache.
+    done. Takes no build command (it never builds). For nice-to-have jobs (the
+    stress tests) that must rely on a pre-warmed cache. Two modifiers tune the miss
+    behavior:
+      * `--skip-on-miss`: on a miss, write the `.libs-cache-miss` marker and exit 0
+        (the workflow gates its build/run steps on the marker's ABSENCE, so the job
+        goes green with those steps skipped). The scheduled stress loop uses this --
+        it runs at times that legitimately overlap an empty/refilling cache, so a
+        miss is expected, not a failure.
+      * `--branch-cache`: on a main miss, also `pull` the branch cache before giving
+        up -- the same main->branch resolution a PR consumer uses. A manual
+        `workflow_dispatch` stress run on a branch uses this so it finds the libs
+        that branch already built for the target. Pull-only here (never builds, so
+        never pushes).
+    With neither modifier -- or with `--branch-cache` and BOTH caches missing -- a
+    miss FAILS LOUDLY (no build).
 
-`--branch-cache` is consumer-only (rejected with `--warm` / `--require-cache-hit`).
-The `--warm` name intentionally differs from `pr_libs_cache.py`'s `--ensure`: that
-pushes the *branch* cache and hard-fails on a push error; `--warm` pushes/promotes
-the *main* cache. Distinct names so the two are not assumed interchangeable.
+`--branch-cache` is consumer or require-cache-hit; it is rejected with `--warm` (a
+warmer never reads the branch cache as a consumer). The `--warm` name intentionally
+differs from `pr_libs_cache.py`'s `--ensure`: that pushes the *branch* cache and
+hard-fails on a push error; `--warm` pushes/promotes the *main* cache. Distinct
+names so the two are not assumed interchangeable.
 
 Stdlib only. Usage:
     # consumer (pull-or-build) -- build cmd required; --branch-cache to capture
@@ -41,9 +55,11 @@ Stdlib only. Usage:
     # warmer (promote-or-build-and-push-main)
     resolve_libs_cache.py --warm (--image <ref> | --platform <label>) \
         --tag <hash> -- <build command...>
-    # require-cache-hit (pull-or-FAIL; stress tests) -- NO build command
-    resolve_libs_cache.py --require-cache-hit (--image <ref> | --platform <label>) \
-        --tag <hash>
+    # require-cache-hit (pull-or-FAIL; stress tests) -- NO build command.
+    # --skip-on-miss: green-skip on miss (scheduled loop);
+    # --branch-cache:  also pull the branch cache on a main miss (manual branch run).
+    resolve_libs_cache.py --require-cache-hit [--skip-on-miss | --branch-cache] \
+        (--image <ref> | --platform <label>) --tag <hash>
 
 For the consumer/warmer forms, everything after `--` is the build command, run
 as-is on a cache miss (e.g. `make libs llvm_tools=false build_flags=-j4`, or on
@@ -53,10 +69,30 @@ GITHUB_TOKEN; the main push (`--warm`) and the branch push (`--branch-cache`) ne
 """
 
 import argparse
+import os
 import sys
+from pathlib import Path
 
 from common import (BRANCH_CACHE, MAIN_CACHE, PROMOTE, cache_args, die, info, run,
                     split_build_command)
+
+# The stress workflows gate their build/run steps on the ABSENCE of this marker
+# (`if: hashFiles('.libs-cache-miss') == ''`), so on a `--skip-on-miss` miss we
+# write it to signal "skip this run". It lives in the workspace root.
+MISS_MARKER = '.libs-cache-miss'
+
+
+def write_miss_marker():
+    """Write the skip-on-miss marker into the workspace so the workflow's
+    `hashFiles` gate sees it. We use GITHUB_WORKSPACE, falling back to cwd.
+
+    The `or '.'` fallback is load-bearing for the arm64-linux stress job: its
+    resolve step runs inside `docker run -w /home/pony/project` (the mounted
+    workspace) WITHOUT GITHUB_WORKSPACE in the container env, so the marker must
+    land in cwd, which is that mount root -- where the host-side `hashFiles`
+    looks. If that job's working directory ever stops being the workspace mount,
+    the host gate can no longer see the marker."""
+    (Path(os.environ.get('GITHUB_WORKSPACE') or '.') / MISS_MARKER).touch()
 
 
 def main(argv):
@@ -77,10 +113,16 @@ def main(argv):
                            'fail loudly instead of building. Takes no build '
                            'command. For nice-to-have jobs (stress tests).')
     parser.add_argument('--branch-cache', action='store_true',
-                        help='consumer mode only: also participate in the branch '
-                             'scratch cache -- pull it for reuse on a main miss and '
-                             'push it best-effort after a build. Needs '
-                             'packages: write.')
+                        help='consumer or require-cache-hit mode: also participate '
+                             'in the branch scratch cache. Consumer: pull it for '
+                             'reuse on a main miss and push it best-effort after a '
+                             'build (needs packages: write). require-cache-hit: pull '
+                             'it on a main miss before failing (pull-only).')
+    parser.add_argument('--skip-on-miss', action='store_true',
+                        help='require-cache-hit mode only: on a miss, write the '
+                             '.libs-cache-miss marker and exit 0 instead of failing '
+                             'loudly, so the workflow skips its build/run steps. For '
+                             'the scheduled stress loop, where a miss is expected.')
 
     # Choose the mode from the args BEFORE any `--`. We can't parse first (the
     # consumer/warm build command after `--` would break argparse), and we must
@@ -94,13 +136,28 @@ def main(argv):
         if '--' in rest:
             die("--require-cache-hit takes no build command (it never builds).")
         args = parser.parse_args(rest)
-        if args.branch_cache:
-            die("--branch-cache is not valid with --require-cache-hit.")
         base = cache_args(args)
         if run([sys.executable, MAIN_CACHE, 'pull'] + base) == 0:
             info("Libs restored from the main GHCR cache.")
             return
+        # On a main miss, a manual branch run (--branch-cache) checks the branch
+        # cache too -- the same main->branch resolution a PR consumer uses, so it
+        # finds the libs that branch already built for this target. Pull-only.
+        if (args.branch_cache
+                and run([sys.executable, BRANCH_CACHE, 'pull'] + base) == 0):
+            info("Libs restored from the branch GHCR cache.")
+            return
         sel_str = args.image or args.platform
+        # The scheduled stress loop (--skip-on-miss) treats a miss as expected and
+        # skips quietly; without it -- or with --branch-cache and both caches empty
+        # -- a miss fails loudly.
+        if args.skip_on_miss:
+            write_miss_marker()
+            info(f"Libs cache miss for '{sel_str}' (tag {args.tag}); skipping this "
+                 "stress run (wrote .libs-cache-miss). Expected when the continuous "
+                 "stress loop overlaps an empty or refilling cache. See the GHCR "
+                 "libs cache coupling in .github/workflows/AGENTS.md.")
+            return
         die(f"Libs cache MISS for require-cache-hit platform '{sel_str}' (tag "
             f"{args.tag}). Stress tests require a pre-warmed libs cache and never "
             "cold-build. Likely causes: (1) the cache was just cleared or an "
@@ -112,6 +169,8 @@ def main(argv):
     # consumer / warmer: the build command after `--` is mandatory.
     ours, build_cmd = split_build_command(rest)
     args = parser.parse_args(ours)
+    if args.skip_on_miss:
+        die("--skip-on-miss is only valid with --require-cache-hit.")
     if not build_cmd:
         die("no build command after '--'.")
     if args.warm and args.branch_cache:

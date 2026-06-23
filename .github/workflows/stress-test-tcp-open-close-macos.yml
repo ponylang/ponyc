@@ -2,7 +2,7 @@ name: "Stress Test: MacOS TCP Open/Close"
 
 on:
   schedule:
-    - cron: "00 6 * * *"
+    - cron: "30 13 * * *"
   workflow_dispatch:
     inputs:
       sha:
@@ -14,12 +14,22 @@ on:
 permissions:
   packages: read
 
+# Serialize the scheduled stress loop to one workflow at a time (groups are
+# repo-wide, so all six stress workflows share `stress-scheduled`). Manual runs
+# get a unique group (github.run_id) so a branch check never queues behind the
+# loop. Relies on these workflows having exactly two triggers (schedule +
+# workflow_dispatch) -- see the per-event flag/alert conditions below.
+concurrency:
+  group: stress-${{ github.event_name == 'workflow_dispatch' && github.run_id || 'scheduled' }}
+  cancel-in-progress: false
+
 jobs:
   x86_64-macos:
     runs-on: macos-15-intel
 
     strategy:
       fail-fast: false
+      max-parallel: 2
       matrix:
         include:
           - name: "x86-64 macOS [release]"
@@ -41,17 +51,24 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           LIBS_TAG: ${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
-        run: python3 .ci-scripts/libs-cache/resolve_libs_cache.py --require-cache-hit --platform x86-macos-15-intel --tag "$LIBS_TAG"
+          # schedule -> skip the run on a cache miss (the loop overlaps an empty/
+          # refilling cache); manual dispatch -> also pull the branch cache so a
+          # branch run finds the libs it already built, and fail loudly otherwise.
+          LIBS_CACHE_FLAGS: ${{ github.event_name == 'schedule' && '--skip-on-miss' || '--branch-cache' }}
+        run: python3 .ci-scripts/libs-cache/resolve_libs_cache.py --require-cache-hit $LIBS_CACHE_FLAGS --platform x86-macos-15-intel --tag "$LIBS_TAG"
       - name: Build Debug Runtime
+        if: ${{ hashFiles('.libs-cache-miss') == '' }}
         run: |
           make configure arch=x86-64 config=debug
           make build config=debug
       - name: Configure networking
+        if: ${{ hashFiles('.libs-cache-miss') == '' }}
         run: bash .ci-scripts/macOS-configure-networking.bash
       - name: Run Stress Test
+        if: ${{ hashFiles('.libs-cache-miss') == '' }}
         run: make ${{ matrix.target }} open_close_stress_connections=1000000 config=debug usedebugger=lldb
       - name: Send alert on failure
-        if: ${{ failure() }}
+        if: ${{ failure() && github.event_name == 'schedule' }}
         uses: zulip/github-actions-zulip/send-message@bd8ec52de371d139ae8313661b7d8318c19266aa
         with:
           api-key: ${{ secrets.ZULIP_SCHEDULED_JOB_FAILURE_API_KEY }}
@@ -64,9 +81,15 @@ jobs:
 
   arm64-macos:
     runs-on: macos-26
+    # Run after the x86 job so the whole workflow is never more than 2 cells at
+    # once (max-parallel: 2 per matrix); !cancelled() keeps arm64 running even
+    # when an x86 cell had a real failure.
+    needs: x86_64-macos
+    if: ${{ !cancelled() }}
 
     strategy:
       fail-fast: false
+      max-parallel: 2
       matrix:
         include:
           - name: "arm64 macOS [release]"
@@ -88,17 +111,24 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           LIBS_TAG: ${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
-        run: python3 .ci-scripts/libs-cache/resolve_libs_cache.py --require-cache-hit --platform arm64-macos-26 --tag "$LIBS_TAG"
+          # schedule -> skip the run on a cache miss (the loop overlaps an empty/
+          # refilling cache); manual dispatch -> also pull the branch cache so a
+          # branch run finds the libs it already built, and fail loudly otherwise.
+          LIBS_CACHE_FLAGS: ${{ github.event_name == 'schedule' && '--skip-on-miss' || '--branch-cache' }}
+        run: python3 .ci-scripts/libs-cache/resolve_libs_cache.py --require-cache-hit $LIBS_CACHE_FLAGS --platform arm64-macos-26 --tag "$LIBS_TAG"
       - name: Build Debug Runtime
+        if: ${{ hashFiles('.libs-cache-miss') == '' }}
         run: |
           make configure config=debug
           make build config=debug
       - name: Configure networking
+        if: ${{ hashFiles('.libs-cache-miss') == '' }}
         run: bash .ci-scripts/macOS-configure-networking.bash
       - name: Run Stress Test
+        if: ${{ hashFiles('.libs-cache-miss') == '' }}
         run: make ${{ matrix.target }} config=debug usedebugger=lldb
       - name: Send alert on failure
-        if: ${{ failure() }}
+        if: ${{ failure() && github.event_name == 'schedule' }}
         uses: zulip/github-actions-zulip/send-message@bd8ec52de371d139ae8313661b7d8318c19266aa
         with:
           api-key: ${{ secrets.ZULIP_SCHEDULED_JOB_FAILURE_API_KEY }}
