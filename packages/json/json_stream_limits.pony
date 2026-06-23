@@ -43,7 +43,7 @@ class val JsonStreamLimits
     """Maximum total source bytes consumed for a single top-level value."""
 
   new val create(
-    max_depth': USize = 8192,
+    max_depth': USize = 1024,
     max_string_len': USize = 1_048_576,
     max_number_len': USize = 256,
     max_value_bytes': USize = 8_388_608)

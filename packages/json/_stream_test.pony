@@ -338,7 +338,7 @@ class \nodoc\ iso _TestStreamLimits is UnitTest
     _reject(h, JsonStreamLimits(where max_value_bytes' = 4), "[1,2,3]")
     _accept(h, JsonStreamLimits(where max_value_bytes' = 7), "[1,2,3]")
     // a raised max_depth lifts the default bound: 9000-deep nesting exceeds the
-    // default max_depth (8192), so the default rejects it while max_depth'=10000
+    // default max_depth (1024), so the default rejects it while max_depth'=10000
     // accepts it.
     let s = String
     var i: USize = 0
