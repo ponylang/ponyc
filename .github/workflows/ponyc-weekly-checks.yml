@@ -52,19 +52,19 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - image: ghcr.io/ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu24.04-builder:20250115
+          - image: ghcr.io/ponylang/ponyc-ci-ubuntu26.04-builder:20260425
             debugger: lldb
             directives: dtrace
-          - image: ghcr.io/ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu24.04-builder:20250115
+          - image: ghcr.io/ponylang/ponyc-ci-ubuntu26.04-builder:20260425
             debugger: lldb
             directives: pool_memalign
-          - image: ghcr.io/ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu24.04-builder:20250115
+          - image: ghcr.io/ponylang/ponyc-ci-ubuntu26.04-builder:20260425
             debugger: lldb
             directives: pool_retain
-          - image: ghcr.io/ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu24.04-builder:20250115
+          - image: ghcr.io/ponylang/ponyc-ci-ubuntu26.04-builder:20260425
             debugger: lldb
             directives: runtimestats
-          - image: ghcr.io/ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu24.04-builder:20250115
+          - image: ghcr.io/ponylang/ponyc-ci-ubuntu26.04-builder:20260425
             debugger: lldb
             directives: runtime_tracing
 
@@ -125,10 +125,10 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - image: ghcr.io/ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu24.04-builder:20250115
+          - image: ghcr.io/ponylang/ponyc-ci-ubuntu26.04-builder:20260425
             cc: clang
             cxx: clang++
-          - image: ghcr.io/ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu24.04-builder:20250115
+          - image: ghcr.io/ponylang/ponyc-ci-ubuntu26.04-builder:20260425
             cc: gcc
             cxx: g++
 
@@ -173,7 +173,7 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - image: ghcr.io/ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu24.04-builder:20250115
+          - image: ghcr.io/ponylang/ponyc-ci-ubuntu26.04-builder:20260425
             debugger: lldb
             directives: pool_memalign,address_sanitizer,undefined_behavior_sanitizer
 
