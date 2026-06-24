@@ -21,6 +21,26 @@ static uint32_t total_threads = 0;
 static uint32_t stopped_threads = 0;
 static PONY_ATOMIC(uint32_t) waiting_to_start_count;
 
+// Logical clock for systematic testing.
+//
+// Under systematic testing the wall clock is meaningless because execution is
+// serialized to one thread at a time; a thread sits parked waiting its turn
+// while real time keeps advancing. The scheduler's clock-gated decisions (when
+// to send SCHED_BLOCK, when a thread becomes suspend-eligible, the cycle
+// detector cadence) must therefore run off this deterministic step counter
+// instead of ponyint_cpu_tick(), or the spin where a threshold trips moves run
+// to run and desyncs the seeded rand() stream that picks the next thread.
+//
+// The clock advances by a fixed number of pseudo-cycles once per yield (one
+// "scheduling step"). The increment scales logical steps onto the existing
+// cycle-scale thresholds (block/suspend at 2,000,000; cycle detector at
+// detect_interval * 2,000,000) so those thresholds keep their meaning and CLI
+// configurability, now measured in scheduling steps rather than CPU cycles.
+//
+// Only the active thread runs at any moment, so no synchronization is needed.
+#define SYSTEMATIC_TESTING_TICK_PER_YIELD 20000
+static uint64_t logical_clock = 0;
+
 #if defined(USE_SCHEDULER_SCALING_PTHREADS)
 static pthread_mutex_t systematic_testing_mut;
 
@@ -60,6 +80,12 @@ void ponyint_systematic_testing_init(uint64_t random_seed, uint32_t max_threads)
 
   atomic_store_explicit(&waiting_to_start_count, 0, memory_order_relaxed);
 
+  logical_clock = 0;
+
+  // NB: when no seed is given (random_seed == 0) we intentionally read the real
+  // wall clock for entropy. The logical clock is 0 here and would make the
+  // auto-chosen seed always 0; reproducibility is moot when no seed was asked
+  // for. A given seed never reaches this branch, so determinism is unaffected.
   if(0 == random_seed)
     random_seed = ponyint_cpu_tick();
 
@@ -161,6 +187,11 @@ void ponyint_systematic_testing_start(scheduler_t* schedulers, pony_thread_id_t 
   TRACING_SYSTEMATIC_TESTING_TIMESLICE_BEGIN();
 }
 
+uint64_t ponyint_systematic_testing_clock()
+{
+  return logical_clock;
+}
+
 static uint32_t get_next_index()
 {
   uint32_t active_scheduler_count = pony_active_schedulers();
@@ -189,6 +220,10 @@ static uint32_t get_next_index()
 
 void ponyint_systematic_testing_yield()
 {
+  // Advance the logical clock once per scheduling step. This is the single
+  // choke point every yield flows through, so it is the natural place to tick.
+  logical_clock += SYSTEMATIC_TESTING_TICK_PER_YIELD;
+
   if(stopped_threads == total_threads)
   {
     size_t mem_needed = total_threads * sizeof(systematic_testing_thread_t);
@@ -201,6 +236,7 @@ void ponyint_systematic_testing_yield()
     threads_to_track = NULL;
     total_threads = 0;
     stopped_threads = 0;
+    logical_clock = 0;
     atomic_store_explicit(&waiting_to_start_count, 0, memory_order_relaxed);
 
 #if defined(USE_SCHEDULER_SCALING_PTHREADS)

@@ -585,6 +585,22 @@ static bool read_msg(scheduler_t* sched, pony_actor_t* actor)
  * terminate.
  */
 
+// Clock source for the scheduler's clock-gated control flow (block/suspend
+// thresholds and the cycle-detector cadence). Under systematic testing we read
+// the deterministic logical clock instead of the wall clock so those decisions
+// — and therefore the seeded thread-selection stream — reproduce run to run.
+// The matching ponyint_cpu_tick_diff() calls are left as-is: on x86-64 and
+// Windows (the only platforms systematic testing builds on) PONY_CPU_TICK_BITS
+// is 64, so tick_diff(a, b) is exactly b - a, correct for a monotonic clock.
+static uint64_t sched_clock(void)
+{
+#if defined(USE_SYSTEMATIC_TESTING)
+  return SYSTEMATIC_TESTING_CLOCK();
+#else
+  return ponyint_cpu_tick();
+#endif
+}
+
 static bool quiescent(scheduler_t* sched, uint64_t tsc, uint64_t tsc2)
 {
   if(sched->terminate)
@@ -919,7 +935,7 @@ static pony_actor_t* steal(scheduler_t* sched)
   bool block_sent = false;
   bool suspend_eligible = false;
   uint32_t steal_attempts = 0;
-  uint64_t tsc = ponyint_cpu_tick();
+  uint64_t tsc = sched_clock();
   pony_actor_t* actor;
   scheduler_t* victim = NULL;
 
@@ -931,7 +947,7 @@ static pony_actor_t* steal(scheduler_t* sched)
     if(actor != NULL)
       break;
 
-    uint64_t tsc2 = ponyint_cpu_tick();
+    uint64_t tsc2 = sched_clock();
 
     if(read_msg(sched, actor))
     {
@@ -1053,7 +1069,7 @@ static pony_actor_t* steal(scheduler_t* sched)
     if(!ponyint_actor_getnoblock() && (sched->index == 0))
     {
       // trigger cycle detector by sending it a message if it is time
-      uint64_t current_tsc = ponyint_cpu_tick();
+      uint64_t current_tsc = sched_clock();
       if(ponyint_cycle_check_blocked(last_cd_tsc, current_tsc))
       {
         last_cd_tsc = current_tsc;
@@ -1180,7 +1196,7 @@ static void run(scheduler_t* sched)
       if(!ponyint_actor_getnoblock())
       {
         // trigger cycle detector by sending it a message if it is time
-        uint64_t current_tsc = ponyint_cpu_tick();
+        uint64_t current_tsc = sched_clock();
         if(ponyint_cycle_check_blocked(last_cd_tsc, current_tsc))
         {
           last_cd_tsc = current_tsc;
@@ -1451,7 +1467,7 @@ static void run_pinned_actors()
 #endif
 
   pony_actor_t* actor = NULL;
-  uint64_t tsc = ponyint_cpu_tick();
+  uint64_t tsc = sched_clock();
   bool suspend_eligible = false;
 
   while(true)
@@ -1512,7 +1528,7 @@ static void run_pinned_actors()
 
     if(actor == NULL)
     {
-      uint64_t tsc2 = ponyint_cpu_tick();
+      uint64_t tsc2 = sched_clock();
       uint64_t clocks_elapsed = ponyint_cpu_tick_diff(tsc, tsc2);
 
       // Latch suspend-eligibility, as in steal(). tsc here is the last time we
@@ -1556,7 +1572,7 @@ static void run_pinned_actors()
       // update the last time the scheduler did meaningful work (used for
       // deciding when to suspend the thread); this also clears the
       // suspend-eligibility latch so we wait idle again before suspending
-      tsc = ponyint_cpu_tick();
+      tsc = sched_clock();
       suspend_eligible = false;
 
       if(reschedule)
