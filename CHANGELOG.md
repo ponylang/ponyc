@@ -32,6 +32,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Fix brief scheduler busy-spin after a long idle on 32-bit ARM ([PR #5539](https://github.com/ponylang/ponyc/pull/5539))
 - Truncate oversized UDP datagrams on Windows instead of dropping them ([PR #5552](https://github.com/ponylang/ponyc/pull/5552))
 - Fix compiler crash when compiling very long expression sequences ([PR #5553](https://github.com/ponylang/ponyc/pull/5553))
+- Make systematic testing reproducible with multiple scheduler threads when scheduler scaling is disabled ([PR #5561](https://github.com/ponylang/ponyc/pull/5561))
 
 ### Added
 
