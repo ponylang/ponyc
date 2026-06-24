@@ -7,9 +7,11 @@
 #include "../ast/ast.h"
 #include "../ast/token.h"
 #include "../expr/literal.h"
+#include "../../libponyrt/gc/serialise.h"
 #include "../../libponyrt/mem/pool.h"
+#include "../../libponyrt/sched/scheduler.h"
 #include "ponyassert.h"
-#include <ctype.h>
+#include <blake2.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdbool.h>
@@ -20,7 +22,6 @@
 
 
 #define EXTENSION ".pony"
-#define C_EXTENSION ".c"
 
 
 #ifdef PLATFORM_IS_WINDOWS
@@ -41,7 +42,7 @@
 #  pragma warning(disable:4996)
 #endif
 
-DECLARE_HASHMAP(package_set, package_set_t, package_t)
+DECLARE_HASHMAP_SERIALISE(package_set, package_set_t, package_t)
 
 // Per package state
 struct package_t
@@ -57,29 +58,22 @@ struct package_t
   size_t group_index;
   size_t next_hygienic_id;
   size_t low_index;
-  // C shim state. These strlists preserve insertion order (tail-append) and
-  // gencshim reads them head->tail: c_includes/c_defines accumulate in AST order
-  // (sorted-file order, then source order within a file) as the scope pass
-  // visits use commands, and c_sources is appended in sorted-directory order.
-  // That ordering is what makes the clang argv and the shim object link order
-  // deterministic for reproducible builds - don't replace these with an
-  // unordered container. c_define_uses parallels c_defines (the use command
-  // that added each define) for the duplicate-definition error frame.
-  strlist_t* c_includes;
-  strlist_t* c_defines;
-  astlist_t* c_define_uses;
-  strlist_t* c_sources;
-  // The first cdefine:/cincludedir: directive seen for this package, used to
-  // locate the error when such a directive lands in a package with no .c
-  // sources to apply it to.
-  ast_t* c_first_flag_use;
   bool allow_ffi;
   bool on_stack;
 };
 
+// Minimal package data structure for signature computation.
+typedef struct package_signature_t
+{
+  const char* filename;
+  package_group_t* group;
+  size_t group_index;
+} package_signature_t;
+
 // A strongly connected component in the package dependency graph
 struct package_group_t
 {
+  char* signature;
   package_set_t members;
 };
 
@@ -95,15 +89,15 @@ struct magic_package_t
 DECLARE_STACK(package_stack, package_stack_t, package_t)
 DEFINE_STACK(package_stack, package_stack_t, package_t)
 
-DEFINE_LIST(package_group_list, package_group_list_t, package_group_t,
-  NULL, package_group_free)
+DEFINE_LIST_SERIALISE(package_group_list, package_group_list_t, package_group_t,
+  NULL, package_group_free, package_group_pony_type())
 
 
 static size_t package_hash(package_t* pkg)
 {
   // Hash the full string instead of the stringtab pointer. We want a
   // deterministic hash in order to enable deterministic hashmap iteration,
-  // which in turn enables reproducible compilation output.
+  // which in turn enables deterministic package signatures.
   return (size_t)ponyint_hash_str(pkg->qualified_name);
 }
 
@@ -114,8 +108,8 @@ static bool package_cmp(package_t* a, package_t* b)
 }
 
 
-DEFINE_HASHMAP(package_set, package_set_t, package_t, package_hash,
-  package_cmp, NULL)
+DEFINE_HASHMAP_SERIALISE(package_set, package_set_t, package_t, package_hash,
+  package_cmp, NULL, package_pony_type())
 
 
 // Find the magic source code associated with the given path, if any
@@ -144,7 +138,7 @@ static bool parse_source_file(ast_t* package, const char* file_path,
     printf("Opening %s\n", file_path);
 
   const char* error_msg = NULL;
-  source_t* source = source_open(file_path, &error_msg, opt->strtab);
+  source_t* source = source_open(file_path, &error_msg);
 
   if(source == NULL)
   {
@@ -239,38 +233,20 @@ static bool parse_files_in_dir(ast_t* package, const char* dir_path,
   size_t count = 0;
   size_t buf_size = 4 * sizeof(const char*);
   const char** entries = (const char**)ponyint_pool_alloc_size(buf_size);
-  size_t c_count = 0;
-  size_t c_buf_size = 4 * sizeof(const char*);
-  const char** c_entries = (const char**)ponyint_pool_alloc_size(c_buf_size);
   PONY_DIRINFO* d;
 
   while((d = pony_dir_entry_next(dir)) != NULL)
   {
-    // Handle only files with the specified extensions that don't begin with
+    // Handle only files with the specified extension that don't begin with
     // a dot. This avoids including UNIX hidden files in a build.
-    const char* name = stringtab(opt->strtab, pony_dir_info_name(d));
+    const char* name = stringtab(pony_dir_info_name(d));
 
     if(name[0] == '.')
       continue;
 
-    // A directory is never a source file, whatever its name. Skip it before
-    // classifying by extension: otherwise a directory named like a source
-    // file (e.g. foo.pony) reaches source_open, which on some filesystems
-    // opens it, misreads its length via ftell, and aborts the compiler with a
-    // huge allocation. Filtering here covers every source extension.
-    char fullpath[FILENAME_MAX];
-    path_cat(dir_path, name, fullpath);
-
-    struct stat s;
-    if((stat(fullpath, &s) == 0) && S_ISDIR(s.st_mode))
-      continue;
-
     const char* p = strrchr(name, '.');
 
-    if(p == NULL)
-      continue;
-
-    if(strcmp(p, EXTENSION) == 0)
+    if((p != NULL) && (strcmp(p, EXTENSION) == 0))
     {
       if((count * sizeof(const char*)) == buf_size)
       {
@@ -282,26 +258,11 @@ static bool parse_files_in_dir(ast_t* package, const char* dir_path,
 
       entries[count++] = name;
     }
-    else if(strcmp(p, C_EXTENSION) == 0)
-    {
-      // C shim sources. These are not parsed as Pony (they never join
-      // entries[]); gencshim compiles them with the embedded clang and links
-      // the objects into the program.
-      if((c_count * sizeof(const char*)) == c_buf_size)
-      {
-        size_t new_buf_size = c_buf_size * 2;
-        c_entries = (const char**)ponyint_pool_realloc_size(c_buf_size,
-          new_buf_size, c_entries);
-        c_buf_size = new_buf_size;
-      }
-
-      c_entries[c_count++] = name;
-    }
   }
 
   pony_closedir(dir);
 
-  // In order for compilation output to be reproducible, file parsing order
+  // In order for package signatures to be deterministic, file parsing order
   // must be deterministic too.
   qsort(entries, count, sizeof(const char*), string_compare);
   bool r = true;
@@ -313,45 +274,7 @@ static bool parse_files_in_dir(ast_t* package, const char* dir_path,
     r &= parse_source_file(package, fullpath, opt);
   }
 
-  // C shim sources are recorded in sorted order for the same reason: gencshim
-  // compiles c_sources head->tail and appends each object to the link line
-  // in that order, so this sort is what keeps the output reproducible.
-  qsort(c_entries, c_count, sizeof(const char*), string_compare);
-
-  package_t* pkg = (package_t*)ast_data(package);
-
-  for(size_t i = 0; i < c_count; i++)
-  {
-    char fullpath[FILENAME_MAX];
-    path_cat(dir_path, c_entries[i], fullpath);
-
-    if(fullpath[0] == '\0')
-    {
-      errorf(errors, c_entries[i], "path to C source is too long");
-      r = false;
-      continue;
-    }
-
-    // Compiling a C shim is the package doing C, so --safe gates it exactly
-    // like a C FFI call (verify_ffi_call): a package not on the safe list
-    // doesn't get its .c compiled. The file is allowed to be there; what's
-    // gated is compiling it. Checked here, at discovery, so it fails as
-    // early as an unsafe FFI call would -- allow_ffi is already set
-    // (create_package runs before this).
-    if(!pkg->allow_ffi)
-    {
-      errorf(errors, fullpath, "this package isn't allowed to do C FFI, so "
-        "its C source files can't be compiled as shims");
-      r = false;
-      continue;
-    }
-
-    pkg->c_sources = strlist_append(pkg->c_sources,
-      stringtab(opt->strtab, fullpath));
-  }
-
   ponyint_pool_free_size(buf_size, entries);
-  ponyint_pool_free_size(c_buf_size, c_entries);
   return r;
 }
 
@@ -361,7 +284,7 @@ static bool parse_files_in_dir(ast_t* package, const char* dir_path,
 // @return The resulting directory path, which should not be deleted and is
 // valid indefinitely. NULL is directory cannot be found.
 static const char* try_path(const char* base, const char* path,
-  bool* out_found_notdir, pass_opt_t* opt)
+  bool* out_found_notdir)
 {
   char composite[FILENAME_MAX];
   char file[FILENAME_MAX];
@@ -385,7 +308,7 @@ static const char* try_path(const char* base, const char* path,
     return NULL;
   }
 
-  return stringtab(opt->strtab, file);
+  return stringtab(file);
 }
 
 
@@ -414,7 +337,7 @@ static bool is_root(const char* path)
 // Try base/../pony_packages/path, and keep adding .. to look another level up
 // until we are looking in /pony_packages/path
 static const char* try_package_path(const char* base, const char* path,
-  bool* out_found_notdir, pass_opt_t* opt)
+  bool* out_found_notdir)
 {
   char path1[FILENAME_MAX];
   char path2[FILENAME_MAX];
@@ -429,7 +352,7 @@ static const char* try_package_path(const char* base, const char* path,
 
     path_cat(path1, "pony_packages", path2);
 
-    const char* result = try_path(path2, path, out_found_notdir, opt);
+    const char* result = try_path(path2, path, out_found_notdir);
 
     if(result != NULL)
       return result;
@@ -453,7 +376,7 @@ static const char* find_path(ast_t* from, const char* path,
 
   // First check for an absolute path
   if(is_path_absolute(path))
-    return try_path(NULL, path, out_found_notdir, opt);
+    return try_path(NULL, path, out_found_notdir);
 
   // Get the base directory
   const char* base;
@@ -468,7 +391,7 @@ static const char* find_path(ast_t* from, const char* path,
   }
 
   // Try a path relative to the base
-  const char* result = try_path(base, path, out_found_notdir, opt);
+  const char* result = try_path(base, path, out_found_notdir);
 
   if(result != NULL)
   {
@@ -484,7 +407,7 @@ static const char* find_path(ast_t* from, const char* path,
     // Check ../pony_packages and further up the tree
     if(base != NULL)
     {
-      result = try_package_path(base, path, out_found_notdir, opt);
+      result = try_package_path(base, path, out_found_notdir);
 
       if(result != NULL)
         return result;
@@ -496,7 +419,7 @@ static const char* find_path(ast_t* from, const char* path,
         package_t* pkg = (package_t*)ast_data(target);
         base = pkg->path;
 
-        result = try_package_path(base, path, out_found_notdir, opt);
+        result = try_package_path(base, path, out_found_notdir);
 
         if(result != NULL)
           return result;
@@ -507,7 +430,7 @@ static const char* find_path(ast_t* from, const char* path,
     for(strlist_t* p = opt->package_search_paths; p != NULL;
       p = strlist_next(p))
     {
-      result = try_path(strlist_data(p), path, out_found_notdir, opt);
+      result = try_path(strlist_data(p), path, out_found_notdir);
 
       if(result != NULL)
         return result;
@@ -520,7 +443,7 @@ static const char* find_path(ast_t* from, const char* path,
 
 // Convert the given ID to a hygenic string. The resulting string should not be
 // deleted and is valid indefinitely.
-static const char* id_to_string(const char* prefix, size_t id, pass_opt_t* opt)
+static const char* id_to_string(const char* prefix, size_t id)
 {
   if(prefix == NULL)
     prefix = "";
@@ -529,7 +452,7 @@ static const char* id_to_string(const char* prefix, size_t id, pass_opt_t* opt)
   size_t buf_size = len + 32;
   char* buffer = (char*)ponyint_pool_alloc_size(buf_size);
   snprintf(buffer, buf_size, "%s$" __zu, prefix, id);
-  return stringtab_consume(opt->strtab, buffer, buf_size);
+  return stringtab_consume(buffer, buf_size);
 }
 
 
@@ -551,7 +474,7 @@ static bool symbol_in_use(ast_t* program, const char* symbol)
 }
 
 
-static const char* string_to_symbol(const char* string, pass_opt_t* opt)
+static const char* string_to_symbol(const char* string)
 {
   bool prefix = false;
 
@@ -588,31 +511,29 @@ static const char* string_to_symbol(const char* string, pass_opt_t* opt)
     }
   }
 
-  return stringtab_consume(opt->strtab, buf, buf_size);
+  return stringtab_consume(buf, buf_size);
 }
 
 
-static const char* symbol_suffix(const char* symbol, size_t suffix,
-  pass_opt_t* opt)
+static const char* symbol_suffix(const char* symbol, size_t suffix)
 {
   size_t len = strlen(symbol);
   size_t buf_size = len + 32;
   char* buf = (char*)ponyint_pool_alloc_size(buf_size);
   snprintf(buf, buf_size, "%s" __zu, symbol, suffix);
 
-  return stringtab_consume(opt->strtab, buf, buf_size);
+  return stringtab_consume(buf, buf_size);
 }
 
 
-static const char* create_package_symbol(ast_t* program, const char* filename,
-  pass_opt_t* opt)
+static const char* create_package_symbol(ast_t* program, const char* filename)
 {
-  const char* symbol = string_to_symbol(filename, opt);
+  const char* symbol = string_to_symbol(filename);
   size_t suffix = 1;
 
   while(symbol_in_use(program, symbol))
   {
-    symbol = symbol_suffix(symbol, suffix, opt);
+    symbol = symbol_suffix(symbol, suffix);
     suffix++;
   }
 
@@ -630,7 +551,7 @@ ast_t* create_package(ast_t* program, const char* name,
   package_t* pkg = POOL_ALLOC(package_t);
   pkg->path = name;
   pkg->qualified_name = qualified_name;
-  pkg->id = id_to_string(NULL, pkg_id, opt);
+  pkg->id = id_to_string(NULL, pkg_id);
 
   const char* p = strrchr(pkg->path, PATH_SLASH);
 
@@ -639,10 +560,10 @@ ast_t* create_package(ast_t* program, const char* name,
   else
     p = p + 1;
 
-  pkg->filename = stringtab(opt->strtab, p);
+  pkg->filename = stringtab(p);
 
   if(pkg_id > 1)
-    pkg->symbol = create_package_symbol(program, pkg->filename, opt);
+    pkg->symbol = create_package_symbol(program, pkg->filename);
   else
     pkg->symbol = NULL;
 
@@ -652,17 +573,12 @@ ast_t* create_package(ast_t* program, const char* name,
   pkg->group_index = -1;
   pkg->next_hygienic_id = 0;
   pkg->low_index = -1;
-  pkg->c_includes = NULL;
-  pkg->c_defines = NULL;
-  pkg->c_define_uses = NULL;
-  pkg->c_sources = NULL;
-  pkg->c_first_flag_use = NULL;
   ast_setdata(package, pkg);
 
   ast_scope(package);
   ast_append(program, package);
-  ast_set(program, pkg->path, package, SYM_NONE, false, opt->strtab);
-  ast_set(program, pkg->id, package, SYM_NONE, false, opt->strtab);
+  ast_set(program, pkg->path, package, SYM_NONE, false);
+  ast_set(program, pkg->id, package, SYM_NONE, false);
 
   strlist_t* safe = opt->safe_packages;
 
@@ -700,7 +616,7 @@ static bool add_path(const char* path, pass_opt_t* opt)
 
   if((err != -1) && S_ISDIR(s.st_mode))
   {
-    path = stringtab(opt->strtab, path);
+    path = stringtab(path);
     strlist_t* search = opt->package_search_paths;
 
     if(strlist_find(search, path) == NULL)
@@ -727,7 +643,7 @@ static bool add_relative_path(const char* path, const char* relpath,
 
 static bool add_safe(const char* path, pass_opt_t* opt)
 {
-  path = stringtab(opt->strtab, path);
+  path = stringtab(path);
   strlist_t* safe = opt->safe_packages;
 
   if(strlist_find(safe, path) == NULL)
@@ -959,7 +875,7 @@ bool package_add_safe(const char* paths, pass_opt_t* opt)
 void package_add_magic_src(const char* path, const char* src, pass_opt_t* opt)
 {
   magic_package_t* n = POOL_ALLOC(magic_package_t);
-  n->path = stringtab(opt->strtab, path);
+  n->path = stringtab(path);
   n->src = src;
   n->mapped_path = NULL;
   n->next = opt->magic_packages;
@@ -971,9 +887,9 @@ void package_add_magic_path(const char* path, const char* mapped_path,
   pass_opt_t* opt)
 {
   magic_package_t* n = POOL_ALLOC(magic_package_t);
-  n->path = stringtab(opt->strtab, path);
+  n->path = stringtab(path);
   n->src = NULL;
-  n->mapped_path = stringtab(opt->strtab, mapped_path);
+  n->mapped_path = stringtab(mapped_path);
   n->next = opt->magic_packages;
   opt->magic_packages = n;
 }
@@ -1002,7 +918,7 @@ ast_t* program_load(const char* path, pass_opt_t* opt)
   opt->program_pass = PASS_PARSE;
 
   // Always load builtin package first, then the specified one.
-  if(package_load(program, stringtab(opt->strtab, "builtin"), opt) == NULL ||
+  if(package_load(program, stringtab("builtin"), opt) == NULL ||
     package_load(program, path, opt) == NULL)
   {
     ast_free(program);
@@ -1098,7 +1014,7 @@ ast_t* package_load(ast_t* from, const char* path, pass_opt_t* opt)
         q_name[base_name_len] = '/';
         memcpy(q_name + base_name_len + 1, package_path, package_path_len);
         q_name[len - 1] = '\0';
-        qualified_name = stringtab_consume(opt->strtab, q_name, len);
+        qualified_name = stringtab_consume(q_name, len);
       }
     }
 
@@ -1160,11 +1076,8 @@ ast_t* package_load(ast_t* from, const char* path, pass_opt_t* opt)
 
   if(ast_child(package) == NULL)
   {
-    // A .c shim contributes no Pony AST, so a directory holding only .c
-    // files is still not a package: shims travel with Pony code, they don't
-    // replace it.
     ast_error(opt->check.errors, package,
-      "no Pony source files in package '%s'", path);
+      "no source files in package '%s'", path);
     return NULL;
   }
 
@@ -1184,10 +1097,6 @@ void package_free(package_t* package)
   if(package != NULL)
   {
     package_set_destroy(&package->dependencies);
-    strlist_free(package->c_includes);
-    strlist_free(package->c_defines);
-    astlist_free(package->c_define_uses);
-    strlist_free(package->c_sources);
     POOL_FREE(package_t, package);
   }
 }
@@ -1200,9 +1109,9 @@ const char* package_name(ast_t* ast)
 }
 
 
-ast_t* package_id(ast_t* ast, pass_opt_t* opt)
+ast_t* package_id(ast_t* ast)
 {
-  return ast_from_string(ast, package_name(ast), opt->strtab);
+  return ast_from_string(ast, package_name(ast));
 }
 
 
@@ -1248,13 +1157,13 @@ const char* package_symbol(ast_t* package)
 }
 
 
-const char* package_hygienic_id(typecheck_t* t, pass_opt_t* opt)
+const char* package_hygienic_id(typecheck_t* t)
 {
   pony_assert(t->frame->package != NULL);
   package_t* pkg = (package_t*)ast_data(t->frame->package);
   size_t id = pkg->next_hygienic_id++;
 
-  return id_to_string(pkg->id, id, opt);
+  return id_to_string(pkg->id, id);
 }
 
 
@@ -1266,193 +1175,11 @@ bool package_allow_ffi(typecheck_t* t)
 }
 
 
-// The macro name of a cdefine: directive is the text before '=' (or the
-// whole directive when there is no '='); the value after '=' is opaque.
-static bool c_define_name_eq(const char* a, const char* b)
-{
-  size_t a_len = strcspn(a, "=");
-  size_t b_len = strcspn(b, "=");
-
-  return (a_len == b_len) && (strncmp(a, b, a_len) == 0);
-}
-
-
-bool use_cincludedir(ast_t* use, const char* locator, ast_t* name,
-  pass_opt_t* options)
-{
-  (void)name;
-  pony_assert(use != NULL);
-  pony_assert(locator != NULL);
-
-  if(locator[0] == '\0')
-  {
-    ast_error(options->check.errors, use, "cincludedir: requires a path");
-    return false;
-  }
-
-  char absolute[FILENAME_MAX];
-  const char* prefix = NULL;
-
-  if(!is_path_absolute(locator))
-    prefix = package_path(ast_nearest(use, TK_PACKAGE));
-
-  path_cat(prefix, locator, absolute);
-
-  if(absolute[0] == '\0')
-  {
-    ast_error(options->check.errors, use, "cincludedir: path is too long");
-    return false;
-  }
-
-  // The path is stored raw - not through quoted_locator() - because include
-  // paths may legitimately contain characters that helper rejects (spaces in
-  // particular). That's safe: it is handed to clang as a single argv element,
-  // never through a shell. Duplicates are allowed; an include search list is
-  // additive, so repeats are harmless.
-  ast_t* pkg_ast = ast_nearest(use, TK_PACKAGE);
-  package_t* pkg = (package_t*)ast_data(pkg_ast);
-  pkg->c_includes = strlist_append(pkg->c_includes,
-    stringtab(options->strtab, absolute));
-
-  if(pkg->c_first_flag_use == NULL)
-    pkg->c_first_flag_use = use;
-
-  return true;
-}
-
-
-bool use_cdefine(ast_t* use, const char* locator, ast_t* name,
-  pass_opt_t* options)
-{
-  (void)name;
-  pony_assert(use != NULL);
-  pony_assert(locator != NULL);
-
-  size_t name_len = strcspn(locator, "=");
-
-  if(name_len == 0)
-  {
-    ast_error(options->check.errors, use, "cdefine: requires a macro name");
-    return false;
-  }
-
-  // The macro name must be a C identifier. This is what keeps the duplicate
-  // check sound: clang's -D accepts trickier forms (function-like macros
-  // "FOO(x)=...", "NAME VALUE" with a space) whose effective macro name is
-  // not the text before '=', so they would dodge the check and silently
-  // shadow. Rejecting them is also the conservative scope: function-like
-  // macro support can be added later if demand shows; un-rejecting is easy.
-  bool valid_name = (locator[0] == '_') || isalpha((unsigned char)locator[0]);
-
-  for(size_t i = 1; valid_name && (i < name_len); i++)
-  {
-    valid_name = (locator[i] == '_')
-      || isalnum((unsigned char)locator[i]);
-  }
-
-  if(!valid_name)
-  {
-    ast_error(options->check.errors, use,
-      "cdefine: macro name (the text before '=') must be a C identifier");
-    return false;
-  }
-
-  ast_t* pkg_ast = ast_nearest(use, TK_PACKAGE);
-  package_t* pkg = (package_t*)ast_data(pkg_ast);
-
-  // A macro name is a declaration: defining it twice for one package is an
-  // error even when the values match, like `let a = 1` twice. Guards have
-  // already been evaluated (a guarded-out directive never reaches this
-  // handler), so only directives active for the current target are checked.
-  strlist_t* d = pkg->c_defines;
-  astlist_t* u = pkg->c_define_uses;
-
-  while(d != NULL)
-  {
-    const char* prior = strlist_data(d);
-
-    if(c_define_name_eq(prior, locator))
-    {
-      if(strcmp(prior, locator) == 0)
-        ast_error(options->check.errors, use,
-          "C macro '%.*s' is already defined for this package",
-          (int)name_len, locator);
-      else
-        ast_error(options->check.errors, use,
-          "C macro '%.*s' is already defined for this package as '%s'",
-          (int)name_len, locator, prior);
-
-      ast_error_continue(options->check.errors, astlist_data(u),
-        "first definition is here");
-      return false;
-    }
-
-    d = strlist_next(d);
-    u = astlist_next(u);
-  }
-
-  // The value (everything after '=', if any) is stored raw and handed to
-  // clang as a single argv element - see use_cincludedir() for why that's safe.
-  pkg->c_defines = strlist_append(pkg->c_defines, locator);
-  pkg->c_define_uses = astlist_append(pkg->c_define_uses, use);
-
-  if(pkg->c_first_flag_use == NULL)
-    pkg->c_first_flag_use = use;
-
-  return true;
-}
-
-
-strlist_t* package_c_includes(ast_t* package)
-{
-  pony_assert(package != NULL);
-  pony_assert(ast_id(package) == TK_PACKAGE);
-  package_t* pkg = (package_t*)ast_data(package);
-  pony_assert(pkg != NULL);
-
-  return pkg->c_includes;
-}
-
-
-strlist_t* package_c_defines(ast_t* package)
-{
-  pony_assert(package != NULL);
-  pony_assert(ast_id(package) == TK_PACKAGE);
-  package_t* pkg = (package_t*)ast_data(package);
-  pony_assert(pkg != NULL);
-
-  return pkg->c_defines;
-}
-
-
-strlist_t* package_c_sources(ast_t* package)
-{
-  pony_assert(package != NULL);
-  pony_assert(ast_id(package) == TK_PACKAGE);
-  package_t* pkg = (package_t*)ast_data(package);
-  pony_assert(pkg != NULL);
-
-  return pkg->c_sources;
-}
-
-
-ast_t* package_c_first_flag_use(ast_t* package)
-{
-  pony_assert(package != NULL);
-  pony_assert(ast_id(package) == TK_PACKAGE);
-  package_t* pkg = (package_t*)ast_data(package);
-  pony_assert(pkg != NULL);
-
-  return pkg->c_first_flag_use;
-}
-
-
-const char* package_alias_from_id(ast_t* module, const char* id,
-  pass_opt_t* opt)
+const char* package_alias_from_id(ast_t* module, const char* id)
 {
   pony_assert(ast_id(module) == TK_MODULE);
 
-  const char* strtab_id = stringtab(opt->strtab, id);
+  const char* strtab_id = stringtab(id);
 
   ast_t* use = ast_child(module);
   while(ast_id(use) == TK_USE)
@@ -1504,6 +1231,17 @@ void package_add_dependency(ast_t* package, ast_t* dep)
 }
 
 
+const char* package_signature(ast_t* package)
+{
+  pony_assert(ast_id(package) == TK_PACKAGE);
+
+  package_t* pkg = (package_t*)ast_data(package);
+  pony_assert(pkg->group != NULL);
+
+  return package_group_signature(pkg->group);
+}
+
+
 size_t package_group_index(ast_t* package)
 {
   pony_assert(ast_id(package) == TK_PACKAGE);
@@ -1518,6 +1256,7 @@ size_t package_group_index(ast_t* package)
 package_group_t* package_group_new()
 {
   package_group_t* group = POOL_ALLOC(package_group_t);
+  group->signature = NULL;
   package_set_init(&group->members, 1);
   return group;
 }
@@ -1525,6 +1264,9 @@ package_group_t* package_group_new()
 
 void package_group_free(package_group_t* group)
 {
+  if(group->signature != NULL)
+    ponyint_pool_free_size(SIGNATURE_LENGTH, group->signature);
+
   package_set_destroy(&group->members);
   POOL_FREE(package_group_t, group);
 }
@@ -1597,10 +1339,26 @@ package_group_list_t* package_dependency_groups(ast_t* first_package)
 }
 
 
+static void print_signature(const char* sig)
+{
+  for(size_t i = 0; i < SIGNATURE_LENGTH; i++)
+    printf("%02hhX", sig[i]);
+}
+
+
 void package_group_dump(package_group_t* group)
 {
   package_set_t deps;
   package_set_init(&deps, 1);
+
+  fputs("Signature: ", stdout);
+
+  if(group->signature != NULL)
+    print_signature(group->signature);
+  else
+    fputs("(NONE)", stdout);
+
+  putchar('\n');
 
   puts("Members:");
 
@@ -1641,6 +1399,281 @@ void package_group_dump(package_group_t* group)
 }
 
 
+// *_signature_* handles the current group, *_dep_signature_* handles the direct
+// dependencies. Indirect dependencies are ignored, they are covered by the
+// signature of the direct dependencies.
+// Some data is traced but not serialised. This is to avoid redundant
+// information.
+
+
+static void package_dep_signature_serialise_trace(pony_ctx_t* ctx,
+  void* object)
+{
+  package_t* package = (package_t*)object;
+
+  string_trace(ctx, package->filename);
+  pony_traceknown(ctx, package->group, package_group_dep_signature_pony_type(),
+    PONY_TRACE_MUTABLE);
+}
+
+static void package_signature_serialise_trace(pony_ctx_t* ctx,
+  void* object)
+{
+  package_t* package = (package_t*)object;
+
+  string_trace(ctx, package->filename);
+  // The group has already been traced.
+
+  size_t i = HASHMAP_BEGIN;
+  package_t* dep;
+
+  while((dep = package_set_next(&package->dependencies, &i)) != NULL)
+    pony_traceknown(ctx, dep, package_dep_signature_pony_type(),
+      PONY_TRACE_MUTABLE);
+
+  pony_traceknown(ctx, package->ast, ast_signature_pony_type(),
+    PONY_TRACE_MUTABLE);
+}
+
+
+static void package_signature_serialise(pony_ctx_t* ctx, void* object,
+  void* buf, size_t offset, int mutability)
+{
+  (void)mutability;
+
+  package_t* package = (package_t*)object;
+  package_signature_t* dst = (package_signature_t*)((uintptr_t)buf + offset);
+
+  dst->filename = (const char*)pony_serialise_offset(ctx,
+    (char*)package->filename);
+  dst->group = (package_group_t*)pony_serialise_offset(ctx, package->group);
+  dst->group_index = package->group_index;
+}
+
+
+static pony_type_t package_dep_signature_pony =
+{
+  0,
+  sizeof(package_signature_t),
+  0,
+  0,
+  0,
+  NULL,
+#if defined(USE_RUNTIME_TRACING)
+  NULL,
+  NULL,
+#endif
+  NULL,
+  package_dep_signature_serialise_trace,
+  package_signature_serialise, // Same function for both package and package_dep.
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  0,
+  0,
+  NULL,
+  NULL,
+  NULL
+};
+
+
+pony_type_t* package_dep_signature_pony_type()
+{
+  return &package_dep_signature_pony;
+}
+
+
+static pony_type_t package_signature_pony =
+{
+  0,
+  sizeof(package_signature_t),
+  0,
+  0,
+  0,
+  NULL,
+#if defined(USE_RUNTIME_TRACING)
+  NULL,
+  NULL,
+#endif
+  NULL,
+  package_signature_serialise_trace,
+  package_signature_serialise,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  0,
+  0,
+  NULL,
+  NULL,
+  NULL
+};
+
+
+pony_type_t* package_signature_pony_type()
+{
+  return &package_signature_pony;
+}
+
+
+static void package_group_dep_signature_serialise_trace(pony_ctx_t* ctx,
+  void* object)
+{
+  package_group_t* group = (package_group_t*)object;
+
+  pony_assert(group->signature != NULL);
+  pony_serialise_reserve(ctx, group->signature, SIGNATURE_LENGTH);
+}
+
+
+static void package_group_signature_serialise_trace(pony_ctx_t* ctx,
+  void* object)
+{
+  package_group_t* group = (package_group_t*)object;
+
+  pony_assert(group->signature == NULL);
+
+  size_t i = HASHMAP_BEGIN;
+  package_t* member;
+
+  while((member = package_set_next(&group->members, &i)) != NULL)
+  {
+    pony_traceknown(ctx, member, package_signature_pony_type(),
+      PONY_TRACE_MUTABLE);
+  }
+}
+
+
+static void package_group_signature_serialise(pony_ctx_t* ctx, void* object,
+  void* buf, size_t offset, int mutability)
+{
+  (void)ctx;
+  (void)mutability;
+
+  package_group_t* group = (package_group_t*)object;
+  package_group_t* dst = (package_group_t*)((uintptr_t)buf + offset);
+
+  if(group->signature != NULL)
+  {
+    uintptr_t ptr_offset = pony_serialise_offset(ctx, group->signature);
+    char* dst_sig = (char*)((uintptr_t)buf + ptr_offset);
+    memcpy(dst_sig, group->signature, SIGNATURE_LENGTH);
+    dst->signature = (char*)ptr_offset;
+  } else {
+    dst->signature = NULL;
+  }
+}
+
+
+static pony_type_t package_group_dep_signature_pony =
+{
+  0,
+  sizeof(const char*),
+  0,
+  0,
+  0,
+  NULL,
+#if defined(USE_RUNTIME_TRACING)
+  NULL,
+  NULL,
+#endif
+  NULL,
+  package_group_dep_signature_serialise_trace,
+  package_group_signature_serialise, // Same function for both group and group_dep.
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  0,
+  0,
+  NULL,
+  NULL,
+  NULL
+};
+
+
+pony_type_t* package_group_dep_signature_pony_type()
+{
+  return &package_group_dep_signature_pony;
+}
+
+
+static pony_type_t package_group_signature_pony =
+{
+  0,
+  sizeof(const char*),
+  0,
+  0,
+  0,
+  NULL,
+#if defined(USE_RUNTIME_TRACING)
+  NULL,
+  NULL,
+#endif
+  NULL,
+  package_group_signature_serialise_trace,
+  package_group_signature_serialise,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  0,
+  0,
+  NULL,
+  NULL,
+  NULL
+};
+
+
+pony_type_t* package_group_signature_pony_type()
+{
+  return &package_group_signature_pony;
+}
+
+
+static void* s_alloc_fn(pony_ctx_t* ctx, size_t size)
+{
+  (void)ctx;
+  return ponyint_pool_alloc_size(size);
+}
+
+
+static void s_throw_fn()
+{
+  pony_assert(false);
+}
+
+
+// TODO: Make group signature indiependent of package load order.
+const char* package_group_signature(package_group_t* group)
+{
+  if(group->signature == NULL)
+  {
+    pony_ctx_t ctx;
+    memset(&ctx, 0, sizeof(pony_ctx_t));
+    ponyint_array_t array;
+    memset(&array, 0, sizeof(ponyint_array_t));
+    char* buf = (char*)ponyint_pool_alloc_size(SIGNATURE_LENGTH);
+
+    pony_serialise(&ctx, group, package_group_signature_pony_type(), &array,
+      s_alloc_fn, s_throw_fn);
+    int status = blake2b(buf, SIGNATURE_LENGTH, array.ptr, array.size, NULL, 0);
+    (void)status;
+    pony_assert(status == 0);
+
+    group->signature = buf;
+    ponyint_pool_free_size(array.size, array.ptr);
+  }
+
+  return group->signature;
+}
+
+
 void package_done(pass_opt_t* opt)
 {
   strlist_free(opt->package_search_paths);
@@ -1650,6 +1683,188 @@ void package_done(pass_opt_t* opt)
   opt->safe_packages = NULL;
 
   package_clear_magic(opt);
+}
+
+
+static void package_serialise_trace(pony_ctx_t* ctx, void* object)
+{
+  package_t* package = (package_t*)object;
+
+  string_trace(ctx, package->path);
+  string_trace(ctx, package->qualified_name);
+  string_trace(ctx, package->id);
+  string_trace(ctx, package->filename);
+
+  if(package->symbol != NULL)
+    string_trace(ctx, package->symbol);
+
+  pony_traceknown(ctx, package->ast, ast_pony_type(), PONY_TRACE_MUTABLE);
+  package_set_serialise_trace(ctx, &package->dependencies);
+
+  if(package->group != NULL)
+    pony_traceknown(ctx, package->group, package_group_pony_type(),
+      PONY_TRACE_MUTABLE);
+}
+
+
+static void package_serialise(pony_ctx_t* ctx, void* object, void* buf,
+  size_t offset, int mutability)
+{
+  (void)mutability;
+
+  package_t* package = (package_t*)object;
+  package_t* dst = (package_t*)((uintptr_t)buf + offset);
+
+  dst->path = (const char*)pony_serialise_offset(ctx, (char*)package->path);
+  dst->qualified_name = (const char*)pony_serialise_offset(ctx,
+    (char*)package->qualified_name);
+  dst->id = (const char*)pony_serialise_offset(ctx, (char*)package->id);
+  dst->filename = (const char*)pony_serialise_offset(ctx,
+    (char*)package->filename);
+  dst->symbol = (const char*)pony_serialise_offset(ctx, (char*)package->symbol);
+
+  dst->ast = (ast_t*)pony_serialise_offset(ctx, package->ast);
+  package_set_serialise(ctx, &package->dependencies, buf,
+    offset + offsetof(package_t, dependencies), PONY_TRACE_MUTABLE);
+  dst->group = (package_group_t*)pony_serialise_offset(ctx, package->group);
+
+  dst->group_index = package->group_index;
+  dst->next_hygienic_id = package->next_hygienic_id;
+  dst->low_index = package->low_index;
+  dst->allow_ffi = package->allow_ffi;
+  dst->on_stack = package->on_stack;
+}
+
+
+static void package_deserialise(pony_ctx_t* ctx, void* object)
+{
+  package_t* package = (package_t*)object;
+
+  package->path = string_deserialise_offset(ctx, (uintptr_t)package->path);
+  package->qualified_name = string_deserialise_offset(ctx,
+    (uintptr_t)package->qualified_name);
+  package->id = string_deserialise_offset(ctx, (uintptr_t)package->id);
+  package->filename = string_deserialise_offset(ctx,
+    (uintptr_t)package->filename);
+  package->symbol = string_deserialise_offset(ctx, (uintptr_t)package->symbol);
+
+  package->ast = (ast_t*)pony_deserialise_offset(ctx, ast_pony_type(),
+    (uintptr_t)package->ast);
+  package_set_deserialise(ctx, &package->dependencies);
+  package->group = (package_group_t*)pony_deserialise_offset(ctx,
+    package_group_pony_type(), (uintptr_t)package->group);
+}
+
+
+static pony_type_t package_pony =
+{
+  0,
+  sizeof(package_t),
+  0,
+  0,
+  0,
+  NULL,
+#if defined(USE_RUNTIME_TRACING)
+  NULL,
+  NULL,
+#endif
+  NULL,
+  package_serialise_trace,
+  package_serialise,
+  package_deserialise,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  0,
+  0,
+  NULL,
+  NULL,
+  NULL
+};
+
+
+pony_type_t* package_pony_type()
+{
+  return &package_pony;
+}
+
+
+static void package_group_serialise_trace(pony_ctx_t* ctx, void* object)
+{
+  package_group_t* group = (package_group_t*)object;
+
+  if(group->signature != NULL)
+    pony_serialise_reserve(ctx, group->signature, SIGNATURE_LENGTH);
+
+  package_set_serialise_trace(ctx, &group->members);
+}
+
+
+static void package_group_serialise(pony_ctx_t* ctx, void* object, void* buf,
+  size_t offset, int mutability)
+{
+  (void)ctx;
+  (void)mutability;
+
+  package_group_t* group = (package_group_t*)object;
+  package_group_t* dst = (package_group_t*)((uintptr_t)buf + offset);
+
+  uintptr_t ptr_offset = pony_serialise_offset(ctx, group->signature);
+  dst->signature = (char*)ptr_offset;
+
+  if(group->signature != NULL)
+  {
+    char* dst_sig = (char*)((uintptr_t)buf + ptr_offset);
+    memcpy(dst_sig, group->signature, SIGNATURE_LENGTH);
+  }
+
+  package_set_serialise(ctx, &group->members, buf,
+    offset + offsetof(package_group_t, members), PONY_TRACE_MUTABLE);
+}
+
+
+static void package_group_deserialise(pony_ctx_t* ctx, void* object)
+{
+  package_group_t* group = (package_group_t*)object;
+
+  group->signature = (char*)pony_deserialise_block(ctx,
+    (uintptr_t)group->signature, SIGNATURE_LENGTH);
+  package_set_deserialise(ctx, &group->members);
+}
+
+
+static pony_type_t package_group_pony =
+{
+  0,
+  sizeof(package_group_t),
+  0,
+  0,
+  0,
+  NULL,
+#if defined(USE_RUNTIME_TRACING)
+  NULL,
+  NULL,
+#endif
+  NULL,
+  package_group_serialise_trace,
+  package_group_serialise,
+  package_group_deserialise,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  0,
+  0,
+  NULL,
+  NULL,
+  NULL
+};
+
+
+pony_type_t* package_group_pony_type()
+{
+  return &package_group_pony;
 }
 
 

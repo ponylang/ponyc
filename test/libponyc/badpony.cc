@@ -2493,6 +2493,22 @@ TEST_F(BadPonyTest, MatchTuplePatternFromAliasedTupleUnsound)
     "this capture is unsound",
     "this capture is unsound");
 }
+TEST_F(BadPonyTest, IfLiteralBranchWithTypecheckError)
+{
+  // Exercises the error path in expr_if where the first branch
+  // produces a literal type (unparented TK_LITERAL accumulator)
+  // and the second branch has a type error (#5214).
+  const char* src =
+    "primitive Foo\n"
+    "  fun bar(x: U32): U32 => x\n"
+
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    if true then 1 else Foo.bar(true) end";
+
+  TEST_ERRORS_1(src, "argument not assignable to parameter");
+}
+
 
 TEST_F(BadPonyTest, IfLiteralBranchWithTypecheckError)
 {
