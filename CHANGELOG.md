@@ -34,6 +34,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Fix compiler crash when compiling very long expression sequences ([PR #5553](https://github.com/ponylang/ponyc/pull/5553))
 - Make systematic testing reproducible with multiple scheduler threads when scheduler scaling is disabled ([PR #5561](https://github.com/ponylang/ponyc/pull/5561))
 - Make systematic testing replay independent of memory layout ([PR #5566](https://github.com/ponylang/ponyc/pull/5566))
+- Make systematic testing replay independent of memory layout for reference-counting messages ([PR #5570](https://github.com/ponylang/ponyc/pull/5570))
 
 ### Added
 
