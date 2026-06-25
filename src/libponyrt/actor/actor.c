@@ -32,6 +32,15 @@ pony_static_assert((offsetof(pony_actor_t, gc) + sizeof(gc_t)) ==
 
 static bool actor_noblock = false;
 
+#ifdef USE_SYSTEMATIC_TESTING
+// Monotonic source of stable, creation-order actor ids
+// (pony_actor_t.systematic_testing_id). Static, so zero-initialized at process
+// load; not reset by pony_stop. That is fine: only the relative creation order
+// within a single runtime lifetime is used, and a fixed seed reproduces that
+// order because systematic testing creates actors deterministically.
+static PONY_ATOMIC(uint64_t) actor_systematic_testing_id_counter;
+#endif
+
 #ifdef USE_RUNTIMESTATS
 void print_actor_stats(pony_actor_t* actor)
 {
@@ -888,6 +897,15 @@ PONY_API pony_actor_t* pony_create(pony_ctx_t* ctx, pony_type_t* type,
   pony_actor_t* actor = (pony_actor_t*)ponyint_pool_alloc_size(type->size);
   memset(actor, 0, type->size);
   actor->type = type;
+
+#ifdef USE_SYSTEMATIC_TESTING
+  // Assign a stable, monotonic creation-order id (ids start at 1; 0 is never a
+  // valid actor id). Used to order otherwise pointer-ordered scheduling
+  // decisions deterministically (see pony_actor_t.systematic_testing_id).
+  actor->systematic_testing_id =
+    atomic_fetch_add_explicit(&actor_systematic_testing_id_counter, 1,
+      memory_order_relaxed) + 1;
+#endif
 
 #ifdef USE_RUNTIMESTATS
   ctx->schedulerstats.mem_used_actors += type->size;

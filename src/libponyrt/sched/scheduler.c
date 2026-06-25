@@ -15,6 +15,9 @@
 #include <string.h>
 #include "mutemap.h"
 #include "../tracing/tracing.h"
+#ifdef USE_SYSTEMATIC_TESTING
+#include <stdlib.h>
+#endif
 
 #ifdef USE_RUNTIMESTATS
 #include <stdio.h>
@@ -2183,6 +2186,31 @@ void ponyint_sched_start_global_unmute(uint32_t from, pony_actor_t* actor)
 DECLARE_STACK(ponyint_actorstack, actorstack_t, pony_actor_t);
 DEFINE_STACK(ponyint_actorstack, actorstack_t, pony_actor_t);
 
+#ifdef USE_SYSTEMATIC_TESTING
+// Order two actors by their stable creation-order id so unmuted actors are
+// rescheduled in a layout-independent order rather than in the muteset's
+// pointer-hash iteration order (which depends on ASLR). ids are unique, so
+// there are no ties and qsort's instability cannot reintroduce a layout
+// dependence.
+static int sched_actor_systematic_testing_id_cmp(const void* a, const void* b)
+{
+  uint64_t ia = (*(pony_actor_t* const*)a)->systematic_testing_id;
+  uint64_t ib = (*(pony_actor_t* const*)b)->systematic_testing_id;
+  return (ia > ib) - (ia < ib);
+}
+#endif
+
+// Reschedule one no-longer-muted actor. Both unmute arms in
+// ponyint_sched_unmute_senders go through this so they stay behaviorally
+// identical; they differ only in the order they walk the actors.
+static void sched_reschedule_unmuted(pony_ctx_t* ctx, pony_actor_t* actor)
+{
+  ponyint_unmute_actor(actor);
+  ponyint_sched_add(ctx, actor);
+  DTRACE2(ACTOR_SCHEDULED, (uintptr_t)ctx->scheduler, (uintptr_t)actor);
+  ponyint_sched_start_global_unmute(ctx->scheduler->index, actor);
+}
+
 bool ponyint_sched_unmute_senders(pony_ctx_t* ctx, pony_actor_t* actor)
 {
   size_t actors_rescheduled = 0;
@@ -2198,6 +2226,9 @@ bool ponyint_sched_unmute_senders(pony_ctx_t* ctx, pony_actor_t* actor)
     size_t i = HASHMAP_UNKNOWN;
     pony_actor_t* muted = NULL;
     actorstack_t* needs_unmuting = NULL;
+#ifdef USE_SYSTEMATIC_TESTING
+    size_t needs_unmuting_count = 0;
+#endif
 
 #ifdef USE_RUNTIMESTATS
     ctx->schedulerstats.mem_used -= sizeof(muteref_t);
@@ -2221,26 +2252,52 @@ bool ponyint_sched_unmute_senders(pony_ctx_t* ctx, pony_actor_t* actor)
       if(muted->muted == 0)
       {
         needs_unmuting = ponyint_actorstack_push(needs_unmuting, muted);
+#ifdef USE_SYSTEMATIC_TESTING
+        needs_unmuting_count++;
+#endif
       }
     }
 
     ponyint_mutemap_removeindex(&sched->mute_mapping, index);
     ponyint_muteref_free(mref);
 
-    // Unmute any actors that need to be unmuted
+    // Reschedule the actors that are no longer muted. Under systematic testing
+    // we sort them by stable creation-order id so the run-queue order (and thus
+    // the replayed interleaving) does not depend on the muteset's pointer-hash
+    // iteration order, i.e. on memory layout; otherwise we walk the stack
+    // directly. Both arms reschedule via sched_reschedule_unmuted.
+#ifdef USE_SYSTEMATIC_TESTING
+    if(needs_unmuting_count > 0)
+    {
+      pony_actor_t** unmuting = (pony_actor_t**)ponyint_pool_alloc_size(
+        needs_unmuting_count * sizeof(pony_actor_t*));
+      size_t k = 0;
+
+      while(needs_unmuting != NULL)
+        needs_unmuting = ponyint_actorstack_pop(needs_unmuting, &unmuting[k++]);
+
+      qsort(unmuting, needs_unmuting_count, sizeof(pony_actor_t*),
+        sched_actor_systematic_testing_id_cmp);
+
+      for(k = 0; k < needs_unmuting_count; k++)
+      {
+        sched_reschedule_unmuted(ctx, unmuting[k]);
+        actors_rescheduled++;
+      }
+
+      ponyint_pool_free_size(needs_unmuting_count * sizeof(pony_actor_t*),
+        unmuting);
+    }
+#else
     pony_actor_t* to_unmute;
 
     while(needs_unmuting != NULL)
     {
       needs_unmuting = ponyint_actorstack_pop(needs_unmuting, &to_unmute);
-
-      ponyint_unmute_actor(to_unmute);
-      ponyint_sched_add(ctx, to_unmute);
-      DTRACE2(ACTOR_SCHEDULED, (uintptr_t)sched, (uintptr_t)to_unmute);
+      sched_reschedule_unmuted(ctx, to_unmute);
       actors_rescheduled++;
-
-      ponyint_sched_start_global_unmute(ctx->scheduler->index, to_unmute);
     }
+#endif
   }
 
 #ifdef USE_RUNTIMESTATS
