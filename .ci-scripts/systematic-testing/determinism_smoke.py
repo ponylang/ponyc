@@ -21,7 +21,11 @@ build/libs:
      arrival order into an order-sensitive hash, ORDER_SIG, which is a pure
      function of the scheduler interleaving. order-signature exercises the base
      scheduler path; mute-order-signature additionally drives the actor
-     muting/unmuting reschedule path (its foreign-send volume overloads actors).
+     muting/unmuting reschedule path (its foreign-send volume overloads actors);
+     acquire-release-order-signature drives the ORCA reference-counting send path
+     (it forwards fresh heap payloads across a spreading mesh, so actors release
+     references owned by many distinct actors per GC sweep) and runs with the
+     cycle detector disabled -- see the per-fixture flags in FIXTURES below.
   3. Asserts the property, scoped to `--ponynoscale` (dynamic scheduler scaling
      off), at the runtime's default thread count (the host's physical cores),
      for each fixture:
@@ -42,10 +46,20 @@ Scope and limits:
     more cores the per-thread load is too light to mute and that fixture degrades
     to a plain reproducibility check (still correct, just no longer guarding the
     muting path).
+  - acquire-release-order-signature runs with the cycle detector disabled
+    (--ponynoblock) to isolate the ORCA reference-counting (ACQUIRE/RELEASE) send
+    ordering (#5568). Like the others, this check asserts reproducibility and
+    exploration, not flakes-before-the-fix; that property was confirmed when the
+    fixture was added (it diverged per run against the pre-#5568 runtime at every
+    thread count tried, 2 through 16). Unlike mute-order-signature, it does not
+    depend on load/core-count balance to flake, so it is not expected to degrade
+    to a plain reproducibility check on many-core hosts -- but CI does not re-check
+    that each run. The cycle detector's own pointer-ordered sends remain a
+    separate, still-open source of layout dependence (#5569) and are not covered
+    here -- with the cycle detector enabled, that residual would reintroduce
+    flakiness and confound this fixture.
   - These fixtures do not cover every source of layout- or timing-dependence in
-    the systematic scheduler. Other paths -- e.g. the ORCA reference-message
-    (ACQUIRE/RELEASE) send ordering, which is also actor-pointer ordered -- have
-    not been exhaustively explored.
+    the systematic scheduler (the cycle detector above is one known gap).
 
 The pure pieces (parse_order_sig / is_reproducible / explores) are unit-tested in
 determinism_smoke_test.py.
@@ -69,14 +83,18 @@ RUN_TIMEOUT_SECONDS = 120
 
 ORDER_SIG_RE = re.compile(rb"ORDER_SIG=(\d+)")
 
-# (package, binary name) for each fixture. order-signature covers the base
-# scheduler path; mute-order-signature additionally exercises the actor
-# muting/unmuting reschedule path. Both run at the runtime's default thread
-# count (physical cores); see the module docstring for the muting fixture's
-# coverage ceiling.
+# (package, binary name, extra runtime flags) for each fixture. order-signature
+# covers the base scheduler path; mute-order-signature additionally exercises the
+# actor muting/unmuting reschedule path; acquire-release-order-signature exercises
+# the ORCA reference-counting (ACQUIRE/RELEASE) send path and runs with
+# --ponynoblock so the still-open cycle-detector send ordering (#5569) cannot
+# confound it. All run at the runtime's default thread count (physical cores);
+# see the module docstring for coverage ceilings.
 FIXTURES = [
-    ("test/rt-systematic/order-signature", "order-signature"),
-    ("test/rt-systematic/mute-order-signature", "mute-order-signature"),
+    ("test/rt-systematic/order-signature", "order-signature", []),
+    ("test/rt-systematic/mute-order-signature", "mute-order-signature", []),
+    ("test/rt-systematic/acquire-release-order-signature",
+     "acquire-release-order-signature", ["--ponynoblock"]),
 ]
 # The output suffix order (scheduler_scaling_pthreads then systematic_testing)
 # comes from the block order of the PONY_USE_* `if()`s in the top-level
@@ -145,13 +163,18 @@ def compile_reproducer(root, ponyc, out_dir, package, name):
     return binary
 
 
-def order_sig(binary, seed):
+def order_sig(binary, seed, extra_flags):
     """Run the reproducer once and return its ORDER_SIG, or fail loudly.
+
+    extra_flags are the fixture's own runtime flags from FIXTURES (e.g.
+    --ponynoblock for acquire-release-order-signature); they are appended after
+    the shared --ponynoscale.
 
     stderr is captured (not discarded) so it can be surfaced on failure -- the
     systematic-testing banner goes to stderr, but so would any crash diagnostic.
     """
-    cmd = [binary, "--ponysystematictestingseed", str(seed), "--ponynoscale"]
+    cmd = ([binary, "--ponysystematictestingseed", str(seed), "--ponynoscale"]
+           + extra_flags)
     try:
         result = run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                      timeout=RUN_TIMEOUT_SECONDS)
@@ -169,10 +192,10 @@ def order_sig(binary, seed):
     return sig
 
 
-def check_fixture(binary, name):
+def check_fixture(binary, name, extra_flags):
     """Assert the reproducibility property for one compiled fixture."""
     # Reproducible: one seed, many runs, all identical.
-    repro_sigs = [order_sig(binary, REPRODUCIBILITY_SEED)
+    repro_sigs = [order_sig(binary, REPRODUCIBILITY_SEED, extra_flags)
                   for _ in range(REPRODUCIBILITY_RUNS)]
     if not is_reproducible(repro_sigs):
         fail("%s: seed %d gave %d distinct ORDER_SIG over %d runs (expected 1, "
@@ -183,7 +206,8 @@ def check_fixture(binary, name):
           % (name, REPRODUCIBILITY_SEED, repro_sigs[0], REPRODUCIBILITY_RUNS))
 
     # Still exploring: several seeds must not collapse to one ordering.
-    seed_sigs = [order_sig(binary, seed) for seed in EXPLORATION_SEEDS]
+    seed_sigs = [order_sig(binary, seed, extra_flags)
+                 for seed in EXPLORATION_SEEDS]
     if not explores(seed_sigs):
         fail("%s: all %d seeds produced the same ORDER_SIG (%s); seed no longer "
              "drives the interleaving -- exploration has collapsed"
@@ -210,9 +234,9 @@ def main():
     ponyc = build_systematic_ponyc(root)
 
     with tempfile.TemporaryDirectory(prefix="systematic-repro-") as out_dir:
-        for package, name in FIXTURES:
+        for package, name, extra_flags in FIXTURES:
             binary = compile_reproducer(root, ponyc, out_dir, package, name)
-            check_fixture(binary, name)
+            check_fixture(binary, name, extra_flags)
 
     print("systematic-testing reproducibility smoke test passed")
 

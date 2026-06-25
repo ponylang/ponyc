@@ -20,3 +20,16 @@ by a dedicated CI script.
   default thread count; its node/token counts are sized so actors overload at the
   small physical-core counts a CI runner typically has (the muting-driven
   reordering only appears when thread count and load are balanced).
+- `acquire-release-order-signature/` — a mesh of nodes forwards tokens like
+  `mute-order-signature`, but every hop carries a freshly allocated `String val`
+  payload and the route spreads (`(id + hops) % n`, not a ring). Because each
+  fresh payload is owned by the node that forwards it, a receiving node holds
+  references to `String`s owned by many distinct nodes, so the ORCA
+  reference-counting sends (`ACTORMSG_ACQUIRE` on forward, `ACTORMSG_RELEASE` on
+  GC sweep) go out one per distinct owner — the path #5568 makes
+  layout-independent. It runs with the cycle detector disabled (`--ponynoblock`,
+  wired in by the driver) so the still-open cycle-detector send ordering (#5569)
+  can't confound it. When added it diverged per run against the pre-#5568 runtime
+  at every thread count tried (2 through 16), so unlike `mute-order-signature` it
+  does not depend on load/core-count balance to flake. Same driver and replay
+  property.
