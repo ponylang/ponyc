@@ -12,8 +12,8 @@ set(_c_src
     asio/emscripten.c
     asio/epoll.c
     asio/event.c
-    asio/iocp.c
     asio/kqueue.c
+    asio/sock_notify.c
     ds/fun.c
     ds/hash.c
     ds/list.c

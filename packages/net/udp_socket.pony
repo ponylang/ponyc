@@ -96,7 +96,6 @@ actor UDPSocket is AsioEventNotify
   var _closed: Bool = false
   var _packet_size: USize
   var _read_buf: Array[U8] iso
-  var _read_from: NetAddress iso = NetAddress
   embed _ip: NetAddress = NetAddress
 
   new create(
@@ -124,7 +123,6 @@ actor UDPSocket is AsioEventNotify
     _packet_size = size
     _read_buf = recover Array[U8] .> undefined(size) end
     _notify_listening()
-    _start_next_read()
 
   new ip4(
     auth: UDPAuth,
@@ -149,7 +147,6 @@ actor UDPSocket is AsioEventNotify
     _packet_size = size
     _read_buf = recover Array[U8] .> undefined(size) end
     _notify_listening()
-    _start_next_read()
 
   new ip6(
     auth: UDPAuth,
@@ -174,7 +171,6 @@ actor UDPSocket is AsioEventNotify
     _packet_size = size
     _read_buf = recover Array[U8] .> undefined(size) end
     _notify_listening()
-    _start_next_read()
 
   be write(data: ByteSeq, to: NetAddress) =>
     """
@@ -307,15 +303,7 @@ actor UDPSocket is AsioEventNotify
 
       if AsioEvent.readable(flags) then
         _readable = true
-        _complete_reads(arg)
         _pending_reads()
-      end
-    else
-      ifdef windows then
-        if AsioEvent.readable(flags) then
-          _readable = false
-          _close()
-        end
       end
     end
 
@@ -338,98 +326,35 @@ actor UDPSocket is AsioEventNotify
     we read 4 kb of data, send ourself a resume message and stop reading, to
     avoid starving other actors.
     """
-    ifdef not windows then
-      try
-        var sum: USize = 0
+    try
+      var sum: USize = 0
 
-        while _readable do
-          let size = _packet_size
-          let data = _read_buf = recover Array[U8] .> undefined(size) end
-          let from = recover NetAddress end
-          var count: USize = 0
-          match \exhaustive\ _SocketResultDecoder(
-            @pony_os_recvfrom(_event, data.cpointer(), data.space(),
-              from, addressof count))
-          | _SocketResultOk =>
-            data.truncate(count)
-            _notify.received(this, consume data, consume from)
+      while _readable do
+        let size = _packet_size
+        let data = _read_buf = recover Array[U8] .> undefined(size) end
+        let from = recover NetAddress end
+        var count: USize = 0
+        match \exhaustive\ _SocketResultDecoder(
+          @pony_os_recvfrom(_event, data.cpointer(), data.space(),
+            from, addressof count))
+        | _SocketResultOk =>
+          data.truncate(count)
+          _notify.received(this, consume data, consume from)
 
-            sum = sum + count
+          sum = sum + count
 
-            if sum > (1 << 12) then
-              _read_again()
-              return
-            end
-          | _SocketResultRetry =>
-            _readable = false
+          if sum > (1 << 12) then
+            _read_again()
             return
-          | _SocketResultError => error
           end
+        | _SocketResultRetry =>
+          _readable = false
+          return
+        | _SocketResultError => error
         end
-      else
-        _close()
       end
-    end
-
-  fun ref _complete_reads(len: U32) =>
-    """
-    The OS has informed us that len bytes of pending reads have completed.
-    This occurs only with IOCP on Windows.
-    """
-    ifdef windows then
-      if _read_buf.space() == 0 then
-        // Socket has been closed
-        _readable = false
-        _close()
-        return
-      end
-
-      if _closed then
-        return
-      end
-
-      // Hand back read data
-      let size = _packet_size
-      let data = _read_buf = recover Array[U8] .> undefined(size) end
-      let from = _read_from = recover NetAddress end
-      data.truncate(len.usize())
-      _notify.received(this, consume data, consume from)
-
-      _start_next_read()
-    end
-
-  fun ref _start_next_read() =>
-    """
-    Start our next receive.
-    This is used only with IOCP on Windows.
-    """
-    ifdef windows then
-      // On a failed listen `_event` is null; the constructors still call us
-      // unconditionally right after `_notify_listening`. Passing the null
-      // event to `pony_os_recvfrom` is safe -- the runtime guards it and
-      // returns an error (issue #5474) -- which lands in the error arm
-      // below and closes the already-dead socket.
-      //
-      // `count` is unused on this path: Windows IOCP `pony_os_recvfrom`
-      // returns OK with count=0 because the actual byte count arrives
-      // asynchronously via `_complete_reads`. The local is required by
-      // the FFI shape.
-      //
-      // `_SocketResultRetry` is unreachable here — `iocp_recvfrom` only
-      // distinguishes "queued" from "failed" — but `\exhaustive\`
-      // requires the arm. Treat it as failure to be safe.
-      var count: USize = 0
-      match \exhaustive\ _SocketResultDecoder(
-        @pony_os_recvfrom(_event, _read_buf.cpointer(),
-          _read_buf.space(), _read_from, addressof count))
-      | _SocketResultOk => None
-      | _SocketResultRetry =>
-        _readable = false
-        _close()
-      | _SocketResultError =>
-        _readable = false
-        _close()
-      end
+    else
+      _close()
     end
 
   fun ref _write(data: ByteSeq, to: NetAddress) =>
@@ -437,16 +362,11 @@ actor UDPSocket is AsioEventNotify
     Write the datagram to the socket.
     """
     if not _closed then
-      // On Windows, `count` is unused — IOCP `pony_os_sendto` returns OK
-      // with count=0; the byte count arrives asynchronously. On POSIX,
-      // `count` holds bytes sent on Ok but is also discarded here (UDP is
-      // unreliable; we don't track partial-send progress). The local is
-      // required by the FFI shape on both platforms.
-      //
-      // POSIX `_SocketResultRetry` (EWOULDBLOCK/EAGAIN) silently drops
-      // the datagram, matching pre-change UDP semantics. Windows
-      // IOCP `pony_os_sendto` cannot return Retry — `\exhaustive\`
-      // requires the arm regardless.
+      // `count` (bytes sent on Ok) is discarded: UDP is unreliable, so we
+      // don't track partial-send progress. The local is required by the FFI
+      // shape. `_SocketResultRetry` (EWOULDBLOCK/EAGAIN) silently drops the
+      // datagram on every platform. A send Error now surfaces and closes the
+      // socket -- on Windows too, where it was previously discarded.
       var count: USize = 0
       match \exhaustive\ _SocketResultDecoder(
         @pony_os_sendto(_fd, data.cpointer(), data.size(), to,
@@ -471,26 +391,24 @@ actor UDPSocket is AsioEventNotify
     """
     Inform the notifier that we've closed.
     """
-    ifdef windows then
-      // On windows, wait until IOCP read operation has completed or been
-      // cancelled.
-      if _closed and not _readable and not _event.is_null() then
-        @pony_asio_event_unsubscribe(_event)
-      end
-    else
-      // Unsubscribe immediately.
-      if not _event.is_null() then
-        @pony_asio_event_unsubscribe(_event)
-        _readable = false
-      end
+    // Unsubscribe immediately. On Windows this issues a ProcessSocketNotifications
+    // REMOVE; the backend closes the fd and disposes the event once the REMOVE
+    // is seen. The `is_null` guard tolerates a failed listen (issue #5474),
+    // which leaves a null event.
+    if not _event.is_null() then
+      @pony_asio_event_unsubscribe(_event)
+      _readable = false
     end
 
     _closed = true
 
     if _fd != -1 then
       _notify.closed(this)
-      // On windows, this will also cancel all outstanding IOCP operations.
-      @pony_os_socket_close(_fd)
+      // POSIX closes the fd here; on Windows the readiness backend owns the
+      // close (when it sees the deferred REMOVE from the unsubscribe above).
+      ifdef not windows then
+        @pony_os_socket_close(_fd)
+      end
       _fd = -1
     end
 

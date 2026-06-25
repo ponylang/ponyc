@@ -483,29 +483,6 @@ static bool handle_message(pony_ctx_t* ctx, pony_actor_t* actor,
       DTRACE3(ACTOR_MSG_RUN, (uintptr_t)ctx->scheduler, (uintptr_t)actor, msg->id);
       actor->type->dispatch(ctx, actor, msg);
 
-#ifdef PLATFORM_IS_WINDOWS
-      // Release the IOCP message reference taken in pony_asio_event_send.
-      // The event pointer in the message must stay alive through dispatch;
-      // now that the behavior has returned, we can release it.
-      if(actor->type->event_notify != (uint32_t)-1 &&
-        msg->id == actor->type->event_notify)
-      {
-        asio_msg_t* am = (asio_msg_t*)msg;
-        asio_event_t* ev = am->event;
-        iocp_token_t* token = ev->iocp_token;
-
-        if(atomic_fetch_sub_explicit(&token->refcount, 1,
-          memory_order_acq_rel) == 1)
-        {
-          if(atomic_load_explicit(&token->dead, memory_order_acquire))
-          {
-            POOL_FREE(asio_event_t, ev);
-            POOL_FREE(iocp_token_t, token);
-          }
-        }
-      }
-#endif
-
       return true;
     }
   }

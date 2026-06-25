@@ -12,8 +12,8 @@
 #  define ASIO_USE_KQUEUE
 #  define PONY_ASIO_SCHEDULER_INDEX PONY_KQUEUE_SCHEDULER_INDEX
 #elif defined(PLATFORM_IS_WINDOWS)
-#  define ASIO_USE_IOCP
-#  define PONY_ASIO_SCHEDULER_INDEX PONY_IOCP_SCHEDULER_INDEX
+#  define ASIO_USE_SOCK_NOTIFY
+#  define PONY_ASIO_SCHEDULER_INDEX PONY_SOCK_NOTIFY_SCHEDULER_INDEX
 #elif defined(PLATFORM_IS_EMSCRIPTEN)
 #  define ASIO_USE_EMSCRIPTEN
 #  define PONY_ASIO_SCHEDULER_INDEX PONY_EPOLL_SCHEDULER_INDEX
@@ -137,11 +137,11 @@ void ponyint_asio_backend_final(asio_backend_t* backend);
 DECLARE_THREAD_FN(ponyint_asio_backend_dispatch);
 
 
-#ifdef ASIO_USE_IOCP
+#ifdef ASIO_USE_SOCK_NOTIFY
 
 // Resume waiting on stdin after a read.
 // Should only be called from stdfd.c.
-void ponyint_iocp_resume_stdin();
+void ponyint_sock_notify_resume_stdin();
 
 #endif
 

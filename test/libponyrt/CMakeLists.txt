@@ -27,6 +27,10 @@ target_link_libraries(libponyrt.tests
 
 if (MSVC)
     target_link_libraries(libponyrt.tests PRIVATE dbghelp)
+    # The Windows asio backend (sock_notify.c) calls Winsock directly
+    # (closesocket, ProcessSocketNotifications), so the runtime now pulls in
+    # ws2_32 wherever libponyrt is linked into an executable.
+    target_link_libraries(libponyrt.tests PRIVATE Ws2_32)
 elseif(${CMAKE_HOST_SYSTEM_NAME} MATCHES "Darwin")
     target_link_libraries(libponyrt.tests PRIVATE dl)
 elseif(${CMAKE_HOST_SYSTEM_NAME} MATCHES "BSD")

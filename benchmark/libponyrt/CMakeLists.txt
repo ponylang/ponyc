@@ -23,6 +23,8 @@ target_link_libraries(libponyrt.benchmarks
 
 if (MSVC)
     target_link_libraries(libponyrt.benchmarks PRIVATE dbghelp)
+    # libponyrt's Windows asio backend calls Winsock directly; pull in ws2_32.
+    target_link_libraries(libponyrt.benchmarks PRIVATE Ws2_32)
 elseif(${CMAKE_HOST_SYSTEM_NAME} MATCHES "Darwin")
     target_link_libraries(libponyrt.benchmarks PRIVATE dl)
     target_link_options(libponyrt.benchmarks PRIVATE "-static-libstdc++")

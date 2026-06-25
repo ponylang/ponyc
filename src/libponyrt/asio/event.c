@@ -33,12 +33,8 @@ PONY_API asio_event_t* pony_asio_event_create(pony_actor_t* owner, int fd,
   ev->readable = false;
 
 #ifdef PLATFORM_IS_WINDOWS
-  ev->iocp_token = POOL_ALLOC(iocp_token_t);
-  atomic_store_explicit(&ev->iocp_token->dead, false, memory_order_relaxed);
-  // Start at 1: the event itself holds a reference. IOCP operations add more.
-  // Destroy releases the event's reference; callbacks release theirs.
-  // The last releaser (refcount 1 -> 0) frees both the event and the token.
-  atomic_store_explicit(&ev->iocp_token->refcount, 1, memory_order_relaxed);
+  ev->timer = NULL;
+  ev->removing = false;
 #endif
 
   owner->live_asio_events = owner->live_asio_events + 1;
@@ -74,14 +70,6 @@ PONY_API void pony_asio_event_destroy(asio_event_t* ev)
 
   ev->flags = ASIO_DESTROYED;
 
-#ifdef PLATFORM_IS_WINDOWS
-  iocp_token_t* token = ev->iocp_token;
-
-  // Mark the token as dead. Any IOCP callback that hasn't yet checked the
-  // token will see this (acquire/release) and skip the event.
-  atomic_store_explicit(&token->dead, true, memory_order_release);
-#endif
-
   // When we let go of an event, we treat it as if we had received it back from
   // the asio thread.
   pony_ctx_t* ctx = pony_ctx();
@@ -92,19 +80,7 @@ PONY_API void pony_asio_event_destroy(asio_event_t* ev)
   pony_assert(ev->owner->live_asio_events > 0);
   ev->owner->live_asio_events = ev->owner->live_asio_events - 1;
 
-#ifdef PLATFORM_IS_WINDOWS
-  // Release the event's reference (created with refcount 1). If all IOCP
-  // callbacks have already completed, we're the last releaser and free the
-  // event and token. Otherwise the last callback to complete will free them.
-  if(atomic_fetch_sub_explicit(&token->refcount, 1,
-    memory_order_acq_rel) == 1)
-  {
-    POOL_FREE(asio_event_t, ev);
-    POOL_FREE(iocp_token_t, token);
-  }
-#else
   POOL_FREE(asio_event_t, ev);
-#endif
 }
 
 PONY_API int pony_asio_event_fd(asio_event_t* ev)
@@ -162,22 +138,9 @@ PONY_API uint64_t pony_asio_event_nsec(asio_event_t* ev)
 PONY_API void pony_asio_event_send(asio_event_t* ev, uint32_t flags,
   uint32_t arg)
 {
-#ifdef PLATFORM_IS_WINDOWS
-  // On Windows, this can be called from an IOCP callback thread, which may
-  // not have a pony_ctx() associated with it yet.
-  // Don't call `ponyint_register_asio_thread` because that would overwrite the
-  // scheduler index if this is run on a normal scheduler thread and that would
-  // be not good.
-  pony_register_thread();
-
-  // Hold a token reference for the message. The event pointer stored in the
-  // message must remain valid until the actor finishes processing it.
-  // The corresponding release happens in handle_message (actor.c) after
-  // the behavior dispatch returns.
-  atomic_fetch_add_explicit(&ev->iocp_token->refcount, 1,
-    memory_order_relaxed);
-#endif
-
+  // Every backend, including the Windows readiness backend, sends events only
+  // from the asio thread (already registered via ponyint_register_asio_thread),
+  // so there is no foreign thread to register and no liveness token to hold.
   asio_msg_t* m = (asio_msg_t*)pony_alloc_msg(POOL_INDEX(sizeof(asio_msg_t)),
     ev->msg_id);
   m->event = ev;

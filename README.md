@@ -24,6 +24,11 @@ Pony is still pre-1.0 and as such, semi-regularly introduces breaking changes. T
 * ✗ **Unsupported** — no support
 * — **Not applicable** — combination doesn't exist
 
+On Windows, the minimum supported version is **Windows 11 / Windows Server 2022**
+(build 20348). Pony's networking uses an OS readiness API introduced in that
+build; earlier versions, including Windows 10, are unsupported and a Pony binary
+will not run on them.
+
 ## More Information
 
 * [Installation](INSTALL.md)
