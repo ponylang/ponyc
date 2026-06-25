@@ -96,6 +96,14 @@ typedef struct pony_actor_t
 #ifdef USE_RUNTIMESTATS
   actorstats_t actorstats; // 64/128 bytes
 #endif
+#ifdef USE_SYSTEMATIC_TESTING
+  // Stable, monotonic creation-order id. Under systematic testing the runtime
+  // orders otherwise pointer-ordered scheduling decisions (e.g. rescheduling
+  // unmuted actors) by this id instead of by actor address, so a fixed seed
+  // replays the same interleaving regardless of ASLR. Not present in
+  // non-systematic builds.
+  uint64_t systematic_testing_id;
+#endif
   gc_t gc; // 48/88 bytes
   // if you add more members here, you need to update the PONY_ACTOR_PAD_SIZE
   // calculation below and the pony_static_assert at the top of actor.c, to

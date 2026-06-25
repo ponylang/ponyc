@@ -12,3 +12,11 @@ by a dedicated CI script.
   still produce different ones. Driven by
   `.ci-scripts/systematic-testing/determinism_smoke.py`, run weekly from
   `.github/workflows/ponyc-weekly-checks.yml`.
+- `mute-order-signature/` — a ring of nodes forwards tokens with deterministic
+  `(id + 1) % n` routing, then reports arrivals into the same `ORDER_SIG` hash.
+  Unlike `order-signature`, the volume of foreign actor-to-actor sends overloads
+  actors and exercises the muting/unmuting reschedule path, so it guards a
+  different slice of the same replay property. Same driver, run at the runtime's
+  default thread count; its node/token counts are sized so actors overload at the
+  small physical-core counts a CI runner typically has (the muting-driven
+  reordering only appears when thread count and load are balanced).

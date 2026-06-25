@@ -17,11 +17,14 @@ build/libs:
      (`use=scheduler_scaling_pthreads,systematic_testing`). The build itself is
      the first assertion -- it is the only thing in CI that compiles that code
      path.
-  2. Compiles test/rt-systematic/order-signature with it. That program folds the
-     message arrival order into an order-sensitive hash, ORDER_SIG, which is a
-     pure function of the scheduler interleaving.
-  3. Asserts the property the fix guarantees, scoped to `--ponynoscale` (dynamic
-     scheduler scaling off), with more than one scheduler thread:
+  2. Compiles the test/rt-systematic fixtures with it. Each folds the message
+     arrival order into an order-sensitive hash, ORDER_SIG, which is a pure
+     function of the scheduler interleaving. order-signature exercises the base
+     scheduler path; mute-order-signature additionally drives the actor
+     muting/unmuting reschedule path (its foreign-send volume overloads actors).
+  3. Asserts the property, scoped to `--ponynoscale` (dynamic scheduler scaling
+     off), at the runtime's default thread count (the host's physical cores),
+     for each fixture:
        - reproducible: one seed, many runs, all the same ORDER_SIG;
        - still exploring: several seeds produce more than one distinct ORDER_SIG.
 
@@ -30,8 +33,19 @@ platform-dependent (the scheduler draws from rand()/srand(), whose stream differ
 by platform), so a hardcoded value would false-fail off this machine; the
 property holds on any platform with more than one scheduler thread.
 
-Scope is deliberately `--ponynoscale`. Making dynamic scheduler scaling itself
-reproducible is follow-up work and is not checked here.
+Scope and limits:
+  - `--ponynoscale`: making dynamic scheduler scaling itself reproducible is
+    follow-up work and is not checked here.
+  - mute-order-signature only catches a muting-reschedule regression when actors
+    actually overload, which needs load and thread count in balance. It is sized
+    for the 2-4 physical cores a CI runner typically has; on a host with many
+    more cores the per-thread load is too light to mute and that fixture degrades
+    to a plain reproducibility check (still correct, just no longer guarding the
+    muting path).
+  - These fixtures do not cover every source of layout- or timing-dependence in
+    the systematic scheduler. Other paths -- e.g. the ORCA reference-message
+    (ACQUIRE/RELEASE) send ordering, which is also actor-pointer ordered -- have
+    not been exhaustively explored.
 
 The pure pieces (parse_order_sig / is_reproducible / explores) are unit-tested in
 determinism_smoke_test.py.
@@ -54,7 +68,16 @@ REPRODUCIBILITY_SEED = 12345
 RUN_TIMEOUT_SECONDS = 120
 
 ORDER_SIG_RE = re.compile(rb"ORDER_SIG=(\d+)")
-REPRO_PACKAGE = "test/rt-systematic/order-signature"
+
+# (package, binary name) for each fixture. order-signature covers the base
+# scheduler path; mute-order-signature additionally exercises the actor
+# muting/unmuting reschedule path. Both run at the runtime's default thread
+# count (physical cores); see the module docstring for the muting fixture's
+# coverage ceiling.
+FIXTURES = [
+    ("test/rt-systematic/order-signature", "order-signature"),
+    ("test/rt-systematic/mute-order-signature", "mute-order-signature"),
+]
 # The output suffix order (scheduler_scaling_pthreads then systematic_testing)
 # comes from the block order of the PONY_USE_* `if()`s in the top-level
 # CMakeLists.txt, NOT from the order passed to `use=`. If those blocks are
@@ -109,26 +132,26 @@ def build_systematic_ponyc(root):
     return ponyc
 
 
-def compile_reproducer(root, ponyc, out_dir):
+def compile_reproducer(root, ponyc, out_dir, package, name):
     env = dict(os.environ, PONYPATH=os.path.join(root, "packages"))
-    result = run([ponyc, "-b", "probe", "--pic", "-o", out_dir,
-                  os.path.join(root, REPRO_PACKAGE)],
+    result = run([ponyc, "-b", name, "--pic", "-o", out_dir,
+                  os.path.join(root, package)],
                  cwd=root, env=env)
     if result.returncode != 0:
-        fail("compiling the reproducer with the systematic-testing ponyc failed")
-    probe = os.path.join(out_dir, "probe")
-    if not os.access(probe, os.X_OK):
-        fail("reproducer binary not produced at " + probe)
-    return probe
+        fail("compiling %s with the systematic-testing ponyc failed" % name)
+    binary = os.path.join(out_dir, name)
+    if not os.access(binary, os.X_OK):
+        fail("reproducer binary not produced at " + binary)
+    return binary
 
 
-def order_sig(probe, seed):
+def order_sig(binary, seed):
     """Run the reproducer once and return its ORDER_SIG, or fail loudly.
 
     stderr is captured (not discarded) so it can be surfaced on failure -- the
     systematic-testing banner goes to stderr, but so would any crash diagnostic.
     """
-    cmd = [probe, "--ponysystematictestingseed", str(seed), "--ponynoscale"]
+    cmd = [binary, "--ponysystematictestingseed", str(seed), "--ponynoscale"]
     try:
         result = run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                      timeout=RUN_TIMEOUT_SECONDS)
@@ -144,6 +167,29 @@ def order_sig(probe, seed):
         fail("no ORDER_SIG in output at seed %d; stdout: %r; stderr:\n%s"
              % (seed, result.stdout, result.stderr.decode(errors="replace")))
     return sig
+
+
+def check_fixture(binary, name):
+    """Assert the reproducibility property for one compiled fixture."""
+    # Reproducible: one seed, many runs, all identical.
+    repro_sigs = [order_sig(binary, REPRODUCIBILITY_SEED)
+                  for _ in range(REPRODUCIBILITY_RUNS)]
+    if not is_reproducible(repro_sigs):
+        fail("%s: seed %d gave %d distinct ORDER_SIG over %d runs (expected 1, "
+             "so the interleaving is not reproducible): %s"
+             % (name, REPRODUCIBILITY_SEED, len(set(repro_sigs)),
+                REPRODUCIBILITY_RUNS, sorted(set(repro_sigs))))
+    print("%s reproducible: seed %d gave one ORDER_SIG (%s) over %d runs"
+          % (name, REPRODUCIBILITY_SEED, repro_sigs[0], REPRODUCIBILITY_RUNS))
+
+    # Still exploring: several seeds must not collapse to one ordering.
+    seed_sigs = [order_sig(binary, seed) for seed in EXPLORATION_SEEDS]
+    if not explores(seed_sigs):
+        fail("%s: all %d seeds produced the same ORDER_SIG (%s); seed no longer "
+             "drives the interleaving -- exploration has collapsed"
+             % (name, len(EXPLORATION_SEEDS), seed_sigs[0]))
+    print("%s still exploring: %d seeds produced %d distinct ORDER_SIG"
+          % (name, len(EXPLORATION_SEEDS), len(set(seed_sigs))))
 
 
 def main():
@@ -164,27 +210,9 @@ def main():
     ponyc = build_systematic_ponyc(root)
 
     with tempfile.TemporaryDirectory(prefix="systematic-repro-") as out_dir:
-        probe = compile_reproducer(root, ponyc, out_dir)
-
-        # Reproducible: one seed, many runs, all identical.
-        repro_sigs = [order_sig(probe, REPRODUCIBILITY_SEED)
-                      for _ in range(REPRODUCIBILITY_RUNS)]
-        if not is_reproducible(repro_sigs):
-            fail("seed %d gave %d distinct ORDER_SIG over %d runs (expected 1, "
-                 "so the interleaving is not reproducible): %s"
-                 % (REPRODUCIBILITY_SEED, len(set(repro_sigs)),
-                    REPRODUCIBILITY_RUNS, sorted(set(repro_sigs))))
-        print("reproducible: seed %d gave one ORDER_SIG (%s) over %d runs"
-              % (REPRODUCIBILITY_SEED, repro_sigs[0], REPRODUCIBILITY_RUNS))
-
-        # Still exploring: several seeds must not collapse to one ordering.
-        seed_sigs = [order_sig(probe, seed) for seed in EXPLORATION_SEEDS]
-        if not explores(seed_sigs):
-            fail("all %d seeds produced the same ORDER_SIG (%s); seed no longer "
-                 "drives the interleaving -- exploration has collapsed"
-                 % (len(EXPLORATION_SEEDS), seed_sigs[0]))
-        print("still exploring: %d seeds produced %d distinct ORDER_SIG"
-              % (len(EXPLORATION_SEEDS), len(set(seed_sigs))))
+        for package, name in FIXTURES:
+            binary = compile_reproducer(root, ponyc, out_dir, package, name)
+            check_fixture(binary, name)
 
     print("systematic-testing reproducibility smoke test passed")
 
