@@ -9,16 +9,20 @@ when you want to exercise them).
 - **Stdlib only.** CI runners have no `pip install` step, so scripts must not
   import third-party packages. Use `urllib`, `json`, `subprocess`, `tarfile`,
   etc. — never `requests`, `pyyaml`, `pytest`, …
-- **ruff lints everything here on every PR** (`.github/workflows/lint-python.yml`,
-  `ruff check .ci-scripts`). There is no ruff config file, so the defaults apply.
+- **ruff lints everything here on every PR** (`.github/workflows/lint-python.yml`).
+  There is no ruff config file, so the defaults apply. A `lint` job runs
+  `ruff check .ci-scripts`; a separate `lint-rt-stress` job runs
+  `ruff check test/rt-stress` — these conventions also cover `test/rt-stress/`,
+  whose generative stress harness carries Python (an orchestrator) under the same
+  rules even though it lives with a test rather than in `.ci-scripts/`.
 - **Tests are `*_test.py` files, self-contained, no pytest.** Each is runnable as
-  `python3 .ci-scripts/<path>/<name>_test.py`, exits 0 on pass / 1 on fail, and
-  prints a one-line summary (see `pr_changed_suites_test.py` for the shape). The
-  **`test` job in `lint-python.yml` discovers every `.ci-scripts/**/*_test.py`
-  (via `find … -name '*_test.py'`) and runs each one**, so a new `*_test.py` is
-  picked up automatically — you do not register it
-  anywhere. When you add or change a script, add or update its `*_test.py`; it
-  will run in CI on the next PR.
+  `python3 <path>/<name>_test.py`, exits 0 on pass / 1 on fail, and prints a
+  one-line summary (see `pr_changed_suites_test.py` for the shape). The **`test`
+  job in `lint-python.yml` discovers every `*_test.py` under `.ci-scripts/` (via
+  `find … -name '*_test.py'`) and runs each one; a parallel `test-rt-stress` job
+  does the same for `test/rt-stress/`** — so a new `*_test.py` is picked up
+  automatically — you do not register it anywhere. When you add or change a
+  script, add or update its `*_test.py`; it will run in CI on the next PR.
 - After writing a test, break each assertion once to confirm it actually fires
   (counterfactual check) before trusting it.
 
