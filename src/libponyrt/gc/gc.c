@@ -2,9 +2,13 @@
 #include "../actor/actor.h"
 #include "../sched/scheduler.h"
 #include "../mem/pagemap.h"
+#include "../mem/pool.h"
 #include "../tracing/tracing.h"
 #include "ponyassert.h"
 #include <string.h>
+#ifdef USE_SYSTEMATIC_TESTING
+#include <stdlib.h>
+#endif
 
 #define GC_ACTOR_HEAP_EQUIV 1024
 #define GC_IMMUT_HEAP_EQUIV 1024
@@ -790,8 +794,69 @@ deltamap_t* ponyint_gc_delta(gc_t* gc)
   return delta;
 }
 
+#ifdef USE_SYSTEMATIC_TESTING
+// Order two actorrefs by their target actor's stable creation-order id. ids are
+// unique per actor, so there are no ties and the order is total and
+// layout-independent.
+static int gc_actorref_systematic_testing_id_cmp(const void* a, const void* b)
+{
+  uint64_t ia = (*(actorref_t* const*)a)->actor->systematic_testing_id;
+  uint64_t ib = (*(actorref_t* const*)b)->actor->systematic_testing_id;
+  return (ia > ib) - (ia < ib);
+}
+
+// Drain ctx->acquire and send `msg_id` to each referenced actor, ordered by the
+// target actor's stable creation-order id rather than by the actormap's
+// pointer-hash iteration order. Each send schedules its recipient, so sending
+// in a layout-independent order is what keeps a fixed seed's interleaving
+// reproducible under ASLR (see pony_actor_t.systematic_testing_id). Both
+// ACTORMSG_ACQUIRE (ponyint_gc_sendacquire) and ACTORMSG_RELEASE
+// (ponyint_gc_sendrelease_manual) drain ctx->acquire this way.
+static void gc_drain_acquire_ordered(pony_ctx_t* ctx, uint32_t msg_id)
+{
+  size_t n = ponyint_actormap_size(&ctx->acquire);
+
+  if(n > 0)
+  {
+    actorref_t** refs =
+      (actorref_t**)ponyint_pool_alloc_size(n * sizeof(actorref_t*));
+    size_t i = HASHMAP_BEGIN;
+    size_t k = 0;
+    actorref_t* aref;
+
+    while((aref = ponyint_actormap_next(&ctx->acquire, &i)) != NULL)
+    {
+      ponyint_actormap_clearindex(&ctx->acquire, i);
+      refs[k++] = aref;
+    }
+
+    qsort(refs, n, sizeof(actorref_t*),
+      gc_actorref_systematic_testing_id_cmp);
+
+    for(k = 0; k < n; k++)
+    {
+      aref = refs[k];
+#ifdef USE_RUNTIMESTATS
+      ctx->schedulerstats.mem_used_actors += (sizeof(actorref_t)
+        + ponyint_objectmap_total_mem_size(&aref->map));
+      ctx->schedulerstats.mem_allocated_actors += (POOL_ALLOC_SIZE(actorref_t)
+        + ponyint_objectmap_total_alloc_size(&aref->map));
+#endif
+      pony_sendp(ctx, aref->actor, msg_id, aref);
+    }
+
+    ponyint_pool_free_size(n * sizeof(actorref_t*), refs);
+  }
+
+  pony_assert(ponyint_actormap_size(&ctx->acquire) == 0);
+}
+#endif
+
 void ponyint_gc_sendacquire(pony_ctx_t* ctx)
 {
+#ifdef USE_SYSTEMATIC_TESTING
+  gc_drain_acquire_ordered(ctx, ACTORMSG_ACQUIRE);
+#else
   size_t i = HASHMAP_BEGIN;
   actorref_t* aref;
 
@@ -809,6 +874,7 @@ void ponyint_gc_sendacquire(pony_ctx_t* ctx)
   }
 
   pony_assert(ponyint_actormap_size(&ctx->acquire) == 0);
+#endif
 }
 
 void ponyint_gc_sendrelease(pony_ctx_t* ctx, gc_t* gc)
@@ -834,6 +900,9 @@ void ponyint_gc_sendrelease(pony_ctx_t* ctx, gc_t* gc)
 
 void ponyint_gc_sendrelease_manual(pony_ctx_t* ctx)
 {
+#ifdef USE_SYSTEMATIC_TESTING
+  gc_drain_acquire_ordered(ctx, ACTORMSG_RELEASE);
+#else
   size_t i = HASHMAP_BEGIN;
   actorref_t* aref;
 
@@ -851,6 +920,7 @@ void ponyint_gc_sendrelease_manual(pony_ctx_t* ctx)
   }
 
   pony_assert(ponyint_actormap_size(&ctx->acquire) == 0);
+#endif
 }
 
 void ponyint_gc_done(gc_t* gc)

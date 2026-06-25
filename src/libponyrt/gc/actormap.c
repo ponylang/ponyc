@@ -7,6 +7,9 @@
 #include "../mem/pool.h"
 #include "ponyassert.h"
 #include <string.h>
+#ifdef USE_SYSTEMATIC_TESTING
+#include <stdlib.h>
+#endif
 
 static size_t actorref_hash(actorref_t* aref)
 {
@@ -124,6 +127,22 @@ actorref_t* ponyint_actormap_getorput(actormap_t* map, pony_actor_t* actor,
   return aref;
 }
 
+#ifdef USE_SYSTEMATIC_TESTING
+// Order two actorrefs by their target actor's stable creation-order id so the
+// RELEASE sends in ponyint_actormap_sweep happen in a layout-independent order
+// rather than in the map's pointer-hash iteration order. ids are unique, so
+// there are no ties (see pony_actor_t.systematic_testing_id and gc.c's
+// gc_drain_acquire_ordered, which sorts the acquire/release sends the same
+// way).
+static int actormap_sweep_systematic_testing_id_cmp(const void* a,
+  const void* b)
+{
+  uint64_t ia = (*(actorref_t* const*)a)->actor->systematic_testing_id;
+  uint64_t ib = (*(actorref_t* const*)b)->actor->systematic_testing_id;
+  return (ia > ib) - (ia < ib);
+}
+#endif
+
 deltamap_t* ponyint_actormap_sweep(pony_ctx_t* ctx, actormap_t* map,
 #ifdef USE_RUNTIMESTATS
   uint32_t mark, deltamap_t* delta, bool actor_noblock, size_t* mem_used_freed,
@@ -135,6 +154,19 @@ deltamap_t* ponyint_actormap_sweep(pony_ctx_t* ctx, actormap_t* map,
   size_t i = HASHMAP_BEGIN;
   actorref_t* aref;
   bool needs_optimize = false;
+
+#ifdef USE_SYSTEMATIC_TESTING
+  // Collect the actors to RELEASE and send them in stable-id order after the
+  // sweep, so the resulting scheduling does not depend on the map's pointer-hash
+  // iteration order (ASLR). Capacity is the entry count at sweep entry, which
+  // bounds the number of send_release() calls (each iteration produces at most
+  // one aref). The sends still happen before ponyint_actormap_optimize below.
+  size_t st_release_cap = ponyint_actormap_size(map);
+  actorref_t** st_release = (st_release_cap > 0)
+    ? (actorref_t**)ponyint_pool_alloc_size(st_release_cap * sizeof(actorref_t*))
+    : NULL;
+  size_t st_release_n = 0;
+#endif
 
 #ifdef USE_RUNTIMESTATS
   size_t objectmap_mem_used_freed = 0;
@@ -184,8 +216,28 @@ deltamap_t* ponyint_actormap_sweep(pony_ctx_t* ctx, actormap_t* map,
     }
 #endif
 
+#ifdef USE_SYSTEMATIC_TESTING
+    // send_release(NULL) is a no-op, so only non-NULL arefs are collected;
+    // the sorted send happens after the loop.
+    if(aref != NULL)
+      st_release[st_release_n++] = aref;
+#else
     send_release(ctx, aref);
+#endif
   }
+
+#ifdef USE_SYSTEMATIC_TESTING
+  if(st_release != NULL)
+  {
+    qsort(st_release, st_release_n, sizeof(actorref_t*),
+      actormap_sweep_systematic_testing_id_cmp);
+
+    for(size_t j = 0; j < st_release_n; j++)
+      send_release(ctx, st_release[j]);
+
+    ponyint_pool_free_size(st_release_cap * sizeof(actorref_t*), st_release);
+  }
+#endif
 
 #ifdef USE_RUNTIMESTATS
   *mem_used_freed = objectmap_mem_used_freed;
