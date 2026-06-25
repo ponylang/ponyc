@@ -405,3 +405,7 @@ Systematic testing (`use=systematic_testing`) lets you replay a runtime interlea
 
 With scheduler scaling disabled (`--ponynoscale`), a fixed seed now replays the same interleaving across runs with more than one scheduler thread, while different seeds still produce different interleavings. The cycle detector can stay enabled. Making dynamic scheduler scaling itself reproducible under systematic testing is not yet covered; use `--ponynoscale` for reproducible multi-threaded replay until then.
 
+## Make systematic testing replay independent of memory layout
+
+Under `use=systematic_testing`, replaying a run from a fixed `--ponysystematictestingseed` is meant to reproduce the same scheduler interleaving. Previously this could fail for programs with enough actor-to-actor messaging to trigger backpressure: the replay depended on the process's memory layout, so address-space layout randomization (ASLR) made the same seed produce different interleavings from one run to the next, even with `--ponynoscale` and a fixed thread count. A fixed seed now replays the same interleaving regardless of memory layout.
+
