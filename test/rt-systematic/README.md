@@ -28,8 +28,23 @@ by a dedicated CI script.
   reference-counting sends (`ACTORMSG_ACQUIRE` on forward, `ACTORMSG_RELEASE` on
   GC sweep) go out one per distinct owner — the path #5568 makes
   layout-independent. It runs with the cycle detector disabled (`--ponynoblock`,
-  wired in by the driver) so the still-open cycle-detector send ordering (#5569)
-  can't confound it. When added it diverged per run against the pre-#5568 runtime
-  at every thread count tried (2 through 16), so unlike `mute-order-signature` it
-  does not depend on load/core-count balance to flake. Same driver and replay
-  property.
+  wired in by the driver) so the cycle detector's own send ordering can't confound
+  it. When added it diverged per run against the pre-#5568 runtime at every thread
+  count tried (2 through 16), so unlike `mute-order-signature` it does not depend
+  on load/core-count balance to flake. Same driver and replay property.
+- `cycle-collection-order-signature/` — successive generations of Worker groups,
+  each member holding the whole group's array so the group is one strongly
+  connected reference cycle. The Workers forward chains of fresh `String val`
+  payloads to random group members (folding each chain's terminal arrival and
+  receive count into `ORDER_SIG`), then the group is dropped and becomes garbage
+  the cycle detector reclaims. It runs with the detector ENABLED and swept
+  frequently (`--ponycdinterval 10`, wired in by the driver), so it exercises
+  every pointer-ordered detector path at once — the `ACTORMSG_ISBLOCKED` probes,
+  the `ACTORMSG_CONF` confirmations, the deferred-detection order, and `collect`'s
+  per-member release sends — each of which walked a `ponyint_hash_ptr(actor)` map
+  in pointer order before #5569. Against the pre-#5569 runtime it diverged per run
+  from a few cores up (ASLR-off and `--ponynoblock` both make it reproduce,
+  isolating the cause to the detector); after the fix it replays one. Because the
+  cycles are really reclaimed it also guards the collection path against a crash
+  regression. Same driver and replay property; tuned to flake at the small
+  physical-core counts a CI runner has.
