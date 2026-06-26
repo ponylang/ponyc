@@ -42,6 +42,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Add JsonPrinter for serializing any JsonValue ([PR #5397](https://github.com/ponylang/ponyc/pull/5397))
 - Add Alpine 3.24 as a supported platform ([PR #5466](https://github.com/ponylang/ponyc/pull/5466))
 - Compile C shims alongside Pony ([PR #5503](https://github.com/ponylang/ponyc/pull/5503))
+- Support building with systematic testing on Windows ([PR #5574](https://github.com/ponylang/ponyc/pull/5574))
 
 ### Changed
 
