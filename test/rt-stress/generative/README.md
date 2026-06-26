@@ -59,12 +59,16 @@ divergence is a race).
 - **Crash / `pony_assert`** — debug build, asserts on.
 - **Liveness** — the harness's wall-clock watchdog; a hang is a failure.
 - **Determinism** (always on) — every seed runs twice and the two runs'
-  `ORDER_SIG` must match. The harness disables ASLR (`setarch -R` on Linux) for
-  every run: systematic-testing replay is otherwise address-dependent (the runtime
-  orders some work by actor pointer values, which ASLR randomizes per run), so
-  without it this oracle would report false races. A runtime fix to make the
-  systematic build layout-independent is in progress; once it lands the wrapper
-  becomes a harmless no-op.
+  `ORDER_SIG` must match; a divergence is a real race. Systematic-testing replay
+  was once address-dependent — the runtime ordered some work by actor pointer
+  values, which ASLR randomizes per run, so the harness used to disable ASLR with
+  `setarch -R`. [#5566](https://github.com/ponylang/ponyc/pull/5566) and
+  [#5570](https://github.com/ponylang/ponyc/pull/5570) made that map iteration
+  creation-order keyed instead of pointer-keyed, so replay is now layout-independent
+  on every platform and no wrapper is needed. The harness always passes
+  `--ponynoblock`: the oracle holds only with the cycle detector off, which walks
+  the same maps and is its own ordering source (the cycle detector is still
+  stress-tested by `string-message-ubench`).
 
 Not yet checked: the payload's bytes at the end of a chain. A non-crashing trace
 or GC corruption (wrong bytes, truncation) would pass every oracle above —
