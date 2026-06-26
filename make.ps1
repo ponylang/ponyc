@@ -38,7 +38,11 @@
 
     [Parameter(HelpMessage="Tests to run")]
     [string]
-    $TestsToRun = 'libponyrt.tests,libponyc.tests,libponyc.run.tests.debug,libponyc.run.tests.release,stdlib-debug,stdlib-release,grammar'
+    $TestsToRun = 'libponyrt.tests,libponyc.tests,libponyc.run.tests.debug,libponyc.run.tests.release,stdlib-debug,stdlib-release,grammar',
+
+    [Parameter(HelpMessage="Runtime use options to enable at configure time, comma-separated. On Windows only 'systematic_testing' is supported.")]
+    [string]
+    $Use = ""
 )
 
 # Function to extract process exit code from LLDB output
@@ -75,6 +79,14 @@ switch ($Config.ToLower())
     default { throw "'$Config' is not a valid config; use Release, Debug, RelWithDebInfo, or MinSizeRel)." }
 }
 $config_lower = $Config.ToLower()
+
+# `-Use` flags only take effect at configure time (they set CMake cache
+# variables), so reject them on any other command instead of silently ignoring
+# them, matching the Makefile's "You can only specify use= for 'make configure'".
+if (($Use.Trim().Length -gt 0) -and ($Command.ToLower() -ne "configure"))
+{
+    throw "-Use can only be specified for the 'configure' command."
+}
 
 if ($null -eq (Get-Command "cmake.exe" -ErrorAction SilentlyContinue)) {
 	Write-Output "Warning, unable to find cmake.exe in your PATH, trying to discover one in Visual Studio installation."
@@ -123,7 +135,27 @@ if ($buildPath.StartsWith($tempPath, [StringComparison]::OrdinalIgnoreCase))
 }
 
 $libsDir = Join-Path -Path $srcDir -ChildPath "build\libs"
+
+# Output directory. A `-Use` build appends a suffix to the output directory
+# (e.g. build\debug-systematic_testing); see PONY_OUTPUT_SUFFIX in
+# CMakeLists.txt. Discover the real, suffixed directory from the configured
+# CMake install script -- the same approach the Unix Makefile uses -- so that
+# build, test, install, and run all locate a use-flag build's binaries instead
+# of looking in the un-suffixed default. Fall back to that default when nothing
+# has been configured yet.
 $outDir = Join-Path -Path $srcDir -ChildPath "build\$config_lower"
+$cmakeInstall = Join-Path -Path $buildDir -ChildPath "cmake_install.cmake"
+if (Test-Path $cmakeInstall)
+{
+    $srcFwd = $srcDir -replace '\\', '/'
+    $needle = [regex]::Escape("$srcFwd/build/$config_lower") + '[^/"]*' + '/libponyrt\.tests'
+    $found = Select-String -Path $cmakeInstall -Pattern $needle -ErrorAction SilentlyContinue |
+        Select-Object -First 1
+    if ($null -ne $found)
+    {
+        $outDir = ($found.Matches[0].Value -replace '/libponyrt\.tests.*$', '') -replace '/', '\'
+    }
+}
 
 Write-Output "Source directory: $srcDir"
 Write-Output "Build directory:  $buildDir"
@@ -215,15 +247,29 @@ switch ($Command.ToLower())
             default { "" }
         }
 
+        # Translate -Use flags into the -DPONY_USE_* cmake defines that the Unix
+        # Makefile sets for `use=...`. Only the use options that are meaningful on
+        # Windows are accepted; anything else is rejected rather than silently
+        # ignored, mirroring the Makefile's USE_CHECK behavior.
+        $useDefines = @()
+        foreach ($useItem in ($Use -split ',' | ForEach-Object { $_.Trim() } | Where-Object { $_.Length -gt 0 }))
+        {
+            switch ($useItem)
+            {
+                "systematic_testing" { $useDefines += "-DPONY_USE_SYSTEMATIC_TESTING=true" }
+                default { throw "Unknown use option '$useItem'. Supported on Windows: systematic_testing." }
+            }
+        }
+
         if ($Arch.Length -gt 0)
         {
-            Write-Output "cmake.exe -B `"$buildDir`" -S `"$srcDir`" -G `"$Generator`" -A $Arch -Thost="$Thost" -DCMAKE_INSTALL_PREFIX=`"$Prefix`" -DCMAKE_BUILD_TYPE=`"$Config`" -DPONYC_VERSION=`"$Version`" -DPONY_CPU=`"$PonyCpu`""
-            & cmake.exe -B "$buildDir" -S "$srcDir" -G "$Generator" -A $Arch -Thost="$Thost" -DCMAKE_INSTALL_PREFIX="$Prefix" -DCMAKE_BUILD_TYPE="$Config" -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DPONYC_VERSION="$Version" -DPONY_CPU="$PonyCpu" $lto_flag --no-warn-unused-cli
+            Write-Output "cmake.exe -B `"$buildDir`" -S `"$srcDir`" -G `"$Generator`" -A $Arch -Thost="$Thost" -DCMAKE_INSTALL_PREFIX=`"$Prefix`" -DCMAKE_BUILD_TYPE=`"$Config`" -DPONYC_VERSION=`"$Version`" -DPONY_CPU=`"$PonyCpu`" $useDefines"
+            & cmake.exe -B "$buildDir" -S "$srcDir" -G "$Generator" -A $Arch -Thost="$Thost" -DCMAKE_INSTALL_PREFIX="$Prefix" -DCMAKE_BUILD_TYPE="$Config" -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DPONYC_VERSION="$Version" -DPONY_CPU="$PonyCpu" $lto_flag $useDefines --no-warn-unused-cli
         }
         else
         {
-            Write-Output "cmake.exe -B `"$buildDir`" -S `"$srcDir`" -G `"$Generator`" -Thost="$Thost" -DCMAKE_INSTALL_PREFIX=`"$Prefix`" -DCMAKE_BUILD_TYPE=`"$Config`" -DPONYC_VERSION=`"$Version`" -DPONY_CPU=`"$PonyCpu`""
-            & cmake.exe -B "$buildDir" -S "$srcDir" -G "$Generator" -Thost="$Thost" -DCMAKE_INSTALL_PREFIX="$Prefix" -DCMAKE_BUILD_TYPE="$Config" -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DPONYC_VERSION="$Version" -DPONY_CPU="$PonyCpu" $lto_flag --no-warn-unused-cli
+            Write-Output "cmake.exe -B `"$buildDir`" -S `"$srcDir`" -G `"$Generator`" -Thost="$Thost" -DCMAKE_INSTALL_PREFIX=`"$Prefix`" -DCMAKE_BUILD_TYPE=`"$Config`" -DPONYC_VERSION=`"$Version`" -DPONY_CPU=`"$PonyCpu`" $useDefines"
+            & cmake.exe -B "$buildDir" -S "$srcDir" -G "$Generator" -Thost="$Thost" -DCMAKE_INSTALL_PREFIX="$Prefix" -DCMAKE_BUILD_TYPE="$Config" -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DPONYC_VERSION="$Version" -DPONY_CPU="$PonyCpu" $lto_flag $useDefines --no-warn-unused-cli
         }
         $err = $LastExitCode
         if ($err -ne 0) { throw "Error: exit code $err" }

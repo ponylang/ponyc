@@ -2,6 +2,7 @@
 
 #include "systematic_testing.h"
 
+#include <inttypes.h>
 #include <stdlib.h>
 #include <string.h>
 #include "cpu.h"
@@ -89,8 +90,8 @@ void ponyint_systematic_testing_init(uint64_t random_seed, uint32_t max_threads)
   if(0 == random_seed)
     random_seed = ponyint_cpu_tick();
 
-  SYSTEMATIC_TESTING_PRINTF("Systematic testing using seed: %lu...\n", random_seed);
-  SYSTEMATIC_TESTING_PRINTF("(rerun with `<app> --ponysystematictestingseed %lu` to reproduce)\n", random_seed);
+  SYSTEMATIC_TESTING_PRINTF("Systematic testing using seed: %" PRIu64 "...\n", random_seed);
+  SYSTEMATIC_TESTING_PRINTF("(rerun with `<app> --ponysystematictestingseed %" PRIu64 "` to reproduce)\n", random_seed);
   TRACING_SYSTEMATIC_TESTING_CONFIG(random_seed);
 
   // TODO systematic testing: maybe replace with better RNG?
