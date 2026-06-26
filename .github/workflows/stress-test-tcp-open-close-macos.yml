@@ -15,9 +15,10 @@ permissions:
   packages: read
 
 # Serialize the scheduled stress loop to one workflow at a time (groups are
-# repo-wide, so all six stress workflows share `stress-scheduled`). Manual runs
-# get a unique group (github.run_id) so a branch check never queues behind the
-# loop. Relies on these workflows having exactly two triggers (schedule +
+# repo-wide, so the three tcp-open-close stress workflows share `stress-scheduled`;
+# the generative workflows share their own `stress-scheduled-generative`). Manual
+# runs get a unique group (github.run_id) so a branch check never queues behind
+# the loop. Relies on these workflows having exactly two triggers (schedule +
 # workflow_dispatch) -- see the per-event flag/alert conditions below.
 concurrency:
   group: stress-${{ github.event_name == 'workflow_dispatch' && github.run_id || 'scheduled' }}

@@ -651,54 +651,6 @@ switch ($Command.ToLower())
         }
         break
     }
-    "stress-test-ubench-release"
-    {
-        $lldbcmd = 'C:\msys64\mingw64\bin\lldb.exe'
-        $lldbargs = @('--batch', '--one-line', 'run', '--one-line-on-crash', '"frame variable"', '--one-line-on-crash', '"register read"', '--one-line-on-crash', '"bt all"', '--one-line-on-crash', '"quit 1"', '--')
-
-        & $outDir\ponyc.exe --bin-name=ubench --output=$outDir test\rt-stress\string-message-ubench
-        $lldboutput = & $lldbcmd $lldbargs $outDir\ubench.exe --pingers 320 --initial-pings 5 --report-count 40 --report-interval 300 --ponynoscale --ponynoblock
-        Write-Output $lldboutput
-        $err = Get-ProcessExitCodeFromLLDB -LLDBOutput $lldboutput
-        exit $err
-        break
-    }
-    "stress-test-ubench-with-cd-release"
-    {
-        $lldbcmd = 'C:\msys64\mingw64\bin\lldb.exe'
-        $lldbargs = @('--batch', '--one-line', 'run', '--one-line-on-crash', '"frame variable"', '--one-line-on-crash', '"register read"', '--one-line-on-crash', '"bt all"', '--one-line-on-crash', '"quit 1"', '--')
-
-        & $outDir\ponyc.exe --bin-name=ubench --output=$outDir test\rt-stress\string-message-ubench
-        $lldboutput = & $lldbcmd $lldbargs $outDir\ubench.exe --pingers 320 --initial-pings 5 --report-count 40 --report-interval 300 --ponynoscale
-        Write-Output $lldboutput
-        $err = Get-ProcessExitCodeFromLLDB -LLDBOutput $lldboutput
-        exit $err
-        break
-    }
-    "stress-test-ubench-debug"
-    {
-        $lldbcmd = 'C:\msys64\mingw64\bin\lldb.exe'
-        $lldbargs = @('--batch', '--one-line', 'run', '--one-line-on-crash', '"frame variable"', '--one-line-on-crash', '"register read"', '--one-line-on-crash', '"bt all"', '--one-line-on-crash', '"quit 1"', '--')
-
-        & $outDir\ponyc.exe --debug --bin-name=ubench --output=$outDir test\rt-stress\string-message-ubench
-        $lldboutput = & $lldbcmd $lldbargs $outDir\ubench.exe --pingers 320 --initial-pings 5 --report-count 40 --report-interval 300 --ponynoscale --ponynoblock
-        Write-Output $lldboutput
-        $err = Get-ProcessExitCodeFromLLDB -LLDBOutput $lldboutput
-        exit $err
-        break
-    }
-    "stress-test-ubench-with-cd-debug"
-    {
-        $lldbcmd = 'C:\msys64\mingw64\bin\lldb.exe'
-        $lldbargs = @('--batch', '--one-line', 'run', '--one-line-on-crash', '"frame variable"', '--one-line-on-crash', '"register read"', '--one-line-on-crash', '"bt all"', '--one-line-on-crash', '"quit 1"', '--')
-
-        & $outDir\ponyc.exe --debug --bin-name=ubench --output=$outDir test\rt-stress\string-message-ubench
-        $lldboutput = & $lldbcmd $lldbargs $outDir\ubench.exe --pingers 320 --initial-pings 5 --report-count 40 --report-interval 300 --ponynoscale
-        Write-Output $lldboutput
-        $err = Get-ProcessExitCodeFromLLDB -LLDBOutput $lldboutput
-        exit $err
-        break
-    }
     "stress-test-tcp-open-close-release"
     {
         $lldbcmd = 'C:\msys64\mingw64\bin\lldb.exe'

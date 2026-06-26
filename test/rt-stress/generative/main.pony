@@ -5,8 +5,8 @@ A closed, count-driven mesh of `Pinger` actors that exercises the Pony runtime's
 message passing and -- for the `String` payload kind -- ORCA tracing, with a
 *provable* conservation oracle.
 
-Unlike `string-message-ubench` (an open cascade stopped by a wall-clock timer),
-this workload is closed: a fixed number of chains are injected, each carrying a
+This workload is closed, unlike an open cascade stopped by a wall-clock timer:
+a fixed number of chains are injected, each carrying a
 hop counter (TTL). A `Pinger` receiving a ping with hops > 0 forwards exactly
 one ping (hops - 1) to a random neighbor; a ping with hops == 0 terminates and
 signals the coordinator. Because each ping produces exactly one successor
@@ -23,8 +23,8 @@ continuous beats epochal, keeping the runtime under sustained, varied load
 rather than in repeated run-to-quiescence epochs. We use a closed workload here
 because it is what's feasible under systematic testing today: it yields the
 exact conservation invariant above, and it needs no timer (time is not
-virtualized under systematic testing, so a timer-driven open cascade like
-ubench's would not reproduce). When open becomes feasible -- virtualized logical
+virtualized under systematic testing, so a timer-driven open cascade would
+not reproduce). When open becomes feasible -- virtualized logical
 time under systematic testing, or a non-systematic continuous mode -- revisit
 this and switch.
 
@@ -41,7 +41,10 @@ determinism oracle.
 This program holds no `@runtime_override_defaults`: every runtime knob (scaling,
 cycle detector, GC, thread count, the systematic seed) is a `--pony*` flag set
 by the orchestrator, and every workload parameter is a `--flag value` arg parsed
-here. It is driven by `orchestrate.py` in this directory.
+here. Two orchestrators in this directory drive it: `orchestrate_systematic.py`
+(the systematic, reproducible mode described above) and `orchestrate_normal.py`
+(a normal, real-parallel runtime -- the conservation invariant holds there too,
+but `ORDER_SIG` does not reproduce, so that mode runs each seed once).
 """
 use "cli"
 use "random"
@@ -318,7 +321,7 @@ primitive _Cli
   """
   fun spec(): CommandSpec ? =>
     CommandSpec.leaf("generative",
-      "Generative runtime stress workload (driven by orchestrate.py)",
+      "Generative runtime stress workload (driven by the orchestrate_*.py harnesses)",
       [
         OptionSpec.u64("seed",
           "engine RNG seed"
