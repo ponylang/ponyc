@@ -1,4 +1,4 @@
-name: "Stress Test: Windows UBench"
+name: "Stress Test: Windows Generative (Normal)"
 
 on:
   schedule:
@@ -14,13 +14,15 @@ on:
 permissions:
   packages: read
 
-# Serialize the scheduled stress loop to one workflow at a time (groups are
-# repo-wide, so all six stress workflows share `stress-scheduled`). Manual runs
-# get a unique group (github.run_id) so a branch check never queues behind the
-# loop. Relies on these workflows having exactly two triggers (schedule +
-# workflow_dispatch) -- see the per-event flag/alert conditions below.
+# Second stress lane. The other stress workflows (the tcp-open-close trio) share
+# the repo-wide `stress-scheduled` group (one at a time); the generative workflows
+# -- systematic and normal -- share their own `stress-scheduled-generative` group,
+# so at most one of each lane runs at once -- at most two stress workflows in
+# total. Manual runs get a unique group (github.run_id) so a branch check never
+# queues behind the loop. Relies on these workflows having exactly two triggers
+# (schedule + workflow_dispatch) -- see the per-event flag/alert conditions below.
 concurrency:
-  group: stress-${{ github.event_name == 'workflow_dispatch' && github.run_id || 'scheduled' }}
+  group: stress-${{ github.event_name == 'workflow_dispatch' && github.run_id || 'scheduled-generative' }}
   cancel-in-progress: false
 
 jobs:
@@ -29,22 +31,12 @@ jobs:
     defaults:
       run:
         shell: pwsh
+    # Generous ceiling (matches the systematic jobs): the ponyc debug build, then
+    # a 30-minute wall-clock soak (--budget-seconds) plus a final-seed watchdog
+    # overshoot. The orchestrator caps each seed too.
+    timeout-minutes: 90
 
-    strategy:
-      fail-fast: false
-      max-parallel: 2
-      matrix:
-        include:
-          - name: "x86-64 Windows [release]"
-            target: stress-test-ubench-release
-          - name: "x86-64 Windows [debug]"
-            target: stress-test-ubench-debug
-          - name: "x86-64 Windows [cd] [release]"
-            target: stress-test-ubench-with-cd-release
-          - name: "x86-64 Windows [cd] [debug]"
-            target: stress-test-ubench-with-cd-debug
-
-    name: ${{matrix.target}}:${{ matrix.name }}
+    name: x86-64 Windows generative normal [debug]
     steps:
       - name: Disable Windows Defender
         run: Set-MpPreference -DisableRealtimeMonitoring $true
@@ -53,23 +45,16 @@ jobs:
         with:
           ref: ${{ github.event.inputs.sha || 'main' }}
       - name: Install Dependencies
-        # Pin mingw-w64 LLVM family and the runtime dependencies lldb
-        # imports against.
-        #
-        # History:
-        # (1) 2026-05-03: lldb-22.1.4-2 ("llvm: emutls rebuild") crashed
-        #     in liblldb.dll with 0xC0000005. Pinned llvm-libs,
-        #     clang-libs, lldb to 22.1.4-1.
-        # (2) 2026-05-11: msys2 bumped unpinned dependencies (gcc-libs
-        #     16.1.0-2 -> -3, plus expat/mpdecimal/python pkgrel bumps).
-        #     The pinned lldb 22.1.4-1 then failed to load with
-        #     0xC0000139 STATUS_ENTRYPOINT_NOT_FOUND — the rebuilt deps
-        #     had shifted symbols out from under lldb. Extended the pin
-        #     to those deps.
-        #
-        # See Discussion #5007. Installed via `pacman -U` from explicit
-        # URLs so the initial `-Syuu` can't re-introduce a broken
-        # combination.
+        # lldb (and the mingw-w64 LLVM/clang runtime libraries it imports against)
+        # so the normal mode can run the engine under lldb and capture a crash
+        # backtrace -- a normal-mode crash does not reproduce, so the in-the-moment
+        # stack is the only artifact. Pinned per Discussion #5007:
+        # (1) 2026-05-03: lldb-22.1.4-2 crashed in liblldb.dll (0xC0000005);
+        #     pinned llvm-libs, clang-libs, lldb to 22.1.4-1.
+        # (2) 2026-05-11: msys2 bumped unpinned deps and the pinned lldb 22.1.4-1
+        #     failed to load (0xC0000139); extended the pin to those deps.
+        # Installed via `pacman -U` from explicit URLs so the initial `-Syuu`
+        # can't re-introduce a broken combination.
         run: |
           function msys() { C:\msys64\usr\bin\bash.exe @('-lc') + @Args }
           msys ' '
@@ -78,7 +63,6 @@ jobs:
           msys 'pacman --noconfirm -S --needed base-devel'
           msys 'pacman --noconfirm -U https://repo.msys2.org/mingw/mingw64/mingw-w64-x86_64-llvm-libs-22.1.4-1-any.pkg.tar.zst https://repo.msys2.org/mingw/mingw64/mingw-w64-x86_64-clang-libs-22.1.4-1-any.pkg.tar.zst https://repo.msys2.org/mingw/mingw64/mingw-w64-x86_64-lldb-22.1.4-1-any.pkg.tar.zst https://repo.msys2.org/mingw/mingw64/mingw-w64-x86_64-gcc-libs-16.1.0-2-any.pkg.tar.zst https://repo.msys2.org/mingw/mingw64/mingw-w64-x86_64-expat-2.8.0-1-any.pkg.tar.zst https://repo.msys2.org/mingw/mingw64/mingw-w64-x86_64-mpdecimal-4.0.1-2-any.pkg.tar.zst https://repo.msys2.org/mingw/mingw64/mingw-w64-x86_64-python-3.14.4-2-any.pkg.tar.zst'
           msys 'pacman --noconfirm -Scc'
-          python.exe -m pip install --upgrade cloudsmith-cli
       - name: Restore prebuilt libs
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -92,11 +76,25 @@ jobs:
         if: ${{ hashFiles('.libs-cache-miss') == '' }}
         run: .\make.ps1 -Command configure -Config Debug
       - name: Build Debug Runtime
+        # A NORMAL build (no use= flags): the real, multi-threaded runtime, the
+        # whole point of this mode. NOT use=systematic_testing.
         if: ${{ hashFiles('.libs-cache-miss') == '' }}
         run: .\make.ps1 -Command build -Config Debug
-      - name: Run Stress Test
+      - name: Run Generative Stress Test
         if: ${{ hashFiles('.libs-cache-miss') == '' }}
-        run: .\make.ps1 -Command ${{ matrix.target }} -Config Debug
+        run: |
+          python test/rt-stress/generative/orchestrate_normal.py `
+            --ponyc build/debug/ponyc.exe `
+            --lldb 'C:\msys64\mingw64\bin\lldb.exe' `
+            --start ${{ github.run_id }} --budget-seconds 1800 `
+            --out rt-stress-out
+      - name: Upload failure bundles
+        if: ${{ failure() && hashFiles('.libs-cache-miss') == '' }}
+        uses: actions/upload-artifact@v4.6.2
+        with:
+          name: generative-normal-bundles-windows
+          path: rt-stress-out/*.json
+          if-no-files-found: ignore
       - name: Send alert on failure
         if: ${{ failure() && github.event_name == 'schedule' }}
         uses: zulip/github-actions-zulip/send-message@bd8ec52de371d139ae8313661b7d8318c19266aa
