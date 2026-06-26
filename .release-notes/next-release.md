@@ -415,3 +415,10 @@ Under `use=systematic_testing`, replaying a run from a fixed `--ponysystematicte
 
 This builds on the earlier fix for the actor muting path. With both in place and the cycle detector disabled (`--ponynoblock`), a fixed seed replays deterministically for these workloads; the cycle detector has its own remaining layout dependence, tracked separately.
 
+## Fix an intermittent hang when using systematic testing
+
+Programs run under systematic testing (`--ponysystematictestingseed`) could
+intermittently hang instead of running to completion. The hang was timing
+sensitive: the same seed might hang on one run and finish normally on another.
+This has been fixed.
+
