@@ -11,9 +11,9 @@ From a master seed it:
   1. derives two seeds -- the program's RNG (`--seed`) and the scheduler
      interleaving (`--ponysystematictestingseed`, forced >= 1);
   2. draws a swarm configuration -- workload shape plus a random subset of the
-     non-timing runtime knobs, always with `--ponynoscale` (the Wave-0
-     reproducibility constraint) and `--ponymaxthreads` across [1, the host's
-     probed physical core count];
+     non-timing runtime knobs (including `--ponynoscale`), always with
+     `--ponynoblock` and `--ponymaxthreads` across [1, the host's probed physical
+     core count];
   3. compiles the program once with a provided `--ponyc` (the binary is
      invariant across seeds -- all configuration is CLI/runtime);
   4. runs each seed TWICE under a wall-clock watchdog and an address-space cap
@@ -42,12 +42,10 @@ import argparse
 import hashlib
 import json
 import os
-import platform
 import random
 import re
 import resource
 import shlex
-import shutil
 import subprocess
 import sys
 
@@ -99,8 +97,8 @@ def resolve_config(master_seed, max_threads):
     --replay and the determinism check reconstruct an identical configuration on
     the same host (and an identical one bar the thread count on any host). Swarm
     testing: each non-timing runtime knob is independently present or absent
-    (omission is the mechanism), and `--ponynoscale` is always on (Wave-0
-    reproducibility constraint).
+    (omission is the mechanism) -- including `--ponynoscale` -- except
+    `--ponynoblock`, which is always on (see the runtime dict below for why).
 
     The ORDER of the rng draws below is the seed-stability contract: a master
     seed maps to a config only as long as that draw sequence is unchanged. Add a
@@ -120,7 +118,7 @@ def resolve_config(master_seed, max_threads):
     # bias toward important values where bugs cluster: edge-weight the ranges,
     # favor allocator size-class boundaries and occasional-large payload sizes,
     # and reach past the current max of 64 actors (contention/interleaving bugs
-    # intensify with scale; the ASLR repro needed 32+).
+    # intensify with scale; the original repro needed 32+ actors).
     workload = {
         "seed": program_seed,
         "pingers": rng.choice([1, 2, 4, 8, 16, 32, 64]),
@@ -130,12 +128,20 @@ def resolve_config(master_seed, max_threads):
         "payload-size": rng.choice([1, 8, 64, 256, 1024, 4096]),
     }
 
+    # `--ponynoblock` is always on -- NOT a swarm knob: the determinism oracle
+    # only holds with the cycle detector OFF (it walks the same pointer-keyed maps
+    # and is its own memory-layout ordering source, which #5566/#5570 did not
+    # address; the cycle detector is still stress-tested by string-message-ubench).
+    # `--ponynoscale` IS a swarm knob -- both scaling off (the flag) and on (its
+    # absence) reproduce post-#5570, so the swarm draws both to exercise the
+    # scheduler-scaling path. Make ponynoblock a swarm knob too once the cycle
+    # detector's layout-ordering is fixed.
     runtime = {
-        "ponynoscale": True,
+        "ponynoblock": True,
         "ponysystematictestingseed": systematic_seed,
     }
     if rng.random() < 0.5:
-        runtime["ponynoblock"] = True
+        runtime["ponynoscale"] = True
     if rng.random() < 0.5:
         runtime["ponygcinitial"] = rng.choice([1024, 1 << 16, 1 << 20])
     if rng.random() < 0.5:
@@ -178,25 +184,17 @@ def build_argv(binary, config):
     return argv
 
 
-def aslr_prefix():
-    """Command prefix that disables ASLR for the run (Linux).
-
-    Systematic-testing replay is reproducible only with address-space layout
-    randomization off. The runtime orders some work by actor pointer values
-    (hash_ptr-keyed GC maps iterated in bucket order), which ASLR randomizes per
-    run -- a per-run input the `--ponysystematictestingseed` does not control.
-    `setarch -R` (ADDR_NO_RANDOMIZE) removes it, restoring the
-    same-seed-same-interleaving contract. Non-Linux hosts need their own
-    equivalent; without one, replay and the determinism oracle are best-effort.
-    """
-    if (platform.system() == "Linux") and (shutil.which("setarch") is not None):
-        return ["setarch", platform.machine(), "-R"]
-    return []
-
-
 def run_command(binary, config):
-    """The full run command: the ASLR-disable prefix plus the engine argv."""
-    return aslr_prefix() + build_argv(binary, config)
+    """The full run command for a resolved config.
+
+    There is deliberately no ASLR-disable (`setarch`) wrapper. Systematic-testing
+    replay used to be address-dependent -- the runtime ordered work by actor
+    pointer values, which ASLR randomizes per run -- but #5566 and #5570 made the
+    pointer-keyed map iteration (muting, then reference-counting/GC) creation-order
+    keyed instead, so a fixed seed reproduces regardless of memory layout. That
+    fix is portable C, so this holds on every platform with no per-host wrapper.
+    """
+    return build_argv(binary, config)
 
 
 def parse_result(stdout):
@@ -223,8 +221,8 @@ def probe_max_threads(binary):
     re-introduce the spurious-reject bug). Falls back to `os.cpu_count()` if the
     rejection can't be parsed.
     """
-    cmd = aslr_prefix() + [binary, "--ponymaxthreads", "1000000",
-                           "--ponynoscale", "--ponysystematictestingseed", "1"]
+    cmd = [binary, "--ponymaxthreads", "1000000",
+           "--ponynoscale", "--ponysystematictestingseed", "1"]
     try:
         result = subprocess.run(cmd, stdout=subprocess.PIPE,
                                 stderr=subprocess.PIPE, timeout=30)
@@ -373,11 +371,11 @@ def execute(binary, config, version, use_flags, out_dir, timeout,
 def check_determinism(binary, config, version, use_flags, out_dir, timeout,
                       mem_limit_bytes):
     """Run one seed twice and compare the observable ORDER_SIG. Divergence at a
-    fixed seed pair (with ASLR disabled) is a race. A non-pass run is a failure
-    in its own right. On any determinism failure a `determinism-<seed>.json`
-    bundle is written capturing both runs, so the divergence -- the headline
-    oracle failure, which otherwise leaves no on-disk artifact since both runs
-    exit 0 -- reproduces from the record, not just from stdout."""
+    fixed seed pair is a race. A non-pass run is a failure in its own right. On
+    any determinism failure a `determinism-<seed>.json` bundle is written
+    capturing both runs, so the divergence -- the headline oracle failure, which
+    otherwise leaves no on-disk artifact since both runs exit 0 -- reproduces from
+    the record, not just from stdout."""
     seed = config["master_seed"]
     first = execute(binary, config, version, use_flags, out_dir, timeout,
                     mem_limit_bytes)
@@ -396,12 +394,6 @@ def check_determinism(binary, config, version, use_flags, out_dir, timeout,
         verdict = "a run did not pass (cannot compare ORDER_SIG)"
     elif not have_sigs:
         verdict = "a run exited 0 without an ORDER_SIG (cannot compare)"
-    elif not aslr_prefix():
-        # ASLR was not disabled, so a divergence is INCONCLUSIVE rather than a
-        # race: systematic replay is address-dependent without ASLR off (the
-        # runtime orders work by actor pointer values).
-        verdict = "INCONCLUSIVE: ORDER_SIG %s vs %s but ASLR was not disabled" \
-            % (sig_a, sig_b)
     else:
         verdict = "DETERMINISM FAILURE: %s != %s (a race)" % (sig_a, sig_b)
     info("[seed %d] %s" % (seed, verdict))
@@ -478,10 +470,6 @@ def main(argv):
     version = ponyc_version(ponyc)
     info("ponyc: " + version.replace("\n", " | "))
     info("use-flags: " + args.use_flags)
-    if not aslr_prefix():
-        info("note: setarch -R unavailable (non-Linux or no setarch) -- "
-             "systematic replay needs ASLR disabled, so replay and the "
-             "determinism oracle are best-effort here")
     binary = compile_engine(ponyc, out_dir)
     max_threads = probe_max_threads(binary)
     info("physical cores (--ponymaxthreads ceiling): %d" % max_threads)

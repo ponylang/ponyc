@@ -69,7 +69,7 @@ def test_resolve_config_deterministic_and_bounded():
         config = orchestrate.resolve_config(master, THREADS)
         work = config["workload"]
         runtime = config["runtime"]
-        if runtime.get("ponynoscale") is not True:
+        if runtime.get("ponynoblock") is not True:
             invariants_hold = False
         if runtime["ponysystematictestingseed"] < 1:
             invariants_hold = False
@@ -119,9 +119,8 @@ def test_resolve_config_swarm_omission():
     # some runs and be absent in others, not pinned one way. Check all four --
     # they share identical `if rng.random() < 0.5` logic, so testing only the
     # first would let a regression in any of the others pass silently.
-    # (ponymaxthreads is always set now, so it isn't an omittable knob.)
-    omittable = ["ponynoblock", "ponygcinitial", "ponygcfactor",
-                 "ponycdinterval"]
+    # (ponynoblock and ponymaxthreads are always set, so they aren't omittable.)
+    omittable = ["ponynoscale", "ponygcinitial", "ponygcfactor", "ponycdinterval"]
     counts = dict.fromkeys(omittable, 0)
     for master in range(0, 300):
         runtime = orchestrate.resolve_config(master, THREADS)["runtime"]
@@ -138,7 +137,7 @@ def test_build_argv():
     argv = orchestrate.build_argv("/bin/generative", config)
 
     check("build_argv: binary is first", argv[0] == "/bin/generative")
-    check("build_argv: includes --ponynoscale bare", "--ponynoscale" in argv)
+    check("build_argv: includes --ponynoblock bare", "--ponynoblock" in argv)
     # A bare flag must not leak its Python True as a literal token.
     check("build_argv: no literal True token", "True" not in argv)
 
@@ -162,15 +161,9 @@ def test_run_command():
     config = orchestrate.resolve_config(1, THREADS)
     engine = orchestrate.build_argv("/bin/generative", config)
     full = orchestrate.run_command("/bin/generative", config)
-    prefix = orchestrate.aslr_prefix()
-
-    check("run_command: engine argv is the suffix",
-          full[len(full) - len(engine):] == engine)
-    check("run_command: length is prefix + engine",
-          len(full) == len(prefix) + len(engine))
-    # The ASLR prefix is either absent or a `setarch ... -R` invocation.
-    check("aslr_prefix: empty or setarch -R",
-          (prefix == []) or ((prefix[0] == "setarch") and (prefix[-1] == "-R")))
+    # There is no ASLR/setarch wrapper anymore (#5566/#5570 made systematic
+    # replay layout-independent), so the run command is exactly the engine argv.
+    check("run_command: equals the engine argv (no wrapper)", full == engine)
 
 
 def test_derive_seeds_zero_floor():
