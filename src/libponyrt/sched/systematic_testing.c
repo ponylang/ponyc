@@ -269,11 +269,20 @@ void ponyint_systematic_testing_yield()
 
     if(!current_thread->stopped)
     {
+      // Park until it is genuinely this thread's turn again. The underlying
+      // wait can return without a matching wake -- pthread_cond_wait is allowed
+      // to wake spuriously (POSIX), and a stray wake is more likely under load.
+      // Returning here while active_thread still points at another thread would
+      // let this thread run out of turn and desync the single-runner handoff,
+      // deadlocking every thread. Re-check and re-park, as wait_start does.
+      while(active_thread != current_thread)
+      {
 #if defined(USE_SCHEDULER_SCALING_PTHREADS)
-      ponyint_thread_suspend(current_thread->sleep_object, &systematic_testing_mut);
+        ponyint_thread_suspend(current_thread->sleep_object, &systematic_testing_mut);
 #else
-      ponyint_thread_suspend(current_thread->sleep_object);
+        ponyint_thread_suspend(current_thread->sleep_object);
 #endif
+      }
       TRACING_SYSTEMATIC_TESTING_TIMESLICE_BEGIN();
     }
     else
