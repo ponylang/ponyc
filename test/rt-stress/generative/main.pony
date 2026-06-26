@@ -31,8 +31,9 @@ this and switch.
 All randomness is seeded only from `--seed` (never the clock). The routing graph
 is not a function of `--seed` alone, though: which draw lands on which ping
 depends on the order a Pinger processes its mailbox, so the routing — and the
-run — reproduce only when the interleaving does (a fixed
-`--ponysystematictestingseed` AND ASLR disabled; the orchestrator disables it).
+run — reproduce only when the interleaving does: a fixed
+`--ponysystematictestingseed` under a systematic build. (#5566/#5570 made that
+replay independent of memory layout, so disabling ASLR is no longer needed.)
 The coordinator folds chain-completion arrivals into an FNV-1a `ORDER_SIG` -- a
 pure function of the scheduler interleaving -- as the observable for the
 determinism oracle.
