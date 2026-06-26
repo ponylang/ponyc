@@ -134,10 +134,22 @@ DECLARE_THREAD_FN(ponyint_asio_backend_dispatch)
 
   while(!atomic_load_explicit(&b->stop, memory_order_acquire))
   {
-    switch(WaitForMultipleObjectsEx(handleCount, handles, FALSE, -1, TRUE))
-    {
-      SYSTEMATIC_TESTING_YIELD();
+    // Block until an event arrives. Under systematic testing the wait must be
+    // bounded so this thread yields its turn back to the cooperative scheduler
+    // instead of parking the whole interleaving on an event that can only be
+    // signalled by a thread that is itself waiting for this one to yield.
+    DWORD wait_ms = INFINITE;
+#if defined(USE_SYSTEMATIC_TESTING)
+    wait_ms = 10;
+#endif
 
+    DWORD wait_result =
+      WaitForMultipleObjectsEx(handleCount, handles, FALSE, wait_ms, TRUE);
+
+    SYSTEMATIC_TESTING_YIELD();
+
+    switch(wait_result)
+    {
       case WAIT_OBJECT_0:
       {
         // Process all items on our queue.
