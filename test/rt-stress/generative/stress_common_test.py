@@ -72,28 +72,29 @@ def test_derive_seed_zero_floor():
         common.hashlib.sha256 = real
 
 
-def test_resolve_workload_five_field_split():
-    # CRITICAL contract: resolve_workload returns the program seed plus EXACTLY the
-    # five swarm-drawn fields -- payload-mode is NOT here (each driver draws it
-    # after its runtime knobs). A regression that folds payload-mode back in (a
-    # contiguous-six draw) remaps every seed and breaks systematic replay; this
-    # pins against it.
+def test_resolve_systematic_workload_five_field_split():
+    # CRITICAL contract: resolve_systematic_workload returns the program seed plus
+    # EXACTLY the five swarm-drawn fields -- payload-mode is NOT here (the systematic
+    # driver draws it after its runtime knobs). A regression that folds payload-mode
+    # back in (a contiguous-six draw) remaps every seed and breaks systematic replay;
+    # this pins against it.
     rng = random.Random(0)
-    work = common.resolve_workload(rng, 999)
-    check("resolve_workload keys are seed + the five drawn fields",
+    work = common.resolve_systematic_workload(rng, 999)
+    check("resolve_systematic_workload keys are seed + the five drawn fields",
           set(work.keys()) == {"seed", "pingers", "chains", "ttl", "payload",
                                "payload-size"})
-    check("resolve_workload does NOT include payload-mode",
+    check("resolve_systematic_workload does NOT include payload-mode",
           "payload-mode" not in work)
-    check("resolve_workload carries the passed program seed", work["seed"] == 999)
+    check("resolve_systematic_workload carries the passed program seed",
+          work["seed"] == 999)
     # Pin the exact draw order/values for Random(0): a reordered or narrowed draw
     # changes this (and would silently remap historical seeds).
-    check("resolve_workload(Random(0), 999) matches the pinned draws",
+    check("resolve_systematic_workload(Random(0), 999) matches the pinned draws",
           work == {"seed": 999, "pingers": 64, "chains": 198, "ttl": 48,
                    "payload": "u64", "payload-size": 1})
 
 
-def test_resolve_workload_coverage():
+def test_resolve_systematic_workload_coverage():
     pingers_allowed = {1, 2, 4, 8, 16, 32, 64}
     size_allowed = {1, 8, 64, 256, 1024, 4096}
     pingers_seen, size_seen, payload_seen = set(), set(), set()
@@ -101,7 +102,7 @@ def test_resolve_workload_coverage():
     invariants = True
     for master in range(0, 300):
         rng = random.Random(master)
-        w = common.resolve_workload(rng, 1)
+        w = common.resolve_systematic_workload(rng, 1)
         if w["pingers"] not in pingers_allowed:
             invariants = False
         if not (1 <= w["chains"] <= 400):
@@ -117,7 +118,8 @@ def test_resolve_workload_coverage():
         payload_seen.add(w["payload"])
         chains_seen.append(w["chains"])
         ttls_seen.append(w["ttl"])
-    check("resolve_workload holds all field invariants over 300 seeds", invariants)
+    check("resolve_systematic_workload holds all field invariants over 300 seeds",
+          invariants)
     check("pingers covers the full declared set", pingers_seen == pingers_allowed)
     check("payload covers {string, u64}", payload_seen == {"string", "u64"})
     check("payload-size covers the full declared set", size_seen == size_allowed)
@@ -168,6 +170,131 @@ def test_draw_max_threads():
     check("draw_max_threads always in [1, max]", ok)
     check("draw_max_threads spans the full [1, max] range",
           seen == set(range(1, 9)))
+
+
+def test_draw_bucketed():
+    # Each draw picks a small/medium/large bucket at 25/50/25, then a uniform value
+    # within it. Values must always land in exactly one declared (non-overlapping)
+    # bucket, all three must be reachable, and the weighting must be ~25/50/25.
+    b = common.NORMAL_SIZE_BUCKETS
+    counts = {"small": 0, "medium": 0, "large": 0}
+    in_range = True
+    for master in range(0, 2000):
+        v = common.draw_bucketed(random.Random(master), b)
+        if b["small"][0] <= v <= b["small"][1]:
+            counts["small"] += 1
+        elif b["medium"][0] <= v <= b["medium"][1]:
+            counts["medium"] += 1
+        elif b["large"][0] <= v <= b["large"][1]:
+            counts["large"] += 1
+        else:
+            in_range = False
+    check("draw_bucketed values always land in one declared bucket", in_range)
+    check("draw_bucketed reaches all three buckets",
+          all(c > 0 for c in counts.values()))
+    # 2000 draws at 25/50/25: ~500/1000/500. Deterministic, loose bounds.
+    check("draw_bucketed weighting is ~25/50/25",
+          (400 <= counts["small"] <= 650)
+          and (850 <= counts["medium"] <= 1150)
+          and (400 <= counts["large"] <= 650))
+
+
+def test_draw_payload():
+    # A fresh string's available SIZE is limited by the run's message count; forward
+    # and u64 are flat-cost and draw any size. The harness's largest run has chains and
+    # ttl both at the large bucket's max -- max*(max+1) messages, ~1.16B, past even the
+    # small table's budget -- so a fresh string there may draw only small sizes. Derive
+    # it from the bucket so it can't go stale if the ranges change.
+    _max_dim = common.NORMAL_SIZE_BUCKETS["large"][1]
+    big = _max_dim * (_max_dim + 1)
+    small_sizes = set(common.STRING_SIZE_TABLES[0][1])   # {1, 8, 64}
+    larger_sizes = set(common.ALL_STRING_SIZES) - small_sizes   # {256, 1024, 4096}
+    caps = {name: cap for name, _t, cap in common.STRING_SIZE_TABLES}
+
+    big_fresh_larger = big_fresh_small = flat_larger_at_big = False
+    for master in range(0, 2000):
+        k, s, m = common.draw_payload(random.Random(master), big)
+        if k == "string" and m == "fresh":
+            big_fresh_larger |= s in larger_sizes
+            big_fresh_small |= s in small_sizes
+        else:                                 # forward string or u64
+            flat_larger_at_big |= s in larger_sizes
+    check("draw_payload: a big fresh-string run never draws a non-small size",
+          not big_fresh_larger)
+    check("draw_payload: a big fresh-string run still draws small sizes",
+          big_fresh_small)
+    check("draw_payload: forward/u64 draw any size even at the max run",
+          flat_larger_at_big)
+
+    # A big run's fresh-string sizes are a strict subset of a small run's: the table
+    # only grows as the run shrinks.
+    fresh_big, fresh_small = set(), set()
+    for master in range(0, 3000):
+        k, s, m = common.draw_payload(random.Random(master), big)
+        if k == "string" and m == "fresh":
+            fresh_big.add(s)
+        k, s, m = common.draw_payload(random.Random(master), 1)
+        if k == "string" and m == "fresh":
+            fresh_small.add(s)
+    check("draw_payload: a small run can draw a large fresh-string size",
+          larger_sizes & fresh_small)
+    check("draw_payload: a big run's fresh sizes are a strict subset of a small run's",
+          fresh_big < fresh_small)
+
+    # Cap boundary, per table: at exactly a table's cap a fresh string may still draw
+    # that table's sizes; one message above, the table drops out. The small table is
+    # the floor -- above its cap the never-deny fallback keeps its sizes -- so it is
+    # checked separately below; here we cover medium and large.
+    def fresh_sizes_at(msgs):
+        seen = set()
+        for master in range(0, 3000):
+            k, s, m = common.draw_payload(random.Random(master), msgs)
+            if k == "string" and m == "fresh":
+                seen.add(s)
+        return seen
+    for name, table_sizes, cap in common.STRING_SIZE_TABLES[1:]:   # medium, large
+        want = set(table_sizes)
+        at_cap, above_cap = fresh_sizes_at(cap), fresh_sizes_at(cap + 1)
+        check("draw_payload: fresh string AT the %s cap can draw %s sizes"
+              % (name, name), want <= at_cap)
+        check("draw_payload: fresh string ABOVE the %s cap cannot draw %s sizes"
+              % (name, name), not (want & above_cap))
+
+    # The small table is the floor: at AND above its cap a fresh string still draws its
+    # sizes (the never-deny fallback) and never a larger one.
+    small_set = set(common.STRING_SIZE_TABLES[0][1])
+    at_small, above_small = fresh_sizes_at(caps["small"]), fresh_sizes_at(caps["small"] + 1)
+    check("draw_payload: fresh string AT the small cap can draw small sizes",
+          small_set <= at_small)
+    check("draw_payload: fresh string ABOVE the small cap still draws small sizes",
+          small_set <= above_small)
+    check("draw_payload: fresh string ABOVE the small cap draws no larger size",
+          not (above_small - small_set))
+
+    # Seed-stability contract: kind and mode are drawn before the (msgs-dependent)
+    # size, and the size always costs exactly one rng draw, so draw_payload consumes
+    # the SAME rng count for any msgs -- the message count must never remap a
+    # downstream draw. Verify the rng state AFTER the call is identical across msgs
+    # spanning every cap boundary and the overrun region (msgs > the small cap, where
+    # the fallback fires), and that kind/mode never shift with msgs.
+    boundary_msgs = [1, caps["large"], caps["large"] + 1, caps["medium"],
+                     caps["medium"] + 1, caps["small"], caps["small"] + 1, big]
+    rng_stable = kind_mode_stable = True
+    for master in range(0, 300):
+        states, kinds_modes = [], []
+        for mm in boundary_msgs:
+            rng = random.Random(master)
+            k, _, m = common.draw_payload(rng, mm)
+            states.append(rng.getstate())
+            kinds_modes.append((k, m))
+        if any(st != states[0] for st in states):
+            rng_stable = False
+        if any(km != kinds_modes[0] for km in kinds_modes):
+            kind_mode_stable = False
+    check("draw_payload: rng consumption is fixed across all msgs (overrun included)",
+          rng_stable)
+    check("draw_payload: message count changes only the size, never kind/mode",
+          kind_mode_stable)
 
 
 def test_build_argv():
@@ -400,11 +527,13 @@ def test_parse_result():
 def main():
     test_derive_seed()
     test_derive_seed_zero_floor()
-    test_resolve_workload_five_field_split()
-    test_resolve_workload_coverage()
+    test_resolve_systematic_workload_five_field_split()
+    test_resolve_systematic_workload_coverage()
     test_draw_swarm_knobs()
     test_draw_payload_mode()
     test_draw_max_threads()
+    test_draw_bucketed()
+    test_draw_payload()
     test_build_argv()
     test_run_command()
     test_lldb_argv()

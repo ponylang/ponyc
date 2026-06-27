@@ -60,22 +60,41 @@ def resolve_config(master_seed, max_threads):
     this is where the cycle detector gets its stress coverage now that
     string-message-ubench is retired.
 
+    Normal mode draws a deliberate small->large magnitude: chains and ttl each pick
+    a small/medium/large bucket at 25/50/25 (draw_bucketed), reaching ~1.16B messages
+    (~15-20 min on the calibration host) at the top, versus systematic's fixed tiny
+    range. The payload is then drawn with its string SIZE limited by the message count
+    (draw_payload): a big run may draw only a cheap size, so no run blows the flat
+    per-run timeout, while a small run may draw any size.
+
     This mode is non-reproducible (real parallelism), so a seed maps to a
     *configuration* deterministically but not to an *execution*. The draw order is
-    still pinned (orchestrate_normal_test.py) so a given seed yields a stable
-    config: workload (five fields) -> ponynoblock -> the four shared swarm knobs
-    -> payload-mode -> ponymaxthreads last. This contract is independent of the
-    systematic driver's (a seed need not mean the same config across modes).
+    pinned (orchestrate_normal_test.py) so a seed yields a stable config: pingers ->
+    chains (bucketed) -> ttl (bucketed) -> payload (kind, mode, size) ->
+    ponynoblock -> the four shared swarm knobs -> ponymaxthreads last. This contract
+    is independent of the systematic driver's, and it intentionally differs from the
+    pre-magnitude draw, so historical normal-mode seeds remap.
     """
     program_seed = common.derive_seed(master_seed, "program")
     rng = random.Random(master_seed)
 
-    workload = common.resolve_workload(rng, program_seed)
+    pingers = rng.choice(common.NORMAL_PINGERS)
+    chains = common.draw_bucketed(rng, common.NORMAL_SIZE_BUCKETS)
+    ttl = common.draw_bucketed(rng, common.NORMAL_SIZE_BUCKETS)
+    payload, size, mode = common.draw_payload(rng, chains * (ttl + 1))
+    workload = {
+        "seed": program_seed,
+        "pingers": pingers,
+        "chains": chains,
+        "ttl": ttl,
+        "payload": payload,
+        "payload-size": size,
+        "payload-mode": mode,
+    }
     runtime = {}
     if rng.random() < 0.5:
         runtime["ponynoblock"] = True
     common.draw_swarm_knobs(rng, runtime)
-    workload["payload-mode"] = common.draw_payload_mode(rng)
     runtime["ponymaxthreads"] = common.draw_max_threads(rng, max_threads)
 
     return {"master_seed": master_seed, "workload": workload, "runtime": runtime}
@@ -96,10 +115,11 @@ def main(argv):
                         "normal-mode crash does not reproduce")
     parser.add_argument("--out", help="output dir for the binary and bundles")
     parser.add_argument("--timeout", type=int,
-                        default=common.DEFAULT_TIMEOUT_SECONDS,
-                        help="per-run wall-clock watchdog, seconds (default %d); "
-                        "set to ~2x the slowest legitimate run"
-                        % common.DEFAULT_TIMEOUT_SECONDS)
+                        default=common.DEFAULT_NORMAL_TIMEOUT_SECONDS,
+                        help="per-run wall-clock watchdog, seconds (default %d); a "
+                        "flat ~2x the longest plausible large run with slow-CI "
+                        "margin -- a single hung run, not its true length, is the "
+                        "worst case" % common.DEFAULT_NORMAL_TIMEOUT_SECONDS)
     parser.add_argument("--mem-limit-mb", type=int,
                         default=common.DEFAULT_MEM_LIMIT_MB,
                         help="per-run address-space cap, MB (POSIX only; on "

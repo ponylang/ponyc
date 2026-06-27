@@ -28,10 +28,14 @@ concurrency:
 jobs:
   x86_64-linux-glibc:
     runs-on: ubuntu-latest
-    # Generous ceiling (matches the systematic jobs): the ponyc debug build, then
-    # a 30-minute wall-clock soak (--budget-seconds) plus a final-seed watchdog
-    # overshoot. The orchestrator caps each seed too.
-    timeout-minutes: 90
+    # Whole-job ceiling: ponyc debug build + a 90-min wall-clock soak
+    # (--budget-seconds) + a final-seed overshoot. A large run is ~15-20 min, but the
+    # orchestrator's flat per-run timeout (~100 min) bounds a HUNG final run, so the
+    # worst case is build + 90 + 100. This must stay under the gap to the next
+    # generative cron: the six generative workflows share one concurrency group, so
+    # a still-running job would silently drop the next scheduled run -- the normal
+    # cron slots are spaced >=4h apart for this.
+    timeout-minutes: 210
 
     name: x86-64-unknown-linux-ubuntu26.04 generative normal [debug]
     container:
@@ -68,7 +72,7 @@ jobs:
         run: |
           python3 test/rt-stress/generative/orchestrate_normal.py \
             --ponyc build/debug/ponyc \
-            --start ${{ github.run_id }} --budget-seconds 1800 \
+            --start ${{ github.run_id }} --budget-seconds 5400 \
             --out rt-stress-out
       - name: Upload failure bundles
         if: ${{ failure() && hashFiles('.libs-cache-miss') == '' }}
