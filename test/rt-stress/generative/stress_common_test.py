@@ -318,6 +318,24 @@ def test_run_under_lldb():
         common._capture = real
 
 
+def test_rlimit_as_supported():
+    # Linux honors RLIMIT_AS and ships the resource module: cap applies.
+    check("rlimit_as_supported: linux with resource -> True",
+          common._rlimit_as_supported("linux", True) is True)
+    # macOS has the resource module but setrlimit(RLIMIT_AS) raises there, so
+    # the cap must be skipped even when resource is available.
+    check("rlimit_as_supported: darwin with resource -> False",
+          common._rlimit_as_supported("darwin", True) is False)
+    # Windows lacks the resource module (resource_available is False).
+    check("rlimit_as_supported: windows without resource -> False",
+          common._rlimit_as_supported("win32", False) is False)
+    # Allowlist, not denylist: an unvalidated POSIX platform (e.g. a BSD) is
+    # skipped even with resource available -- fail safe rather than risk the
+    # macOS-style preexec_fn crash on a platform we have not confirmed.
+    check("rlimit_as_supported: unvalidated posix with resource -> False",
+          common._rlimit_as_supported("freebsd14", True) is False)
+
+
 def test_bundle_for():
     result = common.RunResult("fail", 1, None, "out", "err")
     limits = {"timeout_seconds": 60, "mem_limit_bytes": None}
@@ -393,6 +411,7 @@ def main():
     test_lldb_exit_code()
     test_run_once()
     test_run_under_lldb()
+    test_rlimit_as_supported()
     test_bundle_for()
     test_resolve_seeds()
     test_parse_result()
