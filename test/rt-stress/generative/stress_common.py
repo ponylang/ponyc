@@ -17,8 +17,10 @@ an `if systematic` branch in shared code.
 Cross-platform: this runs on Linux, macOS, AND Windows. Both modes target all
 three TIER1 platforms (on Windows the systematic build uses
 `use=systematic_testing` alone -- Windows scales the scheduler with native
-primitives, not pthreads). POSIX-only facilities (the RLIMIT_AS memory cap) are
-gated here; the wall-clock watchdog is portable.
+primitives, not pthreads). The RLIMIT_AS memory cap is applied only where the OS
+honors it (Linux): Windows lacks the `resource` module and macOS rejects the
+limit, so both fall back to host OOM handling. The wall-clock watchdog is
+portable.
 
 The pure pieces (derive_seed / resolve_workload / draw_* / build_argv /
 run_command / parse_result / lldb_argv / lldb_exit_code) are unit-tested in
@@ -274,8 +276,29 @@ class RunResult:
         self.stderr = stderr
 
 
+def _rlimit_as_supported(platform, resource_available):
+    """Whether to install the RLIMIT_AS address-space cap on this platform.
+
+    An allowlist, not a denylist: the cap is applied only on Linux, the one
+    TIER1 platform validated to honor RLIMIT_AS. Windows lacks the POSIX
+    `resource` module entirely; macOS HAS it but Darwin does not honor
+    RLIMIT_AS, and `setrlimit` raises there -- inside `preexec_fn` (post-fork,
+    pre-exec) that aborts the spawn with `SubprocessError`, crashing every run
+    before the engine starts rather than capping anything.
+
+    Allowlisting is deliberate: that macOS crash is the failure mode of applying
+    the cap on an unvalidated platform, so any platform we have not confirmed
+    falls back to the host's OOM handling (as Windows already did) instead of
+    risking the same crash. A new platform that honors RLIMIT_AS is added here
+    explicitly once validated.
+
+    Pure (platform + resource-availability in, bool out) so it is testable from
+    any host regardless of where the suite runs."""
+    return resource_available and (platform == "linux")
+
+
 def _capture(argv, timeout, mem_limit_bytes):
-    """Run argv under a wall-clock watchdog and (on POSIX) an RLIMIT_AS cap;
+    """Run argv under a wall-clock watchdog and (on Linux) an RLIMIT_AS cap;
     return (timed_out, returncode, stdout, stderr). Mechanism only -- the caller
     classifies the outcome.
 
@@ -287,10 +310,12 @@ def _capture(argv, timeout, mem_limit_bytes):
     `start_new_session` puts the child in its own group so killpg reaps the tree.
 
     The address-space cap (== `ulimit -v`, covering the pool allocator's mmap'd
-    regions) is POSIX-only; on Windows the `resource` module is absent, so
-    preexec_fn stays None and the job relies on the CI host's OOM handling."""
+    regions) is applied only where the OS honors it -- see _rlimit_as_supported
+    for why Windows and macOS are excluded; there preexec_fn stays None and the
+    job relies on the host's OOM handling."""
     preexec = None
-    if (resource is not None) and (mem_limit_bytes is not None):
+    if (mem_limit_bytes is not None) and _rlimit_as_supported(
+            sys.platform, resource is not None):
         def set_limits():
             resource.setrlimit(resource.RLIMIT_AS,
                                (mem_limit_bytes, mem_limit_bytes))
