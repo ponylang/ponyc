@@ -166,7 +166,7 @@ static int parse_uint64(uint64_t* target, uint64_t min, const char *value) {
   uint64_t v = strtoull(value, NULL, 10);
 #endif
 
-  if (v < (min < 0 ? 0 : min)) {
+  if (v < min) {
     return 1;
   }
   *target = v;
