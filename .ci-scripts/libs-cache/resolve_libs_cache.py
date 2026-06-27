@@ -156,7 +156,7 @@ def main(argv):
             info(f"Libs cache miss for '{sel_str}' (tag {args.tag}); skipping this "
                  "stress run (wrote .libs-cache-miss). Expected when the continuous "
                  "stress loop overlaps an empty or refilling cache. See the GHCR "
-                 "libs cache coupling in .github/workflows/AGENTS.md.")
+                 "libs cache coupling in .known-couplings/ghcr-libs-cache.md.")
             return
         die(f"Libs cache MISS for require-cache-hit platform '{sel_str}' (tag "
             f"{args.tag}). Stress tests require a pre-warmed libs cache and never "
@@ -164,7 +164,7 @@ def main(argv):
             "LLVM-determining input changed -- it refills on the next "
             "push-to-main run of update-lib-cache.yml; (2) this platform is "
             "missing from update-lib-cache.yml (the warmer). See the GHCR libs "
-            "cache coupling in .github/workflows/AGENTS.md.")
+            "cache coupling in .known-couplings/ghcr-libs-cache.md.")
 
     # consumer / warmer: the build command after `--` is mandatory.
     ours, build_cmd = split_build_command(rest)
