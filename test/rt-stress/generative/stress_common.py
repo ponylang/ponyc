@@ -14,10 +14,11 @@ What DIFFERS between the two modes lives in the two drivers, NOT behind a flag i
 here. This file holds only what is byte-identical to both, so neither mode reads
 an `if systematic` branch in shared code.
 
-Cross-platform: this runs on Linux, macOS, AND Windows (the normal mode targets
-all three TIER1 platforms; systematic is POSIX-only today only because its
-Windows build is blocked, #5571). POSIX-only facilities (the RLIMIT_AS memory
-cap) are gated here; the wall-clock watchdog is portable.
+Cross-platform: this runs on Linux, macOS, AND Windows. Both modes target all
+three TIER1 platforms (on Windows the systematic build uses
+`use=systematic_testing` alone -- Windows scales the scheduler with native
+primitives, not pthreads). POSIX-only facilities (the RLIMIT_AS memory cap) are
+gated here; the wall-clock watchdog is portable.
 
 The pure pieces (derive_seed / resolve_workload / draw_* / build_argv /
 run_command / parse_result / lldb_argv / lldb_exit_code) are unit-tested in
