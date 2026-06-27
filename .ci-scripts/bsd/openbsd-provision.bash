@@ -3,8 +3,8 @@
 # Provision an OpenBSD 7.9 VM on the GitHub Actions host (qemu), install the
 # ponyc build dependencies, and rsync the checkout into it. Shared by the
 # libs-cache warmer (update-lib-cache.yml) and ponyc-tier3.yml; see
-# .github/workflows/AGENTS.md for how the two call it. Reads GITHUB_WORKSPACE
-# from the environment; leaves a booted VM at
+# .known-couplings/ghcr-libs-cache.md for how the two call it. Reads
+# GITHUB_WORKSPACE from the environment; leaves a booted VM at
 # 'ssh -i vm_key -p 2222 openbsd@localhost' with the source under /build/ponyc.
 set -euo pipefail
 

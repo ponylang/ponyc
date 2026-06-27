@@ -1,0 +1,3 @@
+# `json` package public API (`packages/json/`)
+
+The JSON types and methods (`JsonValue`, `JsonObject`, `JsonArray`, `JsonParser`, `JsonPrinter`) are consumed by pony-lsp (`tools/pony-lsp/`, heavily — message framing, settings, diagnostics) and pony-lint (`tools/pony-lint/config.pony`). Renaming or removing methods, changing the `JsonValue` union, or dropping an implemented interface can break those tool builds even though the json package's own tests still pass. Serialization calls in particular hide inside `.>`/`.`-chains, so a grep for the old name may miss call sites — let the compiler find them. Run: `make test-pony-lsp`, `make test-pony-lint`.
