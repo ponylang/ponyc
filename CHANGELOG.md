@@ -36,6 +36,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Make systematic testing replay independent of memory layout ([PR #5566](https://github.com/ponylang/ponyc/pull/5566))
 - Make systematic testing replay independent of memory layout for reference-counting messages ([PR #5570](https://github.com/ponylang/ponyc/pull/5570))
 - Fix an intermittent hang when using systematic testing ([PR #5576](https://github.com/ponylang/ponyc/pull/5576))
+- Make systematic testing replay independent of memory layout for cycle detector messages ([PR #5580](https://github.com/ponylang/ponyc/pull/5580))
 
 ### Added
 
