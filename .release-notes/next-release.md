@@ -435,3 +435,7 @@ Enable it by passing `-Use systematic_testing` to `make.ps1 configure`. Unlike t
 
 A program built this way replays a single scheduler interleaving from a fixed `--ponysystematictestingseed`, the same as on the other platforms.
 
+## Make systematic testing replay independent of memory layout for cycle detector messages
+
+Under `use=systematic_testing`, replaying a run from a fixed `--ponysystematictestingseed` is meant to reproduce the same scheduler interleaving. Any workload that exercised the cycle detector — actors blocking and unblocking, and reference cycles forming and being reclaimed — could still replay a different interleaving from one run to the next, because the detector issued its messages (the probes it sends while checking which actors have blocked, the confirmations it sends to a cycle's members, and the reference-count releases it sends when reclaiming a cycle) in an order that depended on actor memory addresses, which the operating system randomizes per run. Replaying such a workload now reproduces the same interleaving regardless of address-space layout.
+
