@@ -24,11 +24,11 @@ in the map per GC pass, which is the condition #5568 addresses.
 This fixture runs with the cycle detector disabled (`--ponynoblock`, wired in by
 .ci-scripts/systematic-testing/determinism_smoke.py). #5568 makes the ORCA send
 ordering layout-independent; the cycle detector's own pointer-ordered sends are
-a separate, still-open issue (#5569), and with it enabled its residual would
-reintroduce flakiness here and confound this fixture. The node/token counts are
-sized to drive multi-owner GC sweeps at the handful of physical cores a CI runner
-typically has; see determinism_smoke.py for the coverage ceiling. It is not part
-of the normal test suites.
+a separate matter (#5569, covered by cycle-collection-order-signature), so
+disabling it here keeps the two fixtures from confounding each other. The
+node/token counts are sized to drive multi-owner GC sweeps at the handful of
+physical cores a CI runner typically has; see determinism_smoke.py for the
+coverage ceiling. It is not part of the normal test suites.
 """
 use @printf[I32](fmt: Pointer[U8] tag, ...)
 use @exit[None](status: I32)

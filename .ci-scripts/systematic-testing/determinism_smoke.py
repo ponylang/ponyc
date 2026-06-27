@@ -25,7 +25,11 @@ build/libs:
      acquire-release-order-signature drives the ORCA reference-counting send path
      (it forwards fresh heap payloads across a spreading mesh, so actors release
      references owned by many distinct actors per GC sweep) and runs with the
-     cycle detector disabled -- see the per-fixture flags in FIXTURES below.
+     cycle detector disabled; cycle-collection-order-signature drives the cycle
+     detector's own paths -- it forms and reclaims reference cycles with the
+     detector left on and swept frequently (--ponycdinterval 10), exercising its
+     probe, confirmation, deferred-detection, and collection sends -- see the
+     per-fixture flags in FIXTURES below.
   3. Asserts the property, scoped to `--ponynoscale` (dynamic scheduler scaling
      off), at the runtime's default thread count (the host's physical cores),
      for each fixture:
@@ -54,12 +58,40 @@ Scope and limits:
     thread count tried, 2 through 16). Unlike mute-order-signature, it does not
     depend on load/core-count balance to flake, so it is not expected to degrade
     to a plain reproducibility check on many-core hosts -- but CI does not re-check
-    that each run. The cycle detector's own pointer-ordered sends remain a
-    separate, still-open source of layout dependence (#5569) and are not covered
-    here -- with the cycle detector enabled, that residual would reintroduce
-    flakiness and confound this fixture.
+    that each run. The cycle detector's own send ordering is covered separately by
+    cycle-collection-order-signature (below); acquire-release keeps the detector
+    off so the two do not confound each other.
+  - cycle-collection-order-signature runs with the cycle detector ENABLED and
+    swept frequently (--ponycdinterval 10), and forms and reclaims reference
+    cycles, so it drives all of the detector's pointer-ordered paths #5569 fixes:
+    the blocked-actor probes (ACTORMSG_ISBLOCKED), per-cycle confirmations
+    (ACTORMSG_CONF), the deferred-detection order, and collect()'s per-member
+    release sends. What it OBSERVES is the probe / confirmation / deferred
+    ordering; collect()'s cross-member order is exercised but not folded into
+    ORDER_SIG (every cycle member references the same one Collector), so a
+    collect-only ordering regression would not flake here -- see the fixture
+    docstring. Like the others it asserts reproducibility and exploration, not
+    flakes-before; that was confirmed by hand when the fixture was added (it
+    diverged per run against the pre-#5569 runtime from two scheduler threads up
+    -- most seeds at two threads, all tested seeds at four and at the host
+    default; ASLR-off and detector-off both made it reproduce, isolating the
+    cause to the detector). After the fix every seed reproduces, and the seeds
+    still explore at the thread counts tried (two through the host default) --
+    though, like mute-order-signature, that exploration is empirical: a core
+    count where the fixed seeds collapse to one interleaving would surface as a
+    false exploration failure, not a real regression. Reclamation runs during
+    the program (also guarding the collection path against a crash regression),
+    but is not sequenced before the final exit, so that crash guard is
+    reliable-in-practice rather than guaranteed.
   - These fixtures do not cover every source of layout- or timing-dependence in
-    the systematic scheduler (the cycle detector above is one known gap).
+    the systematic scheduler. One cycle-detector path is layout-independent by
+    construction but not exercised here: above CD_MAX_CHECK_BLOCKED live actors
+    the systematic build disables check_blocked's rate limiter and probes all of
+    d->views each sweep (so the resumption cursor never selects a layout-dependent
+    subset), but no fixture drives that many actors. The detector's shutdown
+    finalizer pass still runs in pointer order, but it runs at termination after
+    all observable output and `_final` cannot send messages, so it cannot affect
+    replay.
 
 The pure pieces (parse_order_sig / is_reproducible / explores) are unit-tested in
 determinism_smoke_test.py.
@@ -87,14 +119,19 @@ ORDER_SIG_RE = re.compile(rb"ORDER_SIG=(\d+)")
 # covers the base scheduler path; mute-order-signature additionally exercises the
 # actor muting/unmuting reschedule path; acquire-release-order-signature exercises
 # the ORCA reference-counting (ACQUIRE/RELEASE) send path and runs with
-# --ponynoblock so the still-open cycle-detector send ordering (#5569) cannot
-# confound it. All run at the runtime's default thread count (physical cores);
-# see the module docstring for coverage ceilings.
+# --ponynoblock so the cycle detector's own sends cannot confound it;
+# cycle-collection-order-signature forms and reclaims reference cycles with the
+# detector on and runs with --ponycdinterval 10 so it sweeps often enough to
+# exercise the detector's probe / confirmation / deferred / collection sends. All
+# run at the runtime's default thread count (physical cores); see the module
+# docstring for coverage ceilings.
 FIXTURES = [
     ("test/rt-systematic/order-signature", "order-signature", []),
     ("test/rt-systematic/mute-order-signature", "mute-order-signature", []),
     ("test/rt-systematic/acquire-release-order-signature",
      "acquire-release-order-signature", ["--ponynoblock"]),
+    ("test/rt-systematic/cycle-collection-order-signature",
+     "cycle-collection-order-signature", ["--ponycdinterval", "10"]),
 ]
 # The output suffix order (scheduler_scaling_pthreads then systematic_testing)
 # comes from the block order of the PONY_USE_* `if()`s in the top-level
