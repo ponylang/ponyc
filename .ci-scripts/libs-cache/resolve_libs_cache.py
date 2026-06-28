@@ -16,9 +16,10 @@ Modes:
     only writer). With `--branch-cache` it also participates in the branch scratch
     cache: on a main miss it `pull`s the branch cache (reuse across runs of the
     same changed-libs branch) and, after a build, `push`es the branch cache
-    best-effort. tier2/tier3/weekly pass `--branch-cache` so an ad-hoc
+    best-effort. tier2/weekly pass `--branch-cache` so an ad-hoc
     `workflow_dispatch` validating an LLVM change captures its build instead of
-    discarding it; release/nightly use plain consumer mode (main-only).
+    discarding it; release/nightly use plain consumer mode (main-only). (tier3 is
+    require-cache-hit now, not consumer -- see that mode below.)
   - warmer mode (`--warm`): `exists` the main cache (a HEAD, no download) -> hit ->
     done. miss -> `exists` the branch cache and, on a hit, `promote` it into the
     main cache (a registry copy -- reuses the build a PR or tier dispatch already
@@ -26,9 +27,9 @@ Modes:
     it build and `push` the main cache. `--warm` is the only path that writes the
     main cache; by workflow convention only the warmer passes it.
   - require-cache-hit mode (`--require-cache-hit`): `pull` the main cache -> hit ->
-    done. Takes no build command (it never builds). For nice-to-have jobs (the
-    stress tests) that must rely on a pre-warmed cache. Two modifiers tune the miss
-    behavior:
+    done. Takes no build command (it never builds). For jobs that must rely on a
+    pre-warmed cache rather than cold-build (the stress tests and tier3). Two
+    modifiers tune the miss behavior:
       * `--skip-on-miss`: on a miss, write the `.libs-cache-miss` marker and exit 0
         (the workflow gates its build/run steps on the marker's ABSENCE, so the job
         goes green with those steps skipped). The scheduled stress loop uses this --
@@ -111,7 +112,8 @@ def main(argv):
     mode.add_argument('--require-cache-hit', action='store_true',
                       help='require-cache-hit mode: pull the main cache; on a miss '
                            'fail loudly instead of building. Takes no build '
-                           'command. For nice-to-have jobs (stress tests).')
+                           'command. For jobs that require a pre-warmed cache '
+                           '(stress tests, tier3).')
     parser.add_argument('--branch-cache', action='store_true',
                         help='consumer or require-cache-hit mode: also participate '
                              'in the branch scratch cache. Consumer: pull it for '
