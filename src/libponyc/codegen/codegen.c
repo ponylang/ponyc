@@ -471,14 +471,16 @@ static void init_runtime(compile_t* c)
     inacc_or_arg_mem_attr);
   LLVMAddAttributeAtIndex(value, 2, readonly_attr);
 
-  // void pony_gc_send(i8*)
+  // void pony_gc_send(i8*, __actor*)
   params[0] = c->ptr;
-  type = LLVMFunctionType(c->void_type, params, 1, false);
+  params[1] = c->ptr;
+  type = LLVMFunctionType(c->void_type, params, 2, false);
   value = LLVMAddFunction(c->module, "pony_gc_send", type);
 
   LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex, nounwind_attr);
   LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex,
     inacc_or_arg_mem_attr);
+  LLVMAddAttributeAtIndex(value, 2, readnone_attr);
 
   // void pony_gc_recv(i8*)
   params[0] = c->ptr;

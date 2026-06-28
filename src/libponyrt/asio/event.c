@@ -40,8 +40,9 @@ PONY_API asio_event_t* pony_asio_event_create(pony_actor_t* owner, int fd,
   owner->live_asio_events = owner->live_asio_events + 1;
 
   // The event is effectively being sent to another thread, so mark it here.
+  // Null destination: this is not a self-send, so nothing should be pinned.
   pony_ctx_t* ctx = pony_ctx();
-  pony_gc_send(ctx);
+  pony_gc_send(ctx, NULL);
   pony_traceknown(ctx, owner, type, PONY_TRACE_OPAQUE);
   pony_send_done(ctx);
 

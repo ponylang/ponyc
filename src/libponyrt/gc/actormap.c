@@ -70,6 +70,18 @@ static actorref_t* move_unmarked_objects(actorref_t* from, uint32_t mark)
     if(obj->mark == mark)
       continue;
 
+    // Pinned: still referenced by an in-flight self-sent message in this
+    // actor's own queue. Not reachable from fields, so it would otherwise be
+    // released to its owner here and re-borrowed on the next self-send -- the
+    // churn that floods the owner. Skipping the release lets weighted reference
+    // counting amortise instead. (The reference count protects the object from
+    // collection either way; this only avoids the churn, so it is best-effort:
+    // it is consulted only on this marked-owner path, and an object whose whole
+    // owner actorref goes unmarked is released regardless -- a missed
+    // optimisation, never a correctness problem.)
+    if(obj->self_send_pins > 0)
+      continue;
+
     ponyint_objectmap_clearindex(&from->map, i);
     needs_optimize = true;
 

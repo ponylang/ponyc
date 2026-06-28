@@ -11,6 +11,17 @@ typedef struct object_t
   void* address;
   size_t rc;
   uint32_t mark;
+  // Number of in-flight self-sent messages that reference this object. While
+  // non-zero the object is sitting in the owning actor's own queue (it was sent
+  // to itself) but is not reachable from its fields; the local sweep must not
+  // release it to its owner, or the owner could collect it before the actor
+  // receives it back. Incremented by the send-trace on a self-send, decremented
+  // by the recv-trace, and checked by the sweep (move_unmarked_objects). Sized
+  // and placed to fit in existing padding so object_t does not grow; a count
+  // this wide cannot realistically overflow, and if it did the only cost would
+  // be lost acquire amortisation, never incorrect collection (the reference
+  // counting is unchanged).
+  uint16_t self_send_pins;
   bool immutable;
   pony_type_t* type;
 } object_t;

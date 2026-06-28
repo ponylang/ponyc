@@ -568,7 +568,13 @@ void gen_send_message(compile_t* c, reach_method_t* m, LLVMValueRef args[],
 
   if(need_trace)
   {
-    LLVMValueRef gc = gencall_runtime(c, "pony_gc_send", &ctx, 1, "");
+    // Pass the destination actor (args[0]) so the send-trace can recognise a
+    // self-send and pin objects that round-trip through the actor's own queue
+    // against the local GC sweep (avoids redundant owner acquire traffic).
+    LLVMValueRef gc_args[2];
+    gc_args[0] = ctx;
+    gc_args[1] = args[0];
+    LLVMValueRef gc = gencall_runtime(c, "pony_gc_send", gc_args, 2, "");
     LLVMSetMetadataStr(gc, "pony.msgsend", md);
 
     for(size_t i = 0; i < m->param_count; i++)

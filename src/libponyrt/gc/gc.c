@@ -298,6 +298,20 @@ static void send_remote_object(pony_ctx_t* ctx, pony_actor_t* actor,
   // Mark the object.
   obj->mark = gc->mark;
 
+  // A self-send hands the object into this actor's own queue and back; it never
+  // leaves the actor. Pin it so the local sweep won't release it to its owner
+  // while it sits in the queue. The reference-count accounting below is left
+  // exactly as for any other remote send: with the object pinned it is no
+  // longer swept and recreated every round-trip, so weighted reference counting
+  // amortises the acquire across many sends as designed instead of re-borrowing
+  // each time. (Correctness does not depend on the pin: the borrow/decrement
+  // below still accounts the in-flight message's reference, so the owner never
+  // collects the object while it is queued. The pin only avoids the wasteful
+  // release-then-reacquire churn.)
+  bool self_send = (ctx->msg_target == ctx->current);
+  if(self_send)
+    obj->self_send_pins++;
+
   if((mutability == PONY_TRACE_IMMUTABLE) && !obj->immutable && (obj->rc > 0))
   {
     // If we received the object as not immutable (it's not marked as immutable
@@ -354,6 +368,21 @@ static void recv_remote_object(pony_ctx_t* ctx, pony_actor_t* actor,
   ctx->current->actorstats.foreign_actormap_objectmap_mem_allocated +=
     (mem_allocated_after - mem_allocated_before);
 #endif
+
+  // If this object was self-sent, this receive consumes one of the in-flight
+  // self-sent references that pinned it against the local sweep. Drop the pin
+  // before the dedup early-return below, so a receive in the same GC epoch as
+  // the send still consumes it and the pin can never get stuck non-zero (which
+  // would leak the object by pinning it forever). The pin is a best-effort
+  // optimisation hint, not refcount state: because this runs before the dedup
+  // and the send-side increment runs after it, an object reached via several
+  // references in one message can be decremented more than the matching send
+  // incremented, unpinning it a round early. That only forgoes some acquire
+  // amortisation (reverting to the pre-fix release/reacquire churn) -- it can
+  // never collect a still-referenced object, since the reference counting that
+  // governs collection is untouched.
+  if(obj->self_send_pins > 0)
+    obj->self_send_pins--;
 
   if(obj->mark == gc->mark)
     return;

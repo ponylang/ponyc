@@ -248,9 +248,15 @@ PONY_API void pony_triggergc(pony_ctx_t* ctx);
 /** Start gc tracing for sending.
  *
  * Call this before sending a message if it has anything in it that can be
- * GCed. Then trace all the GCable items, then call pony_send_done.
+ * GCed. Then trace all the GCable items, then call pony_send_done. `to` is the
+ * message's destination actor: the send-trace uses it to recognise a self-send
+ * (an object forwarded back to the sending actor) and pin such objects against
+ * the local GC sweep while they round-trip through the actor's own queue, so
+ * weighted reference counting amortises the owner acquire instead of
+ * re-borrowing on every round-trip. Pass NULL if there is no meaningful
+ * destination; the send is then never treated as a self-send.
  */
-PONY_API void pony_gc_send(pony_ctx_t* ctx);
+PONY_API void pony_gc_send(pony_ctx_t* ctx, pony_actor_t* to);
 
 /** Start gc tracing for receiving.
  *
@@ -312,9 +318,12 @@ PONY_API void pony_release_done(pony_ctx_t* ctx);
  * pony_gc_send/pony_send_done round instead of doing one pair of calls for each
  * message. Call pony_send_next before tracing the content of a new message.
  * Using this function can reduce the amount of gc-specific messages
- * sent.
+ * sent. `to` is the new message's destination actor (used for self-send
+ * detection, the same as the pony_gc_send argument, and NULL likewise means
+ * "no destination, never a self-send"); it takes effect only after the
+ * previous message's trace has been finished.
  */
-PONY_API void pony_send_next(pony_ctx_t* ctx);
+PONY_API void pony_send_next(pony_ctx_t* ctx, pony_actor_t* to);
 
 /** Identifiers for reference capabilities when tracing.
  *
