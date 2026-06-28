@@ -28,3 +28,7 @@ On Windows, a failed `UDPSocket` send previously produced no error and no notifi
 
 On Windows, a muted `TCPConnection` previously still noticed when its peer closed the connection. It now behaves like every other platform: while muted, a connection does not learn that its peer has closed until it is unmuted. As on all platforms, you **must** call `unmute` on a muted connection for it to close — without it the `TCPConnection` actor will never exit.
 
+## Improve memory usage
+
+A program could use a large and growing amount of memory when an actor repeatedly forwarded an object it had received from another actor back to itself. Such programs now run in bounded memory.
+
