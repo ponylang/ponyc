@@ -1,4 +1,7 @@
-FROM alpine:3.23
+# Keep this Alpine version in sync with the build-release-image workflow gate
+# and the trigger-release-tasks.bash dispatch names; see
+# .known-couplings/docker-image-base-vs-trigger-package.md.
+FROM alpine:3.24
 
 LABEL org.opencontainers.image.source="https://github.com/ponylang/ponyc"
 
