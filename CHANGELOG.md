@@ -8,6 +8,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 - Fix systematic testing build failure under gcc ([PR #5584](https://github.com/ponylang/ponyc/pull/5584))
 - Fix an intermittent systematic testing hang ([PR #5585](https://github.com/ponylang/ponyc/pull/5585))
+- Improve memory usage ([PR #5594](https://github.com/ponylang/ponyc/pull/5594))
 
 ### Added
 
