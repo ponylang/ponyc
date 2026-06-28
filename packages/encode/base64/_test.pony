@@ -10,6 +10,8 @@ actor \nodoc\ Main is TestList
     test(_TestBase64Decode)
     test(_TestBase64Encode)
     test(_TestBase64EncodeDecode)
+    test(_TestBase64EncodeURL)
+    test(_TestBase64EncodeURLDecodeURL)
     test(_TestBase64Quote)
 
 class \nodoc\ iso _TestBase64Encode is UnitTest
@@ -51,6 +53,58 @@ class \nodoc\ iso _TestBase64Decode is UnitTest
     h.assert_eq[String]("foob", Base64.decode[String iso]("Zm9vYg")?)
     h.assert_eq[String]("fooba", Base64.decode[String iso]("Zm9vYmE")?)
     h.assert_eq[String]("foobar", Base64.decode[String iso]("Zm9vYmFy")?)
+
+class \nodoc\ iso _TestBase64EncodeURL is UnitTest
+  """
+  Test base64 URL-safe encoding (RFC 4648 section 5), with and without padding.
+  """
+  fun name(): String => "encode/Base64.encode_url"
+
+  fun apply(h: TestHelper) =>
+    // Padding is omitted by default: the trailing characters are not emitted
+    // at all, rather than replaced by NUL bytes.
+    h.assert_eq[String]("", Base64.encode_url(""))
+    h.assert_eq[String]("Zg", Base64.encode_url("f"))
+    h.assert_eq[String]("Zm8", Base64.encode_url("fo"))
+    h.assert_eq[String]("Zm9v", Base64.encode_url("foo"))
+    h.assert_eq[String]("Zm9vYg", Base64.encode_url("foob"))
+    h.assert_eq[String]("Zm9vYmE", Base64.encode_url("fooba"))
+    h.assert_eq[String]("Zm9vYmFy", Base64.encode_url("foobar"))
+
+    // With pad = true, the trailing '=' padding is emitted as for the standard
+    // alphabet.
+    h.assert_eq[String]("", Base64.encode_url("", true))
+    h.assert_eq[String]("Zg==", Base64.encode_url("f", true))
+    h.assert_eq[String]("Zm8=", Base64.encode_url("fo", true))
+    h.assert_eq[String]("Zm9v", Base64.encode_url("foo", true))
+    h.assert_eq[String]("Zm9vYg==", Base64.encode_url("foob", true))
+    h.assert_eq[String]("Zm9vYmE=", Base64.encode_url("fooba", true))
+    h.assert_eq[String]("Zm9vYmFy", Base64.encode_url("foobar", true))
+
+    // The URL-safe alphabet uses '-' for index 62 and '_' for index 63, where
+    // the standard alphabet uses '+' and '/'.
+    let url_chars = recover val [as U8: 0xFB; 0xF0] end
+    h.assert_eq[String]("-_A", Base64.encode_url(url_chars))
+    h.assert_eq[String]("-_A=", Base64.encode_url(url_chars, true))
+
+class \nodoc\ iso _TestBase64EncodeURLDecodeURL is UnitTest
+  """
+  encode_url then decode_url round-trips the original bytes, with and without
+  padding, across inputs whose length mod 3 hits every remainder (0, 1, 2).
+  """
+  fun name(): String => "encode/Base64.encodeurldecodeurl"
+
+  fun apply(h: TestHelper) ? =>
+    let inputs =
+      [ ""; "f"; "fo"; "foo"; "foob"; "fooba"; "foobar"; "any carnal pleasure." ]
+
+    for src in inputs.values() do
+      for pad in [false; true].values() do
+        let enc = recover val Base64.encode_url[String iso](src, pad) end
+        let dec = recover val Base64.decode_url[String iso](enc)? end
+        h.assert_eq[String](src, dec)
+      end
+    end
 
 class \nodoc\ iso _TestBase64EncodeDecode is UnitTest
   """

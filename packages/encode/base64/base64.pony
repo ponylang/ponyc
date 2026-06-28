@@ -24,17 +24,23 @@ use "collections"
 use "assert"
 
 primitive Base64
+  fun encode[A: Seq[U8] iso = String iso](data: ReadSeq[U8]): A^ =>
+    """
+    Encode for RFC 4648.
+    """
+    _encode[A](data, '+', '/', '=', 0, "\r\n")
+
   fun encode_pem(data: ReadSeq[U8]): String iso^ =>
     """
     Encode for PEM (RFC 1421).
     """
-    encode(data, '+', '/', '=', 64)
+    _encode[String iso](data, '+', '/', '=', 64)
 
   fun encode_mime(data: ReadSeq[U8]): String iso^ =>
     """
     Encode for MIME (RFC 2045).
     """
-    encode(data, '+', '/', '=', 76)
+    _encode[String iso](data, '+', '/', '=', 76)
 
   fun encode_url[A: Seq[U8] iso = String iso](
     data: ReadSeq[U8],
@@ -42,23 +48,18 @@ primitive Base64
     : A^
   =>
     """
-    Encode for URLs (RFC 4648). Padding characters are stripped by default.
+    Encode for URLs (RFC 4648). Padding is omitted by default; pass `pad = true`
+    to emit the trailing `=` padding characters.
     """
-    let c: U8 = if pad then '=' else 0 end
-    encode[A](data, '-', '_', c)
+    _encode[A](data, '-', '_', if pad then '=' else None end)
 
-  fun encode[A: Seq[U8] iso = String iso](
+  fun _encode[A: Seq[U8] iso = String iso](
     data: ReadSeq[U8],
     at62: U8 = '+',
     at63: U8 = '/',
-    pad: U8 = '=',
+    pad: (None | U8) = 0,
     linelen: USize = 0,
-    linesep: String = "\r\n")
-    : A^
-  =>
-    """
-    Configurable encoding. The defaults are for RFC 4648.
-    """
+    linesep: String = "\r\n"): A^ =>
     let len = ((data.size() + 2) / 3) * 4
     let out = recover A(len) end
     let lineblocks = linelen / 4
@@ -106,11 +107,17 @@ primitive Base64
 
         if srclen == 2 then
           out.push(_enc_byte(out3, at62, at63)?)
-        else
-          out.push(pad)
         end
 
-        out.push(pad)
+        match pad
+        | let p: U8 =>
+          // Pad the final block out to four characters: one pad for a
+          // two-character tail (srclen == 2), two for a one-character tail.
+          if srclen == 1 then
+            out.push(p)
+          end
+          out.push(p)
+        end
       end
 
       if lineblocks > 0 then
