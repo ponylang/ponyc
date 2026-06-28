@@ -183,9 +183,11 @@ LLVMValueRef gen_main(compile_t* c, reach_type_t* t_main, reach_type_t* t_env)
     "");
   LLVMBuildStore(c->builder, env, env_ptr);
 
-  // Trace the message.
+  // Trace the message. Pass a null destination: the bootstrap send is not a
+  // self-send, so no object should be pinned for it.
   args[0] = ctx;
-  gencall_runtime(c, "pony_gc_send", args, 1, "");
+  args[1] = LLVMConstNull(c->ptr);
+  gencall_runtime(c, "pony_gc_send", args, 2, "");
 
   args[0] = ctx;
   args[1] = env;

@@ -84,6 +84,15 @@ typedef struct pony_ctx_t
   // Temporary storage for acquire/release of actors/objects for GC;
   // empty when GC not running
   actormap_t acquire;
+  // Destination of the message currently being traced for send. Set from the
+  // destination argument of pony_gc_send (and pony_send_next, per message, when
+  // the message-merge optimiser folds several sends into one trace round) and
+  // cleared by pony_send_done. Lets the send-trace recognise a self-send
+  // (msg_target == current) and pin the traced objects against the local GC
+  // sweep while they sit in this actor's own queue, so weighted reference
+  // counting amortises the owner acquire instead of re-borrowing every
+  // round-trip.
+  pony_actor_t* msg_target;
 #ifdef USE_RUNTIMESTATS
   uint64_t last_tsc;
   schedulerstats_t schedulerstats;

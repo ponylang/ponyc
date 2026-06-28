@@ -976,12 +976,19 @@ public:
 
   Function* declareTraceNextFn(Module& m)
   {
+    // Two params (ctx, destination actor) to match pony_gc_send: when this pass
+    // rewrites a later message's pony_gc_send into pony_send_next via
+    // setCalledFunction, the destination operand is preserved so each merged
+    // message keeps its own self-send classification.
     FunctionType* fn_type = FunctionType::get(unwrap(c->void_type),
-      {unwrap(c->ptr)}, false);
+      {unwrap(c->ptr), unwrap(c->ptr)}, false);
     Function* fn = Function::Create(fn_type, Function::ExternalLinkage,
       "pony_send_next", &m);
 
     fn->addFnAttr(Attribute::NoUnwind);
+    // The destination actor (param index 1) is only stored/compared, never
+    // dereferenced -- matches pony_gc_send's second-argument attribute.
+    fn->addParamAttr(1, Attribute::ReadNone);
     return fn;
   }
 
