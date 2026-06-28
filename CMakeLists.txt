@@ -534,12 +534,16 @@ if(MSVC)
     set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
     # Disable some warnings for Windows, and compile Debug builds with the regular CRT.
+    # /MP lets cl.exe compile the many source files within a single project (e.g.
+    # libponyc) concurrently; without it MSBuild's project-level --parallel only
+    # parallelizes across projects, leaving big single-target compiles serial.
     add_compile_options(
         /wd4142
         /wd4996
         $<$<CONFIG:Debug>:/MD>
         /WX
         /EHa
+        /MP
     )
     add_compile_definitions(
         _MBCS

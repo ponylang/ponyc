@@ -218,6 +218,9 @@ switch ($Command.ToLower())
         if ($err -ne 0) { throw "Error: exit code $err" }
 
         # Write-Output "Building libraries..."
+        # Capped at 4 (not NUMBER_OF_PROCESSORS like the `build` command) because
+        # LLVM translation units are memory-hungry; a higher count risks
+        # exhausting a CI runner's RAM.
         Write-Output "cmake.exe --build `"$libsBuildDir`" --target install --config Release --parallel 4"
         & cmake.exe --build "$libsBuildDir" --target install --config Release --parallel 4
         $err = $LastExitCode
@@ -277,8 +280,17 @@ switch ($Command.ToLower())
     }
     "build"
     {
-        Write-Output "cmake.exe --build `"$buildDir`" --config $Config --target ALL_BUILD"
-        & cmake.exe --build "$buildDir" --config $Config --target ALL_BUILD
+        # `--parallel` drives MSBuild's project-level parallelism (/m); the
+        # per-source parallelism within a project comes from the /MP flag set in
+        # CMakeLists.txt. Without both, the Windows build compiles serially.
+        # The two combined can oversubscribe (up to jobs x cores cl.exe
+        # processes); left uncapped because ponyc translation units are small
+        # and the memory-heavy LLVM build is a separate, capped step (libs).
+        # Cap this if a smaller CI runner shows memory pressure.
+        $jobs = $env:NUMBER_OF_PROCESSORS
+        if ([string]::IsNullOrEmpty($jobs)) { $jobs = [Environment]::ProcessorCount }
+        Write-Output "cmake.exe --build `"$buildDir`" --config $Config --target ALL_BUILD --parallel $jobs"
+        & cmake.exe --build "$buildDir" --config $Config --target ALL_BUILD --parallel $jobs
         $err = $LastExitCode
         if ($err -ne 0) { throw "Error: exit code $err" }
         break
