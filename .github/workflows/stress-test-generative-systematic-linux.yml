@@ -1,4 +1,4 @@
-name: "Stress Test: Linux Musl Generative (Systematic)"
+name: "Stress Test: Linux Glibc Generative (Systematic)"
 
 on:
   schedule:
@@ -26,14 +26,14 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  x86_64-linux-musl:
+  x86_64-linux-glibc:
     runs-on: ubuntu-latest
     # A bounded soak; the orchestrator also caps each seed with a 120s watchdog.
     timeout-minutes: 90
 
-    name: x86-64-unknown-linux-alpine3.23 generative systematic [debug]
+    name: x86-64-unknown-linux-ubuntu26.04 generative systematic [debug]
     container:
-      image: ghcr.io/ponylang/ponyc-ci-alpine3.23-builder:20260201
+      image: ghcr.io/ponylang/ponyc-ci-ubuntu26.04-builder:20260425
       options: --user pony
 
     steps:
@@ -44,7 +44,7 @@ jobs:
       - name: Restore prebuilt libs
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          LIBS_IMAGE: ghcr.io/ponylang/ponyc-ci-alpine3.23-builder:20260201
+          LIBS_IMAGE: ghcr.io/ponylang/ponyc-ci-ubuntu26.04-builder:20260425
           LIBS_TAG: ${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
           # schedule -> skip the run on a cache miss (the loop overlaps an empty/
           # refilling cache); manual dispatch -> also pull the branch cache so a
@@ -68,7 +68,7 @@ jobs:
         if: ${{ failure() && hashFiles('.libs-cache-miss') == '' }}
         uses: actions/upload-artifact@v4.6.2
         with:
-          name: generative-systematic-bundles-linux-musl
+          name: generative-systematic-bundles-linux-glibc
           path: rt-stress-out/*.json
           if-no-files-found: ignore
       - name: Send alert on failure

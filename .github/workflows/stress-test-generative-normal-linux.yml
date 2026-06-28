@@ -1,4 +1,4 @@
-name: "Stress Test: Linux Musl Generative (Normal)"
+name: "Stress Test: Linux Glibc Generative (Normal)"
 
 on:
   schedule:
@@ -26,16 +26,16 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  x86_64-linux-musl:
+  x86_64-linux-glibc:
     runs-on: ubuntu-latest
     # Generous ceiling (matches the systematic jobs): the ponyc debug build, then
     # a 30-minute wall-clock soak (--budget-seconds) plus a final-seed watchdog
     # overshoot. The orchestrator caps each seed too.
     timeout-minutes: 90
 
-    name: x86-64-unknown-linux-alpine3.23 generative normal [debug]
+    name: x86-64-unknown-linux-ubuntu26.04 generative normal [debug]
     container:
-      image: ghcr.io/ponylang/ponyc-ci-alpine3.23-builder:20260201
+      image: ghcr.io/ponylang/ponyc-ci-ubuntu26.04-builder:20260425
       # SYS_PTRACE + unconfined seccomp so lldb can ptrace the engine: the normal
       # mode runs each seed under lldb to capture a crash backtrace (a normal-mode
       # crash does not reproduce, so the in-the-moment stack is the only artifact).
@@ -49,7 +49,7 @@ jobs:
       - name: Restore prebuilt libs
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          LIBS_IMAGE: ghcr.io/ponylang/ponyc-ci-alpine3.23-builder:20260201
+          LIBS_IMAGE: ghcr.io/ponylang/ponyc-ci-ubuntu26.04-builder:20260425
           LIBS_TAG: ${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
           # schedule -> skip the run on a cache miss (the loop overlaps an empty/
           # refilling cache); manual dispatch -> also pull the branch cache so a
@@ -74,7 +74,7 @@ jobs:
         if: ${{ failure() && hashFiles('.libs-cache-miss') == '' }}
         uses: actions/upload-artifact@v4.6.2
         with:
-          name: generative-normal-bundles-linux-musl
+          name: generative-normal-bundles-linux-glibc
           path: rt-stress-out/*.json
           if-no-files-found: ignore
       - name: Send alert on failure

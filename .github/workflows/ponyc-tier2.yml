@@ -43,7 +43,7 @@ jobs:
             echo "has-changes=false" >> "$GITHUB_OUTPUT"
           fi
 
-  x86_64-linux-glibc:
+  x86_64-linux:
     needs: check-for-changes
     if: needs.check-for-changes.outputs.has-changes == 'true'
     runs-on: ubuntu-latest
@@ -52,8 +52,8 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - image: ghcr.io/ponylang/ponyc-ci-ubuntu26.04-builder:20260425
-            name: x86-64 Linux glibc deb
+          - image: ghcr.io/ponylang/ponyc-ci-alpine3.23-builder:20260201
+            name: x86-64 Linux musl
           - image: ghcr.io/ponylang/ponyc-ci-x86-64-unknown-linux-fedora44-builder:20260614
             name: x86-64 Linux glibc rpm
 
