@@ -10,17 +10,17 @@ disable-model-invocation: false
 
 Use this skill when adding a new distro/version (e.g. Ubuntu 26.04) so ponyc produces release and nightly artifacts users can install via ponyup.
 
-The procedure encodes the **multi-platform builder pattern** — a single `.ci-dockerfiles/<distro><version>-builder/` directory containing one Dockerfile and one `build-and-push.bash` that builds and publishes a multi-arch image (linux/amd64 + linux/arm64) under `ghcr.io/ponylang/ponyc-ci-<distro><version>-builder`. This is the pattern used by Alpine 3.22+. New release-target adds — including new Ubuntu versions — should use it. Older builders still use a per-arch pattern (separate `x86-64-unknown-linux-...-builder/` and `arm64-unknown-linux-...-builder/` directories); leave those alone, don't migrate them as part of an add.
+The procedure encodes the **multi-platform builder pattern** — a single `.ci-dockerfiles/<distro><version>-builder/` directory containing one Dockerfile and one `build-and-push.bash` that builds and publishes a multi-arch image (linux/amd64 + linux/arm64) under `ghcr.io/ponylang/ponyc-ci-<distro><version>-builder`. This is the pattern used by Alpine 3.23+. New release-target adds — including new Ubuntu versions — should use it. Older builders still use a per-arch pattern (separate `x86-64-unknown-linux-...-builder/` and `arm64-unknown-linux-...-builder/` directories); leave those alone, don't migrate them as part of an add.
 
 **Out of scope:**
 - CI test-only workflows: `pr.yml`, `ponyc-tier2.yml`, `ponyc-weekly-checks.yml`, `stress-test-*.yml`. These reference Linux images for testing ponyc itself, not for producing release artifacts. Don't touch them.
 - `pr-docker-image-validation.yml` validates the user-facing `.dockerfiles/{nightly,release}/Dockerfile` images (Alpine-based). Not affected by adding a release target.
-- Removing EOL'd distros. Different procedure, not covered here.
+- Dropping older releases. We support only the two newest releases of a distro, so adding a newer one eventually means dropping the now-oldest — but that drop is a separate, by-hand procedure, not covered here.
 - Migrating an existing per-arch builder to the multi-platform pattern. Different procedure, not covered here.
 
 ## Guiding facts
 
-- **Purely additive.** Older supported versions stay until their own upstream EOL. Don't propose dropping anything as part of this work.
+- **Adds only; the policy is newest-two.** This skill only adds a target. Our policy is to support the two newest releases of a distro, so adding a newer release usually pairs with dropping the now-oldest — but that drop is a separate, by-hand procedure (not covered here). Don't drop anything as part of this work.
 - **Both architectures by default.** Multi-platform images build linux/amd64 and linux/arm64 from one Dockerfile. Don't restrict arches without a concrete reason.
 - **GHCR builder packages are repo-scoped.** No manual "make public" step is needed for new packages — same-repo CI pulls them automatically.
 - **Mental model.** One multi-arch builder image gets pushed to GHCR with a date-stamp tag. Workflow files (`release.yml`, `nightlies.yml`, `update-lib-cache.yml`) reference that one image by exact tag from both their x86_64-linux and arm64-linux matrices — Docker pulls the matching arch on each runner. Adding a new release target = create the Dockerfile, build/push the image, then thread the resulting tag into every workflow that consumes it, plus update the user-facing docs.
@@ -53,7 +53,7 @@ New release notes file:
 
 ## Procedure
 
-The **structural exemplar** — directory layout, `build-and-push.bash`, `build-builder-image.yml` job block, workflow matrix entries — is the most recent Alpine multi-platform builder. As of writing, that's `alpine3.23-builder/`. Before starting, glance at `.ci-dockerfiles/` and pick whichever Alpine multi-platform builder dir is newest (`alpineX.Y-builder/`, no arch prefix); use it in place of `alpine3.23-builder` throughout this document.
+The **structural exemplar** — directory layout, `build-and-push.bash`, `build-builder-image.yml` job block, workflow matrix entries — is the most recent Alpine multi-platform builder. As of writing, that's `alpine3.24-builder/`. Before starting, glance at `.ci-dockerfiles/` and pick whichever Alpine multi-platform builder dir is newest (`alpineX.Y-builder/`, no arch prefix); use it in place of `alpine3.24-builder` throughout this document.
 
 The **Dockerfile-content exemplar** is the most recent same-distro builder, regardless of pattern (per-arch is fine — only the package list and base image are reused). For Ubuntu adds at the time this skill was written, that's `x86-64-unknown-linux-ubuntu24.04-builder/Dockerfile`.
 
@@ -78,7 +78,7 @@ docker manifest inspect <distro>:<version> | jq '.manifests[].platform'
 
 Both `linux/amd64` and `linux/arm64` must appear.
 
-**build-and-push.bash.** Copy from the structural-exemplar multi-platform builder (e.g. `alpine3.23-builder/build-and-push.bash`) and change only the `NAME` and the `BUILDER` prefix. The shape:
+**build-and-push.bash.** Copy from the structural-exemplar multi-platform builder (e.g. `alpine3.24-builder/build-and-push.bash`) and change only the `NAME` and the `BUILDER` prefix. The shape:
 
 ```bash
 #!/bin/bash
@@ -129,7 +129,7 @@ options:
   ...
 ```
 
-**b. Add one job block** by copying the structural-exemplar job (e.g. `alpine3_23-builder`) and substituting the version. Place the new job alphabetically among the sibling jobs.
+**b. Add one job block** by copying the structural-exemplar job (e.g. `alpine3_24-builder`) and substituting the version. Place the new job alphabetically among the sibling jobs.
 
 The job map key replaces `.` with `_` (YAML map keys can't contain `.`): a version of `26.04` becomes `26_04` in the job key only — the `if:` filter value, the `name:` field, and the `bash` script path all keep the dot form. Reference shape:
 
@@ -209,7 +209,7 @@ If the API returns 403, the `gh` token lacks `read:packages` — see "Before you
 
 Add new matrix entries alongside the existing entries. The same image string goes into both the `x86_64-linux` and `arm64-linux` matrices — Docker pulls the matching arch on each runner.
 
-**Use the structural-exemplar entry (Alpine 3.23) from the same file/matrix as your template.** Existing same-distro entries are inconsistent (per-arch builders use different image-name shapes; some files have `triple-vendor: unknown` on arm64, others omit it). Avoid that ambiguity: copy the alpine3.23 entry from the file/matrix you're editing, then substitute `image:`, `name:`, and `triple-os:` with the new distro/version values. Keep all other fields (including `triple-vendor`'s presence or absence) exactly as alpine3.23 has them in that location.
+**Use the structural-exemplar entry (Alpine 3.24) from the same file/matrix as your template.** Existing same-distro entries are inconsistent (per-arch builders use different image-name shapes; some files have `triple-vendor: unknown` on arm64, others omit it). Avoid that ambiguity: copy the alpine3.24 entry from the file/matrix you're editing, then substitute `image:`, `name:`, and `triple-os:` with the new distro/version values. Keep all other fields (including `triple-vendor`'s presence or absence) exactly as alpine3.24 has them in that location.
 
 Files and matrices to edit:
 - `.github/workflows/release.yml` — `x86_64-linux` and `arm64-linux` matrices.
@@ -225,7 +225,7 @@ Worked example for Ubuntu 26.04, x86_64-linux matrices in `release.yml` and `nig
   triple-vendor: unknown
 ```
 
-The arm64-linux matrix entry in those files uses the **same** `image:` string but `name: arm64-unknown-linux-ubuntu26.04`. Because the structural-exemplar (Alpine 3.23) arm64-linux entries omit `triple-vendor`, this entry omits it too.
+The arm64-linux matrix entry in those files uses the **same** `image:` string but `name: arm64-unknown-linux-ubuntu26.04`. Because the structural-exemplar (Alpine 3.24) arm64-linux entries omit `triple-vendor`, this entry omits it too.
 
 (In `release.yml` the arm64-linux job uses `docker run` directly rather than a `container:` job; ignore the surrounding job structure — the matrix entry shape is what matters.)
 
@@ -248,15 +248,10 @@ Create `.release-notes/add-<distro>-<version>.md`:
 ```markdown
 ## <Distro> <Version> added as a supported platform
 
-We've added arm64 and amd64 builds for <Distro> <Version>. We'll be building ponyc releases for it until it stops receiving security updates in <EOL year>. At that point, we'll stop building releases for it.
+We've added arm64 and amd64 builds for <Distro> <Version>. We build ponyc releases for the two newest <Distro> releases, so we'll keep building for <Version> until two newer <Distro> releases have shipped, at which point we'll stop.
 ```
 
 This combined-arch form matches the precedent for fresh adds (e.g. `.release-notes/0.60.4.md`). The per-arch form ("X on arm64 added as a supported platform") is for the historical case of adding an arch to an already-supported version — not what this skill covers.
-
-EOL lookup — use **standard support** endpoints (not extended/ESM):
-- Ubuntu LTS: <https://ubuntu.com/about/release-cycle> (standard support is 5 years from release; e.g. 24.04 → 2029).
-- Ubuntu interim (non-LTS, e.g. 25.04): same release-cycle page; standard support is 9 months. Round up to the year if the EOL falls inside it.
-- Alpine: <https://alpinelinux.org/releases/> (typically 2 years).
 
 After this step, sanity-check coverage:
 
@@ -316,13 +311,13 @@ if [ -z "$LWIP" ]; then
   echo "No open LWIP issue. Wait until the next one is created (typically within a week) and post then. Don't open a new LWIP issue yourself."
 else
   gh issue comment "$LWIP" -R ponylang/ponylang-website --body "$(cat <<'EOF'
-<Distro> <Version> has been added as a supported platform for ponyc. Prebuilt binaries are available via [ponyup](https://github.com/ponylang/ponyup). We'll continue building releases for it until <EOL year>, when its upstream security support ends.
+<Distro> <Version> has been added as a supported platform for ponyc. Prebuilt binaries are available via [ponyup](https://github.com/ponylang/ponyup). We build releases for the two newest <Distro> releases, so we'll keep building for <Version> until two newer <Distro> releases ship.
 EOF
 )"
 fi
 ```
 
-The comment substance matches the release note: announcing the new platform with the EOL year. Format is short, single-paragraph prose matching existing LWIP comments.
+The comment substance matches the release note: announcing the new platform and our policy of supporting the two newest releases. Format is short, single-paragraph prose matching existing LWIP comments.
 
 After this step, the add-a-release-target work is complete.
 
