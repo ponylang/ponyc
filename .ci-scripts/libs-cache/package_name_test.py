@@ -40,7 +40,7 @@ def with_machine(machine, fn):
 
 def test_main_cache_names():
     cases = [
-        ('amd64', 'freebsd-14.3', 'ponyc-libs-cache/freebsd-14.3-x86_64'),
+        ('amd64', 'freebsd-15.1', 'ponyc-libs-cache/freebsd-15.1-x86_64'),
         ('x86_64', 'x86-macos-15-intel',
          'ponyc-libs-cache/x86-macos-15-intel-x86_64'),
         ('aarch64', 'alpine3.23', 'ponyc-libs-cache/alpine3.23-arm64'),
@@ -69,7 +69,7 @@ def test_branch_matches_main_modulo_namespace():
     # The promote step constructs the branch name from the main name by swapping
     # the namespace prefix. Pin that they differ ONLY by that prefix (slicing, not
     # str.removeprefix, to stay 3.8-safe like the scripts).
-    for machine, label in [('x86_64', 'freebsd-14.3'),
+    for machine, label in [('x86_64', 'freebsd-15.1'),
                            ('aarch64', 'alpine3.23'),
                            ('AMD64', 'windows-2025-vs2026')]:
         main = with_machine(machine, lambda: oci.cache_package(label))

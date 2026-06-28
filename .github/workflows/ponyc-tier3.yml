@@ -244,17 +244,7 @@ jobs:
     needs: check-for-changes
     if: needs.check-for-changes.outputs.has-changes == 'true'
     runs-on: ubuntu-latest
-
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - version: '14.3'
-            name: x86-64 FreeBSD 14.3
-          - version: '15.1'
-            name: x86-64 FreeBSD 15.1
-
-    name: ${{ matrix.name }}
+    name: x86-64 FreeBSD 15.1
     steps:
       - name: Checkout
         uses: actions/checkout@v6.0.2
@@ -262,14 +252,14 @@ jobs:
           ref: ${{ inputs.ref || github.sha }}
       - name: Provision VM
         env:
-          FREEBSD_VERSION: ${{ matrix.version }}
+          FREEBSD_VERSION: '15.1'
         run: bash .ci-scripts/bsd/freebsd-provision.bash
       - name: Restore or build libs
         env:
           LIBS_TAG: ${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
         run: |
           ssh -o StrictHostKeyChecking=no -i vm_key -p 2222 freebsd@localhost \
-            "cd /home/freebsd/ponyc && export GITHUB_TOKEN='${{ secrets.GITHUB_TOKEN }}' GITHUB_REPOSITORY='${{ github.repository }}' GITHUB_ACTOR='${{ github.actor }}' && python3 .ci-scripts/libs-cache/resolve_libs_cache.py --branch-cache --platform freebsd-${{ matrix.version }} --tag '${LIBS_TAG}' -- gmake libs llvm_tools=false build_flags=-j4"
+            "cd /home/freebsd/ponyc && export GITHUB_TOKEN='${{ secrets.GITHUB_TOKEN }}' GITHUB_REPOSITORY='${{ github.repository }}' GITHUB_ACTOR='${{ github.actor }}' && python3 .ci-scripts/libs-cache/resolve_libs_cache.py --branch-cache --platform freebsd-15.1 --tag '${LIBS_TAG}' -- gmake libs llvm_tools=false build_flags=-j4"
       - name: Build and test
         run: |
           ssh -o StrictHostKeyChecking=no -i vm_key -p 2222 freebsd@localhost <<'EOF'
@@ -301,15 +291,15 @@ jobs:
           # use=coverage smoke test — see the script for details. Runs last of
           # the smokes in this step; it does the same clean+reconfigure of the
           # debug build as the smokes above. (The use=valgrind smoke runs after,
-          # in its own step, so it can be gated to FreeBSD 14.3.)
+          # in its own step; the script does its own clean+configure+build.)
           sh .ci-scripts/freebsd-coverage-smoke.sh
           EOF
       - name: Valgrind smoke
-        # FreeBSD 14.3 only: Valgrind 3.26 there runs a Pony program to
-        # completion; 15.1 is unverified, so it doesn't gate the matrix. Its own
-        # step so the matrix-version `if` can scope it — the script does its own
-        # clean+configure+build, so it's self-contained.
-        if: matrix.version == '14.3'
+        # use=valgrind smoke — see the script for details. FreeBSD ships a modern
+        # Valgrind, so unlike DragonFly a Pony program can run to completion under
+        # it. Whether 15.1's Valgrind actually does is unverified; this runs it
+        # and we find out when tier-3 runs. Its own step because the script does
+        # its own clean+configure+build, so it's self-contained.
         run: |
           ssh -o StrictHostKeyChecking=no -i vm_key -p 2222 freebsd@localhost <<'EOF'
           set -e

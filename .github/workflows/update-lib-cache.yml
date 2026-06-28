@@ -243,17 +243,7 @@ jobs:
     needs: [x86_64-linux-release, arm64-linux, x86_64-macos]
     if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
-
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - version: '14.3'
-            name: x86-64 FreeBSD 14.3
-          - version: '15.1'
-            name: x86-64 FreeBSD 15.1
-
-    name: ${{ matrix.name }}
+    name: x86-64 FreeBSD 15.1
     steps:
       - name: Checkout
         uses: actions/checkout@v6.0.2
@@ -263,7 +253,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           LIBS_TAG: ${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
         run: |
-          if python3 .ci-scripts/libs-cache/oci_libs_cache.py exists --platform freebsd-${{ matrix.version }} --tag "$LIBS_TAG"; then
+          if python3 .ci-scripts/libs-cache/oci_libs_cache.py exists --platform freebsd-15.1 --tag "$LIBS_TAG"; then
             echo "hit=true" >> "$GITHUB_OUTPUT"
           else
             echo "hit=false" >> "$GITHUB_OUTPUT"
@@ -279,8 +269,8 @@ jobs:
           # tag, copy it into the main cache instead of provisioning the VM to
           # rebuild. A promote failure is non-fatal -- promoted=false falls through
           # to the VM build below.
-          if python3 .ci-scripts/libs-cache/branch_libs_cache.py exists --platform freebsd-${{ matrix.version }} --tag "$LIBS_TAG"; then
-            if python3 .ci-scripts/libs-cache/promote_libs_cache.py --platform freebsd-${{ matrix.version }} --tag "$LIBS_TAG"; then
+          if python3 .ci-scripts/libs-cache/branch_libs_cache.py exists --platform freebsd-15.1 --tag "$LIBS_TAG"; then
+            if python3 .ci-scripts/libs-cache/promote_libs_cache.py --platform freebsd-15.1 --tag "$LIBS_TAG"; then
               echo "promoted=true" >> "$GITHUB_OUTPUT"
             else
               echo "promoted=false" >> "$GITHUB_OUTPUT"
@@ -291,7 +281,7 @@ jobs:
       - name: Provision VM
         if: steps.check.outputs.hit != 'true' && steps.promote.outputs.promoted != 'true'
         env:
-          FREEBSD_VERSION: ${{ matrix.version }}
+          FREEBSD_VERSION: '15.1'
         run: bash .ci-scripts/bsd/freebsd-provision.bash
       - name: Build and push libs
         if: steps.check.outputs.hit != 'true' && steps.promote.outputs.promoted != 'true'
@@ -302,7 +292,7 @@ jobs:
             "cd /home/freebsd/ponyc && \
              export GITHUB_TOKEN='${{ secrets.GITHUB_TOKEN }}' GITHUB_REPOSITORY='${{ github.repository }}' GITHUB_ACTOR='${{ github.actor }}' && \
              gmake libs llvm_tools=false build_flags=-j4 && \
-             python3 .ci-scripts/libs-cache/oci_libs_cache.py push --platform freebsd-${{ matrix.version }} --tag '${LIBS_TAG}'"
+             python3 .ci-scripts/libs-cache/oci_libs_cache.py push --platform freebsd-15.1 --tag '${LIBS_TAG}'"
       - name: Shutdown VM
         if: always()
         run: |

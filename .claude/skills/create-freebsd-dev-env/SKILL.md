@@ -113,9 +113,9 @@ is OS-agnostic, so macOS goes through the same steps with the HVF accelerator
 ## Setup
 
 Pick a persistent VM directory and a FreeBSD version that **matches ponyc CI** (the tier-3
-`freebsd` job in `.github/workflows/ponyc-tier3.yml` runs a matrix — currently 14.3 and
-15.1; the image URL is in `.ci-scripts/bsd/freebsd-provision.bash`). Use the same two
-values in every block below.
+`freebsd` job in `.github/workflows/ponyc-tier3.yml` tests a single version — currently
+15.1; the image URL is in `.ci-scripts/bsd/freebsd-provision.bash`). Use the same value
+in every block below.
 
 ### 1. Download the image (one time; keep the `.xz` to avoid re-downloading)
 
@@ -123,7 +123,7 @@ The BASIC-CLOUDINIT image boots straight to a cloud-init-configured system — n
 and it ships the full base system including `/usr/include`.
 
 ```sh
-VMDIR=~/vms/freebsd-14.3; FREEBSD_VERSION=14.3
+VMDIR=~/vms/freebsd-15.1; FREEBSD_VERSION=15.1
 mkdir -p "$VMDIR" && cd "$VMDIR"
 base="https://download.freebsd.org/releases/VM-IMAGES/${FREEBSD_VERSION}-RELEASE/amd64/Latest"
 curl -fL --retry 3 -o freebsd.qcow2.xz \
@@ -138,7 +138,7 @@ qemu-img resize freebsd.qcow2 60G       # first boot grows the root fs to fill t
 `freebsd` user and sets root's password (so the Step 5 `su` bootstrap can reach root).
 
 ```sh
-VMDIR=~/vms/freebsd-14.3; cd "$VMDIR"
+VMDIR=~/vms/freebsd-15.1; cd "$VMDIR"
 test -f vm_key || ssh-keygen -t ed25519 -f vm_key -N "" -q
 cat > user-data <<USERDATA
 #cloud-config
@@ -159,7 +159,7 @@ cloud-localds seed.img user-data meta-data
 ### 3. Boot (daemonized, persistent)
 
 ```sh
-VMDIR=~/vms/freebsd-14.3; FREEBSD_VERSION=14.3; cd "$VMDIR"
+VMDIR=~/vms/freebsd-15.1; FREEBSD_VERSION=15.1; cd "$VMDIR"
 qemu-system-x86_64 \
   -name freebsd-${FREEBSD_VERSION} \
   -machine pc,accel=kvm:hvf -cpu host -smp 8 -m 12G \
@@ -172,9 +172,9 @@ qemu-system-x86_64 \
 
 (`accel=kvm:hvf` picks KVM on Linux or HVF on macOS and errors if neither is available —
 it never silently falls back to slow TCG. `-smp`/`-m` are speed knobs; CI uses 4 CPUs /
-12G. `hostfwd 2222->22` is the ssh port — to run two FreeBSD VMs at once (e.g. both CI
-matrix versions), give each its own `$VMDIR` and a distinct hostfwd port, and pass that
-port to every ssh/scp/rsync `-p`. The seed drive stays attached — `nuageinit` skips it on
+12G. `hostfwd 2222->22` is the ssh port — to run two FreeBSD VMs at once (e.g. CI's 15.1
+plus another version you want to compare against), give each its own `$VMDIR` and a
+distinct hostfwd port, and pass that port to every ssh/scp/rsync `-p`. The seed drive stays attached — `nuageinit` skips it on
 later boots once the instance-id is seen. This boot command is adapted from
 `.ci-scripts/bsd/freebsd-provision.bash`: it adds `-pidfile`/`-smp 8` and drops the CI
 host-bootstrap; CI has no rng or monitor device for FreeBSD and neither does this.)
@@ -182,7 +182,7 @@ host-bootstrap; CI has no rng or monitor device for FreeBSD and neither does thi
 ### 4. Wait for ssh (first boot runs nuageinit + growfs)
 
 ```sh
-VMDIR=~/vms/freebsd-14.3; FREEBSD_VERSION=14.3; cd "$VMDIR"
+VMDIR=~/vms/freebsd-15.1; FREEBSD_VERSION=15.1; cd "$VMDIR"
 up=""
 for i in $(seq 1 150); do   # ~5 min, matching CI's timeout
   if ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR -o ConnectTimeout=2 -i vm_key -p 2222 \
@@ -213,7 +213,7 @@ passwordless `doas`. This runs once; `doas.conf` persists on disk for the VM's l
 expect block is adapted from the one embedded in `freebsd-provision.bash`.)
 
 ```sh
-VMDIR=~/vms/freebsd-14.3; cd "$VMDIR"
+VMDIR=~/vms/freebsd-15.1; cd "$VMDIR"
 expect <<'EXPECT'
 set timeout 600
 spawn ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR -i vm_key -p 2222 -t freebsd@localhost su -m root
@@ -254,7 +254,7 @@ builds its own). Keep `.git` (CMake runs `git rev-parse`). The vendored LLVM sub
 under `lib/llvm/src` IS transferred — the VM needs it for `make libs`.
 
 ```sh
-VMDIR=~/vms/freebsd-14.3
+VMDIR=~/vms/freebsd-15.1
 rsync -az --exclude='/build' \
   -e "ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR -i $VMDIR/vm_key -p 2222" \
   "$(git rev-parse --show-toplevel)/" freebsd@localhost:/home/freebsd/ponyc/
@@ -268,7 +268,7 @@ long pole — run it detached, then poll the log until it ends with `libs DONE r
 nonzero rc means it failed — read the log above the marker):
 
 ```sh
-VMDIR=~/vms/freebsd-14.3
+VMDIR=~/vms/freebsd-15.1
 SSH="ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR -i $VMDIR/vm_key -p 2222 freebsd@localhost"
 $SSH /bin/sh <<'EOF'
 set -e
@@ -289,7 +289,7 @@ run this block until the poll shows `libs DONE rc=0` — `gmake build` against a
 `build/libs` fails:
 
 ```sh
-VMDIR=~/vms/freebsd-14.3
+VMDIR=~/vms/freebsd-15.1
 SSH="ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR -i $VMDIR/vm_key -p 2222 freebsd@localhost"
 $SSH /bin/sh <<'EOF'
 set -e
@@ -313,12 +313,12 @@ CI-matching issue.
 ## Lifecycle
 
 ```sh
-VMDIR=~/vms/freebsd-14.3; FREEBSD_VERSION=14.3; cd "$VMDIR"
+VMDIR=~/vms/freebsd-15.1; FREEBSD_VERSION=15.1; cd "$VMDIR"
 pgrep -af "qemu-system-x86_64 -name freebsd-${FREEBSD_VERSION}"        # status
 ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR -i vm_key -p 2222 freebsd@localhost   # interactive shell
 # stop: CI stops this VM by killing the process; do the same. Disks persist for next time.
-# The pgrep/pkill are scoped to this version so a second FreeBSD VM (e.g. the
-# other CI matrix version) isn't matched; the pidfile path is per-$VMDIR anyway.
+# The pgrep/pkill are scoped to this version so a second FreeBSD VM (e.g. another
+# version you're comparing against) isn't matched; the pidfile path is per-$VMDIR anyway.
 kill "$(cat freebsd.pid)" 2>/dev/null || pkill -f "qemu-system-x86_64 -name freebsd-${FREEBSD_VERSION}"
 ```
 
