@@ -178,11 +178,20 @@ void ponyint_systematic_testing_start(scheduler_t* schedulers, pony_thread_id_t 
 
   ponyint_thread_wake(active_thread->tid, active_thread->sleep_object);
 
+  // Park until it is genuinely this (pinned actor) thread's turn. As in the
+  // yield handoff and `wait_start`, the wait can return without a matching wake
+  // -- `pthread_cond_wait` is allowed to return spuriously (POSIX), and a stray
+  // wake is likelier under load. Returning here while `active_thread` still
+  // points at another thread would let this thread run out of turn and desync
+  // the single-runner handoff, deadlocking every thread. Re-check and re-park.
+  while(active_thread != &threads_to_track[0])
+  {
 #if defined(USE_SCHEDULER_SCALING_PTHREADS)
-  ponyint_thread_suspend(threads_to_track[0].sleep_object, &systematic_testing_mut);
+    ponyint_thread_suspend(threads_to_track[0].sleep_object, &systematic_testing_mut);
 #else
-  ponyint_thread_suspend(threads_to_track[0].sleep_object);
+    ponyint_thread_suspend(threads_to_track[0].sleep_object);
 #endif
+  }
 
   TRACING_SYSTEMATIC_TESTING_WAITING_TO_START_END();
   TRACING_SYSTEMATIC_TESTING_TIMESLICE_BEGIN();
