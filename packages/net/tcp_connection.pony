@@ -603,7 +603,18 @@ actor TCPConnection is AsioEventNotify
       end
 
       if AsioEvent.writeable(flags) then
-        _writeable = true
+        // Only set the flag while still connected. A readiness event for our
+        // own event can still be in our queue after `hard_close` unsubscribed
+        // and set the flags false; without this gate it would resurrect
+        // `_writeable` and break `hard_close`'s post-condition. Gate on
+        // `_connected` (not `_closed`): a graceful `close` sets `_closed` while
+        // the connection is still draining and must keep reacting to readiness;
+        // only `hard_close` clears `_connected`. Re-checking per block (rather
+        // than once around both) also covers `_pending_writes` calling
+        // `hard_close` on a write error before the readable block runs.
+        if _connected then
+          _writeable = true
+        end
         if _pending_writes() then
           // Sent all data. Release backpressure.
           _release_backpressure()
@@ -611,7 +622,11 @@ actor TCPConnection is AsioEventNotify
       end
 
       if AsioEvent.readable(flags) then
-        _readable = true
+        // Gated on `_connected` for the same reason as the writeable block
+        // above.
+        if _connected then
+          _readable = true
+        end
         _pending_reads()
       end
 
@@ -932,6 +947,11 @@ actor TCPConnection is AsioEventNotify
     _writeable = false
     @pony_asio_event_set_readable(_event, false)
     @pony_asio_event_set_writeable(_event, false)
+
+    // `_event` is not nulled here (the later disposable event clears it), so a
+    // readiness event already queued for it can still reach `_event_notify`
+    // after this returns. The `_connected = false` set above is what makes that
+    // handler skip resurrecting `_readable`/`_writeable`.
 
     // POSIX closes the fd here; on Windows the readiness backend owns the close
     // (when it sees the deferred REMOVE from the unsubscribe above), so we must

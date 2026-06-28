@@ -41,6 +41,7 @@ actor \nodoc\ Main is TestList
     test(_TestTCPExpect)
     test(_TestTCPExpectOverBufferSize)
     test(_TestTCPExpectSetToZero)
+    test(_TestTCPGracefulClose)
     test(_TestTCPMute)
     test(_TestTCPMutePeerCloseUndetected)
     test(_TestTCPProxy)
@@ -2314,6 +2315,69 @@ class \nodoc\ _TestTCPMuteClosePeerNotify is TCPConnectionNotify
 
   fun ref connect_failed(conn: TCPConnection ref) =>
     _h.fail_action("sender connect failed")
+
+class \nodoc\ iso _TestTCPGracefulClose is UnitTest
+  """
+  Test that a graceful `close` on an established, unmuted connection runs to
+  completion. `close` sets `_closed` but leaves `_connected` true, so the
+  connection must keep reacting to readiness while it drains: it reads the
+  peer's close and then fires `closed`. This pins the `_event_notify` readiness
+  gate to `_connected` -- gating it on `_closed` as well would drop the draining
+  read, and the initiator's `closed` would never fire.
+
+  The client closes its side as soon as it connects; the server reads that close
+  and hard closes in turn, which gives the client a peer close to read. The
+  client reads it and completes. A timeout means the client never saw the peer
+  close -- failure.
+  """
+  fun name(): String => "net/TCPGracefulClose"
+  fun exclusion_group(): String => "network"
+
+  fun ref apply(h: TestHelper) =>
+    h.expect_action("client connected")
+    h.expect_action("client closed")
+
+    _TestTCP(h)(_TestTCPGracefulCloseClientNotify(h),
+      _TestTCPGracefulCloseServerNotify(h))
+
+class \nodoc\ _TestTCPGracefulCloseClientNotify is TCPConnectionNotify
+  """
+  Client side: close gracefully as soon as we connect, then expect `closed` to
+  fire once we have read the server's close. That read happens while `_closed`
+  is set but `_connected` is still true -- the drain the readiness gate must
+  keep allowing.
+  """
+  let _h: TestHelper
+
+  new iso create(h: TestHelper) =>
+    _h = h
+
+  fun ref connected(conn: TCPConnection ref) =>
+    _h.complete_action("client connected")
+    conn.close()
+
+  fun ref closed(conn: TCPConnection ref) =>
+    _h.complete_action("client closed")
+
+  fun ref connect_failed(conn: TCPConnection ref) =>
+    _h.fail_action("client connect failed")
+
+class \nodoc\ _TestTCPGracefulCloseServerNotify is TCPConnectionNotify
+  """
+  Server side: accept and let the runtime react to the client's close. Reading
+  the client's close (a zero-length read) hard closes this side, which closes
+  its socket and so gives the client a peer close to read.
+  """
+  let _h: TestHelper
+
+  new iso create(h: TestHelper) =>
+    _h = h
+
+  fun ref accepted(conn: TCPConnection ref) =>
+    _h.dispose_when_done(conn)
+
+  fun ref connect_failed(conn: TCPConnection ref) =>
+    _h.fail_action("server connect failed")
 
 class \nodoc\ iso _TestTCPThrottle is UnitTest
   """
