@@ -211,6 +211,16 @@ PONY_API void pony_asio_event_resubscribe_write(asio_event_t* ev)
     retry_loop(b);
 }
 
+// Single function for resubscribing to both reads and writes, matching the
+// cross-backend ABI declared in event.h (epoll/emscripten/sock_notify provide
+// it too). kqueue re-arms each direction with its own kevent, so this just
+// delegates to the per-direction re-arms; each is gated on readable/writeable.
+PONY_API void pony_asio_event_resubscribe(asio_event_t* ev)
+{
+  pony_asio_event_resubscribe_read(ev);
+  pony_asio_event_resubscribe_write(ev);
+}
+
 DECLARE_THREAD_FN(ponyint_asio_backend_dispatch)
 {
   ponyint_cpu_affinity(ponyint_asio_get_cpu());

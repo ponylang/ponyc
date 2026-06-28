@@ -37,34 +37,30 @@ actor \nodoc\ Main is TestList
     test(_TestOsIpString)
     test(_TestSocketResultDecoder)
     test(_TestTCPConnectionFailed)
+    test(_TestTCPConnectionToClosedServerFailed)
     test(_TestTCPExpect)
     test(_TestTCPExpectOverBufferSize)
     test(_TestTCPExpectSetToZero)
     test(_TestTCPMute)
+    test(_TestTCPMutePeerCloseUndetected)
     test(_TestTCPProxy)
+    test(_TestTCPThrottle)
     test(_TestTCPUnmute)
     test(_TestTCPWritev)
     test(_TestUDPListenFailure)
+    test(_TestUDPOversizedDatagramTruncated)
+    test(_TestUDPUndersizedDatagramDelivered)
     test(_TestUnicastIP6Loopback)
+
+    // The deterministic send-failure trigger (send to broadcast without
+    // SO_BROADCAST -> EACCES/WSAEACCES) is verified on linux and windows.
+    ifdef linux or windows then
+      test(_TestUDPCloseOnSendFailure)
+    end
 
     // Tests below run only on linux and are listed alphabetically
     ifdef linux then
       test(_TestBroadcastReceive)
-      test(_TestUDPCloseOnSendFailure)
-    end
-
-    // Tests below exclude windows and are listed alphabetically
-    ifdef not windows then
-      test(_TestTCPConnectionToClosedServerFailed)
-      test(_TestTCPThrottle)
-      test(_TestUDPOversizedDatagramTruncated)
-      test(_TestUDPUndersizedDatagramDelivered)
-    end
-
-    // Tests below run only on windows and are listed alphabetically
-    ifdef windows then
-      test(_TestUDPOversizedDatagramTruncatedWindows)
-      test(_TestUDPUndersizedDatagramDeliveredWindows)
     end
 
     // Tests below exclude osx and are listed alphabetically
@@ -1339,14 +1335,16 @@ class \nodoc\ iso _TestUDPCloseOnSendFailure is UnitTest
   """
   A failed send closes the socket and delivers closed() -- the error arm
   of UDPSocket._write. The deterministic trigger: sending to the broadcast
-  address without SO_BROADCAST fails EACCES on Linux; this socket
-  deliberately never calls set_broadcast.
+  address without SO_BROADCAST fails with a permission error (EACCES on Linux,
+  WSAEACCES on Windows); this socket deliberately never calls set_broadcast.
 
   Counterfactual: add set_broadcast(true) and the send succeeds, closed()
   never fires during the test, and the test fails by timeout -- the
   closed() expectation is load-bearing.
 
-  Linux-only: the EACCES-without-SO_BROADCAST behavior is Linux-verified.
+  Gated to linux and windows: the permission-error-without-SO_BROADCAST trigger
+  is verified on both (WSAEACCES on Windows confirmed empirically). macOS/BSD
+  are excluded because that behavior there is unverified.
   No exclusion_group: the socket binds an ephemeral port and its only
   datagram never leaves the host (the send fails at the socket layer), so
   there is no interference surface.
@@ -1409,7 +1407,7 @@ class \nodoc\ iso _TestUDPListenFailure is UnitTest
 
   Runs on Windows too: a failed UDP listen there used to crash the process
   before anything could be observed (issue #5474), which is now fixed -- the
-  runtime's IOCP recv path guards the null event a failed listen leaves
+  runtime's recvfrom path guards the null event a failed listen leaves
   behind instead of dereferencing it. No exclusion_group: neither arm ever
   binds successfully or emits a datagram, so there is no interference
   surface.
@@ -1687,11 +1685,11 @@ class \nodoc\ iso _TestUDPOversizedDatagramTruncated is UnitTest
   datagram of ascending bytes, so the delivered prefix is asserted position by
   position against `[0, 1, ..., 63]`, not merely by length.
 
-  POSIX only. On POSIX the truncation is `recvfrom` called without `MSG_TRUNC`
-  discarding the excess (src/libponyrt/lang/socket.c `pony_os_recvfrom`). The
-  Windows IOCP receive path delivers the same prefix contract by a different
-  mechanism and is pinned separately by
-  net/UDPOversizedDatagramTruncatedWindows.
+  The truncation happens in `pony_os_recvfrom` (src/libponyrt/lang/socket.c):
+  on POSIX `recvfrom` is called without `MSG_TRUNC`, discarding the excess; on
+  Windows the oversized receive fails with `WSAEMSGSIZE` after filling the
+  buffer, and the prefix (count == buffer size) is delivered (issue #5551).
+  Both reach `UDPSocket._pending_reads`, which delivers the same prefix.
   """
   fun name(): String => "net/UDPOversizedDatagramTruncated"
   fun exclusion_group(): String => "network"
@@ -1725,10 +1723,6 @@ class \nodoc\ iso _TestUDPUndersizedDatagramDelivered is UnitTest
   (20) is below the buffer's 64, so `truncate(count)` does the shrinking.
   Without it the receiver would hand back the full 64-byte buffer with 44 bytes
   of uninitialized memory; the length assertion (64 != 20) catches that.
-
-  POSIX only, gated with its sibling: it exercises the POSIX receive path
-  (`_pending_reads`), while the Windows IOCP receive path (`_complete_reads`)
-  is pinned by net/UDPUndersizedDatagramDeliveredWindows.
   """
   fun name(): String => "net/UDPUndersizedDatagramDelivered"
   fun exclusion_group(): String => "network"
@@ -1739,88 +1733,6 @@ class \nodoc\ iso _TestUDPUndersizedDatagramDelivered is UnitTest
     h.expect_action("receive")
 
     // Buffer 64, payload 20: delivered = min(64, 20) = 20, the whole payload.
-    h.dispose_when_done(
-      UDPSocket.ip4(UDPAuth(h.env.root),
-        recover
-          _TestUDPReadBufferReceiver(h, _AscendingBytes(20),
-            _AscendingBytes(20))
-        end,
-        "127.0.0.1", "0", 64))
-
-    h.long_test(TimeoutValue())
-
-class \nodoc\ iso _TestUDPOversizedDatagramTruncatedWindows is UnitTest
-  """
-  A datagram larger than the receiver's read buffer is delivered to `received`
-  truncated to the buffer's first `size` bytes -- the same contract
-  net/UDPOversizedDatagramTruncated pins on POSIX, here on the Windows IOCP
-  receive path (UDPSocket._complete_reads). The receiver's buffer is an
-  explicit 64 and the sender transmits a 200-byte datagram of ascending bytes,
-  so the delivered prefix is asserted position by position against
-  `[0, 1, ..., 63]`.
-
-  On Windows an oversized datagram completes the IOCP read with the NTSTATUS
-  STATUS_BUFFER_OVERFLOW carrying the count copied into the buffer (its first
-  bytes); src/libponyrt/lang/socket.c `iocp_callback` dispatches that count so
-  `_complete_reads` delivers the truncated prefix. Before the #5551 fix the
-  IOCP_RECV arm dispatched zero bytes for that completion, so `_complete_reads`
-  delivered an empty array and the whole datagram was lost rather than
-  truncated.
-
-  Windows only (net/UDPOversizedDatagramTruncated covers the POSIX
-  `pony_os_recvfrom` path).
-  """
-  fun name(): String => "net/UDPOversizedDatagramTruncatedWindows"
-  fun exclusion_group(): String => "network"
-
-  fun ref apply(h: TestHelper) =>
-    h.expect_action("receiver listen")
-    h.expect_action("sender listen")
-    h.expect_action("receive")
-
-    // Buffer 64, payload 200: delivered = min(64, 200) = 64, the first 64
-    // bytes of the payload (matching POSIX). See the docstring and #5551.
-    h.dispose_when_done(
-      UDPSocket.ip4(UDPAuth(h.env.root),
-        recover
-          _TestUDPReadBufferReceiver(h, _AscendingBytes(64),
-            _AscendingBytes(200))
-        end,
-        "127.0.0.1", "0", 64))
-
-    h.long_test(TimeoutValue())
-
-class \nodoc\ iso _TestUDPUndersizedDatagramDeliveredWindows is UnitTest
-  """
-  On Windows a datagram smaller than the receiver's read buffer is delivered
-  whole, the same as on POSIX. This is the companion to
-  net/UDPOversizedDatagramTruncatedWindows: it exercises the success path of
-  the Windows IOCP receive (a read that completes with a byte count), guarding
-  whole-datagram delivery against regression from the oversized-datagram fix
-  (#5551).
-
-  The IOCP read completes successfully with 20 bytes, so
-  `UDPSocket._complete_reads` hands back the whole payload via `truncate(20)`,
-  shrinking the 64-byte buffer. Without that shrink the receiver would get 64
-  bytes with 44 of uninitialized memory; the length assertion (20 != 64)
-  catches that. This exercises the Windows `_complete_reads` path, the
-  counterpart to net/UDPUndersizedDatagramDelivered's POSIX `_pending_reads`.
-
-  Windows only.
-
-  Counterfactual: send an oversized payload (200) and the delivered length is 64
-  (the truncated prefix, see net/UDPOversizedDatagramTruncatedWindows), failing
-  the length assertion (64 != 20).
-  """
-  fun name(): String => "net/UDPUndersizedDatagramDeliveredWindows"
-  fun exclusion_group(): String => "network"
-
-  fun ref apply(h: TestHelper) =>
-    h.expect_action("receiver listen")
-    h.expect_action("sender listen")
-    h.expect_action("receive")
-
-    // Buffer 64, payload 20: a successful IOCP read delivers all 20 bytes.
     h.dispose_when_done(
       UDPSocket.ip4(UDPAuth(h.env.root),
         recover
@@ -2310,6 +2222,98 @@ class \nodoc\ _TestTCPUnmuteReceiveNotify is TCPConnectionNotify
 
   fun ref connect_failed(conn: TCPConnection ref) =>
     _h.fail_action("receiver connect failed")
+
+class \nodoc\ iso _TestTCPMutePeerCloseUndetected is UnitTest
+  """
+  A muted connection must not learn that its peer has closed until it is
+  unmuted. Peer close is detected by reading, and a muted connection does not
+  read, so `closed` must not fire while muted. This holds on every platform now;
+  the test pins it on Windows, which previously surfaced a peer close to a muted
+  connection via a queued read.
+
+  The receiver accepts, mutes, then asks the sender to close its side (writing
+  is unaffected by muting). The sender closes only in response, so the receiver
+  has definitely muted first. If the receiver's `closed` fires within the
+  long-test window the muted connection detected the peer close -- failure. A
+  timeout means it did not -- pass. Same shape as net/TCPMute.
+  """
+  fun name(): String => "net/TCPMutePeerCloseUndetected"
+  fun exclusion_group(): String => "network"
+
+  fun ref apply(h: TestHelper) =>
+    h.expect_action("receiver accepted")
+    h.expect_action("receiver muted")
+    h.expect_action("receiver asks peer to close")
+    h.expect_action("sender connected")
+    h.expect_action("sender closed")
+
+    _TestTCP(h)(_TestTCPMuteClosePeerNotify(h),
+      _TestTCPMuteCloseReceiveNotify(h))
+
+  fun timed_out(h: TestHelper) =>
+    h.complete(true)
+
+class \nodoc\ _TestTCPMuteCloseReceiveNotify is TCPConnectionNotify
+  """
+  Server side: mute on accept, ask the peer to close, then fail if we ever see
+  the peer close while muted.
+  """
+  let _h: TestHelper
+
+  new iso create(h: TestHelper) =>
+    _h = h
+
+  fun ref accepted(conn: TCPConnection ref) =>
+    _h.complete_action("receiver accepted")
+    conn.mute()
+    _h.complete_action("receiver muted")
+    conn.write("close your side")
+    _h.complete_action("receiver asks peer to close")
+    _h.dispose_when_done(conn)
+
+  fun ref received(
+    conn: TCPConnection ref,
+    data: Array[U8] val,
+    times: USize)
+    : Bool
+  =>
+    // We muted before asking the peer to close, so we should never read.
+    _h.complete(false)
+    true
+
+  fun ref closed(conn: TCPConnection ref) =>
+    // A muted connection learned that its peer closed -- the regression.
+    _h.complete(false)
+
+  fun ref connect_failed(conn: TCPConnection ref) =>
+    _h.fail_action("receiver connect failed")
+
+class \nodoc\ _TestTCPMuteClosePeerNotify is TCPConnectionNotify
+  """
+  Client side: when the server asks (by sending us data) close our side, so the
+  server's peer has closed. We close only in response, so the server has muted
+  first.
+  """
+  let _h: TestHelper
+
+  new iso create(h: TestHelper) =>
+    _h = h
+
+  fun ref connected(conn: TCPConnection ref) =>
+    _h.complete_action("sender connected")
+
+  fun ref received(
+    conn: TCPConnection ref,
+    data: Array[U8] val,
+    times: USize)
+    : Bool
+  =>
+    conn.close()
+    _h.complete_action("sender closed")
+    true
+
+  fun ref connect_failed(conn: TCPConnection ref) =>
+    _h.fail_action("sender connect failed")
 
 class \nodoc\ iso _TestTCPThrottle is UnitTest
   """

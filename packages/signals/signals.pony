@@ -36,8 +36,10 @@ class TermHandler is SignalNotify
 ## Signal portability
 
 The `Sig` primitive provides support for portable signal handling across Linux,
-FreeBSD and OSX. Signals are not supported on Windows and attempting to use
-them will cause a compilation error.
+FreeBSD and OSX. On Windows only the subset of signals the C runtime supports is
+available: the accessors that do not depend on the platform (such as `Sig.int()`
+for `SIGINT`) work, while accessors for signals Windows does not have (for
+example `Sig.trap()`) raise a compile error there.
 
 ## Shutting down handlers
 

@@ -10,17 +10,12 @@ PONY_EXTERN_C_BEGIN
 // (pony_os_writev, pony_os_send, pony_os_recv, pony_os_sendto,
 // pony_os_recvfrom). The integer values are part of the ABI:
 //
-//   PONY_SOCKET_OK    = 0  operation completed; *count_out holds a count
-//                          for the caller to act on. On POSIX: bytes
-//                          read/written. On Windows IOCP recv/sendto/
-//                          recvfrom: 0 (the actual byte count arrives
-//                          asynchronously via the ASIO event). On Windows
-//                          IOCP writev: wsacnt (the buffer count, used as
-//                          a backpressure signal — not bytes). On Windows
-//                          IOCP send: bytes accepted by the kernel (the
-//                          DWORD WSASend returned, or the input len when
-//                          WSA_IO_PENDING). See per-function notes in
-//                          socket.c for the precise contract.
+//   PONY_SOCKET_OK    = 0  operation completed; *count_out holds the byte
+//                          count read/written for the caller to act on.
+//                          These calls are synchronous and non-blocking on
+//                          every platform (the Windows backend uses readiness
+//                          notifications, not overlapped IOCP), so the count
+//                          is always the bytes transferred by this call.
 //   PONY_SOCKET_RETRY = 1  transient condition (POSIX EWOULDBLOCK/EAGAIN,
 //                          Windows WSAEWOULDBLOCK on send/writev). Caller
 //                          should retry later. *count_out is 0.

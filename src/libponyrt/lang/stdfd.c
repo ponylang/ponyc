@@ -495,7 +495,7 @@ PONY_API size_t pony_os_stdin_read(char* buffer, size_t space)
   }
 
   if(len != 0)  // Start listening to stdin notifications again
-    ponyint_iocp_resume_stdin();
+    ponyint_sock_notify_resume_stdin();
 
   return len;
 #else

@@ -14,9 +14,9 @@ typedef struct scheduler_t scheduler_t;
 #include <platform.h>
 #include "mutemap.h"
 
-#define PONY_KQUEUE_SCHEDULER_INDEX   -10
-#define PONY_IOCP_SCHEDULER_INDEX     -11
-#define PONY_EPOLL_SCHEDULER_INDEX    -12
+#define PONY_KQUEUE_SCHEDULER_INDEX        -10
+#define PONY_SOCK_NOTIFY_SCHEDULER_INDEX   -11
+#define PONY_EPOLL_SCHEDULER_INDEX         -12
 #define PONY_UNKNOWN_SCHEDULER_INDEX -1
 
 // the `-999` constant is the same value that is hardcoded in `actor_pinning.pony`

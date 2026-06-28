@@ -156,7 +156,7 @@ actor TCPListener is AsioEventNotify
     end
 
     if AsioEvent.readable(flags) then
-      _accept(arg)
+      _accept()
     end
 
     if AsioEvent.disposable(flags) then
@@ -176,55 +176,33 @@ actor TCPListener is AsioEventNotify
       _accept()
     end
 
-  fun ref _accept(ns: U32 = 0) =>
+  fun ref _accept() =>
     """
     Accept connections as long as we have spawned fewer than our limit.
     """
-    ifdef windows then
-      if ns == -1 then
-        // Unsubscribe when we get an invalid socket in the event.
-        @pony_asio_event_unsubscribe(_event)
-        return
-      end
-
-      if ns > 0 then
-        if _closed then
-          @pony_os_socket_close(ns)
-          return
-        end
-
-        _spawn(ns)
-      end
-
-      // Queue an accept if we're not at the limit.
-      if (_limit == 0) or (_count < _limit) then
-        @pony_os_accept(_event)
-      else
-        _paused = true
-      end
-    else
-      if _closed then
-        return
-      end
-
-      while (_limit == 0) or (_count < _limit) do
-        var fd = @pony_os_accept(_event)
-
-        match fd
-        | -1 =>
-          // Something other than EWOULDBLOCK, bail out. The ASIO event
-          // will re-notify when the socket is readable.
-          return
-        | 0 =>
-          // EWOULDBLOCK, don't try again.
-          return
-        else
-          _spawn(fd.u32())
-        end
-      end
-
-      _paused = true
+    if _closed then
+      return
     end
+
+    while (_limit == 0) or (_count < _limit) do
+      var fd = @pony_os_accept(_event)
+
+      match fd
+      | -1 =>
+        // Something other than EWOULDBLOCK (a failed accept). Bail out; the
+        // ASIO event will re-notify when the socket is readable again. On
+        // Windows this path is now reachable too, closing the old
+        // one-accept-at-a-time liveness gap.
+        return
+      | 0 =>
+        // EWOULDBLOCK, don't try again.
+        return
+      else
+        _spawn(fd.u32())
+      end
+    end
+
+    _paused = true
 
   fun ref _spawn(ns: U32) =>
     """
@@ -262,7 +240,13 @@ actor TCPListener is AsioEventNotify
     if not _event.is_null() then
       @pony_asio_event_unsubscribe(_event)
 
-      @pony_os_socket_close(_fd)
+      // POSIX closes the listener fd here; on Windows the readiness backend
+      // owns the close (when it sees the deferred REMOVE from the unsubscribe
+      // above). The accepted/rejected fds in _accept/_spawn are raw
+      // (unsubscribed), so those closes stay cross-platform.
+      ifdef not windows then
+        @pony_os_socket_close(_fd)
+      end
       _fd = -1
 
       _notify.closed(this)

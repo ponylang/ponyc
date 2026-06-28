@@ -8,28 +8,6 @@
 
 PONY_EXTERN_C_BEGIN
 
-#ifdef PLATFORM_IS_WINDOWS
-/** Shared liveness token for IOCP operations.
- *
- *  IOCP completion callbacks fire on Windows thread pool threads after the
- *  owning actor may have destroyed the event. Each in-flight IOCP operation
- *  holds a pointer to this token. The callback checks the dead flag before
- *  touching the event.
- *
- *  The refcount starts at 1 (the event's own reference) and tracks three
- *  kinds of holders: each IOCP operation adds 1 (released on callback
- *  completion); each message sent via pony_asio_event_send adds 1
- *  (released in handle_message after the behavior dispatch returns);
- *  destroy marks dead and subtracts the event's 1. Whoever decrements
- *  to zero frees both the event and the token.
- */
-typedef struct iocp_token_t
-{
-  PONY_ATOMIC(bool) dead;
-  PONY_ATOMIC(uint32_t) refcount;
-} iocp_token_t;
-#endif
-
 /** Definiton of an ASIO event.
  *
  *  Used to carry user defined data for event notifications.
@@ -48,7 +26,17 @@ typedef struct asio_event_t
 
 #ifdef PLATFORM_IS_WINDOWS
   HANDLE timer;         /* timer handle */
-  iocp_token_t* iocp_token; /* shared liveness token for IOCP callbacks */
+  /* Socket teardown is deferred under the readiness backend: unsubscribe issues
+   * a ProcessSocketNotifications REMOVE and sets this marker. While set, the
+   * asio thread drops any in-flight readiness packet for this event, and the
+   * fd + event are kept alive until the REMOVE packet is seen (which is when
+   * the backend closes the fd and sends ASIO_DISPOSABLE). The marker covers
+   * only in-flight packets, not re-arm: subscribe/resubscribe/unsubscribe for
+   * a socket event are all issued from the owning actor's thread and so are
+   * mutually ordered by the actor model -- a re-arm can never race the
+   * REMOVE-issuing unsubscribe. A future change that moved re-arm off the actor
+   * thread would break that and must revisit this marker. */
+  bool removing;
 #endif
 } asio_event_t;
 
@@ -104,6 +92,18 @@ PONY_API void pony_asio_event_setnsec(asio_event_t* ev, uint64_t nsec);
  *  notifications for I/O events on the corresponding resource.
  */
 PONY_API void pony_asio_event_unsubscribe(asio_event_t* ev);
+
+/** Re-arm a one-shot socket event.
+ *
+ *  Implemented by each platform's I/O backend. The single `resubscribe` plus
+ *  the two direction-specific variants form the cross-backend ABI the stdlib
+ *  FFI-uses (`packages/net`). Declared here so they get C linkage on every
+ *  platform -- without this, a backend compiled as C++ (the Windows build)
+ *  would emit C++-mangled names that the FFI references can't resolve.
+ */
+PONY_API void pony_asio_event_resubscribe(asio_event_t* ev);
+PONY_API void pony_asio_event_resubscribe_read(asio_event_t* ev);
+PONY_API void pony_asio_event_resubscribe_write(asio_event_t* ev);
 
 /** Get whether the event id disposable or not
  */
