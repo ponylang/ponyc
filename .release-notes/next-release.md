@@ -32,3 +32,11 @@ On Windows, a muted `TCPConnection` previously still noticed when its peer close
 
 A program could use a large and growing amount of memory when an actor repeatedly forwarded an object it had received from another actor back to itself. Such programs now run in bounded memory.
 
+## Remove support for Alpine 3.21
+
+We no longer test against it or build ponyc releases for it.
+
+## Remove support for Alpine 3.22
+
+We no longer test against it or build ponyc releases for it.
+
