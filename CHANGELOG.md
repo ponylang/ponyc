@@ -14,6 +14,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Changed
 
+- Replace Windows IOCP socket I/O with readiness notifications ([PR #5556](https://github.com/ponylang/ponyc/pull/5556))
 
 ## [0.65.0] - 2026-06-27
 
