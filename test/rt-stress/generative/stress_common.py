@@ -256,13 +256,16 @@ def clamp_ttl(chains, ttl, mode, payload, size):
 # as the same blowup.
 NORMAL_PINGERS = [1, 2, 4, 8, 16, 32, 64]
 
-# Normal-mode workload-kind weights for the 3-way draw (draw_workload). mesh is the
-# baseline (the widest runtime surface); cyclic and backpressure each target one
-# otherwise-untouched subsystem (the cycle detector; the explicit UNDER_PRESSURE
-# muting path). A run rolls mesh below MESH_P, cyclic below MESH_P + CYCLIC_P, else
-# backpressure. The tests assert all three appear over the sampled seed range.
+# Normal-mode workload-kind weights for the 4-way draw (draw_workload). mesh is the
+# baseline (the widest runtime surface); cyclic, backpressure, and iso each target
+# one otherwise-untouched subsystem (the cycle detector; the explicit UNDER_PRESSURE
+# muting path; ORCA's transfer of a nested mutable subgraph between actors). A run
+# rolls mesh below MESH_P, cyclic below MESH_P + CYCLIC_P, backpressure below
+# MESH_P + CYCLIC_P + BP_P, else iso. The tests assert all four appear over the
+# sampled seed range.
 WORKLOAD_MESH_P = 0.4
-WORKLOAD_CYCLIC_P = 0.3   # backpressure gets the remaining 1 - MESH_P - CYCLIC_P
+WORKLOAD_CYCLIC_P = 0.2
+WORKLOAD_BP_P = 0.2   # iso gets the remaining 1 - MESH_P - CYCLIC_P - BP_P
 
 # Normal-mode cyclic-garbage draws (the `cyclic` workload). The cyclic workload
 # spawns `generations` successive groups of `group` actors, each group a strongly
@@ -325,6 +328,59 @@ BACKPRESSURE_MESSAGE_BUCKETS = {
 }
 BACKPRESSURE_APPLY_EVERY = [50, 200, 1000]
 
+# Normal-mode iso-handoff draws (the `iso` workload). The `mesh` topology, but the
+# val payload is replaced by a freshly built nested `iso` graph and consumed
+# hop-to-hop; the receiver acquires a foreign MUTABLE multi-object subgraph -- the
+# new ORCA coverage. iso has its OWN cargo knobs (it does NOT draw the val payload):
+# a `Parcel` tree of `depth` levels with `breadth` children per node, each node a
+# separate allocation holding a `node_size`-byte array. iso reuses NORMAL_PINGERS
+# for its actor count (pingers=1 is the self-handoff, bounded by PR #5594's
+# self-send pin).
+#
+# Graph shape: ISO_DEPTHS x ISO_BREADTHS gives node counts in {1,2,3,4,7,15} (a flat
+# node through a 15-node tree), so the swarm spans flat/chain/tree. depth is capped
+# at 4 to keep the GC-trace recursion shallow.
+#
+# Memory bound (CALIBRATED on the engine, 4 GB RLIMIT_AS, real-parallel, ~16
+# threads): each parcel is owned by the Dispatcher and acquired by every carrier it
+# passes, so the owner's GC-acquire backlog scales with the ACQUIRE-FLOOD =
+# chains * ttl * node_count. The OOM cliff is non-monotonic near the edge (7 nodes
+# at 2285 chains crashed at the same ~256k acquire events where other shapes were
+# safe), so the budget is set CONSERVATIVELY: at K=96000 the worst measured is
+# ~160 MB (pingers=16, 15-node tree), every shape/pinger combo is safe, and 2x the
+# budget still did not crash -- ~25x margin under 4 GB. The per-run `chains` draw is
+# CLAMPED to K/(ISO_TTL_MAX*node_count) (iso_chains_cap), so a 1-node run goes high-
+# volume (up to ~6000 chains) and a 15-node run stays low-volume (~400), both safe.
+# COUPLING: the budget is a property of the Dispatcher's front-loaded injection and
+# the per-node acquire footprint -- re-measure if either changes. Calibrated.
+ISO_NODE_SIZES = [1, 8, 64, 256, 1024]
+ISO_DEPTHS = [1, 2, 3, 4]
+ISO_BREADTHS = [0, 1, 2]
+ISO_TTL_BUCKETS = {"small": (1, 4), "medium": (5, 10), "large": (11, 16)}
+ISO_TTL_MAX = 16
+# Pre-clamp chains magnitude buckets (max = the 1-node cap K/ISO_TTL_MAX = 6000);
+# iso_chains_cap then clamps per run to the drawn graph's safe limit.
+ISO_CHAINS_BUCKETS = {"small": (50, 1000), "medium": (1001, 3000),
+                      "large": (3001, 6000)}
+ISO_ACQUIRE_BUDGET = 96000
+
+
+def iso_node_count(depth, breadth):
+    """Total nodes in a `Parcel` tree of `depth` levels and `breadth` children per
+    node: 1 + breadth + breadth^2 + ... + breadth^(depth-1). depth 1 or breadth 0 is
+    a single node. Matches the engine's recursive `Parcel` constructor."""
+    if depth <= 1 or breadth == 0:
+        return 1
+    return sum(breadth ** level for level in range(depth))
+
+
+def iso_chains_cap(depth, breadth):
+    """The safe `chains` ceiling for a drawn graph shape: the acquire-flood budget
+    divided by (ISO_TTL_MAX * node_count). Used to CLAMP the drawn chains so no run
+    exceeds chains * ttl * node_count <= ISO_ACQUIRE_BUDGET (ttl <= ISO_TTL_MAX), the
+    calibrated memory-safe envelope. node_count==1 gives the max, 6000."""
+    return ISO_ACQUIRE_BUDGET // (ISO_TTL_MAX * iso_node_count(depth, breadth))
+
 
 def draw_bucketed(rng, buckets):
     """Draw a small/medium/large bucket at 25/50/25, then a uniform value within it.
@@ -356,29 +412,37 @@ def draw_payload(rng):
 
 def draw_workload(rng):
     """Draw the workload kind plus EVERY kind's specific shape, returning
-    (workload, generations, group, producers, messages, apply_every). ALWAYS the
-    same fixed sequence of logical draws regardless of the rolled kind -- the kind
-    roll, then the cyclic shape (bucketed generations + group choice), then the
-    backpressure shape (producers choice + bucketed messages + apply_every choice).
-    No branch on the rolled kind, so the kind changes which keys the config later
-    emits, never how many draws this makes (the fixed-consumption discipline;
+    (workload, generations, group, producers, messages, apply_every, node_size,
+    depth, breadth). ALWAYS the same fixed sequence of logical draws regardless of
+    the rolled kind -- the kind roll, then the cyclic shape (bucketed generations +
+    group choice), then the backpressure shape (producers choice + bucketed messages
+    + apply_every choice), then the iso cargo shape (node_size + depth + breadth
+    choices). No branch on the rolled kind, so the kind changes which keys the config
+    later emits, never how many draws this makes (the fixed-consumption discipline;
     "logical draws" because a randint's underlying bit consumption varies with its
-    value, but the call sequence does not). The mesh `pingers` field is drawn
-    separately in resolve_config, as before. Every kind's params are drawn even when
-    another kind is rolled (and then ignored) to keep that sequence fixed."""
+    value, but the call sequence does not). The mesh/iso `pingers` field and the
+    per-kind bucketed chains/ttl are drawn separately in resolve_config, as before.
+    Every kind's params are drawn even when another kind is rolled (and then ignored)
+    to keep that sequence fixed."""
     roll = rng.random()
     if roll < WORKLOAD_MESH_P:
         workload = "mesh"
     elif roll < (WORKLOAD_MESH_P + WORKLOAD_CYCLIC_P):
         workload = "cyclic"
-    else:
+    elif roll < (WORKLOAD_MESH_P + WORKLOAD_CYCLIC_P + WORKLOAD_BP_P):
         workload = "backpressure"
+    else:
+        workload = "iso"
     generations = draw_bucketed(rng, CYCLIC_GENERATION_BUCKETS)
     group = rng.choice(CYCLIC_GROUPS)
     producers = rng.choice(BACKPRESSURE_PRODUCERS)
     messages = draw_bucketed(rng, BACKPRESSURE_MESSAGE_BUCKETS)
     apply_every = rng.choice(BACKPRESSURE_APPLY_EVERY)
-    return workload, generations, group, producers, messages, apply_every
+    node_size = rng.choice(ISO_NODE_SIZES)
+    depth = rng.choice(ISO_DEPTHS)
+    breadth = rng.choice(ISO_BREADTHS)
+    return (workload, generations, group, producers, messages, apply_every,
+            node_size, depth, breadth)
 
 
 def build_argv(binary, config):
@@ -786,10 +850,12 @@ def summary_line(config, result):
         parsed.get("received", "?"), parsed.get("expected", "?"),
         parsed.get("order_sig", "?"))
     # Each workload carries different shape fields: mesh/cyclic have chains/ttl,
-    # backpressure has producers/messages/apply-every instead (no chains/ttl). Only
-    # payload is shared. A systematic config has no `workload` key (always mesh, by
-    # the engine default), so default to mesh. Fold chains/ttl into the per-kind
-    # string so the backpressure branch never reads a field it lacks.
+    # backpressure has producers/messages/apply-every instead (no chains/ttl), iso
+    # has pingers/chains/ttl + its own cargo knobs and NO payload. A systematic
+    # config has no `workload` key (always mesh, by the engine default), so default
+    # to mesh. Each branch reads only the fields its kind carries -- iso needs its
+    # own arm so an iso run is not mislabeled `mesh` by the fall-through, and the
+    # shared `payload` read is guarded (iso has none).
     wl = shape.get("workload", "mesh")
     if wl == "cyclic":
         kind = "cyclic generations=%d group=%d chains=%d ttl=%d" % (
@@ -797,12 +863,16 @@ def summary_line(config, result):
     elif wl == "backpressure":
         kind = "backpressure producers=%d messages=%d apply_every=%d" % (
             shape["producers"], shape["messages"], shape["apply-every"])
+    elif wl == "iso":
+        kind = ("iso pingers=%d chains=%d ttl=%d node_size=%d depth=%d breadth=%d"
+                % (shape["pingers"], shape["chains"], shape["ttl"],
+                   shape["node-size"], shape["node-depth"], shape["node-breadth"]))
     else:
         kind = "mesh pingers=%d chains=%d ttl=%d" % (
             shape["pingers"], shape["chains"], shape["ttl"])
     return "[seed %d] %s (%s payload=%s) %s" % (
         config["master_seed"], result.outcome.upper(), kind,
-        shape["payload"], detail)
+        shape.get("payload", "none"), detail)
 
 
 def execute(binary, config, version, use_flags, out_dir, timeout,

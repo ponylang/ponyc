@@ -25,7 +25,7 @@ them lives in the two driver scripts, not behind a flag.
 ## The engine
 
 **`main.pony`** — the workload engine, identical in both modes. It draws one of
-three closed, count-driven workloads (`--workload`):
+four closed, count-driven workloads (`--workload`):
 
 - **`mesh`** — a closed mesh of `Pinger` actors: a fixed number of chains are
   injected, each with a hop count (TTL); a pinger forwards exactly one ping per
@@ -60,25 +60,49 @@ three closed, count-driven workloads (`--workload`):
   then asserts `received == sent == producers * messages` from the producers' own
   send tallies — so conservation here is the mesh's strength, not the cyclic's
   weakness: a lost work is caught as a conservation failure, not merely a timeout.
+- **`iso`** — the `mesh` topology, but the shared `val` payload is replaced by a
+  freshly built nested `iso` object graph — a `Parcel` tree of `--node-depth`
+  levels with `--node-breadth` children per node, every node separately allocated
+  and holding its own byte array — that is `consume`d hop-to-hop. Each hop moves
+  ownership of the whole mutable subgraph to the next actor, so the receiver
+  acquires a foreign *mutable* multi-object graph node by node — the ORCA trace path
+  no other workload reaches (the others only ever make a raw byte buffer mutable,
+  never a typed object struct, and never transfer a mutable subgraph). The swarm
+  draws the graph shape, so runs span a single flat node through a 15-node tree. At
+  the terminal hop the graph is consumed into a `ref` and every node's sentinel
+  bytes are verified, so a silent GC corruption or premature free of the moved
+  subgraph is caught, not just a crash. Conservation is the mesh's full send/receive
+  tally (`sent == received == chains * (ttl + 1)`); the `Carrier`s are live at
+  quiescence (the `Dispatcher` holds them), so they are polled exactly like the
+  mesh.
 
-The traced payload is a `val String` or a `U64` no-GC control (`--payload`),
-either reused as one object (forwarded down a chain, or re-sent by a producer) or
-re-allocated at each send (`--payload-mode forward|fresh`) — the swarm draws both.
-On success the engine prints its result and lets the program reach **natural
+For the mesh/cyclic/backpressure workloads the traced payload is a `val String` or
+a `U64` no-GC control (`--payload`), either reused as one object (forwarded down a
+chain, or re-sent by a producer) or re-allocated at each send
+(`--payload-mode forward|fresh`) — the swarm draws both. The `iso` workload has its
+OWN cargo knobs (`--node-size`/`--node-depth`/`--node-breadth` shape the iso graph)
+and does not draw the val payload at all: an `iso` is single-owner, so it can't ride
+the shared `(String val | U64)` payload union and can't be reused, only moved. On
+success the engine prints its result and lets the
+program reach **natural
 quiescence** (no forced exit), so the `cyclic` workload's garbage is actually
 collected and the runtime's clean shutdown is itself exercised; only a
 conservation *failure* forces a non-zero exit. The engine holds no configuration
 logic and no `@runtime_override_defaults`; every knob is a CLI flag set by the
 orchestrator.
 
-The systematic mode draws only the `mesh` workload today; the `cyclic` and
-`backpressure` workloads run under the normal mode, where real parallelism catches
-the concurrent collection and mute/unmute races the serialized systematic mode
-can't. (Running `cyclic` under systematic with the determinism oracle is a deferred
-follow-up — it reproduces with the detector on post-#5569, but needs the systematic
-driver's forced `--ponynoblock` relaxed. A systematic `backpressure` leg is also a
-follow-up — muting is cycle-detector-independent, so it is *not* blocked by that
-forced `--ponynoblock`, but its determinism under systematic is unverified.)
+The systematic mode draws only the `mesh` workload today; the `cyclic`,
+`backpressure`, and `iso` workloads run under the normal mode, where real
+parallelism catches the concurrent collection, mute/unmute, and mutable-subgraph
+acquire races the serialized systematic mode can't. (Running `cyclic` under
+systematic with the determinism oracle is a deferred follow-up — it reproduces with
+the detector on post-#5569, but needs the systematic driver's forced `--ponynoblock`
+relaxed. A systematic `backpressure` leg is also a follow-up — muting is
+cycle-detector-independent, so it is *not* blocked by that forced `--ponynoblock`,
+but its determinism under systematic is unverified. A systematic `iso` leg is a
+follow-up too — its `ORDER_SIG` is a real interleaving fingerprint, like the mesh's,
+so it is the most directly portable, but its determinism under systematic is
+likewise unverified.)
 
 ## Running it
 
@@ -120,22 +144,37 @@ non-deterministic, so a replay won't necessarily reproduce a failure).
 
 ## Oracles
 
-- **Conservation** — for the `mesh` workload, messages sent == received == the
-  expected total (an independent per-pinger tally); a mismatch is a lost or
-  duplicated message. The `backpressure` workload is just as strong: completion
-  triggers on all producers reporting `finished` (independent of the received
-  count), then asserts received == the producers' own send tally == the expected
-  total, so a lost work is a conservation failure, not just a timeout. The `cyclic`
-  workload's actors are garbage by quiescence and can't be polled, so its
-  conservation is *completion-count only*: exactly `generations * chains` terminal
-  completions must arrive — weaker than the other two. The engine checks this itself
-  and exits non-zero on a detected failure, so it holds in **both** modes.
+- **Conservation** — the `mesh` and `iso` workloads poll an exact, independent
+  per-actor send/receive tally from the live pingers/carriers (`sent == received ==
+  chains * (ttl + 1)`); a duplicate or miscounted message shows as a tally mismatch.
+  A *lost* mesh/iso message does NOT show here — the chain never completes, so the
+  tally is never polled — it surfaces as a liveness timeout instead. The
+  `backpressure` workload is the strongest on *lost* messages: its `finished`
+  reports are sent independently of work delivery, so a lost work still lets
+  `_finish` run and assert received == the producers' send tally == the expected
+  total — a conservation failure, not just a timeout. The `cyclic` workload's actors
+  are garbage by quiescence and can't be polled, so its conservation is
+  *completion-count only* (exactly `generations * chains` completions) — weaker than
+  the `mesh`/`iso` exact tally. The engine checks this itself and exits non-zero on a
+  detected failure, so it holds in **both** modes.
 - **Late / duplicate message** — for `mesh`, anything arriving after a pinger has
   reported is a leak; for `backpressure`, a work or `finished` after completion, or
   more `finished` reports than producers, is a duplicate; for `cyclic`, a completion
-  beyond the expected total is a duplicate. All trip the engine's fatal-fault path.
-  (A *lost* `cyclic` message instead leaves the completion count short forever —
-  caught by liveness, not here.)
+  beyond the expected total is a duplicate; for `iso`, a handoff arriving after a
+  `Carrier` has reported, or a completion beyond `chains`, is a duplicate. All trip
+  the engine's fatal-fault path. (A *lost* mesh/cyclic/iso message instead leaves
+  its chain incomplete forever — caught by the liveness timeout, not here; only
+  `backpressure` catches a lost message as a conservation failure.)
+- **Parcel integrity** (`iso` workload) — the only oracle in the harness that
+  checks message *contents*, not just counts. Every node of the graph is built with
+  sentinel bytes; at the terminal hop the `Carrier` consumes the graph into a `ref`
+  and walks the whole tree, checking the first and last byte of each node's array,
+  so a silent GC corruption or premature free that disturbs an endpoint sentinel —
+  which the message-counting oracles cannot see — trips the fatal-fault path. This
+  is endpoint sampling, not a full scan: it *narrows* the payload-integrity gap
+  (below) for `iso` rather than closing it (interior-only corruption, or a premature
+  free whose memory is not yet reused, still slips through); the other three
+  workloads check no bytes at all.
 - **Backpressure / muting** (`backpressure` workload) — the consumer explicitly
   applies and releases runtime backpressure, driving the UNDER_PRESSURE mute/unmute
   reschedule path (the stdlib `backpressure` FFI, the `triggers_muting` /
@@ -183,13 +222,17 @@ actor pointer values, which ASLR randomizes per run.
 creation-order keyed instead, so replay is now layout-independent on every
 platform and no ASLR wrapper is needed.)
 
-Not yet checked: the payload's bytes at the end of a chain. A non-crashing trace
-or GC corruption (wrong bytes, truncation) would pass every oracle above —
-conservation counts messages and `ORDER_SIG` mixes ids and counts. A
-payload-integrity check is deferred to a later round, alongside richer
-allocation-diversity work, an exact spawned == finalized count for the `cyclic`
-workload, running `cyclic` under the systematic determinism oracle, and a
-systematic `backpressure` leg.
+Not yet checked: the payload's bytes for the mesh/cyclic/backpressure workloads. A
+non-crashing trace or GC corruption (wrong bytes, truncation) on one of those would
+pass every oracle above — conservation counts messages and `ORDER_SIG` mixes ids
+and counts. (The `iso` workload *narrows* this for itself — its terminal `Carrier`
+checks the endpoint sentinel bytes of the parcel; see Parcel integrity above — but
+interior corruption still slips through there too, and the other three check no
+bytes. A full byte-integrity check is deferred.) Also deferred to a later round:
+richer allocation-diversity work, the `iso` graph carrying `tag` actor references
+(dynamic cross-actor edges that can form cycles) rather than only byte arrays, an
+exact spawned == finalized count for the `cyclic` workload, and running `cyclic`,
+`backpressure`, and `iso` under the systematic determinism oracle.
 
 ## Tests
 
@@ -198,10 +241,11 @@ Three self-contained test files (no pytest), run in CI via `lint-python.yml`:
 - `stress_common_test.py` — the shared pure pieces (seed derivation, the workload
   draws including `draw_workload`, output parsing, command building).
 - `orchestrate_systematic_test.py` — the systematic config draw (pinned golden;
-  always the `mesh` workload, unchanged by the cyclic/backpressure work).
+  always the `mesh` workload, unchanged by the cyclic/backpressure/iso work).
 - `orchestrate_normal_test.py` — the normal config draw (no systematic seed,
-  `ponynoblock` as a swarm knob, all three workload kinds drawn, the cyclic memory
-  ceiling and the backpressure message ceiling, pinned per-kind goldens).
+  `ponynoblock` as a swarm knob, all four workload kinds drawn, the cyclic memory
+  ceiling, the backpressure message ceiling, the iso chains/ttl burst ceilings,
+  pinned per-kind goldens).
 
 Run one directly:
 

@@ -2,9 +2,11 @@
 Generative runtime stress harness.
 
 A swarm-driven Pony program that exercises the runtime's message passing, ORCA
-tracing, the cycle detector's collection path (via the `cyclic` workload), and the
-explicit backpressure / muting path (via the `backpressure` workload). One run
-draws one of three closed, count-driven workloads (`--workload`):
+tracing, the cycle detector's collection path (via the `cyclic` workload), the
+explicit backpressure / muting path (via the `backpressure` workload), and ORCA's
+transfer of ownership of a nested mutable object subgraph between actors (via the
+`iso` workload). One run draws one of four closed, count-driven workloads
+(`--workload`):
 
 * `mesh` (M0): a closed mesh of `Pinger` actors. A fixed number of chains are
   injected, each carrying a hop counter (TTL); a `Pinger` receiving a ping with
@@ -49,6 +51,21 @@ draws one of three closed, count-driven workloads (`--workload`):
   `received == sent == producers * messages` from the producers' own send tallies,
   so a lost work is caught as a conservation failure here, not merely as a timeout.
 
+* `iso` (M1): the `mesh` topology, but the shared `val` payload is replaced by a
+  freshly built nested `iso` object graph -- a `Parcel` tree of `--node-depth`
+  levels with `--node-breadth` children per node, every node a separate allocation
+  holding its own byte array -- `consume`d hop-to-hop. Each hop moves ownership of
+  the whole mutable subgraph to the next actor, so the receiver acquires a foreign
+  *mutable* multi-object graph node by node -- a trace path no other workload
+  reaches (the others only ever make a raw byte buffer mutable, never a typed
+  object struct, and never transfer a mutable subgraph). The swarm draws the graph
+  shape, so runs span a single flat node through a 15-node tree. At the terminal
+  hop the graph is consumed into a `ref` and every node's sentinel bytes are
+  verified, so a silent GC corruption or premature free of the moved subgraph is
+  caught, not just a crash. Conservation is the mesh's full send/receive tally
+  (`sent == received == chains * (ttl + 1)`); the `Carrier`s are live at quiescence
+  (the `Dispatcher` holds them), so they are polled exactly like the mesh.
+
 The workloads are closed, unlike an open cascade stopped by a wall-clock timer:
 a fixed amount of work is injected and the run terminates when it drains. The
 closed shape is a deliberate constraint, not the end goal -- a continuous, open
@@ -81,7 +98,7 @@ cycle detector, GC, thread count, the systematic seed) is a `--pony*` flag set b
 the orchestrator, and every workload parameter is a `--flag value` arg parsed
 here. Two orchestrators in this directory drive it: `orchestrate_systematic.py`
 (serialized, reproducible -- draws only the `mesh` workload today) and
-`orchestrate_normal.py` (a normal, real-parallel runtime -- draws all three
+`orchestrate_normal.py` (a normal, real-parallel runtime -- draws all four
 workloads; the conservation invariant holds there too, but `ORDER_SIG` does not
 reproduce, so that mode runs each seed once).
 """
@@ -101,7 +118,8 @@ type Payload is (String val | U64)
   trace across the actor boundary) or a `U64` primitive (a no-GC control). The
   kind is fixed for a whole run by `--payload`; `--payload-mode` then decides
   whether one payload object is reused (forwarded the whole chain, or re-sent by a
-  producer) or a fresh one is allocated at each send. Shared by all workloads.
+  producer) or a fresh one is allocated at each send. Shared by the mesh, cyclic,
+  and backpressure workloads (the `iso` workload has its own `Parcel` cargo).
   """
 
 primitive _Payloads
@@ -109,7 +127,8 @@ primitive _Payloads
   Builds a message payload of the configured kind. `--payload-mode forward` reuses
   one object across a sender's sends (exercising ORCA's shared-`val` refcounting);
   `fresh` calls this at every send (exercising allocation + tracing + collection
-  churn). Used by all three workloads.
+  churn). Used by the mesh, cyclic, and backpressure workloads (the `iso` workload
+  builds its own `Parcel` cargo instead).
   """
   fun make(config: _Config): Payload =>
     if config.payload_string then
@@ -183,6 +202,7 @@ actor Main
           // Only this workload needs the backpressure auth token, built from the
           // root authority here and threaded into the Consumer.
           Consumer(config, bp, ApplyReleaseBackpressureAuth(env.root))
+        | let iso': _Iso => Dispatcher(config, iso')
         end
       | let err: String =>
         env.err.print(err)
@@ -775,6 +795,254 @@ actor Consumer
   fun ref _mix(v: U64) =>
     _sig = (_sig xor v) * 1099511628211 // FNV-1a 64-bit prime
 
+class Parcel
+  """
+  The `iso` workload's cargo: a multi-object MUTABLE subgraph, shaped by the swarm.
+  Each node is a typed struct (traced `PONY_TRACE_MUTABLE` while owned through an
+  `iso`) holding its own byte array AND an array of child `Parcel`s, so one
+  `Parcel iso` is a tree of `depth` levels, `breadth` children per node, every node
+  separately allocated. Built fresh per injected chain and moved (`consume`d) at
+  each hop; never reused (an `iso` is single-owner). Every byte is the sentinel 'p',
+  so the terminal hop can verify the whole moved subgraph survived uncorrupted.
+
+  `bytes` and `kids` are `let`, NOT `embed`, on purpose -- separate heap
+  allocations, so a receiver acquires each node as a distinct foreign mutable
+  object. An `embed` would co-allocate them, collapsing the multi-object subgraph
+  this workload exists to trace. The workload's coverage rests on this type being
+  built and handed off as `iso` (not `val`) and staying multi-object (`let`, not
+  `embed`): changing either silently loses the coverage while every oracle stays
+  green -- see .known-couplings/iso-handoff-workload-ownership.md (pony-ref's
+  "prefer embed" guidance does not apply here).
+  """
+  let bytes: Array[U8]
+  let kids: Array[Parcel]
+
+  new create(size: USize, depth: USize, breadth: USize) =>
+    bytes = Array[U8].init('p', size)
+    // A node has `breadth` children only when it is not the last level; the last
+    // level (depth == 1) has none. `depth == 1` or `breadth == 0` is a single node.
+    let n = if depth > 1 then breadth else 0 end
+    kids = Array[Parcel](n)
+    var i: USize = 0
+    while i < n do
+      kids.push(Parcel(size, depth - 1, breadth))
+      i = i + 1
+    end
+
+actor Carrier
+  """
+  An `iso`-workload node. Mirrors `Pinger`: produces exactly one successor message
+  per received handoff and tracks how many it has sent and received. The successor
+  carries the `consume`d parcel itself -- moving ownership of the mutable subgraph
+  one hop further -- so the trace path the workload exists to drive runs on every
+  forward. At the terminal hop it verifies the parcel before dropping it.
+  """
+  let _dispatcher: Dispatcher
+  let _id: USize
+  var _neighbors: Array[Carrier] val
+  var _received: U64 = 0
+  var _sent: U64 = 0
+  var _reported: Bool = false
+  let _rand: Rand
+
+  new create(dispatcher: Dispatcher, id: USize, seed: U64) =>
+    _dispatcher = dispatcher
+    _id = id
+    _neighbors = recover val Array[Carrier] end
+    // Per-Carrier deterministic draw stream, seeded only from `--seed` + id (the
+    // same scheme as `Pinger`); which value lands on which handoff depends on
+    // mailbox arrival order, so routing is a function of the seed AND the
+    // interleaving. No `_Config` is stored: a `Carrier` needs nothing from it but
+    // the seed (it has no payload logic, unlike `Pinger`).
+    _rand = Rand(seed, id.u64())
+
+  be set_neighbors(neighbors: Array[Carrier] val) =>
+    """
+    Install the full mesh BEFORE any handoff can arrive. The `Dispatcher` sends
+    this to every `Carrier` in program order before it injects, so by Pony's
+    causal delivery every `Carrier` has its neighbors before any handoff -- the
+    same load-bearing ordering as `Pinger.set_neighbors`.
+    """
+    _neighbors = neighbors
+
+  be carry(parcel: Parcel iso, hops: USize, chain: USize) =>
+    """
+    Produce exactly one successor per received handoff: a forward of the
+    `consume`d parcel when hops > 0, otherwise verify it and signal completion.
+    This one-in/one-out invariant is what makes the dispatcher's completion count a
+    sound quiescence barrier (module docstring) -- do not make this fan out.
+    `consume` moves the parcel; it is never aliased, so the U64 tallies are
+    untouched by the move.
+    """
+    if _reported then
+      // Quiescence is proven before `report()` is sent, so no handoff should
+      // arrive afterwards. One that does is a leaked or duplicated message.
+      _Fatal("carry after report (leaked/late message)")
+    end
+    _received = _received + 1
+    if hops > 0 then
+      _sent = _sent + 1
+      let next = _rand.int(_neighbors.size().u64()).usize()
+      try
+        _neighbors(next)?.carry(consume parcel, hops - 1, chain)
+      else
+        _Unreachable("carrier neighbor index out of range")
+      end
+    else
+      // Terminal hop. Consume the parcel into a `ref` so its arrays can be read
+      // (a field read THROUGH an `iso` viewpoint-adapts to `tag` and will not
+      // compile; consuming into `ref` gives full read access, since `iso^` can
+      // become `ref`). Verify it, then drop it.
+      let p: Parcel ref = consume parcel
+      _verify(p)
+      _dispatcher.completed(chain, _id, _received)
+    end
+
+  fun _verify(parcel: Parcel box) =>
+    """
+    Integrity oracle (recursive): every byte of every node in the graph was the
+    sentinel 'p' at construction and the subgraph was only moved (never mutated)
+    since, so each node's first and last byte must still be 'p'. Walk the whole
+    tree (`node_size >= 1` is a `_Config` invariant, so the endpoint reads are in
+    range). A mismatch is a silent GC/ORCA corruption or premature free of the
+    moved subgraph -- a real fault none of the message-counting oracles can see.
+    """
+    try
+      let n = parcel.bytes.size()
+      if (parcel.bytes(0)? != 'p') or (parcel.bytes(n - 1)? != 'p') then
+        _Fatal("parcel corruption (sentinel byte mismatch)")
+      end
+    else
+      _Unreachable("parcel array empty (node_size >= 1 guaranteed)")
+    end
+    for kid in parcel.kids.values() do
+      _verify(kid)
+    end
+
+  be report() =>
+    _reported = true
+    _dispatcher.report_counts(_sent, _received)
+
+actor Dispatcher
+  """
+  The `iso` workload's driver, injector, and conservation oracle in one actor (the
+  mesh `Coordinator` pattern). Builds the `Carrier` mesh, injects the parcels,
+  counts completions to detect quiescence, collects per-`Carrier` send/receive
+  tallies, and evaluates conservation. On completion it prints `ORDER_SIG` plus the
+  tallies; on a conservation failure it forces a non-zero exit, otherwise it
+  returns and lets the program quiesce.
+  """
+  let _iso: _Iso
+  let _carriers: Array[Carrier] val
+  var _completions: USize = 0
+  var _reports_outstanding: USize = 0
+  var _total_sent: U64 = 0
+  var _total_received: U64 = 0
+  var _done: Bool = false
+  var _sig: U64 = 14695981039346656037 // FNV-1a 64-bit offset basis
+
+  new create(config: _Config, iso': _Iso) =>
+    _iso = iso'
+
+    // Build the mesh. Carriers are created outside the `recover` block (so we can
+    // pass `this`) and pushed into the iso array via automatic receiver recovery
+    // -- `push`'s argument, a `Carrier tag`, is sendable. Only `config.seed` is
+    // needed (in this constructor), so no `_Config` field is stored.
+    let cs: Array[Carrier] iso = recover Array[Carrier](iso'.pingers) end
+    var id: USize = 0
+    while id < iso'.pingers do
+      cs.push(Carrier(this, id, config.seed))
+      id = id + 1
+    end
+    let carriers: Array[Carrier] val = consume cs
+    _carriers = carriers
+
+    // Wire neighbors, THEN inject. The ordering is load-bearing -- the same
+    // reasoning as `Coordinator` (see `Carrier.set_neighbors`).
+    for c in carriers.values() do
+      c.set_neighbors(carriers)
+    end
+
+    // Each injected parcel is one dispatcher send (added back in `_finish`).
+    let r = Rand(config.seed)
+    var chain: USize = 0
+    while chain < iso'.chains do
+      let start = r.int(carriers.size().u64()).usize()
+      try
+        // Fresh graph per chain -- an `iso` is single-owner, so there is no
+        // forward-mode reuse; the graph is always newly built and moved.
+        carriers(start)?.carry(
+          recover iso Parcel(iso'.node_size, iso'.depth, iso'.breadth) end,
+          iso'.ttl, chain)
+      else
+        _Unreachable("iso injection start index out of range")
+      end
+      chain = chain + 1
+    end
+
+  be completed(chain: USize, terminal_id: USize, received_snapshot: U64) =>
+    """
+    A parcel reached its terminal (hops == 0) carrier. Fold the arrival into the
+    order signature; once every parcel has terminated the system is quiesced, so
+    ask every `Carrier` for its final counts. A completion beyond the expected
+    total is a duplicate or late message -- a real fault -- so it trips `_Fatal`
+    (the cyclic collector's overshoot guard, which the mesh `Coordinator` lacks).
+    """
+    if _done then _Fatal("completion after done (leaked/late message)") end
+    _mix(chain.u64())
+    _mix(terminal_id.u64())
+    _mix(received_snapshot)
+    _completions = _completions + 1
+    if _completions == _iso.chains then
+      _reports_outstanding = _carriers.size()
+      for c in _carriers.values() do c.report() end
+    elseif _completions > _iso.chains then
+      _Fatal("late/duplicate completion (completions > chains)")
+    end
+
+  be report_counts(sent: U64, received: U64) =>
+    """
+    Accumulate one `Carrier`'s tallies. When all have reported, evaluate the
+    conservation oracle.
+    """
+    _total_sent = _total_sent + sent
+    _total_received = _total_received + received
+    _reports_outstanding = _reports_outstanding - 1
+    if _reports_outstanding == 0 then
+      _finish()
+    end
+
+  fun ref _finish() =>
+    _done = true
+    // The dispatcher itself performed `chains` initial sends (the injected
+    // parcels); every `Carrier` forward is already in `_total_sent`.
+    let total_sent = _total_sent + _iso.chains.u64()
+    let expected = _iso.chains.u64() * (_iso.ttl.u64() + 1)
+    let conserved =
+      (total_sent == _total_received) and (_total_received == expected)
+
+    // Synchronous print so the result survives natural quiescence (env.out.print
+    // is async and could be lost if a later exit raced it).
+    let line = "RECEIVED=" + _total_received.string()
+      + " SENT=" + total_sent.string()
+      + " EXPECTED=" + expected.string()
+      + " ORDER_SIG=" + _sig.string() + "\n"
+    @printf("%s".cstring(), line.cstring())
+
+    // On success: return and let the program reach natural quiescence (no forced
+    // exit), same as the other workloads. Only a conservation FAILURE forces a
+    // non-zero exit: fail fast once a bug is detected.
+    if not conserved then
+      let diag = "CONSERVATION FAILURE: received=" + _total_received.string()
+        + " sent=" + total_sent.string()
+        + " expected=" + expected.string() + "\n"
+      @fprintf(@pony_os_stderr(), "%s".cstring(), diag.cstring())
+      @exit(I32(1))
+    end
+
+  fun ref _mix(v: U64) =>
+    _sig = (_sig xor v) * 1099511628211 // FNV-1a 64-bit prime
+
 class val _Mesh
   """
   The `mesh` workload's shape. Built only by `_Cli.config` (after validation), so
@@ -817,8 +1085,8 @@ class val _Backpressure
   The `backpressure` workload's shape. Built only by `_Cli.config` (after
   validation), so `producers >= 1`, `messages >= 1`, and `apply_every >= 1` can be
   trusted. Has no chains/ttl: a flood is not a chain of hops, so those fields are
-  structurally absent here (the reason chains/ttl live on `_Mesh`/`_Cyclic` rather
-  than on the shared `_Config`).
+  structurally absent here (the reason chains/ttl live on `_Mesh`/`_Cyclic`/`_Iso`
+  rather than on the shared `_Config`).
   """
   let producers: USize
   let messages: USize
@@ -829,23 +1097,52 @@ class val _Backpressure
     messages = messages'
     apply_every = apply_every'
 
+class val _Iso
+  """
+  The `iso` workload's shape. Built only by `_Cli.config` (after validation), so
+  `pingers >= 1`, `chains >= 1`, `node_size >= 1`, and `depth >= 1` can be trusted
+  (`ttl` and `breadth` have no lower bound -- breadth 0 or depth 1 is a single-node
+  graph). Carries its own shape for the same reason as `_Mesh`/`_Cyclic`: a
+  `backpressure` config cannot carry it, so an illegal cross-workload field mix is
+  unrepresentable. Has its OWN cargo knobs (node_size/depth/breadth shape the iso
+  graph), NOT the shared String-payload knobs -- an `iso` can't ride the
+  `(String val | U64)` Payload.
+  """
+  let pingers: USize
+  let chains: USize
+  let ttl: USize
+  let node_size: USize
+  let depth: USize
+  let breadth: USize
+
+  new val create(pingers': USize, chains': USize, ttl': USize,
+    node_size': USize, depth': USize, breadth': USize)
+  =>
+    pingers = pingers'
+    chains = chains'
+    ttl = ttl'
+    node_size = node_size'
+    depth = depth'
+    breadth = breadth'
+
 class val _Config
   """
   A validated workload configuration: the fields shared by all workloads (seed and
-  payload kind/size/mode) plus the workload-specific shape (`_Mesh`, `_Cyclic`, or
-  `_Backpressure`). The chain/hop counts are NOT here -- only the two chain-based
-  workloads have them, so they live on those variants. Built only by `_Cli.config`,
-  so the rest of the program can trust its invariants (payload_size >= 1 when
-  payload_string, plus the per-shape invariants on the variant).
+  payload kind/size/mode) plus the workload-specific shape (`_Mesh`, `_Cyclic`,
+  `_Backpressure`, or `_Iso`). The chain/hop counts are NOT here -- only the three
+  chain-based workloads (mesh/cyclic/iso) have them, so they live on those variants.
+  Built only by `_Cli.config`, so the rest of the program can trust its invariants
+  (payload_size >= 1 when payload_string, plus the per-shape invariants on the
+  variant).
   """
   let seed: U64
   let payload_string: Bool
   let payload_size: USize
   let payload_fresh: Bool
-  let workload: (_Mesh | _Cyclic | _Backpressure)
+  let workload: (_Mesh | _Cyclic | _Backpressure | _Iso)
 
   new val create(seed': U64, payload_string': Bool, payload_size': USize,
-    payload_fresh': Bool, workload': (_Mesh | _Cyclic | _Backpressure))
+    payload_fresh': Bool, workload': (_Mesh | _Cyclic | _Backpressure | _Iso))
   =>
     seed = seed'
     payload_string = payload_string'
@@ -874,10 +1171,10 @@ primitive _Cli
           "engine RNG seed"
           where default' = 1)
         OptionSpec.string("workload",
-          "workload kind: mesh | cyclic | backpressure"
+          "workload kind: mesh | cyclic | backpressure | iso"
           where default' = "mesh")
         OptionSpec.u64("pingers",
-          "mesh only (ignored otherwise): number of mesh actors (>= 1)"
+          "mesh/iso only (ignored otherwise): number of mesh actors (>= 1)"
           where default' = 8)
         OptionSpec.u64("generations",
           "cyclic only (ignored otherwise): garbage-group generations (>= 1)"
@@ -895,11 +1192,21 @@ primitive _Cli
           "backpressure only (ignored otherwise): received msgs between "
           + "apply/release toggles (>= 1)"
           where default' = 200)
+        OptionSpec.u64("node-size",
+          "iso only (ignored otherwise): bytes per graph node array (>= 1)"
+          where default' = 64)
+        OptionSpec.u64("node-depth",
+          "iso only (ignored otherwise): graph nesting levels (>= 1)"
+          where default' = 2)
+        OptionSpec.u64("node-breadth",
+          "iso only (ignored otherwise): child nodes per graph node"
+          where default' = 1)
         OptionSpec.u64("chains",
-          "mesh/cyclic only (ignored for backpressure): chains to inject (>= 1)"
+          "mesh/cyclic/iso only (ignored for backpressure): chains to inject "
+          + "(>= 1)"
           where default' = 8)
         OptionSpec.u64("ttl",
-          "mesh/cyclic only (ignored for backpressure): hops per chain"
+          "mesh/cyclic/iso only (ignored for backpressure): hops per chain"
           where default' = 16)
         OptionSpec.string("payload",
           "traced payload kind: string | u64"
@@ -926,6 +1233,9 @@ primitive _Cli
     let producers = cmd.option("producers").u64().usize()
     let messages = cmd.option("messages").u64().usize()
     let apply_every = cmd.option("apply-every").u64().usize()
+    let node_size = cmd.option("node-size").u64().usize()
+    let node_depth = cmd.option("node-depth").u64().usize()
+    let node_breadth = cmd.option("node-breadth").u64().usize()
 
     let payload_string =
       if payload == "string" then
@@ -949,9 +1259,9 @@ primitive _Cli
       return "--payload-size must be >= 1 for string payload"
     end
 
-    // chains is validated only where it is used (the two chain-based workloads);
-    // backpressure has no chains, so it carries none.
-    let workload: (_Mesh | _Cyclic | _Backpressure) =
+    // chains is validated only where it is used (the chain-based workloads:
+    // mesh/cyclic/iso); backpressure has no chains, so it carries none.
+    let workload: (_Mesh | _Cyclic | _Backpressure | _Iso) =
       if workload_name == "mesh" then
         if pingers < 1 then return "--pingers must be >= 1" end
         if chains < 1 then return "--chains must be >= 1" end
@@ -966,8 +1276,15 @@ primitive _Cli
         if messages < 1 then return "--messages must be >= 1" end
         if apply_every < 1 then return "--apply-every must be >= 1" end
         _Backpressure(producers, messages, apply_every)
+      elseif workload_name == "iso" then
+        if pingers < 1 then return "--pingers must be >= 1" end
+        if chains < 1 then return "--chains must be >= 1" end
+        if node_size < 1 then return "--node-size must be >= 1" end
+        if node_depth < 1 then return "--node-depth must be >= 1" end
+        _Iso(pingers, chains, ttl, node_size, node_depth, node_breadth)
       else
-        return "bad --workload (expected 'mesh', 'cyclic' or 'backpressure')"
+        return "bad --workload (expected 'mesh', 'cyclic', 'backpressure' or "
+          + "'iso')"
       end
 
     _Config(seed, payload_string, payload_size, payload_fresh, workload)
@@ -976,11 +1293,13 @@ primitive _Fatal
   """
   The harness's runtime-fault detector: print a diagnostic to stderr and exit
   non-zero. Used by the late/duplicate-message oracles across all workloads -- a
-  ping arriving after a `Pinger` has reported, a cyclic completion beyond the
-  expected total, or a backpressure `work`/`finished` after the `Consumer` is done
-  (or more `finished` reports than producers) -- each is a duplicated or delayed
-  message, a real runtime fault, so the stress run fails loudly with a location
-  rather than passing.
+  ping or `iso` handoff arriving after its node has reported, a cyclic or `iso`
+  completion beyond the expected total, or a backpressure `work`/`finished` after
+  the `Consumer` is done (or more `finished` reports than producers) -- and by the
+  `iso` workload's parcel-integrity oracle (a sentinel-byte mismatch in a delivered
+  graph). Each is a real runtime fault -- a duplicated or delayed message, or a
+  silently corrupted one -- so the stress run fails loudly with a location rather
+  than passing.
   """
   fun apply(msg: String, loc: SourceLoc = __loc) =>
     let line = "FATAL: " + msg + " (" + loc.file() + ":"
@@ -991,11 +1310,12 @@ primitive _Fatal
 primitive _Unreachable
   """
   A branch the compiler can't prove is dead but we know is: every guarded array
-  access here is indexed by `Rand.int(size)` with `size >= 1`, so the index is in
-  range by construction. If one ever fires it is a real bug, so crash with a
-  location rather than continue with corrupt state (the "unreachable try/else"
-  rule). Distinct from `_Fatal`: this flags a fault that should be impossible,
-  not one the harness is built to catch.
+  access here is in range by construction -- a neighbor or injection-start index
+  from `Rand.int(size)` with `size >= 1`, or an `iso`-parcel array index guarded by
+  the `node_size >= 1` invariant. If one ever fires it is a real bug, so crash with
+  a location rather than continue with corrupt state (the "unreachable try/else"
+  rule). Distinct from `_Fatal`: this flags a fault that should be impossible, not
+  one the harness is built to catch.
   """
   fun apply(msg: String, loc: SourceLoc = __loc) =>
     let line = "UNREACHABLE: " + msg + " (" + loc.file() + ":"

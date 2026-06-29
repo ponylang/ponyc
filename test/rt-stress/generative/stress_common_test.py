@@ -289,6 +289,15 @@ CYCLIC_WORKER_CEILING = 130000
 BACKPRESSURE_MESSAGE_CEILING = 110_000_000
 
 
+# Calibrated iso ceilings. iso's memory bound is the ACQUIRE-FLOOD =
+# chains * ttl * node_count; the per-run chains draw is CLAMPED so this stays within
+# ISO_ACQUIRE_BUDGET (see stress_common). These pin the calibrated budget (worst
+# ~160 MB at K=96000) and the max graph node count; bumping either forces a memory
+# re-measure (the OOM cliff is non-monotonic near the edge).
+ISO_ACQUIRE_CEILING = 96000
+ISO_NODE_CEILING = 15
+
+
 class _CallCountingRandom(random.Random):
     """A Random that counts the high-level draw calls (random/randint/choice) made
     on it, delegating to the real implementation so the produced values are
@@ -324,10 +333,11 @@ def test_draw_workload():
     bp_msg_lo = common.BACKPRESSURE_MESSAGE_BUCKETS["small"][0]
     bp_msg_hi = common.BACKPRESSURE_MESSAGE_BUCKETS["large"][1]
     for master in range(0, 500):
-        (workload, generations, group, producers, messages, apply_every) = \
+        (workload, generations, group, producers, messages, apply_every,
+         node_size, depth, breadth) = \
             common.draw_workload(random.Random(master))
         kinds.add(workload)
-        if workload not in ("mesh", "cyclic", "backpressure"):
+        if workload not in ("mesh", "cyclic", "backpressure", "iso"):
             bounds_ok = False
         # EVERY kind's params are drawn for every roll (fixed rng consumption), so
         # they are always valid numbers in range regardless of the rolled kind --
@@ -342,8 +352,14 @@ def test_draw_workload():
             bounds_ok = False
         if apply_every not in common.BACKPRESSURE_APPLY_EVERY:
             bounds_ok = False
-    check("draw_workload covers all three workload kinds",
-          kinds == {"mesh", "cyclic", "backpressure"})
+        if node_size not in common.ISO_NODE_SIZES:
+            bounds_ok = False
+        if depth not in common.ISO_DEPTHS:
+            bounds_ok = False
+        if breadth not in common.ISO_BREADTHS:
+            bounds_ok = False
+    check("draw_workload covers all four workload kinds",
+          kinds == {"mesh", "cyclic", "backpressure", "iso"})
     check("draw_workload all shape params always in range (drawn for every kind)",
           bounds_ok)
     # Ceiling guard: assert the THEORETICAL worst case (the product of the bound
@@ -359,6 +375,20 @@ def test_draw_workload():
           cyclic_theoretical <= CYCLIC_WORKER_CEILING)
     check("backpressure theoretical worst-case messages within the ceiling",
           bp_theoretical <= BACKPRESSURE_MESSAGE_CEILING)
+    # iso is governed by the acquire-flood budget (chains * ttl * node_count); the
+    # per-run chains clamp (resolve_config) keeps every run within it. Pin the
+    # calibrated budget and the max graph node count; bumping either forces a memory
+    # re-measure. Also verify the clamp's max output (the 1-node cap) never exceeds
+    # the pre-clamp chains bucket max, i.e. the cap is the binding limit.
+    iso_max_nodes = max(common.iso_node_count(d, b)
+                        for d in common.ISO_DEPTHS for b in common.ISO_BREADTHS)
+    check("iso calibrated acquire budget within the ceiling",
+          common.ISO_ACQUIRE_BUDGET <= ISO_ACQUIRE_CEILING)
+    check("iso max graph node count within the ceiling",
+          iso_max_nodes <= ISO_NODE_CEILING)
+    check("iso 1-node chains cap stays within the acquire budget",
+          (common.iso_chains_cap(1, 0) * common.ISO_TTL_MAX
+           * common.iso_node_count(1, 0)) <= common.ISO_ACQUIRE_BUDGET)
 
     # Fixed-consumption contract: draw_workload must make the SAME sequence of rng
     # calls whichever kind it rolls (it draws every kind's shape unconditionally),
@@ -367,7 +397,7 @@ def test_draw_workload():
     # not work, because a randint's underlying bit consumption varies with its value
     # (see the draw_workload doc).
     counts = []
-    for kind in ("mesh", "cyclic", "backpressure"):
+    for kind in ("mesh", "cyclic", "backpressure", "iso"):
         seed = next(s for s in range(0, 500)
                     if common.draw_workload(random.Random(s))[0] == kind)
         counter = _CallCountingRandom(seed)
@@ -699,10 +729,11 @@ def test_parse_result():
 
 def test_summary_line():
     # summary_line reads DIFFERENT shape fields per kind (mesh/cyclic have
-    # chains/ttl, backpressure has producers/messages/apply-every). If its read keys
-    # ever drift from resolve_config's emit keys, it raises an unguarded KeyError --
-    # at soak time, never in CI -- so exercise every branch here. The shape dicts
-    # mirror what the orchestrators emit (see orchestrate_normal.resolve_config and
+    # chains/ttl, backpressure has producers/messages/apply-every, iso has
+    # pingers/chains/ttl/node-size). If its read keys ever drift from
+    # resolve_config's emit keys, it raises an unguarded KeyError -- at soak time,
+    # never in CI -- so exercise every branch here. The shape dicts mirror what the
+    # orchestrators emit (see orchestrate_normal.resolve_config and
     # resolve_systematic_workload).
     result = common.RunResult(
         "pass", 0, None,
@@ -720,6 +751,10 @@ def test_summary_line():
           "workload": {"seed": 9, "workload": "backpressure", "producers": 64,
                        "messages": 1000, "apply-every": 200, "payload": "string",
                        "payload-size": 64, "payload-mode": "forward"}}
+    iso = {"master_seed": 6, "runtime": {},
+           "workload": {"seed": 9, "workload": "iso", "pingers": 8,
+                        "chains": 100, "ttl": 8, "node-size": 64,
+                        "node-depth": 3, "node-breadth": 2}}
     # A systematic config has NO `workload` key (always mesh by the engine default)
     # and must default to the mesh branch.
     systematic = {"master_seed": 4, "runtime": {},
@@ -738,6 +773,10 @@ def test_summary_line():
     check("summary_line backpressure: names producers/messages/apply_every",
           ("backpressure producers=64 messages=1000 apply_every=200" in bs)
           and ("chains" not in bs))   # backpressure has no chains/ttl
+    isos = common.summary_line(iso, result)
+    check("summary_line iso: names its cargo knobs + payload=none (not 'mesh')",
+          ("iso pingers=8 chains=100 ttl=8 node_size=64 depth=3 breadth=2" in isos)
+          and ("payload=none" in isos) and ("mesh" not in isos))
     ss = common.summary_line(systematic, result)
     check("summary_line defaults a no-workload-key config to mesh",
           "mesh pingers=16" in ss)

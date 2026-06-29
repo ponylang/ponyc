@@ -60,60 +60,82 @@ def resolve_config(master_seed, max_threads):
     not forced), so both the cycle-detector-on and -off paths are exercised --
     this is where the cycle detector gets its stress coverage.
 
-    Normal mode draws one of three workloads (draw_workload): `mesh` (the static M0
+    Normal mode draws one of four workloads (draw_workload): `mesh` (the static M0
     mesh), `cyclic` (successive groups of strongly-connected actors that drop their
-    external reference, so the cycle detector must reclaim them), or `backpressure`
+    external reference, so the cycle detector must reclaim them), `backpressure`
     (a star of producers flooding one consumer that explicitly applies/releases
-    runtime backpressure, driving the UNDER_PRESSURE muting path). A `mesh` run draws
-    a small->large magnitude in chains/ttl (the magnitude buckets, reaching ~1.16B
-    messages); a `cyclic` run draws the magnitude in GENERATIONS and keeps chains/ttl
-    small (total = generations*chains*(ttl+1)); a `backpressure` run draws the
-    magnitude in MESSAGES per producer (total = producers*messages) and has no
-    chains/ttl. The payload (kind/size/mode) is drawn freely; a `mesh` run's ttl is
-    then trimmed to a run-time ceiling (clamp_ttl), since a forward run's cost grows
-    with chains^2 and a high-chains/high-ttl draw would otherwise run for hours.
+    runtime backpressure, driving the UNDER_PRESSURE muting path), or `iso` (the mesh
+    topology handing a nested `iso` object graph hop-to-hop by `consume`, so the
+    receiver acquires a foreign mutable subgraph). A `mesh` run draws a small->large
+    magnitude in chains/ttl (the magnitude buckets, reaching ~1.16B messages); a
+    `cyclic` run draws the magnitude in GENERATIONS and keeps chains/ttl small
+    (total = generations*chains*(ttl+1)); a `backpressure` run draws the magnitude in
+    MESSAGES per producer (total = producers*messages) and has no chains/ttl; an
+    `iso` run reuses pingers and draws its graph shape (node-size/depth/breadth) plus
+    small chains/ttl from its own buckets, then clamps chains to the acquire budget
+    (the injection burst, not raw volume, governs its memory). The payload
+    (kind/size/mode) is drawn freely; a `mesh` run's ttl is then trimmed to a run-time
+    ceiling (clamp_ttl), since a forward run's cost grows with chains^2 and a
+    high-chains/high-ttl draw would otherwise run for hours; an `iso` run draws then
+    ignores the payload, since its cargo is the iso graph.
 
     This mode is non-reproducible (real parallelism), so a seed maps to a
     *configuration* deterministically but not to an *execution*. The draw order is
     pinned (orchestrate_normal_test.py) so a seed yields a stable config:
-    draw_workload (kind + cyclic shape + backpressure shape, fixed consumption) ->
-    pingers (always drawn; used only by a mesh run) -> chains (bucketed, the kind's
-    own buckets) -> ttl (bucketed) -> payload (kind, mode, size) -> ponynoblock ->
-    the four shared swarm knobs -> ponymaxthreads last. Drawing the workload kind
-    first lets the shared chains/ttl/payload draws pick the kind's bucket ranges
-    while making the same sequence of draws regardless of kind. This contract is
-    independent of the systematic driver's, and it intentionally differs from the
-    two-kind draw, so historical normal-mode seeds remap.
+    draw_workload (kind + cyclic shape + backpressure shape + iso cargo shape, fixed
+    consumption) -> pingers (always drawn; used by a mesh or iso run) -> chains
+    (bucketed, the kind's own buckets) -> ttl (bucketed) -> payload (kind, mode,
+    size) -> ponynoblock -> the four shared swarm knobs -> ponymaxthreads last.
+    Drawing the workload kind first lets the shared chains/ttl/payload draws pick the
+    kind's bucket ranges while making the same sequence of draws regardless of kind.
+    This contract is independent of the systematic driver's, and it intentionally
+    differs from the three-kind draw, so historical normal-mode seeds remap.
     """
     program_seed = common.derive_seed(master_seed, "program")
     rng = random.Random(master_seed)
 
-    (kind, generations, group, producers, messages, apply_every) = \
-        common.draw_workload(rng)
+    (kind, generations, group, producers, messages, apply_every, node_size,
+     depth, breadth) = common.draw_workload(rng)
     pingers = rng.choice(common.NORMAL_PINGERS)
-    # chains/ttl come from the kind's own buckets; mesh and cyclic both use them and
-    # backpressure draws-then-ignores them, so all three make the same two
-    # draw_bucketed calls -- the kind picks the bucket ranges (the value) without
-    # changing the draw sequence.
-    chains_buckets = (common.CYCLIC_CHAINS_BUCKETS if kind == "cyclic"
-                      else common.NORMAL_SIZE_BUCKETS)
-    ttl_buckets = (common.CYCLIC_TTL_BUCKETS if kind == "cyclic"
-                   else common.NORMAL_SIZE_BUCKETS)
+    # chains/ttl come from the kind's own buckets; mesh/iso use the magnitude/iso
+    # ranges, cyclic uses its small ranges, and backpressure draws-then-ignores
+    # them. All kinds make the same two draw_bucketed calls (each exactly two rng
+    # draws), so the kind picks the bucket ranges (the values) without changing the
+    # draw sequence -- the fixed-consumption contract.
+    if kind == "cyclic":
+        chains_buckets = common.CYCLIC_CHAINS_BUCKETS
+        ttl_buckets = common.CYCLIC_TTL_BUCKETS
+    elif kind == "iso":
+        chains_buckets = common.ISO_CHAINS_BUCKETS
+        ttl_buckets = common.ISO_TTL_BUCKETS
+    else:                          # mesh; backpressure draws-then-ignores
+        chains_buckets = common.NORMAL_SIZE_BUCKETS
+        ttl_buckets = common.NORMAL_SIZE_BUCKETS
     chains = common.draw_bucketed(rng, chains_buckets)
     ttl = common.draw_bucketed(rng, ttl_buckets)
+    if kind == "iso":
+        # Clamp chains to the safe acquire-flood budget for the drawn graph shape:
+        # bigger graphs acquire more objects per hop, so they get fewer chains,
+        # keeping chains * ttl * node_count <= ISO_ACQUIRE_BUDGET (the memory bound).
+        # The chains draw above still happens unchanged (fixed consumption); this
+        # only caps the value -- like clamp_ttl below trims a mesh run's ttl, no rng.
+        chains = min(chains, common.iso_chains_cap(depth, breadth))
     payload, size, mode = common.draw_payload(rng)
     # Mesh run time is bounded by trimming ttl to fit the per-run ceiling (a
     # forward run's cost grows with chains^2, so a high-chains/high-ttl draw would
     # take hours). The clamp consumes no rng, so only an over-budget mesh ttl
-    # changes -- cyclic/backpressure draws are untouched. Cyclic keeps its own tiny
-    # ttl range and backpressure ignores ttl, so neither needs the mesh clamp.
+    # changes -- cyclic/backpressure/iso draws are untouched. Cyclic keeps its own
+    # tiny ttl range, backpressure ignores ttl, and iso draws from its own small ttl
+    # buckets and caps chains above, so none needs the mesh clamp.
     if kind == "mesh":
         ttl = common.clamp_ttl(chains, ttl, mode, payload, size)
 
     # Emit only the shape fields the kind uses, so a contradictory field is never
     # passed to the engine: mesh has pingers+chains+ttl, cyclic has
     # generations+group+chains+ttl, backpressure has producers+messages+apply-every
-    # (and NO chains/ttl -- they live on the variants, not the shared _Config).
+    # (and NO chains/ttl), iso has pingers+chains+ttl+node-size/depth/breadth and its
+    # OWN cargo knobs INSTEAD of the val payload. They live on the variants, not the
+    # shared _Config.
     workload = {"seed": program_seed, "workload": kind}
     if kind == "cyclic":
         workload["generations"] = generations
@@ -124,13 +146,25 @@ def resolve_config(master_seed, max_threads):
         workload["producers"] = producers
         workload["messages"] = messages
         workload["apply-every"] = apply_every
+    elif kind == "iso":
+        workload["pingers"] = pingers
+        workload["chains"] = chains
+        workload["ttl"] = ttl
+        workload["node-size"] = node_size
+        workload["node-depth"] = depth
+        workload["node-breadth"] = breadth
     else:
         workload["pingers"] = pingers
         workload["chains"] = chains
         workload["ttl"] = ttl
-    workload["payload"] = payload
-    workload["payload-size"] = size
-    workload["payload-mode"] = mode
+    # The val payload is emitted for every kind EXCEPT iso: an iso run picks from its
+    # own cargo knobs above (node-size/depth/breadth), so the engine never receives a
+    # payload flag it would ignore. The draw still happened (fixed consumption); only
+    # the emit is per-kind.
+    if kind != "iso":
+        workload["payload"] = payload
+        workload["payload-size"] = size
+        workload["payload-mode"] = mode
 
     runtime = {}
     if rng.random() < 0.5:
