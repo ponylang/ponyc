@@ -137,11 +137,14 @@ def test_draw_swarm_knobs():
     omittable = ["ponynoscale", "ponygcinitial", "ponygcfactor", "ponycdinterval"]
     counts = dict.fromkeys(omittable, 0)
     ponynoblock_added = False
+    gcinitial_values = set()
     for master in range(0, 300):
         runtime = {}
         common.draw_swarm_knobs(random.Random(master), runtime)
         if "ponynoblock" in runtime:
             ponynoblock_added = True
+        if "ponygcinitial" in runtime:
+            gcinitial_values.add(runtime["ponygcinitial"])
         for knob in omittable:
             if knob in runtime:
                 counts[knob] += 1
@@ -149,6 +152,11 @@ def test_draw_swarm_knobs():
         check("swarm omission: %s sometimes present" % knob, counts[knob] > 0)
         check("swarm omission: %s sometimes absent" % knob, counts[knob] < 300)
     check("draw_swarm_knobs never adds ponynoblock", not ponynoblock_added)
+    # 0 is the deliberate constant-GC stress point (a 1-byte threshold). Unlike
+    # the other swarm knobs we pin its presence in the draw -- without this a
+    # refactor could silently drop the regime the value exists to exercise.
+    check("swarm draws the gcinitial=0 constant-GC stress point",
+          0 in gcinitial_values)
 
 
 def test_draw_payload_mode():
