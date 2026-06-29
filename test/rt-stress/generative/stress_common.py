@@ -55,7 +55,7 @@ DEFAULT_TIMEOUT_SECONDS = 120
 # Normal mode's per-run watchdog: a flat ~100 min, ~2x the longest plausible large
 # run with slow-CI margin (a hung run, not its true length, is the worst case). Big
 # enough that host-speed variance never false-positives a legitimate run, so the
-# bucket and size-table numbers can stay hardcoded with no startup calibration. Systematic
+# bucket and cost-model numbers can stay hardcoded with no startup calibration. Systematic
 # keeps DEFAULT_TIMEOUT_SECONDS -- its runs are seconds (the engine now reaches natural
 # quiescence through full shutdown rather than forcing an exit, so a large drawn config
 # can take ~10s, still well inside the 120s cap).
@@ -86,9 +86,9 @@ def resolve_systematic_workload(rng, program_seed):
     the five swarm-drawn fields, in the dict-insertion and rng-draw order that is the
     seed-stability contract.
 
-    Normal mode does NOT use this -- it composes its own bucketed draw plus a
-    payload whose string size is limited by the message count (draw_bucketed /
-    draw_payload); see orchestrate_normal.resolve_config. Systematic stays small and
+    Normal mode does NOT use this -- it composes its own bucketed draw, then trims
+    a mesh config's ttl to a run-time ceiling (draw_bucketed / draw_payload /
+    clamp_ttl); see orchestrate_normal.resolve_config. Systematic stays small and
     fixed-range on purpose: it serializes the scheduler, so a billion-message run's
     interleaving space is intractable.
 
@@ -159,10 +159,15 @@ def draw_max_threads(rng, max_threads):
 
 # Normal-mode magnitude buckets. Each of chains and ttl draws a bucket
 # (small/medium/large at 25/50/25), then a uniform value within it. Ranges are
-# (lo, hi) inclusive and tuned on the calibration host (WSL2, 2 threads, debug,
-# ~1M msg/s at scale) so same-bucket pairs land near the time yardstick: S*S
-# ~secs-3min, M*M ~3-12min, L*L ~12-19min (top ~1.16B messages ~ 15-20 min).
-# chains and ttl share these ranges. Systematic mode does NOT use them -- it stays
+# (lo, hi) inclusive. These set the magnitude RANGE only; run TIME is governed
+# separately by clamp_ttl (below), which trims ttl so a config's estimated
+# single-thread time stays within RUN_TIME_CEILING_SECONDS. The two are split
+# because per-message cost is NOT flat: a forward-mode run's cost grows with
+# chains^2 (the shared payload's per-hop trace cost scales with the number of
+# concurrent live chains), so a high-chains forward run at high ttl would take
+# hours -- the clamp pairs high chains with a low ttl (and vice versa), keeping
+# both dimensions covered and dropping only the can't-finish corner. chains and
+# ttl share these ranges. Systematic mode does NOT use them -- it stays
 # small/fixed-range (see resolve_systematic_workload). Locked, not provisional.
 NORMAL_SIZE_BUCKETS = {
     "small": (1500, 14000),
@@ -170,26 +175,66 @@ NORMAL_SIZE_BUCKETS = {
     "large": (27001, 34000),
 }
 
-# String-payload sizes grouped by per-hop cost into small/medium/large tables. A
-# fresh string's run cost is ~ messages * per-hop-cost(size), so the costlier tables
-# are offered only to smaller runs: each table's third field is the most messages a
-# fresh run of its slowest size keeps within the ~30-min soak budget. The 4096/1024/
-# 256 figures are measured at scale on the calibration host (the per-message rate
-# decays as a run grows, so these are not short-run extrapolations); the small table's
-# cap is from the same decay curve, which reproduces the measured ones within ~3%, and
-# the 100-min per-run hard timeout backstops any drift. draw_payload limits a fresh
-# string to the sizes whose table fits the run's message count -- a big run can only
-# draw a cheap size, a small run any. Forward and u64 payloads allocate once (or
-# never), so their cost is ~flat in size and they draw from every size. COUPLING: the
-# per-table caps are a property of the engine's per-hop cost -- if that changes (e.g. a
-# payload-integrity check, per the README's deferred work), re-measure them.
-STRING_SIZE_TABLES = (
-    # (name, sizes, max fresh-string messages within the ~30-min budget)
-    ("small",  [1, 8, 64],  990_000_000),
-    ("medium", [256, 1024], 520_000_000),
-    ("large",  [4096],      300_000_000),
-)
-ALL_STRING_SIZES = [s for _name, _sizes, _cap in STRING_SIZE_TABLES for s in _sizes]
+# String-payload byte sizes. Drawn freely; run time is governed by clamp_ttl, not
+# by restricting which sizes a big run may pick.
+STRING_SIZES = [1, 8, 64, 256, 1024, 4096]
+
+# Per-run time ceiling (estimated single-thread seconds on the slow path). The
+# largest mesh run targets ~this; smaller draws finish faster. ~20 min keeps the
+# soak getting through many configs while no single run dominates the window, and
+# matches the original "largest run ~15-20 min" intent. Tunable.
+RUN_TIME_CEILING_SECONDS = 1200
+
+# Mesh run-time cost model: estimated SINGLE-THREAD seconds on the slow CI path,
+# measured on the engine (debug, under lldb on a 2-core runner is the worst TIER1
+# path). Two shapes:
+#   forward: time ~ K_fwd[payload] * chains^2 * (ttl+1). The one payload object is
+#     forwarded the whole chain, so each hop re-traces it across an actor boundary;
+#     that per-hop trace cost scales with the number of concurrent live chains, so
+#     cost is quadratic in chains. It depends on payload KIND (a String traces more
+#     than a boxed U64) but ~not its byte size (forwarding doesn't copy the bytes).
+#   fresh:   time ~ K_fresh[payload][size] * chains * (ttl+1). A new payload is
+#     allocated every hop, so cost is linear in chains and grows with the string's
+#     byte size (allocation + tracing of the bytes).
+# Constants are seconds-per-(unit of the shape above) and fold in a ~2x slow-CI
+# margin over the local measurement. Bounding for 1 thread is deliberately the
+# worst case: a multi-thread run finishes faster, so more seeds run -> more
+# coverage. COUPLING: these are a property of the engine's per-hop cost -- re-measure
+# (test/rt-stress/generative, sweep chains for each mode/payload/size) if the payload
+# handling or the forwarding/trace path changes.
+_MESH_FWD_COST = {"u64": 1.5e-9, "string": 6.0e-9}
+_MESH_FRESH_COST_U64 = 4.0e-6
+_MESH_FRESH_COST_STRING = {1: 8e-6, 8: 8e-6, 64: 9e-6, 256: 10e-6,
+                           1024: 14e-6, 4096: 22e-6}
+
+
+def est_mesh_seconds(chains, ttl, mode, payload, size):
+    """Estimated single-thread slow-path run time (seconds) for a mesh config.
+    See the cost-model comment above for the two shapes."""
+    hops = chains * (ttl + 1)
+    if mode == "forward":
+        return _MESH_FWD_COST[payload] * chains * hops
+    per_msg = (_MESH_FRESH_COST_U64 if payload == "u64"
+               else _MESH_FRESH_COST_STRING[size])
+    return per_msg * hops
+
+
+def clamp_ttl(chains, ttl, mode, payload, size):
+    """Trim ttl so a mesh config's estimated run time stays within
+    RUN_TIME_CEILING_SECONDS, returning the (possibly unchanged) ttl. The estimate
+    is linear in (ttl+1), so the per-(ttl+1) coefficient is est at ttl=0; the
+    largest ttl that fits is ceiling/coefficient - 1, floored at 0. High chains in
+    forward mode -> low ttl_max; low chains -> ttl unchanged. The 0 floor stays
+    within the ceiling only while a single hop (the coefficient) does -- true for
+    every drawable config (the max coefficient is ~7s, far under the ceiling); a
+    bucket bump that broke that would fail test_clamp_ttl's max-chains case.
+    Consumes no rng (a post-draw clamp), so only an over-budget ttl VALUE changes
+    -- no draw remap."""
+    if est_mesh_seconds(chains, ttl, mode, payload, size) <= RUN_TIME_CEILING_SECONDS:
+        return ttl
+    coefficient = est_mesh_seconds(chains, 0, mode, payload, size)
+    ttl_max = int(RUN_TIME_CEILING_SECONDS / coefficient) - 1
+    return max(0, min(ttl, ttl_max))
 
 # Normal-mode actor counts. pingers=1 -- a lone actor that only ever forwards to
 # itself -- is included on purpose: it exercises the ORCA self-send path. That path
@@ -287,29 +332,16 @@ def draw_bucketed(rng, buckets):
     return rng.randint(lo, hi)
 
 
-def draw_payload(rng, msgs):
+def draw_payload(rng):
     """Draw payload kind, size, and mode. Returns (payload, size, mode).
 
-    The available string SIZE is limited by `msgs`: a fresh string's cost grows with
-    both message count and size, so a big run may draw only a cheap (small) size while
-    a small run may draw any (see STRING_SIZE_TABLES). Forward and u64 payloads are
-    flat-cost in size and draw from every size. Runs so large that even the small
-    table's budget is exceeded still draw from it (a slight, hard-timeout-bounded
-    overrun) rather than being denied a string.
-
-    Always exactly three rng draws -- kind, mode, size -- in that fixed order, so the
-    draw stream is stable: the size table changes which value the third draw lands on,
-    never how much rng it consumes."""
+    Size is drawn freely from the full set -- a big run is no longer denied a large
+    string size, because run time is bounded by clamp_ttl (which trims ttl) rather
+    than by restricting size. Exactly three rng draws -- kind, mode, size -- in that
+    fixed order, so the draw stream is stable."""
     kind = rng.choice(["string", "u64"])
     mode = rng.choice(["forward", "fresh"])
-    if kind == "string" and mode == "fresh":
-        sizes = [s for _n, table, cap in STRING_SIZE_TABLES if msgs <= cap
-                 for s in table]
-        if not sizes:                      # past even the small table's budget;
-            sizes = STRING_SIZE_TABLES[0][1]  # still allow the cheapest sizes
-    else:
-        sizes = ALL_STRING_SIZES
-    size = sizes[int(rng.random() * len(sizes))]
+    size = STRING_SIZES[int(rng.random() * len(STRING_SIZES))]
     return kind, size, mode
 
 

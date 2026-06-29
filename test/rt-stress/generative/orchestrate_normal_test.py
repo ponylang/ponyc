@@ -44,8 +44,9 @@ def test_resolve_config_mesh_golden():
     # Pin a MESH config: the normal-mode seed-stability guard for the mesh emit
     # shape (pingers + chains + ttl, no generations/group/producers). Distinct from
     # the systematic golden -- normal draws the workload kind first (now 3-way), then
-    # bucketed chains/ttl, a payload whose string size is limited by the total
-    # message count, and ponynoblock as a swarm knob, and carries no systematic seed.
+    # bucketed chains/ttl (a mesh run's ttl then trimmed to the run-time ceiling), a
+    # freely-drawn payload, and ponynoblock as a swarm knob, and carries no
+    # systematic seed.
     # (This intentionally differs from the two-kind normal golden -- the 3-way kind
     # roll and the extra backpressure-shape draws remap every historical seed.)
     # Seed 1 rolls mesh.
@@ -183,10 +184,14 @@ def test_resolve_config_deterministic_and_bounded():
                 invariants_hold = False
             if work["pingers"] not in PINGERS_ALLOWED:
                 invariants_hold = False
-            # mesh chains/ttl span the magnitude buckets (small low .. large high).
+            # mesh chains spans the magnitude buckets (small low .. large high).
+            # ttl is drawn from the same range but then trimmed by clamp_ttl to
+            # keep the run within the time ceiling, so a high-chains config can land
+            # below the bucket floor (down to 0) -- only its upper bound is the
+            # bucket max.
             if not (1500 <= work["chains"] <= 34000):
                 invariants_hold = False
-            if not (1500 <= work["ttl"] <= 34000):
+            if not (0 <= work["ttl"] <= 34000):
                 invariants_hold = False
         elif kind == "cyclic":
             if any(k in work for k in
@@ -317,42 +322,34 @@ def test_resolve_config_draws_single_pinger():
     check("normal mode draws a mesh run with pingers=1", one_seen)
 
 
-def test_resolve_config_fresh_string_size_fits_run():
-    # A fresh-string config's size must fit its run: above the medium table's cap a
-    # fresh string may only be a small size; above the large table's cap, never
-    # 4096. The run's message count depends on the kind (cyclic multiplies by
-    # generations).
-    caps = {name: cap for name, _t, cap in common.STRING_SIZE_TABLES}
-    small = set(common.STRING_SIZE_TABLES[0][1])
-    small_medium = small | set(common.STRING_SIZE_TABLES[1][1])
-    holds = True
-    fresh_seen = {"mesh": False, "cyclic": False, "backpressure": False}
-    for master in range(0, 400):
+def test_resolve_config_mesh_run_time_bounded():
+    # Run time is bounded by trimming a mesh config's ttl: no mesh config's estimated
+    # single-thread time may exceed the ceiling, and a high-chains FORWARD run (the
+    # shape that used to take hours) must still be drawn -- just with its ttl trimmed
+    # so it fits. Coverage of the dimension is preserved; only the can't-finish corner
+    # (high chains AND high ttl together) is dropped.
+    ceiling = common.RUN_TIME_CEILING_SECONDS
+    large_lo = common.NORMAL_SIZE_BUCKETS["large"][0]
+    small_lo = common.NORMAL_SIZE_BUCKETS["small"][0]
+    over = high_chains_forward = bound_bit = False
+    for master in range(0, 600):
         w = normal.resolve_config(master, THREADS)["workload"]
-        if not (w["payload"] == "string" and w["payload-mode"] == "fresh"):
+        if w["workload"] != "mesh":
             continue
-        kind = w["workload"]
-        fresh_seen[kind] = True
-        # The total message count drives the fresh-string size cap, computed per
-        # kind (cyclic multiplies by generations; backpressure by producers).
-        if kind == "cyclic":
-            msgs = w["generations"] * w["chains"] * (w["ttl"] + 1)
-        elif kind == "backpressure":
-            msgs = w["producers"] * w["messages"]
-        else:
-            msgs = w["chains"] * (w["ttl"] + 1)
-        if msgs > caps["medium"] and w["payload-size"] not in small:
-            holds = False
-        elif msgs > caps["large"] and w["payload-size"] not in small_medium:
-            holds = False
-    check("fresh-string size fits the run's message count", holds)
-    # Every kind contributes a fresh-string config, so the per-kind msgs formula runs
-    # without error for each. NOTE: only mesh's totals actually reach the size caps
-    # (medium 520M / large 300M) over the sampled seeds, so for cyclic and
-    # backpressure this confirms the formula RUNS, not that the size-limiting bites
-    # (their totals stay under the caps -- same as the pre-existing cyclic behavior).
-    check("fresh-string configs drawn for all three kinds",
-          all(fresh_seen.values()))
+        if common.est_mesh_seconds(w["chains"], w["ttl"], w["payload-mode"],
+                                   w["payload"], w["payload-size"]) > ceiling:
+            over = True
+        if w["payload-mode"] == "forward" and w["chains"] >= large_lo:
+            high_chains_forward = True
+            # At large chains the forward budget caps ttl well below the small
+            # bucket's floor, so a clamped run lands below it -- evidence the bound
+            # actually bit, not just that high chains happened to draw a small ttl.
+            if w["ttl"] < small_lo:
+                bound_bit = True
+    check("no mesh config's estimated run time exceeds the ceiling", not over)
+    check("high-chains forward mesh runs are still drawn (coverage preserved)",
+          high_chains_forward)
+    check("the run-time bound actually trims a high-chains forward run", bound_bit)
 
 
 def main():
@@ -366,7 +363,7 @@ def main():
     test_resolve_config_swarm_omission()
     test_resolve_config_magnitude_buckets()
     test_resolve_config_draws_single_pinger()
-    test_resolve_config_fresh_string_size_fits_run()
+    test_resolve_config_mesh_run_time_bounded()
     if FAILURES:
         print("%d failure(s): %s" % (len(FAILURES), ", ".join(FAILURES)))
         sys.exit(1)

@@ -208,101 +208,70 @@ def test_draw_bucketed():
 
 
 def test_draw_payload():
-    # A fresh string's available SIZE is limited by the run's message count; forward
-    # and u64 are flat-cost and draw any size. The harness's largest run has chains and
-    # ttl both at the large bucket's max -- max*(max+1) messages, ~1.16B, past even the
-    # small table's budget -- so a fresh string there may draw only small sizes. Derive
-    # it from the bucket so it can't go stale if the ranges change.
-    _max_dim = common.NORMAL_SIZE_BUCKETS["large"][1]
-    big = _max_dim * (_max_dim + 1)
-    small_sizes = set(common.STRING_SIZE_TABLES[0][1])   # {1, 8, 64}
-    larger_sizes = set(common.ALL_STRING_SIZES) - small_sizes   # {256, 1024, 4096}
-    caps = {name: cap for name, _t, cap in common.STRING_SIZE_TABLES}
-
-    big_fresh_larger = big_fresh_small = flat_larger_at_big = False
+    # Size is drawn freely from the full set now -- run time is bounded by clamp_ttl
+    # (which trims ttl), not by restricting which sizes a big run may pick. Every
+    # size, kind, and mode must be reachable across seeds.
+    sizes, kinds, modes = set(), set(), set()
     for master in range(0, 2000):
-        k, s, m = common.draw_payload(random.Random(master), big)
-        if k == "string" and m == "fresh":
-            big_fresh_larger |= s in larger_sizes
-            big_fresh_small |= s in small_sizes
-        else:                                 # forward string or u64
-            flat_larger_at_big |= s in larger_sizes
-    check("draw_payload: a big fresh-string run never draws a non-small size",
-          not big_fresh_larger)
-    check("draw_payload: a big fresh-string run still draws small sizes",
-          big_fresh_small)
-    check("draw_payload: forward/u64 draw any size even at the max run",
-          flat_larger_at_big)
+        k, s, m = common.draw_payload(random.Random(master))
+        sizes.add(s)
+        kinds.add(k)
+        modes.add(m)
+    check("draw_payload covers every string size", sizes == set(common.STRING_SIZES))
+    check("draw_payload covers {string, u64}", kinds == {"string", "u64"})
+    check("draw_payload covers {forward, fresh}", modes == {"forward", "fresh"})
 
-    # A big run's fresh-string sizes are a strict subset of a small run's: the table
-    # only grows as the run shrinks.
-    fresh_big, fresh_small = set(), set()
-    for master in range(0, 3000):
-        k, s, m = common.draw_payload(random.Random(master), big)
-        if k == "string" and m == "fresh":
-            fresh_big.add(s)
-        k, s, m = common.draw_payload(random.Random(master), 1)
-        if k == "string" and m == "fresh":
-            fresh_small.add(s)
-    check("draw_payload: a small run can draw a large fresh-string size",
-          larger_sizes & fresh_small)
-    check("draw_payload: a big run's fresh sizes are a strict subset of a small run's",
-          fresh_big < fresh_small)
-
-    # Cap boundary, per table: at exactly a table's cap a fresh string may still draw
-    # that table's sizes; one message above, the table drops out. The small table is
-    # the floor -- above its cap the never-deny fallback keeps its sizes -- so it is
-    # checked separately below; here we cover medium and large.
-    def fresh_sizes_at(msgs):
-        seen = set()
-        for master in range(0, 3000):
-            k, s, m = common.draw_payload(random.Random(master), msgs)
-            if k == "string" and m == "fresh":
-                seen.add(s)
-        return seen
-    for name, table_sizes, cap in common.STRING_SIZE_TABLES[1:]:   # medium, large
-        want = set(table_sizes)
-        at_cap, above_cap = fresh_sizes_at(cap), fresh_sizes_at(cap + 1)
-        check("draw_payload: fresh string AT the %s cap can draw %s sizes"
-              % (name, name), want <= at_cap)
-        check("draw_payload: fresh string ABOVE the %s cap cannot draw %s sizes"
-              % (name, name), not (want & above_cap))
-
-    # The small table is the floor: at AND above its cap a fresh string still draws its
-    # sizes (the never-deny fallback) and never a larger one.
-    small_set = set(common.STRING_SIZE_TABLES[0][1])
-    at_small, above_small = fresh_sizes_at(caps["small"]), fresh_sizes_at(caps["small"] + 1)
-    check("draw_payload: fresh string AT the small cap can draw small sizes",
-          small_set <= at_small)
-    check("draw_payload: fresh string ABOVE the small cap still draws small sizes",
-          small_set <= above_small)
-    check("draw_payload: fresh string ABOVE the small cap draws no larger size",
-          not (above_small - small_set))
-
-    # Seed-stability contract: kind and mode are drawn before the (msgs-dependent)
-    # size, and the size always costs exactly one rng draw, so draw_payload consumes
-    # the SAME rng count for any msgs -- the message count must never remap a
-    # downstream draw. Verify the rng state AFTER the call is identical across msgs
-    # spanning every cap boundary and the overrun region (msgs > the small cap, where
-    # the fallback fires), and that kind/mode never shift with msgs.
-    boundary_msgs = [1, caps["large"], caps["large"] + 1, caps["medium"],
-                     caps["medium"] + 1, caps["small"], caps["small"] + 1, big]
-    rng_stable = kind_mode_stable = True
+    # Seed-stability contract: exactly three rng draws -- kind, mode, size -- in that
+    # order, so draw_payload never remaps a downstream draw. Compare the rng state
+    # after the call to a hand-rolled three-draw reference.
+    stable = True
     for master in range(0, 300):
-        states, kinds_modes = [], []
-        for mm in boundary_msgs:
-            rng = random.Random(master)
-            k, _, m = common.draw_payload(rng, mm)
-            states.append(rng.getstate())
-            kinds_modes.append((k, m))
-        if any(st != states[0] for st in states):
-            rng_stable = False
-        if any(km != kinds_modes[0] for km in kinds_modes):
-            kind_mode_stable = False
-    check("draw_payload: rng consumption is fixed across all msgs (overrun included)",
-          rng_stable)
-    check("draw_payload: message count changes only the size, never kind/mode",
-          kind_mode_stable)
+        rng = random.Random(master)
+        common.draw_payload(rng)
+        ref = random.Random(master)
+        ref.choice(["string", "u64"])
+        ref.choice(["forward", "fresh"])
+        ref.random()
+        if rng.getstate() != ref.getstate():
+            stable = False
+    check("draw_payload consumes exactly three rng draws (kind, mode, size)", stable)
+
+
+def test_clamp_ttl():
+    # The mesh run-time bound. Forward cost is quadratic in chains, fresh linear, so
+    # est must separate them; clamp_ttl trims ttl so the estimate fits the ceiling.
+    C = common.RUN_TIME_CEILING_SECONDS
+    check("est: forward cost is >>(10x) fresh at high chains",
+          common.est_mesh_seconds(30000, 1000, "forward", "u64", 1)
+          > 10 * common.est_mesh_seconds(30000, 1000, "fresh", "u64", 1))
+
+    # An in-budget config is returned unchanged.
+    check("clamp_ttl leaves an in-budget config alone",
+          common.clamp_ttl(2000, 1000, "fresh", "u64", 1) == 1000)
+
+    # The original failing seed: forward u64, chains=31178, ttl=30244 (hours of run
+    # time). It must clamp to a large-but-finite ttl whose estimate fits the ceiling.
+    ct = common.clamp_ttl(31178, 30244, "forward", "u64", 256)
+    check("clamp_ttl bounds the failing forward seed", ct < 30244)
+    check("clamp_ttl leaves a usable ttl for the failing seed", ct > 0)
+    check("clamp_ttl keeps the failing seed's estimate within the ceiling",
+          common.est_mesh_seconds(31178, ct, "forward", "u64", 256) <= C)
+
+    # Never raises ttl; floors at 0 (never negative) even at the most extreme config.
+    over = common.clamp_ttl(34000, 34000, "forward", "string", 4096)
+    check("clamp_ttl never raises ttl", over <= 34000)
+    check("clamp_ttl floors at 0 (never negative)", over >= 0)
+
+    # Every (mode, payload, size) at max chains AND max ttl clamps within the ceiling.
+    worst_ok = True
+    max_dim = common.NORMAL_SIZE_BUCKETS["large"][1]
+    for mode in ("forward", "fresh"):
+        for payload in ("u64", "string"):
+            for size in common.STRING_SIZES:
+                t = common.clamp_ttl(max_dim, max_dim, mode, payload, size)
+                if common.est_mesh_seconds(max_dim, t, mode, payload, size) > C:
+                    worst_ok = False
+    check("clamp_ttl bounds every payload/size at max chains+ttl", worst_ok)
 
 
 # The calibrated ceiling on generations*group (leaked actors in a CD-off run).
@@ -694,6 +663,7 @@ def main():
     test_draw_max_threads()
     test_draw_bucketed()
     test_draw_payload()
+    test_clamp_ttl()
     test_draw_workload()
     test_build_argv()
     test_run_command()
