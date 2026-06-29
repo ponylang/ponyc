@@ -59,34 +59,39 @@ def resolve_config(master_seed, max_threads):
     not forced), so both the cycle-detector-on and -off paths are exercised --
     this is where the cycle detector gets its stress coverage.
 
-    Normal mode draws one of two workloads (draw_cyclic): `mesh` (the static M0
-    mesh) or `cyclic` (successive groups of strongly-connected actors that drop
-    their external reference, so the cycle detector must reclaim them). A `mesh`
-    run draws a deliberate small->large magnitude in chains/ttl (the magnitude
-    buckets, reaching ~1.16B messages); a `cyclic` run draws the magnitude in
-    GENERATIONS instead and keeps chains/ttl small (total messages =
-    generations*chains*(ttl+1)). The payload is drawn with its string SIZE limited
-    by the message count (draw_payload).
+    Normal mode draws one of three workloads (draw_workload): `mesh` (the static M0
+    mesh), `cyclic` (successive groups of strongly-connected actors that drop their
+    external reference, so the cycle detector must reclaim them), or `backpressure`
+    (a star of producers flooding one consumer that explicitly applies/releases
+    runtime backpressure, driving the UNDER_PRESSURE muting path). A `mesh` run draws
+    a small->large magnitude in chains/ttl (the magnitude buckets, reaching ~1.16B
+    messages); a `cyclic` run draws the magnitude in GENERATIONS and keeps chains/ttl
+    small (total = generations*chains*(ttl+1)); a `backpressure` run draws the
+    magnitude in MESSAGES per producer (total = producers*messages) and has no
+    chains/ttl. The payload is drawn with its string SIZE limited by the total
+    message count (draw_payload).
 
     This mode is non-reproducible (real parallelism), so a seed maps to a
     *configuration* deterministically but not to an *execution*. The draw order is
     pinned (orchestrate_normal_test.py) so a seed yields a stable config:
-    draw_cyclic (kind + generations + group, a fixed 4 rng) -> pingers (always
-    drawn; used only by a mesh run) -> chains (bucketed, the kind's own buckets) ->
-    ttl (bucketed) -> payload (kind, mode, size) -> ponynoblock -> the four shared
-    swarm knobs -> ponymaxthreads last. Drawing the workload kind first lets the
-    shared chains/ttl/payload draws pick the kind's bucket ranges while making the
-    same sequence of draws either way. This contract is independent of the systematic
-    driver's, and it intentionally differs from the pre-cyclic draw, so historical
-    normal-mode seeds remap.
+    draw_workload (kind + cyclic shape + backpressure shape, fixed consumption) ->
+    pingers (always drawn; used only by a mesh run) -> chains (bucketed, the kind's
+    own buckets) -> ttl (bucketed) -> payload (kind, mode, size) -> ponynoblock ->
+    the four shared swarm knobs -> ponymaxthreads last. Drawing the workload kind
+    first lets the shared chains/ttl/payload draws pick the kind's bucket ranges
+    while making the same sequence of draws regardless of kind. This contract is
+    independent of the systematic driver's, and it intentionally differs from the
+    two-kind draw, so historical normal-mode seeds remap.
     """
     program_seed = common.derive_seed(master_seed, "program")
     rng = random.Random(master_seed)
 
-    kind, generations, group = common.draw_cyclic(rng)
+    (kind, generations, group, producers, messages, apply_every) = \
+        common.draw_workload(rng)
     pingers = rng.choice(common.NORMAL_PINGERS)
-    # chains/ttl come from the kind's own buckets; both kinds make the same two
-    # draw_bucketed calls, so the kind picks the bucket ranges (the value) without
+    # chains/ttl come from the kind's own buckets; mesh and cyclic both use them and
+    # backpressure draws-then-ignores them, so all three make the same two
+    # draw_bucketed calls -- the kind picks the bucket ranges (the value) without
     # changing the draw sequence.
     chains_buckets = (common.CYCLIC_CHAINS_BUCKETS if kind == "cyclic"
                       else common.NORMAL_SIZE_BUCKETS)
@@ -94,21 +99,33 @@ def resolve_config(master_seed, max_threads):
                    else common.NORMAL_SIZE_BUCKETS)
     chains = common.draw_bucketed(rng, chains_buckets)
     ttl = common.draw_bucketed(rng, ttl_buckets)
-    msgs = (generations * chains * (ttl + 1) if kind == "cyclic"
-            else chains * (ttl + 1))
+    # Total message count per kind, fed to draw_payload's fresh-string size cap.
+    if kind == "cyclic":
+        msgs = generations * chains * (ttl + 1)
+    elif kind == "backpressure":
+        msgs = producers * messages
+    else:
+        msgs = chains * (ttl + 1)
     payload, size, mode = common.draw_payload(rng, msgs)
 
-    # Emit only the shape fields the kind uses (a cyclic config has no `pingers`,
-    # a mesh config no `generations`/`group`), so a contradictory pair is never
-    # passed to the engine.
+    # Emit only the shape fields the kind uses, so a contradictory field is never
+    # passed to the engine: mesh has pingers+chains+ttl, cyclic has
+    # generations+group+chains+ttl, backpressure has producers+messages+apply-every
+    # (and NO chains/ttl -- they live on the variants, not the shared _Config).
     workload = {"seed": program_seed, "workload": kind}
     if kind == "cyclic":
         workload["generations"] = generations
         workload["group"] = group
+        workload["chains"] = chains
+        workload["ttl"] = ttl
+    elif kind == "backpressure":
+        workload["producers"] = producers
+        workload["messages"] = messages
+        workload["apply-every"] = apply_every
     else:
         workload["pingers"] = pingers
-    workload["chains"] = chains
-    workload["ttl"] = ttl
+        workload["chains"] = chains
+        workload["ttl"] = ttl
     workload["payload"] = payload
     workload["payload-size"] = size
     workload["payload-mode"] = mode
