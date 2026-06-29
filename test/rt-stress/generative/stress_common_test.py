@@ -297,6 +297,84 @@ def test_draw_payload():
           kind_mode_stable)
 
 
+# The calibrated ceiling on generations*group (leaked actors in a CD-off run).
+# Hardcoded, NOT derived from the CYCLIC_* constants, so bumping a generation
+# bucket or adding a bigger group trips this guard and forces a re-measure. The
+# real max today is 8000*16 = 128000 (~1.2 GB peak, fits under DEFAULT_MEM_LIMIT_MB
+# with margin -- see the decision log / CYCLIC_* docstring).
+CYCLIC_WORKER_CEILING = 130000
+
+
+class _CallCountingRandom(random.Random):
+    """A Random that counts the high-level draw calls (random/randint/choice) made
+    on it, delegating to the real implementation so the produced values are
+    unchanged. Used to verify draw_cyclic makes the same number of calls whichever
+    kind it rolls."""
+
+    def __init__(self, seed):
+        super().__init__(seed)
+        self.calls = 0
+
+    def random(self):
+        self.calls += 1
+        return super().random()
+
+    def randint(self, a, b):
+        self.calls += 1
+        return super().randint(a, b)
+
+    def choice(self, seq):
+        self.calls += 1
+        return super().choice(seq)
+
+
+def test_draw_cyclic():
+    check("draw_cyclic is deterministic",
+          common.draw_cyclic(random.Random(7))
+          == common.draw_cyclic(random.Random(7)))
+
+    kinds = set()
+    bounds_ok = True
+    worst_workers = 0
+    gen_lo = common.CYCLIC_GENERATION_BUCKETS["small"][0]
+    gen_hi = common.CYCLIC_GENERATION_BUCKETS["large"][1]
+    for master in range(0, 500):
+        workload, generations, group = common.draw_cyclic(random.Random(master))
+        kinds.add(workload)
+        if workload not in ("mesh", "cyclic"):
+            bounds_ok = False
+        # generations and group are drawn for BOTH kinds (fixed rng consumption),
+        # so they are always valid numbers in range -- checking them over all
+        # seeds, mesh and cyclic alike, is the evidence the draw never skips them.
+        if not (gen_lo <= generations <= gen_hi):
+            bounds_ok = False
+        if group not in common.CYCLIC_GROUPS:
+            bounds_ok = False
+        worst_workers = max(worst_workers, generations * group)
+    check("draw_cyclic covers both workload kinds", kinds == {"mesh", "cyclic"})
+    check("draw_cyclic generations/group always in range (drawn for both kinds)",
+          bounds_ok)
+    check("draw_cyclic worst-case workers within the calibrated memory ceiling",
+          worst_workers <= CYCLIC_WORKER_CEILING)
+
+    # Fixed-consumption contract: draw_cyclic must make the SAME sequence of rng
+    # calls whether it rolls mesh or cyclic (it draws generations + group
+    # unconditionally), so a future kind-dependent extra draw -- which would remap
+    # seeds -- is caught. Compare the call COUNT across a mesh-rolling and a
+    # cyclic-rolling seed; comparing rng state would not work, because a randint's
+    # underlying bit consumption varies with its value (see the draw_cyclic doc).
+    mesh_seed = next(s for s in range(0, 500)
+                     if common.draw_cyclic(random.Random(s))[0] == "mesh")
+    cyclic_seed = next(s for s in range(0, 500)
+                       if common.draw_cyclic(random.Random(s))[0] == "cyclic")
+    mesh_counter = _CallCountingRandom(mesh_seed)
+    cyclic_counter = _CallCountingRandom(cyclic_seed)
+    common.draw_cyclic(mesh_counter)
+    common.draw_cyclic(cyclic_counter)
+    check("draw_cyclic makes the same number of rng calls for mesh and cyclic",
+          (mesh_counter.calls == cyclic_counter.calls) and (mesh_counter.calls > 0))
+
+
 def test_build_argv():
     config = {
         "master_seed": 0,
@@ -534,6 +612,7 @@ def main():
     test_draw_max_threads()
     test_draw_bucketed()
     test_draw_payload()
+    test_draw_cyclic()
     test_build_argv()
     test_run_command()
     test_lldb_argv()
