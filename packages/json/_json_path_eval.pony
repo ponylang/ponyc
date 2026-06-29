@@ -80,13 +80,38 @@ primitive _JsonPathEval
     root: JsonValue,
     out: Array[JsonValue] ref)
   =>
-    """Depth-first pre-order: apply selectors here, then recurse."""
-    _select_all(selectors, node, root, out)
-    match node
-    | let obj: JsonObject =>
-      for v in obj.values() do _descend(selectors, v, root, out) end
-    | let arr: JsonArray =>
-      for v in arr.values() do _descend(selectors, v, root, out) end
+    """
+    Depth-first pre-order: apply selectors to a node, then to each of its
+    children in turn (array elements in index order, object members in
+    `values()` order).
+
+    Walked with an explicit work stack rather than native recursion so that
+    nesting depth is bounded by the heap, not the scheduler thread's native
+    stack, which deeply nested input would otherwise overflow. Children are
+    pushed in reverse so they pop in that forward order, preserving the
+    pre-order traversal of the recursive walk exactly.
+    """
+    let stack = Array[JsonValue]
+    stack.push(node)
+    while stack.size() > 0 do
+      let n = try stack.pop()? else _Unreachable(); return end
+      _select_all(selectors, n, root, out)
+      match n
+      | let obj: JsonObject =>
+        let kids = Array[JsonValue](obj.size())
+        for v in obj.values() do kids.push(v) end
+        var i = kids.size()
+        while i > 0 do
+          i = i - 1
+          try stack.push(kids(i)?) else _Unreachable() end
+        end
+      | let arr: JsonArray =>
+        var i = arr.size()
+        while i > 0 do
+          i = i - 1
+          try stack.push(arr(i)?) else _Unreachable() end
+        end
+      end
     end
 
   // _FilterSelector.select takes an extra `root` parameter. This is

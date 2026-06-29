@@ -71,6 +71,13 @@ actor \nodoc\ Main is TestList
     test(_TestPrinterPretty)
     test(_TestPrinterScalars)
     test(_TestTokenParserAbort)
+    // Regression tests — stack-safe JSON walks (issue #5557)
+    test(_TestParseDeeplyNested)
+    test(_TestPrintDeeplyNested)
+    test(_TestJsonPathDescendDeeplyNested)
+    test(_TestJsonPathDescendOrder)
+    test(_TestJsonPathFilterDeeplyNested)
+    test(_TestTokenParserPositions)
 
 // ===================================================================
 // Generators
@@ -680,6 +687,8 @@ class \nodoc\ iso _TestParseErrors is UnitTest
     _assert_parse_error(h, "[1,]", "trailing comma in array")
     _assert_parse_error(h, """{"a":1""", "unclosed object")
     _assert_parse_error(h, "[1", "unclosed array")
+    _assert_parse_error(h, "[1}", "array closed by brace")
+    _assert_parse_error(h, """{"a":1]""", "object closed by bracket")
     _assert_parse_error(h, "\"hello", "unterminated string")
     _assert_parse_error(h, "\"\\x\"", "bad escape")
     _assert_parse_error(h, "1 2", "trailing content")
@@ -2021,6 +2030,26 @@ class \nodoc\ iso _TestJsonPathFilterDeepEquality is UnitTest
     let r = p.query(doc)
     h.assert_eq[USize](2, r.size())
 
+    // Object equality: only an object with the same keys and equal values
+    // matches. The three unequal cases each hit a different rejection path in
+    // the iterative deep-equality walk: an unequal value; a smaller object
+    // (caught by the size check); and a same-size object whose key is absent in
+    // the target (caught by the key lookup).
+    let odoc = JsonObject
+      .update("target", JsonObject.update("a", I64(1)).update("b", I64(2)))
+      .update("items", JsonArray
+        .push(JsonObject.update("v",
+          JsonObject.update("a", I64(1)).update("b", I64(2))))  // equal
+        .push(JsonObject.update("v",
+          JsonObject.update("a", I64(1)).update("b", I64(9))))  // value differs
+        .push(JsonObject.update("v",
+          JsonObject.update("a", I64(1))))                      // size differs
+        .push(JsonObject.update("v",
+          JsonObject.update("a", I64(1)).update("c", I64(2))))) // key absent
+    let op = JsonPathParser.compile("$.items[?@.v == $.target]")?
+    let or' = op.query(odoc)
+    h.assert_eq[USize](1, or'.size())
+
 class \nodoc\ iso _TestJsonPathFilterNumbers is UnitTest
   fun name(): String => "json/jsonpath/filter/numbers"
 
@@ -2368,4 +2397,215 @@ class \nodoc\ iso _TestJsonPathFilterFunctionValue is UnitTest
       """$[?value(@.tags[0]) == "urgent"]""")?
     let r4 = p4.query(doc2)
     h.assert_eq[USize](1, r4.size())
+
+// ===================================================================
+// Regression Tests — stack-safe JSON walks (issue #5557)
+// ===================================================================
+//
+// Every value-depth walk in the package (parse, print, JSONPath recursive
+// descent, and filter `==` equality) is driven by an explicit work stack
+// rather than native recursion, so nesting depth is bounded by the heap, not
+// the scheduler thread's native stack. These tests drive each walk far past
+// any practical input depth and assert it returns the correct result, so a
+// logic error in the work-stack management surfaces here. They also guard
+// against reintroducing native recursion, which on a build/platform that does
+// not optimize the recursion's stack growth away crashes the process with an
+// uncatchable stack overflow on deeply nested input — the bug in #5557. (Where
+// the toolchain does elide that stack growth, recursion survives this depth, so
+// these are not a universal crash-counterfactual.) See
+// https://github.com/ponylang/ponyc/issues/5557.
+
+primitive \nodoc\ _DeepNestingDepth
+  """
+  Nesting depth for the stack-safety regression tests: deep enough to overflow
+  a native-recursion walk on a standard scheduler-thread stack (~8 MB) on
+  builds and platforms that don't optimize the recursion's stack growth away,
+  yet small enough to stay fast. The iterative walks handle it with depth
+  bounded by the heap.
+  """
+  fun apply(): USize => 200_000
+
+class \nodoc\ iso _TestParseDeeplyNested is UnitTest
+  """
+  Parsing deeply nested JSON completes (no native-stack overflow) and returns
+  the right structure. Reaching past `parse` proves the walk finished; the
+  root-array shape is checked too.
+  """
+  fun name(): String => "json/parse/deeply-nested"
+
+  fun apply(h: TestHelper) =>
+    let depth = _DeepNestingDepth()
+    var s = recover iso String(depth * 2) end
+    var i: USize = 0
+    while i < depth do s.push('['); i = i + 1 end
+    i = 0
+    while i < depth do s.push(']'); i = i + 1 end
+    match \exhaustive\ JsonParser.parse(consume s)
+    | let a: JsonArray => h.assert_eq[USize](1, a.size())
+    | let _: JsonValue => h.fail("expected a JsonArray at the root")
+    | let e: JsonParseError => h.fail("deep parse failed: " + e.string())
+    end
+
+class \nodoc\ iso _TestPrintDeeplyNested is UnitTest
+  """
+  Serializing a deeply nested value completes (no native-stack overflow) and
+  produces the right bytes. The value alternates object and array wrappers so
+  both the object and array printer frames are driven at depth; the expected
+  compact length is accumulated as the value is built.
+  """
+  fun name(): String => "json/print/deeply-nested"
+
+  fun apply(h: TestHelper) =>
+    let depth = _DeepNestingDepth()
+    var v: JsonValue = JsonObject
+    var expected_len: USize = 2 // innermost "{}"
+    var i: USize = 0
+    while i < depth do
+      if (i % 2) == 0 then
+        v = JsonArray.push(v)
+        expected_len = expected_len + 2 // "[" ... "]"
+      else
+        v = JsonObject.update("a", v)
+        expected_len = expected_len + 6 // {"a": ... }
+      end
+      i = i + 1
+    end
+    let s: String val = JsonPrinter.print(v)
+    h.assert_eq[USize](expected_len, s.size())
+
+class \nodoc\ iso _TestJsonPathDescendDeeplyNested is UnitTest
+  """
+  JSONPath recursive descent (`..`) over a deeply nested value completes (no
+  native-stack overflow) and visits every node. `depth` nested objects each
+  carry one "a", so `$..a` matches exactly `depth` values.
+  """
+  fun name(): String => "json/jsonpath/descend/deeply-nested"
+
+  fun apply(h: TestHelper) ? =>
+    let depth = _DeepNestingDepth()
+    var v: JsonValue = JsonObject
+    var i: USize = 0
+    while i < depth do
+      v = JsonObject.update("a", v)
+      i = i + 1
+    end
+    let p = JsonPathParser.compile("$..a")?
+    let r = p.query(v)
+    h.assert_eq[USize](depth, r.size())
+
+class \nodoc\ iso _TestJsonPathDescendOrder is UnitTest
+  """
+  Recursive descent must keep its pre-order, left-to-right traversal after the
+  switch from native recursion to an explicit work stack (children are pushed
+  in reverse so they pop in forward order). Built from arrays so child order is
+  positional and predictable.
+  """
+  fun name(): String => "json/jsonpath/descend/order"
+
+  fun apply(h: TestHelper) ? =>
+    // [ {"a": 1}, {"a": [ {"a": 2}, {"a": 3} ]} ]
+    let doc = JsonArray
+      .push(JsonObject.update("a", I64(1)))
+      .push(JsonObject.update("a", JsonArray
+        .push(JsonObject.update("a", I64(2)))
+        .push(JsonObject.update("a", I64(3)))))
+    let r = JsonPathParser.compile("$..a")?.query(doc)
+    // pre-order, left-to-right: 1, then the inner array, then 2, then 3.
+    h.assert_eq[USize](4, r.size())
+    h.assert_eq[I64](1, r(0)? as I64)
+    h.assert_eq[USize](2, (r(1)? as JsonArray).size())
+    h.assert_eq[I64](2, r(2)? as I64)
+    h.assert_eq[I64](3, r(3)? as I64)
+
+class \nodoc\ iso _TestJsonPathFilterDeeplyNested is UnitTest
+  """
+  Filter equality (`==`) over deeply nested values completes (no native-stack
+  overflow) and compares correctly. The document's single element is the deep
+  value; `@ == @` forces a full structural comparison of it against itself
+  (equality has no early-out when equal), which matches, giving one result.
+  """
+  fun name(): String => "json/jsonpath/filter/deeply-nested"
+
+  fun apply(h: TestHelper) ? =>
+    let depth = _DeepNestingDepth()
+    var deep: JsonValue = JsonArray
+    var i: USize = 0
+    while i < depth do
+      deep = JsonArray.push(deep)
+      i = i + 1
+    end
+    let doc = JsonArray.push(deep)
+    let p = JsonPathParser.compile("$[?@ == @]")?
+    let r = p.query(doc)
+    h.assert_eq[USize](1, r.size())
+
+class \nodoc\ iso _TestTokenParserPositions is UnitTest
+  """
+  The streaming token parser reports the same token sequence and byte offsets
+  after the iterative rewrite. In particular, an empty container's end token
+  keeps the start offset of its opening bracket — a detail a naive rewrite
+  drops — checked for both `{}` and `[]`. Guards token_start/token_end
+  bookkeeping.
+  """
+  fun name(): String => "json/tokenparser/positions"
+
+  fun apply(h: TestHelper) =>
+    let events = Array[(String, USize, USize)]
+    let parser = JsonTokenParser(_TokenRecorder(events))
+    try parser.parse("""{"a":[1,{}],"b":2,"c":[]}""")?
+    else h.fail("token parse raised unexpectedly")
+    end
+
+    // (label, token_start, token_end) for {"a":[1,{}],"b":2,"c":[]}. The empty
+    // {}'s ObjectEnd keeps token_start 8 (its `{`) and the empty []'s ArrayEnd
+    // keeps token_start 22 (its `[`), not the closing-bracket positions.
+    let expected: Array[(String, USize, USize)] = [
+      ("ObjectStart", 0, 1)
+      ("Key", 2, 4)
+      ("ArrayStart", 5, 6)
+      ("Number", 6, 7)
+      ("ObjectStart", 8, 9)
+      ("ObjectEnd", 8, 10)
+      ("ArrayEnd", 10, 11)
+      ("Key", 13, 15)
+      ("Number", 16, 17)
+      ("Key", 19, 21)
+      ("ArrayStart", 22, 23)
+      ("ArrayEnd", 22, 24)
+      ("ObjectEnd", 24, 25)
+    ]
+    h.assert_eq[USize](expected.size(), events.size())
+    for (idx, exp) in expected.pairs() do
+      try
+        let got = events(idx)?
+        h.assert_eq[String](exp._1, got._1)
+        h.assert_eq[USize](exp._2, got._2)
+        h.assert_eq[USize](exp._3, got._3)
+      else
+        h.fail("missing token event at index " + idx.string())
+      end
+    end
+
+class \nodoc\ _TokenRecorder is JsonTokenNotify
+  """Records (label, token_start, token_end) into a caller-owned array."""
+  let _events: Array[(String, USize, USize)]
+
+  new create(events: Array[(String, USize, USize)]) =>
+    _events = events
+
+  fun ref apply(parser: JsonTokenParser, token: JsonToken) =>
+    let label =
+      match \exhaustive\ token
+      | JsonTokenNull => "Null"
+      | JsonTokenTrue => "True"
+      | JsonTokenFalse => "False"
+      | JsonTokenNumber => "Number"
+      | JsonTokenString => "String"
+      | JsonTokenKey => "Key"
+      | JsonTokenObjectStart => "ObjectStart"
+      | JsonTokenObjectEnd => "ObjectEnd"
+      | JsonTokenArrayStart => "ArrayStart"
+      | JsonTokenArrayEnd => "ArrayEnd"
+      end
+    _events.push((label, parser.token_start(), parser.token_end()))
 
