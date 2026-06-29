@@ -8,6 +8,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 - Fix crash when parsing, printing, or querying deeply nested JSON ([PR #5604](https://github.com/ponylang/ponyc/pull/5604))
 - Reject an out-of-range --ponygcinitial exponent ([PR #5609](https://github.com/ponylang/ponyc/pull/5609))
+- Restore the message send merging optimization ([PR #5602](https://github.com/ponylang/ponyc/pull/5602))
 
 ### Added
 
