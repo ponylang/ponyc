@@ -69,7 +69,6 @@ jobs:
       matrix:
         include:
           - image: ghcr.io/ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu24.04-builder:20250115
-          - image: ghcr.io/ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu22.04-builder:20230924
           - image: ghcr.io/ponylang/ponyc-ci-alpine3.24-builder:20260611
           - image: ghcr.io/ponylang/ponyc-ci-alpine3.23-builder:20260201
 
