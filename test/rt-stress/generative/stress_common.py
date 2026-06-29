@@ -56,7 +56,9 @@ DEFAULT_TIMEOUT_SECONDS = 120
 # run with slow-CI margin (a hung run, not its true length, is the worst case). Big
 # enough that host-speed variance never false-positives a legitimate run, so the
 # bucket and size-table numbers can stay hardcoded with no startup calibration. Systematic
-# keeps DEFAULT_TIMEOUT_SECONDS -- its runs stay ~10ms.
+# keeps DEFAULT_TIMEOUT_SECONDS -- its runs are seconds (the engine now reaches natural
+# quiescence through full shutdown rather than forcing an exit, so a large drawn config
+# can take ~10s, still well inside the 120s cap).
 DEFAULT_NORMAL_TIMEOUT_SECONDS = 6000
 DEFAULT_MEM_LIMIT_MB = 4096
 
@@ -193,6 +195,37 @@ ALL_STRING_SIZES = [s for _name, _sizes, _cap in STRING_SIZE_TABLES for s in _si
 # as the same blowup.
 NORMAL_PINGERS = [1, 2, 4, 8, 16, 32, 64]
 
+# Normal-mode cyclic-garbage draws (the `cyclic` workload). A run draws this
+# workload with probability CYCLIC_PROBABILITY; otherwise it is a `mesh` run. The
+# cyclic workload spawns `generations` successive groups of `group` actors, each
+# group a strongly connected reference cycle the detector must reclaim.
+#
+# Memory bound (calibrated on the engine, CD-OFF worst case -- the leak case, since
+# normal draws ponynoblock ~50%): the Churner front-loads generations with no
+# backpressure, so peak live actors ~= generations*group, at ~5.5 KB/worker, and
+# group is SUPER-LINEAR (a group of g is g actors each holding a g-element tag
+# array). The worst drawn case -- generations 8000 * group 16 = 128k workers, with
+# the largest cyclic chains/ttl and a fresh 4096-byte string -- measures ~1.2 GB
+# peak RSS and fits under the 4 GB DEFAULT_MEM_LIMIT_MB with ~3x margin, CD on and
+# off. group 32 is deliberately excluded: same worker count costs ~3x the memory.
+#
+# Time bound: total messages = generations * chains * (ttl+1), so cyclic chains/ttl
+# are kept SMALL (their own buckets below, NOT the mesh's magnitude buckets, which
+# would explode the count) -- max ~1.1M messages, trivially within the soak budget.
+# Small chains/ttl also let a generation drain and be collected fast, so collection
+# races creation rather than piling up. COUPLING: these bounds are a property of the
+# engine's per-worker footprint and the front-loading Churner -- re-measure if the
+# cyclic actor's fields or the Churner's pacing change.
+CYCLIC_PROBABILITY = 0.5
+CYCLIC_GROUPS = [2, 4, 8, 16]
+CYCLIC_GENERATION_BUCKETS = {
+    "small": (10, 800),
+    "medium": (801, 3000),
+    "large": (3001, 8000),
+}
+CYCLIC_CHAINS_BUCKETS = {"small": (1, 2), "medium": (3, 5), "large": (6, 8)}
+CYCLIC_TTL_BUCKETS = {"small": (1, 4), "medium": (5, 10), "large": (11, 16)}
+
 
 def draw_bucketed(rng, buckets):
     """Draw a small/medium/large bucket at 25/50/25, then a uniform value within it.
@@ -233,6 +266,22 @@ def draw_payload(rng, msgs):
         sizes = ALL_STRING_SIZES
     size = sizes[int(rng.random() * len(sizes))]
     return kind, size, mode
+
+
+def draw_cyclic(rng):
+    """Draw the workload kind plus the cyclic-only shape, returning
+    (workload, generations, group). ALWAYS the same fixed sequence of four logical
+    draws -- the kind roll, the bucketed generations (a roll + a value), and the
+    group choice -- with no branch on the rolled kind, so the kind changes which
+    keys the config later emits but not how many draws this makes (mirrors
+    draw_payload's fixed-consumption discipline; "logical draws" because a randint's
+    underlying bit consumption varies with its value, but the call sequence does
+    not). generations and group are drawn even for a mesh run (and then ignored) to
+    keep that sequence fixed."""
+    workload = "cyclic" if rng.random() < CYCLIC_PROBABILITY else "mesh"
+    generations = draw_bucketed(rng, CYCLIC_GENERATION_BUCKETS)
+    group = rng.choice(CYCLIC_GROUPS)
+    return workload, generations, group
 
 
 def build_argv(binary, config):
@@ -570,8 +619,16 @@ def summary_line(config, result):
     detail = "received=%s expected=%s sig=%s" % (
         parsed.get("received", "?"), parsed.get("expected", "?"),
         parsed.get("order_sig", "?"))
-    return "[seed %d] %s (pingers=%d chains=%d ttl=%d payload=%s) %s" % (
-        config["master_seed"], result.outcome.upper(), shape["pingers"],
+    # The cyclic and mesh workloads carry different shape fields (a cyclic config
+    # has no `pingers`); chains/ttl/payload are shared. A systematic config has no
+    # `workload` key (always mesh, by the engine default), so default to mesh.
+    if shape.get("workload") == "cyclic":
+        kind = "cyclic generations=%d group=%d" % (
+            shape["generations"], shape["group"])
+    else:
+        kind = "mesh pingers=%d" % shape["pingers"]
+    return "[seed %d] %s (%s chains=%d ttl=%d payload=%s) %s" % (
+        config["master_seed"], result.outcome.upper(), kind,
         shape["chains"], shape["ttl"], shape["payload"], detail)
 
 
