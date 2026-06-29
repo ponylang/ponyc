@@ -7,13 +7,15 @@
 # repository_dispatch event at ponylang/ponyc. Different package names gate
 # different downstream jobs:
 #
-#   ponyc-x86-64-unknown-linux-alpine3.23.tar.gz
-#   ponyc-arm64-unknown-linux-alpine3.23.tar.gz
+#   ponyc-x86-64-unknown-linux-alpine3.24.tar.gz
+#   ponyc-arm64-unknown-linux-alpine3.24.tar.gz
 #       -> Build Nightly Image (image -> stdlib-builder -> docs test -> prune
 #          -> notify downstream). The gate ORs the two alpine arches and the
 #          build is multi-arch, so in the real cascade both packages sync and
 #          fire the build; `concurrency: cancel-in-progress` collapses the
-#          duplicate. We send both names to faithfully replay that.
+#          duplicate. We send both names to faithfully replay that. The Alpine
+#          version must match the Dockerfile base; see
+#          .known-couplings/docker-image-base-vs-trigger-package.md.
 #   ponyc-x86-64-apple-darwin.tar.gz
 #       -> macOS x86-64 nightly-released (corral, ponyup)
 #   ponyc-arm64-apple-darwin.tar.gz
@@ -73,8 +75,8 @@ dispatch() {
   fi
 }
 
-dispatch "ponyc-x86-64-unknown-linux-alpine3.23.tar.gz"
-dispatch "ponyc-arm64-unknown-linux-alpine3.23.tar.gz"
+dispatch "ponyc-x86-64-unknown-linux-alpine3.24.tar.gz"
+dispatch "ponyc-arm64-unknown-linux-alpine3.24.tar.gz"
 dispatch "ponyc-x86-64-apple-darwin.tar.gz"
 dispatch "ponyc-arm64-apple-darwin.tar.gz"
 dispatch "ponyc-x86-64-pc-windows-msvc.zip"

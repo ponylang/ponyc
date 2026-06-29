@@ -5,10 +5,12 @@
 # When a release package finishes syncing to the ponylang/releases Cloudsmith
 # repository, Cloudsmith fires a `cloudsmith-package-synchronised`
 # repository_dispatch event at ponylang/ponyc. The release image build is the
-# only consumer of those events, gated on the alpine3.23 package names:
+# only consumer of those events, gated on the alpine3.24 package names (the
+# Alpine version must match the Dockerfile base; see
+# .known-couplings/docker-image-base-vs-trigger-package.md):
 #
-#   ponyc-x86-64-unknown-linux-alpine3.23.tar.gz
-#   ponyc-arm64-unknown-linux-alpine3.23.tar.gz
+#   ponyc-x86-64-unknown-linux-alpine3.24.tar.gz
+#   ponyc-arm64-unknown-linux-alpine3.24.tar.gz
 #       -> Build Release Image. Both arches must be sent: the multi-arch
 #          `:release` image ORs the two (so the duplicate run collapses under
 #          `concurrency: cancel-in-progress`), but the versioned per-arch images
@@ -82,7 +84,7 @@ dispatch() {
   fi
 }
 
-dispatch "ponyc-x86-64-unknown-linux-alpine3.23.tar.gz"
-dispatch "ponyc-arm64-unknown-linux-alpine3.23.tar.gz"
+dispatch "ponyc-x86-64-unknown-linux-alpine3.24.tar.gz"
+dispatch "ponyc-arm64-unknown-linux-alpine3.24.tar.gz"
 
 echo "All release tasks triggered for version ${version}."
