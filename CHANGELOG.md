@@ -19,6 +19,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Remove support for Alpine 3.21 ([PR #5598](https://github.com/ponylang/ponyc/pull/5598))
 - Remove support for Alpine 3.22 ([PR #5598](https://github.com/ponylang/ponyc/pull/5598))
 - Remove support for Ubuntu 22.04 ([PR #5600](https://github.com/ponylang/ponyc/pull/5600))
+- Update Docker image base to Alpine 3.24 ([PR #5599](https://github.com/ponylang/ponyc/pull/5599))
 
 ## [0.65.0] - 2026-06-27
 
