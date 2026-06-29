@@ -80,7 +80,7 @@ def test_resolve_config_cyclic_golden():
         "runtime": {
             "ponycdinterval": 1000,
             "ponygcfactor": 1.05,
-            "ponygcinitial": 16,
+            "ponygcinitial": 20,
             "ponymaxthreads": 8,
             "ponynoblock": True,
             "ponynoscale": True,
