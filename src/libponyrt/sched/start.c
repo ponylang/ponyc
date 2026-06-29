@@ -218,7 +218,23 @@ static int parse_opts(int argc, char** argv, options_t* opt)
         if(opt->cd_detect_interval > 1000)
           err_out(id, "can't be more than 1000");
         break;
-      case OPT_GCINITIAL: if(parse_size(&opt->gc_initial, 0, s.arg_val)) err_out(id, "can't be less than 0"); break;
+      case OPT_GCINITIAL:
+        if(parse_size(&opt->gc_initial, 0, s.arg_val))
+          err_out(id, "can't be less than 0");
+        // gc_initial is the exponent N in a 2^N byte GC threshold; the runtime
+        // computes `(size_t)1 << N`, which is undefined once N reaches the bit
+        // width of size_t. Reject an out-of-range exponent rather than let the
+        // shift wrap -- on a 64-bit host `--ponygcinitial 64` would otherwise
+        // mask to `1 << 0`, a 1-byte threshold (GC on nearly every allocation),
+        // the opposite of the "defer GC" the flag promises.
+        if(opt->gc_initial >= (sizeof(size_t) * 8))
+        {
+          char msg[64];
+          snprintf(msg, sizeof(msg), "can't be %d or greater",
+            (int)(sizeof(size_t) * 8));
+          err_out(id, msg);
+        }
+        break;
       case OPT_GCFACTOR: if(parse_udouble(&opt->gc_factor, 1.0, s.arg_val)) err_out(id, "can't be less than 1.0"); break;
       case OPT_NOYIELD: opt->noyield = true; break;
       case OPT_NOBLOCK: opt->noblock = true; break;
