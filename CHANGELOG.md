@@ -6,6 +6,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
+- Fix crash when parsing, printing, or querying deeply nested JSON ([PR #5604](https://github.com/ponylang/ponyc/pull/5604))
 
 ### Added
 
