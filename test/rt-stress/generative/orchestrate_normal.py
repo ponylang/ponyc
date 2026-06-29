@@ -8,8 +8,9 @@ real lock-free contention) the serialized systematic mode cannot. The cost: runs
 are NOT reproducible -- two runs of the same seed differ -- so there is no
 determinism oracle here (that is orchestrate_systematic.py's job). What survives:
 the conservation invariant (the engine itself exits non-zero on
-sent != received != expected), crash detection, and the wall-clock liveness
-watchdog. Because a normal-mode crash does NOT reproduce, the engine runs under
+sent != received != expected), crash detection, and the liveness watchdog (here it
+fires on no progress -- engine silence -- so a slow run that keeps advancing is not
+false-failed). Because a normal-mode crash does NOT reproduce, the engine runs under
 lldb so the crash backtrace is captured in the moment -- it is the only artifact
 you will get for a raced memory-corruption crash.
 
@@ -156,10 +157,12 @@ def main(argv):
     parser.add_argument("--out", help="output dir for the binary and bundles")
     parser.add_argument("--timeout", type=int,
                         default=common.DEFAULT_NORMAL_TIMEOUT_SECONDS,
-                        help="per-run wall-clock watchdog, seconds (default %d); a "
-                        "flat ~2x the longest plausible large run with slow-CI "
-                        "margin -- a single hung run, not its true length, is the "
-                        "worst case" % common.DEFAULT_NORMAL_TIMEOUT_SECONDS)
+                        help="absolute per-run backstop, seconds (default %d). A "
+                        "hang is caught sooner by the no-progress watchdog (%ds of "
+                        "silence); this only bounds a run whose real time runs far "
+                        "past its estimate, so it can't eat the whole CI job."
+                        % (common.DEFAULT_NORMAL_TIMEOUT_SECONDS,
+                           common.DEFAULT_NORMAL_NO_PROGRESS_SECONDS))
     parser.add_argument("--mem-limit-mb", type=int,
                         default=common.DEFAULT_MEM_LIMIT_MB,
                         help="per-run address-space cap, MB (POSIX only; on "
@@ -219,8 +222,13 @@ def main(argv):
     # crashed seed under lldb later would not recapture it -- it is lldb-now or
     # never. Don't "optimize" this to a direct run without solving crash capture
     # another way (e.g. core dump + post-mortem lldb).
+    # The watchdog fires on NO PROGRESS (a hang), not on total length: the engine
+    # heartbeats as it advances, so a slow-but-progressing run finishes instead of
+    # false-failing. `t` (the per-run timeout) is the absolute backstop.
     def runner(b, c, t, m):
-        return common.run_under_lldb(b, c, args.lldb, t, m)
+        return common.run_under_lldb(
+            b, c, args.lldb, t, m,
+            no_progress_seconds=common.DEFAULT_NORMAL_NO_PROGRESS_SECONDS)
 
     failures = 0
     if args.budget_seconds is not None:

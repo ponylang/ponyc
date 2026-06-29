@@ -90,6 +90,8 @@ use "cli"
 use "random"
 use @printf[I32](fmt: Pointer[U8] tag, ...)
 use @fprintf[I32](stream: Pointer[U8] tag, fmt: Pointer[U8] tag, ...)
+use @fflush[I32](stream: Pointer[U8] tag)
+use @pony_os_stdout[Pointer[U8]]()
 use @pony_os_stderr[Pointer[U8]]()
 use @exit[None](status: I32)
 
@@ -117,6 +119,42 @@ primitive _Payloads
     else
       U64(42)
     end
+
+primitive _Heartbeat
+  """
+  The no-progress watchdog's progress signal. A receiving actor calls `emit` every
+  `interval(...)` messages it handles; the normal orchestrator's watchdog reads
+  these to tell a slow-but-advancing run from a hung one, killing only on silence
+  (see stress_common.py). The line carries no data -- only its arrival matters, and
+  it adds no message and no fan-out, so the conservation and ORDER_SIG oracles are
+  untouched.
+
+  Flushing is load-bearing: a bare @printf to a piped stdout is block-buffered, so
+  the line would not reach the watchdog until the buffer fills or the program exits,
+  defeating the watchdog. @fflush forces it out per heartbeat (verified to arrive in
+  real time both directly and under lldb).
+  """
+  fun interval(total_messages: USize, emitters: USize): USize =>
+    """
+    Per-emitter message count between heartbeats, or 0 to disable. Disabled when the
+    run is small enough to finish well within the watchdog's no-progress window (so
+    it needs no heartbeat -- the cyclic workload and small mesh/backpressure draws);
+    otherwise ~`_target` heartbeats per emitter, floored at 1. COUPLING: this cadence
+    is paired with the orchestrator's no_progress threshold -- a live run must
+    heartbeat well within it; see .known-couplings/stress-heartbeat-watchdog.md.
+    """
+    if (emitters == 0) or (total_messages < _min()) then
+      0
+    else
+      (total_messages / (emitters * _target())).max(1)
+    end
+
+  fun emit() =>
+    @printf("HEARTBEAT\n".cstring())
+    @fflush(@pony_os_stdout())
+
+  fun _target(): USize => 50
+  fun _min(): USize => 1_000_000
 
 actor Main
   new create(env: Env) =>
@@ -181,10 +219,13 @@ actor Coordinator
     // Create the mesh. Pingers are built outside the `recover` block (so we can
     // pass `this`) and pushed into the iso array via automatic receiver
     // recovery -- `push`'s argument, a `Pinger tag`, is sendable.
+    // Per-Pinger heartbeat cadence: ~_target prints per Pinger over the run, off
+    // for runs too small to need a progress signal. Computed once and shared.
+    let hb = _Heartbeat.interval(mesh.chains * (mesh.ttl + 1), mesh.pingers)
     let ps: Array[Pinger] iso = recover Array[Pinger](mesh.pingers) end
     var id: USize = 0
     while id < mesh.pingers do
-      ps.push(Pinger(this, id, config))
+      ps.push(Pinger(this, id, config, hb))
       id = id + 1
     end
     let pingers: Array[Pinger] val = consume ps
@@ -281,16 +322,18 @@ actor Pinger
   let _coord: Coordinator
   let _id: USize
   let _config: _Config
+  let _hb_interval: USize
   var _neighbors: Array[Pinger] val
   var _received: U64 = 0
   var _sent: U64 = 0
   var _reported: Bool = false
   let _rand: Rand
 
-  new create(coord: Coordinator, id: USize, config: _Config) =>
+  new create(coord: Coordinator, id: USize, config: _Config, hb_interval: USize) =>
     _coord = coord
     _id = id
     _config = config
+    _hb_interval = hb_interval
     _neighbors = recover val Array[Pinger] end
     // Per-Pinger deterministic draw stream, seeded only from `--seed` + id,
     // never the clock. The stream of values is fixed by the seed; which value
@@ -322,6 +365,9 @@ actor Pinger
       _Fatal("ping after report (leaked/late message)")
     end
     _received = _received + 1
+    if (_hb_interval > 0) and ((_received % _hb_interval.u64()) == 0) then
+      _Heartbeat.emit()
+    end
     if hops > 0 then
       _sent = _sent + 1
       // In `fresh` mode allocate a new payload each hop (allocation +
@@ -600,6 +646,7 @@ actor Consumer
   let _producers: USize
   let _apply_every: USize
   let _expected: U64
+  let _hb_interval: USize
   var _received: U64 = 0
   var _since_apply: USize = 0
   var _pressured: Bool = false
@@ -615,6 +662,8 @@ actor Consumer
     _producers = bp.producers
     _apply_every = bp.apply_every
     _expected = bp.producers.u64() * bp.messages.u64()
+    // Single consumer, so it is the sole heartbeat emitter for this workload.
+    _hb_interval = _Heartbeat.interval(bp.producers * bp.messages, 1)
 
     // Spawn the producers pointing at this consumer (the Coordinator pattern: the
     // driver creates the workers with `this`). Each floods `messages` work
@@ -636,6 +685,9 @@ actor Consumer
       _Fatal("work after done (leaked/late message)")
     end
     _received = _received + 1
+    if (_hb_interval > 0) and ((_received % _hb_interval.u64()) == 0) then
+      _Heartbeat.emit()
+    end
     if not _pressured then
       _since_apply = _since_apply + 1
       if _since_apply >= _apply_every then
