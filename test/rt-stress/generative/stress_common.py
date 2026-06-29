@@ -19,8 +19,9 @@ three TIER1 platforms (on Windows the systematic build uses
 `use=systematic_testing` alone -- Windows scales the scheduler with native
 primitives, not pthreads). The RLIMIT_AS memory cap is applied only where the OS
 honors it (Linux): Windows lacks the `resource` module and macOS rejects the
-limit, so both fall back to host OOM handling. The wall-clock watchdog is
-portable.
+limit, so both fall back to host OOM handling. Both watchdogs are portable -- the
+systematic mode's flat wall-clock timeout and the normal mode's no-progress
+watchdog (threads + blocking reads, no `select`, so it runs on Windows too).
 
 The pure pieces (derive_seed / resolve_systematic_workload / draw_* / build_argv /
 run_command / parse_result / lldb_argv / lldb_exit_code) are unit-tested in
@@ -35,6 +36,8 @@ import shlex
 import signal
 import subprocess
 import sys
+import threading
+import time
 
 try:
     import resource  # POSIX only; absent on Windows
@@ -52,13 +55,19 @@ REPO_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(SOURCE_DIR)))
 
 U64_MASK = (1 << 64) - 1
 DEFAULT_TIMEOUT_SECONDS = 120
-# Normal mode's per-run watchdog: a flat ~100 min, ~2x the longest plausible large
-# run with slow-CI margin (a hung run, not its true length, is the worst case). Big
-# enough that host-speed variance never false-positives a legitimate run, so the
-# bucket and cost-model numbers can stay hardcoded with no startup calibration. Systematic
-# keeps DEFAULT_TIMEOUT_SECONDS -- its runs are seconds (the engine now reaches natural
-# quiescence through full shutdown rather than forcing an exit, so a large drawn config
-# can take ~10s, still well inside the 120s cap).
+# Normal mode kills a run on NO PROGRESS, not on total length: the engine emits a
+# flushed heartbeat as it advances, and a run that stays silent this long is hung
+# (a deadlock, a lost message, or a shutdown that never completes). A slow-but-
+# advancing run keeps heartbeating, so it is NOT killed -- it finishes, however
+# long it legitimately takes. ~5 min is far above the worst inter-heartbeat gap
+# (the engine targets ~tens of heartbeats per emitter over a run) yet catches a
+# hang in minutes. COUPLING: paired with the engine's heartbeat cadence -- see
+# .known-couplings/stress-heartbeat-watchdog.md.
+DEFAULT_NORMAL_NO_PROGRESS_SECONDS = 300
+# Absolute backstop for the normal mode: even a steadily-progressing run is capped
+# here, bounding a config whose real time runs far past its estimate (a cost-model
+# miss) so a single run can't eat the whole CI job. The magnitude draw (clamp_ttl)
+# targets ~20 min, so this ~100 min leaves wide margin and rarely fires.
 DEFAULT_NORMAL_TIMEOUT_SECONDS = 6000
 DEFAULT_MEM_LIMIT_MB = 4096
 
@@ -530,22 +539,26 @@ def _rlimit_as_supported(platform, resource_available):
     return resource_available and (platform == "linux")
 
 
-def _capture(argv, timeout, mem_limit_bytes):
-    """Run argv under a wall-clock watchdog and (on Linux) an RLIMIT_AS cap;
-    return (timed_out, returncode, stdout, stderr). Mechanism only -- the caller
-    classifies the outcome.
+def _capture(argv, timeout, mem_limit_bytes, no_progress_seconds=None):
+    """Run argv under a watchdog and (on Linux) an RLIMIT_AS cap; return
+    (timed_out, returncode, stdout, stderr). Mechanism only -- the caller classifies.
 
-    The timeout is the primary guardrail on every platform -- a real-parallel or
-    deterministic run can still deadlock. On timeout we kill the whole process
-    GROUP, not just the direct child: the normal mode's direct child is lldb and
-    the engine is its grandchild, so SIGKILLing only lldb would orphan a hung
-    engine (it reparents to init and keeps consuming the host across the soak).
-    `start_new_session` puts the child in its own group so killpg reaps the tree.
+    Two watchdog modes:
+      * no_progress_seconds is None (SYSTEMATIC): `timeout` is a single total
+        wall-clock limit -- the original behavior. Systematic runs are short and
+        reproducible, and a systematic hang must still surface as a timeout (see
+        .known-couplings/systematic-testing-park-sites.md), so this stays unchanged.
+      * no_progress_seconds is set (NORMAL): the run is killed when it produces NO
+        output for that long (a hang); a slow-but-advancing run -- which the engine's
+        heartbeats keep printing through -- is NOT killed, so a legitimately long run
+        finishes instead of false-failing. `timeout` is then an absolute backstop.
+        Both kills return timed_out=True -- a no-progress kill IS a hang/timeout.
 
-    The address-space cap (== `ulimit -v`, covering the pool allocator's mmap'd
-    regions) is applied only where the OS honors it -- see _rlimit_as_supported
-    for why Windows and macOS are excluded; there preexec_fn stays None and the
-    job relies on the host's OOM handling."""
+    On any kill we reap the whole process GROUP, not just the direct child: normal
+    mode's direct child is lldb and the engine is its grandchild, so SIGKILLing only
+    lldb would orphan a hung engine. `start_new_session` puts the child in its own
+    group so killpg reaps the tree. The RLIMIT_AS cap is applied only where the OS
+    honors it -- see _rlimit_as_supported (Windows/macOS fall back to host OOM)."""
     preexec = None
     if (mem_limit_bytes is not None) and _rlimit_as_supported(
             sys.platform, resource is not None):
@@ -558,13 +571,72 @@ def _capture(argv, timeout, mem_limit_bytes):
     proc = subprocess.Popen(argv, stdout=subprocess.PIPE,
                             stderr=subprocess.PIPE, preexec_fn=preexec,
                             start_new_session=(os.name == "posix"))
-    try:
-        stdout, stderr = proc.communicate(timeout=timeout)
-        return (False, proc.returncode, _decode(stdout), _decode(stderr))
-    except subprocess.TimeoutExpired:
-        _kill_process_tree(proc)
-        stdout, stderr = proc.communicate()
-        return (True, None, _decode(stdout), _decode(stderr))
+    if no_progress_seconds is None:
+        try:
+            stdout, stderr = proc.communicate(timeout=timeout)
+            return (False, proc.returncode, _decode(stdout), _decode(stderr))
+        except subprocess.TimeoutExpired:
+            _kill_process_tree(proc)
+            stdout, stderr = proc.communicate()
+            return (True, None, _decode(stdout), _decode(stderr))
+    return _watch_for_progress(proc, timeout, no_progress_seconds)
+
+
+def _watchdog_should_kill(now, start, last_output, timeout, no_progress_seconds):
+    """The normal-mode watchdog decision: kill if the run has been silent past the
+    no-progress window (a hang) OR has run past the absolute backstop. A run that
+    keeps producing output (last_output recent) survives indefinitely up to the
+    backstop -- that is the "slow but progressing is not a hang" property."""
+    return ((now - last_output) > no_progress_seconds) or ((now - start) > timeout)
+
+
+def _watch_for_progress(proc, timeout, no_progress_seconds,
+                        poll=time.monotonic, sleep=time.sleep):
+    """Drain BOTH of proc's streams in reader threads -- concurrently, so a full
+    stderr pipe (lldb is chatty) can't deadlock the child the way a single deferred
+    reader would -- updating a last-output time on every line. Kill the process
+    group on a no-progress gap (a hang) or the absolute `timeout` backstop;
+    otherwise let the run finish. Returns (timed_out, returncode, stdout, stderr).
+    `poll`/`sleep` are injectable so the watchdog logic is testable without real
+    time."""
+    last_output = [poll()]
+    lock = threading.Lock()
+    chunks = {"out": [], "err": []}
+
+    def drain(stream, key):
+        try:
+            for line in iter(stream.readline, b""):
+                chunks[key].append(line)
+                with lock:
+                    last_output[0] = poll()
+        finally:
+            stream.close()
+
+    readers = [
+        threading.Thread(target=drain, args=(proc.stdout, "out"), daemon=True),
+        threading.Thread(target=drain, args=(proc.stderr, "err"), daemon=True),
+    ]
+    for t in readers:
+        t.start()
+
+    start = poll()
+    timed_out = False
+    while proc.poll() is None:
+        now = poll()
+        with lock:
+            last = last_output[0]
+        if _watchdog_should_kill(now, start, last, timeout, no_progress_seconds):
+            _kill_process_tree(proc)
+            timed_out = True
+            break
+        sleep(0.5)
+    proc.wait()
+    for t in readers:
+        t.join(timeout=5)
+    stdout = _decode(b"".join(chunks["out"]))
+    stderr = _decode(b"".join(chunks["err"]))
+    returncode = None if timed_out else proc.returncode
+    return (timed_out, returncode, stdout, stderr)
 
 
 def _kill_process_tree(proc):
@@ -636,15 +708,21 @@ def lldb_exit_code(output):
     return int(match.group(1)) if match is not None else None
 
 
-def run_under_lldb(binary, config, lldb, timeout, mem_limit_bytes):
+def run_under_lldb(binary, config, lldb, timeout, mem_limit_bytes,
+                   no_progress_seconds=None):
     """Run the engine under lldb so a crash leaves a backtrace in the captured
     output. The normal mode is non-reproducible (real parallelism), so an
     in-the-moment stack is the only crash artifact -- re-running the seed need not
     crash again. The engine's real exit code comes from lldb's exit-status line
     (conservation failures exit 1, a clean run exits 0); no such line means the
-    program crashed, which is a failure with the backtrace already captured."""
+    program crashed, which is a failure with the backtrace already captured.
+
+    `no_progress_seconds` (the normal driver sets it) makes the watchdog fire on a
+    hang -- silence -- rather than on total length, so a slow run finishes; see
+    _capture."""
     timed_out, _lldb_rc, stdout, stderr = _capture(
-        lldb_argv(lldb, run_command(binary, config)), timeout, mem_limit_bytes)
+        lldb_argv(lldb, run_command(binary, config)), timeout, mem_limit_bytes,
+        no_progress_seconds=no_progress_seconds)
     if timed_out:
         return RunResult("timeout", None, None, stdout, stderr)
     combined = stdout + "\n" + stderr

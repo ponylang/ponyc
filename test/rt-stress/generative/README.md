@@ -159,9 +159,14 @@ non-deterministic, so a replay won't necessarily reproduce a failure).
   each seed under lldb so even a raw crash with no assert is captured with a
   `bt all` (the systematic mode reproduces from its seed, so it re-runs under a
   debugger locally instead).
-- **Liveness** — the orchestrator's wall-clock watchdog; a hang is a failure
-  (including a `cyclic` chain that never completes, or a runtime that fails to
-  shut down cleanly once the engine quiesces).
+- **Liveness** — the orchestrator's watchdog; a hang is a failure (including a
+  `cyclic` chain that never completes, or a runtime that fails to shut down
+  cleanly once the engine quiesces). In **normal** mode the watchdog fires on **no
+  progress** — the engine emits a flushed heartbeat as it advances, and a run that
+  stays silent too long is hung — so a slow-but-progressing run finishes rather
+  than being false-failed for taking a long time. **Systematic** mode keeps a flat
+  total-time watchdog (its runs are short and reproducible, and its park-site hangs
+  must still surface as a timeout).
 - **Determinism** (systematic mode only) — every seed runs twice and the two
   runs' `ORDER_SIG` must match; a divergence is a real race. This needs the
   serialized, reproducible runtime, so it is the systematic driver's oracle

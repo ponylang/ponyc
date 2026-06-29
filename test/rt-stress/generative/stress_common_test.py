@@ -525,6 +525,99 @@ def test_run_under_lldb():
         common._capture = real
 
 
+def test_watchdog_should_kill():
+    # The pure no-progress decision: kill on a silence gap OR the absolute backstop;
+    # spare a run that keeps producing output, however long it legitimately takes.
+    decide = common._watchdog_should_kill
+    check("watchdog kills on a no-progress gap (a hang)",
+          decide(400, 0, 0, 6000, 300))
+    check("watchdog spares a slow-but-progressing run",
+          not decide(5000, 0, 4990, 6000, 300))
+    check("watchdog kills at the absolute backstop despite recent progress",
+          decide(6001, 0, 6000, 6000, 300))
+
+
+class _FakeStream:
+    def __init__(self, lines):
+        self._lines = list(lines)
+
+    def readline(self):
+        return self._lines.pop(0) if self._lines else b""
+
+    def close(self):
+        pass
+
+
+class _FakeProc:
+    """A subprocess stand-in for _watch_for_progress: poll() returns None while
+    `alive_polls` remain (the run is going), then the exit code."""
+    def __init__(self, out, err, alive_polls, returncode=0):
+        self.stdout = _FakeStream(out)
+        self.stderr = _FakeStream(err)
+        self._alive = alive_polls
+        self.returncode = returncode
+
+    def poll(self):
+        if self._alive > 0:
+            self._alive -= 1
+            return None
+        return self.returncode
+
+    def wait(self):
+        self._alive = 0
+        return self.returncode
+
+
+def test_watch_for_progress():
+    real_kill = common._kill_process_tree
+    killed = []
+    common._kill_process_tree = lambda p: killed.append(p)
+    try:
+        # Clean completion: the process exits, both streams are drained, the exit
+        # code passes through, and nothing is killed.
+        proc = _FakeProc([b"HEARTBEAT\n", b"RECEIVED=1 SENT=1 EXPECTED=1\n"],
+                         [b"(lldb) run\n"], alive_polls=0, returncode=0)
+        timed_out, rc, out, err = common._watch_for_progress(
+            proc, 6000, 300, poll=lambda: 0.0, sleep=lambda _s: None)
+        check("watch_for_progress: clean run is not timed out", timed_out is False)
+        check("watch_for_progress: exit code passes through", rc == 0)
+        check("watch_for_progress: stdout is drained", "RECEIVED=1" in out)
+        check("watch_for_progress: stderr is drained", "lldb" in err)
+        check("watch_for_progress: a clean run is not killed", not killed)
+
+        # Hang: the process stays alive and emits nothing -> killed on no-progress,
+        # reported as timed out with no returncode. The injected sleep advances the
+        # clock past the no-progress window without real waiting.
+        clock = [0.0]
+
+        def advance(_s):
+            clock[0] += 1000.0
+
+        proc2 = _FakeProc([], [], alive_polls=1000, returncode=0)
+        timed_out2, rc2, _o, _e = common._watch_for_progress(
+            proc2, 6000, 300, poll=lambda: clock[0], sleep=advance)
+        check("watch_for_progress: a hang is timed out", timed_out2 is True)
+        check("watch_for_progress: a hung run is killed", len(killed) == 1)
+        check("watch_for_progress: a timed-out run has no returncode", rc2 is None)
+
+        # Alive across several poll iterations, but the clock stays inside the
+        # no-progress window each step -> the loop runs, the watchdog spares the run,
+        # and it completes cleanly (not killed).
+        clock3 = [0.0]
+
+        def small_advance(_s):
+            clock3[0] += 100.0  # < the 300s no-progress window per step
+
+        proc3 = _FakeProc([b"HEARTBEAT\n"], [], alive_polls=2, returncode=0)
+        timed_out3, rc3, _o3, _e3 = common._watch_for_progress(
+            proc3, 6000, 300, poll=lambda: clock3[0], sleep=small_advance)
+        check("watch_for_progress: an advancing run within the window completes",
+              (timed_out3 is False) and (rc3 == 0))
+        check("watch_for_progress: an advancing run is not killed", len(killed) == 1)
+    finally:
+        common._kill_process_tree = real_kill
+
+
 def test_rlimit_as_supported():
     # Linux honors RLIMIT_AS and ships the resource module: cap applies.
     check("rlimit_as_supported: linux with resource -> True",
@@ -671,6 +764,8 @@ def main():
     test_lldb_exit_code()
     test_run_once()
     test_run_under_lldb()
+    test_watchdog_should_kill()
+    test_watch_for_progress()
     test_rlimit_as_supported()
     test_bundle_for()
     test_resolve_seeds()
