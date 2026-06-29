@@ -84,7 +84,9 @@
   "  --ponycdinterval Run cycle detection every N ms (max 1000 ms, min 10 ms).\n" \
   "                   Defaults to 100 ms.\n" \
   "  --ponygcinitial  Defer garbage collection until an actor is using at\n" \
-  "                   least 2^N bytes. Defaults to 2^14.\n" \
+  "                   least 2^N bytes, where N is less than the machine's\n" \
+  "                   pointer width in bits (at most 63 on 64-bit).\n" \
+  "                   Defaults to 2^14.\n" \
   "  --ponygcfactor   After GC, an actor will next be GC'd at a heap memory\n" \
   "                   usage N times its current value. This is a floating\n" \
   "                   point value. Defaults to 2.0.\n" \
