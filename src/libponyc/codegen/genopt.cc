@@ -639,7 +639,10 @@ public:
     bool changed = false;
     for (auto block = f.begin(), end = f.end(); block != end; ++block)
     {
-      changed = changed || runOnBasicBlock(*block);
+      // |=, not ||: || short-circuits once changed is true, which would skip
+      // runOnBasicBlock (and so the merging) for every later block in this
+      // invocation.
+      changed |= runOnBasicBlock(*block);
     }
 
     return changed ? PreservedAnalyses::none() : PreservedAnalyses::all();
@@ -657,17 +660,37 @@ public:
     // of LLVM IR generation in the CodeGen pass.
     // Thus, it is not safe to run this pass on blocks where it has already run,
     // or more specifically, blocks stitched together from combined blocks where
-    // the pass has been run on some of the constituent blocks.
-    // In such cases, this pass may move interleaved instructions around in
-    // unexpected ways that break LLVM IR rules.
-    // So here we check for the presence of any call instructions to
-    // pony_send_next or pony_chain, which will only be present if this pass
-    // has already run, because this is the only place where they are produced.
-    // If we encounter such a call instruction in the basic block,
-    // we will bail out without modifying anything in the basic block.
-    bool already_ran = findCallTo(
-      std::vector<StringRef>{"pony_send_next", "pony_chain"},
-      start, end, true).second >= 0;
+    // the pass has been run on some of the constituent blocks (e.g. a block
+    // inlined from an already-optimised function). Re-running over its own
+    // output corrupts already-chained sends and trips the makeMsgChains
+    // assertions (#3784, #5589).
+    // So here we check for the presence of any call to pony_send_next or
+    // pony_chain, which are produced nowhere else and so mark a block whose
+    // sends this pass has already chained or trace-merged. (A block whose sends
+    // were only reordered -- e.g. consecutive non-tracing sends to different
+    // destinations -- leaves no such marker, but it is re-run-safe: those sends
+    // are never chained, so the makeMsgChains invariant still holds.) If we find
+    // a marker, we bail out without modifying the block.
+    // This match is by function name and deliberately does NOT go through
+    // findCallTo: findCallTo only considers calls tagged with "pony.msgsend"
+    // metadata, and the pony_chain calls makeMsgChains creates carry no such
+    // metadata. A metadata-filtered check therefore misses chain-only output
+    // and lets the pass re-run on an already-merged block.
+    bool already_ran = false;
+    for(auto iter = start; iter != end; ++iter)
+    {
+      auto call = dyn_cast<CallBase>(&*iter);
+      if(call == NULL)
+        continue;
+
+      Function* fun = call->getCalledFunction();
+      if((fun != NULL) && (fun->getName().compare("pony_send_next") == 0 ||
+        fun->getName().compare("pony_chain") == 0))
+      {
+        already_ran = true;
+        break;
+      }
+    }
     if(already_ran)
       return false;
 
@@ -999,13 +1022,16 @@ public:
     Function* fn = Function::Create(fn_type, Function::ExternalLinkage,
       "pony_chain", &m);
 
-    unsigned functionIndex = AttributeList::FunctionIndex;
-
     fn->addFnAttr(Attribute::NoUnwind);
     fn->setOnlyAccessesArgMemory();
-    fn->addParamAttr(1,
+    // pony_chain(prev, next) reads and writes *prev (prev->next) but never
+    // stores the prev pointer itself, so prev (param 0) does not escape. It
+    // stores the next pointer into prev->next -- so next is captured and must
+    // not be marked captures(none) -- but never dereferences *next, so next
+    // (param 1) is ReadNone. addParamAttr is 0-based.
+    fn->addParamAttr(0,
       Attribute::getWithCaptureInfo(m.getContext(), CaptureInfo::none()));
-    fn->addParamAttr(2, Attribute::ReadNone);
+    fn->addParamAttr(1, Attribute::ReadNone);
     return fn;
   }
 };
