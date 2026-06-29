@@ -68,8 +68,9 @@ def resolve_config(master_seed, max_threads):
     messages); a `cyclic` run draws the magnitude in GENERATIONS and keeps chains/ttl
     small (total = generations*chains*(ttl+1)); a `backpressure` run draws the
     magnitude in MESSAGES per producer (total = producers*messages) and has no
-    chains/ttl. The payload is drawn with its string SIZE limited by the total
-    message count (draw_payload).
+    chains/ttl. The payload (kind/size/mode) is drawn freely; a `mesh` run's ttl is
+    then trimmed to a run-time ceiling (clamp_ttl), since a forward run's cost grows
+    with chains^2 and a high-chains/high-ttl draw would otherwise run for hours.
 
     This mode is non-reproducible (real parallelism), so a seed maps to a
     *configuration* deterministically but not to an *execution*. The draw order is
@@ -99,14 +100,14 @@ def resolve_config(master_seed, max_threads):
                    else common.NORMAL_SIZE_BUCKETS)
     chains = common.draw_bucketed(rng, chains_buckets)
     ttl = common.draw_bucketed(rng, ttl_buckets)
-    # Total message count per kind, fed to draw_payload's fresh-string size cap.
-    if kind == "cyclic":
-        msgs = generations * chains * (ttl + 1)
-    elif kind == "backpressure":
-        msgs = producers * messages
-    else:
-        msgs = chains * (ttl + 1)
-    payload, size, mode = common.draw_payload(rng, msgs)
+    payload, size, mode = common.draw_payload(rng)
+    # Mesh run time is bounded by trimming ttl to fit the per-run ceiling (a
+    # forward run's cost grows with chains^2, so a high-chains/high-ttl draw would
+    # take hours). The clamp consumes no rng, so only an over-budget mesh ttl
+    # changes -- cyclic/backpressure draws are untouched. Cyclic keeps its own tiny
+    # ttl range and backpressure ignores ttl, so neither needs the mesh clamp.
+    if kind == "mesh":
+        ttl = common.clamp_ttl(chains, ttl, mode, payload, size)
 
     # Emit only the shape fields the kind uses, so a contradictory field is never
     # passed to the engine: mesh has pingers+chains+ttl, cyclic has
