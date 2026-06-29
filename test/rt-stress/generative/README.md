@@ -25,7 +25,7 @@ them lives in the two driver scripts, not behind a flag.
 ## The engine
 
 **`main.pony`** — the workload engine, identical in both modes. It draws one of
-two closed, count-driven workloads (`--workload`):
+three closed, count-driven workloads (`--workload`):
 
 - **`mesh`** — a closed mesh of `Pinger` actors: a fixed number of chains are
   injected, each with a hop count (TTL); a pinger forwards exactly one ping per
@@ -46,22 +46,39 @@ two closed, count-driven workloads (`--workload`):
   this is the deliberate narrowing of the cyclic oracle.) This is the proven shape
   of `test/rt-systematic/cycle-collection-order-signature`, parameterized for the
   swarm.
+- **`backpressure`** — a star of `Producer` actors flooding one `Consumer`. The
+  consumer explicitly participates in runtime backpressure via the stdlib
+  `backpressure` package: after every `apply_every` received messages it calls
+  `Backpressure.apply` (marking itself UNDER_PRESSURE, so its producers are muted)
+  and self-sends a `lift` that calls `Backpressure.release`. The self-send is never
+  muted, so apply is always paired with release and the closed flood cannot
+  deadlock. This drives the explicit UNDER_PRESSURE muting path that the `mesh`
+  never reaches — the mesh drives only the runtime's *automatic* OVERLOAD muting
+  (which the swarm already exercises incidentally at high message volume). Each
+  producer sends `messages` work messages then a `finished` report; completion
+  triggers on `finished_count == producers` (independent of the received count) and
+  then asserts `received == sent == producers * messages` from the producers' own
+  send tallies — so conservation here is the mesh's strength, not the cyclic's
+  weakness: a lost work is caught as a conservation failure, not merely a timeout.
 
 The traced payload is a `val String` or a `U64` no-GC control (`--payload`),
-either forwarded as one object down a chain or re-allocated at each hop
-(`--payload-mode forward|fresh`) — the swarm draws both. On success the engine
-prints its result and lets the program reach **natural quiescence** (no forced
-exit), so the `cyclic` workload's garbage is actually collected and the runtime's
-clean shutdown is itself exercised; only a conservation *failure* forces a
-non-zero exit. The engine holds no configuration logic and no
-`@runtime_override_defaults`; every knob is a CLI flag set by the orchestrator.
+either reused as one object (forwarded down a chain, or re-sent by a producer) or
+re-allocated at each send (`--payload-mode forward|fresh`) — the swarm draws both.
+On success the engine prints its result and lets the program reach **natural
+quiescence** (no forced exit), so the `cyclic` workload's garbage is actually
+collected and the runtime's clean shutdown is itself exercised; only a
+conservation *failure* forces a non-zero exit. The engine holds no configuration
+logic and no `@runtime_override_defaults`; every knob is a CLI flag set by the
+orchestrator.
 
-The systematic mode draws only the `mesh` workload today; the `cyclic` workload
-runs under the normal mode, where real-parallel collection catches concurrent
-collection races the serialized systematic mode can't. (Running `cyclic` under
-systematic with the determinism oracle is a deferred follow-up — it reproduces
-with the detector on post-#5569, but needs the systematic driver's forced
-`--ponynoblock` relaxed.)
+The systematic mode draws only the `mesh` workload today; the `cyclic` and
+`backpressure` workloads run under the normal mode, where real parallelism catches
+the concurrent collection and mute/unmute races the serialized systematic mode
+can't. (Running `cyclic` under systematic with the determinism oracle is a deferred
+follow-up — it reproduces with the detector on post-#5569, but needs the systematic
+driver's forced `--ponynoblock` relaxed. A systematic `backpressure` leg is also a
+follow-up — muting is cycle-detector-independent, so it is *not* blocked by that
+forced `--ponynoblock`, but its determinism under systematic is unverified.)
 
 ## Running it
 
@@ -105,15 +122,29 @@ non-deterministic, so a replay won't necessarily reproduce a failure).
 
 - **Conservation** — for the `mesh` workload, messages sent == received == the
   expected total (an independent per-pinger tally); a mismatch is a lost or
-  duplicated message. The `cyclic` workload's actors are garbage by quiescence and
-  can't be polled, so its conservation is *completion-count only*: exactly
-  `generations * chains` terminal completions must arrive — weaker than the mesh's
-  tally. The engine checks this itself and exits non-zero on a detected failure, so
-  it holds in **both** modes.
-- **Late message** — for `mesh`, anything arriving after a pinger has reported is a
-  leak; for `cyclic`, a completion beyond the expected total is a duplicate. Both
-  trip the engine's fatal-fault path. (A *lost* `cyclic` message instead leaves the
-  completion count short forever — caught by liveness, not here.)
+  duplicated message. The `backpressure` workload is just as strong: completion
+  triggers on all producers reporting `finished` (independent of the received
+  count), then asserts received == the producers' own send tally == the expected
+  total, so a lost work is a conservation failure, not just a timeout. The `cyclic`
+  workload's actors are garbage by quiescence and can't be polled, so its
+  conservation is *completion-count only*: exactly `generations * chains` terminal
+  completions must arrive — weaker than the other two. The engine checks this itself
+  and exits non-zero on a detected failure, so it holds in **both** modes.
+- **Late / duplicate message** — for `mesh`, anything arriving after a pinger has
+  reported is a leak; for `backpressure`, a work or `finished` after completion, or
+  more `finished` reports than producers, is a duplicate; for `cyclic`, a completion
+  beyond the expected total is a duplicate. All trip the engine's fatal-fault path.
+  (A *lost* `cyclic` message instead leaves the completion count short forever —
+  caught by liveness, not here.)
+- **Backpressure / muting** (`backpressure` workload) — the consumer explicitly
+  applies and releases runtime backpressure, driving the UNDER_PRESSURE mute/unmute
+  reschedule path (the stdlib `backpressure` FFI, the `triggers_muting` /
+  global-unmute machinery) that nothing else in the harness reaches; the mesh only
+  ever triggers *automatic* OVERLOAD muting. Under the normal mode's real
+  parallelism the mute/unmute races the live flood. (Muting actually firing is a
+  calibrated property of the drawn shape — like `test/rt-systematic/`
+  `mute-order-signature`, the per-run oracles are conservation/crash/liveness, not a
+  muting assertion.)
 - **Cycle-detector collection** (`cyclic` workload) — the groups are genuine
   garbage cycles, so the detector must reclaim them; natural quiescence makes that
   collection run on every config, so a collection-path crash regression is reliably
@@ -152,19 +183,20 @@ or GC corruption (wrong bytes, truncation) would pass every oracle above —
 conservation counts messages and `ORDER_SIG` mixes ids and counts. A
 payload-integrity check is deferred to a later round, alongside richer
 allocation-diversity work, an exact spawned == finalized count for the `cyclic`
-workload, and running `cyclic` under the systematic determinism oracle.
+workload, running `cyclic` under the systematic determinism oracle, and a
+systematic `backpressure` leg.
 
 ## Tests
 
 Three self-contained test files (no pytest), run in CI via `lint-python.yml`:
 
 - `stress_common_test.py` — the shared pure pieces (seed derivation, the workload
-  draws including `draw_cyclic`, output parsing, command building).
+  draws including `draw_workload`, output parsing, command building).
 - `orchestrate_systematic_test.py` — the systematic config draw (pinned golden;
-  always the `mesh` workload, unchanged by the cyclic work).
+  always the `mesh` workload, unchanged by the cyclic/backpressure work).
 - `orchestrate_normal_test.py` — the normal config draw (no systematic seed,
-  `ponynoblock` as a swarm knob, both workload kinds drawn, the cyclic memory
-  ceiling, pinned golden).
+  `ponynoblock` as a swarm knob, all three workload kinds drawn, the cyclic memory
+  ceiling and the backpressure message ceiling, pinned per-kind goldens).
 
 Run one directly:
 

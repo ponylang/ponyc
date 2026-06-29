@@ -201,10 +201,17 @@ ALL_STRING_SIZES = [s for _name, _sizes, _cap in STRING_SIZE_TABLES for s in _si
 # as the same blowup.
 NORMAL_PINGERS = [1, 2, 4, 8, 16, 32, 64]
 
-# Normal-mode cyclic-garbage draws (the `cyclic` workload). A run draws this
-# workload with probability CYCLIC_PROBABILITY; otherwise it is a `mesh` run. The
-# cyclic workload spawns `generations` successive groups of `group` actors, each
-# group a strongly connected reference cycle the detector must reclaim.
+# Normal-mode workload-kind weights for the 3-way draw (draw_workload). mesh is the
+# baseline (the widest runtime surface); cyclic and backpressure each target one
+# otherwise-untouched subsystem (the cycle detector; the explicit UNDER_PRESSURE
+# muting path). A run rolls mesh below MESH_P, cyclic below MESH_P + CYCLIC_P, else
+# backpressure. The tests assert all three appear over the sampled seed range.
+WORKLOAD_MESH_P = 0.4
+WORKLOAD_CYCLIC_P = 0.3   # backpressure gets the remaining 1 - MESH_P - CYCLIC_P
+
+# Normal-mode cyclic-garbage draws (the `cyclic` workload). The cyclic workload
+# spawns `generations` successive groups of `group` actors, each group a strongly
+# connected reference cycle the detector must reclaim.
 #
 # Memory bound (calibrated on the engine, CD-OFF worst case -- the leak case, since
 # normal draws ponynoblock ~50%): the Churner front-loads generations with no
@@ -222,7 +229,6 @@ NORMAL_PINGERS = [1, 2, 4, 8, 16, 32, 64]
 # races creation rather than piling up. COUPLING: these bounds are a property of the
 # engine's per-worker footprint and the front-loading Churner -- re-measure if the
 # cyclic actor's fields or the Churner's pacing change.
-CYCLIC_PROBABILITY = 0.5
 CYCLIC_GROUPS = [2, 4, 8, 16]
 CYCLIC_GENERATION_BUCKETS = {
     "small": (10, 800),
@@ -231,6 +237,38 @@ CYCLIC_GENERATION_BUCKETS = {
 }
 CYCLIC_CHAINS_BUCKETS = {"small": (1, 2), "medium": (3, 5), "large": (6, 8)}
 CYCLIC_TTL_BUCKETS = {"small": (1, 4), "medium": (5, 10), "large": (11, 16)}
+
+# Normal-mode backpressure draws (the `backpressure` workload). A star of
+# `producers` actors floods one consumer that explicitly applies/releases runtime
+# backpressure every `apply_every` received messages, muting its producers via the
+# UNDER_PRESSURE path the mesh's automatic OVERLOAD muting never reaches.
+#
+# Memory is NOT a governing bound here -- the opposite of cyclic. The consumer's
+# mailbox stays bounded by the runtime's automatic OVERLOAD muting irrespective of
+# whether explicit backpressure engages or how `apply_every` is set (measured ~11 MB
+# peak RSS even in a pure-flood config where explicit BP never fires). The producer
+# cap is for muteset-depth stress (one receiver's muteset up to `producers` deep)
+# and pre-flood actor-creation cost, NOT mailbox memory; RLIMIT_AS stays the free
+# backstop.
+#
+# Time governs the bounds: total messages = producers * messages, so `messages` is
+# bucketed small->large for magnitude variety (the #5601 philosophy). The worst
+# drawn case -- 256 producers * 400000 messages = 102.4M messages, fresh 4096-byte
+# string, apply_every 50 -- measures ~6 min wall and ~404 MB peak RSS on the
+# calibration host: under the 100-min per-run cap (~17x margin) and ~10x under the
+# 4 GB RLIMIT_AS, and shorter than the mesh's ~15-20 min worst case. Most draws are
+# far shorter (small/medium buckets dominate). `apply_every` is a set: smaller =
+# more frequent apply/release toggling = more mute/unmute churn (the worst case
+# above logged ~32M mutes / ~299k explicit applies). COUPLING: the time bound is a
+# property of the engine's per-message cost -- re-measure if the Producer/Consumer
+# per-message work changes. Calibrated, not provisional.
+BACKPRESSURE_PRODUCERS = [16, 32, 64, 128, 256]
+BACKPRESSURE_MESSAGE_BUCKETS = {
+    "small": (1000, 20000),
+    "medium": (20001, 100000),
+    "large": (100001, 400000),
+}
+BACKPRESSURE_APPLY_EVERY = [50, 200, 1000]
 
 
 def draw_bucketed(rng, buckets):
@@ -274,20 +312,31 @@ def draw_payload(rng, msgs):
     return kind, size, mode
 
 
-def draw_cyclic(rng):
-    """Draw the workload kind plus the cyclic-only shape, returning
-    (workload, generations, group). ALWAYS the same fixed sequence of four logical
-    draws -- the kind roll, the bucketed generations (a roll + a value), and the
-    group choice -- with no branch on the rolled kind, so the kind changes which
-    keys the config later emits but not how many draws this makes (mirrors
-    draw_payload's fixed-consumption discipline; "logical draws" because a randint's
-    underlying bit consumption varies with its value, but the call sequence does
-    not). generations and group are drawn even for a mesh run (and then ignored) to
-    keep that sequence fixed."""
-    workload = "cyclic" if rng.random() < CYCLIC_PROBABILITY else "mesh"
+def draw_workload(rng):
+    """Draw the workload kind plus EVERY kind's specific shape, returning
+    (workload, generations, group, producers, messages, apply_every). ALWAYS the
+    same fixed sequence of logical draws regardless of the rolled kind -- the kind
+    roll, then the cyclic shape (bucketed generations + group choice), then the
+    backpressure shape (producers choice + bucketed messages + apply_every choice).
+    No branch on the rolled kind, so the kind changes which keys the config later
+    emits, never how many draws this makes (the fixed-consumption discipline;
+    "logical draws" because a randint's underlying bit consumption varies with its
+    value, but the call sequence does not). The mesh `pingers` field is drawn
+    separately in resolve_config, as before. Every kind's params are drawn even when
+    another kind is rolled (and then ignored) to keep that sequence fixed."""
+    roll = rng.random()
+    if roll < WORKLOAD_MESH_P:
+        workload = "mesh"
+    elif roll < (WORKLOAD_MESH_P + WORKLOAD_CYCLIC_P):
+        workload = "cyclic"
+    else:
+        workload = "backpressure"
     generations = draw_bucketed(rng, CYCLIC_GENERATION_BUCKETS)
     group = rng.choice(CYCLIC_GROUPS)
-    return workload, generations, group
+    producers = rng.choice(BACKPRESSURE_PRODUCERS)
+    messages = draw_bucketed(rng, BACKPRESSURE_MESSAGE_BUCKETS)
+    apply_every = rng.choice(BACKPRESSURE_APPLY_EVERY)
+    return workload, generations, group, producers, messages, apply_every
 
 
 def build_argv(binary, config):
@@ -625,17 +674,24 @@ def summary_line(config, result):
     detail = "received=%s expected=%s sig=%s" % (
         parsed.get("received", "?"), parsed.get("expected", "?"),
         parsed.get("order_sig", "?"))
-    # The cyclic and mesh workloads carry different shape fields (a cyclic config
-    # has no `pingers`); chains/ttl/payload are shared. A systematic config has no
-    # `workload` key (always mesh, by the engine default), so default to mesh.
-    if shape.get("workload") == "cyclic":
-        kind = "cyclic generations=%d group=%d" % (
-            shape["generations"], shape["group"])
+    # Each workload carries different shape fields: mesh/cyclic have chains/ttl,
+    # backpressure has producers/messages/apply-every instead (no chains/ttl). Only
+    # payload is shared. A systematic config has no `workload` key (always mesh, by
+    # the engine default), so default to mesh. Fold chains/ttl into the per-kind
+    # string so the backpressure branch never reads a field it lacks.
+    wl = shape.get("workload", "mesh")
+    if wl == "cyclic":
+        kind = "cyclic generations=%d group=%d chains=%d ttl=%d" % (
+            shape["generations"], shape["group"], shape["chains"], shape["ttl"])
+    elif wl == "backpressure":
+        kind = "backpressure producers=%d messages=%d apply_every=%d" % (
+            shape["producers"], shape["messages"], shape["apply-every"])
     else:
-        kind = "mesh pingers=%d" % shape["pingers"]
-    return "[seed %d] %s (%s chains=%d ttl=%d payload=%s) %s" % (
+        kind = "mesh pingers=%d chains=%d ttl=%d" % (
+            shape["pingers"], shape["chains"], shape["ttl"])
+    return "[seed %d] %s (%s payload=%s) %s" % (
         config["master_seed"], result.outcome.upper(), kind,
-        shape["chains"], shape["ttl"], shape["payload"], detail)
+        shape["payload"], detail)
 
 
 def execute(binary, config, version, use_flags, out_dir, timeout,

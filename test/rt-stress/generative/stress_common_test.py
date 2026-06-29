@@ -305,10 +305,17 @@ def test_draw_payload():
 CYCLIC_WORKER_CEILING = 130000
 
 
+# The calibrated ceiling on producers*messages (total backpressure work).
+# Hardcoded, NOT derived from the BACKPRESSURE_* constants, so bumping a producer
+# count or a message bucket trips this guard and forces a time re-measure. Real max
+# today is 256*400000 = 102_400_000.
+BACKPRESSURE_MESSAGE_CEILING = 110_000_000
+
+
 class _CallCountingRandom(random.Random):
     """A Random that counts the high-level draw calls (random/randint/choice) made
     on it, delegating to the real implementation so the produced values are
-    unchanged. Used to verify draw_cyclic makes the same number of calls whichever
+    unchanged. Used to verify draw_workload makes the same number of calls whichever
     kind it rolls."""
 
     def __init__(self, seed):
@@ -328,51 +335,69 @@ class _CallCountingRandom(random.Random):
         return super().choice(seq)
 
 
-def test_draw_cyclic():
-    check("draw_cyclic is deterministic",
-          common.draw_cyclic(random.Random(7))
-          == common.draw_cyclic(random.Random(7)))
+def test_draw_workload():
+    check("draw_workload is deterministic",
+          common.draw_workload(random.Random(7))
+          == common.draw_workload(random.Random(7)))
 
     kinds = set()
     bounds_ok = True
-    worst_workers = 0
     gen_lo = common.CYCLIC_GENERATION_BUCKETS["small"][0]
     gen_hi = common.CYCLIC_GENERATION_BUCKETS["large"][1]
+    bp_msg_lo = common.BACKPRESSURE_MESSAGE_BUCKETS["small"][0]
+    bp_msg_hi = common.BACKPRESSURE_MESSAGE_BUCKETS["large"][1]
     for master in range(0, 500):
-        workload, generations, group = common.draw_cyclic(random.Random(master))
+        (workload, generations, group, producers, messages, apply_every) = \
+            common.draw_workload(random.Random(master))
         kinds.add(workload)
-        if workload not in ("mesh", "cyclic"):
+        if workload not in ("mesh", "cyclic", "backpressure"):
             bounds_ok = False
-        # generations and group are drawn for BOTH kinds (fixed rng consumption),
-        # so they are always valid numbers in range -- checking them over all
-        # seeds, mesh and cyclic alike, is the evidence the draw never skips them.
+        # EVERY kind's params are drawn for every roll (fixed rng consumption), so
+        # they are always valid numbers in range regardless of the rolled kind --
+        # checking them over all seeds is the evidence the draw never skips any.
         if not (gen_lo <= generations <= gen_hi):
             bounds_ok = False
         if group not in common.CYCLIC_GROUPS:
             bounds_ok = False
-        worst_workers = max(worst_workers, generations * group)
-    check("draw_cyclic covers both workload kinds", kinds == {"mesh", "cyclic"})
-    check("draw_cyclic generations/group always in range (drawn for both kinds)",
+        if producers not in common.BACKPRESSURE_PRODUCERS:
+            bounds_ok = False
+        if not (bp_msg_lo <= messages <= bp_msg_hi):
+            bounds_ok = False
+        if apply_every not in common.BACKPRESSURE_APPLY_EVERY:
+            bounds_ok = False
+    check("draw_workload covers all three workload kinds",
+          kinds == {"mesh", "cyclic", "backpressure"})
+    check("draw_workload all shape params always in range (drawn for every kind)",
           bounds_ok)
-    check("draw_cyclic worst-case workers within the calibrated memory ceiling",
-          worst_workers <= CYCLIC_WORKER_CEILING)
+    # Ceiling guard: assert the THEORETICAL worst case (the product of the bound
+    # maxima), NOT the sampled worst over the seeds. A narrow bucket bump can push
+    # the theoretical max over a ceiling without any 500-seed sample reaching it
+    # (the largest producers and the largest messages need not co-occur in a draw),
+    # so a sampled check would miss it. The product of the constants always trips.
+    cyclic_theoretical = (max(common.CYCLIC_GROUPS)
+                          * common.CYCLIC_GENERATION_BUCKETS["large"][1])
+    bp_theoretical = (max(common.BACKPRESSURE_PRODUCERS)
+                      * common.BACKPRESSURE_MESSAGE_BUCKETS["large"][1])
+    check("cyclic theoretical worst-case workers within the memory ceiling",
+          cyclic_theoretical <= CYCLIC_WORKER_CEILING)
+    check("backpressure theoretical worst-case messages within the ceiling",
+          bp_theoretical <= BACKPRESSURE_MESSAGE_CEILING)
 
-    # Fixed-consumption contract: draw_cyclic must make the SAME sequence of rng
-    # calls whether it rolls mesh or cyclic (it draws generations + group
-    # unconditionally), so a future kind-dependent extra draw -- which would remap
-    # seeds -- is caught. Compare the call COUNT across a mesh-rolling and a
-    # cyclic-rolling seed; comparing rng state would not work, because a randint's
-    # underlying bit consumption varies with its value (see the draw_cyclic doc).
-    mesh_seed = next(s for s in range(0, 500)
-                     if common.draw_cyclic(random.Random(s))[0] == "mesh")
-    cyclic_seed = next(s for s in range(0, 500)
-                       if common.draw_cyclic(random.Random(s))[0] == "cyclic")
-    mesh_counter = _CallCountingRandom(mesh_seed)
-    cyclic_counter = _CallCountingRandom(cyclic_seed)
-    common.draw_cyclic(mesh_counter)
-    common.draw_cyclic(cyclic_counter)
-    check("draw_cyclic makes the same number of rng calls for mesh and cyclic",
-          (mesh_counter.calls == cyclic_counter.calls) and (mesh_counter.calls > 0))
+    # Fixed-consumption contract: draw_workload must make the SAME sequence of rng
+    # calls whichever kind it rolls (it draws every kind's shape unconditionally),
+    # so a future kind-dependent extra draw -- which would remap seeds -- is caught.
+    # Compare the call COUNT across a seed of each kind; comparing rng state would
+    # not work, because a randint's underlying bit consumption varies with its value
+    # (see the draw_workload doc).
+    counts = []
+    for kind in ("mesh", "cyclic", "backpressure"):
+        seed = next(s for s in range(0, 500)
+                    if common.draw_workload(random.Random(s))[0] == kind)
+        counter = _CallCountingRandom(seed)
+        common.draw_workload(counter)
+        counts.append(counter.calls)
+    check("draw_workload makes the same number of rng calls for every kind",
+          (len(set(counts)) == 1) and (counts[0] > 0))
 
 
 def test_build_argv():
@@ -602,6 +627,55 @@ def test_parse_result():
                               "expected=6") == {})
 
 
+def test_summary_line():
+    # summary_line reads DIFFERENT shape fields per kind (mesh/cyclic have
+    # chains/ttl, backpressure has producers/messages/apply-every). If its read keys
+    # ever drift from resolve_config's emit keys, it raises an unguarded KeyError --
+    # at soak time, never in CI -- so exercise every branch here. The shape dicts
+    # mirror what the orchestrators emit (see orchestrate_normal.resolve_config and
+    # resolve_systematic_workload).
+    result = common.RunResult(
+        "pass", 0, None,
+        "RECEIVED=10 SENT=10 EXPECTED=10 ORDER_SIG=42", "")
+
+    mesh = {"master_seed": 1, "runtime": {},
+            "workload": {"seed": 9, "workload": "mesh", "pingers": 8,
+                         "chains": 8, "ttl": 16, "payload": "u64",
+                         "payload-size": 1, "payload-mode": "forward"}}
+    cyclic = {"master_seed": 2, "runtime": {},
+              "workload": {"seed": 9, "workload": "cyclic", "generations": 50,
+                           "group": 4, "chains": 2, "ttl": 8, "payload": "string",
+                           "payload-size": 64, "payload-mode": "fresh"}}
+    bp = {"master_seed": 3, "runtime": {},
+          "workload": {"seed": 9, "workload": "backpressure", "producers": 64,
+                       "messages": 1000, "apply-every": 200, "payload": "string",
+                       "payload-size": 64, "payload-mode": "forward"}}
+    # A systematic config has NO `workload` key (always mesh by the engine default)
+    # and must default to the mesh branch.
+    systematic = {"master_seed": 4, "runtime": {},
+                  "workload": {"seed": 9, "pingers": 16, "chains": 100, "ttl": 4,
+                               "payload": "u64", "payload-size": 8,
+                               "payload-mode": "fresh"}}
+
+    # Each kind must render without KeyError and name its kind + its own fields.
+    ms = common.summary_line(mesh, result)
+    check("summary_line mesh: names kind and pingers/chains",
+          ("mesh pingers=8" in ms) and ("chains=8" in ms) and ("PASS" in ms))
+    cs = common.summary_line(cyclic, result)
+    check("summary_line cyclic: names generations/group/chains",
+          ("cyclic generations=50 group=4" in cs) and ("chains=2" in cs))
+    bs = common.summary_line(bp, result)
+    check("summary_line backpressure: names producers/messages/apply_every",
+          ("backpressure producers=64 messages=1000 apply_every=200" in bs)
+          and ("chains" not in bs))   # backpressure has no chains/ttl
+    ss = common.summary_line(systematic, result)
+    check("summary_line defaults a no-workload-key config to mesh",
+          "mesh pingers=16" in ss)
+    # The detail suffix carries the parsed result on every kind.
+    check("summary_line carries the parsed detail",
+          "received=10 expected=10 sig=42" in bs)
+
+
 def main():
     test_derive_seed()
     test_derive_seed_zero_floor()
@@ -612,7 +686,7 @@ def main():
     test_draw_max_threads()
     test_draw_bucketed()
     test_draw_payload()
-    test_draw_cyclic()
+    test_draw_workload()
     test_build_argv()
     test_run_command()
     test_lldb_argv()
@@ -623,6 +697,7 @@ def main():
     test_bundle_for()
     test_resolve_seeds()
     test_parse_result()
+    test_summary_line()
     if FAILURES:
         print("%d failure(s): %s" % (len(FAILURES), ", ".join(FAILURES)))
         sys.exit(1)

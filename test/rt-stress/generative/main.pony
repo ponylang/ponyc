@@ -2,8 +2,9 @@
 Generative runtime stress harness.
 
 A swarm-driven Pony program that exercises the runtime's message passing, ORCA
-tracing, and -- via the `cyclic` workload -- the cycle detector's collection
-path. One run draws one of two closed, count-driven workloads (`--workload`):
+tracing, the cycle detector's collection path (via the `cyclic` workload), and the
+explicit backpressure / muting path (via the `backpressure` workload). One run
+draws one of three closed, count-driven workloads (`--workload`):
 
 * `mesh` (M0): a closed mesh of `Pinger` actors. A fixed number of chains are
   injected, each carrying a hop counter (TTL); a `Pinger` receiving a ping with
@@ -34,7 +35,21 @@ path. One run draws one of two closed, count-driven workloads (`--workload`):
   `_Fatal`. This is strictly weaker than the mesh's independent send/receive
   tally; it is the strongest oracle available once the actors are garbage.
 
-Both workloads are closed, unlike an open cascade stopped by a wall-clock timer:
+* `backpressure` (M1): a star of `Producer` actors flooding one `Consumer`. Each
+  producer sends `messages` work messages then a `finished` report; the consumer
+  explicitly participates in runtime backpressure via the stdlib `backpressure`
+  package -- after every `apply_every` messages it calls `Backpressure.apply`
+  (marking itself UNDER_PRESSURE, so its producers are muted) and self-sends a
+  `lift` that calls `Backpressure.release`. The self-send is never muted, so apply
+  is always paired with release and the closed flood cannot deadlock. This drives
+  the explicit UNDER_PRESSURE muting path that the `mesh` never reaches -- the mesh
+  drives only the runtime's *automatic* OVERLOAD muting. Conservation is the mesh's
+  strength, not the cyclic's weakness: completion triggers on
+  `finished_count == producers` (independent of the received count), then asserts
+  `received == sent == producers * messages` from the producers' own send tallies,
+  so a lost work is caught as a conservation failure here, not merely as a timeout.
+
+The workloads are closed, unlike an open cascade stopped by a wall-clock timer:
 a fixed amount of work is injected and the run terminates when it drains. The
 closed shape is a deliberate constraint, not the end goal -- a continuous, open
 workload is the better stress model, but closed is what's feasible under
@@ -56,19 +71,21 @@ is not a function of `--seed` alone, though: which draw lands on which ping depe
 on the order an actor processes its mailbox, so the routing -- and the run --
 reproduce only when the interleaving does: a fixed `--ponysystematictestingseed`
 under a systematic build. (#5566/#5570 made that replay independent of memory
-layout, so disabling ASLR is no longer needed.) The coordinator/collector folds
-chain-completion arrivals into an FNV-1a `ORDER_SIG` -- a pure function of the
-scheduler interleaving -- as the observable for the determinism oracle.
+layout, so disabling ASLR is no longer needed.) Each workload's driver/collector
+folds its terminal arrivals (chain completions, or producer `finished` reports)
+into an FNV-1a `ORDER_SIG` -- a pure function of the scheduler interleaving -- as
+the observable for the determinism oracle.
 
 This program holds no `@runtime_override_defaults`: every runtime knob (scaling,
 cycle detector, GC, thread count, the systematic seed) is a `--pony*` flag set by
 the orchestrator, and every workload parameter is a `--flag value` arg parsed
 here. Two orchestrators in this directory drive it: `orchestrate_systematic.py`
 (serialized, reproducible -- draws only the `mesh` workload today) and
-`orchestrate_normal.py` (a normal, real-parallel runtime -- draws both workloads;
-the conservation invariant holds there too, but `ORDER_SIG` does not reproduce, so
-that mode runs each seed once).
+`orchestrate_normal.py` (a normal, real-parallel runtime -- draws all three
+workloads; the conservation invariant holds there too, but `ORDER_SIG` does not
+reproduce, so that mode runs each seed once).
 """
+use "backpressure"
 use "cli"
 use "random"
 use @printf[I32](fmt: Pointer[U8] tag, ...)
@@ -78,18 +95,19 @@ use @exit[None](status: I32)
 
 type Payload is (String val | U64)
   """
-  A ping's traced cargo: a heap-allocated `String val` (gives ORCA something to
+  A message's traced cargo: a heap-allocated `String val` (gives ORCA something to
   trace across the actor boundary) or a `U64` primitive (a no-GC control). The
   kind is fixed for a whole run by `--payload`; `--payload-mode` then decides
-  whether one payload object is forwarded the whole chain or a fresh one is
-  allocated at each hop. Shared by both workloads.
+  whether one payload object is reused (forwarded the whole chain, or re-sent by a
+  producer) or a fresh one is allocated at each send. Shared by all workloads.
   """
 
 primitive _Payloads
   """
-  Builds a ping payload of the configured kind. `--payload-mode forward` reuses
-  one object down a chain (exercising ORCA's shared-`val` refcounting); `fresh`
-  calls this at every hop (exercising allocation + tracing + collection churn).
+  Builds a message payload of the configured kind. `--payload-mode forward` reuses
+  one object across a sender's sends (exercising ORCA's shared-`val` refcounting);
+  `fresh` calls this at every send (exercising allocation + tracing + collection
+  churn). Used by all three workloads.
   """
   fun make(config: _Config): Payload =>
     if config.payload_string then
@@ -123,6 +141,10 @@ actor Main
         match config.workload
         | let mesh: _Mesh => Coordinator(config, mesh)
         | let cyclic: _Cyclic => Churner(config, cyclic)
+        | let bp: _Backpressure =>
+          // Only this workload needs the backpressure auth token, built from the
+          // root authority here and threaded into the Consumer.
+          Consumer(config, bp, ApplyReleaseBackpressureAuth(env.root))
         end
       | let err: String =>
         env.err.print(err)
@@ -144,6 +166,7 @@ actor Coordinator
   returns and lets the program quiesce.
   """
   let _config: _Config
+  let _mesh: _Mesh
   let _pingers: Array[Pinger] val
   var _completions: USize = 0
   var _reports_outstanding: USize = 0
@@ -153,6 +176,7 @@ actor Coordinator
 
   new create(config: _Config, mesh: _Mesh) =>
     _config = config
+    _mesh = mesh
 
     // Create the mesh. Pingers are built outside the `recover` block (so we can
     // pass `this`) and pushed into the iso array via automatic receiver
@@ -175,10 +199,10 @@ actor Coordinator
     // Each injected ping is one coordinator send (added back in `_finish`).
     let r = Rand(config.seed)
     var chain: USize = 0
-    while chain < config.chains do
+    while chain < mesh.chains do
       let start = r.int(pingers.size().u64()).usize()
       try
-        pingers(start)?.ping(_Payloads.make(config), config.ttl, chain)
+        pingers(start)?.ping(_Payloads.make(config), mesh.ttl, chain)
       else
         _Unreachable("injection start index out of range")
       end
@@ -196,7 +220,7 @@ actor Coordinator
     _mix(terminal_id.u64())
     _mix(received_snapshot)
     _completions = _completions + 1
-    if _completions == _config.chains then
+    if _completions == _mesh.chains then
       _reports_outstanding = _pingers.size()
       for p in _pingers.values() do
         p.report()
@@ -218,8 +242,8 @@ actor Coordinator
   fun ref _finish() =>
     // The coordinator itself performed `chains` initial sends (the injected
     // pings); every `Pinger` forward is already in `_total_sent`.
-    let total_sent = _total_sent + _config.chains.u64()
-    let expected = _config.chains.u64() * (_config.ttl.u64() + 1)
+    let total_sent = _total_sent + _mesh.chains.u64()
+    let expected = _mesh.chains.u64() * (_mesh.ttl.u64() + 1)
     let conserved =
       (total_sent == _total_received) and (_total_received == expected)
 
@@ -333,15 +357,19 @@ actor Churner
   let _config: _Config
   let _generations: USize
   let _group: USize
+  let _chains: USize
+  let _ttl: USize
   let _collector: CyclicCollector
 
   new create(config: _Config, cyclic: _Cyclic) =>
     _config = config
     _generations = cyclic.generations
     _group = cyclic.group
+    _chains = cyclic.chains
+    _ttl = cyclic.ttl
     // Exactly one chain terminates per injected chain, so the collector expects
     // generations * chains completions before it folds the signature.
-    _collector = CyclicCollector(cyclic.generations * config.chains)
+    _collector = CyclicCollector(cyclic.generations * cyclic.chains)
     tick(0)
 
   be tick(gen: USize) =>
@@ -385,11 +413,11 @@ actor Churner
     // pure function of the interleaving.
     let r = Rand(_config.seed, gen.u64())
     var c: USize = 0
-    while c < _config.chains do
+    while c < _chains do
       let start = r.int(k.u64()).usize()
       try
-        members(start)?.ping(_Payloads.make(_config), _config.ttl,
-          (gen * _config.chains) + c)
+        members(start)?.ping(_Payloads.make(_config), _ttl,
+          (gen * _chains) + c)
       else
         _Unreachable("cyclic injection start index out of range")
       end
@@ -499,51 +527,275 @@ actor CyclicCollector
   fun ref _mix(v: U64) =>
     _sig = (_sig xor v) * 1099511628211 // FNV-1a 64-bit prime
 
+actor Producer
+  """
+  A `backpressure`-workload producer. Sends `messages` work messages to the single
+  consumer, then one `finished` report carrying its id and send tally, and stops.
+  Each foreign `work` send is a muting point: while the consumer is UNDER_PRESSURE
+  the producer is muted, so its self-sent `produce` is deferred until the consumer
+  releases -- that deferral IS the backpressure. Many producers flood one consumer
+  (a star), so every muted producer concentrates in that one receiver's muteset.
+  """
+  let _consumer: Consumer
+  let _config: _Config
+  let _id: USize
+  var _remaining: USize
+  var _sent: U64 = 0
+  let _payload: Payload
+
+  new create(consumer: Consumer, config: _Config, id: USize, messages: USize) =>
+    _consumer = consumer
+    _config = config
+    _id = id
+    _remaining = messages
+    // `forward` mode reuses this one payload object for every send (a muted
+    // producer then holds a shared `val` ref -- ORCA under backpressure); `fresh`
+    // mode allocates a new one at each send (allocation churn). Built once here so
+    // forward mode has an object to reuse.
+    _payload = _Payloads.make(config)
+    produce()
+
+  be produce() =>
+    """
+    Send exactly one work message, then self-send to continue; after `messages`
+    have been sent, report `finished` and stop. The self-send is deferred while
+    this producer is muted, so production pauses under backpressure and resumes on
+    release -- without any explicit rate logic here.
+    """
+    if _remaining == 0 then
+      _consumer.finished(_id, _sent)
+      return
+    end
+    let outgoing: Payload =
+      if _config.payload_fresh then _Payloads.make(_config) else _payload end
+    _consumer.work(outgoing)
+    _sent = _sent + 1
+    _remaining = _remaining - 1
+    produce()
+
+actor Consumer
+  """
+  The `backpressure` workload's driver, sink, and conservation oracle in one actor
+  (mirroring how the mesh's `Coordinator` both drives and evaluates). It spawns the
+  producers, counts received work, participates in runtime backpressure, and on
+  completion checks conservation.
+
+  Backpressure: after every `apply_every` received work messages it calls
+  `Backpressure.apply` (marking itself UNDER_PRESSURE, so producers sending to it
+  are muted) and self-sends `lift`; processing the `lift` calls
+  `Backpressure.release` (unmuting them). The `lift` self-send is immune to muting
+  (a self-send never mutes -- the `ctx->current != to` rule in actor.c
+  `maybe_mark_should_mute`), so every apply is followed by a release: the closed
+  flood cannot deadlock. This drives the explicit UNDER_PRESSURE muting path that
+  the mesh's automatic OVERLOAD muting never reaches.
+
+  Conservation: each producer sends `finished(id, sent)` after its last work; by
+  same-sender FIFO that report follows all of its work, so when all `producers`
+  have reported, all work has been received. The oracle then asserts
+  received == total_sent == expected (producers * messages): a lost work shows as
+  received < total_sent (a conservation failure caught here, not just a timeout), a
+  duplicate trips `_Fatal`. On success it returns and the program quiesces.
+  """
+  let _auth: ApplyReleaseBackpressureAuth
+  let _producers: USize
+  let _apply_every: USize
+  let _expected: U64
+  var _received: U64 = 0
+  var _since_apply: USize = 0
+  var _pressured: Bool = false
+  var _total_sent: U64 = 0
+  var _finished: USize = 0
+  var _done: Bool = false
+  var _sig: U64 = 14695981039346656037 // FNV-1a 64-bit offset basis
+
+  new create(config: _Config, bp: _Backpressure,
+    auth: ApplyReleaseBackpressureAuth)
+  =>
+    _auth = auth
+    _producers = bp.producers
+    _apply_every = bp.apply_every
+    _expected = bp.producers.u64() * bp.messages.u64()
+
+    // Spawn the producers pointing at this consumer (the Coordinator pattern: the
+    // driver creates the workers with `this`). Each floods `messages` work
+    // messages and then reports `finished`.
+    var id: USize = 0
+    while id < bp.producers do
+      Producer(this, config, id, bp.messages)
+      id = id + 1
+    end
+
+  be work(payload: Payload) =>
+    """
+    Count one received work message and run the backpressure hysteresis. The
+    payload is traced by ORCA across the send/receive crossing and then dropped
+    (the consumer doesn't retain it). A work after completion is a leaked/late
+    message -- a real fault -- so it trips `_Fatal`.
+    """
+    if _done then
+      _Fatal("work after done (leaked/late message)")
+    end
+    _received = _received + 1
+    if not _pressured then
+      _since_apply = _since_apply + 1
+      if _since_apply >= _apply_every then
+        // DEADLOCK-FREEDOM INVARIANT: this Consumer must never do a foreign send.
+        // While UNDER_PRESSURE, a foreign send could mute this Consumer itself, and
+        // the explicit Backpressure.release is the SOLE guaranteed unmute for a
+        // pressure-mute (the runtime's automatic overload-clear is subordinate --
+        // gated by !UNDER_PRESSURE), so a muted Consumer could never release and the
+        // flood would hang. Its only send is the `lift` self-send below, which is
+        // immune to muting. See .known-couplings/backpressure-workload-muting.md.
+        Backpressure.apply(_auth)
+        _pressured = true
+        lift()
+      end
+    end
+
+  be lift() =>
+    """
+    Release backpressure. Reached only via the self-send queued when pressure was
+    applied; a self-send is never muted, so this always runs and always releases --
+    the apply/release pairing that makes the closed flood deadlock-free.
+    """
+    if _pressured then
+      Backpressure.release(_auth)
+      _pressured = false
+      _since_apply = 0
+    end
+
+  be finished(producer_id: USize, sent: U64) =>
+    """
+    Fold one producer's terminal report into `ORDER_SIG` (one fold per producer,
+    matching the mesh/cyclic fold-at-completion convention) and accumulate its send
+    tally. When all producers have reported, evaluate conservation. A duplicate or
+    late `finished` arrives after `_finish` has set `_done` (the report that reaches
+    `_producers` triggers `_finish` synchronously), so the `_done` guard catches it.
+    A *lost* `finished` instead leaves `_finished` short forever -- caught by the
+    orchestrator's liveness timeout, not here (the symmetric case to a lost `work`,
+    which conservation catches; mirrors the cyclic workload's lost-completion note).
+    """
+    if _done then
+      _Fatal("finished after done (duplicate/late report)")
+    end
+    _mix(producer_id.u64())
+    _mix(sent)
+    _total_sent = _total_sent + sent
+    _finished = _finished + 1
+    if _finished == _producers then
+      _finish()
+    end
+
+  fun ref _finish() =>
+    _done = true
+    // All producers have reported, so by same-sender FIFO all work has been
+    // received. SENT is the independent per-producer tally (as strong as the
+    // mesh's); a lost work shows here as received < total_sent.
+    let conserved = (_received == _total_sent) and (_total_sent == _expected)
+
+    // Release if still under pressure so the program quiesces cleanly rather than
+    // depending on a pending `lift` running first. Idempotent: `lift` guards on
+    // `_pressured`, so a queued `lift` then no-ops.
+    if _pressured then
+      Backpressure.release(_auth)
+      _pressured = false
+    end
+
+    // Synchronous print so the result survives natural quiescence (env.out.print
+    // is async and could be lost if a later exit raced it).
+    let line = "RECEIVED=" + _received.string()
+      + " SENT=" + _total_sent.string()
+      + " EXPECTED=" + _expected.string()
+      + " ORDER_SIG=" + _sig.string() + "\n"
+    @printf("%s".cstring(), line.cstring())
+
+    // On success: return and let the program reach natural quiescence (no forced
+    // exit), same as the mesh/cyclic. Only a conservation FAILURE forces a
+    // non-zero exit: fail fast once a bug is detected.
+    if not conserved then
+      let diag = "CONSERVATION FAILURE: received=" + _received.string()
+        + " sent=" + _total_sent.string()
+        + " expected=" + _expected.string() + "\n"
+      @fprintf(@pony_os_stderr(), "%s".cstring(), diag.cstring())
+      @exit(I32(1))
+    end
+
+  fun ref _mix(v: U64) =>
+    _sig = (_sig xor v) * 1099511628211 // FNV-1a 64-bit prime
+
 class val _Mesh
   """
   The `mesh` workload's shape. Built only by `_Cli.config` (after validation), so
-  `pingers >= 1` can be trusted. A `cyclic` config has no `pingers` field, so an
-  illegal mesh/cyclic field mix is unrepresentable.
+  `pingers >= 1` and `chains >= 1` can be trusted. Carries the chain count and hop
+  count itself (rather than sharing them through `_Config`) so a `backpressure`
+  config -- which has no chains/ttl -- cannot carry those fields at all; an illegal
+  cross-workload field mix is unrepresentable.
   """
   let pingers: USize
+  let chains: USize
+  let ttl: USize
 
-  new val create(pingers': USize) =>
+  new val create(pingers': USize, chains': USize, ttl': USize) =>
     pingers = pingers'
+    chains = chains'
+    ttl = ttl'
 
 class val _Cyclic
   """
   The `cyclic` workload's shape. Built only by `_Cli.config` (after validation),
-  so `generations >= 1` and `group >= 2` (a group needs at least two members to be
-  a non-trivial cycle) can be trusted.
+  so `generations >= 1`, `group >= 2` (a group needs at least two members to be a
+  non-trivial cycle), and `chains >= 1` can be trusted. Carries chains/ttl itself
+  for the same reason as `_Mesh`.
   """
   let generations: USize
   let group: USize
+  let chains: USize
+  let ttl: USize
 
-  new val create(generations': USize, group': USize) =>
+  new val create(generations': USize, group': USize, chains': USize,
+    ttl': USize)
+  =>
     generations = generations'
     group = group'
+    chains = chains'
+    ttl = ttl'
+
+class val _Backpressure
+  """
+  The `backpressure` workload's shape. Built only by `_Cli.config` (after
+  validation), so `producers >= 1`, `messages >= 1`, and `apply_every >= 1` can be
+  trusted. Has no chains/ttl: a flood is not a chain of hops, so those fields are
+  structurally absent here (the reason chains/ttl live on `_Mesh`/`_Cyclic` rather
+  than on the shared `_Config`).
+  """
+  let producers: USize
+  let messages: USize
+  let apply_every: USize
+
+  new val create(producers': USize, messages': USize, apply_every': USize) =>
+    producers = producers'
+    messages = messages'
+    apply_every = apply_every'
 
 class val _Config
   """
-  A validated workload configuration: the fields shared by both workloads plus the
-  workload-specific shape (`_Mesh` or `_Cyclic`). Built only by `_Cli.config`, so
-  the rest of the program can trust its invariants (chains >= 1, payload_size >= 1
-  when payload_string, and the per-shape invariants on the variant).
+  A validated workload configuration: the fields shared by all workloads (seed and
+  payload kind/size/mode) plus the workload-specific shape (`_Mesh`, `_Cyclic`, or
+  `_Backpressure`). The chain/hop counts are NOT here -- only the two chain-based
+  workloads have them, so they live on those variants. Built only by `_Cli.config`,
+  so the rest of the program can trust its invariants (payload_size >= 1 when
+  payload_string, plus the per-shape invariants on the variant).
   """
   let seed: U64
-  let chains: USize
-  let ttl: USize
   let payload_string: Bool
   let payload_size: USize
   let payload_fresh: Bool
-  let workload: (_Mesh | _Cyclic)
+  let workload: (_Mesh | _Cyclic | _Backpressure)
 
-  new val create(seed': U64, chains': USize, ttl': USize, payload_string': Bool,
-    payload_size': USize, payload_fresh': Bool, workload': (_Mesh | _Cyclic))
+  new val create(seed': U64, payload_string': Bool, payload_size': USize,
+    payload_fresh': Bool, workload': (_Mesh | _Cyclic | _Backpressure))
   =>
     seed = seed'
-    chains = chains'
-    ttl = ttl'
     payload_string = payload_string'
     payload_size = payload_size'
     payload_fresh = payload_fresh'
@@ -556,8 +808,11 @@ primitive _Cli
   numbers, and `--help`; this adds the value-set and lower-bound checks it can't
   express. Runtime `--pony*` flags are stripped by the runtime before `Main` sees
   `env.args`, so they never reach the parser. Every option carries a default, so a
-  caller (e.g. the systematic orchestrator) that omits the cyclic-only flags still
-  parses cleanly as a `mesh` run.
+  caller (e.g. the systematic orchestrator) that omits a workload's specific flags
+  still parses cleanly as a `mesh` run. The CLI spec is deliberately flat -- every
+  flag is accepted for every run, with "ignored for ..." help text -- while the
+  validated `_Config` it builds is a per-kind union; only the union enforces that a
+  workload carries only its own shape fields.
   """
   fun spec(): CommandSpec ? =>
     CommandSpec.leaf("generative",
@@ -567,22 +822,32 @@ primitive _Cli
           "engine RNG seed"
           where default' = 1)
         OptionSpec.string("workload",
-          "workload kind: mesh | cyclic"
+          "workload kind: mesh | cyclic | backpressure"
           where default' = "mesh")
         OptionSpec.u64("pingers",
-          "mesh only (ignored for cyclic): number of mesh actors (>= 1)"
+          "mesh only (ignored otherwise): number of mesh actors (>= 1)"
           where default' = 8)
         OptionSpec.u64("generations",
-          "cyclic only (ignored for mesh): garbage-group generations (>= 1)"
+          "cyclic only (ignored otherwise): garbage-group generations (>= 1)"
           where default' = 1)
         OptionSpec.u64("group",
-          "cyclic only (ignored for mesh): actors per garbage group (>= 2)"
+          "cyclic only (ignored otherwise): actors per garbage group (>= 2)"
           where default' = 2)
+        OptionSpec.u64("producers",
+          "backpressure only (ignored otherwise): flooding producers (>= 1)"
+          where default' = 64)
+        OptionSpec.u64("messages",
+          "backpressure only (ignored otherwise): work msgs per producer (>= 1)"
+          where default' = 1000)
+        OptionSpec.u64("apply-every",
+          "backpressure only (ignored otherwise): received msgs between "
+          + "apply/release toggles (>= 1)"
+          where default' = 200)
         OptionSpec.u64("chains",
-          "chains to inject (>= 1)"
+          "mesh/cyclic only (ignored for backpressure): chains to inject (>= 1)"
           where default' = 8)
         OptionSpec.u64("ttl",
-          "hops per chain"
+          "mesh/cyclic only (ignored for backpressure): hops per chain"
           where default' = 16)
         OptionSpec.string("payload",
           "traced payload kind: string | u64"
@@ -591,7 +856,7 @@ primitive _Cli
           "string payload size in bytes (>= 1)"
           where default' = 64)
         OptionSpec.string("payload-mode",
-          "per-hop payload allocation: forward | fresh"
+          "per-send payload allocation: forward | fresh"
           where default' = "forward")
       ])?.>add_help()?
 
@@ -606,6 +871,9 @@ primitive _Cli
     let pingers = cmd.option("pingers").u64().usize()
     let generations = cmd.option("generations").u64().usize()
     let group = cmd.option("group").u64().usize()
+    let producers = cmd.option("producers").u64().usize()
+    let messages = cmd.option("messages").u64().usize()
+    let apply_every = cmd.option("apply-every").u64().usize()
 
     let payload_string =
       if payload == "string" then
@@ -625,33 +893,42 @@ primitive _Cli
         return "bad --payload-mode (expected 'forward' or 'fresh')"
       end
 
-    if chains < 1 then return "--chains must be >= 1" end
     if payload_string and (payload_size < 1) then
       return "--payload-size must be >= 1 for string payload"
     end
 
-    let workload: (_Mesh | _Cyclic) =
+    // chains is validated only where it is used (the two chain-based workloads);
+    // backpressure has no chains, so it carries none.
+    let workload: (_Mesh | _Cyclic | _Backpressure) =
       if workload_name == "mesh" then
         if pingers < 1 then return "--pingers must be >= 1" end
-        _Mesh(pingers)
+        if chains < 1 then return "--chains must be >= 1" end
+        _Mesh(pingers, chains, ttl)
       elseif workload_name == "cyclic" then
         if generations < 1 then return "--generations must be >= 1" end
         if group < 2 then return "--group must be >= 2" end
-        _Cyclic(generations, group)
+        if chains < 1 then return "--chains must be >= 1" end
+        _Cyclic(generations, group, chains, ttl)
+      elseif workload_name == "backpressure" then
+        if producers < 1 then return "--producers must be >= 1" end
+        if messages < 1 then return "--messages must be >= 1" end
+        if apply_every < 1 then return "--apply-every must be >= 1" end
+        _Backpressure(producers, messages, apply_every)
       else
-        return "bad --workload (expected 'mesh' or 'cyclic')"
+        return "bad --workload (expected 'mesh', 'cyclic' or 'backpressure')"
       end
 
-    _Config(seed, chains, ttl, payload_string, payload_size, payload_fresh,
-      workload)
+    _Config(seed, payload_string, payload_size, payload_fresh, workload)
 
 primitive _Fatal
   """
   The harness's runtime-fault detector: print a diagnostic to stderr and exit
-  non-zero. Used by the late/duplicate-message oracles -- a ping arriving after a
-  `Pinger` has reported, or a completion beyond the expected total, is a
-  duplicated or delayed message, a real runtime fault, so the stress run fails
-  loudly with a location rather than passing.
+  non-zero. Used by the late/duplicate-message oracles across all workloads -- a
+  ping arriving after a `Pinger` has reported, a cyclic completion beyond the
+  expected total, or a backpressure `work`/`finished` after the `Consumer` is done
+  (or more `finished` reports than producers) -- each is a duplicated or delayed
+  message, a real runtime fault, so the stress run fails loudly with a location
+  rather than passing.
   """
   fun apply(msg: String, loc: SourceLoc = __loc) =>
     let line = "FATAL: " + msg + " (" + loc.file() + ":"
