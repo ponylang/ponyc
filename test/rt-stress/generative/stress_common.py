@@ -22,7 +22,7 @@ honors it (Linux): Windows lacks the `resource` module and macOS rejects the
 limit, so both fall back to host OOM handling. The wall-clock watchdog is
 portable.
 
-The pure pieces (derive_seed / resolve_workload / draw_* / build_argv /
+The pure pieces (derive_seed / resolve_systematic_workload / draw_* / build_argv /
 run_command / parse_result / lldb_argv / lldb_exit_code) are unit-tested in
 stress_common_test.py; the run classifiers (run_once / run_under_lldb) are tested
 by injecting a fake _capture.
@@ -52,6 +52,12 @@ REPO_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(SOURCE_DIR)))
 
 U64_MASK = (1 << 64) - 1
 DEFAULT_TIMEOUT_SECONDS = 120
+# Normal mode's per-run watchdog: a flat ~100 min, ~2x the longest plausible large
+# run with slow-CI margin (a hung run, not its true length, is the worst case). Big
+# enough that host-speed variance never false-positives a legitimate run, so the
+# bucket and size-table numbers can stay hardcoded with no startup calibration. Systematic
+# keeps DEFAULT_TIMEOUT_SECONDS -- its runs stay ~10ms.
+DEFAULT_NORMAL_TIMEOUT_SECONDS = 6000
 DEFAULT_MEM_LIMIT_MB = 4096
 
 
@@ -73,21 +79,22 @@ def derive_seed(master_seed, label):
     return (int.from_bytes(digest[:8], "big") & U64_MASK) or 1
 
 
-def resolve_workload(rng, program_seed):
-    """The workload shape: the program seed (passed, not drawn) plus the five
-    swarm-drawn fields, in the dict-insertion and rng-draw order that is the
+def resolve_systematic_workload(rng, program_seed):
+    """The systematic-mode workload shape: the program seed (passed, not drawn) plus
+    the five swarm-drawn fields, in the dict-insertion and rng-draw order that is the
     seed-stability contract.
 
-    `payload-mode` is deliberately NOT here -- each driver draws it via
-    draw_payload_mode() AFTER its runtime-knob draws and BEFORE draw_max_threads().
-    The interleaving of these draws in each driver's resolve_config is the
-    contract: move any draw and every seed remaps (breaking historical --replay).
-    resolve_config(0, 8) is pinned in the per-driver tests to guard it.
+    Normal mode does NOT use this -- it composes its own bucketed draw plus a
+    payload whose string size is limited by the message count (draw_bucketed /
+    draw_payload); see orchestrate_normal.resolve_config. Systematic stays small and
+    fixed-range on purpose: it serializes the scheduler, so a billion-message run's
+    interleaving space is intractable.
 
-    These ranges are a starting point, not tuned. The choice() knobs sample every
-    listed value equally; the randint() ranges (chains, ttl) under-sample their
-    edges. When tuned, bias toward allocator size-class boundaries and reach past
-    the current max of 64 pingers (contention bugs intensify with scale).
+    `payload-mode` is deliberately NOT here -- the systematic driver draws it via
+    draw_payload_mode() AFTER its runtime-knob draws and BEFORE draw_max_threads().
+    The interleaving of these draws in resolve_config is the contract: move any draw
+    and every seed remaps (breaking historical --replay). resolve_config(0, 8) is
+    pinned in orchestrate_systematic_test.py to guard it.
     """
     return {
         "seed": program_seed,
@@ -123,9 +130,11 @@ def draw_swarm_knobs(rng, runtime):
 def draw_payload_mode(rng):
     """`forward` re-sends one payload object down a chain (shared-val
     refcounting); `fresh` allocates a new one at each hop (allocation + collection
-    churn). COUPLING: this must be drawn AFTER the runtime-knob draws and BEFORE
-    draw_max_threads(), in BOTH drivers -- that position is the seed-stability
-    contract. A driver that reorders it remaps every seed."""
+    churn). Used only by the SYSTEMATIC driver now -- normal mode draws kind, size,
+    and mode together in draw_payload. COUPLING: in the systematic driver this
+    must be drawn AFTER the runtime-knob draws and BEFORE draw_max_threads() -- that
+    position is its seed-stability contract; reordering it remaps every systematic
+    seed."""
     return rng.choice(["forward", "fresh"])
 
 
@@ -137,6 +146,93 @@ def draw_max_threads(rng, max_threads):
     different core counts. The runtime REJECTS --ponymaxthreads > physical cores,
     so max_threads is the probed physical count (see probe_max_threads)."""
     return rng.randint(1, max_threads)
+
+
+# Normal-mode magnitude buckets. Each of chains and ttl draws a bucket
+# (small/medium/large at 25/50/25), then a uniform value within it. Ranges are
+# (lo, hi) inclusive and tuned on the calibration host (WSL2, 2 threads, debug,
+# ~1M msg/s at scale) so same-bucket pairs land near the time yardstick: S*S
+# ~secs-3min, M*M ~3-12min, L*L ~12-19min (top ~1.16B messages ~ 15-20 min).
+# chains and ttl share these ranges. Systematic mode does NOT use them -- it stays
+# small/fixed-range (see resolve_systematic_workload). Locked, not provisional.
+NORMAL_SIZE_BUCKETS = {
+    "small": (1500, 14000),
+    "medium": (14001, 27000),
+    "large": (27001, 34000),
+}
+
+# String-payload sizes grouped by per-hop cost into small/medium/large tables. A
+# fresh string's run cost is ~ messages * per-hop-cost(size), so the costlier tables
+# are offered only to smaller runs: each table's third field is the most messages a
+# fresh run of its slowest size keeps within the ~30-min soak budget. The 4096/1024/
+# 256 figures are measured at scale on the calibration host (the per-message rate
+# decays as a run grows, so these are not short-run extrapolations); the small table's
+# cap is from the same decay curve, which reproduces the measured ones within ~3%, and
+# the 100-min per-run hard timeout backstops any drift. draw_payload limits a fresh
+# string to the sizes whose table fits the run's message count -- a big run can only
+# draw a cheap size, a small run any. Forward and u64 payloads allocate once (or
+# never), so their cost is ~flat in size and they draw from every size. COUPLING: the
+# per-table caps are a property of the engine's per-hop cost -- if that changes (e.g. a
+# payload-integrity check, per the README's deferred work), re-measure them.
+STRING_SIZE_TABLES = (
+    # (name, sizes, max fresh-string messages within the ~30-min budget)
+    ("small",  [1, 8, 64],  990_000_000),
+    ("medium", [256, 1024], 520_000_000),
+    ("large",  [4096],      300_000_000),
+)
+ALL_STRING_SIZES = [s for _name, _sizes, _cap in STRING_SIZE_TABLES for s in _sizes]
+
+# Normal-mode actor counts. pingers=1 -- a lone actor that only ever forwards to
+# itself -- is included on purpose: it exercises the ORCA self-send path. That path
+# used to flood the forwarded object's owner with acquire messages and balloon memory
+# (~4.5 GB at ~7.7M messages), so this draw once excluded pingers=1. But that was a
+# real runtime defect, fixed in PR #5594: the in-queue self-sent object is pinned so
+# the per-actor sweep no longer releases and re-borrows it every hop. With the fix a
+# pingers=1 run is bounded (~40 MB even at the 34000-chain max, conserving), so
+# drawing it here keeps a standing stress on that fix -- a regression would reappear
+# as the same blowup.
+NORMAL_PINGERS = [1, 2, 4, 8, 16, 32, 64]
+
+
+def draw_bucketed(rng, buckets):
+    """Draw a small/medium/large bucket at 25/50/25, then a uniform value within it.
+    Exactly two rng draws (the bucket roll, then the value), and that order is part
+    of the seed-stability contract. `buckets` is a name->(lo, hi) inclusive dict with
+    small/medium/large keys."""
+    roll = rng.random()
+    if roll < 0.25:
+        lo, hi = buckets["small"]
+    elif roll < 0.75:
+        lo, hi = buckets["medium"]
+    else:
+        lo, hi = buckets["large"]
+    return rng.randint(lo, hi)
+
+
+def draw_payload(rng, msgs):
+    """Draw payload kind, size, and mode. Returns (payload, size, mode).
+
+    The available string SIZE is limited by `msgs`: a fresh string's cost grows with
+    both message count and size, so a big run may draw only a cheap (small) size while
+    a small run may draw any (see STRING_SIZE_TABLES). Forward and u64 payloads are
+    flat-cost in size and draw from every size. Runs so large that even the small
+    table's budget is exceeded still draw from it (a slight, hard-timeout-bounded
+    overrun) rather than being denied a string.
+
+    Always exactly three rng draws -- kind, mode, size -- in that fixed order, so the
+    draw stream is stable: the size table changes which value the third draw lands on,
+    never how much rng it consumes."""
+    kind = rng.choice(["string", "u64"])
+    mode = rng.choice(["forward", "fresh"])
+    if kind == "string" and mode == "fresh":
+        sizes = [s for _n, table, cap in STRING_SIZE_TABLES if msgs <= cap
+                 for s in table]
+        if not sizes:                      # past even the small table's budget;
+            sizes = STRING_SIZE_TABLES[0][1]  # still allow the cheapest sizes
+    else:
+        sizes = ALL_STRING_SIZES
+    size = sizes[int(rng.random() * len(sizes))]
+    return kind, size, mode
 
 
 def build_argv(binary, config):

@@ -66,7 +66,7 @@ def resolve_config(master_seed, max_threads):
     systematic_seed = common.derive_seed(master_seed, "systematic")
     rng = random.Random(master_seed)
 
-    workload = common.resolve_workload(rng, program_seed)
+    workload = common.resolve_systematic_workload(rng, program_seed)
     runtime = {
         "ponynoblock": True,
         "ponysystematictestingseed": systematic_seed,
