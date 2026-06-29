@@ -272,9 +272,9 @@ primitive _FilterCompare
 
     Nothing == Nothing is true. Nothing vs any value is false.
     Same-type primitives use value equality. Mixed I64/F64 converts
-    I64 to F64. Arrays compare element-wise recursively. Objects
-    compare by same key set with recursively equal values (iteration
-    order doesn't matter). Cross-type is false.
+    I64 to F64. Arrays compare element-wise; objects compare by same key
+    set with equal values (iteration order doesn't matter) — both via the
+    structural `_deep_eq` walk. Cross-type is false.
     """
     match (left, right)
     | (_Nothing, _Nothing) => true
@@ -287,8 +287,8 @@ primitive _FilterCompare
     | (let a: String, let b: String) => a == b
     | (let a: Bool, let b: Bool) => a == b
     | (None, None) => true
-    | (let a: JsonArray, let b: JsonArray) => _array_eq(a, b)
-    | (let a: JsonObject, let b: JsonObject) => _object_eq(a, b)
+    | (let a: JsonArray, let b: JsonArray) => _deep_eq(a, b)
+    | (let a: JsonObject, let b: JsonObject) => _deep_eq(a, b)
     else
       false
     end
@@ -314,51 +314,46 @@ primitive _FilterCompare
       false
     end
 
-  fun _array_eq(a: JsonArray, b: JsonArray): Bool =>
-    """Element-wise recursive equality for arrays."""
-    if a.size() != b.size() then return false end
-    var i: USize = 0
-    while i < a.size() do
-      try
-        if not _deep_eq(a(i)?, b(i)?) then return false end
-      else
-        return false
-      end
-      i = i + 1
-    end
-    true
-
-  fun _object_eq(a: JsonObject, b: JsonObject): Bool =>
-    """
-    Key/value recursive equality for objects.
-
-    Checks that both objects have the same number of keys, then verifies
-    every key in `a` exists in `b` with a recursively equal value.
-    Iteration order doesn't matter (JsonObject is backed by CHAMP map).
-    """
-    if a.size() != b.size() then return false end
-    for (key, a_val) in a.pairs() do
-      try
-        let b_val = b(key)?
-        if not _deep_eq(a_val, b_val) then return false end
-      else
-        return false
-      end
-    end
-    true
-
   fun _deep_eq(a: JsonValue, b: JsonValue): Bool =>
-    """Recursive equality for JsonValue values."""
-    match (a, b)
-    | (let x: I64, let y: I64) => x == y
-    | (let x: F64, let y: F64) => x == y
-    | (let x: I64, let y: F64) => x.f64() == y
-    | (let x: F64, let y: I64) => x == y.f64()
-    | (let x: String, let y: String) => x == y
-    | (let x: Bool, let y: Bool) => x == y
-    | (None, None) => true
-    | (let x: JsonArray, let y: JsonArray) => _array_eq(x, y)
-    | (let x: JsonObject, let y: JsonObject) => _object_eq(x, y)
-    else
-      false
+    """
+    Structural equality for JsonValue values.
+
+    Arrays compare element-wise; objects compare by same key set with equal
+    values (iteration order doesn't matter — JsonObject is backed by a CHAMP
+    map). Walked with an explicit work stack rather than native recursion so
+    that nesting depth is bounded by the heap, not the scheduler thread's
+    native stack, which deeply nested input would otherwise overflow.
+    """
+    let stack = Array[(JsonValue, JsonValue)]
+    stack.push((a, b))
+    while stack.size() > 0 do
+      (let x, let y) = try stack.pop()? else _Unreachable(); return false end
+      match (x, y)
+      | (let p: I64, let q: I64) => if p != q then return false end
+      | (let p: F64, let q: F64) => if p != q then return false end
+      | (let p: I64, let q: F64) => if p.f64() != q then return false end
+      | (let p: F64, let q: I64) => if p != q.f64() then return false end
+      | (let p: String, let q: String) => if p != q then return false end
+      | (let p: Bool, let q: Bool) => if p != q then return false end
+      | (None, None) => None
+      | (let p: JsonArray, let q: JsonArray) =>
+        if p.size() != q.size() then return false end
+        var i: USize = 0
+        while i < p.size() do
+          let xv = try p(i)? else _Unreachable(); return false end
+          let yv = try q(i)? else _Unreachable(); return false end
+          stack.push((xv, yv))
+          i = i + 1
+        end
+      | (let p: JsonObject, let q: JsonObject) =>
+        if p.size() != q.size() then return false end
+        for (key, pv) in p.pairs() do
+          // A missing key means the objects differ — not an impossible path.
+          let qv = try q(key)? else return false end
+          stack.push((pv, qv))
+        end
+      else
+        return false
+      end
     end
+    true

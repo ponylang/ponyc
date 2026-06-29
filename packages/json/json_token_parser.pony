@@ -74,72 +74,104 @@ class ref JsonTokenParser
     if _abort then error end
 
   fun ref _parse_value() ? =>
+    """
+    Parse one JSON value and all its descendants, emitting tokens.
+
+    Iterative rather than recursive: an explicit stack of container contexts
+    bounds nesting depth by the heap instead of the scheduler thread's native
+    stack, which deeply nested input would otherwise overflow. The token
+    sequence, token-offset bookkeeping, and abort/error behavior match a
+    straightforward recursive descent exactly.
+    """
+    let stack = Array[_ParseCtx]
+    match \exhaustive\ _read_value()?
+    | _ReadComplete => return
+    | _ReadOpenObject => stack.push(_ParseCtx(true))
+    | _ReadOpenArray => stack.push(_ParseCtx(false))
+    end
+
+    while stack.size() > 0 do
+      let ctx = try stack(stack.size() - 1)? else _Unreachable(); return end
+      if ctx.expect_separator then
+        _skip_whitespace()
+        _token_start = _offset
+        match _next()?
+        | ',' => ctx.expect_separator = false
+        | '}' if ctx.is_object =>
+          _emit(JsonTokenObjectEnd)?
+          try stack.pop()? else _Unreachable() end
+        | ']' if not ctx.is_object =>
+          _emit(JsonTokenArrayEnd)?
+          try stack.pop()? else _Unreachable() end
+        else
+          error
+        end
+      else
+        if ctx.is_object then
+          _skip_whitespace()
+          _token_start = _offset
+          _parse_string(true)? // parse key
+          _skip_whitespace()
+          _eat(':')?
+        end
+        // The current element's value follows. A container value sets this
+        // context to the separator phase before its own context is pushed,
+        // so when the child closes we resume looking for ',' or the bracket.
+        match \exhaustive\ _read_value()?
+        | _ReadComplete => ctx.expect_separator = true
+        | _ReadOpenObject =>
+          ctx.expect_separator = true
+          stack.push(_ParseCtx(true))
+        | _ReadOpenArray =>
+          ctx.expect_separator = true
+          stack.push(_ParseCtx(false))
+        end
+      end
+    end
+
+  fun ref _read_value(): _ReadResult ? =>
+    """
+    Read a single value at the current position.
+
+    Scalars emit their token and return _ReadComplete. A container emits its
+    start token; an empty one also emits its end token and returns
+    _ReadComplete, while a non-empty one returns _ReadOpenObject or
+    _ReadOpenArray for the caller to track on the work stack.
+    """
     _skip_whitespace()
     _token_start = _offset
     match _peek()?
-    | '{' => _parse_object()?
-    | '[' => _parse_array()?
-    | '"' => _parse_string(false)?
-    | 't' => _parse_true()?
-    | 'f' => _parse_false()?
-    | 'n' => _parse_null()?
+    | '{' =>
+      _next()? // consume '{'
+      _emit(JsonTokenObjectStart)?
+      _skip_whitespace()
+      if _peek()? == '}' then
+        _next()?
+        _emit(JsonTokenObjectEnd)?
+        _ReadComplete
+      else
+        _ReadOpenObject
+      end
+    | '[' =>
+      _next()? // consume '['
+      _emit(JsonTokenArrayStart)?
+      _skip_whitespace()
+      if _peek()? == ']' then
+        _next()?
+        _emit(JsonTokenArrayEnd)?
+        _ReadComplete
+      else
+        _ReadOpenArray
+      end
+    | '"' => _parse_string(false)?; _ReadComplete
+    | 't' => _parse_true()?; _ReadComplete
+    | 'f' => _parse_false()?; _ReadComplete
+    | 'n' => _parse_null()?; _ReadComplete
     | let c: U8 if (c == '-') or ((c >= '0') and (c <= '9')) =>
       _parse_number()?
+      _ReadComplete
     else
       error
-    end
-
-  fun ref _parse_object() ? =>
-    _next()? // consume '{'
-    _emit(JsonTokenObjectStart)?
-    _skip_whitespace()
-
-    if _peek()? == '}' then
-      _next()?
-      _emit(JsonTokenObjectEnd)?
-      return
-    end
-
-    while true do
-      _skip_whitespace()
-      _token_start = _offset
-      _parse_string(true)? // parse key
-      _skip_whitespace()
-      _eat(':')?
-      _parse_value()? // parse value
-      _skip_whitespace()
-      _token_start = _offset
-      match _next()?
-      | ',' => None
-      | '}' =>
-        _emit(JsonTokenObjectEnd)?
-        return
-      else error
-      end
-    end
-
-  fun ref _parse_array() ? =>
-    _next()? // consume '['
-    _emit(JsonTokenArrayStart)?
-    _skip_whitespace()
-
-    if _peek()? == ']' then
-      _next()?
-      _emit(JsonTokenArrayEnd)?
-      return
-    end
-
-    while true do
-      _parse_value()?
-      _skip_whitespace()
-      _token_start = _offset
-      match _next()?
-      | ',' => None
-      | ']' =>
-        _emit(JsonTokenArrayEnd)?
-        return
-      else error
-      end
     end
 
   fun ref _parse_true() ? =>
@@ -350,3 +382,29 @@ class ref JsonTokenParser
       else return
       end
     end
+
+primitive _ReadComplete
+  """`_read_value` read a complete value (a scalar or an empty container)."""
+primitive _ReadOpenObject
+  """`_read_value` opened a non-empty object; its context must be tracked."""
+primitive _ReadOpenArray
+  """`_read_value` opened a non-empty array; its context must be tracked."""
+
+type _ReadResult is (_ReadComplete | _ReadOpenObject | _ReadOpenArray)
+  """What `_read_value` did: completed a value, or opened a container."""
+
+class _ParseCtx
+  """
+  One open container on the parser's work stack.
+
+  `is_object` distinguishes `{}` from `[]`. `expect_separator` is the phase
+  toggle: `false` means the next thing to read is an element (a key/value pair
+  for an object, a value for an array); `true` means it is a separator (`,`) or
+  the closing bracket.
+  """
+  let is_object: Bool
+  var expect_separator: Bool
+
+  new create(is_object': Bool) =>
+    is_object = is_object'
+    expect_separator = false
