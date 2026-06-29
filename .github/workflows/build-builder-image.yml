@@ -16,7 +16,6 @@ on:
           - cross-riscv64
           - ubuntu26.04-builder
           - x86-64-unknown-linux-fedora44-builder
-          - x86-64-unknown-linux-ubuntu22.04-builder
           - x86-64-unknown-linux-ubuntu24.04-builder
 
 permissions:
@@ -214,30 +213,6 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
       - name: Build and push
         run: bash .ci-dockerfiles/x86-64-unknown-linux-fedora44-builder/build-and-push.bash
-
-  x86-64-unknown-linux-ubuntu22_04-builder:
-    if: ${{ github.event.inputs.builder-name == 'x86-64-unknown-linux-ubuntu22.04-builder' }}
-    runs-on: ubuntu-latest
-
-    name: x86-64-unknown-linux-ubuntu22.04-builder
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v6.0.2
-      - name: Set up Docker Buildx
-        # v3.10.0
-        uses: docker/setup-buildx-action@v4
-        with:
-          version: v0.23.0
-          cache-binary: false
-      - name: Login to GitHub Container Registry
-        # v2.2.0
-        uses: docker/login-action@v4
-        with:
-          registry: ghcr.io
-          username: ${{ github.repository_owner }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Build and push
-        run: bash .ci-dockerfiles/x86-64-unknown-linux-ubuntu22.04-builder/build-and-push.bash
 
   x86-64-unknown-linux-ubuntu24_04-builder:
     if: ${{ github.event.inputs.builder-name == 'x86-64-unknown-linux-ubuntu24.04-builder' }}
