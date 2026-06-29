@@ -2,16 +2,13 @@
 
 All notable changes to the Pony compiler and standard library will be documented in this file. This project adheres to [Semantic Versioning](http://semver.org/) and [Keep a CHANGELOG](http://keepachangelog.com/).
 
-## [unreleased] - unreleased
+## [0.66.0] - 2026-06-29
 
 ### Fixed
 
 - Fix systematic testing build failure under gcc ([PR #5584](https://github.com/ponylang/ponyc/pull/5584))
 - Fix an intermittent systematic testing hang ([PR #5585](https://github.com/ponylang/ponyc/pull/5585))
 - Improve memory usage ([PR #5594](https://github.com/ponylang/ponyc/pull/5594))
-
-### Added
-
 
 ### Changed
 
