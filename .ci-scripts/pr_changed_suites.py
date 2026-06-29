@@ -8,11 +8,18 @@ PR's changed paths on stdin (one per line) and writes `<suite>=true|false` for
 each suite to stdout in `$GITHUB_OUTPUT` (`name=value`) format.
 
 The rules are the three suites' original `paths:` blocks, transcribed as plain
-prefix/suffix/exact tests -- no glob engine. They must stay in sync with the
-union `paths:` filter at the top of `pr.yml`: a file that triggers any suite here
-must also match the workflow-level filter, or the workflow never starts and that
-suite silently never runs. (`ponyc` is a subset of `tools`, so the union is
-exactly `tools` plus `pony_compiler`.)
+prefix/suffix/exact tests -- no glob engine -- plus a deliberate addition not in
+those blocks: `test/rt-stress/` and `test/rt-systematic/` are excluded from every
+suite. They hold test workloads the PR suites build nothing of -- their Pony is
+compiled and run only by scheduled workflows (`stress-test-*` and
+`ponyc-weekly-checks.yml`). The stress harness's Python orchestration is linted
+and tested by `lint-python.yml` on every PR; `test/rt-systematic/` carries no
+Python (its orchestrator lives under `.ci-scripts/`). So a PR touching only these
+needs none of these suites. The rules must stay in sync with the union `paths:`
+filter at the top of `pr.yml`: a file that triggers any suite here must also
+match the workflow-level filter, or the workflow never starts and that suite
+silently never runs. (`ponyc` is a subset of `tools`, so the union is exactly
+`tools` plus `pony_compiler`.)
 
 Editing `pr.yml` itself re-triggers every suite: each suite's original filter
 re-included its own workflow file, and now there is one shared file.
@@ -33,6 +40,8 @@ def excluded(path):
     return (path.endswith('.md') or path.endswith('.yml')
             or path.startswith('.dockerfiles/')
             or path.startswith('.ci-dockerfiles/')
+            or path.startswith('test/rt-stress/')
+            or path.startswith('test/rt-systematic/')
             or path == '.gitignore' or path == '.markdownlintignore')
 
 

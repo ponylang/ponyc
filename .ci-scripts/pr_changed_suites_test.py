@@ -35,6 +35,22 @@ SINGLE_PATH_TABLE = [
     ('tools/lib/ponylang/pony_compiler/pass.pony', (False, True, True)),
     # plain stdlib code: ponyc + tools.
     ('packages/json/json.pony', (True, False, True)),
+    # scheduled-only test workloads trigger no suite: nothing under
+    # test/rt-stress/ or test/rt-systematic/ feeds test-ci-core or the tools
+    # build, so the whole directory is excluded -- a .py orchestration file and
+    # a .pony workload alike classify to nothing.
+    ('test/rt-stress/generative/orchestrate_normal_test.py', (False, False,
+                                                              False)),
+    ('test/rt-stress/generative/stress_common.py', (False, False, False)),
+    ('test/rt-stress/tcp-open-close/tcp-open-close.pony', (False, False,
+                                                          False)),
+    ('test/rt-systematic/order-signature/main.pony', (False, False, False)),
+    # ...but the still-built test/ subdirs (compiled by test-ci-core) stay IN,
+    # and a sibling like test/rt-stress-foo/ stays IN -- guard rows so an
+    # over-broad exclusion (widened prefix, dropped trailing slash) can't
+    # silently drop a suite with the table still green.
+    ('test/libponyc/array.cc', (True, False, True)),
+    ('test/rt-stress-foo/bar.pony', (True, False, True)),
     # excluded files trigger nothing (and are not pony_compiler paths).
     ('README.md', (False, False, False)),
     ('config.yaml.yml', (False, False, False)),
