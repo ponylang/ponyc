@@ -44,7 +44,7 @@ def test_resolve_config_golden():
     expected = {
         "master_seed": 0,
         "runtime": {
-            "ponygcinitial": 1024,
+            "ponygcinitial": 10,
             "ponymaxthreads": 5,
             "ponynoscale": True,
         },

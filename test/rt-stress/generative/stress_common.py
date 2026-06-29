@@ -122,7 +122,13 @@ def draw_swarm_knobs(rng, runtime):
     if rng.random() < 0.5:
         runtime["ponynoscale"] = True
     if rng.random() < 0.5:
-        runtime["ponygcinitial"] = rng.choice([1024, 1 << 16, 1 << 20])
+        # --ponygcinitial is a base-2 EXPONENT, not a byte count: it defers an
+        # actor's GC until it is using 2^N bytes (runtime default N=14 = 16 KiB).
+        # These draw 1 KiB / 64 KiB / 1 MiB thresholds (a spread around the
+        # default). Pass exponents, NOT byte counts -- the runtime computes
+        # `1 << N`, so a byte count like 65536 is masked (mod 64) to a 1-byte
+        # threshold on x86-64, silently forcing GC on nearly every allocation.
+        runtime["ponygcinitial"] = rng.choice([10, 16, 20])
     if rng.random() < 0.5:
         runtime["ponygcfactor"] = round(rng.choice([1.05, 1.5, 2.0, 4.0]), 2)
     if rng.random() < 0.5:
