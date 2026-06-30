@@ -450,9 +450,10 @@ distclean:
 # remove these, targeted so they only ever remove our own symlinks — a symlink
 # whose target is under $(prefix)/lib/pony — never a user's real file. Only the
 # default ponydir layout is matched; an old install done with a custom ponydir
-# isn't auto-cleaned. Paths are relative to $(prefix). Transitional — obsolete
-# once the old layout is gone, and intentionally not carried into the CMake
-# install (see discussion #5588).
+# isn't auto-cleaned. Paths are relative to $(prefix). Transitional: this
+# cleanup moves to the CMake install when the Makefile is retired (#5588) and
+# stays for a while, until installs with the old layout are gone, then it's
+# removed.
 legacy-embed-symlinks := include/pony.h include/ponyassert.h include/platform.h include/threads.h include/paths.h include/pony/detail/atomics.h lib/libponyrt.a lib/libponyrt-pic.a lib/libdtrace_probes.a
 
 # Canned recipe shared by install and uninstall. The case-glob on readlink's
