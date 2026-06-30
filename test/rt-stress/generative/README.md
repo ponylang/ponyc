@@ -157,12 +157,13 @@ non-deterministic, so a replay won't necessarily reproduce a failure).
   *completion-count only* (exactly `generations * chains` completions) — weaker than
   the `mesh`/`iso` exact tally. The engine checks this itself and exits non-zero on a
   detected failure, so it holds in **both** modes.
-- **Late / duplicate message** — for `mesh`, anything arriving after a pinger has
-  reported is a leak; for `backpressure`, a work or `finished` after completion, or
-  more `finished` reports than producers, is a duplicate; for `cyclic`, a completion
-  beyond the expected total is a duplicate; for `iso`, a handoff arriving after a
-  `Carrier` has reported, or a completion beyond `chains`, is a duplicate. All trip
-  the engine's fatal-fault path. (A *lost* mesh/cyclic/iso message instead leaves
+- **Late / duplicate message** — for `mesh`, a ping arriving after a pinger has
+  reported is a leak, or a completion beyond `chains` is a duplicate; for
+  `backpressure`, a work or `finished` after completion, or more `finished`
+  reports than producers, is a duplicate; for `cyclic`, a completion beyond the
+  expected total is a duplicate; for `iso`, a handoff arriving after a `Carrier`
+  has reported, or a completion beyond `chains`, is a duplicate. All trip the
+  engine's fatal-fault path. (A *lost* mesh/cyclic/iso message instead leaves
   its chain incomplete forever — caught by the liveness timeout, not here; only
   `backpressure` catches a lost message as a conservation failure.)
 - **Parcel integrity** (`iso` workload) — the only oracle in the harness that
