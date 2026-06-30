@@ -6,9 +6,9 @@ Normal mode is non-reproducible at runtime, but a seed still maps to a stable
 *config* -- the per-kind goldens below pin that draw order. The two things that
 distinguish normal from systematic are asserted explicitly: no systematic seed is
 ever set, and ponynoblock is a swarm knob (drawn, not forced). Normal mode draws
-one of three workload kinds (`mesh`, `cyclic`, or `backpressure`); the per-kind
-shape, the cyclic memory ceiling, and the backpressure message ceiling are checked
-here too.
+one of four workload kinds (`mesh`, `cyclic`, `backpressure`, or `iso`); the
+per-kind shape, the cyclic memory ceiling, the backpressure message ceiling, and
+the iso chains/ttl burst ceilings are checked here too.
 """
 import sys
 
@@ -30,6 +30,15 @@ CYCLIC_WORKER_CEILING = 130000
 # message bucket trips this and forces a time re-measure. Real max today is
 # 256*400000 = 102_400_000 (see BACKPRESSURE_* docs).
 BACKPRESSURE_MESSAGE_CEILING = 110_000_000
+# Hardcoded calibrated ceilings for the iso workload. Its memory bound is the
+# ACQUIRE-FLOOD = chains * ttl * node_count; the per-run chains draw is CLAMPED so
+# this stays <= ISO_ACQUIRE_BUDGET (see stress_common). These ceilings pin the
+# calibrated safe limits: the budget itself (worst ~160 MB at K=96000), and the max
+# graph node count (the depth/breadth maxima -- the per-hop acquire multiplier).
+# Bumping either past these forces a memory re-measure rather than slipping into
+# untested territory (the OOM cliff is non-monotonic near the edge).
+ISO_ACQUIRE_CEILING = 96000
+ISO_NODE_CEILING = 15
 
 
 def check(name, condition):
@@ -43,28 +52,28 @@ def check(name, condition):
 def test_resolve_config_mesh_golden():
     # Pin a MESH config: the normal-mode seed-stability guard for the mesh emit
     # shape (pingers + chains + ttl, no generations/group/producers). Distinct from
-    # the systematic golden -- normal draws the workload kind first (now 3-way), then
+    # the systematic golden -- normal draws the workload kind first (now 4-way), then
     # bucketed chains/ttl (a mesh run's ttl then trimmed to the run-time ceiling), a
     # freely-drawn payload, and ponynoblock as a swarm knob, and carries no
     # systematic seed.
-    # (This intentionally differs from the two-kind normal golden -- the 3-way kind
-    # roll and the extra backpressure-shape draws remap every historical seed.)
-    # Seed 1 rolls mesh.
+    # (This intentionally differs from the three-kind normal golden -- the 4-way kind
+    # roll and the extra iso cargo-shape draws remap every historical seed, and the
+    # weight change remaps which seed rolls which kind.) Seed 1 rolls mesh.
     expected = {
         "master_seed": 1,
         "runtime": {
-            "ponycdinterval": 100,
-            "ponygcinitial": 10,
+            "ponygcfactor": 1.05,
+            "ponygcinitial": 16,
             "ponymaxthreads": 1,
         },
         "workload": {
-            "chains": 17440,
-            "payload": "u64",
+            "chains": 7886,
+            "payload": "string",
             "payload-mode": "fresh",
-            "payload-size": 256,
-            "pingers": 32,
+            "payload-size": 8,
+            "pingers": 8,
             "seed": 2570779959355939992,
-            "ttl": 1964,
+            "ttl": 19020,
             "workload": "mesh",
         },
     }
@@ -74,56 +83,84 @@ def test_resolve_config_mesh_golden():
 
 def test_resolve_config_cyclic_golden():
     # Pin a CYCLIC config too (the mesh golden alone never checks the cyclic emit
-    # shape: generations/group/chains/ttl present, no pingers/producers). Seed 5
-    # rolls cyclic.
+    # shape: generations/group/chains/ttl present, no pingers/producers). Seed 9
+    # rolls cyclic (the 4-way weight change remapped it from seed 5).
+    expected = {
+        "master_seed": 9,
+        "runtime": {
+            "ponymaxthreads": 7,
+            "ponynoblock": True,
+            "ponynoscale": True,
+        },
+        "workload": {
+            "chains": 5,
+            "generations": 1368,
+            "group": 4,
+            "payload": "u64",
+            "payload-mode": "fresh",
+            "payload-size": 1,
+            "seed": 7931586630182256735,
+            "ttl": 10,
+            "workload": "cyclic",
+        },
+    }
+    check("resolve_config(9, 8) matches the pinned cyclic golden config",
+          normal.resolve_config(9, THREADS) == expected)
+
+
+def test_resolve_config_backpressure_golden():
+    # Pin a BACKPRESSURE config: it has producers/messages/apply-every and NO
+    # chains/ttl/pingers/generations/group -- the emit shape that proves the variant
+    # carries only its own fields. Seed 5 rolls backpressure (remapped from seed 0).
     expected = {
         "master_seed": 5,
         "runtime": {
             "ponycdinterval": 1000,
             "ponygcfactor": 1.05,
-            "ponygcinitial": 20,
             "ponymaxthreads": 8,
             "ponynoblock": True,
             "ponynoscale": True,
         },
         "workload": {
-            "chains": 6,
-            "generations": 2972,
-            "group": 2,
-            "payload": "u64",
-            "payload-mode": "forward",
-            "payload-size": 256,
-            "seed": 1674455568713221789,
-            "ttl": 6,
-            "workload": "cyclic",
-        },
-    }
-    check("resolve_config(5, 8) matches the pinned cyclic golden config",
-          normal.resolve_config(5, THREADS) == expected)
-
-
-def test_resolve_config_backpressure_golden():
-    # Pin a BACKPRESSURE config: it has producers/messages/apply-every and NO
-    # chains/ttl/pingers/generations/group -- the emit shape that proves the new
-    # variant carries only its own fields. Seed 0 rolls backpressure.
-    expected = {
-        "master_seed": 0,
-        "runtime": {
-            "ponymaxthreads": 3,
-            "ponynoblock": True,
-        },
-        "workload": {
-            "apply-every": 200,
-            "messages": 354767,
+            "apply-every": 1000,
+            "messages": 230576,
             "payload": "string",
-            "payload-mode": "fresh",
-            "payload-size": 1,
-            "producers": 64,
-            "seed": 2686188150644990173,
+            "payload-mode": "forward",
+            "payload-size": 1024,
+            "producers": 128,
+            "seed": 1674455568713221789,
             "workload": "backpressure",
         },
     }
-    check("resolve_config(0, 8) matches the pinned backpressure golden config",
+    check("resolve_config(5, 8) matches the pinned backpressure golden config",
+          normal.resolve_config(5, THREADS) == expected)
+
+
+def test_resolve_config_iso_golden():
+    # Pin an ISO config: it has pingers/chains/ttl + its OWN cargo knobs
+    # (node-size/node-depth/node-breadth) and NO val payload and NO
+    # generations/group/producers/messages/apply-every -- the emit shape that proves
+    # the variant carries only its own fields and picks its own cargo set instead of
+    # the shared payload. Seed 0 rolls iso; chains is clamped to the graph's
+    # acquire-flood cap (depth 4, breadth 1 = 4 nodes, cap 1500).
+    expected = {
+        "master_seed": 0,
+        "runtime": {
+            "ponymaxthreads": 5,
+            "ponynoblock": True,
+        },
+        "workload": {
+            "chains": 1500,
+            "node-breadth": 1,
+            "node-depth": 4,
+            "node-size": 64,
+            "pingers": 16,
+            "seed": 2686188150644990173,
+            "ttl": 7,
+            "workload": "iso",
+        },
+    }
+    check("resolve_config(0, 8) matches the pinned iso golden config",
           normal.resolve_config(0, THREADS) == expected)
 
 
@@ -158,17 +195,24 @@ def test_resolve_config_deterministic_and_bounded():
           normal.resolve_config(7, THREADS)
           == normal.resolve_config(7, THREADS))
 
-    # Invariants over all three workload kinds: each carries ONLY its own shape
+    # Invariants over all four workload kinds: each carries ONLY its own shape
     # fields (mesh: pingers+chains+ttl; cyclic: generations+group+chains+ttl;
-    # backpressure: producers+messages+apply-every and NO chains/ttl). Payload is
-    # shared. This is the structural check that the per-kind emit never leaks a
-    # field from another kind.
+    # backpressure: producers+messages+apply-every and NO chains/ttl; iso:
+    # pingers+chains+ttl + its OWN cargo knobs node-size/node-depth/node-breadth and
+    # NO val payload). This is the structural check that the per-kind emit never
+    # leaks a field from another kind. (iso's lack of payload is itself checked: the
+    # shared payload reads below are guarded for iso.)
     cyclic_gen_lo = common.CYCLIC_GENERATION_BUCKETS["small"][0]
     cyclic_gen_hi = common.CYCLIC_GENERATION_BUCKETS["large"][1]
     cyclic_chains_hi = common.CYCLIC_CHAINS_BUCKETS["large"][1]
     cyclic_ttl_hi = common.CYCLIC_TTL_BUCKETS["large"][1]
     bp_msg_lo = common.BACKPRESSURE_MESSAGE_BUCKETS["small"][0]
     bp_msg_hi = common.BACKPRESSURE_MESSAGE_BUCKETS["large"][1]
+    iso_ttl_lo = common.ISO_TTL_BUCKETS["small"][0]
+    iso_ttl_hi = common.ISO_TTL_BUCKETS["large"][1]
+    # Every other kind's unique fields, which the iso emit must never carry, and the
+    # iso cargo knobs, which the OTHER kinds must never carry.
+    iso_cargo = ("node-size", "node-depth", "node-breadth")
     invariants_hold = True
     maxthreads_seen = set()
     mode_seen = set()
@@ -180,7 +224,7 @@ def test_resolve_config_deterministic_and_bounded():
         if kind == "mesh":
             if any(k in work for k in
                    ("generations", "group", "producers", "messages",
-                    "apply-every")):
+                    "apply-every") + iso_cargo):
                 invariants_hold = False
             if work["pingers"] not in PINGERS_ALLOWED:
                 invariants_hold = False
@@ -195,7 +239,8 @@ def test_resolve_config_deterministic_and_bounded():
                 invariants_hold = False
         elif kind == "cyclic":
             if any(k in work for k in
-                   ("pingers", "producers", "messages", "apply-every")):
+                   ("pingers", "producers", "messages", "apply-every")
+                   + iso_cargo):
                 invariants_hold = False
             if not (cyclic_gen_lo <= work["generations"] <= cyclic_gen_hi):
                 invariants_hold = False
@@ -207,9 +252,10 @@ def test_resolve_config_deterministic_and_bounded():
                 invariants_hold = False
         elif kind == "backpressure":
             # No chains/ttl (they live on the chain-based variants) and no
-            # pingers/generations/group.
+            # pingers/generations/group and no iso cargo knobs.
             if any(k in work for k in
-                   ("pingers", "generations", "group", "chains", "ttl")):
+                   ("pingers", "generations", "group", "chains", "ttl")
+                   + iso_cargo):
                 invariants_hold = False
             if work["producers"] not in common.BACKPRESSURE_PRODUCERS:
                 invariants_hold = False
@@ -217,13 +263,45 @@ def test_resolve_config_deterministic_and_bounded():
                 invariants_hold = False
             if work["apply-every"] not in common.BACKPRESSURE_APPLY_EVERY:
                 invariants_hold = False
+        elif kind == "iso":
+            # pingers+chains+ttl + node-size/depth/breadth; NO val payload and no
+            # other kind's fields.
+            if any(k in work for k in
+                   ("generations", "group", "producers", "messages",
+                    "apply-every", "payload", "payload-size", "payload-mode")):
+                invariants_hold = False
+            if work["pingers"] not in PINGERS_ALLOWED:
+                invariants_hold = False
+            if work["node-size"] not in common.ISO_NODE_SIZES:
+                invariants_hold = False
+            if work["node-depth"] not in common.ISO_DEPTHS:
+                invariants_hold = False
+            if work["node-breadth"] not in common.ISO_BREADTHS:
+                invariants_hold = False
+            if not (iso_ttl_lo <= work["ttl"] <= iso_ttl_hi):
+                invariants_hold = False
+            # chains is clamped to the graph's acquire-flood cap, so every iso run
+            # must satisfy chains <= cap AND the budget (chains * ttl_max *
+            # node_count <= ISO_ACQUIRE_BUDGET) -- the memory-safe envelope.
+            nd = work["node-depth"]
+            nb = work["node-breadth"]
+            cap = common.iso_chains_cap(nd, nb)
+            nodes = common.iso_node_count(nd, nb)
+            if not (1 <= work["chains"] <= cap):
+                invariants_hold = False
+            if (work["chains"] * common.ISO_TTL_MAX * nodes
+                    > common.ISO_ACQUIRE_BUDGET):
+                invariants_hold = False
         else:
             invariants_hold = False
-        if work["payload"] not in ("string", "u64"):
-            invariants_hold = False
-        if work["payload-size"] not in SIZE_ALLOWED:
-            invariants_hold = False
-        mode_seen.add(work["payload-mode"])
+        # Payload is shared by mesh/cyclic/backpressure but NOT iso (iso picks its
+        # own cargo set), so guard the shared reads for iso.
+        if kind != "iso":
+            if work["payload"] not in ("string", "u64"):
+                invariants_hold = False
+            if work["payload-size"] not in SIZE_ALLOWED:
+                invariants_hold = False
+            mode_seen.add(work["payload-mode"])
         mt = runtime.get("ponymaxthreads")
         if (mt is None) or not (1 <= mt <= THREADS):
             invariants_hold = False
@@ -243,6 +321,15 @@ def test_resolve_config_deterministic_and_bounded():
           cyclic_theoretical <= CYCLIC_WORKER_CEILING)
     check("backpressure theoretical worst-case messages within the ceiling",
           bp_theoretical <= BACKPRESSURE_MESSAGE_CEILING)
+    # iso's memory bound is the acquire-flood budget (the chains clamp keeps every
+    # run within it -- asserted per-config above). Pin the calibrated budget and the
+    # max graph node count; bumping either forces a memory re-measure.
+    iso_max_nodes = max(common.iso_node_count(d, b)
+                        for d in common.ISO_DEPTHS for b in common.ISO_BREADTHS)
+    check("iso calibrated acquire budget within the ceiling",
+          common.ISO_ACQUIRE_BUDGET <= ISO_ACQUIRE_CEILING)
+    check("iso max graph node count within the ceiling",
+          iso_max_nodes <= ISO_NODE_CEILING)
     check("payload-mode covers {forward, fresh}",
           mode_seen == {"forward", "fresh"})
     check("ponymaxthreads spans the full [1, THREADS] range",
@@ -250,13 +337,14 @@ def test_resolve_config_deterministic_and_bounded():
 
 
 def test_resolve_config_draws_all_workloads():
-    # Swarm coverage: over many seeds all three workload kinds must appear, or one
-    # of the cycle-detector / backpressure / mesh paths would go untested in a soak.
+    # Swarm coverage: over many seeds all four workload kinds must appear, or one of
+    # the cycle-detector / backpressure / iso / mesh paths would go untested in a
+    # soak.
     kinds = set()
     for master in range(0, 300):
         kinds.add(normal.resolve_config(master, THREADS)["workload"]["workload"])
-    check("normal mode draws all of mesh, cyclic, backpressure",
-          kinds == {"mesh", "cyclic", "backpressure"})
+    check("normal mode draws all of mesh, cyclic, backpressure, iso",
+          kinds == {"mesh", "cyclic", "backpressure", "iso"})
 
 
 def test_resolve_config_swarm_omission():
@@ -275,15 +363,22 @@ def test_resolve_config_swarm_omission():
 def test_resolve_config_magnitude_buckets():
     # The deliberate small->large distribution. A MESH run draws chains/ttl from the
     # magnitude buckets; a CYCLIC run draws generations from its own buckets; a
-    # BACKPRESSURE run draws messages from its own buckets. Over many seeds each
-    # magnitude knob must reach all three of its buckets.
+    # BACKPRESSURE run draws messages from its own buckets. ISO's magnitude is in its
+    # ttl (bucketed) AND its GRAPH SHAPE (node count): its chains is clamped to the
+    # graph's acquire cap, so chains is not an independent magnitude knob (a large
+    # draw on a big graph clamps down) -- the graph node count is the iso magnitude
+    # dimension instead. Each branch reads only its own kind's field, so iso needs
+    # its own arm (the backpressure `messages` it lacks would KeyError).
     nb = common.NORMAL_SIZE_BUCKETS
     gb = common.CYCLIC_GENERATION_BUCKETS
     mb = common.BACKPRESSURE_MESSAGE_BUCKETS
+    itb = common.ISO_TTL_BUCKETS
     mesh_chains = {"small": 0, "medium": 0, "large": 0}
     mesh_ttl = {"small": 0, "medium": 0, "large": 0}
     cyclic_gen = {"small": 0, "medium": 0, "large": 0}
     bp_messages = {"small": 0, "medium": 0, "large": 0}
+    iso_ttl = {"small": 0, "medium": 0, "large": 0}
+    iso_node_counts = set()
 
     def bucket_of(val, buckets):
         if val <= buckets["small"][1]:
@@ -294,13 +389,18 @@ def test_resolve_config_magnitude_buckets():
 
     for master in range(0, 400):
         w = normal.resolve_config(master, THREADS)["workload"]
-        if w["workload"] == "mesh":
+        wl = w["workload"]
+        if wl == "mesh":
             mesh_chains[bucket_of(w["chains"], nb)] += 1
             mesh_ttl[bucket_of(w["ttl"], nb)] += 1
-        elif w["workload"] == "cyclic":
+        elif wl == "cyclic":
             cyclic_gen[bucket_of(w["generations"], gb)] += 1
-        else:
+        elif wl == "backpressure":
             bp_messages[bucket_of(w["messages"], mb)] += 1
+        else:  # iso
+            iso_ttl[bucket_of(w["ttl"], itb)] += 1
+            iso_node_counts.add(
+                common.iso_node_count(w["node-depth"], w["node-breadth"]))
     check("mesh chains reaches all three magnitude buckets",
           all(c > 0 for c in mesh_chains.values()))
     check("mesh ttl reaches all three magnitude buckets",
@@ -309,17 +409,32 @@ def test_resolve_config_magnitude_buckets():
           all(c > 0 for c in cyclic_gen.values()))
     check("backpressure messages reaches all three magnitude buckets",
           all(c > 0 for c in bp_messages.values()))
+    check("iso ttl reaches all three magnitude buckets",
+          all(c > 0 for c in iso_ttl.values()))
+    # iso graph shape spans flat (1 node) through the max tree (15 nodes).
+    iso_max_nodes = max(common.iso_node_count(d, b)
+                        for d in common.ISO_DEPTHS for b in common.ISO_BREADTHS)
+    check("iso graph reaches both the single node and the max tree",
+          (1 in iso_node_counts) and (iso_max_nodes in iso_node_counts))
 
 
 def test_resolve_config_draws_single_pinger():
-    # pingers=1 must be drawn for some MESH run: it exercises the ORCA self-send
-    # path (bounded since PR #5594), so the soak keeps a standing stress on that fix.
-    one_seen = False
+    # pingers=1 must be drawn for some MESH run AND some ISO run: it exercises the
+    # ORCA self-send path (bounded since PR #5594), so the soak keeps a standing
+    # stress on that fix -- the iso run additionally self-sends an iso nested graph,
+    # exercising the pin with a moved mutable subgraph (see self-send-object-pinning).
+    mesh_one_seen = False
+    iso_one_seen = False
     for master in range(0, 500):
         w = normal.resolve_config(master, THREADS)["workload"]
-        if (w["workload"] == "mesh") and (w["pingers"] == 1):
-            one_seen = True
-    check("normal mode draws a mesh run with pingers=1", one_seen)
+        # cyclic/backpressure have no `pingers`, so .get() guards the read.
+        if w.get("pingers") == 1:
+            if w["workload"] == "mesh":
+                mesh_one_seen = True
+            elif w["workload"] == "iso":
+                iso_one_seen = True
+    check("normal mode draws a mesh run with pingers=1", mesh_one_seen)
+    check("normal mode draws an iso run with pingers=1", iso_one_seen)
 
 
 def test_resolve_config_mesh_run_time_bounded():
@@ -356,6 +471,7 @@ def main():
     test_resolve_config_mesh_golden()
     test_resolve_config_cyclic_golden()
     test_resolve_config_backpressure_golden()
+    test_resolve_config_iso_golden()
     test_resolve_config_never_sets_systematic_seed()
     test_ponynoblock_is_a_swarm_knob()
     test_resolve_config_deterministic_and_bounded()

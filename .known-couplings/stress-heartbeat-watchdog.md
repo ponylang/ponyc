@@ -26,6 +26,14 @@ messages they receive. The two numbers are a pair:
   needs one. If a future cyclic-bucket bump pushed its worst-case runtime toward
   `DEFAULT_NORMAL_NO_PROGRESS_SECONDS`, it would need a heartbeat (the persistent
   `CyclicCollector` is the place — its workers are ephemeral) or a larger window.
+- The `iso` workload likewise emits no heartbeat: its `chains` are clamped to the
+  acquire-flood budget (`ISO_ACQUIRE_BUDGET`), so its total message count is capped
+  near ~100k (well below `_Heartbeat._min`) and its worst-case run finishes in well
+  under a second (measured ~0.2s, 16 threads, at the calibrated budget across every
+  drawn graph shape). Like cyclic it never approaches the window; if the acquire
+  budget were ever raised enough to push its runtime toward
+  `DEFAULT_NORMAL_NO_PROGRESS_SECONDS`, the `Carrier` would need a heartbeat (the
+  persistent `Dispatcher` is the place — its carriers stay live, so either works).
 - The heartbeat is gated OFF for small runs (`_Heartbeat._min`), which keeps
   SYSTEMATIC runs (all far below it) heartbeat-free; systematic also keeps the flat
   total-time watchdog (`no_progress_seconds=None`), not this one — see
