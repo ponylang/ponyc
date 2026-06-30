@@ -5,7 +5,7 @@ a push/pull/exists/package-name against it.
 This is the BRANCH libs cache: a separate, short-lived cache from the main libs
 cache (`oci_libs_cache.py` / `ponyc-libs-cache`). It exists so a build that misses
 the main cache because it changed an LLVM-determining input -- a non-fork PR, or an
-ad-hoc `workflow_dispatch` of tier2/weekly on a branch -- builds LLVM once
+ad-hoc `workflow_dispatch` of weekly on a branch -- builds LLVM once
 and reuses that build on later runs instead of cold-building every time. The warmer
 also reads it: on a main-cache miss it promotes a matching branch artifact into the
 main cache instead of cold-building (`promote_libs_cache.py`).

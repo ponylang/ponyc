@@ -16,10 +16,10 @@ Modes:
     only writer). With `--branch-cache` it also participates in the branch scratch
     cache: on a main miss it `pull`s the branch cache (reuse across runs of the
     same changed-libs branch) and, after a build, `push`es the branch cache
-    best-effort. tier2/weekly pass `--branch-cache` so an ad-hoc
+    best-effort. weekly passes `--branch-cache` so an ad-hoc
     `workflow_dispatch` validating an LLVM change captures its build instead of
-    discarding it; release/nightly use plain consumer mode (main-only). (tier3 is
-    require-cache-hit now, not consumer -- see that mode below.)
+    discarding it; release/nightly use plain consumer mode (main-only). (tier2 and
+    tier3 are require-cache-hit now, not consumer -- see that mode below.)
   - warmer mode (`--warm`): `exists` the main cache (a HEAD, no download) -> hit ->
     done. miss -> `exists` the branch cache and, on a hit, `promote` it into the
     main cache (a registry copy -- reuses the build a PR or tier dispatch already
@@ -28,8 +28,8 @@ Modes:
     main cache; by workflow convention only the warmer passes it.
   - require-cache-hit mode (`--require-cache-hit`): `pull` the main cache -> hit ->
     done. Takes no build command (it never builds). For jobs that must rely on a
-    pre-warmed cache rather than cold-build (the stress tests and tier3). Two
-    modifiers tune the miss behavior:
+    pre-warmed cache rather than cold-build (the stress tests, tier2, and tier3).
+    Two modifiers tune the miss behavior:
       * `--skip-on-miss`: on a miss, write the `.libs-cache-miss` marker and exit 0
         (the workflow gates its build/run steps on the marker's ABSENCE, so the job
         goes green with those steps skipped). The scheduled stress loop uses this --
@@ -77,9 +77,10 @@ from pathlib import Path
 from common import (BRANCH_CACHE, MAIN_CACHE, PROMOTE, cache_args, die, info, run,
                     split_build_command)
 
-# The stress workflows gate their build/run steps on the ABSENCE of this marker
-# (`if: hashFiles('.libs-cache-miss') == ''`), so on a `--skip-on-miss` miss we
-# write it to signal "skip this run". It lives in the workspace root.
+# The stress, tier2, and tier3 workflows gate their build/run steps on the ABSENCE
+# of this marker (`if: hashFiles('.libs-cache-miss') == ''`), so on a
+# `--skip-on-miss` miss we write it to signal "skip this run". It lives in the
+# workspace root.
 MISS_MARKER = '.libs-cache-miss'
 
 
@@ -87,12 +88,12 @@ def write_miss_marker():
     """Write the skip-on-miss marker into the workspace so the workflow's
     `hashFiles` gate sees it. We use GITHUB_WORKSPACE, falling back to cwd.
 
-    The `or '.'` fallback is load-bearing for the arm64-linux stress job: its
-    resolve step runs inside `docker run -w /home/pony/project` (the mounted
-    workspace) WITHOUT GITHUB_WORKSPACE in the container env, so the marker must
-    land in cwd, which is that mount root -- where the host-side `hashFiles`
-    looks. If that job's working directory ever stops being the workspace mount,
-    the host gate can no longer see the marker."""
+    The `or '.'` fallback is load-bearing for the arm64-linux docker jobs (stress
+    and tier2): their resolve step runs inside `docker run -w /home/pony/project`
+    (the mounted workspace) WITHOUT GITHUB_WORKSPACE in the container env, so the
+    marker must land in cwd, which is that mount root -- where the host-side
+    `hashFiles` looks. If that job's working directory ever stops being the
+    workspace mount, the host gate can no longer see the marker."""
     (Path(os.environ.get('GITHUB_WORKSPACE') or '.') / MISS_MARKER).touch()
 
 
@@ -113,7 +114,7 @@ def main(argv):
                       help='require-cache-hit mode: pull the main cache; on a miss '
                            'fail loudly instead of building. Takes no build '
                            'command. For jobs that require a pre-warmed cache '
-                           '(stress tests, tier3).')
+                           '(stress tests, tier2, tier3).')
     parser.add_argument('--branch-cache', action='store_true',
                         help='consumer or require-cache-hit mode: also participate '
                              'in the branch scratch cache. Consumer: pull it for '
@@ -156,13 +157,13 @@ def main(argv):
         if args.skip_on_miss:
             write_miss_marker()
             info(f"Libs cache miss for '{sel_str}' (tag {args.tag}); skipping this "
-                 "stress run (wrote .libs-cache-miss). Expected when the continuous "
-                 "stress loop overlaps an empty or refilling cache. See the GHCR "
-                 "libs cache coupling in .known-couplings/ghcr-libs-cache.md.")
+                 "run (wrote .libs-cache-miss). Expected when a scheduled run "
+                 "overlaps an empty or refilling cache. See the GHCR libs cache "
+                 "coupling in .known-couplings/ghcr-libs-cache.md.")
             return
         die(f"Libs cache MISS for require-cache-hit platform '{sel_str}' (tag "
-            f"{args.tag}). Stress tests require a pre-warmed libs cache and never "
-            "cold-build. Likely causes: (1) the cache was just cleared or an "
+            f"{args.tag}). This job requires a pre-warmed libs cache and never "
+            "cold-builds. Likely causes: (1) the cache was just cleared or an "
             "LLVM-determining input changed -- it refills on the next "
             "push-to-main run of update-lib-cache.yml; (2) this platform is "
             "missing from update-lib-cache.yml (the warmer). See the GHCR libs "
