@@ -53,9 +53,9 @@ jobs:
       matrix:
         include:
           - image: ghcr.io/ponylang/ponyc-ci-alpine3.23-builder:20260201
-            name: x86-64 Linux musl
-          - image: ghcr.io/ponylang/ponyc-ci-x86-64-unknown-linux-fedora44-builder:20260614
-            name: x86-64 Linux glibc rpm
+            name: x86-64 Linux musl alpine3.23
+          - image: ghcr.io/ponylang/ponyc-ci-alpine3.24-builder:20260611
+            name: x86-64 Linux musl alpine3.24
 
     name: ${{ matrix.name }}
     container:
@@ -169,7 +169,9 @@ jobs:
           - image: ghcr.io/ponylang/ponyc-ci-ubuntu26.04-builder:20260425
             name: arm64 Linux glibc
           - image: ghcr.io/ponylang/ponyc-ci-alpine3.23-builder:20260201
-            name: arm64 Linux musl
+            name: arm64 Linux musl alpine3.23
+          - image: ghcr.io/ponylang/ponyc-ci-alpine3.24-builder:20260611
+            name: arm64 Linux musl alpine3.24
 
     name: ${{ matrix.name }}
     steps:

@@ -45,6 +45,76 @@ jobs:
             echo "has-changes=false" >> "$GITHUB_OUTPUT"
           fi
 
+  x86_64-linux:
+    needs: check-for-changes
+    if: needs.check-for-changes.outputs.has-changes == 'true'
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - image: ghcr.io/ponylang/ponyc-ci-x86-64-unknown-linux-fedora44-builder:20260614
+            name: x86-64 Linux glibc rpm
+
+    name: ${{ matrix.name }}
+    container:
+      image: ${{ matrix.image }}
+      options: --user pony --cap-add=SYS_PTRACE --security-opt seccomp=unconfined
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6.0.2
+        with:
+          ref: ${{ inputs.ref || github.sha }}
+      - name: Restore libs
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          LIBS_IMAGE: ${{ matrix.image }}
+          LIBS_TAG: ${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
+          # Require a pre-warmed libs cache instead of cold-building LLVM. A
+          # scheduled miss writes the .libs-cache-miss marker and the steps below
+          # skip (the warmer, update-lib-cache.yml, refills on the next push to
+          # main; missing a scheduled run is fine). A manual run also checks the
+          # branch cache and fails loud on a miss, so it never silently no-ops.
+          LIBS_CACHE_FLAGS: ${{ github.event_name == 'schedule' && '--skip-on-miss' || '--branch-cache' }}
+        run: python3 .ci-scripts/libs-cache/resolve_libs_cache.py --require-cache-hit $LIBS_CACHE_FLAGS --image "$LIBS_IMAGE" --tag "$LIBS_TAG"
+      - name: Build Debug Runtime
+        if: ${{ hashFiles('.libs-cache-miss') == '' }}
+        run: |
+          make configure arch=x86-64 config=debug
+          make build config=debug
+      - name: Test with Debug Runtime
+        if: ${{ hashFiles('.libs-cache-miss') == '' }}
+        run: make test-ci-core config=debug
+      - name: Build Release Runtime
+        if: ${{ hashFiles('.libs-cache-miss') == '' }}
+        run: |
+          make configure arch=x86-64 config=release
+          make build config=release
+      - name: Test with Release Runtime
+        if: ${{ hashFiles('.libs-cache-miss') == '' }}
+        run: make test-ci-core config=release
+      - name: Test pony-doc
+        if: ${{ hashFiles('.libs-cache-miss') == '' }}
+        run: make test-pony-doc config=debug
+      - name: Test pony-lint
+        if: ${{ hashFiles('.libs-cache-miss') == '' }}
+        run: make test-pony-lint config=debug
+      - name: Test pony-lsp
+        if: ${{ hashFiles('.libs-cache-miss') == '' }}
+        run: make test-pony-lsp config=debug
+      - name: Send alert on failure
+        if: ${{ failure() }}
+        uses: zulip/github-actions-zulip/send-message@bd8ec52de371d139ae8313661b7d8318c19266aa
+        with:
+          api-key: ${{ secrets.ZULIP_SCHEDULED_JOB_FAILURE_API_KEY }}
+          email: ${{ secrets.ZULIP_SCHEDULED_JOB_FAILURE_EMAIL }}
+          organization-url: 'https://ponylang.zulipchat.com/'
+          to: notifications
+          type: stream
+          topic: ${{ github.repository }} scheduled job failure
+          content: ${{ github.server_url}}/${{ github.repository }}/actions/runs/${{ github.run_id }} failed.
+
   riscv64-linux:
     needs: check-for-changes
     if: needs.check-for-changes.outputs.has-changes == 'true'
