@@ -1,5 +1,31 @@
 use iregex = "iregex"
 
+// Work-stack task types for the iterative compound-expression walk in
+// `_FilterEval._apply_compound` (see that method's docstring for why the
+// `&&`/`||`/`!` tree is walked with an explicit heap stack instead of native
+// recursion). A `*RightTask` preserves short-circuit by scheduling its right
+// operand only when the left operand didn't already settle the result.
+
+class val _EvalTask
+  """Evaluate `expr`, leaving its Bool on the result stack."""
+  let expr: _LogicalExpr
+  new val create(expr': _LogicalExpr) => expr = expr'
+
+primitive _NotTask
+  """Negate the Bool on top of the result stack."""
+
+class val _AndRightTask
+  """Runs after `&&`'s left operand; evaluate `right` unless left was false."""
+  let right: _LogicalExpr
+  new val create(right': _LogicalExpr) => right = right'
+
+class val _OrRightTask
+  """Runs after `||`'s left operand; evaluate `right` unless left was true."""
+  let right: _LogicalExpr
+  new val create(right': _LogicalExpr) => right = right'
+
+type _FilterTask is (_EvalTask | _NotTask | _AndRightTask | _OrRightTask)
+
 primitive _FilterEval
   """
   Evaluate a filter expression against a current node and document root.
@@ -15,22 +41,85 @@ primitive _FilterEval
     root: JsonValue)
     : Bool
   =>
+    """
+    Evaluate one logical expression.
+
+    A leaf (a comparison, existence test, or `match`/`search`) is evaluated
+    directly. This is the common filter shape and `apply` runs once per node in
+    a nodelist, so the leaf path avoids the work-stack allocation; a leaf also
+    can't grow the deep `&&`/`||`/`!` tree the work stack exists to handle. A
+    compound node hands off to `_apply_compound`.
+    """
     match \exhaustive\ expr
-    | let e: _OrExpr =>
-      apply(e.left, current, root) or apply(e.right, current, root)
-    | let e: _AndExpr =>
-      apply(e.left, current, root) and apply(e.right, current, root)
-    | let e: _NotExpr =>
-      not apply(e.expr, current, root)
     | let e: _ComparisonExpr =>
       _FilterCompare(e.left, e.op, e.right, current, root)
-    | let e: _ExistenceExpr =>
-      _eval_existence(e.query, current, root)
-    | let e: _MatchExpr =>
-      _eval_match(e, current, root)
-    | let e: _SearchExpr =>
-      _eval_search(e, current, root)
+    | let e: _ExistenceExpr => _eval_existence(e.query, current, root)
+    | let e: _MatchExpr => _eval_match(e, current, root)
+    | let e: _SearchExpr => _eval_search(e, current, root)
+    | let _: (_OrExpr | _AndExpr | _NotExpr) =>
+      _apply_compound(expr, current, root)
     end
+
+  fun _apply_compound(
+    expr: _LogicalExpr,
+    current: JsonValue,
+    root: JsonValue)
+    : Bool
+  =>
+    """
+    Evaluate a compound `&&`/`||`/`!` expression with an explicit work stack.
+
+    The tree is walked iteratively so that a long chain — which the parser
+    builds in a loop without overflowing, then hands here as a deeply nested
+    tree — is bounded by the heap rather than the scheduler thread's native
+    stack. Short-circuit semantics match the recursive form: each
+    `_AndExpr`/`_OrExpr` schedules its right operand only when the left operand
+    did not already settle the result. Leaf operands are evaluated by `apply`
+    (its direct, allocation-free path). Evaluation never raises, so the overflow
+    cannot be reported as an error — it has to be removed, not capped.
+    """
+    let work = Array[_FilterTask]
+    let results = Array[Bool]
+    work.push(_EvalTask(expr))
+    while work.size() > 0 do
+      let task = try work.pop()? else _Unreachable(); return false end
+      match \exhaustive\ task
+      | let t: _EvalTask =>
+        match \exhaustive\ t.expr
+        | let e: _OrExpr =>
+          work.push(_OrRightTask(e.right))
+          work.push(_EvalTask(e.left))
+        | let e: _AndExpr =>
+          work.push(_AndRightTask(e.right))
+          work.push(_EvalTask(e.left))
+        | let e: _NotExpr =>
+          work.push(_NotTask)
+          work.push(_EvalTask(e.expr))
+        | let e: _ComparisonExpr => results.push(apply(e, current, root))
+        | let e: _ExistenceExpr => results.push(apply(e, current, root))
+        | let e: _MatchExpr => results.push(apply(e, current, root))
+        | let e: _SearchExpr => results.push(apply(e, current, root))
+        end
+      | _NotTask =>
+        let v = try results.pop()? else _Unreachable(); return false end
+        results.push(not v)
+      | let t: _AndRightTask =>
+        let v = try results.pop()? else _Unreachable(); return false end
+        if v then
+          work.push(_EvalTask(t.right)) // left true: result is right
+        else
+          results.push(false) // left false: short-circuit
+        end
+      | let t: _OrRightTask =>
+        let v = try results.pop()? else _Unreachable(); return false end
+        if v then
+          results.push(true) // left true: short-circuit
+        else
+          work.push(_EvalTask(t.right)) // left false: result is right
+        end
+      end
+    end
+    try results(0)? else _Unreachable(); false end
 
   fun _eval_existence(
     query: _FilterQuery,

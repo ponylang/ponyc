@@ -1,3 +1,26 @@
+primitive _JsonPathMaxDepth
+  """
+  Maximum structural-nesting depth allowed in a JSONPath query string.
+
+  Bounds how deeply parentheses, function calls, and `[?...]` filters may nest
+  in a filter expression. A real query nests only a handful of levels, so this
+  ceiling is well above any legitimate query yet low enough that the native
+  recursion it bounds — the parser's, and transitively the evaluator's
+  nested-filter/function walk, which is still native recursion bounded only by
+  this cap — stays within a normally-sized scheduler-thread stack. The deepest
+  per-level path (evaluating nested `[?...]` filters) overflows around depth 90
+  on an unoptimised build whose scheduler thread has a 128 KB stack — the
+  smallest a thread is given by default (musl's, when `RLIMIT_STACK` is
+  unlimited); the usual stack is several megabytes, where it overflows past
+  5000. So 32 holds a safe margin on any default stack. The threat this guards
+  against is a crafted query, not a misconfigured stack: a process that caps
+  `RLIMIT_STACK` at a few tens of KB makes every scheduler thread fragile to
+  ordinary call depth, JSONPath included, and is out of scope here. Past the
+  ceiling a crafted path string raises a catchable `JsonPathParseError` instead
+  of crashing.
+  """
+  fun apply(): USize => 32
+
 class ref _JsonPathParser
   """
   Internal recursive descent parser for JSONPath expressions.
@@ -9,6 +32,7 @@ class ref _JsonPathParser
   let _source: String
   var _offset: USize = 0
   var _error_message: String = ""
+  var _depth: USize = 0
 
   new ref create(source': String) =>
     _source = source'
@@ -295,9 +319,11 @@ class ref _JsonPathParser
 
   fun ref _parse_filter_selector(): _FilterSelector ? =>
     """Parse a filter selector: '?' logical-expr."""
+    _enter()? // a nested [?...] filter is a structural-nesting level
     _advance(1) // consume '?'
     _skip_whitespace()
     let expr = _parse_logical_or_expr()?
+    _leave()
     _FilterSelector(expr)
 
   fun ref _parse_logical_or_expr(): _LogicalExpr ? =>
@@ -415,11 +441,13 @@ class ref _JsonPathParser
 
   fun ref _parse_paren_expr(): _LogicalExpr ? =>
     """Parse '(' logical-expr ')'."""
+    _enter()? // a parenthesized expression is a structural-nesting level
     _eat('(')?
     _skip_whitespace()
     let expr = _parse_logical_or_expr()?
     _skip_whitespace()
     _eat(')')?
+    _leave()
     expr
 
   fun ref _parse_test_or_comparison(): _LogicalExpr ? =>
@@ -433,6 +461,11 @@ class ref _JsonPathParser
     let is_rel = _looking_at('@')
     _advance(1) // consume @ or $
     let segments_start = _offset
+    // The comparison attempt below can enter `_enter`-guarded productions (a
+    // function call on its right-hand side); if it then raises, this `try`
+    // swallows the error, so its depth increments must be unwound alongside
+    // the offset rewind to keep the shared counter accurate.
+    let depth_start = _depth
 
     // Try parsing as singular query + comparison op
     try
@@ -455,6 +488,7 @@ class ref _JsonPathParser
 
     // Not a comparison — re-parse as general filter query for existence test
     _offset = segments_start
+    _depth = depth_start
     let segments = _parse_filter_segments()?
     let query: _FilterQuery = if is_rel then
       _RelFilterQuery(segments)
@@ -699,6 +733,7 @@ class ref _JsonPathParser
     Dispatches by function name to parse the correct argument types
     per RFC 9535 Section 2.4.
     """
+    _enter()? // a function call's arguments are a structural-nesting level
     let name = _parse_function_name()?
     _eat('(')?
     _skip_whitespace()
@@ -742,6 +777,7 @@ class ref _JsonPathParser
     end
     _skip_whitespace()
     _eat(')')?
+    _leave()
     result
 
   fun ref _parse_filter_query_arg(): _FilterQuery ? =>
@@ -836,6 +872,33 @@ class ref _JsonPathParser
 
   fun ref _fail(msg: String) =>
     _error_message = msg
+
+  fun ref _enter() ? =>
+    """
+    Descend one structural-nesting level and fail if the query nests deeper
+    than `_JsonPathMaxDepth`.
+
+    Called at the three syntactic points where the filter grammar recurses on
+    the native stack — a parenthesized expression, a function call's arguments,
+    and a nested `[?...]` filter. Every recursion cycle in this parser passes
+    through one of those three once per nesting level, so a single shared
+    counter bounds the parser's native-stack depth. Bounding it here also
+    bounds evaluation: the eval-time filter/function recursion can be no deeper
+    than the parse tree this builds. See `.known-couplings/`.
+
+    Raises a catchable `JsonPathParseError` rather than letting a crafted,
+    deeply nested path string overflow the scheduler thread's native stack.
+    """
+    _depth = _depth + 1
+    if _depth > _JsonPathMaxDepth() then
+      _fail("Expression nests deeper than the limit of " +
+        _JsonPathMaxDepth().string())
+      error
+    end
+
+  fun ref _leave() =>
+    """Ascend one structural-nesting level (pairs with `_enter`)."""
+    _depth = _depth - 1
 
   fun _is_alpha(c: U8): Bool =>
     ((c >= 'a') and (c <= 'z')) or ((c >= 'A') and (c <= 'Z'))

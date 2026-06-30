@@ -17,9 +17,11 @@ class val JsonPath
 
   Evaluation follows RFC 9535 semantics: missing keys, out-of-bounds
   indices, and type mismatches produce empty results, never errors.
-  Only malformed path strings produce errors (at parse time). Filter
-  expressions support function extensions (`length`, `count`, `match`,
-  `search`, `value`) per RFC 9535 Section 2.4.
+  Path strings produce errors only at parse time: a malformed path, or one
+  whose filter expression nests parentheses, function calls, or `[?...]`
+  filters past an internal depth limit (rejected rather than allowed to
+  overflow the stack). Filter expressions support function extensions
+  (`length`, `count`, `match`, `search`, `value`) per RFC 9535 Section 2.4.
 
   For simple single-value extraction, `query_one()` returns the first
   match or JsonNotFound.
@@ -27,6 +29,11 @@ class val JsonPath
 
   let _segments: Array[_Segment] val
 
+  // Private constructor: every JsonPath comes from JsonPathParser, which caps
+  // filter-nesting depth. Evaluation's nested-filter/function recursion is
+  // still native (bounded only by that cap), so a builder that bypassed the
+  // parser could reintroduce the stack overflow #5606 fixed. See
+  // .known-couplings/jsonpath-parser-depth-guard.md.
   new val _create(segments': Array[_Segment] val) =>
     _segments = segments'
 

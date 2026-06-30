@@ -78,6 +78,12 @@ actor \nodoc\ Main is TestList
     test(_TestJsonPathDescendOrder)
     test(_TestJsonPathFilterDeeplyNested)
     test(_TestTokenParserPositions)
+    // Regression tests — stack-safe JSONPath query strings (issue #5606)
+    test(_TestJsonPathParseDepthLimit)
+    test(_TestJsonPathParseDepthBoundary)
+    test(_TestJsonPathParseBreadthUncapped)
+    test(_TestJsonPathFilterChainStackSafe)
+    test(_TestJsonPathNestedFilterEvalStackSafe)
 
 // ===================================================================
 // Generators
@@ -2538,6 +2544,187 @@ class \nodoc\ iso _TestJsonPathFilterDeeplyNested is UnitTest
     let p = JsonPathParser.compile("$[?@ == @]")?
     let r = p.query(doc)
     h.assert_eq[USize](1, r.size())
+
+primitive \nodoc\ _NestedFilterQuery
+  """
+  Builds `$[?@[?@...[?@.a]...]]` with exactly `n` nested `[?...]` filters — one
+  structural-nesting level per filter, so the parser's depth counter reaches
+  `n`. Used to drive the depth limit right onto its boundary.
+  """
+  fun apply(n: USize): String =>
+    recover val
+      let s = String((n * 3) + 8)
+      s.push('$')
+      var i: USize = 0
+      while (i + 1) < n do s.append("[?@"); i = i + 1 end
+      s.append("[?@.a")
+      i = 0
+      while i < n do s.push(']'); i = i + 1 end
+      s
+    end
+
+class \nodoc\ iso _TestJsonPathParseDepthLimit is UnitTest
+  """
+  A query string that nests parentheses, function calls, or `[?...]` filters
+  far past `_JsonPathMaxDepth` is rejected with a catchable JsonPathParseError
+  instead of overflowing the parser's native stack. Each of the three guarded
+  nesting constructs is checked. The parser stops at the limit, so a query
+  nested well beyond it still returns promptly rather than recursing to the
+  bottom of the input.
+  """
+  fun name(): String => "json/jsonpath/parse/depth-limit"
+
+  fun apply(h: TestHelper) =>
+    let over = _JsonPathMaxDepth() + 5
+
+    // Nested filter parentheses: $[?(((( @.a ))))]
+    _expect_too_deep(h, "parens",
+      recover val
+        let s = String((over * 2) + 8)
+        s.append("$[?")
+        var i: USize = 0
+        while i < over do s.push('('); i = i + 1 end
+        s.append("@.a")
+        i = 0
+        while i < over do s.push(')'); i = i + 1 end
+        s.push(']')
+        s
+      end)
+
+    // Nested value-function calls: $[?length(length(... @.a ...)) > 0]
+    _expect_too_deep(h, "functions",
+      recover val
+        let s = String((over * 7) + 16)
+        s.append("$[?")
+        var i: USize = 0
+        while i < over do s.append("length("); i = i + 1 end
+        s.append("@.a")
+        i = 0
+        while i < over do s.push(')'); i = i + 1 end
+        s.append(" > 0]")
+        s
+      end)
+
+    // Nested [?...] filters: $[?@[?@[?... @.a ...]]]
+    _expect_too_deep(h, "filters", _NestedFilterQuery(over))
+
+  fun _expect_too_deep(h: TestHelper, label: String, query: String) =>
+    match JsonPathParser.parse(query)
+    | let _: JsonPath =>
+      h.fail(label + ": expected a parse error, got a JsonPath")
+    | let _: JsonPathParseError => None
+    end
+
+class \nodoc\ iso _TestJsonPathParseDepthBoundary is UnitTest
+  """
+  The nesting-depth limit is inclusive: a query nested to exactly
+  `_JsonPathMaxDepth` parses, and one level deeper is rejected. Nested
+  `[?...]` filters drive the depth one-per-level, so the boundary lands on the
+  constant exactly. Parens and functions trip the same shared `_depth` counter
+  via the same `_enter`, so pinning the off-by-one once (here) covers all three;
+  `depth-limit` exercises each construct over the cap.
+  """
+  fun name(): String => "json/jsonpath/parse/depth-boundary"
+
+  fun apply(h: TestHelper) =>
+    let max = _JsonPathMaxDepth()
+    match JsonPathParser.parse(_NestedFilterQuery(max))
+    | let _: JsonPath => None
+    | let e: JsonPathParseError =>
+      h.fail("at the limit (" + max.string() + ") should parse: " + e.string())
+    end
+    match JsonPathParser.parse(_NestedFilterQuery(max + 1))
+    | let _: JsonPath =>
+      h.fail("one past the limit (" + (max + 1).string() + ") should error")
+    | let _: JsonPathParseError => None
+    end
+
+class \nodoc\ iso _TestJsonPathParseBreadthUncapped is UnitTest
+  """
+  Breadth is not depth. A query with many *sibling* `[?...]` filters — each
+  nesting only one level — parses no matter how many there are, because
+  `_leave` decrements as each filter closes so the shared `_depth` counter never
+  accumulates across siblings. Uses well past `_JsonPathMaxDepth` sibling
+  filters: a regressed `_leave` (one that stopped decrementing) would turn the
+  counter into a running total and falsely reject this legitimate wide query.
+  """
+  fun name(): String => "json/jsonpath/parse/breadth-uncapped"
+
+  fun apply(h: TestHelper) =>
+    let n = _JsonPathMaxDepth() + 50
+    let q =
+      recover val
+        let s = String(n * 6)
+        s.push('$')
+        var i: USize = 0
+        while i < n do s.append("[?@.a]"); i = i + 1 end
+        s
+      end
+    match JsonPathParser.parse(q)
+    | let _: JsonPath => None
+    | let e: JsonPathParseError =>
+      h.fail("a wide (shallow) query should parse: " + e.string())
+    end
+
+class \nodoc\ iso _TestJsonPathFilterChainStackSafe is UnitTest
+  """
+  A long `&&`/`||` chain parses iteratively (the parser builds it in a loop)
+  but yields a deeply nested filter expression; evaluating it completes with no
+  native-stack overflow and gives the right result, now that the evaluator
+  walks the tree with an explicit work stack. The `&&` chain is all-true (the
+  element matches) and the `||` chain all-false (nothing matches); both cases
+  traverse the whole chain rather than short-circuiting early. Cheap literal
+  comparisons keep per-node work small so the depth can be large.
+  """
+  fun name(): String => "json/jsonpath/filter/chain-stack-safe"
+
+  fun apply(h: TestHelper) ? =>
+    let depth = _DeepNestingDepth()
+    let doc = JsonArray.push(I64(0))
+
+    // 1==1 && 1==1 && ... — all true, the element matches.
+    let and_q =
+      recover val
+        let s = String((depth * 6) + 16)
+        s.append("$[?1==1")
+        var i: USize = 0
+        while i < depth do s.append("&&1==1"); i = i + 1 end
+        s.push(']')
+        s
+      end
+    h.assert_eq[USize](1, JsonPathParser.compile(and_q)?.query(doc).size())
+
+    // 1==2 || 1==2 || ... — all false, nothing matches.
+    let or_q =
+      recover val
+        let s = String((depth * 6) + 16)
+        s.append("$[?1==2")
+        var i: USize = 0
+        while i < depth do s.append("||1==2"); i = i + 1 end
+        s.push(']')
+        s
+      end
+    h.assert_eq[USize](0, JsonPathParser.compile(or_q)?.query(doc).size())
+
+class \nodoc\ iso _TestJsonPathNestedFilterEvalStackSafe is UnitTest
+  """
+  Querying a filter nested all the way to `_JsonPathMaxDepth` completes with no
+  native-stack overflow. The parser admits nesting up to the limit, and the
+  matching eval-time recursion (each `[?...]` walks the next level of the
+  document) stays well inside the stack at that depth — which is what lets the
+  parser's depth cap, rather than an evaluator rewrite, keep evaluation safe.
+  The document is `_JsonPathMaxDepth` nested `{"a": ...}` objects so every level
+  matches, giving one result.
+  """
+  fun name(): String => "json/jsonpath/filter/nested-eval-stack-safe"
+
+  fun apply(h: TestHelper) ? =>
+    let depth = _JsonPathMaxDepth()
+    var v: JsonValue = JsonObject.update("a", I64(1))
+    var i: USize = 0
+    while i < depth do v = JsonObject.update("a", v); i = i + 1 end
+    let p = JsonPathParser.compile(_NestedFilterQuery(depth))?
+    h.assert_eq[USize](1, p.query(JsonArray.push(v)).size())
 
 class \nodoc\ iso _TestTokenParserPositions is UnitTest
   """
