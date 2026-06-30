@@ -139,9 +139,7 @@ pony_ctx_t* ponyint_sched_init(uint32_t threads, bool noyield, bool nopin,
 // width-sensitive conversion can be unit-tested.
 uint64_t ponyint_sched_stats_interval_cycles(uint32_t interval_seconds);
 
-bool ponyint_sched_start(bool library);
-
-void ponyint_sched_stop();
+bool ponyint_sched_start();
 
 void ponyint_sched_add(pony_ctx_t* ctx, pony_actor_t* actor);
 

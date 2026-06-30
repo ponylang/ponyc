@@ -1842,7 +1842,7 @@ pony_ctx_t* ponyint_sched_init(uint32_t threads, bool noyield, bool pin,
   return pony_ctx();
 }
 
-bool ponyint_sched_start(bool library)
+bool ponyint_sched_start()
 {
   pony_register_thread();
 
@@ -1852,7 +1852,7 @@ bool ponyint_sched_start(bool library)
   atomic_store_explicit(&pinned_actor_scheduler_suspended, false, memory_order_relaxed);
   atomic_store_explicit(&pinned_actor_scheduler_suspended_check, false, memory_order_relaxed);
 
-  atomic_store_explicit(&detect_quiescence, !library, memory_order_relaxed);
+  atomic_store_explicit(&detect_quiescence, true, memory_order_relaxed);
 
   DTRACE0(RT_START);
   uint32_t start = 0;
@@ -1882,10 +1882,7 @@ bool ponyint_sched_start(bool library)
   // custom run loop for pinned actors
   run_pinned_actors();
 
-  if(!library)
-  {
-    ponyint_sched_shutdown();
-  }
+  ponyint_sched_shutdown();
 
   TRACING_THREAD_STOP();
   ponyint_pool_thread_cleanup();
@@ -1900,12 +1897,6 @@ bool ponyint_sched_start(bool library)
   ponyint_mpmcq_destroy(&this_scheduler->q);
 
   return true;
-}
-
-void ponyint_sched_stop()
-{
-  atomic_store_explicit(&detect_quiescence, true, memory_order_release);
-  ponyint_sched_shutdown();
 }
 
 void ponyint_sched_add(pony_ctx_t* ctx, pony_actor_t* actor)

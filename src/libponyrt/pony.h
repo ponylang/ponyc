@@ -374,7 +374,8 @@ PONY_API void pony_traceunknown(pony_ctx_t* ctx, void* p, int m);
  *
  * Then call pony_start().
  *
- * It is not safe to call this again before the runtime has terminated.
+ * The runtime can only be initialised and run once per process; it is not safe
+ * to call this more than once.
  */
 PONY_API int pony_init(int argc, char** argv);
 
@@ -384,20 +385,16 @@ PONY_API int pony_init(int argc, char** argv);
  * the value pointed by exit_code set with pony_exitcode(), defaulting to 0.
  * exit_code can be NULL if you don't care about the exit code.
  *
- * If library is false, this call will return when the pony program has
- * terminated. If library is true, this call will return immediately, with an
- * exit code of 0, and the runtime won't terminate until pony_stop() is
- * called. This allows further processing to be done on the current thread.
- * The value pointed by exit_code will not be modified if library is true. Use
- * the return value of pony_stop() in that case.
+ * This call will return when the pony program has terminated.
  *
  * language_features specifies which features of the runtime specific to the
  * Pony language, such as network, should be initialised.
  * If language_features is NULL, no feature will be initialised.
  *
- * It is not safe to call this again before the runtime has terminated.
+ * The runtime can only be run once per process; it is not safe to call this
+ * more than once.
  */
-PONY_API bool pony_start(bool library, int* exit_code,
+PONY_API bool pony_start(int* exit_code,
   const pony_language_features_init_t* language_features);
 
 /**
@@ -419,14 +416,6 @@ PONY_API void pony_register_thread();
 PONY_API void pony_unregister_thread();
 
 PONY_API int32_t pony_scheduler_index();
-
-/** Signals that the pony runtime may terminate.
- *
- * This only needs to be called if pony_start() was called with library set to
- * true. This returns the exit code, defaulting to zero. This call won't return
- * until the runtime actually terminates.
- */
-PONY_API int pony_stop();
 
 /** Set the exit code.
  *
