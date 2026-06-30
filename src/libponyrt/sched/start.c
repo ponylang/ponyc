@@ -15,10 +15,6 @@
 #include <stdlib.h>
 #include <stdio.h>
 
-#ifdef USE_VALGRIND
-#include <valgrind/helgrind.h>
-#endif
-
 typedef struct options_t
 {
   // concurrent options
@@ -55,8 +51,7 @@ typedef struct options_t
 typedef enum running_kind_t
 {
   NOT_RUNNING,
-  RUNNING_DEFAULT,
-  RUNNING_LIBRARY
+  RUNNING
 } running_kind_t;
 
 // global data
@@ -292,12 +287,6 @@ PONY_API int pony_init(int argc, char** argv)
   pony_assert(
     atomic_load_explicit(&running, memory_order_relaxed) == NOT_RUNNING);
 
-  atomic_thread_fence(memory_order_acquire);
-#ifdef USE_VALGRIND
-  ANNOTATE_HAPPENS_AFTER(&initialised);
-  ANNOTATE_HAPPENS_AFTER(&running);
-#endif
-
   DTRACE0(RT_INIT);
   options_t opt;
   memset(&opt, 0, sizeof(options_t));
@@ -396,15 +385,19 @@ PONY_API int pony_init(int argc, char** argv)
   return argc;
 }
 
-PONY_API bool pony_start(bool library, int* exit_code,
+// Changing this signature means updating the FFI prototype and call the
+// compiler emits for pony_start; see
+// .known-couplings/codegen-runtime-api-prototypes.md
+PONY_API bool pony_start(int* exit_code,
   const pony_language_features_init_t* language_features)
 {
   pony_assert(atomic_load_explicit(&initialised, memory_order_relaxed));
 
-  // Set to RUNNING_DEFAULT even if library is true so that pony_stop() isn't
-  // callable until the runtime has actually started.
+  // Guard against starting the runtime more than once. This latches to RUNNING
+  // and is never cleared: the runtime runs once per process, so neither a
+  // failed start below nor a completed run rolls it back.
   running_kind_t prev_running = atomic_exchange_explicit(&running,
-    RUNNING_DEFAULT, memory_order_relaxed);
+    RUNNING, memory_order_relaxed);
   (void)prev_running;
   pony_assert(prev_running == NOT_RUNNING);
 
@@ -414,46 +407,21 @@ PONY_API bool pony_start(bool library, int* exit_code,
       sizeof(pony_language_features_init_t));
 
     if(language_init.init_network && !ponyint_os_sockets_init())
-    {
-      atomic_store_explicit(&running, NOT_RUNNING, memory_order_relaxed);
       return false;
-    }
   } else {
     memset(&language_init, 0, sizeof(pony_language_features_init_t));
   }
 
   if(!TRACING_START())
-  {
-    atomic_store_explicit(&running, NOT_RUNNING, memory_order_relaxed);
     return false;
-  }
 
-  if(!ponyint_sched_start(library))
-  {
-    atomic_store_explicit(&running, NOT_RUNNING, memory_order_relaxed);
+  if(!ponyint_sched_start())
     return false;
-  }
-
-  if(library)
-  {
-#ifdef USE_VALGRIND
-    ANNOTATE_HAPPENS_BEFORE(&running);
-#endif
-    atomic_store_explicit(&running, RUNNING_LIBRARY, memory_order_release);
-    return true;
-  }
 
   if(language_init.init_network)
     ponyint_os_sockets_final();
 
   int ec = pony_get_exitcode();
-#ifdef USE_VALGRIND
-  ANNOTATE_HAPPENS_BEFORE(&initialised);
-  ANNOTATE_HAPPENS_BEFORE(&running);
-#endif
-  atomic_thread_fence(memory_order_acq_rel);
-  atomic_store_explicit(&initialised, false, memory_order_relaxed);
-  atomic_store_explicit(&running, NOT_RUNNING, memory_order_relaxed);
 
   if(exit_code != NULL)
     *exit_code = ec;
@@ -462,38 +430,6 @@ PONY_API bool pony_start(bool library, int* exit_code,
   TRACING_STOP();
 
   return true;
-}
-
-PONY_API int pony_stop()
-{
-  pony_assert(atomic_load_explicit(&initialised, memory_order_relaxed));
-
-  running_kind_t loc_running = atomic_load_explicit(&running,
-    memory_order_acquire);
-#ifdef USE_VALGRIND
-  ANNOTATE_HAPPENS_AFTER(&running);
-#endif
-  (void)loc_running;
-  pony_assert(loc_running == RUNNING_LIBRARY);
-
-  ponyint_sched_stop();
-
-  if(language_init.init_network)
-    ponyint_os_sockets_final();
-
-  int ec = pony_get_exitcode();
-#ifdef USE_VALGRIND
-  ANNOTATE_HAPPENS_BEFORE(&initialised);
-  ANNOTATE_HAPPENS_BEFORE(&running);
-#endif
-  atomic_thread_fence(memory_order_acq_rel);
-  atomic_store_explicit(&initialised, false, memory_order_relaxed);
-  atomic_store_explicit(&running, NOT_RUNNING, memory_order_relaxed);
-
-  // stop tracing as the last thing the program does
-  TRACING_STOP();
-
-  return ec;
 }
 
 PONY_API void pony_exitcode(int code)

@@ -211,11 +211,12 @@ LLVMValueRef gen_main(compile_t* c, reach_type_t* t_main, reach_type_t* t_env)
   args[1] = LLVMConstNull(c->ptr);
   gencall_runtime(c, "ponyint_become", args, 2, "");
 
-  // Start the runtime.
-  args[0] = LLVMConstInt(c->i1, 0, false);
-  args[1] = LLVMConstNull(c->ptr);
-  args[2] = make_lang_features_init(c);
-  LLVMValueRef start_success = gencall_runtime(c, "pony_start", args, 3, "");
+  // Start the runtime. The arg count and types here must match libponyrt's
+  // pony_start and the prototype in codegen.c; see
+  // .known-couplings/codegen-runtime-api-prototypes.md
+  args[0] = LLVMConstNull(c->ptr);
+  args[1] = make_lang_features_init(c);
+  LLVMValueRef start_success = gencall_runtime(c, "pony_start", args, 2, "");
 
   LLVMBuildCondBr(c->builder, start_success, post_block, start_fail_block);
 

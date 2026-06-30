@@ -525,11 +525,13 @@ static void init_runtime(compile_t* c)
   LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex,
     inacc_or_arg_mem_attr);
 
-  // i1 pony_start(i1, i32*, i8*)
-  params[0] = c->i1;
+  // i1 pony_start(i32*, i8*)
+  // This prototype and the call emitted in genexe.cc must match libponyrt's
+  // actual pony_start signature; see
+  // .known-couplings/codegen-runtime-api-prototypes.md
+  params[0] = c->ptr;
   params[1] = c->ptr;
-  params[2] = c->ptr;
-  type = LLVMFunctionType(c->i1, params, 3, false);
+  type = LLVMFunctionType(c->i1, params, 2, false);
   value = LLVMAddFunction(c->module, "pony_start", type);
 
   LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex, nounwind_attr);

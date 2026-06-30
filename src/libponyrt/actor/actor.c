@@ -35,9 +35,10 @@ static bool actor_noblock = false;
 #ifdef USE_SYSTEMATIC_TESTING
 // Monotonic source of stable, creation-order actor ids
 // (pony_actor_t.systematic_testing_id). Static, so zero-initialized at process
-// load; not reset by pony_stop. That is fine: only the relative creation order
-// within a single runtime lifetime is used, and a fixed seed reproduces that
-// order because systematic testing creates actors deterministically.
+// load and never reset within the process. That is fine: only the relative
+// creation order within a single runtime lifetime is used, and a fixed seed
+// reproduces that order because systematic testing creates actors
+// deterministically.
 static PONY_ATOMIC(uint64_t) actor_systematic_testing_id_counter;
 #endif
 
