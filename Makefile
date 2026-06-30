@@ -444,6 +444,29 @@ clean:
 distclean:
 	$(SILENT)([ -d build ] && rm -rf build) || true
 
+# Shared-dir symlinks that older ponyc installs created but current ones no
+# longer do: the runtime headers and runtime static libs that only supported
+# hand-embedding the runtime. Both install (in-place upgrade) and uninstall
+# remove these, targeted so they only ever remove our own symlinks — a symlink
+# whose target is under $(prefix)/lib/pony — never a user's real file. Only the
+# default ponydir layout is matched; an old install done with a custom ponydir
+# isn't auto-cleaned. Paths are relative to $(prefix). Transitional: this
+# cleanup moves to the CMake install when the Makefile is retired (#5588) and
+# stays for a while, until installs with the old layout are gone, then it's
+# removed.
+legacy-embed-symlinks := include/pony.h include/ponyassert.h include/platform.h include/threads.h include/paths.h include/pony/detail/atomics.h lib/libponyrt.a lib/libponyrt-pic.a lib/libdtrace_probes.a
+
+# Canned recipe shared by install and uninstall. The case-glob on readlink's
+# target is an anchored prefix match, so a user's symlink whose target merely
+# contains "$(prefix)/lib/pony/" elsewhere is left alone; the [ -L ] guard
+# spares a user's real file. readlink still matches our dangling symlinks after
+# uninstall removes $(prefix)/lib/pony first. The trailing `|| :` keeps a
+# permission error on the final rm from aborting the recipe.
+define clean-legacy-embed-symlinks
+$(SILENT)for f in $(legacy-embed-symlinks); do l="$(prefix)/$$f"; if [ -L "$$l" ]; then case "$$(readlink "$$l")" in "$(prefix)/lib/pony/"*) rm -f "$$l" ;; esac; fi; done || :
+-$(SILENT)rmdir "$(prefix)/include/pony/detail" "$(prefix)/include/pony" 2>/dev/null || :
+endef
+
 install: build
 	@mkdir -p $(ponydir)/bin
 	@mkdir -p $(ponydir)/lib/$(arch)
@@ -463,36 +486,34 @@ install: build
 	$(SILENT)if [ -f $(outDir)/pony-lsp ]; then cp $(outDir)/pony-lsp $(ponydir)/bin; fi
 	$(SILENT)if [ -f $(outDir)/pony-lint ]; then cp $(outDir)/pony-lint $(ponydir)/bin; fi
 	$(SILENT)if [ -f $(outDir)/pony-doc ]; then cp $(outDir)/pony-doc $(ponydir)/bin; fi
-	$(SILENT)cp src/libponyrt/pony.h $(ponydir)/include
+	$(SILENT)cp src/libponyrt/pony.h $(ponydir)/include/pony
 	$(SILENT)cp src/common/pony/detail/atomics.h $(ponydir)/include/pony/detail
-# platform.h's closure, so a C shim can also #include <ponyassert.h>. These
-# are internal headers shipped as a convenience; only pony.h is a stable
-# interface (see the release notes). vcvars.h is Windows-only, shipped by
-# the cmake install, not here.
-	$(SILENT)cp src/common/ponyassert.h $(ponydir)/include
-	$(SILENT)cp src/common/platform.h $(ponydir)/include
-	$(SILENT)cp src/common/threads.h $(ponydir)/include
-	$(SILENT)cp src/common/paths.h $(ponydir)/include
+# The C-shim compiler finds these relative to the ponyc binary (gencshim
+# add_pony_include_args); they are not installed into the shared $(prefix)
+# dirs. pony.h and pony_assert (ponyassert.h) are supported for shims;
+# platform.h/threads.h/paths.h are ponyassert.h's internal include closure,
+# not a committed interface. Kept under pony/ so that when this dir is a shared
+# system include (DESTDIR packaging, Windows) no flat collision-prone name
+# (paths.h, threads.h) lands there. vcvars.h is Windows-only, shipped by the
+# cmake install, not here. See .known-couplings/clang-resource-dir.md.
+	$(SILENT)cp src/common/ponyassert.h $(ponydir)/include/pony
+	$(SILENT)cp src/common/platform.h $(ponydir)/include/pony
+	$(SILENT)cp src/common/threads.h $(ponydir)/include/pony
+	$(SILENT)cp src/common/paths.h $(ponydir)/include/pony
 	$(SILENT)cp -r packages $(ponydir)/
 ifeq ($(symlink),yes)
 	@mkdir -p $(prefix)/bin
 	@mkdir -p $(prefix)/lib
-	@mkdir -p $(prefix)/include/pony/detail
 	$(SILENT)ln -s -f $(ponydir)/bin/ponyc $(prefix)/bin/ponyc
 	$(SILENT)if [ -f $(ponydir)/bin/pony-lsp ]; then ln -s -f $(ponydir)/bin/pony-lsp $(prefix)/bin/pony-lsp; fi
 	$(SILENT)if [ -f $(ponydir)/bin/pony-lint ]; then ln -s -f $(ponydir)/bin/pony-lint $(prefix)/bin/pony-lint; fi
 	$(SILENT)if [ -f $(ponydir)/bin/pony-doc ]; then ln -s -f $(ponydir)/bin/pony-doc $(prefix)/bin/pony-doc; fi
 	$(SILENT)if [ -f $(ponydir)/lib/$(arch)/libponyc.a ]; then ln -s -f $(ponydir)/lib/$(arch)/libponyc.a $(prefix)/lib/libponyc.a; fi
 	$(SILENT)if [ -f $(ponydir)/lib/$(arch)/libponyc-standalone.a ]; then ln -s -f $(ponydir)/lib/$(arch)/libponyc-standalone.a $(prefix)/lib/libponyc-standalone.a; fi
-	$(SILENT)if [ -f $(ponydir)/lib/$(arch)/libponyrt.a ]; then ln -s -f $(ponydir)/lib/$(arch)/libponyrt.a $(prefix)/lib/libponyrt.a; fi
-	$(SILENT)if [ -f $(ponydir)/lib/$(arch)/libponyrt-pic.a ]; then ln -s -f $(ponydir)/lib/$(arch)/libponyrt-pic.a $(prefix)/lib/libponyrt-pic.a; fi
-	$(SILENT)if [ -f $(ponydir)/lib/$(arch)/libdtrace_probes.a ]; then ln -s -f $(ponydir)/lib/$(arch)/libdtrace_probes.a $(prefix)/lib/libdtrace_probes.a; fi
-	$(SILENT)ln -s -f $(ponydir)/include/pony.h $(prefix)/include/pony.h
-	$(SILENT)ln -s -f $(ponydir)/include/pony/detail/atomics.h $(prefix)/include/pony/detail/atomics.h
-	$(SILENT)ln -s -f $(ponydir)/include/ponyassert.h $(prefix)/include/ponyassert.h
-	$(SILENT)ln -s -f $(ponydir)/include/platform.h $(prefix)/include/platform.h
-	$(SILENT)ln -s -f $(ponydir)/include/threads.h $(prefix)/include/threads.h
-	$(SILENT)ln -s -f $(ponydir)/include/paths.h $(prefix)/include/paths.h
+# ponyc no longer installs its runtime headers or runtime static libs into the
+# shared $(prefix) dirs (the C-shim compiler reads headers from $(ponydir)
+# relative to the binary). Clean up the symlinks an older install left here.
+	$(clean-legacy-embed-symlinks)
 endif
 
 uninstall:
@@ -502,12 +523,7 @@ uninstall:
 	-$(SILENT)rm -f $(prefix)/bin/pony-lint ||:
 	-$(SILENT)rm -f $(prefix)/bin/pony-doc ||:
 	-$(SILENT)rm -f $(prefix)/lib/libponyc*.a ||:
-	-$(SILENT)rm -f $(prefix)/lib/libponyrt*.a ||:
-	-$(SILENT)rm -f $(prefix)/lib/libdtrace_probes.a ||:
 	-$(SILENT)rm -rf $(prefix)/lib/pony ||:
-	-$(SILENT)rm -f $(prefix)/include/pony.h ||:
-	-$(SILENT)rm -rf $(prefix)/include/pony ||:
-	-$(SILENT)rm -f $(prefix)/include/ponyassert.h ||:
-	-$(SILENT)rm -f $(prefix)/include/platform.h ||:
-	-$(SILENT)rm -f $(prefix)/include/threads.h ||:
-	-$(SILENT)rm -f $(prefix)/include/paths.h ||:
+# Runtime headers/libs an older install symlinked into the shared dirs (current
+# installs don't create these).
+	$(clean-legacy-embed-symlinks)
