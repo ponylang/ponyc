@@ -504,16 +504,33 @@ static bool add_system_include_args(pass_opt_t* opt, const char* sysroot,
 }
 
 
-// ponyc's own runtime headers (pony.h and the pony/detail/atomics.h it
-// includes) are on every shim's include path: calling runtime APIs is a
-// core shim use case, and without this users hard-code their installation
-// path in cincludedir: ("/home/me/.local/ponyup/ponyc-.../include"), which
-// breaks on every toolchain update. Installed layout: <ponydir>/include,
-// copied by the Makefile install target. Build tree: the headers live in
-// the source tree, split between src/libponyrt (pony.h) and src/common
-// (pony/detail/atomics.h). Directories that don't exist are skipped, so a
-// layout without the headers degrades to a clear pony.h-not-found error,
-// and only for shims that include it.
+// ponyc's own runtime headers are on every shim's include path: calling
+// runtime APIs (pony.h) and pony_assert (ponyassert.h) is a core shim use
+// case, and without this users hard-code their installation path in
+// cincludedir: ("/home/me/.local/ponyup/ponyc-.../include"), which breaks on
+// every toolchain update. See .known-couplings/clang-resource-dir.md.
+//
+// Installed layout: <ponydir>/include/pony holds the headers a shim names
+// directly (pony.h, ponyassert.h, platform.h, threads.h, paths.h), with
+// pony/detail/atomics.h under <ponydir>/include/pony/detail. So
+// "#include <pony.h>" resolves against ../include/pony, while pony.h's own
+// "#include <pony/detail/atomics.h>" resolves against ../include. Both offsets
+// are needed (the order between these two doesn't change resolution — no shim
+// header is reachable from both roots). Headers live under pony/ so that when
+// the install dir is a shared system include (DESTDIR packaging, Windows), no
+// flat collision-prone name (paths.h, threads.h) lands there.
+//
+// Load-bearing ordering: these dirs are pushed AFTER the system include dirs
+// (add_system_include_args runs before this), so a shim's direct
+// "#include <threads.h>" / "#include <paths.h>" still resolves to the system
+// header, not the copy under pony/. Pushing ponyc's dirs ahead of the system
+// dirs would reintroduce the #5613 shadowing for shims.
+//
+// Build tree: the headers live in the source tree, split between
+// src/libponyrt (pony.h) and src/common (ponyassert.h + pony/detail/atomics.h);
+// those offsets are unchanged. Directories that don't exist are skipped, so a
+// layout without the headers degrades to a clear pony.h-not-found error, and
+// only for shims that include it.
 static void add_pony_include_args(pass_opt_t* opt,
   std::vector<const char*>& args, errors_t* errors)
 {
@@ -524,6 +541,8 @@ static void add_pony_include_args(pass_opt_t* opt,
   if(!get_compiler_exe_directory(exec_dir, opt->argv0))
     return;
 
+  push_isystem(opt, args, errors, "-internal-isystem", exec_dir,
+    "../include/pony");
   push_isystem(opt, args, errors, "-internal-isystem", exec_dir,
     "../include");
   push_isystem(opt, args, errors, "-internal-isystem", exec_dir,
