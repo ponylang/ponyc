@@ -15,11 +15,9 @@ concurrency:
   cancel-in-progress: true
 
 permissions:
-  # write (not read) so a non-`main` workflow_dispatch can push its libs build to
-  # the branch scratch cache (`--branch-cache`), to reuse across dispatches and to
-  # let the warmer promote it after merge. workflow_dispatch/schedule are non-fork,
-  # so the write token is only ever available to repo-authorized actors.
-  packages: write
+  # read, not write: tier3 requires a pre-warmed libs cache (`--require-cache-hit`)
+  # and never builds, so it only pulls the main/branch cache -- it never pushes.
+  packages: read
 
 jobs:
   check-for-changes:
