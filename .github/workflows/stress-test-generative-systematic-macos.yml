@@ -28,8 +28,16 @@ concurrency:
 jobs:
   arm64-macos:
     runs-on: macos-26
-    # A bounded soak; the orchestrator also caps each seed with a 120s watchdog.
-    timeout-minutes: 90
+    # A bounded soak; the orchestrator also caps each seed with a per-run
+    # watchdog (--timeout, set below). This arm64 runner is far slower at the
+    # single-threaded systematic workload than the linux/windows lanes: those
+    # finish 250 seeds in 40-60 min, this one got through only ~138 of 250 in
+    # 90m before a cancel. So it runs somewhat fewer seeds (200) and a longer
+    # per-run watchdog (180s); that watchdog is still the only hang detector
+    # here (see .known-couplings/systematic-testing-park-sites.md) -- a real
+    # hang surfaces as a timeout, now 60s later. The 240m job cap below is the
+    # shared generative ceiling (see stress-test-concurrency.md).
+    timeout-minutes: 240
 
     name: arm64 macOS generative systematic [debug]
     steps:
@@ -57,17 +65,20 @@ jobs:
           python3 test/rt-stress/generative/orchestrate_systematic.py \
             --ponyc build/debug-scheduler_scaling_pthreads-systematic_testing/ponyc \
             --use-flags scheduler_scaling_pthreads,systematic_testing \
-            --start ${{ github.run_id }} --count 250 \
+            --start ${{ github.run_id }} --count 200 \
+            --timeout 180 \
             --out rt-stress-out
+      # cancelled() too: keep bundles from seeds that ran before a cancel.
       - name: Upload failure bundles
-        if: ${{ failure() && hashFiles('.libs-cache-miss') == '' }}
+        if: ${{ (failure() || cancelled()) && hashFiles('.libs-cache-miss') == '' }}
         uses: actions/upload-artifact@v4.6.2
         with:
           name: generative-systematic-bundles-macos-arm
           path: rt-stress-out/*.json
           if-no-files-found: ignore
-      - name: Send alert on failure
-        if: ${{ failure() && github.event_name == 'schedule' }}
+      # cancelled() too: failure() is false when a job hits timeout-minutes.
+      - name: Send alert on failure or cancellation
+        if: ${{ (failure() || cancelled()) && github.event_name == 'schedule' }}
         uses: zulip/github-actions-zulip/send-message@bd8ec52de371d139ae8313661b7d8318c19266aa
         with:
           api-key: ${{ secrets.ZULIP_SCHEDULED_JOB_FAILURE_API_KEY }}

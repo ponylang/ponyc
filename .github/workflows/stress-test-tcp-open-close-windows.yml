@@ -98,8 +98,9 @@ jobs:
       - name: Run Stress Test
         if: ${{ hashFiles('.libs-cache-miss') == '' }}
         run: .\make.ps1 -Command ${{ matrix.target }} -Config Debug
-      - name: Send alert on failure
-        if: ${{ failure() && github.event_name == 'schedule' }}
+      # cancelled() too: failure() is false when a job hits timeout-minutes.
+      - name: Send alert on failure or cancellation
+        if: ${{ (failure() || cancelled()) && github.event_name == 'schedule' }}
         uses: zulip/github-actions-zulip/send-message@bd8ec52de371d139ae8313661b7d8318c19266aa
         with:
           api-key: ${{ secrets.ZULIP_SCHEDULED_JOB_FAILURE_API_KEY }}
