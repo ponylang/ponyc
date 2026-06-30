@@ -31,11 +31,12 @@ jobs:
     # Whole-job ceiling: ponyc debug build + a 90-min wall-clock soak
     # (--budget-seconds) + a final-seed overshoot. A large run is ~15-20 min, but the
     # orchestrator's flat per-run timeout (~100 min) bounds a HUNG final run, so the
-    # worst case is build + 90 + 100. This must stay under the gap to the next
-    # generative cron: the six generative workflows share one concurrency group, so
-    # a still-running job would silently drop the next scheduled run -- the normal
-    # cron slots are spaced >=4h apart for this.
-    timeout-minutes: 210
+    # worst case is build + 90 + 100, well under this cap. The six generative
+    # workflows share one concurrency group; a 240m cap can't drop the next
+    # scheduled run (a drop needs one run still going across two cron firings,
+    # >6h at the tightest 3h spacing), though a job near the cap can delay the
+    # next. See .known-couplings/stress-test-concurrency.md.
+    timeout-minutes: 240
 
     name: x86-64-unknown-linux-ubuntu26.04 generative normal [debug]
     container:
@@ -74,15 +75,17 @@ jobs:
             --ponyc build/debug/ponyc \
             --start ${{ github.run_id }} --budget-seconds 5400 \
             --out rt-stress-out
+      # cancelled() too: keep bundles from seeds that ran before a cancel.
       - name: Upload failure bundles
-        if: ${{ failure() && hashFiles('.libs-cache-miss') == '' }}
+        if: ${{ (failure() || cancelled()) && hashFiles('.libs-cache-miss') == '' }}
         uses: actions/upload-artifact@v4.6.2
         with:
           name: generative-normal-bundles-linux-glibc
           path: rt-stress-out/*.json
           if-no-files-found: ignore
-      - name: Send alert on failure
-        if: ${{ failure() && github.event_name == 'schedule' }}
+      # cancelled() too: failure() is false when a job hits timeout-minutes.
+      - name: Send alert on failure or cancellation
+        if: ${{ (failure() || cancelled()) && github.event_name == 'schedule' }}
         uses: zulip/github-actions-zulip/send-message@bd8ec52de371d139ae8313661b7d8318c19266aa
         with:
           api-key: ${{ secrets.ZULIP_SCHEDULED_JOB_FAILURE_API_KEY }}

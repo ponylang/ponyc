@@ -32,8 +32,9 @@ jobs:
       run:
         shell: pwsh
     # A bounded soak; the orchestrator also caps each seed with a per-run
-    # watchdog.
-    timeout-minutes: 90
+    # watchdog. The 240m job cap is the shared generative ceiling -- see
+    # .known-couplings/stress-test-concurrency.md.
+    timeout-minutes: 240
 
     name: x86-64 Windows generative systematic [debug]
     steps:
@@ -70,15 +71,17 @@ jobs:
             --use-flags systematic_testing `
             --start ${{ github.run_id }} --count 250 `
             --out rt-stress-out
+      # cancelled() too: keep bundles from seeds that ran before a cancel.
       - name: Upload failure bundles
-        if: ${{ failure() && hashFiles('.libs-cache-miss') == '' }}
+        if: ${{ (failure() || cancelled()) && hashFiles('.libs-cache-miss') == '' }}
         uses: actions/upload-artifact@v4.6.2
         with:
           name: generative-systematic-bundles-windows
           path: rt-stress-out/*.json
           if-no-files-found: ignore
-      - name: Send alert on failure
-        if: ${{ failure() && github.event_name == 'schedule' }}
+      # cancelled() too: failure() is false when a job hits timeout-minutes.
+      - name: Send alert on failure or cancellation
+        if: ${{ (failure() || cancelled()) && github.event_name == 'schedule' }}
         uses: zulip/github-actions-zulip/send-message@bd8ec52de371d139ae8313661b7d8318c19266aa
         with:
           api-key: ${{ secrets.ZULIP_SCHEDULED_JOB_FAILURE_API_KEY }}
