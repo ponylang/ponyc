@@ -10,6 +10,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Reject an out-of-range --ponygcinitial exponent ([PR #5609](https://github.com/ponylang/ponyc/pull/5609))
 - Restore the message send merging optimization ([PR #5602](https://github.com/ponylang/ponyc/pull/5602))
 - Fix the start position reported for an empty JSON container's end token ([PR #5624](https://github.com/ponylang/ponyc/pull/5624))
+- Fix the start position reported for a JSON String or Key token ([PR #5628](https://github.com/ponylang/ponyc/pull/5628))
 
 ### Added
 
