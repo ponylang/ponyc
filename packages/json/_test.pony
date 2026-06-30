@@ -79,6 +79,7 @@ actor \nodoc\ Main is TestList
     test(_TestJsonPathFilterDeeplyNested)
     test(_TestTokenParserPositions)
     test(_TestTokenParserEndPosition)
+    test(_TestTokenParserStringPosition)
 
 // ===================================================================
 // Generators
@@ -2561,15 +2562,15 @@ class \nodoc\ iso _TestTokenParserPositions is UnitTest
     // ArrayEnd at 23 (its `]`), the closing-bracket positions.
     let expected: Array[(String, USize, USize)] = [
       ("ObjectStart", 0, 1)
-      ("Key", 2, 4)
+      ("Key", 1, 4)
       ("ArrayStart", 5, 6)
       ("Number", 6, 7)
       ("ObjectStart", 8, 9)
       ("ObjectEnd", 9, 10)
       ("ArrayEnd", 10, 11)
-      ("Key", 13, 15)
+      ("Key", 12, 15)
       ("Number", 16, 17)
-      ("Key", 19, 21)
+      ("Key", 18, 21)
       ("ArrayStart", 22, 23)
       ("ArrayEnd", 23, 24)
       ("ObjectEnd", 24, 25)
@@ -2624,6 +2625,41 @@ class \nodoc\ iso _TestTokenParserEndPosition is UnitTest
     else
       h.fail("no tokens recorded for " + input)
     end
+
+class \nodoc\ iso _TestTokenParserStringPosition is UnitTest
+  """
+  A String or Key token's token_start marks the opening quote, so its span
+  covers the whole quoted token — the same anchoring every other token uses.
+  Previously token_start pointed one byte past the opening quote, dropping the
+  opening quote from the span.
+  """
+  fun name(): String => "json/tokenparser/stringposition"
+
+  fun apply(h: TestHelper) =>
+    // (input, label, token_start, token_end) for the first String/Key token.
+    // The span covers the opening quote, the content, and the closing quote.
+    _check(h, "\"abc\"", "String", 0, 5)
+    _check(h, "\"\"", "String", 0, 2)
+    _check(h, """{"k":1}""", "Key", 1, 4)
+    _check(h, "[\"x\"]", "String", 1, 4)
+
+  fun _check(h: TestHelper, input: String, label: String,
+    expected_start: USize, expected_end: USize)
+  =>
+    let events = Array[(String, USize, USize)]
+    let parser = JsonTokenParser(_TokenRecorder(events))
+    try parser.parse(input)?
+    else h.fail("token parse raised unexpectedly for " + input); return
+    end
+    for ev in events.values() do
+      if (ev._1 == "String") or (ev._1 == "Key") then
+        h.assert_eq[String](label, ev._1)
+        h.assert_eq[USize](expected_start, ev._2)
+        h.assert_eq[USize](expected_end, ev._3)
+        return
+      end
+    end
+    h.fail("no String/Key token recorded for " + input)
 
 class \nodoc\ _TokenRecorder is JsonTokenNotify
   """Records (label, token_start, token_end) into a caller-owned array."""

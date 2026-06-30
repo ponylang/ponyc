@@ -297,8 +297,11 @@ class ref JsonTokenParser
     result
 
   fun ref _parse_string(is_key: Bool) ? =>
+    // token_start is already anchored at the opening '"' by the caller
+    // (_read_value for a string value, _parse_value for a key). Don't
+    // re-anchor it after _eat — that would drop the opening quote from the
+    // String/Key token's span.
     _eat('"')?
-    _token_start = _offset
     var buf = recover String end
     while true do
       match \exhaustive\ _next()?
