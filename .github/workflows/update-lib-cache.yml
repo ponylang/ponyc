@@ -32,6 +32,15 @@ jobs:
   # `if: ${{ !cancelled() }}` so a prior-stage build FAILURE delays but does not
   # cancel the later stages. The jobs below are not grouped by stage in file
   # order; each job's `needs:` and comment state its stage.
+  #
+  # Stage 3's seven builds - the four x86_64-linux-other matrix legs plus the
+  # three BSD VMs - are each 2-3h, so the stage is capped at AT MOST 2 running
+  # at once to bound runner-pool use. Three things together enforce that, and
+  # removing any one re-opens the stage to more than 2: x86_64-linux-other
+  # carries `max-parallel: 2` for its four legs; freebsd/openbsd/dragonflybsd
+  # `needs:` x86_64-linux-other, so the BSD VMs never run alongside the
+  # container legs; and dragonflybsd additionally `needs:` freebsd, so the
+  # three BSDs themselves run 2 at a time.
 
   # Stage 1 (PR). No gate; starts immediately.
   x86_64-linux-pr:
@@ -87,7 +96,9 @@ jobs:
         run: python3 .ci-scripts/libs-cache/resolve_libs_cache.py --warm --image "$LIBS_IMAGE" --tag "$LIBS_TAG" -- make libs llvm_tools=false build_flags=-j4
 
   # Stage 3 (everything else). Gate on stage-2 fast jobs only, never
-  # arm64-windows (slow).
+  # arm64-windows (slow). `max-parallel: 2` caps these four legs at 2; the BSD
+  # jobs then wait on this job, so stage 3 runs at most 2 builds at once (see
+  # the stage-3 cap note in the top comment).
   x86_64-linux-other:
     needs: [x86_64-linux-release, arm64-linux, x86_64-macos]
     if: ${{ !cancelled() }}
@@ -95,6 +106,7 @@ jobs:
 
     strategy:
       fail-fast: false
+      max-parallel: 2
       matrix:
         include:
           - image: ghcr.io/ponylang/ponyc-ci-x86-64-unknown-linux-fedora44-builder:20260614
@@ -233,9 +245,10 @@ jobs:
         run: python .ci-scripts/libs-cache/resolve_libs_cache.py --warm --platform windows-11-arm --tag $env:LIBS_TAG '--' pwsh -File make.ps1 -Command libs -LlvmTools false -Arch ARM64
 
   freebsd:
-    # Stage 3 (everything else). Gate on stage-2 fast jobs only, never
-    # arm64-windows (slow).
-    needs: [x86_64-linux-release, arm64-linux, x86_64-macos]
+    # Stage 3. `needs:` x86_64-linux-other (which itself gates on the stage-2
+    # fast jobs) so the BSD VMs never run alongside the container legs - part of
+    # the stage-3 "at most 2 at once" cap (see the top comment).
+    needs: [x86_64-linux-other]
     if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     name: x86-64 FreeBSD 15.1
@@ -294,9 +307,10 @@ jobs:
           pkill -f qemu-system-x86 || true
 
   openbsd:
-    # Stage 3 (everything else). Gate on stage-2 fast jobs only, never
-    # arm64-windows (slow).
-    needs: [x86_64-linux-release, arm64-linux, x86_64-macos]
+    # Stage 3. `needs:` x86_64-linux-other (which itself gates on the stage-2
+    # fast jobs) so the BSD VMs never run alongside the container legs - part of
+    # the stage-3 "at most 2 at once" cap (see the top comment).
+    needs: [x86_64-linux-other]
     if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     name: x86-64 OpenBSD 7.9
@@ -354,9 +368,11 @@ jobs:
           pkill -f qemu-system-x86 || true
 
   dragonflybsd:
-    # Stage 3 (everything else). Gate on stage-2 fast jobs only, never
-    # arm64-windows (slow).
-    needs: [x86_64-linux-release, arm64-linux, x86_64-macos]
+    # Stage 3. `needs:` x86_64-linux-other AND freebsd: the first keeps the BSD
+    # VMs off the container legs, the second caps the three BSDs themselves at 2
+    # at once - together the stage-3 "at most 2 at once" cap (see the top
+    # comment).
+    needs: [x86_64-linux-other, freebsd]
     if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     name: x86-64 DragonFly BSD 6.4.2
