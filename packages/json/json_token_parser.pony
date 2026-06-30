@@ -146,6 +146,10 @@ class ref JsonTokenParser
       _emit(JsonTokenObjectStart)?
       _skip_whitespace()
       if _peek()? == '}' then
+        // Anchor token_start at the closing '}', not the opening '{' set
+        // above, so the end token spans only the closing bracket — matching
+        // the non-empty close path in _parse_value.
+        _token_start = _offset
         _next()?
         _emit(JsonTokenObjectEnd)?
         _ReadComplete
@@ -157,6 +161,10 @@ class ref JsonTokenParser
       _emit(JsonTokenArrayStart)?
       _skip_whitespace()
       if _peek()? == ']' then
+        // Anchor token_start at the closing ']', not the opening '[' set
+        // above, so the end token spans only the closing bracket — matching
+        // the non-empty close path in _parse_value.
+        _token_start = _offset
         _next()?
         _emit(JsonTokenArrayEnd)?
         _ReadComplete

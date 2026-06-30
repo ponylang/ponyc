@@ -78,6 +78,7 @@ actor \nodoc\ Main is TestList
     test(_TestJsonPathDescendOrder)
     test(_TestJsonPathFilterDeeplyNested)
     test(_TestTokenParserPositions)
+    test(_TestTokenParserEndPosition)
 
 // ===================================================================
 // Generators
@@ -2541,11 +2542,10 @@ class \nodoc\ iso _TestJsonPathFilterDeeplyNested is UnitTest
 
 class \nodoc\ iso _TestTokenParserPositions is UnitTest
   """
-  The streaming token parser reports the same token sequence and byte offsets
-  after the iterative rewrite. In particular, an empty container's end token
-  keeps the start offset of its opening bracket — a detail a naive rewrite
-  drops — checked for both `{}` and `[]`. Guards token_start/token_end
-  bookkeeping.
+  The streaming token parser reports correct byte offsets for every token in a
+  nested document. In particular, an empty container's end token anchors
+  token_start at its closing bracket — the same as a non-empty container —
+  rather than at the opening bracket. Guards token_start/token_end bookkeeping.
   """
   fun name(): String => "json/tokenparser/positions"
 
@@ -2557,21 +2557,21 @@ class \nodoc\ iso _TestTokenParserPositions is UnitTest
     end
 
     // (label, token_start, token_end) for {"a":[1,{}],"b":2,"c":[]}. The empty
-    // {}'s ObjectEnd keeps token_start 8 (its `{`) and the empty []'s ArrayEnd
-    // keeps token_start 22 (its `[`), not the closing-bracket positions.
+    // {}'s ObjectEnd anchors token_start at 9 (its `}`) and the empty []'s
+    // ArrayEnd at 23 (its `]`), the closing-bracket positions.
     let expected: Array[(String, USize, USize)] = [
       ("ObjectStart", 0, 1)
       ("Key", 2, 4)
       ("ArrayStart", 5, 6)
       ("Number", 6, 7)
       ("ObjectStart", 8, 9)
-      ("ObjectEnd", 8, 10)
+      ("ObjectEnd", 9, 10)
       ("ArrayEnd", 10, 11)
       ("Key", 13, 15)
       ("Number", 16, 17)
       ("Key", 19, 21)
       ("ArrayStart", 22, 23)
-      ("ArrayEnd", 22, 24)
+      ("ArrayEnd", 23, 24)
       ("ObjectEnd", 24, 25)
     ]
     h.assert_eq[USize](expected.size(), events.size())
@@ -2584,6 +2584,45 @@ class \nodoc\ iso _TestTokenParserPositions is UnitTest
       else
         h.fail("missing token event at index " + idx.string())
       end
+    end
+
+class \nodoc\ iso _TestTokenParserEndPosition is UnitTest
+  """
+  An end token's token_start marks where the closing bracket begins, whether
+  or not the container is empty. Before ponylang/ponyc#5607 an empty container
+  reported its opening bracket instead, so the span covered the whole `{}`/`[]`
+  rather than just the closing bracket.
+  """
+  fun name(): String => "json/tokenparser/endposition"
+
+  fun apply(h: TestHelper) =>
+    // (input, end-token label, token_start, token_end). The end token is the
+    // last token emitted for each of these single-value documents.
+    _check(h, "{}", "ObjectEnd", 1, 2)
+    _check(h, "[]", "ArrayEnd", 1, 2)
+    _check(h, """{"a":1}""", "ObjectEnd", 6, 7)
+    _check(h, "[1]", "ArrayEnd", 2, 3)
+    // Interior whitespace separates the closing bracket from "just past the
+    // opening bracket" — without it both land at the same offset, so these
+    // pin the anchor to the closing bracket specifically.
+    _check(h, "{ }", "ObjectEnd", 2, 3)
+    _check(h, "[ ]", "ArrayEnd", 2, 3)
+
+  fun _check(h: TestHelper, input: String, label: String,
+    expected_start: USize, expected_end: USize)
+  =>
+    let events = Array[(String, USize, USize)]
+    let parser = JsonTokenParser(_TokenRecorder(events))
+    try parser.parse(input)?
+    else h.fail("token parse raised unexpectedly for " + input); return
+    end
+    try
+      let last = events(events.size() - 1)?
+      h.assert_eq[String](label, last._1)
+      h.assert_eq[USize](expected_start, last._2)
+      h.assert_eq[USize](expected_end, last._3)
+    else
+      h.fail("no tokens recorded for " + input)
     end
 
 class \nodoc\ _TokenRecorder is JsonTokenNotify
