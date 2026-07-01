@@ -91,18 +91,18 @@ conservation *failure* forces a non-zero exit. The engine holds no configuration
 logic and no `@runtime_override_defaults`; every knob is a CLI flag set by the
 orchestrator.
 
-The systematic mode draws only the `mesh` workload today; the `cyclic`,
-`backpressure`, and `iso` workloads run under the normal mode, where real
-parallelism catches the concurrent collection, mute/unmute, and mutable-subgraph
-acquire races the serialized systematic mode can't. (Running `cyclic` under
-systematic with the determinism oracle is a deferred follow-up — it reproduces with
-the detector on post-#5569, but needs the systematic driver's forced `--ponynoblock`
-relaxed. A systematic `backpressure` leg is also a follow-up — muting is
-cycle-detector-independent, so it is *not* blocked by that forced `--ponynoblock`,
-but its determinism under systematic is unverified. A systematic `iso` leg is a
-follow-up too — its `ORDER_SIG` is a real interleaving fingerprint, like the mesh's,
-so it is the most directly portable, but its determinism under systematic is
-likewise unverified.)
+The systematic mode draws `mesh`, `cyclic`, and `iso`, with `--ponynoblock` drawn
+~50% so the cycle detector runs under the reproducible oracle — cyclic collection and
+iso acquire both reproduce with the detector on, because the detector's
+recipient-scheduling sends are sorted by a stable actor id, so replay is
+layout-independent. Systematic keeps cyclic/iso small (see the `SYSTEMATIC_*` caps in
+stress_common.py) so the serialized soak's per-seed cost stays at or below the
+mesh-only cost it replaces; the normal mode still carries the large-magnitude
+cyclic/iso runs, where real parallelism also catches the concurrent-collection,
+mute/unmute, and mutable-subgraph acquire races the serialized mode can't.
+(`backpressure` under systematic is the one remaining deferred leg — muting is
+cycle-detector-independent, so it is *not* blocked by the old forced `--ponynoblock`,
+but its determinism under systematic is unverified.)
 
 ## Running it
 
@@ -210,16 +210,18 @@ non-deterministic, so a replay won't necessarily reproduce a failure).
 - **Determinism** (systematic mode only) — every seed runs twice and the two
   runs' `ORDER_SIG` must match; a divergence is a real race. This needs the
   serialized, reproducible runtime, so it is the systematic driver's oracle
-  alone; the normal mode is non-reproducible and runs each seed once. The
-  systematic driver always passes `--ponynoblock`: the oracle holds only with the
-  cycle detector off, which walks the same maps and is its own ordering source.
-  The normal mode instead draws `--ponynoblock` as a swarm knob, so the cycle
-  detector is stressed when it is absent.
+  alone; the normal mode is non-reproducible and runs each seed once. Both drivers
+  draw `--ponynoblock` as a swarm knob (~50%): the oracle holds with the cycle
+  detector on as well as off (the detector's recipient-scheduling sends are id-sorted,
+  so replay is layout-independent), so a systematic run stresses the detector's
+  collection under the reproducible oracle when the knob is absent.
 
 (Systematic replay was once address-dependent — the runtime ordered some work by
 actor pointer values, which ASLR randomizes per run.
-[#5566](https://github.com/ponylang/ponyc/pull/5566) and
-[#5570](https://github.com/ponylang/ponyc/pull/5570) made that map iteration
+[#5566](https://github.com/ponylang/ponyc/pull/5566),
+[#5570](https://github.com/ponylang/ponyc/pull/5570), and
+[#5580](https://github.com/ponylang/ponyc/pull/5580) (cycle-detector messages, which
+the systematic mode now exercises with the detector drawn on) made that map iteration
 creation-order keyed instead, so replay is now layout-independent on every
 platform and no ASLR wrapper is needed.)
 
@@ -232,8 +234,8 @@ interior corruption still slips through there too, and the other three check no
 bytes. A full byte-integrity check is deferred.) Also deferred to a later round:
 richer allocation-diversity work, the `iso` graph carrying `tag` actor references
 (dynamic cross-actor edges that can form cycles) rather than only byte arrays, an
-exact spawned == finalized count for the `cyclic` workload, and running `cyclic`,
-`backpressure`, and `iso` under the systematic determinism oracle.
+exact spawned == finalized count for the `cyclic` workload, and running
+`backpressure` under the systematic determinism oracle.
 
 ## Tests
 
@@ -242,7 +244,7 @@ Three self-contained test files (no pytest), run in CI via `lint-python.yml`:
 - `stress_common_test.py` — the shared pure pieces (seed derivation, the workload
   draws including `draw_workload`, output parsing, command building).
 - `orchestrate_systematic_test.py` — the systematic config draw (pinned golden;
-  always the `mesh` workload, unchanged by the cyclic/backpressure/iso work).
+  draws `mesh`/`cyclic`/`iso` with `--ponynoblock` as a swarm knob).
 - `orchestrate_normal_test.py` — the normal config draw (no systematic seed,
   `ponynoblock` as a swarm knob, all four workload kinds drawn, the cyclic memory
   ceiling, the backpressure message ceiling, the iso chains/ttl burst ceilings,

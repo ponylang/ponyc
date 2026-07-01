@@ -97,8 +97,10 @@ This program holds no `@runtime_override_defaults`: every runtime knob (scaling,
 cycle detector, GC, thread count, the systematic seed) is a `--pony*` flag set by
 the orchestrator, and every workload parameter is a `--flag value` arg parsed
 here. Two orchestrators in this directory drive it: `orchestrate_systematic.py`
-(serialized, reproducible -- draws only the `mesh` workload today) and
-`orchestrate_normal.py` (a normal, real-parallel runtime -- draws all four
+(serialized, reproducible -- draws `mesh`, `cyclic`, and `iso`, with `--ponynoblock`
+drawn as a swarm knob so the cycle detector runs under the oracle on the runs where
+it is absent; backpressure is a separate leg) and `orchestrate_normal.py` (a normal,
+real-parallel runtime -- draws all four
 workloads; the conservation invariant holds there too, but `ORDER_SIG` does not
 reproduce, so that mode runs each seed once).
 """
