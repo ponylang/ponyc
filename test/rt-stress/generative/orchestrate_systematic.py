@@ -11,10 +11,11 @@ memory ordering, real lock-free contention) -- that is orchestrate_normal.py's j
 From a master seed it:
   1. derives the program RNG seed (`--seed`) and the scheduler-interleaving seed
      (`--ponysystematictestingseed`, forced >= 1);
-  2. draws a swarm configuration -- workload shape plus a random subset of the
-     non-timing runtime knobs (including `--ponynoscale`), always with
-     `--ponynoblock` (the determinism oracle requires the cycle detector off) and
-     `--ponymaxthreads` across [1, the host's probed physical core count];
+  2. draws a swarm configuration -- one of `mesh | cyclic | iso` (backpressure is a
+     separate leg) plus a random subset of the non-timing runtime knobs (including
+     `--ponynoscale` and `--ponynoblock`, both drawn ~50% -- the oracle holds with
+     the cycle detector on) and `--ponymaxthreads` across [1, the host's probed
+     physical core count];
   3. compiles the engine once with the provided `--ponyc`;
   4. runs each seed TWICE under a watchdog and an address-space cap and requires
      the two runs' observable ORDER_SIG to match (the determinism oracle, always
@@ -49,30 +50,38 @@ import stress_common as common
 
 def resolve_config(master_seed, max_threads):
     """Fully resolve a systematic run from a master seed and the host's physical
-    core count. Byte-identical to the pre-refactor orchestrate.py mapping, so
-    historical seeds replay unchanged (orchestrate_systematic_test.py pins
-    resolve_config(0, 8)).
+    core count. Every draw here -- the workload kind, its per-kind cargo, and
+    `--ponynoblock` -- shifts the rng stream, so widening the draw beyond mesh
+    REMAPPED every historical systematic seed: resolve_config(0, 8) is pinned in
+    orchestrate_systematic_test.py and a seed from before that widening no longer
+    reconstructs its old run.
 
-    Draw order IS the seed-stability contract: workload (five fields) -> the four
-    shared swarm knobs -> payload-mode -> ponymaxthreads last. `--ponynoblock` is
-    forced on, NOT a swarm knob: the determinism oracle only holds with the cycle
-    detector off (it walks the same pointer-keyed maps and is its own
-    memory-layout ordering source, which #5566/#5570 did not address). The cycle
-    detector is stress-tested by the normal mode (orchestrate_normal.py), which
-    draws `ponynoblock` as a swarm knob. `--ponynoscale` IS a swarm knob (both
-    scaling on and off reproduce post-#5570).
+    Draw order IS the seed-stability contract: the workload (draw_systematic_workload:
+    kind + every kind's cargo, fixed consumption) -> `--ponynoblock` -> the four
+    shared swarm knobs -> payload-mode -> ponymaxthreads last. `--ponynoblock` is a
+    swarm knob here now (drawn ~50%), NOT forced: the determinism oracle holds with
+    the cycle detector ON, because the detector's recipient-scheduling sends are
+    sorted by a stable actor id so replay is layout-independent (verified across
+    cyclic + iso; see .known-couplings/systematic-testing-send-ordering.md). Drawing
+    it exercises both the detector-on path (cyclic collection, iso acquire) and the
+    detector-off path -- the cycle-detector coverage the normal mode also gives, now
+    under the reproducible oracle. `--ponynoscale` is also a swarm knob (both
+    reproduce).
     """
     program_seed = common.derive_seed(master_seed, "program")
     systematic_seed = common.derive_seed(master_seed, "systematic")
     rng = random.Random(master_seed)
 
-    workload = common.resolve_systematic_workload(rng, program_seed)
-    runtime = {
-        "ponynoblock": True,
-        "ponysystematictestingseed": systematic_seed,
-    }
+    workload = common.draw_systematic_workload(rng, program_seed)
+    runtime = {"ponysystematictestingseed": systematic_seed}
+    if rng.random() < 0.5:
+        runtime["ponynoblock"] = True
     common.draw_swarm_knobs(rng, runtime)
-    workload["payload-mode"] = common.draw_payload_mode(rng)
+    # payload-mode is drawn here (the seed-stability position), emitted only for the
+    # kinds carrying a val payload -- iso draws-then-ignores it, like normal mode.
+    mode = common.draw_payload_mode(rng)
+    if workload["workload"] != "iso":
+        workload["payload-mode"] = mode
     runtime["ponymaxthreads"] = common.draw_max_threads(rng, max_threads)
 
     return {"master_seed": master_seed, "workload": workload, "runtime": runtime}

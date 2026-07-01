@@ -23,7 +23,7 @@ limit, so both fall back to host OOM handling. Both watchdogs are portable -- th
 systematic mode's flat wall-clock timeout and the normal mode's no-progress
 watchdog (threads + blocking reads, no `select`, so it runs on Windows too).
 
-The pure pieces (derive_seed / resolve_systematic_workload / draw_* / build_argv /
+The pure pieces (derive_seed / draw_systematic_workload / draw_* / build_argv /
 run_command / parse_result / lldb_argv / lldb_exit_code) are unit-tested in
 stress_common_test.py; the run classifiers (run_once / run_under_lldb) are tested
 by injecting a fake _capture.
@@ -90,43 +90,16 @@ def derive_seed(master_seed, label):
     return (int.from_bytes(digest[:8], "big") & U64_MASK) or 1
 
 
-def resolve_systematic_workload(rng, program_seed):
-    """The systematic-mode workload shape: the program seed (passed, not drawn) plus
-    the five swarm-drawn fields, in the dict-insertion and rng-draw order that is the
-    seed-stability contract.
-
-    Normal mode does NOT use this -- it composes its own bucketed draw, then trims
-    a mesh config's ttl to a run-time ceiling (draw_bucketed / draw_payload /
-    clamp_ttl); see orchestrate_normal.resolve_config. Systematic stays small and
-    fixed-range on purpose: it serializes the scheduler, so a billion-message run's
-    interleaving space is intractable.
-
-    `payload-mode` is deliberately NOT here -- the systematic driver draws it via
-    draw_payload_mode() AFTER its runtime-knob draws and BEFORE draw_max_threads().
-    The interleaving of these draws in resolve_config is the contract: move any draw
-    and every seed remaps (breaking historical --replay). resolve_config(0, 8) is
-    pinned in orchestrate_systematic_test.py to guard it.
-    """
-    return {
-        "seed": program_seed,
-        "pingers": rng.choice([1, 2, 4, 8, 16, 32, 64]),
-        "chains": rng.randint(1, 400),
-        "ttl": rng.randint(0, 48),
-        "payload": rng.choice(["string", "u64"]),
-        "payload-size": rng.choice([1, 8, 64, 256, 1024, 4096]),
-    }
-
-
 def draw_swarm_knobs(rng, runtime):
     """Draw the four optional runtime knobs shared by both modes, adding the
     present ones to `runtime`. Omission IS the swarm mechanism -- each knob is
     independently present or absent. Draw order is part of the seed-stability
     contract; do not reorder.
 
-    `ponynoblock` is deliberately NOT here: systematic forces it on (the
-    determinism oracle needs the cycle detector off), normal draws it as its own
-    swarm knob -- so each driver handles ponynoblock itself, and only these four
-    are common.
+    `ponynoblock` is deliberately NOT here: each driver draws it itself, right
+    before this call (both modes now draw it ~50% as a swarm knob -- systematic no
+    longer forces it, since the determinism oracle holds with the cycle detector
+    on), so only these four knobs are common.
     """
     if rng.random() < 0.5:
         runtime["ponynoscale"] = True
@@ -177,7 +150,7 @@ def draw_max_threads(rng, max_threads):
 # hours -- the clamp pairs high chains with a low ttl (and vice versa), keeping
 # both dimensions covered and dropping only the can't-finish corner. chains and
 # ttl share these ranges. Systematic mode does NOT use them -- it stays
-# small/fixed-range (see resolve_systematic_workload). Locked, not provisional.
+# small/fixed-range (see draw_systematic_workload). Locked, not provisional.
 NORMAL_SIZE_BUCKETS = {
     "small": (1500, 14000),
     "medium": (14001, 27000),
@@ -365,6 +338,55 @@ ISO_CHAINS_BUCKETS = {"small": (50, 1000), "medium": (1001, 3000),
 ISO_ACQUIRE_BUDGET = 96000
 
 
+# Systematic-mode workload-kind weights for the 3-way draw (draw_systematic_workload).
+# Backpressure stays OUT -- a separate leg (its muting path is detector-independent
+# and its systematic determinism is unverified). mesh is the baseline widest-surface
+# workload and stays the larger run; cyclic and iso are drawn but kept SMALL (below)
+# so the serialized double-run soak costs no more per seed than the mesh-only draw it
+# replaces. A run rolls mesh below MESH_P, cyclic below MESH_P + CYCLIC_P, else iso.
+SYSTEMATIC_MESH_P = 0.4
+SYSTEMATIC_CYCLIC_P = 0.3   # iso gets the remaining 1 - MESH_P - CYCLIC_P
+
+# Systematic cyclic/iso are deliberately SMALL. The systematic determinism oracle's
+# value is exercising each kind's message ORDERING under reproducible replay, which
+# small runs do; normal mode carries the large-magnitude cyclic/iso runs. The caps
+# are calibrated (serialized, on a systematic ponyc) so no drawn run runs long: the
+# worst cyclic is ~0.6s and the worst iso ~0.4s single, comparable to the worst mesh
+# (~0.4s), and a full mixed --count soak measures CHEAPER per seed than the old
+# mesh-only draw (whose chains-1-400 forward runs dominate). That keeps the daily
+# systematic soak within the macOS runner's job-time budget (that lane alerts on
+# non-completion; see the stress workflows).
+#
+# cyclic cost scales with generations*group (actors created + collected). Normal's
+# gen 8000 measures ~47-61s serialized -- run twice by the determinism oracle it
+# blows the per-run watchdog -- so systematic caps generations far below it; gen 50
+# at group 16 measures ~0.6s worst. cyclic chains/ttl reuse the normal cyclic
+# envelope (1-8 / 1-16), already systematic-small.
+SYSTEMATIC_CYCLIC_GENERATION_MAX = 50
+
+# iso serialized cost is driven by the ACQUIRE-FLOOD (chains * ttl * node_count) --
+# the quantity iso_chains_cap bounds for memory -- not by chains alone: at a fixed
+# message count the 15-node graph runs ~5x the 1-node graph (more acquires per hop),
+# so the worst iso is the 15-node/chains-400 corner (~0.4s, ~= mesh worst), NOT the
+# 1-node corner. systematic caps iso chains at 400 (< normal's 6000); 400 equals the
+# 15-node acquire cap (400*ISO_TTL_MAX*15 = ISO_ACQUIRE_BUDGET), so the iso_chains_cap
+# clamp in draw_systematic_workload is non-binding at this max -- kept to ENFORCE the
+# acquire/memory invariant if the cap is raised (re-measure the 15-node corner then).
+# iso ttl reuses ISO_TTL_MAX (the acquire-cap math assumes ttl <= it).
+SYSTEMATIC_ISO_CHAINS_MAX = 400
+
+# Per-kind (chains, ttl) inclusive ranges for the systematic draw. One place to read
+# every systematic range; extensible if a systematic backpressure leg is added later.
+# mesh keeps its historical uniform ranges; cyclic reuses the normal cyclic envelope;
+# iso is capped as above. draw_systematic_workload makes the SAME two randint calls
+# for every kind (the range differs, the call count does not -- fixed consumption).
+SYSTEMATIC_WORKLOAD_RANGES = {
+    "mesh":   ((1, 400), (0, 48)),
+    "cyclic": ((1, 8), (1, 16)),
+    "iso":    ((1, SYSTEMATIC_ISO_CHAINS_MAX), (1, ISO_TTL_MAX)),
+}
+
+
 def iso_node_count(depth, breadth):
     """Total nodes in a `Parcel` tree of `depth` levels and `breadth` children per
     node: 1 + breadth + breadth^2 + ... + breadth^(depth-1). depth 1 or breadth 0 is
@@ -443,6 +465,82 @@ def draw_workload(rng):
     breadth = rng.choice(ISO_BREADTHS)
     return (workload, generations, group, producers, messages, apply_every,
             node_size, depth, breadth)
+
+
+def draw_systematic_workload(rng, program_seed):
+    """The systematic-mode workload shape: the program seed (passed, not drawn) plus
+    a drawn kind -- `mesh | cyclic | iso` (backpressure is a separate leg) -- and,
+    drawn UNCONDITIONALLY for every kind, all of mesh's, cyclic's, and iso's shape
+    fields. Only the rolled kind's fields are emitted, so the engine never receives a
+    contradictory flag. Like draw_workload, it makes the SAME fixed sequence of draws
+    regardless of the rolled kind (the iso `min()` clamp consumes no rng), so a future
+    kind-dependent draw -- which would remap seeds -- is caught by the call-count test.
+
+    `payload-mode` is deliberately NOT drawn here -- the systematic driver draws it
+    AFTER its runtime-knob draws and BEFORE draw_max_threads() (see
+    orchestrate_systematic.resolve_config); that split is part of the seed-stability
+    contract. Move any draw and every seed remaps (breaking historical --replay):
+    resolve_config(0, 8) is pinned in orchestrate_systematic_test.py and this
+    function's Random(0) draw is pinned in stress_common_test.py.
+
+    Systematic keeps cyclic/iso small (SYSTEMATIC_CYCLIC_GENERATION_MAX,
+    SYSTEMATIC_ISO_CHAINS_MAX) so the serialized double-run soak costs no more per
+    seed than the mesh-only draw it replaces; normal mode carries the large-magnitude
+    cyclic/iso runs. mesh keeps its historical uniform ranges.
+    """
+    roll = rng.random()
+    if roll < SYSTEMATIC_MESH_P:
+        kind = "mesh"
+    elif roll < SYSTEMATIC_MESH_P + SYSTEMATIC_CYCLIC_P:
+        kind = "cyclic"
+    else:
+        kind = "iso"
+    # Every kind's cargo is drawn on every roll (fixed consumption); only the rolled
+    # kind's fields are emitted below. pingers -> cyclic shape -> iso cargo, then the
+    # per-kind chains/ttl (SAME two randint calls for every kind; the range differs,
+    # the call count does not) -> payload kind/size.
+    pingers = rng.choice(NORMAL_PINGERS)
+    generations = rng.randint(1, SYSTEMATIC_CYCLIC_GENERATION_MAX)
+    group = rng.choice(CYCLIC_GROUPS)
+    node_size = rng.choice(ISO_NODE_SIZES)
+    node_depth = rng.choice(ISO_DEPTHS)
+    node_breadth = rng.choice(ISO_BREADTHS)
+    (chains_lo, chains_hi), (ttl_lo, ttl_hi) = SYSTEMATIC_WORKLOAD_RANGES[kind]
+    chains = rng.randint(chains_lo, chains_hi)
+    ttl = rng.randint(ttl_lo, ttl_hi)
+    payload = rng.choice(["string", "u64"])
+    payload_size = rng.choice(STRING_SIZES)
+
+    # Emit only the rolled kind's fields (plus the always-present seed + workload).
+    # mesh/cyclic carry the val payload; iso carries its own cargo knobs and NO
+    # payload (drawn-then-ignored, like normal mode). pingers is a mesh/iso field.
+    workload = {"seed": program_seed, "workload": kind}
+    if kind == "cyclic":
+        workload["generations"] = generations
+        workload["group"] = group
+        workload["chains"] = chains
+        workload["ttl"] = ttl
+        workload["payload"] = payload
+        workload["payload-size"] = payload_size
+    elif kind == "iso":
+        # Clamp chains to the memory-safe acquire budget for the drawn graph shape
+        # (chains * ttl * node_count <= ISO_ACQUIRE_BUDGET, ttl <= ISO_TTL_MAX). At
+        # SYSTEMATIC_ISO_CHAINS_MAX = 400 this is non-binding, but it enforces the
+        # invariant if that cap is raised. No rng -- consumption stays fixed.
+        chains = min(chains, iso_chains_cap(node_depth, node_breadth))
+        workload["pingers"] = pingers
+        workload["chains"] = chains
+        workload["ttl"] = ttl
+        workload["node-size"] = node_size
+        workload["node-depth"] = node_depth
+        workload["node-breadth"] = node_breadth
+    else:                              # mesh
+        workload["pingers"] = pingers
+        workload["chains"] = chains
+        workload["ttl"] = ttl
+        workload["payload"] = payload
+        workload["payload-size"] = payload_size
+    return workload
 
 
 def build_argv(binary, config):
@@ -851,10 +949,10 @@ def summary_line(config, result):
         parsed.get("order_sig", "?"))
     # Each workload carries different shape fields: mesh/cyclic have chains/ttl,
     # backpressure has producers/messages/apply-every instead (no chains/ttl), iso
-    # has pingers/chains/ttl + its own cargo knobs and NO payload. A systematic
-    # config has no `workload` key (always mesh, by the engine default), so default
-    # to mesh. Each branch reads only the fields its kind carries -- iso needs its
-    # own arm so an iso run is not mislabeled `mesh` by the fall-through, and the
+    # has pingers/chains/ttl + its own cargo knobs and NO payload. Both modes emit a
+    # `workload` key now; `get(..., "mesh")` still covers any older/hand-built config
+    # that omits it. Each branch reads only the fields its kind carries -- iso needs
+    # its own arm so an iso run is not mislabeled `mesh` by the fall-through, and the
     # shared `payload` read is guarded (iso has none).
     wl = shape.get("workload", "mesh")
     if wl == "cyclic":

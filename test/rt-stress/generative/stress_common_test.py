@@ -72,61 +72,111 @@ def test_derive_seed_zero_floor():
         common.hashlib.sha256 = real
 
 
-def test_resolve_systematic_workload_five_field_split():
-    # CRITICAL contract: resolve_systematic_workload returns the program seed plus
-    # EXACTLY the five swarm-drawn fields -- payload-mode is NOT here (the systematic
-    # driver draws it after its runtime knobs). A regression that folds payload-mode
-    # back in (a contiguous-six draw) remaps every seed and breaks systematic replay;
-    # this pins against it.
-    rng = random.Random(0)
-    work = common.resolve_systematic_workload(rng, 999)
-    check("resolve_systematic_workload keys are seed + the five drawn fields",
-          set(work.keys()) == {"seed", "pingers", "chains", "ttl", "payload",
-                               "payload-size"})
-    check("resolve_systematic_workload does NOT include payload-mode",
-          "payload-mode" not in work)
-    check("resolve_systematic_workload carries the passed program seed",
+# The exact field set each kind emits: the engine must get precisely the rolled
+# kind's flags and none of another kind's (draw_systematic_workload emits only
+# those). `seed` + `workload` are always present; `payload-mode` is NEVER here (the
+# driver draws it later).
+_SYSTEMATIC_KIND_FIELDS = {
+    "mesh":   {"seed", "workload", "pingers", "chains", "ttl", "payload",
+               "payload-size"},
+    "cyclic": {"seed", "workload", "generations", "group", "chains", "ttl",
+               "payload", "payload-size"},
+    "iso":    {"seed", "workload", "pingers", "chains", "ttl", "node-size",
+               "node-depth", "node-breadth"},
+}
+
+
+def test_draw_systematic_workload_contract():
+    # CRITICAL contract: draw_systematic_workload returns the passed program seed, a
+    # drawn kind, and ONLY the rolled kind's shape fields -- payload-mode is NOT here
+    # (the systematic driver draws it after its runtime knobs). Pin Random(0),999: a
+    # reordered/narrowed/added/removed draw changes this and would silently remap
+    # every systematic seed (breaking historical --replay).
+    work = common.draw_systematic_workload(random.Random(0), 999)
+    check("draw_systematic_workload carries the passed program seed",
           work["seed"] == 999)
-    # Pin the exact draw order/values for Random(0): a reordered or narrowed draw
-    # changes this (and would silently remap historical seeds).
-    check("resolve_systematic_workload(Random(0), 999) matches the pinned draws",
-          work == {"seed": 999, "pingers": 64, "chains": 198, "ttl": 48,
-                   "payload": "u64", "payload-size": 1})
+    check("draw_systematic_workload emits a workload kind key",
+          work.get("workload") in ("mesh", "cyclic", "iso"))
+    check("draw_systematic_workload does NOT draw payload-mode",
+          "payload-mode" not in work)
+    check("draw_systematic_workload(Random(0), 999) matches the pinned draw",
+          work == {"seed": 999, "workload": "iso", "pingers": 64, "chains": 156,
+                   "ttl": 16, "node-size": 64, "node-depth": 4, "node-breadth": 1})
 
 
-def test_resolve_systematic_workload_coverage():
-    pingers_allowed = {1, 2, 4, 8, 16, 32, 64}
-    size_allowed = {1, 8, 64, 256, 1024, 4096}
-    pingers_seen, size_seen, payload_seen = set(), set(), set()
-    chains_seen, ttls_seen = [], []
+def test_draw_systematic_workload_coverage():
+    kinds_seen = set()
     invariants = True
-    for master in range(0, 300):
-        rng = random.Random(master)
-        w = common.resolve_systematic_workload(rng, 1)
-        if w["pingers"] not in pingers_allowed:
+    for master in range(0, 500):
+        w = common.draw_systematic_workload(random.Random(master), 1)
+        kind = w["workload"]
+        kinds_seen.add(kind)
+        # Exactly the rolled kind's field set -- no missing/extra/contradictory flag.
+        if set(w.keys()) != _SYSTEMATIC_KIND_FIELDS[kind]:
             invariants = False
-        if not (1 <= w["chains"] <= 400):
+        # chains/ttl within the kind's declared range (iso chains stays <= its hi
+        # even after the acquire clamp, which can only reduce it).
+        (clo, chi), (tlo, thi) = common.SYSTEMATIC_WORKLOAD_RANGES[kind]
+        if not (clo <= w["chains"] <= chi) or not (tlo <= w["ttl"] <= thi):
             invariants = False
-        if not (0 <= w["ttl"] <= 48):
+        if kind == "cyclic":
+            if not (1 <= w["generations"]
+                    <= common.SYSTEMATIC_CYCLIC_GENERATION_MAX):
+                invariants = False
+            if w["group"] not in common.CYCLIC_GROUPS:
+                invariants = False
+        elif kind == "iso":
+            if w["node-size"] not in common.ISO_NODE_SIZES:
+                invariants = False
+            if w["node-depth"] not in common.ISO_DEPTHS:
+                invariants = False
+            if w["node-breadth"] not in common.ISO_BREADTHS:
+                invariants = False
+            if w["pingers"] not in common.NORMAL_PINGERS:
+                invariants = False
+            # The acquire clamp must hold the memory/acquire invariant per config:
+            # chains * ttl * node_count <= ISO_ACQUIRE_BUDGET.
+            nodes = common.iso_node_count(w["node-depth"], w["node-breadth"])
+            if (w["chains"] * w["ttl"] * nodes) > common.ISO_ACQUIRE_BUDGET:
+                invariants = False
+        else:                                              # mesh
+            if w["pingers"] not in common.NORMAL_PINGERS:
+                invariants = False
+        if kind != "iso" and (w["payload"] not in ("string", "u64")
+                              or w["payload-size"] not in common.STRING_SIZES):
             invariants = False
-        if w["payload"] not in ("string", "u64"):
-            invariants = False
-        if w["payload-size"] not in size_allowed:
-            invariants = False
-        pingers_seen.add(w["pingers"])
-        size_seen.add(w["payload-size"])
-        payload_seen.add(w["payload"])
-        chains_seen.append(w["chains"])
-        ttls_seen.append(w["ttl"])
-    check("resolve_systematic_workload holds all field invariants over 300 seeds",
+    check("draw_systematic_workload covers mesh, cyclic, iso",
+          kinds_seen == {"mesh", "cyclic", "iso"})
+    check("draw_systematic_workload emits exactly each kind's fields, all in range",
           invariants)
-    check("pingers covers the full declared set", pingers_seen == pingers_allowed)
-    check("payload covers {string, u64}", payload_seen == {"string", "u64"})
-    check("payload-size covers the full declared set", size_seen == size_allowed)
-    check("ttl reaches both declared edges 0 and 48",
-          (min(ttls_seen) == 0) and (max(ttls_seen) == 48))
-    check("chains spans most of [1,400]",
-          (max(chains_seen) - min(chains_seen)) >= 380)
+
+    # Fixed-consumption: the SAME rng call count whichever kind it rolls (it draws
+    # every kind's shape unconditionally), so a future kind-dependent draw -- which
+    # would remap seeds -- is caught. Same guard as draw_workload; compare the call
+    # COUNT (a randint's bit consumption varies with its value, but the call sequence
+    # does not).
+    counts = []
+    for kind in ("mesh", "cyclic", "iso"):
+        seed = next(
+            s for s in range(0, 500)
+            if common.draw_systematic_workload(random.Random(s), 1)["workload"]
+            == kind)
+        counter = _CallCountingRandom(seed)
+        common.draw_systematic_workload(counter, 1)
+        counts.append(counter.calls)
+    check("draw_systematic_workload makes the same rng call count for every kind",
+          (len(set(counts)) == 1) and (counts[0] > 0))
+
+    # Cap ceilings: guard the PRODUCT that drives cost (parity with normal's
+    # cyclic_theoretical), so a CYCLIC_GROUPS or ISO_TTL_MAX bump also trips a
+    # serialized re-measure -- not just a generation/chains-cap bump. The per-config
+    # iso acquire-flood (the 15-node corner) is asserted in the loop above.
+    check("systematic cyclic worst-case workers within the ceiling",
+          (common.SYSTEMATIC_CYCLIC_GENERATION_MAX * max(common.CYCLIC_GROUPS))
+          <= SYSTEMATIC_CYCLIC_WORKER_CEILING)
+    check("systematic iso worst-case 1-node messages within the ceiling",
+          (common.SYSTEMATIC_ISO_CHAINS_MAX * common.ISO_TTL_MAX)
+          <= SYSTEMATIC_ISO_MESSAGE_CEILING)
 
 
 def test_draw_swarm_knobs():
@@ -296,6 +346,19 @@ BACKPRESSURE_MESSAGE_CEILING = 110_000_000
 # re-measure (the OOM cliff is non-monotonic near the edge).
 ISO_ACQUIRE_CEILING = 96000
 ISO_NODE_CEILING = 15
+
+
+# Systematic-mode cyclic/iso are TIME-bound: kept small so the serialized
+# double-run soak's per-seed cost stays ~= the mesh-only cost it replaces. Guard the
+# PRODUCT that drives cost (like normal's cyclic_theoretical above), so a bump to
+# CYCLIC_GROUPS or ISO_TTL_MAX -- not just the generation/chains cap -- also trips a
+# serialized re-measure. cyclic cost ~ generations*group workers; iso 1-node cost ~
+# chains*ttl messages (the 15-node acquire-flood corner is separately bounded by
+# ISO_ACQUIRE_BUDGET, asserted per-config in test_draw_systematic_workload_coverage).
+# Calibrated: cyclic gen 100 * group 16 ~1.18s, iso chains 800 * ttl 16 ~0.77s single
+# -- both well under the systematic watchdog even run twice.
+SYSTEMATIC_CYCLIC_WORKER_CEILING = 100 * 16
+SYSTEMATIC_ISO_MESSAGE_CEILING = 800 * 16
 
 
 class _CallCountingRandom(random.Random):
@@ -734,7 +797,7 @@ def test_summary_line():
     # resolve_config's emit keys, it raises an unguarded KeyError -- at soak time,
     # never in CI -- so exercise every branch here. The shape dicts mirror what the
     # orchestrators emit (see orchestrate_normal.resolve_config and
-    # resolve_systematic_workload).
+    # draw_systematic_workload).
     result = common.RunResult(
         "pass", 0, None,
         "RECEIVED=10 SENT=10 EXPECTED=10 ORDER_SIG=42", "")
@@ -755,12 +818,12 @@ def test_summary_line():
            "workload": {"seed": 9, "workload": "iso", "pingers": 8,
                         "chains": 100, "ttl": 8, "node-size": 64,
                         "node-depth": 3, "node-breadth": 2}}
-    # A systematic config has NO `workload` key (always mesh by the engine default)
-    # and must default to the mesh branch.
-    systematic = {"master_seed": 4, "runtime": {},
-                  "workload": {"seed": 9, "pingers": 16, "chains": 100, "ttl": 4,
-                               "payload": "u64", "payload-size": 8,
-                               "payload-mode": "fresh"}}
+    # A config with NO `workload` key (older or hand-built) must default to the mesh
+    # branch -- both orchestrators emit the key now, but the fallback still guards it.
+    no_kind = {"master_seed": 4, "runtime": {},
+               "workload": {"seed": 9, "pingers": 16, "chains": 100, "ttl": 4,
+                            "payload": "u64", "payload-size": 8,
+                            "payload-mode": "fresh"}}
 
     # Each kind must render without KeyError and name its kind + its own fields.
     ms = common.summary_line(mesh, result)
@@ -777,7 +840,7 @@ def test_summary_line():
     check("summary_line iso: names its cargo knobs + payload=none (not 'mesh')",
           ("iso pingers=8 chains=100 ttl=8 node_size=64 depth=3 breadth=2" in isos)
           and ("payload=none" in isos) and ("mesh" not in isos))
-    ss = common.summary_line(systematic, result)
+    ss = common.summary_line(no_kind, result)
     check("summary_line defaults a no-workload-key config to mesh",
           "mesh pingers=16" in ss)
     # The detail suffix carries the parsed result on every kind.
@@ -788,8 +851,8 @@ def test_summary_line():
 def main():
     test_derive_seed()
     test_derive_seed_zero_floor()
-    test_resolve_systematic_workload_five_field_split()
-    test_resolve_systematic_workload_coverage()
+    test_draw_systematic_workload_contract()
+    test_draw_systematic_workload_coverage()
     test_draw_swarm_knobs()
     test_draw_payload_mode()
     test_draw_max_threads()
