@@ -42,22 +42,24 @@ primitive Base64
     : A^
   =>
     """
-    Encode for URLs (RFC 4648). Padding characters are stripped by default.
+    Encode for URLs (RFC 4648). Padding is omitted by default; pass `pad = true`
+    to emit the trailing `=` padding characters.
     """
-    let c: U8 = if pad then '=' else 0 end
-    encode[A](data, '-', '_', c)
+    encode[A](data, '-', '_', if pad then '=' else None end)
 
   fun encode[A: Seq[U8] iso = String iso](
     data: ReadSeq[U8],
     at62: U8 = '+',
     at63: U8 = '/',
-    pad: U8 = '=',
+    pad: (U8 | None) = '=',
     linelen: USize = 0,
     linesep: String = "\r\n")
     : A^
   =>
     """
-    Configurable encoding. The defaults are for RFC 4648.
+    Configurable encoding. The defaults are for RFC 4648. `pad` is the character
+    used to pad the final block out to four characters; pass `None` to omit the
+    padding entirely rather than emit it.
     """
     let len = ((data.size() + 2) / 3) * 4
     let out = recover A(len) end
@@ -106,11 +108,17 @@ primitive Base64
 
         if srclen == 2 then
           out.push(_enc_byte(out3, at62, at63)?)
-        else
-          out.push(pad)
         end
 
-        out.push(pad)
+        match pad
+        | let p: U8 =>
+          // Pad the final block out to four characters: one pad for a
+          // two-character tail (srclen == 2), two for a one-character tail.
+          if srclen == 1 then
+            out.push(p)
+          end
+          out.push(p)
+        end
       end
 
       if lineblocks > 0 then
