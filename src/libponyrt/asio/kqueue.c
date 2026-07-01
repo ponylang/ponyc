@@ -248,9 +248,14 @@ DECLARE_THREAD_FN(ponyint_asio_backend_dispatch)
   {
     struct timespec* timeout = NULL;
 #if defined(USE_SYSTEMATIC_TESTING)
+    // Under systematic testing execution is serialized to one thread at a time,
+    // so any real wait here stalls the whole program while it is our turn. Poll
+    // instead: report whatever is already ready and hand our turn straight back.
+    // (A normal build leaves timeout NULL and kevent blocks until the kernel has
+    // an event.)
     struct timespec ts;
     ts.tv_sec = 0;
-    ts.tv_nsec = 10000000;
+    ts.tv_nsec = 0;
     timeout = &ts;
 #endif
 
