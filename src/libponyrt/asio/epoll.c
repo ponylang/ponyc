@@ -245,7 +245,12 @@ DECLARE_THREAD_FN(ponyint_asio_backend_dispatch)
   {
     int wait_time = -1;
 #if defined(USE_SYSTEMATIC_TESTING)
-    wait_time = 10;
+    // Under systematic testing execution is serialized to one thread at a time,
+    // so any real wait here stalls the whole program while it is our turn. Poll
+    // instead: report whatever is already ready and hand our turn straight back.
+    // (A normal build leaves wait_time at -1 and blocks until the kernel has an
+    // event.)
+    wait_time = 0;
 #endif
 
     int event_cnt = epoll_wait(b->epfd, b->events, MAX_EVENTS, wait_time);

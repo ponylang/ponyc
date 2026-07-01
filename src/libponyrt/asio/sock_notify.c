@@ -237,7 +237,12 @@ DECLARE_THREAD_FN(ponyint_asio_backend_dispatch)
   {
     DWORD wait_ms = INFINITE;
 #if defined(USE_SYSTEMATIC_TESTING)
-    wait_ms = 10;
+    // Under systematic testing execution is serialized to one thread at a time,
+    // so any real wait here stalls the whole program while it is our turn. Poll
+    // instead: report whatever is already ready and hand our turn straight back.
+    // (A normal build leaves wait_ms at INFINITE and blocks until the port has a
+    // completion.)
+    wait_ms = 0;
 #endif
 
     ULONG count = 0;
@@ -249,8 +254,8 @@ DECLARE_THREAD_FN(ponyint_asio_backend_dispatch)
     if(!ok)
     {
       // WAIT_IO_COMPLETION: an APC (e.g. a timer fire) ran during the alertable
-      // wait -- just loop. WAIT_TIMEOUT: only under systematic testing's finite
-      // wait. Any other error: loop and re-wait.
+      // wait -- just loop. WAIT_TIMEOUT: under systematic testing's zero-timeout
+      // poll, the normal empty-pass return. Any other error: loop and re-wait.
       continue;
     }
 
