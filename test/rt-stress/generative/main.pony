@@ -275,7 +275,8 @@ actor Coordinator
     A chain reached its terminal (hops == 0) ping. Fold the arrival into the
     order signature; once every chain has terminated the system is quiesced (see
     `Pinger.set_neighbors` and the module docstring), so ask every `Pinger` for
-    its final counts.
+    its final counts. A completion beyond `chains` is a duplicate or late message
+    -- a real fault -- so it trips `_Fatal`.
     """
     _mix(chain.u64())
     _mix(terminal_id.u64())
@@ -286,6 +287,8 @@ actor Coordinator
       for p in _pingers.values() do
         p.report()
       end
+    elseif _completions > _mesh.chains then
+      _Fatal("late/duplicate completion (completions > chains)")
     end
 
   be report_counts(sent: U64, received: U64) =>
@@ -985,8 +988,7 @@ actor Dispatcher
     A parcel reached its terminal (hops == 0) carrier. Fold the arrival into the
     order signature; once every parcel has terminated the system is quiesced, so
     ask every `Carrier` for its final counts. A completion beyond the expected
-    total is a duplicate or late message -- a real fault -- so it trips `_Fatal`
-    (the cyclic collector's overshoot guard, which the mesh `Coordinator` lacks).
+    total is a duplicate or late message -- a real fault -- so it trips `_Fatal`.
     """
     if _done then _Fatal("completion after done (leaked/late message)") end
     _mix(chain.u64())
@@ -1293,13 +1295,13 @@ primitive _Fatal
   """
   The harness's runtime-fault detector: print a diagnostic to stderr and exit
   non-zero. Used by the late/duplicate-message oracles across all workloads -- a
-  ping or `iso` handoff arriving after its node has reported, a cyclic or `iso`
-  completion beyond the expected total, or a backpressure `work`/`finished` after
-  the `Consumer` is done (or more `finished` reports than producers) -- and by the
-  `iso` workload's parcel-integrity oracle (a sentinel-byte mismatch in a delivered
-  graph). Each is a real runtime fault -- a duplicated or delayed message, or a
-  silently corrupted one -- so the stress run fails loudly with a location rather
-  than passing.
+  ping or `iso` handoff arriving after its node has reported, a mesh, cyclic, or
+  `iso` completion beyond the expected total, or a backpressure `work`/`finished`
+  after the `Consumer` is done (or more `finished` reports than producers) -- and
+  by the `iso` workload's parcel-integrity oracle (a sentinel-byte mismatch in a
+  delivered graph). Each is a real runtime fault -- a duplicated or delayed
+  message, or a silently corrupted one -- so the stress run fails loudly with a
+  location rather than passing.
   """
   fun apply(msg: String, loc: SourceLoc = __loc) =>
     let line = "FATAL: " + msg + " (" + loc.file() + ":"
