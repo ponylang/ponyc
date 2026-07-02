@@ -433,8 +433,11 @@ DECLARE_THREAD_FN(ponyint_asio_backend_dispatch)
     }
 
 #if defined(USE_SYSTEMATIC_TESTING)
-    // Wait only for 10 milliseconds.
-    ssize_t result = wait_for_objects_etc(b->wait_list, wait_count, B_RELATIVE_TIMEOUT, 10000);
+    // Under systematic testing execution is serialized to one thread at a time,
+    // so any real wait here stalls the whole program while it is our turn. Poll
+    // instead: report whatever is already ready and hand our turn straight back.
+    // (A normal build blocks until the kernel has an event.)
+    ssize_t result = wait_for_objects_etc(b->wait_list, wait_count, B_RELATIVE_TIMEOUT, 0);
 #else
     // Wait indefinitely.
     ssize_t result = wait_for_objects(b->wait_list, wait_count);
