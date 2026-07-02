@@ -122,86 +122,15 @@ else
   BITCODE_FLAGS =
 endif
 
-PONY_USES =
-
-comma:= ,
-empty:=
-space:= $(empty) $(empty)
-
-define USE_CHECK
-  $$(info Enabling use option: $1)
-  ifeq ($1,valgrind)
-    ifeq ($$(HOST_OS),OpenBSD)
-      $$(error Valgrind is not supported on OpenBSD: Valgrind has no OpenBSD port, so its development headers aren't available. See BUILD.md)
-    endif
-    PONY_USES += -DPONY_USE_VALGRIND=true
-  else ifeq ($1,thread_sanitizer)
-    ifeq ($$(HOST_OS),OpenBSD)
-      $$(error ThreadSanitizer is not supported on OpenBSD: the base toolchain ships no ThreadSanitizer runtime. See BUILD.md)
-    endif
-    ifeq ($$(HOST_OS),DragonFly)
-      $$(error ThreadSanitizer is not supported on DragonFly: the gcc toolchain ships no ThreadSanitizer runtime. See BUILD.md)
-    endif
-    PONY_USES += -DPONY_USE_THREAD_SANITIZER=true
-  else ifeq ($1,address_sanitizer)
-    ifeq ($$(HOST_OS),OpenBSD)
-      $$(error AddressSanitizer is not supported on OpenBSD: the base toolchain ships no AddressSanitizer runtime. See BUILD.md)
-    endif
-    ifeq ($$(HOST_OS),DragonFly)
-      $$(error AddressSanitizer is not supported on DragonFly: the gcc toolchain ships no AddressSanitizer runtime. See BUILD.md)
-    endif
-    PONY_USES += -DPONY_USE_ADDRESS_SANITIZER=true
-  else ifeq ($1,undefined_behavior_sanitizer)
-    ifeq ($$(HOST_OS),OpenBSD)
-      $$(error UndefinedBehaviorSanitizer is not supported on OpenBSD: the base toolchain ships only the minimal UBSan runtime, not the standalone runtime ponyc links against. See BUILD.md)
-    endif
-    ifeq ($$(HOST_OS),DragonFly)
-      $$(error UndefinedBehaviorSanitizer is not supported on DragonFly: the gcc toolchain ships no UndefinedBehaviorSanitizer runtime. See BUILD.md)
-    endif
-    PONY_USES += -DPONY_USE_UNDEFINED_BEHAVIOR_SANITIZER=true
-  else ifeq ($1,coverage)
-    ifeq ($$(HOST_OS),OpenBSD)
-      $$(error Coverage instrumentation is not supported on OpenBSD: the base toolchain's profiling runtime is incomplete, so coverage builds fail to link. See BUILD.md)
-    endif
-    PONY_USES += -DPONY_USE_COVERAGE=true
-  else ifeq ($1,pooltrack)
-    PONY_USES += -DPONY_USE_POOLTRACK=true
-  else ifeq ($1,dtrace)
-    ifeq ($$(HOST_OS),OpenBSD)
-      $$(error DTrace is not supported on OpenBSD. See BUILD.md)
-    endif
-    ifeq ($$(HOST_OS),DragonFly)
-      $$(error DTrace is not supported on DragonFly. See BUILD.md)
-    endif
-    DTRACE ?= $(shell which dtrace)
-    ifeq (, $$(DTRACE))
-      $$(error No dtrace compatible user application static probe generation tool found)
-    endif
-    PONY_USES += -DPONY_USE_DTRACE=true
-  else ifeq ($1,scheduler_scaling_pthreads)
-    PONY_USES += -DPONY_USE_SCHEDULER_SCALING_PTHREADS=true
-  else ifeq ($1,systematic_testing)
-    PONY_USES += -DPONY_USE_SYSTEMATIC_TESTING=true
-  else ifeq ($1,runtimestats)
-    PONY_USES += -DPONY_USE_RUNTIMESTATS=true
-  else ifeq ($1,runtimestats_messages)
-    PONY_USES += -DPONY_USE_RUNTIMESTATS_MESSAGES=true
-  else ifeq ($1,pool_memalign)
-    PONY_USES += -DPONY_USE_POOL_MEMALIGN=true
-  else ifeq ($1,pool_retain)
-    PONY_USES += -DPONY_USE_POOL_RETAIN=true
-  else ifeq ($1,runtime_tracing)
-    PONY_USES += -DPONY_USE_RUNTIME_TRACING=true
-  else
-    $$(error ERROR: Unknown use option specified: $1)
-  endif
-endef
-
+# `use=` build options are parsed and validated in CMake (the PONY_USES cache
+# variable; see CMakeLists.txt and .known-couplings/use-option-validation.md).
+# This wrapper only forwards the raw comma-separated list to `configure` below --
+# it no longer knows the option set or the per-platform rules. The options set
+# CMake cache variables at configure time, so specifying them on any other target
+# would silently do nothing; reject that up front.
 ifdef use
   ifneq (${MAKECMDGOALS}, configure)
     $(error You can only specify use= for 'make configure')
-	else
-    $(foreach useitem,$(sort $(subst $(comma),$(space),$(use))),$(eval $(call USE_CHECK,$(useitem))))
   endif
 endif
 
@@ -228,7 +157,7 @@ cleanlibs:
 
 configure:
 	$(SILENT)mkdir -p '$(buildDir)'
-	$(SILENT)cd '$(buildDir)' && env CC="$(CC)" CXX="$(CXX)" cmake -B '$(buildDir)' -S '$(srcDir)' -DCMAKE_BUILD_TYPE=$(config) -DPONY_ARCH=$(arch) -DPONY_CPU=$(cpu) -DPONY_PIC_FLAG=$(pic_flag) -DPONYC_VERSION=$(tag) -DCMAKE_C_FLAGS="-march=$(arch) -mtune=$(tune)" -DCMAKE_CXX_FLAGS="-march=$(arch) -mtune=$(tune)" $(BITCODE_FLAGS) $(LTO_CONFIG_FLAGS) $(CMAKE_FLAGS) $(PONY_USES)
+	$(SILENT)cd '$(buildDir)' && env CC="$(CC)" CXX="$(CXX)" cmake -B '$(buildDir)' -S '$(srcDir)' -DCMAKE_BUILD_TYPE=$(config) -DPONY_ARCH=$(arch) -DPONY_CPU=$(cpu) -DPONY_PIC_FLAG=$(pic_flag) -DPONYC_VERSION=$(tag) -DCMAKE_C_FLAGS="-march=$(arch) -mtune=$(tune)" -DCMAKE_CXX_FLAGS="-march=$(arch) -mtune=$(tune)" $(BITCODE_FLAGS) $(LTO_CONFIG_FLAGS) $(CMAKE_FLAGS) -DPONY_USES="$(use)"
 
 all: build
 

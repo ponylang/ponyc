@@ -22,6 +22,20 @@ endif()
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+# use= build-option validation. Parses and validates the PONY_USES string and
+# sets the PONY_USE_* variables the blocks below consume.
+#
+# LOAD-BEARING PLACEMENT: keep this include between project() above and the
+# find_package(LLVM ...) calls below.
+#  - Below project(): the checks read CMAKE_HOST_SYSTEM_NAME (BSD rejections)
+#    and MSVC (the Windows allowlist), which project() populates.
+#  - Above find_package(LLVM): the BSD reject scripts run `gmake configure
+#    use=<unsupported>` on a no-libs checkout and grep for "not supported on
+#    <OS>"; below find_package it would fail with "LLVM not found" instead.
+# It also runs before the PONY_USE_* consumption blocks below. See
+# cmake/PonyUses.cmake and .known-couplings/use-option-validation.md.
+include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/PonyUses.cmake)
+
 # We require LLVM, Google Test and Google Benchmark
 if(NOT PONY_CROSS_LIBPONYRT)
     find_package(LLVM REQUIRED CONFIG PATHS "build/libs/lib/cmake/llvm" "build/libs/lib64/cmake/llvm" NO_DEFAULT_PATH)
