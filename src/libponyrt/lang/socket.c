@@ -87,6 +87,35 @@ typedef int SOCKET;
 // TODO
 #endif
 
+#ifdef PLATFORM_IS_HAIKU
+# include <os/kernel/OS.h>
+// On Haiku ntohl and ntohs are pure defines that end up as __builtin swaps.
+// Pony's net package tries to load symbols dynamically, and it fails.
+// So we declare thin wrappers here.
+# ifdef ntohs
+#   undef ntohs
+PONY_API uint16_t ntohs(uint16_t x)
+{
+#if BYTE_ORDER == LITTLE_ENDIAN
+  return (uint16_t)__builtin_bswap16(x);
+#else
+  return x;
+#endif
+}
+# endif
+# ifdef ntohl
+#   undef ntohl
+PONY_API uint32_t ntohl(uint32_t x)
+{
+#if BYTE_ORDER == LITTLE_ENDIAN
+  return (uint32_t)__builtin_bswap32(x);
+#else
+  return x;
+#endif
+}
+# endif
+#endif
+
 PONY_EXTERN_C_BEGIN
 
 PONY_API void pony_os_socket_close(int fd);
@@ -171,7 +200,7 @@ static struct addrinfo* os_addrinfo_intern(int family, int socktype,
   return result;
 }
 
-#if defined(PLATFORM_IS_MACOSX) || defined(PLATFORM_IS_BSD)
+#if defined(PLATFORM_IS_MACOSX) || defined(PLATFORM_IS_BSD) || defined(PLATFORM_IS_HAIKU)
 static int set_nonblocking(int s)
 {
   int flags = fcntl(s, F_GETFL, 0);
@@ -232,7 +261,7 @@ static int socket_from_addrinfo(struct addrinfo* p, bool reuse)
       (const char*)&reuseaddr, sizeof(int));
   }
 
-#if defined(PLATFORM_IS_MACOSX) || defined(PLATFORM_IS_BSD)
+#if defined(PLATFORM_IS_MACOSX) || defined(PLATFORM_IS_BSD) || defined(PLATFORM_IS_HAIKU)
   r |= set_nonblocking(fd);
 #endif
 

@@ -60,6 +60,8 @@ primitive _FileDes
 
     ifdef windows then
       path.set_time(atime, mtime)
+    elseif haiku then
+      path.set_time(atime, mtime)
     else
       var tv: (ILong, ILong, ILong, ILong) =
         ( atime._1.ilong(), atime._2.ilong() / 1000,

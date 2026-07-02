@@ -27,13 +27,10 @@ actor \nodoc\ Main is TestList
   fun tag tests(test: PonyTest) =>
     // Tests below function across all systems and are listed alphabetically
     test(_TestDNSBroadcastIP4)
-    test(_TestDNSBroadcastIP6)
     test(_TestDNSUnresolvableEmpty)
     test(_TestMulticastIP4)
-    test(_TestMulticastIP6)
     test(_TestNetAddressIP6Scope)
     test(_TestNetAddressNameRoundTripIP4)
-    test(_TestNetAddressNameRoundTripIP6)
     test(_TestOsIpString)
     test(_TestSocketResultDecoder)
     test(_TestTCPConnectionFailed)
@@ -51,12 +48,19 @@ actor \nodoc\ Main is TestList
     test(_TestUDPListenFailure)
     test(_TestUDPOversizedDatagramTruncated)
     test(_TestUDPUndersizedDatagramDelivered)
-    test(_TestUnicastIP6Loopback)
 
     // The deterministic send-failure trigger (send to broadcast without
     // SO_BROADCAST -> EACCES/WSAEACCES) is verified on linux and windows.
     ifdef linux or windows then
       test(_TestUDPCloseOnSendFailure)
+    end
+    
+    // Tests below exclude haiku and are listed alphabetically
+    ifdef not haiku then
+      test(_TestDNSBroadcastIP6)
+      test(_TestMulticastIP6)
+      test(_TestNetAddressNameRoundTripIP6)
+      test(_TestUnicastIP6Loopback)
     end
 
     // Tests below run only on linux and are listed alphabetically
@@ -88,7 +92,7 @@ class \nodoc\ _TestPing is UDPNotify
       let auth = DNSAuth(h.env.root)
       (_, let service) = ip.name()?
 
-      let list = ifdef bsd then
+      let list = ifdef bsd or haiku then
         DNS.ip4(auth, "", service)
       else
         DNS.broadcast_ip4(auth, service)
@@ -102,7 +106,7 @@ class \nodoc\ _TestPing is UDPNotify
       // test on any datagram reaching the port.
       _h.assert_true(addr.ip4())
       _h.assert_eq[U16](addr.port(), service.u16()?)
-      ifdef bsd then
+      ifdef bsd or haiku then
         // The empty-host result is rewritten by the runtime's
         // map_any_to_loopback, deterministically 127.0.0.1.
         _h.assert_eq[U32](addr.ipv4_addr(), 0x7F00_0001)

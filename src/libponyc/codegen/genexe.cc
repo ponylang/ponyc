@@ -38,6 +38,22 @@ LLD_HAS_DRIVER(wasm)
 #  include <llvm/TargetParser/Triple.h>
 #endif
 
+#ifdef PLATFORM_IS_HAIKU
+#  include <FindDirectory.h>
+static char** get_haiku_path_candidates(const char* arch, path_base_directory base, const char* sub_path, size_t* result_count)
+{
+  char** result = NULL;
+  // We don't use B_FIND_PATH_EXISTING_ONLY or any other flag, because we need to support sysroot overrides.
+  status_t status = find_paths_etc(arch, base, sub_path, 0, &result, result_count);
+  if(status != B_OK || *result_count < 1)
+  {
+    free(result);
+    result = NULL;
+  }
+  return result;
+}
+#endif
+
 #if defined(PONY_SANITIZER)
 // Generated at configure time (top-level CMakeLists.txt, PONY_SANITIZERS_ENABLED
 // block): the sanitizer runtime link fragment captured from the compiler driver.
@@ -318,6 +334,17 @@ static const char* elf_emulation(compile_t* c)
     }
   }
 
+  // ponyc supports x86-64 only on Haiku; explicit NULL on other arches
+  // errors cleanly rather than mis-branding.
+  if(target_is_haiku(c->opt->triple))
+  {
+    switch(triple.getArch())
+    {
+      case llvm::Triple::x86_64: return "elf_x86_64";
+      default: return NULL;
+    }
+  }
+
   switch(triple.getArch())
   {
     case llvm::Triple::x86_64: return "elf_x86_64";
@@ -356,6 +383,11 @@ static const char* dynamic_linker_path(compile_t* c)
   // points here.
   if(target_is_openbsd(c->opt->triple))
     return "/usr/libexec/ld.so";
+    
+  // Haiku: does not use dynamic linker like others.
+  // There's only runtime_loader, which is loaded by kernel for each process.
+  if(target_is_haiku(c->opt->triple))
+    return NULL;
 
   bool is_musl = triple.isMusl() || host_is_musl(c->opt);
 
@@ -460,9 +492,46 @@ static bool elf_matches_target(const char* path, uint16_t target_machine)
   return machine == target_machine;
 }
 
+#ifdef PLATFORM_IS_HAIKU
+// Haiku has its own way of geting system/user paths.
+static const char* find_haiku_libc_crt_dir(const char* sysroot,
+  const char* sys_triple, uint16_t target_machine, strtable_t* strtab)
+{
+  char buf[PATH_MAX];
+  snprintf(buf, sizeof(buf), "%.*s", strcspn(sys_triple, "-"), sys_triple);
+  
+  size_t path_count = 0;
+  char** candidates = get_haiku_path_candidates(buf, B_FIND_PATH_DEVELOP_LIB_DIRECTORY, "", &path_count);
+
+  if(!candidates)
+    return NULL;
+
+  bool use_sysroot = sysroot != NULL && sysroot[0] != '\0';
+
+  for(size_t i = 0; i < path_count; i++)
+  {
+    snprintf(buf, sizeof(buf), "%s%s%s/crti.o", sysroot, use_sysroot ? "/" : "", candidates[i]);
+    if(file_exists(buf) && elf_matches_target(buf, target_machine))
+    {
+      snprintf(buf, sizeof(buf), "%s%s%s", sysroot, use_sysroot ? "/" : "", candidates[i]);
+      free(candidates);
+      return stringtab(strtab, buf);
+    }
+  }
+
+  free(candidates);
+  return NULL;
+}
+#endif
+
 static const char* find_libc_crt_dir(const char* sysroot,
   const char* sys_triple, uint16_t target_machine, strtable_t* strtab)
 {
+
+#ifdef PLATFORM_IS_HAIKU
+  return find_haiku_libc_crt_dir(sysroot, sys_triple, target_machine, strtab);
+#endif
+	
   // Search candidate paths for libc CRT objects.
   // The lib64 candidates cover Fedora, RHEL, and other distros that
   // place 64-bit libc startup objects in /usr/lib64 rather than
@@ -703,6 +772,105 @@ static const char* find_dragonfly_gcc_lib_dir(const char* sysroot,
   return best_dir;
 }
 
+#ifdef PLATFORM_IS_HAIKU
+// Haiku-specific GCC runtime directory finder.
+//
+// The generic find_gcc_lib_dir below assumes <base>/<triple>/<ver>/
+// nesting under fixed base_patterns (/usr/lib/gcc, /usr/lib/gcc-cross,
+// /usr/local/lib/gcc, ...). None of the fixed patterns apply to Haiku.
+// Hence a separate helper.
+//
+// Haiku has multiple possible paths for installations, for example:
+// - /boot/home/config/non-packaged/develop/
+// - /boot/home/config/develop/
+// - /boot/system/non-packaged/develop/
+// - /boot/system/develop/
+// Any or all of them can contain tools/lib/gcc/<triple>/<ver>/.
+// By default it will be the last one, but customization is supported.
+//
+// Return contract: returned path contains libgcc.a, crtbeginS.o, etc...,
+// as well as symlink to libatomic.so.
+static const char* find_haiku_gcc_lib_dir(const char* sysroot,
+  const char* arch_prefix, strtable_t* strtab)
+{
+  char buf[PATH_MAX];
+  snprintf(buf, sizeof(buf), "%.*s", strcspn(arch_prefix, "-"), arch_prefix);
+
+  size_t path_count = 0;
+  char** candidates = get_haiku_path_candidates(buf, B_FIND_PATH_DEVELOP_DIRECTORY, "tools/lib/gcc", &path_count);
+
+  if(!candidates)
+    return NULL;
+
+  const char* best_dir = NULL;
+  float best_gcc_ver = 0;
+  size_t prefix_len = strlen(arch_prefix);
+  bool use_sysroot = sysroot != NULL && sysroot[0] != '\0';
+
+  for(size_t i = 0; i < path_count; i++)
+  {
+    snprintf(buf, sizeof(buf), "%s%s%s", sysroot, use_sysroot ? "/" : "", candidates[i]);
+    if(!file_exists(buf))
+      continue;
+    
+    DIR* base_dir = opendir(buf);
+    if(base_dir == NULL)
+      continue;
+    struct dirent* triple_entry;
+    while((triple_entry = readdir(base_dir)) != NULL)
+    {
+      if(triple_entry->d_name[0] == '.')
+        continue;
+      if(strncmp(triple_entry->d_name, arch_prefix, prefix_len) != 0)
+        continue;
+
+      char triple_dir[PATH_MAX];
+      int n = snprintf(triple_dir, sizeof(triple_dir), "%s/%s",
+        buf, triple_entry->d_name);
+      if(n < 0 || (size_t)n >= sizeof(triple_dir))
+        continue;
+      DIR* ver_dir = opendir(triple_dir);
+      if(ver_dir == NULL)
+        continue;
+
+      struct dirent* ver_entry;
+      while((ver_entry = readdir(ver_dir)) != NULL)
+      {
+        if(ver_entry->d_name[0] == '.')
+          continue;
+
+        float gcc_ver = 0;
+        n = sscanf(ver_entry->d_name, "%f.", &gcc_ver);
+        if(n < 1 || n == EOF || gcc_ver <= best_gcc_ver)
+          continue;
+
+        char libgcc[PATH_MAX];
+        n = snprintf(libgcc, sizeof(libgcc), "%s/%s/libgcc.a",
+          triple_dir, ver_entry->d_name);
+        if(n < 0 || (size_t)n >= sizeof(libgcc))
+          continue;
+        if(!file_exists(libgcc))
+          continue;
+
+        char result[PATH_MAX];
+        n = snprintf(result, sizeof(result), "%s/%s",
+          triple_dir, ver_entry->d_name);
+        if(n < 0 || (size_t)n >= sizeof(result))
+          continue;
+        best_gcc_ver = gcc_ver;
+        best_dir = stringtab(strtab, result);
+      }
+      closedir(ver_dir);
+    }
+    closedir(base_dir);
+  }
+
+  free(candidates);
+
+  return best_dir;
+}
+#endif
+
 static const char* find_gcc_lib_dir(const char* sysroot,
   const char* arch_prefix, strtable_t* strtab)
 {
@@ -914,6 +1082,16 @@ static bool link_exe_lld_elf(compile_t* c, ast_t* program,
   bool is_freebsd = target_is_freebsd(c->opt->triple);
   bool is_dragonfly = target_is_dragonfly(c->opt->triple);
   bool is_openbsd = target_is_openbsd(c->opt->triple);
+  bool is_haiku = target_is_haiku(c->opt->triple);
+
+#ifndef PLATFORM_IS_HAIKU
+  if(is_haiku)
+  {
+    errorf(errors, NULL,
+      "unsupported platform for embedded LLD: %s", c->opt->triple);
+  }
+#endif
+
   // FreeBSD and DragonFly executables are non-PIE by default (matching
   // the base toolchain), and non-PIE is required to link the non-PIC
   // static libraries some programs pull in (e.g. the system libc++ bundled
@@ -925,7 +1103,10 @@ static bool link_exe_lld_elf(compile_t* c, ast_t* program,
   // static-PIE, an explicit `-pie` is passed alongside `-static` in the
   // static branch (see comment there for why both flags are needed
   // together).
-  bool pie = !c->opt->staticbin && !is_freebsd && !is_dragonfly;
+  // Haiku executables are all shared objects with non-null entry point.
+  // Only `runtime_loader` is "real" executable, started by kernel
+  // for each process. PIE is not used on Haiku.
+  bool pie = !c->opt->staticbin && !is_freebsd && !is_dragonfly && !is_haiku;
 
   // Resolve sysroot.
   const char* sysroot = resolve_sysroot(c, sys_triple, errors);
@@ -942,7 +1123,7 @@ static bool link_exe_lld_elf(compile_t* c, ast_t* program,
   }
 
   const char* dynlinker = dynamic_linker_path(c);
-  if(!c->opt->staticbin && dynlinker == NULL)
+  if(!c->opt->staticbin && dynlinker == NULL && !is_haiku)
   {
     errorf(errors, NULL,
       "unsupported architecture for dynamic linking: %s", c->opt->triple);
@@ -973,6 +1154,8 @@ static bool link_exe_lld_elf(compile_t* c, ast_t* program,
   // (base toolchain is clang + compiler-rt), so the FreeBSD shape applies
   // — source from libc_crt_dir. ponyc_crt_dir stays NULL on the BSDs; the
   // libponyrt block below handles that.
+  // On Haiku, similarly to DragonFly, they're under a develop gccNN directory,
+  // e.g., /boot/system/develop/tools/lib/gcc/<triple>/<ver>/.
   llvm::Triple target_triple(c->opt->triple);
   std::string arch_prefix = gnu_multiarch_arch(target_triple) + "-";
 
@@ -996,6 +1179,20 @@ static bool link_exe_lld_elf(compile_t* c, ast_t* program,
       return false;
     }
   }
+  else if(is_haiku)
+  {
+    compiler_crt_dir = find_haiku_gcc_lib_dir(sysroot,
+      arch_prefix.c_str(), c->opt->strtab);
+    if(compiler_crt_dir == NULL)
+    {
+      errorf(errors, NULL,
+        "could not find GCC runtime directory on Haiku (searched"
+        " %s/<B_FIND_PATH_DEVELOP_DIRECTORY>/tools/lib/gcc/<triple>/<ver>/);"
+        "install gcc package (e.g. pkgman install gcc)",
+        sysroot, sysroot);
+      return false;
+    }
+  }
   else
   {
     ponyc_crt_dir = find_ponyc_crt_dir(program, c);
@@ -1008,12 +1205,12 @@ static bool link_exe_lld_elf(compile_t* c, ast_t* program,
     compiler_crt_dir = ponyc_crt_dir;
   }
 
-  // GCC lib dir is optional. On DragonFly the GCC dir is the same as
-  // compiler_crt_dir (found above by find_dragonfly_gcc_lib_dir); the
-  // generic find_gcc_lib_dir's patterns don't match either DragonFly
-  // layout.
+  // GCC lib dir is optional. On DragonFly and Haiku the GCC dir is the
+  // same as compiler_crt_dir (found above by find_dragonfly_gcc_lib_dir);
+  // the generic find_gcc_lib_dir's patterns don't match either DragonFly
+  // nor Haiku layout.
   const char* gcc_lib_dir;
-  if(is_dragonfly)
+  if(is_dragonfly || is_haiku)
   {
     gcc_lib_dir = compiler_crt_dir;
   }
@@ -1094,6 +1291,14 @@ static bool link_exe_lld_elf(compile_t* c, ast_t* program,
     if(is_openbsd)
       args.push_back("-pie");
   }
+  else if(is_haiku)
+  {
+    // All Haiku executables are shared object with entry point.
+    args.push_back("--shared");
+    // It looks like this is not necessary for executable to run,
+    // but it's what default "makefile-engine" sets for all executables.
+    args.push_back("--soname=_APP_");
+  }
   else
   {
     if(pie)
@@ -1121,6 +1326,10 @@ static bool link_exe_lld_elf(compile_t* c, ast_t* program,
     const char* startup = c->opt->staticbin ? "rcrt0.o" : "crt0.o";
     snprintf(buf, sizeof(buf), "%s/%s", libc_crt_dir, startup);
     args.push_back(stringtab(c->opt->strtab, buf));
+  }
+  else if(is_haiku)
+  {
+    // Nothing to do here. Starts with crti.o, which is handled below.
   }
   else if(pie)
   {
@@ -1159,12 +1368,12 @@ static bool link_exe_lld_elf(compile_t* c, ast_t* program,
     snprintf(buf, sizeof(buf), "%s/crtbegin.o", compiler_crt_dir);
     args.push_back(stringtab(c->opt->strtab, buf));
   }
-  else if(c->opt->staticbin && !is_dragonfly)
+  else if(c->opt->staticbin && !is_dragonfly && !is_haiku)
   {
     snprintf(buf, sizeof(buf), "%s/crtbeginT.o", compiler_crt_dir);
     args.push_back(stringtab(c->opt->strtab, buf));
   }
-  else if(pie)
+  else if(pie || is_haiku)
   {
     snprintf(buf, sizeof(buf), "%s/crtbeginS.o", compiler_crt_dir);
     args.push_back(stringtab(c->opt->strtab, buf));
@@ -1174,6 +1383,15 @@ static bool link_exe_lld_elf(compile_t* c, ast_t* program,
     // Non-PIE dynamic (FreeBSD), or static on DragonFly (no crtbeginT.o
     // exists; gcc's own -static link uses plain crtbegin.o here).
     snprintf(buf, sizeof(buf), "%s/crtbegin.o", compiler_crt_dir);
+    args.push_back(stringtab(c->opt->strtab, buf));
+  }
+  
+  if(is_haiku)
+  {
+    snprintf(buf, sizeof(buf), "%s/start_dyn.o", libc_crt_dir);
+    args.push_back(stringtab(c->opt->strtab, buf));
+
+    snprintf(buf, sizeof(buf), "%s/init_term_dyn.o", libc_crt_dir);
     args.push_back(stringtab(c->opt->strtab, buf));
   }
 
@@ -1215,6 +1433,12 @@ static bool link_exe_lld_elf(compile_t* c, ast_t* program,
         args.push_back(stringtab(c->opt->strtab, gcc_root_dir));
       }
     }
+    else if (is_haiku)
+    {
+      // Haiku's GCC package has symlinks to libgcc_s.so and libatomic
+      // at the same place as crtbegin and crtend object files.
+      // They both point to files in "global" (non-develop) lib directory.
+    }
     else
     {
       // GCC installs shared runtime libraries (libatomic, libgcc_s) in
@@ -1250,6 +1474,31 @@ static bool link_exe_lld_elf(compile_t* c, ast_t* program,
     }
   }
 
+  // Standard system library fallback paths for Haiku.
+  // See more info below (in else block used for all other platforms).
+  if(is_haiku)
+  {
+    snprintf(buf, sizeof(buf), "%.*s", strcspn(sys_triple, "-"), sys_triple);
+    size_t path_count = 0;
+    char** candidates = get_haiku_path_candidates(buf, B_FIND_PATH_LIB_DIRECTORY, "", &path_count);
+    if(candidates != NULL)
+    {
+      struct stat st;
+      bool use_sysroot = sysroot != NULL && sysroot[0] != '\0';
+      for(size_t i = 0; i < path_count; i++)
+      {
+        snprintf(buf, sizeof(buf), "%s%s%s", sysroot, use_sysroot ? "/" : "", candidates[i]);
+        if(stat(buf, &st) == 0 && S_ISDIR(st.st_mode))
+        {
+          char lbuf[PATH_MAX];
+          snprintf(lbuf, sizeof(lbuf), "-L%s", buf);
+          args.push_back(stringtab(c->opt->strtab, lbuf));
+        }
+      }
+      free(candidates);
+    }
+  }
+  else
   // Standard system library fallback paths. The paths above cover
   // distro-specific locations (libc_crt_dir, gcc_lib_dir, etc.) but miss
   // common install locations like /usr/local/lib (where libraries built
@@ -1272,7 +1521,6 @@ static bool link_exe_lld_elf(compile_t* c, ast_t* program,
       "%s/usr/lib64",
       "%s/usr/local/lib64",
     };
-
     struct stat st;
     for(size_t i = 0;
       i < sizeof(fallback_dirs) / sizeof(fallback_dirs[0]); i++)
@@ -1421,10 +1669,10 @@ static bool link_exe_lld_elf(compile_t* c, ast_t* program,
   // Pony runtime.
   if(!c->opt->runtimebc)
   {
-    // FreeBSD and DragonFly ship a single libponyrt.a (PIC-enabled) and no
-    // compiler-rt CRT, so ponyc_crt_dir is NULL on those targets; resolve
-    // -lponyrt via the -L lib paths, with no -pic variant (matching the
-    // external BSD path).
+    // FreeBSD, DragonFly and Haiku ship a single libponyrt.a (PIC-enabled)
+    // and no compiler-rt CRT, so ponyc_crt_dir is NULL on those targets;
+    // resolve -lponyrt via the -L lib paths, with no -pic variant
+    // (matching the external BSD path).
     if(ponyc_crt_dir == NULL)
     {
       args.push_back("-lponyrt");
@@ -1452,7 +1700,13 @@ static bool link_exe_lld_elf(compile_t* c, ast_t* program,
   }
 
   args.push_back("-lpthread");
-  args.push_back("-lm");
+
+  if(!is_haiku)
+  {
+    // Haiku does not have m library, its functionality is in base libraries.
+    args.push_back("-lm");
+  }
+
   if(is_freebsd)
   {
     // dlopen is in libc and there's no libatomic on FreeBSD. backtrace() is
@@ -1487,6 +1741,21 @@ static bool link_exe_lld_elf(compile_t* c, ast_t* program,
     // block below, after -lc++abi. No -lelf even for static links —
     // libexecinfo.a has no libelf dependency (libelf.a does exist on
     // OpenBSD 7.8, but nothing here uses it).
+  }
+  else if(is_haiku)
+  {
+    // dlopen is in libroot. backtrace is in libexecinfo.
+    // libatomic and libexecinfo are not shipped in base.
+    // sockets and networking in general are in libnetwork.
+    // Haiku is C++ so a lot of basic functionality depends on libstdc++.
+    // Some of the functions we use are in "compatibility" libs: gnu and bsd.
+    args.push_back("-lroot");
+    args.push_back("-lexecinfo");
+    args.push_back("-latomic");
+    args.push_back("-lnetwork");
+    args.push_back("-lstdc++");
+    args.push_back("-lbsd");
+    args.push_back("-lgnu");
   }
   else
   {
@@ -1571,7 +1840,7 @@ static bool link_exe_lld_elf(compile_t* c, ast_t* program,
     snprintf(buf, sizeof(buf), "%s/crtend.o", compiler_crt_dir);
     args.push_back(stringtab(c->opt->strtab, buf));
   }
-  else if(pie)
+  else if(pie || is_haiku)
   {
     snprintf(buf, sizeof(buf), "%s/crtendS.o", compiler_crt_dir);
     args.push_back(stringtab(c->opt->strtab, buf));
@@ -2206,6 +2475,9 @@ static bool link_exe(compile_t* c, ast_t* program,
   {
     return link_exe_lld_elf(c, program, file_o);
   }
+  
+  if(target_is_haiku(c->opt->triple))
+    return link_exe_lld_elf(c, program, file_o);
 
   errorf(c->opt->check.errors, NULL,
     "ponyc has no linker support for target %s", c->opt->triple);
@@ -2218,6 +2490,105 @@ static bool link_exe(compile_t* c, ast_t* program,
   return false;
 #endif
 }
+
+#ifdef PLATFORM_IS_HAIKU
+const char* genrsrc(compile_t* c)
+{
+  errors_t* errors = c->opt->check.errors;
+
+  const char* file_rdef =
+    suffix_filename(c, c->opt->output, "", c->filename, ".rdef");
+
+  if (!file_exists(file_rdef))
+    return NULL;
+
+  const char* file_rsrc =
+    suffix_filename(c, c->opt->output, "", c->filename, ".rsrc");
+
+  if(c->opt->verbosity >= VERBOSITY_MINIMAL)
+    fprintf(stderr, "Generating %s\n", file_rsrc);
+
+  const char* rc_format = "rc -o %s %s";
+  size_t rc_len = strlen(rc_format) + strlen(file_rdef) + strlen(file_rsrc);
+  char* rc_cmd = (char*)ponyint_pool_alloc_size(rc_len);
+
+  if (snprintf(rc_cmd, rc_len, rc_format, file_rsrc, file_rdef) >= rc_len)
+  {
+    ponyint_pool_free_size(rc_len, rc_cmd);
+    return NULL;
+  }
+
+  int result = system(rc_cmd);
+  if (result != 0)
+  {
+    errorf(errors, NULL, "unable to generate rsrc file: %s: %d", rc_cmd, result);
+    ponyint_pool_free_size(rc_len, rc_cmd);
+    return NULL;
+  }
+
+  ponyint_pool_free_size(rc_len, rc_cmd);
+  return file_rsrc;
+}
+
+bool rsrc_exe(compile_t* c, const char* file_rsrc)
+{
+  errors_t* errors = c->opt->check.errors;
+
+  if (!file_exists(file_rsrc))
+    return false;
+
+  if(c->opt->verbosity >= VERBOSITY_MINIMAL)
+    fprintf(stderr, "Applying %s\n", file_rsrc);
+
+  const char* xres_format = "xres -o %s %s";
+  size_t xres_len = strlen(xres_format) + strlen(c->filename) + strlen(file_rsrc);
+  char* xres_cmd = (char*)ponyint_pool_alloc_size(xres_len);
+
+  if (snprintf(xres_cmd, xres_len, xres_format, c->filename, file_rsrc) >= xres_len)
+  {
+    ponyint_pool_free_size(xres_len, xres_cmd);
+    return false;
+  }
+
+  int result = system(xres_cmd);
+  if (result != 0)
+    errorf(errors, NULL, "unable to apply rsrc file: %s: %d", xres_cmd, result);
+
+  ponyint_pool_free_size(xres_len, xres_cmd);
+  return result == 0;
+}
+
+bool mime_exe(compile_t* c)
+{
+  errors_t* errors = c->opt->check.errors;
+
+  const char* file_exe =
+    suffix_filename(c, c->opt->output, "", c->filename, "");
+
+  if (!file_exists(file_exe))
+    return false;
+
+  if(c->opt->verbosity >= VERBOSITY_MINIMAL)
+    fprintf(stderr, "Setting mime of %s\n", file_exe);
+
+  const char* mimeset_format = "mimeset -f %s";
+  size_t mimeset_len = strlen(mimeset_format) + strlen(file_exe);
+  char* mimeset_cmd = (char*)ponyint_pool_alloc_size(mimeset_len);
+
+  if (snprintf(mimeset_cmd, mimeset_len, mimeset_format, file_exe) >= mimeset_len)
+  {
+    ponyint_pool_free_size(mimeset_len, mimeset_cmd);
+    return false;
+  }
+
+  int result = system(mimeset_cmd);
+  if (result != 0)
+    errorf(errors, NULL, "unable to set mime of: %s: %d", mimeset_cmd, result);
+
+  ponyint_pool_free_size(mimeset_len, mimeset_cmd);
+  return result == 0;
+}
+#endif
 
 bool genexe(compile_t* c, ast_t* program)
 {
@@ -2358,6 +2729,19 @@ bool genexe(compile_t* c, ast_t* program)
 
   for(size_t i = 0; i < c_object_count; i++)
     unlink(program_c_object_at(program, i));
+#endif
+
+#ifdef PLATFORM_IS_HAIKU
+  // On Haiku, if there's an .rdef file with the same name as "file_exe",
+  // compile it into a .rsrc file, link it to the exe and then set mime.
+  // If rsrc file is generated, but applying it to exe fails,
+  // leave the file for investigation.
+  const char* file_rsrc = genrsrc(c);
+  if(file_rsrc != NULL && rsrc_exe(c, file_rsrc))
+  {
+    mime_exe(c);
+    unlink(file_rsrc);
+  }
 #endif
 
   return true;

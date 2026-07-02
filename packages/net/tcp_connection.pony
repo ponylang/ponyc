@@ -915,7 +915,14 @@ actor TCPConnection is AsioEventNotify
       _shutdown = true
 
       if _connected then
-        @pony_os_socket_shutdown(_fd)
+        // There's some bug in shutdown on Haiku, which never closes socket (it stays in timed wait forever).
+        // So just force hard_close there.
+        // TODO: remove it once Haiku OS bug is fixed.
+        ifdef haiku then
+          _shutdown_peer = true
+        else
+          @pony_os_socket_shutdown(_fd)
+        end
       else
         _shutdown_peer = true
       end
