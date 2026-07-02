@@ -233,9 +233,8 @@ test-examples: all
 test-validate-grammar: all
 	$(SILENT)cd '$(outDir)' && ./ponyc --antlr > pony.g.new && diff ../../pony.g pony.g.new
 
-# File-target rules below provide incremental rebuild for the five
-# Pony-source binaries this Makefile builds outside cmake:
-# `pony-lint-ci` and the four `pony-*-tests` test binaries.
+# File-target rules below provide incremental rebuild for the four
+# `pony-*-tests` test binaries this Makefile builds outside cmake.
 # Order-only `| all` lets cmake build and refresh ponyc without
 # forcing the file rule stale on every invocation. Order-only doesn't
 # propagate mtime, so each rule also carries regular prereqs on
@@ -245,25 +244,15 @@ test-validate-grammar: all
 # file deletions (a directory's mtime updates on add/remove; surviving
 # files' mtimes don't move).
 
-# pony_compiler library -- shared by pony-lint-ci and every
-# pony-*-tests binary.
+# pony_compiler library -- shared by every pony-*-tests binary.
 compiler-lib-srcs := $(shell find $(srcDir)/tools/lib/ponylang/pony_compiler/pony_compiler -name '*.pony' -not -name '.*')
 compiler-lib-dirs := $(shell find $(srcDir)/tools/lib/ponylang/pony_compiler/pony_compiler -type d -not -name '.*')
 
-# pony-lint-ci sources -- the lint binary shared by all three
-# lint-pony-* targets. Sources are the lint tool minus its test/
-# sub-package; the pruned subtree is the entry for pony-lint-tests
-# below, where it is included rather than pruned.
-lint-bin-srcs := $(shell find $(srcDir)/tools/pony-lint -path $(srcDir)/tools/pony-lint/test -prune -o -name '*.pony' -not -name '.*' -print) \
-                 $(compiler-lib-srcs)
-lint-bin-dirs := $(shell find $(srcDir)/tools/pony-lint -path $(srcDir)/tools/pony-lint/test -prune -o -type d -not -name '.*' -print) \
-                 $(compiler-lib-dirs)
-
 # pony-doc-tests / pony-lint-tests sources -- each binary builds
 # tools/<tool>/test, and the test code uses ".." to pull the parent
-# package source in. Recursive find covers both. We don't prune the
-# test entry (unlike lint-bin-srcs above) -- for the test binary, the
-# test entry IS the build entry.
+# package source in. Recursive find covers both, including the test
+# entry itself -- for these test binaries the test entry IS the build
+# entry.
 doc-test-srcs := $(shell find $(srcDir)/tools/pony-doc -name '*.pony' -not -name '.*')
 doc-test-dirs := $(shell find $(srcDir)/tools/pony-doc -type d -not -name '.*')
 lint-test-srcs := $(shell find $(srcDir)/tools/pony-lint -name '*.pony' -not -name '.*')
@@ -304,17 +293,16 @@ stdlib-dirs := $(shell find $(srcDir)/packages -type d -not -name '.*')
 # produces it as a side effect via cmake.
 $(outDir)/ponyc: | all ;
 
-$(outDir)/pony-lint-ci: $(lint-bin-srcs) $(lint-bin-dirs) $(ponyc-bin-srcs) $(ponyc-bin-dirs) $(stdlib-srcs) $(stdlib-dirs) $(outDir)/ponyc | all
-	$(SILENT)cd '$(outDir)' && PONYPATH=.:$(PONYPATH) ./ponyc --path ../../tools/lib/ponylang/pony_compiler/ -b pony-lint-ci ../../tools/pony-lint && echo Built `pwd`/pony-lint-ci
+# The lint-pony-* targets lint each tool with the pony-lint binary CMake builds
+# (the `pony-lint` target above), rather than a separate hand-rolled binary.
+lint-pony-lint: pony-lint
+	$(SILENT)cd '$(outDir)' && PONYPATH=../../tools/lib/ponylang/pony_compiler:$(PONYPATH) ./pony-lint ../../tools/pony-lint/
 
-lint-pony-lint: $(outDir)/pony-lint-ci
-	$(SILENT)cd '$(outDir)' && PONYPATH=../../tools/lib/ponylang/pony_compiler:$(PONYPATH) ./pony-lint-ci ../../tools/pony-lint/
+lint-pony-doc: pony-lint
+	$(SILENT)cd '$(outDir)' && PONYPATH=../../tools/lib/ponylang/pony_compiler:$(PONYPATH) ./pony-lint ../../tools/pony-doc/
 
-lint-pony-doc: $(outDir)/pony-lint-ci
-	$(SILENT)cd '$(outDir)' && PONYPATH=../../tools/lib/ponylang/pony_compiler:$(PONYPATH) ./pony-lint-ci ../../tools/pony-doc/
-
-lint-pony-lsp: $(outDir)/pony-lint-ci
-	$(SILENT)cd '$(outDir)' && PONYPATH=../../tools/lib/ponylang/pony_compiler:$(PONYPATH) ./pony-lint-ci ../../tools/pony-lsp/
+lint-pony-lsp: pony-lint
+	$(SILENT)cd '$(outDir)' && PONYPATH=../../tools/lib/ponylang/pony_compiler:$(PONYPATH) ./pony-lint ../../tools/pony-lsp/
 
 $(outDir)/pony-doc-tests: $(doc-test-srcs) $(doc-test-dirs) $(compiler-lib-srcs) $(compiler-lib-dirs) $(ponyc-bin-srcs) $(ponyc-bin-dirs) $(stdlib-srcs) $(stdlib-dirs) $(outDir)/ponyc | all
 	$(SILENT)cd '$(outDir)' && PONYPATH=.:$(PONYPATH) ./ponyc --path ../../tools/lib/ponylang/pony_compiler/ -b pony-doc-tests ../../tools/pony-doc/test && echo Built `pwd`/pony-doc-tests
