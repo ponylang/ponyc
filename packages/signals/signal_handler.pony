@@ -15,8 +15,9 @@ actor SignalHandler is AsioEventNotify
   per signal number. All registered handlers will be notified when the
   signal is received, in no particular order. If a handler cannot be
   registered (the 16-subscriber limit is reached, or the runtime fails to
-  register with the operating system), the handler is automatically
-  disposed: its notify's `dispose` is called without `apply` having run.
+  register with the operating system), its notify's `registration_failed`
+  is called with the reason and the handler is automatically disposed;
+  `apply` will not have run.
 
   If the wait parameter is true, the program will not terminate until
   the SignalHandler's dispose method is called or the SignalNotify
@@ -63,6 +64,12 @@ actor SignalHandler is AsioEventNotify
     if AsioEvent.disposable(flags) then
       @pony_asio_event_destroy(event)
     elseif (event is _event) and AsioEvent.errored(flags) then
+      // The runtime reports why registration failed in the event's arg:
+      // 1 = subscriber limit, anything else = the OS refused. See the arg
+      // contract note in .known-couplings/asio-signal-registration-protocol.md.
+      _notify.registration_failed(
+        if arg == 1 then SignalSubscriberLimit
+        else SignalRegistrationRefused end)
       _dispose()
     elseif event is _event then
       if not _notify(arg) then

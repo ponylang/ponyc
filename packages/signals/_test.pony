@@ -462,6 +462,9 @@ class \nodoc\ _LimitFillNotify is SignalNotify
     end
     true
 
+  fun ref registration_failed(reason: SignalRegistrationError) =>
+    _h.fail("fill notify " + _n.string() + " failed to register")
+
   fun ref dispose() =>
     if not _fired then
       _h.fail("fill notify " + _n.string() + " disposed without ever firing")
@@ -470,6 +473,7 @@ class \nodoc\ _LimitFillNotify is SignalNotify
 class \nodoc\ _LimitRejectNotify is SignalNotify
   let _h: TestHelper
   let _coordinator: _SubscriberLimitCoordinator
+  var _rejected: Bool = false
   var _disposed: Bool = false
 
   new iso create(h: TestHelper, coordinator: _SubscriberLimitCoordinator) =>
@@ -480,13 +484,32 @@ class \nodoc\ _LimitRejectNotify is SignalNotify
     _h.fail("rejected handler received a signal")
     true
 
+  fun ref registration_failed(reason: SignalRegistrationError) =>
+    if _rejected then
+      _h.fail("registration_failed ran twice on the rejected handler")
+      return
+    end
+    _rejected = true
+    match reason
+    | SignalSubscriberLimit =>
+      _h.complete_action("limit-rejected")
+      _coordinator.rejected()
+    | SignalRegistrationRefused =>
+      _h.fail("17th handler reported refused instead of the limit")
+    end
+
   fun ref dispose() =>
+    if not _rejected then
+      _h.fail("rejected handler was disposed without registration_failed")
+    end
     if _disposed then
       _h.fail("dispose ran twice on the rejected handler")
     else
       _disposed = true
-      _h.complete_action("limit-rejected")
-      _coordinator.rejected()
+      // Completing this only here keeps the auto-dispose half of the
+      // failure contract load-bearing: registration_failed alone must not
+      // pass the test.
+      _h.complete_action("limit-rejected-disposed")
     end
 
 class \nodoc\ _LimitReuseNotify is SignalNotify
@@ -505,13 +528,14 @@ class \nodoc\ _LimitReuseNotify is SignalNotify
     end
     true
 
-  fun ref dispose() =>
-    // Before ever firing, dispose means this replacement was rejected — the
-    // freed slot's cancel hadn't been processed yet — so ask for another
-    // try. After a successful fire this is the legitimate cleanup dispose:
-    // do nothing.
-    if not _fired then
+  fun ref registration_failed(reason: SignalRegistrationError) =>
+    match reason
+    | SignalSubscriberLimit =>
+      // The freed slot's cancel hadn't been processed yet — try again.
       _coordinator.retry_reuse()
+    | SignalRegistrationRefused =>
+      // Refused is permanent; retrying would loop forever.
+      _h.fail("reuse replacement was refused by the OS")
     end
 
 actor \nodoc\ _SubscriberLimitCoordinator
@@ -597,9 +621,9 @@ actor \nodoc\ _SubscriberLimitCoordinator
 class \nodoc\ iso _TestSubscriberLimit is UnitTest
   """
   Verify the 16-subscriber-per-signal limit: 16 handlers register and all
-  receive the signal; a 17th is rejected and auto-disposed (its notify's
-  dispose runs, its apply never does); disposing a subscriber frees its
-  slot for a later handler.
+  receive the signal; a 17th is rejected (registration_failed with
+  SignalSubscriberLimit, then dispose, with apply never run); disposing a
+  subscriber frees its slot for a later handler.
 
   Uses SIGTERM: it is valid on every platform (including Windows) and no
   other test subscribes to it, so the subscriber table starts empty. The
@@ -623,6 +647,7 @@ class \nodoc\ iso _TestSubscriberLimit is UnitTest
         i = i + 1
       end
       h.expect_action("limit-rejected")
+      h.expect_action("limit-rejected-disposed")
       h.expect_action("limit-slot-reused")
       _coordinator = _SubscriberLimitCoordinator(h, auth, sig)
       h.long_test(10_000_000_000)
@@ -641,31 +666,43 @@ class \nodoc\ iso _TestSubscriberLimit is UnitTest
 class \nodoc\ _RefusedNotify is SignalNotify
   let _h: TestHelper
   let _action: String
-  var _fired: Bool = false
+  var _failed: Bool = false
 
   new iso create(h: TestHelper, action: String) =>
     _h = h
     _action = action
 
   fun ref apply(count: U32): Bool =>
-    _fired = true
     _h.fail("handler for an OS-refused signal received a signal")
     true
 
+  fun ref registration_failed(reason: SignalRegistrationError) =>
+    match reason
+    | SignalRegistrationRefused =>
+      _failed = true
+    | SignalSubscriberLimit =>
+      _h.fail("OS-refused registration reported the subscriber limit")
+    end
+
   fun ref dispose() =>
-    if not _fired then
+    // Completing only here keeps the auto-dispose half of the failure
+    // contract load-bearing: registration_failed alone must not pass.
+    if _failed then
       _h.complete_action(_action)
+    else
+      _h.fail("refused handler was disposed without registration_failed")
     end
 
 class \nodoc\ iso _TestOSRefusedRegistration is UnitTest
   """
   Verify the documented contract for registrations the OS refuses: glibc
   and musl both reject sigaction for real-time signal 32 (reserved for the
-  libc's threading internals) even though the whitelist admits it, and the
-  handler must auto-dispose (notify's dispose runs, apply never does). The
-  second handler proves the failure path resets the registration state — a
-  regression that left it mid-install would strand the second subscribe
-  and surface here as a timeout.
+  libc's threading internals) even though the whitelist admits it; the
+  notify must get registration_failed with SignalRegistrationRefused and
+  then dispose, with apply never run. The second handler proves the
+  failure path resets the registration state — a regression that left it
+  mid-install would strand the second subscribe and surface here as a
+  timeout.
   """
   fun name(): String => "signals/OS-refused registration auto-disposes"
   fun exclusion_group(): String => "signals"

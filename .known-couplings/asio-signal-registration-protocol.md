@@ -22,6 +22,14 @@ Two invariants the protocol depends on, in all three copies:
   yield inside a claimed window creates a systematic-only deadlock that
   normal CI never sees.
 
+One more cross-layer contract rides on this protocol: the `arg` value sent
+with a signal event's `ASIO_ERROR` encodes the failure reason
+(`SIGNAL_ERR_SUBSCRIBER_LIMIT` = 1, `SIGNAL_ERR_REFUSED` = 2, defined in each
+backend), and `packages/signals/signal_handler.pony` maps it to
+`SignalSubscriberLimit`/`SignalRegistrationRefused`. Changing the codes in a
+backend without the stdlib mapping (or vice versa) misreports failure reasons
+on that platform only.
+
 Run: `make test-stdlib-debug` and `make test-stdlib-release` on the platform
 whose backend changed (Linux = epoll, macOS/BSD = kqueue, Windows =
 sock_notify), plus a `use=systematic_testing` build running a trivial program

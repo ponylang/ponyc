@@ -30,6 +30,13 @@ typedef uint32_t kevent_flag_t;
 // .known-couplings/signal-subscriber-cap.md before changing it.
 #define MAX_SIGNAL_SUBSCRIBERS 16
 
+// ASIO_ERROR arg codes for signal registration failures. These values are
+// a contract with packages/signals/signal_handler.pony's reason mapping —
+// see the arg contract note in
+// .known-couplings/asio-signal-registration-protocol.md.
+#define SIGNAL_ERR_SUBSCRIBER_LIMIT 1
+#define SIGNAL_ERR_REFUSED 2
+
 #define ASIO_CANCEL_SIGNAL 10
 
 // Signal registration protocol (same shape in epoll.c, sock_notify.c, and
@@ -541,7 +548,7 @@ PONY_API void pony_asio_event_subscribe(asio_event_t* ev)
       // Out of range (only reachable through raw FFI — ValidSignal caps
       // well below MAX_SIGNAL). Report it so the handler auto-disposes
       // instead of stranding, per the documented contract.
-      pony_asio_event_send(ev, ASIO_ERROR, 0);
+      pony_asio_event_send(ev, ASIO_ERROR, SIGNAL_ERR_REFUSED);
       return;
     }
 
@@ -587,7 +594,7 @@ PONY_API void pony_asio_event_subscribe(asio_event_t* ev)
             // yet, so just reset the state and report.
             atomic_store_explicit(&subs->registered, 0,
               memory_order_seq_cst);
-            pony_asio_event_send(ev, ASIO_ERROR, 0);
+            pony_asio_event_send(ev, ASIO_ERROR, SIGNAL_ERR_REFUSED);
             return;
           }
 
@@ -609,7 +616,7 @@ PONY_API void pony_asio_event_subscribe(asio_event_t* ev)
             sigaction(sig, &new_action, NULL);
             atomic_store_explicit(&subs->registered, 0,
               memory_order_seq_cst);
-            pony_asio_event_send(ev, ASIO_ERROR, 0);
+            pony_asio_event_send(ev, ASIO_ERROR, SIGNAL_ERR_REFUSED);
             return;
           }
 
@@ -644,7 +651,7 @@ PONY_API void pony_asio_event_subscribe(asio_event_t* ev)
       {
         // All subscriber slots are taken. Report it; the stdlib disposes the
         // handler on an errored event.
-        pony_asio_event_send(ev, ASIO_ERROR, 0);
+        pony_asio_event_send(ev, ASIO_ERROR, SIGNAL_ERR_SUBSCRIBER_LIMIT);
         return;
       }
 

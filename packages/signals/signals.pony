@@ -11,8 +11,9 @@ and a corresponding `SignalNotify` object. Multiple `SignalHandler` actors can
 be registered for the same signal — up to 16 per signal number — and all
 registered handlers will be notified when the signal is received, in no
 particular order. A handler that cannot be registered (the limit is reached,
-or the runtime fails to register with the operating system) is automatically
-disposed: its notify's `dispose` runs without `apply` having run.
+or the runtime fails to register with the operating system) is notified via
+its notify's `registration_failed`, with the reason, and automatically
+disposed; `apply` will not have run.
 
 Signal handling requires a `SignalAuth` capability derived from `AmbientAuth`,
 consistent with how other I/O primitives in the standard library handle

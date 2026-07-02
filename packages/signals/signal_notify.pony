@@ -2,6 +2,25 @@ use @getpid[I32]()
 use @kill[I32](pid_t: I32, sig: U32)
 use @raise[I32](sig: U32)
 
+primitive SignalSubscriberLimit
+  """
+  The per-signal subscriber limit (16) was already reached. A later
+  registration for the same signal can succeed once a current subscriber
+  unsubscribes.
+  """
+
+primitive SignalRegistrationRefused
+  """
+  The operating system refused the registration. Retrying will not
+  succeed.
+  """
+
+type SignalRegistrationError is
+  (SignalSubscriberLimit | SignalRegistrationRefused)
+  """
+  Why a `SignalHandler`'s registration could not be completed.
+  """
+
 interface SignalNotify
   """
   Notifications for a signal.
@@ -13,14 +32,24 @@ interface SignalNotify
     """
     true
 
+  fun ref registration_failed(reason: SignalRegistrationError) =>
+    """
+    Called when the handler's registration could not be completed.
+    `SignalSubscriberLimit` is transient — a slot may open once another
+    subscriber unsubscribes; `SignalRegistrationRefused` is permanent, so
+    re-registering the same signal will fail again. The handler is then
+    disposed — `dispose` is called immediately after this, and `apply`
+    will not have run. If the handler was explicitly disposed before the
+    failure was delivered, only `dispose` is called.
+    """
+    None
+
   fun ref dispose() =>
     """
     Called when the signal handler is disposed: explicitly via
     `SignalHandler.dispose`, when `apply` returns false, or when the
-    handler's registration could not be completed (the per-signal
-    subscriber limit was reached, or the operating system refused the
-    registration) — in that case `dispose` arrives without `apply`
-    having run.
+    handler's registration could not be completed (preceded by
+    `registration_failed` in that case).
     """
     None
 

@@ -14,7 +14,8 @@ primitive SignalValidator is Validator[U32]
   still refuse a registration the whitelist admits (for example, glibc
   reserves the two lowest real-time signals for its own threading
   internals, and musl the three lowest). Such a refusal surfaces through
-  the normal failure path — the handler is automatically disposed.
+  the normal failure path — the notify's `registration_failed` is called
+  and the handler is automatically disposed.
   Diagnostic runtime builds (`use=runtime_tracing`) additionally reserve a
   pause signal — SIGRTMIN on Linux, SIGINFO on BSD and macOS — and
   handling that signal in such a build breaks runtime tracing.

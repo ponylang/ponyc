@@ -50,7 +50,7 @@ actor Main
     end
 ```
 
-If a handler's registration cannot be completed — the 16-subscriber limit for that signal is already reached, or the runtime fails to register with the operating system — the handler is automatically disposed: its notify's `dispose` method runs and its `apply` method is never called.
+If a handler's registration cannot be completed — the 16-subscriber limit for that signal is already reached, or the runtime fails to register with the operating system — the notify's `registration_failed` method is called with the reason (`SignalSubscriberLimit` or `SignalRegistrationRefused`) and the handler is automatically disposed: `dispose` runs and `apply` will not have run. `registration_failed` is new on `SignalNotify` with a default empty implementation, so classes declaring `is SignalNotify` are unaffected; a class conforming to the interface only structurally must add the method or declare `is SignalNotify`.
 
 ## Signal handling API requires `SignalAuth` and `ValidSignal`
 
