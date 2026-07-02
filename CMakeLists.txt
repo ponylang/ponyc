@@ -626,22 +626,22 @@ else()
     add_subdirectory(tools/pony-lint)
     add_subdirectory(tools/pony-doc)
 
-    # Test binaries compiled with the just-built ponyc, built on demand (not
-    # under ALL) and run by the test-pony-* Make targets / ctest. These replace
-    # the Makefile's hand-rolled pony-*-tests rules.
-    add_pony_binary(pony-compiler-tests
+    # Test binaries compiled with the just-built ponyc. Built under ALL (like the
+    # libponyc.tests/libponyrt.tests gtest suites) so a plain build produces them
+    # and ctest can just run them. Replaces the Makefile's hand-rolled rules.
+    add_pony_binary(pony-compiler-tests ALL
         NAME pony-compiler-tests
         SOURCE ${CMAKE_SOURCE_DIR}/tools/lib/ponylang/pony_compiler/tests
         PATHS ${CMAKE_SOURCE_DIR}/tools/lib/ponylang/pony_compiler
         WATCH ${CMAKE_SOURCE_DIR}/tools/lib/ponylang/pony_compiler/tests)
 
-    add_pony_binary(pony-doc-tests
+    add_pony_binary(pony-doc-tests ALL
         NAME pony-doc-tests
         SOURCE ${CMAKE_SOURCE_DIR}/tools/pony-doc/test
         PATHS ${CMAKE_SOURCE_DIR}/tools/lib/ponylang/pony_compiler
         WATCH ${CMAKE_SOURCE_DIR}/tools/pony-doc)
 
-    add_pony_binary(pony-lint-tests
+    add_pony_binary(pony-lint-tests ALL
         NAME pony-lint-tests
         SOURCE ${CMAKE_SOURCE_DIR}/tools/pony-lint/test
         PATHS ${CMAKE_SOURCE_DIR}/tools/lib/ponylang/pony_compiler
@@ -649,11 +649,46 @@ else()
 
     # pony-lsp-tests compiles tools/ (tools/_test.pony pulls in pony-lsp/test via
     # `use`), not tools/pony-lsp/test, matching the Makefile.
-    add_pony_binary(pony-lsp-tests
+    add_pony_binary(pony-lsp-tests ALL
         NAME pony-lsp-tests
         SOURCE ${CMAKE_SOURCE_DIR}/tools
         PATHS ${CMAKE_SOURCE_DIR}/tools/lib/ponylang/pony_compiler
         WATCH ${CMAKE_SOURCE_DIR}/tools/pony-lsp)
+
+    # ctest registration. Every test binary builds under ALL, so ctest only runs
+    # them. Labels group the suites: `ci-core` is the core CI suite (the old
+    # test-ci-core), `tools` the tool test suites. Run e.g.
+    # `ctest --test-dir <builddir> -L ci-core`.
+    enable_testing()
+
+    add_test(NAME check-version COMMAND $<TARGET_FILE:ponyc> --version)
+    add_test(NAME libponyrt.tests
+        COMMAND $<TARGET_FILE:libponyrt.tests> --gtest_shuffle
+        WORKING_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY})
+    add_test(NAME libponyc.tests
+        COMMAND $<TARGET_FILE:libponyc.tests> --gtest_shuffle
+        WORKING_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY})
+    set_tests_properties(check-version libponyrt.tests libponyc.tests
+        PROPERTIES LABELS ci-core)
+
+    add_test(NAME pony-doc-tests
+        COMMAND ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/pony-doc-tests --sequential
+        WORKING_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY})
+    add_test(NAME pony-lsp-tests
+        COMMAND ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/pony-lsp-tests --sequential
+        WORKING_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY})
+    add_test(NAME pony-lint-tests
+        COMMAND ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/pony-lint-tests --sequential
+        WORKING_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY})
+    set_tests_properties(pony-lint-tests PROPERTIES
+        ENVIRONMENT "PONYPATH=${CMAKE_SOURCE_DIR}/packages")
+    add_test(NAME pony-compiler-tests
+        COMMAND ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/pony-compiler-tests --sequential
+        WORKING_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY})
+    set_tests_properties(pony-compiler-tests PROPERTIES
+        ENVIRONMENT "PONYPATH=${CMAKE_SOURCE_DIR}/tools/lib/ponylang/pony_compiler:${CMAKE_SOURCE_DIR}/packages")
+    set_tests_properties(pony-doc-tests pony-lsp-tests pony-lint-tests pony-compiler-tests
+        PROPERTIES LABELS tools)
 
     install(TARGETS
         ponyc
