@@ -618,9 +618,22 @@ else()
     )
     add_custom_target(tools_lib_stamp DEPENDS ${TOOLS_LIB_STAMP})
 
+    # Helper for compiling Pony binaries with the just-built ponyc (the tools and
+    # the pony-*-tests). See cmake/PonyBinary.cmake.
+    include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/PonyBinary.cmake)
+
     add_subdirectory(tools/pony-lsp)
     add_subdirectory(tools/pony-lint)
     add_subdirectory(tools/pony-doc)
+
+    # Test binaries compiled with the just-built ponyc, built on demand (not
+    # under ALL) and run by the test-pony-* Make targets / ctest. These replace
+    # the Makefile's hand-rolled pony-*-tests rules.
+    add_pony_binary(pony-compiler-tests
+        NAME pony-compiler-tests
+        SOURCE ${CMAKE_SOURCE_DIR}/tools/lib/ponylang/pony_compiler/tests
+        PATHS ${CMAKE_SOURCE_DIR}/tools/lib/ponylang/pony_compiler
+        WATCH ${CMAKE_SOURCE_DIR}/tools/lib/ponylang/pony_compiler/tests)
 
     install(TARGETS
         ponyc
