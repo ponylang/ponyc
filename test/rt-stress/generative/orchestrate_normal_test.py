@@ -24,12 +24,13 @@ PINGERS_ALLOWED = {1, 2, 4, 8, 16, 32, 64}
 SIZE_ALLOWED = {1, 8, 64, 256, 1024, 4096}
 # Hardcoded calibrated ceiling on generations*group (leaked actors in a CD-off
 # run), NOT derived from the CYCLIC_* constants -- bumping a bucket or adding a
-# bigger group trips this. Real max today is 8000*16 = 128000 (see CYCLIC_* docs).
+# bigger group trips this (strict `<`, so an exact bump to the ceiling trips too).
+# Real max today is 8000*16 = 128000 (see CYCLIC_* docs).
 CYCLIC_WORKER_CEILING = 130000
 # Hardcoded calibrated ceiling on producers*messages (total backpressure work),
 # NOT derived from the BACKPRESSURE_* constants -- bumping a producer count or a
-# message bucket trips this and forces a time re-measure. Real max today is
-# 256*400000 = 102_400_000 (see BACKPRESSURE_* docs).
+# message bucket trips this and forces a time re-measure (strict `<`, as with cyclic
+# above). Real max today is 256*400000 = 102_400_000 (see BACKPRESSURE_* docs).
 BACKPRESSURE_MESSAGE_CEILING = 110_000_000
 # Hardcoded calibrated ceilings for the iso workload. Its memory bound is the
 # ACQUIRE-FLOOD = chains * ttl * node_count; the per-run chains draw is CLAMPED so
@@ -367,9 +368,9 @@ def test_resolve_config_deterministic_and_bounded():
     bp_theoretical = (max(common.BACKPRESSURE_PRODUCERS)
                       * common.BACKPRESSURE_MESSAGE_BUCKETS["large"][1])
     check("cyclic theoretical worst-case workers within the memory ceiling",
-          cyclic_theoretical <= CYCLIC_WORKER_CEILING)
+          cyclic_theoretical < CYCLIC_WORKER_CEILING)
     check("backpressure theoretical worst-case messages within the ceiling",
-          bp_theoretical <= BACKPRESSURE_MESSAGE_CEILING)
+          bp_theoretical < BACKPRESSURE_MESSAGE_CEILING)
     # iso's memory bound is the acquire-flood budget (the chains clamp keeps every
     # run within it -- asserted per-config above). Pin the calibrated budget and the
     # max graph node count; bumping either forces a memory re-measure.
@@ -383,7 +384,7 @@ def test_resolve_config_deterministic_and_bounded():
     # the chains bucket max; bumping it forces a memory re-measure on the normal build.
     check("actorref theoretical worst-case chains within the memory ceiling",
           common.ACTORREF_CHAINS_BUCKETS["large"][1]
-          <= common.ACTORREF_CHAINS_CEILING)
+          < common.ACTORREF_CHAINS_CEILING)
     check("payload-mode covers {forward, fresh}",
           mode_seen == {"forward", "fresh"})
     check("ponymaxthreads spans the full [1, THREADS] range",
