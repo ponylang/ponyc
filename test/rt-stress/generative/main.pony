@@ -89,20 +89,20 @@ on the order an actor processes its mailbox, so the routing -- and the run --
 reproduce only when the interleaving does: a fixed `--ponysystematictestingseed`
 under a systematic build. (#5566/#5570 made that replay independent of memory
 layout, so disabling ASLR is no longer needed.) Each workload's driver/collector
-folds its terminal arrivals (chain completions, or producer `finished` reports)
-into an FNV-1a `ORDER_SIG` -- a pure function of the scheduler interleaving -- as
-the observable for the determinism oracle.
+folds its scheduler-visible arrivals -- chain completions for mesh/cyclic/iso; for
+backpressure, every work arrival (the mute/unmute interleaving) plus the producer
+`finished` reports -- into an FNV-1a `ORDER_SIG`, a pure function of the scheduler
+interleaving and the observable for the determinism oracle.
 
 This program holds no `@runtime_override_defaults`: every runtime knob (scaling,
 cycle detector, GC, thread count, the systematic seed) is a `--pony*` flag set by
 the orchestrator, and every workload parameter is a `--flag value` arg parsed
 here. Two orchestrators in this directory drive it: `orchestrate_systematic.py`
-(serialized, reproducible -- draws `mesh`, `cyclic`, and `iso`, with `--ponynoblock`
-drawn as a swarm knob so the cycle detector runs under the oracle on the runs where
-it is absent; backpressure is a separate leg) and `orchestrate_normal.py` (a normal,
-real-parallel runtime -- draws all four
-workloads; the conservation invariant holds there too, but `ORDER_SIG` does not
-reproduce, so that mode runs each seed once).
+(serialized, reproducible -- draws all four workloads, with `--ponynoblock` drawn as
+a swarm knob so the cycle detector runs under the oracle on the runs where it is
+absent) and `orchestrate_normal.py` (a normal, real-parallel runtime -- also draws
+all four workloads; the conservation invariant holds there too, but `ORDER_SIG` does
+not reproduce, so that mode runs each seed once).
 """
 use "backpressure"
 use "cli"
@@ -639,16 +639,17 @@ actor Producer
     end
     let outgoing: Payload =
       if _config.payload_fresh then _Payloads.make(_config) else _payload end
-    _consumer.work(outgoing)
+    _consumer.work(_id, outgoing)
     _sent = _sent + 1
     _remaining = _remaining - 1
     produce()
 
 actor Consumer
   """
-  The `backpressure` workload's driver, sink, and conservation oracle in one actor
-  (mirroring how the mesh's `Coordinator` both drives and evaluates). It spawns the
-  producers, counts received work, participates in runtime backpressure, and on
+  The `backpressure` workload's driver, sink, conservation oracle, and ORDER_SIG
+  collector in one actor (mirroring how the mesh's `Coordinator` both drives and
+  evaluates). It spawns the producers, counts received work, participates in runtime
+  backpressure, folds each arrival into `ORDER_SIG` (see `work`/`finished`), and on
   completion checks conservation.
 
   Backpressure: after every `apply_every` received work messages it calls
@@ -699,17 +700,25 @@ actor Consumer
       id = id + 1
     end
 
-  be work(payload: Payload) =>
+  be work(id: USize, payload: Payload) =>
     """
     Count one received work message and run the backpressure hysteresis. The
     payload is traced by ORCA across the send/receive crossing and then dropped
     (the consumer doesn't retain it). A work after completion is a leaked/late
     message -- a real fault -- so it trips `_Fatal`.
+
+    The sending producer's `id` is folded into `ORDER_SIG` on every arrival: a
+    work send is this workload's muting point, so the sequence of arrivals at the
+    consumer IS the mute/unmute interleaving. Fingerprinting it per message (not
+    just the terminal `finished` reports) is what makes the determinism oracle
+    sensitive to a muting-induced reordering -- the whole reason this workload is
+    worth running under systematic replay.
     """
     if _done then
       _Fatal("work after done (leaked/late message)")
     end
     _received = _received + 1
+    _mix(id.u64())
     if (_hb_interval > 0) and ((_received % _hb_interval.u64()) == 0) then
       _Heartbeat.emit()
     end
@@ -743,8 +752,8 @@ actor Consumer
 
   be finished(producer_id: USize, sent: U64) =>
     """
-    Fold one producer's terminal report into `ORDER_SIG` (one fold per producer,
-    matching the mesh/cyclic fold-at-completion convention) and accumulate its send
+    Fold one producer's terminal report into `ORDER_SIG` (the producer-`finished`
+    race, folded on top of the per-arrival work fold above) and accumulate its send
     tally. When all producers have reported, evaluate conservation. A duplicate or
     late `finished` arrives after `_finish` has set `_done` (the report that reaches
     `_producers` triggers `_finish` synchronously), so the `_done` guard catches it.
@@ -756,7 +765,6 @@ actor Consumer
       _Fatal("finished after done (duplicate/late report)")
     end
     _mix(producer_id.u64())
-    _mix(sent)
     _total_sent = _total_sent + sent
     _finished = _finished + 1
     if _finished == _producers then

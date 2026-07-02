@@ -81,6 +81,8 @@ _SYSTEMATIC_KIND_FIELDS = {
                "payload-size"},
     "cyclic": {"seed", "workload", "generations", "group", "chains", "ttl",
                "payload", "payload-size"},
+    "backpressure": {"seed", "workload", "producers", "messages", "apply-every",
+                     "payload", "payload-size"},
     "iso":    {"seed", "workload", "pingers", "chains", "ttl", "node-size",
                "node-depth", "node-breadth"},
 }
@@ -96,16 +98,22 @@ def test_draw_systematic_workload_contract():
     check("draw_systematic_workload carries the passed program seed",
           work["seed"] == 999)
     check("draw_systematic_workload emits a workload kind key",
-          work.get("workload") in ("mesh", "cyclic", "iso"))
+          work.get("workload") in ("mesh", "cyclic", "backpressure", "iso"))
     check("draw_systematic_workload does NOT draw payload-mode",
           "payload-mode" not in work)
     check("draw_systematic_workload(Random(0), 999) matches the pinned draw",
-          work == {"seed": 999, "workload": "iso", "pingers": 64, "chains": 156,
-                   "ttl": 16, "node-size": 64, "node-depth": 4, "node-breadth": 1})
+          work == {"seed": 999, "workload": "iso", "pingers": 64, "chains": 184,
+                   "ttl": 7, "node-size": 256, "node-depth": 3, "node-breadth": 1})
 
 
 def test_draw_systematic_workload_coverage():
     kinds_seen = set()
+    # Track the backpressure regimes the draw must actually PRODUCE, not just stay
+    # within: a membership check still passes if the constant were narrowed to drop a
+    # documented regime, so assert presence too -- the same guard the gcinitial=0 draw
+    # and the max-threads span get (test_draw_swarm_knobs, draw_max_threads).
+    bp_producers_seen = set()
+    bp_apply_seen = set()
     invariants = True
     for master in range(0, 500):
         w = common.draw_systematic_workload(random.Random(master), 1)
@@ -114,17 +122,30 @@ def test_draw_systematic_workload_coverage():
         # Exactly the rolled kind's field set -- no missing/extra/contradictory flag.
         if set(w.keys()) != _SYSTEMATIC_KIND_FIELDS[kind]:
             invariants = False
-        # chains/ttl within the kind's declared range (iso chains stays <= its hi
-        # even after the acquire clamp, which can only reduce it).
-        (clo, chi), (tlo, thi) = common.SYSTEMATIC_WORKLOAD_RANGES[kind]
-        if not (clo <= w["chains"] <= chi) or not (tlo <= w["ttl"] <= thi):
-            invariants = False
+        # chains/ttl within the kind's declared range, for the kinds that carry them.
+        # backpressure has neither (it draws them then drops them, emitting no
+        # chains/ttl key), so it is excluded from this range check. iso chains stays
+        # <= its hi even after the acquire clamp, which can only reduce it.
+        if kind != "backpressure":
+            (clo, chi), (tlo, thi) = common.SYSTEMATIC_WORKLOAD_RANGES[kind]
+            if not (clo <= w["chains"] <= chi) or not (tlo <= w["ttl"] <= thi):
+                invariants = False
         if kind == "cyclic":
             if not (1 <= w["generations"]
                     <= common.SYSTEMATIC_CYCLIC_GENERATION_MAX):
                 invariants = False
             if w["group"] not in common.CYCLIC_GROUPS:
                 invariants = False
+        elif kind == "backpressure":
+            if w["producers"] not in common.SYSTEMATIC_BACKPRESSURE_PRODUCERS:
+                invariants = False
+            if not (1 <= w["messages"]
+                    <= common.SYSTEMATIC_BACKPRESSURE_MESSAGES_MAX):
+                invariants = False
+            if w["apply-every"] not in common.SYSTEMATIC_BACKPRESSURE_APPLY_EVERY:
+                invariants = False
+            bp_producers_seen.add(w["producers"])
+            bp_apply_seen.add(w["apply-every"])
         elif kind == "iso":
             if w["node-size"] not in common.ISO_NODE_SIZES:
                 invariants = False
@@ -142,13 +163,27 @@ def test_draw_systematic_workload_coverage():
         else:                                              # mesh
             if w["pingers"] not in common.NORMAL_PINGERS:
                 invariants = False
+        # Every kind except iso carries the val payload (iso omits it).
         if kind != "iso" and (w["payload"] not in ("string", "u64")
                               or w["payload-size"] not in common.STRING_SIZES):
             invariants = False
-    check("draw_systematic_workload covers mesh, cyclic, iso",
-          kinds_seen == {"mesh", "cyclic", "iso"})
+    check("draw_systematic_workload covers mesh, cyclic, backpressure, iso",
+          kinds_seen == {"mesh", "cyclic", "backpressure", "iso"})
     check("draw_systematic_workload emits exactly each kind's fields, all in range",
           invariants)
+    # The two backpressure regimes the draw EXISTS to exercise are both actually
+    # produced: producers=1 (the single-producer baseline, run nowhere else -- normal
+    # mode starts at 16) and some producers>=4 (the multi-producer arrival race the
+    # per-work ORDER_SIG fold fingerprints). Narrowing SYSTEMATIC_BACKPRESSURE_PRODUCERS
+    # to drop either would still pass the membership check above but fails here.
+    check("backpressure draws the single-producer baseline (producers=1)",
+          1 in bp_producers_seen)
+    check("backpressure draws a multi-producer race case (producers>=4)",
+          any(p >= 4 for p in bp_producers_seen))
+    # apply_every=1 is the maximal mute/unmute churn regime -- the strongest determinism
+    # stress; assert it is actually drawn, not just permitted.
+    check("backpressure draws the maximal-churn regime (apply_every=1)",
+          1 in bp_apply_seen)
 
     # Fixed-consumption: the SAME rng call count whichever kind it rolls (it draws
     # every kind's shape unconditionally), so a future kind-dependent draw -- which
@@ -156,7 +191,7 @@ def test_draw_systematic_workload_coverage():
     # COUNT (a randint's bit consumption varies with its value, but the call sequence
     # does not).
     counts = []
-    for kind in ("mesh", "cyclic", "iso"):
+    for kind in ("mesh", "cyclic", "backpressure", "iso"):
         seed = next(
             s for s in range(0, 500)
             if common.draw_systematic_workload(random.Random(s), 1)["workload"]
@@ -177,6 +212,10 @@ def test_draw_systematic_workload_coverage():
     check("systematic iso worst-case 1-node messages within the ceiling",
           (common.SYSTEMATIC_ISO_CHAINS_MAX * common.ISO_TTL_MAX)
           <= SYSTEMATIC_ISO_MESSAGE_CEILING)
+    check("systematic backpressure worst-case messages within the ceiling",
+          (max(common.SYSTEMATIC_BACKPRESSURE_PRODUCERS)
+           * common.SYSTEMATIC_BACKPRESSURE_MESSAGES_MAX)
+          <= SYSTEMATIC_BACKPRESSURE_MESSAGE_CEILING)
 
 
 def test_draw_swarm_knobs():
@@ -348,17 +387,20 @@ ISO_ACQUIRE_CEILING = 96000
 ISO_NODE_CEILING = 15
 
 
-# Systematic-mode cyclic/iso are TIME-bound: kept small so the serialized
+# Systematic-mode cyclic/backpressure/iso are TIME-bound: kept small so the serialized
 # double-run soak's per-seed cost stays ~= the mesh-only cost it replaces. Guard the
 # PRODUCT that drives cost (like normal's cyclic_theoretical above), so a bump to
 # CYCLIC_GROUPS or ISO_TTL_MAX -- not just the generation/chains cap -- also trips a
 # serialized re-measure. cyclic cost ~ generations*group workers; iso 1-node cost ~
 # chains*ttl messages (the 15-node acquire-flood corner is separately bounded by
-# ISO_ACQUIRE_BUDGET, asserted per-config in test_draw_systematic_workload_coverage).
-# Calibrated: cyclic gen 100 * group 16 ~1.18s, iso chains 800 * ttl 16 ~0.77s single
-# -- both well under the systematic watchdog even run twice.
+# ISO_ACQUIRE_BUDGET, asserted per-config in test_draw_systematic_workload_coverage);
+# backpressure cost ~ producers*messages total work. Each ceiling is 2x the drawn-worst
+# product -- the re-measure trigger. Calibrated single-run: cyclic gen 100 * group 16
+# ~1.18s, iso chains 800 * ttl 16 ~0.77s, backpressure 64 * 600 ~1.0s -- all well under
+# the systematic watchdog even run twice (each kind's drawn worst is ~half its ceiling).
 SYSTEMATIC_CYCLIC_WORKER_CEILING = 100 * 16
 SYSTEMATIC_ISO_MESSAGE_CEILING = 800 * 16
+SYSTEMATIC_BACKPRESSURE_MESSAGE_CEILING = 64 * 600
 
 
 class _CallCountingRandom(random.Random):
