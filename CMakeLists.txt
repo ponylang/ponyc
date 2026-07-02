@@ -3,16 +3,26 @@ cmake_minimum_required(VERSION 3.25 FATAL_ERROR)
 file(STRINGS "VERSION" PONYC_PROJECT_VERSION)
 project(Pony VERSION ${PONYC_PROJECT_VERSION} LANGUAGES C CXX)
 
-# Grab the PonyC version number from the "VERSION" source file.
+# Grab the PonyC version number from the "VERSION" source file. When building in
+# a git checkout, append the short commit sha (matching the Makefile's `tag`);
+# from a release tarball (no .git, or git unavailable) use the bare version. The
+# git-success guard matters: without it a tarball build produces a trailing dash
+# ("0.66.0-"), which would put the install in lib/pony/0.66.0- instead of
+# lib/pony/0.66.0.
 if(NOT DEFINED PONYC_VERSION)
-    execute_process(
-        COMMAND git rev-parse --short HEAD
-        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-        OUTPUT_VARIABLE GIT_REVISION
-        OUTPUT_STRIP_TRAILING_WHITESPACE
-    )
-
-    set(PONYC_VERSION "${PONYC_PROJECT_VERSION}-${GIT_REVISION}")
+    set(PONYC_VERSION "${PONYC_PROJECT_VERSION}")
+    if(EXISTS "${CMAKE_SOURCE_DIR}/.git")
+        execute_process(
+            COMMAND git rev-parse --short HEAD
+            WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+            OUTPUT_VARIABLE GIT_REVISION
+            OUTPUT_STRIP_TRAILING_WHITESPACE
+            RESULT_VARIABLE GIT_REVISION_RESULT
+        )
+        if(GIT_REVISION_RESULT EQUAL 0 AND NOT GIT_REVISION STREQUAL "")
+            set(PONYC_VERSION "${PONYC_PROJECT_VERSION}-${GIT_REVISION}")
+        endif()
+    endif()
 endif()
 
 # Uncomment this to show build commands
@@ -583,12 +593,35 @@ endif()
 
 set(CMAKE_STATIC_LIBRARY_PREFIX "")
 
+# Install layout. Everything ponyc needs lands in a versioned directory so
+# several ponyc versions can coexist under one prefix. Runtime and compiler libs
+# go where package.c looks for them relative to the ponyc binary (package.c
+# ~752-772): ../lib/<arch> on Unix, flat ../lib on Windows. The Unix arch subdir
+# is what carries the configure-time arch into `cmake --install` -- the fix for
+# #3898 -- since one PONY_ARCH cache variable drives both the compile define
+# package.c reads and this destination, so the two can't disagree. Stable entry
+# points in <prefix>/bin (and <prefix>/lib) point at the active version: symlinks
+# on Unix, a shim on Windows (added after the shim is verified).
+# See .known-couplings/install-arch-dir.md and clang-resource-dir.md.
+set(PONY_VERSIONED_DIR "lib/pony/${PONYC_VERSION}")
+if(WIN32)
+    set(PONY_INSTALL_LIBDIR "${PONY_VERSIONED_DIR}/lib")
+else()
+    set(PONY_INSTALL_LIBDIR "${PONY_VERSIONED_DIR}/lib/${PONY_ARCH}")
+endif()
+option(PONY_INSTALL_SYMLINKS
+    "Create <prefix>/bin and <prefix>/lib links to the versioned install" ON)
+
 if (PONY_CROSS_LIBPONYRT)
     add_subdirectory(src/libponyrt)
     if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
         add_subdirectory(src/crt)
     endif()
-    install(TARGETS libponyrt)
+    # Cross-built runtime for another arch, installed into the same versioned
+    # tree so a host ponyc can link programs for that arch. Must match the arch
+    # subdir the main install and package.c use. Not locally verifiable without a
+    # cross toolchain -- exercised by the cross-compile CI (see #5588 cross work).
+    install(TARGETS libponyrt DESTINATION ${PONY_INSTALL_LIBDIR})
 else()
     add_subdirectory(src/libponyc)
     add_subdirectory(src/libponyrt)
@@ -758,55 +791,101 @@ else()
         stdlib-debug stdlib-release examples validate-grammar
         PROPERTIES LABELS ci-core)
 
-    install(TARGETS
-        ponyc
-        libponyc.tests
-        libponyc.benchmarks
-        libponyrt.benchmarks
-        libponyrt.tests
-        DESTINATION bin)
-    install(TARGETS
-        libponyrt
-        DESTINATION lib)
-    install(DIRECTORY packages/ DESTINATION packages)
-    install(DIRECTORY examples/ DESTINATION examples PATTERN .gitignore EXCLUDE)
-    # Clang's resource directory (builtin headers such as stddef.h), built by
-    # the libs step alongside LLVM/LLD. ponyc's in-process clang needs it at a
-    # known offset from the binary (lib/clang/<ver>/include, like the bundled
-    # packages/ dir). The Makefile install target carries it on Linux/macOS;
-    # this rule covers cmake-driven installs (Windows make.ps1). OPTIONAL so
-    # an LLD-only libs build (e.g. an older cached build/libs) doesn't fail.
-    install(DIRECTORY build/libs/lib/clang DESTINATION lib OPTIONAL)
+    # Binaries. ponyc is the only real executable target; the tools are custom
+    # targets producing a file next to ponyc, so they install by path as
+    # PROGRAMS. Test and benchmark binaries are not installed -- the Makefile
+    # install ships neither.
+    install(TARGETS ponyc DESTINATION ${PONY_VERSIONED_DIR}/bin)
+    install(PROGRAMS
+        $<TARGET_FILE_DIR:ponyc>/pony-lsp${CMAKE_EXECUTABLE_SUFFIX}
+        $<TARGET_FILE_DIR:ponyc>/pony-lint${CMAKE_EXECUTABLE_SUFFIX}
+        $<TARGET_FILE_DIR:ponyc>/pony-doc${CMAKE_EXECUTABLE_SUFFIX}
+        DESTINATION ${PONY_VERSIONED_DIR}/bin)
+
+    # Runtime + compiler static libs, into the lib dir ponyc searches at run time
+    # (PONY_INSTALL_LIBDIR: ../lib/<arch> on Unix, flat on Windows -- see above).
+    # libponyrt and libponyc are real targets. libponyc-standalone.a (an ar-built
+    # archive wrapped in a custom target), libponyrt-pic.a (Linux), the crt
+    # objects (Linux), and libdtrace_probes.a (FreeBSD + use=dtrace) are
+    # custom-command outputs, installed by path and OPTIONAL so a platform that
+    # doesn't produce one doesn't fail the install.
+    install(TARGETS libponyrt libponyc DESTINATION ${PONY_INSTALL_LIBDIR})
+    install(FILES
+        $<TARGET_FILE_DIR:ponyc>/libponyc-standalone.a
+        $<TARGET_FILE_DIR:ponyc>/libponyrt-pic.a
+        $<TARGET_FILE_DIR:ponyc>/libdtrace_probes.a
+        $<TARGET_FILE_DIR:ponyc>/crtbeginS.o
+        $<TARGET_FILE_DIR:ponyc>/crtendS.o
+        $<TARGET_FILE_DIR:ponyc>/crtbeginT.o
+        $<TARGET_FILE_DIR:ponyc>/crtend.o
+        DESTINATION ${PONY_INSTALL_LIBDIR} OPTIONAL)
+
+    # The stdlib packages.
+    install(DIRECTORY packages/ DESTINATION ${PONY_VERSIONED_DIR}/packages)
+
+    # Clang's resource directory (builtin headers such as stddef.h), built by the
+    # libs step alongside LLVM/LLD. ponyc's in-process clang needs it at a known
+    # offset from the binary (lib/clang/<ver>/include, like the bundled packages/
+    # dir). LLVM installs it under lib/ or lib64/ depending on the distro; install
+    # whichever exists. OPTIONAL so an LLD-only libs build (e.g. an older cached
+    # build/libs) doesn't fail. See .known-couplings/clang-resource-dir.md.
+    install(DIRECTORY build/libs/lib/clang
+        DESTINATION ${PONY_VERSIONED_DIR}/lib OPTIONAL)
+    install(DIRECTORY build/libs/lib64/clang
+        DESTINATION ${PONY_VERSIONED_DIR}/lib OPTIONAL)
+
     # ponyc's own runtime headers, so a C shim can #include <pony.h> and
-    # #include <ponyassert.h>. gencshim puts <prefix>/include/pony (plus
-    # <prefix>/include for the transitive <pony/detail/atomics.h>) on the shim
-    # include path (add_pony_include_args); the Makefile install ships these on
-    # Linux/macOS, this rule covers the cmake-driven (Windows) install. Layout
-    # must match what gencshim expects: the headers a shim names directly at
-    # include/pony/, atomics at include/pony/detail/. Kept under pony/ so a
-    # shared system include never gets a flat collision-prone name.
-    # See .known-couplings/clang-resource-dir.md.
-    install(FILES src/libponyrt/pony.h DESTINATION include/pony)
+    # #include <ponyassert.h>. gencshim puts <versioned>/include/pony (plus
+    # <versioned>/include for the transitive <pony/detail/atomics.h>) on the shim
+    # include path (add_pony_include_args). Layout must match what gencshim
+    # expects: the headers a shim names directly at include/pony/, atomics at
+    # include/pony/detail/. Kept under pony/ so a shared system include never gets
+    # a flat collision-prone name. See .known-couplings/clang-resource-dir.md.
+    install(FILES src/libponyrt/pony.h
+        DESTINATION ${PONY_VERSIONED_DIR}/include/pony)
     install(FILES src/common/pony/detail/atomics.h
-        DESTINATION include/pony/detail)
+        DESTINATION ${PONY_VERSIONED_DIR}/include/pony/detail)
     # pony.h and pony_assert (ponyassert.h) are supported for shims;
     # platform.h/threads.h/paths.h are ponyassert.h's internal include closure,
-    # not a committed interface. vcvars.h is in the closure on Windows
-    # (platform.h includes it); the Makefile install omits it on Linux/macOS.
+    # not a committed interface. The Makefile install omits vcvars.h on Unix; on
+    # Windows platform.h includes it, so it's in the closure there -- gate it on
+    # MSVC rather than dropping it outright.
     install(FILES
         src/common/ponyassert.h
         src/common/platform.h
         src/common/threads.h
         src/common/paths.h
-        src/common/vcvars.h
-        DESTINATION include/pony)
-    install(PROGRAMS
-        $<TARGET_FILE_DIR:ponyc>/pony-lsp${CMAKE_EXECUTABLE_SUFFIX}
-        DESTINATION bin)
-    install(PROGRAMS
-        $<TARGET_FILE_DIR:ponyc>/pony-lint${CMAKE_EXECUTABLE_SUFFIX}
-        DESTINATION bin)
-    install(PROGRAMS
-        $<TARGET_FILE_DIR:ponyc>/pony-doc${CMAKE_EXECUTABLE_SUFFIX}
-        DESTINATION bin)
+        DESTINATION ${PONY_VERSIONED_DIR}/include/pony)
+    if(MSVC)
+        install(FILES src/common/vcvars.h
+            DESTINATION ${PONY_VERSIONED_DIR}/include/pony)
+    endif()
+
+    # Stable entry points in <prefix>/bin and <prefix>/lib pointing at the active
+    # version. On Unix these are symlinks; ponyc resolves its real path
+    # (/proc/self/exe, realpath), so running the link lands on the versioned dir.
+    # Windows can't (GetModuleFileName returns the link's own path), so its shim
+    # entry point is added once the shim is verified. EXISTS-guarded to match the
+    # Makefile's per-file checks. Skipped when PONY_INSTALL_SYMLINKS is OFF, which
+    # is what packaging sets (it stages only the versioned tree). Runs last so the
+    # versioned files it links to are already installed. DESTDIR staging isn't
+    # supported here, but packaging turns symlinks off, so it never applies.
+    if(PONY_INSTALL_SYMLINKS AND NOT WIN32)
+        install(CODE "
+            set(_prefix \"\${CMAKE_INSTALL_PREFIX}\")
+            file(MAKE_DIRECTORY \"\${_prefix}/bin\" \"\${_prefix}/lib\")
+            foreach(_tool ponyc pony-lsp pony-lint pony-doc)
+                set(_t \"\${_prefix}/${PONY_VERSIONED_DIR}/bin/\${_tool}\")
+                if(EXISTS \"\${_t}\")
+                    file(CREATE_LINK \"\${_t}\" \"\${_prefix}/bin/\${_tool}\" SYMBOLIC)
+                endif()
+            endforeach()
+            foreach(_lib libponyc.a libponyc-standalone.a)
+                set(_l \"\${_prefix}/${PONY_INSTALL_LIBDIR}/\${_lib}\")
+                if(EXISTS \"\${_l}\")
+                    file(CREATE_LINK \"\${_l}\" \"\${_prefix}/lib/\${_lib}\" SYMBOLIC)
+                endif()
+            endforeach()
+        ")
+    endif()
 endif()
