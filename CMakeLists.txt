@@ -635,6 +635,26 @@ else()
         PATHS ${CMAKE_SOURCE_DIR}/tools/lib/ponylang/pony_compiler
         WATCH ${CMAKE_SOURCE_DIR}/tools/lib/ponylang/pony_compiler/tests)
 
+    add_pony_binary(pony-doc-tests
+        NAME pony-doc-tests
+        SOURCE ${CMAKE_SOURCE_DIR}/tools/pony-doc/test
+        PATHS ${CMAKE_SOURCE_DIR}/tools/lib/ponylang/pony_compiler
+        WATCH ${CMAKE_SOURCE_DIR}/tools/pony-doc)
+
+    add_pony_binary(pony-lint-tests
+        NAME pony-lint-tests
+        SOURCE ${CMAKE_SOURCE_DIR}/tools/pony-lint/test
+        PATHS ${CMAKE_SOURCE_DIR}/tools/lib/ponylang/pony_compiler
+        WATCH ${CMAKE_SOURCE_DIR}/tools/pony-lint)
+
+    # pony-lsp-tests compiles tools/ (tools/_test.pony pulls in pony-lsp/test via
+    # `use`), not tools/pony-lsp/test, matching the Makefile.
+    add_pony_binary(pony-lsp-tests
+        NAME pony-lsp-tests
+        SOURCE ${CMAKE_SOURCE_DIR}/tools
+        PATHS ${CMAKE_SOURCE_DIR}/tools/lib/ponylang/pony_compiler
+        WATCH ${CMAKE_SOURCE_DIR}/tools/pony-lsp)
+
     install(TARGETS
         ponyc
         libponyc.tests
