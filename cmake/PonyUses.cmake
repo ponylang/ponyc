@@ -51,7 +51,10 @@ set(_pony_known_uses
 # .known-couplings/use-option-validation.md.
 set(_pony_windows_uses
     systematic_testing
-    pool_retain)
+    pool_retain
+    pooltrack
+    runtimestats
+    runtimestats_messages)
 
 # Reset every option off before applying PONY_USES.
 foreach(_use IN LISTS _pony_known_uses)
@@ -73,16 +76,16 @@ list(REMOVE_DUPLICATES _pony_uses)
 
 foreach(_use IN LISTS _pony_uses)
     message(STATUS "Enabling use option: ${_use}")
-    # On Windows (MSVC) only some options build; the rest need POSIX or Clang/GCC
-    # toolchain features cl.exe doesn't provide -- verified by building each on
-    # Windows (pool_memalign needs posix_memalign; the sanitizers/coverage need
-    # -fsanitize=/-fprofile-arcs; runtime_tracing is gated off; pooltrack,
-    # runtimestats, scheduler_scaling_pthreads don't compile). Reject the
-    # unsupported ones here rather than let the build fail partway through with a
-    # confusing error. Widening this list is separate runtime work; see
+    # On Windows (MSVC) only the options in _pony_windows_uses build; the rest
+    # need POSIX or Clang/GCC toolchain features cl.exe doesn't provide, verified
+    # by building each on Windows: pool_memalign needs posix_memalign; the
+    # sanitizers and coverage need -fsanitize=/-fprofile-arcs; runtime_tracing
+    # isn't implemented for Windows; scheduler_scaling_pthreads needs pthreads.
+    # Reject the unsupported ones here rather than let the build fail partway
+    # through with a confusing error. See BUILD.md and
     # .known-couplings/use-option-validation.md.
     if(MSVC AND NOT _use IN_LIST _pony_windows_uses)
-        message(FATAL_ERROR "${_use} is not supported when building on Windows; supported there: systematic_testing, pool_retain. See BUILD.md")
+        message(FATAL_ERROR "${_use} is not supported when building on Windows. See BUILD.md")
     endif()
     if(_use STREQUAL "valgrind")
         if(CMAKE_HOST_SYSTEM_NAME STREQUAL "OpenBSD")

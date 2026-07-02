@@ -197,7 +197,7 @@ Note that you only need to run `.\make.ps1 libs` once the first time you build (
 
 ### Unsupported Windows build options
 
-Most `use=` build options aren't supported on Windows (MSVC). Only `systematic_testing` and `pool_retain` build there; the others depend on POSIX interfaces or Clang/GCC toolchain features MSVC doesn't provide — for example `pool_memalign` needs `posix_memalign`, the sanitizers and `coverage` need the Clang/GCC `-fsanitize=`/`-fprofile-arcs` interfaces, and `runtime_tracing` isn't implemented for Windows. `.\make.ps1 configure -Use ...` rejects the unsupported options with a clear error rather than failing partway through the build.
+Several `use=` build options aren't supported on Windows (MSVC). The supported ones are `systematic_testing`, `pool_retain`, `pooltrack`, `runtimestats`, and `runtimestats_messages`. The rest depend on POSIX interfaces or Clang/GCC toolchain features MSVC doesn't provide: `pool_memalign` needs `posix_memalign`, the sanitizers and `coverage` need the Clang/GCC `-fsanitize=`/`-fprofile-arcs` interfaces, `runtime_tracing` isn't implemented for Windows, and `scheduler_scaling_pthreads` needs pthreads. `.\make.ps1 configure -Use ...` rejects the unsupported options with a clear error rather than failing partway through the build.
 
 ---
 
