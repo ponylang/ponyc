@@ -14,6 +14,10 @@ actor Main
     _parse_example(env)
     env.out.print("")
 
+    env.out.print("=== Streaming Parse (JsonStreamParser) ===")
+    _stream_example(env)
+    env.out.print("")
+
     env.out.print("=== Navigation (JsonNav) ===")
     _nav_example(env)
     env.out.print("")
@@ -92,6 +96,39 @@ actor Main
     | let err: json.JsonParseError =>
       env.out.print("Parse error: " + err.string())
     end
+
+  fun _stream_example(env: Env) =>
+    // JsonStreamParser parses a stream of top-level values incrementally: feed
+    // bytes as they arrive and pull complete JsonValues as they finish. Here a
+    // two-document stream is split into chunks to simulate arrival over a
+    // network — the parser holds position across the chunk boundaries, and the
+    // values it returns are ordinary JsonValues usable with the rest of the API.
+    let chunks =
+      [ """{"user":"Bo"""
+        """b","age":3"""
+        """0,"roles":["adm"""
+        """in","dev"]} {"user":"Carol","age":35,"roles":[]}""" ]
+
+    let parser = json.JsonStreamParser
+    var count: USize = 0
+    for chunk in chunks.values() do
+      parser.feed(chunk)
+      var draining = true
+      while draining do
+        match parser.pull()
+        | let v: json.JsonValue =>
+          count = count + 1
+          env.out.print("  value " + count.string() + ": "
+            + json.JsonPrinter.print(v))
+        | json.JsonNeedMore =>
+          draining = false // need more bytes; feed the next chunk
+        | let e: json.JsonParseError =>
+          env.out.print("  parse error: " + e.string())
+          draining = false
+        end
+      end
+    end
+    env.out.print("Parsed " + count.string() + " values from the stream")
 
   fun _nav_example(env: Env) =>
     let source =

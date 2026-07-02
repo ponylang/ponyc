@@ -80,6 +80,28 @@ actor \nodoc\ Main is TestList
     test(_TestTokenParserPositions)
     test(_TestTokenParserEndPosition)
     test(_TestTokenParserStringPosition)
+    // Streaming parser
+    test(_TestStreamObject)
+    test(_TestStreamArray)
+    test(_TestStreamEmptyContainers)
+    test(_TestStreamMultiValue)
+    test(_TestStreamNeedMore)
+    test(_TestStreamSplitInvariance)
+    test(_TestStreamEscapes)
+    test(_TestStreamNumbers)
+    test(_TestStreamNumberForms)
+    test(_TestStreamTrailingComma)
+    test(_TestStreamMalformed)
+    test(_TestStreamScalarRootRejected)
+    test(_TestStreamErrorLatches)
+    test(_TestStreamProtocol)
+    test(_TestStreamErrorLocation)
+    test(_TestStreamLimitDepth)
+    test(_TestStreamLimits)
+    test(_TestStreamDefaultDepthPrintable)
+    test(_TestStreamDifferential)
+    test(Property1UnitTest[String](_StreamMatchesBatchProperty))
+    test(Property1UnitTest[String](_StreamSplitInvariantProperty))
 
 // ===================================================================
 // Generators

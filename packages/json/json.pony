@@ -28,6 +28,48 @@ match json.JsonParser.parse(source)
 end
 ```
 
+## Streaming Parsing
+
+`JsonStreamParser` parses JSON incrementally. Feed it bytes as they arrive with
+`feed()`, then call `pull()` to take complete top-level values one at a time. It
+returns the same `JsonValue` as `JsonParser`, so streamed values flow into
+`JsonNav`, `JsonLens`, `JsonPath`, and `JsonPrinter` unchanged:
+
+```pony
+let parser = json.JsonStreamParser
+parser.feed(chunk)
+// One fed chunk may complete several values (or none): loop until JsonNeedMore.
+var draining = true
+while draining do
+  match parser.pull()
+  | let v: json.JsonValue      => // a complete top-level value
+  | json.JsonNeedMore          => draining = false // feed more bytes, pull again
+  | let e: json.JsonParseError => draining = false // malformed; parser latched
+  end
+end
+```
+
+Reach for it when JSON arrives a piece at a time — over a socket, or a large
+file read in chunks — and you don't want to buffer the whole input before
+parsing. It handles a *stream* of object/array values: a single document yields
+one value; a sequence (object-per-line NDJSON, concatenated values, a socket of
+messages) yields each value as it completes, with no per-document setup. Each
+top-level value must be an object or array — its closing `}`/`]` is what signals
+completion — so, unlike `JsonParser`, a bare scalar document (or a scalar line in
+an NDJSON stream) is not supported, and a scalar where a value is expected
+latches the parser.
+
+Unlike `JsonTokenParser` (which streams *tokens* from a single in-memory
+source), `JsonStreamParser` streams whole *values* and never needs the whole
+input at once.
+
+`JsonNeedMore` is the explicit "incomplete, not yet malformed" outcome: a
+truncated value yields `JsonNeedMore`, never an error, so feeding the rest later
+completes it. The parser materializes each value into a full `JsonValue` tree,
+which bounds the *source* (you feed chunks) but not a single value's size; over
+untrusted input, `JsonStreamLimits` caps per-value depth, string length, number
+length, and total bytes.
+
 ## Serializing JSON
 
 `JsonPrinter` is the dual of `JsonParser`: it encodes any `JsonValue` —
