@@ -3,10 +3,11 @@ Generative runtime stress harness.
 
 A swarm-driven Pony program that exercises the runtime's message passing, ORCA
 tracing, the cycle detector's collection path (via the `cyclic` workload), the
-explicit backpressure / muting path (via the `backpressure` workload), and ORCA's
+explicit backpressure / muting path (via the `backpressure` workload), ORCA's
 transfer of ownership of a nested mutable object subgraph between actors (via the
-`iso` workload). One run draws one of four closed, count-driven workloads
-(`--workload`):
+`iso` workload), and ORCA's actor-reference counting -- the acquire / release of
+actor `tag`s passed as message cargo (via the `actorref` workload). One run draws
+one of five closed, count-driven workloads (`--workload`):
 
 * `mesh` (M0): a closed mesh of `Pinger` actors. A fixed number of chains are
   injected, each carrying a hop counter (TTL); a `Pinger` receiving a ping with
@@ -66,6 +67,24 @@ transfer of ownership of a nested mutable object subgraph between actors (via th
   (`sent == received == chains * (ttl + 1)`); the `Carrier`s are live at quiescence
   (the `Dispatcher` holds them), so they are polled exactly like the mesh.
 
+* `actorref` (M1): the `mesh` topology, but the cargo is a `Referent tag` -- a
+  reference to a bare actor -- instead of a `val` payload. A FRESH `Referent` is
+  built per injected chain and its tag rides the chain hop-to-hop; each `Relay`
+  forwards the tag onward and NEVER stores it. A freshly received foreign actor
+  reference sits at reference count 1, so forwarding it exhausts its weighted
+  budget on that send -- the forward drives ORCA's actor-reference ACQUIRE, and
+  dropping it (never stored) drives the RELEASE -- so `send_remote_actor` /
+  `recv_remote_actor` / `acquire_actor` fire proportional to `chains * ttl`, the
+  actor-reference machinery no other workload exercises under load (measured: the
+  others hit `acquire_actor` 0-1 times a run, all at setup). A fixed referent pool
+  was rejected by measurement -- a shared referent's weighted budget stays high, so
+  forwards stop acquiring and the path goes cold; fresh-per-chain also makes a lost
+  release leak in proportion to `chains`. Conservation is the mesh's full
+  send/receive tally (`sent == received == chains * (ttl + 1)`); the `Relay`s are
+  live at quiescence (the `Referrer` holds them), so they are polled exactly like
+  the mesh, while the referents become garbage as their chains drain. See
+  .known-couplings/actorref-workload-actor-ref-cargo.md.
+
 The workloads are closed, unlike an open cascade stopped by a wall-clock timer:
 a fixed amount of work is injected and the run terminates when it drains. The
 closed shape is a deliberate constraint, not the end goal -- a continuous, open
@@ -89,20 +108,20 @@ on the order an actor processes its mailbox, so the routing -- and the run --
 reproduce only when the interleaving does: a fixed `--ponysystematictestingseed`
 under a systematic build. (#5566/#5570 made that replay independent of memory
 layout, so disabling ASLR is no longer needed.) Each workload's driver/collector
-folds its terminal arrivals (chain completions, or producer `finished` reports)
-into an FNV-1a `ORDER_SIG` -- a pure function of the scheduler interleaving -- as
-the observable for the determinism oracle.
+folds its scheduler-visible arrivals -- chain completions for mesh/cyclic/iso; for
+backpressure, every work arrival (the mute/unmute interleaving) plus the producer
+`finished` reports -- into an FNV-1a `ORDER_SIG`, a pure function of the scheduler
+interleaving and the observable for the determinism oracle.
 
 This program holds no `@runtime_override_defaults`: every runtime knob (scaling,
 cycle detector, GC, thread count, the systematic seed) is a `--pony*` flag set by
 the orchestrator, and every workload parameter is a `--flag value` arg parsed
 here. Two orchestrators in this directory drive it: `orchestrate_systematic.py`
-(serialized, reproducible -- draws `mesh`, `cyclic`, and `iso`, with `--ponynoblock`
-drawn as a swarm knob so the cycle detector runs under the oracle on the runs where
-it is absent; backpressure is a separate leg) and `orchestrate_normal.py` (a normal,
-real-parallel runtime -- draws all four
-workloads; the conservation invariant holds there too, but `ORDER_SIG` does not
-reproduce, so that mode runs each seed once).
+(serialized, reproducible -- draws all five workloads, with `--ponynoblock` drawn as
+a swarm knob so the cycle detector runs under the oracle on the runs where it is
+absent) and `orchestrate_normal.py` (a normal, real-parallel runtime -- also draws
+all five workloads; the conservation invariant holds there too, but `ORDER_SIG` does
+not reproduce, so that mode runs each seed once).
 """
 use "backpressure"
 use "cli"
@@ -205,6 +224,7 @@ actor Main
           // root authority here and threaded into the Consumer.
           Consumer(config, bp, ApplyReleaseBackpressureAuth(env.root))
         | let iso': _Iso => Dispatcher(config, iso')
+        | let ar: _ActorRef => Referrer(config, ar)
         end
       | let err: String =>
         env.err.print(err)
@@ -639,16 +659,17 @@ actor Producer
     end
     let outgoing: Payload =
       if _config.payload_fresh then _Payloads.make(_config) else _payload end
-    _consumer.work(outgoing)
+    _consumer.work(_id, outgoing)
     _sent = _sent + 1
     _remaining = _remaining - 1
     produce()
 
 actor Consumer
   """
-  The `backpressure` workload's driver, sink, and conservation oracle in one actor
-  (mirroring how the mesh's `Coordinator` both drives and evaluates). It spawns the
-  producers, counts received work, participates in runtime backpressure, and on
+  The `backpressure` workload's driver, sink, conservation oracle, and ORDER_SIG
+  collector in one actor (mirroring how the mesh's `Coordinator` both drives and
+  evaluates). It spawns the producers, counts received work, participates in runtime
+  backpressure, folds each arrival into `ORDER_SIG` (see `work`/`finished`), and on
   completion checks conservation.
 
   Backpressure: after every `apply_every` received work messages it calls
@@ -699,17 +720,25 @@ actor Consumer
       id = id + 1
     end
 
-  be work(payload: Payload) =>
+  be work(id: USize, payload: Payload) =>
     """
     Count one received work message and run the backpressure hysteresis. The
     payload is traced by ORCA across the send/receive crossing and then dropped
     (the consumer doesn't retain it). A work after completion is a leaked/late
     message -- a real fault -- so it trips `_Fatal`.
+
+    The sending producer's `id` is folded into `ORDER_SIG` on every arrival: a
+    work send is this workload's muting point, so the sequence of arrivals at the
+    consumer IS the mute/unmute interleaving. Fingerprinting it per message (not
+    just the terminal `finished` reports) is what makes the determinism oracle
+    sensitive to a muting-induced reordering -- the whole reason this workload is
+    worth running under systematic replay.
     """
     if _done then
       _Fatal("work after done (leaked/late message)")
     end
     _received = _received + 1
+    _mix(id.u64())
     if (_hb_interval > 0) and ((_received % _hb_interval.u64()) == 0) then
       _Heartbeat.emit()
     end
@@ -743,8 +772,8 @@ actor Consumer
 
   be finished(producer_id: USize, sent: U64) =>
     """
-    Fold one producer's terminal report into `ORDER_SIG` (one fold per producer,
-    matching the mesh/cyclic fold-at-completion convention) and accumulate its send
+    Fold one producer's terminal report into `ORDER_SIG` (the producer-`finished`
+    race, folded on top of the per-arrival work fold above) and accumulate its send
     tally. When all producers have reported, evaluate conservation. A duplicate or
     late `finished` arrives after `_finish` has set `_done` (the report that reaches
     `_producers` triggers `_finish` synchronously), so the `_done` guard catches it.
@@ -756,7 +785,6 @@ actor Consumer
       _Fatal("finished after done (duplicate/late report)")
     end
     _mix(producer_id.u64())
-    _mix(sent)
     _total_sent = _total_sent + sent
     _finished = _finished + 1
     if _finished == _producers then
@@ -1047,6 +1075,232 @@ actor Dispatcher
   fun ref _mix(v: U64) =>
     _sig = (_sig xor v) * 1099511628211 // FNV-1a 64-bit prime
 
+actor Referent
+  """
+  The `actorref` workload's cargo: a bare actor whose `tag` is the traced
+  reference the relays churn. It has no fields and no behaviors -- it exists only
+  to BE referenced. Passing its tag across an actor boundary drives ORCA's
+  actor-reference machinery (`ponyint_gc_sendactor` / `recv_remote_actor` /
+  `acquire_actor` in `src/libponyrt/gc/gc.c`); the runtime's message loop handles
+  the ACQUIRE / RELEASE system messages, so no user code is needed. A fresh
+  `Referent` is built per injected chain (see `Referrer`) and referenced only by
+  that chain's in-flight `cite` plus, transiently, its creator -- so it becomes
+  garbage as its chain drains, which is what makes a premature free (crash) or a
+  lost release (memory growth) observable. See
+  .known-couplings/actorref-workload-actor-ref-cargo.md.
+  """
+  new create() => None
+
+actor Relay
+  """
+  A node in the `actorref` routing mesh. Mirrors `Pinger`: forwards exactly one
+  successor `cite` per received `cite` (one-in/one-out) and tracks how many it has
+  sent and received. The cargo is a `Referent tag` it NEVER stores -- it re-sends
+  the just-received tag when hops remain, or drops it at the terminal. A freshly
+  received foreign actor reference sits at reference count 1, so forwarding it
+  exhausts the referent's weighted budget on that send, and the forward drives
+  `acquire_actor` -- the actor-reference path no other workload reaches under load.
+  Not storing the referent is load-bearing: it lets the reference drop so the next
+  hop acquires afresh. Holding the neighbor RELAYS permanently is fine -- a
+  neighbor is a `cite` recipient, not traced cargo -- only the cargo referent must
+  stay unheld (see .known-couplings/actorref-workload-actor-ref-cargo.md). Stays
+  live at quiescence so the `Referrer` polls it (the mesh's strong tally).
+  """
+  let _referrer: Referrer
+  let _id: USize
+  let _hb_interval: USize
+  var _neighbors: Array[Relay] val
+  var _received: U64 = 0
+  var _sent: U64 = 0
+  var _reported: Bool = false
+  let _rand: Rand
+
+  new create(referrer: Referrer, id: USize, seed: U64, hb_interval: USize) =>
+    _referrer = referrer
+    _id = id
+    _hb_interval = hb_interval
+    _neighbors = recover val Array[Relay] end
+    // Per-Relay deterministic draw stream, seeded only from `--seed` + id (the
+    // same scheme as `Pinger`/`Carrier`): the value stream is fixed by the seed,
+    // but which value lands on which cite depends on mailbox arrival order, so
+    // routing is a function of the seed AND the interleaving. No `_Config` is
+    // stored -- a `Relay` has no payload logic (its cargo is the passed tag),
+    // like `Carrier`.
+    _rand = Rand(seed, id.u64())
+
+  be set_neighbors(neighbors: Array[Relay] val) =>
+    """
+    Install the routing mesh BEFORE any cite can arrive (causal ordering, the same
+    load-bearing reasoning as `Pinger.set_neighbors`). This holds RELAYS, not the
+    cargo referent, so holding it permanently is fine -- see the class docstring for
+    why only the cargo referent must stay unheld.
+    """
+    _neighbors = neighbors
+
+  be cite(referent: Referent tag, hops: USize, chain: USize) =>
+    """
+    Forward exactly one successor cite carrying the same referent tag when
+    hops > 0, else drop the referent and signal completion. The referent is NEVER
+    stored: re-sending the just-received tag (weighted budget 1) is what fires
+    `acquire_actor` -- the whole point of this workload. One-in/one-out keeps the
+    completion count a sound quiescence barrier (module docstring) -- do not fan
+    out.
+    """
+    if _reported then
+      // Quiescence is proven before `report()` is sent, so no cite should arrive
+      // afterwards. One that does is a leaked or duplicated message.
+      _Fatal("cite after report (leaked/late message)")
+    end
+    _received = _received + 1
+    if (_hb_interval > 0) and ((_received % _hb_interval.u64()) == 0) then
+      _Heartbeat.emit()
+    end
+    if hops > 0 then
+      _sent = _sent + 1
+      let next = _rand.int(_neighbors.size().u64()).usize()
+      try
+        _neighbors(next)?.cite(referent, hops - 1, chain)
+      else
+        _Unreachable("relay neighbor index out of range")
+      end
+    else
+      _referrer.completed(chain, _id, _received)
+    end
+
+  be report() =>
+    _reported = true
+    _referrer.report_counts(_sent, _received)
+
+actor Referrer
+  """
+  The `actorref` workload driver (the mesh `Dispatcher` pattern). Builds the
+  `Relay` routing mesh (relays stay LIVE -- held in `_relays` -- so they can be
+  polled: the mesh's strong conservation tally), then injects `chains` chains, each
+  carrying a FRESH `Referent`'s tag as cargo down the mesh with a hop count (TTL).
+  Counts completions to detect quiescence, collects per-`Relay` send/receive
+  tallies, folds `ORDER_SIG`, and evaluates conservation; on completion it prints
+  the result and returns (natural quiescence), forcing a non-zero exit only on a
+  conservation failure. Why the referent is built FRESH per chain (not drawn from a
+  fixed pool) and never stored is the workload's load-bearing coverage property --
+  see the injection loop below and
+  .known-couplings/actorref-workload-actor-ref-cargo.md.
+  """
+  let _actorref: _ActorRef
+  let _relays: Array[Relay] val
+  var _completions: USize = 0
+  var _reports_outstanding: USize = 0
+  var _total_sent: U64 = 0
+  var _total_received: U64 = 0
+  var _done: Bool = false
+  var _sig: U64 = 14695981039346656037 // FNV-1a 64-bit offset basis
+
+  new create(config: _Config, actorref: _ActorRef) =>
+    _actorref = actorref
+
+    // Per-Relay heartbeat cadence: ~_target prints per Relay over the run, off for
+    // runs too small to need a progress signal. Computed once and shared.
+    let hb = _Heartbeat.interval(actorref.chains * (actorref.ttl + 1),
+      actorref.relays)
+
+    // Build the relay mesh. Relays are held in a field (_relays) so they are LIVE
+    // at quiescence and can be polled -- the mesh's strong send/recv tally. Built
+    // outside the `recover` block (so we can pass `this`) and pushed via automatic
+    // receiver recovery -- a `Relay tag` is sendable.
+    let rs: Array[Relay] iso = recover Array[Relay](actorref.relays) end
+    var id: USize = 0
+    while id < actorref.relays do
+      rs.push(Relay(this, id, config.seed, hb))
+      id = id + 1
+    end
+    let relays: Array[Relay] val = consume rs
+    _relays = relays
+
+    // Wire neighbors, THEN inject. The ordering is load-bearing -- the same
+    // reasoning as `Coordinator` (see `Relay.set_neighbors`).
+    for r in relays.values() do
+      r.set_neighbors(relays)
+    end
+
+    // Inject. Each chain gets a FRESH `Referent`, whose tag rides the whole chain
+    // as cargo. A relay forwarding a just-received referent it does not hold
+    // exhausts the weighted budget on the first send, so the forward drives
+    // `acquire_actor` -- the cold path this workload exists to exercise. The fresh
+    // referent is NOT retained here (only the in-flight cite references it), and
+    // this loop's continued allocation makes the Referrer sweep and release
+    // earlier referents, so each becomes garbage as its chain drains. Each
+    // injected cite is one Referrer send (added back in `_finish`).
+    let r = Rand(config.seed)
+    var chain: USize = 0
+    while chain < actorref.chains do
+      let start = r.int(relays.size().u64()).usize()
+      try
+        relays(start)?.cite(Referent, actorref.ttl, chain)
+      else
+        _Unreachable("actorref injection start index out of range")
+      end
+      chain = chain + 1
+    end
+
+  be completed(chain: USize, terminal_id: USize, received_snapshot: U64) =>
+    """
+    A chain reached its terminal (hops == 0) relay. Fold the arrival into the order
+    signature; once every chain has terminated the system is quiesced, so ask every
+    `Relay` for its final counts. A completion beyond `chains` is a duplicate or
+    late message -- a real fault -- so it trips `_Fatal`.
+    """
+    if _done then _Fatal("completion after done (leaked/late message)") end
+    _mix(chain.u64())
+    _mix(terminal_id.u64())
+    _mix(received_snapshot)
+    _completions = _completions + 1
+    if _completions == _actorref.chains then
+      _reports_outstanding = _relays.size()
+      for r in _relays.values() do r.report() end
+    elseif _completions > _actorref.chains then
+      _Fatal("late/duplicate completion (completions > chains)")
+    end
+
+  be report_counts(sent: U64, received: U64) =>
+    """
+    Accumulate one `Relay`'s tallies. When all have reported, evaluate the
+    conservation oracle.
+    """
+    _total_sent = _total_sent + sent
+    _total_received = _total_received + received
+    _reports_outstanding = _reports_outstanding - 1
+    if _reports_outstanding == 0 then _finish() end
+
+  fun ref _finish() =>
+    _done = true
+    // The Referrer itself performed `chains` initial sends (the injected cites);
+    // every `Relay` forward is already in `_total_sent`.
+    let total_sent = _total_sent + _actorref.chains.u64()
+    let expected = _actorref.chains.u64() * (_actorref.ttl.u64() + 1)
+    let conserved =
+      (total_sent == _total_received) and (_total_received == expected)
+
+    // Synchronous print so the result survives natural quiescence (env.out.print
+    // is async and could be lost if a later exit raced it).
+    let line = "RECEIVED=" + _total_received.string()
+      + " SENT=" + total_sent.string()
+      + " EXPECTED=" + expected.string()
+      + " ORDER_SIG=" + _sig.string() + "\n"
+    @printf("%s".cstring(), line.cstring())
+
+    // On success: return and let the program reach natural quiescence (no forced
+    // exit), same as the other workloads. Only a conservation FAILURE forces a
+    // non-zero exit: fail fast once a bug is detected.
+    if not conserved then
+      let diag = "CONSERVATION FAILURE: received=" + _total_received.string()
+        + " sent=" + total_sent.string()
+        + " expected=" + expected.string() + "\n"
+      @fprintf(@pony_os_stderr(), "%s".cstring(), diag.cstring())
+      @exit(I32(1))
+    end
+
+  fun ref _mix(v: U64) =>
+    _sig = (_sig xor v) * 1099511628211 // FNV-1a 64-bit prime
+
 class val _Mesh
   """
   The `mesh` workload's shape. Built only by `_Cli.config` (after validation), so
@@ -1129,24 +1383,48 @@ class val _Iso
     depth = depth'
     breadth = breadth'
 
+class val _ActorRef
+  """
+  The `actorref` workload's shape. Built only by `_Cli.config` (after validation),
+  so `relays >= 1` and `chains >= 1` can be trusted (`ttl` has no lower bound at the
+  CLI, though the orchestrators draw `ttl >= 1` -- a zero-hop (ttl=0) chain injects
+  but never forwards, so it drives no acquire). Its fields match `_Mesh`'s
+  (relays/chains/ttl are a routing mesh with a hop count), but it is a DISTINCT type
+  on purpose: `Main` dispatches on the variant type to pick `Referrer` vs
+  `Coordinator`, and the two workloads carry different semantics (actor-`tag` cargo
+  vs a `(String val | U64)` payload). Carries its own shape for the same reason as
+  `_Mesh`/`_Iso`. Has NO payload knobs -- its cargo is a fresh actor per chain, not
+  a `(String val | U64)` payload, so like `iso` it does not ride the shared payload
+  union.
+  """
+  let relays: USize
+  let chains: USize
+  let ttl: USize
+
+  new val create(relays': USize, chains': USize, ttl': USize) =>
+    relays = relays'
+    chains = chains'
+    ttl = ttl'
+
 class val _Config
   """
   A validated workload configuration: the fields shared by all workloads (seed and
   payload kind/size/mode) plus the workload-specific shape (`_Mesh`, `_Cyclic`,
-  `_Backpressure`, or `_Iso`). The chain/hop counts are NOT here -- only the three
-  chain-based workloads (mesh/cyclic/iso) have them, so they live on those variants.
-  Built only by `_Cli.config`, so the rest of the program can trust its invariants
-  (payload_size >= 1 when payload_string, plus the per-shape invariants on the
-  variant).
+  `_Backpressure`, `_Iso`, or `_ActorRef`). The chain/hop counts are NOT here --
+  only the four chain-based workloads (mesh/cyclic/iso/actorref) have them, so they
+  live on those variants. Built only by `_Cli.config`, so the rest of the program
+  can trust its invariants (payload_size >= 1 when payload_string, plus the
+  per-shape invariants on the variant).
   """
   let seed: U64
   let payload_string: Bool
   let payload_size: USize
   let payload_fresh: Bool
-  let workload: (_Mesh | _Cyclic | _Backpressure | _Iso)
+  let workload: (_Mesh | _Cyclic | _Backpressure | _Iso | _ActorRef)
 
   new val create(seed': U64, payload_string': Bool, payload_size': USize,
-    payload_fresh': Bool, workload': (_Mesh | _Cyclic | _Backpressure | _Iso))
+    payload_fresh': Bool,
+    workload': (_Mesh | _Cyclic | _Backpressure | _Iso | _ActorRef))
   =>
     seed = seed'
     payload_string = payload_string'
@@ -1175,10 +1453,11 @@ primitive _Cli
           "engine RNG seed"
           where default' = 1)
         OptionSpec.string("workload",
-          "workload kind: mesh | cyclic | backpressure | iso"
+          "workload kind: mesh | cyclic | backpressure | iso | actorref"
           where default' = "mesh")
         OptionSpec.u64("pingers",
-          "mesh/iso only (ignored otherwise): number of mesh actors (>= 1)"
+          "mesh/iso/actorref only (ignored otherwise): number of mesh actors "
+          + "(>= 1)"
           where default' = 8)
         OptionSpec.u64("generations",
           "cyclic only (ignored otherwise): garbage-group generations (>= 1)"
@@ -1206,11 +1485,12 @@ primitive _Cli
           "iso only (ignored otherwise): child nodes per graph node"
           where default' = 1)
         OptionSpec.u64("chains",
-          "mesh/cyclic/iso only (ignored for backpressure): chains to inject "
-          + "(>= 1)"
+          "mesh/cyclic/iso/actorref only (ignored for backpressure): chains to "
+          + "inject (>= 1)"
           where default' = 8)
         OptionSpec.u64("ttl",
-          "mesh/cyclic/iso only (ignored for backpressure): hops per chain"
+          "mesh/cyclic/iso/actorref only (ignored for backpressure): hops per "
+          + "chain"
           where default' = 16)
         OptionSpec.string("payload",
           "traced payload kind: string | u64"
@@ -1264,8 +1544,8 @@ primitive _Cli
     end
 
     // chains is validated only where it is used (the chain-based workloads:
-    // mesh/cyclic/iso); backpressure has no chains, so it carries none.
-    let workload: (_Mesh | _Cyclic | _Backpressure | _Iso) =
+    // mesh/cyclic/iso/actorref); backpressure has no chains, so it carries none.
+    let workload: (_Mesh | _Cyclic | _Backpressure | _Iso | _ActorRef) =
       if workload_name == "mesh" then
         if pingers < 1 then return "--pingers must be >= 1" end
         if chains < 1 then return "--chains must be >= 1" end
@@ -1286,9 +1566,13 @@ primitive _Cli
         if node_size < 1 then return "--node-size must be >= 1" end
         if node_depth < 1 then return "--node-depth must be >= 1" end
         _Iso(pingers, chains, ttl, node_size, node_depth, node_breadth)
+      elseif workload_name == "actorref" then
+        if pingers < 1 then return "--pingers must be >= 1" end
+        if chains < 1 then return "--chains must be >= 1" end
+        _ActorRef(pingers, chains, ttl)
       else
-        return "bad --workload (expected 'mesh', 'cyclic', 'backpressure' or "
-          + "'iso')"
+        return "bad --workload (expected 'mesh', 'cyclic', 'backpressure', 'iso' "
+          + "or 'actorref')"
       end
 
     _Config(seed, payload_string, payload_size, payload_fresh, workload)
@@ -1297,13 +1581,13 @@ primitive _Fatal
   """
   The harness's runtime-fault detector: print a diagnostic to stderr and exit
   non-zero. Used by the late/duplicate-message oracles across all workloads -- a
-  ping or `iso` handoff arriving after its node has reported, a mesh, cyclic, or
-  `iso` completion beyond the expected total, or a backpressure `work`/`finished`
-  after the `Consumer` is done (or more `finished` reports than producers) -- and
-  by the `iso` workload's parcel-integrity oracle (a sentinel-byte mismatch in a
-  delivered graph). Each is a real runtime fault -- a duplicated or delayed
-  message, or a silently corrupted one -- so the stress run fails loudly with a
-  location rather than passing.
+  ping, `iso` handoff, or `actorref` cite arriving after its node has reported, a
+  mesh, cyclic, `iso`, or `actorref` completion beyond the expected total, or a
+  backpressure `work`/`finished` after the `Consumer` is done (or more `finished`
+  reports than producers) -- and by the `iso` workload's parcel-integrity oracle (a
+  sentinel-byte mismatch in a delivered graph). Each is a real runtime fault -- a
+  duplicated or delayed message, or a silently corrupted one -- so the stress run
+  fails loudly with a location rather than passing.
   """
   fun apply(msg: String, loc: SourceLoc = __loc) =>
     let line = "FATAL: " + msg + " (" + loc.file() + ":"

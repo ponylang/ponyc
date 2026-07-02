@@ -12,6 +12,8 @@ All notable changes to the Pony compiler and standard library will be documented
 - Fix the start position reported for an empty JSON container's end token ([PR #5624](https://github.com/ponylang/ponyc/pull/5624))
 - Fix the start position reported for a JSON String or Key token ([PR #5628](https://github.com/ponylang/ponyc/pull/5628))
 - Fix systematic testing being much slower than it should be ([PR #5630](https://github.com/ponylang/ponyc/pull/5630))
+- Fix runtime stats build options on Windows ([PR #5635](https://github.com/ponylang/ponyc/pull/5635))
+- Fix pooltrack build option on Windows ([PR #5637](https://github.com/ponylang/ponyc/pull/5637))
 
 ### Added
 

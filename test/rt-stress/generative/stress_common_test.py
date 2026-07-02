@@ -81,8 +81,11 @@ _SYSTEMATIC_KIND_FIELDS = {
                "payload-size"},
     "cyclic": {"seed", "workload", "generations", "group", "chains", "ttl",
                "payload", "payload-size"},
+    "backpressure": {"seed", "workload", "producers", "messages", "apply-every",
+                     "payload", "payload-size"},
     "iso":    {"seed", "workload", "pingers", "chains", "ttl", "node-size",
                "node-depth", "node-breadth"},
+    "actorref": {"seed", "workload", "pingers", "chains", "ttl"},
 }
 
 
@@ -96,16 +99,23 @@ def test_draw_systematic_workload_contract():
     check("draw_systematic_workload carries the passed program seed",
           work["seed"] == 999)
     check("draw_systematic_workload emits a workload kind key",
-          work.get("workload") in ("mesh", "cyclic", "iso"))
+          work.get("workload") in ("mesh", "cyclic", "backpressure", "iso",
+                                    "actorref"))
     check("draw_systematic_workload does NOT draw payload-mode",
           "payload-mode" not in work)
     check("draw_systematic_workload(Random(0), 999) matches the pinned draw",
-          work == {"seed": 999, "workload": "iso", "pingers": 64, "chains": 156,
-                   "ttl": 16, "node-size": 64, "node-depth": 4, "node-breadth": 1})
+          work == {"seed": 999, "workload": "iso", "pingers": 64, "chains": 184,
+                   "ttl": 7, "node-size": 256, "node-depth": 3, "node-breadth": 1})
 
 
 def test_draw_systematic_workload_coverage():
     kinds_seen = set()
+    # Track the backpressure regimes the draw must actually PRODUCE, not just stay
+    # within: a membership check still passes if the constant were narrowed to drop a
+    # documented regime, so assert presence too -- the same guard the gcinitial=0 draw
+    # and the max-threads span get (test_draw_swarm_knobs, draw_max_threads).
+    bp_producers_seen = set()
+    bp_apply_seen = set()
     invariants = True
     for master in range(0, 500):
         w = common.draw_systematic_workload(random.Random(master), 1)
@@ -114,17 +124,30 @@ def test_draw_systematic_workload_coverage():
         # Exactly the rolled kind's field set -- no missing/extra/contradictory flag.
         if set(w.keys()) != _SYSTEMATIC_KIND_FIELDS[kind]:
             invariants = False
-        # chains/ttl within the kind's declared range (iso chains stays <= its hi
-        # even after the acquire clamp, which can only reduce it).
-        (clo, chi), (tlo, thi) = common.SYSTEMATIC_WORKLOAD_RANGES[kind]
-        if not (clo <= w["chains"] <= chi) or not (tlo <= w["ttl"] <= thi):
-            invariants = False
+        # chains/ttl within the kind's declared range, for the kinds that carry them.
+        # backpressure has neither (it draws them then drops them, emitting no
+        # chains/ttl key), so it is excluded from this range check. iso chains stays
+        # <= its hi even after the acquire clamp, which can only reduce it.
+        if kind != "backpressure":
+            (clo, chi), (tlo, thi) = common.SYSTEMATIC_WORKLOAD_RANGES[kind]
+            if not (clo <= w["chains"] <= chi) or not (tlo <= w["ttl"] <= thi):
+                invariants = False
         if kind == "cyclic":
             if not (1 <= w["generations"]
                     <= common.SYSTEMATIC_CYCLIC_GENERATION_MAX):
                 invariants = False
             if w["group"] not in common.CYCLIC_GROUPS:
                 invariants = False
+        elif kind == "backpressure":
+            if w["producers"] not in common.SYSTEMATIC_BACKPRESSURE_PRODUCERS:
+                invariants = False
+            if not (1 <= w["messages"]
+                    <= common.SYSTEMATIC_BACKPRESSURE_MESSAGES_MAX):
+                invariants = False
+            if w["apply-every"] not in common.SYSTEMATIC_BACKPRESSURE_APPLY_EVERY:
+                invariants = False
+            bp_producers_seen.add(w["producers"])
+            bp_apply_seen.add(w["apply-every"])
         elif kind == "iso":
             if w["node-size"] not in common.ISO_NODE_SIZES:
                 invariants = False
@@ -139,16 +162,34 @@ def test_draw_systematic_workload_coverage():
             nodes = common.iso_node_count(w["node-depth"], w["node-breadth"])
             if (w["chains"] * w["ttl"] * nodes) > common.ISO_ACQUIRE_BUDGET:
                 invariants = False
+        elif kind == "actorref":
+            if w["pingers"] not in common.NORMAL_PINGERS:
+                invariants = False
         else:                                              # mesh
             if w["pingers"] not in common.NORMAL_PINGERS:
                 invariants = False
-        if kind != "iso" and (w["payload"] not in ("string", "u64")
-                              or w["payload-size"] not in common.STRING_SIZES):
+        # Every kind except iso and actorref carries the val payload (they omit it).
+        if (kind not in ("iso", "actorref")
+                and (w["payload"] not in ("string", "u64")
+                     or w["payload-size"] not in common.STRING_SIZES)):
             invariants = False
-    check("draw_systematic_workload covers mesh, cyclic, iso",
-          kinds_seen == {"mesh", "cyclic", "iso"})
+    check("draw_systematic_workload covers mesh, cyclic, backpressure, iso, actorref",
+          kinds_seen == {"mesh", "cyclic", "backpressure", "iso", "actorref"})
     check("draw_systematic_workload emits exactly each kind's fields, all in range",
           invariants)
+    # The two backpressure regimes the draw EXISTS to exercise are both actually
+    # produced: producers=1 (the single-producer baseline, run nowhere else -- normal
+    # mode starts at 16) and some producers>=4 (the multi-producer arrival race the
+    # per-work ORDER_SIG fold fingerprints). Narrowing SYSTEMATIC_BACKPRESSURE_PRODUCERS
+    # to drop either would still pass the membership check above but fails here.
+    check("backpressure draws the single-producer baseline (producers=1)",
+          1 in bp_producers_seen)
+    check("backpressure draws a multi-producer race case (producers>=4)",
+          any(p >= 4 for p in bp_producers_seen))
+    # apply_every=1 is the maximal mute/unmute churn regime -- the strongest determinism
+    # stress; assert it is actually drawn, not just permitted.
+    check("backpressure draws the maximal-churn regime (apply_every=1)",
+          1 in bp_apply_seen)
 
     # Fixed-consumption: the SAME rng call count whichever kind it rolls (it draws
     # every kind's shape unconditionally), so a future kind-dependent draw -- which
@@ -156,7 +197,7 @@ def test_draw_systematic_workload_coverage():
     # COUNT (a randint's bit consumption varies with its value, but the call sequence
     # does not).
     counts = []
-    for kind in ("mesh", "cyclic", "iso"):
+    for kind in ("mesh", "cyclic", "backpressure", "iso", "actorref"):
         seed = next(
             s for s in range(0, 500)
             if common.draw_systematic_workload(random.Random(s), 1)["workload"]
@@ -177,6 +218,20 @@ def test_draw_systematic_workload_coverage():
     check("systematic iso worst-case 1-node messages within the ceiling",
           (common.SYSTEMATIC_ISO_CHAINS_MAX * common.ISO_TTL_MAX)
           <= SYSTEMATIC_ISO_MESSAGE_CEILING)
+    check("systematic backpressure worst-case messages within the ceiling",
+          (max(common.SYSTEMATIC_BACKPRESSURE_PRODUCERS)
+           * common.SYSTEMATIC_BACKPRESSURE_MESSAGES_MAX)
+          <= SYSTEMATIC_BACKPRESSURE_MESSAGE_CEILING)
+    check("systematic actorref worst-case hops within the ceiling",
+          (common.SYSTEMATIC_ACTORREF_CHAINS_MAX * (common.ISO_TTL_MAX + 1))
+          <= SYSTEMATIC_ACTORREF_MESSAGE_CEILING)
+    # actorref's ttl floor is load-bearing coverage: a ttl=0 (zero-hop) chain injects
+    # but never forwards, so it drives ZERO acquire_actor -- the workload's whole point
+    # -- while conservation still passes (expected == chains). The engine sets no CLI
+    # ttl floor, so this range is the sole guarantor. Assert the floor directly (not via
+    # a drawn value, which would be tautological against the range under test).
+    check("systematic actorref ttl floor is >= 1 (ttl 0 = zero-hop = no acquire)",
+          common.SYSTEMATIC_WORKLOAD_RANGES["actorref"][1][0] >= 1)
 
 
 def test_draw_swarm_knobs():
@@ -348,17 +403,24 @@ ISO_ACQUIRE_CEILING = 96000
 ISO_NODE_CEILING = 15
 
 
-# Systematic-mode cyclic/iso are TIME-bound: kept small so the serialized
+# Systematic-mode cyclic/backpressure/iso are TIME-bound: kept small so the serialized
 # double-run soak's per-seed cost stays ~= the mesh-only cost it replaces. Guard the
 # PRODUCT that drives cost (like normal's cyclic_theoretical above), so a bump to
 # CYCLIC_GROUPS or ISO_TTL_MAX -- not just the generation/chains cap -- also trips a
 # serialized re-measure. cyclic cost ~ generations*group workers; iso 1-node cost ~
 # chains*ttl messages (the 15-node acquire-flood corner is separately bounded by
-# ISO_ACQUIRE_BUDGET, asserted per-config in test_draw_systematic_workload_coverage).
-# Calibrated: cyclic gen 100 * group 16 ~1.18s, iso chains 800 * ttl 16 ~0.77s single
-# -- both well under the systematic watchdog even run twice.
+# ISO_ACQUIRE_BUDGET, asserted per-config in test_draw_systematic_workload_coverage);
+# backpressure cost ~ producers*messages total work. Each ceiling is 2x the drawn-worst
+# product -- the re-measure trigger. Calibrated single-run: cyclic gen 100 * group 16
+# ~1.18s, iso chains 800 * ttl 16 ~0.77s, backpressure 64 * 600 ~1.0s -- all well under
+# the systematic watchdog even run twice (each kind's drawn worst is ~half its ceiling).
 SYSTEMATIC_CYCLIC_WORKER_CEILING = 100 * 16
 SYSTEMATIC_ISO_MESSAGE_CEILING = 800 * 16
+SYSTEMATIC_BACKPRESSURE_MESSAGE_CEILING = 64 * 600
+# actorref cost ~ chains*(ttl+1) hops (each hop drives one actor-ref acquire/release).
+# 2x the drawn-worst 400*(16+1) = 6800 hops; calibrated single-run ~0.5s, well under
+# the watchdog even run twice.
+SYSTEMATIC_ACTORREF_MESSAGE_CEILING = 400 * (16 + 1) * 2
 
 
 class _CallCountingRandom(random.Random):
@@ -400,7 +462,7 @@ def test_draw_workload():
          node_size, depth, breadth) = \
             common.draw_workload(random.Random(master))
         kinds.add(workload)
-        if workload not in ("mesh", "cyclic", "backpressure", "iso"):
+        if workload not in ("mesh", "cyclic", "backpressure", "iso", "actorref"):
             bounds_ok = False
         # EVERY kind's params are drawn for every roll (fixed rng consumption), so
         # they are always valid numbers in range regardless of the rolled kind --
@@ -421,8 +483,8 @@ def test_draw_workload():
             bounds_ok = False
         if breadth not in common.ISO_BREADTHS:
             bounds_ok = False
-    check("draw_workload covers all four workload kinds",
-          kinds == {"mesh", "cyclic", "backpressure", "iso"})
+    check("draw_workload covers all five workload kinds",
+          kinds == {"mesh", "cyclic", "backpressure", "iso", "actorref"})
     check("draw_workload all shape params always in range (drawn for every kind)",
           bounds_ok)
     # Ceiling guard: assert the THEORETICAL worst case (the product of the bound
@@ -452,6 +514,15 @@ def test_draw_workload():
     check("iso 1-node chains cap stays within the acquire budget",
           (common.iso_chains_cap(1, 0) * common.ISO_TTL_MAX
            * common.iso_node_count(1, 0)) <= common.ISO_ACQUIRE_BUDGET)
+    # actorref peak RSS tracks CHAINS (flat in ttl -- calibrated), so the guard is on
+    # the chains bucket max; bumping it forces a memory re-measure on the normal build.
+    check("actorref theoretical worst-case chains within the memory ceiling",
+          common.ACTORREF_CHAINS_BUCKETS["large"][1]
+          <= common.ACTORREF_CHAINS_CEILING)
+    # actorref's ttl floor is load-bearing coverage (a ttl=0 zero-hop chain drives zero
+    # acquire_actor while conservation still passes). Assert the bucket floor directly.
+    check("normal actorref ttl floor is >= 1 (ttl 0 = zero-hop = no acquire)",
+          common.ACTORREF_TTL_BUCKETS["small"][0] >= 1)
 
     # Fixed-consumption contract: draw_workload must make the SAME sequence of rng
     # calls whichever kind it rolls (it draws every kind's shape unconditionally),
@@ -460,7 +531,7 @@ def test_draw_workload():
     # not work, because a randint's underlying bit consumption varies with its value
     # (see the draw_workload doc).
     counts = []
-    for kind in ("mesh", "cyclic", "backpressure", "iso"):
+    for kind in ("mesh", "cyclic", "backpressure", "iso", "actorref"):
         seed = next(s for s in range(0, 500)
                     if common.draw_workload(random.Random(s))[0] == kind)
         counter = _CallCountingRandom(seed)
@@ -818,6 +889,9 @@ def test_summary_line():
            "workload": {"seed": 9, "workload": "iso", "pingers": 8,
                         "chains": 100, "ttl": 8, "node-size": 64,
                         "node-depth": 3, "node-breadth": 2}}
+    actorref = {"master_seed": 7, "runtime": {},
+                "workload": {"seed": 9, "workload": "actorref", "pingers": 8,
+                             "chains": 100, "ttl": 8}}
     # A config with NO `workload` key (older or hand-built) must default to the mesh
     # branch -- both orchestrators emit the key now, but the fallback still guards it.
     no_kind = {"master_seed": 4, "runtime": {},
@@ -840,6 +914,10 @@ def test_summary_line():
     check("summary_line iso: names its cargo knobs + payload=none (not 'mesh')",
           ("iso pingers=8 chains=100 ttl=8 node_size=64 depth=3 breadth=2" in isos)
           and ("payload=none" in isos) and ("mesh" not in isos))
+    ars = common.summary_line(actorref, result)
+    check("summary_line actorref: names relays/chains/ttl + payload=none (not 'mesh')",
+          ("actorref relays=8 chains=100 ttl=8" in ars)
+          and ("payload=none" in ars) and ("mesh" not in ars))
     ss = common.summary_line(no_kind, result)
     check("summary_line defaults a no-workload-key config to mesh",
           "mesh pingers=16" in ss)

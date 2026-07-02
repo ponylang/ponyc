@@ -158,22 +158,22 @@ static void pool_event_print(int thread, void* op, size_t event, size_t tsc,
   void* addr, size_t size)
 {
   if(op == POOL_TRACK_ALLOC)
-    printf("%d ALLOC "__zu" ("__zu"): %p, "__zu"\n",
+    printf("%d ALLOC " __zu " (" __zu "): %p, " __zu "\n",
       thread, event, tsc, addr, size);
   else if(op == POOL_TRACK_FREE)
-    printf("%d FREE "__zu" ("__zu"): %p, "__zu"\n",
+    printf("%d FREE " __zu " (" __zu "): %p, " __zu "\n",
       thread, event, tsc, addr, size);
   else if(op == POOL_TRACK_PUSH)
-    printf("%d PUSH "__zu" ("__zu"): %p, "__zu"\n",
+    printf("%d PUSH " __zu " (" __zu "): %p, " __zu "\n",
       thread, event, tsc, addr, size);
   else if(op == POOL_TRACK_PULL)
-    printf("%d PULL "__zu" ("__zu"): %p, "__zu"\n",
+    printf("%d PULL " __zu " (" __zu "): %p, " __zu "\n",
       thread, event, tsc, addr, size);
   else if(op == POOL_TRACK_PUSH_LIST)
-    printf("%d PUSH LIST "__zu" ("__zu"): "__zu", "__zu"\n",
+    printf("%d PUSH LIST " __zu " (" __zu "): " __zu ", " __zu "\n",
       thread, event, tsc, (size_t)addr, size);
   else if(op == POOL_TRACK_PULL_LIST)
-    printf("%d PULL LIST "__zu" ("__zu"): "__zu", "__zu"\n",
+    printf("%d PULL LIST " __zu " (" __zu "): " __zu ", " __zu "\n",
       thread, event, tsc, (size_t)addr, size);
 }
 
@@ -233,7 +233,7 @@ static void pool_track(int thread_filter, void* addr_filter, size_t op_filter,
               print = false;
 
             if((addr_filter != NULL) &&
-              ((addr > addr_filter) || ((addr + size) <= addr_filter)))
+              ((addr > addr_filter) || (((char*)addr + size) <= addr_filter)))
             {
               print = false;
             }

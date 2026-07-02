@@ -46,20 +46,20 @@ static PONY_ATOMIC(uint64_t) actor_systematic_testing_id_counter;
 void print_actor_stats(pony_actor_t* actor)
 {
   printf("Actor stats for actor: %zu, "
-        "heap memory allocated: %ld, "
-        "heap memory used: %ld, "
-        "heap num allocated: %ld, "
-        "heap realloc counter: %ld, "
-        "heap alloc counter: %ld, "
-        "heap free counter: %ld, "
-        "heap gc counter: %ld, "
-        "system cpu: %ld, "
-        "app cpu: %ld, "
-        "garbage collection marking cpu: %ld, "
-        "garbage collection sweeping cpu: %ld, "
-        "messages sent counter: %ld, "
-        "system messages processed counter: %ld, "
-        "app messages processed counter: %ld\n",
+        "heap memory allocated: %zu, "
+        "heap memory used: %zu, "
+        "heap num allocated: %zu, "
+        "heap realloc counter: %zu, "
+        "heap alloc counter: %zu, "
+        "heap free counter: %zu, "
+        "heap gc counter: %zu, "
+        "system cpu: %zu, "
+        "app cpu: %zu, "
+        "garbage collection marking cpu: %zu, "
+        "garbage collection sweeping cpu: %zu, "
+        "messages sent counter: %zu, "
+        "system messages processed counter: %zu, "
+        "app messages processed counter: %zu\n",
         (uintptr_t)actor,
         actor->actorstats.heap_mem_allocated,
         actor->actorstats.heap_mem_used,

@@ -34,6 +34,14 @@ Writing C shims for your Pony code is unaffected: ponyc hands its headers to the
 
 Programs run under systematic testing could run far slower than the amount of work warranted — slow enough, especially with a small number of scheduler threads, to look like they had hung. This has been fixed.
 
+## Fix runtime stats build options on Windows
+
+The `runtimestats` and `runtimestats_messages` build options failed to compile on Windows, so you couldn't build the runtime with runtime statistics enabled there. Both options now build on Windows.
+
+## Fix pooltrack build option on Windows
+
+The `pooltrack` build option failed to compile on Windows, so you couldn't build the runtime with pool allocation tracking enabled there. It now builds on Windows.
+
 ## Add capability security and multi-subscriber support to signal handling
 
 The `signals` package now provides capability security and signal number validation. `SignalHandler` requires a `SignalAuth` capability (derived from `AmbientAuth`) and a `ValidSignal` constrained type that enforces platform-specific whitelists, preventing registration of fatal signals like `SIGSEGV` or uncatchable signals like `SIGKILL`. Multiple actors can now subscribe to the same signal — up to 16 subscribers per signal number, with all subscribers notified when the signal fires. Validation also rejects SIGUSR2, which the Pony runtime reserves for scheduler sleep/wake: previously a SIGUSR2 handler could be registered but would never fire.
@@ -95,3 +103,4 @@ let term = ANSITerm(auth, notify, env.input)
 ```
 
 Because `dispose` now takes a parameter, `SignalHandler` no longer satisfies interfaces that expect a parameterless `dispose`, such as `DisposableActor` — for example, a `bureaucracy.Custodian` can no longer dispose a `SignalHandler` directly. Dispose the handler yourself where you hold the `SignalAuth`, or wrap it in a small actor that captures the auth and exposes a parameterless `dispose`.
+||||||| 53c72d88d

@@ -11,8 +11,9 @@ memory ordering, real lock-free contention) -- that is orchestrate_normal.py's j
 From a master seed it:
   1. derives the program RNG seed (`--seed`) and the scheduler-interleaving seed
      (`--ponysystematictestingseed`, forced >= 1);
-  2. draws a swarm configuration -- one of `mesh | cyclic | iso` (backpressure is a
-     separate leg) plus a random subset of the non-timing runtime knobs (including
+  2. draws a swarm configuration -- one of `mesh | cyclic | backpressure | iso |
+     actorref` plus a
+     random subset of the non-timing runtime knobs (including
      `--ponynoscale` and `--ponynoblock`, both drawn ~50% -- the oracle holds with
      the cycle detector on) and `--ponymaxthreads` across [1, the host's probed
      physical core count];
@@ -78,9 +79,10 @@ def resolve_config(master_seed, max_threads):
         runtime["ponynoblock"] = True
     common.draw_swarm_knobs(rng, runtime)
     # payload-mode is drawn here (the seed-stability position), emitted only for the
-    # kinds carrying a val payload -- iso draws-then-ignores it, like normal mode.
+    # kinds carrying a val payload -- iso and actorref draw-then-ignore it (their cargo
+    # is not a val payload), like normal mode.
     mode = common.draw_payload_mode(rng)
-    if workload["workload"] != "iso":
+    if workload["workload"] not in ("iso", "actorref"):
         workload["payload-mode"] = mode
     runtime["ponymaxthreads"] = common.draw_max_threads(rng, max_threads)
 
