@@ -3,10 +3,11 @@
 config draw). Self-contained (no pytest): `python3 ..._test.py`, exits 0/1.
 
 The goldens below pin resolve_config's exact output for one seed of each kind. Adding
-the backpressure draw to the mesh|cyclic|iso set intentionally REMAPPED every
-systematic seed, so these are the current values; they guard that the seed->config
-mapping stays stable from here -- any later reorder/narrow/added draw changes them and
-breaks historical --replay.
+the actorref kind to the mesh|cyclic|backpressure|iso set (reweighting the kind roll,
+though actorref draws no new cargo) intentionally REMAPPED which seed rolls which
+kind, so these are the current values; they guard that the seed->config mapping stays
+stable from here -- any later reorder/narrow/added draw changes them and breaks
+historical --replay.
 """
 import sys
 
@@ -114,6 +115,29 @@ def test_resolve_config_backpressure_golden():
           systematic.resolve_config(5, THREADS) == expected)
 
 
+def test_resolve_config_actorref_golden():
+    # Pin a seed that rolls ACTORREF: pingers/chains/ttl and NO val payload and NO
+    # payload-mode (it draws-then-ignores both, like iso) and no other kind's fields.
+    # Seed 2 rolls actorref; chains/ttl are the small systematic range (ttl >= 1).
+    expected = {
+        "master_seed": 2,
+        "runtime": {
+            "ponycdinterval": 100,
+            "ponymaxthreads": 1,
+            "ponysystematictestingseed": 3815088957855747605,
+        },
+        "workload": {
+            "chains": 109,
+            "pingers": 64,
+            "seed": 10172212549529217571,
+            "ttl": 2,
+            "workload": "actorref",
+        },
+    }
+    check("resolve_config(2, 8) matches the pinned actorref golden config",
+          systematic.resolve_config(2, THREADS) == expected)
+
+
 def test_resolve_config_deterministic_and_bounded():
     check("resolve_config is deterministic",
           systematic.resolve_config(7, THREADS)
@@ -146,13 +170,14 @@ def test_resolve_config_deterministic_and_bounded():
         else:
             maxthreads_seen.add(mt)
         kind = workload.get("workload")
-        if kind not in ("mesh", "cyclic", "backpressure", "iso"):
+        if kind not in ("mesh", "cyclic", "backpressure", "iso", "actorref"):
             invariants_hold = False
         kinds_seen.add(kind)
         # payload-mode is emitted for the val-payload kinds (mesh/cyclic/backpressure)
-        # and OMITTED for iso (it draws-then-ignores it) -- a silent drop would lose all
-        # fresh-mode coverage for those kinds while conservation + determinism pass.
-        if kind == "iso":
+        # and OMITTED for iso/actorref (they draw-then-ignore it) -- a silent drop would
+        # lose all fresh-mode coverage for the val kinds while conservation + determinism
+        # pass.
+        if kind in ("iso", "actorref"):
             if "payload-mode" in workload:
                 pmode_ok = False
         elif "payload-mode" not in workload:
@@ -162,11 +187,11 @@ def test_resolve_config_deterministic_and_bounded():
     check("systematic invariants hold over 300 seeds", invariants_hold)
     check("ponymaxthreads spans the full [1, THREADS] range",
           maxthreads_seen == set(range(1, THREADS + 1)))
-    check("resolve_config draws all of mesh, cyclic, backpressure, iso",
-          kinds_seen == {"mesh", "cyclic", "backpressure", "iso"})
+    check("resolve_config draws all of mesh, cyclic, backpressure, iso, actorref",
+          kinds_seen == {"mesh", "cyclic", "backpressure", "iso", "actorref"})
     check("ponynoblock is drawn both present and absent",
           (noblock_present > 0) and (noblock_absent > 0))
-    check("payload-mode emitted for mesh/cyclic/backpressure, omitted for iso",
+    check("payload-mode emitted for mesh/cyclic/backpressure, omitted for iso/actorref",
           pmode_ok)
     check("payload-mode covers {forward, fresh} across the val-payload kinds",
           pmode_values == {"forward", "fresh"})
@@ -193,6 +218,7 @@ def main():
     test_resolve_config_golden()
     test_resolve_config_cyclic_golden()
     test_resolve_config_backpressure_golden()
+    test_resolve_config_actorref_golden()
     test_resolve_config_deterministic_and_bounded()
     test_resolve_config_swarm_omission()
     if FAILURES:

@@ -229,16 +229,19 @@ def clamp_ttl(chains, ttl, mode, payload, size):
 # as the same blowup.
 NORMAL_PINGERS = [1, 2, 4, 8, 16, 32, 64]
 
-# Normal-mode workload-kind weights for the 4-way draw (draw_workload). mesh is the
-# baseline (the widest runtime surface); cyclic, backpressure, and iso each target
-# one otherwise-untouched subsystem (the cycle detector; the explicit UNDER_PRESSURE
-# muting path; ORCA's transfer of a nested mutable subgraph between actors). A run
-# rolls mesh below MESH_P, cyclic below MESH_P + CYCLIC_P, backpressure below
-# MESH_P + CYCLIC_P + BP_P, else iso. The tests assert all four appear over the
-# sampled seed range.
+# Normal-mode workload-kind weights for the 5-way draw (draw_workload). mesh is the
+# baseline (the widest runtime surface); cyclic, backpressure, iso, and actorref each
+# target one otherwise-untouched subsystem (the cycle detector; the explicit
+# UNDER_PRESSURE muting path; ORCA's transfer of a nested mutable subgraph between
+# actors; ORCA's actor-reference acquire/release of tags passed as message cargo). A
+# run rolls mesh below MESH_P, cyclic below MESH_P + CYCLIC_P, backpressure below
+# MESH_P + CYCLIC_P + BP_P, iso below MESH_P + CYCLIC_P + BP_P + ISO_P, else actorref.
+# mesh keeps the largest share; the four targeted kinds split the rest evenly. The
+# tests assert all five appear over the sampled seed range.
 WORKLOAD_MESH_P = 0.4
-WORKLOAD_CYCLIC_P = 0.2
-WORKLOAD_BP_P = 0.2   # iso gets the remaining 1 - MESH_P - CYCLIC_P - BP_P
+WORKLOAD_CYCLIC_P = 0.15
+WORKLOAD_BP_P = 0.15
+WORKLOAD_ISO_P = 0.15   # actorref gets the remaining 1 - the four above
 
 # Normal-mode cyclic-garbage draws (the `cyclic` workload). The cyclic workload
 # spawns `generations` successive groups of `group` actors, each group a strongly
@@ -337,19 +340,58 @@ ISO_CHAINS_BUCKETS = {"small": (50, 1000), "medium": (1001, 3000),
                       "large": (3001, 6000)}
 ISO_ACQUIRE_BUDGET = 96000
 
+# Normal-mode actorref draws (the `actorref` workload). The `mesh` topology, but the
+# cargo is a FRESH `Referent` actor's tag per chain, forwarded hop-to-hop and never
+# stored, so each forward drives ORCA's actor-reference ACQUIRE (and the dropped ref a
+# RELEASE) -- the actor-reference machinery the other workloads leave cold (measured:
+# they hit acquire_actor 0-1 times a run). actorref reuses NORMAL_PINGERS for its relay
+# count; pingers=1 is the self-referral stress point (highest acquire rate,
+# acquire == chains*ttl), measured memory-safe -- NO #5594-style flood, since fresh
+# referents move hop-to-hop and are collected rather than one object re-borrowed across
+# sweeps.
+#
+# Memory bound (CALIBRATED on the engine, normal parallel, 4 GB RLIMIT_AS): peak RSS
+# tracks CHAINS -- the front-loaded in-flight referent + acquire/release backlog at the
+# single owner (the Referrer) -- and is ~FLAT in ttl. Measured chains(ttl=16):
+# 10k->25MB, 40k->100MB, 100k->156MB, 200k->528MB; ttl(chains=40k): 4->83MB, 16->104MB,
+# 48->109MB. So the bound is a chains cap, NOT a chains*ttl clamp (unlike iso). The
+# large bucket maxes at 34000 chains (~100MB peak, ~40x margin under 4 GB). ttl stays
+# small (acquire volume = chains*ttl governs run TIME; 34000*16 = 578k messages), so it
+# reuses iso's small ttl range. The worst normal run measured ~1.3s single-threaded
+# (pingers=1, chains=34000, ttl=16, aggressive GC), far under the 300s no-progress
+# window -- so actorref never needs a heartbeat (its 578k-message max stays under
+# _Heartbeat._min, like small mesh/iso runs; the Relay's heartbeat plumbing is inert for
+# the drawn range and only engages above the chains ceiling). COUPLING: this bound is a
+# property of the Referrer's front-loaded injection and the per-referent footprint --
+# re-measure if either changes. Calibrated.
+ACTORREF_CHAINS_BUCKETS = {"small": (50, 2000), "medium": (2001, 15000),
+                           "large": (15001, 34000)}
+ACTORREF_TTL_BUCKETS = ISO_TTL_BUCKETS
+# Ceiling guard: peak RSS tracks max chains. Unlike the cyclic/backpressure/iso NORMAL
+# ceilings -- which sit ~1x above their drawn max because those buckets are calibrated
+# right up against their measured memory limit -- actorref's drawn max (34000 chains,
+# ~100MB) has ~40x headroom under the 4 GB cap, so this is a conservative 2x re-measure
+# trigger (matching the 2x SYSTEMATIC ceilings), not a tight memory bound. A bump past
+# it forces a re-measure.
+ACTORREF_CHAINS_CEILING = 34000 * 2
 
-# Systematic-mode workload-kind weights for the 4-way draw (draw_systematic_workload),
+
+# Systematic-mode workload-kind weights for the 5-way draw (draw_systematic_workload),
 # mirroring normal mode's split. mesh is the baseline widest-surface workload and stays
-# the larger run; cyclic, backpressure, and iso each target one otherwise-untouched
-# subsystem and are kept SMALL (below) so the serialized double-run soak costs no more
-# per seed than the mesh-only draw it replaces. A run rolls mesh below MESH_P, cyclic
-# below MESH_P + CYCLIC_P, backpressure below MESH_P + CYCLIC_P + BP_P, else iso.
+# the larger run; cyclic, backpressure, iso, and actorref each target one
+# otherwise-untouched subsystem and are kept SMALL (below) so the serialized double-run
+# soak costs no more per seed than the mesh-only draw it replaces. A run rolls mesh
+# below MESH_P, cyclic below MESH_P + CYCLIC_P, backpressure below
+# MESH_P + CYCLIC_P + BP_P, iso below MESH_P + CYCLIC_P + BP_P + ISO_P, else actorref.
 # Backpressure's systematic determinism is verified: its muting/unmuting arrival order
 # reproduces under replay (see the per-work ORDER_SIG fold in main.pony and
-# .known-couplings/backpressure-workload-muting.md).
+# .known-couplings/backpressure-workload-muting.md). actorref's rides on the same
+# routing interleaving as mesh/iso, and it is the heaviest exerciser of the id-sorted
+# actor acquire/release drain (see .known-couplings/systematic-testing-send-ordering.md).
 SYSTEMATIC_MESH_P = 0.4
-SYSTEMATIC_CYCLIC_P = 0.2
-SYSTEMATIC_BACKPRESSURE_P = 0.2   # iso gets the remaining 1 - the three above
+SYSTEMATIC_CYCLIC_P = 0.15
+SYSTEMATIC_BACKPRESSURE_P = 0.15
+SYSTEMATIC_ISO_P = 0.15   # actorref gets the remaining 1 - the four above
 
 # Systematic cyclic/iso are deliberately SMALL. The systematic determinism oracle's
 # value is exercising each kind's message ORDERING under reproducible replay, which
@@ -401,6 +443,21 @@ SYSTEMATIC_BACKPRESSURE_PRODUCERS = [1, 4, 16, 64]
 SYSTEMATIC_BACKPRESSURE_MESSAGES_MAX = 300
 SYSTEMATIC_BACKPRESSURE_APPLY_EVERY = [1, 10, 50, 200]
 
+# Systematic actorref is TIME-bound like cyclic/iso/backpressure. Serialized cost is
+# driven by total hops = chains * (ttl + 1) (~20 us/message on a debug systematic
+# ponyc). The drawn worst -- 400 chains * 16 ttl = 6400 hops -- measures ~0.5s single,
+# in the band of the worst cyclic (~0.6s) and iso (~0.4s). Chains are capped far below
+# normal's 34000 (400 chains serialized ~0.5s; 2000 ~4s would blow the per-run budget).
+# actorref's coverage value -- driving the actor-ref ACQUIRE/RELEASE proportional to
+# chains*ttl -- is exercised fully at this small scale under the reproducible oracle;
+# normal mode carries the large-magnitude runs. ttl reuses ISO_TTL_MAX; ttl >= 1 is
+# required (a zero-hop (ttl=0) chain injects but never forwards, so it drives no
+# acquire). No memory clamp: at 400 chains peak RSS is a few MB (memory tracks chains,
+# calibrated in the normal notes above). Ceiling guard in stress_common_test.py pins 2x
+# the worst hop
+# product (the re-measure trigger).
+SYSTEMATIC_ACTORREF_CHAINS_MAX = 400
+
 # Per-kind (chains, ttl) inclusive ranges for the systematic draw. One place to read
 # every systematic range. mesh keeps its historical uniform ranges; cyclic reuses the
 # normal cyclic envelope; iso is capped as above; backpressure has NO chains/ttl but
@@ -412,6 +469,7 @@ SYSTEMATIC_WORKLOAD_RANGES = {
     "cyclic":       ((1, 8), (1, 16)),
     "backpressure": ((1, 400), (0, 48)),  # drawn-then-ignored (no chains/ttl)
     "iso":          ((1, SYSTEMATIC_ISO_CHAINS_MAX), (1, ISO_TTL_MAX)),
+    "actorref":     ((1, SYSTEMATIC_ACTORREF_CHAINS_MAX), (1, ISO_TTL_MAX)),
 }
 
 
@@ -470,10 +528,12 @@ def draw_workload(rng):
     choices). No branch on the rolled kind, so the kind changes which keys the config
     later emits, never how many draws this makes (the fixed-consumption discipline;
     "logical draws" because a randint's underlying bit consumption varies with its
-    value, but the call sequence does not). The mesh/iso `pingers` field and the
-    per-kind bucketed chains/ttl are drawn separately in resolve_config, as before.
-    Every kind's params are drawn even when another kind is rolled (and then ignored)
-    to keep that sequence fixed."""
+    value, but the call sequence does not). The mesh/iso/actorref `pingers` field and
+    the per-kind bucketed chains/ttl are drawn separately in resolve_config, as
+    before. actorref adds NO cargo draw of its own -- it reuses pingers/chains/ttl and
+    draws-then-ignores the payload like iso, so the call count is unchanged and only
+    the kind-threshold reweight remaps historical seeds. Every kind's params are drawn
+    even when another kind is rolled (and then ignored) to keep that sequence fixed."""
     roll = rng.random()
     if roll < WORKLOAD_MESH_P:
         workload = "mesh"
@@ -481,8 +541,11 @@ def draw_workload(rng):
         workload = "cyclic"
     elif roll < (WORKLOAD_MESH_P + WORKLOAD_CYCLIC_P + WORKLOAD_BP_P):
         workload = "backpressure"
-    else:
+    elif roll < (WORKLOAD_MESH_P + WORKLOAD_CYCLIC_P + WORKLOAD_BP_P
+                 + WORKLOAD_ISO_P):
         workload = "iso"
+    else:
+        workload = "actorref"
     generations = draw_bucketed(rng, CYCLIC_GENERATION_BUCKETS)
     group = rng.choice(CYCLIC_GROUPS)
     producers = rng.choice(BACKPRESSURE_PRODUCERS)
@@ -497,8 +560,8 @@ def draw_workload(rng):
 
 def draw_systematic_workload(rng, program_seed):
     """The systematic-mode workload shape: the program seed (passed, not drawn) plus
-    a drawn kind -- `mesh | cyclic | backpressure | iso` -- and, drawn UNCONDITIONALLY
-    for every kind, all of every kind's shape
+    a drawn kind -- `mesh | cyclic | backpressure | iso | actorref` -- and, drawn
+    UNCONDITIONALLY for every kind, all of every kind's shape
     fields. Only the rolled kind's fields are emitted, so the engine never receives a
     contradictory flag. Like draw_workload, it makes the SAME fixed sequence of draws
     regardless of the rolled kind (the iso `min()` clamp consumes no rng), so a future
@@ -523,8 +586,11 @@ def draw_systematic_workload(rng, program_seed):
         kind = "cyclic"
     elif roll < SYSTEMATIC_MESH_P + SYSTEMATIC_CYCLIC_P + SYSTEMATIC_BACKPRESSURE_P:
         kind = "backpressure"
-    else:
+    elif roll < (SYSTEMATIC_MESH_P + SYSTEMATIC_CYCLIC_P + SYSTEMATIC_BACKPRESSURE_P
+                 + SYSTEMATIC_ISO_P):
         kind = "iso"
+    else:
+        kind = "actorref"
     # Every kind's cargo is drawn on every roll (fixed consumption); only the rolled
     # kind's fields are emitted below. pingers -> cyclic shape -> backpressure shape ->
     # iso cargo, then the per-kind chains/ttl (SAME two randint calls for every kind;
@@ -546,9 +612,10 @@ def draw_systematic_workload(rng, program_seed):
     payload_size = rng.choice(STRING_SIZES)
 
     # Emit only the rolled kind's fields (plus the always-present seed + workload).
-    # mesh/cyclic/backpressure carry the val payload; iso carries its own cargo knobs
-    # and NO payload (drawn-then-ignored, like normal mode). pingers is a mesh/iso
-    # field; backpressure has producers/messages/apply-every and NO chains/ttl/pingers.
+    # mesh/cyclic/backpressure carry the val payload; iso and actorref carry NO payload
+    # (drawn-then-ignored, like normal mode) -- iso has its own cargo knobs, actorref's
+    # cargo is a fresh actor built in the engine. pingers is a mesh/iso/actorref field;
+    # backpressure has producers/messages/apply-every and NO chains/ttl/pingers.
     workload = {"seed": program_seed, "workload": kind}
     if kind == "cyclic":
         workload["generations"] = generations
@@ -576,6 +643,15 @@ def draw_systematic_workload(rng, program_seed):
         workload["node-size"] = node_size
         workload["node-depth"] = node_depth
         workload["node-breadth"] = node_breadth
+    elif kind == "actorref":
+        # actorref reuses the mesh shape (pingers/chains/ttl) but carries NO payload
+        # (its cargo is a fresh actor tag per chain, drawn nowhere -- built in the
+        # engine). Its systematic chains/ttl range ((1, SYSTEMATIC_ACTORREF_CHAINS_MAX),
+        # (1, ISO_TTL_MAX)) was already applied by the randint calls above. No memory
+        # clamp: peak RSS tracks chains, tiny at the 400 cap (see the normal notes).
+        workload["pingers"] = pingers
+        workload["chains"] = chains
+        workload["ttl"] = ttl
     else:                              # mesh
         workload["pingers"] = pingers
         workload["chains"] = chains
@@ -991,11 +1067,12 @@ def summary_line(config, result):
         parsed.get("order_sig", "?"))
     # Each workload carries different shape fields: mesh/cyclic have chains/ttl,
     # backpressure has producers/messages/apply-every instead (no chains/ttl), iso
-    # has pingers/chains/ttl + its own cargo knobs and NO payload. Both modes emit a
-    # `workload` key now; `get(..., "mesh")` still covers any older/hand-built config
-    # that omits it. Each branch reads only the fields its kind carries -- iso needs
-    # its own arm so an iso run is not mislabeled `mesh` by the fall-through, and the
-    # shared `payload` read is guarded (iso has none).
+    # has pingers/chains/ttl + its own cargo knobs and NO payload, actorref has
+    # pingers/chains/ttl and NO payload. Both modes emit a `workload` key now;
+    # `get(..., "mesh")` still covers any older/hand-built config that omits it. Each
+    # branch reads only the fields its kind carries -- iso and actorref need their own
+    # arms so a run is not mislabeled `mesh` by the fall-through, and the shared
+    # `payload` read is guarded (iso/actorref have none).
     wl = shape.get("workload", "mesh")
     if wl == "cyclic":
         kind = "cyclic generations=%d group=%d chains=%d ttl=%d" % (
@@ -1007,6 +1084,9 @@ def summary_line(config, result):
         kind = ("iso pingers=%d chains=%d ttl=%d node_size=%d depth=%d breadth=%d"
                 % (shape["pingers"], shape["chains"], shape["ttl"],
                    shape["node-size"], shape["node-depth"], shape["node-breadth"]))
+    elif wl == "actorref":
+        kind = "actorref relays=%d chains=%d ttl=%d" % (
+            shape["pingers"], shape["chains"], shape["ttl"])
     else:
         kind = "mesh pingers=%d chains=%d ttl=%d" % (
             shape["pingers"], shape["chains"], shape["ttl"])
