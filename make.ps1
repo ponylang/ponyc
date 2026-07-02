@@ -40,7 +40,7 @@
     [string]
     $TestsToRun = 'libponyrt.tests,libponyc.tests,libponyc.run.tests.debug,libponyc.run.tests.release,stdlib-debug,stdlib-release,grammar',
 
-    [Parameter(HelpMessage="Runtime use options to enable at configure time, comma-separated. On Windows only 'systematic_testing' is supported.")]
+    [Parameter(HelpMessage="Runtime use options to enable at configure time, comma-separated; see BUILD.md. Validated by CMake (the PONY_USES cache variable).")]
     [string]
     $Use = ""
 )
@@ -250,29 +250,24 @@ switch ($Command.ToLower())
             default { "" }
         }
 
-        # Translate -Use flags into the -DPONY_USE_* cmake defines that the Unix
-        # Makefile sets for `use=...`. Only the use options that are meaningful on
-        # Windows are accepted; anything else is rejected rather than silently
-        # ignored, mirroring the Makefile's USE_CHECK behavior.
-        $useDefines = @()
-        foreach ($useItem in ($Use -split ',' | ForEach-Object { $_.Trim() } | Where-Object { $_.Length -gt 0 }))
-        {
-            switch ($useItem)
-            {
-                "systematic_testing" { $useDefines += "-DPONY_USE_SYSTEMATIC_TESTING=true" }
-                default { throw "Unknown use option '$useItem'. Supported on Windows: systematic_testing." }
-            }
-        }
+        # Forward the raw comma-separated -Use list to CMake, which parses and
+        # validates it (the PONY_USES cache variable; see CMakeLists.txt and
+        # .known-couplings/use-option-validation.md). This wrapper no longer knows
+        # the option set or the per-platform rules; CMake still allows only
+        # systematic_testing on Windows. Always passed (empty when unset) so a
+        # value cleared from -Use doesn't linger in the cache from a previous
+        # configure.
+        $use_flag = "-DPONY_USES=$Use"
 
         if ($Arch.Length -gt 0)
         {
-            Write-Output "cmake.exe -B `"$buildDir`" -S `"$srcDir`" -G `"$Generator`" -A $Arch -Thost="$Thost" -DCMAKE_INSTALL_PREFIX=`"$Prefix`" -DCMAKE_BUILD_TYPE=`"$Config`" -DPONYC_VERSION=`"$Version`" -DPONY_CPU=`"$PonyCpu`" $useDefines"
-            & cmake.exe -B "$buildDir" -S "$srcDir" -G "$Generator" -A $Arch -Thost="$Thost" -DCMAKE_INSTALL_PREFIX="$Prefix" -DCMAKE_BUILD_TYPE="$Config" -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DPONYC_VERSION="$Version" -DPONY_CPU="$PonyCpu" $lto_flag $useDefines --no-warn-unused-cli
+            Write-Output "cmake.exe -B `"$buildDir`" -S `"$srcDir`" -G `"$Generator`" -A $Arch -Thost="$Thost" -DCMAKE_INSTALL_PREFIX=`"$Prefix`" -DCMAKE_BUILD_TYPE=`"$Config`" -DPONYC_VERSION=`"$Version`" -DPONY_CPU=`"$PonyCpu`" $use_flag"
+            & cmake.exe -B "$buildDir" -S "$srcDir" -G "$Generator" -A $Arch -Thost="$Thost" -DCMAKE_INSTALL_PREFIX="$Prefix" -DCMAKE_BUILD_TYPE="$Config" -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DPONYC_VERSION="$Version" -DPONY_CPU="$PonyCpu" $lto_flag $use_flag --no-warn-unused-cli
         }
         else
         {
-            Write-Output "cmake.exe -B `"$buildDir`" -S `"$srcDir`" -G `"$Generator`" -Thost="$Thost" -DCMAKE_INSTALL_PREFIX=`"$Prefix`" -DCMAKE_BUILD_TYPE=`"$Config`" -DPONYC_VERSION=`"$Version`" -DPONY_CPU=`"$PonyCpu`" $useDefines"
-            & cmake.exe -B "$buildDir" -S "$srcDir" -G "$Generator" -Thost="$Thost" -DCMAKE_INSTALL_PREFIX="$Prefix" -DCMAKE_BUILD_TYPE="$Config" -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DPONYC_VERSION="$Version" -DPONY_CPU="$PonyCpu" $lto_flag $useDefines --no-warn-unused-cli
+            Write-Output "cmake.exe -B `"$buildDir`" -S `"$srcDir`" -G `"$Generator`" -Thost="$Thost" -DCMAKE_INSTALL_PREFIX=`"$Prefix`" -DCMAKE_BUILD_TYPE=`"$Config`" -DPONYC_VERSION=`"$Version`" -DPONY_CPU=`"$PonyCpu`" $use_flag"
+            & cmake.exe -B "$buildDir" -S "$srcDir" -G "$Generator" -Thost="$Thost" -DCMAKE_INSTALL_PREFIX="$Prefix" -DCMAKE_BUILD_TYPE="$Config" -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DPONYC_VERSION="$Version" -DPONY_CPU="$PonyCpu" $lto_flag $use_flag --no-warn-unused-cli
         }
         $err = $LastExitCode
         if ($err -ne 0) { throw "Error: exit code $err" }

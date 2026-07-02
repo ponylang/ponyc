@@ -1,0 +1,83 @@
+{
+  "version": 6,
+  "cmakeMinimumRequired": {
+    "major": 3,
+    "minor": 25,
+    "patch": 0
+  },
+  "configurePresets": [
+    {
+      "name": "base",
+      "hidden": true,
+      "binaryDir": "${sourceDir}/build/build_${presetName}",
+      "cacheVariables": {
+        "CMAKE_C_COMPILER": "clang",
+        "CMAKE_CXX_COMPILER": "clang++",
+        "PONY_ARCH": "native",
+        "CMAKE_C_FLAGS": "-march=native -mtune=generic",
+        "CMAKE_CXX_FLAGS": "-march=native -mtune=generic"
+      }
+    },
+    {
+      "name": "debug",
+      "displayName": "Debug",
+      "inherits": "base",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "debug"
+      }
+    },
+    {
+      "name": "release",
+      "displayName": "Release",
+      "inherits": "base",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "release"
+      }
+    },
+    {
+      "name": "debug-asan",
+      "displayName": "Debug + sanitizers",
+      "inherits": "debug",
+      "cacheVariables": {
+        "PONY_USES": "pool_memalign,address_sanitizer,undefined_behavior_sanitizer"
+      }
+    },
+    {
+      "name": "release-asan",
+      "displayName": "Release + sanitizers",
+      "inherits": "release",
+      "cacheVariables": {
+        "PONY_USES": "pool_memalign,address_sanitizer,undefined_behavior_sanitizer"
+      }
+    }
+  ],
+  "buildPresets": [
+    { "name": "debug", "configurePreset": "debug" },
+    { "name": "release", "configurePreset": "release" },
+    { "name": "debug-asan", "configurePreset": "debug-asan" },
+    { "name": "release-asan", "configurePreset": "release-asan" }
+  ],
+  "workflowPresets": [
+    {
+      "name": "debug",
+      "steps": [
+        { "type": "configure", "name": "debug" },
+        { "type": "build", "name": "debug" }
+      ]
+    },
+    {
+      "name": "release",
+      "steps": [
+        { "type": "configure", "name": "release" },
+        { "type": "build", "name": "release" }
+      ]
+    },
+    {
+      "name": "debug-asan",
+      "steps": [
+        { "type": "configure", "name": "debug-asan" },
+        { "type": "build", "name": "debug-asan" }
+      ]
+    }
+  ]
+}

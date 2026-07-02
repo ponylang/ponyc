@@ -1,18 +1,28 @@
-cmake_minimum_required(VERSION 3.21 FATAL_ERROR)
+cmake_minimum_required(VERSION 3.25 FATAL_ERROR)
 
 file(STRINGS "VERSION" PONYC_PROJECT_VERSION)
 project(Pony VERSION ${PONYC_PROJECT_VERSION} LANGUAGES C CXX)
 
-# Grab the PonyC version number from the "VERSION" source file.
+# Grab the PonyC version number from the "VERSION" source file. When building in
+# a git checkout, append the short commit sha (matching the Makefile's `tag`);
+# from a release tarball (no .git, or git unavailable) use the bare version. The
+# git-success guard matters: without it a tarball build produces a trailing dash
+# ("0.66.0-"), which would put the install in lib/pony/0.66.0- instead of
+# lib/pony/0.66.0.
 if(NOT DEFINED PONYC_VERSION)
-    execute_process(
-        COMMAND git rev-parse --short HEAD
-        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-        OUTPUT_VARIABLE GIT_REVISION
-        OUTPUT_STRIP_TRAILING_WHITESPACE
-    )
-
-    set(PONYC_VERSION "${PONYC_PROJECT_VERSION}-${GIT_REVISION}")
+    set(PONYC_VERSION "${PONYC_PROJECT_VERSION}")
+    if(EXISTS "${CMAKE_SOURCE_DIR}/.git")
+        execute_process(
+            COMMAND git rev-parse --short HEAD
+            WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+            OUTPUT_VARIABLE GIT_REVISION
+            OUTPUT_STRIP_TRAILING_WHITESPACE
+            RESULT_VARIABLE GIT_REVISION_RESULT
+        )
+        if(GIT_REVISION_RESULT EQUAL 0 AND NOT GIT_REVISION STREQUAL "")
+            set(PONYC_VERSION "${PONYC_PROJECT_VERSION}-${GIT_REVISION}")
+        endif()
+    endif()
 endif()
 
 # Uncomment this to show build commands
@@ -21,6 +31,20 @@ endif()
 # We require C++17 (because LLVM does)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+# use= build-option validation. Parses and validates the PONY_USES string and
+# sets the PONY_USE_* variables the blocks below consume.
+#
+# LOAD-BEARING PLACEMENT: keep this include between project() above and the
+# find_package(LLVM ...) calls below.
+#  - Below project(): the checks read CMAKE_HOST_SYSTEM_NAME (BSD rejections)
+#    and MSVC (the Windows allowlist), which project() populates.
+#  - Above find_package(LLVM): the BSD reject scripts run `gmake configure
+#    use=<unsupported>` on a no-libs checkout and grep for "not supported on
+#    <OS>"; below find_package it would fail with "LLVM not found" instead.
+# It also runs before the PONY_USE_* consumption blocks below. See
+# cmake/PonyUses.cmake and .known-couplings/use-option-validation.md.
+include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/PonyUses.cmake)
 
 # We require LLVM, Google Test and Google Benchmark
 if(NOT PONY_CROSS_LIBPONYRT)
@@ -569,12 +593,35 @@ endif()
 
 set(CMAKE_STATIC_LIBRARY_PREFIX "")
 
+# Install layout. Everything ponyc needs lands in a versioned directory so
+# several ponyc versions can coexist under one prefix. Runtime and compiler libs
+# go where package.c looks for them relative to the ponyc binary (package.c
+# ~752-772): ../lib/<arch> on Unix, flat ../lib on Windows. The Unix arch subdir
+# is what carries the configure-time arch into `cmake --install` -- the fix for
+# #3898 -- since one PONY_ARCH cache variable drives both the compile define
+# package.c reads and this destination, so the two can't disagree. Stable entry
+# points in <prefix>/bin (and <prefix>/lib) point at the active version: symlinks
+# on Unix, a shim on Windows (added after the shim is verified).
+# See .known-couplings/install-arch-dir.md and clang-resource-dir.md.
+set(PONY_VERSIONED_DIR "lib/pony/${PONYC_VERSION}")
+if(WIN32)
+    set(PONY_INSTALL_LIBDIR "${PONY_VERSIONED_DIR}/lib")
+else()
+    set(PONY_INSTALL_LIBDIR "${PONY_VERSIONED_DIR}/lib/${PONY_ARCH}")
+endif()
+option(PONY_INSTALL_SYMLINKS
+    "Create <prefix>/bin and <prefix>/lib links to the versioned install" ON)
+
 if (PONY_CROSS_LIBPONYRT)
     add_subdirectory(src/libponyrt)
     if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
         add_subdirectory(src/crt)
     endif()
-    install(TARGETS libponyrt)
+    # Cross-built runtime for another arch, installed into the same versioned
+    # tree so a host ponyc can link programs for that arch. Must match the arch
+    # subdir the main install and package.c use. Not locally verifiable without a
+    # cross toolchain -- exercised by the cross-compile CI (see #5588 cross work).
+    install(TARGETS libponyrt DESTINATION ${PONY_INSTALL_LIBDIR})
 else()
     add_subdirectory(src/libponyc)
     add_subdirectory(src/libponyrt)
@@ -592,6 +639,11 @@ else()
         add_subdirectory(src/crt)
     endif()
 
+    # The Windows stable-entry-point shim (Unix uses symlinks instead).
+    if(WIN32)
+        add_subdirectory(src/ponyc-shim)
+    endif()
+
     # Stamp file so tools rebuild when shared library sources change.
     # Adding new shared libraries under tools/lib/ only requires updating
     # the glob here rather than every tool's CMakeLists.txt.
@@ -604,59 +656,250 @@ else()
     )
     add_custom_target(tools_lib_stamp DEPENDS ${TOOLS_LIB_STAMP})
 
+    # Helper for compiling Pony binaries with the just-built ponyc (the tools and
+    # the pony-*-tests). See cmake/PonyBinary.cmake.
+    include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/PonyBinary.cmake)
+
     add_subdirectory(tools/pony-lsp)
     add_subdirectory(tools/pony-lint)
     add_subdirectory(tools/pony-doc)
 
-    install(TARGETS
-        ponyc
-        libponyc.tests
-        libponyc.benchmarks
-        libponyrt.benchmarks
-        libponyrt.tests
-        DESTINATION bin)
-    install(TARGETS
-        libponyrt
-        DESTINATION lib)
-    install(DIRECTORY packages/ DESTINATION packages)
-    install(DIRECTORY examples/ DESTINATION examples PATTERN .gitignore EXCLUDE)
-    # Clang's resource directory (builtin headers such as stddef.h), built by
-    # the libs step alongside LLVM/LLD. ponyc's in-process clang needs it at a
-    # known offset from the binary (lib/clang/<ver>/include, like the bundled
-    # packages/ dir). The Makefile install target carries it on Linux/macOS;
-    # this rule covers cmake-driven installs (Windows make.ps1). OPTIONAL so
-    # an LLD-only libs build (e.g. an older cached build/libs) doesn't fail.
-    install(DIRECTORY build/libs/lib/clang DESTINATION lib OPTIONAL)
+    # Test binaries compiled with the just-built ponyc. Built under ALL (like the
+    # libponyc.tests/libponyrt.tests gtest suites) so a plain build produces them
+    # and ctest can just run them. Replaces the Makefile's hand-rolled rules.
+    add_pony_binary(pony-compiler-tests ALL
+        NAME pony-compiler-tests
+        SOURCE ${CMAKE_SOURCE_DIR}/tools/lib/ponylang/pony_compiler/tests
+        PATHS ${CMAKE_SOURCE_DIR}/tools/lib/ponylang/pony_compiler
+        WATCH ${CMAKE_SOURCE_DIR}/tools/lib/ponylang/pony_compiler/tests)
+
+    add_pony_binary(pony-doc-tests ALL
+        NAME pony-doc-tests
+        SOURCE ${CMAKE_SOURCE_DIR}/tools/pony-doc/test
+        PATHS ${CMAKE_SOURCE_DIR}/tools/lib/ponylang/pony_compiler
+        WATCH ${CMAKE_SOURCE_DIR}/tools/pony-doc)
+
+    add_pony_binary(pony-lint-tests ALL
+        NAME pony-lint-tests
+        SOURCE ${CMAKE_SOURCE_DIR}/tools/pony-lint/test
+        PATHS ${CMAKE_SOURCE_DIR}/tools/lib/ponylang/pony_compiler
+        WATCH ${CMAKE_SOURCE_DIR}/tools/pony-lint)
+
+    # pony-lsp-tests compiles tools/ (tools/_test.pony pulls in pony-lsp/test via
+    # `use`), not tools/pony-lsp/test, matching the Makefile.
+    add_pony_binary(pony-lsp-tests ALL
+        NAME pony-lsp-tests
+        SOURCE ${CMAKE_SOURCE_DIR}/tools
+        PATHS ${CMAKE_SOURCE_DIR}/tools/lib/ponylang/pony_compiler
+        WATCH ${CMAKE_SOURCE_DIR}/tools/pony-lsp)
+
+    # ctest registration. Every test binary builds under ALL, so ctest only runs
+    # them. Labels group the suites: `ci-core` is the core CI suite (the old
+    # test-ci-core), `tools` the tool test suites. Run e.g.
+    # `ctest --test-dir <builddir> -L ci-core`.
+    enable_testing()
+
+    add_test(NAME check-version COMMAND $<TARGET_FILE:ponyc> --version)
+    add_test(NAME libponyrt.tests
+        COMMAND $<TARGET_FILE:libponyrt.tests> --gtest_shuffle
+        WORKING_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY})
+    add_test(NAME libponyc.tests
+        COMMAND $<TARGET_FILE:libponyc.tests> --gtest_shuffle
+        WORKING_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY})
+    set_tests_properties(check-version libponyrt.tests libponyc.tests
+        PROPERTIES LABELS ci-core)
+
+    add_test(NAME pony-doc-tests
+        COMMAND ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/pony-doc-tests --sequential
+        WORKING_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY})
+    add_test(NAME pony-lsp-tests
+        COMMAND ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/pony-lsp-tests --sequential
+        WORKING_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY})
+    add_test(NAME pony-lint-tests
+        COMMAND ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/pony-lint-tests --sequential
+        WORKING_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY})
+    set_tests_properties(pony-lint-tests PROPERTIES
+        ENVIRONMENT "PONYPATH=${CMAKE_SOURCE_DIR}/packages")
+    add_test(NAME pony-compiler-tests
+        COMMAND ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/pony-compiler-tests --sequential
+        WORKING_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY})
+    set_tests_properties(pony-compiler-tests PROPERTIES
+        ENVIRONMENT "PONYPATH=${CMAKE_SOURCE_DIR}/tools/lib/ponylang/pony_compiler:${CMAKE_SOURCE_DIR}/packages")
+    set_tests_properties(pony-doc-tests pony-lsp-tests pony-lint-tests pony-compiler-tests
+        PROPERTIES LABELS tools)
+
+    # Compile-then-run ci-core tests. Each compiles Pony sources with the freshly
+    # built ponyc and then runs (or diffs) the result, so they depend on ponyc
+    # (and, for the full-program tests, the tests.runner target and the test_lib
+    # fixtures) already being built under ALL. The full-program tests invoke the
+    # runner directly; the rest go through cmake -P wrappers because they set
+    # PONYPATH, chain a compile into a run, or walk a directory tree.
+    set(PONY_FULL_PROGRAM_TIMEOUT 60 CACHE STRING
+        "Per-test timeout (seconds) for the full-program test runner")
+    set(PONY_STDLIB_TEST_EXCLUDES "" CACHE STRING
+        "Extra args appended to the stdlib test runner, e.g. --exclude=net/Broadcast")
+
+    set(_full_program_runner
+        ${CMAKE_BINARY_DIR}/test/full-program-runner/full-program-runner${CMAKE_EXECUTABLE_SUFFIX})
+    file(MAKE_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/full-program-tests/debug)
+    file(MAKE_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/full-program-tests/release)
+
+    add_test(NAME full-programs-debug
+        COMMAND ${_full_program_runner} --debugger=
+            --timeout_s=${PONY_FULL_PROGRAM_TIMEOUT} --max_parallel=1
+            --compiler=$<TARGET_FILE:ponyc> --debug
+            --output=${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/full-program-tests/debug
+            --test_lib=${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test_lib
+            ${CMAKE_SOURCE_DIR}/test/full-program-tests
+        WORKING_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY})
+    add_test(NAME full-programs-release
+        COMMAND ${_full_program_runner} --debugger=
+            --timeout_s=${PONY_FULL_PROGRAM_TIMEOUT} --max_parallel=1
+            --compiler=$<TARGET_FILE:ponyc>
+            --output=${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/full-program-tests/release
+            --test_lib=${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test_lib
+            ${CMAKE_SOURCE_DIR}/test/full-program-tests
+        WORKING_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY})
+
+    add_test(NAME stdlib-debug
+        COMMAND ${CMAKE_COMMAND}
+            -DPONYC=$<TARGET_FILE:ponyc>
+            -DSTDLIB_SRC=${CMAKE_SOURCE_DIR}/packages/stdlib
+            -DWORKDIR=${CMAKE_RUNTIME_OUTPUT_DIRECTORY}
+            -DBUILD_NAME=stdlib-debug -DDEBUG=ON
+            -DEXCLUDES=${PONY_STDLIB_TEST_EXCLUDES}
+            -P ${CMAKE_SOURCE_DIR}/cmake/RunStdlibTest.cmake)
+    add_test(NAME stdlib-release
+        COMMAND ${CMAKE_COMMAND}
+            -DPONYC=$<TARGET_FILE:ponyc>
+            -DSTDLIB_SRC=${CMAKE_SOURCE_DIR}/packages/stdlib
+            -DWORKDIR=${CMAKE_RUNTIME_OUTPUT_DIRECTORY}
+            -DBUILD_NAME=stdlib-release -DDEBUG=OFF
+            -DEXCLUDES=${PONY_STDLIB_TEST_EXCLUDES}
+            -P ${CMAKE_SOURCE_DIR}/cmake/RunStdlibTest.cmake)
+
+    add_test(NAME examples
+        COMMAND ${CMAKE_COMMAND}
+            -DPONYC=$<TARGET_FILE:ponyc>
+            -DEXAMPLES=${CMAKE_SOURCE_DIR}/examples
+            -DWORKDIR=${CMAKE_RUNTIME_OUTPUT_DIRECTORY}
+            -P ${CMAKE_SOURCE_DIR}/cmake/RunExamples.cmake)
+
+    add_test(NAME validate-grammar
+        COMMAND ${CMAKE_COMMAND}
+            -DPONYC=$<TARGET_FILE:ponyc>
+            -DGRAMMAR=${CMAKE_SOURCE_DIR}/pony.g
+            -DWORKDIR=${CMAKE_RUNTIME_OUTPUT_DIRECTORY}
+            -P ${CMAKE_SOURCE_DIR}/cmake/CheckGrammar.cmake)
+
+    set_tests_properties(full-programs-debug full-programs-release
+        stdlib-debug stdlib-release examples validate-grammar
+        PROPERTIES LABELS ci-core)
+
+    # Binaries. ponyc is the only real executable target; the tools are custom
+    # targets producing a file next to ponyc, so they install by path as
+    # PROGRAMS. Test and benchmark binaries are not installed -- the Makefile
+    # install ships neither.
+    install(TARGETS ponyc DESTINATION ${PONY_VERSIONED_DIR}/bin)
+    install(PROGRAMS
+        $<TARGET_FILE_DIR:ponyc>/pony-lsp${CMAKE_EXECUTABLE_SUFFIX}
+        $<TARGET_FILE_DIR:ponyc>/pony-lint${CMAKE_EXECUTABLE_SUFFIX}
+        $<TARGET_FILE_DIR:ponyc>/pony-doc${CMAKE_EXECUTABLE_SUFFIX}
+        DESTINATION ${PONY_VERSIONED_DIR}/bin)
+
+    # Runtime + compiler static libs, into the lib dir ponyc searches at run time
+    # (PONY_INSTALL_LIBDIR: ../lib/<arch> on Unix, flat on Windows -- see above).
+    # libponyrt and libponyc are real targets. libponyc-standalone.a (an ar-built
+    # archive wrapped in a custom target), libponyrt-pic.a (Linux), the crt
+    # objects (Linux), and libdtrace_probes.a (FreeBSD + use=dtrace) are
+    # custom-command outputs, installed by path and OPTIONAL so a platform that
+    # doesn't produce one doesn't fail the install.
+    install(TARGETS libponyrt libponyc DESTINATION ${PONY_INSTALL_LIBDIR})
+    install(FILES
+        $<TARGET_FILE_DIR:ponyc>/libponyc-standalone.a
+        $<TARGET_FILE_DIR:ponyc>/libponyrt-pic.a
+        $<TARGET_FILE_DIR:ponyc>/libdtrace_probes.a
+        $<TARGET_FILE_DIR:ponyc>/crtbeginS.o
+        $<TARGET_FILE_DIR:ponyc>/crtendS.o
+        $<TARGET_FILE_DIR:ponyc>/crtbeginT.o
+        $<TARGET_FILE_DIR:ponyc>/crtend.o
+        DESTINATION ${PONY_INSTALL_LIBDIR} OPTIONAL)
+
+    # The stdlib packages.
+    install(DIRECTORY packages/ DESTINATION ${PONY_VERSIONED_DIR}/packages)
+
+    # Clang's resource directory (builtin headers such as stddef.h), built by the
+    # libs step alongside LLVM/LLD. ponyc's in-process clang needs it at a known
+    # offset from the binary (lib/clang/<ver>/include, like the bundled packages/
+    # dir). LLVM installs it under lib/ or lib64/ depending on the distro; install
+    # whichever exists. OPTIONAL so an LLD-only libs build (e.g. an older cached
+    # build/libs) doesn't fail. See .known-couplings/clang-resource-dir.md.
+    install(DIRECTORY build/libs/lib/clang
+        DESTINATION ${PONY_VERSIONED_DIR}/lib OPTIONAL)
+    install(DIRECTORY build/libs/lib64/clang
+        DESTINATION ${PONY_VERSIONED_DIR}/lib OPTIONAL)
+
     # ponyc's own runtime headers, so a C shim can #include <pony.h> and
-    # #include <ponyassert.h>. gencshim puts <prefix>/include/pony (plus
-    # <prefix>/include for the transitive <pony/detail/atomics.h>) on the shim
-    # include path (add_pony_include_args); the Makefile install ships these on
-    # Linux/macOS, this rule covers the cmake-driven (Windows) install. Layout
-    # must match what gencshim expects: the headers a shim names directly at
-    # include/pony/, atomics at include/pony/detail/. Kept under pony/ so a
-    # shared system include never gets a flat collision-prone name.
-    # See .known-couplings/clang-resource-dir.md.
-    install(FILES src/libponyrt/pony.h DESTINATION include/pony)
+    # #include <ponyassert.h>. gencshim puts <versioned>/include/pony (plus
+    # <versioned>/include for the transitive <pony/detail/atomics.h>) on the shim
+    # include path (add_pony_include_args). Layout must match what gencshim
+    # expects: the headers a shim names directly at include/pony/, atomics at
+    # include/pony/detail/. Kept under pony/ so a shared system include never gets
+    # a flat collision-prone name. See .known-couplings/clang-resource-dir.md.
+    install(FILES src/libponyrt/pony.h
+        DESTINATION ${PONY_VERSIONED_DIR}/include/pony)
     install(FILES src/common/pony/detail/atomics.h
-        DESTINATION include/pony/detail)
+        DESTINATION ${PONY_VERSIONED_DIR}/include/pony/detail)
     # pony.h and pony_assert (ponyassert.h) are supported for shims;
     # platform.h/threads.h/paths.h are ponyassert.h's internal include closure,
-    # not a committed interface. vcvars.h is in the closure on Windows
-    # (platform.h includes it); the Makefile install omits it on Linux/macOS.
+    # not a committed interface. The Makefile install omits vcvars.h on Unix; on
+    # Windows platform.h includes it, so it's in the closure there -- gate it on
+    # MSVC rather than dropping it outright.
     install(FILES
         src/common/ponyassert.h
         src/common/platform.h
         src/common/threads.h
         src/common/paths.h
-        src/common/vcvars.h
-        DESTINATION include/pony)
-    install(PROGRAMS
-        $<TARGET_FILE_DIR:ponyc>/pony-lsp${CMAKE_EXECUTABLE_SUFFIX}
-        DESTINATION bin)
-    install(PROGRAMS
-        $<TARGET_FILE_DIR:ponyc>/pony-lint${CMAKE_EXECUTABLE_SUFFIX}
-        DESTINATION bin)
-    install(PROGRAMS
-        $<TARGET_FILE_DIR:ponyc>/pony-doc${CMAKE_EXECUTABLE_SUFFIX}
-        DESTINATION bin)
+        DESTINATION ${PONY_VERSIONED_DIR}/include/pony)
+    if(MSVC)
+        install(FILES src/common/vcvars.h
+            DESTINATION ${PONY_VERSIONED_DIR}/include/pony)
+    endif()
+
+    # Stable entry points in <prefix>/bin (and <prefix>/lib) pointing at the
+    # active version. On Unix these are symlinks; ponyc resolves its real path
+    # (/proc/self/exe, realpath), so running the link lands on the versioned dir.
+    # Windows can't (GetModuleFileName returns the link's own path), so each entry
+    # point is a copy of the shim (src/ponyc-shim) launched under the tool's name,
+    # plus a pony-active-version pointer file the shim reads to find the versioned
+    # binary. Skipped when PONY_INSTALL_SYMLINKS is OFF, which is what packaging
+    # sets (it stages only the versioned tree). The Unix branch runs last (its
+    # EXISTS checks need the versioned files already installed) and matches the
+    # Makefile's per-file checks; DESTDIR staging isn't supported, but packaging
+    # turns symlinks off, so it never applies.
+    if(PONY_INSTALL_SYMLINKS AND NOT WIN32)
+        install(CODE "
+            set(_prefix \"\${CMAKE_INSTALL_PREFIX}\")
+            file(MAKE_DIRECTORY \"\${_prefix}/bin\" \"\${_prefix}/lib\")
+            foreach(_tool ponyc pony-lsp pony-lint pony-doc)
+                set(_t \"\${_prefix}/${PONY_VERSIONED_DIR}/bin/\${_tool}\")
+                if(EXISTS \"\${_t}\")
+                    file(CREATE_LINK \"\${_t}\" \"\${_prefix}/bin/\${_tool}\" SYMBOLIC)
+                endif()
+            endforeach()
+            foreach(_lib libponyc.a libponyc-standalone.a)
+                set(_l \"\${_prefix}/${PONY_INSTALL_LIBDIR}/\${_lib}\")
+                if(EXISTS \"\${_l}\")
+                    file(CREATE_LINK \"\${_l}\" \"\${_prefix}/lib/\${_lib}\" SYMBOLIC)
+                endif()
+            endforeach()
+        ")
+    elseif(PONY_INSTALL_SYMLINKS AND WIN32)
+        foreach(_tool ponyc pony-lsp pony-lint pony-doc)
+            install(PROGRAMS $<TARGET_FILE:ponyc-shim>
+                DESTINATION bin RENAME ${_tool}.exe)
+        endforeach()
+        install(CODE
+            "file(WRITE \"\${CMAKE_INSTALL_PREFIX}/bin/pony-active-version\" \"${PONYC_VERSION}\")")
+    endif()
 endif()

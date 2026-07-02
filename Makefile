@@ -122,86 +122,15 @@ else
   BITCODE_FLAGS =
 endif
 
-PONY_USES =
-
-comma:= ,
-empty:=
-space:= $(empty) $(empty)
-
-define USE_CHECK
-  $$(info Enabling use option: $1)
-  ifeq ($1,valgrind)
-    ifeq ($$(HOST_OS),OpenBSD)
-      $$(error Valgrind is not supported on OpenBSD: Valgrind has no OpenBSD port, so its development headers aren't available. See BUILD.md)
-    endif
-    PONY_USES += -DPONY_USE_VALGRIND=true
-  else ifeq ($1,thread_sanitizer)
-    ifeq ($$(HOST_OS),OpenBSD)
-      $$(error ThreadSanitizer is not supported on OpenBSD: the base toolchain ships no ThreadSanitizer runtime. See BUILD.md)
-    endif
-    ifeq ($$(HOST_OS),DragonFly)
-      $$(error ThreadSanitizer is not supported on DragonFly: the gcc toolchain ships no ThreadSanitizer runtime. See BUILD.md)
-    endif
-    PONY_USES += -DPONY_USE_THREAD_SANITIZER=true
-  else ifeq ($1,address_sanitizer)
-    ifeq ($$(HOST_OS),OpenBSD)
-      $$(error AddressSanitizer is not supported on OpenBSD: the base toolchain ships no AddressSanitizer runtime. See BUILD.md)
-    endif
-    ifeq ($$(HOST_OS),DragonFly)
-      $$(error AddressSanitizer is not supported on DragonFly: the gcc toolchain ships no AddressSanitizer runtime. See BUILD.md)
-    endif
-    PONY_USES += -DPONY_USE_ADDRESS_SANITIZER=true
-  else ifeq ($1,undefined_behavior_sanitizer)
-    ifeq ($$(HOST_OS),OpenBSD)
-      $$(error UndefinedBehaviorSanitizer is not supported on OpenBSD: the base toolchain ships only the minimal UBSan runtime, not the standalone runtime ponyc links against. See BUILD.md)
-    endif
-    ifeq ($$(HOST_OS),DragonFly)
-      $$(error UndefinedBehaviorSanitizer is not supported on DragonFly: the gcc toolchain ships no UndefinedBehaviorSanitizer runtime. See BUILD.md)
-    endif
-    PONY_USES += -DPONY_USE_UNDEFINED_BEHAVIOR_SANITIZER=true
-  else ifeq ($1,coverage)
-    ifeq ($$(HOST_OS),OpenBSD)
-      $$(error Coverage instrumentation is not supported on OpenBSD: the base toolchain's profiling runtime is incomplete, so coverage builds fail to link. See BUILD.md)
-    endif
-    PONY_USES += -DPONY_USE_COVERAGE=true
-  else ifeq ($1,pooltrack)
-    PONY_USES += -DPONY_USE_POOLTRACK=true
-  else ifeq ($1,dtrace)
-    ifeq ($$(HOST_OS),OpenBSD)
-      $$(error DTrace is not supported on OpenBSD. See BUILD.md)
-    endif
-    ifeq ($$(HOST_OS),DragonFly)
-      $$(error DTrace is not supported on DragonFly. See BUILD.md)
-    endif
-    DTRACE ?= $(shell which dtrace)
-    ifeq (, $$(DTRACE))
-      $$(error No dtrace compatible user application static probe generation tool found)
-    endif
-    PONY_USES += -DPONY_USE_DTRACE=true
-  else ifeq ($1,scheduler_scaling_pthreads)
-    PONY_USES += -DPONY_USE_SCHEDULER_SCALING_PTHREADS=true
-  else ifeq ($1,systematic_testing)
-    PONY_USES += -DPONY_USE_SYSTEMATIC_TESTING=true
-  else ifeq ($1,runtimestats)
-    PONY_USES += -DPONY_USE_RUNTIMESTATS=true
-  else ifeq ($1,runtimestats_messages)
-    PONY_USES += -DPONY_USE_RUNTIMESTATS_MESSAGES=true
-  else ifeq ($1,pool_memalign)
-    PONY_USES += -DPONY_USE_POOL_MEMALIGN=true
-  else ifeq ($1,pool_retain)
-    PONY_USES += -DPONY_USE_POOL_RETAIN=true
-  else ifeq ($1,runtime_tracing)
-    PONY_USES += -DPONY_USE_RUNTIME_TRACING=true
-  else
-    $$(error ERROR: Unknown use option specified: $1)
-  endif
-endef
-
+# `use=` build options are parsed and validated in CMake (the PONY_USES cache
+# variable; see CMakeLists.txt and .known-couplings/use-option-validation.md).
+# This wrapper only forwards the raw comma-separated list to `configure` below --
+# it no longer knows the option set or the per-platform rules. The options set
+# CMake cache variables at configure time, so specifying them on any other target
+# would silently do nothing; reject that up front.
 ifdef use
   ifneq (${MAKECMDGOALS}, configure)
     $(error You can only specify use= for 'make configure')
-	else
-    $(foreach useitem,$(sort $(subst $(comma),$(space),$(use))),$(eval $(call USE_CHECK,$(useitem))))
   endif
 endif
 
@@ -215,7 +144,7 @@ else ifneq ($(strip $(usedebugger)),)
 endif
 
 .DEFAULT_GOAL := build
-.PHONY: all libs cleanlibs configure cross-configure build test test-ci-core test-check-version test-core test-stdlib-debug test-stdlib-release test-examples test-stress test-validate-grammar clean test-pony-lsp pony-lint test-pony-lint lint-pony-lint lint-pony-doc lint-pony-lsp pony-doc test-pony-doc test-pony-compiler
+.PHONY: all libs cleanlibs configure cross-configure build test test-ci-core test-check-version test-core test-stdlib-debug test-stdlib-release test-examples test-stress test-validate-grammar clean test-pony-lsp pony-lint test-pony-lint lint-pony-lint lint-pony-doc lint-pony-lsp pony-doc test-pony-doc test-pony-compiler pony-doc-tests pony-lsp-tests pony-lint-tests pony-compiler-tests
 
 libs:
 	$(SILENT)mkdir -p '$(libsBuildDir)'
@@ -228,7 +157,7 @@ cleanlibs:
 
 configure:
 	$(SILENT)mkdir -p '$(buildDir)'
-	$(SILENT)cd '$(buildDir)' && env CC="$(CC)" CXX="$(CXX)" cmake -B '$(buildDir)' -S '$(srcDir)' -DCMAKE_BUILD_TYPE=$(config) -DPONY_ARCH=$(arch) -DPONY_CPU=$(cpu) -DPONY_PIC_FLAG=$(pic_flag) -DPONYC_VERSION=$(tag) -DCMAKE_C_FLAGS="-march=$(arch) -mtune=$(tune)" -DCMAKE_CXX_FLAGS="-march=$(arch) -mtune=$(tune)" $(BITCODE_FLAGS) $(LTO_CONFIG_FLAGS) $(CMAKE_FLAGS) $(PONY_USES)
+	$(SILENT)cd '$(buildDir)' && env CC="$(CC)" CXX="$(CXX)" cmake -B '$(buildDir)' -S '$(srcDir)' -DCMAKE_BUILD_TYPE=$(config) -DPONY_ARCH=$(arch) -DPONY_CPU=$(cpu) -DPONY_PIC_FLAG=$(pic_flag) -DPONYC_VERSION=$(tag) -DCMAKE_C_FLAGS="-march=$(arch) -mtune=$(tune)" -DCMAKE_CXX_FLAGS="-march=$(arch) -mtune=$(tune)" $(BITCODE_FLAGS) $(LTO_CONFIG_FLAGS) $(CMAKE_FLAGS) -DPONY_USES="$(use)"
 
 all: build
 
@@ -304,111 +233,33 @@ test-examples: all
 test-validate-grammar: all
 	$(SILENT)cd '$(outDir)' && ./ponyc --antlr > pony.g.new && diff ../../pony.g pony.g.new
 
-# File-target rules below provide incremental rebuild for the five
-# Pony-source binaries this Makefile builds outside cmake:
-# `pony-lint-ci` and the four `pony-*-tests` test binaries.
-# Order-only `| all` lets cmake build and refresh ponyc without
-# forcing the file rule stale on every invocation. Order-only doesn't
-# propagate mtime, so each rule also carries regular prereqs on
-# `ponyc-bin-srcs` and `stdlib-srcs` -- otherwise
-# `touch src/foo.c && make test-pony-doc` would miss the rebuild.
-# Directory lists are prereqs alongside file lists so `find` notices
-# file deletions (a directory's mtime updates on add/remove; surviving
-# files' mtimes don't move).
+# The lint-pony-* targets lint each tool with the pony-lint binary CMake builds
+# (the `pony-lint` target above), rather than a separate hand-rolled binary.
+lint-pony-lint: pony-lint
+	$(SILENT)cd '$(outDir)' && PONYPATH=../../tools/lib/ponylang/pony_compiler:$(PONYPATH) ./pony-lint ../../tools/pony-lint/
 
-# pony_compiler library -- shared by pony-lint-ci and every
-# pony-*-tests binary.
-compiler-lib-srcs := $(shell find $(srcDir)/tools/lib/ponylang/pony_compiler/pony_compiler -name '*.pony' -not -name '.*')
-compiler-lib-dirs := $(shell find $(srcDir)/tools/lib/ponylang/pony_compiler/pony_compiler -type d -not -name '.*')
+lint-pony-doc: pony-lint
+	$(SILENT)cd '$(outDir)' && PONYPATH=../../tools/lib/ponylang/pony_compiler:$(PONYPATH) ./pony-lint ../../tools/pony-doc/
 
-# pony-lint-ci sources -- the lint binary shared by all three
-# lint-pony-* targets. Sources are the lint tool minus its test/
-# sub-package; the pruned subtree is the entry for pony-lint-tests
-# below, where it is included rather than pruned.
-lint-bin-srcs := $(shell find $(srcDir)/tools/pony-lint -path $(srcDir)/tools/pony-lint/test -prune -o -name '*.pony' -not -name '.*' -print) \
-                 $(compiler-lib-srcs)
-lint-bin-dirs := $(shell find $(srcDir)/tools/pony-lint -path $(srcDir)/tools/pony-lint/test -prune -o -type d -not -name '.*' -print) \
-                 $(compiler-lib-dirs)
+lint-pony-lsp: pony-lint
+	$(SILENT)cd '$(outDir)' && PONYPATH=../../tools/lib/ponylang/pony_compiler:$(PONYPATH) ./pony-lint ../../tools/pony-lsp/
 
-# pony-doc-tests / pony-lint-tests sources -- each binary builds
-# tools/<tool>/test, and the test code uses ".." to pull the parent
-# package source in. Recursive find covers both. We don't prune the
-# test entry (unlike lint-bin-srcs above) -- for the test binary, the
-# test entry IS the build entry.
-doc-test-srcs := $(shell find $(srcDir)/tools/pony-doc -name '*.pony' -not -name '.*')
-doc-test-dirs := $(shell find $(srcDir)/tools/pony-doc -type d -not -name '.*')
-lint-test-srcs := $(shell find $(srcDir)/tools/pony-lint -name '*.pony' -not -name '.*')
-lint-test-dirs := $(shell find $(srcDir)/tools/pony-lint -type d -not -name '.*')
+# The four pony-*-tests binaries are built by cmake (add_pony_binary in
+# CMakeLists.txt). Each target here builds its binary on demand via cmake; the
+# matching test-pony-* target then runs it.
+pony-doc-tests pony-lsp-tests pony-lint-tests pony-compiler-tests:
+	$(SILENT)cd '$(buildDir)' && env CC="$(CC)" CXX="$(CXX)" cmake --build '$(buildDir)' --config $(config) --target $@ -- $(build_flags)
 
-# pony-compiler-tests sources -- builds tools/.../tests; the test code
-# uses "../pony_compiler" so the library comes in via compiler-lib-*
-# in the file-target rule. Recursive find also sweeps in runtime
-# fixtures (compile_errors_*/, simple/, constructs/) loaded at
-# runtime, not compile time. Editing a fixture triggers an
-# unnecessary rebuild -- accepted trade-off (simpler rule; a future
-# contributor adding a real `use`d sub-package gets correct tracking
-# for free).
-compiler-test-srcs := $(shell find $(srcDir)/tools/lib/ponylang/pony_compiler/tests -name '*.pony' -not -name '.*')
-compiler-test-dirs := $(shell find $(srcDir)/tools/lib/ponylang/pony_compiler/tests -type d -not -name '.*')
-
-# pony-lsp-tests sources -- the build entry is tools/, which compiles
-# tools/_test.pony and transitively pulls tools/pony-lsp via
-# `use lsp = "pony-lsp/test"`. -maxdepth 1 picks up tools/_test.pony
-# without recursing into pony-doc/ or pony-lint/ (which the lsp build
-# does not compile). Listing $(srcDir)/tools as a directory prereq
-# means top-of-tools/ adds invalidate this binary; acceptable since
-# tools/ rarely gains files. Recursive find sweeps in runtime fixtures
-# under test/workspace/<feature>/ and test/error_workspace/ -- same
-# trade-off as compiler-test-srcs above.
-lsp-test-srcs := $(shell find $(srcDir)/tools -maxdepth 1 -name '*.pony' -not -name '.*') \
-                 $(shell find $(srcDir)/tools/pony-lsp -name '*.pony' -not -name '.*')
-lsp-test-dirs := $(srcDir)/tools \
-                 $(shell find $(srcDir)/tools/pony-lsp -type d -not -name '.*')
-
-ponyc-bin-srcs := $(shell find $(srcDir)/src -type f \( -name '*.c' -o -name '*.h' -o -name '*.cc' -o -name '*.hh' -o -name '*.ll' -o -name '*.d' \) -not -name '.*')
-ponyc-bin-dirs := $(shell find $(srcDir)/src -type d -not -name '.*')
-stdlib-srcs := $(shell find $(srcDir)/packages -name '*.pony' -not -name '.*')
-stdlib-dirs := $(shell find $(srcDir)/packages -type d -not -name '.*')
-
-# Empty recipe so $(outDir)/ponyc can be a regular prereq below
-# without "No rule to make target" on a clean checkout -- `all`
-# produces it as a side effect via cmake.
-$(outDir)/ponyc: | all ;
-
-$(outDir)/pony-lint-ci: $(lint-bin-srcs) $(lint-bin-dirs) $(ponyc-bin-srcs) $(ponyc-bin-dirs) $(stdlib-srcs) $(stdlib-dirs) $(outDir)/ponyc | all
-	$(SILENT)cd '$(outDir)' && PONYPATH=.:$(PONYPATH) ./ponyc --path ../../tools/lib/ponylang/pony_compiler/ -b pony-lint-ci ../../tools/pony-lint && echo Built `pwd`/pony-lint-ci
-
-lint-pony-lint: $(outDir)/pony-lint-ci
-	$(SILENT)cd '$(outDir)' && PONYPATH=../../tools/lib/ponylang/pony_compiler:$(PONYPATH) ./pony-lint-ci ../../tools/pony-lint/
-
-lint-pony-doc: $(outDir)/pony-lint-ci
-	$(SILENT)cd '$(outDir)' && PONYPATH=../../tools/lib/ponylang/pony_compiler:$(PONYPATH) ./pony-lint-ci ../../tools/pony-doc/
-
-lint-pony-lsp: $(outDir)/pony-lint-ci
-	$(SILENT)cd '$(outDir)' && PONYPATH=../../tools/lib/ponylang/pony_compiler:$(PONYPATH) ./pony-lint-ci ../../tools/pony-lsp/
-
-$(outDir)/pony-doc-tests: $(doc-test-srcs) $(doc-test-dirs) $(compiler-lib-srcs) $(compiler-lib-dirs) $(ponyc-bin-srcs) $(ponyc-bin-dirs) $(stdlib-srcs) $(stdlib-dirs) $(outDir)/ponyc | all
-	$(SILENT)cd '$(outDir)' && PONYPATH=.:$(PONYPATH) ./ponyc --path ../../tools/lib/ponylang/pony_compiler/ -b pony-doc-tests ../../tools/pony-doc/test && echo Built `pwd`/pony-doc-tests
-
-$(outDir)/pony-lsp-tests: $(lsp-test-srcs) $(lsp-test-dirs) $(compiler-lib-srcs) $(compiler-lib-dirs) $(ponyc-bin-srcs) $(ponyc-bin-dirs) $(stdlib-srcs) $(stdlib-dirs) $(outDir)/ponyc | all
-	$(SILENT)cd '$(outDir)' && PONYPATH=.:$(PONYPATH) ./ponyc --path ../../tools/lib/ponylang/pony_compiler/ -b pony-lsp-tests ../../tools && echo Built `pwd`/pony-lsp-tests
-
-$(outDir)/pony-lint-tests: $(lint-test-srcs) $(lint-test-dirs) $(compiler-lib-srcs) $(compiler-lib-dirs) $(ponyc-bin-srcs) $(ponyc-bin-dirs) $(stdlib-srcs) $(stdlib-dirs) $(outDir)/ponyc | all
-	$(SILENT)cd '$(outDir)' && PONYPATH=.:$(PONYPATH) ./ponyc --path ../../tools/lib/ponylang/pony_compiler/ -b pony-lint-tests ../../tools/pony-lint/test && echo Built `pwd`/pony-lint-tests
-
-$(outDir)/pony-compiler-tests: $(compiler-test-srcs) $(compiler-test-dirs) $(compiler-lib-srcs) $(compiler-lib-dirs) $(ponyc-bin-srcs) $(ponyc-bin-dirs) $(stdlib-srcs) $(stdlib-dirs) $(outDir)/ponyc | all
-	$(SILENT)cd '$(outDir)' && PONYPATH=.:$(PONYPATH) ./ponyc --path ../../tools/lib/ponylang/pony_compiler/ -b pony-compiler-tests ../../tools/lib/ponylang/pony_compiler/tests && echo Built `pwd`/pony-compiler-tests
-
-test-pony-doc: $(outDir)/pony-doc-tests
+test-pony-doc: pony-doc-tests
 	$(SILENT)cd '$(outDir)' && ./pony-doc-tests --sequential
 
-test-pony-lsp: $(outDir)/pony-lsp-tests
+test-pony-lsp: pony-lsp-tests
 	$(SILENT)cd '$(outDir)' && ./pony-lsp-tests --sequential
 
-test-pony-lint: $(outDir)/pony-lint-tests
+test-pony-lint: pony-lint-tests
 	$(SILENT)cd '$(outDir)' && PONYPATH=../../packages:$(PONYPATH) ./pony-lint-tests --sequential
 
-test-pony-compiler: $(outDir)/pony-compiler-tests
+test-pony-compiler: pony-compiler-tests
 	$(SILENT)cd '$(outDir)' && PONYPATH=../../tools/lib/ponylang/pony_compiler:../../packages:$(PONYPATH) ./pony-compiler-tests --sequential
 
 test-cross-stress-release: cross_args=--triple=$(cross_triple) --cpu=$(cross_cpu) --link-arch=$(cross_arch) $(if $(cross_sysroot),--sysroot='$(cross_sysroot)') $(cross_ponyc_args)

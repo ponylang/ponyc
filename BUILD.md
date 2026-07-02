@@ -7,7 +7,7 @@ First of all, you need a compiler with decent C11 support. We officially support
 - MSVC >= 2017
 - GCC >= 4.7
 
-You also need [CMake](https://cmake.org/download/) version 3.21 or higher. You also need a version of [Python 3](https://www.python.org/downloads/) installed; it's required in order to build LLVM. On Unix systems, you need the zlib development headers and library installed (e.g. `zlib-dev`, `zlib1g-dev`, or `zlib-devel` depending on your distribution).
+You also need [CMake](https://cmake.org/download/) version 3.25 or higher. You also need a version of [Python 3](https://www.python.org/downloads/) installed; it's required in order to build LLVM. On Unix systems, you need the zlib development headers and library installed (e.g. `zlib-dev`, `zlib1g-dev`, or `zlib-devel` depending on your distribution).
 
 ## Clone this repository
 
@@ -176,7 +176,7 @@ Note that you only need to run `make libs` once the first time you build (or if 
 
 Building on Windows requires the following:
 
-- [CMake](https://cmake.org/download/) version 3.15.0 or higher needs to be in your PATH.
+- [CMake](https://cmake.org/download/) version 3.25 or higher needs to be in your PATH.
 - [Python 3](https://www.python.org/downloads/)
 - Visual Studio 2022 or 2019 (available [here](https://www.visualstudio.com/vs/community/)) or the Visual C++ Build Tools 2022 or 2019 (available [here](https://visualstudio.microsoft.com/visual-cpp-build-tools/)).
   - If using Visual Studio, install the `Desktop Development with C++` workload.
@@ -194,6 +194,10 @@ In a PowerShell prompt, run:
 Following building, to make `ponyc.exe` globally available, add it to your `PATH` either by using Advanced System Settings->Environment Variables to extend `PATH` or by using the `setx` command, e.g. `setx PATH "%PATH%;<ponyc repo>\build\release"`
 
 Note that you only need to run `.\make.ps1 libs` once the first time you build (or if the version of LLVM in the `lib/llvm/src` Git submodule changes).
+
+### Unsupported Windows build options
+
+Several `use=` build options aren't supported on Windows (MSVC). The supported ones are `systematic_testing`, `pool_retain`, `pooltrack`, `runtimestats`, and `runtimestats_messages`. The rest depend on POSIX interfaces or Clang/GCC toolchain features MSVC doesn't provide: `pool_memalign` needs `posix_memalign`, the sanitizers and `coverage` need the Clang/GCC `-fsanitize=`/`-fprofile-arcs` interfaces, `runtime_tracing` isn't implemented for Windows, and `scheduler_scaling_pthreads` needs pthreads. `.\make.ps1 configure -Use ...` rejects the unsupported options with a clear error rather than failing partway through the build.
 
 ---
 

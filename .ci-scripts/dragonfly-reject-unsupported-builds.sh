@@ -7,12 +7,12 @@
 # AddressSanitizer/ThreadSanitizer/UndefinedBehaviorSanitizer runtime (GCC's
 # libsanitizer has no DragonFly target), so those use= options can't link there;
 # and DragonFly can't build a working dtrace-instrumented runtime, so use=dtrace
-# is rejected too. `gmake configure` rejects them with a clear error at
-# make-parse time, before `gmake libs` runs, so this assertion needs no LLVM
-# build or gcc13 toolchain. Check each fails AND fails for the documented reason:
-# a typo in the OS string would otherwise silently regress to the confusing
-# partway-through build failure the guards exist to prevent. (coverage and
-# valgrind aren't rejected on DragonFly.)
+# is rejected too. `gmake configure` rejects them with a clear error when CMake
+# configures, before `gmake libs` builds LLVM, so this assertion needs no LLVM
+# build or gcc13 toolchain. Check each fails AND fails for the documented
+# reason: a typo in the OS string would otherwise silently regress to the
+# confusing partway-through build failure the guards exist to prevent.
+# (coverage and valgrind aren't rejected on DragonFly.)
 set -eu
 
 for u in address_sanitizer thread_sanitizer undefined_behavior_sanitizer dtrace; do
