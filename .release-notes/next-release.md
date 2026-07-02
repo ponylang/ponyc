@@ -34,3 +34,7 @@ Writing C shims for your Pony code is unaffected: ponyc hands its headers to the
 
 Programs run under systematic testing could run far slower than the amount of work warranted — slow enough, especially with a small number of scheduler threads, to look like they had hung. This has been fixed.
 
+## Fix runtime stats build options on Windows
+
+The `runtimestats` and `runtimestats_messages` build options failed to compile on Windows, so you couldn't build the runtime with runtime statistics enabled there. Both options now build on Windows.
+
