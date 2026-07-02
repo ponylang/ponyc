@@ -40,6 +40,8 @@ interface UDPNotify
     bytes were lost. To receive whole datagrams, size the read buffer to your
     protocol's largest expected datagram (the UDP maximum is 65507 bytes for
     IPv4).
+
+    A zero-length datagram is valid and is delivered here with an empty `data`.
     """
     None
 

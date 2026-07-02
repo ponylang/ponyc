@@ -16,6 +16,10 @@ PONY_EXTERN_C_BEGIN
 //                          every platform (the Windows backend uses readiness
 //                          notifications, not overlapped IOCP), so the count
 //                          is always the bytes transferred by this call.
+//                          A datagram pony_os_recvfrom may return OK with a 0
+//                          count: an empty UDP datagram (RFC 768) is a valid
+//                          read, unlike stream pony_os_recv where a 0-byte read
+//                          means the peer closed (ERROR, below).
 //   PONY_SOCKET_RETRY = 1  transient condition (POSIX EWOULDBLOCK/EAGAIN,
 //                          Windows WSAEWOULDBLOCK on send/writev). Caller
 //                          should retry later. *count_out is 0.

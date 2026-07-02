@@ -113,15 +113,16 @@ actor UDPSocket is AsioEventNotify
     `size` is the read buffer size in bytes (default 1024) and therefore the
     maximum datagram length delivered to `UDPNotify.received`; a larger datagram
     is truncated to `size` and the excess is silently discarded (see
-    `UDPNotify.received`).
+    `UDPNotify.received`). A `size` of 0 is raised to 1, so an empty delivery to
+    `received` always means an empty datagram, never a dropped one.
     """
     _notify = consume notify
     _event =
       @pony_os_listen_udp(this, host.cstring(), service.cstring())
     _fd = @pony_asio_event_fd(_event)
     @pony_os_sockname(_fd, _ip)
-    _packet_size = size
-    _read_buf = recover Array[U8] .> undefined(size) end
+    _packet_size = size.max(1)
+    _read_buf = recover Array[U8] .> undefined(_packet_size) end
     _notify_listening()
 
   new ip4(
@@ -137,15 +138,16 @@ actor UDPSocket is AsioEventNotify
     `size` is the read buffer size in bytes (default 1024) and therefore the
     maximum datagram length delivered to `UDPNotify.received`; a larger datagram
     is truncated to `size` and the excess is silently discarded (see
-    `UDPNotify.received`).
+    `UDPNotify.received`). A `size` of 0 is raised to 1, so an empty delivery to
+    `received` always means an empty datagram, never a dropped one.
     """
     _notify = consume notify
     _event =
       @pony_os_listen_udp4(this, host.cstring(), service.cstring())
     _fd = @pony_asio_event_fd(_event)
     @pony_os_sockname(_fd, _ip)
-    _packet_size = size
-    _read_buf = recover Array[U8] .> undefined(size) end
+    _packet_size = size.max(1)
+    _read_buf = recover Array[U8] .> undefined(_packet_size) end
     _notify_listening()
 
   new ip6(
@@ -161,15 +163,16 @@ actor UDPSocket is AsioEventNotify
     `size` is the read buffer size in bytes (default 1024) and therefore the
     maximum datagram length delivered to `UDPNotify.received`; a larger datagram
     is truncated to `size` and the excess is silently discarded (see
-    `UDPNotify.received`).
+    `UDPNotify.received`). A `size` of 0 is raised to 1, so an empty delivery to
+    `received` always means an empty datagram, never a dropped one.
     """
     _notify = consume notify
     _event =
       @pony_os_listen_udp6(this, host.cstring(), service.cstring())
     _fd = @pony_asio_event_fd(_event)
     @pony_os_sockname(_fd, _ip)
-    _packet_size = size
-    _read_buf = recover Array[U8] .> undefined(size) end
+    _packet_size = size.max(1)
+    _read_buf = recover Array[U8] .> undefined(_packet_size) end
     _notify_listening()
 
   be write(data: ByteSeq, to: NetAddress) =>
@@ -322,9 +325,10 @@ actor UDPSocket is AsioEventNotify
 
   fun ref _pending_reads() =>
     """
-    Read while data is available, guessing the next packet length as we go. If
-    we read 4 kb of data, send ourself a resume message and stop reading, to
-    avoid starving other actors.
+    Read while data is available, guessing the next packet length as we go.
+    Once about 4 kb of read work accumulates, send ourself a resume message and
+    stop reading, to avoid starving other actors. A zero-byte datagram counts
+    as 1 byte of work so a flood of empty datagrams cannot loop here forever.
     """
     try
       var sum: USize = 0
@@ -341,7 +345,10 @@ actor UDPSocket is AsioEventNotify
           data.truncate(count)
           _notify.received(this, consume data, consume from)
 
-          sum = sum + count
+          // An empty datagram is delivered as OK with count 0; charge it 1
+          // byte so a flood still advances the read budget and yields.
+          // Coupling: .known-couplings/udp-empty-datagram-read-budget.md
+          sum = sum + count.max(1)
 
           if sum > (1 << 12) then
             _read_again()

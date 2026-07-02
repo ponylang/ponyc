@@ -948,8 +948,11 @@ PONY_API pony_socket_result_t pony_os_recvfrom(asio_event_t* ev, char* buf,
     *count_out = 0;
     return PONY_SOCKET_ERROR;
   } else if(recvd == 0) {
+    // A 0-byte UDP recvfrom is a valid zero-length datagram (RFC 768), not a
+    // peer close as it would be for stream pony_os_recv. Deliver it, don't
+    // error (issue #5289).
     *count_out = 0;
-    return PONY_SOCKET_ERROR;
+    return PONY_SOCKET_OK;
   }
 
   *count_out = (size_t)recvd;
@@ -971,8 +974,11 @@ PONY_API pony_socket_result_t pony_os_recvfrom(asio_event_t* ev, char* buf,
     *count_out = 0;
     return PONY_SOCKET_ERROR;
   } else if(recvd == 0) {
+    // A 0-byte UDP recvfrom is a valid zero-length datagram (RFC 768), not a
+    // peer close as it would be for stream pony_os_recv. Deliver it, don't
+    // error (issue #5289).
     *count_out = 0;
-    return PONY_SOCKET_ERROR;
+    return PONY_SOCKET_OK;
   }
 
   *count_out = (size_t)recvd;
