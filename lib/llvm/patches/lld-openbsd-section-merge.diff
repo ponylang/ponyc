@@ -1,0 +1,94 @@
+diff --git i/lld/ELF/Driver.cpp w/lld/ELF/Driver.cpp
+index ee5a10171..ce31c39fa 100644
+--- i/lld/ELF/Driver.cpp
++++ w/lld/ELF/Driver.cpp
+@@ -149,7 +149,10 @@ static std::tuple<ELFKind, uint16_t, uint8_t> parseEmulation(Ctx &ctx,
+                                                              StringRef emul) {
+   uint8_t osabi = 0;
+   StringRef s = emul;
+-  if (s.ends_with("_fbsd")) {
++  if (s.ends_with("_obsd")) {
++    s = s.drop_back(5);
++    osabi = ELFOSABI_OPENBSD;
++  } else if (s.ends_with("_fbsd")) {
+     s = s.drop_back(5);
+     osabi = ELFOSABI_FREEBSD;
+   }
+diff --git i/lld/ELF/DriverUtils.cpp w/lld/ELF/DriverUtils.cpp
+index 6d027c529..fb5ebcf9d 100644
+--- i/lld/ELF/DriverUtils.cpp
++++ w/lld/ELF/DriverUtils.cpp
+@@ -236,15 +236,58 @@ std::optional<std::string> elf::findFromSearchPaths(Ctx &ctx, StringRef path) {
+   return std::nullopt;
+ }
+ 
++namespace {
++// OpenBSD ports its shared libraries as libNAME.so.MAJOR.MINOR with no
++// libNAME.so symlink. Search for the highest-versioned match. Modeled on
++// the OpenBSD lld fork's same-named helper, which is in turn kept in sync
++// with clang/lib/Driver/Driver.cpp.
++static std::optional<std::string> findMajMinShlib(Ctx &ctx, StringRef dir,
++                                                  const Twine &libNameSo) {
++  llvm::SmallString<128> scratch;
++  StringRef libName = (libNameSo + ".").toStringRef(scratch);
++  int maxMaj = -1, maxMin = -1;
++  std::error_code ec;
++  for (llvm::sys::fs::directory_iterator li(dir, ec), le; li != le;
++       li = li.increment(ec)) {
++    StringRef fileName = llvm::sys::path::filename(StringRef(li->path()));
++    if (!fileName.starts_with(libName))
++      continue;
++    std::pair<StringRef, StringRef> majMin =
++        fileName.substr(libName.size()).split('.');
++    int maj, min;
++    if (majMin.first.getAsInteger(10, maj) || maj < 0)
++      continue;
++    if (majMin.second.getAsInteger(10, min) || min < 0)
++      continue;
++    if (maj > maxMaj)
++      maxMaj = maj, maxMin = min;
++    if (maxMaj == maj && min > maxMin)
++      maxMin = min;
++  }
++  if (maxMaj >= 0)
++    return findFile(ctx, dir, libName + Twine(maxMaj) + "." + Twine(maxMin));
++  return std::nullopt;
++}
++} // namespace
++
+ // This is for -l<basename>. We'll look for lib<basename>.so or lib<basename>.a from
+ // search paths.
+ std::optional<std::string> elf::searchLibraryBaseName(Ctx &ctx,
+                                                       StringRef name) {
+   for (StringRef dir : ctx.arg.searchPaths) {
+-    if (!ctx.arg.isStatic)
++    if (!ctx.arg.isStatic) {
+       if (std::optional<std::string> s =
+               findFile(ctx, dir, "lib" + name + ".so"))
+         return s;
++      // OpenBSD-only: scan for libNAME.so.MAJOR.MINOR. Gated on the
++      // OpenBSD OSABI so other ELF targets don't pay the per-link
++      // directory-iteration cost and don't change their resolution
++      // behavior. Set by -m elf_x86_64_obsd via parseEmulation.
++      if (ctx.arg.osabi == llvm::ELF::ELFOSABI_OPENBSD)
++        if (std::optional<std::string> s =
++                findMajMinShlib(ctx, dir, "lib" + name + ".so"))
++          return s;
++    }
+     if (std::optional<std::string> s = findFile(ctx, dir, "lib" + name + ".a"))
+       return s;
+   }
+diff --git i/lld/ELF/LinkerScript.cpp w/lld/ELF/LinkerScript.cpp
+index dd478846e..a7c336e06 100644
+--- i/lld/ELF/LinkerScript.cpp
++++ w/lld/ELF/LinkerScript.cpp
+@@ -109,7 +109,8 @@ StringRef LinkerScript::getOutputSectionName(const InputSectionBase *s) const {
+                       ".init_array",  ".fini_array", ".tbss",
+                       ".tdata",       ".ARM.exidx",  ".ARM.extab",
+                       ".ctors",       ".dtors",      ".sbss",
+-                      ".sdata",       ".srodata"})
++                      ".sdata",       ".srodata",    ".openbsd.randomdata",
++                      ".openbsd.mutable"})
+     if (isSectionPrefix(v, s->name))
+       return v;
+ 

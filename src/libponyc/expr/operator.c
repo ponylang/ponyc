@@ -13,6 +13,7 @@
 #include "../type/alias.h"
 #include "../type/assemble.h"
 #include "../type/matchtype.h"
+#include "../type/typealias.h"
 #include "../type/safeto.h"
 #include "../type/subtype.h"
 #include "ponyassert.h"
@@ -68,7 +69,19 @@ static ast_t* find_infer_type(pass_opt_t* opt, ast_t* type, infer_path_t* path)
           return NULL;
         }
 
-        u_type = type_union(opt, u_type, t);
+        ast_t* prev_u = u_type;
+        u_type = type_union(opt, prev_u, t);
+
+        // type_union may return prev_u, t, or a freshly-built tree. Free
+        // any input it did not return as-is: ast_free_unattached is a
+        // no-op on aliases (still parented) and on NULL, so no ownership
+        // tracking is needed. This is safe because type_typeexpr is
+        // non-mutating — inputs are neither reparented nor freed by the
+        // call (see assemble.c's input-preservation invariant).
+        if(u_type != prev_u)
+          ast_free_unattached(prev_u);
+        if(u_type != t)
+          ast_free_unattached(t);
       }
 
       return u_type;
@@ -90,10 +103,54 @@ static ast_t* find_infer_type(pass_opt_t* opt, ast_t* type, infer_path_t* path)
           return NULL;
         }
 
-        i_type = type_isect(opt, i_type, t);
+        ast_t* prev_i = i_type;
+        i_type = type_isect(opt, prev_i, t);
+
+        // See the TK_UNIONTYPE comment above: free any input that
+        // type_isect did not return as-is.
+        if(i_type != prev_i)
+          ast_free_unattached(prev_i);
+        if(i_type != t)
+          ast_free_unattached(t);
       }
 
       return i_type;
+    }
+
+    case TK_TYPEALIASREF:
+    {
+      ast_t* unfolded = typealias_unfold(type);
+
+      if(unfolded == NULL)
+        return NULL;
+
+      ast_t* result = find_infer_type(opt, unfolded, path);
+
+      if(result == NULL)
+      {
+        ast_free_unattached(unfolded);
+        return NULL;
+      }
+
+      // The recursive call may return: (a) unfolded itself, (b) an
+      // interior descendant of unfolded, or (c) a freshly-built tree from
+      // type_union or type_isect. Dup result so the returned subtree is
+      // independent of unfolded. ast_dup copies the root's scope pointer
+      // from result->parent — which in cases (a) and (b) points inside
+      // the unfolded tree we are about to free — so clear it before the
+      // free. Do not remove the ast_set_scope call: no downstream pass
+      // reads this scope today, but any future code walking ast_parent
+      // or ast_get on the returned type would dereference freed memory.
+      // Free unfolded (collects cases a and b) and, separately, any
+      // fresh tree returned in case (c).
+      ast_t* dup_result = ast_dup(result);
+      ast_set_scope(dup_result, NULL);
+
+      if(result != unfolded)
+        ast_free_unattached(result);
+
+      ast_free_unattached(unfolded);
+      return dup_result;
     }
 
     default:
@@ -176,7 +233,7 @@ static infer_ret_t infer_local_inner(pass_opt_t* opt, ast_t* left,
       }
 
       // Variable type is the alias of the inferred type
-      ast_t* a_type = alias(infer_type);
+      ast_t* a_type = alias(infer_type, opt);
       ast_settype(left, a_type);
       ast_settype(ast_child(left), a_type);
 
@@ -205,7 +262,7 @@ static bool infer_locals(pass_opt_t* opt, ast_t* left, ast_t* r_type)
     return false;
 
   pony_assert(path_root.next == NULL);
-  pony_assert(path_root.root = &path_root);
+  pony_assert(path_root.root == &path_root);
   return true;
 }
 
@@ -318,6 +375,201 @@ static bool check_embed_construction(pass_opt_t* opt, ast_t* left, ast_t* right)
   return result;
 }
 
+void coerce_tuple_to_target(pass_opt_t* opt, ast_t* expr,
+  ast_t* target_type)
+{
+  // When a tuple literal is used where a union-of-tuples type is expected,
+  // the literal's bottom-up type may be narrower than the target variant.
+  // For example, ((0,0), "bob", Dep, (Link, "123")) gets type
+  // ((I64,I64), String, Dep, (Link, String)) but the target variant is
+  // ((I64,I64), String, Dep, DependencyOp) where DependencyOp is a union.
+  // The narrow type stores inner tuples inline, but the match code expects
+  // boxed union pointers. Fix by widening the tuple's type to the variant.
+  if(target_type == NULL)
+    return;
+
+  // Save the original expression so we can propagate type changes back
+  // through any SEQ wrappers. gen_call uses the SEQ's type, so it must
+  // stay in sync with the inner tuple's type.
+  ast_t* original_expr = expr;
+
+  // Unwrap SEQ wrappers.
+  while(ast_id(expr) == TK_SEQ)
+  {
+    if(ast_childcount(expr) != 1)
+      return;
+    expr = ast_child(expr);
+  }
+
+  if(ast_id(expr) != TK_TUPLE)
+    return;
+
+  ast_t* expr_type = ast_type(expr);
+  if(expr_type == NULL || ast_id(expr_type) != TK_TUPLETYPE)
+    return;
+
+  // Resolve arrow types and type aliases.
+  ast_t* target = target_type;
+  ast_t* target_unfolded = NULL;
+
+  while(ast_id(target) == TK_ARROW)
+    target = ast_childidx(target, 1);
+
+  if(ast_id(target) == TK_TYPEALIASREF)
+  {
+    target_unfolded = typealias_unfold(target);
+
+    if(target_unfolded != NULL)
+      target = target_unfolded;
+  }
+
+  // Only act when the target is a union of tuples. When the target is a
+  // plain tuple (e.g., destructuring assignment), there is no representation
+  // mismatch to fix, so just recurse into children for nested unions.
+  if(ast_id(target) == TK_UNIONTYPE)
+  {
+    // Find the first union variant that is a supertype of the literal's type.
+    ast_t* member = ast_child(target);
+    ast_t* variant = NULL;
+    while(member != NULL)
+    {
+      if(is_subtype(expr_type, member, NULL, opt))
+      {
+        variant = member;
+        break;
+      }
+      member = ast_sibling(member);
+    }
+    if(variant == NULL)
+    {
+      if(target_unfolded != NULL) ast_free_unattached(target_unfolded);
+      return;
+    }
+    target = variant;
+
+    if(ast_id(target) != TK_TUPLETYPE)
+    {
+      if(target_unfolded != NULL) ast_free_unattached(target_unfolded);
+      return;
+    }
+
+    if(ast_childcount(expr_type) != ast_childcount(target))
+    {
+      if(target_unfolded != NULL) ast_free_unattached(target_unfolded);
+      return;
+    }
+
+    // Check if any element has a structural type mismatch: the literal's
+    // element type is a concrete type (e.g., a tuple) but the target
+    // variant wants a union. Only widen in that case — capability and
+    // ephemeral differences are handled correctly by codegen already.
+    // Type aliases wrapping unions must also be detected.
+    bool needs_change = false;
+    ast_t* tc = ast_child(expr_type);
+    ast_t* vc = ast_child(target);
+    while(tc != NULL && vc != NULL)
+    {
+      token_id vc_id = ast_id(vc);
+
+      // Check for TK_TYPEALIASREF wrapping a union.
+      if(vc_id == TK_TYPEALIASREF)
+      {
+        ast_t* vc_unfolded = typealias_unfold(vc);
+
+        if(vc_unfolded != NULL)
+        {
+          vc_id = ast_id(vc_unfolded);
+          ast_free_unattached(vc_unfolded);
+        }
+      }
+
+      if(vc_id == TK_UNIONTYPE && ast_id(tc) != TK_UNIONTYPE)
+      {
+        needs_change = true;
+        break;
+      }
+      tc = ast_sibling(tc);
+      vc = ast_sibling(vc);
+    }
+
+    if(needs_change)
+    {
+      // Build a new tuple type, using the target element type where the
+      // literal has a concrete type but the target wants a union.
+      // Unfold alias elements so the widened type has concrete union types.
+      ast_t* new_type = ast_from(expr, TK_TUPLETYPE);
+      tc = ast_child(expr_type);
+      vc = ast_child(target);
+      while(tc != NULL && vc != NULL)
+      {
+        token_id vc_id = ast_id(vc);
+        ast_t* vc_concrete = vc;
+        ast_t* vc_unfolded = NULL;
+
+        if(vc_id == TK_TYPEALIASREF)
+        {
+          vc_unfolded = typealias_unfold(vc);
+
+          if(vc_unfolded != NULL)
+          {
+            vc_id = ast_id(vc_unfolded);
+            vc_concrete = vc_unfolded;
+          }
+        }
+
+        if(vc_id == TK_UNIONTYPE && ast_id(tc) != TK_UNIONTYPE)
+          ast_append(new_type, ast_dup(vc_concrete));
+        else
+          ast_append(new_type, ast_dup(tc));
+
+        if(vc_unfolded != NULL)
+          ast_free_unattached(vc_unfolded);
+
+        tc = ast_sibling(tc);
+        vc = ast_sibling(vc);
+      }
+      ast_settype(expr, new_type);
+      expr_type = new_type;
+    }
+  }
+  else if(ast_id(target) != TK_TUPLETYPE)
+  {
+    if(target_unfolded != NULL) ast_free_unattached(target_unfolded);
+    return;
+  }
+
+  if(ast_childcount(expr_type) != ast_childcount(target))
+  {
+    if(target_unfolded != NULL) ast_free_unattached(target_unfolded);
+    return;
+  }
+
+  // Recursively coerce inner tuple elements for nested union cases.
+  ast_t* child_expr = ast_child(expr);
+  ast_t* child_target = ast_child(target);
+  while(child_expr != NULL && child_target != NULL)
+  {
+    coerce_tuple_to_target(opt, child_expr, child_target);
+    child_expr = ast_sibling(child_expr);
+    child_target = ast_sibling(child_target);
+  }
+
+  // Propagate the tuple's (possibly widened) type back through any SEQ
+  // wrappers we unwrapped. Codegen (gen_call, gen_tuple) reads types from
+  // SEQ nodes, so they must reflect the widened type for the reach set
+  // lookup and boxing to work correctly.
+  ast_t* seq = original_expr;
+  while(seq != expr)
+  {
+    pony_assert(ast_id(seq) == TK_SEQ);
+    ast_settype(seq, ast_type(ast_child(seq)));
+    seq = ast_child(seq);
+  }
+
+  if(target_unfolded != NULL)
+    ast_free_unattached(target_unfolded);
+}
+
 bool expr_assign(pass_opt_t* opt, ast_t* ast)
 {
   // Left and right are swapped in the AST to make sure we type check the
@@ -335,6 +587,8 @@ bool expr_assign(pass_opt_t* opt, ast_t* ast)
 
   if(!coerce_literals(&right, l_type, opt))
     return false;
+
+  coerce_tuple_to_target(opt, right, l_type);
 
   ast_t* r_type = ast_type(right);
 
@@ -375,11 +629,11 @@ bool expr_assign(pass_opt_t* opt, ast_t* ast)
     default: {}
   }
 
-  ast_t* wl_type = consume_type(fl_type, TK_NONE, false);
-  if((wl_type != NULL) && check_auto_recover_newref(fl_type, right))
+  ast_t* wl_type = consume_type(fl_type, TK_NONE, false, opt);
+  if((wl_type != NULL) && check_auto_recover_newref(fl_type, right, opt))
   {
     token_id left_cap = ast_id(cap_fetch(wl_type));
-    ast_t* recovered_left_type = recover_type(r_type, left_cap);
+    ast_t* recovered_left_type = recover_type(r_type, left_cap, opt);
     if (recovered_left_type)
       r_type = recovered_left_type;
   }
@@ -390,7 +644,7 @@ bool expr_assign(pass_opt_t* opt, ast_t* ast)
   if(wl_type == NULL)
   {
     ast_error_frame(&frame, ast, "Invalid type for field of assignment: %s",
-        ast_print_type(fl_type));
+        ast_print_type(fl_type, opt->strtab));
 
     if(ast_checkflag(ast_type(right), AST_FLAG_INCOMPLETE))
       ast_error_frame(&frame, right,
@@ -414,16 +668,28 @@ bool expr_assign(pass_opt_t* opt, ast_t* ast)
     return false;
   }
 
-  if((ast_id(left) == TK_TUPLE) && (ast_id(r_type) != TK_TUPLETYPE))
+  // Unfold type aliases to check the underlying type for tuple destructuring.
+  ast_t* check_r_type = r_type;
+  ast_t* r_type_unfolded = NULL;
+
+  if(ast_id(check_r_type) == TK_TYPEALIASREF)
   {
-    switch(ast_id(r_type))
+    r_type_unfolded = typealias_unfold(check_r_type);
+
+    if(r_type_unfolded != NULL)
+      check_r_type = r_type_unfolded;
+  }
+
+  if((ast_id(left) == TK_TUPLE) && (ast_id(check_r_type) != TK_TUPLETYPE))
+  {
+    switch(ast_id(check_r_type))
     {
       case TK_UNIONTYPE:
         ast_error(opt->check.errors, ast,
           "can't destructure a union using assignment, use pattern matching "
           "instead");
         ast_error_continue(opt->check.errors, right,
-          "inferred type of expression: %s", ast_print_type(r_type));
+          "inferred type of expression: %s", ast_print_type(r_type, opt->strtab));
         break;
 
       case TK_ISECTTYPE:
@@ -431,7 +697,7 @@ bool expr_assign(pass_opt_t* opt, ast_t* ast)
           "can't destructure an intersection using assignment, use pattern "
           "matching instead");
         ast_error_continue(opt->check.errors, right,
-          "inferred type of expression: %s", ast_print_type(r_type));
+          "inferred type of expression: %s", ast_print_type(r_type, opt->strtab));
         break;
 
       default:
@@ -439,9 +705,15 @@ bool expr_assign(pass_opt_t* opt, ast_t* ast)
         break;
     }
 
+    if(r_type_unfolded != NULL)
+      ast_free_unattached(r_type_unfolded);
+
     ast_free_unattached(wl_type);
     return false;
   }
+
+  if(r_type_unfolded != NULL)
+    ast_free_unattached(r_type_unfolded);
 
   bool ok_mutable = safe_to_mutate(left);
   if(!ok_mutable)
@@ -452,7 +724,7 @@ bool expr_assign(pass_opt_t* opt, ast_t* ast)
     return false;
   }
 
-  bool ok_safe = safe_to_move(left, r_type, WRITE);
+  bool ok_safe = safe_to_move(left, r_type, WRITE, opt);
 
   if(!ok_safe)
   {
@@ -483,11 +755,11 @@ bool expr_assign(pass_opt_t* opt, ast_t* ast)
     ast_error(opt->check.errors, ast,
       "not safe to write right side to left side");
     ast_error_continue(opt->check.errors, wl_type, "right side type: %s",
-      ast_print_type(wl_type));
+      ast_print_type(wl_type, opt->strtab));
     if(ast_child(left) != NULL)
     {
       ast_error_continue(opt->check.errors, ast_child(left), "left side type: %s",
-      ast_print_type(ast_type(ast_child(left))));
+      ast_print_type(ast_type(ast_child(left)), opt->strtab));
     }
     ast_free_unattached(wl_type);
     return false;
@@ -498,7 +770,7 @@ bool expr_assign(pass_opt_t* opt, ast_t* ast)
   if(!check_embed_construction(opt, left, right))
     return false;
 
-  ast_settype(ast, consume_type(l_type, TK_NONE, false));
+  ast_settype(ast, consume_type(l_type, TK_NONE, false, opt));
   return true;
 }
 
@@ -547,7 +819,7 @@ static bool add_as_type(pass_opt_t* opt, ast_t* ast, ast_t* expr,
 
     default:
     {
-      const char* name = package_hygienic_id(&opt->check);
+      const char* name = package_hygienic_id(&opt->check, opt);
 
       ast_t* expr_type = ast_type(expr);
       errorframe_t info = NULL;
@@ -558,9 +830,9 @@ static bool add_as_type(pass_opt_t* opt, ast_t* ast, ast_t* expr,
         ast_error_frame(&frame, ast,
           "this capture violates capabilities");
         ast_error_frame(&frame, type,
-          "match type: %s", ast_print_type(type));
+          "match type: %s", ast_print_type(type, opt->strtab));
         ast_error_frame(&frame, expr,
-          "pattern type: %s", ast_print_type(expr_type));
+          "pattern type: %s", ast_print_type(expr_type, opt->strtab));
         errorframe_append(&frame, &info);
         errorframe_report(&frame, opt->check.errors);
 
@@ -570,19 +842,19 @@ static bool add_as_type(pass_opt_t* opt, ast_t* ast, ast_t* expr,
         ast_error_frame(&frame, ast,
           "matching variable of type %s with %s is not possible, "
           "since a struct lacks a type descriptor",
-          ast_print_type(expr_type), ast_print_type(type));
+          ast_print_type(expr_type, opt->strtab), ast_print_type(type, opt->strtab));
         ast_error_frame(&frame, type,
-          "match type: %s", ast_print_type(type));
+          "match type: %s", ast_print_type(type, opt->strtab));
         ast_error_frame(&frame, expr,
           "a struct cannot be part of a union type. "
-          "pattern type: %s", ast_print_type(expr_type));
+          "pattern type: %s", ast_print_type(expr_type, opt->strtab));
         errorframe_append(&frame, &info);
         errorframe_report(&frame, opt->check.errors);
 
         return false;
       }
 
-      ast_t* a_type = alias(type);
+      ast_t* a_type = alias(type, opt);
 
       BUILD(pattern_elem, pattern,
         NODE(TK_SEQ,
@@ -610,6 +882,9 @@ bool expr_as(pass_opt_t* opt, ast_t** astp)
   pony_assert(ast_id(ast) == TK_AS);
   AST_GET_CHILDREN(ast, expr, type);
 
+  if(jumps_away_no_value(opt, expr, "a cast operand"))
+    return false;
+
   ast_t* expr_type = ast_type(expr);
   if(is_typecheck_error(expr_type))
     return false;
@@ -626,13 +901,13 @@ bool expr_as(pass_opt_t* opt, ast_t** astp)
     {
       ast_error(opt->check.errors, ast, "Cannot cast to same type");
       ast_error_continue(opt->check.errors, expr,
-        "Expression is already of type %s", ast_print_type(type));
+        "Expression is already of type %s", ast_print_type(type, opt->strtab));
     }
     else
     {
       ast_error(opt->check.errors, ast, "Cannot cast to subtype");
       ast_error_continue(opt->check.errors, expr,
-        "%s is a subtype of this Expression. 'as' is not needed here.", ast_print_type(type));
+        "%s is a subtype of this Expression. 'as' is not needed here.", ast_print_type(type, opt->strtab));
     }
     return false;
   }
@@ -657,6 +932,12 @@ bool expr_as(pass_opt_t* opt, ast_t** astp)
   pony_assert(ast_id(ast_child(pattern_root)) == TK_SEQ);
   ast_t* pattern = ast_pop(ast_child(pattern_root));
   ast_free(pattern_root);
+
+  // Detach expr from ast so REPLACE reuses it directly rather than
+  // duplicating it. Duplicating would leave AST data pointers in expr
+  // (e.g. typeparamref data pointing into an iftype's typeparam_store)
+  // pointing at the original subtree, which ast_replace then frees.
+  ast_pop(ast);
 
   REPLACE(astp,
     NODE(TK_MATCH, AST_SCOPE
@@ -697,13 +978,13 @@ bool expr_consume(pass_opt_t* opt, ast_t* ast)
     return false;
 
   token_id tcap = ast_id(cap);
-  ast_t* c_type = consume_type(type, tcap, false);
+  ast_t* c_type = consume_type(type, tcap, false, opt);
 
   if(c_type == NULL)
   {
     ast_error(opt->check.errors, ast, "can't consume to this capability");
     ast_error_continue(opt->check.errors, term, "expression type is %s",
-      ast_print_type(type));
+      ast_print_type(type, opt->strtab));
     return false;
   }
 

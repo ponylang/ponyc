@@ -122,6 +122,9 @@ ast_t* parse_token_set(parser_t* parser, rule_state_t* state, const char* desc,
 ast_t* parse_rule_set(parser_t* parser, rule_state_t* state, const char* desc,
   const rule_t* rule_set, bool* out_found, bool annotate);
 
+// True if id is a member of the TK_NONE-terminated set.
+bool token_id_in_set(token_id id, const token_id* set);
+
 void parse_set_next_flags(parser_t* parser, uint32_t flags);
 
 ast_t* parse_rule_complete(parser_t* parser, rule_state_t* state);
@@ -136,7 +139,7 @@ ast_t* parse_rule_complete(parser_t* parser, rule_state_t* state);
  * failure.
  */
 bool parse(ast_t* package, source_t* source, rule_t start, const char* expected,
-  errors_t* errors, bool allow_test_symbols, bool trace);
+  errors_t* errors, strtable_t* strtab, bool allow_test_symbols, bool trace);
 
 
 /* The API for parser rules starts here */
@@ -405,6 +408,39 @@ bool parse(ast_t* package, source_t* source, rule_t start, const char* expected,
   }
 
 
+/** Repeatedly try to parse either of two rules, appending each result, but
+ * stop once the most recently appended child is one of the given terminator
+ * tokens. Use this to parse a list iteratively (avoiding the deep recursion of
+ * a right-recursive rule) when one kind of element must be the last in the
+ * list.
+ *
+ * The terminator check reads state.last_child, which is the element just
+ * appended. This is reliable only while each rule contributes its terminator-
+ * bearing node as the *last* node it adds to the parent (a TK_FLATTEN child is
+ * unpacked in order by default_builder, so its last grandchild wins). A rule
+ * that buries the deciding node earlier would silently defeat the stop check.
+ *
+ * Example:
+ *    SEQ_STOP_AFTER_CHILD("value", semiexpr, nosemi, TK_RETURN, TK_BREAK);
+ */
+#define SEQ_STOP_AFTER_CHILD(desc, rule1, rule2, ...) \
+  { \
+    static const token_id terminators[] = { __VA_ARGS__, TK_NONE }; \
+    static const rule_t rule_set[] = { rule1, rule2, NULL }; \
+    bool found = true; \
+    while(found) \
+    { \
+      if((state.last_child != NULL) && \
+        token_id_in_set(ast_id(state.last_child), terminators)) \
+        break; \
+      state.deflt_id = TK_EOF; \
+      ast_t* r = parse_rule_set(parser, &state, desc, rule_set, &found, \
+        false); \
+      if(r != PARSE_OK) return r; \
+    } \
+  }
+
+
 /** Wrap the specified child of the current node in a new node of the given id.
  *
  * Example:
@@ -448,7 +484,9 @@ bool parse(ast_t* package, source_t* source, rule_t start, const char* expected,
   { \
     static const size_t order[] = { __VA_ARGS__ }; \
     pony_assert(ast_childcount(state.ast) == (sizeof(order) / sizeof(size_t))); \
-    static ast_t* shuffle[sizeof(order) / sizeof(size_t)]; \
+    /* Not static: ast_reorder_children mutates shuffle, so static would \
+       cause data races when using the parser in parallel. */ \
+    ast_t* shuffle[sizeof(order) / sizeof(size_t)]; \
     ast_reorder_children(state.ast, order, shuffle); \
     state.last_child = NULL; \
   }

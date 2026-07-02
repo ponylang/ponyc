@@ -4,9 +4,9 @@
 The Collections package provides a variety of collection classes, 
 including map, set, range, heap, ring buffer, list, and flags.
 
-`Map` - Hashmap by strutural equality (use `MapIs` for identity equality).
+`Map` - Hashmap by structural equality (use `MapIs` for identity equality).
 
-`Set` - A set built on top of `Map` using structural equility (use `SetIs` for identity equality).
+`Set` - A set built on top of `Map` using structural equality (use `SetIs` for identity equality).
 
 `Range` - Iterate over a range of numbers with optional step size.
 

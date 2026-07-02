@@ -8,6 +8,7 @@ PONY_EXTERN_C_BEGIN
 
 typedef struct ast_t ast_t;
 typedef struct errors_t errors_t;
+typedef struct strtable_t strtable_t;
 
 typedef enum
 {
@@ -29,7 +30,7 @@ typedef struct symbol_t
   size_t branch_count;
 } symbol_t;
 
-DECLARE_HASHMAP_SERIALISE(symtab, symtab_t, symbol_t);
+DECLARE_HASHMAP(symtab, symtab_t, symbol_t);
 
 bool is_type_name(const char* name);
 
@@ -40,12 +41,12 @@ symtab_t* symtab_dup(symtab_t* symtab);
 void symtab_free(symtab_t* symtab);
 
 bool symtab_add(symtab_t* symtab, const char* name, ast_t* def,
-  sym_status_t status);
+  sym_status_t status, strtable_t* strtab);
 
 ast_t* symtab_find(symtab_t* symtab, const char* name, sym_status_t* status);
 
 ast_t* symtab_find_case(symtab_t* symtab, const char* name,
-  sym_status_t* status);
+  sym_status_t* status, strtable_t* strtab);
 
 sym_status_t symtab_get_status(symtab_t* symtab, const char* name);
 
@@ -56,13 +57,11 @@ void symtab_inherit_status(symtab_t* dst, symtab_t* src);
 
 void symtab_inherit_branch(symtab_t* dst, symtab_t* src);
 
-bool symtab_can_merge_public(symtab_t* dst, symtab_t* src);
+bool symtab_can_merge_public(symtab_t* dst, symtab_t* src, strtable_t* strtab);
 
-bool symtab_merge_public(symtab_t* dst, symtab_t* src);
+bool symtab_merge_public(symtab_t* dst, symtab_t* src, strtable_t* strtab);
 
 bool symtab_check_all_defined(symtab_t* symtab, errors_t* errors);
-
-pony_type_t* symbol_pony_type();
 
 PONY_EXTERN_C_END
 

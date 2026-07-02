@@ -173,7 +173,7 @@ class Flags[A: Flag[B] val, B: (Unsigned & Integer[B] val) = U64] is
     """
     Returns true if the flags set on this are a subset of the flags set on
     that or they are the same. Flags is only partially ordered, so le is not
-    the opposite of te.
+    the opposite of gt.
     """
     ((_value and not that._value) == 0)
 

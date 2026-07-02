@@ -54,6 +54,9 @@ static bool declared_ffi(pass_opt_t* opt, ast_t* call, ast_t* decl)
     if(!coerce_literals(&arg, p_type, opt))
       return false;
 
+    if(jumps_away_no_value(opt, arg, "an argument"))
+      return false;
+
     ast_t* arg_type = ast_type(arg);
 
     if(is_typecheck_error(arg_type))
@@ -65,7 +68,7 @@ static bool declared_ffi(pass_opt_t* opt, ast_t* call, ast_t* decl)
       return false;
     }
 
-    ast_t* a_type = alias(arg_type);
+    ast_t* a_type = alias(arg_type, opt);
     errorframe_t info = NULL;
 
     if(!void_star_param(p_type, a_type) &&
@@ -74,9 +77,9 @@ static bool declared_ffi(pass_opt_t* opt, ast_t* call, ast_t* decl)
       errorframe_t frame = NULL;
       ast_error_frame(&frame, arg, "argument not a assignable to parameter");
       ast_error_frame(&frame, arg, "argument type is %s",
-                      ast_print_type(a_type));
+                      ast_print_type(a_type, opt->strtab));
       ast_error_frame(&frame, param, "parameter type requires %s",
-                      ast_print_type(p_type));
+                      ast_print_type(p_type, opt->strtab));
       errorframe_append(&frame, &info);
       errorframe_report(&frame, opt->check.errors);
       ast_free_unattached(a_type);
@@ -102,6 +105,9 @@ static bool declared_ffi(pass_opt_t* opt, ast_t* call, ast_t* decl)
 
   for(; arg != NULL; arg = ast_sibling(arg))
   {
+    if(jumps_away_no_value(opt, arg, "an argument"))
+      return false;
+
     ast_t* a_type = ast_type(arg);
 
     if((a_type != NULL) && is_type_literal(a_type))

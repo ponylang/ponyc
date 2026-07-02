@@ -55,9 +55,9 @@ bool is_concrete(ast_t* type);
 
 bool is_known(ast_t* type);
 
-bool is_bare(ast_t* type);
+bool is_bare(ast_t* type, pass_opt_t* opt);
 
-bool is_top_type(ast_t* type, bool ignore_cap);
+bool is_top_type(ast_t* type, bool ignore_cap, pass_opt_t* opt);
 
 bool is_entity(ast_t* type, token_id entity);
 

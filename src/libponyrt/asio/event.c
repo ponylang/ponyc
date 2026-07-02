@@ -1,3 +1,5 @@
+#define PONY_WANT_ATOMIC_DEFS
+
 #include "event.h"
 #include "asio.h"
 #include "../actor/actor.h"
@@ -30,11 +32,17 @@ PONY_API asio_event_t* pony_asio_event_create(pony_actor_t* owner, int fd,
   ev->writeable = false;
   ev->readable = false;
 
+#ifdef PLATFORM_IS_WINDOWS
+  ev->timer = NULL;
+  ev->removing = false;
+#endif
+
   owner->live_asio_events = owner->live_asio_events + 1;
 
   // The event is effectively being sent to another thread, so mark it here.
+  // Null destination: this is not a self-send, so nothing should be pinned.
   pony_ctx_t* ctx = pony_ctx();
-  pony_gc_send(ctx);
+  pony_gc_send(ctx, NULL);
   pony_traceknown(ctx, owner, type, PONY_TRACE_OPAQUE);
   pony_send_done(ctx);
 
@@ -131,15 +139,9 @@ PONY_API uint64_t pony_asio_event_nsec(asio_event_t* ev)
 PONY_API void pony_asio_event_send(asio_event_t* ev, uint32_t flags,
   uint32_t arg)
 {
-#ifdef PLATFORM_IS_WINDOWS
-  // On Windows, this can be called from an IOCP callback thread, which may
-  // not have a pony_ctx() associated with it yet.
-  // Don't call `ponyint_register_asio_thread` because that would overwrite the
-  // scheduler index if this is run on a normal scheduler thread and that would
-  // be not good.
-  pony_register_thread();
-#endif
-
+  // Every backend, including the Windows readiness backend, sends events only
+  // from the asio thread (already registered via ponyint_register_asio_thread),
+  // so there is no foreign thread to register and no liveness token to hold.
   asio_msg_t* m = (asio_msg_t*)pony_alloc_msg(POOL_INDEX(sizeof(asio_msg_t)),
     ev->msg_id);
   m->event = ev;

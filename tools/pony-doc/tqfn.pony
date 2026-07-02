@@ -4,13 +4,21 @@ primitive TQFN
   qualified name and a type name.
 
   Format: `{qualified_package_name}-{type_name}` with all `/`
-  replaced by `-`. Matches `write_tqfn()` in docgen.c (lines 226-257).
+  replaced by `-`.
 
   The `type_name` parameter can be overridden to produce special
   TQFNs, e.g. passing `"-index"` for package index pages produces
   a double dash: `{pkg}--index`.
   """
-  fun apply(qualified_name: String, type_name: String): String =>
+  fun apply(
+    qualified_name: String,
+    type_name: String)
+    : String
+  =>
+    """
+    Build the TQFN string from a qualified package name
+    and a type name.
+    """
     let raw: String val = qualified_name + "-" + type_name
     let result = recover iso String(raw.size()) end
     for byte in raw.values() do

@@ -5,6 +5,10 @@ project(ponyclibs VERSION ${PONYC_PROJECT_VERSION} LANGUAGES C CXX)
 
 include(ExternalProject)
 
+if(POLICY CMP0135)
+    cmake_policy(SET CMP0135 NEW)
+endif()
+
 if(NOT DEFINED PONYC_LIBS_BUILD_TYPE)
     set(PONYC_LIBS_BUILD_TYPE Release)
 endif()
@@ -30,7 +34,7 @@ endif()
 
 # Libraries
 
-set(PONYC_GBENCHMARK_URL https://github.com/google/benchmark/archive/v1.9.1.tar.gz)
+set(PONYC_GBENCHMARK_URL https://github.com/google/benchmark/archive/v1.9.5.tar.gz)
 ExternalProject_Add(gbenchmark
     URL ${PONYC_GBENCHMARK_URL}
     CMAKE_ARGS -DCMAKE_BUILD_TYPE=${PONYC_LIBS_BUILD_TYPE} -DCMAKE_INSTALL_PREFIX=${CMAKE_INSTALL_PREFIX} -DBENCHMARK_ENABLE_GTEST_TESTS=OFF -DBENCHMARK_ENABLE_WERROR=OFF -DCMAKE_CXX_FLAGS=${PONY_PIC_FLAG} --no-warn-unused-cli
@@ -43,19 +47,10 @@ ExternalProject_Add(googletest
     CMAKE_ARGS -DCMAKE_BUILD_TYPE=${PONYC_LIBS_BUILD_TYPE} -DCMAKE_INSTALL_PREFIX=${CMAKE_INSTALL_PREFIX} -DCMAKE_CXX_FLAGS=${PONY_PIC_FLAG} -Dgtest_force_shared_crt=ON --no-warn-unused-cli
 )
 
-add_library(blake2 STATIC blake2/blake2b-ref.c)
-set_property(TARGET blake2 PROPERTY POSITION_INDEPENDENT_CODE ON)
-
-install(TARGETS blake2
-    ARCHIVE DESTINATION lib
-    LIBRARY DESTINATION lib
-    COMPONENT library
-)
-
 find_package(Git)
 
-set(LLVM_DESIRED_HASH "2078da43e25a4623cab2d0d60decddf709aaea28")
-set(PATCHES_DESIRED_HASH "3e16c097794cb669a8f6a0bd7600b440205ac5c29a6135750c2e83263eb16a95")
+set(LLVM_DESIRED_HASH "fc4aad7b5db3fff421df9a9637605b9ca5667881")
+set(PATCHES_DESIRED_HASH "49d865c5ab194d7b59781e8e99c68e1b8bc8b27e0cdaa0d1b498c5474e7ed060")
 
 if(GIT_FOUND)
     if(EXISTS "${PROJECT_SOURCE_DIR}/../.git")
@@ -117,7 +112,33 @@ if(GIT_FOUND)
                 message(FATAL_ERROR "Unable to apply ${PATCH}")
             endif()
         else()
-            message("    Already applied ${PATCH}")
+            # The forward check failed. That means either the patch is
+            # already applied, or `git apply` could not evaluate it at all.
+            # The latter happens when lib/llvm/src has a dangling submodule
+            # gitlink: a `.git` file pointing at a `.git/modules/...` target
+            # that isn't present (e.g. the tree was copied or rsynced without
+            # the parent's `.git/modules`). In that case `git apply` aborts
+            # with "fatal: not a git repository" and a non-zero exit. Note
+            # this loop runs unconditionally inside `if(GIT_FOUND)`, even when
+            # the `EXISTS ../.git` submodule-update guard above is false, so
+            # the dangling-gitlink tree reaches this point unchecked.
+            #
+            # Distinguish the two with a reverse check: if the patch
+            # reverse-applies cleanly it is genuinely in the tree and we skip
+            # it; otherwise fail loudly rather than silently build an
+            # unpatched source tree.
+            execute_process(COMMAND ${GIT_EXECUTABLE} apply --reverse --check -p 1 --ignore-whitespace --whitespace=nowarn ${PATCH}
+                            WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}/llvm/src"
+                            ERROR_VARIABLE _reverse_err_out
+                            RESULT_VARIABLE git_apply_reverse_check_result)
+            if(git_apply_reverse_check_result EQUAL "0")
+                message("    Already applied ${PATCH}")
+            else()
+                message(FATAL_ERROR "Unable to apply or verify ${PATCH}.\n"
+                        "The patch does not apply and is not already applied; the source tree may be missing its git metadata (e.g. a dangling submodule gitlink).\n"
+                        "Forward check error:\n${_err_out}\n"
+                        "Reverse check error:\n${_reverse_err_out}")
+            endif()
         endif()
     endforeach()
 else()
@@ -128,14 +149,47 @@ message("Building targets: ${LLVM_TARGETS_TO_BUILD}")
 
 set(LLVM_ENABLE_BINDINGS OFF CACHE BOOL "ponyc specific override of LLVM cache entry")
 set(LLVM_ENABLE_OCAMLDOC OFF CACHE BOOL "ponyc specific override of LLVM cache entry")
-set(LLVM_ENABLE_PIC OFF CACHE BOOL "ponyc specific override of LLVM cache entry")
+# Historically disabled on macOS to fix an LLVM build failure there. On
+# other platforms keep LLVM's default (ON) so PIE-default distributions
+# can link the resulting static libs into pony-lsp and pony-lint.
+if(${CMAKE_HOST_SYSTEM_NAME} MATCHES "Darwin")
+    set(LLVM_ENABLE_PIC OFF CACHE BOOL "ponyc specific override of LLVM cache entry")
+endif()
+# We statically link LLVM and don't use its plugin infrastructure. Disable
+# explicitly so it doesn't track LLVM_ENABLE_PIC: on OpenBSD that pulls in
+# the Bye example, whose include of llvm/CodeGen/GenVT.inc resolves to the
+# base-system header in /usr/include/llvm before tablegen has generated the
+# in-tree one, producing a macro-signature mismatch.
+set(LLVM_ENABLE_PLUGINS OFF CACHE BOOL "ponyc specific override of LLVM cache entry")
 set(LLVM_ENABLE_TERMINFO OFF CACHE BOOL "ponyc specific override of LLVM cache entry")
 set(LLVM_ENABLE_WARNINGS OFF CACHE BOOL "ponyc specific override of LLVM cache entry")
 set(LLVM_ENABLE_Z3_SOLVER OFF CACHE BOOL "ponyc specific override of LLVM cache entry")
+# The LLVM command-line tools (llc, opt, llvm-link, the llvm-* utilities, and the
+# standalone lld/clang driver binaries) are built by default. ponyc links LLVM
+# and LLD as static *libraries* and never invokes these binaries, so for a normal
+# build they are pure dead weight -- the bulk of build/libs/bin (1.6 GB today)
+# and a large share of link time. Pass llvm_tools=false (PONY_LLVM_TOOLS=OFF) to
+# omit them; CI uses this to keep the cached libs small. LLVM_BUILD_TOOLS gates
+# only the tool *executables* (AddLLVM.cmake: llvm_add_tool marks them
+# EXCLUDE_FROM_ALL and skips their install rules), so the LLVM and LLD libraries
+# ponyc links are unaffected. The one consumer of a tool binary is the opt-in
+# runtime-bitcode build, which drives llvm-link, so it needs libs built with the
+# tools; with PONY_LLVM_TOOLS=OFF that binary is absent and the bitcode build
+# fails to link (rare enough that we document it rather than guard it).
+if(NOT DEFINED PONY_LLVM_TOOLS)
+    set(PONY_LLVM_TOOLS ON)
+endif()
+if(NOT PONY_LLVM_TOOLS)
+    set(LLVM_BUILD_TOOLS OFF CACHE BOOL "ponyc specific override of LLVM cache entry")
+endif()
 set(LLVM_INCLUDE_BENCHMARKS OFF CACHE BOOL "ponyc specific override of LLVM cache entry")
 set(LLVM_INCLUDE_TESTS OFF CACHE BOOL "ponyc specific override of LLVM cache entry")
 set(LLVM_TOOL_REMARKS_SHLIB_BUILD OFF CACHE BOOL "ponyc specific override of LLVM cache entry")
-set(LLVM_ENABLE_ZLIB OFF CACHE BOOL "ponyc specific override of LLVM cache entry")
+if(NOT MSVC)
+  set(LLVM_ENABLE_ZLIB FORCE_ON CACHE STRING "ponyc specific override of LLVM cache entry")
+else()
+  set(LLVM_ENABLE_ZLIB OFF CACHE BOOL "ponyc specific override of LLVM cache entry")
+endif()
 set(LLVM_ENABLE_ZSTD OFF CACHE BOOL "ponyc specific override of LLVM cache entry")
 set(LLVM_ENABLE_LIBXML2 OFF CACHE BOOL "ponyc specific override of LLVM cache entry")
 
@@ -144,6 +198,26 @@ if(${CMAKE_HOST_SYSTEM_NAME} MATCHES "Darwin")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -stdlib=libc++ -mmacosx-version-min=10.14")
 endif()
 
-set(LLVM_ENABLE_PROJECTS "lld" CACHE STRING "ponyc: build LLD as an LLVM sub-project")
+set(LLVM_ENABLE_PROJECTS "lld;clang" CACHE STRING "ponyc: build LLD and clang as LLVM sub-projects")
+
+# ponyc consumes clang as a set of static libraries (gencshim's in-process shim
+# compiles) plus the resource headers, so skip the clang driver binary and
+# the other tool executables (verified: ~0.8G less in the install). The
+# resource headers (clang-resource-headers) are part of the library build
+# and unaffected. Note the analyzer archives and the libclang dylibs are
+# library components that build regardless; CLANG_ENABLE_STATIC_ANALYZER
+# only stops the (not-built) driver from wiring the analyzer in.
+set(CLANG_BUILD_TOOLS OFF CACHE BOOL "ponyc specific override of clang cache entry")
+set(CLANG_ENABLE_STATIC_ANALYZER OFF CACHE BOOL "ponyc specific override of clang cache entry")
+
+# clang-fuzzer is clang's libFuzzer harness; ponyc never uses it. Its
+# handle-llvm object library (clangHandleLLVM) reaches into LLVM internals and
+# has a fragile build dependency on a generated header (TargetLibraryInfo.inc)
+# that races under parallel builds -- it broke the OpenBSD libs build, whose
+# -j4 timing lost the race while every other platform happened to win it.
+# add_clang_subdirectory gates each tool on a CLANG_TOOL_<NAME>_BUILD option
+# (AddLLVM.cmake's add_llvm_subdirectory), so turning this off skips the whole
+# clang-fuzzer subtree on every platform.
+set(CLANG_TOOL_CLANG_FUZZER_BUILD OFF CACHE BOOL "ponyc: skip the unused clang-fuzzer subtree")
 
 add_subdirectory(llvm/src/llvm)

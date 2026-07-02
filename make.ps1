@@ -27,13 +27,22 @@
     [string]
     $Lto = "no",
 
+    [Parameter(HelpMessage="Whether to build the LLVM command-line tools (true/false). They are large and unused by a normal build; set false to omit them.")]
+    [ValidateSet("true", "false")]
+    [string]
+    $LlvmTools = "true",
+
     [Parameter(HelpMessage="Whether or not to run tests in LLDB debugger")]
     [string]
     $Uselldb = "no",
 
     [Parameter(HelpMessage="Tests to run")]
     [string]
-    $TestsToRun = 'libponyrt.tests,libponyc.tests,libponyc.run.tests.debug,libponyc.run.tests.release,stdlib-debug,stdlib-release,grammar'
+    $TestsToRun = 'libponyrt.tests,libponyc.tests,libponyc.run.tests.debug,libponyc.run.tests.release,stdlib-debug,stdlib-release,grammar',
+
+    [Parameter(HelpMessage="Runtime use options to enable at configure time, comma-separated. On Windows only 'systematic_testing' is supported.")]
+    [string]
+    $Use = ""
 )
 
 # Function to extract process exit code from LLDB output
@@ -70,6 +79,14 @@ switch ($Config.ToLower())
     default { throw "'$Config' is not a valid config; use Release, Debug, RelWithDebInfo, or MinSizeRel)." }
 }
 $config_lower = $Config.ToLower()
+
+# `-Use` flags only take effect at configure time (they set CMake cache
+# variables), so reject them on any other command instead of silently ignoring
+# them, matching the Makefile's "You can only specify use= for 'make configure'".
+if (($Use.Trim().Length -gt 0) -and ($Command.ToLower() -ne "configure"))
+{
+    throw "-Use can only be specified for the 'configure' command."
+}
 
 if ($null -eq (Get-Command "cmake.exe" -ErrorAction SilentlyContinue)) {
 	Write-Output "Warning, unable to find cmake.exe in your PATH, trying to discover one in Visual Studio installation."
@@ -118,7 +135,27 @@ if ($buildPath.StartsWith($tempPath, [StringComparison]::OrdinalIgnoreCase))
 }
 
 $libsDir = Join-Path -Path $srcDir -ChildPath "build\libs"
+
+# Output directory. A `-Use` build appends a suffix to the output directory
+# (e.g. build\debug-systematic_testing); see PONY_OUTPUT_SUFFIX in
+# CMakeLists.txt. Discover the real, suffixed directory from the configured
+# CMake install script -- the same approach the Unix Makefile uses -- so that
+# build, test, install, and run all locate a use-flag build's binaries instead
+# of looking in the un-suffixed default. Fall back to that default when nothing
+# has been configured yet.
 $outDir = Join-Path -Path $srcDir -ChildPath "build\$config_lower"
+$cmakeInstall = Join-Path -Path $buildDir -ChildPath "cmake_install.cmake"
+if (Test-Path $cmakeInstall)
+{
+    $srcFwd = $srcDir -replace '\\', '/'
+    $needle = [regex]::Escape("$srcFwd/build/$config_lower") + '[^/"]*' + '/libponyrt\.tests'
+    $found = Select-String -Path $cmakeInstall -Pattern $needle -ErrorAction SilentlyContinue |
+        Select-Object -First 1
+    if ($null -ne $found)
+    {
+        $outDir = ($found.Matches[0].Value -replace '/libponyrt\.tests.*$', '') -replace '/', '\'
+    }
+}
 
 Write-Output "Source directory: $srcDir"
 Write-Output "Build directory:  $buildDir"
@@ -137,7 +174,8 @@ elseif (![System.IO.Path]::IsPathRooted($Prefix))
 
 Write-Output "make.ps1 $Command -Config $Config -Generator `"$Generator`" -Prefix `"$Prefix`" -Version `"$Version`""
 
-if (($Command.ToLower() -ne "libs") -and ($Command.ToLower() -ne "distclean") -and !(Test-Path -Path $libsDir))
+$libsOptionalCommands = @("libs", "distclean")
+if (($libsOptionalCommands -notcontains $Command.ToLower()) -and !(Test-Path -Path $libsDir))
 {
     throw "Libs directory '$libsDir' does not exist; you may need to run 'make.ps1 libs' first."
 }
@@ -169,19 +207,22 @@ switch ($Command.ToLower())
         Write-Output "Configuring libraries..."
         if ($Arch.Length -gt 0)
         {
-            & cmake.exe -B "$libsBuildDir" -S "$libsSrcDir" -G "$Generator" -A $Arch -Thost="$Thost" -DCMAKE_INSTALL_PREFIX="$libsDir" -DCMAKE_BUILD_TYPE=Release -DLLVM_TARGETS_TO_BUILD="X86;ARM;AArch64;WebAssembly;RISCV"
+            & cmake.exe -B "$libsBuildDir" -S "$libsSrcDir" -G "$Generator" -A $Arch -Thost="$Thost" -DCMAKE_INSTALL_PREFIX="$libsDir" -DCMAKE_BUILD_TYPE=Release -DLLVM_TARGETS_TO_BUILD="X86;ARM;AArch64;WebAssembly;RISCV" -DPONY_LLVM_TOOLS="$LlvmTools"
             $err = $LastExitCode
         }
         else
         {
-            & cmake.exe -B "$libsBuildDir" -S "$libsSrcDir" -G "$Generator" -Thost="$Thost" -DCMAKE_INSTALL_PREFIX="$libsDir" -DCMAKE_BUILD_TYPE=Release -DLLVM_TARGETS_TO_BUILD="X86;ARM;AArch64;WebAssembly;RISCV"
+            & cmake.exe -B "$libsBuildDir" -S "$libsSrcDir" -G "$Generator" -Thost="$Thost" -DCMAKE_INSTALL_PREFIX="$libsDir" -DCMAKE_BUILD_TYPE=Release -DLLVM_TARGETS_TO_BUILD="X86;ARM;AArch64;WebAssembly;RISCV" -DPONY_LLVM_TOOLS="$LlvmTools"
             $err = $LastExitCode
         }
         if ($err -ne 0) { throw "Error: exit code $err" }
 
         # Write-Output "Building libraries..."
-        Write-Output "cmake.exe --build `"$libsBuildDir`" --target install --config Release"
-        & cmake.exe --build "$libsBuildDir" --target install --config Release
+        # Capped at 4 (not NUMBER_OF_PROCESSORS like the `build` command) because
+        # LLVM translation units are memory-hungry; a higher count risks
+        # exhausting a CI runner's RAM.
+        Write-Output "cmake.exe --build `"$libsBuildDir`" --target install --config Release --parallel 4"
+        & cmake.exe --build "$libsBuildDir" --target install --config Release --parallel 4
         $err = $LastExitCode
         if ($err -ne 0) { throw "Error: exit code $err" }
         break
@@ -203,15 +244,35 @@ switch ($Command.ToLower())
             $lto_flag = "-DPONY_USE_LTO=true"
         }
 
+        $PonyCpu = switch ($Arch.ToLower()) {
+            "x64"   { "x86-64" }
+            "arm64" { "generic" }
+            default { "" }
+        }
+
+        # Translate -Use flags into the -DPONY_USE_* cmake defines that the Unix
+        # Makefile sets for `use=...`. Only the use options that are meaningful on
+        # Windows are accepted; anything else is rejected rather than silently
+        # ignored, mirroring the Makefile's USE_CHECK behavior.
+        $useDefines = @()
+        foreach ($useItem in ($Use -split ',' | ForEach-Object { $_.Trim() } | Where-Object { $_.Length -gt 0 }))
+        {
+            switch ($useItem)
+            {
+                "systematic_testing" { $useDefines += "-DPONY_USE_SYSTEMATIC_TESTING=true" }
+                default { throw "Unknown use option '$useItem'. Supported on Windows: systematic_testing." }
+            }
+        }
+
         if ($Arch.Length -gt 0)
         {
-            Write-Output "cmake.exe -B `"$buildDir`" -S `"$srcDir`" -G `"$Generator`" -A $Arch -Thost="$Thost" -DCMAKE_INSTALL_PREFIX=`"$Prefix`" -DCMAKE_BUILD_TYPE=`"$Config`" -DPONYC_VERSION=`"$Version`""
-            & cmake.exe -B "$buildDir" -S "$srcDir" -G "$Generator" -A $Arch -Thost="$Thost" -DCMAKE_INSTALL_PREFIX="$Prefix" -DCMAKE_BUILD_TYPE="$Config" -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DPONYC_VERSION="$Version" $lto_flag --no-warn-unused-cli
+            Write-Output "cmake.exe -B `"$buildDir`" -S `"$srcDir`" -G `"$Generator`" -A $Arch -Thost="$Thost" -DCMAKE_INSTALL_PREFIX=`"$Prefix`" -DCMAKE_BUILD_TYPE=`"$Config`" -DPONYC_VERSION=`"$Version`" -DPONY_CPU=`"$PonyCpu`" $useDefines"
+            & cmake.exe -B "$buildDir" -S "$srcDir" -G "$Generator" -A $Arch -Thost="$Thost" -DCMAKE_INSTALL_PREFIX="$Prefix" -DCMAKE_BUILD_TYPE="$Config" -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DPONYC_VERSION="$Version" -DPONY_CPU="$PonyCpu" $lto_flag $useDefines --no-warn-unused-cli
         }
         else
         {
-            Write-Output "cmake.exe -B `"$buildDir`" -S `"$srcDir`" -G `"$Generator`" -Thost="$Thost" -DCMAKE_INSTALL_PREFIX=`"$Prefix`" -DCMAKE_BUILD_TYPE=`"$Config`" -DPONYC_VERSION=`"$Version`""
-            & cmake.exe -B "$buildDir" -S "$srcDir" -G "$Generator" -Thost="$Thost" -DCMAKE_INSTALL_PREFIX="$Prefix" -DCMAKE_BUILD_TYPE="$Config" -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DPONYC_VERSION="$Version" $lto_flag --no-warn-unused-cli
+            Write-Output "cmake.exe -B `"$buildDir`" -S `"$srcDir`" -G `"$Generator`" -Thost="$Thost" -DCMAKE_INSTALL_PREFIX=`"$Prefix`" -DCMAKE_BUILD_TYPE=`"$Config`" -DPONYC_VERSION=`"$Version`" -DPONY_CPU=`"$PonyCpu`" $useDefines"
+            & cmake.exe -B "$buildDir" -S "$srcDir" -G "$Generator" -Thost="$Thost" -DCMAKE_INSTALL_PREFIX="$Prefix" -DCMAKE_BUILD_TYPE="$Config" -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DPONYC_VERSION="$Version" -DPONY_CPU="$PonyCpu" $lto_flag $useDefines --no-warn-unused-cli
         }
         $err = $LastExitCode
         if ($err -ne 0) { throw "Error: exit code $err" }
@@ -219,8 +280,17 @@ switch ($Command.ToLower())
     }
     "build"
     {
-        Write-Output "cmake.exe --build `"$buildDir`" --config $Config --target ALL_BUILD"
-        & cmake.exe --build "$buildDir" --config $Config --target ALL_BUILD
+        # `--parallel` drives MSBuild's project-level parallelism (/m); the
+        # per-source parallelism within a project comes from the /MP flag set in
+        # CMakeLists.txt. Without both, the Windows build compiles serially.
+        # The two combined can oversubscribe (up to jobs x cores cl.exe
+        # processes); left uncapped because ponyc translation units are small
+        # and the memory-heavy LLVM build is a separate, capped step (libs).
+        # Cap this if a smaller CI runner shows memory pressure.
+        $jobs = $env:NUMBER_OF_PROCESSORS
+        if ([string]::IsNullOrEmpty($jobs)) { $jobs = [Environment]::ProcessorCount }
+        Write-Output "cmake.exe --build `"$buildDir`" --config $Config --target ALL_BUILD --parallel $jobs"
+        & cmake.exe --build "$buildDir" --config $Config --target ALL_BUILD --parallel $jobs
         $err = $LastExitCode
         if ($err -ne 0) { throw "Error: exit code $err" }
         break
@@ -443,6 +513,116 @@ switch ($Command.ToLower())
             }
         }
 
+        # pony-doc-tests
+        if ($TestsToRun -match 'pony-doc-tests')
+        {
+            $numTestSuitesRun += 1;
+            Write-Output "$outDir\ponyc.exe --path $srcDir\tools\lib\ponylang\pony_compiler\ -b pony-doc-tests -o $outDir $srcDir\tools\pony-doc\test"
+            & $outDir\ponyc.exe --path $srcDir\tools\lib\ponylang\pony_compiler\ -b pony-doc-tests -o $outDir $srcDir\tools\pony-doc\test
+            if ($LastExitCode -eq 0)
+            {
+                try
+                {
+                    Write-Output "$outDir\pony-doc-tests.exe --sequential"
+                    & $outDir\pony-doc-tests.exe --sequential
+                    $err = $LastExitCode
+                }
+                catch
+                {
+                    $err = -1
+                }
+                if ($err -ne 0) { $failedTestSuites += 'pony-doc-tests' }
+            }
+            else
+            {
+                $failedTestSuites += 'compile pony-doc-tests'
+            }
+        }
+
+        # pony-lint-tests
+        if ($TestsToRun -match 'pony-lint-tests')
+        {
+            $numTestSuitesRun += 1;
+            Write-Output "$outDir\ponyc.exe --path $srcDir\tools\lib\ponylang\pony_compiler\ -b pony-lint-tests -o $outDir $srcDir\tools\pony-lint\test"
+            & $outDir\ponyc.exe --path $srcDir\tools\lib\ponylang\pony_compiler\ -b pony-lint-tests -o $outDir $srcDir\tools\pony-lint\test
+            if ($LastExitCode -eq 0)
+            {
+                $savePonyPath = $env:PONYPATH
+                $env:PONYPATH = "$srcDir\packages;$savePonyPath"
+                try
+                {
+                    Write-Output "$outDir\pony-lint-tests.exe --sequential"
+                    & $outDir\pony-lint-tests.exe --sequential
+                    $err = $LastExitCode
+                }
+                catch
+                {
+                    $err = -1
+                }
+                $env:PONYPATH = $savePonyPath
+                if ($err -ne 0) { $failedTestSuites += 'pony-lint-tests' }
+            }
+            else
+            {
+                $failedTestSuites += 'compile pony-lint-tests'
+            }
+        }
+
+        # pony-compiler-tests
+        if ($TestsToRun -match 'pony-compiler-tests')
+        {
+            $numTestSuitesRun += 1;
+            Write-Output "$outDir\ponyc.exe --path $srcDir\tools\lib\ponylang\pony_compiler\ -b pony-compiler-tests -o $outDir $srcDir\tools\lib\ponylang\pony_compiler\tests"
+            & $outDir\ponyc.exe --path $srcDir\tools\lib\ponylang\pony_compiler\ -b pony-compiler-tests -o $outDir $srcDir\tools\lib\ponylang\pony_compiler\tests
+            if ($LastExitCode -eq 0)
+            {
+                $savePonyPath = $env:PONYPATH
+                $env:PONYPATH = "$srcDir\tools\lib\ponylang\pony_compiler;$srcDir\packages;$savePonyPath"
+                try
+                {
+                    Write-Output "$outDir\pony-compiler-tests.exe --sequential"
+                    & $outDir\pony-compiler-tests.exe --sequential
+                    $err = $LastExitCode
+                }
+                catch
+                {
+                    $err = -1
+                }
+                $env:PONYPATH = $savePonyPath
+                if ($err -ne 0) { $failedTestSuites += 'pony-compiler-tests' }
+            }
+            else
+            {
+                $failedTestSuites += 'compile pony-compiler-tests'
+            }
+        }
+
+        # pony-lsp-tests
+        if ($TestsToRun -match 'pony-lsp-tests')
+        {
+            $numTestSuitesRun += 1;
+            Write-Output "$outDir\ponyc.exe --path $srcDir\tools\lib\ponylang\pony_compiler\ -b pony-lsp-tests -o $outDir $srcDir\tools"
+            & $outDir\ponyc.exe --path $srcDir\tools\lib\ponylang\peg --path $srcDir\tools\lib\ponylang\pony_compiler\ -b pony-lsp-tests -o $outDir $srcDir\tools
+            if ($LastExitCode -eq 0)
+            {
+                try
+                {
+                    Write-Output "$outDir\pony-lsp-tests.exe --sequential"
+                    & $outDir\pony-lsp-tests.exe --sequential
+                    $err = $LastExitCode
+                }
+                catch
+                {
+                    $err = -1
+                }
+                if ($err -ne 0) { $failedTestSuites += 'pony-lsp-tests' }
+            }
+            else
+            {
+                $failedTestSuites += 'compile pony-lsp-tests'
+            }
+        }
+
         #
         $numTestSuitesFailed = $failedTestSuites.Length
         Write-Output "Test suites run: $numTestSuitesRun, num failed: $numTestSuitesFailed"
@@ -456,7 +636,8 @@ switch ($Command.ToLower())
     }
     "build-examples"
     {
-        # Find all example subdirectories that contain .pony files and build each one
+        # Find all example subdirectories that contain .pony files and build each one.
+        # ffi-* examples need a separately-built C library, so they're skipped here.
         $examples = Get-ChildItem -Path "$srcDir\examples" -Directory |
                 Where-Object { $_.Name -notlike "ffi-*" } |
                 Where-Object { (Get-ChildItem -Path $_.FullName -Filter "*.pony" -File).Count -gt 0 } |
@@ -480,54 +661,6 @@ switch ($Command.ToLower())
             $failed | ForEach-Object { Write-Output "  $_" }
             throw "Some examples failed to build"
         }
-        break
-    }
-    "stress-test-ubench-release"
-    {
-        $lldbcmd = 'C:\msys64\mingw64\bin\lldb.exe'
-        $lldbargs = @('--batch', '--one-line', 'run', '--one-line-on-crash', '"frame variable"', '--one-line-on-crash', '"register read"', '--one-line-on-crash', '"bt all"', '--one-line-on-crash', '"quit 1"', '--')
-
-        & $outDir\ponyc.exe --bin-name=ubench --output=$outDir test\rt-stress\string-message-ubench
-        $lldboutput = & $lldbcmd $lldbargs $outDir\ubench.exe --pingers 320 --initial-pings 5 --report-count 40 --report-interval 300 --ponynoscale --ponynoblock
-        Write-Output $lldboutput
-        $err = Get-ProcessExitCodeFromLLDB -LLDBOutput $lldboutput
-        exit $err
-        break
-    }
-    "stress-test-ubench-with-cd-release"
-    {
-        $lldbcmd = 'C:\msys64\mingw64\bin\lldb.exe'
-        $lldbargs = @('--batch', '--one-line', 'run', '--one-line-on-crash', '"frame variable"', '--one-line-on-crash', '"register read"', '--one-line-on-crash', '"bt all"', '--one-line-on-crash', '"quit 1"', '--')
-
-        & $outDir\ponyc.exe --bin-name=ubench --output=$outDir test\rt-stress\string-message-ubench
-        $lldboutput = & $lldbcmd $lldbargs $outDir\ubench.exe --pingers 320 --initial-pings 5 --report-count 40 --report-interval 300 --ponynoscale
-        Write-Output $lldboutput
-        $err = Get-ProcessExitCodeFromLLDB -LLDBOutput $lldboutput
-        exit $err
-        break
-    }
-    "stress-test-ubench-debug"
-    {
-        $lldbcmd = 'C:\msys64\mingw64\bin\lldb.exe'
-        $lldbargs = @('--batch', '--one-line', 'run', '--one-line-on-crash', '"frame variable"', '--one-line-on-crash', '"register read"', '--one-line-on-crash', '"bt all"', '--one-line-on-crash', '"quit 1"', '--')
-
-        & $outDir\ponyc.exe --debug --bin-name=ubench --output=$outDir test\rt-stress\string-message-ubench
-        $lldboutput = & $lldbcmd $lldbargs $outDir\ubench.exe --pingers 320 --initial-pings 5 --report-count 40 --report-interval 300 --ponynoscale --ponynoblock
-        Write-Output $lldboutput
-        $err = Get-ProcessExitCodeFromLLDB -LLDBOutput $lldboutput
-        exit $err
-        break
-    }
-    "stress-test-ubench-with-cd-debug"
-    {
-        $lldbcmd = 'C:\msys64\mingw64\bin\lldb.exe'
-        $lldbargs = @('--batch', '--one-line', 'run', '--one-line-on-crash', '"frame variable"', '--one-line-on-crash', '"register read"', '--one-line-on-crash', '"bt all"', '--one-line-on-crash', '"quit 1"', '--')
-
-        & $outDir\ponyc.exe --debug --bin-name=ubench --output=$outDir test\rt-stress\string-message-ubench
-        $lldboutput = & $lldbcmd $lldbargs $outDir\ubench.exe --pingers 320 --initial-pings 5 --report-count 40 --report-interval 300 --ponynoscale
-        Write-Output $lldboutput
-        $err = Get-ProcessExitCodeFromLLDB -LLDBOutput $lldboutput
-        exit $err
         break
     }
     "stress-test-tcp-open-close-release"
@@ -592,7 +725,7 @@ switch ($Command.ToLower())
         Write-Output "Creating $buildDir\..\$package"
 
         # Remove unneeded files; we do it this way because Compress-Archive cannot add a single file to anything other than the root directory
-        Get-ChildItem -File -Path "$Prefix\bin\*" | Where-Object { $_.Name -notin 'ponyc.exe','pony-lsp.exe' } | Remove-Item
+        Get-ChildItem -File -Path "$Prefix\bin\*" | Where-Object { $_.Name -notin 'ponyc.exe','pony-doc.exe','pony-lint.exe','pony-lsp.exe' } | Remove-Item
         Compress-Archive -Path "$Prefix\bin", "$Prefix\lib", "$Prefix\packages", "$Prefix\examples" -DestinationPath "$buildDir\..\$package" -Force
         break
     }
@@ -602,7 +735,7 @@ switch ($Command.ToLower())
         Write-Output "Creating $buildDir\..\$package"
 
         # Remove unneeded files; we do it this way because Compress-Archive cannot add a single file to anything other than the root directory
-        Get-ChildItem -File -Path "$Prefix\bin\*" | Where-Object { $_.Name -notin 'ponyc.exe','pony-lsp.exe' } | Remove-Item
+        Get-ChildItem -File -Path "$Prefix\bin\*" | Where-Object { $_.Name -notin 'ponyc.exe','pony-doc.exe','pony-lint.exe','pony-lsp.exe' } | Remove-Item
         Compress-Archive -Path "$Prefix\bin", "$Prefix\lib", "$Prefix\packages", "$Prefix\examples" -DestinationPath "$buildDir\..\$package" -Force
         break
     }

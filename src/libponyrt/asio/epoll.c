@@ -190,8 +190,13 @@ asio_backend_t* ponyint_asio_backend_init()
   b->epfd = epoll_create1(EPOLL_CLOEXEC);
   b->wakeup = eventfd(0, EFD_NONBLOCK);
 
-  if(b->epfd == 0 || b->wakeup == 0)
+  if(b->epfd == -1 || b->wakeup == -1)
   {
+    if(b->epfd != -1)
+      close(b->epfd);
+    if(b->wakeup != -1)
+      close(b->wakeup);
+    ponyint_messageq_destroy(&b->q, true);
     POOL_FREE(asio_backend_t, b);
     return NULL;
   }
@@ -200,7 +205,14 @@ asio_backend_t* ponyint_asio_backend_init()
   ep.data.ptr = b;
   ep.events = EPOLLIN | EPOLLRDHUP | EPOLLET;
 
-  epoll_ctl(b->epfd, EPOLL_CTL_ADD, b->wakeup, &ep);
+  if(epoll_ctl(b->epfd, EPOLL_CTL_ADD, b->wakeup, &ep) == -1)
+  {
+    close(b->epfd);
+    close(b->wakeup);
+    ponyint_messageq_destroy(&b->q, true);
+    POOL_FREE(asio_backend_t, b);
+    return NULL;
+  }
 
 #if !defined(USE_SCHEDULER_SCALING_PTHREADS)
   // Make sure we ignore signals related to scheduler sleeping/waking
@@ -264,7 +276,10 @@ PONY_API void pony_asio_event_resubscribe(asio_event_t* ev)
 
   // only resubscribe if there is something to resubscribe to
   if (something_to_resub)
-    epoll_ctl(b->epfd, EPOLL_CTL_MOD, ev->fd, &ep);
+  {
+    if(epoll_ctl(b->epfd, EPOLL_CTL_MOD, ev->fd, &ep) == -1)
+      pony_asio_event_send(ev, ASIO_ERROR, 0);
+  }
 }
 
 // Kept to maintain backwards compatibility so folks don't
@@ -308,14 +323,17 @@ DECLARE_THREAD_FN(ponyint_asio_backend_dispatch)
   {
     int wait_time = -1;
 #if defined(USE_SYSTEMATIC_TESTING)
-    wait_time = 10;
+    // Under systematic testing execution is serialized to one thread at a time,
+    // so any real wait here stalls the whole program while it is our turn. Poll
+    // instead: report whatever is already ready and hand our turn straight back.
+    // (A normal build leaves wait_time at -1 and blocks until the kernel has an
+    // event.)
+    wait_time = 0;
 #endif
 
     int event_cnt = epoll_wait(b->epfd, b->events, MAX_EVENTS, wait_time);
 
     SYSTEMATIC_TESTING_YIELD();
-
-    handle_queue(b);
 
     for(int i = 0; i < event_cnt; i++)
     {
@@ -357,6 +375,12 @@ DECLARE_THREAD_FN(ponyint_asio_backend_dispatch)
       {
         if(ep->events & (EPOLLIN | EPOLLRDHUP | EPOLLHUP | EPOLLERR))
         {
+          // Send read notification to an actor if either
+          // * the event is not a one shot event
+          // * the event is a one shot event and we haven't already sent a notification
+          // if the event is a one shot event and we have already sent a notification
+          // don't send another one until we are asked for it again (i.e. the actor
+          // gets a 0 byte read and sets `readable` to false and resubscribes to reads
           if(((ev->flags & ASIO_ONESHOT) && !ev->readable) || !(ev->flags & ASIO_ONESHOT))
           {
             ev->readable = true;
@@ -369,6 +393,12 @@ DECLARE_THREAD_FN(ponyint_asio_backend_dispatch)
       {
         if(ep->events & EPOLLOUT)
         {
+          // Send write notification to an actor if either
+          // * the event is not a one shot event
+          // * the event is a one shot event and we haven't already sent a notification
+          // if the event is a one shot event and we have already sent a notification
+          // don't send another one until we are asked for it again (i.e. the actor
+          // gets partial write and sets `writeable` to false and resubscribes to writes
           if(((ev->flags & ASIO_ONESHOT) && !ev->writeable) || !(ev->flags & ASIO_ONESHOT))
           {
             flags |= ASIO_WRITE;
@@ -388,11 +418,16 @@ DECLARE_THREAD_FN(ponyint_asio_backend_dispatch)
         }
       }
 
+      // if we had a valid event of some type that needs to be sent
+      // to an actor
       if(flags != 0)
       {
+        // send the event to the actor
         pony_asio_event_send(ev, flags, count);
       }
     }
+
+    handle_queue(b);
   }
 
   close(b->epfd);
@@ -407,7 +442,7 @@ DECLARE_THREAD_FN(ponyint_asio_backend_dispatch)
   return NULL;
 }
 
-static void timer_set_nsec(int fd, uint64_t nsec)
+static bool timer_set_nsec(int fd, uint64_t nsec)
 {
   struct itimerspec ts;
 
@@ -416,7 +451,7 @@ static void timer_set_nsec(int fd, uint64_t nsec)
   ts.it_value.tv_sec = (time_t)(nsec / 1000000000);
   ts.it_value.tv_nsec = (long)(nsec - (ts.it_value.tv_sec * 1000000000));
 
-  timerfd_settime(fd, 0, &ts, NULL);
+  return timerfd_settime(fd, 0, &ts, NULL) == 0;
 }
 
 PONY_API void pony_asio_event_subscribe(asio_event_t* ev)
@@ -466,10 +501,10 @@ PONY_API void pony_asio_event_subscribe(asio_event_t* ev)
       sigemptyset(&new_action.sa_mask);
       new_action.sa_flags = SA_RESTART;
 
-      struct epoll_event ep;
-      ep.data.ptr = subs;
-      ep.events = EPOLLIN | EPOLLET;
-      epoll_ctl(b->epfd, EPOLL_CTL_ADD, fd, &ep);
+      struct epoll_event sep;
+      sep.data.ptr = subs;
+      sep.events = EPOLLIN | EPOLLET;
+      epoll_ctl(b->epfd, EPOLL_CTL_ADD, fd, &sep);
 
       // Store the fd with release ordering BEFORE installing sigaction.
       // sigaction provides additional ordering, but the release store
@@ -495,9 +530,9 @@ PONY_API void pony_asio_event_subscribe(asio_event_t* ev)
     bool added = false;
     for(size_t i = 0; i < MAX_SIGNAL_SUBSCRIBERS; i++)
     {
-      asio_event_t* expected = NULL;
+      asio_event_t* exp = NULL;
       if(atomic_compare_exchange_strong_explicit(&subs->subscribers[i],
-        &expected, ev, memory_order_release, memory_order_relaxed))
+        &exp, ev, memory_order_release, memory_order_relaxed))
       {
         added = true;
         break;
@@ -521,7 +556,20 @@ PONY_API void pony_asio_event_subscribe(asio_event_t* ev)
   if(ev->flags & ASIO_TIMER)
   {
     ev->fd = timerfd_create(CLOCK_MONOTONIC, TFD_NONBLOCK);
-    timer_set_nsec(ev->fd, ev->nsec);
+    if(ev->fd == -1)
+    {
+      pony_asio_event_send(ev, ASIO_ERROR, 0);
+      return;
+    }
+
+    if(!timer_set_nsec(ev->fd, ev->nsec))
+    {
+      close(ev->fd);
+      ev->fd = -1;
+      pony_asio_event_send(ev, ASIO_ERROR, 0);
+      return;
+    }
+
     ep.events |= EPOLLIN;
   }
 
@@ -529,10 +577,20 @@ PONY_API void pony_asio_event_subscribe(asio_event_t* ev)
   {
     ep.events |= EPOLLONESHOT;
   } else {
+    // Only use edge triggering if one shot isn't enabled.
+    // This is because of how the runtime gets notifications
+    // from epoll in this ASIO thread and then notifies the
+    // appropriate actor to read/write as necessary.
+    // specifically, it seems there's an edge case/race condition
+    // with edge triggering where if there is already data waiting
+    // on the socket, then epoll might not be triggering immediately
+    // when an edge triggered epoll request is made.
+
     ep.events |= EPOLLET;
   }
 
-  epoll_ctl(b->epfd, EPOLL_CTL_ADD, ev->fd, &ep);
+  if(epoll_ctl(b->epfd, EPOLL_CTL_ADD, ev->fd, &ep) == -1)
+    pony_asio_event_send(ev, ASIO_ERROR, 0);
 }
 
 PONY_API void pony_asio_event_setnsec(asio_event_t* ev, uint64_t nsec)
@@ -548,7 +606,8 @@ PONY_API void pony_asio_event_setnsec(asio_event_t* ev, uint64_t nsec)
   if(ev->flags & ASIO_TIMER)
   {
     ev->nsec = nsec;
-    timer_set_nsec(ev->fd, nsec);
+    if(!timer_set_nsec(ev->fd, nsec))
+      pony_asio_event_send(ev, ASIO_ERROR, 0);
   }
 }
 
@@ -573,6 +632,8 @@ PONY_API void pony_asio_event_unsubscribe(asio_event_t* ev)
     return;
   }
 
+  // Don't send ASIO_ERROR on delete failure — the actor is tearing down,
+  // and ENOENT/EBADF is expected (FD already closed or never registered).
   epoll_ctl(b->epfd, EPOLL_CTL_DEL, ev->fd, NULL);
 
   if(ev->flags & ASIO_TIMER)

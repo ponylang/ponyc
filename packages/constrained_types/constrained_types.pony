@@ -104,7 +104,7 @@ On our usage side we have:
 
 Where we use the `MakeUsername` alias that we use to attempt to create a
 `Username` and get back either a `Username` or `ValidationFailure` that should
-have one ore more error messages for us to display.
+have one or more error messages for us to display.
 
 Finally, we have a function that can only be used with a valid `Username`:
 

@@ -43,36 +43,33 @@ struct asio_backend_t
   messageq_t q;
 };
 
+// Returns true if any entry in EV_RECEIPT results represents a real error.
+// With EV_RECEIPT, every result has EV_ERROR in flags; the distinguishing
+// factor is whether data is zero (success) or non-zero (errno).
+// Ignores EPIPE on macOS — the kernel delivers events despite the error.
+static bool kevent_receipt_has_error(struct kevent* results, int count)
+{
+  for(int i = 0; i < count; i++)
+  {
+    if(results[i].data != 0)
+    {
+#ifdef PLATFORM_IS_MACOSX
+      if(results[i].data == EPIPE)
+        continue;
+#endif
+      return true;
+    }
+  }
+
+  return false;
+}
+
 #if !defined(USE_SCHEDULER_SCALING_PTHREADS)
 static void empty_signal_handler(int sig)
 {
   (void) sig;
 }
 #endif
-
-static void retry_loop(asio_backend_t* b)
-{
-  char c = 0;
-  write(b->wakeup[1], &c, 1);
-}
-
-static void send_request(asio_event_t* ev, int req)
-{
-  asio_backend_t* b = ponyint_asio_get_backend();
-  pony_assert(b != NULL);
-
-  asio_msg_t* msg = (asio_msg_t*)pony_alloc_msg(
-    POOL_INDEX(sizeof(asio_msg_t)), 0);
-  msg->event = ev;
-  msg->flags = req;
-  ponyint_thread_messageq_push(&b->q, (pony_msg_t*)msg, (pony_msg_t*)msg
-#ifdef USE_DYNAMIC_TRACE
-    , pony_scheduler_index(), pony_scheduler_index()
-#endif
-    );
-
-  retry_loop(b);
-}
 
 asio_backend_t* ponyint_asio_backend_init()
 {
@@ -84,17 +81,33 @@ asio_backend_t* ponyint_asio_backend_init()
 
   if(b->kq == -1)
   {
+    ponyint_messageq_destroy(&b->q, true);
     POOL_FREE(asio_backend_t, b);
     return NULL;
   }
 
-  pipe(b->wakeup);
+  if(pipe(b->wakeup) == -1)
+  {
+    close(b->kq);
+    ponyint_messageq_destroy(&b->q, true);
+    POOL_FREE(asio_backend_t, b);
+    return NULL;
+  }
 
   struct kevent new_event;
   EV_SET(&new_event, b->wakeup[0], EVFILT_READ, EV_ADD, 0, 0, NULL);
 
   struct timespec t = {0, 0};
-  kevent(b->kq, &new_event, 1, NULL, 0, &t);
+
+  if(kevent(b->kq, &new_event, 1, NULL, 0, &t) == -1)
+  {
+    close(b->kq);
+    close(b->wakeup[0]);
+    close(b->wakeup[1]);
+    ponyint_messageq_destroy(&b->q, true);
+    POOL_FREE(asio_backend_t, b);
+    return NULL;
+  }
 
 #if !defined(USE_SCHEDULER_SCALING_PTHREADS)
   // Make sure we ignore signals related to scheduler sleeping/waking
@@ -206,6 +219,30 @@ static void handle_queue(asio_backend_t* b)
   }
 }
 
+static void retry_loop(asio_backend_t* b)
+{
+  char c = 0;
+  write(b->wakeup[1], &c, 1);
+}
+
+static void send_request(asio_event_t* ev, int req)
+{
+  asio_backend_t* b = ponyint_asio_get_backend();
+  pony_assert(b != NULL);
+
+  asio_msg_t* msg = (asio_msg_t*)pony_alloc_msg(
+    POOL_INDEX(sizeof(asio_msg_t)), 0);
+  msg->event = ev;
+  msg->flags = req;
+  ponyint_thread_messageq_push(&b->q, (pony_msg_t*)msg, (pony_msg_t*)msg
+#ifdef USE_DYNAMIC_TRACE
+    , pony_scheduler_index(), pony_scheduler_index()
+#endif
+    );
+
+  retry_loop(b);
+}
+
 PONY_API void pony_asio_event_resubscribe_read(asio_event_t* ev)
 {
   if((ev == NULL) ||
@@ -225,13 +262,18 @@ PONY_API void pony_asio_event_resubscribe_read(asio_event_t* ev)
   kevent_flag_t kqueue_flags = ev->flags & ASIO_ONESHOT ? EV_ONESHOT : EV_CLEAR;
   if((ev->flags & ASIO_READ) && !ev->readable)
   {
-    EV_SET(&event[i], ev->fd, EVFILT_READ, EV_ADD | kqueue_flags, 0, 0, ev);
+    EV_SET(&event[i], ev->fd, EVFILT_READ,
+      EV_ADD | EV_RECEIPT | kqueue_flags, 0, 0, ev);
     i++;
   } else {
     return;
   }
 
-  kevent(b->kq, event, i, NULL, 0, NULL);
+  struct kevent results[1];
+  int rc = kevent(b->kq, event, i, results, i, NULL);
+
+  if((rc == -1) || kevent_receipt_has_error(results, i))
+    pony_asio_event_send(ev, ASIO_ERROR, 0);
 
   if(ev->fd == STDIN_FILENO)
     retry_loop(b);
@@ -256,16 +298,31 @@ PONY_API void pony_asio_event_resubscribe_write(asio_event_t* ev)
   kevent_flag_t kqueue_flags = ev->flags & ASIO_ONESHOT ? EV_ONESHOT : EV_CLEAR;
   if((ev->flags & ASIO_WRITE) && !ev->writeable)
   {
-    EV_SET(&event[i], ev->fd, EVFILT_WRITE, EV_ADD | kqueue_flags, 0, 0, ev);
+    EV_SET(&event[i], ev->fd, EVFILT_WRITE,
+      EV_ADD | EV_RECEIPT | kqueue_flags, 0, 0, ev);
     i++;
   } else {
     return;
   }
 
-  kevent(b->kq, event, i, NULL, 0, NULL);
+  struct kevent results[1];
+  int rc = kevent(b->kq, event, i, results, i, NULL);
+
+  if((rc == -1) || kevent_receipt_has_error(results, i))
+    pony_asio_event_send(ev, ASIO_ERROR, 0);
 
   if(ev->fd == STDIN_FILENO)
     retry_loop(b);
+}
+
+// Single function for resubscribing to both reads and writes, matching the
+// cross-backend ABI declared in event.h (epoll/emscripten/sock_notify provide
+// it too). kqueue re-arms each direction with its own kevent, so this just
+// delegates to the per-direction re-arms; each is gated on readable/writeable.
+PONY_API void pony_asio_event_resubscribe(asio_event_t* ev)
+{
+  pony_asio_event_resubscribe_read(ev);
+  pony_asio_event_resubscribe_write(ev);
 }
 
 DECLARE_THREAD_FN(ponyint_asio_backend_dispatch)
@@ -295,9 +352,14 @@ DECLARE_THREAD_FN(ponyint_asio_backend_dispatch)
   {
     struct timespec* timeout = NULL;
 #if defined(USE_SYSTEMATIC_TESTING)
+    // Under systematic testing execution is serialized to one thread at a time,
+    // so any real wait here stalls the whole program while it is our turn. Poll
+    // instead: report whatever is already ready and hand our turn straight back.
+    // (A normal build leaves timeout NULL and kevent blocks until the kernel has
+    // an event.)
     struct timespec ts;
     ts.tv_sec = 0;
-    ts.tv_nsec = 10000000;
+    ts.tv_nsec = 0;
     timeout = &ts;
 #endif
 
@@ -322,9 +384,6 @@ DECLARE_THREAD_FN(ponyint_asio_backend_dispatch)
           b->kq = -1;
         }
       } else {
-        if(ep->flags & EV_ERROR)
-          continue;
-
         // Handle signal events before casting udata to asio_event_t*,
         // because for signals udata points to a signal_subscribers_t*.
         if(ep->filter == EVFILT_SIGNAL)
@@ -480,29 +539,35 @@ PONY_API void pony_asio_event_subscribe(asio_event_t* ev)
   kevent_flag_t flags = ev->flags & ASIO_ONESHOT ? EV_ONESHOT : EV_CLEAR;
   if(ev->flags & ASIO_READ)
   {
-    EV_SET(&event[i], ev->fd, EVFILT_READ, EV_ADD | flags, 0, 0, ev);
+    EV_SET(&event[i], ev->fd, EVFILT_READ,
+      EV_ADD | EV_RECEIPT | flags, 0, 0, ev);
     i++;
   }
 
   if(ev->flags & ASIO_WRITE)
   {
-    EV_SET(&event[i], ev->fd, EVFILT_WRITE, EV_ADD | flags, 0, 0, ev);
+    EV_SET(&event[i], ev->fd, EVFILT_WRITE,
+      EV_ADD | EV_RECEIPT | flags, 0, 0, ev);
     i++;
   }
 
   if(ev->flags & ASIO_TIMER)
   {
 #ifdef PLATFORM_IS_BSD
-    EV_SET(&event[i], (uintptr_t)ev, EVFILT_TIMER, EV_ADD | EV_ONESHOT,
-      0, ev->nsec / 1000000, ev);
+    EV_SET(&event[i], (uintptr_t)ev, EVFILT_TIMER,
+      EV_ADD | EV_RECEIPT | EV_ONESHOT, 0, ev->nsec / 1000000, ev);
 #else
-    EV_SET(&event[i], (uintptr_t)ev, EVFILT_TIMER, EV_ADD | EV_ONESHOT,
-      NOTE_NSECONDS, ev->nsec, ev);
+    EV_SET(&event[i], (uintptr_t)ev, EVFILT_TIMER,
+      EV_ADD | EV_RECEIPT | EV_ONESHOT, NOTE_NSECONDS, ev->nsec, ev);
 #endif
     i++;
   }
 
-  kevent(b->kq, event, i, NULL, 0, NULL);
+  struct kevent results[4];
+  int rc = kevent(b->kq, event, i, results, i, NULL);
+
+  if((rc == -1) || kevent_receipt_has_error(results, i))
+    pony_asio_event_send(ev, ASIO_ERROR, 0);
 
   if(ev->fd == STDIN_FILENO)
     retry_loop(b);
@@ -530,16 +595,20 @@ PONY_API void pony_asio_event_setnsec(asio_event_t* ev, uint64_t nsec)
     ev->nsec = nsec;
 
 #ifdef PLATFORM_IS_BSD
-    EV_SET(&event[i], (uintptr_t)ev, EVFILT_TIMER, EV_ADD | EV_ONESHOT,
-      0, ev->nsec / 1000000, ev);
+    EV_SET(&event[i], (uintptr_t)ev, EVFILT_TIMER,
+      EV_ADD | EV_RECEIPT | EV_ONESHOT, 0, ev->nsec / 1000000, ev);
 #else
-    EV_SET(&event[i], (uintptr_t)ev, EVFILT_TIMER, EV_ADD | EV_ONESHOT,
-      NOTE_NSECONDS, ev->nsec, ev);
+    EV_SET(&event[i], (uintptr_t)ev, EVFILT_TIMER,
+      EV_ADD | EV_RECEIPT | EV_ONESHOT, NOTE_NSECONDS, ev->nsec, ev);
 #endif
     i++;
   }
 
-  kevent(b->kq, event, i, NULL, 0, NULL);
+  struct kevent results[1];
+  int rc = kevent(b->kq, event, i, results, i, NULL);
+
+  if((rc == -1) || kevent_receipt_has_error(results, i))
+    pony_asio_event_send(ev, ASIO_ERROR, 0);
 }
 
 PONY_API void pony_asio_event_unsubscribe(asio_event_t* ev)
@@ -570,23 +639,28 @@ PONY_API void pony_asio_event_unsubscribe(asio_event_t* ev)
 
   if(ev->flags & ASIO_READ)
   {
-    EV_SET(&event[i], ev->fd, EVFILT_READ, EV_DELETE, 0, 0, ev);
+    EV_SET(&event[i], ev->fd, EVFILT_READ, EV_DELETE | EV_RECEIPT, 0, 0, ev);
     i++;
   }
 
   if(ev->flags & ASIO_WRITE)
   {
-    EV_SET(&event[i], ev->fd, EVFILT_WRITE, EV_DELETE, 0, 0, ev);
+    EV_SET(&event[i], ev->fd, EVFILT_WRITE, EV_DELETE | EV_RECEIPT, 0, 0, ev);
     i++;
   }
 
   if(ev->flags & ASIO_TIMER)
   {
-    EV_SET(&event[i], (uintptr_t)ev, EVFILT_TIMER, EV_DELETE, 0, 0, ev);
+    EV_SET(&event[i], (uintptr_t)ev, EVFILT_TIMER,
+      EV_DELETE | EV_RECEIPT, 0, 0, ev);
     i++;
   }
 
-  kevent(b->kq, event, i, NULL, 0, NULL);
+  // EV_RECEIPT ensures all EV_DELETE entries are processed regardless of
+  // individual failures. We don't send ASIO_ERROR here — the actor is
+  // tearing down, and ENOENT/EBADF on EV_DELETE is expected and benign.
+  struct kevent results[4];
+  kevent(b->kq, event, i, results, i, NULL);
 
   ev->flags = ASIO_DISPOSABLE;
 

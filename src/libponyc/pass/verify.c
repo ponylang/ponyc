@@ -3,6 +3,7 @@
 #include "../type/cap.h"
 #include "../type/compattype.h"
 #include "../type/lookup.h"
+#include "../type/typealias.h"
 #include "../verify/call.h"
 #include "../verify/control.h"
 #include "../verify/fun.h"
@@ -120,7 +121,7 @@ DEFINE_HASHMAP(consume_funs, consume_funs_t, ast_t, funref_hash,
 // being consumed for tracking its `consume`d status via the ast `symtab`. It is
 // used to ensure that no parent (e.g. `a.b.c`) of a consumed field
 // (e.g. `a.b.c.d.e`) is consumed.
-static const char* get_multi_ref_name(ast_t* ast)
+static const char* get_multi_ref_name(ast_t* ast, pass_opt_t* opt)
 {
   ast_t* def = NULL;
   size_t len = 0;
@@ -213,7 +214,7 @@ static const char* get_multi_ref_name(ast_t* ast)
   pony_assert((offset + 1) == len);
   buf[offset] = '\0';
 
-  return stringtab_consume(buf, len);
+  return stringtab_consume(opt->strtab, buf, len);
 }
 
 static ast_t* get_fun_def(pass_opt_t* opt, ast_t* ast)
@@ -360,7 +361,7 @@ static bool verify_fun_field_not_referenced(pass_opt_t* opt, ast_t* ast,
       // ensure we're in the same object type as original consume
       if((ctype_name != NULL) && (ctype_name == origin_type_name))
       {
-        const char* cname = get_multi_ref_name(cfield);
+        const char* cname = get_multi_ref_name(cfield, opt);
 
         if(strncmp(cname, consumed_field_full_name, strlen(cname)) == 0)
         {
@@ -410,7 +411,7 @@ static bool verify_consume_field_not_referenced(pass_opt_t* opt,
     ast_t* consumed_type = ast_type(ast_child(cfield));
     const char* consumed_field = ast_name(ast_sibling(ast_child(cfield)));
 
-    const char* cname = get_multi_ref_name(cfield);
+    const char* cname = get_multi_ref_name(cfield, opt);
 
     const char* origin_type_name = ast_name(ast_child(opt->check.frame->type));
 
@@ -606,12 +607,131 @@ static bool verify_is_comparand(pass_opt_t* opt, ast_t* ast)
   }
 }
 
+// If `type` resolves to a singular concrete nominal entity (TK_CLASS, TK_ACTOR,
+// TK_PRIMITIVE, or TK_STRUCT), returns the entity definition pointer. Returns
+// NULL for anything else (unions, intersections, tuples, type parameters,
+// this-types, trait/interface nominals, or unresolvable aliases).
+//
+// Unwraps TK_TYPEALIASREF and TK_ARROW transitively. If an unfolded alias is
+// allocated, it is written to *to_free so the caller can release it with
+// ast_free_unattached after using the returned pointer.
+static ast_t* concrete_nominal_def(ast_t* type, ast_t** to_free)
+{
+  *to_free = NULL;
+
+  while(type != NULL)
+  {
+    switch(ast_id(type))
+    {
+      case TK_TYPEALIASREF:
+      {
+        ast_t* unfolded = typealias_unfold(type);
+        if(unfolded == NULL)
+          return NULL;
+        if(*to_free != NULL)
+          ast_free_unattached(*to_free);
+        *to_free = unfolded;
+        type = unfolded;
+        continue;
+      }
+
+      case TK_ARROW:
+        type = ast_childidx(type, 1);
+        continue;
+
+      case TK_NOMINAL:
+      {
+        ast_t* def = (ast_t*)ast_data(type);
+        if(def == NULL)
+          return NULL;
+
+        switch(ast_id(def))
+        {
+          case TK_CLASS:
+          case TK_ACTOR:
+          case TK_PRIMITIVE:
+          case TK_STRUCT:
+            return def;
+
+          default:
+            return NULL;
+        }
+      }
+
+      default:
+        return NULL;
+    }
+  }
+
+  return NULL;
+}
+
+// Identity comparison between two distinct concrete entity types can never be
+// true: a value of class C is never the same object as a value of class D, and
+// likewise for any pair drawn from {class, actor, primitive, struct}. Reject
+// such comparisons at compile time.
+//
+// Scope is deliberately narrow:
+//  - Only fires when both operand types reduce to a single TK_NOMINAL bound
+//    to a concrete entity definition.
+//  - Distinct reifications of the same generic class (Array[U64] vs
+//    Array[U32]) share a root entity definition pointer and are NOT flagged.
+//  - Unions, intersections, tuples, type parameters, and trait/interface
+//    operands are skipped to avoid "action at a distance" — a future code
+//    change to a structural type set could legitimately make today's
+//    comparison meaningful.
+static bool verify_not_disjoint_concrete(pass_opt_t* opt, ast_t* ast,
+  ast_t* left, ast_t* right)
+{
+  ast_t* l_type = ast_type(left);
+  ast_t* r_type = ast_type(right);
+
+  pony_assert(l_type != NULL);
+  pony_assert(r_type != NULL);
+
+  // Defensive early-return in release builds where pony_assert elides.
+  if((l_type == NULL) || (r_type == NULL))
+    return true;
+
+  ast_t* l_free = NULL;
+  ast_t* r_free = NULL;
+  ast_t* l_def = concrete_nominal_def(l_type, &l_free);
+  ast_t* r_def = concrete_nominal_def(r_type, &r_free);
+
+  bool ok = true;
+
+  if((l_def != NULL) && (r_def != NULL) && (l_def != r_def))
+  {
+    ast_error(opt->check.errors, ast,
+      "identity comparison between disjoint concrete types %s and %s will"
+      " always be false",
+      ast_print_type(l_type, opt->strtab), ast_print_type(r_type, opt->strtab));
+    ok = false;
+  }
+
+  if(l_free != NULL)
+    ast_free_unattached(l_free);
+  if(r_free != NULL)
+    ast_free_unattached(r_free);
+
+  return ok;
+}
+
 static bool verify_is(pass_opt_t* opt, ast_t* ast)
 {
   pony_assert((ast_id(ast) == TK_IS) || (ast_id(ast) == TK_ISNT));
   AST_GET_CHILDREN(ast, left, right);
   ast_inheritflags(ast);
-  return verify_is_comparand(opt, right) && verify_is_comparand(opt, left);
+
+  // verify_is_comparand uses && short-circuit: if `right` triggers the
+  // "identity comparison with a new object" error, `left` is not checked,
+  // and verify_not_disjoint_concrete below is not reached. This avoids
+  // double-reporting on a single expression. Do not split or reorder these
+  // calls without preserving that property.
+  if(!(verify_is_comparand(opt, right) && verify_is_comparand(opt, left)))
+    return false;
+
+  return verify_not_disjoint_concrete(opt, ast, left, right);
 }
 
 ast_result_t pass_verify(ast_t** astp, pass_opt_t* options)

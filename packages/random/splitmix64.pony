@@ -6,7 +6,7 @@ class SplitMix64 is Random
   http://xoshiro.di.unimi.it/ and http://gee.cs.oswego.edu/dl/papers/oopsla14.pdf
 
   Using [XorOshiro128StarStar](random-XorOshiro128StarStar.md) or [XorOshiro128Plus](random-XorOshiro128Plus.md)
-  should be prefered unless using only 64 bit of state is a requirement.
+  should be preferred unless using only 64 bit of state is a requirement.
   """
   // state
   var _x: U64

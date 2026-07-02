@@ -10,6 +10,7 @@
 #include "../type/reify.h"
 #include "../type/assemble.h"
 #include "../type/lookup.h"
+#include "../type/typealias.h"
 #include "ponyassert.h"
 #include <string.h>
 #include <stdlib.h>
@@ -59,19 +60,19 @@ static bool constructor_type(pass_opt_t* opt, ast_t* ast, token_id cap,
         case TK_TYPE:
           ast_error(opt->check.errors, ast,
             "can't call a constructor on a type alias: %s",
-            ast_print_type(type));
+            ast_print_type(type, opt->strtab));
           return false;
 
         case TK_INTERFACE:
           ast_error(opt->check.errors, ast,
             "can't call a constructor on an interface: %s",
-            ast_print_type(type));
+            ast_print_type(type, opt->strtab));
           return false;
 
         case TK_TRAIT:
           ast_error(opt->check.errors, ast,
             "can't call a constructor on a trait: %s",
-            ast_print_type(type));
+            ast_print_type(type, opt->strtab));
           return false;
 
         default:
@@ -96,6 +97,19 @@ static bool constructor_type(pass_opt_t* opt, ast_t* ast, token_id cap,
       return true;
     }
 
+    case TK_TYPEALIASREF:
+    {
+      // Unfold the alias and re-dispatch.
+      ast_t* unfolded = typealias_unfold(type);
+
+      if(unfolded == NULL)
+        return false;
+
+      bool ok = constructor_type(opt, ast, cap, unfolded, resultp);
+      ast_free_unattached(unfolded);
+      return ok;
+    }
+
     case TK_ARROW:
     {
       AST_GET_CHILDREN(type, left, right);
@@ -106,7 +120,7 @@ static bool constructor_type(pass_opt_t* opt, ast_t* ast, token_id cap,
     {
       ast_error(opt->check.errors, ast,
         "can't call a constructor on a type union: %s",
-        ast_print_type(type));
+        ast_print_type(type, opt->strtab));
       return false;
     }
 
@@ -114,7 +128,7 @@ static bool constructor_type(pass_opt_t* opt, ast_t* ast, token_id cap,
     {
       ast_error(opt->check.errors, ast,
         "can't call a constructor on a type intersection: %s",
-        ast_print_type(type));
+        ast_print_type(type, opt->strtab));
       return false;
     }
 
@@ -236,7 +250,7 @@ static bool type_access(pass_opt_t* opt, ast_t** astp)
       }
 
       ast_t* dot = ast_from(ast, TK_DOT);
-      ast_add(dot, ast_from_string(ast, "create"));
+      ast_add(dot, ast_from_string(ast, "create", opt->strtab));
       ast_swap(left, dot);
       ast_add(dot, left);
 
@@ -423,8 +437,12 @@ bool expr_qualify(pass_opt_t* opt, ast_t** astp)
   ast_t* ast = *astp;
   pony_assert(ast_id(ast) == TK_QUALIFY);
   AST_GET_CHILDREN(ast, left, right);
-  ast_t* type = ast_type(left);
   pony_assert(ast_id(right) == TK_TYPEARGS);
+
+  if(jumps_away_no_value(opt, left, "a receiver"))
+    return false;
+
+  ast_t* type = ast_type(left);
 
   if(is_typecheck_error(type))
     return false;
@@ -465,7 +483,7 @@ bool expr_qualify(pass_opt_t* opt, ast_t** astp)
 
   // Otherwise, sugar as qualified call to .apply()
   ast_t* dot = ast_from(left, TK_DOT);
-  ast_add(dot, ast_from_string(left, "apply"));
+  ast_add(dot, ast_from_string(left, "apply", opt->strtab));
   ast_swap(left, dot);
   ast_add(dot, left);
 
@@ -490,6 +508,9 @@ static bool entity_access(pass_opt_t* opt, ast_t** astp)
     default: {}
   }
 
+  if(jumps_away_no_value(opt, left, "a receiver"))
+    return false;
+
   ast_t* type = ast_type(left);
 
   if(type == NULL)
@@ -504,6 +525,25 @@ static bool entity_access(pass_opt_t* opt, ast_t** astp)
 
   type = ast_type(left); // Literal handling may have changed lhs type
   pony_assert(type != NULL);
+
+  // Unfold type aliases to check for tuple access (e.g., `._1` on an alias
+  // wrapping a tuple type). Set the unfolded type on the left side so
+  // tuple_access sees TK_TUPLETYPE children.
+  if(ast_id(type) == TK_TYPEALIASREF)
+  {
+    ast_t* unfolded = typealias_unfold(type);
+
+    if((unfolded != NULL) && (ast_id(unfolded) == TK_TUPLETYPE))
+    {
+      ast_settype(left, unfolded);
+      type = unfolded;
+    }
+    else
+    {
+      if(unfolded != NULL)
+        ast_free_unattached(unfolded);
+    }
+  }
 
   if(ast_id(type) == TK_TUPLETYPE)
     return tuple_access(opt, ast);

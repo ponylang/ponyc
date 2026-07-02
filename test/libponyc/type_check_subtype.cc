@@ -366,8 +366,8 @@ TEST_F(SubTypeTest, IsSubTypeIntersect)
   ASSERT_TRUE(is_subtype(type_of("t1valand2box"), type_of("t1val"), NULL, &opt));
 
   // ephemerals
-  ast_t* t3isohat = consume_type(type_of("t3iso"), TK_NONE, true);
-  ast_t* t3trnhat = consume_type(type_of("t3trn"), TK_NONE, true);
+  ast_t* t3isohat = consume_type(type_of("t3iso"), TK_NONE, true, &opt);
+  ast_t* t3trnhat = consume_type(type_of("t3trn"), TK_NONE, true, &opt);
   ASSERT_TRUE(is_subtype(t3isohat, type_of("t1refand2box"), NULL, &opt));
   ASSERT_TRUE(is_subtype(t3isohat, type_of("t1valand2box"), NULL, &opt));
   ASSERT_TRUE(is_subtype(t3trnhat, type_of("t1refand2box"), NULL, &opt));
@@ -375,8 +375,8 @@ TEST_F(SubTypeTest, IsSubTypeIntersect)
   ast_free_unattached(t3isohat);
   ast_free_unattached(t3trnhat);
 
-  ast_t* t1t2iso = consume_type(type_of("t1isoand2iso"), TK_NONE, true);
-  ast_t* t1t2trn = consume_type(type_of("t1trnand2trn"), TK_NONE, true);
+  ast_t* t1t2iso = consume_type(type_of("t1isoand2iso"), TK_NONE, true, &opt);
+  ast_t* t1t2trn = consume_type(type_of("t1trnand2trn"), TK_NONE, true, &opt);
   ASSERT_TRUE(is_subtype(t1t2iso, type_of("t1refand2box"), NULL, &opt));
   ASSERT_TRUE(is_subtype(t1t2trn, type_of("t1refand2box"), NULL, &opt));
   ASSERT_TRUE(is_subtype(t1t2iso, type_of("t1valand2box"), NULL, &opt));
@@ -508,9 +508,8 @@ TEST_F(SubTypeTest, IsSubTypeUnionOfTuple)
   // ((C1, C1) | (C1, C2) | (C2, C1)) <: ((C1 | C2), (C1 | C2))
   ASSERT_TRUE(is_subtype(type_of("uoft3"), type_of("tofu"), NULL, &opt));
 
-  // TODO: Fix this, union of tuples vs tuple of unions
   // ((C1 | C2), (C1 | C2)) <: ((C1, C1) | (C1, C2) | (C2, C1) | (C2, C2))
-  //ASSERT_TRUE(is_subtype(type_of("tofu"), type_of("uoft4"), NULL, &opt));
+  ASSERT_TRUE(is_subtype(type_of("tofu"), type_of("uoft4"), NULL, &opt));
 
   // ((C1 | C2), (C1 | C2)) <!: ((C1, C1) | (C1, C2) | (C2, C1))
   ASSERT_FALSE(is_subtype(type_of("tofu"), type_of("uoft3"), NULL, &opt));
@@ -583,12 +582,12 @@ TEST_F(SubTypeTest, IsSubTypeNosupertypeInterface)
 
   TEST_COMPILE(src);
 
-  pass_opt_t opt;
-  pass_opt_init(&opt);
-
+  // Use the same pass_opt (and so the same interned-string table) that compiled
+  // the code. is_subtype checks the `nosupertype` annotation by interning that
+  // name and comparing it by pointer identity against the annotation already on
+  // the AST. A fresh pass_opt would have a different table, so the comparison
+  // would never match.
   ASSERT_FALSE(is_subtype(type_of("p"), type_of("a"), NULL, &opt));
-
-  pass_opt_init(&opt);
 }
 
 
@@ -1236,4 +1235,62 @@ TEST_F(SubTypeTest, ConsumeRefNotIso)
     "    let x': C iso = consume x";
 
   TEST_ERRORS_1(src, "right side must be a subtype of left side");
+}
+
+TEST_F(SubTypeTest, RecursiveInterfaceCompiles)
+{
+  // Guards against the ponylang/ponyc#1216 fix being too aggressive.
+  // Self-referential interfaces must still type-check via the
+  // type_assume coinductive mechanism, independent of the
+  // recursion-divergence guard in is_x_sub_x.
+  const char* src =
+    "interface I\n"
+    "  fun ref f(): I\n"
+
+    "interface J[A]\n"
+    "  fun ref g(): J[A]\n"
+
+    "class C is I\n"
+    "  fun ref f(): I => this\n"
+
+    "class D[A] is J[A]\n"
+    "  fun ref g(): J[A] => this\n"
+
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let c: I = C\n"
+    "    let d: J[U32] = D[U32]";
+
+  TEST_COMPILE(src);
+}
+
+TEST_F(SubTypeTest, MutuallyRecursiveInterfacesCompile)
+{
+  // Additional ponylang/ponyc#1216 guardrail: mutually-recursive
+  // interfaces where each interface's method returns the other must
+  // still type-check. The subtype check recurses through B's
+  // structural check and back to A, closing the proof via the
+  // type_assume coinductive mechanism across def-pair boundaries
+  // rather than inside a single def.
+  const char* src =
+    "interface A\n"
+    "  fun ref get_b(): B\n"
+
+    "interface B\n"
+    "  fun ref get_a(): A\n"
+
+    "class ConcreteA is A\n"
+    "  new create() => None\n"
+    "  fun ref get_b(): B => ConcreteB\n"
+
+    "class ConcreteB is B\n"
+    "  new create() => None\n"
+    "  fun ref get_a(): A => ConcreteA\n"
+
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let a: A = ConcreteA\n"
+    "    let b: B = ConcreteB";
+
+  TEST_COMPILE(src);
 }

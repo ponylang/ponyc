@@ -40,6 +40,18 @@ class CountdownIter[T: (Int & Integer[T] val) = USize] is Iterator[T]
     _cur = res
     res
 
+// COUPLING: GenObj combined with `type GenerateResult[T2] is (T2^ |
+// ValueAndShrink[T2])` and uses like `shuffled_iter[T](): Generator[
+// Iterator[this->T!]]` produce drifting same-def recursion chains in
+// the structural subtype check. The recursion-divergence guard in
+// is_x_sub_x (src/libponyc/type/subtype.c) bounds those chains at
+// SAME_DEF_LIMIT = 4, an empirical floor chosen to leave headroom
+// above the depths these shapes need to converge. If you restructure
+// GenObj or GenerateResult — especially to add another nesting level
+// or another self-reference — rebuild ponyc and confirm pony_check
+// still type-checks. If it doesn't, the guard's threshold is now too
+// low for this stdlib; raise SAME_DEF_LIMIT and update the comment
+// in subtype.c.
 trait box GenObj[T]
   fun generate(rnd: Randomness): GenerateResult[T] ?
 
@@ -113,7 +125,7 @@ class box Generator[T] is GenObj[T]
 
   When a failing sample is found, the PonyCheck engine is trying to find a
   smaller or more simple sample by shrinking it with `shrink`.
-  If the generator did not provide any shrinked samples
+  If the generator did not provide any shrunk samples
   as a result of `generate`, its `shrink` method is called
   to obtain simpler results. PonyCheck obtains more shrunken samples until
   the property is not failing anymore.
@@ -241,12 +253,12 @@ class box Generator[T] is GenObj[T]
           a strange hierarchy of generators is used, which does not make use of
           the pre-generated shrink results, we keep this method here.
           """
-          match u
+          match consume u
           | let ut: T =>
             (let uts: T, let shrunken: Iterator[T^]) = _gen.shrink(consume ut)
             (fn(consume uts), _map_shrunken(shrunken))
-          else
-            (consume u, Poperator[U].empty())
+          | let uu: U =>
+            (consume uu, Poperator[U].empty())
           end
 
         fun _map_shrunken(shrunken: Iterator[T^]): Iterator[U^] =>
@@ -1265,7 +1277,7 @@ primitive Generators
     : Generator[String]
   =>
     """
-    Create a generator for strings withing the given `range`,
+    Create a generator for strings within the given `range`,
     with a minimum length of `min` (default: 0)
     and a maximum length of `max` (default: 100).
     """

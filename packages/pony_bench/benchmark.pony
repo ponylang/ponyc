@@ -12,7 +12,7 @@ trait iso MicroBenchmark
   single iteration in a sample. Setup and Teardown are defined by the `before`
   and `after` methods respectively. The `before` method runs before a sample
   of benchmarks and `after` runs after the all iterations in the sample have
-  completed. If your benchmark requires setup and/or teardown to occur beween
+  completed. If your benchmark requires setup and/or teardown to occur between
   each iteration of the benchmark, then you can use `before_iteration` and
   `after_iteration` methods respectively that run before/after each iteration.
   """
@@ -33,7 +33,7 @@ trait iso AsyncMicroBenchmark
   Teardown are defined by the `before` and `after` methods respectively. The
   `before` method runs before a sample of benchmarks and `after` runs after
   the all iterations in the sample have completed. If your benchmark requires
-  setup and/or teardown to occur beween each iteration of the benchmark, then
+  setup and/or teardown to occur between each iteration of the benchmark, then
   you can use `before_iteration` and `after_iteration` methods respectively
   that run before/after each iteration.
   """

@@ -106,7 +106,17 @@ An interactive command-line prompt with tab completion and command history. Demo
 
 Registers two handlers for SIGINT, raises the signal programmatically, and disposes one handler. Demonstrates the `signals` package's capability-secured API: `SignalAuth` for authorization, `MakeValidSignal` for signal validation via constrained types, `SignalHandler` for subscription, and `SignalNotify` for callbacks. Shows that multiple handlers can subscribe to the same signal.
 
+## Data Formats
+
+### [json](json/)
+
+Demonstrates the `json` standard library package: building JSON documents with `JsonObject` and `JsonArray`, serializing any value with `JsonPrinter`, parsing JSON text with `JsonParser`, reading nested values with `JsonNav`, composable get/set/remove with `JsonLens`, and string-based queries with `JsonPath` including filters, slicing, and function extensions (`match`, `search`, `length`, `count`).
+
 ## C FFI
+
+### [cshim](cshim/)
+
+Calls C code that `ponyc` compiles itself: a `.c` shim placed next to the `.pony` files is discovered, compiled with the embedded clang, and linked into the program — no separate C build step or `use "lib:..."` directive. Demonstrates the `cdefine:` and `cincludedir:` use schemes for setting C preprocessor macros and include search paths per package. Start here if you're new to calling C from Pony.
 
 ### [ffi-callbacks](ffi-callbacks/)
 
@@ -148,7 +158,7 @@ Simulates gravitational interaction among five planetary bodies (Sun, Jupiter, S
 
 ### [dtrace](dtrace/)
 
-Example DTrace scripts for tracing Pony runtime behavior on macOS/BSD, including GC events, actor scheduling, and message throughput. Demonstrates the Pony runtime's DTrace provider interface with probes for garbage collection, scheduling, and telemetry aggregation.
+Example DTrace scripts for tracing Pony runtime behavior on macOS and FreeBSD, including GC events, actor scheduling, and message throughput. Demonstrates the Pony runtime's DTrace provider interface with probes for garbage collection, scheduling, and telemetry aggregation.
 
 ### [runtime_info](runtime_info/)
 

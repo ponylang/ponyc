@@ -9,6 +9,7 @@ concurrency: release
 
 permissions:
   packages: read
+  contents: write
 
 jobs:
   # validation to assure that we should in fact continue with the release should
@@ -19,14 +20,25 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout main
-        uses: actions/checkout@v4.1.1
+        uses: actions/checkout@v6.0.2
         with:
           ref: "main"
           token: ${{ secrets.RELEASE_TOKEN }}
       - name: Validate CHANGELOG
-        uses: docker://ghcr.io/ponylang/release-bot-action:0.6.3
+        uses: docker://ghcr.io/ponylang/release-bot-action:0.6.6
         with:
           entrypoint: pre-artefact-changelog-check
+      # Create the GitHub Release now with an empty body so each platform job
+      # can attach its archive as an asset. announce-a-release.yml later
+      # populates the body via publish-release-notes-to-github, which updates
+      # rather than replaces the release and therefore leaves the assets
+      # intact.
+      - name: Create GitHub release (empty body; announce fills it)
+        uses: docker://ghcr.io/ponylang/release-bot-action:0.6.6
+        with:
+          entrypoint: create-empty-github-release
+        env:
+          RELEASE_TOKEN: ${{ secrets.RELEASE_TOKEN }}
 
   x86_64-linux:
     needs:
@@ -42,25 +54,17 @@ jobs:
             name: x86-64-unknown-linux-ubuntu24.04
             triple-os: linux-ubuntu24.04
             triple-vendor: unknown
-          - image: ghcr.io/ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu22.04-builder:20230924
-            name: x86-64-unknown-linux-ubuntu22.04
-            triple-os: linux-ubuntu22.04
-            triple-vendor: unknown
-          - image: ghcr.io/ponylang/ponyc-ci-x86-64-unknown-linux-alpine3.20-builder:20250510
-            name: x86-64-unknown-linux-alpine3.20
-            triple-os: linux-alpine3.20
-            triple-vendor: unknown
-          - image: ghcr.io/ponylang/ponyc-ci-x86-64-unknown-linux-alpine3.21-builder:20250510
-            name: x86-64-unknown-linux-alpine3.21
-            triple-os: linux-alpine3.21
-            triple-vendor: unknown
-          - image: ghcr.io/ponylang/ponyc-ci-alpine3.22-builder:20251022
-            name: x86-64-unknown-linux-alpine3.22
-            triple-os: linux-alpine3.22
-            triple-vendor: unknown
           - image: ghcr.io/ponylang/ponyc-ci-alpine3.23-builder:20260201
             name: x86-64-unknown-linux-alpine3.23
             triple-os: linux-alpine3.23
+            triple-vendor: unknown
+          - image: ghcr.io/ponylang/ponyc-ci-alpine3.24-builder:20260611
+            name: x86-64-unknown-linux-alpine3.24
+            triple-os: linux-alpine3.24
+            triple-vendor: unknown
+          - image: ghcr.io/ponylang/ponyc-ci-ubuntu26.04-builder:20260425
+            name: x86-64-unknown-linux-ubuntu26.04
+            triple-os: linux-ubuntu26.04
             triple-vendor: unknown
 
     name: ${{ matrix.name }}
@@ -70,32 +74,21 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4.1.1
-      - name: Restore Libs Cache
-        id: restore-libs
-        uses: actions/cache/restore@v4
-        with:
-          path: |
-            build/libs
-            lib/llvm/src/compiler-rt/lib/builtins
-          key: libs-${{ matrix.image }}-${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
-      - name: Build Libs
-        if: steps.restore-libs.outputs.cache-hit != 'true'
-        run: make libs build_flags=-j8
-      - name: Save Libs Cache
-        if: steps.restore-libs.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v4
-        with:
-          path: |
-            build/libs
-            lib/llvm/src/compiler-rt/lib/builtins
-          key: libs-${{ matrix.image }}-${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
+        uses: actions/checkout@v6.0.2
+      - name: Build libs
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          LIBS_IMAGE: ${{ matrix.image }}
+          LIBS_TAG: ${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
+        run: python3 .ci-scripts/libs-cache/resolve_libs_cache.py --image "$LIBS_IMAGE" --tag "$LIBS_TAG" -- make libs llvm_tools=false build_flags=-j4
       - name: Release
         run: bash .ci-scripts/x86-64-release.bash
         env:
           CLOUDSMITH_API_KEY: ${{ secrets.CLOUDSMITH_API_KEY }}
           TRIPLE_VENDOR: ${{ matrix.triple-vendor }}
           TRIPLE_OS: ${{ matrix.triple-os }}
+          RELEASE_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
 
   # Currently, Github actions supplied by GH like checkout and cache do not work
   # in musl libc environments on arm64. We can work around this by running
@@ -116,60 +109,47 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - image: ghcr.io/ponylang/ponyc-ci-arm64-unknown-linux-alpine3.21-builder:20250510
-            name: arm64-unknown-linux-alpine3.21
-            triple-os: linux-alpine3.21
-            triple-vendor: unknown
-          - image: ghcr.io/ponylang/ponyc-ci-alpine3.22-builder:20251022
-            name: arm64-unknown-linux-alpine3.22
-            triple-os: linux-alpine3.22
-            triple-vendor: unknown
           - image: ghcr.io/ponylang/ponyc-ci-alpine3.23-builder:20260201
             name: arm64-unknown-linux-alpine3.23
             triple-os: linux-alpine3.23
-            triple-vendor: unknown
+          - image: ghcr.io/ponylang/ponyc-ci-alpine3.24-builder:20260611
+            name: arm64-unknown-linux-alpine3.24
+            triple-os: linux-alpine3.24
           - image: ghcr.io/ponylang/ponyc-ci-arm64-unknown-linux-ubuntu24.04-builder:20250510
             name: arm64-unknown-linux-ubuntu24.04
             triple-os: linux-ubuntu24.04
             triple-vendor: unknown
+          - image: ghcr.io/ponylang/ponyc-ci-ubuntu26.04-builder:20260425
+            name: arm64-unknown-linux-ubuntu26.04
+            triple-os: linux-ubuntu26.04
 
     name: ${{ matrix.name }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4.1.1
+        uses: actions/checkout@v6.0.2
       - name: Login to GitHub Container Registry
-        uses: docker/login-action@v3
+        uses: docker/login-action@v4
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
       - name: Pull Docker image
         run: docker pull ${{ matrix.image }}
-      - name: Restore Libs Cache
-        id: restore-libs
-        uses: actions/cache/restore@v4
-        with:
-          path: |
-            build/libs
-            lib/llvm/src/compiler-rt/lib/builtins
-          key: libs-${{ matrix.image }}-${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
-      - name: Build Libs
-        if: steps.restore-libs.outputs.cache-hit != 'true'
+      - name: Build libs
+        env:
+          LIBS_TAG: ${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
         run: |
           docker run --rm \
             --user pony \
+            -e GITHUB_TOKEN=${{ secrets.GITHUB_TOKEN }} \
+            -e GITHUB_REPOSITORY \
+            -e GITHUB_ACTOR \
+            -e LIBS_IMAGE="${{ matrix.image }}" \
+            -e LIBS_TAG="$LIBS_TAG" \
             -v ${{ github.workspace }}:/home/pony/project \
             -w /home/pony/project \
             ${{ matrix.image }} \
-            make libs build_flags=-j8
-      - name: Save Libs Cache
-        if: steps.restore-libs.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v4
-        with:
-          path: |
-            build/libs
-            lib/llvm/src/compiler-rt/lib/builtins
-          key: libs-${{ matrix.image }}-${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
+            sh -c 'python3 .ci-scripts/libs-cache/resolve_libs_cache.py --image "$LIBS_IMAGE" --tag "$LIBS_TAG" -- make libs llvm_tools=false build_flags=-j4'
       - name: Release
         run: |
           docker run --rm \
@@ -177,10 +157,11 @@ jobs:
           -v ${{ github.workspace }}:/home/pony/project \
           -w /home/pony/project \
           -e CLOUDSMITH_API_KEY=${{ secrets.CLOUDSMITH_API_KEY }} \
-          -e TRIPLE_VENDOR=${{ matrix.triple-vendor }} \
           -e TRIPLE_OS=${{ matrix.triple-os }} \
+          -e RELEASE_TOKEN=${{ secrets.RELEASE_TOKEN }} \
+          -e GITHUB_REPOSITORY=${{ github.repository }} \
           ${{ matrix.image }} \
-          bash .ci-scripts/arm64-release.bash
+          bash .ci-scripts/arm64-unknown-linux-release.bash
 
   x86_macos:
     needs:
@@ -191,26 +172,12 @@ jobs:
     name: x86-64-apple-darwin
     steps:
       - name: Checkout
-        uses: actions/checkout@v4.1.1
-      - name: Restore Libs Cache
-        id: restore-libs
-        uses: actions/cache/restore@v4
-        with:
-          path: |
-            build/libs
-            lib/llvm/src/compiler-rt/lib/builtins
-          key: libs-x86-macos-15-intel-${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
-      - name: Build Libs
-        if: steps.restore-libs.outputs.cache-hit != 'true'
-        run: make libs build_flags=-j8
-      - name: Save Libs Cache
-        if: steps.restore-libs.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v4
-        with:
-          path: |
-            build/libs
-            lib/llvm/src/compiler-rt/lib/builtins
-          key: libs-x86-macos-15-intel-${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
+        uses: actions/checkout@v6.0.2
+      - name: Build libs
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          LIBS_TAG: ${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
+        run: python3 .ci-scripts/libs-cache/resolve_libs_cache.py --platform x86-macos-15-intel --tag "$LIBS_TAG" -- make libs llvm_tools=false build_flags=-j4
       - name: Install Cloudsmith
         run: pip3 install --break-system-packages --upgrade cloudsmith-cli
       - name: Release
@@ -219,81 +186,80 @@ jobs:
           CLOUDSMITH_API_KEY: ${{ secrets.CLOUDSMITH_API_KEY }}
           TRIPLE_VENDOR: apple
           TRIPLE_OS: darwin
+          RELEASE_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
 
   arm64_macos:
     needs:
       - pre-artefact-creation
 
-    runs-on: macos-15
+    runs-on: macos-26
 
     name: arm64-apple-darwin
     steps:
       - name: Checkout
-        uses: actions/checkout@v4.1.1
-      - name: Restore Libs Cache
-        id: restore-libs
-        uses: actions/cache/restore@v4
-        with:
-          path: |
-            build/libs
-            lib/llvm/src/compiler-rt/lib/builtins
-          key: libs-arm64-macos-15-${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
-      - name: Build Libs
-        if: steps.restore-libs.outputs.cache-hit != 'true'
-        run: make libs build_flags=-j8
-      - name: Save Libs Cache
-        if: steps.restore-libs.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v4
-        with:
-          path: |
-            build/libs
-            lib/llvm/src/compiler-rt/lib/builtins
-          key: libs-arm64-macos-15-${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
+        uses: actions/checkout@v6.0.2
+      - name: Build libs
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          LIBS_TAG: ${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
+        run: python3 .ci-scripts/libs-cache/resolve_libs_cache.py --platform arm64-macos-26 --tag "$LIBS_TAG" -- make libs llvm_tools=false build_flags=-j3
       - name: Install Cloudsmith
         run: pip3 install --upgrade --break-system-packages cloudsmith-cli
       - name: Release
-        run: bash .ci-scripts/arm64-release.bash
+        run: bash .ci-scripts/arm64-apple-darwin-release.bash
         env:
           CLOUDSMITH_API_KEY: ${{ secrets.CLOUDSMITH_API_KEY }}
-          TRIPLE_VENDOR: apple
-          TRIPLE_OS: darwin
+          RELEASE_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
 
   x86_64-windows:
     needs:
       - pre-artefact-creation
 
-    runs-on: windows-2025
+    runs-on: windows-2025-vs2026
     defaults:
       run:
         shell: pwsh
 
     name: x86-64-pc-windows-msvc
     steps:
+      - name: Disable Windows Defender
+        run: Set-MpPreference -DisableRealtimeMonitoring $true
       - name: Checkout
-        uses: actions/checkout@v4.1.1
+        uses: actions/checkout@v6.0.2
       - name: Install Dependencies
+        # Pin mingw-w64 LLVM family and the runtime dependencies lldb
+        # imports against.
+        #
+        # History:
+        # (1) 2026-05-03: lldb-22.1.4-2 ("llvm: emutls rebuild") crashed
+        #     in liblldb.dll with 0xC0000005. Pinned llvm-libs,
+        #     clang-libs, lldb to 22.1.4-1.
+        # (2) 2026-05-11: msys2 bumped unpinned dependencies (gcc-libs
+        #     16.1.0-2 -> -3, plus expat/mpdecimal/python pkgrel bumps).
+        #     The pinned lldb 22.1.4-1 then failed to load with
+        #     0xC0000139 STATUS_ENTRYPOINT_NOT_FOUND — the rebuilt deps
+        #     had shifted symbols out from under lldb. Extended the pin
+        #     to those deps.
+        #
+        # See Discussion #5007. Installed via `pacman -U` from explicit
+        # URLs so the initial `-Syuu` can't re-introduce a broken
+        # combination.
         run: |
-          function msys() { C:\msys64\usr\bin\bash.exe @('-lc') + @Args }; msys ' '; msys 'pacman --noconfirm -Syuu'; msys 'pacman --noconfirm -Syuu'; msys 'pacman --noconfirm -S --needed base-devel mingw-w64-x86_64-lldb'; msys 'pacman --noconfirm -Scc'
+          function msys() { C:\msys64\usr\bin\bash.exe @('-lc') + @Args }
+          msys ' '
+          msys 'pacman --noconfirm -Syuu'
+          msys 'pacman --noconfirm -Syuu'
+          msys 'pacman --noconfirm -S --needed base-devel'
+          msys 'pacman --noconfirm -U https://repo.msys2.org/mingw/mingw64/mingw-w64-x86_64-llvm-libs-22.1.4-1-any.pkg.tar.zst https://repo.msys2.org/mingw/mingw64/mingw-w64-x86_64-clang-libs-22.1.4-1-any.pkg.tar.zst https://repo.msys2.org/mingw/mingw64/mingw-w64-x86_64-lldb-22.1.4-1-any.pkg.tar.zst https://repo.msys2.org/mingw/mingw64/mingw-w64-x86_64-gcc-libs-16.1.0-2-any.pkg.tar.zst https://repo.msys2.org/mingw/mingw64/mingw-w64-x86_64-expat-2.8.0-1-any.pkg.tar.zst https://repo.msys2.org/mingw/mingw64/mingw-w64-x86_64-mpdecimal-4.0.1-2-any.pkg.tar.zst https://repo.msys2.org/mingw/mingw64/mingw-w64-x86_64-python-3.14.4-2-any.pkg.tar.zst'
+          msys 'pacman --noconfirm -Scc'
           python.exe -m pip install --upgrade cloudsmith-cli
-      - name: Restore Libs Cache
-        id: restore-libs
-        uses: actions/cache/restore@v4
-        with:
-          path: |
-            build/libs
-            lib/llvm/src/compiler-rt/lib/builtins
-          key: libs-windows-2025-${{ hashFiles('make.ps1', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
-      - name: Build Libs
-        if: steps.restore-libs.outputs.cache-hit != 'true'
-        run: .\make.ps1 -Command libs
-      - name: Save Libs Cache
-        if: steps.restore-libs.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v4
-        with:
-          path: |
-            build/libs
-            lib/llvm/src/compiler-rt/lib/builtins
-          key: libs-windows-2025-${{ hashFiles('make.ps1', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
+      - name: Build libs
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          LIBS_TAG: ${{ hashFiles('make.ps1', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
+        run: python .ci-scripts/libs-cache/resolve_libs_cache.py --platform windows-2025-vs2026 --tag $env:LIBS_TAG '--' pwsh -File make.ps1 -Command libs -LlvmTools false
       - name: Configure
         run: .\make.ps1 -Command configure -Config Release -Prefix "build\install\release" -Version (Get-Content .\VERSION)
       - name: Build
@@ -303,7 +269,15 @@ jobs:
       - name: Package
         run: .\make.ps1 -Command package-x86-64 -Config Release -Prefix "build\install\release" -Version (Get-Content .\VERSION)
       - name: Upload
-        run: $version = (Get-Content .\VERSION); cloudsmith push raw --version $version --api-key ${{ secrets.CLOUDSMITH_API_KEY }} --summary "Pony compiler" --description "https://github.com/ponylang/ponyc" ponylang/releases build\ponyc-x86-64-pc-windows-msvc.zip
+        run: |
+          $version = (Get-Content .\VERSION)
+          cloudsmith push raw --version $version --api-key $env:CLOUDSMITH_API_KEY --summary "Pony compiler" --description "https://github.com/ponylang/ponyc" ponylang/releases build\ponyc-x86-64-pc-windows-msvc.zip
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python .ci-scripts\release\github_release.py upload $version build\ponyc-x86-64-pc-windows-msvc.zip
+        env:
+          CLOUDSMITH_API_KEY: ${{ secrets.CLOUDSMITH_API_KEY }}
+          RELEASE_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
 
   arm64-windows:
     needs:
@@ -316,30 +290,23 @@ jobs:
 
     name: arm64-pc-windows-msvc
     steps:
+      - name: Disable Windows Defender
+        run: Set-MpPreference -DisableRealtimeMonitoring $true
       - name: Checkout
-        uses: actions/checkout@v4.1.1
+        uses: actions/checkout@v6.0.2
       - name: Install Dependencies
         run: |
-          python.exe -m pip install --upgrade cloudsmith-cli
-      - name: Restore Libs Cache
-        id: restore-libs
-        uses: actions/cache/restore@v4
-        with:
-          path: |
-            build/libs
-            lib/llvm/src/compiler-rt/lib/builtins
-          key: libs-windows-11-arm-${{ hashFiles('make.ps1', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
-      - name: Build Libs
-        if: steps.restore-libs.outputs.cache-hit != 'true'
-        run: .\make.ps1 -Command libs -Arch ARM64
-      - name: Save Libs Cache
-        if: steps.restore-libs.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v4
-        with:
-          path: |
-            build/libs
-            lib/llvm/src/compiler-rt/lib/builtins
-          key: libs-windows-11-arm-${{ hashFiles('make.ps1', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
+          # Pin cloudsmith-cli below 1.19.0: 1.19.0 added a PyJWT[crypto]
+          # dependency that pulls in cryptography, which has no prebuilt
+          # win_arm64 wheel and fails to build from source on this runner.
+          # Remove once arm64 Windows can install the latest cloudsmith-cli
+          # again.
+          python.exe -m pip install --upgrade "cloudsmith-cli<1.19.0"
+      - name: Build libs
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          LIBS_TAG: ${{ hashFiles('make.ps1', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
+        run: python .ci-scripts/libs-cache/resolve_libs_cache.py --platform windows-11-arm --tag $env:LIBS_TAG '--' pwsh -File make.ps1 -Command libs -LlvmTools false -Arch ARM64
       - name: Configure
         run: .\make.ps1 -Command configure -Config Release -Prefix "build\install\release" -Version (Get-Content .\VERSION) -Arch ARM64
       - name: Build
@@ -349,4 +316,12 @@ jobs:
       - name: Package
         run: .\make.ps1 -Command package-arm64 -Config Release -Prefix "build\install\release" -Version (Get-Content .\VERSION)
       - name: Upload
-        run: $version = (Get-Content .\VERSION); cloudsmith push raw --version $version --api-key ${{ secrets.CLOUDSMITH_API_KEY }} --summary "Pony compiler" --description "https://github.com/ponylang/ponyc" ponylang/releases build\ponyc-arm64-pc-windows-msvc.zip
+        run: |
+          $version = (Get-Content .\VERSION)
+          cloudsmith push raw --version $version --api-key $env:CLOUDSMITH_API_KEY --summary "Pony compiler" --description "https://github.com/ponylang/ponyc" ponylang/releases build\ponyc-arm64-pc-windows-msvc.zip
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python .ci-scripts\release\github_release.py upload $version build\ponyc-arm64-pc-windows-msvc.zip
+        env:
+          CLOUDSMITH_API_KEY: ${{ secrets.CLOUDSMITH_API_KEY }}
+          RELEASE_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}

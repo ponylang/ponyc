@@ -4,6 +4,8 @@
 #include <platform.h>
 #include "../ast/ast.h"
 
+typedef struct pass_opt_t pass_opt_t;
+
 PONY_EXTERN_C_BEGIN
 
 
@@ -27,7 +29,7 @@ PONY_EXTERN_C_BEGIN
  * there are no type parameters in scope, then both produced nodes will be
  * TK_NONEs, which keeps our AST consistent.
  */
-void collect_type_params(ast_t* ast, ast_t** out_params, ast_t** out_args);
+void collect_type_params(ast_t* ast, ast_t** out_params, ast_t** out_args, pass_opt_t* opt);
 
 /** Produce a copy of the given type that is safe to use in an internally
 * created AST that will be run through passes again.
@@ -36,7 +38,7 @@ void collect_type_params(ast_t* ast, ast_t** out_params, ast_t** out_args);
 * between goes. If this is not done type parameter references can point at the
 * wrong definitions.
 */
-ast_t* sanitise_type(ast_t* type);
+ast_t* sanitise_type(ast_t* type, pass_opt_t* opt);
 
 
 PONY_EXTERN_C_END

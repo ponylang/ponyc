@@ -15,6 +15,8 @@ struct lexer_t
 {
   source_t* source;
   errors_t* errors;
+  strtable_t* strtab; // Interned-string table for this compilation; identifier
+                      // and string-literal token text is interned into it.
   bool allow_test_symbols;
 
   // Information about next unused character in file
@@ -22,7 +24,14 @@ struct lexer_t
   size_t len;
   size_t line;
   size_t pos;
-  bool newline;
+  bool newline;        // Drives LPAREN_NEW/LSQUARE_NEW/MINUS_NEW. Block
+                       // comments clear this so a comment-introduced
+                       // newline is not surfaced to symbol disambiguation.
+  bool token_newline;  // Did a real '\n' character precede the next token?
+                       // Used by the parser to detect statement
+                       // separators. Unlike `newline`, block comments
+                       // preserve this so that a real newline before a
+                       // block comment still counts.
 
   // Position of current token
   size_t token_line;
@@ -251,6 +260,8 @@ static const lextoken_t abstract[] =
   { "lambdatype", TK_LAMBDATYPE },
   { "barelambdatype", TK_BARELAMBDATYPE },
   { "dontcaretype", TK_DONTCARETYPE },
+  { "bool_true", TK_BOOL_TRUE },
+  { "bool_false", TK_BOOL_FALSE },
   { "infer", TK_INFERTYPE },
   { "errortype", TK_ERRORTYPE },
 
@@ -288,6 +299,7 @@ static const lextoken_t abstract[] =
   { "packageref", TK_PACKAGEREF },
   { "typeref", TK_TYPEREF },
   { "typeparamref", TK_TYPEPARAMREF },
+  { "typealiasref", TK_TYPEALIASREF },
   { "newref", TK_NEWREF },
   { "newberef", TK_NEWBEREF },
   { "beref", TK_BEREF },
@@ -364,6 +376,7 @@ static token_t* make_token(lexer_t* lexer, token_id id)
 {
   token_t* t = token_new(id);
   token_set_pos(t, lexer->source, lexer->token_line, lexer->token_pos);
+  token_set_newline(t, lexer->token_newline);
   return t;
 }
 
@@ -373,11 +386,13 @@ static token_t* make_token_with_text(lexer_t* lexer, token_id id)
 {
   token_t* t = make_token(lexer, id);
 
-  if(lexer->buffer == NULL) // No text for token
-    token_set_string(t, stringtab(""), 0);
+  // An empty token (no buffer, or a zero-length buffer) must intern the empty
+  // string explicitly: passing a 0 length to token_set_string would make it
+  // fall back to strlen() over the (possibly stale, non-terminated) buffer.
+  if(lexer->buffer == NULL || lexer->buflen == 0)
+    token_set_string(t, "", 0, lexer->strtab);
   else
-    token_set_string(t, stringtab_len(lexer->buffer, lexer->buflen),
-      lexer->buflen);
+    token_set_string(t, lexer->buffer, lexer->buflen, lexer->strtab);
 
   return t;
 }
@@ -468,6 +483,9 @@ static token_t* nested_comment(lexer_t* lexer)
     }
   }
 
+  // Suppress LPAREN_NEW etc. for any `(`/`[`/`-` that follows the comment.
+  // `token_newline` is intentionally left alone so that a real '\n' before
+  // the comment is still surfaced to the parser as a statement separator.
   lexer->newline = false;
   return NULL;
 }
@@ -1257,7 +1275,7 @@ static token_t* symbol(lexer_t* lexer)
 }
 
 
-lexer_t* lexer_open(source_t* source, errors_t* errors,
+lexer_t* lexer_open(source_t* source, errors_t* errors, strtable_t* strtab,
   bool allow_test_symbols)
 {
   pony_assert(source != NULL);
@@ -1267,11 +1285,13 @@ lexer_t* lexer_open(source_t* source, errors_t* errors,
 
   lexer->source = source;
   lexer->errors = errors;
+  lexer->strtab = strtab;
   lexer->allow_test_symbols = allow_test_symbols;
   lexer->len = source->len - 1; // because we don't want the null terminator to be parsed.
   lexer->line = 1;
   lexer->pos = 1;
   lexer->newline = true;
+  lexer->token_newline = true;
 
   return lexer;
 }
@@ -1313,6 +1333,7 @@ token_t* lexer_next(lexer_t* lexer)
     {
       case '\n':
         lexer->newline = true;
+        lexer->token_newline = true;
         consume_chars(lexer, 1);
         break;
 
@@ -1360,6 +1381,7 @@ token_t* lexer_next(lexer_t* lexer)
   }
 
   lexer->newline = false; // We've found a symbol, so no longer a new line
+  lexer->token_newline = false;
   return t;
 }
 

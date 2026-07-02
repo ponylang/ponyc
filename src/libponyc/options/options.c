@@ -34,9 +34,6 @@ enum
   OPT_STATIC,
   OPT_PIC,
   OPT_NOPIC,
-  OPT_DOCS,
-  OPT_DOCS_PUBLIC,
-
   OPT_SAFE,
   OPT_ABI,
   OPT_CPU,
@@ -44,8 +41,6 @@ enum
   OPT_TRIPLE,
   OPT_STATS,
   OPT_LINK_ARCH,
-  OPT_LINKER,
-  OPT_LINK_LDCMD,
   OPT_SYSROOT,
   OPT_PLUGIN,
 
@@ -82,9 +77,6 @@ static opt_arg_t std_args[] =
   {"static", '\0', OPT_ARG_NONE, OPT_STATIC},
   {"pic", '\0', OPT_ARG_NONE, OPT_PIC},
   {"nopic", '\0', OPT_ARG_NONE, OPT_NOPIC},
-  {"docs", 'g', OPT_ARG_NONE, OPT_DOCS},
-  {"docs-public", '\0', OPT_ARG_NONE, OPT_DOCS_PUBLIC},
-
   {"safe", '\0', OPT_ARG_OPTIONAL, OPT_SAFE},
   {"abi", '\0', OPT_ARG_REQUIRED, OPT_ABI},
   {"cpu", '\0', OPT_ARG_REQUIRED, OPT_CPU},
@@ -92,8 +84,6 @@ static opt_arg_t std_args[] =
   {"triple", '\0', OPT_ARG_REQUIRED, OPT_TRIPLE},
   {"stats", '\0', OPT_ARG_NONE, OPT_STATS},
   {"link-arch", '\0', OPT_ARG_REQUIRED, OPT_LINK_ARCH},
-  {"linker", '\0', OPT_ARG_REQUIRED, OPT_LINKER},
-  {"link-ldcmd", '\0', OPT_ARG_REQUIRED, OPT_LINK_LDCMD},
   {"sysroot", '\0', OPT_ARG_REQUIRED, OPT_SYSROOT},
   {"plugin", '\0', OPT_ARG_REQUIRED, OPT_PLUGIN},
 
@@ -147,8 +137,6 @@ static void usage(void)
     "  --static         Compile a static binary (musl libc only).\n"
     "  --pic            Compile using position independent code.\n"
     "  --nopic          Don't compile using position independent code.\n"
-    "  --docs, -g       Generate code documentation.\n"
-    "  --docs-public    Generate code documentation for public types only.\n"
     ,
     "Rarely needed options:\n"
     "  --safe           Allow only the listed packages to use C FFI.\n"
@@ -163,15 +151,13 @@ static void usage(void)
     "  --triple         Set the target triple.\n"
     "    =name          Defaults to the host triple.\n"
     "  --stats          Print some compiler stats.\n"
-    "  --link-arch      Set the linking architecture.\n"
+    "  --link-arch      Architecture subdirectory for finding the Pony\n"
+    "                   runtime libraries (lib/<arch>).\n"
     "    =name          Default is the host architecture.\n"
-    "  --linker         Set the linker command to use.\n"
-    "    =name          Default is the compiler used to compile ponyc.\n"
-    "  --link-ldcmd     Set the ld command to use.\n"
-    "    =name          Default is `gold` on linux and system default otherwise.\n"
-    "  --sysroot        Path to target system root for cross-compilation.\n"
+    "  --sysroot        Path to target system root.\n"
     "    =path          Used by embedded LLD to find libc CRT objects and\n"
-    "                   system libraries. Auto-detected if not specified.\n"
+    "                   system libraries. Defaults to host root for native\n"
+    "                   builds; auto-detected for cross-compilation.\n"
     "  --plugin         Use the specified plugin(s).\n"
     "    =name\n"
     "  --define, -D     Set a compile time definition.\n"
@@ -312,18 +298,6 @@ ponyc_opt_process_t ponyc_opt_process(opt_state_t* s, pass_opt_t* opt,
       case OPT_STATIC: opt->staticbin = true; break;
       case OPT_PIC: opt->pic = true; break;
       case OPT_NOPIC: opt->pic = false; break;
-      case OPT_DOCS:
-        {
-          opt->docs = true;
-          opt->docs_private = true;
-        }
-        break;
-      case OPT_DOCS_PUBLIC:
-        {
-          opt->docs = true;
-          opt->docs_private = false;
-        }
-        break;
       case OPT_SAFE:
         if(!package_add_safe(s->arg_val, opt))
         {
@@ -338,8 +312,6 @@ ponyc_opt_process_t ponyc_opt_process(opt_state_t* s, pass_opt_t* opt,
       case OPT_TRIPLE: opt->triple = s->arg_val; break;
       case OPT_STATS: opt->print_stats = true; break;
       case OPT_LINK_ARCH: opt->link_arch = s->arg_val; break;
-      case OPT_LINKER: opt->linker = s->arg_val; break;
-      case OPT_LINK_LDCMD: opt->link_ldcmd = s->arg_val; break;
       case OPT_SYSROOT: opt->sysroot = s->arg_val; break;
       case OPT_PLUGIN:
         if(!plugin_load(opt, s->arg_val))
@@ -421,6 +393,21 @@ ponyc_opt_process_t ponyc_opt_process(opt_state_t* s, pass_opt_t* opt,
       exit_code = EXIT_255;
     }
   }
+
+#if defined(USE_DYNAMIC_TRACE)
+  // A compiler built with use=dtrace cannot honour --runtimebc: the bitcode
+  // runtime is compiled without the DTrace/SystemTap probe instrumentation, and
+  // probe generation (`dtrace -G`) operates on native object files rather than
+  // LLVM bitcode, so a --runtimebc binary would carry no probes. On FreeBSD the
+  // combination also fails to link. Reject it up front instead of producing a
+  // probe-free binary or a confusing link error.
+  if(opt->runtimebc)
+  {
+    printf("Error: --runtimebc cannot be used with a compiler built for "
+      "DTrace/SystemTap (use=dtrace); the bitcode runtime has no probes.\n");
+    exit_code = EXIT_255;
+  }
+#endif
 
   return exit_code;
 }

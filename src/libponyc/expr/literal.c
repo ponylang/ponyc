@@ -6,6 +6,7 @@
 #include "../type/assemble.h"
 #include "../type/alias.h"
 #include "../type/reify.h"
+#include "../type/typealias.h"
 #include "../ast/token.h"
 #include "../ast/stringtab.h"
 #include "ponyassert.h"
@@ -84,30 +85,6 @@ static lit_op_info_t const* lookup_literal_op(const char* name)
       return &_operator_fns[i];
 
   return NULL;
-}
-
-
-void operatorliteral_serialise_data(ast_t* ast, ast_t* dst)
-{
-  lit_op_info_t const* data = (lit_op_info_t*)ast_data(ast);
-  if(data != NULL)
-  {
-    size_t index = (size_t)(data - _operator_fns);
-    ast_setdata(dst, (void*)index);
-  } else {
-    ast_setdata(dst, (void*)((size_t)(~0)));
-  }
-}
-
-
-void operatorliteral_deserialise_data(ast_t* ast)
-{
-  size_t index = (size_t)ast_data(ast);
-
-  if(index > 17)
-    ast_setdata(ast, (void*)NULL);
-  else
-    ast_setdata(ast, (void*)&_operator_fns[index]);
 }
 
 
@@ -422,6 +399,7 @@ static int uifset(pass_opt_t* opt, ast_t* type, lit_chain_t* chain)
         {
           case TK_NOMINAL:
           case TK_TYPEPARAMREF:
+          case TK_TYPEALIASREF:
             return uifset(opt, rhs, chain);
 
           default:
@@ -459,6 +437,19 @@ static int uifset(pass_opt_t* opt, ast_t* type, lit_chain_t* chain)
         return UIF_NO_TYPES;
 
       return uifset_simple_type(opt, type);
+
+    case TK_TYPEALIASREF:
+    {
+      // Unfold the alias and re-dispatch.
+      ast_t* unfolded = typealias_unfold(type);
+
+      if(unfolded == NULL)
+        return UIF_ERROR;
+
+      int r = uifset(opt, unfolded, chain);
+      ast_free_unattached(unfolded);
+      return r;
+    }
 
     case TK_DONTCARETYPE:
     case TK_FUNTYPE:
@@ -689,7 +680,18 @@ static bool coerce_control_block(ast_t** astp, ast_t* target_type,
       return false;
     }
 
-    block_type = type_union(opt, block_type, ast_type(branch));
+    ast_t* prev_block = block_type;
+    ast_t* branch_type = ast_type(branch);
+    block_type = type_union(opt, prev_block, branch_type);
+
+    // type_union may return prev_block, branch_type, or a freshly-built
+    // tree. Free any input it did not return as-is: ast_free_unattached
+    // is a no-op on aliases (still parented) and on NULL, so no ownership
+    // tracking is needed.
+    if(block_type != prev_block)
+      ast_free_unattached(prev_block);
+    if(block_type != branch_type)
+      ast_free_unattached(branch_type);
   }
 
   if(is_typecheck_error(block_type))
@@ -925,6 +927,9 @@ bool literal_call(ast_t* ast, pass_opt_t* opt)
 
   AST_GET_CHILDREN(ast, receiver, positional_args, named_args, question);
 
+  if(jumps_away_no_value(opt, receiver, "a receiver"))
+    return false;
+
   ast_t* recv_type = ast_type(receiver);
 
   if(is_typecheck_error(recv_type))
@@ -989,6 +994,10 @@ bool literal_is(ast_t* ast, pass_opt_t* opt)
   pony_assert(ast_id(ast) == TK_IS || ast_id(ast) == TK_ISNT);
 
   AST_GET_CHILDREN(ast, left, right);
+
+  if(jumps_away_no_value(opt, left, "an operand of an identity comparison") ||
+    jumps_away_no_value(opt, right, "an operand of an identity comparison"))
+    return false;
 
   ast_t* l_type = ast_type(left);
   ast_t* r_type = ast_type(right);

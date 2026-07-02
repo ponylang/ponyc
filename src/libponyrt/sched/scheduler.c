@@ -15,12 +15,15 @@
 #include <string.h>
 #include "mutemap.h"
 #include "../tracing/tracing.h"
+#ifdef USE_SYSTEMATIC_TESTING
+#include <stdlib.h>
+#endif
 
 #ifdef USE_RUNTIMESTATS
 #include <stdio.h>
 #endif
 
-#define PONY_SCHED_BLOCK_THRESHOLD 1000000
+#define PONY_SCHED_BLOCK_THRESHOLD 2000000
 
 PONY_EXTERN_C_BEGIN
 
@@ -36,6 +39,7 @@ static PONY_ATOMIC(uint32_t) active_scheduler_count_check;
 static scheduler_t* scheduler;
 static PONY_ATOMIC(bool) temporarily_disable_scheduler_scaling;
 static PONY_ATOMIC(bool) detect_quiescence;
+static PONY_ATOMIC(bool) runtime_shutdown_initiated;
 static bool use_yield;
 static mpmcq_t inject;
 static PONY_ATOMIC(bool) pinned_actor_scheduler_suspended;
@@ -61,7 +65,7 @@ static PONY_ATOMIC(bool) scheduler_count_changing;
 static size_t mem_allocated;
 static size_t mem_used;
 static bool print_stats;
-static size_t print_stats_interval;
+static uint64_t print_stats_interval;
 
 void print_scheduler_stats(scheduler_t* sched)
 {
@@ -584,6 +588,22 @@ static bool read_msg(scheduler_t* sched, pony_actor_t* actor)
  * terminate.
  */
 
+// Clock source for the scheduler's clock-gated control flow (block/suspend
+// thresholds and the cycle-detector cadence). Under systematic testing we read
+// the deterministic logical clock instead of the wall clock so those decisions
+// — and therefore the seeded thread-selection stream — reproduce run to run.
+// The matching ponyint_cpu_tick_diff() calls are left as-is: on x86-64 and
+// Windows (the only platforms systematic testing builds on) PONY_CPU_TICK_BITS
+// is 64, so tick_diff(a, b) is exactly b - a, correct for a monotonic clock.
+static uint64_t sched_clock(void)
+{
+#if defined(USE_SYSTEMATIC_TESTING)
+  return SYSTEMATIC_TESTING_CLOCK();
+#else
+  return ponyint_cpu_tick();
+#endif
+}
+
 static bool quiescent(scheduler_t* sched, uint64_t tsc, uint64_t tsc2)
 {
   if(sched->terminate)
@@ -746,6 +766,13 @@ static pony_actor_t* suspend_scheduler(scheduler_t* sched,
 
   while(get_active_scheduler_count() <= (uint32_t)sched->index)
   {
+    // If shutdown has been initiated, break out so we can process
+    // SCHED_TERMINATE and exit. Without this check, a suspended thread can
+    // re-enter sigwait indefinitely: as other threads exit during shutdown,
+    // active_scheduler_count drops, keeping this condition true.
+    if(atomic_load_explicit(&runtime_shutdown_initiated, memory_order_relaxed))
+      break;
+
     // if we're scheduler 0 with noisy actors check to make
     // sure inject queue is empty to avoid race condition
     // between thread 0 sleeping and the ASIO thread getting a
@@ -909,8 +936,9 @@ static pony_actor_t* perhaps_suspend_scheduler(
 static pony_actor_t* steal(scheduler_t* sched)
 {
   bool block_sent = false;
+  bool suspend_eligible = false;
   uint32_t steal_attempts = 0;
-  uint64_t tsc = ponyint_cpu_tick();
+  uint64_t tsc = sched_clock();
   pony_actor_t* actor;
   scheduler_t* victim = NULL;
 
@@ -922,7 +950,7 @@ static pony_actor_t* steal(scheduler_t* sched)
     if(actor != NULL)
       break;
 
-    uint64_t tsc2 = ponyint_cpu_tick();
+    uint64_t tsc2 = sched_clock();
 
     if(read_msg(sched, actor))
     {
@@ -966,16 +994,25 @@ static pony_actor_t* steal(scheduler_t* sched)
     //    we will have also tried getting work off the ASIO inject queue
     //    multiple times
     // 4. We've been trying to steal for at least PONY_SCHED_BLOCK_THRESHOLD
-    //    cycles (currently 1000000).
+    //    cycles (currently 2000000).
     //    In many work stealing scenarios, we immediately get steal an actor.
     //    Sending a block/unblock pair in that scenario is very wasteful.
     //    Same applies to other "quick" steal scenarios.
-    //    1 million cycles is roughly 1 millisecond, depending on clock speed.
-    //    By waiting 1 millisecond before sending a block message, we are going to
-    //    delay quiescence by a small amount of time but also optimize work
+    //    2 million cycles is roughly 1 millisecond, depending on clock speed.
+    //    By waiting 1 millisecond before sending a block message, we are going
+    //    to delay quiescence by a small amount of time but also optimize work
     //    stealing for generating far fewer block/unblock messages.
     uint32_t current_active_scheduler_count = get_active_scheduler_count();
-    uint64_t clocks_elapsed = tsc2 - tsc;
+    uint64_t clocks_elapsed = ponyint_cpu_tick_diff(tsc, tsc2);
+
+    // Once we've been trying to steal long enough to be eligible to suspend,
+    // stay eligible. tsc is a fixed baseline taken on entry, so a suspend can
+    // make clocks_elapsed span more than ponyint_cpu_tick()'s wrap period and
+    // read small again; latching keeps an idle scheduler suspending promptly
+    // instead of busy-spinning until the elapsed count grows back past the
+    // threshold.
+    if(clocks_elapsed > scheduler_suspend_threshold)
+      suspend_eligible = true;
 
     if (!block_sent)
     {
@@ -999,7 +1036,7 @@ static pony_actor_t* steal(scheduler_t* sched)
         }
 
         // only try and suspend if enough time has passed
-        if(clocks_elapsed > scheduler_suspend_threshold)
+        if(suspend_eligible)
         {
           // in case active scheduler count changed
           current_active_scheduler_count = get_active_scheduler_count();
@@ -1022,7 +1059,7 @@ static pony_actor_t* steal(scheduler_t* sched)
       pony_assert(current_active_scheduler_count > (uint32_t)sched->index);
 
       // only try and suspend if enough time has passed
-      if(clocks_elapsed > scheduler_suspend_threshold)
+      if(suspend_eligible)
       {
         actor = perhaps_suspend_scheduler(sched, current_active_scheduler_count,
           &steal_attempts);
@@ -1035,7 +1072,7 @@ static pony_actor_t* steal(scheduler_t* sched)
     if(!ponyint_actor_getnoblock() && (sched->index == 0))
     {
       // trigger cycle detector by sending it a message if it is time
-      uint64_t current_tsc = ponyint_cpu_tick();
+      uint64_t current_tsc = sched_clock();
       if(ponyint_cycle_check_blocked(last_cd_tsc, current_tsc))
       {
         last_cd_tsc = current_tsc;
@@ -1110,7 +1147,7 @@ uint64_t ponyint_sched_cpu_used(pony_ctx_t* ctx)
   uint64_t last_tsc = ctx->last_tsc;
   uint64_t current_tsc = ponyint_cpu_tick();
   ctx->last_tsc = current_tsc;
-  return current_tsc - last_tsc;
+  return ponyint_cpu_tick_diff(last_tsc, current_tsc);
 }
 #endif
 
@@ -1146,7 +1183,8 @@ static void run(scheduler_t* sched)
       // 1 second = 2000000000 cycles (approx.)
       // based on same scale as ponyint_cpu_core_pause() uses
       uint64_t new_tsc = ponyint_cpu_tick();
-      if((new_tsc - last_stats_print_tsc) > print_stats_interval)
+      if(ponyint_cpu_tick_diff(last_stats_print_tsc, new_tsc) >
+        print_stats_interval)
       {
         last_stats_print_tsc = new_tsc;
         print_scheduler_stats(sched);
@@ -1161,7 +1199,7 @@ static void run(scheduler_t* sched)
       if(!ponyint_actor_getnoblock())
       {
         // trigger cycle detector by sending it a message if it is time
-        uint64_t current_tsc = ponyint_cpu_tick();
+        uint64_t current_tsc = sched_clock();
         if(ponyint_cycle_check_blocked(last_cd_tsc, current_tsc))
         {
           last_cd_tsc = current_tsc;
@@ -1432,7 +1470,8 @@ static void run_pinned_actors()
 #endif
 
   pony_actor_t* actor = NULL;
-  uint64_t tsc = ponyint_cpu_tick();
+  uint64_t tsc = sched_clock();
+  bool suspend_eligible = false;
 
   while(true)
   {
@@ -1443,7 +1482,8 @@ static void run_pinned_actors()
       // 1 second = 2000000000 cycles (approx.)
       // based on same scale as ponyint_cpu_core_pause() uses
       uint64_t new_tsc = ponyint_cpu_tick();
-      if((new_tsc - last_stats_print_tsc) > print_stats_interval)
+      if(ponyint_cpu_tick_diff(last_stats_print_tsc, new_tsc) >
+        print_stats_interval)
       {
         last_stats_print_tsc = new_tsc;
         print_scheduler_stats(sched);
@@ -1491,12 +1531,19 @@ static void run_pinned_actors()
 
     if(actor == NULL)
     {
-      uint64_t tsc2 = ponyint_cpu_tick();
-      uint64_t clocks_elapsed = tsc2 - tsc;
+      uint64_t tsc2 = sched_clock();
+      uint64_t clocks_elapsed = ponyint_cpu_tick_diff(tsc, tsc2);
+
+      // Latch suspend-eligibility, as in steal(). tsc here is the last time we
+      // did work, so a long idle can make clocks_elapsed span more than
+      // ponyint_cpu_tick()'s wrap period and read small again. The latch is
+      // cleared below when we next do work and reset tsc.
+      if(clocks_elapsed > scheduler_suspend_threshold)
+        suspend_eligible = true;
 
       // We had an empty queue and no actor. need to suspend or sleep only if
       // mutemap is empty as this thread doesn't participate in work stealing
-      if(ponyint_mutemap_size(&sched->mute_mapping) == 0 && clocks_elapsed > scheduler_suspend_threshold)
+      if(ponyint_mutemap_size(&sched->mute_mapping) == 0 && suspend_eligible)
       {
         // suspend
         perhaps_suspend_pinned_actor_scheduler(sched, tsc, tsc2);
@@ -1526,8 +1573,10 @@ static void run_pinned_actors()
       pony_actor_t* next = pop(sched);
 
       // update the last time the scheduler did meaningful work (used for
-      // deciding when to suspend the thread)
-      tsc = ponyint_cpu_tick();
+      // deciding when to suspend the thread); this also clears the
+      // suspend-eligibility latch so we wait idle again before suspending
+      tsc = sched_clock();
+      suspend_eligible = false;
 
       if(reschedule)
       {
@@ -1556,6 +1605,20 @@ static void run_pinned_actors()
 static void ponyint_sched_shutdown()
 {
   uint32_t start = 0;
+
+  // Signal all scheduler threads to stop suspending. The suspend loop in
+  // suspend_scheduler checks this flag and breaks out instead of re-entering
+  // sigwait. We also set active_scheduler_count high and send wake signals so
+  // threads currently in sigwait wake up and see the flag.
+  atomic_store_explicit(&runtime_shutdown_initiated, true,
+    memory_order_release);
+  atomic_store_explicit(&active_scheduler_count, scheduler_count,
+    memory_order_relaxed);
+  for(uint32_t i = 0; i < scheduler_count; i++)
+  {
+    if(scheduler[i].tid)
+      ponyint_thread_wake(scheduler[i].tid, scheduler[i].sleep_object);
+  }
 
   while(start < scheduler_count)
   {
@@ -1608,6 +1671,16 @@ static void ponyint_sched_shutdown()
   ponyint_mpmcq_destroy(&inject);
 }
 
+uint64_t ponyint_sched_stats_interval_cycles(uint32_t interval_seconds)
+{
+  // Compute at 64-bit width so the multiply cannot overflow: an interval of a
+  // few seconds already exceeds 2^32 cycles, and a 32-bit multiply would
+  // truncate it (storing the result in a 32-bit type would too -- hence the
+  // uint64_t print_stats_interval). 1 second is ~2000000000 cycles, the same
+  // approximation the other scheduler timing thresholds use.
+  return (uint64_t)interval_seconds * 2000000000;
+}
+
 pony_ctx_t* ponyint_sched_init(uint32_t threads, bool noyield, bool pin,
   bool pinasio, bool pinpat, uint32_t min_threads, uint32_t thread_suspend_threshold,
   uint32_t stats_interval, bool pin_tracing_thread
@@ -1622,10 +1695,7 @@ pony_ctx_t* ponyint_sched_init(uint32_t threads, bool noyield, bool pin,
 #ifdef USE_RUNTIMESTATS
   if(stats_interval != UINT32_MAX)
   {
-    // convert to cycles for use with ponyint_cpu_tick()
-    // 1 second = 2000000000 cycles (approx.)
-    // based on same scale as ponyint_cpu_core_pause() uses
-    print_stats_interval = stats_interval * 2000000;
+    print_stats_interval = ponyint_sched_stats_interval_cycles(stats_interval);
     print_stats = true;
   }
   else
@@ -1636,9 +1706,11 @@ pony_ctx_t* ponyint_sched_init(uint32_t threads, bool noyield, bool pin,
 
   use_yield = !noyield;
 
-  // if thread suspend threshold is less then 1, then ensure it is 1
+  // clamp thread suspend threshold to documented range [1, 1000] ms
   if(thread_suspend_threshold < 1)
     thread_suspend_threshold = 1;
+  if(thread_suspend_threshold > 1000)
+    thread_suspend_threshold = 1000;
 
   // If no thread count is specified, use the available physical core count.
   if(threads == 0)
@@ -1651,7 +1723,7 @@ pony_ctx_t* ponyint_sched_init(uint32_t threads, bool noyield, bool pin,
   // convert to cycles for use with ponyint_cpu_tick()
   // 1 second = 2000000000 cycles (approx.)
   // based on same scale as ponyint_cpu_core_pause() uses
-  scheduler_suspend_threshold = thread_suspend_threshold * 1000000;
+  scheduler_suspend_threshold = (uint64_t)thread_suspend_threshold * 2000000;
 
   scheduler_count = threads;
   min_scheduler_count = min_threads;
@@ -1770,7 +1842,7 @@ pony_ctx_t* ponyint_sched_init(uint32_t threads, bool noyield, bool pin,
   return pony_ctx();
 }
 
-bool ponyint_sched_start(bool library)
+bool ponyint_sched_start()
 {
   pony_register_thread();
 
@@ -1780,7 +1852,7 @@ bool ponyint_sched_start(bool library)
   atomic_store_explicit(&pinned_actor_scheduler_suspended, false, memory_order_relaxed);
   atomic_store_explicit(&pinned_actor_scheduler_suspended_check, false, memory_order_relaxed);
 
-  atomic_store_explicit(&detect_quiescence, !library, memory_order_relaxed);
+  atomic_store_explicit(&detect_quiescence, true, memory_order_relaxed);
 
   DTRACE0(RT_START);
   uint32_t start = 0;
@@ -1810,10 +1882,7 @@ bool ponyint_sched_start(bool library)
   // custom run loop for pinned actors
   run_pinned_actors();
 
-  if(!library)
-  {
-    ponyint_sched_shutdown();
-  }
+  ponyint_sched_shutdown();
 
   TRACING_THREAD_STOP();
   ponyint_pool_thread_cleanup();
@@ -1828,12 +1897,6 @@ bool ponyint_sched_start(bool library)
   ponyint_mpmcq_destroy(&this_scheduler->q);
 
   return true;
-}
-
-void ponyint_sched_stop()
-{
-  atomic_store_explicit(&detect_quiescence, true, memory_order_release);
-  ponyint_sched_shutdown();
 }
 
 void ponyint_sched_add(pony_ctx_t* ctx, pony_actor_t* actor)
@@ -2114,6 +2177,31 @@ void ponyint_sched_start_global_unmute(uint32_t from, pony_actor_t* actor)
 DECLARE_STACK(ponyint_actorstack, actorstack_t, pony_actor_t);
 DEFINE_STACK(ponyint_actorstack, actorstack_t, pony_actor_t);
 
+#ifdef USE_SYSTEMATIC_TESTING
+// Order two actors by their stable creation-order id so unmuted actors are
+// rescheduled in a layout-independent order rather than in the muteset's
+// pointer-hash iteration order (which depends on ASLR). ids are unique, so
+// there are no ties and qsort's instability cannot reintroduce a layout
+// dependence.
+static int sched_actor_systematic_testing_id_cmp(const void* a, const void* b)
+{
+  uint64_t ia = (*(pony_actor_t* const*)a)->systematic_testing_id;
+  uint64_t ib = (*(pony_actor_t* const*)b)->systematic_testing_id;
+  return (ia > ib) - (ia < ib);
+}
+#endif
+
+// Reschedule one no-longer-muted actor. Both unmute arms in
+// ponyint_sched_unmute_senders go through this so they stay behaviorally
+// identical; they differ only in the order they walk the actors.
+static void sched_reschedule_unmuted(pony_ctx_t* ctx, pony_actor_t* actor)
+{
+  ponyint_unmute_actor(actor);
+  ponyint_sched_add(ctx, actor);
+  DTRACE2(ACTOR_SCHEDULED, (uintptr_t)ctx->scheduler, (uintptr_t)actor);
+  ponyint_sched_start_global_unmute(ctx->scheduler->index, actor);
+}
+
 bool ponyint_sched_unmute_senders(pony_ctx_t* ctx, pony_actor_t* actor)
 {
   size_t actors_rescheduled = 0;
@@ -2129,6 +2217,9 @@ bool ponyint_sched_unmute_senders(pony_ctx_t* ctx, pony_actor_t* actor)
     size_t i = HASHMAP_UNKNOWN;
     pony_actor_t* muted = NULL;
     actorstack_t* needs_unmuting = NULL;
+#ifdef USE_SYSTEMATIC_TESTING
+    size_t needs_unmuting_count = 0;
+#endif
 
 #ifdef USE_RUNTIMESTATS
     ctx->schedulerstats.mem_used -= sizeof(muteref_t);
@@ -2152,26 +2243,52 @@ bool ponyint_sched_unmute_senders(pony_ctx_t* ctx, pony_actor_t* actor)
       if(muted->muted == 0)
       {
         needs_unmuting = ponyint_actorstack_push(needs_unmuting, muted);
+#ifdef USE_SYSTEMATIC_TESTING
+        needs_unmuting_count++;
+#endif
       }
     }
 
     ponyint_mutemap_removeindex(&sched->mute_mapping, index);
     ponyint_muteref_free(mref);
 
-    // Unmute any actors that need to be unmuted
+    // Reschedule the actors that are no longer muted. Under systematic testing
+    // we sort them by stable creation-order id so the run-queue order (and thus
+    // the replayed interleaving) does not depend on the muteset's pointer-hash
+    // iteration order, i.e. on memory layout; otherwise we walk the stack
+    // directly. Both arms reschedule via sched_reschedule_unmuted.
+#ifdef USE_SYSTEMATIC_TESTING
+    if(needs_unmuting_count > 0)
+    {
+      pony_actor_t** unmuting = (pony_actor_t**)ponyint_pool_alloc_size(
+        needs_unmuting_count * sizeof(pony_actor_t*));
+      size_t k = 0;
+
+      while(needs_unmuting != NULL)
+        needs_unmuting = ponyint_actorstack_pop(needs_unmuting, &unmuting[k++]);
+
+      qsort(unmuting, needs_unmuting_count, sizeof(pony_actor_t*),
+        sched_actor_systematic_testing_id_cmp);
+
+      for(k = 0; k < needs_unmuting_count; k++)
+      {
+        sched_reschedule_unmuted(ctx, unmuting[k]);
+        actors_rescheduled++;
+      }
+
+      ponyint_pool_free_size(needs_unmuting_count * sizeof(pony_actor_t*),
+        unmuting);
+    }
+#else
     pony_actor_t* to_unmute;
 
     while(needs_unmuting != NULL)
     {
       needs_unmuting = ponyint_actorstack_pop(needs_unmuting, &to_unmute);
-
-      ponyint_unmute_actor(to_unmute);
-      ponyint_sched_add(ctx, to_unmute);
-      DTRACE2(ACTOR_SCHEDULED, (uintptr_t)sched, (uintptr_t)to_unmute);
+      sched_reschedule_unmuted(ctx, to_unmute);
       actors_rescheduled++;
-
-      ponyint_sched_start_global_unmute(ctx->scheduler->index, to_unmute);
     }
+#endif
   }
 
 #ifdef USE_RUNTIMESTATS

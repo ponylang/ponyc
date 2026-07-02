@@ -27,11 +27,14 @@ actor \nodoc\ Main is TestList
     test(_TestArrayAppend)
     test(_TestArrayChop)
     test(_TestArrayChopWithPush)
+    test(_TestArrayCompactMinAlloc)
+    test(_TestArrayCreateMinAlloc)
     test(_TestArrayConcat)
     test(_TestArrayFind)
     test(_TestArrayFromCPointer)
     test(_TestArrayCopyTo)
     test(_TestArrayInsert)
+    test(_TestArrayReserveMinAlloc)
     test(_TestArraySlice)
     test(_TestArraySwapElements)
     test(_TestArrayTrim)
@@ -61,6 +64,8 @@ actor \nodoc\ Main is TestList
     test(_TestStringAdd)
     test(_TestStringChop)
     test(_TestStringChopWithPush)
+    test(_TestStringCompactMinAlloc)
+    test(_TestStringCreateMinAlloc)
     test(_TestStringCompare)
     test(_TestStringConcatOffsetLen)
     test(_TestStringContains)
@@ -77,6 +82,7 @@ actor \nodoc\ Main is TestList
     test(_TestStringRemove)
     test(_TestStringRepeatStr)
     test(_TestStringReplace)
+    test(_TestStringReserveMinAlloc)
     test(_TestStringRFind)
     test(_TestStringRstrip)
     test(_TestStringRunes)
@@ -576,22 +582,27 @@ class \nodoc\ iso _TestStringTrim is UnitTest
   fun name(): String => "builtin/String.trim"
 
   fun apply(h: TestHelper) =>
-    h.assert_eq[String]("45", "0123456".trim(4, 6))
-    h.assert_eq[USize](2, "0123456".trim(4, 6).space())
-    h.assert_eq[String]("456", "0123456".trim(4, 7))
-    h.assert_eq[USize](3, "0123456".trim(4, 7).space())
-    h.assert_eq[String]("456", "0123456".trim(4))
-    h.assert_eq[USize](3, "0123456".trim(4).space())
-    h.assert_eq[String]("", "0123456".trim(4, 4))
-    h.assert_eq[USize](0, "0123456".trim(4, 4).space())
-    h.assert_eq[String]("", "0123456".trim(4, 1))
-    h.assert_eq[USize](0, "0123456".trim(4, 1).space())
+    let orig = "0123456"
+    h.assert_eq[String]("45", orig.trim(4, 6))
+    h.assert_eq[USize](2, orig.trim(4, 6).space())                 // bounded: to - from
+    h.assert_eq[String]("456", orig.trim(4, 7))
+    h.assert_eq[USize](orig.space() - 4, orig.trim(4, 7).space())  // to-end: orig.space - from
+    h.assert_eq[String]("456", orig.trim(4))
+    h.assert_eq[USize](orig.space() - 4, orig.trim(4).space())
+    h.assert_eq[String]("", orig.trim(4, 4))                       // empty
+    h.assert_eq[String]("", orig.trim(4, 1))                       // empty
     h.assert_eq[String]("456", "0123456789".trim(1, 8).trim(3, 6))
     h.assert_eq[USize](3, "0123456789".trim(1, 8).trim(3, 6).space())
     h.assert_eq[String]("456",
       "0123456789".clone().>trim_in_place(1, 8).trim(3, 6))
     h.assert_eq[USize](3,
       "0123456789".clone().>trim_in_place(1, 8).trim(3, 6).space())
+
+    // > 32 bytes: bounded and trim-to-end both derive correctly.
+    let big = "0123456789012345678901234567890123456789" // 40 chars
+    h.assert_eq[String]("45", big.trim(4, 6))
+    h.assert_eq[USize](2, big.trim(4, 6).space())
+    h.assert_eq[USize](big.space() - 4, big.trim(4).space())
 
 class \nodoc\ iso _TestStringTrimInPlace is UnitTest
   """
@@ -600,31 +611,32 @@ class \nodoc\ iso _TestStringTrimInPlace is UnitTest
   fun name(): String => "builtin/String.trim_in_place"
 
   fun apply(h: TestHelper) =>
-    case(h, "45", "0123456", 4, 6, 2)
-    case(h, "456", "0123456", 4, 7, 3)
-    case(h, "456", "0123456", 4 where space = 3)
-    case(h, "", "0123456", 4, 4, 0)
-    case(h, "", "0123456", 4, 1, 0)
-    case(h, "456", "0123456789".clone().>trim_in_place(1, 8), 3, 6, 3)
-    case(h, "456", "0123456789".trim(1, 8), 3, 6, 3)
-    case(h, "", "0123456789".clone().>trim_in_place(1, 8), 3, 3, 0)
+    case(h, "45", "0123456", 4, 6)
+    case(h, "456", "0123456", 4, 7)
+    case(h, "456", "0123456", 4)
+    case(h, "", "0123456", 4, 4)
+    case(h, "", "0123456", 4, 1)
+    case(h, "456", "0123456789".clone().>trim_in_place(1, 8), 3, 6)
+    case(h, "456", "0123456789".trim(1, 8), 3, 6)
+    case(h, "", "0123456789".clone().>trim_in_place(1, 8), 3, 3)
+    // > 32 bytes
+    case(h, "89", "0123456789012345678901234567890123456789", 38, 40)
 
   fun case(
     h: TestHelper,
     expected: String,
     orig: String,
     from: USize,
-    to: USize = -1,
-    space: USize = 0)
+    to: USize = -1)
   =>
     let copy: String ref = orig.clone()
     let pre_trim_pagemap = @ponyint_pagemap_get_chunk(copy.cpointer())
     copy.trim_in_place(from, to)
     h.assert_eq[String box](expected, copy)
-    h.assert_eq[USize](space, copy.space())
     h.assert_eq[String box](expected, copy.clone()) // safe to clone
+    h.assert_true(copy.space() >= copy.size())
     let post_trim_pagemap = @ponyint_pagemap_get_chunk(copy.cpointer())
-    if copy.space() == 0 then
+    if copy.size() == 0 then
       h.assert_eq[USize](0, post_trim_pagemap.usize())
     else
       h.assert_eq[USize](pre_trim_pagemap.usize(), post_trim_pagemap.usize())
@@ -668,9 +680,13 @@ class \nodoc\ iso _TestStringIsNullTerminated is UnitTest
       String.from_iso_array(recover
         ['a'; 'b'; 'c']
       end).is_null_terminated())
+    // from_iso_array of an array with no spare capacity is not null-terminated.
     h.assert_false(
       String.from_iso_array(recover
-        ['a'; 'b'; 'c'; 'd'; 'e'; 'f'; 'g'; 'h'] // power of two sized array
+        let a = Array[U8]
+        a.reserve(40)
+        while a.size() < a.space() do a.push('x') end
+        a
       end).is_null_terminated())
 
 class \nodoc\ iso _TestSpecialValuesF32 is UnitTest
@@ -1133,40 +1149,62 @@ class \nodoc\ iso _TestStringSpace is UnitTest
   fun name(): String => "builtin/String.space"
 
   fun apply(h: TestHelper) =>
-    let s =
+    // No spare capacity (filled to the allocation): from_iso_array does not add
+    // a null terminator, so space() == size().
+    let filled =
       String.from_iso_array(recover
-        ['1'; '1'; '1'; '1'; '1'; '1'; '1'; '1']
+        let a = Array[U8]
+        a.reserve(40)
+        while a.size() < a.space() do a.push('x') end
+        a
       end)
+    h.assert_eq[USize](filled.size(), filled.space())
+    h.assert_false(filled.is_null_terminated())
 
-    h.assert_eq[USize](s.size(), 8)
-    h.assert_eq[USize](s.space(), 8)
-    h.assert_false(s.is_null_terminated())
+    // Spare capacity (partly filled): from_iso_array writes a null terminator,
+    // so space() > size().
+    let spare =
+      String.from_iso_array(recover
+        let a = Array[U8]
+        a.reserve(40)
+        var i: USize = 0
+        while i < 3 do a.push('x'); i = i + 1 end
+        a
+      end)
+    h.assert_eq[USize](3, spare.size())
+    h.assert_true(spare.space() > spare.size())
+    h.assert_true(spare.is_null_terminated())
 
 class \nodoc\ iso _TestStringRecalc is UnitTest
   fun name(): String => "builtin/String.recalc"
 
   fun apply(h: TestHelper) =>
-    let s: String ref =
+    // No null terminator within the allocation (filled, no spare): recalc finds
+    // no null and leaves the size unchanged.
+    let no_null: String ref =
       String.from_iso_array(recover
-        ['1'; '1'; '1'; '1'; '1'; '1'; '1'; '1']
+        let a = Array[U8]
+        a.reserve(40)
+        while a.size() < a.space() do a.push('x') end
+        a
       end)
-    s.recalc()
-    h.assert_eq[USize](s.size(), 8)
-    h.assert_eq[USize](s.space(), 8)
-    h.assert_false(s.is_null_terminated())
+    let filled_size = no_null.size()
+    no_null.recalc()
+    h.assert_eq[USize](filled_size, no_null.size())
 
+    // Null-terminated content: recalc finds the terminator and sets the size to
+    // the content length.
     let s2: String ref = "foobar".clone()
     s2.recalc()
-    h.assert_eq[USize](s2.size(), 6)
-    h.assert_eq[USize](s2.space(), 6)
+    h.assert_eq[USize](6, s2.size())
     h.assert_true(s2.is_null_terminated())
 
+    // Interior null after truncate: recalc finds the null at index 1.
     let s3: String ref =
       String.from_iso_array(recover ['1'; 0; 0; 0; 0; 0; 0; '1'] end)
     s3.truncate(1)
     s3.recalc()
-    h.assert_eq[USize](s3.size(), 1)
-    h.assert_eq[USize](s3.space(), 7)
+    h.assert_eq[USize](1, s3.size())
     h.assert_true(s3.is_null_terminated())
 
 class \nodoc\ iso _TestStringTruncate is UnitTest
@@ -1179,22 +1217,172 @@ class \nodoc\ iso _TestStringTruncate is UnitTest
           ['1'; '1'; '1'; '1'; '1'; '1'; '1'; '1']
         end)
       end
-    s.truncate(s.space())
+    // truncate(capacity) fills the string up to its current capacity.
+    let cap = s.space()
+    s.truncate(cap)
     h.assert_true(s.is_null_terminated())
-    h.assert_eq[String](s.clone(), "11111111")
-    h.assert_eq[USize](s.size(), 8)
-    h.assert_eq[USize](s.space(), 15) // created extra allocation for null
+    h.assert_eq[USize](cap, s.size())
 
-    s.truncate(100)
+    // truncate(len > capacity) clamps to the allocation; it never reads past it.
+    let cap2 = s.space()
+    s.truncate(cap2 + 1000)
     h.assert_true(s.is_null_terminated())
-    h.assert_eq[USize](s.size(), 16) // sized up to _alloc
-    h.assert_eq[USize](s.space(), 31) // created extra allocation for null
+    h.assert_true(s.size() >= cap2)
+    h.assert_true(s.size() <= (cap2 + 1))
 
+    // truncate(len < size) shrinks to exactly len.
     s.truncate(3)
     h.assert_true(s.is_null_terminated())
-    h.assert_eq[String](s.clone(), "111")
-    h.assert_eq[USize](s.size(), 3)
-    h.assert_eq[USize](s.space(), 31)
+    h.assert_eq[USize](3, s.size())
+    h.assert_eq[String]("111", s.clone())
+
+class \nodoc\ iso _TestStringReserveMinAlloc is UnitTest
+  """
+  reserve floors a String's capacity at the runtime allocator's minimum block
+  (HEAP_MIN, 32 bytes), so a small reservation does not record a capacity below
+  the block the allocator actually returns.
+  """
+  fun name(): String => "builtin/String.reserve_min_alloc"
+
+  fun apply(h: TestHelper) =>
+    let s = String
+    s.reserve(1)
+    // _alloc is floored to 32. space() is 31 or 32 depending on whether the
+    // (uninitialised) null-terminator byte reads as 0, so bound both sides: the
+    // lower bound catches a missing floor (without it _alloc would be 2), the
+    // upper bound catches over-allocation.
+    h.assert_true(s.space() >= 31)
+    h.assert_true(s.space() <= 32)
+
+class \nodoc\ iso _TestStringCompactMinAlloc is UnitTest
+  """
+  compact floors a String's capacity at the minimum block, shrinks genuine
+  over-allocations, and never grows the allocation.
+  """
+  fun name(): String => "builtin/String.compact_min_alloc"
+
+  fun apply(h: TestHelper) =>
+    // A large over-allocation shrinks toward the block, but not below it.
+    let over = String
+    over.reserve(200)             // _alloc = 256
+    over.append("abc")
+    let over_before = over.space()
+    over.compact()
+    h.assert_true(over.space() < over_before)
+    h.assert_true(over.space() >= 31)
+
+    // Already within the block: compact must not grow.
+    let small = String
+    small.reserve(1)              // _alloc = 32
+    small.append("abc")
+    let small_before = small.space()
+    small.compact()
+    h.assert_true(small.space() <= small_before)
+    h.assert_true(small.space() >= 31)
+
+    // Non-power-of-two _alloc from a middle trim_in_place: compact must not grow
+    // it. Guards the `target < _alloc` guard against regressing to `!=`, which
+    // would grow this case (40 -> 64).
+    let trimmed = String
+    var i: USize = 0
+    while i < 50 do trimmed.push('x'); i = i + 1 end
+    trimmed.trim_in_place(5, 45)  // middle trim leaves _alloc = 40 (not pow2)
+    let trimmed_before = trimmed.space()
+    trimmed.compact()
+    h.assert_true(trimmed.space() <= trimmed_before)
+
+class \nodoc\ iso _TestArrayReserveMinAlloc is UnitTest
+  """
+  reserve floors an Array's capacity at the minimum block (32 bytes). Small
+  element types are raised to fill the block; element types whose existing
+  8-element minimum already meets or exceeds the block are unchanged.
+  """
+  fun name(): String => "builtin/Array.reserve_min_alloc"
+
+  fun apply(h: TestHelper) =>
+    h.assert_eq[USize](32, Array[U8].>reserve(1).space())   // raised 8 -> 32
+    h.assert_eq[USize](16, Array[U16].>reserve(1).space())  // raised 8 -> 16
+    h.assert_eq[USize](8, Array[U32].>reserve(1).space())   // unchanged (= 8)
+    h.assert_eq[USize](8, Array[U64].>reserve(1).space())   // unchanged (4 < 8)
+
+class \nodoc\ iso _TestArrayCompactMinAlloc is UnitTest
+  """
+  compact floors an Array's capacity at the minimum block, shrinks genuine
+  over-allocations, and never grows — including a non-power-of-two capacity left
+  by trim_in_place.
+  """
+  fun name(): String => "builtin/Array.compact_min_alloc"
+
+  fun apply(h: TestHelper) =>
+    // A large over-allocation shrinks to the block, not below it.
+    let over = Array[U8]
+    over.reserve(200)             // _alloc = 256
+    over.push(0)
+    let over_before = over.space()
+    over.compact()
+    h.assert_true(over.space() < over_before)
+    h.assert_eq[USize](32, over.space())
+
+    // Already at the block: compact must not grow.
+    let small = Array[U8]
+    small.reserve(1)              // _alloc = 32
+    small.push(0)
+    h.assert_eq[USize](32, small.space())
+    small.compact()
+    h.assert_eq[USize](32, small.space())
+
+    // Non-power-of-two _alloc from trim_in_place: compact must not grow it.
+    // Guards the `target < _alloc` guard against regressing to `!=`, which would
+    // grow this case (48 -> 64).
+    let trimmed = Array[U8]
+    trimmed.reserve(40)           // _alloc = 64
+    var i: USize = 0
+    while i < 64 do trimmed.push(0); i = i + 1 end
+    trimmed.trim_in_place(16, 64) // _alloc -> 48 (not a power of two), size 48
+    let trimmed_before = trimmed.space()
+    h.assert_eq[USize](48, trimmed_before)
+    trimmed.compact()
+    h.assert_true(trimmed.space() <= trimmed_before)
+
+    // Non-power-of-two _alloc with small content: compact shrinks it to the
+    // block (the shrink branch reached from a non-power-of-two capacity).
+    let shrink = Array[U8]
+    shrink.reserve(200)           // _alloc = 256
+    var j: USize = 0
+    while j < 200 do shrink.push(0); j = j + 1 end
+    shrink.trim_in_place(190, 200) // _alloc -> 66 (not a power of two), size 10
+    h.assert_eq[USize](66, shrink.space())
+    shrink.compact()
+    h.assert_eq[USize](32, shrink.space()) // shrank from 66 to the 32-byte block
+
+class \nodoc\ iso _TestStringCreateMinAlloc is UnitTest
+  """
+  String's size-taking constructor floors capacity at the allocator's minimum
+  block (32 bytes), the same as reserve.
+  """
+  fun name(): String => "builtin/String.create_min_alloc"
+
+  fun apply(h: TestHelper) =>
+    // String(1) allocates a 32-byte block and is null-terminated, so space() is
+    // _alloc - 1 = 31. Without the floor _alloc would be 2, giving space() 1.
+    h.assert_eq[USize](31, String(1).space())
+    // from_utf32 (a fresh copy/encode constructor) floors too.
+    h.assert_eq[USize](31, String.from_utf32('a').space())
+
+class \nodoc\ iso _TestArrayCreateMinAlloc is UnitTest
+  """
+  Array's size-taking constructors (create, init) floor capacity at the minimum
+  block (32 bytes), the same as reserve. An empty array allocates nothing.
+  """
+  fun name(): String => "builtin/Array.create_min_alloc"
+
+  fun apply(h: TestHelper) =>
+    h.assert_eq[USize](32, Array[U8](1).space())          // raised 8 -> 32
+    h.assert_eq[USize](16, Array[U16](1).space())         // raised 8 -> 16
+    h.assert_eq[USize](8, Array[U32](1).space())          // unchanged (= 8)
+    h.assert_eq[USize](8, Array[U64](1).space())          // unchanged (4 < 8)
+    h.assert_eq[USize](32, Array[U8].init(0, 1).space())  // init floors too
+    h.assert_eq[USize](0, Array[U8].space())              // empty: no allocation
 
 class \nodoc\ iso _TestStringChop is UnitTest
   """
@@ -1441,35 +1629,40 @@ class \nodoc\ iso _TestArraySlice is UnitTest
 
 class \nodoc\ iso _TestArrayTrim is UnitTest
   """
-  Test trimming part of a string.
+  Test trimming part of an array.
   """
   fun name(): String => "builtin/Array.trim"
 
   fun apply(h: TestHelper) =>
     let orig: Array[U8] val = [0; 1; 2; 3; 4; 5; 6]
     h.assert_array_eq[U8]([4; 5], orig.trim(4, 6))
-    h.assert_eq[USize](2, orig.trim(4, 6).space())
+    h.assert_eq[USize](2, orig.trim(4, 6).space())                 // bounded
     h.assert_array_eq[U8]([4; 5; 6], orig.trim(4, 7))
-    h.assert_eq[USize](4, orig.trim(4, 7).space())
+    h.assert_eq[USize](orig.space() - 4, orig.trim(4, 7).space())  // to-end
     h.assert_array_eq[U8]([4; 5; 6], orig.trim(4))
-    h.assert_eq[USize](4, orig.trim(4).space())
+    h.assert_eq[USize](orig.space() - 4, orig.trim(4).space())
     h.assert_array_eq[U8](Array[U8], orig.trim(4, 4))
-    h.assert_eq[USize](0, orig.trim(4, 4).space())
+    h.assert_eq[USize](0, orig.trim(4, 4).space())                 // empty (Array.create(0))
     h.assert_array_eq[U8](Array[U8], orig.trim(4, 1))
     h.assert_eq[USize](0, orig.trim(4, 1).space())
 
+    // > 32 bytes
+    let big: Array[U8] val = recover val Array[U8].init(0, 40) end
+    h.assert_eq[USize](2, big.trim(4, 6).space())                  // bounded
+    h.assert_eq[USize](big.space() - 4, big.trim(4).space())       // to-end
+
 class \nodoc\ iso _TestArrayTrimInPlace is UnitTest
   """
-  Test trimming part of a string in place.
+  Test trimming part of an array in place.
   """
   fun name(): String => "builtin/Array.trim_in_place"
 
   fun apply(h: TestHelper) =>
-    case(h, [4; 5], [0; 1; 2; 3; 4; 5; 6], 4, 6, 2)
-    case(h, [4; 5; 6], [0; 1; 2; 3; 4; 5; 6], 4, 7, 4)
-    case(h, [4; 5; 6], [0; 1; 2; 3; 4; 5; 6], 4 where space = 4)
-    case(h, Array[U8], [0; 1; 2; 3; 4; 5; 6], 4, 4, 0)
-    case(h, Array[U8], [0; 1; 2; 3; 4; 5; 6], 4, 1, 0)
+    case(h, [4; 5], [0; 1; 2; 3; 4; 5; 6], 4, 6)
+    case(h, [4; 5; 6], [0; 1; 2; 3; 4; 5; 6], 4, 7)
+    case(h, [4; 5; 6], [0; 1; 2; 3; 4; 5; 6], 4)
+    case(h, Array[U8], [0; 1; 2; 3; 4; 5; 6], 4, 4)
+    case(h, Array[U8], [0; 1; 2; 3; 4; 5; 6], 4, 1)
     case(h, Array[U8], Array[U8].init(8, 1024), 1024)
 
   fun case(
@@ -1477,16 +1670,15 @@ class \nodoc\ iso _TestArrayTrimInPlace is UnitTest
     expected: Array[U8],
     orig: Array[U8],
     from: USize,
-    to: USize = -1,
-    space: USize = 0)
+    to: USize = -1)
   =>
     let copy: Array[U8] ref = orig.clone()
     let pre_trim_pagemap = @ponyint_pagemap_get_chunk(copy.cpointer())
     copy.trim_in_place(from, to)
-    h.assert_eq[USize](space, copy.space())
     h.assert_array_eq[U8](expected, copy)
+    h.assert_true(copy.space() >= copy.size())
     let post_trim_pagemap = @ponyint_pagemap_get_chunk(copy.cpointer())
-    if copy.space() == 0 then
+    if copy.size() == 0 then
       h.assert_eq[USize](0, post_trim_pagemap.usize())
     else
       h.assert_eq[USize](pre_trim_pagemap.usize(), post_trim_pagemap.usize())

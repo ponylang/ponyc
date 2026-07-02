@@ -55,6 +55,29 @@ actor \nodoc\ Main is TestList
     test(_TestConfigParseMalformedJSON)
     test(_TestConfigParseInvalidStatus)
     test(_TestConfigParseNoRules)
+    test(_TestConfigMergeRuleOverride)
+    test(_TestConfigMergeCategoryCleaning)
+    test(_TestConfigMergeOmissionDefers)
+    test(_TestConfigMergeCLICarriesForward)
+    test(_TestConfigMergeRuleSpecificNoCleanCategory)
+    test(_TestConfigFromCLIExplicitConfigRootDir)
+    test(_TestConfigFromCLIExplicitConfigNotFound)
+    test(_TestConfigFromCLIAutoDiscoverRootDir)
+    test(_TestConfigValidateKnownKeys)
+    test(_TestConfigValidateUnknownRule)
+    test(_TestConfigValidateUnknownCategory)
+    test(_TestConfigValidateEmptyConfig)
+    test(_TestConfigValidateMultipleUnknown)
+    test(_TestConfigValidateMixedKnownUnknown)
+    test(_TestConfigParseFileTooLarge)
+
+    // ConfigResolver tests
+    test(_TestConfigResolverNoOverrides)
+    test(_TestConfigResolverSingleOverride)
+    test(_TestConfigResolverNestedOverrides)
+    test(_TestConfigResolverCaching)
+    test(_TestConfigResolverRootSkipped)
+    test(_TestConfigResolverDuplicateSkipped)
 
     // Registry tests
     test(_TestRegistryDefaultAllEnabled)
@@ -146,6 +169,7 @@ actor \nodoc\ Main is TestList
     test(_TestIgnoreMatcherNonGitIgnoresGitignore)
     test(_TestIgnoreMatcherHierarchical)
     test(_TestIgnoreMatcherAnchoredPattern)
+    test(_TestIgnoreMatcherOversizedFile)
 
     // Linter tests
     test(_TestLinterSingleFile)
@@ -157,6 +181,12 @@ actor \nodoc\ Main is TestList
     test(_TestLinterRespectsGitignore)
     test(_TestLinterExplicitFileBypassesIgnore)
     test(_TestLinterRespectsGitignoreFromParent)
+    test(_TestLinterSubdirConfigDisablesRule)
+    test(_TestLinterSubdirConfigEnablesRule)
+    test(_TestLinterSubdirConfigError)
+    test(_TestLinterSubdirConfigCategoryCleaning)
+    test(_TestLinterExplicitFileSubdirConfig)
+    test(_TestLinterIntermediateConfigLoading)
 
     // ExplainHelpers tests
     test(_TestExplainFormatEnabled)
@@ -204,6 +234,10 @@ actor \nodoc\ Main is TestList
     test(_TestFileNamingMultipleEntitiesSkipped)
     test(_TestFileNamingTestPonyMain)
     test(_TestFileNamingPrivateType)
+    test(_TestFileNamingPathWithDirectory)
+    test(_TestFileNamingPathMismatch)
+    test(_TestFileNamingWindowsPath)
+    test(_TestFileNamingTestPonyMainWithDir)
 
     // PackageNaming tests
     test(_TestPackageNamingClean)
@@ -270,6 +304,9 @@ actor \nodoc\ Main is TestList
     test(_TestBlankLinesMultiLineMethodsOneBlank)
     test(_TestBlankLinesMultiLineMethodsNoBlank)
     test(_TestBlankLinesOneLineMethodsNoBlank)
+    test(_TestBlankLinesMultiLineDocMethodClean)
+    test(_TestBlankLinesMultiLineDocMethodNoBlank)
+    test(_TestBlankLinesMultiLineDocFieldToMethod)
 
     // BlankLines tests (between-entity)
     test(_TestBlankLinesBetweenEntitiesOneBlank)
@@ -277,6 +314,11 @@ actor \nodoc\ Main is TestList
     test(_TestBlankLinesBetweenEntitiesTooMany)
     test(_TestBlankLinesOneLinerEntitiesNoBlank)
     test(_TestBlankLinesBetweenDocstringEntities)
+    test(_TestBlankLinesMultiLineDocEntities)
+    test(_TestBlankLinesLeadingBlankDocEntitiesClean)
+    test(_TestBlankLinesLeadingBlankDocEntitiesNoBlank)
+    test(_TestBlankLinesLeadingBlankDocMethodClean)
+    test(_TestBlankLinesLeadingBlankDocMethodNoBlank)
 
     // IndentationSize tests
     test(_TestIndentationSizeClean)
@@ -295,6 +337,16 @@ actor \nodoc\ Main is TestList
     test(_TestDocstringFormatNoDocstring)
     test(_TestDocstringFormatNodocEntityExempt)
     test(_TestDocstringFormatNodocEntityMethodExempt)
+
+    // DocstringLeadingBlank tests
+    test(_TestDocLeadingBlankEntityFlagged)
+    test(_TestDocLeadingBlankEntityClean)
+    test(_TestDocLeadingBlankMethodFlagged)
+    test(_TestDocLeadingBlankMethodClean)
+    test(_TestDocLeadingBlankAbstractMethodFlagged)
+    test(_TestDocLeadingBlankSingleLineClean)
+    test(_TestDocLeadingBlankNodocEntityExempt)
+    test(_TestDocLeadingBlankNodocEntityMethodExempt)
 
     // PackageDocstring tests
     test(_TestPackageDocstringClean)
@@ -421,6 +473,13 @@ actor \nodoc\ Main is TestList
     test(_TestTypeParamFormatSharingLine)
     test(_TestTypeParamFormatIsMisaligned)
     test(_TestTypeParamFormatMultipleViolations)
+
+    // ExhaustiveMatch tests
+    test(_TestExhaustiveMatchFlagged)
+    test(_TestExhaustiveMatchAnnotated)
+    test(_TestExhaustiveMatchNonExhaustive)
+    test(_TestExhaustiveMatchExplicitElse)
+    test(_TestExhaustiveMatchMetadata)
 
     // CallArgumentFormat tests
     test(_TestCallArgFmtSingleLine)

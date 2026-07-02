@@ -1,6 +1,9 @@
 #include <gtest/gtest.h>
 #include <platform.h>
 
+#include <chrono>
+#include <cstring>
+
 #include "util.h"
 
 
@@ -28,6 +31,14 @@
 #define TEST_ERRORS_3(src, err1, err2, err3) \
   { const char* errs[] = {err1, err2, err3, NULL}; \
     DO(test_expected_errors(src, "ir", errs)); }
+
+// Single error with its primary message plus a continuation frame.
+// 'primary' and 'note' are matched as substrings.
+#define TEST_ERROR_WITH_NOTE(src, primary, note) \
+  { const char* errs[] = {primary, NULL}; \
+    const char* frame_strs[] = {note, NULL}; \
+    const char** frames[] = {frame_strs, NULL}; \
+    DO(test_expected_error_frames(src, "ir", errs, frames)); }
 
 
 class BadPonyTest : public PassTest
@@ -168,14 +179,568 @@ TEST_F(BadPonyTest, LambdaCaptureVariableBeforeDeclarationWithTypeInferenceExpre
 
 TEST_F(BadPonyTest, TypeAliasRecursionThroughTypeParameterInTuple)
 {
-  // From issue #901
+  // From issue #901. The recursion has a constructive edge (Foo
+  // appears inside Array's typearg position). The body is a tuple
+  // around a union-free shape — there is no union anywhere reachable
+  // from Foo's body to provide a non-recursive alternative, so the
+  // legality pass rejects it for lack of a base case.
   const char* src =
-    "type Foo is (Map[Foo, Foo], None)\n"
+    "type Foo is (Array[Foo], None)\n"
     "actor Main\n"
     "  new create(env: Env) =>\n"
     "    None";
 
-  TEST_ERRORS_1(src, "type aliases can't be recursive");
+  TEST_ERROR_WITH_NOTE(src,
+    "can't be infinitely recursive",
+    "add a non-recursive alternative");
+}
+
+
+TEST_F(BadPonyTest, TypeAliasDirectUnionSelfReference)
+{
+  // type A is (A | None) — A appears directly as a union member of its
+  // own body. The recursive arm has no constructor wrapping it (no
+  // class, no nominal typearg position), so there's no constructive
+  // edge in the cycle and the legality pass rejects.
+  const char* src =
+    "type A is (A | None)\n"
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    None";
+
+  TEST_ERRORS_1(src,
+    "can't be infinitely recursive");
+}
+
+
+TEST_F(BadPonyTest, TypeAliasMutualThroughUnionMembers)
+{
+  // X and Y mutually recurse through union members only. Each cycle
+  // edge is a bare alias reference inside a union — no constructor
+  // wraps the recursion, so it's unproductive even though each union
+  // has a non-recursive member. Pin the multi-alias variant of the
+  // hint so a refactor that changes the wording is caught.
+  const char* src =
+    "type X is (Y | String)\n"
+    "type Y is (X | U32)\n"
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    None";
+
+  const char* errs[] = {"can't be infinitely recursive", NULL};
+  const char* frame_strs[] = {
+    "alias 'Y' is part of the same cycle",
+    "the recursion must thread through a class's type argument "
+    "(e.g., 'Array[<typearg>]'); recursion through union members or tuple "
+    "elements has no finite layout",
+    NULL};
+  const char** frames[] = {frame_strs, NULL};
+  test_expected_error_frames(src, "ir", errs, frames);
+}
+
+
+TEST_F(BadPonyTest, TypeAliasLargeCycleTruncatesPerAliasFramesSingular)
+{
+  // Smallest cycle that hides exactly one alias behind the cap.
+  // scc_size = 5 with cap = 3 leaves 1 alias hidden, so the summary
+  // frame must read "alias is" not "aliases are". Pins the singular
+  // form so a future refactor that drops the singular branch is caught.
+  const char* src =
+    "type A1 is (None | A2)\n"
+    "type A2 is (None | A3)\n"
+    "type A3 is (None | A4)\n"
+    "type A4 is (None | A5)\n"
+    "type A5 is (None | A1)\n"
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    None";
+
+  const char* errs[] = {"can't be infinitely recursive", NULL};
+  const char* frame_strs[] = {
+    "alias 'A2' is part of the same cycle",
+    "alias 'A3' is part of the same cycle",
+    "alias 'A4' is part of the same cycle",
+    "(and 1 more alias is part of this cycle)",
+    "the recursion must thread through a class's type argument "
+    "(e.g., 'Array[<typearg>]'); recursion through union members or tuple "
+    "elements has no finite layout",
+    NULL};
+  const char** frames[] = {frame_strs, NULL};
+  test_expected_error_frames(src, "ir", errs, frames);
+}
+
+
+TEST_F(BadPonyTest, TypeAliasLargeCycleTruncatesPerAliasFrames)
+{
+  // Ten aliases in a cycle. Caps the per-alias "is part of the same
+  // cycle" fan-out at three frames plus a summary frame counting the
+  // remaining aliases. Beyond a handful, source pointers stop helping
+  // the user diagnose the cycle, and ast_error_frame's tail-walking
+  // append makes the unbounded loop O(N^2) — at scc_size = 50000 the
+  // pre-cap loop took ~22s walking the frame chain. The cycle path in
+  // the headline names every alias in order, so the per-alias frames
+  // are redundant detail past the first few.
+  //
+  // Pin: A2..A4 each get a frame, A5..A9 do NOT, the summary frame
+  // names the remaining count, and the suggestion frame still emits
+  // last. Counterfactual: removing the cap restores the unbounded
+  // fan-out and the frame count below would fail (10 aliases would
+  // produce 9 alias frames + 1 suggestion = 10, not 4 + summary +
+  // suggestion = 5).
+  const char* src =
+    "type A1 is (None | A2)\n"
+    "type A2 is (None | A3)\n"
+    "type A3 is (None | A4)\n"
+    "type A4 is (None | A5)\n"
+    "type A5 is (None | A6)\n"
+    "type A6 is (None | A7)\n"
+    "type A7 is (None | A8)\n"
+    "type A8 is (None | A9)\n"
+    "type A9 is (None | A10)\n"
+    "type A10 is (None | A1)\n"
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    None";
+
+  const char* errs[] = {"can't be infinitely recursive", NULL};
+  const char* frame_strs[] = {
+    "alias 'A2' is part of the same cycle",
+    "alias 'A3' is part of the same cycle",
+    "alias 'A4' is part of the same cycle",
+    "(and 6 more aliases are part of this cycle)",
+    "the recursion must thread through a class's type argument "
+    "(e.g., 'Array[<typearg>]'); recursion through union members or tuple "
+    "elements has no finite layout",
+    NULL};
+  const char** frames[] = {frame_strs, NULL};
+  test_expected_error_frames(src, "ir", errs, frames);
+}
+
+
+TEST_F(BadPonyTest, TypeAliasRecursionThroughTuple)
+{
+  // type IntList is (None | (U32, IntList)) — IntList recurs through
+  // a tuple element. Tuples are inline value types in Pony, so the
+  // tuple's layout would have to inline another IntList, which would
+  // have to inline another tuple, and so on without bound. There is
+  // no finite layout. Recursion through a nominal's typeargs (Array[T]
+  // etc.) is legal because nominal classes break the recursion at the
+  // heap pointer.
+  //
+  // Pin the headline cycle suffix and the suggestion text with the
+  // alias name interpolated so a reword of report_illegal_cycle is
+  // caught.
+  const char* src =
+    "type IntList is (None | (U32, IntList))\n"
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    None";
+
+  TEST_ERROR_WITH_NOTE(src,
+    "can't be infinitely recursive (cycle: IntList -> IntList)",
+    "the recursion must thread through a class's type argument, "
+    "e.g., 'Array[IntList]'");
+}
+
+TEST_F(BadPonyTest, TypeAliasRecursionWithoutBaseCase)
+{
+  // type A is Array[A] — the cycle has a constructive edge (A appears
+  // inside Array's typearg position, which is sound), but the alias
+  // body is a bare nominal with no union to provide a non-recursive
+  // alternative. Without a base case in any reachable union, the type
+  // has no constructible inhabitant, so the legality pass rejects it.
+  // Pin the suggestion text so a refactor that changes the hint
+  // silently is caught.
+  const char* src =
+    "type A is Array[A]\n"
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    None";
+
+  TEST_ERROR_WITH_NOTE(src,
+    "can't be infinitely recursive",
+    "add a non-recursive alternative in a union, e.g., "
+    "'type A is (None | <body>)'");
+}
+
+TEST_F(BadPonyTest, TypeAliasWrapWithoutBaseCase)
+{
+  // Wrap[T] = Array[T] is non-recursive but has no union anywhere in
+  // its body. X = Wrap[X] is rejected because the base-case walker
+  // (which does follow cross-SCC alias references) finds no union
+  // reachable from X's body, so there's no base case.
+  const char* src =
+    "type Wrap[T] is Array[T]\n"
+    "type X is Wrap[X]\n"
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    None";
+
+  TEST_ERRORS_1(src,
+    "can't be infinitely recursive");
+}
+
+TEST_F(BadPonyTest, TypeAliasMutualThroughWrapWithoutBaseCase)
+{
+  // SCC {A, B} mutually recursive through a non-recursive Wrap that
+  // has no union. Cross-SCC ref to Wrap, followed into Wrap's body,
+  // finds Array[T] — no union, no base case. Should be rejected.
+  // Pin the multi-alias base-case hint so a refactor that changes the
+  // wording is caught.
+  const char* src =
+    "type Wrap[T] is Array[T]\n"
+    "type A is Wrap[B]\n"
+    "type B is Wrap[A]\n"
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    None";
+
+  const char* errs[] = {"can't be infinitely recursive", NULL};
+  const char* frame_strs[] = {
+    "alias 'B' is part of the same cycle",
+    "add a non-recursive alternative in a union somewhere in the "
+    "cycle (e.g., '(None | ...)') so the type has a base case",
+    NULL};
+  const char** frames[] = {frame_strs, NULL};
+  test_expected_error_frames(src, "ir", errs, frames);
+}
+
+TEST_F(BadPonyTest, TypeAliasDirectSelfReference)
+{
+  // type A is A — bare self-reference at the alias body's top level.
+  // No constructor, no union, no class wraps the recursion. The
+  // legality pass rejects: there's no constructive edge in the
+  // cycle. From the Phase 3 plan's TypeAliasDirectPositionSelfRecursion
+  // case. Pin the suggestion text too so a refactor that changes the
+  // hint silently is caught.
+  const char* src =
+    "type A is A\n"
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    None";
+
+  TEST_ERROR_WITH_NOTE(src,
+    "can't be infinitely recursive",
+    "the recursion must thread through a class's type argument, "
+    "e.g., 'Array[A]'");
+}
+
+TEST_F(BadPonyTest, TypeAliasIntersectionNotBaseCase)
+{
+  // type A is Array[(A & Any)] — A appears inside an intersection
+  // inside Array's typearg position. The cycle has a constructive
+  // edge (Array breaks the recursion at the heap), but no union is
+  // reachable from A's body, so no base case exists. Confirms D1:
+  // intersections don't offer a base-case escape.
+  const char* src =
+    "type A is Array[(A & Any)]\n"
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    None";
+
+  TEST_ERROR_WITH_NOTE(src,
+    "can't be infinitely recursive",
+    "add a non-recursive alternative");
+}
+
+TEST_F(BadPonyTest, TypeAliasTupleInsideTypeargWithoutUnion)
+{
+  // type A is Array[(A, None)] — A appears inside a tuple inside
+  // Array's typearg. The cycle has a constructive edge through
+  // Array's typearg position (preserved through the tuple). But no
+  // union is reachable, so no base case. Distinct from the
+  // TypeAliasRecursionThroughTuple case where the tuple is at the
+  // alias body's top level (no constructive edge).
+  const char* src =
+    "type A is Array[(A, None)]\n"
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    None";
+
+  TEST_ERROR_WITH_NOTE(src,
+    "can't be infinitely recursive",
+    "add a non-recursive alternative");
+}
+
+TEST_F(BadPonyTest, TypeAliasConservativeRuleChangingTypeargs)
+{
+  // type A[T] is (T | B[T]); type B[T] is A[Array[T]].
+  // A's body has a union with T as a member, B's body wraps T inside
+  // Array. A future "let's analyze post-substitution" change might
+  // try to reason about how T flows through and conclude the cycle
+  // is fine, but the conservative rule (D3) treats the SCC's edges
+  // as static: A -> B and B -> A both non-constructive (the
+  // typealiasref appears at top-level positions, not inside a
+  // nominal). No constructive edges in cycle, rejected.
+  const char* src =
+    "type A[T] is (T | B[T])\n"
+    "type B[T] is A[Array[T]]\n"
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    None";
+
+  const char* errs[] = {"can't be infinitely recursive", NULL};
+  const char* frame_strs[] = {
+    "alias 'B' is part of the same cycle",
+    "recursion must thread through",
+    NULL};
+  const char** frames[] = {frame_strs, NULL};
+  test_expected_error_frames(src, "ir", errs, frames);
+}
+
+TEST_F(BadPonyTest, TypeAliasWrapLaundersMixedTypeparamUse)
+{
+  // type Wrap[T] is (T | Array[T] | None); type X is Wrap[X].
+  // Wrap uses T both constructively (Array[T]) and non-constructively
+  // (bare in union). The unfolded form is (X | Array[X] | None) which
+  // accepts on its own, but laundering the same shape through Wrap
+  // used to crash downstream codegen. The legality classification has
+  // to take the worst case: a typeparam used non-constructively
+  // anywhere in the wrap's body propagates non-constructively, even
+  // if some other use is constructive.
+  const char* src =
+    "type Wrap[T] is (T | Array[T] | None)\n"
+    "type X is Wrap[X]\n"
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    None";
+
+  TEST_ERROR_WITH_NOTE(src,
+    "can't be infinitely recursive",
+    "recursion must thread through");
+}
+
+TEST_F(BadPonyTest, TypeAliasWrapLaundersBareTypeparamRecursion)
+{
+  // type Wrap[T] is (T | None); type X is Wrap[X]. The unfolded form
+  // is (X | None) — bare X in a union with no constructor wrapping
+  // it, semantically the same as type A is (A | None) which is
+  // illegal. Without checking that the wrap alias actually uses its
+  // typeparam at a constructive position, the legality pass would
+  // accept this (the graph-level X -> X via Wrap's typearg looks
+  // constructive). The fix walks Wrap's body to confirm T appears
+  // inside a TK_NOMINAL's typeargs; here it doesn't, so X -> X is
+  // reclassified as non-constructive and the cycle is rejected.
+  const char* src =
+    "type Wrap[T] is (T | None)\n"
+    "type X is Wrap[X]\n"
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    None";
+
+  TEST_ERROR_WITH_NOTE(src,
+    "can't be infinitely recursive",
+    "recursion must thread through");
+}
+
+TEST_F(BadPonyTest, TypeAliasWrapLaundersBareTypeparamUnderArrow)
+{
+  // type Wrap[T] is (None | (box->T)); type X is Wrap[X].
+  // Wrap puts T at the RHS of an arrow viewpoint — that's a structural
+  // occurrence (D5: only the LHS of an arrow is a viewpoint slot). Bare
+  // typeparam at a non-constructive position; legality must reject.
+  const char* src =
+    "type Wrap[T] is (None | (box->T))\n"
+    "type X is Wrap[X]\n"
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    None";
+
+  TEST_ERROR_WITH_NOTE(src,
+    "can't be infinitely recursive",
+    "recursion must thread through");
+}
+
+TEST_F(BadPonyTest, TypeAliasWrapLaundersBareTypeparamInIntersection)
+{
+  // type Wrap[T] is (None | (T & Any tag)); type X is Wrap[X].
+  // T appears as a member of an intersection — same shape as a union
+  // member from a constructiveness standpoint. No constructor wraps
+  // it, so the typeparam-use classifier must mark X non-constructive.
+  const char* src =
+    "type Wrap[T] is (None | (T & Any tag))\n"
+    "type X is Wrap[X]\n"
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    None";
+
+  TEST_ERROR_WITH_NOTE(src,
+    "can't be infinitely recursive",
+    "recursion must thread through");
+}
+
+TEST_F(BadPonyTest, TypeAliasWrapMultipleTypeparamsBareSlot)
+{
+  // type Wrap[T, U] is (T | Array[U] | None); type X is Wrap[X, U64].
+  // U is used constructively (Array[U]); T is used non-constructively
+  // (bare in union). Substituting X into T's slot threads X through a
+  // bare position, so the cycle is non-constructive even though
+  // another slot in Wrap is constructive.
+  const char* src =
+    "type Wrap[T, U] is (T | Array[U] | None)\n"
+    "type X is Wrap[X, U64]\n"
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    None";
+
+  TEST_ERROR_WITH_NOTE(src,
+    "can't be infinitely recursive",
+    "recursion must thread through");
+}
+
+TEST_F(BadPonyTest, TypeAliasWrapBaseCaseFalsePositiveTypeparamUnion)
+{
+  // type Wrap[T] is (T | T); type X is (Array[X] | Wrap[X]).
+  // Without the inside-wrap-body flag in subtree_references_scc, the
+  // legality walker would visit Wrap[X]'s body, see (T | T), classify
+  // each member as a TK_TYPEPARAMREF (not in the SCC), and conclude
+  // that Wrap supplies a base case. After substitution T = X, both
+  // members ARE the SCC member, so there's no real base case and
+  // codegen later crashes. The fix: when walking inside a non-SCC
+  // alias's body, treat any TK_TYPEPARAMREF as referencing the SCC
+  // because at the call site it could have been substituted with an
+  // SCC member.
+  const char* src =
+    "type Wrap[T] is (T | T)\n"
+    "type X is (Array[X] | Wrap[X])\n"
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    None";
+
+  TEST_ERROR_WITH_NOTE(src,
+    "can't be infinitely recursive",
+    "recursion must thread through");
+}
+
+TEST_F(BadPonyTest, TypeAliasMixedConstructiveAndBareSelfReference)
+{
+  // type X is (X | None | Array[X]). The cycle has both a constructive
+  // arm (Array[X], heap-broken) and a non-constructive arm (bare X at
+  // top of union, no constructor). The bare arm makes typealias_unfold
+  // loop downstream — picking that branch reproduces X with X still at
+  // top. Pre-fix, the legality pass accepted because there was at
+  // least one constructive intra-SCC edge; post-fix, it rejects
+  // because the non-constructive intra-SCC subgraph contains a self-
+  // loop X -> X. Other shapes that should still pass: 'type Y is
+  // (None | Array[Y])' (no bare arm), and the cross-alias wrap shape
+  // 'type J is (S | A); type A is Array[J]' (J -> A non-constructively,
+  // but A -> J only constructively, so the non-constructive subgraph
+  // has no cycle).
+  const char* src =
+    "type X is (X | None | Array[X])\n"
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let x: X = None";
+
+  TEST_ERROR_WITH_NOTE(src,
+    "can't be infinitely recursive",
+    "recursion must thread through");
+}
+
+TEST_F(BadPonyTest, TypeAliasArrowRhsRecursion)
+{
+  // type A is (box->A) — A appears as the RHS of a TK_ARROW. Per D5
+  // arrow's LHS is a viewpoint (cap or typeparam), not a structural
+  // occurrence; the RHS IS a structural occurrence. The legality
+  // pass walks into the arrow's RHS only, finds A, records a
+  // non-constructive edge. No constructive edge, rejected.
+  const char* src =
+    "type A is (box->A)\n"
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    None";
+
+  TEST_ERROR_WITH_NOTE(src,
+    "can't be infinitely recursive",
+    "recursion must thread through");
+}
+
+TEST_F(BadPonyTest, TypeAliasUnrelatedSiblingMasksNonConstructive)
+{
+  // Regression test for the visited-set leak in typeparam_use_in_body
+  // (pass/typealias_recursion.c). The wrap-alias classifier walks a
+  // union body looking for how each sibling propagates the outer
+  // typeparam. An earlier implementation pushed each visited
+  // TK_TYPEALIASREF def onto a scratch set and never popped, and its
+  // typearg recursion also left aliases on visited across siblings.
+  // The combined effect: a first sibling whose typearg doesn't mention
+  // the outer typeparam (Foo[I32]) still pushed Foo onto visited; a
+  // later sibling whose typearg referenced Foo (Bar[Foo[T]]) then hit
+  // the leaked Foo and classified the typearg as TP_UNUSED rather
+  // than TP_USED_NON_CONSTRUCTIVE. collect_edges skipped the slot,
+  // the alias graph missed the A -> A non-constructive edge, and
+  // 'type A is Outer[A]' compiled past the legality pass — its
+  // expansion '(None2 | I32 | A)' is a bare self-referential union
+  // with no finite layout, which then crashed the expr pass.
+  const char* src =
+    "primitive None2\n"
+    "type Foo[X] is (X | None2)\n"
+    "type Bar[Y] is (Y | None2)\n"
+    "type Outer[T] is (Foo[I32] | Bar[Foo[T]])\n"
+    "type A is Outer[A]\n"
+    "actor Main\n"
+    "  new create(env: Env) => None";
+
+  TEST_ERROR_WITH_NOTE(src,
+    "can't be infinitely recursive",
+    "recursion must thread through");
+}
+
+TEST_F(BadPonyTest, TypeAliasIllegalCycleBadHint)
+{
+  // Bare self-reference under a union: type Bad is (Bad | None). The
+  // recursive arm has no constructor wrapping it, so every value
+  // would just be None. Pin the cycle suffix and the suggestion text
+  // so a reword of report_illegal_cycle is caught.
+  const char* src =
+    "type Bad is (Bad | None)\n"
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    None";
+
+  TEST_ERROR_WITH_NOTE(src,
+    "can't be infinitely recursive (cycle: Bad -> Bad)",
+    "the recursion must thread through a class's type argument, "
+    "e.g., 'Array[Bad]'");
+}
+
+TEST_F(BadPonyTest, TypeAliasIllegalCycleParametricNoConstructiveEdge)
+{
+  // Parametric variant of TypeAliasDirectSelfReference / the 'Bad'
+  // shape: Bad[T] = (Bad[T] | None). The bare-name suggestion
+  // 'Array[Bad]' wouldn't compile if pasted because Bad is parametric
+  // — it needs T. Pin the parameterized form so a regression that
+  // drops the typeparams again is caught.
+  const char* src =
+    "type Bad[T] is (Bad[T] | None)\n"
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    None";
+
+  TEST_ERROR_WITH_NOTE(src,
+    "can't be infinitely recursive (cycle: Bad[T] -> Bad[T])",
+    "the recursion must thread through a class's type argument, "
+    "e.g., 'Array[Bad[T]]'");
+}
+
+TEST_F(BadPonyTest, TypeAliasIllegalCycleParametricNoBaseCase)
+{
+  // Parametric variant of TypeAliasRecursionWithoutBaseCase: Wrap[T]
+  // is Array[Wrap[T]]. The bare-name suggestion 'type Wrap is ...'
+  // wouldn't compile if pasted because Wrap is parametric — the
+  // suggestion needs to include the [T] declaration. Pin the
+  // parameterized form so a regression that drops the typeparams
+  // again is caught.
+  const char* src =
+    "type Wrap[T] is Array[Wrap[T]]\n"
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    None";
+
+  TEST_ERROR_WITH_NOTE(src,
+    "can't be infinitely recursive (cycle: Wrap[T] -> Wrap[T])",
+    "add a non-recursive alternative in a union, e.g., "
+    "'type Wrap[T] is (None | <body>)'");
 }
 
 TEST_F(BadPonyTest, ParenthesisedReturn)
@@ -512,6 +1077,20 @@ TEST_F(BadPonyTest, CapSubtypeInConstrainSubtyping)
 
   TEST_ERRORS_1(src,
     "type does not implement its provides list");
+}
+
+TEST_F(BadPonyTest, AliasedTypeParamNotSubtypeOfUnaliased)
+{
+  // From issue #1798
+  // X! should not be a subtype of ref->X: this would allow duplicating iso
+  // references by taking an aliased (tag) reference and returning it as iso.
+  const char* src =
+    "class Foo\n"
+    "  fun alias[X](x: X!) : X^ =>\n"
+    "    let y : ref->X = consume x\n"
+    "    consume y\n";
+
+  TEST_ERRORS_1(src, "right side must be a subtype of left side");
 }
 
 TEST_F(BadPonyTest, ObjectInheritsLaterTraitMethodWithParameter)
@@ -1200,6 +1779,199 @@ TEST_F(BadPonyTest, TypeErrorDuringArrayLiteralInference)
   TEST_ERRORS_1(src, "type argument is outside its constraint");
 }
 
+// From issue #1977. Identity comparisons between two distinct concrete
+// entity types can never be true, so reject them at compile time. Scope is
+// deliberately limited to TK_NOMINAL operands bound to concrete entity
+// definitions (class, actor, primitive, struct); unions, tuples, type
+// parameters, and trait/interface operands are intentionally not flagged.
+TEST_F(BadPonyTest, IsBetweenDifferentClasses)
+{
+  const char* src =
+    "class C\n"
+    "class D\n"
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let c: C = C\n"
+    "    let d: D = D\n"
+    "    if c is d then None end";
+
+  TEST_ERRORS_1(src,
+    "identity comparison between disjoint concrete types");
+}
+
+TEST_F(BadPonyTest, IsntBetweenDifferentClasses)
+{
+  const char* src =
+    "class C\n"
+    "class D\n"
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let c: C = C\n"
+    "    let d: D = D\n"
+    "    if c isnt d then None end";
+
+  TEST_ERRORS_1(src,
+    "identity comparison between disjoint concrete types");
+}
+
+TEST_F(BadPonyTest, IsBetweenClassAndActor)
+{
+  const char* src =
+    "class C\n"
+    "actor A\n"
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let c: C = C\n"
+    "    let a: A = A\n"
+    "    if c is a then None end";
+
+  TEST_ERRORS_1(src,
+    "identity comparison between disjoint concrete types");
+}
+
+TEST_F(BadPonyTest, IsBetweenClassAndPrimitive)
+{
+  const char* src =
+    "class C\n"
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let c: C = C\n"
+    "    let n: None = None\n"
+    "    if c is n then None end";
+
+  TEST_ERRORS_1(src,
+    "identity comparison between disjoint concrete types");
+}
+
+TEST_F(BadPonyTest, IsBetweenDifferentPrimitives)
+{
+  const char* src =
+    "primitive P\n"
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let p: P = P\n"
+    "    let n: None = None\n"
+    "    if p is n then None end";
+
+  TEST_ERRORS_1(src,
+    "identity comparison between disjoint concrete types");
+}
+
+TEST_F(BadPonyTest, IsBetweenClassAndStruct)
+{
+  const char* src =
+    "class C\n"
+    "struct S\n"
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let c: C = C\n"
+    "    let s: S = S\n"
+    "    if c is s then None end";
+
+  TEST_ERRORS_1(src,
+    "identity comparison between disjoint concrete types");
+}
+
+TEST_F(BadPonyTest, IsBetweenDifferentNumericPrimitives)
+{
+  // Machine-word numeric types (U8/U16/.../F64) are concrete primitives, so
+  // cross-width identity comparison is statically disjoint and rejected.
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    if U32(0) isnt U64(0) then None end";
+
+  TEST_ERRORS_1(src,
+    "identity comparison between disjoint concrete types");
+}
+
+TEST_F(BadPonyTest, IsBetweenDifferentActors)
+{
+  const char* src =
+    "actor A\n"
+    "actor B\n"
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let a: A = A\n"
+    "    let b: B = B\n"
+    "    if a is b then None end";
+
+  TEST_ERRORS_1(src,
+    "identity comparison between disjoint concrete types");
+}
+
+TEST_F(BadPonyTest, IsBetweenDisjointConcreteTypesViaAlias)
+{
+  // Both operands have alias types. The check must unwrap the aliases
+  // before comparing definitions; otherwise the error would not fire.
+  const char* src =
+    "class C\n"
+    "class D\n"
+    "type CA is C\n"
+    "type DA is D\n"
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let ca: CA = C\n"
+    "    let da: DA = D\n"
+    "    if ca is da then None end";
+
+  TEST_ERRORS_1(src,
+    "identity comparison between disjoint concrete types");
+}
+
+TEST_F(BadPonyTest, IsBetweenDisjointFieldsThroughThisArrow)
+{
+  // Field reads inside a method body produce viewpoint-adapted types like
+  // `this->C`. The check must unwrap the arrow before classifying the
+  // nominal underneath.
+  const char* src =
+    "class C\n"
+    "class D\n"
+    "class Holder\n"
+    "  let c: C = C\n"
+    "  let d: D = D\n"
+    "  fun ref check(): Bool => c is d\n"
+    "actor Main\n"
+    "  new create(env: Env) => None";
+
+  TEST_ERRORS_1(src,
+    "identity comparison between disjoint concrete types");
+}
+
+TEST_F(BadPonyTest, IsBetweenDisjointClassesViaSugar)
+{
+  // Pony desugars a bare type name in expression position to a default
+  // constructor call (`C` -> `C.create()`). The existing "new object"
+  // diagnostic in verify_is_comparand fires first; the && short-circuit in
+  // verify_is suppresses the new disjoint-concrete check so the user sees
+  // exactly one error per identity comparison, not two.
+  const char* src =
+    "class C\n"
+    "class D\n"
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    if C is D then None end";
+
+  TEST_ERRORS_1(src,
+    "identity comparison with a new object will always be false");
+}
+
+TEST_F(BadPonyTest, IsBetweenDistinctObjectLiterals)
+{
+  // Per the design decision in #1977: each `object end` literal synthesizes
+  // a distinct anonymous class, so two literals are statically disjoint
+  // concrete types. The comparison can never be true and is rejected.
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let a = object end\n"
+    "    let b = object end\n"
+    "    if a is b then None end";
+
+  TEST_ERRORS_1(src,
+    "identity comparison between disjoint concrete types");
+}
+
 TEST_F(BadPonyTest, NosupertypeAnnotationProvides)
 {
   const char* src =
@@ -1249,6 +2021,8 @@ TEST_F(BadPonyTest, DisallowPointerAndMaybePointerInEmbeddedType)
 
 TEST_F(BadPonyTest, AllowAliasForNonEphemeralReturn)
 {
+  // Direct field reads return the viewpoint-adapted type (this->A)
+  // without auto-aliasing, so the return type matches.
   const char* src =
     "class iso Inner\n"
     "  new iso create() => None\n"
@@ -1256,16 +2030,38 @@ TEST_F(BadPonyTest, AllowAliasForNonEphemeralReturn)
     "class Container[A: Inner #any]\n"
     "  var inner: A\n"
     "  new create(inner': A) => inner = consume inner'\n"
-    "  fun get_1(): this->A => inner                        // works\n"
-    "  fun get_2(): this->A => let tmp = inner; consume tmp // also works\n"
+    "  fun get_1(): this->A => inner\n"
 
     "actor Main\n"
     "  new create(env: Env) =>\n"
     "    let o = Container[Inner iso](Inner)\n"
-    "    let i_1 : Inner tag = o.get_1()\n"
-    "    let i_2 : Inner tag = o.get_2()";
+    "    let i_1 : Inner tag = o.get_1()";
 
   TEST_COMPILE(src);
+}
+
+TEST_F(BadPonyTest, AliasedFieldReadNotSubtypeOfViewpointReturn)
+{
+  // Reading a field into a local auto-aliases: the local has type this->A!.
+  // Consuming the local doesn't strip the alias marker. The resulting
+  // this->A! is not a subtype of this->A because for some instantiations
+  // (e.g. A=iso, receiver=ref) the aliased cap (tag) is not a subcap of
+  // the original (iso). See #1798.
+  const char* src =
+    "class iso Inner\n"
+    "  new iso create() => None\n"
+
+    "class Container[A: Inner #any]\n"
+    "  var inner: A\n"
+    "  new create(inner': A) => inner = consume inner'\n"
+    "  fun get_2(): this->A => let tmp = inner; consume tmp\n"
+
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let o = Container[Inner iso](Inner)\n"
+    "    let i_2 : Inner tag = o.get_2()";
+
+  TEST_ERRORS_1(src, "function body isn't the result type");
 }
 
 TEST_F(BadPonyTest, AllowNestedTupleAccess)
@@ -1407,4 +2203,1334 @@ TEST_F(BadPonyTest, MatchArrayPatternWithBareIntegerLiterals)
   TEST_ERRORS_2(src,
     "couldn't find 'eq' in 'Array'",
     "this pattern element doesn't support structural equality");
+}
+
+TEST_F(BadPonyTest, MatchViewpointIsoCaptureWithoutConsume)
+{
+  // From issue #3596
+  // Viewpoint-adapted iso capture from non-ephemeral field bypasses
+  // the is_matchtype_with_consumed_pattern check.
+  const char* src =
+    "class B\n"
+    "  var data: U64 = 99\n"
+
+    "class Holder\n"
+    "  let b: B iso = B\n"
+
+    "  fun get(): this->B iso =>\n"
+    "    match b\n"
+    "    | let b': this->B iso => b'\n"
+    "    end";
+
+  TEST_ERRORS_1(src, "this capture is unsound");
+}
+
+TEST_F(BadPonyTest, MatchGenericCaptureWithoutConsume)
+{
+  // From issue #3596
+  // Generic this->T capture where T could be iso bypasses
+  // the is_matchtype_with_consumed_pattern check.
+  const char* src =
+    "class UsesNoConsume[T]\n"
+    "  var value: (T | None) = None\n"
+
+    "  fun ref set(t: T) =>\n"
+    "    value = consume t\n"
+
+    "  fun get(): this->T ? =>\n"
+    "    match value\n"
+    "    | let none: None => error\n"
+    "    | let t: this->T => t\n"
+    "    end";
+
+  TEST_ERRORS_1(src, "this capture is unsound");
+}
+
+TEST_F(BadPonyTest, MatchViewpointIsoCaptureNoReturn)
+{
+  // From issue #3596
+  // Even when the capture isn't returned, binding an iso from a
+  // non-ephemeral field is unsound.
+  const char* src =
+    "class Holder2\n"
+    "  let b: String iso = String\n"
+
+    "  fun box bad() =>\n"
+    "    match b\n"
+    "    | let b': this->String iso => None\n"
+    "    end";
+
+  TEST_ERRORS_1(src, "this capture is unsound");
+}
+
+TEST_F(BadPonyTest, MatchIsoCaptureWithConsume)
+{
+  // From issue #3596
+  // Consuming the match expression makes the discriminee ephemeral,
+  // so iso captures are sound.
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let x: String iso = recover iso String end\n"
+    "    match consume x\n"
+    "    | let y: String iso => None\n"
+    "    end";
+
+  // Soundness check is in the expr pass; stop before codegen.
+  DO(test_compile(src, "expr"));
+}
+
+TEST_F(BadPonyTest, MatchNonIsoCaptureFromUnion)
+{
+  // From issue #3596
+  // Non-iso captures (ref, val, box) from non-ephemeral discriminees are safe
+  // and should not trigger the new soundness check.
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let x: (String | U32) = \"hello\"\n"
+    "    match x\n"
+    "    | let s: String => None\n"
+    "    end";
+
+  // Soundness check is in the expr pass; stop before codegen.
+  DO(test_compile(src, "expr"));
+}
+
+TEST_F(BadPonyTest, MatchViewpointRefCaptureFromField)
+{
+  // From issue #3596
+  // Viewpoint-adapted captures with ref/val/box caps should not trigger
+  // the new soundness check — only iso/trn/cap_any are dangerous.
+  const char* src =
+    "class Holder\n"
+    "  let _s: (String | None) = \"hello\"\n"
+
+    "  fun box get(): (this->String | None) =>\n"
+    "    match _s\n"
+    "    | let s: this->String => s\n"
+    "    else\n"
+    "      None\n"
+    "    end\n"
+
+    "actor Main\n"
+    "  new create(env: Env) => None";
+
+  // Soundness check is in the expr pass; stop before codegen.
+  DO(test_compile(src, "expr"));
+}
+
+TEST_F(BadPonyTest, MatchValConstraintCapture)
+{
+  // From issue #3596
+  // Generic captures with val constraint don't need ephemeral since
+  // val is safe to alias.
+  const char* src =
+    "class Container[K: Any val]\n"
+    "  var _data: (K | None) = None\n"
+
+    "  fun box lookup(): (this->K | None) =>\n"
+    "    match _data\n"
+    "    | let k: this->K => k\n"
+    "    else\n"
+    "      None\n"
+    "    end\n"
+
+    "actor Main\n"
+    "  new create(env: Env) => None";
+
+  // Soundness check is in the expr pass; stop before codegen.
+  DO(test_compile(src, "expr"));
+}
+
+TEST_F(BadPonyTest, MatchAliasedViewpointCapture)
+{
+  // From issue #3596
+  // Already-aliased viewpoint captures (this->K!) should be accepted
+  // since the aliased eph marker means aliasing won't change the capability.
+  // This exercises the ast_id(eph) != TK_NONE early return in
+  // capture_needs_ephemeral.
+  const char* src =
+    "class Container[K: Any #any]\n"
+    "  var _data: (K | U32) = U32(0)\n"
+
+    "  fun box lookup(): (this->K! | None) =>\n"
+    "    match _data\n"
+    "    | let k: this->K! => k\n"
+    "    else\n"
+    "      None\n"
+    "    end\n"
+
+    "actor Main\n"
+    "  new create(env: Env) => None";
+
+  // Soundness check is in the expr pass; stop before codegen.
+  DO(test_compile(src, "expr"));
+}
+
+TEST_F(BadPonyTest, MatchTupleViewpointIsoCaptureWithoutConsume)
+{
+  // Joe's review comment on PR #4975:
+  // Viewpoint-adapted iso captures in tuple patterns must be checked
+  // position by position. Both captures here need ephemeral but the
+  // fields aren't consumed.
+  const char* src =
+    "class Foo\n"
+    "  var data: U64 = 0\n"
+
+    "class Holder\n"
+    "  let a: Foo iso = Foo\n"
+    "  let b: Foo iso = Foo\n"
+
+    "  fun box bad() =>\n"
+    "    match (a, b)\n"
+    "    | (let x: this->Foo iso, let y: this->Foo iso) => None\n"
+    "    end\n"
+
+    "actor Main\n"
+    "  new create(env: Env) => None";
+
+  TEST_ERRORS_2(src,
+    "this capture is unsound",
+    "this capture is unsound");
+}
+
+TEST_F(BadPonyTest, MatchUnionGenericIsoCaptureWithoutConsume)
+{
+  // Joe's review comment on PR #4975:
+  // Generic iso capture from a non-ephemeral union is correctly rejected
+  // by the new check_capture_soundness check.
+  const char* src =
+    "class Holder[T: Any #any]\n"
+    "  var _a: (T | None) = None\n"
+
+    "  fun box get(): (this->T | None) =>\n"
+    "    match _a\n"
+    "    | let t: this->T => t\n"
+    "    else\n"
+    "      None\n"
+    "    end\n"
+
+    "actor Main\n"
+    "  new create(env: Env) => None";
+
+  TEST_ERRORS_1(src, "this capture is unsound");
+}
+
+TEST_F(BadPonyTest, MatchGenericCaptureFromAliasedUnion)
+{
+  // Regression test for the interaction with PR #5145, which stopped
+  // expanding type aliases during name resolution. The discriminee's
+  // type is now seen as a TK_TYPEALIASREF rather than its expanded form,
+  // and the soundness check must unfold the alias to find the ephemeral
+  // member that makes the generic capture sound. This mirrors the failing
+  // pattern in pony_check's Generator.value_iter.
+  const char* src =
+    "type AliasedResult[T2] is (T2^ | (T2^, U32))\n"
+
+    "class Container[T: Any #any]\n"
+    "  fun pick(): AliasedResult[T] ? => error\n"
+
+    "  fun take() ? =>\n"
+    "    match pick()?\n"
+    "    | let v: T => None\n"
+    "    end\n"
+
+    "actor Main\n"
+    "  new create(env: Env) => None";
+
+  // Soundness check is in the expr pass; stop before codegen.
+  DO(test_compile(src, "expr"));
+}
+
+TEST_F(BadPonyTest, MatchAliasedCaptureTypeIsUnsound)
+{
+  // Regression test for the TK_TYPEALIASREF case in capture_needs_ephemeral.
+  // When the capture's written type is itself a type alias whose underlying
+  // form has a capability that changes under aliasing (iso/trn/#any/#send),
+  // the check must unfold the alias to determine this. Without the unfold,
+  // the soundness check silently accepts an unsound capture.
+  const char* src =
+    "type AnyT[T] is T\n"
+
+    "class Holder[T: Any #any]\n"
+    "  fun pick(): T ? => error\n"
+
+    "  fun take() ? =>\n"
+    "    match pick()?\n"
+    "    | let v: AnyT[T] => None\n"
+    "    end\n"
+
+    "actor Main\n"
+    "  new create(env: Env) => None";
+
+  TEST_ERRORS_1(src, "this capture is unsound");
+}
+
+TEST_F(BadPonyTest, MatchTuplePatternFromAliasedTupleUnsound)
+{
+  // Regression test for the interaction with PR #5145. When an alias
+  // unfolds directly to a tuple type, the tuple-pattern walk in
+  // check_capture_soundness must unfold the alias to see the underlying
+  // TK_TUPLETYPE. Without the unfold, the tuple branch would silently
+  // skip the check on alias-bearing tuple types — a false negative that
+  // lets unsound generic captures through.
+  const char* src =
+    "type AliasedPair[T] is (T, T)\n"
+
+    "class Container[T: Any #any]\n"
+    "  fun pick(): AliasedPair[T] ? => error\n"
+
+    "  fun take() ? =>\n"
+    "    match pick()?\n"
+    "    | (let a: T, let b: T) => None\n"
+    "    end\n"
+
+    "actor Main\n"
+    "  new create(env: Env) => None";
+
+  TEST_ERRORS_2(src,
+    "this capture is unsound",
+    "this capture is unsound");
+}
+
+TEST_F(BadPonyTest, IfLiteralBranchWithTypecheckError)
+{
+  // Exercises the error path in expr_if where the first branch
+  // produces a literal type (unparented TK_LITERAL accumulator)
+  // and the second branch has a type error (#5214).
+  const char* src =
+    "primitive Foo\n"
+    "  fun bar(x: U32): U32 => x\n"
+
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    if true then 1 else Foo.bar(true) end";
+
+  TEST_ERRORS_1(src, "argument not assignable to parameter");
+}
+
+TEST_F(BadPonyTest, IftypeLiteralBranchWithTypecheckError)
+{
+  // Same pattern for iftype (#5214).
+  const char* src =
+    "trait T\n"
+    "class C is T\n"
+
+    "primitive Foo\n"
+    "  fun bar(x: U32): U32 => x\n"
+
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    _test[C]()\n"
+
+    "  fun _test[A: T]() =>\n"
+    "    iftype A <: C then 1\n"
+    "    else Foo.bar(true) end";
+
+  TEST_ERRORS_1(src,
+    "argument not assignable to parameter");
+}
+
+TEST_F(BadPonyTest, TryLiteralBodyWithTypecheckErrorElse)
+{
+  // Same pattern for try (#5214).
+  const char* src =
+    "primitive Foo\n"
+    "  fun bar(x: U32): U32 => x\n"
+
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    try 1 else Foo.bar(true) end";
+
+  TEST_ERRORS_1(src, "argument not assignable to parameter");
+}
+
+TEST_F(BadPonyTest, WhileLiteralBodyWithTypecheckErrorElse)
+{
+  // Same pattern for while: the body produces a literal type,
+  // then the else clause has a type error (#5214).
+  const char* src =
+    "primitive Foo\n"
+    "  fun bar(x: U32): U32 => x\n"
+
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    while true do 1\n"
+    "    else Foo.bar(true) end";
+
+  TEST_ERRORS_1(src, "argument not assignable to parameter");
+}
+
+TEST_F(BadPonyTest, RepeatLiteralBodyWithTypecheckErrorElse)
+{
+  // Same pattern for repeat (#5214).
+  const char* src =
+    "primitive Foo\n"
+    "  fun bar(x: U32): U32 => x\n"
+
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    repeat 1 until true\n"
+    "    else Foo.bar(true) end";
+
+  TEST_ERRORS_1(src, "argument not assignable to parameter");
+}
+
+TEST_F(BadPonyTest, MatchLiteralCaseWithTypecheckErrorElse)
+{
+  // Same pattern for match: case body is a literal, else clause
+  // has a type error. Non-exhaustive match so the else clause
+  // is reached during type checking (#5214).
+  const char* src =
+    "primitive Foo\n"
+    "  fun bar(x: U32): U32 => x\n"
+
+    "class Bar\n"
+    "class Baz\n"
+
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let b: (Bar | Baz) = Bar\n"
+    "    match b\n"
+    "    | let _: Bar => 1\n"
+    "    else\n"
+    "      Foo.bar(true)\n"
+    "    end";
+
+  TEST_ERRORS_1(src, "argument not assignable to parameter");
+}
+
+TEST_F(BadPonyTest, RecursiveGenericInterfaceDoesNotHang)
+{
+  // Regression test for ponylang/ponyc#1216. A recursive generic
+  // interface whose method return type references the same interface
+  // with strictly larger type arguments hangs the structural subtype
+  // check: each level has the same def pointer (Iter) but drifting
+  // typeargs (Iter[A], Iter[(B, A)], Iter[(B, (B, A))], ...). The
+  // structural cycle-detection in is_assumption_match
+  // (src/libponyc/type/type_assume.c) requires exact structural
+  // equality of typeargs and never matches drifting chains.
+  //
+  // The divergence guard in is_x_sub_x bounds the chain at
+  // SAME_DEF_LIMIT same-def ancestors and bails with a diagnostic.
+  //
+  // The specific message matched below is incidental — the critical
+  // property under test is that compilation terminates with a
+  // diagnostic rather than hanging. The chrono budget is the
+  // termination assertion; its 15-second cap is generous given the
+  // post-fix run finishes in tens of milliseconds, with headroom for
+  // Windows MSVC CI runners.
+  //
+  // Counterfactual reproduction (when the guard is reverted): the
+  // program hangs indefinitely, so the ASSERT_LT below never fires —
+  // the test is detected by running the binary under a shell-level
+  // `timeout` and observing exit 124. See the commit introducing
+  // the divergence guard in src/libponyc/type/subtype.c for the
+  // counterfactual procedure.
+  const char* src =
+    "interface Iter[A]\n"
+    "  fun enum[B](): Iter[(B, A)] => this\n"
+
+    "actor Main\n"
+    "  new create(env: Env) => None\n";
+
+  auto start = std::chrono::steady_clock::now();
+  TEST_ERRORS_1(src, "function body isn't the result type");
+  auto elapsed = std::chrono::steady_clock::now() - start;
+
+  auto seconds =
+    std::chrono::duration_cast<std::chrono::seconds>(elapsed).count();
+  ASSERT_LT(seconds, 15)
+    << "Recursive generic interface compile took " << seconds
+    << "s; expected <15s. Suggests the divergence guard in "
+       "is_x_sub_x (src/libponyc/type/subtype.c) regressed. (Post-fix "
+       "this finishes in tens of milliseconds; the 15s budget is "
+       "headroom for Windows MSVC CI runners.)";
+}
+
+TEST_F(BadPonyTest, RecursiveGenericInterfaceEmitsGuardDiagnostic)
+{
+  // Companion to RecursiveGenericInterfaceDoesNotHang: when the
+  // divergence guard in is_x_sub_x bails on a drifting recursion it
+  // must write an ast_error_frame naming the guard, so a user who
+  // trips it knows they hit a compiler safeguard rather than a real
+  // subtype error. Without this diagnostic breadcrumb, bug reports
+  // from guard-tripping stdlib authors would be incomprehensible —
+  // they would see only a generic "not a subtype" error with no
+  // indication it came from SAME_DEF_LIMIT.
+  const char* src =
+    "interface Iter[A]\n"
+    "  fun enum[B](): Iter[(B, A)] => this\n"
+
+    "actor Main\n"
+    "  new create(env: Env) => None\n";
+
+  const char* errs[] = {"function body isn't the result type", NULL};
+  DO(test_expected_errors(src, "ir", errs));
+
+  // Walk all error frames looking for the guard's diagnostic text.
+  // The exact count and ordering of frames is incidental — what
+  // matters is that somewhere in the error tree the guard's message
+  // is visible. If the text below is refactored in subtype.c, update
+  // this match too; the two are deliberately coupled.
+  bool found_guard_frame = false;
+  for(errormsg_t* e = errors_get_first(opt.check.errors);
+    (e != NULL) && !found_guard_frame; e = e->next)
+  {
+    for(errormsg_t* ef = e->frame; ef != NULL; ef = ef->frame)
+    {
+      if(strstr(ef->msg, "recursion-divergence guard") != NULL)
+      {
+        found_guard_frame = true;
+        break;
+      }
+    }
+  }
+  ASSERT_TRUE(found_guard_frame)
+    << "Expected the divergence guard diagnostic frame to be present in "
+    << "the error output, but it was not found. The guard in "
+    << "is_x_sub_x (src/libponyc/type/subtype.c) must call "
+    << "ast_error_frame when it bails so users know they hit "
+    << "SAME_DEF_LIMIT rather than a real subtype error.";
+}
+
+TEST_F(BadPonyTest, RecursiveGenericInterfaceNestedWrappingDoesNotHang)
+{
+  // Companion regression for ponylang/ponyc#5198. The original issue
+  // describes a hang on a recursive generic that drifts by wrapping
+  // the interface around itself (I[A] -> I[I[A]]) rather than via
+  // tuple typeargs as in #1216. Same divergence shape (drifting
+  // same-def chain), same cause, same fix — the divergence guard in
+  // is_x_sub_x bounds it.
+  //
+  // The specific error messages below are incidental — the critical
+  // property under test is bounded-time failure with diagnostics.
+  // Unlike the tupling-drift shape, the nested-wrapping shape also
+  // fails the typearg-constraint check on the wrapped I[A], so two
+  // errors are emitted.
+  const char* src =
+    "interface I[A]\n"
+    "  fun f(): I[I[A]] => this\n"
+
+    "actor Main\n"
+    "  new create(env: Env) => None\n";
+
+  auto start = std::chrono::steady_clock::now();
+  TEST_ERRORS_2(src,
+    "type argument is outside its constraint",
+    "function body isn't the result type");
+  auto elapsed = std::chrono::steady_clock::now() - start;
+
+  auto seconds =
+    std::chrono::duration_cast<std::chrono::seconds>(elapsed).count();
+  ASSERT_LT(seconds, 15)
+    << "Nested-wrapping recursive generic interface compile took "
+    << seconds << "s; expected <15s. Suggests the divergence guard in "
+       "is_x_sub_x (src/libponyc/type/subtype.c) regressed. (Post-fix "
+       "this finishes in tens of milliseconds; the 15s budget is "
+       "headroom for Windows MSVC CI runners.)";
+}
+
+TEST_F(BadPonyTest, RecursiveTypeParameterConstraintCompiles)
+{
+  // Regression test for ponylang/ponyc#3930. A type parameter whose
+  // constraint references the parameter itself
+  // (`A: Array[Array[A]]`) previously caused a stack overflow in the
+  // subtype checker's semantic typearg equality, crashing the
+  // compiler.
+  //
+  // This test lives alongside the recursive-interface regression
+  // tests because the underlying fix is shared: both symptoms come
+  // from typearg equality re-entering the subtype checker, which
+  // eventually re-enters the coinductive assume machinery
+  // (type_assume) for the same pair — unbounded at depth for
+  // recursive type parameter constraints, and exponentially at each
+  // guard-capped chain for nested-wrapping interfaces.
+  //
+  // Unlike the other recursive-shape tests in this file, this source
+  // is well-formed and must compile successfully.
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) => None\n"
+
+    "  fun flatten[A: Array[Array[A]] #read](arrayin: Array[Array[A]])\n"
+    "    : Array[A]\n"
+    "  =>\n"
+    "    let rv: Array[A] = Array[A]\n"
+    "    for f in arrayin.values() do\n"
+    "      for g in f.values() do\n"
+    "        rv.push(g)\n"
+    "      end\n"
+    "    end\n"
+    "    rv";
+
+  TEST_COMPILE(src);
+}
+
+TEST_F(BadPonyTest, FBoundedInterfaceWithIntersectionCompiles)
+{
+  // Project-level regression guard for ponylang/ponyc#2399. The
+  // original issue report describes a segfault on this program, but
+  // the program already compiles cleanly on the parent of this PR's
+  // first commit — some earlier change incidentally fixed it. This
+  // test is kept as a guard against the shape regressing in future
+  // work, not as proof that this PR is what fixes #2399.
+  //
+  // The program is well-formed and must compile successfully.
+  const char* src =
+    "interface val X[Y: X[Y]]\n"
+    "  fun apply(y: X[Y])\n"
+
+    "type C is ((A | B) & X[(A | B)])\n"
+
+    "primitive A is X[C]\n"
+    "  fun apply(y: X[C]) => None\n"
+
+    "primitive B is X[C]\n"
+    "  fun apply(y: X[C]) => None\n"
+
+    "actor Main\n"
+    "  new create(env: Env) => None";
+
+  TEST_COMPILE(src);
+}
+
+TEST_F(BadPonyTest, FBoundedTraitWithSelfApplyEmitsConstraintError)
+{
+  // Project-level regression guard for ponylang/ponyc#2562. The
+  // original issue report describes a segfault on this program, but
+  // the program already produces clean type errors on the parent of
+  // this PR's first commit — some earlier change incidentally fixed
+  // it. This test is kept as a guard against the shape regressing in
+  // future work, not as proof that this PR is what fixes #2562.
+  //
+  // The program is ill-formed: the `apply[X[A]](this)` call produces
+  // a cap mismatch between the inferred argument type and the method
+  // type parameter's constraint. The critical property under test is
+  // bounded-time failure with a diagnostic — the exact wording is
+  // incidental.
+  const char* src =
+    "trait X[A: X[A] box]\n"
+    "  fun apply[B: X[B] box](a: B) =>\n"
+    "    None\n"
+    "  fun f() =>\n"
+    "    apply[X[A]](this)\n"
+
+    "class C is X[C box]\n"
+
+    "actor Main\n"
+    "  new create(env: Env) => None";
+
+  TEST_ERRORS_2(src,
+    "type argument is outside its constraint",
+    "type argument is outside its constraint");
+}
+
+TEST_F(BadPonyTest, SelfReferentialConstraintInUnionErrors)
+{
+  // Regression test for ponylang/ponyc#2497. A type parameter that
+  // references itself as a member of a union in its own constraint used
+  // to crash the compiler with a stack overflow: the subtype checker
+  // replaces the parameter with its constraint and re-decomposes the
+  // union back into the parameter forever (is_typeparam_sub_x in
+  // src/libponyc/type/subtype.c, which has no cycle guard for
+  // typeparamref pairs). It must now be a clean compile error.
+  const char* src =
+    "class C\n"
+    "class A[B: (B | C)]\n"
+
+    "actor Main\n"
+    "  new create(env: Env) => None";
+
+  TEST_ERROR_WITH_NOTE(src,
+    "type parameter 'B' can't appear directly in its own constraint",
+    "constraint is here");
+}
+
+TEST_F(BadPonyTest, SelfReferentialConstraintInUnionReversedErrors)
+{
+  // The same illegal shape as SelfReferentialConstraintInUnionErrors with
+  // the union members reversed. This order happened to compile before the
+  // fix (the crash was evaluation-order dependent), so it guards against
+  // the order-sensitive half-fix.
+  const char* src =
+    "class C\n"
+    "class A[B: (C | B)]\n"
+
+    "actor Main\n"
+    "  new create(env: Env) => None";
+
+  TEST_ERROR_WITH_NOTE(src,
+    "type parameter 'B' can't appear directly in its own constraint",
+    "constraint is here");
+}
+
+TEST_F(BadPonyTest, SelfReferentialConstraintInIntersectionErrors)
+{
+  // The self-reference sits in an intersection member rather than a union
+  // member. The intersection is itself a union member so the constraint
+  // resolves a capability (otherwise the "no valid capability" check fires
+  // first); this exercises the intersection arm of the cycle walk.
+  const char* src =
+    "trait T\n"
+    "class A[B: (None | (B & T))]\n"
+
+    "actor Main\n"
+    "  new create(env: Env) => None";
+
+  TEST_ERROR_WITH_NOTE(src,
+    "type parameter 'B' can't appear directly in its own constraint",
+    "constraint is here");
+}
+
+TEST_F(BadPonyTest, MutuallyRecursiveConstraintInUnionErrors)
+{
+  // Mutual recursion through compound constraints (Praetonus's example in
+  // ponylang/ponyc#2497): A's constraint names B, B's names A. Each is
+  // self-referential as a cycle, so it must be rejected. Bare mutual
+  // chains (`[A: B, B: A]`) collapse to "unconstrained" and stay legal;
+  // this case does not, because the references are union members.
+  const char* src =
+    "class C\n"
+    "  fun foo[A: (B | None), B: (A | None)]() =>\n"
+    "    None\n"
+
+    "actor Main\n"
+    "  new create(env: Env) => None";
+
+  // Both A and B sit in the cycle, so each is flagged at its own definition.
+  TEST_ERRORS_2(src,
+    "type parameter 'A' can't appear directly in its own constraint",
+    "type parameter 'B' can't appear directly in its own constraint");
+}
+
+TEST_F(BadPonyTest, TransitiveSelfReferentialConstraintErrors)
+{
+  // The self-reference is reached transitively: X is constrained by Y,
+  // and Y's constraint names X as a union member. typeparam_constraint
+  // resolves X's effective constraint to Y's `(X | None)`, which contains
+  // X, so the cycle must be rejected.
+  const char* src =
+    "class A[X: Y, Y: (X | None)]\n"
+
+    "actor Main\n"
+    "  new create(env: Env) => None";
+
+  TEST_ERROR_WITH_NOTE(src,
+    "can't appear directly in its own constraint",
+    "constraint is here");
+}
+
+TEST_F(BadPonyTest, NestedSelfReferentialConstraintInUnionErrors)
+{
+  // The self-reference is nested one level deeper than
+  // SelfReferentialConstraintInUnionErrors. Reaching it depends on the
+  // constraint-tuple scan in the flatten pass terminating on nested
+  // unions (it previously recursed forever on the inner union, crashing
+  // before this check could run). It must produce the same clean error.
+  const char* src =
+    "class C\n"
+    "class A[B: (B | (C | B))]\n"
+
+    "actor Main\n"
+    "  new create(env: Env) => None";
+
+  TEST_ERROR_WITH_NOTE(src,
+    "type parameter 'B' can't appear directly in its own constraint",
+    "constraint is here");
+}
+
+TEST_F(BadPonyTest, SelfReferentialConstraintViaParameterizedAliasErrors)
+{
+  // The self-reference is revealed by unfolding a parameterized type
+  // alias: `MyU[B]` expands to `(B | None)`, so B appears as a bare union
+  // member of its own constraint. This exercises the alias-unfold arm of
+  // the cycle walk and must be rejected.
+  const char* src =
+    "type MyU[X] is (X | None)\n"
+    "class A[B: MyU[B]]\n"
+
+    "actor Main\n"
+    "  new create(env: Env) => None";
+
+  TEST_ERROR_WITH_NOTE(src,
+    "type parameter 'B' can't appear directly in its own constraint",
+    "constraint is here");
+}
+
+TEST_F(BadPonyTest, SelfReferenceBehindNominalConstraintCompiles)
+{
+  // The carve-out for ponylang/ponyc#2497: a type parameter may reference
+  // itself when the reference is behind a constructor (a nominal typearg).
+  // Here B appears only inside `Array[B]`, a union member, so the subtype
+  // checker terminates via its nominal cycle guard. This is well-formed
+  // and must compile.
+  const char* src =
+    "class A[B: (None | Array[B])]\n"
+
+    "actor Main\n"
+    "  new create(env: Env) => None";
+
+  TEST_COMPILE(src);
+}
+
+TEST_F(BadPonyTest, UnconstrainedTypeParameterCompiles)
+{
+  // Guard against the #2497 fix over-reaching. An unconstrained type
+  // parameter `[A]` is sugared to `A: A` and resolves to a self-
+  // referential typeparamref, which typeparam_constraint collapses to
+  // "no constraint". This must not be mistaken for an illegal self-
+  // referential constraint.
+  const char* src =
+    "class A[B]\n"
+
+    "actor Main\n"
+    "  new create(env: Env) => None";
+
+  TEST_COMPILE(src);
+}
+
+TEST_F(BadPonyTest, WhileBodyAndElseJumpAwayInSeparateFunction)
+{
+  // From issue #2792 (first example). A while loop whose body and else both
+  // jump away (a valueless break runs the else, which returns) produces no
+  // value and never resumes past the loop -- it jumps away. The sugar pass
+  // appends an implicit `None` to the None-returning function body, which is
+  // then unreachable. This is rejected as "unreachable code", the same error
+  // an equivalent `if true then return else return end` gets. (Previously the
+  // loop compiled, relying on the implicit `None` to luckily terminate the
+  // dead post block; once that block is terminated as unreachable in codegen
+  // -- required for the try-wrapped case -- the implicit `None` would land
+  // after the terminator, producing invalid IR. The expr pass now rejects the
+  // shape before codegen sees it.)
+  const char* src =
+    "actor Main\n"
+    "  fun a() =>\n"
+    "    while true do\n"
+    "      break\n"
+    "    else\n"
+    "      return\n"
+    "    end\n"
+
+    "  new create(env: Env) =>\n"
+    "    a()";
+
+  TEST_ERRORS_1(src, "unreachable code");
+}
+
+TEST_F(BadPonyTest, RepeatBodyAndElseJumpAwayInSeparateFunction)
+{
+  // Same shape as WhileBodyAndElseJumpAwayInSeparateFunction but for repeat.
+  // The guard in expr_repeat mirrors the one in expr_while; this guards against
+  // a future regression that special-cases one loop kind.
+  const char* src =
+    "actor Main\n"
+    "  fun a() =>\n"
+    "    repeat\n"
+    "      break\n"
+    "    until true\n"
+    "    else\n"
+    "      return\n"
+    "    end\n"
+
+    "  new create(env: Env) =>\n"
+    "    a()";
+
+  TEST_ERRORS_1(src, "unreachable code");
+}
+
+TEST_F(BadPonyTest, WhileWithLiteralBreakValueAndJumpsAwayElse)
+{
+  // Regression test for the literal-break-value variant of #2792. A while
+  // whose body breaks with a literal value and whose else jumps away
+  // gives the loop a literal type. The fix for #2792 must not skip the
+  // unused-literal check on jumps-away children, otherwise the literal
+  // type propagates to codegen and trips a reach.c assertion.
+  const char* src =
+    "actor Main\n"
+    "  fun a(): U32 =>\n"
+    "    while true do\n"
+    "      break 5\n"
+    "    else\n"
+    "      return 6\n"
+    "    end\n"
+    "    7\n"
+
+    "  new create(env: Env) =>\n"
+    "    a()";
+
+  TEST_ERRORS_1(src, "Cannot infer type of unused literal");
+}
+
+TEST_F(BadPonyTest, RepeatWithLiteralBreakValueAndJumpsAwayElse)
+{
+  // Same shape as WhileWithLiteralBreakValueAndJumpsAwayElse but for
+  // repeat.
+  const char* src =
+    "actor Main\n"
+    "  fun a(): U32 =>\n"
+    "    repeat\n"
+    "      break 5\n"
+    "    until true\n"
+    "    else\n"
+    "      return 6\n"
+    "    end\n"
+    "    7\n"
+
+    "  new create(env: Env) =>\n"
+    "    a()";
+
+  TEST_ERRORS_1(src, "Cannot infer type of unused literal");
+}
+
+// A control expression that jumps away with no value (`error`, `return`,
+// `break`, `continue`) has no type. Used in a value-operand position it must
+// produce a clean error, not crash the compiler. These were all assertion
+// crashes in the expr pass; uncovered while investigating issue #3326.
+
+TEST_F(BadPonyTest, IfConditionJumpsAway)
+{
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    try let x: U8 = if error then U8(1) else U8(2) end end";
+
+  TEST_ERRORS_1(src,
+    "a condition can't be an expression that jumps away with no value");
+}
+
+TEST_F(BadPonyTest, WhileConditionJumpsAway)
+{
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    try let x: U8 = while error do U8(1) else U8(2) end end";
+
+  TEST_ERRORS_1(src,
+    "a condition can't be an expression that jumps away with no value");
+}
+
+TEST_F(BadPonyTest, RepeatConditionJumpsAway)
+{
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    try let x: U8 = repeat U8(1) until error else U8(2) end end";
+
+  TEST_ERRORS_1(src,
+    "a condition can't be an expression that jumps away with no value");
+}
+
+TEST_F(BadPonyTest, RecoverOperandJumpsAway)
+{
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    try let x: U8 = recover error end end";
+
+  TEST_ERRORS_1(src,
+    "a recover operand can't be an expression that jumps away with no value");
+}
+
+TEST_F(BadPonyTest, MatchOperandJumpsAway)
+{
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    try let x: U8 = match error | let y: U8 => y else U8(0) end end";
+
+  TEST_ERRORS_1(src,
+    "a match operand can't be an expression that jumps away with no value");
+}
+
+TEST_F(BadPonyTest, MatchOperandJumpsAwayMultipleCases)
+{
+  // The operand is checked per-case and once at the match; with multiple cases
+  // the error must be reported exactly once (TEST_ERRORS_1 enforces the count).
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    try\n"
+    "      let x: U8 = match error\n"
+    "      | let y: U8 => y\n"
+    "      | let z: U16 => U8(0)\n"
+    "      else U8(0) end\n"
+    "    end";
+
+  TEST_ERRORS_1(src,
+    "a match operand can't be an expression that jumps away with no value");
+}
+
+TEST_F(BadPonyTest, MatchGuardJumpsAway)
+{
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    try let x: U8 = match U8(1) | let y: U8 if error => y else U8(0) end "
+    "end";
+
+  TEST_ERRORS_1(src,
+    "a match guard can't be an expression that jumps away with no value");
+}
+
+TEST_F(BadPonyTest, FunctionArgumentJumpsAway)
+{
+  const char* src =
+    "actor Main\n"
+    "  fun f(n: U8): U8 => n\n"
+    "  new create(env: Env) =>\n"
+    "    try let x: U8 = f(error) end";
+
+  TEST_ERRORS_1(src,
+    "an argument can't be an expression that jumps away with no value");
+}
+
+TEST_F(BadPonyTest, ArgumentReturnsAway)
+{
+  // The guard keys on AST_FLAG_JUMPS_AWAY, which `return` sets just like
+  // `error`; confirm a non-error jump is rejected the same way.
+  const char* src =
+    "actor Main\n"
+    "  fun f(n: U8): U8 => n\n"
+    "  new create(env: Env) =>\n"
+    "    let x: U8 = f(return)";
+
+  TEST_ERRORS_1(src,
+    "an argument can't be an expression that jumps away with no value");
+}
+
+TEST_F(BadPonyTest, ConstructorArgumentJumpsAway)
+{
+  const char* src =
+    "class C\n"
+    "  new create(n: U8) => None\n"
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    try let x: C = C(error) end";
+
+  TEST_ERRORS_1(src,
+    "an argument can't be an expression that jumps away with no value");
+}
+
+TEST_F(BadPonyTest, MethodReceiverJumpsAway)
+{
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    try let x: String = (error).string() end";
+
+  TEST_ERRORS_1(src,
+    "a receiver can't be an expression that jumps away with no value");
+}
+
+TEST_F(BadPonyTest, QualifiedReceiverJumpsAway)
+{
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    try let x = (error)[U8] end";
+
+  TEST_ERRORS_1(src,
+    "a receiver can't be an expression that jumps away with no value");
+}
+
+TEST_F(BadPonyTest, AsOperandJumpsAway)
+{
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    try let x = (error) as U8 end";
+
+  TEST_ERRORS_1(src,
+    "a cast operand can't be an expression that jumps away with no value");
+}
+
+TEST_F(BadPonyTest, IsOperandJumpsAway)
+{
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    try let x: Bool = (error) is U8(1) end";
+
+  TEST_ERRORS_1(src,
+    "an operand of an identity comparison can't be an expression that jumps "
+    "away with no value");
+}
+
+TEST_F(BadPonyTest, IsntRightOperandJumpsAway)
+{
+  // Jump-away on the right operand, exercising the second `||` clause that the
+  // left-operand tests above can't reach.
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    try let x: Bool = U8(1) isnt (error) end";
+
+  TEST_ERRORS_1(src,
+    "an operand of an identity comparison can't be an expression that jumps "
+    "away with no value");
+}
+
+TEST_F(BadPonyTest, FFIArgumentJumpsAway)
+{
+  const char* src =
+    "use @exit[None](code: I32)\n"
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    try @exit(error) end";
+
+  TEST_ERRORS_1(src,
+    "an argument can't be an expression that jumps away with no value");
+}
+
+TEST_F(BadPonyTest, FFIVariadicArgumentJumpsAway)
+{
+  // Exercises the second FFI argument loop (variadic args past the declared
+  // parameters), a separate guard from the declared-parameter loop above.
+  const char* src =
+    "use @f[None](a: U8, ...)\n"
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    try @f(U8(1), error) end";
+
+  TEST_ERRORS_1(src,
+    "an argument can't be an expression that jumps away with no value");
+}
+
+TEST_F(BadPonyTest, CallReceiverJumpsAway)
+{
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    try let x = (error)(U8(1)) end";
+
+  TEST_ERRORS_1(src,
+    "a receiver can't be an expression that jumps away with no value");
+}
+
+TEST_F(BadPonyTest, DefaultArgumentJumpsAway)
+{
+  const char* src =
+    "actor Main\n"
+    "  fun f(a: U8 = (error)): U8 => a\n"
+    "  new create(env: Env) =>\n"
+    "    None";
+
+  TEST_ERRORS_1(src,
+    "a default argument can't be an expression that jumps away with no value");
+}
+
+TEST_F(BadPonyTest, LambdaCaptureJumpsAway)
+{
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let l = {()(x = (error)) => x}";
+
+  TEST_ERRORS_1(src,
+    "a lambda capture can't be an expression that jumps away with no value");
+}
+
+TEST_F(BadPonyTest, LambdaDontcareCaptureJumpsAway)
+{
+  // A typed capture into `_` takes a different branch (a subtype check) than
+  // the untyped capture above; both must reject a jump-away value.
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let l = {()(_: U8 = (error)) => None}";
+
+  TEST_ERRORS_1(src,
+    "a lambda capture can't be an expression that jumps away with no value");
+}
+
+TEST_F(BadPonyTest, TupleElementJumpsAwayAfterLiteral)
+{
+  // The jumps-away element follows a literal element, which used to take a
+  // short-circuit that skipped the later element's check.
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    try let t: (U8, U8) = (1, (error)) end";
+
+  TEST_ERRORS_1(src,
+    "a tuple can't contain an expression that jumps away with no value");
+}
+
+TEST_F(BadPonyTest, TuplePatternElementJumpsAwayAfterLiteral)
+{
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    try match (U8(1), U8(2)) | (1, (error)) => None end end";
+
+  TEST_ERRORS_1(src,
+    "a tuple can't contain an expression that jumps away with no value");
+}
+
+TEST_F(BadPonyTest, PartialApplicationOfMethodWithUninferableLiteralCallDefault)
+{
+  // From issue #5342. Partially applying a method whose default argument is a
+  // method call on a literal whose type cannot be inferred (`(-1).abs()` -- the
+  // literal never gets a type because `abs` is not a literal operator) used to
+  // crash the compiler in `uifset`. It must instead report the same error a
+  // direct use of the construct reports, rather than asserting.
+  const char* src =
+    "primitive Foo\n"
+    "  fun apply(prec: USize = (-1).abs()): USize => prec\n"
+
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    Foo~apply()";
+
+  TEST_ERRORS_1(src, "Cannot look up member abs on a literal");
+}
+
+TEST_F(BadPonyTest, RepeatLoopJumpsAwayWithLiteralElse)
+{
+  // From issue #5407. A repeat loop whose body always jumps away (here `error`)
+  // produces no value, so the refer pass flags it jumps-away and its else
+  // clause's value is discarded. A bare integer literal in that else can never
+  // be inferred -- there is nothing to unify it against -- and it used to slip
+  // through the expr pass and crash the reach pass. It must instead be rejected
+  // with an inference error, as an uninferable literal is anywhere else.
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    try repeat error until false else 2 end end";
+
+  TEST_ERRORS_1(src, "could not infer literal type, no valid types found");
+}
+
+TEST_F(BadPonyTest, RepeatLoopJumpsAwayWithConcreteElse)
+{
+  // Companion to RepeatLoopJumpsAwayWithLiteralElse. The else clause of a
+  // jumps-away repeat has its value discarded, but a concretely-typed else
+  // needs no inference, so it must still compile -- only an uninferable literal
+  // is an error.
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    try repeat error until false else U8(2) end end";
+
+  TEST_COMPILE(src);
+}
+
+TEST_F(BadPonyTest, RepeatLoopJumpsAwayViaContinueWithLiteralElse)
+{
+  // Variant of RepeatLoopJumpsAwayWithLiteralElse where the body jumps away via
+  // `continue` rather than `error`. The loop is still flagged jumps-away and the
+  // bare literal else is likewise uninferable, so it must hit the same
+  // inference error. (This particular input did not crash before the fix -- the
+  // enclosing try shielded it -- but pins that the continue route reaches the
+  // guard and reports the same error as the error-body form.)
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    try repeat continue until false else 2 end end";
+
+  TEST_ERRORS_1(src, "could not infer literal type, no valid types found");
+}
+
+TEST_F(BadPonyTest, RepeatLoopJumpsAwayConcreteElseResultUsed)
+{
+  // From issue #5407 (codegen variant). A repeat whose body always jumps away
+  // is flagged jumps-away even though its else clause produces a value; that
+  // else is dead (no break, no continue reaches it). When the loop's result was
+  // needed, gen_repeat dereferenced a NULL phi_type casting the dead else value.
+  // It must compile: the loop produces no value, so the enclosing try falls back
+  // to its own else. The function return type makes the loop's result needed,
+  // which is what drove the NULL phi_type deref.
+  const char* src =
+    "actor Main\n"
+    "  fun a(): U8 =>\n"
+    "    try repeat error until false else U8(2) end else U8(0) end\n"
+
+    "  new create(env: Env) =>\n"
+    "    a()";
+
+  TEST_COMPILE(src);
+}
+
+TEST_F(BadPonyTest, RepeatLoopBreakValueElseJumpsAway)
+{
+  // A repeat whose body breaks with a value and whose else jumps away. The break
+  // gives the loop a value and an exit, so the loop does not jump away -- but
+  // refer used to flag it jumps-away from its branch count alone (body and else
+  // both jump away), and codegen then crashed with nowhere to put the break
+  // value. It must compile.
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    try repeat break U8(3) until false else error end end";
+
+  TEST_COMPILE(src);
+}
+
+TEST_F(BadPonyTest, RepeatLoopBreakValueElseJumpsAwayResultUsed)
+{
+  // As RepeatLoopBreakValueElseJumpsAway, but the loop's result is needed (the
+  // function return type), so codegen must build a result phi for the break
+  // value rather than treating the loop as valueless.
+  const char* src =
+    "actor Main\n"
+    "  fun a(): U8 =>\n"
+    "    try repeat break U8(3) until false else error end else U8(0) end\n"
+
+    "  new create(env: Env) =>\n"
+    "    a()";
+
+  TEST_COMPILE(src);
+}
+
+TEST_F(BadPonyTest, WhileLoopBreakValueElseJumpsAway)
+{
+  // Same shape as RepeatLoopBreakValueElseJumpsAway but for while -- the bug and
+  // fix are shared by both loops.
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    try while true do break U8(3) else error end end";
+
+  TEST_COMPILE(src);
+}
+
+TEST_F(BadPonyTest, WhileLoopBreakValueElseJumpsAwayResultUsed)
+{
+  // While counterpart of RepeatLoopBreakValueElseJumpsAwayResultUsed.
+  const char* src =
+    "actor Main\n"
+    "  fun a(): U8 =>\n"
+    "    try while true do break U8(3) else error end else U8(0) end\n"
+
+    "  new create(env: Env) =>\n"
+    "    a()";
+
+  TEST_COMPILE(src);
+}
+
+TEST_F(BadPonyTest, RepeatLoopBreakLiteralElseJumpsAway)
+{
+  // A repeat that breaks with a bare literal while its else jumps away. The loop
+  // no longer jumps away (the break is a value-producing exit), so the literal
+  // flows through normal inference -- and, with nothing to anchor it and its
+  // value unused, is rejected as uninferable rather than crashing the reach pass.
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    try repeat break 3 until false else error end end";
+
+  TEST_ERRORS_1(src, "could not infer literal type, no valid types found");
+}
+
+TEST_F(BadPonyTest, WhileLoopBreakLiteralElseJumpsAway)
+{
+  // While counterpart of RepeatLoopBreakLiteralElseJumpsAway.
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    try while true do break 3 else error end end";
+
+  TEST_ERRORS_1(src, "could not infer literal type, no valid types found");
 }

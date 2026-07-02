@@ -17,18 +17,18 @@ jobs:
     steps:
       - name: Login to GitHub Container Registry
         # v2.2.0
-        uses: docker/login-action@5139682d94efc37792e6b54386b5b470a68a4737
+        uses: docker/login-action@v4
         with:
           registry: ghcr.io
           username: ${{ github.repository_owner }}
           password: ${{ secrets.GITHUB_TOKEN }}
       - name: Checkout
-        uses: actions/checkout@v4.1.1
+        uses: actions/checkout@v6.0.2
       - name: Build and Push
         run: bash .ci-dockerfiles/x86-64-unknown-linux-arch-builder/build-and-push.bash
       - name: Send alert on failure
         if: ${{ failure() }}
-        uses: zulip/github-actions-zulip/send-message@e4c8f27c732ba9bd98ac6be0583096dea82feea5
+        uses: zulip/github-actions-zulip/send-message@bd8ec52de371d139ae8313661b7d8318c19266aa
         with:
           api-key: ${{ secrets.ZULIP_SCHEDULED_JOB_FAILURE_API_KEY }}
           email: ${{ secrets.ZULIP_SCHEDULED_JOB_FAILURE_EMAIL }}
@@ -48,9 +48,9 @@ jobs:
       options: --user pony --cap-add=SYS_PTRACE --security-opt seccomp=unconfined
     steps:
       - name: Checkout
-        uses: actions/checkout@v4.1.1
+        uses: actions/checkout@v6.0.2
       - name: Build Libs
-        run: make libs build_flags=-j8
+        run: make libs llvm_tools=false build_flags=-j4
       - name: Build Debug Runtime
         run: |
           make configure config=debug
@@ -65,7 +65,7 @@ jobs:
         run: make test-ci-core config=release usedebugger=lldb
       - name: Send alert on failure
         if: ${{ failure() }}
-        uses: zulip/github-actions-zulip/send-message@e4c8f27c732ba9bd98ac6be0583096dea82feea5
+        uses: zulip/github-actions-zulip/send-message@bd8ec52de371d139ae8313661b7d8318c19266aa
         with:
           api-key: ${{ secrets.ZULIP_SCHEDULED_JOB_FAILURE_API_KEY }}
           email: ${{ secrets.ZULIP_SCHEDULED_JOB_FAILURE_EMAIL }}

@@ -771,7 +771,7 @@ TEST_F(ParseEntityTest, UseUri)
 TEST_F(ParseEntityTest, UseFfi)
 {
   const char* src =
-    "use @foo1[U32](a:I32, b:String, ...) ?\n"
+    "use @foo1[U32](a:I32, b:String, ...)\n"
     "use @foo2[U32]() if debug";
 
   TEST_COMPILE(src);

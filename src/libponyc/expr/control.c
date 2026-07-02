@@ -31,6 +31,12 @@ bool expr_seq(pass_opt_t* opt, ast_t* ast)
 
     if(is_typecheck_error(p_type))
     {
+      // An expression that jumps away with no value legitimately has a NULL
+      // type — that's not a typecheck error. Skip it without flagging,
+      // otherwise we set ok=false and return false without registering an
+      // error, tripping the "errors must be > 0" assertion in pass_expr.
+      if(ast_checkflag(p, AST_FLAG_JUMPS_AWAY))
+        continue;
       ok = false;
     } else if(is_type_literal(p_type)) {
       ast_error(opt->check.errors, p, "Cannot infer type of unused literal");
@@ -86,6 +92,9 @@ bool expr_if(pass_opt_t* opt, ast_t* ast)
 
   if(ast_id(ast) == TK_IF)
   {
+    if(jumps_away_no_value(opt, cond, "a condition"))
+      return false;
+
     ast_t* cond_type = ast_type(cond);
 
     if(is_typecheck_error(cond_type))
@@ -111,7 +120,10 @@ bool expr_if(pass_opt_t* opt, ast_t* ast)
   if(!ast_checkflag(right, AST_FLAG_JUMPS_AWAY))
   {
     if(is_typecheck_error(ast_type(right)))
+    {
+      ast_free_unattached(type);
       return false;
+    }
 
     type = control_type_add_branch(opt, type, right);
   }
@@ -153,7 +165,10 @@ bool expr_iftype(pass_opt_t* opt, ast_t* ast)
   if(!ast_checkflag(right, AST_FLAG_JUMPS_AWAY))
   {
     if(is_typecheck_error(ast_type(right)))
+    {
+      ast_free_unattached(type);
       return false;
+    }
 
     type = control_type_add_branch(opt, type, right);
   }
@@ -178,6 +193,9 @@ bool expr_while(pass_opt_t* opt, ast_t* ast)
   pony_assert(ast_id(ast) == TK_WHILE);
   AST_GET_CHILDREN(ast, cond, body, else_clause);
 
+  if(jumps_away_no_value(opt, cond, "a condition"))
+    return false;
+
   ast_t* cond_type = ast_type(cond);
 
   if(is_typecheck_error(cond_type))
@@ -197,15 +215,45 @@ bool expr_while(pass_opt_t* opt, ast_t* ast)
     if(is_typecheck_error(ast_type(body)))
       return false;
 
+    ast_t* prev_type = type;
     type = control_type_add_branch(opt, type, body);
+
+    // type may have been a freshly-built tree from a prior break
+    // expression's accumulation. Free it if control_type_add_branch
+    // did not return it as-is.
+    if(type != prev_type)
+      ast_free_unattached(prev_type);
   }
 
   if(!ast_checkflag(else_clause, AST_FLAG_JUMPS_AWAY))
   {
     if(is_typecheck_error(ast_type(else_clause)))
+    {
+      ast_free_unattached(type);
       return false;
+    }
 
+    ast_t* prev_type = type;
     type = control_type_add_branch(opt, type, else_clause);
+
+    if(type != prev_type)
+      ast_free_unattached(prev_type);
+  }
+
+  // A loop with no value-producing exit yields nothing and control never
+  // resumes past it (the refer pass flags it AST_FLAG_JUMPS_AWAY). Any sibling
+  // in the enclosing sequence is therefore unreachable. This includes the
+  // implicit `None` the sugar pass appends to a None-returning function body
+  // (fun_defaults in sugar.c), which would otherwise be emitted after the
+  // loop's unreachable-terminated post block in codegen, producing invalid IR.
+  // Mirrors the same guard in expr_if/expr_iftype.
+  if(ast_checkflag(ast, AST_FLAG_JUMPS_AWAY))
+  {
+    if((ast_id(ast_parent(ast)) == TK_SEQ) && ast_sibling(ast) != NULL)
+    {
+      ast_error(opt->check.errors, ast_sibling(ast), "unreachable code");
+      return false;
+    }
   }
 
   ast_settype(ast, type);
@@ -219,6 +267,9 @@ bool expr_repeat(pass_opt_t* opt, ast_t* ast)
   pony_assert(ast_id(ast) == TK_REPEAT);
   AST_GET_CHILDREN(ast, body, cond, else_clause);
 
+  if(jumps_away_no_value(opt, cond, "a condition"))
+    return false;
+
   ast_t* cond_type = ast_type(cond);
 
   if(is_typecheck_error(cond_type))
@@ -230,6 +281,25 @@ bool expr_repeat(pass_opt_t* opt, ast_t* ast)
     return false;
   }
 
+  // The refer pass flags the loop AST_FLAG_JUMPS_AWAY (refer_repeat in
+  // refer.c) when it determines the loop produces no value. The else clause
+  // may still be reached and evaluated -- a continue in the body routes to it
+  // (see gen_repeat) -- but its value is then discarded, since the loop yields
+  // nothing. A concrete-typed else is harmless: the branch logic below records
+  // its type and codegen ignores it (gen_repeat returns GEN_NOVALUE for a
+  // jumps-away loop). But a bare literal there has nothing to unify against and
+  // so can never be given a type; left in place it reaches and crashes the
+  // reach pass. Report the same uninferable-literal error a bare literal with
+  // no valid type gets elsewhere -- including the equivalent `while` form --
+  // rather than letting it reach that pass.
+  if(ast_checkflag(ast, AST_FLAG_JUMPS_AWAY)
+    && is_type_literal(ast_type(else_clause)))
+  {
+    ast_error(opt->check.errors, else_clause,
+      "could not infer literal type, no valid types found");
+    return false;
+  }
+
   // Union with any existing type due to a break expression.
   ast_t* type = ast_type(ast);
 
@@ -238,15 +308,37 @@ bool expr_repeat(pass_opt_t* opt, ast_t* ast)
     if(is_typecheck_error(ast_type(body)))
       return false;
 
+    ast_t* prev_type = type;
     type = control_type_add_branch(opt, type, body);
+
+    if(type != prev_type)
+      ast_free_unattached(prev_type);
   }
 
   if(!ast_checkflag(else_clause, AST_FLAG_JUMPS_AWAY))
   {
     if(is_typecheck_error(ast_type(else_clause)))
+    {
+      ast_free_unattached(type);
       return false;
+    }
 
+    ast_t* prev_type = type;
     type = control_type_add_branch(opt, type, else_clause);
+
+    if(type != prev_type)
+      ast_free_unattached(prev_type);
+  }
+
+  // See the matching comment in expr_while: a jumps-away loop makes any sibling
+  // unreachable, including the sugar-appended implicit `None`.
+  if(ast_checkflag(ast, AST_FLAG_JUMPS_AWAY))
+  {
+    if((ast_id(ast_parent(ast)) == TK_SEQ) && ast_sibling(ast) != NULL)
+    {
+      ast_error(opt->check.errors, ast_sibling(ast), "unreachable code");
+      return false;
+    }
   }
 
   ast_settype(ast, type);
@@ -273,7 +365,10 @@ bool expr_try(pass_opt_t* opt, ast_t* ast)
   if(!ast_checkflag(else_clause, AST_FLAG_JUMPS_AWAY))
   {
     if(is_typecheck_error(ast_type(else_clause)))
+    {
+      ast_free_unattached(type);
       return false;
+    }
 
     type = control_type_add_branch(opt, type, else_clause);
   }
@@ -287,12 +382,16 @@ bool expr_try(pass_opt_t* opt, ast_t* ast)
   ast_t* then_type = ast_type(then_clause);
 
   if(is_typecheck_error(then_type))
+  {
+    ast_free_unattached(type);
     return false;
+  }
 
   if(is_type_literal(then_type))
   {
     ast_error(opt->check.errors, then_clause,
       "Cannot infer type of unused literal");
+    ast_free_unattached(type);
     return false;
   }
 
@@ -327,12 +426,16 @@ bool expr_disposing_block(pass_opt_t* opt, ast_t* ast)
   ast_t* dispose_type = ast_type(dispose_clause);
 
   if(is_typecheck_error(dispose_type))
+  {
+    ast_free_unattached(type);
     return false;
+  }
 
   if(is_type_literal(dispose_type))
   {
     ast_error(opt->check.errors, dispose_clause,
       "Cannot infer type of unused literal");
+    ast_free_unattached(type);
     return false;
   }
 
@@ -347,6 +450,10 @@ bool expr_recover(pass_opt_t* opt, ast_t* ast)
 {
   pony_assert(ast_id(ast) == TK_RECOVER);
   AST_GET_CHILDREN(ast, cap, expr);
+
+  if(jumps_away_no_value(opt, expr, "a recover operand"))
+    return false;
+
   ast_t* type = ast_type(expr);
 
   if(is_typecheck_error(type))
@@ -358,13 +465,13 @@ bool expr_recover(pass_opt_t* opt, ast_t* ast)
     return true;
   }
 
-  ast_t* r_type = recover_type(type, ast_id(cap));
+  ast_t* r_type = recover_type(type, ast_id(cap), opt);
 
   if(r_type == NULL)
   {
     ast_error(opt->check.errors, ast, "can't recover to this capability");
     ast_error_continue(opt->check.errors, expr, "expression type is %s",
-      ast_print_type(type));
+      ast_print_type(type, opt->strtab));
     return false;
   }
 
@@ -489,7 +596,7 @@ bool expr_return(pass_opt_t* opt, ast_t* ast)
       ast_t* r_type = NULL;
       if (is_local_or_param(body))
       {
-          r_type = consume_type(body_type, TK_NONE, false);
+          r_type = consume_type(body_type, TK_NONE, false, opt);
           if (r_type != NULL)
           {
             // n.b. r_type should almost never be NULL
@@ -505,9 +612,9 @@ bool expr_return(pass_opt_t* opt, ast_t* ast)
         ast_t* last = ast_childlast(body);
         ast_error_frame(&frame, last, "returned value isn't the return type");
         ast_error_frame(&frame, type, "function return type: %s",
-          ast_print_type(type));
+          ast_print_type(type, opt->strtab));
         ast_error_frame(&frame, body_type, "returned value type: %s",
-          ast_print_type(body_type));
+          ast_print_type(body_type, opt->strtab));
         errorframe_append(&frame, &info);
         errorframe_report(&frame, opt->check.errors);
         ok = false;

@@ -4,7 +4,7 @@ interface Iterator[A]
   Iterators generate a series of values, one value at a time on each call to `next()`.
 
   An Iterator is considered exhausted, once its `has_next()` method returns `false`.
-  Thus every call to `next()` should be preceeded with a call to `has_next()` to
+  Thus every call to `next()` should be preceded with a call to `has_next()` to
   check for exhaustiveness.
 
   ## Usage

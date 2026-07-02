@@ -7,6 +7,7 @@
 #include "genopt.h"
 #include "../reach/subtype.h"
 #include "../type/subtype.h"
+#include "../type/typealias.h"
 #include "../../libponyrt/mem/pool.h"
 #include "ponyassert.h"
 #include <string.h>
@@ -21,6 +22,22 @@ static LLVMValueRef gen_is_value(compile_t* c, ast_t* left_type,
 static LLVMValueRef tuple_is(compile_t* c, ast_t* left_type, ast_t* right_type,
   LLVMValueRef l_value, LLVMValueRef r_value)
 {
+  // Unfold type aliases to get the actual tuple types.
+  ast_t* unfolded_l = NULL;
+  ast_t* unfolded_r = NULL;
+
+  if(ast_id(left_type) == TK_TYPEALIASREF)
+  {
+    unfolded_l = typealias_unfold(left_type);
+    if(unfolded_l != NULL) left_type = unfolded_l;
+  }
+
+  if(ast_id(right_type) == TK_TYPEALIASREF)
+  {
+    unfolded_r = typealias_unfold(right_type);
+    if(unfolded_r != NULL) right_type = unfolded_r;
+  }
+
   pony_assert(ast_id(left_type) == TK_TUPLETYPE);
   pony_assert(ast_id(right_type) == TK_TUPLETYPE);
   pony_assert(ast_childcount(left_type) == ast_childcount(right_type));
@@ -45,9 +62,9 @@ static LLVMValueRef tuple_is(compile_t* c, ast_t* left_type, ast_t* right_type,
 
     // Test the element.
     compile_type_t* c_t_left =
-      (compile_type_t*)reach_type(c->reach, left_child)->c_type;
+      (compile_type_t*)reach_type(c->reach, left_child, c->opt)->c_type;
     compile_type_t* c_t_right =
-      (compile_type_t*)reach_type(c->reach, right_child)->c_type;
+      (compile_type_t*)reach_type(c->reach, right_child, c->opt)->c_type;
     LLVMValueRef l_elem = LLVMBuildExtractValue(c->builder, l_value, i, "");
     LLVMValueRef r_elem = LLVMBuildExtractValue(c->builder, r_value, i, "");
     l_elem = gen_assign_cast(c, c_t_left->use_type, l_elem, left_child);
@@ -146,7 +163,7 @@ static LLVMValueRef tuple_element_is_box_unboxed_element(compile_t* c,
     case SUBTYPE_KIND_NUMERIC:
     {
       compile_type_t* c_t_left =
-        (compile_type_t*)reach_type(c->reach, l_field_type)->c_type;
+        (compile_type_t*)reach_type(c->reach, l_field_type, c->opt)->c_type;
       LLVMValueRef l_desc = c_t_left->desc;
       LLVMValueRef same_type = LLVMBuildICmp(c->builder, LLVMIntEQ, l_desc,
         r_field_desc, "");
@@ -229,12 +246,27 @@ static LLVMValueRef tuple_is_box_element(compile_t* c, ast_t* l_field_type,
   LLVMValueRef l_field, LLVMValueRef r_fields, LLVMValueRef r_desc,
   unsigned int field_index)
 {
+  // Unfold type alias to determine field kind.
+  ast_t* check_field = l_field_type;
+  ast_t* field_unfolded = NULL;
+
+  if(ast_id(check_field) == TK_TYPEALIASREF)
+  {
+    field_unfolded = typealias_unfold(check_field);
+
+    if(field_unfolded != NULL)
+      check_field = field_unfolded;
+  }
+
   int field_kind = SUBTYPE_KIND_UNBOXED;
 
-  if((ast_id(l_field_type) == TK_TUPLETYPE))
+  if((ast_id(check_field) == TK_TUPLETYPE))
     field_kind = SUBTYPE_KIND_TUPLE;
-  else if(is_machine_word(l_field_type))
+  else if(is_machine_word(check_field))
     field_kind = SUBTYPE_KIND_NUMERIC;
+
+  if(field_unfolded != NULL)
+    ast_free_unattached(field_unfolded);
 
   LLVMValueRef r_field_info = gendesc_fieldinfo(c, r_desc, field_index);
   LLVMValueRef r_field_ptr = gendesc_fieldptr(c, r_fields, r_field_info);
@@ -296,6 +328,17 @@ static LLVMValueRef tuple_is_box(compile_t* c, ast_t* left_type,
 {
   pony_assert(LLVMGetTypeKind(LLVMTypeOf(l_value)) == LLVMStructTypeKind);
   pony_assert(LLVMGetTypeKind(LLVMTypeOf(r_value)) == LLVMPointerTypeKind);
+
+  // Unfold type aliases to get the actual tuple type.
+  ast_t* unfolded_left = NULL;
+
+  if(ast_id(left_type) == TK_TYPEALIASREF)
+  {
+    unfolded_left = typealias_unfold(left_type);
+
+    if(unfolded_left != NULL)
+      left_type = unfolded_left;
+  }
 
   size_t cardinality = ast_childcount(left_type);
 
@@ -371,7 +414,7 @@ static LLVMValueRef tuple_is_box(compile_t* c, ast_t* left_type,
 
   while(l_child != NULL)
   {
-    reach_type_t* t = reach_type(c->reach, l_child);
+    reach_type_t* t = reach_type(c->reach, l_child, c->opt);
     compile_type_t* c_t = (compile_type_t*)t->c_type;
 
     LLVMValueRef l_elem = LLVMBuildExtractValue(c->builder, l_value, i, "");
@@ -524,8 +567,8 @@ static LLVMValueRef box_is_box(compile_t* c, reach_type_t* left_type,
 
     // Call the type-specific __is function, which will unbox the LHS.
     LLVMPositionBuilderAtEnd(c->builder, bothtuple_block);
-    reach_method_t* is_fn = reach_method(left_type, TK_BOX, stringtab("__is"),
-      NULL);
+    reach_method_t* is_fn = reach_method(left_type, TK_BOX, stringtab(c->opt->strtab, "__is"),
+      NULL, c->opt);
     pony_assert(is_fn != NULL);
 
     LLVMValueRef func = gendesc_vtable(c, l_desc, is_fn->vtable_index);
@@ -621,7 +664,7 @@ static LLVMValueRef gen_is_value(compile_t* c, ast_t* left_type,
           return tuple_is(c, left_type, right_type, l_value, r_value);
       } else if(right_null || !is_known(right_type)) {
         // If right_type is an abstract type, check if r_value is a boxed tuple.
-        reach_type_t* r_right = reach_type(c->reach, right_type);
+        reach_type_t* r_right = reach_type(c->reach, right_type, c->opt);
         return tuple_is_box(c, left_type, r_right, l_value, r_value, NULL,
           true, true);
       }
@@ -637,9 +680,9 @@ static LLVMValueRef gen_is_value(compile_t* c, ast_t* left_type,
 
       bool left_known = is_known(left_type);
       bool right_known = !right_null && is_known(right_type);
-      reach_type_t* r_left = reach_type(c->reach, left_type);
+      reach_type_t* r_left = reach_type(c->reach, left_type, c->opt);
       reach_type_t* r_right = !right_null ?
-        reach_type(c->reach, right_type) : NULL;
+        reach_type(c->reach, right_type, c->opt) : NULL;
 
       if(!left_known && !right_known)
       {
@@ -737,7 +780,7 @@ void gen_is_tuple_fun(compile_t* c, reach_type_t* t)
 {
   pony_assert(t->underlying == TK_TUPLETYPE);
 
-  reach_method_t* m = reach_method(t, TK_BOX, stringtab("__is"), NULL);
+  reach_method_t* m = reach_method(t, TK_BOX, stringtab(c->opt->strtab, "__is"), NULL, c->opt);
 
   if(m == NULL)
     return;

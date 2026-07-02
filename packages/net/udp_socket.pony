@@ -6,10 +6,10 @@ use @pony_os_listen_udp4[AsioEventID](owner: AsioEventNotify,
   host: Pointer[U8] tag, service: Pointer[U8] tag)
 use @pony_os_listen_udp6[AsioEventID](owner: AsioEventNotify,
   host: Pointer[U8] tag, service: Pointer[U8] tag)
-use @pony_os_sendto[USize](fd: U32, buffer: Pointer[U8] tag,
-  size: USize, to: NetAddress tag) ?
-use @pony_os_recvfrom[USize](event: AsioEventID, buffer: Pointer[U8] tag,
-  size: USize, from: NetAddress tag) ?
+use @pony_os_sendto[U8](fd: U32, buffer: Pointer[U8] tag,
+  size: USize, to: NetAddress tag, count_out: Pointer[USize])
+use @pony_os_recvfrom[U8](event: AsioEventID, buffer: Pointer[U8] tag,
+  size: USize, from: NetAddress tag, count_out: Pointer[USize])
 use @pony_os_multicast_join[None](fd: U32, group: Pointer[U8] tag,
   to: Pointer[U8] tag)
 use @pony_os_multicast_leave[None](fd: U32, group: Pointer[U8] tag,
@@ -96,7 +96,6 @@ actor UDPSocket is AsioEventNotify
   var _closed: Bool = false
   var _packet_size: USize
   var _read_buf: Array[U8] iso
-  var _read_from: NetAddress iso = NetAddress
   embed _ip: NetAddress = NetAddress
 
   new create(
@@ -107,7 +106,14 @@ actor UDPSocket is AsioEventNotify
     size: USize = 1024)
   =>
     """
-    Listens for both IPv4 and IPv6 datagrams.
+    Listens for datagrams. The address family is whichever the resolver
+    returns first for `host`/`service`, so it depends on the environment;
+    use `ip4` or `ip6` to pin a specific family.
+
+    `size` is the read buffer size in bytes (default 1024) and therefore the
+    maximum datagram length delivered to `UDPNotify.received`; a larger datagram
+    is truncated to `size` and the excess is silently discarded (see
+    `UDPNotify.received`).
     """
     _notify = consume notify
     _event =
@@ -117,7 +123,6 @@ actor UDPSocket is AsioEventNotify
     _packet_size = size
     _read_buf = recover Array[U8] .> undefined(size) end
     _notify_listening()
-    _start_next_read()
 
   new ip4(
     auth: UDPAuth,
@@ -128,6 +133,11 @@ actor UDPSocket is AsioEventNotify
   =>
     """
     Listens for IPv4 datagrams.
+
+    `size` is the read buffer size in bytes (default 1024) and therefore the
+    maximum datagram length delivered to `UDPNotify.received`; a larger datagram
+    is truncated to `size` and the excess is silently discarded (see
+    `UDPNotify.received`).
     """
     _notify = consume notify
     _event =
@@ -137,7 +147,6 @@ actor UDPSocket is AsioEventNotify
     _packet_size = size
     _read_buf = recover Array[U8] .> undefined(size) end
     _notify_listening()
-    _start_next_read()
 
   new ip6(
     auth: UDPAuth,
@@ -148,6 +157,11 @@ actor UDPSocket is AsioEventNotify
   =>
     """
     Listens for IPv6 datagrams.
+
+    `size` is the read buffer size in bytes (default 1024) and therefore the
+    maximum datagram length delivered to `UDPNotify.received`; a larger datagram
+    is truncated to `size` and the excess is silently discarded (see
+    `UDPNotify.received`).
     """
     _notify = consume notify
     _event =
@@ -157,7 +171,6 @@ actor UDPSocket is AsioEventNotify
     _packet_size = size
     _read_buf = recover Array[U8] .> undefined(size) end
     _notify_listening()
-    _start_next_read()
 
   be write(data: ByteSeq, to: NetAddress) =>
     """
@@ -167,7 +180,14 @@ actor UDPSocket is AsioEventNotify
 
   be writev(data: ByteSeqIter, to: NetAddress) =>
     """
-    Write a sequence of sequences of bytes.
+    Write a sequence of byte sequences. Each `ByteSeq` in `data` is sent
+    as a separate UDP datagram; this method does not combine them into a
+    single packet.
+
+    Note that this differs from the POSIX `writev` system call, which
+    for record-based protocols like UDP would produce a single datagram.
+    If you need a single datagram, concatenate the data yourself and call
+    `write`.
     """
     for bytes in data.values() do
       _write(bytes, to)
@@ -181,21 +201,36 @@ actor UDPSocket is AsioEventNotify
 
   be set_broadcast(state: Bool) =>
     """
-    Enable or disable broadcasting from this socket.
+    Enable or disable broadcasting from this socket. This sets the
+    `SO_BROADCAST` socket option, a sender-side permission to send to
+    IPv4 broadcast addresses (see `DNS.broadcast_ip4`).
+
+    On an IPv6 socket this is a no-op: IPv6 has no broadcast. Sending to
+    a multicast address such as the all-nodes group (see
+    `DNS.broadcast_ip6`) requires no permission; to receive traffic for
+    a multicast group, use `multicast_join`.
+
+    The default constructor binds whichever address family the resolver
+    returns first, so construct the socket with `ip4` if you need
+    broadcast; otherwise `set_broadcast` may silently be a no-op.
     """
     if not _closed then
       if _ip.ip4() then
         set_so_broadcast(state)
-      elseif _ip.ip6() then
-        @pony_os_multicast_join(_fd, "FF02::1".cstring(), "".cstring())
       end
     end
 
   be set_multicast_interface(from: String = "") =>
     """
     By default, the OS will choose which address is used to send packets bound
-    for multicast addresses. This can be used to force a specific interface. To
-    revert to allowing the OS to choose, call with an empty string.
+    for multicast addresses. This can be used to force a specific interface.
+
+    For an IPv4 interface, pass the interface's IPv4 address. For an IPv6
+    interface, the interface is taken from the scope id of the resolved
+    address, so only a scoped address such as `"fe80::1%eth0"` selects an
+    interface; a plain IPv6 address does not.
+
+    Calling with an empty string currently has no effect.
     """
     if not _closed then
       @pony_os_multicast_interface(_fd, from.cstring())
@@ -261,17 +296,14 @@ actor UDPSocket is AsioEventNotify
     end
 
     if not _closed then
+      if AsioEvent.errored(flags) then
+        _close()
+        return
+      end
+
       if AsioEvent.readable(flags) then
         _readable = true
-        _complete_reads(arg)
         _pending_reads()
-      end
-    else
-      ifdef windows then
-        if AsioEvent.readable(flags) then
-          _readable = false
-          _close()
-        end
       end
     end
 
@@ -294,78 +326,35 @@ actor UDPSocket is AsioEventNotify
     we read 4 kb of data, send ourself a resume message and stop reading, to
     avoid starving other actors.
     """
-    ifdef not windows then
-      try
-        var sum: USize = 0
+    try
+      var sum: USize = 0
 
-        while _readable do
-          let size = _packet_size
-          let data = _read_buf = recover Array[U8] .> undefined(size) end
-          let from = recover NetAddress end
-          let len =
-            @pony_os_recvfrom(_event, data.cpointer(), data.space(),
-              from) ?
-
-          if len == 0 then
-            _readable = false
-            return
-          end
-
-          data.truncate(len)
+      while _readable do
+        let size = _packet_size
+        let data = _read_buf = recover Array[U8] .> undefined(size) end
+        let from = recover NetAddress end
+        var count: USize = 0
+        match \exhaustive\ _SocketResultDecoder(
+          @pony_os_recvfrom(_event, data.cpointer(), data.space(),
+            from, addressof count))
+        | _SocketResultOk =>
+          data.truncate(count)
           _notify.received(this, consume data, consume from)
 
-          sum = sum + len
+          sum = sum + count
 
           if sum > (1 << 12) then
             _read_again()
             return
           end
+        | _SocketResultRetry =>
+          _readable = false
+          return
+        | _SocketResultError => error
         end
-      else
-        _close()
       end
-    end
-
-  fun ref _complete_reads(len: U32) =>
-    """
-    The OS has informed as that len bytes of pending reads have completed.
-    This occurs only with IOCP on Windows.
-    """
-    ifdef windows then
-      if _read_buf.space() == 0 then
-        // Socket has been closed
-        _readable = false
-        _close()
-        return
-      end
-
-      if _closed then
-        return
-      end
-
-      // Hand back read data
-      let size = _packet_size
-      let data = _read_buf = recover Array[U8] .> undefined(size) end
-      let from = _read_from = recover NetAddress end
-      data.truncate(len.usize())
-      _notify.received(this, consume data, consume from)
-
-      _start_next_read()
-    end
-
-  fun ref _start_next_read() =>
-    """
-    Start our next receive.
-    This is used only with IOCP on Windows.
-    """
-    ifdef windows then
-      try
-        @pony_os_recvfrom(_event, _read_buf.cpointer(),
-          _read_buf.space(), _read_from) ?
-      else
-        _readable = false
-        _close()
-      end
+    else
+      _close()
     end
 
   fun ref _write(data: ByteSeq, to: NetAddress) =>
@@ -373,10 +362,18 @@ actor UDPSocket is AsioEventNotify
     Write the datagram to the socket.
     """
     if not _closed then
-      try
-        @pony_os_sendto(_fd, data.cpointer(), data.size(), to) ?
-      else
-        _close()
+      // `count` (bytes sent on Ok) is discarded: UDP is unreliable, so we
+      // don't track partial-send progress. The local is required by the FFI
+      // shape. `_SocketResultRetry` (EWOULDBLOCK/EAGAIN) silently drops the
+      // datagram on every platform. A send Error now surfaces and closes the
+      // socket -- on Windows too, where it was previously discarded.
+      var count: USize = 0
+      match \exhaustive\ _SocketResultDecoder(
+        @pony_os_sendto(_fd, data.cpointer(), data.size(), to,
+          addressof count))
+      | _SocketResultOk => None
+      | _SocketResultRetry => None
+      | _SocketResultError => _close()
       end
     end
 
@@ -394,26 +391,24 @@ actor UDPSocket is AsioEventNotify
     """
     Inform the notifier that we've closed.
     """
-    ifdef windows then
-      // On windows, wait until IOCP read operation has completed or been
-      // cancelled.
-      if _closed and not _readable and not _event.is_null() then
-        @pony_asio_event_unsubscribe(_event)
-      end
-    else
-      // Unsubscribe immediately.
-      if not _event.is_null() then
-        @pony_asio_event_unsubscribe(_event)
-        _readable = false
-      end
+    // Unsubscribe immediately. On Windows this issues a ProcessSocketNotifications
+    // REMOVE; the backend closes the fd and disposes the event once the REMOVE
+    // is seen. The `is_null` guard tolerates a failed listen (issue #5474),
+    // which leaves a null event.
+    if not _event.is_null() then
+      @pony_asio_event_unsubscribe(_event)
+      _readable = false
     end
 
     _closed = true
 
     if _fd != -1 then
       _notify.closed(this)
-      // On windows, this will also cancel all outstanding IOCP operations.
-      @pony_os_socket_close(_fd)
+      // POSIX closes the fd here; on Windows the readiness backend owns the
+      // close (when it sees the deferred REMOVE from the unsubscribe above).
+      ifdef not windows then
+        @pony_os_socket_close(_fd)
+      end
       _fd = -1
     end
 
@@ -539,18 +534,18 @@ actor UDPSocket is AsioEventNotify
 
   fun ref set_ip_multicast_loop(loopback: Bool): U32 =>
     """
-    Wrapper for the FFI call `setsockopt(fd, SOL_SOCKET, IP_MULTICAST_LOOP, ...)`
+    Wrapper for the FFI call `setsockopt(fd, IPPROTO_IP, IP_MULTICAST_LOOP, ...)`
     """
     var word: Array[U8] ref =
       _OSSocket.u32_to_bytes4(if loopback then 1 else 0 end)
-    _OSSocket.setsockopt(_fd, OSSockOpt.sol_socket(), OSSockOpt.ip_multicast_loop(), word)
+    _OSSocket.setsockopt(_fd, OSSockOpt.ipproto_ip(), OSSockOpt.ip_multicast_loop(), word)
 
   fun ref set_ip_multicast_ttl(ttl: U8): U32 =>
     """
-    Wrapper for the FFI call `setsockopt(fd, SOL_SOCKET, IP_MULTICAST_TTL, ...)`
+    Wrapper for the FFI call `setsockopt(fd, IPPROTO_IP, IP_MULTICAST_TTL, ...)`
     """
     var word: Array[U8] ref = _OSSocket.u32_to_bytes4(ttl.u32())
-    _OSSocket.setsockopt(_fd, OSSockOpt.sol_socket(), OSSockOpt.ip_multicast_ttl(), word)
+    _OSSocket.setsockopt(_fd, OSSockOpt.ipproto_ip(), OSSockOpt.ip_multicast_ttl(), word)
 
   fun ref set_so_broadcast(state: Bool): U32 =>
     """

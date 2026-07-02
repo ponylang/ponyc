@@ -14,6 +14,7 @@
 #include "../type/reify.h"
 #include "../type/sanitise.h"
 #include "../type/subtype.h"
+#include "../type/typealias.h"
 #include "../pkg/package.h"
 #include "ponyassert.h"
 
@@ -37,6 +38,12 @@ static bool make_capture_field(pass_opt_t* opt, ast_t* capture,
   // x -> capture variable x, type from defn of x
   // x = y -> capture expression y, type inferred from expression type
   // x: T = y -> capture expression y, type T
+
+  // The two `= y` forms capture an arbitrary expression, which can't jump away
+  // with no value. (The bare `x` form has a TK_NONE value, which the helper
+  // ignores.)
+  if(jumps_away_no_value(opt, value, "a lambda capture"))
+    return false;
 
   if(ast_id(value) == TK_NONE)
   {
@@ -91,14 +98,14 @@ static bool make_capture_field(pass_opt_t* opt, ast_t* capture,
 
     BUILD(capture_rhs, id_node, NODE(TK_REFERENCE, ID(name)));
 
-    type = alias(ast_type(def));
+    type = alias(ast_type(def), opt);
     value = capture_rhs;
   } else if(ast_id(type) == TK_NONE) {
     // No type specified, use type of the captured expression
     if(ast_type(value) == NULL)
       return false;
 
-    type = alias(ast_type(value));
+    type = alias(ast_type(value), opt);
   } else {
     // Type given, infer literals
     if(!coerce_literals(&value, type, opt))
@@ -108,7 +115,7 @@ static bool make_capture_field(pass_opt_t* opt, ast_t* capture,
     // discarded.
     if(is_dontcare)
     {
-      ast_t* p_type = consume_type(type, TK_NONE, false);
+      ast_t* p_type = consume_type(type, TK_NONE, false, opt);
       ast_t* v_type = ast_type(value);
       errorframe_t info = NULL;
       errorframe_t frame = NULL;
@@ -117,7 +124,7 @@ static bool make_capture_field(pass_opt_t* opt, ast_t* capture,
       {
         ast_error_frame(&frame, type,
           "invalid parameter type: %s",
-          ast_print_type(type));
+          ast_print_type(type, opt->strtab));
         errorframe_append(&frame, &info);
         errorframe_report(&frame, opt->check.errors);
         ast_free_unattached(p_type);
@@ -127,9 +134,9 @@ static bool make_capture_field(pass_opt_t* opt, ast_t* capture,
       {
         ast_error_frame(&frame, value, "argument not assignable to parameter");
         ast_error_frame(&frame, value, "argument type is %s",
-                        ast_print_type(v_type));
+                        ast_print_type(v_type, opt->strtab));
         ast_error_frame(&frame, id_node, "parameter type requires %s",
-                        ast_print_type(p_type));
+                        ast_print_type(p_type, opt->strtab));
         errorframe_append(&frame, &info);
         errorframe_report(&frame, opt->check.errors);
         ast_free_unattached(p_type);
@@ -149,7 +156,7 @@ static bool make_capture_field(pass_opt_t* opt, ast_t* capture,
     return true;
   }
 
-  type = sanitise_type(type);
+  type = sanitise_type(type, opt);
 
   BUILD(field, id_node,
     NODE(TK_FVAR,
@@ -210,6 +217,50 @@ static void find_possible_fun_defs(pass_opt_t* opt, ast_t* ast,
       break;
     }
 
+    case TK_TYPEALIASREF:
+    {
+      ast_t* unfolded = typealias_unfold(ast);
+
+      if(unfolded != NULL)
+      {
+        // Recurse into temporary local lists. The recursion may store
+        // pointers into the unfolded tree in obj_caps (the obj_cap at
+        // child 3 of any TK_NOMINAL found inside the unfolded result).
+        // We dup those pointers before freeing the unfolded tree so the
+        // caller doesn't hold dangling references. fun_defs entries
+        // point to permanent type definitions (via ast_data) or are
+        // freshly allocated by reify_method_def, so they don't need
+        // duping.
+        astlist_t* local_fun_defs = NULL;
+        astlist_t* local_obj_caps = NULL;
+        find_possible_fun_defs(opt, unfolded, &local_fun_defs,
+          &local_obj_caps);
+
+        astlist_t* fd = local_fun_defs;
+        astlist_t* oc = local_obj_caps;
+        while(fd != NULL && oc != NULL)
+        {
+          *fun_defs = astlist_push(*fun_defs, astlist_data(fd));
+
+          // ast_dup copies the scope pointer from the original's parent
+          // (which is inside the unfolded tree we're about to free).
+          // Clear it to avoid a dangling scope reference.
+          ast_t* dup_cap = ast_dup(astlist_data(oc));
+          ast_set_scope(dup_cap, NULL);
+          *obj_caps = astlist_push(*obj_caps, dup_cap);
+
+          fd = astlist_next(fd);
+          oc = astlist_next(oc);
+        }
+
+        astlist_free(local_fun_defs);
+        astlist_free(local_obj_caps);
+        ast_free_unattached(unfolded);
+      }
+
+      break;
+    }
+
     case TK_UNIONTYPE:
     case TK_ISECTTYPE:
     {
@@ -260,26 +311,38 @@ bool expr_lambda(pass_opt_t* opt, ast_t** astp)
       ast_t* def_obj_cap = astlist_data(obj_cap_cursor);
 
       if(is_typecheck_error(fun_def))
+      {
+        ast_free_unattached(def_obj_cap);
         continue;
+      }
 
       AST_GET_CHILDREN(fun_def, def_receiver_cap, def_name, def_t_params,
         def_params, def_ret_type, def_raises);
 
       // Must have the same number of parameters.
       if(ast_childcount(params) != ast_childcount(def_params))
+      {
+        ast_free_unattached(def_obj_cap);
         continue;
+      }
 
       // Must have a supercap of the def's receiver cap (if present).
       if((ast_id(receiver_cap) != TK_NONE) && (ast_id(receiver_cap) != TK_AT) &&
         !is_cap_sub_cap(ast_id(def_receiver_cap), TK_NONE,
         ast_id(receiver_cap), TK_NONE)
         )
+      {
+        ast_free_unattached(def_obj_cap);
         continue;
+      }
 
       // Must have a supercap of the def's object cap (if present).
       if((ast_id(obj_cap) != TK_NONE) &&
         !is_cap_sub_cap(ast_id(obj_cap), TK_NONE, ast_id(def_obj_cap), TK_NONE))
+      {
+        ast_free_unattached(def_obj_cap);
         continue;
+      }
 
       // TODO: This logic could potentially be expanded to do deeper
       // compatibility checks, but checks involving subtyping here would be
@@ -339,6 +402,18 @@ bool expr_lambda(pass_opt_t* opt, ast_t** astp)
     ast_free_unattached(fun_def);
   }
 
+  // Free any owned obj_cap entries remaining in the list. For caps from
+  // the TK_TYPEALIASREF path these are owned dups; consumed caps (moved
+  // into the tree by ast_replace) have a parent, so ast_free_unattached
+  // is a no-op. For caps from permanent AST nominals they also have a
+  // parent. This handles all list sizes uniformly: the == 1 case (where
+  // ast_replace may or may not have consumed the cap), the > 1 case
+  // (surviving candidates after filtering), and the 0 case (no-op).
+  for(astlist_t* oc = possible_obj_caps; oc != NULL;
+    oc = astlist_next(oc))
+  {
+    ast_free_unattached(astlist_data(oc));
+  }
   astlist_free(possible_obj_caps);
 
   // If any parameters still have no type specified, it's an error.
@@ -434,13 +509,13 @@ bool expr_lambda(pass_opt_t* opt, ast_t** astp)
     else
       printbuf(buf, ", ");
 
-    printbuf(buf, "%s", ast_print_type(ast_childidx(p, 1)));
+    printbuf(buf, "%s", ast_print_type(ast_childidx(p, 1), opt->strtab));
   }
 
   printbuf(buf, ")");
 
   if(ast_id(ret_type) != TK_NONE)
-    printbuf(buf, ": %s", ast_print_type(ret_type));
+    printbuf(buf, ": %s", ast_print_type(ret_type, opt->strtab));
 
   if(ast_id(raises) != TK_NONE)
     printbuf(buf, " ?");
@@ -449,7 +524,7 @@ bool expr_lambda(pass_opt_t* opt, ast_t** astp)
 
   // Replace lambda with object literal
   REPLACE(astp,
-    NODE(TK_OBJECT, DATA(stringtab(buf->m))
+    NODE(TK_OBJECT, DATA(stringtab(opt->strtab, buf->m))
       TREE(obj_cap)
       NONE  // Provides list
       TREE(members)));
@@ -536,12 +611,12 @@ static bool capture_from_reference(pass_opt_t* opt, ast_t* ctx, ast_t* ast,
       return true;
   }
 
-  ast_t* type = alias(ast_type(refdef));
+  ast_t* type = alias(ast_type(refdef), opt);
 
   if(is_typecheck_error(type))
     return false;
 
-  type = sanitise_type(type);
+  type = sanitise_type(type, opt);
 
   BUILD(field, ast,
     NODE(TK_FVAR,
@@ -614,7 +689,11 @@ static bool capture_from_type(pass_opt_t* opt, ast_t* ctx, ast_t** def,
     }
   }
 
-  // Reset the scope.
+  // Reset the scope. This empties every symtab in the subtree, so the scope
+  // pass re-runs over it during the catch up. Passes that establish scope
+  // bindings must therefore be idempotent on re-entry and must re-establish
+  // those bindings here — see scope_iftype, which re-installs the narrowed
+  // type parameters its first run parked in typeparam_store.
   ast_clear(*def);
   return ok;
 }
@@ -625,7 +704,7 @@ static void add_field_to_object(pass_opt_t* opt, ast_t* field,
   ast_t* call_args)
 {
   AST_GET_CHILDREN(field, id, type, init);
-  ast_t* p_id = ast_from_string(id, package_hygienic_id(&opt->check));
+  ast_t* p_id = ast_from_string(id, package_hygienic_id(&opt->check, opt), opt->strtab);
 
   // The param is: $0: type
   BUILD(param, field,
@@ -670,6 +749,27 @@ static bool catch_up_provides(pass_opt_t* opt, ast_t* provides, ast_t* obj_ast)
 
     ast_t* def = (ast_t*)ast_data(child);
 
+    // For type aliases, unfold to get the concrete type definition.
+    // ast_data on TK_TYPEALIASREF points to TK_TYPE, not a class/trait.
+    if((def != NULL) && (ast_id(child) == TK_TYPEALIASREF))
+    {
+      ast_t* unfolded = typealias_unfold(child);
+
+      if(unfolded != NULL)
+      {
+        if(ast_id(unfolded) == TK_NOMINAL)
+          def = (ast_t*)ast_data(unfolded);
+        else
+          def = NULL;
+
+        ast_free_unattached(unfolded);
+      }
+      else
+      {
+        def = NULL;
+      }
+    }
+
     if(def != NULL)
     {
       // If the provided type definition is an ancestor of the original object
@@ -709,11 +809,11 @@ bool expr_object(pass_opt_t* opt, ast_t** astp)
   ast_clearflag(members, AST_FLAG_PRESERVE);
 
   ast_t* annotation = ast_consumeannotation(ast);
-  const char* c_id = package_hygienic_id(&opt->check);
+  const char* c_id = package_hygienic_id(&opt->check, opt);
 
   ast_t* t_params;
   ast_t* t_args;
-  collect_type_params(ast, &t_params, &t_args);
+  collect_type_params(ast, &t_params, &t_args, opt);
 
   const char* nice_id = (const char*)ast_data(ast);
 
@@ -856,7 +956,7 @@ bool expr_object(pass_opt_t* opt, ast_t** astp)
   }
 
   if(ast_id(def) != TK_PRIMITIVE)
-    pony_assert(!ast_has_annotation(def, "ponyint_bare"));
+    pony_assert(!ast_has_annotation(def, "ponyint_bare", opt->strtab));
 
   // Reset constructor to pick up the correct defaults.
   ast_setid(ast_child(create), cap_id);

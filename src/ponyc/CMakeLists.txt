@@ -18,7 +18,6 @@ if (MSVC)
     target_link_libraries(ponyc
         PRIVATE libponyc
         PRIVATE libponyrt
-        PRIVATE blake2
         PRIVATE dbghelp
         PRIVATE ucrt
         PRIVATE Ws2_32
@@ -31,7 +30,6 @@ else()
     target_link_libraries(ponyc PRIVATE
         libponyc
         libponyrt
-        blake2
     )
 
     if(${CMAKE_HOST_SYSTEM_NAME} MATCHES "Darwin")
@@ -74,5 +72,5 @@ else()
 endif (MSVC)
 
 if(NOT PONY_CROSS_LIBPONYRT)
-    target_link_libraries(ponyc PRIVATE ${PONYC_LLVM_LIBS} ${PONYC_LLD_LIBS})
+    target_link_libraries(ponyc PRIVATE ${PONYC_CLANG_LIBS} ${PONYC_LLVM_LIBS} ${PONYC_LLD_LIBS} ${PONYC_EXTRA_LIBS})
 endif()

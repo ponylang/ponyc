@@ -1,0 +1,874 @@
+use ".."
+use "pony_test"
+use "files"
+use "json"
+
+primitive _InlayHintIntegrationTests is TestList
+  new make() => None
+
+  fun tag tests(test: PonyTest) =>
+    let workspace_dir = Path.join(Path.dir(__loc.file()), "workspace")
+    let server = _LspTestServer(workspace_dir)
+    test(_InlayHintDemoTest.create(server))
+    test(_InlayHintRangeFirstLineTest.create(server))
+    test(_InlayHintRangeTwoLineTest.create(server))
+    test(_InlayHintRangeEmptyTest.create(server))
+    test(_InlayHintExplicitReturnTypeTest.create(server))
+    test(_InlayHintMultilineReturnTypeTest.create(server))
+    test(_InlayHintGenericsTest.create(server))
+    test(_InlayHintGenericFieldsTest.create(server))
+    test(_InlayHintUnionTupleTest.create(server))
+    test(_InlayHintBeNewExclusionTest.create(server))
+    test(_InlayHintExplicitReceiverCapTest.create(server))
+    test(_InlayHintSyntheticNameExclusionTest.create(server))
+    test(_InlayHintFunctionParamsFullTest.create(server))
+    test(_InlayHintFunctionParamsExplicitTest.create(server))
+    test(_InlayHintFunctionParamsGenericTest.create(server))
+    test(_InlayHintFunctionParamsFullCapsTest.create(server))
+    test(_InlayHintPrimitiveTest.create(server))
+    test(_InlayHintPrimitiveNewFirstTest.create(server))
+    test(_InlayHintPrimitiveEFirstCharTest.create(server))
+    test(_InlayHintPrimitiveEmptyTest.create(server))
+    test(_InlayHintLambdaInferredTest.create(server))
+    test(_InlayHintLambdaAnnotatedTest.create(server))
+    test(_InlayHintLambdaAnnotatedExplicitTest.create(server))
+    test(_InlayHintLambdaParamTest.create(server))
+    test(_InlayHintLambdaParamExplicitTest.create(server))
+    test(_InlayHintLambdaReturnTest.create(server))
+    test(_InlayHintLambdaReturnExplicitTest.create(server))
+    test(_InlayHintLambdaGenericParamTest.create(server))
+    test(_InlayHintLambdaNestedLambdaTest.create(server))
+    test(_InlayHintLambdaUnionParamTest.create(server))
+
+class \nodoc\ iso _InlayHintDemoTest is UnitTest
+  let _server: _LspTestServer
+
+  new iso create(server: _LspTestServer) =>
+    _server = server
+
+  fun name(): String =>
+    "inlay_hint/integration/full_file"
+
+  fun apply(h: TestHelper) =>
+    _RunLspChecks(
+      h,
+      _server,
+      "inlay_hint/_inlay_hint.pony",
+      [ _InlayHintChecker(
+          [ (6, 5, " box")                     // demo receiver cap
+            (6, 20, " val")                    // demo return type String cap
+            (8, 23, ": String val")            // inferred_string
+            (10, 21, ": Bool val")             // inferred_bool
+            (12, 31, " val")                   // explicit_string cap
+            (18, 5, " box")                    // inferred_fun receiver cap
+            (18, 20, ": None val")             // inferred_fun return type
+            (22, 5, " box")                    // explicit_fun receiver cap
+            (22, 28, " val")                   // explicit_fun return type cap
+            (26, 5, " box")                    // multiline receiver cap
+            (27, 12, " val")                   // multiline return type cap
+            (31, 24, ": None val")             // explicit_cap return type
+            (35, 5, " box")                    // for_loop receiver cap
+            (35, 16, ": None val")             // for_loop return type
+            (36, 27, " val")                   // String cap in Array[String]
+            (36, 28, " ref")                   // Array cap in Array[String]
+            (37, 12, ": String val") ]         // item type in for loop
+          ) ])
+
+class \nodoc\ iso _InlayHintRangeFirstLineTest is UnitTest
+  """
+  Range covering only line 8 (inferred_string). Expects exactly one hint.
+  """
+  let _server: _LspTestServer
+
+  new iso create(server: _LspTestServer) =>
+    _server = server
+
+  fun name(): String =>
+    "inlay_hint/integration/range_first_line"
+
+  fun apply(h: TestHelper) =>
+    _RunLspChecks(
+      h,
+      _server,
+      "inlay_hint/_inlay_hint.pony",
+      [ _InlayHintChecker(
+          [ (8, 23, ": String val") ]
+          where range = (8, 0, 9, 0)) ])
+
+class \nodoc\ iso _InlayHintRangeTwoLineTest is UnitTest
+  """
+  Range covering lines 8-10. Expects exactly two hints.
+  """
+  let _server: _LspTestServer
+
+  new iso create(server: _LspTestServer) =>
+    _server = server
+
+  fun name(): String =>
+    "inlay_hint/integration/range_middle"
+
+  fun apply(h: TestHelper) =>
+    _RunLspChecks(
+      h,
+      _server,
+      "inlay_hint/_inlay_hint.pony",
+      [ _InlayHintChecker(
+          [ (8, 23, ": String val")            // inferred_string
+            (10, 21, ": Bool val") ]           // inferred_bool
+          where range = (8, 0, 11, 0)) ])
+
+class \nodoc\ iso _InlayHintRangeEmptyTest is UnitTest
+  """
+  Range covering only the class header and docstring (lines 0-5).
+  No hints expected.
+  """
+  let _server: _LspTestServer
+
+  new iso create(server: _LspTestServer) =>
+    _server = server
+
+  fun name(): String =>
+    "inlay_hint/integration/range_empty"
+
+  fun apply(h: TestHelper) =>
+    _RunLspChecks(
+      h,
+      _server,
+      "inlay_hint/_inlay_hint.pony",
+      [ _InlayHintChecker(
+          []
+          where range = (0, 0, 6, 0)) ])
+
+class \nodoc\ iso _InlayHintExplicitReturnTypeTest is UnitTest
+  """
+  Range covering explicit_fun(): String. Expects receiver cap
+  and return type cap hints.
+  """
+  let _server: _LspTestServer
+
+  new iso create(server: _LspTestServer) =>
+    _server = server
+
+  fun name(): String =>
+    "inlay_hint/integration/explicit_return_type"
+
+  fun apply(h: TestHelper) =>
+    _RunLspChecks(
+      h,
+      _server,
+      "inlay_hint/_inlay_hint.pony",
+      [ _InlayHintChecker(
+          [ (22, 5, " box")    // receiver cap
+            (22, 28, " val") ] // return type String cap
+          where range = (22, 0, 24, 0)) ])
+
+class \nodoc\ iso _InlayHintMultilineReturnTypeTest is UnitTest
+  """
+  Range covering explicit_multiline() where ': String' is on the second line.
+  Expects receiver cap hint on the function line and return type cap on the
+  type line.
+  """
+  let _server: _LspTestServer
+
+  new iso create(server: _LspTestServer) =>
+    _server = server
+
+  fun name(): String =>
+    "inlay_hint/integration/multiline_return_type"
+
+  fun apply(h: TestHelper) =>
+    _RunLspChecks(
+      h,
+      _server,
+      "inlay_hint/_inlay_hint.pony",
+      [ _InlayHintChecker(
+          [ (26, 5, " box")    // receiver cap
+            (27, 12, " val") ] // return type String cap on second line
+          where range = (26, 0, 29, 0)) ])
+
+class \nodoc\ iso _InlayHintGenericsTest is UnitTest
+  """
+  Tests cap hints for nested generic annotations.
+  """
+  let _server: _LspTestServer
+
+  new iso create(server: _LspTestServer) =>
+    _server = server
+
+  fun name(): String =>
+    "inlay_hint/integration/generics"
+
+  fun apply(h: TestHelper) =>
+    _RunLspChecks(
+      h,
+      _server,
+      "inlay_hint/_generics.pony",
+      [ _InlayHintChecker(
+          [ (4, 5, " box")             // demo receiver cap
+            (4, 19, " val")            // demo return type USize cap
+            (6, 26, " val")            // arr_u32: U32
+            (6, 27, " ref")            // arr_u32: Array
+            (8, 31, " val")            // nested: U32
+            (8, 32, " ref")            // nested: inner Array
+            (8, 33, " ref")            // nested: outer Array
+            (10, 32, " val")           // partial: U32
+            (10, 38, " ref")           // partial: outer Array
+            (12, 29, " val")           // full: U32 (other caps explicit)
+            (14, 16, ": Array[U32 val] ref") // inferred: full inferred type
+            (16, 41, " ref")           // primitive_partial: outer Array cap
+            (19, 9, " val")            // multiline_arr: U32 (on its own line)
+            (20, 5, " ref") ] // multiline_arr: Array (after ] on next line)
+          where range = (0, 0, 24, 0)) ])
+
+class \nodoc\ iso _InlayHintGenericFieldsTest is UnitTest
+  """
+  Tests cap hints for class fields and function return type
+  annotations with generics.
+  """
+  let _server: _LspTestServer
+
+  new iso create(server: _LspTestServer) =>
+    _server = server
+
+  fun name(): String =>
+    "inlay_hint/integration/generic_fields"
+
+  fun apply(h: TestHelper) =>
+    _RunLspChecks(
+      h,
+      _server,
+      "inlay_hint/_generics.pony",
+      [ _InlayHintChecker(
+          [ (29, 22, " val")           // items: U32
+            (29, 23, " ref")           // items: Array
+            (31, 29, " val")           // nested field: U32
+            (31, 30, " ref")           // nested field: inner Array
+            (31, 31, " ref")           // nested field: outer Array
+            (33, 27, " val")           // embed embedded: U32
+            (33, 28, " ref")           // embed embedded: Array
+            (41, 5, " box")            // make_items receiver cap
+            (41, 29, " val")           // make_items return: U32
+            (41, 30, " ref")           // make_items return: Array
+            (45, 5, " box")            // make_nested receiver cap
+            (45, 36, " val")           // make_nested return: U32
+            (45, 37, " ref")           // make_nested return: inner Array
+            (45, 38, " ref") ]         // make_nested return: outer Array
+          where range = (24, 0, 47, 0)) ])
+
+class \nodoc\ iso _InlayHintUnionTupleTest is UnitTest
+  """
+  Tests cap hints for union, tuple, and intersection type annotations,
+  verifying that _add_nominal_hints recurses into tk_uniontype,
+  tk_tupletype, and tk_isecttype.
+  """
+  let _server: _LspTestServer
+
+  new iso create(server: _LspTestServer) =>
+    _server = server
+
+  fun name(): String =>
+    "inlay_hint/integration/union_tuple"
+
+  fun apply(h: TestHelper) =>
+    _RunLspChecks(
+      h,
+      _server,
+      "inlay_hint/_union_types.pony",
+      [ _InlayHintChecker(
+          [ (4, 5, " box")            // demo receiver cap
+            (4, 12, ": None val")     // demo inferred return type
+            (6, 15, " val")           // u: U32 cap
+            (6, 22, " val")           // u: None cap
+            (8, 15, " val")           // t: U32 cap
+            (8, 21, " val")           // t: Bool cap
+            (10, 16, " val")          // i: None cap
+            (10, 29, " box") ]        // i: Stringable cap
+          where range = (0, 0, 12, 0)) ])
+
+class \nodoc\ iso _InlayHintBeNewExclusionTest is UnitTest
+  """
+  Verifies that behaviours (be) and constructors (new) produce no hints —
+  neither receiver cap hints, return type hints, nor parameter type hints.
+  """
+  let _server: _LspTestServer
+
+  new iso create(server: _LspTestServer) =>
+    _server = server
+
+  fun name(): String =>
+    "inlay_hint/integration/be_new_exclusion"
+
+  fun apply(h: TestHelper) =>
+    _RunLspChecks(
+      h,
+      _server,
+      "inlay_hint/_union_types.pony",
+      [ _InlayHintChecker(
+          []
+          where range = (13, 0, 20, 0)) ])
+
+class \nodoc\ iso _InlayHintExplicitReceiverCapTest is UnitTest
+  """
+  Verifies that an explicit receiver capability keyword suppresses the
+  receiver cap hint. `fun ref explicit_cap()` should produce only a return
+  type hint, not a receiver cap hint.
+  """
+  let _server: _LspTestServer
+
+  new iso create(server: _LspTestServer) =>
+    _server = server
+
+  fun name(): String =>
+    "inlay_hint/integration/explicit_receiver_cap"
+
+  fun apply(h: TestHelper) =>
+    _RunLspChecks(
+      h,
+      _server,
+      "inlay_hint/_inlay_hint.pony",
+      [ _InlayHintChecker(
+          [ (31, 24, ": None val") ] // return type only; no receiver cap hint
+          where range = (31, 0, 33, 0)) ])
+
+class \nodoc\ iso _InlayHintSyntheticNameExclusionTest is UnitTest
+  """
+  Verifies that synthetic compiler-generated names (prefixed with `$`) do not
+  produce inlay hints. For-loop desugaring introduces a `$`-named iterator
+  variable; only the user-visible `item` binding should receive a hint.
+  """
+  let _server: _LspTestServer
+
+  new iso create(server: _LspTestServer) =>
+    _server = server
+
+  fun name(): String =>
+    "inlay_hint/integration/synthetic_name_exclusion"
+
+  fun apply(h: TestHelper) =>
+    _RunLspChecks(
+      h,
+      _server,
+      "inlay_hint/_inlay_hint.pony",
+      [ _InlayHintChecker(
+          [ (37, 12, ": String val") ] // item hint; no hint for $iterator
+          where range = (37, 0, 39, 0)) ])
+
+class \nodoc\ iso _InlayHintFunctionParamsFullTest is UnitTest
+  """
+  Full-file test covering all three functions in _function_params.pony.
+  Verifies capability hints on parameter types (explicit and generic) and
+  that fully-annotated parameters produce no hints.
+  """
+  let _server: _LspTestServer
+
+  new iso create(server: _LspTestServer) =>
+    _server = server
+
+  fun name(): String =>
+    "inlay_hint/integration/function_params/full"
+
+  fun apply(h: TestHelper) =>
+    _RunLspChecks(
+      h,
+      _server,
+      "inlay_hint/_function_params.pony",
+      [ _InlayHintChecker(
+          [ (8, 5, " box")            // explicit receiver cap
+            (8, 24, " val")           // s: String cap
+            (8, 40, " val")           // arr: Array[U32] — U32 cap
+            (8, 41, " ref")           // arr: Array[U32] — Array cap
+            (8, 42, ": None val")     // explicit inferred return type
+            (12, 5, " box")           // full_caps receiver cap
+            (12, 55, ": None val")    // full_caps return type (no param hints)
+            (16, 5, " box")           // generic receiver cap
+            (16, 49, " ref")          // arr: Array[T] — Array cap
+            (16, 50, ": None val") ]  // generic inferred return type
+          ) ])
+
+class \nodoc\ iso _InlayHintFunctionParamsExplicitTest is UnitTest
+  """
+  Range covering only `fun explicit` (line 9). Verifies that
+  String and Array[U32] parameter types each receive a capability hint.
+  """
+  let _server: _LspTestServer
+
+  new iso create(server: _LspTestServer) =>
+    _server = server
+
+  fun name(): String =>
+    "inlay_hint/integration/function_params/explicit"
+
+  fun apply(h: TestHelper) =>
+    _RunLspChecks(
+      h,
+      _server,
+      "inlay_hint/_function_params.pony",
+      [ _InlayHintChecker(
+          [ (8, 5, " box")            // receiver cap
+            (8, 24, " val")           // s: String cap
+            (8, 40, " val")           // U32 cap
+            (8, 41, " ref")           // Array cap
+            (8, 42, ": None val") ]   // return type
+          where range = (8, 0, 10, 0)) ])
+
+class \nodoc\ iso _InlayHintFunctionParamsGenericTest is UnitTest
+  """
+  Range covering only `fun generic` (line 17). Verifies that Array[T]
+  receives a capability hint for Array while the typeparamref T is skipped.
+  """
+  let _server: _LspTestServer
+
+  new iso create(server: _LspTestServer) =>
+    _server = server
+
+  fun name(): String =>
+    "inlay_hint/integration/function_params/generic"
+
+  fun apply(h: TestHelper) =>
+    _RunLspChecks(
+      h,
+      _server,
+      "inlay_hint/_function_params.pony",
+      [ _InlayHintChecker(
+          [ (16, 5, " box")           // receiver cap
+            (16, 49, " ref")          // Array[T] cap
+            (16, 50, ": None val") ]  // return type
+          where range = (16, 0, 18, 0)) ])
+
+class \nodoc\ iso _InlayHintFunctionParamsFullCapsTest is UnitTest
+  """
+  Range covering only `fun full_caps` (line 13). Verifies that explicitly
+  annotated parameter capabilities (String box, Array[U32 val] ref)
+  suppress all parameter hints.
+  """
+  let _server: _LspTestServer
+
+  new iso create(server: _LspTestServer) =>
+    _server = server
+
+  fun name(): String =>
+    "inlay_hint/integration/function_params/full_caps"
+
+  fun apply(h: TestHelper) =>
+    _RunLspChecks(
+      h,
+      _server,
+      "inlay_hint/_function_params.pony",
+      [ _InlayHintChecker(
+          [ (12, 5, " box")           // receiver cap only
+            (12, 55, ": None val") ]  // return type; no param hints
+          where range = (12, 0, 14, 0)) ])
+
+class \nodoc\ iso _InlayHintPrimitiveTest is UnitTest
+  """
+  Verifies that a primitive's user-defined method receives the expected hints
+  and that synthetic compiler-added methods (eq/ne from add_comparable) do
+  not produce spurious extra hints. The exact count of 3 hints would fail if
+  any synthetic method leaked through.
+  """
+  let _server: _LspTestServer
+
+  new iso create(server: _LspTestServer) =>
+    _server = server
+
+  fun name(): String =>
+    "inlay_hint/integration/primitive"
+
+  fun apply(h: TestHelper) =>
+    _RunLspChecks(
+      h,
+      _server,
+      "inlay_hint/_prim.pony",
+      [ _InlayHintChecker(
+          [ (6, 5, " box")            // greet receiver cap
+            (6, 24, " val")           // name: String cap
+            (6, 31, " val") ]         // None return cap
+          ) ])
+
+class \nodoc\ iso _InlayHintPrimitiveNewFirstTest is UnitTest
+  """
+  Verifies suppression when a primitive's first member is a constructor.
+  Synthetic ne inherits the position of 'n' in 'new', matching ne's own
+  first character. Without the boundary-byte check, ne would leak a
+  spurious : Bool val hint. The exact count of 2 hints would fail if it did.
+  """
+  let _server: _LspTestServer
+
+  new iso create(server: _LspTestServer) =>
+    _server = server
+
+  fun name(): String =>
+    "inlay_hint/integration/primitive/new_first"
+
+  fun apply(h: TestHelper) =>
+    _RunLspChecks(
+      h,
+      _server,
+      "inlay_hint/_prim_new_first.pony",
+      [ _InlayHintChecker(
+          [ (10, 5, " box")           // greet receiver cap
+            (10, 19, " val") ]        // None return cap
+          ) ])
+
+class \nodoc\ iso _InlayHintPrimitiveEFirstCharTest is UnitTest
+  """
+  Verifies that a user-defined method starting with 'e' is not suppressed
+  by the synthetic-method guard. 'e' is also the first character of synthetic
+  eq; the boundary-byte check must not fire for the user method (its name
+  ends at '(', a non-identifier character).
+  """
+  let _server: _LspTestServer
+
+  new iso create(server: _LspTestServer) =>
+    _server = server
+
+  fun name(): String =>
+    "inlay_hint/integration/primitive/e_first_char"
+
+  fun apply(h: TestHelper) =>
+    _RunLspChecks(
+      h,
+      _server,
+      "inlay_hint/_prim_e_first_char.pony",
+      [ _InlayHintChecker(
+          [ (7, 5, " box")            // engage receiver cap
+            (7, 20, " val") ]         // None return cap
+          ) ])
+
+class \nodoc\ iso _InlayHintPrimitiveEmptyTest is UnitTest
+  """
+  Verifies that a primitive with no user-defined methods produces no inlay
+  hints. Synthetic eq and ne are the only members and must be suppressed.
+  """
+  let _server: _LspTestServer
+
+  new iso create(server: _LspTestServer) =>
+    _server = server
+
+  fun name(): String =>
+    "inlay_hint/integration/primitive/empty"
+
+  fun apply(h: TestHelper) =>
+    _RunLspChecks(
+      h,
+      _server,
+      "inlay_hint/_prim_empty.pony",
+      [ _InlayHintChecker(
+          recover val Array[(I64, I64, String)].create() end) ])
+
+class \nodoc\ iso _InlayHintLambdaInferredTest is UnitTest
+  """
+  Range covering demo_inferred (lines 5-9). Verifies that local variables
+  assigned lambda expressions receive a full inferred-type hint even though
+  lambda type annotations are not processed for inner capability hints.
+  """
+  let _server: _LspTestServer
+
+  new iso create(server: _LspTestServer) =>
+    _server = server
+
+  fun name(): String =>
+    "inlay_hint/integration/lambda/inferred"
+
+  fun apply(h: TestHelper) =>
+    _RunLspChecks(
+      h,
+      _server,
+      "inlay_hint/_lambda_hints.pony",
+      [ _InlayHintChecker(
+          [ (6, 9, ": {(): String} val")  // f: no-arg lambda
+            (7, 11, ": {(U32, U32): U32} val") ]  // add: two-arg lambda
+          where range = (5, 0, 9, 0)) ])
+
+class \nodoc\ iso _InlayHintLambdaAnnotatedTest is UnitTest
+  """
+  Range covering demo_annotated (lines 10-12). Receiver cap and return type
+  are explicit, so no function-level hints are emitted. Verifies that no
+  spurious cap hints appear inside the lambda type annotation {(String): None}
+  on the local variable: tk_lambdatype nodes are not processed by
+  _add_nominal_hints.
+  """
+  let _server: _LspTestServer
+
+  new iso create(server: _LspTestServer) =>
+    _server = server
+
+  fun name(): String =>
+    "inlay_hint/integration/lambda/annotated"
+
+  fun apply(h: TestHelper) =>
+    _RunLspChecks(
+      h,
+      _server,
+      "inlay_hint/_lambda_hints.pony",
+      [ _InlayHintChecker(
+          []
+          where range = (10, 0, 13, 0)) ])
+
+class \nodoc\ iso _InlayHintLambdaAnnotatedExplicitTest is UnitTest
+  """
+  Range covering demo_annotated_explicit (lines 14-16). Same as
+  _InlayHintLambdaAnnotatedTest but the lambda type annotation includes
+  explicit inner caps: {(String val): None val} val. Verifies that no
+  spurious cap hints appear even when explicit caps are present inside the
+  lambda type annotation.
+  """
+  let _server: _LspTestServer
+
+  new iso create(server: _LspTestServer) =>
+    _server = server
+
+  fun name(): String =>
+    "inlay_hint/integration/lambda/annotated_explicit"
+
+  fun apply(h: TestHelper) =>
+    _RunLspChecks(
+      h,
+      _server,
+      "inlay_hint/_lambda_hints.pony",
+      [ _InlayHintChecker(
+          []
+          where range = (14, 0, 17, 0)) ])
+
+class \nodoc\ iso _InlayHintLambdaParamTest is UnitTest
+  """
+  Range covering with_callback (lines 18-19). Receiver cap and return type
+  are explicit. Verifies that no spurious cap hints appear inside the lambda
+  type used as a function parameter: {(String): None} val.
+  """
+  let _server: _LspTestServer
+
+  new iso create(server: _LspTestServer) =>
+    _server = server
+
+  fun name(): String =>
+    "inlay_hint/integration/lambda/param"
+
+  fun apply(h: TestHelper) =>
+    _RunLspChecks(
+      h,
+      _server,
+      "inlay_hint/_lambda_hints.pony",
+      [ _InlayHintChecker(
+          []
+          where range = (18, 0, 20, 0)) ])
+
+class \nodoc\ iso _InlayHintLambdaParamExplicitTest is UnitTest
+  """
+  Range covering with_callback_explicit (lines 21-24). Same as
+  _InlayHintLambdaParamTest but with explicit inner caps in the lambda type
+  parameter: {(String val): None val} val. Verifies that no spurious cap
+  hints appear inside the lambda type annotation.
+  """
+  let _server: _LspTestServer
+
+  new iso create(server: _LspTestServer) =>
+    _server = server
+
+  fun name(): String =>
+    "inlay_hint/integration/lambda/param_explicit"
+
+  fun apply(h: TestHelper) =>
+    _RunLspChecks(
+      h,
+      _server,
+      "inlay_hint/_lambda_hints.pony",
+      [ _InlayHintChecker(
+          []
+          where range = (21, 0, 24, 0)) ])
+
+class \nodoc\ iso _InlayHintLambdaReturnTest is UnitTest
+  """
+  Range covering make_cb (lines 26-27). Receiver cap and return type are
+  both explicit ({(): String} val), so no function-level hints are emitted.
+  Verifies that no spurious cap hints appear inside the lambda type used as
+  the explicit return type annotation.
+  """
+  let _server: _LspTestServer
+
+  new iso create(server: _LspTestServer) =>
+    _server = server
+
+  fun name(): String =>
+    "inlay_hint/integration/lambda/return_type"
+
+  fun apply(h: TestHelper) =>
+    _RunLspChecks(
+      h,
+      _server,
+      "inlay_hint/_lambda_hints.pony",
+      [ _InlayHintChecker(
+          []
+          where range = (25, 0, 27, 0)) ])
+
+class \nodoc\ iso _InlayHintLambdaReturnExplicitTest is UnitTest
+  """
+  Range covering make_cb_explicit (lines 29-30). Same as
+  _InlayHintLambdaReturnTest but with an explicit inner cap in the lambda
+  return type: {(): String val} val. Verifies that no spurious cap hints
+  appear inside the lambda type annotation.
+  """
+  let _server: _LspTestServer
+
+  new iso create(server: _LspTestServer) =>
+    _server = server
+
+  fun name(): String =>
+    "inlay_hint/integration/lambda/return_type_explicit"
+
+  fun apply(h: TestHelper) =>
+    _RunLspChecks(
+      h,
+      _server,
+      "inlay_hint/_lambda_hints.pony",
+      [ _InlayHintChecker(
+          []
+          where range = (28, 0, 30, 0)) ])
+
+class \nodoc\ iso _InlayHintLambdaGenericParamTest is UnitTest
+  """
+  Range covering with_generic_param (lines 31-33). Verifies that a generic
+  type inside a lambda type annotation ({(Array[U32]): None} val) produces
+  no spurious cap hints, including no hint from Array or U32.
+  """
+  let _server: _LspTestServer
+
+  new iso create(server: _LspTestServer) =>
+    _server = server
+
+  fun name(): String =>
+    "inlay_hint/integration/lambda/generic_param"
+
+  fun apply(h: TestHelper) =>
+    _RunLspChecks(
+      h,
+      _server,
+      "inlay_hint/_lambda_hints.pony",
+      [ _InlayHintChecker(
+          []
+          where range = (31, 0, 34, 0)) ])
+
+class \nodoc\ iso _InlayHintLambdaNestedLambdaTest is UnitTest
+  """
+  Range covering with_nested_lambda (lines 35-37). Verifies that a nested
+  lambda type inside a lambda type annotation ({({(): String}): None} val)
+  produces no spurious cap hints.
+  """
+  let _server: _LspTestServer
+
+  new iso create(server: _LspTestServer) =>
+    _server = server
+
+  fun name(): String =>
+    "inlay_hint/integration/lambda/nested_lambda"
+
+  fun apply(h: TestHelper) =>
+    _RunLspChecks(
+      h,
+      _server,
+      "inlay_hint/_lambda_hints.pony",
+      [ _InlayHintChecker(
+          []
+          where range = (35, 0, 38, 0)) ])
+
+class \nodoc\ iso _InlayHintLambdaUnionParamTest is UnitTest
+  """
+  Range covering with_union_param (lines 39-41). Verifies that a union type
+  inside a lambda type annotation ({((String | None)): None} val) produces
+  no spurious cap hints from String or None.
+  """
+  let _server: _LspTestServer
+
+  new iso create(server: _LspTestServer) =>
+    _server = server
+
+  fun name(): String =>
+    "inlay_hint/integration/lambda/union_param"
+
+  fun apply(h: TestHelper) =>
+    _RunLspChecks(
+      h,
+      _server,
+      "inlay_hint/_lambda_hints.pony",
+      [ _InlayHintChecker(
+          []
+          where range = (39, 0, 42, 0)) ])
+
+class val _InlayHintChecker
+  """
+  Checks that an inlayHint response contains exactly the expected hints.
+  Each entry is (line, character, label_substring). The total hint count
+  is asserted against the number of expected entries.
+  """
+  let _expected: Array[(I64, I64, String)] val
+  let _range: (None | (I64, I64, I64, I64))
+
+  new val create(
+    expected: Array[(I64, I64, String)] val,
+    range: (None | (I64, I64, I64, I64)) = None)
+  =>
+    _expected = expected
+    _range = range
+
+  fun lsp_method(): String =>
+    Methods.text_document().inlay_hint()
+
+  fun lsp_params(): (None | JsonObject) =>
+    match \exhaustive\ _range
+    | (let sl: I64, let sc: I64, let el: I64, let ec: I64) =>
+      JsonObject.update(
+        "range",
+        JsonObject
+          .update(
+            "start", JsonObject.update("line", sl).update("character", sc))
+          .update("end", JsonObject.update("line", el).update("character", ec)))
+    | None =>
+      None
+    end
+
+  fun check(res: ResponseMessage val, h: TestHelper): Bool =>
+    var ok = true
+    try
+      let hints = res.result as JsonArray
+      if not h.assert_eq[USize](
+        _expected.size(),
+        hints.size(),
+        "Expected " + _expected.size().string() +
+        " hints, got " + hints.size().string())
+      then
+        ok = false
+      end
+      for (exp_line, exp_char, exp_label) in _expected.values() do
+        var found = false
+        for hint_val in hints.values() do
+          try
+            let hint = hint_val as JsonObject
+            let hint_line = JsonNav(hint)("position")("line").as_i64()?
+            let hint_char = JsonNav(hint)("position")("character").as_i64()?
+            if (hint_line == exp_line) and (hint_char == exp_char) then
+              let label = JsonNav(hint)("label").as_string()?
+              if not h.assert_true(
+                label.contains(exp_label),
+                "At " + exp_line.string() + ":" + exp_char.string() +
+                " expected label to contain '" + exp_label +
+                "', got: '" + label + "'")
+              then
+                ok = false
+              end
+              found = true
+              break
+            end
+          end
+        end
+        if not h.assert_true(
+          found,
+          "No hint found at " + exp_line.string() + ":" + exp_char.string())
+        then
+          ok = false
+        end
+      end
+    else
+      h.fail("Failed to parse inlay hint response: " + res.string())
+      ok = false
+    end
+    ok

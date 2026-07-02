@@ -131,16 +131,38 @@ static void make_signature(compile_t* c, reach_type_t* t,
       mparams[i + offset + 2] = p_c_t->mem_type;
   }
 
+  // Detect if the method is partial. This decides the LLVM calling convention
+  // of the method's vtable slot (`{T, i1}` for partial, `T` for non-partial).
+  // Bare functions are excluded: they are called from C code that doesn't
+  // understand error-flag returns, so they abort on unhandled error instead.
+  //
+  // COUPLING: this test MUST stay byte-identical to the partiality test in
+  // make_mangled_name (reach/reach.c), which decides WHICH slot a method lands
+  // in. If they diverge, a method's slot and its ABI disagree — the calling-
+  // convention crash that partial/non-partial slot segregation exists to
+  // prevent.
+  ast_t* can_error = ast_childidx(m->fun->ast, 5);
+  c_m->is_partial = (m->cap != TK_AT) && (ast_id(can_error) == TK_QUESTION);
+
   // Generate the function type.
   // Bare methods returning None return void to maintain compatibility with C.
   // Class constructors return void to avoid clobbering nocapture information.
-  if(bare_void || (n->name == c->str__final) ||
-    ((ast_id(m->fun->ast) == TK_NEW) && (t->underlying == TK_CLASS)))
-    c_m->func_type = LLVMFunctionType(c->void_type, tparams, (int)count, false);
+  // Partial functions wrap the return type with an error flag.
+  bool is_void_return = bare_void || (n->name == c->str__final) ||
+    ((ast_id(m->fun->ast) == TK_NEW) && (t->underlying == TK_CLASS));
+
+  if(is_void_return)
+  {
+    LLVMTypeRef ret = c_m->is_partial ? c->i1 : c->void_type;
+    c_m->func_type = LLVMFunctionType(ret, tparams, (int)count, false);
+  }
   else
-    c_m->func_type = LLVMFunctionType(
-      ((compile_type_t*)m->result->c_type)->use_type, tparams, (int)count,
-      false);
+  {
+    LLVMTypeRef ret = ((compile_type_t*)m->result->c_type)->use_type;
+    if(c_m->is_partial)
+      ret = error_flag_type(c, ret);
+    c_m->func_type = LLVMFunctionType(ret, tparams, (int)count, false);
+  }
 
   if(message_type)
   {
@@ -272,7 +294,7 @@ static void make_prototype(compile_t* c, reach_type_t* t,
     LLVMGetParamTypes(c_m->func_type, tparams);
 
     // Generate the sender prototype.
-    const char* sender_name = genname_be(m->full_name);
+    const char* sender_name = genname_be(m->full_name, c->opt->strtab);
     c_m->func = codegen_addfun(c, sender_name, c_m->func_type, true);
     genfun_param_attrs(c, t, m, c_m->func);
 
@@ -300,16 +322,6 @@ static void make_prototype(compile_t* c, reach_type_t* t,
     // linkage.
     pony_assert(c_t->final_fn == NULL);
     c_t->final_fn = c_m->func;
-    LLVMSetFunctionCallConv(c_m->func, LLVMCCallConv);
-    LLVMSetLinkage(c_m->func, LLVMExternalLinkage);
-  } else if(n->name == c->str__serialise_space) {
-    c_t->custom_serialise_space_fn = c_m->func;
-    LLVMSetFunctionCallConv(c_m->func, LLVMCCallConv);
-    LLVMSetLinkage(c_m->func, LLVMExternalLinkage);
-  } else if(n->name == c->str__serialise) {
-    c_t->custom_serialise_fn = c_m->func;
-  } else if(n->name == c->str__deserialise) {
-    c_t->custom_deserialise_fn = c_m->func;
     LLVMSetFunctionCallConv(c_m->func, LLVMCCallConv);
     LLVMSetLinkage(c_m->func, LLVMExternalLinkage);
   }
@@ -342,7 +354,7 @@ static void add_get_behavior_name_case(compile_t* c, reach_type_t* t,
   LLVMPositionBuilderAtEnd(c->builder, block);
 
   // hack to get the behavior name since it's always a "tag_" prefix
-  const char* name = genname_behavior_name(t->name, be_name + 4);
+  const char* name = genname_behavior_name(t->name, be_name + 4, c->opt->strtab);
 
   LLVMValueRef ret = codegen_string(c, name, strlen(name));
   genfun_build_ret(c, ret);
@@ -489,6 +501,7 @@ static bool genfun_fun(compile_t* c, reach_type_t* t, reach_method_t* m)
 
   codegen_startfun(c, c_m->func, c_m->di_file, c_m->di_method, m->fun,
     ast_id(cap) == TK_AT);
+  c->frame->is_partial = c_m->is_partial;
   name_params(c, t, m, c_m->func);
 
   bool finaliser = c_m->func == c_t->final_fn;
@@ -517,18 +530,37 @@ static bool genfun_fun(compile_t* c, reach_type_t* t, reach_method_t* m)
       LLVMTypeRef r_type = LLVMGetReturnType(f_type);
 
       ast_t* body_type = deferred_reify(m->fun, ast_type(body), c->opt);
-      LLVMValueRef ret = gen_assign_cast(c, r_type, value, body_type);
 
-      ast_free_unattached(body_type);
-      ast_free_unattached(r_result);
+      if(c_m->is_partial)
+      {
+        LLVMTypeRef unwrapped = LLVMStructGetTypeAtIndex(r_type, 0);
+        LLVMValueRef ret = gen_assign_cast(c, unwrapped, value, body_type);
 
-      if(ret == NULL)
-        return false;
+        ast_free_unattached(body_type);
+        ast_free_unattached(r_result);
 
-      codegen_scope_lifetime_end(c);
-      codegen_debugloc(c, ast_childlast(body));
+        if(ret == NULL)
+          return false;
 
-      genfun_build_ret(c, ret);
+        codegen_scope_lifetime_end(c);
+        codegen_debugloc(c, ast_childlast(body));
+
+        ret = wrap_result(c, ret, LLVMConstInt(c->i1, 0, false));
+        genfun_build_ret(c, ret);
+      } else {
+        LLVMValueRef ret = gen_assign_cast(c, r_type, value, body_type);
+
+        ast_free_unattached(body_type);
+        ast_free_unattached(r_result);
+
+        if(ret == NULL)
+          return false;
+
+        codegen_scope_lifetime_end(c);
+        codegen_debugloc(c, ast_childlast(body));
+
+        genfun_build_ret(c, ret);
+      }
     }
 
     codegen_debugloc(c, NULL);
@@ -601,6 +633,7 @@ static bool genfun_new(compile_t* c, reach_type_t* t, reach_method_t* m)
     body);
 
   codegen_startfun(c, c_m->func, c_m->di_file, c_m->di_method, m->fun, false);
+  c->frame->is_partial = c_m->is_partial;
   name_params(c, t, m, c_m->func);
 
   LLVMValueRef value = gen_expr(c, body);
@@ -615,9 +648,23 @@ static bool genfun_new(compile_t* c, reach_type_t* t, reach_method_t* m)
   codegen_scope_lifetime_end(c);
   codegen_debugloc(c, ast_childlast(body));
   if(t->underlying == TK_CLASS)
-    genfun_build_ret_void(c);
+  {
+    if(c_m->is_partial)
+      genfun_build_ret(c, LLVMConstInt(c->i1, 0, false));
+    else
+      genfun_build_ret_void(c);
+  }
   else
-    genfun_build_ret(c, value);
+  {
+    if(c_m->is_partial)
+    {
+      LLVMValueRef ret = wrap_result(c, value,
+        LLVMConstInt(c->i1, 0, false));
+      genfun_build_ret(c, ret);
+    }
+    else
+      genfun_build_ret(c, value);
+  }
   codegen_debugloc(c, NULL);
 
   codegen_finishfun(c);
@@ -685,6 +732,7 @@ static void copy_subordinate(reach_method_t* m)
     compile_method_t* c_m2 = (compile_method_t*)m2->c_method;
     c_m2->func_type = c_m->func_type;
     c_m2->func = c_m->func;
+    c_m2->is_partial = c_m->is_partial;
     m2 = m2->subordinate;
   }
 }
@@ -736,7 +784,7 @@ static bool genfun_allocator(compile_t* c, reach_type_t* t)
   if((c_t->primitive != NULL) || is_pointer(t->ast) || is_nullable_pointer(t->ast))
     return true;
 
-  const char* funname = genname_alloc(t->name);
+  const char* funname = genname_alloc(t->name, c->opt->strtab);
   LLVMTypeRef ftype = LLVMFunctionType(c_t->use_type, NULL, 0, false);
   LLVMValueRef fun = codegen_addfun(c, funname, ftype, true);
   if(t->underlying != TK_PRIMITIVE)
@@ -787,13 +835,14 @@ static bool genfun_forward(compile_t* c, reach_type_t* t,
   compile_method_t* c_m = (compile_method_t*)m->c_method;
   pony_assert(c_m->func != NULL);
 
-  reach_method_t* m2 = reach_method(t, m->cap, n->name, m->typeargs);
+  reach_method_t* m2 = reach_method(t, m->cap, n->name, m->typeargs, c->opt);
   pony_assert(m2 != NULL);
   pony_assert(m2 != m);
   compile_method_t* c_m2 = (compile_method_t*)m2->c_method;
 
   codegen_startfun(c, c_m->func, c_m->di_file, c_m->di_method, m->fun,
     m->cap == TK_AT);
+  c->frame->is_partial = c_m->is_partial;
 
   int count = LLVMCountParams(c_m->func);
   size_t buf_size = count * sizeof(LLVMValueRef);
@@ -813,11 +862,98 @@ static bool genfun_forward(compile_t* c, reach_type_t* t,
   LLVMValueRef ret = codegen_call(c, LLVMGlobalGetValueType(c_m2->func),
     c_m2->func, args, count, m->cap != TK_AT);
   codegen_debugloc(c, NULL);
-  ret = gen_assign_cast(c, ((compile_type_t*)m->result->c_type)->use_type, ret,
-    m2->result->ast_cap);
-  genfun_build_ret(c, ret);
+
+  if(c_m->is_partial)
+  {
+    LLVMTypeRef f_type = LLVMGlobalGetValueType(c_m->func);
+    LLVMTypeRef r_type = LLVMGetReturnType(f_type);
+
+    if(r_type == c->i1)
+    {
+      if(c_m2->is_partial)
+      {
+        // Both partial class constructors: i1 passes through directly.
+        genfun_build_ret(c, ret);
+      }
+      else
+      {
+        // Target is non-partial class constructor (returns void).
+        // Wrapper is partial: return false (no error).
+        genfun_build_ret(c, LLVMConstInt(c->i1, 0, false));
+      }
+    }
+    else
+    {
+      LLVMTypeRef unwrapped = LLVMStructGetTypeAtIndex(r_type, 0);
+
+      if(c_m2->is_partial)
+      {
+        // Both partial: unwrap target result, cast, re-wrap.
+        LLVMValueRef error_flag = unwrap_error(c, ret);
+        LLVMValueRef value = unwrap_result(c, ret);
+        value = gen_assign_cast(c, unwrapped, value, m2->result->ast_cap);
+        value = wrap_result(c, value, error_flag);
+        genfun_build_ret(c, value);
+      }
+      else
+      {
+        // Target is non-partial: cast result, wrap with false (no error).
+        ret = gen_assign_cast(c, unwrapped, ret, m2->result->ast_cap);
+        ret = wrap_result(c, ret, LLVMConstInt(c->i1, 0, false));
+        genfun_build_ret(c, ret);
+      }
+    }
+  }
+  else
+  {
+    ret = gen_assign_cast(c, ((compile_type_t*)m->result->c_type)->use_type,
+      ret, m2->result->ast_cap);
+    genfun_build_ret(c, ret);
+  }
+
   codegen_finishfun(c);
   ponyint_pool_free_size(buf_size, args);
+
+  // For forwarding behaviors/constructors on actors, add a dispatch case that
+  // traces with the forwarding method's params (the trait's capabilities) but
+  // calls the concrete method's handler.
+  //
+  // Only do this when all parameter types are structurally equivalent between
+  // the forwarding and concrete methods — i.e. the forwarding was created
+  // solely because of a trace-kind (cap) difference. We compare mangles
+  // rather than reach_type_t pointers because compound types with different
+  // capabilities (e.g. (B iso, A iso) vs (B val, A val)) produce different
+  // reach_type_t instances but identical mangles. When the types themselves
+  // differ (e.g. a tuple vs Any), the LLVM types are incompatible and the
+  // existing forwarding sender path handles dispatch correctly without a
+  // separate dispatch case.
+  if(t->underlying == TK_ACTOR)
+  {
+    token_id fun_id = ast_id(m->fun->ast);
+
+    if((fun_id == TK_BE) || (fun_id == TK_NEW))
+    {
+      bool types_match = (m->param_count == m2->param_count);
+
+      for(size_t i = 0; types_match && (i < m->param_count); i++)
+      {
+        if(strcmp(m->params[i].type->mangle, m2->params[i].type->mangle) != 0)
+          types_match = false;
+      }
+
+      if(types_match)
+      {
+        pony_assert(c_m2->func_handler != NULL);
+        add_dispatch_case(c, t, m->params, m->vtable_index,
+          c_m2->func_handler, c_m2->func_type, c_m->msg_type);
+
+#if defined(USE_RUNTIME_TRACING)
+        add_get_behavior_name_case(c, t, m->name, m->vtable_index);
+#endif
+      }
+    }
+  }
+
   return true;
 }
 
@@ -1019,19 +1155,45 @@ bool genfun_method_bodies(compile_t* c, reach_type_t* t)
     size_t j = HASHMAP_BEGIN;
     reach_method_t* m;
 
+    // First pass: non-forwarding methods (generates handlers that forwarding
+    // dispatch cases will reference).
     while((m = reach_mangled_next(&n->r_mangled, &j)) != NULL)
     {
-      if(!genfun_method(c, t, n, m))
+      if(!m->forwarding)
       {
-        if(errors_get_count(c->opt->check.errors) == 0)
+        if(!genfun_method(c, t, n, m))
         {
-          pony_assert(m->fun != NULL);
-          ast_error(c->opt->check.errors, m->fun->ast,
-            "internal failure: code generation failed for method %s",
-            m->full_name);
-        }
+          if(errors_get_count(c->opt->check.errors) == 0)
+          {
+            pony_assert(m->fun != NULL);
+            ast_error(c->opt->check.errors, m->fun->ast,
+              "internal failure: code generation failed for method %s",
+              m->full_name);
+          }
 
-        return false;
+          return false;
+        }
+      }
+    }
+
+    // Second pass: forwarding methods (may need handlers from first pass).
+    j = HASHMAP_BEGIN;
+    while((m = reach_mangled_next(&n->r_mangled, &j)) != NULL)
+    {
+      if(m->forwarding)
+      {
+        if(!genfun_method(c, t, n, m))
+        {
+          if(errors_get_count(c->opt->check.errors) == 0)
+          {
+            pony_assert(m->fun != NULL);
+            ast_error(c->opt->check.errors, m->fun->ast,
+              "internal failure: code generation failed for method %s",
+              m->full_name);
+          }
+
+          return false;
+        }
       }
     }
   }
@@ -1070,7 +1232,7 @@ static void primitive_call(compile_t* c, const char* method)
     if(t->underlying != TK_PRIMITIVE)
       continue;
 
-    reach_method_t* m = reach_method(t, TK_NONE, method, NULL);
+    reach_method_t* m = reach_method(t, TK_NONE, method, NULL, c->opt);
 
     if(m == NULL)
       continue;
@@ -1092,7 +1254,7 @@ void genfun_primitive_calls(compile_t* c)
   if(need_primitive_call(c, c->str__init))
   {
     fn_type = LLVMFunctionType(c->void_type, NULL, 0, false);
-    const char* fn_name = genname_program_fn(c->filename, "primitives_init");
+    const char* fn_name = genname_program_fn(c->filename, "primitives_init", c->opt->strtab);
     c->primitives_init = LLVMAddFunction(c->module, fn_name, fn_type);
 
     codegen_startfun(c, c->primitives_init, NULL, NULL, NULL, false);
@@ -1105,7 +1267,7 @@ void genfun_primitive_calls(compile_t* c)
   {
     if(fn_type == NULL)
       fn_type = LLVMFunctionType(c->void_type, NULL, 0, false);
-    const char* fn_name = genname_program_fn(c->filename, "primitives_final");
+    const char* fn_name = genname_program_fn(c->filename, "primitives_final", c->opt->strtab);
     c->primitives_final = LLVMAddFunction(c->module, fn_name, fn_type);
 
     codegen_startfun(c, c->primitives_final, NULL, NULL, NULL, false);

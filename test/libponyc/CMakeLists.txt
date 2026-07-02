@@ -3,6 +3,7 @@ cmake_minimum_required(VERSION 3.21 FATAL_ERROR)
 project(libponyc.tests VERSION ${PONYC_PROJECT_VERSION} LANGUAGES C CXX)
 
 add_executable(libponyc.tests
+    alias.cc
     annotations.cc
     array.cc
     badpony.cc
@@ -14,7 +15,7 @@ add_executable(libponyc.tests
     codegen.cc
     codegen_ffi.cc
     codegen_optimisation.cc
-    compiler_serialisation.cc
+    cshim.cc
     dontcare.cc
     ffi.cc
     finalisers.cc
@@ -36,10 +37,12 @@ add_executable(libponyc.tests
     program.cc
     reach.cc
     recover.cc
+    recursive_type_alias.cc
     refer.cc
     scope.cc
-    signature.cc
+    source.cc
     stable_type.cc
+    subtype_cache.cc
     sugar.cc
     sugar_expr.cc
     sugar_traits.cc
@@ -49,6 +52,7 @@ add_executable(libponyc.tests
     traits.cc
     type_check_bind.cc
     type_check_subtype.cc
+    type_params.cc
     use.cc
     userflags.cc
     util.cc
@@ -84,7 +88,6 @@ if (MSVC)
     target_link_libraries(libponyc.tests
         PRIVATE libponyc
         PRIVATE libponyrt
-        PRIVATE blake2
         PRIVATE GTest::gtest
         PRIVATE dbghelp
         PRIVATE ucrt
@@ -100,7 +103,6 @@ else()
         target_link_libraries(libponyc.tests PRIVATE
             -Wl,-force_load,../../src/libponyrt/libponyrt.a
             libponyc
-            blake2
             GTest::gtest
         )
     else()
@@ -109,7 +111,6 @@ else()
             libponyrt
             -Wl,--no-whole-archive
             libponyc
-            blake2
             GTest::gtest
         )
     endif()
@@ -132,5 +133,5 @@ else()
 endif (MSVC)
 
 if(NOT PONY_CROSS_LIBPONYRT)
-    target_link_libraries(libponyc.tests PRIVATE ${PONYC_LLVM_LIBS} ${PONYC_LLD_LIBS})
+    target_link_libraries(libponyc.tests PRIVATE ${PONYC_CLANG_LIBS} ${PONYC_LLVM_LIBS} ${PONYC_LLD_LIBS} ${PONYC_EXTRA_LIBS})
 endif()

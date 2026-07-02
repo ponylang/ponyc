@@ -1,22 +1,24 @@
 {
-  "packages": ["pony-lsp", "pony-lsp/workspace", "pony-lsp/test"],
+  "packages": [
+    "pony-lsp",
+    "pony-lsp/workspace",
+    "pony-lsp/test",
+    "pony-lint",
+    "pony-lint/test",
+    "pony-doc",
+    "pony-doc/test"
+  ],
   "deps": [
     {
-      "locator": "./lib/ponylang/json-ng"
-    },
-    {
       "locator": "./lib/ponylang/pony_compiler"
-    },
-    {
-      "locator": "./lib/ponylang/peg"
     }
   ],
   "info": {
-    "description": "The Pony Language Server",
+    "description": "The Pony Tools - this corral.json is only there for helping the pony-lsp to find its deps",
     "homepage": "",
     "license": "",
     "documentation_url": "",
-    "version": "0.2.2",
-    "name": "pony-lsp"
+    "version": "1.2.3",
+    "name": "pony-tools"
   }
 }

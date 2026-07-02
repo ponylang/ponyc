@@ -26,6 +26,17 @@ typedef struct asio_event_t
 
 #ifdef PLATFORM_IS_WINDOWS
   HANDLE timer;         /* timer handle */
+  /* Socket teardown is deferred under the readiness backend: unsubscribe issues
+   * a ProcessSocketNotifications REMOVE and sets this marker. While set, the
+   * asio thread drops any in-flight readiness packet for this event, and the
+   * fd + event are kept alive until the REMOVE packet is seen (which is when
+   * the backend closes the fd and sends ASIO_DISPOSABLE). The marker covers
+   * only in-flight packets, not re-arm: subscribe/resubscribe/unsubscribe for
+   * a socket event are all issued from the owning actor's thread and so are
+   * mutually ordered by the actor model -- a re-arm can never race the
+   * REMOVE-issuing unsubscribe. A future change that moved re-arm off the actor
+   * thread would break that and must revisit this marker. */
+  bool removing;
 #endif
 } asio_event_t;
 
@@ -81,6 +92,18 @@ PONY_API void pony_asio_event_setnsec(asio_event_t* ev, uint64_t nsec);
  *  notifications for I/O events on the corresponding resource.
  */
 PONY_API void pony_asio_event_unsubscribe(asio_event_t* ev);
+
+/** Re-arm a one-shot socket event.
+ *
+ *  Implemented by each platform's I/O backend. The single `resubscribe` plus
+ *  the two direction-specific variants form the cross-backend ABI the stdlib
+ *  FFI-uses (`packages/net`). Declared here so they get C linkage on every
+ *  platform -- without this, a backend compiled as C++ (the Windows build)
+ *  would emit C++-mangled names that the FFI references can't resolve.
+ */
+PONY_API void pony_asio_event_resubscribe(asio_event_t* ev);
+PONY_API void pony_asio_event_resubscribe_read(asio_event_t* ev);
+PONY_API void pony_asio_event_resubscribe_write(asio_event_t* ev);
 
 /** Get whether the event id disposable or not
  */

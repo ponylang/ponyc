@@ -101,16 +101,21 @@
 /// Add a TK_NONE node with no children
 #define NONE TREE(ast_from(basis_ast, TK_NONE));
 
+// NOTE: ID, NICE_ID and STRING intern their text, so they require a
+// `pass_opt_t* opt` to be in scope at the BUILD/REPLACE site. Every current
+// user is pass/expr/type/codegen code that already has one.
+
 /// Add a TK_ID node with the given ID name
-#define ID(name) TREE(ast_from_string(basis_ast, name));
+#define ID(name) TREE(ast_from_string(basis_ast, name, opt->strtab));
 
 /// Add a TK_ID node with the given ID name and nice name
 #define NICE_ID(name, nice) \
-  TREE(ast_setdata(ast_from_string(basis_ast, name), (void*)stringtab(nice)));
+  TREE(ast_setdata(ast_from_string(basis_ast, name, opt->strtab), \
+    (void*)stringtab(opt->strtab, nice)));
 
 /// Add a TK_STRING node with the given string value
 #define STRING(value) \
-  TREE(ast_setid(ast_from_string(basis_ast, value), TK_STRING));
+  TREE(ast_setid(ast_from_string(basis_ast, value, opt->strtab), TK_STRING));
 
 /// Add a TK_INT node with the given integer value
 #define INT(value) TREE(ast_from_int(basis_ast, value));

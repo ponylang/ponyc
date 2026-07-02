@@ -56,7 +56,7 @@ actor Main
     An empty string. Enough space for len bytes is reserved.
     """
     _size = 0
-    _alloc = len.min(len.max_value() - 1) + 1
+    _alloc = (len.min(len.max_value() - 1) + 1).max(Pointer[U8]._min_alloc())
     _ptr = Pointer[U8]._alloc(_alloc)
     _set(0, 0)
 
@@ -131,14 +131,15 @@ actor Main
     """
     if str.is_null() then
       _size = 0
-      _alloc = 1
+      _alloc = Pointer[U8]._min_alloc()
       _ptr = Pointer[U8]._alloc(_alloc)
       _set(0, 0)
     else
       _size = len
-      _alloc = _size + 1
+      _alloc = (_size + 1).max(Pointer[U8]._min_alloc())
       _ptr = Pointer[U8]._alloc(_alloc)
-      str._copy_to(_ptr, _alloc)
+      // copy only the content (plus terminator slot); _alloc may be larger.
+      str._copy_to(_ptr, _size + 1)
     end
 
   new copy_cstring(str: Pointer[U8] box) =>
@@ -150,7 +151,7 @@ actor Main
     """
     if str.is_null() then
       _size = 0
-      _alloc = 1
+      _alloc = Pointer[U8]._min_alloc()
       _ptr = Pointer[U8]._alloc(_alloc)
       _set(0, 0)
     else
@@ -161,9 +162,10 @@ actor Main
       end
 
       _size = i
-      _alloc = i + 1
+      _alloc = (i + 1).max(Pointer[U8]._min_alloc())
       _ptr = Pointer[U8]._alloc(_alloc)
-      str._copy_to(_ptr, _alloc)
+      // copy only the content (plus terminator slot); _alloc may be larger.
+      str._copy_to(_ptr, i + 1)
     end
 
   new from_utf32(value: U32) =>
@@ -172,7 +174,7 @@ actor Main
     """
     let encoded = _UTF32Encoder.encode(value)
     _size = encoded._1
-    _alloc = _size + 1
+    _alloc = (_size + 1).max(Pointer[U8]._min_alloc())
     _ptr = Pointer[U8]._alloc(_alloc)
     _set(0, encoded._2)
     if encoded._1 > 1 then
@@ -290,13 +292,15 @@ actor Main
   fun ref reserve(len: USize) =>
     """
     Reserve space for len bytes. An additional byte will be reserved for the
-    null terminator.
+    null terminator. The space reserved is never smaller than the runtime
+    allocator's minimum block (32 bytes), so a small string may reserve more
+    than requested.
     """
     if _alloc <= len then
       let max = len.max_value() - 1
       let min_alloc = len.min(max) + 1
       if min_alloc <= (max / 2) then
-        _alloc = min_alloc.next_pow2()
+        _alloc = min_alloc.next_pow2().max(_ptr._min_alloc())
       else
         _alloc = min_alloc.min(max)
       end
@@ -309,8 +313,9 @@ actor Main
     request may be ignored. The string is returned to allow call chaining.
     """
     if (_size + 1) <= 512 then
-      if (_size + 1).next_pow2() != _alloc.next_pow2() then
-        _alloc = (_size + 1).next_pow2()
+      let target = (_size + 1).next_pow2().max(_ptr._min_alloc())
+      if target < _alloc then
+        _alloc = target
         let old_ptr = _ptr = Pointer[U8]._alloc(_alloc)
         old_ptr._copy_to(_ptr, _size)
         _set(_size, 0)
@@ -616,7 +621,7 @@ actor Main
   fun repeat_str(num: USize = 1, sep: String = ""): String iso^ =>
     """
     Returns a copy of the string repeated `num` times with an optional
-    separator added inbetween repeats.
+    separator added in between repeats.
     """
     var c = num
     var str = recover String((_size + sep.size()) * c) end

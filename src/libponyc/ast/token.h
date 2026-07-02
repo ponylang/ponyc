@@ -5,15 +5,12 @@
 
 #include "lexint.h"
 #include "source.h"
-#include "../libponyrt/pony.h"
 #include <stdbool.h>
 #include <stddef.h>
 
 PONY_EXTERN_C_BEGIN
 
 typedef struct token_t token_t;
-
-typedef struct token_signature_t token_signature_t;
 
 typedef enum token_id
 {
@@ -203,6 +200,8 @@ typedef enum token_id
   TK_LAMBDATYPE,
   TK_BARELAMBDATYPE,
   TK_DONTCARETYPE,
+  TK_BOOL_TRUE,
+  TK_BOOL_FALSE,
   TK_INFERTYPE,
   TK_ERRORTYPE,
 
@@ -238,6 +237,7 @@ typedef enum token_id
   TK_PACKAGEREF,
   TK_TYPEREF,
   TK_TYPEPARAMREF,
+  TK_TYPEALIASREF,
   TK_NEWREF,
   TK_NEWBEREF,
   TK_BEREF,
@@ -298,16 +298,6 @@ void token_free(token_t* token);
 /// Set the token as read-only.
 void token_freeze(token_t* token);
 
-/// Get a pony_type_t for token_t. Should only be used for signature computation.
-pony_type_t* token_signature_pony_type();
-
-/// Get a pony_type_t for a docstring token_t. Should only be used for signature
-/// computation.
-pony_type_t* token_docstring_signature_pony_type();
-
-/// Get a pony_type_t for token_t. Should only be used for serialisation.
-pony_type_t* token_pony_type();
-
 
 // Read accessors
 
@@ -357,6 +347,11 @@ size_t token_line_number(token_t* token);
 /// Report the position within the line that the given token was found at
 size_t token_line_position(token_t* token);
 
+/// Report whether a real newline character separated this token from the
+/// previously emitted one. Set by the lexer; used by the parser to detect
+/// statement separators.
+bool token_newline(token_t* token);
+
 /// Report whether debug info should be generated.
 bool token_debug(token_t* token);
 
@@ -375,7 +370,8 @@ void token_set_id(token_t* token, token_id id);
   * If the given string is nul terminated then 0 may be passed for length, in
   * which case strlen will be called on the string.
   */
-void token_set_string(token_t* token, const char* value, size_t length);
+void token_set_string(token_t* token, const char* value, size_t length,
+  strtable_t* strtab);
 
 /// Set the given token's literal value. Only valid for TK_FLOAT tokens.
 void token_set_float(token_t* token, double value);
@@ -387,6 +383,10 @@ void token_set_int(token_t* token, lexint_t* value);
 /// source file.
 /// Set source to NULL to keep current file.
 void token_set_pos(token_t* token, source_t* source, size_t line, size_t pos);
+
+/// Set whether a real newline character separated this token from the
+/// previously emitted one.
+void token_set_newline(token_t* token, bool newline);
 
 /// Set whether debug info should be generated.
 void token_set_debug(token_t* token, bool state);

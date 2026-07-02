@@ -96,7 +96,7 @@ class Directory
 
   new iso _relative(path': FilePath, fd': I32) =>
     """
-    Internal constructor. Capsicum rights are already set by inheritence.
+    Internal constructor. Capsicum rights are already set by inheritance.
     """
     path = path'
     _fd = fd'

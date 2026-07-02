@@ -49,6 +49,24 @@ const char* program_lib_args(ast_t* program);
  */
 void program_lib_build_args_embedded(ast_t* program, pass_opt_t* opt);
 
+/** Has gencshim already compiled this program's shims? Makes gencshim idempotent
+ * when ast_passes_program is run again on the same program (e.g. a
+ * resumable compile session). */
+bool program_gencshim_done(ast_t* program);
+
+/** Mark the program's shims as compiled. */
+void program_set_gencshim_done(ast_t* program);
+
+/** Record a C shim object emitted by gencshim. Paths accumulate in gencshim's
+ * package-walk order, which the platform linkers preserve. */
+void program_add_c_object(ast_t* program, const char* path);
+
+/** Return the number of C shim objects recorded by gencshim. */
+size_t program_c_object_count(ast_t* program);
+
+/** Return a C shim object path by index. */
+const char* program_c_object_at(ast_t* program, size_t index);
+
 /** Return the number of library search paths.
  * Only valid after program_lib_build_args_embedded(). */
 size_t program_lib_path_count(ast_t* program);
@@ -63,11 +81,7 @@ size_t program_lib_count(ast_t* program);
 /** Return a library name by index (unquoted, no -l prefix or .lib suffix). */
 const char* program_lib_at(ast_t* program, size_t index);
 
-const char* program_signature(ast_t* program);
-
 void program_dump(ast_t* program);
-
-pony_type_t* program_pony_type();
 
 PONY_EXTERN_C_END
 

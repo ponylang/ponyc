@@ -1770,6 +1770,96 @@ TEST_F(SugarTest, LambdaTypeSimpleAliased)
 }
 
 
+TEST_F(SugarTest, LambdaTypeWithThisViewpoint)
+{
+  const char* short_form =
+    "trait Foo[A: Any #read]\n"
+    "  fun f(x: {(this->A)})";
+
+  const char* full_form =
+    "use \"builtin\"\n"
+    "trait ref Foo[A: Any #read]\n"
+    "  fun box f(x: $T[A, this->Foo[A]]): None\n"
+
+    "interface ref $T[A: Any #read, $This: Foo[A] #read]\n"
+    "  fun box apply(p1: $This->A): None";
+
+  TEST_EQUIV(short_form, full_form);
+}
+
+
+TEST_F(SugarTest, LambdaTypeWithThisViewpointInReturnType)
+{
+  const char* short_form =
+    "trait Foo[A: Any #read]\n"
+    "  fun f(x: {(): this->A})";
+
+  const char* full_form =
+    "use \"builtin\"\n"
+    "trait ref Foo[A: Any #read]\n"
+    "  fun box f(x: $T[A, this->Foo[A]]): None\n"
+
+    "interface ref $T[A: Any #read, $This: Foo[A] #read]\n"
+    "  fun box apply(): $This->A";
+
+  TEST_EQUIV(short_form, full_form);
+}
+
+
+TEST_F(SugarTest, LambdaTypeWithThisViewpointNoEntityTypeParams)
+{
+  const char* short_form =
+    "trait Foo\n"
+    "  fun f[A: Any #read](x: {(this->A)})";
+
+  const char* full_form =
+    "use \"builtin\"\n"
+    "trait ref Foo\n"
+    "  fun box f[A: Any #read](x: $T[A, this->Foo]): None\n"
+
+    "interface ref $T[A: Any #read, $This: Foo #read]\n"
+    "  fun box apply(p1: $This->A): None";
+
+  TEST_EQUIV(short_form, full_form);
+}
+
+
+TEST_F(SugarTest, LambdaTypeWithThisViewpointInParamAndReturnType)
+{
+  const char* short_form =
+    "trait Foo[A: Any #read]\n"
+    "  fun f(x: {(this->A): this->A})";
+
+  const char* full_form =
+    "use \"builtin\"\n"
+    "trait ref Foo[A: Any #read]\n"
+    "  fun box f(x: $T[A, this->Foo[A]]): None\n"
+
+    "interface ref $T[A: Any #read, $This: Foo[A] #read]\n"
+    "  fun box apply(p1: $This->A): $This->A";
+
+  TEST_EQUIV(short_form, full_form);
+}
+
+
+TEST_F(SugarTest, LambdaTypeWithThisViewpointEntityAndMethodTypeParams)
+{
+  const char* short_form =
+    "trait Foo[A: Any #read]\n"
+    "  fun f[B: Any #read](x: {(this->A, B)})";
+
+  const char* full_form =
+    "use \"builtin\"\n"
+    "trait ref Foo[A: Any #read]\n"
+    "  fun box f[B: Any #read](x: $T[A, B, this->Foo[A]]): None\n"
+
+    "interface ref $T[A: Any #read, B: Any #read, $This: Foo[A] #read]\n"
+    "  fun box apply(p1: $This->A, p2: B): None";
+
+  TEST_EQUIV(short_form, full_form);
+}
+
+
 TEST_F(SugarTest, UseGuardNormalises)
 {
   const char* short_form =

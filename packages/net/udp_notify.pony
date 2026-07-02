@@ -30,7 +30,16 @@ interface UDPNotify
     from: NetAddress)
   =>
     """
-    Called when new data is received on the socket.
+    Called when a datagram is received on the socket.
+
+    `data` is truncated to the socket's read buffer size -- the `size` argument
+    to the `UDPSocket` listen constructors, default 1024. A datagram larger
+    than that buffer is delivered as its first `size` bytes; the remainder is
+    silently discarded. This is true on every platform, and there is currently
+    no way to tell from this callback that truncation happened or how many
+    bytes were lost. To receive whole datagrams, size the read buffer to your
+    protocol's largest expected datagram (the UDP maximum is 65507 bytes for
+    IPv4).
     """
     None
 

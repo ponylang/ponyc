@@ -1,3 +1,5 @@
+#define PONY_WANT_ATOMIC_DEFS
+
 #ifdef __linux__
 #define _GNU_SOURCE
 #endif
@@ -5,6 +7,7 @@
 
 #include "../asio/asio.h"
 #include "../asio/event.h"
+#include "socket.h"
 #include "ponyassert.h"
 #include <stdbool.h>
 #include <string.h>
@@ -178,272 +181,25 @@ static int set_nonblocking(int s)
 
 #ifdef PLATFORM_IS_WINDOWS
 
-#define IOCP_ACCEPT_ADDR_LEN (sizeof(struct sockaddr_storage) + 16)
+// Not defined by every SDK's <mstcpip.h>; the value is stable.
+#ifndef SIO_UDP_CONNRESET
+#define SIO_UDP_CONNRESET _WSAIOW(IOC_VENDOR, 12)
+#endif
 
-static LPFN_CONNECTEX g_ConnectEx;
-static LPFN_ACCEPTEX g_AcceptEx;
-
-typedef enum
+// Pony passes writev buffers as an array of (Pointer[U8], USize) tuples, the
+// same memory layout as a POSIX struct iovec. Windows has no struct iovec, so
+// we mirror it here; pony_os_writev builds a WSABUF array from it internally
+// (WSABUF orders its fields differently and uses u_long, not size_t).
+typedef struct pony_iovec_t
 {
-  IOCP_CONNECT,
-  IOCP_ACCEPT,
-  IOCP_SEND,
-  IOCP_RECV,
-  IOCP_NOP
-} iocp_op_t;
+  void* iov_base;
+  size_t iov_len;
+} pony_iovec_t;
 
-typedef struct iocp_t
+static int set_nonblocking(SOCKET s)
 {
-  OVERLAPPED ov;
-  iocp_op_t op;
-  int from_len;
-  asio_event_t* ev;
-} iocp_t;
-
-typedef struct iocp_accept_t
-{
-  iocp_t iocp;
-  SOCKET ns;
-  char buf[IOCP_ACCEPT_ADDR_LEN * 2];
-} iocp_accept_t;
-
-static iocp_t* iocp_create(iocp_op_t op, asio_event_t* ev)
-{
-  iocp_t* iocp = POOL_ALLOC(iocp_t);
-  memset(&iocp->ov, 0, sizeof(OVERLAPPED));
-  iocp->op = op;
-  iocp->ev = ev;
-
-  return iocp;
-}
-
-static void iocp_destroy(iocp_t* iocp)
-{
-  POOL_FREE(iocp_t, iocp);
-}
-
-static iocp_accept_t* iocp_accept_create(SOCKET s, asio_event_t* ev)
-{
-  iocp_accept_t* iocp = POOL_ALLOC(iocp_accept_t);
-  memset(&iocp->iocp.ov, 0, sizeof(OVERLAPPED));
-  iocp->iocp.op = IOCP_ACCEPT;
-  iocp->iocp.ev = ev;
-  iocp->ns = s;
-
-  return iocp;
-}
-
-static void iocp_accept_destroy(iocp_accept_t* iocp)
-{
-  POOL_FREE(iocp_accept_t, iocp);
-}
-
-static void CALLBACK iocp_callback(DWORD err, DWORD bytes, OVERLAPPED* ov)
-{
-  iocp_t* iocp = (iocp_t*)ov;
-
-  switch(iocp->op)
-  {
-    case IOCP_CONNECT:
-    {
-      if(err == ERROR_SUCCESS)
-      {
-        // Update the connect context.
-        setsockopt((SOCKET)iocp->ev->fd, SOL_SOCKET,
-          SO_UPDATE_CONNECT_CONTEXT, NULL, 0);
-      }
-
-      // Dispatch a write event.
-      pony_asio_event_send(iocp->ev, ASIO_WRITE, 0);
-      iocp_destroy(iocp);
-      break;
-    }
-
-    case IOCP_ACCEPT:
-    {
-      iocp_accept_t* acc = (iocp_accept_t*)iocp;
-
-      if(err == ERROR_SUCCESS)
-      {
-        // Update the accept context.
-        SOCKET s = (SOCKET)iocp->ev->fd;
-
-        setsockopt(acc->ns, SOL_SOCKET, SO_UPDATE_ACCEPT_CONTEXT,
-          (char*)&s, sizeof(SOCKET));
-
-        // Dispatch a read event with the new socket as the argument.
-        pony_asio_event_send(iocp->ev, ASIO_READ, (int)acc->ns);
-      } else {
-        // Close the new socket.
-        pony_os_socket_close((int)acc->ns);
-        acc->ns = INVALID_SOCKET;
-      }
-
-      iocp_accept_destroy(acc);
-      break;
-    }
-
-    case IOCP_SEND:
-    {
-      if(err == ERROR_SUCCESS)
-      {
-        // Dispatch a write event with the number of bytes written.
-        pony_asio_event_send(iocp->ev, ASIO_WRITE, bytes);
-      } else {
-        // Dispatch a write event with zero bytes to indicate a close.
-        pony_asio_event_send(iocp->ev, ASIO_WRITE, 0);
-      }
-
-      iocp_destroy(iocp);
-      break;
-    }
-
-    case IOCP_RECV:
-    {
-      if(err == ERROR_SUCCESS)
-      {
-        // Dispatch a read event with the number of bytes read.
-        pony_asio_event_send(iocp->ev, ASIO_READ, bytes);
-      } else {
-        // Dispatch a read event with zero bytes to indicate a close.
-        pony_asio_event_send(iocp->ev, ASIO_READ, 0);
-      }
-
-      iocp_destroy(iocp);
-      break;
-    }
-
-    case IOCP_NOP:
-      // Don't care, do nothing
-      iocp_destroy(iocp);
-      break;
-  }
-}
-
-static bool iocp_connect(asio_event_t* ev, struct addrinfo *p)
-{
-  SOCKET s = (SOCKET)ev->fd;
-  iocp_t* iocp = iocp_create(IOCP_CONNECT, ev);
-
-  if(!g_ConnectEx(s, p->ai_addr, (int)p->ai_addrlen, NULL, 0, NULL, &iocp->ov))
-  {
-    if(GetLastError() != ERROR_IO_PENDING)
-    {
-      iocp_destroy(iocp);
-      return false;
-    }
-  }
-
-  return true;
-}
-
-static bool iocp_accept(asio_event_t* ev)
-{
-  SOCKET s = (SOCKET)ev->fd;
-  WSAPROTOCOL_INFO proto;
-
-  if(WSADuplicateSocket(s, GetCurrentProcessId(), &proto) != 0)
-    return false;
-
-  SOCKET ns = WSASocket(proto.iAddressFamily, proto.iSocketType,
-    proto.iProtocol, NULL, 0, WSA_FLAG_OVERLAPPED);
-
-  if((ns == INVALID_SOCKET) ||
-    !BindIoCompletionCallback((HANDLE)ns, iocp_callback, 0))
-  {
-    return false;
-  }
-
-  iocp_accept_t* iocp = iocp_accept_create(ns, ev);
-  DWORD bytes;
-
-  if(!g_AcceptEx(s, ns, iocp->buf, 0, IOCP_ACCEPT_ADDR_LEN,
-    IOCP_ACCEPT_ADDR_LEN, &bytes, &iocp->iocp.ov))
-  {
-    if(GetLastError() != ERROR_IO_PENDING)
-    {
-      iocp_accept_destroy(iocp);
-      return false;
-    }
-  }
-
-  return true;
-}
-
-static bool iocp_recv(asio_event_t* ev, char* data, size_t len)
-{
-  SOCKET s = (SOCKET)ev->fd;
-  iocp_t* iocp = iocp_create(IOCP_RECV, ev);
-  DWORD received;
-  DWORD flags = 0;
-
-  WSABUF buf;
-  buf.buf = data;
-  buf.len = (u_long)len;
-
-  if(WSARecv(s, &buf, 1, &received, &flags, &iocp->ov, NULL) != 0)
-  {
-    if(GetLastError() != WSA_IO_PENDING)
-    {
-      iocp_destroy(iocp);
-      return false;
-    }
-  }
-
-  return true;
-}
-
-static bool iocp_sendto(int fd, const char* data, size_t len,
-  ipaddress_t* ipaddr)
-{
-  socklen_t socklen = ponyint_address_length(ipaddr);
-
-  if(socklen == (socklen_t)-1)
-    return false;
-
-  iocp_t* iocp = iocp_create(IOCP_NOP, NULL);
-
-  WSABUF buf;
-  buf.buf = (char*)data;
-  buf.len = (u_long)len;
-
-  if(WSASendTo((SOCKET)fd, &buf, 1, NULL, 0, (struct sockaddr*)&ipaddr->addr,
-    socklen, &iocp->ov, NULL) != 0)
-  {
-    if(GetLastError() != WSA_IO_PENDING)
-    {
-      iocp_destroy(iocp);
-      return false;
-    }
-  }
-
-  return true;
-}
-
-static bool iocp_recvfrom(asio_event_t* ev, char* data, size_t len,
-  ipaddress_t* ipaddr)
-{
-  SOCKET s = (SOCKET)ev->fd;
-  iocp_t* iocp = iocp_create(IOCP_RECV, ev);
-  DWORD flags = 0;
-
-  WSABUF buf;
-  buf.buf = data;
-  buf.len = (u_long)len;
-
-  iocp->from_len = sizeof(ipaddr->addr);
-
-  if(WSARecvFrom(s, &buf, 1, NULL, &flags, (struct sockaddr*)&ipaddr->addr,
-    &iocp->from_len, &iocp->ov, NULL) != 0)
-  {
-    if(GetLastError() != WSA_IO_PENDING)
-    {
-      iocp_destroy(iocp);
-      return false;
-    }
-  }
-
-  return true;
+  u_long nonblocking = 1;
+  return ioctlsocket(s, FIONBIO, &nonblocking);
 }
 
 #endif
@@ -454,8 +210,10 @@ static int socket_from_addrinfo(struct addrinfo* p, bool reuse)
   int fd = socket(p->ai_family, p->ai_socktype | SOCK_NONBLOCK,
     p->ai_protocol);
 #elif defined(PLATFORM_IS_WINDOWS)
+  // Non-overlapped socket: under readiness, I/O is synchronous non-blocking,
+  // so we don't want WSA_FLAG_OVERLAPPED. Non-blocking mode is set below.
   UINT_PTR skt = WSASocket(p->ai_family, p->ai_socktype, p->ai_protocol, NULL,
-    0, WSA_FLAG_OVERLAPPED);
+    0, 0);
   pony_assert((skt == INVALID_SOCKET) || ((skt >> 31) == 0));
   int fd = (int)skt;
 #else
@@ -479,8 +237,20 @@ static int socket_from_addrinfo(struct addrinfo* p, bool reuse)
 #endif
 
 #ifdef PLATFORM_IS_WINDOWS
-  if(!BindIoCompletionCallback((HANDLE)(UINT_PTR)fd, iocp_callback, 0))
-    r = 1;
+  r |= set_nonblocking((SOCKET)fd);
+
+  // Disable the Windows-only behaviour where a UDP recv reports WSAECONNRESET
+  // after a prior send drew an ICMP port-unreachable from a dead peer. Without
+  // this, that datagram would fail the next recvfrom and the synchronous read
+  // path would map the error to a close, tearing the socket down. POSIX UDP
+  // ignores ICMP port-unreachable on recv; this makes Windows match.
+  if(p->ai_socktype == SOCK_DGRAM)
+  {
+    BOOL off = FALSE;
+    DWORD ret = 0;
+    WSAIoctl((SOCKET)fd, SIO_UDP_CONNRESET, &off, sizeof(off), NULL, 0, &ret,
+      NULL, NULL);
+  }
 #endif
 
   if(r == 0)
@@ -508,25 +278,13 @@ static asio_event_t* os_listen(pony_actor_t* owner, int fd,
     }
   }
 
-  // Create an event and subscribe it.
-  asio_event_t* ev = pony_asio_event_create(owner, fd, ASIO_READ, 0, true);
-
-#ifdef PLATFORM_IS_WINDOWS
-  // Start accept for TCP connections, but not for UDP.
-  if(proto == IPPROTO_TCP)
-  {
-    if(!iocp_accept(ev))
-    {
-      pony_asio_event_unsubscribe(ev);
-      pony_os_socket_close(fd);
-      return NULL;
-    }
-  }
-#else
   (void)proto;
-#endif
 
-  return ev;
+  // Create an event and subscribe it. The listener is not one-shot, so the
+  // readiness backend maps it to edge-persistent (== EPOLLET): it refires on
+  // each new arrival and a paused accept loop doesn't busy-spin. The accept
+  // loop runs when the listener gets a read-readiness event (see pony_os_accept).
+  return pony_asio_event_create(owner, fd, ASIO_READ, 0, true);
 }
 
 static bool os_connect(pony_actor_t* owner, int fd, struct addrinfo *p,
@@ -568,28 +326,27 @@ static bool os_connect(pony_actor_t* owner, int fd, struct addrinfo *p,
   }
 
 #ifdef PLATFORM_IS_WINDOWS
-  if(!need_bind)
-  {
-    // ConnectEx requires bind.
-    struct sockaddr_storage addr = {0};
-    addr.ss_family = p->ai_family;
+  // Plain non-blocking connect; expect WSAEWOULDBLOCK/WSAEINPROGRESS. Do the
+  // syscall BEFORE creating (subscribing) the event, matching POSIX ordering:
+  // a synchronous failure here then closes a raw, unsubscribed fd (immediate
+  // close is correct) instead of stranding the deferred-REMOVE handshake on a
+  // subscribed fd. The event registers for write-readiness; the connection
+  // completes as a write notification or fails as an error notification, which
+  // the stdlib disambiguates with SO_ERROR.
+  int r = connect((SOCKET)fd, p->ai_addr, (int)p->ai_addrlen);
 
-    if(bind((SOCKET)fd, (struct sockaddr*)&addr, (int)p->ai_addrlen) != 0)
+  if(r == SOCKET_ERROR)
+  {
+    int e = WSAGetLastError();
+
+    if((e != WSAEWOULDBLOCK) && (e != WSAEINPROGRESS))
     {
       pony_os_socket_close(fd);
       return false;
     }
   }
 
-  // Create an event and subscribe it.
-  asio_event_t* ev = pony_asio_event_create(owner, fd, asio_flags, 0, true);
-
-  if(!iocp_connect(ev, p))
-  {
-    pony_asio_event_unsubscribe(ev);
-    pony_os_socket_close(fd);
-    return false;
-  }
+  pony_asio_event_create(owner, fd, asio_flags, 0, true);
 #else
   int r = connect(fd, p->ai_addr, (int)p->ai_addrlen);
 
@@ -741,9 +498,22 @@ PONY_API int pony_os_connect_tcp6(pony_actor_t* owner, const char* host,
 PONY_API int pony_os_accept(asio_event_t* ev)
 {
 #if defined(PLATFORM_IS_WINDOWS)
-  // Queue an IOCP accept and return an INVALID_SOCKET.
-  SOCKET ns = INVALID_SOCKET;
-  iocp_accept(ev);
+  // Plain accept on read-readiness, like POSIX. Return the new fd, 0 for
+  // "would block" (don't retry), or -1 for a real failure (the listener
+  // surfaces this -- the latent liveness gap the old one-AcceptEx model had).
+  SOCKET skt = accept((SOCKET)ev->fd, NULL, NULL);
+  int ns;
+
+  if(skt != INVALID_SOCKET)
+  {
+    pony_assert((skt >> 31) == 0);
+    set_nonblocking(skt);
+    ns = (int)skt;
+  } else if(WSAGetLastError() == WSAEWOULDBLOCK) {
+    ns = 0;
+  } else {
+    ns = -1;
+  }
 #elif defined(PLATFORM_IS_LINUX) || defined(PLATFORM_IS_EMSCRIPTEN)
   int ns = accept4(ev->fd, NULL, NULL, SOCK_NONBLOCK);
 
@@ -859,7 +629,7 @@ PONY_API char* pony_os_ip_string(void* src, int len)
   if(family == -1)
     return NULL;
 
-  if(inet_ntop(family, src, dst, INET6_ADDRSTRLEN))
+  if(!inet_ntop(family, src, dst, INET6_ADDRSTRLEN))
     return NULL;
 
   size_t dstlen = strlen(dst);
@@ -914,125 +684,211 @@ PONY_API bool pony_os_host_ip6(const char* host)
 }
 
 #ifdef PLATFORM_IS_WINDOWS
-PONY_API size_t pony_os_writev(asio_event_t* ev, LPWSABUF wsa, int wsacnt)
+PONY_API pony_socket_result_t pony_os_writev(asio_event_t* ev,
+  const pony_iovec_t* iov, int iovcnt, size_t* count_out)
 {
   SOCKET s = (SOCKET)ev->fd;
-  iocp_t* iocp = iocp_create(IOCP_SEND, ev);
-  DWORD sent;
 
-  if(WSASend(s, wsa, wsacnt, &sent, 0, &iocp->ov, NULL) != 0)
+  // Build a WSABUF array (different field order, u_long length) from the
+  // (ptr,len) iovec-style array Pony passes. writev_batch_size is 1 on Windows
+  // (pony_os_writev_max), so iovcnt is normally 1; a small stack buffer covers
+  // the common case and avoids a pool alloc/free on the hot send path, with a
+  // pool fallback for the rare larger batch.
+  WSABUF stackbuf[16];
+  size_t bufsize = 0;
+  WSABUF* wsa;
+
+  if((size_t)iovcnt <= (sizeof(stackbuf) / sizeof(WSABUF)))
   {
-    switch (GetLastError())
-    {
-      case WSA_IO_PENDING:
-        return wsacnt;
-      case WSAEWOULDBLOCK :
-        return 0;
-      default:
-        iocp_destroy(iocp);
-        pony_error();
-        return 0;
-    }
+    wsa = stackbuf;
+  } else {
+    bufsize = (size_t)iovcnt * sizeof(WSABUF);
+    wsa = (WSABUF*)ponyint_pool_alloc_size(bufsize);
   }
 
-  return wsacnt;
+  for(int i = 0; i < iovcnt; i++)
+  {
+    wsa[i].buf = (char*)iov[i].iov_base;
+    wsa[i].len = (u_long)iov[i].iov_len;
+  }
+
+  DWORD sent = 0;
+  int r = WSASend(s, wsa, (DWORD)iovcnt, &sent, 0, NULL, NULL);
+
+  if(bufsize != 0)
+    ponyint_pool_free_size(bufsize, wsa);
+
+  if(r == SOCKET_ERROR)
+  {
+    if(WSAGetLastError() == WSAEWOULDBLOCK)
+    {
+      *count_out = 0;
+      return PONY_SOCKET_RETRY;
+    }
+
+    *count_out = 0;
+    return PONY_SOCKET_ERROR;
+  }
+
+  *count_out = (size_t)sent;
+  return PONY_SOCKET_OK;
 }
 #else
-PONY_API size_t pony_os_writev(asio_event_t* ev, const struct iovec *iov, int iovcnt)
+PONY_API pony_socket_result_t pony_os_writev(asio_event_t* ev,
+  const struct iovec *iov, int iovcnt, size_t* count_out)
 {
   ssize_t sent = writev(ev->fd, iov, iovcnt);
 
   if(sent < 0)
   {
     if(errno == EWOULDBLOCK || errno == EAGAIN)
-      return 0;
+    {
+      *count_out = 0;
+      return PONY_SOCKET_RETRY;
+    }
 
-    pony_error();
+    *count_out = 0;
+    return PONY_SOCKET_ERROR;
   }
 
-  return (size_t)sent;
+  *count_out = (size_t)sent;
+  return PONY_SOCKET_OK;
 }
 #endif
 
-PONY_API size_t pony_os_send(asio_event_t* ev, const char* buf, size_t len)
+PONY_API pony_socket_result_t pony_os_send(asio_event_t* ev, const char* buf,
+  size_t len, size_t* count_out)
 {
 #ifdef PLATFORM_IS_WINDOWS
-  SOCKET s = (SOCKET)ev->fd;
-  iocp_t* iocp = iocp_create(IOCP_SEND, ev);
-  DWORD sent;
+  int sent = send((SOCKET)ev->fd, buf, (int)len, 0);
 
-  WSABUF b;
-  b.buf = (char*)buf;
-  b.len = (u_long)len;
-
-  if(WSASend(s, &b, 1, &sent, 0, &iocp->ov, NULL) != 0)
+  if(sent == SOCKET_ERROR)
   {
-    switch (GetLastError())
+    if(WSAGetLastError() == WSAEWOULDBLOCK)
     {
-      case WSA_IO_PENDING:
-        return len;
-      case WSAEWOULDBLOCK :
-        return 0;
-      default:
-        iocp_destroy(iocp);
-        pony_error();
-        return 0;
+      *count_out = 0;
+      return PONY_SOCKET_RETRY;
     }
+
+    *count_out = 0;
+    return PONY_SOCKET_ERROR;
   }
 
-  return sent;
+  *count_out = (size_t)sent;
+  return PONY_SOCKET_OK;
 #else
   ssize_t sent = send(ev->fd, buf, len, 0);
 
   if(sent < 0)
   {
     if(errno == EWOULDBLOCK || errno == EAGAIN)
-      return 0;
+    {
+      *count_out = 0;
+      return PONY_SOCKET_RETRY;
+    }
 
-    pony_error();
+    *count_out = 0;
+    return PONY_SOCKET_ERROR;
   }
 
-  return (size_t)sent;
+  *count_out = (size_t)sent;
+  return PONY_SOCKET_OK;
 #endif
 }
 
-PONY_API size_t pony_os_recv(asio_event_t* ev, char* buf, size_t len)
+PONY_API pony_socket_result_t pony_os_recv(asio_event_t* ev, char* buf,
+  size_t len, size_t* count_out)
 {
 #ifdef PLATFORM_IS_WINDOWS
-  if(!iocp_recv(ev, buf, len))
-    pony_error();
+  // Synchronous non-blocking recv, like POSIX. OK paths must write a non-zero
+  // count (the stdlib read loop advances by it and would spin on a 0-byte OK);
+  // received == 0 (peer closed) is surfaced as ERROR for that reason.
+  int received = recv((SOCKET)ev->fd, buf, (int)len, 0);
 
-  return 0;
+  if(received == SOCKET_ERROR)
+  {
+    if(WSAGetLastError() == WSAEWOULDBLOCK)
+    {
+      *count_out = 0;
+      return PONY_SOCKET_RETRY;
+    }
+
+    *count_out = 0;
+    return PONY_SOCKET_ERROR;
+  } else if(received == 0) {
+    *count_out = 0;
+    return PONY_SOCKET_ERROR;
+  }
+
+  *count_out = (size_t)received;
+  return PONY_SOCKET_OK;
 #else
+  // POSIX OK paths must write a non-zero count: the Pony stdlib
+  // (`packages/net/tcp_connection.pony` `_pending_reads`) advances
+  // `_read_buf_offset` and `sum` by the count and would loop forever
+  // if OK ever carried 0 bytes. `received == 0` (peer closed) is
+  // surfaced as ERROR for that reason.
   ssize_t received = recv(ev->fd, buf, len, 0);
 
   if(received < 0)
   {
     if(errno == EWOULDBLOCK || errno == EAGAIN)
-      return 0;
+    {
+      *count_out = 0;
+      return PONY_SOCKET_RETRY;
+    }
 
-    pony_error();
+    *count_out = 0;
+    return PONY_SOCKET_ERROR;
   } else if(received == 0) {
-    pony_error();
+    *count_out = 0;
+    return PONY_SOCKET_ERROR;
   }
 
-  return (size_t)received;
+  *count_out = (size_t)received;
+  return PONY_SOCKET_OK;
 #endif
 }
 
-PONY_API size_t pony_os_sendto(int fd, const char* buf, size_t len,
-  ipaddress_t* ipaddr)
+PONY_API pony_socket_result_t pony_os_sendto(int fd, const char* buf,
+  size_t len, ipaddress_t* ipaddr, size_t* count_out)
 {
 #ifdef PLATFORM_IS_WINDOWS
-  if(!iocp_sendto(fd, buf, len, ipaddr))
-    pony_error();
+  // Synchronous sendto, like POSIX. Send errors now surface (and close the
+  // socket via the ERROR arm) instead of being discarded fire-and-forget.
+  socklen_t addrlen = ponyint_address_length(ipaddr);
 
-  return 0;
+  if(addrlen == (socklen_t)-1)
+  {
+    *count_out = 0;
+    return PONY_SOCKET_ERROR;
+  }
+
+  int sent = sendto((SOCKET)fd, buf, (int)len, 0,
+    (struct sockaddr*)&ipaddr->addr, addrlen);
+
+  if(sent == SOCKET_ERROR)
+  {
+    if(WSAGetLastError() == WSAEWOULDBLOCK)
+    {
+      *count_out = 0;
+      return PONY_SOCKET_RETRY;
+    }
+
+    *count_out = 0;
+    return PONY_SOCKET_ERROR;
+  }
+
+  *count_out = (size_t)sent;
+  return PONY_SOCKET_OK;
 #else
   socklen_t addrlen = ponyint_address_length(ipaddr);
 
   if(addrlen == (socklen_t)-1)
-    pony_error();
+  {
+    *count_out = 0;
+    return PONY_SOCKET_ERROR;
+  }
 
   ssize_t sent = sendto(fd, buf, len, 0, (struct sockaddr*)&ipaddr->addr,
     addrlen);
@@ -1040,23 +896,64 @@ PONY_API size_t pony_os_sendto(int fd, const char* buf, size_t len,
   if(sent < 0)
   {
     if(errno == EWOULDBLOCK || errno == EAGAIN)
-      return 0;
+    {
+      *count_out = 0;
+      return PONY_SOCKET_RETRY;
+    }
 
-    pony_error();
+    *count_out = 0;
+    return PONY_SOCKET_ERROR;
   }
 
-  return (size_t)sent;
+  *count_out = (size_t)sent;
+  return PONY_SOCKET_OK;
 #endif
 }
 
-PONY_API size_t pony_os_recvfrom(asio_event_t* ev, char* buf, size_t len,
-  ipaddress_t* ipaddr)
+PONY_API pony_socket_result_t pony_os_recvfrom(asio_event_t* ev, char* buf,
+  size_t len, ipaddress_t* ipaddr, size_t* count_out)
 {
 #ifdef PLATFORM_IS_WINDOWS
-  if(!iocp_recvfrom(ev, buf, len, ipaddr))
-    pony_error();
+  // A failed UDP listen leaves a null event (pony_os_listen_udp* returns NULL;
+  // issue #5474). Guard against dereferencing it.
+  if(ev == NULL)
+  {
+    *count_out = 0;
+    return PONY_SOCKET_ERROR;
+  }
 
-  return 0;
+  int addrlen = sizeof(struct sockaddr_storage);
+
+  int recvd = recvfrom((SOCKET)ev->fd, buf, (int)len, 0,
+    (struct sockaddr*)&ipaddr->addr, &addrlen);
+
+  if(recvd == SOCKET_ERROR)
+  {
+    int e = WSAGetLastError();
+
+    if(e == WSAEWOULDBLOCK)
+    {
+      *count_out = 0;
+      return PONY_SOCKET_RETRY;
+    } else if(e == WSAEMSGSIZE) {
+      // Datagram larger than the buffer: Windows fills the buffer with the
+      // truncated prefix and fails with WSAEMSGSIZE. Deliver the prefix (count
+      // == buffer length), matching POSIX recvfrom without MSG_TRUNC, which
+      // delivers the truncated prefix (issue #5551). Stream sockets never
+      // raise this -- a byte stream has no message boundary to overflow.
+      *count_out = len;
+      return PONY_SOCKET_OK;
+    }
+
+    *count_out = 0;
+    return PONY_SOCKET_ERROR;
+  } else if(recvd == 0) {
+    *count_out = 0;
+    return PONY_SOCKET_ERROR;
+  }
+
+  *count_out = (size_t)recvd;
+  return PONY_SOCKET_OK;
 #else
   socklen_t addrlen = sizeof(struct sockaddr_storage);
 
@@ -1066,14 +963,20 @@ PONY_API size_t pony_os_recvfrom(asio_event_t* ev, char* buf, size_t len,
   if(recvd < 0)
   {
     if(errno == EWOULDBLOCK || errno == EAGAIN)
-      return 0;
+    {
+      *count_out = 0;
+      return PONY_SOCKET_RETRY;
+    }
 
-    pony_error();
+    *count_out = 0;
+    return PONY_SOCKET_ERROR;
   } else if(recvd == 0) {
-    pony_error();
+    *count_out = 0;
+    return PONY_SOCKET_ERROR;
   }
 
-  return (size_t)recvd;
+  *count_out = (size_t)recvd;
+  return PONY_SOCKET_OK;
 #endif
 }
 
@@ -1131,7 +1034,13 @@ PONY_API void pony_os_socket_shutdown(int fd)
 PONY_API void pony_os_socket_close(int fd)
 {
 #ifdef PLATFORM_IS_WINDOWS
-  CancelIoEx((HANDLE)(UINT_PTR)fd, NULL);
+  // Immediate close, used only for RAW (unsubscribed) fds: socket creation/
+  // bind/connect/listen failure paths and accepted-but-rejected fds. There are
+  // no overlapped operations to cancel under readiness. SUBSCRIBED sockets are
+  // NOT closed here -- the backend closes them when it processes the PSN REMOVE
+  // packet (closesocket emits no REMOVE, so closing before REMOVE-seen would
+  // strand the disposal handshake). The stdlib's subscribed close sites are
+  // POSIX-only for that reason.
   closesocket((SOCKET)fd);
 #else
   close(fd);
@@ -1144,51 +1053,12 @@ bool ponyint_os_sockets_init()
   WORD ver = MAKEWORD(2, 2);
   WSADATA data;
 
-  // Load the winsock library.
+  // Load the winsock library. The readiness backend uses plain connect/accept,
+  // so the ConnectEx/AcceptEx extension function pointers are no longer needed.
   int r = WSAStartup(ver, &data);
 
   if(r != 0)
     return false;
-
-  // We need a fake socket in order to get the extension functions for IOCP.
-  SOCKET s = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
-
-  if(s == INVALID_SOCKET)
-  {
-    WSACleanup();
-    return false;
-  }
-
-  GUID guid;
-  DWORD dw;
-
-  // Find ConnectEx.
-  guid = WSAID_CONNECTEX;
-
-  r = WSAIoctl(s, SIO_GET_EXTENSION_FUNCTION_POINTER, &guid, sizeof(guid),
-    &g_ConnectEx, sizeof(g_ConnectEx), &dw, NULL, NULL);
-
-  if(r == SOCKET_ERROR)
-  {
-    closesocket(s);
-    WSACleanup();
-    return false;
-  }
-
-  // Find AcceptEx.
-  guid = WSAID_ACCEPTEX;
-
-  r = WSAIoctl(s, SIO_GET_EXTENSION_FUNCTION_POINTER, &guid, sizeof(guid),
-    &g_AcceptEx, sizeof(g_AcceptEx), &dw, NULL, NULL);
-
-  if(r == SOCKET_ERROR)
-  {
-    closesocket(s);
-    WSACleanup();
-    return false;
-  }
-
-  closesocket(s);
 #endif
 
 #ifdef PLATFORM_IS_POSIX_BASED
@@ -1228,12 +1098,40 @@ PONY_API void pony_os_multicast_interface(int fd, const char* from)
   // Use the first reported address.
   struct addrinfo* p = os_addrinfo_intern(AF_UNSPEC, 0, 0, from, NULL, true);
 
-  if(p != NULL)
+  if(p == NULL)
+    return;
+
+  SOCKET s = (SOCKET)fd;
+
+  switch(p->ai_family)
   {
-    setsockopt((SOCKET)fd, IPPROTO_IP, IP_MULTICAST_IF,
-      (const char*)&p->ai_addr, (int)p->ai_addrlen);
-    freeaddrinfo(p);
+    case AF_INET:
+    {
+      // IP_MULTICAST_IF takes the interface's IPv4 address as a struct
+      // in_addr.
+      struct in_addr addr = ((struct sockaddr_in*)p->ai_addr)->sin_addr;
+
+      setsockopt(s, IPPROTO_IP, IP_MULTICAST_IF, (const char*)&addr,
+        sizeof(addr));
+      break;
+    }
+
+    case AF_INET6:
+    {
+      // IPV6_MULTICAST_IF takes an interface index, not an address. The
+      // index comes from the resolved address's scope id, which is only
+      // non-zero for scoped (e.g. link-local) addresses.
+      uint32_t index = ((struct sockaddr_in6*)p->ai_addr)->sin6_scope_id;
+
+      setsockopt(s, IPPROTO_IPV6, IPV6_MULTICAST_IF, (const char*)&index,
+        sizeof(index));
+      break;
+    }
+
+    default: {}
   }
+
+  freeaddrinfo(p);
 }
 
 // API deprecated: use UDPSocket.set_ip_multicast_loop
@@ -1334,6 +1232,7 @@ static void multicast_change(int fd, const char* group, const char* to,
       else
         setsockopt(s, IPPROTO_IPV6, IPV6_LEAVE_GROUP, (const char*)&req,
           sizeof(req));
+      break;
     }
 
     default: {}

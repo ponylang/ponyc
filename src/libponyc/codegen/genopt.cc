@@ -12,6 +12,8 @@
 
 #include <llvm/IR/PassManager.h>
 #include <llvm/Analysis/AliasAnalysis.h>
+#include <llvm/Analysis/CGSCCPassManager.h>
+#include <llvm/Analysis/LazyCallGraph.h>
 #include <llvm/Passes/OptimizationLevel.h>
 #include <llvm/Passes/PassBuilder.h>
 
@@ -27,10 +29,12 @@
 #include "llvm_config_end.h"
 
 #include "../../libponyrt/mem/heap.h"
+#include "../ast/stringtab.h"
 #include "ponyassert.h"
 
+#include <sys/stat.h>
+
 using namespace llvm;
-using namespace llvm::legacy;
 
 static void print_transform(compile_t* c, Instruction* i, const char* s)
 {
@@ -86,26 +90,80 @@ public:
     c = compiler;
   }
 
-  PreservedAnalyses run(Function &f, FunctionAnalysisManager &am)
+  PreservedAnalyses run(LazyCallGraph::SCC &C, CGSCCAnalysisManager &AM,
+    LazyCallGraph &CG, CGSCCUpdateResult &UR)
   {
-    DominatorTree& dt = am.getResult<DominatorTreeAnalysis>(f);
-    BasicBlock& entry = f.getEntryBlock();
-    IRBuilder<> builder(&entry, entry.begin());
+    auto &FAM =
+      AM.getResult<FunctionAnalysisManagerCGSCCProxy>(C, CG).getManager();
 
     bool changed = false;
 
-    for(auto block = f.begin(), end = f.end(); block != end; ++block)
-    {
-      for(auto iter = block->begin(), end = block->end(); iter != end; )
-      {
-        Instruction* inst = &(*(iter++));
+    // Collect functions upfront to avoid iterator invalidation if
+    // updateCGAndAnalysisManagerForCGSCCPass splits the SCC.
+    SmallVector<Function*, 4> functions;
+    for(LazyCallGraph::Node &N : C)
+      functions.push_back(&N.getFunction());
 
-        if(runOnInstruction(builder, inst, dt, f))
-          changed = true;
-      }
+    for(Function *fp : functions)
+    {
+      if(fp->isDeclaration())
+        continue;
+
+      if(runOnFunction(*fp, FAM, CG, AM, UR))
+        changed = true;
     }
 
     return changed ? PreservedAnalyses::none() : PreservedAnalyses::all();
+  }
+
+  bool runOnFunction(Function &f, FunctionAnalysisManager &FAM,
+    LazyCallGraph &CG, CGSCCAnalysisManager &AM, CGSCCUpdateResult &UR)
+  {
+    bool changed = false;
+    bool restart;
+
+    do
+    {
+      restart = false;
+      DominatorTree& dt = FAM.getResult<DominatorTreeAnalysis>(f);
+      BasicBlock& entry = f.getEntryBlock();
+      IRBuilder<> builder(&entry, entry.begin());
+
+      for(auto block = f.begin(); block != f.end(); ++block)
+      {
+        for(auto iter = block->begin(); iter != block->end();)
+        {
+          Instruction* inst = &(*iter);
+
+          if(runOnInstruction(builder, inst, dt, f))
+          {
+            changed = restart = true;
+
+            FAM.invalidate(f, PreservedAnalyses::none());
+
+            auto *FN = CG.lookup(f);
+            if(FN)
+            {
+              auto *FC = CG.lookupSCC(*FN);
+              if(FC)
+              {
+                updateCGAndAnalysisManagerForCGSCCPass(
+                  CG, *FC, *FN, AM, UR, FAM);
+              }
+            }
+
+            break;
+          }
+
+          ++iter;
+        }
+
+        if(restart)
+          break;
+      }
+    } while(restart);
+
+    return changed;
   }
 
   bool runOnInstruction(IRBuilder<>& builder, Instruction* inst,
@@ -170,8 +228,13 @@ public:
       (*iter)->setTailCall(false);
 
     // TODO: for variable size alloca, don't insert at the beginning.
-    Instruction* begin = &(*call.getCaller()->getEntryBlock().begin());
+    BasicBlock::iterator begin = call.getCaller()->getEntryBlock().begin();
 
+    // The alloca's alignment comes from the allocator's `align` return
+    // attribute, declared in init_runtime (codegen.c). Keep that attribute
+    // truthful to the runtime's guarantee: too weak here under-aligns object
+    // fields (e.g. U128) and crashes optimised builds (#5462); stronger than
+    // the runtime actually provides would be undefined behaviour.
     AllocaInst* replace = new AllocaInst(builder.getInt8Ty(), 0, int_size,
       inst->getPointerAlignment(*unwrap(c->target_data)), "", begin);
 
@@ -182,7 +245,7 @@ public:
     auto invoke = dyn_cast<InvokeInst>(static_cast<Instruction*>(&call));
     if (invoke)
     {
-      BranchInst::Create(invoke->getNormalDest(), invoke);
+      BranchInst::Create(invoke->getNormalDest(), invoke->getIterator());
       invoke->getUnwindDest()->removePredecessor(call.getParent());
     }
 
@@ -462,10 +525,6 @@ public:
     return false;
   }
 
-  void getAnalysisUsage(AnalysisUsage& use) const
-  {
-    use.addRequired<DominatorTreeWrapperPass>();
-  }
 };
 
 // Pass to replace pony_ctx calls in a dispatch function by the context passed
@@ -580,7 +639,10 @@ public:
     bool changed = false;
     for (auto block = f.begin(), end = f.end(); block != end; ++block)
     {
-      changed = changed || runOnBasicBlock(*block);
+      // |=, not ||: || short-circuits once changed is true, which would skip
+      // runOnBasicBlock (and so the merging) for every later block in this
+      // invocation.
+      changed |= runOnBasicBlock(*block);
     }
 
     return changed ? PreservedAnalyses::none() : PreservedAnalyses::all();
@@ -598,17 +660,37 @@ public:
     // of LLVM IR generation in the CodeGen pass.
     // Thus, it is not safe to run this pass on blocks where it has already run,
     // or more specifically, blocks stitched together from combined blocks where
-    // the pass has been run on some of the constituent blocks.
-    // In such cases, this pass may move interleaved instructions around in
-    // unexpected ways that break LLVM IR rules.
-    // So here we check for the presence of any call instructions to
-    // pony_send_next or pony_chain, which will only be present if this pass
-    // has already run, because this is the only place where they are produced.
-    // If we encounter such a call instruction in the basic block,
-    // we will bail out without modifying anything in the basic block.
-    bool already_ran = findCallTo(
-      std::vector<StringRef>{"pony_send_next", "pony_chain"},
-      start, end, true).second >= 0;
+    // the pass has been run on some of the constituent blocks (e.g. a block
+    // inlined from an already-optimised function). Re-running over its own
+    // output corrupts already-chained sends and trips the makeMsgChains
+    // assertions (#3784, #5589).
+    // So here we check for the presence of any call to pony_send_next or
+    // pony_chain, which are produced nowhere else and so mark a block whose
+    // sends this pass has already chained or trace-merged. (A block whose sends
+    // were only reordered -- e.g. consecutive non-tracing sends to different
+    // destinations -- leaves no such marker, but it is re-run-safe: those sends
+    // are never chained, so the makeMsgChains invariant still holds.) If we find
+    // a marker, we bail out without modifying the block.
+    // This match is by function name and deliberately does NOT go through
+    // findCallTo: findCallTo only considers calls tagged with "pony.msgsend"
+    // metadata, and the pony_chain calls makeMsgChains creates carry no such
+    // metadata. A metadata-filtered check therefore misses chain-only output
+    // and lets the pass re-run on an already-merged block.
+    bool already_ran = false;
+    for(auto iter = start; iter != end; ++iter)
+    {
+      auto call = dyn_cast<CallBase>(&*iter);
+      if(call == NULL)
+        continue;
+
+      Function* fun = call->getCalledFunction();
+      if((fun != NULL) && (fun->getName().compare("pony_send_next") == 0 ||
+        fun->getName().compare("pony_chain") == 0))
+      {
+        already_ran = true;
+        break;
+      }
+    }
     if(already_ran)
       return false;
 
@@ -760,7 +842,7 @@ public:
       while(1)
       {
         auto prev = std::prev(src);
-        src->moveBefore(&(*dst));
+        src->moveBefore(dst);
 
         if(prev->getMetadata("pony.msgsend") == NULL)
           break;
@@ -785,7 +867,7 @@ public:
       while(iter != first.trace)
       {
         auto& inst = (*iter++);
-        inst.moveBefore(&(*next.alloc));
+        inst.moveBefore(next.alloc);
       }
 
       if(next_kind == MsgNoTrace)
@@ -796,7 +878,7 @@ public:
         {
           auto& inst = *(iter++);
           if(inst.getOpcode() == Instruction::Call)
-            inst.moveBefore(&(*next.send));
+            inst.moveBefore(next.send);
         }
 
         next.trace = first.trace;
@@ -807,7 +889,7 @@ public:
         {
           auto& inst = *(iter++);
           if(inst.getOpcode() == Instruction::Call)
-            inst.moveBefore(&(*next.trace));
+            inst.moveBefore(next.trace);
         }
 
         iter++;
@@ -825,7 +907,7 @@ public:
         {
           auto& inst = *(iter++);
           if(inst.getOpcode() == Instruction::Call)
-            inst.moveBefore(&(*next_done_post));
+            inst.moveBefore(next_done_post);
         }
 
         next.trace = first.trace;
@@ -887,7 +969,7 @@ public:
           is_single = true;
 
         auto chain_call = CallInst::Create(msg_chain_fn, {prev_msg, next_msg},
-          "", *iter);
+          "", (*iter)->getIterator());
         chain_call->setTailCall();
         (*iter)->eraseFromParent();
 
@@ -917,12 +999,19 @@ public:
 
   Function* declareTraceNextFn(Module& m)
   {
+    // Two params (ctx, destination actor) to match pony_gc_send: when this pass
+    // rewrites a later message's pony_gc_send into pony_send_next via
+    // setCalledFunction, the destination operand is preserved so each merged
+    // message keeps its own self-send classification.
     FunctionType* fn_type = FunctionType::get(unwrap(c->void_type),
-      {unwrap(c->ptr)}, false);
+      {unwrap(c->ptr), unwrap(c->ptr)}, false);
     Function* fn = Function::Create(fn_type, Function::ExternalLinkage,
       "pony_send_next", &m);
 
     fn->addFnAttr(Attribute::NoUnwind);
+    // The destination actor (param index 1) is only stored/compared, never
+    // dereferenced -- matches pony_gc_send's second-argument attribute.
+    fn->addParamAttr(1, Attribute::ReadNone);
     return fn;
   }
 
@@ -933,13 +1022,16 @@ public:
     Function* fn = Function::Create(fn_type, Function::ExternalLinkage,
       "pony_chain", &m);
 
-    unsigned functionIndex = AttributeList::FunctionIndex;
-
     fn->addFnAttr(Attribute::NoUnwind);
     fn->setOnlyAccessesArgMemory();
-    fn->addParamAttr(1,
+    // pony_chain(prev, next) reads and writes *prev (prev->next) but never
+    // stores the prev pointer itself, so prev (param 0) does not escape. It
+    // stores the next pointer into prev->next -- so next is captured and must
+    // not be marked captures(none) -- but never dereferences *next, so next
+    // (param 1) is ReadNone. addParamAttr is 0-based.
+    fn->addParamAttr(0,
       Attribute::getWithCaptureInfo(m.getContext(), CaptureInfo::none()));
-    fn->addParamAttr(2, Attribute::ReadNone);
+    fn->addParamAttr(1, Attribute::ReadNone);
     return fn;
   }
 };
@@ -958,10 +1050,10 @@ static void optimise(compile_t* c, bool pony_specific)
   // Wire in the Pony-specific passes if requested.
   if(pony_specific)
   {
-    PB.registerPeepholeEPCallback(
-      [&](FunctionPassManager &fpm, OptimizationLevel level) {
+    PB.registerCGSCCOptimizerLateEPCallback(
+      [&](CGSCCPassManager &cgpm, OptimizationLevel level) {
         if(level.getSpeedupLevel() >= 2) {
-          fpm.addPass(HeapToStack(c));
+          cgpm.addPass(HeapToStack(c));
         }
       }
     );
@@ -1204,4 +1296,81 @@ bool target_is_littleendian(char* t)
   Triple triple = Triple(t);
 
   return triple.isLittleEndian();
+}
+
+bool is_cross_compiling(pass_opt_t* opt)
+{
+  char* default_triple_str = LLVMGetDefaultTargetTriple();
+  Triple target(opt->triple);
+  Triple host(default_triple_str);
+  LLVMDisposeMessage(default_triple_str);
+
+  if(target.getArch() != host.getArch())
+    return true;
+
+  // Darwin and MacOSX are different Triple::OSType enum values but the same
+  // platform. The target triple uses "macosx" (after ponyc normalization)
+  // while LLVMGetDefaultTargetTriple returns "darwin"; comparing OS enums
+  // directly misidentifies every native macOS build as cross-compilation.
+  if(target.isMacOSX() && host.isMacOSX())
+    return false;
+
+  return target.getOS() != host.getOS()
+    || target.getEnvironment() != host.getEnvironment();
+}
+
+bool host_is_musl(pass_opt_t* opt)
+{
+  if(is_cross_compiling(opt))
+    return false;
+
+  Triple triple(opt->triple);
+  const char* musl_linker = NULL;
+
+  switch(triple.getArch())
+  {
+    case Triple::x86_64:  musl_linker = "/lib/ld-musl-x86_64.so.1"; break;
+    case Triple::aarch64: musl_linker = "/lib/ld-musl-aarch64.so.1"; break;
+    case Triple::riscv64: musl_linker = "/lib/ld-musl-riscv64.so.1"; break;
+
+    case Triple::arm:
+    case Triple::thumb:
+    {
+      struct stat st;
+      return (stat("/lib/ld-musl-armhf.so.1", &st) == 0)
+        || (stat("/lib/ld-musl-arm.so.1", &st) == 0);
+    }
+
+    default: return false;
+  }
+
+  struct stat st;
+  return stat(musl_linker, &st) == 0;
+}
+
+// Twin of genexe.cc's gnu_multiarch_arch (keep the two in sync): LLVM reports
+// 32-bit little-endian ARM as the raw triple arch ("armv7l", "armv6", etc.),
+// but Debian/Ubuntu/Raspbian multiarch directories normalize all of them to
+// "arm" (the EABI float variant rides in the environment, not the arch). The
+// other arches this linker supports already match LLVM's spelling, so fall
+// back to getArchName(). See the fuller explanation on the genexe.cc twin.
+static std::string gnu_multiarch_arch(const Triple& triple)
+{
+  switch(triple.getArch())
+  {
+    case Triple::arm:
+    case Triple::thumb:
+      return "arm";
+    default:
+      return std::string(triple.getArchName());
+  }
+}
+
+const char* system_triple(pass_opt_t* opt)
+{
+  Triple triple(opt->triple);
+  std::string result = gnu_multiarch_arch(triple) + "-"
+    + std::string(triple.getOSName()) + "-"
+    + std::string(triple.getEnvironmentName());
+  return stringtab(opt->strtab, result.c_str());
 }

@@ -4,11 +4,9 @@
 #include "genfun.h"
 #include "genname.h"
 #include "genopt.h"
-#include "genserialise.h"
 #include "gentrace.h"
 #include "../pkg/package.h"
 #include "../pkg/platformfuns.h"
-#include "../pkg/program.h"
 #include "../pass/names.h"
 #include "../type/assemble.h"
 #include "../type/cap.h"
@@ -18,8 +16,8 @@
 #include <string.h>
 
 #define FIND_METHOD(name, cap) \
-  const char* strtab_name = stringtab(name); \
-  reach_method_t* m = reach_method(t, cap, strtab_name, NULL); \
+  const char* strtab_name = stringtab(c->opt->strtab, name); \
+  reach_method_t* m = reach_method(t, cap, strtab_name, NULL, c->opt); \
   if(m == NULL) return; \
   m->intrinsic = true; \
   compile_type_t* c_t = (compile_type_t*)t->c_type; \
@@ -33,7 +31,7 @@
   gen(c, gen_data, TK_VAL);
 
 #define GENERIC_FUNCTION(name, gen) \
-  generic_function(c, t, stringtab(name), gen);
+  generic_function(c, t, stringtab(c->opt->strtab, name), gen);
 
 typedef void (*generate_gen_fn)(compile_t*, reach_type_t*, reach_method_t*);
 
@@ -62,14 +60,6 @@ static void generic_function(compile_t* c, reach_type_t* t, const char* name,
     m->intrinsic = true;
     gen(c, t, m);
   }
-}
-
-static LLVMValueRef field_loc(compile_t* c, LLVMValueRef offset,
-  LLVMTypeRef structure, int index)
-{
-  LLVMValueRef size = LLVMConstInt(c->intptr,
-    LLVMOffsetOfElement(c->target_data, structure, index), false);
-  return LLVMBuildInBoundsGEP2(c->builder, c->i8, offset, &size, 1, "");
 }
 
 static LLVMValueRef field_value(compile_t* c, LLVMTypeRef struct_type,
@@ -282,6 +272,23 @@ static void pointer_element_size(compile_t* c, reach_type_t* t,
   codegen_finishfun(c);
 }
 
+static void pointer_min_alloc(compile_t* c, reach_type_t* t,
+  compile_type_t* t_elem)
+{
+  FIND_METHOD("_min_alloc", TK_NONE);
+  start_function(c, t, m, c->intptr, &c_t->use_type, 1);
+
+  // The smallest element count whose byte size reaches the allocator's minimum
+  // block (HEAP_MIN). One element for zero-sized or larger-than-block elements;
+  // otherwise HEAP_MIN / element size.
+  size_t size = (size_t)LLVMABISizeOfType(c->target_data, t_elem->mem_type);
+  size_t min = ((size == 0) || (size > HEAP_MIN)) ? 1 : (HEAP_MIN / size);
+  LLVMValueRef l_min = LLVMConstInt(c->intptr, min, false);
+
+  genfun_build_ret(c, l_min);
+  codegen_finishfun(c);
+}
+
 static void pointer_insert(compile_t* c, reach_type_t* t,
   compile_type_t* t_elem)
 {
@@ -438,7 +445,7 @@ void genprim_pointer_methods(compile_t* c, reach_type_t* t)
 {
   ast_t* typeargs = ast_childidx(t->ast, 2);
   ast_t* typearg = ast_child(typeargs);
-  reach_type_t* t_elem = reach_type(c->reach, typearg);
+  reach_type_t* t_elem = reach_type(c->reach, typearg, c->opt);
   compile_type_t* c_t_elem = (compile_type_t*)t_elem->c_type;
 
   void* box_args[2];
@@ -459,6 +466,7 @@ void genprim_pointer_methods(compile_t* c, reach_type_t* t)
   pointer_update(c, t, t_elem);
   BOX_FUNCTION(pointer_offset, c_box_args);
   pointer_element_size(c, t, c_t_elem);
+  pointer_min_alloc(c, t, c_t_elem);
   pointer_insert(c, t, c_t_elem);
   pointer_delete(c, t, t_elem);
   BOX_FUNCTION(pointer_copy_to, c_box_args);
@@ -492,12 +500,15 @@ static void nullable_pointer_none(compile_t* c, reach_type_t* t)
 
 static void nullable_pointer_apply(compile_t* c, void* data, token_id cap)
 {
-  // Returns the receiver if it isn't null.
+  // Returns the receiver if it isn't null, errors if null.
+  // This is a partial function, so returns {T, i1} where i1 is the error flag.
   reach_type_t* t = ((reach_type_t**)data)[0];
   compile_type_t* t_elem = ((compile_type_t**)data)[1];
 
   FIND_METHOD("apply", cap);
-  start_function(c, t, m, t_elem->use_type, &c_t->use_type, 1);
+  c_m->is_partial = true;
+  LLVMTypeRef ret_type = error_flag_type(c, t_elem->use_type);
+  start_function(c, t, m, ret_type, &c_t->use_type, 1);
 
   LLVMValueRef result = LLVMGetParam(c_m->func, 0);
   LLVMValueRef test = LLVMBuildIsNull(c->builder, result, "");
@@ -506,11 +517,16 @@ static void nullable_pointer_apply(compile_t* c, void* data, token_id cap)
   LLVMBasicBlockRef is_true = codegen_block(c, "");
   LLVMBuildCondBr(c->builder, test, is_true, is_false);
 
+  // Non-null: return {result, false}.
   LLVMPositionBuilderAtEnd(c->builder, is_false);
-  genfun_build_ret(c, result);
+  genfun_build_ret(c,
+    wrap_result(c, result, LLVMConstInt(c->i1, 0, false)));
 
+  // Null: return {undef, true}.
   LLVMPositionBuilderAtEnd(c->builder, is_true);
-  gencall_error(c);
+  genfun_build_ret(c,
+    wrap_result(c, LLVMGetUndef(t_elem->use_type),
+      LLVMConstInt(c->i1, 1, false)));
 
   codegen_finishfun(c);
 }
@@ -533,7 +549,7 @@ void genprim_nullable_pointer_methods(compile_t* c, reach_type_t* t)
   ast_t* typeargs = ast_childidx(t->ast, 2);
   ast_t* typearg = ast_child(typeargs);
   compile_type_t* t_elem =
-    (compile_type_t*)reach_type(c->reach, typearg)->c_type;
+    (compile_type_t*)reach_type(c->reach, typearg, c->opt)->c_type;
 
   void* box_args[2];
   box_args[0] = t;
@@ -554,7 +570,7 @@ static void donotoptimise_apply(compile_t* c, reach_type_t* t,
 
   ast_t* typearg = ast_child(m->typeargs);
   compile_type_t* t_elem =
-    (compile_type_t*)reach_type(c->reach, typearg)->c_type;
+    (compile_type_t*)reach_type(c->reach, typearg, c->opt)->c_type;
   compile_type_t* t_result = (compile_type_t*)m->result->c_type;
 
   LLVMTypeRef params[2];
@@ -634,7 +650,7 @@ static void trace_array_elements(compile_t* c, reach_type_t* t,
   if(!gentrace_needed(c, typearg, typearg))
     return;
 
-  reach_type_t* t_elem = reach_type(c->reach, typearg);
+  reach_type_t* t_elem = reach_type(c->reach, typearg, c->opt);
   compile_type_t* c_t_elem = (compile_type_t*)t_elem->c_type;
 
   LLVMBasicBlockRef entry_block = LLVMGetInsertBlock(c->builder);
@@ -694,395 +710,6 @@ void genprim_array_trace(compile_t* c, reach_type_t* t)
   gencall_runtime(c, "pony_trace", args, 2, "");
 
   trace_array_elements(c, t, ctx, object, pointer);
-  genfun_build_ret_void(c);
-  codegen_finishfun(c);
-}
-
-void genprim_array_serialise_trace(compile_t* c, reach_type_t* t)
-{
-  // Generate the serialise_trace function.
-  compile_type_t* c_t = (compile_type_t*)t->c_type;
-  c_t->serialise_trace_fn = codegen_addfun(c, genname_serialise_trace(t->name),
-    c->trace_fn, true);
-
-  codegen_startfun(c, c_t->serialise_trace_fn, NULL, NULL, NULL, false);
-  LLVMSetFunctionCallConv(c_t->serialise_trace_fn, LLVMCCallConv);
-  LLVMSetLinkage(c_t->serialise_trace_fn, LLVMExternalLinkage);
-
-  LLVMValueRef ctx = LLVMGetParam(c_t->serialise_trace_fn, 0);
-  LLVMValueRef object = LLVMGetParam(c_t->serialise_trace_fn, 1);
-
-  LLVMValueRef size = field_value(c, c_t->structure, object, 1);
-
-  LLVMBasicBlockRef trace_block = codegen_block(c, "trace");
-  LLVMBasicBlockRef post_block = codegen_block(c, "post");
-
-  LLVMValueRef cond = LLVMBuildICmp(c->builder, LLVMIntNE, size,
-    LLVMConstInt(c->intptr, 0, false), "");
-  LLVMBuildCondBr(c->builder, cond, trace_block, post_block);
-
-  LLVMPositionBuilderAtEnd(c->builder, trace_block);
-
-  // Calculate the size of the element type.
-  ast_t* typeargs = ast_childidx(t->ast, 2);
-  ast_t* typearg = ast_child(typeargs);
-  compile_type_t* t_elem =
-    (compile_type_t*)reach_type(c->reach, typearg)->c_type;
-
-  size_t abisize = (size_t)LLVMABISizeOfType(c->target_data, t_elem->use_type);
-  LLVMValueRef l_size = LLVMConstInt(c->intptr, abisize, false);
-
-  // Reserve space for the array elements.
-  LLVMValueRef pointer = field_value(c, c_t->structure, object, 3);
-
-  LLVMValueRef args[3];
-  args[0] = ctx;
-  args[1] = pointer;
-  args[2] = LLVMBuildMul(c->builder, size, l_size, "");
-  gencall_runtime(c, "pony_serialise_reserve", args, 3, "");
-
-  // Trace the array elements.
-  trace_array_elements(c, t, ctx, object, pointer);
-
-  LLVMBuildBr(c->builder, post_block);
-
-  LLVMPositionBuilderAtEnd(c->builder, post_block);
-
-  genfun_build_ret_void(c);
-  codegen_finishfun(c);
-}
-
-void genprim_array_serialise(compile_t* c, reach_type_t* t)
-{
-  // Generate the serialise function.
-  compile_type_t* c_t = (compile_type_t*)t->c_type;
-  c_t->serialise_fn = codegen_addfun(c, genname_serialise(t->name),
-    c->serialise_fn, true);
-
-  codegen_startfun(c, c_t->serialise_fn, NULL, NULL, NULL, false);
-  LLVMSetFunctionCallConv(c_t->serialise_fn, LLVMCCallConv);
-  LLVMSetLinkage(c_t->serialise_fn, LLVMExternalLinkage);
-
-  LLVMValueRef ctx = LLVMGetParam(c_t->serialise_fn, 0);
-  LLVMValueRef object = LLVMGetParam(c_t->serialise_fn, 1);
-  LLVMValueRef addr = LLVMGetParam(c_t->serialise_fn, 2);
-  LLVMValueRef offset = LLVMGetParam(c_t->serialise_fn, 3);
-  LLVMValueRef mut = LLVMGetParam(c_t->serialise_fn, 4);
-
-  LLVMValueRef offset_addr = LLVMBuildInBoundsGEP2(c->builder, c->i8, addr,
-    &offset, 1, "");
-
-  genserialise_serialiseid(c, t, offset_addr);
-
-  // Don't serialise our contents if we are opaque.
-  LLVMBasicBlockRef body_block = codegen_block(c, "body");
-  LLVMBasicBlockRef post_block = codegen_block(c, "post");
-
-  LLVMValueRef test = LLVMBuildICmp(c->builder, LLVMIntNE, mut,
-    LLVMConstInt(c->i32, PONY_TRACE_OPAQUE, false), "");
-  LLVMBuildCondBr(c->builder, test, body_block, post_block);
-  LLVMPositionBuilderAtEnd(c->builder, body_block);
-
-  // Write the size twice, effectively rewriting alloc to be the same as size.
-  LLVMValueRef size = field_value(c, c_t->structure, object, 1);
-
-  LLVMValueRef size_loc = field_loc(c, offset_addr, c_t->structure, 1);
-  LLVMBuildStore(c->builder, size, size_loc);
-
-  LLVMValueRef alloc_loc = field_loc(c, offset_addr, c_t->structure, 2);
-  LLVMBuildStore(c->builder, size, alloc_loc);
-
-  // Write the pointer.
-  LLVMValueRef ptr = field_value(c, c_t->structure, object, 3);
-
-  // The resulting offset will only be invalid (i.e. have the high bit set) if
-  // the size is zero. For an opaque array, we don't serialise the contents,
-  // so we don't get here, so we don't end up with an invalid offset.
-  LLVMValueRef args[5];
-  args[0] = ctx;
-  args[1] = ptr;
-  LLVMValueRef ptr_offset = gencall_runtime(c, "pony_serialise_offset",
-    args, 2, "");
-
-  LLVMValueRef ptr_loc = field_loc(c, offset_addr, c_t->structure, 3);
-  LLVMBuildStore(c->builder, ptr_offset, ptr_loc);
-
-  LLVMValueRef ptr_offset_addr = LLVMBuildInBoundsGEP2(c->builder, c->i8, addr,
-    &ptr_offset, 1, "");
-
-  // Serialise elements.
-  ast_t* typeargs = ast_childidx(t->ast, 2);
-  ast_t* typearg = ast_child(typeargs);
-  reach_type_t* t_elem = reach_type(c->reach, typearg);
-  compile_type_t* c_t_e = (compile_type_t*)t_elem->c_type;
-
-  size_t abisize = (size_t)LLVMABISizeOfType(c->target_data, c_t_e->mem_type);
-  LLVMValueRef l_size = LLVMConstInt(c->intptr, abisize, false);
-
-  if((t_elem->underlying == TK_PRIMITIVE) && (c_t_e->primitive != NULL))
-  {
-    // memcpy machine words
-    size = LLVMBuildMul(c->builder, size, l_size, "");
-    gencall_memcpy(c, ptr_offset_addr, ptr, size);
-  } else {
-    LLVMBasicBlockRef entry_block = LLVMGetInsertBlock(c->builder);
-    LLVMBasicBlockRef cond_elem_block = codegen_block(c, "cond");
-    LLVMBasicBlockRef body_elem_block = codegen_block(c, "body");
-    LLVMBasicBlockRef post_elem_block = codegen_block(c, "post");
-
-    LLVMValueRef offset_var = LLVMBuildAlloca(c->builder, c->ptr, "");
-    LLVMBuildStore(c->builder, ptr_offset_addr, offset_var);
-
-    LLVMBuildBr(c->builder, cond_elem_block);
-
-    // While the index is less than the size, serialise an element. The
-    // initial index when coming from the entry block is zero.
-    LLVMPositionBuilderAtEnd(c->builder, cond_elem_block);
-    LLVMValueRef phi = LLVMBuildPhi(c->builder, c->intptr, "");
-    LLVMValueRef zero = LLVMConstInt(c->intptr, 0, false);
-    LLVMAddIncoming(phi, &zero, &entry_block, 1);
-    LLVMValueRef test = LLVMBuildICmp(c->builder, LLVMIntULT, phi, size, "");
-    LLVMBuildCondBr(c->builder, test, body_elem_block, post_elem_block);
-
-    // The phi node is the index. Get the element and serialise it.
-    LLVMPositionBuilderAtEnd(c->builder, body_elem_block);
-    LLVMValueRef elem_ptr = LLVMBuildInBoundsGEP2(c->builder, c_t_e->mem_type,
-      ptr, &phi, 1, "");
-
-    ptr_offset_addr = LLVMBuildLoad2(c->builder, c->ptr, offset_var, "");
-    genserialise_element(c, t_elem, false, ctx, elem_ptr, ptr_offset_addr);
-    ptr_offset_addr = LLVMBuildInBoundsGEP2(c->builder, c->i8, ptr_offset_addr,
-      &l_size, 1, "");
-    LLVMBuildStore(c->builder, ptr_offset_addr, offset_var);
-
-    // Add one to the phi node and branch back to the cond block.
-    LLVMValueRef one = LLVMConstInt(c->intptr, 1, false);
-    LLVMValueRef inc = LLVMBuildAdd(c->builder, phi, one, "");
-    body_block = LLVMGetInsertBlock(c->builder);
-    LLVMAddIncoming(phi, &inc, &body_block, 1);
-    LLVMBuildBr(c->builder, cond_elem_block);
-
-    LLVMMoveBasicBlockAfter(post_elem_block, LLVMGetInsertBlock(c->builder));
-    LLVMPositionBuilderAtEnd(c->builder, post_elem_block);
-  }
-
-  LLVMBuildBr(c->builder, post_block);
-  LLVMMoveBasicBlockAfter(post_block, LLVMGetInsertBlock(c->builder));
-  LLVMPositionBuilderAtEnd(c->builder, post_block);
-  genfun_build_ret_void(c);
-  codegen_finishfun(c);
-}
-
-void genprim_array_deserialise(compile_t* c, reach_type_t* t)
-{
-  // Generate the deserisalise function.
-  compile_type_t* c_t = (compile_type_t*)t->c_type;
-  c_t->deserialise_fn = codegen_addfun(c, genname_deserialise(t->name),
-    c->trace_fn, true);
-
-  codegen_startfun(c, c_t->deserialise_fn, NULL, NULL, NULL, false);
-  LLVMSetFunctionCallConv(c_t->deserialise_fn, LLVMCCallConv);
-  LLVMSetLinkage(c_t->deserialise_fn, LLVMExternalLinkage);
-
-  LLVMValueRef ctx = LLVMGetParam(c_t->deserialise_fn, 0);
-  LLVMValueRef object = LLVMGetParam(c_t->deserialise_fn, 1);
-  gendeserialise_serialiseid(c, c_t, object);
-
-  // Deserialise the array contents.
-  LLVMValueRef alloc = field_value(c, c_t->structure, object, 2);
-  LLVMValueRef ptr_offset = field_value(c, c_t->structure, object, 3);
-  ptr_offset = LLVMBuildPtrToInt(c->builder, ptr_offset, c->intptr, "");
-
-  ast_t* typeargs = ast_childidx(t->ast, 2);
-  ast_t* typearg = ast_child(typeargs);
-
-  reach_type_t* t_elem = reach_type(c->reach, typearg);
-  compile_type_t* c_t_e = (compile_type_t*)t_elem->c_type;
-  size_t abisize = (size_t)LLVMABISizeOfType(c->target_data, c_t_e->use_type);
-  LLVMValueRef l_size = LLVMConstInt(c->intptr, abisize, false);
-
-  LLVMValueRef args[3];
-  args[0] = ctx;
-  args[1] = ptr_offset;
-  args[2] = LLVMBuildMul(c->builder, alloc, l_size, "");
-  LLVMValueRef ptr = gencall_runtime(c, "pony_deserialise_block", args, 3, "");
-
-  LLVMValueRef ptr_loc = LLVMBuildStructGEP2(c->builder, c_t->structure, object,
-    3, "");
-  LLVMBuildStore(c->builder, ptr, ptr_loc);
-
-  if((t_elem->underlying == TK_PRIMITIVE) && (c_t_e->primitive != NULL))
-  {
-    // Do nothing. A memcpy is sufficient.
-  } else {
-    LLVMValueRef size = field_value(c, c_t->structure, object, 1);
-
-    LLVMBasicBlockRef entry_block = LLVMGetInsertBlock(c->builder);
-    LLVMBasicBlockRef cond_block = codegen_block(c, "cond");
-    LLVMBasicBlockRef body_block = codegen_block(c, "body");
-    LLVMBasicBlockRef post_block = codegen_block(c, "post");
-
-    LLVMBuildBr(c->builder, cond_block);
-
-    // While the index is less than the size, deserialise an element. The
-    // initial index when coming from the entry block is zero.
-    LLVMPositionBuilderAtEnd(c->builder, cond_block);
-    LLVMValueRef phi = LLVMBuildPhi(c->builder, c->intptr, "");
-    LLVMValueRef zero = LLVMConstInt(c->intptr, 0, false);
-    LLVMAddIncoming(phi, &zero, &entry_block, 1);
-    LLVMValueRef test = LLVMBuildICmp(c->builder, LLVMIntULT, phi, size, "");
-    LLVMBuildCondBr(c->builder, test, body_block, post_block);
-
-    // The phi node is the index. Get the element and deserialise it.
-    LLVMPositionBuilderAtEnd(c->builder, body_block);
-    LLVMValueRef elem_ptr = LLVMBuildInBoundsGEP2(c->builder, c_t_e->mem_type,
-      ptr, &phi, 1, "");
-    gendeserialise_element(c, t_elem, false, ctx, elem_ptr);
-
-    // Add one to the phi node and branch back to the cond block.
-    LLVMValueRef one = LLVMConstInt(c->intptr, 1, false);
-    LLVMValueRef inc = LLVMBuildAdd(c->builder, phi, one, "");
-    body_block = LLVMGetInsertBlock(c->builder);
-    LLVMAddIncoming(phi, &inc, &body_block, 1);
-    LLVMBuildBr(c->builder, cond_block);
-
-    LLVMMoveBasicBlockAfter(post_block, LLVMGetInsertBlock(c->builder));
-    LLVMPositionBuilderAtEnd(c->builder, post_block);
-  }
-
-  genfun_build_ret_void(c);
-  codegen_finishfun(c);
-}
-
-void genprim_string_serialise_trace(compile_t* c, reach_type_t* t)
-{
-  // Generate the serialise_trace function.
-  compile_type_t* c_t = (compile_type_t*)t->c_type;
-  c_t->serialise_trace_fn = codegen_addfun(c, genname_serialise_trace(t->name),
-    c->serialise_fn, true);
-
-  codegen_startfun(c, c_t->serialise_trace_fn, NULL, NULL, NULL, false);
-  LLVMSetFunctionCallConv(c_t->serialise_trace_fn, LLVMCCallConv);
-  LLVMSetLinkage(c_t->serialise_trace_fn, LLVMExternalLinkage);
-
-  LLVMValueRef ctx = LLVMGetParam(c_t->serialise_trace_fn, 0);
-  LLVMValueRef object = LLVMGetParam(c_t->serialise_trace_fn, 1);
-
-  LLVMValueRef size = field_value(c, c_t->structure, object, 1);
-
-  LLVMValueRef alloc = LLVMBuildAdd(c->builder, size,
-    LLVMConstInt(c->intptr, 1, false), "");
-
-  // Reserve space for the contents.
-  LLVMValueRef ptr = field_value(c, c_t->structure, object, 3);
-
-  LLVMValueRef args[3];
-  args[0] = ctx;
-  args[1] = ptr;
-  args[2] = alloc;
-  gencall_runtime(c, "pony_serialise_reserve", args, 3, "");
-
-  genfun_build_ret_void(c);
-  codegen_finishfun(c);
-}
-
-void genprim_string_serialise(compile_t* c, reach_type_t* t)
-{
-  // Generate the serialise function.
-  compile_type_t* c_t = (compile_type_t*)t->c_type;
-  c_t->serialise_fn = codegen_addfun(c, genname_serialise(t->name),
-    c->serialise_fn, true);
-
-  codegen_startfun(c, c_t->serialise_fn, NULL, NULL, NULL, false);
-  LLVMSetFunctionCallConv(c_t->serialise_fn, LLVMCCallConv);
-  LLVMSetLinkage(c_t->serialise_fn, LLVMExternalLinkage);
-
-  LLVMValueRef ctx = LLVMGetParam(c_t->serialise_fn, 0);
-  LLVMValueRef object = LLVMGetParam(c_t->serialise_fn, 1);
-  LLVMValueRef addr = LLVMGetParam(c_t->serialise_fn, 2);
-  LLVMValueRef offset = LLVMGetParam(c_t->serialise_fn, 3);
-  LLVMValueRef mut = LLVMGetParam(c_t->serialise_fn, 4);
-
-  LLVMValueRef offset_addr = LLVMBuildInBoundsGEP2(c->builder, c->i8, addr,
-    &offset, 1, "");
-
-  genserialise_serialiseid(c, t, offset_addr);
-
-  // Don't serialise our contents if we are opaque.
-  LLVMBasicBlockRef body_block = codegen_block(c, "body");
-  LLVMBasicBlockRef post_block = codegen_block(c, "post");
-
-  LLVMValueRef test = LLVMBuildICmp(c->builder, LLVMIntNE, mut,
-    LLVMConstInt(c->i32, PONY_TRACE_OPAQUE, false), "");
-  LLVMBuildCondBr(c->builder, test, body_block, post_block);
-  LLVMPositionBuilderAtEnd(c->builder, body_block);
-
-  // Write the size, and rewrite alloc to be size + 1.
-  LLVMValueRef size = field_value(c, c_t->structure, object, 1);
-  LLVMValueRef size_loc = field_loc(c, offset_addr, c_t->structure, 1);
-  LLVMBuildStore(c->builder, size, size_loc);
-
-  LLVMValueRef alloc = LLVMBuildAdd(c->builder, size,
-    LLVMConstInt(c->intptr, 1, false), "");
-  LLVMValueRef alloc_loc = field_loc(c, offset_addr, c_t->structure, 2);
-  LLVMBuildStore(c->builder, alloc, alloc_loc);
-
-  // Write the pointer.
-  LLVMValueRef ptr = field_value(c, c_t->structure, object, 3);
-
-  LLVMValueRef args[5];
-  args[0] = ctx;
-  args[1] = ptr;
-  LLVMValueRef ptr_offset = gencall_runtime(c, "pony_serialise_offset",
-    args, 2, "");
-
-  LLVMValueRef ptr_loc = field_loc(c, offset_addr, c_t->structure, 3);
-  LLVMBuildStore(c->builder, ptr_offset, ptr_loc);
-
-  // Serialise the string contents.
-  LLVMValueRef dst =  LLVMBuildInBoundsGEP2(c->builder, c->i8, addr,
-    &ptr_offset, 1, "");
-  LLVMValueRef src = field_value(c, c_t->structure, object, 3);
-  gencall_memcpy(c, dst, src, alloc);
-
-  LLVMBuildBr(c->builder, post_block);
-  LLVMPositionBuilderAtEnd(c->builder, post_block);
-  genfun_build_ret_void(c);
-  codegen_finishfun(c);
-}
-
-void genprim_string_deserialise(compile_t* c, reach_type_t* t)
-{
-  // Generate the deserisalise function.
-  compile_type_t* c_t = (compile_type_t*)t->c_type;
-  c_t->deserialise_fn = codegen_addfun(c, genname_deserialise(t->name),
-    c->trace_fn, true);
-
-  codegen_startfun(c, c_t->deserialise_fn, NULL, NULL, NULL, false);
-  LLVMSetFunctionCallConv(c_t->deserialise_fn, LLVMCCallConv);
-  LLVMSetLinkage(c_t->deserialise_fn, LLVMExternalLinkage);
-
-  LLVMValueRef ctx = LLVMGetParam(c_t->deserialise_fn, 0);
-  LLVMValueRef object = LLVMGetParam(c_t->deserialise_fn, 1);
-
-  gendeserialise_serialiseid(c, c_t, object);
-
-  // Deserialise the string contents.
-  LLVMValueRef alloc = field_value(c, c_t->structure, object, 2);
-  LLVMValueRef ptr_offset = field_value(c, c_t->structure, object, 3);
-  ptr_offset = LLVMBuildPtrToInt(c->builder, ptr_offset, c->intptr, "");
-
-  LLVMValueRef args[3];
-  args[0] = ctx;
-  args[1] = ptr_offset;
-  args[2] = alloc;
-  LLVMValueRef ptr_addr = gencall_runtime(c, "pony_deserialise_block", args, 3,
-    "");
-
-  LLVMValueRef ptr = LLVMBuildStructGEP2(c->builder, c_t->structure, object, 3,
-    "");
-  LLVMBuildStore(c->builder, ptr_addr, ptr);
-
   genfun_build_ret_void(c);
   codegen_finishfun(c);
 }
@@ -1316,7 +943,7 @@ typedef struct num_conv_t
 
 static void number_value(compile_t* c, num_conv_t* type, token_id cap)
 {
-  reach_type_t* t = reach_type_name(c->reach, type->type_name);
+  reach_type_t* t = reach_type_name(c->reach, type->type_name, c->opt);
 
   if(t == NULL)
     return;
@@ -1554,7 +1181,7 @@ static void number_conversion(compile_t* c, void** data, token_id cap)
     return;
   }
 
-  reach_type_t* t = reach_type_name(c->reach, from->type_name);
+  reach_type_t* t = reach_type_name(c->reach, from->type_name, c->opt);
 
   if(t == NULL)
     return;
@@ -1626,12 +1253,12 @@ static void unsafe_number_conversion(compile_t* c, void** data, token_id cap)
     return;
   }
 
-  reach_type_t* t = reach_type_name(c->reach, from->type_name);
+  reach_type_t* t = reach_type_name(c->reach, from->type_name, c->opt);
 
   if(t == NULL)
     return;
 
-  const char* name = genname_unsafe(to->fun_name);
+  const char* name = genname_unsafe(to->fun_name, c->opt->strtab);
 
   FIND_METHOD(name, cap);
   start_function(c, t, m, to->type, &from->type, 1);
@@ -1884,7 +1511,7 @@ static void fp_intrinsics(compile_t* c)
 {
   reach_type_t* t;
 
-  if((t = reach_type_name(c->reach, "F32")) != NULL)
+  if((t = reach_type_name(c->reach, "F32", c->opt)) != NULL)
   {
     f32__nan(c, t);
     f32__inf(c, t);
@@ -1892,7 +1519,7 @@ static void fp_intrinsics(compile_t* c)
     BOX_FUNCTION(f32_bits, t);
   }
 
-  if((t = reach_type_name(c->reach, "F64")) != NULL)
+  if((t = reach_type_name(c->reach, "F64", c->opt)) != NULL)
   {
     f64__nan(c, t);
     f64__inf(c, t);
@@ -1957,68 +1584,6 @@ static void make_rdtscp(compile_t* c)
   } else {
     (void)c;
   }
-}
-
-static LLVMValueRef make_signature_array(compile_t* c, compile_type_t* c_t,
-  const char* signature)
-{
-  LLVMValueRef args[SIGNATURE_LENGTH];
-
-  for(size_t i = 0; i < SIGNATURE_LENGTH; i++)
-    args[i] = LLVMConstInt(c->i8, signature[i], false);
-
-  LLVMValueRef sig = LLVMConstArray(c->i8, args, SIGNATURE_LENGTH);
-  LLVMValueRef g_sig = LLVMAddGlobal(c->module, LLVMTypeOf(sig), "");
-  LLVMSetLinkage(g_sig, LLVMPrivateLinkage);
-  LLVMSetInitializer(g_sig, sig);
-  LLVMSetGlobalConstant(g_sig, true);
-  LLVMSetUnnamedAddr(g_sig, true);
-
-  args[0] = LLVMConstInt(c->i32, 0, false);
-  args[1] = LLVMConstInt(c->i32, 0, false);
-
-  LLVMValueRef ptr = LLVMConstInBoundsGEP2(LLVMTypeOf(sig), g_sig, args, 2);
-
-  args[0] = c_t->desc;
-  args[1] = LLVMConstInt(c->intptr, SIGNATURE_LENGTH, false);
-  args[2] = args[1];
-  args[3] = ptr;
-
-  LLVMValueRef inst = LLVMConstNamedStruct(c_t->structure, args, 4);
-  LLVMValueRef g_inst = LLVMAddGlobal(c->module, c_t->structure, "");
-  LLVMSetInitializer(g_inst, inst);
-  LLVMSetGlobalConstant(g_inst, true);
-  LLVMSetLinkage(g_inst, LLVMPrivateLinkage);
-  LLVMSetUnnamedAddr(g_inst, true);
-
-  return g_inst;
-}
-
-void genprim_signature(compile_t* c)
-{
-  reach_type_t* t = reach_type_name(c->reach, "Array_U8_val");
-
-  if(t == NULL)
-    return;
-
-  compile_type_t* c_t = (compile_type_t*)t->c_type;
-
-  ast_t* def = (ast_t*)ast_data(t->ast);
-  pony_assert(def != NULL);
-
-  ast_t* program = ast_nearest(def, TK_PROGRAM);
-  pony_assert(program != NULL);
-
-  const char* signature = program_signature(program);
-  LLVMValueRef g_array = make_signature_array(c, c_t, signature);
-
-  // Array_U8_val* @internal.signature()
-  LLVMTypeRef f_type = LLVMFunctionType(c_t->use_type, NULL, 0, false);
-  LLVMValueRef fun = codegen_addfun(c, "internal.signature", f_type, false);
-  LLVMSetFunctionCallConv(fun, LLVMCCallConv);
-  codegen_startfun(c, fun, NULL, NULL, NULL, false);
-  genfun_build_ret(c, g_array);
-  codegen_finishfun(c);
 }
 
 void genprim_builtins(compile_t* c)

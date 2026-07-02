@@ -34,6 +34,8 @@ static __pony_thread_local use_scheme_t handlers[] =
   {"package:", 8, true, false, use_package},
   {"lib:", 4, false, true, use_library},
   {"path:", 5, false, true, use_path},
+  {"cincludedir:", 12, false, true, use_cincludedir},
+  {"cdefine:", 8, false, true, use_cdefine},
 
   {"test:", 5, false, false, NULL},  // For testing
   {NULL, 0, false, false, NULL}  // Terminator
@@ -69,7 +71,7 @@ static int find_handler(pass_opt_t* opt, ast_t* uri, const char** out_locator)
   if(colon == NULL)
   {
     // No scheme specified, use default
-    *out_locator = stringtab(text);
+    *out_locator = stringtab(opt->strtab, text);
     return 0;
   }
 
@@ -85,7 +87,7 @@ static int find_handler(pass_opt_t* opt, ast_t* uri, const char** out_locator)
         break;
 
       // Matching scheme found
-      *out_locator = stringtab(colon + 1);
+      *out_locator = stringtab(opt->strtab, colon + 1);
       return i;
     }
   }

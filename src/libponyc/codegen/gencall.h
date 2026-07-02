@@ -27,7 +27,14 @@ LLVMValueRef gencall_alloc(compile_t* c, reach_type_t* t, ast_t* call);
 
 LLVMValueRef gencall_allocstruct(compile_t* c, reach_type_t* t);
 
-void gencall_error(compile_t* c);
+LLVMTypeRef error_flag_type(compile_t* c, LLVMTypeRef real_type);
+
+LLVMValueRef wrap_result(compile_t* c, LLVMValueRef value,
+  LLVMValueRef is_error);
+
+LLVMValueRef unwrap_result(compile_t* c, LLVMValueRef tuple);
+
+LLVMValueRef unwrap_error(compile_t* c, LLVMValueRef tuple);
 
 void gencall_memcpy(compile_t* c, LLVMValueRef dst, LLVMValueRef src,
   LLVMValueRef n);
@@ -35,9 +42,9 @@ void gencall_memcpy(compile_t* c, LLVMValueRef dst, LLVMValueRef src,
 void gencall_memmove(compile_t* c, LLVMValueRef dst, LLVMValueRef src,
   LLVMValueRef n);
 
-void gencall_lifetime_start(compile_t* c, LLVMValueRef ptr, LLVMTypeRef type);
+void gencall_lifetime_start(compile_t* c, LLVMValueRef ptr);
 
-void gencall_lifetime_end(compile_t* c, LLVMValueRef ptr, LLVMTypeRef type);
+void gencall_lifetime_end(compile_t* c, LLVMValueRef ptr);
 
 PONY_EXTERN_C_END
 

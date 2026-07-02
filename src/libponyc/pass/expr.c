@@ -12,31 +12,33 @@
 #include "../type/assemble.h"
 #include "../type/lookup.h"
 #include "../type/subtype.h"
+#include "../type/typealias.h"
+#include "../type/reify.h"
 #include "ponyassert.h"
 
-static bool is_numeric_primitive(const char* name)
+static bool is_numeric_primitive(const char* name, pass_opt_t* opt)
 {
-  if(name == stringtab("U8") ||
-     name == stringtab("I8") ||
-     name == stringtab("U16") ||
-     name == stringtab("I16") ||
-     name == stringtab("U32") ||
-     name == stringtab("I32") ||
-     name == stringtab("U64") ||
-     name == stringtab("I64") ||
-     name == stringtab("U128") ||
-     name == stringtab("I128") ||
-     name == stringtab("ULong") ||
-     name == stringtab("ILong") ||
-     name == stringtab("USize") ||
-     name == stringtab("ISize") ||
-     name == stringtab("F32") ||
-     name == stringtab("F64"))
+  if(name == stringtab(opt->strtab, "U8") ||
+     name == stringtab(opt->strtab, "I8") ||
+     name == stringtab(opt->strtab, "U16") ||
+     name == stringtab(opt->strtab, "I16") ||
+     name == stringtab(opt->strtab, "U32") ||
+     name == stringtab(opt->strtab, "I32") ||
+     name == stringtab(opt->strtab, "U64") ||
+     name == stringtab(opt->strtab, "I64") ||
+     name == stringtab(opt->strtab, "U128") ||
+     name == stringtab(opt->strtab, "I128") ||
+     name == stringtab(opt->strtab, "ULong") ||
+     name == stringtab(opt->strtab, "ILong") ||
+     name == stringtab(opt->strtab, "USize") ||
+     name == stringtab(opt->strtab, "ISize") ||
+     name == stringtab(opt->strtab, "F32") ||
+     name == stringtab(opt->strtab, "F64"))
     return true;
   return false;
 }
 
-bool is_result_needed(ast_t* ast)
+bool is_result_needed(ast_t* ast, pass_opt_t* opt)
 {
   ast_t* parent = ast_parent(ast);
 
@@ -47,7 +49,7 @@ bool is_result_needed(ast_t* ast)
       if(ast_sibling(ast) != NULL)
         return false;
 
-      return is_result_needed(parent);
+      return is_result_needed(parent, opt);
 
     case TK_IF:
     case TK_IFDEF:
@@ -57,28 +59,28 @@ bool is_result_needed(ast_t* ast)
       if(ast_child(parent) == ast)
         return true;
 
-      return is_result_needed(parent);
+      return is_result_needed(parent, opt);
 
     case TK_IFTYPE:
       // Sub/supertype not needed, body needed only if parent needed.
       if((ast_child(parent) == ast) || (ast_childidx(parent, 1) == ast))
         return false;
 
-      return is_result_needed(parent);
+      return is_result_needed(parent, opt);
 
     case TK_REPEAT:
       // Cond needed, body/else needed only if parent needed.
       if(ast_childidx(parent, 1) == ast)
         return true;
 
-      return is_result_needed(parent);
+      return is_result_needed(parent, opt);
 
     case TK_CASE:
       // Pattern, guard needed, body needed only if parent needed
       if(ast_childidx(parent, 2) != ast)
         return true;
 
-      return is_result_needed(parent);
+      return is_result_needed(parent, opt);
 
     case TK_CASES:
     case TK_IFTYPE_SET:
@@ -87,7 +89,7 @@ bool is_result_needed(ast_t* ast)
     case TK_RECOVER:
     case TK_DISPOSING_BLOCK:
       // Only if parent needed.
-      return is_result_needed(parent);
+      return is_result_needed(parent, opt);
 
     case TK_NEW:
     {
@@ -96,8 +98,8 @@ bool is_result_needed(ast_t* ast)
       pony_assert(ast_id(type) == TK_NOMINAL);
       const char* pkg_name = ast_name(ast_child(type));
       const char* type_name = ast_name(ast_childidx(type, 1));
-      if(pkg_name == stringtab("$0")) // Builtin package.
-        return is_numeric_primitive(type_name);
+      if(pkg_name == stringtab(opt->strtab, "$0")) // Builtin package.
+        return is_numeric_primitive(type_name, opt);
       return false;
     }
 
@@ -110,7 +112,7 @@ bool is_result_needed(ast_t* ast)
       // Result of the receiver expression is needed if the chain result is
       // needed
       if(ast_childidx(parent, 0) == ast)
-        return is_result_needed(parent);
+        return is_result_needed(parent, opt);
 
       // Result of a chained method isn't needed.
       return false;
@@ -217,6 +219,16 @@ bool is_typecheck_error(ast_t* type)
   return false;
 }
 
+bool jumps_away_no_value(pass_opt_t* opt, ast_t* ast, const char* what)
+{
+  if(!ast_checkflag(ast, AST_FLAG_JUMPS_AWAY))
+    return false;
+
+  ast_error(opt->check.errors, ast,
+    "%s can't be an expression that jumps away with no value", what);
+  return true;
+}
+
 static ast_t* find_tuple_type(pass_opt_t* opt, ast_t* ast, size_t child_count)
 {
   if((ast_id(ast) == TK_TUPLETYPE) && (ast_childcount(ast) == child_count))
@@ -251,6 +263,24 @@ static ast_t* find_tuple_type(pass_opt_t* opt, ast_t* ast, size_t child_count)
       return find_tuple_type(opt, ast_childlast(ast), child_count);
 
     case TK_TYPEPARAMREF: break; // TODO
+
+    case TK_TYPEALIASREF:
+    {
+      ast_t* unfolded = typealias_unfold(ast);
+
+      if(unfolded == NULL)
+        return NULL;
+
+      ast_t* r = find_tuple_type(opt, unfolded, child_count);
+
+      // find_tuple_type may return a pointer into the unfolded subtree.
+      // Duplicate the result before freeing the unfolded AST.
+      if(r != NULL)
+        r = ast_dup(r);
+
+      ast_free_unattached(unfolded);
+      return r;
+    }
 
     default:
       break;
@@ -311,7 +341,7 @@ ast_t* find_antecedent_type(pass_opt_t* opt, ast_t* ast, bool* is_recovered)
       if(ast_id(funtype) != TK_FUNTYPE)
       {
         deferred_reification_t* fun = lookup(opt, receiver, funtype,
-          stringtab("apply"));
+          stringtab(opt->strtab, "apply"));
 
         if(fun == NULL)
           return NULL;
@@ -559,6 +589,23 @@ ast_result_t pass_expr(ast_t** astp, pass_opt_t* options)
     case TK_TRAIT:
     case TK_INTERFACE:  r = expr_provides(options, ast); break;
     case TK_NOMINAL:    r = expr_nominal(options, astp); break;
+    case TK_TYPEALIASREF:
+    {
+      ast_t* def = (ast_t*)ast_data(ast);
+      pony_assert(def != NULL);
+
+      ast_t* typeparams = ast_childidx(def, 1);
+      ast_t* typeargs = ast_childidx(ast, 1);
+
+      if(!reify_defaults(typeparams, typeargs, true, options))
+      {
+        r = false;
+        break;
+      }
+
+      r = check_constraints(typeargs, typeparams, typeargs, true, options);
+      break;
+    }
     case TK_FVAR:
     case TK_FLET:
     case TK_EMBED:      r = expr_field(options, ast); break;

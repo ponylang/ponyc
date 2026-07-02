@@ -18,8 +18,6 @@ DECL(rawseq);
 DECL(seq);
 DECL(annotatedrawseq);
 DECL(annotatedseq);
-DECL(exprseq);
-DECL(nextexprseq);
 DECL(jump);
 DECL(assignment);
 DECL(term);
@@ -1090,10 +1088,16 @@ DEF(nextassignment);
   OPT_NO_DFLT RULE("value", assignop);
   DONE();
 
+// The statements that terminate a sequence: nothing may follow a jump in its
+// sequence. Shared by the jump rule and the SEQ_STOP_AFTER_CHILD loops in
+// rawseq/annotatedrawseq so the two cannot drift apart.
+#define JUMP_TOKENS \
+  TK_RETURN, TK_BREAK, TK_CONTINUE, TK_ERROR, TK_COMPILE_INTRINSIC, \
+  TK_COMPILE_ERROR
+
 // RETURN | BREAK | CONTINUE | ERROR | COMPILE_INTRINSIC | COMPILE_ERROR
 DEF(jump);
-  TOKEN("statement", TK_RETURN, TK_BREAK, TK_CONTINUE, TK_ERROR,
-    TK_COMPILE_INTRINSIC, TK_COMPILE_ERROR);
+  TOKEN("statement", JUMP_TOKENS);
   OPT RULE("return value", rawseq);
   DONE();
 
@@ -1104,39 +1108,42 @@ DEF(semi);
   IF(TK_NEWLINE, SET_FLAG(AST_FLAG_BAD_SEMI));
   DONE();
 
-// semi (exprseq | jump)
+// semi (assignment | jump)
+// One continuation of a statement sequence, introduced by an explicit
+// semicolon. Parses a single statement; the enclosing seq loop handles
+// repetition (see rawseq), so this is not recursive. The statement
+// (assignment | jump) must remain the last node this rule adds, because
+// rawseq's SEQ_STOP_AFTER_CHILD tests it to decide whether a jump ended the sequence.
 DEF(semiexpr);
   AST_NODE(TK_FLATTEN);
   RULE("semicolon", semi);
-  RULE("value", exprseq, jump);
+  RULE("value", assignment, jump);
   DONE();
 
-// nextexprseq | jump
+// nextassignment | jump
+// One continuation of a statement sequence with no semicolon (a newline, or an
+// illegal same-line break flagged as a missing semicolon). Parses a single
+// statement; repetition is handled by the enclosing seq loop (see rawseq). As
+// in semiexpr, the statement must remain this rule's last node for
+// SEQ_STOP_AFTER_CHILD's jump check.
 DEF(nosemi);
   IFELSE(TK_NEWLINE, NEXT_FLAGS(0), NEXT_FLAGS(AST_FLAG_MISSING_SEMI));
-  RULE("value", nextexprseq, jump);
+  RULE("value", nextassignment, jump);
   DONE();
 
-// nextassignment (semiexpr | nosemi)
-DEF(nextexprseq);
-  AST_NODE(TK_FLATTEN);
-  RULE("value", nextassignment);
-  OPT_NO_DFLT RULE("value", semiexpr, nosemi);
-  NEXT_FLAGS(0);
-  DONE();
-
-// assignment (semiexpr | nosemi)
-DEF(exprseq);
-  AST_NODE(TK_FLATTEN);
-  RULE("value", assignment);
-  OPT_NO_DFLT RULE("value", semiexpr, nosemi);
-  NEXT_FLAGS(0);
-  DONE();
-
-// (exprseq | jump)
+// (assignment | jump) {semiexpr | nosemi}
+// The sequence is parsed iteratively: a first statement followed by a loop of
+// continuations. The loop stops after a jump statement, because a jump always
+// terminates its sequence (anything after it is a syntax error). Parsing this
+// way (rather than right-recursively) keeps parser stack depth independent of
+// the number of statements (issue #3660).
 DEF(rawseq);
   AST_NODE(TK_SEQ);
-  RULE("value", exprseq, jump);
+  RULE("value", assignment, jump);
+  SEQ_STOP_AFTER_CHILD("value", semiexpr, nosemi, JUMP_TOKENS);
+  // Clear any missing-semicolon flag left pending by a final unmatched nosemi
+  // so it cannot attach to a token consumed by an enclosing rule.
+  NEXT_FLAGS(0);
   DONE();
 
 // rawseq
@@ -1145,11 +1152,14 @@ DEF(seq);
   SCOPE();
   DONE();
 
-// [annotations] (exprseq | jump)
+// [annotations] (assignment | jump) {semiexpr | nosemi}
 DEF(annotatedrawseq);
   AST_NODE(TK_SEQ);
   ANNOTATE(annotations);
-  RULE("value", exprseq, jump);
+  RULE("value", assignment, jump);
+  SEQ_STOP_AFTER_CHILD("value", semiexpr, nosemi, JUMP_TOKENS);
+  // Clear the pending missing-semicolon flag as in rawseq.
+  NEXT_FLAGS(0);
   DONE();
 
 // annotatedrawseq
@@ -1273,10 +1283,10 @@ DEF(module);
 
 // external API
 bool pass_parse(ast_t* package, source_t* source, errors_t* errors,
-  bool allow_test_symbols, bool trace)
+  strtable_t* strtab, bool allow_test_symbols, bool trace)
 {
   return parse(package, source, module, "class, actor, primitive or trait",
-    errors, allow_test_symbols, trace);
+    errors, strtab, allow_test_symbols, trace);
 }
 
 #endif

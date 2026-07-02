@@ -2,6 +2,7 @@
 #include "cap.h"
 #include "assemble.h"
 #include "subtype.h"
+#include "typealias.h"
 #include "typeparam.h"
 #include "viewpoint.h"
 #include "ponyassert.h"
@@ -61,14 +62,14 @@ static matchtype_t is_union_match_x(ast_t* operand, ast_t* pattern,
     {
       ast_error_frame(errorf, pattern,
         "matching %s with %s could violate capabilities",
-        ast_print_type(operand), ast_print_type(pattern));
+        ast_print_type(operand, opt->strtab), ast_print_type(pattern, opt->strtab));
     } else if(ok == MATCHTYPE_DENY_NODESC) {
       ast_error_frame(errorf, pattern,
         "matching %s with %s is not possible, since a struct lacks a type descriptor",
-        ast_print_type(operand), ast_print_type(pattern));
+        ast_print_type(operand, opt->strtab), ast_print_type(pattern, opt->strtab));
     } else if(report_reject) {
       ast_error_frame(errorf, pattern, "no element of %s can match %s",
-        ast_print_type(operand), ast_print_type(pattern));
+        ast_print_type(operand, opt->strtab), ast_print_type(pattern, opt->strtab));
     }
   }
 
@@ -126,14 +127,14 @@ static matchtype_t is_isect_match_x(ast_t* operand, ast_t* pattern,
     {
       ast_error_frame(errorf, pattern,
         "matching %s with %s could violate capabilities",
-        ast_print_type(operand), ast_print_type(pattern));
+        ast_print_type(operand, opt->strtab), ast_print_type(pattern, opt->strtab));
     } else if(ok == MATCHTYPE_DENY_NODESC) {
       ast_error_frame(errorf, pattern,
         "matching %s with %s is not possible, since a struct lacks a type descriptor",
-        ast_print_type(operand), ast_print_type(pattern));
+        ast_print_type(operand, opt->strtab), ast_print_type(pattern, opt->strtab));
     } else if(report_reject) {
       ast_error_frame(errorf, pattern, "not every element of %s can match %s",
-        ast_print_type(operand), ast_print_type(pattern));
+        ast_print_type(operand, opt->strtab), ast_print_type(pattern, opt->strtab));
     }
   }
 
@@ -191,14 +192,14 @@ static matchtype_t is_x_match_union(ast_t* operand, ast_t* pattern,
     {
       ast_error_frame(errorf, pattern,
         "matching %s with %s could violate capabilities",
-        ast_print_type(operand), ast_print_type(pattern));
+        ast_print_type(operand, opt->strtab), ast_print_type(pattern, opt->strtab));
     } else if(ok == MATCHTYPE_DENY_NODESC) {
       ast_error_frame(errorf, pattern,
         "matching %s with %s is not possible, since a struct lacks a type descriptor",
-        ast_print_type(operand), ast_print_type(pattern));
+        ast_print_type(operand, opt->strtab), ast_print_type(pattern, opt->strtab));
     } else if(report_reject) {
       ast_error_frame(errorf, pattern, "%s cannot match any element of %s",
-        ast_print_type(operand), ast_print_type(pattern));
+        ast_print_type(operand, opt->strtab), ast_print_type(pattern, opt->strtab));
     }
   }
 
@@ -256,14 +257,14 @@ static matchtype_t is_x_match_isect(ast_t* operand, ast_t* pattern,
     {
       ast_error_frame(errorf, pattern,
         "matching %s with %s could violate capabilities",
-        ast_print_type(operand), ast_print_type(pattern));
+        ast_print_type(operand, opt->strtab), ast_print_type(pattern, opt->strtab));
     } else if(ok == MATCHTYPE_DENY_NODESC) {
       ast_error_frame(errorf, pattern,
         "matching %s with %s is not possible, since a struct lacks a type descriptor",
-        ast_print_type(operand), ast_print_type(pattern));
+        ast_print_type(operand, opt->strtab), ast_print_type(pattern, opt->strtab));
     } else if(report_reject) {
       ast_error_frame(errorf, pattern, "%s cannot match every element of %s",
-        ast_print_type(operand), ast_print_type(pattern));
+        ast_print_type(operand, opt->strtab), ast_print_type(pattern, opt->strtab));
     }
   }
 
@@ -280,7 +281,7 @@ static matchtype_t is_tuple_match_tuple(ast_t* operand, ast_t* pattern,
     {
       ast_error_frame(errorf, pattern,
         "%s cannot match %s: they have a different number of elements",
-        ast_print_type(operand), ast_print_type(pattern));
+        ast_print_type(operand, opt->strtab), ast_print_type(pattern, opt->strtab));
     }
 
     return MATCHTYPE_REJECT;
@@ -337,14 +338,14 @@ static matchtype_t is_tuple_match_tuple(ast_t* operand, ast_t* pattern,
     {
       ast_error_frame(errorf, pattern,
         "matching %s with %s could violate capabilities",
-        ast_print_type(operand), ast_print_type(pattern));
+        ast_print_type(operand, opt->strtab), ast_print_type(pattern, opt->strtab));
     } else if(ok == MATCHTYPE_DENY_NODESC) {
       ast_error_frame(errorf, pattern,
         "matching %s with %s is not possible, since a struct lacks a type descriptor",
-        ast_print_type(operand), ast_print_type(pattern));
+        ast_print_type(operand, opt->strtab), ast_print_type(pattern, opt->strtab));
     } else if(report_reject) {
       ast_error_frame(errorf, pattern, "%s cannot pairwise match %s",
-        ast_print_type(operand), ast_print_type(pattern));
+        ast_print_type(operand, opt->strtab), ast_print_type(pattern, opt->strtab));
     }
   }
 
@@ -354,7 +355,7 @@ static matchtype_t is_tuple_match_tuple(ast_t* operand, ast_t* pattern,
 static matchtype_t is_nominal_match_tuple(ast_t* operand, ast_t* pattern,
   errorframe_t* errorf, bool report_reject, pass_opt_t* opt)
 {
-  if(!is_top_type(operand, true))
+  if(!is_top_type(operand, true, opt))
   {
     if((errorf != NULL) && report_reject)
     {
@@ -362,7 +363,7 @@ static matchtype_t is_nominal_match_tuple(ast_t* operand, ast_t* pattern,
 
       ast_error_frame(errorf, pattern,
         "%s cannot match %s: the pattern type is a tuple",
-        ast_print_type(operand), ast_print_type(pattern));
+        ast_print_type(operand, opt->strtab), ast_print_type(pattern, opt->strtab));
       ast_error_frame(errorf, operand_def, "this might be possible if the "
         "match type were an empty interface, such as the Any type");
     }
@@ -383,7 +384,7 @@ static matchtype_t is_nominal_match_tuple(ast_t* operand, ast_t* pattern,
       {
         ast_error_frame(errorf, pattern,
           "matching %s with %s could violate capabilities",
-          ast_print_type(operand), ast_print_type(pattern));
+          ast_print_type(operand, opt->strtab), ast_print_type(pattern, opt->strtab));
       }
 
       return r;
@@ -392,7 +393,7 @@ static matchtype_t is_nominal_match_tuple(ast_t* operand, ast_t* pattern,
       {
         ast_error_frame(errorf, pattern,
         "matching %s with %s is not possible, since a struct lacks a type descriptor",
-        ast_print_type(operand), ast_print_type(pattern));
+        ast_print_type(operand, opt->strtab), ast_print_type(pattern, opt->strtab));
       }
 
       return r;
@@ -413,10 +414,8 @@ static matchtype_t is_typeparam_match_typeparam(ast_t* operand, ast_t* pattern,
 
   // Dig through defs if there are multiple layers of directly-bound
   // type params (created through the collect_type_params function).
-  while((ast_data(operand_def) != NULL) && (operand_def != ast_data(operand_def)))
-    operand_def = (ast_t*)ast_data(operand_def);
-  while((ast_data(pattern_def) != NULL) && (pattern_def != ast_data(pattern_def)))
-    pattern_def = (ast_t*)ast_data(pattern_def);
+  operand_def = typeparam_root(operand_def);
+  pattern_def = typeparam_root(pattern_def);
 
   ast_t* o_cap = cap_fetch(operand);
   ast_t* o_eph = ast_sibling(o_cap);
@@ -438,17 +437,17 @@ static matchtype_t is_typeparam_match_typeparam(ast_t* operand, ast_t* pattern,
       ast_error_frame(errorf, pattern,
         "matching %s with %s could violate capabilities: "
         "%s%s isn't a bound subcap of %s%s",
-        ast_print_type(operand), ast_print_type(pattern),
-        ast_print_type(o_cap), ast_print_type(o_eph),
-        ast_print_type(p_cap), ast_print_type(p_eph));
+        ast_print_type(operand, opt->strtab), ast_print_type(pattern, opt->strtab),
+        ast_print_type(o_cap, opt->strtab), ast_print_type(o_eph, opt->strtab),
+        ast_print_type(p_cap, opt->strtab), ast_print_type(p_eph, opt->strtab));
     } else if (r == MATCHTYPE_DENY_NODESC) {
       ast_error_frame(errorf, pattern,
         "matching %s with %s is not possible, since a struct lacks a type descriptor",
-        ast_print_type(operand), ast_print_type(pattern));
+        ast_print_type(operand, opt->strtab), ast_print_type(pattern, opt->strtab));
     } else if(report_reject) {
       ast_error_frame(errorf, pattern,
         "%s cannot match %s: they are different type parameters",
-        ast_print_type(operand), ast_print_type(pattern));
+        ast_print_type(operand, opt->strtab), ast_print_type(pattern, opt->strtab));
     }
   }
 
@@ -496,9 +495,9 @@ static matchtype_t is_arrow_match_x(ast_t* operand, ast_t* pattern,
   AST_GET_CHILDREN(operand, left, right);
 
   if(ast_id(left) == TK_THISTYPE)
-    operand_view = viewpoint_upper(operand);
+    operand_view = viewpoint_upper(operand, opt);
   else
-    operand_view = viewpoint_lower(operand);
+    operand_view = viewpoint_lower(operand, opt);
 
   if(operand_view == NULL)
   {
@@ -510,7 +509,7 @@ static matchtype_t is_arrow_match_x(ast_t* operand, ast_t* pattern,
       ast_error_frame(errorf, pattern,
         "matching %s with %s could violate capabilities: "
         "the match type has no lower bounds",
-        ast_print_type(operand), ast_print_type(pattern));
+        ast_print_type(operand, opt->strtab), ast_print_type(pattern, opt->strtab));
     }
 
     return MATCHTYPE_DENY_CAP;
@@ -546,6 +545,17 @@ static matchtype_t is_x_match_tuple(ast_t* operand, ast_t* pattern,
     case TK_ARROW:
       return is_arrow_match_x(operand, pattern, errorf, report_reject, opt);
 
+    case TK_TYPEALIASREF:
+    {
+      ast_t* unfolded = typealias_unfold(operand);
+      if(unfolded == NULL)
+        return MATCHTYPE_REJECT;
+      matchtype_t ok = is_x_match_tuple(unfolded, pattern, errorf,
+        report_reject, opt);
+      ast_free_unattached(unfolded);
+      return ok;
+    }
+
     default: {}
   }
 
@@ -570,8 +580,8 @@ static matchtype_t is_nominal_match_entity(ast_t* operand, ast_t* pattern,
     {
       ast_error_frame(errorf, pattern,
         "%s cannot match %s: %s isn't a subtype of %s",
-        ast_print_type(operand), ast_print_type(pattern),
-        ast_print_type_no_cap(pattern), ast_print_type_no_cap(operand));
+        ast_print_type(operand, opt->strtab), ast_print_type(pattern, opt->strtab),
+        ast_print_type_no_cap(pattern, opt->strtab), ast_print_type_no_cap(operand, opt->strtab));
     }
 
     return MATCHTYPE_REJECT;
@@ -587,9 +597,9 @@ static matchtype_t is_nominal_match_entity(ast_t* operand, ast_t* pattern,
       ast_error_frame(errorf, pattern,
         "matching %s with %s could violate capabilities: "
         "%s%s isn't a subcap of %s%s",
-        ast_print_type(operand), ast_print_type(pattern),
-        ast_print_type(o_cap), ast_print_type(o_eph),
-        ast_print_type(p_cap), ast_print_type(p_eph));
+        ast_print_type(operand, opt->strtab), ast_print_type(pattern, opt->strtab),
+        ast_print_type(o_cap, opt->strtab), ast_print_type(o_eph, opt->strtab),
+        ast_print_type(p_cap, opt->strtab), ast_print_type(p_eph, opt->strtab));
 
         if(is_cap_sub_cap(ast_id(o_cap), TK_EPHEMERAL, ast_id(p_cap),
           ast_id(p_eph)))
@@ -622,7 +632,7 @@ static matchtype_t is_nominal_match_struct(ast_t* operand, ast_t* pattern,
     {
       ast_error_frame(errorf, pattern,
         "%s cannot match %s: the pattern type is a struct",
-        ast_print_type(operand), ast_print_type(pattern));
+        ast_print_type(operand, opt->strtab), ast_print_type(pattern, opt->strtab));
       ast_error_frame(errorf, pattern,
         "since a struct has no type descriptor, pattern matching at runtime "
         "would be impossible");
@@ -650,8 +660,8 @@ static matchtype_t is_entity_match_trait(ast_t* operand, ast_t* pattern,
     {
       ast_error_frame(errorf, pattern,
         "%s cannot match %s: %s isn't a subtype of %s",
-        ast_print_type(operand), ast_print_type(pattern),
-        ast_print_type_no_cap(operand), ast_print_type_no_cap(pattern));
+        ast_print_type(operand, opt->strtab), ast_print_type(pattern, opt->strtab),
+        ast_print_type_no_cap(operand, opt->strtab), ast_print_type_no_cap(pattern, opt->strtab));
     }
 
     return MATCHTYPE_REJECT;
@@ -667,9 +677,9 @@ static matchtype_t is_entity_match_trait(ast_t* operand, ast_t* pattern,
       ast_error_frame(errorf, pattern,
         "matching %s with %s could violate capabilities: "
         "%s%s isn't a subcap of %s%s",
-        ast_print_type(operand), ast_print_type(pattern),
-        ast_print_type(o_cap), ast_print_type(o_eph),
-        ast_print_type(p_cap), ast_print_type(p_eph));
+        ast_print_type(operand, opt->strtab), ast_print_type(pattern, opt->strtab),
+        ast_print_type(o_cap, opt->strtab), ast_print_type(o_eph, opt->strtab),
+        ast_print_type(p_cap, opt->strtab), ast_print_type(p_eph, opt->strtab));
     }
 
     return MATCHTYPE_DENY_CAP;
@@ -696,9 +706,9 @@ static matchtype_t is_trait_match_trait(ast_t* operand, ast_t* pattern,
       ast_error_frame(errorf, pattern,
         "matching %s with %s could violate capabilities: "
         "%s%s isn't a subcap of %s%s",
-        ast_print_type(operand), ast_print_type(pattern),
-        ast_print_type(o_cap), ast_print_type(o_eph),
-        ast_print_type(p_cap), ast_print_type(p_eph));
+        ast_print_type(operand, opt->strtab), ast_print_type(pattern, opt->strtab),
+        ast_print_type(o_cap, opt->strtab), ast_print_type(o_eph, opt->strtab),
+        ast_print_type(p_cap, opt->strtab), ast_print_type(p_eph, opt->strtab));
     }
 
     return MATCHTYPE_DENY_CAP;
@@ -772,7 +782,7 @@ static matchtype_t is_tuple_match_nominal(ast_t* operand, ast_t* pattern,
   {
     ast_error_frame(errorf, pattern,
       "%s cannot match %s: the match type is a tuple",
-      ast_print_type(operand), ast_print_type(pattern));
+      ast_print_type(operand, opt->strtab), ast_print_type(pattern, opt->strtab));
   }
 
   return MATCHTYPE_REJECT;
@@ -802,6 +812,17 @@ static matchtype_t is_x_match_nominal(ast_t* operand, ast_t* pattern,
 
     case TK_ARROW:
       return is_arrow_match_x(operand, pattern, errorf, report_reject, opt);
+
+    case TK_TYPEALIASREF:
+    {
+      ast_t* unfolded = typealias_unfold(operand);
+      if(unfolded == NULL)
+        return MATCHTYPE_REJECT;
+      matchtype_t ok = is_x_match_nominal(unfolded, pattern, errorf,
+        report_reject, opt);
+      ast_free_unattached(unfolded);
+      return ok;
+    }
 
     case TK_FUNTYPE:
       return MATCHTYPE_REJECT;
@@ -833,6 +854,17 @@ static matchtype_t is_x_match_base_typeparam(ast_t* operand, ast_t* pattern,
 
     case TK_ARROW:
       return is_arrow_match_x(operand, pattern, errorf, report_reject, opt);
+
+    case TK_TYPEALIASREF:
+    {
+      ast_t* unfolded = typealias_unfold(operand);
+      if(unfolded == NULL)
+        return MATCHTYPE_REJECT;
+      matchtype_t ok = is_x_match_base_typeparam(unfolded, pattern, errorf,
+        report_reject, opt);
+      ast_free_unattached(unfolded);
+      return ok;
+    }
 
     case TK_FUNTYPE:
       return MATCHTYPE_REJECT;
@@ -871,7 +903,7 @@ static matchtype_t is_x_match_arrow(ast_t* operand, ast_t* pattern,
   // T1 match upperbound(T2->T3)
   // ---
   // T1 match T2->T3
-  ast_t* pattern_upper = viewpoint_upper(pattern);
+  ast_t* pattern_upper = viewpoint_upper(pattern, opt);
 
   if(pattern_upper == NULL)
   {
@@ -879,7 +911,7 @@ static matchtype_t is_x_match_arrow(ast_t* operand, ast_t* pattern,
     {
       ast_error_frame(errorf, pattern,
         "%s cannot match %s: the pattern type has no upper bounds",
-        ast_print_type(operand), ast_print_type(pattern));
+        ast_print_type(operand, opt->strtab), ast_print_type(pattern, opt->strtab));
     }
 
     return MATCHTYPE_REJECT;
@@ -912,19 +944,31 @@ static matchtype_t is_x_match_x(ast_t* operand, ast_t* pattern,
       return is_x_match_nominal(operand, pattern, errorf, report_reject, opt);
 
     case TK_TYPEPARAMREF:
-      return is_x_match_typeparam(operand, pattern, errorf, report_reject, opt);
+      return is_x_match_typeparam(operand, pattern, errorf, report_reject,
+        opt);
 
     case TK_ARROW:
       return is_x_match_arrow(operand, pattern, errorf, report_reject, opt);
 
+    case TK_TYPEALIASREF:
+    {
+      ast_t* unfolded = typealias_unfold(pattern);
+      if(unfolded == NULL)
+        return MATCHTYPE_REJECT;
+
+      matchtype_t ok = is_x_match_x(operand, unfolded, errorf, report_reject,
+        opt);
+      ast_free_unattached(unfolded);
+      return ok;
+    }
+
     case TK_FUNTYPE:
       return MATCHTYPE_DENY_CAP;
 
-    default: {}
+    default:
+      pony_assert(0);
+      return MATCHTYPE_DENY_CAP;
   }
-
-  pony_assert(0);
-  return MATCHTYPE_DENY_CAP;
 }
 
 matchtype_t is_matchtype(ast_t* operand, ast_t* pattern, errorframe_t* errorf,
@@ -936,7 +980,7 @@ matchtype_t is_matchtype(ast_t* operand, ast_t* pattern, errorframe_t* errorf,
 matchtype_t is_matchtype_with_consumed_pattern(ast_t* operand, ast_t* pattern, errorframe_t* errorf,
   pass_opt_t* opt)
 {
-  ast_t* consumed_pattern = consume_type(pattern, TK_NONE, false);
+  ast_t* consumed_pattern = consume_type(pattern, TK_NONE, false, opt);
   if (consumed_pattern == NULL)
     return MATCHTYPE_REJECT;
 

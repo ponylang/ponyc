@@ -10,12 +10,15 @@ PONY_EXTERN_C_BEGIN
 
 typedef struct lexer_t lexer_t;
 typedef struct errors_t errors_t;
+typedef struct strtable_t strtable_t;
 
 /** Create a new lexer to handle the given source.
+ * Identifier and string-literal token text is interned into the given strtab,
+ * which must outlive every token the lexer produces.
  * The created lexer must be freed later with lexer_close().
  * Never returns NULL.
  */
-lexer_t* lexer_open(source_t* source, errors_t* errors,
+lexer_t* lexer_open(source_t* source, errors_t* errors, strtable_t* strtab,
   bool allow_test_symbols);
 
 /** Free a previously opened lexer.

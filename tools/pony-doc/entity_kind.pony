@@ -12,42 +12,59 @@ type EntityKind is
   | EntityTypeAlias )
 
 primitive EntityClass
-  """Represents a Pony `class` declaration."""
+  """
+  Represents a Pony `class` declaration.
+  """
   fun string(): String => "class"
   fun keyword(): String => "class"
 
 primitive EntityActor
-  """Represents a Pony `actor` declaration."""
+  """
+  Represents a Pony `actor` declaration.
+  """
   fun string(): String => "actor"
   fun keyword(): String => "actor"
 
 primitive EntityTrait
-  """Represents a Pony `trait` declaration."""
+  """
+  Represents a Pony `trait` declaration.
+  """
   fun string(): String => "trait"
   fun keyword(): String => "trait"
 
 primitive EntityInterface
-  """Represents a Pony `interface` declaration."""
+  """
+  Represents a Pony `interface` declaration.
+  """
   fun string(): String => "interface"
   fun keyword(): String => "interface"
 
 primitive EntityPrimitive
-  """Represents a Pony `primitive` declaration."""
+  """
+  Represents a Pony `primitive` declaration.
+  """
   fun string(): String => "primitive"
   fun keyword(): String => "primitive"
 
 primitive EntityStruct
-  """Represents a Pony `struct` declaration."""
+  """
+  Represents a Pony `struct` declaration.
+  """
   fun string(): String => "struct"
   fun keyword(): String => "struct"
 
 primitive EntityTypeAlias
-  """Represents a Pony `type` alias declaration."""
+  """
+  Represents a Pony `type` alias declaration.
+  """
   fun string(): String => "type"
   fun keyword(): String => "type"
 
 primitive EntityKindBuilder
-  """Maps a pony_compiler TokenId to the corresponding EntityKind."""
+  """
+  Maps a pony_compiler TokenId to the corresponding
+  EntityKind.
+  """
   fun apply(id: ast.TokenId): EntityKind ? =>
     match id
     | ast.TokenIds.tk_class() => EntityClass

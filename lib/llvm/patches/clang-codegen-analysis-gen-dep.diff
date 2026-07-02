@@ -1,0 +1,15 @@
+diff --git i/clang/lib/CodeGen/CMakeLists.txt w/clang/lib/CodeGen/CMakeLists.txt
+index dbbc35b37..87bfbfa3c 100644
+--- i/clang/lib/CodeGen/CMakeLists.txt
++++ w/clang/lib/CodeGen/CMakeLists.txt
+@@ -164,6 +164,10 @@ add_clang_library(clangCodeGen
+   ClangDriverOptions
+   # These generated headers are included transitively.
+   target_parser_gen
++  # CodeGenModule.cpp/CodeGenAction.cpp include llvm/Analysis/TargetLibraryInfo.h,
++  # whose TargetLibraryInfo.inc is produced by the analysis_gen tablegen target.
++  # Without this dependency a parallel build can compile before it is generated.
++  analysis_gen
+ 
+   LINK_LIBS
+   clangAST

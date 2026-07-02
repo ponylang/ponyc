@@ -6,7 +6,7 @@
 
 PONY_EXTERN_C_BEGIN
 
-typedef const struct _pony_type_t pony_type_t;
+typedef struct strtable_t strtable_t;
 
 typedef struct source_t
 {
@@ -16,10 +16,13 @@ typedef struct source_t
 } source_t;
 
 /** Open the file with the given path.
+ * The file path is interned into the given strtab, which must outlive the
+ * returned source.
  * Returns the opened source which must be closed later,
  * NULL on failure.
  */
-source_t* source_open(const char* file, const char** error_msgp);
+source_t* source_open(const char* file, const char** error_msgp,
+  strtable_t* strtab);
 
 /** Create a source based on the given string of code.
  * Intended for testing purposes only.
@@ -33,8 +36,6 @@ source_t* source_open_string(const char* source_code);
  * May be called on sources that failed to open.
  */
 void source_close(source_t* source);
-
-pony_type_t* source_pony_type();
 
 PONY_EXTERN_C_END
 

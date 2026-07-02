@@ -28,6 +28,7 @@ actor \nodoc\ Main is TestList
     test(_TestFileLinesSingleLine)
     test(_TestFileLongLine)
     test(_TestFileMixedWriteQueue)
+    test(_TestFileReadStringSmall)
     test(_TestFileOpen)
     test(_TestFileOpenError)
     test(_TestFileOpenWrite)
@@ -461,6 +462,23 @@ class \nodoc\ iso _TestFileEOF is UnitTest
       let line2 = file.read_string(1)
       h.assert_eq[USize](line2.size(), 0, "Read beyond EOF without error!")
       h.assert_true(file.errno() is FileEOF)
+    end
+    filepath.remove()
+
+class \nodoc\ iso _TestFileReadStringSmall is UnitTest
+  fun name(): String => "files/File.read_string-small"
+  fun apply(h: TestHelper) =>
+    let path = "tmp.read_string_small"
+    let filepath = FilePath(FileAuth(h.env.root), path)
+    with file = File(filepath) do
+      // 40 bytes, larger than the allocator's 32-byte minimum block.
+      file.write("0123456789012345678901234567890123456789")
+      file.sync()
+      file.seek_start(0)
+      // read_string(5) must return exactly 5 bytes, not the buffer's capacity.
+      let chunk = file.read_string(5)
+      h.assert_eq[USize](5, chunk.size())
+      h.assert_eq[String]("01234", consume chunk)
     end
     filepath.remove()
 

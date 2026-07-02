@@ -3,6 +3,7 @@
 #include "cap.h"
 #include "subtype.h"
 #include "matchtype.h"
+#include "typealias.h"
 #include "../ast/token.h"
 #include "../../libponyrt/mem/pool.h"
 #include "ponyassert.h"
@@ -14,7 +15,24 @@ static token_id cap_union_constraint(token_id a, token_id b)
   if(a == b)
     return a;
 
-  // If we're in a set together, return the set. Otherwise, use #any.
+  // If one side is empty (TK_NONE), return the other side.
+  // Empty is the identity element for union.
+  if(a == TK_NONE)
+    return b;
+
+  if(b == TK_NONE)
+    return a;
+
+  // Return the smallest cap-set that contains both a and b. The reachable
+  // cap-sets and their members are:
+  //   #read  = ref | val | box
+  //   #send  = iso | val | tag
+  //   #share = val | tag                 (a subset of both #send and #alias)
+  //   #alias = ref | val | box | tag     (a superset of #read and #share)
+  //   #any   = everything
+  // The result falls through to #any when no narrower set contains both. The
+  // function is called via a left-fold by cap_from_constraint, so the table
+  // must handle the result of a previous union as the `a` argument.
   switch(a)
   {
     case TK_ISO:
@@ -38,6 +56,11 @@ static token_id cap_union_constraint(token_id a, token_id b)
         case TK_CAP_READ:
           return TK_CAP_READ;
 
+        case TK_TAG:
+        case TK_CAP_SHARE:
+        case TK_CAP_ALIAS:
+          return TK_CAP_ALIAS;
+
         default: {}
       }
       break;
@@ -58,8 +81,12 @@ static token_id cap_union_constraint(token_id a, token_id b)
         case TK_CAP_SEND:
           return TK_CAP_SEND;
 
+        case TK_CAP_ALIAS:
+          return TK_CAP_ALIAS;
+
         default: {}
       }
+      break;
 
     case TK_BOX:
       switch(b)
@@ -68,6 +95,11 @@ static token_id cap_union_constraint(token_id a, token_id b)
         case TK_VAL:
         case TK_CAP_READ:
           return TK_CAP_READ;
+
+        case TK_TAG:
+        case TK_CAP_SHARE:
+        case TK_CAP_ALIAS:
+          return TK_CAP_ALIAS;
 
         default: {}
       }
@@ -84,6 +116,12 @@ static token_id cap_union_constraint(token_id a, token_id b)
         case TK_CAP_SEND:
           return TK_CAP_SEND;
 
+        case TK_REF:
+        case TK_BOX:
+        case TK_CAP_READ:
+        case TK_CAP_ALIAS:
+          return TK_CAP_ALIAS;
+
         default: {}
       }
       break;
@@ -95,6 +133,11 @@ static token_id cap_union_constraint(token_id a, token_id b)
         case TK_VAL:
         case TK_BOX:
           return TK_CAP_READ;
+
+        case TK_TAG:
+        case TK_CAP_SHARE:
+        case TK_CAP_ALIAS:
+          return TK_CAP_ALIAS;
 
         default: {}
       }
@@ -124,6 +167,12 @@ static token_id cap_union_constraint(token_id a, token_id b)
         case TK_CAP_SEND:
           return TK_CAP_SEND;
 
+        case TK_REF:
+        case TK_BOX:
+        case TK_CAP_READ:
+        case TK_CAP_ALIAS:
+          return TK_CAP_ALIAS;
+
         default: {}
       }
       break;
@@ -136,6 +185,7 @@ static token_id cap_union_constraint(token_id a, token_id b)
         case TK_BOX:
         case TK_TAG:
         case TK_CAP_READ:
+        case TK_CAP_SHARE:
           return TK_CAP_ALIAS;
 
         default: {}
@@ -161,14 +211,18 @@ static token_id cap_isect_constraint(token_id a, token_id b)
   if(b == TK_CAP_ANY)
     return a;
 
-  // If we're in a set, extract us from the set. Otherwise, use #any.
+  // If one side is empty (TK_NONE), the intersection stays empty.
+  if(a == TK_NONE || b == TK_NONE)
+    return TK_NONE;
+
+  // If we're in a set, extract us from the set. Otherwise, return TK_NONE
+  // (empty intersection — no capability is in both sets).
   switch(a)
   {
     case TK_ISO:
       switch(b)
       {
         case TK_CAP_SEND:
-        case TK_CAP_SHARE:
           return TK_ISO;
 
         default: {}
@@ -210,6 +264,18 @@ static token_id cap_isect_constraint(token_id a, token_id b)
       }
       break;
 
+    case TK_TAG:
+      switch(b)
+      {
+        case TK_CAP_SEND:
+        case TK_CAP_SHARE:
+        case TK_CAP_ALIAS:
+          return TK_TAG;
+
+        default: {}
+      }
+      break;
+
     case TK_CAP_READ:
       switch(b)
       {
@@ -264,6 +330,7 @@ static token_id cap_isect_constraint(token_id a, token_id b)
 
         default: {}
       }
+      break;
 
     case TK_CAP_ALIAS:
       switch(b)
@@ -283,11 +350,12 @@ static token_id cap_isect_constraint(token_id a, token_id b)
 
         default: {}
       }
+      break;
 
     default: {}
   }
 
-  return TK_CAP_ANY;
+  return TK_NONE;
 }
 
 static token_id cap_from_constraint(ast_t* type)
@@ -330,6 +398,24 @@ static token_id cap_from_constraint(ast_t* type)
     case TK_TYPEPARAMREF:
     case TK_NOMINAL:
       return cap_single(type);
+
+    case TK_TYPEALIASREF:
+    {
+      ast_t* unfolded = typealias_unfold(type);
+
+      if(unfolded == NULL)
+        return TK_NONE;
+
+      token_id result = cap_from_constraint(unfolded);
+      ast_free_unattached(unfolded);
+      return result;
+    }
+
+    case TK_TUPLETYPE:
+      // Tuples can't be used as constraints. Return a placeholder cap and let
+      // the constraint_contains_tuple check in the flatten pass report the
+      // error.
+      return TK_CAP_ANY;
 
     default: {}
   }
@@ -468,6 +554,23 @@ static bool apply_cap(ast_t* type, token_id tcap, token_id teph)
     case TK_TYPEPARAMREF:
       return apply_cap_to_single(type, tcap, teph);
 
+    case TK_TYPEALIASREF:
+    {
+      ast_t* unfolded = typealias_unfold(type);
+
+      if(unfolded == NULL)
+        return false;
+
+      bool ok = apply_cap(unfolded, tcap, teph);
+      ast_free_unattached(unfolded);
+      return ok;
+    }
+
+    case TK_TUPLETYPE:
+      // Tuples can't be used as constraints. Return false and let the
+      // constraint_contains_tuple check in the flatten pass report the error.
+      return false;
+
     default: {}
   }
 
@@ -486,7 +589,16 @@ static ast_t* constraint_cap(ast_t* typeparamref)
   token_id tcap = ast_id(cap);
   token_id teph = ast_id(eph);
 
-  ast_t* r_constraint = ast_dup(constraint);
+  ast_t* r_constraint;
+
+  // Unfold type aliases so apply_cap can distribute into compound types.
+  if(ast_id(constraint) == TK_TYPEALIASREF)
+    r_constraint = typealias_unfold(constraint);
+  else
+    r_constraint = ast_dup(constraint);
+
+  if(r_constraint == NULL)
+    return NULL;
 
   if(!apply_cap(r_constraint, tcap, teph))
   {
@@ -520,6 +632,15 @@ ast_t* typeparam_constraint(ast_t* typeparamref)
 
   astlist_free(def_list);
   return constraint;
+}
+
+ast_t* typeparam_root(ast_t* def)
+{
+  while((def != NULL) && (ast_data(def) != NULL) &&
+    ((ast_t*)ast_data(def) != def))
+    def = (ast_t*)ast_data(def);
+
+  return def;
 }
 
 ast_t* typeparam_upper(ast_t* typeparamref)
@@ -575,6 +696,19 @@ static void typeparam_current_inner(ast_t* type, ast_t* scope)
     case TK_NOMINAL:
     {
       ast_t* typeargs = ast_childidx(type, 2);
+      ast_t* typearg = ast_child(typeargs);
+
+      while(typearg != NULL)
+      {
+        typeparam_current_inner(typearg, scope);
+        typearg = ast_sibling(typearg);
+      }
+      break;
+    }
+
+    case TK_TYPEALIASREF:
+    {
+      ast_t* typeargs = ast_childidx(type, 1);
       ast_t* typearg = ast_child(typeargs);
 
       while(typearg != NULL)

@@ -14,6 +14,7 @@
 #include "../type/reify.h"
 #include "../type/lookup.h"
 #include "../type/typeparam.h"
+#include "../type/typealias.h"
 #include "../ast/astbuild.h"
 #include "ponyassert.h"
 
@@ -161,13 +162,16 @@ bool expr_param(pass_opt_t* opt, ast_t* ast)
     if(!coerce_literals(&init, type, opt))
       return false;
 
+    if(jumps_away_no_value(opt, init, "a default argument"))
+      return false;
+
     ast_t* init_type = ast_type(init);
 
     if(is_typecheck_error(init_type))
       return false;
 
     ast_t* declared_type = type;
-    type = consume_type(type, TK_NONE, false);
+    type = consume_type(type, TK_NONE, false, opt);
     errorframe_t err = NULL;
     errorframe_t err2 = NULL;
 
@@ -175,7 +179,7 @@ bool expr_param(pass_opt_t* opt, ast_t* ast)
     {
       ast_error_frame(&err2, declared_type,
         "invalid parameter type for a parameter with a default argument: %s",
-        ast_print_type(declared_type));
+        ast_print_type(declared_type, opt->strtab));
       errorframe_append(&err2, &err);
       errorframe_report(&err2, opt->check.errors);
       ok = false;
@@ -255,16 +259,16 @@ bool expr_fieldref(pass_opt_t* opt, ast_t* ast, ast_t* find, token_id tid)
   f_type = typeparam_current(opt, f_type, ast);
 
   // Viewpoint adapted type of the field.
-  ast_t* type = viewpoint_type(l_type, f_type);
+  ast_t* type = viewpoint_type(l_type, f_type, opt);
 
   if(ast_id(type) == TK_ARROW)
   {
-    ast_t* upper = viewpoint_upper(type);
+    ast_t* upper = viewpoint_upper(type, opt);
 
     if(upper == NULL)
     {
       ast_error(opt->check.errors, ast, "can't read a field through %s",
-        ast_print_type(l_type));
+        ast_print_type(l_type, opt->strtab));
       return false;
     }
 
@@ -277,9 +281,9 @@ bool expr_fieldref(pass_opt_t* opt, ast_t* ast, ast_t* find, token_id tid)
   ast_t* nearest_recover = opt->check.frame->recover;
   if(nearest_recover != NULL && !expr_contained_in_recover(left, nearest_recover))
   {
-    if(!sendable(type))
+    if(!sendable(type, opt))
     {
-      if(!sendable(l_type))
+      if(!sendable(l_type, opt))
       {
         errorframe_t frame = NULL;
         ast_error_frame(&frame, ast, "can't access non-sendable field of "
@@ -331,7 +335,7 @@ bool expr_typeref(pass_opt_t* opt, ast_t** astp)
     const char* name = ast_name(id);
     const char* package_name =
       (ast_id(package) != TK_NONE) ? ast_name(ast_child(package)) : NULL;
-    type = type_sugar_args(ast, package_name, name, typeargs);
+    type = type_sugar_args(ast, package_name, name, typeargs, opt);
     ast_settype(ast, type);
 
     if(is_typecheck_error(type))
@@ -361,7 +365,7 @@ bool expr_typeref(pass_opt_t* opt, ast_t** astp)
     {
       // Transform to a default constructor.
       ast_t* dot = ast_from(ast, TK_DOT);
-      ast_add(dot, ast_from_string(ast, "create"));
+      ast_add(dot, ast_from_string(ast, "create", opt->strtab));
       ast_swap(ast, dot);
       *astp = dot;
       ast_add(dot, ast);
@@ -405,7 +409,7 @@ bool expr_typeref(pass_opt_t* opt, ast_t** astp)
 
           // Add a dot node.
           ast_t* apply = ast_from(call, TK_DOT);
-          ast_add(apply, ast_from_string(call, "apply"));
+          ast_add(apply, ast_from_string(call, "apply", opt->strtab));
           ast_swap(call, apply);
           *astp = apply;
           ast_add(apply, call);
@@ -425,7 +429,7 @@ bool expr_typeref(pass_opt_t* opt, ast_t** astp)
     {
       // Transform to a default constructor.
       ast_t* dot = ast_from(ast, TK_DOT);
-      ast_add(dot, ast_from_string(ast, "create"));
+      ast_add(dot, ast_from_string(ast, "create", opt->strtab));
       ast_swap(ast, dot);
       ast_add(dot, ast);
 
@@ -461,7 +465,7 @@ bool expr_dontcareref(pass_opt_t* opt, ast_t* ast)
 {
   pony_assert(ast_id(ast) == TK_DONTCAREREF);
 
-  if(is_result_needed(ast) && !is_legal_dontcare_read(ast))
+  if(is_result_needed(ast, opt) && !is_legal_dontcare_read(ast))
   {
     ast_error(opt->check.errors, ast, "can't read from '_'");
     return false;
@@ -504,7 +508,7 @@ bool expr_localref(pass_opt_t* opt, ast_t* ast)
 
   type = typeparam_current(opt, type, ast);
 
-  if(!sendable(type))
+  if(!sendable(type, opt))
   {
     if(opt->check.frame->recover != NULL)
     {
@@ -542,7 +546,7 @@ bool expr_localref(pass_opt_t* opt, ast_t* ast)
   // Automatically consume a local if the function is done.
   ast_t* r_type = type;
   if(is_method_return(&opt->check, ast))
-    r_type = consume_type(type, TK_NONE, false);
+    r_type = consume_type(type, TK_NONE, false, opt);
 
   ast_settype(ast, r_type);
   return true;
@@ -562,7 +566,7 @@ bool expr_paramref(pass_opt_t* opt, ast_t* ast)
 
   type = typeparam_current(opt, type, ast);
 
-  if(!sendable(type) && (opt->check.frame->recover != NULL))
+  if(!sendable(type, opt) && (opt->check.frame->recover != NULL))
   {
     ast_t* parent = ast_parent(ast);
     if((ast_id(parent) != TK_DOT) && (ast_id(parent) != TK_CHAIN))
@@ -573,7 +577,7 @@ bool expr_paramref(pass_opt_t* opt, ast_t* ast)
   // Automatically consume a parameter if the function is done.
   ast_t* r_type = type;
   if(is_method_return(&opt->check, ast))
-    r_type = consume_type(type, TK_NONE, false);
+    r_type = consume_type(type, TK_NONE, false, opt);
 
   ast_settype(ast, r_type);
   return true;
@@ -887,15 +891,22 @@ bool expr_tuple(pass_opt_t* opt, ast_t* ast)
   } else {
     type = ast_from(ast, TK_TUPLETYPE);
 
-    while(child != NULL)
+    // A tuple can't contain an expression that jumps away with no value. Check
+    // every child up front: the literal short-circuit below returns before the
+    // type-building loop visits later children, so an earlier literal element
+    // would otherwise hide a later jumps-away element.
+    for(ast_t* c = child; c != NULL; c = ast_sibling(c))
     {
-      if(ast_checkflag(child, AST_FLAG_JUMPS_AWAY))
+      if(ast_checkflag(c, AST_FLAG_JUMPS_AWAY))
       {
-        ast_error(opt->check.errors, child,
+        ast_error(opt->check.errors, c,
           "a tuple can't contain an expression that jumps away with no value");
         return false;
       }
+    }
 
+    while(child != NULL)
+    {
       ast_t* c_type = ast_type(child);
 
       if((c_type == NULL) || (ast_id(c_type) == TK_ERRORTYPE))
@@ -930,6 +941,12 @@ bool expr_nominal(pass_opt_t* opt, ast_t** astp)
   {
     case TK_TYPEPARAMREF:
       return flatten_typeparamref(opt, ast) == AST_OK;
+
+    case TK_TYPEALIASREF:
+      // Constraint checking is handled by names_typealias(expr=true) for
+      // the direct-call paths (expr_typeref, expr_this), and by pass_expr
+      // for nodes created during the names pass. Keep the alias in place.
+      return true;
 
     case TK_NOMINAL:
       break;
@@ -983,6 +1000,23 @@ bool expr_nominal(pass_opt_t* opt, ast_t** astp)
         break;
       }
 
+      case TK_TYPEALIASREF:
+      {
+        ast_t* unfolded = typealias_unfold(typearg);
+
+        if(unfolded != NULL)
+        {
+          if(ast_id(unfolded) == TK_NOMINAL)
+          {
+            ast_t* def = (ast_t*)ast_data(unfolded);
+            ok = (def != NULL) && (ast_id(def) == TK_STRUCT);
+          }
+
+          ast_free_unattached(unfolded);
+        }
+        break;
+      }
+
       default: {}
     }
 
@@ -991,7 +1025,7 @@ bool expr_nominal(pass_opt_t* opt, ast_t** astp)
       ast_error(opt->check.errors, ast,
         "%s is not allowed: "
         "the type argument to NullablePointer must be a struct",
-        ast_print_type(ast));
+        ast_print_type(ast, opt->strtab));
 
       return false;
     }
@@ -1028,9 +1062,9 @@ static bool check_return_type(pass_opt_t* opt, ast_t* ast)
     ast_t* last = ast_childlast(body);
     ast_error_frame(&frame, last, "function body isn't the result type");
     ast_error_frame(&frame, type, "function return type: %s",
-      ast_print_type(type));
+      ast_print_type(type, opt->strtab));
     ast_error_frame(&frame, body_type, "function body type: %s",
-      ast_print_type(body_type));
+      ast_print_type(body_type, opt->strtab));
     errorframe_append(&frame, &info);
     errorframe_report(&frame, opt->check.errors);
     ok = false;

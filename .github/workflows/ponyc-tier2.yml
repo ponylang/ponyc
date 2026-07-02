@@ -15,6 +15,8 @@ concurrency:
   cancel-in-progress: true
 
 permissions:
+  # read, not write: tier2 requires a pre-warmed libs cache (`--require-cache-hit`)
+  # and never builds, so it only pulls the main/branch cache -- it never pushes.
   packages: read
 
 jobs:
@@ -24,7 +26,7 @@ jobs:
       has-changes: ${{ steps.check.outputs.has-changes }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4.1.1
+        uses: actions/checkout@v6.0.2
         with:
           ref: ${{ inputs.ref || github.sha }}
           fetch-depth: 0
@@ -39,7 +41,7 @@ jobs:
             echo "has-changes=false" >> "$GITHUB_OUTPUT"
           fi
 
-  riscv64-linux:
+  x86_64-linux:
     needs: check-for-changes
     if: needs.check-for-changes.outputs.has-changes == 'true'
     runs-on: ubuntu-latest
@@ -48,8 +50,10 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - image: ghcr.io/ponylang/ponyc-ci-cross-riscv64:20240427
-            name: riscv64 Linux glibc
+          - image: ghcr.io/ponylang/ponyc-ci-alpine3.23-builder:20260201
+            name: x86-64 Linux musl alpine3.23
+          - image: ghcr.io/ponylang/ponyc-ci-alpine3.24-builder:20260611
+            name: x86-64 Linux musl alpine3.24
 
     name: ${{ matrix.name }}
     container:
@@ -57,159 +61,49 @@ jobs:
       options: --user pony --cap-add=SYS_PTRACE --security-opt seccomp=unconfined
     steps:
       - name: Checkout
-        uses: actions/checkout@v4.1.1
+        uses: actions/checkout@v6.0.2
         with:
           ref: ${{ inputs.ref || github.sha }}
-      - name: Restore Libs Cache
-        id: restore-libs
-        uses: actions/cache/restore@v4
-        with:
-          path: |
-            build/libs
-            lib/llvm/src/compiler-rt/lib/builtins
-          key: libs-${{ matrix.image }}-${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
-      - name: Build Libs
-        if: steps.restore-libs.outputs.cache-hit != 'true'
-        run: make libs build_flags=-j8
+      - name: Restore libs
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          LIBS_IMAGE: ${{ matrix.image }}
+          LIBS_TAG: ${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
+          # Require a pre-warmed libs cache instead of cold-building LLVM. A
+          # scheduled miss writes the .libs-cache-miss marker and the steps below
+          # skip (the warmer, update-lib-cache.yml, refills on the next push to
+          # main; missing a scheduled run is fine). A manual run also checks the
+          # branch cache and fails loud on a miss, so it never silently no-ops.
+          LIBS_CACHE_FLAGS: ${{ github.event_name == 'schedule' && '--skip-on-miss' || '--branch-cache' }}
+        run: python3 .ci-scripts/libs-cache/resolve_libs_cache.py --require-cache-hit $LIBS_CACHE_FLAGS --image "$LIBS_IMAGE" --tag "$LIBS_TAG"
       - name: Build Debug Runtime
+        if: ${{ hashFiles('.libs-cache-miss') == '' }}
         run: |
-          make configure config=debug
+          make configure arch=x86-64 config=debug
           make build config=debug
-      - name: Build Debug Cross-Compiled Runtime
-        run: make cross-libponyrt config=debug CC=riscv64-linux-gnu-gcc-10 CXX=riscv64-linux-gnu-g++-10 arch=rv64gc cross_cflags="-march=rv64gc -mtune=rocket" cross_lflags="-march=riscv64"
-      - name: Test with Debug Cross-Compiled Runtime
-        run: make test-cross-ci config=debug PONYPATH=../rv64gc/debug cross_triple=riscv64-unknown-linux-gnu cross_arch=rv64gc cross_cpu=generic-rv64 cross_sysroot=/usr/riscv64-linux-gnu cross_ponyc_args='--abi=lp64d --features=+m,+a,+f,+d,+c' cross_runner="qemu-riscv64 -L /usr/riscv64-linux-gnu/lib/"
+      - name: Test with Debug Runtime
+        if: ${{ hashFiles('.libs-cache-miss') == '' }}
+        run: make test-ci-core config=debug
       - name: Build Release Runtime
+        if: ${{ hashFiles('.libs-cache-miss') == '' }}
         run: |
-          make configure config=release
+          make configure arch=x86-64 config=release
           make build config=release
-      - name: Build Release Cross-Compiled Runtime
-        run: make cross-libponyrt config=release CC=riscv64-linux-gnu-gcc-10 CXX=riscv64-linux-gnu-g++-10 arch=rv64gc cross_cflags="-march=rv64gc -mtune=rocket" cross_lflags="-march=riscv64"
-      - name: Test with Release Cross-Compiled Runtime
-        run: make test-cross-ci config=release PONYPATH=../rv64gc/release cross_triple=riscv64-unknown-linux-gnu cross_arch=rv64gc cross_cpu=generic-rv64 cross_sysroot=/usr/riscv64-linux-gnu cross_ponyc_args='--abi=lp64d --features=+m,+a,+f,+d,+c' cross_runner="qemu-riscv64 -L /usr/riscv64-linux-gnu/lib/"
+      - name: Test with Release Runtime
+        if: ${{ hashFiles('.libs-cache-miss') == '' }}
+        run: make test-ci-core config=release
+      - name: Test pony-doc
+        if: ${{ hashFiles('.libs-cache-miss') == '' }}
+        run: make test-pony-doc config=debug
+      - name: Test pony-lint
+        if: ${{ hashFiles('.libs-cache-miss') == '' }}
+        run: make test-pony-lint config=debug
+      - name: Test pony-lsp
+        if: ${{ hashFiles('.libs-cache-miss') == '' }}
+        run: make test-pony-lsp config=debug
       - name: Send alert on failure
         if: ${{ failure() }}
-        uses: zulip/github-actions-zulip/send-message@e4c8f27c732ba9bd98ac6be0583096dea82feea5
-        with:
-          api-key: ${{ secrets.ZULIP_SCHEDULED_JOB_FAILURE_API_KEY }}
-          email: ${{ secrets.ZULIP_SCHEDULED_JOB_FAILURE_EMAIL }}
-          organization-url: 'https://ponylang.zulipchat.com/'
-          to: notifications
-          type: stream
-          topic: ${{ github.repository }} scheduled job failure
-          content: ${{ github.server_url}}/${{ github.repository }}/actions/runs/${{ github.run_id }} failed.
-
-  arm-linux:
-    needs: check-for-changes
-    if: needs.check-for-changes.outputs.has-changes == 'true'
-    runs-on: ubuntu-latest
-
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - image: ghcr.io/ponylang/ponyc-ci-cross-arm:20250223
-            name: arm Linux glibc
-
-    name: ${{ matrix.name }}
-    container:
-      image: ${{ matrix.image }}
-      options: --user pony --cap-add=SYS_PTRACE --security-opt seccomp=unconfined
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4.1.1
-        with:
-          ref: ${{ inputs.ref || github.sha }}
-      - name: Restore Libs Cache
-        id: restore-libs
-        uses: actions/cache/restore@v4
-        with:
-          path: |
-            build/libs
-            lib/llvm/src/compiler-rt/lib/builtins
-          key: libs-${{ matrix.image }}-${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
-      - name: Build Libs
-        if: steps.restore-libs.outputs.cache-hit != 'true'
-        run: make libs build_flags=-j8
-      - name: Build Debug Runtime
-        run: |
-          make configure config=debug
-          make build config=debug
-      - name: Build Debug Cross-Compiled Runtime
-        run: make cross-libponyrt config=debug CC=arm-linux-gnueabi-gcc CXX=arm-linux-gnueabi-g++ arch=armv7-a cross_cflags="-march=armv7-a -mtune=cortex-a9" cross_lflags="-O3;-march=arm"
-      - name: Test with Debug Cross-Compiled Runtime
-        run: make test-cross-ci config=debug PONYPATH=../armv7-a/debug cross_triple=arm-unknown-linux-gnueabi cross_arch=armv7-a cross_cpu=cortex-a9 cross_sysroot=/usr/local/arm-linux-gnueabi/libc cross_ponyc_args='' cross_runner="qemu-arm-static -cpu cortex-a9 -L /usr/local/arm-linux-gnueabi/libc"
-      - name: Build Release Runtime
-        run: |
-          make configure config=release
-          make build config=release
-      - name: Build Release Cross-Compiled Runtime
-        run: make cross-libponyrt config=release CC=arm-linux-gnueabi-gcc CXX=arm-linux-gnueabi-g++ arch=armv7-a cross_cflags="-march=armv7-a -mtune=cortex-a9" cross_lflags="-O3;-march=arm"
-      - name: Test with Release Cross-Compiled Runtime
-        run: make test-cross-ci config=release PONYPATH=../armv7-a/release cross_triple=arm-unknown-linux-gnueabi cross_arch=armv7-a cross_cpu=cortex-a9 cross_sysroot=/usr/local/arm-linux-gnueabi/libc cross_ponyc_args='' cross_runner="qemu-arm-static -cpu cortex-a9 -L /usr/local/arm-linux-gnueabi/libc"
-      - name: Send alert on failure
-        if: ${{ failure() }}
-        uses: zulip/github-actions-zulip/send-message@e4c8f27c732ba9bd98ac6be0583096dea82feea5
-        with:
-          api-key: ${{ secrets.ZULIP_SCHEDULED_JOB_FAILURE_API_KEY }}
-          email: ${{ secrets.ZULIP_SCHEDULED_JOB_FAILURE_EMAIL }}
-          organization-url: 'https://ponylang.zulipchat.com/'
-          to: notifications
-          type: stream
-          topic: ${{ github.repository }} scheduled job failure
-          content: ${{ github.server_url}}/${{ github.repository }}/actions/runs/${{ github.run_id }} failed.
-
-  armhf-linux:
-    needs: check-for-changes
-    if: needs.check-for-changes.outputs.has-changes == 'true'
-    runs-on: ubuntu-latest
-
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - image: ghcr.io/ponylang/ponyc-ci-cross-armhf:20250223
-            name: armhf Linux glibc
-
-    name: ${{ matrix.name }}
-    container:
-      image: ${{ matrix.image }}
-      options: --user pony --cap-add=SYS_PTRACE --security-opt seccomp=unconfined
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4.1.1
-        with:
-          ref: ${{ inputs.ref || github.sha }}
-      - name: Restore Libs Cache
-        id: restore-libs
-        uses: actions/cache/restore@v4
-        with:
-          path: |
-            build/libs
-            lib/llvm/src/compiler-rt/lib/builtins
-          key: libs-${{ matrix.image }}-${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
-      - name: Build Libs
-        if: steps.restore-libs.outputs.cache-hit != 'true'
-        run: make libs build_flags=-j8
-      - name: Build Debug Runtime
-        run: |
-          make configure config=debug
-          make build config=debug
-      - name: Build Debug Cross-Compiled Runtime
-        run: make cross-libponyrt config=debug CC=arm-linux-gnueabihf-gcc CXX=arm-linux-gnueabihf-g++ arch=armv7-a cross_cflags="-march=armv7-a -mtune=cortex-a9" cross_lflags="-O3;-march=arm"
-      - name: Test with Debug Cross-Compiled Runtime
-        run: make test-cross-ci config=debug PONYPATH=../armv7-a/debug cross_triple=arm-unknown-linux-gnueabihf cross_arch=armv7-a cross_cpu=cortex-a9 cross_sysroot=/usr/local/arm-linux-gnueabihf/libc cross_ponyc_args='' cross_runner="qemu-arm-static -cpu cortex-a9 -L /usr/local/arm-linux-gnueabihf/libc"
-      - name: Build Release Runtime
-        run: |
-          make configure config=release
-          make build config=release
-      - name: Build Release Cross-Compiled Runtime
-        run: make cross-libponyrt config=release CC=arm-linux-gnueabihf-gcc CXX=arm-linux-gnueabihf-g++ arch=armv7-a cross_cflags="-march=armv7-a -mtune=cortex-a9" cross_lflags="-O3;-march=arm"
-      - name: Test with Release Cross-Compiled Runtime
-        run: make test-cross-ci config=release PONYPATH=../armv7-a/release cross_triple=arm-unknown-linux-gnueabihf cross_arch=armv7-a cross_cpu=cortex-a9 cross_sysroot=/usr/local/arm-linux-gnueabihf/libc cross_ponyc_args='' cross_runner="qemu-arm-static -cpu cortex-a9 -L /usr/local/arm-linux-gnueabihf/libc"
-      - name: Send alert on failure
-        if: ${{ failure() }}
-        uses: zulip/github-actions-zulip/send-message@e4c8f27c732ba9bd98ac6be0583096dea82feea5
+        uses: zulip/github-actions-zulip/send-message@bd8ec52de371d139ae8313661b7d8318c19266aa
         with:
           api-key: ${{ secrets.ZULIP_SCHEDULED_JOB_FAILURE_API_KEY }}
           email: ${{ secrets.ZULIP_SCHEDULED_JOB_FAILURE_EMAIL }}
@@ -227,35 +121,48 @@ jobs:
     name: x86-64 Apple Darwin
     steps:
       - name: Checkout
-        uses: actions/checkout@v4.1.1
+        uses: actions/checkout@v6.0.2
         with:
           ref: ${{ inputs.ref || github.sha }}
-      - name: Restore Libs Cache
-        id: restore-libs
-        uses: actions/cache/restore@v4
-        with:
-          path: |
-            build/libs
-            lib/llvm/src/compiler-rt/lib/builtins
-          key: libs-x86-macos-15-intel-${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
-      - name: Build Libs
-        if: steps.restore-libs.outputs.cache-hit != 'true'
-        run: make libs build_flags=-j8
+      - name: Restore libs
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          LIBS_TAG: ${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
+          # Require a pre-warmed libs cache instead of cold-building LLVM. A
+          # scheduled miss writes the .libs-cache-miss marker and the steps below
+          # skip (the warmer, update-lib-cache.yml, refills on the next push to
+          # main; missing a scheduled run is fine). A manual run also checks the
+          # branch cache and fails loud on a miss, so it never silently no-ops.
+          LIBS_CACHE_FLAGS: ${{ github.event_name == 'schedule' && '--skip-on-miss' || '--branch-cache' }}
+        run: python3 .ci-scripts/libs-cache/resolve_libs_cache.py --require-cache-hit $LIBS_CACHE_FLAGS --platform x86-macos-15-intel --tag "$LIBS_TAG"
       - name: Build Debug Runtime
+        if: ${{ hashFiles('.libs-cache-miss') == '' }}
         run: |
           make configure arch=x86-64 config=debug
           make build config=debug
       - name: Test with Debug Runtime
+        if: ${{ hashFiles('.libs-cache-miss') == '' }}
         run: make test-ci-core config=debug test_full_program_timeout=180
       - name: Build Release Runtime
+        if: ${{ hashFiles('.libs-cache-miss') == '' }}
         run: |
           make configure arch=x86-64 config=release
           make build config=release
       - name: Test with Release Runtime
+        if: ${{ hashFiles('.libs-cache-miss') == '' }}
         run: make test-ci-core config=release test_full_program_timeout=180
+      - name: Test pony-doc
+        if: ${{ hashFiles('.libs-cache-miss') == '' }}
+        run: make test-pony-doc config=debug
+      - name: Test pony-lint
+        if: ${{ hashFiles('.libs-cache-miss') == '' }}
+        run: make test-pony-lint config=debug
+      - name: Test pony-lsp
+        if: ${{ hashFiles('.libs-cache-miss') == '' }}
+        run: make test-pony-lsp config=debug
       - name: Send alert on failure
         if: ${{ failure() }}
-        uses: zulip/github-actions-zulip/send-message@e4c8f27c732ba9bd98ac6be0583096dea82feea5
+        uses: zulip/github-actions-zulip/send-message@bd8ec52de371d139ae8313661b7d8318c19266aa
         with:
           api-key: ${{ secrets.ZULIP_SCHEDULED_JOB_FAILURE_API_KEY }}
           email: ${{ secrets.ZULIP_SCHEDULED_JOB_FAILURE_EMAIL }}
@@ -283,43 +190,51 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - image: ghcr.io/ponylang/ponyc-ci-arm64-unknown-linux-ubuntu24.04-builder:20250510
+          - image: ghcr.io/ponylang/ponyc-ci-ubuntu26.04-builder:20260425
             name: arm64 Linux glibc
           - image: ghcr.io/ponylang/ponyc-ci-alpine3.23-builder:20260201
-            name: arm64 Linux musl
+            name: arm64 Linux musl alpine3.23
+          - image: ghcr.io/ponylang/ponyc-ci-alpine3.24-builder:20260611
+            name: arm64 Linux musl alpine3.24
 
     name: ${{ matrix.name }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4.1.1
+        uses: actions/checkout@v6.0.2
         with:
           ref: ${{ inputs.ref || github.sha }}
       - name: Login to GitHub Container Registry
-        uses: docker/login-action@v3
+        uses: docker/login-action@v4
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
       - name: Pull Docker image
         run: docker pull ${{ matrix.image }}
-      - name: Restore Libs Cache
-        id: restore-libs
-        uses: actions/cache/restore@v4
-        with:
-          path: |
-            build/libs
-            lib/llvm/src/compiler-rt/lib/builtins
-          key: libs-${{ matrix.image }}-${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
-      - name: Build Libs
-        if: steps.restore-libs.outputs.cache-hit != 'true'
+      - name: Restore libs
+        env:
+          LIBS_TAG: ${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
+          # Require a pre-warmed libs cache instead of cold-building LLVM. A
+          # scheduled miss writes the .libs-cache-miss marker and the steps below
+          # skip (the warmer, update-lib-cache.yml, refills on the next push to
+          # main; missing a scheduled run is fine). A manual run also checks the
+          # branch cache and fails loud on a miss, so it never silently no-ops.
+          LIBS_CACHE_FLAGS: ${{ github.event_name == 'schedule' && '--skip-on-miss' || '--branch-cache' }}
         run: |
           docker run --rm \
             --user pony \
+            -e GITHUB_TOKEN=${{ secrets.GITHUB_TOKEN }} \
+            -e GITHUB_REPOSITORY \
+            -e GITHUB_ACTOR \
+            -e LIBS_IMAGE="${{ matrix.image }}" \
+            -e LIBS_TAG="$LIBS_TAG" \
+            -e LIBS_CACHE_FLAGS="$LIBS_CACHE_FLAGS" \
             -v ${{ github.workspace }}:/home/pony/project \
             -w /home/pony/project \
             ${{ matrix.image }} \
-            make libs build_flags=-j8
+            sh -c 'python3 .ci-scripts/libs-cache/resolve_libs_cache.py --require-cache-hit $LIBS_CACHE_FLAGS --image "$LIBS_IMAGE" --tag "$LIBS_TAG"'
       - name: Build Debug Runtime
+        if: ${{ hashFiles('.libs-cache-miss') == '' }}
         run: |
           docker run --rm \
             --user pony \
@@ -328,6 +243,7 @@ jobs:
             ${{ matrix.image }} \
             bash -c "make configure arch=armv8-a config=debug && make build config=debug"
       - name: Test with Debug Runtime
+        if: ${{ hashFiles('.libs-cache-miss') == '' }}
         run: |
           docker run --rm \
             --user pony \
@@ -338,6 +254,7 @@ jobs:
             ${{ matrix.image }} \
             make test-ci-core config=debug
       - name: Build Release Runtime
+        if: ${{ hashFiles('.libs-cache-miss') == '' }}
         run: |
           docker run --rm \
             --user pony \
@@ -346,6 +263,7 @@ jobs:
             ${{ matrix.image }} \
             bash -c "make configure arch=armv8-a config=release && make build config=release"
       - name: Test with Release Runtime
+        if: ${{ hashFiles('.libs-cache-miss') == '' }}
         run: |
           docker run --rm \
             --user pony \
@@ -355,9 +273,36 @@ jobs:
             -w /home/pony/project \
             ${{ matrix.image }} \
             make test-ci-core config=release
+      - name: Test pony-doc
+        if: ${{ hashFiles('.libs-cache-miss') == '' }}
+        run: |
+          docker run --rm \
+            --user pony \
+            -v ${{ github.workspace }}:/home/pony/project \
+            -w /home/pony/project \
+            ${{ matrix.image }} \
+            make test-pony-doc config=debug
+      - name: Test pony-lint
+        if: ${{ hashFiles('.libs-cache-miss') == '' }}
+        run: |
+          docker run --rm \
+            --user pony \
+            -v ${{ github.workspace }}:/home/pony/project \
+            -w /home/pony/project \
+            ${{ matrix.image }} \
+            make test-pony-lint config=debug
+      - name: Test pony-lsp
+        if: ${{ hashFiles('.libs-cache-miss') == '' }}
+        run: |
+          docker run --rm \
+            --user pony \
+            -v ${{ github.workspace }}:/home/pony/project \
+            -w /home/pony/project \
+            ${{ matrix.image }} \
+            make test-pony-lsp config=debug
       - name: Send alert on failure
         if: ${{ failure() }}
-        uses: zulip/github-actions-zulip/send-message@e4c8f27c732ba9bd98ac6be0583096dea82feea5
+        uses: zulip/github-actions-zulip/send-message@bd8ec52de371d139ae8313661b7d8318c19266aa
         with:
           api-key: ${{ secrets.ZULIP_SCHEDULED_JOB_FAILURE_API_KEY }}
           email: ${{ secrets.ZULIP_SCHEDULED_JOB_FAILURE_EMAIL }}
@@ -377,38 +322,54 @@ jobs:
 
     name: arm64 Windows MSVC
     steps:
+      - name: Disable Windows Defender
+        run: Set-MpPreference -DisableRealtimeMonitoring $true
       - name: Checkout
-        uses: actions/checkout@v4.1.1
+        uses: actions/checkout@v6.0.2
         with:
           ref: ${{ inputs.ref || github.sha }}
-      - name: Restore Libs Cache
-        id: restore-libs
-        uses: actions/cache/restore@v4
-        with:
-          path: |
-            build/libs
-            lib/llvm/src/compiler-rt/lib/builtins
-          key: libs-windows-11-arm-${{ hashFiles('make.ps1', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
-      - name: Build Libs
-        if: steps.restore-libs.outputs.cache-hit != 'true'
-        run: .\make.ps1 -Command libs -Arch ARM64
+      - name: Restore libs
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          LIBS_TAG: ${{ hashFiles('make.ps1', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
+          # Require a pre-warmed libs cache instead of cold-building LLVM. A
+          # scheduled miss writes the .libs-cache-miss marker and the steps below
+          # skip (the warmer, update-lib-cache.yml, refills on the next push to
+          # main; missing a scheduled run is fine). A manual run also checks the
+          # branch cache and fails loud on a miss, so it never silently no-ops.
+          LIBS_CACHE_FLAGS: ${{ github.event_name == 'schedule' && '--skip-on-miss' || '--branch-cache' }}
+        run: python .ci-scripts/libs-cache/resolve_libs_cache.py --require-cache-hit $env:LIBS_CACHE_FLAGS --platform windows-11-arm --tag $env:LIBS_TAG
       - name: Build Debug Runtime
+        if: ${{ hashFiles('.libs-cache-miss') == '' }}
         run: |
           .\make.ps1 -Command configure -Config Debug -Arch ARM64
           .\make.ps1 -Command build -Config Debug
       - name: Test with Debug Runtime
+        if: ${{ hashFiles('.libs-cache-miss') == '' }}
         run: .\make.ps1 -Command test -Config Debug
       - name: Build Release Runtime
+        if: ${{ hashFiles('.libs-cache-miss') == '' }}
         run: |
           .\make.ps1 -Command configure -Config Release -Arch ARM64
           .\make.ps1 -Command build -Config Release
       - name: Test with Release Runtime
+        if: ${{ hashFiles('.libs-cache-miss') == '' }}
         run: .\make.ps1 -Command test -Config Release
       - name: Build examples
+        if: ${{ hashFiles('.libs-cache-miss') == '' }}
         run: .\make.ps1 -Command build-examples
+      - name: Test pony-doc
+        if: ${{ hashFiles('.libs-cache-miss') == '' }}
+        run: .\make.ps1 -Command test -Config Debug -TestsToRun pony-doc-tests
+      - name: Test pony-lint
+        if: ${{ hashFiles('.libs-cache-miss') == '' }}
+        run: .\make.ps1 -Command test -Config Debug -TestsToRun pony-lint-tests
+      - name: Test pony-lsp
+        if: ${{ hashFiles('.libs-cache-miss') == '' }}
+        run: .\make.ps1 -Command test -Config Debug -TestsToRun pony-lsp-tests
       - name: Send alert on failure
         if: ${{ failure() }}
-        uses: zulip/github-actions-zulip/send-message@e4c8f27c732ba9bd98ac6be0583096dea82feea5
+        uses: zulip/github-actions-zulip/send-message@bd8ec52de371d139ae8313661b7d8318c19266aa
         with:
           api-key: ${{ secrets.ZULIP_SCHEDULED_JOB_FAILURE_API_KEY }}
           email: ${{ secrets.ZULIP_SCHEDULED_JOB_FAILURE_EMAIL }}

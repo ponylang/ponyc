@@ -1,5 +1,6 @@
 #include "compattype.h"
 #include "cap.h"
+#include "typealias.h"
 #include "viewpoint.h"
 #include "ponyassert.h"
 
@@ -39,32 +40,32 @@ static bool is_typeparam_compat_typeparam(ast_t* a, ast_t* b)
     ast_id(b_cap), ast_id(b_eph));
 }
 
-static bool is_arrow_compat_nominal(ast_t* a, ast_t* b)
+static bool is_arrow_compat_nominal(ast_t* a, ast_t* b, pass_opt_t* opt)
 {
   // lowerbound(T1->T2) ~ N k
   // ---
   // T1->T2 ~ N k
-  ast_t* a_lower = viewpoint_lower(a);
+  ast_t* a_lower = viewpoint_lower(a, opt);
 
   if(a_lower == NULL)
     return false;
 
-  bool ok = is_compat_type(a_lower, b);
+  bool ok = is_compat_type(a_lower, b, opt);
   ast_free_unattached(a_lower);
   return ok;
 }
 
-static bool is_arrow_compat_typeparam(ast_t* a, ast_t* b)
+static bool is_arrow_compat_typeparam(ast_t* a, ast_t* b, pass_opt_t* opt)
 {
   // forall k' in k . T1->T2 {A k |-> A k'} ~ A k'
   // ---
   // T1->T2 ~ A k
-  ast_t* r_a = viewpoint_reifytypeparam(a, b);
-  ast_t* r_b = viewpoint_reifytypeparam(b, b);
+  ast_t* r_a = viewpoint_reifytypeparam(a, b, opt);
+  ast_t* r_b = viewpoint_reifytypeparam(b, b, opt);
 
   if(r_a != NULL)
   {
-    bool ok = is_compat_type(r_a, r_b);
+    bool ok = is_compat_type(r_a, r_b, opt);
     ast_free_unattached(r_a);
     ast_free_unattached(r_b);
     return ok;
@@ -73,10 +74,10 @@ static bool is_arrow_compat_typeparam(ast_t* a, ast_t* b)
   // lowerbound(T1->T2) ~ A k
   // ---
   // T1->T2 ~ A k
-  return is_arrow_compat_nominal(a, b);
+  return is_arrow_compat_nominal(a, b, opt);
 }
 
-static bool is_arrow_compat_arrow(ast_t* a, ast_t* b)
+static bool is_arrow_compat_arrow(ast_t* a, ast_t* b, pass_opt_t* opt)
 {
   // S = this | A {#read, #send, #share, #any}
   // K = N k | A {iso, trn, ref, val, box, tag} | K->K | (empty)
@@ -89,9 +90,9 @@ static bool is_arrow_compat_arrow(ast_t* a, ast_t* b)
   ast_t* r_a;
   ast_t* r_b;
 
-  if(viewpoint_reifypair(a, b, &r_a, &r_b))
+  if(viewpoint_reifypair(a, b, &r_a, &r_b, opt))
   {
-    bool ok = is_compat_type(r_a, r_b);
+    bool ok = is_compat_type(r_a, r_b, opt);
     ast_free_unattached(r_a);
     ast_free_unattached(r_b);
     return ok;
@@ -102,12 +103,12 @@ static bool is_arrow_compat_arrow(ast_t* a, ast_t* b)
   // lowerbound(T1->T2) ~ lowerbound(T3->T4)
   // ---
   // T1->T2 ~ T3->T4
-  r_a = viewpoint_lower(a);
+  r_a = viewpoint_lower(a, opt);
 
   if(r_a == NULL)
     return false;
 
-  r_b = viewpoint_lower(b);
+  r_b = viewpoint_lower(b, opt);
 
   if(r_b == NULL)
   {
@@ -115,13 +116,13 @@ static bool is_arrow_compat_arrow(ast_t* a, ast_t* b)
     return false;
   }
 
-  bool ok = is_compat_type(r_a, r_b);
+  bool ok = is_compat_type(r_a, r_b, opt);
   ast_free_unattached(r_a);
   ast_free_unattached(r_b);
   return ok;
 }
 
-static bool is_union_compat_x(ast_t* a, ast_t* b)
+static bool is_union_compat_x(ast_t* a, ast_t* b, pass_opt_t* opt)
 {
   // T1 ~ T3 or T2 ~ T3
   // ---
@@ -130,14 +131,14 @@ static bool is_union_compat_x(ast_t* a, ast_t* b)
     child != NULL;
     child = ast_sibling(child))
   {
-    if(is_compat_type(child, b))
+    if(is_compat_type(child, b, opt))
       return true;
   }
 
   return false;
 }
 
-static bool is_isect_compat_x(ast_t* a, ast_t* b)
+static bool is_isect_compat_x(ast_t* a, ast_t* b, pass_opt_t* opt)
 {
   // T1 ~ T3
   // T2 ~ T3
@@ -147,14 +148,14 @@ static bool is_isect_compat_x(ast_t* a, ast_t* b)
     child != NULL;
     child = ast_sibling(child))
   {
-    if(!is_compat_type(child, b))
+    if(!is_compat_type(child, b, opt))
       return false;
   }
 
   return true;
 }
 
-static bool is_tuple_compat_tuple(ast_t* a, ast_t* b)
+static bool is_tuple_compat_tuple(ast_t* a, ast_t* b, pass_opt_t* opt)
 {
   // T1 ~ T3
   // T2 ~ T4
@@ -165,7 +166,7 @@ static bool is_tuple_compat_tuple(ast_t* a, ast_t* b)
 
   while((a_child != NULL) && (b_child != NULL))
   {
-    if(!is_compat_type(a_child, b_child))
+    if(!is_compat_type(a_child, b_child, opt))
       return false;
 
     a_child = ast_sibling(a_child);
@@ -175,24 +176,34 @@ static bool is_tuple_compat_tuple(ast_t* a, ast_t* b)
   return (a_child == NULL) && (b_child == NULL);
 }
 
-static bool is_tuple_compat_x(ast_t* a, ast_t* b)
+static bool is_tuple_compat_x(ast_t* a, ast_t* b, pass_opt_t* opt)
 {
   switch(ast_id(b))
   {
     case TK_UNIONTYPE:
-      return is_union_compat_x(b, a);
+      return is_union_compat_x(b, a, opt);
 
     case TK_ISECTTYPE:
-      return is_isect_compat_x(b, a);
+      return is_isect_compat_x(b, a, opt);
 
     case TK_TUPLETYPE:
-      return is_tuple_compat_tuple(b, a);
+      return is_tuple_compat_tuple(b, a, opt);
 
     case TK_NOMINAL:
       return false;
 
     case TK_TYPEPARAMREF:
       return false;
+
+    case TK_TYPEALIASREF:
+    {
+      ast_t* unfolded = typealias_unfold(b);
+      if(unfolded == NULL)
+        return false;
+      bool ok = is_tuple_compat_x(a, unfolded, opt);
+      ast_free_unattached(unfolded);
+      return ok;
+    }
 
     case TK_ARROW:
       return false;
@@ -204,18 +215,18 @@ static bool is_tuple_compat_x(ast_t* a, ast_t* b)
   return false;
 }
 
-static bool is_nominal_compat_x(ast_t* a, ast_t* b)
+static bool is_nominal_compat_x(ast_t* a, ast_t* b, pass_opt_t* opt)
 {
   switch(ast_id(b))
   {
     case TK_UNIONTYPE:
-      return is_union_compat_x(b, a);
+      return is_union_compat_x(b, a, opt);
 
     case TK_ISECTTYPE:
-      return is_isect_compat_x(b, a);
+      return is_isect_compat_x(b, a, opt);
 
     case TK_TUPLETYPE:
-      return is_tuple_compat_x(b, a);
+      return is_tuple_compat_x(b, a, opt);
 
     case TK_NOMINAL:
       return is_nominal_compat_nominal(a, b);
@@ -223,8 +234,18 @@ static bool is_nominal_compat_x(ast_t* a, ast_t* b)
     case TK_TYPEPARAMREF:
       return is_nominal_compat_typeparam(a, b);
 
+    case TK_TYPEALIASREF:
+    {
+      ast_t* unfolded = typealias_unfold(b);
+      if(unfolded == NULL)
+        return false;
+      bool ok = is_nominal_compat_x(a, unfolded, opt);
+      ast_free_unattached(unfolded);
+      return ok;
+    }
+
     case TK_ARROW:
-      return is_arrow_compat_nominal(b, a);
+      return is_arrow_compat_nominal(b, a, opt);
 
     default: {}
   }
@@ -233,18 +254,18 @@ static bool is_nominal_compat_x(ast_t* a, ast_t* b)
   return false;
 }
 
-static bool is_typeparam_compat_x(ast_t* a, ast_t* b)
+static bool is_typeparam_compat_x(ast_t* a, ast_t* b, pass_opt_t* opt)
 {
   switch(ast_id(b))
   {
     case TK_UNIONTYPE:
-      return is_union_compat_x(b, a);
+      return is_union_compat_x(b, a, opt);
 
     case TK_ISECTTYPE:
-      return is_isect_compat_x(b, a);
+      return is_isect_compat_x(b, a, opt);
 
     case TK_TUPLETYPE:
-      return is_tuple_compat_x(b, a);
+      return is_tuple_compat_x(b, a, opt);
 
     case TK_NOMINAL:
       return is_nominal_compat_typeparam(b, a);
@@ -252,8 +273,18 @@ static bool is_typeparam_compat_x(ast_t* a, ast_t* b)
     case TK_TYPEPARAMREF:
       return is_typeparam_compat_typeparam(a, b);
 
+    case TK_TYPEALIASREF:
+    {
+      ast_t* unfolded = typealias_unfold(b);
+      if(unfolded == NULL)
+        return false;
+      bool ok = is_typeparam_compat_x(a, unfolded, opt);
+      ast_free_unattached(unfolded);
+      return ok;
+    }
+
     case TK_ARROW:
-      return is_arrow_compat_typeparam(b, a);
+      return is_arrow_compat_typeparam(b, a, opt);
 
     default: {}
   }
@@ -262,27 +293,37 @@ static bool is_typeparam_compat_x(ast_t* a, ast_t* b)
   return false;
 }
 
-static bool is_arrow_compat_x(ast_t* a, ast_t* b)
+static bool is_arrow_compat_x(ast_t* a, ast_t* b, pass_opt_t* opt)
 {
   switch(ast_id(b))
   {
     case TK_UNIONTYPE:
-      return is_union_compat_x(b, a);
+      return is_union_compat_x(b, a, opt);
 
     case TK_ISECTTYPE:
-      return is_isect_compat_x(b, a);
+      return is_isect_compat_x(b, a, opt);
 
     case TK_TUPLETYPE:
-      return is_tuple_compat_x(b, a);
+      return is_tuple_compat_x(b, a, opt);
 
     case TK_NOMINAL:
-      return is_arrow_compat_nominal(a, b);
+      return is_arrow_compat_nominal(a, b, opt);
 
     case TK_TYPEPARAMREF:
-      return is_arrow_compat_typeparam(a, b);
+      return is_arrow_compat_typeparam(a, b, opt);
+
+    case TK_TYPEALIASREF:
+    {
+      ast_t* unfolded = typealias_unfold(b);
+      if(unfolded == NULL)
+        return false;
+      bool ok = is_arrow_compat_x(a, unfolded, opt);
+      ast_free_unattached(unfolded);
+      return ok;
+    }
 
     case TK_ARROW:
-      return is_arrow_compat_arrow(a, b);
+      return is_arrow_compat_arrow(a, b, opt);
 
     default: {}
   }
@@ -291,31 +332,41 @@ static bool is_arrow_compat_x(ast_t* a, ast_t* b)
   return false;
 }
 
-bool is_compat_type(ast_t* a, ast_t* b)
+bool is_compat_type(ast_t* a, ast_t* b, pass_opt_t* opt)
 {
   switch(ast_id(a))
   {
     case TK_UNIONTYPE:
-      return is_union_compat_x(a, b);
+      return is_union_compat_x(a, b, opt);
 
     case TK_ISECTTYPE:
-      return is_isect_compat_x(a, b);
+      return is_isect_compat_x(a, b, opt);
 
     case TK_TUPLETYPE:
-      return is_tuple_compat_x(a, b);
+      return is_tuple_compat_x(a, b, opt);
 
     case TK_NOMINAL:
-      return is_nominal_compat_x(a, b);
+      return is_nominal_compat_x(a, b, opt);
 
     case TK_TYPEPARAMREF:
-      return is_typeparam_compat_x(a, b);
+      return is_typeparam_compat_x(a, b, opt);
+
+    case TK_TYPEALIASREF:
+    {
+      ast_t* unfolded = typealias_unfold(a);
+      if(unfolded == NULL)
+        return false;
+
+      bool ok = is_compat_type(unfolded, b, opt);
+      ast_free_unattached(unfolded);
+      return ok;
+    }
 
     case TK_ARROW:
-      return is_arrow_compat_x(a, b);
+      return is_arrow_compat_x(a, b, opt);
 
-    default: {}
+    default:
+      pony_assert(0);
+      return false;
   }
-
-  pony_assert(0);
-  return false;
 }

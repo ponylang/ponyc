@@ -7,19 +7,28 @@ type MethodKind is
   | MethodBehaviour )
 
 primitive MethodConstructor
-  """Represents a Pony `new` constructor."""
+  """
+  Represents a Pony `new` constructor.
+  """
   fun string(): String => "new"
 
 primitive MethodFunction
-  """Represents a Pony `fun` method."""
+  """
+  Represents a Pony `fun` method.
+  """
   fun string(): String => "fun"
 
 primitive MethodBehaviour
-  """Represents a Pony `be` behaviour."""
+  """
+  Represents a Pony `be` behaviour.
+  """
   fun string(): String => "be"
 
 primitive MethodKindBuilder
-  """Maps a pony_compiler TokenId to the corresponding MethodKind."""
+  """
+  Maps a pony_compiler TokenId to the corresponding
+  MethodKind.
+  """
   fun apply(id: ast.TokenId): MethodKind ? =>
     match id
     | ast.TokenIds.tk_new() => MethodConstructor

@@ -124,14 +124,6 @@ Also performs minor anomalous tasks that have to be done before the type check
 pass.
 
 
-* Documentation generation pass (AST)
-
-Auto-generates documentation, if the relevant command line flag is given,
-otherwise does nothing.
-
-Does not alter the AST at all.
-
-
 * Reference resolution pass (AST)
 
 Resolves all instances of TK_REFERENCE by finding the relevant definition in
@@ -180,6 +172,18 @@ Within finalisers uses the data field of the top body node and any TK_CALL
 nodes as ast_send flags.
 
 
+* C pass (program-wide, not AST)
+
+Compiles each package's C shim sources (.c files discovered next to the .pony
+files) with the embedded clang, recording the resulting object paths on the
+program for the platform linkers to append. Unlike the AST passes it runs once
+over the whole program from ast_passes_program (not via ast_visit per node) and
+reads the target description from pass_opt_t, so it needs nothing from
+compile_t. See gencshim.h / gencshim.cc.
+
+Does not mutate the AST.
+
+
 * Adding a new pass
 
 It's usually best to start with an existing pass, look through the contents
@@ -222,15 +226,15 @@ typedef enum pass_id
   PASS_SCOPE,
   PASS_IMPORT,
   PASS_NAME_RESOLUTION,
+  PASS_TYPEALIAS_RECURSION,
   PASS_FLATTEN,
   PASS_TRAITS,
-  PASS_DOCS,
   PASS_REFER,
   PASS_EXPR,
   PASS_COMPLETENESS,
   PASS_VERIFY,
   PASS_FINALISER,
-  PASS_SERIALISER,
+  PASS_C,
   PASS_REACH,
   PASS_PAINT,
   PASS_LLVM_IR,
@@ -250,15 +254,15 @@ typedef enum pass_id
     "    =scope\n" \
     "    =import\n" \
     "    =name\n" \
+    "    =typealias_recursion\n" \
     "    =flatten\n" \
     "    =traits\n" \
-    "    =docs\n" \
     "    =refer\n" \
     "    =expr\n" \
     "    =completeness\n" \
     "    =verify\n" \
     "    =final\n" \
-    "    =serialise\n" \
+    "    =c             Compile C shim objects.\n" \
     "    =reach\n" \
     "    =paint\n" \
     "    =ir            Output LLVM IR.\n" \
@@ -288,8 +292,6 @@ typedef struct pass_opt_t
   bool print_filenames;
   bool check_tree;
   bool lint_llvm;
-  bool docs;
-  bool docs_private;
 
   verbosity_level verbosity;
 
@@ -306,8 +308,6 @@ typedef struct pass_opt_t
   const char* output;
   const char* bin_name;
   char* link_arch;
-  char* linker;
-  char* link_ldcmd;
   char* sysroot;
   const char* llvm_args;
 
@@ -315,7 +315,6 @@ typedef struct pass_opt_t
   char* abi;
   char* cpu;
   char* features;
-  unsigned char* serialise_id_hash_key;
 
   typecheck_t check;
 
@@ -325,6 +324,14 @@ typedef struct pass_opt_t
   userflags_t* user_flags;
 
   void* data; // User-defined data for unit test callbacks.
+
+  // Interned-string table for this compilation. Owns every interned string
+  // produced while this pass_opt is live (lexer identifiers, scope names,
+  // package paths, generated names, ...). Created in pass_opt_init and freed in
+  // pass_opt_done, so it must outlive any AST or symtab built under this opt.
+  // Appended last to keep the Pony-side _PassOpt mirror's existing field offsets
+  // (tools/.../pony_compiler/pass.pony).
+  strtable_t* strtab;
 } pass_opt_t;
 
 /** Limit processing to the specified pass. All passes up to and including the

@@ -31,7 +31,7 @@ LLVMValueRef gen_seq(compile_t* c, ast_t* ast)
 
 LLVMValueRef gen_if(compile_t* c, ast_t* ast)
 {
-  bool needed = is_result_needed(ast);
+  bool needed = is_result_needed(ast, c->opt);
   AST_GET_CHILDREN(ast, cond, left, right);
 
   LLVMValueRef c_value = gen_expr(c, cond);
@@ -47,7 +47,7 @@ LLVMValueRef gen_if(compile_t* c, ast_t* ast)
   if(needed && !ast_checkflag(ast, AST_FLAG_JUMPS_AWAY))
   {
     ast_t* type = deferred_reify(reify, ast_type(ast), c->opt);
-    phi_type = (compile_type_t*)reach_type(c->reach, type)->c_type;
+    phi_type = (compile_type_t*)reach_type(c->reach, type, c->opt)->c_type;
     ast_free_unattached(type);
   }
 
@@ -75,7 +75,7 @@ LLVMValueRef gen_if(compile_t* c, ast_t* ast)
 
   LLVMValueRef br = LLVMBuildCondBr(c->builder, c_value, then_block, else_block);
 
-  handle_branch_prediction_default(c->context, br, ast);
+  handle_branch_prediction_default(c->context, br, ast, c);
 
   // Left branch.
   LLVMPositionBuilderAtEnd(c->builder, then_block);
@@ -177,6 +177,7 @@ LLVMValueRef gen_if(compile_t* c, ast_t* ast)
 
 LLVMValueRef gen_iftype(compile_t* c, ast_t* ast)
 {
+  bool needed = is_result_needed(ast, c->opt);
   AST_GET_CHILDREN(ast, left, right);
   AST_GET_CHILDREN(left, subtype, supertype, body);
 
@@ -190,15 +191,33 @@ LLVMValueRef gen_iftype(compile_t* c, ast_t* ast)
   ast_free_unattached(r_sub);
   ast_free_unattached(r_super);
 
-  if(is_sub)
-    return gen_expr(c, body);
+  ast_t* branch = is_sub ? body : right;
+  LLVMValueRef value = gen_expr(c, branch);
 
-  return gen_expr(c, right);
+  if(value == NULL || value == GEN_NOVALUE || value == GEN_NOTNEEDED)
+    return value;
+
+  // Cast the branch value to the iftype's overall type. Without this,
+  // returning a primitive (e.g. U8) from an iftype with a union result type
+  // (e.g. (U8 | None)) fails in gen_box because it receives the union type
+  // instead of the primitive's own type for boxing.
+  if(needed && !ast_checkflag(ast, AST_FLAG_JUMPS_AWAY))
+  {
+    ast_t* type = deferred_reify(reify, ast_type(ast), c->opt);
+    compile_type_t* c_t = (compile_type_t*)reach_type(c->reach, type, c->opt)->c_type;
+
+    ast_t* branch_type = deferred_reify(reify, ast_type(branch), c->opt);
+    value = gen_assign_cast(c, c_t->use_type, value, branch_type);
+    ast_free_unattached(branch_type);
+    ast_free_unattached(type);
+  }
+
+  return value;
 }
 
 LLVMValueRef gen_while(compile_t* c, ast_t* ast)
 {
-  bool needed = is_result_needed(ast);
+  bool needed = is_result_needed(ast, c->opt);
   AST_GET_CHILDREN(ast, cond, body, else_clause);
 
   deferred_reification_t* reify = c->frame->reify;
@@ -208,7 +227,7 @@ LLVMValueRef gen_while(compile_t* c, ast_t* ast)
   if(needed && !ast_checkflag(ast, AST_FLAG_JUMPS_AWAY))
   {
     ast_t* type = deferred_reify(reify, ast_type(ast), c->opt);
-    phi_type = (compile_type_t*)reach_type(c->reach, type)->c_type;
+    phi_type = (compile_type_t*)reach_type(c->reach, type, c->opt)->c_type;
     ast_free_unattached(type);
   }
 
@@ -240,7 +259,7 @@ LLVMValueRef gen_while(compile_t* c, ast_t* ast)
 
   LLVMValueRef br = LLVMBuildCondBr(c->builder, i_value, body_block, else_block);
 
-  handle_branch_prediction_default(c->context, br, ast);
+  handle_branch_prediction_default(c->context, br, ast, c);
 
   // Body.
   LLVMPositionBuilderAtEnd(c->builder, body_block);
@@ -272,7 +291,7 @@ LLVMValueRef gen_while(compile_t* c, ast_t* ast)
     body_from = LLVMGetInsertBlock(c->builder);
     br = LLVMBuildCondBr(c->builder, c_value, body_block, post_block);
 
-    handle_branch_prediction_default(c->context, br, ast);
+    handle_branch_prediction_default(c->context, br, ast, c);
   }
 
   // Don't need loop status for the else block.
@@ -291,6 +310,10 @@ LLVMValueRef gen_while(compile_t* c, ast_t* ast)
     if(r_value == NULL)
       return NULL;
 
+    // Unlike gen_repeat, no JUMPS_AWAY guard is needed before this cast:
+    // refer_while counts every non-jumps-away else as a branch, so a jumps-away
+    // while always has a jumps-away else, whose value is GEN_NOVALUE and is
+    // skipped by the check above. phi_type is therefore never NULL here.
     if(needed)
     {
       ast_t* else_type = deferred_reify(reify, ast_type(else_clause), c->opt);
@@ -307,7 +330,14 @@ LLVMValueRef gen_while(compile_t* c, ast_t* ast)
   LLVMPositionBuilderAtEnd(c->builder, post_block);
 
   if(ast_checkflag(ast, AST_FLAG_JUMPS_AWAY))
+  {
+    // The loop produces no value and control never resumes past it, so the post
+    // block is dead. A dead else clause may still branch into it, so terminate
+    // it as unreachable rather than leaving it dangling, which would produce
+    // invalid IR. (Same handling as gen_repeat.)
+    LLVMBuildUnreachable(c->builder);
     return GEN_NOVALUE;
+  }
 
   if(needed)
   {
@@ -325,7 +355,7 @@ LLVMValueRef gen_while(compile_t* c, ast_t* ast)
 
 LLVMValueRef gen_repeat(compile_t* c, ast_t* ast)
 {
-  bool needed = is_result_needed(ast);
+  bool needed = is_result_needed(ast, c->opt);
   AST_GET_CHILDREN(ast, body, cond, else_clause);
 
   deferred_reification_t* reify = c->frame->reify;
@@ -335,7 +365,7 @@ LLVMValueRef gen_repeat(compile_t* c, ast_t* ast)
   if(needed && !ast_checkflag(ast, AST_FLAG_JUMPS_AWAY))
   {
     ast_t* type = deferred_reify(reify, ast_type(ast), c->opt);
-    phi_type = (compile_type_t*)reach_type(c->reach, type)->c_type;
+    phi_type = (compile_type_t*)reach_type(c->reach, type, c->opt)->c_type;
     ast_free_unattached(type);
   }
 
@@ -387,7 +417,7 @@ LLVMValueRef gen_repeat(compile_t* c, ast_t* ast)
     LLVMValueRef br = LLVMBuildCondBr(c->builder, c_value, post_block,
       body_block);
 
-    handle_branch_prediction_default(c->context, br, cond);
+    handle_branch_prediction_default(c->context, br, cond, c);
   }
 
   // cond block
@@ -399,7 +429,7 @@ LLVMValueRef gen_repeat(compile_t* c, ast_t* ast)
 
   LLVMValueRef br = LLVMBuildCondBr(c->builder, i_value, else_block, body_block);
 
-  handle_branch_prediction_default(c->context, br, cond);
+  handle_branch_prediction_default(c->context, br, cond, c);
 
   // Don't need loop status for the else block.
   codegen_poploop(c);
@@ -411,18 +441,26 @@ LLVMValueRef gen_repeat(compile_t* c, ast_t* ast)
   LLVMValueRef else_value = gen_expr(c, else_clause);
   LLVMBasicBlockRef else_from = NULL;
 
-  if(else_value == NULL)
-    return NULL;
-
-  if(needed)
-  {
-    ast_t* else_type = deferred_reify(reify, ast_type(else_clause), c->opt);
-    else_value = gen_assign_cast(c, phi_type->use_type, else_value, else_type);
-    ast_free_unattached(else_type);
-  }
-
+  // If the else clause jumps away (e.g. `error`), it produces no value and has
+  // no type to reify, so skip the cast entirely. Mirrors gen_while.
   if(else_value != GEN_NOVALUE)
   {
+    if(else_value == NULL)
+      return NULL;
+
+    // A jumps-away loop produces no value: phi_type was never built and the
+    // post block returns GEN_NOVALUE below, discarding whatever the else clause
+    // evaluated to. So skip the cast rather than dereferencing a NULL phi_type.
+    // (refer_repeat can flag the loop jumps-away while still leaving a
+    // value-producing else, because it omits the else from its branch count
+    // when the body has no break.)
+    if(needed && !ast_checkflag(ast, AST_FLAG_JUMPS_AWAY))
+    {
+      ast_t* else_type = deferred_reify(reify, ast_type(else_clause), c->opt);
+      else_value = gen_assign_cast(c, phi_type->use_type, else_value, else_type);
+      ast_free_unattached(else_type);
+    }
+
     else_from = LLVMGetInsertBlock(c->builder);
     LLVMBuildBr(c->builder, post_block);
   }
@@ -432,7 +470,16 @@ LLVMValueRef gen_repeat(compile_t* c, ast_t* ast)
   LLVMPositionBuilderAtEnd(c->builder, post_block);
 
   if(ast_checkflag(ast, AST_FLAG_JUMPS_AWAY))
+  {
+    // The loop produces no value and control never resumes past it (refer flags
+    // this only when no exit yields a value: the body always jumps away, no
+    // break carries a value, and no continue reaches a value-producing else).
+    // The post block is therefore dead -- but a dead else clause may still
+    // branch into it -- so it needs a terminator. Mark it unreachable rather
+    // than leaving it dangling, which would produce invalid IR.
+    LLVMBuildUnreachable(c->builder);
     return GEN_NOVALUE;
+  }
 
   if(needed)
   {
@@ -453,12 +500,12 @@ LLVMValueRef gen_recover(compile_t* c, ast_t* ast)
   ast_t* body = ast_childidx(ast, 1);
   LLVMValueRef ret = gen_expr(c, body);
 
-  if(is_result_needed(ast))
+  if(is_result_needed(ast, c->opt))
   {
     deferred_reification_t* reify = c->frame->reify;
 
     ast_t* type = deferred_reify(reify, ast_type(ast), c->opt);
-    compile_type_t* c_t = (compile_type_t*)reach_type(c->reach, type)->c_type;
+    compile_type_t* c_t = (compile_type_t*)reach_type(c->reach, type, c->opt)->c_type;
     ast_free_unattached(type);
 
     type = deferred_reify(reify, ast_type(body), c->opt);
@@ -594,7 +641,27 @@ LLVMValueRef gen_return(compile_t* c, ast_t* ast)
 
   codegen_debugloc(c, ast);
 
-  if(LLVMGetTypeKind(r_type) != LLVMVoidTypeKind)
+  if(c->frame->is_partial)
+  {
+    if(r_type == c->i1)
+    {
+      // Partial class constructor: return false (no error).
+      codegen_scope_lifetime_end(c);
+      genfun_build_ret(c, LLVMConstInt(c->i1, 0, false));
+    }
+    else
+    {
+      // Partial value-returning: cast to unwrapped type, wrap with false.
+      LLVMTypeRef unwrapped = LLVMStructGetTypeAtIndex(r_type, 0);
+      ast_t* type = deferred_reify(c->frame->reify, ast_type(expr), c->opt);
+      LLVMValueRef ret = gen_assign_cast(c, unwrapped, value, type);
+      ast_free_unattached(type);
+      codegen_scope_lifetime_end(c);
+      ret = wrap_result(c, ret, LLVMConstInt(c->i1, 0, false));
+      genfun_build_ret(c, ret);
+    }
+  }
+  else if(LLVMGetTypeKind(r_type) != LLVMVoidTypeKind)
   {
     ast_t* type = deferred_reify(c->frame->reify, ast_type(expr), c->opt);
     LLVMValueRef ret = gen_assign_cast(c, r_type, value, type);
@@ -612,7 +679,7 @@ LLVMValueRef gen_return(compile_t* c, ast_t* ast)
 
 LLVMValueRef gen_try(compile_t* c, ast_t* ast)
 {
-  bool needed = is_result_needed(ast);
+  bool needed = is_result_needed(ast, c->opt);
   AST_GET_CHILDREN(ast, body, else_clause, then_clause);
 
   deferred_reification_t* reify = c->frame->reify;
@@ -623,7 +690,7 @@ LLVMValueRef gen_try(compile_t* c, ast_t* ast)
   if(needed && !ast_checkflag(ast, AST_FLAG_JUMPS_AWAY))
   {
     ast_t* type = deferred_reify(reify, ast_type(ast), c->opt);
-    phi_type = (compile_type_t*)reach_type(c->reach, type)->c_type;
+    phi_type = (compile_type_t*)reach_type(c->reach, type, c->opt)->c_type;
     ast_free_unattached(type);
   }
 
@@ -634,7 +701,6 @@ LLVMValueRef gen_try(compile_t* c, ast_t* ast)
   if(!ast_checkflag(ast, AST_FLAG_JUMPS_AWAY))
     post_block = codegen_block(c, "try_post");
 
-  // Keep a reference to the else block.
   codegen_pushtry(c, else_block);
 
   // Body block.
@@ -662,22 +728,9 @@ LLVMValueRef gen_try(compile_t* c, ast_t* ast)
   // Pop the try before generating the else block.
   codegen_poptry(c);
 
-  // Else block.
+  // Else block. Error-flag branches land here directly.
   LLVMMoveBasicBlockAfter(else_block, LLVMGetInsertBlock(c->builder));
   LLVMPositionBuilderAtEnd(c->builder, else_block);
-
-  // The landing pad is marked as a cleanup, since exceptions are typeless and
-  // valueless. The first landing pad is always the destination.
-  LLVMTypeRef lp_elements[2];
-  lp_elements[0] = c->ptr;
-  lp_elements[1] = c->i32;
-  LLVMTypeRef lp_type = LLVMStructTypeInContext(c->context, lp_elements, 2,
-    false);
-
-  LLVMValueRef landing = LLVMBuildLandingPad(c->builder, lp_type,
-    c->personality, 1, "");
-
-  LLVMAddClause(landing, LLVMConstNull(c->ptr));
 
   LLVMValueRef else_value = gen_expr(c, else_clause);
 
@@ -726,7 +779,7 @@ LLVMValueRef gen_try(compile_t* c, ast_t* ast)
 
 LLVMValueRef gen_disposing_block_can_error(compile_t* c, ast_t* ast)
 {
-  bool needed = is_result_needed(ast);
+  bool needed = is_result_needed(ast, c->opt);
   AST_GET_CHILDREN(ast, body, dispose_clause);
 
   deferred_reification_t* reify = c->frame->reify;
@@ -737,7 +790,7 @@ LLVMValueRef gen_disposing_block_can_error(compile_t* c, ast_t* ast)
   if(needed && !ast_checkflag(ast, AST_FLAG_JUMPS_AWAY))
   {
     ast_t* type = deferred_reify(reify, ast_type(ast), c->opt);
-    phi_type = (compile_type_t*)reach_type(c->reach, type)->c_type;
+    phi_type = (compile_type_t*)reach_type(c->reach, type, c->opt)->c_type;
     ast_free_unattached(type);
   }
 
@@ -750,7 +803,6 @@ LLVMValueRef gen_disposing_block_can_error(compile_t* c, ast_t* ast)
   if(!ast_checkflag(ast, AST_FLAG_JUMPS_AWAY))
     post_block = codegen_block(c, "disposing_block_post");
 
-  // Keep a reference to the else block.
   codegen_pushtry(c, else_block);
 
   // Body block.
@@ -778,23 +830,10 @@ LLVMValueRef gen_disposing_block_can_error(compile_t* c, ast_t* ast)
   // Pop the try before generating the else block.
   codegen_poptry(c);
 
-  // we need to create an else that rethrows the error
-  // Else block.
+  // Else block. Error-flag branches land here directly.
+  // Run the dispose clause and re-raise the error.
   LLVMMoveBasicBlockAfter(else_block, LLVMGetInsertBlock(c->builder));
   LLVMPositionBuilderAtEnd(c->builder, else_block);
-
-  // The landing pad is marked as a cleanup, since exceptions are typeless and
-  // valueless. The first landing pad is always the destination.
-  LLVMTypeRef lp_elements[2];
-  lp_elements[0] = c->ptr;
-  lp_elements[1] = c->i32;
-  LLVMTypeRef lp_type = LLVMStructTypeInContext(c->context, lp_elements, 2,
-    false);
-
-  LLVMValueRef landing = LLVMBuildLandingPad(c->builder, lp_type,
-    c->personality, 1, "");
-
-  LLVMAddClause(landing, LLVMConstNull(c->ptr));
 
   gen_expr(c, dispose_clause);
   gen_error(c, ast_parent(ast));
@@ -821,7 +860,7 @@ LLVMValueRef gen_disposing_block_can_error(compile_t* c, ast_t* ast)
 
 LLVMValueRef gen_disposing_block_cant_error(compile_t* c, ast_t* ast)
 {
-  bool needed = is_result_needed(ast);
+  bool needed = is_result_needed(ast, c->opt);
   AST_GET_CHILDREN(ast, body, dispose_clause);
 
   deferred_reification_t* reify = c->frame->reify;
@@ -832,7 +871,7 @@ LLVMValueRef gen_disposing_block_cant_error(compile_t* c, ast_t* ast)
   if(needed && !ast_checkflag(ast, AST_FLAG_JUMPS_AWAY))
   {
     ast_t* type = deferred_reify(reify, ast_type(ast), c->opt);
-    phi_type = (compile_type_t*)reach_type(c->reach, type)->c_type;
+    phi_type = (compile_type_t*)reach_type(c->reach, type, c->opt)->c_type;
     ast_free_unattached(type);
   }
 
@@ -923,7 +962,44 @@ LLVMValueRef gen_error(compile_t* c, ast_t* ast)
 
   codegen_scope_lifetime_end(c);
   codegen_debugloc(c, ast);
-  gencall_error(c);
+
+  if(c->frame->error_target != NULL)
+  {
+    // Inside a try block: branch to the error handler.
+    LLVMBuildBr(c->builder, c->frame->error_target);
+  }
+  else if(c->frame->is_partial)
+  {
+    // Propagate error: return error tuple. The enclosing function is partial,
+    // so its return type is {T, i1} or i1.
+    LLVMTypeRef f_type = LLVMGlobalGetValueType(codegen_fun(c));
+    LLVMTypeRef r_type = LLVMGetReturnType(f_type);
+
+    if(r_type == c->i1)
+    {
+      genfun_build_ret(c, LLVMConstInt(c->i1, 1, false));
+    }
+    else
+    {
+      LLVMValueRef undef_val =
+        LLVMGetUndef(LLVMStructGetTypeAtIndex(r_type, 0));
+      LLVMValueRef ret = wrap_result(c, undef_val,
+        LLVMConstInt(c->i1, 1, false));
+      genfun_build_ret(c, ret);
+    }
+  }
+  else
+  {
+    // Bare function with no error handler: abort. Bare functions have
+    // is_partial=false (they can't use error-flag returns since C callers
+    // don't understand them), so this is the only remaining path.
+    pony_assert(c->frame->bare_function);
+    LLVMValueRef func = LLVMGetNamedFunction(c->module, "abort");
+    LLVMTypeRef func_type = LLVMGlobalGetValueType(func);
+    LLVMBuildCall2(c->builder, func_type, func, NULL, 0, "");
+    LLVMBuildUnreachable(c->builder);
+  }
+
   codegen_debugloc(c, NULL);
 
   return GEN_NOVALUE;
@@ -944,20 +1020,21 @@ void attach_branchweights_metadata(LLVMContextRef ctx, LLVMValueRef branch,
 
   LLVMValueRef metadata = LLVMMDNodeInContext(ctx, params, count + 1);
   const char id[] = "prof";
-  LLVMSetMetadata(branch, LLVMGetMDKindID(id, sizeof(id) - 1), metadata);
+  LLVMSetMetadata(branch,
+    LLVMGetMDKindIDInContext(ctx, id, sizeof(id) - 1), metadata);
 
   ponyint_pool_free(alloc_index, params);
 }
 
 void handle_branch_prediction_default(LLVMContextRef ctx, LLVMValueRef branch,
-  ast_t* ast)
+  ast_t* ast, compile_t* c)
 {
-  if(ast_has_annotation(ast, "likely"))
+  if(ast_has_annotation(ast, "likely", c->opt->strtab))
   {
     unsigned int weights[] =
       {PONY_BRANCHWEIGHT_LIKELY, PONY_BRANCHWEIGHT_UNLIKELY};
     attach_branchweights_metadata(ctx, branch, weights, 2);
-  } else if(ast_has_annotation(ast, "unlikely")) {
+  } else if(ast_has_annotation(ast, "unlikely", c->opt->strtab)) {
     unsigned int weights[] =
       {PONY_BRANCHWEIGHT_UNLIKELY, PONY_BRANCHWEIGHT_LIKELY};
     attach_branchweights_metadata(ctx, branch, weights, 2);

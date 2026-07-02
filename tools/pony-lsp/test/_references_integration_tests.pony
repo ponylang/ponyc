@@ -1,0 +1,622 @@
+use ".."
+use "pony_test"
+use "files"
+use "json"
+use "collections"
+
+primitive _ReferencesIntegrationTests is TestList
+  new make() => None
+
+  fun tag tests(test: PonyTest) =>
+    let workspace_dir = Path.join(Path.dir(__loc.file()), "workspace")
+    let fixture = "references/referenced_class.pony"
+    let server = _LspTestServer(workspace_dir)
+    test(_RefsCountDeclIncludedTest.create(server, fixture))
+    test(_RefsCountDeclExcludedTest.create(server, fixture))
+    test(_RefsCountRefIncludedTest.create(server, fixture))
+    test(_RefsCountRefExcludedTest.create(server, fixture))
+    test(_RefsIncrementCrossFileTest.create(server, fixture))
+    test(_RefsIncrementDeclExcludedTest.create(server, fixture))
+    test(_RefsTypeNameTest.create(server, fixture))
+    test(_RefsTypeNameDeclExcludedTest.create(server, fixture))
+    test(_RefsLiteralTest.create(server, fixture))
+    test(_RefsSyntheticNewrefTest.create(server, fixture))
+    test(_RefsGenericTypeparamDeclIncludedTest.create(server))
+    test(_RefsGenericTypeparamDeclExcludedTest.create(server))
+    test(_RefsGenericTypeparamRefIncludedTest.create(server))
+    test(_RefsGenericTypeparamRefExcludedTest.create(server))
+    test(_RefsGenericActorBeIncludedTest.create(server))
+    test(_RefsCrossPackageTest.create(server))
+
+class \nodoc\ iso _RefsCountDeclIncludedTest is UnitTest
+  """
+  Find references to `_count` field from its declaration site,
+  with includeDeclaration = true. Expects 5 locations:
+    referenced_class.pony (16, 6)-(16,12)   declaration
+    referenced_class.pony (19, 4)-(19,10)   in create
+    referenced_class.pony (22, 4)-(22,10)   first in increment
+    referenced_class.pony (22,13)-(22,19)   second in increment
+    referenced_class.pony (23, 4)-(23,10)   return
+
+  referenced_class.pony layout (0-indexed lines/cols):
+    line  0:    class ReferencedClass
+    line  1-15: docstring
+    line 16:      var _count: U32 = 0     _count at (16,6)-(16,12)
+    line 18:      new create() =>
+    line 19:        _count = 0            _count at (19,4)-(19,10)
+    line 21:      fun ref increment(): U32 =>   increment at (21,10)-(21,19)
+    line 22:        _count = _count + 1
+                            _count at (22,4)-(22,10) and (22,13)-(22,19)
+    line 23:        _count                _count at (23,4)-(23,10)
+  """
+  let _server: _LspTestServer
+  let _fixture: String val
+
+  new iso create(server: _LspTestServer, fixture: String val) =>
+    _server = server
+    _fixture = fixture
+
+  fun name(): String =>
+    "references/integration/count_decl_included"
+
+  fun apply(h: TestHelper) =>
+    _RunLspChecks(
+      h,
+      _server,
+      _fixture,
+      [ _RefsChecker(
+          16,
+          6,
+          [ ("referenced_class.pony", 16, 6, 16, 12)
+            ("referenced_class.pony", 19, 4, 19, 10)
+            ("referenced_class.pony", 22, 4, 22, 10)
+            ("referenced_class.pony", 22, 13, 22, 19)
+            ("referenced_class.pony", 23, 4, 23, 10)],
+          true)])
+
+class \nodoc\ iso _RefsCountDeclExcludedTest is UnitTest
+  """
+  Find references to `_count` field from its declaration site,
+  with includeDeclaration = false. Expects 4 locations (no declaration).
+  """
+  let _server: _LspTestServer
+  let _fixture: String val
+
+  new iso create(server: _LspTestServer, fixture: String val) =>
+    _server = server
+    _fixture = fixture
+
+  fun name(): String =>
+    "references/integration/count_decl_excluded"
+
+  fun apply(h: TestHelper) =>
+    _RunLspChecks(
+      h,
+      _server,
+      _fixture,
+      [ _RefsChecker(
+          16,
+          6,
+          [ ("referenced_class.pony", 19, 4, 19, 10)
+            ("referenced_class.pony", 22, 4, 22, 10)
+            ("referenced_class.pony", 22, 13, 22, 19)
+            ("referenced_class.pony", 23, 4, 23, 10)],
+          false)])
+
+class \nodoc\ iso _RefsCountRefIncludedTest is UnitTest
+  """
+  Find references to `_count` field from a reference site (line 23, col 4),
+  with includeDeclaration = true. Expects the same 5 locations as from
+  the declaration.
+  """
+  let _server: _LspTestServer
+  let _fixture: String val
+
+  new iso create(server: _LspTestServer, fixture: String val) =>
+    _server = server
+    _fixture = fixture
+
+  fun name(): String =>
+    "references/integration/count_ref_included"
+
+  fun apply(h: TestHelper) =>
+    _RunLspChecks(
+      h,
+      _server,
+      _fixture,
+      [ _RefsChecker(
+          23,
+          4,
+          [ ("referenced_class.pony", 16, 6, 16, 12)
+            ("referenced_class.pony", 19, 4, 19, 10)
+            ("referenced_class.pony", 22, 4, 22, 10)
+            ("referenced_class.pony", 22, 13, 22, 19)
+            ("referenced_class.pony", 23, 4, 23, 10)],
+          true)])
+
+class \nodoc\ iso _RefsCountRefExcludedTest is UnitTest
+  """
+  Find references to `_count` field from a reference site (line 23, col 4),
+  with includeDeclaration = false. Expects 4 locations (no declaration),
+  same as _RefsCountDeclExcludedTest but starting from a reference site.
+  """
+  let _server: _LspTestServer
+  let _fixture: String val
+
+  new iso create(server: _LspTestServer, fixture: String val) =>
+    _server = server
+    _fixture = fixture
+
+  fun name(): String =>
+    "references/integration/count_ref_excluded"
+
+  fun apply(h: TestHelper) =>
+    _RunLspChecks(
+      h,
+      _server,
+      _fixture,
+      [ _RefsChecker(
+          23,
+          4,
+          [ ("referenced_class.pony", 19, 4, 19, 10)
+            ("referenced_class.pony", 22, 4, 22, 10)
+            ("referenced_class.pony", 22, 13, 22, 19)
+            ("referenced_class.pony", 23, 4, 23, 10)],
+          false)])
+
+class \nodoc\ iso _RefsIncrementCrossFileTest is UnitTest
+  """
+  Find references to `increment` method from its declaration site,
+  with includeDeclaration = true. Expects 2 locations:
+    referenced_class.pony (21,10)-(21,19)  declaration
+    references_user.pony  (12, 8)-(12,17)  reference in ReferencesUser.use_it
+  """
+  let _server: _LspTestServer
+  let _fixture: String val
+
+  new iso create(server: _LspTestServer, fixture: String val) =>
+    _server = server
+    _fixture = fixture
+
+  fun name(): String =>
+    "references/integration/increment_cross_file"
+
+  fun apply(h: TestHelper) =>
+    _RunLspChecks(
+      h,
+      _server,
+      _fixture,
+      [ _RefsChecker(
+          21,
+          10,
+          [ ("referenced_class.pony", 21, 10, 21, 19)
+            ("references_user.pony", 12, 8, 12, 17)],
+          true)])
+
+class \nodoc\ iso _RefsIncrementDeclExcludedTest is UnitTest
+  """
+  Find references to `increment` method from its declaration site,
+  with includeDeclaration = false. Expects 1 location (no declaration):
+    references_user.pony  (12, 8)-(12,17)  reference in ReferencesUser.use_it
+  Exercises the tk_id promotion path: the cursor lands on the tk_id child
+  of the tk_fun node, which is promoted to tk_fun before the exclusion key
+  is computed.
+  """
+  let _server: _LspTestServer
+  let _fixture: String val
+
+  new iso create(server: _LspTestServer, fixture: String val) =>
+    _server = server
+    _fixture = fixture
+
+  fun name(): String =>
+    "references/integration/increment_decl_excluded"
+
+  fun apply(h: TestHelper) =>
+    _RunLspChecks(
+      h,
+      _server,
+      _fixture,
+      [ _RefsChecker(
+          21,
+          10,
+          [("references_user.pony", 12, 8, 12, 17)],
+          false)])
+
+class \nodoc\ iso _RefsTypeNameTest is UnitTest
+  """
+  Find references to `ReferencedClass` from its declaration name (line 0,
+  col 6), with includeDeclaration = true. Expects 2 locations:
+    referenced_class.pony (0, 6)-(0,21)   class declaration
+    references_user.pony  (11,18)-(11,33)  type annotation in use_it param
+  """
+  let _server: _LspTestServer
+  let _fixture: String val
+
+  new iso create(server: _LspTestServer, fixture: String val) =>
+    _server = server
+    _fixture = fixture
+
+  fun name(): String =>
+    "references/integration/type_name"
+
+  fun apply(h: TestHelper) =>
+    _RunLspChecks(
+      h,
+      _server,
+      _fixture,
+      [ _RefsChecker(
+          0,
+          6,
+          [ ("referenced_class.pony", 0, 6, 0, 21)
+            ("references_user.pony", 11, 18, 11, 33)],
+          true)])
+
+class \nodoc\ iso _RefsTypeNameDeclExcludedTest is UnitTest
+  """
+  Find references to `ReferencedClass` from its declaration name (line 0,
+  col 6), with includeDeclaration = false. Expects 1 location (no declaration):
+    references_user.pony  (11,18)-(11,33)  type annotation in use_it param
+  Exercises the tk_id promotion path for entity declarations: the cursor
+  lands on the tk_id child of tk_class, which is promoted to tk_class before
+  the exclusion key is computed.
+  """
+  let _server: _LspTestServer
+  let _fixture: String val
+
+  new iso create(server: _LspTestServer, fixture: String val) =>
+    _server = server
+    _fixture = fixture
+
+  fun name(): String =>
+    "references/integration/type_name_decl_excluded"
+
+  fun apply(h: TestHelper) =>
+    _RunLspChecks(
+      h,
+      _server,
+      _fixture,
+      [ _RefsChecker(
+          0,
+          6,
+          [("references_user.pony", 11, 18, 11, 33)],
+          false)])
+
+class \nodoc\ iso _RefsLiteralTest is UnitTest
+  """
+  Requesting references for a literal value (the `0` on line 16)
+  returns no results.
+  """
+  let _server: _LspTestServer
+  let _fixture: String val
+
+  new iso create(server: _LspTestServer, fixture: String val) =>
+    _server = server
+    _fixture = fixture
+
+  fun name(): String =>
+    "references/integration/literal"
+
+  fun apply(h: TestHelper) =>
+    _RunLspChecks(
+      h,
+      _server,
+      _fixture,
+      [_RefsChecker(16, 20, [], true)])
+
+class \nodoc\ iso _RefsSyntheticNewrefTest is UnitTest
+  """
+  Requesting references for a `None` type-literal expression (line 26, col 4)
+  returns no results. `None` is desugared by the compiler into a synthetic
+  tk_newref inside a tk_call at the same position; the guard in
+  References.collect detects this pattern and returns early with [].
+  """
+  let _server: _LspTestServer
+  let _fixture: String val
+
+  new iso create(server: _LspTestServer, fixture: String val) =>
+    _server = server
+    _fixture = fixture
+
+  fun name(): String =>
+    "references/integration/synthetic_newref"
+
+  fun apply(h: TestHelper) =>
+    _RunLspChecks(h, _server, _fixture, [_RefsChecker(26, 4, [], true)])
+
+class \nodoc\ iso _RefsGenericTypeparamDeclIncludedTest is UnitTest
+  """
+  Find references to type parameter `T` of `GenericRefs[T]` from its
+  declaration site (line 0, col 18), with includeDeclaration = true.
+  Expects 3 locations — the declaration and both type annotations in id:
+    generic_refs.pony (0, 18)-(0, 19)   T declaration in class [T]
+    generic_refs.pony (14, 12)-(14, 13)  T in parameter type x: T
+    generic_refs.pony (14, 16)-(14, 17)  T in return type ): T
+
+  generic_refs.pony layout (0-indexed):
+    line 0:   class GenericRefs[T]    T at (0,18)
+    line 14:    fun id(x: T): T =>    T at (14,12) and (14,16)
+  """
+  let _server: _LspTestServer
+
+  new iso create(server: _LspTestServer) =>
+    _server = server
+
+  fun name(): String =>
+    "references/integration/generic_typeparam_decl_included"
+
+  fun apply(h: TestHelper) =>
+    _RunLspChecks(
+      h,
+      _server,
+      "references/generic_refs.pony",
+      [ _RefsChecker(
+          0,
+          18,
+          [ ("generic_refs.pony", 0, 18, 0, 19)
+            ("generic_refs.pony", 14, 12, 14, 13)
+            ("generic_refs.pony", 14, 16, 14, 17)],
+          true)])
+
+class \nodoc\ iso _RefsGenericTypeparamDeclExcludedTest is UnitTest
+  """
+  Find references to type parameter `T` of `GenericRefs[T]` from its
+  declaration site (line 0, col 18), with includeDeclaration = false.
+  Expects 2 locations (no declaration):
+    generic_refs.pony (14, 12)-(14, 13)  T in parameter type x: T
+    generic_refs.pony (14, 16)-(14, 17)  T in return type ): T
+  """
+  let _server: _LspTestServer
+
+  new iso create(server: _LspTestServer) =>
+    _server = server
+
+  fun name(): String =>
+    "references/integration/generic_typeparam_decl_excluded"
+
+  fun apply(h: TestHelper) =>
+    _RunLspChecks(
+      h,
+      _server,
+      "references/generic_refs.pony",
+      [ _RefsChecker(
+          0,
+          18,
+          [ ("generic_refs.pony", 14, 12, 14, 13)
+            ("generic_refs.pony", 14, 16, 14, 17)],
+          false)])
+
+class \nodoc\ iso _RefsGenericTypeparamRefIncludedTest is UnitTest
+  """
+  Find references to type parameter `T` of `GenericRefs[T]` from a usage site
+  (line 14, col 12, the `T` in `x: T`), with includeDeclaration = true.
+  Expects the same 3 locations as querying from the declaration site — verifies
+  that the reverse lookup via definitions() on tk_typeparamref resolves
+  correctly.
+  """
+  let _server: _LspTestServer
+
+  new iso create(server: _LspTestServer) =>
+    _server = server
+
+  fun name(): String =>
+    "references/integration/generic_typeparam_ref_included"
+
+  fun apply(h: TestHelper) =>
+    _RunLspChecks(
+      h,
+      _server,
+      "references/generic_refs.pony",
+      [ _RefsChecker(
+          14,
+          12,
+          [ ("generic_refs.pony", 0, 18, 0, 19)
+            ("generic_refs.pony", 14, 12, 14, 13)
+            ("generic_refs.pony", 14, 16, 14, 17)],
+          true)])
+
+class \nodoc\ iso _RefsGenericTypeparamRefExcludedTest is UnitTest
+  """
+  Find references to type parameter `T` of `GenericRefs[T]` from a usage site
+  (line 14, col 12, the `T` in `x: T`), with includeDeclaration = false.
+  Expects 2 locations (the two type annotation usages, no declaration):
+    generic_refs.pony (14, 12)-(14, 13)  T in parameter type x: T
+    generic_refs.pony (14, 16)-(14, 17)  T in return type ): T
+  """
+  let _server: _LspTestServer
+
+  new iso create(server: _LspTestServer) =>
+    _server = server
+
+  fun name(): String =>
+    "references/integration/generic_typeparam_ref_excluded"
+
+  fun apply(h: TestHelper) =>
+    _RunLspChecks(
+      h,
+      _server,
+      "references/generic_refs.pony",
+      [ _RefsChecker(
+          14,
+          12,
+          [ ("generic_refs.pony", 14, 12, 14, 13)
+            ("generic_refs.pony", 14, 16, 14, 17)],
+          false)])
+
+class \nodoc\ iso _RefsGenericActorBeIncludedTest is UnitTest
+  """
+  Find references to type parameter `T` of `GenericActor[T]` from its
+  declaration site (line 0, col 19), with includeDeclaration = true.
+  Expects 2 locations — declaration and the behaviour parameter:
+    generic_actor.pony (0, 19)-(0, 20)   T declaration in actor [T]
+    generic_actor.pony (8, 12)-(8, 13)   T in parameter type x: T
+
+  This test exercises the tk_be synthesized-node filter: ponyc generates
+  a nominal return type for behaviours in generic actors forming the chain
+  tk_be -> tk_nominal -> tk_typeargs -> tk_typeparamref. Without the filter
+  a third phantom result would appear.
+
+  generic_actor.pony layout (0-indexed):
+    line 0:  actor GenericActor[T: Any val]    T at (0,19)
+    line 8:    be run(x: T) =>                 T at (8,12)
+  """
+  let _server: _LspTestServer
+
+  new iso create(server: _LspTestServer) =>
+    _server = server
+
+  fun name(): String =>
+    "references/integration/generic_actor_be_included"
+
+  fun apply(h: TestHelper) =>
+    _RunLspChecks(
+      h,
+      _server,
+      "references/generic_actor.pony",
+      [ _RefsChecker(
+          0,
+          19,
+          [ ("generic_actor.pony", 0, 19, 0, 20)
+            ("generic_actor.pony", 8, 12, 8, 13)],
+          true)])
+
+class \nodoc\ iso _RefsCrossPackageTest is UnitTest
+  """
+  Find references to `RefBase` from its type-annotation usage in
+  `ref_base_user.pony` (line 7, col 18), with includeDeclaration = true.
+  Expects 2 locations across two different packages:
+    ref_base.pony      (4, 6)-(4, 13)   class declaration (ref_base/ package)
+    ref_base_user.pony (7, 18)-(7, 25)  type annotation   (references/ package)
+
+  `ref_base_user.pony` uses "ref_base", so ponyc compiles both packages in
+  one run. WorkspaceWalk must traverse both packages to find both locations.
+
+  ref_base.pony layout (0-indexed):
+    lines 0-2:  package docstring
+    line 4:     class RefBase                        RefBase at (4,6)-(4,13)
+    lines 5-7:  class docstring
+    line 8:     fun value(): U32 => 42
+  ref_base_user.pony layout (0-indexed):
+    line 0:     use "ref_base"
+    line 2:     class RefBaseUser
+    lines 3-6:  class docstring
+    line 7:     fun use_it(obj: RefBase): U32 =>    RefBase at (7,18)-(7,25)
+    line 8:       obj.value()
+  """
+  let _server: _LspTestServer
+
+  new iso create(server: _LspTestServer) =>
+    _server = server
+
+  fun name(): String =>
+    "references/integration/cross_package"
+
+  fun apply(h: TestHelper) =>
+    _RunLspChecks(
+      h,
+      _server,
+      "references/ref_base_user.pony",
+      [ _RefsChecker(
+          7,
+          18,
+          [ ("ref_base.pony", 4, 6, 4, 13)
+            ("ref_base_user.pony", 7, 18, 7, 25)],
+          true)])
+
+class val _RefsChecker
+  """
+  Validates a textDocument/references response against expected locations.
+  Each expected location is (filename_basename, start_line, start_char,
+  end_line, end_char).
+  """
+  let _line: I64
+  let _character: I64
+  let _expected: Array[(String, I64, I64, I64, I64)] val
+  let _include_declaration: Bool
+
+  new val create(
+    line': I64,
+    character': I64,
+    expected: Array[(String, I64, I64, I64, I64)] val,
+    include_declaration: Bool = true)
+  =>
+    _line = line'
+    _character = character'
+    _expected = expected
+    _include_declaration = include_declaration
+
+  fun lsp_method(): String =>
+    Methods.text_document().references()
+
+  fun lsp_params(): (None | JsonObject) =>
+    JsonObject
+      .update(
+        "position",
+        JsonObject.update("line", _line).update("character", _character))
+      .update(
+        "context",
+        JsonObject.update("includeDeclaration", _include_declaration))
+
+  fun check(res: ResponseMessage val, h: TestHelper): Bool =>
+    var ok = true
+    match res.result
+    | let arr: JsonArray =>
+      let got = arr.size()
+      let want = _expected.size()
+      if not h.assert_eq[USize](
+        want,
+        got,
+        "Expected " + want.string() + " references, got " + got.string())
+      then
+        ok = false
+        for item in arr.values() do
+          try
+            let uri = JsonNav(item)("uri").as_string()?
+            let file = Path.base(Uris.to_path(uri))
+            let range = JsonNav(item)("range")
+            let sl = range("start")("line").as_i64()?
+            let sc = range("start")("character").as_i64()?
+            let el = range("end")("line").as_i64()?
+            let ec = range("end")("character").as_i64()?
+            h.log(
+              "  actual ref " + file +
+              " (" + sl.string() + ", " + sc.string() +
+              ")–(" + el.string() + ", " + ec.string() + ")")
+          end
+        end
+      end
+      for (exp_file, exp_sl, exp_sc, exp_el, exp_ec) in _expected.values() do
+        var found = false
+        for item in arr.values() do
+          try
+            let uri = JsonNav(item)("uri").as_string()?
+            let file = Path.base(Uris.to_path(uri))
+            let range = JsonNav(item)("range")
+            let sl = range("start")("line").as_i64()?
+            let sc = range("start")("character").as_i64()?
+            let el = range("end")("line").as_i64()?
+            let ec = range("end")("character").as_i64()?
+            if (file == exp_file) and (sl == exp_sl) and (sc == exp_sc)
+              and (el == exp_el) and (ec == exp_ec)
+            then
+              found = true
+              break
+            end
+          end
+        end
+        if not h.assert_true(
+          found,
+          "Expected ref " + exp_file +
+          " (" + exp_sl.string() + ", " + exp_sc.string() +
+          ")–(" + exp_el.string() + ", " + exp_ec.string() + ") not found")
+        then
+          ok = false
+        end
+      end
+    else
+      if _expected.size() > 0 then
+        ok = false
+        h.log("Expected references but got null/non-array")
+      end
+    end
+    ok

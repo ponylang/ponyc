@@ -34,7 +34,7 @@ void attach_branchweights_metadata(LLVMContextRef ctx, LLVMValueRef branch,
    unsigned int weights[], unsigned int count);
 
 void handle_branch_prediction_default(LLVMContextRef ctx, LLVMValueRef branch,
-  ast_t* ast);
+  ast_t* ast, compile_t* c);
 
 // Numbers from Clang's __builtin_expect()
 #define PONY_BRANCHWEIGHT_LIKELY 2000

@@ -293,7 +293,7 @@ class val FilePath
     """
     Create a symlink to a file or directory.
 
-    Note that on Windows a program must be running with elevated priviledges to
+    Note that on Windows a program must be running with elevated privileges to
     be able to create symlinks.
     """
     if not caps(FileLink) or not link_name.caps(FileCreate) then

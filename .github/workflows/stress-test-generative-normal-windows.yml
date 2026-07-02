@@ -1,0 +1,115 @@
+name: "Stress Test: Windows Generative (Normal)"
+
+on:
+  schedule:
+    - cron: "0 2 * * *"
+  workflow_dispatch:
+    inputs:
+      sha:
+        description: 'SHA to test'
+        required: true
+        type: string
+        default: 'main'
+
+permissions:
+  packages: read
+
+# Second stress lane. The other stress workflows (the tcp-open-close trio) share
+# the repo-wide `stress-scheduled` group (one at a time); the generative workflows
+# -- systematic and normal -- share their own `stress-scheduled-generative` group,
+# so at most one of each lane runs at once -- at most two stress workflows in
+# total. Manual runs get a unique group (github.run_id) so a branch check never
+# queues behind the loop. Relies on these workflows having exactly two triggers
+# (schedule + workflow_dispatch) -- see the per-event flag/alert conditions below.
+concurrency:
+  group: stress-${{ github.event_name == 'workflow_dispatch' && github.run_id || 'scheduled-generative' }}
+  cancel-in-progress: false
+
+jobs:
+  x86_64-windows:
+    runs-on: windows-2025-vs2026
+    defaults:
+      run:
+        shell: pwsh
+    # Whole-job ceiling: ponyc debug build + a 90-min wall-clock soak
+    # (--budget-seconds) + a final-seed overshoot. A large run is ~15-20 min, but the
+    # orchestrator's flat per-run timeout (~100 min) bounds a HUNG final run, so the
+    # worst case is build + 90 + 100, well under this cap. The six generative
+    # workflows share one concurrency group; a 240m cap can't drop the next
+    # scheduled run (a drop needs one run still going across two cron firings,
+    # >6h at the tightest 3h spacing), though a job near the cap can delay the
+    # next. See .known-couplings/stress-test-concurrency.md.
+    timeout-minutes: 240
+
+    name: x86-64 Windows generative normal [debug]
+    steps:
+      - name: Disable Windows Defender
+        run: Set-MpPreference -DisableRealtimeMonitoring $true
+      - name: Checkout
+        uses: actions/checkout@v6.0.2
+        with:
+          ref: ${{ github.event.inputs.sha || 'main' }}
+      - name: Install Dependencies
+        # lldb (and the mingw-w64 LLVM/clang runtime libraries it imports against)
+        # so the normal mode can run the engine under lldb and capture a crash
+        # backtrace -- a normal-mode crash does not reproduce, so the in-the-moment
+        # stack is the only artifact. Pinned per Discussion #5007:
+        # (1) 2026-05-03: lldb-22.1.4-2 crashed in liblldb.dll (0xC0000005);
+        #     pinned llvm-libs, clang-libs, lldb to 22.1.4-1.
+        # (2) 2026-05-11: msys2 bumped unpinned deps and the pinned lldb 22.1.4-1
+        #     failed to load (0xC0000139); extended the pin to those deps.
+        # Installed via `pacman -U` from explicit URLs so the initial `-Syuu`
+        # can't re-introduce a broken combination.
+        run: |
+          function msys() { C:\msys64\usr\bin\bash.exe @('-lc') + @Args }
+          msys ' '
+          msys 'pacman --noconfirm -Syuu'
+          msys 'pacman --noconfirm -Syuu'
+          msys 'pacman --noconfirm -S --needed base-devel'
+          msys 'pacman --noconfirm -U https://repo.msys2.org/mingw/mingw64/mingw-w64-x86_64-llvm-libs-22.1.4-1-any.pkg.tar.zst https://repo.msys2.org/mingw/mingw64/mingw-w64-x86_64-clang-libs-22.1.4-1-any.pkg.tar.zst https://repo.msys2.org/mingw/mingw64/mingw-w64-x86_64-lldb-22.1.4-1-any.pkg.tar.zst https://repo.msys2.org/mingw/mingw64/mingw-w64-x86_64-gcc-libs-16.1.0-2-any.pkg.tar.zst https://repo.msys2.org/mingw/mingw64/mingw-w64-x86_64-expat-2.8.0-1-any.pkg.tar.zst https://repo.msys2.org/mingw/mingw64/mingw-w64-x86_64-mpdecimal-4.0.1-2-any.pkg.tar.zst https://repo.msys2.org/mingw/mingw64/mingw-w64-x86_64-python-3.14.4-2-any.pkg.tar.zst'
+          msys 'pacman --noconfirm -Scc'
+      - name: Restore prebuilt libs
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          LIBS_TAG: ${{ hashFiles('make.ps1', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
+          # schedule -> skip the run on a cache miss (the loop overlaps an empty/
+          # refilling cache); manual dispatch -> also pull the branch cache so a
+          # branch run finds the libs it already built, and fail loudly otherwise.
+          LIBS_CACHE_FLAGS: ${{ github.event_name == 'schedule' && '--skip-on-miss' || '--branch-cache' }}
+        run: python .ci-scripts/libs-cache/resolve_libs_cache.py --require-cache-hit $env:LIBS_CACHE_FLAGS --platform windows-2025-vs2026 --tag $env:LIBS_TAG
+      - name: Configure
+        if: ${{ hashFiles('.libs-cache-miss') == '' }}
+        run: .\make.ps1 -Command configure -Config Debug
+      - name: Build Debug Runtime
+        # A NORMAL build (no use= flags): the real, multi-threaded runtime, the
+        # whole point of this mode. NOT use=systematic_testing.
+        if: ${{ hashFiles('.libs-cache-miss') == '' }}
+        run: .\make.ps1 -Command build -Config Debug
+      - name: Run Generative Stress Test
+        if: ${{ hashFiles('.libs-cache-miss') == '' }}
+        run: |
+          python test/rt-stress/generative/orchestrate_normal.py `
+            --ponyc build/debug/ponyc.exe `
+            --lldb 'C:\msys64\mingw64\bin\lldb.exe' `
+            --start ${{ github.run_id }} --budget-seconds 5400 `
+            --out rt-stress-out
+      # cancelled() too: keep bundles from seeds that ran before a cancel.
+      - name: Upload failure bundles
+        if: ${{ (failure() || cancelled()) && hashFiles('.libs-cache-miss') == '' }}
+        uses: actions/upload-artifact@v4.6.2
+        with:
+          name: generative-normal-bundles-windows
+          path: rt-stress-out/*.json
+          if-no-files-found: ignore
+      # cancelled() too: failure() is false when a job hits timeout-minutes.
+      - name: Send alert on failure or cancellation
+        if: ${{ (failure() || cancelled()) && github.event_name == 'schedule' }}
+        uses: zulip/github-actions-zulip/send-message@bd8ec52de371d139ae8313661b7d8318c19266aa
+        with:
+          api-key: ${{ secrets.ZULIP_SCHEDULED_JOB_FAILURE_API_KEY }}
+          email: ${{ secrets.ZULIP_SCHEDULED_JOB_FAILURE_EMAIL }}
+          organization-url: 'https://ponylang.zulipchat.com/'
+          to: notifications
+          type: stream
+          topic: ${{ github.repository }} scheduled job failure
+          content: ${{ github.server_url}}/${{ github.repository }}/actions/runs/${{ github.run_id }} failed.

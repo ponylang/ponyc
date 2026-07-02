@@ -315,7 +315,7 @@ class _ProcessPosix is _Process
 
 primitive _WaitPidStatus
   """
-  Pure Pony implementaton of C macros for investigating
+  Pure Pony implementation of C macros for investigating
   the status returned by `waitpid()`.
   """
 

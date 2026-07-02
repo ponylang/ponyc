@@ -12,10 +12,6 @@ void gendesc_type(compile_t* c, reach_type_t* t);
 
 void gendesc_init(compile_t* c, reach_type_t* t);
 
-void gendesc_table(compile_t* c);
-
-void gendesc_table_lookup(compile_t* c);
-
 LLVMValueRef gendesc_fetch(compile_t* c, LLVMValueRef object);
 
 LLVMValueRef gendesc_typeid(compile_t* c, LLVMValueRef desc);
@@ -42,6 +38,20 @@ LLVMValueRef gendesc_fieldload(compile_t* c, LLVMValueRef ptr,
   LLVMValueRef field_info);
 
 LLVMValueRef gendesc_fielddesc(compile_t* c, LLVMValueRef field_info);
+
+/**
+ * Return the DESC_SIZE field from the descriptor (the ABI size of the boxed
+ * object, as an i32).
+ */
+LLVMValueRef gendesc_size(compile_t* c, LLVMValueRef desc);
+
+/**
+ * Return the DESC_FIELD_OFFSET field from the descriptor (the byte offset
+ * from the start of the object to the first data field, as an i32).  For
+ * boxable numeric types this is the offset to the primitive value; for tuples
+ * it is the offset to the first tuple element.
+ */
+LLVMValueRef gendesc_fieldoffset(compile_t* c, LLVMValueRef desc);
 
 LLVMValueRef gendesc_isnominal(compile_t* c, LLVMValueRef desc, ast_t* trait);
 

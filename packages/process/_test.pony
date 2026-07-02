@@ -697,7 +697,7 @@ class \nodoc\ iso _TestWaitingOnClosedProcessTwice is UnitTest
       let path_resolver = _PathResolver(h.env.vars, file_auth)
       let path = FilePath(file_auth, _SleepCommand.path(path_resolver)?)
       h.log(path.path)
-      let args = _SleepCommand.args(where seconds = 2)
+      let args = _SleepCommand.args(where seconds = 1)
       let vars: Array[String] val = ["HOME=/"; "PATH=/bin"]
 
       // we want to make sure that ProcessMonitor is not checking the exit
@@ -705,11 +705,11 @@ class \nodoc\ iso _TestWaitingOnClosedProcessTwice is UnitTest
       // since it calls dispose() on its notifier after it has checked the
       // exit status, we test whether or not we get more than 1 dispose()
 
-      // we start a process that should take less than 3 seconds
-      // after 3 seconds we send 2 dispose() messages to it
+      // we start a process that should take less than 5 seconds
+      // after 5 seconds we send 2 dispose() messages to it
       // when we are notified of the first dispose() message, we check the exit
       // status to make sure we've exited successfully, then we start a second
-      // timer that will check if we were notified of the 2nd dispose()
+      // timer that will check if we were notified of the 2nd dispose();
       // we shouldn't have been
 
       let timers = Timers
@@ -757,7 +757,7 @@ class \nodoc\ iso _TestWaitingOnClosedProcessTwice is UnitTest
             pm.dispose()
             true
         end,
-        3_000_000_000, 0)
+        5_000_000_000, 0)
       timers(consume timer1)
 
       h.long_test(10_000_000_000)

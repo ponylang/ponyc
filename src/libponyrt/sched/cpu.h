@@ -27,6 +27,13 @@ uint64_t ponyint_cpu_tick();
 uint64_t ponyint_cpu_tick_diff(uint64_t supposedly_earlier,
   uint64_t supposedly_later);
 
+// Elapsed ticks between two ponyint_cpu_tick() readings for a counter that is
+// `bits` wide, correct across a single wrap. Exposed (rather than file-local)
+// so the wrap arithmetic can be unit-tested at widths other than the host's;
+// ponyint_cpu_tick_diff() is the platform-width wrapper around it.
+uint64_t ponyint_cpu_tick_diff_bits(uint64_t supposedly_earlier,
+  uint64_t supposedly_later, uint32_t bits);
+
 PONY_EXTERN_C_END
 
 #endif

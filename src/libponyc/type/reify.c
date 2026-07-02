@@ -1,31 +1,83 @@
 #include "reify.h"
 #include "subtype.h"
+#include "typealias.h"
+#include "typeparam.h"
 #include "viewpoint.h"
 #include "assemble.h"
 #include "alias.h"
 #include "../ast/token.h"
-#include "../../libponyrt/gc/serialise.h"
 #include "../../libponyrt/mem/pool.h"
 #include "ponyassert.h"
 
-static void reify_typeparamref(ast_t** astp, ast_t* typeparam, ast_t* typearg)
+static ast_t* find_typearg(pass_opt_t* opt, ast_t* ast, ast_t* typeparams, ast_t* typeargs)
+{
+  ast_t* ref_def = NULL;
+  switch(ast_id(ast))
+  {
+    case TK_REFERENCE:
+      ref_def = ast_get(ast, ast_name(ast_child(ast)), NULL);
+      if(ref_def == NULL)
+        return NULL;
+
+      // Resolve to the root of the ast_data chain for TK_TYPEPARAM nodes,
+      // same as the TK_TYPEPARAMREF case below.
+      if(ast_id(ref_def) == TK_TYPEPARAM)
+        ref_def = typeparam_root(ref_def);
+
+      break;
+
+    case TK_TYPEPARAMREF:
+      ref_def = (ast_t*)ast_data(ast);
+      pony_assert(ref_def != NULL);
+      ref_def = typeparam_root(ref_def);
+      break;
+
+    default:
+      pony_assert(0);
+  }
+
+  // Iterate pairwise through the typeparams and typeargs,
+  // until we find the one corresponding to this ref
+  ast_t* typeparam = ast_child(typeparams);
+  ast_t* typearg = ast_child(typeargs);
+
+  while((typeparam != NULL) && (typearg != NULL))
+  {
+    ast_t* param_def = (ast_t*)ast_data(typeparam);
+    pony_assert(param_def != NULL);
+    param_def = typeparam_root(param_def);
+
+    if(ref_def == param_def)
+      return typearg;
+
+    if(ast_id(ast) == TK_TYPEPARAMREF)
+    {
+      AST_GET_CHILDREN(param_def, param_name, param_constraint);
+      AST_GET_CHILDREN(ref_def, ref_name, ref_constraint);
+
+      if(ast_name(ref_name) == ast_name(param_name))
+      {
+        if((ast_id(param_constraint) == TK_TYPEPARAMREF) ||
+            is_subtype(ref_constraint, param_constraint, NULL, opt))
+          return typearg;
+      }
+    }
+
+    // Not the type variable we are looking for, move on to next
+    typeparam = ast_sibling(typeparam);
+    typearg = ast_sibling(typearg);
+  }
+
+  return NULL;
+}
+
+static void reify_typeparamref(pass_opt_t* opt, ast_t** astp, ast_t* typeparams, ast_t* typeargs)
 {
   ast_t* ast = *astp;
   pony_assert(ast_id(ast) == TK_TYPEPARAMREF);
-  pony_assert(ast_id(typeparam) == TK_TYPEPARAM);
 
-  ast_t* ref_def = (ast_t*)ast_data(ast);
-
-  // We can't compare ref_def and typeparam, as they could be a copy or
-  // a iftype shadowing. However, their data points back to the original
-  // typeparam definition, which can be compared.
-  ref_def = (ast_t*)ast_data(ref_def);
-  typeparam = (ast_t*)ast_data(typeparam);
-
-  pony_assert(ref_def != NULL);
-  pony_assert(typeparam != NULL);
-
-  if(ref_def != typeparam)
+  ast_t* typearg = find_typearg(opt, ast, typeparams, typeargs);
+  if (typearg == NULL)
     return;
 
   // Keep ephemerality.
@@ -33,7 +85,7 @@ static void reify_typeparamref(ast_t** astp, ast_t* typeparam, ast_t* typearg)
   {
     case TK_EPHEMERAL:
     {
-      ast_t* new_typearg = consume_type(typearg, TK_NONE, true);
+      ast_t* new_typearg = consume_type(typearg, TK_NONE, true, opt);
       // Will be NULL when instantiation produces double ephemerals A^^
       // or equivalent.
       //
@@ -54,7 +106,7 @@ static void reify_typeparamref(ast_t** astp, ast_t* typeparam, ast_t* typearg)
       break;
 
     case TK_ALIASED:
-      typearg = alias(typearg);
+      typearg = alias(typearg, opt);
       break;
 
     default:
@@ -64,7 +116,7 @@ static void reify_typeparamref(ast_t** astp, ast_t* typeparam, ast_t* typearg)
   ast_replace(astp, typearg);
 }
 
-static void reify_arrow(ast_t** astp)
+static void reify_arrow(ast_t** astp, pass_opt_t* opt)
 {
   ast_t* ast = *astp;
   pony_assert(ast_id(ast) == TK_ARROW);
@@ -77,30 +129,20 @@ static void reify_arrow(ast_t** astp)
   {
     AST_GET_CHILDREN(left, l_left, l_right);
     r_left = l_left;
-    r_right = viewpoint_type(l_right, right);
+    r_right = viewpoint_type(l_right, right, opt);
   }
 
-  ast_t* r_type = viewpoint_type(r_left, r_right);
+  ast_t* r_type = viewpoint_type(r_left, r_right, opt);
   ast_replace(astp, r_type);
 }
 
-static void reify_reference(ast_t** astp, ast_t* typeparam, ast_t* typearg)
+static void reify_reference(pass_opt_t* opt, ast_t** astp, ast_t* typeparams, ast_t* typeargs)
 {
   ast_t* ast = *astp;
   pony_assert(ast_id(ast) == TK_REFERENCE);
 
-  const char* name = ast_name(ast_child(ast));
-
-  sym_status_t status;
-  ast_t* ref_def = ast_get(ast, name, &status);
-
-  if(ref_def == NULL)
-    return;
-
-  ast_t* param_def = (ast_t*)ast_data(typeparam);
-  pony_assert(param_def != NULL);
-
-  if(ref_def != param_def)
+  ast_t* typearg = find_typearg(opt, ast, typeparams, typeargs);
+  if (typearg == NULL)
     return;
 
   ast_setid(ast, TK_TYPEREF);
@@ -109,39 +151,6 @@ static void reify_reference(ast_t** astp, ast_t* typeparam, ast_t* typearg)
   ast_settype(ast, typearg);
 }
 
-static void reify_one(pass_opt_t* opt, ast_t** astp, ast_t* typeparam, ast_t* typearg)
-{
-  ast_t* ast = *astp;
-  ast_t* child = ast_child(ast);
-
-  while(child != NULL)
-  {
-    reify_one(opt, &child, typeparam, typearg);
-    child = ast_sibling(child);
-  }
-
-  ast_t* type = ast_type(ast);
-
-  if(type != NULL)
-    reify_one(opt, &type, typeparam, typearg);
-
-  switch(ast_id(ast))
-  {
-    case TK_TYPEPARAMREF:
-      reify_typeparamref(astp, typeparam, typearg);
-      break;
-
-    case TK_ARROW:
-      reify_arrow(astp);
-      break;
-
-    case TK_REFERENCE:
-      reify_reference(astp, typeparam, typearg);
-      break;
-
-    default: {}
-  }
-}
 
 bool reify_defaults(ast_t* typeparams, ast_t* typeargs, bool errors,
   pass_opt_t* opt)
@@ -201,6 +210,40 @@ bool reify_defaults(ast_t* typeparams, ast_t* typeargs, bool errors,
   return true;
 }
 
+static void reify_ast(ast_t** astp, ast_t* typeparams, ast_t* typeargs, pass_opt_t* opt)
+{
+  ast_t* ast = *astp;
+  ast_t* child = ast_child(ast);
+
+  while(child != NULL)
+  {
+    reify_ast(&child, typeparams, typeargs, opt);
+    child = ast_sibling(child);
+  }
+
+  ast_t* type = ast_type(ast);
+
+  if(type != NULL)
+    reify_ast(&type, typeparams, typeargs, opt);
+
+  switch(ast_id(ast))
+  {
+    case TK_TYPEPARAMREF:
+      reify_typeparamref(opt, astp, typeparams, typeargs);
+      break;
+
+    case TK_ARROW:
+      reify_arrow(astp, opt);
+      break;
+
+    case TK_REFERENCE:
+      reify_reference(opt, astp, typeparams, typeargs);
+      break;
+
+    default: {}
+  }
+}
+
 ast_t* reify(ast_t* ast, ast_t* typeparams, ast_t* typeargs, pass_opt_t* opt,
   bool duplicate)
 {
@@ -220,19 +263,7 @@ ast_t* reify(ast_t* ast, ast_t* typeparams, ast_t* typeargs, pass_opt_t* opt,
   else
     r_ast = ast;
 
-  // Iterate pairwise through the typeparams and typeargs.
-  ast_t* typeparam = ast_child(typeparams);
-  ast_t* typearg = ast_child(typeargs);
-
-  while((typeparam != NULL) && (typearg != NULL))
-  {
-    reify_one(opt, &r_ast, typeparam, typearg);
-    typeparam = ast_sibling(typeparam);
-    typearg = ast_sibling(typearg);
-  }
-
-  pony_assert(typeparam == NULL);
-  pony_assert(typearg == NULL);
+  reify_ast(&r_ast, typeparams, typeargs, opt);
   return r_ast;
 }
 
@@ -291,8 +322,8 @@ void deferred_reify_add_method_typeparams(deferred_reification_t* deferred,
 
   // Must replace `this` before typeparam reification.
   if(deferred->thistype != NULL)
-    r_typeparams = viewpoint_replacethis(r_typeparams, deferred->thistype,
-      false);
+    r_typeparams = viewpoint_replacethis(r_typeparams, deferred->thistype, false,
+      opt);
 
   if(deferred->type_typeparams != NULL)
     r_typeparams = reify(r_typeparams, deferred->type_typeparams,
@@ -308,7 +339,7 @@ ast_t* deferred_reify(deferred_reification_t* deferred, ast_t* ast,
 
   // Must replace `this` before typeparam reification.
   if(deferred->thistype != NULL)
-    r_ast = viewpoint_replacethis(r_ast, deferred->thistype, false);
+    r_ast = viewpoint_replacethis(r_ast, deferred->thistype, false, opt);
 
   if(deferred->type_typeparams != NULL)
     r_ast = reify(r_ast, deferred->type_typeparams, deferred->type_typeargs,
@@ -341,7 +372,7 @@ ast_t* deferred_reify_method_def(deferred_reification_t* deferred, ast_t* ast,
 
   // Must replace `this` before typeparam reification.
   if(deferred->thistype != NULL)
-    r_ast = viewpoint_replacethis(r_ast, deferred->thistype, false);
+    r_ast = viewpoint_replacethis(r_ast, deferred->thistype, false, opt);
 
   if(deferred->type_typeparams != NULL)
     r_ast = reify(r_ast, deferred->type_typeparams, deferred->type_typeargs,
@@ -392,7 +423,7 @@ bool check_constraints(ast_t* orig, ast_t* typeparams, ast_t* typeargs,
 
   while(typeparam != NULL)
   {
-    if(is_bare(typearg))
+    if(is_bare(typearg, opt))
     {
       if(report_errors)
       {
@@ -435,6 +466,36 @@ bool check_constraints(ast_t* orig, ast_t* typeparams, ast_t* typeargs,
         break;
       }
 
+      case TK_TYPEALIASREF:
+      {
+        // Unfold to check if the underlying type is a struct.
+        ast_t* unfolded = typealias_unfold(typearg);
+
+        if(unfolded != NULL)
+        {
+          if(ast_id(unfolded) == TK_NOMINAL)
+          {
+            ast_t* def = (ast_t*)ast_data(unfolded);
+
+            if((def != NULL) && (ast_id(def) == TK_STRUCT))
+            {
+              ast_free_unattached(unfolded);
+
+              if(report_errors)
+              {
+                ast_error(opt->check.errors, typearg,
+                  "a struct cannot be used as a type argument");
+              }
+
+              return false;
+            }
+          }
+
+          ast_free_unattached(unfolded);
+        }
+        break;
+      }
+
       default: {}
     }
 
@@ -454,9 +515,9 @@ bool check_constraints(ast_t* orig, ast_t* typeparams, ast_t* typeargs,
         ast_error_frame(&frame, orig,
           "type argument is outside its constraint");
         ast_error_frame(&frame, typearg,
-          "argument: %s", ast_print_type(typearg));
+          "argument: %s", ast_print_type(typearg, opt->strtab));
         ast_error_frame(&frame, typeparam,
-          "constraint: %s", ast_print_type(r_constraint));
+          "constraint: %s", ast_print_type(r_constraint, opt->strtab));
         errorframe_append(&frame, &info);
         errorframe_report(&frame, opt->check.errors);
       }
@@ -475,9 +536,9 @@ bool check_constraints(ast_t* orig, ast_t* typeparams, ast_t* typeargs,
         ast_error(opt->check.errors, orig, "a constructable constraint can "
           "only be fulfilled by a concrete type argument");
         ast_error_continue(opt->check.errors, typearg, "argument: %s",
-          ast_print_type(typearg));
+          ast_print_type(typearg, opt->strtab));
         ast_error_continue(opt->check.errors, typeparam, "constraint: %s",
-          ast_print_type(constraint));
+          ast_print_type(constraint, opt->strtab));
       }
 
       return false;
@@ -490,99 +551,4 @@ bool check_constraints(ast_t* orig, ast_t* typeparams, ast_t* typeargs,
   pony_assert(typeparam == NULL);
   pony_assert(typearg == NULL);
   return true;
-}
-
-static void deferred_reification_serialise_trace(pony_ctx_t* ctx, void* object)
-{
-  deferred_reification_t* d = (deferred_reification_t*)object;
-
-  pony_traceknown(ctx, d->ast, ast_pony_type(), PONY_TRACE_MUTABLE);
-
-  if(d->type_typeparams != NULL)
-    pony_traceknown(ctx, d->type_typeparams, ast_pony_type(),
-      PONY_TRACE_MUTABLE);
-
-  if(d->type_typeargs != NULL)
-    pony_traceknown(ctx, d->type_typeargs, ast_pony_type(),
-      PONY_TRACE_MUTABLE);
-
-  if(d->method_typeparams != NULL)
-    pony_traceknown(ctx, d->method_typeparams, ast_pony_type(),
-      PONY_TRACE_MUTABLE);
-
-  if(d->method_typeargs != NULL)
-    pony_traceknown(ctx, d->method_typeargs, ast_pony_type(),
-      PONY_TRACE_MUTABLE);
-
-  if(d->thistype != NULL)
-    pony_traceknown(ctx, d->thistype, ast_pony_type(),
-      PONY_TRACE_MUTABLE);
-}
-
-static void deferred_reification_serialise(pony_ctx_t* ctx, void* object,
-  void* buf, size_t offset, int mutability)
-{
-  (void)mutability;
-
-  deferred_reification_t* d = (deferred_reification_t*)object;
-  deferred_reification_t* dst =
-    (deferred_reification_t*)((uintptr_t)buf + offset);
-
-  dst->ast = (ast_t*)pony_serialise_offset(ctx, d->ast);
-  dst->type_typeparams = (ast_t*)pony_serialise_offset(ctx, d->type_typeparams);
-  dst->type_typeargs = (ast_t*)pony_serialise_offset(ctx, d->type_typeargs);
-  dst->method_typeparams = (ast_t*)pony_serialise_offset(ctx,
-    d->method_typeparams);
-  dst->method_typeargs = (ast_t*)pony_serialise_offset(ctx, d->method_typeargs);
-  dst->thistype = (ast_t*)pony_serialise_offset(ctx, d->thistype);
-}
-
-static void deferred_reification_deserialise(pony_ctx_t* ctx, void* object)
-{
-  deferred_reification_t* d = (deferred_reification_t*)object;
-
-  d->ast = (ast_t*)pony_deserialise_offset(ctx, ast_pony_type(),
-    (uintptr_t)d->ast);
-  d->type_typeparams = (ast_t*)pony_deserialise_offset(ctx, ast_pony_type(),
-    (uintptr_t)d->type_typeparams);
-  d->type_typeargs = (ast_t*)pony_deserialise_offset(ctx, ast_pony_type(),
-    (uintptr_t)d->type_typeargs);
-  d->method_typeparams = (ast_t*)pony_deserialise_offset(ctx, ast_pony_type(),
-    (uintptr_t)d->method_typeparams);
-  d->method_typeargs = (ast_t*)pony_deserialise_offset(ctx, ast_pony_type(),
-    (uintptr_t)d->method_typeargs);
-  d->thistype = (ast_t*)pony_deserialise_offset(ctx, ast_pony_type(),
-    (uintptr_t)d->thistype);
-}
-
-static pony_type_t deferred_reification_pony =
-{
-  0,
-  sizeof(deferred_reification_t),
-  0,
-  0,
-  0,
-  NULL,
-#if defined(USE_RUNTIME_TRACING)
-  NULL,
-  NULL,
-#endif
-  NULL,
-  deferred_reification_serialise_trace,
-  deferred_reification_serialise,
-  deferred_reification_deserialise,
-  NULL,
-  NULL,
-  NULL,
-  NULL,
-  0,
-  0,
-  NULL,
-  NULL,
-  NULL
-};
-
-pony_type_t* deferred_reification_pony_type()
-{
-  return &deferred_reification_pony;
 }

@@ -14,6 +14,7 @@
 #include "../type/reify.h"
 #include "../type/subtype.h"
 #include "../type/lookup.h"
+#include "../type/typealias.h"
 #include "ponyassert.h"
 
 static ast_t* build_array_type(pass_opt_t* opt, ast_t* scope, ast_t* elem_type,
@@ -61,7 +62,7 @@ static ast_t* strip_this_arrow(pass_opt_t* opt, ast_t* ast)
 static ast_t* detect_apply_element_type(pass_opt_t* opt, ast_t* ast, ast_t* def)
 {
   // The interface must have an apply method for us to find it.
-  ast_t* apply = ast_get(def, stringtab("apply"), NULL);
+  ast_t* apply = ast_get(def, stringtab(opt->strtab, "apply"), NULL);
   if((apply == NULL) || (ast_id(apply) != TK_FUN))
     return NULL;
 
@@ -76,7 +77,7 @@ static ast_t* detect_apply_element_type(pass_opt_t* opt, ast_t* ast, ast_t* def)
 
   ast_t* param = ast_child(params);
   ast_t* param_type = ast_childidx(param, 1);
-  if(ast_name(ast_childidx(param_type, 1)) != stringtab("USize"))
+  if(ast_name(ast_childidx(param_type, 1)) != stringtab(opt->strtab, "USize"))
     return NULL;
 
   // Based on the return type we try to figure out the element type.
@@ -94,7 +95,7 @@ static ast_t* detect_values_element_type(pass_opt_t* opt, ast_t* ast,
   ast_t* def)
 {
   // The interface must have an apply method for us to find it.
-  ast_t* values = ast_get(def, stringtab("values"), NULL);
+  ast_t* values = ast_get(def, stringtab(opt->strtab, "values"), NULL);
   if((values == NULL) || (ast_id(values) != TK_FUN))
     return NULL;
 
@@ -108,7 +109,7 @@ static ast_t* detect_values_element_type(pass_opt_t* opt, ast_t* ast,
     return NULL;
 
   if((ast_id(ret_type) != TK_NOMINAL) ||
-    (ast_name(ast_childidx(ret_type, 1)) != stringtab("Iterator")) ||
+    (ast_name(ast_childidx(ret_type, 1)) != stringtab(opt->strtab, "Iterator")) ||
     (ast_childcount(ast_childidx(ret_type, 2)) != 1))
     return NULL;
 
@@ -120,11 +121,9 @@ static ast_t* detect_values_element_type(pass_opt_t* opt, ast_t* ast,
   if(ast_id(typeparams) == TK_TYPEPARAMS)
     elem_type = reify(elem_type, typeparams, typeargs, opt, true);
 
-  if((ast_id(elem_type) == TK_ARROW) &&
-    (ast_id(ast_child(elem_type)) == TK_THISTYPE))
-    elem_type = ast_childidx(elem_type, 1);
-
-  return elem_type;
+  // Strip `this->` viewpoint arrows, including any that were distributed
+  // into a union/intersection/tuple when a type alias was expanded.
+  return strip_this_arrow(opt, elem_type);
 }
 
 static void find_possible_element_types(pass_opt_t* opt, ast_t* ast,
@@ -137,7 +136,7 @@ static void find_possible_element_types(pass_opt_t* opt, ast_t* ast,
       AST_GET_CHILDREN(ast, package, name, typeargs, cap, eph);
 
       // If it's an actual Array type, note it as a possibility and move on.
-      if(stringtab("Array") == ast_name(name))
+      if(stringtab(opt->strtab, "Array") == ast_name(name))
       {
         *list = astlist_push(*list, ast_child(typeargs));
         return;
@@ -189,6 +188,19 @@ static void find_possible_element_types(pass_opt_t* opt, ast_t* ast,
       return;
     }
 
+    case TK_TYPEALIASREF:
+    {
+      // Don't free the unfolded AST: the TK_NOMINAL case stores pointers
+      // into it (ast_child(typeargs) for Array element types) that the
+      // caller uses.
+      ast_t* unfolded = typealias_unfold(ast);
+
+      if(unfolded != NULL)
+        find_possible_element_types(opt, unfolded, list);
+
+      return;
+    }
+
     case TK_UNIONTYPE:
     case TK_ISECTTYPE:
     {
@@ -211,7 +223,7 @@ static void find_possible_iterator_element_types(pass_opt_t* opt, ast_t* ast,
     {
       AST_GET_CHILDREN(ast, package, name, typeargs, cap, eph);
 
-      if(stringtab("Iterator") == ast_name(name))
+      if(stringtab(opt->strtab, "Iterator") == ast_name(name))
       {
         *list = astlist_push(*list, ast_child(typeargs));
       }
@@ -227,6 +239,17 @@ static void find_possible_iterator_element_types(pass_opt_t* opt, ast_t* ast,
       ast_t* def = (ast_t*)ast_data(ast);
       pony_assert(ast_id(def) == TK_TYPEPARAM);
       find_possible_iterator_element_types(opt, ast_childidx(def, 1), list);
+      return;
+    }
+
+    case TK_TYPEALIASREF:
+    {
+      // Don't free: same reason as find_possible_element_types above.
+      ast_t* unfolded = typealias_unfold(ast);
+
+      if(unfolded != NULL)
+        find_possible_iterator_element_types(opt, unfolded, list);
+
       return;
     }
 
@@ -255,7 +278,7 @@ static bool infer_element_type(pass_opt_t* opt, ast_t* ast,
     // If the ast parent is a call to values() and the antecedent of that call
     // is an Iterator, then we can get possible element types that way.
     if((ast_id(ast_parent(ast)) == TK_DOT) &&
-      (ast_name(ast_sibling(ast)) == stringtab("values")))
+      (ast_name(ast_sibling(ast)) == stringtab(opt->strtab, "values")))
     {
       ast_t* dot = ast_parent(ast);
       antecedent_type = find_antecedent_type(opt, dot, NULL);
@@ -328,7 +351,8 @@ static bool infer_element_type(pass_opt_t* opt, ast_t* ast,
     astlist_t* cursor = possible_element_types;
     for(; cursor != NULL; cursor = astlist_next(cursor))
     {
-      ast_t* cursor_type = consume_type(astlist_data(cursor), TK_NONE, false);
+      ast_t* cursor_type = consume_type(astlist_data(cursor), TK_NONE, false,
+        opt);
 
       bool supertype_of_all = true;
       ast_t* elem = ast_child(ast_childidx(ast, 1));
@@ -451,7 +475,10 @@ bool expr_array(pass_opt_t* opt, ast_t** astp)
 
     ast_t* c_type = ast_type(ele);
     if(is_typecheck_error(c_type))
+    {
+      ast_free_unattached(type);
       return false;
+    }
 
     if(told_type)
     {
@@ -460,7 +487,7 @@ bool expr_array(pass_opt_t* opt, ast_t** astp)
         return false;
 
       c_type = ast_type(ele); // May have changed due to literals
-      ast_t* w_type = consume_type(type, TK_NONE, false);
+      ast_t* w_type = consume_type(type, TK_NONE, false, opt);
 
       errorframe_t info = NULL;
       errorframe_t frame = NULL;
@@ -468,7 +495,7 @@ bool expr_array(pass_opt_t* opt, ast_t** astp)
       {
         ast_error_frame(&frame, ele,
           "invalid specified array element type: %s",
-          ast_print_type(type));
+          ast_print_type(type, opt->strtab));
         errorframe_append(&frame, &info);
         errorframe_report(&frame, opt->check.errors);
         return false;
@@ -478,14 +505,16 @@ bool expr_array(pass_opt_t* opt, ast_t** astp)
         ast_error_frame(&frame, ele,
           "array element not a subtype of specified array type");
         ast_error_frame(&frame, type_spec, "array type: %s",
-          ast_print_type(type));
+          ast_print_type(type, opt->strtab));
         ast_error_frame(&frame, c_type, "element type: %s",
-          ast_print_type(c_type));
+          ast_print_type(c_type, opt->strtab));
         errorframe_append(&frame, &info);
         errorframe_report(&frame, opt->check.errors);
         ast_free_unattached(w_type);
         return false;
       }
+
+      ast_free_unattached(w_type);
     }
     else
     {
@@ -497,14 +526,24 @@ bool expr_array(pass_opt_t* opt, ast_t** astp)
         return true;
       }
 
-      type = type_union(opt, type, c_type);
+      ast_t* prev_type = type;
+      type = type_union(opt, prev_type, c_type);
+
+      // type_union may return prev_type, c_type, or a freshly-built tree.
+      // Free any input it did not return as-is: ast_free_unattached is a
+      // no-op on aliases (still parented) and on NULL, so no ownership
+      // tracking is needed.
+      if(type != prev_type)
+        ast_free_unattached(prev_type);
+      if(type != c_type)
+        ast_free_unattached(c_type);
     }
   }
 
   if(!told_type)
   {
     ast_t* aliasable_type = type;
-    type = alias(aliasable_type);
+    type = alias(aliasable_type, opt);
     ast_free_unattached(aliasable_type);
   }
 

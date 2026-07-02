@@ -1,5 +1,4 @@
 #include "error.h"
-#include "stringtab.h"
 #include "../../libponyrt/mem/pool.h"
 #include "ponyassert.h"
 #include <stdlib.h>
@@ -7,6 +6,32 @@
 #include <string.h>
 
 #define LINE_LEN 1024
+
+// Error messages own their strings. Each is a private pool-allocated copy freed
+// in error_free, so an error's strings live exactly as long as the error does
+// and are reclaimed with the errors collection (at pass_opt_done). Error text is
+// only ever printed, never interned or pointer-compared, so it deliberately does
+// not go through the interned-string table.
+static const char* error_strdup(const char* s)
+{
+  if(s == NULL)
+    return NULL;
+
+  size_t size = strlen(s) + 1;
+  char* dst = (char*)ponyint_pool_alloc_size(size);
+  memcpy(dst, s, size);
+  return dst;
+}
+
+static void error_strfree(const char* s)
+{
+  if(s == NULL)
+    return;
+
+  // s was allocated NUL-terminated by error_strdup, so strlen + 1 recovers the
+  // exact size class it was allocated with.
+  ponyint_pool_free_size(strlen(s) + 1, (void*)s);
+}
 
 
 typedef struct errors_t
@@ -31,6 +56,9 @@ static void error_free(errormsg_t* e)
   while(e != NULL)
   {
     errormsg_t* next = e->frame;
+    error_strfree(e->file);
+    error_strfree(e->msg);
+    error_strfree(e->source);
     POOL_FREE(errormsg_t, e);
     e = next;
   }
@@ -144,6 +172,10 @@ static void errors_push(errors_t* errors, errormsg_t* e)
   errors->count++;
 }
 
+// Appends to the tail of the frame chain. Walks p->frame to find the
+// tail on each call — O(N) per append, so callers building large frame
+// chains in a loop see O(N^2) overall. Cap the chain length where the
+// loop count is unbounded (e.g., per-alias fan-out in legality errors).
 static void append_to_frame(errorframe_t* frame, errormsg_t* e)
 {
   pony_assert(frame != NULL);
@@ -185,11 +217,11 @@ static errormsg_t* make_errorv(source_t* source, size_t line, size_t pos,
   errormsg_t* e = error_alloc();
 
   if(source != NULL)
-    e->file = source->file;
+    e->file = error_strdup(source->file);
 
   e->line = line;
   e->pos = pos;
-  e->msg = stringtab(buf);
+  e->msg = error_strdup(buf);
 
   if((source != NULL) && (line != 0))
   {
@@ -216,7 +248,7 @@ static errormsg_t* make_errorv(source_t* source, size_t line, size_t pos,
 
     memcpy(buf, &source->m[start], len);
     buf[len] = '\0';
-    e->source = stringtab(buf);
+    e->source = error_strdup(buf);
   }
 
   return e;
@@ -284,10 +316,52 @@ static errormsg_t* make_errorfv(const char* file, const char* fmt, va_list ap)
 
   errormsg_t* e = error_alloc();
 
-  e->file = stringtab(file);
-  e->msg = stringtab(buf);
+  e->file = error_strdup(file);
+  e->msg = error_strdup(buf);
   return e;
 }
+
+static errormsg_t* make_errorfv_at(const char* file, size_t line, size_t pos,
+  const char* fmt, va_list ap)
+{
+  errormsg_t* e = make_errorfv(file, fmt, ap);
+  e->line = line;
+  e->pos = pos;
+  return e;
+}
+
+
+void errorf_at(errors_t* errors, const char* file, size_t line, size_t pos,
+  const char* fmt, ...)
+{
+  va_list ap;
+  va_start(ap, fmt);
+  errors_push(errors, make_errorfv_at(file, line, pos, fmt, ap));
+  va_end(ap);
+}
+
+
+void errorf_at_continue(errors_t* errors, const char* file, size_t line,
+  size_t pos, const char* fmt, ...)
+{
+  va_list ap;
+  va_start(ap, fmt);
+
+  if(errors->tail == NULL)
+  {
+    errors_push(errors, make_errorfv_at(file, line, pos, fmt, ap));
+    va_end(ap);
+    return;
+  }
+
+  errormsg_t* p = errors->tail;
+  while(p->frame != NULL)
+    p = p->frame;
+
+  p->frame = make_errorfv_at(file, line, pos, fmt, ap);
+  va_end(ap);
+}
+
 
 void errorfv(errors_t* errors, const char* file, const char* fmt, va_list ap)
 {
@@ -330,12 +404,6 @@ void errorframe_append(errorframe_t* first, errorframe_t* second)
 
   append_to_frame(first, *second);
   *second = NULL;
-}
-
-bool errorframe_has_errors(errorframe_t* frame)
-{
-  pony_assert(frame != NULL);
-  return frame != NULL;
 }
 
 void errorframe_report(errorframe_t* frame, errors_t* errors)

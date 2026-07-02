@@ -340,7 +340,7 @@ TEST_F(ScopeTest, Use)
   // Use imported types go in the module symbol table
   ast_t* module = find_sub_tree(ast, TK_MODULE);
   symtab_t* module_symtab = ast_get_symtab(module);
-  ASSERT_NE((void*)NULL, symtab_find(module_symtab, stringtab("Foo"), NULL));
+  ASSERT_NE((void*)NULL, symtab_find(module_symtab, stringtab(opt.strtab, "Foo"), NULL));
 }
 
 
@@ -361,8 +361,8 @@ TEST_F(ScopeTest, UseAs)
   // Use imported types go in the module symbol table
   ast_t* module = find_sub_tree(ast, TK_MODULE);
   symtab_t* module_symtab = ast_get_symtab(module);
-  ASSERT_NE((void*)NULL, symtab_find(module_symtab, stringtab("bar"), NULL));
-  ASSERT_EQ((void*)NULL, symtab_find(module_symtab, stringtab("Foo"), NULL));
+  ASSERT_NE((void*)NULL, symtab_find(module_symtab, stringtab(opt.strtab, "bar"), NULL));
+  ASSERT_EQ((void*)NULL, symtab_find(module_symtab, stringtab(opt.strtab, "Foo"), NULL));
 }
 
 
@@ -383,7 +383,7 @@ TEST_F(ScopeTest, UseConditionTrue)
   // Use imported types go in the module symbol table
   ast_t* module = find_sub_tree(ast, TK_MODULE);
   symtab_t* module_symtab = ast_get_symtab(module);
-  ASSERT_NE((void*)NULL, symtab_find(module_symtab, stringtab("Foo"), NULL));
+  ASSERT_NE((void*)NULL, symtab_find(module_symtab, stringtab(opt.strtab, "Foo"), NULL));
 }
 
 
@@ -404,6 +404,6 @@ TEST_F(ScopeTest, UseConditionFalse)
   // Nothing should be imported
   ast_t* module = find_sub_tree(ast, TK_MODULE);
   symtab_t* module_symtab = ast_get_symtab(module);
-  ASSERT_EQ((void*)NULL, symtab_find(module_symtab, stringtab("Foo"), NULL));
+  ASSERT_EQ((void*)NULL, symtab_find(module_symtab, stringtab(opt.strtab, "Foo"), NULL));
 }
 */

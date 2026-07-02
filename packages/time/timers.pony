@@ -81,6 +81,13 @@ actor Timers is AsioEventNotify
     """
     if AsioEvent.disposable(flags) then
       @pony_asio_event_destroy(event)
+    elseif (event is _event) and AsioEvent.errored(flags) then
+      for wheel in _wheel.values() do
+        wheel.clear()
+      end
+      _map.clear()
+      @pony_asio_event_unsubscribe(_event)
+      _event = AsioEvent.none()
     elseif event is _event then
       _advance()
     end

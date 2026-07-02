@@ -1,19 +1,34 @@
 #include "source.h"
 #include "error.h"
 #include "stringtab.h"
-#include "../../libponyrt/gc/serialise.h"
 #include "../../libponyrt/mem/pool.h"
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
+#include <sys/stat.h>
 
-source_t* source_open(const char* file, const char** error_msgp)
+source_t* source_open(const char* file, const char** error_msgp,
+  strtable_t* strtab)
 {
   FILE* fp = fopen(file, "rb");
 
   if(fp == NULL)
   {
     *error_msgp = "can't open file";
+    return NULL;
+  }
+
+  // fopen("dir", "rb") succeeds on some platforms; the size logic below then
+  // reads a meaningless length from ftell. On common Linux filesystems that
+  // value is SSIZE_MAX, which overflows `size + 1` into a huge allocation that
+  // aborts the compiler. Reject a directory here with a clear error. Source
+  // discovery already skips directories; this is the backstop for any other
+  // caller.
+  struct stat s;
+  if((stat(file, &s) == 0) && S_ISDIR(s.st_mode))
+  {
+    *error_msgp = "is a directory";
+    fclose(fp);
     return NULL;
   }
 
@@ -30,7 +45,7 @@ source_t* source_open(const char* file, const char** error_msgp)
   fseek(fp, 0, SEEK_SET);
 
   source_t* source = POOL_ALLOC(source_t);
-  source->file = stringtab(file);
+  source->file = stringtab(strtab, file);
   source->m = (char*)ponyint_pool_alloc_size(size + 1);
   source->len = size + 1;
 
@@ -73,69 +88,4 @@ void source_close(source_t* source)
     ponyint_pool_free_size(source->len, source->m);
 
   POOL_FREE(source_t, source);
-}
-
-
-static void source_serialise_trace(pony_ctx_t* ctx, void* object)
-{
-  source_t* source = (source_t*)object;
-
-  if(source->file != NULL)
-    string_trace(ctx, source->file);
-
-  pony_serialise_reserve(ctx, source->m, source->len);
-}
-
-static void source_serialise(pony_ctx_t* ctx, void* object, void* buf,
-  size_t offset, int mutability)
-{
-  (void)mutability;
-
-  source_t* source = (source_t*)object;
-  source_t* dst = (source_t*)((uintptr_t)buf + offset);
-
-  dst->file = (const char*)pony_serialise_offset(ctx, (char*)source->file);
-  dst->m = (char*)pony_serialise_offset(ctx, source->m);
-  dst->len = source->len;
-}
-
-static void source_deserialise(pony_ctx_t* ctx, void* object)
-{
-  source_t* source = (source_t*)object;
-
-  source->file = string_deserialise_offset(ctx, (uintptr_t)source->file);
-  source->m = (char*)pony_deserialise_block(ctx, (uintptr_t)source->m,
-    source->len);
-}
-
-static pony_type_t source_pony =
-{
-  0,
-  sizeof(source_t),
-  0,
-  0,
-  0,
-  NULL,
-#if defined(USE_RUNTIME_TRACING)
-  NULL,
-  NULL,
-#endif
-  NULL,
-  source_serialise_trace,
-  source_serialise,
-  source_deserialise,
-  NULL,
-  NULL,
-  NULL,
-  NULL,
-  0,
-  0,
-  NULL,
-  NULL,
-  NULL
-};
-
-pony_type_t* source_pony_type()
-{
-  return &source_pony;
 }

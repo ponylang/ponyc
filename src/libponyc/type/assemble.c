@@ -31,7 +31,8 @@ static void append_one_to_union(pass_opt_t* opt, ast_t* ast, ast_t* append)
     child = next;
   }
 
-  ast_append(ast, append);
+  // Always dup `append`: see type_typeexpr's input-preservation invariant.
+  ast_append(ast, ast_dup(append));
 }
 
 static void append_one_to_isect(pass_opt_t* opt, ast_t* ast, ast_t* append)
@@ -56,7 +57,8 @@ static void append_one_to_isect(pass_opt_t* opt, ast_t* ast, ast_t* append)
     child = next;
   }
 
-  ast_append(ast, append);
+  // Always dup `append`: see type_typeexpr's input-preservation invariant.
+  ast_append(ast, ast_dup(append));
 }
 
 static void append_one_to_typeexpr(pass_opt_t* opt, ast_t* ast, ast_t* append,
@@ -86,6 +88,26 @@ static void append_to_typeexpr(pass_opt_t* opt, ast_t* ast, ast_t* append,
   }
 }
 
+// Combine two type expressions into a single tree.
+//
+// Input-preservation invariant: this function never mutates or frees
+// its inputs (`l_type`, `r_type`). Callers retain full ownership and can
+// free orphan inputs afterwards with `ast_free_unattached`. The
+// invariant is enforced by `append_one_to_union` and
+// `append_one_to_isect`, which always dup `append` before handing it to
+// `ast_append`; without that dup, `ast_append` would reparent an orphan
+// input directly into the freshly-built root, consuming it. The single-
+// element collapse path below frees its locally-built `type` and its
+// dup'd children only — no input is reachable from that free.
+//
+// The return value is one of: `l_type` or `r_type` unchanged (from an
+// early-return branch below), a freshly-built union/isect tree whose
+// children are dup'd copies of the input children, or — when a single-
+// element collapse fires — a fresh `ast_dup` of a single input child.
+// In all three cases the returned tree is independent of the inputs'
+// root nodes, so callers that need to reclaim orphan inputs can
+// compare the return value against each input and call
+// `ast_free_unattached` on any mismatch.
 static ast_t* type_typeexpr(pass_opt_t* opt, token_id t, ast_t* l_type,
   ast_t* r_type)
 {
@@ -131,7 +153,7 @@ static ast_t* type_typeexpr(pass_opt_t* opt, token_id t, ast_t* l_type,
 }
 
 static ast_t* type_base(ast_t* from, const char* package, const char* name,
-  ast_t* typeargs)
+  ast_t* typeargs, pass_opt_t* opt)
 {
   if(typeargs == NULL)
     typeargs = ast_from(from, TK_NONE);
@@ -155,7 +177,7 @@ ast_t* type_builtin(pass_opt_t* opt, ast_t* from, const char* name)
 ast_t* type_builtin_args(pass_opt_t* opt, ast_t* from, const char* name,
   ast_t* typeargs)
 {
-  ast_t* ast = type_base(from, NULL, name, typeargs);
+  ast_t* ast = type_base(from, NULL, name, typeargs, opt);
 
   if(!names_nominal(opt, from, &ast, false))
   {
@@ -183,7 +205,7 @@ ast_t* type_pointer_to(pass_opt_t* opt, ast_t* to)
   if(!names_nominal(opt, to, &pointer, false))
   {
     ast_error(opt->check.errors, to, "unable to create Pointer[%s]",
-      ast_print_type(to));
+      ast_print_type(to, opt->strtab));
     ast_free(pointer);
     return NULL;
   }
@@ -191,15 +213,15 @@ ast_t* type_pointer_to(pass_opt_t* opt, ast_t* to)
   return pointer;
 }
 
-ast_t* type_sugar(ast_t* from, const char* package, const char* name)
+ast_t* type_sugar(ast_t* from, const char* package, const char* name, pass_opt_t* opt)
 {
-  return type_base(from, package, name, NULL);
+  return type_base(from, package, name, NULL, opt);
 }
 
 ast_t* type_sugar_args(ast_t* from, const char* package, const char* name,
-  ast_t* typeargs)
+  ast_t* typeargs, pass_opt_t* opt)
 {
-  return type_base(from, package, name, typeargs);
+  return type_base(from, package, name, typeargs, opt);
 }
 
 ast_t* control_type_add_branch(pass_opt_t* opt, ast_t* control_type,
@@ -293,7 +315,7 @@ ast_t* type_for_class(pass_opt_t* opt, ast_t* def, ast_t* ast,
     while(typeparam != NULL)
     {
       ast_t* typeparam_id = ast_child(typeparam);
-      ast_t* typearg = type_sugar(ast, NULL, ast_name(typeparam_id));
+      ast_t* typearg = type_sugar(ast, NULL, ast_name(typeparam_id), opt);
       ast_append(typeargs, typearg);
 
       if(expr)
@@ -437,6 +459,18 @@ ast_t* set_cap_and_ephemeral(ast_t* type, token_id cap, token_id ephemeral)
     {
       type = ast_dup(type);
       AST_GET_CHILDREN(type, id, tcap, eph);
+
+      if(cap != TK_NONE)
+        ast_setid(tcap, cap);
+
+      ast_setid(eph, ephemeral);
+      return type;
+    }
+
+    case TK_TYPEALIASREF:
+    {
+      type = ast_dup(type);
+      AST_GET_CHILDREN(type, id, typeargs, tcap, eph);
 
       if(cap != TK_NONE)
         ast_setid(tcap, cap);

@@ -203,6 +203,7 @@ static bool compare_signatures(ast_t* sig_a, ast_t* sig_b)
     case TK_FLOAT:   return ast_float(sig_a) == ast_float(sig_b);
 
     case TK_NOMINAL:
+    case TK_TYPEALIASREF:
       if(ast_data(sig_a) != ast_data(sig_b))
         return false;
 
@@ -344,7 +345,7 @@ static ast_t* add_method(ast_t* entity, ast_t* trait_ref, ast_t* basis_method,
   }
 
   // Check for clash with existing method.
-  ast_t* case_clash = ast_get_case(entity, name, NULL);
+  ast_t* case_clash = ast_get_case(entity, name, NULL, opt->strtab);
 
   if(case_clash != NULL)
   {
@@ -383,13 +384,13 @@ static ast_t* add_method(ast_t* entity, ast_t* trait_ref, ast_t* basis_method,
   // Ignore docstring.
   if(ast_id(doc) == TK_STRING)
   {
-    ast_set_name(doc, "");
+    ast_set_name(doc, "", opt->strtab);
     ast_setid(doc, TK_NONE);
     ast_settype(doc, NULL);
   }
 
   ast_t* local = ast_append(ast_childidx(entity, 4), basis_method);
-  ast_set(entity, name, local, SYM_DEFINED, false);
+  ast_set(entity, name, local, SYM_DEFINED, false, opt->strtab);
   ast_t* body_donor = (ast_t*)ast_data(basis_method);
   method_t* info = attach_method_t(local);
   info->trait_ref = trait_ref;
@@ -404,7 +405,6 @@ static ast_t* add_method(ast_t* entity, ast_t* trait_ref, ast_t* basis_method,
 // Sort out symbol table for copied method body.
 static ast_result_t rescope(ast_t** astp, pass_opt_t* options)
 {
-  (void)options;
   ast_t* ast = *astp;
 
   if(ast_has_scope(ast))
@@ -419,7 +419,8 @@ static ast_result_t rescope(ast_t** astp, pass_opt_t* options)
     case TK_MATCH_CAPTURE:
     {
       pony_assert(ast_child(ast) != NULL);
-      ast_set(ast, ast_name(ast_child(ast)), ast, SYM_DEFINED, true);
+      ast_set(ast, ast_name(ast_child(ast)), ast, SYM_DEFINED, true,
+        options->strtab);
       break;
     }
 
@@ -427,7 +428,8 @@ static ast_result_t rescope(ast_t** astp, pass_opt_t* options)
     case TK_VAR:
     {
       pony_assert(ast_child(ast) != NULL);
-      ast_set(ast, ast_name(ast_child(ast)), ast, SYM_UNDEFINED, true);
+      ast_set(ast, ast_name(ast_child(ast)), ast, SYM_UNDEFINED, true,
+        options->strtab);
       break;
     }
 
@@ -437,7 +439,8 @@ static ast_result_t rescope(ast_t** astp, pass_opt_t* options)
       while(typeparam != NULL)
       {
         pony_assert(ast_child(typeparam) != NULL);
-        ast_set(ast, ast_name(ast_child(typeparam)), typeparam, SYM_DEFINED, true);
+        ast_set(ast, ast_name(ast_child(typeparam)), typeparam, SYM_DEFINED,
+          true, options->strtab);
 
         typeparam = ast_sibling(typeparam);
       }
@@ -515,10 +518,10 @@ static bool add_method_from_trait(ast_t* entity, ast_t* method,
       method_name);
     ast_error_continue(opt->check.errors, trait_ref,
       "provided here, type: %s",
-      ast_print_type(method));
+      ast_print_type(method, opt->strtab));
     ast_error_continue(opt->check.errors, info->trait_ref,
       "and here, type: %s",
-      ast_print_type(existing_method));
+      ast_print_type(existing_method, opt->strtab));
 
     info->failed = true;
     return false;
@@ -790,7 +793,7 @@ static void local_types(ast_t* ast)
 
 
 // Add eq() and ne() functions to the given entity.
-static bool add_comparable(ast_t* ast, pass_opt_t* options)
+static bool add_comparable(ast_t* ast, pass_opt_t* opt)
 {
   pony_assert(ast != NULL);
 
@@ -807,7 +810,7 @@ static bool add_comparable(ast_t* ast, pass_opt_t* options)
     ast_setid(typeargs, TK_TYPEARGS);
   }
 
-  if(!has_member(members, "eq"))
+  if(!has_member(members, "eq", opt))
   {
     BUILD(eq, members,
       NODE(TK_FUN, AST_SCOPE
@@ -832,13 +835,14 @@ static bool add_comparable(ast_t* ast, pass_opt_t* options)
     // processed that type.
     ast_setdata(eq, ast);
     ast_append(members, eq);
-    ast_set(ast, stringtab("eq"), eq, SYM_DEFINED, false);
+    ast_set(ast, stringtab(opt->strtab, "eq"), eq, SYM_DEFINED, false,
+      opt->strtab);
 
-    if(!ast_passes_subtree(&eq, options, PASS_TRAITS))
+    if(!ast_passes_subtree(&eq, opt, PASS_TRAITS))
       r = false;
   }
 
-  if(!has_member(members, "ne"))
+  if(!has_member(members, "ne", opt))
   {
     BUILD(ne, members,
       NODE(TK_FUN, AST_SCOPE
@@ -863,9 +867,10 @@ static bool add_comparable(ast_t* ast, pass_opt_t* options)
     // processed that type.
     ast_setdata(ne, ast);
     ast_append(members, ne);
-    ast_set(ast, stringtab("ne"), ne, SYM_DEFINED, false);
+    ast_set(ast, stringtab(opt->strtab, "ne"), ne, SYM_DEFINED, false,
+      opt->strtab);
 
-    if(!ast_passes_subtree(&ne, options, PASS_TRAITS))
+    if(!ast_passes_subtree(&ne, opt, PASS_TRAITS))
       r = false;
   }
 

@@ -27,6 +27,10 @@ void ponyint_systematic_testing_init(uint64_t random_seed, uint32_t max_threads)
 void ponyint_systematic_testing_start(scheduler_t* schedulers, pony_thread_id_t asio_thread, pony_signal_event_t asio_signal, pony_thread_id_t pinned_actor_thread, pony_signal_event_t pinned_actor_signal);
 void ponyint_systematic_testing_wait_start(pony_thread_id_t thread, pony_signal_event_t signal);
 void ponyint_systematic_testing_yield();
+// Current value of the systematic-testing logical clock (see the .c file). Used
+// by the scheduler in place of ponyint_cpu_tick() on the clock-gated control
+// paths so those decisions are a deterministic function of the seed.
+uint64_t ponyint_systematic_testing_clock();
 bool ponyint_systematic_testing_asio_stopped();
 void ponyint_systematic_testing_stop_thread();
 #if defined(USE_SCHEDULER_SCALING_PTHREADS)
@@ -41,6 +45,7 @@ void ponyint_systematic_testing_suspend();
 #define SYSTEMATIC_TESTING_START(SCHEDULERS, ASIO_THREAD, ASIO_SLEEP_OBJECT, PINNED_ACTOR_THREAD, PINNED_ACTOR_SLEEP_OBJECT) ponyint_systematic_testing_start(SCHEDULERS, ASIO_THREAD, ASIO_SLEEP_OBJECT, PINNED_ACTOR_THREAD, PINNED_ACTOR_SLEEP_OBJECT)
 #define SYSTEMATIC_TESTING_WAIT_START(THREAD, SIGNAL) ponyint_systematic_testing_wait_start(THREAD, SIGNAL)
 #define SYSTEMATIC_TESTING_YIELD() ponyint_systematic_testing_yield()
+#define SYSTEMATIC_TESTING_CLOCK() ponyint_systematic_testing_clock()
 #define SYSTEMATIC_TESTING_ASIO_STOPPED() ponyint_systematic_testing_asio_stopped()
 #define SYSTEMATIC_TESTING_STOP_THREAD() ponyint_systematic_testing_stop_thread()
 #if defined(USE_SCHEDULER_SCALING_PTHREADS)
@@ -58,6 +63,7 @@ PONY_EXTERN_C_END
 #define SYSTEMATIC_TESTING_START(SCHEDULERS, ASIO_THREAD, ASIO_SLEEP_OBJECT, PINNED_ACTOR_THREAD, PINNED_ACTOR_SLEEP_OBJECT)
 #define SYSTEMATIC_TESTING_WAIT_START(THREAD, SIGNAL)
 #define SYSTEMATIC_TESTING_YIELD()
+#define SYSTEMATIC_TESTING_CLOCK() (0)
 #define SYSTEMATIC_TESTING_ASIO_STOPPED()
 #define SYSTEMATIC_TESTING_STOP_THREAD()
 #if defined(USE_SCHEDULER_SCALING_PTHREADS)

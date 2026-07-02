@@ -22,15 +22,22 @@ actor Main
           "pony-doc",
           "Generate MkDocs documentation for Pony packages",
           [
-            OptionSpec.string("output",
-              "Output directory" where short' = 'o', default' = ".")
-            OptionSpec.bool("include-private",
-              "Include private types and methods" where default' = false)
-            OptionSpec.bool("version",
-              "Print version and exit" where short' = 'V', default' = false)
+            OptionSpec.string(
+              "output",
+              "Output directory"
+              where short' = 'o', default' = ".")
+            OptionSpec.bool(
+              "include-private",
+              "Include private types and methods"
+              where default' = false)
+            OptionSpec.bool(
+              "version",
+              "Print version and exit"
+              where short' = 'V', default' = false)
           ],
           [
-            ArgSpec.string("package-dir",
+            ArgSpec.string(
+              "package-dir",
               "Package directory to document (default: CWD)"
               where default' = ".")
           ])? .> add_help()?
@@ -68,7 +75,8 @@ actor Main
     let include_private = cmd.option("include-private").bool()
 
     // Build package search paths
-    let package_paths = _build_package_paths(env.vars)
+    let argv0 = try env.args(0)? else "" end
+    let package_paths = _build_package_paths(env.vars, argv0)
 
     // Compile the target package
     let file_auth = FileAuth(env.root)
@@ -101,7 +109,8 @@ actor Main
     end
 
   fun _build_package_paths(
-    vars: (Array[String val] val | None))
+    vars: (Array[String val] val | None),
+    argv0: String val)
     : Array[String val] val
   =>
     """
@@ -117,7 +126,7 @@ actor Main
     recover val
       let paths = Array[String val]
       // Installation paths first
-      match _find_exe_directory()
+      match _find_exe_directory(argv0)
       | let dir: String val =>
         paths.push(Path.join(dir, "../packages"))
         paths.push(Path.join(dir, "../../packages"))
@@ -133,7 +142,9 @@ actor Main
     vars: (Array[String val] val | None))
     : Array[String val] val
   =>
-    """Extract PONYPATH entries as an array of paths."""
+    """
+    Extract PONYPATH entries as an array of paths.
+    """
     match vars
     | let env_vars: Array[String val] val =>
       for pair in env_vars.values() do
@@ -146,18 +157,19 @@ actor Main
     end
     recover val Array[String val] end
 
-  fun _find_exe_directory(): (String val | None) =>
+  fun _find_exe_directory(argv0: String val): (String val | None) =>
     """
     Find the directory containing the currently running executable
     using the same platform-specific mechanism as ponyc.
     """
     let buf_size: USize = 4096
     let buf = @ponyint_pool_alloc_size(buf_size)
-    if @get_compiler_exe_directory(buf, "pony-doc".cstring())
+    if @get_compiler_exe_directory(buf, argv0.cstring())
     then
-      let result = recover val
-        String.copy_cstring(buf)
-      end
+      let result =
+        recover val
+          String.copy_cstring(buf)
+        end
       @ponyint_pool_free_size(buf_size, buf)
       result
     else

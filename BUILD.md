@@ -7,7 +7,7 @@ First of all, you need a compiler with decent C11 support. We officially support
 - MSVC >= 2017
 - GCC >= 4.7
 
-You also need [CMake](https://cmake.org/download/) version 3.21 or higher. You also need a version of [Python 3](https://www.python.org/downloads/) installed; it's required in order to build LLVM.
+You also need [CMake](https://cmake.org/download/) version 3.21 or higher. You also need a version of [Python 3](https://www.python.org/downloads/) installed; it's required in order to build LLVM. On Unix systems, you need the zlib development headers and library installed (e.g. `zlib-dev`, `zlib1g-dev`, or `zlib-devel` depending on your distribution).
 
 ## Clone this repository
 
@@ -43,13 +43,59 @@ sudo gmake install
 
 Note that you only need to run `gmake libs` once the first time you build (or if the version of LLVM in the `lib/llvm/src` Git submodule changes).
 
-## DragonFly
+## OpenBSD
 
 ```bash
-pkg install -y cxx_atomics
+pkg_add cmake gmake git python%3
+gmake libs
+gmake configure
+gmake build
+doas gmake install
 ```
 
-Then continue with the same instructions as FreeBSD.
+Note that you only need to run `gmake libs` once the first time you build (or if the version of LLVM in the `lib/llvm/src` Git submodule changes).
+
+### Unsupported OpenBSD build options
+
+Several `use=` build options aren't supported on OpenBSD, because OpenBSD doesn't ship the runtime, headers, or tooling they depend on:
+
+- `use=address_sanitizer` and `use=thread_sanitizer` — OpenBSD's base clang rejects `-fsanitize=address`/`-fsanitize=thread`; there is no AddressSanitizer or ThreadSanitizer runtime in base.
+- `use=undefined_behavior_sanitizer` — OpenBSD ships only the minimal UndefinedBehaviorSanitizer runtime (`libclang_rt.ubsan_minimal.a`), not the standalone runtime ponyc links against, so the link fails.
+- `use=coverage` — OpenBSD's base profiling runtime (`libclang_rt.profile.a`) is incomplete, so coverage-instrumented builds fail to link.
+- `use=valgrind` — Valgrind has no OpenBSD port, so its development headers aren't available to build against.
+- `use=dtrace` — not supported on OpenBSD.
+
+`gmake configure` rejects these uses on OpenBSD with an error rather than letting the build fail partway through with a confusing compiler, linker, or missing-tool message.
+
+## DragonFly
+
+DragonFly BSD's base compiler (GCC 8.3) cannot build the vendored LLVM. Install GCC 13 and the required atomics package, then build with the packaged compiler:
+
+```bash
+pkg install -y cmake gmake git python3 cxx_atomics gcc13
+gmake libs CC=/usr/local/bin/gcc13 CXX=/usr/local/bin/g++13
+gmake configure CC=/usr/local/bin/gcc13 CXX=/usr/local/bin/g++13
+gmake build CC=/usr/local/bin/gcc13 CXX=/usr/local/bin/g++13
+sudo gmake install
+```
+
+Note that you only need to run `gmake libs` once the first time you build (or if the version of LLVM in the `lib/llvm/src` Git submodule changes).
+
+### Unsupported DragonFly BSD build options
+
+The sanitizer `use=` build options aren't supported on DragonFly, because the `gcc13` toolchain ponyc builds with doesn't ship their runtimes (GCC's libsanitizer has no DragonFly target, so no `libasan`/`libtsan`/`libubsan` is built):
+
+- `use=address_sanitizer` — no AddressSanitizer runtime, so the link fails (`cannot find -lasan`).
+- `use=thread_sanitizer` — no ThreadSanitizer runtime, so the link fails (`cannot find -ltsan`).
+- `use=undefined_behavior_sanitizer` — no UndefinedBehaviorSanitizer runtime, so the link fails (`cannot find -lubsan`).
+
+`gmake configure` rejects these uses on DragonFly with an error rather than letting the build fail partway through with a confusing linker message.
+
+`use=dtrace` isn't supported on DragonFly either, and `gmake configure` rejects it.
+
+`use=coverage` works on DragonFly: ponyc splices the gcc coverage runtime (`libgcov`) into the Pony programs it links, so coverage-instrumented programs build and run.
+
+`use=valgrind` isn't rejected but doesn't work on DragonFly: it builds, and the Pony programs it compiles link, but DragonFly ships Valgrind 3.15, which is too old to run a Pony program ([#5435](https://github.com/ponylang/ponyc/issues/5435)).
 
 ## Linux
 
@@ -64,16 +110,16 @@ Additional Requirements:
 
 Distribution | Requires
 --- | ---
-Alpine 3.17+ | binutils-gold, clang, clang-dev, cmake, make
+Alpine 3.17+ | clang, clang-dev, cmake, make, zlib-dev
 CentOS 8 | clang, cmake, diffutils, libatomic, libstdc++-static, make, zlib-devel
-Fedora | clang, cmake, libatomic, libstdc++-static, make
-Fedora 41 | binutils-gold, clang, cmake, libatomic, libstdc++-static, make
-OpenSuse Leap | binutils-gold, cmake
-Raspbian 32-bit | cmake
-Raspbian 64-bit | cmake, clang
+Fedora | clang, cmake, libatomic, libstdc++-static, make, zlib-devel
+Fedora 41 | clang, cmake, libatomic, libstdc++-static, make, zlib-devel
+OpenSuse Leap | cmake, zlib-devel
+Raspbian 32-bit | cmake, zlib1g-dev
+Raspbian 64-bit | cmake, clang, zlib1g-dev
 Rocky | clang, cmake, diffutils, libatomic, libstdc++-static, make, zlib-devel
-Ubuntu | clang, cmake, make
-Void | clang, cmake, make, libatomic libatomic-devel
+Ubuntu | clang, cmake, make, zlib1g-dev
+Void | clang, cmake, make, libatomic, libatomic-devel, zlib-devel
 
 Note that you only need to run `make libs` once the first time you build (or if the version of LLVM in the `lib/llvm/src` Git submodule changes).
 
@@ -153,6 +199,16 @@ Note that you only need to run `.\make.ps1 libs` once the first time you build (
 
 ## Additional Build Options on Unix
 
+### llvm_tools
+
+`make libs` builds the LLVM command-line tools (`llc`, `opt`, `llvm-link`, the various `llvm-*` utilities, and the standalone `lld`/`clang` driver binaries) by default. ponyc links LLVM and LLD as static libraries and never runs these binaries, so for a normal build they are dead weight — roughly 1.6 GB in `build/libs/bin` and a significant share of the libs build time. If you don't need them for local LLVM debugging, omit them by setting `llvm_tools` to `false`:
+
+```bash
+make libs llvm_tools=false
+```
+
+The default is `true`. The value only takes effect on a fresh libs build, so run `make cleanlibs` first if you have already built the libraries. Building the runtime as bitcode (see [runtime-bitcode](#runtime-bitcode) below) needs `llvm-link`, which is one of the omitted tools, so build the libs with `llvm_tools=true` if you intend to use it.
+
 ### arch
 
 You can specify the CPU architecture to build Pony for via the `arch` make option:
@@ -162,9 +218,45 @@ make configure arch=arm7
 make build
 ```
 
-## dtrace
+### sanitizers
 
-BSD and Linux based versions of Pony support using DTrace and SystemTap for collecting Pony runtime events. MacOS while being "BSD-like" in places does not support Dtrace due to functionality having been removed by Apple.
+ponyc can be built with the Clang/LLVM sanitizers to catch bugs in the compiler and the Pony runtime at runtime. Three `use=` options are available: `address_sanitizer` (AddressSanitizer — buffer overflows, use-after-free, double-free), `thread_sanitizer` (ThreadSanitizer — data races), and `undefined_behavior_sanitizer` (UndefinedBehaviorSanitizer — signed integer overflow, misaligned access, and other undefined behavior). AddressSanitizer and ThreadSanitizer can't be combined; either can be combined with UndefinedBehaviorSanitizer.
+
+Pair `address_sanitizer` with `pool_memalign` so AddressSanitizer can track the Pony runtime's own allocations: `pool_memalign` routes every runtime allocation through `posix_memalign`/`free`, which AddressSanitizer intercepts and surrounds with redzones. The combination CI builds and tests is:
+
+```bash
+make configure config=debug use=pool_memalign,address_sanitizer,undefined_behavior_sanitizer
+make build config=debug
+```
+
+The build lands in a suffixed directory — `build/debug-address_sanitizer-undefined_behavior_sanitizer-pool_memalign` for the configuration above. The suffix lists the enabled options in a fixed order set by CMake, independent of the `use=` order. These commands use `config=debug`; the sanitizers build under `config=release` too, and CI tests both.
+
+The instrumented `ponyc` runs both during its own build (it compiles the self-hosted tools) and every time you use it to compile a program, so AddressSanitizer's runtime options must be set in the environment for `make build` and for any later `ponyc` invocation:
+
+- ponyc isn't LeakSanitizer-clean, so `detect_leaks=0` suppresses the compiler's own leak reports at exit.
+- On platforms whose base system C++ runtime is libc++ (FreeBSD, macOS), the instrumented compiler shares `std::vector`/`std::string` with the non-instrumented vendored LLVM, and libc++'s container annotations then abort on false-positive container overflows; `detect_container_overflow=0` suppresses them. Linux uses libstdc++ and doesn't need it.
+
+Platform | `ASAN_OPTIONS`
+--- | ---
+Linux | `detect_leaks=0`
+FreeBSD, macOS | `detect_leaks=0:detect_container_overflow=0`
+
+Both options concern `ponyc` itself, not the programs it compiles. A correct Pony program is LeakSanitizer-clean at exit, so run a program you compiled with LeakSanitizer left on — it will report genuine leaks in your own code, such as memory you allocate through FFI and never free. The container-overflow false positive is likewise specific to the compiler's libc++/LLVM sharing; a compiled program links the C runtime, not libc++ or LLVM, so it can't occur there.
+
+For example, on Linux:
+
+```bash
+ASAN_OPTIONS=detect_leaks=0 make build config=debug
+ASAN_OPTIONS=detect_leaks=0 ./build/debug-address_sanitizer-undefined_behavior_sanitizer-pool_memalign/ponyc path/to/your/program
+```
+
+The sanitizers can't be built on OpenBSD or DragonFly BSD; see [Unsupported OpenBSD build options](#unsupported-openbsd-build-options) and [Unsupported DragonFly BSD build options](#unsupported-dragonfly-bsd-build-options).
+
+### dtrace
+
+Linux, FreeBSD, and macOS support collecting Pony runtime events, through SystemTap on Linux and DTrace on FreeBSD and macOS. DTrace isn't supported on DragonFly BSD or OpenBSD.
+
+On macOS, actually tracing a running program with `dtrace` requires System Integrity Protection (SIP) to permit DTrace. See the [examples/dtrace README](examples/dtrace/README.md) for details.
 
 DTrace support is enabled by setting `use=dtrace` in the build command line like:
 
@@ -203,7 +295,11 @@ Then, you can pass the `--runtimebc` option to ponyc in order to use the bitcode
 ponyc --runtimebc
 ```
 
+This requires `llvm-link`, which is one of the LLVM tools `make libs` builds by default. If you built the libraries with [`llvm_tools=false`](#llvm_tools), rebuild them with the tools (`make cleanlibs && make libs`) before configuring with `runtime-bitcode=yes`.
+
 This functionality boils down to "super LTO" for the runtime. The Pony compiler will have full knowledge of the runtime and will perform advanced interprocedural optimisations between your Pony code and the runtime. If you're looking for maximum performance, you should consider this option. Note that this can result in very long optimisation times.
+
+`--runtimebc` cannot be combined with a compiler built using `use=dtrace`. The bitcode runtime has no DTrace/SystemTap probes (probe generation works on native object files, not bitcode), so ponyc rejects the combination with an error.
 
 ### systematic testing
 

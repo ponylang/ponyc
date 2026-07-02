@@ -30,16 +30,18 @@ use debug = "debug"
 use files = "files"
 use format = "format"
 use ini = "ini"
+use iregex = "iregex"
 use itertools = "itertools"
+use json = "json"
 use math = "math"
 use net = "net"
 use pony_bench = "pony_bench"
 use pony_check = "pony_check"
+use pony_test = "pony_test"
 use process = "process"
 use promises = "promises"
 use random = "random"
 use runtime_info = "runtime_info"
-use serialise = "serialise"
 use signals = "signals"
 use strings = "strings"
 use term = "term"
@@ -64,15 +66,17 @@ actor \nodoc\ Main is TestList
     files.Main.make().tests(test)
     format.Main.make().tests(test)
     ini.Main.make().tests(test)
+    iregex.Main.make().tests(test)
     itertools.Main.make().tests(test)
+    json.Main.make().tests(test)
     math.Main.make().tests(test)
     net.Main.make().tests(test)
     pony_check.Main.make().tests(test)
+    pony_test.Main.make().tests(test)
     process.Main.make().tests(test)
     promises.Main.make().tests(test)
     random.Main.make().tests(test)
     runtime_info.Main.make().tests(test)
-    serialise.Main.make().tests(test)
     strings.Main.make().tests(test)
     time.Main.make().tests(test)
 

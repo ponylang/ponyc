@@ -1,10 +1,11 @@
 #include "sanitise.h"
 #include "../ast/astbuild.h"
+#include "../pass/pass.h"
 #include "ponyassert.h"
 
 
 // Collect the given type parameter
-static void collect_type_param(ast_t* orig_param, ast_t* params, ast_t* args)
+static void collect_type_param(ast_t* orig_param, ast_t* params, ast_t* args, pass_opt_t* opt)
 {
   pony_assert(orig_param != NULL);
 
@@ -12,7 +13,7 @@ static void collect_type_param(ast_t* orig_param, ast_t* params, ast_t* args)
   AST_GET_CHILDREN(orig_param, id, constraint, deflt);
   const char* name = ast_name(id);
 
-  constraint = sanitise_type(constraint);
+  constraint = sanitise_type(constraint, opt);
   pony_assert(constraint != NULL);
 
   // New type parameter has the same constraint as the old one (sanitised)
@@ -49,7 +50,7 @@ static void collect_type_param(ast_t* orig_param, ast_t* params, ast_t* args)
 }
 
 
-void collect_type_params(ast_t* ast, ast_t** out_params, ast_t** out_args)
+void collect_type_params(ast_t* ast, ast_t** out_params, ast_t** out_args, pass_opt_t* opt)
 {
   pony_assert(ast != NULL);
 
@@ -84,7 +85,7 @@ void collect_type_params(ast_t* ast, ast_t** out_params, ast_t** out_args)
     ast_t* entity_t_params = ast_childidx(entity, 1);
 
     for(ast_t* p = ast_child(entity_t_params); p != NULL; p = ast_sibling(p))
-      collect_type_param(p, params, args);
+      collect_type_param(p, params, args, opt);
   }
 
   // Collect type parameters defined on the method (if within a method)
@@ -93,7 +94,7 @@ void collect_type_params(ast_t* ast, ast_t** out_params, ast_t** out_args)
     ast_t* method_t_params = ast_childidx(method, 2);
 
     for(ast_t* p = ast_child(method_t_params); p != NULL; p = ast_sibling(p))
-      collect_type_param(p, params, args);
+      collect_type_param(p, params, args, opt);
   }
 
   if(out_params != NULL)
@@ -105,7 +106,7 @@ void collect_type_params(ast_t* ast, ast_t** out_params, ast_t** out_args)
 
 
 // Sanitise the given type (sub)AST, which has already been copied
-static void sanitise(ast_t** astp)
+static void sanitise(ast_t** astp, pass_opt_t* opt)
 {
   pony_assert(astp != NULL);
 
@@ -134,17 +135,43 @@ static void sanitise(ast_t** astp)
     return;
   }
 
+  if(ast_id(type) == TK_TYPEALIASREF)
+  {
+    // We have a type alias reference, convert to a nominal
+    ast_t* def = (ast_t*)ast_data(type);
+    pony_assert(def != NULL);
+
+    const char* name = ast_name(ast_child(def));
+    pony_assert(name != NULL);
+
+    // Sanitise typeargs before replacement
+    ast_t* typeargs = ast_childidx(type, 1);
+
+    for(ast_t* p = ast_child(typeargs); p != NULL; p = ast_sibling(p))
+      sanitise(&p, opt);
+
+    REPLACE(astp,
+      NODE(TK_NOMINAL,
+        NONE            // Package name
+        ID(name)
+        TREE(typeargs)  // Type args
+        NONE            // Capability
+        NONE));         // Ephemeral
+
+    return;
+  }
+
   // Process all our children
   for(ast_t* p = ast_child(type); p != NULL; p = ast_sibling(p))
-    sanitise(&p);
+    sanitise(&p, opt);
 }
 
 
-ast_t* sanitise_type(ast_t* type)
+ast_t* sanitise_type(ast_t* type, pass_opt_t* opt)
 {
   pony_assert(type != NULL);
 
   ast_t* new_type = ast_dup(type);
-  sanitise(&new_type);
+  sanitise(&new_type, opt);
   return new_type;
 }

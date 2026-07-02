@@ -13,6 +13,9 @@
 #include <stdio.h>
 #include <string.h>
 #include <inttypes.h>
+#ifdef USE_SYSTEMATIC_TESTING
+#include <stdlib.h>
+#endif
 
 #define CD_MAX_CHECK_BLOCKED 1000
 
@@ -452,6 +455,10 @@ static bool mark_grey(detector_t* d, view_t* view, size_t rc)
 
   if(view->deferred)
   {
+    // Clearing this flag here (for any deferred view a detect() scan reaches)
+    // is what deferred()'s USE_SYSTEMATIC_TESTING snapshot relies on to skip
+    // views already collected into a cycle -- keep clearing it if you change
+    // this.
     ponyint_viewmap_remove(&d->deferred, view);
     view->deferred = false;
   }
@@ -634,8 +641,49 @@ static int collect_white(perceived_t* per, view_t* view, size_t rc)
   return count;
 }
 
+#ifdef USE_SYSTEMATIC_TESTING
+// Order two views by their actor's stable creation-order id. ids are unique
+// per actor, so there are no ties and the order is total and layout-independent
+// (see pony_actor_t.systematic_testing_id and gc.c's
+// gc_actorref_systematic_testing_id_cmp). The cycle detector schedules actors
+// by sending them messages while iterating pointer-hash-keyed viewmaps;
+// ordering those sends by this id rather than by address is what keeps a fixed
+// --ponysystematictestingseed replaying one interleaving under ASLR (#5569).
+static int view_systematic_testing_id_cmp(const void* a, const void* b)
+{
+  uint64_t ia = (*(view_t* const*)a)->actor->systematic_testing_id;
+  uint64_t ib = (*(view_t* const*)b)->actor->systematic_testing_id;
+  return (ia > ib) - (ia < ib);
+}
+#endif
+
 static void send_conf(pony_ctx_t* ctx, perceived_t* per)
 {
+#ifdef USE_SYSTEMATIC_TESTING
+  // Confirm every member of a perceived cycle, ordered by the target actor's
+  // stable creation-order id rather than per->map's pointer-hash iteration
+  // order. A send schedules its recipient, so a layout-independent send order
+  // is what keeps a fixed seed reproducible under ASLR.
+  size_t size = ponyint_viewmap_size(&per->map);
+
+  if(size > 0)
+  {
+    view_t** views = (view_t**)ponyint_pool_alloc_size(size * sizeof(view_t*));
+    size_t i = HASHMAP_BEGIN;
+    size_t k = 0;
+    view_t* view;
+
+    while((view = ponyint_viewmap_next(&per->map, &i)) != NULL)
+      views[k++] = view;
+
+    qsort(views, size, sizeof(view_t*), view_systematic_testing_id_cmp);
+
+    for(k = 0; k < size; k++)
+      pony_sendi(ctx, views[k]->actor, ACTORMSG_CONF, per->token);
+
+    ponyint_pool_free_size(size * sizeof(view_t*), views);
+  }
+#else
   size_t i = HASHMAP_BEGIN;
   view_t* view;
 
@@ -643,8 +691,12 @@ static void send_conf(pony_ctx_t* ctx, perceived_t* per)
   {
     pony_sendi(ctx, view->actor, ACTORMSG_CONF, per->token);
   }
+#endif
 }
 
+// Note: detect() must not free any view. deferred()'s USE_SYSTEMATIC_TESTING
+// snapshot holds view pointers across detect() calls and relies on this (view
+// reclamation happens later, in collect(), on the ack path).
 static bool detect(pony_ctx_t* ctx, detector_t* d, view_t* view)
 {
   pony_assert(view->perceived == NULL);
@@ -695,6 +747,59 @@ static void deferred(pony_ctx_t* ctx, detector_t* d)
 {
   d->attempted++;
 
+#ifdef USE_SYSTEMATIC_TESTING
+  // Process the deferred views in stable creation-order id order rather than
+  // d->deferred's pointer-hash order. This order sequences the detect() ->
+  // send_conf() calls and the per->token = d->next_token++ assignment, so both
+  // the CONF burst order and the actor-to-token mapping become
+  // layout-independent.
+  //
+  // Snapshot the deferred set into a buffer and sort it, but -- unlike the
+  // sends -- do NOT pre-remove the views or pre-clear their flags: detect()'s
+  // scan_grey path (mark_grey) removes any view it reaches from d->deferred and
+  // clears its ->deferred flag, so detecting one view can collect another
+  // snapshotted view into the same perceived cycle. The original loop re-reads
+  // the live d->deferred each iteration, so such a collected view is never
+  // detected again; here we mirror that by skipping any snapshot entry whose
+  // flag detect() already cleared. Without this guard, detect() on an
+  // already-collected view trips pony_assert(view->perceived == NULL). Nothing
+  // adds to d->deferred during this loop (it runs inside the CHECKBLOCKED
+  // dispatch, which processes no messages) and detect() frees no views, so the
+  // snapshot pointers stay valid.
+  size_t size = ponyint_viewmap_size(&d->deferred);
+
+  if(size > 0)
+  {
+    view_t** views = (view_t**)ponyint_pool_alloc_size(size * sizeof(view_t*));
+    size_t i = HASHMAP_BEGIN;
+    size_t k = 0;
+    view_t* view;
+
+    while((view = ponyint_viewmap_next(&d->deferred, &i)) != NULL)
+    {
+      pony_assert(view->deferred == true);
+      views[k++] = view;
+    }
+
+    qsort(views, size, sizeof(view_t*), view_systematic_testing_id_cmp);
+
+    for(k = 0; k < size; k++)
+    {
+      view = views[k];
+
+      // Still pending? A prior detect() in this pass may have collected this
+      // view into a cycle, removing it from d->deferred and clearing the flag.
+      if(view->deferred)
+      {
+        ponyint_viewmap_remove(&d->deferred, view);
+        view->deferred = false;
+        detect(ctx, d, view);
+      }
+    }
+
+    ponyint_pool_free_size(size * sizeof(view_t*), views);
+  }
+#else
   size_t i = HASHMAP_BEGIN;
   view_t* view;
 
@@ -711,6 +816,7 @@ static void deferred(pony_ctx_t* ctx, detector_t* d)
 
     detect(ctx, d, view);
   }
+#endif
 }
 
 static void expire(detector_t* d, view_t* view)
@@ -735,6 +841,72 @@ static void collect(pony_ctx_t* ctx, detector_t* d, perceived_t* per)
 {
   ponyint_perceivedmap_remove(&d->perceived, per);
 
+#ifdef USE_SYSTEMATIC_TESTING
+  // Run the per-member finalizer, release, and destroy passes in stable
+  // creation-order id order rather than per->map's pointer-hash order. A
+  // member's finalizer (user _final) and its foreign-release sweep both
+  // schedule out-of-cycle actors -- #5568 sorts the releases within one
+  // member's sweep but not the cross-member order -- so without this,
+  // reclaiming a cycle that references live actors schedules them
+  // layout-dependently.
+  // per->map is not modified by any pass (they touch d->deferred / d->views and
+  // free the views), so one snapshot serves all three; the views stay valid
+  // until the destroy pass frees them. Unlike the other sorted sites this does
+  // not guard size > 0: detect() only builds a perceived_t (and only it reaches
+  // collect, via ack) when the cycle has >= 1 member, so per->map is never
+  // empty here.
+  size_t size = ponyint_viewmap_size(&per->map);
+  view_t** members =
+    (view_t**)ponyint_pool_alloc_size(size * sizeof(view_t*));
+  size_t i = HASHMAP_BEGIN;
+  size_t k = 0;
+  view_t* view;
+
+  while((view = ponyint_viewmap_next(&per->map, &i)) != NULL)
+    members[k++] = view;
+
+  qsort(members, size, sizeof(view_t*), view_systematic_testing_id_cmp);
+
+  // mark actors in the cycle as pending destruction
+  for(k = 0; k < size; k++)
+  {
+    view = members[k];
+
+    // these actors should not already be marked as pendingdestroy
+    // or else we could end up double freeing them
+    pony_assert(!ponyint_actor_pendingdestroy(view->actor));
+
+    pony_assert(view->perceived == per);
+
+    // remove from the deferred set
+    if(view->deferred)
+      ponyint_viewmap_remove(&d->deferred, view);
+
+    // invoke the actor's finalizer
+    ponyint_actor_setpendingdestroy(view->actor);
+    ponyint_actor_final(ctx, view->actor);
+  }
+
+  // actors being collected that have references to actors that are not in
+  // the cycle now send ponyint_gc_release messages to those actors
+  for(k = 0; k < size; k++)
+    ponyint_actor_sendrelease(ctx, members[k]->actor);
+
+  // destroy the actor and free the view on the actor. This pass frees the
+  // members, so `members` must not be re-sorted or re-walked for view/actor
+  // data after this loop begins (the comparator reads ->actor).
+  for(k = 0; k < size; k++)
+  {
+    view = members[k];
+    ponyint_actor_destroy(view->actor, ACTOR_DESTROYED_CD_NORMAL);
+    ponyint_viewmap_remove(&d->views, view);
+    view_free(view);
+  }
+
+  d->destroyed += size;
+
+  ponyint_pool_free_size(size * sizeof(view_t*), members);
+#else
   size_t i = HASHMAP_BEGIN;
   view_t* view;
 
@@ -774,6 +946,7 @@ static void collect(pony_ctx_t* ctx, detector_t* d, perceived_t* per)
   }
 
   d->destroyed += ponyint_viewmap_size(&per->map);
+#endif
 
   // free the perceived cycle
   perceived_free(per);
@@ -784,8 +957,29 @@ static void check_blocked(pony_ctx_t* ctx, detector_t* d)
 {
   size_t i = d->last_checked;
   size_t total = ponyint_viewmap_size(&d->views);
+#ifndef USE_SYSTEMATIC_TESTING
   size_t n = 0;
+#endif
   view_t* view;
+
+#ifdef USE_SYSTEMATIC_TESTING
+  // Probe every unblocked actor in stable creation-order id order rather than
+  // d->views's pointer-hash order: collect the views to probe, sort by id, then
+  // send ACTORMSG_ISBLOCKED. A send schedules its recipient, so a
+  // layout-independent send order keeps a fixed seed reproducible under ASLR.
+  // The rate limiter below is disabled here, so every sweep probes all of
+  // d->views in one pass; the resumption cursor (d->last_checked) therefore
+  // always resets to HASHMAP_BEGIN and never selects a layout-dependent subset.
+  // (The rate limiter exists to bound the detector's work per sweep in normal
+  // builds; systematic-testing runs are serialized and not performance-bound,
+  // so probing all each sweep is the simplest way to make which-actors-when
+  // layout-independent.) At most `total` views can be probed, so that bounds
+  // the buffer.
+  view_t** views = (total > 0)
+    ? (view_t**)ponyint_pool_alloc_size(total * sizeof(view_t*))
+    : NULL;
+  size_t count = 0;
+#endif
 
   while((view = ponyint_viewmap_next(&d->views, &i)) != NULL)
   {
@@ -793,15 +987,21 @@ static void check_blocked(pony_ctx_t* ctx, detector_t* d)
     // if it is not already blocked
     if(!view->blocked)
     {
+#ifdef USE_SYSTEMATIC_TESTING
+      views[count++] = view;
+#else
       pony_send(ctx, view->actor, ACTORMSG_ISBLOCKED);
+#endif
     }
 
+#ifndef USE_SYSTEMATIC_TESTING
     // Stop if we've hit the max limit for # of actors to check
     // (either the CD_MAX_CHECK_BLOCKED constant, or 10% of the total number
     // of actors, whichever limit is larger)
     n++;
     if(n > (total/10 > CD_MAX_CHECK_BLOCKED ? total/10 : CD_MAX_CHECK_BLOCKED))
       break;
+#endif
   }
 
   // if we've reached the end of the map, reset and start from
@@ -811,6 +1011,21 @@ static void check_blocked(pony_ctx_t* ctx, detector_t* d)
     d->last_checked = HASHMAP_BEGIN;
   else
     d->last_checked = i;
+
+#ifdef USE_SYSTEMATIC_TESTING
+  if(views != NULL)
+  {
+    qsort(views, count, sizeof(view_t*), view_systematic_testing_id_cmp);
+
+    for(size_t k = 0; k < count; k++)
+      pony_send(ctx, views[k]->actor, ACTORMSG_ISBLOCKED);
+
+    // The buffer was allocated to `total` (the probe upper bound), and only
+    // `count <= total` of it was filled, so the free size is `total`, not
+    // `count`.
+    ponyint_pool_free_size(total * sizeof(view_t*), views);
+  }
+#endif
 
   // process all deferred view stuff
   deferred(ctx, d);
@@ -1190,17 +1405,11 @@ static pony_type_t cycle_type =
   sizeof(detector_t),
   0,
   0,
-  0,
   NULL,
 #if defined(USE_RUNTIME_TRACING)
   "cycle detector",
   NULL,
 #endif
-  NULL,
-  NULL,
-  NULL,
-  NULL,
-  NULL,
   NULL,
   cycle_dispatch,
   NULL,

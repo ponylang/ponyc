@@ -1,0 +1,12 @@
+{
+  "packages": [
+    "pony_compiler"
+  ],
+  "deps": [],
+  "info": {
+    "description": "Library for compiling pony programs and accessing their AST",
+    "name": "pony_compiler",
+    "license": "BSD",
+    "version": ""
+  }
+}

@@ -1,5 +1,6 @@
 //use "debug"
 use "assert"
+use "itertools"
 
 
 
@@ -22,7 +23,7 @@ primitive DefinitionResolver
     if ptr.is_null() then
       [as AST:]
     else
-      [AST(ptr)]
+      [AST(ptr, ast.strtab)]
     end
 
   fun _find_in_type(ttype: AST, name: String box, result: Array[AST]): Array[AST] ? =>
@@ -120,6 +121,9 @@ primitive DefinitionResolver
     | TokenIds.tk_typeref() =>
       // typerefs have their definition set in their data field
       _data_ast(ast)
+    | TokenIds.tk_typealiasref() =>
+      // type alias refs have their definition set in their data field
+      _data_ast(ast)
     | TokenIds.tk_typeparamref() =>
       // type param refs have their definition set in their data field
       _data_ast(ast)
@@ -135,29 +139,12 @@ primitive DefinitionResolver
         []
       end
     | TokenIds.tk_packageref() =>
-      try
-        let package_alias = (ast.child() as AST).token_value() as String
-        // search in the program scope for a package with that name
-        // get the program
-        //Debug("Searching for package " + package_alias)
-        var program_ast = ast
-        while program_ast.id() != TokenIds.tk_program() do
-          program_ast = program_ast.parent() as AST
-        end
-        for package_ast in program_ast.children() do
-          let package = package_ast.package()()?
-          if package.qualified_name() == package_alias then
-            //Debug("Found package " + package.qualified_name())
-            // return pointer to the first module in the package
-            return [package_ast.child() as AST]
-          end
-        end
-        []
-      else
-        //Debug("Error resolving package reference")
-        []
-      end
-    | TokenIds.tk_nominal() =>
+      // return the first module in each package - as an editor will never be
+      // able to open a package
+      let package_defs = _data_ast(ast)
+      let num_pkgs = package_defs.size()
+      Iter[AST](package_defs.values()).filter_map[AST]({(pkg: AST) => pkg.child()}).collect(Array[AST](num_pkgs))
+    | TokenIds.tk_nominal() | TokenIds.tk_typealiasref() =>
       // the definition of the type is set as ast-data in the names pass
       _data_ast(ast)
     else

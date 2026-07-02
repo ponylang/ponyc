@@ -2,6 +2,7 @@
 #include "assemble.h"
 #include "cap.h"
 #include "compattype.h"
+#include "typealias.h"
 #include "viewpoint.h"
 #include "../ast/token.h"
 #include "../ast/astbuild.h"
@@ -240,7 +241,7 @@ static ast_t* consume_single(ast_t* type, token_id ccap, bool keep_double_epheme
   return type;
 }
 
-ast_t* alias(ast_t* type)
+ast_t* alias(ast_t* type, pass_opt_t* opt)
 {
   switch(ast_id(type))
   {
@@ -254,7 +255,7 @@ ast_t* alias(ast_t* type)
 
       while(child != NULL)
       {
-        ast_append(r_type, alias(child));
+        ast_append(r_type, alias(child, opt));
         child = ast_sibling(child);
       }
 
@@ -265,16 +266,48 @@ ast_t* alias(ast_t* type)
     case TK_TYPEPARAMREF:
       return alias_single(type);
 
+    case TK_TYPEALIASREF:
+    {
+      ast_t* unfolded = typealias_unfold(type);
+
+      if(unfolded == NULL)
+        return NULL;
+
+      ast_t* result = alias(unfolded, opt);
+
+      if(result != unfolded)
+        ast_free_unattached(unfolded);
+
+      return result;
+    }
+
     case TK_ARROW:
     {
       // Alias just the right side. The left side is either 'this' or a type
       // parameter, and stays the same.
       AST_GET_CHILDREN(type, left, right);
 
+      // For val, box, and tag viewpoints, K->A is self-aliasing for every
+      // instantiation of A, so alias(K->A) = K->A and the arrow is returned
+      // unchanged. These viewpoints yield only self-aliasing caps: val yields
+      // val, tag, or #share; box yields those plus box; tag yields only tag.
+      // Aliasing inside the arrow instead gives K->(A!), an over-conservative
+      // result: e.g. for val with A=iso, val->(iso!) = val->tag = tag, but the
+      // correct (val->iso)! = val! = val.
+      switch(ast_id(left))
+      {
+        case TK_VAL:
+        case TK_BOX:
+        case TK_TAG:
+          return type;
+
+        default: {}
+      }
+
       BUILD(r_type, type,
         NODE(TK_ARROW,
           TREE(left)
-          TREE(alias(right))));
+          TREE(alias(right, opt))));
 
       return r_type;
     }
@@ -294,7 +327,8 @@ ast_t* alias(ast_t* type)
   return NULL;
 }
 
-ast_t* consume_type(ast_t* type, token_id cap, bool keep_double_ephemeral)
+ast_t* consume_type(ast_t* type, token_id cap, bool keep_double_ephemeral,
+  pass_opt_t* opt)
 {
   switch(ast_id(type))
   {
@@ -309,7 +343,7 @@ ast_t* consume_type(ast_t* type, token_id cap, bool keep_double_ephemeral)
 
       while(child != NULL)
       {
-        ast_t* r_right = consume_type(child, cap, keep_double_ephemeral);
+        ast_t* r_right = consume_type(child, cap, keep_double_ephemeral, opt);
 
         if(r_right == NULL)
         {
@@ -331,7 +365,7 @@ ast_t* consume_type(ast_t* type, token_id cap, bool keep_double_ephemeral)
       // which consists of incompatible caps
       ast_t* first = ast_child(type);
       ast_t* second = ast_sibling(first);
-      if (!is_compat_type(first, second))
+      if (!is_compat_type(first, second, opt))
       {
         return NULL;
       }
@@ -345,7 +379,7 @@ ast_t* consume_type(ast_t* type, token_id cap, bool keep_double_ephemeral)
 
       while(child != NULL)
       {
-        ast_t* r_right = consume_type(child, cap, keep_double_ephemeral);
+        ast_t* r_right = consume_type(child, cap, keep_double_ephemeral, opt);
 
         if(r_right != NULL)
         {
@@ -362,13 +396,28 @@ ast_t* consume_type(ast_t* type, token_id cap, bool keep_double_ephemeral)
     case TK_TYPEPARAMREF:
       return consume_single(type, cap, keep_double_ephemeral);
 
+    case TK_TYPEALIASREF:
+    {
+      ast_t* unfolded = typealias_unfold(type);
+
+      if(unfolded == NULL)
+        return NULL;
+
+      ast_t* result = consume_type(unfolded, cap, keep_double_ephemeral, opt);
+
+      if(result != unfolded)
+        ast_free_unattached(unfolded);
+
+      return result;
+    }
+
     case TK_ARROW:
     {
       // Consume just the right side. The left side is either 'this' or a type
       // parameter, and stays the same.
       AST_GET_CHILDREN(type, left, right);
 
-      ast_t* r_right = consume_type(right, cap, keep_double_ephemeral);
+      ast_t* r_right = consume_type(right, cap, keep_double_ephemeral, opt);
       if (r_right == NULL)
       {
         return NULL;
@@ -394,10 +443,10 @@ ast_t* consume_type(ast_t* type, token_id cap, bool keep_double_ephemeral)
   return NULL;
 }
 
-static ast_t* recover_type_inner(ast_t* type, token_id cap,
+static ast_t* recover_type_inner(ast_t* type, token_id cap, pass_opt_t* opt,
   recovery_t* tuple_elem_recover);
 
-static ast_t* recover_complex(ast_t* type, token_id cap,
+static ast_t* recover_complex(ast_t* type, token_id cap, pass_opt_t* opt,
   recovery_t* tuple_elem_recover)
 {
   switch(ast_id(type))
@@ -418,7 +467,7 @@ static ast_t* recover_complex(ast_t* type, token_id cap,
 
   while(child != NULL)
   {
-    ast_t* r_right = recover_type_inner(child, cap, tuple_elem_recover);
+    ast_t* r_right = recover_type_inner(child, cap, opt, tuple_elem_recover);
 
     if(r_right == NULL)
     {
@@ -434,33 +483,48 @@ static ast_t* recover_complex(ast_t* type, token_id cap,
 }
 
 static ast_t* recover_type_inner(ast_t* type, token_id cap,
-  recovery_t* tuple_elem_recover)
+  pass_opt_t* opt, recovery_t* tuple_elem_recover)
 {
   switch(ast_id(type))
   {
     case TK_UNIONTYPE:
     case TK_ISECTTYPE:
-      return recover_complex(type, cap, tuple_elem_recover);
+      return recover_complex(type, cap, opt, tuple_elem_recover);
 
     case TK_TUPLETYPE:
     {
       if(tuple_elem_recover)
-        return recover_complex(type, cap, tuple_elem_recover);
+        return recover_complex(type, cap, opt, tuple_elem_recover);
 
       recovery_t elem_recover = RECOVERY_NONE;
-      return recover_complex(type, cap, &elem_recover);
+      return recover_complex(type, cap, opt, &elem_recover);
     }
 
     case TK_NOMINAL:
     case TK_TYPEPARAMREF:
       return recover_single(type, cap, tuple_elem_recover);
 
+    case TK_TYPEALIASREF:
+    {
+      ast_t* unfolded = typealias_unfold(type);
+
+      if(unfolded == NULL)
+        return NULL;
+
+      ast_t* result = recover_type_inner(unfolded, cap, opt, tuple_elem_recover);
+
+      if(result != unfolded)
+        ast_free_unattached(unfolded);
+
+      return result;
+    }
+
     case TK_ARROW:
     {
       // recover just the right side. the left side is either 'this' or a type
       // parameter, and stays the same.
       AST_GET_CHILDREN(type, left, right);
-      ast_t* r_right = recover_type_inner(right, cap, tuple_elem_recover);
+      ast_t* r_right = recover_type_inner(right, cap, opt, tuple_elem_recover);
 
       if(r_right == NULL)
         return NULL;
@@ -483,12 +547,13 @@ static ast_t* recover_type_inner(ast_t* type, token_id cap,
   return NULL;
 }
 
-ast_t* recover_type(ast_t* type, token_id cap)
+ast_t* recover_type(ast_t* type, token_id cap, pass_opt_t* opt)
 {
-  return recover_type_inner(type, cap, NULL);
+  return recover_type_inner(type, cap, opt, NULL);
 }
 
-ast_t* chain_type(ast_t* type, token_id fun_cap, bool recovered_call)
+ast_t* chain_type(ast_t* type, token_id fun_cap, bool recovered_call,
+  pass_opt_t* opt)
 {
   switch(ast_id(type))
   {
@@ -501,11 +566,26 @@ ast_t* chain_type(ast_t* type, token_id fun_cap, bool recovered_call)
 
       while(child != NULL)
       {
-        ast_append(c_type, chain_type(child, fun_cap, recovered_call));
+        ast_append(c_type, chain_type(child, fun_cap, recovered_call, opt));
         child = ast_sibling(child);
       }
 
       return c_type;
+    }
+
+    case TK_TYPEALIASREF:
+    {
+      ast_t* unfolded = typealias_unfold(type);
+
+      if(unfolded == NULL)
+        return NULL;
+
+      ast_t* result = chain_type(unfolded, fun_cap, recovered_call, opt);
+
+      if(result != unfolded)
+        ast_free_unattached(unfolded);
+
+      return result;
     }
 
     case TK_NOMINAL:
@@ -561,7 +641,7 @@ ast_t* chain_type(ast_t* type, token_id fun_cap, bool recovered_call)
               return ast_dup(type);
 
             case TK_ISO:
-              return alias(alias(type));
+              return alias(alias(type, opt), opt);
 
             default: {}
           }
@@ -575,7 +655,7 @@ ast_t* chain_type(ast_t* type, token_id fun_cap, bool recovered_call)
               return ast_dup(type);
 
             case TK_TRN:
-              return alias(alias(type));
+              return alias(alias(type, opt), opt);
 
             default: {}
           }
@@ -594,7 +674,7 @@ ast_t* chain_type(ast_t* type, token_id fun_cap, bool recovered_call)
       // Chain just the right side. the left side is either 'this' or a type
       // parameter, and stays the same.
       AST_GET_CHILDREN(type, left, right);
-      ast_t* c_right = chain_type(right, fun_cap, recovered_call);
+      ast_t* c_right = chain_type(right, fun_cap, recovered_call, opt);
 
       ast_t* c_type = ast_from(type, TK_ARROW);
       ast_add(c_type, c_right);
@@ -614,7 +694,7 @@ ast_t* chain_type(ast_t* type, token_id fun_cap, bool recovered_call)
   return NULL;
 }
 
-bool sendable(ast_t* type)
+bool sendable(ast_t* type, pass_opt_t* opt)
 {
   switch(ast_id(type))
   {
@@ -627,7 +707,7 @@ bool sendable(ast_t* type)
 
       while(child != NULL)
       {
-        if(!sendable(child))
+        if(!sendable(child, opt))
           return false;
 
         child = ast_sibling(child);
@@ -638,14 +718,122 @@ bool sendable(ast_t* type)
 
     case TK_ARROW:
     {
-      ast_t* upper = viewpoint_upper(type);
+      AST_GET_CHILDREN(type, left, right);
 
-      if(upper == NULL)
-        return false;
+      // Determine if the left side has a generic cap that needs
+      // case-splitting. For generic caps, viewpoint_upper computes a single
+      // bound that can incorrectly classify non-sendable types as sendable
+      // (e.g. this->(T #any !) with box receiver upper-bounds to tag, which
+      // is sendable, but ref->(T #any !) = T #alias which is not).
+      //
+      // Case-splitting enumerates the concrete capabilities the left side
+      // could be and checks sendability for each, matching the approach used
+      // by viewpoint_reifythis and viewpoint_reifytypeparam for subtyping.
+      token_id concrete_caps[6];
+      int num_caps = 0;
 
-      bool ok = sendable(upper);
-      ast_free_unattached(upper);
-      return ok;
+      switch(ast_id(left))
+      {
+        case TK_THISTYPE:
+          concrete_caps[0] = TK_REF;
+          concrete_caps[1] = TK_VAL;
+          concrete_caps[2] = TK_BOX;
+          num_caps = 3;
+          break;
+
+        case TK_NOMINAL:
+        case TK_TYPEPARAMREF:
+        case TK_TYPEALIASREF:
+        {
+          ast_t* l_cap = cap_fetch(left);
+
+          switch(ast_id(l_cap))
+          {
+            case TK_CAP_READ:
+              concrete_caps[0] = TK_REF;
+              concrete_caps[1] = TK_VAL;
+              concrete_caps[2] = TK_BOX;
+              num_caps = 3;
+              break;
+
+            case TK_CAP_SEND:
+              concrete_caps[0] = TK_ISO;
+              concrete_caps[1] = TK_VAL;
+              concrete_caps[2] = TK_TAG;
+              num_caps = 3;
+              break;
+
+            case TK_CAP_SHARE:
+              concrete_caps[0] = TK_VAL;
+              concrete_caps[1] = TK_TAG;
+              num_caps = 2;
+              break;
+
+            case TK_CAP_ALIAS:
+              concrete_caps[0] = TK_REF;
+              concrete_caps[1] = TK_VAL;
+              concrete_caps[2] = TK_BOX;
+              concrete_caps[3] = TK_TAG;
+              num_caps = 4;
+              break;
+
+            case TK_CAP_ANY:
+              concrete_caps[0] = TK_ISO;
+              concrete_caps[1] = TK_TRN;
+              concrete_caps[2] = TK_REF;
+              concrete_caps[3] = TK_VAL;
+              concrete_caps[4] = TK_BOX;
+              concrete_caps[5] = TK_TAG;
+              num_caps = 6;
+              break;
+
+            default:
+              break;
+          }
+          break;
+        }
+
+        default:
+          break;
+      }
+
+      if(num_caps == 0)
+      {
+        // Single concrete cap: use viewpoint_upper directly.
+        ast_t* upper = viewpoint_upper(type, opt);
+
+        if(upper == NULL)
+          return false;
+
+        bool ok = sendable(upper, opt);
+        ast_free_unattached(upper);
+        return ok;
+      }
+
+      // Generic cap: check that ALL concrete instantiations are sendable.
+      for(int i = 0; i < num_caps; i++)
+      {
+        ast_t* temp_left = ast_from(left, concrete_caps[i]);
+
+        BUILD(temp_arrow, type,
+          NODE(TK_ARROW,
+            TREE(temp_left)
+            TREE(ast_dup(right))));
+
+        ast_t* upper = viewpoint_upper(temp_arrow, opt);
+        ast_free_unattached(temp_arrow);
+
+        if(upper == NULL)
+          return false;
+
+        bool ok = sendable(upper, opt);
+        ast_free_unattached(upper);
+
+        if(!ok)
+          return false;
+      }
+
+      return true;
     }
 
     case TK_NOMINAL:
@@ -660,6 +848,18 @@ bool sendable(ast_t* type)
       return cap_sendable(ast_id(cap));
     }
 
+    case TK_TYPEALIASREF:
+    {
+      ast_t* unfolded = typealias_unfold(type);
+
+      if(unfolded == NULL)
+        return false;
+
+      bool ok = sendable(unfolded, opt);
+      ast_free_unattached(unfolded);
+      return ok;
+    }
+
     case TK_FUNTYPE:
     case TK_INFERTYPE:
     case TK_ERRORTYPE:
@@ -671,3 +871,4 @@ bool sendable(ast_t* type)
   pony_assert(0);
   return false;
 }
+

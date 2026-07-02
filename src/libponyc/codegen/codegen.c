@@ -15,7 +15,6 @@
 #include "../../libponyrt/mem/pool.h"
 #include "ponyassert.h"
 
-#include <blake2.h>
 #include <platform.h>
 #include <llvm-c/DebugInfo.h>
 #include <llvm-c/Linker.h>
@@ -102,75 +101,72 @@ static LLVMTargetMachineRef make_machine(pass_opt_t* opt)
 
 static void init_runtime(compile_t* c)
 {
-  c->str_builtin = stringtab("$0");
-  c->str_Bool = stringtab("Bool");
-  c->str_I8 = stringtab("I8");
-  c->str_I16 = stringtab("I16");
-  c->str_I32 = stringtab("I32");
-  c->str_I64 = stringtab("I64");
-  c->str_I128 = stringtab("I128");
-  c->str_ILong = stringtab("ILong");
-  c->str_ISize = stringtab("ISize");
-  c->str_U8 = stringtab("U8");
-  c->str_U16 = stringtab("U16");
-  c->str_U32 = stringtab("U32");
-  c->str_U64 = stringtab("U64");
-  c->str_U128 = stringtab("U128");
-  c->str_ULong = stringtab("ULong");
-  c->str_USize = stringtab("USize");
-  c->str_F32 = stringtab("F32");
-  c->str_F64 = stringtab("F64");
-  c->str_Pointer = stringtab("Pointer");
-  c->str_NullablePointer = stringtab("NullablePointer");
-  c->str_DoNotOptimise = stringtab("DoNotOptimise");
-  c->str_Array = stringtab("Array");
-  c->str_String = stringtab("String");
-  c->str_Platform = stringtab("Platform");
-  c->str_Main = stringtab("Main");
-  c->str_Env = stringtab("Env");
+  c->str_builtin = stringtab(c->opt->strtab, "$0");
+  c->str_Bool = stringtab(c->opt->strtab, "Bool");
+  c->str_I8 = stringtab(c->opt->strtab, "I8");
+  c->str_I16 = stringtab(c->opt->strtab, "I16");
+  c->str_I32 = stringtab(c->opt->strtab, "I32");
+  c->str_I64 = stringtab(c->opt->strtab, "I64");
+  c->str_I128 = stringtab(c->opt->strtab, "I128");
+  c->str_ILong = stringtab(c->opt->strtab, "ILong");
+  c->str_ISize = stringtab(c->opt->strtab, "ISize");
+  c->str_U8 = stringtab(c->opt->strtab, "U8");
+  c->str_U16 = stringtab(c->opt->strtab, "U16");
+  c->str_U32 = stringtab(c->opt->strtab, "U32");
+  c->str_U64 = stringtab(c->opt->strtab, "U64");
+  c->str_U128 = stringtab(c->opt->strtab, "U128");
+  c->str_ULong = stringtab(c->opt->strtab, "ULong");
+  c->str_USize = stringtab(c->opt->strtab, "USize");
+  c->str_F32 = stringtab(c->opt->strtab, "F32");
+  c->str_F64 = stringtab(c->opt->strtab, "F64");
+  c->str_Pointer = stringtab(c->opt->strtab, "Pointer");
+  c->str_NullablePointer = stringtab(c->opt->strtab, "NullablePointer");
+  c->str_DoNotOptimise = stringtab(c->opt->strtab, "DoNotOptimise");
+  c->str_Array = stringtab(c->opt->strtab, "Array");
+  c->str_String = stringtab(c->opt->strtab, "String");
+  c->str_Platform = stringtab(c->opt->strtab, "Platform");
+  c->str_Main = stringtab(c->opt->strtab, "Main");
+  c->str_Env = stringtab(c->opt->strtab, "Env");
 
-  c->str_add = stringtab("add");
-  c->str_sub = stringtab("sub");
-  c->str_mul = stringtab("mul");
-  c->str_div = stringtab("div");
-  c->str_rem = stringtab("rem");
-  c->str_neg = stringtab("neg");
-  c->str_add_unsafe = stringtab("add_unsafe");
-  c->str_sub_unsafe = stringtab("sub_unsafe");
-  c->str_mul_unsafe = stringtab("mul_unsafe");
-  c->str_div_unsafe = stringtab("div_unsafe");
-  c->str_rem_unsafe = stringtab("rem_unsafe");
-  c->str_neg_unsafe = stringtab("neg_unsafe");
-  c->str_and = stringtab("op_and");
-  c->str_or = stringtab("op_or");
-  c->str_xor = stringtab("op_xor");
-  c->str_not = stringtab("op_not");
-  c->str_shl = stringtab("shl");
-  c->str_shr = stringtab("shr");
-  c->str_shl_unsafe = stringtab("shl_unsafe");
-  c->str_shr_unsafe = stringtab("shr_unsafe");
-  c->str_eq = stringtab("eq");
-  c->str_ne = stringtab("ne");
-  c->str_lt = stringtab("lt");
-  c->str_le = stringtab("le");
-  c->str_ge = stringtab("ge");
-  c->str_gt = stringtab("gt");
-  c->str_eq_unsafe = stringtab("eq_unsafe");
-  c->str_ne_unsafe = stringtab("ne_unsafe");
-  c->str_lt_unsafe = stringtab("lt_unsafe");
-  c->str_le_unsafe = stringtab("le_unsafe");
-  c->str_ge_unsafe = stringtab("ge_unsafe");
-  c->str_gt_unsafe = stringtab("gt_unsafe");
+  c->str_add = stringtab(c->opt->strtab, "add");
+  c->str_sub = stringtab(c->opt->strtab, "sub");
+  c->str_mul = stringtab(c->opt->strtab, "mul");
+  c->str_div = stringtab(c->opt->strtab, "div");
+  c->str_rem = stringtab(c->opt->strtab, "rem");
+  c->str_neg = stringtab(c->opt->strtab, "neg");
+  c->str_add_unsafe = stringtab(c->opt->strtab, "add_unsafe");
+  c->str_sub_unsafe = stringtab(c->opt->strtab, "sub_unsafe");
+  c->str_mul_unsafe = stringtab(c->opt->strtab, "mul_unsafe");
+  c->str_div_unsafe = stringtab(c->opt->strtab, "div_unsafe");
+  c->str_rem_unsafe = stringtab(c->opt->strtab, "rem_unsafe");
+  c->str_neg_unsafe = stringtab(c->opt->strtab, "neg_unsafe");
+  c->str_and = stringtab(c->opt->strtab, "op_and");
+  c->str_or = stringtab(c->opt->strtab, "op_or");
+  c->str_xor = stringtab(c->opt->strtab, "op_xor");
+  c->str_not = stringtab(c->opt->strtab, "op_not");
+  c->str_shl = stringtab(c->opt->strtab, "shl");
+  c->str_shr = stringtab(c->opt->strtab, "shr");
+  c->str_shl_unsafe = stringtab(c->opt->strtab, "shl_unsafe");
+  c->str_shr_unsafe = stringtab(c->opt->strtab, "shr_unsafe");
+  c->str_eq = stringtab(c->opt->strtab, "eq");
+  c->str_ne = stringtab(c->opt->strtab, "ne");
+  c->str_lt = stringtab(c->opt->strtab, "lt");
+  c->str_le = stringtab(c->opt->strtab, "le");
+  c->str_ge = stringtab(c->opt->strtab, "ge");
+  c->str_gt = stringtab(c->opt->strtab, "gt");
+  c->str_eq_unsafe = stringtab(c->opt->strtab, "eq_unsafe");
+  c->str_ne_unsafe = stringtab(c->opt->strtab, "ne_unsafe");
+  c->str_lt_unsafe = stringtab(c->opt->strtab, "lt_unsafe");
+  c->str_le_unsafe = stringtab(c->opt->strtab, "le_unsafe");
+  c->str_ge_unsafe = stringtab(c->opt->strtab, "ge_unsafe");
+  c->str_gt_unsafe = stringtab(c->opt->strtab, "gt_unsafe");
 
-  c->str_this = stringtab("this");
-  c->str_create = stringtab("create");
-  c->str__create = stringtab("_create");
-  c->str__init = stringtab("_init");
-  c->str__final = stringtab("_final");
-  c->str__event_notify = stringtab("_event_notify");
-  c->str__serialise_space = stringtab("_serialise_space");
-  c->str__serialise = stringtab("_serialise");
-  c->str__deserialise = stringtab("_deserialise");
+  c->str_this = stringtab(c->opt->strtab, "this");
+  c->str_create = stringtab(c->opt->strtab, "create");
+  c->str__create = stringtab(c->opt->strtab, "_create");
+  c->str__init = stringtab(c->opt->strtab, "_init");
+  c->str__final = stringtab(c->opt->strtab, "_final");
+  c->str__event_notify = stringtab(c->opt->strtab, "_event_notify");
 
   LLVMTypeRef type;
   LLVMTypeRef params[5];
@@ -202,38 +198,11 @@ static void init_runtime(compile_t* c)
   c->msg_type = LLVMStructCreateNamed(c->context, "__message");
   LLVMStructSetBody(c->msg_type, params, 2, false);
 
-  // descriptor_offset_lookup
-  // uint32_t (*)(size_t)
-  params[0] = target_is_ilp32(c->opt->triple) ? c->i32 : c->i64;
-  c->descriptor_offset_lookup_type = LLVMFunctionType(c->i32, params, 1, false);
-  c->descriptor_offset_lookup_fn =
-    LLVMPointerType(c->descriptor_offset_lookup_type, 0);
-
   // trace
   // void (*)(i8*, __object*)
   params[0] = c->ptr;
   params[1] = c->ptr;
   c->trace_fn = LLVMFunctionType(c->void_type, params, 2, false);
-
-  // serialise
-  // void (*)(i8*, __object*, i8*, intptr, i32)
-  params[0] = c->ptr;
-  params[1] = c->ptr;
-  params[2] = c->ptr;
-  params[3] = c->intptr;
-  params[4] = c->i32;
-  c->serialise_fn = LLVMFunctionType(c->void_type, params, 5, false);
-
-  // serialise_space
-  // i64 (__object*)
-  params[0] = c->ptr;
-  c->custom_serialise_space_fn = LLVMFunctionType(c->i64, params, 1, false);
-
-  // custom_deserialise
-  // void (*)(__object*, void*)
-  params[0] = c->ptr;
-  params[1] = c->ptr;
-  c->custom_deserialise_fn = LLVMFunctionType(c->void_type, params, 2, false);
 
 #if defined(USE_RUNTIME_TRACING)
   // get_behavior_name
@@ -255,7 +224,7 @@ static void init_runtime(compile_t* c)
 
   // descriptor, opaque version
   // We need this in order to build our own structure.
-  const char* desc_name = genname_descriptor(NULL);
+  const char* desc_name = genname_descriptor(NULL, c->opt->strtab);
   c->descriptor_type = LLVMStructCreateNamed(c->context, desc_name);
 
   // field descriptor
@@ -271,7 +240,7 @@ static void init_runtime(compile_t* c)
   params[0] = c->ptr;
   LLVMStructSetBody(c->object_type, params, 1, false);
 
-  unsigned int align_value = target_is_ilp32(c->opt->triple) ? 4 : 8;
+  unsigned int ptr_size = target_is_ilp32(c->opt->triple) ? 4 : 8;
 
   LLVM_DECLARE_ATTRIBUTEREF(nounwind_attr, nounwind, 0);
   LLVM_DECLARE_ATTRIBUTEREF(readnone_attr, readnone, 0);
@@ -284,8 +253,18 @@ static void init_runtime(compile_t* c)
   LLVM_DECLARE_ATTRIBUTEREF(noalias_attr, noalias, 0);
   LLVM_DECLARE_ATTRIBUTEREF(noreturn_attr, noreturn, 0);
   LLVM_DECLARE_ATTRIBUTEREF(deref_actor_attr, dereferenceable,
-    PONY_ACTOR_PAD_SIZE + align_value);
-  LLVM_DECLARE_ATTRIBUTEREF(align_attr, align, align_value);
+    PONY_ACTOR_PAD_SIZE + ptr_size);
+  // Declare the true minimum alignment the runtime guarantees for each
+  // allocator's returned memory: HEAP_MIN for heap (object) allocations and
+  // POOL_MIN for pool allocations (actors and messages). These must not exceed
+  // what the runtime actually provides (see HEAP_MIN in heap.h, POOL_MIN in
+  // pool.h) or the optimiser will assume an alignment the memory doesn't have.
+  // For heap allocations this is additionally load-bearing for the HeapToStack
+  // pass, which derives a promoted stack alloca's alignment from this attribute
+  // (genopt.cc); under-declaring it produced allocas too weakly aligned for
+  // fields such as U128, crashing under optimisation. See issue #5462.
+  LLVM_DECLARE_ATTRIBUTEREF(align_heap_attr, align, HEAP_MIN);
+  LLVM_DECLARE_ATTRIBUTEREF(align_pool_attr, align, POOL_MIN);
   LLVM_DECLARE_ATTRIBUTEREF(deref_or_null_alloc_attr, dereferenceable_or_null,
     HEAP_MIN);
   LLVM_DECLARE_ATTRIBUTEREF(deref_alloc_small_attr, dereferenceable, HEAP_MIN);
@@ -311,7 +290,7 @@ static void init_runtime(compile_t* c)
     inacc_or_arg_mem_attr);
   LLVMAddAttributeAtIndex(value, LLVMAttributeReturnIndex, noalias_attr);
   LLVMAddAttributeAtIndex(value, LLVMAttributeReturnIndex, deref_actor_attr);
-  LLVMAddAttributeAtIndex(value, LLVMAttributeReturnIndex, align_attr);
+  LLVMAddAttributeAtIndex(value, LLVMAttributeReturnIndex, align_pool_attr);
 
   // void ponyint_destroy(__object*)
   params[0] = c->ptr;
@@ -359,7 +338,7 @@ static void init_runtime(compile_t* c)
   LLVMAddAttributeAtIndex(value, LLVMAttributeReturnIndex, noalias_attr);
   LLVMAddAttributeAtIndex(value, LLVMAttributeReturnIndex,
     deref_or_null_alloc_attr);
-  LLVMAddAttributeAtIndex(value, LLVMAttributeReturnIndex, align_attr);
+  LLVMAddAttributeAtIndex(value, LLVMAttributeReturnIndex, align_heap_attr);
 
   // i8* pony_alloc_small(i8*, i32)
   params[0] = c->ptr;
@@ -373,7 +352,7 @@ static void init_runtime(compile_t* c)
   LLVMAddAttributeAtIndex(value, LLVMAttributeReturnIndex, noalias_attr);
   LLVMAddAttributeAtIndex(value, LLVMAttributeReturnIndex,
     deref_alloc_small_attr);
-  LLVMAddAttributeAtIndex(value, LLVMAttributeReturnIndex, align_attr);
+  LLVMAddAttributeAtIndex(value, LLVMAttributeReturnIndex, align_heap_attr);
 
   // i8* pony_alloc_large(i8*, intptr)
   params[0] = c->ptr;
@@ -387,7 +366,7 @@ static void init_runtime(compile_t* c)
   LLVMAddAttributeAtIndex(value, LLVMAttributeReturnIndex, noalias_attr);
   LLVMAddAttributeAtIndex(value, LLVMAttributeReturnIndex,
     deref_alloc_large_attr);
-  LLVMAddAttributeAtIndex(value, LLVMAttributeReturnIndex, align_attr);
+  LLVMAddAttributeAtIndex(value, LLVMAttributeReturnIndex, align_heap_attr);
 
   // i8* pony_realloc(i8*, i8*, intptr, intptr)
   params[0] = c->ptr;
@@ -403,7 +382,7 @@ static void init_runtime(compile_t* c)
   LLVMAddAttributeAtIndex(value, LLVMAttributeReturnIndex, noalias_attr);
   LLVMAddAttributeAtIndex(value, LLVMAttributeReturnIndex,
     deref_or_null_alloc_attr);
-  LLVMAddAttributeAtIndex(value, LLVMAttributeReturnIndex, align_attr);
+  LLVMAddAttributeAtIndex(value, LLVMAttributeReturnIndex, align_heap_attr);
 
   // i8* pony_alloc_final(i8*, intptr)
   params[0] = c->ptr;
@@ -416,7 +395,7 @@ static void init_runtime(compile_t* c)
     inacc_or_arg_mem_attr);
   LLVMAddAttributeAtIndex(value, LLVMAttributeReturnIndex,
     deref_or_null_alloc_attr);
-  LLVMAddAttributeAtIndex(value, LLVMAttributeReturnIndex, align_attr);
+  LLVMAddAttributeAtIndex(value, LLVMAttributeReturnIndex, align_heap_attr);
 
   // i8* pony_alloc_small_final(i8*, i32)
   params[0] = c->ptr;
@@ -429,7 +408,7 @@ static void init_runtime(compile_t* c)
     inacc_or_arg_mem_attr);
   LLVMAddAttributeAtIndex(value, LLVMAttributeReturnIndex,
     deref_alloc_small_attr);
-  LLVMAddAttributeAtIndex(value, LLVMAttributeReturnIndex, align_attr);
+  LLVMAddAttributeAtIndex(value, LLVMAttributeReturnIndex, align_heap_attr);
 
   // i8* pony_alloc_large_final(i8*, intptr)
   params[0] = c->ptr;
@@ -442,7 +421,7 @@ static void init_runtime(compile_t* c)
     inacc_or_arg_mem_attr);
   LLVMAddAttributeAtIndex(value, LLVMAttributeReturnIndex,
     deref_alloc_large_attr);
-  LLVMAddAttributeAtIndex(value, LLVMAttributeReturnIndex, align_attr);
+  LLVMAddAttributeAtIndex(value, LLVMAttributeReturnIndex, align_heap_attr);
 
   // $message* pony_alloc_msg(i32, i32)
   params[0] = c->i32;
@@ -454,7 +433,7 @@ static void init_runtime(compile_t* c)
   LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex,
     inacc_or_arg_mem_attr);
   LLVMAddAttributeAtIndex(value, LLVMAttributeReturnIndex, noalias_attr);
-  LLVMAddAttributeAtIndex(value, LLVMAttributeReturnIndex, align_attr);
+  LLVMAddAttributeAtIndex(value, LLVMAttributeReturnIndex, align_pool_attr);
 
   // void pony_trace(i8*, i8*)
   params[0] = c->ptr;
@@ -492,14 +471,16 @@ static void init_runtime(compile_t* c)
     inacc_or_arg_mem_attr);
   LLVMAddAttributeAtIndex(value, 2, readonly_attr);
 
-  // void pony_gc_send(i8*)
+  // void pony_gc_send(i8*, __actor*)
   params[0] = c->ptr;
-  type = LLVMFunctionType(c->void_type, params, 1, false);
+  params[1] = c->ptr;
+  type = LLVMFunctionType(c->void_type, params, 2, false);
   value = LLVMAddFunction(c->module, "pony_gc_send", type);
 
   LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex, nounwind_attr);
   LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex,
     inacc_or_arg_mem_attr);
+  LLVMAddAttributeAtIndex(value, 2, readnone_attr);
 
   // void pony_gc_recv(i8*)
   params[0] = c->ptr;
@@ -524,49 +505,6 @@ static void init_runtime(compile_t* c)
 
   LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex, nounwind_attr);
 
-  // void pony_serialise_reserve(i8*, i8*, intptr)
-  params[0] = c->ptr;
-  params[1] = c->ptr;
-  params[2] = c->intptr;
-  type = LLVMFunctionType(c->void_type, params, 3, false);
-  value = LLVMAddFunction(c->module, "pony_serialise_reserve", type);
-
-  LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex, nounwind_attr);
-  LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex,
-    inacc_or_arg_mem_attr);
-  LLVMAddAttributeAtIndex(value, 2, readnone_attr);
-
-  // intptr pony_serialise_offset(i8*, i8*)
-  params[0] = c->ptr;
-  params[1] = c->ptr;
-  type = LLVMFunctionType(c->intptr, params, 2, false);
-  value = LLVMAddFunction(c->module, "pony_serialise_offset", type);
-
-  LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex, nounwind_attr);
-  LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex,
-    inacc_or_arg_mem_attr);
-  LLVMAddAttributeAtIndex(value, 2, readonly_attr);
-
-  // i8* pony_deserialise_offset(i8*, __desc*, intptr)
-  params[0] = c->ptr;
-  params[1] = c->ptr;
-  params[2] = c->intptr;
-  type = LLVMFunctionType(c->ptr, params, 3, false);
-  value = LLVMAddFunction(c->module, "pony_deserialise_offset", type);
-
-  LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex,
-    inacc_or_arg_mem_attr);
-
-  // i8* pony_deserialise_block(i8*, intptr, intptr)
-  params[0] = c->ptr;
-  params[1] = c->intptr;
-  params[2] = c->intptr;
-  type = LLVMFunctionType(c->ptr, params, 3, false);
-  value = LLVMAddFunction(c->module, "pony_deserialise_block", type);
-
-  LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex,
-    inacc_or_arg_mem_attr);
-
   // i32 pony_init(i32, i8**)
   params[0] = c->i32;
   params[1] = c->ptr;
@@ -587,11 +525,13 @@ static void init_runtime(compile_t* c)
   LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex,
     inacc_or_arg_mem_attr);
 
-  // i1 pony_start(i1, i32*, i8*)
-  params[0] = c->i1;
+  // i1 pony_start(i32*, i8*)
+  // This prototype and the call emitted in genexe.cc must match libponyrt's
+  // actual pony_start signature; see
+  // .known-couplings/codegen-runtime-api-prototypes.md
+  params[0] = c->ptr;
   params[1] = c->ptr;
-  params[2] = c->ptr;
-  type = LLVMFunctionType(c->i1, params, 3, false);
+  type = LLVMFunctionType(c->i1, params, 2, false);
   value = LLVMAddFunction(c->module, "pony_start", type);
 
   LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex, nounwind_attr);
@@ -605,15 +545,11 @@ static void init_runtime(compile_t* c)
   LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex, nounwind_attr);
   LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex, memory_readonly);
 
-  // void pony_error()
+  // void abort()
   type = LLVMFunctionType(c->void_type, NULL, 0, false);
-  value = LLVMAddFunction(c->module, "pony_error", type);
+  value = LLVMAddFunction(c->module, "abort", type);
 
   LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex, noreturn_attr);
-
-  // i32 ponyint_personality_v0(...)
-  type = LLVMFunctionType(c->i32, NULL, 0, true);
-  c->personality = LLVMAddFunction(c->module, "ponyint_personality_v0", type);
 
   // i32 memcmp(i8*, i8*, intptr)
   params[0] = c->ptr;
@@ -855,23 +791,23 @@ bool codegen_pass_init(pass_opt_t* opt)
 
   if(opt->cpu != NULL)
     opt->cpu = LLVMCreateMessage(opt->cpu);
+  else if(is_cross_compiling(opt))
+    // No --cpu on a cross build: default to the target's generic CPU (the empty
+    // string), not the host's. is_cross_compiling is true whenever the target
+    // arch, OS, OR environment differs from the host, and generic is right for
+    // all three. For an arch-cross target a host CPU name (e.g. x86's "znver3")
+    // is outright invalid: LLVM's target machine silently falls back to
+    // generic, but the clang gencshim drives to compile C shims rejects it
+    // ("unknown target CPU"). For a same-arch OS/env-cross target (e.g.
+    // x86_64-linux-musl on a glibc host) the host CPU would be valid, but
+    // generic is still the right default -- features are already "" for any
+    // explicit --triple (see above), so this keeps CPU and features consistent
+    // for explicit-triple builds. An empty string lets each tool pick the
+    // target baseline; a literal like "generic" can't (riscv rejects it,
+    // wanting "generic-rv64").
+    opt->cpu = LLVMCreateMessage("");
   else
     opt->cpu = LLVMGetHostCPUName();
-
-  opt->serialise_id_hash_key = (unsigned char*)ponyint_pool_alloc_size(16);
-
-  const char* version = "pony-" PONY_VERSION;
-  const char* data_model = target_is_ilp32(opt->triple) ? "ilp32" : (target_is_lp64(opt->triple) ? "lp64" : (target_is_llp64(opt->triple) ? "llp64" : "unknown"));
-  const char* endian = target_is_bigendian(opt->triple) ? "be" : "le";
-
-  printbuf_t* target_version_buf = printbuf_new();
-  printbuf(target_version_buf, "%s-%s-%s", version, data_model, endian);
-
-  int status = blake2b(opt->serialise_id_hash_key, 16, target_version_buf->m, target_version_buf->offset, NULL, 0);
-  (void)status;
-  pony_assert(status == 0);
-
-  printbuf_free(target_version_buf);
 
   return true;
 }
@@ -889,9 +825,6 @@ void codegen_pass_cleanup(pass_opt_t* opt)
   opt->triple = NULL;
   opt->cpu = NULL;
   opt->features = NULL;
-
-  ponyint_pool_free_size(16, opt->serialise_id_hash_key);
-  opt->serialise_id_hash_key = NULL;
 }
 
 bool codegen(ast_t* program, pass_opt_t* opt)
@@ -964,6 +897,12 @@ bool codegen_gen_test(compile_t* c, ast_t* program, pass_opt_t* opt,
     ast_free(env_ast);
     deferred_reify_free(main_create);
   }
+
+  // reach() can't signal failure through its void return. If it aborted on an
+  // over-large generic instantiation it already reported the error and left
+  // stub types behind, so fail before painting/codegen would touch them.
+  if(reach_limit_exceeded(c->reach))
+    return false;
 
   if(opt->limit == PASS_REACH)
     return true;
@@ -1047,10 +986,11 @@ void codegen_pushscope(compile_t* c, ast_t* ast)
   frame->fun = frame->prev->fun;
   frame->reify = frame->prev->reify;
   frame->bare_function = frame->prev->bare_function;
+  frame->is_partial = frame->prev->is_partial;
   frame->break_target = frame->prev->break_target;
   frame->break_novalue_target = frame->prev->break_novalue_target;
   frame->continue_target = frame->prev->continue_target;
-  frame->invoke_target = frame->prev->invoke_target;
+  frame->error_target = frame->prev->error_target;
   frame->di_file = frame->prev->di_file;
 
   if(frame->prev->di_scope != NULL)
@@ -1080,7 +1020,7 @@ void codegen_local_lifetime_start(compile_t* c, const char* name)
 
     if(p != NULL && !p->alive)
     {
-      gencall_lifetime_start(c, p->alloca, LLVMGetAllocatedType(p->alloca));
+      gencall_lifetime_start(c, p->alloca);
       p->alive = true;
       return;
     }
@@ -1106,7 +1046,7 @@ void codegen_local_lifetime_end(compile_t* c, const char* name)
 
     if(p != NULL && p->alive)
     {
-      gencall_lifetime_end(c, p->alloca, LLVMGetAllocatedType(p->alloca));
+      gencall_lifetime_end(c, p->alloca);
       p->alive = false;
       return;
     }
@@ -1129,7 +1069,7 @@ void codegen_scope_lifetime_end(compile_t* c)
     while ((p = compile_locals_next(&frame->locals, &i)) != NULL)
     {
       if(p->alive)
-        gencall_lifetime_end(c, p->alloca, LLVMGetAllocatedType(p->alloca));
+        gencall_lifetime_end(c, p->alloca);
     }
     c->frame->early_termination = true;
   }
@@ -1153,10 +1093,11 @@ void codegen_pushloop(compile_t* c, LLVMBasicBlockRef continue_target,
   frame->fun = frame->prev->fun;
   frame->reify = frame->prev->reify;
   frame->bare_function = frame->prev->bare_function;
+  frame->is_partial = frame->prev->is_partial;
   frame->break_target = break_target;
   frame->break_novalue_target = break_novalue_target;
   frame->continue_target = continue_target;
-  frame->invoke_target = frame->prev->invoke_target;
+  frame->error_target = frame->prev->error_target;
   frame->di_file = frame->prev->di_file;
   frame->di_scope = frame->prev->di_scope;
 }
@@ -1166,17 +1107,18 @@ void codegen_poploop(compile_t* c)
   pop_frame(c);
 }
 
-void codegen_pushtry(compile_t* c, LLVMBasicBlockRef invoke_target)
+void codegen_pushtry(compile_t* c, LLVMBasicBlockRef error_target)
 {
   compile_frame_t* frame = push_frame(c);
 
   frame->fun = frame->prev->fun;
   frame->reify = frame->prev->reify;
   frame->bare_function = frame->prev->bare_function;
+  frame->is_partial = frame->prev->is_partial;
   frame->break_target = frame->prev->break_target;
   frame->break_novalue_target = frame->prev->break_novalue_target;
   frame->continue_target = frame->prev->continue_target;
-  frame->invoke_target = invoke_target;
+  frame->error_target = error_target;
   frame->di_file = frame->prev->di_file;
   frame->di_scope = frame->prev->di_scope;
 }
@@ -1349,5 +1291,5 @@ const char* suffix_filename(compile_t* c, const char* dir, const char* prefix,
     return NULL;
   }
 
-  return stringtab_consume(filename, len);
+  return stringtab_consume(c->opt->strtab, filename, len);
 }

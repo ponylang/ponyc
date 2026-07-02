@@ -8,6 +8,7 @@
 #include <ast/stringtab.h>
 #include <pass/pass.h>
 #include <pkg/package.h>
+#include <type/subtype_cache.h>
 #include <../libponyrt/pony.h>
 #include <../libponyrt/mem/pool.h>
 #include <ponyassert.h>
@@ -98,7 +99,6 @@ static const char* const _builtin =
   // - create array literals
   // - call .values() iterator in a for loop
   // - be a subtype of Seq
-  // - call genprim_array_serialise_trace (which expects the three fields)
   "class ArrayValues[A]\n"
   "  fun ref has_next(): Bool => false\n"
   "  fun ref next(): A ? => error\n"
@@ -245,9 +245,20 @@ static bool compare_asts(ast_t* expected, ast_t* actual, errors_t *errors)
 
 // class PassTest
 
+extern const char* test_argv0;
+
 void PassTest::SetUp()
 {
+  // Reset thread-local subtype-cache state so tests can't inherit it
+  // from one another. The cache otherwise clears at every depth-0
+  // is_x_sub_x entry, but a test that exits without making any
+  // subtype query leaves the previous test's accumulator and
+  // hashmap pinned on this thread. Future cache tests should be
+  // free to assume an empty cache on entry without remembering to
+  // call subtype_cache_clear themselves.
+  subtype_cache_clear();
   pass_opt_init(&opt);
+  opt.argv0 = test_argv0;
   codegen_pass_init(&opt);
   package_init(&opt);
   program = NULL;
@@ -321,7 +332,7 @@ size_t PassTest::ref_count(ast_t* ast, const char* name)
   size_t count = 0;
   symtab_t* symtab = ast_get_symtab(ast);
 
-  if(symtab != NULL && symtab_find(symtab, stringtab(name), NULL) != NULL)
+  if(symtab != NULL && symtab_find(symtab, stringtab(opt.strtab, name), NULL) != NULL)
     count = 1;
 
   for(ast_t* p = ast_child(ast); p != NULL; p = ast_sibling(p))
@@ -477,7 +488,7 @@ ast_t* PassTest::lookup_in(ast_t* ast, const char* name)
   symtab_t* symtab = ast_get_symtab(ast);
   pony_assert(symtab != NULL);
 
-  return symtab_find(symtab, stringtab(name), NULL);
+  return symtab_find(symtab, stringtab(opt.strtab, name), NULL);
 }
 
 
@@ -541,7 +552,7 @@ void PassTest::build_package(const char* pass, const char* src,
     package_add_magic_src(package_name, src, &opt);
 
     limit_passes(&opt, pass);
-    program = program_load(stringtab(package_name), &opt);
+    program = program_load(stringtab(opt.strtab, package_name), &opt);
 
     if((program != NULL) && (opt.limit >= PASS_REACH))
     {
@@ -697,8 +708,12 @@ void Environment::TearDown()
 }
 
 
+// Stored for OpenBSD, which needs argv0 to locate the executable path.
+const char* test_argv0 = NULL;
+
 int main(int argc, char** argv)
 {
+  test_argv0 = argv[0];
   testing::InitGoogleTest(&argc, argv);
   testing::AddGlobalTestEnvironment(new Environment());
   return RUN_ALL_TESTS();

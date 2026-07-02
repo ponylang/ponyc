@@ -2,7 +2,6 @@
 #include "stringtab.h"
 #include "ast.h"
 #include "id.h"
-#include "../../libponyrt/gc/serialise.h"
 #include "../../libponyrt/mem/pool.h"
 #include "ponyassert.h"
 #include <stdlib.h>
@@ -32,10 +31,9 @@ static void sym_free(symbol_t* sym)
   POOL_FREE(symbol_t, sym);
 }
 
-DEFINE_HASHMAP_SERIALISE(symtab, symtab_t, symbol_t, sym_hash, sym_cmp,
-  sym_free, symbol_pony_type());
+DEFINE_HASHMAP(symtab, symtab_t, symbol_t, sym_hash, sym_cmp, sym_free);
 
-static const char* name_without_case(const char* name)
+static const char* name_without_case(const char* name, strtable_t* strtab)
 {
   size_t len = strlen(name) + 1;
   char* buf = (char*)ponyint_pool_alloc_size(len);
@@ -49,7 +47,7 @@ static const char* name_without_case(const char* name)
       buf[i] = (char)tolower(name[i]);
   }
 
-  return stringtab_consume(buf, len);
+  return stringtab_consume(strtab, buf, len);
 }
 
 symtab_t* symtab_new()
@@ -83,9 +81,9 @@ void symtab_free(symtab_t* symtab)
 }
 
 bool symtab_add(symtab_t* symtab, const char* name, ast_t* def,
-  sym_status_t status)
+  sym_status_t status, strtable_t* strtab)
 {
-  const char* no_case = name_without_case(name);
+  const char* no_case = name_without_case(name, strtab);
 
   if(no_case != name)
   {
@@ -138,7 +136,7 @@ ast_t* symtab_find(symtab_t* symtab, const char* name, sym_status_t* status)
 }
 
 ast_t* symtab_find_case(symtab_t* symtab, const char* name,
-  sym_status_t* status)
+  sym_status_t* status, strtable_t* strtab)
 {
   // Same as symtab_get, but is partially case insensitive. That is, type names
   // are compared as uppercase and other symbols are compared as lowercase.
@@ -154,10 +152,10 @@ ast_t* symtab_find_case(symtab_t* symtab, const char* name,
     return s2->def;
   }
 
-  const char* no_case = name_without_case(name);
+  const char* no_case = name_without_case(name, strtab);
 
   if(no_case != name)
-    return symtab_find_case(symtab, no_case, status);
+    return symtab_find_case(symtab, no_case, status, strtab);
 
   if(status != NULL)
     *status = SYM_NONE;
@@ -256,7 +254,7 @@ void symtab_inherit_branch(symtab_t* dst, symtab_t* src)
   }
 }
 
-bool symtab_can_merge_public(symtab_t* dst, symtab_t* src)
+bool symtab_can_merge_public(symtab_t* dst, symtab_t* src, strtable_t* strtab)
 {
   size_t i = HASHMAP_BEGIN;
   symbol_t* sym;
@@ -268,14 +266,14 @@ bool symtab_can_merge_public(symtab_t* dst, symtab_t* src)
       !strcmp(sym->name, "Main"))
       continue;
 
-    if(symtab_find_case(dst, sym->name, NULL) != NULL)
+    if(symtab_find_case(dst, sym->name, NULL, strtab) != NULL)
       return false;
   }
 
   return true;
 }
 
-bool symtab_merge_public(symtab_t* dst, symtab_t* src)
+bool symtab_merge_public(symtab_t* dst, symtab_t* src, strtable_t* strtab)
 {
   size_t i = HASHMAP_BEGIN;
   symbol_t* sym;
@@ -287,7 +285,7 @@ bool symtab_merge_public(symtab_t* dst, symtab_t* src)
       !strcmp(sym->name, "Main"))
       continue;
 
-    if(!symtab_add(dst, sym->name, sym->def, sym->status))
+    if(!symtab_add(dst, sym->name, sym->def, sym->status, strtab))
       return false;
   }
 
@@ -347,70 +345,4 @@ void symtab_print(symtab_t* symtab)
         break;
     }
   }
-}
-
-static void symbol_serialise_trace(pony_ctx_t* ctx, void* object)
-{
-  symbol_t* sym = (symbol_t*)object;
-
-  string_trace(ctx, (char*)sym->name);
-
-  if(sym->def != NULL)
-    pony_traceknown(ctx, sym->def, ast_pony_type(), PONY_TRACE_MUTABLE);
-}
-
-static void symbol_serialise(pony_ctx_t* ctx, void* object, void* buf,
-  size_t offset, int mutability)
-{
-  (void)mutability;
-
-  symbol_t* sym = (symbol_t*)object;
-  symbol_t* dst = (symbol_t*)((uintptr_t)buf + offset);
-
-  dst->name = (const char*)pony_serialise_offset(ctx, (char*)sym->name);
-  dst->def = (ast_t*)pony_serialise_offset(ctx, sym->def);
-  dst->status = sym->status;
-  dst->branch_count = sym->branch_count;
-}
-
-static void symbol_deserialise(pony_ctx_t* ctx, void* object)
-{
-  (void)ctx;
-  symbol_t* sym = (symbol_t*)object;
-
-  sym->name = string_deserialise_offset(ctx, (uintptr_t)sym->name);
-  sym->def = (ast_t*)pony_deserialise_offset(ctx, ast_pony_type(),
-    (uintptr_t)sym->def);
-}
-
-static pony_type_t symbol_pony =
-{
-  0,
-  sizeof(symbol_t),
-  0,
-  0,
-  0,
-  NULL,
-#if defined(USE_RUNTIME_TRACING)
-  NULL,
-  NULL,
-#endif
-  NULL,
-  symbol_serialise_trace,
-  symbol_serialise,
-  symbol_deserialise,
-  NULL,
-  NULL,
-  NULL,
-  NULL,
-  0,
-  0,
-  NULL,
-  NULL,
-  NULL
-};
-
-pony_type_t* symbol_pony_type()
-{
-  return &symbol_pony;
 }

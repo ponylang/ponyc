@@ -1,114 +1,39 @@
-## Fix pool_memalign crash due to insufficient alignment for AVX instructions
+## Fix crash when parsing, printing, or querying deeply nested JSON
 
-`pool_memalign` used `malloc()` for allocations smaller than 1024 bytes. On x86-64 Linux, `malloc()` only guarantees 16-byte alignment, but the Pony runtime uses SIMD instructions that require stronger alignment (32-byte for AVX, 64-byte for AVX-512). This caused a SIGSEGV on startup for any program built with `-DUSE_POOL_MEMALIGN`. Small allocations now use `posix_memalign()` with 64-byte alignment; large allocations continue to use the full 1024-byte `POOL_ALIGN`.
+Parsing, printing, or querying a deeply nested JSON value — for example a document of many thousands of nested arrays or objects — could overflow the stack and crash the program with a segfault, rather than returning a value or a catchable `JsonParseError`.
 
-## Fix `assignment-indent` to require RHS indented relative to assignment
+The `json` package now handles arbitrarily deep nesting, limited only by available memory.
 
-The `style/assignment-indent` lint rule previously only checked that multiline assignment RHS started on the line after the `=`. It did not verify that the RHS was actually indented beyond the assignment line. Code like this was incorrectly accepted:
+## Reject an out-of-range `--ponygcinitial` exponent
 
-```pony
-    let chunk =
-    recover val
-      Array[U8]
-    end
-```
+`--ponygcinitial` sets the heap size at which an actor first garbage collects, given as the exponent `N` in a `2^N` byte threshold (the default is `2^14`, or 16 KiB). Passing a value of 64 or greater on a 64-bit platform — for instance mistaking the flag for a byte count and passing `--ponygcinitial 65536` — used to silently wrap around to a 1-byte threshold, making the actor garbage collect on nearly every allocation: the exact opposite of the large threshold the value implied. The runtime now rejects such a value with an error at startup instead of running with a wildly wrong threshold.
 
-The rule now flags RHS that starts on the next line but is not indented relative to the assignment. The correct form is:
+## Restore the message send merging optimization
 
-```pony
-    let chunk =
-      recover val
-        Array[U8]
-      end
-```
+A compiler optimization that batches the garbage-collection bookkeeping for consecutive message sends had been silently disabled, so it never ran. It now runs again. Code that sends several messages in a row — especially bursts to the same actor — generates fewer garbage-collection messages at runtime, lowering overhead with no change to behavior.
 
-## Fix tool install with `use` flags
+## Fix the start position reported for an empty JSON container's end token
 
-When building ponyc with `use` flags (e.g., `use=pool_memalign`), `make install` failed because the tools (pony-lsp, pony-lint, pony-doc) were placed in a different output directory than ponyc. Tools now use the same suffixed output directory, and the install target handles missing tools gracefully.
+`JsonTokenParser` reports a `token_start()` and `token_end()` byte offset for each token it emits. For the end token of an object or array — `JsonTokenObjectEnd` or `JsonTokenArrayEnd` — `token_start()` marks where the closing `}` or `]` begins. For an empty container it used to report the position of the opening bracket instead, so `token_start() .. token_end()` spanned the whole `{}` or `[]` rather than just the closing bracket. It now reports the closing bracket, the same as a non-empty container.
 
-## Fix stack overflow in AST tree checker
+## Fix the start position reported for a JSON String or Key token
 
-The compiler's `--checktree` AST validation pass used deep mutual recursion that could overflow the default 1MB Windows stack when validating programs with deeply nested expression trees. The tree checker has been converted to use an iterative worklist instead.
+`JsonTokenParser` reports a `token_start()` and `token_end()` byte offset for each token it emits. For a `String` or `Key` token, `token_start()` now marks the opening `"`, so the reported span covers the whole quoted token. Previously it pointed one byte past the opening quote, so the span dropped the opening quote — inconsistent with every other token, which already reported its first byte.
 
-This is unlikely to affect end users. The `--checktree` flag is a compiler development tool used primarily when building ponyc itself and running the test suite.
+## Stop installing the Pony runtime's C headers and static libraries
 
-## Return memory to the OS when freeing large pool allocations
+On Linux, macOS, and the BSDs, `make install` used to place ponyc's C runtime headers (`pony.h`, `paths.h`, `threads.h`, and a few others) into `<prefix>/include` and its runtime static libraries (`libponyrt.a` and friends) into `<prefix>/lib`, where `<prefix>` defaults to `/usr/local`. These were only there to support embedding the Pony runtime in a non-Pony C program by hand, which Pony does not support.
 
-The pool allocator now returns physical memory to the OS when freeing allocations larger than 1 MB. Previously, freed blocks were kept on the free list with their physical pages committed, meaning the RSS never decreased even after the memory was no longer needed. Now, the page-aligned interior of freed blocks is decommitted via `madvise(MADV_DONTNEED)` on POSIX or `VirtualAlloc(MEM_RESET)` on Windows. The virtual address space is preserved, so pages fault back in transparently on reuse.
+They also caused a real problem. The installed `paths.h` shadowed the system's own `<paths.h>`, and `threads.h` shadowed the C11 `<threads.h>`, so an unrelated C program that included one of those system headers could pick up Pony's by mistake.
 
-This primarily benefits programs that make large temporary allocations (the compiler during compilation, programs with large arrays or strings). Programs whose memory usage is dominated by small allocations (< 1 MB) will see little change — per-size-class caching is a separate mechanism.
+ponyc no longer installs those headers or libraries into the shared directories. If you have a from-source install from an earlier version, your next `make install` or `make uninstall` clears out the old symlinks — only its own symlinks, never a file you put there yourself. (A prior install done with a custom `ponydir` isn't recognized by the cleanup; remove its stale `<prefix>/include/*.h` and `<prefix>/lib/libponyrt*` symlinks by hand.)
 
-To preserve the old behavior (never decommit), build with `make configure use=pool_retain`.
+Writing C shims for your Pony code is unaffected: ponyc hands its headers to the shim compiler directly, so `#include <pony.h>` and `#include <ponyassert.h>` (for `pony_assert`) keep working with no setup. The `ponyc` compiler, the `pony-lsp`/`pony-lint`/`pony-doc` tools, and linking against `libponyc` to use the compiler as a library are all unaffected.
 
-## Fix scheduler stats output for memory usage
+## Fix systematic testing being much slower than it should be
 
-Applications compiled against the runtime which prints periodic scheduler statistics will now display the correct memory usage values per scheduler and for messages "in-flight".
+Programs run under systematic testing could run far slower than the amount of work warranted — slow enough, especially with a small number of scheduler threads, to look like they had hung. This has been fixed.
 
-## Fix compiler crash when object literal implements enclosing trait
-
-The compiler crashed with an assertion failure when an object literal inside a trait method implemented the same trait. This code would crash the compiler regardless of whether the trait was used:
-
-```pony
-trait Printer
-  fun double(): Printer =>
-    object ref is Printer
-      fun apply() => None
-    end
-  fun apply() => None
-```
-
-This is now accepted. The object literal correctly creates an anonymous class that implements the enclosing trait, and inherited methods that reference the object literal work as expected.
-
-## Fix TCPListener accept loop spin on persistent errors
-
-The `pony_os_accept` FFI function returns a signed `int`, but `TCPListener` declared the return type as `U32`. When `accept` returned `-1` to signal a persistent error (e.g., EMFILE — out of file descriptors), the accept loop treated it as "try again" and spun indefinitely, starving other actors of CPU time.
-
-The FFI declaration now correctly uses `I32`, and the accept loop bails out on `-1` instead of retrying. The ASIO event will re-notify the listener when the socket becomes readable, so no connections are lost.
-
-## Update to LLVM 21.1.8
-
-We've updated the LLVM version used to build Pony from 18.1.8 to 21.1.8.
-
-## Compile-time string literal concatenation
-
-The compiler now folds adjacent string literal concatenation at compile time, avoiding runtime allocation and copying. This works across chains that mix literals and variables — adjacent literals are merged while non-literal operands are left as runtime `.add()` calls. For example, `"a" + "b" + x + "c" + "d"` is folded to the equivalent of `"ab".add(x).add("cd")`, reducing four runtime concatenations down to two.
-
-## Exempt unsplittable string literals from line length rule
-
-The `style/line-length` lint rule no longer flags lines where the only reason for exceeding 80 columns is a string literal that contains no spaces. Strings without spaces — URLs, file paths, qualified identifiers — cannot be meaningfully split across lines, so flagging them produced noise with no actionable fix.
-
-Strings that contain spaces are still flagged because they can be split at space boundaries using compile-time string concatenation at zero runtime cost:
-
-```pony
-// Before: flagged, and splitting is awkward
-let url = "https://github.com/ponylang/ponyc/blob/main/packages/builtin/string.pony"
-
-// After: no longer flagged — the string has no spaces and can't be split
-
-// Strings with spaces can still be split, so they remain flagged:
-let msg = "This is a very long error message that should be split across multiple lines"
-
-// Fix by splitting at spaces:
-let msg =
-  "This is a very long error message that should be split "
-  + "across multiple lines"
-```
-
-Lines inside triple-quoted strings (docstrings) and lines containing `"""` delimiters are not eligible for this exemption — docstring content should be wrapped regardless of whether it contains spaces.
-
-## Fix compiler crash on `return error`
-
-Previously, writing `return error` in a function body would crash the compiler with an assertion failure instead of producing a diagnostic error. The compiler now correctly reports that a return value cannot be a control statement.
-
-## Add `--sysroot` option for cross-compilation
-
-A new `--sysroot` option specifies the target system root when cross-compiling. The compiler uses the sysroot to locate libc CRT objects and system libraries for the target platform. If `--sysroot` is not specified, common cross-toolchain locations are searched automatically.
-
-## Use embedded LLD for cross-compilation to Linux targets
-
-Cross-compilation to Linux targets (RISC-V, ARM, ARMhf) now uses the embedded LLD linker directly instead of invoking an external linker through `system()`. This eliminates the requirement to have a target-specific GCC cross-compiler installed solely for linking, and produces more predictable link behavior across host environments.
-
-The embedded LLD path activates automatically when cross-compiling to a Linux target without `--linker` set. To use an external linker instead, pass `--linker=<command>` as an escape hatch to the legacy linking path.
 
 ## Add capability security and multi-subscriber support to signal handling
 
@@ -127,9 +52,11 @@ actor Main
     end
 ```
 
+If a handler's registration cannot be completed — the 16-subscriber limit for that signal is already reached, or the runtime fails to register with the operating system — the handler is automatically disposed: its notify's `dispose` method runs and its `apply` method is never called.
+
 ## Signal handling API requires `SignalAuth` and `ValidSignal`
 
-The `SignalHandler` constructor now requires a `SignalAuth` capability and a `ValidSignal` constrained type instead of a raw `U32` signal number. `ANSITerm.create` also requires a `SignalAuth` parameter as its first argument.
+The `SignalHandler` constructor now requires a `SignalAuth` capability and a `ValidSignal` constrained type instead of a raw `U32` signal number. `SignalHandler.raise` and `SignalHandler.dispose` now require a `SignalAuth` as well. `ANSITerm.create` also requires a `SignalAuth` parameter as its first argument.
 
 Before:
 
@@ -137,6 +64,8 @@ Before:
 use "signals"
 
 let handler = SignalHandler(MyNotify, Sig.int())
+handler.raise()
+handler.dispose()
 ```
 
 ```pony
@@ -155,6 +84,8 @@ let auth = SignalAuth(env.root)
 match MakeValidSignal(Sig.int())
 | let sig: ValidSignal =>
   let handler = SignalHandler(auth, MyNotify, sig)
+  handler.raise(auth)
+  handler.dispose(auth)
 end
 ```
 
@@ -166,3 +97,4 @@ let auth = SignalAuth(env.root)
 let term = ANSITerm(auth, handler, env.input)
 ```
 
+Because `dispose` now takes a parameter, `SignalHandler` no longer satisfies interfaces that expect a parameterless `dispose`, such as `DisposableActor` — for example, a `bureaucracy.Custodian` can no longer dispose a `SignalHandler` directly.

@@ -1,4 +1,5 @@
-use "lib:ponyc-standalone" if not (openbsd or dragonfly)
+use "lib:ponyc-standalone"
+use "lib:z" if not windows
 use "lib:c++" if osx
 use "files"
 
@@ -50,6 +51,13 @@ class val Program
     Package.create(this, package_ast)?
 
   fun _final() =>
+    // The Program owns both the AST and its interned-string table. The table
+    // is detached from the pass_opt at construction time (so pass_opt_done does
+    // not free it while the AST is still in use) and freed here, once the AST
+    // that references its interned strings is gone.
     if not ast.raw.is_null() then
       @ast_free(ast.raw)
+    end
+    if not ast.strtab.is_null() then
+      @stringtab_free(ast.strtab)
     end

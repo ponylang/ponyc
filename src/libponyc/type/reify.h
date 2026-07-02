@@ -45,8 +45,6 @@ void deferred_reify_free(deferred_reification_t* deferred);
 bool check_constraints(ast_t* orig, ast_t* typeparams, ast_t* typeargs,
   bool report_errors, pass_opt_t* opt);
 
-pony_type_t* deferred_reification_pony_type();
-
 PONY_EXTERN_C_END
 
 #endif

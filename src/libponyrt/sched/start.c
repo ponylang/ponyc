@@ -5,7 +5,6 @@
 #include "../mem/heap.h"
 #include "../actor/actor.h"
 #include "../gc/cycle.h"
-#include "../gc/serialise.h"
 #include "../lang/process.h"
 #include "../lang/socket.h"
 #include "../options/options.h"
@@ -15,10 +14,6 @@
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
-
-#ifdef USE_VALGRIND
-#include <valgrind/helgrind.h>
-#endif
 
 typedef struct options_t
 {
@@ -56,8 +51,7 @@ typedef struct options_t
 typedef enum running_kind_t
 {
   NOT_RUNNING,
-  RUNNING_DEFAULT,
-  RUNNING_LIBRARY
+  RUNNING
 } running_kind_t;
 
 // global data
@@ -167,7 +161,7 @@ static int parse_uint64(uint64_t* target, uint64_t min, const char *value) {
   uint64_t v = strtoull(value, NULL, 10);
 #endif
 
-  if (v < (min < 0 ? 0 : min)) {
+  if (v < min) {
     return 1;
   }
   *target = v;
@@ -207,9 +201,35 @@ static int parse_opts(int argc, char** argv, options_t* opt)
       case OPT_MAXTHREADS: if(parse_uint(&opt->threads, 1, s.arg_val)) err_out(id, "can't be less than 1"); break;
       case OPT_MINTHREADS: if(parse_uint(&opt->min_threads, 0, s.arg_val)) err_out(id, "can't be less than 0"); minthreads_set = true; break;
       case OPT_NOSCALE: opt->noscale = true; break;
-      case OPT_SUSPENDTHRESHOLD: if(parse_uint(&opt->thread_suspend_threshold, 0, s.arg_val)) err_out(id, "can't be less than 0"); break;
-      case OPT_CDINTERVAL: if(parse_uint(&opt->cd_detect_interval, 0, s.arg_val)) err_out(id, "can't be less than 0"); break;
-      case OPT_GCINITIAL: if(parse_size(&opt->gc_initial, 0, s.arg_val)) err_out(id, "can't be less than 0"); break;
+      case OPT_SUSPENDTHRESHOLD:
+        if(parse_uint(&opt->thread_suspend_threshold, 1, s.arg_val))
+          err_out(id, "can't be less than 1");
+        if(opt->thread_suspend_threshold > 1000)
+          err_out(id, "can't be more than 1000");
+        break;
+      case OPT_CDINTERVAL:
+        if(parse_uint(&opt->cd_detect_interval, 10, s.arg_val))
+          err_out(id, "can't be less than 10");
+        if(opt->cd_detect_interval > 1000)
+          err_out(id, "can't be more than 1000");
+        break;
+      case OPT_GCINITIAL:
+        if(parse_size(&opt->gc_initial, 0, s.arg_val))
+          err_out(id, "can't be less than 0");
+        // gc_initial is the exponent N in a 2^N byte GC threshold; the runtime
+        // computes `(size_t)1 << N`, which is undefined once N reaches the bit
+        // width of size_t. Reject an out-of-range exponent rather than let the
+        // shift wrap -- on a 64-bit host `--ponygcinitial 64` would otherwise
+        // mask to `1 << 0`, a 1-byte threshold (GC on nearly every allocation),
+        // the opposite of the "defer GC" the flag promises.
+        if(opt->gc_initial >= (sizeof(size_t) * 8))
+        {
+          char msg[64];
+          snprintf(msg, sizeof(msg), "can't be %d or greater",
+            (int)(sizeof(size_t) * 8));
+          err_out(id, msg);
+        }
+        break;
       case OPT_GCFACTOR: if(parse_udouble(&opt->gc_factor, 1.0, s.arg_val)) err_out(id, "can't be less than 1.0"); break;
       case OPT_NOYIELD: opt->noyield = true; break;
       case OPT_NOBLOCK: opt->noblock = true; break;
@@ -266,12 +286,6 @@ PONY_API int pony_init(int argc, char** argv)
   pony_assert(!prev_init);
   pony_assert(
     atomic_load_explicit(&running, memory_order_relaxed) == NOT_RUNNING);
-
-  atomic_thread_fence(memory_order_acquire);
-#ifdef USE_VALGRIND
-  ANNOTATE_HAPPENS_AFTER(&initialised);
-  ANNOTATE_HAPPENS_AFTER(&running);
-#endif
 
   DTRACE0(RT_INIT);
   options_t opt;
@@ -371,15 +385,19 @@ PONY_API int pony_init(int argc, char** argv)
   return argc;
 }
 
-PONY_API bool pony_start(bool library, int* exit_code,
+// Changing this signature means updating the FFI prototype and call the
+// compiler emits for pony_start; see
+// .known-couplings/codegen-runtime-api-prototypes.md
+PONY_API bool pony_start(int* exit_code,
   const pony_language_features_init_t* language_features)
 {
   pony_assert(atomic_load_explicit(&initialised, memory_order_relaxed));
 
-  // Set to RUNNING_DEFAULT even if library is true so that pony_stop() isn't
-  // callable until the runtime has actually started.
+  // Guard against starting the runtime more than once. This latches to RUNNING
+  // and is never cleared: the runtime runs once per process, so neither a
+  // failed start below nor a completed run rolls it back.
   running_kind_t prev_running = atomic_exchange_explicit(&running,
-    RUNNING_DEFAULT, memory_order_relaxed);
+    RUNNING, memory_order_relaxed);
   (void)prev_running;
   pony_assert(prev_running == NOT_RUNNING);
 
@@ -389,55 +407,21 @@ PONY_API bool pony_start(bool library, int* exit_code,
       sizeof(pony_language_features_init_t));
 
     if(language_init.init_network && !ponyint_os_sockets_init())
-    {
-      atomic_store_explicit(&running, NOT_RUNNING, memory_order_relaxed);
       return false;
-    }
-
-    if(language_init.init_serialisation &&
-      !ponyint_serialise_setup(language_init.descriptor_table,
-        language_init.descriptor_table_size,
-        language_init.desc_table_offset_lookup))
-    {
-      atomic_store_explicit(&running, NOT_RUNNING, memory_order_relaxed);
-      return false;
-    }
   } else {
     memset(&language_init, 0, sizeof(pony_language_features_init_t));
   }
 
   if(!TRACING_START())
-  {
-    atomic_store_explicit(&running, NOT_RUNNING, memory_order_relaxed);
     return false;
-  }
 
-  if(!ponyint_sched_start(library))
-  {
-    atomic_store_explicit(&running, NOT_RUNNING, memory_order_relaxed);
+  if(!ponyint_sched_start())
     return false;
-  }
-
-  if(library)
-  {
-#ifdef USE_VALGRIND
-    ANNOTATE_HAPPENS_BEFORE(&running);
-#endif
-    atomic_store_explicit(&running, RUNNING_LIBRARY, memory_order_release);
-    return true;
-  }
 
   if(language_init.init_network)
     ponyint_os_sockets_final();
 
   int ec = pony_get_exitcode();
-#ifdef USE_VALGRIND
-  ANNOTATE_HAPPENS_BEFORE(&initialised);
-  ANNOTATE_HAPPENS_BEFORE(&running);
-#endif
-  atomic_thread_fence(memory_order_acq_rel);
-  atomic_store_explicit(&initialised, false, memory_order_relaxed);
-  atomic_store_explicit(&running, NOT_RUNNING, memory_order_relaxed);
 
   if(exit_code != NULL)
     *exit_code = ec;
@@ -446,38 +430,6 @@ PONY_API bool pony_start(bool library, int* exit_code,
   TRACING_STOP();
 
   return true;
-}
-
-PONY_API int pony_stop()
-{
-  pony_assert(atomic_load_explicit(&initialised, memory_order_relaxed));
-
-  running_kind_t loc_running = atomic_load_explicit(&running,
-    memory_order_acquire);
-#ifdef USE_VALGRIND
-  ANNOTATE_HAPPENS_AFTER(&running);
-#endif
-  (void)loc_running;
-  pony_assert(loc_running == RUNNING_LIBRARY);
-
-  ponyint_sched_stop();
-
-  if(language_init.init_network)
-    ponyint_os_sockets_final();
-
-  int ec = pony_get_exitcode();
-#ifdef USE_VALGRIND
-  ANNOTATE_HAPPENS_BEFORE(&initialised);
-  ANNOTATE_HAPPENS_BEFORE(&running);
-#endif
-  atomic_thread_fence(memory_order_acq_rel);
-  atomic_store_explicit(&initialised, false, memory_order_relaxed);
-  atomic_store_explicit(&running, NOT_RUNNING, memory_order_relaxed);
-
-  // stop tracing as the last thing the program does
-  TRACING_STOP();
-
-  return ec;
 }
 
 PONY_API void pony_exitcode(int code)

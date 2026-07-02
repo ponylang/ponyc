@@ -29,14 +29,14 @@ ast_t* type_pointer_to(pass_opt_t* opt, ast_t* to);
  * Creates an AST node for a package and type.
  * Does not validate the type.
  */
-ast_t* type_sugar(ast_t* from, const char* package, const char* name);
+ast_t* type_sugar(ast_t* from, const char* package, const char* name, pass_opt_t* opt);
 
 /**
  * Same as above, but with typeargs.
  * Does not validate the type.
  */
 ast_t* type_sugar_args(ast_t* from, const char* package, const char* name,
-  ast_t* typeargs);
+  ast_t* typeargs, pass_opt_t* opt);
 
 /**
 * Add a branch type to a control structure type.

@@ -2,11 +2,10 @@
 // CMake variables (like PONYC_VERSION enclosed in @ symbols) are replaced at configure time.
 // To modify version.pony, edit version.pony.in instead.
 
-primitive PonyLspVersion
+primitive Version
   """
-  Provides version information for the Pony Language Server.
-  The version matches the ponyc compiler version.
+  Returns the pony-lsp version string. The version matches the ponyc
+  compiler version since pony-lsp is distributed with ponyc.
   """
-  fun version_string(): String =>
-    """Returns the ponyc compiler version string."""
+  fun apply(): String =>
     "@PONYC_VERSION@"

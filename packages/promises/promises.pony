@@ -14,7 +14,7 @@ fulfill handler do not have to be the same, so a chain of fulfill
 handlers can transform the original value into something new.
 
 Fulfill and reject handlers can either be specified as classes that
-implment the `Fulfill` and `Reject` interfaces, or as functions with
+implement the `Fulfill` and `Reject` interfaces, or as functions with
 the same signatures as the `apply` methods in `Fulfill` and `Reject`.
 
 In the following code, the fulfillment of the `Promise` causes the

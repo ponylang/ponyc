@@ -15,7 +15,7 @@ interface val ByteSeqIter
 
 interface tag OutStream
   """
-  Asnychronous access to some output stream.
+  Asynchronous access to some output stream.
   """
   be print(data: ByteSeq)
     """

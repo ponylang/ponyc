@@ -1,5 +1,7 @@
 class val DocSourceFile
-  """A source file included in the documentation output."""
+  """
+  A source file included in the documentation output.
+  """
   let package_name: String
   let filename: String
   let content: String
@@ -14,7 +16,9 @@ class val DocSourceFile
     content = content'
 
 class val DocSourceLocation
-  """The source location of a documented element."""
+  """
+  The source location of a documented element.
+  """
   let file_path: String
   let line: USize
 

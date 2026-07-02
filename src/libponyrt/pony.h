@@ -73,37 +73,6 @@ typedef struct pony_msgp_t
  */
 typedef void (*pony_trace_fn)(pony_ctx_t* ctx, void* p);
 
-/** Serialise function.
- *
- * Each type may supply a serialise function. It is invoked with the currently
- * executing context, the object being serialised, and an address to serialise
- * to.
- *
- * A serialise function must not raise errors.
- */
-typedef void (*pony_serialise_fn)(pony_ctx_t* ctx, void* p, void* addr,
-  size_t offset, int m);
-
-/** Serialise Space function.
- *
- * Each class may supply a group of custom serialisation function. This
- * function returns the amount of extra space that the object needs for
- * custom serialisation.
- *
- * A serialise space function must not raise errors.
- */
-typedef size_t (*pony_custom_serialise_space_fn)(void* p);
-
-/** Custom Deserialise function.
- *
- * Each class may supply a group of custom serialisation function. This
- * function takes a pointer to a byte array and does whatever user-defined
- * deserialization.
- *
- * A custom deserialise function must not raise errors.
- */
-typedef size_t (*pony_custom_deserialise_fn)(void* p, void *addr);
-
 /** Dispatch function.
  *
  * Each actor has a dispatch function that is invoked when the actor handles
@@ -130,18 +99,11 @@ typedef char* (*pony_behavior_name_fn)(uint32_t id);
  */
 typedef void (*pony_final_fn)(void* p);
 
-/** Partial function.
- *
- * A callback for the pony_try() function, which is allowed to raise errors.
- */
-typedef void (*pony_partial_fn)(void* data);
-
 /// Describes a type to the runtime.
 typedef const struct _pony_type_t
 {
   uint32_t id;
   uint32_t size;
-  size_t serialise_id;
   uint32_t field_count;
   uint32_t field_offset;
   void* instance;
@@ -150,11 +112,6 @@ typedef const struct _pony_type_t
   pony_behavior_name_fn get_behavior_name;
   #endif
   pony_trace_fn trace;
-  pony_trace_fn serialise_trace;
-  pony_serialise_fn serialise;
-  pony_trace_fn deserialise;
-  pony_custom_serialise_space_fn custom_serialise_space;
-  pony_custom_deserialise_fn custom_deserialise;
   pony_dispatch_fn dispatch;
   pony_final_fn final;
   uint32_t event_notify;
@@ -164,12 +121,6 @@ typedef const struct _pony_type_t
   void* vtable;
 } pony_type_t;
 
-/** Desc table lookup function.
- *
- * A function to convert `serialise_id`s to offsets in the desc table
- */
-typedef uint32_t (*desc_offset_lookup_fn)(size_t serialise_id);
-
 /** Language feature initialiser.
  *
  * Contains initialisers for the various language features initialised by
@@ -178,27 +129,7 @@ typedef uint32_t (*desc_offset_lookup_fn)(size_t serialise_id);
 typedef struct pony_language_features_init_t
 {
   /// Network-related initialisers.
-
   bool init_network;
-
-
-  /// Serialisation-related initialisers.
-
-  bool init_serialisation;
-
-  /** Type descriptor table pointer.
-   *
-   * Should point to an array of type descriptors. For each element in the
-   * array, the id field should correspond to the array index. The array can
-   * contain NULL elements.
-   */
-  pony_type_t** descriptor_table;
-
-  /// The total size of the descriptor_table array.
-  size_t descriptor_table_size;
-
-  /// The function to translate `serialise_id`s to offsets in the desc_table
-  desc_offset_lookup_fn desc_table_offset_lookup;
 } pony_language_features_init_t;
 
 /// The currently executing context.
@@ -317,9 +248,15 @@ PONY_API void pony_triggergc(pony_ctx_t* ctx);
 /** Start gc tracing for sending.
  *
  * Call this before sending a message if it has anything in it that can be
- * GCed. Then trace all the GCable items, then call pony_send_done.
+ * GCed. Then trace all the GCable items, then call pony_send_done. `to` is the
+ * message's destination actor: the send-trace uses it to recognise a self-send
+ * (an object forwarded back to the sending actor) and pin such objects against
+ * the local GC sweep while they round-trip through the actor's own queue, so
+ * weighted reference counting amortises the owner acquire instead of
+ * re-borrowing on every round-trip. Pass NULL if there is no meaningful
+ * destination; the send is then never treated as a self-send.
  */
-PONY_API void pony_gc_send(pony_ctx_t* ctx);
+PONY_API void pony_gc_send(pony_ctx_t* ctx, pony_actor_t* to);
 
 /** Start gc tracing for receiving.
  *
@@ -381,9 +318,12 @@ PONY_API void pony_release_done(pony_ctx_t* ctx);
  * pony_gc_send/pony_send_done round instead of doing one pair of calls for each
  * message. Call pony_send_next before tracing the content of a new message.
  * Using this function can reduce the amount of gc-specific messages
- * sent.
+ * sent. `to` is the new message's destination actor (used for self-send
+ * detection, the same as the pony_gc_send argument, and NULL likewise means
+ * "no destination, never a self-send"); it takes effect only after the
+ * previous message's trace has been finished.
  */
-PONY_API void pony_send_next(pony_ctx_t* ctx);
+PONY_API void pony_send_next(pony_ctx_t* ctx, pony_actor_t* to);
 
 /** Identifiers for reference capabilities when tracing.
  *
@@ -434,7 +374,8 @@ PONY_API void pony_traceunknown(pony_ctx_t* ctx, void* p, int m);
  *
  * Then call pony_start().
  *
- * It is not safe to call this again before the runtime has terminated.
+ * The runtime can only be initialised and run once per process; it is not safe
+ * to call this more than once.
  */
 PONY_API int pony_init(int argc, char** argv);
 
@@ -444,20 +385,16 @@ PONY_API int pony_init(int argc, char** argv);
  * the value pointed by exit_code set with pony_exitcode(), defaulting to 0.
  * exit_code can be NULL if you don't care about the exit code.
  *
- * If library is false, this call will return when the pony program has
- * terminated. If library is true, this call will return immediately, with an
- * exit code of 0, and the runtime won't terminate until pony_stop() is
- * called. This allows further processing to be done on the current thread.
- * The value pointed by exit_code will not be modified if library is true. Use
- * the return value of pony_stop() in that case.
+ * This call will return when the pony program has terminated.
  *
  * language_features specifies which features of the runtime specific to the
- * Pony language, such as network or serialisation, should be initialised.
+ * Pony language, such as network, should be initialised.
  * If language_features is NULL, no feature will be initialised.
  *
- * It is not safe to call this again before the runtime has terminated.
+ * The runtime can only be run once per process; it is not safe to call this
+ * more than once.
  */
-PONY_API bool pony_start(bool library, int* exit_code,
+PONY_API bool pony_start(int* exit_code,
   const pony_language_features_init_t* language_features);
 
 /**
@@ -480,14 +417,6 @@ PONY_API void pony_unregister_thread();
 
 PONY_API int32_t pony_scheduler_index();
 
-/** Signals that the pony runtime may terminate.
- *
- * This only needs to be called if pony_start() was called with library set to
- * true. This returns the exit code, defaulting to zero. This call won't return
- * until the runtime actually terminates.
- */
-PONY_API int pony_stop();
-
 /** Set the exit code.
  *
  * The value returned by pony_start() will be 0 unless set to something else
@@ -509,25 +438,6 @@ PONY_API int pony_get_exitcode();
  * A thread must ponyint_become an actor before it can pony_poll.
  */
 PONY_API void pony_poll(pony_ctx_t* ctx);
-
-/**
- * The pony_try function can be used to handle Pony errors from C code.
- * callback is invoked with data passed as its argument.
- * Returns false if an error was raised, true otherwise.
- */
-PONY_API bool pony_try(pony_partial_fn callback, void* data);
-
-/**
- * Raise a Pony error.
- *
- * This should only be called from pony_try() or from a Pony try block. In both
- * cases, arbitrarily deep call stacks are allowed between the call to
- * pony_error() and the error destination.
- *
- * If pony_error() is called and neither pony_try() nor a try block exist higher
- * in the call stack, the runtime calls the C abort() function.
- */
-PONY_API void pony_error();
 
 #if defined(__cplusplus)
 }

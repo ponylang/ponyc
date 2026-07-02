@@ -424,6 +424,51 @@ class \nodoc\ _TestIgnoreMatcherHierarchical is UnitTest
       h.fail("could not create temp directory")
     end
 
+class \nodoc\ _TestIgnoreMatcherOversizedFile is UnitTest
+  """Oversized ignore file produces an error and loads no rules."""
+  fun name(): String => "IgnoreMatcher: oversized file -> error"
+
+  fun apply(h: TestHelper) =>
+    let auth = h.env.root
+    try
+      let tmp = FilePath.mkdtemp(FileAuth(auth), "ignore-test")?
+      let git_dir =
+        FilePath(FileAuth(auth), Path.join(tmp.path, ".git"))
+      git_dir.mkdir()
+      // Write a .gitignore that exceeds the 64 KB limit
+      let gitignore_path =
+        Path.join(tmp.path, ".gitignore")
+      let gitignore =
+        File(FilePath(FileAuth(auth), gitignore_path))
+      let content = recover val String(65_537) .> append("x" * 65_537) end
+      gitignore.print(content)
+      gitignore.dispose()
+
+      let matcher = lint.IgnoreMatcher(FileAuth(auth), tmp.path)
+      matcher.load_directory(tmp.path)
+
+      // Should not have loaded any rules
+      h.assert_false(
+        matcher.is_ignored(
+          Path.join(tmp.path, "anything"), "anything", false))
+
+      // Should have recorded an error
+      let errs = matcher.errors()
+      h.assert_eq[USize](1, errs.size())
+      try
+        (let msg, _) = errs(0)?
+        h.assert_true(msg.contains("too large"))
+      else
+        h.fail("could not read error")
+      end
+
+      FilePath(FileAuth(auth), gitignore_path).remove()
+      git_dir.remove()
+      tmp.remove()
+    else
+      h.fail("could not create temp directory")
+    end
+
 class \nodoc\ _TestIgnoreMatcherAnchoredPattern is UnitTest
   """Anchored patterns match against the relative path from base_dir."""
   fun name(): String => "IgnoreMatcher: anchored pattern"

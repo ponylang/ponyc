@@ -3,10 +3,9 @@
 
 #include <platform.h>
 #include "../libponyrt/ds/list.h"
+#include "../ast/stringtab.h"
 
 #include <stdio.h>
-
-#define SIGNATURE_LENGTH 64
 
 PONY_EXTERN_C_BEGIN
 
@@ -17,7 +16,7 @@ typedef struct pass_opt_t pass_opt_t;
 typedef struct ast_t ast_t;
 typedef struct typecheck_t typecheck_t;
 
-DECLARE_LIST_SERIALISE(package_group_list, package_group_list_t,
+DECLARE_LIST(package_group_list, package_group_list_t,
   package_group_t)
 
 // Function that will handle a path in some way.
@@ -113,7 +112,7 @@ const char* package_name(ast_t* ast);
  * Gets an AST ID node with a string set to the unique ID of the packaged. The
  * first package loaded will be $0, the second $1, etc.
  */
-ast_t* package_id(ast_t* ast);
+ast_t* package_id(ast_t* ast, pass_opt_t* opt);
 
 /**
  * Gets the package path.
@@ -140,12 +139,45 @@ const char* package_symbol(ast_t* package);
  * per-package basis. The first one will be $0, the second $1, etc.
  * The returned string will be a string table entry and should not be freed.
  */
-const char* package_hygienic_id(typecheck_t* t);
+const char* package_hygienic_id(typecheck_t* t, pass_opt_t* opt);
 
 /**
  * Returns true if the current package is allowed to do C FFI.
  */
 bool package_allow_ffi(typecheck_t* t);
+
+/// Process a "cincludedir:" scheme use command.
+bool use_cincludedir(ast_t* use, const char* locator, ast_t* name,
+  pass_opt_t* options);
+
+/// Process a "cdefine:" scheme use command.
+bool use_cdefine(ast_t* use, const char* locator, ast_t* name,
+  pass_opt_t* options);
+
+/**
+ * C include search paths for the package's shim sources, in insertion order.
+ * Relative cincludedir: paths have already been resolved against the package
+ * directory.
+ */
+strlist_t* package_c_includes(ast_t* package);
+
+/**
+ * C preprocessor defines for the package's shim sources, in insertion order.
+ * Each entry is the raw directive text ("NAME" or "NAME=VALUE").
+ */
+strlist_t* package_c_defines(ast_t* package);
+
+/**
+ * Full paths of the package's C shim sources, in sorted order.
+ */
+strlist_t* package_c_sources(ast_t* package);
+
+/**
+ * The first cdefine:/cincludedir: directive recorded for the package, or NULL
+ * if none. Used to locate the error when such a directive lands in a
+ * package with no C sources.
+ */
+ast_t* package_c_first_flag_use(ast_t* package);
 
 /**
  * Gets the alias of a package in the current module from the hygienic ID
@@ -157,14 +189,12 @@ bool package_allow_ffi(typecheck_t* t);
  * `package_alias_from_id(current_module_ast, "$2")` will return the string
  * "foo".
  */
-const char* package_alias_from_id(ast_t* module, const char* id);
+const char* package_alias_from_id(ast_t* module, const char* id, pass_opt_t* opt);
 
 /**
  * Adds a package to the dependency list of another package.
  */
 void package_add_dependency(ast_t* package, ast_t* dep);
-
-const char* package_signature(ast_t* package);
 
 size_t package_group_index(ast_t* package);
 
@@ -178,26 +208,12 @@ void package_group_free(package_group_t* group);
  */
 package_group_list_t* package_dependency_groups(ast_t* first_package);
 
-const char* package_group_signature(package_group_t* group);
-
 void package_group_dump(package_group_t* group);
 
 /**
  * Cleans up the list of search directories.
  */
 void package_done(pass_opt_t* opt);
-
-pony_type_t* package_dep_signature_pony_type();
-
-pony_type_t* package_signature_pony_type();
-
-pony_type_t* package_group_dep_signature_pony_type();
-
-pony_type_t* package_group_signature_pony_type();
-
-pony_type_t* package_pony_type();
-
-pony_type_t* package_group_pony_type();
 
 bool is_path_absolute(const char* path);
 

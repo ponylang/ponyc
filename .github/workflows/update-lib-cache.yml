@@ -10,10 +10,67 @@ concurrency:
   group: "update-lib-cache"
 
 permissions:
-  packages: read
+  packages: write
 
 jobs:
-  x86_64-linux:
+  # The warmer pushes a freshly built LLVM ("libs") cache for every platform any
+  # CI consumer pulls. On a cold push (an LLVM-input change) every platform
+  # cold-builds LLVM at once, which would saturate the org-wide runner pool. To
+  # keep the most-used caches ahead of the rarely-used ones, the build-outs run
+  # in three sequential stages:
+  #
+  #   Stage 1 - platforms PR CI pulls: x86_64-linux-pr, arm64-macos,
+  #             x86_64-windows
+  #   Stage 2 - platforms releases/nightlies pull: x86_64-linux-release,
+  #             arm64-linux, x86_64-macos, arm64-windows
+  #   Stage 3 - everything else: x86_64-linux-other (fedora + cross), freebsd,
+  #             openbsd, dragonflybsd
+  #
+  # Each later stage gates (`needs:`) on the prior stage's FAST jobs only - Linux
+  # and macOS - and deliberately NOT on Windows, whose builds are slow: a Windows
+  # job kicks off in its stage but must never block the next one. Stages use
+  # `if: ${{ !cancelled() }}` so a prior-stage build FAILURE delays but does not
+  # cancel the later stages. The jobs below are not grouped by stage in file
+  # order; each job's `needs:` and comment state its stage.
+  #
+  # Stage 3's seven builds - the four x86_64-linux-other matrix legs plus the
+  # three BSD VMs - are each 2-3h, so the stage is capped at AT MOST 2 running
+  # at once to bound runner-pool use. Three things together enforce that, and
+  # removing any one re-opens the stage to more than 2: x86_64-linux-other
+  # carries `max-parallel: 2` for its four legs; freebsd/openbsd/dragonflybsd
+  # `needs:` x86_64-linux-other, so the BSD VMs never run alongside the
+  # container legs; and dragonflybsd additionally `needs:` freebsd, so the
+  # three BSDs themselves run 2 at a time.
+
+  # Stage 1 (PR). No gate; starts immediately.
+  x86_64-linux-pr:
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - image: ghcr.io/ponylang/ponyc-ci-ubuntu26.04-builder:20260425
+
+    name: ${{ matrix.image }}
+    container:
+      image: ${{ matrix.image }}
+      options: --user pony
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6.0.2
+      - name: Build and push libs
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          LIBS_IMAGE: ${{ matrix.image }}
+          LIBS_TAG: ${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
+        run: python3 .ci-scripts/libs-cache/resolve_libs_cache.py --warm --image "$LIBS_IMAGE" --tag "$LIBS_TAG" -- make libs llvm_tools=false build_flags=-j4
+
+  # Stage 2 (release/nightly). Gate on stage-1 fast jobs only, never
+  # x86_64-windows (slow).
+  x86_64-linux-release:
+    needs: [x86_64-linux-pr, arm64-macos]
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
 
     strategy:
@@ -21,11 +78,38 @@ jobs:
       matrix:
         include:
           - image: ghcr.io/ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu24.04-builder:20250115
-          - image: ghcr.io/ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu22.04-builder:20230924
-          - image: ghcr.io/ponylang/ponyc-ci-x86-64-unknown-linux-alpine3.20-builder:20250510
-          - image: ghcr.io/ponylang/ponyc-ci-x86-64-unknown-linux-alpine3.21-builder:20250510
-          - image: ghcr.io/ponylang/ponyc-ci-alpine3.22-builder:20251022
+          - image: ghcr.io/ponylang/ponyc-ci-alpine3.24-builder:20260611
           - image: ghcr.io/ponylang/ponyc-ci-alpine3.23-builder:20260201
+
+    name: ${{ matrix.image }}
+    container:
+      image: ${{ matrix.image }}
+      options: --user pony
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6.0.2
+      - name: Build and push libs
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          LIBS_IMAGE: ${{ matrix.image }}
+          LIBS_TAG: ${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
+        run: python3 .ci-scripts/libs-cache/resolve_libs_cache.py --warm --image "$LIBS_IMAGE" --tag "$LIBS_TAG" -- make libs llvm_tools=false build_flags=-j4
+
+  # Stage 3 (everything else). Gate on stage-2 fast jobs only, never
+  # arm64-windows (slow). `max-parallel: 2` caps these four legs at 2; the BSD
+  # jobs then wait on this job, so stage 3 runs at most 2 builds at once (see
+  # the stage-3 cap note in the top comment).
+  x86_64-linux-other:
+    needs: [x86_64-linux-release, arm64-linux, x86_64-macos]
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      max-parallel: 2
+      matrix:
+        include:
+          - image: ghcr.io/ponylang/ponyc-ci-x86-64-unknown-linux-fedora44-builder:20260614
           - image: ghcr.io/ponylang/ponyc-ci-cross-arm:20250223
           - image: ghcr.io/ponylang/ponyc-ci-cross-armhf:20250223
           - image: ghcr.io/ponylang/ponyc-ci-cross-riscv64:20240427
@@ -36,29 +120,24 @@ jobs:
       options: --user pony
     steps:
       - name: Checkout
-        uses: actions/checkout@v4.1.1
-      - name: Cache Libs
-        id: cache-libs
-        uses: actions/cache@v4
-        with:
-          path: |
-            build/libs
-            lib/llvm/src/compiler-rt/lib/builtins
-          key: libs-${{ matrix.image }}-${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
-      - name: Build Libs
-        if: steps.cache-libs.outputs.cache-hit != 'true'
-        run: make libs build_flags=-j8
+        uses: actions/checkout@v6.0.2
+      - name: Build and push libs
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          LIBS_IMAGE: ${{ matrix.image }}
+          LIBS_TAG: ${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
+        run: python3 .ci-scripts/libs-cache/resolve_libs_cache.py --warm --image "$LIBS_IMAGE" --tag "$LIBS_TAG" -- make libs llvm_tools=false build_flags=-j4
 
-  # Currently, Github actions supplied by GH like checkout and cache do not work
-  # in musl libc environments on arm64. We can work around this by running
-  # those actions on the host and then "manually" doing our work that would
-  # normally be done "in the musl container" by starting the container ourselves
-  # for various steps by invoking docker directly.
-  #
-  # This is not in line with our standard pattern of "just do it all in the
-  # container" but is required to work around the GitHub actions limitation
-  # documented above.
+  # Currently, Github actions supplied by GH like checkout do not work in musl
+  # libc environments on arm64. We work around this by running checkout on the
+  # host and doing the build inside the container we start ourselves via docker.
+  # The libs cache push/pull runs inside that container too (the builder images
+  # all ship python3), so no host-side registry handling is needed.
   arm64-linux:
+    # Stage 2 (release/nightly). Gate on stage-1 fast jobs only, never
+    # x86_64-windows (slow).
+    needs: [x86_64-linux-pr, arm64-macos]
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-24.04-arm
 
     strategy:
@@ -66,113 +145,323 @@ jobs:
       matrix:
         include:
           - image: ghcr.io/ponylang/ponyc-ci-arm64-unknown-linux-ubuntu24.04-builder:20250510
-          - image: ghcr.io/ponylang/ponyc-ci-arm64-unknown-linux-alpine3.21-builder:20250510
           - image: ghcr.io/ponylang/ponyc-ci-alpine3.23-builder:20260201
+          - image: ghcr.io/ponylang/ponyc-ci-alpine3.24-builder:20260611
+          - image: ghcr.io/ponylang/ponyc-ci-ubuntu26.04-builder:20260425
 
     name: ${{ matrix.image }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4.1.1
-      - name: Cache Libs
-        id: cache-libs
-        uses: actions/cache@v4
-        with:
-          path: |
-            build/libs
-            lib/llvm/src/compiler-rt/lib/builtins
-          key: libs-${{ matrix.image }}-${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
+        uses: actions/checkout@v6.0.2
       - name: Login to GitHub Container Registry
-        if: steps.cache-libs.outputs.cache-hit != 'true'
-        uses: docker/login-action@v3
+        uses: docker/login-action@v4
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
       - name: Pull Docker image
-        if: steps.cache-libs.outputs.cache-hit != 'true'
         run: docker pull ${{ matrix.image }}
-      - name: Build Libs
-        if: steps.cache-libs.outputs.cache-hit != 'true'
+      - name: Build and push libs
+        env:
+          LIBS_TAG: ${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
         run: |
           docker run --rm \
             --user pony \
+            -e GITHUB_TOKEN=${{ secrets.GITHUB_TOKEN }} \
+            -e GITHUB_REPOSITORY \
+            -e GITHUB_ACTOR \
+            -e LIBS_IMAGE="${{ matrix.image }}" \
+            -e LIBS_TAG="$LIBS_TAG" \
             -v ${{ github.workspace }}:/home/pony/project \
             -w /home/pony/project \
             ${{ matrix.image }} \
-            make libs build_flags=-j8
+            sh -c 'python3 .ci-scripts/libs-cache/resolve_libs_cache.py --warm --image "$LIBS_IMAGE" --tag "$LIBS_TAG" -- make libs llvm_tools=false build_flags=-j4'
 
   x86_64-macos:
+    # Stage 2 (release/nightly). Gate on stage-1 fast jobs only, never
+    # x86_64-windows (slow).
+    needs: [x86_64-linux-pr, arm64-macos]
+    if: ${{ !cancelled() }}
     runs-on: macos-15-intel
 
     name: x86-64 Apple Darwin
     steps:
       - name: Checkout
-        uses: actions/checkout@v4.1.1
-      - name: Cache Libs
-        id: restore-libs
-        uses: actions/cache@v4
-        with:
-          path: |
-            build/libs
-            lib/llvm/src/compiler-rt/lib/builtins
-          key: libs-x86-macos-15-intel-${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
-      - name: Build Libs
-        if: steps.restore-libs.outputs.cache-hit != 'true'
-        run: make libs build_flags=-j8
+        uses: actions/checkout@v6.0.2
+      - name: Build and push libs
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          LIBS_TAG: ${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
+        run: python3 .ci-scripts/libs-cache/resolve_libs_cache.py --warm --platform x86-macos-15-intel --tag "$LIBS_TAG" -- make libs llvm_tools=false build_flags=-j4
 
   arm64-macos:
-    runs-on: macos-15
+    # Stage 1 (PR). No gate; starts immediately.
+    runs-on: macos-26
 
     name: arm64 Apple Darwin
     steps:
       - name: Checkout
-        uses: actions/checkout@v4.1.1
-      - name: Cache Libs
-        id: restore-libs
-        uses: actions/cache@v4
-        with:
-          path: |
-            build/libs
-            lib/llvm/src/compiler-rt/lib/builtins
-          key: libs-arm64-macos-15-${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
-      - name: Build Libs
-        if: steps.restore-libs.outputs.cache-hit != 'true'
-        run: make libs build_flags=-j8
+        uses: actions/checkout@v6.0.2
+      - name: Build and push libs
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          LIBS_TAG: ${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
+        run: python3 .ci-scripts/libs-cache/resolve_libs_cache.py --warm --platform arm64-macos-26 --tag "$LIBS_TAG" -- make libs llvm_tools=false build_flags=-j3
 
   x86_64-windows:
-    runs-on: windows-2025
+    # Stage 1 (PR). No gate; starts immediately. Slow, so no later stage gates
+    # on it.
+    runs-on: windows-2025-vs2026
 
     name: x86-64 Windows MSVC
     steps:
+      - name: Disable Windows Defender
+        run: Set-MpPreference -DisableRealtimeMonitoring $true
       - name: Checkout
-        uses: actions/checkout@v4.1.1
-      - name: Cache Libs
-        id: restore-libs
-        uses: actions/cache@v4
-        with:
-          path: |
-            build/libs
-            lib/llvm/src/compiler-rt/lib/builtins
-          key: libs-windows-2025-${{ hashFiles('make.ps1', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
-      - name: Build Libs
-        if: steps.restore-libs.outputs.cache-hit != 'true'
-        run: .\make.ps1 -Command libs
+        uses: actions/checkout@v6.0.2
+      - name: Build and push libs
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          LIBS_TAG: ${{ hashFiles('make.ps1', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
+        run: python .ci-scripts/libs-cache/resolve_libs_cache.py --warm --platform windows-2025-vs2026 --tag $env:LIBS_TAG '--' pwsh -File make.ps1 -Command libs -LlvmTools false
 
   arm64-windows:
+    # Stage 2 (release/nightly). Gate on stage-1 fast jobs only, never
+    # x86_64-windows (slow). Slow itself, so no later stage gates on it.
+    needs: [x86_64-linux-pr, arm64-macos]
+    if: ${{ !cancelled() }}
     runs-on: windows-11-arm
 
-    name: x86-64 Windows MSVC
+    name: arm64 Windows MSVC
+    steps:
+      - name: Disable Windows Defender
+        run: Set-MpPreference -DisableRealtimeMonitoring $true
+      - name: Checkout
+        uses: actions/checkout@v6.0.2
+      - name: Build and push libs
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          LIBS_TAG: ${{ hashFiles('make.ps1', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
+        run: python .ci-scripts/libs-cache/resolve_libs_cache.py --warm --platform windows-11-arm --tag $env:LIBS_TAG '--' pwsh -File make.ps1 -Command libs -LlvmTools false -Arch ARM64
+
+  freebsd:
+    # Stage 3. `needs:` x86_64-linux-other (which itself gates on the stage-2
+    # fast jobs) so the BSD VMs never run alongside the container legs - part of
+    # the stage-3 "at most 2 at once" cap (see the top comment).
+    needs: [x86_64-linux-other]
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-latest
+    name: x86-64 FreeBSD 15.1
     steps:
       - name: Checkout
-        uses: actions/checkout@v4.1.1
-      - name: Cache Libs
-        id: restore-libs
-        uses: actions/cache@v4
-        with:
-          path: |
-            build/libs
-            lib/llvm/src/compiler-rt/lib/builtins
-          key: libs-windows-11-arm-${{ hashFiles('make.ps1', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
-      - name: Build Libs
-        if: steps.restore-libs.outputs.cache-hit != 'true'
-        run: .\make.ps1 -Command libs -Arch ARM64
+        uses: actions/checkout@v6.0.2
+      - name: Check libs cache
+        id: check
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          LIBS_TAG: ${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
+        run: |
+          if python3 .ci-scripts/libs-cache/oci_libs_cache.py exists --platform freebsd-15.1 --tag "$LIBS_TAG"; then
+            echo "hit=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "hit=false" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Promote branch libs if present
+        id: promote
+        if: steps.check.outputs.hit != 'true'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          LIBS_TAG: ${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
+        run: |
+          # Host-side promote (no VM boot): if a branch artifact exists for this
+          # tag, copy it into the main cache instead of provisioning the VM to
+          # rebuild. A promote failure is non-fatal -- promoted=false falls through
+          # to the VM build below.
+          if python3 .ci-scripts/libs-cache/branch_libs_cache.py exists --platform freebsd-15.1 --tag "$LIBS_TAG"; then
+            if python3 .ci-scripts/libs-cache/promote_libs_cache.py --platform freebsd-15.1 --tag "$LIBS_TAG"; then
+              echo "promoted=true" >> "$GITHUB_OUTPUT"
+            else
+              echo "promoted=false" >> "$GITHUB_OUTPUT"
+            fi
+          else
+            echo "promoted=false" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Provision VM
+        if: steps.check.outputs.hit != 'true' && steps.promote.outputs.promoted != 'true'
+        env:
+          FREEBSD_VERSION: '15.1'
+        run: bash .ci-scripts/bsd/freebsd-provision.bash
+      - name: Build and push libs
+        if: steps.check.outputs.hit != 'true' && steps.promote.outputs.promoted != 'true'
+        env:
+          LIBS_TAG: ${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
+        run: |
+          ssh -o StrictHostKeyChecking=no -i vm_key -p 2222 freebsd@localhost \
+            "cd /home/freebsd/ponyc && \
+             export GITHUB_TOKEN='${{ secrets.GITHUB_TOKEN }}' GITHUB_REPOSITORY='${{ github.repository }}' GITHUB_ACTOR='${{ github.actor }}' && \
+             gmake libs llvm_tools=false build_flags=-j4 && \
+             python3 .ci-scripts/libs-cache/oci_libs_cache.py push --platform freebsd-15.1 --tag '${LIBS_TAG}'"
+      - name: Shutdown VM
+        if: always()
+        run: |
+          pkill -f qemu-system-x86 || true
+
+  openbsd:
+    # Stage 3. `needs:` x86_64-linux-other (which itself gates on the stage-2
+    # fast jobs) so the BSD VMs never run alongside the container legs - part of
+    # the stage-3 "at most 2 at once" cap (see the top comment).
+    needs: [x86_64-linux-other]
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-latest
+    name: x86-64 OpenBSD 7.9
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6.0.2
+      - name: Check libs cache
+        id: check
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          LIBS_TAG: ${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
+        run: |
+          if python3 .ci-scripts/libs-cache/oci_libs_cache.py exists --platform openbsd-7.9 --tag "$LIBS_TAG"; then
+            echo "hit=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "hit=false" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Promote branch libs if present
+        id: promote
+        if: steps.check.outputs.hit != 'true'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          LIBS_TAG: ${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
+        run: |
+          # Host-side promote (no VM boot): if a branch artifact exists for this
+          # tag, copy it into the main cache instead of provisioning the VM to
+          # rebuild. A promote failure is non-fatal -- promoted=false falls through
+          # to the VM build below.
+          if python3 .ci-scripts/libs-cache/branch_libs_cache.py exists --platform openbsd-7.9 --tag "$LIBS_TAG"; then
+            if python3 .ci-scripts/libs-cache/promote_libs_cache.py --platform openbsd-7.9 --tag "$LIBS_TAG"; then
+              echo "promoted=true" >> "$GITHUB_OUTPUT"
+            else
+              echo "promoted=false" >> "$GITHUB_OUTPUT"
+            fi
+          else
+            echo "promoted=false" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Provision VM
+        if: steps.check.outputs.hit != 'true' && steps.promote.outputs.promoted != 'true'
+        run: bash .ci-scripts/bsd/openbsd-provision.bash
+      - name: Build and push libs
+        if: steps.check.outputs.hit != 'true' && steps.promote.outputs.promoted != 'true'
+        env:
+          LIBS_TAG: ${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
+        run: |
+          ssh -o StrictHostKeyChecking=no -o ServerAliveInterval=60 -i vm_key -p 2222 openbsd@localhost \
+            "cd /build/ponyc && \
+             export GITHUB_TOKEN='${{ secrets.GITHUB_TOKEN }}' GITHUB_REPOSITORY='${{ github.repository }}' GITHUB_ACTOR='${{ github.actor }}' && \
+             gmake libs llvm_tools=false build_flags=-j4 && \
+             rm -rf build/build_libs && \
+             python3 .ci-scripts/libs-cache/oci_libs_cache.py push --platform openbsd-7.9 --tag '${LIBS_TAG}'"
+      - name: Shutdown VM
+        if: always()
+        run: |
+          pkill -f qemu-system-x86 || true
+
+  dragonflybsd:
+    # Stage 3. `needs:` x86_64-linux-other AND freebsd: the first keeps the BSD
+    # VMs off the container legs, the second caps the three BSDs themselves at 2
+    # at once - together the stage-3 "at most 2 at once" cap (see the top
+    # comment).
+    needs: [x86_64-linux-other, freebsd]
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-latest
+    name: x86-64 DragonFly BSD 6.4.2
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6.0.2
+      - name: Check libs cache
+        id: check
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          LIBS_TAG: ${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
+        run: |
+          if python3 .ci-scripts/libs-cache/oci_libs_cache.py exists --platform dragonfly-6.4.2 --tag "$LIBS_TAG"; then
+            echo "hit=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "hit=false" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Promote branch libs if present
+        id: promote
+        if: steps.check.outputs.hit != 'true'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          LIBS_TAG: ${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
+        run: |
+          # Host-side promote (no VM boot): if a branch artifact exists for this
+          # tag, copy it into the main cache instead of provisioning the VM to
+          # rebuild. A promote failure is non-fatal -- promoted=false falls through
+          # to the VM build below.
+          if python3 .ci-scripts/libs-cache/branch_libs_cache.py exists --platform dragonfly-6.4.2 --tag "$LIBS_TAG"; then
+            if python3 .ci-scripts/libs-cache/promote_libs_cache.py --platform dragonfly-6.4.2 --tag "$LIBS_TAG"; then
+              echo "promoted=true" >> "$GITHUB_OUTPUT"
+            else
+              echo "promoted=false" >> "$GITHUB_OUTPUT"
+            fi
+          else
+            echo "promoted=false" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Provision VM
+        if: steps.check.outputs.hit != 'true' && steps.promote.outputs.promoted != 'true'
+        run: bash .ci-scripts/bsd/dragonfly-provision.bash
+      - name: Build and push libs
+        if: steps.check.outputs.hit != 'true' && steps.promote.outputs.promoted != 'true'
+        env:
+          LIBS_TAG: ${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
+        run: |
+          # Unquoted heredoc on purpose: ${LIBS_TAG} must expand on the runner
+          # (it is not set inside the VM), so EOF must stay unquoted.
+          # shellcheck disable=SC2087
+          ssh -o StrictHostKeyChecking=no -o ServerAliveInterval=60 -i vm_key -p 2222 root@localhost /bin/sh <<EOF
+          set -e
+          cd /build/ponyc
+          export CC=/usr/local/bin/gcc13 CXX=/usr/local/bin/g++13 LD_LIBRARY_PATH=/usr/local/lib/gcc13 SSL_CERT_FILE=/usr/local/share/certs/ca-root-nss.crt
+          export GITHUB_TOKEN='${{ secrets.GITHUB_TOKEN }}' GITHUB_REPOSITORY='${{ github.repository }}' GITHUB_ACTOR='${{ github.actor }}'
+          gmake libs llvm_tools=false build_flags=-j4
+          rm -rf build/build_libs
+          python3 .ci-scripts/libs-cache/oci_libs_cache.py push --platform dragonfly-6.4.2 --tag '${LIBS_TAG}'
+          EOF
+      - name: Shutdown VM
+        if: always()
+        run: |
+          pkill -f qemu-system-x86 || true
+
+  # Keep storage bounded: keep the 2 newest versions of each ponyc-libs-cache/*
+  # package, delete older ones. Only the warmer pushes (on every main commit), so
+  # the newest version is always the current main hash and is never pruned. Uses
+  # GITHUB_TOKEN, not snok/the org PAT: these packages are repo-scoped, so only
+  # the repo token can delete their versions (the PAT 404s on them). Runs only on
+  # real pushes to main, not on workflow_dispatch test runs.
+  prune:
+    name: Prune old libs caches
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs:
+      - x86_64-linux-pr
+      - x86_64-linux-release
+      - x86_64-linux-other
+      - arm64-linux
+      - x86_64-macos
+      - arm64-macos
+      - x86_64-windows
+      - arm64-windows
+      - freebsd
+      - openbsd
+      - dragonflybsd
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6.0.2
+      - name: Prune
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PONYLANG_MAIN_READ_PACKAGE_TOKEN: ${{ secrets.PONYLANG_MAIN_READ_PACKAGE_TOKEN }}
+        run: python3 .ci-scripts/libs-cache/prune_libs_cache.py --keep 2

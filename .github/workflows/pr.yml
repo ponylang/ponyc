@@ -1,0 +1,436 @@
+name: PR
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    # The UNION of the three suites' path rules. It MUST trigger the workflow
+    # for any file that triggers any suite in `.ci-scripts/pr_changed_suites.py`;
+    # otherwise that PR never starts the workflow and the suite silently never
+    # runs. `ponyc` is a subset of `tools`, so the union is `tools` plus
+    # `pony_compiler` plus this workflow file. The re-includes below add back the
+    # pony_compiler paths (which have no doc/yaml exclusion) and this file.
+    paths:
+      - '**'
+      - '!**/*.md'
+      - '!**/*.yml'
+      - '!.dockerfiles/**'
+      - '!.ci-dockerfiles/**'
+      - '!.gitignore'
+      - '!.markdownlintignore'
+      # Test workloads these suites build nothing of: their Pony runs only in
+      # scheduled workflows (stress-test-*, ponyc-weekly-checks). The stress
+      # harness's Python is linted/tested by lint-python.yml; rt-systematic has
+      # no Python. Excluded here AND in pr_changed_suites.py.
+      - '!test/rt-stress/**'
+      - '!test/rt-systematic/**'
+      - 'src/libponyc/**'
+      - 'tools/lib/ponylang/pony_compiler/**'
+      - '.github/workflows/pr.yml'
+
+concurrency:
+  group: pr-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  # write (not read) so non-fork PR runs can push to the branch libs cache. A
+  # pull_request run from a fork gets a read-only GITHUB_TOKEN regardless, so this
+  # grants effective write only to non-fork runs.
+  packages: write
+  contents: read       # checkout
+  pull-requests: read  # gh api pulls/<n>/files in the `changes` job
+
+jobs:
+  # Home-grown paths-filter: classify the PR's changed files into the suites
+  # that must run, so a PR touching only one suite does not queue all three.
+  # Draft gating lives here only: when this job is skipped every downstream
+  # output is empty, so the `== 'true'` checks all fail and every job skips.
+  changes:
+    if: github.event.pull_request.draft == false
+    runs-on: ubuntu-latest
+    outputs:
+      ponyc: ${{ steps.classify.outputs.ponyc }}
+      pony_compiler: ${{ steps.classify.outputs.pony_compiler }}
+      tools: ${{ steps.classify.outputs.tools }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6.0.2
+      - name: Classify changed files
+        id: classify
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh api --paginate "repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/files" --jq '.[].filename' | python3 .ci-scripts/pr_changed_suites.py >> "$GITHUB_OUTPUT"
+
+  # maybe-build jobs: build each shared LLVM platform AT MOST ONCE, then the
+  # consumer jobs `needs:` it and pull. `--ensure` checks existence (no
+  # download) and HARD-fails the branch push, so a registry write problem
+  # surfaces here instead of leaving each consumer to cold-build. Non-fork only
+  # (the push needs `packages: write`); forks skip and consumers pull-or-build.
+  maybe-build-ubuntu:
+    needs: changes
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      (needs.changes.outputs.ponyc == 'true' ||
+       needs.changes.outputs.pony_compiler == 'true' ||
+       needs.changes.outputs.tools == 'true')
+    runs-on: ubuntu-latest
+    name: maybe-build libs (x86-64 Linux glibc)
+    container:
+      image: ghcr.io/ponylang/ponyc-ci-ubuntu26.04-builder:20260425
+      options: --user pony
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6.0.2
+      - name: Ensure libs
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          LIBS_IMAGE: ghcr.io/ponylang/ponyc-ci-ubuntu26.04-builder:20260425
+          LIBS_TAG: ${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
+        run: python3 .ci-scripts/libs-cache/pr_libs_cache.py --ensure --branch-cache --image "$LIBS_IMAGE" --tag "$LIBS_TAG" -- make libs llvm_tools=false build_flags=-j4
+
+  maybe-build-macos:
+    needs: changes
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      (needs.changes.outputs.ponyc == 'true' ||
+       needs.changes.outputs.pony_compiler == 'true' ||
+       needs.changes.outputs.tools == 'true')
+    runs-on: macos-26
+    name: maybe-build libs (arm64 macOS)
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6.0.2
+      - name: Ensure libs
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          LIBS_TAG: ${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
+        run: python3 .ci-scripts/libs-cache/pr_libs_cache.py --ensure --branch-cache --platform arm64-macos-26 --tag "$LIBS_TAG" -- make libs llvm_tools=false build_flags=-j3
+
+  maybe-build-windows:
+    needs: changes
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      (needs.changes.outputs.ponyc == 'true' ||
+       needs.changes.outputs.pony_compiler == 'true' ||
+       needs.changes.outputs.tools == 'true')
+    runs-on: windows-2025-vs2026
+    defaults:
+      run:
+        shell: pwsh
+    name: maybe-build libs (x86-64 Windows)
+    steps:
+      - name: Disable Windows Defender
+        run: Set-MpPreference -DisableRealtimeMonitoring $true
+      - name: Checkout
+        uses: actions/checkout@v6.0.2
+      - name: Ensure libs
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          LIBS_TAG: ${{ hashFiles('make.ps1', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
+        run: python .ci-scripts/libs-cache/pr_libs_cache.py --ensure --branch-cache --platform windows-2025-vs2026 --tag "$env:LIBS_TAG" '--' pwsh -File make.ps1 -Command libs -LlvmTools false
+
+  # ----- ponyc suite -----
+
+  ponyc-x86_64-linux-glibc:
+    needs: [changes, maybe-build-ubuntu]
+    if: >-
+      !cancelled() &&
+      needs.changes.outputs.ponyc == 'true' &&
+      needs.maybe-build-ubuntu.result != 'failure'
+    runs-on: ubuntu-latest
+    name: 'ponyc: x86-64 Linux glibc'
+    container:
+      image: ghcr.io/ponylang/ponyc-ci-ubuntu26.04-builder:20260425
+      options: --user pony --cap-add=SYS_PTRACE --security-opt seccomp=unconfined
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6.0.2
+      - name: Build libs
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          LIBS_IMAGE: ghcr.io/ponylang/ponyc-ci-ubuntu26.04-builder:20260425
+          LIBS_TAG: ${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
+          # Referenced UNQUOTED below so an empty value (fork) vanishes instead of
+          # passing as an empty arg; see the branch-cache coupling in .known-couplings/branch-libs-cache.md.
+          LIBS_BRANCH_CACHE: ${{ github.event.pull_request.head.repo.full_name == github.repository && '--branch-cache' || '' }}
+        run: python3 .ci-scripts/libs-cache/pr_libs_cache.py $LIBS_BRANCH_CACHE --image "$LIBS_IMAGE" --tag "$LIBS_TAG" -- make libs llvm_tools=false build_flags=-j4
+      - name: Build Debug Runtime
+        run: |
+          make configure arch=x86-64 config=debug
+          make build config=debug
+      - name: Test with Debug Runtime
+        run: make test-ci-core config=debug usedebugger='lldb'
+      - name: Build Release Runtime
+        run: |
+          make configure arch=x86-64 config=release
+          make build config=release
+      - name: Test with Release Runtime
+        run: make test-ci-core config=release usedebugger='lldb'
+
+  ponyc-arm64-macos:
+    needs: [changes, maybe-build-macos]
+    if: >-
+      !cancelled() &&
+      needs.changes.outputs.ponyc == 'true' &&
+      needs.maybe-build-macos.result != 'failure'
+    runs-on: macos-26
+    name: 'ponyc: arm64 macOS'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6.0.2
+      - name: Build libs
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          LIBS_TAG: ${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
+          # Referenced UNQUOTED below so an empty value (fork) vanishes instead of
+          # passing as an empty arg; see the branch-cache coupling in .known-couplings/branch-libs-cache.md.
+          LIBS_BRANCH_CACHE: ${{ github.event.pull_request.head.repo.full_name == github.repository && '--branch-cache' || '' }}
+        run: python3 .ci-scripts/libs-cache/pr_libs_cache.py $LIBS_BRANCH_CACHE --platform arm64-macos-26 --tag "$LIBS_TAG" -- make libs llvm_tools=false build_flags=-j3
+      - name: Build Debug Runtime
+        run: |
+          make configure arch=armv8 config=debug
+          make build config=debug
+      - name: Test with Debug Runtime
+        run: make test-ci-core config=debug
+      - name: Build Release Runtime
+        run: |
+          make configure arch=armv8 config=release
+          make build config=release
+      - name: Test with Release Runtime
+        run: make test-ci-core config=release
+
+  ponyc-x86_64-windows:
+    needs: [changes, maybe-build-windows]
+    if: >-
+      !cancelled() &&
+      needs.changes.outputs.ponyc == 'true' &&
+      needs.maybe-build-windows.result != 'failure'
+    runs-on: windows-2025-vs2026
+    defaults:
+      run:
+        shell: pwsh
+    name: 'ponyc: x86-64 Windows MSVC'
+    steps:
+      - name: Disable Windows Defender
+        run: Set-MpPreference -DisableRealtimeMonitoring $true
+      - name: Checkout
+        uses: actions/checkout@v6.0.2
+      - name: Install Dependencies
+        run: .\.ci-scripts\windows-install-deps.ps1
+      - name: Build libs
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          LIBS_TAG: ${{ hashFiles('make.ps1', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
+          # Referenced UNQUOTED below so an empty value (fork) vanishes instead of
+          # passing as an empty arg; see the branch-cache coupling in .known-couplings/branch-libs-cache.md.
+          LIBS_BRANCH_CACHE: ${{ github.event.pull_request.head.repo.full_name == github.repository && '--branch-cache' || '' }}
+        run: python .ci-scripts/libs-cache/pr_libs_cache.py $env:LIBS_BRANCH_CACHE --platform windows-2025-vs2026 --tag "$env:LIBS_TAG" '--' pwsh -File make.ps1 -Command libs -LlvmTools false
+      - name: Build Debug Runtime
+        run: |
+          .\make.ps1 -Command configure -Config Debug
+          .\make.ps1 -Command build -Config Debug
+      - name: Test with Debug Runtime
+        run: .\make.ps1 -Command test -Config Debug -Uselldb yes
+      - name: Build Release Runtime
+        run: |
+          .\make.ps1 -Command configure -Config Release
+          .\make.ps1 -Command build -Config Release
+      - name: Test with Release Runtime
+        run: .\make.ps1 -Command test -Config Release -Uselldb yes
+      - name: Build examples
+        run: .\make.ps1 -Command build-examples
+
+  # ----- pony-compiler suite -----
+
+  pony-compiler-linux:
+    needs: [changes, maybe-build-ubuntu]
+    if: >-
+      !cancelled() &&
+      needs.changes.outputs.pony_compiler == 'true' &&
+      needs.maybe-build-ubuntu.result != 'failure'
+    runs-on: ubuntu-latest
+    name: 'pony-compiler: Linux'
+    container:
+      image: ghcr.io/ponylang/ponyc-ci-ubuntu26.04-builder:20260425
+      options: --user pony
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6.0.2
+      - name: Build libs
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          LIBS_IMAGE: ghcr.io/ponylang/ponyc-ci-ubuntu26.04-builder:20260425
+          LIBS_TAG: ${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
+          # Referenced UNQUOTED below so an empty value (fork) vanishes instead of
+          # passing as an empty arg; see the branch-cache coupling in .known-couplings/branch-libs-cache.md.
+          LIBS_BRANCH_CACHE: ${{ github.event.pull_request.head.repo.full_name == github.repository && '--branch-cache' || '' }}
+        run: python3 .ci-scripts/libs-cache/pr_libs_cache.py $LIBS_BRANCH_CACHE --image "$LIBS_IMAGE" --tag "$LIBS_TAG" -- make libs llvm_tools=false build_flags=-j4
+      - name: Build
+        run: |
+          make configure config=debug
+          make build config=debug
+      - name: Test pony-compiler
+        run: make test-pony-compiler config=debug
+
+  pony-compiler-macos:
+    needs: [changes, maybe-build-macos]
+    if: >-
+      !cancelled() &&
+      needs.changes.outputs.pony_compiler == 'true' &&
+      needs.maybe-build-macos.result != 'failure'
+    runs-on: macos-26
+    name: 'pony-compiler: macOS'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6.0.2
+      - name: Build libs
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          LIBS_TAG: ${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
+          # Referenced UNQUOTED below so an empty value (fork) vanishes instead of
+          # passing as an empty arg; see the branch-cache coupling in .known-couplings/branch-libs-cache.md.
+          LIBS_BRANCH_CACHE: ${{ github.event.pull_request.head.repo.full_name == github.repository && '--branch-cache' || '' }}
+        run: python3 .ci-scripts/libs-cache/pr_libs_cache.py $LIBS_BRANCH_CACHE --platform arm64-macos-26 --tag "$LIBS_TAG" -- make libs llvm_tools=false build_flags=-j3
+      - name: Build
+        run: |
+          make configure arch=armv8 config=debug
+          make build config=debug
+      - name: Test pony-compiler
+        run: make test-pony-compiler config=debug
+
+  pony-compiler-windows:
+    needs: [changes, maybe-build-windows]
+    if: >-
+      !cancelled() &&
+      needs.changes.outputs.pony_compiler == 'true' &&
+      needs.maybe-build-windows.result != 'failure'
+    runs-on: windows-2025-vs2026
+    defaults:
+      run:
+        shell: pwsh
+    name: 'pony-compiler: Windows'
+    steps:
+      - name: Disable Windows Defender
+        run: Set-MpPreference -DisableRealtimeMonitoring $true
+      - name: Checkout
+        uses: actions/checkout@v6.0.2
+      - name: Build libs
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          LIBS_TAG: ${{ hashFiles('make.ps1', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
+          # Referenced UNQUOTED below so an empty value (fork) vanishes instead of
+          # passing as an empty arg; see the branch-cache coupling in .known-couplings/branch-libs-cache.md.
+          LIBS_BRANCH_CACHE: ${{ github.event.pull_request.head.repo.full_name == github.repository && '--branch-cache' || '' }}
+        run: python .ci-scripts/libs-cache/pr_libs_cache.py $env:LIBS_BRANCH_CACHE --platform windows-2025-vs2026 --tag "$env:LIBS_TAG" '--' pwsh -File make.ps1 -Command libs -LlvmTools false
+      - name: Build
+        run: |
+          .\make.ps1 -Command configure -Config Debug
+          .\make.ps1 -Command build -Config Debug
+      - name: Test pony-compiler
+        run: .\make.ps1 -Command test -Config Debug -TestsToRun pony-compiler-tests
+
+  # ----- tools suite -----
+
+  tools-linux:
+    needs: [changes, maybe-build-ubuntu]
+    if: >-
+      !cancelled() &&
+      needs.changes.outputs.tools == 'true' &&
+      needs.maybe-build-ubuntu.result != 'failure'
+    runs-on: ubuntu-latest
+    name: 'Tools: Linux'
+    container:
+      image: ghcr.io/ponylang/ponyc-ci-ubuntu26.04-builder:20260425
+      options: --user pony
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6.0.2
+      - name: Build libs
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          LIBS_IMAGE: ghcr.io/ponylang/ponyc-ci-ubuntu26.04-builder:20260425
+          LIBS_TAG: ${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
+          # Referenced UNQUOTED below so an empty value (fork) vanishes instead of
+          # passing as an empty arg; see the branch-cache coupling in .known-couplings/branch-libs-cache.md.
+          LIBS_BRANCH_CACHE: ${{ github.event.pull_request.head.repo.full_name == github.repository && '--branch-cache' || '' }}
+        run: python3 .ci-scripts/libs-cache/pr_libs_cache.py $LIBS_BRANCH_CACHE --image "$LIBS_IMAGE" --tag "$LIBS_TAG" -- make libs llvm_tools=false build_flags=-j4
+      - name: Build
+        run: |
+          make configure config=debug
+          make build config=debug
+      - name: Test pony-doc
+        run: make test-pony-doc config=debug
+      - name: Test pony-lint
+        run: make test-pony-lint config=debug
+      - name: Test pony-lsp
+        run: make test-pony-lsp config=debug
+      - name: Lint pony-lint
+        run: make lint-pony-lint config=debug
+      - name: Lint pony-doc
+        run: make lint-pony-doc config=debug
+      - name: Lint pony-lsp
+        run: make lint-pony-lsp config=debug
+
+  tools-macos:
+    needs: [changes, maybe-build-macos]
+    if: >-
+      !cancelled() &&
+      needs.changes.outputs.tools == 'true' &&
+      needs.maybe-build-macos.result != 'failure'
+    runs-on: macos-26
+    name: 'Tools: macOS'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6.0.2
+      - name: Build libs
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          LIBS_TAG: ${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
+          # Referenced UNQUOTED below so an empty value (fork) vanishes instead of
+          # passing as an empty arg; see the branch-cache coupling in .known-couplings/branch-libs-cache.md.
+          LIBS_BRANCH_CACHE: ${{ github.event.pull_request.head.repo.full_name == github.repository && '--branch-cache' || '' }}
+        run: python3 .ci-scripts/libs-cache/pr_libs_cache.py $LIBS_BRANCH_CACHE --platform arm64-macos-26 --tag "$LIBS_TAG" -- make libs llvm_tools=false build_flags=-j3
+      - name: Build
+        run: |
+          make configure arch=armv8 config=debug
+          make build config=debug
+      - name: Test pony-doc
+        run: make test-pony-doc config=debug
+      - name: Test pony-lint
+        run: make test-pony-lint config=debug
+      - name: Test pony-lsp
+        run: make test-pony-lsp config=debug
+
+  tools-windows:
+    needs: [changes, maybe-build-windows]
+    if: >-
+      !cancelled() &&
+      needs.changes.outputs.tools == 'true' &&
+      needs.maybe-build-windows.result != 'failure'
+    runs-on: windows-2025-vs2026
+    defaults:
+      run:
+        shell: pwsh
+    name: 'Tools: Windows'
+    steps:
+      - name: Disable Windows Defender
+        run: Set-MpPreference -DisableRealtimeMonitoring $true
+      - name: Checkout
+        uses: actions/checkout@v6.0.2
+      - name: Build libs
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          LIBS_TAG: ${{ hashFiles('make.ps1', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
+          # Referenced UNQUOTED below so an empty value (fork) vanishes instead of
+          # passing as an empty arg; see the branch-cache coupling in .known-couplings/branch-libs-cache.md.
+          LIBS_BRANCH_CACHE: ${{ github.event.pull_request.head.repo.full_name == github.repository && '--branch-cache' || '' }}
+        run: python .ci-scripts/libs-cache/pr_libs_cache.py $env:LIBS_BRANCH_CACHE --platform windows-2025-vs2026 --tag "$env:LIBS_TAG" '--' pwsh -File make.ps1 -Command libs -LlvmTools false
+      - name: Build
+        run: |
+          .\make.ps1 -Command configure -Config Debug
+          .\make.ps1 -Command build -Config Debug
+      - name: Test pony-doc
+        run: .\make.ps1 -Command test -Config Debug -TestsToRun pony-doc-tests
+      - name: Test pony-lint
+        run: .\make.ps1 -Command test -Config Debug -TestsToRun pony-lint-tests
+      - name: Test pony-lsp
+        run: .\make.ps1 -Command test -Config Debug -TestsToRun pony-lsp-tests

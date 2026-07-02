@@ -6,33 +6,39 @@ use "workspace"
 primitive _Uninitialized is Equatable[_LspState]
   fun string(): String val =>
     "uninitialized"
+
   fun eq(that: box->_LspState): Bool =>
     that is _Uninitialized
 
 primitive _Initialized is Equatable[_LspState]
   fun string(): String val =>
     "initialized"
+
   fun eq(that: box->_LspState): Bool =>
     that is _Initialized
 
 primitive _ShuttingDown is Equatable[_LspState]
   fun string(): String val =>
     "shutting down"
+
   fun eq(that: box->_LspState): Bool =>
     that is _ShuttingDown
 
-type _LspState is (_Uninitialized | _Initialized | _ShuttingDown)
+type _LspState is
+  (_Uninitialized | _Initialized | _ShuttingDown)
 
 actor LanguageServer is (Notifier & RequestSender)
+  """
+  Main language server actor managing LSP lifecycle,
+  message dispatch, and workspace routing.
+  """
   let _channel: Channel
   let _compiler: LspCompiler
   let _router: WorkspaceRouter
   let _env: Env
   let _file_auth: FileAuth
-
-  // current LSP state
   var _state: _LspState = _Uninitialized
-  var _expect_responses_for: Array[(RequestId, String)]
+  var _expect_responses_for: Array[(RequestId, String, (ResponseNotify | None))]
   var _request_id_gen: I64
   var _client: (Client | None)
 
@@ -46,17 +52,137 @@ actor LanguageServer is (Notifier & RequestSender)
     _expect_responses_for = _expect_responses_for.create(4)
     _request_id_gen = I64(0)
     _client = None
-    //_channel.log("PonyLSP Server ready")
+    // _channel.log("PonyLSP Server ready")
 
   fun tag _get_document_uri(
-    params: (JsonObject | JsonArray | None)): String ?
-  =>
+    params: (JsonObject | JsonArray | None)
+  ): String ? =>
     JsonNav(params)("textDocument")("uri").as_string()?
+
+  fun tag _get_item_uri_and_sel(
+    params: (JsonObject | JsonArray | None)
+  ): (String, I64, I64) ? =>
+    ( JsonNav(params)("item")("uri").as_string()?
+    , JsonNav(params)("item")("selectionRange")("start")("line").as_i64()?
+    , JsonNav(params)("item")("selectionRange")("start")("character")
+        .as_i64()? )
 
   be handle_parse_error(err: ParseError val) =>
     this._channel.log("Parse Error: " + err.string(), Warning)
 
+  fun ref _send_no_workspace(r: RequestMessage val) =>
+    """
+    Send an internal error response indicating no workspace was found,
+    embedding the full raw request JSON as context.
+    """
+    this._channel.send(
+      ResponseMessage.create(
+        r.id,
+        None,
+        ResponseError(
+          ErrorCodes.internal_error(),
+          "[" + r.method + "] No workspace found for '" +
+          r.json().print() + "'")))
+
+  fun ref _send_no_workspace_for(r: RequestMessage val, uri: String val) =>
+    """
+    Send an internal error response indicating no workspace was found
+    for the given document URI.
+    """
+    this._channel.send(
+      ResponseMessage.create(
+        r.id,
+        None,
+        ResponseError(
+          ErrorCodes.internal_error(),
+          "[" + r.method + "] No workspace found for '" + uri + "'")))
+
+  fun ref _send_invalid_params(r: RequestMessage val, detail: String val) =>
+    """
+    Send an invalid params error response with the given detail message.
+    """
+    this._channel.send(
+      ResponseMessage.create(
+        r.id,
+        None,
+        ResponseError(ErrorCodes.invalid_params(), detail)))
+
+  fun ref _route_doc(
+    r: RequestMessage val,
+    dispatch: {(WorkspaceManager, String val, RequestMessage val)} val)
+  =>
+    """
+    Extract the textDocument URI from the request params, resolve its
+    workspace, then call dispatch. Sends an internal error response if
+    the URI is absent or has no matching workspace.
+    """
+    try
+      let document_uri = _get_document_uri(r.params)?
+      dispatch(
+        _router.find_workspace(document_uri) as WorkspaceManager,
+        document_uri,
+        r)
+    else
+      _send_no_workspace(r)
+    end
+
+  fun ref _route_prepare(
+    r: RequestMessage val,
+    dispatch: {(WorkspaceManager, String val, RequestMessage val)} val)
+  =>
+    """
+    Like _route_doc, but sends an invalid params response if the
+    textDocument URI is absent rather than folding that into the
+    workspace-not-found error. Used for two-stage requests (prepare
+    call/type hierarchy) where a missing URI is a client error, not a
+    routing failure.
+    """
+    let document_uri =
+      try
+        _get_document_uri(r.params)?
+      else
+        _send_invalid_params(r, "[" + r.method + "] missing textDocument.uri")
+        return
+      end
+    try
+      dispatch(
+        _router.find_workspace(document_uri) as WorkspaceManager,
+        document_uri,
+        r)
+    else
+      _send_no_workspace_for(r, document_uri)
+    end
+
+  fun ref _route_item(
+    r: RequestMessage val,
+    dispatch: {(WorkspaceManager, String val, I64, I64,
+      RequestMessage val)} val)
+  =>
+    """
+    Extract the item URI and selection range start from the request
+    params, resolve its workspace, then call dispatch. Sends an invalid
+    params response if the item or selection range is absent. Used for
+    call/type hierarchy resolve requests.
+    """
+    try
+      (let item_uri, let sel_line, let sel_col) =
+        _get_item_uri_and_sel(r.params)?
+      dispatch(
+        _router.find_workspace(item_uri) as WorkspaceManager,
+        item_uri,
+        sel_line,
+        sel_col,
+        r)
+    else
+      _send_invalid_params(
+        r, "[" + r.method + "] missing item or selectionRange.start")
+    end
+
   fun ref handle_request(r: RequestMessage val) =>
+    """
+    Dispatch an incoming client request to the appropriate handler
+    based on the current LSP lifecycle state and request method.
+    """
     match this._state
     | _Uninitialized =>
       match r.method
@@ -66,67 +192,79 @@ actor LanguageServer is (Notifier & RequestSender)
           ResponseMessage.create(
             r.id,
             None,
-            ResponseError(ErrorCodes.server_not_initialized(), "Expected initialize, got " + r.method)
-          )
-        )
+            ResponseError(
+              ErrorCodes.server_not_initialized(),
+              "Expected initialize, got " + r.method)))
       end
     | _Initialized =>
-      this._channel.log("\n\n<-\n" + r.json().string())
+      this._channel.log("\n\n<-\n" + r.json().print())
       match \exhaustive\ r.method
+      | Methods.text_document().inlay_hint() =>
+        _route_doc(r, {(wm, uri, req) => wm.inlay_hint(uri, req) })
+      | Methods.text_document().references() =>
+        _route_doc(r, {(wm, uri, req) => wm.references(uri, req) })
+      | Methods.text_document().prepare_rename() =>
+        _route_doc(r, {(wm, uri, req) => wm.prepare_rename(uri, req) })
+      | Methods.text_document().rename() =>
+        _route_doc(r, {(wm, uri, req) => wm.rename(uri, req) })
+      | Methods.text_document().document_highlight() =>
+        _route_doc(r, {(wm, uri, req) => wm.document_highlight(uri, req) })
+      // In Pony, declaration and definition are the same location.
+      | Methods.text_document().declaration()
       | Methods.text_document().definition() =>
-        try
-          let document_uri = _get_document_uri(r.params)?
-          // TODO: exptract params into class according to spec
-          (_router.find_workspace(document_uri) as WorkspaceManager).goto_definition(document_uri, r)
-        else
-          this._channel.send(
-            ResponseMessage.create(
-              r.id,
-              None,
-              ResponseError(ErrorCodes.internal_error(), "[" + r.method + "] No workspace found for '" + r.json().string() + "'")
-            )
-          )
-        end
+        _route_doc(r, {(wm, uri, req) => wm.goto_definition(uri, req) })
+      | Methods.text_document().type_definition() =>
+        _route_doc(r, {(wm, uri, req) => wm.type_definition(uri, req) })
       | Methods.text_document().hover() =>
-        try
-          let document_uri = _get_document_uri(r.params)?
-          // TODO: exptract params into class according to spec
-          (_router.find_workspace(document_uri) as WorkspaceManager).hover(document_uri, r)
-        else
-          this._channel.send(
-            ResponseMessage.create(
-              r.id,
-              None,
-              ResponseError(ErrorCodes.internal_error(), "[" + r.method + "] No workspace found for request '" + r.json().string() + "'")
-            )
-          )
-        end
+        _route_doc(r, {(wm, uri, req) => wm.hover(uri, req) })
       | Methods.text_document().document_symbol() =>
-        try
-          let document_uri = _get_document_uri(r.params)?
-          (_router.find_workspace(document_uri) as WorkspaceManager).document_symbols(document_uri, r)
-        else
-          this._channel.send(
-            ResponseMessage.create(
-              r.id,
-              None,
-              ResponseError(ErrorCodes.internal_error(), "[" + r.method + "] No workspace found for request '" + r.json().string() + "'")
-            )
-          )
-        end
+        _route_doc(r, {(wm, uri, req) => wm.document_symbols(uri, req) })
+      | Methods.text_document().folding_range() =>
+        _route_doc(r, {(wm, uri, req) => wm.folding_range(uri, req) })
+      | Methods.text_document().selection_range() =>
+        _route_doc(r, {(wm, uri, req) => wm.selection_range(uri, req) })
       | Methods.text_document().diagnostic() =>
-        try
-          let document_uri = _get_document_uri(r.params)?
-          (_router.find_workspace(document_uri) as WorkspaceManager).document_diagnostic(document_uri, r)
-        else
-          this._channel.send(
-            ResponseMessage.create(
-              r.id,
-              None,
-              ResponseError(ErrorCodes.internal_error(), "[" + r.method + "] No workspace found for request '" + r.json().string() + "'")
-            )
-          )
-        end
+        _route_doc(r, {(wm, uri, req) => wm.document_diagnostic(uri, req) })
+      | Methods.text_document().signature_help() =>
+        _route_doc(r, {(wm, uri, req) => wm.signature_help(uri, req) })
+      | Methods.text_document().prepare_call_hierarchy() =>
+        _route_prepare(
+          r, {(wm, uri, req) => wm.call_hierarchy_prepare(uri, req) })
+      | Methods.call_hierarchy().incoming_calls() =>
+        _route_item(
+          r,
+          {(wm, uri, l, c, req) =>
+            wm.call_hierarchy_incoming_calls(uri, l, c, req)
+          })
+      | Methods.call_hierarchy().outgoing_calls() =>
+        _route_item(
+          r,
+          {(wm, uri, l, c, req) =>
+            wm.call_hierarchy_outgoing_calls(uri, l, c, req)
+          })
+      | Methods.text_document().prepare_type_hierarchy() =>
+        _route_prepare(
+          r, {(wm, uri, req) => wm.type_hierarchy_prepare(uri, req) })
+      | Methods.type_hierarchy().supertypes() =>
+        _route_item(
+          r,
+          {(wm, uri, l, c, req) =>
+            wm.type_hierarchy_supertypes(uri, l, c, req)
+          })
+      | Methods.type_hierarchy().subtypes() =>
+        _route_item(
+          r,
+          {(wm, uri, l, c, req) =>
+            wm.type_hierarchy_subtypes(uri, l, c, req)
+          })
+      | Methods.workspace().symbol() =>
+        let query =
+          try
+            JsonNav(r.params)("query").as_string()?
+          else
+            ""
+          end
+        _router.workspace_symbol(query, this._channel, r.id)
       | Methods.shutdown() =>
         this._state = _ShuttingDown
         this._channel.send(ResponseMessage.create(r.id, None))
@@ -135,19 +273,16 @@ actor LanguageServer is (Notifier & RequestSender)
           ResponseMessage.create(
             r.id,
             None,
-            ResponseError(ErrorCodes.method_not_found(), "Method not implemented: " + r.method)
-          )
-        )
+            ResponseError(
+              ErrorCodes.method_not_found(),
+              "Method not implemented: " + r.method)))
       end
     | _ShuttingDown =>
-      // we don't handle no requests no more
       this._channel.send(
         ResponseMessage.create(
           r.id,
           None,
-          ResponseError(ErrorCodes.invalid_request(), "shutting down")
-        )
-      )
+          ResponseError(ErrorCodes.invalid_request(), "shutting down")))
     end
 
   fun ref handle_response(r: ResponseMessage val) =>
@@ -155,7 +290,8 @@ actor LanguageServer is (Notifier & RequestSender)
     | _Initialized | _Uninitialized =>
       for i in Range[USize](0, this._expect_responses_for.size()) do
         try
-          (let expected_request_id, let expected_method) = this._expect_responses_for(i)?
+          (let expected_request_id, let expected_method, let maybe_notify) =
+            this._expect_responses_for(i)?
           if
             try
               RequestIds.eq(expected_request_id, (r.id as RequestId))
@@ -171,11 +307,17 @@ actor LanguageServer is (Notifier & RequestSender)
               this.handle_configuration(r)
             | Methods.client().register_capability() =>
               this.handle_register_capability_response(r)
+            | Methods.window().work_done_progress().create() =>
+              this.handle_work_done_progress_create_response(r)
             | let other: String =>
               this._channel.log("Unhandled response method " + other)
             end
+            match maybe_notify
+            | let rn: ResponseNotify => rn.notify(expected_method, r)
+            end
+            return // no need to iterate further
           else
-            this._channel.log("Unhandled response\n" + r.json().string())
+            this._channel.log("Unhandled response\n" + r.json().print())
           end
         end
       else
@@ -188,39 +330,56 @@ actor LanguageServer is (Notifier & RequestSender)
 
   fun ref handle_notification(n: Notification val) =>
     match n.method
-    | Methods.initialized() => handle_initialized(n)
+    | Methods.initialized() =>
+      handle_initialized(n)
     | Methods.exit() =>
       this._channel.log("Exiting.")
-      this._channel.dispose() // lets hope this unregisters us as dirty
-      this._env.exitcode(if this._state is _ShuttingDown then 0 else 1 end)
+      this.dispose()
+      this._env.exitcode(
+        if this._state is _ShuttingDown then
+          0
+        else
+          1
+        end)
       return
     | Methods.text_document().did_open() =>
-        try
-          let document_uri = _get_document_uri(n.params)?
-          // TODO: extract params into class according to spec
-          (_router.find_workspace(document_uri) as WorkspaceManager).did_open(document_uri, n)
-        else
-          this._channel.log("[" + n.method + "] No workspace found for '" + n.json().string() + "'")
-        end
+      try
+        let document_uri = _get_document_uri(n.params)?
+        // TODO: extract params into class according to spec
+        (_router.find_workspace(document_uri) as WorkspaceManager)
+          .did_open(document_uri, n)
+      else
+        this._channel.log(
+          "[" + n.method + "] No workspace found for '" +
+          n.json().print() + "'")
+      end
     | Methods.text_document().did_save() =>
       try
         let document_uri = _get_document_uri(n.params)?
         // TODO: extract params into class according to spec
-        (_router.find_workspace(document_uri) as WorkspaceManager).did_save(document_uri, n)
+        (_router.find_workspace(document_uri) as WorkspaceManager)
+          .did_save(document_uri, n)
       else
-        this._channel.log("[" + n.method + "] No workspace found for '" + n.json().string() + "'")
+        this._channel.log(
+          "[" + n.method + "] No workspace found for '" +
+          n.json().print() + "'")
       end
     | Methods.text_document().did_close() =>
       try
         let document_uri = _get_document_uri(n.params)?
         // TODO: extract params into class according to spec
-        (_router.find_workspace(document_uri) as WorkspaceManager).did_close(document_uri, n)
+        (_router.find_workspace(document_uri) as WorkspaceManager)
+          .did_close(document_uri, n)
       else
-        this._channel.log("[" + n.method + "] No workspace found for '" + n.json().string() + "'")
+        this._channel.log(
+          "[" + n.method + "] No workspace found for '" +
+          n.json().print() + "'")
       end
-    | Methods.workspace().did_change_configuration() =>
+    | Methods.workspace().did_change_configuration()
+    =>
       try
-        let settings = JsonPathParser.compile("$.settings")?.query_one(n.params) as JsonObject
+        let settings =
+          JsonPathParser.compile("$.settings")?.query_one(n.params) as JsonValue
         this.handle_did_change_configuration(settings)
       else
         this._channel.log("[" + n.method + "] Invalid or missing settings")
@@ -231,12 +390,9 @@ actor LanguageServer is (Notifier & RequestSender)
 
   be handle_message(msg: Message val) =>
     match msg
-    | let r: RequestMessage val =>
-      handle_request(r)
-    | let n: Notification val =>
-      handle_notification(n)
-    | let r: ResponseMessage val =>
-      handle_response(r)
+    | let r: RequestMessage val => handle_request(r)
+    | let n: Notification val => handle_notification(n)
+    | let r: ResponseMessage val => handle_response(r)
     end
 
   fun ref handle_initialize(msg: RequestMessage val) =>
@@ -245,7 +401,8 @@ actor LanguageServer is (Notifier & RequestSender)
       // extract server_options from "initializationOptions"
       let server_options =
         try
-          ServerOptions.from_json(params("initializationOptions")? as JsonObject)
+          ServerOptions.from_json(
+            params("initializationOptions")? as JsonObject)
         end
       let client = Client.from(params)
       this._client = client
@@ -253,22 +410,33 @@ actor LanguageServer is (Notifier & RequestSender)
       // extract workspace folders, rootUri, rootPath in that order:
       let found_workspace: JsonValue =
         try
-          JsonPathParser.compile("$['workspaceFolders','rootUri','rootPath']")?.query(params)(0)?
+          JsonPathParser
+            .compile("$['workspaceFolders','rootUri','rootPath']")?
+            .query(params)(0)?
         else
           None
         end
       let scanner = WorkspaceScanner.create(this._channel)
       match found_workspace
       | let workspace_str: String =>
-          try
-            this._channel.log("Scanning workspace " + workspace_str)
-            let pony_workspaces = scanner.scan(this._file_auth, workspace_str)
-            for pony_workspace in pony_workspaces.values() do
-              let mgr = WorkspaceManager.create(pony_workspace, this._file_auth, this._channel, this, client, this._compiler)
-              this._channel.log("Adding workspace " + pony_workspace.debug())
-              this._router.add_workspace(pony_workspace.folder, mgr)?
-            end
+        try
+          this._channel.log(
+            "Scanning workspace " + workspace_str)
+          let pony_workspaces =
+            scanner.scan(this._file_auth, workspace_str)
+          for pony_workspace in pony_workspaces.values() do
+            let mgr =
+              WorkspaceManager.create(
+                pony_workspace,
+                this._file_auth,
+                this._channel,
+                this,
+                client,
+                this._compiler)
+            this._channel.log("Adding workspace " + pony_workspace.debug())
+            this._router.add_workspace(pony_workspace.folder, mgr)?
           end
+        end
       | let workspace_arr: JsonArray =>
         for workspace_obj in workspace_arr.values() do
           try
@@ -276,45 +444,81 @@ actor LanguageServer is (Notifier & RequestSender)
             let name = obj("name")? as String
             let uri = obj("uri")? as String
             this._channel.log("Scanning workspace " + uri)
-            for pony_workspace in scanner.scan(this._file_auth, Uris.to_path(uri), name).values() do
-              let mgr = WorkspaceManager.create(pony_workspace, this._file_auth, this._channel, this, client, this._compiler)
+            for pony_workspace in
+              scanner
+                .scan(this._file_auth, Uris.to_path(uri), name)
+                .values()
+            do
+              let mgr =
+                WorkspaceManager.create(
+                  pony_workspace,
+                  this._file_auth,
+                  this._channel,
+                  this,
+                  client,
+                  this._compiler)
               this._channel.log("Adding workspace " + pony_workspace.debug())
               this._router.add_workspace(pony_workspace.folder, mgr)?
             end
           end
         end
       end
-      // update our request-id-gen to the first message we received so we won't
-      // repeat it
+      // update our request-id-gen to the first
+      // message we received so we won't repeat it
       match msg.id
-      | let msg_id: I64 =>
-        this._request_id_gen = msg_id + 1
+      | let msg_id: I64 => this._request_id_gen = msg_id + 1
       end
       this._channel.send(
         ResponseMessage.create(
           msg.id,
           JsonObject
-            .update("capabilities", JsonObject
-              // vscode only supports UTF-16, but pony positions are only counting bytes
-              // .update("positionEncoding", "utf-8")
-              // we can handle hover requests
-              .update("hoverProvider", true)
-              .update("textDocumentSync", JsonObject
-                .update("change", I64(0))
-                .update("openClose", true)
-                .update("save", JsonObject
-                // we need the document contents upon save to determine changes since the previous state compilation picked up
-                .update("includeText", true)))
-              .update("definitionProvider", true)
-              .update("diagnosticProvider", JsonObject
-                .update("identifier", "pony-lsp")
-                .update("interFileDependencies", true)
-                .update("workspaceDiagnostics", false)
-              )
-              .update("documentSymbolProvider", true))
-            .update("serverInfo", JsonObject
-              .update("name", "Pony Language Server")
-              .update("version", PonyLspVersion.version_string()))
+            .update(
+              "capabilities",
+              JsonObject
+                .update("documentHighlightProvider", true)
+                .update("hoverProvider", true)
+                .update(
+                  "textDocumentSync",
+                  JsonObject
+                    .update("change", I64(0))
+                    .update("openClose", true)
+                    .update("save", JsonObject.update("includeText", true)))
+                .update("declarationProvider", true)
+                .update("definitionProvider", true)
+                .update("typeDefinitionProvider", true)
+                .update("referencesProvider", true)
+                .update(
+                  "renameProvider",
+                  JsonObject.update("prepareProvider", true))
+                .update(
+                  "diagnosticProvider",
+                  JsonObject
+                    .update("identifier", "pony-lsp")
+                    .update("interFileDependencies", true)
+                    .update("workspaceDiagnostics", false))
+                .update("documentSymbolProvider", true)
+                .update("foldingRangeProvider", true)
+                .update("selectionRangeProvider", true)
+                .update("workspaceSymbolProvider", true)
+                .update(
+                  "inlayHintProvider",
+                  JsonObject.update("resolveProvider", false))
+                .update(
+                  "signatureHelpProvider",
+                  JsonObject
+                    .update(
+                      "triggerCharacters",
+                      JsonArray.push("(").push(","))
+                    .update(
+                      "retriggerCharacters",
+                      JsonArray.push("(").push(",")))
+                .update("typeHierarchyProvider", true)
+                .update("callHierarchyProvider", true))
+            .update(
+              "serverInfo",
+              JsonObject
+                .update("name", "Pony Language Server")
+                .update("version", Version()))
         )
       )
       this._state = _Initialized
@@ -324,11 +528,17 @@ actor LanguageServer is (Notifier & RequestSender)
     this._request_id_gen = this._request_id_gen + 1
 
   fun ref handle_initialized(notification: Notification val) =>
+    """
+    Handle the initialized notification from the client.
+    """
     // register for did change configuration, if supported
     var can_get_settings = false
     try
-      if (this._client as Client).supports_configuration_dynamic_registration() then
-        this.register_capability(Methods.workspace().did_change_configuration(), None)
+      if (this._client as Client).supports_configuration_dynamic_registration()
+      then
+        this.register_capability(
+          Methods.workspace().did_change_configuration(),
+          None)
         can_get_settings = true
       end
     end
@@ -341,34 +551,78 @@ actor LanguageServer is (Notifier & RequestSender)
     end
     // if none of these work, we have no way to get our config :(
     if not can_get_settings then
-      this._channel.log("Cannot get ponyc settings workspace." where message_type = Warning)
+      // we cannot expect any settings, so signal
+      // the compiler that we have nothing for him
+      // with an empty settings object
+      this._compiler.apply_settings(Settings.empty())
+      this._channel.log(
+        "Cannot get ponyc settings workspace."
+          where message_type = Warning)
     end
 
-  fun ref handle_did_change_configuration(params: JsonObject val) =>
-    // example params: {"pony-lsp":{"defines":["FOO","BAR"]}}
-    try
-      let pony_lsp_settings = params("pony-lsp")? as JsonObject
-      let settings = Settings.from_json(pony_lsp_settings)
-      this._channel.log("Received didChangeConfiguration response: " + params.string())
-      this._compiler.apply_settings(settings)
+  fun ref handle_did_change_configuration(settings: JsonValue val) =>
+    // example output: for settings: {"pony-lsp":{"defines":["FOO","BAR"]}}
+    this._channel.log(
+      "Received didChangeConfiguration response: " +
+      JsonPrinter.print(settings))
+    match settings
+    | None =>
+      // this is a signal to pull the settings again, so we do it here
+      try
+        this._channel.log(
+          "Received null didChangeConfiguration response: " +
+          "requesting settings from client")
+        if (this._client as Client).supports_configuration() then
+          this.send_configuration_request()
+        end
+      end
+    | let json_settings: JsonObject =>
+      let maybe_settings =
+        try
+          let json_settings_obj =
+            JsonNav(json_settings)("pony-lsp").as_object()?
+          Settings.from_json(json_settings_obj)
+        end
+      this._compiler.apply_settings(maybe_settings)
     else
-      this._channel.log("Invalid didChangeConfiguration response")
+      this._channel.log(
+        "[workspace/didChangeConfiguration] No or invalid pony-lsp settings " +
+        "provided.")
+      // this is all we got, we still have to
+      // initialise the compiler at least once
+      this._compiler.apply_settings(None)
     end
 
   fun handle_configuration(r: ResponseMessage val) =>
-    try
-      // LSPAny[]
-      let json_settings = (r.result as JsonArray)(0)? as JsonObject
-      this._channel.log("Received workspace/configuration response = " + json_settings.string())
-
-      this._compiler.apply_settings(Settings.from_json(json_settings))
-    end
+    let maybe_settings =
+      try
+        // LSPAny[] - we only read the first one,
+        // as we only ever request settings for 1 item
+        let json_settings = (r.result as JsonArray)(0)? as JsonObject
+        this._channel.log(
+          "Received workspace/configuration response = " +
+          json_settings.print())
+        Settings.from_json(json_settings)
+      else
+        this._channel.log("[workspace/configuration] No setting provided.")
+      end
+    // even if we have no valid settings, we still call the compiler,
+    // as it has to be initialised with apply_settings at least once
+    this._compiler.apply_settings(maybe_settings)
 
   fun handle_register_capability_response(r: ResponseMessage val) =>
-    // TODO: handle
+    // TODO: handle, check for error
     None
 
-  be send_request(method: String val, params: (JsonObject | JsonArray | None)) =>
+  fun handle_work_done_progress_create_response(r: ResponseMessage val) =>
+    // TODO: handle, check for error
+    None
+
+  be send_request(
+    method: String val,
+    params: (JsonObject | JsonArray | None),
+    notify: (ResponseNotify | None) = None)
+  =>
     let request_id: RequestId = this._next_request_id()
     this._channel.send(
       RequestMessage.create(
@@ -377,25 +631,27 @@ actor LanguageServer is (Notifier & RequestSender)
         params
       )
     )
-    this._expect_responses_for.push((request_id, method))
+    this._expect_responses_for.push((request_id, method, notify))
 
-  be register_capability(register_for_method: String val, register_options: JsonValue) =>
+  be register_capability(
+    register_for_method: String val,
+    register_options: JsonValue)
+  =>
     """
     Register to the LSP client for a certain capability/method.
-
-    See: https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#client_registerCapability
     """
     let id = register_for_method.hash()
     this.send_request(
       Methods.client().register_capability(),
       JsonObject
-        .update("registrations", JsonArray.push(
-          JsonObject
-            .update("id", id.string())
-            .update("method", register_for_method)
-            .update("registerOptions", register_options)
+        .update(
+          "registrations",
+          JsonArray.push(
+            JsonObject
+              .update("id", id.string())
+              .update("method", register_for_method)
+              .update("registerOptions", register_options))
         )
-      )
     )
 
   be send_configuration_request() =>
@@ -405,10 +661,10 @@ actor LanguageServer is (Notifier & RequestSender)
     this.send_request(
       Methods.workspace().configuration(),
       JsonObject
-        .update("items", JsonArray.push(
-          JsonObject.update("section", "pony-lsp")
+        .update(
+          "items",
+          JsonArray.push(JsonObject.update("section", "pony-lsp"))
         )
-      )
     )
 
   be dispose() =>

@@ -130,10 +130,21 @@
 
 /** ARM architecture flags.
  *
+ * Detects the ARM architecture version on 32-bit ARM (AArch32). The runtime
+ * consumes ARMV6 (cpu.c: hardware cycle counter), ARMV7 (NEON-detection macro
+ * below), and ARMV5 (fun.c: clz handling of zero); the cascade keeps lower
+ * tiers defined once a higher one is. Detection prefers the ACLE __ARM_ARCH
+ * version macro so v8 and later are covered: the legacy __ARM_ARCH_Nx__ macros
+ * stop at v7, so a 32-bit ARMv8 target (e.g. a Raspberry Pi 4 on a 32-bit OS)
+ * would otherwise match none of these and lose the cycle counter. The
+ * __ARM_ARCH checks are gated on __arm__ so AArch64 -- which also defines
+ * __ARM_ARCH -- is excluded; its cycle counter uses different registers, so
+ * the AArch32-only CP15 code in cpu.c must not be enabled there.
  */
 #if defined(__ARM_ARCH_7__) || \
     defined(__ARM_ARCH_7R__) || \
-    defined(__ARM_ARCH_7A__)
+    defined(__ARM_ARCH_7A__) || \
+    (defined(__arm__) && defined(__ARM_ARCH) && (__ARM_ARCH >= 7))
 # define ARMV7 1
 #endif
 
@@ -143,7 +154,8 @@
     defined(__ARM_ARCH_6K__) || \
     defined(__ARM_ARCH_6Z__) || \
     defined(__ARM_ARCH_6T2__) || \
-    defined(__ARM_ARCH_6ZK__)
+    defined(__ARM_ARCH_6ZK__) || \
+    (defined(__arm__) && defined(__ARM_ARCH) && (__ARM_ARCH >= 6))
 # define ARMV6 1
 #endif
 
@@ -213,7 +225,17 @@
 // printf-like functions a no-op for Visual Studio.
 // That way, the known semantics of __attribute__(...)
 // remains clear and no wrapper needs to be used.
-#  define __attribute__(X)
+// clang targeting MSVC also defines _MSC_VER (so PLATFORM_IS_VISUAL_STUDIO),
+// but it DOES support __attribute__, and its own intrinsic headers — e.g.
+// mmintrin.h, pulled in via <intrin.h> below — rely on
+// __attribute__((vector_size)). Stripping it there breaks them, so only do
+// this for cl.exe. This is what lets the embedded clang compile this header
+// for a C shim on Windows when a shim pulls it in (e.g. via <ponyassert.h>),
+// in a build tree or an installed tree (the install ships platform.h's header
+// closure for shims, as unstable internal headers).
+#  if !defined(__clang__)
+#    define __attribute__(X)
+#  endif
 #  define __zu "%Iu"
 #  define strdup _strdup
 

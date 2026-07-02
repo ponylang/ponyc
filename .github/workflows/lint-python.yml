@@ -1,0 +1,79 @@
+name: Lint and Test Python Scripts
+
+on: pull_request
+
+concurrency:
+  group: lint-python-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  packages: read
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6.0.2
+      - name: Check Python files under .ci-scripts/
+        # ruff 0.15.12
+        uses: docker://ghcr.io/astral-sh/ruff@sha256:e42f3866bb9f701dbc459cdec3f5aca06511e6a38e6e04bfd4d04a2be26d4fd4
+        with:
+          args: check .ci-scripts
+
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6.0.2
+      - name: Run .ci-scripts tests
+        # Every `*_test.py` under .ci-scripts/ is self-contained (no pytest):
+        # python3-runnable, exits non-zero on failure. New tests are picked up
+        # automatically by this glob -- no registration needed.
+        run: |
+          set -e
+          tests=$(find .ci-scripts -name '*_test.py' | sort)
+          if [ -z "$tests" ]; then
+            echo "No .ci-scripts/**/*_test.py found -- glob or path broken?" >&2
+            exit 1
+          fi
+          for t in $tests; do
+            echo "== $t =="
+            python3 "$t"
+          done
+
+  lint-rt-stress:
+    name: Lint rt-stress
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6.0.2
+      - name: Check Python files under test/rt-stress/
+        # ruff 0.15.12
+        uses: docker://ghcr.io/astral-sh/ruff@sha256:e42f3866bb9f701dbc459cdec3f5aca06511e6a38e6e04bfd4d04a2be26d4fd4
+        with:
+          args: check test/rt-stress
+
+  test-rt-stress:
+    name: Test rt-stress
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6.0.2
+      - name: Run test/rt-stress tests
+        # Every `*_test.py` under test/rt-stress/ is self-contained (no pytest):
+        # python3-runnable, exits non-zero on failure. New tests are picked up
+        # automatically by this glob -- no registration needed.
+        run: |
+          set -e
+          tests=$(find test/rt-stress -name '*_test.py' | sort)
+          if [ -z "$tests" ]; then
+            echo "No test/rt-stress/**/*_test.py found -- glob or path broken?" >&2
+            exit 1
+          fi
+          for t in $tests; do
+            echo "== $t =="
+            python3 "$t"
+          done

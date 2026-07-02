@@ -464,8 +464,8 @@ TEST_F(MatchTypeTest, Capabilities)
     is_matchtype(type_of("t1refandt2ref"), type_of("t1refandt2box"), NULL, &opt));
 
   // Ephemerality
-  ast_t* c1iso_bang = alias(type_of("c1iso"));
-  ast_t* c1iso_eph = consume_type(type_of("c1iso"), TK_NONE, false);
+  ast_t* c1iso_bang = alias(type_of("c1iso"), &opt);
+  ast_t* c1iso_eph = consume_type(type_of("c1iso"), TK_NONE, false, &opt);
   ASSERT_EQ(MATCHTYPE_ACCEPT,
     is_matchtype(type_of("c1iso"), type_of("c1iso"), NULL, &opt));
   ASSERT_EQ(MATCHTYPE_DENY_CAP,
@@ -546,10 +546,10 @@ TEST_F(MatchTypeTest, GenericCap)
   ast_t* any_base = type_of("any");
 
   ast_t* read = type_of("read");
-  ast_t* send = consume_type(send_base, TK_NONE, true);
+  ast_t* send = consume_type(send_base, TK_NONE, true, &opt);
   ast_t* share = type_of("share");
   ast_t* alias = type_of("alias");
-  ast_t* any = consume_type(any_base, TK_NONE, true);
+  ast_t* any = consume_type(any_base, TK_NONE, true, &opt);
 
   ast_t* iso = type_of("iso'");
   ast_t* trn = type_of("trn'");

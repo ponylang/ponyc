@@ -2,13 +2,14 @@
 #include <platform.h>
 
 #include <codegen/gentype.h>
-#include <../libponyrt/mem/pool.h>
 
 #include "util.h"
 
 #include "llvm_config_begin.h"
 
 #include <llvm/IR/Constants.h>
+#include <llvm/IR/IntrinsicInst.h>
+#include <llvm/IR/Intrinsics.h>
 #include <llvm/IR/Module.h>
 
 #include "llvm_config_end.h"
@@ -35,7 +36,7 @@ TEST_F(CodegenTest, PackedStructIsPacked)
   TEST_COMPILE(src);
 
   reach_t* reach = compile->reach;
-  reach_type_t* foo = reach_type_name(reach, "Foo");
+  reach_type_t* foo = reach_type_name(reach, "Foo", &opt);
   ASSERT_TRUE(foo != NULL);
 
   LLVMTypeRef type = ((compile_type_t*)foo->c_type)->structure;
@@ -57,7 +58,7 @@ TEST_F(CodegenTest, NonPackedStructIsntPacked)
   TEST_COMPILE(src);
 
   reach_t* reach = compile->reach;
-  reach_type_t* foo = reach_type_name(reach, "Foo");
+  reach_type_t* foo = reach_type_name(reach, "Foo", &opt);
   ASSERT_TRUE(foo != NULL);
 
   LLVMTypeRef type = ((compile_type_t*)foo->c_type)->structure;
@@ -111,42 +112,6 @@ TEST_F(CodegenTest, ViewpointAdaptedFieldReach)
   TEST_COMPILE(src);
 }
 
-extern "C"
-{
-
-EXPORT_SYMBOL void* test_custom_serialisation_get_object()
-{
-  uint64_t* i = POOL_ALLOC(uint64_t);
-  *i = 0xDEADBEEF10ADBEE5;
-  return i;
-}
-
-EXPORT_SYMBOL void test_custom_serialisation_free_object(uint64_t* p)
-{
-  POOL_FREE(uint64_t, p);
-}
-
-EXPORT_SYMBOL void test_custom_serialisation_serialise(uint64_t* p,
-  unsigned char* bytes)
-{
-  *(uint64_t*)(bytes) = *p;
-}
-
-EXPORT_SYMBOL void* test_custom_serialisation_deserialise(unsigned char* bytes)
-{
-  uint64_t* p = POOL_ALLOC(uint64_t);
-  *p = *(uint64_t*)(bytes);
-  return p;
-}
-
-EXPORT_SYMBOL char test_custom_serialisation_compare(uint64_t* p1, uint64_t* p2)
-{
-  return *p1 == *p2;
-}
-
-}
-
-
 TEST_F(CodegenTest, DoNotOptimiseApplyPrimitive)
 {
   const char* src =
@@ -155,71 +120,6 @@ TEST_F(CodegenTest, DoNotOptimiseApplyPrimitive)
     "    DoNotOptimise[I64](0)";
 
   TEST_COMPILE(src);
-}
-
-TEST_F(CodegenTest, DescTable)
-{
-  const char* src =
-    "class C1\n"
-    "class C2\n"
-    "class C3\n"
-    "actor A1\n"
-    "actor A2\n"
-    "actor A3\n"
-    "primitive P1\n"
-    "primitive P2\n"
-    "primitive P3\n"
-
-    "actor Main\n"
-    "  new create(env: Env) =>\n"
-
-  // Reach various types.
-
-    "    (C1, A1, P1)\n"
-    "    (C2, A2, P2)\n"
-    "    (C3, A3, P3)\n"
-    "    (C1, I8)\n"
-    "    (C2, I16)\n"
-    "    (C3, I32)";
-
-  TEST_COMPILE(src);
-
-  auto module = llvm::unwrap(compile->module);
-
-  auto table_glob = module->getNamedGlobal("__DescTable");
-  ASSERT_NE(table_glob, nullptr);
-  ASSERT_TRUE(table_glob->hasInitializer());
-
-  auto desc_table = llvm::dyn_cast_or_null<llvm::ConstantArray>(
-    table_glob->getInitializer());
-  ASSERT_NE(desc_table, nullptr);
-
-  for(unsigned int i = 0; i < desc_table->getNumOperands(); i++)
-  {
-    // Check that for each element of the table, `desc_table[i]->id == i`.
-
-    auto table_element = desc_table->getOperand(i);
-    ASSERT_EQ(table_element->getType(), llvm::unwrap(compile->ptr));
-
-    if(table_element->isNullValue())
-      continue;
-
-    auto desc_ptr = llvm::dyn_cast_or_null<llvm::GlobalVariable>(
-      table_element);
-    ASSERT_NE(desc_ptr, nullptr);
-    ASSERT_TRUE(desc_ptr->hasInitializer());
-
-    auto desc = llvm::dyn_cast_or_null<llvm::ConstantStruct>(
-      desc_ptr->getInitializer());
-    ASSERT_NE(desc, nullptr);
-
-    auto type_id = llvm::dyn_cast_or_null<llvm::ConstantInt>(
-      desc->getOperand(0));
-    ASSERT_NE(type_id, nullptr);
-
-    ASSERT_EQ(type_id->getBitWidth(), 32);
-    ASSERT_EQ(type_id->getZExtValue(), i);
-  }
 }
 
 
@@ -366,4 +266,63 @@ TEST_F(CodegenTest, RepeatLoopBreakOnlyInBranches)
         "end";
 
   TEST_COMPILE(src);
+}
+
+TEST_F(CodegenTest, RepeatLoopElseClauseJumpsAway)
+{
+  // From issue #3326
+  // The else clause `error` jumps away and so has no type. gen_repeat must not
+  // try to reify that absent type, which previously crashed the compiler.
+  const char* src =
+    "actor Main\n"
+      "new create(env: Env) =>\n"
+        "try let x: U8 = repeat 1 until false else error end end";
+
+  TEST_COMPILE(src);
+}
+
+TEST_F(CodegenTest, LifetimeIntrinsicsHaveSinglePointerArgument)
+{
+  // LLVM 22 dropped the leading size argument from llvm.lifetime.start and
+  // llvm.lifetime.end; they now take a single pointer. A two-argument call
+  // is rejected by the module verifier, so confirm codegen emits exactly one
+  // argument. The union plus match capture below forces scoped locals, which
+  // is what makes codegen emit lifetime markers.
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let x: (U64 | None) = U64(1)\n"
+    "    match x\n"
+    "    | let n: U64 => None\n"
+    "    end";
+
+  TEST_COMPILE(src);
+
+  auto module = llvm::unwrap(compile->module);
+
+  size_t lifetime_calls = 0;
+  for(auto& function : *module)
+  {
+    for(auto& block : function)
+    {
+      for(auto& inst : block)
+      {
+        auto intrinsic = llvm::dyn_cast<llvm::IntrinsicInst>(&inst);
+        if(intrinsic == nullptr)
+          continue;
+
+        auto id = intrinsic->getIntrinsicID();
+        if((id == llvm::Intrinsic::lifetime_start) ||
+          (id == llvm::Intrinsic::lifetime_end))
+        {
+          lifetime_calls++;
+          ASSERT_EQ(intrinsic->arg_size(), 1u);
+        }
+      }
+    }
+  }
+
+  // Guard against a vacuous pass: the program above must actually emit
+  // lifetime markers, or the per-call assertion never runs.
+  ASSERT_GT(lifetime_calls, 0u);
 }

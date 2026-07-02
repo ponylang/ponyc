@@ -81,7 +81,7 @@ create deadlocks. Any call to `Backpressure.apply` should be matched by a
 corresponding call to `Backpressure.release`. Authorization via the
 `ApplyReleaseBackpressureAuth` capability is required to apply or release
 backpressure. By requiring that the caller have a token to apply or release a
-backpressure, rouge 3rd party library code can't run wild and unknowingly
+backpressure, rogue 3rd party library code can't run wild and unknowingly
 interfere with the runtime.
 """
 

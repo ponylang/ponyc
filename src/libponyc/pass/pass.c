@@ -4,6 +4,7 @@
 #include "scope.h"
 #include "import.h"
 #include "names.h"
+#include "typealias_recursion.h"
 #include "flatten.h"
 #include "traits.h"
 #include "refer.h"
@@ -11,12 +12,11 @@
 #include "completeness.h"
 #include "verify.h"
 #include "finalisers.h"
-#include "serialisers.h"
-#include "docgen.h"
 #include "../ast/ast.h"
 #include "../ast/parser.h"
 #include "../ast/treecheck.h"
 #include "../codegen/codegen.h"
+#include "../codegen/gencshim.h"
 #include "../pkg/program.h"
 #include "../pkg/buildflagset.h"
 #include "../plugin/plugin.h"
@@ -58,15 +58,15 @@ const char* pass_name(pass_id pass)
     case PASS_SCOPE: return "scope";
     case PASS_IMPORT: return "import";
     case PASS_NAME_RESOLUTION: return "name";
+    case PASS_TYPEALIAS_RECURSION: return "typealias_recursion";
     case PASS_FLATTEN: return "flatten";
     case PASS_TRAITS: return "traits";
-    case PASS_DOCS: return "docs";
     case PASS_REFER: return "refer";
     case PASS_EXPR: return "expr";
     case PASS_COMPLETENESS: return "completeness";
     case PASS_VERIFY: return "verify";
     case PASS_FINALISER: return "final";
-    case PASS_SERIALISER: return "serialise";
+    case PASS_C: return "c";
     case PASS_REACH: return "reach";
     case PASS_PAINT: return "paint";
     case PASS_LLVM_IR: return "ir";
@@ -103,9 +103,11 @@ void pass_opt_init(pass_opt_t* options)
   memset(options, 0, sizeof(pass_opt_t));
   options->limit = PASS_ALL;
   options->verbosity = VERBOSITY_INFO;
+  // The interned-string table must exist before anything that interns into it.
+  options->strtab = stringtab_new();
   options->check.errors = errors_alloc();
   options->ast_print_width = 80;
-  options->user_flags = userflags_create();
+  options->user_flags = userflags_create(options->strtab);
   frame_push(&options->check, NULL);
 }
 
@@ -141,6 +143,12 @@ void pass_opt_done(pass_opt_t* options)
       options->check.stats.stack_alloc
       );
   }
+
+  // Free the interned-string table last: every interned pointer handed out
+  // during this compilation (including those inside the AST) dangles after
+  // this, so nothing that holds one may be used past here.
+  stringtab_free(options->strtab);
+  options->strtab = NULL;
 }
 
 
@@ -194,7 +202,7 @@ static bool visit_pass(ast_t** astp, pass_opt_t* options, pass_id last_pass,
 
 bool module_passes(ast_t* package, pass_opt_t* options, source_t* source)
 {
-  if(!pass_parse(package, source, options->check.errors,
+  if(!pass_parse(package, source, options->check.errors, options->strtab,
     options->allow_test_symbols, options->parse_trace))
     return false;
 
@@ -251,6 +259,13 @@ static bool ast_passes(ast_t** astp, pass_opt_t* options, pass_id last)
   if(is_program)
     plugin_visit_ast(*astp, options, PASS_NAME_RESOLUTION);
 
+  if(!visit_pass(astp, options, last, &r, PASS_TYPEALIAS_RECURSION,
+    pass_typealias_recursion, NULL))
+    return r;
+
+  if(is_program)
+    plugin_visit_ast(*astp, options, PASS_TYPEALIAS_RECURSION);
+
   if(!visit_pass(astp, options, last, &r, PASS_FLATTEN, NULL, pass_flatten))
     return r;
 
@@ -262,12 +277,6 @@ static bool ast_passes(ast_t** astp, pass_opt_t* options, pass_id last)
 
   if(is_program)
     plugin_visit_ast(*astp, options, PASS_TRAITS);
-
-  if(!check_limit(astp, options, PASS_DOCS, last))
-    return true;
-
-  if(is_program && options->docs)
-    generate_docs(*astp, options);
 
   if(!visit_pass(astp, options, last, &r, PASS_REFER, pass_pre_refer,
     pass_refer))
@@ -304,14 +313,11 @@ static bool ast_passes(ast_t** astp, pass_opt_t* options, pass_id last)
   if(is_program)
     plugin_visit_ast(*astp, options, PASS_FINALISER);
 
-  if(!check_limit(astp, options, PASS_SERIALISER, last))
+  // Freezing the AST is the last step of the AST passes. Tools that limit
+  // compilation to the finaliser pass inspect and mutate the AST afterwards,
+  // so it must stay unfrozen unless compilation proceeds into reach.
+  if(!check_limit(astp, options, PASS_REACH, last))
     return true;
-
-  if(!pass_serialisers(*astp, options))
-    return false;
-
-  if(is_program)
-    plugin_visit_ast(*astp, options, PASS_SERIALISER);
 
   if(options->check_tree)
     check_tree(*astp, options);
@@ -320,8 +326,6 @@ static bool ast_passes(ast_t** astp, pass_opt_t* options, pass_id last)
 
   if(is_program)
   {
-    program_signature(*astp);
-
     if(options->verbosity >= VERBOSITY_TOOL_INFO)
       program_dump(*astp);
   }
@@ -332,7 +336,19 @@ static bool ast_passes(ast_t** astp, pass_opt_t* options, pass_id last)
 
 bool ast_passes_program(ast_t* ast, pass_opt_t* options)
 {
-  return ast_passes(&ast, options, PASS_ALL);
+  if(!ast_passes(&ast, options, PASS_ALL))
+    return false;
+
+  // PASS_C is not an AST pass: it compiles each package's C shim sources
+  // with the embedded clang, recording the objects on the program for the
+  // link. It runs here, on the shared side of the REACH boundary, so both
+  // real builds and the test harness reach it through this single call
+  // site, and so clang errors fail the build before codegen starts.
+  // Front-end tools stop at limit <= PASS_FINALISER and never invoke clang.
+  if(options->limit >= PASS_C)
+    return gencshim(ast, options);
+
+  return true;
 }
 
 

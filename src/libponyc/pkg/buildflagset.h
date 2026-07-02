@@ -5,6 +5,8 @@
 #include <stddef.h>
 #include <platform.h>
 
+typedef struct strtable_t strtable_t;
+
 PONY_EXTERN_C_BEGIN
 
 /* A build flag set records the platform and user build flags required for some
@@ -80,7 +82,7 @@ const char* buildflagset_print(buildflagset_t* set);
 // code options with ifdef expressions.
 typedef struct userflags_t userflags_t;
 
-userflags_t* userflags_create();
+userflags_t* userflags_create(strtable_t* strtab);
 
 void userflags_free(userflags_t* flags);
 

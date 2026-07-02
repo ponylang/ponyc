@@ -755,6 +755,51 @@ TEST_F(SugarExprTest, MatchExhaustiveAllCasesIncludingDontCareAndTuple)
 }
 
 
+TEST_F(SugarExprTest, MatchExhaustiveTupleOverAliasedUnion)
+{
+  // Regression test for the interaction with PR #5145, which stopped
+  // expanding type aliases during name resolution. Tuple match exhaustiveness
+  // distributes the tuple over its element unions by computing a cross-
+  // product of the element alternatives, and must unfold TK_TYPEALIASREF
+  // elements to see the underlying union. Without the unfold, each element
+  // is treated as a single opaque alternative and the cases do not look
+  // exhaustive. This mirrors the failing pattern in corral's
+  // CompareVersions._compare_pr_Fields.
+  const char* src =
+    "type PRF is (String | U64)\n"
+
+    "primitive Foo\n"
+    "  fun apply(p1: PRF, p2: PRF): Bool =>\n"
+    "    match (p1, p2)\n"
+    "    | (let u1: U64, let s2: String) => true\n"
+    "    | (let s1: String, let u2: U64) => false\n"
+    "    | (let u1: U64, let u2: U64) => true\n"
+    "    | (let s1: String, let s2: String) => false\n"
+    "    end";
+
+  TEST_COMPILE(src);
+}
+
+
+TEST_F(SugarExprTest, MatchNonExhaustiveTupleOverAliasedUnion)
+{
+  // Paired negative for MatchExhaustiveTupleOverAliasedUnion: dropping one
+  // cross-product case must still be detected as non-exhaustive after the
+  // TK_TYPEALIASREF unfold in expand_type_alternatives.
+  const char* src =
+    "type PRF is (String | U64)\n"
+
+    "primitive Foo\n"
+    "  fun apply(p1: PRF, p2: PRF): Bool =>\n"
+    "    match (p1, p2)\n"
+    "    | (let u1: U64, let s2: String) => true\n"
+    "    | (let s1: String, let u2: U64) => false\n"
+    "    | (let u1: U64, let u2: U64) => true\n"
+    "    end";
+
+  TEST_ERRORS_1(src, "function body isn't the result type");
+}
+
 
 TEST_F(SugarExprTest, MatchNonExhaustiveSomeTupleCaseElementsMatchOnValue)
 {
@@ -940,6 +985,175 @@ TEST_F(SugarExprTest, MatchExhaustiveBoolUnreachableElse)
     "    end";
 
   TEST_ERRORS_1(src, "match is exhaustive, the else clause is unreachable");
+}
+
+
+TEST_F(SugarExprTest, MatchExhaustiveBoolInTupleLast)
+{
+  const char* src =
+    "primitive Foo\n"
+    "  fun apply(x: (String, Bool)): Bool =>\n"
+    "    match x\n"
+    "    | (_, true) => true\n"
+    "    | (_, false) => false\n"
+    "    end";
+
+  TEST_COMPILE(src);
+}
+
+
+TEST_F(SugarExprTest, MatchExhaustiveBoolInTupleFirst)
+{
+  const char* src =
+    "primitive Foo\n"
+    "  fun apply(x: (Bool, String)): Bool =>\n"
+    "    match x\n"
+    "    | (true, _) => true\n"
+    "    | (false, _) => false\n"
+    "    end";
+
+  TEST_COMPILE(src);
+}
+
+
+TEST_F(SugarExprTest, MatchNonExhaustiveBoolInTuple)
+{
+  const char* src =
+    "primitive Foo\n"
+    "  fun apply(x: (String, Bool)): Bool =>\n"
+    "    match x\n"
+    "    | (_, true) => true\n"
+    "    end";
+
+  TEST_ERRORS_1(src, "function body isn't the result type");
+}
+
+
+TEST_F(SugarExprTest, MatchExhaustiveBoolInNestedTuple)
+{
+  const char* src =
+    "primitive Foo\n"
+    "  fun apply(x: ((String, U64), Bool)): Bool =>\n"
+    "    match x\n"
+    "    | ((_, _), true) => true\n"
+    "    | ((_, _), false) => false\n"
+    "    end";
+
+  TEST_COMPILE(src);
+}
+
+
+TEST_F(SugarExprTest, MatchExhaustiveBoolBoolCombinatorial)
+{
+  const char* src =
+    "primitive Foo\n"
+    "  fun apply(x: (Bool, Bool)): U32 =>\n"
+    "    match x\n"
+    "    | (true, true) => 1\n"
+    "    | (true, false) => 2\n"
+    "    | (false, true) => 3\n"
+    "    | (false, false) => 4\n"
+    "    end";
+
+  TEST_COMPILE(src);
+}
+
+
+TEST_F(SugarExprTest, MatchNonExhaustiveBoolBoolPartial)
+{
+  const char* src =
+    "primitive Foo\n"
+    "  fun apply(x: (Bool, Bool)): U32 =>\n"
+    "    match x\n"
+    "    | (true, true) => 1\n"
+    "    | (false, false) => 2\n"
+    "    end";
+
+  TEST_ERRORS_1(src, "function body isn't the result type");
+}
+
+
+TEST_F(SugarExprTest, MatchExhaustiveBoolInTupleWithUnion)
+{
+  const char* src =
+    "primitive P1\n"
+    "primitive Foo\n"
+    "  fun apply(x: (String, (Bool | P1))): Bool =>\n"
+    "    match x\n"
+    "    | (_, true) => true\n"
+    "    | (_, false) => false\n"
+    "    | (_, let _: P1) => true\n"
+    "    end";
+
+  TEST_COMPILE(src);
+}
+
+
+TEST_F(SugarExprTest, MatchExhaustiveBoolInTupleGuarded)
+{
+  const char* src =
+    "primitive Foo\n"
+    "  fun apply(x: (String, Bool)): Bool =>\n"
+    "    match x\n"
+    "    | (_, true) if false => true\n"
+    "    | (_, true) => true\n"
+    "    | (_, false) => false\n"
+    "    end";
+
+  TEST_COMPILE(src);
+}
+
+
+TEST_F(SugarExprTest, MatchExhaustiveBoolInTupleUnreachableElse)
+{
+  const char* src =
+    "primitive Foo\n"
+    "  fun apply(x: (String, Bool)): Bool =>\n"
+    "    match x\n"
+    "    | (_, true) => true\n"
+    "    | (_, false) => false\n"
+    "    else\n"
+    "      true\n"
+    "    end";
+
+  TEST_ERRORS_1(src, "match is exhaustive, the else clause is unreachable");
+}
+
+
+TEST_F(SugarExprTest, MatchExhaustiveBoolAliasInTuple)
+{
+  const char* src =
+    "type MyBool is Bool\n"
+    "primitive Foo\n"
+    "  fun apply(x: (String, MyBool)): Bool =>\n"
+    "    match x\n"
+    "    | (_, true) => true\n"
+    "    | (_, false) => false\n"
+    "    end";
+
+  TEST_COMPILE(src);
+}
+
+
+// Regression test: a discriminee typed `this->T` where T is a typeparam
+// constrained to Bool reaches is_match_exhaustive as a TK_ARROW around a
+// TK_TYPEPARAMREF. expand_bool_in_type cannot rewrite that into
+// (True | False), so the seen_true/seen_false fallback in is_match_exhaustive
+// is what recognizes the match as exhaustive. Compiles on main.
+TEST_F(SugarExprTest, MatchExhaustiveBoolViaTypeparamViewpoint)
+{
+  const char* src =
+    "class Holder[T: Bool val]\n"
+    "  let _v: T\n"
+    "  new create(v: T) => _v = v\n"
+    "  fun box do_match(): String =>\n"
+    "    let r: this->T = _v\n"
+    "    match r\n"
+    "    | true => \"t\"\n"
+    "    | false => \"f\"\n"
+    "    end\n";
+
+  TEST_COMPILE(src);
 }
 
 

@@ -5,6 +5,8 @@
 #include "../type/matchtype.h"
 #include "../type/alias.h"
 #include "../type/lookup.h"
+#include "../type/cap.h"
+#include "../type/typealias.h"
 #include "../ast/astbuild.h"
 #include "../ast/stringtab.h"
 #include "../ast/id.h"
@@ -26,6 +28,12 @@ static bool case_expr_matches_type_alone(pass_opt_t* opt, ast_t* case_expr)
 
     // This pattern form matches any type (ignoring the value entirely).
     case TK_DONTCAREREF:
+      return true;
+
+    // Bool literals match on type alone when their type is narrowed to a
+    // singleton (TK_BOOL_TRUE / TK_BOOL_FALSE) by substitute_bool_singleton_type.
+    case TK_TRUE:
+    case TK_FALSE:
       return true;
 
     // Tuple patterns may contain a mixture of matching on types and values,
@@ -61,7 +69,7 @@ static bool case_expr_matches_type_alone(pass_opt_t* opt, ast_t* case_expr)
   if((def == NULL) || (ast_id(def) != TK_PRIMITIVE) || is_machine_word(type))
     return false;
 
-  ast_t* eq_def = ast_get(def, stringtab("eq"), NULL);
+  ast_t* eq_def = ast_get(def, stringtab(opt->strtab, "eq"), NULL);
   pony_assert(ast_id(eq_def) == TK_FUN);
 
   ast_t* eq_params = ast_childidx(eq_def, 3);
@@ -89,17 +97,131 @@ static bool case_expr_matches_type_alone(pass_opt_t* opt, ast_t* case_expr)
   return true;
 }
 
-// Returns 1 for true, 0 for false, -1 if not a Bool literal
-static int get_bool_literal_value(ast_t* case_expr)
+// Recursively walk a type AST and replace every Bool nominal with a
+// (TK_BOOL_TRUE | TK_BOOL_FALSE) union. Returns a new AST (caller owns it).
+static ast_t* expand_bool_in_type(ast_t* type)
 {
+  switch(ast_id(type))
+  {
+    case TK_NOMINAL:
+    {
+      if(is_bool(type))
+      {
+        ast_t* union_type = ast_from(type, TK_UNIONTYPE);
+        ast_add(union_type, ast_from(type, TK_BOOL_FALSE));
+        ast_add(union_type, ast_from(type, TK_BOOL_TRUE));
+        return union_type;
+      }
+      return ast_dup(type);
+    }
+
+    case TK_TUPLETYPE:
+    {
+      ast_t* result = ast_from(type, TK_TUPLETYPE);
+      for(ast_t* child = ast_child(type); child != NULL;
+        child = ast_sibling(child))
+      {
+        ast_t* expanded = expand_bool_in_type(child);
+        ast_append(result, expanded);
+      }
+      return result;
+    }
+
+    case TK_UNIONTYPE:
+    {
+      ast_t* result = ast_from(type, TK_UNIONTYPE);
+      for(ast_t* child = ast_child(type); child != NULL;
+        child = ast_sibling(child))
+      {
+        ast_t* expanded = expand_bool_in_type(child);
+        // Flatten inner unions to avoid nesting.
+        // ast_append auto-dups parented children, so just iterate and
+        // append each inner child, then free the expanded wrapper.
+        if(ast_id(expanded) == TK_UNIONTYPE)
+        {
+          for(ast_t* inner = ast_child(expanded); inner != NULL;
+            inner = ast_sibling(inner))
+          {
+            ast_append(result, inner);
+          }
+          ast_free_unattached(expanded);
+        }
+        else
+        {
+          ast_append(result, expanded);
+        }
+      }
+      return result;
+    }
+
+    case TK_ISECTTYPE:
+    {
+      ast_t* result = ast_from(type, TK_ISECTTYPE);
+      for(ast_t* child = ast_child(type); child != NULL;
+        child = ast_sibling(child))
+      {
+        ast_t* expanded = expand_bool_in_type(child);
+        ast_append(result, expanded);
+      }
+      return result;
+    }
+
+    case TK_TYPEALIASREF:
+    {
+      ast_t* unfolded = typealias_unfold(type);
+      if(unfolded == NULL)
+        return ast_dup(type);
+      ast_t* result = expand_bool_in_type(unfolded);
+      ast_free_unattached(unfolded);
+      return result;
+    }
+
+    default:
+      return ast_dup(type);
+  }
+}
+
+// Walk a case expression and its corresponding type in parallel. Wherever
+// the expression is a Bool literal (TK_TRUE/TK_FALSE), replace the type with
+// the corresponding singleton (TK_BOOL_TRUE/TK_BOOL_FALSE). Returns a new
+// AST (caller owns it).
+static ast_t* substitute_bool_singleton_type(ast_t* case_expr,
+  ast_t* case_type)
+{
+  // Unwrap single-child TK_SEQ wrappers on the expression.
   while(ast_id(case_expr) == TK_SEQ && ast_childcount(case_expr) == 1)
     case_expr = ast_child(case_expr);
 
   switch(ast_id(case_expr))
   {
-    case TK_TRUE: return 1;
-    case TK_FALSE: return 0;
-    default: return -1;
+    case TK_TRUE:
+      return ast_from(case_type, TK_BOOL_TRUE);
+
+    case TK_FALSE:
+      return ast_from(case_type, TK_BOOL_FALSE);
+
+    case TK_TUPLE:
+    {
+      if(ast_id(case_type) != TK_TUPLETYPE)
+        return ast_dup(case_type);
+
+      ast_t* result = ast_from(case_type, TK_TUPLETYPE);
+      ast_t* expr_child = ast_child(case_expr);
+      ast_t* type_child = ast_child(case_type);
+
+      while((expr_child != NULL) && (type_child != NULL))
+      {
+        ast_t* sub = substitute_bool_singleton_type(expr_child, type_child);
+        ast_append(result, sub);
+        expr_child = ast_sibling(expr_child);
+        type_child = ast_sibling(type_child);
+      }
+
+      return result;
+    }
+
+    default:
+      return ast_dup(case_type);
   }
 }
 
@@ -117,6 +239,11 @@ static ast_t* is_match_exhaustive(pass_opt_t* opt, ast_t* expr_type,
   // The return/error/break/continue should be moved to outside the match.
   if(ast_checkflag(cases, AST_FLAG_JUMPS_AWAY))
     return NULL;
+
+  // Expand Bool in the discriminee type to (TK_BOOL_TRUE | TK_BOOL_FALSE).
+  // This lets Bool literals in tuple patterns participate in exhaustiveness
+  // checking through the existing tuple-of-union distribution machinery.
+  ast_t* expanded_expr_type = expand_bool_in_type(expr_type);
 
   // Construct a union of all pattern types that count toward exhaustive match.
   ast_t* cases_union_type = ast_from(cases, TK_UNIONTYPE);
@@ -142,12 +269,23 @@ static ast_t* is_match_exhaustive(pass_opt_t* opt, ast_t* expr_type,
     if(ast_id(guard) != TK_NONE)
       continue;
 
-    // Check for Bool literal patterns (only if no guard).
-    // Bool is a machine word, so case_expr_matches_type_alone will return
-    // false, but we can still track if both true and false are matched.
-    int bool_val = get_bool_literal_value(case_expr);
-    if(bool_val == 1) seen_true = true;
-    else if(bool_val == 0) seen_false = true;
+    // Track Bool literal patterns separately. expand_bool_in_type expands
+    // Bool nominals to (True | False), but viewpoint-adapted Bool (e.g.
+    // this->T where T: Bool val) reaches us as TK_ARROW or TK_TYPEPARAMREF
+    // and isn't expanded. The seen_true/seen_false fallback below covers
+    // those cases by adding Bool nominal to the cases union and rechecking.
+    {
+      ast_t* unwrapped = case_expr;
+      while(ast_id(unwrapped) == TK_SEQ && ast_childcount(unwrapped) == 1)
+        unwrapped = ast_child(unwrapped);
+
+      switch(ast_id(unwrapped))
+      {
+        case TK_TRUE: seen_true = true; break;
+        case TK_FALSE: seen_false = true; break;
+        default: {}
+      }
+    }
 
     // Only cases that match on type alone can count toward exhaustive match,
     // because matches on structural equality can't be statically evaluated.
@@ -155,29 +293,40 @@ static ast_t* is_match_exhaustive(pass_opt_t* opt, ast_t* expr_type,
     if(!case_expr_matches_type_alone(opt, case_expr))
       continue;
 
-    // It counts, so add this pattern type to our running union type.
-    ast_add(cases_union_type, case_type);
+    // Substitute Bool singletons for any Bool literals in the case type,
+    // then expand any remaining Bool nominals to match the expanded
+    // discriminee, and add the result to our running union.
+    ast_t* substituted_type =
+      substitute_bool_singleton_type(case_expr, case_type);
+    ast_t* effective_type = expand_bool_in_type(substituted_type);
+    ast_free_unattached(substituted_type);
+    ast_add(cases_union_type, effective_type);
 
     // If our cases types union is a supertype of the match expression type,
     // then the match must be exhaustive, because all types are covered by cases.
-    if(is_subtype(expr_type, cases_union_type, NULL, opt))
+    if(is_subtype(expanded_expr_type, cases_union_type, NULL, opt))
     {
       result = c;
       break;
     }
   }
 
-  // If we've seen both true and false literals without guards,
-  // Bool is exhaustively covered. Add Bool to union and recheck.
+  // Fallback: if the cases include both `true` and `false` literals (without
+  // guards) and the expanded-type subtype check did not declare the match
+  // exhaustive, add Bool nominal to the cases union and recheck against the
+  // original expr_type. This catches discriminees where the Bool nominal is
+  // hidden behind a viewpoint adapter or a typeparamref constraint, which
+  // expand_bool_in_type cannot rewrite directly.
   if(result == NULL && seen_true && seen_false)
   {
     ast_t* bool_type = type_builtin(opt, cases, "Bool");
     ast_add(cases_union_type, bool_type);
 
     if(is_subtype(expr_type, cases_union_type, NULL, opt))
-      result = ast_childlast(cases);  // Point to last case
+      result = ast_childlast(cases);
   }
 
+  ast_free_unattached(expanded_expr_type);
   ast_free_unattached(cases_union_type);
   return result;
 }
@@ -187,6 +336,9 @@ bool expr_match(pass_opt_t* opt, ast_t* ast)
 {
   pony_assert(ast_id(ast) == TK_MATCH);
   AST_GET_CHILDREN(ast, expr, cases, else_clause);
+
+  if(jumps_away_no_value(opt, expr, "a match operand"))
+    return false;
 
   // A literal match expression should have been caught by the cases, but check
   // again to avoid an assert if we've missed a case
@@ -202,12 +354,12 @@ bool expr_match(pass_opt_t* opt, ast_t* ast)
     return false;
   }
 
-  if(is_bare(expr_type))
+  if(is_bare(expr_type, opt))
   {
     ast_error(opt->check.errors, expr,
       "a match operand cannot have a bare type");
     ast_error_continue(opt->check.errors, expr_type,
-      "type is %s", ast_print_type(expr_type));
+      "type is %s", ast_print_type(expr_type, opt->strtab));
     return false;
   }
 
@@ -242,10 +394,11 @@ bool expr_match(pass_opt_t* opt, ast_t* ast)
       // match might not be exhaustive
       if ((ast_id(else_clause) == TK_NONE))
       {
-        if(ast_has_annotation(ast, "exhaustive"))
+        if(ast_has_annotation(ast, "exhaustive", opt->strtab))
         {
           ast_error(opt->check.errors, ast,
             "match marked \\exhaustive\\ is not exhaustive");
+          ast_free_unattached(type);
           return false;
         }
 
@@ -262,7 +415,10 @@ bool expr_match(pass_opt_t* opt, ast_t* ast)
         ast_add(else_clause, ref);
 
         if(!expr_typeref(opt, &ref) || !expr_seq(opt, else_clause))
+        {
+          ast_free_unattached(type);
           return false;
+        }
       }
     }
     else
@@ -274,6 +430,7 @@ bool expr_match(pass_opt_t* opt, ast_t* ast)
         ast_error(opt->check.errors, ast, "match contains unreachable cases");
         ast_error_continue(opt->check.errors, ast_sibling(exhaustive_at),
           "first unreachable case expression");
+        ast_free_unattached(type);
         return false;
       }
       else if((ast_id(else_clause) != TK_NONE))
@@ -282,6 +439,7 @@ bool expr_match(pass_opt_t* opt, ast_t* ast)
           "match is exhaustive, the else clause is unreachable");
         ast_error_continue(opt->check.errors, else_clause,
           "unreachable code");
+        ast_free_unattached(type);
         return false;
       }
     }
@@ -292,7 +450,10 @@ bool expr_match(pass_opt_t* opt, ast_t* ast)
     if (!ast_checkflag(else_clause, AST_FLAG_JUMPS_AWAY))
     {
       if(is_typecheck_error(ast_type(else_clause)))
+      {
+        ast_free_unattached(type);
         return false;
+      }
 
       type = control_type_add_branch(opt, type, else_clause);
     }
@@ -325,7 +486,17 @@ bool expr_cases(pass_opt_t* opt, ast_t* ast)
 
     if(!is_typecheck_error(body_type) &&
       !ast_checkflag(body, AST_FLAG_JUMPS_AWAY))
+    {
+      ast_t* prev_type = type;
       type = control_type_add_branch(opt, type, body);
+
+      // control_type_add_branch may return prev_type, a parented alias,
+      // or a freshly-built tree. Free any previous accumulator it did
+      // not return as-is: ast_free_unattached is a no-op on parented
+      // aliases and on NULL.
+      if(type != prev_type)
+        ast_free_unattached(prev_type);
+    }
 
     the_case = ast_sibling(the_case);
   }
@@ -355,12 +526,12 @@ static ast_t* make_pattern_type(pass_opt_t* opt, ast_t* pattern)
   if(is_typecheck_error(pattern_type))
     return NULL;
 
-  if(is_bare(pattern_type))
+  if(is_bare(pattern_type, opt))
   {
     ast_error(opt->check.errors, pattern,
       "a match pattern cannot have a bare type");
     ast_error_continue(opt->check.errors, pattern_type,
-      "type is %s", ast_print_type(pattern_type));
+      "type is %s", ast_print_type(pattern_type, opt->strtab));
     return NULL;
   }
 
@@ -420,7 +591,7 @@ static ast_t* make_pattern_type(pass_opt_t* opt, ast_t* pattern)
 
   // Structural equality, pattern.eq(match).
   deferred_reification_t* fun = lookup(opt, pattern, pattern_type,
-    stringtab("eq"));
+    stringtab(opt->strtab, "eq"));
 
   if(fun == NULL)
   {
@@ -521,6 +692,214 @@ static bool infer_pattern_type(ast_t** astp, ast_t* match_expr_type,
   return coerce_literals(astp, match_expr_type, opt);
 }
 
+// Check if a type has a capability that would change under aliasing,
+// meaning it requires an ephemeral discriminee for a sound capture.
+static bool capture_needs_ephemeral(ast_t* type)
+{
+  switch(ast_id(type))
+  {
+    case TK_NOMINAL:
+    case TK_TYPEPARAMREF:
+    {
+      ast_t* cap = cap_fetch(type);
+      ast_t* eph = ast_sibling(cap);
+
+      // Already aliased or ephemeral — aliasing won't change this type.
+      if(ast_id(eph) != TK_NONE)
+        return false;
+
+      switch(ast_id(cap))
+      {
+        case TK_ISO:
+        case TK_TRN:
+        case TK_CAP_SEND:
+        case TK_CAP_ANY:
+        case TK_NONE:
+          // TK_NONE cap occurs on type param refs with no explicit constraint.
+          return true;
+
+        default:
+          return false;
+      }
+    }
+
+    case TK_ARROW:
+      return capture_needs_ephemeral(ast_childidx(type, 1));
+
+    case TK_UNIONTYPE:
+    case TK_ISECTTYPE:
+    {
+      ast_t* child = ast_child(type);
+
+      while(child != NULL)
+      {
+        if(capture_needs_ephemeral(child))
+          return true;
+
+        child = ast_sibling(child);
+      }
+
+      return false;
+    }
+
+    case TK_TYPEALIASREF:
+    {
+      ast_t* unfolded = typealias_unfold(type);
+
+      if(unfolded == NULL)
+        return false;
+
+      bool result = capture_needs_ephemeral(unfolded);
+      ast_free_unattached(unfolded);
+      return result;
+    }
+
+    default:
+      return false;
+  }
+}
+
+// Check if a type has any ephemeral component.
+// For unions/intersections, "any" is correct: a match capture binds a
+// single member, so it's sound if the matched member is ephemeral.
+// Tuples are handled position-by-position in check_capture_soundness.
+static bool type_is_ephemeral(ast_t* type)
+{
+  switch(ast_id(type))
+  {
+    case TK_NOMINAL:
+    case TK_TYPEPARAMREF:
+    {
+      ast_t* eph = ast_sibling(cap_fetch(type));
+      return ast_id(eph) == TK_EPHEMERAL;
+    }
+
+    case TK_UNIONTYPE:
+    case TK_ISECTTYPE:
+    case TK_TUPLETYPE:
+    {
+      ast_t* child = ast_child(type);
+
+      while(child != NULL)
+      {
+        if(type_is_ephemeral(child))
+          return true;
+
+        child = ast_sibling(child);
+      }
+
+      return false;
+    }
+
+    case TK_ARROW:
+      return type_is_ephemeral(ast_childidx(type, 1));
+
+    case TK_TYPEALIASREF:
+    {
+      ast_t* unfolded = typealias_unfold(type);
+
+      if(unfolded == NULL)
+        return false;
+
+      bool result = type_is_ephemeral(unfolded);
+      ast_free_unattached(unfolded);
+      return result;
+    }
+
+    default:
+      return false;
+  }
+}
+
+// Check that match captures don't grant capabilities that require consuming
+// the match expression. This catches viewpoint-adapted and generic captures
+// (e.g. this->B iso, this->T where T could be iso) that bypass the
+// is_matchtype_with_consumed_pattern check due to viewpoint adaptation
+// erasing the ephemeral distinction.
+static bool check_capture_soundness(pass_opt_t* opt, ast_t* pattern,
+  ast_t* match_type, ast_t* match_expr)
+{
+  // Unfold any top-level type alias in the match type so the pattern walk
+  // below can see the underlying form. This is required for tuple patterns
+  // matched against an aliased tuple type, and avoids reporting the alias
+  // name when the underlying form is what determines soundness.
+  if(ast_id(match_type) == TK_TYPEALIASREF)
+  {
+    ast_t* unfolded = typealias_unfold(match_type);
+
+    if(unfolded == NULL)
+      return true;
+
+    bool result = check_capture_soundness(opt, pattern, unfolded, match_expr);
+    ast_free_unattached(unfolded);
+    return result;
+  }
+
+  switch(ast_id(pattern))
+  {
+    case TK_MATCH_CAPTURE:
+    {
+      ast_t* capture_type = ast_type(pattern);
+
+      if(capture_needs_ephemeral(capture_type) &&
+        !type_is_ephemeral(match_type))
+      {
+        errorframe_t frame = NULL;
+        ast_error_frame(&frame, pattern,
+          "this capture is unsound: the capture type can grant capabilities "
+          "that require consuming the match expression");
+        ast_error_frame(&frame, pattern, "capture type: %s",
+          ast_print_type(capture_type, opt->strtab));
+        ast_error_frame(&frame, match_expr, "match type: %s",
+          ast_print_type(match_type, opt->strtab));
+        ast_error_frame(&frame, pattern,
+          "if you need to capture with this capability, "
+          "consume the match expression");
+        errorframe_report(&frame, opt->check.errors);
+        return false;
+      }
+
+      return true;
+    }
+
+    case TK_SEQ:
+    {
+      if(ast_childcount(pattern) == 1)
+        return check_capture_soundness(opt, ast_child(pattern),
+          match_type, match_expr);
+
+      return true;
+    }
+
+    case TK_TUPLE:
+    {
+      if(ast_id(match_type) != TK_TUPLETYPE)
+        return true;
+
+      ast_t* pattern_child = ast_child(pattern);
+      ast_t* type_child = ast_child(match_type);
+      bool ok = true;
+
+      while((pattern_child != NULL) && (type_child != NULL))
+      {
+        if(!check_capture_soundness(opt, pattern_child,
+          type_child, match_expr))
+        {
+          ok = false;
+        }
+
+        pattern_child = ast_sibling(pattern_child);
+        type_child = ast_sibling(type_child);
+      }
+
+      return ok;
+    }
+
+    default:
+      return true;
+  }
+}
+
 bool expr_case(pass_opt_t* opt, ast_t* ast)
 {
   pony_assert(opt != NULL);
@@ -546,8 +925,13 @@ bool expr_case(pass_opt_t* opt, ast_t* ast)
   ast_t* match_expr = ast_child(match);
   ast_t* match_type = ast_type(match_expr);
 
-  if(ast_checkflag(match_expr, AST_FLAG_JUMPS_AWAY) ||
-    is_typecheck_error(match_type))
+  // If the match operand jumps away (no value), the match is invalid and
+  // expr_match reports it once. Skip this case rather than reporting here too,
+  // which would duplicate the error once per case.
+  if(ast_checkflag(match_expr, AST_FLAG_JUMPS_AWAY))
+    return true;
+
+  if(is_typecheck_error(match_type))
     return false;
 
   if(!infer_pattern_type(&pattern, match_type, opt))
@@ -580,6 +964,8 @@ bool expr_case(pass_opt_t* opt, ast_t* ast)
     switch(is_matchtype_with_consumed_pattern(match_type, pattern_type, &info, opt))
     {
       case MATCHTYPE_ACCEPT:
+        if(!check_capture_soundness(opt, pattern, match_type, match_expr))
+          ok = false;
         break;
 
       case MATCHTYPE_REJECT:
@@ -587,10 +973,10 @@ bool expr_case(pass_opt_t* opt, ast_t* ast)
         errorframe_t frame = NULL;
         ast_error_frame(&frame, pattern, "this pattern can never match");
         ast_error_frame(&frame, match_type, "match type: %s",
-          ast_print_type(match_type));
+          ast_print_type(match_type, opt->strtab));
         // TODO report unaliased type when body is consume !
         ast_error_frame(&frame, pattern, "pattern type: %s",
-          ast_print_type(pattern_type));
+          ast_print_type(pattern_type, opt->strtab));
         errorframe_append(&frame, &info);
         errorframe_report(&frame, opt->check.errors);
 
@@ -608,9 +994,9 @@ bool expr_case(pass_opt_t* opt, ast_t* ast)
         ast_error_frame(&frame, match_type, "the match type allows for more than "
           "one possibility with the same type as pattern type, but different "
           "capabilities. match type: %s",
-          ast_print_type(match_type));
+          ast_print_type(match_type, opt->strtab));
         ast_error_frame(&frame, pattern, "pattern type: %s",
-          ast_print_type(pattern_type));
+          ast_print_type(pattern_type, opt->strtab));
         errorframe_append(&frame, &info);
         ast_error_frame(&frame, match_expr,
           "the match expression with the inadequate capability is here");
@@ -626,12 +1012,12 @@ bool expr_case(pass_opt_t* opt, ast_t* ast)
         ast_error_frame(&frame, pattern,
           "this capture cannot match, since the type %s "
           "is a struct and lacks a type descriptor",
-          ast_print_type(pattern_type));
+          ast_print_type(pattern_type, opt->strtab));
         ast_error_frame(&frame, match_type,
           "a struct cannot be part of a union type. match type: %s",
-          ast_print_type(match_type));
+          ast_print_type(match_type, opt->strtab));
         ast_error_frame(&frame, pattern, "pattern type: %s",
-          ast_print_type(pattern_type));
+          ast_print_type(pattern_type, opt->strtab));
         errorframe_append(&frame, &info);
         errorframe_report(&frame, opt->check.errors);
         ok = false;
@@ -641,6 +1027,9 @@ bool expr_case(pass_opt_t* opt, ast_t* ast)
 
     if(ast_id(guard) != TK_NONE)
     {
+      if(jumps_away_no_value(opt, guard, "a match guard"))
+        return false;
+
       ast_t* guard_type = ast_type(guard);
 
       if(is_typecheck_error(guard_type))

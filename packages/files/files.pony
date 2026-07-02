@@ -5,7 +5,7 @@ The Files package provides classes for working with files and
 directories.
 
 Files are identified by `FilePath` objects, which represent both the
-path to the file and the capabilites for accessing the file at that
+path to the file and the capabilities for accessing the file at that
 path. `FilePath` objects can be used with the `CreateFile` and
 `OpenFile` primitives and the `File` class to get a reference to a
 file that can be used to write to and/or read from the file. It can

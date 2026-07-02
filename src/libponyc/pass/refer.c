@@ -1,6 +1,7 @@
 #include "refer.h"
 #include "../ast/id.h"
 #include "../pass/expr.h"
+#include "../type/typealias.h"
 #include "../../libponyrt/mem/pool.h"
 #include "ponyassert.h"
 #include <string.h>
@@ -140,7 +141,7 @@ static const char* generate_multi_dot_name(pass_opt_t *opt, ast_t* ast, ast_t** 
     default:
     {
       if (def == NULL)
-        return stringtab("");
+        return stringtab(opt->strtab, "");
       else if (in_consume_ctx) {
         pony_assert(has_consume_error);
 
@@ -152,7 +153,7 @@ static const char* generate_multi_dot_name(pass_opt_t *opt, ast_t* ast, ast_t** 
                   " single lowercase identifier, with no dots) or a field"
                   " of this (this followed by a dot and a single lowercase"
                   " identifier).");
-         return stringtab("");
+         return stringtab(opt->strtab, "");
       }
 
       pony_assert(0);
@@ -163,7 +164,7 @@ static const char* generate_multi_dot_name(pass_opt_t *opt, ast_t* ast, ast_t** 
   {
     *def_found = def;
     if(def == NULL)
-      return stringtab("");
+      return stringtab(opt->strtab, "");
   }
 
   // for the \0 at the end
@@ -192,7 +193,7 @@ static const char* generate_multi_dot_name(pass_opt_t *opt, ast_t* ast, ast_t** 
   pony_assert((offset + 1) == len);
   buf[offset] = '\0';
 
-  return stringtab_consume(buf, len);
+  return stringtab_consume(opt->strtab, buf, len);
 }
 
 static bool is_matching_assign_lhs(pass_opt_t *opt, ast_t* a, ast_t* b)
@@ -232,7 +233,7 @@ static bool is_assigned_to(pass_opt_t *opt, ast_t* ast, bool check_result_needed
           return true;
 
         // The result of that assignment can't be used.
-        return !is_result_needed(parent);
+        return !is_result_needed(parent, opt);
       }
 
       case TK_SEQ:
@@ -300,9 +301,33 @@ static bool is_constructed_from(ast_t* ast)
         return false;
 
       ast_t* typedefn = (ast_t*)ast_data(typeref);
-      ast_t* find = ast_get(typedefn, ast_name(right), NULL);
 
-      return (find != NULL) && (ast_id(find) == TK_NEW);
+      // For type aliases, unfold to get the concrete type definition.
+      ast_t* unfolded = NULL;
+
+      if(ast_id(typeref) == TK_TYPEALIASREF)
+      {
+        unfolded = typealias_unfold(typeref);
+
+        if((unfolded == NULL) || (ast_id(unfolded) != TK_NOMINAL) ||
+          (ast_data(unfolded) == NULL))
+        {
+          if(unfolded != NULL)
+            ast_free_unattached(unfolded);
+
+          return false;
+        }
+
+        typedefn = (ast_t*)ast_data(unfolded);
+      }
+
+      ast_t* find = ast_get(typedefn, ast_name(right), NULL);
+      bool result = (find != NULL) && (ast_id(find) == TK_NEW);
+
+      if(unfolded != NULL)
+        ast_free_unattached(unfolded);
+
+      return result;
     }
 
     default: {}
@@ -349,7 +374,8 @@ static bool valid_reference(pass_opt_t* opt, ast_t* ast, sym_status_t status)
   return false;
 }
 
-static const char* suggest_alt_name(ast_t* ast, const char* name)
+static const char* suggest_alt_name(ast_t* ast, const char* name,
+  pass_opt_t* opt)
 {
   pony_assert(ast != NULL);
   pony_assert(name != NULL);
@@ -359,7 +385,7 @@ static const char* suggest_alt_name(ast_t* ast, const char* name)
   if(is_name_private(name))
   {
     // Try without leading underscore
-    const char* try_name = stringtab(name + 1);
+    const char* try_name = stringtab(opt->strtab, name + 1);
 
     if(ast_get(ast, try_name, NULL) != NULL)
       return try_name;
@@ -370,14 +396,14 @@ static const char* suggest_alt_name(ast_t* ast, const char* name)
     char* buf = (char*)ponyint_pool_alloc_size(name_len + 2);
     buf[0] = '_';
     memcpy(buf + 1, name, name_len + 1);
-    const char* try_name = stringtab_consume(buf, name_len + 2);
+    const char* try_name = stringtab_consume(opt->strtab, buf, name_len + 2);
 
     if(ast_get(ast, try_name, NULL) != NULL)
       return try_name;
   }
 
   // Try with a different case (without crossing type/value boundary)
-  ast_t* case_ast = ast_get_case(ast, name, NULL);
+  ast_t* case_ast = ast_get_case(ast, name, NULL, opt->strtab);
   if(case_ast != NULL)
   {
     ast_t* id = case_ast;
@@ -418,7 +444,7 @@ static bool refer_this(pass_opt_t* opt, ast_t* ast)
 
   // Can only use a this reference if it hasn't been consumed yet.
   sym_status_t status;
-  ast_get(ast, stringtab("this"), &status);
+  ast_get(ast, stringtab(opt->strtab, "this"), &status);
 
   if((status == SYM_CONSUMED) || (status == SYM_CONSUMED_SAME_EXPR))
   {
@@ -457,7 +483,7 @@ bool refer_reference(pass_opt_t* opt, ast_t** astp)
   // If nothing was found, we fail, but also try to suggest an alternate name.
   if(def == NULL)
   {
-    const char* alt_name = suggest_alt_name(ast, name);
+    const char* alt_name = suggest_alt_name(ast, name, opt);
 
     if(alt_name == NULL)
       ast_error(opt->check.errors, ast, "can't find declaration of '%s'", name);
@@ -620,7 +646,7 @@ static bool refer_this_dot(pass_opt_t* opt, ast_t* ast)
   // If nothing was found, we fail, but also try to suggest an alternate name.
   if(def == NULL)
   {
-    const char* alt_name = suggest_alt_name(ast, name);
+    const char* alt_name = suggest_alt_name(ast, name, opt);
 
     if(alt_name == NULL)
       ast_error(opt->check.errors, ast, "can't find declaration of '%s'", name);
@@ -739,7 +765,7 @@ bool refer_qualify(pass_opt_t* opt, ast_t* ast)
   return true;
 }
 
-static void error_check_used_decl(errorframe_t* frame, ast_t* ast)
+static void error_check_used_decl(errorframe_t* frame, ast_t* ast, pass_opt_t* opt)
 {
   // Prints an info about why the lvalue is needed
   ast_t* parent = ast_parent(ast);
@@ -747,7 +773,7 @@ static void error_check_used_decl(errorframe_t* frame, ast_t* ast)
   token_id parent_id = ast_id(parent);
 
   if (parent_id == TK_VAR || parent_id == TK_LET) {
-    ast_error_frame(frame, parent, "the previous value of '%s' is used because you are trying to use the resulting value of this %s declaration", ast_print_type(ast), ast_print_type(parent));
+    ast_error_frame(frame, parent, "the previous value of '%s' is used because you are trying to use the resulting value of this %s declaration", ast_print_type(ast, opt->strtab), ast_print_type(parent, opt->strtab));
   }
 }
 
@@ -758,7 +784,7 @@ static void error_consumed_but_used(pass_opt_t* opt, ast_t* ast)
   ast_error_frame(&frame, ast,
     "the left side is consumed but its value is used");
 
-  error_check_used_decl(&frame, ast);
+  error_check_used_decl(&frame, ast, opt);
 
   errorframe_report(&frame, opt->check.errors);
 }
@@ -770,7 +796,7 @@ static void error_undefined_but_used(pass_opt_t* opt, ast_t* ast)
   ast_error_frame(&frame, ast,
     "the left side is undefined but its value is used");
 
-  error_check_used_decl(&frame, ast);
+  error_check_used_decl(&frame, ast, opt);
 
   errorframe_report(&frame, opt->check.errors);
 }
@@ -1044,7 +1070,7 @@ static bool refer_assign(pass_opt_t* opt, ast_t* ast)
   pony_assert(ast_id(ast) == TK_ASSIGN);
   AST_GET_CHILDREN(ast, left, right);
 
-  switch(is_lvalue(opt, left, is_result_needed(ast)))
+  switch(is_lvalue(opt, left, is_result_needed(ast, opt)))
   {
     case NOT_LVALUE:
       if(ast_id(left) == TK_DONTCAREREF)
@@ -1093,7 +1119,10 @@ static bool ast_get_child(pass_opt_t *opt, ast_t* ast, const char* name)
 
   while(child != NULL)
   {
-    if(ast_get_child(opt, child, name))
+    // Don't recurse into children that introduce their own scope (e.g., a match
+    // from `as` desugaring). Variables defined in those scopes are not
+    // assignment targets of the outer expression.
+    if(!ast_has_scope(child) && ast_get_child(opt, child, name))
       return true;
 
     child = ast_sibling(child);
@@ -1162,7 +1191,7 @@ static bool refer_consume(pass_opt_t* opt, ast_t* ast)
 
     case TK_THIS:
     {
-      name = stringtab("this");
+      name = stringtab(opt->strtab, "this");
       break;
     }
 
@@ -1480,8 +1509,10 @@ static bool refer_while(pass_opt_t* opt, ast_t* ast)
 
   ast_consolidate_branches(ast, branch_count);
 
-  // If all branches jump away with no value, then we do too.
-  if(branch_count == 0)
+  // If all branches jump away with no value, then we do too -- unless the body
+  // contains a break with a value, which gives the loop a value and an exit to
+  // the code after it, so control can still resume past the loop.
+  if((branch_count == 0) && !ast_checkflag(body, AST_FLAG_MAY_BREAK_VALUE))
     ast_setflag(ast, AST_FLAG_JUMPS_AWAY);
 
   // Push our symbol status to our parent scope.
@@ -1532,8 +1563,18 @@ static bool refer_repeat(pass_opt_t* opt, ast_t* ast)
 
   ast_consolidate_branches(ast, branch_count);
 
-  // If all branches jump away with no value, then we do too.
-  if(branch_count == 0)
+  // The loop produces no value -- and so jumps away -- only when none of its
+  // exits yields one. branch_count is 0 when the body never falls through to
+  // the condition. On top of that, a break carrying a value gives the loop that
+  // value, and a continue routes to the else clause (see gen_repeat), so a body
+  // that may continue past a non-jumps-away else gives the loop that else's
+  // value. Any of those is a value-producing exit that lets control resume past
+  // the loop.
+  bool value_via_continue = ast_checkflag(body, AST_FLAG_MAY_CONTINUE) &&
+    !ast_checkflag(else_clause, AST_FLAG_JUMPS_AWAY);
+
+  if((branch_count == 0) && !ast_checkflag(body, AST_FLAG_MAY_BREAK_VALUE) &&
+    !value_via_continue)
     ast_setflag(ast, AST_FLAG_JUMPS_AWAY);
 
   // Push our symbol status to our parent scope.
@@ -1699,6 +1740,15 @@ static bool refer_break(pass_opt_t* opt, ast_t* ast)
 
   ast_setflag(opt->check.frame->loop_body, AST_FLAG_MAY_BREAK);
 
+  // A break that carries a value gives the loop both a value and an exit to the
+  // code after it, so the loop does not jump away. Record this separately from
+  // AST_FLAG_MAY_BREAK (which covers any break, including a valueless one that
+  // exits without contributing a value) so the loop's refer pass can keep
+  // flagging itself jumps-away in the valueless case while clearing that verdict
+  // when a value break is present.
+  if(ast_id(ast_child(ast)) != TK_NONE)
+    ast_setflag(opt->check.frame->loop_body, AST_FLAG_MAY_BREAK_VALUE);
+
   errorframe_t errorf = NULL;
   if(!ast_all_consumes_in_scope(opt->check.frame->loop_body, ast, &errorf))
   {
@@ -1723,6 +1773,12 @@ static bool refer_continue(pass_opt_t* opt, ast_t* ast)
     ast_error(opt->check.errors, ast, "must be in a loop");
     return false;
   }
+
+  // A continue jumps to the loop's else clause (via the condition). If the else
+  // produces a value, the loop can yield it and resume past the loop, so the
+  // loop does not jump away. Record the continue so refer_repeat can account for
+  // that value path (refer_while already counts its else unconditionally).
+  ast_setflag(opt->check.frame->loop_body, AST_FLAG_MAY_CONTINUE);
 
   errorframe_t errorf = NULL;
   if(!ast_all_consumes_in_scope(opt->check.frame->loop_body, ast, &errorf))

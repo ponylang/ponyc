@@ -6,7 +6,6 @@ RUN apk update \
   && apk upgrade \
   && apk add --update --no-cache \
   alpine-sdk \
-  binutils-gold \
   clang \
   clang-dev \
   coreutils \

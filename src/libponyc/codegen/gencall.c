@@ -10,6 +10,7 @@
 #include "../pkg/platformfuns.h"
 #include "../type/cap.h"
 #include "../type/subtype.h"
+#include "../type/typealias.h"
 #include "../ast/stringtab.h"
 #include "../pass/expr.h"
 #include "../../libponyrt/mem/pool.h"
@@ -84,28 +85,6 @@ static void ffi_decl_free(ffi_decl_t* d)
 
 DEFINE_HASHMAP(ffi_decls, ffi_decls_t, ffi_decl_t, ffi_decl_hash, ffi_decl_cmp,
   ffi_decl_free);
-
-static LLVMValueRef invoke_fun(compile_t* c, LLVMTypeRef fun_type,
-  LLVMValueRef fun, LLVMValueRef* args, int count, const char* ret, bool setcc)
-{
-  if(fun == NULL)
-    return NULL;
-
-  LLVMBasicBlockRef this_block = LLVMGetInsertBlock(c->builder);
-  LLVMBasicBlockRef then_block = LLVMInsertBasicBlockInContext(c->context,
-    this_block, "invoke");
-  LLVMMoveBasicBlockAfter(then_block, this_block);
-  LLVMBasicBlockRef else_block = c->frame->invoke_target;
-
-  LLVMValueRef invoke = LLVMBuildInvoke2(c->builder, fun_type, fun, args, count,
-    then_block, else_block, ret);
-
-  if(setcc)
-    LLVMSetInstructionCallConv(invoke, c->callconv);
-
-  LLVMPositionBuilderAtEnd(c->builder, then_block);
-  return invoke;
-}
 
 static bool special_case_operator(compile_t* c, ast_t* ast,
   LLVMValueRef *value, bool short_circuit, bool native128)
@@ -481,14 +460,17 @@ LLVMValueRef gen_funptr(compile_t* c, ast_t* ast)
   // Generate the receiver.
   LLVMValueRef value = gen_expr(c, receiver);
 
+  if(value == NULL)
+    return NULL;
+
   // Get the receiver type.
   ast_t* type = deferred_reify(c->frame->reify, ast_type(receiver), c->opt);
-  reach_type_t* t = reach_type(c->reach, type);
+  reach_type_t* t = reach_type(c->reach, type, c->opt);
   pony_assert(t != NULL);
 
   const char* name = ast_name(method);
   token_id cap = cap_dispatch(type);
-  reach_method_t* m = reach_method(t, cap, name, typeargs);
+  reach_method_t* m = reach_method(t, cap, name, typeargs, c->opt);
   LLVMValueRef funptr = dispatch_function(c, t, m, value);
 
   ast_free_unattached(type);
@@ -586,7 +568,13 @@ void gen_send_message(compile_t* c, reach_method_t* m, LLVMValueRef args[],
 
   if(need_trace)
   {
-    LLVMValueRef gc = gencall_runtime(c, "pony_gc_send", &ctx, 1, "");
+    // Pass the destination actor (args[0]) so the send-trace can recognise a
+    // self-send and pin objects that round-trip through the actor's own queue
+    // against the local GC sweep (avoids redundant owner acquire traffic).
+    LLVMValueRef gc_args[2];
+    gc_args[0] = ctx;
+    gc_args[1] = args[0];
+    LLVMValueRef gc = gencall_runtime(c, "pony_gc_send", gc_args, 2, "");
     LLVMSetMetadataStr(gc, "pony.msgsend", md);
 
     for(size_t i = 0; i < m->param_count; i++)
@@ -648,6 +636,16 @@ static bool contains_boxable(ast_t* type)
       return false;
     }
 
+    case TK_TYPEALIASREF:
+    {
+      ast_t* unfolded = typealias_unfold(type);
+      pony_assert(unfolded != NULL);
+
+      bool ok = contains_boxable(unfolded);
+      ast_free_unattached(unfolded);
+      return ok;
+    }
+
     default:
       pony_assert(0);
       return false;
@@ -655,7 +653,7 @@ static bool contains_boxable(ast_t* type)
 }
 
 static bool can_inline_message_send(reach_type_t* t, reach_method_t* m,
-  const char* method_name)
+  const char* method_name, compile_t* c)
 {
   switch(t->underlying)
   {
@@ -674,7 +672,7 @@ static bool can_inline_message_send(reach_type_t* t, reach_method_t* m,
   reach_type_t* sub;
   while((sub = reach_type_cache_next(&t->subtypes, &i)) != NULL)
   {
-    reach_method_t* m_sub = reach_method(sub, m->cap, method_name, m->typeargs);
+    reach_method_t* m_sub = reach_method(sub, m->cap, method_name, m->typeargs, c->opt);
 
     if(m_sub == NULL)
       continue;
@@ -759,11 +757,11 @@ LLVMValueRef gen_call(compile_t* c, ast_t* ast)
   // Get the receiver type.
   const char* method_name = ast_name(method);
   ast_t* type = deferred_reify(reify, ast_type(receiver), c->opt);
-  reach_type_t* t = reach_type(c->reach, type);
+  reach_type_t* t = reach_type(c->reach, type, c->opt);
   pony_assert(t != NULL);
 
   token_id cap = cap_dispatch(type);
-  reach_method_t* m = reach_method(t, cap, method_name, typeargs);
+  reach_method_t* m = reach_method(t, cap, method_name, typeargs, c->opt);
 
   ast_free_unattached(type);
   ast_free_unattached(typeargs);
@@ -810,6 +808,13 @@ LLVMValueRef gen_call(compile_t* c, ast_t* ast)
       case TK_BECHAIN:
       case TK_FUNCHAIN:
         args[0] = gen_expr(c, receiver);
+
+        if(args[0] == NULL)
+        {
+          ponyint_pool_free_size(buf_size, args);
+          return NULL;
+        }
+
         break;
 
       default:
@@ -841,7 +846,7 @@ LLVMValueRef gen_call(compile_t* c, ast_t* ast)
       case TK_INTERFACE:
       case TK_TRAIT:
         if(m->cap == TK_TAG)
-          is_message = can_inline_message_send(t, m, method_name);
+          is_message = can_inline_message_send(t, m, method_name, c);
         break;
 
       default: {}
@@ -896,19 +901,58 @@ LLVMValueRef gen_call(compile_t* c, ast_t* ast)
 
     if(func != NULL)
     {
-      // If we can error out and we have an invoke target, generate an invoke
-      // instead of a call.
       codegen_debugloc(c, ast);
-
-      if(ast_canerror(ast) && (c->frame->invoke_target != NULL))
-        r = invoke_fun(c, func_type, func, args + arg_offset, i, "", !bare);
-      else
-        r = codegen_call(c, func_type, func, args + arg_offset, i, !bare);
+      r = codegen_call(c, func_type, func, args + arg_offset, i, !bare);
 
       if(is_new_call)
       {
         LLVMValueRef md = LLVMMDNodeInContext(c->context, NULL, 0);
         LLVMSetMetadataStr(r, "pony.newcall", md);
+      }
+
+      compile_method_t* c_m = (compile_method_t*)m->c_method;
+      if(c_m->is_partial)
+      {
+        // Callee returns {T, i1} or i1. Extract the error flag and branch.
+        LLVMValueRef error_flag = unwrap_error(c, r);
+        LLVMBasicBlockRef error_block = codegen_block(c, "call_error");
+        LLVMBasicBlockRef continue_block = codegen_block(c, "call_continue");
+        LLVMBuildCondBr(c->builder, error_flag, error_block, continue_block);
+
+        LLVMPositionBuilderAtEnd(c->builder, error_block);
+        if(c->frame->error_target != NULL)
+        {
+          LLVMBuildBr(c->builder, c->frame->error_target);
+        }
+        else
+        {
+          // Propagate error return. This path is only valid when the
+          // enclosing function is partial.
+          pony_assert(c->frame->is_partial);
+
+          LLVMTypeRef f_type = LLVMGlobalGetValueType(codegen_fun(c));
+          LLVMTypeRef ret_type = LLVMGetReturnType(f_type);
+
+          if(ret_type == c->i1)
+          {
+            genfun_build_ret(c, LLVMConstInt(c->i1, 1, false));
+          }
+          else
+          {
+            LLVMValueRef undef_val =
+              LLVMGetUndef(LLVMStructGetTypeAtIndex(ret_type, 0));
+            LLVMValueRef err_ret = wrap_result(c, undef_val,
+              LLVMConstInt(c->i1, 1, false));
+            genfun_build_ret(c, err_ret);
+          }
+        }
+
+        LLVMPositionBuilderAtEnd(c->builder, continue_block);
+
+        // Extract the real value from the non-error return.
+        LLVMTypeRef callee_ret = LLVMGetReturnType(func_type);
+        if(callee_ret != c->i1)
+          r = unwrap_result(c, r);
       }
 
       codegen_debugloc(c, NULL);
@@ -976,12 +1020,19 @@ LLVMValueRef gen_pattern_eq(compile_t* c, ast_t* pattern, LLVMValueRef r_value)
 
   // Generate the receiver.
   LLVMValueRef l_value = gen_expr(c, pattern);
-  reach_type_t* t = reach_type(c->reach, pattern_type);
+
+  if(l_value == NULL)
+  {
+    ast_free_unattached(pattern_type);
+    return NULL;
+  }
+
+  reach_type_t* t = reach_type(c->reach, pattern_type, c->opt);
   pony_assert(t != NULL);
 
   // Static or virtual dispatch.
   token_id cap = cap_dispatch(pattern_type);
-  reach_method_t* m = reach_method(t, cap, c->str_eq, NULL);
+  reach_method_t* m = reach_method(t, cap, c->str_eq, NULL, c->opt);
   LLVMValueRef func = dispatch_function(c, t, m, l_value);
 
   ast_free_unattached(pattern_type);
@@ -989,8 +1040,12 @@ LLVMValueRef gen_pattern_eq(compile_t* c, ast_t* pattern, LLVMValueRef r_value)
   if(func == NULL)
     return NULL;
 
-  // Call the function. We know it isn't partial.
-  LLVMTypeRef func_type = LLVMGlobalGetValueType(func);
+  // Call the function. `eq` is non-partial. We pull the call type from
+  // c_m->func_type rather than `func`, since `func` is a loaded pointer
+  // (opaque under LLVM's new pointer model) for interface/trait dispatch and
+  // LLVMGlobalGetValueType only returns a meaningful type for globals.
+  LLVMTypeRef func_type = ((compile_method_t*)m->c_method)->func_type;
+
   LLVMValueRef args[2];
   args[0] = l_value;
   args[1] = r_value;
@@ -1076,7 +1131,7 @@ static LLVMValueRef declare_ffi(compile_t* c, const char* f_name,
         p_type = ast_childidx(arg, 1);
 
       p_type = deferred_reify(reify, p_type, c->opt);
-      reach_type_t* pt = reach_type(c->reach, p_type);
+      reach_type_t* pt = reach_type(c->reach, p_type, c->opt);
       pony_assert(pt != NULL);
       f_params[param_count++] = ((compile_type_t*)pt->c_type)->use_type;
       ast_free_unattached(p_type);
@@ -1155,7 +1210,6 @@ static LLVMValueRef cast_ffi_arg(compile_t* c, ffi_decl_t* decl, ast_t* ast,
 LLVMValueRef gen_ffi(compile_t* c, ast_t* ast)
 {
   AST_GET_CHILDREN(ast, id, typeargs, args, named_args, can_err);
-  bool err = (ast_id(can_err) == TK_QUESTION);
 
   // Get the function name, +1 to skip leading @
   const char* f_name = ast_name(id) + 1;
@@ -1164,7 +1218,7 @@ LLVMValueRef gen_ffi(compile_t* c, ast_t* ast)
 
   // Get the return type.
   ast_t* type = deferred_reify(reify, ast_type(ast), c->opt);
-  reach_type_t* t = reach_type(c->reach, type);
+  reach_type_t* t = reach_type(c->reach, type, c->opt);
   pony_assert(t != NULL);
   ast_free_unattached(type);
 
@@ -1188,7 +1242,7 @@ LLVMValueRef gen_ffi(compile_t* c, ast_t* ast)
 
     bool is_intrinsic = (!strncmp(f_name, "llvm.", 5) || !strncmp(f_name, "internal.", 9));
     AST_GET_CHILDREN(decl, decl_id, decl_ret, decl_params, decl_named_params, decl_err);
-    err = (ast_id(decl_err) == TK_QUESTION);
+
     func = declare_ffi(c, f_name, t, decl_params, is_intrinsic);
 
     size_t index = HASHMAP_UNKNOWN;
@@ -1271,15 +1325,9 @@ LLVMValueRef gen_ffi(compile_t* c, ast_t* ast)
     arg = ast_sibling(arg);
   }
 
-  // If we can error out and we have an invoke target, generate an invoke
-  // instead of a call.
   LLVMValueRef result;
   codegen_debugloc(c, ast);
-
-  if(err && (c->frame->invoke_target != NULL))
-    result = invoke_fun(c, f_type, func, f_args, count, "", false);
-  else
-    result = LLVMBuildCall2(c->builder, f_type, func, f_args, count, "");
+  result = LLVMBuildCall2(c->builder, f_type, func, f_args, count, "");
 
   codegen_debugloc(c, NULL);
   ponyint_pool_free_size(buf_size, f_args);
@@ -1327,7 +1375,7 @@ LLVMValueRef gencall_create(compile_t* c, reach_type_t* t, ast_t* call)
   // reference to the new actor, because the result value of the constructor
   // call is discarded at the immediate syntax level, we can make certain
   // optimizations related to the actor reference count and the cycle detector.
-  bool no_inc_rc = call && !is_result_needed(call);
+  bool no_inc_rc = call && !is_result_needed(call, c->opt);
 
   LLVMValueRef args[3];
   args[0] = codegen_ctx(c);
@@ -1394,17 +1442,47 @@ LLVMValueRef gencall_allocstruct(compile_t* c, reach_type_t* t)
   return result;
 }
 
-void gencall_error(compile_t* c)
+LLVMTypeRef error_flag_type(compile_t* c, LLVMTypeRef real_type)
 {
-  LLVMValueRef func = LLVMGetNamedFunction(c->module, "pony_error");
-  LLVMTypeRef func_type = LLVMGlobalGetValueType(func);
+  if(real_type == c->void_type)
+    return c->i1;
 
-  if(c->frame->invoke_target != NULL)
-    invoke_fun(c, func_type, func, NULL, 0, "", false);
-  else
-    LLVMBuildCall2(c->builder, func_type, func, NULL, 0, "");
+  LLVMTypeRef elements[2];
+  elements[0] = real_type;
+  elements[1] = c->i1;
+  return LLVMStructTypeInContext(c->context, elements, 2, false);
+}
 
-  LLVMBuildUnreachable(c->builder);
+LLVMValueRef wrap_result(compile_t* c, LLVMValueRef value,
+  LLVMValueRef is_error)
+{
+  if(value == NULL)
+    return is_error;
+
+  LLVMTypeRef elements[2];
+  elements[0] = LLVMTypeOf(value);
+  elements[1] = c->i1;
+  LLVMTypeRef struct_type = LLVMStructTypeInContext(c->context, elements, 2,
+    false);
+
+  LLVMValueRef result = LLVMGetUndef(struct_type);
+  result = LLVMBuildInsertValue(c->builder, result, value, 0, "");
+  result = LLVMBuildInsertValue(c->builder, result, is_error, 1, "");
+  return result;
+}
+
+LLVMValueRef unwrap_result(compile_t* c, LLVMValueRef tuple)
+{
+  (void)c;
+  return LLVMBuildExtractValue(c->builder, tuple, 0, "");
+}
+
+LLVMValueRef unwrap_error(compile_t* c, LLVMValueRef tuple)
+{
+  LLVMTypeRef type = LLVMTypeOf(tuple);
+  if(LLVMGetTypeKind(type) == LLVMStructTypeKind)
+    return LLVMBuildExtractValue(c->builder, tuple, 1, "");
+  return tuple;
 }
 
 void gencall_memcpy(compile_t* c, LLVMValueRef dst, LLVMValueRef src,
@@ -1427,7 +1505,7 @@ void gencall_memmove(compile_t* c, LLVMValueRef dst, LLVMValueRef src,
   LLVMValueRef func = LLVMMemmove(c->module, target_is_ilp32(c->opt->triple));
   LLVMTypeRef func_type = LLVMGlobalGetValueType(func);
 
-  LLVMValueRef args[5];
+  LLVMValueRef args[4];
   args[0] = dst;
   args[1] = src;
   args[2] = n;
@@ -1435,26 +1513,16 @@ void gencall_memmove(compile_t* c, LLVMValueRef dst, LLVMValueRef src,
   LLVMBuildCall2(c->builder, func_type, func, args, 4, "");
 }
 
-void gencall_lifetime_start(compile_t* c, LLVMValueRef ptr, LLVMTypeRef type)
+void gencall_lifetime_start(compile_t* c, LLVMValueRef ptr)
 {
   LLVMValueRef func = LLVMLifetimeStart(c->module, c->ptr);
   LLVMTypeRef func_type = LLVMGlobalGetValueType(func);
-  size_t size = (size_t)LLVMABISizeOfType(c->target_data, type);
-
-  LLVMValueRef args[2];
-  args[0] = LLVMConstInt(c->i64, size, false);
-  args[1] = ptr;
-  LLVMBuildCall2(c->builder, func_type, func, args, 2, "");
+  LLVMBuildCall2(c->builder, func_type, func, &ptr, 1, "");
 }
 
-void gencall_lifetime_end(compile_t* c, LLVMValueRef ptr, LLVMTypeRef type)
+void gencall_lifetime_end(compile_t* c, LLVMValueRef ptr)
 {
   LLVMValueRef func = LLVMLifetimeEnd(c->module, c->ptr);
   LLVMTypeRef func_type = LLVMGlobalGetValueType(func);
-  size_t size = (size_t)LLVMABISizeOfType(c->target_data, type);
-
-  LLVMValueRef args[2];
-  args[0] = LLVMConstInt(c->i64, size, false);
-  args[1] = ptr;
-  LLVMBuildCall2(c->builder, func_type, func, args, 2, "");
+  LLVMBuildCall2(c->builder, func_type, func, &ptr, 1, "");
 }

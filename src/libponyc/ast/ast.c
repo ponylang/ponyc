@@ -8,7 +8,6 @@
 #include "../pass/pass.h"
 #include "../pkg/program.h"
 #include "../pkg/package.h"
-#include "../../libponyrt/gc/serialise.h"
 #include "../../libponyrt/mem/pool.h"
 #include "ponyassert.h"
 #include <stdbool.h>
@@ -58,7 +57,7 @@ enum
   AST_ORPHAN = 0x20,
   AST_INHERIT_FLAGS = (AST_FLAG_CAN_ERROR | AST_FLAG_CAN_SEND |
     AST_FLAG_MIGHT_SEND | AST_FLAG_RECURSE_1 | AST_FLAG_RECURSE_2),
-  AST_ALL_FLAGS = 0x3FFFFFF
+  AST_ALL_FLAGS = 0xFFFFFFF
 };
 
 
@@ -80,15 +79,6 @@ struct ast_t
   bool frozen;
 #endif
 };
-
-// Minimal AST structure for signature computation.
-typedef struct ast_signature_t
-{
-  token_signature_t* t;
-  struct ast_signature_t* child;
-  struct ast_signature_t* sibling;
-  struct ast_signature_t* annotation_type;
-} ast_signature_t;
 
 static bool ast_cmp(ast_t* a, ast_t* b)
 {
@@ -430,14 +420,14 @@ ast_t* ast_from(ast_t* ast, token_id id)
   return new_ast;
 }
 
-ast_t* ast_from_string(ast_t* ast, const char* name)
+ast_t* ast_from_string(ast_t* ast, const char* name, strtable_t* strtab)
 {
   if(name == NULL)
     return ast_from(ast, TK_NONE);
 
   token_t* t = token_dup(ast->t);
   token_set_id(t, TK_ID);
-  token_set_string(t, name, 0);
+  token_set_string(t, name, 0, strtab);
 
   ast_t* new_ast = ast_token(t);
   set_scope_no_parent(new_ast, ast->parent);
@@ -778,22 +768,23 @@ size_t ast_name_len(ast_t* ast)
   return token_string_len(ast->t);
 }
 
-void ast_set_name(ast_t* ast, const char* name)
+void ast_set_name(ast_t* ast, const char* name, strtable_t* strtab)
 {
   pony_assert(ast != NULL);
 #ifndef PONY_NDEBUG
   pony_assert(!ast->frozen);
 #endif
-  token_set_string(ast->t, name, 0);
+  token_set_string(ast->t, name, 0, strtab);
 }
 
-void ast_set_name_len(ast_t* ast, const char* name, size_t len)
+void ast_set_name_len(ast_t* ast, const char* name, size_t len,
+  strtable_t* strtab)
 {
   pony_assert(ast != NULL);
 #ifndef PONY_NDEBUG
   pony_assert(!ast->frozen);
 #endif
-  token_set_string(ast->t, name, len);
+  token_set_string(ast->t, name, len, strtab);
 }
 
 double ast_float(ast_t* ast)
@@ -945,7 +936,7 @@ ast_t* ast_consumeannotation(ast_t* ast)
   return prev_annotation;
 }
 
-bool ast_has_annotation(ast_t* ast, const char* name)
+bool ast_has_annotation(ast_t* ast, const char* name, strtable_t* strtab)
 {
   pony_assert(ast != NULL);
 
@@ -953,7 +944,7 @@ bool ast_has_annotation(ast_t* ast, const char* name)
 
   if((annotation != NULL) && (ast_id(annotation) == TK_ANNOTATION))
   {
-    const char* strtab_name = stringtab(name);
+    const char* strtab_name = stringtab(strtab, name);
     ast_t* elem = ast_child(annotation);
     while(elem != NULL)
     {
@@ -1149,7 +1140,8 @@ ast_t* ast_get(ast_t* ast, const char* name, sym_status_t* status)
   return NULL;
 }
 
-ast_t* ast_get_case(ast_t* ast, const char* name, sym_status_t* status)
+ast_t* ast_get_case(ast_t* ast, const char* name, sym_status_t* status,
+  strtable_t* strtab)
 {
   // Same as ast_get, but is partially case insensitive. That is, type names
   // are compared as uppercase and other symbols are compared as lowercase.
@@ -1161,7 +1153,8 @@ ast_t* ast_get_case(ast_t* ast, const char* name, sym_status_t* status)
     if(ast->symtab != NULL)
     {
       sym_status_t status2;
-      ast_t* value = (ast_t*)symtab_find_case(ast->symtab, name, &status2);
+      ast_t* value = (ast_t*)symtab_find_case(ast->symtab, name, &status2,
+        strtab);
 
       if((status != NULL) && (*status == SYM_NONE))
         *status = status2;
@@ -1177,7 +1170,7 @@ ast_t* ast_get_case(ast_t* ast, const char* name, sym_status_t* status)
 }
 
 bool ast_set(ast_t* ast, const char* name, ast_t* value, sym_status_t status,
-  bool allow_shadowing)
+  bool allow_shadowing, strtable_t* strtab)
 {
   pony_assert(ast != NULL);
 
@@ -1192,10 +1185,10 @@ bool ast_set(ast_t* ast, const char* name, ast_t* value, sym_status_t status,
   if(allow_shadowing)
   {
     // Only check the local scope.
-    find = symtab_find_case(ast->symtab, name, NULL);
+    find = symtab_find_case(ast->symtab, name, NULL, strtab);
   } else {
     // Check the local scope and all parent scopes.
-    find = ast_get_case(ast, name, NULL);
+    find = ast_get_case(ast, name, NULL, strtab);
   }
 
   // Pretend we succeeded if the mapping in the symbol table wouldn't change.
@@ -1205,7 +1198,7 @@ bool ast_set(ast_t* ast, const char* name, ast_t* value, sym_status_t status,
   if(find != NULL)
     return false;
 
-  return symtab_add(ast->symtab, name, value, status);
+  return symtab_add(ast->symtab, name, value, status, strtab);
 }
 
 void ast_setstatus(ast_t* ast, const char* name, sym_status_t status)
@@ -1279,31 +1272,6 @@ void ast_consolidate_branches(ast_t* ast, size_t count)
       }
     }
   }
-}
-
-bool ast_canmerge(ast_t* dst, ast_t* src)
-{
-  pony_assert(dst != NULL);
-  pony_assert(src != NULL);
-
-  while(dst->symtab == NULL)
-    dst = dst->parent;
-
-  return symtab_can_merge_public(dst->symtab, src->symtab);
-}
-
-bool ast_merge(ast_t* dst, ast_t* src)
-{
-  pony_assert(dst != NULL);
-  pony_assert(src != NULL);
-
-  while(dst->symtab == NULL)
-    dst = dst->parent;
-
-#ifndef PONY_NDEBUG
-  pony_assert(!dst->frozen);
-#endif
-  return symtab_merge_public(dst->symtab, src->symtab);
 }
 
 bool ast_within_scope(ast_t* outer, ast_t* inner, const char* name)
@@ -1844,6 +1812,31 @@ static void print_type(printbuf_t* buffer, ast_t* type, bool print_cap)
       break;
     }
 
+    case TK_TYPEALIASREF:
+    {
+      AST_GET_CHILDREN(type, id, typeargs, cap, ephemeral);
+
+      ast_t* def = (ast_t*)ast_data(type);
+      if(def != NULL)
+        id = ast_child(def);
+
+      printbuf(buffer, "%s", ast_nice_name(id));
+
+      if(ast_id(typeargs) != TK_NONE)
+        print_typeexpr(buffer, typeargs, ", ", true, true);
+
+      if(print_cap)
+      {
+        if(ast_id(cap) != TK_NONE)
+          printbuf(buffer, " %s", token_print(cap->t));
+
+        if(ast_id(ephemeral) != TK_NONE)
+          printbuf(buffer, "%s", token_print(ephemeral->t));
+      }
+
+      break;
+    }
+
     case TK_ARROW:
     {
       AST_GET_CHILDREN(type, left, right);
@@ -1859,6 +1852,14 @@ static void print_type(printbuf_t* buffer, ast_t* type, bool print_cap)
 
     case TK_DONTCARETYPE:
       printbuf(buffer, "_");
+      break;
+
+    case TK_BOOL_TRUE:
+      printbuf(buffer, "true");
+      break;
+
+    case TK_BOOL_FALSE:
+      printbuf(buffer, "false");
       break;
 
     case TK_FUNTYPE:
@@ -1881,23 +1882,23 @@ static void print_type(printbuf_t* buffer, ast_t* type, bool print_cap)
   }
 }
 
-const char* ast_print_type(ast_t* type)
+const char* ast_print_type(ast_t* type, strtable_t* strtab)
 {
   printbuf_t* buffer = printbuf_new();
   print_type(buffer, type, true);
 
-  const char* s = stringtab(buffer->m);
+  const char* s = stringtab(strtab, buffer->m);
   printbuf_free(buffer);
 
   return s;
 }
 
-const char* ast_print_type_no_cap(ast_t* type)
+const char* ast_print_type_no_cap(ast_t* type, strtable_t* strtab)
 {
   printbuf_t* buffer = printbuf_new();
   print_type(buffer, type, false);
 
-  const char* s = stringtab(buffer->m);
+  const char* s = stringtab(strtab, buffer->m);
   printbuf_free(buffer);
 
   return s;
@@ -2014,472 +2015,4 @@ ast_t* ast_get_provided_symbol_definition(ast_t* ast,
   }
 
   return def;
-}
-
-static void ast_signature_serialise_trace(pony_ctx_t* ctx, void* object)
-{
-  ast_t* ast = (ast_t*)object;
-
-  // Ignore the data. We don't want to cross package boundaries.
-  // The symtab, parent and type don't provide additional information to the
-  // signature so we ignore them as well.
-
-  token_id id = ast_id(ast);
-  bool docstring = false;
-
-  if(id == TK_STRING)
-  {
-    switch(ast_id(ast_parent(ast)))
-    {
-      case TK_MODULE:
-      case TK_NEW:
-      case TK_FUN:
-      case TK_BE:
-      case TK_TYPE:
-      case TK_INTERFACE:
-      case TK_TRAIT:
-      case TK_PRIMITIVE:
-      case TK_STRUCT:
-      case TK_CLASS:
-      case TK_ACTOR:
-        docstring = true;
-        break;
-
-      default: {}
-    }
-  }
-
-  pony_traceknown(ctx, ast->t, docstring ?
-    token_docstring_signature_pony_type() : token_signature_pony_type(),
-    PONY_TRACE_MUTABLE);
-
-  if(id == TK_NOMINAL)
-  {
-    pony_assert(ast->child != NULL);
-
-    pony_traceknown(ctx, ast->child, (ast_id(ast->child) == TK_ID) ?
-      ast_nominal_pkg_id_signature_pony_type() : ast_signature_pony_type(),
-      PONY_TRACE_MUTABLE);
-  } else if(ast->child != NULL) {
-    pony_traceknown(ctx, ast->child, ast_signature_pony_type(),
-      PONY_TRACE_MUTABLE);
-  }
-
-  if((id != TK_PACKAGE) && (ast->sibling != NULL))
-    pony_traceknown(ctx, ast->sibling, ast_signature_pony_type(),
-      PONY_TRACE_MUTABLE);
-
-  // Don't use ast->annotation_type directly. It could be a type, and we don't
-  // want to serialise types.
-  ast_t* annotation = ast_annotation(ast);
-
-  if(annotation != NULL)
-    pony_traceknown(ctx, annotation, ast_signature_pony_type(),
-      PONY_TRACE_MUTABLE);
-}
-
-static void ast_signature_serialise(pony_ctx_t* ctx, void* object, void* buf,
-  size_t offset, int mutability)
-{
-  (void)mutability;
-
-  ast_t* ast = (ast_t*)object;
-  ast_signature_t* dst = (ast_signature_t*)((uintptr_t)buf + offset);
-
-  dst->t = (token_signature_t*)pony_serialise_offset(ctx, ast->t);
-  dst->child = (ast_signature_t*)pony_serialise_offset(ctx, ast->child);
-
-  if(ast_id(ast) != TK_PACKAGE)
-    dst->sibling = (ast_signature_t*)pony_serialise_offset(ctx, ast->sibling);
-  else
-    dst->sibling = NULL;
-
-  ast_t* annotation = ast_annotation(ast);
-
-  dst->annotation_type = (ast_signature_t*)pony_serialise_offset(ctx,
-    annotation);
-}
-
-static pony_type_t ast_signature_pony =
-{
-  0,
-  sizeof(ast_signature_t),
-  0,
-  0,
-  0,
-  NULL,
-#if defined(USE_RUNTIME_TRACING)
-  NULL,
-  NULL,
-#endif
-  NULL,
-  ast_signature_serialise_trace,
-  ast_signature_serialise,
-  NULL,
-  NULL,
-  NULL,
-  NULL,
-  NULL,
-  0,
-  0,
-  NULL,
-  NULL,
-  NULL
-};
-
-pony_type_t* ast_signature_pony_type()
-{
-  return &ast_signature_pony;
-}
-
-// Special case serialisation for package IDs nodes as TK_NOMINAL children.
-static void ast_nominal_pkg_id_signature_serialise_trace(pony_ctx_t* ctx,
-  void* object)
-{
-  ast_t* ast = (ast_t*)object;
-
-  pony_assert(ast_id(ast) == TK_ID);
-  ast_t* parent = ast->parent;
-  (void)parent;
-  pony_assert((parent != NULL) && (ast_id(parent) == TK_NOMINAL) &&
-    (ast == parent->child));
-
-  // Ignore the token. We'll setup a fake token directly referencing the
-  // associated package later.
-
-  pony_assert(ast->child == NULL);
-  pony_assert(ast->sibling != NULL);
-
-  pony_traceknown(ctx, ast->sibling, ast_signature_pony_type(),
-    PONY_TRACE_MUTABLE);
-
-  ast_t* annotation = ast_annotation(ast);
-
-  if(annotation != NULL)
-    pony_traceknown(ctx, annotation, ast_signature_pony_type(),
-      PONY_TRACE_MUTABLE);
-}
-
-static void ast_nominal_pkg_id_signature_serialise(pony_ctx_t* ctx,
-  void* object, void* buf, size_t offset, int mutability)
-{
-  (void)mutability;
-
-  ast_t* ast = (ast_t*)object;
-  ast_signature_t* dst = (ast_signature_t*)((uintptr_t)buf + offset);
-
-  ast_t* def = (ast_t*)ast_data(ast_parent(ast));
-  pony_assert(def != NULL);
-  ast_t* pkg_ast = ast_nearest(def, TK_PACKAGE);
-  package_t* pkg = (package_t*)ast_data(pkg_ast);
-  pony_assert(pkg != NULL);
-  dst->t = (token_signature_t*)pony_serialise_offset(ctx, pkg);
-
-  dst->child = (ast_signature_t*)pony_serialise_offset(ctx, ast->child);
-  dst->sibling = (ast_signature_t*)pony_serialise_offset(ctx, ast->sibling);
-
-  ast_t* annotation = ast_annotation(ast);
-
-  dst->annotation_type = (ast_signature_t*)pony_serialise_offset(ctx,
-    annotation);
-}
-
-static pony_type_t ast_nominal_pkg_id_signature_pony =
-{
-  0,
-  sizeof(ast_signature_t),
-  0,
-  0,
-  0,
-  NULL,
-#if defined(USE_RUNTIME_TRACING)
-  NULL,
-  NULL,
-#endif
-  NULL,
-  ast_nominal_pkg_id_signature_serialise_trace,
-  ast_nominal_pkg_id_signature_serialise,
-  NULL,
-  NULL,
-  NULL,
-  NULL,
-  NULL,
-  0,
-  0,
-  NULL,
-  NULL,
-  NULL
-};
-
-pony_type_t* ast_nominal_pkg_id_signature_pony_type()
-{
-  return &ast_nominal_pkg_id_signature_pony;
-}
-
-static void ast_serialise_trace_data(pony_ctx_t* ctx, ast_t* ast)
-{
-  if(ast->data == NULL)
-    return;
-
-  switch(ast_id(ast))
-  {
-    case TK_USE:
-    case TK_NOMINAL:
-    case TK_NEW:
-    case TK_BE:
-    case TK_FUN:
-    case TK_TYPEPARAM:
-    case TK_TYPEPARAMREF:
-    case TK_REFERENCE:
-    case TK_PACKAGEREF:
-    case TK_TYPEREF:
-    case TK_PARAMREF:
-    case TK_VARREF:
-    case TK_LETREF:
-    case TK_FVARREF:
-    case TK_FLETREF:
-    case TK_EMBEDREF:
-    case TK_NEWREF:
-    case TK_NEWBEREF:
-    case TK_BEREF:
-    case TK_FUNREF:
-    case TK_NEWAPP:
-    case TK_BEAPP:
-    case TK_FUNAPP:
-    case TK_BECHAIN:
-    case TK_FUNCHAIN:
-    case TK_DOT:
-    case TK_FFICALL:
-    case TK_LITERALBRANCH:
-      pony_traceknown(ctx, ast->data, ast_pony_type(), PONY_TRACE_MUTABLE);
-      break;
-
-    case TK_ID:
-    case TK_OBJECT:
-      string_trace(ctx, (const char*)ast->data);
-      break;
-
-    case TK_PROGRAM:
-      pony_traceknown(ctx, ast->data, program_pony_type(), PONY_TRACE_MUTABLE);
-      break;
-
-    case TK_PACKAGE:
-      pony_traceknown(ctx, ast->data, package_pony_type(), PONY_TRACE_MUTABLE);
-      break;
-
-    case TK_MODULE:
-      pony_traceknown(ctx, ast->data, source_pony_type(), PONY_TRACE_MUTABLE);
-      break;
-
-    default: {}
-  }
-}
-
-static void ast_serialise_data(pony_ctx_t* ctx, ast_t* ast, ast_t* dst)
-{
-  switch(ast_id(ast))
-  {
-    case TK_USE:
-    case TK_NOMINAL:
-    case TK_NEW:
-    case TK_BE:
-    case TK_FUN:
-    case TK_TYPEPARAM:
-    case TK_TYPEPARAMREF:
-    case TK_REFERENCE:
-    case TK_PACKAGEREF:
-    case TK_TYPEREF:
-    case TK_PARAMREF:
-    case TK_VARREF:
-    case TK_LETREF:
-    case TK_FVARREF:
-    case TK_FLETREF:
-    case TK_EMBEDREF:
-    case TK_NEWREF:
-    case TK_NEWBEREF:
-    case TK_BEREF:
-    case TK_FUNREF:
-    case TK_NEWAPP:
-    case TK_BEAPP:
-    case TK_FUNAPP:
-    case TK_BECHAIN:
-    case TK_FUNCHAIN:
-    case TK_DOT:
-    case TK_FFICALL:
-    case TK_LITERALBRANCH:
-    case TK_ID:
-    case TK_OBJECT:
-    case TK_PROGRAM:
-    case TK_PACKAGE:
-    case TK_MODULE:
-      dst->data = (void*)pony_serialise_offset(ctx, ast->data);
-      break;
-
-    case TK_OPERATORLITERAL:
-      operatorliteral_serialise_data(ast, dst);
-      break;
-
-    default:
-      dst->data = NULL;
-      break;
-  }
-}
-
-static void ast_deserialise_data(pony_ctx_t* ctx, ast_t* ast)
-{
-  switch(ast_id(ast))
-  {
-    case TK_USE:
-    case TK_NOMINAL:
-    case TK_NEW:
-    case TK_BE:
-    case TK_FUN:
-    case TK_TYPEPARAM:
-    case TK_TYPEPARAMREF:
-    case TK_REFERENCE:
-    case TK_PACKAGEREF:
-    case TK_TYPEREF:
-    case TK_PARAMREF:
-    case TK_VARREF:
-    case TK_LETREF:
-    case TK_FVARREF:
-    case TK_FLETREF:
-    case TK_EMBEDREF:
-    case TK_NEWREF:
-    case TK_NEWBEREF:
-    case TK_BEREF:
-    case TK_FUNREF:
-    case TK_NEWAPP:
-    case TK_BEAPP:
-    case TK_FUNAPP:
-    case TK_BECHAIN:
-    case TK_FUNCHAIN:
-    case TK_DOT:
-    case TK_FFICALL:
-    case TK_LITERALBRANCH:
-      ast->data = pony_deserialise_offset(ctx, ast_pony_type(),
-        (uintptr_t)ast->data);
-      break;
-
-    case TK_ID:
-    case TK_OBJECT:
-      ast->data = (void*)string_deserialise_offset(ctx, (uintptr_t)ast->data);
-      break;
-
-    case TK_PROGRAM:
-      ast->data = pony_deserialise_offset(ctx, program_pony_type(),
-        (uintptr_t)ast->data);
-      break;
-
-    case TK_PACKAGE:
-      ast->data = pony_deserialise_offset(ctx, package_pony_type(),
-        (uintptr_t)ast->data);
-      break;
-
-    case TK_MODULE:
-      ast->data = pony_deserialise_offset(ctx, source_pony_type(),
-        (uintptr_t)ast->data);
-      break;
-
-    case TK_OPERATORLITERAL:
-      operatorliteral_deserialise_data(ast);
-      break;
-
-    default: {}
-  }
-}
-
-static void ast_serialise_trace(pony_ctx_t* ctx, void* object)
-{
-  ast_t* ast = (ast_t*)object;
-
-  pony_traceknown(ctx, ast->t, token_pony_type(), PONY_TRACE_MUTABLE);
-  ast_serialise_trace_data(ctx, ast);
-
-  if(ast->symtab != NULL)
-    pony_traceknown(ctx, ast->symtab, symtab_pony_type(), PONY_TRACE_MUTABLE);
-
-  if(ast->parent != NULL)
-    pony_traceknown(ctx, ast->parent, ast_pony_type(), PONY_TRACE_MUTABLE);
-
-  if(ast->child != NULL)
-    pony_traceknown(ctx, ast->child, ast_pony_type(), PONY_TRACE_MUTABLE);
-
-  if(ast->sibling != NULL)
-    pony_traceknown(ctx, ast->sibling, ast_pony_type(), PONY_TRACE_MUTABLE);
-
-  if(ast->annotation_type != NULL)
-    pony_traceknown(ctx, ast->annotation_type, ast_pony_type(), PONY_TRACE_MUTABLE);
-}
-
-static void ast_serialise(pony_ctx_t* ctx, void* object, void* buf,
-  size_t offset, int mutability)
-{
-  (void)mutability;
-
-  ast_t* ast = (ast_t*)object;
-  ast_t* dst = (ast_t*)((uintptr_t)buf + offset);
-
-  dst->t = (token_t*)pony_serialise_offset(ctx, ast->t);
-  ast_serialise_data(ctx, ast, dst);
-  dst->symtab = (symtab_t*)pony_serialise_offset(ctx, ast->symtab);
-  dst->parent = (ast_t*)pony_serialise_offset(ctx, ast->parent);
-  dst->child = (ast_t*)pony_serialise_offset(ctx, ast->child);
-  dst->sibling = (ast_t*)pony_serialise_offset(ctx, ast->sibling);
-  dst->annotation_type = (ast_t*)pony_serialise_offset(ctx, ast->annotation_type);
-  dst->flags = ast->flags;
-#ifndef PONY_NDEBUG
-  dst->frozen = ast->frozen;
-#endif
-}
-
-static void ast_deserialise(pony_ctx_t* ctx, void* object)
-{
-  ast_t* ast = (ast_t*)object;
-
-  ast->t = (token_t*)pony_deserialise_offset(ctx, token_pony_type(),
-    (uintptr_t)ast->t);
-  ast_deserialise_data(ctx, ast);
-  ast->symtab = (symtab_t*)pony_deserialise_offset(ctx, symtab_pony_type(),
-    (uintptr_t)ast->symtab);
-  ast->parent = (ast_t*)pony_deserialise_offset(ctx, ast_pony_type(),
-    (uintptr_t)ast->parent);
-  ast->child = (ast_t*)pony_deserialise_offset(ctx, ast_pony_type(),
-    (uintptr_t)ast->child);
-  ast->sibling = (ast_t*)pony_deserialise_offset(ctx, ast_pony_type(),
-    (uintptr_t)ast->sibling);
-  ast->annotation_type = (ast_t*)pony_deserialise_offset(ctx, ast_pony_type(),
-    (uintptr_t)ast->annotation_type);
-}
-
-static pony_type_t ast_pony =
-{
-  0,
-  sizeof(ast_t),
-  0,
-  0,
-  0,
-  NULL,
-#if defined(USE_RUNTIME_TRACING)
-  NULL,
-  NULL,
-#endif
-  NULL,
-  ast_serialise_trace,
-  ast_serialise,
-  ast_deserialise,
-  NULL,
-  NULL,
-  NULL,
-  NULL,
-  0,
-  0,
-  NULL,
-  NULL,
-  NULL
-};
-
-pony_type_t* ast_pony_type()
-{
-  return &ast_pony;
 }

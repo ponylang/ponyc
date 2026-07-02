@@ -1,0 +1,24 @@
+diff --git i/lld/ELF/ScriptParser.cpp w/lld/ELF/ScriptParser.cpp
+index ddfa24d9c..3753e0929 100644
+--- i/lld/ELF/ScriptParser.cpp
++++ w/lld/ELF/ScriptParser.cpp
+@@ -314,10 +314,17 @@ void ScriptParser::addFile(StringRef s) {
+   if (curBuf.isUnderSysroot && s.starts_with("/")) {
+     SmallString<128> pathData;
+     StringRef path = (ctx.arg.sysroot + s).toStringRef(pathData);
+-    if (sys::fs::exists(path))
++    if (sys::fs::exists(path)) {
+       ctx.driver.addFile(ctx.saver.save(path), /*withLOption=*/false);
+-    else
++    } else if (sys::fs::exists(s)) {
++      // The path already exists as an absolute path on the filesystem.
++      // This handles cross-toolchains (e.g. Debian gcc-cross packages)
++      // whose linker scripts use fully-qualified paths that already
++      // include the sysroot prefix.
++      ctx.driver.addFile(s, /*withLOption=*/false);
++    } else {
+       setError("cannot find " + s + " inside " + ctx.arg.sysroot);
++    }
+     return;
+   }
+ 

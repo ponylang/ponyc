@@ -363,7 +363,7 @@ static ast_result_t syntax_entity(pass_opt_t* opt, ast_t* ast,
   AST_GET_CHILDREN(ast, id, typeparams, defcap, provides, members, c_api);
 
   // Check if we're called Main
-  if(ast_name(id) == stringtab("Main"))
+  if(ast_name(id) == stringtab(opt->strtab, "Main"))
   {
     if(ast_id(typeparams) != TK_NONE)
     {
@@ -404,7 +404,7 @@ static ast_result_t syntax_entity(pass_opt_t* opt, ast_t* ast,
     // Check referenced traits
     if(ast_id(provides) != TK_NONE)
     {
-      if(ast_has_annotation(ast, "nosupertype"))
+      if(ast_has_annotation(ast, "nosupertype", opt->strtab))
       {
         ast_error(opt->check.errors, provides,
           "a 'nosupertype' type cannot specify a provides list");
@@ -600,13 +600,23 @@ static ast_result_t syntax_ffi(pass_opt_t* opt, ast_t* ast,
   pony_assert(ast != NULL);
   ast_result_t r = AST_OK;
 
-  AST_GET_CHILDREN(ast, id, typeargs, ffi_args, ffi_named_args);
+  AST_GET_CHILDREN(ast, id, typeargs, ffi_args, ffi_named_args, question);
   // We don't check FFI names are legal, if the lexer allows it so do we
   if((ast_child(typeargs) == NULL && is_declaration) ||
     ast_childidx(typeargs, 1) != NULL)
   {
     ast_error(opt->check.errors, typeargs,
       "FFI functions must specify a single return type");
+    r = AST_ERROR;
+  }
+
+  if(ast_id(question) == TK_QUESTION)
+  {
+    ast_error(opt->check.errors, question, is_declaration
+      ? "Partial FFI is no longer supported. 'pony_error()' has been removed, "
+        "so an FFI declaration can no longer be partial. Remove the '?'."
+      : "Partial FFI is no longer supported. 'pony_error()' has been removed, "
+        "so an FFI call can no longer be partial. Remove the '?'.");
     r = AST_ERROR;
   }
 
@@ -1163,7 +1173,7 @@ static ast_result_t syntax_lambda(pass_opt_t* opt, ast_t* ast)
     case TK_TAG:
     {
       ast_error(opt->check.errors, ret_type, "lambda return type: %s",
-        ast_print_type(ret_type));
+        ast_print_type(ret_type, opt->strtab));
       ast_error_continue(opt->check.errors, ret_type, "lambda return type "
         "cannot be capability");
       r = false;
@@ -1254,7 +1264,7 @@ static ast_result_t syntax_fun(pass_opt_t* opt, ast_t* ast)
     case TK_TAG:
     {
       ast_error(opt->check.errors, type, "function return type: %s",
-        ast_print_type(type));
+        ast_print_type(type, opt->strtab));
       ast_error_continue(opt->check.errors, type, "function return type "
         "cannot be capability");
       return AST_ERROR;

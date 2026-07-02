@@ -22,7 +22,7 @@ use @ast_name[Pointer[U8] val](ast: Pointer[_AST] box)
 use @ast_name_len[USize](ast: Pointer[_AST] box)
 use @ast_nice_name[Pointer[U8] val](ast: Pointer[_AST] box)
 use @ast_type[Pointer[_AST] val](ast: Pointer[_AST] box)
-use @ast_print_type[Pointer[U8] val](ast: Pointer[_AST] box)
+use @ast_print_type[Pointer[U8] val](ast: Pointer[_AST] box, strtab: Pointer[_StrTable] tag)
 use @ast_print[Pointer[U8] val](ast: Pointer[_AST] box, width: USize)
 // mark the given AST as having its own scope
 //use @ast_scope[None](ast: _AST ref)
@@ -37,7 +37,7 @@ use @ast_childidx[Pointer[_AST] val](ast: Pointer[_AST] box, idx: USize)
 use @ast_childcount[USize](ast: Pointer[_AST] box)
 use @ast_data[Pointer[None]](ast: Pointer[_AST] box)
 use @ast_index[USize](ast: Pointer[_AST] box)
-use @ast_has_annotation[Bool](ast: Pointer[_AST] box, name: Pointer[U8] tag)
+use @ast_has_annotation[Bool](ast: Pointer[_AST] box, name: Pointer[U8] tag, strtab: Pointer[_StrTable] tag)
 use @ast_get_print[Pointer[U8] val](ast: Pointer[_AST] box)
 
 
@@ -51,9 +51,16 @@ class val AST is (Stringable & Hashable & Equatable[AST box])
   Wraps the C-type `*ast_t`.
   """
   let raw: Pointer[_AST] val
+  // Interned-string table of the compilation this node belongs to. Needed to
+  // intern query names (for ast_get / has_annotation) into the same table the
+  // AST was built with, so pointer-identity lookups match. Travels with the
+  // node through navigation. Must stay valid as long as this AST is used, which
+  // the owning Program/CompileSession guarantees by keeping its pass_opt alive.
+  let strtab: Pointer[_StrTable] tag
 
-  new val create(ast': Pointer[_AST] val) =>
+  new val create(ast': Pointer[_AST] val, strtab': Pointer[_StrTable] tag) =>
     raw = ast'
+    strtab = strtab'
 
   fun box id(): TokenId =>
     @ast_id(raw)
@@ -89,7 +96,7 @@ class val AST is (Stringable & Hashable & Equatable[AST box])
     if sibl.is_null() then
       None
     else
-      AST(sibl)
+      AST(sibl, strtab)
     end
 
   fun box prev(): (AST | None) =>
@@ -97,7 +104,7 @@ class val AST is (Stringable & Hashable & Equatable[AST box])
     if p.is_null() then
       None
     else
-      AST(p)
+      AST(p, strtab)
     end
 
   fun box first_sibling(): (AST | None) =>
@@ -113,7 +120,7 @@ class val AST is (Stringable & Hashable & Equatable[AST box])
     if c.is_null() then
       None
     else
-      AST(c)
+      AST(c, strtab)
     end
 
   fun box last_child(): (AST | None ) =>
@@ -121,7 +128,7 @@ class val AST is (Stringable & Hashable & Equatable[AST box])
     if lc.is_null() then
       None
     else
-      AST(lc)
+      AST(lc, strtab)
     end
 
   fun box apply(child_idx: USize): AST ? =>
@@ -132,7 +139,7 @@ class val AST is (Stringable & Hashable & Equatable[AST box])
     if ci.is_null() then
       error
     else
-      AST(ci)
+      AST(ci, strtab)
     end
 
   fun box parent(): (AST | None) =>
@@ -140,7 +147,7 @@ class val AST is (Stringable & Hashable & Equatable[AST box])
     if p.is_null() then
       None
     else
-      AST(p)
+      AST(p, strtab)
     end
 
   fun box num_parents(): USize =>
@@ -172,7 +179,7 @@ class val AST is (Stringable & Hashable & Equatable[AST box])
     Returns true if this AST node has the given annotation.
     Used for checking `\nodoc\` and similar annotations.
     """
-    @ast_has_annotation(raw, name.cstring())
+    @ast_has_annotation(raw, name.cstring(), strtab)
 
   fun box get_print(): String val =>
     """
@@ -260,7 +267,7 @@ class val AST is (Stringable & Hashable & Equatable[AST box])
     if t.is_null() then
       None
     else
-      AST(t)
+      AST(t, strtab)
     end
 
   fun ast_type_string(): (String | None) =>
@@ -270,7 +277,7 @@ class val AST is (Stringable & Hashable & Equatable[AST box])
     """
     try
       let type_ast = ast_type() as AST
-      let type_str_ptr = @ast_print_type(type_ast.raw)
+      let type_str_ptr = @ast_print_type(type_ast.raw, type_ast.strtab)
       recover val String.copy_cstring(type_str_ptr) end
     end
 
@@ -278,7 +285,7 @@ class val AST is (Stringable & Hashable & Equatable[AST box])
     """
     Prints this AST node representing a type. e.g. obtained with `ast_type()`
     """
-    let type_str_ptr = @ast_print_type(raw)
+    let type_str_ptr = @ast_print_type(raw, strtab)
     recover val String.copy_cstring(type_str_ptr) end
 
   fun box infix_node(): Bool =>
@@ -320,11 +327,11 @@ class val AST is (Stringable & Hashable & Equatable[AST box])
     If all you want to do is searching the scope of this node alone,
     not traversing upwards into parent scopes, have a look at `find_in_scope`.
     """
-    let ptr = @ast_get(raw, StringTab(name).cstring(), NullablePointer[SymStatus].none())
+    let ptr = @ast_get(raw, StringTab(strtab, name).cstring(), NullablePointer[SymStatus].none())
     if ptr.is_null() then
       None
     else
-      AST(ptr)
+      AST(ptr, strtab)
     end
 
   // TODO: reason about the proper return type cap
@@ -336,7 +343,7 @@ class val AST is (Stringable & Hashable & Equatable[AST box])
     if ptr.is_null() then
       None
     else
-      SymbolTable.from_pointer(ptr)
+      SymbolTable.from_pointer(ptr, strtab)
     end
 
   fun box find_in_scope(name: String box): (AST | None) =>
@@ -345,7 +352,7 @@ class val AST is (Stringable & Hashable & Equatable[AST box])
     """
     try
       let scope = this.symbol_table() as SymbolTable
-      let interned_name = StringTab(name)
+      let interned_name = StringTab(strtab, name)
       scope(interned_name)
     end
 
@@ -410,7 +417,7 @@ class val AST is (Stringable & Hashable & Equatable[AST box])
       | TokenIds.tk_trait() | TokenIds.tk_interface() | TokenIds.tk_type() // entities
       | TokenIds.tk_new() | TokenIds.tk_fun() | TokenIds.tk_be() // method constructs
       | TokenIds.tk_fvar() | TokenIds.tk_flet() | TokenIds.tk_embed() // fields
-      | TokenIds.tk_nominal() // types
+      | TokenIds.tk_nominal() | TokenIds.tk_typealiasref() // types
       | TokenIds.tk_param()
       => true
       else
@@ -419,7 +426,10 @@ class val AST is (Stringable & Hashable & Equatable[AST box])
     // regular iteration through all the children
     for child' in children() do
       if child'._from_same_source(source') then
-        if (not filter_none) or (child'.id() != TokenIds.tk_none()) then
+        if filter_none and (child'.id() == TokenIds.tk_none()) then
+          // filtered out
+          None
+        else
           ////Debug("Visiting: " + child'.debug(true))
           if visitor.visit(child') is Stop then
             return Stop
@@ -505,6 +515,7 @@ class val AST is (Stringable & Hashable & Equatable[AST box])
     | TokenIds.tk_reference()
     | TokenIds.tk_packageref()
     | TokenIds.tk_typeref()
+    | TokenIds.tk_typealiasref()
     | TokenIds.tk_typeparamref()
     // those correspond to the member access dot
     //| TokenIds.tk_newref()

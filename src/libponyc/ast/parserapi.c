@@ -387,6 +387,18 @@ static ast_t* handle_not_found(parser_t* parser, rule_state_t* state,
 }
 
 
+bool token_id_in_set(token_id id, const token_id* set)
+{
+  for(const token_id* p = set; *p != TK_NONE; p++)
+  {
+    if(*p == id)
+      return true;
+  }
+
+  return false;
+}
+
+
 /* Check if current token matches any in given set and consume on match.
  * Args:
  *    terminating is the description of the structure this token terminates,
@@ -430,13 +442,15 @@ ast_t* parse_token_set(parser_t* parser, rule_state_t* state, const char* desc,
 
   for(const token_id* p = id_set; *p != TK_NONE; p++)
   {
-    // Match new line if the next token is the first on a line
+    // Match new line if a real newline character separates this token from
+    // the previously emitted one. Comparing line numbers is not sufficient
+    // because multi-line string literals can place the next token several
+    // source lines after the previous token's start without any actual
+    // newline between them.
     if(*p == TK_NEWLINE)
     {
       pony_assert(parser->token != NULL);
-      size_t last_token_line = token_line_number(parser->last_token);
-      size_t next_token_line = token_line_number(parser->token);
-      bool is_newline = (next_token_line != last_token_line);
+      bool is_newline = token_newline(parser->token);
 
       if(out_found != NULL)
         *out_found = is_newline;
@@ -600,14 +614,14 @@ ast_t* parse_rule_complete(parser_t* parser, rule_state_t* state)
 // Top level functions
 
 bool parse(ast_t* package, source_t* source, rule_t start, const char* expected,
-  errors_t* errors, bool allow_test_symbols, bool trace)
+  errors_t* errors, strtable_t* strtab, bool allow_test_symbols, bool trace)
 {
   pony_assert(package != NULL);
   pony_assert(source != NULL);
   pony_assert(expected != NULL);
 
   // Open the lexer
-  lexer_t* lexer = lexer_open(source, errors, allow_test_symbols);
+  lexer_t* lexer = lexer_open(source, errors, strtab, allow_test_symbols);
 
   if(lexer == NULL)
     return false;

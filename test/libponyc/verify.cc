@@ -419,6 +419,94 @@ TEST_F(VerifyTest, NonPartialFunctionCallPartialFunction)
   TEST_ERRORS_1(src, "call is not partial but the method is");
 }
 
+TEST_F(VerifyTest, NonPartialFunctionCallPartialFunctionWithTypeArgs)
+{
+  // Regression test for https://github.com/ponylang/ponyc/issues/5332
+  // A qualified call to a partial method should emit the error exactly once.
+  const char* src =
+    "class Foo\n"
+    "  fun partial[A: Any val](x: A): A ? => error\n"
+    "  fun apply() ? =>\n"
+    "    partial[U32](42)";
+
+  TEST_ERRORS_1(src, "call is not partial but the method is");
+}
+
+TEST_F(VerifyTest, PartialFunctionCallNonPartialFunctionWithTypeArgs)
+{
+  // Regression test for https://github.com/ponylang/ponyc/issues/5332
+  // A qualified call to a non-partial method should emit the error
+  // exactly once when an extraneous question mark is present.
+  const char* src =
+    "class Foo\n"
+    "  fun non_partial[A: Any val](x: A): A => x\n"
+    "  fun apply() =>\n"
+    "    non_partial[U32](42)?";
+
+  TEST_ERRORS_1(src, "call is partial but the method is not");
+}
+
+TEST_F(VerifyTest, NonPartialFunctionCallPartialFunctionWithTypeArgsChain)
+{
+  // Regression test for https://github.com/ponylang/ponyc/issues/5332
+  // A qualified `.>` chain call to a partial method should also emit
+  // the error exactly once.
+  const char* src =
+    "class Foo\n"
+    "  fun partial[A: Any val](x: A): A ? => error\n"
+    "  fun apply() ? =>\n"
+    "    this.>partial[U32](42)";
+
+  TEST_ERRORS_1(src, "call is not partial but the method is");
+}
+
+TEST_F(VerifyTest, NonPartialConstructorCallPartialConstructorWithTypeArgs)
+{
+  // Regression test for https://github.com/ponylang/ponyc/issues/5332
+  // A qualified call to a partial constructor with type arguments should
+  // emit the error exactly once.
+  const char* src =
+    "class Foo\n"
+    "  new create[A: Any val](x: A) ? => error\n"
+    "primitive Bar\n"
+    "  fun apply() ? =>\n"
+    "    Foo.create[U32](42)";
+
+  TEST_ERRORS_1(src, "call is not partial but the method is");
+}
+
+TEST_F(VerifyTest, NonPartialFunctionCallPartialFunctionWithDefaultTypeArgs)
+{
+  // Regression test for https://github.com/ponylang/ponyc/issues/5332
+  // The wrap shape also arises when a method's type parameters have
+  // defaults and the caller omits explicit type arguments. The error
+  // must still be emitted exactly once.
+  const char* src =
+    "class Foo\n"
+    "  fun partial[A: Any val = U32](x: A): A ? => error\n"
+    "  fun apply() ? =>\n"
+    "    partial(U32(42))";
+
+  TEST_ERRORS_1(src, "call is not partial but the method is");
+}
+
+TEST_F(VerifyTest, AddressOfPartialFunctionWithTypeArgs)
+{
+  // Regression test for https://github.com/ponylang/ponyc/issues/5332
+  // Taking the address of a partial method with type arguments must not
+  // trigger a compiler assertion. The inner funref of the wrapped node
+  // walks up through its TK_ADDRESS grandparent and used to fail the
+  // `pony_assert(ast_id(call) == TK_CALL)` in check_partial_function_call.
+  const char* src =
+    "use @foo[None](fn: Pointer[None] tag)\n"
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    @foo(addressof fn[U32])\n"
+    "  fun fn[A: Any val]() ? => error";
+
+  TEST_COMPILE(src);
+}
+
 TEST_F(VerifyTest, NonPartialFunctionError)
 {
   const char* src =
@@ -490,6 +578,93 @@ TEST_F(VerifyTest, InterfaceNonPartialFunctionError)
 
   TEST_ERRORS_1(src, "function signature is not marked as partial but the "
     "function body can raise an error");
+}
+
+TEST_F(VerifyTest, TraitPartialCallMissingQuestionMark)
+{
+  const char* src =
+    "trait T\n"
+    "  fun f1() ? => error\n"
+    "  fun f2() ? => f1()";
+
+  TEST_ERRORS_1(src, "call is not partial but the method is");
+}
+
+TEST_F(VerifyTest, TraitPartialCallWithQuestionMark)
+{
+  const char* src =
+    "trait T\n"
+    "  fun f1() ? => error\n"
+    "  fun f2() ? => f1()?";
+
+  TEST_COMPILE(src);
+}
+
+TEST_F(VerifyTest, TraitPartialChainCallMissingQuestionMark)
+{
+  const char* src =
+    "trait T\n"
+    "  fun f1() ? => error\n"
+    "  fun f2() ? => this.>f1()";
+
+  TEST_ERRORS_1(src, "call is not partial but the method is");
+}
+
+TEST_F(VerifyTest, TraitNonPartialCallWithQuestionMark)
+{
+  const char* src =
+    "trait T\n"
+    "  fun f1() => None\n"
+    "  fun f2() => f1()?";
+
+  TEST_ERRORS_1(src, "call is partial but the method is not");
+}
+
+TEST_F(VerifyTest, TraitPartialConstructorCallMissingQuestionMark)
+{
+  const char* src =
+    "class C\n"
+    "  new partial() ? => error\n"
+    "trait T\n"
+    "  fun f() ? => C.partial()";
+
+  TEST_ERRORS_1(src, "call is not partial but the method is");
+}
+
+TEST_F(VerifyTest, TraitInheritsTraitPartialBodyStillCompiles)
+{
+  const char* src =
+    "trait T1\n"
+    "  fun f1() ? => error\n"
+    "  fun f2() ? => f1()?\n"
+    "trait T2 is T1\n"
+    "class C is T2";
+
+  TEST_COMPILE(src);
+}
+
+TEST_F(VerifyTest, TraitInheritsTraitPartialCallMissingQuestionMark)
+{
+  const char* src =
+    "trait T1\n"
+    "  fun f1() ? => error\n"
+    "trait T2 is T1\n"
+    "  fun f2() ? => f1()";
+
+  TEST_ERRORS_1(src, "call is not partial but the method is");
+}
+
+// Defensive regression: interfaces have always errored correctly here
+// (the trait-skip in verify/call.c only matches TK_TRAIT). This guards
+// against accidentally broadening that skip to interfaces.
+TEST_F(VerifyTest, InterfacePartialCallMissingQuestionMark)
+{
+  const char* src =
+    "interface I\n"
+    "  fun f1() ? => error\n"
+    "  fun f2() ? => f1()";
+
+  TEST_ERRORS_1(src, "call is not partial but the method is");
 }
 
 TEST_F(VerifyTest, IfTypeError)
@@ -564,54 +739,6 @@ TEST_F(VerifyTest, PartialSugaredApplyCallAfterSugaredConstructor)
     "    Bar()?";
 
   TEST_COMPILE(src);
-}
-
-TEST_F(VerifyTest, FFICallPartialWithPartialDeclaration)
-{
-  const char* src =
-    "use @foo[U64]() ?\n"
-
-    "primitive Foo\n"
-    "  fun apply(): U64 ? =>\n"
-    "    @foo()?";
-
-  TEST_COMPILE(src);
-}
-
-TEST_F(VerifyTest, FFICallWithPartialDeclaration)
-{
-  const char* src =
-    "use @foo[U64]() ?\n"
-
-    "primitive Foo\n"
-    "  fun apply(): U64 ? =>\n"
-    "    @foo()?";
-
-  TEST_COMPILE(src);
-}
-
-TEST_F(VerifyTest, FFICallPartialWithNonPartialDeclaration)
-{
-  const char* src =
-    "use @foo[U64]()\n"
-
-    "primitive Foo\n"
-    "  fun apply(): U64 =>\n"
-    "    @foo() ?";
-
-  TEST_ERRORS_1(src, "call is partial but the declaration is not");
-}
-
-TEST_F(VerifyTest, FFICallNonPartialWithPartialDeclaration)
-{
-  const char* src =
-    "use @foo[U64]() ?\n"
-
-    "primitive Foo\n"
-    "  fun apply(): U64 ? =>\n"
-    "    @foo()";
-
-  TEST_ERRORS_1(src, "call is not partial but the declaration is");
 }
 
 TEST_F(VerifyTest, NonPartialSugaredBinaryOperatorCall)
@@ -785,6 +912,30 @@ TEST_F(VerifyTest, ConsumeVarReassignTrySameExpressionAs)
 
   TEST_ERRORS_1(src, "can't reassign to a consumed identifier in a try"
     " expression if there is a partial call involved");
+}
+
+TEST_F(VerifyTest, AsFieldAssignInTry)
+{
+  // Regression test for https://github.com/ponylang/ponyc/issues/3604
+  // Assigning to a field on the result of `as` inside a try block should not
+  // produce a spurious "can't reassign to a consumed identifier" error.
+  const char* src =
+    "class Wumpus\n"
+    "  var hunger: USize = 0\n"
+    "  fun ref self(): Wumpus => this\n"
+
+    "actor Main\n"
+      "new create(env: Env) =>\n"
+        "let a: (Wumpus | None) = Wumpus\n"
+        "try\n"
+        "  (a as Wumpus).hunger = 1\n"
+        "end\n"
+        "let b: (Wumpus | None) = Wumpus\n"
+        "try\n"
+        "  (b as Wumpus).self().hunger = 2\n"
+        "end";
+
+  TEST_COMPILE(src);
 }
 
 TEST_F(VerifyTest, ConsumeVarFieldReassignTrySameExpressionPartial)
@@ -5965,4 +6116,126 @@ TEST_F(VerifyTest, TryElseNoFieldInitializationInElse)
   TEST_ERRORS_2(src,
     "field left undefined in constructor",
     "constructor with undefined fields is here");
+}
+
+// The compile-time disjoint-concrete check from #1977 must not flag these
+// cases. Each test pins down a specific shape the rule is intentionally
+// blind to (same type, alias, trait/interface, union, type parameter, or
+// generic reified with different type args).
+
+TEST_F(VerifyTest, IsBetweenSameClass)
+{
+  const char* src =
+    "class C\n"
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let a: C = C\n"
+    "    let b: C = C\n"
+    "    if a is b then None end";
+
+  TEST_COMPILE(src);
+}
+
+TEST_F(VerifyTest, IsBetweenSameClassDifferentCaps)
+{
+  const char* src =
+    "class C\n"
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let a: C iso = C\n"
+    "    let b: C val = C\n"
+    "    if (consume a) is b then None end";
+
+  TEST_COMPILE(src);
+}
+
+TEST_F(VerifyTest, IsBetweenClassAndTrait)
+{
+  const char* src =
+    "trait T\n"
+    "class C\n"
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let c: C = C\n"
+    "    let t: (T | None) = None\n"
+    "    if c is t then None end";
+
+  TEST_COMPILE(src);
+}
+
+TEST_F(VerifyTest, IsBetweenClassAndUnion)
+{
+  const char* src =
+    "class C\n"
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let c: C = C\n"
+    "    let u: (C | None) = C\n"
+    "    if c is u then None end";
+
+  TEST_COMPILE(src);
+}
+
+TEST_F(VerifyTest, IsBetweenSameTypeViaAlias)
+{
+  const char* src =
+    "class C\n"
+    "type CA is C\n"
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let c: C = C\n"
+    "    let ca: CA = C\n"
+    "    if c is ca then None end";
+
+  TEST_COMPILE(src);
+}
+
+TEST_F(VerifyTest, IsBetweenTypeParamAndClass)
+{
+  const char* src =
+    "class C\n"
+    "class Box[A]\n"
+    "  let value: A\n"
+    "  new create(value': A) => value = consume value'\n"
+    "  fun ref check(c: C): Bool => value is c\n"
+    "actor Main\n"
+    "  new create(env: Env) => None";
+
+  TEST_COMPILE(src);
+}
+
+TEST_F(VerifyTest, IsBetweenDifferentReificationsOfSameGeneric)
+{
+  // Reified generics share a root entity def pointer, so the disjoint-
+  // concrete rule treats Array[U64] and Array[U32] as the same type. The
+  // rule is deliberately silent on type-arg disjointness.
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let a: Array[U64] = []\n"
+    "    let b: Array[U32] = []\n"
+    "    if a is b then None end";
+
+  TEST_COMPILE(src);
+}
+
+TEST_F(VerifyTest, SerialiseHooksAreOrdinaryMethods)
+{
+  // The _serialise_space/_serialise/_deserialise hooks are no longer a
+  // recognised language feature, so a type may define them with any signature
+  // and they compile as ordinary methods. Each signature below would have
+  // failed the old verify-pass checks (_serialise_space must return USize;
+  // _serialise must be box with one parameter returning None; _deserialise
+  // must be ref with one parameter returning None).
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    None\n"
+
+    "class C\n"
+    "  fun _serialise_space(): None => None\n"
+    "  fun ref _serialise() => None\n"
+    "  fun box _deserialise(a: U8, b: U8): U8 => a";
+
+  TEST_COMPILE(src);
 }

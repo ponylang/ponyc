@@ -39,11 +39,11 @@ TEST_F(AnnotationsTest, AnnotationsArePresent)
   ast = ast_child(ast);
 
   ASSERT_TRUE((ast != NULL) && (ast_id(ast) == TK_ID) &&
-    (ast_name(ast) == stringtab("a")));
+    (ast_name(ast) == stringtab(opt.strtab, "a")));
   ast = ast_sibling(ast);
 
   ASSERT_TRUE((ast != NULL) && (ast_id(ast) == TK_ID) &&
-    (ast_name(ast) == stringtab("b")));
+    (ast_name(ast) == stringtab(opt.strtab, "b")));
 }
 
 TEST_F(AnnotationsTest, AnnotateSugar)
@@ -70,16 +70,16 @@ TEST_F(AnnotationsTest, AnnotateSugar)
   ast_t* ast = lookup_in(c_type, "test_for");
   ast = ast_childidx(ast_child(ast_childidx(ast, 6)), 1);
 
-  ASSERT_TRUE(ast_has_annotation(ast, "a"));
-  ASSERT_FALSE(ast_has_annotation(ast, "b"));
-  ASSERT_TRUE(ast_has_annotation(ast_childidx(ast, 2), "b"));
+  ASSERT_TRUE(ast_has_annotation(ast, "a", opt.strtab));
+  ASSERT_FALSE(ast_has_annotation(ast, "b", opt.strtab));
+  ASSERT_TRUE(ast_has_annotation(ast_childidx(ast, 2), "b", opt.strtab));
 
   // Get the sugared `with` node.
   ast = lookup_in(c_type, "test_with");
   ast = ast_childidx(ast_child(ast_childidx(ast, 6)), 1);
 
-  ASSERT_TRUE(ast_has_annotation(ast, "a"));
-  ASSERT_FALSE(ast_has_annotation(ast, "b"));
+  ASSERT_TRUE(ast_has_annotation(ast, "a", opt.strtab));
+  ASSERT_FALSE(ast_has_annotation(ast, "b", opt.strtab));
 }
 
 TEST_F(AnnotationsTest, AnnotateLambda)
@@ -94,10 +94,10 @@ TEST_F(AnnotationsTest, AnnotateLambda)
   // Get the type of the lambda.
   ast_t* ast = lookup_type("$1$0");
 
-  ASSERT_FALSE(ast_has_annotation(ast, "a"));
+  ASSERT_FALSE(ast_has_annotation(ast, "a", opt.strtab));
   ast = lookup_in(ast, "apply");
 
-  ASSERT_TRUE(ast_has_annotation(ast, "a"));
+  ASSERT_TRUE(ast_has_annotation(ast, "a", opt.strtab));
 }
 
 TEST_F(AnnotationsTest, InternalAnnotation)

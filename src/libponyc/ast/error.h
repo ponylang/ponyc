@@ -95,6 +95,18 @@ void errorframev(errorframe_t* frame, source_t* source, size_t line,
 void errorframe(errorframe_t* frame, source_t* source, size_t line, size_t pos,
   const char* fmt, ...) __attribute__((format(printf, 5, 6)));
 
+/// Emit a new error with a filename, a line and position within it, and
+/// printf-style var args. For errors in files ponyc has no source_t for
+/// (e.g. C shim diagnostics); prints as "file:line:pos: msg" like errors
+/// with a source, but with no source-line excerpt.
+void errorf_at(errors_t* errors, const char* file, size_t line, size_t pos,
+  const char* fmt, ...) __attribute__((format(printf, 5, 6)));
+
+/// Add to the latest error with a filename, line and position, and
+/// printf-style var args.
+void errorf_at_continue(errors_t* errors, const char* file, size_t line,
+  size_t pos, const char* fmt, ...) __attribute__((format(printf, 5, 6)));
+
 /// Emit a new error with a filename and printf-style va_list.
 void errorfv(errors_t* errors, const char* file, const char* fmt, va_list ap);
 
@@ -113,9 +125,6 @@ void errorf_continue(errors_t* errors, const char* file, const char* fmt,
 /// Append the errors in the second frame (if any) to the first frame.
 /// The second frame is left empty.
 void errorframe_append(errorframe_t* first, errorframe_t* second);
-
-/// Check if there are any errors in the given frame.
-bool errorframe_has_errors(errorframe_t* frame);
 
 /// Report all errors (if any) in the given frame.
 /// The frame is left empty.

@@ -7,19 +7,28 @@ type FieldKind is
   | FieldEmbed )
 
 primitive FieldVar
-  """Represents a Pony `var` field."""
+  """
+  Represents a Pony `var` field.
+  """
   fun string(): String => "var"
 
 primitive FieldLet
-  """Represents a Pony `let` field."""
+  """
+  Represents a Pony `let` field.
+  """
   fun string(): String => "let"
 
 primitive FieldEmbed
-  """Represents a Pony `embed` field."""
+  """
+  Represents a Pony `embed` field.
+  """
   fun string(): String => "embed"
 
 primitive FieldKindBuilder
-  """Maps a pony_compiler TokenId to the corresponding FieldKind."""
+  """
+  Maps a pony_compiler TokenId to the corresponding
+  FieldKind.
+  """
   fun apply(id: ast.TokenId): FieldKind ? =>
     match id
     | ast.TokenIds.tk_fvar() => FieldVar

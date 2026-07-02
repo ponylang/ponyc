@@ -1,4 +1,7 @@
-FROM alpine:3.23
+# Keep this Alpine version in sync with the build-release-image workflow gate
+# and the trigger-release-tasks.bash dispatch names; see
+# .known-couplings/docker-image-base-vs-trigger-package.md.
+FROM alpine:3.24
 
 LABEL org.opencontainers.image.source="https://github.com/ponylang/ponyc"
 
@@ -8,13 +11,12 @@ RUN apk add --update --no-cache \
     clang \
     curl \
     build-base \
-    binutils-gold \
     git
 
 RUN sh -c "$(curl --proto '=https' --tlsv1.2 -sSf https://raw.githubusercontent.com/ponylang/ponyup/latest-release/ponyup-init.sh)" \
- && ponyup update ponyc release \
- && ponyup update corral release \
- && ponyup update changelog-tool release
+ && ponyup --api-timeout 30 update ponyc release --retries 3 \
+ && ponyup --api-timeout 30 update corral release --retries 3 \
+ && ponyup --api-timeout 30 update changelog-tool release --retries 3
 
 WORKDIR /src/main
 

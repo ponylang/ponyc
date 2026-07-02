@@ -11,10 +11,13 @@ permissions:
 
 jobs:
   build-nightly-docker-image:
+    # The Alpine version in these package-name gates must match the base image
+    # in .dockerfiles/nightly/Dockerfile; see
+    # .known-couplings/docker-image-base-vs-trigger-package.md.
     if: |
       github.event.client_payload.data.repository == 'nightlies' &&
-      (github.event.client_payload.data.name == 'ponyc-x86-64-unknown-linux-alpine3.23.tar.gz' ||
-       github.event.client_payload.data.name == 'ponyc-arm64-unknown-linux-alpine3.23.tar.gz')
+      (github.event.client_payload.data.name == 'ponyc-x86-64-unknown-linux-alpine3.24.tar.gz' ||
+       github.event.client_payload.data.name == 'ponyc-arm64-unknown-linux-alpine3.24.tar.gz')
 
     concurrency:
       group: build-nightly-image
@@ -24,15 +27,16 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4.1.1
+        uses: actions/checkout@v6.0.2
       - name: Set up Docker Buildx
         # v3.10.0
-        uses: docker/setup-buildx-action@b5ca514318bd6ebac0fb2aedd5d36ec1b5c232a2
+        uses: docker/setup-buildx-action@v4
         with:
           version: v0.23.0
+          cache-binary: false
       - name: Login to GitHub Container Registry
         # v2.2.0
-        uses: docker/login-action@5139682d94efc37792e6b54386b5b470a68a4737
+        uses: docker/login-action@v4
         with:
           registry: ghcr.io
           username: ${{ github.repository_owner }}
@@ -41,7 +45,7 @@ jobs:
         run: bash .dockerfiles/nightly/build-and-push.bash
       - name: Alert on failure
         if: ${{ failure() }}
-        uses: zulip/github-actions-zulip/send-message@e4c8f27c732ba9bd98ac6be0583096dea82feea5
+        uses: zulip/github-actions-zulip/send-message@bd8ec52de371d139ae8313661b7d8318c19266aa
         with:
           api-key: ${{ secrets.ZULIP_SCHEDULED_JOB_FAILURE_API_KEY }}
           email: ${{ secrets.ZULIP_SCHEDULED_JOB_FAILURE_EMAIL }}
@@ -58,10 +62,10 @@ jobs:
     name: Update stdlib-builder Docker image with nightly ponyc version
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4.1.1
+      - uses: actions/checkout@v6.0.2
       - name: Login to GitHub Container Registry
         # v2.2.0
-        uses: docker/login-action@5139682d94efc37792e6b54386b5b470a68a4737
+        uses: docker/login-action@v4
         with:
           registry: ghcr.io
           username: ${{ github.repository_owner }}
@@ -70,7 +74,7 @@ jobs:
         run: bash .ci-dockerfiles/stdlib-builder/build-and-push.bash
       - name: Alert on failure
         if: ${{ failure() }}
-        uses: zulip/github-actions-zulip/send-message@e4c8f27c732ba9bd98ac6be0583096dea82feea5
+        uses: zulip/github-actions-zulip/send-message@bd8ec52de371d139ae8313661b7d8318c19266aa
         with:
           api-key: ${{ secrets.ZULIP_SCHEDULED_JOB_FAILURE_API_KEY }}
           email: ${{ secrets.ZULIP_SCHEDULED_JOB_FAILURE_EMAIL }}
@@ -89,12 +93,12 @@ jobs:
     container:
       image: ghcr.io/ponylang/ponyc-ci-stdlib-builder:nightly
     steps:
-      - uses: actions/checkout@v4.1.1
+      - uses: actions/checkout@v6.0.2
       - name: Build
         run: "bash .ci-scripts/build-stdlib-documentation.bash"
       - name: Alert on failure
         if: ${{ failure() }}
-        uses: zulip/github-actions-zulip/send-message@e4c8f27c732ba9bd98ac6be0583096dea82feea5
+        uses: zulip/github-actions-zulip/send-message@bd8ec52de371d139ae8313661b7d8318c19266aa
         with:
           api-key: ${{ secrets.ZULIP_SCHEDULED_JOB_FAILURE_API_KEY }}
           email: ${{ secrets.ZULIP_SCHEDULED_JOB_FAILURE_EMAIL }}
@@ -113,7 +117,7 @@ jobs:
     steps:
       - name: Login to GitHub Container Registry
         # v2.2.0
-        uses: docker/login-action@5139682d94efc37792e6b54386b5b470a68a4737
+        uses: docker/login-action@v4
         with:
           registry: ghcr.io
           username: ${{ github.repository_owner }}
@@ -130,8 +134,8 @@ jobs:
           done
           echo "skip-shas=${shas}" >> $GITHUB_OUTPUT
       - name: Prune
-        # v3.0.1
-        uses: snok/container-retention-policy@3b0972b2276b171b212f8c4efbca59ebba26eceb
+        # v3.1.0
+        uses: snok/container-retention-policy@d3bdcf5ce9b05f685154e4a16c39233b245e3d53
         with:
           account: ponylang
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -141,7 +145,7 @@ jobs:
           skip-shas: ${{ steps.multi-arch-digests.outputs.skip-shas }}
       - name: Alert on failure
         if: ${{ failure() }}
-        uses: zulip/github-actions-zulip/send-message@e4c8f27c732ba9bd98ac6be0583096dea82feea5
+        uses: zulip/github-actions-zulip/send-message@bd8ec52de371d139ae8313661b7d8318c19266aa
         with:
           api-key: ${{ secrets.ZULIP_SCHEDULED_JOB_FAILURE_API_KEY }}
           email: ${{ secrets.ZULIP_SCHEDULED_JOB_FAILURE_EMAIL }}
@@ -159,8 +163,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Prune
-        # v3.0.1
-        uses: snok/container-retention-policy@3b0972b2276b171b212f8c4efbca59ebba26eceb
+        # v3.1.0
+        uses: snok/container-retention-policy@d3bdcf5ce9b05f685154e4a16c39233b245e3d53
         with:
           account: ponylang
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -169,7 +173,7 @@ jobs:
           cut-off: 1d
       - name: Alert on failure
         if: ${{ failure() }}
-        uses: zulip/github-actions-zulip/send-message@e4c8f27c732ba9bd98ac6be0583096dea82feea5
+        uses: zulip/github-actions-zulip/send-message@bd8ec52de371d139ae8313661b7d8318c19266aa
         with:
           api-key: ${{ secrets.ZULIP_SCHEDULED_JOB_FAILURE_API_KEY }}
           email: ${{ secrets.ZULIP_SCHEDULED_JOB_FAILURE_EMAIL }}
@@ -202,7 +206,7 @@ jobs:
           client-payload: '{"version": "${{ github.event.client_payload.data.version }}"}'
       - name: Alert on failure
         if: ${{ failure() }}
-        uses: zulip/github-actions-zulip/send-message@e4c8f27c732ba9bd98ac6be0583096dea82feea5
+        uses: zulip/github-actions-zulip/send-message@bd8ec52de371d139ae8313661b7d8318c19266aa
         with:
           api-key: ${{ secrets.ZULIP_SCHEDULED_JOB_FAILURE_API_KEY }}
           email: ${{ secrets.ZULIP_SCHEDULED_JOB_FAILURE_EMAIL }}

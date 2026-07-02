@@ -32,26 +32,26 @@ static bool messageq_push(messageq_t* q, pony_msg_t* first, pony_msg_t* last)
 {
   atomic_store_explicit(&last->next, NULL, memory_order_relaxed);
 
-  // Without that fence, the store to last->next above could be reordered after
-  // the exchange on the head and after the store to prev->next done by the
-  // next push, which would result in the pop incorrectly seeing the queue as
-  // empty.
-  // Also synchronise with the pop on prev->next.
-  atomic_thread_fence(memory_order_release);
-
+  // acq_rel on the exchange:
+  //  - release: orders the store to last->next above before the exchange, and
+  //    before any thread that later acquires q->head.
+  //  - acquire: establishes happens-before with the previous owner's
+  //    ponyint_messageq_markempty release-CAS on q->head (or with an earlier
+  //    push's release on q->head), so any later consumer of this actor sees
+  //    the previous owner's writes to q->tail without relying on C11 release-
+  //    sequence extension through read-modify-writes.
   pony_msg_t* prev = atomic_exchange_explicit(&q->head, last,
-    memory_order_relaxed);
+    memory_order_acq_rel);
 
   bool was_empty = ((uintptr_t)prev & 1) != 0;
   prev = (pony_msg_t*)((uintptr_t)prev & ~(uintptr_t)1);
 
 #ifdef USE_VALGRIND
-  // Double fence with Valgrind since we need to have prev in scope for the
-  // synchronisation annotation.
   ANNOTATE_HAPPENS_BEFORE(&prev->next);
-  atomic_thread_fence(memory_order_release);
 #endif
-  atomic_store_explicit(&prev->next, first, memory_order_relaxed);
+  // Release so ponyint_actor_messageq_pop's acquire load of tail->next
+  // synchronises with the stores above.
+  atomic_store_explicit(&prev->next, first, memory_order_release);
 
   return was_empty;
 }
@@ -61,15 +61,19 @@ static bool messageq_push_single(messageq_t* q,
 {
   atomic_store_explicit(&last->next, NULL, memory_order_relaxed);
 
-  // If we have a single producer, the swap of the head need not be atomic RMW.
-  pony_msg_t* prev = atomic_load_explicit(&q->head, memory_order_relaxed);
-  atomic_store_explicit(&q->head, last, memory_order_relaxed);
+  // Use an acq_rel exchange rather than a relaxed load + relaxed store even
+  // though the caller promises single-producer. A non-RMW store on q->head
+  // would not extend a prior release sequence on q->head, which would break
+  // the happens-before chain from the previous owner's markempty to the next
+  // consumer. Today this function is only called for TK_NEW sends where the
+  // receiver is freshly constructed and no prior release exists, but we don't
+  // want correctness to depend on that invariant.
+  pony_msg_t* prev = atomic_exchange_explicit(&q->head, last,
+    memory_order_acq_rel);
 
   bool was_empty = ((uintptr_t)prev & 1) != 0;
   prev = (pony_msg_t*)((uintptr_t)prev & ~(uintptr_t)1);
 
-  // If we have a single producer, the fence can be replaced with a store
-  // release on prev->next.
 #ifdef USE_VALGRIND
   ANNOTATE_HAPPENS_BEFORE(&prev->next);
 #endif
