@@ -639,6 +639,11 @@ else()
         add_subdirectory(src/crt)
     endif()
 
+    # The Windows stable-entry-point shim (Unix uses symlinks instead).
+    if(WIN32)
+        add_subdirectory(src/ponyc-shim)
+    endif()
+
     # Stamp file so tools rebuild when shared library sources change.
     # Adding new shared libraries under tools/lib/ only requires updating
     # the glob here rather than every tool's CMakeLists.txt.
@@ -861,15 +866,17 @@ else()
             DESTINATION ${PONY_VERSIONED_DIR}/include/pony)
     endif()
 
-    # Stable entry points in <prefix>/bin and <prefix>/lib pointing at the active
-    # version. On Unix these are symlinks; ponyc resolves its real path
+    # Stable entry points in <prefix>/bin (and <prefix>/lib) pointing at the
+    # active version. On Unix these are symlinks; ponyc resolves its real path
     # (/proc/self/exe, realpath), so running the link lands on the versioned dir.
-    # Windows can't (GetModuleFileName returns the link's own path), so its shim
-    # entry point is added once the shim is verified. EXISTS-guarded to match the
-    # Makefile's per-file checks. Skipped when PONY_INSTALL_SYMLINKS is OFF, which
-    # is what packaging sets (it stages only the versioned tree). Runs last so the
-    # versioned files it links to are already installed. DESTDIR staging isn't
-    # supported here, but packaging turns symlinks off, so it never applies.
+    # Windows can't (GetModuleFileName returns the link's own path), so each entry
+    # point is a copy of the shim (src/ponyc-shim) launched under the tool's name,
+    # plus a pony-active-version pointer file the shim reads to find the versioned
+    # binary. Skipped when PONY_INSTALL_SYMLINKS is OFF, which is what packaging
+    # sets (it stages only the versioned tree). The Unix branch runs last (its
+    # EXISTS checks need the versioned files already installed) and matches the
+    # Makefile's per-file checks; DESTDIR staging isn't supported, but packaging
+    # turns symlinks off, so it never applies.
     if(PONY_INSTALL_SYMLINKS AND NOT WIN32)
         install(CODE "
             set(_prefix \"\${CMAKE_INSTALL_PREFIX}\")
@@ -887,5 +894,12 @@ else()
                 endif()
             endforeach()
         ")
+    elseif(PONY_INSTALL_SYMLINKS AND WIN32)
+        foreach(_tool ponyc pony-lsp pony-lint pony-doc)
+            install(PROGRAMS $<TARGET_FILE:ponyc-shim>
+                DESTINATION bin RENAME ${_tool}.exe)
+        endforeach()
+        install(CODE
+            "file(WRITE \"\${CMAKE_INSTALL_PREFIX}/bin/pony-active-version\" \"${PONYC_VERSION}\")")
     endif()
 endif()
