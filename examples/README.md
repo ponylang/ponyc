@@ -104,7 +104,7 @@ An interactive command-line prompt with tab completion and command history. Demo
 
 ### [signals](signals/)
 
-Registers two handlers for SIGINT, raises the signal programmatically, and disposes one handler. Demonstrates the `signals` package's capability-secured API: `SignalAuth` for authorization, `MakeValidSignal` for signal validation via constrained types, `SignalHandler` for subscription, and `SignalNotify` for callbacks. Shows that multiple handlers can subscribe to the same signal.
+Registers two handlers for SIGINT, raises the signal programmatically, and unsubscribes both by returning false from their notifies. Demonstrates the `signals` package's capability-secured API: `SignalAuth` for authorization, `MakeValidSignal` for signal validation via constrained types, `SignalHandler` for subscription, and `SignalNotify` for callbacks. Shows that multiple handlers can subscribe to the same signal, and that a `wait = true` handler keeps the program alive until it is disposed.
 
 ## Data Formats
 

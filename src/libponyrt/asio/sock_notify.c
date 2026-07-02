@@ -94,7 +94,7 @@ enum // Event requests
   ASIO_STDIN_RESUME = 6,
   ASIO_SET_TIMER = 7,
   ASIO_CANCEL_TIMER = 8,
-  ASIO_CANCEL_SIGNAL = 9
+  ASIO_CANCEL_SIGNAL = 10  // matches epoll.c/kqueue.c
 };
 
 
@@ -651,7 +651,17 @@ PONY_API void pony_asio_event_subscribe(asio_event_t* ev)
           // First subscriber: install the CRT handler, then publish. The
           // publish comes last so "subscribe returned" implies the handler
           // is installed.
-          signal(sig, signal_handler);
+          if(signal(sig, signal_handler) == SIG_ERR)
+          {
+            // The CRT refused the handler. Reset the state and report, so
+            // the failure surfaces as an auto-disposed handler instead of a
+            // registration that never delivers.
+            atomic_store_explicit(&subs->registered, 0,
+              memory_order_seq_cst);
+            pony_asio_event_send(ev, ASIO_ERROR, 0);
+            return;
+          }
+
           atomic_store_explicit(&subs->registered, 1, memory_order_seq_cst);
           state = 1;
         }

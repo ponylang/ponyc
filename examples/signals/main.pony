@@ -11,7 +11,8 @@ class Handler is SignalNotify
 
   fun ref apply(count: U32): Bool =>
     _env.out.print(_name + " received signal (count: " + count.string() + ")")
-    true
+    // Returning false unsubscribes and disposes this handler.
+    false
 
   fun ref dispose() =>
     _env.out.print(_name + " disposed")
@@ -23,25 +24,27 @@ actor Main
   - Validating signal numbers with MakeValidSignal
   - Registering multiple handlers for the same signal
   - Raising a signal programmatically
-  - Disposing a handler
+  - Unsubscribing by returning false from a notify's apply
 
-  Run the program and press Ctrl-C to send SIGINT, or wait for the
-  programmatic raise to fire both handlers.
+  The program registers two handlers for SIGINT and raises it once. Both
+  handlers print that they received the signal, unsubscribe by returning
+  false (each prints again when disposed), and the program exits.
+  handler-1 is created with `wait = true`, which keeps the program alive
+  until that handler is disposed — without it, the program could exit
+  before the signal is delivered.
   """
   new create(env: Env) =>
     let auth = SignalAuth(env.root)
 
     match MakeValidSignal(Sig.int())
     | let sig: ValidSignal =>
-      let h1 = SignalHandler(auth, Handler(env, "handler-1"), sig)
+      let h1 =
+        SignalHandler(auth, Handler(env, "handler-1"), sig where wait = true)
       let h2 = SignalHandler(auth, Handler(env, "handler-2"), sig)
 
       env.out.print("Two handlers registered for SIGINT.")
       env.out.print("Raising SIGINT programmatically...")
       h1.raise(auth)
-
-      // Dispose handler-2 to show cleanup
-      h2.dispose(auth)
     | let f: ValidationFailure =>
       env.out.print("Failed to validate SIGINT")
       for e in f.errors().values() do

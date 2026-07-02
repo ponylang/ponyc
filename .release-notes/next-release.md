@@ -71,7 +71,7 @@ handler.dispose()
 ```pony
 use "term"
 
-let term = ANSITerm(handler, env.input)
+let term = ANSITerm(notify, env.input)
 ```
 
 After:
@@ -94,7 +94,7 @@ use "signals"
 use "term"
 
 let auth = SignalAuth(env.root)
-let term = ANSITerm(auth, handler, env.input)
+let term = ANSITerm(auth, notify, env.input)
 ```
 
 Because `dispose` now takes a parameter, `SignalHandler` no longer satisfies interfaces that expect a parameterless `dispose`, such as `DisposableActor` — for example, a `bureaucracy.Custodian` can no longer dispose a `SignalHandler` directly.

@@ -192,6 +192,38 @@ class \nodoc\ _TestMultiHandlerNotify is SignalNotify
     _h.complete_action(_action)
     true
 
+class \nodoc\ _TestMultiHandlerChainNotify is SignalNotify
+  """
+  Completes its action and, on the first notification only, raises the
+  signal again via the next handler. Serializing the second raise behind
+  the first delivery keeps the raises from overlapping — on Windows the
+  CRT resets the disposition to SIG_DFL before running a handler, so two
+  concurrent raises leave a window where the second kills the process.
+  """
+  let _h: TestHelper
+  let _action: String
+  let _next: SignalHandler
+  let _auth: SignalAuth
+  var _chained: Bool = false
+
+  new iso create(h: TestHelper, action: String, next: SignalHandler,
+    auth: SignalAuth)
+  =>
+    _h = h
+    _action = action
+    _next = next
+    _auth = auth
+
+  fun ref apply(count: U32): Bool =>
+    _h.complete_action(_action)
+    if not _chained then
+      _chained = true
+      // Same-actor ordering: _next's constructor (and thus its
+      // subscription) completed before this raise runs on it.
+      _next.raise(_auth)
+    end
+    true
+
 class \nodoc\ iso _TestMultipleHandlers is UnitTest
   """
   Verify that multiple handlers for the same signal all get notified.
@@ -209,15 +241,17 @@ class \nodoc\ iso _TestMultipleHandlers is UnitTest
     h.expect_action("handler2")
     match MakeValidSignal(Sig.int())
     | let sig: ValidSignal =>
-      let s1 = SignalHandler(auth,
-        _TestMultiHandlerNotify(h, "handler1"), sig)
       let s2 = SignalHandler(auth,
         _TestMultiHandlerNotify(h, "handler2"), sig)
-      // Each handler raises so that same-actor message ordering guarantees
-      // its constructor (and thus subscription) has completed before the
-      // raise executes.
+      let s1 = SignalHandler(auth,
+        _TestMultiHandlerChainNotify(h, "handler1", s2, auth), sig)
+      // Same-actor message ordering guarantees s1's constructor (and thus
+      // its subscription) has completed before this raise executes. s2's
+      // subscription may or may not be in place for this first raise;
+      // s1's notify raises again through s2 (see the chain notify), and
+      // that second raise is ordered after s2's subscription, so both
+      // actions complete.
       s1.raise(auth)
-      s2.raise(auth)
       _signal1 = s1
       _signal2 = s2
       h.long_test(10_000_000_000)
@@ -453,8 +487,12 @@ actor \nodoc\ _SubscriberLimitCoordinator
     // create-and-raise after the table has been emptied — a raise with no
     // subscribers takes the default disposition and would kill the test
     // process. (A replacement created before this message was processed
-    // can still have a raise in flight; that raise is safe because the
-    // replacement itself is registered.)
+    // can still have a raise in flight. If that replacement was rejected
+    // it is NOT registered; its raise is safe in practice because the
+    // replacement processes the raise adjacent to its rejection, long
+    // before the 16 serialized cancels below can drain the table — and
+    // this window exists only on the timeout path, where the run is
+    // already failing.)
     _stopped = true
     for s in _handlers.values() do
       s.dispose(_auth)

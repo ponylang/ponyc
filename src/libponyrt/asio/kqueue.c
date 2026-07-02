@@ -570,7 +570,16 @@ PONY_API void pony_asio_event_subscribe(asio_event_t* ev)
 
           // ask to restart interrupted syscalls to match `signal` behavior
           new_action.sa_flags = SA_RESTART;
-          sigaction(sig, &new_action, NULL);
+
+          if(sigaction(sig, &new_action, NULL) == -1)
+          {
+            // The OS refused the disposition change; nothing is installed
+            // yet, so just reset the state and report.
+            atomic_store_explicit(&subs->registered, 0,
+              memory_order_seq_cst);
+            pony_asio_event_send(ev, ASIO_ERROR, 0);
+            return;
+          }
 
           struct kevent event;
           EV_SET(&event, sig, EVFILT_SIGNAL, EV_ADD | EV_RECEIPT | EV_CLEAR,

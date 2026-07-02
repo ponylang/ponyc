@@ -72,11 +72,13 @@ class CleanupHandler is SignalNotify
 The `Sig` primitive provides support for portable signal handling across Linux,
 FreeBSD and OSX. On Windows only the subset of signals the C runtime supports is
 available: the accessors that do not depend on the platform (such as `Sig.int()`
-for `SIGINT`) work, while accessors for signals Windows does not have (for
-example `Sig.trap()`) raise a compile error there. Validation narrows this
-further: on Windows only `Sig.int()` and `Sig.term()` are accepted by
-`MakeValidSignal` — other signals the C runtime knows about (such as `SIGABRT`)
-are fatal there and cannot be meaningfully handled.
+for `SIGINT`) work, while platform-specific accessors (for example
+`Sig.trap()`) raise a compile error there. A few platform-independent
+accessors (such as `Sig.hup()`) compile on Windows but name signals it does
+not have. Validation resolves this: on Windows only `Sig.int()` and
+`Sig.term()` are accepted by `MakeValidSignal` — everything else, including
+signals the C runtime knows about but treats as fatal (such as `SIGABRT`),
+is rejected.
 
 ## Disposing handlers
 

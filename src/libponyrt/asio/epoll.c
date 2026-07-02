@@ -582,7 +582,19 @@ PONY_API void pony_asio_event_subscribe(asio_event_t* ev)
           // ask to restart interrupted syscalls to match `signal` behavior
           new_action.sa_flags = SA_RESTART;
 
-          sigaction(sig, &new_action, NULL);
+          if(sigaction(sig, &new_action, NULL) == -1)
+          {
+            // The OS refused the handler (e.g. glibc reserves RT signals 32
+            // and 33 for its threading internals and rejects them with
+            // EINVAL). Unwind the eventfd registration and report, so the
+            // failure surfaces as an auto-disposed handler instead of a
+            // registration that never delivers.
+            epoll_ctl(b->epfd, EPOLL_CTL_DEL, fd, NULL);
+            close(fd);
+            atomic_store_explicit(&subs->eventfd, -1, memory_order_seq_cst);
+            pony_asio_event_send(ev, ASIO_ERROR, 0);
+            return;
+          }
 
           atomic_store_explicit(&subs->eventfd, fd, memory_order_seq_cst);
           state = fd;

@@ -8,12 +8,24 @@ primitive SignalValidator is Validator[U32]
   are accepted. Fatal signals (SIGILL, SIGTRAP, SIGABRT, SIGFPE, SIGBUS,
   SIGSEGV), uncatchable signals (SIGKILL, SIGSTOP), and unknown signal
   numbers are rejected.
+
+  Validation is necessary but not sufficient: the operating system can
+  still refuse a registration the whitelist admits (for example, glibc
+  reserves the two lowest real-time signals for its own threading
+  internals). Such a refusal surfaces through the normal failure path —
+  the handler is automatically disposed.
   """
   fun apply(sig: U32): ValidationResult =>
+    """
+    Return `ValidationSuccess` for a handleable signal number, or a
+    `ValidationFailure` naming the rejected number.
+    """
     if _is_handleable(sig) then
       ValidationSuccess
     else
-      recover val ValidationFailure(sig.string() + " is not a handleable signal") end
+      recover val
+        ValidationFailure(sig.string() + " is not a handleable signal")
+      end
     end
 
   fun _is_handleable(sig: U32): Bool =>
@@ -48,9 +60,9 @@ primitive SignalValidator is Validator[U32]
     end
 
   fun _is_usr2(sig: U32): Bool =>
-    // SIGUSR2 is only available when the runtime doesn't use it for
-    // scheduler scaling. Sig.usr2() has a compile_error when
-    // scheduler_scaling_pthreads is set, so guard the call here.
+    // Sig.usr2() has a compile_error when scheduler_scaling_pthreads is
+    // set, so this guard has to mirror that gate to be able to call it
+    // at all.
     ifdef not "scheduler_scaling_pthreads" then
       ifdef bsd or osx then
         sig == Sig.usr2()
