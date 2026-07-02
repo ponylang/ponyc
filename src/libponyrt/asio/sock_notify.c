@@ -490,6 +490,11 @@ DECLARE_THREAD_FN(ponyint_asio_backend_dispatch)
 
         case ASIO_CANCEL_TIMER:
         {
+          // Same double-unsubscribe protection as ASIO_CANCEL_SIGNAL: a
+          // second queued cancel must not dispose the event twice.
+          if(ev->flags == ASIO_DISPOSABLE)
+            break;
+
           CancelWaitableTimer(ev->timer);
           CloseHandle(ev->timer);
           ev->timer = NULL;
@@ -503,6 +508,14 @@ DECLARE_THREAD_FN(ponyint_asio_backend_dispatch)
 
         case ASIO_CANCEL_SIGNAL:
         {
+          // A second queued cancel for an already-disposed event (raw-FFI
+          // double-unsubscribe) must not produce a second DISPOSABLE
+          // notification — the owner would destroy the event twice. This
+          // thread is the only writer of ASIO_DISPOSABLE for signal events,
+          // so the check is reliable.
+          if(ev->flags == ASIO_DISPOSABLE)
+            break;
+
           if(ev->nsec >= MAX_SIGNAL)
           {
             ev->flags = ASIO_DISPOSABLE;

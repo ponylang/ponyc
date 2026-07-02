@@ -182,6 +182,14 @@ static void handle_queue(asio_backend_t* b)
 
       case ASIO_CANCEL_SIGNAL:
       {
+        // A second queued cancel for an already-disposed event (raw-FFI
+        // double-unsubscribe) must not produce a second DISPOSABLE
+        // notification — the owner would destroy the event twice. This
+        // thread is the only writer of ASIO_DISPOSABLE for signal events,
+        // so the check is reliable.
+        if(ev->flags == ASIO_DISPOSABLE)
+          break;
+
         if(ev->nsec >= MAX_SIGNAL)
         {
           ev->flags = ASIO_DISPOSABLE;
