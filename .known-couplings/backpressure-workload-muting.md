@@ -30,8 +30,11 @@ runtime change — and the runtime's own tests do not exercise this combination.
 This is distinct from `systematic-testing-park-sites.md`, which covers a different
 mechanism (systematic-testing thread handoff at shutdown), not normal-mode muting.
 
-Run: the normal-mode generative soak — `orchestrate_normal.py` drawing the
-`backpressure` workload (`.github/workflows/stress-test-generative-normal-*.yml`, or
-locally `python3 test/rt-stress/generative/orchestrate_normal.py --ponyc <debug
-ponyc> --count <N>`). A muting-semantics regression surfaces as a backpressure run
-timing out.
+Run: the generative `backpressure` soak in both modes — `orchestrate_normal.py`
+(`.github/workflows/stress-test-generative-normal-*.yml`) and `orchestrate_systematic.py`
+(`.github/workflows/stress-test-generative-systematic-*.yml`); locally `python3
+test/rt-stress/generative/orchestrate_normal.py --ponyc <debug ponyc> --count <N>` (or
+the systematic orchestrator with a systematic ponyc). A muting-semantics regression
+surfaces as a backpressure run timing out (the deadlock-freedom properties above). A
+change to the *order* the muteset is drained under systematic instead shows as an
+ORDER_SIG divergence — a separate coupling, in `systematic-testing-send-ordering.md`.

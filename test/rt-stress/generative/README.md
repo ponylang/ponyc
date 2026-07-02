@@ -91,18 +91,19 @@ conservation *failure* forces a non-zero exit. The engine holds no configuration
 logic and no `@runtime_override_defaults`; every knob is a CLI flag set by the
 orchestrator.
 
-The systematic mode draws `mesh`, `cyclic`, and `iso`, with `--ponynoblock` drawn
-~50% so the cycle detector runs under the reproducible oracle — cyclic collection and
-iso acquire both reproduce with the detector on, because the detector's
-recipient-scheduling sends are sorted by a stable actor id, so replay is
-layout-independent. Systematic keeps cyclic/iso small (see the `SYSTEMATIC_*` caps in
-stress_common.py) so the serialized soak's per-seed cost stays at or below the
-mesh-only cost it replaces; the normal mode still carries the large-magnitude
-cyclic/iso runs, where real parallelism also catches the concurrent-collection,
-mute/unmute, and mutable-subgraph acquire races the serialized mode can't.
-(`backpressure` under systematic is the one remaining deferred leg — muting is
-cycle-detector-independent, so it is *not* blocked by the old forced `--ponynoblock`,
-but its determinism under systematic is unverified.)
+The systematic mode draws all four workloads (`mesh`, `cyclic`, `backpressure`,
+`iso`), with `--ponynoblock` drawn ~50% so the cycle detector runs under the
+reproducible oracle — cyclic collection and iso acquire both reproduce with the
+detector on, because the detector's recipient-scheduling sends are sorted by a stable
+actor id, so replay is layout-independent. `backpressure` is cycle-detector-independent;
+its determinism instead rides on the muting/unmuting arrival order, which also
+reproduces under replay — its per-work `ORDER_SIG` fold fingerprints that interleaving
+(see main.pony and .known-couplings/backpressure-workload-muting.md). Systematic keeps
+cyclic/backpressure/iso small (see the `SYSTEMATIC_*` caps in stress_common.py) so the
+serialized soak's per-seed cost stays at or below the mesh-only cost it replaces; the
+normal mode still carries the large-magnitude cyclic/iso runs, where real parallelism
+also catches the concurrent-collection, mute/unmute, and mutable-subgraph acquire races
+the serialized mode can't.
 
 ## Running it
 
@@ -233,9 +234,8 @@ checks the endpoint sentinel bytes of the parcel; see Parcel integrity above —
 interior corruption still slips through there too, and the other three check no
 bytes. A full byte-integrity check is deferred.) Also deferred to a later round:
 richer allocation-diversity work, the `iso` graph carrying `tag` actor references
-(dynamic cross-actor edges that can form cycles) rather than only byte arrays, an
-exact spawned == finalized count for the `cyclic` workload, and running
-`backpressure` under the systematic determinism oracle.
+(dynamic cross-actor edges that can form cycles) rather than only byte arrays, and an
+exact spawned == finalized count for the `cyclic` workload.
 
 ## Tests
 
@@ -243,8 +243,9 @@ Three self-contained test files (no pytest), run in CI via `lint-python.yml`:
 
 - `stress_common_test.py` — the shared pure pieces (seed derivation, the workload
   draws including `draw_workload`, output parsing, command building).
-- `orchestrate_systematic_test.py` — the systematic config draw (pinned golden;
-  draws `mesh`/`cyclic`/`iso` with `--ponynoblock` as a swarm knob).
+- `orchestrate_systematic_test.py` — the systematic config draw (pinned per-kind
+  goldens; draws `mesh`/`cyclic`/`backpressure`/`iso` with `--ponynoblock` as a swarm
+  knob).
 - `orchestrate_normal_test.py` — the normal config draw (no systematic seed,
   `ponynoblock` as a swarm knob, all four workload kinds drawn, the cyclic memory
   ceiling, the backpressure message ceiling, the iso chains/ttl burst ceilings,

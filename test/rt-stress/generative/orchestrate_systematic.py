@@ -11,8 +11,8 @@ memory ordering, real lock-free contention) -- that is orchestrate_normal.py's j
 From a master seed it:
   1. derives the program RNG seed (`--seed`) and the scheduler-interleaving seed
      (`--ponysystematictestingseed`, forced >= 1);
-  2. draws a swarm configuration -- one of `mesh | cyclic | iso` (backpressure is a
-     separate leg) plus a random subset of the non-timing runtime knobs (including
+  2. draws a swarm configuration -- one of `mesh | cyclic | backpressure | iso` plus a
+     random subset of the non-timing runtime knobs (including
      `--ponynoscale` and `--ponynoblock`, both drawn ~50% -- the oracle holds with
      the cycle detector on) and `--ponymaxthreads` across [1, the host's probed
      physical core count];

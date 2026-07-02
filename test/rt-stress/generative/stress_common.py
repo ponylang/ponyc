@@ -338,14 +338,18 @@ ISO_CHAINS_BUCKETS = {"small": (50, 1000), "medium": (1001, 3000),
 ISO_ACQUIRE_BUDGET = 96000
 
 
-# Systematic-mode workload-kind weights for the 3-way draw (draw_systematic_workload).
-# Backpressure stays OUT -- a separate leg (its muting path is detector-independent
-# and its systematic determinism is unverified). mesh is the baseline widest-surface
-# workload and stays the larger run; cyclic and iso are drawn but kept SMALL (below)
-# so the serialized double-run soak costs no more per seed than the mesh-only draw it
-# replaces. A run rolls mesh below MESH_P, cyclic below MESH_P + CYCLIC_P, else iso.
+# Systematic-mode workload-kind weights for the 4-way draw (draw_systematic_workload),
+# mirroring normal mode's split. mesh is the baseline widest-surface workload and stays
+# the larger run; cyclic, backpressure, and iso each target one otherwise-untouched
+# subsystem and are kept SMALL (below) so the serialized double-run soak costs no more
+# per seed than the mesh-only draw it replaces. A run rolls mesh below MESH_P, cyclic
+# below MESH_P + CYCLIC_P, backpressure below MESH_P + CYCLIC_P + BP_P, else iso.
+# Backpressure's systematic determinism is verified: its muting/unmuting arrival order
+# reproduces under replay (see the per-work ORDER_SIG fold in main.pony and
+# .known-couplings/backpressure-workload-muting.md).
 SYSTEMATIC_MESH_P = 0.4
-SYSTEMATIC_CYCLIC_P = 0.3   # iso gets the remaining 1 - MESH_P - CYCLIC_P
+SYSTEMATIC_CYCLIC_P = 0.2
+SYSTEMATIC_BACKPRESSURE_P = 0.2   # iso gets the remaining 1 - the three above
 
 # Systematic cyclic/iso are deliberately SMALL. The systematic determinism oracle's
 # value is exercising each kind's message ORDERING under reproducible replay, which
@@ -375,15 +379,39 @@ SYSTEMATIC_CYCLIC_GENERATION_MAX = 50
 # iso ttl reuses ISO_TTL_MAX (the acquire-cap math assumes ttl <= it).
 SYSTEMATIC_ISO_CHAINS_MAX = 400
 
+# Systematic backpressure is TIME-bound like cyclic/iso: kept small so the serialized
+# double-run costs no more per seed than the other kinds. Cost is driven by the total
+# work = producers * messages (~20 us/message serialized on a debug systematic ponyc).
+# The drawn worst -- 64 producers * 300 messages = 19200, with apply_every=1 (maximal
+# mute/unmute churn) -- measures ~0.45s single, in the band of the worst cyclic (~0.6s)
+# and iso (~0.4s); the ceiling guard in stress_common_test.py pins 2x that product (the
+# re-measure trigger, ~1.0s single).
+#
+# producers spans the single-producer baseline (a depth-1 muteset: conservation + the
+# apply/release/single-mute path, untested by normal mode which starts at 16) through a
+# 64-deep muteset. The arrival-race sensitivity the per-work ORDER_SIG fold captures
+# comes from producers >= 4 -- with one producer the arrival order is trivial, so that
+# draw only exercises the reproduce/conservation checks, not a muting race. messages is
+# drawn for magnitude variety. apply_every is small so muting FIRES even on small runs:
+# apply_every=1 applies/releases on every received message (maximal churn), while a
+# small-total draw with the largest apply_every exercises the pure-flood path where
+# explicit backpressure never engages. COUPLING: the time bound is a property of the
+# engine's per-message cost -- re-measure if Producer/Consumer per-message work changes.
+SYSTEMATIC_BACKPRESSURE_PRODUCERS = [1, 4, 16, 64]
+SYSTEMATIC_BACKPRESSURE_MESSAGES_MAX = 300
+SYSTEMATIC_BACKPRESSURE_APPLY_EVERY = [1, 10, 50, 200]
+
 # Per-kind (chains, ttl) inclusive ranges for the systematic draw. One place to read
-# every systematic range; extensible if a systematic backpressure leg is added later.
-# mesh keeps its historical uniform ranges; cyclic reuses the normal cyclic envelope;
-# iso is capped as above. draw_systematic_workload makes the SAME two randint calls
+# every systematic range. mesh keeps its historical uniform ranges; cyclic reuses the
+# normal cyclic envelope; iso is capped as above; backpressure has NO chains/ttl but
+# still draws them (drawn-then-ignored, as normal mode does) so the two randint calls
+# stay uniform across kinds. draw_systematic_workload makes the SAME two randint calls
 # for every kind (the range differs, the call count does not -- fixed consumption).
 SYSTEMATIC_WORKLOAD_RANGES = {
-    "mesh":   ((1, 400), (0, 48)),
-    "cyclic": ((1, 8), (1, 16)),
-    "iso":    ((1, SYSTEMATIC_ISO_CHAINS_MAX), (1, ISO_TTL_MAX)),
+    "mesh":         ((1, 400), (0, 48)),
+    "cyclic":       ((1, 8), (1, 16)),
+    "backpressure": ((1, 400), (0, 48)),  # drawn-then-ignored (no chains/ttl)
+    "iso":          ((1, SYSTEMATIC_ISO_CHAINS_MAX), (1, ISO_TTL_MAX)),
 }
 
 
@@ -469,8 +497,8 @@ def draw_workload(rng):
 
 def draw_systematic_workload(rng, program_seed):
     """The systematic-mode workload shape: the program seed (passed, not drawn) plus
-    a drawn kind -- `mesh | cyclic | iso` (backpressure is a separate leg) -- and,
-    drawn UNCONDITIONALLY for every kind, all of mesh's, cyclic's, and iso's shape
+    a drawn kind -- `mesh | cyclic | backpressure | iso` -- and, drawn UNCONDITIONALLY
+    for every kind, all of every kind's shape
     fields. Only the rolled kind's fields are emitted, so the engine never receives a
     contradictory flag. Like draw_workload, it makes the SAME fixed sequence of draws
     regardless of the rolled kind (the iso `min()` clamp consumes no rng), so a future
@@ -493,15 +521,21 @@ def draw_systematic_workload(rng, program_seed):
         kind = "mesh"
     elif roll < SYSTEMATIC_MESH_P + SYSTEMATIC_CYCLIC_P:
         kind = "cyclic"
+    elif roll < SYSTEMATIC_MESH_P + SYSTEMATIC_CYCLIC_P + SYSTEMATIC_BACKPRESSURE_P:
+        kind = "backpressure"
     else:
         kind = "iso"
     # Every kind's cargo is drawn on every roll (fixed consumption); only the rolled
-    # kind's fields are emitted below. pingers -> cyclic shape -> iso cargo, then the
-    # per-kind chains/ttl (SAME two randint calls for every kind; the range differs,
-    # the call count does not) -> payload kind/size.
+    # kind's fields are emitted below. pingers -> cyclic shape -> backpressure shape ->
+    # iso cargo, then the per-kind chains/ttl (SAME two randint calls for every kind;
+    # the range differs, the call count does not) -> payload kind/size. The cargo draw
+    # order mirrors draw_workload's.
     pingers = rng.choice(NORMAL_PINGERS)
     generations = rng.randint(1, SYSTEMATIC_CYCLIC_GENERATION_MAX)
     group = rng.choice(CYCLIC_GROUPS)
+    producers = rng.choice(SYSTEMATIC_BACKPRESSURE_PRODUCERS)
+    messages = rng.randint(1, SYSTEMATIC_BACKPRESSURE_MESSAGES_MAX)
+    apply_every = rng.choice(SYSTEMATIC_BACKPRESSURE_APPLY_EVERY)
     node_size = rng.choice(ISO_NODE_SIZES)
     node_depth = rng.choice(ISO_DEPTHS)
     node_breadth = rng.choice(ISO_BREADTHS)
@@ -512,14 +546,22 @@ def draw_systematic_workload(rng, program_seed):
     payload_size = rng.choice(STRING_SIZES)
 
     # Emit only the rolled kind's fields (plus the always-present seed + workload).
-    # mesh/cyclic carry the val payload; iso carries its own cargo knobs and NO
-    # payload (drawn-then-ignored, like normal mode). pingers is a mesh/iso field.
+    # mesh/cyclic/backpressure carry the val payload; iso carries its own cargo knobs
+    # and NO payload (drawn-then-ignored, like normal mode). pingers is a mesh/iso
+    # field; backpressure has producers/messages/apply-every and NO chains/ttl/pingers.
     workload = {"seed": program_seed, "workload": kind}
     if kind == "cyclic":
         workload["generations"] = generations
         workload["group"] = group
         workload["chains"] = chains
         workload["ttl"] = ttl
+        workload["payload"] = payload
+        workload["payload-size"] = payload_size
+    elif kind == "backpressure":
+        # chains/ttl were drawn above (fixed consumption) and are ignored here.
+        workload["producers"] = producers
+        workload["messages"] = messages
+        workload["apply-every"] = apply_every
         workload["payload"] = payload
         workload["payload-size"] = payload_size
     elif kind == "iso":
