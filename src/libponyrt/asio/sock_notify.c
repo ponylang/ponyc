@@ -46,8 +46,7 @@
 // .known-couplings/signal-subscriber-cap.md before changing it.
 #define MAX_SIGNAL_SUBSCRIBERS 16
 
-// Signal registration protocol (same shape in epoll.c, kqueue.c, and here;
-// epoll.c keys the state off the shared eventfd instead of a flag).
+// Signal registration protocol (same shape in epoll.c, kqueue.c, and here).
 // `registered` is a tri-state: 0 = no OS registration, -1 = a thread is
 // mid-install or the ASIO thread is mid-teardown, 1 = registered.
 // Subscribe (any scheduler thread) loops: wait for 1 (installing via
@@ -492,18 +491,17 @@ DECLARE_THREAD_FN(ponyint_asio_backend_dispatch)
 
         case ASIO_CANCEL_SIGNAL:
         {
-          int sig = (int)ev->nsec;
-
-          if(sig >= MAX_SIGNAL)
+          if(ev->nsec >= MAX_SIGNAL)
           {
             ev->flags = ASIO_DISPOSABLE;
             pony_asio_event_send(ev, ASIO_DISPOSABLE, 0);
             break;
           }
 
+          int sig = (int)ev->nsec;
           signal_subscribers_t* subs = &b->sighandlers[sig];
 
-          // Remove ev from the subscriber array (set its slot to NULL).
+          // Remove ev's slot from the subscriber array.
           for(size_t i = 0; i < MAX_SIGNAL_SUBSCRIBERS; i++)
           {
             if(atomic_load_explicit(&subs->subscribers[i],
@@ -626,11 +624,16 @@ PONY_API void pony_asio_event_subscribe(asio_event_t* ev)
     ev->timer = CreateWaitableTimer(NULL, FALSE, NULL);
     send_request(ev, ASIO_SET_TIMER);
   } else if((ev->flags & ASIO_SIGNAL) != 0) {
-    int sig = (int)ev->nsec;
-
-    if(sig >= MAX_SIGNAL)
+    if(ev->nsec >= MAX_SIGNAL)
+    {
+      // Out of range (only reachable through raw FFI — ValidSignal caps
+      // well below MAX_SIGNAL). Report it so the handler auto-disposes
+      // instead of stranding, per the documented contract.
+      pony_asio_event_send(ev, ASIO_ERROR, 0);
       return;
+    }
 
+    int sig = (int)ev->nsec;
     signal_subscribers_t* subs = &b->sighandlers[sig];
 
     // Register synchronously so both the CRT handler and the subscriber slot
@@ -671,6 +674,7 @@ PONY_API void pony_asio_event_subscribe(asio_event_t* ev)
       {
         // Another thread is mid-install or mid-teardown. This wait is very
         // brief — one CRT signal() call and an atomic store.
+        ponyint_cpu_relax();
         continue;
       }
 

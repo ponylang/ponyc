@@ -56,6 +56,8 @@ actor ANSITerm
   var _esc_mod: U8 = 0
   embed _esc_buf: Array[U8] = Array[U8]
   var _closed: Bool = false
+  let _auth: SignalAuth
+  var _winch: (SignalHandler | None) = None
 
   new create(
     auth: SignalAuth,
@@ -69,11 +71,16 @@ actor ANSITerm
     _timers = timers
     _notify = consume notify
     _source = source
+    _auth = auth
 
     ifdef not windows then
       match MakeValidSignal(Sig.winch())
       | let sig: ValidSignal =>
-        SignalHandler(auth, recover _TermResizeNotify(this) end, sig)
+        _winch = SignalHandler(auth, recover _TermResizeNotify(this) end, sig)
+      | let _: ValidationFailure =>
+        // Unreachable: SIGWINCH is whitelisted on every platform where this
+        // branch compiles.
+        None
       end
     end
 
@@ -217,6 +224,7 @@ actor ANSITerm
       _esc_clear()
       _notify.closed()
       _source.dispose()
+      try (_winch as SignalHandler).dispose(_auth) end
       _closed = true
     end
 

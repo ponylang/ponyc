@@ -13,7 +13,6 @@ actor Custodian
 
   ```pony
   use "bureaucracy"
-  use "constrained_types"
   use "signals"
 
   actor Actor1

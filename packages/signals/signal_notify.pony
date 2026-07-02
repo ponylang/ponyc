@@ -8,15 +8,19 @@ interface SignalNotify
   """
   fun ref apply(count: U32): Bool =>
     """
-    Called with the the number of times the signal has fired since this was
+    Called with the number of times the signal has fired since this was
     last called. Return false to stop listening for the signal.
     """
     true
 
   fun ref dispose() =>
     """
-    Called if the signal is disposed. This is also called if the notifier
-    returns false.
+    Called when the signal handler is disposed: explicitly via
+    `SignalHandler.dispose`, when `apply` returns false, or when the
+    handler's registration could not be completed (the per-signal
+    subscriber limit was reached, or the operating system refused the
+    registration). In the registration-failure case `apply` is never
+    called.
     """
     None
 

@@ -40,7 +40,6 @@ Programs run under systematic testing could run far slower than the amount of wo
 The `signals` package now provides capability security and signal number validation. `SignalHandler` requires a `SignalAuth` capability (derived from `AmbientAuth`) and a `ValidSignal` constrained type that enforces platform-specific whitelists, preventing registration of fatal signals like `SIGSEGV` or uncatchable signals like `SIGKILL`. Multiple actors can now subscribe to the same signal — up to 16 subscribers per signal number, with all subscribers notified when the signal fires.
 
 ```pony
-use "constrained_types"
 use "signals"
 
 actor Main
@@ -56,7 +55,7 @@ If a handler's registration cannot be completed — the 16-subscriber limit for 
 
 ## Signal handling API requires `SignalAuth` and `ValidSignal`
 
-The `SignalHandler` constructor now requires a `SignalAuth` capability and a `ValidSignal` constrained type instead of a raw `U32` signal number. `SignalHandler.raise` and `SignalHandler.dispose` now require a `SignalAuth` as well. `ANSITerm.create` also requires a `SignalAuth` parameter as its first argument.
+The `SignalHandler` constructor now requires a `SignalAuth` capability and a `ValidSignal` constrained type instead of a raw `U32` signal number. `SignalHandler.raise` and `SignalHandler.dispose` now require a `SignalAuth` as well, and so does the `SignalRaise` primitive (`SignalRaise(auth, sig)` instead of `SignalRaise(sig)`). `ANSITerm.create` also requires a `SignalAuth` parameter as its first argument.
 
 Before:
 
@@ -77,7 +76,6 @@ let term = ANSITerm(notify, env.input)
 After:
 
 ```pony
-use "constrained_types"
 use "signals"
 
 let auth = SignalAuth(env.root)
@@ -97,4 +95,4 @@ let auth = SignalAuth(env.root)
 let term = ANSITerm(auth, notify, env.input)
 ```
 
-Because `dispose` now takes a parameter, `SignalHandler` no longer satisfies interfaces that expect a parameterless `dispose`, such as `DisposableActor` — for example, a `bureaucracy.Custodian` can no longer dispose a `SignalHandler` directly.
+Because `dispose` now takes a parameter, `SignalHandler` no longer satisfies interfaces that expect a parameterless `dispose`, such as `DisposableActor` — for example, a `bureaucracy.Custodian` can no longer dispose a `SignalHandler` directly. Dispose the handler yourself where you hold the `SignalAuth`, or wrap it in a small actor that captures the auth and exposes a parameterless `dispose`.

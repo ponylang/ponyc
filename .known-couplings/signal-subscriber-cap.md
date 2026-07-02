@@ -8,7 +8,7 @@ the cap and the auto-dispose-on-error behavior, the release notes state it,
 and `packages/signals/_test.pony` asserts it (the subscriber-limit test
 registers 16 handlers and requires the 17th to error-dispose). Changing the
 cap in one backend desynchronizes the platforms; changing it in all three
-still breaks the stdlib test and silently falsifies the docstrings and any
+still breaks the stdlib test and contradicts the docstrings and any
 published release notes. A backend-only change won't be caught by test-core —
 the assertion lives in the stdlib suite.
 

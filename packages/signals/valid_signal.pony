@@ -12,8 +12,11 @@ primitive SignalValidator is Validator[U32]
   Validation is necessary but not sufficient: the operating system can
   still refuse a registration the whitelist admits (for example, glibc
   reserves the two lowest real-time signals for its own threading
-  internals). Such a refusal surfaces through the normal failure path —
-  the handler is automatically disposed.
+  internals, and musl the three lowest). Such a refusal surfaces through
+  the normal failure path — the handler is automatically disposed.
+  Diagnostic runtime builds (`use=runtime_tracing`) additionally reserve a
+  pause signal — SIGRTMIN on Linux, SIGINFO on BSD and macOS — and
+  handling that signal in such a build breaks runtime tracing.
   """
   fun apply(sig: U32): ValidationResult =>
     """
@@ -38,7 +41,6 @@ primitive SignalValidator is Validator[U32]
         or (sig == Sig.xfsz()) or (sig == Sig.vtalrm()) or (sig == Sig.prof())
         or (sig == Sig.winch()) or (sig == Sig.info()) or (sig == Sig.usr1())
         or (sig == Sig.sys())
-        or _is_usr2(sig)
         or _is_rt(sig)
     elseif linux then
       (sig == Sig.hup()) or (sig == Sig.int()) or (sig == Sig.quit())
@@ -49,7 +51,6 @@ primitive SignalValidator is Validator[U32]
         or (sig == Sig.xfsz()) or (sig == Sig.vtalrm()) or (sig == Sig.prof())
         or (sig == Sig.winch()) or (sig == Sig.pwr()) or (sig == Sig.usr1())
         or (sig == Sig.sys())
-        or _is_usr2(sig)
         or _is_rt(sig)
     elseif windows then
       // Windows signal() only supports SIGINT and SIGTERM as catchable
@@ -59,21 +60,10 @@ primitive SignalValidator is Validator[U32]
       false
     end
 
-  fun _is_usr2(sig: U32): Bool =>
-    // Sig.usr2() has a compile_error when scheduler_scaling_pthreads is
-    // set, so this guard has to mirror that gate to be able to call it
-    // at all.
-    ifdef not "scheduler_scaling_pthreads" then
-      ifdef bsd or osx then
-        sig == Sig.usr2()
-      elseif linux then
-        sig == Sig.usr2()
-      else
-        false
-      end
-    else
-      false
-    end
+  // SIGUSR2 is deliberately absent from the whitelists: in default builds
+  // the runtime reserves it for scheduler sleep/wake and consumes it via
+  // sigwait, so a handler would never fire; in scheduler_scaling_pthreads
+  // builds Sig.usr2() is a compile error. No build can handle it.
 
   fun _is_rt(sig: U32): Bool =>
     ifdef bsd then

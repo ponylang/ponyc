@@ -19,7 +19,7 @@ actor SignalHandler is AsioEventNotify
   disposed: its notify's `dispose` is called and `apply` never is.
 
   If the wait parameter is true, the program will not terminate until
-  the SignalHandler's dispose method is called, or if the SignalNotify
+  the SignalHandler's dispose method is called or the SignalNotify
   returns false after handling the signal. Disposing a SignalHandler
   unsubscribes it from the signal and is required to allow the runtime
   to garbage collect the handler.
@@ -53,8 +53,8 @@ actor SignalHandler is AsioEventNotify
 
   be _event_notify(event: AsioEventID, flags: U32, arg: U32) =>
     """
-    Called when the signal is received, or when the AsioEventID can be
-    destroyed.
+    Called when the signal is received, when registration fails (the
+    event arrives errored), or when the AsioEventID can be destroyed.
     """
     if AsioEvent.disposable(flags) then
       @pony_asio_event_destroy(event)

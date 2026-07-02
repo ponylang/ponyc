@@ -10,7 +10,10 @@ actor \nodoc\ Main is TestList
     test(_TestValidSignalRejectsFatal)
     test(_TestValidSignalRejectsUncatchable)
     test(_TestValidSignalRejectsUnknown)
+    test(_TestValidSignalRejectsReserved)
+    test(_TestValidSignalRTBoundaries)
     test(_TestSignalINT)
+    test(_TestOSRefusedRegistration)
     test(_TestMultipleHandlers)
     test(_TestDispose)
     test(_TestNotifyReturnsFalse)
@@ -18,7 +21,8 @@ actor \nodoc\ Main is TestList
 
 class \nodoc\ iso _TestValidSignalAcceptsHandleable is UnitTest
   """
-  Verify that all handleable signals pass SignalValidator.
+  Verify that the enumerated handleable signals pass SignalValidator.
+  (The real-time ranges are pinned separately by the RT boundaries test.)
   """
   fun name(): String => "signals/ValidSignal accepts handleable"
 
@@ -137,11 +141,84 @@ class \nodoc\ iso _TestValidSignalRejectsUnknown is UnitTest
     _assert_invalid(h, 0)
     _assert_invalid(h, 200)
     _assert_invalid(h, U32.max_value())
+    ifdef windows then
+      // These accessors compile on Windows but name signals it does not
+      // have; validation must reject them.
+      _assert_invalid(h, Sig.hup())
+      _assert_invalid(h, Sig.quit())
+      _assert_invalid(h, Sig.alrm())
+    end
 
   fun _assert_invalid(h: TestHelper, sig: U32) =>
     match MakeValidSignal(sig)
     | let _: ValidSignal =>
       h.fail("signal " + sig.string() + " should be rejected (unknown)")
+    | let _: ValidationFailure => None
+    end
+
+class \nodoc\ iso _TestValidSignalRejectsReserved is UnitTest
+  """
+  Verify that SIGUSR2 is rejected: the runtime reserves it for scheduler
+  sleep/wake in default builds, so a handler could never fire. (Under
+  scheduler_scaling_pthreads, Sig.usr2() itself is a compile error, hence
+  the gate.)
+  """
+  fun name(): String => "signals/ValidSignal rejects reserved"
+
+  fun apply(h: TestHelper) =>
+    ifdef not "scheduler_scaling_pthreads" then
+      ifdef linux or bsd or osx then
+        match MakeValidSignal(Sig.usr2())
+        | let _: ValidSignal =>
+          h.fail("SIGUSR2 should be rejected (runtime-reserved)")
+        | let _: ValidationFailure => None
+        end
+      end
+    end
+
+class \nodoc\ iso _TestValidSignalRTBoundaries is UnitTest
+  """
+  Pin the real-time signal ranges at their boundaries: the first and last
+  in-range values validate and the values just outside do not. Uses Sig.rt
+  for the in-range values so a desync between Sig.rt's range and
+  SignalValidator's is caught from either side.
+  """
+  fun name(): String => "signals/ValidSignal RT boundaries"
+
+  fun apply(h: TestHelper) =>
+    ifdef linux then
+      try
+        _assert_valid(h, Sig.rt(0)?)
+        _assert_valid(h, Sig.rt(32)?)
+      else
+        h.fail("in-range Sig.rt errored")
+      end
+      _assert_invalid(h, 65)
+    elseif bsd then
+      try
+        _assert_valid(h, Sig.rt(0)?)
+        _assert_valid(h, Sig.rt(61)?)
+      else
+        h.fail("in-range Sig.rt errored")
+      end
+      _assert_invalid(h, 64)
+      _assert_invalid(h, 127)
+    elseif osx then
+      // The RT range is bsd-only; it must not leak into the osx whitelist.
+      _assert_invalid(h, 65)
+    end
+
+  fun _assert_valid(h: TestHelper, sig: U32) =>
+    match MakeValidSignal(sig)
+    | let _: ValidSignal => None
+    | let _: ValidationFailure =>
+      h.fail("signal " + sig.string() + " should be valid")
+    end
+
+  fun _assert_invalid(h: TestHelper, sig: U32) =>
+    match MakeValidSignal(sig)
+    | let _: ValidSignal =>
+      h.fail("signal " + sig.string() + " should be rejected (out of range)")
     | let _: ValidationFailure => None
     end
 
@@ -159,6 +236,7 @@ class \nodoc\ iso _TestSignalINT is UnitTest
   var _signal: (SignalHandler | None) = None
 
   fun name(): String => "signals/INT"
+  fun exclusion_group(): String => "signals"
 
   fun ref apply(h: TestHelper) =>
     let auth = SignalAuth(h.env.root)
@@ -239,6 +317,7 @@ class \nodoc\ iso _TestMultipleHandlers is UnitTest
   var _signal2: (SignalHandler | None) = None
 
   fun name(): String => "signals/multiple handlers"
+  fun exclusion_group(): String => "signals"
 
   fun ref apply(h: TestHelper) =>
     let auth = SignalAuth(h.env.root)
@@ -295,6 +374,7 @@ class \nodoc\ iso _TestDispose is UnitTest
   """
 
   fun name(): String => "signals/dispose"
+  fun exclusion_group(): String => "signals"
 
   fun ref apply(h: TestHelper) =>
     let auth = SignalAuth(h.env.root)
@@ -330,6 +410,7 @@ class \nodoc\ iso _TestNotifyReturnsFalse is UnitTest
   var _signal: (SignalHandler | None) = None
 
   fun name(): String => "signals/notify returns false"
+  fun exclusion_group(): String => "signals"
 
   fun ref apply(h: TestHelper) =>
     let auth = SignalAuth(h.env.root)
@@ -365,6 +446,9 @@ class \nodoc\ _LimitFillNotify is SignalNotify
     _n = n
 
   fun ref apply(count: U32): Bool =>
+    if count == 0 then
+      _h.fail("signal delivered with a zero count")
+    end
     if not _fired then
       _fired = true
       _h.complete_action("limit-h" + _n.string())
@@ -518,6 +602,7 @@ class \nodoc\ iso _TestSubscriberLimit is UnitTest
   var _coordinator: (_SubscriberLimitCoordinator | None) = None
 
   fun name(): String => "signals/subscriber limit"
+  fun exclusion_group(): String => "signals"
 
   fun ref apply(h: TestHelper) =>
     let auth = SignalAuth(h.env.root)
@@ -545,3 +630,58 @@ class \nodoc\ iso _TestSubscriberLimit is UnitTest
 
   fun ref tear_down(h: TestHelper) =>
     try (_coordinator as _SubscriberLimitCoordinator).dispose_all() end
+
+class \nodoc\ _RefusedNotify is SignalNotify
+  let _h: TestHelper
+  let _action: String
+  var _fired: Bool = false
+
+  new iso create(h: TestHelper, action: String) =>
+    _h = h
+    _action = action
+
+  fun ref apply(count: U32): Bool =>
+    _fired = true
+    _h.fail("handler for an OS-refused signal received a signal")
+    true
+
+  fun ref dispose() =>
+    if not _fired then
+      _h.complete_action(_action)
+    end
+
+class \nodoc\ iso _TestOSRefusedRegistration is UnitTest
+  """
+  Verify the documented contract for registrations the OS refuses: glibc
+  and musl both reject sigaction for real-time signal 32 (reserved for the
+  libc's threading internals) even though the whitelist admits it, and the
+  handler must auto-dispose (notify's dispose runs, apply never does). The
+  second handler proves the failure path resets the registration state — a
+  regression that left it mid-install would strand the second subscribe
+  and surface here as a timeout.
+  """
+  fun name(): String => "signals/OS-refused registration auto-disposes"
+  fun exclusion_group(): String => "signals"
+
+  fun ref apply(h: TestHelper) =>
+    ifdef linux then
+      let auth = SignalAuth(h.env.root)
+      try
+        match MakeValidSignal(Sig.rt(0)?)
+        | let sig: ValidSignal =>
+          h.expect_action("refused-1")
+          h.expect_action("refused-2")
+          SignalHandler(auth, _RefusedNotify(h, "refused-1"), sig)
+          SignalHandler(auth, _RefusedNotify(h, "refused-2"), sig)
+          h.long_test(10_000_000_000)
+        | let _: ValidationFailure =>
+          h.fail("rt(0) should validate")
+        end
+      else
+        h.fail("Sig.rt(0) errored")
+      end
+    end
+
+  fun timed_out(h: TestHelper) =>
+    h.fail("timeout")
+    h.complete(false)

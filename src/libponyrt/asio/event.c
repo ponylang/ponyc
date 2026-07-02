@@ -139,9 +139,11 @@ PONY_API uint64_t pony_asio_event_nsec(asio_event_t* ev)
 PONY_API void pony_asio_event_send(asio_event_t* ev, uint32_t flags,
   uint32_t arg)
 {
-  // Every backend, including the Windows readiness backend, sends events only
-  // from the asio thread (already registered via ponyint_register_asio_thread),
-  // so there is no foreign thread to register and no liveness token to hold.
+  // Every backend sends events from the asio thread (registered via
+  // ponyint_register_asio_thread) or, on subscribe/registration error paths,
+  // from the subscribing scheduler thread — both are registered pony
+  // threads, so there is no foreign thread to register and no liveness
+  // token to hold.
   asio_msg_t* m = (asio_msg_t*)pony_alloc_msg(POOL_INDEX(sizeof(asio_msg_t)),
     ev->msg_id);
   m->event = ev;
