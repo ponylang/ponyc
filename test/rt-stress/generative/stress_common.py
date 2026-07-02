@@ -372,16 +372,6 @@ ACTORREF_CHAINS_BUCKETS = {"small": (50, 2000), "medium": (2001, 15000),
 # ACTORREF_TTL_BUCKETS separately), so splitting this alias into two distinct buckets
 # later leaves each floor guard pinned to the right one.
 ACTORREF_TTL_BUCKETS = ISO_TTL_BUCKETS
-# Ceiling guard: peak RSS tracks max chains. Unlike the cyclic/backpressure/iso NORMAL
-# ceilings -- which sit ~1x above their drawn max because their cost near that max is
-# non-linear (cyclic's super-linear workers, iso's non-monotonic acquire-flood) or
-# time-bound (backpressure), so any bump past the calibrated max warrants a fresh
-# measurement -- actorref's drawn max (34000 chains, ~100MB) has ~40x headroom under
-# the 4 GB cap and its cost is linear, so this is a looser 2x re-measure trigger
-# (matching the 2x SYSTEMATIC ceilings). The tests compare with a strict `<`, so a bump
-# that REACHES it -- an exact doubling of the chains bucket max -- trips the re-measure,
-# not only a bump strictly past it.
-ACTORREF_CHAINS_CEILING = 34000 * 2
 
 
 # Systematic-mode workload-kind weights for the 5-way draw (draw_systematic_workload),
