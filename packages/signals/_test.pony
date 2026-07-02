@@ -68,6 +68,9 @@ class \nodoc\ iso _TestValidSignalAcceptsHandleable is UnitTest
       _assert_valid(h, Sig.info())
       _assert_valid(h, Sig.usr1())
       _assert_valid(h, Sig.sys())
+    elseif windows then
+      _assert_valid(h, Sig.int())
+      _assert_valid(h, Sig.term())
     end
 
   fun _assert_valid(h: TestHelper, sig: U32) =>
@@ -91,6 +94,8 @@ class \nodoc\ iso _TestValidSignalRejectsFatal is UnitTest
       _assert_invalid(h, Sig.fpe())
       _assert_invalid(h, Sig.bus())
       _assert_invalid(h, Sig.segv())
+    elseif windows then
+      _assert_invalid(h, Sig.abrt())
     end
 
   fun _assert_invalid(h: TestHelper, sig: U32) =>
@@ -110,6 +115,8 @@ class \nodoc\ iso _TestValidSignalRejectsUncatchable is UnitTest
     ifdef linux or bsd or osx then
       _assert_invalid(h, Sig.kill())
       _assert_invalid(h, Sig.stop())
+    elseif windows then
+      _assert_invalid(h, Sig.kill())
     end
 
   fun _assert_invalid(h: TestHelper, sig: U32) =>

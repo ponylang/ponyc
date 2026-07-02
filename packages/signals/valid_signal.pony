@@ -72,9 +72,14 @@ primitive SignalValidator is Validator[U32]
       false
     end
 
-// A signal number that has been validated as handleable.
 type ValidSignal is Constrained[U32, SignalValidator]
+  """
+  A signal number that has been validated as handleable on this platform.
+  Required by `SignalHandler`; obtain one from `MakeValidSignal`.
+  """
 
-// Factory for creating ValidSignal instances. Returns either a ValidSignal
-// or a ValidationFailure with an error message.
 type MakeValidSignal is MakeConstrained[U32, SignalValidator]
+  """
+  Factory for `ValidSignal` instances. Returns either a `ValidSignal` or a
+  `ValidationFailure` with an error message.
+  """

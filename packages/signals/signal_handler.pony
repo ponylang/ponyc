@@ -11,9 +11,12 @@ actor SignalHandler is AsioEventNotify
   """
   Listen for a specific signal.
 
-  Multiple SignalHandlers can be registered for the same signal. All
-  registered handlers will be notified when the signal is received, in
-  no particular order.
+  Multiple SignalHandlers can be registered for the same signal — up to 16
+  per signal number. All registered handlers will be notified when the
+  signal is received, in no particular order. If a handler cannot be
+  registered (the 16-subscriber limit is reached, or the runtime fails to
+  register with the operating system), the handler is automatically
+  disposed: its notify's `dispose` is called and `apply` never is.
 
   If the wait parameter is true, the program will not terminate until
   the SignalHandler's dispose method is called, or if the SignalNotify

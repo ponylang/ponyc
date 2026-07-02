@@ -8,8 +8,11 @@ capability security and support for multiple handlers per signal.
 
 For each signal that you want to handle, you need to create a `SignalHandler`
 and a corresponding `SignalNotify` object. Multiple `SignalHandler` actors can
-be registered for the same signal — all registered handlers will be notified
-when the signal is received, in no particular order.
+be registered for the same signal — up to 16 per signal number — and all
+registered handlers will be notified when the signal is received, in no
+particular order. A handler that cannot be registered (the limit is reached,
+or the runtime fails to register with the operating system) is automatically
+disposed: its notify's `dispose` runs and its `apply` never does.
 
 Signal handling requires a `SignalAuth` capability derived from `AmbientAuth`,
 consistent with how other I/O primitives in the standard library handle

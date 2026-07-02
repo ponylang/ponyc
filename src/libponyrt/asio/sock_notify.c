@@ -36,10 +36,40 @@
 #  error "Windows asio backend requires NTDDI_VERSION >= NTDDI_WIN10_MN (Windows 11 / Server 2022, build 20348)"
 #endif
 
-// Requests to start/stop timers, watch stdin, and (un)register signals go
-// through a request queue handled on the asio background thread.
+// Requests to start/stop timers, watch stdin, and unregister signals go
+// through a request queue handled on the asio background thread. Signal
+// registration is synchronous on the subscribing thread (see the protocol
+// comment below).
 
 #define MAX_SIGNAL 32
+// Coupled: the 16-subscriber cap is documented API behavior — see
+// .known-couplings/signal-subscriber-cap.md before changing it.
+#define MAX_SIGNAL_SUBSCRIBERS 16
+
+// Signal registration protocol (same shape in epoll.c, kqueue.c, and here;
+// epoll.c keys the state off the shared eventfd instead of a flag).
+// `registered` is a tri-state: 0 = no OS registration, -1 = a thread is
+// mid-install or the ASIO thread is mid-teardown, 1 = registered.
+// Subscribe (any scheduler thread) loops: wait for 1 (installing via
+// CAS 0 -> -1 if first), CAS into a free subscriber slot, then RE-VERIFY the
+// state is still 1 — retrying from the top if a concurrent last-subscriber
+// cancel tore the registration down between the wait and the slot insert.
+// Cancel (ASIO thread only) removes the slot, and only tears down after
+// claiming the registration (CAS 1 -> -1) and re-scanning the slots for a
+// racing insert. The slot-insert CAS, the re-verify load, the claim CAS, and
+// the post-claim re-scan loads are all seq_cst: the subscriber does
+// store(slot) -> load(state) while the canceler does RMW(state) -> load(slots)
+// — a store-buffer shape where acquire/release alone lets both sides miss
+// each other (masked on x86, real on weaker architectures). The publish of 1
+// happens only after the OS handler install, so "subscribe returned" implies
+// the handler is active. This makes registration and cancel race-free;
+// signal-context delivery keeps its pre-existing benign race (the CRT
+// handler's self-re-arm can race a concurrent teardown's signal(SIG_DFL),
+// which existed before this design too).
+typedef struct signal_subscribers_t {
+  PONY_ATOMIC(int) registered;  // 0=no, -1=in-progress, 1=yes
+  PONY_ATOMIC(asio_event_t*) subscribers[MAX_SIGNAL_SUBSCRIBERS];
+} signal_subscribers_t;
 
 // Completion-key sentinels for the non-socket packets we post to the port. Real
 // socket events use the heap `asio_event_t*` as the completion key; a heap
@@ -53,7 +83,7 @@ struct asio_backend_t
 {
   HANDLE port;
   PONY_ATOMIC(bool) stop;
-  asio_event_t* sighandlers[MAX_SIGNAL];
+  signal_subscribers_t sighandlers[MAX_SIGNAL];
   messageq_t q;
 };
 
@@ -64,8 +94,7 @@ enum // Event requests
   ASIO_STDIN_RESUME = 6,
   ASIO_SET_TIMER = 7,
   ASIO_CANCEL_TIMER = 8,
-  ASIO_SET_SIGNAL = 9,
-  ASIO_CANCEL_SIGNAL = 10
+  ASIO_CANCEL_SIGNAL = 9
 };
 
 
@@ -283,10 +312,15 @@ DECLARE_THREAD_FN(ponyint_asio_backend_dispatch)
 
         if((sig >= 0) && (sig < MAX_SIGNAL))
         {
-          asio_event_t* ev = b->sighandlers[sig];
+          signal_subscribers_t* subs = &b->sighandlers[sig];
 
-          if(ev != NULL)
-            pony_asio_event_send(ev, ASIO_SIGNAL, 1);
+          for(size_t j = 0; j < MAX_SIGNAL_SUBSCRIBERS; j++)
+          {
+            asio_event_t* sub = atomic_load_explicit(
+              &subs->subscribers[j], memory_order_acquire);
+            if(sub != NULL)
+              pony_asio_event_send(sub, ASIO_SIGNAL, 1);
+          }
         }
 
         continue;
@@ -456,26 +490,78 @@ DECLARE_THREAD_FN(ponyint_asio_backend_dispatch)
           break;
         }
 
-        case ASIO_SET_SIGNAL:
-        {
-          int sig = (int)ev->nsec;
-
-          if(b->sighandlers[sig] == NULL)
-          {
-            b->sighandlers[sig] = ev;
-            signal(sig, signal_handler);
-          }
-          break;
-        }
-
         case ASIO_CANCEL_SIGNAL:
         {
           int sig = (int)ev->nsec;
 
-          if(b->sighandlers[sig] == ev)
+          if(sig >= MAX_SIGNAL)
           {
-            b->sighandlers[sig] = NULL;
-            signal(sig, SIG_DFL);
+            ev->flags = ASIO_DISPOSABLE;
+            pony_asio_event_send(ev, ASIO_DISPOSABLE, 0);
+            break;
+          }
+
+          signal_subscribers_t* subs = &b->sighandlers[sig];
+
+          // Remove ev from the subscriber array (set its slot to NULL).
+          for(size_t i = 0; i < MAX_SIGNAL_SUBSCRIBERS; i++)
+          {
+            if(atomic_load_explicit(&subs->subscribers[i],
+              memory_order_acquire) == ev)
+            {
+              atomic_store_explicit(&subs->subscribers[i], NULL,
+                memory_order_release);
+              break;
+            }
+          }
+
+          // Check whether any subscribers remain.
+          bool has_subscribers = false;
+          for(size_t i = 0; i < MAX_SIGNAL_SUBSCRIBERS; i++)
+          {
+            if(atomic_load_explicit(&subs->subscribers[i],
+              memory_order_acquire) != NULL)
+            {
+              has_subscribers = true;
+              break;
+            }
+          }
+
+          if(!has_subscribers)
+          {
+            // Claim the registration before tearing down (see the protocol
+            // comment at signal_subscribers_t). The CAS fails if nothing is
+            // registered or an install is in progress — then teardown is not
+            // ours to do.
+            int expected = 1;
+            if(atomic_compare_exchange_strong_explicit(&subs->registered,
+              &expected, -1, memory_order_seq_cst, memory_order_seq_cst))
+            {
+              // Re-scan: a subscriber may have slot-inserted between the scan
+              // above and the claim. seq_cst per the protocol comment.
+              bool still_empty = true;
+              for(size_t i = 0; i < MAX_SIGNAL_SUBSCRIBERS; i++)
+              {
+                if(atomic_load_explicit(&subs->subscribers[i],
+                  memory_order_seq_cst) != NULL)
+                {
+                  still_empty = false;
+                  break;
+                }
+              }
+
+              if(still_empty)
+              {
+                // Last subscriber is gone: restore default handling.
+                signal(sig, SIG_DFL);
+                atomic_store_explicit(&subs->registered, 0,
+                  memory_order_seq_cst);
+              } else {
+                // A racing subscribe slipped in — abort the teardown.
+                atomic_store_explicit(&subs->registered, 1,
+                  memory_order_seq_cst);
+              }
+            }
           }
 
           ev->flags = ASIO_DISPOSABLE;
@@ -540,8 +626,75 @@ PONY_API void pony_asio_event_subscribe(asio_event_t* ev)
     ev->timer = CreateWaitableTimer(NULL, FALSE, NULL);
     send_request(ev, ASIO_SET_TIMER);
   } else if((ev->flags & ASIO_SIGNAL) != 0) {
-    if(ev->nsec < MAX_SIGNAL)
-      send_request(ev, ASIO_SET_SIGNAL);
+    int sig = (int)ev->nsec;
+
+    if(sig >= MAX_SIGNAL)
+      return;
+
+    signal_subscribers_t* subs = &b->sighandlers[sig];
+
+    // Register synchronously so both the CRT handler and the subscriber slot
+    // are active before subscribe returns — otherwise a raise executed right
+    // after subscribing could take the default disposition (process death) or
+    // miss this subscriber. See the protocol comment at signal_subscribers_t.
+    while(true)
+    {
+      int state = atomic_load_explicit(&subs->registered,
+        memory_order_acquire);
+
+      if(state == 0)
+      {
+        int expected = 0;
+        if(atomic_compare_exchange_strong_explicit(&subs->registered,
+          &expected, -1, memory_order_seq_cst, memory_order_seq_cst))
+        {
+          // First subscriber: install the CRT handler, then publish. The
+          // publish comes last so "subscribe returned" implies the handler
+          // is installed.
+          signal(sig, signal_handler);
+          atomic_store_explicit(&subs->registered, 1, memory_order_seq_cst);
+          state = 1;
+        }
+      }
+
+      if(state != 1)
+      {
+        // Another thread is mid-install or mid-teardown. This wait is very
+        // brief — one CRT signal() call and an atomic store.
+        continue;
+      }
+
+      // Insert into a free subscriber slot. seq_cst per the protocol comment.
+      size_t slot = MAX_SIGNAL_SUBSCRIBERS;
+      for(size_t i = 0; i < MAX_SIGNAL_SUBSCRIBERS; i++)
+      {
+        asio_event_t* expected = NULL;
+        if(atomic_compare_exchange_strong_explicit(&subs->subscribers[i],
+          &expected, ev, memory_order_seq_cst, memory_order_seq_cst))
+        {
+          slot = i;
+          break;
+        }
+      }
+
+      if(slot == MAX_SIGNAL_SUBSCRIBERS)
+      {
+        // All subscriber slots are taken. Report it; the stdlib disposes the
+        // handler on an errored event.
+        pony_asio_event_send(ev, ASIO_ERROR, 0);
+        return;
+      }
+
+      // Re-verify the registration is still live; a concurrent last-cancel
+      // teardown may have run between the state check and the slot insert.
+      // seq_cst per the protocol comment.
+      if(atomic_load_explicit(&subs->registered, memory_order_seq_cst) == 1)
+        return;
+
+      // Teardown raced us: undo the slot insert and retry from the top.
+      atomic_store_explicit(&subs->subscribers[slot], NULL,
+        memory_order_release);
+    }
   } else if(ev->fd == 0) {
     // Subscribe to stdin.
     send_request(ev, ASIO_STDIN_NOTIFY);
