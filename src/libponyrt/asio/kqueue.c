@@ -300,8 +300,12 @@ static void retry_loop(asio_backend_t* b)
 
 static void send_request(asio_event_t* ev, int req)
 {
+  // NULL means asio teardown has committed (#5564). A signal delivered
+  // during shutdown can wake an actor after quiescence, and its dispose
+  // lands here. The process is exiting: drop the request.
   asio_backend_t* b = ponyint_asio_get_backend();
-  pony_assert(b != NULL);
+  if(b == NULL)
+    return;
 
   asio_msg_t* msg = (asio_msg_t*)pony_alloc_msg(
     POOL_INDEX(sizeof(asio_msg_t)), 0);
@@ -327,7 +331,10 @@ PONY_API void pony_asio_event_resubscribe_read(asio_event_t* ev)
   }
 
   asio_backend_t* b = ponyint_asio_get_backend();
-  pony_assert(b != NULL);
+
+  // Teardown has committed; drop the request (see send_request, #5564).
+  if(b == NULL)
+    return;
 
   struct kevent event[1];
   int i = 0;
@@ -363,7 +370,10 @@ PONY_API void pony_asio_event_resubscribe_write(asio_event_t* ev)
   }
 
   asio_backend_t* b = ponyint_asio_get_backend();
-  pony_assert(b != NULL);
+
+  // Teardown has committed; drop the request (see send_request, #5564).
+  if(b == NULL)
+    return;
 
   struct kevent event[2];
   int i = 0;
@@ -517,6 +527,28 @@ DECLARE_THREAD_FN(ponyint_asio_backend_dispatch)
     handle_queue(b);
   }
 
+  // Restore the default disposition for any signal still registered (an
+  // undisposed wait=false handler doesn't block quiescence); the SIG_IGN
+  // dispositions this backend installs would otherwise outlive the
+  // runtime (#5564).
+  for(int i = 0; i < MAX_SIGNAL; i++)
+  {
+    if(atomic_load_explicit(&b->sighandlers[i].registered,
+      memory_order_acquire) == 1)
+    {
+      struct sigaction new_action;
+
+      new_action.sa_handler = SIG_DFL;
+#if !defined(USE_SCHEDULER_SCALING_PTHREADS)
+      if(i == PONY_SCHED_SLEEP_WAKE_SIGNAL)
+        new_action.sa_handler = empty_signal_handler;
+#endif
+      sigemptyset(&new_action.sa_mask);
+      new_action.sa_flags = SA_RESTART;
+      sigaction(i, &new_action, NULL);
+    }
+  }
+
   ponyint_messageq_destroy(&b->q, true);
   POOL_FREE(asio_backend_t, b);
 
@@ -538,7 +570,10 @@ PONY_API void pony_asio_event_subscribe(asio_event_t* ev)
   }
 
   asio_backend_t* b = ponyint_asio_get_backend();
-  pony_assert(b != NULL);
+
+  // Teardown has committed; drop the request (see send_request, #5564).
+  if(b == NULL)
+    return;
 
   if(ev->noisy)
   {
@@ -727,7 +762,10 @@ PONY_API void pony_asio_event_setnsec(asio_event_t* ev, uint64_t nsec)
   }
 
   asio_backend_t* b = ponyint_asio_get_backend();
-  pony_assert(b != NULL);
+
+  // Teardown has committed; drop the request (see send_request, #5564).
+  if(b == NULL)
+    return;
 
   struct kevent event[1];
   int i = 0;
@@ -765,7 +803,10 @@ PONY_API void pony_asio_event_unsubscribe(asio_event_t* ev)
   }
 
   asio_backend_t* b = ponyint_asio_get_backend();
-  pony_assert(b != NULL);
+
+  // Teardown has committed; drop the request (see send_request, #5564).
+  if(b == NULL)
+    return;
 
   if(ev->flags & ASIO_SIGNAL)
   {

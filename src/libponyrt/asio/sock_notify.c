@@ -110,8 +110,12 @@ enum // Event requests
 
 static void send_request(asio_event_t* ev, int req)
 {
+  // NULL means asio teardown has committed (#5564). A signal delivered
+  // during shutdown can wake an actor after quiescence, and its dispose
+  // lands here. The process is exiting: drop the request.
   asio_backend_t* b = ponyint_asio_get_backend();
-  pony_assert(b != NULL);
+  if(b == NULL)
+    return;
 
   asio_msg_t* msg = (asio_msg_t*)pony_alloc_msg(
     POOL_INDEX(sizeof(asio_msg_t)), 0);
@@ -236,7 +240,11 @@ static bool sock_notify_ctl(asio_event_t* ev, UINT16 filter, UINT8 op,
   UINT8 trigger)
 {
   asio_backend_t* b = ponyint_asio_get_backend();
-  pony_assert(b != NULL);
+
+  // Teardown has committed (see send_request, #5564); report failure so the
+  // caller takes its existing error path.
+  if(b == NULL)
+    return false;
 
   SOCK_NOTIFY_REGISTRATION reg;
   memset(&reg, 0, sizeof(reg));
@@ -604,6 +612,17 @@ DECLARE_THREAD_FN(ponyint_asio_backend_dispatch)
   if(stdin_wait != NULL)
     UnregisterWaitEx(stdin_wait, INVALID_HANDLE_VALUE);
 
+  // Restore the default disposition for any signal still registered (an
+  // undisposed wait=false handler doesn't block quiescence), so a raise
+  // after this thread frees the backend can't run signal_handler against
+  // a freed backend (#5564).
+  for(int i = 0; i < MAX_SIGNAL; i++)
+  {
+    if(atomic_load_explicit(&b->sighandlers[i].registered,
+      memory_order_acquire) == 1)
+      signal(i, SIG_DFL);
+  }
+
   CloseHandle(b->port);
   ponyint_messageq_destroy(&b->q, true);
   POOL_FREE(asio_backend_t, b);
@@ -634,7 +653,10 @@ PONY_API void pony_asio_event_subscribe(asio_event_t* ev)
   }
 
   asio_backend_t* b = ponyint_asio_get_backend();
-  pony_assert(b != NULL);
+
+  // Teardown has committed; drop the request (see send_request, #5564).
+  if(b == NULL)
+    return;
 
   if(ev->noisy)
   {
@@ -830,7 +852,10 @@ PONY_API void pony_asio_event_unsubscribe(asio_event_t* ev)
     return;
 
   asio_backend_t* b = ponyint_asio_get_backend();
-  pony_assert(b != NULL);
+
+  // Teardown has committed; drop the request (see send_request, #5564).
+  if(b == NULL)
+    return;
 
   if((ev->flags & ASIO_TIMER) != 0)
   {
@@ -867,13 +892,22 @@ PONY_API void pony_asio_event_unsubscribe(asio_event_t* ev)
       if(!sock_notify_ctl(ev, SOCK_NOTIFY_REGISTER_EVENT_NONE,
         SOCK_NOTIFY_OP_REMOVE, 0))
       {
-        // The REMOVE control call failed, so no SOCK_NOTIFY_EVENT_REMOVE packet
-        // will arrive to drive the deferred close + disposal. A failed REMOVE
-        // means the socket isn't registered with the port, so no readiness
-        // packet for it is in flight on the asio thread -- it is safe to dispose
-        // synchronously here on the owning actor's thread (as the timer/signal/
-        // stdin branches do). Without this, the event would leak and the actor
-        // would never quiesce, matching epoll's unconditional disposal.
+        // Teardown can commit between this function's guard and the ctl
+        // call. In that case the dispatch loop may still be draining packets
+        // for this socket, so the synchronous disposal below would free
+        // memory the asio thread can touch. Drop instead, like every other
+        // teardown guard (#5564).
+        if(ponyint_asio_get_backend() == NULL)
+          return;
+
+        // The REMOVE control call failed against a live backend, so the
+        // socket isn't registered with the port: no readiness packet for it
+        // is in flight on the asio thread, and no SOCK_NOTIFY_EVENT_REMOVE
+        // packet will arrive to drive the deferred close + disposal. It is
+        // safe to dispose synchronously here on the owning actor's thread
+        // (as the timer/signal/stdin branches do). Without this, the event
+        // would leak and the actor would never quiesce, matching epoll's
+        // unconditional disposal.
         closesocket((SOCKET)ev->fd);
         ev->fd = -1;
         ev->flags = ASIO_DISPOSABLE;

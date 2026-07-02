@@ -103,4 +103,7 @@ let term = ANSITerm(auth, notify, env.input)
 ```
 
 Because `dispose` now takes a parameter, `SignalHandler` no longer satisfies interfaces that expect a parameterless `dispose`, such as `DisposableActor` — for example, a `bureaucracy.Custodian` can no longer dispose a `SignalHandler` directly. Dispose the handler yourself where you hold the `SignalAuth`, or wrap it in a small actor that captures the auth and exposes a parameterless `dispose`.
-||||||| 53c72d88d
+
+## Fix a use-after-free when a signal arrives during runtime shutdown
+
+A program that still had a signal handler registered when the runtime shut down — easy to do, since a `wait = false` handler doesn't keep the program alive and doesn't need to be disposed — left the process's signal disposition pointing into the runtime's I/O machinery while that machinery was being torn down. A signal delivered in the teardown window could touch freed memory or crash the process. The runtime now drops a signal that arrives while teardown is committing and then restores the default disposition for still-registered signals on its way out, so a signal arriving after that behaves exactly as it would in a process that never registered a handler.

@@ -1,6 +1,7 @@
 # The three ASIO backends implement the signal registration protocol in lockstep
 
-The lock-free signal registration protocol — the `registered` tri-state, the
+The atomic compare-and-swap signal registration protocol — the `registered`
+tri-state, the
 subscribe wait/insert/re-verify loop, the cancel claim/re-scan/teardown, and
 the seq_cst orderings on the four racing accesses — is implemented separately
 in `src/libponyrt/asio/epoll.c`, `kqueue.c`, and `sock_notify.c` (the
@@ -21,6 +22,20 @@ Two invariants the protocol depends on, in all three copies:
   because a thread can never be observed mid-install/mid-teardown there. A
   yield inside a claimed window creates a systematic-only deadlock that
   normal CI never sees.
+
+The dispatch-exit teardown is part of the lockstep too: each backend sweeps
+its table before freeing the backend, restoring the default disposition for
+every still-registered signal, so an undisposed handler's signal can't run
+the C handler against a freed backend (#5564). So are the shutdown guards on
+the actor-facing entry points: every path that dereferences the backend —
+each backend's `send_request`, sock_notify's `sock_notify_ctl`, and the
+`PONY_API pony_asio_event_*` functions that touch `b` directly — checks
+`ponyint_asio_get_backend()` for NULL first and drops the work, because a
+signal delivered during shutdown can wake an actor after quiescence and its
+dispose would otherwise dereference the freed backend. Removing a guard in one backend reintroduces
+that shutdown crash on that platform only.
+`test/full-program-tests/signal-shutdown-disposition` pins the sweep's
+disposition restore on every platform.
 
 One more cross-layer contract rides on this protocol: the `arg` value sent
 with a signal event's `ASIO_ERROR` encodes the failure reason
