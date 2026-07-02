@@ -1,3 +1,4 @@
+use "constrained_types"
 use "time"
 use "signals"
 use @ioctl[I32](fx: I32, cmd: ULong, ...) if posix
@@ -55,8 +56,11 @@ actor ANSITerm
   var _esc_mod: U8 = 0
   embed _esc_buf: Array[U8] = Array[U8]
   var _closed: Bool = false
+  let _auth: SignalAuth
+  var _winch: (SignalHandler | None) = None
 
   new create(
+    auth: SignalAuth,
     notify: ANSINotify iso,
     source: DisposableActor,
     timers: Timers = Timers)
@@ -67,9 +71,17 @@ actor ANSITerm
     _timers = timers
     _notify = consume notify
     _source = source
+    _auth = auth
 
     ifdef not windows then
-      SignalHandler(recover _TermResizeNotify(this) end, Sig.winch())
+      match MakeValidSignal(Sig.winch())
+      | let sig: ValidSignal =>
+        _winch = SignalHandler(auth, recover _TermResizeNotify(this) end, sig)
+      | let _: ValidationFailure =>
+        // SIGWINCH is whitelisted on every platform where this branch
+        // compiles; a rejection means the whitelist regressed.
+        _Unreachable()
+      end
     end
 
     _size()
@@ -212,6 +224,7 @@ actor ANSITerm
       _esc_clear()
       _notify.closed()
       _source.dispose()
+      try (_winch as SignalHandler).dispose(_auth) end
       _closed = true
     end
 

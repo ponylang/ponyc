@@ -36,10 +36,50 @@
 #  error "Windows asio backend requires NTDDI_VERSION >= NTDDI_WIN10_MN (Windows 11 / Server 2022, build 20348)"
 #endif
 
-// Requests to start/stop timers, watch stdin, and (un)register signals go
-// through a request queue handled on the asio background thread.
+// Requests to start/stop timers, watch stdin, and unregister signals go
+// through a request queue handled on the asio background thread. Signal
+// registration is synchronous on the subscribing thread (see the protocol
+// comment below).
 
 #define MAX_SIGNAL 32
+// Coupled: the 16-subscriber cap is documented API behavior — see
+// .known-couplings/signal-subscriber-cap.md before changing it.
+#define MAX_SIGNAL_SUBSCRIBERS 16
+
+// ASIO_ERROR arg codes for signal registration failures. These values are
+// a contract with packages/signals/signal_handler.pony's reason mapping —
+// see the arg contract note in
+// .known-couplings/asio-signal-registration-protocol.md.
+#define SIGNAL_ERR_SUBSCRIBER_LIMIT 1
+#define SIGNAL_ERR_REFUSED 2
+
+// Signal registration protocol (same shape in epoll.c, kqueue.c, and here —
+// see .known-couplings/asio-signal-registration-protocol.md).
+// `registered` is a tri-state: 0 = no OS registration, -1 = a thread is
+// mid-install or the ASIO thread is mid-teardown, 1 = registered.
+// Subscribe (any scheduler thread) loops: wait for 1 (installing via
+// CAS 0 -> -1 if first), CAS into a free subscriber slot, then RE-VERIFY the
+// state is still 1 — retrying from the top if a concurrent last-subscriber
+// cancel tore the registration down between the wait and the slot insert.
+// Cancel (ASIO thread only) removes the slot, and only tears down after
+// claiming the registration (CAS 1 -> -1) and re-scanning the slots for a
+// racing insert. The slot-insert CAS, the re-verify load, the claim CAS, and
+// the post-claim re-scan loads are all seq_cst: the subscriber does
+// store(slot) -> load(state) while the canceler does RMW(state) -> load(slots)
+// — a store-buffer shape where acquire/release alone lets both sides miss
+// each other (masked on x86, real on weaker architectures). The publish of 1
+// happens only after the OS handler install, so "subscribe returned" implies
+// the handler is active. This makes registration and cancel race-free;
+// signal-context delivery keeps its pre-existing benign race (the CRT
+// handler's self-re-arm can race a concurrent teardown's signal(SIG_DFL),
+// which existed before this design too). No systematic-testing yield or
+// parking call may ever be introduced inside the claimed (-1) windows: the
+// subscribe spin has no yield point and is deadlock-free under systematic
+// testing only because -1 is never observable there.
+typedef struct signal_subscribers_t {
+  PONY_ATOMIC(int) registered;  // 0=no, -1=in-progress, 1=yes
+  PONY_ATOMIC(asio_event_t*) subscribers[MAX_SIGNAL_SUBSCRIBERS];
+} signal_subscribers_t;
 
 // Completion-key sentinels for the non-socket packets we post to the port. Real
 // socket events use the heap `asio_event_t*` as the completion key; a heap
@@ -53,7 +93,7 @@ struct asio_backend_t
 {
   HANDLE port;
   PONY_ATOMIC(bool) stop;
-  asio_event_t* sighandlers[MAX_SIGNAL];
+  signal_subscribers_t sighandlers[MAX_SIGNAL];
   messageq_t q;
 };
 
@@ -64,15 +104,18 @@ enum // Event requests
   ASIO_STDIN_RESUME = 6,
   ASIO_SET_TIMER = 7,
   ASIO_CANCEL_TIMER = 8,
-  ASIO_SET_SIGNAL = 9,
   ASIO_CANCEL_SIGNAL = 10
 };
 
 
 static void send_request(asio_event_t* ev, int req)
 {
+  // NULL means asio teardown has committed (#5564). A signal delivered
+  // during shutdown can wake an actor after quiescence, and its dispose
+  // lands here. The process is exiting: drop the request.
   asio_backend_t* b = ponyint_asio_get_backend();
-  pony_assert(b != NULL);
+  if(b == NULL)
+    return;
 
   asio_msg_t* msg = (asio_msg_t*)pony_alloc_msg(
     POOL_INDEX(sizeof(asio_msg_t)), 0);
@@ -98,11 +141,12 @@ static void signal_handler(int sig)
   signal(sig, signal_handler);
 
   // POSIX (epoll.c) routes signals through the asio thread: the handler only
-  // wakes that thread, which then sends the event. We mirror that so the asio
-  // thread is the ONLY thread that ever sends events -- the property that makes
-  // the old foreign-thread liveness token unnecessary. PostQueuedCompletionStatus
-  // is thread-safe and touches no event state; the signal number rides in the
-  // bytes-transferred field.
+  // wakes that thread, which then sends the event. We mirror that so events
+  // are only ever sent from registered pony threads (the asio thread here;
+  // the subscribing scheduler thread on registration error paths) -- the
+  // property that makes the old foreign-thread liveness token unnecessary.
+  // PostQueuedCompletionStatus is thread-safe and touches no event state;
+  // the signal number rides in the bytes-transferred field.
   asio_backend_t* b = ponyint_asio_get_backend();
 
   if(b != NULL)
@@ -121,7 +165,7 @@ static void CALLBACK timer_fire(void* arg, DWORD timer_low, DWORD timer_high)
 
 // Thread-pool callback that watches the console stdin handle, which cannot be
 // associated with a completion port. It only posts to the port -- touching no
-// event state -- preserving the asio-thread-only-sends invariant. The wait is
+// event state -- keeping event sends on registered pony threads. The wait is
 // registered WT_EXECUTEONLYONCE, so it fires once; we re-arm on resume.
 static void CALLBACK stdin_notify_cb(void* arg, BOOLEAN timed_out)
 {
@@ -196,7 +240,11 @@ static bool sock_notify_ctl(asio_event_t* ev, UINT16 filter, UINT8 op,
   UINT8 trigger)
 {
   asio_backend_t* b = ponyint_asio_get_backend();
-  pony_assert(b != NULL);
+
+  // Teardown has committed (see send_request, #5564); report failure so the
+  // caller takes its existing error path.
+  if(b == NULL)
+    return false;
 
   SOCK_NOTIFY_REGISTRATION reg;
   memset(&reg, 0, sizeof(reg));
@@ -283,10 +331,15 @@ DECLARE_THREAD_FN(ponyint_asio_backend_dispatch)
 
         if((sig >= 0) && (sig < MAX_SIGNAL))
         {
-          asio_event_t* ev = b->sighandlers[sig];
+          signal_subscribers_t* subs = &b->sighandlers[sig];
 
-          if(ev != NULL)
-            pony_asio_event_send(ev, ASIO_SIGNAL, 1);
+          for(size_t j = 0; j < MAX_SIGNAL_SUBSCRIBERS; j++)
+          {
+            asio_event_t* sub = atomic_load_explicit(
+              &subs->subscribers[j], memory_order_acquire);
+            if(sub != NULL)
+              pony_asio_event_send(sub, ASIO_SIGNAL, 1);
+          }
         }
 
         continue;
@@ -445,6 +498,11 @@ DECLARE_THREAD_FN(ponyint_asio_backend_dispatch)
 
         case ASIO_CANCEL_TIMER:
         {
+          // Same double-unsubscribe protection as ASIO_CANCEL_SIGNAL: a
+          // second queued cancel must not dispose the event twice.
+          if(ev->flags == ASIO_DISPOSABLE)
+            break;
+
           CancelWaitableTimer(ev->timer);
           CloseHandle(ev->timer);
           ev->timer = NULL;
@@ -456,26 +514,88 @@ DECLARE_THREAD_FN(ponyint_asio_backend_dispatch)
           break;
         }
 
-        case ASIO_SET_SIGNAL:
-        {
-          int sig = (int)ev->nsec;
-
-          if(b->sighandlers[sig] == NULL)
-          {
-            b->sighandlers[sig] = ev;
-            signal(sig, signal_handler);
-          }
-          break;
-        }
-
         case ASIO_CANCEL_SIGNAL:
         {
-          int sig = (int)ev->nsec;
+          // A second queued cancel for an already-disposed event (raw-FFI
+          // double-unsubscribe) must not produce a second DISPOSABLE
+          // notification — the owner would destroy the event twice. This
+          // thread is the only writer of ASIO_DISPOSABLE for signal events,
+          // so the check is reliable.
+          if(ev->flags == ASIO_DISPOSABLE)
+            break;
 
-          if(b->sighandlers[sig] == ev)
+          if(ev->nsec >= MAX_SIGNAL)
           {
-            b->sighandlers[sig] = NULL;
-            signal(sig, SIG_DFL);
+            ev->flags = ASIO_DISPOSABLE;
+            pony_asio_event_send(ev, ASIO_DISPOSABLE, 0);
+            break;
+          }
+
+          int sig = (int)ev->nsec;
+          signal_subscribers_t* subs = &b->sighandlers[sig];
+
+          // Remove ev's slot from the subscriber array.
+          for(size_t i = 0; i < MAX_SIGNAL_SUBSCRIBERS; i++)
+          {
+            if(atomic_load_explicit(&subs->subscribers[i],
+              memory_order_acquire) == ev)
+            {
+              // Clear every matching slot, not just the first: a raw-FFI
+              // caller that subscribed the same event twice occupies two
+              // slots, and leaving one behind after the event is destroyed
+              // turns the next fan-out into a use-after-free.
+              atomic_store_explicit(&subs->subscribers[i], NULL,
+                memory_order_release);
+            }
+          }
+
+          // Check whether any subscribers remain.
+          bool has_subscribers = false;
+          for(size_t i = 0; i < MAX_SIGNAL_SUBSCRIBERS; i++)
+          {
+            if(atomic_load_explicit(&subs->subscribers[i],
+              memory_order_acquire) != NULL)
+            {
+              has_subscribers = true;
+              break;
+            }
+          }
+
+          if(!has_subscribers)
+          {
+            // Claim the registration before tearing down (see the protocol
+            // comment at signal_subscribers_t). The CAS fails if nothing is
+            // registered or an install is in progress — then teardown is not
+            // ours to do.
+            int expected = 1;
+            if(atomic_compare_exchange_strong_explicit(&subs->registered,
+              &expected, -1, memory_order_seq_cst, memory_order_seq_cst))
+            {
+              // Re-scan: a subscriber may have slot-inserted between the scan
+              // above and the claim. seq_cst per the protocol comment.
+              bool still_empty = true;
+              for(size_t i = 0; i < MAX_SIGNAL_SUBSCRIBERS; i++)
+              {
+                if(atomic_load_explicit(&subs->subscribers[i],
+                  memory_order_seq_cst) != NULL)
+                {
+                  still_empty = false;
+                  break;
+                }
+              }
+
+              if(still_empty)
+              {
+                // Last subscriber is gone: restore default handling.
+                signal(sig, SIG_DFL);
+                atomic_store_explicit(&subs->registered, 0,
+                  memory_order_seq_cst);
+              } else {
+                // A racing subscribe slipped in — abort the teardown.
+                atomic_store_explicit(&subs->registered, 1,
+                  memory_order_seq_cst);
+              }
+            }
           }
 
           ev->flags = ASIO_DISPOSABLE;
@@ -491,6 +611,17 @@ DECLARE_THREAD_FN(ponyint_asio_backend_dispatch)
 
   if(stdin_wait != NULL)
     UnregisterWaitEx(stdin_wait, INVALID_HANDLE_VALUE);
+
+  // Restore the default disposition for any signal still registered (an
+  // undisposed wait=false handler doesn't block quiescence), so a raise
+  // after this thread frees the backend can't run signal_handler against
+  // a freed backend (#5564).
+  for(int i = 0; i < MAX_SIGNAL; i++)
+  {
+    if(atomic_load_explicit(&b->sighandlers[i].registered,
+      memory_order_acquire) == 1)
+      signal(i, SIG_DFL);
+  }
 
   CloseHandle(b->port);
   ponyint_messageq_destroy(&b->q, true);
@@ -522,7 +653,10 @@ PONY_API void pony_asio_event_subscribe(asio_event_t* ev)
   }
 
   asio_backend_t* b = ponyint_asio_get_backend();
-  pony_assert(b != NULL);
+
+  // Teardown has committed; drop the request (see send_request, #5564).
+  if(b == NULL)
+    return;
 
   if(ev->noisy)
   {
@@ -540,8 +674,91 @@ PONY_API void pony_asio_event_subscribe(asio_event_t* ev)
     ev->timer = CreateWaitableTimer(NULL, FALSE, NULL);
     send_request(ev, ASIO_SET_TIMER);
   } else if((ev->flags & ASIO_SIGNAL) != 0) {
-    if(ev->nsec < MAX_SIGNAL)
-      send_request(ev, ASIO_SET_SIGNAL);
+    if(ev->nsec >= MAX_SIGNAL)
+    {
+      // Out of range (only reachable through raw FFI — ValidSignal caps
+      // well below MAX_SIGNAL). Report it so the handler auto-disposes
+      // instead of stranding, per the documented contract.
+      pony_asio_event_send(ev, ASIO_ERROR, SIGNAL_ERR_REFUSED);
+      return;
+    }
+
+    int sig = (int)ev->nsec;
+    signal_subscribers_t* subs = &b->sighandlers[sig];
+
+    // Register synchronously so both the CRT handler and the subscriber slot
+    // are active before subscribe returns — otherwise a raise executed right
+    // after subscribing could take the default disposition (process death) or
+    // miss this subscriber. See the protocol comment at signal_subscribers_t.
+    while(true)
+    {
+      int state = atomic_load_explicit(&subs->registered,
+        memory_order_acquire);
+
+      if(state == 0)
+      {
+        int expected = 0;
+        if(atomic_compare_exchange_strong_explicit(&subs->registered,
+          &expected, -1, memory_order_seq_cst, memory_order_seq_cst))
+        {
+          // First subscriber: install the CRT handler, then publish. The
+          // publish comes last so "subscribe returned" implies the handler
+          // is installed.
+          if(signal(sig, signal_handler) == SIG_ERR)
+          {
+            // The CRT refused the handler. Reset the state and report, so
+            // the failure surfaces as an auto-disposed handler instead of a
+            // registration that never delivers.
+            atomic_store_explicit(&subs->registered, 0,
+              memory_order_seq_cst);
+            pony_asio_event_send(ev, ASIO_ERROR, SIGNAL_ERR_REFUSED);
+            return;
+          }
+
+          atomic_store_explicit(&subs->registered, 1, memory_order_seq_cst);
+          state = 1;
+        }
+      }
+
+      if(state != 1)
+      {
+        // Another thread is mid-install or mid-teardown. This wait is very
+        // brief — one CRT signal() call and an atomic store.
+        ponyint_cpu_relax();
+        continue;
+      }
+
+      // Insert into a free subscriber slot. seq_cst per the protocol comment.
+      size_t slot = MAX_SIGNAL_SUBSCRIBERS;
+      for(size_t i = 0; i < MAX_SIGNAL_SUBSCRIBERS; i++)
+      {
+        asio_event_t* expected = NULL;
+        if(atomic_compare_exchange_strong_explicit(&subs->subscribers[i],
+          &expected, ev, memory_order_seq_cst, memory_order_seq_cst))
+        {
+          slot = i;
+          break;
+        }
+      }
+
+      if(slot == MAX_SIGNAL_SUBSCRIBERS)
+      {
+        // All subscriber slots are taken. Report it; the stdlib disposes the
+        // handler on an errored event.
+        pony_asio_event_send(ev, ASIO_ERROR, SIGNAL_ERR_SUBSCRIBER_LIMIT);
+        return;
+      }
+
+      // Re-verify the registration is still live; a concurrent last-cancel
+      // teardown may have run between the state check and the slot insert.
+      // seq_cst per the protocol comment.
+      if(atomic_load_explicit(&subs->registered, memory_order_seq_cst) == 1)
+        return;
+
+      // Teardown raced us: undo the slot insert and retry from the top.
+      atomic_store_explicit(&subs->subscribers[slot], NULL,
+        memory_order_release);
+    }
   } else if(ev->fd == 0) {
     // Subscribe to stdin.
     send_request(ev, ASIO_STDIN_NOTIFY);
@@ -635,7 +852,10 @@ PONY_API void pony_asio_event_unsubscribe(asio_event_t* ev)
     return;
 
   asio_backend_t* b = ponyint_asio_get_backend();
-  pony_assert(b != NULL);
+
+  // Teardown has committed; drop the request (see send_request, #5564).
+  if(b == NULL)
+    return;
 
   if((ev->flags & ASIO_TIMER) != 0)
   {
@@ -672,13 +892,22 @@ PONY_API void pony_asio_event_unsubscribe(asio_event_t* ev)
       if(!sock_notify_ctl(ev, SOCK_NOTIFY_REGISTER_EVENT_NONE,
         SOCK_NOTIFY_OP_REMOVE, 0))
       {
-        // The REMOVE control call failed, so no SOCK_NOTIFY_EVENT_REMOVE packet
-        // will arrive to drive the deferred close + disposal. A failed REMOVE
-        // means the socket isn't registered with the port, so no readiness
-        // packet for it is in flight on the asio thread -- it is safe to dispose
-        // synchronously here on the owning actor's thread (as the timer/signal/
-        // stdin branches do). Without this, the event would leak and the actor
-        // would never quiesce, matching epoll's unconditional disposal.
+        // Teardown can commit between this function's guard and the ctl
+        // call. In that case the dispatch loop may still be draining packets
+        // for this socket, so the synchronous disposal below would free
+        // memory the asio thread can touch. Drop instead, like every other
+        // teardown guard (#5564).
+        if(ponyint_asio_get_backend() == NULL)
+          return;
+
+        // The REMOVE control call failed against a live backend, so the
+        // socket isn't registered with the port: no readiness packet for it
+        // is in flight on the asio thread, and no SOCK_NOTIFY_EVENT_REMOVE
+        // packet will arrive to drive the deferred close + disposal. It is
+        // safe to dispose synchronously here on the owning actor's thread
+        // (as the timer/signal/stdin branches do). Without this, the event
+        // would leak and the actor would never quiesce, matching epoll's
+        // unconditional disposal.
         closesocket((SOCKET)ev->fd);
         ev->fd = -1;
         ev->flags = ASIO_DISPOSABLE;

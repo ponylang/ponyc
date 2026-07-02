@@ -77,15 +77,9 @@ actor \nodoc\ Main is TestList
     promises.Main.make().tests(test)
     random.Main.make().tests(test)
     runtime_info.Main.make().tests(test)
+    signals.Main.make().tests(test)
     strings.Main.make().tests(test)
     time.Main.make().tests(test)
-
-    // Tests below function exclude windows and are listed alphabetically
-    ifdef not windows then
-      // The signals tests currently abort the process on Windows, so ignore
-      // them.
-      signals.Main.make().tests(test)
-    end
 
   fun @runtime_override_defaults(rto: RuntimeOptions) =>
      rto.ponynoblock = true

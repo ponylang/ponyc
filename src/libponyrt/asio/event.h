@@ -75,8 +75,10 @@ PONY_API void pony_asio_event_send(asio_event_t* ev, uint32_t flags,
 
 /** Subscribe an event for notifications.
  *
- *  Subscriptions are not incremental. Registering an event multiple times will
- *  overwrite the previous event filter mask.
+ *  Subscriptions are not incremental. For fd-based events, registering an
+ *  event multiple times overwrites the previous event filter mask. Signal
+ *  events must be subscribed exactly once: a duplicate subscribe occupies an
+ *  additional subscriber slot rather than overwriting.
  */
 PONY_API void pony_asio_event_subscribe(asio_event_t* ev);
 

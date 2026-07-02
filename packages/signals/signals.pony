@@ -1,36 +1,73 @@
 """
 # Signals package
 
-The Signals package provides support for handling Unix style signals.
+The Signals package provides support for handling Unix style signals with
+capability security and support for multiple handlers per signal.
+
+## Overview
+
 For each signal that you want to handle, you need to create a `SignalHandler`
-and a corresponding `SignalNotify` object. Each SignalHandler runs as it own
-actor and upon receiving the signal will call its corresponding
-`SignalNotify`'s apply method.
+and a corresponding `SignalNotify` object. Multiple `SignalHandler` actors can
+be registered for the same signal — up to 16 per signal number — and all
+registered handlers will be notified when the signal is received, in no
+particular order. A handler that cannot be registered (the limit is reached,
+or the runtime fails to register with the operating system) is notified via
+its notify's `registration_failed`, with the reason, and automatically
+disposed; `apply` will not have run.
+
+Signal handling requires a `SignalAuth` capability derived from `AmbientAuth`,
+consistent with how other I/O primitives in the standard library handle
+resource access.
+
+Signal numbers must be validated through `MakeValidSignal` before they can
+be used with `SignalHandler`. Validation is a per-platform whitelist of
+signals that can be meaningfully handled via the ASIO mechanism: it rejects
+fatal signals (SIGILL, SIGTRAP, SIGABRT, SIGFPE, SIGBUS, SIGSEGV),
+uncatchable signals (SIGKILL, SIGSTOP), SIGUSR2 (reserved by the Pony
+runtime for scheduler sleep/wake, so a handler could never fire), and any
+number outside the whitelist.
 
 ## Example program
 
-The following program will listen for the TERM signal and output a message to
-standard out if it is received.
-
 ```pony
+use "constrained_types"
 use "signals"
 
 actor Main
   new create(env: Env) =>
-    // Create a TERM handler
-    let signal = SignalHandler(TermHandler(env), Sig.term())
-    // Raise TERM signal
-    signal.raise()
+    let auth = SignalAuth(env.root)
 
-class TermHandler is SignalNotify
-  let _env: Env
+    match MakeValidSignal(Sig.term())
+    | let sig: ValidSignal =>
+      // Multiple handlers for the same signal
+      SignalHandler(auth, LogHandler(env.out), sig)
+      SignalHandler(auth, CleanupHandler(env.out), sig where wait = true)
+    | let _: ValidationFailure =>
+      env.err.print("Cannot handle this signal")
+    end
 
-  new iso create(env: Env) =>
-    _env = env
+class LogHandler is SignalNotify
+  let _out: OutStream
+
+  new iso create(out: OutStream) =>
+    _out = out
 
   fun ref apply(count: U32): Bool =>
-    _env.out.print("TERM signal received")
+    _out.print("Signal received, count: " + count.string())
     true
+
+class CleanupHandler is SignalNotify
+  let _out: OutStream
+
+  new iso create(out: OutStream) =>
+    _out = out
+
+  fun ref apply(count: U32): Bool =>
+    _out.print("Cleaning up...")
+    false
+
+  fun ref dispose() =>
+    _out.print("Cleanup handler disposed")
 ```
 
 ## Signal portability
@@ -38,14 +75,22 @@ class TermHandler is SignalNotify
 The `Sig` primitive provides support for portable signal handling across Linux,
 FreeBSD and OSX. On Windows only the subset of signals the C runtime supports is
 available: the accessors that do not depend on the platform (such as `Sig.int()`
-for `SIGINT`) work, while accessors for signals Windows does not have (for
-example `Sig.trap()`) raise a compile error there.
+for `SIGINT`) work, while platform-specific accessors (for example
+`Sig.trap()`) raise a compile error there. A few platform-independent
+accessors (such as `Sig.hup()`) compile on Windows but name signals it does
+not have. Validation resolves this: on Windows only `Sig.int()` and
+`Sig.term()` are accepted by `MakeValidSignal` — everything else, including
+signals the C runtime knows about but treats as fatal (such as `SIGABRT`),
+is rejected.
 
-## Shutting down handlers
+## Disposing handlers
 
-Unlike a `TCPConnection` and other forms of input receiving, creating a
-`SignalHandler` will not keep your program running. As such, you are not
-required to call `dispose` on your signal handlers in order to shutdown your
-program.
-
+Disposing a `SignalHandler` unsubscribes it from the signal. This is important
+because the signal dispatch mechanism holds a reference to each subscriber —
+without explicit disposal, handlers will never be garbage collected. If a
+`SignalHandler` is created with `wait = true`, disposing it (or returning
+`false` from the notifier) is required to allow the program to terminate.
+Note that raising a signal after every handler for it has been disposed
+delivers it to the operating system's default disposition — for most
+terminating signals, process death.
 """

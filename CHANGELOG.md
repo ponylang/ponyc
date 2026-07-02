@@ -14,13 +14,17 @@ All notable changes to the Pony compiler and standard library will be documented
 - Fix systematic testing being much slower than it should be ([PR #5630](https://github.com/ponylang/ponyc/pull/5630))
 - Fix runtime stats build options on Windows ([PR #5635](https://github.com/ponylang/ponyc/pull/5635))
 - Fix pooltrack build option on Windows ([PR #5637](https://github.com/ponylang/ponyc/pull/5637))
+- Fix a use-after-free when a signal arrives during runtime shutdown ([PR #4984](https://github.com/ponylang/ponyc/pull/4984))
 
 ### Added
 
+- Add capability security and multi-subscriber support to signal handling ([PR #4984](https://github.com/ponylang/ponyc/pull/4984))
 
 ### Changed
 
 - Stop installing the Pony runtime's C headers and static libraries ([PR #5620](https://github.com/ponylang/ponyc/pull/5620))
+- Signal handling API requires `SignalAuth` and `ValidSignal` ([PR #4984](https://github.com/ponylang/ponyc/pull/4984))
+- `ANSITerm` constructor requires `SignalAuth` parameter ([PR #4984](https://github.com/ponylang/ponyc/pull/4984))
 
 ## [0.66.0] - 2026-06-29
 

@@ -42,3 +42,68 @@ The `runtimestats` and `runtimestats_messages` build options failed to compile o
 
 The `pooltrack` build option failed to compile on Windows, so you couldn't build the runtime with pool allocation tracking enabled there. It now builds on Windows.
 
+## Add capability security and multi-subscriber support to signal handling
+
+The `signals` package now provides capability security and signal number validation. `SignalHandler` requires a `SignalAuth` capability (derived from `AmbientAuth`) and a `ValidSignal` constrained type that enforces platform-specific whitelists, preventing registration of fatal signals like `SIGSEGV` or uncatchable signals like `SIGKILL`. Multiple actors can now subscribe to the same signal — up to 16 subscribers per signal number, with all subscribers notified when the signal fires. Validation also rejects SIGUSR2, which the Pony runtime reserves for scheduler sleep/wake: previously a SIGUSR2 handler could be registered but would never fire.
+
+```pony
+use "signals"
+
+actor Main
+  new create(env: Env) =>
+    let auth = SignalAuth(env.root)
+    match MakeValidSignal(Sig.int())
+    | let sig: ValidSignal =>
+      let handler = SignalHandler(auth, MyNotify, sig)
+    end
+```
+
+If a handler's registration cannot be completed — the 16-subscriber limit for that signal is already reached, or the runtime fails to register with the operating system — the notify's `registration_failed` method is called with the reason (`SignalSubscriberLimit` or `SignalRegistrationRefused`) and the handler is automatically disposed: `dispose` runs and `apply` will not have run. `registration_failed` is new on `SignalNotify` with a default empty implementation, so classes declaring `is SignalNotify` are unaffected; a class conforming to the interface only structurally must add the method or declare `is SignalNotify`.
+
+## Signal handling API requires `SignalAuth` and `ValidSignal`
+
+The `SignalHandler` constructor now requires a `SignalAuth` capability and a `ValidSignal` constrained type instead of a raw `U32` signal number. `SignalHandler.raise` and `SignalHandler.dispose` now require a `SignalAuth` as well, and so does the `SignalRaise` primitive (`SignalRaise(auth, sig)` instead of `SignalRaise(sig)`). `ANSITerm.create` also requires a `SignalAuth` parameter as its first argument.
+
+Before:
+
+```pony
+use "signals"
+
+let handler = SignalHandler(MyNotify, Sig.int())
+handler.raise()
+handler.dispose()
+```
+
+```pony
+use "term"
+
+let term = ANSITerm(notify, env.input)
+```
+
+After:
+
+```pony
+use "signals"
+
+let auth = SignalAuth(env.root)
+match MakeValidSignal(Sig.int())
+| let sig: ValidSignal =>
+  let handler = SignalHandler(auth, MyNotify, sig)
+  handler.raise(auth)
+  handler.dispose(auth)
+end
+```
+
+```pony
+use "signals"
+use "term"
+
+let auth = SignalAuth(env.root)
+let term = ANSITerm(auth, notify, env.input)
+```
+
+Because `dispose` now takes a parameter, `SignalHandler` no longer satisfies interfaces that expect a parameterless `dispose`, such as `DisposableActor` — for example, a `bureaucracy.Custodian` can no longer dispose a `SignalHandler` directly. Dispose the handler yourself where you hold the `SignalAuth`, or wrap it in a small actor that captures the auth and exposes a parameterless `dispose`.
+
+## Fix a use-after-free when a signal arrives during runtime shutdown
+
+A program that still had a signal handler registered when the runtime shut down — easy to do, since a `wait = false` handler doesn't keep the program alive and doesn't need to be disposed — left the process's signal disposition pointing into the runtime's I/O machinery while that machinery was being torn down. A signal delivered in the teardown window could touch freed memory or crash the process. The runtime now drops a signal that arrives while teardown is committing and then restores the default disposition for still-registered signals on its way out, so a signal arriving after that behaves exactly as it would in a process that never registered a handler.

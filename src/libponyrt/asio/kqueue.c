@@ -1,3 +1,5 @@
+#define PONY_WANT_ATOMIC_DEFS
+
 #include "asio.h"
 #include "event.h"
 #ifdef ASIO_USE_KQUEUE
@@ -23,10 +25,51 @@ typedef u_short kevent_flag_t;
 typedef uint32_t kevent_flag_t;
 #endif
 
+#define MAX_SIGNAL 128
+// Coupled: the 16-subscriber cap is documented API behavior — see
+// .known-couplings/signal-subscriber-cap.md before changing it.
+#define MAX_SIGNAL_SUBSCRIBERS 16
+
+// ASIO_ERROR arg codes for signal registration failures. These values are
+// a contract with packages/signals/signal_handler.pony's reason mapping —
+// see the arg contract note in
+// .known-couplings/asio-signal-registration-protocol.md.
+#define SIGNAL_ERR_SUBSCRIBER_LIMIT 1
+#define SIGNAL_ERR_REFUSED 2
+
+#define ASIO_CANCEL_SIGNAL 10
+
+// Signal registration protocol (same shape in epoll.c, sock_notify.c, and
+// here — see .known-couplings/asio-signal-registration-protocol.md).
+// `registered` is a tri-state: 0 = no OS registration, -1 = a thread is
+// mid-install or the ASIO thread is mid-teardown, 1 = registered.
+// Subscribe (any scheduler thread) loops: wait for 1 (installing via
+// CAS 0 -> -1 if first), CAS into a free subscriber slot, then RE-VERIFY the
+// state is still 1 — retrying from the top if a concurrent last-subscriber
+// cancel tore the registration down between the wait and the slot insert.
+// Cancel (ASIO thread only) removes the slot, and only tears down after
+// claiming the registration (CAS 1 -> -1) and re-scanning the slots for a
+// racing insert. The slot-insert CAS, the re-verify load, the claim CAS, and
+// the post-claim re-scan loads are all seq_cst: the subscriber does
+// store(slot) -> load(state) while the canceler does RMW(state) -> load(slots)
+// — a store-buffer shape where acquire/release alone lets both sides miss
+// each other (masked on x86, real on weaker architectures). The publish of 1
+// happens only after the sigaction install and the checked EVFILT_SIGNAL
+// registration, so "subscribe returned" implies the signal is being detected.
+// No systematic-testing yield or parking call may ever be introduced inside
+// the claimed (-1) windows: the subscribe spin has no yield point and is
+// deadlock-free under systematic testing only because -1 is never observable
+// there.
+typedef struct signal_subscribers_t {
+  PONY_ATOMIC(int) registered;  // 0=no, -1=in-progress, 1=yes
+  PONY_ATOMIC(asio_event_t*) subscribers[MAX_SIGNAL_SUBSCRIBERS];
+} signal_subscribers_t;
+
 struct asio_backend_t
 {
   int kq;
   int wakeup[2];
+  signal_subscribers_t sighandlers[MAX_SIGNAL];
   messageq_t q;
 };
 
@@ -129,7 +172,123 @@ static void handle_queue(asio_backend_t* b)
 #endif
     )) != NULL)
   {
-    pony_asio_event_send(msg->event, ASIO_DISPOSABLE, 0);
+    asio_event_t* ev = msg->event;
+
+    switch(msg->flags)
+    {
+      case ASIO_DISPOSABLE:
+        pony_asio_event_send(ev, ASIO_DISPOSABLE, 0);
+        break;
+
+      case ASIO_CANCEL_SIGNAL:
+      {
+        // A second queued cancel for an already-disposed event (raw-FFI
+        // double-unsubscribe) must not produce a second DISPOSABLE
+        // notification — the owner would destroy the event twice. This
+        // thread is the only writer of ASIO_DISPOSABLE for signal events,
+        // so the check is reliable.
+        if(ev->flags == ASIO_DISPOSABLE)
+          break;
+
+        if(ev->nsec >= MAX_SIGNAL)
+        {
+          ev->flags = ASIO_DISPOSABLE;
+          pony_asio_event_send(ev, ASIO_DISPOSABLE, 0);
+          break;
+        }
+
+        int sig = (int)ev->nsec;
+        signal_subscribers_t* subs = &b->sighandlers[sig];
+
+        // Remove ev's slot from the subscriber array.
+        for(size_t i = 0; i < MAX_SIGNAL_SUBSCRIBERS; i++)
+        {
+          if(atomic_load_explicit(&subs->subscribers[i],
+            memory_order_acquire) == ev)
+          {
+            // Clear every matching slot, not just the first: a raw-FFI
+            // caller that subscribed the same event twice occupies two
+            // slots, and leaving one behind after the event is destroyed
+            // turns the next fan-out into a use-after-free.
+            atomic_store_explicit(&subs->subscribers[i], NULL,
+              memory_order_release);
+          }
+        }
+
+        // Check whether any subscribers remain.
+        bool has_subscribers = false;
+        for(size_t i = 0; i < MAX_SIGNAL_SUBSCRIBERS; i++)
+        {
+          if(atomic_load_explicit(&subs->subscribers[i],
+            memory_order_acquire) != NULL)
+          {
+            has_subscribers = true;
+            break;
+          }
+        }
+
+        if(!has_subscribers)
+        {
+          // Claim the registration before tearing down (see the protocol
+          // comment at signal_subscribers_t). The CAS fails if nothing is
+          // registered or an install is in progress — then teardown is not
+          // ours to do.
+          int expected = 1;
+          if(atomic_compare_exchange_strong_explicit(&subs->registered,
+            &expected, -1, memory_order_seq_cst, memory_order_seq_cst))
+          {
+            // Re-scan: a subscriber may have slot-inserted between the scan
+            // above and the claim. seq_cst per the protocol comment.
+            bool still_empty = true;
+            for(size_t i = 0; i < MAX_SIGNAL_SUBSCRIBERS; i++)
+            {
+              if(atomic_load_explicit(&subs->subscribers[i],
+                memory_order_seq_cst) != NULL)
+              {
+                still_empty = false;
+                break;
+              }
+            }
+
+            if(still_empty)
+            {
+              // Last subscriber is gone: restore default signal handling,
+              // remove the kevent registration. Teardown errors are benign
+              // (matching unsubscribe's convention), so the EV_DELETE is
+              // unchecked.
+              struct sigaction new_action;
+
+              new_action.sa_handler = SIG_DFL;
+#if !defined(USE_SCHEDULER_SCALING_PTHREADS)
+              if(sig == PONY_SCHED_SLEEP_WAKE_SIGNAL)
+                new_action.sa_handler = empty_signal_handler;
+#endif
+              sigemptyset(&new_action.sa_mask);
+              new_action.sa_flags = SA_RESTART;
+              sigaction(sig, &new_action, NULL);
+
+              struct kevent event;
+              EV_SET(&event, sig, EVFILT_SIGNAL, EV_DELETE, 0, 0, subs);
+              struct timespec t = {0, 0};
+              kevent(b->kq, &event, 1, NULL, 0, &t);
+
+              atomic_store_explicit(&subs->registered, 0,
+                memory_order_seq_cst);
+            } else {
+              // A racing subscribe slipped in — abort the teardown.
+              atomic_store_explicit(&subs->registered, 1,
+                memory_order_seq_cst);
+            }
+          }
+        }
+
+        ev->flags = ASIO_DISPOSABLE;
+        pony_asio_event_send(ev, ASIO_DISPOSABLE, 0);
+        break;
+      }
+
+      default: {}
+    }
   }
 }
 
@@ -137,6 +296,28 @@ static void retry_loop(asio_backend_t* b)
 {
   char c = 0;
   write(b->wakeup[1], &c, 1);
+}
+
+static void send_request(asio_event_t* ev, int req)
+{
+  // NULL means asio teardown has committed (#5564). A signal delivered
+  // during shutdown can wake an actor after quiescence, and its dispose
+  // lands here. The process is exiting: drop the request.
+  asio_backend_t* b = ponyint_asio_get_backend();
+  if(b == NULL)
+    return;
+
+  asio_msg_t* msg = (asio_msg_t*)pony_alloc_msg(
+    POOL_INDEX(sizeof(asio_msg_t)), 0);
+  msg->event = ev;
+  msg->flags = req;
+  ponyint_thread_messageq_push(&b->q, (pony_msg_t*)msg, (pony_msg_t*)msg
+#ifdef USE_DYNAMIC_TRACE
+    , pony_scheduler_index(), pony_scheduler_index()
+#endif
+    );
+
+  retry_loop(b);
 }
 
 PONY_API void pony_asio_event_resubscribe_read(asio_event_t* ev)
@@ -150,7 +331,10 @@ PONY_API void pony_asio_event_resubscribe_read(asio_event_t* ev)
   }
 
   asio_backend_t* b = ponyint_asio_get_backend();
-  pony_assert(b != NULL);
+
+  // Teardown has committed; drop the request (see send_request, #5564).
+  if(b == NULL)
+    return;
 
   struct kevent event[1];
   int i = 0;
@@ -186,7 +370,10 @@ PONY_API void pony_asio_event_resubscribe_write(asio_event_t* ev)
   }
 
   asio_backend_t* b = ponyint_asio_get_backend();
-  pony_assert(b != NULL);
+
+  // Teardown has committed; drop the request (see send_request, #5564).
+  if(b == NULL)
+    return;
 
   struct kevent event[2];
   int i = 0;
@@ -280,6 +467,21 @@ DECLARE_THREAD_FN(ponyint_asio_backend_dispatch)
           b->kq = -1;
         }
       } else {
+        // Handle signal events before casting udata to asio_event_t*,
+        // because for signals udata points to a signal_subscribers_t*.
+        if(ep->filter == EVFILT_SIGNAL)
+        {
+          signal_subscribers_t* subs = (signal_subscribers_t*)ep->udata;
+          for(size_t j = 0; j < MAX_SIGNAL_SUBSCRIBERS; j++)
+          {
+            asio_event_t* sub = atomic_load_explicit(
+              &subs->subscribers[j], memory_order_acquire);
+            if(sub != NULL)
+              pony_asio_event_send(sub, ASIO_SIGNAL, (uint32_t)ep->data);
+          }
+          continue;
+        }
+
         asio_event_t* ev = ep->udata;
 
         switch(ep->filter)
@@ -317,19 +519,34 @@ DECLARE_THREAD_FN(ponyint_asio_backend_dispatch)
             }
             break;
 
-          case EVFILT_SIGNAL:
-            if(ev->flags & ASIO_SIGNAL)
-            {
-              pony_asio_event_send(ev, ASIO_SIGNAL, (uint32_t)ep->data);
-            }
-            break;
-
           default: {}
         }
       }
     }
 
     handle_queue(b);
+  }
+
+  // Restore the default disposition for any signal still registered (an
+  // undisposed wait=false handler doesn't block quiescence); the SIG_IGN
+  // dispositions this backend installs would otherwise outlive the
+  // runtime (#5564).
+  for(int i = 0; i < MAX_SIGNAL; i++)
+  {
+    if(atomic_load_explicit(&b->sighandlers[i].registered,
+      memory_order_acquire) == 1)
+    {
+      struct sigaction new_action;
+
+      new_action.sa_handler = SIG_DFL;
+#if !defined(USE_SCHEDULER_SCALING_PTHREADS)
+      if(i == PONY_SCHED_SLEEP_WAKE_SIGNAL)
+        new_action.sa_handler = empty_signal_handler;
+#endif
+      sigemptyset(&new_action.sa_mask);
+      new_action.sa_flags = SA_RESTART;
+      sigaction(i, &new_action, NULL);
+    }
   }
 
   ponyint_messageq_destroy(&b->q, true);
@@ -353,7 +570,10 @@ PONY_API void pony_asio_event_subscribe(asio_event_t* ev)
   }
 
   asio_backend_t* b = ponyint_asio_get_backend();
-  pony_assert(b != NULL);
+
+  // Teardown has committed; drop the request (see send_request, #5564).
+  if(b == NULL)
+    return;
 
   if(ev->noisy)
   {
@@ -362,6 +582,132 @@ PONY_API void pony_asio_event_subscribe(asio_event_t* ev)
     // if the old_count was 0
     if (old_count == 0)
       ponyint_sched_noisy_asio(pony_scheduler_index());
+  }
+
+  if(ev->flags & ASIO_SIGNAL)
+  {
+    if(ev->nsec >= MAX_SIGNAL)
+    {
+      // Out of range (only reachable through raw FFI — ValidSignal caps
+      // well below MAX_SIGNAL). Report it so the handler auto-disposes
+      // instead of stranding, per the documented contract.
+      pony_asio_event_send(ev, ASIO_ERROR, SIGNAL_ERR_REFUSED);
+      return;
+    }
+
+    int sig = (int)ev->nsec;
+    signal_subscribers_t* subs = &b->sighandlers[sig];
+
+    // Register synchronously so both the OS registration and the subscriber
+    // slot are active before subscribe returns — otherwise a raise executed
+    // right after subscribing could take the default disposition (process
+    // death) or miss this subscriber. See the protocol comment at
+    // signal_subscribers_t.
+    while(true)
+    {
+      int state = atomic_load_explicit(&subs->registered,
+        memory_order_acquire);
+
+      if(state == 0)
+      {
+        int expected = 0;
+        if(atomic_compare_exchange_strong_explicit(&subs->registered,
+          &expected, -1, memory_order_seq_cst, memory_order_seq_cst))
+        {
+          // First subscriber. sigaction goes first — EVFILT_SIGNAL needs a
+          // non-terminating disposition in place before registration; SIG_IGN
+          // prevents default termination while EVFILT_SIGNAL still detects
+          // the signal. The kevent registration is checked via EV_RECEIPT,
+          // and the publish comes last so "subscribe returned" implies the
+          // signal is being detected.
+          struct sigaction new_action;
+          new_action.sa_handler = SIG_IGN;
+#if !defined(USE_SCHEDULER_SCALING_PTHREADS)
+          if(sig == PONY_SCHED_SLEEP_WAKE_SIGNAL)
+            new_action.sa_handler = empty_signal_handler;
+#endif
+          sigemptyset(&new_action.sa_mask);
+
+          // ask to restart interrupted syscalls to match `signal` behavior
+          new_action.sa_flags = SA_RESTART;
+
+          if(sigaction(sig, &new_action, NULL) == -1)
+          {
+            // The OS refused the disposition change; nothing is installed
+            // yet, so just reset the state and report.
+            atomic_store_explicit(&subs->registered, 0,
+              memory_order_seq_cst);
+            pony_asio_event_send(ev, ASIO_ERROR, SIGNAL_ERR_REFUSED);
+            return;
+          }
+
+          struct kevent event;
+          EV_SET(&event, sig, EVFILT_SIGNAL, EV_ADD | EV_RECEIPT | EV_CLEAR,
+            0, 0, subs);
+          struct kevent result;
+          int rc = kevent(b->kq, &event, 1, &result, 1, NULL);
+
+          if((rc == -1) || kevent_receipt_has_error(&result, 1))
+          {
+            // Undo the disposition change and reset the state before
+            // reporting, so a later subscribe can retry cleanly.
+            new_action.sa_handler = SIG_DFL;
+#if !defined(USE_SCHEDULER_SCALING_PTHREADS)
+            if(sig == PONY_SCHED_SLEEP_WAKE_SIGNAL)
+              new_action.sa_handler = empty_signal_handler;
+#endif
+            sigaction(sig, &new_action, NULL);
+            atomic_store_explicit(&subs->registered, 0,
+              memory_order_seq_cst);
+            pony_asio_event_send(ev, ASIO_ERROR, SIGNAL_ERR_REFUSED);
+            return;
+          }
+
+          atomic_store_explicit(&subs->registered, 1, memory_order_seq_cst);
+          state = 1;
+        }
+      }
+
+      if(state != 1)
+      {
+        // Another thread is mid-install or the ASIO thread is mid-teardown.
+        // This wait is very brief — a sigaction, a kevent, and one atomic
+        // store.
+        ponyint_cpu_relax();
+        continue;
+      }
+
+      // Insert into a free subscriber slot. seq_cst per the protocol comment.
+      size_t slot = MAX_SIGNAL_SUBSCRIBERS;
+      for(size_t i = 0; i < MAX_SIGNAL_SUBSCRIBERS; i++)
+      {
+        asio_event_t* expected = NULL;
+        if(atomic_compare_exchange_strong_explicit(&subs->subscribers[i],
+          &expected, ev, memory_order_seq_cst, memory_order_seq_cst))
+        {
+          slot = i;
+          break;
+        }
+      }
+
+      if(slot == MAX_SIGNAL_SUBSCRIBERS)
+      {
+        // All subscriber slots are taken. Report it; the stdlib disposes the
+        // handler on an errored event.
+        pony_asio_event_send(ev, ASIO_ERROR, SIGNAL_ERR_SUBSCRIBER_LIMIT);
+        return;
+      }
+
+      // Re-verify the registration is still live; a concurrent last-cancel
+      // teardown may have run between the state check and the slot insert.
+      // seq_cst per the protocol comment.
+      if(atomic_load_explicit(&subs->registered, memory_order_seq_cst) == 1)
+        return;
+
+      // Teardown raced us: undo the slot insert and retry from the top.
+      atomic_store_explicit(&subs->subscribers[slot], NULL,
+        memory_order_release);
+    }
   }
 
   struct kevent event[4];
@@ -394,29 +740,6 @@ PONY_API void pony_asio_event_subscribe(asio_event_t* ev)
     i++;
   }
 
-  if(ev->flags & ASIO_SIGNAL)
-  {
-    // Make sure we ignore signals related to scheduler sleeping/waking
-    // as the default for those signals is termination
-    struct sigaction new_action;
-
-    new_action.sa_handler = SIG_IGN;
-#if !defined(USE_SCHEDULER_SCALING_PTHREADS)
-    if((int)ev->nsec == PONY_SCHED_SLEEP_WAKE_SIGNAL)
-      new_action.sa_handler = empty_signal_handler;
-#endif
-    sigemptyset (&new_action.sa_mask);
-
-    // ask to restart interrupted syscalls to match `signal` behavior
-    new_action.sa_flags = SA_RESTART;
-
-    sigaction((int)ev->nsec, &new_action, NULL);
-
-    EV_SET(&event[i], ev->nsec, EVFILT_SIGNAL,
-      EV_ADD | EV_RECEIPT | EV_CLEAR, 0, 0, ev);
-    i++;
-  }
-
   struct kevent results[4];
   int rc = kevent(b->kq, event, i, results, i, NULL);
 
@@ -439,7 +762,10 @@ PONY_API void pony_asio_event_setnsec(asio_event_t* ev, uint64_t nsec)
   }
 
   asio_backend_t* b = ponyint_asio_get_backend();
-  pony_assert(b != NULL);
+
+  // Teardown has committed; drop the request (see send_request, #5564).
+  if(b == NULL)
+    return;
 
   struct kevent event[1];
   int i = 0;
@@ -477,7 +803,19 @@ PONY_API void pony_asio_event_unsubscribe(asio_event_t* ev)
   }
 
   asio_backend_t* b = ponyint_asio_get_backend();
-  pony_assert(b != NULL);
+
+  // Teardown has committed; drop the request (see send_request, #5564).
+  if(b == NULL)
+    return;
+
+  if(ev->flags & ASIO_SIGNAL)
+  {
+    // Signal unregistration is serialized through the ASIO thread.
+    // The kevent cleanup and sigaction restore are handled in
+    // ASIO_CANCEL_SIGNAL.
+    send_request(ev, ASIO_CANCEL_SIGNAL);
+    return;
+  }
 
   struct kevent event[4];
   int i = 0;
@@ -497,29 +835,6 @@ PONY_API void pony_asio_event_unsubscribe(asio_event_t* ev)
   if(ev->flags & ASIO_TIMER)
   {
     EV_SET(&event[i], (uintptr_t)ev, EVFILT_TIMER,
-      EV_DELETE | EV_RECEIPT, 0, 0, ev);
-    i++;
-  }
-
-  if(ev->flags & ASIO_SIGNAL)
-  {
-    // Make sure we ignore signals related to scheduler sleeping/waking
-    // as the default for those signals is termination
-    struct sigaction new_action;
-
-    new_action.sa_handler = SIG_DFL;
-#if !defined(USE_SCHEDULER_SCALING_PTHREADS)
-    if((int)ev->nsec == PONY_SCHED_SLEEP_WAKE_SIGNAL)
-      new_action.sa_handler = empty_signal_handler;
-#endif
-    sigemptyset (&new_action.sa_mask);
-
-    // ask to restart interrupted syscalls to match `signal` behavior
-    new_action.sa_flags = SA_RESTART;
-
-    sigaction((int)ev->nsec, &new_action, NULL);
-
-    EV_SET(&event[i], ev->nsec, EVFILT_SIGNAL,
       EV_DELETE | EV_RECEIPT, 0, 0, ev);
     i++;
   }

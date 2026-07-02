@@ -1,7 +1,8 @@
 primitive Sig
   """
-  Define the portable signal numbers. Other signals can be used, but they are
-  not guaranteed to be portable.
+  Define the portable signal numbers. Other signal numbers can still be
+  raised (`SignalRaise` takes a raw number), but handling a signal requires
+  its number to pass `MakeValidSignal`.
   """
   fun hup(): U32 => 1
   fun int(): U32 => 2
