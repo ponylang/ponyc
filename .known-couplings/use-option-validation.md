@@ -37,14 +37,19 @@ them are exercised by a build near the module:
      the three sanitizers + dtrace). Add or drop a platform rejection here and the
      matching script's loop must change too.
 
-2. **Windows allowlist.** On MSVC the module rejects every option except
-   `systematic_testing` (`if(MSVC AND NOT _use STREQUAL "systematic_testing")`),
-   matching what `make.ps1` historically accepted — the other options need POSIX
-   (`pool_memalign`'s `posix_memalign`) or Clang/GCC toolchain features MSVC's
-   `cl.exe` doesn't provide. This needs `MSVC`, which `project()` sets, so it
-   depends on the placement in (1). If a currently-rejected option is ever made to
-   build on Windows, relax this guard for it (and add a Windows reject/smoke test —
-   there is none today; no Windows CI job passes a `use=` option).
+2. **Windows allowlist.** On MSVC the module rejects every option not in
+   `_pony_windows_uses` (`systematic_testing`, `pool_retain`) — the only two that
+   compile and link on Windows, verified by building each on Windows/MSVC. The
+   rest need POSIX (`pool_memalign`'s `posix_memalign`, `runtime_tracing`'s
+   `fnmatch.h`, `scheduler_scaling_pthreads`' pthreads) or Clang/GCC toolchain
+   features `cl.exe` doesn't provide (the sanitizers' `-fsanitize=`), or don't
+   compile clean (`pooltrack`, `runtimestats`); `coverage` "builds" but is a
+   silent no-op on MSVC, so it is not allowed. This needs `MSVC`, which
+   `project()` sets, so it depends on the placement in (1). To make a rejected
+   option work on Windows: fix its runtime C, then add it to `_pony_windows_uses`
+   and add a Windows reject/smoke test — there is none today; no Windows CI job
+   passes a `use=` option. (Windows presets, when added, use the Visual Studio
+   multi-config generator with `binaryDir` `build/build`, not `build/build_<cfg>`.)
 
 3. **FreeBSD smoke scripts** — `.ci-scripts/freebsd-valgrind-smoke.sh`,
    `freebsd-coverage-smoke.sh`, `freebsd-sanitizer-smoke.sh` run

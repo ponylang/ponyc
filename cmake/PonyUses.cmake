@@ -46,6 +46,13 @@ set(_pony_known_uses
     pool_retain
     runtime_tracing)
 
+# The subset of the above that compiles on Windows (MSVC), verified by building
+# each on Windows. See the MSVC check below and
+# .known-couplings/use-option-validation.md.
+set(_pony_windows_uses
+    systematic_testing
+    pool_retain)
+
 # Reset every option off before applying PONY_USES.
 foreach(_use IN LISTS _pony_known_uses)
     string(TOUPPER "${_use}" _use_upper)
@@ -66,15 +73,16 @@ list(REMOVE_DUPLICATES _pony_uses)
 
 foreach(_use IN LISTS _pony_uses)
     message(STATUS "Enabling use option: ${_use}")
-    # Windows builds with MSVC, whose toolchain and CRT don't provide what the
-    # non-systematic_testing options need (POSIX posix_memalign for
-    # pool_memalign, the Clang/GCC -fsanitize=/-fprofile-arcs interfaces for the
-    # sanitizers and coverage, Valgrind headers, a dtrace tool). The wrappers
-    # historically accepted only systematic_testing on Windows; enforce that
-    # here rather than let a build fail partway through with a confusing compiler
-    # error. Making the other options work on Windows is separate runtime work.
-    if(MSVC AND NOT _use STREQUAL "systematic_testing")
-        message(FATAL_ERROR "${_use} is not supported when building on Windows; only systematic_testing is supported there.")
+    # On Windows (MSVC) only some options build; the rest need POSIX or Clang/GCC
+    # toolchain features cl.exe doesn't provide -- verified by building each on
+    # Windows (pool_memalign needs posix_memalign; the sanitizers/coverage need
+    # -fsanitize=/-fprofile-arcs; runtime_tracing is gated off; pooltrack,
+    # runtimestats, scheduler_scaling_pthreads don't compile). Reject the
+    # unsupported ones here rather than let the build fail partway through with a
+    # confusing error. Widening this list is separate runtime work; see
+    # .known-couplings/use-option-validation.md.
+    if(MSVC AND NOT _use IN_LIST _pony_windows_uses)
+        message(FATAL_ERROR "${_use} is not supported when building on Windows; supported there: systematic_testing, pool_retain. See BUILD.md")
     endif()
     if(_use STREQUAL "valgrind")
         if(CMAKE_HOST_SYSTEM_NAME STREQUAL "OpenBSD")
