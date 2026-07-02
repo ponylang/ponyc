@@ -38,3 +38,7 @@ Programs run under systematic testing could run far slower than the amount of wo
 
 The `runtimestats` and `runtimestats_messages` build options failed to compile on Windows, so you couldn't build the runtime with runtime statistics enabled there. Both options now build on Windows.
 
+## Fix pooltrack build option on Windows
+
+The `pooltrack` build option failed to compile on Windows, so you couldn't build the runtime with pool allocation tracking enabled there. It now builds on Windows.
+
