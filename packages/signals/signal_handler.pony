@@ -16,7 +16,7 @@ actor SignalHandler is AsioEventNotify
   signal is received, in no particular order. If a handler cannot be
   registered (the 16-subscriber limit is reached, or the runtime fails to
   register with the operating system), the handler is automatically
-  disposed: its notify's `dispose` is called and `apply` never is.
+  disposed: its notify's `dispose` is called without `apply` having run.
 
   If the wait parameter is true, the program will not terminate until
   the SignalHandler's dispose method is called or the SignalNotify
@@ -41,7 +41,11 @@ actor SignalHandler is AsioEventNotify
 
   be raise(auth: SignalAuth) =>
     """
-    Raise the signal.
+    Raise the signal, process-wide: every currently subscribed handler for
+    this signal is notified, not just this one. If no handler is subscribed
+    when the signal is delivered — every handler was disposed, or none ever
+    registered — the operating system's default disposition applies, which
+    for most terminating signals ends the process.
     """
     SignalRaise(auth, _sig)
 

@@ -78,9 +78,9 @@ actor ANSITerm
       | let sig: ValidSignal =>
         _winch = SignalHandler(auth, recover _TermResizeNotify(this) end, sig)
       | let _: ValidationFailure =>
-        // Unreachable: SIGWINCH is whitelisted on every platform where this
-        // branch compiles.
-        None
+        // SIGWINCH is whitelisted on every platform where this branch
+        // compiles; a rejection means the whitelist regressed.
+        _Unreachable()
       end
     end
 

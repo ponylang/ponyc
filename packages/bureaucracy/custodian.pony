@@ -49,7 +49,8 @@ actor Custodian
 
     fun ref apply(count: U32): Bool =>
       _custodian.dispose()
-      true
+      // Returning false unsubscribes this handler; it has done its job.
+      false
   ```
   """
   embed _workers: SetIs[DisposableActor] = _workers.create()

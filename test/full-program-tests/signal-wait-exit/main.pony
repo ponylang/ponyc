@@ -2,16 +2,20 @@ use "constrained_types"
 use "signals"
 
 // A wait=true SignalHandler must keep the program alive until it is
-// disposed, and returning false from the notify must dispose it. The
-// assertion is the program exiting at all: a regression anywhere in the
-// dispose -> cancel -> disposable -> destroy chain hangs this program and
-// the test harness times out.
+// disposed, and returning false from the notify must dispose it. Exit code
+// 42 is set only inside the notify, so passing requires the signal to have
+// been DELIVERED before exit — if wait=true degrades to a no-op the program
+// can exit 0 without delivery, and if the dispose chain regresses the
+// program hangs; both directions go red.
 
 class _ExitNotify is SignalNotify
-  new iso create() =>
-    None
+  let _env: Env
+
+  new iso create(env: Env) =>
+    _env = env
 
   fun ref apply(count: U32): Bool =>
+    _env.exitcode(42)
     false
 
 actor Main
@@ -19,8 +23,9 @@ actor Main
     let auth = SignalAuth(env.root)
     match MakeValidSignal(Sig.int())
     | let sig: ValidSignal =>
-      let handler = SignalHandler(auth, _ExitNotify, sig where wait = true)
+      let handler =
+        SignalHandler(auth, _ExitNotify(env), sig where wait = true)
       handler.raise(auth)
     | let _: ValidationFailure =>
-      None
+      env.exitcode(1)
     end

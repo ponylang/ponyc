@@ -6,8 +6,9 @@ primitive SignalValidator is Validator[U32]
 
   Only signals that can be safely caught and dispatched to Pony actors
   are accepted. Fatal signals (SIGILL, SIGTRAP, SIGABRT, SIGFPE, SIGBUS,
-  SIGSEGV), uncatchable signals (SIGKILL, SIGSTOP), and unknown signal
-  numbers are rejected.
+  SIGSEGV), uncatchable signals (SIGKILL, SIGSTOP), SIGUSR2 (reserved by
+  the Pony runtime for scheduler sleep/wake, so a handler could never
+  fire), and unknown signal numbers are rejected.
 
   Validation is necessary but not sufficient: the operating system can
   still refuse a registration the whitelist admits (for example, glibc
@@ -31,6 +32,10 @@ primitive SignalValidator is Validator[U32]
       end
     end
 
+  // SIGUSR2 is deliberately absent from the whitelists: in default builds
+  // the runtime reserves it for scheduler sleep/wake and consumes it via
+  // sigwait, so a handler would never fire; in scheduler_scaling_pthreads
+  // builds Sig.usr2() is a compile error. No build can handle it.
   fun _is_handleable(sig: U32): Bool =>
     ifdef bsd or osx then
       (sig == Sig.hup()) or (sig == Sig.int()) or (sig == Sig.quit())
@@ -53,17 +58,13 @@ primitive SignalValidator is Validator[U32]
         or (sig == Sig.sys())
         or _is_rt(sig)
     elseif windows then
-      // Windows signal() only supports SIGINT and SIGTERM as catchable
-      // signals. SIGABRT, SIGFPE, SIGILL, SIGSEGV are fatal.
+      // Only SIGINT and SIGTERM can be meaningfully handled through the
+      // ASIO mechanism on Windows; the other signals the CRT knows
+      // (SIGABRT, SIGFPE, SIGILL, SIGSEGV) are synchronous or fatal.
       (sig == Sig.int()) or (sig == Sig.term())
     else
       false
     end
-
-  // SIGUSR2 is deliberately absent from the whitelists: in default builds
-  // the runtime reserves it for scheduler sleep/wake and consumes it via
-  // sigwait, so a handler would never fire; in scheduler_scaling_pthreads
-  // builds Sig.usr2() is a compile error. No build can handle it.
 
   fun _is_rt(sig: U32): Bool =>
     ifdef bsd then

@@ -33,7 +33,8 @@ typedef uint32_t kevent_flag_t;
 #define ASIO_CANCEL_SIGNAL 10
 
 // Signal registration protocol (same shape in epoll.c, sock_notify.c, and
-// here). `registered` is a tri-state: 0 = no OS registration, -1 = a thread is
+// here — see .known-couplings/asio-signal-registration-protocol.md).
+// `registered` is a tri-state: 0 = no OS registration, -1 = a thread is
 // mid-install or the ASIO thread is mid-teardown, 1 = registered.
 // Subscribe (any scheduler thread) loops: wait for 1 (installing via
 // CAS 0 -> -1 if first), CAS into a free subscriber slot, then RE-VERIFY the
@@ -48,6 +49,10 @@ typedef uint32_t kevent_flag_t;
 // each other (masked on x86, real on weaker architectures). The publish of 1
 // happens only after the sigaction install and the checked EVFILT_SIGNAL
 // registration, so "subscribe returned" implies the signal is being detected.
+// No systematic-testing yield or parking call may ever be introduced inside
+// the claimed (-1) windows: the subscribe spin has no yield point and is
+// deadlock-free under systematic testing only because -1 is never observable
+// there.
 typedef struct signal_subscribers_t {
   PONY_ATOMIC(int) registered;  // 0=no, -1=in-progress, 1=yes
   PONY_ATOMIC(asio_event_t*) subscribers[MAX_SIGNAL_SUBSCRIBERS];
@@ -186,9 +191,12 @@ static void handle_queue(asio_backend_t* b)
           if(atomic_load_explicit(&subs->subscribers[i],
             memory_order_acquire) == ev)
           {
+            // Clear every matching slot, not just the first: a raw-FFI
+            // caller that subscribed the same event twice occupies two
+            // slots, and leaving one behind after the event is destroyed
+            // turns the next fan-out into a use-after-free.
             atomic_store_explicit(&subs->subscribers[i], NULL,
               memory_order_release);
-            break;
           }
         }
 
@@ -559,10 +567,9 @@ PONY_API void pony_asio_event_subscribe(asio_event_t* ev)
           // First subscriber. sigaction goes first — EVFILT_SIGNAL needs a
           // non-terminating disposition in place before registration; SIG_IGN
           // prevents default termination while EVFILT_SIGNAL still detects
-          // the signal. The kevent registration is checked (keeping the
-          // EV_RECEIPT hardening the old signal path had), and the publish
-          // comes last so "subscribe returned" implies the signal is being
-          // detected.
+          // the signal. The kevent registration is checked via EV_RECEIPT,
+          // and the publish comes last so "subscribe returned" implies the
+          // signal is being detected.
           struct sigaction new_action;
           new_action.sa_handler = SIG_IGN;
 #if !defined(USE_SCHEDULER_SCALING_PTHREADS)

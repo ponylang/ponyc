@@ -19,8 +19,8 @@ interface SignalNotify
     `SignalHandler.dispose`, when `apply` returns false, or when the
     handler's registration could not be completed (the per-signal
     subscriber limit was reached, or the operating system refused the
-    registration). In the registration-failure case `apply` is never
-    called.
+    registration) — in that case `dispose` arrives without `apply`
+    having run.
     """
     None
 
@@ -32,6 +32,10 @@ primitive SignalRaise
   ValidSignal. Raising fatal signals (e.g. SIGABRT to intentionally crash)
   is a legitimate operation — it is only handling them via the ASIO
   mechanism that is prevented.
+
+  The raise is process-wide: every currently subscribed handler for the
+  signal is notified. With no subscribers, the operating system's default
+  disposition applies — for most terminating signals, process death.
   """
   fun apply(auth: SignalAuth, sig: U32) =>
     ifdef osx then

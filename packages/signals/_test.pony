@@ -101,6 +101,13 @@ class \nodoc\ iso _TestValidSignalRejectsFatal is UnitTest
       _assert_invalid(h, Sig.segv())
     elseif windows then
       _assert_invalid(h, Sig.abrt())
+      // The numbers MSVC's CRT actually uses for its fatal set — SIGILL,
+      // SIGFPE, SIGSEGV, SIGABRT — none of which have portable accessors
+      // for these values.
+      _assert_invalid(h, 4)
+      _assert_invalid(h, 8)
+      _assert_invalid(h, 11)
+      _assert_invalid(h, 22)
     end
 
   fun _assert_invalid(h: TestHelper, sig: U32) =>
@@ -272,8 +279,8 @@ class \nodoc\ _TestMultiHandlerNotify is SignalNotify
 
 class \nodoc\ _TestMultiHandlerChainNotify is SignalNotify
   """
-  Completes its action and, on the first notification only, raises the
-  signal again via the next handler. Serializing the second raise behind
+  On the first notification only, raises the signal again via the next
+  handler, then completes its action. Serializing the second raise behind
   the first delivery keeps the raises from overlapping — on Windows the
   CRT resets the disposition to SIG_DFL before running a handler, so two
   concurrent raises leave a window where the second kills the process.
@@ -365,7 +372,6 @@ class \nodoc\ _TestDisposeNotify is SignalNotify
     true
 
   fun ref dispose() =>
-    // Dispose callback was invoked — test passes
     _h.complete(true)
 
 class \nodoc\ iso _TestDispose is UnitTest
@@ -563,8 +569,9 @@ actor \nodoc\ _SubscriberLimitCoordinator
     // reject notify's second-dispose failure.
     try _handlers(16)?.dispose(_auth) end
     // Free one slot from the full table, then prove a new handler can
-    // take it.
-    try _handlers(0)?.dispose(_auth) end
+    // take it. A middle handler, not the first: freeing slot 0 would let a
+    // degenerate always-remove-slot-0 bug pass by coincidence.
+    try _handlers(5)?.dispose(_auth) end
     _create_reuse_handler()
 
   be retry_reuse() =>

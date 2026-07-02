@@ -46,7 +46,8 @@
 // .known-couplings/signal-subscriber-cap.md before changing it.
 #define MAX_SIGNAL_SUBSCRIBERS 16
 
-// Signal registration protocol (same shape in epoll.c, kqueue.c, and here).
+// Signal registration protocol (same shape in epoll.c, kqueue.c, and here —
+// see .known-couplings/asio-signal-registration-protocol.md).
 // `registered` is a tri-state: 0 = no OS registration, -1 = a thread is
 // mid-install or the ASIO thread is mid-teardown, 1 = registered.
 // Subscribe (any scheduler thread) loops: wait for 1 (installing via
@@ -64,7 +65,10 @@
 // the handler is active. This makes registration and cancel race-free;
 // signal-context delivery keeps its pre-existing benign race (the CRT
 // handler's self-re-arm can race a concurrent teardown's signal(SIG_DFL),
-// which existed before this design too).
+// which existed before this design too). No systematic-testing yield or
+// parking call may ever be introduced inside the claimed (-1) windows: the
+// subscribe spin has no yield point and is deadlock-free under systematic
+// testing only because -1 is never observable there.
 typedef struct signal_subscribers_t {
   PONY_ATOMIC(int) registered;  // 0=no, -1=in-progress, 1=yes
   PONY_ATOMIC(asio_event_t*) subscribers[MAX_SIGNAL_SUBSCRIBERS];
@@ -93,7 +97,7 @@ enum // Event requests
   ASIO_STDIN_RESUME = 6,
   ASIO_SET_TIMER = 7,
   ASIO_CANCEL_TIMER = 8,
-  ASIO_CANCEL_SIGNAL = 10  // matches epoll.c/kqueue.c
+  ASIO_CANCEL_SIGNAL = 10
 };
 
 
@@ -126,11 +130,12 @@ static void signal_handler(int sig)
   signal(sig, signal_handler);
 
   // POSIX (epoll.c) routes signals through the asio thread: the handler only
-  // wakes that thread, which then sends the event. We mirror that so the asio
-  // thread is the ONLY thread that ever sends events -- the property that makes
-  // the old foreign-thread liveness token unnecessary. PostQueuedCompletionStatus
-  // is thread-safe and touches no event state; the signal number rides in the
-  // bytes-transferred field.
+  // wakes that thread, which then sends the event. We mirror that so events
+  // are only ever sent from registered pony threads (the asio thread here;
+  // the subscribing scheduler thread on registration error paths) -- the
+  // property that makes the old foreign-thread liveness token unnecessary.
+  // PostQueuedCompletionStatus is thread-safe and touches no event state;
+  // the signal number rides in the bytes-transferred field.
   asio_backend_t* b = ponyint_asio_get_backend();
 
   if(b != NULL)
@@ -149,7 +154,7 @@ static void CALLBACK timer_fire(void* arg, DWORD timer_low, DWORD timer_high)
 
 // Thread-pool callback that watches the console stdin handle, which cannot be
 // associated with a completion port. It only posts to the port -- touching no
-// event state -- preserving the asio-thread-only-sends invariant. The wait is
+// event state -- keeping event sends on registered pony threads. The wait is
 // registered WT_EXECUTEONLYONCE, so it fires once; we re-arm on resume.
 static void CALLBACK stdin_notify_cb(void* arg, BOOLEAN timed_out)
 {
@@ -507,9 +512,12 @@ DECLARE_THREAD_FN(ponyint_asio_backend_dispatch)
             if(atomic_load_explicit(&subs->subscribers[i],
               memory_order_acquire) == ev)
             {
+              // Clear every matching slot, not just the first: a raw-FFI
+              // caller that subscribed the same event twice occupies two
+              // slots, and leaving one behind after the event is destroyed
+              // turns the next fan-out into a use-after-free.
               atomic_store_explicit(&subs->subscribers[i], NULL,
                 memory_order_release);
-              break;
             }
           }
 

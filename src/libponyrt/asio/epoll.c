@@ -26,8 +26,9 @@
 
 #define ASIO_CANCEL_SIGNAL 10
 
-// Signal registration protocol (same shape in epoll.c, kqueue.c, and
-// sock_notify.c). `registered` is a tri-state: 0 = no OS registration,
+// Signal registration protocol (same shape in kqueue.c, sock_notify.c, and
+// here — see .known-couplings/asio-signal-registration-protocol.md).
+// `registered` is a tri-state: 0 = no OS registration,
 // -1 = a thread is mid-install or the ASIO thread is mid-teardown,
 // 1 = registered. Subscribe (any scheduler thread) loops: wait for 1
 // (installing via CAS 0 -> -1 if first), CAS into a free subscriber slot,
@@ -42,7 +43,10 @@
 // acquire/release alone lets both sides miss each other (masked on x86, real
 // on weaker architectures). The publish of 1 happens only after the
 // sigaction install, so "subscribe returned" implies the handler is active.
-// The delivery channel is kept SEPARATE from the protocol state: `eventfd`
+// No systematic-testing yield or parking call may ever be introduced inside
+// the claimed (-1) windows: the subscribe spin has no yield point and is
+// deadlock-free under systematic testing only because -1 is never observable
+// there. The delivery channel is kept SEPARATE from the protocol state: `eventfd`
 // holds the shared eventfd and stays valid through a claim that aborts, so
 // a claim can never drop a delivery for a still-registered subscriber; it
 // is invalidated only on committed teardown. Signal-context delivery keeps
@@ -92,10 +96,14 @@ static void signal_handler(int sig)
 
   // The eventfd is stored before sigaction installs this handler and stays
   // valid until committed teardown (including through a claim that aborts),
-  // so a raise() after subscribe returned always sees a live fd. Only an
+  // so a raise() after subscribe returned always sees a live fd. An
   // externally delivered signal racing an install or a committed teardown
   // can read -1 and be dropped — no worse than it arriving before
-  // registration or after unsubscription.
+  // registration or after unsubscription. Pre-existing and accepted: a
+  // handler preempted between loading a live fd and writing it can race a
+  // committed teardown's close, and in the worst case writes to an
+  // unrelated reused descriptor (the old design had the same race via
+  // ev->fd).
   int fd = atomic_load_explicit(&b->sighandlers[sig].eventfd,
     memory_order_acquire);
   if(fd < 0)
@@ -147,9 +155,12 @@ static void handle_queue(asio_backend_t* b)
           if(atomic_load_explicit(&subs->subscribers[i],
             memory_order_acquire) == ev)
           {
+            // Clear every matching slot, not just the first: a raw-FFI
+            // caller that subscribed the same event twice occupies two
+            // slots, and leaving one behind after the event is destroyed
+            // turns the next fan-out into a use-after-free.
             atomic_store_explicit(&subs->subscribers[i], NULL,
               memory_order_release);
-            break;
           }
         }
 
@@ -399,9 +410,12 @@ DECLARE_THREAD_FN(ponyint_asio_backend_dispatch)
       if(ep->data.ptr == b)
         continue;
 
-      // Check if this is a signal event (ptr into sighandlers array)
-      if(ep->data.ptr >= (void*)b->sighandlers &&
-         ep->data.ptr < (void*)&b->sighandlers[MAX_SIGNAL])
+      // Check if this is a signal event (ptr into sighandlers array).
+      // Compared as integers: a relational compare of pointers into
+      // different objects is formally UB, and this check decides which
+      // struct type the pointer is cast to.
+      if((uintptr_t)ep->data.ptr >= (uintptr_t)b->sighandlers &&
+         (uintptr_t)ep->data.ptr < (uintptr_t)&b->sighandlers[MAX_SIGNAL])
       {
         signal_subscribers_t* subs = (signal_subscribers_t*)ep->data.ptr;
         if(ep->events & (EPOLLIN | EPOLLRDHUP | EPOLLHUP | EPOLLERR))
@@ -578,9 +592,9 @@ PONY_API void pony_asio_event_subscribe(asio_event_t* ev)
 
           if((fd == -1) || (epoll_ctl(b->epfd, EPOLL_CTL_ADD, fd, &sep) == -1))
           {
-            // Clean up before resetting the state so a retrying first
-            // subscriber can't race the close. sigaction hasn't run yet, so
-            // the disposition needs no rollback.
+            // The fd was never published, so cleanup here is purely
+            // local; sigaction hasn't run yet, so the disposition needs no
+            // rollback.
             if(fd != -1)
               close(fd);
             atomic_store_explicit(&subs->registered, 0,

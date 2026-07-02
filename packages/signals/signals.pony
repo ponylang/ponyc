@@ -12,17 +12,19 @@ be registered for the same signal — up to 16 per signal number — and all
 registered handlers will be notified when the signal is received, in no
 particular order. A handler that cannot be registered (the limit is reached,
 or the runtime fails to register with the operating system) is automatically
-disposed: its notify's `dispose` runs and its `apply` never does.
+disposed: its notify's `dispose` runs without `apply` having run.
 
 Signal handling requires a `SignalAuth` capability derived from `AmbientAuth`,
 consistent with how other I/O primitives in the standard library handle
 resource access.
 
 Signal numbers must be validated through `MakeValidSignal` before they can
-be used with `SignalHandler`. This prevents registration of handlers for
-fatal signals (SIGILL, SIGTRAP, SIGABRT, SIGFPE, SIGBUS, SIGSEGV) and
-uncatchable signals (SIGKILL, SIGSTOP) that cannot be meaningfully handled
-via the ASIO mechanism.
+be used with `SignalHandler`. Validation is a per-platform whitelist of
+signals that can be meaningfully handled via the ASIO mechanism: it rejects
+fatal signals (SIGILL, SIGTRAP, SIGABRT, SIGFPE, SIGBUS, SIGSEGV),
+uncatchable signals (SIGKILL, SIGSTOP), SIGUSR2 (reserved by the Pony
+runtime for scheduler sleep/wake, so a handler could never fire), and any
+number outside the whitelist.
 
 ## Example program
 
@@ -39,7 +41,7 @@ actor Main
       // Multiple handlers for the same signal
       SignalHandler(auth, LogHandler(env.out), sig)
       SignalHandler(auth, CleanupHandler(env.out), sig where wait = true)
-    | let err: ValidationFailure =>
+    | let _: ValidationFailure =>
       env.err.print("Cannot handle this signal")
     end
 
@@ -87,4 +89,7 @@ because the signal dispatch mechanism holds a reference to each subscriber —
 without explicit disposal, handlers will never be garbage collected. If a
 `SignalHandler` is created with `wait = true`, disposing it (or returning
 `false` from the notifier) is required to allow the program to terminate.
+Note that raising a signal after every handler for it has been disposed
+delivers it to the operating system's default disposition — for most
+terminating signals, process death.
 """
