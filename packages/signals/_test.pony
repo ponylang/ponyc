@@ -215,13 +215,18 @@ class \nodoc\ _TestMultiHandlerChainNotify is SignalNotify
     _auth = auth
 
   fun ref apply(count: U32): Bool =>
-    _h.complete_action(_action)
     if not _chained then
       _chained = true
       // Same-actor ordering: _next's constructor (and thus its
-      // subscription) completed before this raise runs on it.
+      // subscription) completed before this raise runs on it. The raise
+      // is sent BEFORE the action completes so it lands in _next's
+      // mailbox ahead of any tear_down dispose that test completion
+      // could trigger — a raise processed after every handler has
+      // unsubscribed would hit the default disposition and kill the
+      // process.
       _next.raise(_auth)
     end
+    _h.complete_action(_action)
     true
 
 class \nodoc\ iso _TestMultipleHandlers is UnitTest

@@ -26,12 +26,17 @@ actor Main
   - Raising a signal programmatically
   - Unsubscribing by returning false from a notify's apply
 
-  The program registers two handlers for SIGINT and raises it once. Both
-  handlers print that they received the signal, unsubscribe by returning
-  false (each prints again when disposed), and the program exits.
-  handler-1 is created with `wait = true`, which keeps the program alive
-  until that handler is disposed — without it, the program could exit
-  before the signal is delivered.
+  The program registers two handlers for SIGINT and raises it once.
+  handler-1 is guaranteed to receive the signal: the raise goes through
+  the handler itself, and messages to the same actor are processed in
+  order, so its registration completes before the raise runs. handler-2
+  has no such ordering — actor constructors run asynchronously — so it
+  usually receives the signal too, but can miss it if the raise outraces
+  its registration. Handlers that receive the signal print, unsubscribe
+  by returning false, and print again when disposed. handler-1 is created
+  with `wait = true`, which keeps the program alive until that handler is
+  disposed — without it, the program could exit before the signal is
+  delivered at all.
   """
   new create(env: Env) =>
     let auth = SignalAuth(env.root)
