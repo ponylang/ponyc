@@ -7,7 +7,7 @@ First of all, you need a compiler with decent C11 support. We officially support
 - MSVC >= 2017
 - GCC >= 4.7
 
-You also need [CMake](https://cmake.org/download/) version 3.21 or higher. You also need a version of [Python 3](https://www.python.org/downloads/) installed; it's required in order to build LLVM. On Unix systems, you need the zlib development headers and library installed (e.g. `zlib-dev`, `zlib1g-dev`, or `zlib-devel` depending on your distribution).
+You also need [CMake](https://cmake.org/download/) version 3.25 or higher. You also need a version of [Python 3](https://www.python.org/downloads/) installed; it's required in order to build LLVM. On Unix systems, you need the zlib development headers and library installed (e.g. `zlib-dev`, `zlib1g-dev`, or `zlib-devel` depending on your distribution).
 
 ## Clone this repository
 
