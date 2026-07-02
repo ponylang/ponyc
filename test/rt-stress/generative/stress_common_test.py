@@ -214,17 +214,24 @@ def test_draw_systematic_workload_coverage():
     # iso acquire-flood (the 15-node corner) is asserted in the loop above.
     check("systematic cyclic worst-case workers within the ceiling",
           (common.SYSTEMATIC_CYCLIC_GENERATION_MAX * max(common.CYCLIC_GROUPS))
-          <= SYSTEMATIC_CYCLIC_WORKER_CEILING)
+          < SYSTEMATIC_CYCLIC_WORKER_CEILING)
     check("systematic iso worst-case 1-node messages within the ceiling",
           (common.SYSTEMATIC_ISO_CHAINS_MAX * common.ISO_TTL_MAX)
-          <= SYSTEMATIC_ISO_MESSAGE_CEILING)
+          < SYSTEMATIC_ISO_MESSAGE_CEILING)
     check("systematic backpressure worst-case messages within the ceiling",
           (max(common.SYSTEMATIC_BACKPRESSURE_PRODUCERS)
            * common.SYSTEMATIC_BACKPRESSURE_MESSAGES_MAX)
-          <= SYSTEMATIC_BACKPRESSURE_MESSAGE_CEILING)
+          < SYSTEMATIC_BACKPRESSURE_MESSAGE_CEILING)
     check("systematic actorref worst-case hops within the ceiling",
           (common.SYSTEMATIC_ACTORREF_CHAINS_MAX * (common.ISO_TTL_MAX + 1))
-          <= SYSTEMATIC_ACTORREF_MESSAGE_CEILING)
+          < SYSTEMATIC_ACTORREF_MESSAGE_CEILING)
+    # iso's ttl floor is load-bearing coverage: a ttl=0 (zero-hop) chain is delivered
+    # once and terminates without a hand-off, so it drives none of the per-hop
+    # foreign-mutable acquire-flood (chains*ttl*node_count) the workload exists to
+    # exercise, while conservation still passes. Same reasoning as actorref below;
+    # assert the floor directly.
+    check("systematic iso ttl floor is >= 1 (ttl 0 = zero-hop = no acquire)",
+          common.SYSTEMATIC_WORKLOAD_RANGES["iso"][1][0] >= 1)
     # actorref's ttl floor is load-bearing coverage: a ttl=0 (zero-hop) chain injects
     # but never forwards, so it drives ZERO acquire_actor -- the workload's whole point
     # -- while conservation still passes (expected == chains). The engine sets no CLI
@@ -232,6 +239,14 @@ def test_draw_systematic_workload_coverage():
     # a drawn value, which would be tautological against the range under test).
     check("systematic actorref ttl floor is >= 1 (ttl 0 = zero-hop = no acquire)",
           common.SYSTEMATIC_WORKLOAD_RANGES["actorref"][1][0] >= 1)
+    # chains=0 is silent uselessness: a run that injects zero chains still conserves
+    # (received == sent == expected == 0), so it scores green while testing nothing --
+    # the soak's pass/fail can't tell it from a real run. Every chains-bearing kind
+    # (mesh/cyclic/iso/actorref; backpressure draws chains but ignores them) must floor
+    # chains at >= 1. Assert the range floors directly (a drawn value is tautological).
+    check("systematic chains floor is >= 1 for every chains-bearing kind",
+          all(common.SYSTEMATIC_WORKLOAD_RANGES[k][0][0] >= 1
+              for k in ("mesh", "cyclic", "iso", "actorref")))
 
 
 def test_draw_swarm_knobs():
@@ -381,16 +396,18 @@ def test_clamp_ttl():
 
 # The calibrated ceiling on generations*group (leaked actors in a CD-off run).
 # Hardcoded, NOT derived from the CYCLIC_* constants, so bumping a generation
-# bucket or adding a bigger group trips this guard and forces a re-measure. The
-# real max today is 8000*16 = 128000 (~1.2 GB peak, fits under DEFAULT_MEM_LIMIT_MB
-# with margin -- see the decision log / CYCLIC_* docstring).
+# bucket or adding a bigger group trips this guard and forces a re-measure (strict
+# `<`, so an exact bump to the ceiling trips too). The real max today is 8000*16 =
+# 128000 (~1.2 GB peak, fits under DEFAULT_MEM_LIMIT_MB with margin -- see the
+# decision log / CYCLIC_* docstring).
 CYCLIC_WORKER_CEILING = 130000
 
 
 # The calibrated ceiling on producers*messages (total backpressure work).
 # Hardcoded, NOT derived from the BACKPRESSURE_* constants, so bumping a producer
-# count or a message bucket trips this guard and forces a time re-measure. Real max
-# today is 256*400000 = 102_400_000.
+# count or a message bucket trips this guard and forces a time re-measure. Strict `<`
+# (as with cyclic above), so an exact bump to the ceiling trips too. Real max today is
+# 256*400000 = 102_400_000.
 BACKPRESSURE_MESSAGE_CEILING = 110_000_000
 
 
@@ -411,9 +428,12 @@ ISO_NODE_CEILING = 15
 # chains*ttl messages (the 15-node acquire-flood corner is separately bounded by
 # ISO_ACQUIRE_BUDGET, asserted per-config in test_draw_systematic_workload_coverage);
 # backpressure cost ~ producers*messages total work. Each ceiling is 2x the drawn-worst
-# product -- the re-measure trigger. Calibrated single-run: cyclic gen 100 * group 16
-# ~1.18s, iso chains 800 * ttl 16 ~0.77s, backpressure 64 * 600 ~1.0s -- all well under
-# the systematic watchdog even run twice (each kind's drawn worst is ~half its ceiling).
+# product, compared with a strict `<` -- the worst must stay UNDER 2x, so an exact
+# doubling of a cap (e.g. generations 50->100) trips the re-measure trigger; a plain
+# `<=` would let that exact-2x bump slip through. Calibrated single-run: cyclic gen 100
+# * group 16 ~1.18s, iso chains 800 * ttl 16 ~0.77s, backpressure 64 * 600 ~1.0s -- all
+# well under the systematic watchdog even run twice (each kind's drawn worst is ~half
+# its ceiling).
 SYSTEMATIC_CYCLIC_WORKER_CEILING = 100 * 16
 SYSTEMATIC_ISO_MESSAGE_CEILING = 800 * 16
 SYSTEMATIC_BACKPRESSURE_MESSAGE_CEILING = 64 * 600
@@ -497,9 +517,9 @@ def test_draw_workload():
     bp_theoretical = (max(common.BACKPRESSURE_PRODUCERS)
                       * common.BACKPRESSURE_MESSAGE_BUCKETS["large"][1])
     check("cyclic theoretical worst-case workers within the memory ceiling",
-          cyclic_theoretical <= CYCLIC_WORKER_CEILING)
+          cyclic_theoretical < CYCLIC_WORKER_CEILING)
     check("backpressure theoretical worst-case messages within the ceiling",
-          bp_theoretical <= BACKPRESSURE_MESSAGE_CEILING)
+          bp_theoretical < BACKPRESSURE_MESSAGE_CEILING)
     # iso is governed by the acquire-flood budget (chains * ttl * node_count); the
     # per-run chains clamp (resolve_config) keeps every run within it. Pin the
     # calibrated budget and the max graph node count; bumping either forces a memory
@@ -518,11 +538,23 @@ def test_draw_workload():
     # the chains bucket max; bumping it forces a memory re-measure on the normal build.
     check("actorref theoretical worst-case chains within the memory ceiling",
           common.ACTORREF_CHAINS_BUCKETS["large"][1]
-          <= common.ACTORREF_CHAINS_CEILING)
+          < common.ACTORREF_CHAINS_CEILING)
+    # iso's ttl floor is load-bearing coverage (a ttl=0 zero-hop chain terminates
+    # without a hand-off, driving none of the per-hop foreign-mutable acquire-flood,
+    # while conservation still passes). Assert the bucket floor directly.
+    check("normal iso ttl floor is >= 1 (ttl 0 = zero-hop = no acquire)",
+          common.ISO_TTL_BUCKETS["small"][0] >= 1)
     # actorref's ttl floor is load-bearing coverage (a ttl=0 zero-hop chain drives zero
     # acquire_actor while conservation still passes). Assert the bucket floor directly.
     check("normal actorref ttl floor is >= 1 (ttl 0 = zero-hop = no acquire)",
           common.ACTORREF_TTL_BUCKETS["small"][0] >= 1)
+    # chains=0 is silent uselessness (see the systematic test): a zero-chain run
+    # conserves and scores green while testing nothing. Each chains-bearing normal
+    # bucket floors chains at >= 1 (backpressure has none). Assert the floors directly.
+    check("normal chains floor is >= 1 for every chains-bearing bucket",
+          all(b["small"][0] >= 1 for b in (
+              common.NORMAL_SIZE_BUCKETS, common.CYCLIC_CHAINS_BUCKETS,
+              common.ISO_CHAINS_BUCKETS, common.ACTORREF_CHAINS_BUCKETS)))
 
     # Fixed-consumption contract: draw_workload must make the SAME sequence of rng
     # calls whichever kind it rolls (it draws every kind's shape unconditionally),
