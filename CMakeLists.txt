@@ -690,6 +690,74 @@ else()
     set_tests_properties(pony-doc-tests pony-lsp-tests pony-lint-tests pony-compiler-tests
         PROPERTIES LABELS tools)
 
+    # Compile-then-run ci-core tests. Each compiles Pony sources with the freshly
+    # built ponyc and then runs (or diffs) the result, so they depend on ponyc
+    # (and, for the full-program tests, the tests.runner target and the test_lib
+    # fixtures) already being built under ALL. The full-program tests invoke the
+    # runner directly; the rest go through cmake -P wrappers because they set
+    # PONYPATH, chain a compile into a run, or walk a directory tree.
+    set(PONY_FULL_PROGRAM_TIMEOUT 60 CACHE STRING
+        "Per-test timeout (seconds) for the full-program test runner")
+    set(PONY_STDLIB_TEST_EXCLUDES "" CACHE STRING
+        "Extra args appended to the stdlib test runner, e.g. --exclude=net/Broadcast")
+
+    set(_full_program_runner
+        ${CMAKE_BINARY_DIR}/test/full-program-runner/full-program-runner${CMAKE_EXECUTABLE_SUFFIX})
+    file(MAKE_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/full-program-tests/debug)
+    file(MAKE_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/full-program-tests/release)
+
+    add_test(NAME full-programs-debug
+        COMMAND ${_full_program_runner} --debugger=
+            --timeout_s=${PONY_FULL_PROGRAM_TIMEOUT} --max_parallel=1
+            --compiler=$<TARGET_FILE:ponyc> --debug
+            --output=${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/full-program-tests/debug
+            --test_lib=${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test_lib
+            ${CMAKE_SOURCE_DIR}/test/full-program-tests
+        WORKING_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY})
+    add_test(NAME full-programs-release
+        COMMAND ${_full_program_runner} --debugger=
+            --timeout_s=${PONY_FULL_PROGRAM_TIMEOUT} --max_parallel=1
+            --compiler=$<TARGET_FILE:ponyc>
+            --output=${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/full-program-tests/release
+            --test_lib=${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test_lib
+            ${CMAKE_SOURCE_DIR}/test/full-program-tests
+        WORKING_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY})
+
+    add_test(NAME stdlib-debug
+        COMMAND ${CMAKE_COMMAND}
+            -DPONYC=$<TARGET_FILE:ponyc>
+            -DSTDLIB_SRC=${CMAKE_SOURCE_DIR}/packages/stdlib
+            -DWORKDIR=${CMAKE_RUNTIME_OUTPUT_DIRECTORY}
+            -DBUILD_NAME=stdlib-debug -DDEBUG=ON
+            -DEXCLUDES=${PONY_STDLIB_TEST_EXCLUDES}
+            -P ${CMAKE_SOURCE_DIR}/cmake/RunStdlibTest.cmake)
+    add_test(NAME stdlib-release
+        COMMAND ${CMAKE_COMMAND}
+            -DPONYC=$<TARGET_FILE:ponyc>
+            -DSTDLIB_SRC=${CMAKE_SOURCE_DIR}/packages/stdlib
+            -DWORKDIR=${CMAKE_RUNTIME_OUTPUT_DIRECTORY}
+            -DBUILD_NAME=stdlib-release -DDEBUG=OFF
+            -DEXCLUDES=${PONY_STDLIB_TEST_EXCLUDES}
+            -P ${CMAKE_SOURCE_DIR}/cmake/RunStdlibTest.cmake)
+
+    add_test(NAME examples
+        COMMAND ${CMAKE_COMMAND}
+            -DPONYC=$<TARGET_FILE:ponyc>
+            -DEXAMPLES=${CMAKE_SOURCE_DIR}/examples
+            -DWORKDIR=${CMAKE_RUNTIME_OUTPUT_DIRECTORY}
+            -P ${CMAKE_SOURCE_DIR}/cmake/RunExamples.cmake)
+
+    add_test(NAME validate-grammar
+        COMMAND ${CMAKE_COMMAND}
+            -DPONYC=$<TARGET_FILE:ponyc>
+            -DGRAMMAR=${CMAKE_SOURCE_DIR}/pony.g
+            -DWORKDIR=${CMAKE_RUNTIME_OUTPUT_DIRECTORY}
+            -P ${CMAKE_SOURCE_DIR}/cmake/CheckGrammar.cmake)
+
+    set_tests_properties(full-programs-debug full-programs-release
+        stdlib-debug stdlib-release examples validate-grammar
+        PROPERTIES LABELS ci-core)
+
     install(TARGETS
         ponyc
         libponyc.tests
