@@ -41,6 +41,12 @@ BACKPRESSURE_MESSAGE_CEILING = 110_000_000
 # untested territory (the OOM cliff is non-monotonic near the edge).
 ISO_ACQUIRE_CEILING = 96000
 ISO_NODE_CEILING = 15
+# Hardcoded calibrated ceiling on actorref chains (peak RSS tracks max chains), NOT
+# derived from ACTORREF_CHAINS_BUCKETS -- bumping the chains bucket max trips this and
+# forces a memory re-measure. A looser 2x trigger than the cyclic/bp/iso ceilings above:
+# actorref's drawn max (34000 chains, ~100 MB) has ~40x headroom under the memory cap and
+# its cost is LINEAR (strict `<`, so an exact doubling of the bucket max trips too).
+ACTORREF_CHAINS_CEILING = 34000 * 2
 
 
 def check(name, condition):
@@ -384,7 +390,7 @@ def test_resolve_config_deterministic_and_bounded():
     # the chains bucket max; bumping it forces a memory re-measure on the normal build.
     check("actorref theoretical worst-case chains within the memory ceiling",
           common.ACTORREF_CHAINS_BUCKETS["large"][1]
-          < common.ACTORREF_CHAINS_CEILING)
+          < ACTORREF_CHAINS_CEILING)
     check("payload-mode covers {forward, fresh}",
           mode_seen == {"forward", "fresh"})
     check("ponymaxthreads spans the full [1, THREADS] range",

@@ -420,6 +420,18 @@ ISO_ACQUIRE_CEILING = 96000
 ISO_NODE_CEILING = 15
 
 
+# Calibrated ceiling on actorref chains (peak RSS tracks max chains). Hardcoded, NOT
+# derived from ACTORREF_CHAINS_BUCKETS, so bumping the chains bucket max trips this and
+# forces a memory re-measure. Unlike the cyclic/backpressure/iso ceilings above -- which
+# sit ~1x above their drawn max because their cost near that max is non-linear or
+# time-bound, so any bump past the calibrated max warrants a fresh measurement --
+# actorref's drawn max (34000 chains, ~100 MB) has ~40x headroom under the memory cap
+# and its cost is LINEAR, so this is a looser 2x trigger (matching the 2x SYSTEMATIC
+# ceilings below). Strict `<`, so an exact doubling of the chains bucket max reaches the
+# ceiling and trips the re-measure, not only a bump strictly past it.
+ACTORREF_CHAINS_CEILING = 34000 * 2
+
+
 # Systematic-mode cyclic/backpressure/iso are TIME-bound: kept small so the serialized
 # double-run soak's per-seed cost stays ~= the mesh-only cost it replaces. Guard the
 # PRODUCT that drives cost (like normal's cyclic_theoretical above), so a bump to
@@ -538,7 +550,7 @@ def test_draw_workload():
     # the chains bucket max; bumping it forces a memory re-measure on the normal build.
     check("actorref theoretical worst-case chains within the memory ceiling",
           common.ACTORREF_CHAINS_BUCKETS["large"][1]
-          < common.ACTORREF_CHAINS_CEILING)
+          < ACTORREF_CHAINS_CEILING)
     # iso's ttl floor is load-bearing coverage (a ttl=0 zero-hop chain terminates
     # without a hand-off, driving none of the per-hop foreign-mutable acquire-flood,
     # while conservation still passes). Assert the bucket floor directly.
