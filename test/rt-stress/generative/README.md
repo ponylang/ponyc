@@ -25,7 +25,7 @@ them lives in the two driver scripts, not behind a flag.
 ## The engine
 
 **`main.pony`** — the workload engine, identical in both modes. It draws one of
-four closed, count-driven workloads (`--workload`):
+five closed, count-driven workloads (`--workload`):
 
 - **`mesh`** — a closed mesh of `Pinger` actors: a fixed number of chains are
   injected, each with a hop count (TTL); a pinger forwards exactly one ping per
@@ -75,15 +75,34 @@ four closed, count-driven workloads (`--workload`):
   tally (`sent == received == chains * (ttl + 1)`); the `Carrier`s are live at
   quiescence (the `Dispatcher` holds them), so they are polled exactly like the
   mesh.
+- **`actorref`** — the `mesh` topology, but the cargo is a `Referent tag` (a
+  reference to a bare actor) instead of a `val` payload. A FRESH `Referent` is built
+  per injected chain and its tag rides the chain hop-to-hop; each `Relay` forwards
+  the tag onward and never stores it. A freshly received foreign actor reference sits
+  at reference count 1, so forwarding it exhausts its weighted budget on that send —
+  the forward drives ORCA's actor-reference ACQUIRE, and dropping it (never stored)
+  drives the RELEASE. So `send_remote_actor` / `recv_remote_actor` / `acquire_actor`
+  fire proportional to `chains * ttl` — the actor-reference machinery no other
+  workload exercises under load (measured: the others hit `acquire_actor` 0–1 times a
+  run, all at setup). A fixed referent pool was rejected by measurement: a shared
+  referent's weighted budget stays high, so forwards stop acquiring and the path goes
+  cold; fresh-per-chain also makes a lost release leak in proportion to `chains`.
+  Conservation is the mesh's full send/receive tally
+  (`sent == received == chains * (ttl + 1)`); the `Relay`s are live at quiescence
+  (the `Referrer` holds them), so they are polled exactly like the mesh, while the
+  referents become garbage as their chains drain (a premature free → a relay forwards
+  a dangling tag → crash; a lost release → a leak). See
+  `.known-couplings/actorref-workload-actor-ref-cargo.md`.
 
 For the mesh/cyclic/backpressure workloads the traced payload is a `val String` or
 a `U64` no-GC control (`--payload`), either reused as one object (forwarded down a
 chain, or re-sent by a producer) or re-allocated at each send
-(`--payload-mode forward|fresh`) — the swarm draws both. The `iso` workload has its
-OWN cargo knobs (`--node-size`/`--node-depth`/`--node-breadth` shape the iso graph)
-and does not draw the val payload at all: an `iso` is single-owner, so it can't ride
-the shared `(String val | U64)` payload union and can't be reused, only moved. On
-success the engine prints its result and lets the
+(`--payload-mode forward|fresh`) — the swarm draws both. The `iso` and `actorref`
+workloads do not draw the val payload at all: `iso` has its OWN cargo knobs
+(`--node-size`/`--node-depth`/`--node-breadth` shape the iso graph) and is
+single-owner, so it can't ride the shared `(String val | U64)` payload union;
+`actorref`'s cargo is a fresh actor `tag` built per chain in the engine, not a
+payload value. On success the engine prints its result and lets the
 program reach **natural
 quiescence** (no forced exit), so the `cyclic` workload's garbage is actually
 collected and the runtime's clean shutdown is itself exercised; only a
@@ -91,19 +110,24 @@ conservation *failure* forces a non-zero exit. The engine holds no configuration
 logic and no `@runtime_override_defaults`; every knob is a CLI flag set by the
 orchestrator.
 
-The systematic mode draws all four workloads (`mesh`, `cyclic`, `backpressure`,
-`iso`), with `--ponynoblock` drawn ~50% so the cycle detector runs under the
-reproducible oracle — cyclic collection and iso acquire both reproduce with the
+The systematic mode draws all five workloads (`mesh`, `cyclic`, `backpressure`,
+`iso`, `actorref`), with `--ponynoblock` drawn ~50% so the cycle detector runs under
+the reproducible oracle — cyclic collection and iso acquire both reproduce with the
 detector on, because the detector's recipient-scheduling sends are sorted by a stable
 actor id, so replay is layout-independent. `backpressure` is cycle-detector-independent;
 its determinism instead rides on the muting/unmuting arrival order, which also
 reproduces under replay — its per-work `ORDER_SIG` fold fingerprints that interleaving
-(see main.pony and .known-couplings/backpressure-workload-muting.md). Systematic keeps
-cyclic/backpressure/iso small (see the `SYSTEMATIC_*` caps in stress_common.py) so the
-serialized soak's per-seed cost stays at or below the mesh-only cost it replaces; the
-normal mode still carries the large-magnitude cyclic/iso runs, where real parallelism
-also catches the concurrent-collection, mute/unmute, and mutable-subgraph acquire races
-the serialized mode can't.
+(see main.pony and .known-couplings/backpressure-workload-muting.md). `actorref` rides
+on the same routing interleaving as mesh/iso (its per-completion `ORDER_SIG` fold), and
+it is the heaviest exerciser of the id-sorted actor acquire/release drain — a regression
+in that sort would perturb its `ORDER_SIG` (see
+.known-couplings/systematic-testing-send-ordering.md). Systematic keeps
+cyclic/backpressure/iso/actorref small (see the `SYSTEMATIC_*` caps in
+stress_common.py) so the serialized soak's per-seed cost stays at or below the
+mesh-only cost it replaces; the normal mode still carries the large-magnitude
+cyclic/iso/actorref runs, where real parallelism also catches the concurrent-collection,
+mute/unmute, mutable-subgraph acquire, and actor-reference acquire/release races the
+serialized mode can't.
 
 ## Running it
 
@@ -145,10 +169,12 @@ non-deterministic, so a replay won't necessarily reproduce a failure).
 
 ## Oracles
 
-- **Conservation** — the `mesh` and `iso` workloads poll an exact, independent
-  per-actor send/receive tally from the live pingers/carriers (`sent == received ==
-  chains * (ttl + 1)`); a duplicate or miscounted message shows as a tally mismatch.
-  A *lost* mesh/iso message does NOT show here — the chain never completes, so the
+- **Conservation** — the `mesh`, `iso`, and `actorref` workloads poll an exact,
+  independent per-actor send/receive tally from the live pingers/carriers/relays
+  (`sent == received == chains * (ttl + 1)`); a duplicate or miscounted message shows
+  as a tally mismatch. (For `actorref` the tally is on the live relays; the referents
+  are garbage by quiescence but carry no tally — they are pure cargo.) A *lost*
+  mesh/iso/actorref message does NOT show here — the chain never completes, so the
   tally is never polled — it surfaces as a liveness timeout instead. The
   `backpressure` workload is the strongest on *lost* messages: its `finished`
   reports are sent independently of work delivery, so a lost work still lets
@@ -163,10 +189,12 @@ non-deterministic, so a replay won't necessarily reproduce a failure).
   `backpressure`, a work or `finished` after completion, or more `finished`
   reports than producers, is a duplicate; for `cyclic`, a completion beyond the
   expected total is a duplicate; for `iso`, a handoff arriving after a `Carrier`
-  has reported, or a completion beyond `chains`, is a duplicate. All trip the
-  engine's fatal-fault path. (A *lost* mesh/cyclic/iso message instead leaves
-  its chain incomplete forever — caught by the liveness timeout, not here; only
-  `backpressure` catches a lost message as a conservation failure.)
+  has reported, or a completion beyond `chains`, is a duplicate; for `actorref`, a
+  `cite` arriving after a `Relay` has reported, or a completion beyond `chains`, is a
+  duplicate. All trip the engine's fatal-fault path. (A *lost* mesh/cyclic/iso/actorref
+  message instead leaves its chain incomplete forever — caught by the liveness
+  timeout, not here; only `backpressure` catches a lost message as a conservation
+  failure.)
 - **Parcel integrity** (`iso` workload) — the only oracle in the harness that
   checks message *contents*, not just counts. Every node of the graph is built with
   sentinel bytes; at the terminal hop the `Carrier` consumes the graph into a `ref`
@@ -195,6 +223,17 @@ non-deterministic, so a replay won't necessarily reproduce a failure).
   spawned == finalized count — finalisers
   can't send messages and run partly at teardown, so an explicit count is deferred;
   a gross silent leak is backstopped by `RLIMIT_AS`.)
+- **Actor-reference machinery** (`actorref` workload) — forwarding a fresh, unheld
+  actor `tag` drives ORCA's actor-reference send/recv/acquire/release proportional to
+  `chains * ttl` (the path the other workloads leave cold). This is *coverage*: a bug
+  in that machinery surfaces as a crash or a debug `pony_assert` under the heavy churn
+  (an over-count → a premature free of a referent → a relay forwards a dangling tag),
+  or as memory growth past the calibrated bound (an under-count → a lost release →
+  referents leak, and fresh-per-chain makes that leak scale with `chains`). Honest
+  boundary: there is no in-Pony referent tally (a `tag` can't observe its own ORCA
+  receives), so a *small* under-count that doesn't push memory over the bound still
+  slips — the same class of gap `iso` documents for interior corruption. Under the
+  normal mode's real parallelism the acquire/release races the live forwarding.
 - **Crash / `pony_assert`** — debug build, asserts on; a failed assert prints its
   own backtrace to the captured output, and the normal mode additionally runs
   each seed under lldb so even a raw crash with no assert is captured with a
@@ -231,11 +270,14 @@ non-crashing trace or GC corruption (wrong bytes, truncation) on one of those wo
 pass every oracle above — conservation counts messages and `ORDER_SIG` mixes ids
 and counts. (The `iso` workload *narrows* this for itself — its terminal `Carrier`
 checks the endpoint sentinel bytes of the parcel; see Parcel integrity above — but
-interior corruption still slips through there too, and the other three check no
+interior corruption still slips through there too, and the other workloads check no
 bytes. A full byte-integrity check is deferred.) Also deferred to a later round:
-richer allocation-diversity work, the `iso` graph carrying `tag` actor references
-(dynamic cross-actor edges that can form cycles) rather than only byte arrays, and an
-exact spawned == finalized count for the `cyclic` workload.
+richer allocation-diversity work, an exact spawned == finalized count for the
+`cyclic` workload, and — building on `actorref`, which drives actor-reference
+acquire/release churn but keeps its referents inert — a variant whose forwarded
+actor `tag`s form collectible cross-actor *cycles* (referents that reference each
+other), so the detector must break a dynamically-formed actor cycle rather than the
+statically-wired one `cyclic` gives.
 
 ## Tests
 
@@ -244,12 +286,12 @@ Three self-contained test files (no pytest), run in CI via `lint-python.yml`:
 - `stress_common_test.py` — the shared pure pieces (seed derivation, the workload
   draws including `draw_workload`, output parsing, command building).
 - `orchestrate_systematic_test.py` — the systematic config draw (pinned per-kind
-  goldens; draws `mesh`/`cyclic`/`backpressure`/`iso` with `--ponynoblock` as a swarm
-  knob).
+  goldens; draws `mesh`/`cyclic`/`backpressure`/`iso`/`actorref` with `--ponynoblock`
+  as a swarm knob).
 - `orchestrate_normal_test.py` — the normal config draw (no systematic seed,
-  `ponynoblock` as a swarm knob, all four workload kinds drawn, the cyclic memory
-  ceiling, the backpressure message ceiling, the iso chains/ttl burst ceilings,
-  pinned per-kind goldens).
+  `ponynoblock` as a swarm knob, all five workload kinds drawn, the cyclic memory
+  ceiling, the backpressure message ceiling, the iso chains/ttl burst ceilings, the
+  actorref chains ceiling, pinned per-kind goldens).
 
 Run one directly:
 

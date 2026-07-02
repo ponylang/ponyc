@@ -60,36 +60,41 @@ def resolve_config(master_seed, max_threads):
     not forced), so both the cycle-detector-on and -off paths are exercised --
     this is where the cycle detector gets its stress coverage.
 
-    Normal mode draws one of four workloads (draw_workload): `mesh` (the static M0
+    Normal mode draws one of five workloads (draw_workload): `mesh` (the static M0
     mesh), `cyclic` (successive groups of strongly-connected actors that drop their
     external reference, so the cycle detector must reclaim them), `backpressure`
     (a star of producers flooding one consumer that explicitly applies/releases
-    runtime backpressure, driving the UNDER_PRESSURE muting path), or `iso` (the mesh
+    runtime backpressure, driving the UNDER_PRESSURE muting path), `iso` (the mesh
     topology handing a nested `iso` object graph hop-to-hop by `consume`, so the
-    receiver acquires a foreign mutable subgraph). A `mesh` run draws a small->large
-    magnitude in chains/ttl (the magnitude buckets, reaching ~1.16B messages); a
-    `cyclic` run draws the magnitude in GENERATIONS and keeps chains/ttl small
+    receiver acquires a foreign mutable subgraph), or `actorref` (the mesh topology
+    carrying a fresh actor `tag` per chain, forwarded and dropped, driving ORCA's
+    actor-reference acquire/release). A `mesh` run draws a small->large magnitude in
+    chains/ttl (the magnitude buckets, reaching ~1.16B messages); a `cyclic` run draws
+    the magnitude in GENERATIONS and keeps chains/ttl small
     (total = generations*chains*(ttl+1)); a `backpressure` run draws the magnitude in
     MESSAGES per producer (total = producers*messages) and has no chains/ttl; an
     `iso` run reuses pingers and draws its graph shape (node-size/depth/breadth) plus
     small chains/ttl from its own buckets, then clamps chains to the acquire budget
-    (the injection burst, not raw volume, governs its memory). The payload
-    (kind/size/mode) is drawn freely; a `mesh` run's ttl is then trimmed to a run-time
-    ceiling (clamp_ttl), since a forward run's cost grows with chains^2 and a
-    high-chains/high-ttl draw would otherwise run for hours; an `iso` run draws then
-    ignores the payload, since its cargo is the iso graph.
+    (the injection burst, not raw volume, governs its memory); an `actorref` run reuses
+    pingers and draws chains from a magnitude bucket (RSS tracks chains) with a SMALL
+    ttl (bounds run time; ttl >= 1 required). The payload (kind/size/mode) is drawn
+    freely; a `mesh` run's ttl is then trimmed to a run-time ceiling (clamp_ttl), since
+    a forward run's cost grows with chains^2 and a high-chains/high-ttl draw would
+    otherwise run for hours; `iso` and `actorref` runs draw then ignore the payload,
+    since their cargo is not a val payload.
 
     This mode is non-reproducible (real parallelism), so a seed maps to a
     *configuration* deterministically but not to an *execution*. The draw order is
     pinned (orchestrate_normal_test.py) so a seed yields a stable config:
     draw_workload (kind + cyclic shape + backpressure shape + iso cargo shape, fixed
-    consumption) -> pingers (always drawn; used by a mesh or iso run) -> chains
-    (bucketed, the kind's own buckets) -> ttl (bucketed) -> payload (kind, mode,
-    size) -> ponynoblock -> the four shared swarm knobs -> ponymaxthreads last.
-    Drawing the workload kind first lets the shared chains/ttl/payload draws pick the
-    kind's bucket ranges while making the same sequence of draws regardless of kind.
-    This contract is independent of the systematic driver's, and it intentionally
-    differs from the three-kind draw, so historical normal-mode seeds remap.
+    consumption; actorref adds no cargo draw) -> pingers (always drawn; used by a
+    mesh/iso/actorref run) -> chains (bucketed, the kind's own buckets) -> ttl
+    (bucketed) -> payload (kind, mode, size) -> ponynoblock -> the four shared swarm
+    knobs -> ponymaxthreads last. Drawing the workload kind first lets the shared
+    chains/ttl/payload draws pick the kind's bucket ranges while making the same
+    sequence of draws regardless of kind. This contract is independent of the
+    systematic driver's, and it intentionally differs from the four-kind draw, so
+    historical normal-mode seeds remap.
     """
     program_seed = common.derive_seed(master_seed, "program")
     rng = random.Random(master_seed)
@@ -108,6 +113,14 @@ def resolve_config(master_seed, max_threads):
     elif kind == "iso":
         chains_buckets = common.ISO_CHAINS_BUCKETS
         ttl_buckets = common.ISO_TTL_BUCKETS
+    elif kind == "actorref":
+        # actorref's memory tracks chains (flat in ttl), so it uses a chains-magnitude
+        # bucket capped for RSS and a SMALL ttl bucket (ttl bounds run time via the hop
+        # count and must be >= 1 -- a zero-hop (ttl=0) chain drives no acquire). It
+        # must NOT fall into the mesh `else`: NORMAL_SIZE_BUCKETS for ttl would give
+        # ttl up to 34000, exploding chains*ttl total messages and run time.
+        chains_buckets = common.ACTORREF_CHAINS_BUCKETS
+        ttl_buckets = common.ACTORREF_TTL_BUCKETS
     else:                          # mesh; backpressure draws-then-ignores
         chains_buckets = common.NORMAL_SIZE_BUCKETS
         ttl_buckets = common.NORMAL_SIZE_BUCKETS
@@ -153,15 +166,21 @@ def resolve_config(master_seed, max_threads):
         workload["node-size"] = node_size
         workload["node-depth"] = depth
         workload["node-breadth"] = breadth
+    elif kind == "actorref":
+        # actorref carries the mesh shape (pingers/chains/ttl) but NO payload -- its
+        # cargo is a fresh actor tag per chain, built in the engine.
+        workload["pingers"] = pingers
+        workload["chains"] = chains
+        workload["ttl"] = ttl
     else:
         workload["pingers"] = pingers
         workload["chains"] = chains
         workload["ttl"] = ttl
-    # The val payload is emitted for every kind EXCEPT iso: an iso run picks from its
-    # own cargo knobs above (node-size/depth/breadth), so the engine never receives a
-    # payload flag it would ignore. The draw still happened (fixed consumption); only
-    # the emit is per-kind.
-    if kind != "iso":
+    # The val payload is emitted for every kind EXCEPT iso and actorref: those carry
+    # their own cargo (iso's node graph; actorref's fresh actor tag), so the engine
+    # never receives a payload flag it would ignore. The draw still happened (fixed
+    # consumption); only the emit is per-kind.
+    if kind not in ("iso", "actorref"):
         workload["payload"] = payload
         workload["payload-size"] = size
         workload["payload-mode"] = mode

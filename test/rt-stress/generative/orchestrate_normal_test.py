@@ -6,9 +6,10 @@ Normal mode is non-reproducible at runtime, but a seed still maps to a stable
 *config* -- the per-kind goldens below pin that draw order. The two things that
 distinguish normal from systematic are asserted explicitly: no systematic seed is
 ever set, and ponynoblock is a swarm knob (drawn, not forced). Normal mode draws
-one of four workload kinds (`mesh`, `cyclic`, `backpressure`, or `iso`); the
-per-kind shape, the cyclic memory ceiling, the backpressure message ceiling, and
-the iso chains/ttl burst ceilings are checked here too.
+one of five workload kinds (`mesh`, `cyclic`, `backpressure`, `iso`, or
+`actorref`); the per-kind shape, the cyclic memory ceiling, the backpressure
+message ceiling, the iso chains/ttl burst ceilings, and the actorref chains ceiling
+are checked here too.
 """
 import sys
 
@@ -52,13 +53,14 @@ def check(name, condition):
 def test_resolve_config_mesh_golden():
     # Pin a MESH config: the normal-mode seed-stability guard for the mesh emit
     # shape (pingers + chains + ttl, no generations/group/producers). Distinct from
-    # the systematic golden -- normal draws the workload kind first (now 4-way), then
+    # the systematic golden -- normal draws the workload kind first (now 5-way), then
     # bucketed chains/ttl (a mesh run's ttl then trimmed to the run-time ceiling), a
     # freely-drawn payload, and ponynoblock as a swarm knob, and carries no
     # systematic seed.
-    # (This intentionally differs from the three-kind normal golden -- the 4-way kind
-    # roll and the extra iso cargo-shape draws remap every historical seed, and the
-    # weight change remaps which seed rolls which kind.) Seed 1 rolls mesh.
+    # (This intentionally differs from any earlier-arity normal golden -- the 5-way
+    # kind roll remaps every historical seed via the reweighted thresholds; the
+    # actorref addition draws no new cargo, so only the kind-roll thresholds moved.)
+    # Seed 1 rolls mesh.
     expected = {
         "master_seed": 1,
         "runtime": {
@@ -164,6 +166,33 @@ def test_resolve_config_iso_golden():
           normal.resolve_config(0, THREADS) == expected)
 
 
+def test_resolve_config_actorref_golden():
+    # Pin an ACTORREF config: pingers/chains/ttl and NO val payload and NO
+    # generations/group/producers/messages/apply-every and NO iso cargo -- its cargo is
+    # a fresh actor tag per chain, built in the engine. Seed 2 rolls actorref. chains is
+    # drawn from its own magnitude bucket (no clamp -- memory tracks chains and stays
+    # far under the cap); ttl from its small bucket (ttl >= 1).
+    expected = {
+        "master_seed": 2,
+        "runtime": {
+            "ponygcfactor": 2.0,
+            "ponygcinitial": 0,
+            "ponymaxthreads": 7,
+            "ponynoblock": True,
+            "ponynoscale": True,
+        },
+        "workload": {
+            "chains": 11523,
+            "pingers": 2,
+            "seed": 10172212549529217571,
+            "ttl": 8,
+            "workload": "actorref",
+        },
+    }
+    check("resolve_config(2, 8) matches the pinned actorref golden config",
+          normal.resolve_config(2, THREADS) == expected)
+
+
 def test_resolve_config_never_sets_systematic_seed():
     # The defining guard for normal mode: a normal runtime REJECTS
     # --ponysystematictestingseed, so resolve_config must never emit one.
@@ -195,12 +224,13 @@ def test_resolve_config_deterministic_and_bounded():
           normal.resolve_config(7, THREADS)
           == normal.resolve_config(7, THREADS))
 
-    # Invariants over all four workload kinds: each carries ONLY its own shape
+    # Invariants over all five workload kinds: each carries ONLY its own shape
     # fields (mesh: pingers+chains+ttl; cyclic: generations+group+chains+ttl;
     # backpressure: producers+messages+apply-every and NO chains/ttl; iso:
     # pingers+chains+ttl + its OWN cargo knobs node-size/node-depth/node-breadth and
-    # NO val payload). This is the structural check that the per-kind emit never
-    # leaks a field from another kind. (iso's lack of payload is itself checked: the
+    # NO val payload; actorref: pingers+chains+ttl and NO val payload). This is the
+    # structural check that the per-kind emit never leaks a field from another kind.
+    # (iso's lack of payload is itself checked: the
     # shared payload reads below are guarded for iso.)
     cyclic_gen_lo = common.CYCLIC_GENERATION_BUCKETS["small"][0]
     cyclic_gen_hi = common.CYCLIC_GENERATION_BUCKETS["large"][1]
@@ -210,6 +240,10 @@ def test_resolve_config_deterministic_and_bounded():
     bp_msg_hi = common.BACKPRESSURE_MESSAGE_BUCKETS["large"][1]
     iso_ttl_lo = common.ISO_TTL_BUCKETS["small"][0]
     iso_ttl_hi = common.ISO_TTL_BUCKETS["large"][1]
+    ar_chains_lo = common.ACTORREF_CHAINS_BUCKETS["small"][0]
+    ar_chains_hi = common.ACTORREF_CHAINS_BUCKETS["large"][1]
+    ar_ttl_lo = common.ACTORREF_TTL_BUCKETS["small"][0]
+    ar_ttl_hi = common.ACTORREF_TTL_BUCKETS["large"][1]
     # Every other kind's unique fields, which the iso emit must never carry, and the
     # iso cargo knobs, which the OTHER kinds must never carry.
     iso_cargo = ("node-size", "node-depth", "node-breadth")
@@ -292,11 +326,26 @@ def test_resolve_config_deterministic_and_bounded():
             if (work["chains"] * common.ISO_TTL_MAX * nodes
                     > common.ISO_ACQUIRE_BUDGET):
                 invariants_hold = False
+        elif kind == "actorref":
+            # pingers+chains+ttl and NO val payload; no other kind's fields and no iso
+            # cargo. chains from the actorref magnitude bucket, ttl from its small
+            # bucket (ttl >= 1 -- a zero-hop (ttl=0) chain drives no acquire).
+            if any(k in work for k in
+                   ("generations", "group", "producers", "messages",
+                    "apply-every", "payload", "payload-size", "payload-mode")
+                   + iso_cargo):
+                invariants_hold = False
+            if work["pingers"] not in PINGERS_ALLOWED:
+                invariants_hold = False
+            if not (ar_chains_lo <= work["chains"] <= ar_chains_hi):
+                invariants_hold = False
+            if not (ar_ttl_lo <= work["ttl"] <= ar_ttl_hi):
+                invariants_hold = False
         else:
             invariants_hold = False
-        # Payload is shared by mesh/cyclic/backpressure but NOT iso (iso picks its
-        # own cargo set), so guard the shared reads for iso.
-        if kind != "iso":
+        # Payload is shared by mesh/cyclic/backpressure but NOT iso/actorref (they pick
+        # their own cargo), so guard the shared reads for those.
+        if kind not in ("iso", "actorref"):
             if work["payload"] not in ("string", "u64"):
                 invariants_hold = False
             if work["payload-size"] not in SIZE_ALLOWED:
@@ -330,6 +379,11 @@ def test_resolve_config_deterministic_and_bounded():
           common.ISO_ACQUIRE_BUDGET <= ISO_ACQUIRE_CEILING)
     check("iso max graph node count within the ceiling",
           iso_max_nodes <= ISO_NODE_CEILING)
+    # actorref peak RSS tracks CHAINS (flat in ttl -- calibrated), so the guard is on
+    # the chains bucket max; bumping it forces a memory re-measure on the normal build.
+    check("actorref theoretical worst-case chains within the memory ceiling",
+          common.ACTORREF_CHAINS_BUCKETS["large"][1]
+          <= common.ACTORREF_CHAINS_CEILING)
     check("payload-mode covers {forward, fresh}",
           mode_seen == {"forward", "fresh"})
     check("ponymaxthreads spans the full [1, THREADS] range",
@@ -337,14 +391,14 @@ def test_resolve_config_deterministic_and_bounded():
 
 
 def test_resolve_config_draws_all_workloads():
-    # Swarm coverage: over many seeds all four workload kinds must appear, or one of
-    # the cycle-detector / backpressure / iso / mesh paths would go untested in a
-    # soak.
+    # Swarm coverage: over many seeds all five workload kinds must appear, or one of
+    # the cycle-detector / backpressure / iso / actorref / mesh paths would go untested
+    # in a soak.
     kinds = set()
     for master in range(0, 300):
         kinds.add(normal.resolve_config(master, THREADS)["workload"]["workload"])
-    check("normal mode draws all of mesh, cyclic, backpressure, iso",
-          kinds == {"mesh", "cyclic", "backpressure", "iso"})
+    check("normal mode draws all of mesh, cyclic, backpressure, iso, actorref",
+          kinds == {"mesh", "cyclic", "backpressure", "iso", "actorref"})
 
 
 def test_resolve_config_swarm_omission():
@@ -373,12 +427,14 @@ def test_resolve_config_magnitude_buckets():
     gb = common.CYCLIC_GENERATION_BUCKETS
     mb = common.BACKPRESSURE_MESSAGE_BUCKETS
     itb = common.ISO_TTL_BUCKETS
+    acb = common.ACTORREF_CHAINS_BUCKETS
     mesh_chains = {"small": 0, "medium": 0, "large": 0}
     mesh_ttl = {"small": 0, "medium": 0, "large": 0}
     cyclic_gen = {"small": 0, "medium": 0, "large": 0}
     bp_messages = {"small": 0, "medium": 0, "large": 0}
     iso_ttl = {"small": 0, "medium": 0, "large": 0}
     iso_node_counts = set()
+    actorref_chains = {"small": 0, "medium": 0, "large": 0}
 
     def bucket_of(val, buckets):
         if val <= buckets["small"][1]:
@@ -397,6 +453,8 @@ def test_resolve_config_magnitude_buckets():
             cyclic_gen[bucket_of(w["generations"], gb)] += 1
         elif wl == "backpressure":
             bp_messages[bucket_of(w["messages"], mb)] += 1
+        elif wl == "actorref":
+            actorref_chains[bucket_of(w["chains"], acb)] += 1
         else:  # iso
             iso_ttl[bucket_of(w["ttl"], itb)] += 1
             iso_node_counts.add(
@@ -416,15 +474,21 @@ def test_resolve_config_magnitude_buckets():
                         for d in common.ISO_DEPTHS for b in common.ISO_BREADTHS)
     check("iso graph reaches both the single node and the max tree",
           (1 in iso_node_counts) and (iso_max_nodes in iso_node_counts))
+    check("actorref chains reaches all three magnitude buckets",
+          all(c > 0 for c in actorref_chains.values()))
 
 
 def test_resolve_config_draws_single_pinger():
-    # pingers=1 must be drawn for some MESH run AND some ISO run: it exercises the
-    # ORCA self-send path (bounded since PR #5594), so the soak keeps a standing
-    # stress on that fix -- the iso run additionally self-sends an iso nested graph,
-    # exercising the pin with a moved mutable subgraph (see self-send-object-pinning).
+    # pingers=1 must be drawn for some MESH run AND some ISO run AND some ACTORREF run:
+    # it exercises the ORCA self-send path (bounded since PR #5594), so the soak keeps a
+    # standing stress on that fix -- the iso run additionally self-sends an iso nested
+    # graph (exercising the pin with a moved mutable subgraph, see
+    # self-send-object-pinning), and the actorref run self-sends a foreign actor `tag`
+    # (the highest actor-ref acquire rate, measured memory-safe -- no #5594-style flood,
+    # since fresh referents move hop-to-hop and are collected).
     mesh_one_seen = False
     iso_one_seen = False
+    actorref_one_seen = False
     for master in range(0, 500):
         w = normal.resolve_config(master, THREADS)["workload"]
         # cyclic/backpressure have no `pingers`, so .get() guards the read.
@@ -433,8 +497,11 @@ def test_resolve_config_draws_single_pinger():
                 mesh_one_seen = True
             elif w["workload"] == "iso":
                 iso_one_seen = True
+            elif w["workload"] == "actorref":
+                actorref_one_seen = True
     check("normal mode draws a mesh run with pingers=1", mesh_one_seen)
     check("normal mode draws an iso run with pingers=1", iso_one_seen)
+    check("normal mode draws an actorref run with pingers=1", actorref_one_seen)
 
 
 def test_resolve_config_mesh_run_time_bounded():
@@ -472,6 +539,7 @@ def main():
     test_resolve_config_cyclic_golden()
     test_resolve_config_backpressure_golden()
     test_resolve_config_iso_golden()
+    test_resolve_config_actorref_golden()
     test_resolve_config_never_sets_systematic_seed()
     test_ponynoblock_is_a_swarm_knob()
     test_resolve_config_deterministic_and_bounded()
