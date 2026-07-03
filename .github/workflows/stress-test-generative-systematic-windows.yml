@@ -14,13 +14,6 @@ on:
 permissions:
   packages: write
 
-# Second stress lane. The other stress workflows (the tcp-open-close trio) share
-# the repo-wide `stress-scheduled` group (one at a time); the generative workflows
-# -- systematic and normal -- share their own `stress-scheduled-generative` group,
-# so at most one of each lane runs at once -- at most two stress workflows in
-# total. Manual runs get a unique group (github.run_id) so a branch check never
-# queues behind the loop. Relies on these workflows having exactly two triggers
-# (schedule + workflow_dispatch) -- see the per-event flag/alert conditions below.
 concurrency:
   group: stress-${{ github.event_name == 'workflow_dispatch' && github.run_id || 'scheduled-generative' }}
   cancel-in-progress: false

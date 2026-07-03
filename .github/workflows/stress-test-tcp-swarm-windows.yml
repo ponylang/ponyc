@@ -1,8 +1,8 @@
-name: "Stress Test: Windows TCP Open/Close"
+name: "Stress Test: Windows TCP Swarm"
 
 on:
   schedule:
-    - cron: "0 17 * * *"
+    - cron: "30 16 * * *"
   workflow_dispatch:
     inputs:
       sha:
@@ -14,12 +14,6 @@ on:
 permissions:
   packages: write
 
-# Serialize the scheduled stress loop to one workflow at a time (groups are
-# repo-wide, so the three tcp-open-close stress workflows share `stress-scheduled`;
-# the generative workflows share their own `stress-scheduled-generative`). Manual
-# runs get a unique group (github.run_id) so a branch check never queues behind
-# the loop. Relies on these workflows having exactly two triggers (schedule +
-# workflow_dispatch) -- see the per-event flag/alert conditions below.
 concurrency:
   group: stress-${{ github.event_name == 'workflow_dispatch' && github.run_id || 'scheduled' }}
   cancel-in-progress: false
@@ -30,22 +24,9 @@ jobs:
     defaults:
       run:
         shell: pwsh
+    timeout-minutes: 90
 
-    strategy:
-      fail-fast: false
-      max-parallel: 2
-      matrix:
-        include:
-          - name: "x86-64 Windows [release]"
-            target: stress-test-tcp-open-close-release
-          - name: "x86-64 Windows [debug]"
-            target: stress-test-tcp-open-close-debug
-          - name: "x86-64 Windows [cd] [release]"
-            target: stress-test-tcp-open-close-with-cd-release
-          - name: "x86-64 Windows [cd] [debug]"
-            target: stress-test-tcp-open-close-with-cd-debug
-
-    name: ${{matrix.target}}:${{ matrix.name }}
+    name: x86-64 Windows tcp swarm [debug]
     steps:
       - name: Disable Windows Defender
         run: Set-MpPreference -DisableRealtimeMonitoring $true
@@ -54,23 +35,11 @@ jobs:
         with:
           ref: ${{ github.event.inputs.sha || 'main' }}
       - name: Install Dependencies
-        # Pin mingw-w64 LLVM family and the runtime dependencies lldb
-        # imports against.
-        #
-        # History:
-        # (1) 2026-05-03: lldb-22.1.4-2 ("llvm: emutls rebuild") crashed
-        #     in liblldb.dll with 0xC0000005. Pinned llvm-libs,
-        #     clang-libs, lldb to 22.1.4-1.
-        # (2) 2026-05-11: msys2 bumped unpinned dependencies (gcc-libs
-        #     16.1.0-2 -> -3, plus expat/mpdecimal/python pkgrel bumps).
-        #     The pinned lldb 22.1.4-1 then failed to load with
-        #     0xC0000139 STATUS_ENTRYPOINT_NOT_FOUND — the rebuilt deps
-        #     had shifted symbols out from under lldb. Extended the pin
-        #     to those deps.
-        #
-        # See Discussion #5007. Installed via `pacman -U` from explicit
-        # URLs so the initial `-Syuu` can't re-introduce a broken
-        # combination.
+        # lldb (and the mingw-w64 LLVM/clang runtime libraries it imports against)
+        # so each seed can run under lldb and capture a crash backtrace. Pinned per
+        # Discussion #5007 (an unpinned lldb bump crashed/failed to load); installed
+        # via `pacman -U` from explicit URLs so `-Syuu` can't re-introduce a broken
+        # combination. Kept in sync with the generative-normal-windows workflow.
         run: |
           function msys() { C:\msys64\usr\bin\bash.exe @('-lc') + @Args }
           msys ' '
@@ -79,7 +48,6 @@ jobs:
           msys 'pacman --noconfirm -S --needed base-devel'
           msys 'pacman --noconfirm -U https://repo.msys2.org/mingw/mingw64/mingw-w64-x86_64-llvm-libs-22.1.4-1-any.pkg.tar.zst https://repo.msys2.org/mingw/mingw64/mingw-w64-x86_64-clang-libs-22.1.4-1-any.pkg.tar.zst https://repo.msys2.org/mingw/mingw64/mingw-w64-x86_64-lldb-22.1.4-1-any.pkg.tar.zst https://repo.msys2.org/mingw/mingw64/mingw-w64-x86_64-gcc-libs-16.1.0-2-any.pkg.tar.zst https://repo.msys2.org/mingw/mingw64/mingw-w64-x86_64-expat-2.8.0-1-any.pkg.tar.zst https://repo.msys2.org/mingw/mingw64/mingw-w64-x86_64-mpdecimal-4.0.1-2-any.pkg.tar.zst https://repo.msys2.org/mingw/mingw64/mingw-w64-x86_64-python-3.14.4-2-any.pkg.tar.zst'
           msys 'pacman --noconfirm -Scc'
-          python.exe -m pip install --upgrade cloudsmith-cli
       - name: Restore prebuilt libs
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -102,9 +70,24 @@ jobs:
       - name: Build Debug Runtime
         if: ${{ hashFiles('.libs-cache-miss') == '' }}
         run: .\make.ps1 -Command build -Config Debug
-      - name: Run Stress Test
+      - name: Run TCP Swarm Stress Test
         if: ${{ hashFiles('.libs-cache-miss') == '' }}
-        run: .\make.ps1 -Command ${{ matrix.target }} -Config Debug
+        run: |
+          python test/rt-stress/tcp-swarm/orchestrate_tcp.py `
+            --ponyc build/debug/ponyc.exe `
+            --lldb 'C:\msys64\mingw64\bin\lldb.exe' `
+            --start ${{ github.run_id }} --budget-seconds 1800 `
+            --timeout-seconds 600 `
+            --max-connections 1000 `
+            --out rt-stress-out
+      # cancelled() too: keep bundles from seeds that ran before a cancel.
+      - name: Upload failure bundles
+        if: ${{ (failure() || cancelled()) && hashFiles('.libs-cache-miss') == '' }}
+        uses: actions/upload-artifact@v4.6.2
+        with:
+          name: tcp-swarm-bundles-windows
+          path: rt-stress-out/*.json
+          if-no-files-found: ignore
       # cancelled() too: failure() is false when a job hits timeout-minutes.
       - name: Send alert on failure or cancellation
         if: ${{ (failure() || cancelled()) && github.event_name == 'schedule' }}

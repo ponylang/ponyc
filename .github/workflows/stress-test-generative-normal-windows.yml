@@ -14,13 +14,6 @@ on:
 permissions:
   packages: write
 
-# Second stress lane. The other stress workflows (the tcp-open-close trio) share
-# the repo-wide `stress-scheduled` group (one at a time); the generative workflows
-# -- systematic and normal -- share their own `stress-scheduled-generative` group,
-# so at most one of each lane runs at once -- at most two stress workflows in
-# total. Manual runs get a unique group (github.run_id) so a branch check never
-# queues behind the loop. Relies on these workflows having exactly two triggers
-# (schedule + workflow_dispatch) -- see the per-event flag/alert conditions below.
 concurrency:
   group: stress-${{ github.event_name == 'workflow_dispatch' && github.run_id || 'scheduled-generative' }}
   cancel-in-progress: false
@@ -31,14 +24,6 @@ jobs:
     defaults:
       run:
         shell: pwsh
-    # Whole-job ceiling: ponyc debug build + a 90-min wall-clock soak
-    # (--budget-seconds) + a final-seed overshoot. A large run is ~15-20 min, but the
-    # orchestrator's flat per-run timeout (~100 min) bounds a HUNG final run, so the
-    # worst case is build + 90 + 100, well under this cap. The six generative
-    # workflows share one concurrency group; a 240m cap can't drop the next
-    # scheduled run (a drop needs one run still going across two cron firings,
-    # >6h at the tightest 3h spacing), though a job near the cap can delay the
-    # next. See .known-couplings/stress-test-concurrency.md.
     timeout-minutes: 240
 
     name: x86-64 Windows generative normal [debug]

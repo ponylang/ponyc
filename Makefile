@@ -8,7 +8,6 @@ llvm_config ?= Release
 llvm_tools ?= true
 llc_arch ?= x86-64
 pic_flag ?=
-open_close_stress_connections ?= 10000000
 test_full_program_timeout ?= 60
 
 ifndef version
@@ -215,7 +214,7 @@ else ifneq ($(strip $(usedebugger)),)
 endif
 
 .DEFAULT_GOAL := build
-.PHONY: all libs cleanlibs configure cross-configure build test test-ci-core test-check-version test-core test-stdlib-debug test-stdlib-release test-examples test-stress test-validate-grammar clean test-pony-lsp pony-lint test-pony-lint lint-pony-lint lint-pony-doc lint-pony-lsp pony-doc test-pony-doc test-pony-compiler
+.PHONY: all libs cleanlibs configure cross-configure build test test-ci-core test-check-version test-core test-stdlib-debug test-stdlib-release test-examples test-validate-grammar clean test-pony-lsp pony-lint test-pony-lint lint-pony-lint lint-pony-doc lint-pony-lsp pony-doc test-pony-doc test-pony-compiler
 
 libs:
 	$(SILENT)mkdir -p '$(libsBuildDir)'
@@ -410,30 +409,6 @@ test-pony-lint: $(outDir)/pony-lint-tests
 
 test-pony-compiler: $(outDir)/pony-compiler-tests
 	$(SILENT)cd '$(outDir)' && PONYPATH=../../tools/lib/ponylang/pony_compiler:../../packages:$(PONYPATH) ./pony-compiler-tests --sequential
-
-test-cross-stress-release: cross_args=--triple=$(cross_triple) --cpu=$(cross_cpu) --link-arch=$(cross_arch) $(if $(cross_sysroot),--sysroot='$(cross_sysroot)') $(cross_ponyc_args)
-test-cross-stress-release: debuggercmd=
-test-cross-stress-release: test-stress-release
-test-stress-tcp-open-close-release: all
-	$(SILENT)cd '$(outDir)' && PONYPATH=.:$(PONYPATH) ./ponyc -b open-close --pic $(cross_args) ../../test/rt-stress/tcp-open-close && echo Built `pwd`/open-close && $(cross_runner) $(debuggercmd) ./open-close --ponynoblock $(open_close_stress_connections)
-
-test-cross-stress-debug: cross_args=--triple=$(cross_triple) --cpu=$(cross_cpu) --link-arch=$(cross_arch) $(if $(cross_sysroot),--sysroot='$(cross_sysroot)') $(cross_ponyc_args)
-test-cross-stress-debug: debuggercmd=
-test-cross-stress-debug: test-stress-debug
-test-stress-tcp-open-close-debug: all
-	$(SILENT)cd '$(outDir)' && PONYPATH=.:$(PONYPATH) ./ponyc -d -b open-close --pic $(cross_args) ../../test/rt-stress/tcp-open-close && echo Built `pwd`/open-close && $(cross_runner) $(debuggercmd) ./open-close --ponynoblock $(open_close_stress_connections)
-
-test-cross-stress-with-cd-release: cross_args=--triple=$(cross_triple) --cpu=$(cross_cpu) --link-arch=$(cross_arch) $(if $(cross_sysroot),--sysroot='$(cross_sysroot)') $(cross_ponyc_args)
-test-cross-stress-with-cd-release: debuggercmd=
-test-cross-stress-with-cd-release: test-stress-with-cd-release
-test-stress-tcp-open-close-with-cd-release: all
-	$(SILENT)cd '$(outDir)' && PONYPATH=.:$(PONYPATH) ./ponyc -b open-close --pic $(cross_args) ../../test/rt-stress/tcp-open-close && echo Built `pwd`/open-close && $(cross_runner) $(debuggercmd) ./open-close $(open_close_stress_connections)
-
-test-cross-stress-with-cd-debug: cross_args=--triple=$(cross_triple) --cpu=$(cross_cpu) --link-arch=$(cross_arch) $(if $(cross_sysroot),--sysroot='$(cross_sysroot)') $(cross_ponyc_args)
-test-cross-stress-with-cd-debug: debuggercmd=
-test-cross-stress-with-cd-debug: test-stress-with-cd-debug
-test-stress-tcp-open-close-with-cd-debug: all
-	$(SILENT)cd '$(outDir)' && PONYPATH=.:$(PONYPATH) ./ponyc -d -b open-close --pic $(cross_args) ../../test/rt-stress/tcp-open-close && echo Built `pwd`/open-close && $(cross_runner) $(debuggercmd) ./open-close $(open_close_stress_connections)
 
 clean:
 	$(SILENT)([ -d '$(buildDir)' ] && cd '$(buildDir)' && cmake --build '$(buildDir)' --config $(config) --target clean) || true
