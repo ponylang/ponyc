@@ -54,3 +54,9 @@ Systematic testing no longer runs the ASIO thread. Any attempt to register an I/
 
 This removes the ASIO thread as a source of nondeterminism. It does not make every program deterministic on its own — a program can still introduce nondeterminism by other means, such as reading the wall clock through the FFI — and avoiding those remains the programmer's responsibility when a fully reproducible run is the goal.
 
+## Fix executables failing to start on Linux systems with both glibc and musl
+
+On Linux systems that have both the GNU (glibc) and musl C libraries installed, `ponyc` could build a program that was linked against one C library but set up to load the other at startup. Compilation succeeded, but the program failed the moment you ran it, printing messages such as `Error loading shared library` or `symbol not found`.
+
+`ponyc` now selects the startup loader that matches the C library your program is linked against. If you pass an explicit `--triple`, `ponyc` honors your choice instead of guessing from what is installed on the build machine.
+
