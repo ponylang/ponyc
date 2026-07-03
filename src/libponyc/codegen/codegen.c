@@ -757,6 +757,10 @@ bool codegen_pass_init(pass_opt_t* opt)
   // Default triple, cpu and features.
   if(opt->triple != NULL)
   {
+    // The user provided a target triple; treat it as authoritative for libc
+    // detection (see target_libc_is_musl). A defaulted triple (else branch)
+    // leaves user_triple false via pass_opt_init's zeroing.
+    opt->user_triple = true;
     triple = LLVMCreateMessage(opt->triple);
   } else {
 #if defined(PLATFORM_IS_MACOSX) && defined(PLATFORM_IS_ARM)

@@ -19,6 +19,19 @@ bool genexe(compile_t* c, ast_t* program);
  * emitting the "requires --sysroot" error when none is found.
  */
 const char* find_cross_toolchain_sysroot(pass_opt_t* opt, errors_t* errors);
+
+/** Whether the target C library is musl.
+ *
+ * Musl exists only on Linux; the result is false for every other target. An
+ * explicit --triple is authoritative and is never overridden. Otherwise the
+ * libc that will actually be linked is identified directly: glibc ships
+ * libc.so.6 alongside its crt startup objects and musl never does, so the
+ * dynamic linker stamped into the executable stays consistent with the libc
+ * it is linked against. Shared with the C shim compiler (gencshim) so a
+ * build's interpreter choice and its shim header ordering agree. Not
+ * memoized -- a handful of stat() calls, recomputed at each call site.
+ */
+bool target_libc_is_musl(pass_opt_t* opt);
 #endif
 
 PONY_EXTERN_C_END

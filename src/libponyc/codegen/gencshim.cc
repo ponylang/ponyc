@@ -849,11 +849,16 @@ bool gencshim(ast_t* program, pass_opt_t* opt)
   // headers, and the vendored driver does the same (clang's
   // ToolChains/Linux.cpp). Diverging here would give Alpine shims
   // different headers than every other clang compile on that platform.
-  bool builtin_include_last;
-  {
-    llvm::Triple target_triple(opt->triple);
-    builtin_include_last = target_triple.isMusl() || host_is_musl(opt);
-  }
+  // Detect musl the same way the ELF linker does, so a shim's header ordering
+  // and the executable's dynamic linker never disagree about the target libc.
+  // target_libc_is_musl is part of genexe's ELF-linking surface (POSIX only);
+  // on non-POSIX targets the libc is never musl, so the triple's own view is
+  // all that is needed.
+#ifdef PLATFORM_IS_POSIX_BASED
+  bool builtin_include_last = target_libc_is_musl(opt);
+#else
+  bool builtin_include_last = llvm::Triple(opt->triple).isMusl();
+#endif
 
   int written = snprintf(buf, sizeof(buf), "%s%cinclude", resource_dir,
     PATH_SLASH);
