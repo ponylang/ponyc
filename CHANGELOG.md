@@ -14,11 +14,13 @@ All notable changes to the Pony compiler and standard library will be documented
 ### Added
 
 - Add the --ponymemoryprofile runtime option ([PR #5768](https://github.com/ponylang/ponyc/pull/5768))
+- Add a streaming JSON parser ([PR #5658](https://github.com/ponylang/ponyc/pull/5658))
 
 ### Changed
 
 - Replace the runtime allocator ([PR #5768](https://github.com/ponylang/ponyc/pull/5768))
 - Change how scheduler scaling works ([PR #5768](https://github.com/ponylang/ponyc/pull/5768))
+- Change JsonTokenParser to carry values on its tokens ([PR #5658](https://github.com/ponylang/ponyc/pull/5658))
 
 ## [0.68.0] - 2026-08-01
 
@@ -76,6 +78,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Support runtime tracing on Windows ([PR #5676](https://github.com/ponylang/ponyc/pull/5676))
 - Add `rewind()` to ArrayKeys and ArrayPairs ([PR #5645](https://github.com/ponylang/ponyc/pull/5645))
 - Add `pony_os_sendv` for writing to a socket ([PR #5726](https://github.com/ponylang/ponyc/pull/5726))
+- Add a streaming JSON parser ([PR #5658](https://github.com/ponylang/ponyc/pull/5658))
 
 ### Changed
 
@@ -83,6 +86,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Don't run the ASIO thread under systematic testing ([PR #5647](https://github.com/ponylang/ponyc/pull/5647))
 - pony-lsp now rejects unrecognized command-line arguments ([PR #5668](https://github.com/ponylang/ponyc/pull/5668))
 - Remove the rest of the library-mode runtime surface ([PR #5729](https://github.com/ponylang/ponyc/pull/5729))
+- Change JsonTokenParser to carry values on its tokens ([PR #5658](https://github.com/ponylang/ponyc/pull/5658))
 
 ## [0.66.0] - 2026-06-29
 

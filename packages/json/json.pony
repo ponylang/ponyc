@@ -6,8 +6,9 @@ uses chained method calls that return new values with structural sharing
 via persistent collections.
 
 The two ends of the library are `JsonParser` (JSON text → `JsonValue`) and
-`JsonPrinter` (`JsonValue` → JSON text). On top of `JsonValue`, three access
-patterns are available for reading and modifying structures, from simple
+`JsonPrinter` (`JsonValue` → JSON text); `JsonTokenParser` is a third, streaming
+path from text that never builds the whole tree. On top of `JsonValue`, three
+access patterns are available for reading and modifying structures, from simple
 one-shot lookups to composable paths to string-based multi-match queries.
 
 ## Parsing JSON
@@ -228,36 +229,84 @@ Start with `JsonNav` for simple reads. Move to `JsonLens` when you
 need to modify values or reuse paths. Use `JsonPath` when you need
 multi-match queries, wildcard selection, or user-provided path strings.
 
-## Token Parser
+## Streaming with JsonTokenParser
 
-`JsonTokenParser` is a streaming alternative to `JsonParser`. Instead
-of building a complete document tree, it emits tokens to a callback
-as they are encountered. Use this when you need to process large
-documents without materializing the full tree, or when you need custom
-processing logic:
+`JsonParser.parse()` needs the whole document in memory and builds the whole
+tree. When JSON arrives in pieces — over a socket, or a file read in chunks — or
+is too big to hold at once, `JsonTokenParser` streams it. Feed it bytes with
+`feed()` and it pushes tokens (object start, a key, a value, and so on) to your
+notifier as they complete, walking the structure to any depth without building a
+tree. A value split across a chunk boundary is held and finished by the next
+`feed()`. Each token carries its own value:
 
 ```pony
 let parser = json.JsonTokenParser(
   object is json.JsonTokenNotify
-    fun ref apply(parser': json.JsonTokenParser, token: json.JsonToken) =>
+    fun ref apply(p: json.JsonTokenParser, token: json.JsonToken) =>
       match token
-      | json.JsonTokenKey => env.out.print("Key: " + parser'.last_string)
-      | json.JsonTokenString => env.out.print("String: " + parser'.last_string)
-      | json.JsonTokenNumber =>
-        match parser'.last_number
-        | let n: I64 => env.out.print("Int: " + n.string())
+      | let k: json.JsonTokenKey    => env.out.print("Key: " + k.value)
+      | let s: json.JsonTokenString => env.out.print("String: " + s.value)
+      | let n: json.JsonTokenNumber =>
+        match n.value
+        | let i: I64 => env.out.print("Int: " + i.string())
         | let f: F64 => env.out.print("Float: " + f.string())
         end
       | json.JsonTokenObjectStart => env.out.print("{")
       | json.JsonTokenObjectEnd => env.out.print("}")
       | json.JsonTokenArrayStart => env.out.print("[")
       | json.JsonTokenArrayEnd => env.out.print("]")
+      | json.JsonTokenTrue | json.JsonTokenFalse | json.JsonTokenNull => None
       end
   end)
-try parser.parse(source)? end
+try
+  parser.feed(chunk)?  // call once per chunk as bytes arrive
+  parser.finish()?     // when no more bytes are coming
+end
 ```
 
-For most use cases, `JsonParser.parse()` is simpler and sufficient.
+You control the memory. Process each token and drop it, and memory stays flat no
+matter how big the document — the parser holds only the container-depth stack, the
+one value it is mid-parse on, and the fed bytes it has not yet consumed (feed in
+chunks and drain to keep that last part small). To pull a few fields out of a
+large document, ignore the tokens you don't want; there is no skip to learn, and a
+value you never keep is never held. Always call `finish()` when the input ends:
+it completes a trailing number (the one value with no self-delimiter), and
+`incomplete()` then tells you whether the input ended mid-value. For untrusted
+input, pass a `JsonParseLimits` to cap depth and the length of a single string or
+number.
+
+## Reassembling values from a token stream
+
+When you do want a `JsonValue` — for one record, say, not the whole document —
+`JsonReassembler` folds a run of tokens back into the same `JsonValue` a batch
+parse would return. It is a `JsonTokenNotify`, so it plugs straight into the
+parser:
+
+```pony
+let reassembler = json.JsonReassembler
+let parser = json.JsonTokenParser(reassembler)
+parser.feed(chunk)?
+for value in reassembler.take_values().values() do
+  // value : JsonValue — use it with JsonNav, JsonLens, JsonPath, JsonPrinter
+end
+```
+
+Hand it every token and you have buffered the whole document; hand it one
+record's tokens, take the value, and drop it, and memory stays flat. The choice
+is yours.
+
+## Choosing between the parsers
+
+* **`JsonParser.parse()`** — the whole document is in memory and you want the
+  whole tree. Simplest; reach for it first. It applies no resource limits, so it
+  is for trusted input; for a document of unknown origin, use `JsonTokenParser`
+  with a `JsonParseLimits`.
+* **`JsonTokenParser` with your own notifier** — JSON arrives in pieces, or is
+  too large to hold, or you want to react to values as they stream past without
+  building a tree.
+* **`JsonTokenParser` with `JsonReassembler`** — streaming input, but you want
+  `JsonValue`s out. You decide which values to materialize, so you decide the
+  memory cost.
 
 """
 

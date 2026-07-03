@@ -74,7 +74,6 @@ actor \nodoc\ Main is TestList
     test(_TestPrinterPretty)
     test(_TestPrinterScalars)
     test(_TestTokenParserAbort)
-    test(_TestTokenParserReuseAfterError)
     // Regression tests — stack-safe JSON walks (issue #5557)
     test(_TestParseDeeplyNested)
     test(_TestPrintDeeplyNested)
@@ -84,6 +83,39 @@ actor \nodoc\ Main is TestList
     test(_TestTokenParserPositions)
     test(_TestTokenParserEndPosition)
     test(_TestTokenParserStringPosition)
+    // Streaming token parser + reassembler
+    test(_TestStreamObject)
+    test(_TestStreamArray)
+    test(_TestStreamEmptyContainers)
+    test(_TestStreamMultiValue)
+    test(_TestStreamScalarRoot)
+    test(_TestStreamFinishNumber)
+    test(_TestStreamSplitInvariance)
+    test(_TestStreamEscapes)
+    test(_TestStreamNumbers)
+    test(_TestStreamTrailingComma)
+    test(_TestStreamMalformed)
+    test(_TestStreamErrorLatches)
+    test(_TestStreamIncomplete)
+    test(_TestStreamErrorLocation)
+    test(_TestStreamLimitDepth)
+    test(_TestStreamLimits)
+    test(_TestStreamAbort)
+    test(_TestStreamTokens)
+    test(_TestStreamFlatMemory)
+    test(_TestStreamDifferential)
+    test(_TestStreamReassemblerReuse)
+    test(_TestStreamProtocol)
+    test(_TestStreamReassemblerAdd)
+    test(_TestStreamFinishInvalidNumber)
+    test(_TestStreamFinishLatches)
+    test(_TestStreamNumberLimitSplit)
+    test(_TestStreamEndAnchorSplit)
+    test(_TestStreamReentrancyGuarded)
+    test(_TestStreamZeroCopyView)
+    test(_TestStreamLargeChunked)
+    test(Property1UnitTest[String](_StreamMatchesBatchProperty))
+    test(Property1UnitTest[String](_StreamSplitInvariantProperty))
 
 // ===================================================================
 // Generators
@@ -148,13 +180,24 @@ primitive \nodoc\ _JsonValueStringGen
     buf.push('"')
     var i: USize = 0
     while i < len do
-      let c = rnd.u8(0x20, 0x7E)
-      if c == '"' then
-        buf.append("\\\"")
-      elseif c == '\\' then
-        buf.append("\\\\")
+      // Mix in escape and \uXXXX/surrogate sequences so property tests exercise
+      // the escape and unicode decode paths (and their resume across chunks),
+      // not just plain ASCII. Every branch is valid JSON.
+      match rnd.usize(0, 9)
+      | 0 => buf.append("\\n")
+      | 1 => buf.append("\\t")
+      | 2 => buf.append("\\r")
+      | 3 => buf.append("\\u00e9")        // a BMP \uXXXX escape
+      | 4 => buf.append("\\uD83D\\uDE00") // a surrogate pair
       else
-        buf.push(c)
+        let c = rnd.u8(0x20, 0x7E)
+        if c == '"' then
+          buf.append("\\\"")
+        elseif c == '\\' then
+          buf.append("\\\\")
+        else
+          buf.push(c)
+        end
       end
       i = i + 1
     end
@@ -647,23 +690,16 @@ class \nodoc\ iso _TestParseNumberOutOfRange is UnitTest
   fun name(): String => "json/parse/number-out-of-range"
 
   fun apply(h: TestHelper) =>
-    // A literal whose magnitude exceeds F64 range is rejected as a parse error,
-    // not parsed to a non-finite value the printer cannot serialize. RFC 8259
-    // permits limiting numeric range.
     _assert_out_of_range(h, "1e999")
     _assert_out_of_range(h, "-1e999")
     _assert_out_of_range(h, "1e400")
     _assert_out_of_range(h, "2e308")
-    // Nested, so the error surfaces mid-document (offset < size), not at EOF.
     _assert_out_of_range(h, "[1e999]")
-    // A long integer with no exponent overflows F64 too (310 digits).
     _assert_out_of_range(h, "1" + "0".mul(309))
 
   fun _assert_out_of_range(h: TestHelper, input: String) =>
     match \exhaustive\ JsonParser.parse(input)
     | let e: JsonParseError =>
-      // The distinct message matters: without it the location-only fallback
-      // misreports the whole-literal case as "Unexpected end of JSON".
       h.assert_eq[String]("Number out of range", e.message)
     | let _: JsonValue => h.fail("Expected out-of-range error for: " + input)
     end
@@ -1769,39 +1805,11 @@ class \nodoc\ iso _TestTokenParserAbort is UnitTest
     // parse should raise because abort() was called mid-document
     var raised = false
     try
-      parser.parse("[1,2,3]")?
+      parser.feed("[1,2,3]")?
     else
       raised = true
     end
     h.assert_true(raised)
-
-class \nodoc\ iso _TestTokenParserReuseAfterError is UnitTest
-  fun name(): String => "json/tokenparser/reuse-after-error"
-
-  fun apply(h: TestHelper) =>
-    // Reusing a JsonTokenParser after an out-of-range error must not leak the
-    // stale "Number out of range" message into a later document's error. This
-    // guards the _error_message reset in parse().
-    let parser = JsonTokenParser(
-      object ref is JsonTokenNotify
-        fun ref apply(parser': JsonTokenParser, token: JsonToken) => None
-      end)
-
-    try
-      parser.parse("1e999")?
-      h.fail("1e999 should have raised")
-    else
-      h.assert_eq[String]("Number out of range", parser.describe_error())
-    end
-
-    // A later, different error on the same instance reports its own message,
-    // not the stale one.
-    try
-      parser.parse("[")?
-      h.fail("unterminated array should have raised")
-    else
-      h.assert_true(parser.describe_error() != "Number out of range")
-    end
 
 // ===================================================================
 // Property Tests — JSONPath Filter Safety
@@ -2819,7 +2827,7 @@ class \nodoc\ iso _TestTokenParserPositions is UnitTest
   fun apply(h: TestHelper) =>
     let events = Array[(String, USize, USize)]
     let parser = JsonTokenParser(_TokenRecorder(events))
-    try parser.parse("""{"a":[1,{}],"b":2,"c":[]}""")?
+    try parser.feed("""{"a":[1,{}],"b":2,"c":[]}""")?
     else h.fail("token parse raised unexpectedly")
     end
 
@@ -2880,7 +2888,7 @@ class \nodoc\ iso _TestTokenParserEndPosition is UnitTest
   =>
     let events = Array[(String, USize, USize)]
     let parser = JsonTokenParser(_TokenRecorder(events))
-    try parser.parse(input)?
+    try parser.feed(input)?
     else h.fail("token parse raised unexpectedly for " + input); return
     end
     try
@@ -2914,7 +2922,7 @@ class \nodoc\ iso _TestTokenParserStringPosition is UnitTest
   =>
     let events = Array[(String, USize, USize)]
     let parser = JsonTokenParser(_TokenRecorder(events))
-    try parser.parse(input)?
+    try parser.feed(input)?
     else h.fail("token parse raised unexpectedly for " + input); return
     end
     for ev in events.values() do
@@ -2940,9 +2948,9 @@ class \nodoc\ _TokenRecorder is JsonTokenNotify
       | JsonTokenNull => "Null"
       | JsonTokenTrue => "True"
       | JsonTokenFalse => "False"
-      | JsonTokenNumber => "Number"
-      | JsonTokenString => "String"
-      | JsonTokenKey => "Key"
+      | let _: JsonTokenNumber => "Number"
+      | let _: JsonTokenString => "String"
+      | let _: JsonTokenKey => "Key"
       | JsonTokenObjectStart => "ObjectStart"
       | JsonTokenObjectEnd => "ObjectEnd"
       | JsonTokenArrayStart => "ArrayStart"
