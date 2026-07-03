@@ -1733,22 +1733,22 @@ class \nodoc\ iso _TestArrayKeysRewind is UnitTest
   """
   fun name(): String => "builtin/ArrayKeys.rewind"
 
-  fun apply(h: TestHelper) =>
+  fun apply(h: TestHelper) ? =>
     let av = [as U32: 1; 2; 3; 4].keys()
 
-    h.assert_eq[USize](0, av.next())
-    h.assert_eq[USize](1, av.next())
-    h.assert_eq[USize](2, av.next())
-    h.assert_eq[USize](3, av.next())
+    h.assert_eq[USize](0, av.next()?)
+    h.assert_eq[USize](1, av.next()?)
+    h.assert_eq[USize](2, av.next()?)
+    h.assert_eq[USize](3, av.next()?)
     h.assert_eq[Bool](false, av.has_next())
 
     av.rewind()
 
     h.assert_eq[Bool](true, av.has_next())
-    h.assert_eq[USize](0, av.next())
-    h.assert_eq[USize](1, av.next())
-    h.assert_eq[USize](2, av.next())
-    h.assert_eq[USize](3, av.next())
+    h.assert_eq[USize](0, av.next()?)
+    h.assert_eq[USize](1, av.next()?)
+    h.assert_eq[USize](2, av.next()?)
+    h.assert_eq[USize](3, av.next()?)
     h.assert_eq[Bool](false, av.has_next())
 
 class \nodoc\ iso _TestArrayValuesRewind is UnitTest
