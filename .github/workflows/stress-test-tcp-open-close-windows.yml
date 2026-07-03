@@ -12,7 +12,7 @@ on:
         default: 'main'
 
 permissions:
-  packages: read
+  packages: write
 
 # Serialize the scheduled stress loop to one workflow at a time (groups are
 # repo-wide, so the three tcp-open-close stress workflows share `stress-scheduled`;
@@ -84,11 +84,18 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           LIBS_TAG: ${{ hashFiles('make.ps1', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
-          # schedule -> skip the run on a cache miss (the loop overlaps an empty/
-          # refilling cache); manual dispatch -> also pull the branch cache so a
-          # branch run finds the libs it already built, and fail loudly otherwise.
-          LIBS_CACHE_FLAGS: ${{ github.event_name == 'schedule' && '--skip-on-miss' || '--branch-cache' }}
-        run: python .ci-scripts/libs-cache/resolve_libs_cache.py --require-cache-hit $env:LIBS_CACHE_FLAGS --platform windows-2025-vs2026 --tag $env:LIBS_TAG
+          # Off main (a manual dispatch of a branch): build LLVM if it isn't cached,
+          # and push what we build. On main (a scheduled run, or a dispatch left on
+          # main): if it isn't cached, skip -- we don't build LLVM on main.
+          # PowerShell does not word-split a variable's value, so the two modes are
+          # spelled out with literal tokens.
+          LIBS_OFF_MAIN: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.sha != 'main' }}
+        run: |
+          if ($env:LIBS_OFF_MAIN -eq 'true') {
+            python .ci-scripts/libs-cache/resolve_libs_cache.py --branch-cache --platform windows-2025-vs2026 --tag $env:LIBS_TAG '--' pwsh -File make.ps1 -Command libs -LlvmTools false
+          } else {
+            python .ci-scripts/libs-cache/resolve_libs_cache.py --require-cache-hit --skip-on-miss --platform windows-2025-vs2026 --tag $env:LIBS_TAG
+          }
       - name: Configure
         if: ${{ hashFiles('.libs-cache-miss') == '' }}
         run: .\make.ps1 -Command configure -Config Debug

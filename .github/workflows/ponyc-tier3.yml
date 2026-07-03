@@ -15,9 +15,7 @@ concurrency:
   cancel-in-progress: true
 
 permissions:
-  # read, not write: tier3 requires a pre-warmed libs cache (`--require-cache-hit`)
-  # and never builds, so it only pulls the main/branch cache -- it never pushes.
-  packages: read
+  packages: write
 
 jobs:
   check-for-changes:
@@ -69,13 +67,12 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           LIBS_IMAGE: ${{ matrix.image }}
           LIBS_TAG: ${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
-          # Require a pre-warmed libs cache instead of cold-building LLVM. A
-          # scheduled miss writes the .libs-cache-miss marker and the steps below
-          # skip (the warmer, update-lib-cache.yml, refills on the next push to
-          # main; missing a scheduled run is fine). A manual run also checks the
-          # branch cache and fails loud on a miss, so it never silently no-ops.
-          LIBS_CACHE_FLAGS: ${{ github.event_name == 'schedule' && '--skip-on-miss' || '--branch-cache' }}
-        run: python3 .ci-scripts/libs-cache/resolve_libs_cache.py --require-cache-hit $LIBS_CACHE_FLAGS --image "$LIBS_IMAGE" --tag "$LIBS_TAG"
+          # Off main (a manual dispatch of a branch): build LLVM if it isn't cached,
+          # and push what we build. On main (a scheduled run, or a dispatch left on
+          # main): if it isn't cached, skip -- we don't build LLVM on main.
+          LIBS_MODE: ${{ ((github.event_name == 'workflow_dispatch' && inputs.ref != 'main') && '--branch-cache') || '--require-cache-hit --skip-on-miss' }}
+          LIBS_BUILD: ${{ ((github.event_name == 'workflow_dispatch' && inputs.ref != 'main') && '-- make libs llvm_tools=false build_flags=-j4') || '' }}
+        run: python3 .ci-scripts/libs-cache/resolve_libs_cache.py $LIBS_MODE --image "$LIBS_IMAGE" --tag "$LIBS_TAG" $LIBS_BUILD
       - name: Build Debug Runtime
         if: ${{ hashFiles('.libs-cache-miss') == '' }}
         run: |
@@ -139,13 +136,12 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           LIBS_IMAGE: ${{ matrix.image }}
           LIBS_TAG: ${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
-          # Require a pre-warmed libs cache instead of cold-building LLVM. A
-          # scheduled miss writes the .libs-cache-miss marker and the steps below
-          # skip (the warmer, update-lib-cache.yml, refills on the next push to
-          # main; missing a scheduled run is fine). A manual run also checks the
-          # branch cache and fails loud on a miss, so it never silently no-ops.
-          LIBS_CACHE_FLAGS: ${{ github.event_name == 'schedule' && '--skip-on-miss' || '--branch-cache' }}
-        run: python3 .ci-scripts/libs-cache/resolve_libs_cache.py --require-cache-hit $LIBS_CACHE_FLAGS --image "$LIBS_IMAGE" --tag "$LIBS_TAG"
+          # Off main (a manual dispatch of a branch): build LLVM if it isn't cached,
+          # and push what we build. On main (a scheduled run, or a dispatch left on
+          # main): if it isn't cached, skip -- we don't build LLVM on main.
+          LIBS_MODE: ${{ ((github.event_name == 'workflow_dispatch' && inputs.ref != 'main') && '--branch-cache') || '--require-cache-hit --skip-on-miss' }}
+          LIBS_BUILD: ${{ ((github.event_name == 'workflow_dispatch' && inputs.ref != 'main') && '-- make libs llvm_tools=false build_flags=-j4') || '' }}
+        run: python3 .ci-scripts/libs-cache/resolve_libs_cache.py $LIBS_MODE --image "$LIBS_IMAGE" --tag "$LIBS_TAG" $LIBS_BUILD
       - name: Build Debug Runtime
         if: ${{ hashFiles('.libs-cache-miss') == '' }}
         run: |
@@ -223,13 +219,12 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           LIBS_IMAGE: ${{ matrix.image }}
           LIBS_TAG: ${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
-          # Require a pre-warmed libs cache instead of cold-building LLVM. A
-          # scheduled miss writes the .libs-cache-miss marker and the steps below
-          # skip (the warmer, update-lib-cache.yml, refills on the next push to
-          # main; missing a scheduled run is fine). A manual run also checks the
-          # branch cache and fails loud on a miss, so it never silently no-ops.
-          LIBS_CACHE_FLAGS: ${{ github.event_name == 'schedule' && '--skip-on-miss' || '--branch-cache' }}
-        run: python3 .ci-scripts/libs-cache/resolve_libs_cache.py --require-cache-hit $LIBS_CACHE_FLAGS --image "$LIBS_IMAGE" --tag "$LIBS_TAG"
+          # Off main (a manual dispatch of a branch): build LLVM if it isn't cached,
+          # and push what we build. On main (a scheduled run, or a dispatch left on
+          # main): if it isn't cached, skip -- we don't build LLVM on main.
+          LIBS_MODE: ${{ ((github.event_name == 'workflow_dispatch' && inputs.ref != 'main') && '--branch-cache') || '--require-cache-hit --skip-on-miss' }}
+          LIBS_BUILD: ${{ ((github.event_name == 'workflow_dispatch' && inputs.ref != 'main') && '-- make libs llvm_tools=false build_flags=-j4') || '' }}
+        run: python3 .ci-scripts/libs-cache/resolve_libs_cache.py $LIBS_MODE --image "$LIBS_IMAGE" --tag "$LIBS_TAG" $LIBS_BUILD
       - name: Build Debug Runtime
         if: ${{ hashFiles('.libs-cache-miss') == '' }}
         run: |
@@ -301,13 +296,12 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           LIBS_IMAGE: ${{ matrix.image }}
           LIBS_TAG: ${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
-          # Require a pre-warmed libs cache instead of cold-building LLVM. A
-          # scheduled miss writes the .libs-cache-miss marker and the steps below
-          # skip (the warmer, update-lib-cache.yml, refills on the next push to
-          # main; missing a scheduled run is fine). A manual run also checks the
-          # branch cache and fails loud on a miss, so it never silently no-ops.
-          LIBS_CACHE_FLAGS: ${{ github.event_name == 'schedule' && '--skip-on-miss' || '--branch-cache' }}
-        run: python3 .ci-scripts/libs-cache/resolve_libs_cache.py --require-cache-hit $LIBS_CACHE_FLAGS --image "$LIBS_IMAGE" --tag "$LIBS_TAG"
+          # Off main (a manual dispatch of a branch): build LLVM if it isn't cached,
+          # and push what we build. On main (a scheduled run, or a dispatch left on
+          # main): if it isn't cached, skip -- we don't build LLVM on main.
+          LIBS_MODE: ${{ ((github.event_name == 'workflow_dispatch' && inputs.ref != 'main') && '--branch-cache') || '--require-cache-hit --skip-on-miss' }}
+          LIBS_BUILD: ${{ ((github.event_name == 'workflow_dispatch' && inputs.ref != 'main') && '-- make libs llvm_tools=false build_flags=-j4') || '' }}
+        run: python3 .ci-scripts/libs-cache/resolve_libs_cache.py $LIBS_MODE --image "$LIBS_IMAGE" --tag "$LIBS_TAG" $LIBS_BUILD
       - name: Build Debug Runtime
         if: ${{ hashFiles('.libs-cache-miss') == '' }}
         run: |
@@ -364,30 +358,31 @@ jobs:
         with:
           ref: ${{ inputs.ref || github.sha }}
       - name: Check libs cache
+        id: check
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           LIBS_TAG: ${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
         run: |
-          # Require a pre-warmed libs cache instead of cold-building LLVM in the
-          # VM (hours). The .libs-cache-miss marker and the gate must both be on
-          # the host, but the libs step below runs inside the VM -- so the check
-          # has to happen here, before the VM boots; the libs themselves are
-          # pulled in the VM. Mirrors resolve_libs_cache.py's --require-cache-hit:
-          # a scheduled miss writes the marker and the steps below skip (the
-          # warmer, update-lib-cache.yml, refills on the next push to main;
-          # missing a scheduled run is fine). A manual run also accepts a branch
-          # cache hit and fails loud on a miss, so it never silently no-ops.
+          # The libs live in the VM but the .libs-cache-miss marker and its gate
+          # live on the host, so the decision has to happen here, before the VM
+          # boots. Off main (a manual dispatch of a branch): build LLVM in the VM if
+          # it isn't cached (hit=false; the "Build libs" step pushes it). On main (a
+          # scheduled run, or a dispatch left on main): if it isn't cached, write
+          # the marker and skip -- we don't build LLVM on main.
           if python3 .ci-scripts/libs-cache/oci_libs_cache.py exists --platform freebsd-15.1 --tag "$LIBS_TAG"; then
             echo "Libs present in the main GHCR cache."
-          elif [ "${{ github.event_name }}" = "workflow_dispatch" ] && \
-               python3 .ci-scripts/libs-cache/branch_libs_cache.py exists --platform freebsd-15.1 --tag "$LIBS_TAG"; then
-            echo "Libs present in the branch GHCR cache."
-          elif [ "${{ github.event_name }}" = "schedule" ]; then
-            touch .libs-cache-miss
-            echo "::notice::FreeBSD libs cache miss (tag $LIBS_TAG); skipping this scheduled tier-3 run. The warmer refills it on the next push to main."
+            echo "hit=true" >> "$GITHUB_OUTPUT"
+          elif [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ "${{ inputs.ref }}" != "main" ]; then
+            if python3 .ci-scripts/libs-cache/branch_libs_cache.py exists --platform freebsd-15.1 --tag "$LIBS_TAG"; then
+              echo "Libs present in the branch GHCR cache."
+              echo "hit=true" >> "$GITHUB_OUTPUT"
+            else
+              echo "Off-main manual run, cache miss; the VM will build LLVM."
+              echo "hit=false" >> "$GITHUB_OUTPUT"
+            fi
           else
-            echo "FreeBSD libs cache MISS (tag $LIBS_TAG) on a manual run; failing rather than silently skipping. Re-run after the warmer refills the cache." >&2
-            exit 1
+            touch .libs-cache-miss
+            echo "::notice::FreeBSD libs cache miss (tag $LIBS_TAG) on a main run; skipping this tier-3 run. The warmer refills it on the next push to main."
           fi
       - name: Provision VM
         if: ${{ hashFiles('.libs-cache-miss') == '' }}
@@ -395,12 +390,21 @@ jobs:
           FREEBSD_VERSION: '15.1'
         run: bash .ci-scripts/bsd/freebsd-provision.bash
       - name: Restore libs
-        if: ${{ hashFiles('.libs-cache-miss') == '' }}
+        if: ${{ hashFiles('.libs-cache-miss') == '' && steps.check.outputs.hit == 'true' }}
         env:
           LIBS_TAG: ${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
         run: |
           ssh -o StrictHostKeyChecking=no -i vm_key -p 2222 freebsd@localhost \
             "cd /home/freebsd/ponyc && export GITHUB_TOKEN='${{ secrets.GITHUB_TOKEN }}' GITHUB_REPOSITORY='${{ github.repository }}' GITHUB_ACTOR='${{ github.actor }}' && python3 .ci-scripts/libs-cache/resolve_libs_cache.py --require-cache-hit --branch-cache --platform freebsd-15.1 --tag '${LIBS_TAG}'"
+      - name: Build libs
+        if: ${{ hashFiles('.libs-cache-miss') == '' && steps.check.outputs.hit == 'false' }}
+        env:
+          LIBS_TAG: ${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
+        run: |
+          # When off main and the libs aren't cached, build LLVM in the VM (hours)
+          # and push it to the branch cache, so a re-dispatch reuses the build.
+          ssh -o StrictHostKeyChecking=no -i vm_key -p 2222 freebsd@localhost \
+            "cd /home/freebsd/ponyc && export GITHUB_TOKEN='${{ secrets.GITHUB_TOKEN }}' GITHUB_REPOSITORY='${{ github.repository }}' GITHUB_ACTOR='${{ github.actor }}' && gmake libs llvm_tools=false build_flags=-j4 && { python3 .ci-scripts/libs-cache/branch_libs_cache.py push --platform freebsd-15.1 --tag '${LIBS_TAG}' || echo '::warning::freebsd branch libs cache push failed, will rebuild next run'; }"
       - name: Build and test
         if: ${{ hashFiles('.libs-cache-miss') == '' }}
         run: |
@@ -476,30 +480,31 @@ jobs:
         with:
           ref: ${{ inputs.ref || github.sha }}
       - name: Check libs cache
+        id: check
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           LIBS_TAG: ${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
         run: |
-          # Require a pre-warmed libs cache instead of cold-building LLVM in the
-          # VM (hours). The .libs-cache-miss marker and the gate must both be on
-          # the host, but the libs step below runs inside the VM -- so the check
-          # has to happen here, before the VM boots; the libs themselves are
-          # pulled in the VM. Mirrors resolve_libs_cache.py's --require-cache-hit:
-          # a scheduled miss writes the marker and the steps below skip (the
-          # warmer, update-lib-cache.yml, refills on the next push to main;
-          # missing a scheduled run is fine). A manual run also accepts a branch
-          # cache hit and fails loud on a miss, so it never silently no-ops.
+          # The libs live in the VM but the .libs-cache-miss marker and its gate
+          # live on the host, so the decision has to happen here, before the VM
+          # boots. Off main (a manual dispatch of a branch): build LLVM in the VM if
+          # it isn't cached (hit=false; the "Build libs" step pushes it). On main (a
+          # scheduled run, or a dispatch left on main): if it isn't cached, write
+          # the marker and skip -- we don't build LLVM on main.
           if python3 .ci-scripts/libs-cache/oci_libs_cache.py exists --platform openbsd-7.9 --tag "$LIBS_TAG"; then
             echo "Libs present in the main GHCR cache."
-          elif [ "${{ github.event_name }}" = "workflow_dispatch" ] && \
-               python3 .ci-scripts/libs-cache/branch_libs_cache.py exists --platform openbsd-7.9 --tag "$LIBS_TAG"; then
-            echo "Libs present in the branch GHCR cache."
-          elif [ "${{ github.event_name }}" = "schedule" ]; then
-            touch .libs-cache-miss
-            echo "::notice::OpenBSD libs cache miss (tag $LIBS_TAG); skipping this scheduled tier-3 run. The warmer refills it on the next push to main."
+            echo "hit=true" >> "$GITHUB_OUTPUT"
+          elif [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ "${{ inputs.ref }}" != "main" ]; then
+            if python3 .ci-scripts/libs-cache/branch_libs_cache.py exists --platform openbsd-7.9 --tag "$LIBS_TAG"; then
+              echo "Libs present in the branch GHCR cache."
+              echo "hit=true" >> "$GITHUB_OUTPUT"
+            else
+              echo "Off-main manual run, cache miss; the VM will build LLVM."
+              echo "hit=false" >> "$GITHUB_OUTPUT"
+            fi
           else
-            echo "OpenBSD libs cache MISS (tag $LIBS_TAG) on a manual run; failing rather than silently skipping. Re-run after the warmer refills the cache." >&2
-            exit 1
+            touch .libs-cache-miss
+            echo "::notice::OpenBSD libs cache miss (tag $LIBS_TAG) on a main run; skipping this tier-3 run. The warmer refills it on the next push to main."
           fi
       - name: Provision VM
         if: ${{ hashFiles('.libs-cache-miss') == '' }}
@@ -510,12 +515,23 @@ jobs:
           ssh -o StrictHostKeyChecking=no -i vm_key -p 2222 openbsd@localhost \
             "cd /build/ponyc && sh .ci-scripts/openbsd-reject-unsupported-builds.sh"
       - name: Restore libs
-        if: ${{ hashFiles('.libs-cache-miss') == '' }}
+        if: ${{ hashFiles('.libs-cache-miss') == '' && steps.check.outputs.hit == 'true' }}
         env:
           LIBS_TAG: ${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
         run: |
           ssh -o StrictHostKeyChecking=no -o ServerAliveInterval=60 -i vm_key -p 2222 openbsd@localhost \
             "cd /build/ponyc && export GITHUB_TOKEN='${{ secrets.GITHUB_TOKEN }}' GITHUB_REPOSITORY='${{ github.repository }}' GITHUB_ACTOR='${{ github.actor }}' && python3 .ci-scripts/libs-cache/resolve_libs_cache.py --require-cache-hit --branch-cache --platform openbsd-7.9 --tag '${LIBS_TAG}'"
+      - name: Build libs
+        if: ${{ hashFiles('.libs-cache-miss') == '' && steps.check.outputs.hit == 'false' }}
+        env:
+          LIBS_TAG: ${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
+        run: |
+          # When off main and the libs aren't cached, build LLVM in the VM (hours)
+          # and push it to the branch cache, so a re-dispatch reuses the build. rm
+          # build/build_libs first to free the VM's /build disk before the test
+          # build.
+          ssh -o StrictHostKeyChecking=no -o ServerAliveInterval=60 -i vm_key -p 2222 openbsd@localhost \
+            "cd /build/ponyc && export GITHUB_TOKEN='${{ secrets.GITHUB_TOKEN }}' GITHUB_REPOSITORY='${{ github.repository }}' GITHUB_ACTOR='${{ github.actor }}' && gmake libs llvm_tools=false build_flags=-j4 && rm -rf build/build_libs && { python3 .ci-scripts/libs-cache/branch_libs_cache.py push --platform openbsd-7.9 --tag '${LIBS_TAG}' || echo '::warning::openbsd branch libs cache push failed, will rebuild next run'; }"
       - name: Build and test
         if: ${{ hashFiles('.libs-cache-miss') == '' }}
         run: |
@@ -575,30 +591,31 @@ jobs:
         with:
           ref: ${{ inputs.ref || github.sha }}
       - name: Check libs cache
+        id: check
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           LIBS_TAG: ${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
         run: |
-          # Require a pre-warmed libs cache instead of cold-building LLVM in the
-          # VM (hours). The .libs-cache-miss marker and the gate must both be on
-          # the host, but the libs step below runs inside the VM -- so the check
-          # has to happen here, before the VM boots; the libs themselves are
-          # pulled in the VM. Mirrors resolve_libs_cache.py's --require-cache-hit:
-          # a scheduled miss writes the marker and the steps below skip (the
-          # warmer, update-lib-cache.yml, refills on the next push to main;
-          # missing a scheduled run is fine). A manual run also accepts a branch
-          # cache hit and fails loud on a miss, so it never silently no-ops.
+          # The libs live in the VM but the .libs-cache-miss marker and its gate
+          # live on the host, so the decision has to happen here, before the VM
+          # boots. Off main (a manual dispatch of a branch): build LLVM in the VM if
+          # it isn't cached (hit=false; the "Build libs" step pushes it). On main (a
+          # scheduled run, or a dispatch left on main): if it isn't cached, write
+          # the marker and skip -- we don't build LLVM on main.
           if python3 .ci-scripts/libs-cache/oci_libs_cache.py exists --platform dragonfly-6.4.2 --tag "$LIBS_TAG"; then
             echo "Libs present in the main GHCR cache."
-          elif [ "${{ github.event_name }}" = "workflow_dispatch" ] && \
-               python3 .ci-scripts/libs-cache/branch_libs_cache.py exists --platform dragonfly-6.4.2 --tag "$LIBS_TAG"; then
-            echo "Libs present in the branch GHCR cache."
-          elif [ "${{ github.event_name }}" = "schedule" ]; then
-            touch .libs-cache-miss
-            echo "::notice::DragonFly libs cache miss (tag $LIBS_TAG); skipping this scheduled tier-3 run. The warmer refills it on the next push to main."
+            echo "hit=true" >> "$GITHUB_OUTPUT"
+          elif [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ "${{ inputs.ref }}" != "main" ]; then
+            if python3 .ci-scripts/libs-cache/branch_libs_cache.py exists --platform dragonfly-6.4.2 --tag "$LIBS_TAG"; then
+              echo "Libs present in the branch GHCR cache."
+              echo "hit=true" >> "$GITHUB_OUTPUT"
+            else
+              echo "Off-main manual run, cache miss; the VM will build LLVM."
+              echo "hit=false" >> "$GITHUB_OUTPUT"
+            fi
           else
-            echo "DragonFly libs cache MISS (tag $LIBS_TAG) on a manual run; failing rather than silently skipping. Re-run after the warmer refills the cache." >&2
-            exit 1
+            touch .libs-cache-miss
+            echo "::notice::DragonFly libs cache miss (tag $LIBS_TAG) on a main run; skipping this tier-3 run. The warmer refills it on the next push to main."
           fi
       - name: Provision VM
         if: ${{ hashFiles('.libs-cache-miss') == '' }}
@@ -612,7 +629,7 @@ jobs:
           sh .ci-scripts/dragonfly-reject-unsupported-builds.sh
           EOF
       - name: Restore libs
-        if: ${{ hashFiles('.libs-cache-miss') == '' }}
+        if: ${{ hashFiles('.libs-cache-miss') == '' && steps.check.outputs.hit == 'true' }}
         env:
           LIBS_TAG: ${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
         run: |
@@ -624,6 +641,26 @@ jobs:
           cd /build/ponyc
           export GITHUB_TOKEN='${{ secrets.GITHUB_TOKEN }}' GITHUB_REPOSITORY='${{ github.repository }}' GITHUB_ACTOR='${{ github.actor }}' CC=/usr/local/bin/gcc13 CXX=/usr/local/bin/g++13 LD_LIBRARY_PATH=/usr/local/lib/gcc13 SSL_CERT_FILE=/usr/local/share/certs/ca-root-nss.crt
           python3 .ci-scripts/libs-cache/resolve_libs_cache.py --require-cache-hit --branch-cache --platform dragonfly-6.4.2 --tag '${LIBS_TAG}'
+          EOF
+      - name: Build libs
+        if: ${{ hashFiles('.libs-cache-miss') == '' && steps.check.outputs.hit == 'false' }}
+        env:
+          LIBS_TAG: ${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
+        run: |
+          # When off main and the libs aren't cached, build LLVM in the VM (hours)
+          # and push it to the branch cache, so a re-dispatch reuses the build. rm
+          # build/build_libs first to free the VM's /build disk before the test
+          # build.
+          # Unquoted heredoc on purpose: ${LIBS_TAG} must expand on the runner
+          # (it is not set inside the VM), so EOF must stay unquoted.
+          # shellcheck disable=SC2087
+          ssh -o StrictHostKeyChecking=no -o ServerAliveInterval=60 -i vm_key -p 2222 root@localhost /bin/sh <<EOF
+          set -e
+          cd /build/ponyc
+          export GITHUB_TOKEN='${{ secrets.GITHUB_TOKEN }}' GITHUB_REPOSITORY='${{ github.repository }}' GITHUB_ACTOR='${{ github.actor }}' CC=/usr/local/bin/gcc13 CXX=/usr/local/bin/g++13 LD_LIBRARY_PATH=/usr/local/lib/gcc13 SSL_CERT_FILE=/usr/local/share/certs/ca-root-nss.crt
+          gmake libs llvm_tools=false build_flags=-j4
+          rm -rf build/build_libs
+          python3 .ci-scripts/libs-cache/branch_libs_cache.py push --platform dragonfly-6.4.2 --tag '${LIBS_TAG}' || echo '::warning::dragonfly branch libs cache push failed, will rebuild next run'
           EOF
       - name: Build and test
         if: ${{ hashFiles('.libs-cache-miss') == '' }}
