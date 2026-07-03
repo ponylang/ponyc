@@ -14,6 +14,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Fix systematic testing being much slower than it should be ([PR #5630](https://github.com/ponylang/ponyc/pull/5630))
 - Fix runtime stats build options on Windows ([PR #5635](https://github.com/ponylang/ponyc/pull/5635))
 - Fix pooltrack build option on Windows ([PR #5637](https://github.com/ponylang/ponyc/pull/5637))
+- Fix delivery of zero-byte UDP datagrams ([PR #5644](https://github.com/ponylang/ponyc/pull/5644))
 
 ### Added
 
