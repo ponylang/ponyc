@@ -256,28 +256,13 @@ non-deterministic, so a replay won't necessarily reproduce a failure).
   so replay is layout-independent), so a systematic run stresses the detector's
   collection under the reproducible oracle when the knob is absent.
 
-(Systematic replay was once address-dependent — the runtime ordered some work by
-actor pointer values, which ASLR randomizes per run.
-[#5566](https://github.com/ponylang/ponyc/pull/5566),
-[#5570](https://github.com/ponylang/ponyc/pull/5570), and
-[#5580](https://github.com/ponylang/ponyc/pull/5580) (cycle-detector messages, which
-the systematic mode now exercises with the detector drawn on) made that map iteration
-creation-order keyed instead, so replay is now layout-independent on every
-platform and no ASLR wrapper is needed.)
-
 Not yet checked: the payload's bytes for the mesh/cyclic/backpressure workloads. A
 non-crashing trace or GC corruption (wrong bytes, truncation) on one of those would
 pass every oracle above — conservation counts messages and `ORDER_SIG` mixes ids
 and counts. (The `iso` workload *narrows* this for itself — its terminal `Carrier`
 checks the endpoint sentinel bytes of the parcel; see Parcel integrity above — but
 interior corruption still slips through there too, and the other workloads check no
-bytes. A full byte-integrity check is deferred.) Also deferred to a later round:
-richer allocation-diversity work, an exact spawned == finalized count for the
-`cyclic` workload, and — building on `actorref`, which drives actor-reference
-acquire/release churn but keeps its referents inert — a variant whose forwarded
-actor `tag`s form collectible cross-actor *cycles* (referents that reference each
-other), so the detector must break a dynamically-formed actor cycle rather than the
-statically-wired one `cyclic` gives.
+bytes.)
 
 ## Tests
 
