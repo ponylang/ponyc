@@ -9,7 +9,6 @@
 #include "../mem/pool.h"
 #include "../sched/cpu.h"
 #include "../sched/scheduler.h"
-#include "../sched/systematic_testing.h"
 #include "../tracing/tracing.h"
 #include "ponyassert.h"
 #include <string.h>
@@ -222,11 +221,6 @@ DECLARE_THREAD_FN(ponyint_asio_backend_dispatch)
   HANDLE stdin_handle = GetStdHandle(STD_INPUT_HANDLE);
   HANDLE stdin_wait = NULL;  // thread-pool wait registration for stdin
 
-#if defined(USE_SYSTEMATIC_TESTING)
-  // sleep thread until we're ready to start processing
-  SYSTEMATIC_TESTING_WAIT_START(ponyint_asio_get_backend_tid(), ponyint_asio_get_backend_sleep_object());
-#endif
-
   // Per-wakeup dequeue batch. MAX_EVENTS is the readiness batch size shared
   // with epoll/kqueue; here the one port also carries the wakeup/stdin/signal
   // sentinels, so it bounds those per batch too. It's a throughput knob, not a
@@ -236,26 +230,15 @@ DECLARE_THREAD_FN(ponyint_asio_backend_dispatch)
   while(!atomic_load_explicit(&b->stop, memory_order_acquire))
   {
     DWORD wait_ms = INFINITE;
-#if defined(USE_SYSTEMATIC_TESTING)
-    // Under systematic testing execution is serialized to one thread at a time,
-    // so any real wait here stalls the whole program while it is our turn. Poll
-    // instead: report whatever is already ready and hand our turn straight back.
-    // (A normal build leaves wait_ms at INFINITE and blocks until the port has a
-    // completion.)
-    wait_ms = 0;
-#endif
 
     ULONG count = 0;
     BOOL ok = GetQueuedCompletionStatusEx(b->port, entries, MAX_EVENTS, &count,
       wait_ms, TRUE);
 
-    SYSTEMATIC_TESTING_YIELD();
-
     if(!ok)
     {
       // WAIT_IO_COMPLETION: an APC (e.g. a timer fire) ran during the alertable
-      // wait -- just loop. WAIT_TIMEOUT: under systematic testing's zero-timeout
-      // poll, the normal empty-pass return. Any other error: loop and re-wait.
+      // wait -- just loop. Any other error: loop and re-wait.
       continue;
     }
 
@@ -496,7 +479,6 @@ DECLARE_THREAD_FN(ponyint_asio_backend_dispatch)
   ponyint_messageq_destroy(&b->q, true);
   POOL_FREE(asio_backend_t, b);
 
-  SYSTEMATIC_TESTING_STOP_THREAD();
   TRACING_THREAD_STOP();
 
   pony_unregister_thread();

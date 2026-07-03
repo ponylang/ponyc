@@ -6,7 +6,6 @@
 #include "../mem/pool.h"
 #include "../sched/cpu.h"
 #include "../sched/scheduler.h"
-#include "../sched/systematic_testing.h"
 #include "../tracing/tracing.h"
 #include "ponyassert.h"
 #include <sys/event.h>
@@ -239,29 +238,11 @@ DECLARE_THREAD_FN(ponyint_asio_backend_dispatch)
 
   struct kevent fired[MAX_EVENTS];
 
-#if defined(USE_SYSTEMATIC_TESTING)
-  // sleep thread until we're ready to start processing
-  SYSTEMATIC_TESTING_WAIT_START(ponyint_asio_get_backend_tid(), ponyint_asio_get_backend_sleep_object());
-#endif
-
   while(b->kq != -1)
   {
     struct timespec* timeout = NULL;
-#if defined(USE_SYSTEMATIC_TESTING)
-    // Under systematic testing execution is serialized to one thread at a time,
-    // so any real wait here stalls the whole program while it is our turn. Poll
-    // instead: report whatever is already ready and hand our turn straight back.
-    // (A normal build leaves timeout NULL and kevent blocks until the kernel has
-    // an event.)
-    struct timespec ts;
-    ts.tv_sec = 0;
-    ts.tv_nsec = 0;
-    timeout = &ts;
-#endif
 
     int count = kevent(b->kq, NULL, 0, fired, MAX_EVENTS, timeout);
-
-    SYSTEMATIC_TESTING_YIELD();
 
     for(int i = 0; i < count; i++)
     {
@@ -335,7 +316,6 @@ DECLARE_THREAD_FN(ponyint_asio_backend_dispatch)
   ponyint_messageq_destroy(&b->q, true);
   POOL_FREE(asio_backend_t, b);
 
-  SYSTEMATIC_TESTING_STOP_THREAD();
   TRACING_THREAD_STOP();
 
   pony_unregister_thread();

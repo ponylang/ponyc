@@ -900,7 +900,11 @@ static pony_actor_t* perhaps_suspend_scheduler(
     pony_actor_t* actor = NULL;
 
     // can only sleep if we're scheduler > 0 or if we're scheduler 0 and
-    // there is at least one noisy actor registered
+    // there is at least one noisy actor registered.
+    // COUPLING: that scheduler 0 only suspends with a noisy actor is what keeps
+    // active_scheduler_count >= 1 (and so the systematic-testing round-robin
+    // divisor non-zero) when no ASIO event can be registered. See
+    // .known-couplings/systematic-testing-io-abort-keeps-a-scheduler-active.md.
     if((sched->index > 0) || ((sched->index == 0) && sched->asio_noisy))
     {
       actor = suspend_scheduler(sched, current_active_scheduler_count);
@@ -1461,7 +1465,7 @@ static void run_pinned_actors()
 
 #if defined(USE_SYSTEMATIC_TESTING)
   // start processing
-  SYSTEMATIC_TESTING_START(scheduler, ponyint_asio_get_backend_tid(), ponyint_asio_get_backend_sleep_object(), sched->tid, sched->sleep_object);
+  SYSTEMATIC_TESTING_START(scheduler, sched->tid, sched->sleep_object);
 #endif
 
 #ifdef USE_RUNTIMESTATS

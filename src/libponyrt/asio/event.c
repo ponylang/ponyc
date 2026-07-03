@@ -6,6 +6,8 @@
 #include "../mem/pool.h"
 #include "../sched/scheduler.h"
 #include "ponyassert.h"
+#include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 PONY_API asio_event_t* pony_asio_event_create(pony_actor_t* owner, int fd,
@@ -19,6 +21,26 @@ PONY_API asio_event_t* pony_asio_event_create(pony_actor_t* owner, int fd,
 
   if(msg_id == (uint32_t)-1)
     return NULL;
+
+#if defined(USE_SYSTEMATIC_TESTING)
+  // Systematic testing runs without the ASIO thread so that execution stays
+  // deterministic: the ASIO thread does external I/O, which a seeded scheduler
+  // interleaving cannot control. Registering any I/O event is therefore
+  // unsupported. Fail loudly rather than silently dropping the event, so a
+  // program that expects I/O to work under systematic testing is told plainly
+  // that it cannot. This abort is also load-bearing for the scheduler: see
+  // .known-couplings/systematic-testing-io-abort-keeps-a-scheduler-active.md.
+  (void)fd;
+  (void)nsec;
+  (void)noisy;
+  fprintf(stderr, "systematic testing: this program tried to register an I/O "
+    "event (socket, stdin, process, signal, or timer), but I/O is not available "
+    "under systematic testing. The ASIO thread is not run so that execution "
+    "stays deterministic. Remove the I/O or build without "
+    "use=systematic_testing.\n");
+  pony_assert(0);
+  abort();
+#else
 
   asio_event_t* ev = POOL_ALLOC(asio_event_t);
 
@@ -48,6 +70,7 @@ PONY_API asio_event_t* pony_asio_event_create(pony_actor_t* owner, int fd,
 
   pony_asio_event_subscribe(ev);
   return ev;
+#endif
 }
 
 PONY_API void pony_asio_event_destroy(asio_event_t* ev)

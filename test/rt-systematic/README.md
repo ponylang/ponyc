@@ -4,6 +4,12 @@ Standalone Pony programs used to check the runtime's `use=systematic_testing`
 behavior. They are not part of the normal test suites; they are compiled and run
 by a dedicated CI script.
 
+These programs must not register I/O events — no sockets, stdin, process I/O,
+signals, or timers (including `time.Timers`, which is built on I/O). Under
+`use=systematic_testing` the ASIO thread is not run and any I/O event
+registration aborts the program, because external I/O cannot be scheduled
+deterministically from a seed.
+
 - `order-signature/` — eight senders fan messages into one collector, which
   folds the arrival order into an order-sensitive hash printed as `ORDER_SIG`.
   The signature is a pure function of the scheduler interleaving, so it is the
