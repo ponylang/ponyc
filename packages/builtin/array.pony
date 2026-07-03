@@ -969,6 +969,10 @@ class ArrayKeys[A, B: Array[A] #read] is Iterator[USize]
       _i
     end
 
+  fun ref rewind(): ArrayKeys[A, B] =>
+    _i = 0
+    this
+
 class ArrayValues[A, B: Array[A] #read] is Iterator[B->A]
   let _array: B
   var _i: USize
@@ -1000,3 +1004,7 @@ class ArrayPairs[A, B: Array[A] #read] is Iterator[(USize, B->A)]
 
   fun ref next(): (USize, B->A) ? =>
     (_i, _array(_i = _i + 1)?)
+
+  fun ref rewind(): ArrayPairs[A, B] =>
+    _i = 0
+    this
