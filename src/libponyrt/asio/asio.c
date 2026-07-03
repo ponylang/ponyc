@@ -6,15 +6,10 @@
 #include <stdio.h>
 
 #include "asio.h"
-#include "../mem/pool.h"
-#include "../sched/systematic_testing.h"
 
 struct asio_base_t
 {
   pony_thread_id_t tid;
-#if defined(USE_SYSTEMATIC_TESTING)
-  pony_signal_event_t sleep_object;
-#endif
   asio_backend_t* backend;
   PONY_ATOMIC(uint64_t) noisy_count;
 };
@@ -23,7 +18,9 @@ static asio_base_t running_base;
 static uint32_t asio_cpu;
 
 #ifdef USE_RUNTIMESTATS
-// holds only size of pthread_cond_t condition variable when using pthreads
+// The asio subsystem holds no static memory of its own; these are kept for
+// interface parity with the other subsystems' runtimestats getters and report
+// zero.
 static size_t mem_allocated;
 static size_t mem_used;
 
@@ -49,26 +46,15 @@ size_t ponyint_asio_static_alloc_size()
  *  never handled within the runtime system.
  *
  *  In any case (independent of the underlying backend) only one I/O dispatcher
- *  thread will be started. Since I/O events are subscribed by actors, we do
- *  not need to maintain a thread pool. Instead, I/O is processed in the
- *  context of the owning actor.
+ *  thread will be started (none under systematic testing, which does not run the
+ *  ASIO thread; see ponyint_asio_start). Since I/O events are subscribed by
+ *  actors, we do not need to maintain a thread pool. Instead, I/O is processed
+ *  in the context of the owning actor.
  */
 asio_backend_t* ponyint_asio_get_backend()
 {
   return running_base.backend;
 }
-
-pony_thread_id_t ponyint_asio_get_backend_tid()
-{
-  return running_base.tid;
-}
-
-#if defined(USE_SYSTEMATIC_TESTING)
-pony_signal_event_t ponyint_asio_get_backend_sleep_object()
-{
-  return running_base.sleep_object;
-}
-#endif
 
 uint32_t ponyint_asio_get_cpu()
 {
@@ -78,48 +64,34 @@ uint32_t ponyint_asio_get_cpu()
 void ponyint_asio_init(uint32_t cpu)
 {
   asio_cpu = cpu;
+
+#if !defined(USE_SYSTEMATIC_TESTING)
+  // Under systematic testing the ASIO thread is not run and no I/O event can be
+  // registered (pony_asio_event_create aborts), so the backend would never be
+  // used. It is left NULL; ponyint_asio_start and ponyint_asio_stop treat a NULL
+  // backend as "nothing to run / nothing to tear down".
   running_base.backend = ponyint_asio_backend_init();
-
-#if defined(USE_SYSTEMATIC_TESTING)
-#if defined(PLATFORM_IS_WINDOWS)
-    // create wait event objects
-    running_base.sleep_object = CreateEvent(NULL, FALSE, FALSE, NULL);
-#elif defined(USE_SCHEDULER_SCALING_PTHREADS)
-    // create pthread condition object
-    running_base.sleep_object = POOL_ALLOC(pthread_cond_t);
-    int ret = pthread_cond_init(running_base.sleep_object, NULL);
-    if(ret != 0)
-    {
-      // if it failed, set `sleep_object` to `NULL` for error
-      POOL_FREE(pthread_cond_t, running_base.sleep_object);
-      running_base.sleep_object = NULL;
-    }
-
-#ifdef USE_RUNTIMESTATS
-    mem_used += sizeof(pthread_cond_t);
-    mem_allocated += POOL_ALLOC_SIZE(pthread_cond_t);
-#endif
-#endif
 #endif
 }
 
 bool ponyint_asio_start()
 {
+#if defined(USE_SYSTEMATIC_TESTING)
+  // The ASIO thread is not run under systematic testing (see
+  // pony_asio_event_create for why). The backend is not created (see
+  // ponyint_asio_init) and there is no thread to start.
+  return true;
+#else
   // if the backend wasn't successfully initialized
   if(running_base.backend == NULL)
     return false;
-
-#if defined(USE_SYSTEMATIC_TESTING) && defined(USE_SCHEDULER_SCALING_PTHREADS)
-  // there was an error creating a wait event or a pthread condition object
-  if(running_base.sleep_object == NULL)
-    return false;
-#endif
 
   if(!ponyint_thread_create(&running_base.tid, ponyint_asio_backend_dispatch,
     asio_cpu, running_base.backend))
     return false;
 
   return true;
+#endif
 }
 
 bool ponyint_asio_stop()
@@ -127,15 +99,12 @@ bool ponyint_asio_stop()
   if(!ponyint_asio_stoppable())
     return false;
 
+  // Under systematic testing the backend was never created (see
+  // ponyint_asio_init), so this block is skipped -- there is no ASIO thread to
+  // finalize or join.
   if(running_base.backend != NULL)
   {
     ponyint_asio_backend_final(running_base.backend);
-
-#if defined(USE_SYSTEMATIC_TESTING)
-    // wait for asio thread to shut down
-    while(!SYSTEMATIC_TESTING_ASIO_STOPPED())
-      SYSTEMATIC_TESTING_YIELD();
-#endif
 
     // If we weren't able to wait on the asio
     // thread until termination, return false
@@ -143,17 +112,6 @@ bool ponyint_asio_stop()
     // backend to NULL and hilarity will ensue
     if(!ponyint_thread_join(running_base.tid))
       return false;
-
-#if defined(USE_SCHEDULER_SCALING_PTHREADS)
-#if defined(USE_SYSTEMATIC_TESTING)
-    POOL_FREE(pthread_cond_t, running_base.sleep_object);
-    running_base.sleep_object = NULL;
-#ifdef USE_RUNTIMESTATS
-    mem_used -= sizeof(pthread_cond_t);
-    mem_allocated -= POOL_ALLOC_SIZE(pthread_cond_t);
-#endif
-#endif
-#endif
 
     running_base.backend = NULL;
     running_base.tid = 0;

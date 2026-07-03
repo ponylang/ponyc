@@ -100,8 +100,9 @@ void ponyint_systematic_testing_init(uint64_t random_seed, uint32_t max_threads)
   // interleaving everywhere if needed
   srand((int)random_seed);
 
-  // initialize thead tracking array (should be max_threads + 2 to account for asio and pinned actor threads)
-  total_threads = max_threads + 2;
+  // initialize thread tracking array (max_threads + 1 to account for the pinned
+  // actor thread; the ASIO thread is not run under systematic testing)
+  total_threads = max_threads + 1;
   size_t mem_needed = total_threads * sizeof(systematic_testing_thread_t);
   threads_to_track = (systematic_testing_thread_t*)ponyint_pool_alloc_size(
     mem_needed);
@@ -143,20 +144,18 @@ void ponyint_systematic_testing_wait_start(pony_thread_id_t thread, pony_signal_
   TRACING_SYSTEMATIC_TESTING_TIMESLICE_BEGIN();
 }
 
-void ponyint_systematic_testing_start(scheduler_t* schedulers, pony_thread_id_t asio_thread, pony_signal_event_t asio_signal, pony_thread_id_t pinned_actor_thread, pony_signal_event_t pinned_actor_signal)
+void ponyint_systematic_testing_start(scheduler_t* schedulers, pony_thread_id_t pinned_actor_thread, pony_signal_event_t pinned_actor_signal)
 {
   threads_to_track[0].tid = pinned_actor_thread;
   threads_to_track[0].sleep_object = pinned_actor_signal;
   threads_to_track[0].stopped = false;
 
-  threads_to_track[1].tid = asio_thread;
-  threads_to_track[1].sleep_object = asio_signal;
-  threads_to_track[1].stopped = false;
-
-  for(uint32_t i = 2; i < total_threads; i++)
+  // The ASIO thread is not run under systematic testing, so it gets no slot.
+  // Slot 0 is the pinned actor thread; slots 1..N are the scheduler threads.
+  for(uint32_t i = 1; i < total_threads; i++)
   {
-    threads_to_track[i].tid = schedulers[i-2].tid;
-    threads_to_track[i].sleep_object = schedulers[i-2].sleep_object;
+    threads_to_track[i].tid = schedulers[i-1].tid;
+    threads_to_track[i].sleep_object = schedulers[i-1].sleep_object;
     threads_to_track[i].stopped = false;
   }
 
@@ -171,8 +170,9 @@ void ponyint_systematic_testing_start(scheduler_t* schedulers, pony_thread_id_t 
   pthread_mutex_lock(&systematic_testing_mut);
 #endif
 
-  // always start the first scheduler thread (not asio which is 1 nor the pinned actor thread which is 0)
-  active_thread = &threads_to_track[2];
+  // always start the first scheduler thread (slot 1; slot 0 is the pinned actor
+  // thread). The ASIO thread is not run under systematic testing.
+  active_thread = &threads_to_track[1];
 
   TRACING_SYSTEMATIC_TESTING_STARTED();
 
@@ -206,10 +206,19 @@ static uint32_t get_next_index()
 {
   uint32_t active_scheduler_count = pony_active_schedulers();
   bool pinned_actor_scheduler_suspended = ponyint_get_pinned_actor_scheduler_suspended();
-  uint32_t active_count = active_scheduler_count + 1; // account for asio thread
+  uint32_t active_count = active_scheduler_count;
   // account for pinned actor thread if it is not suspended
   if(!pinned_actor_scheduler_suspended)
     active_count = active_count + 1;
+
+  // active_count is the modulo divisor below and must be >= 1. It stays >= 1
+  // because scheduler 0 never suspends under systematic testing: it only
+  // suspends with a noisy actor (a registered ASIO event), which
+  // pony_asio_event_create refuses. That invariant is the real protection; in a
+  // debug build the assert also traps a future break loudly instead of dividing
+  // by zero. See
+  // .known-couplings/systematic-testing-io-abort-keeps-a-scheduler-active.md.
+  pony_assert(active_count > 0);
 
   uint32_t next_index = -1;
   do
@@ -220,7 +229,7 @@ static uint32_t get_next_index()
     if(pinned_actor_scheduler_suspended)
       next_index = next_index + 1;
 
-    pony_assert(next_index <= total_threads);
+    pony_assert(next_index < total_threads);
   }
   while (threads_to_track[next_index].stopped);
 
@@ -321,12 +330,6 @@ void ponyint_systematic_testing_suspend()
   // lock mutex as `pthread_suspend` would after resume
   pthread_mutex_lock(mut);
 #endif
-}
-
-bool ponyint_systematic_testing_asio_stopped()
-{
-  // asio is always the second thread
-  return threads_to_track[1].stopped;
 }
 
 void ponyint_systematic_testing_stop_thread()

@@ -25,6 +25,16 @@ Systematic testing successfully finished!
 me@home:~/ponyc$
 ```
 
+## I/O is not available
+
+Systematic testing does not run the ASIO thread — the runtime thread that handles sockets, standard input, process I/O, signals, and timers. That thread does external work whose timing a seed cannot control, so running it would leave a systematic run only partly deterministic.
+
+Because the thread is not running, registering any asynchronous I/O event aborts the program with a message saying I/O is not available under systematic testing. This covers opening a socket, reading standard input, spawning a process, installing a signal handler, and arming a timer. Ordinary output is unaffected — `env.out.print`, stderr, and synchronous file I/O do not go through the ASIO thread. The abort is deliberate: rather than silently dropping the I/O and letting a program appear to run deterministically when it is not, the runtime says so plainly.
+
+So a program whose behavior depends on timers, sockets, signals, standard input, or spawned processes is not a candidate for systematic testing — that includes anything using `time.Timers`, since timers are built on the same I/O. Those depend on real external timing, which is exactly what a seed cannot reproduce. Systematic testing is for debugging the interleaving of actors that talk to each other, not actors driven by the outside world.
+
+This removes the ASIO thread as a source of nondeterminism, but it does not make every program deterministic. A program can still introduce nondeterminism by other means — reading the wall clock through the FFI, for example. Keeping a run reproducible is still the programmer's responsibility; systematic testing only guarantees that the scheduler interleaving itself is a deterministic function of the seed.
+
 ## Uses
 
 As an example, if someone has a test that has an intermittent failure (that is somehow related to timing of how actors are scheduled and run) they could recompile the test with systematic testing enabled and then run the test until it fails and then continually reproduce the failure by re-using the same seed via the --ponysystematictestingseed <SEED_THAT_CAUSED_FAILURE> cli argument. Then once the intermittent failure can be reliably reproduced, it should make it significantly easier to track down the root cause and fix the bug.

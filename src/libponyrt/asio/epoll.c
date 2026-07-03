@@ -8,7 +8,6 @@
 #include "../mem/pool.h"
 #include "../sched/cpu.h"
 #include "../sched/scheduler.h"
-#include "../sched/systematic_testing.h"
 #include "../tracing/tracing.h"
 #include "ponyassert.h"
 #include <sys/epoll.h>
@@ -236,26 +235,11 @@ DECLARE_THREAD_FN(ponyint_asio_backend_dispatch)
   pthread_sigmask(SIG_BLOCK, &set, NULL);
 #endif
 
-#if defined(USE_SYSTEMATIC_TESTING)
-  // sleep thread until we're ready to start processing
-  SYSTEMATIC_TESTING_WAIT_START(ponyint_asio_get_backend_tid(), ponyint_asio_get_backend_sleep_object());
-#endif
-
   while(!atomic_load_explicit(&b->terminate, memory_order_acquire))
   {
     int wait_time = -1;
-#if defined(USE_SYSTEMATIC_TESTING)
-    // Under systematic testing execution is serialized to one thread at a time,
-    // so any real wait here stalls the whole program while it is our turn. Poll
-    // instead: report whatever is already ready and hand our turn straight back.
-    // (A normal build leaves wait_time at -1 and blocks until the kernel has an
-    // event.)
-    wait_time = 0;
-#endif
 
     int event_cnt = epoll_wait(b->epfd, b->events, MAX_EVENTS, wait_time);
-
-    SYSTEMATIC_TESTING_YIELD();
 
     for(int i = 0; i < event_cnt; i++)
     {
@@ -344,7 +328,6 @@ DECLARE_THREAD_FN(ponyint_asio_backend_dispatch)
   ponyint_messageq_destroy(&b->q, true);
   POOL_FREE(asio_backend_t, b);
 
-  SYSTEMATIC_TESTING_STOP_THREAD();
   TRACING_THREAD_STOP();
 
   pony_unregister_thread();
