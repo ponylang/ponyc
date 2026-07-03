@@ -60,3 +60,57 @@ On Linux systems that have both the GNU (glibc) and musl C libraries installed, 
 
 `ponyc` now selects the startup loader that matches the C library your program is linked against. If you pass an explicit `--triple`, `ponyc` honors your choice instead of guessing from what is installed on the build machine.
 
+## Add a streaming JSON parser
+
+`JsonTokenParser` now parses JSON incrementally, so you can parse input that arrives in pieces — over a socket, or a large file read in chunks — or that is too big to hold in memory at once. Feed it bytes with `feed()` as they arrive and it pushes tokens to your notifier as they complete, building no tree, so you control how much memory the parse uses: process each token and drop it and memory stays flat however large the document.
+
+```pony
+let parser = JsonTokenParser(notify)
+parser.feed(chunk)?  // once per chunk, as bytes arrive
+parser.finish()?     // when the input ends
+```
+
+When a string or key value fits within a single fed chunk with no escapes, it is a zero-copy view into that chunk rather than a fresh copy. `JsonReassembler` folds a token stream back into the same `JsonValue` the batch `JsonParser` builds, when you want one, and `JsonParseLimits` caps nesting depth and string and number length for untrusted input. `JsonParser.parse()` is unchanged.
+
+## Change JsonTokenParser to carry values on its tokens
+
+This is a breaking change to `JsonTokenParser`. Its tokens now carry their own value instead of exposing it through `parser.last_string` / `parser.last_number`, and it is driven with `feed()` / `finish()` instead of `parse()`.
+
+Before:
+
+```pony
+let parser = JsonTokenParser(
+  object is JsonTokenNotify
+    fun ref apply(p: JsonTokenParser, token: JsonToken) =>
+      match token
+      | JsonTokenKey => use_key(p.last_string)
+      | JsonTokenNumber =>
+        match p.last_number
+        | let i: I64 => use_int(i)
+        | let f: F64 => use_float(f)
+        end
+      end
+  end)
+parser.parse(whole_document)?
+```
+
+After:
+
+```pony
+let parser = JsonTokenParser(
+  object is JsonTokenNotify
+    fun ref apply(p: JsonTokenParser, token: JsonToken) =>
+      match token
+      | let k: JsonTokenKey => use_key(k.value)
+      | let n: JsonTokenNumber =>
+        match n.value
+        | let i: I64 => use_int(i)
+        | let f: F64 => use_float(f)
+        end
+      end
+  end)
+parser.feed(whole_document)?
+parser.finish()?
+```
+
+`JsonParser.parse()` is unchanged.

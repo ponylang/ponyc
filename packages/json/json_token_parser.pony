@@ -1,421 +1,571 @@
 class ref JsonTokenParser
   """
-  Streaming JSON token parser.
+  Streaming, incremental JSON token parser.
 
-  Parses a JSON string and emits tokens to a JsonTokenNotify callback.
-  This is the lower-level API — most users should use JsonParser.parse()
-  instead. Use this when you need to process large documents without
-  materializing the full tree.
+  Feed bytes as they arrive with `feed()`; the parser walks the JSON structure to
+  any depth and pushes tokens to a `JsonTokenNotify` callback as they complete. It
+  builds no tree — its working memory is the container-depth stack, the single
+  string or number it is part-way through, and the fed bytes it has not yet
+  consumed. A value split across a chunk boundary is held and stitched onto the
+  next `feed()`, so you never manage leftover bytes.
+
+  ```pony
+  let parser = JsonTokenParser(
+    object is JsonTokenNotify
+      fun ref apply(p: JsonTokenParser, token: JsonToken) =>
+        match token
+        | let k: JsonTokenKey    => // k.value
+        | let s: JsonTokenString => // s.value
+        | let n: JsonTokenNumber => // n.value
+        | JsonTokenObjectStart   => // ...
+        end
+    end)
+  parser.feed(chunk)?
+  ```
+
+  It parses a *stream* of top-level values: after one value's tokens end it
+  continues to the next, so newline-delimited JSON or a socket delivering messages
+  back to back works with no per-value setup. Feeding a whole document at once is
+  just the case where every byte is already in hand.
+
+  A number is the one value with no self-delimiter — the parser cannot know a
+  number is finished until a following non-number byte arrives, so a number at the
+  very end of the fed bytes is not emitted until more bytes come or you call
+  `finish()`. `finish()` says "no more bytes are coming" and completes it.
+
+  Malformed input raises from `feed()`/`finish()`; read `describe_error()`,
+  `token_end()`, and `line()` for the location. After a raise the parser latches:
+  every later `feed()`/`finish()` raises again. `abort()` (called from the
+  notifier) stops the parse the same way. For untrusted input, `JsonParseLimits`
+  caps nesting depth and the length of a single string or number.
+
+  To turn a token stream back into a `JsonValue`, use `JsonReassembler`. For a
+  whole in-memory document, `JsonParser.parse()` is simpler.
   """
 
-  var _notify: JsonTokenNotify
-  var _source: String box = ""
+  let _notify: JsonTokenNotify
+  let _limits: JsonParseLimits
+  embed _reader: _ChunkReader
+  embed _frames: Array[_StreamFrame]
+  var _scan: (_LeafScan | None) = None
   var _offset: USize = 0
-  var _token_start: USize = 0
   var _line: USize = 1
-  var _abort: Bool = false
+  var _token_start: USize = 0
+  var _state: _ParserState = _Open
+  var _error_message: String = ""
+  var _running: Bool = false
 
-  var last_number: (I64 | F64) = I64(0)
-    """The most recently parsed number value."""
+  new ref create(
+    notify: JsonTokenNotify,
+    limits: JsonParseLimits = JsonParseLimits)
+  =>
+    _notify = notify
+    _limits = limits
+    _reader = _ChunkReader
+    _frames = Array[_StreamFrame]
 
-  var last_string: String = ""
-    """The most recently parsed string or key value."""
+  fun ref feed(data: ByteSeq) ? =>
+    """
+    Append a chunk of bytes and emit every token now derivable from the bytes in
+    hand. Holds any partial value to be finished by a later `feed()`. Raises on
+    malformed input or `abort()`; after that the parser is done and every later
+    `feed()`/`finish()` raises. Do not call `feed()` or `finish()` from within the
+    notifier — the parse is running and a re-entrant call raises.
+    """
+    if (_state isnt _Open) or _running then error end
+    // Drop empty chunks: a producer that loops feeding zero-byte reads would
+    // otherwise pile up empty buffer nodes that never drain.
+    if data.size() > 0 then _reader.append(data) end
+    _running = true
+    try _run()? else _running = false; error end
+    _running = false
 
-  new ref create(notify': JsonTokenNotify) =>
-    _notify = notify'
-
-  fun ref parse(source': String box) ? =>
-    """Parse a JSON document, emitting tokens to the notify callback."""
-    _source = source'
-    _offset = 0
-    _token_start = 0
-    _line = 1
-    _abort = false
-    last_number = I64(0)
-    last_string = ""
-
-    _skip_whitespace()
-    if _offset >= _source.size() then return end
-    _parse_value()?
-    _skip_whitespace()
-    if _offset < _source.size() then error end
+  fun ref finish() ? =>
+    """
+    Signal that no more bytes will be fed. Completes a pending number (the one
+    value that otherwise waits for a following byte) and emits its token. Raises if
+    that number's text is not valid, or if aborted/already done. A value left
+    structurally incomplete (an open container, an unterminated string) is simply
+    not completed — the consumer sees the truncation via `incomplete()`. After
+    `finish()` the parser is done; feeding more raises.
+    """
+    if (_state isnt _Open) or _running then error end
+    _running = true
+    try
+      match _scan
+      | let ns: _NumberScan =>
+        _token_start = ns.start
+        _scan = None
+        match _NumberParse(ns.buf)
+        | let v: (I64 | F64) => _emit(JsonTokenNumber(v))?
+        | _NumberMalformed => _fail_msg("invalid number")?
+        end
+      end
+      _running = false
+    else
+      _running = false
+      error
+    end
+    _state = _Finished
 
   fun ref abort() =>
-    """Signal the parser to stop after the current token."""
-    _abort = true
+    """
+    Signal the parser to stop. The current `feed()`/`finish()` then raises, and the
+    parser is done. Call this from the notifier when you have seen enough.
+    """
+    _state = _Aborted
 
   fun token_start(): USize =>
-    """Byte offset where the current token starts."""
+    """
+    Byte offset where the current token starts, absolute across all feeds. Valid
+    only during the notify callback.
+    """
     _token_start
 
   fun token_end(): USize =>
-    """Byte offset where the current token ends."""
+    """
+    Byte offset just past the current token, absolute across all feeds. Valid only
+    during the notify callback.
+    """
     _offset
 
   fun line(): USize =>
     """Current line number (1-based)."""
     _line
 
+  fun incomplete(): Bool =>
+    """
+    True while a value is part-way through — either mid-scan on a leaf or with a
+    container still open. After feeding a complete document and calling `finish()`
+    this is false; if it is still true, the input ended in the middle of a value.
+    This is the byte-level truncation check; `JsonReassembler.mid_value()` reports
+    only whether the reassembler is holding a partial value's tokens.
+    """
+    (_scan isnt None) or (_frames.size() > 0)
+
   fun describe_error(): String =>
-    """Human-readable description of the error location."""
-    if _offset < _source.size() then
-      "Invalid JSON at byte offset " + _offset.string()
-        + ", line " + _line.string()
+    """Human-readable description of the most recent error."""
+    match _state
+    | _Aborted => "Parse aborted by the notifier"
+    | _Finished => "Input already finished"
     else
-      "Unexpected end of JSON at byte offset "
-        + _source.size().string()
-        + ", line " + _line.string()
-    end
-
-  // --- Private parsing methods ---
-
-  fun ref _emit(token: JsonToken) ? =>
-    _notify(this, token)
-    if _abort then error end
-
-  fun ref _parse_value() ? =>
-    """
-    Parse one JSON value and all its descendants, emitting tokens.
-
-    Iterative rather than recursive: an explicit stack of container contexts
-    bounds nesting depth by the heap instead of the scheduler thread's native
-    stack, which deeply nested input would otherwise overflow. The token
-    sequence, token-offset bookkeeping, and abort/error behavior match a
-    straightforward recursive descent exactly.
-    """
-    let stack = Array[_ParseCtx]
-    match \exhaustive\ _read_value()?
-    | _ReadComplete => return
-    | _ReadOpenObject => stack.push(_ParseCtx(true))
-    | _ReadOpenArray => stack.push(_ParseCtx(false))
-    end
-
-    while stack.size() > 0 do
-      let ctx = try stack(stack.size() - 1)? else _Unreachable(); return end
-      if ctx.expect_separator then
-        _skip_whitespace()
-        _token_start = _offset
-        match _next()?
-        | ',' => ctx.expect_separator = false
-        | '}' if ctx.is_object =>
-          _emit(JsonTokenObjectEnd)?
-          try stack.pop()? else _Unreachable() end
-        | ']' if not ctx.is_object =>
-          _emit(JsonTokenArrayEnd)?
-          try stack.pop()? else _Unreachable() end
-        else
-          error
-        end
+      if _error_message != "" then
+        _error_message
       else
-        if ctx.is_object then
-          _skip_whitespace()
-          _token_start = _offset
-          _parse_string(true)? // parse key
-          _skip_whitespace()
-          _eat(':')?
+        "Invalid JSON at byte offset " + _offset.string()
+          + ", line " + _line.string()
+      end
+    end
+
+  fun parse_error(): JsonParseError =>
+    """
+    The most recent error as a `JsonParseError` (message, byte offset, line).
+    Meaningful after a raise from `feed()`/`finish()`.
+    """
+    JsonParseError(describe_error(), _offset, _line)
+
+  // --- driving loop -------------------------------------------------------
+
+  fun ref _run() ? =>
+    var progress = true
+    while progress do
+      match _scan
+      | let ss: _StringScan =>
+        match _resume_string(ss)
+        | _ScanNeedMore => progress = false
+        | let e: JsonParseError => _fail(e)?
+        | _ScanComplete =>
+          let value: String = try ss.result as String val
+            else _Unreachable(); "" end
+          _token_start = ss.start
+          _scan = None
+          if ss.is_key then
+            _emit(JsonTokenKey(value))?
+            _set_object_pos(_ObjColon)
+          else
+            _emit(JsonTokenString(value))?
+          end
         end
-        // The current element's value follows. A container value sets this
-        // context to the separator phase before its own context is pushed,
-        // so when the child closes we resume looking for ',' or the bracket.
-        match \exhaustive\ _read_value()?
-        | _ReadComplete => ctx.expect_separator = true
-        | _ReadOpenObject =>
-          ctx.expect_separator = true
-          stack.push(_ParseCtx(true))
-        | _ReadOpenArray =>
-          ctx.expect_separator = true
-          stack.push(_ParseCtx(false))
+      | let ns: _NumberScan =>
+        match _resume_number(ns)
+        | _ScanNeedMore => progress = false
+        | let e: JsonParseError => _fail(e)?
+        | _ScanComplete =>
+          _token_start = ns.start
+          _scan = None
+          match _NumberParse(ns.buf)
+          | let v: (I64 | F64) => _emit(JsonTokenNumber(v))?
+          | _NumberMalformed => _fail_msg("invalid number")?
+          end
+        end
+      | let ks: _KeywordScan =>
+        match _resume_keyword(ks)
+        | _ScanNeedMore => progress = false
+        | let e: JsonParseError => _fail(e)?
+        | _ScanComplete =>
+          _token_start = ks.start
+          let t = ks.token
+          _scan = None
+          _emit(t)?
+        end
+      | None =>
+        match _dispatch()?
+        | _StepGo => None
+        | _ScanNeedMore => progress = false
         end
       end
     end
 
-  fun ref _read_value(): _ReadResult ? =>
-    """
-    Read a single value at the current position.
+  // --- dispatch between tokens --------------------------------------------
 
-    Scalars emit their token and return _ReadComplete. A container emits its
-    start token; an empty one also emits its end token and returns
-    _ReadComplete, while a non-empty one returns _ReadOpenObject or
-    _ReadOpenArray for the caller to track on the work stack.
-    """
+  fun ref _dispatch(): (_StepGo | _ScanNeedMore) ? =>
     _skip_whitespace()
+    let b = try _reader.peek()? else return _ScanNeedMore end
+    if _frames.size() == 0 then
+      _begin_value(b)?
+    else
+      match _top_frame()
+      | let f: _ArrayFrame => _dispatch_array(f, b)?
+      | let f: _ObjectFrame => _dispatch_object(f, b)?
+      end
+    end
+
+  fun ref _top_frame(): _StreamFrame =>
+    try _frames(_frames.size() - 1)?
+    else _Unreachable(); _ArrayFrame(_ArrValueOrEnd)
+    end
+
+  fun ref _dispatch_array(f: _ArrayFrame, b: U8): _StepGo ? =>
+    match f.pos
+    | _ArrValueOrEnd =>
+      if b == ']' then _close_array()?
+      else f.pos = _ArrCommaOrEnd; _begin_value(b)? end
+    | _ArrValue =>
+      if b == ']' then _fail_msg("trailing comma in array")?
+      else f.pos = _ArrCommaOrEnd; _begin_value(b)? end
+    | _ArrCommaOrEnd =>
+      if b == ',' then _consume(); f.pos = _ArrValue; _StepGo
+      elseif b == ']' then _close_array()?
+      else _fail_msg("expected ',' or ']' in array")? end
+    end
+
+  fun ref _dispatch_object(f: _ObjectFrame, b: U8): _StepGo ? =>
+    match f.pos
+    | _ObjKeyOrEnd =>
+      if b == '}' then _close_object()?
+      elseif b == '"' then _begin_key()
+      else _fail_msg("expected a key or '}' in object")? end
+    | _ObjKey =>
+      if b == '"' then _begin_key()
+      else _fail_msg("expected a key in object")? end
+    | _ObjColon =>
+      if b == ':' then _consume(); f.pos = _ObjValue; _StepGo
+      else _fail_msg("expected ':' in object")? end
+    | _ObjValue =>
+      f.pos = _ObjCommaOrEnd; _begin_value(b)?
+    | _ObjCommaOrEnd =>
+      if b == ',' then _consume(); f.pos = _ObjKey; _StepGo
+      elseif b == '}' then _close_object()?
+      else _fail_msg("expected ',' or '}' in object")? end
+    end
+
+  fun ref _begin_value(b: U8): _StepGo ? =>
+    match b
+    | '{' => _open_object()?
+    | '[' => _open_array()?
+    | '"' =>
+      let start = _offset
+      _consume() // opening '"'
+      _reader.scan_reset() // scan cursor starts at the string content
+      _scan = _StringScan(false, start)
+      _StepGo
+    | 't' => _scan = _KeywordScan(_offset, "true", JsonTokenTrue); _StepGo
+    | 'f' => _scan = _KeywordScan(_offset, "false", JsonTokenFalse); _StepGo
+    | 'n' => _scan = _KeywordScan(_offset, "null", JsonTokenNull); _StepGo
+    else
+      if (b == '-') or ((b >= '0') and (b <= '9')) then
+        _scan = _NumberScan(_offset)
+        _StepGo
+      else
+        _fail_msg("expected a value")?
+      end
+    end
+
+  fun ref _begin_key(): _StepGo =>
+    let start = _offset
+    _consume() // opening '"'
+    _reader.scan_reset() // scan cursor starts at the string content
+    _scan = _StringScan(true, start)
+    _StepGo
+
+  fun ref _open_object(): _StepGo ? =>
+    if _frames.size() >= _limits.max_depth then
+      _fail_msg("maximum nesting depth exceeded")?
+    end
     _token_start = _offset
-    match _peek()?
-    | '{' =>
-      _next()? // consume '{'
-      _emit(JsonTokenObjectStart)?
-      _skip_whitespace()
-      if _peek()? == '}' then
-        // Anchor token_start at the closing '}', not the opening '{' set
-        // above, so the end token spans only the closing bracket — matching
-        // the non-empty close path in _parse_value.
-        _token_start = _offset
-        _next()?
-        _emit(JsonTokenObjectEnd)?
-        _ReadComplete
+    _consume() // '{'
+    _emit(JsonTokenObjectStart)?
+    _frames.push(_ObjectFrame(_ObjKeyOrEnd))
+    _StepGo
+
+  fun ref _open_array(): _StepGo ? =>
+    if _frames.size() >= _limits.max_depth then
+      _fail_msg("maximum nesting depth exceeded")?
+    end
+    _token_start = _offset
+    _consume() // '['
+    _emit(JsonTokenArrayStart)?
+    _frames.push(_ArrayFrame(_ArrValueOrEnd))
+    _StepGo
+
+  fun ref _close_object(): _StepGo ? =>
+    _token_start = _offset
+    _consume() // '}'
+    _emit(JsonTokenObjectEnd)?
+    try _frames.pop()? else _Unreachable() end
+    _StepGo
+
+  fun ref _close_array(): _StepGo ? =>
+    _token_start = _offset
+    _consume() // ']'
+    _emit(JsonTokenArrayEnd)?
+    try _frames.pop()? else _Unreachable() end
+    _StepGo
+
+  fun ref _set_object_pos(pos: _ObjPos) =>
+    match _top_frame()
+    | let f: _ObjectFrame => f.pos = pos
+    else _Unreachable()
+    end
+
+  // --- leaf scanners (suspendable) ----------------------------------------
+
+  fun ref _resume_string(s: _StringScan): _ScanOutcome =>
+    // Scan forward for the closing quote WITHOUT consuming, tracking whether any
+    // escape appears. A string with no escapes that lies within one chunk can
+    // then be handed back as a zero-copy view; anything else is decoded. The scan
+    // resumes across feeds from where it stopped, so it visits each byte once.
+    while not _reader.scan_at_end() do
+      if _reader.scan_len() > _limits.max_string_len then
+        return _err("string exceeds maximum length")
+      end
+      let c = try _reader.scan_byte()? else return _ScanNeedMore end
+      if s.escaped then
+        s.escaped = false
+        _reader.scan_advance()
+      elseif c == '"' then
+        return _finish_string(s)
+      elseif c == '\\' then
+        s.had_escape = true
+        s.escaped = true
+        _reader.scan_advance()
+      elseif c < 0x20 then
+        return _err("control character in string")
       else
-        _ReadOpenObject
-      end
-    | '[' =>
-      _next()? // consume '['
-      _emit(JsonTokenArrayStart)?
-      _skip_whitespace()
-      if _peek()? == ']' then
-        // Anchor token_start at the closing ']', not the opening '[' set
-        // above, so the end token spans only the closing bracket — matching
-        // the non-empty close path in _parse_value.
-        _token_start = _offset
-        _next()?
-        _emit(JsonTokenArrayEnd)?
-        _ReadComplete
-      else
-        _ReadOpenArray
-      end
-    | '"' => _parse_string(false)?; _ReadComplete
-    | 't' => _parse_true()?; _ReadComplete
-    | 'f' => _parse_false()?; _ReadComplete
-    | 'n' => _parse_null()?; _ReadComplete
-    | let c: U8 if (c == '-') or ((c >= '0') and (c <= '9')) =>
-      _parse_number()?
-      _ReadComplete
-    else
-      error
-    end
-
-  fun ref _parse_true() ? =>
-    _eat('t')?; _eat('r')?; _eat('u')?; _eat('e')?
-    _emit(JsonTokenTrue)?
-
-  fun ref _parse_false() ? =>
-    _eat('f')?; _eat('a')?; _eat('l')?; _eat('s')?; _eat('e')?
-    _emit(JsonTokenFalse)?
-
-  fun ref _parse_null() ? =>
-    _eat('n')?; _eat('u')?; _eat('l')?; _eat('l')?
-    _emit(JsonTokenNull)?
-
-  fun ref _parse_number() ? =>
-    let sign: I64 = if _peek_safe() == '-' then _next()?; -1 else 1 end
-    let int_start = _offset
-    let integer = _read_digits()?
-    let int_digits = _offset - int_start
-
-    // RFC 8259: leading zeros not allowed (e.g., 01, 00, 007)
-    if try (_source(int_start)? == '0') and (int_digits > 1)
-    else false end then
-      error
-    end
-
-    // For large integers, re-read as F64 to get the correct value
-    // (_read_digits accumulates into I64 which silently wraps on overflow)
-    let force_float = int_digits > 18
-    let integer_f64: F64 = if force_float then
-      _offset = int_start
-      _read_digits_f64()?
-    else
-      integer.f64()
-    end
-
-    var has_dot = false
-    var frac: F64 = 0
-    if _peek_safe() == '.' then
-      _next()?
-      has_dot = true
-      frac = _read_fractional()?
-    end
-
-    var has_exp = false
-    var exp: I64 = 0
-    match _peek_safe()
-    | 'e' | 'E' =>
-      _next()?
-      has_exp = true
-      let exp_sign: I64 = match _peek()?
-      | '+' => _next()?; 1
-      | '-' => _next()?; -1
-      else 1
-      end
-      exp = _read_digits()? * exp_sign
-    end
-
-    if has_dot or has_exp or force_float then
-      last_number = sign.f64() * (integer_f64 + frac)
-        * F64(10).pow(exp.f64())
-    else
-      last_number = sign * integer
-    end
-    _emit(JsonTokenNumber)?
-
-  fun ref _read_digits(): I64 ? =>
-    var result: I64 = 0
-    var count: USize = 0
-    while _offset < _source.size() do
-      let c = _source(_offset)?
-      if (c >= '0') and (c <= '9') then
-        result = (result * 10) + (c - '0').i64()
-        _offset = _offset + 1
-        count = count + 1
-      else
-        break
+        _reader.scan_advance()
       end
     end
-    if count == 0 then error end
-    result
+    _ScanNeedMore
 
-  fun ref _read_digits_f64(): F64 ? =>
-    var result: F64 = 0
-    var count: USize = 0
-    while _offset < _source.size() do
-      let c = _source(_offset)?
-      if (c >= '0') and (c <= '9') then
-        result = (result * 10) + (c - '0').f64()
-        _offset = _offset + 1
-        count = count + 1
-      else
-        break
+  fun ref _finish_string(s: _StringScan): _ScanOutcome =>
+    // The scan cursor is at the closing quote; the content is [consume, scan).
+    if (not s.had_escape) and _reader.scan_single_chunk() then
+      match _reader.view()
+      | let v: String val =>
+        let n = _reader.scan_len()
+        _reader.skip(n + 1) // content + closing quote
+        // The content holds no raw newline (control bytes are rejected above), so
+        // only the byte offset moves; the line number is unchanged.
+        _offset = _offset + n + 1
+        s.result = v
+        return _ScanComplete
       end
     end
-    if count == 0 then error end
-    result
+    // Copy path: escapes, or the content spans chunks — decode it. The whole
+    // string is present now, so the decode runs in one pass and cannot suspend,
+    // and it re-checks no limit: the extent scan already bounded the source
+    // length, and every JSON escape decodes to no more bytes than it spans
+    // (`\n` 2->1, `\uXXXX` 6->at most 3), so the decoded buffer is bounded too.
+    // A new escape whose decoded form could exceed its source would break that.
+    _decode_string(s)
 
-  fun ref _read_fractional(): F64 ? =>
-    var result: F64 = 0
-    var divisor: F64 = 10
-    var count: USize = 0
-    while _offset < _source.size() do
-      let c = _source(_offset)?
-      if (c >= '0') and (c <= '9') then
-        result = result + ((c - '0').f64() / divisor)
-        divisor = divisor * 10
-        _offset = _offset + 1
-        count = count + 1
-      else
-        break
-      end
-    end
-    if count == 0 then error end
-    result
-
-  fun ref _parse_string(is_key: Bool) ? =>
-    // token_start is already anchored at the opening '"' by the caller
-    // (_read_value for a string value, _parse_value for a key). Don't
-    // re-anchor it after _eat — that would drop the opening quote from the
-    // String/Key token's span.
-    _eat('"')?
-    var buf = recover String end
-    while true do
-      match \exhaustive\ _next()?
-      | '"' => break
-      | '\\' =>
-        match _next()?
-        | '"'  => buf.push('"')
-        | '\\' => buf.push('\\')
-        | '/'  => buf.push('/')
-        | 'b'  => buf.push(0x08)
-        | 'f'  => buf.push(0x0C)
-        | 'n'  => buf.push('\n')
-        | 'r'  => buf.push('\r')
-        | 't'  => buf.push('\t')
-        | 'u'  => buf = _parse_unicode(consume buf)?
-        else error
+  fun ref _decode_string(s: _StringScan): _ScanOutcome =>
+    while _reader.size() > 0 do
+      let c = _take()
+      match s.phase
+      | _StrNormal =>
+        // A pending high surrogate must be followed immediately by `\u`; this
+        // guard (and its twin in _StrEscape) is what lets _apply_unicode assume
+        // a low surrogate follows. Don't drop it.
+        if (s.pending_high isnt None) and (c != '\\') then
+          return _err("unpaired high surrogate")
         end
-      | let c: U8 if c < 0x20 => error
-      | let c: U8 => buf.push(c)
+        if c == '"' then
+          s.result = s.buf = recover iso String end
+          return _ScanComplete
+        elseif c == '\\' then
+          s.phase = _StrEscape
+        elseif c < 0x20 then
+          return _err("control character in string")
+        else
+          s.buf.push(c)
+        end
+      | _StrEscape =>
+        if (s.pending_high isnt None) and (c != 'u') then
+          return _err("unpaired high surrogate")
+        end
+        match c
+        | '"' => s.buf.push('"'); s.phase = _StrNormal
+        | '\\' => s.buf.push('\\'); s.phase = _StrNormal
+        | '/' => s.buf.push('/'); s.phase = _StrNormal
+        | 'b' => s.buf.push(0x08); s.phase = _StrNormal
+        | 'f' => s.buf.push(0x0C); s.phase = _StrNormal
+        | 'n' => s.buf.push('\n'); s.phase = _StrNormal
+        | 'r' => s.buf.push('\r'); s.phase = _StrNormal
+        | 't' => s.buf.push('\t'); s.phase = _StrNormal
+        | 'u' => s.phase = _StrUnicode; s.hex_value = 0; s.hex_count = 0
+        else return _err("invalid escape sequence")
+        end
+      | _StrUnicode =>
+        match _hex_digit(c)
+        | let hd: U32 =>
+          s.hex_value = (s.hex_value << 4) or hd
+          s.hex_count = s.hex_count + 1
+          if s.hex_count == 4 then
+            match _apply_unicode(s)
+            | let e: JsonParseError => return e
+            end
+          end
+        | None => return _err("invalid unicode escape")
+        end
       end
     end
-    last_string = consume buf
-    _emit(if is_key then JsonTokenKey else JsonTokenString end)?
+    // The extent scan already found the closing quote, so we never run dry here.
+    _Unreachable()
+    _ScanNeedMore
 
-  fun ref _parse_unicode(buf: String iso): String iso^ ? =>
-    let value = _read_hex4()?
-
-    if (value >= 0xD800) and (value < 0xDC00) then
-      // High surrogate — expect \uXXXX low surrogate
-      _eat('\\')?; _eat('u')?
-      let low = _read_hex4()?
-      if (low >= 0xDC00) and (low < 0xE000) then
-        let combined =
-          0x10000 + (((value and 0x3FF) << 10) or (low and 0x3FF))
-        buf.append(recover val String.from_utf32(combined) end)
+  fun ref _apply_unicode(s: _StringScan): (None | JsonParseError) =>
+    let value = s.hex_value
+    match s.pending_high
+    | let high: U32 =>
+      if (value >= 0xDC00) and (value < 0xE000) then
+        let combined: U32 =
+          0x10000 + (((high and 0x3FF) << 10) or (value and 0x3FF))
+        s.buf.append(recover val String.from_utf32(combined) end)
+        s.pending_high = None
+        s.phase = _StrNormal
+        None
       else
-        error
+        _err("expected a low surrogate")
       end
-    elseif (value >= 0xDC00) and (value < 0xE000) then
-      error // lone low surrogate
-    else
-      buf.append(recover val String.from_utf32(value) end)
-    end
-    consume buf
-
-  fun ref _read_hex4(): U32 ? =>
-    var result: U32 = 0
-    var i: USize = 0
-    while i < 4 do
-      let c = _next()?
-      let digit: U32 = if (c >= '0') and (c <= '9') then
-        (c - '0').u32()
-      elseif (c >= 'a') and (c <= 'f') then
-        (c - 'a').u32() + 10
-      elseif (c >= 'A') and (c <= 'F') then
-        (c - 'A').u32() + 10
+    | None =>
+      if (value >= 0xD800) and (value < 0xDC00) then
+        // High surrogate: a low-surrogate `\u` escape must follow immediately.
+        // The `pending_high isnt None` guards in _resume_string reject any byte
+        // other than `\` then `u` while a high surrogate is pending.
+        s.pending_high = value
+        s.phase = _StrNormal
+        None
+      elseif (value >= 0xDC00) and (value < 0xE000) then
+        _err("unexpected low surrogate")
       else
-        error
+        s.buf.append(recover val String.from_utf32(value) end)
+        s.phase = _StrNormal
+        None
       end
-      result = (result << 4) or digit
-      i = i + 1
     end
-    result
 
-  // --- Character primitives ---
+  fun ref _resume_number(s: _NumberScan): _ScanOutcome =>
+    while _reader.size() > 0 do
+      // The loop guard guarantees a byte, so the peek cannot fail here.
+      let c = try _reader.peek()? else _Unreachable(); U8(0) end
+      if not _is_number_byte(c) then
+        // A following non-number byte terminates the number; leave it in the
+        // reader for dispatch. A number is never completed on exhaustion.
+        return _ScanComplete
+      end
+      // `>=` keeps the bound tight: the terminator is peeked, not consumed here,
+      // so reject the byte that would exceed the limit before pushing it.
+      if s.buf.size() >= _limits.max_number_len then
+        return _err("number exceeds maximum length")
+      end
+      _consume()
+      s.buf.push(c)
+    end
+    _ScanNeedMore
 
-  fun _peek(): U8 ? =>
-    _source(_offset)?
+  fun ref _resume_keyword(s: _KeywordScan): _ScanOutcome =>
+    while s.matched < s.word.size() do
+      if _reader.size() == 0 then return _ScanNeedMore end
+      let c = _take()
+      let expected = try s.word(s.matched)? else _Unreachable(); U8(0) end
+      if c != expected then return _err("invalid literal") end
+      s.matched = s.matched + 1
+    end
+    _ScanComplete
 
-  fun _peek_safe(): U8 =>
-    try _source(_offset)? else 0 end
-
-  fun ref _next(): U8 ? =>
-    let c = _source(_offset)?
-    _offset = _offset + 1
-    if c == '\n' then _line = _line + 1 end
-    c
-
-  fun ref _eat(expected: U8) ? =>
-    if _source(_offset)? != expected then error end
-    _offset = _offset + 1
-    if expected == '\n' then _line = _line + 1 end
+  // --- byte primitives ----------------------------------------------------
 
   fun ref _skip_whitespace() =>
-    while _offset < _source.size() do
-      match try _source(_offset)? else return end
-      | ' ' | '\t' | '\r' => _offset = _offset + 1
-      | '\n' => _offset = _offset + 1; _line = _line + 1
+    while _reader.size() > 0 do
+      match try _reader.peek()? else return end
+      | ' ' | '\t' | '\r' | '\n' => _consume()
       else return
       end
     end
 
-primitive _ReadComplete
-  """`_read_value` read a complete value (a scalar or an empty container)."""
-primitive _ReadOpenObject
-  """`_read_value` opened a non-empty object; its context must be tracked."""
-primitive _ReadOpenArray
-  """`_read_value` opened a non-empty array; its context must be tracked."""
+  fun ref _consume() =>
+    try
+      let c = _reader.peek()?
+      _reader.skip1()
+      _offset = _offset + 1
+      if c == '\n' then _line = _line + 1 end
+    else
+      _Unreachable()
+    end
 
-type _ReadResult is (_ReadComplete | _ReadOpenObject | _ReadOpenArray)
-  """What `_read_value` did: completed a value, or opened a container."""
+  fun ref _take(): U8 =>
+    try
+      let c = _reader.peek()?
+      _reader.skip1()
+      _offset = _offset + 1
+      if c == '\n' then _line = _line + 1 end
+      c
+    else
+      _Unreachable()
+      U8(0)
+    end
 
-class _ParseCtx
-  """
-  One open container on the parser's work stack.
+  fun _hex_digit(c: U8): (U32 | None) =>
+    if (c >= '0') and (c <= '9') then (c - '0').u32()
+    elseif (c >= 'a') and (c <= 'f') then ((c - 'a') + 10).u32()
+    elseif (c >= 'A') and (c <= 'F') then ((c - 'A') + 10).u32()
+    else None
+    end
 
-  `is_object` distinguishes `{}` from `[]`. `expect_separator` is the phase
-  toggle: `false` means the next thing to read is an element (a key/value pair
-  for an object, a value for an array); `true` means it is a separator (`,`) or
-  the closing bracket.
-  """
-  let is_object: Bool
-  var expect_separator: Bool
+  fun _is_number_byte(c: U8): Bool =>
+    ((c >= '0') and (c <= '9')) or (c == '-') or (c == '+') or (c == '.')
+      or (c == 'e') or (c == 'E')
 
-  new create(is_object': Bool) =>
-    is_object = is_object'
-    expect_separator = false
+  // --- token emission and failure -----------------------------------------
+
+  fun ref _emit(token: JsonToken) ? =>
+    _notify(this, token)
+    if _state is _Aborted then error end
+
+  fun _err(message: String): JsonParseError =>
+    JsonParseError(message, _offset, _line)
+
+  fun ref _set_error(message: String) =>
+    _state = _Failed
+    _error_message = message
+
+  fun ref _fail(e: JsonParseError) ? =>
+    _set_error(e.message)
+    error
+
+  fun ref _fail_msg(message: String): _StepGo ? =>
+    // Always raises; the `_StepGo` return type is only so a dispatch branch that
+    // fails can stand where a `_StepGo` value is expected.
+    _set_error(message)
+    error
