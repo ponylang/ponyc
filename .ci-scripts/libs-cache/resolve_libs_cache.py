@@ -11,37 +11,31 @@ jobs have their own orchestration (`pr_libs_cache.py`).
 
 Modes:
 
-  - consumer mode (default): `pull` the main cache -> hit -> libs restored, done.
-    miss -> run the build command. NO main push (the warmer is the main cache's
-    only writer). With `--branch-cache` it also participates in the branch scratch
-    cache: on a main miss it `pull`s the branch cache (reuse across runs of the
-    same changed-libs branch) and, after a build, `push`es the branch cache
-    best-effort. weekly passes `--branch-cache` so an ad-hoc
-    `workflow_dispatch` validating an LLVM change captures its build instead of
-    discarding it; release/nightly use plain consumer mode (main-only). (tier2 and
-    tier3 are require-cache-hit now, not consumer -- see that mode below.)
-  - warmer mode (`--warm`): `exists` the main cache (a HEAD, no download) -> hit ->
-    done. miss -> `exists` the branch cache and, on a hit, `promote` it into the
-    main cache (a registry copy -- reuses the build a PR or tier dispatch already
-    made) instead of cold-building. Only on a branch miss (or a failed promote) does
-    it build and `push` the main cache. `--warm` is the only path that writes the
-    main cache; by workflow convention only the warmer passes it.
-  - require-cache-hit mode (`--require-cache-hit`): `pull` the main cache -> hit ->
-    done. Takes no build command (it never builds). For jobs that must rely on a
-    pre-warmed cache rather than cold-build (the stress tests, tier2, and tier3).
-    Two modifiers tune the miss behavior:
-      * `--skip-on-miss`: on a miss, write the `.libs-cache-miss` marker and exit 0
-        (the workflow gates its build/run steps on the marker's ABSENCE, so the job
-        goes green with those steps skipped). The scheduled stress loop uses this --
-        it runs at times that legitimately overlap an empty/refilling cache, so a
-        miss is expected, not a failure.
-      * `--branch-cache`: on a main miss, also `pull` the branch cache before giving
-        up -- the same main->branch resolution a PR consumer uses. A manual
-        `workflow_dispatch` stress run on a branch uses this so it finds the libs
-        that branch already built for the target. Pull-only here (never builds, so
-        never pushes).
-    With neither modifier -- or with `--branch-cache` and BOTH caches missing -- a
-    miss FAILS LOUDLY (no build).
+  - consumer mode (default): try to `pull` the libs from the main cache. If they
+    are there, done. If not, run the build command. It never pushes the main cache
+    (only `--warm` does). With `--branch-cache` it also uses the branch scratch
+    cache: when the main cache doesn't have the libs it tries the branch cache too,
+    and after building it pushes the result to the branch cache (best effort). Pass
+    `--branch-cache` for a run that might build an LLVM change worth keeping (so the
+    build is saved for reuse); omit it for a run that only ever wants the main cache.
+  - warmer mode (`--warm`): check whether the main cache already has the libs (a
+    HEAD request, no download). If it does, done. If not, check the branch cache
+    and, if it has them, `promote` (copy) them into the main cache instead of
+    building. Only when neither cache has them (or the promote fails) does it build
+    and `push` the main cache. `--warm` is the only mode that writes the main cache.
+  - require-cache-hit mode (`--require-cache-hit`): try to `pull` from the main
+    cache. Takes no build command -- it never builds. For a run that must rely on
+    already-built libs rather than build them itself. Two modifiers set what happens
+    when the libs aren't cached:
+      * `--skip-on-miss`: write the `.libs-cache-miss` marker and exit 0 instead of
+        failing. The caller skips its build/run steps when the marker is present, so
+        the run passes with those steps skipped. For a run where the libs being
+        absent is expected -- e.g. one that can overlap the cache being refilled.
+      * `--branch-cache`: also try the branch cache before giving up -- the same
+        main-then-branch lookup a consumer does. It only pulls here; it never builds
+        or pushes.
+    With neither modifier -- or with `--branch-cache` and neither cache has the libs
+    -- the run fails with an error (no build).
 
 `--branch-cache` is consumer or require-cache-hit; it is rejected with `--warm` (a
 warmer never reads the branch cache as a consumer). The `--warm` name intentionally
@@ -56,9 +50,9 @@ Stdlib only. Usage:
     # warmer (promote-or-build-and-push-main)
     resolve_libs_cache.py --warm (--image <ref> | --platform <label>) \
         --tag <hash> -- <build command...>
-    # require-cache-hit (pull-or-FAIL; stress tests) -- NO build command.
-    # --skip-on-miss: green-skip on miss (scheduled loop);
-    # --branch-cache:  also pull the branch cache on a main miss (manual branch run).
+    # require-cache-hit (pull, or fail if not cached) -- NO build command.
+    # --skip-on-miss: if not cached, skip the run instead of failing it;
+    # --branch-cache:  also try the branch cache (it only pulls, never builds).
     resolve_libs_cache.py --require-cache-hit [--skip-on-miss | --branch-cache] \
         (--image <ref> | --platform <label>) --tag <hash>
 
@@ -77,10 +71,9 @@ from pathlib import Path
 from common import (BRANCH_CACHE, MAIN_CACHE, PROMOTE, cache_args, die, info, run,
                     split_build_command)
 
-# The stress, tier2, and tier3 workflows gate their build/run steps on the ABSENCE
-# of this marker (`if: hashFiles('.libs-cache-miss') == ''`), so on a
-# `--skip-on-miss` miss we write it to signal "skip this run". It lives in the
-# workspace root.
+# A caller that passes --skip-on-miss gates its build/run steps on the ABSENCE of
+# this marker (`if: hashFiles('.libs-cache-miss') == ''`), so when the libs are not
+# cached we write it to signal "skip this run". It lives in the workspace root.
 MISS_MARKER = '.libs-cache-miss'
 
 
@@ -88,11 +81,10 @@ def write_miss_marker():
     """Write the skip-on-miss marker into the workspace so the workflow's
     `hashFiles` gate sees it. We use GITHUB_WORKSPACE, falling back to cwd.
 
-    The `or '.'` fallback is load-bearing for the arm64-linux docker jobs (stress
-    and tier2): their resolve step runs inside `docker run -w /home/pony/project`
-    (the mounted workspace) WITHOUT GITHUB_WORKSPACE in the container env, so the
-    marker must land in cwd, which is that mount root -- where the host-side
-    `hashFiles` looks. If that job's working directory ever stops being the
+    The `or '.'` fallback is load-bearing when the resolve step runs inside
+    `docker run -w <mounted-workspace>` WITHOUT GITHUB_WORKSPACE in the container
+    env: the marker must land in cwd, which is that mount root -- where the
+    host-side `hashFiles` looks. If that working directory ever stops being the
     workspace mount, the host gate can no longer see the marker."""
     (Path(os.environ.get('GITHUB_WORKSPACE') or '.') / MISS_MARKER).touch()
 
@@ -111,21 +103,23 @@ def main(argv):
                            'Default mode pulls-or-builds and never pushes the main '
                            'cache.')
     mode.add_argument('--require-cache-hit', action='store_true',
-                      help='require-cache-hit mode: pull the main cache; on a miss '
-                           'fail loudly instead of building. Takes no build '
-                           'command. For jobs that require a pre-warmed cache '
-                           '(stress tests, tier2, tier3).')
+                      help='require-cache-hit mode: pull from the main cache; if '
+                           'the libs are not cached, fail with an error instead of '
+                           'building. Takes no build command. For a run that must '
+                           'rely on already-built libs.')
     parser.add_argument('--branch-cache', action='store_true',
-                        help='consumer or require-cache-hit mode: also participate '
-                             'in the branch scratch cache. Consumer: pull it for '
-                             'reuse on a main miss and push it best-effort after a '
-                             'build (needs packages: write). require-cache-hit: pull '
-                             'it on a main miss before failing (pull-only).')
+                        help='consumer or require-cache-hit mode: also use the '
+                             'branch scratch cache. Consumer: pull from it when the '
+                             'main cache does not have the libs, and push to it '
+                             'after a build (best effort; needs packages: write). '
+                             'require-cache-hit: pull from it before failing (it '
+                             'only pulls, never builds).')
     parser.add_argument('--skip-on-miss', action='store_true',
-                        help='require-cache-hit mode only: on a miss, write the '
-                             '.libs-cache-miss marker and exit 0 instead of failing '
-                             'loudly, so the workflow skips its build/run steps. For '
-                             'the scheduled stress loop, where a miss is expected.')
+                        help='require-cache-hit mode only: if the libs are not '
+                             'cached, write the .libs-cache-miss marker and exit 0 '
+                             'instead of failing, so the workflow skips its '
+                             'build/run steps. For a run where the libs being '
+                             'absent is expected.')
 
     # Choose the mode from the args BEFORE any `--`. We can't parse first (the
     # consumer/warm build command after `--` would break argparse), and we must
@@ -143,31 +137,30 @@ def main(argv):
         if run([sys.executable, MAIN_CACHE, 'pull'] + base) == 0:
             info("Libs restored from the main GHCR cache.")
             return
-        # On a main miss, a manual branch run (--branch-cache) checks the branch
-        # cache too -- the same main->branch resolution a PR consumer uses, so it
-        # finds the libs that branch already built for this target. Pull-only.
+        # When the main cache does not have the libs, --branch-cache checks the
+        # branch cache too -- the same main-then-branch lookup a consumer does. It
+        # only pulls here.
         if (args.branch_cache
                 and run([sys.executable, BRANCH_CACHE, 'pull'] + base) == 0):
             info("Libs restored from the branch GHCR cache.")
             return
         sel_str = args.image or args.platform
-        # The scheduled stress loop (--skip-on-miss) treats a miss as expected and
-        # skips quietly; without it -- or with --branch-cache and both caches empty
-        # -- a miss fails loudly.
+        # --skip-on-miss treats the libs being absent as expected and skips
+        # quietly; without it -- or with --branch-cache and neither cache has the
+        # libs -- the run fails with an error.
         if args.skip_on_miss:
             write_miss_marker()
-            info(f"Libs cache miss for '{sel_str}' (tag {args.tag}); skipping this "
-                 "run (wrote .libs-cache-miss). Expected when a scheduled run "
-                 "overlaps an empty or refilling cache. See the GHCR libs cache "
-                 "coupling in .known-couplings/ghcr-libs-cache.md.")
+            info(f"Libs not cached for '{sel_str}' (tag {args.tag}); skipping this "
+                 "run (wrote .libs-cache-miss). Expected when a run overlaps the "
+                 "cache being refilled. See the GHCR libs cache coupling in "
+                 ".known-couplings/ghcr-libs-cache.md.")
             return
-        die(f"Libs cache MISS for require-cache-hit platform '{sel_str}' (tag "
-            f"{args.tag}). This job requires a pre-warmed libs cache and never "
-            "cold-builds. Likely causes: (1) the cache was just cleared or an "
-            "LLVM-determining input changed -- it refills on the next "
-            "push-to-main run of update-lib-cache.yml; (2) this platform is "
-            "missing from update-lib-cache.yml (the warmer). See the GHCR libs "
-            "cache coupling in .known-couplings/ghcr-libs-cache.md.")
+        die(f"Libs not cached for require-cache-hit platform '{sel_str}' (tag "
+            f"{args.tag}). This job needs already-built libs and never builds them "
+            "itself. Likely causes: (1) the cache was just cleared or an "
+            "LLVM-determining input changed; (2) this platform is not covered by "
+            "whatever fills the cache. See the GHCR libs cache coupling in "
+            ".known-couplings/ghcr-libs-cache.md.")
 
     # consumer / warmer: the build command after `--` is mandatory.
     ours, build_cmd = split_build_command(rest)

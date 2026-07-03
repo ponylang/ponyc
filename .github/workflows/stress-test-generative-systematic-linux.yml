@@ -12,7 +12,7 @@ on:
         default: 'main'
 
 permissions:
-  packages: read
+  packages: write
 
 # Second stress lane. The other stress workflows (the tcp-open-close trio) share
 # the repo-wide `stress-scheduled` group (one at a time); the generative workflows
@@ -48,11 +48,12 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           LIBS_IMAGE: ghcr.io/ponylang/ponyc-ci-ubuntu26.04-builder:20260425
           LIBS_TAG: ${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
-          # schedule -> skip the run on a cache miss (the loop overlaps an empty/
-          # refilling cache); manual dispatch -> also pull the branch cache so a
-          # branch run finds the libs it already built, and fail loudly otherwise.
-          LIBS_CACHE_FLAGS: ${{ github.event_name == 'schedule' && '--skip-on-miss' || '--branch-cache' }}
-        run: python3 .ci-scripts/libs-cache/resolve_libs_cache.py --require-cache-hit $LIBS_CACHE_FLAGS --image "$LIBS_IMAGE" --tag "$LIBS_TAG"
+          # Off main (a manual dispatch of a branch): build LLVM if it isn't cached,
+          # and push what we build. On main (a scheduled run, or a dispatch left on
+          # main): if it isn't cached, skip -- we don't build LLVM on main.
+          LIBS_MODE: ${{ ((github.event_name == 'workflow_dispatch' && github.event.inputs.sha != 'main') && '--branch-cache') || '--require-cache-hit --skip-on-miss' }}
+          LIBS_BUILD: ${{ ((github.event_name == 'workflow_dispatch' && github.event.inputs.sha != 'main') && '-- make libs llvm_tools=false build_flags=-j4') || '' }}
+        run: python3 .ci-scripts/libs-cache/resolve_libs_cache.py $LIBS_MODE --image "$LIBS_IMAGE" --tag "$LIBS_TAG" $LIBS_BUILD
       - name: Build Debug Systematic Runtime
         if: ${{ hashFiles('.libs-cache-miss') == '' }}
         run: |
