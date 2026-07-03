@@ -22,6 +22,7 @@ All notable changes to the Pony compiler and standard library will be documented
 ### Changed
 
 - Stop installing the Pony runtime's C headers and static libraries ([PR #5620](https://github.com/ponylang/ponyc/pull/5620))
+- Don't run the ASIO thread under systematic testing ([PR #5647](https://github.com/ponylang/ponyc/pull/5647))
 
 ## [0.66.0] - 2026-06-29
 
