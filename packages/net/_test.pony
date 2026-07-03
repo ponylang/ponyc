@@ -48,9 +48,11 @@ actor \nodoc\ Main is TestList
     test(_TestTCPThrottle)
     test(_TestTCPUnmute)
     test(_TestTCPWritev)
+    test(_TestUDPEmptyDatagramDelivered)
     test(_TestUDPListenFailure)
     test(_TestUDPOversizedDatagramTruncated)
     test(_TestUDPUndersizedDatagramDelivered)
+    test(_TestUDPZeroSizeReadBufferDelivers)
     test(_TestUnicastIP6Loopback)
 
     // The deterministic send-failure trigger (send to broadcast without
@@ -1741,6 +1743,69 @@ class \nodoc\ iso _TestUDPUndersizedDatagramDelivered is UnitTest
             _AscendingBytes(20))
         end,
         "127.0.0.1", "0", 64))
+
+    h.long_test(TimeoutValue())
+
+class \nodoc\ iso _TestUDPEmptyDatagramDelivered is UnitTest
+  """
+  A zero-byte UDP datagram is a valid datagram (RFC 768) and is delivered to
+  `received` with an empty payload -- not treated as an error that tears the
+  socket down. This pins the connectionless recvfrom contract that a 0-byte
+  read is an empty datagram, distinct from stream `pony_os_recv` where 0 bytes
+  means the peer closed.
+
+  Reusing `_TestUDPReadBufferReceiver` with an empty expected payload asserts
+  the delivered array is genuinely 0 bytes, so a delivery of the wrong (stray,
+  non-empty) datagram would fail on length rather than pass silently. If the
+  runtime still errored on a 0-byte recvfrom, `_pending_reads` would `_close`
+  the socket, `received` would never fire, and the test would time out.
+  """
+  fun name(): String => "net/UDPEmptyDatagramDelivered"
+  fun exclusion_group(): String => "network"
+
+  fun ref apply(h: TestHelper) =>
+    h.expect_action("receiver listen")
+    h.expect_action("sender listen")
+    h.expect_action("receive")
+
+    // Buffer 64, payload 0: delivered = min(64, 0) = 0, an empty datagram.
+    h.dispose_when_done(
+      UDPSocket.ip4(UDPAuth(h.env.root),
+        recover
+          _TestUDPReadBufferReceiver(h, _AscendingBytes(0), _AscendingBytes(0))
+        end,
+        "127.0.0.1", "0", 64))
+
+    h.long_test(TimeoutValue())
+
+class \nodoc\ iso _TestUDPZeroSizeReadBufferDelivers is UnitTest
+  """
+  A `UDPSocket` created with a read buffer `size` of 0 does not silently drop
+  incoming datagrams. `size` is raised to 1 at construction, so a non-empty
+  datagram is delivered truncated to its first byte instead of arriving as an
+  empty datagram. Without the clamp a 0-length buffer makes every `recvfrom`
+  return a 0 count, which -- now that a 0 count means "empty datagram" (see
+  net/UDPEmptyDatagramDelivered) -- would deliver every datagram as empty and
+  silently lose its bytes.
+
+  The sender transmits 3 bytes; the receiver's buffer (0, raised to 1) delivers
+  exactly the first byte, [0]. The size assertion (1, not 0) is what fails if
+  the clamp is removed.
+  """
+  fun name(): String => "net/UDPZeroSizeReadBufferDelivers"
+  fun exclusion_group(): String => "network"
+
+  fun ref apply(h: TestHelper) =>
+    h.expect_action("receiver listen")
+    h.expect_action("sender listen")
+    h.expect_action("receive")
+
+    h.dispose_when_done(
+      UDPSocket.ip4(UDPAuth(h.env.root),
+        recover
+          _TestUDPReadBufferReceiver(h, _AscendingBytes(1), _AscendingBytes(3))
+        end,
+        "127.0.0.1", "0", 0))
 
     h.long_test(TimeoutValue())
 
