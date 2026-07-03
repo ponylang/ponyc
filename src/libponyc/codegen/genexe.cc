@@ -261,8 +261,11 @@ LLVMValueRef gen_main(compile_t* c, reach_type_t* t_main, reach_type_t* t_env)
 }
 
 #ifdef PLATFORM_IS_POSIX_BASED
-// is_cross_compiling, host_is_musl, and system_triple are shared with gencshim
-// and live in genopt (declared in genopt.h); both take pass_opt_t.
+// is_cross_compiling and system_triple are shared with gencshim and live in
+// genopt (declared in genopt.h); both take pass_opt_t.
+// target_libc_is_musl (defined below, declared in genexe.h) is likewise shared
+// with gencshim: the interpreter choice and the shim header ordering both call
+// it so they can never disagree about the target libc.
 
 static const char* elf_emulation(compile_t* c)
 {
@@ -357,7 +360,7 @@ static const char* dynamic_linker_path(compile_t* c)
   if(target_is_openbsd(c->opt->triple))
     return "/usr/libexec/ld.so";
 
-  bool is_musl = triple.isMusl() || host_is_musl(c->opt);
+  bool is_musl = target_libc_is_musl(c->opt);
 
   switch(triple.getArch())
   {
@@ -460,25 +463,16 @@ static bool elf_matches_target(const char* path, uint16_t target_machine)
   return machine == target_machine;
 }
 
-static const char* find_libc_crt_dir(const char* sysroot,
-  const char* sys_triple, uint16_t target_machine, strtable_t* strtab)
+// The standard sysroot library directories, in search order, where a target's
+// libc startup objects and shared libraries live. Shared by find_libc_crt_dir
+// (which looks for crt1.o/crt0.o) and target_libc_is_musl (which looks for
+// libc.so.6) so both search the same set -- including non-usr-merged layouts
+// where /lib/<triple> and /usr/lib/<triple> are distinct directories. The lib64
+// entries cover Fedora/RHEL and other distros that place 64-bit objects in
+// /usr/lib64 rather than /usr/lib/<triple> or /usr/lib.
+static void libc_lib_dirs(const char* sysroot, const char* sys_triple,
+  strtable_t* strtab, const char* candidates[6])
 {
-  // Search candidate paths for libc CRT objects.
-  // The lib64 candidates cover Fedora, RHEL, and other distros that
-  // place 64-bit libc startup objects in /usr/lib64 rather than
-  // /usr/lib/<triple> or /usr/lib.
-  //
-  // Per candidate, try crt1.o first (Linux/FreeBSD/DragonFly), then
-  // crt0.o (OpenBSD, which has no crt1.o at all). The sentinel is
-  // validated against the target architecture via elf_matches_target.
-  // On multilib hosts (e.g. an x86_64 system with glibc-devel.i686
-  // installed) /usr/lib/crt1.o is the 32-bit object while
-  // /usr/lib64/crt1.o is the 64-bit one — without arch validation the
-  // search would return /usr/lib and the link would fail later inside
-  // LLD with an arch-mismatch error. Validating the sentinel alone is
-  // sufficient because the multilib/per-OS layouts ship matched sets of
-  // startup objects in each directory.
-  const char* candidates[6];
   char buf[PATH_MAX];
 
   snprintf(buf, sizeof(buf), "%s/usr/lib/%s", sysroot, sys_triple);
@@ -498,8 +492,25 @@ static const char* find_libc_crt_dir(const char* sysroot,
 
   snprintf(buf, sizeof(buf), "%s/lib64", sysroot);
   candidates[5] = stringtab(strtab, buf);
+}
+
+static const char* find_libc_crt_dir(const char* sysroot,
+  const char* sys_triple, uint16_t target_machine, strtable_t* strtab)
+{
+  // Per candidate directory, try crt1.o first (Linux/FreeBSD/DragonFly), then
+  // crt0.o (OpenBSD, which has no crt1.o at all). The sentinel is validated
+  // against the target architecture via elf_matches_target. On multilib hosts
+  // (e.g. an x86_64 system with glibc-devel.i686 installed) /usr/lib/crt1.o is
+  // the 32-bit object while /usr/lib64/crt1.o is the 64-bit one -- without arch
+  // validation the search would return /usr/lib and the link would fail later
+  // inside LLD with an arch-mismatch error. Validating the sentinel alone is
+  // sufficient because the multilib/per-OS layouts ship matched sets of startup
+  // objects in each directory.
+  const char* candidates[6];
+  libc_lib_dirs(sysroot, sys_triple, strtab, candidates);
 
   static const char* sentinels[] = { "crt1.o", "crt0.o" };
+  char buf[PATH_MAX];
 
   for(size_t i = 0; i < sizeof(candidates) / sizeof(candidates[0]); i++)
   {
@@ -512,6 +523,51 @@ static const char* find_libc_crt_dir(const char* sysroot,
   }
 
   return NULL;
+}
+
+bool target_libc_is_musl(pass_opt_t* opt)
+{
+  // Musl is a Linux-only libc. On the BSDs, macOS, and Windows the target is
+  // never musl -- and their libc has no libc.so.6, so the glibc fingerprint
+  // below must not run there or it would misread every non-glibc libc as musl.
+  if(!target_is_linux(opt->triple))
+    return false;
+
+  llvm::Triple triple(opt->triple);
+
+  // An explicit --triple is the user's declaration of the target libc. Honor
+  // it exactly; a host probe must never override what the user asked for.
+  if(opt->user_triple)
+    return triple.isMusl();
+
+  // A default triple can occasionally name musl correctly; trust that. When it
+  // claims gnu we cannot -- the vendored LLVM reports "gnu" even on musl hosts
+  // -- so identify the libc we will actually link instead of trusting it.
+  if(triple.isMusl())
+    return true;
+
+  // Fingerprint the libc we are about to link. glibc always ships libc.so.6 in
+  // one of the standard lib directories; musl never does (its libc is the
+  // dynamic loader itself). Probe the same directories find_libc_crt_dir
+  // searches -- not just the one holding the crt objects -- so a non-usr-merged
+  // layout that splits libc.so.6 (/lib/<triple>) from crt1.o (/usr/lib/<triple>)
+  // still reads as glibc. Found anywhere -> glibc; absent everywhere -> musl.
+  const char* sys_triple = system_triple(opt);
+  const char* sysroot =
+    (opt->sysroot != NULL && opt->sysroot[0] != '\0') ? opt->sysroot : "";
+
+  const char* candidates[6];
+  libc_lib_dirs(sysroot, sys_triple, opt->strtab, candidates);
+
+  char buf[PATH_MAX];
+  for(size_t i = 0; i < sizeof(candidates) / sizeof(candidates[0]); i++)
+  {
+    snprintf(buf, sizeof(buf), "%s/libc.so.6", candidates[i]);
+    if(file_exists(buf))
+      return false;
+  }
+
+  return true;
 }
 
 static const char* find_ponyc_crt_dir(ast_t* program, compile_t* c)

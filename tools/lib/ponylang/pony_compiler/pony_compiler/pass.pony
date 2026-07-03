@@ -68,6 +68,9 @@ struct _PassOpt
   var ast_print_width: USize = 0
   var allow_test_symbols: Bool = false
   var parse_trace: Bool = false
+  // Mirrors pass_opt_t.user_triple (pass.h). See
+  // .known-couplings/pass-opt-struct-mirror.md.
+  var user_triple: Bool = false
 
   var package_search_paths: Pointer[_StrList] = package_search_paths.create()
   var safe_packages: Pointer[_StrList] = safe_packages.create()

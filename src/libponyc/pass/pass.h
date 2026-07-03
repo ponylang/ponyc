@@ -299,6 +299,15 @@ typedef struct pass_opt_t
   bool allow_test_symbols;
   bool parse_trace;
 
+  // True when the target triple was explicitly provided (via --triple or set
+  // programmatically) rather than defaulted from the host. An explicit triple
+  // is authoritative for libc detection and must never be overridden by a
+  // host probe. See target_libc_is_musl (genexe).
+  //
+  // Any field change to this struct must be mirrored in _PassOpt (pass.pony);
+  // see .known-couplings/pass-opt-struct-mirror.md.
+  bool user_triple;
+
   strlist_t* package_search_paths;
   strlist_t* safe_packages;
   magic_package_t* magic_packages;

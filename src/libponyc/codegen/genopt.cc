@@ -1319,35 +1319,6 @@ bool is_cross_compiling(pass_opt_t* opt)
     || target.getEnvironment() != host.getEnvironment();
 }
 
-bool host_is_musl(pass_opt_t* opt)
-{
-  if(is_cross_compiling(opt))
-    return false;
-
-  Triple triple(opt->triple);
-  const char* musl_linker = NULL;
-
-  switch(triple.getArch())
-  {
-    case Triple::x86_64:  musl_linker = "/lib/ld-musl-x86_64.so.1"; break;
-    case Triple::aarch64: musl_linker = "/lib/ld-musl-aarch64.so.1"; break;
-    case Triple::riscv64: musl_linker = "/lib/ld-musl-riscv64.so.1"; break;
-
-    case Triple::arm:
-    case Triple::thumb:
-    {
-      struct stat st;
-      return (stat("/lib/ld-musl-armhf.so.1", &st) == 0)
-        || (stat("/lib/ld-musl-arm.so.1", &st) == 0);
-    }
-
-    default: return false;
-  }
-
-  struct stat st;
-  return stat(musl_linker, &st) == 0;
-}
-
 // Twin of genexe.cc's gnu_multiarch_arch (keep the two in sync): LLVM reports
 // 32-bit little-endian ARM as the raw triple arch ("armv7l", "armv6", etc.),
 // but Debian/Ubuntu/Raspbian multiarch directories normalize all of them to

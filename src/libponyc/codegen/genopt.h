@@ -37,11 +37,6 @@ bool target_is_littleendian(char* triple);
 // triple says "darwin" and the target says "macosx".
 bool is_cross_compiling(pass_opt_t* opt);
 
-// True if the native host is actually musl. The vendored LLVM's default
-// triple may claim "gnu" on musl systems, so for native builds this probes
-// the filesystem for the musl loader instead of trusting the triple.
-bool host_is_musl(pass_opt_t* opt);
-
 // The arch-os-environment form distros use for multiarch directories
 // (e.g. x86_64-linux-gnu), interned in opt->strtab.
 const char* system_triple(pass_opt_t* opt);
