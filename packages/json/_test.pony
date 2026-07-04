@@ -80,6 +80,39 @@ actor \nodoc\ Main is TestList
     test(_TestTokenParserPositions)
     test(_TestTokenParserEndPosition)
     test(_TestTokenParserStringPosition)
+    // Streaming token parser + reassembler
+    test(_TestStreamObject)
+    test(_TestStreamArray)
+    test(_TestStreamEmptyContainers)
+    test(_TestStreamMultiValue)
+    test(_TestStreamScalarRoot)
+    test(_TestStreamFinishNumber)
+    test(_TestStreamSplitInvariance)
+    test(_TestStreamEscapes)
+    test(_TestStreamNumbers)
+    test(_TestStreamTrailingComma)
+    test(_TestStreamMalformed)
+    test(_TestStreamErrorLatches)
+    test(_TestStreamIncomplete)
+    test(_TestStreamErrorLocation)
+    test(_TestStreamLimitDepth)
+    test(_TestStreamLimits)
+    test(_TestStreamAbort)
+    test(_TestStreamTokens)
+    test(_TestStreamFlatMemory)
+    test(_TestStreamDifferential)
+    test(_TestStreamReassemblerReuse)
+    test(_TestStreamProtocol)
+    test(_TestStreamReassemblerAdd)
+    test(_TestStreamFinishInvalidNumber)
+    test(_TestStreamFinishLatches)
+    test(_TestStreamNumberLimitSplit)
+    test(_TestStreamEndAnchorSplit)
+    test(_TestStreamReentrancyGuarded)
+    test(_TestStreamZeroCopyView)
+    test(_TestStreamLargeChunked)
+    test(Property1UnitTest[String](_StreamMatchesBatchProperty))
+    test(Property1UnitTest[String](_StreamSplitInvariantProperty))
 
 // ===================================================================
 // Generators
@@ -144,13 +177,24 @@ primitive \nodoc\ _JsonValueStringGen
     buf.push('"')
     var i: USize = 0
     while i < len do
-      let c = rnd.u8(0x20, 0x7E)
-      if c == '"' then
-        buf.append("\\\"")
-      elseif c == '\\' then
-        buf.append("\\\\")
+      // Mix in escape and \uXXXX/surrogate sequences so property tests exercise
+      // the escape and unicode decode paths (and their resume across chunks),
+      // not just plain ASCII. Every branch is valid JSON.
+      match rnd.usize(0, 9)
+      | 0 => buf.append("\\n")
+      | 1 => buf.append("\\t")
+      | 2 => buf.append("\\r")
+      | 3 => buf.append("\\u00e9")        // a BMP \uXXXX escape
+      | 4 => buf.append("\\uD83D\\uDE00") // a surrogate pair
       else
-        buf.push(c)
+        let c = rnd.u8(0x20, 0x7E)
+        if c == '"' then
+          buf.append("\\\"")
+        elseif c == '\\' then
+          buf.append("\\\\")
+        else
+          buf.push(c)
+        end
       end
       i = i + 1
     end
@@ -1531,7 +1575,7 @@ class \nodoc\ iso _TestTokenParserAbort is UnitTest
     // parse should raise because abort() was called mid-document
     var raised = false
     try
-      parser.parse("[1,2,3]")?
+      parser.feed("[1,2,3]")?
     else
       raised = true
     end
@@ -2553,7 +2597,7 @@ class \nodoc\ iso _TestTokenParserPositions is UnitTest
   fun apply(h: TestHelper) =>
     let events = Array[(String, USize, USize)]
     let parser = JsonTokenParser(_TokenRecorder(events))
-    try parser.parse("""{"a":[1,{}],"b":2,"c":[]}""")?
+    try parser.feed("""{"a":[1,{}],"b":2,"c":[]}""")?
     else h.fail("token parse raised unexpectedly")
     end
 
@@ -2614,7 +2658,7 @@ class \nodoc\ iso _TestTokenParserEndPosition is UnitTest
   =>
     let events = Array[(String, USize, USize)]
     let parser = JsonTokenParser(_TokenRecorder(events))
-    try parser.parse(input)?
+    try parser.feed(input)?
     else h.fail("token parse raised unexpectedly for " + input); return
     end
     try
@@ -2648,7 +2692,7 @@ class \nodoc\ iso _TestTokenParserStringPosition is UnitTest
   =>
     let events = Array[(String, USize, USize)]
     let parser = JsonTokenParser(_TokenRecorder(events))
-    try parser.parse(input)?
+    try parser.feed(input)?
     else h.fail("token parse raised unexpectedly for " + input); return
     end
     for ev in events.values() do
@@ -2674,9 +2718,9 @@ class \nodoc\ _TokenRecorder is JsonTokenNotify
       | JsonTokenNull => "Null"
       | JsonTokenTrue => "True"
       | JsonTokenFalse => "False"
-      | JsonTokenNumber => "Number"
-      | JsonTokenString => "String"
-      | JsonTokenKey => "Key"
+      | let _: JsonTokenNumber => "Number"
+      | let _: JsonTokenString => "String"
+      | let _: JsonTokenKey => "Key"
       | JsonTokenObjectStart => "ObjectStart"
       | JsonTokenObjectEnd => "ObjectEnd"
       | JsonTokenArrayStart => "ArrayStart"
