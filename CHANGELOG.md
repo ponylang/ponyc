@@ -19,6 +19,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Fix json package emitting invalid JSON for non-finite floating-point values ([PR #5661](https://github.com/ponylang/ponyc/pull/5661))
 - Fix `Sig.usr2()` reporting SIGUSR2 availability backwards ([PR #5667](https://github.com/ponylang/ponyc/pull/5667))
 - Fix systematic testing occasionally hanging on Windows ([PR #5670](https://github.com/ponylang/ponyc/pull/5670))
+- Fix json package losing precision when serializing floating-point values ([PR #5672](https://github.com/ponylang/ponyc/pull/5672))
 
 ### Added
 
