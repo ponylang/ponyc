@@ -62,15 +62,18 @@ actor \nodoc\ Main is TestList
     test(_TestParseErrorLoneSurrogates)
     test(_TestParseErrors)
     test(_TestParseKeywords)
+    test(_TestParseNumberOutOfRange)
     test(_TestParseNumbers)
     test(_TestParseStrings)
     test(_TestParseWholeDocument)
     test(_TestPrintCompact)
     test(_TestPrintFloats)
+    test(_TestPrintNonFinite)
     test(_TestPrintPretty)
     test(_TestPrinterPretty)
     test(_TestPrinterScalars)
     test(_TestTokenParserAbort)
+    test(_TestTokenParserReuseAfterError)
     // Regression tests — stack-safe JSON walks (issue #5557)
     test(_TestParseDeeplyNested)
     test(_TestPrintDeeplyNested)
@@ -544,6 +547,18 @@ class \nodoc\ iso _TestParseNumbers is UnitTest
     else h.fail("large integer failed")
     end
 
+    // The I64/F64 promotion boundary: 18 digits stays an integer, 19 becomes a
+    // float even though it would still fit I64.
+    match JsonParser.parse("999999999999999999") // 18 nines
+    | let j: JsonValue => h.assert_eq[I64](999999999999999999, j as I64)
+    else h.fail("18-digit integer failed")
+    end
+
+    match JsonParser.parse("1000000000000000000") // 19 digits
+    | let j: JsonValue => h.assert_true((j as F64).finite())
+    else h.fail("19-digit integer failed")
+    end
+
     // Zero alone is valid
     match JsonParser.parse("0")
     | let j: JsonValue => h.assert_eq[I64](0, j as I64)
@@ -556,6 +571,92 @@ class \nodoc\ iso _TestParseNumbers is UnitTest
       let f = j as F64
       h.assert_true((f - 0.5).abs() < 1e-10)
     else h.fail("0.5 failed")
+    end
+
+    // A zero written with a large exponent is still zero.
+    match JsonParser.parse("0e309")
+    | let j: JsonValue =>
+      let f = j as F64
+      h.assert_true(f.finite())
+      h.assert_eq[F64](0, f)
+    else h.fail("0e309 failed")
+    end
+
+    match JsonParser.parse("0.0e999")
+    | let j: JsonValue =>
+      let f = j as F64
+      h.assert_true(f.finite())
+      h.assert_eq[F64](0, f)
+    else h.fail("0.0e999 failed")
+    end
+
+    match JsonParser.parse("-0e309")
+    | let j: JsonValue =>
+      let f = j as F64
+      h.assert_true(f.finite())
+      h.assert_eq[F64](0, f)
+    else h.fail("-0e309 failed")
+    end
+
+    // The largest power-of-ten literal that stays finite; 1e309 overflows.
+    match JsonParser.parse("1e308")
+    | let j: JsonValue => h.assert_true((j as F64).finite())
+    else h.fail("1e308 failed")
+    end
+
+    // In range, but an intermediate would over- or underflow if the value were
+    // built digit by digit, so the conversion must be correctly rounded: here
+    // 1e320 (integer part, over F64) times 1e-310 (exponent) is 1e10.
+    match JsonParser.parse("1" + "0".mul(320) + "e-310")
+    | let j: JsonValue =>
+      let f = j as F64
+      h.assert_true(f.finite())
+      h.assert_true((f - 1e10).abs() < 1.0)
+    else h.fail("large integer with negative exponent failed")
+    end
+
+    // A nonzero fraction whose leading zeros underflow if summed term by term,
+    // pulled back into range by the exponent.
+    match JsonParser.parse("0." + "0".mul(320) + "1e320") // ~0.1
+    | let j: JsonValue =>
+      let f = j as F64
+      h.assert_true((f - 0.1).abs() < 1e-9)
+    else h.fail("tiny fraction with large exponent failed")
+    end
+
+    // Below the smallest positive F64: underflows to 0 and is accepted, not
+    // rejected as out of range.
+    match JsonParser.parse("1e-400")
+    | let j: JsonValue =>
+      let f = j as F64
+      h.assert_true(f.finite())
+      h.assert_eq[F64](0, f)
+    else h.fail("1e-400 failed")
+    end
+
+class \nodoc\ iso _TestParseNumberOutOfRange is UnitTest
+  fun name(): String => "json/parse/number-out-of-range"
+
+  fun apply(h: TestHelper) =>
+    // A literal whose magnitude exceeds F64 range is rejected as a parse error,
+    // not parsed to a non-finite value the printer cannot serialize. RFC 8259
+    // permits limiting numeric range.
+    _assert_out_of_range(h, "1e999")
+    _assert_out_of_range(h, "-1e999")
+    _assert_out_of_range(h, "1e400")
+    _assert_out_of_range(h, "2e308")
+    // Nested, so the error surfaces mid-document (offset < size), not at EOF.
+    _assert_out_of_range(h, "[1e999]")
+    // A long integer with no exponent overflows F64 too (310 digits).
+    _assert_out_of_range(h, "1" + "0".mul(309))
+
+  fun _assert_out_of_range(h: TestHelper, input: String) =>
+    match \exhaustive\ JsonParser.parse(input)
+    | let e: JsonParseError =>
+      // The distinct message matters: without it the location-only fallback
+      // misreports the whole-literal case as "Unexpected end of JSON".
+      h.assert_eq[String]("Number out of range", e.message)
+    | let _: JsonValue => h.fail("Expected out-of-range error for: " + input)
     end
 
 class \nodoc\ iso _TestParseStrings is UnitTest
@@ -702,6 +803,17 @@ class \nodoc\ iso _TestParseErrors is UnitTest
     _assert_parse_error(h, "00", "double zero")
     _assert_parse_error(h, "-01", "negative leading zero")
 
+    // Malformed numbers: a fraction or exponent needs at least one digit, and a
+    // sign needs digits after it.
+    _assert_parse_error(h, "1.", "trailing dot")
+    _assert_parse_error(h, "1.e5", "dot with no fraction digit")
+    _assert_parse_error(h, "1e", "exponent with no digit")
+    _assert_parse_error(h, "1E", "capital exponent with no digit")
+    _assert_parse_error(h, "1e+", "exponent sign with no digit")
+    _assert_parse_error(h, "1e-", "negative exponent with no digit")
+    _assert_parse_error(h, "1..2", "double dot")
+    _assert_parse_error(h, "-", "lone minus")
+
     // Raw control char (byte < 0x20)
     let ctrl = recover val
       let s = String(3)
@@ -824,6 +936,41 @@ class \nodoc\ iso _TestPrintFloats is UnitTest
     let zero = JsonArray.push(F64(0))
     let zero_s: String val = zero.print()
     h.assert_eq[String]("[0.0]", zero_s)
+
+class \nodoc\ iso _TestPrintNonFinite is UnitTest
+  fun name(): String => "json/print/non-finite"
+
+  fun apply(h: TestHelper) =>
+    // A non-finite F64 (infinity or NaN) has no JSON representation, so it
+    // serializes as `null` — the printer must always produce valid JSON.
+    let inf: F64 = F64(1e308) * F64(10)
+    let neg_inf: F64 = -inf
+    let nan: F64 = inf - inf
+
+    // Guard: confirm the inputs really are non-finite.
+    h.assert_false(inf.finite())
+    h.assert_false(neg_inf.finite())
+    h.assert_false(nan.finite())
+
+    h.assert_eq[String]("null", JsonPrinter.print(inf))
+    h.assert_eq[String]("null", JsonPrinter.print(neg_inf))
+    h.assert_eq[String]("null", JsonPrinter.print(nan))
+
+    // Inside a container, compact and pretty.
+    h.assert_eq[String]("""{"v":null}""",
+      JsonPrinter.print(JsonObject.update("v", inf)))
+    h.assert_eq[String]("[null,null]",
+      JsonPrinter.print(JsonArray.push(inf).push(nan)))
+    h.assert_eq[String]("[\n  null\n]",
+      JsonPrinter.pretty(JsonArray.push(neg_inf)))
+
+    // The direct print methods on JsonArray/JsonObject route through the same
+    // path, so they coerce too.
+    h.assert_eq[String]("[null]", JsonArray.push(inf).print())
+
+    // A finite float is unaffected — whole numbers still keep a `.0`.
+    h.assert_eq[String]("1.0", JsonPrinter.print(F64(1)))
+    h.assert_eq[String]("2.5", JsonPrinter.print(F64(2.5)))
 
 class \nodoc\ iso _TestPrinterPretty is UnitTest
   fun name(): String => "json/printer/pretty"
@@ -1536,6 +1683,34 @@ class \nodoc\ iso _TestTokenParserAbort is UnitTest
       raised = true
     end
     h.assert_true(raised)
+
+class \nodoc\ iso _TestTokenParserReuseAfterError is UnitTest
+  fun name(): String => "json/tokenparser/reuse-after-error"
+
+  fun apply(h: TestHelper) =>
+    // Reusing a JsonTokenParser after an out-of-range error must not leak the
+    // stale "Number out of range" message into a later document's error. This
+    // guards the _error_message reset in parse().
+    let parser = JsonTokenParser(
+      object ref is JsonTokenNotify
+        fun ref apply(parser': JsonTokenParser, token: JsonToken) => None
+      end)
+
+    try
+      parser.parse("1e999")?
+      h.fail("1e999 should have raised")
+    else
+      h.assert_eq[String]("Number out of range", parser.describe_error())
+    end
+
+    // A later, different error on the same instance reports its own message,
+    // not the stale one.
+    try
+      parser.parse("[")?
+      h.fail("unterminated array should have raised")
+    else
+      h.assert_true(parser.describe_error() != "Number out of range")
+    end
 
 // ===================================================================
 // Property Tests — JSONPath Filter Safety

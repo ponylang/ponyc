@@ -24,6 +24,9 @@ primitive JsonPrinter
   JsonPrinter.print(true)   // true
   JsonPrinter.print("hi")   // "hi"
   ```
+
+  A non-finite `F64` — infinity or NaN — has no JSON representation (RFC 8259
+  numbers are finite), so it serializes as `null`.
   """
 
   fun print(value: JsonValue): String iso^ =>

@@ -11,6 +11,10 @@ primitive JsonParser
 
   Built on top of JsonTokenParser — the token parser handles all parsing
   logic, and an internal tree builder assembles the result.
+
+  A numeric literal outside `F64` range — for example `1e999`, or an integer of
+  several hundred digits — is rejected as a parse error rather than parsed to a
+  non-finite value. RFC 8259 permits an implementation to limit numeric range.
   """
 
   fun parse(source: String): (JsonValue | JsonParseError) =>
