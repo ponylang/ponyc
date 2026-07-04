@@ -2,12 +2,19 @@ use "random"
 
 class ref Randomness
   """
-  Source of randomness, providing methods for generatic uniformly distributed
-  values from a given closed interval: [min, max]
-  in order for the user to be able to generate every possible value for a given
-  primitive numeric type.
+  Source of randomness, providing methods for generating uniformly distributed
+  values of the primitive numeric types.
 
-  All primitive number method create numbers in range [min, max)
+  The integer methods (`u8` through `isize`) generate values in the closed
+  interval [min, max]. Both bounds are included, so every value of the type can
+  be produced.
+
+  The floating-point methods (`f32` and `f64`) scale a value from the underlying
+  generator's `real()` (uniformly distributed in [0, 1)) onto the requested
+  range. `min` is always reachable and results are never below `min`, but `max`
+  is only an approximate upper bound: floating-point rounding means `max` may or
+  may not be produced, and an `f32` result can land marginally above `max`. Do
+  not rely on `max` being included or excluded.
   """
   let _random: Random
 
@@ -217,16 +224,23 @@ class ref Randomness
 
   fun ref f32(min: F32 = 0.0, max: F32 = 1.0): F32 =>
     """
-    Generate a F32 in closed interval [min, max]
-    (default: [0.0, 1.0]).
+    Generate an F32 in the range from `min` to `max` (default: 0.0 to 1.0).
+
+    `min` is always reachable. On the default range the result is the closed
+    interval [0.0, 1.0]: `real()`'s largest value rounds up to 1.0 when
+    converted to F32, so `max` is produced when that top value is drawn. See
+    `Randomness` for how `max` behaves on other ranges.
     """
     (_random.real().f32() * (max-min)) + min
 
 
   fun ref f64(min: F64 = 0.0, max: F64 = 1.0): F64 =>
     """
-    Generate a F64 in closed interval [min, max]
-    (default: [0.0, 1.0]).
+    Generate an F64 in the range from `min` to `max` (default: 0.0 to 1.0).
+
+    `min` is always reachable. On the default range the result is the half-open
+    interval [0.0, 1.0); `max` (1.0) is never produced. See `Randomness` for how
+    `max` behaves on other ranges.
     """
     (_random.real() * (max-min)) + min
 
