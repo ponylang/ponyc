@@ -42,8 +42,7 @@ SINGLE_PATH_TABLE = [
     ('test/rt-stress/generative/orchestrate_normal_test.py', (False, False,
                                                               False)),
     ('test/rt-stress/generative/stress_common.py', (False, False, False)),
-    ('test/rt-stress/tcp-open-close/tcp-open-close.pony', (False, False,
-                                                          False)),
+    ('test/rt-stress/tcp-swarm/main.pony', (False, False, False)),
     ('test/rt-systematic/order-signature/main.pony', (False, False, False)),
     # ...but the still-built test/ subdirs (compiled by test-ci-core) stay IN,
     # and a sibling like test/rt-stress-foo/ stays IN -- guard rows so an

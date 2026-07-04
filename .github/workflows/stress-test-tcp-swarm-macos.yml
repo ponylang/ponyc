@@ -1,8 +1,9 @@
-name: "Stress Test: Linux Glibc Generative (Normal)"
+name: "Stress Test: macOS TCP Swarm"
 
 on:
   schedule:
-    - cron: "0 18 * * *"
+    - cron: "0 9 * * *"
+    - cron: "0 15 * * *"
   workflow_dispatch:
     inputs:
       sha:
@@ -15,22 +16,15 @@ permissions:
   packages: write
 
 concurrency:
-  group: stress-${{ github.event_name == 'workflow_dispatch' && github.run_id || 'scheduled-generative' }}
+  group: stress-${{ github.event_name == 'workflow_dispatch' && github.run_id || 'scheduled' }}
   cancel-in-progress: false
 
 jobs:
-  x86_64-linux-glibc:
-    runs-on: ubuntu-latest
-    timeout-minutes: 240
+  arm64-macos:
+    runs-on: macos-26
+    timeout-minutes: 90
 
-    name: x86-64-unknown-linux-ubuntu26.04 generative normal [debug]
-    container:
-      image: ghcr.io/ponylang/ponyc-ci-ubuntu26.04-builder:20260425
-      # SYS_PTRACE + unconfined seccomp so lldb can ptrace the engine: the normal
-      # mode runs each seed under lldb to capture a crash backtrace (a normal-mode
-      # crash does not reproduce, so the in-the-moment stack is the only artifact).
-      options: --user pony --cap-add=SYS_PTRACE --security-opt seccomp=unconfined
-
+    name: arm64 macOS tcp swarm [debug]
     steps:
       - name: Checkout
         uses: actions/checkout@v6.0.2
@@ -39,34 +33,39 @@ jobs:
       - name: Restore prebuilt libs
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          LIBS_IMAGE: ghcr.io/ponylang/ponyc-ci-ubuntu26.04-builder:20260425
           LIBS_TAG: ${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
           # Off main (a manual dispatch of a branch): build LLVM if it isn't cached,
           # and push what we build. On main (a scheduled run, or a dispatch left on
           # main): if it isn't cached, skip -- we don't build LLVM on main.
           LIBS_MODE: ${{ ((github.event_name == 'workflow_dispatch' && github.event.inputs.sha != 'main') && '--branch-cache') || '--require-cache-hit --skip-on-miss' }}
-          LIBS_BUILD: ${{ ((github.event_name == 'workflow_dispatch' && github.event.inputs.sha != 'main') && '-- make libs llvm_tools=false build_flags=-j4') || '' }}
-        run: python3 .ci-scripts/libs-cache/resolve_libs_cache.py $LIBS_MODE --image "$LIBS_IMAGE" --tag "$LIBS_TAG" $LIBS_BUILD
+          LIBS_BUILD: ${{ ((github.event_name == 'workflow_dispatch' && github.event.inputs.sha != 'main') && '-- make libs llvm_tools=false build_flags=-j3') || '' }}
+        run: python3 .ci-scripts/libs-cache/resolve_libs_cache.py $LIBS_MODE --platform arm64-macos-26 --tag "$LIBS_TAG" $LIBS_BUILD
       - name: Build Debug Runtime
-        # A NORMAL build (no use= flags): the real, multi-threaded runtime, the
-        # whole point of this mode. NOT use=systematic_testing.
         if: ${{ hashFiles('.libs-cache-miss') == '' }}
         run: |
           make configure config=debug
           make build config=debug
-      - name: Run Generative Stress Test
+      # Widen the ephemeral port range and shorten TIME_WAIT so a high-churn run
+      # can't exhaust client ports (which would fail connections -- treated as a
+      # test failure). The retired tcp-open-close test needed the same tuning.
+      - name: Configure networking for high connection churn
+        if: ${{ hashFiles('.libs-cache-miss') == '' }}
+        run: bash .ci-scripts/macOS-configure-networking.bash
+      - name: Run TCP Swarm Stress Test
         if: ${{ hashFiles('.libs-cache-miss') == '' }}
         run: |
-          python3 test/rt-stress/generative/orchestrate_normal.py \
+          python3 test/rt-stress/tcp-swarm/orchestrate_tcp.py \
             --ponyc build/debug/ponyc \
-            --start ${{ github.run_id }} --budget-seconds 5400 \
+            --lldb lldb \
+            --start ${{ github.run_id }} --budget-seconds 1800 \
+            --timeout-seconds 600 \
             --out rt-stress-out
       # cancelled() too: keep bundles from seeds that ran before a cancel.
       - name: Upload failure bundles
         if: ${{ (failure() || cancelled()) && hashFiles('.libs-cache-miss') == '' }}
         uses: actions/upload-artifact@v4.6.2
         with:
-          name: generative-normal-bundles-linux-glibc
+          name: tcp-swarm-bundles-macos-arm
           path: rt-stress-out/*.json
           if-no-files-found: ignore
       # cancelled() too: failure() is false when a job hits timeout-minutes.

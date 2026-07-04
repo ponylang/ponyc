@@ -663,54 +663,6 @@ switch ($Command.ToLower())
         }
         break
     }
-    "stress-test-tcp-open-close-release"
-    {
-        $lldbcmd = 'C:\msys64\mingw64\bin\lldb.exe'
-        $lldbargs = @('--batch', '--one-line', 'run', '--one-line-on-crash', '"frame variable"', '--one-line-on-crash', '"register read"', '--one-line-on-crash', '"bt all"', '--one-line-on-crash', '"quit 1"', '--')
-
-        & $outDir\ponyc.exe --bin-name=open-close --output=$outDir test\rt-stress\tcp-open-close
-        $lldboutput = & $lldbcmd $lldbargs $outDir\open-close.exe --ponynoblock 1000
-        Write-Output $lldboutput
-        $err = Get-ProcessExitCodeFromLLDB -LLDBOutput $lldboutput
-        exit $err
-        break
-    }
-    "stress-test-tcp-open-close-with-cd-release"
-    {
-        $lldbcmd = 'C:\msys64\mingw64\bin\lldb.exe'
-        $lldbargs = @('--batch', '--one-line', 'run', '--one-line-on-crash', '"frame variable"', '--one-line-on-crash', '"register read"', '--one-line-on-crash', '"bt all"', '--one-line-on-crash', '"quit 1"', '--')
-
-        & $outDir\ponyc.exe --bin-name=open-close --output=$outDir test\rt-stress\tcp-open-close
-        $lldboutput = & $lldbcmd $lldbargs $outDir\open-close.exe 1000
-        Write-Output $lldboutput
-        $err = Get-ProcessExitCodeFromLLDB -LLDBOutput $lldboutput
-        exit $err
-        break
-    }
-    "stress-test-tcp-open-close-debug"
-    {
-        $lldbcmd = 'C:\msys64\mingw64\bin\lldb.exe'
-        $lldbargs = @('--batch', '--one-line', 'run', '--one-line-on-crash', '"frame variable"', '--one-line-on-crash', '"register read"', '--one-line-on-crash', '"bt all"', '--one-line-on-crash', '"quit 1"', '--')
-
-        & $outDir\ponyc.exe --debug --bin-name=open-close --output=$outDir test\rt-stress\tcp-open-close
-        $lldboutput = & $lldbcmd $lldbargs $outDir\open-close.exe --ponynoblock 1000
-        Write-Output $lldboutput
-        $err = Get-ProcessExitCodeFromLLDB -LLDBOutput $lldboutput
-        exit $err
-        break
-    }
-    "stress-test-tcp-open-close-with-cd-debug"
-    {
-        $lldbcmd = 'C:\msys64\mingw64\bin\lldb.exe'
-        $lldbargs = @('--batch', '--one-line', 'run', '--one-line-on-crash', '"frame variable"', '--one-line-on-crash', '"register read"', '--one-line-on-crash', '"bt all"', '--one-line-on-crash', '"quit 1"', '--')
-
-        & $outDir\ponyc.exe --debug --bin-name=open-close --output=$outDir test\rt-stress\tcp-open-close
-        $lldboutput = & $lldbcmd $lldbargs $outDir\open-close.exe 1000
-        Write-Output $lldboutput
-        $err = Get-ProcessExitCodeFromLLDB -LLDBOutput $lldboutput
-        exit $err
-        break
-    }
     "install"
     {
         Write-Output "cmake.exe --build `"$buildDir`" --config $Config --target install"
