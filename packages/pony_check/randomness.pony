@@ -251,6 +251,9 @@ class ref Randomness
     (_random.next() % 2) == 0
 
   fun ref shuffle[T](array: Array[T] ref) =>
+    """
+    Shuffle the elements of the array into a random order, mutating the array.
+    """
     _random.shuffle[T](array)
 
 
