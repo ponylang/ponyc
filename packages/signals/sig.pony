@@ -9,7 +9,7 @@ primitive Sig
 
   fun ill(): U32 =>
     ifdef linux or bsd or osx then 4
-    else compile_error "no SIGINT"
+    else compile_error "no SIGILL"
     end
 
   fun trap(): U32 =>
