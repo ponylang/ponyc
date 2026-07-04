@@ -196,14 +196,23 @@ primitive _JsonPrint
     consume b
 
   fun _float(buf: String iso, n: F64): String iso^ =>
+    // RFC 8259 has no representation for infinity or NaN, so emit `null`: the
+    // printer must always produce parseable JSON. `JsonParser` rejects
+    // out-of-range literals, so a non-finite value reaches here only when one
+    // is constructed directly.
+    if not n.finite() then
+      buf.append("null")
+      return consume buf
+    end
     let s: String = n.string()
     buf.append(s)
+    // A whole-number float prints without `.`/`e`/`E`; add `.0` so it re-parses
+    // as a float, not an integer. `s` is finite here, so it never contains
+    // `inf`/`nan`.
     if
       (not s.contains("."))
         and (not s.contains("e"))
         and (not s.contains("E"))
-        and (not s.contains("inf"))
-        and (not s.contains("nan"))
     then
       buf.append(".0")
     end

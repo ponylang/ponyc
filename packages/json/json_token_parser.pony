@@ -1,3 +1,5 @@
+use @strtod[F64](nptr: Pointer[U8] tag, endptr: Pointer[Pointer[U8] box] ref)
+
 class ref JsonTokenParser
   """
   Streaming JSON token parser.
@@ -14,6 +16,13 @@ class ref JsonTokenParser
   var _token_start: USize = 0
   var _line: USize = 1
   var _abort: Bool = false
+  var _error_message: String = ""
+  // Null-terminated view of _source, computed once per parse() so `_read_float`
+  // can hand strtod a pointer into it without re-terminating the whole source
+  // on every number. For a non-null-terminated source this is a temporary copy
+  // held only by this raw pointer, alive only for the synchronous parse() that
+  // set it — never dereference it outside the current parse().
+  var _source_cstr: Pointer[U8] tag = Pointer[U8]
 
   var last_number: (I64 | F64) = I64(0)
     """The most recently parsed number value."""
@@ -25,12 +34,17 @@ class ref JsonTokenParser
     _notify = notify'
 
   fun ref parse(source': String box) ? =>
-    """Parse a JSON document, emitting tokens to the notify callback."""
+    """
+    Parse a JSON document, emitting tokens to the notify callback. Raises on
+    malformed input and on a numeric literal outside `F64` range.
+    """
     _source = source'
+    _source_cstr = source'.cstring()
     _offset = 0
     _token_start = 0
     _line = 1
     _abort = false
+    _error_message = ""
     last_number = I64(0)
     last_string = ""
 
@@ -57,8 +71,14 @@ class ref JsonTokenParser
     _line
 
   fun describe_error(): String =>
-    """Human-readable description of the error location."""
-    if _offset < _source.size() then
+    """
+    Human-readable description of the most recent error: a specific reason (such
+    as an out-of-range number) when one has been recorded, otherwise the error's
+    byte-offset location.
+    """
+    if _error_message != "" then
+      _error_message
+    elseif _offset < _source.size() then
       "Invalid JSON at byte offset " + _offset.string()
         + ", line " + _line.string()
     else
@@ -195,6 +215,9 @@ class ref JsonTokenParser
     _emit(JsonTokenNull)?
 
   fun ref _parse_number() ? =>
+    // The whole literal, including any sign, starts here; the float path hands
+    // this span to strtod, the integer path accumulates directly.
+    let num_start = _offset
     let sign: I64 = if _peek_safe() == '-' then _next()?; -1 else 1 end
     let int_start = _offset
     let integer = _read_digits()?
@@ -206,41 +229,36 @@ class ref JsonTokenParser
       error
     end
 
-    // For large integers, re-read as F64 to get the correct value
-    // (_read_digits accumulates into I64 which silently wraps on overflow)
-    let force_float = int_digits > 18
-    let integer_f64: F64 = if force_float then
-      _offset = int_start
-      _read_digits_f64()?
-    else
-      integer.f64()
-    end
+    // An integer of more than 18 digits can exceed I64, so it is read as an F64
+    // even with no fraction or exponent.
+    var is_float = int_digits > 18
 
-    var has_dot = false
-    var frac: F64 = 0
     if _peek_safe() == '.' then
       _next()?
-      has_dot = true
-      frac = _read_fractional()?
+      _read_digits()? // require at least one fraction digit
+      is_float = true
     end
 
-    var has_exp = false
-    var exp: I64 = 0
     match _peek_safe()
     | 'e' | 'E' =>
       _next()?
-      has_exp = true
-      let exp_sign: I64 = match _peek()?
-      | '+' => _next()?; 1
-      | '-' => _next()?; -1
-      else 1
-      end
-      exp = _read_digits()? * exp_sign
+      let c = _peek()?
+      if (c == '+') or (c == '-') then _next()? end
+      _read_digits()? // require at least one exponent digit
+      is_float = true
     end
 
-    if has_dot or has_exp or force_float then
-      last_number = sign.f64() * (integer_f64 + frac)
-        * F64(10).pow(exp.f64())
+    if is_float then
+      let value = _read_float(num_start)?
+      // An out-of-range literal (1e999, or a very long integer) overflows to
+      // ±inf; carrying a non-finite value would hand the printer something it
+      // cannot serialize to valid JSON. Underflow rounds to a finite 0 and is
+      // kept. RFC 8259 permits limiting numeric range.
+      if not value.finite() then
+        _error_message = "Number out of range"
+        error
+      end
+      last_number = value
     else
       last_number = sign * integer
     end
@@ -262,39 +280,22 @@ class ref JsonTokenParser
     if count == 0 then error end
     result
 
-  fun ref _read_digits_f64(): F64 ? =>
-    var result: F64 = 0
-    var count: USize = 0
-    while _offset < _source.size() do
-      let c = _source(_offset)?
-      if (c >= '0') and (c <= '9') then
-        result = (result * 10) + (c - '0').f64()
-        _offset = _offset + 1
-        count = count + 1
-      else
-        break
-      end
+  fun ref _read_float(num_start: USize): F64 ? =>
+    // Correctly-rounded value of the validated number text [num_start, _offset)
+    // via strtod — no intermediate over/underflow, unlike a hand-rolled
+    // mantissa*10^exp. _source_cstr is the null-terminated source (set once in
+    // parse()); strtod stops at the delimiter or end of input. The caller's
+    // finite() check judges range (overflow is ±inf, underflow rounds to a
+    // finite 0); errno is not used because it conflates the two.
+    var endp: Pointer[U8] box = Pointer[U8]
+    let value = @strtod(_source_cstr.offset(num_start), addressof endp)
+    // strtod must consume the whole validated span; reject a shortfall rather
+    // than accept a partial value.
+    if endp != _source_cstr.offset(_offset) then
+      _error_message = "Invalid number"
+      error
     end
-    if count == 0 then error end
-    result
-
-  fun ref _read_fractional(): F64 ? =>
-    var result: F64 = 0
-    var divisor: F64 = 10
-    var count: USize = 0
-    while _offset < _source.size() do
-      let c = _source(_offset)?
-      if (c >= '0') and (c <= '9') then
-        result = result + ((c - '0').f64() / divisor)
-        divisor = divisor * 10
-        _offset = _offset + 1
-        count = count + 1
-      else
-        break
-      end
-    end
-    if count == 0 then error end
-    result
+    value
 
   fun ref _parse_string(is_key: Bool) ? =>
     // token_start is already anchored at the opening '"' by the caller
