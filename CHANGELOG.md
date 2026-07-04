@@ -20,11 +20,13 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Added
 
+- Add --version and --help support to pony-lsp ([PR #5668](https://github.com/ponylang/ponyc/pull/5668))
 
 ### Changed
 
 - Stop installing the Pony runtime's C headers and static libraries ([PR #5620](https://github.com/ponylang/ponyc/pull/5620))
 - Don't run the ASIO thread under systematic testing ([PR #5647](https://github.com/ponylang/ponyc/pull/5647))
+- pony-lsp now rejects unrecognized command-line arguments ([PR #5668](https://github.com/ponylang/ponyc/pull/5668))
 
 ## [0.66.0] - 2026-06-29
 
