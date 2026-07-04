@@ -21,54 +21,55 @@ def check(name, condition):
 
 
 def test_resolve_config_golden():
-    # Pinned draws: a reordered/narrowed/added draw changes these and would
-    # silently remap every seed (breaking --replay). Regenerate deliberately if
-    # the draw is intended to change. Three seeds spanning both write shapes, so a
-    # change is unlikely to leave all untouched by luck AND a regression that
-    # touched only one write-shape branch can't hide. Seed 0 is a plain writev;
-    # seed 5 is write-shape=write (payload 1, hard close); seed 16 exercises the
-    # multi-batch writev path (writev, writev-chunks 2048 > IOV_MAX, payload >=
-    # chunks) plus expect > 0 and a hard close.
+    # Pinned draws: any change to the draw -- a reordered/narrowed/added draw, or a
+    # budget/cost-model change -- changes these pinned configs, which is the visible
+    # signal that every seed's draw has silently remapped (breaking --replay).
+    # Regenerate deliberately if the draw is meant to change. The seeds are chosen to
+    # span the draw's branches so a change can't leave all three untouched by luck:
+    # seed 0 is a plain writev; seed 6 is write-shape=write AND lands on the memory
+    # budget (its connections, messages, and payload are all trimmed to fit, so a
+    # cost-model change remaps it, not only a draw-order change); seed 23 exercises the
+    # multi-batch writev path (writev-chunks 2048 > IOV_MAX, payload >= chunks) with
+    # expect on and a hard close.
     golden0 = {
         "master_seed": 0,
-        "runtime": {"ponymaxthreads": 5, "ponypin": True},
+        "runtime": {"ponymaxthreads": 6, "ponynoscale": True},
         "workload": {
-            "close": "graceful", "concurrency": 8, "connections": 75126,
-            "expect": 0, "messages": 26, "payload-size": 1024,
+            "close": "graceful", "concurrency": 32, "connections": 11236,
+            "expect": 0, "messages": 6, "payload-size": 64,
             "read-buffer-size": 65536, "write-shape": "writev",
             "writev-chunks": 64,
-            "yield-after-reading": 1024, "yield-after-writing": 16384,
-        },
-    }
-    golden5 = {
-        "master_seed": 5,
-        "runtime": {"ponymaxthreads": 4, "ponynoblock": True},
-        "workload": {
-            "close": "hard", "concurrency": 256, "connections": 13749,
-            "expect": 0, "messages": 32, "payload-size": 1,
-            "read-buffer-size": 128, "write-shape": "write",
-            "writev-chunks": 4,
-            "yield-after-reading": 1024, "yield-after-writing": 1024,
-        },
-    }
-    golden16 = {
-        "master_seed": 16,
-        "runtime": {"ponymaxthreads": 5, "ponynoblock": True,
-                    "ponynoscale": True},
-        "workload": {
-            "close": "hard", "concurrency": 32, "connections": 17745,
-            "expect": 16384, "messages": 1, "payload-size": 16384,
-            "read-buffer-size": 16384, "write-shape": "writev",
-            "writev-chunks": 2048,
             "yield-after-reading": 64, "yield-after-writing": 16384,
+        },
+    }
+    golden6 = {
+        "master_seed": 6,
+        "runtime": {"ponymaxthreads": 5, "ponynoblock": True},
+        "workload": {
+            "close": "hard", "concurrency": 256, "connections": 31735,
+            "expect": 0, "messages": 1, "payload-size": 256,
+            "read-buffer-size": 65536, "write-shape": "write",
+            "writev-chunks": 2048,
+            "yield-after-reading": 1024, "yield-after-writing": 64,
+        },
+    }
+    golden23 = {
+        "master_seed": 23,
+        "runtime": {"ponymaxthreads": 6, "ponynoscale": True},
+        "workload": {
+            "close": "hard", "concurrency": 16, "connections": 1370,
+            "expect": 4096, "messages": 7, "payload-size": 4096,
+            "read-buffer-size": 65536, "write-shape": "writev",
+            "writev-chunks": 2048,
+            "yield-after-reading": 1024, "yield-after-writing": 64,
         },
     }
     check("resolve_config(0, 8) matches the pinned draw",
           o.resolve_config(0, 8) == golden0)
-    check("resolve_config(5, 8) matches the pinned draw",
-          o.resolve_config(5, 8) == golden5)
-    check("resolve_config(16, 8) matches the pinned draw",
-          o.resolve_config(16, 8) == golden16)
+    check("resolve_config(6, 8) matches the pinned draw",
+          o.resolve_config(6, 8) == golden6)
+    check("resolve_config(23, 8) matches the pinned draw",
+          o.resolve_config(23, 8) == golden23)
     check("resolve_config is deterministic",
           o.resolve_config(7, 8) == o.resolve_config(7, 8))
 
@@ -109,6 +110,143 @@ def test_clamp_run():
         if (c * m > o.RUN_MAX_EXCHANGES) or (c * m * p > o.RUN_MAX_BYTES):
             over += 1
     check("clamp: no drawn seed exceeds the ceilings", over == 0)
+
+
+def test_memory_budget():
+    # No drawn config may exceed the memory budget. A draw over the RLIMIT_AS cap gets
+    # killed by the runtime's own out-of-memory abort -- a false failure that reads
+    # like a runtime crash. Also confirm the budget isn't vacuous: some draws land near
+    # the ceiling, so it is a tight bound, not a ceiling nothing reaches.
+    over = 0
+    binds = 0
+    for seed in range(5000):
+        w = o.resolve_config(seed, 8)["workload"]
+        peak = o.est_peak_bytes(
+            w["concurrency"], w["messages"], w["payload-size"],
+            w["write-shape"] == "writev", w["writev-chunks"],
+            w["read-buffer-size"], w["connections"])
+        if peak > o.MEM_BUDGET_BYTES:
+            over += 1
+        if peak > (o.MEM_BUDGET_BYTES * 9) // 10:
+            binds += 1
+    check("memory: no drawn config exceeds the budget", over == 0)
+    check("memory: the budget binds (some draws land near the ceiling)", binds > 0)
+
+
+def test_memory_budget_trims():
+    # The fit helpers -- the building block of the rotating draw -- trim a value that
+    # would break the budget down to the largest one that fits (never below the
+    # minimum) and leave a fitting value alone.
+    mins = {"connections": o.MIN_CONNECTIONS, "concurrency": min(o.CONCURRENCY),
+            "messages": o.MESSAGE_BUCKETS["small"][0], "payload": min(o.PAYLOAD_SIZES),
+            "writev_chunks": min(o.WRITEV_CHUNKS),
+            "read_buffer": min(o.READ_BUFFER_SIZES), "use_writev": True}
+    check("fit_discrete: a fitting value passes through unchanged",
+          o._fit_discrete("read_buffer", 65536, mins, o.READ_BUFFER_SIZES) == 65536)
+    # With connections at the max, a 64 KiB read buffer blows the budget -> trimmed to
+    # a smaller listed value. Boundary: the trimmed value fits and the NEXT larger
+    # listed value would not (so the helper returns the largest that fits, not any).
+    loaded = dict(mins, connections=100000)
+    trimmed = o._fit_discrete("read_buffer", 65536, loaded, o.READ_BUFFER_SIZES)
+    nxt = o.READ_BUFFER_SIZES[o.READ_BUFFER_SIZES.index(trimmed) + 1]
+    check("fit_discrete: trims to the largest listed value that fits (next would not)",
+          trimmed < 65536
+          and o.est_peak_bytes(**dict(loaded, read_buffer=trimmed))
+          <= o.MEM_BUDGET_BYTES < o.est_peak_bytes(**dict(loaded, read_buffer=nxt)))
+    # Continuous: a huge connection count is trimmed when the read buffer is large,
+    # never below the MIN_CONNECTIONS floor. Boundary: fc fits and fc+1 does not, so
+    # the binary search returns the exact largest fitting integer (catches an off-by-one
+    # in the comparison).
+    big_rb = dict(mins, read_buffer=65536)
+    fc = o._fit_continuous("connections", 100000, big_rb, o.MIN_CONNECTIONS)
+    check("fit_continuous: trims to the exact budget boundary (fc fits, fc+1 doesn't)",
+          o.MIN_CONNECTIONS <= fc < 100000
+          and o.est_peak_bytes(**dict(big_rb, connections=fc))
+          <= o.MEM_BUDGET_BYTES < o.est_peak_bytes(**dict(big_rb, connections=fc + 1)))
+
+
+def test_est_peak_bytes_monotonic():
+    # The fit helpers' binary search / list scan are correct only if est_peak_bytes is
+    # non-decreasing in the swept lever. Guard that: a future non-monotonic cost term
+    # would break the search silently. Sweep each lever across its domain with the
+    # others fixed at a mid value.
+    base = {"connections": 10000, "concurrency": 32, "messages": 8, "payload": 1024,
+            "writev_chunks": 64, "read_buffer": 16384, "use_writev": True}
+    domains = {"connections": range(100, 100001, 2500),
+               "concurrency": o.CONCURRENCY,
+               "messages": range(1, 65),
+               "payload": o.PAYLOAD_SIZES,
+               "writev_chunks": o.WRITEV_CHUNKS,
+               "read_buffer": o.READ_BUFFER_SIZES}
+    non_monotone = []
+    for lever, values in domains.items():
+        prev = None
+        for v in values:
+            e = o.est_peak_bytes(**dict(base, **{lever: v}))
+            if prev is not None and e < prev:
+                non_monotone.append(lever)
+            prev = e
+    check("est_peak_bytes is non-decreasing in every lever: "
+          + (", ".join(sorted(set(non_monotone))) if non_monotone else "all monotone"),
+          not non_monotone)
+
+
+def test_memory_budget_rotates_the_trimmed_lever():
+    # Two properties, together the rotation:
+    #   (a) every memory lever reaches its largest value on some seed -- so a large
+    #       draw is never impossible for any of them (the swarm stays a swarm).
+    #   (b) every memory lever is trimmed below its rolled value on some seed.
+    # (b) is the rotation, and it holds for all six levers ONLY because the draw order
+    # is shuffled per seed. Under a fixed order only the LAST levers drawn ever trim --
+    # connections/concurrency/messages/payload would never trim -- so replacing the
+    # shuffle with identity fails this test. Trims are observed by wrapping the two fit
+    # helpers (they are where a value gets clamped down); the wrappers consume no rng,
+    # so the draw is unchanged.
+    levers = ("connections", "concurrency", "messages", "payload",
+              "writev_chunks", "read_buffer")
+    reached = {k: False for k in levers}
+    trimmed = {k: False for k in levers}
+    orig_d, orig_c = o._fit_discrete, o._fit_continuous
+
+    def wrap_d(key, drawn, chosen, values):
+        got = orig_d(key, drawn, chosen, values)
+        if got != drawn:
+            trimmed[key] = True
+        return got
+
+    def wrap_c(key, drawn, chosen, floor):
+        got = orig_c(key, drawn, chosen, floor)
+        if got != drawn:
+            trimmed[key] = True
+        return got
+
+    o._fit_discrete, o._fit_continuous = wrap_d, wrap_c
+    try:
+        for seed in range(4000):
+            w = o.resolve_config(seed, 8)["workload"]
+            if w["concurrency"] == max(o.CONCURRENCY):
+                reached["concurrency"] = True
+            if w["payload-size"] == max(o.PAYLOAD_SIZES):
+                reached["payload"] = True
+            if w["writev-chunks"] == max(o.WRITEV_CHUNKS):
+                reached["writev_chunks"] = True
+            if w["read-buffer-size"] == max(o.READ_BUFFER_SIZES):
+                reached["read_buffer"] = True
+            if w["connections"] > o.CONNECTION_BUCKETS["medium"][1]:
+                reached["connections"] = True   # into the large connection bucket
+            if w["messages"] == o.MESSAGE_BUCKETS["large"][1]:
+                reached["messages"] = True
+    finally:
+        o._fit_discrete, o._fit_continuous = orig_d, orig_c
+    never_large = [k for k, v in reached.items() if not v]
+    never_trimmed = [k for k, v in trimmed.items() if not v]
+    check("memory: every lever reaches large on some seed: "
+          + (", ".join(never_large) + " never do" if never_large else "all do"),
+          not never_large)
+    check("memory: every lever is trimmed on some seed (the shuffle rotates the "
+          "trim): " + (", ".join(never_trimmed) + " never trim" if never_trimmed
+                       else "all trim"),
+          not never_trimmed)
 
 
 def test_resolve_config_coverage_and_invariants():
@@ -333,6 +471,9 @@ def test_rlimit_as_supported():
 
 def main():
     for fn in (test_resolve_config_golden, test_clamp_run,
+               test_memory_budget, test_memory_budget_trims,
+               test_est_peak_bytes_monotonic,
+               test_memory_budget_rotates_the_trimmed_lever,
                test_max_connections_cap,
                test_resolve_config_coverage_and_invariants,
                test_ponymaxthreads_is_last_and_host_dependent,

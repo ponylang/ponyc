@@ -191,6 +191,13 @@ primitive _Keystream
     `writev` -- contiguous over `start .. start + total`, so the echo verifies
     identically regardless of write shape.
     """
+    // COUPLING: this allocates `nchunks` buffer objects per call regardless of
+    // payload size (the extras are zero-length when nchunks > total). The
+    // orchestrator's memory budget models peak memory as
+    // OBJ_BYTES * concurrency * messages * writev_chunks off exactly this count
+    // (est_peak_bytes in orchestrate_tcp.py) -- change how many objects this creates
+    // and the budget can let an OOM through. See
+    // .known-couplings/tcp-swarm-memory-budget.md.
     recover val
       let out = Array[ByteSeq]
       let n = if nchunks == 0 then 1 else nchunks end
