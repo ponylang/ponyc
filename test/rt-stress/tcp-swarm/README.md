@@ -16,6 +16,13 @@ on top and swarm dimensions each tied to a distinct code path in
 - `--payload-size` / `--messages` — how much each connection sends, and in how many
   messages (chatty vs single).
 - `--write-shape` (`write` | `writev`) — single vs vectored writes.
+- `--writev-chunks` (`N`, writev only) — how many buffers a `writev` splits its
+  payload into. Above `@pony_os_writev_max()` (IOV_MAX — 1024 on Linux/macOS — on
+  POSIX, 1 on Windows) a single writev queues more buffers than one syscall sends,
+  so
+  `TCPConnection` takes its multi-batch send path. That path is the only one that
+  re-checks `--yield-after-writing`, so on POSIX the mid-write yield needs a
+  chunk count above IOV_MAX to fire at all.
 - `--expect` (`0` = off, `N` = frame size) — fixed-size framed reads vs
   whole-buffer, on both endpoints.
 - `--close` (`graceful` | `hard`) — a graceful `dispose()` (FIN, drains) vs a muted
@@ -24,8 +31,10 @@ on top and swarm dimensions each tied to a distinct code path in
   drops no data here — it exercises the distinct teardown/unsubscribe code.
 - `--read-buffer-size` / `--yield-after-reading` / `--yield-after-writing` — the
   TCPConnection read-buffer size and the byte counts at which it yields back to the
-  scheduler mid-read/mid-write; small values drive frequent yields on any payload
-  size.
+  scheduler mid-read/mid-write. A small `--yield-after-reading` yields on any
+  payload that fills the read buffer more than once; `--yield-after-writing` only
+  bites on the multi-batch write path (see `--writev-chunks`), so on POSIX it does
+  nothing unless the chunk count is above IOV_MAX.
 - `--connections` / `--concurrency` — total connections to churn, and the in-flight
   cap.
 - `--host` / `--port` — where the listener binds (default `localhost` / ephemeral).
@@ -89,7 +98,10 @@ occupies the port before any client dials, so the default `localhost` is fine.
   (`RLIMIT_AS`). Real RSS is tiny (~124 MiB worst case at concurrency 256, 64 KiB
   payload), but the Pony runtime reserves a flat ~3.5 GiB of *virtual* address space
   regardless of config, and `RLIMIT_AS` caps virtual — a 4 GiB cap sat ~86% full at
-  baseline and risked a false OOM on a high-thread run.
+  baseline and risked a false OOM on a high-thread run. That RSS figure was measured
+  before the `--writev-chunks` lever; a heavy multi-batch draw (2048 chunks) builds
+  many more small buffer objects at once, so the peak there is not re-validated —
+  treat it as a first-CI-run calibration item.
 - **Time** — the per-run clamp (`clamp_run`) bounds round-trips
   (`connections * messages`) and total bytes (`connections * messages * payload`),
   so an outsized draw (e.g. 100k conns × 64 msgs × 64 KiB ≈ 400 GB) is trimmed.
