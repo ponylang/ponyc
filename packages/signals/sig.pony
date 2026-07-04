@@ -149,7 +149,14 @@ primitive Sig
     end
 
   fun usr2(): U32 =>
-    ifdef not "scheduler_scaling_pthreads" then
+    // The runtime reserves SIGUSR2 as its scheduler sleep/wake signal
+    // (PONY_SCHED_SLEEP_WAKE_SIGNAL in src/libponyrt/sched/scheduler.h) on
+    // default builds, and frees it when built with scheduler_scaling_pthreads
+    // (forced on macOS). So SIGUSR2 is available to this package only on
+    // scheduler_scaling_pthreads builds. Caveat: runtime_tracing builds reuse
+    // SIGUSR2 for the tracing thread regardless, but that flag is not visible
+    // to `ifdef`, so it cannot be gated on here.
+    ifdef "scheduler_scaling_pthreads" then
       ifdef bsd or osx then 31
       elseif linux then 12
       else compile_error "no SIGUSR2"
