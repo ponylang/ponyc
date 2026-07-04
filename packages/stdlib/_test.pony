@@ -78,6 +78,7 @@ actor \nodoc\ Main is TestList
     random.Main.make().tests(test)
     runtime_info.Main.make().tests(test)
     strings.Main.make().tests(test)
+    term.Main.make().tests(test)
     time.Main.make().tests(test)
 
     // Tests below function exclude windows and are listed alphabetically
