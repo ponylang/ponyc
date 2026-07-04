@@ -44,10 +44,9 @@ DEFAULT_TIMEOUT_SECONDS = 6000
 # 8 GiB, not 4: the Pony runtime reserves a flat ~3.5 GiB of VIRTUAL address space
 # (measured, constant across configs), and RLIMIT_AS caps virtual, not RSS -- so a
 # 4 GiB cap sits ~86% full before the workload runs and a high --ponymaxthreads run
-# could trip a FALSE OOM. Real RSS is tiny (~124 MiB worst case measured -- before
-# the writev-chunks lever, whose heavy multi-batch draws build many more small
-# buffer objects; that peak is a first-CI-run calibration item), so 8 GiB has no
-# downside and removes the false-kill risk.
+# could trip a FALSE OOM. 8 GiB has no downside and removes that risk. This cap is
+# the backstop, not the primary bound: the draw is separately kept under it by the
+# memory budget below (see est_peak_bytes), so a healthy workload never reaches it.
 DEFAULT_MEM_LIMIT_MB = 8192
 
 
@@ -127,13 +126,148 @@ def draw_bucketed(rng, buckets):
     return rng.randint(lo, hi)
 
 
+# --------------------------------------------------------------- memory budget
+
+# The draw must never pick a workload whose peak memory exceeds the RLIMIT_AS cap the
+# orchestrator runs each seed under (see _capture / DEFAULT_MEM_LIMIT_MB). A workload
+# that does is killed by the runtime's own out-of-memory abort (ponyint_virt_alloc) --
+# which reads like a runtime crash but is really the test asking for more memory than
+# its own cap allows, a false failure. So every memory-driving lever is drawn against
+# a shared budget: the draw spends it, and once it is spent the remaining levers are
+# trimmed to fit.
+#
+# The levers are drawn in a per-seed RANDOM order (see _draw_memory_levers), and that
+# is the point. A fixed trim order would always shave the same lever -- we would never
+# test a large writev-chunks, because it would always be the first cut -- throwing away
+# swarm coverage. With a random order the trimmed lever rotates: on one seed
+# writev-chunks wins the budget and concurrency/messages shrink, on another connections
+# wins and writev-chunks is forced to 4. Every lever still reaches large on some
+# fraction of seeds. This mirrors the generative harness's clamp_ttl (big chains force
+# ttl small), generalized so the sacrificed lever is not always the same one.
+#
+# est_peak_bytes estimates peak WORKLOAD bytes on top of the runtime's flat virtual
+# reservation. Terms and constants are calibrated from local measurement with a fat
+# margin (measured: writev-chunks=2048 at concurrency 64 / 8 messages peaks ~460 MiB
+# RSS; a write-shape run stays ~15 MiB flat regardless of connection count). They are
+# BEST GUESSES to confirm from the first CI run, like clamp_run's ceilings. The churn
+# term (connections * read_buffer) is the least certain: the CI out-of-memory seeds
+# with huge connection counts (36902, 72178) could not be reproduced locally (WSL2
+# loopback is too slow to build the queue depth CI builds), so its SHAPE is a
+# hypothesis -- it covers the one such seed we saw (which had a large read buffer) but
+# does not bound a small-buffer / huge-connections draw, which we have no evidence
+# OOMs. Validate with a raised-cap CI run.
+# COUPLING: the constants track the engine's per-object and per-read-buffer memory --
+# re-measure if make_chunks, the read buffer, or TCPConnection buffering changes. See
+# .known-couplings/tcp-swarm-memory-budget.md.
+MEM_BUDGET_BYTES = 2 * 1024 * 1024 * 1024   # 2 GiB workload, well under the 8 GiB cap
+MEM_OBJ_BYTES = 2048        # per pending writev buffer object (margin over ~832 B virt)
+MEM_RB_FACTOR = 4           # live read buffers: client + server, plus headroom
+
+# The memory-driving levers, drawn in a shuffled order against MEM_BUDGET_BYTES.
+# payload is here (concurrency * messages * payload reaches ~1 GiB); write-shape is
+# NOT (it carries no magnitude, but it is drawn before these so chunks_eff is known).
+MEM_LEVERS = ["connections", "concurrency", "messages", "payload",
+              "writev_chunks", "read_buffer"]
+
+
+def est_peak_bytes(concurrency, messages, payload, use_writev, writev_chunks,
+                   read_buffer, connections):
+    """Estimated peak workload memory (bytes) for a drawn config. Monotonic
+    non-decreasing in each lever (flat in writev_chunks for a plain write), which is
+    what makes the fit helpers below a simple clamp. See the block comment above."""
+    chunks_eff = writev_chunks if use_writev else 1
+    return (MEM_OBJ_BYTES * concurrency * messages * chunks_eff  # pending write bufs
+            + MEM_RB_FACTOR * concurrency * read_buffer          # live read buffers
+            + concurrency * messages * payload                   # bytes in flight
+            + connections * read_buffer)                         # conservative churn
+
+
+def _fit_discrete(key, drawn, chosen, values):
+    """Largest value in `values` (ascending) that is <= `drawn` and keeps est_peak
+    within budget, with the other levers at their `chosen` values. Precondition:
+    `drawn` is a member of `values` (every caller draws it from the same list), so
+    values[0] (the minimum) always fits and a fit always exists. Consumes no rng."""
+    best = values[0]
+    for v in values:
+        if v > drawn:
+            break
+        trial = dict(chosen)
+        trial[key] = v
+        if est_peak_bytes(**trial) <= MEM_BUDGET_BYTES:
+            best = v
+    return best
+
+
+def _fit_continuous(key, drawn, chosen, floor):
+    """Largest integer in [floor, drawn] that keeps est_peak within budget, with the
+    other levers at their `chosen` values. `floor` always fits, so a fit exists.
+    Consumes no rng."""
+    trial = dict(chosen)
+    trial[key] = drawn
+    if est_peak_bytes(**trial) <= MEM_BUDGET_BYTES:
+        return drawn
+    lo, hi, best = floor, drawn, floor
+    while lo <= hi:
+        mid = (lo + hi) // 2
+        trial[key] = mid
+        if est_peak_bytes(**trial) <= MEM_BUDGET_BYTES:
+            best, lo = mid, mid + 1
+        else:
+            hi = mid - 1
+    return best
+
+
+def _draw_memory_levers(rng, use_writev):
+    """Draw the memory levers in a per-seed random order against MEM_BUDGET_BYTES.
+    Undrawn levers reserve their minimum, so every pick leaves room for the rest and
+    the draw can never wedge (all-minimums is ~80 KB, far under budget). Each lever
+    consumes its usual draw once; the fit is a no-rng clamp, so total rng consumption
+    is fixed per seed. Returns the chosen values under internal keys."""
+    chosen = {
+        "connections": MIN_CONNECTIONS,
+        "concurrency": min(CONCURRENCY),
+        "messages": MESSAGE_BUCKETS["small"][0],
+        "payload": min(PAYLOAD_SIZES),
+        "writev_chunks": min(WRITEV_CHUNKS),
+        "read_buffer": min(READ_BUFFER_SIZES),
+        "use_writev": use_writev,
+    }
+    order = list(MEM_LEVERS)
+    rng.shuffle(order)
+    for lever in order:
+        if lever == "connections":
+            chosen[lever] = _fit_continuous(
+                lever, draw_bucketed(rng, CONNECTION_BUCKETS), chosen,
+                MIN_CONNECTIONS)
+        elif lever == "messages":
+            chosen[lever] = _fit_continuous(
+                lever, draw_bucketed(rng, MESSAGE_BUCKETS), chosen,
+                MESSAGE_BUCKETS["small"][0])
+        elif lever == "concurrency":
+            chosen[lever] = _fit_discrete(
+                lever, rng.choice(CONCURRENCY), chosen, CONCURRENCY)
+        elif lever == "payload":
+            chosen[lever] = _fit_discrete(
+                lever, rng.choice(PAYLOAD_SIZES), chosen, PAYLOAD_SIZES)
+        elif lever == "writev_chunks":
+            chosen[lever] = _fit_discrete(
+                lever, rng.choice(WRITEV_CHUNKS), chosen, WRITEV_CHUNKS)
+        elif lever == "read_buffer":
+            chosen[lever] = _fit_discrete(
+                lever, rng.choice(READ_BUFFER_SIZES), chosen, READ_BUFFER_SIZES)
+    return chosen
+
+
 def resolve_config(master_seed, max_threads, max_connections=None):
-    """Draw one TCP workload from a master seed. The draw ORDER is the
-    seed-stability contract: reorder any draw and every seed remaps (breaking a
-    historical --replay). --ponymaxthreads is drawn LAST because it is the only
-    host-dependent field (its randint width depends on the core count), so any
-    draw after it would remap across hosts. resolve_config(0, 8) is pinned in
-    orchestrate_tcp_test.py.
+    """Draw one TCP workload from a master seed. The draw is the seed-stability
+    contract: change it and every seed remaps (breaking a historical --replay), so
+    change it deliberately and regenerate the pinned goldens in orchestrate_tcp_test.py
+    (resolve_config(0, 8) etc.). It stays deterministic per seed, so --replay holds.
+    The memory levers are drawn in a per-seed SHUFFLED order against a memory budget
+    (see _draw_memory_levers) -- that shuffle is seeded only from master_seed, so it is
+    host-independent. --ponymaxthreads is drawn LAST because it is the only
+    host-dependent field (its randint width depends on the core count), so any draw
+    after it would remap across hosts.
 
     max_connections, if set, caps the drawn connection count after the draw (no rng
     consumed, so within-host seed stability holds). Windows CI passes a small value
@@ -142,14 +276,20 @@ def resolve_config(master_seed, max_threads, max_connections=None):
     rng = random.Random(master_seed)
 
     workload = {}
-    workload["connections"] = draw_bucketed(rng, CONNECTION_BUCKETS)
-    workload["concurrency"] = rng.choice(CONCURRENCY)
-    payload = rng.choice(PAYLOAD_SIZES)
+    # write-shape is drawn BEFORE the memory levers: it carries no magnitude, but the
+    # memory budget needs to know whether a writev-chunks draw counts (chunks_eff is 1
+    # for a plain write). The memory levers then draw in a shuffled order against the
+    # budget so no config can exceed the RLIMIT_AS cap; see _draw_memory_levers.
+    use_writev = rng.choice(WRITE_SHAPES) == "writev"
+    mem = _draw_memory_levers(rng, use_writev)
+    payload = mem["payload"]
+    read_buffer = mem["read_buffer"]
+    workload["connections"] = mem["connections"]
+    workload["concurrency"] = mem["concurrency"]
     workload["payload-size"] = payload
-    workload["messages"] = draw_bucketed(rng, MESSAGE_BUCKETS)
-    workload["write-shape"] = rng.choice(WRITE_SHAPES)
-    workload["writev-chunks"] = rng.choice(WRITEV_CHUNKS)
-    read_buffer = rng.choice(READ_BUFFER_SIZES)
+    workload["messages"] = mem["messages"]
+    workload["write-shape"] = "writev" if use_writev else "write"
+    workload["writev-chunks"] = mem["writev_chunks"]
     workload["read-buffer-size"] = read_buffer
     workload["yield-after-reading"] = rng.choice(YIELD_SIZES)
     workload["yield-after-writing"] = rng.choice(YIELD_SIZES)
