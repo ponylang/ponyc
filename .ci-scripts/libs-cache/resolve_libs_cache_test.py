@@ -11,8 +11,9 @@ through `run()`, so monkeypatching `run` lets us assert the exact primitive
 sequence and exit code for every mode/path without any subprocess or network. The
 load-bearing invariants pinned here:
   - consumer mode never pushes the MAIN cache (the warmer is its only writer);
-  - the warmer promotes a branch artifact on a main miss before cold-building, and
-    a failed promote falls through to build+push rather than failing the job;
+  - the warmer promotes a branch artifact on a main-cache miss before
+    cold-building, and a failed promote falls through to build+push rather than
+    failing the job;
   - `--branch-cache` consumer mode pulls the branch cache for reuse and pushes it
     best-effort (a push failure does NOT fail the job), and a MAIN hit short-circuits
     before any branch op (so the flag self-gates on a warm main cache);
@@ -134,7 +135,7 @@ def test_branch_cache_main_hit_short_circuits():
 
 
 def test_branch_cache_reuse_on_main_miss():
-    # main miss -> branch hit -> reuse, no build, no push.
+    # main-cache miss -> branch hit -> reuse, no build, no push.
     calls, code = run_main(BRANCH, {'main:pull': 1, 'branch:pull': 0})
     check('branch reuse calls', calls, ['main:pull', 'branch:pull'])
     check('branch reuse code', code, 0)
@@ -175,7 +176,7 @@ def test_warm_hit():
 
 
 def test_warm_promotes_on_branch_hit():
-    # main miss -> branch hit -> promote -> done. No build, no main push.
+    # main-cache miss -> branch hit -> promote -> done. No build, no main push.
     calls, code = run_main(WARM, {'main:exists': 1, 'branch:exists': 0,
                                   'promote': 0})
     check('warm promote calls', calls,
@@ -257,7 +258,7 @@ def test_require_hit_branch_main_hit_short_circuits():
 
 
 def test_require_hit_branch_reuse_on_main_miss():
-    # main miss -> branch hit -> run against the branch-built libs, no fail.
+    # main-cache miss -> branch hit -> run against the branch-built libs, no fail.
     calls, code = run_main(REQUIRE_HIT_BRANCH, {'main:pull': 1, 'branch:pull': 0})
     check('require-hit branch reuse calls', calls, ['main:pull', 'branch:pull'])
     check('require-hit branch reuse code', code, 0)

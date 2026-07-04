@@ -12,7 +12,7 @@ any subprocess or network. Load-bearing invariants:
     now; a stray `--pr` would make branch_libs_cache.py argparse-reject and break
     every non-fork PR job -- this is the regression guard for the rename);
   - `--branch-cache` (non-fork) does main -> branch -> build -> push-branch; a fork
-    (no `--branch-cache`) skips all branch ops and just pull-main-or-builds;
+    (no `--branch-cache`) skips all branch ops and just pulls main or builds;
   - default (non-`--ensure`) branch push is best-effort (a failure warns, exit 0);
     `--ensure` HARD-fails on a branch push failure; `--ensure` requires
     `--branch-cache`.

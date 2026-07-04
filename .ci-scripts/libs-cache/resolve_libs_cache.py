@@ -1,13 +1,14 @@
 #!/usr/bin/env python3
-"""Resolve the prebuilt LLVM `build/libs` for a non-PR CI job (consumer or warmer).
+"""Resolve the prebuilt LLVM `build/libs` for a non-PR build (consumer, warmer, or
+require-cache-hit).
 
-This is the orchestration the build/warmer jobs call instead of building LLVM
-directly. It sequences the `oci_libs_cache.py` / `branch_libs_cache.py` /
-`promote_libs_cache.py` primitives around the build command the workflow hands it
-after `--`; it does not reimplement any caching itself. It is CI-only logic, so it
-lives here, in a script the workflows call, NOT in the Makefile / make.ps1 (which
-are the developer-facing build files and know only how to *build* libs). The PR
-jobs have their own orchestration (`pr_libs_cache.py`).
+This orchestration sequences the `oci_libs_cache.py` / `branch_libs_cache.py` /
+`promote_libs_cache.py` primitives around the build command it is handed after
+`--`, instead of building LLVM directly; it does not reimplement any caching
+itself. It is CI-only logic, so it lives here, in a script the workflows call, NOT
+in the Makefile / make.ps1 (which are the developer-facing build files and know
+only how to *build* libs). PR builds have their own orchestration
+(`pr_libs_cache.py`).
 
 Modes:
 
