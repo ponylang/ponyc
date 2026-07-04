@@ -81,3 +81,27 @@ JsonParser.parse("1e999")
 
 Number parsing is also more accurate at the extremes: a literal that is mathematically zero but written with a large exponent (`0e309`) previously parsed to NaN, and some in-range literals with very long digit runs parsed to infinity or a slightly wrong value — these now parse correctly.
 
+## Add `--version` and `--help` support to pony-lsp
+
+`pony-lsp --version` used to print nothing and hang: it ignored the flag, started the language server, and waited for input that never came. `pony-lsp` now handles `--version` and `--help` and exits, the same as `ponyc`, `pony-doc`, and `pony-lint`.
+
+## pony-lsp now rejects unrecognized command-line arguments
+
+`pony-lsp` used to ignore everything on its command line and start the language server regardless. It now parses its arguments the same way `ponyc`, `pony-doc`, and `pony-lint` do — it recognizes `--version` and `--help` — and rejects anything else instead of ignoring it.
+
+This means an editor configured to launch `pony-lsp` with an argument will now fail to start the server. The Helix configuration previously published on the Pony website passed a single empty-string argument:
+
+```toml
+[language-server.pony-lsp]
+command = "pony-lsp"
+args = [""]
+```
+
+Remove the argument so `args` is an empty list:
+
+```toml
+[language-server.pony-lsp]
+command = "pony-lsp"
+args = []
+```
+
