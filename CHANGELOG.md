@@ -17,6 +17,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Fix delivery of zero-byte UDP datagrams ([PR #5644](https://github.com/ponylang/ponyc/pull/5644))
 - Fix executables failing to start on Linux systems with both glibc and musl ([PR #5656](https://github.com/ponylang/ponyc/pull/5656))
 - Fix json package emitting invalid JSON for non-finite floating-point values ([PR #5661](https://github.com/ponylang/ponyc/pull/5661))
+- Fix `Sig.usr2()` reporting SIGUSR2 availability backwards ([PR #5667](https://github.com/ponylang/ponyc/pull/5667))
 
 ### Added
 
