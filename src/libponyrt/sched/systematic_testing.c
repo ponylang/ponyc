@@ -38,7 +38,16 @@ static PONY_ATOMIC(uint32_t) waiting_to_start_count;
 // detect_interval * 2,000,000) so those thresholds keep their meaning and CLI
 // configurability, now measured in scheduling steps rather than CPU cycles.
 //
-// Only the active thread runs at any moment, so no synchronization is needed.
+// Only the active thread runs at any moment. That invariant is not free: the
+// handoff (pick the next thread, wake it, park self) must be mutually
+// exclusive, or the waker and the thread it just woke run concurrently and race
+// on the handoff state -- including a use-after-free when the last thread frees
+// threads_to_track in the cleanup branch while the waker is still reading it.
+// The lock below (pthreads mutex, or the Windows SRW lock) is what enforces the
+// invariant: the running thread holds it throughout and releases it only while
+// parked in the condition-variable wait, so the woken thread cannot proceed
+// until the waker is genuinely waiting. See
+// .known-couplings/systematic-testing-handoff-mutual-exclusion.md.
 #define SYSTEMATIC_TESTING_TICK_PER_YIELD 20000
 static uint64_t logical_clock = 0;
 
@@ -51,6 +60,21 @@ void systematic_testing_mut_init()
 {
   pthread_mutex_init(&systematic_testing_mut, NULL);
 }
+#elif defined(PLATFORM_IS_WINDOWS)
+// The Windows systematic build is the one systematic config not built with
+// pthreads (the static_assert in systematic_testing.h requires pthreads on
+// every other platform). It gets the native analogue of the pthreads mutex +
+// per-thread condvar: an SRW lock plus a single shared condition variable. A
+// wake targets no particular thread -- WakeAllConditionVariable wakes every
+// parked thread and each re-checks `active_thread == self`, so only the
+// intended one proceeds and the rest re-park. Both are statically initialized,
+// so no setup or teardown is needed. The condition-variable wait is not
+// alertable: the normal Windows scheduler suspend stays alertable so socket-I/O
+// APCs can run, but systematic testing starts no ASIO thread and does no I/O,
+// so there are no APCs to service -- see
+// .known-couplings/systematic-testing-windows-park-not-alertable.md.
+static SRWLOCK systematic_testing_win_lock = SRWLOCK_INIT;
+static CONDITION_VARIABLE systematic_testing_win_cv = CONDITION_VARIABLE_INIT;
 #endif
 
 #ifdef USE_RUNTIMESTATS
@@ -122,6 +146,9 @@ void ponyint_systematic_testing_wait_start(pony_thread_id_t thread, pony_signal_
 
 #if defined(USE_SCHEDULER_SCALING_PTHREADS)
   pthread_mutex_lock(&systematic_testing_mut);
+#elif defined(PLATFORM_IS_WINDOWS)
+  AcquireSRWLockExclusive(&systematic_testing_win_lock);
+  (void)signal;
 #endif
 
   atomic_fetch_add_explicit(&waiting_to_start_count, 1, memory_order_relaxed);
@@ -135,6 +162,9 @@ void ponyint_systematic_testing_wait_start(pony_thread_id_t thread, pony_signal_
   {
 #if defined(USE_SCHEDULER_SCALING_PTHREADS)
     ponyint_thread_suspend(signal, &systematic_testing_mut);
+#elif defined(PLATFORM_IS_WINDOWS)
+    SleepConditionVariableSRW(&systematic_testing_win_cv,
+      &systematic_testing_win_lock, INFINITE, 0);
 #else
     ponyint_thread_suspend(signal);
 #endif
@@ -168,6 +198,8 @@ void ponyint_systematic_testing_start(scheduler_t* schedulers, pony_thread_id_t 
 
 #if defined(USE_SCHEDULER_SCALING_PTHREADS)
   pthread_mutex_lock(&systematic_testing_mut);
+#elif defined(PLATFORM_IS_WINDOWS)
+  AcquireSRWLockExclusive(&systematic_testing_win_lock);
 #endif
 
   // always start the first scheduler thread (slot 1; slot 0 is the pinned actor
@@ -176,7 +208,11 @@ void ponyint_systematic_testing_start(scheduler_t* schedulers, pony_thread_id_t 
 
   TRACING_SYSTEMATIC_TESTING_STARTED();
 
+#if defined(PLATFORM_IS_WINDOWS)
+  WakeAllConditionVariable(&systematic_testing_win_cv);
+#else
   ponyint_thread_wake(active_thread->tid, active_thread->sleep_object);
+#endif
 
   // Park until it is genuinely this (pinned actor) thread's turn. As in the
   // yield handoff and `wait_start`, the wait can return without a matching wake
@@ -188,6 +224,9 @@ void ponyint_systematic_testing_start(scheduler_t* schedulers, pony_thread_id_t 
   {
 #if defined(USE_SCHEDULER_SCALING_PTHREADS)
     ponyint_thread_suspend(threads_to_track[0].sleep_object, &systematic_testing_mut);
+#elif defined(PLATFORM_IS_WINDOWS)
+    SleepConditionVariableSRW(&systematic_testing_win_cv,
+      &systematic_testing_win_lock, INFINITE, 0);
 #else
     ponyint_thread_suspend(threads_to_track[0].sleep_object);
 #endif
@@ -260,6 +299,8 @@ void ponyint_systematic_testing_yield()
 
 #if defined(USE_SCHEDULER_SCALING_PTHREADS)
     pthread_mutex_unlock(&systematic_testing_mut);
+#elif defined(PLATFORM_IS_WINDOWS)
+    ReleaseSRWLockExclusive(&systematic_testing_win_lock);
 #endif
 
     TRACING_SYSTEMATIC_TESTING_TIMESLICE_END();
@@ -284,7 +325,11 @@ void ponyint_systematic_testing_yield()
 
     TRACING_SYSTEMATIC_TESTING_TIMESLICE_END();
 
+#if defined(PLATFORM_IS_WINDOWS)
+    WakeAllConditionVariable(&systematic_testing_win_cv);
+#else
     ponyint_thread_wake(active_thread->tid, active_thread->sleep_object);
+#endif
 
     if(!current_thread->stopped)
     {
@@ -298,6 +343,9 @@ void ponyint_systematic_testing_yield()
       {
 #if defined(USE_SCHEDULER_SCALING_PTHREADS)
         ponyint_thread_suspend(current_thread->sleep_object, &systematic_testing_mut);
+#elif defined(PLATFORM_IS_WINDOWS)
+        SleepConditionVariableSRW(&systematic_testing_win_cv,
+          &systematic_testing_win_lock, INFINITE, 0);
 #else
         ponyint_thread_suspend(current_thread->sleep_object);
 #endif
@@ -308,6 +356,8 @@ void ponyint_systematic_testing_yield()
     {
 #if defined(USE_SCHEDULER_SCALING_PTHREADS)
       pthread_mutex_unlock(&systematic_testing_mut);
+#elif defined(PLATFORM_IS_WINDOWS)
+      ReleaseSRWLockExclusive(&systematic_testing_win_lock);
 #endif
     }
   }
