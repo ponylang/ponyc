@@ -78,7 +78,9 @@ jobs:
             --lldb 'C:\msys64\mingw64\bin\lldb.exe' `
             --start ${{ github.run_id }} --budget-seconds 1800 `
             --timeout-seconds 600 `
-            --max-connections 1000 `
+            --max-connections 500 `
+            --max-exchanges 200000 `
+            --max-bytes 536870912 `
             --out rt-stress-out
       # cancelled() too: keep bundles from seeds that ran before a cancel.
       - name: Upload failure bundles

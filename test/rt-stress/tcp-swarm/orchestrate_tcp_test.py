@@ -354,6 +354,66 @@ def test_max_connections_cap():
     check("max_connections: actually caps some seeds (not vacuous)", capped_any)
 
 
+def test_max_bytes_cap():
+    # The byte ceiling (Windows CI lowers it) keeps connections*messages*payload
+    # within it. The byte branch trims messages then, as a last resort,
+    # connections -- so both may move; every other drawn field and the runtime
+    # stay identical. Also confirm it isn't vacuous -- some seeds exceed the cap.
+    cap = 536_870_912  # 512 MiB, the Windows CI value
+    ok = True
+    capped_any = False
+    for seed in range(300):
+        base = o.resolve_config(seed, 8)
+        capped = o.resolve_config(seed, 8, max_bytes=cap)
+        w = capped["workload"]
+        if (w["connections"] * w["messages"] * max(1, w["payload-size"])) > cap:
+            ok = False
+        bw = base["workload"]
+        if (bw["connections"] * bw["messages"] * max(1, bw["payload-size"])) > cap:
+            capped_any = True
+        b = {k: v for k, v in base["workload"].items()
+             if k not in ("connections", "messages")}
+        c = {k: v for k, v in capped["workload"].items()
+             if k not in ("connections", "messages")}
+        if (b != c) or (base["runtime"] != capped["runtime"]):
+            ok = False
+    check("max_bytes: keeps bytes within the cap, only conn/msgs move", ok)
+    check("max_bytes: actually caps some seeds (not vacuous)", capped_any)
+
+
+def test_max_exchanges_cap():
+    # The exchange ceiling (Windows CI lowers it) trims messages -- and ONLY
+    # messages; the exchange branch never trims connections (connection count is
+    # bounded separately, by --max-connections). So a capped seed keeps its drawn
+    # connection count and every field but messages. Check within-cap, that the
+    # message trim is minimal (one more would exceed), and non-vacuous.
+    cap = 200_000  # the Windows CI value
+    ok = True
+    capped_any = False
+    for seed in range(300):
+        base = o.resolve_config(seed, 8)
+        capped = o.resolve_config(seed, 8, max_exchanges=cap)
+        conns, msgs = capped["workload"]["connections"], \
+            capped["workload"]["messages"]
+        if (conns * msgs) > cap:
+            ok = False
+        bw = base["workload"]
+        if (bw["connections"] * bw["messages"]) > cap:
+            capped_any = True
+            # A trimmed seed keeps the largest message count that fits: one more
+            # message would breach the cap (unless already at the 1-message floor).
+            if (msgs > 1) and ((conns * (msgs + 1)) <= cap):
+                ok = False
+        # Only messages may move -- connections and every other field are held.
+        b = {k: v for k, v in base["workload"].items() if k != "messages"}
+        c = {k: v for k, v in capped["workload"].items() if k != "messages"}
+        if (b != c) or (base["runtime"] != capped["runtime"]):
+            ok = False
+    check("max_exchanges: trims messages to the largest that fits, nothing else",
+          ok)
+    check("max_exchanges: actually caps some seeds (not vacuous)", capped_any)
+
+
 def test_ponymaxthreads_is_last_and_host_dependent():
     # Everything but --ponymaxthreads must be identical across host core counts;
     # only the last draw (ponymaxthreads) may differ. This is what lets the draw
@@ -475,6 +535,7 @@ def main():
                test_est_peak_bytes_monotonic,
                test_memory_budget_rotates_the_trimmed_lever,
                test_max_connections_cap,
+               test_max_bytes_cap, test_max_exchanges_cap,
                test_resolve_config_coverage_and_invariants,
                test_ponymaxthreads_is_last_and_host_dependent,
                test_build_argv, test_parse_result, test_lldb_argv,

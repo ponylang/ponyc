@@ -101,15 +101,28 @@ RUN_MAX_BYTES = 4_000_000_000        # ~4 GB moved (and hashed) per run
 MIN_CONNECTIONS = 100
 
 
-def clamp_run(connections, messages, payload):
-    """Trim a drawn (connections, messages) to the per-run ceilings; see above."""
+def clamp_run(connections, messages, payload,
+              max_exchanges=RUN_MAX_EXCHANGES, max_bytes=RUN_MAX_BYTES):
+    """Trim a drawn (connections, messages) toward the per-run ceilings; see above.
+    max_exchanges/max_bytes default to the module ceilings; Windows CI passes lower
+    values because its loopback is far slower than Linux's, so the same draw moves
+    too few bytes per second to finish inside the no-progress window. Lowering them
+    only trims harder and never grows the workload, so seed stability and the memory
+    cap both hold. The trim is floored (messages >= 1, connections >= MIN_CONNECTIONS),
+    so a ceiling below that floor is approached, not strictly met -- fine for the
+    real draw and the CI values, which sit far above it."""
     per = max(1, payload)
-    if (connections * messages) > RUN_MAX_EXCHANGES:
-        messages = max(1, RUN_MAX_EXCHANGES // connections)
-    if (connections * messages * per) > RUN_MAX_BYTES:
-        messages = max(1, RUN_MAX_BYTES // (connections * per))
-        if (connections * messages * per) > RUN_MAX_BYTES:
-            connections = max(MIN_CONNECTIONS, RUN_MAX_BYTES // (messages * per))
+    # The exchange ceiling trims MESSAGES only. Connection COUNT is bounded
+    # elsewhere (--max-connections, and the byte branch's last resort below), so a
+    # draw whose connection count alone exceeds max_exchanges is left to those --
+    # not trimmed here. Reachable only for a max_exchanges below the largest
+    # connection bucket, which the CI value (200000 > 100000 max) stays above.
+    if (connections * messages) > max_exchanges:
+        messages = max(1, max_exchanges // connections)
+    if (connections * messages * per) > max_bytes:
+        messages = max(1, max_bytes // (connections * per))
+        if (connections * messages * per) > max_bytes:
+            connections = max(MIN_CONNECTIONS, max_bytes // (messages * per))
     return connections, messages
 
 
@@ -258,7 +271,8 @@ def _draw_memory_levers(rng, use_writev):
     return chosen
 
 
-def resolve_config(master_seed, max_threads, max_connections=None):
+def resolve_config(master_seed, max_threads, max_connections=None,
+                   max_exchanges=RUN_MAX_EXCHANGES, max_bytes=RUN_MAX_BYTES):
     """Draw one TCP workload from a master seed. The draw is the seed-stability
     contract: change it and every seed remaps (breaking a historical --replay), so
     change it deliberately and regenerate the pinned goldens in orchestrate_tcp_test.py
@@ -272,7 +286,13 @@ def resolve_config(master_seed, max_threads, max_connections=None):
     max_connections, if set, caps the drawn connection count after the draw (no rng
     consumed, so within-host seed stability holds). Windows CI passes a small value
     because Windows opens TCP connections very slowly -- ~5.5/s, so 10k connections
-    is ~30 min and 100k would never finish inside the job's time budget."""
+    is ~30 min and 100k would never finish inside the job's time budget.
+
+    max_exchanges/max_bytes override the per-run throughput ceilings passed through
+    to clamp_run (also post-draw, no rng). Windows CI lowers both because its loopback
+    moves bytes far slower than Linux's (a separate slowness from the slow socket
+    opens that motivate the connection cap), so an unclamped heavy draw cannot move
+    its bytes inside the no-progress window."""
     rng = random.Random(master_seed)
 
     workload = {}
@@ -305,7 +325,8 @@ def resolve_config(master_seed, max_threads, max_connections=None):
     # Post-draw clamp to the per-run ceilings (consumes no rng, so seeds stay
     # stable). Keeps connections and payload; trims messages, then connections.
     workload["connections"], workload["messages"] = clamp_run(
-        workload["connections"], workload["messages"], payload)
+        workload["connections"], workload["messages"], payload,
+        max_exchanges, max_bytes)
     # Hard connection cap (Windows, where opens are slow). Applied after the ceiling
     # clamp; only lowers connections, so both ceilings still hold. No rng consumed.
     if max_connections is not None:
@@ -558,17 +579,18 @@ def compile_engine(ponyc, out_dir):
     return binary
 
 
-def summary_line(config, result):
+def summary_line(config, result, elapsed):
     parsed = parse_result(result.stdout)
     shape = config["workload"]
     detail = ("connections=%s completed=%s failed=%s verified=%s mismatched=%s"
               % (parsed.get("connections", "?"), parsed.get("completed", "?"),
                  parsed.get("failed", "?"), parsed.get("verified", "?"),
                  parsed.get("mismatched", "?")))
-    return ("[seed %d] %s (payload=%s messages=%s %s expect=%s close=%s) %s"
+    return ("[seed %d] %s (payload=%s messages=%s %s expect=%s close=%s) %s "
+            "elapsed=%.1fs"
             % (config["master_seed"], result.outcome.upper(),
                shape["payload-size"], shape["messages"], shape["write-shape"],
-               shape["expect"], shape["close"], detail))
+               shape["expect"], shape["close"], detail, elapsed))
 
 
 def bundle_for(config, version, argv, limits, result):
@@ -596,13 +618,15 @@ def write_bundle(out_dir, bundle):
 
 def execute(binary, config, version, out_dir, timeout, mem_limit_bytes,
             no_progress_seconds, lldb):
+    start = time.monotonic()
     if lldb is not None:
         result = run_under_lldb(binary, lldb, config, timeout, mem_limit_bytes,
                                 no_progress_seconds)
     else:
         result = run_once(binary, config, timeout, mem_limit_bytes,
                           no_progress_seconds)
-    info(summary_line(config, result))
+    elapsed = time.monotonic() - start
+    info(summary_line(config, result, elapsed))
     if result.stdout:
         info(result.stdout.rstrip("\n"))
     if result.stderr:
@@ -667,9 +691,19 @@ def main():
     parser.add_argument("--max-connections", type=int, default=None,
                         help="cap each seed's drawn connection count (Windows CI "
                              "passes a small value -- Windows opens sockets slowly)")
+    parser.add_argument("--max-exchanges", type=int, default=RUN_MAX_EXCHANGES,
+                        help="per-run ceiling on connections*messages round-trips "
+                             "(Windows CI lowers it -- slow loopback)")
+    parser.add_argument("--max-bytes", type=int, default=RUN_MAX_BYTES,
+                        help="per-run ceiling on bytes moved "
+                             "(connections*messages*payload; Windows CI lowers it)")
     args = parser.parse_args()
     if args.max_connections is not None and args.max_connections <= 0:
         die("--max-connections must be positive (got %d)" % args.max_connections)
+    if args.max_exchanges <= 0:
+        die("--max-exchanges must be positive (got %d)" % args.max_exchanges)
+    if args.max_bytes <= 0:
+        die("--max-bytes must be positive (got %d)" % args.max_bytes)
 
     os.makedirs(args.out, exist_ok=True)
     binary = compile_engine(args.ponyc, args.out)
@@ -682,7 +716,8 @@ def main():
     failures = []
 
     def run_seed(seed):
-        config = resolve_config(seed, max_threads, args.max_connections)
+        config = resolve_config(seed, max_threads, args.max_connections,
+                                args.max_exchanges, args.max_bytes)
         result = execute(binary, config, version, args.out,
                          args.timeout_seconds, mem_limit_bytes,
                          args.no_progress_seconds, args.lldb)
