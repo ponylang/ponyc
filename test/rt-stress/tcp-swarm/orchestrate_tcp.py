@@ -44,8 +44,10 @@ DEFAULT_TIMEOUT_SECONDS = 6000
 # 8 GiB, not 4: the Pony runtime reserves a flat ~3.5 GiB of VIRTUAL address space
 # (measured, constant across configs), and RLIMIT_AS caps virtual, not RSS -- so a
 # 4 GiB cap sits ~86% full before the workload runs and a high --ponymaxthreads run
-# could trip a FALSE OOM. Real RSS is tiny (~124 MiB worst case measured), so 8 GiB
-# has no downside and removes the false-kill risk.
+# could trip a FALSE OOM. Real RSS is tiny (~124 MiB worst case measured -- before
+# the writev-chunks lever, whose heavy multi-batch draws build many more small
+# buffer objects; that peak is a first-CI-run calibration item), so 8 GiB has no
+# downside and removes the false-kill risk.
 DEFAULT_MEM_LIMIT_MB = 8192
 
 
@@ -63,6 +65,14 @@ def die(message):
 # Feature levers (each drawn independently -- omission is the swarm). Magnitudes
 # are bucketed small/medium/large at 25/50/25 then uniform within the bucket.
 WRITE_SHAPES = ["write", "writev"]
+# writev buffer counts (writev only). 2048 exceeds POSIX IOV_MAX (1024): drawn
+# with a payload at least that large, a single writev then queues more buffers
+# than one writev() syscall can send, so TCPConnection takes its multi-batch send
+# path -- the only path on which the mid-write yield (--yield-after-writing) fires
+# on POSIX. 4 and 64 are ordinary small vector writes. COUPLING: the large value
+# must stay above pony_os_writev_max()'s POSIX return, or the multi-batch coverage
+# silently vanishes -- see .known-couplings/tcp-swarm-writev-chunks-iov-max.md.
+WRITEV_CHUNKS = [4, 64, 2048]
 CLOSE_KINDS = ["graceful", "hard"]
 # Payload sizes span the runtime's 16384-byte default read buffer: below, at, and
 # above it, so runs straddle the read-chunk boundary rather than clustering small.
@@ -138,6 +148,7 @@ def resolve_config(master_seed, max_threads, max_connections=None):
     workload["payload-size"] = payload
     workload["messages"] = draw_bucketed(rng, MESSAGE_BUCKETS)
     workload["write-shape"] = rng.choice(WRITE_SHAPES)
+    workload["writev-chunks"] = rng.choice(WRITEV_CHUNKS)
     read_buffer = rng.choice(READ_BUFFER_SIZES)
     workload["read-buffer-size"] = read_buffer
     workload["yield-after-reading"] = rng.choice(YIELD_SIZES)

@@ -13,6 +13,12 @@ The swarm dimensions are each tied to a distinct code path in
 * `--payload-size` / `--messages` -- how much each connection sends, and in how
   many messages.
 * `--write-shape` (`write` | `writev`) -- single vs vectored writes.
+* `--writev-chunks` (N, writev only) -- how many buffers a `writev` splits its
+  payload into. Above `@pony_os_writev_max()` -- IOV_MAX (1024 on Linux/macOS) on
+  POSIX, 1 on Windows -- the send takes TCPConnection's multi-batch path, sending
+  one
+  `writev_max`-sized batch per pass and re-entering the send loop, which is the
+  only thing that makes the mid-write yield below actually fire on POSIX.
 * `--expect` (0 = off, N = frame size) -- fixed-size framed reads vs whole-buffer.
 * `--close` (`graceful` | `hard`) -- a graceful `dispose()` (FIN, drains the send
   buffer) vs a muted `dispose()`, which takes TCPConnection's `hard_close` path
@@ -21,8 +27,12 @@ The swarm dimensions are each tied to a distinct code path in
   teardown/unsubscribe code, not write loss.
 * `--read-buffer-size` / `--yield-after-reading` / `--yield-after-writing` -- the
   TCPConnection read-buffer size and the byte counts at which it yields back to the
-  scheduler mid-read/mid-write; small values drive frequent yields (reschedules) on
-  any payload size.
+  scheduler mid-read/mid-write. A small `--yield-after-reading` yields on any
+  payload big enough to fill the read buffer more than once. `--yield-after-writing`
+  is different: the send loop only re-checks it when a write spans more than one
+  `writev_max` batch, so on POSIX it needs a `--writev-chunks` above IOV_MAX to
+  bite at all (on Windows, where writev_max is 1, any multi-chunk writev triggers
+  it).
 
 Oracles:
 
@@ -92,6 +102,7 @@ class val _Config
   let messages: USize
   let close_hard: Bool
   let use_writev: Bool
+  let writev_chunks: USize
   let expect_frame: USize
   let read_buffer_size: USize
   let yield_after_reading: USize
@@ -113,6 +124,13 @@ class val _Config
     messages = _usize(m, "messages", 1)
     close_hard = _str(m, "close", "graceful") == "hard"
     use_writev = _str(m, "write-shape", "write") == "writev"
+    // How many buffers a single `writev` splits its payload into. Above
+    // `@pony_os_writev_max()` -- IOV_MAX (1024 on Linux/macOS) on POSIX, 1 on
+    // Windows -- it drives TCPConnection's multi-batch send and the mid-write
+    // yield, so on POSIX it bites only when payload_size >= writev_chunks > 1024.
+    // Default 4; writev only. Coupling:
+    // .known-couplings/tcp-swarm-writev-chunks-iov-max.md.
+    writev_chunks = _usize(m, "writev-chunks", 4).max(1)
     read_buffer_size = _usize(m, "read-buffer-size", 16384)
     // Clamp expect to the read buffer: TCPConnection.expect() errors when the frame
     // exceeds it, so clamping here keeps the call from erroring (the call sites then
@@ -395,11 +413,12 @@ class SwarmClient is TCPConnectionNotify
     var m: USize = 0
     while m < _config.messages do
       if _config.use_writev then
-        // Split across 4 buffers to drive the vectored-write path (multiple
-        // iovecs). A payload under 4 bytes leaves some buffers empty, but writev
-        // still sees several iovecs, which is the point.
-        conn.writev(
-          _Keystream.make_chunks(_seed, _sent_total, _config.payload_size, 4))
+        // Split across `writev_chunks` buffers to drive the vectored-write path.
+        // Several non-empty iovecs need payload_size >= writev_chunks; a chunk
+        // count above the payload collapses to a single iovec (writev skips the
+        // empty buffers). A chunk count above IOV_MAX drives the multi-batch send.
+        conn.writev(_Keystream.make_chunks(
+          _seed, _sent_total, _config.payload_size, _config.writev_chunks))
       else
         conn.write(_Keystream.make(_seed, _sent_total, _config.payload_size))
       end

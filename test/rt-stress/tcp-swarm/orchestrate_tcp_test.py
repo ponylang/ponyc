@@ -23,33 +23,52 @@ def check(name, condition):
 def test_resolve_config_golden():
     # Pinned draws: a reordered/narrowed/added draw changes these and would
     # silently remap every seed (breaking --replay). Regenerate deliberately if
-    # the draw is intended to change. Two seeds so a change is unlikely to leave
-    # both untouched by luck. Seed 5 also exercises expect > 0.
+    # the draw is intended to change. Three seeds spanning both write shapes, so a
+    # change is unlikely to leave all untouched by luck AND a regression that
+    # touched only one write-shape branch can't hide. Seed 0 is a plain writev;
+    # seed 5 is write-shape=write (payload 1, hard close); seed 16 exercises the
+    # multi-batch writev path (writev, writev-chunks 2048 > IOV_MAX, payload >=
+    # chunks) plus expect > 0 and a hard close.
     golden0 = {
         "master_seed": 0,
         "runtime": {"ponymaxthreads": 5, "ponypin": True},
         "workload": {
             "close": "graceful", "concurrency": 8, "connections": 75126,
             "expect": 0, "messages": 26, "payload-size": 1024,
-            "read-buffer-size": 16384, "write-shape": "writev",
-            "yield-after-reading": 1024, "yield-after-writing": 1024,
+            "read-buffer-size": 65536, "write-shape": "writev",
+            "writev-chunks": 64,
+            "yield-after-reading": 1024, "yield-after-writing": 16384,
         },
     }
     golden5 = {
         "master_seed": 5,
-        "runtime": {"ponymaxthreads": 7, "ponynoscale": True, "ponypin": True,
-                    "ponypinasio": True},
+        "runtime": {"ponymaxthreads": 4, "ponynoblock": True},
         "workload": {
-            "close": "graceful", "concurrency": 256, "connections": 13749,
-            "expect": 1, "messages": 32, "payload-size": 1,
-            "read-buffer-size": 1024, "write-shape": "write",
-            "yield-after-reading": 64, "yield-after-writing": 1024,
+            "close": "hard", "concurrency": 256, "connections": 13749,
+            "expect": 0, "messages": 32, "payload-size": 1,
+            "read-buffer-size": 128, "write-shape": "write",
+            "writev-chunks": 4,
+            "yield-after-reading": 1024, "yield-after-writing": 1024,
+        },
+    }
+    golden16 = {
+        "master_seed": 16,
+        "runtime": {"ponymaxthreads": 5, "ponynoblock": True,
+                    "ponynoscale": True},
+        "workload": {
+            "close": "hard", "concurrency": 32, "connections": 17745,
+            "expect": 16384, "messages": 1, "payload-size": 16384,
+            "read-buffer-size": 16384, "write-shape": "writev",
+            "writev-chunks": 2048,
+            "yield-after-reading": 64, "yield-after-writing": 16384,
         },
     }
     check("resolve_config(0, 8) matches the pinned draw",
           o.resolve_config(0, 8) == golden0)
     check("resolve_config(5, 8) matches the pinned draw",
           o.resolve_config(5, 8) == golden5)
+    check("resolve_config(16, 8) matches the pinned draw",
+          o.resolve_config(16, 8) == golden16)
     check("resolve_config is deterministic",
           o.resolve_config(7, 8) == o.resolve_config(7, 8))
 
@@ -96,6 +115,9 @@ def test_resolve_config_coverage_and_invariants():
     write_shapes = set()
     closes = set()
     expect_states = set()
+    chunk_vals = set()
+    multibatch_seeds = 0
+    yield_fires_seeds = 0
     noscale = pin = pinasio = noblock = 0
     invariants = True
     for seed in range(500):
@@ -104,6 +126,23 @@ def test_resolve_config_coverage_and_invariants():
         write_shapes.add(w["write-shape"])
         closes.add(w["close"])
         expect_states.add(w["expect"] > 0)
+        chunk_vals.add(w["writev-chunks"])
+        # A writev whose non-empty buffer count exceeds POSIX IOV_MAX (1024)
+        # reaches TCPConnection's multi-batch send path. That needs writev,
+        # writev-chunks > 1024, and payload >= chunks (so no buffer is empty). The
+        # mid-write yield fires only on that path, and only once one IOV_MAX-buffer
+        # batch's bytes reach --yield-after-writing. Since the yield is the whole
+        # point of the writev-chunks lever, both must stay reachable or those paths
+        # go untested. (IOV_MAX here is the POSIX value; see
+        # .known-couplings/tcp-swarm-writev-chunks-iov-max.md.)
+        iov_max = 1024
+        chunks = w["writev-chunks"]
+        if (w["write-shape"] == "writev" and chunks > iov_max
+                and w["payload-size"] >= chunks):
+            multibatch_seeds += 1
+            first_batch_bytes = iov_max * (w["payload-size"] // chunks)
+            if first_batch_bytes >= w["yield-after-writing"]:
+                yield_fires_seeds += 1
         noscale += 1 if r.get("ponynoscale") else 0
         pin += 1 if r.get("ponypin") else 0
         pinasio += 1 if r.get("ponypinasio") else 0
@@ -128,6 +167,8 @@ def test_resolve_config_coverage_and_invariants():
             invariants = False
         if w["write-shape"] not in o.WRITE_SHAPES:
             invariants = False
+        if w["writev-chunks"] not in o.WRITEV_CHUNKS:
+            invariants = False
         if w["close"] not in o.CLOSE_KINDS:
             invariants = False
         if not (1 <= r["ponymaxthreads"] <= 8):
@@ -138,6 +179,11 @@ def test_resolve_config_coverage_and_invariants():
         if r.get("ponypinasio") and not r.get("ponypin"):
             invariants = False           # pinasio requires pin
     check("both write shapes appear", write_shapes == {"write", "writev"})
+    # Hardcoded literal (not set(o.WRITEV_CHUNKS)) so narrowing the constant is
+    # caught here, matching the sibling write-shape/close checks.
+    check("all writev-chunk counts appear", chunk_vals == {4, 64, 2048})
+    check("multi-batch writev is reachable by the draw", multibatch_seeds > 0)
+    check("mid-write yield is reachable via writev-chunks", yield_fires_seeds > 0)
     check("both close kinds appear", closes == {"graceful", "hard"})
     check("expect appears both on and off", expect_states == {True, False})
     check("ponynoscale is drawn sometimes and not always",
