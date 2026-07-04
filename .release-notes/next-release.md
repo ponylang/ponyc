@@ -113,3 +113,7 @@ On the default Linux and BSD builds, the runtime reserves SIGUSR2 for its own sc
 
 `Sig.usr2()` now returns a signal number on `scheduler_scaling_pthreads` builds, including macOS where that mode is always on, and is a compile error on the default builds where the runtime reserves the signal — so a misuse shows up when you compile rather than as a handler that silently never fires. One configuration is still not covered: `runtime_tracing` builds use SIGUSR2 themselves regardless of scheduler mode, and `Sig.usr2()` has no way to detect that, so it should not be used on a `runtime_tracing` build.
 
+## Fix systematic testing occasionally hanging on Windows
+
+On Windows, a program built with `use=systematic_testing` could occasionally hang instead of finishing. The run would stop making progress and never exit, most often as it was shutting down, and it only happened with more than one scheduler thread. Running the same program again would usually complete normally. This has been fixed.
+
