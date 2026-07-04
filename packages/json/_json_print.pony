@@ -1,3 +1,8 @@
+use @snprintf[I32](str: Pointer[U8] tag, size: USize, fmt: Pointer[U8] tag, ...)
+  if not windows
+use @_snprintf[I32](str: Pointer[U8] tag, count: USize, fmt: Pointer[U8] tag,
+  ...) if windows
+
 primitive _JsonPrint
   """
   Private serialization helper. Handles all JsonValue members.
@@ -204,19 +209,53 @@ primitive _JsonPrint
       buf.append("null")
       return consume buf
     end
-    let s: String = n.string()
+    let s: String = _shortest(n)
     buf.append(s)
-    // A whole-number float prints without `.`/`e`/`E`; add `.0` so it re-parses
-    // as a float, not an integer. `s` is finite here, so it never contains
-    // `inf`/`nan`.
-    if
-      (not s.contains("."))
-        and (not s.contains("e"))
-        and (not s.contains("E"))
-    then
+    // A whole-number float prints as bare digits (no `.` or `e`); add `.0` so
+    // it re-parses as a float, not an integer. `_shortest` formats with `%g`,
+    // whose exponent marker is a lowercase `e`, never an uppercase `E`.
+    if (not s.contains(".")) and (not s.contains("e")) then
       buf.append(".0")
     end
     consume buf
+
+  fun _shortest(n: F64): String iso^ =>
+    """
+    A compact decimal string that reparses to exactly `n`. `F64.string()`
+    formats with C's `%g` at six significant digits, which drops precision, so
+    the package could not round-trip its own floats. An IEEE double needs at
+    most 17 significant digits to round-trip; format with `%g` at 15 digits,
+    then 16, then 17, and keep the first whose value, read back with `strtod`,
+    equals `n`. `%g` strips trailing zeros, so values that need fewer digits
+    (0.1, 100) still print short. This is not the globally shortest such
+    decimal — it is the shortest of the 15-, 16-, and 17-digit `%g` forms that
+    round-trips — but it is compact for typical values and always correct. The
+    caller has already excluded non-finite `n`, so the loop always stops with a
+    string equal to `n`.
+    """
+    recover
+      // 32 bytes holds the longest possible output with room to spare: a sign,
+      // 17 significant digits, a decimal point, and a 5-char exponent such as
+      // `e+308` is 24 characters (`-1.7976931348623157e+308`).
+      let scratch = String(32)
+      var precision: I32 = 15
+      while true do
+        scratch.clear()
+        ifdef windows then
+          @_snprintf(scratch.cstring(), scratch.space(), "%.*g".cstring(),
+            precision, n)
+        else
+          @snprintf(scratch.cstring(), scratch.space(), "%.*g".cstring(),
+            precision, n)
+        end
+        scratch.recalc()
+        if precision == 17 then break end
+        var endp: Pointer[U8] box = Pointer[U8]
+        if @strtod(scratch.cstring(), addressof endp) == n then break end
+        precision = precision + 1
+      end
+      scratch
+    end
 
   fun _indent(buf: String iso, indent: String, level: USize): String iso^ =>
     var i: USize = 0

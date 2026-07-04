@@ -68,6 +68,7 @@ actor \nodoc\ Main is TestList
     test(_TestParseWholeDocument)
     test(_TestPrintCompact)
     test(_TestPrintFloats)
+    test(_TestPrintFloatTypePreservation)
     test(_TestPrintNonFinite)
     test(_TestPrintPretty)
     test(_TestPrinterPretty)
@@ -250,36 +251,44 @@ class \nodoc\ iso _I64RoundtripProperty is Property1[I64]
 class \nodoc\ iso _F64RoundtripProperty is Property1[F64]
   fun name(): String => "json/roundtrip/f64"
 
+  fun params(): PropertyParams =>
+    // Random doubles overwhelmingly need 16-17 significant digits, so a larger
+    // sample densely exercises the full-precision range.
+    PropertyParams(where num_samples' = 1000)
+
   fun gen(): Generator[F64] =>
-    // Generate clean-roundtripping F64 values
+    // Build a finite F64 from raw IEEE-754 fields. A uniform exponent in
+    // [0, 2046] spans denormals (0) through the largest finite magnitude and
+    // never selects 2047 (infinity/NaN); a full 52-bit mantissa reaches the
+    // long-digit values that most stress the printer's precision.
     Generator[F64](
       object is GenObj[F64]
         fun generate(rnd: Randomness): F64 =>
-          let n = rnd.i64(-100, 100)
-          let d: I64 = match rnd.usize(0, 3)
-          | 0 => 2
-          | 1 => 4
-          | 2 => 5
-          else 10
-          end
-          n.f64() / d.f64()
+          let sign = rnd.u64(0, 1) << 63
+          let exp = rnd.u64(0, 2046) << 52
+          let mant = rnd.u64() and 0x000F_FFFF_FFFF_FFFF
+          F64.from_bits(sign or exp or mant)
       end)
 
   fun ref property(sample: F64, ph: PropertyHelper) =>
-    // Serialize as a JSON array element to handle the formatting
+    // Serialize as a JSON array element, then recover it.
     let arr = JsonArray.push(sample)
     let s: String val = JsonPrinter.print(arr)
     match \exhaustive\ JsonParser.parse(s)
     | let j: JsonValue =>
       try
-        let parsed_arr = j as JsonArray
-        let parsed = parsed_arr(0)? as F64
-        ph.assert_eq[F64](sample, parsed)
+        // `as F64` also asserts the value re-parses as a float, not an integer.
+        let parsed = (j as JsonArray)(0)? as F64
+        // Compare bits, not values: F64 `==` treats -0.0 and 0.0 as equal and
+        // would hide a lost sign. The round-trip must preserve every bit.
+        ph.assert_eq[U64](sample.bits(), parsed.bits())
       else
-        ph.fail("Type mismatch after roundtrip for: " + sample.string())
+        ph.fail("Roundtrip did not yield an F64; sample bits=" +
+          sample.bits().string() + " printed=" + s)
       end
     | let e: JsonParseError =>
-      ph.fail("Parse failed for: " + s + " — " + e.string())
+      ph.fail("Parse failed; sample bits=" + sample.bits().string() +
+        " printed=" + s + " — " + e.string())
     end
 
 class \nodoc\ iso _StringEscapeRoundtripProperty is Property1[String]
@@ -936,6 +945,88 @@ class \nodoc\ iso _TestPrintFloats is UnitTest
     let zero = JsonArray.push(F64(0))
     let zero_s: String val = zero.print()
     h.assert_eq[String]("[0.0]", zero_s)
+
+    // Precision is preserved: a value needing more than six significant digits
+    // keeps all of them. `from_bits` names the exact double, sidestepping the
+    // compiler's mis-rounding of some decimal float literals. Each value also
+    // drives a specific rung of `_shortest`'s 15-then-16-then-17 search.
+    h.assert_eq[String]("3.141592653589793",
+      JsonPrinter.print(F64.from_bits(0x400921FB54442D18)))    // pi, needs 16
+    h.assert_eq[String]("0.30000000000000004",
+      JsonPrinter.print(F64.from_bits(0x3FD3333333333334)))    // needs 17
+    h.assert_eq[String]("0.3",
+      JsonPrinter.print(F64.from_bits(0x3FD3333333333333)))    // needs 15
+    // The 0.3 / 0.30000000000000004 pair are adjacent doubles: the printer
+    // must emit enough digits to tell them apart.
+
+    // Extremes of the finite range keep full precision: the smallest positive
+    // denormal, then the largest and most-negative finite doubles.
+    h.assert_eq[String]("4.94065645841247e-324",
+      JsonPrinter.print(F64.from_bits(0x0000000000000001)))
+    h.assert_eq[String]("1.7976931348623157e+308",
+      JsonPrinter.print(F64.from_bits(0x7FEFFFFFFFFFFFFF)))
+    h.assert_eq[String]("-1.7976931348623157e+308",
+      JsonPrinter.print(F64.from_bits(0xFFEFFFFFFFFFFFFF)))
+
+    // A value that needs few digits still prints short — not padded to 17.
+    h.assert_eq[String]("0.1",
+      JsonPrinter.print(F64.from_bits(0x3FB999999999999A)))
+
+    // A large whole-number float still gets the `.0` suffix, and negative zero
+    // keeps its sign along with the suffix.
+    h.assert_eq[String]("9007199254740992.0",
+      JsonPrinter.print(F64.from_bits(0x4340000000000000)))    // 2^53
+    h.assert_eq[String]("-0.0",
+      JsonPrinter.print(F64.from_bits(0x8000000000000000)))
+
+class \nodoc\ iso _TestPrintFloatTypePreservation is UnitTest
+  fun name(): String => "json/print/float-type-preservation"
+
+  fun apply(h: TestHelper) =>
+    // A whole-number float keeps a decimal point so it re-parses as F64, not
+    // I64 — the reason `_float` appends `.0`.
+    h.assert_true(
+      match JsonParser.parse(JsonPrinter.print(F64(1)))
+      | let _: F64 => true
+      else false
+      end)
+    h.assert_true(
+      match JsonParser.parse(
+        JsonPrinter.print(F64.from_bits(0x4340000000000000)))
+      | let _: F64 => true
+      else false
+      end)
+
+    // A whole-number float whose shortest form is exponential must NOT get a
+    // `.0` (that would be `1e+16.0`, not valid JSON). It still round-trips.
+    let exp_whole: String val = JsonPrinter.print(F64(1e16))
+    h.assert_true(exp_whole.contains("e"))
+    h.assert_false(exp_whole.contains(".0"))
+    h.assert_true(
+      match JsonParser.parse(exp_whole)
+      | let f: F64 => f == F64(1e16)
+      else false
+      end)
+
+    // Negative zero round-trips as an F64 with its sign bit intact.
+    match JsonParser.parse(
+      JsonPrinter.print(F64.from_bits(0x8000000000000000)))
+    | let f: F64 => h.assert_eq[U64](0x8000000000000000, f.bits())
+    else h.fail("negative zero did not round-trip as F64")
+    end
+
+    // The finite extremes survive a full print -> parse round-trip with every
+    // bit intact. The parser's range check sits right at this boundary, so the
+    // printed 17-digit form of the largest magnitudes must not reparse to
+    // infinity, and the smallest denormal must not collapse to zero.
+    let extremes =
+      [ as U64: 0x7FEFFFFFFFFFFFFF; 0xFFEFFFFFFFFFFFFF; 0x0000000000000001 ]
+    for bits in extremes.values() do
+      match JsonParser.parse(JsonPrinter.print(F64.from_bits(bits)))
+      | let f: F64 => h.assert_eq[U64](bits, f.bits())
+      else h.fail("extreme did not round-trip as F64: " + bits.string())
+      end
+    end
 
 class \nodoc\ iso _TestPrintNonFinite is UnitTest
   fun name(): String => "json/print/non-finite"
