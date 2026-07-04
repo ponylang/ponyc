@@ -2,12 +2,12 @@
 """Age-based retention for the branch libs cache (`ponyc-branch-libs-cache/*`).
 
 The branch libs cache (`branch_libs_cache.py`) holds a tag-addressable scratch copy
-of the prebuilt LLVM, one package per `<platform>-<arch>`, so a changed-libs build
-(a non-fork PR, or an ad-hoc tier dispatch) doesn't rebuild LLVM on every run. The
-versions accumulate as branches come and go, so this sweep, run daily, deletes
-anything older than the cutoff: stale versions individually, and a package outright
-once all of its versions are stale (a platform nobody has pushed to in the window,
-e.g. a retired builder image).
+of the prebuilt LLVM, one package per `<platform>-<arch>`, so a build that changes
+an LLVM-determining input doesn't rebuild LLVM on every run. The versions
+accumulate as branches come and go, so this sweep, run daily, deletes anything
+older than the cutoff: stale versions individually, and a package outright once all
+of its versions are stale (a platform nobody has pushed to in the window, e.g. a
+retired builder image).
 
 This is the branch cache's OWN retention -- deliberately different from the main
 cache's `prune_libs_cache.py` (which keeps the N newest versions per package and

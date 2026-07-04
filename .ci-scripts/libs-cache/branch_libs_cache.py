@@ -4,8 +4,8 @@ a push/pull/exists/package-name against it.
 
 This is the BRANCH libs cache: a separate, short-lived cache from the main libs
 cache (`oci_libs_cache.py` / `ponyc-libs-cache`). It exists so a build that misses
-the main cache because it changed an LLVM-determining input -- a non-fork PR, or an
-ad-hoc `workflow_dispatch` of weekly on a branch -- builds LLVM once
+the main cache -- because it changed an LLVM-determining input the main cache does
+not have yet (the main cache is filled from main) -- builds LLVM once
 and reuses that build on later runs instead of cold-building every time. The warmer
 also reads it: on a main-cache miss it promotes a matching branch artifact into the
 main cache instead of cold-building (`promote_libs_cache.py`).
@@ -38,9 +38,8 @@ it is building for and check it with one HEAD; no per-PR partitioning is needed.
 The tag (not who built it) is what prevents a stale artifact from being served: a
 branch that changes any LLVM-determining input gets a different tag (or platform),
 so two builds that share a tag share identical content, and a build at a different
-tag is a different version -- exact hit or miss. Two PRs (or a PR and a tier
-dispatch) that produce the same tag share the one package, which is free dedup,
-not a hazard.
+tag is a different version -- exact hit or miss. Two builds that produce the same
+tag share the one package, which is free dedup, not a hazard.
 
 Usage:
     branch_libs_cache.py package-name (--image <ref> | --platform <lbl>)
@@ -49,11 +48,10 @@ Usage:
     branch_libs_cache.py push --tag <hash> (--image <ref> | --platform <lbl>)
 
 `exists` reports whether the artifact is cached (exit 0 present / 1 absent)
-without downloading the blob -- the cheap check a maybe-build job or the warmer
-gates on. `pull` restores the artifact, exiting non-zero on a miss so the caller
-can fall back to building. `push` uploads the blob before the manifest; auth uses
-GITHUB_TOKEN (needs `packages: write`, which only non-fork PR runs and
-`workflow_dispatch`/`schedule` runs get).
+without downloading the blob -- a cheap check for deciding whether to build. `pull`
+restores the artifact, exiting non-zero on a miss so the caller can fall back to
+building. `push` uploads the blob before the manifest; auth uses GITHUB_TOKEN and
+the push needs `packages: write`.
 
 Stdlib only so no pip install is required on any CI runner.
 """

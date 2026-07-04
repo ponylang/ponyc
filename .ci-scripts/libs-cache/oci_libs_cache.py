@@ -37,10 +37,10 @@ Usage:
 
 `package-name` prints the full package name (for debugging). `exists` reports
 whether the artifact is cached (exit 0 present / 1 absent) without downloading
-the blob -- the cheap check a maybe-build job gates on. `pull` restores the
+the blob -- a cheap check for deciding whether to build. `pull` restores the
 artifact into the working tree, exiting non-zero on a miss so the caller can fall
-back to building. `push` (warmer only) uploads the blob before the manifest;
-auth uses GITHUB_TOKEN (needs `packages: write`).
+back to building. `push` uploads the blob before the manifest; auth uses
+GITHUB_TOKEN and needs `packages: write`.
 
 Stdlib only so no pip install is required on any CI runner.
 """
