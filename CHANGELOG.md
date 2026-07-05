@@ -21,6 +21,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Fix systematic testing occasionally hanging on Windows ([PR #5670](https://github.com/ponylang/ponyc/pull/5670))
 - Fix json package losing precision when serializing floating-point values ([PR #5672](https://github.com/ponylang/ponyc/pull/5672))
 - Fix TCP connections hanging on Windows ([PR #5683](https://github.com/ponylang/ponyc/pull/5683))
+- Fix `term` mishandling of unrecognized escape sequences ([PR #5682](https://github.com/ponylang/ponyc/pull/5682))
 
 ### Added
 
