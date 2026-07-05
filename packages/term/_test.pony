@@ -47,6 +47,7 @@ actor \nodoc\ Main is TestList
     test(_TestReadlineCtrlDEmptyDisposes)
     test(_TestReadlineRejectDisposes)
     test(_TestReadlineHistoryNavigation)
+    test(_TestReadlineDownEmptyHistory)
     test(_TestReadlineHistoryDedup)
     test(_TestReadlineHistoryMaxlen)
     test(_TestReadlineHistoryMissingFile)
@@ -1159,6 +1160,30 @@ class \nodoc\ iso _TestReadlineHistoryNavigation is UnitTest
 
   fun ref tear_down(h: TestHelper) =>
     try (_dir as FilePath).remove() end
+
+class \nodoc\ iso _TestReadlineDownEmptyHistory is UnitTest
+  """
+  Pressing down (ctrl-n) with an empty history leaves the edit line and cursor
+  untouched. An empty history makes _history.size() - 1 underflow; the guard
+  makes down a clean no-op, matching up when there is no previous line. The
+  underflow was swallowed by a try, so down is an observable no-op either way —
+  the test pins that down never disturbs the line on an empty history. Typing
+  "abc", pressing down, typing "d", then dispatching yields "abcd": down neither
+  changed the buffer nor moved the cursor off the end.
+  """
+  fun name(): String => "term/Readline.down-empty-history"
+
+  fun ref apply(h: TestHelper) =>
+    let timers = Timers
+    let term = ANSITerm(Readline(_LineNotify(h, "abcd"), _NullOut), _NullSource,
+      timers)
+    h.dispose_when_done(term)
+    h.dispose_when_done(timers)
+    h.long_test(5_000_000_000)
+    term.prompt("")
+    // ctrl-n (down) with no history must not move the cursor or change the
+    // buffer, so the trailing "d" appends at the end.
+    term.apply(_Bytes("abc\x0Ed\n"))
 
 class \nodoc\ iso _TestReadlineHistoryDedup is UnitTest
   """

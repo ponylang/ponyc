@@ -119,6 +119,12 @@ class Readline is ANSINotify
     """
     Next line.
     """
+    // With no history there is no next line, and _history.size() - 1 would
+    // underflow. Do nothing, as up does when there is no previous line.
+    if _history.size() == 0 then
+      return
+    end
+
     try
       if _cur_line < (_history.size() - 1) then
         _cur_line = _cur_line + 1
