@@ -40,6 +40,7 @@ actor \nodoc\ Main is TestList
     // Readline line editing, history, and tab completion.
     test(_TestReadlineInsertAndCursor)
     test(_TestReadlineDeleteOps)
+    test(_TestReadlineCtrlKRefresh)
     test(_TestReadlineUTF8Editing)
     test(_TestReadlineBlockedQueue)
     test(_TestReadlineCtrlDEmptyDisposes)
@@ -678,6 +679,57 @@ actor \nodoc\ _NullOut is OutStream
   be writev(data: ByteSeqIter) => None
   be flush() => None
 
+actor \nodoc\ _MatchOut is OutStream
+  """
+  Counts the writes whose content contains a target string, for tests that
+  check an editing operation redraws a particular line. `assert_matches` is
+  issued from the dispatch notifier, which runs inside the term after every
+  write, so it observes the full count without racing the writes.
+  """
+  let _target: String
+  var _matches: USize = 0
+
+  new create(target: String) =>
+    _target = target
+
+  be print(data: ByteSeq) => _record(data)
+  be write(data: ByteSeq) => _record(data)
+  be printv(data: ByteSeqIter) =>
+    for d in data.values() do _record(d) end
+  be writev(data: ByteSeqIter) =>
+    for d in data.values() do _record(d) end
+  be flush() => None
+
+  fun ref _record(data: ByteSeq) =>
+    let s =
+      match data
+      | let str: String box => str
+      | let arr: Array[U8] val => String.from_array(arr)
+      end
+    if s.contains(_target) then
+      _matches = _matches + 1
+    end
+
+  be assert_matches(h: TestHelper, expected: USize) =>
+    h.assert_eq[USize](expected, _matches)
+    h.complete(true)
+
+class \nodoc\ _MatchNotify is ReadlineNotify
+  """
+  When a line is dispatched, asks its output stream how many writes matched.
+  """
+  let _h: TestHelper
+  let _out: _MatchOut
+  let _expected: USize
+
+  new iso create(h: TestHelper, out: _MatchOut, expected: USize) =>
+    _h = h
+    _out = out
+    _expected = expected
+
+  fun ref apply(line: String, prompt: Promise[String]) =>
+    _out.assert_matches(_h, _expected)
+
 actor \nodoc\ _ReadlineDriver
   """
   Feeds a Readline (through an ANSITerm) one scripted line at a time, sending
@@ -897,6 +949,27 @@ class \nodoc\ iso _TestReadlineDeleteOps is UnitTest
         ("abc\x01\x1B[3~\n", "bc") ]    // Delete key (forward delete)
     end
     _DriveReadline(h, steps)
+
+class \nodoc\ iso _TestReadlineCtrlKRefresh is UnitTest
+  """
+  ctrl-k redraws the line after truncating it, so the deleted text does not stay
+  on screen. Typing "ab", moving the cursor left, then ctrl-k truncates to "a";
+  the truncated line "a" is redrawn once while typing 'a' and again by ctrl-k,
+  so it is rendered twice. Without the ctrl-k redraw it is rendered only once.
+  """
+  fun name(): String => "term/Readline.ctrl-k-refresh"
+
+  fun ref apply(h: TestHelper) =>
+    // A redraw of the buffer "a" writes "a" followed by the erase-to-end code.
+    let out = _MatchOut("a" + ANSI.erase())
+    let timers = Timers
+    let term = ANSITerm(Readline(_MatchNotify(h, out, 2), out), _NullSource,
+      timers)
+    h.dispose_when_done(term)
+    h.dispose_when_done(timers)
+    h.long_test(5_000_000_000)
+    term.prompt("")
+    term.apply(_Bytes("ab\x02\x0B\n"))
 
 class \nodoc\ iso _TestReadlineUTF8Editing is UnitTest
   """

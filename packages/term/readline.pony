@@ -61,6 +61,7 @@ class Readline is ANSINotify
     | 0x0B =>
       // ctrl-k, delete to the end of the line.
       _edit.truncate(_cur_pos.usize())
+      _refresh_line()
     | 0x0C => _clear() // ctrl-l
     | 0x0D => _dispatch(term) // CR
     | 0x0E => down() // ctrl-n
