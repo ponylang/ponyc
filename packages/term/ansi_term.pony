@@ -53,6 +53,7 @@ actor ANSITerm
   var _escape: _EscapeState = _EscapeNone
   var _esc_num: U8 = 0
   var _esc_mod: U8 = 0
+  var _esc_private: Bool = false
   embed _esc_buf: Array[U8] = Array[U8]
   var _closed: Bool = false
 
@@ -108,57 +109,40 @@ actor ANSITerm
           _escape = _EscapeCSI
           _esc_buf.push(c)
         else
-          _esc_flush()
+          // ESC then some other byte. A control byte (a second ESC restarts) or
+          // a high byte (a byte of a multi-byte character) is re-handled and
+          // delivered; a printable ASCII byte is an unreportable Alt+<char>, so
+          // it is discarded.
+          if (c < 0x20) or (c >= 0x7F) then
+            _abort_and_rehandle(c)
+          else
+            _esc_clear()
+          end
         end
       | _EscapeSS3 =>
-        match c
-        | 'A' => _up()
-        | 'B' => _down()
-        | 'C' => _right()
-        | 'D' => _left()
-        | 'H' => _home()
-        | 'F' => _end()
-        | 'P' => _fn_key(1)
-        | 'Q' => _fn_key(2)
-        | 'R' => _fn_key(3)
-        | 'S' => _fn_key(4)
+        if (c < 0x20) or (c >= 0x7F) then
+          _abort_and_rehandle(c)
         else
-          _esc_flush()
+          match c
+          | 'A' => _up()
+          | 'B' => _down()
+          | 'C' => _right()
+          | 'D' => _left()
+          | 'H' => _home()
+          | 'F' => _end()
+          | 'P' => _fn_key(1)
+          | 'Q' => _fn_key(2)
+          | 'R' => _fn_key(3)
+          | 'S' => _fn_key(4)
+          else
+            // Unrecognised SS3 final byte: discard the sequence.
+            _esc_clear()
+          end
         end
       | _EscapeCSI =>
-        match \exhaustive\ c
-        | 'A' => _up()
-        | 'B' => _down()
-        | 'C' => _right()
-        | 'D' => _left()
-        | 'H' => _home()
-        | 'F' => _end()
-        | '~' => _keypad()
-        | ';' =>
-          _escape = _EscapeMod
-        | if (c >= '0') and (c <= '9') =>
-          // Escape number.
-          _esc_num = (_esc_num * 10) + (c - '0')
-          _esc_buf.push(c)
-        else
-          _esc_flush()
-        end
+        _csi(c, false)
       | _EscapeMod =>
-        match \exhaustive\ c
-        | 'A' => _up()
-        | 'B' => _down()
-        | 'C' => _right()
-        | 'D' => _left()
-        | 'H' => _home()
-        | 'F' => _end()
-        | '~' => _keypad()
-        | if (c >= '0') and (c <= '9') =>
-          // Escape modifier.
-          _esc_mod = (_esc_mod * 10) + (c - '0')
-          _esc_buf.push(c)
-        else
-          _esc_flush()
-        end
+        _csi(c, true)
       end
     end
 
@@ -223,6 +207,75 @@ actor ANSITerm
     _timer = None
     _esc_flush()
 
+  fun ref _csi(c: U8, in_mod: Bool) =>
+    """
+    Handle one byte of a CSI sequence (ESC [ ...), reading parameter and
+    intermediate bytes until a final byte ends the sequence. A recognised final
+    byte dispatches its key; an unrecognised one, or one reached through a
+    non-standard parameter, discards the sequence. `in_mod` is true once a `;`
+    has been seen, so digits accumulate the modifier rather than the key number.
+    """
+    if (c >= '0') and (c <= '9') then
+      // Accumulate a parameter, clamping on every digit so an oversized value
+      // can't wrap a U8 into a different valid key or modifier.
+      let d = (c - '0').u16()
+      if in_mod then
+        _esc_mod = (((_esc_mod.u16() * 10) + d).min(255)).u8()
+      else
+        _esc_num = (((_esc_num.u16() * 10) + d).min(255)).u8()
+      end
+      _esc_buf.push(c)
+    elseif c == ';' then
+      // A parameter separator. The first one moves us into modifier parameters;
+      // any later ones are consumed as we read on to the final byte.
+      if not in_mod then
+        _escape = _EscapeMod
+      end
+      _esc_buf.push(c)
+    elseif (c >= 0x20) and (c <= 0x3F) then
+      // A parameter or intermediate byte we don't use (a private marker like
+      // `?`, a sub-parameter `:`, an intermediate). Keep reading to the final
+      // byte, but mark the sequence non-standard so it is discarded, not
+      // dispatched as if it were a plain key.
+      _esc_private = true
+      _esc_buf.push(c)
+    elseif (c >= 0x40) and (c <= 0x7E) then
+      // A final byte ends the sequence.
+      if _esc_private then
+        _esc_clear()
+      else
+        match c
+        | 'A' => _up()
+        | 'B' => _down()
+        | 'C' => _right()
+        | 'D' => _left()
+        | 'H' => _home()
+        | 'F' => _end()
+        | '~' => _keypad()
+        else
+          // Unrecognised final byte: discard the sequence.
+          _esc_clear()
+        end
+      end
+    else
+      // Control byte (< 0x20 or >= 0x7F): abort.
+      _abort_and_rehandle(c)
+    end
+
+  fun ref _abort_and_rehandle(c: U8) =>
+    """
+    Abort the escape sequence in progress. A new ESC starts a fresh sequence;
+    any other byte is passed straight to the notifier, so a control key pressed
+    mid-sequence still registers.
+    """
+    _esc_clear()
+    if c == 0x1B then
+      _escape = _EscapeStart
+      _esc_buf.push(0x1B)
+    else
+      _notify(this, c)
+    end
+
   fun ref _mod(): (Bool, Bool, Bool) =>
     """
     Set the modifier bools.
@@ -272,6 +325,10 @@ actor ANSITerm
     | 32 => _fn_key(18)
     | 33 => _fn_key(19)
     | 34 => _fn_key(20)
+    else
+      // Unrecognised keypad code: discard the sequence rather than leaving the
+      // decoder stalled in its escape state.
+      _esc_clear()
     end
 
   fun ref _up() =>
@@ -364,7 +421,8 @@ actor ANSITerm
 
   fun ref _esc_flush() =>
     """
-    Pass a partial or unrecognised escape sequence to the notifier.
+    Pass a partial escape sequence that timed out to the notifier as plain
+    input.
     """
     for c in _esc_buf.values() do
       _notify(this, c)
@@ -385,3 +443,4 @@ actor ANSITerm
     _esc_buf.clear()
     _esc_num = 0
     _esc_mod = 0
+    _esc_private = false
