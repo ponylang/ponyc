@@ -28,19 +28,19 @@ primitive Base64
     """
     Encode for RFC 4648.
     """
-    _encode[A](data, '+', '/', '=', 0, "\r\n")
+    _encode[A](data, 0)
 
   fun encode_pem(data: ReadSeq[U8]): String iso^ =>
     """
     Encode for PEM (RFC 1421).
     """
-    _encode[String iso](data, '+', '/', '=', 64)
+    _encode[String iso](data, 64)
 
   fun encode_mime(data: ReadSeq[U8]): String iso^ =>
     """
     Encode for MIME (RFC 2045).
     """
-    _encode[String iso](data, '+', '/', '=', 76)
+    _encode[String iso](data, 76)
 
   fun encode_url[A: Seq[U8] iso = String iso](
     data: ReadSeq[U8],
@@ -51,14 +51,18 @@ primitive Base64
     Encode for URLs (RFC 4648). Padding is omitted by default; pass `pad = true`
     to emit the trailing `=` padding characters.
     """
-    _encode[A](data, '-', '_', if pad then '=' else None end)
+    if (pad) then
+      _encode[A](data, 0, '-', '_')
+    else
+      _encode[A](data, 0, '-', '_', None)
+    end
 
   fun _encode[A: Seq[U8] iso = String iso](
     data: ReadSeq[U8],
+    linelen: USize = 0,
     at62: U8 = '+',
     at63: U8 = '/',
-    pad: (None | U8) = 0,
-    linelen: USize = 0,
+    pad: (None | U8) = '=',
     linesep: String = "\r\n"): A^ =>
     let len = ((data.size() + 2) / 3) * 4
     let out = recover A(len) end
