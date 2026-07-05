@@ -23,6 +23,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Fix TCP connections hanging on Windows ([PR #5683](https://github.com/ponylang/ponyc/pull/5683))
 - Fix `term` mishandling of unrecognized escape sequences ([PR #5682](https://github.com/ponylang/ponyc/pull/5682))
 - Fix `term` leaving deleted text on screen after ctrl-k ([PR #5686](https://github.com/ponylang/ponyc/pull/5686))
+- Fix Windows link failure for `ProcessSocketNotifications` ([PR #5685](https://github.com/ponylang/ponyc/pull/5685))
 
 ### Added
 
