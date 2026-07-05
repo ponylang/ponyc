@@ -151,3 +151,7 @@ On Windows, compiling a program could fail at link time with `undefined symbol: 
 
 Disposing an `ANSITerm` did not fully shut it down: its `prompt` and `size` behaviors still called the notifier afterward, and the terminal-resize handler it installs was never removed, so it kept calling the closed notifier on a resize and held its signal subscription. A disposed `ANSITerm` now ignores `prompt` and `size` and removes its resize handler.
 
+## Fix `Readline` nudging the cursor right on an empty line
+
+When a `Readline` had an empty prompt and an empty line, refreshing the line moved the cursor one column to the right of where it belonged. It now stays at the left edge.
+
