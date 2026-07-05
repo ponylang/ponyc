@@ -352,7 +352,14 @@ class Readline is ANSINotify
       end
 
       out.append("\r")
-      out.append(ANSI.right(pos.u32()))
+
+      // Only move right when the cursor is off the left edge. ANSI.right(0)
+      // emits a one-column move, so appending it here would nudge the cursor
+      // right on an empty line with an empty prompt.
+      if pos > 0 then
+        out.append(ANSI.right(pos.u32()))
+      end
+
       _out.write(consume out)
     end
 

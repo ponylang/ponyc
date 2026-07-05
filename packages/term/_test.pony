@@ -41,6 +41,7 @@ actor \nodoc\ Main is TestList
     test(_TestReadlineInsertAndCursor)
     test(_TestReadlineDeleteOps)
     test(_TestReadlineCtrlKRefresh)
+    test(_TestReadlineEmptyLineCursor)
     test(_TestReadlineUTF8Editing)
     test(_TestReadlineBlockedQueue)
     test(_TestReadlineCtrlDEmptyDisposes)
@@ -1020,6 +1021,29 @@ class \nodoc\ iso _TestReadlineCtrlKRefresh is UnitTest
     h.long_test(5_000_000_000)
     term.prompt("")
     term.apply(_Bytes("ab\x02\x0B\n"))
+
+class \nodoc\ iso _TestReadlineEmptyLineCursor is UnitTest
+  """
+  Refreshing an empty line with an empty prompt must not emit a cursor-forward
+  code, since the cursor is already at the left edge. After typing "xy" and
+  dispatching, two refreshes emit a cursor-forward move: after "x" it is
+  "\x1B[C" (ANSI.right treats 0 and 1 alike), and after "y" it is "\x1B[2C".
+  Only the first matches "\x1B[C", so exactly one write carries it; the
+  empty-prompt refresh must not add another. The bug emitted a second, nudging
+  the cursor one column right on the empty line.
+  """
+  fun name(): String => "term/Readline.empty-line-cursor"
+
+  fun ref apply(h: TestHelper) =>
+    let out = _MatchOut(ANSI.right(0)) // "\x1B[C"
+    let timers = Timers
+    let term = ANSITerm(Readline(_MatchNotify(h, out, 1), out), _NullSource,
+      timers)
+    h.dispose_when_done(term)
+    h.dispose_when_done(timers)
+    h.long_test(5_000_000_000)
+    term.prompt("")
+    term.apply(_Bytes("xy\n"))
 
 class \nodoc\ iso _TestReadlineUTF8Editing is UnitTest
   """
