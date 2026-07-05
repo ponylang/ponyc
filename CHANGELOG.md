@@ -25,6 +25,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Fix `term` leaving deleted text on screen after ctrl-k ([PR #5686](https://github.com/ponylang/ponyc/pull/5686))
 - Fix Windows link failure for `ProcessSocketNotifications` ([PR #5685](https://github.com/ponylang/ponyc/pull/5685))
 - Fix `ANSITerm` not fully cleaning up on dispose ([PR #5687](https://github.com/ponylang/ponyc/pull/5687))
+- Fix `Readline` nudging the cursor right on an empty line ([PR #5688](https://github.com/ponylang/ponyc/pull/5688))
 
 ### Added
 
