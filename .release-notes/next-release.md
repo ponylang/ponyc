@@ -131,3 +131,9 @@ JsonPrinter.print(F64(3.141592653589793))
 
 On Windows, a busy TCP connection could hang: one that had several writes queued up would, after sending its data, stop receiving and never finish -- the connection stayed stuck and the program sat idle. This was most likely on connections moving a lot of data at once. Affected connections now continue and complete normally.
 
+## Fix `term` mishandling of unrecognized escape sequences
+
+The `term` package's input decoder mishandled terminal escape sequences it didn't recognize. An unrecognized sequence such as Shift-Tab (`ESC[Z`) leaked stray characters into the input; an unknown keypad code stalled the decoder so following keystrokes were dropped or garbled; and an out-of-range numeric parameter could be read as a different, valid key.
+
+The decoder now reads each escape sequence through to its end and discards it when it isn't recognized, so an unrecognized key no longer inserts stray text, stalls input, or fires the wrong key. Recognized keys are unaffected.
+
