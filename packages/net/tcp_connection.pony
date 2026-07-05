@@ -619,6 +619,22 @@ actor TCPConnection is AsioEventNotify
           // Sent all data. Release backpressure.
           _release_backpressure()
         end
+        // On the epoll and Windows readiness backends read and write share ONE
+        // one-shot registration, so this writeable event disarmed the read side
+        // too. Unless we hit write backpressure (`_apply_backpressure` re-arms
+        // both and owns the write arm), nothing re-arms reads after a full drain
+        // -- a later readable is silently lost and the connection hangs. Re-arm
+        // reads here, gated on `_writeable` (true only when NOT backpressured,
+        // which also keeps the combined resubscribe from touching the write arm).
+        // Skip if this event also carried a readable (handled below), reads are
+        // muted, or the peer has closed. (kqueue arms read and write on separate
+        // one-shots, so it never loses the read arm and this is an inert no-op.)
+        // COUPLING: .known-couplings/asio-oneshot-shared-read-write-arm.md.
+        if _writeable and not AsioEvent.readable(flags) and _connected
+          and not _readable and not _muted and not _shutdown_peer
+        then
+          @pony_asio_event_resubscribe_read(_event)
+        end
       end
 
       if AsioEvent.readable(flags) then
