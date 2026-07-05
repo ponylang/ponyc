@@ -50,6 +50,7 @@ actor ANSITerm
   var _timer: (Timer tag | None) = None
   let _notify: ANSINotify
   let _source: DisposableActor
+  var _signal: (SignalHandler | None) = None
   var _escape: _EscapeState = _EscapeNone
   var _esc_num: U8 = 0
   var _esc_mod: U8 = 0
@@ -70,7 +71,7 @@ actor ANSITerm
     _source = source
 
     ifdef not windows then
-      SignalHandler(recover _TermResizeNotify(this) end, Sig.winch())
+      _signal = SignalHandler(recover _TermResizeNotify(this) end, Sig.winch())
     end
 
     _size()
@@ -172,9 +173,17 @@ actor ANSITerm
     """
     Pass a prompt along to the notifier.
     """
+    if _closed then
+      return
+    end
+
     _notify.prompt(this, value)
 
   be size() =>
+    if _closed then
+      return
+    end
+
     _size()
 
   fun ref _size() =>
@@ -189,21 +198,31 @@ actor ANSITerm
 
   be dispose() =>
     """
-    Stop accepting input, inform the notifier we have closed, and dispose of
-    our source.
+    Stop accepting input, inform the notifier we have closed, dispose of our
+    source, and remove our terminal-resize handler.
     """
     if not _closed then
       _esc_clear()
       _notify.closed()
       _source.dispose()
+      // Unregister the SIGWINCH handler installed in the constructor so it
+      // stops delivering resize callbacks and frees its subscription.
+      match _signal
+      | let s: SignalHandler => s.dispose()
+      end
       _closed = true
     end
 
   be _timeout() =>
     """
     Our timer since receiving an ESC has expired. Send the buffered data as if
-    it was not an escape sequence.
+    it was not an escape sequence. Guarded like the other notifier-forwarding
+    behaviors so a timer that fires after dispose delivers nothing.
     """
+    if _closed then
+      return
+    end
+
     _timer = None
     _esc_flush()
 

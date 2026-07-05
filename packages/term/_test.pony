@@ -182,6 +182,42 @@ class \nodoc\ _FlushNotify is ANSINotify
       _h.complete(true)
     end
 
+class \nodoc\ _DisposeNotify is ANSINotify
+  """
+  Checks dispose semantics by failing on any forbidden callback: input,
+  `prompt`, or `size` after `closed()`, or a second `closed()`. `closed()`
+  completes the "closed" action so a test can require that it fired. The
+  constructor's initial `size` arrives before `closed()`, so it is allowed.
+  """
+  let _h: TestHelper
+  var _closed: Bool = false
+
+  new iso create(h: TestHelper) =>
+    _h = h
+
+  fun ref apply(term: ANSITerm ref, input: U8) =>
+    if _closed then
+      _h.fail("input forwarded after close: " + input.string())
+    end
+
+  fun ref prompt(term: ANSITerm ref, value: String) =>
+    if _closed then
+      _h.fail("prompt forwarded after close")
+    end
+
+  fun ref size(rows: U16, cols: U16) =>
+    if _closed then
+      _h.fail("size forwarded after close")
+    end
+
+  fun ref closed() =>
+    if _closed then
+      _h.fail("closed fired twice")
+    else
+      _closed = true
+      _h.complete_action("closed")
+    end
+
 // ---------------------------------------------------------------------------
 // ANSITerm: escape-sequence decoding.
 // ---------------------------------------------------------------------------
@@ -480,26 +516,40 @@ class \nodoc\ iso _TestANSITermRealTimerFlush is UnitTest
 
 class \nodoc\ iso _TestANSITermDispose is UnitTest
   """
-  dispose notifies the notifier of closure exactly once (a second dispose is a
-  no-op) and input received after dispose is ignored.
+  dispose notifies the notifier of closure exactly once, and no callback (input,
+  prompt, or size) reaches the notifier afterward.
   """
   fun name(): String => "term/ANSITerm.dispose"
 
   fun ref apply(h: TestHelper) =>
-    // "Z" passes through; dispose closes once; the post-dispose "a" is ignored;
-    // the second dispose is guarded. closed() and the source disposal share the
-    // same guard, so one closed event implies one source disposal.
-    let expected = recover val ["byte 90"; "closed"] end
     let timers = Timers
-    let term = ANSITerm(_RecordNotify(h, expected), _NullSource, timers)
+    let term = ANSITerm(_DisposeNotify(h), _NullSource, timers)
     h.dispose_when_done(term)
     h.dispose_when_done(timers)
     h.long_test(2_000_000_000)
-    term.apply(_Bytes("Z"))
+    // "closed" must fire, or the test times out. A callback after close fails
+    // the test via _DisposeNotify.
+    h.expect_action("closed")
+    h.expect_action("done")
     term.dispose()
-    term.apply(_Bytes("a"))
-    term.dispose()
-    term.prompt("")
+    term.apply(_Bytes("a")) // input after close is ignored
+    term.dispose()          // a second dispose does not close again
+    term.prompt("x")        // prompt after close is ignored
+    term.size()             // size after close is ignored
+    // Complete via a 100ms timer, not a notifier callback (nothing forwards
+    // after close). The term drains the near-instant calls above long before
+    // the timer fires, so any forbidden callback has already failed the test by
+    // then: a timing margin, not a strict happens-before.
+    let done =
+      recover
+        object is TimerNotify
+          let _h: TestHelper = h
+          fun ref apply(timer: Timer, count: U64): Bool =>
+            _h.complete_action("done")
+            false
+        end
+      end
+    timers(Timer(consume done, 100_000_000))
 
 class \nodoc\ iso _TestANSITermPromptForward is UnitTest
   """
