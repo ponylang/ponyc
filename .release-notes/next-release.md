@@ -155,3 +155,7 @@ Disposing an `ANSITerm` did not fully shut it down: its `prompt` and `size` beha
 
 When a `Readline` had an empty prompt and an empty line, refreshing the line moved the cursor one column to the right of where it belonged. It now stays at the left edge.
 
+## Fix `Readline.down` underflow on empty history
+
+Pressing down in a `Readline` with no history triggered an integer underflow and an out-of-bounds history access. Both are now avoided.
+
