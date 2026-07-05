@@ -24,6 +24,10 @@ actor \nodoc\ Main is TestList
     test(_TestANSITermModifiers)
     test(_TestANSITermAltWord)
     test(_TestANSITermUnrecognizedEscape)
+    test(_TestANSITermUnknownKeypad)
+    test(_TestANSITermParamOverflow)
+    test(_TestANSITermPrivateParam)
+    test(_TestANSITermControlAbort)
     test(_TestANSITermTimeoutFlush)
     test(_TestANSITermRealTimerFlush)
     test(_TestANSITermDispose)
@@ -329,24 +333,20 @@ class \nodoc\ iso _TestANSITermAltWord is UnitTest
 
 class \nodoc\ iso _TestANSITermUnrecognizedEscape is UnitTest
   """
-  An unrecognised escape sequence flushes its buffered bytes back to the
-  notifier as plain input.
-
-  Current behaviour, pinned here: the byte that terminates the unrecognised
-  sequence is dropped rather than flushed (the `x`, `Z`, and `z` below never
-  reach the notifier). Whether that byte should be preserved is an open
-  question.
+  A complete but unrecognised escape sequence, or an unreportable Alt+char, is
+  discarded; nothing from it reaches the notifier. A plain byte after it still
+  passes through.
   """
   fun name(): String => "term/ANSITerm.unrecognized-escape"
 
   fun ref apply(h: TestHelper) =>
     let expected = recover val
-      // ESC x      -> flush [ESC];             x dropped
-      // ESC [ Z    -> flush [ESC, '['];        Z dropped; Y passes through
-      // ESC O z    -> flush [ESC, 'O'];        z dropped
-      // ESC [1;2 Z -> flush [ESC, '[', '1', '2']; Z dropped (modifier state)
-      [ "byte 27"; "byte 27"; "byte 91"; "byte 89"; "byte 27"; "byte 79"
-        "byte 27"; "byte 91"; "byte 49"; "byte 50" ]
+      // ESC x      -> Alt+x, no way to report -> discarded
+      // ESC [ Z    -> unrecognised CSI final   -> discarded; Y passes through
+      // ESC O z    -> unrecognised SS3 final   -> discarded
+      // ESC [1;2 Z -> unrecognised CSI final   -> discarded
+      // Only the plain Y survives.
+      [ "byte 89" ]
     end
     let timers = Timers
     let term = ANSITerm(_RecordNotify(h, expected), _NullSource, timers)
@@ -354,6 +354,90 @@ class \nodoc\ iso _TestANSITermUnrecognizedEscape is UnitTest
     h.dispose_when_done(timers)
     h.long_test(2_000_000_000)
     term.apply(_Bytes("\x1Bx\x1B[ZY\x1BOz\x1B[1;2Z"))
+    term.prompt("")
+
+class \nodoc\ iso _TestANSITermUnknownKeypad is UnitTest
+  """
+  An unrecognised keypad code is discarded without stalling the decoder: a
+  following recognised sequence still decodes.
+  """
+  fun name(): String => "term/ANSITerm.unknown-keypad"
+
+  fun ref apply(h: TestHelper) =>
+    // ESC[16~ has no keypad mapping -> discarded. A stalled decoder would then
+    // swallow the plain 'x' as a sequence byte; here it passes through, and the
+    // following ESC[3~ decodes cleanly.
+    let expected = recover val ["byte 120"; "delete 000"] end
+    let timers = Timers
+    let term = ANSITerm(_RecordNotify(h, expected), _NullSource, timers)
+    h.dispose_when_done(term)
+    h.dispose_when_done(timers)
+    h.long_test(2_000_000_000)
+    term.apply(_Bytes("\x1B[16~x\x1B[3~"))
+    term.prompt("")
+
+class \nodoc\ iso _TestANSITermParamOverflow is UnitTest
+  """
+  An oversized numeric parameter is clamped so it cannot wrap into a different
+  valid key or modifier: the keypad code is discarded, and the modifier decodes
+  as no modifiers rather than aliasing to a real one.
+  """
+  fun name(): String => "term/ANSITerm.param-overflow"
+
+  fun ref apply(h: TestHelper) =>
+    // ESC[289~: 289 would wrap a U8 to 33 (F19); clamped, it is discarded.
+    // ESC[1;258A: 258 would wrap to 2 (shift); clamped, it is no modifiers.
+    let expected = recover val ["up 000"] end
+    let timers = Timers
+    let term = ANSITerm(_RecordNotify(h, expected), _NullSource, timers)
+    h.dispose_when_done(term)
+    h.dispose_when_done(timers)
+    h.long_test(2_000_000_000)
+    term.apply(_Bytes("\x1B[289~\x1B[1;258A"))
+    term.prompt("")
+
+class \nodoc\ iso _TestANSITermPrivateParam is UnitTest
+  """
+  A CSI sequence that carries a private parameter marker (such as `?`) is
+  discarded even when it ends in an otherwise-recognised final byte, rather than
+  firing that key.
+  """
+  fun name(): String => "term/ANSITerm.private-param"
+
+  fun ref apply(h: TestHelper) =>
+    // ESC[?A: '?' marks the sequence non-standard, so the 'A' final does not
+    // fire up; the sequence is discarded and the trailing 'x' passes through.
+    let expected = recover val ["byte 120"] end
+    let timers = Timers
+    let term = ANSITerm(_RecordNotify(h, expected), _NullSource, timers)
+    h.dispose_when_done(term)
+    h.dispose_when_done(timers)
+    h.long_test(2_000_000_000)
+    term.apply(_Bytes("\x1B[?Ax"))
+    term.prompt("")
+
+class \nodoc\ iso _TestANSITermControlAbort is UnitTest
+  """
+  A control byte in the middle of an escape sequence aborts it and is still
+  delivered; a second ESC restarts a fresh sequence rather than leaking the
+  rest as text.
+  """
+  fun name(): String => "term/ANSITerm.control-abort"
+
+  fun ref apply(h: TestHelper) =>
+    // ESC[3 then CR     -> sequence aborted, CR delivered (byte 13).
+    // ESC O then ESC[A  -> mid-SS3 ESC restarts; up decodes, nothing leaks.
+    // ESC then CR       -> aborted at the start, CR delivered.
+    // ESC[1 then ESC[A  -> mid-CSI ESC restarts; up decodes, nothing leaks.
+    let expected = recover val
+      ["byte 13"; "up 000"; "byte 13"; "up 000"]
+    end
+    let timers = Timers
+    let term = ANSITerm(_RecordNotify(h, expected), _NullSource, timers)
+    h.dispose_when_done(term)
+    h.dispose_when_done(timers)
+    h.long_test(2_000_000_000)
+    term.apply(_Bytes("\x1B[3\r\x1BO\x1B[A\x1B\r\x1B[1\x1B[A"))
     term.prompt("")
 
 class \nodoc\ iso _TestANSITermTimeoutFlush is UnitTest
