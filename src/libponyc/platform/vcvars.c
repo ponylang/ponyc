@@ -237,16 +237,40 @@ static bool find_kernel32(vcvars_t* vcvars, errors_t* errors)
   }
 
   vcvars->ucrt[0] = '\0';
+  // mswsock.lib is linked for ProcessSocketNotifications, which the Windows
+  // asio backend (src/libponyrt/asio/sock_notify.c) calls. That symbol lives in
+  // MSWSOCK.dll, and mswsock.lib is its import library. The SDK-version check
+  // below guarantees the symbol exists; the already-listed Ws2_32.lib provides
+  // it on recent SDKs, but not all do — a user reported "undefined symbol:
+  // ProcessSocketNotifications" at link time on an SDK whose Ws2_32.lib lacked
+  // it. Don't remove mswsock.lib as unused; it is here for that symbol.
   strcpy(vcvars->default_libs,
     "kernel32.lib "
     "msvcrt.lib "
-    "Ws2_32.lib advapi32.lib vcruntime.lib "
+    "Ws2_32.lib mswsock.lib advapi32.lib vcruntime.lib "
     "legacy_stdio_definitions.lib dbghelp.lib ntdll.lib");
 
   strcpy(vcvars->kernel32, sdk.path);
   strcat(vcvars->kernel32, "Lib\\");
   if(strcmp("v10.0", sdk.name) == 0)
   {
+    // ProcessSocketNotifications, which the runtime's Windows socket backend
+    // calls (src/libponyrt/asio/sock_notify.c), was introduced in the Windows
+    // SDK for build 20348 (Windows 11 / Server 2022). An SDK older than that
+    // cannot provide the symbol from any library, so linking any program would
+    // fail with a confusing "undefined symbol" error. Reject it up front with a
+    // clear message; the runtime requires that API regardless. All candidates
+    // here are 10.0.<build>.<rev>, so comparing the packed version is a build
+    // comparison. get_version packs the build into bits 16-31.
+    uint64_t min_sdk_version = ((uint64_t)10 << 48) | ((uint64_t)20348 << 16);
+    if(sdk.latest_ver < min_sdk_version)
+    {
+      errorf(errors, NULL, "the newest installed Windows SDK (%s) is older than "
+        "10.0.20348.0; ponyc requires that version or newer. Install a more "
+        "recent Windows SDK.", sdk.version);
+      return false;
+    }
+
     strcat(vcvars->kernel32, sdk.version);
 
     // recent Windows 10 kits have the correct 4-place version
