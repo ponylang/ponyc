@@ -66,38 +66,39 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           LIBS_IMAGE: ${{ matrix.image }}
-          LIBS_TAG: ${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
+          LIBS_TAG: ${{ hashFiles('lib/CMakePresets.json', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/build-libs.cmake', 'lib/llvm/patches/*') }}
           # Off main (a manual dispatch of a branch): build LLVM if it isn't cached,
           # and push what we build. On main (a scheduled run, or a dispatch left on
           # main): if it isn't cached, skip -- we don't build LLVM on main.
           LIBS_MODE: ${{ ((github.event_name == 'workflow_dispatch' && inputs.ref != 'main') && '--branch-cache') || '--require-cache-hit --skip-on-miss' }}
-          LIBS_BUILD: ${{ ((github.event_name == 'workflow_dispatch' && inputs.ref != 'main') && '-- make libs llvm_tools=false build_flags=-j4') || '' }}
+          LIBS_BUILD: ${{ ((github.event_name == 'workflow_dispatch' && inputs.ref != 'main') && '-- cmake -DTOOLS=false -DJOBS=4 -P lib/build-libs.cmake') || '' }}
         run: python3 .ci-scripts/libs-cache/resolve_libs_cache.py $LIBS_MODE --image "$LIBS_IMAGE" --tag "$LIBS_TAG" $LIBS_BUILD
       - name: Build Debug Runtime
         if: ${{ hashFiles('.libs-cache-miss') == '' }}
         run: |
-          make configure arch=x86-64 config=debug
-          make build config=debug
+          cmake --preset x86-64-debug
+          cmake --build --preset x86-64-debug
+          cmake --build --preset x86-64-debug --target pony-doc-tests pony-lint-tests pony-lsp-tests
       - name: Test with Debug Runtime
         if: ${{ hashFiles('.libs-cache-miss') == '' }}
-        run: make test-ci-core config=debug
+        run: ctest --preset x86-64-debug -L ci-core
       - name: Build Release Runtime
         if: ${{ hashFiles('.libs-cache-miss') == '' }}
         run: |
-          make configure arch=x86-64 config=release
-          make build config=release
+          cmake --preset x86-64-release
+          cmake --build --preset x86-64-release
       - name: Test with Release Runtime
         if: ${{ hashFiles('.libs-cache-miss') == '' }}
-        run: make test-ci-core config=release
+        run: ctest --preset x86-64-release -L ci-core
       - name: Test pony-doc
         if: ${{ hashFiles('.libs-cache-miss') == '' }}
-        run: make test-pony-doc config=debug
+        run: ctest --preset x86-64-debug -R pony-doc-tests
       - name: Test pony-lint
         if: ${{ hashFiles('.libs-cache-miss') == '' }}
-        run: make test-pony-lint config=debug
+        run: ctest --preset x86-64-debug -R pony-lint-tests
       - name: Test pony-lsp
         if: ${{ hashFiles('.libs-cache-miss') == '' }}
-        run: make test-pony-lsp config=debug
+        run: ctest --preset x86-64-debug -R pony-lsp-tests
       - name: Send alert on failure
         if: ${{ failure() }}
         uses: zulip/github-actions-zulip/send-message@bd8ec52de371d139ae8313661b7d8318c19266aa
@@ -135,21 +136,22 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           LIBS_IMAGE: ${{ matrix.image }}
-          LIBS_TAG: ${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
+          LIBS_TAG: ${{ hashFiles('lib/CMakePresets.json', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/build-libs.cmake', 'lib/llvm/patches/*') }}
           # Off main (a manual dispatch of a branch): build LLVM if it isn't cached,
           # and push what we build. On main (a scheduled run, or a dispatch left on
           # main): if it isn't cached, skip -- we don't build LLVM on main.
           LIBS_MODE: ${{ ((github.event_name == 'workflow_dispatch' && inputs.ref != 'main') && '--branch-cache') || '--require-cache-hit --skip-on-miss' }}
-          LIBS_BUILD: ${{ ((github.event_name == 'workflow_dispatch' && inputs.ref != 'main') && '-- make libs llvm_tools=false build_flags=-j4') || '' }}
+          LIBS_BUILD: ${{ ((github.event_name == 'workflow_dispatch' && inputs.ref != 'main') && '-- cmake -DTOOLS=false -DJOBS=4 -P lib/build-libs.cmake') || '' }}
         run: python3 .ci-scripts/libs-cache/resolve_libs_cache.py $LIBS_MODE --image "$LIBS_IMAGE" --tag "$LIBS_TAG" $LIBS_BUILD
       - name: Build Debug Runtime
         if: ${{ hashFiles('.libs-cache-miss') == '' }}
         run: |
-          make configure config=debug
-          make build config=debug
+          cmake --preset debug
+          cmake --build --preset debug
+          cmake --build --preset debug --target pony-doc-tests pony-lint-tests pony-lsp-tests
       - name: Build Debug Cross-Compiled Runtime
         if: ${{ hashFiles('.libs-cache-miss') == '' }}
-        run: make cross-libponyrt config=debug CC=riscv64-linux-gnu-gcc-10 CXX=riscv64-linux-gnu-g++-10 arch=rv64gc cross_cflags="-march=rv64gc -mtune=rocket" cross_llc_flags="-march=riscv64"
+        run: sh .ci-scripts/cross-libponyrt.sh debug riscv64-linux-gnu-gcc-10 riscv64-linux-gnu-g++-10 rv64gc "-march=rv64gc -mtune=rocket" "-march=riscv64"
       # net/ tests are excluded on the qemu-user cross legs. User-mode emulation
       # translates instructions faithfully -- so codegen is still exercised --
       # but does not faithfully emulate the kernel: e.g. setsockopt
@@ -159,28 +161,28 @@ jobs:
       # kernels on x86, arm64 macOS, and the BSD VMs.
       - name: Test with Debug Cross-Compiled Runtime
         if: ${{ hashFiles('.libs-cache-miss') == '' }}
-        run: make test-cross-ci config=debug PONYPATH=../rv64gc/debug cross_triple=riscv64-unknown-linux-gnu cross_arch=rv64gc cross_cpu=generic-rv64 cross_sysroot=/usr/riscv64-linux-gnu cross_ponyc_args='--abi=lp64d --features=+m,+a,+f,+d,+c' cross_runner="qemu-riscv64 -L /usr/riscv64-linux-gnu/lib/" stdlib_test_excludes='--exclude=net/'
+        run: sh .ci-scripts/cross-test.sh debug ../rv64gc/debug "--triple=riscv64-unknown-linux-gnu --cpu=generic-rv64 --link-arch=rv64gc --sysroot=/usr/riscv64-linux-gnu --abi=lp64d --features=+m,+a,+f,+d,+c" "qemu-riscv64 -L /usr/riscv64-linux-gnu/lib/" "--exclude=net/"
       - name: Build Release Runtime
         if: ${{ hashFiles('.libs-cache-miss') == '' }}
         run: |
-          make configure config=release
-          make build config=release
+          cmake --preset release
+          cmake --build --preset release
       - name: Build Release Cross-Compiled Runtime
         if: ${{ hashFiles('.libs-cache-miss') == '' }}
-        run: make cross-libponyrt config=release CC=riscv64-linux-gnu-gcc-10 CXX=riscv64-linux-gnu-g++-10 arch=rv64gc cross_cflags="-march=rv64gc -mtune=rocket" cross_llc_flags="-march=riscv64"
+        run: sh .ci-scripts/cross-libponyrt.sh release riscv64-linux-gnu-gcc-10 riscv64-linux-gnu-g++-10 rv64gc "-march=rv64gc -mtune=rocket" "-march=riscv64"
       # See the debug step above for why net/ tests are excluded under qemu-user.
       - name: Test with Release Cross-Compiled Runtime
         if: ${{ hashFiles('.libs-cache-miss') == '' }}
-        run: make test-cross-ci config=release PONYPATH=../rv64gc/release cross_triple=riscv64-unknown-linux-gnu cross_arch=rv64gc cross_cpu=generic-rv64 cross_sysroot=/usr/riscv64-linux-gnu cross_ponyc_args='--abi=lp64d --features=+m,+a,+f,+d,+c' cross_runner="qemu-riscv64 -L /usr/riscv64-linux-gnu/lib/" stdlib_test_excludes='--exclude=net/'
+        run: sh .ci-scripts/cross-test.sh release ../rv64gc/release "--triple=riscv64-unknown-linux-gnu --cpu=generic-rv64 --link-arch=rv64gc --sysroot=/usr/riscv64-linux-gnu --abi=lp64d --features=+m,+a,+f,+d,+c" "qemu-riscv64 -L /usr/riscv64-linux-gnu/lib/" "--exclude=net/"
       - name: Test pony-doc
         if: ${{ hashFiles('.libs-cache-miss') == '' }}
-        run: make test-pony-doc config=debug
+        run: ctest --preset debug -R pony-doc-tests
       - name: Test pony-lint
         if: ${{ hashFiles('.libs-cache-miss') == '' }}
-        run: make test-pony-lint config=debug
+        run: ctest --preset debug -R pony-lint-tests
       - name: Test pony-lsp
         if: ${{ hashFiles('.libs-cache-miss') == '' }}
-        run: make test-pony-lsp config=debug
+        run: ctest --preset debug -R pony-lsp-tests
       - name: Send alert on failure
         if: ${{ failure() }}
         uses: zulip/github-actions-zulip/send-message@bd8ec52de371d139ae8313661b7d8318c19266aa
@@ -218,46 +220,47 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           LIBS_IMAGE: ${{ matrix.image }}
-          LIBS_TAG: ${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
+          LIBS_TAG: ${{ hashFiles('lib/CMakePresets.json', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/build-libs.cmake', 'lib/llvm/patches/*') }}
           # Off main (a manual dispatch of a branch): build LLVM if it isn't cached,
           # and push what we build. On main (a scheduled run, or a dispatch left on
           # main): if it isn't cached, skip -- we don't build LLVM on main.
           LIBS_MODE: ${{ ((github.event_name == 'workflow_dispatch' && inputs.ref != 'main') && '--branch-cache') || '--require-cache-hit --skip-on-miss' }}
-          LIBS_BUILD: ${{ ((github.event_name == 'workflow_dispatch' && inputs.ref != 'main') && '-- make libs llvm_tools=false build_flags=-j4') || '' }}
+          LIBS_BUILD: ${{ ((github.event_name == 'workflow_dispatch' && inputs.ref != 'main') && '-- cmake -DTOOLS=false -DJOBS=4 -P lib/build-libs.cmake') || '' }}
         run: python3 .ci-scripts/libs-cache/resolve_libs_cache.py $LIBS_MODE --image "$LIBS_IMAGE" --tag "$LIBS_TAG" $LIBS_BUILD
       - name: Build Debug Runtime
         if: ${{ hashFiles('.libs-cache-miss') == '' }}
         run: |
-          make configure config=debug
-          make build config=debug
+          cmake --preset debug
+          cmake --build --preset debug
+          cmake --build --preset debug --target pony-doc-tests pony-lint-tests pony-lsp-tests
       - name: Build Debug Cross-Compiled Runtime
         if: ${{ hashFiles('.libs-cache-miss') == '' }}
-        run: make cross-libponyrt config=debug CC=arm-linux-gnueabi-gcc CXX=arm-linux-gnueabi-g++ arch=armv7-a cross_cflags="-march=armv7-a -mtune=cortex-a9" cross_llc_flags="-O3;-march=arm"
+        run: sh .ci-scripts/cross-libponyrt.sh debug arm-linux-gnueabi-gcc arm-linux-gnueabi-g++ armv7-a "-march=armv7-a -mtune=cortex-a9" "-O3;-march=arm"
       # net/ tests are excluded under qemu-user; see the riscv64 leg above.
       - name: Test with Debug Cross-Compiled Runtime
         if: ${{ hashFiles('.libs-cache-miss') == '' }}
-        run: make test-cross-ci config=debug PONYPATH=../armv7-a/debug cross_triple=arm-unknown-linux-gnueabi cross_arch=armv7-a cross_cpu=cortex-a9 cross_sysroot=/usr/local/arm-linux-gnueabi/libc cross_ponyc_args='' cross_runner="qemu-arm-static -cpu cortex-a9 -L /usr/local/arm-linux-gnueabi/libc" stdlib_test_excludes='--exclude=net/'
+        run: sh .ci-scripts/cross-test.sh debug ../armv7-a/debug "--triple=arm-unknown-linux-gnueabi --cpu=cortex-a9 --link-arch=armv7-a --sysroot=/usr/local/arm-linux-gnueabi/libc " "qemu-arm-static -cpu cortex-a9 -L /usr/local/arm-linux-gnueabi/libc" "--exclude=net/"
       - name: Build Release Runtime
         if: ${{ hashFiles('.libs-cache-miss') == '' }}
         run: |
-          make configure config=release
-          make build config=release
+          cmake --preset release
+          cmake --build --preset release
       - name: Build Release Cross-Compiled Runtime
         if: ${{ hashFiles('.libs-cache-miss') == '' }}
-        run: make cross-libponyrt config=release CC=arm-linux-gnueabi-gcc CXX=arm-linux-gnueabi-g++ arch=armv7-a cross_cflags="-march=armv7-a -mtune=cortex-a9" cross_llc_flags="-O3;-march=arm"
+        run: sh .ci-scripts/cross-libponyrt.sh release arm-linux-gnueabi-gcc arm-linux-gnueabi-g++ armv7-a "-march=armv7-a -mtune=cortex-a9" "-O3;-march=arm"
       # net/ tests are excluded under qemu-user; see the riscv64 leg above.
       - name: Test with Release Cross-Compiled Runtime
         if: ${{ hashFiles('.libs-cache-miss') == '' }}
-        run: make test-cross-ci config=release PONYPATH=../armv7-a/release cross_triple=arm-unknown-linux-gnueabi cross_arch=armv7-a cross_cpu=cortex-a9 cross_sysroot=/usr/local/arm-linux-gnueabi/libc cross_ponyc_args='' cross_runner="qemu-arm-static -cpu cortex-a9 -L /usr/local/arm-linux-gnueabi/libc" stdlib_test_excludes='--exclude=net/'
+        run: sh .ci-scripts/cross-test.sh release ../armv7-a/release "--triple=arm-unknown-linux-gnueabi --cpu=cortex-a9 --link-arch=armv7-a --sysroot=/usr/local/arm-linux-gnueabi/libc " "qemu-arm-static -cpu cortex-a9 -L /usr/local/arm-linux-gnueabi/libc" "--exclude=net/"
       - name: Test pony-doc
         if: ${{ hashFiles('.libs-cache-miss') == '' }}
-        run: make test-pony-doc config=debug
+        run: ctest --preset debug -R pony-doc-tests
       - name: Test pony-lint
         if: ${{ hashFiles('.libs-cache-miss') == '' }}
-        run: make test-pony-lint config=debug
+        run: ctest --preset debug -R pony-lint-tests
       - name: Test pony-lsp
         if: ${{ hashFiles('.libs-cache-miss') == '' }}
-        run: make test-pony-lsp config=debug
+        run: ctest --preset debug -R pony-lsp-tests
       - name: Send alert on failure
         if: ${{ failure() }}
         uses: zulip/github-actions-zulip/send-message@bd8ec52de371d139ae8313661b7d8318c19266aa
@@ -295,46 +298,47 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           LIBS_IMAGE: ${{ matrix.image }}
-          LIBS_TAG: ${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
+          LIBS_TAG: ${{ hashFiles('lib/CMakePresets.json', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/build-libs.cmake', 'lib/llvm/patches/*') }}
           # Off main (a manual dispatch of a branch): build LLVM if it isn't cached,
           # and push what we build. On main (a scheduled run, or a dispatch left on
           # main): if it isn't cached, skip -- we don't build LLVM on main.
           LIBS_MODE: ${{ ((github.event_name == 'workflow_dispatch' && inputs.ref != 'main') && '--branch-cache') || '--require-cache-hit --skip-on-miss' }}
-          LIBS_BUILD: ${{ ((github.event_name == 'workflow_dispatch' && inputs.ref != 'main') && '-- make libs llvm_tools=false build_flags=-j4') || '' }}
+          LIBS_BUILD: ${{ ((github.event_name == 'workflow_dispatch' && inputs.ref != 'main') && '-- cmake -DTOOLS=false -DJOBS=4 -P lib/build-libs.cmake') || '' }}
         run: python3 .ci-scripts/libs-cache/resolve_libs_cache.py $LIBS_MODE --image "$LIBS_IMAGE" --tag "$LIBS_TAG" $LIBS_BUILD
       - name: Build Debug Runtime
         if: ${{ hashFiles('.libs-cache-miss') == '' }}
         run: |
-          make configure config=debug
-          make build config=debug
+          cmake --preset debug
+          cmake --build --preset debug
+          cmake --build --preset debug --target pony-doc-tests pony-lint-tests pony-lsp-tests
       - name: Build Debug Cross-Compiled Runtime
         if: ${{ hashFiles('.libs-cache-miss') == '' }}
-        run: make cross-libponyrt config=debug CC=arm-linux-gnueabihf-gcc CXX=arm-linux-gnueabihf-g++ arch=armv7-a cross_cflags="-march=armv7-a -mtune=cortex-a9" cross_llc_flags="-O3;-march=arm"
+        run: sh .ci-scripts/cross-libponyrt.sh debug arm-linux-gnueabihf-gcc arm-linux-gnueabihf-g++ armv7-a "-march=armv7-a -mtune=cortex-a9" "-O3;-march=arm"
       # net/ tests are excluded under qemu-user; see the riscv64 leg above.
       - name: Test with Debug Cross-Compiled Runtime
         if: ${{ hashFiles('.libs-cache-miss') == '' }}
-        run: make test-cross-ci config=debug PONYPATH=../armv7-a/debug cross_triple=arm-unknown-linux-gnueabihf cross_arch=armv7-a cross_cpu=cortex-a9 cross_sysroot=/usr/local/arm-linux-gnueabihf/libc cross_ponyc_args='' cross_runner="qemu-arm-static -cpu cortex-a9 -L /usr/local/arm-linux-gnueabihf/libc" stdlib_test_excludes='--exclude=net/'
+        run: sh .ci-scripts/cross-test.sh debug ../armv7-a/debug "--triple=arm-unknown-linux-gnueabihf --cpu=cortex-a9 --link-arch=armv7-a --sysroot=/usr/local/arm-linux-gnueabihf/libc " "qemu-arm-static -cpu cortex-a9 -L /usr/local/arm-linux-gnueabihf/libc" "--exclude=net/"
       - name: Build Release Runtime
         if: ${{ hashFiles('.libs-cache-miss') == '' }}
         run: |
-          make configure config=release
-          make build config=release
+          cmake --preset release
+          cmake --build --preset release
       - name: Build Release Cross-Compiled Runtime
         if: ${{ hashFiles('.libs-cache-miss') == '' }}
-        run: make cross-libponyrt config=release CC=arm-linux-gnueabihf-gcc CXX=arm-linux-gnueabihf-g++ arch=armv7-a cross_cflags="-march=armv7-a -mtune=cortex-a9" cross_llc_flags="-O3;-march=arm"
+        run: sh .ci-scripts/cross-libponyrt.sh release arm-linux-gnueabihf-gcc arm-linux-gnueabihf-g++ armv7-a "-march=armv7-a -mtune=cortex-a9" "-O3;-march=arm"
       # net/ tests are excluded under qemu-user; see the riscv64 leg above.
       - name: Test with Release Cross-Compiled Runtime
         if: ${{ hashFiles('.libs-cache-miss') == '' }}
-        run: make test-cross-ci config=release PONYPATH=../armv7-a/release cross_triple=arm-unknown-linux-gnueabihf cross_arch=armv7-a cross_cpu=cortex-a9 cross_sysroot=/usr/local/arm-linux-gnueabihf/libc cross_ponyc_args='' cross_runner="qemu-arm-static -cpu cortex-a9 -L /usr/local/arm-linux-gnueabihf/libc" stdlib_test_excludes='--exclude=net/'
+        run: sh .ci-scripts/cross-test.sh release ../armv7-a/release "--triple=arm-unknown-linux-gnueabihf --cpu=cortex-a9 --link-arch=armv7-a --sysroot=/usr/local/arm-linux-gnueabihf/libc " "qemu-arm-static -cpu cortex-a9 -L /usr/local/arm-linux-gnueabihf/libc" "--exclude=net/"
       - name: Test pony-doc
         if: ${{ hashFiles('.libs-cache-miss') == '' }}
-        run: make test-pony-doc config=debug
+        run: ctest --preset debug -R pony-doc-tests
       - name: Test pony-lint
         if: ${{ hashFiles('.libs-cache-miss') == '' }}
-        run: make test-pony-lint config=debug
+        run: ctest --preset debug -R pony-lint-tests
       - name: Test pony-lsp
         if: ${{ hashFiles('.libs-cache-miss') == '' }}
-        run: make test-pony-lsp config=debug
+        run: ctest --preset debug -R pony-lsp-tests
       - name: Send alert on failure
         if: ${{ failure() }}
         uses: zulip/github-actions-zulip/send-message@bd8ec52de371d139ae8313661b7d8318c19266aa
@@ -361,7 +365,7 @@ jobs:
         id: check
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          LIBS_TAG: ${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
+          LIBS_TAG: ${{ hashFiles('lib/CMakePresets.json', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/build-libs.cmake', 'lib/llvm/patches/*') }}
         run: |
           # The libs live in the VM but the .libs-cache-miss marker and its gate
           # live on the host, so the decision has to happen here, before the VM
@@ -392,27 +396,28 @@ jobs:
       - name: Restore libs
         if: ${{ hashFiles('.libs-cache-miss') == '' && steps.check.outputs.hit == 'true' }}
         env:
-          LIBS_TAG: ${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
+          LIBS_TAG: ${{ hashFiles('lib/CMakePresets.json', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/build-libs.cmake', 'lib/llvm/patches/*') }}
         run: |
           ssh -o StrictHostKeyChecking=no -i vm_key -p 2222 freebsd@localhost \
             "cd /home/freebsd/ponyc && export GITHUB_TOKEN='${{ secrets.GITHUB_TOKEN }}' GITHUB_REPOSITORY='${{ github.repository }}' GITHUB_ACTOR='${{ github.actor }}' && python3 .ci-scripts/libs-cache/resolve_libs_cache.py --require-cache-hit --branch-cache --platform freebsd-15.1 --tag '${LIBS_TAG}'"
       - name: Build libs
         if: ${{ hashFiles('.libs-cache-miss') == '' && steps.check.outputs.hit == 'false' }}
         env:
-          LIBS_TAG: ${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
+          LIBS_TAG: ${{ hashFiles('lib/CMakePresets.json', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/build-libs.cmake', 'lib/llvm/patches/*') }}
         run: |
           # When off main and the libs aren't cached, build LLVM in the VM (hours)
           # and push it to the branch cache, so a re-dispatch reuses the build.
           ssh -o StrictHostKeyChecking=no -i vm_key -p 2222 freebsd@localhost \
-            "cd /home/freebsd/ponyc && export GITHUB_TOKEN='${{ secrets.GITHUB_TOKEN }}' GITHUB_REPOSITORY='${{ github.repository }}' GITHUB_ACTOR='${{ github.actor }}' && gmake libs llvm_tools=false build_flags=-j4 && { python3 .ci-scripts/libs-cache/branch_libs_cache.py push --platform freebsd-15.1 --tag '${LIBS_TAG}' || echo '::warning::freebsd branch libs cache push failed, will rebuild next run'; }"
+            "cd /home/freebsd/ponyc && export GITHUB_TOKEN='${{ secrets.GITHUB_TOKEN }}' GITHUB_REPOSITORY='${{ github.repository }}' GITHUB_ACTOR='${{ github.actor }}' && cmake -DTOOLS=false -DJOBS=4 -P lib/build-libs.cmake && { python3 .ci-scripts/libs-cache/branch_libs_cache.py push --platform freebsd-15.1 --tag '${LIBS_TAG}' || echo '::warning::freebsd branch libs cache push failed, will rebuild next run'; }"
       - name: Build and test
         if: ${{ hashFiles('.libs-cache-miss') == '' }}
         run: |
           ssh -o StrictHostKeyChecking=no -i vm_key -p 2222 freebsd@localhost <<'EOF'
           set -e
           cd /home/freebsd/ponyc
-          gmake configure config=debug
-          gmake build config=debug
+          cmake --preset debug
+          cmake --build --preset debug
+          cmake --build --preset debug --target pony-doc-tests pony-lint-tests pony-lsp-tests
           # Smoke-test the --static embedded-LLD link path; the test targets
           # below only exercise dynamic linking. Covers actor init plus
           # exception unwinding through the static recipe.
@@ -421,13 +426,13 @@ jobs:
           PONYPATH="$PWD/packages" ./build/debug/ponyc --static -o /tmp/static-smoke /tmp/static-smoke
           file /tmp/static-smoke/static-smoke | grep -q 'statically linked'
           /tmp/static-smoke/static-smoke
-          gmake test-ci-core config=debug
-          gmake test-pony-doc config=debug
-          gmake test-pony-lint config=debug
-          gmake test-pony-lsp config=debug
-          gmake configure config=release
-          gmake build config=release
-          gmake test-ci-core config=release
+          ctest --preset debug -L ci-core
+          ctest --preset debug -R pony-doc-tests
+          ctest --preset debug -R pony-lint-tests
+          ctest --preset debug -R pony-lsp-tests
+          cmake --preset release
+          cmake --build --preset release
+          ctest --preset release -L ci-core
           # native sanitizer link smoke test — see the script for details. Runs
           # before the dtrace smoke: both clean and reconfigure the debug build,
           # so the order is deliberate.
@@ -483,7 +488,7 @@ jobs:
         id: check
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          LIBS_TAG: ${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
+          LIBS_TAG: ${{ hashFiles('lib/CMakePresets.json', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/build-libs.cmake', 'lib/llvm/patches/*') }}
         run: |
           # The libs live in the VM but the .libs-cache-miss marker and its gate
           # live on the host, so the decision has to happen here, before the VM
@@ -517,21 +522,21 @@ jobs:
       - name: Restore libs
         if: ${{ hashFiles('.libs-cache-miss') == '' && steps.check.outputs.hit == 'true' }}
         env:
-          LIBS_TAG: ${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
+          LIBS_TAG: ${{ hashFiles('lib/CMakePresets.json', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/build-libs.cmake', 'lib/llvm/patches/*') }}
         run: |
           ssh -o StrictHostKeyChecking=no -o ServerAliveInterval=60 -i vm_key -p 2222 openbsd@localhost \
             "cd /build/ponyc && export GITHUB_TOKEN='${{ secrets.GITHUB_TOKEN }}' GITHUB_REPOSITORY='${{ github.repository }}' GITHUB_ACTOR='${{ github.actor }}' && python3 .ci-scripts/libs-cache/resolve_libs_cache.py --require-cache-hit --branch-cache --platform openbsd-7.9 --tag '${LIBS_TAG}'"
       - name: Build libs
         if: ${{ hashFiles('.libs-cache-miss') == '' && steps.check.outputs.hit == 'false' }}
         env:
-          LIBS_TAG: ${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
+          LIBS_TAG: ${{ hashFiles('lib/CMakePresets.json', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/build-libs.cmake', 'lib/llvm/patches/*') }}
         run: |
           # When off main and the libs aren't cached, build LLVM in the VM (hours)
           # and push it to the branch cache, so a re-dispatch reuses the build. rm
           # build/build_libs first to free the VM's /build disk before the test
           # build.
           ssh -o StrictHostKeyChecking=no -o ServerAliveInterval=60 -i vm_key -p 2222 openbsd@localhost \
-            "cd /build/ponyc && export GITHUB_TOKEN='${{ secrets.GITHUB_TOKEN }}' GITHUB_REPOSITORY='${{ github.repository }}' GITHUB_ACTOR='${{ github.actor }}' && gmake libs llvm_tools=false build_flags=-j4 && rm -rf build/build_libs && { python3 .ci-scripts/libs-cache/branch_libs_cache.py push --platform openbsd-7.9 --tag '${LIBS_TAG}' || echo '::warning::openbsd branch libs cache push failed, will rebuild next run'; }"
+            "cd /build/ponyc && export GITHUB_TOKEN='${{ secrets.GITHUB_TOKEN }}' GITHUB_REPOSITORY='${{ github.repository }}' GITHUB_ACTOR='${{ github.actor }}' && cmake -DTOOLS=false -DJOBS=4 -P lib/build-libs.cmake && rm -rf build/build_libs && { python3 .ci-scripts/libs-cache/branch_libs_cache.py push --platform openbsd-7.9 --tag '${LIBS_TAG}' || echo '::warning::openbsd branch libs cache push failed, will rebuild next run'; }"
       - name: Build and test
         if: ${{ hashFiles('.libs-cache-miss') == '' }}
         run: |
@@ -539,8 +544,9 @@ jobs:
           set -e
           cd /build/ponyc
           df -h
-          gmake configure config=debug
-          gmake build config=debug
+          cmake --preset debug
+          cmake --build --preset debug
+          cmake --build --preset debug --target pony-doc-tests pony-lint-tests pony-lsp-tests
           # Smoke-test the --static embedded-LLD link path; the test
           # targets below only exercise dynamic linking. Covers actor init
           # plus exception unwinding through the static recipe. OpenBSD
@@ -556,13 +562,13 @@ jobs:
           PONYPATH="$PWD/packages" ./build/debug/ponyc --static -o /tmp/static-smoke /tmp/static-smoke
           ! readelf -d /tmp/static-smoke/static-smoke | grep -q '(NEEDED)'
           /tmp/static-smoke/static-smoke | grep -q 'static ok'
-          gmake test-ci-core config=debug
-          gmake test-pony-doc config=debug
-          gmake test-pony-lint config=debug
-          gmake test-pony-lsp config=debug
-          gmake configure config=release
-          gmake build config=release
-          gmake test-ci-core config=release
+          ctest --preset debug -L ci-core
+          ctest --preset debug -R pony-doc-tests
+          ctest --preset debug -R pony-lint-tests
+          ctest --preset debug -R pony-lsp-tests
+          cmake --preset release
+          cmake --build --preset release
+          ctest --preset release -L ci-core
           EOF
       - name: Shutdown VM
         if: ${{ always() && hashFiles('.libs-cache-miss') == '' }}
@@ -594,7 +600,7 @@ jobs:
         id: check
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          LIBS_TAG: ${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
+          LIBS_TAG: ${{ hashFiles('lib/CMakePresets.json', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/build-libs.cmake', 'lib/llvm/patches/*') }}
         run: |
           # The libs live in the VM but the .libs-cache-miss marker and its gate
           # live on the host, so the decision has to happen here, before the VM
@@ -631,7 +637,7 @@ jobs:
       - name: Restore libs
         if: ${{ hashFiles('.libs-cache-miss') == '' && steps.check.outputs.hit == 'true' }}
         env:
-          LIBS_TAG: ${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
+          LIBS_TAG: ${{ hashFiles('lib/CMakePresets.json', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/build-libs.cmake', 'lib/llvm/patches/*') }}
         run: |
           # Unquoted heredoc on purpose: ${LIBS_TAG} must expand on the runner
           # (it is not set inside the VM), so EOF must stay unquoted.
@@ -645,7 +651,7 @@ jobs:
       - name: Build libs
         if: ${{ hashFiles('.libs-cache-miss') == '' && steps.check.outputs.hit == 'false' }}
         env:
-          LIBS_TAG: ${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
+          LIBS_TAG: ${{ hashFiles('lib/CMakePresets.json', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/build-libs.cmake', 'lib/llvm/patches/*') }}
         run: |
           # When off main and the libs aren't cached, build LLVM in the VM (hours)
           # and push it to the branch cache, so a re-dispatch reuses the build. rm
@@ -658,7 +664,7 @@ jobs:
           set -e
           cd /build/ponyc
           export GITHUB_TOKEN='${{ secrets.GITHUB_TOKEN }}' GITHUB_REPOSITORY='${{ github.repository }}' GITHUB_ACTOR='${{ github.actor }}' CC=/usr/local/bin/gcc13 CXX=/usr/local/bin/g++13 LD_LIBRARY_PATH=/usr/local/lib/gcc13 SSL_CERT_FILE=/usr/local/share/certs/ca-root-nss.crt
-          gmake libs llvm_tools=false build_flags=-j4
+          cmake -DTOOLS=false -DJOBS=4 -DCC=/usr/local/bin/gcc13 -DCXX=/usr/local/bin/g++13 -P lib/build-libs.cmake
           rm -rf build/build_libs
           python3 .ci-scripts/libs-cache/branch_libs_cache.py push --platform dragonfly-6.4.2 --tag '${LIBS_TAG}' || echo '::warning::dragonfly branch libs cache push failed, will rebuild next run'
           EOF
@@ -672,8 +678,9 @@ jobs:
           export LD_LIBRARY_PATH=/usr/local/lib/gcc13
           export SSL_CERT_FILE=/usr/local/share/certs/ca-root-nss.crt
           cd /build/ponyc
-          gmake configure config=debug
-          gmake build config=debug
+          cmake --preset debug -DCMAKE_C_COMPILER="$CC" -DCMAKE_CXX_COMPILER="$CXX"
+          cmake --build --preset debug
+          cmake --build --preset debug --target pony-doc-tests pony-lint-tests pony-lsp-tests
           # Smoke-test the --static embedded-LLD link path; the test targets
           # below only exercise dynamic linking. Covers actor init plus
           # exception unwinding through DragonFly's static recipe (no
@@ -683,13 +690,13 @@ jobs:
           PONYPATH="$PWD/packages" ./build/debug/ponyc --static -o /build/static-smoke /build/static-smoke
           file /build/static-smoke/static-smoke | grep -q 'statically linked'
           /build/static-smoke/static-smoke
-          gmake test-ci-core config=debug
-          gmake test-pony-doc config=debug
-          gmake test-pony-lint config=debug
-          gmake test-pony-lsp config=debug
-          gmake configure config=release
-          gmake build config=release
-          gmake test-ci-core config=release
+          ctest --preset debug -L ci-core
+          ctest --preset debug -R pony-doc-tests
+          ctest --preset debug -R pony-lint-tests
+          ctest --preset debug -R pony-lsp-tests
+          cmake --preset release -DCMAKE_C_COMPILER="$CC" -DCMAKE_CXX_COMPILER="$CXX"
+          cmake --build --preset release
+          ctest --preset release -L ci-core
           # gcc use=coverage smoke test — see the script for details. It does a
           # clean + reconfigure of the debug build with use=coverage, so it runs
           # last, after the release tests that depend on the prior builds.

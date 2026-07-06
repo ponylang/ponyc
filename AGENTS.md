@@ -27,13 +27,22 @@ Read [CONTRIBUTING.md](CONTRIBUTING.md).
 - **pony-lsp**: `tools/pony-lsp/` — Pony language server
 - **pony-doc**: `tools/pony-doc/` — Pony documentation generator
 
-## Make Commands
-On Linux/macOS (via `make`), the first invocation of each command rebuilds its test or lint binary from Pony source (~60s); subsequent invocations skip the rebuild when nothing under the binary's source tree has changed and just run the binary, so re-running on unchanged code is cheap. The Windows `make.ps1` path always rebuilds from source.
+## Tool Test and Lint Commands
 
-- `make test-pony-compiler`
-- `make test-pony-lsp` / `make lint-pony-lsp`
-- `make test-pony-lint` / `make lint-pony-lint`
-- `make test-pony-doc` / `make lint-pony-doc`
+The four self-hosted tools' test binaries are built on demand — a normal `cmake --build` does not build them. On Linux/macOS, build the test binary, then run it through ctest:
+
+- `cmake --build --preset debug --target pony-compiler-tests && ctest --preset debug -R pony-compiler-tests`
+- `cmake --build --preset debug --target pony-lsp-tests && ctest --preset debug -R pony-lsp-tests`
+- `cmake --build --preset debug --target pony-lint-tests && ctest --preset debug -R pony-lint-tests`
+- `cmake --build --preset debug --target pony-doc-tests && ctest --preset debug -R pony-doc-tests`
+
+`cmake --build` is incremental: the first build of a test binary compiles from Pony source (~60s); later runs skip the rebuild when nothing under its source tree changed. On Windows, build the target and run it with ctest the same way, using the `windows-x86-64` presets: `cmake --build --preset windows-x86-64-debug --target pony-lint-tests` then `ctest --preset windows-x86-64-debug -R pony-lint-tests`.
+
+To lint a tool's own source, run the `pony-lint` binary (built by a normal `cmake --build --preset debug`) against the tool's directory:
+
+- `cd build/debug && PONYPATH=../../tools/lib/ponylang/pony_compiler ./pony-lint ../../tools/pony-lsp/`
+- `cd build/debug && PONYPATH=../../tools/lib/ponylang/pony_compiler ./pony-lint ../../tools/pony-lint/`
+- `cd build/debug && PONYPATH=../../tools/lib/ponylang/pony_compiler ./pony-lint ../../tools/pony-doc/`
 
 ## Release Notes
 

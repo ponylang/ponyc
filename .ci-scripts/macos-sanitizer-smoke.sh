@@ -25,20 +25,19 @@ if [ -x "$PWD/build/libs/bin/llvm-symbolizer" ]; then
   UBSAN_OPTIONS="$UBSAN_OPTIONS:external_symbolizer_path=$PWD/build/libs/bin/llvm-symbolizer"
 fi
 
-# Clean + reconfigure debug from scratch. If a prior non-sanitizer
-# config=debug build left a build dir behind, reconfiguring it in place
-# re-runs the standalone-library rule over a read-only leftover (libc++.a is
-# 0444, so the copied libcpp.a is too) which fails. clean is config-scoped
-# and defaults to release, so pass config=debug to remove the debug
-# build/output dirs; the prebuilt LLVM in build/libs is untouched.
-make clean config=debug
-make configure config=debug \
-  use=pool_memalign,address_sanitizer,undefined_behavior_sanitizer
+# Configure the debug build from scratch with sanitizers. Remove the cmake
+# build dir first: reconfiguring it in place over a prior non-sanitizer
+# config=debug build re-runs the standalone-library rule over a read-only
+# leftover (libc++.a is 0444, so the copied libcpp.a is too) and fails. The
+# prebuilt LLVM in build/libs is a separate dir and is untouched.
+rm -rf build/build_debug
+cmake --preset debug \
+  -DPONY_USES=pool_memalign,address_sanitizer,undefined_behavior_sanitizer
 # Full build: this compiles the instrumented ponyc and links the self-hosted
 # tools (pony-lsp/pony-lint/pony-doc) under sanitizers, exercising the
 # embedded ld64.lld link of programs that bundle the C++ runtime
 # (libponyc-standalone.a).
-make build config=debug
+cmake --build --preset debug
 
 # The sanitizer suffix order is fixed by CMake (address, then undefined, then
 # pool_memalign), independent of the use= order above; derive the output dir

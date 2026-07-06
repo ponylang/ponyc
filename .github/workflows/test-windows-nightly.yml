@@ -49,16 +49,16 @@ jobs:
       - name: Build libs
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          LIBS_TAG: ${{ hashFiles('make.ps1', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
-        run: python .ci-scripts/libs-cache/resolve_libs_cache.py --platform windows-2025-vs2026 --tag $env:LIBS_TAG '--' pwsh -File make.ps1 -Command libs -LlvmTools false
+          LIBS_TAG: ${{ hashFiles('lib/CMakePresets.json', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/build-libs.cmake', 'lib/llvm/patches/*') }}
+        run: python .ci-scripts/libs-cache/resolve_libs_cache.py --platform windows-2025-vs2026 --tag $env:LIBS_TAG '--' cmake -DPRESET=libs-windows-x86-64 -DTOOLS=false -DJOBS=4 -P lib/build-libs.cmake
       - name: Configure
-        run: .\make.ps1 -Command configure -Config Release -Prefix "build\install\release" -Version nightly
+        run: cmake --preset windows-x86-64 -DPONY_INSTALL_SYMLINKS=OFF -DPONYC_VERSION=nightly
       - name: Build
-        run: .\make.ps1 -Command build -Config Release -Prefix "build\install\release" -Version nightly
+        run: cmake --build --preset windows-x86-64-release
       - name: Install
-        run: .\make.ps1 -Command install -Config Release -Prefix "build\install\release"
+        run: cmake --install build/build --config Release --prefix build\install\release
       - name: Package
-        run: .\make.ps1 -Command package-x86-64 -Config Release -Prefix "build\install\release" -Version nightly
+        run: Compress-Archive -Path "build\install\release\lib\pony\nightly\bin", "build\install\release\lib\pony\nightly\lib", "build\install\release\lib\pony\nightly\packages" -DestinationPath "build\ponyc-x86-64-pc-windows-msvc.zip" -Force
       - name: Upload
         run: $version = (Get-Date).ToString("yyyyMMdd"); cloudsmith push raw --version $version --api-key ${{ secrets.CLOUDSMITH_API_KEY }} --summary "Pony compiler" --description "https://github.com/ponylang/ponyc" ponylang/nightlies build\ponyc-x86-64-pc-windows-msvc.zip
       - name: Send alert on failure

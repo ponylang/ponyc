@@ -87,9 +87,9 @@ def run_main_ws(argv, results):
     return calls, code, marker
 
 
-CONSUMER = ['--platform', 'p', '--tag', 't', '--', 'make', 'libs']
-BRANCH = ['--branch-cache', '--platform', 'p', '--tag', 't', '--', 'make', 'libs']
-WARM = ['--warm', '--platform', 'p', '--tag', 't', '--', 'make', 'libs']
+CONSUMER = ['--platform', 'p', '--tag', 't', '--', 'cmake']
+BRANCH = ['--branch-cache', '--platform', 'p', '--tag', 't', '--', 'cmake']
+WARM = ['--warm', '--platform', 'p', '--tag', 't', '--', 'cmake']
 REQUIRE_HIT = ['--require-cache-hit', '--platform', 'p', '--tag', 't']
 REQUIRE_HIT_IMAGE = ['--require-cache-hit', '--image', 'i', '--tag', 't']
 REQUIRE_HIT_BRANCH = ['--require-cache-hit', '--branch-cache',
@@ -243,7 +243,7 @@ def test_require_hit_hit_with_image():
 
 
 def test_require_hit_rejects_build_command():
-    calls, code = run_main(REQUIRE_HIT + ['--', 'make', 'libs'], {})
+    calls, code = run_main(REQUIRE_HIT + ['--', 'cmake'], {})
     check('require-hit build-cmd calls', calls, [])
     check('require-hit build-cmd code', code, 1)
 
@@ -305,7 +305,7 @@ def test_require_hit_branch_skip_both_miss_skips():
 
 def test_branch_cache_rejected_with_warm():
     calls, code = run_main(['--warm', '--branch-cache', '--platform', 'p',
-                            '--tag', 't', '--', 'make', 'libs'], {})
+                            '--tag', 't', '--', 'cmake'], {})
     check('branch+warm calls', calls, [])
     check('branch+warm code', code, 1)
 
@@ -313,13 +313,13 @@ def test_branch_cache_rejected_with_warm():
 def test_skip_on_miss_rejected_without_require_hit():
     # --skip-on-miss is require-cache-hit only; rejected in consumer/warm mode.
     calls, code = run_main(['--skip-on-miss', '--platform', 'p', '--tag', 't',
-                            '--', 'make', 'libs'], {})
+                            '--', 'cmake'], {})
     check('skip-on-miss reject calls', calls, [])
     check('skip-on-miss reject code', code, 1)
 
 
 def test_missing_double_dash():
-    calls, code = run_main(['--platform', 'p', '--tag', 't', 'make', 'libs'], {})
+    calls, code = run_main(['--platform', 'p', '--tag', 't', 'cmake'], {})
     check('missing -- calls', calls, [])
     check('missing -- code', code, 1)
 

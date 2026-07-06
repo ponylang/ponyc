@@ -6,8 +6,8 @@ This orchestration sequences the `oci_libs_cache.py` / `branch_libs_cache.py` /
 `promote_libs_cache.py` primitives around the build command it is handed after
 `--`, instead of building LLVM directly; it does not reimplement any caching
 itself. It is CI-only logic, so it lives here, in a script the workflows call, NOT
-in the Makefile / make.ps1 (which are the developer-facing build files and know
-only how to *build* libs). PR builds have their own orchestration
+in the build command itself (`cmake -P lib/build-libs.cmake`), which only knows
+how to *build* libs. PR builds have their own orchestration
 (`pr_libs_cache.py`).
 
 Modes:
@@ -58,10 +58,11 @@ Stdlib only. Usage:
         (--image <ref> | --platform <label>) --tag <hash>
 
 For the consumer/warmer forms, everything after `--` is the build command, run
-as-is on a cache miss (e.g. `make libs llvm_tools=false build_flags=-j4`, or on
-Windows `pwsh -File make.ps1 -Command libs -LlvmTools false`). Auth uses
-GITHUB_TOKEN; the main push (`--warm`) and the branch push (`--branch-cache`) need
-`packages: write`.
+as-is on a cache miss (e.g.
+`cmake -DTOOLS=false -DJOBS=4 -P lib/build-libs.cmake`, or on Windows
+`cmake -DPRESET=libs-windows-x86-64 -DTOOLS=false -P lib/build-libs.cmake`). Auth
+uses GITHUB_TOKEN; the main push (`--warm`) and the branch push (`--branch-cache`)
+need `packages: write`.
 """
 
 import argparse

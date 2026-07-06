@@ -84,8 +84,8 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           LIBS_IMAGE: ghcr.io/ponylang/ponyc-ci-ubuntu26.04-builder:20260425
-          LIBS_TAG: ${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
-        run: python3 .ci-scripts/libs-cache/pr_libs_cache.py --ensure --branch-cache --image "$LIBS_IMAGE" --tag "$LIBS_TAG" -- make libs llvm_tools=false build_flags=-j4
+          LIBS_TAG: ${{ hashFiles('lib/CMakePresets.json', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/build-libs.cmake', 'lib/llvm/patches/*') }}
+        run: python3 .ci-scripts/libs-cache/pr_libs_cache.py --ensure --branch-cache --image "$LIBS_IMAGE" --tag "$LIBS_TAG" -- cmake -DTOOLS=false -DJOBS=4 -P lib/build-libs.cmake
 
   maybe-build-macos:
     needs: changes
@@ -102,8 +102,8 @@ jobs:
       - name: Ensure libs
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          LIBS_TAG: ${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
-        run: python3 .ci-scripts/libs-cache/pr_libs_cache.py --ensure --branch-cache --platform arm64-macos-26 --tag "$LIBS_TAG" -- make libs llvm_tools=false build_flags=-j3
+          LIBS_TAG: ${{ hashFiles('lib/CMakePresets.json', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/build-libs.cmake', 'lib/llvm/patches/*') }}
+        run: python3 .ci-scripts/libs-cache/pr_libs_cache.py --ensure --branch-cache --platform arm64-macos-26 --tag "$LIBS_TAG" -- cmake -DTOOLS=false -DJOBS=3 -P lib/build-libs.cmake
 
   maybe-build-windows:
     needs: changes
@@ -125,8 +125,8 @@ jobs:
       - name: Ensure libs
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          LIBS_TAG: ${{ hashFiles('make.ps1', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
-        run: python .ci-scripts/libs-cache/pr_libs_cache.py --ensure --branch-cache --platform windows-2025-vs2026 --tag "$env:LIBS_TAG" '--' pwsh -File make.ps1 -Command libs -LlvmTools false
+          LIBS_TAG: ${{ hashFiles('lib/CMakePresets.json', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/build-libs.cmake', 'lib/llvm/patches/*') }}
+        run: python .ci-scripts/libs-cache/pr_libs_cache.py --ensure --branch-cache --platform windows-2025-vs2026 --tag "$env:LIBS_TAG" '--' cmake -DPRESET=libs-windows-x86-64 -DTOOLS=false -DJOBS=4 -P lib/build-libs.cmake
 
   # ----- ponyc suite -----
 
@@ -148,23 +148,29 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           LIBS_IMAGE: ghcr.io/ponylang/ponyc-ci-ubuntu26.04-builder:20260425
-          LIBS_TAG: ${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
+          LIBS_TAG: ${{ hashFiles('lib/CMakePresets.json', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/build-libs.cmake', 'lib/llvm/patches/*') }}
           # Referenced UNQUOTED below so an empty value (fork) vanishes instead of
           # passing as an empty arg; see the branch-cache coupling in .known-couplings/branch-libs-cache.md.
           LIBS_BRANCH_CACHE: ${{ github.event.pull_request.head.repo.full_name == github.repository && '--branch-cache' || '' }}
-        run: python3 .ci-scripts/libs-cache/pr_libs_cache.py $LIBS_BRANCH_CACHE --image "$LIBS_IMAGE" --tag "$LIBS_TAG" -- make libs llvm_tools=false build_flags=-j4
+        run: python3 .ci-scripts/libs-cache/pr_libs_cache.py $LIBS_BRANCH_CACHE --image "$LIBS_IMAGE" --tag "$LIBS_TAG" -- cmake -DTOOLS=false -DJOBS=4 -P lib/build-libs.cmake
       - name: Build Debug Runtime
         run: |
-          make configure arch=x86-64 config=debug
-          make build config=debug
+          cmake --preset x86-64-debug
+          cmake --build --preset x86-64-debug
       - name: Test with Debug Runtime
-        run: make test-ci-core config=debug usedebugger='lldb'
+        run: |
+          PONY_TEST_DEBUGGER="$(.ci-scripts/test-debugger.sh lldb)"
+          export PONY_TEST_DEBUGGER
+          ctest --preset x86-64-debug -L ci-core
       - name: Build Release Runtime
         run: |
-          make configure arch=x86-64 config=release
-          make build config=release
+          cmake --preset x86-64-release
+          cmake --build --preset x86-64-release
       - name: Test with Release Runtime
-        run: make test-ci-core config=release usedebugger='lldb'
+        run: |
+          PONY_TEST_DEBUGGER="$(.ci-scripts/test-debugger.sh lldb)"
+          export PONY_TEST_DEBUGGER
+          ctest --preset x86-64-release -L ci-core
 
   ponyc-arm64-macos:
     needs: [changes, maybe-build-macos]
@@ -180,23 +186,23 @@ jobs:
       - name: Build libs
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          LIBS_TAG: ${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
+          LIBS_TAG: ${{ hashFiles('lib/CMakePresets.json', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/build-libs.cmake', 'lib/llvm/patches/*') }}
           # Referenced UNQUOTED below so an empty value (fork) vanishes instead of
           # passing as an empty arg; see the branch-cache coupling in .known-couplings/branch-libs-cache.md.
           LIBS_BRANCH_CACHE: ${{ github.event.pull_request.head.repo.full_name == github.repository && '--branch-cache' || '' }}
-        run: python3 .ci-scripts/libs-cache/pr_libs_cache.py $LIBS_BRANCH_CACHE --platform arm64-macos-26 --tag "$LIBS_TAG" -- make libs llvm_tools=false build_flags=-j3
+        run: python3 .ci-scripts/libs-cache/pr_libs_cache.py $LIBS_BRANCH_CACHE --platform arm64-macos-26 --tag "$LIBS_TAG" -- cmake -DTOOLS=false -DJOBS=3 -P lib/build-libs.cmake
       - name: Build Debug Runtime
         run: |
-          make configure arch=armv8 config=debug
-          make build config=debug
+          cmake --preset armv8-debug
+          cmake --build --preset armv8-debug
       - name: Test with Debug Runtime
-        run: make test-ci-core config=debug
+        run: ctest --preset armv8-debug -L ci-core
       - name: Build Release Runtime
         run: |
-          make configure arch=armv8 config=release
-          make build config=release
+          cmake --preset armv8-release
+          cmake --build --preset armv8-release
       - name: Test with Release Runtime
-        run: make test-ci-core config=release
+        run: ctest --preset armv8-release -L ci-core
 
   ponyc-x86_64-windows:
     needs: [changes, maybe-build-windows]
@@ -219,25 +225,25 @@ jobs:
       - name: Build libs
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          LIBS_TAG: ${{ hashFiles('make.ps1', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
+          LIBS_TAG: ${{ hashFiles('lib/CMakePresets.json', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/build-libs.cmake', 'lib/llvm/patches/*') }}
           # Referenced UNQUOTED below so an empty value (fork) vanishes instead of
           # passing as an empty arg; see the branch-cache coupling in .known-couplings/branch-libs-cache.md.
           LIBS_BRANCH_CACHE: ${{ github.event.pull_request.head.repo.full_name == github.repository && '--branch-cache' || '' }}
-        run: python .ci-scripts/libs-cache/pr_libs_cache.py $env:LIBS_BRANCH_CACHE --platform windows-2025-vs2026 --tag "$env:LIBS_TAG" '--' pwsh -File make.ps1 -Command libs -LlvmTools false
+        run: python .ci-scripts/libs-cache/pr_libs_cache.py $env:LIBS_BRANCH_CACHE --platform windows-2025-vs2026 --tag "$env:LIBS_TAG" '--' cmake -DPRESET=libs-windows-x86-64 -DTOOLS=false -DJOBS=4 -P lib/build-libs.cmake
+      - name: Configure
+        run: cmake --preset windows-x86-64
       - name: Build Debug Runtime
-        run: |
-          .\make.ps1 -Command configure -Config Debug
-          .\make.ps1 -Command build -Config Debug
+        run: cmake --build --preset windows-x86-64-debug
       - name: Test with Debug Runtime
-        run: .\make.ps1 -Command test -Config Debug -Uselldb yes
-      - name: Build Release Runtime
         run: |
-          .\make.ps1 -Command configure -Config Release
-          .\make.ps1 -Command build -Config Release
+          $env:PONY_TEST_DEBUGGER = & .ci-scripts/test-debugger.ps1 lldb
+          ctest --preset windows-x86-64-debug -L ci-core
+      - name: Build Release Runtime
+        run: cmake --build --preset windows-x86-64-release
       - name: Test with Release Runtime
-        run: .\make.ps1 -Command test -Config Release -Uselldb yes
-      - name: Build examples
-        run: .\make.ps1 -Command build-examples
+        run: |
+          $env:PONY_TEST_DEBUGGER = & .ci-scripts/test-debugger.ps1 lldb
+          ctest --preset windows-x86-64-release -L ci-core
 
   # ----- pony-compiler suite -----
 
@@ -259,17 +265,18 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           LIBS_IMAGE: ghcr.io/ponylang/ponyc-ci-ubuntu26.04-builder:20260425
-          LIBS_TAG: ${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
+          LIBS_TAG: ${{ hashFiles('lib/CMakePresets.json', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/build-libs.cmake', 'lib/llvm/patches/*') }}
           # Referenced UNQUOTED below so an empty value (fork) vanishes instead of
           # passing as an empty arg; see the branch-cache coupling in .known-couplings/branch-libs-cache.md.
           LIBS_BRANCH_CACHE: ${{ github.event.pull_request.head.repo.full_name == github.repository && '--branch-cache' || '' }}
-        run: python3 .ci-scripts/libs-cache/pr_libs_cache.py $LIBS_BRANCH_CACHE --image "$LIBS_IMAGE" --tag "$LIBS_TAG" -- make libs llvm_tools=false build_flags=-j4
+        run: python3 .ci-scripts/libs-cache/pr_libs_cache.py $LIBS_BRANCH_CACHE --image "$LIBS_IMAGE" --tag "$LIBS_TAG" -- cmake -DTOOLS=false -DJOBS=4 -P lib/build-libs.cmake
       - name: Build
         run: |
-          make configure config=debug
-          make build config=debug
+          cmake --preset debug
+          cmake --build --preset debug
+          cmake --build --preset debug --target pony-compiler-tests
       - name: Test pony-compiler
-        run: make test-pony-compiler config=debug
+        run: ctest --preset debug -R pony-compiler-tests
 
   pony-compiler-macos:
     needs: [changes, maybe-build-macos]
@@ -285,17 +292,18 @@ jobs:
       - name: Build libs
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          LIBS_TAG: ${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
+          LIBS_TAG: ${{ hashFiles('lib/CMakePresets.json', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/build-libs.cmake', 'lib/llvm/patches/*') }}
           # Referenced UNQUOTED below so an empty value (fork) vanishes instead of
           # passing as an empty arg; see the branch-cache coupling in .known-couplings/branch-libs-cache.md.
           LIBS_BRANCH_CACHE: ${{ github.event.pull_request.head.repo.full_name == github.repository && '--branch-cache' || '' }}
-        run: python3 .ci-scripts/libs-cache/pr_libs_cache.py $LIBS_BRANCH_CACHE --platform arm64-macos-26 --tag "$LIBS_TAG" -- make libs llvm_tools=false build_flags=-j3
+        run: python3 .ci-scripts/libs-cache/pr_libs_cache.py $LIBS_BRANCH_CACHE --platform arm64-macos-26 --tag "$LIBS_TAG" -- cmake -DTOOLS=false -DJOBS=3 -P lib/build-libs.cmake
       - name: Build
         run: |
-          make configure arch=armv8 config=debug
-          make build config=debug
+          cmake --preset armv8-debug
+          cmake --build --preset armv8-debug
+          cmake --build --preset armv8-debug --target pony-compiler-tests
       - name: Test pony-compiler
-        run: make test-pony-compiler config=debug
+        run: ctest --preset armv8-debug -R pony-compiler-tests
 
   pony-compiler-windows:
     needs: [changes, maybe-build-windows]
@@ -316,17 +324,18 @@ jobs:
       - name: Build libs
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          LIBS_TAG: ${{ hashFiles('make.ps1', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
+          LIBS_TAG: ${{ hashFiles('lib/CMakePresets.json', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/build-libs.cmake', 'lib/llvm/patches/*') }}
           # Referenced UNQUOTED below so an empty value (fork) vanishes instead of
           # passing as an empty arg; see the branch-cache coupling in .known-couplings/branch-libs-cache.md.
           LIBS_BRANCH_CACHE: ${{ github.event.pull_request.head.repo.full_name == github.repository && '--branch-cache' || '' }}
-        run: python .ci-scripts/libs-cache/pr_libs_cache.py $env:LIBS_BRANCH_CACHE --platform windows-2025-vs2026 --tag "$env:LIBS_TAG" '--' pwsh -File make.ps1 -Command libs -LlvmTools false
+        run: python .ci-scripts/libs-cache/pr_libs_cache.py $env:LIBS_BRANCH_CACHE --platform windows-2025-vs2026 --tag "$env:LIBS_TAG" '--' cmake -DPRESET=libs-windows-x86-64 -DTOOLS=false -DJOBS=4 -P lib/build-libs.cmake
       - name: Build
         run: |
-          .\make.ps1 -Command configure -Config Debug
-          .\make.ps1 -Command build -Config Debug
+          cmake --preset windows-x86-64
+          cmake --build --preset windows-x86-64-debug
+          cmake --build --preset windows-x86-64-debug --target pony-compiler-tests
       - name: Test pony-compiler
-        run: .\make.ps1 -Command test -Config Debug -TestsToRun pony-compiler-tests
+        run: ctest --preset windows-x86-64-debug -R pony-compiler-tests
 
   # ----- tools suite -----
 
@@ -348,27 +357,28 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           LIBS_IMAGE: ghcr.io/ponylang/ponyc-ci-ubuntu26.04-builder:20260425
-          LIBS_TAG: ${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
+          LIBS_TAG: ${{ hashFiles('lib/CMakePresets.json', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/build-libs.cmake', 'lib/llvm/patches/*') }}
           # Referenced UNQUOTED below so an empty value (fork) vanishes instead of
           # passing as an empty arg; see the branch-cache coupling in .known-couplings/branch-libs-cache.md.
           LIBS_BRANCH_CACHE: ${{ github.event.pull_request.head.repo.full_name == github.repository && '--branch-cache' || '' }}
-        run: python3 .ci-scripts/libs-cache/pr_libs_cache.py $LIBS_BRANCH_CACHE --image "$LIBS_IMAGE" --tag "$LIBS_TAG" -- make libs llvm_tools=false build_flags=-j4
+        run: python3 .ci-scripts/libs-cache/pr_libs_cache.py $LIBS_BRANCH_CACHE --image "$LIBS_IMAGE" --tag "$LIBS_TAG" -- cmake -DTOOLS=false -DJOBS=4 -P lib/build-libs.cmake
       - name: Build
         run: |
-          make configure config=debug
-          make build config=debug
+          cmake --preset debug
+          cmake --build --preset debug
+          cmake --build --preset debug --target pony-doc-tests pony-lint-tests pony-lsp-tests
       - name: Test pony-doc
-        run: make test-pony-doc config=debug
+        run: ctest --preset debug -R pony-doc-tests
       - name: Test pony-lint
-        run: make test-pony-lint config=debug
+        run: ctest --preset debug -R pony-lint-tests
       - name: Test pony-lsp
-        run: make test-pony-lsp config=debug
+        run: ctest --preset debug -R pony-lsp-tests
       - name: Lint pony-lint
-        run: make lint-pony-lint config=debug
+        run: cd build/debug && PONYPATH=../../tools/lib/ponylang/pony_compiler ./pony-lint ../../tools/pony-lint/
       - name: Lint pony-doc
-        run: make lint-pony-doc config=debug
+        run: cd build/debug && PONYPATH=../../tools/lib/ponylang/pony_compiler ./pony-lint ../../tools/pony-doc/
       - name: Lint pony-lsp
-        run: make lint-pony-lsp config=debug
+        run: cd build/debug && PONYPATH=../../tools/lib/ponylang/pony_compiler ./pony-lint ../../tools/pony-lsp/
 
   tools-macos:
     needs: [changes, maybe-build-macos]
@@ -384,21 +394,22 @@ jobs:
       - name: Build libs
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          LIBS_TAG: ${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
+          LIBS_TAG: ${{ hashFiles('lib/CMakePresets.json', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/build-libs.cmake', 'lib/llvm/patches/*') }}
           # Referenced UNQUOTED below so an empty value (fork) vanishes instead of
           # passing as an empty arg; see the branch-cache coupling in .known-couplings/branch-libs-cache.md.
           LIBS_BRANCH_CACHE: ${{ github.event.pull_request.head.repo.full_name == github.repository && '--branch-cache' || '' }}
-        run: python3 .ci-scripts/libs-cache/pr_libs_cache.py $LIBS_BRANCH_CACHE --platform arm64-macos-26 --tag "$LIBS_TAG" -- make libs llvm_tools=false build_flags=-j3
+        run: python3 .ci-scripts/libs-cache/pr_libs_cache.py $LIBS_BRANCH_CACHE --platform arm64-macos-26 --tag "$LIBS_TAG" -- cmake -DTOOLS=false -DJOBS=3 -P lib/build-libs.cmake
       - name: Build
         run: |
-          make configure arch=armv8 config=debug
-          make build config=debug
+          cmake --preset armv8-debug
+          cmake --build --preset armv8-debug
+          cmake --build --preset armv8-debug --target pony-doc-tests pony-lint-tests pony-lsp-tests
       - name: Test pony-doc
-        run: make test-pony-doc config=debug
+        run: ctest --preset armv8-debug -R pony-doc-tests
       - name: Test pony-lint
-        run: make test-pony-lint config=debug
+        run: ctest --preset armv8-debug -R pony-lint-tests
       - name: Test pony-lsp
-        run: make test-pony-lsp config=debug
+        run: ctest --preset armv8-debug -R pony-lsp-tests
 
   tools-windows:
     needs: [changes, maybe-build-windows]
@@ -419,18 +430,19 @@ jobs:
       - name: Build libs
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          LIBS_TAG: ${{ hashFiles('make.ps1', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
+          LIBS_TAG: ${{ hashFiles('lib/CMakePresets.json', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/build-libs.cmake', 'lib/llvm/patches/*') }}
           # Referenced UNQUOTED below so an empty value (fork) vanishes instead of
           # passing as an empty arg; see the branch-cache coupling in .known-couplings/branch-libs-cache.md.
           LIBS_BRANCH_CACHE: ${{ github.event.pull_request.head.repo.full_name == github.repository && '--branch-cache' || '' }}
-        run: python .ci-scripts/libs-cache/pr_libs_cache.py $env:LIBS_BRANCH_CACHE --platform windows-2025-vs2026 --tag "$env:LIBS_TAG" '--' pwsh -File make.ps1 -Command libs -LlvmTools false
+        run: python .ci-scripts/libs-cache/pr_libs_cache.py $env:LIBS_BRANCH_CACHE --platform windows-2025-vs2026 --tag "$env:LIBS_TAG" '--' cmake -DPRESET=libs-windows-x86-64 -DTOOLS=false -DJOBS=4 -P lib/build-libs.cmake
       - name: Build
         run: |
-          .\make.ps1 -Command configure -Config Debug
-          .\make.ps1 -Command build -Config Debug
+          cmake --preset windows-x86-64
+          cmake --build --preset windows-x86-64-debug
+          cmake --build --preset windows-x86-64-debug --target pony-doc-tests pony-lint-tests pony-lsp-tests
       - name: Test pony-doc
-        run: .\make.ps1 -Command test -Config Debug -TestsToRun pony-doc-tests
+        run: ctest --preset windows-x86-64-debug -R pony-doc-tests
       - name: Test pony-lint
-        run: .\make.ps1 -Command test -Config Debug -TestsToRun pony-lint-tests
+        run: ctest --preset windows-x86-64-debug -R pony-lint-tests
       - name: Test pony-lsp
-        run: .\make.ps1 -Command test -Config Debug -TestsToRun pony-lsp-tests
+        run: ctest --preset windows-x86-64-debug -R pony-lsp-tests

@@ -56,10 +56,10 @@ ASSET_DESCRIPTION="https://github.com/ponylang/ponyc"
 
 # Build pony installation
 echo "Building ponyc installation..."
-make configure arch=${PROCESSOR} cpu=${CPU} \
-  version="${PONY_VERSION}"
-make build version="${PONY_VERSION}"
-make install arch=${PROCESSOR} prefix="${BUILD_PREFIX}" symlink=no version="${PONY_VERSION}"
+cmake --preset "${PROCESSOR}-release" -DPONY_CPU="${CPU}" -DPONY_INSTALL_SYMLINKS=OFF \
+  -DPONYC_VERSION="${PONY_VERSION}"
+cmake --build --preset "${PROCESSOR}-release"
+cmake --install "build/build_${PROCESSOR}-release" --prefix "${BUILD_PREFIX}"
 
 # Package it all up
 echo "Creating .tar.gz of ponyc installation..."

@@ -59,13 +59,13 @@ build lives on a dedicated data disk. These matter:
   **do** persist.
 - **Raise the `datasize` limit.** OpenBSD caps a process's data segment in
   `/etc/login.conf` (1536M on the stock 7.9 image); the LLVM build needs more, so Step 6
-  raises `datasize-max`/`-cur` to at least 4096M. Without it `make libs` dies with
+  raises `datasize-max`/`-cur` to at least 4096M. Without it the libs build dies with
   allocation failures partway through. The edit is on the root disk and persists.
 - **OpenBSD's base system has no `bash`.** `/bin/sh` is a POSIX `ksh`; in-VM scripts must
   be POSIX `sh`. Don't reach for bashisms in a `$SSH /bin/sh` heredoc.
 - **Two `pkg_add` names look like typos but aren't:** `python%3` (the `%3` selects the 3.x
   branch) and `rsync--` (the trailing `--` picks the no-flavor build). Copy them verbatim.
-- **Detach long in-VM builds.** `make libs` (LLVM) takes hours; run it
+- **Detach long in-VM builds.** The libs build (LLVM) takes hours; run it
   `nohup … > /build/x.log 2>&1 &` and poll the log, so an ssh drop doesn't kill it.
 
 ## Step 0 — verify prerequisites (do NOT assume they're installed)
@@ -75,7 +75,7 @@ This skill needs, on the host:
 - an existing ponyc checkout (you run the `rsync` from it)
 - hardware-accelerated virtualization for QEMU (KVM on Linux, HVF on macOS)
 - enough free disk for the VM's two sparse qcow2 disks (the shipped root image plus a 50 GB
-  nominal data disk; they grow only as used — `make libs` plus a debug build take the data
+  nominal data disk; they grow only as used — the libs build plus a debug build take the data
   disk to several GB), network access to github.com (the image is a GitHub release asset)
 - `qemu-system-x86_64` and `qemu-img`
 - `genisoimage` (builds the cidata seed CD-ROM; `cloud-localds` can also produce an
@@ -120,9 +120,9 @@ user can make; the VM is unusably slow without it, so don't fall back to TCG emu
 
 This flow is verified on Linux+KVM through VM bring-up, the `/build` disk plus
 `doas`/`datasize` setup, dependency install, the source rsync, and the unsupported-build
-rejection smoke (`.ci-scripts/openbsd-reject-unsupported-builds.sh`, which runs `gmake
-configure use=…` and so needs no LLVM). The LLVM build (`make libs`), the subsequent `gmake
-configure config=debug`/build — which require the built LLVM (CMake's `find_package(LLVM)`
+rejection smoke (`.ci-scripts/openbsd-reject-unsupported-builds.sh`, which runs `cmake …
+-DPONY_USES=…` and so needs no LLVM). The LLVM build (`cmake -P lib/build-libs.cmake`), the subsequent
+`cmake --preset debug`/build — which require the built LLVM (CMake's `find_package(LLVM)`
 fails without it) — and the test suites were **not** run locally; those steps mirror
 `.ci-scripts/bsd/openbsd-provision.bash` and the tier-3 `openbsd` job, which CI exercises
 end-to-end and keeps green. The guest side is OS-agnostic, so macOS goes through the same
@@ -275,7 +275,7 @@ must end up at least `4096M` (what CI sets). On the stock OpenBSD 7.9 image both
 `1536M`: if a future image ships a different default the `sed`s match nothing, so read the
 current values (the trailing `grep` prints them) and, if either is below `4096M`, raise it
 to `4096M` directly — adjust the `sed` pattern or edit `/etc/login.conf`. Confirm both read
-`4096M` before continuing; too low and `make libs` dies with allocation failures partway
+`4096M` before continuing; too low and the libs build dies with allocation failures partway
 through, far from this step. The edit persists on the root disk and re-running is a no-op.
 
 ```sh
@@ -298,7 +298,7 @@ EOF
 Run from your ponyc checkout. Exclude the top-level `build/` (host artifacts; the VM builds
 its own — this `--exclude` is a deliberate divergence from CI, whose fresh checkout has none
 to skip). Keep `.git` (CMake runs `git rev-parse`). The vendored LLVM submodule under
-`lib/llvm/src` IS transferred — the VM needs it for `make libs`.
+`lib/llvm/src` IS transferred — the VM needs it for the libs build.
 
 ```sh
 VMDIR=~/vms/openbsd-7.9
@@ -310,9 +310,9 @@ rsync -az --exclude='/build' \
 ## Using the VM
 
 The build uses OpenBSD's base clang — no `CC`/`CXX`/`LD_LIBRARY_PATH` exports (that is the
-DragonFly-only gcc13 dance). `make libs` builds the vendored LLVM and is the multi-hour long
+DragonFly-only gcc13 dance). `cmake -P lib/build-libs.cmake` builds the vendored LLVM and is the multi-hour long
 pole — run it detached, then poll the log until it ends with `libs DONE rc=0` (a nonzero rc
-means it failed — read the log above the marker). Keep `build_flags=-j4` (what CI uses):
+means it failed — read the log above the marker). Keep `-DJOBS=4` (what CI uses):
 each parallel compile is bounded by the 4096M `datasize` cap, so higher parallelism is the
 first thing to suspect on a libs out-of-memory.
 
@@ -323,7 +323,7 @@ $SSH /bin/sh <<'EOF'
 set -e
 cat > /build/run-libs.sh <<'S'
 #!/bin/sh
-cd /build/ponyc && gmake libs llvm_tools=false build_flags=-j4
+cd /build/ponyc && cmake -DTOOLS=false -DJOBS=4 -P lib/build-libs.cmake
 echo "libs DONE rc=$?"
 S
 chmod +x /build/run-libs.sh
@@ -334,9 +334,9 @@ EOF
 ```
 
 Once `libs` is built (it persists in the VM), build and test with the same shell. Do not run
-this block until the poll shows `libs DONE rc=0` — even `gmake configure config=debug` needs
+this block until the poll shows `libs DONE rc=0` — even `cmake --preset debug` needs
 the built LLVM (CMake's `find_package(LLVM)` fails without it), so it cannot run before
-`make libs`:
+the libs build:
 
 ```sh
 VMDIR=~/vms/openbsd-7.9
@@ -344,9 +344,9 @@ SSH="ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel
 $SSH /bin/sh <<'EOF'
 set -e
 cd /build/ponyc
-gmake configure config=debug
-gmake build config=debug
-gmake test-ci-core config=debug
+cmake --preset debug
+cmake --build --preset debug
+ctest --preset debug -L ci-core
 EOF
 ```
 
@@ -354,14 +354,14 @@ To iterate on a fix: edit on the host, re-run Step 7's `rsync` (it's incremental
 changed files are sent), then re-run the build block above (long rebuilds should also be
 detached + polled). For exact CI parity, the tier-3 `openbsd` job
 (`.github/workflows/ponyc-tier3.yml`) runs more than this. In order: an
-unsupported-build-rejection smoke that runs **before** `make libs` (it needs no LLVM —
+unsupported-build-rejection smoke that runs **before** the libs build (it needs no LLVM —
 `.ci-scripts/openbsd-reject-unsupported-builds.sh` asserts `use=address_sanitizer`,
 `thread_sanitizer`, `undefined_behavior_sanitizer`, `coverage`, `valgrind`, and `dtrace` are
 each rejected with "not supported on OpenBSD"); then debug configure/build; a `--static`
 embedded-LLD link smoke (OpenBSD static is static-PIE, so the binary's `file` output reads
 "shared object" — the smoke instead asserts `readelf -d` shows **no** `(NEEDED)` entries);
-debug `test-ci-core`; the self-hosted tool tests (`test-pony-doc`/`test-pony-lint`/
-`test-pony-lsp`); and a release build + `test-ci-core`. Consult that job when validating a
+the debug `ci-core` suite; the self-hosted tool tests (`pony-doc-tests`/`pony-lint-tests`/
+`pony-lsp-tests`); and a release build + the `ci-core` suite. Consult that job when validating a
 CI-matching issue.
 
 ## Lifecycle
@@ -400,7 +400,7 @@ safe:
   commands.
 - `rsync --exclude='/build'` to skip the host's build artifacts (CI's fresh checkout has
   none).
-- No GHCR libs cache (that's token-gated CI plumbing) — you just `make libs` once.
+- No GHCR libs cache (that's token-gated CI plumbing) — you just run `cmake -P lib/build-libs.cmake` once.
 
 The FreeBSD and DragonFly CI VMs follow the same shape
 (`.ci-scripts/bsd/{freebsd,dragonfly}-provision.bash`) and each has its own skill:

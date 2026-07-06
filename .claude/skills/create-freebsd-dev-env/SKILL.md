@@ -48,7 +48,7 @@ there is no VGA-console automation), but these still matter:
   run `growfs` yourself — the wait-for-ssh loop is what accounts for it.
 - **FreeBSD's base system has no `bash`.** In-VM scripts must be POSIX `sh` (the two CI
   smoke scripts already are). Don't reach for bashisms in a `$SSH /bin/sh` heredoc.
-- **Detach long in-VM builds.** `make libs` (LLVM) takes hours; run it
+- **Detach long in-VM builds.** The libs build (LLVM) takes hours; run it
   `nohup … > /…/x.log 2>&1 &` and poll the log, so an ssh drop doesn't kill it.
 - **The one-time root bootstrap needs `expect`.** FreeBSD's `nuageinit` supports only
   `ssh_authorized_keys` + `chpasswd` (not cloud-init's `write_files`/`runcmd`), so the
@@ -62,7 +62,7 @@ This skill needs, on the host:
 - an existing ponyc checkout (you run the `rsync` from it)
 - hardware-accelerated virtualization for QEMU (KVM on Linux, HVF on macOS)
 - enough free disk for the VM's sparse qcow2 disk (provisioned at 60 GB nominal; it grows
-  only as used — `make libs` plus a debug build take the qcow2 to ~12 GB, and a release
+  only as used — the libs build plus a debug build take the qcow2 to ~12 GB, and a release
   build on top adds more), ~1 GB for the compressed image, and network access to
   download.freebsd.org
 - `qemu-system-x86_64` and `qemu-img`
@@ -106,7 +106,7 @@ what the OpenBSD CI path uses.) A missing hardware accelerator — no writable `
 on Linux, no HVF on macOS — is a host/BIOS/virtualization fix only the user can make; the
 VM is unusably slow without it, so don't fall back to TCG emulation.
 
-This flow is verified on Linux+KVM through `make libs` and a debug build. The guest side
+This flow is verified on Linux+KVM through the libs build and a debug build. The guest side
 is OS-agnostic, so macOS goes through the same steps with the HVF accelerator
 (`accel=kvm:hvf` in Step 3 selects it).
 
@@ -251,7 +251,7 @@ recovery (is the VM up? did `seed.img` apply?) first.
 
 Run from your ponyc checkout. Exclude the top-level `build/` (host artifacts; the VM
 builds its own). Keep `.git` (CMake runs `git rev-parse`). The vendored LLVM submodule
-under `lib/llvm/src` IS transferred — the VM needs it for `make libs`.
+under `lib/llvm/src` IS transferred — the VM needs it for the libs build.
 
 ```sh
 VMDIR=~/vms/freebsd-15.1
@@ -263,7 +263,7 @@ rsync -az --exclude='/build' \
 ## Using the VM
 
 The build uses FreeBSD's default clang — no `CC`/`CXX`/`LD_LIBRARY_PATH` exports (that is
-the DragonFly-only gcc13 dance). `make libs` builds the vendored LLVM and is the multi-hour
+the DragonFly-only gcc13 dance). `cmake -P lib/build-libs.cmake` builds the vendored LLVM and is the multi-hour
 long pole — run it detached, then poll the log until it ends with `libs DONE rc=0` (a
 nonzero rc means it failed — read the log above the marker):
 
@@ -274,7 +274,7 @@ $SSH /bin/sh <<'EOF'
 set -e
 cat > /home/freebsd/run-libs.sh <<'S'
 #!/bin/sh
-cd /home/freebsd/ponyc && gmake libs llvm_tools=false build_flags=-j8
+cd /home/freebsd/ponyc && cmake -DTOOLS=false -DJOBS=8 -P lib/build-libs.cmake
 echo "libs DONE rc=$?"
 S
 chmod +x /home/freebsd/run-libs.sh
@@ -285,7 +285,7 @@ EOF
 ```
 
 Once `libs` is built (it persists in the VM), build and test with the same shell. Do not
-run this block until the poll shows `libs DONE rc=0` — `gmake build` against a half-built
+run this block until the poll shows `libs DONE rc=0` — `cmake --build` against a half-built
 `build/libs` fails:
 
 ```sh
@@ -294,9 +294,9 @@ SSH="ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel
 $SSH /bin/sh <<'EOF'
 set -e
 cd /home/freebsd/ponyc
-gmake configure config=debug
-gmake build config=debug
-gmake test-ci-core config=debug
+cmake --preset debug
+cmake --build --preset debug
+ctest --preset debug -L ci-core
 EOF
 ```
 
@@ -304,8 +304,8 @@ To iterate on a fix: edit on the host, re-run Step 6's `rsync` (it's incremental
 changed files are sent), then re-run the build block above (long rebuilds should also be
 detached + polled). For exact CI parity, the tier-3 `freebsd` job
 (`.github/workflows/ponyc-tier3.yml`) runs more than this — a `--static` embedded-LLD link
-smoke, the self-hosted tool tests (`test-pony-doc`/`test-pony-lint`/`test-pony-lsp`), a
-release build + `test-ci-core`, and two extra smokes:
+smoke, the self-hosted tool tests (`pony-doc-tests`/`pony-lint-tests`/`pony-lsp-tests`), a
+release build + the `ci-core` suite, and two extra smokes:
 `.ci-scripts/freebsd-sanitizer-smoke.sh` and `.ci-scripts/freebsd-dtrace-smoke.sh` (the
 dtrace one needs the `doas` configured in Step 5). Consult that job when validating a
 CI-matching issue.
@@ -341,7 +341,7 @@ difference is safe:
   `known_hosts` entry from a prior VM. CI's ephemeral runners never reuse the port, so
   `freebsd-provision.bash` doesn't bother.
 - `-smp 8` for build speed (CI uses 4), and a `-pidfile` for the lifecycle commands.
-- No GHCR libs cache (that's token-gated CI plumbing) — you just `make libs` once.
+- No GHCR libs cache (that's token-gated CI plumbing) — you just run `cmake -P lib/build-libs.cmake` once.
 
 The DragonFly and OpenBSD CI VMs follow the same shape
 (`.ci-scripts/bsd/{dragonfly,openbsd}-provision.bash`) and each has its own skill:

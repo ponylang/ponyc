@@ -7,7 +7,7 @@
 #ifndef LLVM_CONFIG_BEGIN_H
 #define LLVM_CONFIG_BEGIN_H
 
-// Valid LLVM_BULD_MODE's must match corresponding names in Makefile-ponyc
+// Valid LLVM_BUILD_MODE values must match PONY_LLVM_BUILD_MODE in CMakeLists.txt
 #define LLVM_BUILD_MODE_Release 1
 #define LLVM_BUILD_MODE_RelWithDebInfo 2
 #define LLVM_BUILD_MODE_MinSizeRel 3

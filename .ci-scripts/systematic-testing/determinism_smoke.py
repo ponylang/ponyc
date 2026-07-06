@@ -170,16 +170,17 @@ def build_systematic_ponyc(root):
     # The build is itself an assertion: this is the only place CI compiles the
     # systematic-testing code path. A failure here is a real regression.
     #
-    # No arch= is passed, so the Makefile default (native) is used. The check
+    # The `debug` preset is the native build; no processor is pinned. The check
     # asserts a property and builds + runs on the same machine, so native is
-    # self-consistent, and leaving arch out keeps the script usable as-is if the
-    # job grows to other architectures.
-    if run(["make", "configure", "config=debug",
-            "use=scheduler_scaling_pthreads,systematic_testing"],
+    # self-consistent, and staying on the native preset keeps the script usable
+    # as-is if the job grows to other architectures.
+    if run(["cmake", "--preset", "debug",
+            "-DPONY_USES=scheduler_scaling_pthreads,systematic_testing"],
            cwd=root).returncode != 0:
-        fail("`make configure` for the systematic-testing build failed")
-    if run(["make", "build", "config=debug"], cwd=root).returncode != 0:
-        fail("`make build` for the systematic-testing build failed")
+        fail("`cmake --preset debug` for the systematic-testing build failed")
+    if run(["cmake", "--build", "--preset", "debug"],
+           cwd=root).returncode != 0:
+        fail("`cmake --build` for the systematic-testing build failed")
 
     ponyc = os.path.join(root, PONYC_REL)
     if not os.access(ponyc, os.X_OK):

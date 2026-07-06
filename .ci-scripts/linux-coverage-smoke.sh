@@ -19,8 +19,8 @@
 #
 # This guards, for whichever toolchain CC/CXX selects, two things:
 #   1. use=coverage builds and links the Pony programs ponyc compiles (the
-#      self-hosted tools during `make build`, plus the standalone program below)
-#      via embedded LLD.
+#      self-hosted tools during the ponyc build (`cmake --build`), plus the
+#      standalone program below) via embedded LLD.
 #   2. the coverage-instrumented ponyc emits profile data when it runs — the point
 #      of use=coverage, measuring ponyc's own coverage.
 set -eu
@@ -28,20 +28,22 @@ set -eu
 # CC/CXX must be set — they select the toolchain to exercise, and the coverage
 # data format (clang .profraw vs gcc .gcda) is chosen below from CXX, so it has
 # to match the compiler the build actually used. Fail loudly if unset rather than
-# defaulting and risking a format mismatch (e.g. the Makefile prefers clang when
+# defaulting and risking a format mismatch (e.g. the presets prefer clang when
 # CC/CXX are unset, which would disagree with a gcc-style assertion).
 : "${CC:?set CC and CXX (gcc/g++ or clang/clang++)}"
 : "${CXX:?set CC and CXX (gcc/g++ or clang/clang++)}"
 
-# Clean + reconfigure debug from scratch with coverage. `clean` is config-scoped
-# (pass config=debug); the prebuilt LLVM in build/libs is untouched, so this does
-# not rebuild LLVM.
-make clean config=debug
-make configure config=debug use=coverage
-# The `make build` below is itself the first assertion: it compiles the
+# Configure the debug build from scratch with coverage. Remove the cmake build
+# dir first so the reconfigure is clean; the prebuilt LLVM in build/libs is a
+# separate dir and is untouched, so this does not rebuild LLVM. Override the
+# preset's pinned clang with the CC/CXX this run exercises (the base preset pins
+# clang; coverage runs once per toolchain and the data format follows CXX).
+rm -rf build/build_debug
+cmake --preset debug -DCMAKE_C_COMPILER="$CC" -DCMAKE_CXX_COMPILER="$CXX" -DPONY_USES=coverage
+# The `cmake --build` below is itself the first assertion: it compiles the
 # instrumented ponyc and links the self-hosted tools (pony-lsp/pony-lint/
 # pony-doc), Pony programs ponyc links via embedded LLD.
-make build config=debug
+cmake --build --preset debug
 
 # use=coverage sets PONY_OUTPUT_SUFFIX to -coverage. Derive the output dir.
 out=$(find build -maxdepth 1 -type d -name 'debug-coverage' | head -1)
@@ -99,7 +101,7 @@ else
 fi
 
 # The self-hosted tools are themselves Pony programs the coverage ponyc linked
-# during `make build`; confirm one runs, proving the tool link path works under
-# coverage and not just that a minimal program does.
+# during the ponyc build (`cmake --build`); confirm one runs, proving the tool
+# link path works under coverage and not just that a minimal program does.
 "$out/pony-lint" --version
 echo "coverage smoke test passed"

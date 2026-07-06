@@ -9,10 +9,10 @@ that misses, reuse it on later pushes.
 
 This is the orchestration that ties the two caches together for a PR build. It is
 CI-only logic -- it pushes scratch artifacts -- so it lives here, in a script the
-workflow calls, NOT in the Makefile / make.ps1 (which are the developer-facing
-build files and know only how to *build* libs). It does not reimplement any
-caching itself: it sequences the existing `oci_libs_cache.py` and
-`branch_libs_cache.py` primitives and shells out to the build command it is handed.
+workflow calls, NOT in the build command itself (`cmake -P lib/build-libs.cmake`),
+which only knows how to *build* libs. It does not reimplement any caching itself:
+it sequences the existing `oci_libs_cache.py` and `branch_libs_cache.py` primitives
+and shells out to the build command it is handed.
 
 Flow (per platform, per job):
   1. check the main cache              -> hit -> done, no build, no push.
@@ -54,9 +54,9 @@ Stdlib only. Usage:
         --tag <hash> -- <build command...>
 
 Everything after `--` is the build command, run as-is on a cache miss (e.g.
-`make libs llvm_tools=false build_flags=-j4`, or on Windows
-`pwsh -File make.ps1 -Command libs -LlvmTools false`). Auth for the pulls/pushes
-uses GITHUB_TOKEN; the branch push needs `packages: write`.
+`cmake -DTOOLS=false -DJOBS=4 -P lib/build-libs.cmake`, or on Windows
+`cmake -DPRESET=libs-windows-x86-64 -DTOOLS=false -P lib/build-libs.cmake`). Auth
+for the pulls/pushes uses GITHUB_TOKEN; the branch push needs `packages: write`.
 """
 
 import argparse

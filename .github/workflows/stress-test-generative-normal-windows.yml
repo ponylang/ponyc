@@ -56,7 +56,7 @@ jobs:
       - name: Restore prebuilt libs
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          LIBS_TAG: ${{ hashFiles('make.ps1', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
+          LIBS_TAG: ${{ hashFiles('lib/CMakePresets.json', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/build-libs.cmake', 'lib/llvm/patches/*') }}
           # Off main (a manual dispatch of a branch): build LLVM if it isn't cached,
           # and push what we build. On main (a scheduled run, or a dispatch left on
           # main): if it isn't cached, skip -- we don't build LLVM on main.
@@ -65,18 +65,18 @@ jobs:
           LIBS_OFF_MAIN: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.sha != 'main' }}
         run: |
           if ($env:LIBS_OFF_MAIN -eq 'true') {
-            python .ci-scripts/libs-cache/resolve_libs_cache.py --branch-cache --platform windows-2025-vs2026 --tag $env:LIBS_TAG '--' pwsh -File make.ps1 -Command libs -LlvmTools false
+            python .ci-scripts/libs-cache/resolve_libs_cache.py --branch-cache --platform windows-2025-vs2026 --tag $env:LIBS_TAG '--' cmake -DPRESET=libs-windows-x86-64 -DTOOLS=false -DJOBS=4 -P lib/build-libs.cmake
           } else {
             python .ci-scripts/libs-cache/resolve_libs_cache.py --require-cache-hit --skip-on-miss --platform windows-2025-vs2026 --tag $env:LIBS_TAG
           }
       - name: Configure
         if: ${{ hashFiles('.libs-cache-miss') == '' }}
-        run: .\make.ps1 -Command configure -Config Debug
+        run: cmake --preset windows-x86-64
       - name: Build Debug Runtime
         # A NORMAL build (no use= flags): the real, multi-threaded runtime, the
         # whole point of this mode. NOT use=systematic_testing.
         if: ${{ hashFiles('.libs-cache-miss') == '' }}
-        run: .\make.ps1 -Command build -Config Debug
+        run: cmake --build --preset windows-x86-64-debug
       - name: Run Generative Stress Test
         if: ${{ hashFiles('.libs-cache-miss') == '' }}
         run: |

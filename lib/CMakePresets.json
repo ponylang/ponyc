@@ -1,0 +1,43 @@
+{
+  "version": 6,
+  "cmakeMinimumRequired": {
+    "major": 3,
+    "minor": 25,
+    "patch": 0
+  },
+  "configurePresets": [
+    {
+      "name": "libs-base",
+      "hidden": true,
+      "binaryDir": "${sourceDir}/../build/build_libs",
+      "cacheVariables": {
+        "CMAKE_INSTALL_PREFIX": "${sourceDir}/../build/libs",
+        "CMAKE_BUILD_TYPE": "Release",
+        "LLVM_TARGETS_TO_BUILD": "X86;ARM;AArch64;WebAssembly;RISCV"
+      }
+    },
+    {
+      "name": "libs",
+      "displayName": "Vendored LLVM + support libraries (clang)",
+      "inherits": "libs-base",
+      "cacheVariables": {
+        "CMAKE_C_COMPILER": "clang",
+        "CMAKE_CXX_COMPILER": "clang++"
+      }
+    },
+    {
+      "name": "libs-windows-x86-64",
+      "displayName": "Vendored LLVM + support libraries (Windows x86-64, MSVC)",
+      "inherits": "libs-base",
+      "architecture": { "value": "x64", "strategy": "set" },
+      "toolset": { "value": "host=x64", "strategy": "set" }
+    },
+    {
+      "name": "libs-windows-arm64",
+      "displayName": "Vendored LLVM + support libraries (Windows arm64, MSVC)",
+      "inherits": "libs-base",
+      "architecture": { "value": "ARM64", "strategy": "set" },
+      "toolset": { "value": "host=ARM64", "strategy": "set" }
+    }
+  ]
+}

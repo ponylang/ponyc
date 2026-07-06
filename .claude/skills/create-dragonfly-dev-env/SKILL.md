@@ -44,7 +44,7 @@ several steps:
   the daemon writes) needs an **absolute** path, or it fails `Permission denied`.
 - **No `sudo` needed (and often unavailable).** CI loop-mounts the ISO with `sudo` to get
   `/usr/include`; locally, extract it with `bsdtar` instead — same result, no privilege.
-- **Detach long in-VM builds.** `make libs` (LLVM) takes hours; run it
+- **Detach long in-VM builds.** The libs build (LLVM) takes hours; run it
   `nohup … > /build/x.log 2>&1 &` and poll the log, so an ssh drop doesn't kill it.
 - **Reuse the CI console script verbatim.** `.ci-scripts/bsd/dfly_configure_vm.py` types
   the setup commands into the VGA console via QEMU `sendkey`; the timing/KEYMAP is fiddly
@@ -57,7 +57,7 @@ This skill needs, on the host:
 - an existing ponyc checkout (you run the repo-relative commands from it)
 - hardware-accelerated virtualization for QEMU (KVM on Linux, HVF on macOS)
 - enough free disk for the VM's sparse qcow2 disks (provisioned at 60 GB + 50 GB nominal;
-  they grow only as used, and `make libs` plus a build fill a large chunk of the data
+  they grow only as used, and the libs build plus a build fill a large chunk of the data
   disk), ~2 GB for the image/ISO files, and network access to mirror-master.dragonflybsd.org
 - `qemu-system-x86_64` and `qemu-img`
 - `bsdtar` (a libarchive tar that reads ISO9660; the default `tar` on macOS, FreeBSD, and DragonFly)
@@ -274,7 +274,7 @@ EOF
 
 Run from your ponyc checkout. Exclude the top-level `build/` (host artifacts; the VM
 builds its own). Keep `.git` (CMake runs `git rev-parse`). The vendored LLVM submodule
-under `lib/llvm/src` IS transferred — the VM needs it for `make libs`.
+under `lib/llvm/src` IS transferred — the VM needs it for the libs build.
 
 ```sh
 VMDIR=~/vms/dragonfly-6.4.2
@@ -285,7 +285,7 @@ rsync -az --exclude='/build' \
 
 ## Using the VM
 
-Always set the gcc13 build env first (matches the tier-3 `dragonflybsd` job). `make libs`
+Always set the gcc13 build env first (matches the tier-3 `dragonflybsd` job). `cmake -P lib/build-libs.cmake`
 builds the vendored LLVM and is the multi-hour long pole — run it detached, then poll the
 log until it ends with `libs DONE rc=0` (a nonzero rc means it failed — read the log
 above the marker):
@@ -300,7 +300,7 @@ cat > /build/run-libs.sh <<'S'
 export CC=/usr/local/bin/gcc13 CXX=/usr/local/bin/g++13
 export LD_LIBRARY_PATH=/usr/local/lib/gcc13
 export SSL_CERT_FILE=/usr/local/share/certs/ca-root-nss.crt
-cd /build/ponyc && gmake libs llvm_tools=false build_flags=-j8
+cd /build/ponyc && cmake -DTOOLS=false -DJOBS=8 -DCC=/usr/local/bin/gcc13 -DCXX=/usr/local/bin/g++13 -P lib/build-libs.cmake
 echo "libs DONE rc=$?"
 S
 chmod +x /build/run-libs.sh
@@ -321,9 +321,9 @@ export CC=/usr/local/bin/gcc13 CXX=/usr/local/bin/g++13
 export LD_LIBRARY_PATH=/usr/local/lib/gcc13
 export SSL_CERT_FILE=/usr/local/share/certs/ca-root-nss.crt
 cd /build/ponyc
-gmake configure config=debug
-gmake build config=debug
-gmake test-ci-core config=debug
+cmake --preset debug -DCMAKE_C_COMPILER=/usr/local/bin/gcc13 -DCMAKE_CXX_COMPILER=/usr/local/bin/g++13
+cmake --build --preset debug
+ctest --preset debug -L ci-core
 EOF
 ```
 
@@ -367,7 +367,7 @@ unchanged**. The local setup deliberately differs from CI, and each difference i
   `dragonfly-provision.bash` doesn't bother.
 - `-smp 8` for build speed (CI uses 4).
 - Screendump-verified boot instead of a blind `sleep 90`.
-- No GHCR libs cache (that's token-gated CI plumbing) — you just `make libs` once.
+- No GHCR libs cache (that's token-gated CI plumbing) — you just run `cmake -P lib/build-libs.cmake` once.
 
 The FreeBSD and OpenBSD CI VMs follow the same shape
 (`.ci-scripts/bsd/{freebsd,openbsd}-provision.bash`) and each has its own skill:

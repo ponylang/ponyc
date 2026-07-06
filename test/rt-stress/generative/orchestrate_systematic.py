@@ -29,8 +29,8 @@ here. resolve_config is pinned in orchestrate_systematic_test.py.
 
 The ponyc passed in must be a debug + systematic build:
 
-    make configure config=debug use=scheduler_scaling_pthreads,systematic_testing
-    make build config=debug
+    cmake --preset debug -DPONY_USES=scheduler_scaling_pthreads,systematic_testing
+    cmake --build --preset debug
     python3 test/rt-stress/generative/orchestrate_systematic.py \\
       --ponyc build/debug-scheduler_scaling_pthreads-systematic_testing/ponyc \\
       --use-flags scheduler_scaling_pthreads,systematic_testing \\

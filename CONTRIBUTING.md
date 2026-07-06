@@ -129,7 +129,7 @@ For standard library file naming guidelines see [The Style Guide](https://github
 
 ## Source Code Coverage of Ponyc
 
-To get C code coverage information for test runs or for calling ponyc, call `make` with `use=coverage config=debug`. This works both for *clang* and *gcc*. Make sure to configure `CC` and `CXX` environment variables both to either `gcc` and `g++` or `clang` and `clang++`.
+To get C code coverage information for test runs or for calling ponyc, configure a debug build with `use=coverage`: `cmake --preset debug -DPONY_USES=coverage`. This works with both *clang* (the preset default) and *gcc*; to build with gcc, override the compiler: `cmake --preset debug -DPONY_USES=coverage -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++`.
 
 ### Using gcc and lcov
 

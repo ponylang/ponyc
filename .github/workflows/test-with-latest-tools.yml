@@ -50,19 +50,25 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6.0.2
       - name: Build Libs
-        run: make libs llvm_tools=false build_flags=-j4
+        run: cmake -DTOOLS=false -DJOBS=4 -P lib/build-libs.cmake
       - name: Build Debug Runtime
         run: |
-          make configure config=debug
-          make build config=debug
+          cmake --preset debug
+          cmake --build --preset debug
       - name: Test with Debug Runtime
-        run: make test-ci-core config=debug usedebugger=lldb
+        run: |
+          PONY_TEST_DEBUGGER="$(.ci-scripts/test-debugger.sh lldb)"
+          export PONY_TEST_DEBUGGER
+          ctest --preset debug -L ci-core
       - name: Build Release Runtime
         run: |
-          make configure config=release
-          make build config=release
+          cmake --preset release
+          cmake --build --preset release
       - name: Test with Release Runtime
-        run: make test-ci-core config=release usedebugger=lldb
+        run: |
+          PONY_TEST_DEBUGGER="$(.ci-scripts/test-debugger.sh lldb)"
+          export PONY_TEST_DEBUGGER
+          ctest --preset release -L ci-core
       - name: Send alert on failure
         if: ${{ failure() }}
         uses: zulip/github-actions-zulip/send-message@bd8ec52de371d139ae8313661b7d8318c19266aa

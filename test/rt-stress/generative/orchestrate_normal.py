@@ -37,8 +37,8 @@ stress_common.py. resolve_config is pinned in orchestrate_normal_test.py.
 
 The ponyc passed in is a normal debug build (no special use flags):
 
-    make configure config=debug
-    make build config=debug
+    cmake --preset debug
+    cmake --build --preset debug
     python3 test/rt-stress/generative/orchestrate_normal.py \\
       --ponyc build/debug/ponyc --budget-seconds 1800 --out ~/tmp/rt-stress-out
 """
