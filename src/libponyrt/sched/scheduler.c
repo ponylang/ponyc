@@ -491,7 +491,7 @@ static bool read_msg(scheduler_t* sched, pony_actor_t* actor)
     sched->ctx.schedulerstats.mem_allocated_inflight_messages -= POOL_ALLOC_SIZE(pony_msgi_t);
 #endif
 
-    TRACING_THREAD_RECEIVE_MESSAGE(m, m->msg.id, m->i);
+    TRACING_THREAD_RECEIVE_MESSAGE(m, (sched_msg_t)m->msg.id, m->i);
 
     switch(m->msg.id)
     {

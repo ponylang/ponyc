@@ -54,7 +54,8 @@ set(_pony_windows_uses
     pool_retain
     pooltrack
     runtimestats
-    runtimestats_messages)
+    runtimestats_messages
+    runtime_tracing)
 
 # Reset every option off before applying PONY_USES.
 foreach(_use IN LISTS _pony_known_uses)
@@ -79,8 +80,8 @@ foreach(_use IN LISTS _pony_uses)
     # On Windows (MSVC) only the options in _pony_windows_uses build; the rest
     # need POSIX or Clang/GCC toolchain features cl.exe doesn't provide, verified
     # by building each on Windows: pool_memalign needs posix_memalign; the
-    # sanitizers and coverage need -fsanitize=/-fprofile-arcs; runtime_tracing
-    # isn't implemented for Windows; scheduler_scaling_pthreads needs pthreads.
+    # sanitizers and coverage need -fsanitize=/-fprofile-arcs;
+    # scheduler_scaling_pthreads needs pthreads.
     # Reject the unsupported ones here rather than let the build fail partway
     # through with a confusing error. See BUILD.md and
     # .known-couplings/use-option-validation.md.

@@ -67,6 +67,11 @@ jobs:
           - image: ghcr.io/ponylang/ponyc-ci-ubuntu26.04-builder:20260425
             debugger: lldb
             directives: runtime_tracing
+          # runtime_tracing's format specifiers for the runtimestats-gated fields
+          # only compile in this combined build, so cover it explicitly.
+          - image: ghcr.io/ponylang/ponyc-ci-ubuntu26.04-builder:20260425
+            debugger: lldb
+            directives: runtime_tracing,runtimestats
 
     name: use ${{ matrix.directives }}
     container:
@@ -107,6 +112,73 @@ jobs:
           PONY_TEST_DEBUGGER="$(.ci-scripts/test-debugger.sh ${{ matrix.debugger }})"
           export PONY_TEST_DEBUGGER
           ctest --preset x86-64-release -L ci-core
+      - name: Send alert on failure
+        if: ${{ failure() }}
+        uses: zulip/github-actions-zulip/send-message@bd8ec52de371d139ae8313661b7d8318c19266aa
+        with:
+          api-key: ${{ secrets.ZULIP_SCHEDULED_JOB_FAILURE_API_KEY }}
+          email: ${{ secrets.ZULIP_SCHEDULED_JOB_FAILURE_EMAIL }}
+          organization-url: 'https://ponylang.zulipchat.com/'
+          to: notifications
+          type: stream
+          topic: ${{ github.repository }} scheduled job failure
+          content: ${{ github.server_url}}/${{ github.repository }}/actions/runs/${{ github.run_id }} failed.
+
+  # Windows counterpart of the use_directives job above. Windows needs a separate
+  # job: a windows runner and the multi-config Visual Studio generator rather than
+  # the Ubuntu container matrix. It `needs: use_directives` so it runs only after
+  # the Linux directive checks pass -- the slower Windows runner isn't spent on a
+  # directive that's already broken on Linux. That dependency also carries the
+  # no-changes gate for free: when there are no changes use_directives is skipped,
+  # which skips this job too, so it needs no check-for-changes `if` of its own. The
+  # matrix has one entry today (runtime_tracing, the only use= option with
+  # Windows-specific runtime code); add rows as more Windows-supported options
+  # become worth checking here.
+  use_directives_windows:
+    needs: use_directives
+    runs-on: windows-2025-vs2026
+    defaults:
+      run:
+        shell: pwsh
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - directives: runtime_tracing
+          # runtime_tracing's format specifiers for the runtimestats-gated fields
+          # only compile in this combined build, so cover it explicitly.
+          - directives: runtime_tracing,runtimestats
+    name: 'use ${{ matrix.directives }} (Windows)'
+    steps:
+      - name: Disable Windows Defender
+        run: Set-MpPreference -DisableRealtimeMonitoring $true
+      - name: Checkout
+        uses: actions/checkout@v6.0.2
+        with:
+          ref: ${{ inputs.ref || github.sha }}
+      - name: Install Dependencies
+        run: .\.ci-scripts\windows-install-deps.ps1
+      - name: Build libs
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          LIBS_TAG: ${{ hashFiles('lib/CMakePresets.json', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/build-libs.cmake', 'lib/llvm/patches/*') }}
+        run: python .ci-scripts/libs-cache/resolve_libs_cache.py --branch-cache --platform windows-2025-vs2026 --tag "$env:LIBS_TAG" '--' cmake -DPRESET=libs-windows-x86-64 -DTOOLS=false -DJOBS=4 -P lib/build-libs.cmake
+      - name: Configure
+        # Quote the arg: a matrix value with a comma (e.g. runtime_tracing,runtimestats)
+        # is otherwise parsed by pwsh as an array and breaks the command.
+        run: cmake --preset windows-x86-64 "-DPONY_USES=${{ matrix.directives }}"
+      - name: Build Debug Runtime
+        run: cmake --build --preset windows-x86-64-debug
+      - name: Test with Debug Runtime
+        run: |
+          $env:PONY_TEST_DEBUGGER = & .ci-scripts/test-debugger.ps1 lldb
+          ctest --preset windows-x86-64-debug -L ci-core
+      - name: Build Release Runtime
+        run: cmake --build --preset windows-x86-64-release
+      - name: Test with Release Runtime
+        run: |
+          $env:PONY_TEST_DEBUGGER = & .ci-scripts/test-debugger.ps1 lldb
+          ctest --preset windows-x86-64-release -L ci-core
       - name: Send alert on failure
         if: ${{ failure() }}
         uses: zulip/github-actions-zulip/send-message@bd8ec52de371d139ae8313661b7d8318c19266aa

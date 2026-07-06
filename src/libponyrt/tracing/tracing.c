@@ -4,32 +4,40 @@
 
 #if defined(USE_RUNTIME_TRACING)
 
-#include <fnmatch.h>
 #include <inttypes.h>
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
 #include "ponyassert.h"
 #include "../asio/asio.h"
 #include "../sched/cpu.h"
 #include "../sched/scheduler.h"
 #include "../mem/pool.h"
 #include "../actor/actor.h"
-#if defined(__GLIBC__) || defined(PLATFORM_IS_BSD) || defined(ALPINE_LINUX) || defined(PLATFORM_IS_MACOSX)
-#  include <execinfo.h>
+#if defined(PLATFORM_IS_WINDOWS)
+// <Windows.h> is already pulled in by platform.h (with WIN32_LEAN_AND_MEAN, which
+// omits DbgHelp), so DbgHelp must be included explicitly for the stack walk.
+#  include <DbgHelp.h>
+#else
+#  include <fnmatch.h>
+#  include <unistd.h>
+#  if defined(__GLIBC__) || defined(PLATFORM_IS_BSD) || defined(ALPINE_LINUX) || defined(PLATFORM_IS_MACOSX)
+#    include <execinfo.h>
+#  endif
 #endif
 
 #define PONY_TRACING_THREAD_INDEX -998
 #define PONY_TRACING_MAX_STACK_FRAME_DEPTH 256
 
+#if !defined(PLATFORM_IS_WINDOWS)
 #if defined(PLATFORM_IS_BSD) || defined(PLATFORM_IS_MACOSX)
 #define PONY_TRACING_PAUSE_THREAD_SIGNAL SIGINFO
 #define PONY_TRACING_SLEEP_WAKE_SIGNAL SIGUSR2
 #else
 #define PONY_TRACING_PAUSE_THREAD_SIGNAL SIGRTMIN
 #define PONY_TRACING_SLEEP_WAKE_SIGNAL SIGUSR2
+#endif
 #endif
 
 #if defined(PLATFORM_IS_BSD)
@@ -581,7 +589,12 @@ typedef struct tracing_flight_recorder_dump_t
   size_t heap_used;
   size_t gc_rc;
   uint32_t live_asio_events;
+#if defined(PLATFORM_IS_WINDOWS)
+  int signal_number;
+  const char* signal_name;
+#else
   siginfo_t* siginfo;
+#endif
   stack_depth_t num_stack_frames;
   void* stack_frames[PONY_TRACING_MAX_STACK_FRAME_DEPTH];
 } tracing_flight_recorder_dump_t;
@@ -592,6 +605,14 @@ typedef struct tracing_scheduler_t
   scheduler_t* sched;
   uint64_t flight_recorder_event_idx;
   PONY_ATOMIC(pony_msg_t*)* flight_recorder_events;
+#if defined(PLATFORM_IS_WINDOWS)
+  // A real, cross-thread-usable handle to this scheduler's OS thread, captured
+  // when the thread registers. We cannot use `sched->tid`: for the ASIO and
+  // pinned/main threads that is `GetCurrentThread()`, a pseudo-handle that always
+  // resolves to the *calling* thread, so `SuspendThread` on it would freeze the
+  // crashing thread itself instead of the target.
+  HANDLE thread_handle;
+#endif
 } tracing_scheduler_t;
 
 
@@ -600,6 +621,13 @@ static PONY_ATOMIC(bool) handling_flight_recorder_dump;
 static PONY_ATOMIC(bool) flight_recorder_dump_completed;
 static PONY_ATOMIC(bool) tracing_thread_suspended;
 static PONY_ATOMIC(bool) tracing_thread_suspended_check;
+#if defined(PLATFORM_IS_WINDOWS)
+static PONY_ATOMIC(bool) fr_handlers_installed;
+static PVOID fr_veh_handle;
+// QueryPerformanceFrequency is constant for the life of the process; cache it in
+// `ponyint_tracing_init` (single-threaded) rather than querying it per event.
+static uint64_t qpc_frequency;
+#endif
 static uint64_t enabled_categories_bitmask;
 static char* output_format;
 static char* output_file;
@@ -607,7 +635,7 @@ static char* tracing_mode;
 static FILE *log_file;
 static scheduler_t tracing_thread;
 static PONY_ATOMIC(bool) stop_tracing_thread;
-static pid_t pid;
+static int pid;
 static bool force_actor_tracing_enabled;
 static bool flight_recorder_enabled;
 static bool flight_recorder_handle_term_int;
@@ -620,7 +648,17 @@ static __pony_thread_local tracing_scheduler_t* this_tracing_scheduler;
 // TODO: figure out if time source should be something else or configurable
 static uint64_t get_time_nanos()
 {
-#if defined PLATFORM_IS_ARM
+#if defined(PLATFORM_IS_WINDOWS)
+  // The ARM/X86 arms below use `clock_gettime`, which does not exist on Windows.
+  // Use the high-resolution performance counter as the monotonic source and
+  // convert to nanoseconds without overflowing (counter * 1e9 would overflow a
+  // 64-bit integer in well under an hour at typical counter frequencies).
+  LARGE_INTEGER counter;
+  QueryPerformanceCounter(&counter);
+  uint64_t f = qpc_frequency;
+  uint64_t c = (uint64_t)counter.QuadPart;
+  return ((c / f) * 1000000000ULL) + (((c % f) * 1000000000ULL) / f);
+#elif defined PLATFORM_IS_ARM
 # if defined(__APPLE__)
   return clock_gettime_nsec_np(CLOCK_UPTIME_RAW);
 # else
@@ -652,6 +690,7 @@ static uint64_t convert_time_nanos_to_micros(uint64_t nanos)
   return nanos/1000;
 }
 
+#if !defined(PLATFORM_IS_WINDOWS)
 // used to "pause" all scheduler threads if a trap is encountered
 static void pause_threads_signal_handler(int sig, siginfo_t* siginfo, void* context)
 {
@@ -763,6 +802,262 @@ static void flight_recorder_dump_signal_handler(int sig, siginfo_t* siginfo, voi
   }
 }
 
+#else // PLATFORM_IS_WINDOWS
+
+// Windows has no async signal delivery like POSIX. Fatal hardware/OS faults are
+// caught with a process-global vectored exception handler, and abort()/Ctrl+C/
+// terminate are caught with CRT `signal()` handlers. Both funnel into the shared
+// dump routine below, which mirrors the POSIX `flight_recorder_dump_signal_handler`:
+// pause the other scheduler threads (here with `SuspendThread` on the dedicated
+// per-scheduler handles), snapshot the crashing actor's state and a raw backtrace,
+// hand it to the tracing thread, and wait (bounded) for the dump to complete.
+
+// Grab the crashing thread's return addresses here, with `RtlCaptureStackBackTrace`
+// (aka `CaptureStackBackTrace`), which unwinds without touching DbgHelp — so it holds
+// no symbol lock that a SuspendThread-frozen thread could be stuck behind. The
+// addresses are symbolized later, on the tracing thread, which is the only live
+// DbgHelp user during the dump. The capture runs on the faulting thread's own stack
+// (the filter/handler is invoked on it), so the top few frames are exception-dispatch
+// frames rather than the exact fault site; that is an accepted trade for avoiding the
+// DbgHelp deadlock.
+//
+// Two known best-effort limits, both matching the POSIX design: (1) on a genuine
+// stack overflow the capture runs on the already-exhausted stack and may itself
+// fault (POSIX has no sigaltstack either); (2) we `SuspendThread` the other
+// schedulers, then the tracing thread does allocation/stdio/DbgHelp work — if a
+// frozen thread holds a CRT or loader lock the tracing thread needs, it blocks, and
+// the only liveness guarantee is the crashing thread's 15s timeout below, after which
+// it stops waiting and lets the process crash normally.
+// This is recoverable, which matters because the vectored handler can fire
+// first-chance on a fault that foreign code then catches as control flow (see
+// `flight_recorder_exception_filter`). On a genuine crash the process terminates
+// right after, so the suspend-the-world dump is a one-way trip in practice; but
+// on a misfire we must be able to continue. So after the dump we `ResumeThread`
+// the peers we paused and clear the one-shot guard: a misfire costs a stray dump
+// file, not a frozen runtime.
+static void windows_flight_recorder_dump(int signal_number, const char* signal_name)
+{
+  // make sure we only handle the first fault if many get generated in multiple schedulers
+  if(!atomic_exchange_explicit(&handling_flight_recorder_dump, true,
+    memory_order_acquire))
+  {
+    uint64_t crash_ts = get_time_nanos();
+
+    // try to pause all other scheduler threads to ensure no new events get generated
+    for(uint32_t i = 0; i < total_sched_count; i++)
+    {
+      tracing_scheduler_t* t_sched = &tracing_schedulers[i];
+      if(t_sched != this_tracing_scheduler)
+      {
+        if(t_sched->thread_handle != NULL)
+          SuspendThread(t_sched->thread_handle);
+      }
+    }
+
+    flight_recorder_dump_message.msg.id = TRACING_MSG_FLIGHT_RECORDER_DUMP;
+    flight_recorder_dump_message.msg.index = -1;
+    flight_recorder_dump_message.signal_number = signal_number;
+    flight_recorder_dump_message.signal_name = signal_name;
+    flight_recorder_dump_message.ts = crash_ts;
+
+    // On Windows the fault can arrive on a foreign thread (a CRT SIGINT/SIGTERM
+    // handler runs on a fresh thread, and the unhandled-exception filter is
+    // process-global), where `this_tracing_scheduler` is NULL. Fall back to a
+    // dump with no active actor rather than dereferencing NULL.
+    if(this_tracing_scheduler != NULL)
+    {
+      flight_recorder_dump_message.index = this_tracing_scheduler->sched->index;
+      flight_recorder_dump_message.thread_id = this_tracing_scheduler->tid;
+      flight_recorder_dump_message.actor = this_tracing_scheduler->sched->ctx.current;
+      if(this_tracing_scheduler->sched->ctx.current != NULL)
+      {
+        flight_recorder_dump_message.type = this_tracing_scheduler->sched->ctx.current->type;
+        flight_recorder_dump_message.internal_flags = this_tracing_scheduler->sched->ctx.current->internal_flags;
+        flight_recorder_dump_message.sync_flags = atomic_load_explicit(&this_tracing_scheduler->sched->ctx.current->sync_flags, memory_order_relaxed);
+        flight_recorder_dump_message.heap_next_gc = this_tracing_scheduler->sched->ctx.current->heap.next_gc;
+        flight_recorder_dump_message.heap_used = this_tracing_scheduler->sched->ctx.current->heap.used;
+        flight_recorder_dump_message.gc_rc = this_tracing_scheduler->sched->ctx.current->gc.rc;
+        flight_recorder_dump_message.live_asio_events = this_tracing_scheduler->sched->ctx.current->live_asio_events;
+      }
+    } else {
+      flight_recorder_dump_message.index = -1;
+      flight_recorder_dump_message.thread_id = (uint64_t)GetCurrentThreadId();
+      flight_recorder_dump_message.actor = NULL;
+    }
+
+    flight_recorder_dump_message.num_stack_frames = (stack_depth_t)RtlCaptureStackBackTrace(
+      0, PONY_TRACING_MAX_STACK_FRAME_DEPTH, flight_recorder_dump_message.stack_frames, NULL);
+
+    ponyint_thread_messageq_push(&tracing_thread.mq, (pony_msg_t*)(&flight_recorder_dump_message), (pony_msg_t*)(&flight_recorder_dump_message)
+      #ifdef USE_DYNAMIC_TRACE
+          , PONY_TRACING_THREAD_INDEX, PONY_TRACING_THREAD_INDEX
+      #endif
+          );
+
+    // wake the tracing thread to handle the flight recorder dump
+    ponyint_thread_wake(tracing_thread.tid, tracing_thread.sleep_object);
+
+    uint8_t sleep_counter = 0;
+
+    while(!atomic_load_explicit(&flight_recorder_dump_completed, memory_order_relaxed)
+      // only wait 15 seconds for tracing thread flight recorder dump to finish before giving up
+      && (sleep_counter < 15))
+    {
+      // wait for the tracing thread to finish handling the flight recorder dump
+      // before we continue and let the process crash normally
+      Sleep(1000);
+      sleep_counter++;
+
+      // wake the tracing thread to handle the flight recorder dump if necessary
+      if(atomic_load_explicit(&tracing_thread_suspended, memory_order_relaxed))
+        ponyint_thread_wake(tracing_thread.tid, tracing_thread.sleep_object);
+    }
+
+    if(sleep_counter >= 15)
+    {
+      // if we timed out waiting for the flight recorder dump to finish, we
+      // should exit the program immediately. This is a safety measure in case
+      // something went wrong in the tracing thread dump process.
+      fprintf(stderr, "Flight recorder dump timed out.\n Exiting program without waiting for it to complete.\n Signal encountered: %s\n", signal_name);
+      fflush(stderr);
+    }
+
+    // resume the peers we paused. On a genuine crash the process is about to
+    // terminate so this is moot; if the fault gets caught downstream, resuming
+    // (rather than leaving peers suspended) is what keeps the runtime alive.
+    for(uint32_t i = 0; i < total_sched_count; i++)
+    {
+      tracing_scheduler_t* t_sched = &tracing_schedulers[i];
+      if(t_sched != this_tracing_scheduler)
+      {
+        if(t_sched->thread_handle != NULL)
+          ResumeThread(t_sched->thread_handle);
+      }
+    }
+
+    // clear the one-shot flags so a later fault can still dump if we did not die
+    atomic_store_explicit(&flight_recorder_dump_completed, false, memory_order_relaxed);
+    atomic_store_explicit(&handling_flight_recorder_dump, false, memory_order_release);
+  } else {
+    // another thread is already handling a dump; wait (bounded, so a misfiring
+    // fault can't freeze us here either) for it to finish rather than racing it,
+    // then let this fault continue on its own path
+    uint8_t sleep_counter = 0;
+    while(atomic_load_explicit(&handling_flight_recorder_dump, memory_order_relaxed)
+      && (sleep_counter < 15))
+    {
+      Sleep(1000);
+      sleep_counter++;
+    }
+  }
+}
+
+// Returns the name for a fatal structured-exception code, or NULL if `code` is
+// not one we treat as a fatal fault (breakpoints, single-step, guard-page growth,
+// C++ exception SEH codes, etc. are left alone).
+static const char* fatal_exception_code_name(DWORD code)
+{
+  switch(code)
+  {
+    case EXCEPTION_ACCESS_VIOLATION: return "EXCEPTION_ACCESS_VIOLATION";
+    case EXCEPTION_ARRAY_BOUNDS_EXCEEDED: return "EXCEPTION_ARRAY_BOUNDS_EXCEEDED";
+    case EXCEPTION_DATATYPE_MISALIGNMENT: return "EXCEPTION_DATATYPE_MISALIGNMENT";
+    case EXCEPTION_FLT_DENORMAL_OPERAND: return "EXCEPTION_FLT_DENORMAL_OPERAND";
+    case EXCEPTION_FLT_DIVIDE_BY_ZERO: return "EXCEPTION_FLT_DIVIDE_BY_ZERO";
+    case EXCEPTION_FLT_INEXACT_RESULT: return "EXCEPTION_FLT_INEXACT_RESULT";
+    case EXCEPTION_FLT_INVALID_OPERATION: return "EXCEPTION_FLT_INVALID_OPERATION";
+    case EXCEPTION_FLT_OVERFLOW: return "EXCEPTION_FLT_OVERFLOW";
+    case EXCEPTION_FLT_STACK_CHECK: return "EXCEPTION_FLT_STACK_CHECK";
+    case EXCEPTION_FLT_UNDERFLOW: return "EXCEPTION_FLT_UNDERFLOW";
+    case EXCEPTION_ILLEGAL_INSTRUCTION: return "EXCEPTION_ILLEGAL_INSTRUCTION";
+    case EXCEPTION_IN_PAGE_ERROR: return "EXCEPTION_IN_PAGE_ERROR";
+    case EXCEPTION_INT_DIVIDE_BY_ZERO: return "EXCEPTION_INT_DIVIDE_BY_ZERO";
+    case EXCEPTION_INT_OVERFLOW: return "EXCEPTION_INT_OVERFLOW";
+    case EXCEPTION_PRIV_INSTRUCTION: return "EXCEPTION_PRIV_INSTRUCTION";
+    case EXCEPTION_STACK_OVERFLOW: return "EXCEPTION_STACK_OVERFLOW";
+    default: return NULL;
+  }
+}
+
+// Vectored exception handler for fatal hardware/OS faults. We use a vectored
+// handler rather than SetUnhandledExceptionFilter because the OS runs vectored
+// handlers before any frame-based (SEH) handler, whereas the MSVC CRT's thread
+// and main wrappers install a frame-based __except that handles a hardware fault
+// itself and never reaches the process-wide unhandled-exception filter. Vectored
+// handlers fire for every structured exception, so we act only on the fatal codes
+// and leave everything else (breakpoints, C++ exceptions, guard-page growth)
+// untouched.
+//
+// KNOWN LIMITATION: a vectored handler cannot tell a genuinely-fatal fault from
+// one a downstream `__except` will catch as control flow. If FFI'd foreign code
+// deliberately triggers and handles one of these fatal codes (e.g. an access
+// violation used for pointer probing), we still run the dump even though
+// execution would have continued. `windows_flight_recorder_dump` is written to be
+// recoverable precisely so this misfire costs only a stray dump file, not a
+// frozen runtime. This only affects flight_recorder mode and only such
+// foreign-SEH FFI; it is the accepted cost of catching faults the CRT wrappers
+// would otherwise swallow before the unhandled filter.
+static LONG CALLBACK flight_recorder_exception_filter(EXCEPTION_POINTERS* info)
+{
+  DWORD code = info->ExceptionRecord->ExceptionCode;
+  const char* name = fatal_exception_code_name(code);
+
+  if(name != NULL)
+    windows_flight_recorder_dump((int)code, name);
+
+  // never claim the exception: let it continue to the normal termination path so
+  // a crash dump / debugger still gets it, mirroring the POSIX re-raise
+  return EXCEPTION_CONTINUE_SEARCH;
+}
+
+// CRT signal handler for abort()/Ctrl+C/terminate, which do not surface as SEH
+static void flight_recorder_signal_handler(int sig)
+{
+  const char* name = "UNKNOWN";
+  switch(sig)
+  {
+    case SIGABRT: name = "SIGABRT"; break;
+    case SIGINT: name = "SIGINT"; break;
+    case SIGTERM: name = "SIGTERM"; break;
+    default: break;
+  }
+
+  windows_flight_recorder_dump(sig, name);
+
+  // restore the default disposition and re-raise so the process terminates normally
+  signal(sig, SIG_DFL);
+  raise(sig);
+}
+
+// Symbolize one captured return address for the dump. Called only on the tracing
+// thread, the sole live DbgHelp user during a dump. Produces a frame string
+// similar to POSIX `backtrace_symbols`: "(name) [addr]", or "() [addr]" if unresolved.
+// DbgHelp is single-threaded and this shares it, unlocked, with
+// `ponyint_assert_fail` in ponyassert.c — see
+// .known-couplings/dbghelp-shared-by-ponyassert-and-tracing.md before changing how
+// either uses DbgHelp.
+static const char* windows_format_frame(HANDLE process, void* addr, char* out,
+  size_t out_size)
+{
+  union
+  {
+    SYMBOL_INFO sym;
+    BYTE buffer[sizeof(SYMBOL_INFO) + MAX_SYM_NAME];
+  } sym_buf;
+  PSYMBOL_INFO symbol = &sym_buf.sym;
+  symbol->SizeOfStruct = sizeof(SYMBOL_INFO);
+  symbol->MaxNameLen = MAX_SYM_NAME;
+
+  if(SymFromAddr(process, (DWORD64)(uintptr_t)addr, NULL, symbol))
+    snprintf(out, out_size, "(%s) [%p]", symbol->Name, addr);
+  else
+    snprintf(out, out_size, "() [%p]", addr);
+
+  return out;
+}
+
+#endif // PLATFORM_IS_WINDOWS
+
 static void wake_suspended_tracing_thread()
 {
   while(atomic_load_explicit(&tracing_thread_suspended_check, memory_order_relaxed))
@@ -781,18 +1076,26 @@ static void wake_suspended_tracing_thread()
         memory_order_release);
     }
 
+#if defined(PLATFORM_IS_WINDOWS)
+    ponyint_thread_wake(tracing_thread.tid, tracing_thread.sleep_object);
+#else
     pthread_kill(tracing_thread.tid, PONY_TRACING_SLEEP_WAKE_SIGNAL);
+#endif
 
     // wait for the sleeping thread to wake and update check variable
     while(atomic_load_explicit(&tracing_thread_suspended_check, memory_order_relaxed))
     {
-      // send signals to the tracing thread that should be awake
+      // send wakeups to the tracing thread that should be awake
       // this is somewhat wasteful if the tracing thread is already awake
       // but is necessary in case the signal to wake the thread was missed
       // NOTE: this intentionally allows for the case where the tracing
       // thread might miss the signal and not wake up. That is handled
       // by a combination of the check variable and this while loop
+#if defined(PLATFORM_IS_WINDOWS)
+      ponyint_thread_wake(tracing_thread.tid, tracing_thread.sleep_object);
+#else
       pthread_kill(tracing_thread.tid, PONY_TRACING_SLEEP_WAKE_SIGNAL);
+#endif
     }
   }
 }
@@ -817,7 +1120,12 @@ static void perhaps_suspend_tracing_thread()
     atomic_store_explicit(&tracing_suspend_changing, false,
       memory_order_release);
 
-    // suspend and wait for signal to wake up again
+    // suspend and wait to be woken up again
+#if defined(PLATFORM_IS_WINDOWS)
+    // auto-reset Event: a `SetEvent` that arrives before the wait latches, so
+    // (unlike a POSIX signal) a wake cannot be missed and needs no retry
+    ponyint_thread_suspend(tracing_thread.sleep_object);
+#else
     int sig;
     sigset_t sigmask;
     sigemptyset(&sigmask);         /* zero out all bits */
@@ -825,6 +1133,7 @@ static void perhaps_suspend_tracing_thread()
 
     // sleep waiting for signal to wake up again
     sigwait(&sigmask, &sig);
+#endif
 
     // When using signals, need to acquire sched count changing variable
     while (true)
@@ -849,8 +1158,12 @@ static void perhaps_suspend_tracing_thread()
       }
     }
   } else {
-    // unable to get the lock to suspend so sleep for a bit
+    // unable to get the lock to suspend so yield for a bit
+#if defined(PLATFORM_IS_WINDOWS)
+    Sleep(0);
+#else
     sleep(0);
+#endif
   }
 }
 
@@ -1082,7 +1395,9 @@ void ponyint_tracing_thread_start(scheduler_t* sched)
 
   this_tracing_scheduler->sched = sched;
 
-#if defined(PLATFORM_IS_LINUX)
+#if defined(PLATFORM_IS_WINDOWS)
+  this_tracing_scheduler->tid = (uint64_t)GetCurrentThreadId();
+#elif defined(PLATFORM_IS_LINUX)
   this_tracing_scheduler->tid = gettid();
 #else
   pthread_threadid_np(NULL, &this_tracing_scheduler->tid);
@@ -1094,6 +1409,36 @@ void ponyint_tracing_thread_start(scheduler_t* sched)
     this_tracing_scheduler->flight_recorder_events = (PONY_ATOMIC(pony_msg_t*)*)ponyint_pool_alloc_size(sizeof(PONY_ATOMIC(pony_msg_t*)) * flight_recorder_max_events);
     memset(this_tracing_scheduler->flight_recorder_events, 0, sizeof(PONY_ATOMIC(pony_msg_t*)) * flight_recorder_max_events);
 
+#if defined(PLATFORM_IS_WINDOWS)
+    // Capture a real, cross-thread-usable handle to this thread so the dump
+    // routine can `SuspendThread` it. Must be done here, on the thread itself,
+    // via its numeric id (see the `thread_handle` field comment for why
+    // `sched->tid` cannot be used).
+    this_tracing_scheduler->thread_handle = OpenThread(THREAD_SUSPEND_RESUME,
+      FALSE, GetCurrentThreadId());
+
+    // The fault handlers are process-global on Windows, so install them exactly
+    // once rather than per scheduler thread.
+    if(!atomic_exchange_explicit(&fr_handlers_installed, true,
+      memory_order_acq_rel))
+    {
+      // hardware/OS faults (access violation, illegal instruction, FP/integer
+      // errors, misalignment, in-page error, ...) surface as structured
+      // exceptions, caught by a process-global vectored exception handler
+      fr_veh_handle = AddVectoredExceptionHandler(1, flight_recorder_exception_filter);
+
+      // abort() (including pony assertion failures) surfaces as SIGABRT, which
+      // is delivered through the CRT, not as a structured exception
+      signal(SIGABRT, flight_recorder_signal_handler);
+
+      // only trap SIGINT/SIGTERM if requested (might be useful for things like CI and manual testing)
+      if(flight_recorder_handle_term_int)
+      {
+        signal(SIGINT, flight_recorder_signal_handler);
+        signal(SIGTERM, flight_recorder_signal_handler);
+      }
+    }
+#else
     // linux specific: but probably not harmful on other platforms
     // call `backtrace` to load `libgcc` so that we can use it in the signal handler safely
     // per the `backtrace` man page:
@@ -1135,6 +1480,7 @@ void ponyint_tracing_thread_start(scheduler_t* sched)
       sigaction(SIGINT, &fr_action, NULL);
       sigaction(SIGTERM, &fr_action, NULL);
     }
+#endif
   }
 
   if(!tracing_category_enabled(TRACING_CATEGORY_SCHEDULER))
@@ -2018,7 +2364,7 @@ static void handle_message(pony_msg_t* msg)
       fprintf(log_file, ",\n{\"name\":\"thread_stop\",\"ts\":%" PRIu64 ",\"cat\":\"%s\",\"ph\":\"%s\",\"pid\":%d,\"tid\":%" PRIu64 ",\"s\":\"%s\",\"args\":{\"index\":%d}}", convert_time_nanos_to_micros(m->ts), get_tracing_category_string(TRACING_CATEGORY_SCHEDULER), get_tracing_event_string(TRACING_EVENT_INSTANT), pid, m->thread_id, get_tracing_event_instant_scope_string(TRACING_EVENT_INSTANT_SCOPE_THREAD), m->index);
 
 #if defined(USE_RUNTIMESTATS)
-      fprintf(log_file, ",\n{\"name\":\"SCHEDULER\",\"ts\":%" PRIu64 ",\"cat\":\"scheduler stats\",\"ph\":\"%s\",\"pid\":%d,\"tid\":%" PRIu64 ",\"id\":\"%d\",\"args\":{\"total_memory_allocated\":%" PRIu64 ",\"total_memory_used\":%" PRIu64 ",\"created_actors_counter\":%lu,\"destroyed_actors_counter\":%lu,\"actors_app_cpu\":%lu,\"actors_gc_marking_cpu\":%lu,\"actors_gc_sweeping_cpu\":%lu,\"actors_system_cpu\":%lu,\"scheduler_msgs_cpu\":%lu,\"scheduler_misc_cpu\":%lu,\"memory_used_inflight_messages\":%" PRIu64 ",\"memory_allocated_inflight_messages\":%" PRIu64 ",\"number_of_inflight_messages\":%" PRIu64 "}}", convert_time_nanos_to_micros(m->ts), get_tracing_event_string(TRACING_EVENT_COUNTER), pid, m->thread_id, m->index,
+      fprintf(log_file, ",\n{\"name\":\"SCHEDULER\",\"ts\":%" PRIu64 ",\"cat\":\"scheduler stats\",\"ph\":\"%s\",\"pid\":%d,\"tid\":%" PRIu64 ",\"id\":\"%d\",\"args\":{\"total_memory_allocated\":%" PRIu64 ",\"total_memory_used\":%" PRIu64 ",\"created_actors_counter\":%zu,\"destroyed_actors_counter\":%zu,\"actors_app_cpu\":%zu,\"actors_gc_marking_cpu\":%zu,\"actors_gc_sweeping_cpu\":%zu,\"actors_system_cpu\":%zu,\"scheduler_msgs_cpu\":%zu,\"scheduler_misc_cpu\":%zu,\"memory_used_inflight_messages\":%" PRIu64 ",\"memory_allocated_inflight_messages\":%" PRIu64 ",\"number_of_inflight_messages\":%" PRIu64 "}}", convert_time_nanos_to_micros(m->ts), get_tracing_event_string(TRACING_EVENT_COUNTER), pid, m->thread_id, m->index,
         m->schedulerstats.mem_used + m->schedulerstats.mem_used_actors,
         m->schedulerstats.mem_allocated + m->schedulerstats.mem_allocated_actors,
         m->schedulerstats.created_actors_counter,
@@ -2055,7 +2401,7 @@ static void handle_message(pony_msg_t* msg)
       fprintf(log_file, ",\n{\"name\":\"thread_resume\",\"ts\":%" PRIu64 ",\"cat\":\"%s\",\"ph\":\"%s\",\"pid\":%d,\"tid\":%" PRIu64 ",\"s\":\"%s\",\"args\":{\"index\":%d}}", convert_time_nanos_to_micros(m->ts), get_tracing_category_string(TRACING_CATEGORY_SCHEDULER), get_tracing_event_string(TRACING_EVENT_INSTANT), pid, m->thread_id, get_tracing_event_instant_scope_string(TRACING_EVENT_INSTANT_SCOPE_THREAD), m->index);
 
       #if defined(USE_RUNTIMESTATS)
-      fprintf(log_file, ",\n{\"name\":\"SCHEDULER\",\"ts\":%" PRIu64 ",\"cat\":\"scheduler stats\",\"ph\":\"%s\",\"pid\":%d,\"tid\":%" PRIu64 ",\"id\":\"%d\",\"args\":{\"total_memory_allocated\":%" PRIu64 ",\"total_memory_used\":%" PRIu64 ",\"created_actors_counter\":%lu,\"destroyed_actors_counter\":%lu,\"actors_app_cpu\":%lu,\"actors_gc_marking_cpu\":%lu,\"actors_gc_sweeping_cpu\":%lu,\"actors_system_cpu\":%lu,\"scheduler_msgs_cpu\":%lu,\"scheduler_misc_cpu\":%lu,\"memory_used_inflight_messages\":%" PRIu64 ",\"memory_allocated_inflight_messages\":%" PRIu64 ",\"number_of_inflight_messages\":%" PRIu64 "}}", convert_time_nanos_to_micros(m->ts), get_tracing_event_string(TRACING_EVENT_COUNTER), pid, m->thread_id, m->index,
+      fprintf(log_file, ",\n{\"name\":\"SCHEDULER\",\"ts\":%" PRIu64 ",\"cat\":\"scheduler stats\",\"ph\":\"%s\",\"pid\":%d,\"tid\":%" PRIu64 ",\"id\":\"%d\",\"args\":{\"total_memory_allocated\":%" PRIu64 ",\"total_memory_used\":%" PRIu64 ",\"created_actors_counter\":%zu,\"destroyed_actors_counter\":%zu,\"actors_app_cpu\":%zu,\"actors_gc_marking_cpu\":%zu,\"actors_gc_sweeping_cpu\":%zu,\"actors_system_cpu\":%zu,\"scheduler_msgs_cpu\":%zu,\"scheduler_misc_cpu\":%zu,\"memory_used_inflight_messages\":%" PRIu64 ",\"memory_allocated_inflight_messages\":%" PRIu64 ",\"number_of_inflight_messages\":%" PRIu64 "}}", convert_time_nanos_to_micros(m->ts), get_tracing_event_string(TRACING_EVENT_COUNTER), pid, m->thread_id, m->index,
         m->schedulerstats.mem_used + m->schedulerstats.mem_used_actors,
         m->schedulerstats.mem_allocated + m->schedulerstats.mem_allocated_actors,
         m->schedulerstats.created_actors_counter,
@@ -2083,13 +2429,13 @@ static void handle_message(pony_msg_t* msg)
     case TRACING_MSG_THREAD_RECEIVE_MESSAGE:
     {
       tracing_thread_receive_message_t* m = (tracing_thread_receive_message_t*)msg;
-      fprintf(log_file, ",\n{\"name\":\"RECEIVE:%s\",\"ts\":%" PRIu64 ",\"cat\":\"%s\",\"ph\":\"%s\",\"pid\":%d,\"tid\":%" PRIu64 ",\"s\":\"%s\",\"args\":{\"arg\":%ld,\"index\":%d,\"msg_id\":\"%p\"}}", get_scheduler_message_type_string(m->msg_type), convert_time_nanos_to_micros(m->ts), get_tracing_category_string(TRACING_CATEGORY_SCHEDULER_MESSAGING), get_tracing_event_string(TRACING_EVENT_INSTANT), pid, m->thread_id, get_tracing_event_instant_scope_string(TRACING_EVENT_INSTANT_SCOPE_THREAD), m->arg, m->index, m->msg_id);
+      fprintf(log_file, ",\n{\"name\":\"RECEIVE:%s\",\"ts\":%" PRIu64 ",\"cat\":\"%s\",\"ph\":\"%s\",\"pid\":%d,\"tid\":%" PRIu64 ",\"s\":\"%s\",\"args\":{\"arg\":%" PRIdPTR ",\"index\":%d,\"msg_id\":\"%p\"}}", get_scheduler_message_type_string(m->msg_type), convert_time_nanos_to_micros(m->ts), get_tracing_category_string(TRACING_CATEGORY_SCHEDULER_MESSAGING), get_tracing_event_string(TRACING_EVENT_INSTANT), pid, m->thread_id, get_tracing_event_instant_scope_string(TRACING_EVENT_INSTANT_SCOPE_THREAD), m->arg, m->index, m->msg_id);
       break;
     }
     case TRACING_MSG_THREAD_SEND_MESSAGE:
     {
       tracing_thread_send_message_t* m = (tracing_thread_send_message_t*)msg;
-      fprintf(log_file, ",\n{\"name\":\"SEND:%s\",\"ts\":%" PRIu64 ",\"cat\":\"%s\",\"ph\":\"%s\",\"pid\":%d,\"tid\":%" PRIu64 ",\"s\":\"%s\",\"args\":{\"arg\":%ld,\"index\":%d,\"to_index\":%d,\"msg_id\":\"%p\"}}", get_scheduler_message_type_string(m->msg_type), convert_time_nanos_to_micros(m->ts), get_tracing_category_string(TRACING_CATEGORY_SCHEDULER_MESSAGING), get_tracing_event_string(TRACING_EVENT_INSTANT), pid, m->thread_id, get_tracing_event_instant_scope_string(TRACING_EVENT_INSTANT_SCOPE_THREAD), m->arg, m->index, m->to_sched_index, m->msg_id);
+      fprintf(log_file, ",\n{\"name\":\"SEND:%s\",\"ts\":%" PRIu64 ",\"cat\":\"%s\",\"ph\":\"%s\",\"pid\":%d,\"tid\":%" PRIu64 ",\"s\":\"%s\",\"args\":{\"arg\":%" PRIdPTR ",\"index\":%d,\"to_index\":%d,\"msg_id\":\"%p\"}}", get_scheduler_message_type_string(m->msg_type), convert_time_nanos_to_micros(m->ts), get_tracing_category_string(TRACING_CATEGORY_SCHEDULER_MESSAGING), get_tracing_event_string(TRACING_EVENT_INSTANT), pid, m->thread_id, get_tracing_event_instant_scope_string(TRACING_EVENT_INSTANT_SCOPE_THREAD), m->arg, m->index, m->to_sched_index, m->msg_id);
       break;
     }
     case TRACING_MSG_ACTOR_CREATED:
@@ -2112,7 +2458,7 @@ static void handle_message(pony_msg_t* msg)
     case TRACING_MSG_ACTOR_DESTROYED:
     {
       tracing_actor_destroyed_t* m = (tracing_actor_destroyed_t*)msg;
-      fprintf(log_file, ",\n{\"name\":\"%s destroyed\",\"ts\":%" PRIu64 ",\"cat\":\"ACTOR: %s\",\"ph\":\"%s\",\"pid\":%d,\"tid\":%" PRIu64 ",\"id\":\"%p\",\"args\":{\"id\":\"%p\",\"type_id\":%u,\"type_name\":\"%s\",\"reason\":\"%s\",\"blocked\":%s,\"blocked_sent\":%s,\"system\":%s,\"unscheduled\":%s,\"cd_contacted\":%s,\"rc_over_zero_seen\":%s,\"pinned\":%s,\"pending_destroy\":%s,\"overloaded\":%s,\"under_pressure\":%s,\"muted\":%s,\"heap_next_gc\":%lu,\"heap_used\":%lu,\"gc_rc\":%lu,\"live_asio_events\":%u}}", m->type->name, convert_time_nanos_to_micros(m->ts), m->type->name, get_tracing_event_string(TRACING_EVENT_ASYNC_INSTANT), pid, m->thread_id, m->actor, m->actor, m->type->id, m->type->name, get_actor_destroyed_reason_string(m->reason),
+      fprintf(log_file, ",\n{\"name\":\"%s destroyed\",\"ts\":%" PRIu64 ",\"cat\":\"ACTOR: %s\",\"ph\":\"%s\",\"pid\":%d,\"tid\":%" PRIu64 ",\"id\":\"%p\",\"args\":{\"id\":\"%p\",\"type_id\":%u,\"type_name\":\"%s\",\"reason\":\"%s\",\"blocked\":%s,\"blocked_sent\":%s,\"system\":%s,\"unscheduled\":%s,\"cd_contacted\":%s,\"rc_over_zero_seen\":%s,\"pinned\":%s,\"pending_destroy\":%s,\"overloaded\":%s,\"under_pressure\":%s,\"muted\":%s,\"heap_next_gc\":%zu,\"heap_used\":%zu,\"gc_rc\":%zu,\"live_asio_events\":%u}}", m->type->name, convert_time_nanos_to_micros(m->ts), m->type->name, get_tracing_event_string(TRACING_EVENT_ASYNC_INSTANT), pid, m->thread_id, m->actor, m->actor, m->type->id, m->type->name, get_actor_destroyed_reason_string(m->reason),
         m->internal_flags & ACTOR_FLAG_BLOCKED ? "true" : "false",
         m->internal_flags & ACTOR_FLAG_BLOCKED_SENT ? "true" : "false",
         m->internal_flags & ACTOR_FLAG_SYSTEM ? "true" : "false",
@@ -2130,7 +2476,7 @@ static void handle_message(pony_msg_t* msg)
         m->live_asio_events);
 
 #if defined(USE_RUNTIMESTATS)
-      fprintf(log_file, ",\n{\"name\":\"ACTOR: %s\",\"ts\":%" PRIu64 ",\"cat\":\"ACTOR: %s stats\",\"ph\":\"%s\",\"pid\":%d,\"tid\":%" PRIu64 ",\"id\":\"%p\",\"args\":{\"heap_next_gc\":%lu,\"heap_used\":%lu,\"gc_rc\":%lu,\"heap_memory_allocated\":%ld,\"heap_memory_used\":%ld,\"heap_num_allocated\":%ld,\"heap_realloc_counter\":%ld,\"heap_alloc_counter\":%ld,\"heap_free_counter\":%ld,\"heap_gc_counter\":%ld,\"system_cpu\":%ld,\"app_cpu\":%ld,\"garbage_collection_marking_cpu\":%ld,\"garbage_collection_sweeping_cpu\":%ld,\"messages_sent_counter\":%ld,\"system_messages_processed_counter\":%ld,\"app_messages_processed_counter\":%ld}}", m->type->name, convert_time_nanos_to_micros(m->ts), m->type->name, get_tracing_event_string(TRACING_EVENT_COUNTER), pid, m->thread_id, m->actor,
+      fprintf(log_file, ",\n{\"name\":\"ACTOR: %s\",\"ts\":%" PRIu64 ",\"cat\":\"ACTOR: %s stats\",\"ph\":\"%s\",\"pid\":%d,\"tid\":%" PRIu64 ",\"id\":\"%p\",\"args\":{\"heap_next_gc\":%zu,\"heap_used\":%zu,\"gc_rc\":%zu,\"heap_memory_allocated\":%zu,\"heap_memory_used\":%zu,\"heap_num_allocated\":%zu,\"heap_realloc_counter\":%zu,\"heap_alloc_counter\":%zu,\"heap_free_counter\":%zu,\"heap_gc_counter\":%zu,\"system_cpu\":%zu,\"app_cpu\":%zu,\"garbage_collection_marking_cpu\":%zu,\"garbage_collection_sweeping_cpu\":%zu,\"messages_sent_counter\":%zu,\"system_messages_processed_counter\":%zu,\"app_messages_processed_counter\":%zu}}", m->type->name, convert_time_nanos_to_micros(m->ts), m->type->name, get_tracing_event_string(TRACING_EVENT_COUNTER), pid, m->thread_id, m->actor,
         m->heap_next_gc,
         m->heap_used,
         m->gc_rc,
@@ -2149,7 +2495,7 @@ static void handle_message(pony_msg_t* msg)
         m->actorstats.system_messages_processed_counter,
         m->actorstats.app_messages_processed_counter);
 #else
-      fprintf(log_file, ",\n{\"name\":\"ACTOR: %s\",\"ts\":%" PRIu64 ",\"cat\":\"ACTOR: %s stats\",\"ph\":\"%s\",\"pid\":%d,\"tid\":%" PRIu64 ",\"id\":\"%p\",\"args\":{\"heap_next_gc\":%lu,\"heap_used\":%lu,\"gc_rc\":%lu}}", m->type->name, convert_time_nanos_to_micros(m->ts), m->type->name, get_tracing_event_string(TRACING_EVENT_COUNTER), pid, m->thread_id, m->actor,
+      fprintf(log_file, ",\n{\"name\":\"ACTOR: %s\",\"ts\":%" PRIu64 ",\"cat\":\"ACTOR: %s stats\",\"ph\":\"%s\",\"pid\":%d,\"tid\":%" PRIu64 ",\"id\":\"%p\",\"args\":{\"heap_next_gc\":%zu,\"heap_used\":%zu,\"gc_rc\":%zu}}", m->type->name, convert_time_nanos_to_micros(m->ts), m->type->name, get_tracing_event_string(TRACING_EVENT_COUNTER), pid, m->thread_id, m->actor,
         m->heap_next_gc,
         m->heap_used,
         m->gc_rc);
@@ -2191,7 +2537,7 @@ static void handle_message(pony_msg_t* msg)
     case TRACING_MSG_ACTOR_RUN_STOP:
     {
       tracing_actor_run_stop_t* m = (tracing_actor_run_stop_t*)msg;
-      fprintf(log_file, ",\n{\"name\":\"actor_run\",\"ts\":%" PRIu64 ",\"cat\":\"ACTOR: %s\",\"ph\":\"%s\",\"pid\":%d,\"tid\":%" PRIu64 ",\"id\":\"%p\",\"args\":{\"id\":\"%p\",\"type_id\":%u,\"type_name\":\"%s\",\"blocked\":%s,\"blocked_sent\":%s,\"system\":%s,\"unscheduled\":%s,\"cd_contacted\":%s,\"rc_over_zero_seen\":%s,\"pinned\":%s,\"pending_destroy\":%s,\"overloaded\":%s,\"under_pressure\":%s,\"muted\":%s,\"heap_next_gc\":%lu,\"heap_used\":%lu,\"gc_rc\":%lu,\"live_asio_events\":%u}}", convert_time_nanos_to_micros(m->ts), m->type->name, get_tracing_event_string(TRACING_EVENT_ASYNC_END), pid, m->thread_id, m->actor, m->actor, m->type->id, m->type->name,
+      fprintf(log_file, ",\n{\"name\":\"actor_run\",\"ts\":%" PRIu64 ",\"cat\":\"ACTOR: %s\",\"ph\":\"%s\",\"pid\":%d,\"tid\":%" PRIu64 ",\"id\":\"%p\",\"args\":{\"id\":\"%p\",\"type_id\":%u,\"type_name\":\"%s\",\"blocked\":%s,\"blocked_sent\":%s,\"system\":%s,\"unscheduled\":%s,\"cd_contacted\":%s,\"rc_over_zero_seen\":%s,\"pinned\":%s,\"pending_destroy\":%s,\"overloaded\":%s,\"under_pressure\":%s,\"muted\":%s,\"heap_next_gc\":%zu,\"heap_used\":%zu,\"gc_rc\":%zu,\"live_asio_events\":%u}}", convert_time_nanos_to_micros(m->ts), m->type->name, get_tracing_event_string(TRACING_EVENT_ASYNC_END), pid, m->thread_id, m->actor, m->actor, m->type->id, m->type->name,
         m->internal_flags & ACTOR_FLAG_BLOCKED ? "true" : "false",
         m->internal_flags & ACTOR_FLAG_BLOCKED_SENT ? "true" : "false",
         m->internal_flags & ACTOR_FLAG_SYSTEM ? "true" : "false",
@@ -2208,7 +2554,7 @@ static void handle_message(pony_msg_t* msg)
         m->gc_rc,
         m->live_asio_events);
 
-      fprintf(log_file, ",\n{\"name\":\"actor\",\"ts\":%" PRIu64 ",\"cat\":\"%s\",\"ph\":\"%s\",\"pid\":%d,\"tid\":%" PRIu64 ",\"id\":\"%p\",\"args\":{\"id\":\"%p\",\"type_id\":%u,\"type_name\":\"%s\",\"blocked\":%s,\"blocked_sent\":%s,\"system\":%s,\"unscheduled\":%s,\"cd_contacted\":%s,\"rc_over_zero_seen\":%s,\"pinned\":%s,\"pending_destroy\":%s,\"overloaded\":%s,\"under_pressure\":%s,\"muted\":%s,\"heap_next_gc\":%lu,\"heap_used\":%lu,\"gc_rc\":%lu,\"live_asio_events\":%u}}", convert_time_nanos_to_micros(m->ts), get_tracing_category_string(TRACING_CATEGORY_ACTOR), get_tracing_event_string(TRACING_EVENT_CONTEXT_LEAVE), pid, m->thread_id, m->actor, m->actor, m->type->id, m->type->name,
+      fprintf(log_file, ",\n{\"name\":\"actor\",\"ts\":%" PRIu64 ",\"cat\":\"%s\",\"ph\":\"%s\",\"pid\":%d,\"tid\":%" PRIu64 ",\"id\":\"%p\",\"args\":{\"id\":\"%p\",\"type_id\":%u,\"type_name\":\"%s\",\"blocked\":%s,\"blocked_sent\":%s,\"system\":%s,\"unscheduled\":%s,\"cd_contacted\":%s,\"rc_over_zero_seen\":%s,\"pinned\":%s,\"pending_destroy\":%s,\"overloaded\":%s,\"under_pressure\":%s,\"muted\":%s,\"heap_next_gc\":%zu,\"heap_used\":%zu,\"gc_rc\":%zu,\"live_asio_events\":%u}}", convert_time_nanos_to_micros(m->ts), get_tracing_category_string(TRACING_CATEGORY_ACTOR), get_tracing_event_string(TRACING_EVENT_CONTEXT_LEAVE), pid, m->thread_id, m->actor, m->actor, m->type->id, m->type->name,
         m->internal_flags & ACTOR_FLAG_BLOCKED ? "true" : "false",
         m->internal_flags & ACTOR_FLAG_BLOCKED_SENT ? "true" : "false",
         m->internal_flags & ACTOR_FLAG_SYSTEM ? "true" : "false",
@@ -2226,7 +2572,7 @@ static void handle_message(pony_msg_t* msg)
         m->live_asio_events);
 
 #if defined(USE_RUNTIMESTATS)
-      fprintf(log_file, ",\n{\"name\":\"ACTOR: %s\",\"ts\":%" PRIu64 ",\"cat\":\"ACTOR: %s stats\",\"ph\":\"%s\",\"pid\":%d,\"tid\":%" PRIu64 ",\"id\":\"%p\",\"args\":{\"heap_next_gc\":%lu,\"heap_used\":%lu,\"gc_rc\":%lu,\"heap_memory_allocated\":%ld,\"heap_memory_used\":%ld,\"heap_num_allocated\":%ld,\"heap_realloc_counter\":%ld,\"heap_alloc_counter\":%ld,\"heap_free_counter\":%ld,\"heap_gc_counter\":%ld,\"system_cpu\":%ld,\"app_cpu\":%ld,\"garbage_collection_marking_cpu\":%ld,\"garbage_collection_sweeping_cpu\":%ld,\"messages_sent_counter\":%ld,\"system_messages_processed_counter\":%ld,\"app_messages_processed_counter\":%ld}}", m->type->name, convert_time_nanos_to_micros(m->ts), m->type->name, get_tracing_event_string(TRACING_EVENT_COUNTER), pid, m->thread_id, m->actor,
+      fprintf(log_file, ",\n{\"name\":\"ACTOR: %s\",\"ts\":%" PRIu64 ",\"cat\":\"ACTOR: %s stats\",\"ph\":\"%s\",\"pid\":%d,\"tid\":%" PRIu64 ",\"id\":\"%p\",\"args\":{\"heap_next_gc\":%zu,\"heap_used\":%zu,\"gc_rc\":%zu,\"heap_memory_allocated\":%zu,\"heap_memory_used\":%zu,\"heap_num_allocated\":%zu,\"heap_realloc_counter\":%zu,\"heap_alloc_counter\":%zu,\"heap_free_counter\":%zu,\"heap_gc_counter\":%zu,\"system_cpu\":%zu,\"app_cpu\":%zu,\"garbage_collection_marking_cpu\":%zu,\"garbage_collection_sweeping_cpu\":%zu,\"messages_sent_counter\":%zu,\"system_messages_processed_counter\":%zu,\"app_messages_processed_counter\":%zu}}", m->type->name, convert_time_nanos_to_micros(m->ts), m->type->name, get_tracing_event_string(TRACING_EVENT_COUNTER), pid, m->thread_id, m->actor,
         m->heap_next_gc,
         m->heap_used,
         m->gc_rc,
@@ -2245,7 +2591,7 @@ static void handle_message(pony_msg_t* msg)
         m->actorstats.system_messages_processed_counter,
         m->actorstats.app_messages_processed_counter);
 #else
-      fprintf(log_file, ",\n{\"name\":\"ACTOR: %s\",\"ts\":%" PRIu64 ",\"cat\":\"ACTOR: %s stats\",\"ph\":\"%s\",\"pid\":%d,\"tid\":%" PRIu64 ",\"id\":\"%p\",\"args\":{\"heap_next_gc\":%lu,\"heap_used\":%lu,\"gc_rc\":%lu}}", m->type->name, convert_time_nanos_to_micros(m->ts), m->type->name, get_tracing_event_string(TRACING_EVENT_COUNTER), pid, m->thread_id, m->actor,
+      fprintf(log_file, ",\n{\"name\":\"ACTOR: %s\",\"ts\":%" PRIu64 ",\"cat\":\"ACTOR: %s stats\",\"ph\":\"%s\",\"pid\":%d,\"tid\":%" PRIu64 ",\"id\":\"%p\",\"args\":{\"heap_next_gc\":%zu,\"heap_used\":%zu,\"gc_rc\":%zu}}", m->type->name, convert_time_nanos_to_micros(m->ts), m->type->name, get_tracing_event_string(TRACING_EVENT_COUNTER), pid, m->thread_id, m->actor,
         m->heap_next_gc,
         m->heap_used,
         m->gc_rc);
@@ -2514,7 +2860,7 @@ static void handle_message(pony_msg_t* msg)
     case TRACING_MSG_ACTOR_TRACING_ENABLED:
     {
       tracing_actor_destroyed_t* m = (tracing_actor_destroyed_t*)msg;
-      fprintf(log_file, ",\n{\"name\":\"%s tracing enabled\",\"ts\":%" PRIu64 ",\"cat\":\"ACTOR: %s\",\"ph\":\"%s\",\"pid\":%d,\"tid\":%" PRIu64 ",\"id\":\"%p\",\"args\":{\"id\":\"%p\",\"type_id\":%u,\"type_name\":\"%s\",\"blocked\":%s,\"blocked_sent\":%s,\"system\":%s,\"unscheduled\":%s,\"cd_contacted\":%s,\"rc_over_zero_seen\":%s,\"pinned\":%s,\"pending_destroy\":%s,\"overloaded\":%s,\"under_pressure\":%s,\"muted\":%s,\"heap_next_gc\":%lu,\"heap_used\":%lu,\"gc_rc\":%lu,\"live_asio_events\":%u}}", m->type->name, convert_time_nanos_to_micros(m->ts), m->type->name, get_tracing_event_string(TRACING_EVENT_ASYNC_INSTANT), pid, m->thread_id, m->actor, m->actor, m->type->id, m->type->name,
+      fprintf(log_file, ",\n{\"name\":\"%s tracing enabled\",\"ts\":%" PRIu64 ",\"cat\":\"ACTOR: %s\",\"ph\":\"%s\",\"pid\":%d,\"tid\":%" PRIu64 ",\"id\":\"%p\",\"args\":{\"id\":\"%p\",\"type_id\":%u,\"type_name\":\"%s\",\"blocked\":%s,\"blocked_sent\":%s,\"system\":%s,\"unscheduled\":%s,\"cd_contacted\":%s,\"rc_over_zero_seen\":%s,\"pinned\":%s,\"pending_destroy\":%s,\"overloaded\":%s,\"under_pressure\":%s,\"muted\":%s,\"heap_next_gc\":%zu,\"heap_used\":%zu,\"gc_rc\":%zu,\"live_asio_events\":%u}}", m->type->name, convert_time_nanos_to_micros(m->ts), m->type->name, get_tracing_event_string(TRACING_EVENT_ASYNC_INSTANT), pid, m->thread_id, m->actor, m->actor, m->type->id, m->type->name,
         m->internal_flags & ACTOR_FLAG_BLOCKED ? "true" : "false",
         m->internal_flags & ACTOR_FLAG_BLOCKED_SENT ? "true" : "false",
         m->internal_flags & ACTOR_FLAG_SYSTEM ? "true" : "false",
@@ -2532,7 +2878,7 @@ static void handle_message(pony_msg_t* msg)
         m->live_asio_events);
 
 #if defined(USE_RUNTIMESTATS)
-      fprintf(log_file, ",\n{\"name\":\"ACTOR: %s\",\"ts\":%" PRIu64 ",\"cat\":\"ACTOR: %s stats\",\"ph\":\"%s\",\"pid\":%d,\"tid\":%" PRIu64 ",\"id\":\"%p\",\"args\":{\"heap_next_gc\":%lu,\"heap_used\":%lu,\"gc_rc\":%lu,\"heap_memory_allocated\":%ld,\"heap_memory_used\":%ld,\"heap_num_allocated\":%ld,\"heap_realloc_counter\":%ld,\"heap_alloc_counter\":%ld,\"heap_free_counter\":%ld,\"heap_gc_counter\":%ld,\"system_cpu\":%ld,\"app_cpu\":%ld,\"garbage_collection_marking_cpu\":%ld,\"garbage_collection_sweeping_cpu\":%ld,\"messages_sent_counter\":%ld,\"system_messages_processed_counter\":%ld,\"app_messages_processed_counter\":%ld}}", m->type->name, convert_time_nanos_to_micros(m->ts), m->type->name, get_tracing_event_string(TRACING_EVENT_COUNTER), pid, m->thread_id, m->actor,
+      fprintf(log_file, ",\n{\"name\":\"ACTOR: %s\",\"ts\":%" PRIu64 ",\"cat\":\"ACTOR: %s stats\",\"ph\":\"%s\",\"pid\":%d,\"tid\":%" PRIu64 ",\"id\":\"%p\",\"args\":{\"heap_next_gc\":%zu,\"heap_used\":%zu,\"gc_rc\":%zu,\"heap_memory_allocated\":%zu,\"heap_memory_used\":%zu,\"heap_num_allocated\":%zu,\"heap_realloc_counter\":%zu,\"heap_alloc_counter\":%zu,\"heap_free_counter\":%zu,\"heap_gc_counter\":%zu,\"system_cpu\":%zu,\"app_cpu\":%zu,\"garbage_collection_marking_cpu\":%zu,\"garbage_collection_sweeping_cpu\":%zu,\"messages_sent_counter\":%zu,\"system_messages_processed_counter\":%zu,\"app_messages_processed_counter\":%zu}}", m->type->name, convert_time_nanos_to_micros(m->ts), m->type->name, get_tracing_event_string(TRACING_EVENT_COUNTER), pid, m->thread_id, m->actor,
         m->heap_next_gc,
         m->heap_used,
         m->gc_rc,
@@ -2551,7 +2897,7 @@ static void handle_message(pony_msg_t* msg)
         m->actorstats.system_messages_processed_counter,
         m->actorstats.app_messages_processed_counter);
 #else
-      fprintf(log_file, ",\n{\"name\":\"ACTOR: %s\",\"ts\":%" PRIu64 ",\"cat\":\"ACTOR: %s stats\",\"ph\":\"%s\",\"pid\":%d,\"tid\":%" PRIu64 ",\"id\":\"%p\",\"args\":{\"heap_next_gc\":%lu,\"heap_used\":%lu,\"gc_rc\":%lu}}", m->type->name, convert_time_nanos_to_micros(m->ts), m->type->name, get_tracing_event_string(TRACING_EVENT_COUNTER), pid, m->thread_id, m->actor,
+      fprintf(log_file, ",\n{\"name\":\"ACTOR: %s\",\"ts\":%" PRIu64 ",\"cat\":\"ACTOR: %s stats\",\"ph\":\"%s\",\"pid\":%d,\"tid\":%" PRIu64 ",\"id\":\"%p\",\"args\":{\"heap_next_gc\":%zu,\"heap_used\":%zu,\"gc_rc\":%zu}}", m->type->name, convert_time_nanos_to_micros(m->ts), m->type->name, get_tracing_event_string(TRACING_EVENT_COUNTER), pid, m->thread_id, m->actor,
         m->heap_next_gc,
         m->heap_used,
         m->gc_rc);
@@ -2562,7 +2908,7 @@ static void handle_message(pony_msg_t* msg)
     case TRACING_MSG_ACTOR_TRACING_DISABLED:
     {
       tracing_actor_destroyed_t* m = (tracing_actor_destroyed_t*)msg;
-      fprintf(log_file, ",\n{\"name\":\"%s tracing disabled\",\"ts\":%" PRIu64 ",\"cat\":\"ACTOR: %s\",\"ph\":\"%s\",\"pid\":%d,\"tid\":%" PRIu64 ",\"id\":\"%p\",\"args\":{\"id\":\"%p\",\"type_id\":%u,\"type_name\":\"%s\",\"blocked\":%s,\"blocked_sent\":%s,\"system\":%s,\"unscheduled\":%s,\"cd_contacted\":%s,\"rc_over_zero_seen\":%s,\"pinned\":%s,\"pending_destroy\":%s,\"overloaded\":%s,\"under_pressure\":%s,\"muted\":%s,\"heap_next_gc\":%lu,\"heap_used\":%lu,\"gc_rc\":%lu,\"live_asio_events\":%u}}", m->type->name, convert_time_nanos_to_micros(m->ts), m->type->name, get_tracing_event_string(TRACING_EVENT_ASYNC_INSTANT), pid, m->thread_id, m->actor, m->actor, m->type->id, m->type->name,
+      fprintf(log_file, ",\n{\"name\":\"%s tracing disabled\",\"ts\":%" PRIu64 ",\"cat\":\"ACTOR: %s\",\"ph\":\"%s\",\"pid\":%d,\"tid\":%" PRIu64 ",\"id\":\"%p\",\"args\":{\"id\":\"%p\",\"type_id\":%u,\"type_name\":\"%s\",\"blocked\":%s,\"blocked_sent\":%s,\"system\":%s,\"unscheduled\":%s,\"cd_contacted\":%s,\"rc_over_zero_seen\":%s,\"pinned\":%s,\"pending_destroy\":%s,\"overloaded\":%s,\"under_pressure\":%s,\"muted\":%s,\"heap_next_gc\":%zu,\"heap_used\":%zu,\"gc_rc\":%zu,\"live_asio_events\":%u}}", m->type->name, convert_time_nanos_to_micros(m->ts), m->type->name, get_tracing_event_string(TRACING_EVENT_ASYNC_INSTANT), pid, m->thread_id, m->actor, m->actor, m->type->id, m->type->name,
         m->internal_flags & ACTOR_FLAG_BLOCKED ? "true" : "false",
         m->internal_flags & ACTOR_FLAG_BLOCKED_SENT ? "true" : "false",
         m->internal_flags & ACTOR_FLAG_SYSTEM ? "true" : "false",
@@ -2580,7 +2926,7 @@ static void handle_message(pony_msg_t* msg)
         m->live_asio_events);
 
 #if defined(USE_RUNTIMESTATS)
-      fprintf(log_file, ",\n{\"name\":\"ACTOR: %s\",\"ts\":%" PRIu64 ",\"cat\":\"ACTOR: %s stats\",\"ph\":\"%s\",\"pid\":%d,\"tid\":%" PRIu64 ",\"id\":\"%p\",\"args\":{\"heap_next_gc\":%lu,\"heap_used\":%lu,\"gc_rc\":%lu,\"heap_memory_allocated\":%ld,\"heap_memory_used\":%ld,\"heap_num_allocated\":%ld,\"heap_realloc_counter\":%ld,\"heap_alloc_counter\":%ld,\"heap_free_counter\":%ld,\"heap_gc_counter\":%ld,\"system_cpu\":%ld,\"app_cpu\":%ld,\"garbage_collection_marking_cpu\":%ld,\"garbage_collection_sweeping_cpu\":%ld,\"messages_sent_counter\":%ld,\"system_messages_processed_counter\":%ld,\"app_messages_processed_counter\":%ld}}", m->type->name, convert_time_nanos_to_micros(m->ts), m->type->name, get_tracing_event_string(TRACING_EVENT_COUNTER), pid, m->thread_id, m->actor,
+      fprintf(log_file, ",\n{\"name\":\"ACTOR: %s\",\"ts\":%" PRIu64 ",\"cat\":\"ACTOR: %s stats\",\"ph\":\"%s\",\"pid\":%d,\"tid\":%" PRIu64 ",\"id\":\"%p\",\"args\":{\"heap_next_gc\":%zu,\"heap_used\":%zu,\"gc_rc\":%zu,\"heap_memory_allocated\":%zu,\"heap_memory_used\":%zu,\"heap_num_allocated\":%zu,\"heap_realloc_counter\":%zu,\"heap_alloc_counter\":%zu,\"heap_free_counter\":%zu,\"heap_gc_counter\":%zu,\"system_cpu\":%zu,\"app_cpu\":%zu,\"garbage_collection_marking_cpu\":%zu,\"garbage_collection_sweeping_cpu\":%zu,\"messages_sent_counter\":%zu,\"system_messages_processed_counter\":%zu,\"app_messages_processed_counter\":%zu}}", m->type->name, convert_time_nanos_to_micros(m->ts), m->type->name, get_tracing_event_string(TRACING_EVENT_COUNTER), pid, m->thread_id, m->actor,
         m->heap_next_gc,
         m->heap_used,
         m->gc_rc,
@@ -2599,7 +2945,7 @@ static void handle_message(pony_msg_t* msg)
         m->actorstats.system_messages_processed_counter,
         m->actorstats.app_messages_processed_counter);
 #else
-      fprintf(log_file, ",\n{\"name\":\"ACTOR: %s\",\"ts\":%" PRIu64 ",\"cat\":\"ACTOR: %s stats\",\"ph\":\"%s\",\"pid\":%d,\"tid\":%" PRIu64 ",\"id\":\"%p\",\"args\":{\"heap_next_gc\":%lu,\"heap_used\":%lu,\"gc_rc\":%lu}}", m->type->name, convert_time_nanos_to_micros(m->ts), m->type->name, get_tracing_event_string(TRACING_EVENT_COUNTER), pid, m->thread_id, m->actor,
+      fprintf(log_file, ",\n{\"name\":\"ACTOR: %s\",\"ts\":%" PRIu64 ",\"cat\":\"ACTOR: %s stats\",\"ph\":\"%s\",\"pid\":%d,\"tid\":%" PRIu64 ",\"id\":\"%p\",\"args\":{\"heap_next_gc\":%zu,\"heap_used\":%zu,\"gc_rc\":%zu}}", m->type->name, convert_time_nanos_to_micros(m->ts), m->type->name, get_tracing_event_string(TRACING_EVENT_COUNTER), pid, m->thread_id, m->actor,
         m->heap_next_gc,
         m->heap_used,
         m->gc_rc);
@@ -2699,11 +3045,18 @@ static void handle_message(pony_msg_t* msg)
       }
   
       tracing_flight_recorder_dump_t* m = (tracing_flight_recorder_dump_t*)msg;
-      fprintf(log_file, ",\n{\"name\":\"fatal_signal\",\"ts\":%" PRIu64 ",\"cat\":\"tracing\",\"ph\":\"%s\",\"pid\":%d,\"tid\":%" PRIu64 ",\"args\":{\"signal\":%d,\"signal_name\":\"%s\",\"scheduler_index\":%d,\"active_actor\":", convert_time_nanos_to_micros(m->ts), get_tracing_event_string(TRACING_EVENT_INSTANT), pid, m->thread_id, m->siginfo->si_signo, strsignal(m->siginfo->si_signo), m->index);
+#if defined(PLATFORM_IS_WINDOWS)
+      int sig_num = m->signal_number;
+      const char* sig_name = m->signal_name;
+#else
+      int sig_num = m->siginfo->si_signo;
+      const char* sig_name = strsignal(m->siginfo->si_signo);
+#endif
+      fprintf(log_file, ",\n{\"name\":\"fatal_signal\",\"ts\":%" PRIu64 ",\"cat\":\"tracing\",\"ph\":\"%s\",\"pid\":%d,\"tid\":%" PRIu64 ",\"args\":{\"signal\":%u,\"signal_name\":\"%s\",\"scheduler_index\":%d,\"active_actor\":", convert_time_nanos_to_micros(m->ts), get_tracing_event_string(TRACING_EVENT_INSTANT), pid, m->thread_id, (unsigned)sig_num, sig_name, m->index);
 
       if(m->actor != NULL)
       {
-        fprintf(log_file, "{\"id\":\"%p\",\"type_id\":%u,\"type_name\":\"%s\",\"blocked\":%s,\"blocked_sent\":%s,\"system\":%s,\"unscheduled\":%s,\"cd_contacted\":%s,\"rc_over_zero_seen\":%s,\"pinned\":%s,\"pending_destroy\":%s,\"overloaded\":%s,\"under_pressure\":%s,\"muted\":%s,\"heap_next_gc\":%lu,\"heap_used\":%lu,\"gc_rc\":%lu,\"live_asio_events\":%u}", m->actor, m->type->id, m->type->name,
+        fprintf(log_file, "{\"id\":\"%p\",\"type_id\":%u,\"type_name\":\"%s\",\"blocked\":%s,\"blocked_sent\":%s,\"system\":%s,\"unscheduled\":%s,\"cd_contacted\":%s,\"rc_over_zero_seen\":%s,\"pinned\":%s,\"pending_destroy\":%s,\"overloaded\":%s,\"under_pressure\":%s,\"muted\":%s,\"heap_next_gc\":%zu,\"heap_used\":%zu,\"gc_rc\":%zu,\"live_asio_events\":%u}", m->actor, m->type->id, m->type->name,
         m->internal_flags & ACTOR_FLAG_BLOCKED ? "true" : "false",
         m->internal_flags & ACTOR_FLAG_BLOCKED_SENT ? "true" : "false",
         m->internal_flags & ACTOR_FLAG_SYSTEM ? "true" : "false",
@@ -2723,14 +3076,24 @@ static void handle_message(pony_msg_t* msg)
         fprintf(log_file, "null");
       }
 
+#if defined(PLATFORM_IS_WINDOWS)
+      HANDLE dbg_process = GetCurrentProcess();
+      SymInitialize(dbg_process, NULL, TRUE);
+      char frame_str[MAX_SYM_NAME + 64];
+#else
       char** strings = backtrace_symbols(m->stack_frames, m->num_stack_frames);
+#endif
 
       fprintf(log_file, ",\"stack\":[");
       for(stack_depth_t i = 0; i < m->num_stack_frames; i++)
       {
         if(i != 0)
           fprintf(log_file, ",");
+#if defined(PLATFORM_IS_WINDOWS)
+        fprintf(log_file, "\"%s\"", windows_format_frame(dbg_process, m->stack_frames[i], frame_str, sizeof(frame_str)));
+#else
         fprintf(log_file, "\"%s\"", strings[i]);
+#endif
       }
       fprintf(log_file, "]}}");
 
@@ -2748,18 +3111,28 @@ static void handle_message(pony_msg_t* msg)
         fprintf(stderr, "\nflight recorder events dumped to `stdout` above..\n\n");
       }
 
-#if defined(PLATFORM_IS_MACOSX)
+#if defined(PLATFORM_IS_WINDOWS)
+      fprintf(stderr, "\nFatal signal encountered: %s\n", sig_name);
+#elif defined(PLATFORM_IS_MACOSX)
       psignal(m->siginfo->si_signo, "\nFatal signal encountered");
 #else
       psiginfo(m->siginfo, "\nFatal signal encountered");
 #endif
 
       fprintf(stderr, "Backtrace:\n");
-    
-      for(stack_depth_t i = 0; i < m->num_stack_frames; i++)
-        fprintf(stderr, "  %s\n", strings[i]);
 
+      for(stack_depth_t i = 0; i < m->num_stack_frames; i++)
+#if defined(PLATFORM_IS_WINDOWS)
+        fprintf(stderr, "  %s\n", windows_format_frame(dbg_process, m->stack_frames[i], frame_str, sizeof(frame_str)));
+#else
+        fprintf(stderr, "  %s\n", strings[i]);
+#endif
+
+#if defined(PLATFORM_IS_WINDOWS)
+      SymCleanup(dbg_process);
+#else
       free(strings);
+#endif
 
       if(strcmp(PONY_BUILD_CONFIG, "release") == 0)
       {
@@ -2772,8 +3145,14 @@ static void handle_message(pony_msg_t* msg)
 
       atomic_store_explicit(&flight_recorder_dump_completed, true, memory_order_relaxed);
 
+#if !defined(PLATFORM_IS_WINDOWS)
       // sleep for a bunch to hang this thread until program exits
       sleep(100000);
+#else
+      // On Windows the dump is recoverable (see windows_flight_recorder_dump):
+      // return to the message loop so the tracing thread survives a fault that
+      // gets caught downstream, instead of parking here forever.
+#endif
       break;
     }
     default:
@@ -2830,6 +3209,56 @@ static DECLARE_THREAD_FN(run_thread)
   return 0;
 }
 
+#if defined(PLATFORM_IS_WINDOWS)
+// Minimal shell-style glob matcher for category patterns: supports '*' (any run,
+// including empty) and '?' (any single char). Windows has no POSIX fnmatch; the
+// fixed category names are matched against user patterns that realistically use
+// only these wildcards. fnmatch bracket expressions ([...]) are intentionally not
+// supported here.
+static bool tracing_pattern_match(const char* pattern, const char* string)
+{
+  while(*pattern != '\0')
+  {
+    if(*pattern == '*')
+    {
+      while(*pattern == '*')
+        pattern++;
+      if(*pattern == '\0')
+        return true;
+      while(*string != '\0')
+      {
+        if(tracing_pattern_match(pattern, string))
+          return true;
+        string++;
+      }
+      return false;
+    }
+    else if(*pattern == '?')
+    {
+      if(*string == '\0')
+        return false;
+    }
+    else if(*pattern != *string)
+    {
+      return false;
+    }
+    pattern++;
+    string++;
+  }
+  return *string == '\0';
+}
+#endif
+
+// Does the user-supplied `pattern` match the fixed category `name`?
+static bool tracing_category_matches(const char* pattern, const char* name)
+{
+#if defined(PLATFORM_IS_WINDOWS)
+  return tracing_pattern_match(pattern, name);
+#else
+  return fnmatch(pattern, name, FNM_NOESCAPE) == 0;
+#endif
+}
+
 // TODO: make it so tracing can be intialized/enabled/disabled at runtime by the user program?
 // TODO: make it possible for actors to emit "flow"/"async" tracing events via a "tracing package/api" (have to figure out appropriate memcpy stuff for this due to GC)?
 // TODO: should it be possible to have both the flight recorder and normal tracing enabled at the same time?
@@ -2838,7 +3267,11 @@ void ponyint_tracing_init(char* format, char* output, char* enabled_categories_p
   output_format = format;
   output_file = output;
   tracing_mode = mode;
+#if defined(PLATFORM_IS_WINDOWS)
+  pid = (int)GetCurrentProcessId();
+#else
   pid = getpid();
+#endif
   enabled_categories_bitmask = 0;
   flight_recorder_handle_term_int = handle_term_int;
 
@@ -2849,28 +3282,28 @@ void ponyint_tracing_init(char* format, char* output, char* enabled_categories_p
     char* token = strtok(enabled_categories_patterns, ",");
     while(token != NULL)
     {
-      if(fnmatch(token, "actor", FNM_NOESCAPE) == 0)
+      if(tracing_category_matches(token, "actor"))
         enabled_categories_bitmask |= (uint64_t)TRACING_CATEGORY_ACTOR;
 
-      if(fnmatch(token, "actor_behavior", FNM_NOESCAPE) == 0)
+      if(tracing_category_matches(token, "actor_behavior"))
         enabled_categories_bitmask |= (uint64_t)TRACING_CATEGORY_ACTOR_BEHAVIOR;
 
-      if(fnmatch(token, "actor_gc", FNM_NOESCAPE) == 0)
+      if(tracing_category_matches(token, "actor_gc"))
         enabled_categories_bitmask |= (uint64_t)TRACING_CATEGORY_ACTOR_GC;
 
-      if(fnmatch(token, "actor_state_change", FNM_NOESCAPE) == 0)
+      if(tracing_category_matches(token, "actor_state_change"))
         enabled_categories_bitmask |= (uint64_t)TRACING_CATEGORY_ACTOR_STATE_CHANGE;
 
-      if(fnmatch(token, "scheduler", FNM_NOESCAPE) == 0)
+      if(tracing_category_matches(token, "scheduler"))
         enabled_categories_bitmask |= (uint64_t)TRACING_CATEGORY_SCHEDULER;
 
-      if(fnmatch(token, "scheduler_messaging", FNM_NOESCAPE) == 0)
+      if(tracing_category_matches(token, "scheduler_messaging"))
         enabled_categories_bitmask |= (uint64_t)TRACING_CATEGORY_SCHEDULER_MESSAGING;
 
-      if(fnmatch(token, "systematic_testing", FNM_NOESCAPE) == 0)
+      if(tracing_category_matches(token, "systematic_testing"))
         enabled_categories_bitmask |= (uint64_t)TRACING_CATEGORY_SYSTEMATIC_TESTING;
 
-      if(fnmatch(token, "systematic_testing_details", FNM_NOESCAPE) == 0)
+      if(tracing_category_matches(token, "systematic_testing_details"))
         enabled_categories_bitmask |= (uint64_t)TRACING_CATEGORY_SYSTEMATIC_TESTING_DETAILS;
 
       token = strtok(NULL, ",");
@@ -2882,9 +3315,31 @@ void ponyint_tracing_init(char* format, char* output, char* enabled_categories_p
 
   atomic_store_explicit(&stop_tracing_thread, false, memory_order_relaxed);
 
+#if defined(PLATFORM_IS_WINDOWS)
+  LARGE_INTEGER freq;
+  QueryPerformanceFrequency(&freq);
+  qpc_frequency = (uint64_t)freq.QuadPart;
+
+  // reset the flight-recorder one-shot flags so a fresh init (in an embedding
+  // that restarts the runtime) starts clean, matching the `fr_handlers_installed`
+  // reset in `ponyint_tracing_stop`
+  atomic_store_explicit(&handling_flight_recorder_dump, false, memory_order_relaxed);
+  atomic_store_explicit(&flight_recorder_dump_completed, false, memory_order_relaxed);
+#endif
+
   tracing_thread.index = PONY_TRACING_THREAD_INDEX;
   // gets replace later with cpu to pin tracing thread on
   tracing_thread.cpu = -1;
+
+#if defined(PLATFORM_IS_WINDOWS)
+  // The tracing thread suspends/wakes on an auto-reset event (created here,
+  // before `run_thread` is spawned in `ponyint_tracing_start`). On POSIX the
+  // wake is a signal, so no object is needed. Only create it when a tracing
+  // thread will actually run (categories enabled) -- otherwise `ponyint_tracing_stop`
+  // returns early before closing it, which would leak the handle.
+  if(enabled_categories_bitmask != 0)
+    tracing_thread.sleep_object = CreateEvent(NULL, FALSE, FALSE, NULL);
+#endif
 
   ponyint_messageq_init(&tracing_thread.mq);
 }
@@ -2895,7 +3350,7 @@ void ponyint_tracing_schedulers_init(uint32_t sched_count, uint32_t tracing_cpu)
 
   // initialize thread tracking array (should be sched_count + 2 to account for asio and pinned actor threads)
   total_sched_count = sched_count + 2;
-  tracing_schedulers = ponyint_pool_alloc_size(sizeof(tracing_scheduler_t) * total_sched_count);
+  tracing_schedulers = (tracing_scheduler_t*)ponyint_pool_alloc_size(sizeof(tracing_scheduler_t) * total_sched_count);
   memset(tracing_schedulers, 0, sizeof(tracing_scheduler_t) * total_sched_count);
 }
 
@@ -2959,6 +3414,27 @@ void ponyint_tracing_stop()
 {
   atomic_store_explicit(&stop_tracing_thread, true, memory_order_relaxed);
 
+#if defined(PLATFORM_IS_WINDOWS)
+  // Remove the fatal-fault handlers before the tracing state they read is torn
+  // down, so a fault during/after shutdown doesn't run the dump against freed
+  // state, and reset the install guard so a later re-init reinstalls them. Only
+  // tear down if this run actually installed them (flight recorder mode).
+  if(atomic_exchange_explicit(&fr_handlers_installed, false, memory_order_acq_rel))
+  {
+    if(fr_veh_handle != NULL)
+    {
+      RemoveVectoredExceptionHandler(fr_veh_handle);
+      fr_veh_handle = NULL;
+    }
+    signal(SIGABRT, SIG_DFL);
+    if(flight_recorder_handle_term_int)
+    {
+      signal(SIGINT, SIG_DFL);
+      signal(SIGTERM, SIG_DFL);
+    }
+  }
+#endif
+
   // nothing to do if no categories were enabled
   if(!enabled_categories_bitmask)
     return;
@@ -2970,6 +3446,16 @@ void ponyint_tracing_stop()
   { }
 
   ponyint_messageq_destroy(&tracing_thread.mq, false);
+
+#if defined(PLATFORM_IS_WINDOWS)
+  // the tracing thread's wake event was created in `ponyint_tracing_init` for
+  // both modes
+  if(tracing_thread.sleep_object != NULL)
+  {
+    CloseHandle(tracing_thread.sleep_object);
+    tracing_thread.sleep_object = NULL;
+  }
+#endif
 
   // need to free all the flight recorder events for all schedulers
   if(flight_recorder_enabled)
@@ -2993,6 +3479,15 @@ void ponyint_tracing_stop()
       // and the flight recorder buffer
       ponyint_pool_free_size(sizeof(pony_msg_t*) * flight_recorder_max_events, tracing_schedulers[sched_idx].flight_recorder_events);
       tracing_schedulers[sched_idx].flight_recorder_events = NULL;
+
+#if defined(PLATFORM_IS_WINDOWS)
+      // close the per-scheduler thread handle captured for SuspendThread
+      if(tracing_schedulers[sched_idx].thread_handle != NULL)
+      {
+        CloseHandle(tracing_schedulers[sched_idx].thread_handle);
+        tracing_schedulers[sched_idx].thread_handle = NULL;
+      }
+#endif
     }
 
     ponyint_pool_free_size(sizeof(tracing_scheduler_t) * total_sched_count, tracing_schedulers);
