@@ -8,7 +8,7 @@
 # running a Pony program under Valgrind actually works — unlike DragonFly, whose
 # Valgrind 3.15 is too old and hangs on the runtime's memory arena
 # (https://github.com/ponylang/ponyc/issues/5435). This smoke guards two things:
-#   1. use=valgrind still builds — `gmake build` compiles the annotated runtime
+#   1. use=valgrind still builds — `cmake --build` compiles the annotated runtime
 #      into ponyc; a build that can't compile or link is caught here.
 #   2. a Pony program compiled with it runs to completion *under Valgrind*
 #      without hanging — the DragonFly failure mode.
@@ -18,19 +18,19 @@
 # concern from "the build works and runs".
 set -eu
 
-# Clean + reconfigure debug from scratch with valgrind. `clean` is config-scoped
-# (pass config=debug so it removes the debug build/output dirs); the prebuilt
-# LLVM in build/libs is untouched, so this does not rebuild LLVM. A from-scratch
+# Configure the debug build from scratch with valgrind (remove the cmake build dir
+# first); the prebuilt LLVM in build/libs is a separate dir and untouched, so it
+# is not rebuilt. A from-scratch
 # configure is required because the valgrind annotations differ from any plain
 # debug build already present (the tier-3 job builds one, and the earlier smokes
 # leave their own). This script is self-contained: it rebuilds from scratch, so
 # it can run as its own CI step regardless of what came before.
-gmake clean config=debug
-gmake configure config=debug use=valgrind
-# The `gmake build` below is itself the first assertion: it compiles ponyc with
+rm -rf build/build_debug
+cmake --preset debug -DPONY_USES=valgrind
+# The `cmake --build` below is itself the first assertion: it compiles ponyc with
 # the Valgrind-annotated runtime. A use=valgrind build that can't compile or
 # link fails here, at build time.
-gmake build config=debug
+cmake --build --preset debug
 
 # use=valgrind sets PONY_OUTPUT_SUFFIX to -valgrind, so the build output lands in
 # build/debug-valgrind. Derive it rather than hardcoding (the suffix is

@@ -18,9 +18,9 @@ set -eu
 # copied `libcpp.a` is too) which fails. `clean` is config-scoped and defaults
 # to release, so pass config=debug to remove the debug build/output dirs; the
 # prebuilt LLVM in build/libs is untouched.
-gmake clean config=debug
-gmake configure config=debug use=dtrace
-gmake build config=debug
+rm -rf build/build_debug
+cmake --preset debug -DPONY_USES=dtrace
+cmake --build --preset debug
 
 smoke=/tmp/dtrace-smoke
 mkdir -p "$smoke"

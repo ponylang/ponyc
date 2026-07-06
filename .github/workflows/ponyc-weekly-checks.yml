@@ -81,25 +81,32 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           LIBS_IMAGE: ${{ matrix.image }}
-          LIBS_TAG: ${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
-        run: python3 .ci-scripts/libs-cache/resolve_libs_cache.py --branch-cache --image "$LIBS_IMAGE" --tag "$LIBS_TAG" -- make libs llvm_tools=false build_flags=-j4
+          LIBS_TAG: ${{ hashFiles('lib/CMakePresets.json', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/build-libs.cmake', 'lib/llvm/patches/*') }}
+        run: python3 .ci-scripts/libs-cache/resolve_libs_cache.py --branch-cache --image "$LIBS_IMAGE" --tag "$LIBS_TAG" -- cmake -DTOOLS=false -DJOBS=4 -P lib/build-libs.cmake
       - name: Build Debug Runtime
         run: |
-          make configure arch=x86-64 config=debug use=${{ matrix.directives }}
-          make build config=debug
+          cmake --preset x86-64-debug -DPONY_USES=${{ matrix.directives }}
+          cmake --build --preset x86-64-debug
       - name: Verify dtrace build leaves the source tree clean
         if: matrix.directives == 'dtrace'
         # #5401: dtrace_probes.h must be generated into the build tree,
         # never written back into src/common.
         run: test ! -f src/common/dtrace_probes.h
       - name: Test with Debug Runtime
-        run: make test-ci-core config=debug usedebugger='${{ matrix.debugger }}' test_full_program_timeout=120
+        run: |
+          PONY_TEST_DEBUGGER="$(.ci-scripts/test-debugger.sh ${{ matrix.debugger }})"
+          export PONY_TEST_DEBUGGER
+          export PONY_FULL_PROGRAM_TIMEOUT=120
+          ctest --preset x86-64-debug -L ci-core
       - name: Build Release Runtime
         run: |
-          make configure arch=x86-64 config=release use=${{ matrix.directives }}
-          make build config=release
+          cmake --preset x86-64-release -DPONY_USES=${{ matrix.directives }}
+          cmake --build --preset x86-64-release
       - name: Test with Release Runtime
-        run: make test-ci-core config=release usedebugger='${{ matrix.debugger }}'
+        run: |
+          PONY_TEST_DEBUGGER="$(.ci-scripts/test-debugger.sh ${{ matrix.debugger }})"
+          export PONY_TEST_DEBUGGER
+          ctest --preset x86-64-release -L ci-core
       - name: Send alert on failure
         if: ${{ failure() }}
         uses: zulip/github-actions-zulip/send-message@bd8ec52de371d139ae8313661b7d8318c19266aa
@@ -145,8 +152,8 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           LIBS_IMAGE: ${{ matrix.image }}
-          LIBS_TAG: ${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
-        run: python3 .ci-scripts/libs-cache/resolve_libs_cache.py --branch-cache --image "$LIBS_IMAGE" --tag "$LIBS_TAG" -- make libs llvm_tools=false build_flags=-j4
+          LIBS_TAG: ${{ hashFiles('lib/CMakePresets.json', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/build-libs.cmake', 'lib/llvm/patches/*') }}
+        run: python3 .ci-scripts/libs-cache/resolve_libs_cache.py --branch-cache --image "$LIBS_IMAGE" --tag "$LIBS_TAG" -- cmake -DTOOLS=false -DJOBS=4 -P lib/build-libs.cmake
       - name: Coverage smoke test
         env:
           CC: ${{ matrix.cc }}
@@ -195,8 +202,8 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           LIBS_IMAGE: ${{ matrix.image }}
-          LIBS_TAG: ${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
-        run: python3 .ci-scripts/libs-cache/resolve_libs_cache.py --branch-cache --image "$LIBS_IMAGE" --tag "$LIBS_TAG" -- make libs llvm_tools=false build_flags=-j4
+          LIBS_TAG: ${{ hashFiles('lib/CMakePresets.json', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/build-libs.cmake', 'lib/llvm/patches/*') }}
+        run: python3 .ci-scripts/libs-cache/resolve_libs_cache.py --branch-cache --image "$LIBS_IMAGE" --tag "$LIBS_TAG" -- cmake -DTOOLS=false -DJOBS=4 -P lib/build-libs.cmake
       - name: Determinism smoke test
         run: python3 .ci-scripts/systematic-testing/determinism_smoke.py
       - name: Send alert on failure
@@ -237,20 +244,20 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           LIBS_IMAGE: ${{ matrix.image }}
-          LIBS_TAG: ${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
-        run: python3 .ci-scripts/libs-cache/resolve_libs_cache.py --branch-cache --image "$LIBS_IMAGE" --tag "$LIBS_TAG" -- make libs llvm_tools=false build_flags=-j4
+          LIBS_TAG: ${{ hashFiles('lib/CMakePresets.json', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/build-libs.cmake', 'lib/llvm/patches/*') }}
+        run: python3 .ci-scripts/libs-cache/resolve_libs_cache.py --branch-cache --image "$LIBS_IMAGE" --tag "$LIBS_TAG" -- cmake -DTOOLS=false -DJOBS=4 -P lib/build-libs.cmake
       - name: Build Debug Runtime
         run: |
-          ASAN_OPTIONS=detect_leaks=0:external_symbolizer_path=$PWD/build/libs/bin/llvm-symbolizer UBSAN_OPTIONS=external_symbolizer_path=$PWD/build/libs/bin/llvm-symbolizer make configure arch=x86-64 config=debug use=${{ matrix.directives }}
-          ASAN_OPTIONS=detect_leaks=0:external_symbolizer_path=$PWD/build/libs/bin/llvm-symbolizer UBSAN_OPTIONS=external_symbolizer_path=$PWD/build/libs/bin/llvm-symbolizer make build config=debug
+          ASAN_OPTIONS=detect_leaks=0:external_symbolizer_path=$PWD/build/libs/bin/llvm-symbolizer UBSAN_OPTIONS=external_symbolizer_path=$PWD/build/libs/bin/llvm-symbolizer cmake --preset x86-64-debug -DPONY_USES=${{ matrix.directives }}
+          ASAN_OPTIONS=detect_leaks=0:external_symbolizer_path=$PWD/build/libs/bin/llvm-symbolizer UBSAN_OPTIONS=external_symbolizer_path=$PWD/build/libs/bin/llvm-symbolizer cmake --build --preset x86-64-debug
       - name: Test with Debug Runtime
-        run: ASAN_OPTIONS=detect_leaks=0:external_symbolizer_path=$PWD/build/libs/bin/llvm-symbolizer UBSAN_OPTIONS=external_symbolizer_path=$PWD/build/libs/bin/llvm-symbolizer make test-ci-core config=debug test_full_program_timeout=300
+        run: ASAN_OPTIONS=detect_leaks=0:external_symbolizer_path=$PWD/build/libs/bin/llvm-symbolizer UBSAN_OPTIONS=external_symbolizer_path=$PWD/build/libs/bin/llvm-symbolizer PONY_FULL_PROGRAM_TIMEOUT=300 ctest --preset x86-64-debug -L ci-core
       - name: Build Release Runtime
         run: |
-          ASAN_OPTIONS=detect_leaks=0:external_symbolizer_path=$PWD/build/libs/bin/llvm-symbolizer UBSAN_OPTIONS=external_symbolizer_path=$PWD/build/libs/bin/llvm-symbolizer make configure arch=x86-64 config=release use=${{ matrix.directives }}
-          ASAN_OPTIONS=detect_leaks=0:external_symbolizer_path=$PWD/build/libs/bin/llvm-symbolizer UBSAN_OPTIONS=external_symbolizer_path=$PWD/build/libs/bin/llvm-symbolizer make build config=release
+          ASAN_OPTIONS=detect_leaks=0:external_symbolizer_path=$PWD/build/libs/bin/llvm-symbolizer UBSAN_OPTIONS=external_symbolizer_path=$PWD/build/libs/bin/llvm-symbolizer cmake --preset x86-64-release -DPONY_USES=${{ matrix.directives }}
+          ASAN_OPTIONS=detect_leaks=0:external_symbolizer_path=$PWD/build/libs/bin/llvm-symbolizer UBSAN_OPTIONS=external_symbolizer_path=$PWD/build/libs/bin/llvm-symbolizer cmake --build --preset x86-64-release
       - name: Test with Release Runtime
-        run: ASAN_OPTIONS=detect_leaks=0:external_symbolizer_path=$PWD/build/libs/bin/llvm-symbolizer UBSAN_OPTIONS=external_symbolizer_path=$PWD/build/libs/bin/llvm-symbolizer make test-ci-core config=release test_full_program_timeout=300
+        run: ASAN_OPTIONS=detect_leaks=0:external_symbolizer_path=$PWD/build/libs/bin/llvm-symbolizer UBSAN_OPTIONS=external_symbolizer_path=$PWD/build/libs/bin/llvm-symbolizer PONY_FULL_PROGRAM_TIMEOUT=300 ctest --preset x86-64-release -L ci-core
       - name: Send alert on failure
         if: ${{ failure() }}
         uses: zulip/github-actions-zulip/send-message@bd8ec52de371d139ae8313661b7d8318c19266aa
@@ -277,8 +284,8 @@ jobs:
       - name: Build libs
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          LIBS_TAG: ${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
-        run: python3 .ci-scripts/libs-cache/resolve_libs_cache.py --branch-cache --platform arm64-macos-26 --tag "$LIBS_TAG" -- make libs llvm_tools=false build_flags=-j3
+          LIBS_TAG: ${{ hashFiles('lib/CMakePresets.json', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/build-libs.cmake', 'lib/llvm/patches/*') }}
+        run: python3 .ci-scripts/libs-cache/resolve_libs_cache.py --branch-cache --platform arm64-macos-26 --tag "$LIBS_TAG" -- cmake -DTOOLS=false -DJOBS=3 -P lib/build-libs.cmake
       - name: Sanitizer Smoke Test
         run: bash .ci-scripts/macos-sanitizer-smoke.sh
       - name: Send alert on failure
@@ -307,8 +314,8 @@ jobs:
       - name: Build libs
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          LIBS_TAG: ${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
-        run: python3 .ci-scripts/libs-cache/resolve_libs_cache.py --branch-cache --platform x86-macos-15-intel --tag "$LIBS_TAG" -- make libs llvm_tools=false build_flags=-j4
+          LIBS_TAG: ${{ hashFiles('lib/CMakePresets.json', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/build-libs.cmake', 'lib/llvm/patches/*') }}
+        run: python3 .ci-scripts/libs-cache/resolve_libs_cache.py --branch-cache --platform x86-macos-15-intel --tag "$LIBS_TAG" -- cmake -DTOOLS=false -DJOBS=4 -P lib/build-libs.cmake
       - name: Sanitizer Smoke Test
         run: bash .ci-scripts/macos-sanitizer-smoke.sh
       - name: Send alert on failure
@@ -337,8 +344,8 @@ jobs:
       - name: Build libs
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          LIBS_TAG: ${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
-        run: python3 .ci-scripts/libs-cache/resolve_libs_cache.py --branch-cache --platform arm64-macos-26 --tag "$LIBS_TAG" -- make libs llvm_tools=false build_flags=-j3
+          LIBS_TAG: ${{ hashFiles('lib/CMakePresets.json', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/build-libs.cmake', 'lib/llvm/patches/*') }}
+        run: python3 .ci-scripts/libs-cache/resolve_libs_cache.py --branch-cache --platform arm64-macos-26 --tag "$LIBS_TAG" -- cmake -DTOOLS=false -DJOBS=3 -P lib/build-libs.cmake
       - name: DTrace Smoke Test
         run: bash .ci-scripts/macos-dtrace-smoke.sh
       - name: Send alert on failure
@@ -367,8 +374,8 @@ jobs:
       - name: Build libs
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          LIBS_TAG: ${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
-        run: python3 .ci-scripts/libs-cache/resolve_libs_cache.py --branch-cache --platform x86-macos-15-intel --tag "$LIBS_TAG" -- make libs llvm_tools=false build_flags=-j4
+          LIBS_TAG: ${{ hashFiles('lib/CMakePresets.json', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/build-libs.cmake', 'lib/llvm/patches/*') }}
+        run: python3 .ci-scripts/libs-cache/resolve_libs_cache.py --branch-cache --platform x86-macos-15-intel --tag "$LIBS_TAG" -- cmake -DTOOLS=false -DJOBS=4 -P lib/build-libs.cmake
       - name: DTrace Smoke Test
         run: bash .ci-scripts/macos-dtrace-smoke.sh
       - name: Send alert on failure

@@ -66,38 +66,39 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           LIBS_IMAGE: ${{ matrix.image }}
-          LIBS_TAG: ${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
+          LIBS_TAG: ${{ hashFiles('lib/CMakePresets.json', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/build-libs.cmake', 'lib/llvm/patches/*') }}
           # Off main (a manual dispatch of a branch): build LLVM if it isn't cached,
           # and push what we build. On main (a scheduled run, or a dispatch left on
           # main): if it isn't cached, skip -- we don't build LLVM on main.
           LIBS_MODE: ${{ ((github.event_name == 'workflow_dispatch' && inputs.ref != 'main') && '--branch-cache') || '--require-cache-hit --skip-on-miss' }}
-          LIBS_BUILD: ${{ ((github.event_name == 'workflow_dispatch' && inputs.ref != 'main') && '-- make libs llvm_tools=false build_flags=-j4') || '' }}
+          LIBS_BUILD: ${{ ((github.event_name == 'workflow_dispatch' && inputs.ref != 'main') && '-- cmake -DTOOLS=false -DJOBS=4 -P lib/build-libs.cmake') || '' }}
         run: python3 .ci-scripts/libs-cache/resolve_libs_cache.py $LIBS_MODE --image "$LIBS_IMAGE" --tag "$LIBS_TAG" $LIBS_BUILD
       - name: Build Debug Runtime
         if: ${{ hashFiles('.libs-cache-miss') == '' }}
         run: |
-          make configure arch=x86-64 config=debug
-          make build config=debug
+          cmake --preset x86-64-debug
+          cmake --build --preset x86-64-debug
+          cmake --build --preset x86-64-debug --target pony-doc-tests pony-lint-tests pony-lsp-tests
       - name: Test with Debug Runtime
         if: ${{ hashFiles('.libs-cache-miss') == '' }}
-        run: make test-ci-core config=debug
+        run: ctest --preset x86-64-debug -L ci-core
       - name: Build Release Runtime
         if: ${{ hashFiles('.libs-cache-miss') == '' }}
         run: |
-          make configure arch=x86-64 config=release
-          make build config=release
+          cmake --preset x86-64-release
+          cmake --build --preset x86-64-release
       - name: Test with Release Runtime
         if: ${{ hashFiles('.libs-cache-miss') == '' }}
-        run: make test-ci-core config=release
+        run: ctest --preset x86-64-release -L ci-core
       - name: Test pony-doc
         if: ${{ hashFiles('.libs-cache-miss') == '' }}
-        run: make test-pony-doc config=debug
+        run: ctest --preset x86-64-debug -R pony-doc-tests
       - name: Test pony-lint
         if: ${{ hashFiles('.libs-cache-miss') == '' }}
-        run: make test-pony-lint config=debug
+        run: ctest --preset x86-64-debug -R pony-lint-tests
       - name: Test pony-lsp
         if: ${{ hashFiles('.libs-cache-miss') == '' }}
-        run: make test-pony-lsp config=debug
+        run: ctest --preset x86-64-debug -R pony-lsp-tests
       - name: Send alert on failure
         if: ${{ failure() }}
         uses: zulip/github-actions-zulip/send-message@bd8ec52de371d139ae8313661b7d8318c19266aa
@@ -116,6 +117,11 @@ jobs:
     runs-on: macos-15-intel
 
     name: x86-64 Apple Darwin
+    # This runner is slow; give the full-program tests a longer per-program timeout.
+    # The value is CI's, set in the environment at run time, not baked into cmake
+    # (which defaults it to 60).
+    env:
+      PONY_FULL_PROGRAM_TIMEOUT: "180"
     steps:
       - name: Checkout
         uses: actions/checkout@v6.0.2
@@ -124,38 +130,39 @@ jobs:
       - name: Restore libs
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          LIBS_TAG: ${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
+          LIBS_TAG: ${{ hashFiles('lib/CMakePresets.json', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/build-libs.cmake', 'lib/llvm/patches/*') }}
           # Off main (a manual dispatch of a branch): build LLVM if it isn't cached,
           # and push what we build. On main (a scheduled run, or a dispatch left on
           # main): if it isn't cached, skip -- we don't build LLVM on main.
           LIBS_MODE: ${{ ((github.event_name == 'workflow_dispatch' && inputs.ref != 'main') && '--branch-cache') || '--require-cache-hit --skip-on-miss' }}
-          LIBS_BUILD: ${{ ((github.event_name == 'workflow_dispatch' && inputs.ref != 'main') && '-- make libs llvm_tools=false build_flags=-j4') || '' }}
+          LIBS_BUILD: ${{ ((github.event_name == 'workflow_dispatch' && inputs.ref != 'main') && '-- cmake -DTOOLS=false -DJOBS=4 -P lib/build-libs.cmake') || '' }}
         run: python3 .ci-scripts/libs-cache/resolve_libs_cache.py $LIBS_MODE --platform x86-macos-15-intel --tag "$LIBS_TAG" $LIBS_BUILD
       - name: Build Debug Runtime
         if: ${{ hashFiles('.libs-cache-miss') == '' }}
         run: |
-          make configure arch=x86-64 config=debug
-          make build config=debug
+          cmake --preset x86-64-debug
+          cmake --build --preset x86-64-debug
+          cmake --build --preset x86-64-debug --target pony-doc-tests pony-lint-tests pony-lsp-tests
       - name: Test with Debug Runtime
         if: ${{ hashFiles('.libs-cache-miss') == '' }}
-        run: make test-ci-core config=debug test_full_program_timeout=180
+        run: ctest --preset x86-64-debug -L ci-core
       - name: Build Release Runtime
         if: ${{ hashFiles('.libs-cache-miss') == '' }}
         run: |
-          make configure arch=x86-64 config=release
-          make build config=release
+          cmake --preset x86-64-release
+          cmake --build --preset x86-64-release
       - name: Test with Release Runtime
         if: ${{ hashFiles('.libs-cache-miss') == '' }}
-        run: make test-ci-core config=release test_full_program_timeout=180
+        run: ctest --preset x86-64-release -L ci-core
       - name: Test pony-doc
         if: ${{ hashFiles('.libs-cache-miss') == '' }}
-        run: make test-pony-doc config=debug
+        run: ctest --preset x86-64-debug -R pony-doc-tests
       - name: Test pony-lint
         if: ${{ hashFiles('.libs-cache-miss') == '' }}
-        run: make test-pony-lint config=debug
+        run: ctest --preset x86-64-debug -R pony-lint-tests
       - name: Test pony-lsp
         if: ${{ hashFiles('.libs-cache-miss') == '' }}
-        run: make test-pony-lsp config=debug
+        run: ctest --preset x86-64-debug -R pony-lsp-tests
       - name: Send alert on failure
         if: ${{ failure() }}
         uses: zulip/github-actions-zulip/send-message@bd8ec52de371d139ae8313661b7d8318c19266aa
@@ -209,12 +216,12 @@ jobs:
         run: docker pull ${{ matrix.image }}
       - name: Restore libs
         env:
-          LIBS_TAG: ${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
+          LIBS_TAG: ${{ hashFiles('lib/CMakePresets.json', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/build-libs.cmake', 'lib/llvm/patches/*') }}
           # Off main (a manual dispatch of a branch): build LLVM if it isn't cached,
           # and push what we build. On main (a scheduled run, or a dispatch left on
           # main): if it isn't cached, skip -- we don't build LLVM on main.
           LIBS_MODE: ${{ ((github.event_name == 'workflow_dispatch' && inputs.ref != 'main') && '--branch-cache') || '--require-cache-hit --skip-on-miss' }}
-          LIBS_BUILD: ${{ ((github.event_name == 'workflow_dispatch' && inputs.ref != 'main') && '-- make libs llvm_tools=false build_flags=-j4') || '' }}
+          LIBS_BUILD: ${{ ((github.event_name == 'workflow_dispatch' && inputs.ref != 'main') && '-- cmake -DTOOLS=false -DJOBS=4 -P lib/build-libs.cmake') || '' }}
         run: |
           docker run --rm \
             --user pony \
@@ -237,7 +244,7 @@ jobs:
             -v ${{ github.workspace }}:/home/pony/project \
             -w /home/pony/project \
             ${{ matrix.image }} \
-            bash -c "make configure arch=armv8-a config=debug && make build config=debug"
+            bash -c "cmake --preset armv8-a-debug && cmake --build --preset armv8-a-debug && cmake --build --preset armv8-a-debug --target pony-doc-tests pony-lint-tests pony-lsp-tests"
       - name: Test with Debug Runtime
         if: ${{ hashFiles('.libs-cache-miss') == '' }}
         run: |
@@ -248,7 +255,7 @@ jobs:
             -v ${{ github.workspace }}:/home/pony/project \
             -w /home/pony/project \
             ${{ matrix.image }} \
-            make test-ci-core config=debug
+            ctest --preset armv8-a-debug -L ci-core
       - name: Build Release Runtime
         if: ${{ hashFiles('.libs-cache-miss') == '' }}
         run: |
@@ -257,7 +264,7 @@ jobs:
             -v ${{ github.workspace }}:/home/pony/project \
             -w /home/pony/project \
             ${{ matrix.image }} \
-            bash -c "make configure arch=armv8-a config=release && make build config=release"
+            bash -c "cmake --preset armv8-a-release && cmake --build --preset armv8-a-release"
       - name: Test with Release Runtime
         if: ${{ hashFiles('.libs-cache-miss') == '' }}
         run: |
@@ -268,7 +275,7 @@ jobs:
             -v ${{ github.workspace }}:/home/pony/project \
             -w /home/pony/project \
             ${{ matrix.image }} \
-            make test-ci-core config=release
+            ctest --preset armv8-a-release -L ci-core
       - name: Test pony-doc
         if: ${{ hashFiles('.libs-cache-miss') == '' }}
         run: |
@@ -277,7 +284,7 @@ jobs:
             -v ${{ github.workspace }}:/home/pony/project \
             -w /home/pony/project \
             ${{ matrix.image }} \
-            make test-pony-doc config=debug
+            ctest --preset armv8-a-debug -R pony-doc-tests
       - name: Test pony-lint
         if: ${{ hashFiles('.libs-cache-miss') == '' }}
         run: |
@@ -286,7 +293,7 @@ jobs:
             -v ${{ github.workspace }}:/home/pony/project \
             -w /home/pony/project \
             ${{ matrix.image }} \
-            make test-pony-lint config=debug
+            ctest --preset armv8-a-debug -R pony-lint-tests
       - name: Test pony-lsp
         if: ${{ hashFiles('.libs-cache-miss') == '' }}
         run: |
@@ -295,7 +302,7 @@ jobs:
             -v ${{ github.workspace }}:/home/pony/project \
             -w /home/pony/project \
             ${{ matrix.image }} \
-            make test-pony-lsp config=debug
+            ctest --preset armv8-a-debug -R pony-lsp-tests
       - name: Send alert on failure
         if: ${{ failure() }}
         uses: zulip/github-actions-zulip/send-message@bd8ec52de371d139ae8313661b7d8318c19266aa
@@ -327,7 +334,7 @@ jobs:
       - name: Restore libs
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          LIBS_TAG: ${{ hashFiles('make.ps1', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
+          LIBS_TAG: ${{ hashFiles('lib/CMakePresets.json', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/build-libs.cmake', 'lib/llvm/patches/*') }}
           # Off main (a manual dispatch of a branch): build LLVM if it isn't cached,
           # and push what we build. On main (a scheduled run, or a dispatch left on
           # main): if it isn't cached, skip -- we don't build LLVM on main.
@@ -336,38 +343,36 @@ jobs:
           LIBS_OFF_MAIN: ${{ github.event_name == 'workflow_dispatch' && inputs.ref != 'main' }}
         run: |
           if ($env:LIBS_OFF_MAIN -eq 'true') {
-            python .ci-scripts/libs-cache/resolve_libs_cache.py --branch-cache --platform windows-11-arm --tag $env:LIBS_TAG '--' pwsh -File make.ps1 -Command libs -LlvmTools false -Arch ARM64
+            python .ci-scripts/libs-cache/resolve_libs_cache.py --branch-cache --platform windows-11-arm --tag $env:LIBS_TAG '--' cmake -DPRESET=libs-windows-arm64 -DTOOLS=false -DJOBS=4 -P lib/build-libs.cmake
           } else {
             python .ci-scripts/libs-cache/resolve_libs_cache.py --require-cache-hit --skip-on-miss --platform windows-11-arm --tag $env:LIBS_TAG
           }
+      - name: Configure
+        if: ${{ hashFiles('.libs-cache-miss') == '' }}
+        run: cmake --preset windows-arm64
       - name: Build Debug Runtime
         if: ${{ hashFiles('.libs-cache-miss') == '' }}
         run: |
-          .\make.ps1 -Command configure -Config Debug -Arch ARM64
-          .\make.ps1 -Command build -Config Debug
+          cmake --build --preset windows-arm64-debug
+          cmake --build --preset windows-arm64-debug --target pony-doc-tests pony-lint-tests pony-lsp-tests
       - name: Test with Debug Runtime
         if: ${{ hashFiles('.libs-cache-miss') == '' }}
-        run: .\make.ps1 -Command test -Config Debug
+        run: ctest --preset windows-arm64-debug -L ci-core
       - name: Build Release Runtime
         if: ${{ hashFiles('.libs-cache-miss') == '' }}
-        run: |
-          .\make.ps1 -Command configure -Config Release -Arch ARM64
-          .\make.ps1 -Command build -Config Release
+        run: cmake --build --preset windows-arm64-release
       - name: Test with Release Runtime
         if: ${{ hashFiles('.libs-cache-miss') == '' }}
-        run: .\make.ps1 -Command test -Config Release
-      - name: Build examples
-        if: ${{ hashFiles('.libs-cache-miss') == '' }}
-        run: .\make.ps1 -Command build-examples
+        run: ctest --preset windows-arm64-release -L ci-core
       - name: Test pony-doc
         if: ${{ hashFiles('.libs-cache-miss') == '' }}
-        run: .\make.ps1 -Command test -Config Debug -TestsToRun pony-doc-tests
+        run: ctest --preset windows-arm64-debug -R pony-doc-tests
       - name: Test pony-lint
         if: ${{ hashFiles('.libs-cache-miss') == '' }}
-        run: .\make.ps1 -Command test -Config Debug -TestsToRun pony-lint-tests
+        run: ctest --preset windows-arm64-debug -R pony-lint-tests
       - name: Test pony-lsp
         if: ${{ hashFiles('.libs-cache-miss') == '' }}
-        run: .\make.ps1 -Command test -Config Debug -TestsToRun pony-lsp-tests
+        run: ctest --preset windows-arm64-debug -R pony-lsp-tests
       - name: Send alert on failure
         if: ${{ failure() }}
         uses: zulip/github-actions-zulip/send-message@bd8ec52de371d139ae8313661b7d8318c19266aa

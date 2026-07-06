@@ -1,0 +1,174 @@
+{
+  "version": 6,
+  "cmakeMinimumRequired": {
+    "major": 3,
+    "minor": 25,
+    "patch": 0
+  },
+  "configurePresets": [
+    {
+      "name": "base",
+      "hidden": true,
+      "binaryDir": "${sourceDir}/build/build_${presetName}",
+      "cacheVariables": {
+        "CMAKE_C_COMPILER": "clang",
+        "CMAKE_CXX_COMPILER": "clang++"
+      }
+    },
+    {
+      "name": "native",
+      "hidden": true,
+      "inherits": "base",
+      "cacheVariables": {
+        "PONY_ARCH": "native",
+        "CMAKE_C_FLAGS": "-march=native -mtune=generic",
+        "CMAKE_CXX_FLAGS": "-march=native -mtune=generic"
+      }
+    },
+    {
+      "name": "x86-64",
+      "hidden": true,
+      "inherits": "base",
+      "cacheVariables": {
+        "PONY_ARCH": "x86-64",
+        "CMAKE_C_FLAGS": "-march=x86-64 -mtune=generic",
+        "CMAKE_CXX_FLAGS": "-march=x86-64 -mtune=generic"
+      }
+    },
+    {
+      "name": "armv8",
+      "hidden": true,
+      "inherits": "base",
+      "cacheVariables": {
+        "PONY_ARCH": "armv8",
+        "CMAKE_C_FLAGS": "-march=armv8 -mtune=generic",
+        "CMAKE_CXX_FLAGS": "-march=armv8 -mtune=generic"
+      }
+    },
+    {
+      "name": "armv8-a",
+      "hidden": true,
+      "inherits": "base",
+      "cacheVariables": {
+        "PONY_ARCH": "armv8-a",
+        "CMAKE_C_FLAGS": "-march=armv8-a -mtune=generic",
+        "CMAKE_CXX_FLAGS": "-march=armv8-a -mtune=generic"
+      }
+    },
+    {
+      "name": "debug",
+      "displayName": "Debug (native)",
+      "inherits": "native",
+      "cacheVariables": { "CMAKE_BUILD_TYPE": "debug" }
+    },
+    {
+      "name": "release",
+      "displayName": "Release (native)",
+      "inherits": "native",
+      "cacheVariables": { "CMAKE_BUILD_TYPE": "release" }
+    },
+    {
+      "name": "x86-64-debug",
+      "displayName": "Debug (x86-64)",
+      "inherits": "x86-64",
+      "cacheVariables": { "CMAKE_BUILD_TYPE": "debug" }
+    },
+    {
+      "name": "x86-64-release",
+      "displayName": "Release (x86-64)",
+      "inherits": "x86-64",
+      "cacheVariables": { "CMAKE_BUILD_TYPE": "release" }
+    },
+    {
+      "name": "armv8-debug",
+      "displayName": "Debug (armv8)",
+      "inherits": "armv8",
+      "cacheVariables": { "CMAKE_BUILD_TYPE": "debug" }
+    },
+    {
+      "name": "armv8-release",
+      "displayName": "Release (armv8)",
+      "inherits": "armv8",
+      "cacheVariables": { "CMAKE_BUILD_TYPE": "release" }
+    },
+    {
+      "name": "armv8-a-debug",
+      "displayName": "Debug (armv8-a)",
+      "inherits": "armv8-a",
+      "cacheVariables": { "CMAKE_BUILD_TYPE": "debug" }
+    },
+    {
+      "name": "armv8-a-release",
+      "displayName": "Release (armv8-a)",
+      "inherits": "armv8-a",
+      "cacheVariables": { "CMAKE_BUILD_TYPE": "release" }
+    },
+    {
+      "name": "debug-asan",
+      "displayName": "Debug + sanitizers (native)",
+      "inherits": "debug",
+      "cacheVariables": {
+        "PONY_USES": "pool_memalign,address_sanitizer,undefined_behavior_sanitizer"
+      }
+    },
+    {
+      "name": "release-asan",
+      "displayName": "Release + sanitizers (native)",
+      "inherits": "release",
+      "cacheVariables": {
+        "PONY_USES": "pool_memalign,address_sanitizer,undefined_behavior_sanitizer"
+      }
+    },
+    {
+      "name": "windows-base",
+      "hidden": true,
+      "binaryDir": "${sourceDir}/build/build"
+    },
+    {
+      "name": "windows-x86-64",
+      "displayName": "Windows x86-64 (multi-config)",
+      "inherits": "windows-base",
+      "architecture": { "value": "x64", "strategy": "set" },
+      "toolset": { "value": "host=x64", "strategy": "set" },
+      "cacheVariables": { "PONY_CPU": "x86-64" }
+    },
+    {
+      "name": "windows-arm64",
+      "displayName": "Windows arm64 (multi-config)",
+      "inherits": "windows-base",
+      "architecture": { "value": "ARM64", "strategy": "set" },
+      "toolset": { "value": "host=ARM64", "strategy": "set" },
+      "cacheVariables": { "PONY_CPU": "generic" }
+    }
+  ],
+  "buildPresets": [
+    { "name": "debug", "configurePreset": "debug" },
+    { "name": "release", "configurePreset": "release" },
+    { "name": "x86-64-debug", "configurePreset": "x86-64-debug" },
+    { "name": "x86-64-release", "configurePreset": "x86-64-release" },
+    { "name": "armv8-debug", "configurePreset": "armv8-debug" },
+    { "name": "armv8-release", "configurePreset": "armv8-release" },
+    { "name": "armv8-a-debug", "configurePreset": "armv8-a-debug" },
+    { "name": "armv8-a-release", "configurePreset": "armv8-a-release" },
+    { "name": "debug-asan", "configurePreset": "debug-asan" },
+    { "name": "release-asan", "configurePreset": "release-asan" },
+    { "name": "windows-x86-64-debug", "configurePreset": "windows-x86-64", "configuration": "Debug" },
+    { "name": "windows-x86-64-release", "configurePreset": "windows-x86-64", "configuration": "Release" },
+    { "name": "windows-arm64-debug", "configurePreset": "windows-arm64", "configuration": "Debug" },
+    { "name": "windows-arm64-release", "configurePreset": "windows-arm64", "configuration": "Release" }
+  ],
+  "testPresets": [
+    { "name": "debug", "configurePreset": "debug", "output": { "outputOnFailure": true } },
+    { "name": "release", "configurePreset": "release", "output": { "outputOnFailure": true } },
+    { "name": "x86-64-debug", "configurePreset": "x86-64-debug", "output": { "outputOnFailure": true } },
+    { "name": "x86-64-release", "configurePreset": "x86-64-release", "output": { "outputOnFailure": true } },
+    { "name": "armv8-debug", "configurePreset": "armv8-debug", "output": { "outputOnFailure": true } },
+    { "name": "armv8-release", "configurePreset": "armv8-release", "output": { "outputOnFailure": true } },
+    { "name": "armv8-a-debug", "configurePreset": "armv8-a-debug", "output": { "outputOnFailure": true } },
+    { "name": "armv8-a-release", "configurePreset": "armv8-a-release", "output": { "outputOnFailure": true } },
+    { "name": "windows-x86-64-debug", "configurePreset": "windows-x86-64", "configuration": "Debug", "output": { "outputOnFailure": true } },
+    { "name": "windows-x86-64-release", "configurePreset": "windows-x86-64", "configuration": "Release", "output": { "outputOnFailure": true } },
+    { "name": "windows-arm64-debug", "configurePreset": "windows-arm64", "configuration": "Debug", "output": { "outputOnFailure": true } },
+    { "name": "windows-arm64-release", "configurePreset": "windows-arm64", "configuration": "Release", "output": { "outputOnFailure": true } }
+  ]
+}

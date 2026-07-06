@@ -136,8 +136,8 @@ serialized mode can't.
 Needs a **debug + systematic** ponyc:
 
 ```bash
-make configure config=debug use=scheduler_scaling_pthreads,systematic_testing
-make build config=debug
+cmake --preset debug -DPONY_USES=scheduler_scaling_pthreads,systematic_testing
+cmake --build --preset debug
 python3 test/rt-stress/generative/orchestrate_systematic.py \
   --ponyc build/debug-scheduler_scaling_pthreads-systematic_testing/ponyc \
   --use-flags scheduler_scaling_pthreads,systematic_testing \
@@ -145,8 +145,8 @@ python3 test/rt-stress/generative/orchestrate_systematic.py \
 ```
 
 Build it with clang. gcc currently fails to compile the systematic-testing
-runtime ([#5563](https://github.com/ponylang/ponyc/issues/5563)); pass
-`CC=clang CXX=clang++` to both `make` commands if gcc is your default.
+runtime ([#5563](https://github.com/ponylang/ponyc/issues/5563)); the `debug`
+preset uses clang regardless of your default compiler.
 
 ### Normal mode
 
@@ -154,8 +154,8 @@ Needs a **normal debug** ponyc (no `use=` flags), which builds everywhere
 including Windows:
 
 ```bash
-make configure config=debug
-make build config=debug
+cmake --preset debug
+cmake --build --preset debug
 python3 test/rt-stress/generative/orchestrate_normal.py \
   --ponyc build/debug/ponyc --budget-seconds 1800 --out ~/tmp/rt-stress-out
 ```

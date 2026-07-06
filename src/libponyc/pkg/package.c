@@ -749,7 +749,9 @@ static bool add_pony_installation_dir(const char* path, pass_opt_t* opt)
 
   add_path(path, opt);
 
-  // Allow ponyc to find the lib directory when it is installed.
+  // Allow ponyc to find the lib directory when it is installed. The install
+  // layout must match this offset: Windows installs libs flat under <ver>/lib,
+  // Unix under <ver>/lib/<arch>. See .known-couplings/install-arch-dir.md.
 #ifdef PLATFORM_IS_WINDOWS
   success = add_relative_path(path, "..\\lib", opt);
 #else

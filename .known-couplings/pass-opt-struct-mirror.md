@@ -4,4 +4,4 @@ The Pony tools (`pony-compiler`, `pony-lint`, `pony-lsp`, `pony-doc`) reach libp
 
 This is the struct-layout sibling of the `pass_id` enum coupling in `pass-id-enum.md`; both live in `pass.h` and both mirror into `pass.pony`.
 
-Run: `make test-pony-compiler`, `make test-pony-lint`, `make test-pony-lsp`, `make test-pony-doc`.
+Run: `cmake --build --preset debug --target pony-compiler-tests pony-lint-tests pony-lsp-tests pony-doc-tests && ctest --preset debug -R 'pony-.*-tests'`.

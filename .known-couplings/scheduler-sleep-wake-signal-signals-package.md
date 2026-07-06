@@ -6,4 +6,4 @@ On default builds (not `scheduler_scaling_pthreads`), the runtime reserves SIGUS
 
 One residual gap is not gated: `runtime_tracing` builds reuse SIGUSR2 for the tracing thread (`PONY_TRACING_SLEEP_WAKE_SIGNAL` in `src/libponyrt/tracing/tracing.c`) regardless of `scheduler_scaling_pthreads`, but `runtime_tracing` is not exposed as a Pony `ifdef` userflag, so `sig.pony` cannot exclude it.
 
-Run: the `signals` suite in the stdlib tests (`make test-stdlib-release` / `make test-stdlib-debug`) — the `signals/USR2` test exercises SIGUSR2 delivery, but only on `scheduler_scaling_pthreads` builds (e.g. macOS CI).
+Run: the `signals` suite in the stdlib tests (`ctest --preset debug -R stdlib-release` / `ctest --preset debug -R stdlib-debug`) — the `signals/USR2` test exercises SIGUSR2 delivery, but only on `scheduler_scaling_pthreads` builds (e.g. macOS CI).

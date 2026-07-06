@@ -14,7 +14,7 @@
 # can't link the self-hosted tools at all.
 #
 # This smoke guards two things:
-#   1. use=coverage still builds and links on gcc — `gmake build` (which links the
+#   1. use=coverage still builds and links on gcc — `cmake --build` (which links the
 #      self-hosted tools via embedded LLD) is the first assertion; before #5434 it
 #      died with undefined __gcov_init. Compiling and running a standalone program
 #      then confirms the spliced libgcov satisfies the gcov constructors at
@@ -23,14 +23,14 @@
 #      the point of use=coverage, measuring ponyc's own coverage.
 set -eu
 
-# Clean + reconfigure debug from scratch with coverage. `clean` is config-scoped
-# (pass config=debug so it removes the debug build/output dirs); the prebuilt
-# LLVM in build/libs is untouched, so this does not rebuild LLVM. A from-scratch
+# Configure the debug build from scratch with coverage (remove the cmake build dir
+# first); the prebuilt LLVM in build/libs is a separate dir and untouched, so it
+# is not rebuilt. A from-scratch
 # configure is required because the coverage capture and instrumentation flags
 # differ from the plain debug build the job already made.
-gmake clean config=debug
-gmake configure config=debug use=coverage
-gmake build config=debug
+rm -rf build/build_debug
+cmake --preset debug -DCMAKE_C_COMPILER="$CC" -DCMAKE_CXX_COMPILER="$CXX" -DPONY_USES=coverage
+cmake --build --preset debug
 
 # use=coverage sets PONY_OUTPUT_SUFFIX to -coverage, so the build output lands in
 # build/debug-coverage. Derive it rather than hardcoding (the suffix is
@@ -78,7 +78,7 @@ fi
 echo "ponyc dropped profile data: $gcda_count .gcda files"
 
 # The self-hosted tools are themselves Pony programs the coverage ponyc linked
-# during `gmake build`; confirm one runs, proving the tool link path works under
+# during `cmake --build`; confirm one runs, proving the tool link path works under
 # coverage and not just that a minimal program does.
 "$out/pony-lint" --version
 echo "coverage smoke test passed"

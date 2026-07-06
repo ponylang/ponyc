@@ -63,8 +63,8 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           LIBS_IMAGE: ${{ matrix.image }}
-          LIBS_TAG: ${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
-        run: python3 .ci-scripts/libs-cache/resolve_libs_cache.py --warm --image "$LIBS_IMAGE" --tag "$LIBS_TAG" -- make libs llvm_tools=false build_flags=-j4
+          LIBS_TAG: ${{ hashFiles('lib/CMakePresets.json', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/build-libs.cmake', 'lib/llvm/patches/*') }}
+        run: python3 .ci-scripts/libs-cache/resolve_libs_cache.py --warm --image "$LIBS_IMAGE" --tag "$LIBS_TAG" -- cmake -DTOOLS=false -DJOBS=4 -P lib/build-libs.cmake
 
   # Stage 2 (release/nightly). Gate on stage-1 fast jobs only, never
   # x86_64-windows (slow).
@@ -92,8 +92,8 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           LIBS_IMAGE: ${{ matrix.image }}
-          LIBS_TAG: ${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
-        run: python3 .ci-scripts/libs-cache/resolve_libs_cache.py --warm --image "$LIBS_IMAGE" --tag "$LIBS_TAG" -- make libs llvm_tools=false build_flags=-j4
+          LIBS_TAG: ${{ hashFiles('lib/CMakePresets.json', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/build-libs.cmake', 'lib/llvm/patches/*') }}
+        run: python3 .ci-scripts/libs-cache/resolve_libs_cache.py --warm --image "$LIBS_IMAGE" --tag "$LIBS_TAG" -- cmake -DTOOLS=false -DJOBS=4 -P lib/build-libs.cmake
 
   # Stage 3 (everything else). Gate on stage-2 fast jobs only, never
   # arm64-windows (slow). `max-parallel: 2` caps these four legs at 2; the BSD
@@ -125,8 +125,8 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           LIBS_IMAGE: ${{ matrix.image }}
-          LIBS_TAG: ${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
-        run: python3 .ci-scripts/libs-cache/resolve_libs_cache.py --warm --image "$LIBS_IMAGE" --tag "$LIBS_TAG" -- make libs llvm_tools=false build_flags=-j4
+          LIBS_TAG: ${{ hashFiles('lib/CMakePresets.json', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/build-libs.cmake', 'lib/llvm/patches/*') }}
+        run: python3 .ci-scripts/libs-cache/resolve_libs_cache.py --warm --image "$LIBS_IMAGE" --tag "$LIBS_TAG" -- cmake -DTOOLS=false -DJOBS=4 -P lib/build-libs.cmake
 
   # Currently, Github actions supplied by GH like checkout do not work in musl
   # libc environments on arm64. We work around this by running checkout on the
@@ -163,7 +163,7 @@ jobs:
         run: docker pull ${{ matrix.image }}
       - name: Build and push libs
         env:
-          LIBS_TAG: ${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
+          LIBS_TAG: ${{ hashFiles('lib/CMakePresets.json', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/build-libs.cmake', 'lib/llvm/patches/*') }}
         run: |
           docker run --rm \
             --user pony \
@@ -175,7 +175,7 @@ jobs:
             -v ${{ github.workspace }}:/home/pony/project \
             -w /home/pony/project \
             ${{ matrix.image }} \
-            sh -c 'python3 .ci-scripts/libs-cache/resolve_libs_cache.py --warm --image "$LIBS_IMAGE" --tag "$LIBS_TAG" -- make libs llvm_tools=false build_flags=-j4'
+            sh -c 'python3 .ci-scripts/libs-cache/resolve_libs_cache.py --warm --image "$LIBS_IMAGE" --tag "$LIBS_TAG" -- cmake -DTOOLS=false -DJOBS=4 -P lib/build-libs.cmake'
 
   x86_64-macos:
     # Stage 2 (release/nightly). Gate on stage-1 fast jobs only, never
@@ -191,8 +191,8 @@ jobs:
       - name: Build and push libs
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          LIBS_TAG: ${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
-        run: python3 .ci-scripts/libs-cache/resolve_libs_cache.py --warm --platform x86-macos-15-intel --tag "$LIBS_TAG" -- make libs llvm_tools=false build_flags=-j4
+          LIBS_TAG: ${{ hashFiles('lib/CMakePresets.json', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/build-libs.cmake', 'lib/llvm/patches/*') }}
+        run: python3 .ci-scripts/libs-cache/resolve_libs_cache.py --warm --platform x86-macos-15-intel --tag "$LIBS_TAG" -- cmake -DTOOLS=false -DJOBS=4 -P lib/build-libs.cmake
 
   arm64-macos:
     # Stage 1 (PR). No gate; starts immediately.
@@ -205,8 +205,8 @@ jobs:
       - name: Build and push libs
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          LIBS_TAG: ${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
-        run: python3 .ci-scripts/libs-cache/resolve_libs_cache.py --warm --platform arm64-macos-26 --tag "$LIBS_TAG" -- make libs llvm_tools=false build_flags=-j3
+          LIBS_TAG: ${{ hashFiles('lib/CMakePresets.json', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/build-libs.cmake', 'lib/llvm/patches/*') }}
+        run: python3 .ci-scripts/libs-cache/resolve_libs_cache.py --warm --platform arm64-macos-26 --tag "$LIBS_TAG" -- cmake -DTOOLS=false -DJOBS=3 -P lib/build-libs.cmake
 
   x86_64-windows:
     # Stage 1 (PR). No gate; starts immediately. Slow, so no later stage gates
@@ -222,8 +222,8 @@ jobs:
       - name: Build and push libs
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          LIBS_TAG: ${{ hashFiles('make.ps1', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
-        run: python .ci-scripts/libs-cache/resolve_libs_cache.py --warm --platform windows-2025-vs2026 --tag $env:LIBS_TAG '--' pwsh -File make.ps1 -Command libs -LlvmTools false
+          LIBS_TAG: ${{ hashFiles('lib/CMakePresets.json', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/build-libs.cmake', 'lib/llvm/patches/*') }}
+        run: python .ci-scripts/libs-cache/resolve_libs_cache.py --warm --platform windows-2025-vs2026 --tag $env:LIBS_TAG '--' cmake -DPRESET=libs-windows-x86-64 -DTOOLS=false -DJOBS=4 -P lib/build-libs.cmake
 
   arm64-windows:
     # Stage 2 (release/nightly). Gate on stage-1 fast jobs only, never
@@ -241,8 +241,8 @@ jobs:
       - name: Build and push libs
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          LIBS_TAG: ${{ hashFiles('make.ps1', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
-        run: python .ci-scripts/libs-cache/resolve_libs_cache.py --warm --platform windows-11-arm --tag $env:LIBS_TAG '--' pwsh -File make.ps1 -Command libs -LlvmTools false -Arch ARM64
+          LIBS_TAG: ${{ hashFiles('lib/CMakePresets.json', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/build-libs.cmake', 'lib/llvm/patches/*') }}
+        run: python .ci-scripts/libs-cache/resolve_libs_cache.py --warm --platform windows-11-arm --tag $env:LIBS_TAG '--' cmake -DPRESET=libs-windows-arm64 -DTOOLS=false -DJOBS=4 -P lib/build-libs.cmake
 
   freebsd:
     # Stage 3. `needs:` x86_64-linux-other (which itself gates on the stage-2
@@ -259,7 +259,7 @@ jobs:
         id: check
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          LIBS_TAG: ${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
+          LIBS_TAG: ${{ hashFiles('lib/CMakePresets.json', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/build-libs.cmake', 'lib/llvm/patches/*') }}
         run: |
           if python3 .ci-scripts/libs-cache/oci_libs_cache.py exists --platform freebsd-15.1 --tag "$LIBS_TAG"; then
             echo "hit=true" >> "$GITHUB_OUTPUT"
@@ -271,7 +271,7 @@ jobs:
         if: steps.check.outputs.hit != 'true'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          LIBS_TAG: ${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
+          LIBS_TAG: ${{ hashFiles('lib/CMakePresets.json', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/build-libs.cmake', 'lib/llvm/patches/*') }}
         run: |
           # Host-side promote (no VM boot): if a branch artifact exists for this
           # tag, copy it into the main cache instead of provisioning the VM to
@@ -294,12 +294,12 @@ jobs:
       - name: Build and push libs
         if: steps.check.outputs.hit != 'true' && steps.promote.outputs.promoted != 'true'
         env:
-          LIBS_TAG: ${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
+          LIBS_TAG: ${{ hashFiles('lib/CMakePresets.json', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/build-libs.cmake', 'lib/llvm/patches/*') }}
         run: |
           ssh -o StrictHostKeyChecking=no -i vm_key -p 2222 freebsd@localhost \
             "cd /home/freebsd/ponyc && \
              export GITHUB_TOKEN='${{ secrets.GITHUB_TOKEN }}' GITHUB_REPOSITORY='${{ github.repository }}' GITHUB_ACTOR='${{ github.actor }}' && \
-             gmake libs llvm_tools=false build_flags=-j4 && \
+             cmake -DTOOLS=false -DJOBS=4 -P lib/build-libs.cmake && \
              python3 .ci-scripts/libs-cache/oci_libs_cache.py push --platform freebsd-15.1 --tag '${LIBS_TAG}'"
       - name: Shutdown VM
         if: always()
@@ -321,7 +321,7 @@ jobs:
         id: check
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          LIBS_TAG: ${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
+          LIBS_TAG: ${{ hashFiles('lib/CMakePresets.json', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/build-libs.cmake', 'lib/llvm/patches/*') }}
         run: |
           if python3 .ci-scripts/libs-cache/oci_libs_cache.py exists --platform openbsd-7.9 --tag "$LIBS_TAG"; then
             echo "hit=true" >> "$GITHUB_OUTPUT"
@@ -333,7 +333,7 @@ jobs:
         if: steps.check.outputs.hit != 'true'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          LIBS_TAG: ${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
+          LIBS_TAG: ${{ hashFiles('lib/CMakePresets.json', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/build-libs.cmake', 'lib/llvm/patches/*') }}
         run: |
           # Host-side promote (no VM boot): if a branch artifact exists for this
           # tag, copy it into the main cache instead of provisioning the VM to
@@ -354,12 +354,12 @@ jobs:
       - name: Build and push libs
         if: steps.check.outputs.hit != 'true' && steps.promote.outputs.promoted != 'true'
         env:
-          LIBS_TAG: ${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
+          LIBS_TAG: ${{ hashFiles('lib/CMakePresets.json', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/build-libs.cmake', 'lib/llvm/patches/*') }}
         run: |
           ssh -o StrictHostKeyChecking=no -o ServerAliveInterval=60 -i vm_key -p 2222 openbsd@localhost \
             "cd /build/ponyc && \
              export GITHUB_TOKEN='${{ secrets.GITHUB_TOKEN }}' GITHUB_REPOSITORY='${{ github.repository }}' GITHUB_ACTOR='${{ github.actor }}' && \
-             gmake libs llvm_tools=false build_flags=-j4 && \
+             cmake -DTOOLS=false -DJOBS=4 -P lib/build-libs.cmake && \
              rm -rf build/build_libs && \
              python3 .ci-scripts/libs-cache/oci_libs_cache.py push --platform openbsd-7.9 --tag '${LIBS_TAG}'"
       - name: Shutdown VM
@@ -383,7 +383,7 @@ jobs:
         id: check
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          LIBS_TAG: ${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
+          LIBS_TAG: ${{ hashFiles('lib/CMakePresets.json', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/build-libs.cmake', 'lib/llvm/patches/*') }}
         run: |
           if python3 .ci-scripts/libs-cache/oci_libs_cache.py exists --platform dragonfly-6.4.2 --tag "$LIBS_TAG"; then
             echo "hit=true" >> "$GITHUB_OUTPUT"
@@ -395,7 +395,7 @@ jobs:
         if: steps.check.outputs.hit != 'true'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          LIBS_TAG: ${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
+          LIBS_TAG: ${{ hashFiles('lib/CMakePresets.json', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/build-libs.cmake', 'lib/llvm/patches/*') }}
         run: |
           # Host-side promote (no VM boot): if a branch artifact exists for this
           # tag, copy it into the main cache instead of provisioning the VM to
@@ -416,7 +416,7 @@ jobs:
       - name: Build and push libs
         if: steps.check.outputs.hit != 'true' && steps.promote.outputs.promoted != 'true'
         env:
-          LIBS_TAG: ${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
+          LIBS_TAG: ${{ hashFiles('lib/CMakePresets.json', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/build-libs.cmake', 'lib/llvm/patches/*') }}
         run: |
           # Unquoted heredoc on purpose: ${LIBS_TAG} must expand on the runner
           # (it is not set inside the VM), so EOF must stay unquoted.
@@ -426,7 +426,7 @@ jobs:
           cd /build/ponyc
           export CC=/usr/local/bin/gcc13 CXX=/usr/local/bin/g++13 LD_LIBRARY_PATH=/usr/local/lib/gcc13 SSL_CERT_FILE=/usr/local/share/certs/ca-root-nss.crt
           export GITHUB_TOKEN='${{ secrets.GITHUB_TOKEN }}' GITHUB_REPOSITORY='${{ github.repository }}' GITHUB_ACTOR='${{ github.actor }}'
-          gmake libs llvm_tools=false build_flags=-j4
+          cmake -DTOOLS=false -DJOBS=4 -P lib/build-libs.cmake
           rm -rf build/build_libs
           python3 .ci-scripts/libs-cache/oci_libs_cache.py push --platform dragonfly-6.4.2 --tag '${LIBS_TAG}'
           EOF

@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.21 FATAL_ERROR)
+cmake_minimum_required(VERSION 3.25 FATAL_ERROR)
 
 project(ponyc_crt LANGUAGES C)
 
@@ -57,3 +57,14 @@ foreach(CRT_FILE ${CRT_FILES})
         COMMAND $<$<CONFIG:MinSizeRel>:${CMAKE_COMMAND}> ARGS -E copy ${CRT_FILE} ${CMAKE_BINARY_DIR}/../minsizerel${PONY_OUTPUT_SUFFIX}/
     )
 endforeach()
+
+# ponyc links these CRT objects into every binary it produces on Linux, so they
+# must be built before ponyc is used to build the self-hosted tools and tests.
+# Order crt_objects ahead of ponyc; without this the build order is incidental and
+# a ponyc-built target (e.g. pony-compiler-tests) can link before crt_objects
+# finishes, failing with "could not find compiler-rt CRT objects". Everything
+# ponyc builds depends on the ponyc target, so ordering it here covers them all.
+# Guarded because the cross-libponyrt build has no ponyc target.
+if(TARGET ponyc)
+    add_dependencies(ponyc crt_objects)
+endif()

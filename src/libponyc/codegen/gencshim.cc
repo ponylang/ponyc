@@ -179,7 +179,7 @@ static bool c_is_mac_on_mac(pass_opt_t* opt)
 
 // Locate clang's resource directory (builtin headers such as stddef.h).
 // It ships at a known offset from the ponyc binary: ../lib/clang/<major>
-// in an installation (see the Makefile install target), or
+// in an installation (see the CMake install rules), or
 // ../libs/lib/clang/<major> when running from a build tree.
 static const char* clang_resource_dir(pass_opt_t* opt, errors_t* errors)
 {

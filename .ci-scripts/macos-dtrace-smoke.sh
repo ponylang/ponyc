@@ -15,15 +15,14 @@
 # validate the build and link path.
 set -eu
 
-# Clean + reconfigure debug from scratch. If a prior non-dtrace config=debug
-# build left a build dir behind, reconfiguring it in place re-runs the
-# standalone-library rule over a read-only leftover (libc++.a is 0444, so the
-# copied libcpp.a is too) which fails. clean is config-scoped and defaults to
-# release, so pass config=debug to remove the debug build/output dirs; the
-# prebuilt LLVM in build/libs is untouched.
-make clean config=debug
-make configure config=debug use=dtrace
-make build config=debug
+# Configure the debug build from scratch with dtrace. Remove the cmake build dir
+# first: reconfiguring it in place over a prior non-dtrace config=debug build
+# re-runs the standalone-library rule over a read-only leftover (libc++.a is
+# 0444, so the copied libcpp.a is too) and fails. The prebuilt LLVM in
+# build/libs is a separate dir and is untouched.
+rm -rf build/build_debug
+cmake --preset debug -DPONY_USES=dtrace
+cmake --build --preset debug
 
 # Derive the output directory rather than hardcode the suffix.
 out=$(find build -maxdepth 1 -type d -name 'debug-dtrace' | head -1)

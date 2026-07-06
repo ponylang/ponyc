@@ -7,16 +7,24 @@
 # AddressSanitizer/ThreadSanitizer/UndefinedBehaviorSanitizer runtime (GCC's
 # libsanitizer has no DragonFly target), so those use= options can't link there;
 # and DragonFly can't build a working dtrace-instrumented runtime, so use=dtrace
-# is rejected too. `gmake configure` rejects them with a clear error at
-# make-parse time, before `gmake libs` runs, so this assertion needs no LLVM
-# build or gcc13 toolchain. Check each fails AND fails for the documented reason:
-# a typo in the OS string would otherwise silently regress to the confusing
-# partway-through build failure the guards exist to prevent. (coverage and
-# valgrind aren't rejected on DragonFly.)
+# is rejected too. cmake's use= validation rejects them with a clear error, and
+# it runs before LLVM is required, so this assertion needs no LLVM build or gcc13
+# toolchain. Check each fails AND fails for the documented
+# reason: a typo in the OS string would otherwise silently regress to the
+# confusing partway-through build failure the guards exist to prevent.
+# (coverage and valgrind aren't rejected on DragonFly.)
 set -eu
 
+# Validation runs inside cmake configure (cmake/PonyUses.cmake), which caches a
+# compiler in the build dir it configures. Configure directly with cmake into a
+# throwaway build dir -- not a preset (the presets pin clang, which DragonFly's
+# base toolchain lacks) and never the shared build_release the real build reuses.
+# The base compiler is all the validation needs, and a poisoned build_release
+# would pin the release build to the wrong toolchain (see
+# .known-couplings/use-option-validation.md).
 for u in address_sanitizer thread_sanitizer undefined_behavior_sanitizer dtrace; do
-  if out=$(gmake configure use="$u" 2>&1); then
+  rm -rf build/build_reject-probe
+  if out=$(cmake -B build/build_reject-probe -S . -DPONY_USES="$u" 2>&1); then
     echo "FAIL: use=$u was not rejected on DragonFly"
     exit 1
   fi
@@ -26,4 +34,5 @@ for u in address_sanitizer thread_sanitizer undefined_behavior_sanitizer dtrace;
     exit 1
   fi
 done
+rm -rf build/build_reject-probe
 echo "unsupported use= options correctly rejected on DragonFly"

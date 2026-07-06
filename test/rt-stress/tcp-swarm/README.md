@@ -69,8 +69,8 @@ detector on or off); the draw is stable per seed, so a failure replays from its
 number.
 
 ```bash
-make configure config=debug
-make build config=debug
+cmake --preset debug
+cmake --build --preset debug
 python3 test/rt-stress/tcp-swarm/orchestrate_tcp.py \
   --ponyc build/debug/ponyc --count 50 --out ~/tmp/tcp-swarm-out
 ```

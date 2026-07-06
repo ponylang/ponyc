@@ -952,8 +952,9 @@ def lldb_argv(lldb, engine_argv):
     uses SIGUSR2 for scheduler wakeups (and SIGINT for shutdown), so lldb must pass
     those through WITHOUT stopping -- otherwise it halts on every scheduler signal
     and the run hangs. We stop at `main`, configure that pass-through, then
-    continue. Windows has no such signals, so it just runs. Mirrors the
-    `usedebugger=lldb` invocation in the Makefile / make.ps1.
+    continue. Windows has no such signals, so it just runs. Mirrors the lldb
+    invocation the test harness uses (`.ci-scripts/test-debugger.sh`, or
+    `.ci-scripts/test-debugger.ps1` on Windows).
 
     `register read` is deliberately omitted: we don't upload the failing binary,
     so raw register addresses can't be re-symbolized -- `frame variable` + `bt all`
@@ -980,8 +981,8 @@ def lldb_exit_code(output):
     """The engine's real exit code parsed from lldb --batch output ("Process N
     exited with status = M"), or None if it did not exit cleanly -- i.e. it
     crashed, lldb ran the on-crash backtrace and quit 1, and there is no
-    exit-status line (the backtrace is in `output`). Matches the Makefile/make.ps1
-    lldb exit-code extraction."""
+    exit-status line (the backtrace is in `output`). Matches the lldb exit-code
+    extraction used when running tests under a debugger."""
     match = re.search(r"Process \d+ exited with status = (\d+)", output)
     return int(match.group(1)) if match is not None else None
 

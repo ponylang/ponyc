@@ -19,7 +19,7 @@ FAILURES = []
 
 # A directory is the repo root iff it contains these markers (the build files
 # repo_root() exists to find build/libs alongside).
-MARKERS = ['Makefile', 'lib', 'src']
+MARKERS = ['CMakeLists.txt', 'lib', 'src']
 
 
 def test_repo_root_points_at_root():

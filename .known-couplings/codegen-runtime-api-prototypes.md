@@ -20,6 +20,8 @@ expected, so networking initialisation would quietly never happen.
 Keep the prototype in `codegen.c`, the call in the relevant `gen*.cc`, and the
 runtime definition in lockstep, in the same change.
 
-Run: `make test-core` (full-program tests link generated code against libponyrt)
-and `make test-stdlib-release` (exercises the runtime API breadth, including the
-network path that depends on `pony_start`'s language-features argument).
+Run: `ctest --preset debug -R 'libponyc\.tests|libponyrt\.tests|full-programs'`
+(full-program tests link generated code against libponyrt)
+and `ctest --preset debug -R stdlib-release` (exercises the runtime API breadth,
+including the network path that depends on `pony_start`'s language-features
+argument).

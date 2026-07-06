@@ -32,19 +32,39 @@ if(NOT MSVC)
     endif()
 endif()
 
+# ExternalProject_Add does not forward this project's compiler to the gbenchmark
+# and googletest sub-builds; only the generator carries over. So on a
+# single-config generator (Make/Ninja) the sub-builds pick their compiler from
+# the CC/CXX environment and ignore a CMAKE_C_COMPILER/CMAKE_CXX_COMPILER set on
+# this project (e.g. via a preset's cacheVariables). When those disagree -- a
+# preset pinning clang while the environment's default cc is gcc -- gtest builds
+# with gcc while LLVM (an add_subdirectory, which does inherit the compiler)
+# builds with clang. On aarch64 that mismatch broke the debug link: gcc's -fpic
+# gtest overflowed the small-model GOT in libponyc.tests where clang's did not.
+# Forward the compiler explicitly so the sub-builds match. MSVC selects its
+# compiler through the generator/toolset, which ExternalProject does carry over,
+# so leave it alone there.
+# See .known-couplings/libs-externalproject-compiler.md.
+set(PONYC_LIBS_COMPILER_ARGS "")
+if(NOT MSVC)
+    set(PONYC_LIBS_COMPILER_ARGS
+        -DCMAKE_C_COMPILER=${CMAKE_C_COMPILER}
+        -DCMAKE_CXX_COMPILER=${CMAKE_CXX_COMPILER})
+endif()
+
 # Libraries
 
 set(PONYC_GBENCHMARK_URL https://github.com/google/benchmark/archive/v1.9.5.tar.gz)
 ExternalProject_Add(gbenchmark
     URL ${PONYC_GBENCHMARK_URL}
-    CMAKE_ARGS -DCMAKE_BUILD_TYPE=${PONYC_LIBS_BUILD_TYPE} -DCMAKE_INSTALL_PREFIX=${CMAKE_INSTALL_PREFIX} -DBENCHMARK_ENABLE_GTEST_TESTS=OFF -DBENCHMARK_ENABLE_WERROR=OFF -DCMAKE_CXX_FLAGS=${PONY_PIC_FLAG} --no-warn-unused-cli
+    CMAKE_ARGS -DCMAKE_BUILD_TYPE=${PONYC_LIBS_BUILD_TYPE} -DCMAKE_INSTALL_PREFIX=${CMAKE_INSTALL_PREFIX} ${PONYC_LIBS_COMPILER_ARGS} -DBENCHMARK_ENABLE_GTEST_TESTS=OFF -DBENCHMARK_ENABLE_WERROR=OFF -DCMAKE_CXX_FLAGS=${PONY_PIC_FLAG} --no-warn-unused-cli
 )
 
 set(PONYC_GOOGLETEST_URL https://github.com/google/googletest/releases/download/v1.17.0/googletest-1.17.0.tar.gz)
 
 ExternalProject_Add(googletest
     URL ${PONYC_GOOGLETEST_URL}
-    CMAKE_ARGS -DCMAKE_BUILD_TYPE=${PONYC_LIBS_BUILD_TYPE} -DCMAKE_INSTALL_PREFIX=${CMAKE_INSTALL_PREFIX} -DCMAKE_CXX_FLAGS=${PONY_PIC_FLAG} -Dgtest_force_shared_crt=ON --no-warn-unused-cli
+    CMAKE_ARGS -DCMAKE_BUILD_TYPE=${PONYC_LIBS_BUILD_TYPE} -DCMAKE_INSTALL_PREFIX=${CMAKE_INSTALL_PREFIX} ${PONYC_LIBS_COMPILER_ARGS} -DCMAKE_CXX_FLAGS=${PONY_PIC_FLAG} -Dgtest_force_shared_crt=ON --no-warn-unused-cli
 )
 
 find_package(Git)

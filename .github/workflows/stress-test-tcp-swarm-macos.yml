@@ -33,18 +33,18 @@ jobs:
       - name: Restore prebuilt libs
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          LIBS_TAG: ${{ hashFiles('Makefile', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/llvm/patches/*') }}
+          LIBS_TAG: ${{ hashFiles('lib/CMakePresets.json', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/build-libs.cmake', 'lib/llvm/patches/*') }}
           # Off main (a manual dispatch of a branch): build LLVM if it isn't cached,
           # and push what we build. On main (a scheduled run, or a dispatch left on
           # main): if it isn't cached, skip -- we don't build LLVM on main.
           LIBS_MODE: ${{ ((github.event_name == 'workflow_dispatch' && github.event.inputs.sha != 'main') && '--branch-cache') || '--require-cache-hit --skip-on-miss' }}
-          LIBS_BUILD: ${{ ((github.event_name == 'workflow_dispatch' && github.event.inputs.sha != 'main') && '-- make libs llvm_tools=false build_flags=-j3') || '' }}
+          LIBS_BUILD: ${{ ((github.event_name == 'workflow_dispatch' && github.event.inputs.sha != 'main') && '-- cmake -DTOOLS=false -DJOBS=3 -P lib/build-libs.cmake') || '' }}
         run: python3 .ci-scripts/libs-cache/resolve_libs_cache.py $LIBS_MODE --platform arm64-macos-26 --tag "$LIBS_TAG" $LIBS_BUILD
       - name: Build Debug Runtime
         if: ${{ hashFiles('.libs-cache-miss') == '' }}
         run: |
-          make configure config=debug
-          make build config=debug
+          cmake --preset debug
+          cmake --build --preset debug
       # Widen the ephemeral port range and shorten TIME_WAIT so a high-churn run
       # can't exhaust client ports (which would fail connections -- treated as a
       # test failure). The retired tcp-open-close test needed the same tuning.

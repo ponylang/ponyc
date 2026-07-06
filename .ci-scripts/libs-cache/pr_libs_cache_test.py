@@ -60,10 +60,10 @@ def run_main(argv, results, branch_argvs=None):
 
 
 # Non-fork passes --branch-cache; a fork omits it.
-NONFORK = ['--branch-cache', '--platform', 'p', '--tag', 't', '--', 'make', 'libs']
-FORK = ['--platform', 'p', '--tag', 't', '--', 'make', 'libs']
+NONFORK = ['--branch-cache', '--platform', 'p', '--tag', 't', '--', 'cmake']
+FORK = ['--platform', 'p', '--tag', 't', '--', 'cmake']
 ENSURE = ['--ensure', '--branch-cache', '--platform', 'p', '--tag', 't', '--',
-          'make', 'libs']
+          'cmake']
 
 
 def test_nonfork_main_hit():
@@ -140,14 +140,14 @@ def test_ensure_branch_push_failure_hard_fails():
 
 def test_ensure_requires_branch_cache():
     calls, code = run_main(['--ensure', '--platform', 'p', '--tag', 't', '--',
-                            'make', 'libs'], {})
+                            'cmake'], {})
     check('ensure-no-branch calls', calls, [])
     check('ensure-no-branch code', code, 1)
 
 
 def test_missing_double_dash():
     calls, code = run_main(['--branch-cache', '--platform', 'p', '--tag', 't',
-                            'make', 'libs'], {})
+                            'cmake'], {})
     check('missing -- calls', calls, [])
     check('missing -- code', code, 1)
 

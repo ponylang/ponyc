@@ -14,19 +14,19 @@
 #      (a .profraw) — the point of use=coverage, measuring ponyc's own coverage.
 set -eu
 
-# Clean + reconfigure debug from scratch with coverage. `clean` is config-scoped
-# (pass config=debug so it removes the debug build/output dirs); the prebuilt
-# LLVM in build/libs is untouched, so this does not rebuild LLVM. A from-scratch
+# Configure the debug build from scratch with coverage (remove the cmake build dir
+# first); the prebuilt LLVM in build/libs is a separate dir and untouched, so it
+# is not rebuilt. A from-scratch
 # configure is required because the coverage instrumentation flags differ from
 # the plain debug build the job already made. This runs after the sanitizer and
 # dtrace smokes, which perform the same clean+reconfigure, so the order is
 # deliberate.
-gmake clean config=debug
-gmake configure config=debug use=coverage
-# The `gmake build` below is itself the first assertion: it compiles the
+rm -rf build/build_debug
+cmake --preset debug -DPONY_USES=coverage
+# The `cmake --build` below is itself the first assertion: it compiles the
 # instrumented ponyc and links the self-hosted tools (pony-lsp/pony-lint/
 # pony-doc). A coverage build that can't link them fails here, at build time.
-gmake build config=debug
+cmake --build --preset debug
 
 # use=coverage sets PONY_OUTPUT_SUFFIX to -coverage, so the build output lands in
 # build/debug-coverage. Derive it rather than hardcoding (the suffix is
@@ -50,7 +50,7 @@ PONY
 # binary. That ponyc invocation is real work for the instrumented compiler, so it
 # also exercises ponyc's own coverage; capture this run's profile data with a
 # per-invocation LLVM_PROFILE_FILE (not exported, so it captures only this run,
-# not the many ponyc runs `gmake build` already made).
+# not the many ponyc runs `cmake --build` already made).
 prof="$smoke/ponyc.profraw"
 rm -f "$prof"
 PONYPATH="$PWD/packages" LLVM_PROFILE_FILE="$prof" "$out/ponyc" --debug -o "$smoke" "$smoke"
@@ -72,7 +72,7 @@ fi
 echo "ponyc dropped profile data: $(wc -c < "$prof") bytes"
 
 # The self-hosted tools are themselves Pony programs the coverage ponyc linked
-# during `gmake build`; confirm one runs, proving the tool link path works under
+# during `cmake --build`; confirm one runs, proving the tool link path works under
 # coverage and not just that a minimal program does.
 "$out/pony-lint" --version
 echo "coverage smoke test passed"
