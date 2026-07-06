@@ -443,19 +443,258 @@ def test_lldb_exit_code():
           o.lldb_exit_code("no exit line here") is None)
 
 
-def test_watchdog_should_kill():
-    # No-progress: the last output was longer ago than the no-progress window.
-    check("watchdog: kills on a no-progress gap",
-          o._watchdog_should_kill(now=1000, start=0, last_output=699,
-                                  timeout=6000, no_progress_seconds=300))
-    # Absolute timeout: output is fresh, but the run has exceeded --timeout.
-    check("watchdog: kills on the absolute timeout",
-          o._watchdog_should_kill(now=7000, start=0, last_output=7000,
-                                  timeout=6000, no_progress_seconds=300))
-    # Healthy: recent output and well inside the timeout.
-    check("watchdog: lets a healthy run continue",
-          not o._watchdog_should_kill(now=100, start=0, last_output=100,
-                                      timeout=6000, no_progress_seconds=300))
+def test_watchdog_kill_reason():
+    # No-progress: the completed count last advanced longer ago than the window --
+    # a hang.
+    check("watchdog: no_progress when done stalls past the window",
+          o._watchdog_kill_reason(now=1000, start=0, last_progress=699,
+                                  timeout=6000, no_progress_seconds=300)
+          == "no_progress")
+    # Backstop: progress is fresh, but the run has passed the absolute cap -- a
+    # healthy over-long run, stopped but not failed.
+    check("watchdog: backstop when still advancing past the cap",
+          o._watchdog_kill_reason(now=7000, start=0, last_progress=6900,
+                                  timeout=6000, no_progress_seconds=300)
+          == "backstop")
+    # Healthy: recent progress, well inside the cap.
+    check("watchdog: None when progressing inside the cap",
+          o._watchdog_kill_reason(now=100, start=0, last_progress=100,
+                                  timeout=6000, no_progress_seconds=300) is None)
+    # A stall that is also past the cap is a hang, not a backstop: no_progress is
+    # checked first, so a stuck run past the cap still fails.
+    check("watchdog: a stall past the cap is a hang, not a backstop",
+          o._watchdog_kill_reason(now=7000, start=0, last_progress=6000,
+                                  timeout=6000, no_progress_seconds=300)
+          == "no_progress")
+    # Boundaries: the checks are strict `>`, so a gap or elapsed time exactly at the
+    # threshold does NOT fire; one second past does.
+    check("watchdog: a gap exactly at the window does not fire",
+          o._watchdog_kill_reason(now=300, start=0, last_progress=0,
+                                  timeout=6000, no_progress_seconds=300) is None)
+    check("watchdog: one past the window fires no_progress",
+          o._watchdog_kill_reason(now=301, start=0, last_progress=0,
+                                  timeout=6000, no_progress_seconds=300)
+          == "no_progress")
+    check("watchdog: elapsed exactly at the backstop does not fire",
+          o._watchdog_kill_reason(now=6000, start=0, last_progress=6000,
+                                  timeout=6000, no_progress_seconds=300) is None)
+    check("watchdog: one past the backstop fires backstop",
+          o._watchdog_kill_reason(now=6001, start=0, last_progress=6001,
+                                  timeout=6000, no_progress_seconds=300)
+          == "backstop")
+
+
+def test_parse_done():
+    # A heartbeat line yields its completed count; anything else yields None.
+    check("parse_done: reads the count from a heartbeat",
+          o._parse_done(b"HEARTBEAT done=1234 of 44688\n") == 1234)
+    check("parse_done: None on the RESULT line",
+          o._parse_done(b"RESULT connections=500 completed=500\n") is None)
+    check("parse_done: None on a bare done= without the HEARTBEAT prefix",
+          o._parse_done(b"done=5 but not a heartbeat\n") is None)
+
+
+def test_is_progress():
+    # The discriminator: progress is the completed count EXCEEDING the max seen, not
+    # any output. A frozen count (heartbeats still printing) or an absent count is not
+    # progress -- which is how a streaming-but-stalled run is caught as a hang.
+    check("is_progress: the first count seen is progress (from the -1 sentinel)",
+          o._is_progress(0, -1))
+    check("is_progress: a rising count is progress", o._is_progress(6, 5))
+    check("is_progress: a frozen count is not progress", not o._is_progress(5, 5))
+    check("is_progress: a lower count is not progress", not o._is_progress(3, 5))
+    check("is_progress: a non-heartbeat line (None) is not progress",
+          not o._is_progress(None, 5))
+
+
+def test_classify_outcome():
+    check("classify: no_progress -> hang",
+          o._classify_outcome("no_progress", None) == "hang")
+    check("classify: backstop -> incomplete",
+          o._classify_outcome("backstop", None) == "incomplete")
+    check("classify: clean exit 0 -> pass",
+          o._classify_outcome(None, 0) == "pass")
+    check("classify: clean non-zero exit -> fail",
+          o._classify_outcome(None, 1) == "fail")
+    check("classify: signal death (negative rc) -> fail",
+          o._classify_outcome(None, -11) == "fail")
+
+
+def test_is_failure():
+    check("is_failure: fail is a failure", o._is_failure("fail"))
+    check("is_failure: hang is a failure", o._is_failure("hang"))
+    check("is_failure: pass is not a failure", not o._is_failure("pass"))
+    check("is_failure: incomplete is not a failure",
+          not o._is_failure("incomplete"))
+
+
+class _FakeStream:
+    def __init__(self, lines):
+        self._lines = list(lines)
+
+    def readline(self):
+        return self._lines.pop(0) if self._lines else b""
+
+    def close(self):
+        pass
+
+
+class _FakeProc:
+    """A subprocess stand-in for _watch_for_progress: poll() returns None while
+    `alive_polls` remain (the run is going), then the exit code."""
+    def __init__(self, out, err, alive_polls, returncode=0):
+        self.stdout = _FakeStream(out)
+        self.stderr = _FakeStream(err)
+        self._alive = alive_polls
+        self.returncode = returncode
+
+    def poll(self):
+        if self._alive > 0:
+            self._alive -= 1
+            return None
+        return self.returncode
+
+    def wait(self):
+        self._alive = 0
+        return self.returncode
+
+
+def test_watch_for_progress():
+    # Progress is the HEARTBEAT `done=` count RISING, not raw output -- so a run that
+    # keeps printing heartbeats with a frozen count is a hang, and one whose count
+    # rises is spared. Drive _watch_for_progress with a fake process and an injected
+    # clock (no real waiting). _kill_process_tree is stubbed to just record the kill.
+    real_kill = o._kill_process_tree
+    killed = []
+    o._kill_process_tree = lambda p: killed.append(p)
+    try:
+        # Clean completion: the process exits, both streams drain, the exit code
+        # passes through with no kill reason, and nothing is killed.
+        proc = _FakeProc([b"HEARTBEAT done=1 of 10\n", b"RESULT connections=10\n"],
+                         [b"(lldb) run\n"], alive_polls=0, returncode=0)
+        reason, rc, out, err = o._watch_for_progress(
+            proc, 6000, 300, poll=lambda: 0.0, sleep=lambda _s: None)
+        check("watch: a clean run has no kill reason", reason is None)
+        check("watch: a clean run's exit code passes through", rc == 0)
+        check("watch: a clean run drains stdout", "RESULT" in out)
+        check("watch: a clean run drains stderr", "lldb" in err)
+        check("watch: a clean run is not killed", not killed)
+
+        # A run that keeps printing heartbeats but whose `done` count never rises past
+        # its first value is a hang: the injected sleep runs the clock past the
+        # no-progress window and it is killed. This exercises the threaded kill path
+        # and the return contract; the done-vs-output discriminator itself is pinned by
+        # test_is_progress, since this fake delivers all lines at clock 0.
+        clock = [0.0]
+
+        def advance(_s):
+            clock[0] += 1000.0
+
+        frozen = [b"HEARTBEAT done=5 of 10\n"] * 4
+        proc2 = _FakeProc(frozen, [], alive_polls=1000, returncode=0)
+        reason2, rc2, _o, _e = o._watch_for_progress(
+            proc2, 6000, 300, poll=lambda: clock[0], sleep=advance)
+        check("watch: heartbeats with a frozen done count is a hang",
+              reason2 == "no_progress")
+        check("watch: a hung run is killed", len(killed) == 1)
+        check("watch: a hung run has no returncode", rc2 is None)
+
+        # A run whose clock stays inside the no-progress window each step is spared and
+        # completes cleanly (no kill reason) -- the watchdog kills only on a gap past
+        # the window or on the backstop.
+        clock3 = [0.0]
+
+        def small_advance(_s):
+            clock3[0] += 100.0  # < the 300s window per step
+
+        proc3 = _FakeProc([b"HEARTBEAT done=1 of 10\n"], [], alive_polls=2,
+                          returncode=0)
+        reason3, rc3, _o3, _e3 = o._watch_for_progress(
+            proc3, 6000, 300, poll=lambda: clock3[0], sleep=small_advance)
+        check("watch: a run advancing inside the window completes",
+              (reason3 is None) and (rc3 == 0))
+        check("watch: a spared run is not killed", len(killed) == 1)
+    finally:
+        o._kill_process_tree = real_kill
+
+
+_MIN_CONFIG = {"master_seed": 0, "workload": {"connections": 1}, "runtime": {}}
+
+
+def _fake_capture(kill_reason, returncode, stdout, stderr=""):
+    """A stand-in for o._capture that returns crafted output, so the run classifiers
+    can be tested without launching a process."""
+    return lambda *a, **k: (kill_reason, returncode, stdout, stderr)
+
+
+def test_run_once():
+    real = o._capture
+    try:
+        o._capture = _fake_capture(None, 0, "ok")
+        r = o.run_once("/bin/x", _MIN_CONFIG, 6000, None, 300)
+        check("run_once: clean exit 0 -> pass",
+              r.outcome == "pass" and r.returncode == 0 and r.signal is None)
+        o._capture = _fake_capture(None, 1, "", "mismatch")
+        r = o.run_once("/bin/x", _MIN_CONFIG, 6000, None, 300)
+        check("run_once: clean exit 1 -> fail",
+              r.outcome == "fail" and r.returncode == 1)
+        o._capture = _fake_capture(None, -11, "", "")
+        r = o.run_once("/bin/x", _MIN_CONFIG, 6000, None, 300)
+        check("run_once: a negative code -> fail with signal number 11",
+              r.outcome == "fail" and r.signal == 11)
+        o._capture = _fake_capture("no_progress", None, "", "")
+        r = o.run_once("/bin/x", _MIN_CONFIG, 6000, None, 300)
+        check("run_once: a no-progress kill -> hang (a failure)",
+              r.outcome == "hang" and o._is_failure(r.outcome))
+        o._capture = _fake_capture("backstop", None, "", "")
+        r = o.run_once("/bin/x", _MIN_CONFIG, 6000, None, 300)
+        check("run_once: a backstop kill -> incomplete (NOT a failure)",
+              r.outcome == "incomplete" and not o._is_failure(r.outcome))
+    finally:
+        o._capture = real
+
+
+def test_run_under_lldb():
+    # The load-bearing classification under lldb (the path CI actually runs): a kill
+    # reason maps to hang/incomplete ahead of any crash parsing; a clean exit is
+    # classified from the lldb crash-signal name or the exit-status line.
+    real = o._capture
+    try:
+        o._capture = _fake_capture(None, 0, "Process 7 exited with status = 0 (0x0)")
+        r = o.run_under_lldb("/bin/x", "lldb", _MIN_CONFIG, 6000, None, 300)
+        check("run_under_lldb: clean exit 0 -> pass",
+              r.outcome == "pass" and r.returncode == 0)
+        o._capture = _fake_capture(None, 0, "Process 7 exited with status = 1 (0x1)")
+        r = o.run_under_lldb("/bin/x", "lldb", _MIN_CONFIG, 6000, None, 300)
+        check("run_under_lldb: exit 1 -> fail",
+              r.outcome == "fail" and r.returncode == 1)
+        o._capture = _fake_capture(
+            None, 1, "stopped\n* stop reason = signal SIGSEGV\nbt all ...")
+        r = o.run_under_lldb("/bin/x", "lldb", _MIN_CONFIG, 6000, None, 300)
+        check("run_under_lldb: a crash -> fail with the signal name",
+              r.outcome == "fail" and r.signal == "SIGSEGV")
+        # A crash whose dump ALSO contains an exit-status line must still be a crash,
+        # not a pass -- the signal check runs first.
+        o._capture = _fake_capture(
+            None, 1,
+            "stop reason = signal SIGABRT\n  Process 1 exited with status = 0")
+        r = o.run_under_lldb("/bin/x", "lldb", _MIN_CONFIG, 6000, None, 300)
+        check("run_under_lldb: an embedded status in a crash dump is not a pass",
+              r.outcome == "fail" and r.signal == "SIGABRT")
+        o._capture = _fake_capture(None, 1, "garbage with no markers")
+        r = o.run_under_lldb("/bin/x", "lldb", _MIN_CONFIG, 6000, None, 300)
+        check("run_under_lldb: no markers -> fail",
+              r.outcome == "fail" and r.signal == "crash")
+        o._capture = _fake_capture("no_progress", None, "partial")
+        r = o.run_under_lldb("/bin/x", "lldb", _MIN_CONFIG, 6000, None, 300)
+        check("run_under_lldb: a no-progress kill -> hang (a failure)",
+              r.outcome == "hang" and o._is_failure(r.outcome))
+        o._capture = _fake_capture("backstop", None, "partial")
+        r = o.run_under_lldb("/bin/x", "lldb", _MIN_CONFIG, 6000, None, 300)
+        check("run_under_lldb: a backstop kill -> incomplete (NOT a failure)",
+              r.outcome == "incomplete" and not o._is_failure(r.outcome))
+    finally:
+        o._capture = real
 
 
 def test_rlimit_as_supported():
@@ -478,8 +717,10 @@ def main():
                test_resolve_config_coverage_and_invariants,
                test_ponymaxthreads_is_last_and_host_dependent,
                test_build_argv, test_parse_result, test_lldb_argv,
-               test_lldb_exit_code, test_watchdog_should_kill,
-               test_rlimit_as_supported):
+               test_lldb_exit_code, test_watchdog_kill_reason,
+               test_parse_done, test_is_progress, test_classify_outcome,
+               test_is_failure, test_watch_for_progress, test_run_once,
+               test_run_under_lldb, test_rlimit_as_supported):
         fn()
     if FAILURES:
         print("\n%d failure(s): %s" % (len(FAILURES), ", ".join(FAILURES)))
