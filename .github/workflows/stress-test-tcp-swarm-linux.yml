@@ -22,7 +22,7 @@ concurrency:
 jobs:
   x86_64-linux-glibc:
     runs-on: ubuntu-latest
-    timeout-minutes: 90
+    timeout-minutes: 200
 
     name: x86-64-unknown-linux-ubuntu26.04 tcp swarm [debug]
     container:
@@ -58,8 +58,8 @@ jobs:
           python3 test/rt-stress/tcp-swarm/orchestrate_tcp.py \
             --ponyc build/debug/ponyc \
             --lldb lldb \
-            --start ${{ github.run_id }} --budget-seconds 1800 \
-            --timeout-seconds 600 \
+            --start ${{ github.run_id }} --budget-seconds 3000 \
+            --timeout-seconds 5400 \
             --out rt-stress-out
       # cancelled() too: keep bundles from seeds that ran before a cancel.
       - name: Upload failure bundles

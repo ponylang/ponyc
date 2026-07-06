@@ -78,8 +78,11 @@ python3 test/rt-stress/tcp-swarm/orchestrate_tcp.py \
 `--seeds A,B,C` runs specific seeds; `--budget-seconds N` runs seeds from `--start`
 until N seconds pass (the soak); `--lldb <path>` runs each seed under lldb so a
 crash leaves a backtrace; `--max-connections N` caps each seed's connection count
-(Windows CI uses it, since Windows opens sockets slowly). A non-passing run writes
-`bundle-<seed>.json` to `--out`.
+(Windows CI uses it, since Windows opens sockets slowly). A run is a failure only if
+it crashes, mismatches, or hangs — makes no progress for `--no-progress-seconds` (the
+completed count stops rising); a failure writes `bundle-<seed>.json` to `--out`. A
+healthy run is never failed for running long: one still making progress at the
+`--timeout-seconds` backstop is reported `incomplete`, not failed.
 
 ## Running the engine directly
 

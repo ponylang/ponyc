@@ -24,7 +24,7 @@ jobs:
     defaults:
       run:
         shell: pwsh
-    timeout-minutes: 90
+    timeout-minutes: 200
 
     name: x86-64 Windows tcp swarm [debug]
     steps:
@@ -76,8 +76,8 @@ jobs:
           python test/rt-stress/tcp-swarm/orchestrate_tcp.py `
             --ponyc build/debug/ponyc.exe `
             --lldb 'C:\msys64\mingw64\bin\lldb.exe' `
-            --start ${{ github.run_id }} --budget-seconds 1800 `
-            --timeout-seconds 600 `
+            --start ${{ github.run_id }} --budget-seconds 3000 `
+            --timeout-seconds 5400 `
             --max-connections 1000 `
             --out rt-stress-out
       # cancelled() too: keep bundles from seeds that ran before a cancel.

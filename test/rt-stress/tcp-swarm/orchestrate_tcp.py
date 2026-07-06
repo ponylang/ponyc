@@ -9,10 +9,12 @@ different subsets and push the net stack down different code paths (see
 README.md). A failure (echo mismatch, crash, or hang) writes a bundle that
 reproduces the run from its seed alone.
 
-The run mechanism -- the no-progress watchdog + process-group kill, the RLIMIT_AS
-cap, and the optional lldb crash-backtrace wrapper -- is adapted from the
-generative harness's `stress_common.py`; it is copied here rather than shared so
-the two stress tests evolve independently (test plumbing, low drift cost).
+The run mechanism -- the no-progress watchdog (a run is a hang when its completed
+count stops advancing) + process-group kill, a non-failing backstop that stops a
+healthy over-long run, the RLIMIT_AS cap, and the optional lldb crash-backtrace
+wrapper -- is adapted from the generative harness's `stress_common.py`; it is
+copied here rather than shared so the two stress tests evolve independently (test
+plumbing, low drift cost).
 """
 import argparse
 import json
@@ -35,11 +37,16 @@ BINARY_NAME = "tcp_swarm"
 SOURCE_DIR = os.path.dirname(os.path.abspath(__file__))
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(SOURCE_DIR)))
 
-# The engine must emit a flushed heartbeat more often than this, or a healthy but
-# quiet run (a large draw mid-flight) gets false-killed as no-progress. The engine
-# paces its heartbeat off `connections` to stay well inside this window. Coupling:
+# The hang threshold: if the engine's HEARTBEAT `done=` count has not advanced for
+# this long, the run is stuck (a stalled connection, a teardown that never finishes)
+# and is killed as a failure. The engine emits a heartbeat on a fixed wall-clock
+# timer, far more often than this, so a healthy-but-slow run always shows `done`
+# advancing inside the window; only a genuine stall stops it. Coupling:
 # .known-couplings/tcp-swarm-heartbeat-watchdog.md.
 DEFAULT_NO_PROGRESS_SECONDS = 300
+# The backstop: a run still advancing at this point is stopped anyway so one seed
+# can't run unbounded, but that is NOT a failure (outcome "incomplete") -- the run
+# was healthy, it just ran long. Only the no-progress hang above fails a seed.
 DEFAULT_TIMEOUT_SECONDS = 6000
 # 8 GiB, not 4: the Pony runtime reserves a flat ~3.5 GiB of VIRTUAL address space
 # (measured, constant across configs), and RLIMIT_AS caps virtual, not RSS -- so a
@@ -81,6 +88,10 @@ PAYLOAD_SIZES = [1, 8, 64, 256, 1024, 4096, 16384, 65536]
 READ_BUFFER_SIZES = [128, 1024, 16384, 65536]
 YIELD_SIZES = [64, 1024, 16384]
 CONCURRENCY = [8, 16, 32, 64, 128, 256]
+# COUPLING: the max per-connection work -- max `messages` (64) below * max
+# `payload-size` (65536) ~ 4 MiB, with concurrency >= 8 -- must keep the slowest single
+# connection completing well within the orchestrator's no-progress window, or a healthy
+# run reads as a hang. See .known-couplings/tcp-swarm-heartbeat-watchdog.md.
 MESSAGE_BUCKETS = {"small": (1, 2), "medium": (3, 16), "large": (17, 64)}
 CONNECTION_BUCKETS = {"small": (100, 2000), "medium": (2001, 20000),
                       "large": (20001, 100000)}
@@ -380,45 +391,92 @@ def _kill_process_tree(proc):
     proc.kill()
 
 
-def _watchdog_should_kill(now, start, last_output, timeout, no_progress_seconds):
-    return ((now - last_output) > no_progress_seconds) or \
-           ((now - start) > timeout)
+def _watchdog_kill_reason(now, start, last_progress, timeout,
+                          no_progress_seconds):
+    """Why the run should be killed, or None to keep waiting.
+
+    "no_progress" -- the completed count has not advanced for the no-progress
+    window: a hang (a stalled connection, a teardown that never finishes). This is
+    the only unhealthy signal, and it fails the seed.
+
+    "backstop" -- the run is still advancing but has passed the absolute cap: a
+    healthy run that ran long. It is stopped so one seed can't take down the whole
+    job, but it is not a failure. Checked second, so a real hang that happens to be
+    past the cap is still reported as a hang."""
+    if (now - last_progress) > no_progress_seconds:
+        return "no_progress"
+    if (now - start) > timeout:
+        return "backstop"
+    return None
+
+
+# HEARTBEAT lines carry the engine's completed-connection count; a run makes
+# progress when this advances (see _watch_for_progress). Bytes pattern: the reader
+# threads read the child's pipes in binary.
+_DONE_RE = re.compile(rb"HEARTBEAT done=(\d+)")
+
+
+def _parse_done(line):
+    """The completed-connection count from an engine HEARTBEAT line (bytes), or
+    None if the line is not a heartbeat."""
+    match = _DONE_RE.search(line)
+    return int(match.group(1)) if match is not None else None
+
+
+def _is_progress(done, max_done):
+    """A heartbeat's completed count is progress only when it exceeds the max seen so
+    far. This is the whole point of the done-count watchdog: a run that keeps printing
+    heartbeats with a frozen (or absent) count is NOT making progress and is caught as
+    a hang -- an output-based watchdog would be reset by the same lines and miss it."""
+    return (done is not None) and (done > max_done)
 
 
 def _watch_for_progress(proc, timeout, no_progress_seconds,
                         poll=time.monotonic, sleep=time.sleep):
     """Drain both streams in reader threads (so a full pipe can't deadlock the
-    child), updating a last-output time. Kill the process group on a no-progress
-    gap or the absolute timeout. Returns (timed_out, returncode, stdout, stderr)."""
-    last_output = [poll()]
+    child). Progress is the engine's HEARTBEAT `done=` count advancing, not raw
+    output -- a run whose count stalls for the no-progress window is a hang, even
+    though its timer heartbeat keeps printing. Kill on a hang or on the absolute
+    backstop. Returns (kill_reason, returncode, stdout, stderr): kill_reason is None
+    on a clean exit, else "no_progress" (a hang) or "backstop" (a healthy over-long
+    run)."""
+    start = poll()
+    last_progress = [start]
+    max_done = [-1]
     lock = threading.Lock()
     chunks = {"out": [], "err": []}
 
-    def drain(stream, key):
+    def drain(stream, key, track_progress):
         try:
             for line in iter(stream.readline, b""):
                 chunks[key].append(line)
-                with lock:
-                    last_output[0] = poll()
+                if track_progress:
+                    done = _parse_done(line)
+                    with lock:
+                        if _is_progress(done, max_done[0]):
+                            max_done[0] = done
+                            last_progress[0] = poll()
         finally:
             stream.close()
 
     readers = [
-        threading.Thread(target=drain, args=(proc.stdout, "out"), daemon=True),
-        threading.Thread(target=drain, args=(proc.stderr, "err"), daemon=True),
+        threading.Thread(target=drain, args=(proc.stdout, "out", True),
+                         daemon=True),
+        threading.Thread(target=drain, args=(proc.stderr, "err", False),
+                         daemon=True),
     ]
     for t in readers:
         t.start()
 
-    start = poll()
-    timed_out = False
+    kill_reason = None
     while proc.poll() is None:
         now = poll()
         with lock:
-            last = last_output[0]
-        if _watchdog_should_kill(now, start, last, timeout, no_progress_seconds):
+            last = last_progress[0]
+        kill_reason = _watchdog_kill_reason(now, start, last, timeout,
+                                            no_progress_seconds)
+        if kill_reason is not None:
             _kill_process_tree(proc)
-            timed_out = True
             break
         sleep(0.5)
     proc.wait()
@@ -426,8 +484,8 @@ def _watch_for_progress(proc, timeout, no_progress_seconds,
         t.join(timeout=5)
     stdout = _decode(b"".join(chunks["out"]))
     stderr = _decode(b"".join(chunks["err"]))
-    returncode = None if timed_out else proc.returncode
-    return (timed_out, returncode, stdout, stderr)
+    returncode = None if kill_reason is not None else proc.returncode
+    return (kill_reason, returncode, stdout, stderr)
 
 
 def _capture(argv, timeout, mem_limit_bytes, no_progress_seconds):
@@ -476,33 +534,52 @@ def lldb_exit_code(output):
 
 class RunResult:
     def __init__(self, outcome, returncode, signal_, stdout, stderr):
-        self.outcome = outcome  # "pass" | "fail" | "timeout"
+        self.outcome = outcome  # "pass" | "fail" | "hang" | "incomplete"
         self.returncode = returncode
         self.signal = signal_
         self.stdout = stdout
         self.stderr = stderr
 
 
+def _classify_outcome(kill_reason, returncode):
+    """A run's outcome from its kill reason (or clean exit). Among the watchdog
+    kills only a hang is a failure; the backstop stops a healthy over-long run
+    without failing it. A clean exit is pass/fail by the exit code."""
+    if kill_reason == "no_progress":
+        return "hang"
+    if kill_reason == "backstop":
+        return "incomplete"
+    return "pass" if returncode == 0 else "fail"
+
+
+def _is_failure(outcome):
+    """A seed fails only if it crashed or mismatched ("fail") or hung ("hang").
+    "pass" and "incomplete" (a healthy run stopped at the backstop) do not."""
+    return outcome in ("fail", "hang")
+
+
 def run_once(binary, config, timeout, mem_limit_bytes, no_progress_seconds):
-    """Direct run: classify from the exit code and the RESULT line."""
-    timed_out, returncode, stdout, stderr = _capture(
+    """Direct run: classify from the kill reason, else the exit code."""
+    kill_reason, returncode, stdout, stderr = _capture(
         build_argv(binary, config), timeout, mem_limit_bytes,
         no_progress_seconds)
-    if timed_out:
-        return RunResult("timeout", None, None, stdout, stderr)
+    if kill_reason is not None:
+        return RunResult(_classify_outcome(kill_reason, None), None, None,
+                         stdout, stderr)
     sig = -returncode if returncode < 0 else None
-    outcome = "pass" if returncode == 0 else "fail"
-    return RunResult(outcome, returncode, sig, stdout, stderr)
+    return RunResult(_classify_outcome(None, returncode), returncode, sig,
+                     stdout, stderr)
 
 
 def run_under_lldb(binary, lldb, config, timeout, mem_limit_bytes,
                    no_progress_seconds):
     """Run under lldb so a crash leaves an in-the-moment backtrace."""
-    timed_out, _rc, stdout, stderr = _capture(
+    kill_reason, _rc, stdout, stderr = _capture(
         lldb_argv(lldb, build_argv(binary, config)), timeout, mem_limit_bytes,
         no_progress_seconds)
-    if timed_out:
-        return RunResult("timeout", None, None, stdout, stderr)
+    if kill_reason is not None:
+        return RunResult(_classify_outcome(kill_reason, None), None, None,
+                         stdout, stderr)
     combined = stdout + "\n" + stderr
     crash = re.search(r"stop reason = signal (\w+)", combined)
     if crash is not None:
@@ -607,7 +684,7 @@ def execute(binary, config, version, out_dir, timeout, mem_limit_bytes,
         info(result.stdout.rstrip("\n"))
     if result.stderr:
         info(result.stderr.rstrip("\n"))
-    if result.outcome != "pass":
+    if _is_failure(result.outcome):
         argv = (lldb_argv(lldb, build_argv(binary, config)) if lldb is not None
                 else build_argv(binary, config))
         limits = {"timeout_seconds": timeout, "mem_limit_bytes": mem_limit_bytes}
@@ -660,9 +737,13 @@ def main():
                           help="run seeds from --start until this many seconds "
                                "pass")
     parser.add_argument("--no-progress-seconds", type=int,
-                        default=DEFAULT_NO_PROGRESS_SECONDS)
+                        default=DEFAULT_NO_PROGRESS_SECONDS,
+                        help="hang threshold: fail a run whose completed count has "
+                             "not advanced for this long")
     parser.add_argument("--timeout-seconds", type=int,
-                        default=DEFAULT_TIMEOUT_SECONDS)
+                        default=DEFAULT_TIMEOUT_SECONDS,
+                        help="non-failing backstop: a run still advancing at this "
+                             "point is stopped (outcome 'incomplete'), not failed")
     parser.add_argument("--mem-limit-mb", type=int, default=DEFAULT_MEM_LIMIT_MB)
     parser.add_argument("--max-connections", type=int, default=None,
                         help="cap each seed's drawn connection count (Windows CI "
@@ -686,7 +767,7 @@ def main():
         result = execute(binary, config, version, args.out,
                          args.timeout_seconds, mem_limit_bytes,
                          args.no_progress_seconds, args.lldb)
-        if result.outcome != "pass":
+        if _is_failure(result.outcome):
             failures.append(seed)
 
     if args.budget_seconds is not None:

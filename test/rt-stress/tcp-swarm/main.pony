@@ -55,6 +55,7 @@ short echo, or a byte mismatch -- prints FAIL and forces a non-zero exit.
 """
 use "collections"
 use "net"
+use "time"
 
 use @printf[I32](fmt: Pointer[U8] tag, ...)
 use @fprintf[I32](stream: Pointer[U8] tag, fmt: Pointer[U8] tag, ...)
@@ -225,8 +226,9 @@ actor Spawner
   Drives the run. Once the listener is up it keeps `concurrency` connections in
   flight at a time, refilling as each finishes, until `connections` have been
   spawned. It tallies every connection's terminal state (verified, mismatched,
-  short, connect-failed), emits periodic heartbeats so the CI no-progress
-  watchdog sees liveness, and prints the pass/fail report when the last
+  short, connect-failed), emits a heartbeat carrying the completed count on a fixed
+  wall-clock timer (the orchestrator's watchdog reads that count and fails the run
+  only if it stops advancing), and prints the pass/fail report when the last
   connection is accounted for.
   """
   let _config: _Config
@@ -241,22 +243,26 @@ actor Spawner
   var _verified: USize = 0
   var _mismatched: USize = 0
   var _finished: Bool = false
-  let _heartbeat_every: USize
+  // Started in listener_ready, disposed at finish. See heartbeat_tick.
+  let _timers: Timers = Timers
 
   new create(config: _Config, connect_auth: TCPConnectAuth) =>
     _config = config
     _connect_auth = connect_auth
-    // ~50 heartbeats per run regardless of size, so the gap between them stays
-    // far under the orchestrator's no-progress watchdog (a silent run is a hang).
-    // COUPLING: paired with orchestrate_tcp.py's no-progress watchdog -- see
-    // .known-couplings/tcp-swarm-heartbeat-watchdog.md.
-    _heartbeat_every = (config.connections / 50).max(1)
 
   be listener_ready(listener: TCPListener, port: String) =>
     _listener = listener
     _port = port
     if not _started then
       _started = true
+      // Heartbeat on a wall-clock timer, not per-completion: the orchestrator's
+      // watchdog decides "hang" from whether `done` advances between heartbeats,
+      // so liveness must be signalled on a fixed cadence a slow run can always
+      // meet, independent of how fast connections complete. COUPLING: the interval
+      // must stay well under the orchestrator's --no-progress-seconds window --
+      // see .known-couplings/tcp-swarm-heartbeat-watchdog.md.
+      let interval: U64 = 5_000_000_000  // 5s
+      _timers(Timer(_HeartbeatTimer(this), interval, interval))
       _refill()
     end
 
@@ -265,23 +271,26 @@ actor Spawner
     _completed = _completed + 1
     if verified then _verified = _verified + 1 end
     if mismatch then _mismatched = _mismatched + 1 end
-    _heartbeat()
     _refill()
 
   be connection_failed() =>
     _inflight = _inflight - 1
     _failed = _failed + 1
-    _heartbeat()
     _refill()
 
-  fun _heartbeat() =>
+  be heartbeat_tick() =>
+    // Fired by _HeartbeatTimer on a fixed wall-clock cadence. Prints the current
+    // completed count so the orchestrator can see progress advancing; a run that
+    // has stopped completing connections stops advancing `done` (the line keeps
+    // coming), which is how the watchdog tells a slow run from a hang.
+    if not _finished then _emit_heartbeat() end
+
+  fun _emit_heartbeat() =>
     let done = _completed + _failed
-    if (done % _heartbeat_every) == 0 then
-      // Flushed: a block-buffered line would not reach the watchdog until the
-      // buffer fills, which would defeat the no-progress detection.
-      @printf("HEARTBEAT done=%zu of %zu\n".cstring(), done, _config.connections)
-      @fflush(@pony_os_stdout())
-    end
+    // Flushed: a block-buffered line would not reach the watchdog until the buffer
+    // fills, which would defeat the no-progress detection.
+    @printf("HEARTBEAT done=%zu of %zu\n".cstring(), done, _config.connections)
+    @fflush(@pony_os_stdout())
 
   fun ref _refill() =>
     while (_inflight < _config.concurrency) and (_spawned < _config.connections) do
@@ -304,6 +313,15 @@ actor Spawner
       and (_inflight == 0)
     then
       _finished = true
+      // A final heartbeat with the true completed count before the timer stops: the
+      // last wave completes after the previous tick, so this records the full total
+      // and resets the watchdog's clock at finish (the shutdown that follows gets a
+      // fresh no-progress window).
+      _emit_heartbeat()
+      // Stop the heartbeat timer so the runtime can reach quiescence: a live
+      // repeating timer is a noisy ASIO event that would keep the program from
+      // exiting after the last connection is done.
+      _timers.dispose()
       _report()
       match _listener
       | let l: TCPListener => l.dispose()
@@ -332,6 +350,20 @@ actor Spawner
         _failed, truncated, _mismatched)
       @exit(1)
     end
+
+class _HeartbeatTimer is TimerNotify
+  """
+  Fires the Spawner's wall-clock heartbeat. Repeats on a fixed interval until the
+  Spawner disposes the timer when the run finishes.
+  """
+  let _spawner: Spawner
+
+  new iso create(spawner: Spawner) =>
+    _spawner = spawner
+
+  fun ref apply(timer: Timer, count: U64): Bool =>
+    _spawner.heartbeat_tick()
+    true
 
 class SwarmListener is TCPListenNotify
   """
