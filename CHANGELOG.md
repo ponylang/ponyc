@@ -31,6 +31,7 @@ All notable changes to the Pony compiler and standard library will be documented
 ### Added
 
 - Add --version and --help support to pony-lsp ([PR #5668](https://github.com/ponylang/ponyc/pull/5668))
+- Support runtime tracing on Windows ([PR #5676](https://github.com/ponylang/ponyc/pull/5676))
 
 ### Changed
 
