@@ -20,7 +20,7 @@ The build system uses CMake. Configuration presets in `CMakePresets.json` set up
 The build is divided into several stages:
 
 - Build the vendored LLVM libraries that are included in the `lib/llvm/src` Git submodule by running `cmake -P lib/build-libs.cmake`.  This stage only needs to be run once the first time you build (or if the vendored LLVM submodule changes, or if you delete the `build` directory).
-  - This can take a while. To use more cores, pass `-DJOBS=6`, replacing `6` with the number of CPU cores available (LLVM is memory-hungry, so keep it modest).
+  - This can take a while. To use more cores, pass `-DJOBS=6`, replacing `6` with the number of CPU cores available (LLVM is memory-hungry, so keep it modest).  Note, This argument will be ignored if it is not placed before the "Process" (-P) flag: `cmake -DJOBS=6 -P lib/build-libs.cmake`.
 
 - `cmake --preset release` to configure the build directory.  Use `cmake --preset debug` for a debug build.
 - `cmake --build --preset release` will build ponyc and put it in `build/release`.  Use `cmake --build --preset debug` for a debug build that goes in `build/debug`.
