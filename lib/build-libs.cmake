@@ -17,10 +17,13 @@
 #                    false to keep the cached libs small).
 #   -DJOBS=<n>       parallel build jobs (default: 4; keep it low -- LLVM is
 #                    memory-hungry).
-#   -DCC=<path> -DCXX=<path>  override the compiler (DragonFly builds LLVM with
-#                    gcc, not the preset's clang).
-#   -DPIC=<flag>     PONY_PIC_FLAG value (default -fpic; some 64-bit ARM targets
-#                    need -fPIC).
+#   -DCMAKE_C_COMPILER=<path> -DCMAKE_CXX_COMPILER=<path>  override the compiler
+#                    (DragonFly builds LLVM with gcc, not the preset's clang).
+#                    Same flag names the ponyc configure step uses, so one
+#                    spelling overrides the compiler at either step.
+#   -DPONY_PIC_FLAG=<flag>  position-independent-code flag (default -fpic; some
+#                    64-bit ARM targets need -fPIC). Same flag name the ponyc
+#                    configure step uses.
 
 if(NOT DEFINED PRESET)
     set(PRESET "libs")
@@ -36,11 +39,11 @@ set(_src "${CMAKE_CURRENT_LIST_DIR}")
 set(_build "${CMAKE_CURRENT_LIST_DIR}/../build/build_libs")
 
 set(_configure cmake --preset "${PRESET}" -S "${_src}" "-DPONY_LLVM_TOOLS=${TOOLS}")
-if(DEFINED CC)
-    list(APPEND _configure "-DCMAKE_C_COMPILER=${CC}" "-DCMAKE_CXX_COMPILER=${CXX}")
+if(DEFINED CMAKE_C_COMPILER)
+    list(APPEND _configure "-DCMAKE_C_COMPILER=${CMAKE_C_COMPILER}" "-DCMAKE_CXX_COMPILER=${CMAKE_CXX_COMPILER}")
 endif()
-if(DEFINED PIC)
-    list(APPEND _configure "-DPONY_PIC_FLAG=${PIC}")
+if(DEFINED PONY_PIC_FLAG)
+    list(APPEND _configure "-DPONY_PIC_FLAG=${PONY_PIC_FLAG}")
 endif()
 
 execute_process(COMMAND ${_configure} RESULT_VARIABLE _rc)
