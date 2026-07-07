@@ -80,6 +80,10 @@ void ponyint_assert_fail(const char* expr, const char* file, size_t line,
   fprintf(stderr, "%s:" __zu ": %s: Assertion `%s` failed.\n\n", file, line,
     func, expr);
 
+  // DbgHelp is single-threaded and this shares it, unlocked, with the
+  // runtime_tracing flight recorder dump in tracing.c — see
+  // .known-couplings/dbghelp-shared-by-ponyassert-and-tracing.md before changing
+  // how either uses DbgHelp.
   HANDLE process = GetCurrentProcess();
   HANDLE thread = GetCurrentThread();
 

@@ -47,19 +47,23 @@ them are exercised by a build near the module:
 
 2. **Windows allowlist.** On MSVC the module rejects every option not in
    `_pony_windows_uses` (`systematic_testing`, `pool_retain`, `pooltrack`,
-   `runtimestats`, `runtimestats_messages`) — the ones that compile and link on
-   Windows, verified by building each on Windows/MSVC (`pooltrack` and the
-   `runtimestats*` options build after the Windows fixes in #5635 and #5637). The
-   rest need POSIX (`pool_memalign`'s `posix_memalign`) or Clang/GCC toolchain
-   features `cl.exe` doesn't provide (the sanitizers' `-fsanitize=`), aren't
-   implemented for Windows (`runtime_tracing`), or need pthreads
+   `runtimestats`, `runtimestats_messages`, `runtime_tracing`) — the ones that
+   compile and link on Windows, verified by building each on Windows/MSVC
+   (`pooltrack` and the `runtimestats*` options build after the Windows fixes in
+   #5635 and #5637; `runtime_tracing` after #5676). The rest need POSIX
+   (`pool_memalign`'s `posix_memalign`) or Clang/GCC toolchain features `cl.exe`
+   doesn't provide (the sanitizers' `-fsanitize=`), or need pthreads
    (`scheduler_scaling_pthreads`); `coverage` "builds" but is a silent no-op on
    MSVC, so it is not allowed. This needs `MSVC`, which `project()` sets, so it
    depends on the placement in (1). To make a rejected option work on Windows: fix
-   its runtime C, then add it to `_pony_windows_uses` and add a Windows
-   reject/smoke test — there is none today; no Windows CI job passes a `use=`
-   option. (Windows presets, when added, use the Visual Studio multi-config
-   generator with `binaryDir` `build/build`, not `build/build_<cfg>`.)
+   its runtime C, then add it to `_pony_windows_uses` and add Windows CI coverage.
+   The `use_directives_windows` job in `ponyc-weekly-checks.yml` is the first such
+   job — a matrix that builds and `ctest -L ci-core` tests each listed option on
+   Windows weekly (`runtime_tracing` and `runtime_tracing,runtimestats` today); add
+   a matrix row for a further option. It `needs: use_directives`, so it runs only
+   after the Linux directive checks pass. (The Windows presets use the
+   Visual Studio multi-config generator with `binaryDir` `build/build`, not
+   `build/build_<cfg>`.)
 
 3. **FreeBSD smoke scripts** — `.ci-scripts/freebsd-valgrind-smoke.sh`,
    `freebsd-coverage-smoke.sh`, `freebsd-sanitizer-smoke.sh` run

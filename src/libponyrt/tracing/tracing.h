@@ -6,9 +6,6 @@
 #include "../sched/scheduler.h"
 
 #if defined(USE_RUNTIME_TRACING)
-#if defined(PLATFORM_IS_WINDOWS)
-pony_static_assert(false, "Runtime tracing doesn't support windows at the moment!");
-#endif
 
 PONY_EXTERN_C_BEGIN
 
