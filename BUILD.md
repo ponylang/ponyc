@@ -29,7 +29,13 @@ The build is divided into several stages:
 - Removing a configuration's build directory (`rm -rf build/build_release build/release`) cleans your ponyc build without touching the libraries.
 - `rm -rf build` will delete the entire `build` directory, including the libraries.
 
-The presets default to using Clang on Unix.  To use GCC, override the compiler in the configure step: `cmake --preset release -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++`.
+The presets default to using Clang on Unix. To build ponyc with GCC, override the compiler at the configure step:
+
+```bash
+cmake --preset release -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++
+```
+
+The libs build (`cmake -P lib/build-libs.cmake`) takes the same `-DCMAKE_C_COMPILER`/`-DCMAKE_CXX_COMPILER` flags — one spelling overrides the compiler for either step. You don't need to rebuild the libraries to switch the ponyc compiler; the ones built by the default (Clang) libs build work with a GCC ponyc build. You only pass the override to the libs build on platforms that need a non-default compiler for the vendored LLVM (32-bit Raspbian and DragonFly BSD — see those sections).
 
 ## FreeBSD
 
@@ -73,7 +79,7 @@ DragonFly BSD's base compiler (GCC 8.3) cannot build the vendored LLVM. Install 
 
 ```bash
 pkg install -y cmake gmake git python3 cxx_atomics gcc13
-cmake -DCC=/usr/local/bin/gcc13 -DCXX=/usr/local/bin/g++13 -P lib/build-libs.cmake
+cmake -DCMAKE_C_COMPILER=/usr/local/bin/gcc13 -DCMAKE_CXX_COMPILER=/usr/local/bin/g++13 -P lib/build-libs.cmake
 cmake --preset release -DCMAKE_C_COMPILER=/usr/local/bin/gcc13 -DCMAKE_CXX_COMPILER=/usr/local/bin/g++13
 cmake --build --preset release
 sudo cmake --install build/build_release
@@ -132,7 +138,7 @@ Operating Systems. There are two important things to note:
 - you'll need to override the CPU tuning (the presets default to `-mtune=generic`).
 
 ```bash
-cmake -DCC=gcc -DCXX=g++ -P lib/build-libs.cmake
+cmake -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++ -P lib/build-libs.cmake
 cmake --preset release -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++ -DCMAKE_C_FLAGS="-march=native -mtune=native" -DCMAKE_CXX_FLAGS="-march=native -mtune=native"
 cmake --build --preset release
 sudo cmake --install build/build_release
@@ -144,7 +150,7 @@ Installing on a 64-bit Raspbian is slightly different from other Linux based
 Operating Systems, you'll need to build for the `armv8-a` architecture, but otherwise, everything is the same.
 
 ```bash
-cmake -DPIC=-fPIC -P lib/build-libs.cmake
+cmake -DPONY_PIC_FLAG=-fPIC -P lib/build-libs.cmake
 cmake --preset armv8-a-release -DPONY_PIC_FLAG=-fPIC
 cmake --build --preset armv8-a-release
 sudo cmake --install build/build_armv8-a-release

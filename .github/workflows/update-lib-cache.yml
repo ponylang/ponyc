@@ -426,7 +426,7 @@ jobs:
           cd /build/ponyc
           export CC=/usr/local/bin/gcc13 CXX=/usr/local/bin/g++13 LD_LIBRARY_PATH=/usr/local/lib/gcc13 SSL_CERT_FILE=/usr/local/share/certs/ca-root-nss.crt
           export GITHUB_TOKEN='${{ secrets.GITHUB_TOKEN }}' GITHUB_REPOSITORY='${{ github.repository }}' GITHUB_ACTOR='${{ github.actor }}'
-          cmake -DTOOLS=false -DJOBS=4 -DCC=/usr/local/bin/gcc13 -DCXX=/usr/local/bin/g++13 -P lib/build-libs.cmake
+          cmake -DTOOLS=false -DJOBS=4 -DCMAKE_C_COMPILER=/usr/local/bin/gcc13 -DCMAKE_CXX_COMPILER=/usr/local/bin/g++13 -P lib/build-libs.cmake
           rm -rf build/build_libs
           python3 .ci-scripts/libs-cache/oci_libs_cache.py push --platform dragonfly-6.4.2 --tag '${LIBS_TAG}'
           EOF
