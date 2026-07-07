@@ -48,13 +48,21 @@ DEFAULT_NO_PROGRESS_SECONDS = 300
 # can't run unbounded, but that is NOT a failure (outcome "incomplete") -- the run
 # was healthy, it just ran long. Only the no-progress hang above fails a seed.
 DEFAULT_TIMEOUT_SECONDS = 6000
-# 8 GiB, not 4: the Pony runtime reserves a flat ~3.5 GiB of VIRTUAL address space
-# (measured, constant across configs), and RLIMIT_AS caps virtual, not RSS -- so a
-# 4 GiB cap sits ~86% full before the workload runs and a high --ponymaxthreads run
-# could trip a FALSE OOM. 8 GiB has no downside and removes that risk. This cap is
-# the backstop, not the primary bound: the draw is separately kept under it by the
-# memory budget below (see est_peak_bytes), so a healthy workload never reaches it.
-DEFAULT_MEM_LIMIT_MB = 8192
+# 14 GiB, on VIRTUAL address space (RLIMIT_AS caps virtual, not RSS). Pony's pool
+# allocator reserves virtual in large MAP_NORESERVE arenas and holds the high-water mark
+# under the in-flight connection backlog, so a run's virtual footprint runs far ahead of
+# the RAM it touches -- RSS stayed ~120 MiB in every measurement below. The peak scales
+# with how deep that backlog gets, which scales with how CPU-starved the run is: the
+# failing 53k-connection seed measured ~5 GiB virtual on many fast cores but ~8.4 GiB
+# pinned to 2 cores -- and the 2-core run reproduces the CI OOM exactly (same
+# ponyint_virt_alloc abort). CI's slow 4-vCPU runner builds that deep backlog, and the old
+# 8 GiB cap sat just below the ~8.4 GiB it needed. est_peak_bytes below estimates live
+# WORKLOAD bytes (~1.2 GiB for this seed), ~4-7x under the real virtual peak, so the budget
+# did not keep the run under the cap. Virtual is nearly free (RSS is the scarce resource and
+# the runner has 16 GiB), so 14 clears the measured ~8.4 GiB worst case with margin at no RAM
+# cost; a genuine runaway still trips it (virtual >= RSS) and the runner's own OOM-killer
+# backstops. See the memory budget block below and .known-couplings/tcp-swarm-memory-budget.md.
+DEFAULT_MEM_LIMIT_MB = 14336
 
 
 def info(message):
@@ -139,13 +147,15 @@ def draw_bucketed(rng, buckets):
 
 # --------------------------------------------------------------- memory budget
 
-# The draw must never pick a workload whose peak memory exceeds the RLIMIT_AS cap the
-# orchestrator runs each seed under (see _capture / DEFAULT_MEM_LIMIT_MB). A workload
-# that does is killed by the runtime's own out-of-memory abort (ponyint_virt_alloc) --
-# which reads like a runtime crash but is really the test asking for more memory than
-# its own cap allows, a false failure. So every memory-driving lever is drawn against
-# a shared budget: the draw spends it, and once it is spent the remaining levers are
-# trimmed to fit.
+# The draw is trimmed to keep a workload's peak well under the RLIMIT_AS cap each seed
+# runs under (see _capture / DEFAULT_MEM_LIMIT_MB). A workload over the cap is killed by
+# the runtime's own out-of-memory abort (ponyint_virt_alloc) -- which reads like a runtime
+# crash but is really the test asking for more address space than its cap allows, a false
+# failure. Every memory-driving lever is drawn against a shared budget: the draw spends it,
+# and once it is spent the remaining levers trim to fit. The budget bounds LIVE bytes,
+# though, which runs well under the pool allocator's virtual high-water mark -- so it is a
+# coverage-shaping trim, not a hard guarantee; the cap's slack (see DEFAULT_MEM_LIMIT_MB)
+# is what actually absorbs the gap.
 #
 # The levers are drawn in a per-seed RANDOM order (see _draw_memory_levers), and that
 # is the point. A fixed trim order would always shave the same lever -- we would never
@@ -156,21 +166,21 @@ def draw_bucketed(rng, buckets):
 # fraction of seeds. This mirrors the generative harness's clamp_ttl (big chains force
 # ttl small), generalized so the sacrificed lever is not always the same one.
 #
-# est_peak_bytes estimates peak WORKLOAD bytes on top of the runtime's flat virtual
-# reservation. Terms and constants are calibrated from local measurement with a fat
-# margin (measured: writev-chunks=2048 at concurrency 64 / 8 messages peaks ~460 MiB
-# RSS; a write-shape run stays ~15 MiB flat regardless of connection count). They are
-# BEST GUESSES to confirm from the first CI run, like clamp_run's ceilings. The churn
-# term (connections * read_buffer) is the least certain: the CI out-of-memory seeds
-# with huge connection counts (36902, 72178) could not be reproduced locally (WSL2
-# loopback is too slow to build the queue depth CI builds), so its SHAPE is a
-# hypothesis -- it covers the one such seed we saw (which had a large read buffer) but
-# does not bound a small-buffer / huge-connections draw, which we have no evidence
-# OOMs. Validate with a raised-cap CI run.
+# est_peak_bytes estimates peak live WORKLOAD bytes (pending write buffers, read buffers,
+# bytes in flight, churn). This is NOT what the cap bounds: RLIMIT_AS caps virtual, and the
+# pool allocator's virtual high-water mark under the in-flight backlog runs ~4-7x over these
+# live-byte terms and grows as the run is CPU-starved -- a 53k-connection draw the budget put
+# at ~1.2 GiB measured ~5 GiB virtual on fast cores and ~8.4 GiB pinned to 2 cores (~120 MiB
+# RSS throughout), the 2-core run reproducing the CI OOM. The churn is what the budget misses;
+# the term (connections * read_buffer) does not capture the backlog's pool reservation. We
+# chose not to re-fit the constants to virtual -- pool reservation is a high-water artifact
+# that varies with core count and stack, and would need re-measuring per stack (lori copies
+# this model) -- and raised the cap to carry the slack instead. Re-fit only if you need the
+# budget to be a tight bound.
 # COUPLING: the constants track the engine's per-object and per-read-buffer memory --
 # re-measure if make_chunks, the read buffer, or TCPConnection buffering changes. See
 # .known-couplings/tcp-swarm-memory-budget.md.
-MEM_BUDGET_BYTES = 2 * 1024 * 1024 * 1024   # 2 GiB workload, well under the 8 GiB cap
+MEM_BUDGET_BYTES = 2 * 1024 * 1024 * 1024   # 2 GiB workload, well under the 14 GiB cap
 MEM_OBJ_BYTES = 2048        # per pending writev buffer object (margin over ~832 B virt)
 MEM_RB_FACTOR = 4           # live read buffers: client + server, plus headroom
 

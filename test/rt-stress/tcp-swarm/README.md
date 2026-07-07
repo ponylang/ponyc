@@ -97,23 +97,26 @@ occupies the port before any client dials, so the default `localhost` is fine.
 
 ## Memory and time bounds
 
-- **Memory** — the orchestrator caps each run at 8 GiB of address space
-  (`RLIMIT_AS`), and the *draw itself* is bounded so no config can reach that cap. A
-  config that did would be killed by the runtime's own out-of-memory abort — which
-  reads like a runtime crash but is really the draw asking for more memory than the
-  cap allows, a false failure. So the memory-driving levers (connections, concurrency,
+- **Memory** — the orchestrator caps each run at 14 GiB of address space
+  (`RLIMIT_AS`), and the *draw itself* is trimmed to keep well under that cap. A config
+  over the cap is killed by the runtime's own out-of-memory abort — which reads like a
+  runtime crash but is really the draw asking for more address space than the cap
+  allows, a false failure. So the memory-driving levers (connections, concurrency,
   messages, payload, writev-chunks, read-buffer) are drawn against a shared memory
-  budget (`MEM_BUDGET_BYTES`, 2 GiB of workload under the cap): the draw spends the
-  budget, and once it is spent the remaining levers are trimmed to fit. The levers are
-  drawn in a per-seed *random order*, so the trimmed lever rotates — on one seed a big
-  `--writev-chunks` squeezes concurrency and messages, on another a big connection
-  count squeezes `--writev-chunks` — and every lever still reaches large on some
-  seeds, keeping the swarm a swarm. Why 8 GiB and not 4: the Pony runtime reserves a
-  flat ~3.5 GiB of *virtual* address space regardless of config and `RLIMIT_AS` caps
-  virtual, so a 4 GiB cap sat ~86% full at baseline and risked a false OOM on a
-  high-thread run. The budget's cost constants (used by `est_peak_bytes`) are
-  calibrated from local measurement with a margin and are first-CI-run calibration
-  items; see `.known-couplings/tcp-swarm-memory-budget.md`.
+  budget (`MEM_BUDGET_BYTES`, 2 GiB): the draw spends the budget, and once it is spent
+  the remaining levers are trimmed to fit. The levers are drawn in a per-seed *random
+  order*, so the trimmed lever rotates — on one seed a big `--writev-chunks` squeezes
+  concurrency and messages, on another a big connection count squeezes `--writev-chunks`
+  — and every lever still reaches large on some seeds, keeping the swarm a swarm. Why
+  14 GiB: the cap is on *virtual* address space, but the budget estimates *live* bytes,
+  which measured ~4-7x under the pool allocator's virtual high-water mark. That peak grows
+  as the run is CPU-starved (the deeper the in-flight backlog, the more the pool reserves)
+  — the failing 53k-connection seed the budget put at ~1.2 GiB peaked ~5 GiB virtual on
+  fast cores but ~8.4 GiB pinned to 2 cores, and the 2-core run reproduces the CI OOM
+  exactly (RSS stayed ~120 MiB throughout). CI's slow 4-vCPU runner builds that backlog and
+  the old 8 GiB cap sat just under it. Virtual is nearly free (RSS is the scarce resource,
+  the runner has 16 GiB), so 14 GiB clears the measured ~8.4 GiB worst case with margin
+  rather than re-fitting the constants; see `.known-couplings/tcp-swarm-memory-budget.md`.
 - **Time** — the per-run clamp (`clamp_run`) bounds round-trips
   (`connections * messages`) and total bytes (`connections * messages * payload`),
   so an outsized draw (e.g. 100k conns × 64 msgs × 64 KiB ≈ 400 GB) is trimmed.
