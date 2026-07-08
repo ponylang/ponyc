@@ -4,12 +4,11 @@
 # .github/workflows/ponyc-tier3.yml. The cmake cross machinery already exists
 # (PONY_CROSS_LIBPONYRT in the top-level CMakeLists.txt); this just drives it.
 #
-# Usage: cross-libponyrt.sh <config> <CC> <CXX> <arch> <cflags> <llc_flags>
+# Usage: cross-libponyrt.sh <config> <CC> <CXX> <arch> <cflags>
 #   config     debug | release
 #   CC/CXX     the cross toolchain (e.g. riscv64-linux-gnu-gcc-10)
 #   arch       PONY_ARCH / CMAKE_SYSTEM_PROCESSOR (e.g. rv64gc, armv7-a)
 #   cflags     CMAKE_C_FLAGS / CMAKE_CXX_FLAGS for the target
-#   llc_flags  LL_FLAGS (cmake ;-list) passed through to llc
 #
 # The build lands in build/<arch>/build_<config>, output in build/<arch>/<config>,
 # which the cross test picks up via PONYPATH.
@@ -20,7 +19,6 @@ cc="$2"
 cxx="$3"
 arch="$4"
 cflags="$5"
-llc_flags="$6"
 
 dir="build/$arch/build_$config"
 cmake -B "$dir" -S . \
@@ -33,6 +31,5 @@ cmake -B "$dir" -S . \
   -DCMAKE_BUILD_TYPE="$config" \
   -DCMAKE_C_FLAGS="$cflags" \
   -DCMAKE_CXX_FLAGS="$cflags" \
-  -DPONY_ARCH="$arch" \
-  -DLL_FLAGS="$llc_flags"
+  -DPONY_ARCH="$arch"
 cmake --build "$dir" --config "$config" --target libponyrt crt_objects
