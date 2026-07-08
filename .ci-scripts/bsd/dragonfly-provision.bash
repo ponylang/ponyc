@@ -8,6 +8,14 @@
 # 'ssh -i vm_key -p 2222 root@localhost' with the source under /build/ponyc.
 set -euo pipefail
 
+# VM disk images and other scratch artifacts go here, outside the checkout. The
+# "Copy source to VM" rsync below copies all of "$GITHUB_WORKSPACE/" into the
+# guest, so anything left in the checkout gets copied in too; keeping the big
+# qcow2 images out of it is the point (issue #5709). vm_key stays in the
+# checkout so the later `-i vm_key` ssh steps still find it there.
+VM_ARTIFACTS="${RUNNER_TEMP:-$(dirname "$GITHUB_WORKSPACE")}/vm-artifacts"
+mkdir -p "$VM_ARTIFACTS"
+
 echo "::group::Free disk space"
 sudo rm -rf /usr/share/dotnet
 sudo rm -rf /usr/local/lib/android
@@ -22,27 +30,28 @@ sudo chmod 666 /dev/kvm
 echo "::endgroup::"
 
 echo "::group::Download DragonFly BSD image"
-curl -L -o dfly.img.bz2 \
+curl -L -o "$VM_ARTIFACTS/dfly.img.bz2" \
   "https://mirror-master.dragonflybsd.org/iso-images/dfly-x86_64-6.4.2_REL.img.bz2"
-bunzip2 dfly.img.bz2
-qemu-img convert -f raw -O qcow2 dfly.img dfly.qcow2
-rm dfly.img
-qemu-img resize dfly.qcow2 60G
+bunzip2 "$VM_ARTIFACTS/dfly.img.bz2"
+qemu-img convert -f raw -O qcow2 \
+  "$VM_ARTIFACTS/dfly.img" "$VM_ARTIFACTS/dfly.qcow2"
+rm "$VM_ARTIFACTS/dfly.img"
+qemu-img resize "$VM_ARTIFACTS/dfly.qcow2" 60G
 # Second disk for build workspace (root partition is only ~1.8GB)
-qemu-img create -f qcow2 dfly-data.qcow2 50G
+qemu-img create -f qcow2 "$VM_ARTIFACTS/dfly-data.qcow2" 50G
 echo "::endgroup::"
 
 echo "::group::Download DragonFly BSD ISO"
 # The raw image lacks /usr/include (system headers). Extract
 # them from the ISO which contains the full base system.
-curl -L -o dfly.iso.bz2 \
+curl -L -o "$VM_ARTIFACTS/dfly.iso.bz2" \
   "https://mirror-master.dragonflybsd.org/iso-images/dfly-x86_64-6.4.2_REL.iso.bz2"
-bunzip2 dfly.iso.bz2
-mkdir -p dfly-iso
-sudo mount -o loop,ro dfly.iso dfly-iso
-tar cf dfly-include.tar -C dfly-iso/usr include
-sudo umount dfly-iso
-rm dfly.iso
+bunzip2 "$VM_ARTIFACTS/dfly.iso.bz2"
+mkdir -p "$VM_ARTIFACTS/dfly-iso"
+sudo mount -o loop,ro "$VM_ARTIFACTS/dfly.iso" "$VM_ARTIFACTS/dfly-iso"
+tar cf "$VM_ARTIFACTS/dfly-include.tar" -C "$VM_ARTIFACTS/dfly-iso/usr" include
+sudo umount "$VM_ARTIFACTS/dfly-iso"
+rm "$VM_ARTIFACTS/dfly.iso"
 echo "::endgroup::"
 
 echo "::group::Prepare VM access"
@@ -55,13 +64,13 @@ qemu-system-x86_64 \
   -cpu host \
   -smp 4 \
   -m 12G \
-  -drive file=dfly.qcow2,format=qcow2,if=virtio \
-  -drive file=dfly-data.qcow2,format=qcow2,if=virtio \
+  -drive file="$VM_ARTIFACTS/dfly.qcow2",format=qcow2,if=virtio \
+  -drive file="$VM_ARTIFACTS/dfly-data.qcow2",format=qcow2,if=virtio \
   -netdev user,id=net0,hostfwd=tcp::2222-:22 \
   -device virtio-net-pci,netdev=net0 \
   -object rng-random,id=rng0,filename=/dev/urandom \
   -device virtio-rng-pci,rng=rng0 \
-  -monitor unix:dfly-monitor.sock,server,nowait \
+  -monitor unix:"$VM_ARTIFACTS/dfly-monitor.sock",server,nowait \
   -display none \
   -daemonize
 echo "::endgroup::"
@@ -77,8 +86,11 @@ sleep 90
 
 # DragonFly BSD raw images boot to a login prompt with root having no password
 # and no cloud-init support; dfly_configure_vm.py types the setup commands into
-# the VGA console via the QEMU monitor, reading the key from PUB_KEY.
-python3 .ci-scripts/bsd/dfly_configure_vm.py
+# the VGA console via the QEMU monitor, reading the key from PUB_KEY and the
+# monitor socket path (created by qemu above, under VM_ARTIFACTS) from
+# DFLY_MONITOR_SOCK.
+DFLY_MONITOR_SOCK="$VM_ARTIFACTS/dfly-monitor.sock" \
+  python3 .ci-scripts/bsd/dfly_configure_vm.py
 echo "::endgroup::"
 
 echo "::group::Wait for VM"
@@ -102,7 +114,7 @@ EOF
 
 # Install system headers from ISO (raw image ships without /usr/include)
 scp -o StrictHostKeyChecking=no -i vm_key -P 2222 \
-  dfly-include.tar root@localhost:/build/
+  "$VM_ARTIFACTS/dfly-include.tar" root@localhost:/build/
 ssh -o StrictHostKeyChecking=no -i vm_key -p 2222 root@localhost /bin/sh <<'EOF'
 set -e
 tar xf /build/dfly-include.tar -C /build

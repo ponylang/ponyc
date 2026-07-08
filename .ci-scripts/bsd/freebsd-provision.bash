@@ -11,6 +11,14 @@ set -euo pipefail
 
 : "${FREEBSD_VERSION:?set FREEBSD_VERSION, e.g. 15.1}"
 
+# VM disk images and other scratch artifacts go here, outside the checkout. The
+# "Copy source to VM" rsync below copies all of "$GITHUB_WORKSPACE/" into the
+# guest, so anything left in the checkout gets copied in too; keeping the big
+# qcow2 images out of it is the point (issue #5709). vm_key stays in the
+# checkout so the later `-i vm_key` ssh steps still find it there.
+VM_ARTIFACTS="${RUNNER_TEMP:-$(dirname "$GITHUB_WORKSPACE")}/vm-artifacts"
+mkdir -p "$VM_ARTIFACTS"
+
 echo "::group::Free disk space"
 sudo rm -rf /usr/share/dotnet
 sudo rm -rf /usr/local/lib/android
@@ -25,10 +33,10 @@ sudo chmod 666 /dev/kvm
 echo "::endgroup::"
 
 echo "::group::Download FreeBSD image"
-curl -L -o freebsd.qcow2.xz \
+curl -L -o "$VM_ARTIFACTS/freebsd.qcow2.xz" \
   "https://download.freebsd.org/releases/VM-IMAGES/${FREEBSD_VERSION}-RELEASE/amd64/Latest/FreeBSD-${FREEBSD_VERSION}-RELEASE-amd64-BASIC-CLOUDINIT-ufs.qcow2.xz"
-xz -d freebsd.qcow2.xz
-qemu-img resize freebsd.qcow2 60G
+xz -d "$VM_ARTIFACTS/freebsd.qcow2.xz"
+qemu-img resize "$VM_ARTIFACTS/freebsd.qcow2" 60G
 echo "::endgroup::"
 
 echo "::group::Prepare VM access"
@@ -36,7 +44,7 @@ ssh-keygen -t ed25519 -f vm_key -N ""
 PUB_KEY=$(cat vm_key.pub)
 
 # nuageinit seed: SSH key for freebsd, set root password for su access
-cat > user-data <<USERDATA
+cat > "$VM_ARTIFACTS/user-data" <<USERDATA
 #cloud-config
 ssh_authorized_keys:
   - ${PUB_KEY}
@@ -45,11 +53,12 @@ chpasswd:
   list:
     - root:ciroot
 USERDATA
-cat > meta-data <<METADATA
+cat > "$VM_ARTIFACTS/meta-data" <<METADATA
 instance-id: freebsd-ci
 local-hostname: freebsd-ci
 METADATA
-cloud-localds seed.img user-data meta-data
+cloud-localds "$VM_ARTIFACTS/seed.img" \
+  "$VM_ARTIFACTS/user-data" "$VM_ARTIFACTS/meta-data"
 echo "::endgroup::"
 
 echo "::group::Boot FreeBSD VM"
@@ -58,8 +67,8 @@ qemu-system-x86_64 \
   -cpu host \
   -smp 4 \
   -m 12G \
-  -drive file=freebsd.qcow2,format=qcow2,if=virtio \
-  -drive file=seed.img,format=raw,if=virtio \
+  -drive file="$VM_ARTIFACTS/freebsd.qcow2",format=qcow2,if=virtio \
+  -drive file="$VM_ARTIFACTS/seed.img",format=raw,if=virtio \
   -netdev user,id=net0,hostfwd=tcp::2222-:22 \
   -device virtio-net-pci,netdev=net0 \
   -display none \
