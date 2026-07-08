@@ -8,6 +8,14 @@
 # 'ssh -i vm_key -p 2222 openbsd@localhost' with the source under /build/ponyc.
 set -euo pipefail
 
+# VM disk images and other scratch artifacts go here, outside the checkout. The
+# "Copy source to VM" rsync below copies all of "$GITHUB_WORKSPACE/" into the
+# guest, so anything left in the checkout gets copied in too; keeping the big
+# qcow2 images out of it is the point (issue #5709). vm_key stays in the
+# checkout so the later `-i vm_key` ssh steps still find it there.
+VM_ARTIFACTS="${RUNNER_TEMP:-$(dirname "$GITHUB_WORKSPACE")}/vm-artifacts"
+mkdir -p "$VM_ARTIFACTS"
+
 echo "::group::Free disk space"
 sudo rm -rf /usr/share/dotnet
 sudo rm -rf /usr/local/lib/android
@@ -22,19 +30,19 @@ sudo chmod 666 /dev/kvm
 echo "::endgroup::"
 
 echo "::group::Download OpenBSD image"
-curl -L -o openbsd.qcow2 \
+curl -L -o "$VM_ARTIFACTS/openbsd.qcow2" \
   "https://github.com/hcartiaux/openbsd-cloud-image/releases/download/v7.9_2026-06-03-20-46/openbsd-generic.qcow2"
 # Build-workspace disk. OpenBSD's default disklabel confines the
 # build to /home (~10.8G), which the LLVM 22 build overflows, so
 # build on a dedicated disk instead, mirroring the DragonFly job.
-qemu-img create -f qcow2 openbsd-data.qcow2 50G
+qemu-img create -f qcow2 "$VM_ARTIFACTS/openbsd-data.qcow2" 50G
 echo "::endgroup::"
 
 echo "::group::Prepare VM access"
 ssh-keygen -t ed25519 -f vm_key -N ""
 PUB_KEY=$(cat vm_key.pub)
 
-cat > user-data <<USERDATA
+cat > "$VM_ARTIFACTS/user-data" <<USERDATA
 #cloud-config
 users:
 - name: openbsd
@@ -48,11 +56,12 @@ write_files:
   owner: root:wheel
   permissions: '0600'
 USERDATA
-cat > meta-data <<METADATA
+cat > "$VM_ARTIFACTS/meta-data" <<METADATA
 instance-id: openbsd-ci
 local-hostname: openbsd-ci
 METADATA
-genisoimage -output seed.iso -volid cidata -joliet -rock user-data meta-data
+genisoimage -output "$VM_ARTIFACTS/seed.iso" -volid cidata -joliet -rock \
+  "$VM_ARTIFACTS/user-data" "$VM_ARTIFACTS/meta-data"
 echo "::endgroup::"
 
 echo "::group::Boot OpenBSD VM"
@@ -61,9 +70,9 @@ qemu-system-x86_64 \
   -cpu host \
   -smp 4 \
   -m 6G \
-  -drive file=openbsd.qcow2,format=qcow2,if=virtio \
-  -drive file=openbsd-data.qcow2,format=qcow2,if=virtio \
-  -drive file=seed.iso,media=cdrom \
+  -drive file="$VM_ARTIFACTS/openbsd.qcow2",format=qcow2,if=virtio \
+  -drive file="$VM_ARTIFACTS/openbsd-data.qcow2",format=qcow2,if=virtio \
+  -drive file="$VM_ARTIFACTS/seed.iso",media=cdrom \
   -netdev user,id=net0,hostfwd=tcp::2222-:22 \
   -device virtio-net-pci,netdev=net0 \
   -display none \

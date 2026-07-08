@@ -4,8 +4,9 @@
 DragonFly raw images boot to a passwordless root login with no cloud-init, so the
 setup commands (login, network, sshd, ssh key, build disk) are typed in with QEMU
 monitor `sendkey`. Runs on the GitHub Actions host after the VM boots; reads the
-public key to install from the PUB_KEY environment variable. Called by
-dragonfly-provision.bash.
+public key to install from the PUB_KEY environment variable and the QEMU monitor
+socket path from DFLY_MONITOR_SOCK (defaulting to dfly-monitor.sock in the
+current directory). Called by dragonfly-provision.bash.
 """
 import os
 import socket
@@ -53,9 +54,10 @@ def send_line(sock, text):
 
 def main():
     pub_key = os.environ["PUB_KEY"]
+    monitor_sock = os.environ.get("DFLY_MONITOR_SOCK", "dfly-monitor.sock")
 
     sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-    sock.connect('dfly-monitor.sock')
+    sock.connect(monitor_sock)
     time.sleep(0.5)
     sock.recv(4096)
 
