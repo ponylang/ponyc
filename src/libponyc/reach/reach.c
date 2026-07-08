@@ -498,16 +498,7 @@ static const char* make_mangled_name(reach_method_t* m, pass_opt_t* opt)
     token_id fun_id = ast_id(m->fun->ast);
     include_trace_kind = (fun_id == TK_BE) || (fun_id == TK_NEW);
 
-    // COUPLING: this partiality test decides which vtable slot a method lands
-    // in. It MUST stay byte-identical to the `c_m->is_partial` test in
-    // make_function_type (codegen/genfun.c), which decides that slot's LLVM
-    // calling convention (`{T, i1}` for partial, `T` for non-partial). If the
-    // two diverge, a method lands in a slot whose ABI doesn't match its body —
-    // silently reintroducing the calling-convention crash this segregation
-    // exists to prevent. Child index 5 is the error/partial token (fixed by
-    // the parser's method REORDER).
-    ast_t* can_error = ast_childidx(m->fun->ast, 5);
-    is_partial = (m->cap != TK_AT) && (ast_id(can_error) == TK_QUESTION);
+    is_partial = reach_method_is_partial(m);
   }
 
   printbuf_t* buf = printbuf_new();
@@ -1931,6 +1922,16 @@ uint32_t reach_vtable_index(reach_type_t* t, const char* name, pass_opt_t* opt)
     return (uint32_t)-1;
 
   return m->vtable_index;
+}
+
+bool reach_method_is_partial(reach_method_t* m)
+{
+  // Child index 5 of a method's AST is its error/partial token (fixed by the
+  // parser's method REORDER). Requires m->fun != NULL (internal methods have
+  // none); see the reach.h docstring for the bare-method exclusion rationale.
+  pony_assert(m->fun != NULL);
+  ast_t* can_error = ast_childidx(m->fun->ast, 5);
+  return (m->cap != TK_AT) && (ast_id(can_error) == TK_QUESTION);
 }
 
 bool reach_limit_exceeded(reach_t* r)

@@ -150,6 +150,19 @@ reach_method_name_t* reach_method_name(reach_type_t* t,
 
 uint32_t reach_vtable_index(reach_type_t* t, const char* name, pass_opt_t* opt);
 
+/** Return true if a method is partial for calling-convention purposes.
+ *
+ * Partiality changes a method's ABI: a partial method returns `{T, i1}` (value
+ * plus error flag), a non-partial one returns `T`. The vtable slot a method
+ * lands in (make_mangled_name) and that slot's LLVM return type
+ * (make_signature in codegen/genfun.c) must agree on this, so both call
+ * here rather than each testing it separately. Bare methods (cap TK_AT) are
+ * never partial in this sense — a bare partial function aborts on error
+ * instead of returning the flag. Requires m->fun to be set (internal methods
+ * have none and are never partial).
+ */
+bool reach_method_is_partial(reach_method_t* m);
+
 /** Return true if reachability analysis aborted because a generic instantiation
  * exceeded the maximum type depth or size.
  *
