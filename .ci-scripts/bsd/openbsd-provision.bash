@@ -107,3 +107,9 @@ echo "::group::Copy source to VM"
 rsync -az -e "ssh -o StrictHostKeyChecking=no -i vm_key -p 2222" \
   "$GITHUB_WORKSPACE/" openbsd@localhost:/build/ponyc/
 echo "::endgroup::"
+
+echo "::group::List files in VM"
+ssh -o StrictHostKeyChecking=no -i vm_key -p 2222 openbsd@localhost <<'EOF'
+ls -la /build/ponyc/
+EOF
+echo "::endgroup::"
