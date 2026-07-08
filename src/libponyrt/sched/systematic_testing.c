@@ -46,8 +46,7 @@ static PONY_ATOMIC(uint32_t) waiting_to_start_count;
 // The lock below (pthreads mutex, or the Windows SRW lock) is what enforces the
 // invariant: the running thread holds it throughout and releases it only while
 // parked in the condition-variable wait, so the woken thread cannot proceed
-// until the waker is genuinely waiting. See
-// .known-couplings/systematic-testing-handoff-mutual-exclusion.md.
+// until the waker is genuinely waiting.
 #define SYSTEMATIC_TESTING_TICK_PER_YIELD 20000
 static uint64_t logical_clock = 0;
 
@@ -153,7 +152,12 @@ void ponyint_systematic_testing_wait_start(pony_thread_id_t thread, pony_signal_
 
   atomic_fetch_add_explicit(&waiting_to_start_count, 1, memory_order_relaxed);
 
-  // sleep until it is this threads turn to do some work
+  // Park until it is truly this thread's turn. The wait can return without a
+  // matching wake -- `pthread_cond_wait` may return spuriously (POSIX), and a
+  // stray wake is likelier under load -- re-check `active_thread` and re-park
+  // on each wake. Converting this loop to a bare `if` lets a spuriously-woken
+  // thread run out of turn and desync the single-runner handoff, deadlocking
+  // every thread. The yield handoff and the coordinator park below do the same.
 #if defined(PLATFORM_IS_WINDOWS)
   while(active_thread->tid != thread)
 #else

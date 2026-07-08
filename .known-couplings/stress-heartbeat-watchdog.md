@@ -36,9 +36,9 @@ messages they receive. The two numbers are a pair:
   persistent `Dispatcher` is the place — its carriers stay live, so either works).
 - The heartbeat is gated OFF for small runs (`_Heartbeat._min`), which keeps
   SYSTEMATIC runs (all far below it) heartbeat-free; systematic also keeps the flat
-  total-time watchdog (`no_progress_seconds=None`), not this one — see
-  `systematic-testing-park-sites.md`, whose hang-detection-via-timeout property
-  this change must not weaken.
+  total-time watchdog (`no_progress_seconds=None`), not this one — that total-time
+  watchdog is the only hang detector for systematic runs, and this change must not
+  weaken it.
 
 Run: the orchestrator unit tests
 (`python test/rt-stress/generative/stress_common_test.py` —
