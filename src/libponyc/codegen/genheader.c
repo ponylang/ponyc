@@ -129,6 +129,10 @@ static bool should_emit_fun(reach_method_t* m)
   if(m->internal)
     return false;
 
+  // Any error-raising method is excluded, bare ones included (a C signature
+  // can't carry Pony's error flag). This is deliberately NOT
+  // reach_method_is_partial (reach.h), which excludes bare methods — using it
+  // here would wrongly emit a header for a bare partial function.
   ast_t* can_error = ast_childidx(m->fun->ast, 5);
 
   if(ast_id(can_error) == TK_QUESTION)
