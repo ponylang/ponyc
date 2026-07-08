@@ -27,8 +27,9 @@ runtime change — and the runtime's own tests do not exercise this combination.
    the program quiesce, so a never-released mute manifests as a hang rather than a
    wrong result.
 
-This is distinct from `systematic-testing-park-sites.md`, which covers a different
-mechanism (systematic-testing thread handoff at shutdown), not normal-mode muting.
+This is distinct from the systematic-testing thread-handoff mechanism (the re-park
+loops in `src/libponyrt/sched/systematic_testing.c`), which is about shutdown
+handoff, not normal-mode muting.
 
 Run: the generative `backpressure` soak in both modes — `orchestrate_normal.py`
 (`.github/workflows/stress-test-generative-normal-*.yml`) and `orchestrate_systematic.py`

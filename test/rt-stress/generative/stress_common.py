@@ -834,8 +834,7 @@ def _capture(argv, timeout, mem_limit_bytes, no_progress_seconds=None,
     _watch_for_progress):
       * no_progress_seconds is None (SYSTEMATIC): `timeout` is a single total
         wall-clock limit. Systematic runs are short and reproducible, and a
-        systematic hang must still surface as a timeout (see
-        .known-couplings/systematic-testing-park-sites.md) -- that property holds.
+        systematic hang must still surface as a timeout -- that property holds.
       * no_progress_seconds is set (NORMAL): the run is killed when it produces NO
         output for that long (a hang); a slow-but-advancing run -- which the engine's
         heartbeats keep printing through -- is NOT killed, so a legitimately long run

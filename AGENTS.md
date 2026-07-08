@@ -50,7 +50,7 @@ Use the `/pony-release-notes` skill if available. Otherwise: create `.release-no
 
 ## Known Couplings
 
-Non-obvious dependencies between areas of the codebase — where a change in one place silently breaks another and the breakage isn't caught by tests local to the area you changed — are recorded one-per-file in `.known-couplings/`. Each file documents one coupling: what depends on what, why a change breaks it, and, where applicable, the test suites to run.
+A coupling is a dependency that crosses a file or system boundary: changing code in one file silently breaks — or forces a matching edit in — a *different* file, and no build, test, or CI step near the change catches it. Spooky action at a distance, between two things this repo maintains that both change over time. Couplings are rare. A loud failure — a compile error, a red CI step — is caught the moment you build, so it is not a coupling. Each one is recorded one-per-file in `.known-couplings/`; each file names the two ends, the change that breaks one through the other, and — where applicable — the suites to run.
 
 **Before changing code other areas depend on** — the runtime, codegen, the AST/token/`pass_id` machinery, the stdlib packages the tools consume, the build and packaging rules, or CI — read any file in `.known-couplings/` that bears on what you're touching: scan the filenames, and `grep` the directory for the file or symbol you're about to change. The list above is illustrative, not exhaustive — the directory is the authority. A break in coupled code often won't surface in the tests near your change, so run the suites named in the coupling file before opening a PR.
 
@@ -61,3 +61,6 @@ Non-obvious dependencies between areas of the codebase — where a change in one
 - **Reading configuration input is not a coupling.** An environment variable, a CLI flag, a config-file value — code reading its inputs is normal, not a hidden dependency.
 - **An optional enhancement being absent is not a coupling.** If forgetting to do X just returns you to prior behavior (degrades, doesn't break), there is no coupling. A coupling requires an actual break.
 - **A "remember to also do X when you add Y" reminder is not a coupling.** Couplings are existing code silently breaking existing code, not future authoring discipline. That kind of reminder belongs in a comment at the relevant code, not in `.known-couplings/`.
+- **Both ends in the same file is not a coupling.** Two functions, or a macro and its uses, in one file — the invariant belongs in a comment right there, not here.
+- **A test that silently stops exercising a path is not a coupling.** The break is lost coverage, not broken production code; note it in a comment at the test.
+- **A whole subsystem's how-it-works is not a coupling.** That belongs in a design doc or README; pull out only the one silent cross-boundary break, if there is one.

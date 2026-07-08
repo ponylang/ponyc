@@ -97,8 +97,8 @@ exit. Two reasons: the `cyclic` workload's garbage is only collected as the
 program quiesces (a forced exit kills the process before the detector sweeps), and
 letting the runtime shut down cleanly turns shutdown itself into something the
 harness tests -- the systematic park-site hang fixed by #5576/#5585 surfaces here
-as a watchdog timeout if it ever regresses (see .known-couplings/
-systematic-testing-park-sites.md). Only a conservation *failure* forces `@exit(1)`:
+as a watchdog timeout if it ever regresses (the re-park loops that prevent it live
+in `src/libponyrt/sched/systematic_testing.c`). Only a conservation *failure* forces `@exit(1)`:
 once a bug is detected, fail fast rather than risk quiescing a broken run.
 
 All randomness is seeded only from `--seed` (never the clock). The routing graph

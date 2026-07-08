@@ -48,7 +48,9 @@ set(_pony_known_uses
 
 # The subset of the above that compiles on Windows (MSVC), verified by building
 # each on Windows. See the MSVC check below and
-# .known-couplings/use-option-validation.md.
+# .known-couplings/use-option-validation.md. When you add an option here, add a
+# matching row to the use_directives_windows matrix in ponyc-weekly-checks.yml,
+# or it builds on Windows but is never tested there.
 set(_pony_windows_uses
     systematic_testing
     pool_retain
