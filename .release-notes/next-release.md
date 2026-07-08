@@ -165,3 +165,28 @@ The `runtime_tracing` build option now works on Windows. Previously it was a com
 
 Both tracing modes are supported: writing trace events to a file as they happen, and the flight recorder, which keeps a rolling buffer of recent events in memory and dumps it, along with a backtrace and the crashing actor's state, when the program hits a fatal fault. On Windows the flight recorder also catches structured exceptions such as access violations, so a native crash triggers a dump the same way an abort does.
 
+## Add `rewind()` to `ArrayKeys` and `ArrayPairs`
+
+Replicate the `fun ref rewind()` functionality from `ArrayValues` to `ArrayKeys` and `ArrayPairs`.
+This enables reuse of the same `ArrayKeys` or `ArrayPairs` iterator without creating a new one.
+The main use case is when an iterator is passed down to other scopes, and you don't want to pass around
+references to the source array just to rewind the iterator.
+
+Example:
+
+```ponyc
+let array: Array[USize] = recover [as F32: 1;2;3;4;5] end
+let keys = array.keys()
+for key in keys do
+  // your code here
+end
+
+// rewind the keys iterator
+keys.rewind()
+
+// perform another iteration
+for key in keys do
+  // your code here
+end
+```
+
