@@ -54,8 +54,8 @@ Stdlib only. Usage:
         --tag <hash> -- <build command...>
 
 Everything after `--` is the build command, run as-is on a cache miss (e.g.
-`cmake -DTOOLS=false -DJOBS=4 -P lib/build-libs.cmake`, or on Windows
-`cmake -DPRESET=libs-windows-x86-64 -DTOOLS=false -P lib/build-libs.cmake`). Auth
+`cmake -DJOBS=4 -P lib/build-libs.cmake`, or on Windows
+`cmake -DPRESET=libs-windows-x86-64 -P lib/build-libs.cmake`). Auth
 for the pulls/pushes uses GITHUB_TOKEN; the branch push needs `packages: write`.
 """
 

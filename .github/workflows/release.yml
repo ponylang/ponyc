@@ -80,7 +80,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           LIBS_IMAGE: ${{ matrix.image }}
           LIBS_TAG: ${{ hashFiles('lib/CMakePresets.json', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/build-libs.cmake', 'lib/llvm/patches/*') }}
-        run: python3 .ci-scripts/libs-cache/resolve_libs_cache.py --image "$LIBS_IMAGE" --tag "$LIBS_TAG" -- cmake -DTOOLS=false -DJOBS=4 -P lib/build-libs.cmake
+        run: python3 .ci-scripts/libs-cache/resolve_libs_cache.py --image "$LIBS_IMAGE" --tag "$LIBS_TAG" -- cmake -DJOBS=4 -P lib/build-libs.cmake
       - name: Release
         run: bash .ci-scripts/x86-64-release.bash
         env:
@@ -149,7 +149,7 @@ jobs:
             -v ${{ github.workspace }}:/home/pony/project \
             -w /home/pony/project \
             ${{ matrix.image }} \
-            sh -c 'python3 .ci-scripts/libs-cache/resolve_libs_cache.py --image "$LIBS_IMAGE" --tag "$LIBS_TAG" -- cmake -DTOOLS=false -DJOBS=4 -P lib/build-libs.cmake'
+            sh -c 'python3 .ci-scripts/libs-cache/resolve_libs_cache.py --image "$LIBS_IMAGE" --tag "$LIBS_TAG" -- cmake -DJOBS=4 -P lib/build-libs.cmake'
       - name: Release
         run: |
           docker run --rm \
@@ -177,7 +177,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           LIBS_TAG: ${{ hashFiles('lib/CMakePresets.json', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/build-libs.cmake', 'lib/llvm/patches/*') }}
-        run: python3 .ci-scripts/libs-cache/resolve_libs_cache.py --platform x86-macos-15-intel --tag "$LIBS_TAG" -- cmake -DTOOLS=false -DJOBS=4 -P lib/build-libs.cmake
+        run: python3 .ci-scripts/libs-cache/resolve_libs_cache.py --platform x86-macos-15-intel --tag "$LIBS_TAG" -- cmake -DJOBS=4 -P lib/build-libs.cmake
       - name: Install Cloudsmith
         run: pip3 install --break-system-packages --upgrade cloudsmith-cli
       - name: Release
@@ -203,7 +203,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           LIBS_TAG: ${{ hashFiles('lib/CMakePresets.json', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/build-libs.cmake', 'lib/llvm/patches/*') }}
-        run: python3 .ci-scripts/libs-cache/resolve_libs_cache.py --platform arm64-macos-26 --tag "$LIBS_TAG" -- cmake -DTOOLS=false -DJOBS=3 -P lib/build-libs.cmake
+        run: python3 .ci-scripts/libs-cache/resolve_libs_cache.py --platform arm64-macos-26 --tag "$LIBS_TAG" -- cmake -DJOBS=3 -P lib/build-libs.cmake
       - name: Install Cloudsmith
         run: pip3 install --upgrade --break-system-packages cloudsmith-cli
       - name: Release
@@ -259,7 +259,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           LIBS_TAG: ${{ hashFiles('lib/CMakePresets.json', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/build-libs.cmake', 'lib/llvm/patches/*') }}
-        run: python .ci-scripts/libs-cache/resolve_libs_cache.py --platform windows-2025-vs2026 --tag $env:LIBS_TAG '--' cmake -DPRESET=libs-windows-x86-64 -DTOOLS=false -DJOBS=4 -P lib/build-libs.cmake
+        run: python .ci-scripts/libs-cache/resolve_libs_cache.py --platform windows-2025-vs2026 --tag $env:LIBS_TAG '--' cmake -DPRESET=libs-windows-x86-64 -DJOBS=4 -P lib/build-libs.cmake
       - name: Configure
         run: |
           $version = (Get-Content .\VERSION)
@@ -311,7 +311,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           LIBS_TAG: ${{ hashFiles('lib/CMakePresets.json', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/build-libs.cmake', 'lib/llvm/patches/*') }}
-        run: python .ci-scripts/libs-cache/resolve_libs_cache.py --platform windows-11-arm --tag $env:LIBS_TAG '--' cmake -DPRESET=libs-windows-arm64 -DTOOLS=false -DJOBS=4 -P lib/build-libs.cmake
+        run: python .ci-scripts/libs-cache/resolve_libs_cache.py --platform windows-11-arm --tag $env:LIBS_TAG '--' cmake -DPRESET=libs-windows-arm64 -DJOBS=4 -P lib/build-libs.cmake
       - name: Configure
         run: |
           $version = (Get-Content .\VERSION)

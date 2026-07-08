@@ -85,7 +85,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           LIBS_IMAGE: ghcr.io/ponylang/ponyc-ci-ubuntu26.04-builder:20260425
           LIBS_TAG: ${{ hashFiles('lib/CMakePresets.json', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/build-libs.cmake', 'lib/llvm/patches/*') }}
-        run: python3 .ci-scripts/libs-cache/pr_libs_cache.py --ensure --branch-cache --image "$LIBS_IMAGE" --tag "$LIBS_TAG" -- cmake -DTOOLS=false -DJOBS=4 -P lib/build-libs.cmake
+        run: python3 .ci-scripts/libs-cache/pr_libs_cache.py --ensure --branch-cache --image "$LIBS_IMAGE" --tag "$LIBS_TAG" -- cmake -DJOBS=4 -P lib/build-libs.cmake
 
   maybe-build-macos:
     needs: changes
@@ -103,7 +103,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           LIBS_TAG: ${{ hashFiles('lib/CMakePresets.json', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/build-libs.cmake', 'lib/llvm/patches/*') }}
-        run: python3 .ci-scripts/libs-cache/pr_libs_cache.py --ensure --branch-cache --platform arm64-macos-26 --tag "$LIBS_TAG" -- cmake -DTOOLS=false -DJOBS=3 -P lib/build-libs.cmake
+        run: python3 .ci-scripts/libs-cache/pr_libs_cache.py --ensure --branch-cache --platform arm64-macos-26 --tag "$LIBS_TAG" -- cmake -DJOBS=3 -P lib/build-libs.cmake
 
   maybe-build-windows:
     needs: changes
@@ -126,7 +126,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           LIBS_TAG: ${{ hashFiles('lib/CMakePresets.json', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/build-libs.cmake', 'lib/llvm/patches/*') }}
-        run: python .ci-scripts/libs-cache/pr_libs_cache.py --ensure --branch-cache --platform windows-2025-vs2026 --tag "$env:LIBS_TAG" '--' cmake -DPRESET=libs-windows-x86-64 -DTOOLS=false -DJOBS=4 -P lib/build-libs.cmake
+        run: python .ci-scripts/libs-cache/pr_libs_cache.py --ensure --branch-cache --platform windows-2025-vs2026 --tag "$env:LIBS_TAG" '--' cmake -DPRESET=libs-windows-x86-64 -DJOBS=4 -P lib/build-libs.cmake
 
   # ----- ponyc suite -----
 
@@ -152,7 +152,7 @@ jobs:
           # Referenced UNQUOTED below so an empty value (fork) vanishes instead of
           # passing as an empty arg; see the branch-cache coupling in .known-couplings/branch-libs-cache.md.
           LIBS_BRANCH_CACHE: ${{ github.event.pull_request.head.repo.full_name == github.repository && '--branch-cache' || '' }}
-        run: python3 .ci-scripts/libs-cache/pr_libs_cache.py $LIBS_BRANCH_CACHE --image "$LIBS_IMAGE" --tag "$LIBS_TAG" -- cmake -DTOOLS=false -DJOBS=4 -P lib/build-libs.cmake
+        run: python3 .ci-scripts/libs-cache/pr_libs_cache.py $LIBS_BRANCH_CACHE --image "$LIBS_IMAGE" --tag "$LIBS_TAG" -- cmake -DJOBS=4 -P lib/build-libs.cmake
       - name: Build Debug Runtime
         run: |
           cmake --preset x86-64-debug
@@ -190,7 +190,7 @@ jobs:
           # Referenced UNQUOTED below so an empty value (fork) vanishes instead of
           # passing as an empty arg; see the branch-cache coupling in .known-couplings/branch-libs-cache.md.
           LIBS_BRANCH_CACHE: ${{ github.event.pull_request.head.repo.full_name == github.repository && '--branch-cache' || '' }}
-        run: python3 .ci-scripts/libs-cache/pr_libs_cache.py $LIBS_BRANCH_CACHE --platform arm64-macos-26 --tag "$LIBS_TAG" -- cmake -DTOOLS=false -DJOBS=3 -P lib/build-libs.cmake
+        run: python3 .ci-scripts/libs-cache/pr_libs_cache.py $LIBS_BRANCH_CACHE --platform arm64-macos-26 --tag "$LIBS_TAG" -- cmake -DJOBS=3 -P lib/build-libs.cmake
       - name: Build Debug Runtime
         run: |
           cmake --preset armv8-debug
@@ -229,7 +229,7 @@ jobs:
           # Referenced UNQUOTED below so an empty value (fork) vanishes instead of
           # passing as an empty arg; see the branch-cache coupling in .known-couplings/branch-libs-cache.md.
           LIBS_BRANCH_CACHE: ${{ github.event.pull_request.head.repo.full_name == github.repository && '--branch-cache' || '' }}
-        run: python .ci-scripts/libs-cache/pr_libs_cache.py $env:LIBS_BRANCH_CACHE --platform windows-2025-vs2026 --tag "$env:LIBS_TAG" '--' cmake -DPRESET=libs-windows-x86-64 -DTOOLS=false -DJOBS=4 -P lib/build-libs.cmake
+        run: python .ci-scripts/libs-cache/pr_libs_cache.py $env:LIBS_BRANCH_CACHE --platform windows-2025-vs2026 --tag "$env:LIBS_TAG" '--' cmake -DPRESET=libs-windows-x86-64 -DJOBS=4 -P lib/build-libs.cmake
       - name: Configure
         run: cmake --preset windows-x86-64
       - name: Build Debug Runtime
@@ -269,7 +269,7 @@ jobs:
           # Referenced UNQUOTED below so an empty value (fork) vanishes instead of
           # passing as an empty arg; see the branch-cache coupling in .known-couplings/branch-libs-cache.md.
           LIBS_BRANCH_CACHE: ${{ github.event.pull_request.head.repo.full_name == github.repository && '--branch-cache' || '' }}
-        run: python3 .ci-scripts/libs-cache/pr_libs_cache.py $LIBS_BRANCH_CACHE --image "$LIBS_IMAGE" --tag "$LIBS_TAG" -- cmake -DTOOLS=false -DJOBS=4 -P lib/build-libs.cmake
+        run: python3 .ci-scripts/libs-cache/pr_libs_cache.py $LIBS_BRANCH_CACHE --image "$LIBS_IMAGE" --tag "$LIBS_TAG" -- cmake -DJOBS=4 -P lib/build-libs.cmake
       - name: Build
         run: |
           cmake --preset debug
@@ -296,7 +296,7 @@ jobs:
           # Referenced UNQUOTED below so an empty value (fork) vanishes instead of
           # passing as an empty arg; see the branch-cache coupling in .known-couplings/branch-libs-cache.md.
           LIBS_BRANCH_CACHE: ${{ github.event.pull_request.head.repo.full_name == github.repository && '--branch-cache' || '' }}
-        run: python3 .ci-scripts/libs-cache/pr_libs_cache.py $LIBS_BRANCH_CACHE --platform arm64-macos-26 --tag "$LIBS_TAG" -- cmake -DTOOLS=false -DJOBS=3 -P lib/build-libs.cmake
+        run: python3 .ci-scripts/libs-cache/pr_libs_cache.py $LIBS_BRANCH_CACHE --platform arm64-macos-26 --tag "$LIBS_TAG" -- cmake -DJOBS=3 -P lib/build-libs.cmake
       - name: Build
         run: |
           cmake --preset armv8-debug
@@ -328,7 +328,7 @@ jobs:
           # Referenced UNQUOTED below so an empty value (fork) vanishes instead of
           # passing as an empty arg; see the branch-cache coupling in .known-couplings/branch-libs-cache.md.
           LIBS_BRANCH_CACHE: ${{ github.event.pull_request.head.repo.full_name == github.repository && '--branch-cache' || '' }}
-        run: python .ci-scripts/libs-cache/pr_libs_cache.py $env:LIBS_BRANCH_CACHE --platform windows-2025-vs2026 --tag "$env:LIBS_TAG" '--' cmake -DPRESET=libs-windows-x86-64 -DTOOLS=false -DJOBS=4 -P lib/build-libs.cmake
+        run: python .ci-scripts/libs-cache/pr_libs_cache.py $env:LIBS_BRANCH_CACHE --platform windows-2025-vs2026 --tag "$env:LIBS_TAG" '--' cmake -DPRESET=libs-windows-x86-64 -DJOBS=4 -P lib/build-libs.cmake
       - name: Build
         run: |
           cmake --preset windows-x86-64
@@ -361,7 +361,7 @@ jobs:
           # Referenced UNQUOTED below so an empty value (fork) vanishes instead of
           # passing as an empty arg; see the branch-cache coupling in .known-couplings/branch-libs-cache.md.
           LIBS_BRANCH_CACHE: ${{ github.event.pull_request.head.repo.full_name == github.repository && '--branch-cache' || '' }}
-        run: python3 .ci-scripts/libs-cache/pr_libs_cache.py $LIBS_BRANCH_CACHE --image "$LIBS_IMAGE" --tag "$LIBS_TAG" -- cmake -DTOOLS=false -DJOBS=4 -P lib/build-libs.cmake
+        run: python3 .ci-scripts/libs-cache/pr_libs_cache.py $LIBS_BRANCH_CACHE --image "$LIBS_IMAGE" --tag "$LIBS_TAG" -- cmake -DJOBS=4 -P lib/build-libs.cmake
       - name: Build
         run: |
           cmake --preset debug
@@ -398,7 +398,7 @@ jobs:
           # Referenced UNQUOTED below so an empty value (fork) vanishes instead of
           # passing as an empty arg; see the branch-cache coupling in .known-couplings/branch-libs-cache.md.
           LIBS_BRANCH_CACHE: ${{ github.event.pull_request.head.repo.full_name == github.repository && '--branch-cache' || '' }}
-        run: python3 .ci-scripts/libs-cache/pr_libs_cache.py $LIBS_BRANCH_CACHE --platform arm64-macos-26 --tag "$LIBS_TAG" -- cmake -DTOOLS=false -DJOBS=3 -P lib/build-libs.cmake
+        run: python3 .ci-scripts/libs-cache/pr_libs_cache.py $LIBS_BRANCH_CACHE --platform arm64-macos-26 --tag "$LIBS_TAG" -- cmake -DJOBS=3 -P lib/build-libs.cmake
       - name: Build
         run: |
           cmake --preset armv8-debug
@@ -434,7 +434,7 @@ jobs:
           # Referenced UNQUOTED below so an empty value (fork) vanishes instead of
           # passing as an empty arg; see the branch-cache coupling in .known-couplings/branch-libs-cache.md.
           LIBS_BRANCH_CACHE: ${{ github.event.pull_request.head.repo.full_name == github.repository && '--branch-cache' || '' }}
-        run: python .ci-scripts/libs-cache/pr_libs_cache.py $env:LIBS_BRANCH_CACHE --platform windows-2025-vs2026 --tag "$env:LIBS_TAG" '--' cmake -DPRESET=libs-windows-x86-64 -DTOOLS=false -DJOBS=4 -P lib/build-libs.cmake
+        run: python .ci-scripts/libs-cache/pr_libs_cache.py $env:LIBS_BRANCH_CACHE --platform windows-2025-vs2026 --tag "$env:LIBS_TAG" '--' cmake -DPRESET=libs-windows-x86-64 -DJOBS=4 -P lib/build-libs.cmake
       - name: Build
         run: |
           cmake --preset windows-x86-64

@@ -13,8 +13,6 @@
 # Options (pass with -D before -P):
 #   -DPRESET=<name>  configure preset (default: libs; on Windows use
 #                    libs-windows-x86-64 or libs-windows-arm64).
-#   -DTOOLS=<bool>   build the LLVM command-line tools (default: true; CI uses
-#                    false to keep the cached libs small).
 #   -DJOBS=<n>       parallel build jobs (default: 4; keep it low -- LLVM is
 #                    memory-hungry).
 #   -DCMAKE_C_COMPILER=<path> -DCMAKE_CXX_COMPILER=<path>  override the compiler
@@ -28,9 +26,6 @@
 if(NOT DEFINED PRESET)
     set(PRESET "libs")
 endif()
-if(NOT DEFINED TOOLS)
-    set(TOOLS "true")
-endif()
 if(NOT DEFINED JOBS)
     set(JOBS "4")
 endif()
@@ -38,7 +33,7 @@ endif()
 set(_src "${CMAKE_CURRENT_LIST_DIR}")
 set(_build "${CMAKE_CURRENT_LIST_DIR}/../build/build_libs")
 
-set(_configure cmake --preset "${PRESET}" -S "${_src}" "-DPONY_LLVM_TOOLS=${TOOLS}")
+set(_configure cmake --preset "${PRESET}" -S "${_src}")
 if(DEFINED CMAKE_C_COMPILER)
     list(APPEND _configure "-DCMAKE_C_COMPILER=${CMAKE_C_COMPILER}" "-DCMAKE_CXX_COMPILER=${CMAKE_CXX_COMPILER}")
 endif()

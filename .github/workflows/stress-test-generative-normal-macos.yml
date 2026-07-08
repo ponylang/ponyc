@@ -37,7 +37,7 @@ jobs:
           # and push what we build. On main (a scheduled run, or a dispatch left on
           # main): if it isn't cached, skip -- we don't build LLVM on main.
           LIBS_MODE: ${{ ((github.event_name == 'workflow_dispatch' && github.event.inputs.sha != 'main') && '--branch-cache') || '--require-cache-hit --skip-on-miss' }}
-          LIBS_BUILD: ${{ ((github.event_name == 'workflow_dispatch' && github.event.inputs.sha != 'main') && '-- cmake -DTOOLS=false -DJOBS=3 -P lib/build-libs.cmake') || '' }}
+          LIBS_BUILD: ${{ ((github.event_name == 'workflow_dispatch' && github.event.inputs.sha != 'main') && '-- cmake -DJOBS=3 -P lib/build-libs.cmake') || '' }}
         run: python3 .ci-scripts/libs-cache/resolve_libs_cache.py $LIBS_MODE --platform arm64-macos-26 --tag "$LIBS_TAG" $LIBS_BUILD
       - name: Build Debug Runtime
         # A NORMAL build (no use= flags): the real, multi-threaded runtime, the

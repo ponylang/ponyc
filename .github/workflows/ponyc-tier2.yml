@@ -71,7 +71,7 @@ jobs:
           # and push what we build. On main (a scheduled run, or a dispatch left on
           # main): if it isn't cached, skip -- we don't build LLVM on main.
           LIBS_MODE: ${{ ((github.event_name == 'workflow_dispatch' && inputs.ref != 'main') && '--branch-cache') || '--require-cache-hit --skip-on-miss' }}
-          LIBS_BUILD: ${{ ((github.event_name == 'workflow_dispatch' && inputs.ref != 'main') && '-- cmake -DTOOLS=false -DJOBS=4 -P lib/build-libs.cmake') || '' }}
+          LIBS_BUILD: ${{ ((github.event_name == 'workflow_dispatch' && inputs.ref != 'main') && '-- cmake -DJOBS=4 -P lib/build-libs.cmake') || '' }}
         run: python3 .ci-scripts/libs-cache/resolve_libs_cache.py $LIBS_MODE --image "$LIBS_IMAGE" --tag "$LIBS_TAG" $LIBS_BUILD
       - name: Build Debug Runtime
         if: ${{ hashFiles('.libs-cache-miss') == '' }}
@@ -135,7 +135,7 @@ jobs:
           # and push what we build. On main (a scheduled run, or a dispatch left on
           # main): if it isn't cached, skip -- we don't build LLVM on main.
           LIBS_MODE: ${{ ((github.event_name == 'workflow_dispatch' && inputs.ref != 'main') && '--branch-cache') || '--require-cache-hit --skip-on-miss' }}
-          LIBS_BUILD: ${{ ((github.event_name == 'workflow_dispatch' && inputs.ref != 'main') && '-- cmake -DTOOLS=false -DJOBS=4 -P lib/build-libs.cmake') || '' }}
+          LIBS_BUILD: ${{ ((github.event_name == 'workflow_dispatch' && inputs.ref != 'main') && '-- cmake -DJOBS=4 -P lib/build-libs.cmake') || '' }}
         run: python3 .ci-scripts/libs-cache/resolve_libs_cache.py $LIBS_MODE --platform x86-macos-15-intel --tag "$LIBS_TAG" $LIBS_BUILD
       - name: Build Debug Runtime
         if: ${{ hashFiles('.libs-cache-miss') == '' }}
@@ -221,7 +221,7 @@ jobs:
           # and push what we build. On main (a scheduled run, or a dispatch left on
           # main): if it isn't cached, skip -- we don't build LLVM on main.
           LIBS_MODE: ${{ ((github.event_name == 'workflow_dispatch' && inputs.ref != 'main') && '--branch-cache') || '--require-cache-hit --skip-on-miss' }}
-          LIBS_BUILD: ${{ ((github.event_name == 'workflow_dispatch' && inputs.ref != 'main') && '-- cmake -DTOOLS=false -DJOBS=4 -P lib/build-libs.cmake') || '' }}
+          LIBS_BUILD: ${{ ((github.event_name == 'workflow_dispatch' && inputs.ref != 'main') && '-- cmake -DJOBS=4 -P lib/build-libs.cmake') || '' }}
         run: |
           docker run --rm \
             --user pony \
@@ -343,7 +343,7 @@ jobs:
           LIBS_OFF_MAIN: ${{ github.event_name == 'workflow_dispatch' && inputs.ref != 'main' }}
         run: |
           if ($env:LIBS_OFF_MAIN -eq 'true') {
-            python .ci-scripts/libs-cache/resolve_libs_cache.py --branch-cache --platform windows-11-arm --tag $env:LIBS_TAG '--' cmake -DPRESET=libs-windows-arm64 -DTOOLS=false -DJOBS=4 -P lib/build-libs.cmake
+            python .ci-scripts/libs-cache/resolve_libs_cache.py --branch-cache --platform windows-11-arm --tag $env:LIBS_TAG '--' cmake -DPRESET=libs-windows-arm64 -DJOBS=4 -P lib/build-libs.cmake
           } else {
             python .ci-scripts/libs-cache/resolve_libs_cache.py --require-cache-hit --skip-on-miss --platform windows-11-arm --tag $env:LIBS_TAG
           }

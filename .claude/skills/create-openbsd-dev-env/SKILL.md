@@ -323,7 +323,7 @@ $SSH /bin/sh <<'EOF'
 set -e
 cat > /build/run-libs.sh <<'S'
 #!/bin/sh
-cd /build/ponyc && cmake -DTOOLS=false -DJOBS=4 -P lib/build-libs.cmake
+cd /build/ponyc && cmake -DJOBS=4 -P lib/build-libs.cmake
 echo "libs DONE rc=$?"
 S
 chmod +x /build/run-libs.sh

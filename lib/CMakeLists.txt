@@ -242,24 +242,6 @@ set(LLVM_ENABLE_PLUGINS OFF CACHE BOOL "ponyc specific override of LLVM cache en
 set(LLVM_ENABLE_TERMINFO OFF CACHE BOOL "ponyc specific override of LLVM cache entry")
 set(LLVM_ENABLE_WARNINGS OFF CACHE BOOL "ponyc specific override of LLVM cache entry")
 set(LLVM_ENABLE_Z3_SOLVER OFF CACHE BOOL "ponyc specific override of LLVM cache entry")
-# The LLVM command-line tools (llc, opt, llvm-link, the llvm-* utilities, and the
-# standalone lld/clang driver binaries) are built by default. ponyc links LLVM
-# and LLD as static *libraries* and never invokes these binaries, so for a normal
-# build they are pure dead weight -- the bulk of build/libs/bin (1.6 GB today)
-# and a large share of link time. Pass llvm_tools=false (PONY_LLVM_TOOLS=OFF) to
-# omit them; CI uses this to keep the cached libs small. LLVM_BUILD_TOOLS gates
-# only the tool *executables* (AddLLVM.cmake: llvm_add_tool marks them
-# EXCLUDE_FROM_ALL and skips their install rules), so the LLVM and LLD libraries
-# ponyc links are unaffected. The one consumer of a tool binary is the opt-in
-# runtime-bitcode build, which drives llvm-link, so it needs libs built with the
-# tools; with PONY_LLVM_TOOLS=OFF that binary is absent and the bitcode build
-# fails to link (rare enough that we document it rather than guard it).
-if(NOT DEFINED PONY_LLVM_TOOLS)
-    set(PONY_LLVM_TOOLS ON)
-endif()
-if(NOT PONY_LLVM_TOOLS)
-    set(LLVM_BUILD_TOOLS OFF CACHE BOOL "ponyc specific override of LLVM cache entry")
-endif()
 set(LLVM_INCLUDE_BENCHMARKS OFF CACHE BOOL "ponyc specific override of LLVM cache entry")
 set(LLVM_INCLUDE_TESTS OFF CACHE BOOL "ponyc specific override of LLVM cache entry")
 set(LLVM_TOOL_REMARKS_SHLIB_BUILD OFF CACHE BOOL "ponyc specific override of LLVM cache entry")
