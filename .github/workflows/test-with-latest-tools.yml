@@ -50,7 +50,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6.0.2
       - name: Build Libs
-        run: cmake -DTOOLS=false -DJOBS=4 -P lib/build-libs.cmake
+        run: cmake -DJOBS=4 -P lib/build-libs.cmake
       - name: Build Debug Runtime
         run: |
           cmake --preset debug

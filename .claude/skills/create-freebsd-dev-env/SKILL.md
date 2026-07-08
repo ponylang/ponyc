@@ -274,7 +274,7 @@ $SSH /bin/sh <<'EOF'
 set -e
 cat > /home/freebsd/run-libs.sh <<'S'
 #!/bin/sh
-cd /home/freebsd/ponyc && cmake -DTOOLS=false -DJOBS=8 -P lib/build-libs.cmake
+cd /home/freebsd/ponyc && cmake -DJOBS=8 -P lib/build-libs.cmake
 echo "libs DONE rc=$?"
 S
 chmod +x /home/freebsd/run-libs.sh

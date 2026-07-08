@@ -64,7 +64,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           LIBS_IMAGE: ${{ matrix.image }}
           LIBS_TAG: ${{ hashFiles('lib/CMakePresets.json', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/build-libs.cmake', 'lib/llvm/patches/*') }}
-        run: python3 .ci-scripts/libs-cache/resolve_libs_cache.py --warm --image "$LIBS_IMAGE" --tag "$LIBS_TAG" -- cmake -DTOOLS=false -DJOBS=4 -P lib/build-libs.cmake
+        run: python3 .ci-scripts/libs-cache/resolve_libs_cache.py --warm --image "$LIBS_IMAGE" --tag "$LIBS_TAG" -- cmake -DJOBS=4 -P lib/build-libs.cmake
 
   # Stage 2 (release/nightly). Gate on stage-1 fast jobs only, never
   # x86_64-windows (slow).
@@ -93,7 +93,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           LIBS_IMAGE: ${{ matrix.image }}
           LIBS_TAG: ${{ hashFiles('lib/CMakePresets.json', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/build-libs.cmake', 'lib/llvm/patches/*') }}
-        run: python3 .ci-scripts/libs-cache/resolve_libs_cache.py --warm --image "$LIBS_IMAGE" --tag "$LIBS_TAG" -- cmake -DTOOLS=false -DJOBS=4 -P lib/build-libs.cmake
+        run: python3 .ci-scripts/libs-cache/resolve_libs_cache.py --warm --image "$LIBS_IMAGE" --tag "$LIBS_TAG" -- cmake -DJOBS=4 -P lib/build-libs.cmake
 
   # Stage 3 (everything else). Gate on stage-2 fast jobs only, never
   # arm64-windows (slow). `max-parallel: 2` caps these four legs at 2; the BSD
@@ -126,7 +126,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           LIBS_IMAGE: ${{ matrix.image }}
           LIBS_TAG: ${{ hashFiles('lib/CMakePresets.json', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/build-libs.cmake', 'lib/llvm/patches/*') }}
-        run: python3 .ci-scripts/libs-cache/resolve_libs_cache.py --warm --image "$LIBS_IMAGE" --tag "$LIBS_TAG" -- cmake -DTOOLS=false -DJOBS=4 -P lib/build-libs.cmake
+        run: python3 .ci-scripts/libs-cache/resolve_libs_cache.py --warm --image "$LIBS_IMAGE" --tag "$LIBS_TAG" -- cmake -DJOBS=4 -P lib/build-libs.cmake
 
   # Currently, Github actions supplied by GH like checkout do not work in musl
   # libc environments on arm64. We work around this by running checkout on the
@@ -175,7 +175,7 @@ jobs:
             -v ${{ github.workspace }}:/home/pony/project \
             -w /home/pony/project \
             ${{ matrix.image }} \
-            sh -c 'python3 .ci-scripts/libs-cache/resolve_libs_cache.py --warm --image "$LIBS_IMAGE" --tag "$LIBS_TAG" -- cmake -DTOOLS=false -DJOBS=4 -P lib/build-libs.cmake'
+            sh -c 'python3 .ci-scripts/libs-cache/resolve_libs_cache.py --warm --image "$LIBS_IMAGE" --tag "$LIBS_TAG" -- cmake -DJOBS=4 -P lib/build-libs.cmake'
 
   x86_64-macos:
     # Stage 2 (release/nightly). Gate on stage-1 fast jobs only, never
@@ -192,7 +192,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           LIBS_TAG: ${{ hashFiles('lib/CMakePresets.json', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/build-libs.cmake', 'lib/llvm/patches/*') }}
-        run: python3 .ci-scripts/libs-cache/resolve_libs_cache.py --warm --platform x86-macos-15-intel --tag "$LIBS_TAG" -- cmake -DTOOLS=false -DJOBS=4 -P lib/build-libs.cmake
+        run: python3 .ci-scripts/libs-cache/resolve_libs_cache.py --warm --platform x86-macos-15-intel --tag "$LIBS_TAG" -- cmake -DJOBS=4 -P lib/build-libs.cmake
 
   arm64-macos:
     # Stage 1 (PR). No gate; starts immediately.
@@ -206,7 +206,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           LIBS_TAG: ${{ hashFiles('lib/CMakePresets.json', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/build-libs.cmake', 'lib/llvm/patches/*') }}
-        run: python3 .ci-scripts/libs-cache/resolve_libs_cache.py --warm --platform arm64-macos-26 --tag "$LIBS_TAG" -- cmake -DTOOLS=false -DJOBS=3 -P lib/build-libs.cmake
+        run: python3 .ci-scripts/libs-cache/resolve_libs_cache.py --warm --platform arm64-macos-26 --tag "$LIBS_TAG" -- cmake -DJOBS=3 -P lib/build-libs.cmake
 
   x86_64-windows:
     # Stage 1 (PR). No gate; starts immediately. Slow, so no later stage gates
@@ -223,7 +223,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           LIBS_TAG: ${{ hashFiles('lib/CMakePresets.json', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/build-libs.cmake', 'lib/llvm/patches/*') }}
-        run: python .ci-scripts/libs-cache/resolve_libs_cache.py --warm --platform windows-2025-vs2026 --tag $env:LIBS_TAG '--' cmake -DPRESET=libs-windows-x86-64 -DTOOLS=false -DJOBS=4 -P lib/build-libs.cmake
+        run: python .ci-scripts/libs-cache/resolve_libs_cache.py --warm --platform windows-2025-vs2026 --tag $env:LIBS_TAG '--' cmake -DPRESET=libs-windows-x86-64 -DJOBS=4 -P lib/build-libs.cmake
 
   arm64-windows:
     # Stage 2 (release/nightly). Gate on stage-1 fast jobs only, never
@@ -242,7 +242,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           LIBS_TAG: ${{ hashFiles('lib/CMakePresets.json', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/build-libs.cmake', 'lib/llvm/patches/*') }}
-        run: python .ci-scripts/libs-cache/resolve_libs_cache.py --warm --platform windows-11-arm --tag $env:LIBS_TAG '--' cmake -DPRESET=libs-windows-arm64 -DTOOLS=false -DJOBS=4 -P lib/build-libs.cmake
+        run: python .ci-scripts/libs-cache/resolve_libs_cache.py --warm --platform windows-11-arm --tag $env:LIBS_TAG '--' cmake -DPRESET=libs-windows-arm64 -DJOBS=4 -P lib/build-libs.cmake
 
   freebsd:
     # Stage 3. `needs:` x86_64-linux-other (which itself gates on the stage-2

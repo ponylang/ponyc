@@ -50,7 +50,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           LIBS_TAG: ${{ hashFiles('lib/CMakePresets.json', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/build-libs.cmake', 'lib/llvm/patches/*') }}
-        run: python .ci-scripts/libs-cache/resolve_libs_cache.py --platform windows-2025-vs2026 --tag $env:LIBS_TAG '--' cmake -DPRESET=libs-windows-x86-64 -DTOOLS=false -DJOBS=4 -P lib/build-libs.cmake
+        run: python .ci-scripts/libs-cache/resolve_libs_cache.py --platform windows-2025-vs2026 --tag $env:LIBS_TAG '--' cmake -DPRESET=libs-windows-x86-64 -DJOBS=4 -P lib/build-libs.cmake
       - name: Configure
         run: cmake --preset windows-x86-64 -DPONY_INSTALL_SYMLINKS=OFF -DPONYC_VERSION=nightly
       - name: Build

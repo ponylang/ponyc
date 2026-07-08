@@ -211,16 +211,6 @@ Several `use=` build options aren't supported on Windows (MSVC). The supported o
 
 ## Additional Build Options on Unix
 
-### llvm_tools
-
-`cmake -P lib/build-libs.cmake` builds the LLVM command-line tools (`llc`, `opt`, `llvm-link`, the various `llvm-*` utilities, and the standalone `lld`/`clang` driver binaries) by default. ponyc links LLVM and LLD as static libraries and never runs these binaries, so for a normal build they are dead weight — roughly 1.6 GB in `build/libs/bin` and a significant share of the libs build time. If you don't need them for local LLVM debugging, omit them by passing `-DTOOLS=false`:
-
-```bash
-cmake -DTOOLS=false -P lib/build-libs.cmake
-```
-
-The default is `true`. The value only takes effect on a fresh libs build, so remove `build/build_libs` and `build/libs` first if you have already built the libraries. Building the runtime as bitcode (see [runtime-bitcode](#runtime-bitcode) below) needs `llvm-link`, which is one of the omitted tools, so build the libs with `-DTOOLS=true` if you intend to use it.
-
 ### arch
 
 You can specify the CPU architecture to build Pony for. For the common architectures there are presets (`x86-64`, `armv8`, `armv8-a`, each with a `-debug`/`-release` variant); for anything else, set `PONY_ARCH` and the matching compiler flags directly:
@@ -307,7 +297,7 @@ Then, you can pass the `--runtimebc` option to ponyc in order to use the bitcode
 ponyc --runtimebc
 ```
 
-This requires `llvm-link`, which is one of the LLVM tools `cmake -P lib/build-libs.cmake` builds by default. If you built the libraries with [`-DTOOLS=false`](#llvm_tools), rebuild them with the tools (`rm -rf build/build_libs build/libs && cmake -P lib/build-libs.cmake`) before configuring with `-DPONY_RUNTIME_BITCODE=true`.
+This requires `llvm-link`, which is one of the LLVM tools `cmake -P lib/build-libs.cmake` builds.
 
 This functionality boils down to "super LTO" for the runtime. The Pony compiler will have full knowledge of the runtime and will perform advanced interprocedural optimisations between your Pony code and the runtime. If you're looking for maximum performance, you should consider this option. Note that this can result in very long optimisation times.
 

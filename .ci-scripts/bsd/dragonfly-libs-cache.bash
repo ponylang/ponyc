@@ -38,12 +38,12 @@ case "$operation" in
     remote_body="python3 .ci-scripts/libs-cache/resolve_libs_cache.py --require-cache-hit --branch-cache --platform dragonfly-6.4.2 --tag '${LIBS_TAG}'"
     ;;
   build-push-branch)
-    remote_body="cmake -DTOOLS=false -DJOBS=4 -DCMAKE_C_COMPILER=/usr/local/bin/gcc13 -DCMAKE_CXX_COMPILER=/usr/local/bin/g++13 -P lib/build-libs.cmake
+    remote_body="cmake -DJOBS=4 -DCMAKE_C_COMPILER=/usr/local/bin/gcc13 -DCMAKE_CXX_COMPILER=/usr/local/bin/g++13 -P lib/build-libs.cmake
 rm -rf build/build_libs
 python3 .ci-scripts/libs-cache/branch_libs_cache.py push --platform dragonfly-6.4.2 --tag '${LIBS_TAG}' || echo '::warning::dragonfly branch libs cache push failed, will rebuild next run'"
     ;;
   build-push-main)
-    remote_body="cmake -DTOOLS=false -DJOBS=4 -DCMAKE_C_COMPILER=/usr/local/bin/gcc13 -DCMAKE_CXX_COMPILER=/usr/local/bin/g++13 -P lib/build-libs.cmake
+    remote_body="cmake -DJOBS=4 -DCMAKE_C_COMPILER=/usr/local/bin/gcc13 -DCMAKE_CXX_COMPILER=/usr/local/bin/g++13 -P lib/build-libs.cmake
 rm -rf build/build_libs
 python3 .ci-scripts/libs-cache/oci_libs_cache.py push --platform dragonfly-6.4.2 --tag '${LIBS_TAG}'"
     ;;

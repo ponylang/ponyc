@@ -38,12 +38,12 @@ case "$operation" in
     remote_body="python3 .ci-scripts/libs-cache/resolve_libs_cache.py --require-cache-hit --branch-cache --platform openbsd-7.9 --tag '${LIBS_TAG}'"
     ;;
   build-push-branch)
-    remote_body="cmake -DTOOLS=false -DJOBS=4 -P lib/build-libs.cmake
+    remote_body="cmake -DJOBS=4 -P lib/build-libs.cmake
 rm -rf build/build_libs
 python3 .ci-scripts/libs-cache/branch_libs_cache.py push --platform openbsd-7.9 --tag '${LIBS_TAG}' || echo '::warning::openbsd branch libs cache push failed, will rebuild next run'"
     ;;
   build-push-main)
-    remote_body="cmake -DTOOLS=false -DJOBS=4 -P lib/build-libs.cmake
+    remote_body="cmake -DJOBS=4 -P lib/build-libs.cmake
 rm -rf build/build_libs
 python3 .ci-scripts/libs-cache/oci_libs_cache.py push --platform openbsd-7.9 --tag '${LIBS_TAG}'"
     ;;

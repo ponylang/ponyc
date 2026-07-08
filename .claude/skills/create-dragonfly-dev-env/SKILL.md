@@ -300,7 +300,7 @@ cat > /build/run-libs.sh <<'S'
 export CC=/usr/local/bin/gcc13 CXX=/usr/local/bin/g++13
 export LD_LIBRARY_PATH=/usr/local/lib/gcc13
 export SSL_CERT_FILE=/usr/local/share/certs/ca-root-nss.crt
-cd /build/ponyc && cmake -DTOOLS=false -DJOBS=8 -DCMAKE_C_COMPILER=/usr/local/bin/gcc13 -DCMAKE_CXX_COMPILER=/usr/local/bin/g++13 -P lib/build-libs.cmake
+cd /build/ponyc && cmake -DJOBS=8 -DCMAKE_C_COMPILER=/usr/local/bin/gcc13 -DCMAKE_CXX_COMPILER=/usr/local/bin/g++13 -P lib/build-libs.cmake
 echo "libs DONE rc=$?"
 S
 chmod +x /build/run-libs.sh
