@@ -78,9 +78,67 @@ if(GIT_FOUND)
         option(GIT_SUBMODULE "Check submodules during build" ON)
         if(GIT_SUBMODULE)
             message(STATUS "Updating submodules...")
-            execute_process(COMMAND ${GIT_EXECUTABLE} submodule update --init --recursive --depth 1
-                            WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-                            RESULT_VARIABLE git_submod_result)
+
+            # The submodule clone (github.com/llvm/llvm-project, one of the
+            # largest repos on GitHub) is anonymous by default. GitHub throttles
+            # unauthenticated git operations, so on a cold CI cache -- when many
+            # platforms clone at once -- the clone can fail with HTTP 429. When a
+            # GITHUB_TOKEN is present in the environment, rewrite github.com URLs
+            # to carry it so the clone authenticates and is billed to the token's
+            # higher rate-limit bucket instead of the shared anonymous-per-IP
+            # one. The rewrite goes through git's config-via-environment
+            # (GIT_CONFIG_*): this file never writes the token to a command line,
+            # to .gitmodules, or to on-disk git config. (git's own https helper
+            # still carries the rewritten URL in its subprocess argv, so the
+            # token is briefly visible to `ps` on this runner -- inherent to
+            # embedding a credential in a URL.)
+            #
+            # A build with no GITHUB_TOKEN -- the usual developer machine -- adds
+            # no rewrite and clones just as it would without this change. If a
+            # developer does export GITHUB_TOKEN, this rewrite takes precedence
+            # over a github.com URL rewrite of their own (e.g. an SSH `insteadOf`)
+            # and forces an authenticated HTTPS clone. CI configures no such
+            # rewrite.
+            set(_llvm_clone_auth FALSE)
+            if(NOT "$ENV{GITHUB_TOKEN}" STREQUAL "")
+                set(ENV{GIT_CONFIG_COUNT} "1")
+                set(ENV{GIT_CONFIG_KEY_0} "url.https://x-access-token:$ENV{GITHUB_TOKEN}@github.com/.insteadOf")
+                set(ENV{GIT_CONFIG_VALUE_0} "https://github.com/")
+                set(_llvm_clone_auth TRUE)
+            endif()
+
+            # Retry the clone: a 429 is transient. `git submodule update --init`
+            # is safe to re-run -- a failed fetch leaves the submodule
+            # un-updated, and the next attempt refetches -- so try up to three
+            # times with backoff instead of failing the whole build on the first
+            # blip. This retry wraps every build, authenticated or not. No jitter
+            # -- not worth the complexity for two retries.
+            set(_llvm_clone_delays 5 20)
+            foreach(_attempt RANGE 1 3)
+                execute_process(COMMAND ${GIT_EXECUTABLE} submodule update --init --recursive --depth 1
+                                WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+                                RESULT_VARIABLE git_submod_result)
+                if(git_submod_result EQUAL "0")
+                    break()
+                endif()
+                if(_attempt LESS 3)
+                    math(EXPR _delay_idx "${_attempt} - 1")
+                    list(GET _llvm_clone_delays ${_delay_idx} _delay)
+                    message(STATUS "git submodule update failed (${git_submod_result}); retrying in ${_delay}s...")
+                    execute_process(COMMAND ${CMAKE_COMMAND} -E sleep ${_delay})
+                endif()
+            endforeach()
+
+            # Clear the auth env before the git calls below (submodule status,
+            # and the patch apply further down). The insteadOf rewrite only
+            # touches github.com URLs, so those local git operations are
+            # unaffected either way; this is tidiness.
+            if(_llvm_clone_auth)
+                unset(ENV{GIT_CONFIG_COUNT})
+                unset(ENV{GIT_CONFIG_KEY_0})
+                unset(ENV{GIT_CONFIG_VALUE_0})
+            endif()
+
             #message("git_submod_result ${git_submod_result}")
             if(NOT git_submod_result EQUAL "0")
                 message(FATAL_ERROR "git submodule update --init --recursive --depth 1 failed with ${git_submod_result}, please checkout submodules")
