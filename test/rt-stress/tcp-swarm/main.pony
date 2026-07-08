@@ -129,8 +129,7 @@ class val _Config
     // `@pony_os_writev_max()` -- IOV_MAX (1024 on Linux/macOS) on POSIX, 1 on
     // Windows -- it drives TCPConnection's multi-batch send and the mid-write
     // yield, so on POSIX it bites only when payload_size >= writev_chunks > 1024.
-    // Default 4; writev only. Coupling:
-    // .known-couplings/tcp-swarm-writev-chunks-iov-max.md.
+    // Default 4; writev only.
     writev_chunks = _usize(m, "writev-chunks", 4).max(1)
     read_buffer_size = _usize(m, "read-buffer-size", 16384)
     // Clamp expect to the read buffer: TCPConnection.expect() errors when the frame
