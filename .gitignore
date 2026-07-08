@@ -41,3 +41,12 @@ tools/pony-doc/version.pony
 # Python bytecode
 __pycache__/
 *.pyc
+
+# Coverage instrumentation artifacts (use=coverage). clang writes default.profraw
+# relative to each instrumented binary's cwd — the tracked test dirs when the
+# test suite runs; gcc writes .gcda/.gcno per translation unit.
+*.profraw
+*.profdata
+*.gcda
+*.gcno
+*.gcov
