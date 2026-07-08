@@ -969,9 +969,9 @@ def run_once(binary, config, timeout, mem_limit_bytes):
         run_command(binary, config), timeout, mem_limit_bytes)
     if timed_out:
         return RunResult("timeout", None, None, stdout, stderr)
-    signal = -returncode if returncode < 0 else None
+    terminating_signal = -returncode if returncode < 0 else None
     outcome = "pass" if returncode == 0 else "fail"
-    return RunResult(outcome, returncode, signal, stdout, stderr)
+    return RunResult(outcome, returncode, terminating_signal, stdout, stderr)
 
 
 def lldb_argv(lldb, engine_argv):
