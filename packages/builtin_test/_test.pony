@@ -42,6 +42,8 @@ actor \nodoc\ Main is TestList
     test(_TestArrayTrimInPlaceWithAppend)
     test(_TestArrayUnchop)
     test(_TestArrayValuesRewind)
+    test(_TestArrayKeysRewind)
+    test(_TestArrayPairsRewind)
     test(_TestDivc)
     test(_TestFld)
     test(_TestFldc)
@@ -1725,6 +1727,30 @@ class \nodoc\ iso _TestArrayInsert is UnitTest
 
     h.assert_error({() ? => ["one"; "three"].insert(3, "invalid")? })
 
+class \nodoc\ iso _TestArrayKeysRewind is UnitTest
+  """
+  Test rewinding an ArrayKeys object
+  """
+  fun name(): String => "builtin/ArrayKeys.rewind"
+
+  fun apply(h: TestHelper) =>
+    let av = [as U32: 1; 2; 3; 4].keys()
+
+    h.assert_eq[USize](0, av.next())
+    h.assert_eq[USize](1, av.next())
+    h.assert_eq[USize](2, av.next())
+    h.assert_eq[USize](3, av.next())
+    h.assert_eq[Bool](false, av.has_next())
+
+    av.rewind()
+
+    h.assert_eq[Bool](true, av.has_next())
+    h.assert_eq[USize](0, av.next())
+    h.assert_eq[USize](1, av.next())
+    h.assert_eq[USize](2, av.next())
+    h.assert_eq[USize](3, av.next())
+    h.assert_eq[Bool](false, av.has_next())
+
 class \nodoc\ iso _TestArrayValuesRewind is UnitTest
   """
   Test rewinding an ArrayValues object
@@ -1748,6 +1774,41 @@ class \nodoc\ iso _TestArrayValuesRewind is UnitTest
     h.assert_eq[U32](3, av.next()?)
     h.assert_eq[U32](4, av.next()?)
     h.assert_eq[Bool](false, av.has_next())
+
+class \nodoc\ iso _TestArrayPairsRewind is UnitTest
+  """
+  Test rewinding an ArrayPairs object
+  """
+  fun name(): String => "builtin/ArrayPairs.rewind"
+
+  fun apply(h: TestHelper) ? =>
+    let av = [as U32: 1; 2; 3; 4].pairs()
+
+    var idx: USize = 0
+    var v: U32 = 1
+    while av.has_next() do
+      (let idx': USize, let v': U32) = av.next()?
+      h.assert_eq[USize](idx, idx')
+      h.assert_eq[U32](v, v')
+      idx = idx + 1
+      v = v + 1
+    end
+    h.assert_eq[Bool](false, av.has_next())
+    h.assert_eq[USize](4, idx)
+
+    av.rewind()
+    idx = 0
+    v = 1
+
+    while av.has_next() do
+      (let idx': USize, let v': U32) = av.next()?
+      h.assert_eq[USize](idx, idx')
+      h.assert_eq[U32](v, v')
+      idx = idx + 1
+      v = v + 1
+    end
+    h.assert_eq[Bool](false, av.has_next())
+    h.assert_eq[USize](4, idx)
 
 class \nodoc\ _FindTestCls
   let i: ISize
