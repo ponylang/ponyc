@@ -18,10 +18,18 @@ From a master seed it:
      the cycle detector on) and `--ponymaxthreads` across [1, the host's probed
      physical core count];
   3. compiles the engine once with the provided `--ponyc`;
-  4. runs each seed TWICE under a watchdog and an address-space cap and requires
-     the two runs' observable ORDER_SIG to match (the determinism oracle, always
-     on -- a divergence is a race), plus exit code + timeout, writing a failure
-     bundle. A seed replays from its number.
+  4. runs each seed TWICE -- under lldb, a watchdog, and an address-space cap --
+     and requires the two runs' observable ORDER_SIG to match (the determinism
+     oracle, always on -- a divergence is a race), plus exit code + timeout,
+     writing a failure bundle. A seed replays from its number.
+
+Runs go through lldb (like the normal mode) so a crash leaves a backtrace in the
+bundle and a watchdog timeout captures an all-thread backtrace of the hung engine
+before the kill -- an intermittent hang need not reproduce from its seed, so the
+in-the-moment stack is the artifact that matters. lldb does not change the
+interleaving (the determinism oracle holds under it). `--no-lldb` runs the engine
+directly instead -- for hosts without lldb; Windows CI passes it, its timeout
+capture being unverified and deferred.
 
 The mode-agnostic, cross-platform mechanism lives in stress_common.py; only the
 systematic-specific config draw, the determinism double-run, and the guard live
@@ -44,6 +52,7 @@ import json
 import os
 import random
 import shlex
+import shutil
 import sys
 
 import stress_common as common
@@ -90,18 +99,20 @@ def resolve_config(master_seed, max_threads):
 
 
 def check_determinism(binary, config, version, use_flags, out_dir, timeout,
-                      mem_limit_bytes):
+                      mem_limit_bytes, runner):
     """Run one seed twice and compare the observable ORDER_SIG. Divergence at a
     fixed seed pair is a race. A non-pass run is a failure in its own right. On
     any determinism failure a `determinism-<seed>.json` bundle is written
     capturing both runs, so the divergence -- the headline oracle failure, which
     otherwise leaves no on-disk artifact since both runs exit 0 -- reproduces from
-    the record, not just from stdout."""
+    the record, not just from stdout. `runner` is the run strategy from
+    _runner_for, used for BOTH runs -- the lldb wrapper by default, so a crash or
+    timeout in either run carries its backtrace into the bundle."""
     seed = config["master_seed"]
     first = common.execute(binary, config, version, use_flags, out_dir, timeout,
-                           mem_limit_bytes)
+                           mem_limit_bytes, runner=runner)
     second = common.execute(binary, config, version, use_flags, out_dir, timeout,
-                            mem_limit_bytes)
+                            mem_limit_bytes, runner=runner)
     sig_a = common.parse_result(first.stdout).get("order_sig")
     sig_b = common.parse_result(second.stdout).get("order_sig")
     runs_ok = (first.outcome == "pass") and (second.outcome == "pass")
@@ -138,6 +149,20 @@ def check_determinism(binary, config, version, use_flags, out_dir, timeout,
     return False
 
 
+def _runner_for(args):
+    """The run strategy for the parsed args: the lldb wrapper by default, so a
+    crash or timeout leaves a backtrace in the bundle; the direct run_once under
+    --no-lldb. The systematic flat watchdog (no_progress_seconds=None) applies
+    either way -- run_under_lldb's default."""
+    if args.no_lldb:
+        return common.run_once
+
+    def runner(binary, config, timeout, mem_limit_bytes):
+        return common.run_under_lldb(binary, config, args.lldb, timeout,
+                                     mem_limit_bytes)
+    return runner
+
+
 def main(argv):
     parser = argparse.ArgumentParser(
         description=__doc__,
@@ -146,6 +171,14 @@ def main(argv):
                         help="path to a debug + systematic ponyc")
     parser.add_argument("--use-flags", required=True,
                         help="use= flags the ponyc was built with (provenance)")
+    debugger = parser.add_mutually_exclusive_group()
+    debugger.add_argument("--lldb", default="lldb",
+                          help="path to lldb (default: on PATH); the engine runs "
+                          "under it so crash AND timeout backtraces are captured "
+                          "in the failure bundle")
+    debugger.add_argument("--no-lldb", action="store_true",
+                          help="run the engine directly, with no backtrace "
+                          "capture (for hosts without lldb; Windows CI)")
     parser.add_argument("--out", help="output dir for the binary and bundles")
     parser.add_argument("--timeout", type=int,
                         default=common.DEFAULT_TIMEOUT_SECONDS,
@@ -174,6 +207,11 @@ def main(argv):
                    "--ponysystematictestingseed, which a non-systematic runtime "
                    "rejects (every seed would 'fail'). Use orchestrate_normal.py "
                    "for a normal runtime.")
+    if (not args.no_lldb) and shutil.which(args.lldb) is None:
+        common.die("lldb not found ('%s'). The systematic mode runs the engine "
+                   "under lldb so crash and timeout backtraces land in the "
+                   "failure bundle. Install lldb, pass --lldb PATH, or pass "
+                   "--no-lldb to run direct (no backtraces)." % args.lldb)
 
     out_dir = os.path.abspath(args.out) if args.out else os.path.join(
         common.REPO_ROOT, "rt-stress-out")
@@ -199,6 +237,7 @@ def main(argv):
         common.info("replay cli: " + " ".join(
             shlex.quote(a) for a in common.run_command(binary, config)))
 
+    runner = _runner_for(args)
     failures = 0
     for seed in seeds:
         config = resolve_config(seed, max_threads)
@@ -206,7 +245,8 @@ def main(argv):
         # the observable ORDER_SIG must match. The second run is also a full
         # conservation/crash/liveness run, so it is not wasted.
         if not check_determinism(binary, config, version, args.use_flags,
-                                 out_dir, args.timeout, mem_limit_bytes):
+                                 out_dir, args.timeout, mem_limit_bytes,
+                                 runner):
             failures += 1
 
     common.info("ran %d seed(s), %d failure(s)" % (len(seeds), failures))

@@ -7,7 +7,9 @@ failure. Picked up by lint-python.yml's `*_test.py` discovery.
 """
 import os
 import random
+import shutil
 import sys
+import time
 import types
 
 import stress_common as common
@@ -649,6 +651,12 @@ def test_lldb_argv():
               "process handle SIGUSR2 --pass true --stop false" in joined)
         check("lldb_argv (posix): stops at main to set up signals first",
               "breakpoint set --name main" in joined)
+        # SIGABRT must stay OUT of the pass-through list: the timeout hook
+        # aborts the inferior and relies on lldb's default stop to print the
+        # backtrace (see lldb_timeout_abort and
+        # .known-couplings/lldb-timeout-abort-capture.md).
+        check("lldb_argv (posix): SIGABRT is NOT passed through",
+              "process handle SIGABRT" not in joined)
 
 
 def test_lldb_exit_code():
@@ -664,6 +672,104 @@ def test_lldb_exit_code():
           common.lldb_exit_code(
               "Process 7 stopped\n* stop reason = signal SIGSEGV\nbt all...")
           is None)
+
+
+def test_lldb_inferior_pid():
+    # The Linux tree: lldb -> lldb-server -> inferior. The walk descends through
+    # lldb's own machinery and returns the first process that isn't part of it.
+    linux_tree = ["  100     1 lldb",
+                  "  101   100 lldb-server",
+                  "  102   101 generative",
+                  "  200     1 unrelated"]
+    check("lldb_inferior_pid: walks through lldb-server to the inferior",
+          common._lldb_inferior_pid(100, linux_tree) == 102)
+    # The macOS tree: lldb -> debugserver -> inferior, with ps giving comm as a
+    # full path.
+    mac_tree = ["  100     1 /usr/bin/lldb",
+                "  101   100 /Library/.../debugserver",
+                "  102   101 /private/tmp/generative"]
+    check("lldb_inferior_pid: walks through debugserver (macOS, full paths)",
+          common._lldb_inferior_pid(100, mac_tree) == 102)
+    # No inferior (it exited, or lldb never launched it) -> None; the timeout
+    # hook then falls back to the plain kill.
+    check("lldb_inferior_pid: no inferior -> None",
+          common._lldb_inferior_pid(
+              100, ["  100     1 lldb", "  101   100 lldb-server"]) is None)
+    check("lldb_inferior_pid: unknown root -> None",
+          common._lldb_inferior_pid(999, linux_tree) is None)
+    # A cyclic snapshot must terminate (the seen set), not loop forever. Real
+    # ps output can't cycle, but the walk must not hang the hang-handler if it
+    # somehow does.
+    check("lldb_inferior_pid: cyclic snapshot terminates -> None",
+          common._lldb_inferior_pid(
+              100, ["  100   101 lldb-server", "  101   100 lldb-server"])
+          is None)
+    # A failed or stalled ps snapshot degrades to None (the caller then falls
+    # back to the plain tree kill) instead of crashing the orchestrator from
+    # inside its own hang handler.
+    real_run = common.subprocess.run
+
+    def ps_gone(*args, **kwargs):
+        raise OSError("ps not found")
+
+    try:
+        common.subprocess.run = ps_gone
+        check("lldb_inferior_pid: ps failure -> None",
+              common._lldb_inferior_pid(100) is None)
+    finally:
+        common.subprocess.run = real_run
+
+
+def test_lldb_timeout_abort():
+    if os.name != "posix":
+        print("skip - lldb_timeout_abort unit checks (not POSIX)")
+        return
+    real_kill = os.kill
+    real_find = common._lldb_inferior_pid
+    sent = []
+    proc = types.SimpleNamespace(pid=100)
+    try:
+        os.kill = lambda pid, sig: sent.append((pid, sig))
+        common._lldb_inferior_pid = lambda lldb_pid: 4242
+        check("lldb_timeout_abort: aborts the found inferior pid",
+              common.lldb_timeout_abort(proc) is True
+              and sent == [(4242, common.signal.SIGABRT)])
+        sent.clear()
+        common._lldb_inferior_pid = lambda lldb_pid: None
+        check("lldb_timeout_abort: no inferior -> False, nothing signaled",
+              common.lldb_timeout_abort(proc) is False and sent == [])
+
+        def gone(pid, sig):
+            raise ProcessLookupError()
+
+        os.kill = gone
+        common._lldb_inferior_pid = lambda lldb_pid: 4242
+        check("lldb_timeout_abort: inferior already gone -> False",
+              common.lldb_timeout_abort(proc) is False)
+
+        def refused(pid, sig):
+            raise PermissionError()
+
+        os.kill = refused
+        check("lldb_timeout_abort: kill not permitted -> False",
+              common.lldb_timeout_abort(proc) is False)
+    finally:
+        os.kill = real_kill
+        common._lldb_inferior_pid = real_find
+
+    # Non-POSIX: the hook declines up front (Windows has no SIGABRT to send).
+    # Patching os.name is safe here: lldb_timeout_abort reads it directly, and
+    # nothing else runs concurrently in this suite.
+    real_name = os.name
+    walked = []
+    try:
+        common._lldb_inferior_pid = lambda lldb_pid: walked.append(lldb_pid)
+        os.name = "nt"
+        check("lldb_timeout_abort: non-POSIX -> False without walking",
+              common.lldb_timeout_abort(proc) is False and walked == [])
+    finally:
+        os.name = real_name
+        common._lldb_inferior_pid = real_find
 
 
 def _fake_capture(timed_out, returncode, stdout, stderr=""):
@@ -729,6 +835,31 @@ def test_run_under_lldb():
         common._capture = _fake_capture(True, None, "partial")
         r = common.run_under_lldb("/bin/x", _MIN_CONFIG, "lldb", 60, None)
         check("run_under_lldb: timeout", r.outcome == "timeout")
+        # A timeout whose output carries the hook's backtrace (including its
+        # "stop reason = signal SIGABRT" stop line) is STILL a timeout -- the
+        # timed_out short-circuit runs before the crash classification -- and
+        # the backtrace rides into the bundle through the returned stdout.
+        common._capture = _fake_capture(
+            True, None,
+            "Process 99 launched\n* stop reason = signal SIGABRT\n"
+            "thread #1\n  frame #0: park_site\n")
+        r = common.run_under_lldb("/bin/x", _MIN_CONFIG, "lldb", 60, None)
+        check("run_under_lldb: timeout with a captured backtrace stays a timeout",
+              r.outcome == "timeout" and r.signal is None
+              and "frame #0: park_site" in r.stdout)
+
+        # The lldb runner must arm the timeout hook -- without it a timeout
+        # kills the run with no backtrace.
+        seen_kwargs = []
+
+        def recording_capture(*args, **kwargs):
+            seen_kwargs.append(kwargs)
+            return (False, 0, "Process 7 exited with status = 0 (0x0)", "")
+
+        common._capture = recording_capture
+        common.run_under_lldb("/bin/x", _MIN_CONFIG, "lldb", 60, None)
+        check("run_under_lldb: arms lldb_timeout_abort as the timeout hook",
+              seen_kwargs[0].get("on_timeout") is common.lldb_timeout_abort)
     finally:
         common._capture = real
 
@@ -743,6 +874,12 @@ def test_watchdog_should_kill():
           not decide(5000, 0, 4990, 6000, 300))
     check("watchdog kills at the absolute backstop despite recent progress",
           decide(6001, 0, 6000, 6000, 300))
+    # no_progress_seconds=None is the systematic flat mode: silence alone never
+    # kills; only the total wall-clock timeout does.
+    check("watchdog (flat mode): silence inside the timeout is spared",
+          not decide(100, 0, 0, 180, None))
+    check("watchdog (flat mode): kills past the flat timeout",
+          decide(181, 0, 181, 180, None))
 
 
 class _FakeStream:
@@ -822,8 +959,159 @@ def test_watch_for_progress():
         check("watch_for_progress: an advancing run within the window completes",
               (timed_out3 is False) and (rc3 == 0))
         check("watch_for_progress: an advancing run is not killed", len(killed) == 1)
+
+        # Flat mode (no_progress_seconds=None, the systematic watchdog): a
+        # silent-but-alive run is spared until the total timeout, then killed.
+        clock4 = [0.0]
+
+        def advance4(_s):
+            clock4[0] += 100.0
+
+        proc4 = _FakeProc([], [], alive_polls=1000, returncode=0)
+        timed_out4, rc4, _o4, _e4 = common._watch_for_progress(
+            proc4, 180, None, poll=lambda: clock4[0], sleep=advance4)
+        check("watch_for_progress (flat): killed at the flat timeout only",
+              timed_out4 is True and rc4 is None and len(killed) == 2)
     finally:
         common._kill_process_tree = real_kill
+
+
+def test_watch_for_progress_timeout_hook():
+    real_kill = common._kill_process_tree
+    killed = []
+    common._kill_process_tree = lambda p: killed.append(p)
+    try:
+        # The injected sleep advances the fake clock AND yields briefly so the
+        # reader threads drain the fake streams before the watchdog fires.
+        def clocked(clock, step):
+            def advance(_s):
+                clock[0] += step
+                time.sleep(0.01)
+            return advance
+
+        # Hook returns False (no inferior to abort): called exactly once with
+        # the child process, then the tree is killed as it is without a hook.
+        calls = []
+
+        def refuse(p):
+            calls.append(p)
+            return False
+
+        clock = [0.0]
+        proc = _FakeProc([b"some output\n"], [], alive_polls=1000)
+        timed_out, rc, _o, _e = common._watch_for_progress(
+            proc, 180, None, poll=lambda: clock[0], sleep=clocked(clock, 1000.0),
+            on_timeout=refuse)
+        check("timeout hook: fires exactly once", len(calls) == 1)
+        check("timeout hook: receives the child process", calls[0] is proc)
+        check("timeout hook: False -> the tree is killed",
+              timed_out is True and len(killed) == 1)
+
+        # Hook returns True and the child exits during the grace (lldb printed
+        # the backtrace and quit): NO tree kill. alive_polls=3 is load-bearing:
+        # the watchdog loop consumes two polls and the post-hook liveness check
+        # a third, so the exit is only reachable through the grace loop's own
+        # polling -- removing the grace wait makes this proc still-alive at the
+        # kill decision and the assertion fires.
+        clock2 = [0.0]
+        proc2 = _FakeProc([], [], alive_polls=3, returncode=1)
+        timed_out2, rc2, _o2, _e2 = common._watch_for_progress(
+            proc2, 180, None, poll=lambda: clock2[0],
+            sleep=clocked(clock2, 1000.0), on_timeout=lambda p: True)
+        check("timeout hook: graceful exit within the grace is not tree-killed",
+              timed_out2 is True and rc2 is None and len(killed) == 1)
+
+        # Hook returns True but the child never exits: tree-killed when the
+        # grace expires.
+        clock3 = [0.0]
+        proc3 = _FakeProc([], [], alive_polls=1000)
+        timed_out3, _rc3, _o3, _e3 = common._watch_for_progress(
+            proc3, 180, None, poll=lambda: clock3[0],
+            sleep=clocked(clock3, 1000.0), on_timeout=lambda p: True)
+        check("timeout hook: grace expiry falls back to the tree kill",
+              timed_out3 is True and len(killed) == 2)
+
+        # The hook also fires in the normal mode's silence-triggered watchdog
+        # (no_progress_seconds set, total timeout far away) -- the production
+        # trigger for a real hang.
+        calls4 = []
+        clock4 = [0.0]
+        proc4 = _FakeProc([], [], alive_polls=1000)
+        timed_out4, _rc4, _o4, _e4 = common._watch_for_progress(
+            proc4, 6000, 300, poll=lambda: clock4[0],
+            sleep=clocked(clock4, 1000.0),
+            on_timeout=lambda p: calls4.append(p) or False)
+        # clock4 < 6000 pins that the SILENCE window (300) triggered the kill,
+        # not the 6000 backstop -- without it a broken silence check would
+        # still pass via the backstop firing the same hook later.
+        check("timeout hook: fires on a silence-triggered (no-progress) kill",
+              timed_out4 is True and len(calls4) == 1 and len(killed) == 3
+              and clock4[0] < 6000)
+    finally:
+        common._kill_process_tree = real_kill
+
+
+def test_capture_direct_flat_timeout():
+    # The direct (no-lldb) path against a real subprocess: a flat timeout must
+    # kill the child and report timed_out with no returncode. This is the
+    # production path for the systematic --no-lldb lane, which lost its
+    # dedicated communicate() branch in the reader-thread unification.
+    if os.name != "posix":
+        print("skip - direct flat-timeout (not POSIX)")
+        return
+    timed_out, rc, _out, _err = common._capture(
+        [sys.executable, "-c", "import time; time.sleep(600)"], 1, None)
+    check("direct flat timeout: real subprocess is killed and classified",
+          timed_out is True and rc is None)
+
+
+def test_lldb_timeout_capture_integration():
+    # Real lldb, end to end: a hung inferior plus the timeout hook must produce
+    # a thread backtrace in the captured output, with lldb exiting on its own
+    # inside the grace (no tree kill). This is the standing guard for what fakes
+    # cannot cover: the lldb-server/debugserver process-tree shape the inferior
+    # walk depends on, lldb's default stop on an externally-sent SIGABRT, the
+    # on-crash command chain, and lldb's flush-of-buffered-output at exit.
+    # (The sleeper's `main` does not resolve, so lldb_argv's signal-handle setup
+    # is inert here -- the pass-through list is guarded textually in
+    # test_lldb_argv, and its application to the real engine is proven by the
+    # stress lanes themselves, where a non-applied SIGUSR2 pass-through would
+    # hang every run.) The flat timeout is a GENEROUS 60s on purpose: the
+    # sleeper never exits on its own, so the watchdog always fires mid-sleep as
+    # long as the timeout exceeds lldb's launch time -- generous is what keeps
+    # this deterministic on a slow runner. The no-tree-kill assertion rides the
+    # 30s grace: lldb only has to backtrace one sleeping thread and quit, far
+    # inside that margin even on a loaded machine.
+    if os.name != "posix":
+        print("skip - lldb integration (not POSIX)")
+        return
+    lldb = shutil.which("lldb")
+    if lldb is None:
+        print("skip - lldb integration (no lldb on PATH; CI installs it)")
+        return
+    sleeper = [sys.executable, "-c", "import time; time.sleep(600)"]
+    real_kill = common._kill_process_tree
+    tree_kills = []
+
+    def record_kill(proc):
+        tree_kills.append(proc)
+        real_kill(proc)
+
+    common._kill_process_tree = record_kill
+    try:
+        timed_out, rc, out, err = common._capture(
+            common.lldb_argv(lldb, sleeper), 60, None,
+            on_timeout=common.lldb_timeout_abort)
+    finally:
+        common._kill_process_tree = real_kill
+    combined = out + "\n" + err
+    check("lldb integration: the run timed out", timed_out is True)
+    check("lldb integration: lldb stopped on the abort",
+          "stop reason = signal SIGABRT" in combined)
+    check("lldb integration: a thread backtrace was captured",
+          "frame #" in combined)
+    check("lldb integration: lldb exited within the grace (no tree kill)",
+          not tree_kills)
 
 
 def test_rlimit_as_supported():
@@ -986,10 +1274,15 @@ def main():
     test_run_command()
     test_lldb_argv()
     test_lldb_exit_code()
+    test_lldb_inferior_pid()
+    test_lldb_timeout_abort()
     test_run_once()
     test_run_under_lldb()
     test_watchdog_should_kill()
     test_watch_for_progress()
+    test_watch_for_progress_timeout_hook()
+    test_capture_direct_flat_timeout()
+    test_lldb_timeout_capture_integration()
     test_rlimit_as_supported()
     test_bundle_for()
     test_resolve_seeds()

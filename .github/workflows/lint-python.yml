@@ -62,6 +62,14 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6.0.2
+      - name: Install lldb
+        # The stock runner ships no lldb, and stress_common_test.py's real-lldb
+        # integration test silently skips without it -- installing keeps that
+        # test running per-PR (it guards behavior only a real lldb can:
+        # the inferior process-tree walk and the stop-on-SIGABRT capture).
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends lldb
       - name: Run test/rt-stress tests
         # Every `*_test.py` under test/rt-stress/ is self-contained (no pytest):
         # python3-runnable, exits non-zero on failure. New tests are picked up

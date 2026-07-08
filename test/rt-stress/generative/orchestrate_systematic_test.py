@@ -9,9 +9,14 @@ kind, so these are the current values; they guard that the seed->config mapping 
 stable from here -- any later reorder/narrow/added draw changes them and breaks
 historical --replay.
 """
+import json
+import os
 import sys
+import tempfile
+import types
 
 import orchestrate_systematic as systematic
+import stress_common as common
 
 FAILURES = []
 
@@ -214,6 +219,99 @@ def test_resolve_config_swarm_omission():
         check("swarm omission: %s sometimes absent" % knob, counts[knob] < 300)
 
 
+def test_runner_for():
+    # --no-lldb selects the direct runner; the default wraps run_under_lldb with
+    # the parsed lldb path and the systematic flat watchdog (no no-progress
+    # window -- run_under_lldb's no_progress_seconds default of None).
+    check("_runner_for: --no-lldb selects the direct run_once",
+          systematic._runner_for(types.SimpleNamespace(no_lldb=True, lldb="lldb"))
+          is common.run_once)
+
+    seen = []
+    real = common.run_under_lldb
+
+    def record(binary, config, lldb, timeout, mem_limit_bytes,
+               no_progress_seconds=None):
+        seen.append((binary, lldb, timeout, mem_limit_bytes,
+                     no_progress_seconds))
+        return common.RunResult("pass", 0, None, "", "")
+
+    try:
+        common.run_under_lldb = record
+        runner = systematic._runner_for(
+            types.SimpleNamespace(no_lldb=False, lldb="/opt/lldb"))
+        runner("/bin/x", {"workload": {}, "runtime": {}}, 60, 4096)
+        check("_runner_for: default wraps run_under_lldb with the lldb path "
+              "and the flat watchdog",
+              seen == [("/bin/x", "/opt/lldb", 60, 4096, None)])
+    finally:
+        common.run_under_lldb = real
+
+
+def test_check_determinism_uses_runner():
+    # The injected runner must drive BOTH runs of the double-run -- a selection
+    # test alone could pass while the oracle still ran the engine direct (and
+    # so recorded no backtraces).
+    calls = []
+
+    def sentinel(binary, config, timeout, mem_limit_bytes):
+        calls.append(binary)
+        return common.RunResult(
+            "pass", 0, None,
+            "RECEIVED=1 SENT=1 EXPECTED=1 ORDER_SIG=42\n", "")
+
+    config = {
+        "master_seed": 7,
+        "workload": {"seed": 9, "workload": "mesh", "pingers": 1, "chains": 1,
+                     "ttl": 0, "payload": "u64", "payload-size": 1,
+                     "payload-mode": "fresh"},
+        "runtime": {"ponysystematictestingseed": 42, "ponymaxthreads": 1},
+    }
+    with tempfile.TemporaryDirectory() as out_dir:
+        ok = systematic.check_determinism(
+            "/bin/x", config, "v", "flags", out_dir, 60, None, sentinel)
+        check("check_determinism: matching sentinel runs pass", ok is True)
+        check("check_determinism: the injected runner drove BOTH runs",
+              calls == ["/bin/x", "/bin/x"])
+        check("check_determinism: no bundle written for a passing seed",
+              os.listdir(out_dir) == [])
+
+
+def test_check_determinism_timeout_bundle():
+    # The change's headline behavior: a timed-out run's captured backtrace must
+    # land in the determinism bundle. Inject a runner that reports a timeout
+    # whose stdout carries a backtrace (what run_under_lldb returns after the
+    # timeout hook fired) and assert the bundle records it.
+    backtrace = ("* thread #1, stop reason = signal SIGABRT\n"
+                 "  frame #0: park_site\n")
+
+    def hung(binary, config, timeout, mem_limit_bytes):
+        return common.RunResult("timeout", None, None, backtrace, "")
+
+    config = {
+        "master_seed": 8,
+        "workload": {"seed": 9, "workload": "mesh", "pingers": 1, "chains": 1,
+                     "ttl": 0, "payload": "u64", "payload-size": 1,
+                     "payload-mode": "fresh"},
+        "runtime": {"ponysystematictestingseed": 42, "ponymaxthreads": 1},
+    }
+    with tempfile.TemporaryDirectory() as out_dir:
+        ok = systematic.check_determinism(
+            "/bin/x", config, "v", "flags", out_dir, 60, None, hung)
+        check("determinism timeout: seed reported failed", ok is False)
+        path = os.path.join(out_dir, "determinism-8.json")
+        check("determinism timeout: determinism bundle written",
+              os.path.isfile(path))
+        if os.path.isfile(path):
+            with open(path) as handle:
+                bundle = json.load(handle)
+            check("determinism timeout: bundle outcome is timeout",
+                  bundle["outcome"] == "timeout"
+                  and bundle["determinism"]["outcome_run1"] == "timeout")
+            check("determinism timeout: bundle stdout carries the backtrace",
+                  "park_site" in bundle["stdout"])
+
+
 def main():
     test_resolve_config_golden()
     test_resolve_config_cyclic_golden()
@@ -221,6 +319,9 @@ def main():
     test_resolve_config_actorref_golden()
     test_resolve_config_deterministic_and_bounded()
     test_resolve_config_swarm_omission()
+    test_runner_for()
+    test_check_determinism_uses_runner()
+    test_check_determinism_timeout_bundle()
     if FAILURES:
         print("%d failure(s): %s" % (len(FAILURES), ", ".join(FAILURES)))
         sys.exit(1)

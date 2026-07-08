@@ -8,7 +8,11 @@ failure replays from one number. The same engine runs in **two modes**:
   `use=systematic_testing`: serialized to one thread at a time, with a fixed
   `--ponysystematictestingseed` replaying one scheduler interleaving.
   Reproducible; explores interleavings deterministically; by construction cannot
-  catch true-simultaneity bugs.
+  catch true-simultaneity bugs. Each seed also runs under **lldb**: a crash
+  reproduces from its seed, but an intermittent hang need not (the same seed can
+  pass and hang on the same host), so a watchdog timeout captures an all-thread
+  backtrace of the hung engine in the moment, and a crash gets its backtrace in
+  the bundle without a local re-run.
 - **Normal** (`orchestrate_normal.py`) — runs the engine under a normal,
   production-default runtime: real multi-threaded parallelism. Catches the
   true-simultaneity bugs (atomic tearing, memory ordering, lock-free contention)
@@ -147,6 +151,14 @@ Build it with clang. gcc currently fails to compile the systematic-testing
 runtime ([#5563](https://github.com/ponylang/ponyc/issues/5563)); the `debug`
 preset uses clang regardless of your default compiler.
 
+Each seed runs under `lldb` (on `PATH` by default; `--lldb PATH` for a custom
+location), so a crash or watchdog timeout leaves a backtrace in the failure
+bundle. `--no-lldb` runs the engine directly with no backtrace capture — for
+hosts without lldb (Windows CI passes it; the Windows timeout capture is
+unverified and deferred, see
+[#5578](https://github.com/ponylang/ponyc/issues/5578)). Running under lldb
+does not change the interleaving — the determinism oracle holds under it.
+
 ### Normal mode
 
 Needs a **normal debug** ponyc (no `use=` flags), which builds everywhere
@@ -234,10 +246,11 @@ non-deterministic, so a replay won't necessarily reproduce a failure).
   slips — the same class of gap `iso` documents for interior corruption. Under the
   normal mode's real parallelism the acquire/release races the live forwarding.
 - **Crash / `pony_assert`** — debug build, asserts on; a failed assert prints its
-  own backtrace to the captured output, and the normal mode additionally runs
-  each seed under lldb so even a raw crash with no assert is captured with a
-  `bt all` (the systematic mode reproduces from its seed, so it re-runs under a
-  debugger locally instead).
+  own backtrace to the captured output, and both modes run each seed under lldb
+  so even a raw crash with no assert is captured with a `bt all` in the bundle.
+  On a watchdog timeout the orchestrator aborts the hung engine under lldb
+  first, so a hang is captured with the same all-thread backtrace a crash gets
+  (POSIX lanes; Windows systematic runs `--no-lldb` and records outcome only).
 - **Liveness** — the orchestrator's watchdog; a hang is a failure (including a
   `cyclic` chain that never completes, or a runtime that fails to shut down
   cleanly once the engine quiesces). In **normal** mode the watchdog fires on **no
