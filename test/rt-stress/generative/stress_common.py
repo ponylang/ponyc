@@ -19,14 +19,16 @@ three TIER1 platforms (on Windows the systematic build uses
 `use=systematic_testing` alone -- Windows scales the scheduler with native
 primitives, not pthreads). The RLIMIT_AS memory cap is applied only where the OS
 honors it (Linux): Windows lacks the `resource` module and macOS rejects the
-limit, so both fall back to host OOM handling. Both watchdogs are portable -- the
-systematic mode's flat wall-clock timeout and the normal mode's no-progress
-watchdog (threads + blocking reads, no `select`, so it runs on Windows too).
+limit, so both fall back to host OOM handling. Every run is captured by one
+portable mechanism (reader threads + blocking reads, no `select`, so it runs on
+Windows too) under one of two watchdog modes -- the systematic mode's flat
+wall-clock timeout and the normal mode's no-progress watchdog.
 
 The pure pieces (derive_seed / draw_systematic_workload / draw_* / build_argv /
-run_command / parse_result / lldb_argv / lldb_exit_code) are unit-tested in
-stress_common_test.py; the run classifiers (run_once / run_under_lldb) are tested
-by injecting a fake _capture.
+run_command / parse_result / lldb_argv / lldb_exit_code / _lldb_inferior_pid) are
+unit-tested in stress_common_test.py; the run classifiers (run_once /
+run_under_lldb) are tested by injecting a fake _capture, and the lldb timeout
+hook (lldb_timeout_abort) has a real-lldb integration test there too.
 """
 import hashlib
 import json
@@ -70,6 +72,12 @@ DEFAULT_NORMAL_NO_PROGRESS_SECONDS = 300
 # targets ~20 min, so this ~100 min leaves wide margin and rarely fires.
 DEFAULT_NORMAL_TIMEOUT_SECONDS = 6000
 DEFAULT_MEM_LIMIT_MB = 4096
+# How long a timed-out lldb run gets to print the hung engine's backtrace and exit
+# on its own after the timeout hook aborts the inferior (see lldb_timeout_abort),
+# before the whole tree is killed anyway. Symbolizing `bt all` on a debug binary
+# takes seconds; 30 leaves slack for a loaded runner without meaningfully delaying
+# a run that is already a recorded failure.
+LLDB_TIMEOUT_GRACE_SECONDS = 30
 
 
 def info(message):
@@ -817,26 +825,34 @@ def _rlimit_as_supported(platform, resource_available):
     return resource_available and (platform == "linux")
 
 
-def _capture(argv, timeout, mem_limit_bytes, no_progress_seconds=None):
+def _capture(argv, timeout, mem_limit_bytes, no_progress_seconds=None,
+             on_timeout=None):
     """Run argv under a watchdog and (on Linux) an RLIMIT_AS cap; return
     (timed_out, returncode, stdout, stderr). Mechanism only -- the caller classifies.
 
-    Two watchdog modes:
+    Two watchdog modes, one capture mechanism (reader threads; see
+    _watch_for_progress):
       * no_progress_seconds is None (SYSTEMATIC): `timeout` is a single total
-        wall-clock limit -- the original behavior. Systematic runs are short and
-        reproducible, and a systematic hang must still surface as a timeout (see
-        .known-couplings/systematic-testing-park-sites.md), so this stays unchanged.
+        wall-clock limit. Systematic runs are short and reproducible, and a
+        systematic hang must still surface as a timeout (see
+        .known-couplings/systematic-testing-park-sites.md) -- that property holds.
       * no_progress_seconds is set (NORMAL): the run is killed when it produces NO
         output for that long (a hang); a slow-but-advancing run -- which the engine's
         heartbeats keep printing through -- is NOT killed, so a legitimately long run
         finishes instead of false-failing. `timeout` is then an absolute backstop.
         Both kills return timed_out=True -- a no-progress kill IS a hang/timeout.
 
-    On any kill we reap the whole process GROUP, not just the direct child: normal
-    mode's direct child is lldb and the engine is its grandchild, so SIGKILLing only
-    lldb would orphan a hung engine. `start_new_session` puts the child in its own
-    group so killpg reaps the tree. The RLIMIT_AS cap is applied only where the OS
-    honors it -- see _rlimit_as_supported (Windows/macOS fall back to host OOM)."""
+    `on_timeout` (optional) is called once when the watchdog fires, before the
+    kill, with the child process -- the lldb runner uses it to get a backtrace
+    out of the hung engine (see lldb_timeout_abort).
+
+    On any kill we reap the whole process GROUP, not just the direct child: an
+    lldb run's direct child is lldb and the engine is its grandchild (the POSIX
+    default in both modes), so SIGKILLing only lldb would orphan a hung engine;
+    a direct run's child IS the engine, and killpg reaps it the same way.
+    `start_new_session` puts the child in its own group so killpg reaps the tree.
+    The RLIMIT_AS cap is applied only where the OS honors it -- see
+    _rlimit_as_supported (Windows/macOS fall back to host OOM)."""
     preexec = None
     if (mem_limit_bytes is not None) and _rlimit_as_supported(
             sys.platform, resource is not None):
@@ -849,34 +865,42 @@ def _capture(argv, timeout, mem_limit_bytes, no_progress_seconds=None):
     proc = subprocess.Popen(argv, stdout=subprocess.PIPE,
                             stderr=subprocess.PIPE, preexec_fn=preexec,
                             start_new_session=(os.name == "posix"))
-    if no_progress_seconds is None:
-        try:
-            stdout, stderr = proc.communicate(timeout=timeout)
-            return (False, proc.returncode, _decode(stdout), _decode(stderr))
-        except subprocess.TimeoutExpired:
-            _kill_process_tree(proc)
-            stdout, stderr = proc.communicate()
-            return (True, None, _decode(stdout), _decode(stderr))
-    return _watch_for_progress(proc, timeout, no_progress_seconds)
+    return _watch_for_progress(proc, timeout, no_progress_seconds,
+                               on_timeout=on_timeout)
 
 
 def _watchdog_should_kill(now, start, last_output, timeout, no_progress_seconds):
-    """The normal-mode watchdog decision: kill if the run has been silent past the
-    no-progress window (a hang) OR has run past the absolute backstop. A run that
-    keeps producing output (last_output recent) survives indefinitely up to the
-    backstop -- that is the "slow but progressing is not a hang" property."""
-    return ((now - last_output) > no_progress_seconds) or ((now - start) > timeout)
+    """The watchdog decision: kill if the run has been silent past the no-progress
+    window (a hang) OR has run past the absolute `timeout`. no_progress_seconds of
+    None disables the silence check -- the systematic mode's flat total-time mode.
+    A run that keeps producing output (last_output recent) survives indefinitely
+    up to the backstop -- the normal mode's "slow but progressing is not a hang"
+    property."""
+    silent_too_long = (no_progress_seconds is not None
+                       and (now - last_output) > no_progress_seconds)
+    return silent_too_long or ((now - start) > timeout)
 
 
 def _watch_for_progress(proc, timeout, no_progress_seconds,
-                        poll=time.monotonic, sleep=time.sleep):
+                        poll=time.monotonic, sleep=time.sleep, on_timeout=None):
     """Drain BOTH of proc's streams in reader threads -- concurrently, so a full
     stderr pipe (lldb is chatty) can't deadlock the child the way a single deferred
     reader would -- updating a last-output time on every line. Kill the process
-    group on a no-progress gap (a hang) or the absolute `timeout` backstop;
-    otherwise let the run finish. Returns (timed_out, returncode, stdout, stderr).
-    `poll`/`sleep` are injectable so the watchdog logic is testable without real
-    time."""
+    group on a no-progress gap (a hang), or the absolute `timeout` backstop, or --
+    with no_progress_seconds=None -- on `timeout` alone; otherwise let the run
+    finish. Returns (timed_out, returncode, stdout, stderr).
+
+    When the watchdog fires and `on_timeout` is set, it is called exactly once
+    with the child process. If it returns True it has arranged a graceful stop
+    -- the lldb runner aborts the inferior so lldb prints a backtrace -- and the
+    child gets LLDB_TIMEOUT_GRACE_SECONDS to finish writing and exit on its own;
+    on expiry, or a False return, the tree is killed just as it is without a
+    hook. Either way the
+    run is a timeout, and everything the child printed (backtrace included) is
+    in the returned streams.
+
+    `poll`/`sleep` are injectable so the watchdog and grace logic are testable
+    without real time."""
     last_output = [poll()]
     lock = threading.Lock()
     chunks = {"out": [], "err": []}
@@ -904,8 +928,13 @@ def _watch_for_progress(proc, timeout, no_progress_seconds,
         with lock:
             last = last_output[0]
         if _watchdog_should_kill(now, start, last, timeout, no_progress_seconds):
-            _kill_process_tree(proc)
             timed_out = True
+            if (on_timeout is not None) and on_timeout(proc):
+                deadline = poll() + LLDB_TIMEOUT_GRACE_SECONDS
+                while proc.poll() is None and poll() < deadline:
+                    sleep(0.5)
+            if proc.poll() is None:
+                _kill_process_tree(proc)
             break
         sleep(0.5)
     proc.wait()
@@ -933,8 +962,9 @@ def _kill_process_tree(proc):
 def run_once(binary, config, timeout, mem_limit_bytes):
     """Direct run (no debugger): classify the outcome straight from the process
     exit code. A negative code is a terminating signal. Used by the systematic
-    driver, whose runs reproduce -- a crash is re-run under a debugger locally
-    from its seed. (The normal driver uses run_under_lldb instead; see there.)"""
+    driver's --no-lldb path (Windows CI, and hosts without lldb); a crash or
+    hang there records no backtrace and is re-run under a debugger locally from
+    its seed. (Everything else uses run_under_lldb; see there.)"""
     timed_out, returncode, stdout, stderr = _capture(
         run_command(binary, config), timeout, mem_limit_bytes)
     if timed_out:
@@ -962,7 +992,10 @@ def lldb_argv(lldb, engine_argv):
 
     COUPLING: the pass-through list (SIGINT, SIGUSR2) is complete only for today's
     socketless engine. If the engine ever opens a socket the runtime arms SIGPIPE,
-    and lldb would stop on it -- pass it through here too, or the run hangs."""
+    and lldb would stop on it -- pass it through here too, or the run hangs.
+    SIGABRT must stay OUT of the list: the timeout hook (lldb_timeout_abort)
+    relies on lldb stopping on it to print the hung engine's backtrace -- see
+    .known-couplings/lldb-timeout-abort-capture.md."""
     on_crash = ["--one-line-on-crash", "frame variable",
                 "--one-line-on-crash", "bt all",
                 "--one-line-on-crash", "quit 1"]
@@ -987,12 +1020,102 @@ def lldb_exit_code(output):
     return int(match.group(1)) if match is not None else None
 
 
+def _lldb_inferior_pid(lldb_pid, ps_lines=None):
+    """The pid of a running lldb's inferior, found by walking lldb's descendants
+    in a `ps` snapshot: the first descendant that is not lldb's own machinery
+    (lldb spawns the target under a helper -- `lldb-server` on Linux,
+    `debugserver` on macOS). Returns None when no such descendant exists (the
+    inferior already exited, or lldb never launched it) and when the snapshot
+    itself fails or stalls -- the caller then falls back to the plain tree
+    kill, never a second failure.
+
+    The pid deliberately does NOT come from lldb's "Process N launched" output
+    line: lldb buffers its own messages when its stdout is a pipe and flushes
+    them only at exit (verified empirically -- stdbuf does not override it), so
+    mid-run that line has not reached the capture. The engine's own output is
+    unaffected (the inferior inherits the pipe fd and writes it directly).
+    COUPLING: depends on the helper process names and on `ps -eo pid=,ppid=,comm=`
+    (POSIX; Linux and macOS) -- see
+    .known-couplings/lldb-timeout-abort-capture.md.
+
+    `ps_lines` is injectable for tests; the default takes a real snapshot."""
+    if ps_lines is None:
+        try:
+            result = subprocess.run(["ps", "-eo", "pid=,ppid=,comm="],
+                                    stdout=subprocess.PIPE, timeout=30)
+        except (OSError, subprocess.TimeoutExpired):
+            return None
+        ps_lines = result.stdout.decode(errors="replace").splitlines()
+    children = {}
+    for line in ps_lines:
+        parts = line.split(None, 2)
+        if len(parts) < 3:
+            continue
+        try:
+            pid, ppid = int(parts[0]), int(parts[1])
+        except ValueError:
+            continue
+        children.setdefault(ppid, []).append((pid, parts[2].strip()))
+    seen = set()
+    frontier = [lldb_pid]
+    while frontier:
+        helpers = []
+        for parent in frontier:
+            for pid, comm in children.get(parent, []):
+                if pid in seen:
+                    continue
+                seen.add(pid)
+                base = os.path.basename(comm)
+                if base.startswith("lldb") or base.startswith("debugserver"):
+                    helpers.append(pid)
+                else:
+                    return pid
+        frontier = helpers
+    return None
+
+
+def lldb_timeout_abort(proc):
+    """The lldb timeout hook (passed as _capture's on_timeout by run_under_lldb):
+    get a backtrace out of a hung run by aborting the INFERIOR, not lldb. lldb
+    does not pass SIGABRT through (see lldb_argv), so it stops on the signal;
+    batch mode treats the stop as a crash and runs the same on-crash commands a
+    real crash gets (frame variable, bt all, quit 1), and everything lldb
+    buffered -- backtrace included -- flushes into the captured output as it
+    exits.
+
+    `proc` is the lldb process; the inferior is found from its process tree
+    (see _lldb_inferior_pid), so a run wedged before the engine printed anything
+    still gets a backtrace. Returns True when the abort was sent -- the caller
+    then grants the grace wait -- and False when it can't be (not POSIX: Windows
+    has no SIGABRT to send, its equivalent is unverified and deferred; no
+    inferior found; the inferior already gone). False means the caller falls
+    back to the plain tree kill: a timeout is never turned into a second,
+    murkier failure."""
+    if os.name != "posix":
+        return False
+    pid = _lldb_inferior_pid(proc.pid)
+    if pid is None:
+        info("timeout: no lldb inferior found; killing without a backtrace")
+        return False
+    info("timeout: aborting inferior pid %d so lldb prints its backtrace" % pid)
+    try:
+        os.kill(pid, signal.SIGABRT)
+    except (ProcessLookupError, PermissionError):
+        return False
+    return True
+
+
 def run_under_lldb(binary, config, lldb, timeout, mem_limit_bytes,
                    no_progress_seconds=None):
-    """Run the engine under lldb so a crash leaves a backtrace in the captured
-    output. The normal mode is non-reproducible (real parallelism), so an
-    in-the-moment stack is the only crash artifact -- re-running the seed need not
-    crash again. The engine's real exit code comes from lldb's exit-status line
+    """Run the engine under lldb so a crash -- or a timeout -- leaves a backtrace
+    in the captured output. The normal mode is non-reproducible (real
+    parallelism), so an in-the-moment stack is the only crash artifact; the
+    systematic mode reproduces from its seed, but its intermittent hangs need
+    not (the same seed can pass and hang on the same host), so the in-the-moment
+    stack matters there too. On a watchdog timeout the lldb_timeout_abort hook
+    stops the inferior so lldb prints the same backtrace a crash gets, and the
+    run is still classified a timeout (the short-circuit below runs before the
+    crash check). The engine's real exit code comes from lldb's exit-status line
     (conservation failures exit 1, a clean run exits 0); no such line means the
     program crashed, which is a failure with the backtrace already captured.
 
@@ -1001,7 +1124,7 @@ def run_under_lldb(binary, config, lldb, timeout, mem_limit_bytes,
     _capture."""
     timed_out, _lldb_rc, stdout, stderr = _capture(
         lldb_argv(lldb, run_command(binary, config)), timeout, mem_limit_bytes,
-        no_progress_seconds=no_progress_seconds)
+        no_progress_seconds=no_progress_seconds, on_timeout=lldb_timeout_abort)
     if timed_out:
         return RunResult("timeout", None, None, stdout, stderr)
     combined = stdout + "\n" + stderr
@@ -1098,10 +1221,11 @@ def execute(binary, config, version, use_flags, out_dir, timeout,
             mem_limit_bytes, runner=run_once):
     """Run one seed once; tee output, write a bundle on non-pass, return the
     RunResult. `runner` is the run strategy the driver injects, with signature
-    `(binary, config, timeout, mem_limit_bytes) -> RunResult`: the systematic
-    driver takes the default direct `run_once`; the normal driver passes an
-    lldb-wrapped runner (see run_under_lldb). The captured stdout/stderr (which
-    includes any crash backtrace) go to both the log and the bundle."""
+    `(binary, config, timeout, mem_limit_bytes) -> RunResult`: both drivers pass
+    an lldb-wrapped runner by default (see run_under_lldb), and the systematic
+    driver passes the direct `run_once` under --no-lldb. The captured
+    stdout/stderr (which includes any crash or timeout backtrace) go to both the
+    log and the bundle."""
     result = runner(binary, config, timeout, mem_limit_bytes)
     info(summary_line(config, result))
     if result.stdout:

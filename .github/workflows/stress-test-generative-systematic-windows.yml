@@ -65,8 +65,12 @@ jobs:
         run: cmake --build --preset windows-x86-64-debug
       - name: Run Generative Stress Test
         if: ${{ hashFiles('.libs-cache-miss') == '' }}
+        # --no-lldb: Windows runs the engine direct. The lldb crash/timeout
+        # capture the POSIX lanes get is unverified on Windows and deferred
+        # (issue #5578); a crash or hang here records outcome only.
         run: |
           python test/rt-stress/generative/orchestrate_systematic.py `
+            --no-lldb `
             --ponyc build/debug-systematic_testing/ponyc.exe `
             --use-flags systematic_testing `
             --start ${{ github.run_id }} --count 250 `

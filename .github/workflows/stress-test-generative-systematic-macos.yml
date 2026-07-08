@@ -22,14 +22,16 @@ jobs:
   arm64-macos:
     runs-on: macos-26
     # A bounded soak; the orchestrator also caps each seed with a per-run
-    # watchdog (--timeout, set below). This arm64 runner is far slower at the
-    # single-threaded systematic workload than the linux/windows lanes: those
-    # finish 250 seeds in 40-60 min, this one got through only ~138 of 250 in
-    # 90m before a cancel. So it runs somewhat fewer seeds (200) and a longer
-    # per-run watchdog (180s); that watchdog is still the only hang detector
-    # here (see .known-couplings/systematic-testing-park-sites.md) -- a real
-    # hang surfaces as a timeout, now 60s later. The 240m job cap below is the
-    # shared generative ceiling (see stress-test-concurrency.md).
+    # watchdog (--timeout, set below). This runner's speed varies wildly day to
+    # day: the soak step measures 3-6 min on a typical scheduled run, but one
+    # observed day (2026-07-01) ran ~60x slow across the board and took 3.5h.
+    # The fewer seeds (200 vs the other lanes' 250) and the longer per-run
+    # watchdog (180s vs 120s) are headroom for that tail. The watchdog is still
+    # the only hang detector here (see
+    # .known-couplings/systematic-testing-park-sites.md) -- a real hang surfaces
+    # as a timeout, and the failure bundle now carries an all-thread backtrace
+    # of the hung engine, captured via lldb before the kill. The 240m job cap
+    # below is the shared generative ceiling (see stress-test-concurrency.md).
     timeout-minutes: 240
 
     name: arm64 macOS generative systematic [debug]
