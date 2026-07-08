@@ -226,10 +226,13 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           LIBS_TAG: ${{ hashFiles('lib/CMakePresets.json', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/build-libs.cmake', 'lib/llvm/patches/*') }}
-          # Referenced UNQUOTED below so an empty value (fork) vanishes instead of
-          # passing as an empty arg; see the branch-cache coupling in .known-couplings/branch-libs-cache.md.
+          # PowerShell (unlike bash) passes an empty $env: var as a stray '' argument,
+          # which argparse rejects; build the flag as an array so a fork's empty value
+          # contributes nothing. See the branch-cache coupling in .known-couplings/branch-libs-cache.md.
           LIBS_BRANCH_CACHE: ${{ github.event.pull_request.head.repo.full_name == github.repository && '--branch-cache' || '' }}
-        run: python .ci-scripts/libs-cache/pr_libs_cache.py $env:LIBS_BRANCH_CACHE --platform windows-2025-vs2026 --tag "$env:LIBS_TAG" '--' cmake -DPRESET=libs-windows-x86-64 -DJOBS=4 -P lib/build-libs.cmake
+        run: |
+          $bc = if ($env:LIBS_BRANCH_CACHE) { @($env:LIBS_BRANCH_CACHE) } else { @() }
+          python .ci-scripts/libs-cache/pr_libs_cache.py $bc --platform windows-2025-vs2026 --tag "$env:LIBS_TAG" '--' cmake -DPRESET=libs-windows-x86-64 -DJOBS=4 -P lib/build-libs.cmake
       - name: Configure
         run: cmake --preset windows-x86-64
       - name: Build Debug Runtime
@@ -325,10 +328,13 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           LIBS_TAG: ${{ hashFiles('lib/CMakePresets.json', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/build-libs.cmake', 'lib/llvm/patches/*') }}
-          # Referenced UNQUOTED below so an empty value (fork) vanishes instead of
-          # passing as an empty arg; see the branch-cache coupling in .known-couplings/branch-libs-cache.md.
+          # PowerShell (unlike bash) passes an empty $env: var as a stray '' argument,
+          # which argparse rejects; build the flag as an array so a fork's empty value
+          # contributes nothing. See the branch-cache coupling in .known-couplings/branch-libs-cache.md.
           LIBS_BRANCH_CACHE: ${{ github.event.pull_request.head.repo.full_name == github.repository && '--branch-cache' || '' }}
-        run: python .ci-scripts/libs-cache/pr_libs_cache.py $env:LIBS_BRANCH_CACHE --platform windows-2025-vs2026 --tag "$env:LIBS_TAG" '--' cmake -DPRESET=libs-windows-x86-64 -DJOBS=4 -P lib/build-libs.cmake
+        run: |
+          $bc = if ($env:LIBS_BRANCH_CACHE) { @($env:LIBS_BRANCH_CACHE) } else { @() }
+          python .ci-scripts/libs-cache/pr_libs_cache.py $bc --platform windows-2025-vs2026 --tag "$env:LIBS_TAG" '--' cmake -DPRESET=libs-windows-x86-64 -DJOBS=4 -P lib/build-libs.cmake
       - name: Build
         run: |
           cmake --preset windows-x86-64
@@ -431,10 +437,13 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           LIBS_TAG: ${{ hashFiles('lib/CMakePresets.json', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/build-libs.cmake', 'lib/llvm/patches/*') }}
-          # Referenced UNQUOTED below so an empty value (fork) vanishes instead of
-          # passing as an empty arg; see the branch-cache coupling in .known-couplings/branch-libs-cache.md.
+          # PowerShell (unlike bash) passes an empty $env: var as a stray '' argument,
+          # which argparse rejects; build the flag as an array so a fork's empty value
+          # contributes nothing. See the branch-cache coupling in .known-couplings/branch-libs-cache.md.
           LIBS_BRANCH_CACHE: ${{ github.event.pull_request.head.repo.full_name == github.repository && '--branch-cache' || '' }}
-        run: python .ci-scripts/libs-cache/pr_libs_cache.py $env:LIBS_BRANCH_CACHE --platform windows-2025-vs2026 --tag "$env:LIBS_TAG" '--' cmake -DPRESET=libs-windows-x86-64 -DJOBS=4 -P lib/build-libs.cmake
+        run: |
+          $bc = if ($env:LIBS_BRANCH_CACHE) { @($env:LIBS_BRANCH_CACHE) } else { @() }
+          python .ci-scripts/libs-cache/pr_libs_cache.py $bc --platform windows-2025-vs2026 --tag "$env:LIBS_TAG" '--' cmake -DPRESET=libs-windows-x86-64 -DJOBS=4 -P lib/build-libs.cmake
       - name: Build
         run: |
           cmake --preset windows-x86-64
