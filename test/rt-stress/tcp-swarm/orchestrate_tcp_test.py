@@ -271,8 +271,7 @@ def test_resolve_config_coverage_and_invariants():
         # mid-write yield fires only on that path, and only once one IOV_MAX-buffer
         # batch's bytes reach --yield-after-writing. Since the yield is the whole
         # point of the writev-chunks lever, both must stay reachable or those paths
-        # go untested. (IOV_MAX here is the POSIX value; see
-        # .known-couplings/tcp-swarm-writev-chunks-iov-max.md.)
+        # go untested. (IOV_MAX here is the POSIX value.)
         iov_max = 1024
         chunks = w["writev-chunks"]
         if (w["write-shape"] == "writev" and chunks > iov_max

@@ -91,8 +91,7 @@ five closed, count-driven workloads (`--workload`):
   (`sent == received == chains * (ttl + 1)`); the `Relay`s are live at quiescence
   (the `Referrer` holds them), so they are polled exactly like the mesh, while the
   referents become garbage as their chains drain (a premature free → a relay forwards
-  a dangling tag → crash; a lost release → a leak). See
-  `.known-couplings/actorref-workload-actor-ref-cargo.md`.
+  a dangling tag → crash; a lost release → a leak).
 
 For the mesh/cyclic/backpressure workloads the traced payload is a `val String` or
 a `U64` no-GC control (`--payload`), either reused as one object (forwarded down a

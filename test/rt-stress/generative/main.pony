@@ -82,8 +82,7 @@ one of five closed, count-driven workloads (`--workload`):
   release leak in proportion to `chains`. Conservation is the mesh's full
   send/receive tally (`sent == received == chains * (ttl + 1)`); the `Relay`s are
   live at quiescence (the `Referrer` holds them), so they are polled exactly like
-  the mesh, while the referents become garbage as their chains drain. See
-  .known-couplings/actorref-workload-actor-ref-cargo.md.
+  the mesh, while the referents become garbage as their chains drain.
 
 The workloads are closed, unlike an open cascade stopped by a wall-clock timer:
 a fixed amount of work is injected and the run terminates when it drains. The
@@ -844,8 +843,7 @@ class Parcel
   this workload exists to trace. The workload's coverage rests on this type being
   built and handed off as `iso` (not `val`) and staying multi-object (`let`, not
   `embed`): changing either silently loses the coverage while every oracle stays
-  green -- see .known-couplings/iso-handoff-workload-ownership.md (pony-ref's
-  "prefer embed" guidance does not apply here).
+  green -- pony-ref's "prefer embed" guidance does not apply here.
   """
   let bytes: Array[U8]
   let kids: Array[Parcel]
@@ -1086,8 +1084,7 @@ actor Referent
   `Referent` is built per injected chain (see `Referrer`) and referenced only by
   that chain's in-flight `cite` plus, transiently, its creator -- so it becomes
   garbage as its chain drains, which is what makes a premature free (crash) or a
-  lost release (memory growth) observable. See
-  .known-couplings/actorref-workload-actor-ref-cargo.md.
+  lost release (memory growth) observable.
   """
   new create() => None
 
@@ -1103,7 +1100,7 @@ actor Relay
   Not storing the referent is load-bearing: it lets the reference drop so the next
   hop acquires afresh. Holding the neighbor RELAYS permanently is fine -- a
   neighbor is a `cite` recipient, not traced cargo -- only the cargo referent must
-  stay unheld (see .known-couplings/actorref-workload-actor-ref-cargo.md). Stays
+  stay unheld. Stays
   live at quiescence so the `Referrer` polls it (the mesh's strong tally).
   """
   let _referrer: Referrer
@@ -1182,8 +1179,7 @@ actor Referrer
   the result and returns (natural quiescence), forcing a non-zero exit only on a
   conservation failure. Why the referent is built FRESH per chain (not drawn from a
   fixed pool) and never stored is the workload's load-bearing coverage property --
-  see the injection loop below and
-  .known-couplings/actorref-workload-actor-ref-cargo.md.
+  see the injection loop below.
   """
   let _actorref: _ActorRef
   let _relays: Array[Relay] val

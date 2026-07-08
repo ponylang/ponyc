@@ -83,9 +83,9 @@ WRITE_SHAPES = ["write", "writev"]
 # with a payload at least that large, a single writev then queues more buffers
 # than one writev() syscall can send, so TCPConnection takes its multi-batch send
 # path -- the only path on which the mid-write yield (--yield-after-writing) fires
-# on POSIX. 4 and 64 are ordinary small vector writes. COUPLING: the large value
+# on POSIX. 4 and 64 are ordinary small vector writes. The large value
 # must stay above pony_os_writev_max()'s POSIX return, or the multi-batch coverage
-# silently vanishes -- see .known-couplings/tcp-swarm-writev-chunks-iov-max.md.
+# silently vanishes.
 WRITEV_CHUNKS = [4, 64, 2048]
 CLOSE_KINDS = ["graceful", "hard"]
 # Payload sizes span the runtime's 16384-byte default read buffer: below, at, and
