@@ -3,7 +3,7 @@
 #
 # This is the ONE place the lldb pin lives, and every Windows job that needs
 # lldb calls this script rather than pinning its own copy. Pinned copies drift:
-# lint-python's rt-stress job is what checks that lldb still stops where the
+# test-rt-stress.yml's Windows job is what checks that lldb still stops where the
 # generative stress harness's timeout capture needs it to, and with its own pin
 # it would keep passing against an lldb the stress lanes no longer run.
 #

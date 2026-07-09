@@ -1,0 +1,33 @@
+name: Test .ci-scripts
+
+on: pull_request
+
+concurrency:
+  group: test-ci-scripts-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Test .ci-scripts
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6.0.2
+      - name: Run .ci-scripts tests
+        # Every `*_test.py` under .ci-scripts/ is self-contained (no pytest):
+        # python3-runnable, exits non-zero on failure. New tests are picked up
+        # automatically by this glob -- no registration needed.
+        run: |
+          set -e
+          tests=$(find .ci-scripts -name '*_test.py' | sort)
+          if [ -z "$tests" ]; then
+            echo "No .ci-scripts/**/*_test.py found -- glob or path broken?" >&2
+            exit 1
+          fi
+          for t in $tests; do
+            echo "== $t =="
+            python3 "$t"
+          done

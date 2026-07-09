@@ -1,4 +1,4 @@
-name: Lint and Test Python Scripts
+name: Lint Python Scripts
 
 on: pull_request
 
@@ -6,6 +6,7 @@ concurrency:
   group: lint-python-${{ github.ref }}
   cancel-in-progress: true
 
+# The ruff action is a container image pulled from ghcr.
 permissions:
   packages: read
 
@@ -22,28 +23,6 @@ jobs:
         with:
           args: check .ci-scripts
 
-  test:
-    name: Test
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v6.0.2
-      - name: Run .ci-scripts tests
-        # Every `*_test.py` under .ci-scripts/ is self-contained (no pytest):
-        # python3-runnable, exits non-zero on failure. New tests are picked up
-        # automatically by this glob -- no registration needed.
-        run: |
-          set -e
-          tests=$(find .ci-scripts -name '*_test.py' | sort)
-          if [ -z "$tests" ]; then
-            echo "No .ci-scripts/**/*_test.py found -- glob or path broken?" >&2
-            exit 1
-          fi
-          for t in $tests; do
-            echo "== $t =="
-            python3 "$t"
-          done
-
   lint-rt-stress:
     name: Lint rt-stress
     runs-on: ubuntu-latest
@@ -55,79 +34,3 @@ jobs:
         uses: docker://ghcr.io/astral-sh/ruff@sha256:e42f3866bb9f701dbc459cdec3f5aca06511e6a38e6e04bfd4d04a2be26d4fd4
         with:
           args: check test/rt-stress
-
-  test-rt-stress:
-    name: Test rt-stress
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v6.0.2
-      - name: Install lldb
-        # The stock runner ships no lldb, and stress_common_test.py's real-lldb
-        # integration test silently skips without it -- installing keeps that
-        # test running per-PR (it guards behavior only a real lldb can:
-        # the inferior process-tree walk and the stop-on-SIGABRT capture).
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends lldb
-      - name: Run test/rt-stress tests
-        # Every `*_test.py` under test/rt-stress/ is self-contained (no pytest):
-        # python3-runnable, exits non-zero on failure. New tests are picked up
-        # automatically by this glob -- no registration needed.
-        run: |
-          set -e
-          tests=$(find test/rt-stress -name '*_test.py' | sort)
-          if [ -z "$tests" ]; then
-            echo "No test/rt-stress/**/*_test.py found -- glob or path broken?" >&2
-            exit 1
-          fi
-          for t in $tests; do
-            echo "== $t =="
-            python3 "$t"
-          done
-
-  test-rt-stress-windows:
-    name: Test rt-stress (Windows)
-    runs-on: windows-latest
-    defaults:
-      run:
-        shell: pwsh
-    # The suite is seconds; the msys2 install is a couple of minutes. A cap keeps
-    # a wedged install from burning the 360-minute default on a 2x-billed runner.
-    timeout-minutes: 30
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v6.0.2
-      - name: Install lldb
-        # The stress harness gets a timeout backtrace out of a hung run by
-        # breaking into lldb's inferior, and stress_common_test.py's real-lldb
-        # integration test is the only thing that exercises the Win32 side of
-        # that (the process walk, the debugger-presence check, DebugBreakProcess).
-        # Without lldb it silently skips, so install it here as the Linux job
-        # does. The script installs the same lldb the stress lanes run, which is
-        # what makes this a guard on what actually ships.
-        run: .\.ci-scripts\windows-install-deps.ps1
-      - name: Run test/rt-stress tests
-        # Same discovery as the Linux job, in PowerShell: the runner's default
-        # shell can't parse the bash loop.
-        #
-        # The lldb is NAMED, not put on PATH. The runner image already ships an
-        # lldb at C:\Program Files\LLVM\bin, and it exits immediately instead of
-        # running the target, so a `which` finds the wrong one; prepending msys2
-        # to PATH instead would put its mingw python ahead of the runner's and
-        # silently run the suite under a different interpreter. Naming it avoids
-        # both. The stress lanes pass the same path to `--lldb` for the same
-        # reason.
-        env:
-          PONY_STRESS_LLDB: C:\msys64\mingw64\bin\lldb.exe
-        run: |
-          $tests = Get-ChildItem -Recurse -Filter '*_test.py' test/rt-stress |
-            Sort-Object FullName
-          if (-not $tests) {
-            throw "No test/rt-stress/**/*_test.py found -- glob or path broken?"
-          }
-          foreach ($t in $tests) {
-            Write-Output "== $($t.FullName) =="
-            python $t.FullName
-            if ($LASTEXITCODE -ne 0) { throw "FAILED: $($t.FullName)" }
-          }

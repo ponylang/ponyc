@@ -1,0 +1,94 @@
+name: Test rt-stress
+
+# The Python that drives the runtime stress harness under test/rt-stress/. Both
+# jobs install lldb, because one of the tests -- stress_common_test.py's
+# `test_lldb_timeout_capture_integration` -- launches a real lldb and checks that
+# the harness gets a thread backtrace out of a hung process. Without an lldb on
+# the runner that test prints "skip" and the suite still passes, so the install
+# is what keeps the harness's debugger code covered at all.
+#
+# The Pony workloads these scripts drive are NOT run here. They run in the
+# scheduled `stress-test-*` workflows.
+
+on: pull_request
+
+concurrency:
+  group: test-rt-stress-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  linux:
+    name: Test rt-stress
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6.0.2
+      - name: Install lldb
+        # The stock runner ships no lldb. Installing it keeps the real-lldb
+        # integration test running per-PR, where it guards behavior only a real
+        # lldb can: the inferior process-tree walk and the stop-on-SIGABRT
+        # capture.
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends lldb
+      - name: Run test/rt-stress tests
+        # Every `*_test.py` under test/rt-stress/ is self-contained (no pytest):
+        # python3-runnable, exits non-zero on failure. New tests are picked up
+        # automatically by this glob -- no registration needed.
+        run: |
+          set -e
+          tests=$(find test/rt-stress -name '*_test.py' | sort)
+          if [ -z "$tests" ]; then
+            echo "No test/rt-stress/**/*_test.py found -- glob or path broken?" >&2
+            exit 1
+          fi
+          for t in $tests; do
+            echo "== $t =="
+            python3 "$t"
+          done
+
+  windows:
+    name: Test rt-stress (Windows)
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: pwsh
+    # The suite runs in seconds; the msys2 install takes a couple of minutes. A
+    # cap keeps a wedged install from burning the 360-minute default.
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6.0.2
+      - name: Install lldb
+        # On Windows the integration test is the only thing that exercises the
+        # Win32 side of the timeout capture (the process walk, the
+        # debugger-presence check, DebugBreakProcess). The script installs the
+        # same lldb the stress lanes run, which is what makes this a guard on
+        # what actually ships.
+        run: .\.ci-scripts\windows-install-deps.ps1
+      - name: Run test/rt-stress tests
+        # Same discovery as the Linux job, in PowerShell: the runner's default
+        # shell can't parse the bash loop.
+        #
+        # The lldb is NAMED, not put on PATH. The runner image already ships an
+        # lldb at C:\Program Files\LLVM\bin that exits without running the
+        # target, so a `which` finds the wrong one; prepending msys2 to PATH
+        # instead would put its mingw python ahead of the runner's and silently
+        # run the suite under a different interpreter. Naming it avoids both.
+        # The stress lanes pass the same path to `--lldb` for the same reason.
+        env:
+          PONY_STRESS_LLDB: C:\msys64\mingw64\bin\lldb.exe
+        run: |
+          $tests = Get-ChildItem -Recurse -Filter '*_test.py' test/rt-stress |
+            Sort-Object FullName
+          if (-not $tests) {
+            throw "No test/rt-stress/**/*_test.py found -- glob or path broken?"
+          }
+          foreach ($t in $tests) {
+            Write-Output "== $($t.FullName) =="
+            python $t.FullName
+            if ($LASTEXITCODE -ne 0) { throw "FAILED: $($t.FullName)" }
+          }

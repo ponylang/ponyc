@@ -281,9 +281,10 @@ bytes.)
 
 ## Tests
 
-Three self-contained test files (no pytest), run in CI via `lint-python.yml` — on
-Linux and on Windows, since the timeout capture's real-lldb integration test has a
-distinct mechanism on each and would otherwise go unexercised on one of them:
+Three self-contained test files (no pytest), run in CI via `test-rt-stress.yml` —
+on Linux and on Windows, since the timeout capture's real-lldb integration test
+has a distinct mechanism on each and would otherwise go unexercised on one of
+them:
 
 - `stress_common_test.py` — the shared pure pieces (seed derivation, the workload
   draws including `draw_workload`, output parsing, command building).
