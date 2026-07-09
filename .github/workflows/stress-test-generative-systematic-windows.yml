@@ -37,6 +37,13 @@ jobs:
         uses: actions/checkout@v6.0.2
         with:
           ref: ${{ github.event.inputs.sha || 'main' }}
+      - name: Install Dependencies
+        # lldb, so this lane runs the engine under it and captures a backtrace on
+        # a crash and, on a watchdog timeout, on a hang. A systematic crash
+        # reproduces from its seed, but an intermittent hang need not, so the
+        # in-the-moment stack is the only artifact for it. The pinned package set
+        # lives in the script.
+        run: .\.ci-scripts\windows-install-deps.ps1
       - name: Restore prebuilt libs
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -65,13 +72,17 @@ jobs:
         run: cmake --build --preset windows-x86-64-debug
       - name: Run Generative Stress Test
         if: ${{ hashFiles('.libs-cache-miss') == '' }}
-        # --no-lldb: Windows runs the engine direct. The lldb crash/timeout
-        # capture the POSIX lanes get is unverified on Windows and deferred
-        # (issue #5578); a crash or hang here records outcome only.
+        # Under lldb, as every other generative lane: a crash or a watchdog
+        # timeout then carries an all-thread backtrace into the failure bundle.
+        # lldb does not change the systematic interleaving -- across 10 seeds the
+        # same seed produced the identical ORDER_SIG direct and under lldb -- so
+        # the determinism oracle holds. lldb startup costs ~1.4s per run over
+        # direct (measured on a local Windows box, debug engine), so the 250-seed
+        # double-run soak stays far inside the 240-minute job cap.
         run: |
           python test/rt-stress/generative/orchestrate_systematic.py `
-            --no-lldb `
             --ponyc build/debug-systematic_testing/ponyc.exe `
+            --lldb 'C:\msys64\mingw64\bin\lldb.exe' `
             --use-flags systematic_testing `
             --start ${{ github.run_id }} --count 250 `
             --out rt-stress-out

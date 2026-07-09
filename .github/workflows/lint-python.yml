@@ -85,3 +85,49 @@ jobs:
             echo "== $t =="
             python3 "$t"
           done
+
+  test-rt-stress-windows:
+    name: Test rt-stress (Windows)
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: pwsh
+    # The suite is seconds; the msys2 install is a couple of minutes. A cap keeps
+    # a wedged install from burning the 360-minute default on a 2x-billed runner.
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6.0.2
+      - name: Install lldb
+        # The stress harness gets a timeout backtrace out of a hung run by
+        # breaking into lldb's inferior, and stress_common_test.py's real-lldb
+        # integration test is the only thing that exercises the Win32 side of
+        # that (the process walk, the debugger-presence check, DebugBreakProcess).
+        # Without lldb it silently skips, so install it here as the Linux job
+        # does. The script installs the same lldb the stress lanes run, which is
+        # what makes this a guard on what actually ships.
+        run: .\.ci-scripts\windows-install-deps.ps1
+      - name: Run test/rt-stress tests
+        # Same discovery as the Linux job, in PowerShell: the runner's default
+        # shell can't parse the bash loop.
+        #
+        # The lldb is NAMED, not put on PATH. The runner image already ships an
+        # lldb at C:\Program Files\LLVM\bin, and it exits immediately instead of
+        # running the target, so a `which` finds the wrong one; prepending msys2
+        # to PATH instead would put its mingw python ahead of the runner's and
+        # silently run the suite under a different interpreter. Naming it avoids
+        # both. The stress lanes pass the same path to `--lldb` for the same
+        # reason.
+        env:
+          PONY_STRESS_LLDB: C:\msys64\mingw64\bin\lldb.exe
+        run: |
+          $tests = Get-ChildItem -Recurse -Filter '*_test.py' test/rt-stress |
+            Sort-Object FullName
+          if (-not $tests) {
+            throw "No test/rt-stress/**/*_test.py found -- glob or path broken?"
+          }
+          foreach ($t in $tests) {
+            Write-Output "== $($t.FullName) =="
+            python $t.FullName
+            if ($LASTEXITCODE -ne 0) { throw "FAILED: $($t.FullName)" }
+          }

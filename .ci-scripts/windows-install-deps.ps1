@@ -1,8 +1,14 @@
 # Install the Windows test-time dependencies for the ponyc suite: the
 # mingw-w64 LLVM family and the runtime dependencies lldb imports against.
-# Only the ponyc Windows job needs this (it runs the test suite with
-# `-Uselldb yes`); the pony-compiler and tools Windows jobs do not, and the
-# libs-only maybe-build job does not.
+#
+# This is the ONE place the lldb pin lives, and every Windows job that needs
+# lldb calls this script rather than pinning its own copy. Pinned copies drift:
+# lint-python's rt-stress job is what checks that lldb still stops where the
+# generative stress harness's timeout capture needs it to, and with its own pin
+# it would keep passing against an lldb the stress lanes no longer run.
+#
+# The pony-compiler and tools Windows jobs need no lldb, and neither does the
+# libs-only maybe-build job.
 #
 # History:
 # (1) 2026-05-03: lldb-22.1.4-2 ("llvm: emutls rebuild") crashed
