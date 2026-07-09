@@ -135,8 +135,8 @@ stages; keep each image in exactly one of the three.
 
 The stress-test workflows (`stress-test-*.yml`), `ponyc-tier2.yml`, and
 `ponyc-tier3.yml` choose their mode by whether the code under test is main. The
-step's branch check is `github.event_name == 'workflow_dispatch' && <ref> !=
-'main'`, where `<ref>` is the checkout ref: `inputs.ref` for tier2 and tier3,
+step's branch check is `github.event_name == 'workflow_dispatch' && <ref> != 'main'`,
+where `<ref>` is the checkout ref: `inputs.ref` for tier2 and tier3,
 `github.event.inputs.sha` for stress. Both default to `main`, and a scheduled run
 has neither, so it counts as on-main.
 
@@ -197,8 +197,8 @@ script, not in two copies of YAML. `freebsd-provision.bash` takes
 dtrace smoke test needs it, and it is harmless to the warmer.
 
 The in-VM libs handling is shared per platform the same way the provisioning is.
-Both workflows call `.ci-scripts/bsd/{freebsd,openbsd,dragonfly}-libs-cache.bash
-<operation>` for the restore and build/push steps, rather than each job embedding
+Both workflows call `.ci-scripts/bsd/{freebsd,openbsd,dragonfly}-libs-cache.bash <operation>`
+for the restore and build/push steps, rather than each job embedding
 its own inline `ssh` remote-exec. Each script holds its platform's ssh options, VM
 user, repo directory, build environment, compiler flags, and build-tree cleanup.
 The `<operation>` — one of `restore`, `build-push-branch`, `build-push-main` —
@@ -333,8 +333,8 @@ miss, and `needs:` is intra-workflow only. Now, for each platform shared by two 
 more suites (ubuntu glibc, macOS, Windows), a `maybe-build-<plat>` job runs
 `pr_libs_cache.py --ensure` once, and the consumer jobs `needs:` it and pull.
 
-Consumer gating is `!cancelled() && needs.changes.outputs.<suite> == 'true' &&
-needs.maybe-build-<plat>.result != 'failure'`. The `!cancelled()` lets a consumer
+Consumer gating is `!cancelled() && needs.changes.outputs.<suite> == 'true' && needs.maybe-build-<plat>.result != 'failure'`.
+The `!cancelled()` lets a consumer
 run when its maybe-build was *skipped*, which is the fork path — the consumer then
 pulls or builds without `--branch-cache`. The `result != 'failure'` skips the
 consumer when the shared build genuinely failed, so an LLVM build failure is
