@@ -91,13 +91,6 @@ PONY_EXTERN_C_BEGIN
 
 PONY_API void pony_os_socket_close(int fd);
 
-// This must match the pony NetAddress type in packages/net.
-typedef struct
-{
-  pony_type_t* type;
-  struct sockaddr_storage addr;
-} ipaddress_t;
-
 PONY_API socklen_t ponyint_address_length(ipaddress_t* ipaddr)
 {
   switch(ipaddr->addr.ss_family)
@@ -803,6 +796,10 @@ PONY_API pony_socket_result_t pony_os_recv(asio_event_t* ev, char* buf,
   // Synchronous non-blocking recv, like POSIX. OK paths must write a non-zero
   // count (the stdlib read loop advances by it and would spin on a 0-byte OK);
   // received == 0 (peer closed) is surfaced as ERROR for that reason.
+  //
+  // Winsock has no MSG_DONTWAIT, so unlike the POSIX branch below this call
+  // depends on the socket being in non-blocking mode, which every socket the
+  // runtime hands out has been put in by set_nonblocking (ioctlsocket FIONBIO).
   int received = recv((SOCKET)ev->fd, buf, (int)len, 0);
 
   if(received == SOCKET_ERROR)
@@ -828,7 +825,17 @@ PONY_API pony_socket_result_t pony_os_recv(asio_event_t* ev, char* buf,
   // `_read_buf_offset` and `sum` by the count and would loop forever
   // if OK ever carried 0 bytes. `received == 0` (peer closed) is
   // surfaced as ERROR for that reason.
-  ssize_t received = recv(ev->fd, buf, len, 0);
+  //
+  // Pass MSG_DONTWAIT rather than trust the socket to be in non-blocking mode.
+  // The runtime only ever creates non-blocking sockets, but a read can arrive
+  // for a connection whose fd was already closed and whose number has since
+  // been reused by a blocking socket. Without the flag, that read parks this
+  // scheduler thread inside recv until data arrives, which may be never: the
+  // runtime cannot reach quiescence and the program cannot exit. The flag does
+  // not make such a read correct -- if the reused fd has data, it still lands
+  // in the wrong connection's buffer -- it only stops the read from parking
+  // the thread.
+  ssize_t received = recv(ev->fd, buf, len, MSG_DONTWAIT);
 
   if(received < 0)
   {
@@ -924,6 +931,7 @@ PONY_API pony_socket_result_t pony_os_recvfrom(asio_event_t* ev, char* buf,
 
   int addrlen = sizeof(struct sockaddr_storage);
 
+  // No MSG_DONTWAIT on Winsock; see the comment in pony_os_recv.
   int recvd = recvfrom((SOCKET)ev->fd, buf, (int)len, 0,
     (struct sockaddr*)&ipaddr->addr, &addrlen);
 
@@ -960,7 +968,9 @@ PONY_API pony_socket_result_t pony_os_recvfrom(asio_event_t* ev, char* buf,
 #else
   socklen_t addrlen = sizeof(struct sockaddr_storage);
 
-  ssize_t recvd = recvfrom(ev->fd, (char*)buf, len, 0,
+  // MSG_DONTWAIT for the same reason as pony_os_recv above: a read on a
+  // blocking fd must not park the scheduler thread.
+  ssize_t recvd = recvfrom(ev->fd, (char*)buf, len, MSG_DONTWAIT,
     (struct sockaddr*)&ipaddr->addr, &addrlen);
 
   if(recvd < 0)
