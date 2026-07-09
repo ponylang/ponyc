@@ -27,6 +27,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Fix `ANSITerm` not fully cleaning up on dispose ([PR #5687](https://github.com/ponylang/ponyc/pull/5687))
 - Fix `Readline` nudging the cursor right on an empty line ([PR #5688](https://github.com/ponylang/ponyc/pull/5688))
 - Fix `Readline.down` underflow on empty history ([PR #5689](https://github.com/ponylang/ponyc/pull/5689))
+- Stop a socket read on a blocking file descriptor from hanging a program ([PR #5718](https://github.com/ponylang/ponyc/pull/5718))
 
 ### Added
 
