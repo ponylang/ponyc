@@ -24,7 +24,7 @@ jobs:
   #   Stage 2 - platforms releases/nightlies pull: x86_64-linux-release,
   #             arm64-linux, x86_64-macos, arm64-windows
   #   Stage 3 - everything else: x86_64-linux-other (fedora + cross), freebsd,
-  #             openbsd, dragonflybsd
+  #             openbsd, dragonflybsd, haiku
   #
   # Each later stage gates (`needs:`) on the prior stage's FAST jobs only - Linux
   # and macOS - and deliberately NOT on Windows, whose builds are slow: a Windows
@@ -33,14 +33,15 @@ jobs:
   # cancel the later stages. The jobs below are not grouped by stage in file
   # order; each job's `needs:` and comment state its stage.
   #
-  # Stage 3's seven builds - the four x86_64-linux-other matrix legs plus the
-  # three BSD VMs - are each 2-3h, so the stage is capped at AT MOST 2 running
-  # at once to bound runner-pool use. Three things together enforce that, and
-  # removing any one re-opens the stage to more than 2: x86_64-linux-other
+  # Stage 3's eight builds - the four x86_64-linux-other matrix legs plus the
+  # three BSD VMs and Haiku VM - are each 2-3h, so the stage is capped at AT MOST 2
+  # 2 running at once to bound runner-pool use. Three things together enforce that,
+  # and removing any one re-opens the stage to more than 2: x86_64-linux-other
   # carries `max-parallel: 2` for its four legs; freebsd/openbsd/dragonflybsd
   # `needs:` x86_64-linux-other, so the BSD VMs never run alongside the
-  # container legs; and dragonflybsd additionally `needs:` freebsd, so the
-  # three BSDs themselves run 2 at a time.
+  # container legs; dragonflybsd additionally `needs:` freebsd, so the
+  # three BSDs themselves run 2 at a time; and Haiku `needs:` dragonflybsd, so
+  # it runs after BSDs.
 
   # Stage 1 (PR). No gate; starts immediately.
   x86_64-linux-pr:
@@ -409,6 +410,90 @@ jobs:
         run: |
           pkill -f qemu-system-x86 || true
 
+  haiku:
+    # Stage 4. `needs:` dragonflybsd: so it runs after others.
+    needs: [dragonflybsd]
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-latest
+    name: x86-64 Haiku Nightly
+    env:
+      HAIKU_NIGHTLY_VERSION: hrev59860
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6.0.2
+      - name: Create source for LIBS_TAG
+        run: |
+          echo $HAIKU_NIGHTLY_VERSION >haiku_libs_tag.source
+          sha256sum \
+            ponyc/lib/CMakePresets.json \
+            ponyc/CMakeLists.txt \
+            ponyc/lib/CMakeLists.txt \
+            ponyc/lib/build-libs.cmake \
+            ponyc/lib/llvm/patches/* \
+            >>haiku_libs_tag.source
+      - name: Check libs cache
+        id: check
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          LIBS_TAG: ${{ hashFiles('haiku_libs_tag.source') }}
+        run: |
+          if python3 .ci-scripts/libs-cache/oci_libs_cache.py exists --platform haiku --tag "$LIBS_TAG"; then
+            echo "hit=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "hit=false" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Promote branch libs if present
+        id: promote
+        if: steps.check.outputs.hit != 'true'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          LIBS_TAG: ${{ hashFiles('haiku_libs_tag.source') }}
+        run: |
+          # Host-side promote (no VM boot): if a branch artifact exists for this
+          # tag, copy it into the main cache instead of provisioning the VM to
+          # rebuild. A promote failure is non-fatal -- promoted=false falls through
+          # to the VM build below.
+          if python3 .ci-scripts/libs-cache/branch_libs_cache.py exists --platform haiku --tag "$LIBS_TAG"; then
+            if python3 .ci-scripts/libs-cache/promote_libs_cache.py --platform haiku --tag "$LIBS_TAG"; then
+              echo "promoted=true" >> "$GITHUB_OUTPUT"
+            else
+              echo "promoted=false" >> "$GITHUB_OUTPUT"
+            fi
+          else
+            echo "promoted=false" >> "$GITHUB_OUTPUT"
+          fi
+      # Avoid burdening Haiku project by caching configured system disk
+      - name: Restore Haiku system disk from repo cache
+        id: haiku-cache
+        if: ${{ hashFiles('.libs-cache-miss') == '' }}
+        uses: actions/cache/restore@v6
+        with:
+          path: |
+            ${{ format('{0}/vm-artifacts/haiku_system.qcow2', runner.temp) }}
+            haiku_vm_key*
+          key: ${{ env.HAIKU_NIGHTLY_VERSION }}
+      - name: Provision VM
+        if: steps.check.outputs.hit != 'true' && steps.promote.outputs.promoted != 'true'
+        run: bash .ci-scripts/haiku/haiku-provision.bash
+      - name: Store system disk in repo cache
+        if: ${{ steps.haiku-cache.outputs.cache-hit != 'true' }}
+        uses: actions/cache/save@v6
+        with:
+          path: |
+            ${{ format('{0}/vm-artifacts/haiku_system.qcow2', runner.temp) }}
+            haiku_vm_key*
+          key: ${{ steps.haiku-cache.outputs.cache-primary-key }}
+      - name: Build and push libs
+        if: steps.check.outputs.hit != 'true' && steps.promote.outputs.promoted != 'true'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          LIBS_TAG: ${{ hashFiles('haiku_libs_tag.source') }}
+        run: bash .ci-scripts/haiku/haiku-libs-cache.bash build-push-main
+      - name: Shutdown VM
+        if: always()
+        run: |
+          pkill -f qemu-system-x86 || true
+
   # Keep storage bounded: keep the 2 newest versions of each ponyc-libs-cache/*
   # package, delete older ones. Only the warmer pushes (on every main commit), so
   # the newest version is always the current main hash and is never pruned. Uses
@@ -431,6 +516,7 @@ jobs:
       - freebsd
       - openbsd
       - dragonflybsd
+      - haiku
     steps:
       - name: Checkout
         uses: actions/checkout@v6.0.2
