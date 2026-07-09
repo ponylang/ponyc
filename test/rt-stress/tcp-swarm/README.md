@@ -116,7 +116,7 @@ occupies the port before any client dials, so the default `localhost` is fine.
   exactly (RSS stayed ~120 MiB throughout). CI's slow 4-vCPU runner builds that backlog and
   the old 8 GiB cap sat just under it. Virtual is nearly free (RSS is the scarce resource,
   the runner has 16 GiB), so 14 GiB clears the measured ~8.4 GiB worst case with margin
-  rather than re-fitting the constants; see `.known-couplings/tcp-swarm-memory-budget.md`.
+  rather than re-fitting the constants.
 - **Time** — the per-run clamp (`clamp_run`) bounds round-trips
   (`connections * messages`) and total bytes (`connections * messages * payload`),
   so an outsized draw (e.g. 100k conns × 64 msgs × 64 KiB ≈ 400 GB) is trimmed.

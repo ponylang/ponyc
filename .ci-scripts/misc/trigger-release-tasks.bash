@@ -6,8 +6,7 @@
 # repository, Cloudsmith fires a `cloudsmith-package-synchronised`
 # repository_dispatch event at ponylang/ponyc. The release image build is the
 # only consumer of those events, gated on the alpine3.24 package names (the
-# Alpine version must match the Dockerfile base; see
-# .known-couplings/docker-image-base-vs-trigger-package.md):
+# Alpine version must match the Dockerfile base):
 #
 #   ponyc-x86-64-unknown-linux-alpine3.24.tar.gz
 #   ponyc-arm64-unknown-linux-alpine3.24.tar.gz

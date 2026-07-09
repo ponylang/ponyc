@@ -65,8 +65,7 @@ DEFAULT_TIMEOUT_SECONDS = 120
 # advancing run keeps heartbeating, so it is NOT killed -- it finishes, however
 # long it legitimately takes. ~5 min is far above the worst inter-heartbeat gap
 # (the engine targets ~tens of heartbeats per emitter over a run) yet catches a
-# hang in minutes. COUPLING: paired with the engine's heartbeat cadence -- see
-# .known-couplings/stress-heartbeat-watchdog.md.
+# hang in minutes. COUPLING: paired with the engine's heartbeat cadence.
 DEFAULT_NORMAL_NO_PROGRESS_SECONDS = 300
 # Absolute backstop for the normal mode: even a steadily-progressing run is capped
 # here, bounding a config whose real time runs far past its estimate (a cost-model
@@ -392,10 +391,9 @@ ACTORREF_TTL_BUCKETS = ISO_TTL_BUCKETS
 # below MESH_P, cyclic below MESH_P + CYCLIC_P, backpressure below
 # MESH_P + CYCLIC_P + BP_P, iso below MESH_P + CYCLIC_P + BP_P + ISO_P, else actorref.
 # Backpressure's systematic determinism is verified: its muting/unmuting arrival order
-# reproduces under replay (see the per-work ORDER_SIG fold in main.pony and
-# .known-couplings/backpressure-workload-muting.md). actorref's rides on the same
-# routing interleaving as mesh/iso, and it is the heaviest exerciser of the id-sorted
-# actor acquire/release drain (see .known-couplings/systematic-testing-send-ordering.md).
+# reproduces under replay (see the per-work ORDER_SIG fold in main.pony). actorref's
+# rides on the same routing interleaving as mesh/iso, and it is the heaviest exerciser
+# of the id-sorted actor acquire/release drain.
 SYSTEMATIC_MESH_P = 0.4
 SYSTEMATIC_CYCLIC_P = 0.15
 SYSTEMATIC_BACKPRESSURE_P = 0.15

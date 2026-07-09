@@ -55,15 +55,14 @@ when you want to exercise them).
 
 ## Pointers
 
-- The GHCR libs cache (the `libs-cache/` scripts: warmer, consumers, branch
-  cache, retention, clear) is documented in
-  `.known-couplings/ghcr-libs-cache.md`.
+- The libs cache (the `libs-cache/` scripts: warmer, consumers, branch cache,
+  retention, clear) is documented in `libs-cache/README.md`.
 - The `bsd/` scripts provision the BSD CI VMs and run the in-VM libs handling,
   both shared by `update-lib-cache.yml` and `ponyc-tier3.yml`, one script per
   platform: `{freebsd,openbsd,dragonfly}-provision.bash` (+ `dfly_configure_vm.py`)
   boot and set up the VM, and `{freebsd,openbsd,dragonfly}-libs-cache.bash
-  <operation>` restores or builds-and-pushes the libs cache over ssh. See the GHCR
-  libs cache coupling in `.known-couplings/ghcr-libs-cache.md`.
+  <operation>` restores or builds-and-pushes the libs cache over ssh. See
+  `libs-cache/README.md`.
 - `windows-install-deps.ps1` installs the pinned msys2 lldb and the libraries it
   loads against. It holds the only copy of that pin, and every Windows job
   needing lldb calls it. Don't inline the `pacman` block into a workflow: the

@@ -120,11 +120,10 @@ detector on, because the detector's recipient-scheduling sends are sorted by a s
 actor id, so replay is layout-independent. `backpressure` is cycle-detector-independent;
 its determinism instead rides on the muting/unmuting arrival order, which also
 reproduces under replay — its per-work `ORDER_SIG` fold fingerprints that interleaving
-(see main.pony and .known-couplings/backpressure-workload-muting.md). `actorref` rides
+(see main.pony). `actorref` rides
 on the same routing interleaving as mesh/iso (its per-completion `ORDER_SIG` fold), and
 it is the heaviest exerciser of the id-sorted actor acquire/release drain — a regression
-in that sort would perturb its `ORDER_SIG` (see
-.known-couplings/systematic-testing-send-ordering.md). Systematic keeps
+in that sort would perturb its `ORDER_SIG`. Systematic keeps
 cyclic/backpressure/iso/actorref small (see the `SYSTEMATIC_*` caps in
 stress_common.py) so the serialized soak's per-seed cost stays at or below the
 mesh-only cost it replaces; the normal mode still carries the large-magnitude

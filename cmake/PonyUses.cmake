@@ -11,8 +11,9 @@
 # Keep each rejection message's "not supported on <OS>" phrase within the first
 # ~78 columns: the BSD reject scripts
 # (.ci-scripts/{openbsd,dragonfly}-reject-unsupported-builds.sh) grep for that
-# exact substring, and CMake's message() reflows at ~78 columns. See
-# .known-couplings/use-option-validation.md.
+# exact substring, and CMake's message() reflows at ~78 columns. Those scripts
+# also enumerate the rejected options, so add or drop a platform rejection here
+# and the matching script's loop must change too.
 
 set(PONY_USES "" CACHE STRING
     "Comma-separated build options to enable at configure time; see BUILD.md")
@@ -47,8 +48,7 @@ set(_pony_known_uses
     runtime_tracing)
 
 # The subset of the above that compiles on Windows (MSVC), verified by building
-# each on Windows. See the MSVC check below and
-# .known-couplings/use-option-validation.md. When you add an option here, add a
+# each on Windows. See the MSVC check below. When you add an option here, add a
 # matching row to the use_directives_windows matrix in ponyc-weekly-checks.yml,
 # or it builds on Windows but is never tested there.
 set(_pony_windows_uses
@@ -85,8 +85,7 @@ foreach(_use IN LISTS _pony_uses)
     # sanitizers and coverage need -fsanitize=/-fprofile-arcs;
     # scheduler_scaling_pthreads needs pthreads.
     # Reject the unsupported ones here rather than let the build fail partway
-    # through with a confusing error. See BUILD.md and
-    # .known-couplings/use-option-validation.md.
+    # through with a confusing error. Keep BUILD.md's option list in step.
     if(MSVC AND NOT _use IN_LIST _pony_windows_uses)
         message(FATAL_ERROR "${_use} is not supported when building on Windows. See BUILD.md")
     endif()

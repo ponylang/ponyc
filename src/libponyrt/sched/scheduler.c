@@ -903,8 +903,8 @@ static pony_actor_t* perhaps_suspend_scheduler(
     // there is at least one noisy actor registered.
     // COUPLING: that scheduler 0 only suspends with a noisy actor is what keeps
     // active_scheduler_count >= 1 (and so the systematic-testing round-robin
-    // divisor non-zero) when no ASIO event can be registered. See
-    // .known-couplings/systematic-testing-io-abort-keeps-a-scheduler-active.md.
+    // divisor non-zero) when no ASIO event can be registered -- see the abort
+    // in pony_asio_event_create (asio/event.c).
     if((sched->index > 0) || ((sched->index == 0) && sched->asio_noisy))
     {
       actor = suspend_scheduler(sched, current_active_scheduler_count);

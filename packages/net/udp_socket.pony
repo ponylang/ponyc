@@ -347,7 +347,6 @@ actor UDPSocket is AsioEventNotify
 
           // An empty datagram is delivered as OK with count 0; charge it 1
           // byte so a flood still advances the read budget and yields.
-          // Coupling: .known-couplings/udp-empty-datagram-read-budget.md
           sum = sum + count.max(1)
 
           if sum > (1 << 12) then

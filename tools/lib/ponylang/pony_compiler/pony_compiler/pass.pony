@@ -49,6 +49,12 @@ struct _StrTable
   """Opaque mirror of libponyc's strtable_t (the interned-string table)."""
 
 struct _PassOpt
+  """
+  Layout mirror of libponyc's pass_opt_t (pass.h), reached over FFI. The two
+  must have identical memory layout: a field added, removed, or reordered on
+  either side shifts every offset below it, and this side then reads garbage.
+  Nothing checks that -- keep them in step by hand.
+  """
   var limit: I32 = PassParse()
   var programm_pass: I32 = PassParse()
   var release: Bool = false
@@ -68,8 +74,7 @@ struct _PassOpt
   var ast_print_width: USize = 0
   var allow_test_symbols: Bool = false
   var parse_trace: Bool = false
-  // Mirrors pass_opt_t.user_triple (pass.h). See
-  // .known-couplings/pass-opt-struct-mirror.md.
+  // Mirrors pass_opt_t.user_triple (pass.h).
   var user_triple: Bool = false
 
   var package_search_paths: Pointer[_StrList] = package_search_paths.create()

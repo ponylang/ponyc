@@ -216,7 +216,11 @@ typedef enum verbosity_level
   VERBOSITY_ALL       = 4
 } verbosity_level;
 
-/** When updating pass_id update PASS_HELP
+/** When updating pass_id update PASS_HELP.
+ *
+ * The Pony tools mirror these values in PassId (pass.pony). Adding or
+ * reordering one renumbers every pass id below it, and the mirror then names
+ * the wrong pass; keep the two in step.
  */
 typedef enum pass_id
 {
@@ -275,6 +279,11 @@ typedef struct magic_package_t magic_package_t;
 typedef struct plugins_t plugins_t;
 
 /** Pass options.
+ *
+ * Any field change here must be mirrored in _PassOpt (pass.pony), through which
+ * the Pony tools reach these options over FFI. Adding, removing, or reordering
+ * a field -- even a bool that lands in existing padding -- shifts every offset
+ * below it, and the tools then read garbage.
  */
 typedef struct pass_opt_t
 {
@@ -303,9 +312,6 @@ typedef struct pass_opt_t
   // programmatically) rather than defaulted from the host. An explicit triple
   // is authoritative for libc detection and must never be overridden by a
   // host probe. See target_libc_is_musl (genexe).
-  //
-  // Any field change to this struct must be mirrored in _PassOpt (pass.pony);
-  // see .known-couplings/pass-opt-struct-mirror.md.
   bool user_triple;
 
   strlist_t* package_search_paths;

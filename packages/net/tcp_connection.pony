@@ -629,7 +629,6 @@ actor TCPConnection is AsioEventNotify
         // Skip if this event also carried a readable (handled below), reads are
         // muted, or the peer has closed. (kqueue arms read and write on separate
         // one-shots, so it never loses the read arm and this is an inert no-op.)
-        // COUPLING: .known-couplings/asio-oneshot-shared-read-write-arm.md.
         if _writeable and not AsioEvent.readable(flags) and _connected
           and not _readable and not _muted and not _shutdown_peer
         then

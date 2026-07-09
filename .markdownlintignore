@@ -2,7 +2,6 @@ benchmark/*
 CHANGELOG.md
 CODE_OF_CONDUCT.md
 .release-notes/
-.known-couplings/
 CLAUDE.md
 .claude/
 AGENTS.md

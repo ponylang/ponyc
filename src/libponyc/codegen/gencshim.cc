@@ -508,7 +508,7 @@ static bool add_system_include_args(pass_opt_t* opt, const char* sysroot,
 // runtime APIs (pony.h) and pony_assert (ponyassert.h) is a core shim use
 // case, and without this users hard-code their installation path in
 // cincludedir: ("/home/me/.local/ponyup/ponyc-.../include"), which breaks on
-// every toolchain update. See .known-couplings/clang-resource-dir.md.
+// every toolchain update.
 //
 // Installed layout: <ponydir>/include/pony holds the headers a shim names
 // directly (pony.h, ponyassert.h, platform.h, threads.h, paths.h), with

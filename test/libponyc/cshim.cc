@@ -787,8 +787,7 @@ TEST_F(CShimTest, ShimCanIncludePonyHeader)
   // confirming the whole shim-reachable header set resolves. The test binary
   // has no installed-tree sibling ../include/pony or ../include, so these
   // resolve through the build-tree offsets; the installed offsets are covered
-  // only by a manual shim-against-make-install check (see
-  // .known-couplings/clang-resource-dir.md).
+  // only by a manual shim-against-install check.
   const char* fixture = "cshim_fixture_ponyh";
   const char* names[] = {"dummy.pony", "uses_pony_h.c", NULL};
   const char* contents[] = {

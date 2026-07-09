@@ -72,7 +72,7 @@ def resolve_config(master_seed, max_threads):
     swarm knob here now (drawn ~50%), NOT forced: the determinism oracle holds with
     the cycle detector ON, because the detector's recipient-scheduling sends are
     sorted by a stable actor id so replay is layout-independent (verified across
-    cyclic + iso; see .known-couplings/systematic-testing-send-ordering.md). Drawing
+    cyclic + iso). Drawing
     it exercises both the detector-on path (cyclic collection, iso acquire) and the
     detector-off path -- the cycle-detector coverage the normal mode also gives, now
     under the reproducible oracle. `--ponynoscale` is also a swarm knob (both

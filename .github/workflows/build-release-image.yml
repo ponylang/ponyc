@@ -15,8 +15,7 @@ jobs:
 
   build-release-docker-image:
     # The Alpine version in these package-name gates (here and in the versioned
-    # jobs below) must match the base image in .dockerfiles/release/Dockerfile;
-    # see .known-couplings/docker-image-base-vs-trigger-package.md.
+    # jobs below) must match the base image in .dockerfiles/release/Dockerfile.
     if: |
       github.event.client_payload.data.repository == 'releases' &&
       (github.event.client_payload.data.name == 'ponyc-x86-64-unknown-linux-alpine3.24.tar.gz' ||

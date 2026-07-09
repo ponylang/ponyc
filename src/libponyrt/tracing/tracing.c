@@ -1033,9 +1033,12 @@ static void flight_recorder_signal_handler(int sig)
 // thread, the sole live DbgHelp user during a dump. Produces a frame string
 // similar to POSIX `backtrace_symbols`: "(name) [addr]", or "() [addr]" if unresolved.
 // DbgHelp is single-threaded and this shares it, unlocked, with
-// `ponyint_assert_fail` in ponyassert.c — see
-// .known-couplings/dbghelp-shared-by-ponyassert-and-tracing.md before changing how
-// either uses DbgHelp.
+// `ponyint_assert_fail` in ponyassert.c. The common paths don't overlap: during
+// a dump the other threads are SuspendThread-frozen, and an assertion failure
+// finishes with DbgHelp before abort() triggers the dump. A fault racing an
+// assertion before the suspend takes effect can still collide; the cost is a
+// lost dump when the 15-second timeout fires, not corruption. Add a third
+// DbgHelp user, or make either of these concurrent, and they need a lock.
 static const char* windows_format_frame(HANDLE process, void* addr, char* out,
   size_t out_size)
 {

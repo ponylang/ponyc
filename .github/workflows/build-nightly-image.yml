@@ -12,8 +12,7 @@ permissions:
 jobs:
   build-nightly-docker-image:
     # The Alpine version in these package-name gates must match the base image
-    # in .dockerfiles/nightly/Dockerfile; see
-    # .known-couplings/docker-image-base-vs-trigger-package.md.
+    # in .dockerfiles/nightly/Dockerfile.
     if: |
       github.event.client_payload.data.repository == 'nightlies' &&
       (github.event.client_payload.data.name == 'ponyc-x86-64-unknown-linux-alpine3.24.tar.gz' ||

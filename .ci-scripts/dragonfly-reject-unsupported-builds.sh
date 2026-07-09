@@ -20,8 +20,8 @@ set -eu
 # throwaway build dir -- not a preset (the presets pin clang, which DragonFly's
 # base toolchain lacks) and never the shared build_release the real build reuses.
 # The base compiler is all the validation needs, and a poisoned build_release
-# would pin the release build to the wrong toolchain (see
-# .known-couplings/use-option-validation.md).
+# would pin the release build to the wrong toolchain. The options below must
+# match the DragonFly rejections in cmake/PonyUses.cmake.
 for u in address_sanitizer thread_sanitizer undefined_behavior_sanitizer dtrace; do
   rm -rf build/build_reject-probe
   if out=$(cmake -B build/build_reject-probe -S . -DPONY_USES="$u" 2>&1); then
