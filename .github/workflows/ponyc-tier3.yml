@@ -151,7 +151,7 @@ jobs:
           cmake --build --preset debug --target pony-doc-tests pony-lint-tests pony-lsp-tests
       - name: Build Debug Cross-Compiled Runtime
         if: ${{ hashFiles('.libs-cache-miss') == '' }}
-        run: sh .ci-scripts/cross-libponyrt.sh debug riscv64-linux-gnu-gcc-10 riscv64-linux-gnu-g++-10 rv64gc "-march=rv64gc -mtune=rocket" "-march=riscv64"
+        run: sh .ci-scripts/cross-libponyrt.sh debug riscv64-linux-gnu-gcc-10 riscv64-linux-gnu-g++-10 rv64gc "-march=rv64gc -mtune=rocket"
       # net/ tests are excluded on the qemu-user cross legs. User-mode emulation
       # translates instructions faithfully -- so codegen is still exercised --
       # but does not faithfully emulate the kernel: e.g. setsockopt
@@ -169,7 +169,7 @@ jobs:
           cmake --build --preset release
       - name: Build Release Cross-Compiled Runtime
         if: ${{ hashFiles('.libs-cache-miss') == '' }}
-        run: sh .ci-scripts/cross-libponyrt.sh release riscv64-linux-gnu-gcc-10 riscv64-linux-gnu-g++-10 rv64gc "-march=rv64gc -mtune=rocket" "-march=riscv64"
+        run: sh .ci-scripts/cross-libponyrt.sh release riscv64-linux-gnu-gcc-10 riscv64-linux-gnu-g++-10 rv64gc "-march=rv64gc -mtune=rocket"
       # See the debug step above for why net/ tests are excluded under qemu-user.
       - name: Test with Release Cross-Compiled Runtime
         if: ${{ hashFiles('.libs-cache-miss') == '' }}
@@ -235,7 +235,7 @@ jobs:
           cmake --build --preset debug --target pony-doc-tests pony-lint-tests pony-lsp-tests
       - name: Build Debug Cross-Compiled Runtime
         if: ${{ hashFiles('.libs-cache-miss') == '' }}
-        run: sh .ci-scripts/cross-libponyrt.sh debug arm-linux-gnueabi-gcc arm-linux-gnueabi-g++ armv7-a "-march=armv7-a -mtune=cortex-a9" "-O3;-march=arm"
+        run: sh .ci-scripts/cross-libponyrt.sh debug arm-linux-gnueabi-gcc arm-linux-gnueabi-g++ armv7-a "-march=armv7-a -mtune=cortex-a9"
       # net/ tests are excluded under qemu-user; see the riscv64 leg above.
       - name: Test with Debug Cross-Compiled Runtime
         if: ${{ hashFiles('.libs-cache-miss') == '' }}
@@ -247,7 +247,7 @@ jobs:
           cmake --build --preset release
       - name: Build Release Cross-Compiled Runtime
         if: ${{ hashFiles('.libs-cache-miss') == '' }}
-        run: sh .ci-scripts/cross-libponyrt.sh release arm-linux-gnueabi-gcc arm-linux-gnueabi-g++ armv7-a "-march=armv7-a -mtune=cortex-a9" "-O3;-march=arm"
+        run: sh .ci-scripts/cross-libponyrt.sh release arm-linux-gnueabi-gcc arm-linux-gnueabi-g++ armv7-a "-march=armv7-a -mtune=cortex-a9"
       # net/ tests are excluded under qemu-user; see the riscv64 leg above.
       - name: Test with Release Cross-Compiled Runtime
         if: ${{ hashFiles('.libs-cache-miss') == '' }}
@@ -313,7 +313,7 @@ jobs:
           cmake --build --preset debug --target pony-doc-tests pony-lint-tests pony-lsp-tests
       - name: Build Debug Cross-Compiled Runtime
         if: ${{ hashFiles('.libs-cache-miss') == '' }}
-        run: sh .ci-scripts/cross-libponyrt.sh debug arm-linux-gnueabihf-gcc arm-linux-gnueabihf-g++ armv7-a "-march=armv7-a -mtune=cortex-a9" "-O3;-march=arm"
+        run: sh .ci-scripts/cross-libponyrt.sh debug arm-linux-gnueabihf-gcc arm-linux-gnueabihf-g++ armv7-a "-march=armv7-a -mtune=cortex-a9"
       # net/ tests are excluded under qemu-user; see the riscv64 leg above.
       - name: Test with Debug Cross-Compiled Runtime
         if: ${{ hashFiles('.libs-cache-miss') == '' }}
@@ -325,7 +325,7 @@ jobs:
           cmake --build --preset release
       - name: Build Release Cross-Compiled Runtime
         if: ${{ hashFiles('.libs-cache-miss') == '' }}
-        run: sh .ci-scripts/cross-libponyrt.sh release arm-linux-gnueabihf-gcc arm-linux-gnueabihf-g++ armv7-a "-march=armv7-a -mtune=cortex-a9" "-O3;-march=arm"
+        run: sh .ci-scripts/cross-libponyrt.sh release arm-linux-gnueabihf-gcc arm-linux-gnueabihf-g++ armv7-a "-march=armv7-a -mtune=cortex-a9"
       # net/ tests are excluded under qemu-user; see the riscv64 leg above.
       - name: Test with Release Cross-Compiled Runtime
         if: ${{ hashFiles('.libs-cache-miss') == '' }}
