@@ -14,9 +14,8 @@ typedef struct token_t token_t;
 
 // The Pony tools hardcode these values by position in TokenIds
 // (tools/lib/ponylang/pony_compiler/pony_compiler/token.pony). Inserting or
-// reordering a TK_* renumbers every token below it and the mirror then names
-// the wrong token. A normal build doesn't build the tool test suites, so
-// nothing catches it; keep the two in step.
+// reordering a TK_* renumbers every token below it, and the mirror then names
+// the wrong token. Keep the two in step.
 typedef enum token_id
 {
   TK_EOF,

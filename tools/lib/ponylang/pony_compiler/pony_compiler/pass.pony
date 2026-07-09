@@ -53,7 +53,7 @@ struct _PassOpt
   Layout mirror of libponyc's pass_opt_t (pass.h), reached over FFI. The two
   must have identical memory layout: a field added, removed, or reordered on
   either side shifts every offset below it, and this side then reads garbage.
-  Nothing checks that -- keep them in step by hand.
+  Keep them in step.
   """
   var limit: I32 = PassParse()
   var programm_pass: I32 = PassParse()
