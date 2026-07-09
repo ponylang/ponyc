@@ -221,13 +221,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6.0.2
       - name: Install Dependencies
-        # lldb and the mingw-w64 LLVM/clang runtime libraries it imports
-        # against. The pinned package set, and why each pin exists, live in
-        # the script -- every Windows job that needs lldb calls it, so the
-        # pin has one home.
-        run: |
-          .\.ci-scripts\windows-install-deps.ps1
-          python.exe -m pip install --upgrade cloudsmith-cli
+        run: python.exe -m pip install --upgrade cloudsmith-cli
       - name: Build libs
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
