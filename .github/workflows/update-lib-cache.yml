@@ -215,8 +215,6 @@ jobs:
 
     name: x86-64 Windows MSVC
     steps:
-      - name: Disable Windows Defender
-        run: Set-MpPreference -DisableRealtimeMonitoring $true
       - name: Checkout
         uses: actions/checkout@v6.0.2
       - name: Build and push libs
@@ -234,8 +232,6 @@ jobs:
 
     name: arm64 Windows MSVC
     steps:
-      - name: Disable Windows Defender
-        run: Set-MpPreference -DisableRealtimeMonitoring $true
       - name: Checkout
         uses: actions/checkout@v6.0.2
       - name: Build and push libs

@@ -118,8 +118,6 @@ jobs:
         shell: pwsh
     name: maybe-build libs (x86-64 Windows)
     steps:
-      - name: Disable Windows Defender
-        run: Set-MpPreference -DisableRealtimeMonitoring $true
       - name: Checkout
         uses: actions/checkout@v6.0.2
       - name: Ensure libs
@@ -216,8 +214,6 @@ jobs:
         shell: pwsh
     name: 'ponyc: x86-64 Windows MSVC'
     steps:
-      - name: Disable Windows Defender
-        run: Set-MpPreference -DisableRealtimeMonitoring $true
       - name: Checkout
         uses: actions/checkout@v6.0.2
       - name: Install Dependencies
@@ -320,8 +316,6 @@ jobs:
         shell: pwsh
     name: 'pony-compiler: Windows'
     steps:
-      - name: Disable Windows Defender
-        run: Set-MpPreference -DisableRealtimeMonitoring $true
       - name: Checkout
         uses: actions/checkout@v6.0.2
       - name: Build libs
@@ -429,8 +423,6 @@ jobs:
         shell: pwsh
     name: 'Tools: Windows'
     steps:
-      - name: Disable Windows Defender
-        run: Set-MpPreference -DisableRealtimeMonitoring $true
       - name: Checkout
         uses: actions/checkout@v6.0.2
       - name: Build libs
