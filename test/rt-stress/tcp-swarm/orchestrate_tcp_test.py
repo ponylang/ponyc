@@ -2,7 +2,7 @@
 """Unit tests for the pure pieces of orchestrate_tcp.py.
 
 Self-contained (no pytest): `python3 orchestrate_tcp_test.py`, exits 0 on pass /
-1 on failure. Picked up by lint-python.yml's `*_test.py` discovery.
+1 on failure. Picked up by test-rt-stress.yml's `*_test.py` discovery.
 """
 import os
 import sys

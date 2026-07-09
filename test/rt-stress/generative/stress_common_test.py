@@ -3,7 +3,7 @@
 
 Self-contained (no pytest): runnable as
 `python3 test/rt-stress/generative/stress_common_test.py`, exits 0 on pass / 1 on
-failure. Picked up by lint-python.yml's `*_test.py` discovery.
+failure. Picked up by test-rt-stress.yml's `*_test.py` discovery.
 """
 import os
 import random

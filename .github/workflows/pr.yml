@@ -19,8 +19,9 @@ on:
       - '!.markdownlintignore'
       # Test workloads these suites build nothing of: their Pony runs only in
       # scheduled workflows (stress-test-*, ponyc-weekly-checks). The stress
-      # harness's Python is linted/tested by lint-python.yml; rt-systematic has
-      # no Python. Excluded here AND in pr_changed_suites.py.
+      # harness's Python is linted by lint-python.yml and tested by
+      # test-rt-stress.yml; rt-systematic has no Python. Excluded here AND in
+      # pr_changed_suites.py.
       - '!test/rt-stress/**'
       - '!test/rt-systematic/**'
       - 'src/libponyc/**'
