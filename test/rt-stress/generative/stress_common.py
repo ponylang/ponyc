@@ -25,11 +25,13 @@ Windows too) under one of two watchdog modes -- the systematic mode's flat
 wall-clock timeout and the normal mode's no-progress watchdog.
 
 The pure pieces (derive_seed / draw_systematic_workload / draw_* / build_argv /
-run_command / parse_result / lldb_argv / lldb_exit_code / _lldb_inferior_pid) are
-unit-tested in stress_common_test.py; the run classifiers (run_once /
-run_under_lldb) are tested by injecting a fake _capture, and the lldb timeout
-hook (lldb_timeout_abort) has a real-lldb integration test there too.
+run_command / parse_result / lldb_argv / lldb_exit_code / _posix_inferior_pid /
+_windows_inferior_pid) are unit-tested in stress_common_test.py; the run
+classifiers (run_once / run_under_lldb) are tested by injecting a fake _capture,
+and the lldb timeout hook (lldb_timeout_stop) has a real-lldb integration test
+there too, on both POSIX and Windows.
 """
+import ctypes
 import hashlib
 import json
 import os
@@ -73,7 +75,7 @@ DEFAULT_NORMAL_NO_PROGRESS_SECONDS = 300
 DEFAULT_NORMAL_TIMEOUT_SECONDS = 6000
 DEFAULT_MEM_LIMIT_MB = 4096
 # How long a timed-out lldb run gets to print the hung engine's backtrace and exit
-# on its own after the timeout hook aborts the inferior (see lldb_timeout_abort),
+# on its own after the timeout hook aborts the inferior (see lldb_timeout_stop),
 # before the whole tree is killed anyway. Symbolizing `bt all` on a debug binary
 # takes seconds; 30 leaves slack for a loaded runner without meaningfully delaying
 # a run that is already a recorded failure.
@@ -843,7 +845,7 @@ def _capture(argv, timeout, mem_limit_bytes, no_progress_seconds=None,
 
     `on_timeout` (optional) is called once when the watchdog fires, before the
     kill, with the child process -- the lldb runner uses it to get a backtrace
-    out of the hung engine (see lldb_timeout_abort).
+    out of the hung engine (see lldb_timeout_stop).
 
     On any kill we reap the whole process GROUP, not just the direct child: an
     lldb run's direct child is lldb and the engine is its grandchild (the POSIX
@@ -891,12 +893,17 @@ def _watch_for_progress(proc, timeout, no_progress_seconds,
 
     When the watchdog fires and `on_timeout` is set, it is called exactly once
     with the child process. If it returns True it has arranged a graceful stop
-    -- the lldb runner aborts the inferior so lldb prints a backtrace -- and the
+    -- the lldb runner stops the inferior so lldb prints a backtrace -- and the
     child gets LLDB_TIMEOUT_GRACE_SECONDS to finish writing and exit on its own;
-    on expiry, or a False return, the tree is killed just as it is without a
-    hook. Either way the
-    run is a timeout, and everything the child printed (backtrace included) is
-    in the returned streams.
+    on expiry, or a False return, the tree is killed just as it is without a hook.
+    Either way the run is a timeout, and everything the child printed (backtrace
+    included) is in the returned streams.
+
+    The grace is all-or-nothing for the backtrace: lldb buffers its own output
+    and flushes at exit, so a tree kill on expiry discards `bt all` entirely
+    rather than truncating it. Expiry is therefore LOGGED -- otherwise a bundle
+    with no backtrace is indistinguishable from one where no inferior was found,
+    and the two want different fixes.
 
     `poll`/`sleep` are injectable so the watchdog and grace logic are testable
     without real time."""
@@ -928,10 +935,14 @@ def _watch_for_progress(proc, timeout, no_progress_seconds,
             last = last_output[0]
         if _watchdog_should_kill(now, start, last, timeout, no_progress_seconds):
             timed_out = True
-            if (on_timeout is not None) and on_timeout(proc):
+            if _run_timeout_hook(on_timeout, proc):
                 deadline = poll() + LLDB_TIMEOUT_GRACE_SECONDS
                 while proc.poll() is None and poll() < deadline:
                     sleep(0.5)
+                if proc.poll() is None:
+                    info("timeout: the debugger did not finish within the %ds "
+                         "grace; killing it, so this bundle carries no backtrace"
+                         % LLDB_TIMEOUT_GRACE_SECONDS)
             if proc.poll() is None:
                 _kill_process_tree(proc)
             break
@@ -945,10 +956,36 @@ def _watch_for_progress(proc, timeout, no_progress_seconds,
     return (timed_out, returncode, stdout, stderr)
 
 
+def _run_timeout_hook(on_timeout, proc):
+    """Call the watchdog's timeout hook, turning a hook error into a plain False.
+
+    Each hook path already returns False on the errors it anticipates. This is the
+    backstop for the ones nobody anticipated: the hook reads process tables and
+    calls foreign APIs, and it does so while the run is already failing. If it
+    raised, the exception would leave `_capture`, abort the whole soak, and orphan
+    both the debugger and the hung engine -- turning one recorded timeout into a
+    murkier failure with no bundle at all. A missing backtrace is never worth that.
+
+    `Exception`, not `BaseException`: a KeyboardInterrupt or a SystemExit means
+    someone asked the soak to stop, and it should stop rather than press on into
+    the kill path."""
+    if on_timeout is None:
+        return False
+    try:
+        return bool(on_timeout(proc))
+    except Exception as reason:
+        info("timeout: the backtrace hook failed (%s: %s); killing without a "
+             "backtrace" % (reason.__class__.__name__, reason))
+        return False
+
+
 def _kill_process_tree(proc):
     """Kill proc and, on POSIX, its whole session group -- so a hung lldb does not
     orphan the engine grandchild. Windows has no killpg, so it kills the direct
-    child and leans on the job's container teardown for stragglers."""
+    child only; that suffices under lldb, because killing a debugger takes its
+    debuggee with it (the debug object's kill-on-exit default -- observed: the
+    debuggee is gone within half a second), and without lldb the direct child IS
+    the engine."""
     if os.name == "posix":
         try:
             os.killpg(os.getpgid(proc.pid), signal.SIGKILL)
@@ -961,9 +998,9 @@ def _kill_process_tree(proc):
 def run_once(binary, config, timeout, mem_limit_bytes):
     """Direct run (no debugger): classify the outcome straight from the process
     exit code. A negative code is a terminating signal. Used by the systematic
-    driver's --no-lldb path (Windows CI, and hosts without lldb); a crash or
-    hang there records no backtrace and is re-run under a debugger locally from
-    its seed. (Everything else uses run_under_lldb; see there.)"""
+    driver's --no-lldb path, for hosts without lldb -- no CI lane passes it; a
+    crash or hang there records no backtrace and is re-run under a debugger
+    locally from its seed. (Everything else uses run_under_lldb; see there.)"""
     timed_out, returncode, stdout, stderr = _capture(
         run_command(binary, config), timeout, mem_limit_bytes)
     if timed_out:
@@ -992,9 +1029,11 @@ def lldb_argv(lldb, engine_argv):
     COUPLING: the pass-through list (SIGINT, SIGUSR2) is complete only for today's
     socketless engine. If the engine ever opens a socket the runtime arms SIGPIPE,
     and lldb would stop on it -- pass it through here too, or the run hangs.
-    SIGABRT must stay OUT of the list: the timeout hook (lldb_timeout_abort)
-    relies on lldb stopping on it to print the hung engine's backtrace -- see
-    .known-couplings/lldb-timeout-abort-capture.md."""
+    SIGABRT must stay OUT of the list: the timeout hook (lldb_timeout_stop)
+    relies on lldb stopping on it to print the hung engine's backtrace. Adding it
+    here would hand the abort straight to the engine -- no stop, no backtrace, the
+    inferior just dies, and timeouts silently go back to recording nothing.
+    test_lldb_argv guards the list textually."""
     on_crash = ["--one-line-on-crash", "frame variable",
                 "--one-line-on-crash", "bt all",
                 "--one-line-on-crash", "quit 1"]
@@ -1019,10 +1058,10 @@ def lldb_exit_code(output):
     return int(match.group(1)) if match is not None else None
 
 
-def _lldb_inferior_pid(lldb_pid, ps_lines=None):
-    """The pid of a running lldb's inferior, found by walking lldb's descendants
-    in a `ps` snapshot: the first descendant that is not lldb's own machinery
-    (lldb spawns the target under a helper -- `lldb-server` on Linux,
+def _posix_inferior_pid(lldb_pid, ps_lines=None):
+    """The pid of a running lldb's inferior on POSIX, found by walking lldb's
+    descendants in a `ps` snapshot: the first descendant that is not lldb's own
+    machinery (lldb spawns the target under a helper -- `lldb-server` on Linux,
     `debugserver` on macOS). Returns None when no such descendant exists (the
     inferior already exited, or lldb never launched it) and when the snapshot
     itself fails or stalls -- the caller then falls back to the plain tree
@@ -1032,10 +1071,14 @@ def _lldb_inferior_pid(lldb_pid, ps_lines=None):
     line: lldb buffers its own messages when its stdout is a pipe and flushes
     them only at exit (verified empirically -- stdbuf does not override it), so
     mid-run that line has not reached the capture. The engine's own output is
-    unaffected (the inferior inherits the pipe fd and writes it directly).
-    COUPLING: depends on the helper process names and on `ps -eo pid=,ppid=,comm=`
-    (POSIX; Linux and macOS) -- see
-    .known-couplings/lldb-timeout-abort-capture.md.
+    unaffected (the inferior inherits the pipe fd and writes it directly). That
+    holds on Windows too, so _windows_inferior_pid walks the tree as well.
+
+    The walk depends on lldb's helpers being recognizable by name and on
+    `ps -eo pid=,ppid=,comm=`. An lldb that spawned a differently named helper
+    would have it returned as "the inferior", aborting the wrong process and
+    losing the backtrace -- silently, since the run is a recorded timeout either
+    way. test_lldb_timeout_capture_integration is what catches that.
 
     `ps_lines` is injectable for tests; the default takes a real snapshot."""
     if ps_lines is None:
@@ -1073,35 +1116,270 @@ def _lldb_inferior_pid(lldb_pid, ps_lines=None):
     return None
 
 
-def lldb_timeout_abort(proc):
-    """The lldb timeout hook (passed as _capture's on_timeout by run_under_lldb):
-    get a backtrace out of a hung run by aborting the INFERIOR, not lldb. lldb
-    does not pass SIGABRT through (see lldb_argv), so it stops on the signal;
-    batch mode treats the stop as a crash and runs the same on-crash commands a
-    real crash gets (frame variable, bt all, quit 1), and everything lldb
-    buffered -- backtrace included -- flushes into the captured output as it
-    exits.
+# Win32 constants for the Windows timeout capture (see _windows_timeout_break).
+# CheckRemoteDebuggerPresent needs PROCESS_QUERY_INFORMATION -- the LIMITED
+# variant returns ACCESS_DENIED -- and DebugBreakProcess is documented as needing
+# PROCESS_ALL_ACCESS.
+_TH32CS_SNAPPROCESS = 0x00000002
+_PROCESS_QUERY_INFORMATION = 0x0400
+_PROCESS_ALL_ACCESS = 0x001FFFFF
+_MAX_PATH = 260
+# What CreateToolhelp32Snapshot returns on failure, as a c_void_p restype sees it.
+_INVALID_HANDLE_VALUE = ctypes.c_void_p(-1).value
 
-    `proc` is the lldb process; the inferior is found from its process tree
-    (see _lldb_inferior_pid), so a run wedged before the engine printed anything
-    still gets a backtrace. Returns True when the abort was sent -- the caller
-    then grants the grace wait -- and False when it can't be (not POSIX: Windows
-    has no SIGABRT to send, its equivalent is unverified and deferred; no
-    inferior found; the inferior already gone). False means the caller falls
-    back to the plain tree kill: a timeout is never turned into a second,
-    murkier failure."""
-    if os.name != "posix":
+
+class _PROCESSENTRY32(ctypes.Structure):
+    """Toolhelp32's process record. Spelled in plain ctypes types rather than
+    ctypes.wintypes (DWORD -> c_ulong, LONG -> c_long): wintypes cannot be
+    imported on POSIX, and this module is imported on every platform. Only the
+    two pid fields are read; the rest exist to size the struct correctly."""
+
+    _fields_ = [("dwSize", ctypes.c_ulong),
+                ("cntUsage", ctypes.c_ulong),
+                ("th32ProcessID", ctypes.c_ulong),
+                ("th32DefaultHeapID", ctypes.POINTER(ctypes.c_ulong)),
+                ("th32ModuleID", ctypes.c_ulong),
+                ("cntThreads", ctypes.c_ulong),
+                ("th32ParentProcessID", ctypes.c_ulong),
+                ("pcPriClassBase", ctypes.c_long),
+                ("dwFlags", ctypes.c_ulong),
+                ("szExeFile", ctypes.c_char * _MAX_PATH)]
+
+
+def _windows_kernel32():
+    """kernel32 with the prototypes this module calls, Windows-only (WinDLL does
+    not exist on POSIX, so this is never called there).
+
+    The argtypes/restype are load-bearing, not decoration: ctypes defaults a
+    function's return and arguments to C `int`, which TRUNCATES a 64-bit HANDLE.
+    Passing a truncated handle to CheckRemoteDebuggerPresent fails with
+    ACCESS_DENIED, which reads exactly like a permissions problem rather than the
+    marshalling bug it is."""
+    handle_t = ctypes.c_void_p
+    kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+    kernel32.CreateToolhelp32Snapshot.restype = handle_t
+    kernel32.CreateToolhelp32Snapshot.argtypes = [ctypes.c_ulong, ctypes.c_ulong]
+    kernel32.Process32First.argtypes = [handle_t,
+                                        ctypes.POINTER(_PROCESSENTRY32)]
+    kernel32.Process32Next.argtypes = [handle_t, ctypes.POINTER(_PROCESSENTRY32)]
+    kernel32.OpenProcess.restype = handle_t
+    kernel32.OpenProcess.argtypes = [ctypes.c_ulong, ctypes.c_int, ctypes.c_ulong]
+    kernel32.CheckRemoteDebuggerPresent.argtypes = [handle_t,
+                                                    ctypes.POINTER(ctypes.c_int)]
+    kernel32.DebugBreakProcess.argtypes = [handle_t]
+    kernel32.CloseHandle.argtypes = [handle_t]
+    return kernel32
+
+
+def _windows_process_rows():
+    """Every live process as (pid, ppid), from a Toolhelp32 snapshot. None if the
+    snapshot fails -- the caller then falls back to the plain tree kill. Windows
+    has no `ps`, and shelling out to PowerShell inside a hang handler would be one
+    more thing to hang.
+
+    CreateToolhelp32Snapshot signals failure with INVALID_HANDLE_VALUE (-1), NOT
+    with NULL, so a bare truthiness check would take -1 for a live handle and
+    return an empty snapshot instead of the documented None."""
+    try:
+        kernel32 = _windows_kernel32()
+        snapshot = kernel32.CreateToolhelp32Snapshot(_TH32CS_SNAPPROCESS, 0)
+    except (OSError, AttributeError):
+        return None
+    if (not snapshot) or (snapshot == _INVALID_HANDLE_VALUE):
+        return None
+    entry = _PROCESSENTRY32()
+    entry.dwSize = ctypes.sizeof(_PROCESSENTRY32)
+    rows = []
+    try:
+        found = kernel32.Process32First(snapshot, ctypes.byref(entry))
+        while found:
+            rows.append((entry.th32ProcessID, entry.th32ParentProcessID))
+            found = kernel32.Process32Next(snapshot, ctypes.byref(entry))
+    finally:
+        kernel32.CloseHandle(snapshot)
+    return rows
+
+
+def _windows_handle_has_debugger(kernel32, handle):
+    """Whether the process `handle` refers to is being debugged. Takes a handle,
+    not a pid, so a caller holding one can ask about the process it already has
+    rather than reopening the pid and reopening the race with it (see
+    _windows_debug_break). False on any failure. `handle` needs
+    PROCESS_QUERY_INFORMATION; PROCESS_ALL_ACCESS subsumes it."""
+    present = ctypes.c_int(0)
+    if not kernel32.CheckRemoteDebuggerPresent(handle, ctypes.byref(present)):
         return False
-    pid = _lldb_inferior_pid(proc.pid)
+    return bool(present.value)
+
+
+def _windows_has_debugger(pid):
+    """Whether `pid` is being debugged. True for exactly lldb's inferior among
+    lldb's descendants (observed: False for the conhost.exe lldb also spawns, for
+    lldb itself, and for the orchestrator). False on any failure -- a process that
+    exited between the snapshot and here is not the inferior we want.
+
+    PROCESS_QUERY_INFORMATION is required: the LIMITED variant returns
+    ACCESS_DENIED, which reads like a permissions problem rather than the wrong
+    access right."""
+    try:
+        kernel32 = _windows_kernel32()
+        handle = kernel32.OpenProcess(_PROCESS_QUERY_INFORMATION, 0, pid)
+    except (OSError, AttributeError):
+        return False
+    if not handle:
+        return False
+    try:
+        return _windows_handle_has_debugger(kernel32, handle)
+    finally:
+        kernel32.CloseHandle(handle)
+
+
+def _windows_inferior_pid(lldb_pid, rows=None, has_debugger=None):
+    """The pid of a running lldb's inferior on Windows: the one descendant of
+    lldb that has a debugger attached. Returns None when there is none (the
+    inferior already exited, or lldb never launched it) and when the process
+    snapshot fails -- the caller then falls back to the plain tree kill.
+
+    Identifying the inferior by "has a debugger attached" rather than by name is
+    deliberate. lldb debugs natively on Windows, so the inferior is a DIRECT child
+    -- but so is a `conhost.exe`, and so is a second `conhost.exe` under the
+    inferior. The POSIX walk's rule (the first descendant that is not lldb's own
+    machinery) would pick whichever the snapshot enumerated first. A debugger
+    check picks the inferior itself, with no name matching to go stale.
+
+    Windows does not keep a parent pid alive with its child, so a recycled pid can
+    make an unrelated process look like lldb's descendant. Reaching one still means
+    breaking only a debugged process (see _windows_debug_break), so the cost is a
+    lost backtrace and someone else's debugger stopping, not a crash. It takes a
+    second debugger on the same host to happen at all, which the stress lanes -- one
+    run at a time, one job per runner -- do not have.
+
+    `rows` and `has_debugger` are injectable for tests (the walk is then pure and
+    runs on any host); the defaults take a real snapshot and ask the real Win32."""
+    if rows is None:
+        rows = _windows_process_rows()
+        if rows is None:
+            return None
+    if has_debugger is None:
+        has_debugger = _windows_has_debugger
+    children = {}
+    for pid, ppid in rows:
+        children.setdefault(ppid, []).append(pid)
+    seen = set()
+    frontier = [lldb_pid]
+    while frontier:
+        deeper = []
+        for parent in frontier:
+            for pid in children.get(parent, []):
+                if pid in seen:
+                    continue
+                seen.add(pid)
+                if has_debugger(pid):
+                    return pid
+                deeper.append(pid)
+        frontier = deeper
+    return None
+
+
+def _windows_debug_break(pid):
+    """Inject a breakpoint into `pid` (DebugBreakProcess creates a remote thread
+    that executes an int3). Its debugger -- lldb -- stops on the resulting
+    exception. False on any failure, so the caller falls back to the plain tree
+    kill.
+
+    The debugger check is repeated HERE, on the same handle the break is issued
+    through. The invariant it buys is: we only ever inject into a process that has
+    a debugger attached. That is what makes the operation safe, because a process
+    with no debugger does not stop on the injected int3 -- it CRASHES -- while one
+    that has a debugger merely stops, for that debugger to handle.
+
+    Re-checking on a handle we hold is what makes the invariant hold at the moment
+    of the break rather than at the moment of the walk. An open process handle pins
+    the pid against reuse, so nothing can be recycled underneath us once OpenProcess
+    has returned. And if the pid was recycled before that, this handle describes the
+    process that took it -- so the re-check speaks about the process we are actually
+    about to break. Looking the pid up a second time instead would reopen the very
+    race this closes."""
+    try:
+        kernel32 = _windows_kernel32()
+        handle = kernel32.OpenProcess(_PROCESS_ALL_ACCESS, 0, pid)
+    except (OSError, AttributeError):
+        return False
+    if not handle:
+        return False
+    try:
+        if not _windows_handle_has_debugger(kernel32, handle):
+            info("timeout: pid %d is no longer a debugged process; not breaking"
+                 % pid)
+            return False
+        return bool(kernel32.DebugBreakProcess(handle))
+    finally:
+        kernel32.CloseHandle(handle)
+
+
+def _posix_timeout_abort(proc):
+    """The POSIX arm of lldb_timeout_stop: SIGABRT the inferior. lldb does not
+    pass SIGABRT through (see lldb_argv), so it stops on the signal."""
+    pid = _posix_inferior_pid(proc.pid)
     if pid is None:
         info("timeout: no lldb inferior found; killing without a backtrace")
         return False
     info("timeout: aborting inferior pid %d so lldb prints its backtrace" % pid)
     try:
         os.kill(pid, signal.SIGABRT)
-    except (ProcessLookupError, PermissionError):
+    except (ProcessLookupError, PermissionError) as reason:
+        info("timeout: could not abort inferior pid %d (%s); killing without a "
+             "backtrace" % (pid, reason.__class__.__name__))
         return False
     return True
+
+
+def _windows_timeout_break(proc):
+    """The Windows arm of lldb_timeout_stop: there is no SIGABRT to send, so
+    inject a breakpoint into the inferior instead. lldb stops on the resulting
+    EXCEPTION_BREAKPOINT (`stop reason = Exception 0x80000003`) and batch mode
+    treats that stop as a crash, exactly as it treats the POSIX SIGABRT stop.
+
+    That lldb stops there at all, and runs its on-crash commands rather than
+    passing the breakpoint through, is observed behavior of the lldb the Windows
+    lanes pin (22.1.4, per Discussion #5007) -- not a documented contract. A bump
+    that changed it would take Windows timeouts back to recording no backtrace;
+    test_lldb_timeout_capture_integration is what catches that."""
+    pid = _windows_inferior_pid(proc.pid)
+    if pid is None:
+        info("timeout: no lldb inferior found; killing without a backtrace")
+        return False
+    info("timeout: breaking into inferior pid %d so lldb prints its backtrace"
+         % pid)
+    if _windows_debug_break(pid):
+        return True
+    info("timeout: could not break into inferior pid %d; killing without a "
+         "backtrace" % pid)
+    return False
+
+
+def lldb_timeout_stop(proc):
+    """The lldb timeout hook (passed as _capture's on_timeout by run_under_lldb):
+    get a backtrace out of a hung run by stopping the INFERIOR, not lldb. lldb
+    stops on the stop we induce; batch mode treats the stop as a crash and runs
+    the same on-crash commands a real crash gets (frame variable, bt all, quit 1),
+    and everything lldb buffered -- backtrace included -- flushes into the captured
+    output as it exits.
+
+    How the inferior is stopped differs by platform (SIGABRT on POSIX, an injected
+    breakpoint on Windows); that it is found from lldb's process tree does not, so
+    a run wedged before the engine printed anything still gets a backtrace.
+
+    Returns True when the inferior was stopped -- the caller then grants the grace
+    wait -- and False when it can't be (no inferior found; the inferior already
+    gone; a platform that is neither POSIX nor Windows). False means the caller
+    falls back to the plain tree kill: a timeout is never turned into a second,
+    murkier failure."""
+    if os.name == "posix":
+        return _posix_timeout_abort(proc)
+    if os.name == "nt":
+        return _windows_timeout_break(proc)
+    return False
 
 
 def run_under_lldb(binary, config, lldb, timeout, mem_limit_bytes,
@@ -1111,7 +1389,7 @@ def run_under_lldb(binary, config, lldb, timeout, mem_limit_bytes,
     parallelism), so an in-the-moment stack is the only crash artifact; the
     systematic mode reproduces from its seed, but its intermittent hangs need
     not (the same seed can pass and hang on the same host), so the in-the-moment
-    stack matters there too. On a watchdog timeout the lldb_timeout_abort hook
+    stack matters there too. On a watchdog timeout the lldb_timeout_stop hook
     stops the inferior so lldb prints the same backtrace a crash gets, and the
     run is still classified a timeout (the short-circuit below runs before the
     crash check). The engine's real exit code comes from lldb's exit-status line
@@ -1123,7 +1401,7 @@ def run_under_lldb(binary, config, lldb, timeout, mem_limit_bytes,
     _capture."""
     timed_out, _lldb_rc, stdout, stderr = _capture(
         lldb_argv(lldb, run_command(binary, config)), timeout, mem_limit_bytes,
-        no_progress_seconds=no_progress_seconds, on_timeout=lldb_timeout_abort)
+        no_progress_seconds=no_progress_seconds, on_timeout=lldb_timeout_stop)
     if timed_out:
         return RunResult("timeout", None, None, stdout, stderr)
     combined = stdout + "\n" + stderr
@@ -1133,6 +1411,14 @@ def run_under_lldb(binary, config, lldb, timeout, mem_limit_bytes,
     # appears only on an actual stop -- the SIGUSR2/SIGINT pass-through never stops
     # -- so its presence is the reliable crash signal. The backtrace is already in
     # stdout/stderr -> the bundle.
+    #
+    # POSIX only, and deliberately so: Windows lldb words a stop as `stop reason =
+    # Exception 0x...` (observed: 0xc0000005 for an access violation), so this
+    # never matches there. A Windows crash falls through to the exit-code check,
+    # where the on-crash `quit 1` means lldb exits before the inferior does and
+    # prints no exit-status line -- so `code` is None and the run is a `fail` with
+    # its backtrace already captured. Only the `signal` diagnostic is coarser
+    # there ("crash" rather than the exception code, which is in the bundle text).
     crash = re.search(r"stop reason = signal (\w+)", combined)
     if crash is not None:
         return RunResult("fail", None, crash.group(1), stdout, stderr)

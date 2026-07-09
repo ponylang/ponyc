@@ -33,19 +33,9 @@ jobs:
         with:
           ref: ${{ github.event.inputs.sha || 'main' }}
       - name: Install Dependencies
-        # lldb (and the mingw-w64 LLVM/clang runtime libraries it imports against)
-        # so each seed can run under lldb and capture a crash backtrace. Pinned per
-        # Discussion #5007 (an unpinned lldb bump crashed/failed to load); installed
-        # via `pacman -U` from explicit URLs so `-Syuu` can't re-introduce a broken
-        # combination. Kept in sync with the generative-normal-windows workflow.
-        run: |
-          function msys() { C:\msys64\usr\bin\bash.exe @('-lc') + @Args }
-          msys ' '
-          msys 'pacman --noconfirm -Syuu'
-          msys 'pacman --noconfirm -Syuu'
-          msys 'pacman --noconfirm -S --needed base-devel'
-          msys 'pacman --noconfirm -U https://repo.msys2.org/mingw/mingw64/mingw-w64-x86_64-llvm-libs-22.1.4-1-any.pkg.tar.zst https://repo.msys2.org/mingw/mingw64/mingw-w64-x86_64-clang-libs-22.1.4-1-any.pkg.tar.zst https://repo.msys2.org/mingw/mingw64/mingw-w64-x86_64-lldb-22.1.4-1-any.pkg.tar.zst https://repo.msys2.org/mingw/mingw64/mingw-w64-x86_64-gcc-libs-16.1.0-2-any.pkg.tar.zst https://repo.msys2.org/mingw/mingw64/mingw-w64-x86_64-expat-2.8.0-1-any.pkg.tar.zst https://repo.msys2.org/mingw/mingw64/mingw-w64-x86_64-mpdecimal-4.0.1-2-any.pkg.tar.zst https://repo.msys2.org/mingw/mingw64/mingw-w64-x86_64-python-3.14.4-2-any.pkg.tar.zst'
-          msys 'pacman --noconfirm -Scc'
+        # lldb, so each seed runs under it and a crash leaves a backtrace in the
+        # bundle. The pinned package set lives in the script.
+        run: .\.ci-scripts\windows-install-deps.ps1
       - name: Restore prebuilt libs
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

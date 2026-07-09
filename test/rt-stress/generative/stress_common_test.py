@@ -653,8 +653,7 @@ def test_lldb_argv():
               "breakpoint set --name main" in joined)
         # SIGABRT must stay OUT of the pass-through list: the timeout hook
         # aborts the inferior and relies on lldb's default stop to print the
-        # backtrace (see lldb_timeout_abort and
-        # .known-couplings/lldb-timeout-abort-capture.md).
+        # backtrace (see lldb_timeout_stop).
         check("lldb_argv (posix): SIGABRT is NOT passed through",
               "process handle SIGABRT" not in joined)
 
@@ -674,34 +673,34 @@ def test_lldb_exit_code():
           is None)
 
 
-def test_lldb_inferior_pid():
+def test_posix_inferior_pid():
     # The Linux tree: lldb -> lldb-server -> inferior. The walk descends through
     # lldb's own machinery and returns the first process that isn't part of it.
     linux_tree = ["  100     1 lldb",
                   "  101   100 lldb-server",
                   "  102   101 generative",
                   "  200     1 unrelated"]
-    check("lldb_inferior_pid: walks through lldb-server to the inferior",
-          common._lldb_inferior_pid(100, linux_tree) == 102)
+    check("posix_inferior_pid: walks through lldb-server to the inferior",
+          common._posix_inferior_pid(100, linux_tree) == 102)
     # The macOS tree: lldb -> debugserver -> inferior, with ps giving comm as a
     # full path.
     mac_tree = ["  100     1 /usr/bin/lldb",
                 "  101   100 /Library/.../debugserver",
                 "  102   101 /private/tmp/generative"]
-    check("lldb_inferior_pid: walks through debugserver (macOS, full paths)",
-          common._lldb_inferior_pid(100, mac_tree) == 102)
+    check("posix_inferior_pid: walks through debugserver (macOS, full paths)",
+          common._posix_inferior_pid(100, mac_tree) == 102)
     # No inferior (it exited, or lldb never launched it) -> None; the timeout
     # hook then falls back to the plain kill.
-    check("lldb_inferior_pid: no inferior -> None",
-          common._lldb_inferior_pid(
+    check("posix_inferior_pid: no inferior -> None",
+          common._posix_inferior_pid(
               100, ["  100     1 lldb", "  101   100 lldb-server"]) is None)
-    check("lldb_inferior_pid: unknown root -> None",
-          common._lldb_inferior_pid(999, linux_tree) is None)
+    check("posix_inferior_pid: unknown root -> None",
+          common._posix_inferior_pid(999, linux_tree) is None)
     # A cyclic snapshot must terminate (the seen set), not loop forever. Real
     # ps output can't cycle, but the walk must not hang the hang-handler if it
     # somehow does.
-    check("lldb_inferior_pid: cyclic snapshot terminates -> None",
-          common._lldb_inferior_pid(
+    check("posix_inferior_pid: cyclic snapshot terminates -> None",
+          common._posix_inferior_pid(
               100, ["  100   101 lldb-server", "  101   100 lldb-server"])
           is None)
     # A failed or stalled ps snapshot degrades to None (the caller then falls
@@ -714,62 +713,303 @@ def test_lldb_inferior_pid():
 
     try:
         common.subprocess.run = ps_gone
-        check("lldb_inferior_pid: ps failure -> None",
-              common._lldb_inferior_pid(100) is None)
+        check("posix_inferior_pid: ps failure -> None",
+              common._posix_inferior_pid(100) is None)
     finally:
         common.subprocess.run = real_run
 
 
-def test_lldb_timeout_abort():
-    if os.name != "posix":
-        print("skip - lldb_timeout_abort unit checks (not POSIX)")
-        return
+def test_windows_inferior_pid():
+    # Every case that supplies `rows` MUST also supply `has_debugger`: left at its
+    # default the walk calls the real Win32, which on POSIX raises inside
+    # _windows_has_debugger's AttributeError guard and so reports "no debugger" for
+    # every process. The case would then pass on Windows and fail here, for a
+    # reason that has nothing to do with what it is testing.
+    #
+    # The Windows tree: lldb debugs natively, so the inferior is a direct child --
+    # but lldb also spawns a conhost.exe, and the inferior gets one of its own. The
+    # walk must pick the process that has a debugger attached, NOT the first
+    # non-lldb child, which is why the conhost is listed first here.
+    windows_tree = [(100, 1), (101, 100), (102, 100), (103, 102), (200, 1)]
+    debugged = {102}
+    check("windows_inferior_pid: picks the debugged child, not the conhost",
+          common._windows_inferior_pid(
+              100, windows_tree, lambda pid: pid in debugged) == 102)
+    # A debugged grandchild is still found: the walk descends past children that
+    # are not the inferior rather than stopping at the first layer.
+    check("windows_inferior_pid: descends past a non-debugged child",
+          common._windows_inferior_pid(
+              100, windows_tree, lambda pid: pid == 103) == 103)
+    # No inferior (it exited, or lldb never launched it) -> None; the timeout hook
+    # then falls back to the plain kill.
+    check("windows_inferior_pid: nothing debugged -> None",
+          common._windows_inferior_pid(
+              100, windows_tree, lambda pid: False) is None)
+    # A debugged process outside lldb's subtree (another debugger's inferior) is
+    # never returned: the walk starts from lldb, it does not scan every process.
+    check("windows_inferior_pid: a debugged process outside the subtree is ignored",
+          common._windows_inferior_pid(
+              100, windows_tree, lambda pid: pid == 200) is None)
+    check("windows_inferior_pid: unknown root -> None",
+          common._windows_inferior_pid(
+              999, windows_tree, lambda pid: pid in debugged) is None)
+    # A cyclic snapshot must terminate (the seen set), not loop forever. Real
+    # Toolhelp32 output can't cycle, but the walk must not hang the hang-handler
+    # if it somehow does.
+    check("windows_inferior_pid: cyclic snapshot terminates -> None",
+          common._windows_inferior_pid(
+              100, [(100, 101), (101, 100)], lambda pid: False) is None)
+    # A failed process snapshot degrades to None (the caller then falls back to the
+    # plain tree kill) instead of crashing the orchestrator from inside its own
+    # hang handler. Patching the snapshot -- rather than passing rows=None, which
+    # means "take a real one" -- is what lets this case run on any host.
+    real_rows = common._windows_process_rows
+    try:
+        common._windows_process_rows = lambda: None
+        check("windows_inferior_pid: snapshot failure -> None",
+              common._windows_inferior_pid(100) is None)
+    finally:
+        common._windows_process_rows = real_rows
+
+
+def test_lldb_timeout_stop():
+    # Every arm patches os.name, so each platform's dispatch is exercised on every
+    # host -- the Windows arm on the Linux CI job, the POSIX arm on the Windows
+    # one. Patching os.name is safe here: lldb_timeout_stop reads it directly, and
+    # nothing else runs concurrently in this suite. (os.kill, signal.SIGABRT,
+    # ProcessLookupError and PermissionError all exist on Windows Python, and the
+    # POSIX arm fakes os.kill anyway, so it never signals anything real.)
+    real_name = os.name
     real_kill = os.kill
-    real_find = common._lldb_inferior_pid
+    real_find = common._posix_inferior_pid
     sent = []
     proc = types.SimpleNamespace(pid=100)
     try:
+        os.name = "posix"
         os.kill = lambda pid, sig: sent.append((pid, sig))
-        common._lldb_inferior_pid = lambda lldb_pid: 4242
-        check("lldb_timeout_abort: aborts the found inferior pid",
-              common.lldb_timeout_abort(proc) is True
+        common._posix_inferior_pid = lambda lldb_pid: 4242
+        check("lldb_timeout_stop (posix): aborts the found inferior pid",
+              common.lldb_timeout_stop(proc) is True
               and sent == [(4242, common.signal.SIGABRT)])
         sent.clear()
-        common._lldb_inferior_pid = lambda lldb_pid: None
-        check("lldb_timeout_abort: no inferior -> False, nothing signaled",
-              common.lldb_timeout_abort(proc) is False and sent == [])
+        common._posix_inferior_pid = lambda lldb_pid: None
+        with _captured_info() as logs:
+            no_inferior = common.lldb_timeout_stop(proc)
+        check("lldb_timeout_stop (posix): no inferior -> False, nothing signaled",
+              no_inferior is False and sent == [])
+        # Says WHY there is no backtrace. The grace-expiry path says something
+        # different (see test_watch_for_progress_timeout_hook); an empty bundle is
+        # only actionable if the log distinguishes them.
+        check("lldb_timeout_stop (posix): no inferior is reported as such",
+              any("no lldb inferior" in line for line in logs.lines))
 
         def gone(pid, sig):
             raise ProcessLookupError()
 
         os.kill = gone
-        common._lldb_inferior_pid = lambda lldb_pid: 4242
-        check("lldb_timeout_abort: inferior already gone -> False",
-              common.lldb_timeout_abort(proc) is False)
+        common._posix_inferior_pid = lambda lldb_pid: 4242
+        with _captured_info() as logs:
+            already_gone = common.lldb_timeout_stop(proc)
+        check("lldb_timeout_stop (posix): inferior already gone -> False",
+              already_gone is False)
+        check("lldb_timeout_stop (posix): a failed abort is reported as such",
+              any("could not abort" in line for line in logs.lines))
 
         def refused(pid, sig):
             raise PermissionError()
 
         os.kill = refused
-        check("lldb_timeout_abort: kill not permitted -> False",
-              common.lldb_timeout_abort(proc) is False)
-    finally:
-        os.kill = real_kill
-        common._lldb_inferior_pid = real_find
-
-    # Non-POSIX: the hook declines up front (Windows has no SIGABRT to send).
-    # Patching os.name is safe here: lldb_timeout_abort reads it directly, and
-    # nothing else runs concurrently in this suite.
-    real_name = os.name
-    walked = []
-    try:
-        common._lldb_inferior_pid = lambda lldb_pid: walked.append(lldb_pid)
-        os.name = "nt"
-        check("lldb_timeout_abort: non-POSIX -> False without walking",
-              common.lldb_timeout_abort(proc) is False and walked == [])
+        check("lldb_timeout_stop (posix): kill not permitted -> False",
+              common.lldb_timeout_stop(proc) is False)
     finally:
         os.name = real_name
-        common._lldb_inferior_pid = real_find
+        os.kill = real_kill
+        common._posix_inferior_pid = real_find
+
+    # Windows: no SIGABRT to send, so the hook injects a breakpoint instead.
+    real_win_find = common._windows_inferior_pid
+    real_break = common._windows_debug_break
+    broke = []
+    try:
+        os.name = "nt"
+        common._windows_debug_break = lambda pid: broke.append(pid) or True
+        common._windows_inferior_pid = lambda lldb_pid: 4242
+        check("lldb_timeout_stop (windows): breaks into the found inferior pid",
+              common.lldb_timeout_stop(proc) is True and broke == [4242])
+        broke.clear()
+        common._windows_inferior_pid = lambda lldb_pid: None
+        check("lldb_timeout_stop (windows): no inferior -> False, nothing broken",
+              common.lldb_timeout_stop(proc) is False and broke == [])
+        common._windows_inferior_pid = lambda lldb_pid: 4242
+        common._windows_debug_break = lambda pid: False
+        with _captured_info() as logs:
+            refused = common.lldb_timeout_stop(proc)
+        check("lldb_timeout_stop (windows): break refused -> False",
+              refused is False)
+        check("lldb_timeout_stop (windows): a refused break is reported as such",
+              any("could not break into" in line for line in logs.lines))
+    finally:
+        os.name = real_name
+        common._windows_inferior_pid = real_win_find
+        common._windows_debug_break = real_break
+
+    # Neither POSIX nor Windows: the hook declines up front, walking nothing. The
+    # caller falls back to the plain tree kill.
+    walked = []
+    try:
+        os.name = "java"
+        common._posix_inferior_pid = lambda lldb_pid: walked.append(lldb_pid)
+        common._windows_inferior_pid = lambda lldb_pid: walked.append(lldb_pid)
+        check("lldb_timeout_stop: unknown platform -> False without walking",
+              common.lldb_timeout_stop(proc) is False and walked == [])
+    finally:
+        os.name = real_name
+        common._posix_inferior_pid = real_find
+        common._windows_inferior_pid = real_win_find
+
+
+class _FakeKernel32:
+    """A stand-in for the real kernel32, so the Win32 wrappers' FAILURE paths can
+    be driven from any host. Their happy path is covered on Windows by the
+    real-lldb integration test; these paths -- a refused snapshot, a refused
+    OpenProcess, a target that stopped being debugged -- never occur there, and a
+    regression in one of them silently costs a backtrace.
+
+    The out-params are filled through `ctypes.byref(x)._obj`, which is the object
+    the reference was taken of, so the wrappers see real writes."""
+
+    def __init__(self, snapshot=1, rows=(), open_handle=7, debugger=True,
+                 check_ok=True, break_ok=True):
+        self.snapshot = snapshot
+        self.rows = list(rows)
+        self.open_handle = open_handle
+        self.debugger = debugger
+        self.check_ok = check_ok
+        self.break_ok = break_ok
+        self.opened = []
+        self.broke = []
+        self.closed = []
+        self._cursor = 0
+
+    def CreateToolhelp32Snapshot(self, flags, pid):
+        return self.snapshot
+
+    def _fill(self, ref):
+        if self._cursor >= len(self.rows):
+            return 0
+        pid, ppid = self.rows[self._cursor]
+        self._cursor += 1
+        ref._obj.th32ProcessID = pid
+        ref._obj.th32ParentProcessID = ppid
+        return 1
+
+    def Process32First(self, snapshot, ref):
+        self._cursor = 0
+        return self._fill(ref)
+
+    def Process32Next(self, snapshot, ref):
+        return self._fill(ref)
+
+    def OpenProcess(self, access, inherit, pid):
+        self.opened.append((access, pid))
+        return self.open_handle
+
+    def CheckRemoteDebuggerPresent(self, handle, ref):
+        if not self.check_ok:
+            return 0
+        ref._obj.value = 1 if self.debugger else 0
+        return 1
+
+    def DebugBreakProcess(self, handle):
+        self.broke.append(handle)
+        return 1 if self.break_ok else 0
+
+    def CloseHandle(self, handle):
+        self.closed.append(handle)
+
+
+def _with_kernel32(fake, body):
+    real = common._windows_kernel32
+    try:
+        common._windows_kernel32 = lambda: fake
+        return body()
+    finally:
+        common._windows_kernel32 = real
+
+
+def test_windows_win32_wrappers():
+    # A refused snapshot degrades to None, NOT to an empty process list: an empty
+    # list would say "lldb has no descendants" and the caller would kill without a
+    # backtrace for the wrong reason. CreateToolhelp32Snapshot signals failure with
+    # INVALID_HANDLE_VALUE, not NULL, so both are checked.
+    fake = _FakeKernel32(snapshot=common._INVALID_HANDLE_VALUE)
+    check("windows_process_rows: INVALID_HANDLE_VALUE snapshot -> None",
+          _with_kernel32(fake, common._windows_process_rows) is None)
+    fake = _FakeKernel32(snapshot=0)
+    check("windows_process_rows: NULL snapshot -> None",
+          _with_kernel32(fake, common._windows_process_rows) is None)
+    fake = _FakeKernel32(snapshot=5, rows=[(100, 1), (101, 100)])
+    check("windows_process_rows: walks the snapshot and closes it",
+          _with_kernel32(fake, common._windows_process_rows)
+          == [(100, 1), (101, 100)] and fake.closed == [5])
+
+    # A process that exited between the snapshot and the query is not the inferior.
+    fake = _FakeKernel32(open_handle=0)
+    check("windows_has_debugger: OpenProcess refused -> False",
+          _with_kernel32(fake, lambda: common._windows_has_debugger(4242))
+          is False)
+    fake = _FakeKernel32(check_ok=False)
+    check("windows_has_debugger: CheckRemoteDebuggerPresent failed -> False",
+          _with_kernel32(fake, lambda: common._windows_has_debugger(4242))
+          is False and fake.closed == [7])
+    fake = _FakeKernel32(debugger=False)
+    check("windows_has_debugger: no debugger attached -> False",
+          _with_kernel32(fake, lambda: common._windows_has_debugger(4242))
+          is False)
+    fake = _FakeKernel32(debugger=True)
+    check("windows_has_debugger: debugger attached -> True, handle closed",
+          _with_kernel32(fake, lambda: common._windows_has_debugger(4242))
+          is True and fake.closed == [7]
+          and fake.opened == [(common._PROCESS_QUERY_INFORMATION, 4242)])
+
+    # The load-bearing guard: an int3 injected into a process with NO debugger
+    # attached crashes it. _windows_debug_break must re-check on the handle it
+    # holds and refuse, or a recycled pid means we crash a bystander.
+    fake = _FakeKernel32(debugger=False)
+    with _captured_info() as logs:
+        refused = _with_kernel32(fake, lambda: common._windows_debug_break(4242))
+    check("windows_debug_break: target not debugged -> False, nothing injected",
+          refused is False and fake.broke == [] and fake.closed == [7])
+    check("windows_debug_break: refusing to break an undebugged pid is reported",
+          any("no longer a debugged process" in line for line in logs.lines))
+    fake = _FakeKernel32(debugger=True)
+    check("windows_debug_break: debugged target -> injects, True, handle closed",
+          _with_kernel32(fake, lambda: common._windows_debug_break(4242))
+          is True and fake.broke == [7] and fake.closed == [7]
+          and fake.opened == [(common._PROCESS_ALL_ACCESS, 4242)])
+    fake = _FakeKernel32(open_handle=0)
+    check("windows_debug_break: OpenProcess refused -> False",
+          _with_kernel32(fake, lambda: common._windows_debug_break(4242))
+          is False and fake.broke == [])
+    fake = _FakeKernel32(debugger=True, break_ok=False)
+    check("windows_debug_break: DebugBreakProcess refused -> False",
+          _with_kernel32(fake, lambda: common._windows_debug_break(4242))
+          is False)
+
+    # On POSIX the real _windows_kernel32 raises (no ctypes.WinDLL). Every wrapper
+    # must degrade rather than let that escape into the hang handler.
+    def raises():
+        raise AttributeError("no WinDLL on this platform")
+
+    real = common._windows_kernel32
+    try:
+        common._windows_kernel32 = raises
+        check("windows wrappers: a missing WinDLL degrades, never raises",
+              common._windows_process_rows() is None
+              and common._windows_has_debugger(1) is False
+              and common._windows_debug_break(1) is False)
+    finally:
+        common._windows_kernel32 = real
 
 
 def _fake_capture(timed_out, returncode, stdout, stderr=""):
@@ -820,6 +1060,20 @@ def test_run_under_lldb():
         r = common.run_under_lldb("/bin/x", _MIN_CONFIG, "lldb", 60, None)
         check("run_under_lldb: crash -> fail with signal name",
               r.outcome == "fail" and r.signal == "SIGSEGV")
+        # A Windows crash words its stop as an Exception, not a signal, so the
+        # signal parse never fires. It must still land on `fail` -- via the absent
+        # exit-status line -- with its backtrace already in the captured output.
+        # Real text, from an access violation under the pinned lldb.
+        common._capture = _fake_capture(
+            False, 1, "(lldb) run\n* thread #1, stop reason = Exception "
+            "0xc0000005 encountered at address 0x7ff600f97260: Access violation "
+            "writing location 0x00000000\n"
+            "    frame #0: 0x00007ff600f97260 crasher.exe`main at crasher.c:2\n"
+            "(lldb) quit 1\n")
+        r = common.run_under_lldb("/bin/x", _MIN_CONFIG, "lldb", 60, None)
+        check("run_under_lldb: a Windows crash (Exception, not signal) -> fail",
+              r.outcome == "fail" and r.signal == "crash"
+              and "frame #" in r.stdout)
         # A crash whose dump ALSO contains an exit-status string must still be a
         # crash, not a pass (the signal check runs first).
         common._capture = _fake_capture(
@@ -858,8 +1112,8 @@ def test_run_under_lldb():
 
         common._capture = recording_capture
         common.run_under_lldb("/bin/x", _MIN_CONFIG, "lldb", 60, None)
-        check("run_under_lldb: arms lldb_timeout_abort as the timeout hook",
-              seen_kwargs[0].get("on_timeout") is common.lldb_timeout_abort)
+        check("run_under_lldb: arms lldb_timeout_stop as the timeout hook",
+              seen_kwargs[0].get("on_timeout") is common.lldb_timeout_stop)
     finally:
         common._capture = real
 
@@ -891,6 +1145,23 @@ class _FakeStream:
 
     def close(self):
         pass
+
+
+class _captured_info:
+    """Collect what the code under test logs through common.info, so the messages
+    that tell two otherwise-identical failure paths apart can be asserted."""
+
+    def __init__(self):
+        self.lines = []
+
+    def __enter__(self):
+        self._real = common.info
+        common.info = self.lines.append
+        return self
+
+    def __exit__(self, *exc):
+        common.info = self._real
+        return False
 
 
 class _FakeProc:
@@ -1022,14 +1293,41 @@ def test_watch_for_progress_timeout_hook():
               timed_out2 is True and rc2 is None and len(killed) == 1)
 
         # Hook returns True but the child never exits: tree-killed when the
-        # grace expires.
+        # grace expires. The kill discards everything lldb buffered, so the bundle
+        # carries no backtrace -- indistinguishable, from the bundle alone, from a
+        # run where no inferior was found. The log is what tells them apart (they
+        # want different fixes), so assert it is emitted.
         clock3 = [0.0]
         proc3 = _FakeProc([], [], alive_polls=1000)
-        timed_out3, _rc3, _o3, _e3 = common._watch_for_progress(
-            proc3, 180, None, poll=lambda: clock3[0],
-            sleep=clocked(clock3, 1000.0), on_timeout=lambda p: True)
+        logs3 = _captured_info()
+        with logs3:
+            timed_out3, _rc3, _o3, _e3 = common._watch_for_progress(
+                proc3, 180, None, poll=lambda: clock3[0],
+                sleep=clocked(clock3, 1000.0), on_timeout=lambda p: True)
         check("timeout hook: grace expiry falls back to the tree kill",
               timed_out3 is True and len(killed) == 2)
+        check("timeout hook: grace expiry says so, so an empty bundle is "
+              "attributable",
+              any("grace" in line for line in logs3.lines))
+
+        # A hook that RAISES must not escape: the run is already a failure, and an
+        # exception here would abort the soak and orphan the debugger and the hung
+        # engine instead of recording the timeout we already know about.
+        clock5 = [0.0]
+        proc5 = _FakeProc([], [], alive_polls=1000)
+        logs5 = _captured_info()
+
+        def explode(_p):
+            raise RuntimeError("process table went away")
+
+        with logs5:
+            timed_out5, rc5, _o5, _e5 = common._watch_for_progress(
+                proc5, 180, None, poll=lambda: clock5[0],
+                sleep=clocked(clock5, 1000.0), on_timeout=explode)
+        check("timeout hook: a raising hook degrades to the tree kill",
+              timed_out5 is True and rc5 is None and len(killed) == 3)
+        check("timeout hook: a raising hook is reported, not swallowed",
+              any("RuntimeError" in line for line in logs5.lines))
 
         # The hook also fires in the normal mode's silence-triggered watchdog
         # (no_progress_seconds set, total timeout far away) -- the production
@@ -1045,7 +1343,7 @@ def test_watch_for_progress_timeout_hook():
         # not the 6000 backstop -- without it a broken silence check would
         # still pass via the backstop firing the same hook later.
         check("timeout hook: fires on a silence-triggered (no-progress) kill",
-              timed_out4 is True and len(calls4) == 1 and len(killed) == 3
+              timed_out4 is True and len(calls4) == 1 and len(killed) == 4
               and clock4[0] < 6000)
     finally:
         common._kill_process_tree = real_kill
@@ -1054,8 +1352,9 @@ def test_watch_for_progress_timeout_hook():
 def test_capture_direct_flat_timeout():
     # The direct (no-lldb) path against a real subprocess: a flat timeout must
     # kill the child and report timed_out with no returncode. This is the
-    # production path for the systematic --no-lldb lane, which lost its
-    # dedicated communicate() branch in the reader-thread unification.
+    # production path for --no-lldb (hosts without lldb; no CI lane passes it),
+    # which lost its dedicated communicate() branch in the reader-thread
+    # unification.
     if os.name != "posix":
         print("skip - direct flat-timeout (not POSIX)")
         return
@@ -1069,9 +1368,12 @@ def test_lldb_timeout_capture_integration():
     # Real lldb, end to end: a hung inferior plus the timeout hook must produce
     # a thread backtrace in the captured output, with lldb exiting on its own
     # inside the grace (no tree kill). This is the standing guard for what fakes
-    # cannot cover: the lldb-server/debugserver process-tree shape the inferior
-    # walk depends on, lldb's default stop on an externally-sent SIGABRT, the
-    # on-crash command chain, and lldb's flush-of-buffered-output at exit.
+    # cannot cover: the process-tree shape the inferior walk depends on
+    # (lldb-server/debugserver on POSIX, a direct child alongside a conhost.exe on
+    # Windows), lldb's default stop on the stop the hook induces, the on-crash
+    # command chain, and lldb's flush-of-buffered-output at exit. On Windows it is
+    # also the ONLY test that runs the real ctypes wrappers
+    # (_windows_process_rows / _windows_has_debugger / _windows_debug_break).
     # (The sleeper's `main` does not resolve, so lldb_argv's signal-handle setup
     # is inert here -- the pass-through list is guarded textually in
     # test_lldb_argv, and its application to the real engine is proven by the
@@ -1082,13 +1384,27 @@ def test_lldb_timeout_capture_integration():
     # this deterministic on a slow runner. The no-tree-kill assertion rides the
     # 30s grace: lldb only has to backtrace one sleeping thread and quit, far
     # inside that margin even on a loaded machine.
-    if os.name != "posix":
-        print("skip - lldb integration (not POSIX)")
+    #
+    # The stop marker differs by platform because the mechanism does: POSIX sends
+    # SIGABRT, Windows injects a breakpoint (EXCEPTION_BREAKPOINT = 0x80000003).
+    if os.name == "posix":
+        stop_marker = "stop reason = signal SIGABRT"
+    elif os.name == "nt":
+        stop_marker = "stop reason = Exception 0x80000003"
+    else:
+        print("skip - lldb integration (neither POSIX nor Windows)")
         return
-    lldb = shutil.which("lldb")
+    # PONY_STRESS_LLDB names the lldb to use, the way the stress orchestrators
+    # take --lldb. Windows needs it: the GitHub runner image ships an lldb at
+    # C:\Program Files\LLVM\bin that exits immediately instead of running the
+    # target, so `which` finds an lldb that cannot drive this test. Unset, this
+    # falls back to PATH, which is what the Linux job wants.
+    lldb = os.environ.get("PONY_STRESS_LLDB") or shutil.which("lldb")
     if lldb is None:
-        print("skip - lldb integration (no lldb on PATH; CI installs it)")
+        print("skip - lldb integration (no lldb on PATH and no PONY_STRESS_LLDB; "
+              "CI provides one)")
         return
+    print("note: lldb integration is using %s" % lldb)
     sleeper = [sys.executable, "-c", "import time; time.sleep(600)"]
     real_kill = common._kill_process_tree
     tree_kills = []
@@ -1101,13 +1417,12 @@ def test_lldb_timeout_capture_integration():
     try:
         timed_out, rc, out, err = common._capture(
             common.lldb_argv(lldb, sleeper), 60, None,
-            on_timeout=common.lldb_timeout_abort)
+            on_timeout=common.lldb_timeout_stop)
     finally:
         common._kill_process_tree = real_kill
     combined = out + "\n" + err
     check("lldb integration: the run timed out", timed_out is True)
-    check("lldb integration: lldb stopped on the abort",
-          "stop reason = signal SIGABRT" in combined)
+    check("lldb integration: lldb stopped the inferior", stop_marker in combined)
     check("lldb integration: a thread backtrace was captured",
           "frame #" in combined)
     check("lldb integration: lldb exited within the grace (no tree kill)",
@@ -1274,8 +1589,10 @@ def main():
     test_run_command()
     test_lldb_argv()
     test_lldb_exit_code()
-    test_lldb_inferior_pid()
-    test_lldb_timeout_abort()
+    test_posix_inferior_pid()
+    test_windows_inferior_pid()
+    test_windows_win32_wrappers()
+    test_lldb_timeout_stop()
     test_run_once()
     test_run_under_lldb()
     test_watchdog_should_kill()

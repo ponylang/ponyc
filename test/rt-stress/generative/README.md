@@ -154,10 +154,8 @@ preset uses clang regardless of your default compiler.
 Each seed runs under `lldb` (on `PATH` by default; `--lldb PATH` for a custom
 location), so a crash or watchdog timeout leaves a backtrace in the failure
 bundle. `--no-lldb` runs the engine directly with no backtrace capture — for
-hosts without lldb (Windows CI passes it; the Windows timeout capture is
-unverified and deferred, see
-[#5578](https://github.com/ponylang/ponyc/issues/5578)). Running under lldb
-does not change the interleaving — the determinism oracle holds under it.
+hosts without lldb; no CI lane passes it. Running under lldb does not change the
+interleaving — the determinism oracle holds under it, on every TIER1 platform.
 
 ### Normal mode
 
@@ -248,9 +246,14 @@ non-deterministic, so a replay won't necessarily reproduce a failure).
 - **Crash / `pony_assert`** — debug build, asserts on; a failed assert prints its
   own backtrace to the captured output, and both modes run each seed under lldb
   so even a raw crash with no assert is captured with a `bt all` in the bundle.
-  On a watchdog timeout the orchestrator aborts the hung engine under lldb
-  first, so a hang is captured with the same all-thread backtrace a crash gets
-  (POSIX lanes; Windows systematic runs `--no-lldb` and records outcome only).
+  On a watchdog timeout the orchestrator stops the hung engine under lldb first
+  — SIGABRT on POSIX, an injected breakpoint on Windows — so a hang is captured
+  with the same all-thread backtrace a crash gets, on every lane. Reading a
+  Windows timeout bundle: the stopped thread is the one the breakpoint was
+  injected into (`ntdll!DbgBreakPoint`), not a thread that was doing anything.
+  It is an artifact of the capture. The hung threads are the other entries in
+  `bt all`, and `frame variable` describes the injected thread, so it says
+  nothing about the engine.
 - **Liveness** — the orchestrator's watchdog; a hang is a failure (including a
   `cyclic` chain that never completes, or a runtime that fails to shut down
   cleanly once the engine quiesces). In **normal** mode the watchdog fires on **no
@@ -278,7 +281,9 @@ bytes.)
 
 ## Tests
 
-Three self-contained test files (no pytest), run in CI via `lint-python.yml`:
+Three self-contained test files (no pytest), run in CI via `lint-python.yml` — on
+Linux and on Windows, since the timeout capture's real-lldb integration test has a
+distinct mechanism on each and would otherwise go unexercised on one of them:
 
 - `stress_common_test.py` — the shared pure pieces (seed derivation, the workload
   draws including `draw_workload`, output parsing, command building).

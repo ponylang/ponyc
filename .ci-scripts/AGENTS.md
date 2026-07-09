@@ -62,3 +62,9 @@ when you want to exercise them).
   boot and set up the VM, and `{freebsd,openbsd,dragonfly}-libs-cache.bash
   <operation>` restores or builds-and-pushes the libs cache over ssh. See the GHCR
   libs cache coupling in `.known-couplings/ghcr-libs-cache.md`.
+- `windows-install-deps.ps1` installs the pinned msys2 lldb and the libraries it
+  loads against. It holds the only copy of that pin, and every Windows job
+  needing lldb calls it. Don't inline the `pacman` block into a workflow: the
+  per-PR job that checks lldb's behavior has to install the same lldb the
+  scheduled lanes do, or it guards a version nothing runs. The script's header
+  carries the pin history.

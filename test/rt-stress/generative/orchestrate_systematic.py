@@ -27,9 +27,9 @@ Runs go through lldb (like the normal mode) so a crash leaves a backtrace in the
 bundle and a watchdog timeout captures an all-thread backtrace of the hung engine
 before the kill -- an intermittent hang need not reproduce from its seed, so the
 in-the-moment stack is the artifact that matters. lldb does not change the
-interleaving (the determinism oracle holds under it). `--no-lldb` runs the engine
-directly instead -- for hosts without lldb; Windows CI passes it, its timeout
-capture being unverified and deferred.
+interleaving (the determinism oracle holds under it, on every TIER1 platform).
+`--no-lldb` runs the engine directly instead -- for hosts without lldb. No CI lane
+passes it.
 
 The mode-agnostic, cross-platform mechanism lives in stress_common.py; only the
 systematic-specific config draw, the determinism double-run, and the guard live
@@ -178,7 +178,7 @@ def main(argv):
                           "in the failure bundle")
     debugger.add_argument("--no-lldb", action="store_true",
                           help="run the engine directly, with no backtrace "
-                          "capture (for hosts without lldb; Windows CI)")
+                          "capture (for hosts without lldb)")
     parser.add_argument("--out", help="output dir for the binary and bundles")
     parser.add_argument("--timeout", type=int,
                         default=common.DEFAULT_TIMEOUT_SECONDS,
