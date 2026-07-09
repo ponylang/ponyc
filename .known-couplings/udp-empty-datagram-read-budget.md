@@ -15,9 +15,17 @@ other actors on its scheduler thread. Simplifying `count.max(1)` back to
 `count`, or changing the runtime so recvfrom no longer returns a zero-count
 `OK`, reintroduces the starvation.
 
-No automated test guards this. The failure is a scheduler-fairness property,
+Only the runtime end is guarded by a test.
+`SocketRecvTest.RecvFromOnEmptyDatagramReturnsOk` in
+`test/libponyrt/lang/socket.cc` fails if `pony_os_recvfrom` stops returning a
+zero-count `OK` for an empty datagram.
+
+Nothing guards the stdlib end. That failure is a scheduler-fairness property,
 not an output: reproducing it needs thousands of empty datagrams resident in
 the socket buffer and arriving faster than they drain, and a "blast N datagrams
 and assert the test finishes" check passes with or without the guard. The
-guard is verified by reasoning, so this file is the record. If a test seam is
-ever added over the read accumulator, cover it there.
+`count.max(1)` charge is verified by reasoning, so this file is the record. If a
+test seam is ever added over the read accumulator, cover it there.
+
+Run: `ctest --preset debug -R libponyrt.tests` (catches a regression on the
+runtime end only)
