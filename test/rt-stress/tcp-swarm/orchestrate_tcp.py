@@ -41,8 +41,7 @@ REPO_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(SOURCE_DIR)))
 # this long, the run is stuck (a stalled connection, a teardown that never finishes)
 # and is killed as a failure. The engine emits a heartbeat on a fixed wall-clock
 # timer, far more often than this, so a healthy-but-slow run always shows `done`
-# advancing inside the window; only a genuine stall stops it. Coupling:
-# .known-couplings/tcp-swarm-heartbeat-watchdog.md.
+# advancing inside the window; only a genuine stall stops it.
 DEFAULT_NO_PROGRESS_SECONDS = 300
 # The backstop: a run still advancing at this point is stopped anyway so one seed
 # can't run unbounded, but that is NOT a failure (outcome "incomplete") -- the run
@@ -61,7 +60,7 @@ DEFAULT_TIMEOUT_SECONDS = 6000
 # did not keep the run under the cap. Virtual is nearly free (RSS is the scarce resource and
 # the runner has 16 GiB), so 14 clears the measured ~8.4 GiB worst case with margin at no RAM
 # cost; a genuine runaway still trips it (virtual >= RSS) and the runner's own OOM-killer
-# backstops. See the memory budget block below and .known-couplings/tcp-swarm-memory-budget.md.
+# backstops. See the memory budget block below.
 DEFAULT_MEM_LIMIT_MB = 14336
 
 
@@ -99,7 +98,7 @@ CONCURRENCY = [8, 16, 32, 64, 128, 256]
 # COUPLING: the max per-connection work -- max `messages` (64) below * max
 # `payload-size` (65536) ~ 4 MiB, with concurrency >= 8 -- must keep the slowest single
 # connection completing well within the orchestrator's no-progress window, or a healthy
-# run reads as a hang. See .known-couplings/tcp-swarm-heartbeat-watchdog.md.
+# run reads as a hang.
 MESSAGE_BUCKETS = {"small": (1, 2), "medium": (3, 16), "large": (17, 64)}
 CONNECTION_BUCKETS = {"small": (100, 2000), "medium": (2001, 20000),
                       "large": (20001, 100000)}
@@ -178,8 +177,7 @@ def draw_bucketed(rng, buckets):
 # this model) -- and raised the cap to carry the slack instead. Re-fit only if you need the
 # budget to be a tight bound.
 # COUPLING: the constants track the engine's per-object and per-read-buffer memory --
-# re-measure if make_chunks, the read buffer, or TCPConnection buffering changes. See
-# .known-couplings/tcp-swarm-memory-budget.md.
+# re-measure if make_chunks, the read buffer, or TCPConnection buffering changes.
 MEM_BUDGET_BYTES = 2 * 1024 * 1024 * 1024   # 2 GiB workload, well under the 14 GiB cap
 MEM_OBJ_BYTES = 2048        # per pending writev buffer object (margin over ~832 B virt)
 MEM_RB_FACTOR = 4           # live read buffers: client + server, plus headroom

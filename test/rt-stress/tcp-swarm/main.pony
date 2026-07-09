@@ -196,8 +196,7 @@ primitive _Keystream
     // orchestrator's memory budget models peak memory as
     // OBJ_BYTES * concurrency * messages * writev_chunks off exactly this count
     // (est_peak_bytes in orchestrate_tcp.py) -- change how many objects this creates
-    // and the budget can let an OOM through. See
-    // .known-couplings/tcp-swarm-memory-budget.md.
+    // and the budget can let an OOM through.
     recover val
       let out = Array[ByteSeq]
       let n = if nchunks == 0 then 1 else nchunks end
@@ -258,8 +257,7 @@ actor Spawner
       // watchdog decides "hang" from whether `done` advances between heartbeats,
       // so liveness must be signalled on a fixed cadence a slow run can always
       // meet, independent of how fast connections complete. COUPLING: the interval
-      // must stay well under the orchestrator's --no-progress-seconds window --
-      // see .known-couplings/tcp-swarm-heartbeat-watchdog.md.
+      // must stay well under the orchestrator's --no-progress-seconds window.
       let interval: U64 = 5_000_000_000  // 5s
       _timers(Timer(_HeartbeatTimer(this), interval, interval))
       _refill()

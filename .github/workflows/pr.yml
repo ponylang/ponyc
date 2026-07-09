@@ -149,7 +149,7 @@ jobs:
           LIBS_IMAGE: ghcr.io/ponylang/ponyc-ci-ubuntu26.04-builder:20260425
           LIBS_TAG: ${{ hashFiles('lib/CMakePresets.json', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/build-libs.cmake', 'lib/llvm/patches/*') }}
           # Referenced UNQUOTED below so an empty value (fork) vanishes instead of
-          # passing as an empty arg; see the branch-cache coupling in .known-couplings/branch-libs-cache.md.
+          # passing as an empty arg (argparse would see it and exit 2).
           LIBS_BRANCH_CACHE: ${{ github.event.pull_request.head.repo.full_name == github.repository && '--branch-cache' || '' }}
         run: python3 .ci-scripts/libs-cache/pr_libs_cache.py $LIBS_BRANCH_CACHE --image "$LIBS_IMAGE" --tag "$LIBS_TAG" -- cmake -DJOBS=4 -P lib/build-libs.cmake
       - name: Build Debug Runtime
@@ -187,7 +187,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           LIBS_TAG: ${{ hashFiles('lib/CMakePresets.json', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/build-libs.cmake', 'lib/llvm/patches/*') }}
           # Referenced UNQUOTED below so an empty value (fork) vanishes instead of
-          # passing as an empty arg; see the branch-cache coupling in .known-couplings/branch-libs-cache.md.
+          # passing as an empty arg (argparse would see it and exit 2).
           LIBS_BRANCH_CACHE: ${{ github.event.pull_request.head.repo.full_name == github.repository && '--branch-cache' || '' }}
         run: python3 .ci-scripts/libs-cache/pr_libs_cache.py $LIBS_BRANCH_CACHE --platform arm64-macos-26 --tag "$LIBS_TAG" -- cmake -DJOBS=3 -P lib/build-libs.cmake
       - name: Build Debug Runtime
@@ -225,7 +225,7 @@ jobs:
           LIBS_TAG: ${{ hashFiles('lib/CMakePresets.json', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/build-libs.cmake', 'lib/llvm/patches/*') }}
           # PowerShell (unlike bash) passes an empty $env: var as a stray '' argument,
           # which argparse rejects; build the flag as an array so a fork's empty value
-          # contributes nothing. See the branch-cache coupling in .known-couplings/branch-libs-cache.md.
+          # contributes nothing.
           LIBS_BRANCH_CACHE: ${{ github.event.pull_request.head.repo.full_name == github.repository && '--branch-cache' || '' }}
         run: |
           $bc = if ($env:LIBS_BRANCH_CACHE) { @($env:LIBS_BRANCH_CACHE) } else { @() }
@@ -267,7 +267,7 @@ jobs:
           LIBS_IMAGE: ghcr.io/ponylang/ponyc-ci-ubuntu26.04-builder:20260425
           LIBS_TAG: ${{ hashFiles('lib/CMakePresets.json', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/build-libs.cmake', 'lib/llvm/patches/*') }}
           # Referenced UNQUOTED below so an empty value (fork) vanishes instead of
-          # passing as an empty arg; see the branch-cache coupling in .known-couplings/branch-libs-cache.md.
+          # passing as an empty arg (argparse would see it and exit 2).
           LIBS_BRANCH_CACHE: ${{ github.event.pull_request.head.repo.full_name == github.repository && '--branch-cache' || '' }}
         run: python3 .ci-scripts/libs-cache/pr_libs_cache.py $LIBS_BRANCH_CACHE --image "$LIBS_IMAGE" --tag "$LIBS_TAG" -- cmake -DJOBS=4 -P lib/build-libs.cmake
       - name: Build
@@ -294,7 +294,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           LIBS_TAG: ${{ hashFiles('lib/CMakePresets.json', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/build-libs.cmake', 'lib/llvm/patches/*') }}
           # Referenced UNQUOTED below so an empty value (fork) vanishes instead of
-          # passing as an empty arg; see the branch-cache coupling in .known-couplings/branch-libs-cache.md.
+          # passing as an empty arg (argparse would see it and exit 2).
           LIBS_BRANCH_CACHE: ${{ github.event.pull_request.head.repo.full_name == github.repository && '--branch-cache' || '' }}
         run: python3 .ci-scripts/libs-cache/pr_libs_cache.py $LIBS_BRANCH_CACHE --platform arm64-macos-26 --tag "$LIBS_TAG" -- cmake -DJOBS=3 -P lib/build-libs.cmake
       - name: Build
@@ -325,7 +325,7 @@ jobs:
           LIBS_TAG: ${{ hashFiles('lib/CMakePresets.json', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/build-libs.cmake', 'lib/llvm/patches/*') }}
           # PowerShell (unlike bash) passes an empty $env: var as a stray '' argument,
           # which argparse rejects; build the flag as an array so a fork's empty value
-          # contributes nothing. See the branch-cache coupling in .known-couplings/branch-libs-cache.md.
+          # contributes nothing.
           LIBS_BRANCH_CACHE: ${{ github.event.pull_request.head.repo.full_name == github.repository && '--branch-cache' || '' }}
         run: |
           $bc = if ($env:LIBS_BRANCH_CACHE) { @($env:LIBS_BRANCH_CACHE) } else { @() }
@@ -360,7 +360,7 @@ jobs:
           LIBS_IMAGE: ghcr.io/ponylang/ponyc-ci-ubuntu26.04-builder:20260425
           LIBS_TAG: ${{ hashFiles('lib/CMakePresets.json', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/build-libs.cmake', 'lib/llvm/patches/*') }}
           # Referenced UNQUOTED below so an empty value (fork) vanishes instead of
-          # passing as an empty arg; see the branch-cache coupling in .known-couplings/branch-libs-cache.md.
+          # passing as an empty arg (argparse would see it and exit 2).
           LIBS_BRANCH_CACHE: ${{ github.event.pull_request.head.repo.full_name == github.repository && '--branch-cache' || '' }}
         run: python3 .ci-scripts/libs-cache/pr_libs_cache.py $LIBS_BRANCH_CACHE --image "$LIBS_IMAGE" --tag "$LIBS_TAG" -- cmake -DJOBS=4 -P lib/build-libs.cmake
       - name: Build
@@ -397,7 +397,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           LIBS_TAG: ${{ hashFiles('lib/CMakePresets.json', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/build-libs.cmake', 'lib/llvm/patches/*') }}
           # Referenced UNQUOTED below so an empty value (fork) vanishes instead of
-          # passing as an empty arg; see the branch-cache coupling in .known-couplings/branch-libs-cache.md.
+          # passing as an empty arg (argparse would see it and exit 2).
           LIBS_BRANCH_CACHE: ${{ github.event.pull_request.head.repo.full_name == github.repository && '--branch-cache' || '' }}
         run: python3 .ci-scripts/libs-cache/pr_libs_cache.py $LIBS_BRANCH_CACHE --platform arm64-macos-26 --tag "$LIBS_TAG" -- cmake -DJOBS=3 -P lib/build-libs.cmake
       - name: Build
@@ -432,7 +432,7 @@ jobs:
           LIBS_TAG: ${{ hashFiles('lib/CMakePresets.json', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/build-libs.cmake', 'lib/llvm/patches/*') }}
           # PowerShell (unlike bash) passes an empty $env: var as a stray '' argument,
           # which argparse rejects; build the flag as an array so a fork's empty value
-          # contributes nothing. See the branch-cache coupling in .known-couplings/branch-libs-cache.md.
+          # contributes nothing.
           LIBS_BRANCH_CACHE: ${{ github.event.pull_request.head.repo.full_name == github.repository && '--branch-cache' || '' }}
         run: |
           $bc = if ($env:LIBS_BRANCH_CACHE) { @($env:LIBS_BRANCH_CACHE) } else { @() }

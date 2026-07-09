@@ -3,7 +3,7 @@
 # Provision a FreeBSD VM on the GitHub Actions host (qemu), install the ponyc
 # build dependencies, and rsync the checkout into it. Shared by the libs-cache
 # warmer (update-lib-cache.yml) and ponyc-tier3.yml; see
-# .known-couplings/ghcr-libs-cache.md for how the two call it. Reads
+# ../libs-cache/README.md for how the two call it. Reads
 # FREEBSD_VERSION (e.g. 15.1) and GITHUB_WORKSPACE from the environment; leaves
 # a booted VM at 'ssh -i vm_key -p 2222 freebsd@localhost' with the source under
 # /home/freebsd/ponyc.

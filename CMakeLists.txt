@@ -42,8 +42,8 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 #  - Above find_package(LLVM): the BSD reject scripts run `cmake ...
 #    -DPONY_USES=<unsupported>` on a no-libs checkout and grep for "not supported
 #    on <OS>"; below find_package it would fail with "LLVM not found" instead.
-# It also runs before the PONY_USE_* consumption blocks below. See
-# cmake/PonyUses.cmake and .known-couplings/use-option-validation.md.
+# It also runs before the PONY_USE_* consumption blocks below.
+# See cmake/PonyUses.cmake.
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/PonyUses.cmake)
 
 # We require LLVM, Google Test and Google Benchmark
@@ -155,7 +155,10 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/../${CMAKE_BUILD_TYPE}${
 # config, so use it verbatim -- this keeps the non-Windows build byte-for-byte
 # unchanged (no genex on that path). $<LOWER_CASE:$<CONFIG>> matches the lowercase
 # debug/release dirs the _DEBUG/_RELEASE vars above use; ${PONY_OUTPUT_SUFFIX} keeps
-# use= builds aligned. See .known-couplings/multi-config-output-dir.md.
+# use= builds aligned. Everything that locates a ponyc-compiled binary, sets a ctest
+# working dir, or tells ponyc where to write must use PONY_OUTPUT_DIR rather than
+# CMAKE_RUNTIME_OUTPUT_DIRECTORY: on the single-config generators the two are equal,
+# so a site that reverts to the latter passes every Unix job and breaks only Windows.
 if(CMAKE_CONFIGURATION_TYPES)
     set(PONY_OUTPUT_DIR "${CMAKE_BINARY_DIR}/../$<LOWER_CASE:$<CONFIG>>${PONY_OUTPUT_SUFFIX}")
 else()
@@ -616,8 +619,8 @@ set(CMAKE_STATIC_LIBRARY_PREFIX "")
 # #3898 -- since one PONY_ARCH cache variable drives both the compile define
 # package.c reads and this destination, so the two can't disagree. Stable entry
 # points in <prefix>/bin (and <prefix>/lib) point at the active version: symlinks
-# on Unix, a shim on Windows (added after the shim is verified).
-# See .known-couplings/install-arch-dir.md and clang-resource-dir.md.
+# on Unix, a shim on Windows (added after the shim is verified). Nothing tests
+# this -- a mismatch surfaces as an installed ponyc that can't find libponyrt.a.
 set(PONY_VERSIONED_DIR "lib/pony/${PONYC_VERSION}")
 if(WIN32)
     set(PONY_INSTALL_LIBDIR "${PONY_VERSIONED_DIR}/lib")
@@ -870,7 +873,7 @@ else()
     # offset from the binary (lib/clang/<ver>/include, like the bundled packages/
     # dir). LLVM installs it under lib/ or lib64/ depending on the distro; install
     # whichever exists. OPTIONAL so an LLD-only libs build (e.g. an older cached
-    # build/libs) doesn't fail. See .known-couplings/clang-resource-dir.md.
+    # build/libs) doesn't fail.
     install(DIRECTORY build/libs/lib/clang
         DESTINATION ${PONY_VERSIONED_DIR}/lib OPTIONAL)
     install(DIRECTORY build/libs/lib64/clang
@@ -882,7 +885,8 @@ else()
     # include path (add_pony_include_args). Layout must match what gencshim
     # expects: the headers a shim names directly at include/pony/, atomics at
     # include/pony/detail/. Kept under pony/ so a shared system include never gets
-    # a flat collision-prone name. See .known-couplings/clang-resource-dir.md.
+    # a flat collision-prone name. The gtest suite only exercises the build-tree
+    # offsets, so a packaging change here surfaces only against an installed tree.
     install(FILES src/libponyrt/pony.h
         DESTINATION ${PONY_VERSIONED_DIR}/include/pony)
     install(FILES src/common/pony/detail/atomics.h

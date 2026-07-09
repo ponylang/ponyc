@@ -154,15 +154,13 @@ def main(argv):
             write_miss_marker()
             info(f"Libs not cached for '{sel_str}' (tag {args.tag}); skipping this "
                  "run (wrote .libs-cache-miss). Expected when a run overlaps the "
-                 "cache being refilled. See the GHCR libs cache coupling in "
-                 ".known-couplings/ghcr-libs-cache.md.")
+                 "cache being refilled. See .ci-scripts/libs-cache/README.md.")
             return
         die(f"Libs not cached for require-cache-hit platform '{sel_str}' (tag "
             f"{args.tag}). This job needs already-built libs and never builds them "
             "itself. Likely causes: (1) the cache was just cleared or an "
             "LLVM-determining input changed; (2) this platform is not covered by "
-            "whatever fills the cache. See the GHCR libs cache coupling in "
-            ".known-couplings/ghcr-libs-cache.md.")
+            "whatever fills the cache. See .ci-scripts/libs-cache/README.md.")
 
     # consumer / warmer: the build command after `--` is mandatory.
     ours, build_cmd = split_build_command(rest)

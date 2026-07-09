@@ -14,8 +14,7 @@
 #          build is multi-arch, so in the real cascade both packages sync and
 #          fire the build; `concurrency: cancel-in-progress` collapses the
 #          duplicate. We send both names to faithfully replay that. The Alpine
-#          version must match the Dockerfile base; see
-#          .known-couplings/docker-image-base-vs-trigger-package.md.
+#          version must match the Dockerfile base.
 #   ponyc-x86-64-apple-darwin.tar.gz
 #       -> macOS x86-64 nightly-released (corral, ponyup)
 #   ponyc-arm64-apple-darwin.tar.gz

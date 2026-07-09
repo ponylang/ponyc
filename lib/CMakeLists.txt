@@ -44,7 +44,6 @@ endif()
 # Forward the compiler explicitly so the sub-builds match. MSVC selects its
 # compiler through the generator/toolset, which ExternalProject does carry over,
 # so leave it alone there.
-# See .known-couplings/libs-externalproject-compiler.md.
 set(PONYC_LIBS_COMPILER_ARGS "")
 if(NOT MSVC)
     set(PONYC_LIBS_COMPILER_ARGS

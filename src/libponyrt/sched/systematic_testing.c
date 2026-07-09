@@ -70,8 +70,7 @@ void systematic_testing_mut_init()
 // so no setup or teardown is needed. The condition-variable wait is not
 // alertable: the normal Windows scheduler suspend stays alertable so socket-I/O
 // APCs can run, but systematic testing starts no ASIO thread and does no I/O,
-// so there are no APCs to service -- see
-// .known-couplings/systematic-testing-windows-park-not-alertable.md.
+// so there are no APCs to service.
 static SRWLOCK systematic_testing_win_lock = SRWLOCK_INIT;
 static CONDITION_VARIABLE systematic_testing_win_cv = CONDITION_VARIABLE_INIT;
 #endif
@@ -259,8 +258,7 @@ static uint32_t get_next_index()
   // suspends with a noisy actor (a registered ASIO event), which
   // pony_asio_event_create refuses. That invariant is the real protection; in a
   // debug build the assert also traps a future break loudly instead of dividing
-  // by zero. See
-  // .known-couplings/systematic-testing-io-abort-keeps-a-scheduler-active.md.
+  // by zero.
   pony_assert(active_count > 0);
 
   uint32_t next_index = -1;

@@ -385,9 +385,10 @@ PONY_API int pony_init(int argc, char** argv)
   return argc;
 }
 
-// Changing this signature means updating the FFI prototype and call the
-// compiler emits for pony_start; see
-// .known-couplings/codegen-runtime-api-prototypes.md
+// Changing this signature means updating the prototype the compiler declares
+// (codegen.c) and the call it emits (genexe.cc). Nothing checks the three
+// against each other -- the linker resolves C symbols by name without checking
+// arity or types -- so a mismatch miscompiles silently.
 PONY_API bool pony_start(int* exit_code,
   const pony_language_features_init_t* language_features)
 {

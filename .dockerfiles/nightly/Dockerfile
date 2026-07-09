@@ -1,6 +1,9 @@
-# Keep this Alpine version in sync with the build-nightly-image workflow gate
-# and the trigger-nightly-tasks.bash dispatch names; see
-# .known-couplings/docker-image-base-vs-trigger-package.md.
+# Keep this Alpine version in sync with the build-nightly-image workflow gate and
+# the trigger-nightly-tasks.bash dispatch names. ponyup inside the container
+# detects this base's Alpine version and fetches the matching ponyc package, so a
+# gate naming a different version fires the build off a package ponyup won't
+# fetch. No CI check compares the gate against this base; a mismatch surfaces
+# only during a real nightly image build.
 FROM alpine:3.24
 
 LABEL org.opencontainers.image.source="https://github.com/ponylang/ponyc"

@@ -180,7 +180,7 @@ primitive _Heartbeat
     it needs no heartbeat -- the cyclic workload and small mesh/backpressure draws);
     otherwise ~`_target` heartbeats per emitter, floored at 1. COUPLING: this cadence
     is paired with the orchestrator's no_progress threshold -- a live run must
-    heartbeat well within it; see .known-couplings/stress-heartbeat-watchdog.md.
+    heartbeat well within it.
     """
     if (emitters == 0) or (total_messages < _min()) then
       0
@@ -750,7 +750,7 @@ actor Consumer
         // pressure-mute (the runtime's automatic overload-clear is subordinate --
         // gated by !UNDER_PRESSURE), so a muted Consumer could never release and the
         // flood would hang. Its only send is the `lift` self-send below, which is
-        // immune to muting. See .known-couplings/backpressure-workload-muting.md.
+        // immune to muting.
         Backpressure.apply(_auth)
         _pressured = true
         lift()

@@ -33,7 +33,6 @@ endif()
 # own status from the "Process N exited with status = N" line; if it is absent
 # the binary never ran, so keep the debugger's exit code. Without a debugger,
 # stream the output live and use the binary's real exit code.
-# See .known-couplings/debugger-exit-status-parsing.md.
 if(_debugger)
     execute_process(COMMAND ${_run} WORKING_DIRECTORY "${WORKDIR}"
         OUTPUT_VARIABLE _out ERROR_VARIABLE _errout

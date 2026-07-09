@@ -25,8 +25,10 @@ jobs:
       run:
         shell: pwsh
     # A bounded soak; the orchestrator also caps each seed with a per-run
-    # watchdog. The 240m job cap is the shared generative ceiling -- see
-    # .known-couplings/stress-test-concurrency.md.
+    # watchdog. The 240m job cap stays under twice the tightest gap between
+    # generative cron slots (3h), so a job running to its cap is cancelled before
+    # it can span two firings. Spanning two would make the shared concurrency
+    # group drop a pending run; as it is, the next run is only delayed.
     timeout-minutes: 240
 
     name: x86-64 Windows generative systematic [debug]

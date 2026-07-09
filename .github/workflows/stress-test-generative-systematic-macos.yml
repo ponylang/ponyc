@@ -30,7 +30,10 @@ jobs:
     # the only hang detector here -- a real hang surfaces
     # as a timeout, and the failure bundle now carries an all-thread backtrace
     # of the hung engine, captured via lldb before the kill. The 240m job cap
-    # below is the shared generative ceiling (see stress-test-concurrency.md).
+    # below stays under twice the tightest gap between generative cron slots
+    # (3h), so a job running to its cap is cancelled before it can span two
+    # firings. Spanning two would make the shared concurrency group drop a
+    # pending run; as it is, the next run is only delayed.
     timeout-minutes: 240
 
     name: arm64 macOS generative systematic [debug]

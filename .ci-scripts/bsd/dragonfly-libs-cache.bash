@@ -3,8 +3,8 @@
 # Run the in-VM libs-cache handling for the DragonFly BSD tier-3 job over ssh:
 # either restore the prebuilt vendored LLVM ("libs") from a cache, or build it
 # and push it. Shared by the libs-cache warmer (update-lib-cache.yml) and
-# ponyc-tier3.yml; see .known-couplings/ghcr-libs-cache.md for how the two call
-# it. Expects a VM already booted by dragonfly-provision.bash, reachable at
+# ponyc-tier3.yml; see ../libs-cache/README.md for how the two call it. Expects
+# a VM already booted by dragonfly-provision.bash, reachable at
 # 'ssh -i vm_key -p 2222 root@localhost' with the checkout under /build/ponyc.
 # Run from the checkout root (where the provision step left vm_key).
 #

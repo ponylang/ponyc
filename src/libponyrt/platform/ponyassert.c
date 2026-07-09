@@ -81,9 +81,12 @@ void ponyint_assert_fail(const char* expr, const char* file, size_t line,
     func, expr);
 
   // DbgHelp is single-threaded and this shares it, unlocked, with the
-  // runtime_tracing flight recorder dump in tracing.c — see
-  // .known-couplings/dbghelp-shared-by-ponyassert-and-tracing.md before changing
-  // how either uses DbgHelp.
+  // runtime_tracing flight recorder dump in tracing.c. The common paths don't
+  // overlap: this calls SymCleanup then abort(), and only afterwards does the
+  // SIGABRT handler run the dump. A hardware fault on another thread concurrent
+  // with this assertion can still race; the cost is a deadlocked dump, not
+  // corruption, and it is accepted as best-effort crash reporting. Add a third
+  // DbgHelp user, or make either of these concurrent, and they need a lock.
   HANDLE process = GetCurrentProcess();
   HANDLE thread = GetCurrentThread();
 

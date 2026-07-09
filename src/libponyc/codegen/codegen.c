@@ -527,8 +527,7 @@ static void init_runtime(compile_t* c)
 
   // i1 pony_start(i32*, i8*)
   // This prototype and the call emitted in genexe.cc must match libponyrt's
-  // actual pony_start signature; see
-  // .known-couplings/codegen-runtime-api-prototypes.md
+  // actual pony_start signature.
   params[0] = c->ptr;
   params[1] = c->ptr;
   type = LLVMFunctionType(c->i1, params, 2, false);

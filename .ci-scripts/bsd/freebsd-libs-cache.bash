@@ -3,7 +3,7 @@
 # Run the in-VM libs-cache handling for the FreeBSD tier-3 job over ssh: either
 # restore the prebuilt vendored LLVM ("libs") from a cache, or build it and push
 # it. Shared by the libs-cache warmer (update-lib-cache.yml) and ponyc-tier3.yml;
-# see .known-couplings/ghcr-libs-cache.md for how the two call it. Expects a VM
+# see ../libs-cache/README.md for how the two call it. Expects a VM
 # already booted by freebsd-provision.bash, reachable at
 # 'ssh -i vm_key -p 2222 freebsd@localhost' with the checkout under
 # /home/freebsd/ponyc. Run from the checkout root (where the provision step left

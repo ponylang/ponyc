@@ -21,7 +21,8 @@ set -eu
 # pins the build's compiler. OpenBSD runs both the reject and the build with base
 # clang, so a poisoned dir would not currently mismatch, but keeping the probe
 # isolated avoids the compiler-poisoning class of bug that bit DragonFly (base
-# gcc 8 reject vs gcc13 build). See .known-couplings/use-option-validation.md.
+# gcc 8 reject vs gcc13 build). The options below must match the OpenBSD
+# rejections in cmake/PonyUses.cmake.
 for u in address_sanitizer thread_sanitizer undefined_behavior_sanitizer coverage valgrind dtrace; do
   rm -rf build/build_reject-probe
   if out=$(cmake -B build/build_reject-probe -S . -DPONY_USES="$u" 2>&1); then

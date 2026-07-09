@@ -70,7 +70,6 @@ endif()
 # own status from the "Process N exited with status = N" line, as make.ps1 did;
 # if it is absent the binary never ran, so keep the debugger's exit code.
 # Without a debugger, stream output live and use the binary's real exit code.
-# See .known-couplings/debugger-exit-status-parsing.md.
 if(_debugger)
     execute_process(
         COMMAND ${_run}

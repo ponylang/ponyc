@@ -28,8 +28,10 @@ PONY_API asio_event_t* pony_asio_event_create(pony_actor_t* owner, int fd,
   // interleaving cannot control. Registering any I/O event is therefore
   // unsupported. Fail loudly rather than silently dropping the event, so a
   // program that expects I/O to work under systematic testing is told plainly
-  // that it cannot. This abort is also load-bearing for the scheduler: see
-  // .known-couplings/systematic-testing-io-abort-keeps-a-scheduler-active.md.
+  // that it cannot. This abort is also load-bearing for the scheduler: because
+  // no ASIO event can ever be registered, scheduler 0 never suspends, which
+  // keeps active_scheduler_count >= 1 -- the round-robin divisor in
+  // systematic_testing.c.
   (void)fd;
   (void)nsec;
   (void)noisy;
