@@ -150,8 +150,6 @@ jobs:
           - directives: runtime_tracing,runtimestats
     name: 'use ${{ matrix.directives }} (Windows)'
     steps:
-      - name: Disable Windows Defender
-        run: Set-MpPreference -DisableRealtimeMonitoring $true
       - name: Checkout
         uses: actions/checkout@v6.0.2
         with:

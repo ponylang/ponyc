@@ -28,8 +28,6 @@ jobs:
 
     name: x86-64 Windows tcp swarm [debug]
     steps:
-      - name: Disable Windows Defender
-        run: Set-MpPreference -DisableRealtimeMonitoring $true
       - name: Checkout
         uses: actions/checkout@v6.0.2
         with:
