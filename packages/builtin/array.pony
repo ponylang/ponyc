@@ -962,11 +962,11 @@ class ArrayKeys[A, B: Array[A] #read] is Iterator[USize]
   fun has_next(): Bool =>
     _i < _array.size()
 
-  fun ref next(): USize =>
+  fun ref next(): USize ? =>
     if _i < _array.size() then
       _i = _i + 1
     else
-      _i
+      error
     end
 
   fun ref rewind(): ArrayKeys[A, B] =>
