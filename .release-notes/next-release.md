@@ -228,3 +228,41 @@ These functions are gone: `pony_poll`, `pony_alloc_msg_size`, `pony_gc_acquire`,
 
 Normal Pony programs are unaffected; the compiler never generated calls to any of these functions. Only C code that linked the runtime directly and called them is affected, and that code was using library mode, which is no longer supported.
 
+## Make `ArrayKeys.next()` partial
+
+Change the `next()` function of `ArrayKeys` to partial, so it behaves the same as `next()?` of
+`ArrayValues` and `ArrayPairs`.
+
+This change is breaking, and will require code previously using `ArrayKeys.next()` to convert those calls to partial.
+
+Before:
+
+```ponyc
+...
+let keys = array.keys()
+let first_key = keys.next()
+...
+```
+
+After:
+
+```ponyc
+...
+let keys = array.keys()
+try
+  let first_key = keys.next()?
+  ...
+end
+...
+
+
+Note that iteration based access remains unchanged and does not require any code changes:
+
+```ponyc
+...
+let keys = array.keys()
+for key in keys do
+  // your code using each key
+end
+```
+
