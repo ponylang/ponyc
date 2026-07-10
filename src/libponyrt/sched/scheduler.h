@@ -81,7 +81,7 @@ typedef struct pony_ctx_t
   trace_actor_fn trace_actor;
   // Temporary stack for GC tracing; empty when GC not running
   gcstack_t* stack;
-  // Temporary storage for acquire/release of actors/objects for GC;
+  // Temporary storage for acquiring actors/objects for GC;
   // empty when GC not running
   actormap_t acquire;
   // Destination of the message currently being traced for send. Set from the
@@ -158,6 +158,20 @@ PONY_API uint32_t pony_active_schedulers();
 PONY_API int32_t pony_scheduler_index();
 
 PONY_API schedulerstats_t* pony_scheduler_stats();
+
+/** Create a pony_ctx_t for a thread that the runtime uses but that is not a
+ * normal scheduler thread, such as the ASIO thread or the thread that
+ * bootstraps the runtime. Do this before the thread calls pony_ctx() or runs
+ * any Pony code. It is safe, but unnecessary, to call it more than once on the
+ * same thread.
+ */
+void ponyint_register_thread();
+
+/** Release the pony_ctx_t that ponyint_register_thread() created for a thread, as
+ * that thread shuts down. Only call this on a thread that was registered with
+ * ponyint_register_thread(); never on a scheduler thread.
+ */
+void ponyint_unregister_thread();
 
 void ponyint_register_asio_thread();
 

@@ -148,9 +148,6 @@ PONY_API ATTRIBUTE_MALLOC pony_actor_t* pony_create(pony_ctx_t* ctx,
 /// Allocate a message and set up the header. The index is a POOL_INDEX.
 PONY_API pony_msg_t* pony_alloc_msg(uint32_t index, uint32_t id);
 
-/// Allocate a message and set up the header. The size is in bytes.
-PONY_API pony_msg_t* pony_alloc_msg_size(size_t size, uint32_t id);
-
 /** Send a chain of messages to an actor.
  *
  * The first and last messages must either be the same message or the two ends
@@ -186,26 +183,6 @@ PONY_API void pony_sendv_single(pony_ctx_t* ctx, pony_actor_t* to,
  * next must either be an unchained message or the start of an existing chain.
  */
 PONY_API void pony_chain(pony_msg_t* prev, pony_msg_t* next);
-
-/** Convenience function to send a message with no arguments.
- *
- * The dispatch function receives a pony_msg_t.
- */
-PONY_API void pony_send(pony_ctx_t* ctx, pony_actor_t* to, uint32_t id);
-
-/** Convenience function to send a pointer argument in a message
- *
- * The dispatch function receives a pony_msgp_t.
- */
-PONY_API void pony_sendp(pony_ctx_t* ctx, pony_actor_t* to, uint32_t id,
-  void* p);
-
-/** Convenience function to send an integer argument in a message
- *
- * The dispatch function receives a pony_msgi_t.
- */
-PONY_API void pony_sendi(pony_ctx_t* ctx, pony_actor_t* to, uint32_t id,
-  intptr_t i);
 
 /** Allocate memory on the current actor's heap.
  *
@@ -265,28 +242,6 @@ PONY_API void pony_gc_send(pony_ctx_t* ctx, pony_actor_t* to);
  */
 PONY_API void pony_gc_recv(pony_ctx_t* ctx);
 
-/** Start gc tracing for acquiring.
- *
- * Call this when acquiring objects. Then trace the objects you want to
- * acquire, then call pony_acquire_done. Acquired objects will not be GCed
- * until released even if they are not reachable from Pony code anymore.
- * Acquiring an object will also acquire all objects reachable from it as well
- * as their respective owners. When adding or removing objects from an acquired
- * object graph, you must acquire anything added and release anything removed.
- * A given object (excluding actors) cannot be acquired more than once in a
- * single pony_gc_acquire/pony_acquire_done round. The same restriction applies
- * to release functions.
- */
-PONY_API void pony_gc_acquire(pony_ctx_t* ctx);
-
-/** Start gc tracing for releasing.
- *
- * Call this when releasing acquired objects. Then trace the objects you want
- * to release, then call pony_release_done. If an object was acquired multiple
- * times, it must be released as many times before being GCed.
- */
-PONY_API void pony_gc_release(pony_ctx_t* ctx);
-
 /** Finish gc tracing for sending.
  *
  * Call this after tracing the GCable contents.
@@ -298,18 +253,6 @@ PONY_API void pony_send_done(pony_ctx_t* ctx);
  * Call this after tracing the GCable contents.
  */
 PONY_API void pony_recv_done(pony_ctx_t* ctx);
-
-/** Finish gc tracing for acquiring.
- *
- * Call this after tracing objects you want to acquire.
- */
-PONY_API void pony_acquire_done(pony_ctx_t* ctx);
-
-/** Finish gc tracing for releasing.
- *
- * Call this after tracing objects you want to release.
- */
-PONY_API void pony_release_done(pony_ctx_t* ctx);
 
 /** Continue gc tracing with another message.
  *
@@ -397,24 +340,6 @@ PONY_API int pony_init(int argc, char** argv);
 PONY_API bool pony_start(int* exit_code,
   const pony_language_features_init_t* language_features);
 
-/**
- * Call this to create a pony_ctx_t for a non-scheduler thread. This has to be
- * done before calling pony_ctx(), and before calling any Pony code from the
- * thread.
- *
- * Threads that call pony_init() or pony_start() are automatically registered.
- * It's safe, but not necessary, to call this more than once.
- */
-PONY_API void pony_register_thread();
-
-/** Unregisters a non-scheduler thread.
- *
- * Clean up the runtime context allocated when registering a thread with
- * pony_register_thread(). This should never be called from a thread owned by
- * the Pony runtime.
- */
-PONY_API void pony_unregister_thread();
-
 PONY_API int32_t pony_scheduler_index();
 
 /** Set the exit code.
@@ -429,15 +354,6 @@ PONY_API void pony_exitcode(int code);
  * Get the value of the last pony_exitcode() call.
  */
 PONY_API int pony_get_exitcode();
-
-/**
- * Call this to handle an application message on an actor. This will do two
- * things: first, it will possibly gc, and second it will possibly handle a
- * pending application message.
- *
- * A thread must ponyint_become an actor before it can pony_poll.
- */
-PONY_API void pony_poll(pony_ctx_t* ctx);
 
 #if defined(__cplusplus)
 }

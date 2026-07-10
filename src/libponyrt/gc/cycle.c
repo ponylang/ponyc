@@ -679,7 +679,7 @@ static void send_conf(pony_ctx_t* ctx, perceived_t* per)
     qsort(views, size, sizeof(view_t*), view_systematic_testing_id_cmp);
 
     for(k = 0; k < size; k++)
-      pony_sendi(ctx, views[k]->actor, ACTORMSG_CONF, per->token);
+      ponyint_sendi(ctx, views[k]->actor, ACTORMSG_CONF, per->token);
 
     ponyint_pool_free_size(size * sizeof(view_t*), views);
   }
@@ -689,7 +689,7 @@ static void send_conf(pony_ctx_t* ctx, perceived_t* per)
 
   while((view = ponyint_viewmap_next(&per->map, &i)) != NULL)
   {
-    pony_sendi(ctx, view->actor, ACTORMSG_CONF, per->token);
+    ponyint_sendi(ctx, view->actor, ACTORMSG_CONF, per->token);
   }
 #endif
 }
@@ -990,7 +990,7 @@ static void check_blocked(pony_ctx_t* ctx, detector_t* d)
 #ifdef USE_SYSTEMATIC_TESTING
       views[count++] = view;
 #else
-      pony_send(ctx, view->actor, ACTORMSG_ISBLOCKED);
+      ponyint_send(ctx, view->actor, ACTORMSG_ISBLOCKED);
 #endif
     }
 
@@ -1018,7 +1018,7 @@ static void check_blocked(pony_ctx_t* ctx, detector_t* d)
     qsort(views, count, sizeof(view_t*), view_systematic_testing_id_cmp);
 
     for(size_t k = 0; k < count; k++)
-      pony_send(ctx, views[k]->actor, ACTORMSG_ISBLOCKED);
+      ponyint_send(ctx, views[k]->actor, ACTORMSG_ISBLOCKED);
 
     // The buffer was allocated to `total` (the probe upper bound), and only
     // `count <= total` of it was filled, so the free size is `total`, not

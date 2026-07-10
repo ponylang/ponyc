@@ -67,17 +67,6 @@ static void recv_local_actor(gc_t* gc)
   }
 }
 
-static void acquire_local_actor(gc_t* gc)
-{
-  gc->rc++;
-}
-
-static void release_local_actor(gc_t* gc)
-{
-  pony_assert(gc->rc > 0);
-  gc->rc--;
-}
-
 static void send_remote_actor(pony_ctx_t* ctx, gc_t* gc, actorref_t* aref)
 {
   if(aref->mark == gc->mark)
@@ -138,12 +127,6 @@ static void mark_remote_actor(pony_ctx_t* ctx, gc_t* gc, actorref_t* aref)
     if(!ponyint_actor_getnoblock())
       gc->delta = ponyint_deltamap_update(gc->delta, aref->actor, aref->rc);
   }
-}
-
-static void acq_or_rel_remote_actor(pony_ctx_t* ctx, pony_actor_t* actor)
-{
-  actorref_t* aref = ponyint_actormap_getorput(&ctx->acquire, actor, 0);
-  aref->rc += 1;
 }
 
 static void send_local_object(pony_ctx_t* ctx, void* p, pony_type_t* t,
@@ -214,58 +197,6 @@ static void mark_local_object(pony_ctx_t* ctx, chunk_t* chunk, void* p,
     // is not opaque, it will recurse.
     ponyint_heap_mark_shallow(chunk, p);
   }
-}
-
-static void acquire_local_object(pony_ctx_t* ctx, void* p, pony_type_t* t,
-  int mutability)
-{
-  gc_t* gc = ponyint_actor_gc(ctx->current);
-  object_t* obj = ponyint_objectmap_getorput(&gc->local, p, t, gc->mark);
-
-  if(obj->mark == gc->mark)
-    return;
-
-  // Implicitly acquire the owner.
-  acquire_local_actor(gc);
-
-  obj->rc++;
-  obj->mark = gc->mark;
-
-  if(mutability == PONY_TRACE_OPAQUE)
-    return;
-
-  if(mutability == PONY_TRACE_IMMUTABLE)
-    obj->immutable = true;
-
-  if(!obj->immutable || might_reference_actor(t))
-    recurse(ctx, p, t->trace);
-}
-
-static void release_local_object(pony_ctx_t* ctx, void* p, pony_type_t* t,
-  int mutability)
-{
-  size_t index = HASHMAP_UNKNOWN;
-  gc_t* gc = ponyint_actor_gc(ctx->current);
-  object_t* obj = ponyint_objectmap_getobject(&gc->local, p, &index);
-  pony_assert(obj != NULL);
-
-  if(obj->mark == gc->mark)
-    return;
-
-  // Implicitly release the owner.
-  release_local_actor(gc);
-
-  obj->rc--;
-  obj->mark = gc->mark;
-
-  if(mutability == PONY_TRACE_OPAQUE)
-    return;
-
-  if(mutability == PONY_TRACE_IMMUTABLE)
-    obj->immutable = true;
-
-  if(!obj->immutable || might_reference_actor(t))
-    recurse(ctx, p, t->trace);
 }
 
 static void send_remote_object(pony_ctx_t* ctx, pony_actor_t* actor,
@@ -487,32 +418,6 @@ static void mark_remote_object(pony_ctx_t* ctx, pony_actor_t* actor,
     recurse(ctx, p, t->trace);
 }
 
-static void acq_or_rel_remote_object(pony_ctx_t* ctx, pony_actor_t* actor,
-  void* p, pony_type_t* t, int mutability)
-{
-  gc_t* gc = ponyint_actor_gc(ctx->current);
-  actorref_t* aref = ponyint_actormap_getorput(&ctx->acquire, actor, 0);
-  object_t* obj = ponyint_actorref_getorput(aref, p, t, gc->mark);
-
-  if(obj->mark == gc->mark)
-    return;
-
-  // Implicitly acquire/release the owner.
-  acq_or_rel_remote_actor(ctx, actor);
-
-  obj->rc++;
-  obj->mark = gc->mark;
-
-  if(mutability == PONY_TRACE_OPAQUE)
-    return;
-
-  if(mutability == PONY_TRACE_IMMUTABLE)
-    obj->immutable = true;
-
-  if(!obj->immutable || might_reference_actor(t))
-    recurse(ctx, p, t->trace);
-}
-
 void ponyint_gc_sendobject(pony_ctx_t* ctx, void* p, pony_type_t* t,
   int mutability)
 {
@@ -573,47 +478,6 @@ void ponyint_gc_markobject(pony_ctx_t* ctx, void* p, pony_type_t* t,
     mark_remote_object(ctx, actor, p, t, mutability, chunk);
 }
 
-void ponyint_gc_acquireobject(pony_ctx_t* ctx, void* p, pony_type_t* t,
-  int mutability)
-{
-  pony_actor_t* actor = NULL;
-  chunk_t* chunk = ponyint_pagemap_get(p, &actor);
-
-  // Don't gc memory that wasn't pony_allocated, but do recurse.
-  if(chunk == NULL)
-  {
-    if(mutability != PONY_TRACE_OPAQUE)
-      recurse(ctx, p, t->trace);
-    return;
-  }
-
-  if(actor == ctx->current)
-    acquire_local_object(ctx, p, t, mutability);
-  else
-    acq_or_rel_remote_object(ctx, actor, p, t, mutability);
-}
-
-void ponyint_gc_releaseobject(pony_ctx_t* ctx, void* p, pony_type_t* t,
-  int mutability)
-{
-  pony_actor_t* actor = NULL;
-  chunk_t* chunk = ponyint_pagemap_get(p, &actor);
-
-  // Don't gc memory that wasn't pony_allocated, but do recurse.
-  if(chunk == NULL)
-  {
-    if(mutability != PONY_TRACE_OPAQUE)
-      recurse(ctx, p, t->trace);
-    return;
-  }
-
-  if(actor == ctx->current)
-    release_local_object(ctx, p, t, mutability);
-  else
-    acq_or_rel_remote_object(ctx, actor, p, t, mutability);
-
-}
-
 void ponyint_gc_sendactor(pony_ctx_t* ctx, pony_actor_t* actor)
 {
   gc_t* gc = ponyint_actor_gc(ctx->current);
@@ -650,22 +514,6 @@ void ponyint_gc_markactor(pony_ctx_t* ctx, pony_actor_t* actor)
   gc_t* gc = ponyint_actor_gc(ctx->current);
   actorref_t* aref = ponyint_actormap_getorput(&gc->foreign, actor, gc->mark);
   mark_remote_actor(ctx, gc, aref);
-}
-
-void ponyint_gc_acquireactor(pony_ctx_t* ctx, pony_actor_t* actor)
-{
-  if(actor == ctx->current)
-    acquire_local_actor(ponyint_actor_gc(ctx->current));
-  else
-    acq_or_rel_remote_actor(ctx, actor);
-}
-
-void ponyint_gc_releaseactor(pony_ctx_t* ctx, pony_actor_t* actor)
-{
-  if(actor == ctx->current)
-    release_local_actor(ponyint_actor_gc(ctx->current));
-  else
-    acq_or_rel_remote_actor(ctx, actor);
 }
 
 void ponyint_gc_createactor(pony_actor_t* current, pony_actor_t* actor)
@@ -834,14 +682,12 @@ static int gc_actorref_systematic_testing_id_cmp(const void* a, const void* b)
   return (ia > ib) - (ia < ib);
 }
 
-// Drain ctx->acquire and send `msg_id` to each referenced actor, ordered by the
-// target actor's stable creation-order id rather than by the actormap's
-// pointer-hash iteration order. Each send schedules its recipient, so sending
-// in a layout-independent order is what keeps a fixed seed's interleaving
-// reproducible under ASLR (see pony_actor_t.systematic_testing_id). Both
-// ACTORMSG_ACQUIRE (ponyint_gc_sendacquire) and ACTORMSG_RELEASE
-// (ponyint_gc_sendrelease_manual) drain ctx->acquire this way.
-static void gc_drain_acquire_ordered(pony_ctx_t* ctx, uint32_t msg_id)
+// Drain ctx->acquire and send each referenced actor an ACTORMSG_ACQUIRE,
+// ordered by the target actor's stable creation-order id rather than by the
+// actormap's pointer-hash iteration order. Each send schedules its recipient,
+// so sending in a layout-independent order is what keeps a fixed seed's
+// interleaving reproducible under ASLR. See pony_actor_t.systematic_testing_id.
+static void gc_drain_acquire_ordered(pony_ctx_t* ctx)
 {
   size_t n = ponyint_actormap_size(&ctx->acquire);
 
@@ -871,7 +717,7 @@ static void gc_drain_acquire_ordered(pony_ctx_t* ctx, uint32_t msg_id)
       ctx->schedulerstats.mem_allocated_actors += (POOL_ALLOC_SIZE(actorref_t)
         + ponyint_objectmap_total_alloc_size(&aref->map));
 #endif
-      pony_sendp(ctx, aref->actor, msg_id, aref);
+      ponyint_sendp(ctx, aref->actor, ACTORMSG_ACQUIRE, aref);
     }
 
     ponyint_pool_free_size(n * sizeof(actorref_t*), refs);
@@ -884,7 +730,7 @@ static void gc_drain_acquire_ordered(pony_ctx_t* ctx, uint32_t msg_id)
 void ponyint_gc_sendacquire(pony_ctx_t* ctx)
 {
 #ifdef USE_SYSTEMATIC_TESTING
-  gc_drain_acquire_ordered(ctx, ACTORMSG_ACQUIRE);
+  gc_drain_acquire_ordered(ctx);
 #else
   size_t i = HASHMAP_BEGIN;
   actorref_t* aref;
@@ -899,7 +745,7 @@ void ponyint_gc_sendacquire(pony_ctx_t* ctx)
 #endif
 
     ponyint_actormap_clearindex(&ctx->acquire, i);
-    pony_sendp(ctx, aref->actor, ACTORMSG_ACQUIRE, aref);
+    ponyint_sendp(ctx, aref->actor, ACTORMSG_ACQUIRE, aref);
   }
 
   pony_assert(ponyint_actormap_size(&ctx->acquire) == 0);
@@ -924,31 +770,6 @@ void ponyint_gc_sendrelease(pony_ctx_t* ctx, gc_t* gc)
 #ifdef USE_RUNTIMESTATS
   ctx->current->actorstats.foreign_actormap_objectmap_mem_used -= objectmap_mem_used_freed;
   ctx->current->actorstats.foreign_actormap_objectmap_mem_allocated -= objectmap_mem_allocated_freed;
-#endif
-}
-
-void ponyint_gc_sendrelease_manual(pony_ctx_t* ctx)
-{
-#ifdef USE_SYSTEMATIC_TESTING
-  gc_drain_acquire_ordered(ctx, ACTORMSG_RELEASE);
-#else
-  size_t i = HASHMAP_BEGIN;
-  actorref_t* aref;
-
-  while((aref = ponyint_actormap_next(&ctx->acquire, &i)) != NULL)
-  {
-#ifdef USE_RUNTIMESTATS
-    ctx->schedulerstats.mem_used_actors += (sizeof(actorref_t)
-      + ponyint_objectmap_total_mem_size(&aref->map));
-    ctx->schedulerstats.mem_allocated_actors += (POOL_ALLOC_SIZE(actorref_t)
-      + ponyint_objectmap_total_alloc_size(&aref->map));
-#endif
-
-    ponyint_actormap_clearindex(&ctx->acquire, i);
-    pony_sendp(ctx, aref->actor, ACTORMSG_RELEASE, aref);
-  }
-
-  pony_assert(ponyint_actormap_size(&ctx->acquire) == 0);
 #endif
 }
 
