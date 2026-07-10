@@ -312,7 +312,7 @@ PONY_API int pony_init(int argc, char** argv)
   opt.pintracing = false;
 #endif
 
-  pony_register_thread();
+  ponyint_register_thread();
 
   // Allow override via bare function on Main actor
   Main_runtime_override_defaults_oo(&opt);

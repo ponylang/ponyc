@@ -481,7 +481,7 @@ DECLARE_THREAD_FN(ponyint_asio_backend_dispatch)
 
   TRACING_THREAD_STOP();
 
-  pony_unregister_thread();
+  ponyint_unregister_thread();
   return NULL;
 }
 

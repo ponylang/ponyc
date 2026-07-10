@@ -43,22 +43,6 @@ void ponyint_gc_mark(pony_ctx_t* ctx)
   ctx->trace_actor = ponyint_gc_markactor;
 }
 
-PONY_API void pony_gc_acquire(pony_ctx_t* ctx)
-{
-  pony_assert(ctx->current != NULL);
-  pony_assert(ctx->stack == NULL);
-  ctx->trace_object = ponyint_gc_acquireobject;
-  ctx->trace_actor = ponyint_gc_acquireactor;
-}
-
-PONY_API void pony_gc_release(pony_ctx_t* ctx)
-{
-  pony_assert(ctx->current != NULL);
-  pony_assert(ctx->stack == NULL);
-  ctx->trace_object = ponyint_gc_releaseobject;
-  ctx->trace_actor = ponyint_gc_releaseactor;
-}
-
 PONY_API void pony_send_done(pony_ctx_t* ctx)
 {
   pony_assert(ctx->current != NULL);
@@ -98,22 +82,6 @@ void ponyint_mark_done(pony_ctx_t* ctx)
   ponyint_gc_sendacquire(ctx);
   TRACING_ACTOR_GC_SWEEP_START(ctx->current);
   ponyint_gc_sweep(ctx, ponyint_actor_gc(ctx->current));
-  ponyint_gc_done(ponyint_actor_gc(ctx->current));
-}
-
-PONY_API void pony_acquire_done(pony_ctx_t* ctx)
-{
-  pony_assert(ctx->current != NULL);
-  ponyint_gc_handlestack(ctx);
-  ponyint_gc_sendacquire(ctx);
-  ponyint_gc_done(ponyint_actor_gc(ctx->current));
-}
-
-PONY_API void pony_release_done(pony_ctx_t* ctx)
-{
-  pony_assert(ctx->current != NULL);
-  ponyint_gc_handlestack(ctx);
-  ponyint_gc_sendrelease_manual(ctx);
   ponyint_gc_done(ponyint_actor_gc(ctx->current));
 }
 

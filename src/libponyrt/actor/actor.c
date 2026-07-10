@@ -519,12 +519,11 @@ static bool maybe_should_mute(pony_actor_t* actor)
   return false;
 }
 
-static bool batch_limit_reached(pony_actor_t* actor, bool polling)
+static bool batch_limit_reached(pony_actor_t* actor)
 {
-  if(!has_sync_flag(actor, ACTOR_SYNC_FLAG_OVERLOADED) && !polling)
+  if(!has_sync_flag(actor, ACTOR_SYNC_FLAG_OVERLOADED))
   {
-    // If we hit our batch size, consider this actor to be overloaded
-    // only if we're not polling from C code.
+    // If we hit our batch size, consider this actor to be overloaded.
     // Overloaded actors are allowed to send to other overloaded actors
     // and to muted actors without being muted themselves.
     actor_setoverloaded(actor);
@@ -533,7 +532,7 @@ static bool batch_limit_reached(pony_actor_t* actor, bool polling)
   return true;
 }
 
-bool ponyint_actor_run(pony_ctx_t* ctx, pony_actor_t* actor, bool polling)
+bool ponyint_actor_run(pony_ctx_t* ctx, pony_actor_t* actor)
 {
   TRACING_THREAD_ACTOR_RUN_START(actor);
   pony_assert(!has_sync_flag(actor, ACTOR_SYNC_FLAG_MUTED));
@@ -603,11 +602,10 @@ bool ponyint_actor_run(pony_ctx_t* ctx, pony_actor_t* actor, bool polling)
       }
 
       // if we've reached our batch limit
-      // or if we're polling where we want to stop after one app message
-      if(app == batch || polling)
+      if(app == batch)
       {
         TRACING_THREAD_ACTOR_RUN_STOP(actor);
-        return batch_limit_reached(actor, polling);
+        return batch_limit_reached(actor);
       }
     }
     else
@@ -952,11 +950,6 @@ PONY_API pony_msg_t* pony_alloc_msg(uint32_t index, uint32_t id)
   return msg;
 }
 
-PONY_API pony_msg_t* pony_alloc_msg_size(size_t size, uint32_t id)
-{
-  return pony_alloc_msg((uint32_t)ponyint_pool_index(size), id);
-}
-
 PONY_API void pony_sendv(pony_ctx_t* ctx, pony_actor_t* to, pony_msg_t* first,
   pony_msg_t* last, bool has_app_msg)
 {
@@ -1079,7 +1072,7 @@ PONY_API void pony_chain(pony_msg_t* prev, pony_msg_t* next)
   atomic_store_explicit(&prev->next, next, memory_order_relaxed);
 }
 
-PONY_API void pony_send(pony_ctx_t* ctx, pony_actor_t* to, uint32_t id)
+void ponyint_send(pony_ctx_t* ctx, pony_actor_t* to, uint32_t id)
 {
 #ifdef USE_RUNTIMESTATS_MESSAGES
   ctx->schedulerstats.mem_used_inflight_messages += sizeof(pony_msg_t);
@@ -1090,8 +1083,7 @@ PONY_API void pony_send(pony_ctx_t* ctx, pony_actor_t* to, uint32_t id)
   pony_sendv(ctx, to, m, m, id <= ACTORMSG_APPLICATION_START);
 }
 
-PONY_API void pony_sendp(pony_ctx_t* ctx, pony_actor_t* to, uint32_t id,
-  void* p)
+void ponyint_sendp(pony_ctx_t* ctx, pony_actor_t* to, uint32_t id, void* p)
 {
 #ifdef USE_RUNTIMESTATS_MESSAGES
   ctx->schedulerstats.mem_used_inflight_messages += sizeof(pony_msgp_t);
@@ -1105,8 +1097,7 @@ PONY_API void pony_sendp(pony_ctx_t* ctx, pony_actor_t* to, uint32_t id,
   pony_sendv(ctx, to, &m->msg, &m->msg, id <= ACTORMSG_APPLICATION_START);
 }
 
-PONY_API void pony_sendi(pony_ctx_t* ctx, pony_actor_t* to, uint32_t id,
-  intptr_t i)
+void ponyint_sendi(pony_ctx_t* ctx, pony_actor_t* to, uint32_t id, intptr_t i)
 {
 #ifdef USE_RUNTIMESTATS_MESSAGES
   ctx->schedulerstats.mem_used_inflight_messages += sizeof(pony_msgi_t);
@@ -1264,14 +1255,6 @@ PONY_API void pony_actor_unset_pinned()
 void ponyint_become(pony_ctx_t* ctx, pony_actor_t* actor)
 {
   ctx->current = actor;
-}
-
-PONY_API void pony_poll(pony_ctx_t* ctx)
-{
-  // TODO: this seems like it could allow muted actors to get `ponyint_actor_run`
-  // which shouldn't be allowed. Fixing might require API changes.
-  pony_assert(ctx->current != NULL);
-  ponyint_actor_run(ctx, ctx->current, true);
 }
 
 #ifdef USE_RUNTIME_TRACING

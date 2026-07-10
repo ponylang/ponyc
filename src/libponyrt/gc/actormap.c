@@ -114,7 +114,7 @@ static void send_release(pony_ctx_t* ctx, actorref_t* aref)
     return;
   }
 
-  pony_sendp(ctx, aref->actor, ACTORMSG_RELEASE, aref);
+  ponyint_sendp(ctx, aref->actor, ACTORMSG_RELEASE, aref);
 }
 
 actorref_t* ponyint_actormap_getactor(actormap_t* map, pony_actor_t* actor, size_t* index)
@@ -144,8 +144,7 @@ actorref_t* ponyint_actormap_getorput(actormap_t* map, pony_actor_t* actor,
 // RELEASE sends in ponyint_actormap_sweep happen in a layout-independent order
 // rather than in the map's pointer-hash iteration order. ids are unique, so
 // there are no ties (see pony_actor_t.systematic_testing_id and gc.c's
-// gc_drain_acquire_ordered, which sorts the acquire/release sends the same
-// way).
+// gc_drain_acquire_ordered, which sorts the ACQUIRE sends the same way).
 static int actormap_sweep_systematic_testing_id_cmp(const void* a,
   const void* b)
 {

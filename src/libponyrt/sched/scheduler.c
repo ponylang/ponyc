@@ -1093,7 +1093,7 @@ static pony_actor_t* steal(scheduler_t* sched)
           {
             // Run the cycle detector and get the next actor
             DTRACE2(ACTOR_SCHEDULED, (uintptr_t)sched, (uintptr_t)actor);
-            bool reschedule = ponyint_actor_run(&sched->ctx, actor, false);
+            bool reschedule = ponyint_actor_run(&sched->ctx, actor);
             sched->ctx.current = NULL;
             pony_actor_t* next = pop_global(sched);
 
@@ -1294,7 +1294,7 @@ static void run(scheduler_t* sched)
     pony_assert(!ponyint_actor_is_pinned(actor));
 
     // Run the current actor and get the next actor.
-    bool reschedule = ponyint_actor_run(&sched->ctx, actor, false);
+    bool reschedule = ponyint_actor_run(&sched->ctx, actor);
     sched->ctx.current = NULL;
     SYSTEMATIC_TESTING_YIELD();
     pony_actor_t* next = pop_global(sched);
@@ -1563,7 +1563,7 @@ static void run_pinned_actors()
       pony_assert(ponyint_actor_is_pinned(actor));
 
       // Run the current actor and get the next actor.
-      bool reschedule = ponyint_actor_run(&sched->ctx, actor, false);
+      bool reschedule = ponyint_actor_run(&sched->ctx, actor);
       sched->ctx.current = NULL;
       SYSTEMATIC_TESTING_YIELD();
 
@@ -1694,7 +1694,7 @@ pony_ctx_t* ponyint_sched_init(uint32_t threads, bool noyield, bool pin,
   )
 #endif
 {
-  pony_register_thread();
+  ponyint_register_thread();
 
 #ifdef USE_RUNTIMESTATS
   if(stats_interval != UINT32_MAX)
@@ -1848,7 +1848,7 @@ pony_ctx_t* ponyint_sched_init(uint32_t threads, bool noyield, bool pin,
 
 bool ponyint_sched_start()
 {
-  pony_register_thread();
+  ponyint_register_thread();
 
   if(!ponyint_asio_start())
     return false;
@@ -1953,7 +1953,7 @@ PONY_API bool pony_scheduler_yield()
   return use_yield;
 }
 
-PONY_API void pony_register_thread()
+void ponyint_register_thread()
 {
   if(this_scheduler != NULL)
     return;
@@ -1966,7 +1966,7 @@ PONY_API void pony_register_thread()
   this_scheduler->ctx.scheduler = this_scheduler;
 }
 
-PONY_API void pony_unregister_thread()
+void ponyint_unregister_thread()
 {
   if(this_scheduler == NULL)
     return;
@@ -1993,7 +1993,7 @@ bool ponyint_get_pinned_actor_scheduler_suspended()
 
 void ponyint_register_asio_thread()
 {
-  pony_register_thread();
+  ponyint_register_thread();
   this_scheduler->index = PONY_ASIO_SCHEDULER_INDEX;
   TRACING_THREAD_START(this_scheduler);
 }
