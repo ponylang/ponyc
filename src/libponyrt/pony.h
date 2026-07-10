@@ -311,9 +311,7 @@ PONY_API void pony_traceunknown(pony_ctx_t* ctx, void* p, int m);
 /** Initialize the runtime.
  *
  * Call this first. It will strip out command line arguments that you should
- * ignore and will return the remaining argc. Then create an actor and send it
- * a message, so that some initial work exists. Use ponyint_become() if you need
- * to send messages that require allocation and tracing.
+ * ignore and will return the remaining argc.
  *
  * Then call pony_start().
  *
