@@ -179,16 +179,6 @@ static int set_nonblocking(int s)
 #define SIO_UDP_CONNRESET _WSAIOW(IOC_VENDOR, 12)
 #endif
 
-// Pony passes writev buffers as an array of (Pointer[U8], USize) tuples, the
-// same memory layout as a POSIX struct iovec. Windows has no struct iovec, so
-// we mirror it here; pony_os_writev builds a WSABUF array from it internally
-// (WSABUF orders its fields differently and uses u_long, not size_t).
-typedef struct pony_iovec_t
-{
-  void* iov_base;
-  size_t iov_len;
-} pony_iovec_t;
-
 static int set_nonblocking(SOCKET s)
 {
   u_long nonblocking = 1;
@@ -677,7 +667,7 @@ PONY_API bool pony_os_host_ip6(const char* host)
 }
 
 #ifdef PLATFORM_IS_WINDOWS
-PONY_API pony_socket_result_t pony_os_writev(asio_event_t* ev,
+PONY_API pony_socket_result_t pony_os_sendv(asio_event_t* ev,
   const pony_iovec_t* iov, int iovcnt, size_t* count_out)
 {
   SOCKET s = (SOCKET)ev->fd;
@@ -726,7 +716,46 @@ PONY_API pony_socket_result_t pony_os_writev(asio_event_t* ev,
   *count_out = (size_t)sent;
   return PONY_SOCKET_OK;
 }
+
+PONY_API pony_socket_result_t pony_os_writev(asio_event_t* ev,
+  const pony_iovec_t* iov, int iovcnt, size_t* count_out)
+{
+  // Winsock has no gather-write outside of the socket API, so there is nothing
+  // for this to do that pony_os_sendv doesn't already do.
+  return pony_os_sendv(ev, iov, iovcnt, count_out);
+}
 #else
+PONY_API pony_socket_result_t pony_os_sendv(asio_event_t* ev,
+  const struct iovec* iov, int iovcnt, size_t* count_out)
+{
+  struct msghdr msg;
+  memset(&msg, 0, sizeof(msg));
+
+  msg.msg_iov = (struct iovec*)iov;
+
+  // msg_iovlen is a size_t on Linux, an int on macOS, FreeBSD, and DragonFly,
+  // and an unsigned int on OpenBSD. Let each platform convert from int itself;
+  // a cast naming one of those types is wrong on the others.
+  msg.msg_iovlen = iovcnt;
+
+  ssize_t sent = sendmsg(ev->fd, &msg, MSG_DONTWAIT);
+
+  if(sent < 0)
+  {
+    if(errno == EWOULDBLOCK || errno == EAGAIN)
+    {
+      *count_out = 0;
+      return PONY_SOCKET_RETRY;
+    }
+
+    *count_out = 0;
+    return PONY_SOCKET_ERROR;
+  }
+
+  *count_out = (size_t)sent;
+  return PONY_SOCKET_OK;
+}
+
 PONY_API pony_socket_result_t pony_os_writev(asio_event_t* ev,
   const struct iovec *iov, int iovcnt, size_t* count_out)
 {
@@ -770,7 +799,7 @@ PONY_API pony_socket_result_t pony_os_send(asio_event_t* ev, const char* buf,
   *count_out = (size_t)sent;
   return PONY_SOCKET_OK;
 #else
-  ssize_t sent = send(ev->fd, buf, len, 0);
+  ssize_t sent = send(ev->fd, buf, len, MSG_DONTWAIT);
 
   if(sent < 0)
   {
@@ -793,13 +822,9 @@ PONY_API pony_socket_result_t pony_os_recv(asio_event_t* ev, char* buf,
   size_t len, size_t* count_out)
 {
 #ifdef PLATFORM_IS_WINDOWS
-  // Synchronous non-blocking recv, like POSIX. OK paths must write a non-zero
-  // count (the stdlib read loop advances by it and would spin on a 0-byte OK);
-  // received == 0 (peer closed) is surfaced as ERROR for that reason.
-  //
-  // Winsock has no MSG_DONTWAIT, so unlike the POSIX branch below this call
-  // depends on the socket being in non-blocking mode, which every socket the
-  // runtime hands out has been put in by set_nonblocking (ioctlsocket FIONBIO).
+  // OK paths must write a non-zero count (the stdlib read loop advances by it
+  // and would spin on a 0-byte OK); received == 0 (peer closed) is surfaced as
+  // ERROR for that reason.
   int received = recv((SOCKET)ev->fd, buf, (int)len, 0);
 
   if(received == SOCKET_ERROR)
@@ -825,16 +850,6 @@ PONY_API pony_socket_result_t pony_os_recv(asio_event_t* ev, char* buf,
   // `_read_buf_offset` and `sum` by the count and would loop forever
   // if OK ever carried 0 bytes. `received == 0` (peer closed) is
   // surfaced as ERROR for that reason.
-  //
-  // Pass MSG_DONTWAIT rather than trust the socket to be in non-blocking mode.
-  // The runtime only ever creates non-blocking sockets, but a read can arrive
-  // for a connection whose fd was already closed and whose number has since
-  // been reused by a blocking socket. Without the flag, that read parks this
-  // scheduler thread inside recv until data arrives, which may be never: the
-  // runtime cannot reach quiescence and the program cannot exit. The flag does
-  // not make such a read correct -- if the reused fd has data, it still lands
-  // in the wrong connection's buffer -- it only stops the read from parking
-  // the thread.
   ssize_t received = recv(ev->fd, buf, len, MSG_DONTWAIT);
 
   if(received < 0)
@@ -897,8 +912,8 @@ PONY_API pony_socket_result_t pony_os_sendto(int fd, const char* buf,
     return PONY_SOCKET_ERROR;
   }
 
-  ssize_t sent = sendto(fd, buf, len, 0, (struct sockaddr*)&ipaddr->addr,
-    addrlen);
+  ssize_t sent = sendto(fd, buf, len, MSG_DONTWAIT,
+    (struct sockaddr*)&ipaddr->addr, addrlen);
 
   if(sent < 0)
   {
@@ -931,7 +946,6 @@ PONY_API pony_socket_result_t pony_os_recvfrom(asio_event_t* ev, char* buf,
 
   int addrlen = sizeof(struct sockaddr_storage);
 
-  // No MSG_DONTWAIT on Winsock; see the comment in pony_os_recv.
   int recvd = recvfrom((SOCKET)ev->fd, buf, (int)len, 0,
     (struct sockaddr*)&ipaddr->addr, &addrlen);
 
@@ -968,8 +982,6 @@ PONY_API pony_socket_result_t pony_os_recvfrom(asio_event_t* ev, char* buf,
 #else
   socklen_t addrlen = sizeof(struct sockaddr_storage);
 
-  // MSG_DONTWAIT for the same reason as pony_os_recv above: a read on a
-  // blocking fd must not park the scheduler thread.
   ssize_t recvd = recvfrom(ev->fd, (char*)buf, len, MSG_DONTWAIT,
     (struct sockaddr*)&ipaddr->addr, &addrlen);
 
