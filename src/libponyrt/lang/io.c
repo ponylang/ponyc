@@ -14,7 +14,7 @@ PONY_EXTERN_C_BEGIN
 
 
 // How many buffers a single gather-write may carry. Read by both packages/net
-// (TCPConnection) and packages/files (File). On Windows net's pony_os_writev
+// (TCPConnection) and packages/files (File). On Windows net's pony_os_sendv
 // does a real WSASend over a WSABUF array, but file.pony's Windows write branch
 // does a single-buffer write keyed off this same cap: raising it above 1 there
 // would hand file.pony a multi-buffer total and it would over-read past the

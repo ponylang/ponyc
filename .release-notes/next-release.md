@@ -198,3 +198,25 @@ The sockets `TCPConnection` and `UDPSocket` create are never in blocking mode, s
 
 On Linux, macOS, and the BSDs, a socket read no longer waits for data to arrive, whatever mode the file descriptor is in. Windows offers no way to ask for that per read, so reads there still depend on the socket being non-blocking.
 
+
+## Stop a socket write on a blocking file descriptor from hanging a program
+
+A write to a socket could park a scheduler thread inside the write call, waiting for room in a send buffer that might never drain. The runtime then never went idle and the program never exited.
+
+The sockets `TCPConnection` and `UDPSocket` create are never in blocking mode, so this took a file descriptor from somewhere else: one opened over the C FFI, or one belonging to a library that closes and reuses descriptors itself, where a write for a closed connection can land on a descriptor number that a blocking socket has since taken over.
+
+On Linux, FreeBSD, OpenBSD, and DragonFly BSD, a socket write no longer waits for room in the send buffer, whatever mode the file descriptor is in. macOS and Windows offer no way to ask for that per write: macOS ignores the flag that asks for it on a write, though not on a read, and Windows has no such flag at all. Writes on those two still depend on the socket being non-blocking, as every socket the runtime creates is.
+
+## Add `pony_os_sendv` for writing to a socket
+
+`pony_os_sendv` sends an array of buffers over a socket in a single call. It is what `TCPConnection` now uses to write.
+
+```pony
+use @pony_os_sendv[U8](ev: AsioEventID,
+  iov: Pointer[(Pointer[U8] tag, USize)] tag, iovcnt: I32,
+  count_out: Pointer[USize])
+```
+
+It returns the same three values `pony_os_writev` does — 0 when the write completed, 1 to retry later, 2 on an error — and writes the number of bytes sent through `count_out`.
+
+If you call `pony_os_writev` over the FFI to write to a socket, switch to `pony_os_sendv`. `pony_os_writev` is unchanged and still exported, but on Linux, macOS, and the BSDs it calls `writev`, which takes no flags argument, so nothing can request a non-blocking write: on a blocking file descriptor it parks the calling thread. `pony_os_sendv` passes `MSG_DONTWAIT` and returns a retry instead, on every platform whose kernel honors that flag on a write. In exchange it takes a socket and nothing else, where `pony_os_writev` on those platforms takes any file descriptor.

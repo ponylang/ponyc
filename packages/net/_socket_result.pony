@@ -1,7 +1,7 @@
 // Pony-side dual of `pony_socket_result_t` defined in
 // `src/libponyrt/lang/socket.h`. The integer values returned from `apply()`
 // must match the C-side `PONY_SOCKET_OK`/`PONY_SOCKET_RETRY`/`PONY_SOCKET_ERROR`
-// constants, which are part of the FFI ABI for the five `pony_os_*` socket
+// constants, which are part of the FFI ABI for the six `pony_os_*` socket
 // runtime functions. Keep both files in sync.
 //
 // `_SocketResultDecoder` collapses any out-of-range U8 to `_SocketResultError`

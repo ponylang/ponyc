@@ -28,12 +28,14 @@ All notable changes to the Pony compiler and standard library will be documented
 - Fix `Readline` nudging the cursor right on an empty line ([PR #5688](https://github.com/ponylang/ponyc/pull/5688))
 - Fix `Readline.down` underflow on empty history ([PR #5689](https://github.com/ponylang/ponyc/pull/5689))
 - Stop a socket read on a blocking file descriptor from hanging a program ([PR #5718](https://github.com/ponylang/ponyc/pull/5718))
+- Stop a socket write on a blocking file descriptor from hanging a program ([PR #5726](https://github.com/ponylang/ponyc/pull/5726))
 
 ### Added
 
 - Add --version and --help support to pony-lsp ([PR #5668](https://github.com/ponylang/ponyc/pull/5668))
 - Support runtime tracing on Windows ([PR #5676](https://github.com/ponylang/ponyc/pull/5676))
 - Add `rewind()` to ArrayKeys and ArrayPairs ([PR #5645](https://github.com/ponylang/ponyc/pull/5645))
+- Add `pony_os_sendv` for writing to a socket ([PR #5726](https://github.com/ponylang/ponyc/pull/5726))
 
 ### Changed
 

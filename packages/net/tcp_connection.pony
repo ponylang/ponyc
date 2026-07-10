@@ -12,8 +12,9 @@ use @pony_asio_event_set_writeable[None](event: AsioEventID, writeable: Bool)
 use @pony_asio_event_set_readable[None](event: AsioEventID, readable: Bool)
 use @pony_os_recv[U8](event: AsioEventID, buffer: Pointer[U8] tag,
   size: USize, count_out: Pointer[USize])
-use @pony_os_writev[U8](ev: AsioEventID, iov: Pointer[(Pointer[U8] tag, USize)] tag,
-  iovcnt: I32, count_out: Pointer[USize])
+use @pony_os_sendv[U8](ev: AsioEventID,
+  iov: Pointer[(Pointer[U8] tag, USize)] tag, iovcnt: I32,
+  count_out: Pointer[USize])
 use @pony_os_writev_max[I32]()
 use @pony_os_keepalive[None](fd: U32, secs: U32)
 use @pony_os_socket_close[None](fd: U32)
@@ -718,7 +719,7 @@ actor TCPConnection is AsioEventNotify
           num_to_send = _pending_writev.size()
           bytes_to_send = _pending_writev_total
         else
-          // Have more buffers than a single writev can handle.
+          // Have more buffers than a single send can handle.
           // Iterate over buffers being sent to add up total.
           num_to_send = writev_batch_size
           bytes_to_send = 0
@@ -730,7 +731,7 @@ actor TCPConnection is AsioEventNotify
         // Write as much data as possible.
         var count: USize = 0
         match \exhaustive\ _SocketResultDecoder(
-          @pony_os_writev(_event,
+          @pony_os_sendv(_event,
             _pending_writev.cpointer(), num_to_send.i32(),
             addressof count))
         | _SocketResultOk =>
