@@ -64,7 +64,8 @@ enum // Event requests
   ASIO_SET_TIMER = 7,
   ASIO_CANCEL_TIMER = 8,
   ASIO_SET_SIGNAL = 9,
-  ASIO_CANCEL_SIGNAL = 10
+  ASIO_CANCEL_SIGNAL = 10,
+  ASIO_STDIN_UNSUBSCRIBE = 11
 };
 
 
@@ -383,7 +384,9 @@ DECLARE_THREAD_FN(ponyint_asio_backend_dispatch)
       switch(msg->flags)
       {
         case ASIO_STDIN_NOTIFY:
-          // Who to notify about stdin events has changed.
+          // Start watching stdin for this event. Unsubscribe is a separate
+          // request (ASIO_STDIN_UNSUBSCRIBE), so ev is always non-NULL here.
+          pony_assert(ev != NULL);
           stdin_event = ev;
 
           if(stdin_wait != NULL)
@@ -392,9 +395,26 @@ DECLARE_THREAD_FN(ponyint_asio_backend_dispatch)
             stdin_wait = NULL;
           }
 
-          if(stdin_event != NULL)  // Someone wants stdin; start watching it.
-            RegisterWaitForSingleObject(&stdin_wait, stdin_handle,
-              stdin_notify_cb, b, INFINITE, WT_EXECUTEONLYONCE);
+          RegisterWaitForSingleObject(&stdin_wait, stdin_handle,
+            stdin_notify_cb, b, INFINITE, WT_EXECUTEONLYONCE);
+          break;
+
+        case ASIO_STDIN_UNSUBSCRIBE:
+          // Stop watching stdin and dispose the event. Clear stdin_event and
+          // unregister the wait first: once the asio thread holds no reference
+          // to the event, the owning actor can free it with no stdin readiness
+          // still in flight to reach it. Mirrors the timer and signal cancels,
+          // which null their own references before disposing.
+          stdin_event = NULL;
+
+          if(stdin_wait != NULL)
+          {
+            UnregisterWaitEx(stdin_wait, INVALID_HANDLE_VALUE);
+            stdin_wait = NULL;
+          }
+
+          ev->flags = ASIO_DISPOSABLE;
+          pony_asio_event_send(ev, ASIO_DISPOSABLE, 0);
           break;
 
         case ASIO_STDIN_RESUME:
@@ -632,12 +652,11 @@ PONY_API void pony_asio_event_unsubscribe(asio_event_t* ev)
       pony_asio_event_send(ev, ASIO_DISPOSABLE, 0);
     }
   } else if(ev->fd == 0) {
-    // Unsubscribe from stdin. These paths are driven from the asio thread and
-    // have no foreign-thread races, so dispose synchronously.
-    send_request(NULL, ASIO_STDIN_NOTIFY);
-
-    ev->flags = ASIO_DISPOSABLE;
-    pony_asio_event_send(ev, ASIO_DISPOSABLE, 0);
+    // Unsubscribe from stdin. Route disposal through the request queue, like
+    // the timer and signal cancels above (and like epoll and kqueue). The asio
+    // thread clears stdin_event and unregisters the wait before disposing, so
+    // it never sends on an event the owning actor has already freed.
+    send_request(ev, ASIO_STDIN_UNSUBSCRIBE);
   } else {
     // Socket. Issue PSN REMOVE and mark the event "removing". Disposal is
     // DEFERRED: the dispatch loop sends ASIO_DISPOSABLE (and closes ev->fd)
@@ -655,9 +674,9 @@ PONY_API void pony_asio_event_unsubscribe(asio_event_t* ev)
       {
         // The REMOVE control call failed, so no SOCK_NOTIFY_EVENT_REMOVE packet
         // will arrive to drive the deferred close + disposal. Dispose
-        // synchronously here on the owning actor's thread, as the timer/signal/
-        // stdin branches do. Without this, the event would leak and the actor
-        // would never quiesce, matching epoll's unconditional disposal.
+        // synchronously here on the owning actor's thread, as the timer/signal
+        // branches do. Without this, the event would leak and the actor would
+        // never quiesce, matching epoll's unconditional disposal.
         closesocket((SOCKET)ev->fd);
         ev->fd = -1;
         ev->flags = ASIO_DISPOSABLE;
