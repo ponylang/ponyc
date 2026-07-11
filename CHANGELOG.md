@@ -30,6 +30,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Stop a socket read on a blocking file descriptor from hanging a program ([PR #5718](https://github.com/ponylang/ponyc/pull/5718))
 - Stop a socket write on a blocking file descriptor from hanging a program ([PR #5726](https://github.com/ponylang/ponyc/pull/5726))
 - Make `ArrayKeys.next()` partial ([PR #5714](https://github.com/ponylang/ponyc/pull/5714))
+- Fix crash when disposing stdin input on Windows ([PR #5734](https://github.com/ponylang/ponyc/pull/5734))
 
 ### Added
 
