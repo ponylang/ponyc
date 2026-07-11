@@ -23,9 +23,9 @@
 // a completion port, blocks on it, and turns "socket became ready" packets into
 // ASIO_READ/ASIO_WRITE events with one-shot + readable/writeable gating. recv/
 // send are then synchronous non-blocking calls with our own buffers (no kernel-
-// retained buffers), so there is no foreign-thread completion delivery and no
-// liveness token. The completion port here is only the notification queue
-// (epoll-fd's role), not an overlapped-completion port.
+// retained buffers), so there is no foreign-thread completion delivery. The
+// completion port here is only the notification queue (epoll-fd's role), not
+// an overlapped-completion port.
 //
 // PSN is gated in <winsock2.h> on NTDDI_VERSION >= NTDDI_WIN10_MN. We rely on
 // the SDK's default version (which exceeds the floor; forcing the macro lower
@@ -98,10 +98,9 @@ static void signal_handler(int sig)
 
   // POSIX (epoll.c) routes signals through the asio thread: the handler only
   // wakes that thread, which then sends the event. We mirror that so the asio
-  // thread is the ONLY thread that ever sends events -- the property that makes
-  // the old foreign-thread liveness token unnecessary. PostQueuedCompletionStatus
-  // is thread-safe and touches no event state; the signal number rides in the
-  // bytes-transferred field.
+  // thread is the ONLY thread that ever sends events.
+  // PostQueuedCompletionStatus is thread-safe and touches no event state; the
+  // signal number rides in the bytes-transferred field.
   asio_backend_t* b = ponyint_asio_get_backend();
 
   if(b != NULL)
@@ -634,7 +633,7 @@ PONY_API void pony_asio_event_unsubscribe(asio_event_t* ev)
     }
   } else if(ev->fd == 0) {
     // Unsubscribe from stdin. These paths are driven from the asio thread and
-    // never had foreign-thread races, so dispose synchronously (as before).
+    // have no foreign-thread races, so dispose synchronously.
     send_request(NULL, ASIO_STDIN_NOTIFY);
 
     ev->flags = ASIO_DISPOSABLE;
