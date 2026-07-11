@@ -2293,9 +2293,9 @@ class \nodoc\ iso _TestTCPMutePeerCloseUndetected is UnitTest
   """
   A muted connection must not learn that its peer has closed until it is
   unmuted. Peer close is detected by reading, and a muted connection does not
-  read, so `closed` must not fire while muted. This holds on every platform now;
-  the test pins it on Windows, which previously surfaced a peer close to a muted
-  connection via a queued read.
+  read, so `closed` must not fire while muted. This holds on every platform; the
+  test pins it on Windows, which previously surfaced a peer close to a muted
+  connection.
 
   The receiver accepts, mutes, then asks the sender to close its side (writing
   is unaffected by muting). The sender closes only in response, so the receiver

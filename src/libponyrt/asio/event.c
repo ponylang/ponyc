@@ -164,9 +164,11 @@ PONY_API uint64_t pony_asio_event_nsec(asio_event_t* ev)
 PONY_API void pony_asio_event_send(asio_event_t* ev, uint32_t flags,
   uint32_t arg)
 {
-  // Every backend, including the Windows readiness backend, sends events only
-  // from the asio thread (already registered via ponyint_register_asio_thread),
-  // so there is no foreign thread to register.
+  // Every caller is a thread the runtime has registered: the asio thread, and
+  // the scheduler thread running the owning actor, which reaches here through
+  // the backends' PONY_API entry points. ponyint_sendv_inject and
+  // pony_scheduler_index below both need a pony_ctx, and only a registered
+  // thread has one, so there is nothing to register.
   asio_msg_t* m = (asio_msg_t*)pony_alloc_msg(POOL_INDEX(sizeof(asio_msg_t)),
     ev->msg_id);
   m->event = ev;
