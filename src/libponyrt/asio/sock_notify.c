@@ -654,11 +654,9 @@ PONY_API void pony_asio_event_unsubscribe(asio_event_t* ev)
         SOCK_NOTIFY_OP_REMOVE, 0))
       {
         // The REMOVE control call failed, so no SOCK_NOTIFY_EVENT_REMOVE packet
-        // will arrive to drive the deferred close + disposal. A failed REMOVE
-        // means the socket isn't registered with the port, so no readiness
-        // packet for it is in flight on the asio thread -- it is safe to dispose
-        // synchronously here on the owning actor's thread (as the timer/signal/
-        // stdin branches do). Without this, the event would leak and the actor
+        // will arrive to drive the deferred close + disposal. Dispose
+        // synchronously here on the owning actor's thread, as the timer/signal/
+        // stdin branches do. Without this, the event would leak and the actor
         // would never quiesce, matching epoll's unconditional disposal.
         closesocket((SOCKET)ev->fd);
         ev->fd = -1;
