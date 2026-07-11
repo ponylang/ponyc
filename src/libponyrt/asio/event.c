@@ -166,7 +166,7 @@ PONY_API void pony_asio_event_send(asio_event_t* ev, uint32_t flags,
 {
   // Every backend, including the Windows readiness backend, sends events only
   // from the asio thread (already registered via ponyint_register_asio_thread),
-  // so there is no foreign thread to register and no liveness token to hold.
+  // so there is no foreign thread to register.
   asio_msg_t* m = (asio_msg_t*)pony_alloc_msg(POOL_INDEX(sizeof(asio_msg_t)),
     ev->msg_id);
   m->event = ev;

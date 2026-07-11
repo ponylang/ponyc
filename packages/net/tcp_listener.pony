@@ -190,9 +190,7 @@ actor TCPListener is AsioEventNotify
       match fd
       | -1 =>
         // Something other than EWOULDBLOCK (a failed accept). Bail out; the
-        // ASIO event will re-notify when the socket is readable again. On
-        // Windows this path is now reachable too, closing the old
-        // one-accept-at-a-time liveness gap.
+        // ASIO event will re-notify when the socket is readable again.
         return
       | 0 =>
         // EWOULDBLOCK, don't try again.

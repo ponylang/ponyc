@@ -482,8 +482,7 @@ PONY_API int pony_os_accept(asio_event_t* ev)
 {
 #if defined(PLATFORM_IS_WINDOWS)
   // Plain accept on read-readiness, like POSIX. Return the new fd, 0 for
-  // "would block" (don't retry), or -1 for a real failure (the listener
-  // surfaces this -- the latent liveness gap the old one-AcceptEx model had).
+  // "would block" (don't retry), or -1 for a real failure.
   SOCKET skt = accept((SOCKET)ev->fd, NULL, NULL);
   int ns;
 
@@ -876,8 +875,8 @@ PONY_API pony_socket_result_t pony_os_sendto(int fd, const char* buf,
   size_t len, ipaddress_t* ipaddr, size_t* count_out)
 {
 #ifdef PLATFORM_IS_WINDOWS
-  // Synchronous sendto, like POSIX. Send errors now surface (and close the
-  // socket via the ERROR arm) instead of being discarded fire-and-forget.
+  // Synchronous sendto, like POSIX. A send error closes the socket via the
+  // PONY_SOCKET_ERROR return.
   socklen_t addrlen = ponyint_address_length(ipaddr);
 
   if(addrlen == (socklen_t)-1)
@@ -1082,7 +1081,7 @@ bool ponyint_os_sockets_init()
   WSADATA data;
 
   // Load the winsock library. The readiness backend uses plain connect/accept,
-  // so the ConnectEx/AcceptEx extension function pointers are no longer needed.
+  // so WSAStartup is all the winsock setup there is.
   int r = WSAStartup(ver, &data);
 
   if(r != 0)
