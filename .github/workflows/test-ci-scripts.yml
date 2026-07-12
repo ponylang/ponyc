@@ -1,6 +1,10 @@
 name: Test .ci-scripts
 
-on: pull_request
+on:
+  pull_request:
+    paths:
+      - '.ci-scripts/**'
+      - '.github/workflows/test-ci-scripts.yml'
 
 concurrency:
   group: test-ci-scripts-${{ github.ref }}
