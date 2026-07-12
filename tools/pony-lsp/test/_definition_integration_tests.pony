@@ -189,17 +189,17 @@ class \nodoc\ iso _DefinitionTypeAliasIntegrationTest is UnitTest
       _server,
       "definition/_type_alias.pony",
       [ // `Map` type alias in `Map[String, U32]` → Map type alias declaration
-        _DefinitionChecker(17, 13, [("map.pony", (3, 0), (7, 5))])
+        _DefinitionChecker(13, 13, [("map.pony", (3, 0), (7, 5))])
         // `String` type arg in `Map[String, U32]` → String class declaration
-        _DefinitionChecker(17, 17, [("string.pony", (8, 0), (1687, 25))])
+        _DefinitionChecker(13, 17, [("string.pony", (8, 0), (1687, 25))])
         // `U32` type arg in `Map[String, U32]` → U32 primitive declaration
         _DefinitionChecker(
-          17,
+          13,
           25,
           [("unsigned.pony", (185, 0), (255, 60))])
         // `_Alias` usage → type alias declaration (line 2)
         _DefinitionChecker(
-          19,
+          15,
           20,
           [("_type_alias.pony", (2, 0), (2, 17))])])
 

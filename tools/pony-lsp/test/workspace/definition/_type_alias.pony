@@ -4,16 +4,12 @@ type _Alias is U8
 
 class _TypeAliasFields
   """
-  Test fixture for goto definition on type arguments inside type aliases.
+  Test fixture for goto definition on a type alias usage.
 
-  `Map` is a type alias for `HashMap[K, V, HashEq[K]]`. After the compiler's
-  name resolution pass, the alias is expanded and the original `Map` reference
-  is replaced. The type arguments (`String`, `U32`) are substituted into the
-  expanded tree but must remain reachable by the position index for goto
-  definition to work.
-
-  `_Alias` is a simple type alias defined in this file, testing whether goto
-  definition works on a local type alias usage.
+  In `Map[String, U32]`, goto definition on `Map` resolves to the `Map` type
+  alias declaration, and on the type arguments `String` and `U32` to their own
+  declarations. `_Alias` is a simple type alias defined in this file; goto
+  definition on it resolves to that declaration.
   """
   let _data: Map[String, U32] val
   let _name: String
