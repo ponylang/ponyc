@@ -193,10 +193,18 @@ actor _Tester
         _stage = _Testing
         let spa = StartProcessAuth(_env.root)
         let bpa = ApplyReleaseBackpressureAuth(_env.root)
-        _test_process = ProcessMonitor(spa, bpa, _TestProcessNotify(this),
+        let process = ProcessMonitor(spa, bpa, _TestProcessNotify(this),
           executable_file_path, args, vars,
           FilePath(FileAuth(_env.root), _definition.path))
-            .>done_writing()
+
+        // The program's stdin is closed right away. When the test has a
+        // stdin.txt, the contents are written first.
+        match _definition.stdin
+        | let data: String val if data.size() > 0 =>
+          process.write(data)
+        end
+
+        _test_process = process .> done_writing()
       else
         _notify.print(_definition.name,
           _Colors.err(_definition.name + ": unable to find debugger"))
@@ -206,10 +214,17 @@ actor _Tester
   fun ref _get_debugger_and_args(test_fname: String, extra_env: String)
     : (FilePath, Array[String] val) ?
   =>
+    // A test with a stdin.txt runs without the debugger. lldb gives the program
+    // it launches a terminal for stdin, so the program reads none of what the
+    // tester wrote and never reaches the end of stdin. The cost is no backtrace
+    // if one of these tests crashes.
+    let use_debugger =
+      (_options.debugger.size() > 0) and (_definition.stdin is None)
+
     recover
       let debugger_args = Array[String]
       let debugger_file_path =
-        if _options.debugger.size() > 0 then
+        if use_debugger then
           try
             let debugger_split =
               recover val

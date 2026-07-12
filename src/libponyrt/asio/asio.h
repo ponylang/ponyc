@@ -127,6 +127,20 @@ void ponyint_asio_backend_final(asio_backend_t* backend);
 DECLARE_THREAD_FN(ponyint_asio_backend_dispatch);
 
 
+/* The stdin contract every backend implements.
+ *
+ * While a stdin event is subscribed, the backend sends it ASIO_READ whenever
+ * stdin can be read. Stdin that has ended can be read: the read returns zero
+ * bytes. A zero-length read is the only report that stdin has ended, and the
+ * Stdin actor unsubscribes on it.
+ *
+ * An event subscribed after stdin has already ended is sent ASIO_READ too.
+ *
+ * If a backend stops sending ASIO_READ to a subscribed stdin event, the event
+ * stays subscribed. The event is noisy, so the program never quiesces and
+ * never exits.
+ */
+
 #ifdef ASIO_USE_SOCK_NOTIFY
 
 // Resume waiting on stdin after a read.

@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <string.h>
 #include "../asio/asio.h"
+#include "stdfd.h"
 
 #ifndef PLATFORM_IS_WINDOWS
 #include <poll.h>
@@ -234,6 +235,16 @@ static bool add_input_record(char* buffer, size_t space, size_t *len,
   return true;
 }
 
+bool ponyint_stdin_is_console()
+{
+  // GetConsoleMode succeeds on a console input handle and fails on every other
+  // handle. GetFileType cannot be used instead: it reports FILE_TYPE_CHAR for a
+  // console and for every other character device, so stdin redirected from NUL
+  // has the same file type as a console.
+  DWORD mode;
+  return GetConsoleMode(GetStdHandle(STD_INPUT_HANDLE), &mode) != 0;
+}
+
 static WORD get_attrib(HANDLE handle)
 {
   CONSOLE_SCREEN_BUFFER_INFO csbi;
@@ -424,17 +435,15 @@ PONY_API bool pony_os_stdin_setup()
   bool stdin_event_based = true;
   // Return true if reading stdin should be event based.
 #ifdef PLATFORM_IS_WINDOWS
-  HANDLE handle = GetStdHandle(STD_INPUT_HANDLE);
-  DWORD type = GetFileType(handle);
+  is_stdin_tty = ponyint_stdin_is_console();
 
-  if(type == FILE_TYPE_CHAR)
+  if(is_stdin_tty)
   {
-    // TTY
+    HANDLE handle = GetStdHandle(STD_INPUT_HANDLE);
     DWORD mode;
-    GetConsoleMode(handle, &mode);
-    SetConsoleMode(handle,
-      mode & ~(ENABLE_ECHO_INPUT | ENABLE_LINE_INPUT));
-    is_stdin_tty = true;
+
+    if(GetConsoleMode(handle, &mode))
+      SetConsoleMode(handle, mode & ~(ENABLE_ECHO_INPUT | ENABLE_LINE_INPUT));
   }
 #else
   // on *nix only not use events when stdin is a redirected file
