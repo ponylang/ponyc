@@ -148,22 +148,10 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELWITHDEBINFO "${CMAKE_BINARY_DIR}/../relwit
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/../${CMAKE_BUILD_TYPE}${PONY_OUTPUT_SUFFIX}")
 
 # Per-config output directory for ponyc-compiled binaries and the ctest wrappers.
-# On the Windows Visual Studio multi-config generator CMAKE_RUNTIME_OUTPUT_DIRECTORY
-# above is config-less (CMAKE_BUILD_TYPE is empty there), so the per-config dir must
-# be derived from $<CONFIG> as a generator expression. On a single-config generator
-# (the non-Windows presets) CMAKE_RUNTIME_OUTPUT_DIRECTORY already carries the
-# config, so use it verbatim -- this keeps the non-Windows build byte-for-byte
-# unchanged (no genex on that path). $<LOWER_CASE:$<CONFIG>> matches the lowercase
-# debug/release dirs the _DEBUG/_RELEASE vars above use; ${PONY_OUTPUT_SUFFIX} keeps
-# use= builds aligned. Everything that locates a ponyc-compiled binary, sets a ctest
-# working dir, or tells ponyc where to write must use PONY_OUTPUT_DIR rather than
-# CMAKE_RUNTIME_OUTPUT_DIRECTORY: on the single-config generators the two are equal,
-# so a site that reverts to the latter passes every Unix job and breaks only Windows.
-if(CMAKE_CONFIGURATION_TYPES)
-    set(PONY_OUTPUT_DIR "${CMAKE_BINARY_DIR}/../$<LOWER_CASE:$<CONFIG>>${PONY_OUTPUT_SUFFIX}")
-else()
-    set(PONY_OUTPUT_DIR "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}")
-endif()
+# The $<LOWER_CASE:$<CONFIG>> genex matches the lowercase debug/release dirs the
+# _DEBUG/_RELEASE vars use (what install() reads via $<TARGET_FILE_DIR:ponyc>);
+# ${CMAKE_BUILD_TYPE} ("Release") would break install on case-sensitive filesystems.
+set(PONY_OUTPUT_DIR "${CMAKE_BINARY_DIR}/../$<LOWER_CASE:$<CONFIG>>${PONY_OUTPUT_SUFFIX}")
 
 # Libs are now always built in release mode.
 set(PONY_LLVM_BUILD_MODE "1")
