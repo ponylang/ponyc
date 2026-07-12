@@ -274,6 +274,40 @@ static void set_coord(HANDLE handle, CONSOLE_SCREEN_BUFFER_INFO* csbi,
   SetConsoleCursorPosition(handle, coord);
 }
 
+static char ansi_parse(const char* buffer, size_t* pos, size_t len,
+  int* argc, int* argv)
+{
+  size_t n;
+  int arg = -1;
+  char code = -1;
+
+  for(n = *pos; n < len; n++)
+  {
+    char c = buffer[n];
+
+    if((c >= '0') && (c <= '9'))
+    {
+      if(arg < 0)
+        arg = 0;
+
+      argv[arg] = (argv[arg] * 10) + (c - '0');
+    } else if(c == ';') {
+      arg = arg + 1;
+
+      if(arg > 5)
+        break;
+    } else {
+      code = c;
+      break;
+    }
+  }
+
+  *pos = n + 1;
+  *argc = arg + 1;
+
+  return code;
+}
+
 #else
 
 static struct termios orig_termios;
@@ -347,40 +381,6 @@ static void stdin_tty()
   atexit(stdin_tty_restore);
 }
 #endif
-
-char ansi_parse(const char* buffer, size_t* pos, size_t len,
-  int* argc, int* argv)
-{
-  size_t n;
-  int arg = -1;
-  char code = -1;
-
-  for(n = *pos; n < len; n++)
-  {
-    char c = buffer[n];
-
-    if((c >= '0') && (c <= '9'))
-    {
-      if(arg < 0)
-        arg = 0;
-
-      argv[arg] = (argv[arg] * 10) + (c - '0');
-    } else if(c == ';') {
-      arg = arg + 1;
-
-      if(arg > 5)
-        break;
-    } else {
-      code = c;
-      break;
-    }
-  }
-
-  *pos = n + 1;
-  *argc = arg + 1;
-
-  return code;
-}
 
 PONY_API void pony_os_stdout_setup()
 {
@@ -771,21 +771,5 @@ PONY_API void pony_os_std_flush(FILE* fp)
   fflush(fp);
 #endif
 }
-
-#ifdef PLATFORM_IS_WINDOWS
-// Unsurprisingly Windows uses a different order for colors. Map them here.
-// We use the bright versions here, hence the additional 8 on each value.
-static const uint8_t map_color[8] =
-{
-   0, // black
-  12, // red
-  10, // green
-  14, // yellow
-   9, // blue
-  13, // magenta
-  11, // cyan
-  15  // white
-};
-#endif
 
 PONY_EXTERN_C_END
