@@ -7,7 +7,8 @@
 #
 # Compiles a Pony program with the just-built ponyc into the output directory, as
 # a custom target (built under ALL only when the ALL option is passed). Used by
-# the pony-*-tests binaries.
+# the self-hosted tool binaries (pony-lint/doc/lsp, which pass ALL) and the
+# pony-*-tests binaries.
 #
 # Rebuilds when any watched .pony source changes, when the shared tool libraries
 # change (TOOLS_LIB_STAMP), or when ponyc itself is rebuilt.
