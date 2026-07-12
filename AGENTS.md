@@ -22,28 +22,25 @@ When you start working on this project, load the `pony-skills` skill — it tell
 Read [CONTRIBUTING.md](CONTRIBUTING.md).
 <!-- /contributor-only -->
 
-## Tool Source Locations
-- **pony-lint**: `tools/pony-lint/` — Pony linter
-- **pony-lsp**: `tools/pony-lsp/` — Pony language server
-- **pony-doc**: `tools/pony-doc/` — Pony documentation generator
+## Testing the self-hosted tools
 
-## Tool Test and Lint Commands
-
-The four self-hosted tools' test binaries are built on demand — a normal `cmake --build` does not build them. On Linux/macOS, build the test binary, then run it through ctest:
+The build uses CMake presets (see BUILD.md). The self-hosted tools' test binaries — for the compiler, pony-lsp, pony-lint, and pony-doc — are **built on demand**: a normal `cmake --build` does not build them. Build the test target, then run it through ctest:
 
 - `cmake --build --preset debug --target pony-compiler-tests && ctest --preset debug -R pony-compiler-tests`
 - `cmake --build --preset debug --target pony-lsp-tests && ctest --preset debug -R pony-lsp-tests`
 - `cmake --build --preset debug --target pony-lint-tests && ctest --preset debug -R pony-lint-tests`
 - `cmake --build --preset debug --target pony-doc-tests && ctest --preset debug -R pony-doc-tests`
 
-`cmake --build` is incremental: the first build of a test binary compiles from Pony source (~60s); later runs skip the rebuild when nothing under its source tree changed. On Windows, build the target and run it with ctest the same way, using the `windows-x86-64` presets: `cmake --build --preset windows-x86-64-debug --target pony-lint-tests` then `ctest --preset windows-x86-64-debug -R pony-lint-tests`.
+The first build of a test binary compiles from Pony source (~60s); later runs skip the rebuild when nothing under its source tree changed. On Windows, use the `windows-x86-64-debug` preset the same way.
 
 To lint a tool's own source, run the `pony-lint` binary (built by a normal `cmake --build --preset debug`) against the tool's directory:
 
-- `cd build/debug && PONYPATH=../../tools/lib/ponylang/pony_compiler ./pony-lint ../../tools/pony-lsp/`
-- `cd build/debug && PONYPATH=../../tools/lib/ponylang/pony_compiler ./pony-lint ../../tools/pony-lint/`
-- `cd build/debug && PONYPATH=../../tools/lib/ponylang/pony_compiler ./pony-lint ../../tools/pony-doc/`
+```
+cd build/debug && PONYPATH=../../tools/lib/ponylang/pony_compiler ./pony-lint ../../tools/pony-lint/
+```
 
-## Release Notes
+The same works for `../../tools/pony-lsp/` and `../../tools/pony-doc/`.
 
-Use the `/pony-release-notes` skill if available. Otherwise: create `.release-notes/<slug>.md` (e.g., `fix-foo.md`). Do NOT edit `next-release.md` directly — CI aggregates the individual files. Format: `## Title` (matching the PR title exactly) followed by a user-facing description. Include code examples for new API; include before/after for breaking changes.
+## Release notes
+
+Load the `/pony-release-notes` skill for the full procedure. The one thing to know without it: add a `.release-notes/<slug>.md` file for each user-facing PR — do **not** edit `next-release.md` directly, because CI aggregates the individual files.
