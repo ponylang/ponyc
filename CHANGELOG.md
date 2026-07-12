@@ -6,6 +6,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
+- Fix Windows programs never finishing when stdin has ended ([PR #5740](https://github.com/ponylang/ponyc/pull/5740))
 
 ### Added
 
