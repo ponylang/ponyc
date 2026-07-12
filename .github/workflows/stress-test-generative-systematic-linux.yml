@@ -69,7 +69,7 @@ jobs:
       # cancelled() too: keep bundles from seeds that ran before a cancel.
       - name: Upload failure bundles
         if: ${{ (failure() || cancelled()) && hashFiles('.libs-cache-miss') == '' }}
-        uses: actions/upload-artifact@v4.6.2
+        uses: actions/upload-artifact@v7.0.1
         with:
           name: generative-systematic-bundles-linux-glibc
           path: rt-stress-out/*.json
