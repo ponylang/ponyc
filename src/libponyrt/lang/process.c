@@ -39,7 +39,13 @@ PONY_API uint32_t ponyint_win_pipe_create(uint32_t* near_fd, uint32_t* far_fd, b
 
     HANDLE read_hnd;
     HANDLE write_hnd;
-    if (!CreatePipe(&read_hnd, &write_hnd, &sa, 0)) {
+    // A stated buffer size. A write to a PIPE_NOWAIT pipe writes all of the
+    // request or none of it, so a write larger than the buffer writes nothing
+    // (unless a reader is blocked in a read to hand it to, which a peeking
+    // reader is not). _Pipe.write caps each write to this size, so a write that
+    // would not fit becomes writes that do. The 65536 there and here must
+    // match.
+    if (!CreatePipe(&read_hnd, &write_hnd, &sa, 65536)) {
         return false;
     }
 

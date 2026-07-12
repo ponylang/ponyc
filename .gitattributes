@@ -11,6 +11,10 @@
 
 *.bat win
 
+# A full-program test's stdin.txt is what the tester writes to the program's
+# stdin, byte for byte. Nothing may rewrite its line endings.
+test/full-program-tests/*/stdin.txt -text
+
 .gitattributes export-ignore
 .gitignore export-ignore
 

@@ -1,0 +1,2 @@
+--ponymaxthreads=1
+--ponynoscale

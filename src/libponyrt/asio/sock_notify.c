@@ -49,6 +49,11 @@
 #define KEY_STDIN  ((ULONG_PTR)2)  // send ASIO_READ to the stdin event
 #define KEY_SIGNAL ((ULONG_PTR)3)  // a CRT signal fired (sig number in bytes)
 
+// How long the wait on the port runs before a pipe on stdin is peeked again. It
+// is how late a byte on a pipe can be, and how often this thread wakes while a
+// program waits on one.
+#define STDIN_POLL_MS 10
+
 struct asio_backend_t
 {
   HANDLE port;
@@ -139,25 +144,38 @@ static void CALLBACK stdin_notify_cb(void* arg, BOOLEAN timed_out)
 // and the program never quiesces.
 //
 // A console input handle is signaled while unread input records are queued, so
-// a wait on it fires when there is input to read. A pipe or file handle has no
-// such signaled state, and RegisterWaitForSingleObject does not accept one: the
-// documented object list is consoles, events, mutexes, semaphores, timers,
-// processes, and threads. A wait on a pipe fires as soon as the previous read
-// completed, whether or not any data arrived, and after a read fails on a
-// broken pipe the wait was observed never to fire again -- which left an event
-// subscribed at the end of stdin with no ASIO_READ to come.
+// a wait on it fires when there is input to read. A pipe has no such signaled
+// state, and RegisterWaitForSingleObject does not accept one: the documented
+// object list is consoles, events, mutexes, semaphores, timers, processes, and
+// threads. A wait on a pipe fires as soon as the previous read completed,
+// whether or not any data arrived, and after a read fails on a broken pipe the
+// wait was observed never to fire again.
 //
-// So for a pipe or a file, post the packet now; the synchronous ReadFile in
-// pony_os_stdin_read waits for the data. A read at the end of stdin returns
-// zero bytes, as it does on Linux and macOS.
+// So a pipe is peeked, which says what is in it without taking it and without
+// waiting. There is nothing to arm and nothing to post: the dispatch loop peeks
+// on every pass and is the one thing that sends the subscriber an ASIO_READ.
+// Two things sending it would send the subscriber a read for the same bytes
+// twice, and each read resumes, so the reads would multiply.
+//
+// A read of a file, or of NUL, returns at once. Post the packet; the read then
+// returns the data or the end of the input.
 static bool arm_stdin(asio_backend_t* b, HANDLE stdin_handle,
-  HANDLE* stdin_wait, bool console)
+  HANDLE* stdin_wait, stdin_kind_t kind)
 {
-  if(console)
-    return RegisterWaitForSingleObject(stdin_wait, stdin_handle,
-      stdin_notify_cb, b, INFINITE, WT_EXECUTEONLYONCE) != 0;
+  switch(kind)
+  {
+    case STDIN_CONSOLE:
+      return RegisterWaitForSingleObject(stdin_wait, stdin_handle,
+        stdin_notify_cb, b, INFINITE, WT_EXECUTEONLYONCE) != 0;
 
-  return PostQueuedCompletionStatus(b->port, 0, KEY_STDIN, NULL) != 0;
+    case STDIN_PIPE:
+      return true;
+
+    case STDIN_OTHER:
+      return PostQueuedCompletionStatus(b->port, 0, KEY_STDIN, NULL) != 0;
+  }
+
+  return false;
 }
 
 
@@ -261,7 +279,13 @@ DECLARE_THREAD_FN(ponyint_asio_backend_dispatch)
   asio_event_t* stdin_event = NULL;
   HANDLE stdin_handle = GetStdHandle(STD_INPUT_HANDLE);
   HANDLE stdin_wait = NULL;  // thread-pool wait registration for console stdin
-  bool stdin_console = ponyint_stdin_is_console();
+  stdin_kind_t stdin_kind = ponyint_stdin_kind();
+
+  // An ASIO_READ has gone to the stdin subscriber and the read it asks for has
+  // not come back yet. A pipe is not peeked while one is outstanding: the bytes
+  // are still in it, so peeking would send the subscriber a second ASIO_READ
+  // for them. The read clears this by resuming.
+  bool stdin_reading = false;
 
   // Per-wakeup dequeue batch. MAX_EVENTS is the readiness batch size shared
   // with epoll/kqueue; here the one port also carries the wakeup/stdin/signal
@@ -271,11 +295,26 @@ DECLARE_THREAD_FN(ponyint_asio_backend_dispatch)
 
   while(!atomic_load_explicit(&b->stop, memory_order_acquire))
   {
+    // A pipe carries no readiness signal, so the only way to learn it has data
+    // is to look. The wait on the port takes a timeout while a program is
+    // subscribed to a pipe on stdin and is waiting for what comes next, and the
+    // peek happens after the wait, below. A program not reading a pipe on stdin
+    // waits on the port with no timeout.
     DWORD wait_ms = INFINITE;
+
+    if((stdin_event != NULL) && (stdin_kind == STDIN_PIPE) && !stdin_reading)
+      wait_ms = STDIN_POLL_MS;
 
     ULONG count = 0;
     BOOL ok = GetQueuedCompletionStatusEx(b->port, entries, MAX_EVENTS, &count,
       wait_ms, TRUE);
+
+    if(!ok && (GetLastError() == WAIT_TIMEOUT))
+    {
+      // Nothing on the port. The peek below is what this wait was for.
+      count = 0;
+      ok = TRUE;
+    }
 
     if(!ok)
     {
@@ -318,9 +357,9 @@ DECLARE_THREAD_FN(ponyint_asio_backend_dispatch)
       }
       else if(key == KEY_STDIN)
       {
-        // Send ASIO_READ to the subscriber. On console stdin there is input
-        // queued; on a pipe or a file the read itself waits for it (see
-        // arm_stdin).
+        // Send ASIO_READ to the subscriber. A console has input queued; a file
+        // read returns at once. A pipe does not post this packet -- the peek
+        // below drives it -- but a leftover packet may still arrive here.
         //
         // A packet posted for one subscriber can be dequeued after that
         // subscriber is gone. With no subscriber it is dropped; a later
@@ -329,7 +368,10 @@ DECLARE_THREAD_FN(ponyint_asio_backend_dispatch)
         // clears stdin_event before disposing of the event, and it runs after
         // this loop.
         if(stdin_event != NULL)
+        {
+          stdin_reading = true;
           pony_asio_event_send(stdin_event, ASIO_READ, 0);
+        }
 
         continue;
       }
@@ -438,9 +480,10 @@ DECLARE_THREAD_FN(ponyint_asio_backend_dispatch)
           // request (ASIO_STDIN_UNSUBSCRIBE), so ev is always non-NULL here.
           pony_assert(ev != NULL);
           stdin_event = ev;
+          stdin_reading = false;
           disarm_stdin(&stdin_wait);
 
-          if(!arm_stdin(b, stdin_handle, &stdin_wait, stdin_console))
+          if(!arm_stdin(b, stdin_handle, &stdin_wait, stdin_kind))
             pony_asio_event_send(stdin_event, ASIO_ERROR, 0);
           break;
 
@@ -451,6 +494,7 @@ DECLARE_THREAD_FN(ponyint_asio_backend_dispatch)
           // still in flight to reach it. Mirrors the timer and signal cancels,
           // which null their own references before disposing.
           stdin_event = NULL;
+          stdin_reading = false;
           disarm_stdin(&stdin_wait);
 
           ev->flags = ASIO_DISPOSABLE;
@@ -459,11 +503,13 @@ DECLARE_THREAD_FN(ponyint_asio_backend_dispatch)
 
         case ASIO_STDIN_RESUME:
           // Input has been read; resume watching stdin.
+          stdin_reading = false;
+
           if(stdin_event != NULL)
           {
             disarm_stdin(&stdin_wait);
 
-            if(!arm_stdin(b, stdin_handle, &stdin_wait, stdin_console))
+            if(!arm_stdin(b, stdin_handle, &stdin_wait, stdin_kind))
               pony_asio_event_send(stdin_event, ASIO_ERROR, 0);
           }
           break;
@@ -524,6 +570,16 @@ DECLARE_THREAD_FN(ponyint_asio_backend_dispatch)
         default:  // Something's gone very wrong if we reach here.
           break;
       }
+    }
+
+    // Look in the pipe. Something in it, or the end of it, is an ASIO_READ for
+    // the subscriber, which reads it and resumes. Nothing in it is nothing to
+    // do, and the wait above runs the timeout again.
+    if((stdin_event != NULL) && (stdin_kind == STDIN_PIPE) && !stdin_reading &&
+      ponyint_stdin_pipe_ready())
+    {
+      stdin_reading = true;
+      pony_asio_event_send(stdin_event, ASIO_READ, 0);
     }
   }
 
