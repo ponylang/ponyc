@@ -7,6 +7,7 @@
 #include "../gc/cycle.h"
 #include "../lang/process.h"
 #include "../lang/socket.h"
+#include "../lang/stdfd.h"
 #include "../options/options.h"
 #include "../tracing/tracing.h"
 #include "ponyassert.h"
@@ -412,6 +413,13 @@ PONY_API bool pony_start(int* exit_code,
   } else {
     memset(&language_init, 0, sizeof(pony_language_features_init_t));
   }
+
+#ifdef PLATFORM_IS_WINDOWS
+  // Work out what stdin is while this is the only thread. The asio thread and
+  // the scheduler thread that reads stdin both use it, and it cannot change
+  // while the runtime runs.
+  ponyint_stdin_init();
+#endif
 
   if(!TRACING_START())
     return false;

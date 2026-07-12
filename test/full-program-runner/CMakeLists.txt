@@ -15,6 +15,7 @@ add_custom_command(OUTPUT ${RUNNER_EXECUTABLE}
     _find_executable.pony
     _test_definitions.pony
     _test_process_notify.pony
+    _tester_stdin_timer_notify.pony
     _tester_timer_notify.pony
     _tester.pony
     $<TARGET_FILE:ponyc>

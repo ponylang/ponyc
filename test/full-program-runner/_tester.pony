@@ -27,6 +27,7 @@ actor _Tester
 
   var _stage: _TesterStage
   let _timer: Timer tag
+  var _stdin_timer: (Timer tag | None) = None
   var _start_ms: U64
   var _end_ms: U64
 
@@ -197,14 +198,19 @@ actor _Tester
           executable_file_path, args, vars,
           FilePath(FileAuth(_env.root), _definition.path))
 
-        // The program's stdin is closed right away. When the test has a
-        // stdin.txt, the contents are written first.
-        match _definition.stdin
-        | let data: String val if data.size() > 0 =>
-          process.write(data)
-        end
+        _test_process = process
 
-        _test_process = process .> done_writing()
+        match _definition.stdin
+        | _StdinClose =>
+          process.done_writing()
+        | let w: _StdinWrite =>
+          _write_stdin_and_close(process, w.data)
+        | let d: _StdinDelay =>
+          let timer = Timer(_TesterStdinTimerNotify(this),
+            d.seconds * 1_000_000_000)
+          _stdin_timer = timer
+          _timers(consume timer)
+        end
       else
         _notify.print(_definition.name,
           _Colors.err(_definition.name + ": unable to find debugger"))
@@ -214,12 +220,12 @@ actor _Tester
   fun ref _get_debugger_and_args(test_fname: String, extra_env: String)
     : (FilePath, Array[String] val) ?
   =>
-    // A test with a stdin.txt runs without the debugger. lldb gives the program
-    // it launches a terminal for stdin, so the program reads none of what the
-    // tester wrote and never reaches the end of stdin. The cost is no backtrace
-    // if one of these tests crashes.
+    // A test that says anything about its stdin runs without the debugger. lldb
+    // gives the program it launches a terminal for stdin, so the program reads
+    // none of what the tester wrote, never reaches the end of stdin, and is not
+    // handed the pipe. The cost is no backtrace if one of these tests crashes.
     let use_debugger =
-      (_options.debugger.size() > 0) and (_definition.stdin is None)
+      (_options.debugger.size() > 0) and (_definition.stdin is _StdinClose)
 
     recover
       let debugger_args = Array[String]
@@ -294,9 +300,13 @@ actor _Tester
       match debugger_file_path
       | let dfp: FilePath =>
         debugger_args.push(test_fname)
+        debugger_args.append(_definition.program_args)
         (dfp, debugger_args)
       else
-        (FilePath(FileAuth(_env.root), test_fname), [ test_fname ])
+        let args = Array[String]
+        args.push(test_fname)
+        args.append(_definition.program_args)
+        (FilePath(FileAuth(_env.root), test_fname), args)
       end
     end
 
@@ -351,12 +361,28 @@ actor _Tester
         + " seconds")
     end
 
+  be stdin_delay_over() =>
+    if _stage is _Testing then
+      match (_test_process, _definition.stdin)
+      | (let process: ProcessMonitor, let d: _StdinDelay) =>
+        _write_stdin_and_close(process, d.data)
+      end
+    end
+
+  fun ref _write_stdin_and_close(process: ProcessMonitor, data: String val) =>
+    if data.size() > 0 then
+      process.write(data)
+    end
+
+    process.done_writing()
+
   fun ref _shutdown_succeeded() =>
     if not (_stage is _Succeeded) then
       _end_ms = Time.millis()
       _notify.print(_definition.name, _Colors.ok(_definition.name + " ("
         + (_end_ms - _start_ms).string() + " ms)"))
       _timers.cancel(_timer)
+      _cancel_stdin_timer()
       _stage = _Succeeded
       _notify.succeeded(_definition.name)
     end
@@ -381,8 +407,16 @@ actor _Tester
 
       _dump_io_streams()
       _timers.cancel(_timer)
+      _cancel_stdin_timer()
       _stage = _Failed
       _notify.failed(_definition.name)
+    end
+
+  fun ref _cancel_stdin_timer() =>
+    match _stdin_timer
+    | let timer: Timer tag =>
+      _timers.cancel(timer)
+      _stdin_timer = None
     end
 
   fun ref _dump_io_streams() =>

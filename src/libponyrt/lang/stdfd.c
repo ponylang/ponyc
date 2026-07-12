@@ -40,7 +40,6 @@ static bool is_stderr_tty = false;
   (BACKGROUND_RED|BACKGROUND_BLUE|BACKGROUND_GREEN|BACKGROUND_INTENSITY)
 #endif
 
-static bool is_stdin_tty = false;
 static WORD stdout_reset;
 static WORD stderr_reset;
 
@@ -235,14 +234,43 @@ static bool add_input_record(char* buffer, size_t space, size_t *len,
   return true;
 }
 
-bool ponyint_stdin_is_console()
+static stdin_kind_t stdin_kind = STDIN_OTHER;
+
+void ponyint_stdin_init()
 {
+  HANDLE handle = GetStdHandle(STD_INPUT_HANDLE);
+
   // GetConsoleMode succeeds on a console input handle and fails on every other
   // handle. GetFileType cannot be used instead: it reports FILE_TYPE_CHAR for a
   // console and for every other character device, so stdin redirected from NUL
-  // has the same file type as a console.
+  // would have the same file type as a console.
   DWORD mode;
-  return GetConsoleMode(GetStdHandle(STD_INPUT_HANDLE), &mode) != 0;
+
+  if(GetConsoleMode(handle, &mode) != 0)
+    stdin_kind = STDIN_CONSOLE;
+  else if(GetFileType(handle) == FILE_TYPE_PIPE)
+    stdin_kind = STDIN_PIPE;
+  else
+    stdin_kind = STDIN_OTHER;
+}
+
+stdin_kind_t ponyint_stdin_kind()
+{
+  return stdin_kind;
+}
+
+bool ponyint_stdin_pipe_ready()
+{
+  DWORD avail = 0;
+
+  // A peek that fails means stdin has ended, which a read returns as zero
+  // bytes. A peek that succeeds with nothing in the pipe means the pipe is open
+  // and empty: the read would wait, so it is not made.
+  if(!PeekNamedPipe(GetStdHandle(STD_INPUT_HANDLE), NULL, 0, NULL, &avail,
+    NULL))
+    return true;
+
+  return avail > 0;
 }
 
 static WORD get_attrib(HANDLE handle)
@@ -435,9 +463,7 @@ PONY_API bool pony_os_stdin_setup()
   bool stdin_event_based = true;
   // Return true if reading stdin should be event based.
 #ifdef PLATFORM_IS_WINDOWS
-  is_stdin_tty = ponyint_stdin_is_console();
-
-  if(is_stdin_tty)
+  if(ponyint_stdin_kind() == STDIN_CONSOLE)
   {
     HANDLE handle = GetStdHandle(STD_INPUT_HANDLE);
     DWORD mode;
@@ -462,45 +488,78 @@ PONY_API size_t pony_os_stdin_read(char* buffer, size_t space)
   HANDLE handle = GetStdHandle(STD_INPUT_HANDLE);
   size_t len = 0;
 
-  if(is_stdin_tty)
+  switch(ponyint_stdin_kind())
   {
-    // TTY. Peek at the console input.
-    INPUT_RECORD record[64];
-    DWORD count;
-
-    BOOL r = PeekConsoleInput(handle, record, 64, &count);
-
-    if(r == TRUE)
+    case STDIN_CONSOLE:
     {
-      DWORD consumed = 0;
+      // Peek at the console input.
+      INPUT_RECORD record[64];
+      DWORD count;
 
-      while(consumed < count)
+      BOOL r = PeekConsoleInput(handle, record, 64, &count);
+
+      if(r == TRUE)
       {
-        if(!add_input_record(buffer, space, &len, &record[consumed]))
-          break;
+        DWORD consumed = 0;
 
-        consumed++;
+        while(consumed < count)
+        {
+          if(!add_input_record(buffer, space, &len, &record[consumed]))
+            break;
+
+          consumed++;
+        }
+
+        // Pull as many records as we were able to handle.
+        ReadConsoleInput(handle, record, consumed, &count);
       }
 
-      // Pull as many records as we were able to handle.
-      ReadConsoleInput(handle, record, consumed, &count);
+      // We have no data, but 0 means EOF, so we return -1 which is try again
+      if(len == 0)
+        len = -1;
+      break;
     }
 
-    // We have no data, but 0 means EOF, so we return -1 which is try again
-    if(len == 0)
-      len = -1;
-  }
-  else
-  {
-    // Not TTY, ie file or pipe. Just use ReadFile.
-    DWORD buf_size = (space <= 0xFFFFFFFF) ? (DWORD)space : 0xFFFFFFFF;
-    DWORD actual_len = 0;
+    case STDIN_PIPE:
+    {
+      // Take what the peek reports is there, and no more, so the read has
+      // something to return and never waits for it. A peek that fails is the
+      // end of stdin, which a read returns as zero bytes.
+      DWORD avail = 0;
 
-    BOOL r = ReadFile(handle, buffer, buf_size, &actual_len, NULL);
-    len = actual_len;
+      if(!PeekNamedPipe(handle, NULL, 0, NULL, &avail, NULL))
+        break;
 
-    if(r == FALSE && GetLastError() == ERROR_BROKEN_PIPE)  // Broken pipe
-      len = 0;
+      if(avail == 0)
+      {
+        // The pipe is open and empty. The backend sends another ASIO_READ when
+        // there is something in it.
+        len = -1;
+        break;
+      }
+
+      DWORD take = (avail < space) ? avail : (DWORD)space;
+      DWORD actual_len = 0;
+
+      if(ReadFile(handle, buffer, take, &actual_len, NULL))
+        len = actual_len;
+
+      break;
+    }
+
+    case STDIN_OTHER:
+    {
+      // A file, or NUL. The read returns at once, with data or with the end of
+      // the input, so it can be made here.
+      DWORD buf_size = (space <= 0xFFFFFFFF) ? (DWORD)space : 0xFFFFFFFF;
+      DWORD actual_len = 0;
+
+      if(!ReadFile(handle, buffer, buf_size, &actual_len, NULL))
+        actual_len = 0;  // A failed read is the end of the input.
+
+      len = actual_len;
+      break;
+    }
   }
 
   if(len != 0)  // Start listening to stdin notifications again

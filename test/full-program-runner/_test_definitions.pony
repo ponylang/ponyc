@@ -1,22 +1,63 @@
 use "collections"
 use "files"
 
+primitive _StdinClose
+  """
+  Close the program's stdin as soon as it starts. What a test gets when it has
+  neither a stdin.txt nor a stdin-delay-seconds.txt.
+  """
+
+class val _StdinWrite
+  """
+  Write the contents of the test's stdin.txt to the program, then close its
+  stdin. The contents can be empty: what a test with an empty stdin.txt asks for
+  is a stdin that is closed with nothing in it.
+  """
+  let data: String val
+
+  new val create(data': String val) =>
+    data = data'
+
+class val _StdinDelay
+  """
+  Hold the program's stdin open, writing nothing to it, for the number of
+  seconds in the test's stdin-delay-seconds.txt; then write the contents of its
+  stdin.txt, which are empty when it has none, and close.
+
+  This is how a test is given a stdin that is open with no input on it, which is
+  what a program blocked on a read of stdin is waiting on.
+
+  A program cannot be given a stdin that stays open for its whole life: a
+  ProcessMonitor does not reap a child until it has closed the child's stdin, so
+  a test whose stdin never closed would never report an exit code.
+  """
+  let seconds: U64
+  let data: String val
+
+  new val create(seconds': U64, data': String val) =>
+    seconds = seconds'
+    data = data'
+
+type _Stdin is (_StdinClose | _StdinWrite | _StdinDelay)
+
 class val _TestDefinition
   let name: String
   let path: String
   let expected_exit_code: I32
 
-  // The contents of the test's stdin.txt, written to the program's stdin before
-  // it is closed. None when the test directory has no stdin.txt.
-  let stdin: (String val | None)
+  let stdin: _Stdin
+
+  // Arguments passed to the program, from the test's program-args.txt.
+  let program_args: Array[String] val
 
   new val create(name': String, path': String, expected_exit_code': I32,
-    stdin': (String val | None))
+    stdin': _Stdin, program_args': Array[String] val)
   =>
     name = name'
     path = path'
     expected_exit_code = expected_exit_code'
     stdin = stdin'
+    program_args = program_args'
 
 class _TestDefinitions
   let _verbose: Bool
@@ -35,6 +76,8 @@ class _TestDefinitions
   fun _str_pony_extension(): String => ".pony"
   fun _str_expected_exit_code(): String => "expected-exit-code.txt"
   fun _str_stdin(): String => "stdin.txt"
+  fun _str_stdin_delay_seconds(): String => "stdin-delay-seconds.txt"
+  fun _str_program_args(): String => "program-args.txt"
 
   fun find(auth: FileAuth, path': String)
     : (Array[_TestDefinition] val | None)
@@ -119,7 +162,9 @@ class _TestDefinitions
 
     var has_pony_sources = false
     var expected_exit_code = I32(0)
-    var stdin: (String val | None) = None
+    var stdin_data: (String val | None) = None
+    var delay_seconds: (U64 | None) = None
+    var program_args = recover val Array[String] end
     let ext_size = ISize.from[USize](_str_pony_extension().size())
     for entry in (consume entries).values() do
       let entry_lower = entry.lower()
@@ -144,7 +189,28 @@ class _TestDefinitions
 
       if entry_lower == _str_stdin() then
         try
-          stdin = _get_stdin(FilePath.from(dir.path, entry)?)?
+          stdin_data = _get_stdin(FilePath.from(dir.path, entry)?)?
+        else
+          _err.print(_Colors.red() + child + "/" + entry
+            + ": unable to open file" + _Colors.none())
+          return None
+        end
+      end
+
+      if entry_lower == _str_stdin_delay_seconds() then
+        try
+          delay_seconds =
+            _get_delay_seconds(FilePath.from(dir.path, entry)?)?
+        else
+          _err.print(_Colors.red() + child + "/" + entry
+            + ": unable to read a number of seconds" + _Colors.none())
+          return None
+        end
+      end
+
+      if entry_lower == _str_program_args() then
+        try
+          program_args = _get_program_args(FilePath.from(dir.path, entry)?)?
         else
           _err.print(_Colors.red() + child + "/" + entry
             + ": unable to open file" + _Colors.none())
@@ -153,8 +219,18 @@ class _TestDefinitions
       end
     end
 
+    let stdin: _Stdin =
+      match (delay_seconds, stdin_data)
+      | (let s: U64, let d: String val) => _StdinDelay(s, d)
+      | (let s: U64, None) => _StdinDelay(s, "")
+      | (None, let d: String val) => _StdinWrite(d)
+      else
+        _StdinClose
+      end
+
     if has_pony_sources then
-      _TestDefinition(child, dir.path.path, expected_exit_code, stdin)
+      _TestDefinition(child, dir.path.path, expected_exit_code, stdin,
+        program_args)
     end
 
   fun _get_stdin(fp: FilePath): String val ? =>
@@ -164,6 +240,35 @@ class _TestDefinitions
     match OpenFile(fp)
     | let f: File =>
       f.read_string(f.size())
+    else
+      error
+    end
+
+  fun _get_delay_seconds(fp: FilePath): U64 ? =>
+    match OpenFile(fp)
+    | let f: File =>
+      for line in FileLines(f) do
+        return line.u64()?
+      end
+      error
+    else
+      error
+    end
+
+  fun _get_program_args(fp: FilePath): Array[String] val ? =>
+    match OpenFile(fp)
+    | let f: File =>
+      let lines: Array[String] val = f.read_string(f.size()).split_by("\n")
+      recover val
+        let args = Array[String]
+        for line in lines.values() do
+          let arg = line.clone() .> strip()
+          if arg.size() > 0 then
+            args.push(consume arg)
+          end
+        end
+        args
+      end
     else
       error
     end

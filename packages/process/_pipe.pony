@@ -220,7 +220,12 @@ class _Pipe
       end
     else // windows
       let hnd = @_get_osfhandle(near_fd)
-      let bytes_to_write: U32 = (data.size() - offset).u32()
+      // Cap the write to the pipe buffer. A write to a PIPE_NOWAIT pipe writes
+      // all of the request or none of it, so a write larger than the buffer
+      // writes nothing while no reader is blocked to hand it to. The 65536 here
+      // must match the buffer size in ponyint_win_pipe_create.
+      var bytes_to_write: U32 = (data.size() - offset).u32()
+      if bytes_to_write > 65536 then bytes_to_write = 65536 end
       var bytes_written: U32 = 0
       let ok = @WriteFile(hnd, data.cpointer(offset),
           bytes_to_write, addressof bytes_written, USize(0))
