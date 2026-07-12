@@ -6,10 +6,17 @@ class val _TestDefinition
   let path: String
   let expected_exit_code: I32
 
-  new val create(name': String, path': String, expected_exit_code': I32) =>
+  // The contents of the test's stdin.txt, written to the program's stdin before
+  // it is closed. None when the test directory has no stdin.txt.
+  let stdin: (String val | None)
+
+  new val create(name': String, path': String, expected_exit_code': I32,
+    stdin': (String val | None))
+  =>
     name = name'
     path = path'
     expected_exit_code = expected_exit_code'
+    stdin = stdin'
 
 class _TestDefinitions
   let _verbose: Bool
@@ -27,6 +34,7 @@ class _TestDefinitions
 
   fun _str_pony_extension(): String => ".pony"
   fun _str_expected_exit_code(): String => "expected-exit-code.txt"
+  fun _str_stdin(): String => "stdin.txt"
 
   fun find(auth: FileAuth, path': String)
     : (Array[_TestDefinition] val | None)
@@ -111,6 +119,7 @@ class _TestDefinitions
 
     var has_pony_sources = false
     var expected_exit_code = I32(0)
+    var stdin: (String val | None) = None
     let ext_size = ISize.from[USize](_str_pony_extension().size())
     for entry in (consume entries).values() do
       let entry_lower = entry.lower()
@@ -132,10 +141,31 @@ class _TestDefinitions
           return None
         end
       end
+
+      if entry_lower == _str_stdin() then
+        try
+          stdin = _get_stdin(FilePath.from(dir.path, entry)?)?
+        else
+          _err.print(_Colors.red() + child + "/" + entry
+            + ": unable to open file" + _Colors.none())
+          return None
+        end
+      end
     end
 
     if has_pony_sources then
-      _TestDefinition(child, dir.path.path, expected_exit_code)
+      _TestDefinition(child, dir.path.path, expected_exit_code, stdin)
+    end
+
+  fun _get_stdin(fp: FilePath): String val ? =>
+    """
+    The contents of a test's stdin.txt.
+    """
+    match OpenFile(fp)
+    | let f: File =>
+      f.read_string(f.size())
+    else
+      error
     end
 
   fun _get_expected_exit_code(fp: FilePath): I32 ? =>

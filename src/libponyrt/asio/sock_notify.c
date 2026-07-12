@@ -6,6 +6,7 @@
 #ifdef ASIO_USE_SOCK_NOTIFY
 
 #include "../actor/messageq.h"
+#include "../lang/stdfd.h"
 #include "../mem/pool.h"
 #include "../sched/cpu.h"
 #include "../sched/scheduler.h"
@@ -45,7 +46,7 @@
 // pointer is never one of these small integers, and `asio_event_t.magic`
 // (a self-pointer) corroborates a real event.
 #define KEY_WAKEUP ((ULONG_PTR)1)  // request queue has work / stop requested
-#define KEY_STDIN  ((ULONG_PTR)2)  // console stdin became readable
+#define KEY_STDIN  ((ULONG_PTR)2)  // send ASIO_READ to the stdin event
 #define KEY_SIGNAL ((ULONG_PTR)3)  // a CRT signal fired (sig number in bytes)
 
 struct asio_backend_t
@@ -118,15 +119,55 @@ static void CALLBACK timer_fire(void* arg, DWORD timer_low, DWORD timer_high)
 }
 
 
-// Thread-pool callback that watches the console stdin handle, which cannot be
-// associated with a completion port. It only posts to the port -- touching no
-// event state -- preserving the asio-thread-only-sends invariant. The wait is
-// registered WT_EXECUTEONLYONCE, so it fires once; we re-arm on resume.
+// Thread-pool callback for the console stdin wait. A console handle cannot be
+// associated with a completion port, so the wait is how console readiness
+// reaches the port: this callback only posts to the port -- touching no event
+// state -- so the asio thread stays the only thread that sends events. The wait
+// is registered WT_EXECUTEONLYONCE, so it fires once; we re-arm on resume.
 static void CALLBACK stdin_notify_cb(void* arg, BOOLEAN timed_out)
 {
   (void)timed_out;
   asio_backend_t* b = (asio_backend_t*)arg;
   PostQueuedCompletionStatus(b->port, 0, KEY_STDIN, NULL);
+}
+
+
+// Arm stdin so that one KEY_STDIN packet reaches the dispatch loop, which turns
+// it into an ASIO_READ for the subscriber. Returns false if it could not be
+// armed; the caller then sends ASIO_ERROR. With neither the packet nor the
+// error, no ASIO_READ reaches the subscriber, its noisy event stays subscribed,
+// and the program never quiesces.
+//
+// A console input handle is signaled while unread input records are queued, so
+// a wait on it fires when there is input to read. A pipe or file handle has no
+// such signaled state, and RegisterWaitForSingleObject does not accept one: the
+// documented object list is consoles, events, mutexes, semaphores, timers,
+// processes, and threads. A wait on a pipe fires as soon as the previous read
+// completed, whether or not any data arrived, and after a read fails on a
+// broken pipe the wait was observed never to fire again -- which left an event
+// subscribed at the end of stdin with no ASIO_READ to come.
+//
+// So for a pipe or a file, post the packet now; the synchronous ReadFile in
+// pony_os_stdin_read waits for the data. A read at the end of stdin returns
+// zero bytes, as it does on Linux and macOS.
+static bool arm_stdin(asio_backend_t* b, HANDLE stdin_handle,
+  HANDLE* stdin_wait, bool console)
+{
+  if(console)
+    return RegisterWaitForSingleObject(stdin_wait, stdin_handle,
+      stdin_notify_cb, b, INFINITE, WT_EXECUTEONLYONCE) != 0;
+
+  return PostQueuedCompletionStatus(b->port, 0, KEY_STDIN, NULL) != 0;
+}
+
+
+static void disarm_stdin(HANDLE* stdin_wait)
+{
+  if(*stdin_wait != NULL)
+  {
+    UnregisterWaitEx(*stdin_wait, INVALID_HANDLE_VALUE);
+    *stdin_wait = NULL;
+  }
 }
 
 
@@ -219,7 +260,8 @@ DECLARE_THREAD_FN(ponyint_asio_backend_dispatch)
 
   asio_event_t* stdin_event = NULL;
   HANDLE stdin_handle = GetStdHandle(STD_INPUT_HANDLE);
-  HANDLE stdin_wait = NULL;  // thread-pool wait registration for stdin
+  HANDLE stdin_wait = NULL;  // thread-pool wait registration for console stdin
+  bool stdin_console = ponyint_stdin_is_console();
 
   // Per-wakeup dequeue batch. MAX_EVENTS is the readiness batch size shared
   // with epoll/kqueue; here the one port also carries the wakeup/stdin/signal
@@ -276,8 +318,16 @@ DECLARE_THREAD_FN(ponyint_asio_backend_dispatch)
       }
       else if(key == KEY_STDIN)
       {
-        // Console stdin became readable. Level-triggered: we stay dropped until
-        // the reader resumes us (the WT_EXECUTEONLYONCE wait already stopped).
+        // Send ASIO_READ to the subscriber. On console stdin there is input
+        // queued; on a pipe or a file the read itself waits for it (see
+        // arm_stdin).
+        //
+        // A packet posted for one subscriber can be dequeued after that
+        // subscriber is gone. With no subscriber it is dropped; a later
+        // subscriber gets one extra read, which returns data or zero like any
+        // other read. It never reaches a freed event: the request drain below
+        // clears stdin_event before disposing of the event, and it runs after
+        // this loop.
         if(stdin_event != NULL)
           pony_asio_event_send(stdin_event, ASIO_READ, 0);
 
@@ -388,15 +438,10 @@ DECLARE_THREAD_FN(ponyint_asio_backend_dispatch)
           // request (ASIO_STDIN_UNSUBSCRIBE), so ev is always non-NULL here.
           pony_assert(ev != NULL);
           stdin_event = ev;
+          disarm_stdin(&stdin_wait);
 
-          if(stdin_wait != NULL)
-          {
-            UnregisterWaitEx(stdin_wait, INVALID_HANDLE_VALUE);
-            stdin_wait = NULL;
-          }
-
-          RegisterWaitForSingleObject(&stdin_wait, stdin_handle,
-            stdin_notify_cb, b, INFINITE, WT_EXECUTEONLYONCE);
+          if(!arm_stdin(b, stdin_handle, &stdin_wait, stdin_console))
+            pony_asio_event_send(stdin_event, ASIO_ERROR, 0);
           break;
 
         case ASIO_STDIN_UNSUBSCRIBE:
@@ -406,29 +451,20 @@ DECLARE_THREAD_FN(ponyint_asio_backend_dispatch)
           // still in flight to reach it. Mirrors the timer and signal cancels,
           // which null their own references before disposing.
           stdin_event = NULL;
-
-          if(stdin_wait != NULL)
-          {
-            UnregisterWaitEx(stdin_wait, INVALID_HANDLE_VALUE);
-            stdin_wait = NULL;
-          }
+          disarm_stdin(&stdin_wait);
 
           ev->flags = ASIO_DISPOSABLE;
           pony_asio_event_send(ev, ASIO_DISPOSABLE, 0);
           break;
 
         case ASIO_STDIN_RESUME:
-          // Console input has been read; resume watching stdin.
+          // Input has been read; resume watching stdin.
           if(stdin_event != NULL)
           {
-            if(stdin_wait != NULL)
-            {
-              UnregisterWaitEx(stdin_wait, INVALID_HANDLE_VALUE);
-              stdin_wait = NULL;
-            }
+            disarm_stdin(&stdin_wait);
 
-            RegisterWaitForSingleObject(&stdin_wait, stdin_handle,
-              stdin_notify_cb, b, INFINITE, WT_EXECUTEONLYONCE);
+            if(!arm_stdin(b, stdin_handle, &stdin_wait, stdin_console))
+              pony_asio_event_send(stdin_event, ASIO_ERROR, 0);
           }
           break;
 
@@ -491,8 +527,7 @@ DECLARE_THREAD_FN(ponyint_asio_backend_dispatch)
     }
   }
 
-  if(stdin_wait != NULL)
-    UnregisterWaitEx(stdin_wait, INVALID_HANDLE_VALUE);
+  disarm_stdin(&stdin_wait);
 
   CloseHandle(b->port);
   ponyint_messageq_destroy(&b->q, true);
