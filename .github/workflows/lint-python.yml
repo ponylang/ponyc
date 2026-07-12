@@ -1,6 +1,15 @@
 name: Lint Python Scripts
 
-on: pull_request
+on:
+  pull_request:
+    # Both jobs (`lint` for .ci-scripts, `lint-rt-stress` for test/rt-stress)
+    # run whenever either tree changes. A PR touching only one still runs the
+    # other's ruff pass over an unchanged tree -- a couple of seconds, not
+    # worth splitting the workflow to avoid.
+    paths:
+      - '.ci-scripts/**'
+      - 'test/rt-stress/**'
+      - '.github/workflows/lint-python.yml'
 
 concurrency:
   group: lint-python-${{ github.ref }}

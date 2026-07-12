@@ -9,7 +9,7 @@ when you want to exercise them).
 - **Stdlib only.** CI runners have no `pip install` step, so scripts must not
   import third-party packages. Use `urllib`, `json`, `subprocess`, `tarfile`,
   etc. — never `requests`, `pyyaml`, `pytest`, …
-- **ruff lints everything here on every PR** (`.github/workflows/lint-python.yml`,
+- **ruff lints everything here** (`.github/workflows/lint-python.yml`,
   which now only lints — the tests live in `test-ci-scripts.yml` and
   `test-rt-stress.yml`). There is no ruff config file, so the defaults apply. A
   `lint` job runs `ruff check .ci-scripts`; a separate `lint-rt-stress` job runs
@@ -66,6 +66,6 @@ when you want to exercise them).
 - `windows-install-deps.ps1` installs the pinned msys2 lldb and the libraries it
   loads against. It holds the only copy of that pin, and every Windows job
   needing lldb calls it. Don't inline the `pacman` block into a workflow: the
-  per-PR job that checks lldb's behavior has to install the same lldb the
+  PR job that checks lldb's behavior has to install the same lldb the
   scheduled lanes do, or it guards a version nothing runs. The script's header
   carries the pin history.

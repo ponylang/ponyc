@@ -13,7 +13,7 @@ those blocks: `test/rt-stress/` and `test/rt-systematic/` are excluded from ever
 suite. They hold test workloads the PR suites build nothing of -- their Pony is
 compiled and run only by scheduled workflows (`stress-test-*` and
 `ponyc-weekly-checks.yml`). The stress harness's Python orchestration is linted
-by `lint-python.yml` and tested by `test-rt-stress.yml` on every PR;
+by `lint-python.yml` and tested by `test-rt-stress.yml` when it changes;
 `test/rt-systematic/` carries no Python (its orchestrator lives under
 `.ci-scripts/`). So a PR touching only these
 needs none of these suites. The rules must stay in sync with the union `paths:`

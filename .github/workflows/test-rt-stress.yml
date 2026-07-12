@@ -10,7 +10,14 @@ name: Test rt-stress
 # The Pony workloads these scripts drive are NOT run here. They run in the
 # scheduled `stress-test-*` workflows.
 
-on: pull_request
+on:
+  pull_request:
+    # windows-install-deps.ps1 is here because the Windows job runs it to
+    # install the pinned lldb.
+    paths:
+      - 'test/rt-stress/**'
+      - '.ci-scripts/windows-install-deps.ps1'
+      - '.github/workflows/test-rt-stress.yml'
 
 concurrency:
   group: test-rt-stress-${{ github.ref }}
@@ -28,8 +35,8 @@ jobs:
         uses: actions/checkout@v6.0.2
       - name: Install lldb
         # The stock runner ships no lldb. Installing it keeps the real-lldb
-        # integration test running per-PR, where it guards behavior only a real
-        # lldb can: the inferior process-tree walk and the stop-on-SIGABRT
+        # integration test running in PR CI, where it guards behavior only a
+        # real lldb can: the inferior process-tree walk and the stop-on-SIGABRT
         # capture.
         run: |
           sudo apt-get update

@@ -1,6 +1,13 @@
 name: Lint GitHub Action Workflows
 
-on: pull_request
+on:
+  pull_request:
+    # actionlint reads the workflow files plus its own config
+    # (.github/actionlint.yaml, which holds the self-hosted runner labels), so a
+    # PR editing only that config still needs a lint pass.
+    paths:
+      - '.github/workflows/**'
+      - '.github/actionlint.yaml'
 
 concurrency:
   group: lint-actions-${{ github.ref }}
