@@ -41,6 +41,10 @@ cd build/debug && PONYPATH=../../tools/lib/ponylang/pony_compiler ./pony-lint ..
 
 The same works for `../../tools/pony-lsp/` and `../../tools/pony-doc/`.
 
+## Adding threads or locks
+
+Never add a mutex or a new thread unless the idea came from the human operator or a committer expressly approved it. Pony's runtime is built on a deliberate concurrency model, and adding either is an architectural decision, not an implementation detail. If a change looks like it needs one, stop and raise it rather than writing it.
+
 ## Declaring runtime FFI functions on Windows
 
 On the Windows MSVC build, libponyrt's `.c` files compile as C++ (`src/libponyrt/CMakeLists.txt` sets `LANGUAGE CXX` on them). A `PONY_API` function whose definition is not inside a `PONY_EXTERN_C_BEGIN`/`PONY_EXTERN_C_END` region gets a C++-mangled symbol, which the stdlib FFI — referencing the plain C name — can't resolve at link (`lld-link: undefined symbol`). Linux, macOS, and BSD compile `.c` as C, so the failure is Windows-only and won't show up in a local build there. Every runtime `.c` already wraps its definitions in that region (see `lang/stat.c`, `lang/socket.c`); put any new `PONY_API` function inside it. To check a symbol's linkage, run `dumpbin /SYMBOLS <lib> | findstr <name>` from a vcvars64 shell: a C-linkage function shows the plain name, a mangled one shows the C++ form.
