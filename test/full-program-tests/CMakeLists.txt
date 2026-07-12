@@ -28,14 +28,7 @@ foreach(test_c_source ${test_c_sources})
   endif()
 
   add_custom_command(TARGET ${test_lib_name} POST_BUILD
-    COMMAND $<$<CONFIG:Debug>:${CMAKE_COMMAND}> ARGS -E make_directory ${CMAKE_BINARY_DIR}/../debug${PONY_OUTPUT_SUFFIX}/test_lib
-    COMMAND $<$<CONFIG:Release>:${CMAKE_COMMAND}> ARGS -E make_directory ${CMAKE_BINARY_DIR}/../release${PONY_OUTPUT_SUFFIX}/test_lib
-    COMMAND $<$<CONFIG:RelWithDebInfo>:${CMAKE_COMMAND}> ARGS -E make_directory ${CMAKE_BINARY_DIR}/../relwithdebinfo${PONY_OUTPUT_SUFFIX}/test_lib
-    COMMAND $<$<CONFIG:MinSizeRel>:${CMAKE_COMMAND}> ARGS -E make_directory ${CMAKE_BINARY_DIR}/../minsizerel${PONY_OUTPUT_SUFFIX}/test_lib
-
-    COMMAND $<$<CONFIG:Debug>:${CMAKE_COMMAND}> ARGS -E copy $<TARGET_FILE:${test_lib_name}> ${CMAKE_BINARY_DIR}/../debug${PONY_OUTPUT_SUFFIX}/test_lib
-    COMMAND $<$<CONFIG:Release>:${CMAKE_COMMAND}> ARGS -E copy $<TARGET_FILE:${test_lib_name}> ${CMAKE_BINARY_DIR}/../release${PONY_OUTPUT_SUFFIX}/test_lib
-    COMMAND $<$<CONFIG:RelWithDebInfo>:${CMAKE_COMMAND}> ARGS -E copy $<TARGET_FILE:${test_lib_name}> ${CMAKE_BINARY_DIR}/../relwithdebinfo${PONY_OUTPUT_SUFFIX}/test_lib
-    COMMAND $<$<CONFIG:MinSizeRel>:${CMAKE_COMMAND}> ARGS -E copy $<TARGET_FILE:${test_lib_name}> ${CMAKE_BINARY_DIR}/../minsizerel${PONY_OUTPUT_SUFFIX}/test_lib
+    COMMAND ${CMAKE_COMMAND} -E make_directory ${PONY_OUTPUT_DIR}/test_lib
+    COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:${test_lib_name}> ${PONY_OUTPUT_DIR}/test_lib
   )
 endforeach()

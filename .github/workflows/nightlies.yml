@@ -232,7 +232,7 @@ jobs:
       - name: Build
         run: cmake --build --preset windows-x86-64-release
       - name: Install
-        run: cmake --install build/build --config Release --prefix build\install\release
+        run: cmake --install build/build --config release --prefix build\install\release
       - name: Package
         run: Compress-Archive -Path "build\install\release\lib\pony\nightly\bin", "build\install\release\lib\pony\nightly\lib", "build\install\release\lib\pony\nightly\packages" -DestinationPath "build\ponyc-x86-64-pc-windows-msvc.zip" -Force
       - name: Upload
@@ -287,7 +287,7 @@ jobs:
       - name: Build
         run: cmake --build --preset windows-arm64-release
       - name: Install
-        run: cmake --install build/build --config Release --prefix build\install\release
+        run: cmake --install build/build --config release --prefix build\install\release
       - name: Package
         run: Compress-Archive -Path "build\install\release\lib\pony\nightly\bin", "build\install\release\lib\pony\nightly\lib", "build\install\release\lib\pony\nightly\packages" -DestinationPath "build\ponyc-arm64-pc-windows-msvc.zip" -Force
       - name: Upload

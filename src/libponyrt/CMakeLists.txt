@@ -171,10 +171,7 @@ if (MSVC)
 
     # copy libponyrt to the ponyc directory for use when linking pony programs
     add_custom_command(TARGET libponyrt POST_BUILD
-        COMMAND $<$<CONFIG:Debug>:${CMAKE_COMMAND}> ARGS -E copy ${libponyrt_BINARY_DIR}/debug/libponyrt.lib ${CMAKE_BINARY_DIR}/../debug${PONY_OUTPUT_SUFFIX}/libponyrt.lib
-        COMMAND $<$<CONFIG:Release>:${CMAKE_COMMAND}> ARGS -E copy ${libponyrt_BINARY_DIR}/release/libponyrt.lib ${CMAKE_BINARY_DIR}/../release${PONY_OUTPUT_SUFFIX}/libponyrt.lib
-        COMMAND $<$<CONFIG:RelWithDebInfo>:${CMAKE_COMMAND}> ARGS -E copy ${libponyrt_BINARY_DIR}/relwithdebinfo/libponyrt.lib ${CMAKE_BINARY_DIR}/../relwithdebinfo${PONY_OUTPUT_SUFFIX}/libponyrt.lib
-        COMMAND $<$<CONFIG:MinSizeRel>:${CMAKE_COMMAND}> ARGS -E copy ${libponyrt_BINARY_DIR}/minsizerel/libponyrt.lib ${CMAKE_BINARY_DIR}/../minsizerel${PONY_OUTPUT_SUFFIX}/libponyrt.lib
+        COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:libponyrt> ${PONY_OUTPUT_DIR}/libponyrt.lib
     )
 else()
     target_include_directories(libponyrt
@@ -191,10 +188,7 @@ else()
 
     # copy libponyrt to the ponyc directory for use when linking pony programs
     add_custom_command(TARGET libponyrt POST_BUILD
-        COMMAND $<$<CONFIG:Debug>:${CMAKE_COMMAND}> ARGS -E copy ${libponyrt_BINARY_DIR}/libponyrt.a ${CMAKE_BINARY_DIR}/../debug${PONY_OUTPUT_SUFFIX}/${LIBPONYRT_ARCHIVE}
-        COMMAND $<$<CONFIG:Release>:${CMAKE_COMMAND}> ARGS -E copy ${libponyrt_BINARY_DIR}/libponyrt.a ${CMAKE_BINARY_DIR}/../release${PONY_OUTPUT_SUFFIX}/${LIBPONYRT_ARCHIVE}
-        COMMAND $<$<CONFIG:RelWithDebInfo>:${CMAKE_COMMAND}> ARGS -E copy ${libponyrt_BINARY_DIR}/libponyrt.a ${CMAKE_BINARY_DIR}/../relwithdebinfo${PONY_OUTPUT_SUFFIX}/${LIBPONYRT_ARCHIVE}
-        COMMAND $<$<CONFIG:MinSizeRel>:${CMAKE_COMMAND}> ARGS -E copy ${libponyrt_BINARY_DIR}/libponyrt.a ${CMAKE_BINARY_DIR}/../minsizerel${PONY_OUTPUT_SUFFIX}/${LIBPONYRT_ARCHIVE}
+        COMMAND ${CMAKE_COMMAND} -E copy ${libponyrt_BINARY_DIR}/libponyrt.a ${PONY_OUTPUT_DIR}/${LIBPONYRT_ARCHIVE}
     )
 
     # On FreeBSD the DOF object lives in its own archive built by the POST_BUILD
@@ -203,10 +197,7 @@ else()
     # (both are POST_BUILD on libponyrt, run in order), so the archive exists.
     if(PONY_USE_DTRACE AND CMAKE_SYSTEM_NAME STREQUAL "FreeBSD")
         add_custom_command(TARGET libponyrt POST_BUILD
-            COMMAND $<$<CONFIG:Debug>:${CMAKE_COMMAND}> ARGS -E copy ${libponyrt_BINARY_DIR}/libdtrace_probes.a ${CMAKE_BINARY_DIR}/../debug${PONY_OUTPUT_SUFFIX}/libdtrace_probes.a
-            COMMAND $<$<CONFIG:Release>:${CMAKE_COMMAND}> ARGS -E copy ${libponyrt_BINARY_DIR}/libdtrace_probes.a ${CMAKE_BINARY_DIR}/../release${PONY_OUTPUT_SUFFIX}/libdtrace_probes.a
-            COMMAND $<$<CONFIG:RelWithDebInfo>:${CMAKE_COMMAND}> ARGS -E copy ${libponyrt_BINARY_DIR}/libdtrace_probes.a ${CMAKE_BINARY_DIR}/../relwithdebinfo${PONY_OUTPUT_SUFFIX}/libdtrace_probes.a
-            COMMAND $<$<CONFIG:MinSizeRel>:${CMAKE_COMMAND}> ARGS -E copy ${libponyrt_BINARY_DIR}/libdtrace_probes.a ${CMAKE_BINARY_DIR}/../minsizerel${PONY_OUTPUT_SUFFIX}/libdtrace_probes.a
+            COMMAND ${CMAKE_COMMAND} -E copy ${libponyrt_BINARY_DIR}/libdtrace_probes.a ${PONY_OUTPUT_DIR}/libdtrace_probes.a
         )
     endif()
 endif (MSVC)
@@ -242,9 +233,6 @@ if(PONY_RUNTIME_BITCODE)
     )
 
     add_custom_command(TARGET libponyrt_bc POST_BUILD
-        COMMAND $<$<CONFIG:Debug>:${CMAKE_COMMAND}> ARGS -E copy ${libponyrt_BINARY_DIR}/libponyrt.bc ${CMAKE_BINARY_DIR}/../debug${PONY_OUTPUT_SUFFIX}/
-        COMMAND $<$<CONFIG:Release>:${CMAKE_COMMAND}> ARGS -E copy ${libponyrt_BINARY_DIR}/libponyrt.bc ${CMAKE_BINARY_DIR}/../release${PONY_OUTPUT_SUFFIX}/
-        COMMAND $<$<CONFIG:RelWithDebInfo>:${CMAKE_COMMAND}> ARGS -E copy ${libponyrt_BINARY_DIR}/libponyrt.bc ${CMAKE_BINARY_DIR}/../relwithdebinfo${PONY_OUTPUT_SUFFIX}/
-        COMMAND $<$<CONFIG:MinSizeRel>:${CMAKE_COMMAND}> ARGS -E copy ${libponyrt_BINARY_DIR}/libponyrt.bc ${CMAKE_BINARY_DIR}/../minsizerel${PONY_OUTPUT_SUFFIX}/
+        COMMAND ${CMAKE_COMMAND} -E copy ${libponyrt_BINARY_DIR}/libponyrt.bc ${PONY_OUTPUT_DIR}/
     )
 endif()

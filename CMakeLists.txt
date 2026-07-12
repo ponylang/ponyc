@@ -46,6 +46,38 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 # See cmake/PonyUses.cmake.
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/PonyUses.cmake)
 
+# ponyc builds in exactly two configurations, "debug" and "release", and the
+# configuration name is also the name of the output directory (build/<config>).
+# Two things depend on getting that name right, so reject anything else here,
+# where the message is clear, rather than let it fail later:
+#  - The name is used as a path segment in lowercase throughout the tree
+#    (build/debug, build/release), so a capitalized "Release" would build into
+#    build/Release, which none of those lowercase paths point at.
+#  - The per-config compile flags and the PONY_BUILD_CONFIG / DEBUG / NDEBUG /
+#    PONY_VERSION_STR definitions are gated on $<CONFIG:Debug>/$<CONFIG:Release>.
+#    A name CMake doesn't recognize matches neither, so those definitions are
+#    dropped and the runtime fails to compile ("PONY_BUILD_CONFIG undeclared")
+#    partway through, far from the cause.
+# Placed after the PonyUses include so the BSD reject probes (which configure
+# without a build type) hit that validation first, not this one.
+get_property(_multi_config GLOBAL PROPERTY GENERATOR_IS_MULTI_CONFIG)
+if(_multi_config)
+    # On a multi-config generator the configuration is chosen at build time and
+    # CMAKE_BUILD_TYPE is empty, so constrain the set on offer instead.
+    set(CMAKE_CONFIGURATION_TYPES "debug;release" CACHE STRING
+        "ponyc build configurations" FORCE)
+elseif(NOT CMAKE_BUILD_TYPE)
+    message(FATAL_ERROR
+        "CMAKE_BUILD_TYPE is not set. ponyc builds as \"debug\" or \"release\". "
+        "Use a preset (cmake --preset release) or set it directly "
+        "(-DCMAKE_BUILD_TYPE=release).")
+elseif(NOT CMAKE_BUILD_TYPE STREQUAL "debug" AND NOT CMAKE_BUILD_TYPE STREQUAL "release")
+    message(FATAL_ERROR
+        "CMAKE_BUILD_TYPE must be \"debug\" or \"release\", not \"${CMAKE_BUILD_TYPE}\". "
+        "Use a preset (cmake --preset release) or set it directly "
+        "(-DCMAKE_BUILD_TYPE=release).")
+endif()
+
 # We require LLVM, Google Test and Google Benchmark
 if(NOT PONY_CROSS_LIBPONYRT)
     find_package(LLVM REQUIRED CONFIG PATHS "build/libs/lib/cmake/llvm" "build/libs/lib64/cmake/llvm" NO_DEFAULT_PATH)
@@ -140,30 +172,22 @@ if(PONY_USE_RUNTIME_TRACING)
     add_compile_options(-DUSE_RUNTIME_TRACING)
 endif()
 
-# LibPonyC tests assume that our outputs are two directories above the root directory.
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_DEBUG "${CMAKE_BINARY_DIR}/../debug${PONY_OUTPUT_SUFFIX}")
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE "${CMAKE_BINARY_DIR}/../release${PONY_OUTPUT_SUFFIX}")
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_MINSIZEREL "${CMAKE_BINARY_DIR}/../minsizerel${PONY_OUTPUT_SUFFIX}")
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELWITHDEBINFO "${CMAKE_BINARY_DIR}/../relwithdebinfo${PONY_OUTPUT_SUFFIX}")
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/../${CMAKE_BUILD_TYPE}${PONY_OUTPUT_SUFFIX}")
-
-# Per-config output directory for ponyc-compiled binaries and the ctest wrappers.
-# On the Windows Visual Studio multi-config generator CMAKE_RUNTIME_OUTPUT_DIRECTORY
-# above is config-less (CMAKE_BUILD_TYPE is empty there), so the per-config dir must
-# be derived from $<CONFIG> as a generator expression. On a single-config generator
-# (the non-Windows presets) CMAKE_RUNTIME_OUTPUT_DIRECTORY already carries the
-# config, so use it verbatim -- this keeps the non-Windows build byte-for-byte
-# unchanged (no genex on that path). $<LOWER_CASE:$<CONFIG>> matches the lowercase
-# debug/release dirs the _DEBUG/_RELEASE vars above use; ${PONY_OUTPUT_SUFFIX} keeps
-# use= builds aligned. Everything that locates a ponyc-compiled binary, sets a ctest
-# working dir, or tells ponyc where to write must use PONY_OUTPUT_DIR rather than
-# CMAKE_RUNTIME_OUTPUT_DIRECTORY: on the single-config generators the two are equal,
-# so a site that reverts to the latter passes every Unix job and breaks only Windows.
-if(CMAKE_CONFIGURATION_TYPES)
-    set(PONY_OUTPUT_DIR "${CMAKE_BINARY_DIR}/../$<LOWER_CASE:$<CONFIG>>${PONY_OUTPUT_SUFFIX}")
-else()
-    set(PONY_OUTPUT_DIR "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}")
-endif()
+# The build's output directory, a sibling of the CMake binary directory. CMake
+# places the executables via CMAKE_RUNTIME_OUTPUT_DIRECTORY, set here from
+# PONY_OUTPUT_DIR; the static libraries and other artifacts are copied into the
+# same directory by POST_BUILD commands, and install() reads it. One definition
+# keeps all of those pointing at the same place.
+#
+# The depth matters: a ponyc run out of the build tree finds the standard library
+# by adding ../../packages to its own executable's path (see
+# add_pony_installation_dir in src/libponyc/pkg/package.c), so build/<config>/ponyc
+# sits two directories below the source root.
+#
+# Both names hold a $<CONFIG> generator expression, usable only where CMake
+# evaluates one (add_custom_command, add_test, target properties, install()); a
+# configure-time file() or if(EXISTS) on either gets the literal "$<CONFIG>".
+set(PONY_OUTPUT_DIR "${CMAKE_BINARY_DIR}/../$<CONFIG>${PONY_OUTPUT_SUFFIX}")
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${PONY_OUTPUT_DIR}")
 
 # Libs are now always built in release mode.
 set(PONY_LLVM_BUILD_MODE "1")
@@ -546,18 +570,12 @@ add_compile_definitions(
     PONY_DEFAULT_PIC=true
     $<$<CONFIG:Debug>:PONY_BUILD_CONFIG="debug">
     $<$<CONFIG:Release>:PONY_BUILD_CONFIG="release">
-    $<$<CONFIG:RelWithDebInfo>:PONY_BUILD_CONFIG="release">
-    $<$<CONFIG:MinSizeRel>:PONY_BUILD_CONFIG="release">
     PONY_USE_BIGINT
     PONY_VERSION="${PONYC_VERSION}"
     $<$<CONFIG:Debug>:DEBUG>
     $<$<CONFIG:Release>:NDEBUG>
-    $<$<CONFIG:RelWithDebInfo>:NDEBUG>
-    $<$<CONFIG:MinSizeRel>:NDEBUG>
     $<$<CONFIG:Debug>:PONY_VERSION_STR="${PONYC_VERSION} [debug]\\nCompiled with: LLVM ${LLVM_VERSION} -- ${CMAKE_C_COMPILER_ID}-${CMAKE_C_COMPILER_VERSION}-${_compiler_arch}">
     $<$<CONFIG:Release>:PONY_VERSION_STR="${PONYC_VERSION} [release]\\nCompiled with: LLVM ${LLVM_VERSION} -- ${CMAKE_C_COMPILER_ID}-${CMAKE_C_COMPILER_VERSION}-${_compiler_arch}">
-    $<$<CONFIG:RelWithDebInfo>:PONY_VERSION_STR="${PONYC_VERSION} [relwithdebinfo]\\nCompiled with: LLVM ${LLVM_VERSION} -- ${CMAKE_C_COMPILER_ID}-${CMAKE_C_COMPILER_VERSION}-${_compiler_arch}">
-    $<$<CONFIG:MinSizeRel>:PONY_VERSION_STR="${PONYC_VERSION} [minsizerel]\\nCompiled with: LLVM ${LLVM_VERSION} -- ${CMAKE_C_COMPILER_ID}-${CMAKE_C_COMPILER_VERSION}-${_compiler_arch}">
     PONY_OSX_PLATFORM=${PONY_OSX_PLATFORM}
 )
 
@@ -728,6 +746,11 @@ else()
     enable_testing()
 
     add_test(NAME check-version COMMAND $<TARGET_FILE:ponyc> --version)
+    add_test(NAME output-layout
+        COMMAND ${CMAKE_COMMAND}
+            -DDIR=$<TARGET_FILE_DIR:ponyc>
+            -DSUFFIX=${CMAKE_EXECUTABLE_SUFFIX}
+            -P ${CMAKE_SOURCE_DIR}/cmake/CheckOutputLayout.cmake)
     add_test(NAME libponyrt.tests
         COMMAND ${CMAKE_COMMAND} -DBIN=$<TARGET_FILE:libponyrt.tests>
             -DARGS=--gtest_shuffle -DGTEST=ON
@@ -738,7 +761,7 @@ else()
             -DARGS=--gtest_shuffle -DGTEST=ON
             -DWORKDIR=${PONY_OUTPUT_DIR}
             -P ${CMAKE_SOURCE_DIR}/cmake/RunTest.cmake)
-    set_tests_properties(check-version libponyrt.tests libponyc.tests
+    set_tests_properties(check-version output-layout libponyrt.tests libponyc.tests
         PROPERTIES LABELS ci-core)
 
     add_test(NAME pony-doc-tests
@@ -781,9 +804,9 @@ else()
 
     set(_full_program_runner
         ${CMAKE_BINARY_DIR}/test/full-program-runner/full-program-runner${CMAKE_EXECUTABLE_SUFFIX})
-    # The per-config full-program-tests output dirs can't be created here on the
-    # multi-config generator (the path is config-dependent); RunFullPrograms.cmake
-    # creates its --output dir at test time instead.
+    # The full-program-tests output dirs can't be created here: PONY_OUTPUT_DIR is
+    # a $<CONFIG> genex, so the path isn't known at configure time.
+    # RunFullPrograms.cmake creates its --output dir at test time instead.
 
     add_test(NAME full-programs-debug
         COMMAND ${CMAKE_COMMAND}
@@ -842,9 +865,9 @@ else()
     # PROGRAMS. Test and benchmark binaries are not installed.
     install(TARGETS ponyc DESTINATION ${PONY_VERSIONED_DIR}/bin)
     install(PROGRAMS
-        $<TARGET_FILE_DIR:ponyc>/pony-lsp${CMAKE_EXECUTABLE_SUFFIX}
-        $<TARGET_FILE_DIR:ponyc>/pony-lint${CMAKE_EXECUTABLE_SUFFIX}
-        $<TARGET_FILE_DIR:ponyc>/pony-doc${CMAKE_EXECUTABLE_SUFFIX}
+        ${PONY_OUTPUT_DIR}/pony-lsp${CMAKE_EXECUTABLE_SUFFIX}
+        ${PONY_OUTPUT_DIR}/pony-lint${CMAKE_EXECUTABLE_SUFFIX}
+        ${PONY_OUTPUT_DIR}/pony-doc${CMAKE_EXECUTABLE_SUFFIX}
         DESTINATION ${PONY_VERSIONED_DIR}/bin)
 
     # Runtime + compiler static libs, into the lib dir ponyc searches at run time
@@ -856,13 +879,13 @@ else()
     # doesn't produce one doesn't fail the install.
     install(TARGETS libponyrt libponyc DESTINATION ${PONY_INSTALL_LIBDIR})
     install(FILES
-        $<TARGET_FILE_DIR:ponyc>/libponyc-standalone.a
-        $<TARGET_FILE_DIR:ponyc>/libponyrt-pic.a
-        $<TARGET_FILE_DIR:ponyc>/libdtrace_probes.a
-        $<TARGET_FILE_DIR:ponyc>/crtbeginS.o
-        $<TARGET_FILE_DIR:ponyc>/crtendS.o
-        $<TARGET_FILE_DIR:ponyc>/crtbeginT.o
-        $<TARGET_FILE_DIR:ponyc>/crtend.o
+        ${PONY_OUTPUT_DIR}/libponyc-standalone.a
+        ${PONY_OUTPUT_DIR}/libponyrt-pic.a
+        ${PONY_OUTPUT_DIR}/libdtrace_probes.a
+        ${PONY_OUTPUT_DIR}/crtbeginS.o
+        ${PONY_OUTPUT_DIR}/crtendS.o
+        ${PONY_OUTPUT_DIR}/crtbeginT.o
+        ${PONY_OUTPUT_DIR}/crtend.o
         DESTINATION ${PONY_INSTALL_LIBDIR} OPTIONAL)
 
     # The stdlib packages.

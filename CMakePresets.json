@@ -152,10 +152,10 @@
     { "name": "armv8-a-release", "configurePreset": "armv8-a-release" },
     { "name": "debug-asan", "configurePreset": "debug-asan" },
     { "name": "release-asan", "configurePreset": "release-asan" },
-    { "name": "windows-x86-64-debug", "configurePreset": "windows-x86-64", "configuration": "Debug" },
-    { "name": "windows-x86-64-release", "configurePreset": "windows-x86-64", "configuration": "Release" },
-    { "name": "windows-arm64-debug", "configurePreset": "windows-arm64", "configuration": "Debug" },
-    { "name": "windows-arm64-release", "configurePreset": "windows-arm64", "configuration": "Release" }
+    { "name": "windows-x86-64-debug", "configurePreset": "windows-x86-64", "configuration": "debug" },
+    { "name": "windows-x86-64-release", "configurePreset": "windows-x86-64", "configuration": "release" },
+    { "name": "windows-arm64-debug", "configurePreset": "windows-arm64", "configuration": "debug" },
+    { "name": "windows-arm64-release", "configurePreset": "windows-arm64", "configuration": "release" }
   ],
   "testPresets": [
     { "name": "debug", "configurePreset": "debug", "output": { "outputOnFailure": true } },
@@ -166,9 +166,9 @@
     { "name": "armv8-release", "configurePreset": "armv8-release", "output": { "outputOnFailure": true } },
     { "name": "armv8-a-debug", "configurePreset": "armv8-a-debug", "output": { "outputOnFailure": true } },
     { "name": "armv8-a-release", "configurePreset": "armv8-a-release", "output": { "outputOnFailure": true } },
-    { "name": "windows-x86-64-debug", "configurePreset": "windows-x86-64", "configuration": "Debug", "output": { "outputOnFailure": true } },
-    { "name": "windows-x86-64-release", "configurePreset": "windows-x86-64", "configuration": "Release", "output": { "outputOnFailure": true } },
-    { "name": "windows-arm64-debug", "configurePreset": "windows-arm64", "configuration": "Debug", "output": { "outputOnFailure": true } },
-    { "name": "windows-arm64-release", "configurePreset": "windows-arm64", "configuration": "Release", "output": { "outputOnFailure": true } }
+    { "name": "windows-x86-64-debug", "configurePreset": "windows-x86-64", "configuration": "debug", "output": { "outputOnFailure": true } },
+    { "name": "windows-x86-64-release", "configurePreset": "windows-x86-64", "configuration": "release", "output": { "outputOnFailure": true } },
+    { "name": "windows-arm64-debug", "configurePreset": "windows-arm64", "configuration": "debug", "output": { "outputOnFailure": true } },
+    { "name": "windows-arm64-release", "configurePreset": "windows-arm64", "configuration": "release", "output": { "outputOnFailure": true } }
   ]
 }

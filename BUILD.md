@@ -29,6 +29,8 @@ The build is divided into several stages:
 - Removing a configuration's build directory (`rm -rf build/build_release build/release`) cleans your ponyc build without touching the libraries.
 - `rm -rf build` will delete the entire `build` directory, including the libraries.
 
+ponyc builds in two configurations, `release` and `debug`. The presets set this for you. If you configure without a preset, set it yourself: `cmake -B mybuild -S . -DCMAKE_BUILD_TYPE=release` (or `debug`). The name is lowercase because it is also the name of the output directory (`build/release`, `build/debug`); any other value, including CMake's usual `Release`, `RelWithDebInfo`, and `MinSizeRel`, is rejected at configure time.
+
 The presets default to using Clang on Unix. To build ponyc with GCC, override the compiler at the configure step:
 
 ```bash

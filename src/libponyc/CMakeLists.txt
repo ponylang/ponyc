@@ -129,10 +129,7 @@ endif (MSVC)
 
 if (NOT MSVC)
     add_custom_command(TARGET libponyc POST_BUILD
-        COMMAND $<$<CONFIG:Debug>:${CMAKE_COMMAND}> ARGS -E copy ${libponyc_BINARY_DIR}/libponyc.a ${CMAKE_BINARY_DIR}/../debug${PONY_OUTPUT_SUFFIX}/
-        COMMAND $<$<CONFIG:Release>:${CMAKE_COMMAND}> ARGS -E copy ${libponyc_BINARY_DIR}/libponyc.a ${CMAKE_BINARY_DIR}/../release${PONY_OUTPUT_SUFFIX}/
-        COMMAND $<$<CONFIG:RelWithDebInfo>:${CMAKE_COMMAND}> ARGS -E copy ${libponyc_BINARY_DIR}/libponyc.a ${CMAKE_BINARY_DIR}/../relwithdebinfo${PONY_OUTPUT_SUFFIX}/
-        COMMAND $<$<CONFIG:MinSizeRel>:${CMAKE_COMMAND}> ARGS -E copy ${libponyc_BINARY_DIR}/libponyc.a ${CMAKE_BINARY_DIR}/../minsizerel${PONY_OUTPUT_SUFFIX}/
+        COMMAND ${CMAKE_COMMAND} -E copy ${libponyc_BINARY_DIR}/libponyc.a ${PONY_OUTPUT_DIR}/
     )
 endif (NOT MSVC)
 
@@ -150,10 +147,7 @@ if (MSVC)
         COMMAND ${CMAKE_AR} /NOLOGO /VERBOSE /OUT:${libponyc_standalone_path} "$<TARGET_FILE:libponyc>" ${LLVM_OBJS} ${LLD_OBJS} ${CLANG_OBJS}
         DEPENDS libponyc)
     add_custom_command(TARGET libponyc-standalone POST_BUILD
-        COMMAND $<$<CONFIG:Debug>:${CMAKE_COMMAND}> ARGS -E copy ${libponyc_standalone_path} ${CMAKE_RUNTIME_OUTPUT_DIRECTORY_DEBUG}/${libponyc_standalone_file}
-        COMMAND $<$<CONFIG:Release>:${CMAKE_COMMAND}> ARGS -E copy ${libponyc_standalone_path} ${CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE}/${libponyc_standalone_file}
-        COMMAND $<$<CONFIG:RelWithDebInfo>:${CMAKE_COMMAND}> ARGS -E copy ${libponyc_standalone_path} ${CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELWITHDEBINFO}/${libponyc_standalone_file}
-        COMMAND $<$<CONFIG:MinSizeRel>:${CMAKE_COMMAND}> ARGS -E copy ${libponyc_standalone_path} ${CMAKE_RUNTIME_OUTPUT_DIRECTORY_MINSIZEREL}/${libponyc_standalone_file}
+        COMMAND ${CMAKE_COMMAND} -E copy ${libponyc_standalone_path} ${PONY_OUTPUT_DIR}/${libponyc_standalone_file}
     )
 elseif(${CMAKE_HOST_SYSTEM_NAME} MATCHES "Darwin")
     # on macos we dont have no static libc++
@@ -168,10 +162,7 @@ elseif(${CMAKE_HOST_SYSTEM_NAME} MATCHES "Darwin")
     )
     # copy the generated file after it is built
     add_custom_command(TARGET libponyc-standalone POST_BUILD
-        COMMAND $<$<CONFIG:Debug>:${CMAKE_COMMAND}> ARGS -E copy libponyc-standalone.a ${CMAKE_BINARY_DIR}/../debug${PONY_OUTPUT_SUFFIX}/
-        COMMAND $<$<CONFIG:Release>:${CMAKE_COMMAND}> ARGS -E copy libponyc-standalone.a ${CMAKE_BINARY_DIR}/../release${PONY_OUTPUT_SUFFIX}/
-        COMMAND $<$<CONFIG:RelWithDebInfo>:${CMAKE_COMMAND}> ARGS -E copy libponyc-standalone.a ${CMAKE_BINARY_DIR}/../relwithdebinfo${PONY_OUTPUT_SUFFIX}/
-        COMMAND $<$<CONFIG:MinSizeRel>:${CMAKE_COMMAND}> ARGS -E copy libponyc-standalone.a ${CMAKE_BINARY_DIR}/../minsizerel${PONY_OUTPUT_SUFFIX}/
+        COMMAND ${CMAKE_COMMAND} -E copy libponyc-standalone.a ${PONY_OUTPUT_DIR}/
     )
 elseif(${CMAKE_HOST_SYSTEM_NAME} MATCHES "FreeBSD")
     # add a rule to generate the standalone library if needed
@@ -195,10 +186,7 @@ elseif(${CMAKE_HOST_SYSTEM_NAME} MATCHES "FreeBSD")
     )
     # copy the generated file after it is built
     add_custom_command(TARGET libponyc-standalone POST_BUILD
-        COMMAND $<$<CONFIG:Debug>:${CMAKE_COMMAND}> ARGS -E copy libponyc-standalone.a ${CMAKE_BINARY_DIR}/../debug${PONY_OUTPUT_SUFFIX}/
-        COMMAND $<$<CONFIG:Release>:${CMAKE_COMMAND}> ARGS -E copy libponyc-standalone.a ${CMAKE_BINARY_DIR}/../release${PONY_OUTPUT_SUFFIX}/
-        COMMAND $<$<CONFIG:RelWithDebInfo>:${CMAKE_COMMAND}> ARGS -E copy libponyc-standalone.a ${CMAKE_BINARY_DIR}/../relwithdebinfo${PONY_OUTPUT_SUFFIX}/
-        COMMAND $<$<CONFIG:MinSizeRel>:${CMAKE_COMMAND}> ARGS -E copy libponyc-standalone.a ${CMAKE_BINARY_DIR}/../minsizerel${PONY_OUTPUT_SUFFIX}/
+        COMMAND ${CMAKE_COMMAND} -E copy libponyc-standalone.a ${PONY_OUTPUT_DIR}/
     )
 elseif(${CMAKE_HOST_SYSTEM_NAME} MATCHES "OpenBSD")
     # add a rule to generate the standalone library if needed
@@ -222,10 +210,7 @@ elseif(${CMAKE_HOST_SYSTEM_NAME} MATCHES "OpenBSD")
     )
     # copy the generated file after it is built
     add_custom_command(TARGET libponyc-standalone POST_BUILD
-        COMMAND $<$<CONFIG:Debug>:${CMAKE_COMMAND}> ARGS -E copy libponyc-standalone.a ${CMAKE_BINARY_DIR}/../debug${PONY_OUTPUT_SUFFIX}/
-        COMMAND $<$<CONFIG:Release>:${CMAKE_COMMAND}> ARGS -E copy libponyc-standalone.a ${CMAKE_BINARY_DIR}/../release${PONY_OUTPUT_SUFFIX}/
-        COMMAND $<$<CONFIG:RelWithDebInfo>:${CMAKE_COMMAND}> ARGS -E copy libponyc-standalone.a ${CMAKE_BINARY_DIR}/../relwithdebinfo${PONY_OUTPUT_SUFFIX}/
-        COMMAND $<$<CONFIG:MinSizeRel>:${CMAKE_COMMAND}> ARGS -E copy libponyc-standalone.a ${CMAKE_BINARY_DIR}/../minsizerel${PONY_OUTPUT_SUFFIX}/
+        COMMAND ${CMAKE_COMMAND} -E copy libponyc-standalone.a ${PONY_OUTPUT_DIR}/
     )
 elseif(${CMAKE_HOST_SYSTEM_NAME} MATCHES "DragonFly")
     # add a rule to generate the standalone library if needed
@@ -249,10 +234,7 @@ elseif(${CMAKE_HOST_SYSTEM_NAME} MATCHES "DragonFly")
     )
     # copy the generated file after it is built
     add_custom_command(TARGET libponyc-standalone POST_BUILD
-        COMMAND $<$<CONFIG:Debug>:${CMAKE_COMMAND}> ARGS -E copy libponyc-standalone.a ${CMAKE_BINARY_DIR}/../debug${PONY_OUTPUT_SUFFIX}/
-        COMMAND $<$<CONFIG:Release>:${CMAKE_COMMAND}> ARGS -E copy libponyc-standalone.a ${CMAKE_BINARY_DIR}/../release${PONY_OUTPUT_SUFFIX}/
-        COMMAND $<$<CONFIG:RelWithDebInfo>:${CMAKE_COMMAND}> ARGS -E copy libponyc-standalone.a ${CMAKE_BINARY_DIR}/../relwithdebinfo${PONY_OUTPUT_SUFFIX}/
-        COMMAND $<$<CONFIG:MinSizeRel>:${CMAKE_COMMAND}> ARGS -E copy libponyc-standalone.a ${CMAKE_BINARY_DIR}/../minsizerel${PONY_OUTPUT_SUFFIX}/
+        COMMAND ${CMAKE_COMMAND} -E copy libponyc-standalone.a ${PONY_OUTPUT_DIR}/
     )
 else()
     execute_process(COMMAND ${CMAKE_CXX_COMPILER} --print-file-name=libstdc++.a
@@ -294,9 +276,6 @@ else()
     )
     # copy the generated file after it is built
     add_custom_command(TARGET libponyc-standalone POST_BUILD
-        COMMAND $<$<CONFIG:Debug>:${CMAKE_COMMAND}> ARGS -E copy libponyc-standalone.a ${CMAKE_BINARY_DIR}/../debug${PONY_OUTPUT_SUFFIX}/
-        COMMAND $<$<CONFIG:Release>:${CMAKE_COMMAND}> ARGS -E copy libponyc-standalone.a ${CMAKE_BINARY_DIR}/../release${PONY_OUTPUT_SUFFIX}/
-        COMMAND $<$<CONFIG:RelWithDebInfo>:${CMAKE_COMMAND}> ARGS -E copy libponyc-standalone.a ${CMAKE_BINARY_DIR}/../relwithdebinfo${PONY_OUTPUT_SUFFIX}/
-        COMMAND $<$<CONFIG:MinSizeRel>:${CMAKE_COMMAND}> ARGS -E copy libponyc-standalone.a ${CMAKE_BINARY_DIR}/../minsizerel${PONY_OUTPUT_SUFFIX}/
+        COMMAND ${CMAKE_COMMAND} -E copy libponyc-standalone.a ${PONY_OUTPUT_DIR}/
     )
 endif (MSVC)
