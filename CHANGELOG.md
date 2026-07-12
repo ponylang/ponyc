@@ -7,6 +7,7 @@ All notable changes to the Pony compiler and standard library will be documented
 ### Fixed
 
 - Fix Windows programs never finishing when stdin has ended ([PR #5740](https://github.com/ponylang/ponyc/pull/5740))
+- Fix Windows programs stalling while reading stdin from a pipe ([PR #5747](https://github.com/ponylang/ponyc/pull/5747))
 
 ### Added
 
