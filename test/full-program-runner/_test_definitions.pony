@@ -59,6 +59,20 @@ class val _TestDefinition
     stdin = stdin'
     program_args = program_args'
 
+class val _BrokenTest
+  """
+  A directory the runner could not turn into a test: it could not be opened or
+  listed, or it has Pony sources but a configuration file could not be read.
+  Unlike an entry that is not a test directory (None), the runner fails the run
+  on one of these instead of dropping it.
+  """
+  let name: String
+  let reason: String
+
+  new val create(name': String, reason': String) =>
+    name = name'
+    reason = reason'
+
 class _TestDefinitions
   let _verbose: Bool
   let _exclude: Set[String] val
@@ -125,39 +139,56 @@ class _TestDefinitions
         return
       end
 
-    recover
-      let definitions = Array[_TestDefinition]
-      for entry in (consume entries).values() do
-        if _exclude.contains(entry) then continue end
+    let definitions = recover iso Array[_TestDefinition] end
+    let broken = Array[_BrokenTest]
+    for entry in (consume entries).values() do
+      if _exclude.contains(entry) then continue end
 
-        match _get_definition(auth, dir.path.path, entry)
-        | let def: _TestDefinition => definitions.push(def)
-        end
+      match _get_definition(auth, dir.path.path, entry)
+      | let def: _TestDefinition => definitions.push(def)
+      | let bt: _BrokenTest => broken.push(bt)
       end
-      if _verbose then
-        _out.print("Found " + definitions.size().string()
-          + " test definitions.")
-      end
-      definitions
     end
 
+    if broken.size() > 0 then
+      _err.print(_Colors.red() + broken.size().string()
+        + " test(s) could not be configured; failing the run:" + _Colors.none())
+      for bt in broken.values() do
+        _err.print(_Colors.red() + "  " + bt.name + ": " + bt.reason
+          + _Colors.none())
+      end
+      return
+    end
+
+    let result: Array[_TestDefinition] val = consume definitions
+    if _verbose then
+      _out.print("Found " + result.size().string() + " test definitions.")
+    end
+    result
+
   fun _get_definition(auth: FileAuth, parent: String,
-    child: String): (_TestDefinition | None)
+    child: String): (_TestDefinition | _BrokenTest | None)
   =>
+    let fp = FilePath(auth, Path.join(parent, child))
+
+    // An entry that is not a directory is not a test; skip it. A directory the
+    // runner cannot open or list is a broken test, not a skip.
+    if not (try FileInfo(fp)?.directory else false end) then
+      return None
+    end
+
     let dir =
       try
-        Directory(FilePath(auth, Path.join(parent, child)))?
+        Directory(fp)?
       else
-        return None
+        return _BrokenTest(child, "unable to open directory")
       end
 
     let entries =
       try
         dir.entries()?
       else
-        _err.print(_Colors.red() + child
-          + ": unable to get directory entries for" + child + _Colors.none())
-        return None
+        return _BrokenTest(child, "unable to read directory entries")
       end
 
     var has_pony_sources = false
@@ -165,6 +196,7 @@ class _TestDefinitions
     var stdin_data: (String val | None) = None
     var delay_seconds: (U64 | None) = None
     var program_args = recover val Array[String] end
+    var config_error: (String | None) = None
     let ext_size = ISize.from[USize](_str_pony_extension().size())
     for entry in (consume entries).values() do
       let entry_lower = entry.lower()
@@ -178,12 +210,13 @@ class _TestDefinitions
 
       if entry_lower == _str_expected_exit_code() then
         try
-          expected_exit_code =
-            _get_expected_exit_code(FilePath.from(dir.path, entry)?)?
+          let exit_code_fp = FilePath.from(dir.path, entry)?
+          match \exhaustive\ _get_expected_exit_code(exit_code_fp)
+          | let code: I32 => expected_exit_code = code
+          | let reason: String => config_error = reason
+          end
         else
-          _err.print(_Colors.red() + child + "/" + entry
-            + ": unable to open file" + _Colors.none())
-          return None
+          config_error = "unable to read " + _str_expected_exit_code()
         end
       end
 
@@ -191,20 +224,15 @@ class _TestDefinitions
         try
           stdin_data = _get_stdin(FilePath.from(dir.path, entry)?)?
         else
-          _err.print(_Colors.red() + child + "/" + entry
-            + ": unable to open file" + _Colors.none())
-          return None
+          config_error = "unable to read " + _str_stdin()
         end
       end
 
       if entry_lower == _str_stdin_delay_seconds() then
         try
-          delay_seconds =
-            _get_delay_seconds(FilePath.from(dir.path, entry)?)?
+          delay_seconds = _get_delay_seconds(FilePath.from(dir.path, entry)?)?
         else
-          _err.print(_Colors.red() + child + "/" + entry
-            + ": unable to read a number of seconds" + _Colors.none())
-          return None
+          config_error = "unable to read " + _str_stdin_delay_seconds()
         end
       end
 
@@ -212,9 +240,7 @@ class _TestDefinitions
         try
           program_args = _get_program_args(FilePath.from(dir.path, entry)?)?
         else
-          _err.print(_Colors.red() + child + "/" + entry
-            + ": unable to open file" + _Colors.none())
-          return None
+          config_error = "unable to read " + _str_program_args()
         end
       end
     end
@@ -228,9 +254,15 @@ class _TestDefinitions
         _StdinClose
       end
 
-    if has_pony_sources then
-      _TestDefinition(child, dir.path.path, expected_exit_code, stdin,
-        program_args)
+    if not has_pony_sources then
+      None
+    else
+      match \exhaustive\ config_error
+      | let reason: String => _BrokenTest(child, reason)
+      | None =>
+        _TestDefinition(child, dir.path.path, expected_exit_code, stdin,
+          program_args)
+      end
     end
 
   fun _get_stdin(fp: FilePath): String val ? =>
@@ -273,18 +305,22 @@ class _TestDefinitions
       error
     end
 
-  fun _get_expected_exit_code(fp: FilePath): I32 ? =>
+  fun _get_expected_exit_code(fp: FilePath): (I32 | String) =>
+    """
+    The expected exit code from a test's expected-exit-code.txt, or a reason it
+    could not be read. The reason is returned rather than printed so that a
+    directory that turns out not to be a test stays quiet.
+    """
     match OpenFile(fp)
     | let f: File =>
       for line in FileLines(f) do
         try
           return line.i32()?
         else
-          _err.print(_Colors.red() + fp.path
-            + ": unable to parse expected error code: '" + line.clone() + "'"
-            + _Colors.none())
+          return "unable to parse expected exit code: '" + line.clone() + "'"
         end
-        break
       end
+      _str_expected_exit_code() + " is empty"
+    else
+      "unable to read " + _str_expected_exit_code()
     end
-    error
