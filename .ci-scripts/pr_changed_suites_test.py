@@ -35,6 +35,20 @@ SINGLE_PATH_TABLE = [
     ('tools/lib/ponylang/pony_compiler/pass.pony', (False, True, True)),
     # plain stdlib code: ponyc + tools.
     ('packages/json/json.pony', (True, False, True)),
+    # the shared CMake build system builds pony-compiler-tests, so it triggers
+    # pony_compiler too (as well as ponyc and tools via their broad rules).
+    ('cmake/PonyBinary.cmake', (True, True, True)),
+    ('CMakeLists.txt', (True, True, True)),
+    ('CMakePresets.json', (True, True, True)),
+    # boundary guards for the build-system rule. Exact-match, not endswith: a
+    # tool's own CMakeLists and the vendored-LLVM (lib/) presets are NOT the
+    # top-level files. Prefix needs the slash: a `cmakefoo/` sibling must not
+    # match `cmake/`. And a build-system doc stays excluded everywhere, keeping
+    # the classifier in sync with the union filter (which drops **/*.md).
+    ('tools/pony-lint/CMakeLists.txt', (False, False, True)),
+    ('lib/CMakePresets.json', (True, False, True)),
+    ('cmakefoo/build.cmake', (True, False, True)),
+    ('cmake/notes.md', (False, False, False)),
     # scheduled-only test workloads trigger no suite: nothing under
     # test/rt-stress/ or test/rt-systematic/ feeds test-ci-core or the tools
     # build, so the whole directory is excluded -- a .py orchestration file and
