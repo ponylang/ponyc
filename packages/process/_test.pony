@@ -16,6 +16,8 @@ actor \nodoc\ Main is TestList
     test(_TestBadChdir)
     test(_TestBadExec)
     test(_TestChdir)
+    test(_TestChildExitsWhileStdinOpen)
+    test(_TestChildWritesThenExitsWhileStdinOpen)
     test(_TestExpect)
     test(_TestFileExecCapabilityIsRequired)
     test(_TestKillLongRunningChild)
@@ -26,6 +28,7 @@ actor \nodoc\ Main is TestList
     test(_TestStdinStdout)
     test(_TestStdinWriteBuf)
     test(_TestWaitingOnClosedProcessTwice)
+    test(_TestWriteAfterChildExitsWhileStdinOpen)
     test(_TestWritevOrdering)
 
 class \nodoc\ _PathResolver
@@ -118,6 +121,21 @@ primitive \nodoc\ _PwdArgs
       ["cmd"; "/c"; "cd"]
     else
       ["pwd"]
+    end
+
+primitive \nodoc\ _ExitCommand
+  fun path(path_resolver: _PathResolver): String ? =>
+    ifdef windows then
+      "C:\\Windows\\System32\\cmd.exe"
+    else
+      path_resolver.resolve("sh")?.path
+    end
+
+  fun args(code: I32): Array[String] val =>
+    ifdef windows then
+      ["cmd"; "/c"; "exit " + code.string()]
+    else
+      ["sh"; "-c"; "exit " + code.string()]
     end
 
 class \nodoc\ iso _TestFileExecCapabilityIsRequired is UnitTest
@@ -579,6 +597,167 @@ class \nodoc\ _TestBadExec is UnitTest
       h.long_test(30_000_000_000)
     else
       h.fail("bad_exec_path not set!")
+    end
+
+class \nodoc\ iso _TestChildExitsWhileStdinOpen is UnitTest
+  """
+  A child that exits on its own has its exit status reported even when the
+  parent never closes stdin. Regression test for
+  https://github.com/ponylang/ponyc/issues/5748.
+  """
+  fun name(): String => "process/child-exits-while-stdin-open"
+  fun exclusion_group(): String => "process-monitor"
+
+  fun apply(h: TestHelper) =>
+    let notifier =
+      object iso is ProcessNotify
+        fun ref failed(process: ProcessMonitor ref, err: ProcessError) =>
+          h.fail("process failed: " + err.string())
+          h.complete(false)
+
+        fun ref dispose(
+          process: ProcessMonitor ref,
+          child_exit_status: ProcessExitStatus)
+        =>
+          match child_exit_status
+          | Exited(7) => h.complete(true)
+          else
+            h.fail("child exited with " + child_exit_status.string())
+            h.complete(false)
+          end
+      end
+
+    try
+      let process_auth = StartProcessAuth(h.env.root)
+      let backpressure_auth = ApplyReleaseBackpressureAuth(h.env.root)
+      let file_auth = FileAuth(h.env.root)
+
+      let path_resolver = _PathResolver(h.env.vars, file_auth)
+      let path = FilePath(file_auth, _ExitCommand.path(path_resolver)?)
+      let args = _ExitCommand.args(7)
+      let vars: Array[String] val = ["HOME=/"; "PATH=/bin"]
+
+      let pm = ProcessMonitor(process_auth, backpressure_auth,
+        consume notifier, path, args, vars)
+      // Intentionally do not call done_writing(): the child exits on its own
+      // while the parent still holds stdin open.
+      h.dispose_when_done(pm)
+      h.long_test(30_000_000_000)
+    else
+      h.fail("Could not set up child process.")
+    end
+
+class \nodoc\ iso _TestChildWritesThenExitsWhileStdinOpen is UnitTest
+  """
+  A child that writes output and then exits on its own has that output
+  delivered and its exit status reported, even when the parent never closes
+  stdin. Regression test for https://github.com/ponylang/ponyc/issues/5748.
+  """
+  fun name(): String => "process/child-writes-then-exits-while-stdin-open"
+  fun exclusion_group(): String => "process-monitor"
+
+  fun apply(h: TestHelper) =>
+    let notifier =
+      recover object is ProcessNotify
+        let _h: TestHelper = h
+        let _expected: String = ifdef windows then "hello\r\n" else "hello\n" end
+        let _out: String ref = String
+
+        fun ref stdout(process: ProcessMonitor ref, data: Array[U8] iso) =>
+          _out.append(consume data)
+
+        fun ref failed(process: ProcessMonitor ref, err: ProcessError) =>
+          _h.fail("process failed: " + err.string())
+          _h.complete(false)
+
+        fun ref dispose(
+          process: ProcessMonitor ref,
+          child_exit_status: ProcessExitStatus)
+        =>
+          _h.assert_eq[String box](_expected, _out)
+          match child_exit_status
+          | Exited(7) => _h.complete(true)
+          else
+            _h.fail("child exited with " + child_exit_status.string())
+            _h.complete(false)
+          end
+      end end
+
+    try
+      let process_auth = StartProcessAuth(h.env.root)
+      let backpressure_auth = ApplyReleaseBackpressureAuth(h.env.root)
+      let file_auth = FileAuth(h.env.root)
+
+      let path_resolver = _PathResolver(h.env.vars, file_auth)
+      let path = FilePath(file_auth, _ExitCommand.path(path_resolver)?)
+      let args: Array[String] val = ifdef windows then
+        ["cmd"; "/c"; "echo hello&exit 7"]
+      else
+        ["sh"; "-c"; "echo hello; exit 7"]
+      end
+      let vars: Array[String] val = ["HOME=/"; "PATH=/bin"]
+
+      let pm = ProcessMonitor(process_auth, backpressure_auth,
+        consume notifier, path, args, vars)
+      // Intentionally do not call done_writing(): the child exits on its own
+      // while the parent still holds stdin open.
+      h.dispose_when_done(pm)
+      h.long_test(30_000_000_000)
+    else
+      h.fail("Could not set up child process.")
+    end
+
+class \nodoc\ iso _TestWriteAfterChildExitsWhileStdinOpen is UnitTest
+  """
+  Writing to a child that has already exited on its own, while the parent still
+  holds stdin open, must not stall the writer. Once the child's stdin is gone
+  the writes are dropped rather than queued behind backpressure that is never
+  released. Regression test for
+  https://github.com/ponylang/ponyc/issues/5748.
+  """
+  fun name(): String => "process/write-after-child-exits-while-stdin-open"
+  fun exclusion_group(): String => "process-monitor"
+
+  fun apply(h: TestHelper) =>
+    try
+      let process_auth = StartProcessAuth(h.env.root)
+      let backpressure_auth = ApplyReleaseBackpressureAuth(h.env.root)
+      let file_auth = FileAuth(h.env.root)
+
+      let path_resolver = _PathResolver(h.env.vars, file_auth)
+      let path = FilePath(file_auth, _ExitCommand.path(path_resolver)?)
+      let args = _ExitCommand.args(0)
+      let vars: Array[String] val = ["HOME=/"; "PATH=/bin"]
+
+      let pm = ProcessMonitor(process_auth, backpressure_auth,
+        object iso is ProcessNotify end, path, args, vars)
+      // Keep writing after the child has exited, without calling done_writing().
+      // If a write stalled the writer under unreleased backpressure, this test
+      // would time out.
+      _StdinFlooder(h, pm)
+      h.dispose_when_done(pm)
+      h.long_test(30_000_000_000)
+    else
+      h.fail("Could not set up child process.")
+    end
+
+actor \nodoc\ _StdinFlooder
+  let _h: TestHelper
+  let _pm: ProcessMonitor
+  var _remaining: USize = 200_000
+
+  new create(h: TestHelper, pm: ProcessMonitor) =>
+    _h = h
+    _pm = pm
+    _flood()
+
+  be _flood() =>
+    if _remaining == 0 then
+      _h.complete(true)
+    else
+      _pm.write("x")
+      _remaining = _remaining - 1
+      _flood()
     end
 
 class \nodoc\ iso _TestLongRunningChild is UnitTest

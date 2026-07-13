@@ -204,7 +204,6 @@ actor ProcessMonitor is AsioEventNotify
       // a child (or haven't started one yet).
       return
     else
-      Backpressure.release(_backpressure_auth)
       _child.kill()
       _close()
     end
@@ -269,6 +268,7 @@ actor ProcessMonitor is AsioEventNotify
     """
     if not _closed then
       _closed = true
+      Backpressure.release(_backpressure_auth)
       _stdin.close()
       _stdout.close()
       _stderr.close()
@@ -339,10 +339,7 @@ actor ProcessMonitor is AsioEventNotify
     """
     If neither stdout nor stderr are open we close down and exit.
     """
-    if _stdin.is_closed() and
-      _stdout.is_closed() and
-      _stderr.is_closed()
-    then
+    if _stdout.is_closed() and _stderr.is_closed() then
        _close()
     end
 
@@ -430,7 +427,14 @@ actor ProcessMonitor is AsioEventNotify
     pending writes. Save everything unwritten into _pending and apply
     backpressure.
     """
-    if (not _closed) and not _stdin.is_closed() and (_pending.size() == 0) then
+    if _closed or _stdin.is_closed() then
+      // The child's stdin is gone, so this data can never be sent. Drop it
+      // rather than queue it and apply backpressure that nothing would ever
+      // release.
+      return
+    end
+
+    if _pending.size() == 0 then
       // Send as much data as possible.
       (let len, let errno) = _stdin.write(data, 0)
 
