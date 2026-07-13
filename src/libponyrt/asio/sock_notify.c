@@ -46,7 +46,7 @@
 // pointer is never one of these small integers, and `asio_event_t.magic`
 // (a self-pointer) corroborates a real event.
 #define KEY_WAKEUP ((ULONG_PTR)1)  // request queue has work / stop requested
-#define KEY_STDIN  ((ULONG_PTR)2)  // send ASIO_READ to the stdin event
+#define KEY_STDIN  ((ULONG_PTR)2)  // stdin readiness (epoch in bytes)
 #define KEY_SIGNAL ((ULONG_PTR)3)  // a CRT signal fired (sig number in bytes)
 
 // How long the wait on the port runs before a pipe on stdin is peeked again. It
@@ -60,6 +60,11 @@ struct asio_backend_t
   PONY_ATOMIC(bool) stop;
   asio_event_t* sighandlers[MAX_SIGNAL];
   messageq_t q;
+
+  // Epoch bumped on each new stdin subscription (ASIO_STDIN_NOTIFY). Each
+  // KEY_STDIN packet carries the epoch it was posted in, so the loop drops a
+  // packet from an old epoch. Atomic: a pool-thread console callback reads it.
+  PONY_ATOMIC(uint32_t) stdin_epoch;
 };
 
 
@@ -129,19 +134,25 @@ static void CALLBACK timer_fire(void* arg, DWORD timer_low, DWORD timer_high)
 // reaches the port: this callback only posts to the port -- touching no event
 // state -- so the asio thread stays the only thread that sends events. The wait
 // is registered WT_EXECUTEONLYONCE, so it fires once; we re-arm on resume.
+//
+// ASIO_STDIN_NOTIFY disarms before it bumps the epoch, so this callback
+// finishes before the bump and stamps its packet with its own subscription's
+// epoch.
 static void CALLBACK stdin_notify_cb(void* arg, BOOLEAN timed_out)
 {
   (void)timed_out;
   asio_backend_t* b = (asio_backend_t*)arg;
-  PostQueuedCompletionStatus(b->port, 0, KEY_STDIN, NULL);
+  uint32_t epoch =
+    atomic_load_explicit(&b->stdin_epoch, memory_order_acquire);
+  PostQueuedCompletionStatus(b->port, (DWORD)epoch, KEY_STDIN, NULL);
 }
 
 
 // Arm stdin so that one KEY_STDIN packet reaches the dispatch loop, which turns
-// it into an ASIO_READ for the subscriber. Returns false if it could not be
-// armed; the caller then sends ASIO_ERROR. With neither the packet nor the
-// error, no ASIO_READ reaches the subscriber, its noisy event stays subscribed,
-// and the program never quiesces.
+// it into an ASIO_READ for the subscription it was posted for. Returns false if
+// it could not be armed; the caller then sends ASIO_ERROR. With neither the
+// packet nor the error, no ASIO_READ reaches the subscriber, its noisy event
+// stays subscribed, and the program never quiesces.
 //
 // A console input handle is signaled while unread input records are queued, so
 // a wait on it fires when there is input to read. A pipe has no such signaled
@@ -172,7 +183,12 @@ static bool arm_stdin(asio_backend_t* b, HANDLE stdin_handle,
       return true;
 
     case STDIN_OTHER:
-      return PostQueuedCompletionStatus(b->port, 0, KEY_STDIN, NULL) != 0;
+    {
+      uint32_t epoch =
+        atomic_load_explicit(&b->stdin_epoch, memory_order_acquire);
+      return PostQueuedCompletionStatus(b->port, (DWORD)epoch, KEY_STDIN, NULL)
+        != 0;
+    }
   }
 
   return false;
@@ -361,13 +377,18 @@ DECLARE_THREAD_FN(ponyint_asio_backend_dispatch)
         // read returns at once. A pipe does not post this packet -- the peek
         // below drives it -- but a leftover packet may still arrive here.
         //
-        // A packet posted for one subscriber can be dequeued after that
-        // subscriber is gone. With no subscriber it is dropped; a later
-        // subscriber gets one extra read, which returns data or zero like any
-        // other read. It never reaches a freed event: the request drain below
-        // clears stdin_event before disposing of the event, and it runs after
-        // this loop.
-        if(stdin_event != NULL)
+        // Send only the current subscriber's own packet: a packet posted for an
+        // earlier subscriber, dequeued after a later one replaced it, carries a
+        // stale epoch and is dropped. Dropping leaves stdin_reading
+        // untouched, so the current subscriber's outstanding read is not
+        // disturbed. This branch never sends on a freed event: the request
+        // drain below clears stdin_event before disposing of the event, and
+        // runs after this loop.
+        uint32_t pkt_epoch = (uint32_t)entries[i].dwNumberOfBytesTransferred;
+
+        if((stdin_event != NULL) &&
+          (pkt_epoch ==
+            atomic_load_explicit(&b->stdin_epoch, memory_order_acquire)))
         {
           stdin_reading = true;
           pony_asio_event_send(stdin_event, ASIO_READ, 0);
@@ -478,10 +499,19 @@ DECLARE_THREAD_FN(ponyint_asio_backend_dispatch)
         case ASIO_STDIN_NOTIFY:
           // Start watching stdin for this event. Unsubscribe is a separate
           // request (ASIO_STDIN_UNSUBSCRIBE), so ev is always non-NULL here.
+          //
+          // Disarm the previous wait before bumping the epoch: disarming
+          // waits for a pending or running console callback to complete, so the
+          // old subscriber's callback stamps its packet with the old
+          // epoch, not the new one. The bump then makes any leftover
+          // packet from the old subscriber stale; arm the new subscriber under
+          // the new epoch.
           pony_assert(ev != NULL);
           stdin_event = ev;
           stdin_reading = false;
           disarm_stdin(&stdin_wait);
+          atomic_fetch_add_explicit(&b->stdin_epoch, 1,
+            memory_order_release);
 
           if(!arm_stdin(b, stdin_handle, &stdin_wait, stdin_kind))
             pony_asio_event_send(stdin_event, ASIO_ERROR, 0);
