@@ -374,8 +374,8 @@ DECLARE_THREAD_FN(ponyint_asio_backend_dispatch)
       else if(key == KEY_STDIN)
       {
         // Send ASIO_READ to the subscriber. A console has input queued; a file
-        // read returns at once. A pipe does not post this packet -- the peek
-        // below drives it -- but a leftover packet may still arrive here.
+        // read returns at once. A pipe posts no such packet -- the peek below
+        // drives it instead.
         //
         // Send only the current subscriber's own packet: a packet posted for an
         // earlier subscriber, dequeued after a later one replaced it, carries a
