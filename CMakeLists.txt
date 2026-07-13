@@ -827,6 +827,12 @@ else()
             -DWORKDIR=${PONY_OUTPUT_DIR} -DDEBUG=OFF
             -P ${CMAKE_SOURCE_DIR}/cmake/RunFullPrograms.cmake)
 
+    add_test(NAME full-program-runner-rejects-broken-config
+        COMMAND ${CMAKE_COMMAND}
+            -DRUNNER=${_full_program_runner}
+            -DWORKDIR=${PONY_OUTPUT_DIR}
+            -P ${CMAKE_SOURCE_DIR}/cmake/RunBrokenConfig.cmake)
+
     add_test(NAME stdlib-debug
         COMMAND ${CMAKE_COMMAND}
             -DPONYC=$<TARGET_FILE:ponyc>
@@ -857,6 +863,7 @@ else()
             -P ${CMAKE_SOURCE_DIR}/cmake/CheckGrammar.cmake)
 
     set_tests_properties(full-programs-debug full-programs-release
+        full-program-runner-rejects-broken-config
         stdlib-debug stdlib-release examples validate-grammar
         PROPERTIES LABELS ci-core)
 
