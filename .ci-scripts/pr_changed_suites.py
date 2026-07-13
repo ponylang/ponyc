@@ -8,19 +8,30 @@ PR's changed paths on stdin (one per line) and writes `<suite>=true|false` for
 each suite to stdout in `$GITHUB_OUTPUT` (`name=value`) format.
 
 The rules are the three suites' original `paths:` blocks, transcribed as plain
-prefix/suffix/exact tests -- no glob engine -- plus a deliberate addition not in
-those blocks: `test/rt-stress/` and `test/rt-systematic/` are excluded from every
-suite. They hold test workloads the PR suites build nothing of -- their Pony is
-compiled and run only by scheduled workflows (`stress-test-*` and
-`ponyc-weekly-checks.yml`). The stress harness's Python orchestration is linted
-by `lint-python.yml` and tested by `test-rt-stress.yml` when it changes;
+prefix/suffix/exact tests -- no glob engine -- plus two deliberate departures
+from those blocks. First, `test/rt-stress/` and `test/rt-systematic/` are
+excluded from every suite. They hold test workloads the PR suites build nothing
+of -- their Pony is compiled and run only by scheduled workflows (`stress-test-*`
+and `ponyc-weekly-checks.yml`). The stress harness's Python orchestration is
+linted by `lint-python.yml` and tested by `test-rt-stress.yml` when it changes;
 `test/rt-systematic/` carries no Python (its orchestrator lives under
-`.ci-scripts/`). So a PR touching only these
-needs none of these suites. The rules must stay in sync with the union `paths:`
-filter at the top of `pr.yml`: a file that triggers any suite here must also
-match the workflow-level filter, or the workflow never starts and that suite
-silently never runs. (`ponyc` is a subset of `tools`, so the union is exactly
-`tools` plus `pony_compiler`.)
+`.ci-scripts/`). So a PR touching only these needs none of these suites.
+
+Second, the shared CMake build system -- the top-level `CMakeLists.txt`,
+`CMakePresets.json`, and `cmake/` -- triggers `pony_compiler`. That suite builds
+`pony-compiler-tests`, a target that `add_pony_binary` (in
+`cmake/PonyBinary.cmake`) defines and `cmake --build --preset debug --target
+pony-compiler-tests` compiles, so a build-system change can break its build.
+`ponyc` and `tools` already match these files through their broad rules; only
+`pony_compiler`'s allowlist would otherwise skip them. Build-system doc and yaml
+files stay excluded, so this stays in sync with the union filter (below) without
+a re-include.
+
+The rules must stay in sync with the union `paths:` filter at the top of
+`pr.yml`: a file that triggers any suite here must also match the workflow-level
+filter, or the workflow never starts and that suite silently never runs.
+(`ponyc` is a subset of `tools`, so the union is exactly `tools` plus
+`pony_compiler`.)
 
 Editing `pr.yml` itself re-triggers every suite: each suite's original filter
 re-included its own workflow file, and now there is one shared file.
@@ -51,9 +62,17 @@ def matches_ponyc(path):
         or path == WORKFLOW_FILE
 
 
+def matches_build_system(path):
+    return not excluded(path) and (
+        path == 'CMakeLists.txt'
+        or path == 'CMakePresets.json'
+        or path.startswith('cmake/'))
+
+
 def matches_pony_compiler(path):
     return (path.startswith('src/libponyc/')
             or path.startswith('tools/lib/ponylang/pony_compiler/')
+            or matches_build_system(path)
             or path == WORKFLOW_FILE)
 
 
