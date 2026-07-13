@@ -51,10 +51,7 @@ set(CRT_FILES
 
 foreach(CRT_FILE ${CRT_FILES})
     add_custom_command(TARGET crt_objects POST_BUILD
-        COMMAND $<$<CONFIG:Debug>:${CMAKE_COMMAND}> ARGS -E copy ${CRT_FILE} ${CMAKE_BINARY_DIR}/../debug${PONY_OUTPUT_SUFFIX}/
-        COMMAND $<$<CONFIG:Release>:${CMAKE_COMMAND}> ARGS -E copy ${CRT_FILE} ${CMAKE_BINARY_DIR}/../release${PONY_OUTPUT_SUFFIX}/
-        COMMAND $<$<CONFIG:RelWithDebInfo>:${CMAKE_COMMAND}> ARGS -E copy ${CRT_FILE} ${CMAKE_BINARY_DIR}/../relwithdebinfo${PONY_OUTPUT_SUFFIX}/
-        COMMAND $<$<CONFIG:MinSizeRel>:${CMAKE_COMMAND}> ARGS -E copy ${CRT_FILE} ${CMAKE_BINARY_DIR}/../minsizerel${PONY_OUTPUT_SUFFIX}/
+        COMMAND ${CMAKE_COMMAND} -E copy ${CRT_FILE} ${PONY_OUTPUT_DIR}/
     )
 endforeach()
 

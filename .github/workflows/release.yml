@@ -240,7 +240,7 @@ jobs:
       - name: Build
         run: cmake --build --preset windows-x86-64-release
       - name: Install
-        run: cmake --install build/build --config Release --prefix build\install\release
+        run: cmake --install build/build --config release --prefix build\install\release
       - name: Package
         run: |
           $version = (Get-Content .\VERSION)
@@ -290,7 +290,7 @@ jobs:
       - name: Build
         run: cmake --build --preset windows-arm64-release
       - name: Install
-        run: cmake --install build/build --config Release --prefix build\install\release
+        run: cmake --install build/build --config release --prefix build\install\release
       - name: Package
         run: |
           $version = (Get-Content .\VERSION)

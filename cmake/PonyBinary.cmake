@@ -5,23 +5,17 @@
 #   [PATHS <dir> ...]        # extra --path arguments for use resolution
 #   [WATCH <dir> ...])       # directories whose *.pony files are build inputs
 #
-# Compiles a Pony program with the just-built ponyc into the runtime output
-# directory, as a custom target that builds under ALL. This is the one place the
-# ponyc-invocation pattern lives: the tool binaries (pony-lint/doc/lsp) and the
-# test binaries (pony-*-tests) all go through it, so they share one dependency-
-# tracking path.
+# Compiles a Pony program with the just-built ponyc into the output directory, as
+# a custom target (built under ALL only when the ALL option is passed). Used by
+# the pony-*-tests binaries.
 #
 # Rebuilds when any watched .pony source changes, when the shared tool libraries
 # change (TOOLS_LIB_STAMP), or when ponyc itself is rebuilt.
 function(add_pony_binary _target)
     cmake_parse_arguments(_pb "ALL" "NAME;SOURCE" "PATHS;WATCH" ${ARGN})
 
-    # Per-config output directory. PONY_OUTPUT_DIR (defined in the top-level
-    # CMakeLists) is a $<CONFIG> generator expression on the Windows multi-config
-    # generator (where the plain CMAKE_RUNTIME_OUTPUT_DIRECTORY is config-less) and
-    # the plain CMAKE_RUNTIME_OUTPUT_DIRECTORY on a single-config generator.
-    # $<TARGET_FILE_DIR:ponyc> can't be used here because a target genex is invalid
-    # in add_custom_command(OUTPUT).
+    # $<TARGET_FILE_DIR:ponyc> can't be used here because a target genex is
+    # invalid in add_custom_command(OUTPUT).
     set(_out "${PONY_OUTPUT_DIR}")
     set(_exe "${_out}/${_pb_NAME}${CMAKE_EXECUTABLE_SUFFIX}")
 

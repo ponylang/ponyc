@@ -2,12 +2,6 @@ project(tools.pony-lint)
 
 set(PONY_LINT_EXECUTABLE "pony-lint${CMAKE_EXECUTABLE_SUFFIX}")
 
-# Build into the same per-config output directory ponyc and the C/C++ executables
-# use. PONY_OUTPUT_DIR (defined in the top-level CMakeLists) is a $<CONFIG>
-# generator expression on the Windows multi-config generator (where
-# CMAKE_RUNTIME_OUTPUT_DIRECTORY is config-less) and the plain
-# CMAKE_RUNTIME_OUTPUT_DIRECTORY on a single-config generator.
-
 # Generate version.pony from template
 # (.gitignore prevents version.pony from dirtying the git tree)
 configure_file(version.pony.in ${CMAKE_CURRENT_SOURCE_DIR}/version.pony @ONLY)
