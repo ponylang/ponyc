@@ -50,6 +50,7 @@ actor \nodoc\ Main is TestList
     test(_TestFloatToString)
     test(_TestIntToString)
     test(_TestLambdaCapture)
+    test(_TestLdexpF32)
     test(_TestMath128)
     test(_TestMod)
     test(_TestModc)
@@ -754,6 +755,46 @@ class \nodoc\ iso _TestSpecialValuesF64 is UnitTest
     h.assert_false(F64(0.0 / 0.0).finite())
     h.assert_false(F64(0.0 / 0.0).infinite())
     h.assert_true(F64(0.0 / 0.0).nan())
+
+class \nodoc\ iso _TestLdexpF32 is UnitTest
+  """
+  Test F32.ldexp, which scales a float by a power of two.
+  """
+  fun name(): String => "builtin/F32.ldexp"
+
+  fun apply(h: TestHelper) =>
+    h.assert_eq[F32](12.0, F32(0).ldexp(1.5, 3))
+    h.assert_eq[F32](-3.0, F32(0).ldexp(-3.0, 0))
+    h.assert_eq[F32](1.0, F32(0).ldexp(4.0, -2))
+
+    // every mantissa bit set, so a scale that drops any of them shows up
+    let all_ones = F32.from_bits(0x3FFF_FFFF)
+    h.assert_eq[U32](0x407F_FFFF, F32(0).ldexp(all_ones, 1).bits())
+
+    // scaling into the subnormal range, and down to the smallest subnormal
+    h.assert_eq[U32](0x0040_0000, F32(0).ldexp(1.0, -127).bits())
+    h.assert_eq[U32](0x0000_0001, F32(0).ldexp(1.0, -149).bits())
+
+    // scaling up from a subnormal
+    let smallest = F32.from_bits(0x0000_0001)
+    h.assert_eq[U32](0x3F80_0000, F32(0).ldexp(smallest, 149).bits())
+
+    // scaling past the exponent range at either end
+    h.assert_eq[U32](0x7F80_0000, F32(0).ldexp(1.0, 200).bits())
+    h.assert_eq[U32](0x0000_0000, F32(0).ldexp(1.0, -200).bits())
+
+    // scaling leaves NaN and the infinities alone
+    h.assert_true(F32(0).ldexp(F32(0.0 / 0.0), 3).nan())
+    h.assert_eq[U32](0x7F80_0000, F32(0).ldexp(F32(1.0 / 0.0), -99).bits())
+    h.assert_eq[U32](0xFF80_0000, F32(0).ldexp(F32(-1.0 / 0.0), 99).bits())
+
+    // the sign of a zero survives, whether it was scaled or underflowed to
+    h.assert_eq[U32](0x8000_0000, F32(0).ldexp(-0.0, 5).bits())
+    h.assert_eq[U32](0x8000_0000, F32(0).ldexp(-1.0, -200).bits())
+
+    // ldexp reverses frexp
+    (let mantissa: F32, let exponent: I32) = F32(12.0).frexp()
+    h.assert_eq[F32](12.0, F32(0).ldexp(mantissa, exponent))
 
 class \nodoc\ iso _TestStringReplace is UnitTest
   """
