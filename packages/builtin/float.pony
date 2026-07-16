@@ -61,7 +61,8 @@ use @"llvm.minimum.f64"[F64](x: F64, y: F64)
 use @"llvm.maximum.f32"[F32](x: F32, y: F32)
 use @"llvm.maximum.f64"[F64](x: F64, y: F64)
 use @frexp[F64](value: F64, exponent: Pointer[I32])
-use @ldexpf[F32](value: F32, exponent: I32)
+use @ldexpf[F32](value: F32, exponent: I32) if not windows
+use @scalbnf[F32](value: F32, exponent: I32) if windows
 use @ldexp[F64](value: F64, exponent: I32)
 
 primitive F32 is FloatingPoint[F32]
@@ -204,7 +205,14 @@ primitive F32 is FloatingPoint[F32]
     ((bits() and 0x007FFFFF) != 0)  // mantissa
 
   fun ldexp(x: F32, exponent: I32): F32 =>
-    @ldexpf(x, exponent)
+    // MSVC's CRT has no ldexpf to link against — corecrt_math.h defines it as
+    // an inline. scalbnf is exported, and scales by a power of two like ldexpf
+    // does whenever FLT_RADIX is 2.
+    ifdef windows then
+      @scalbnf(x, exponent)
+    else
+      @ldexpf(x, exponent)
+    end
 
   fun frexp(): (F32, I32) =>
     var exponent: I32 = 0
