@@ -228,10 +228,17 @@ primitive LspMsg
     dir: String,
     did_change_configuration_dynamic_registration:
       Bool = true,
-    supports_configuration: Bool = true
+    supports_configuration: Bool = true,
+    uri: (String | None) = None
   ): Array[U8] iso^ =>
     let safe_dir = _json_escape(dir)
-    let dir_uri = Uris.from_path(dir)
+    let dir_uri =
+      _json_escape(
+        match uri
+        | let u: String => u
+        else
+          Uris.from_path(dir)
+        end)
     this.apply("""
     {
       "jsonrpc": "2.0",

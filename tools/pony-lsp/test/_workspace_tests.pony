@@ -25,7 +25,7 @@ class \nodoc\ iso _RouterFindTest is UnitTest
     let channel = FakeChannel
     let scanner = WorkspaceScanner.create(channel)
     let workspaces = scanner.scan(file_auth, this_dir_path)
-    h.assert_eq[USize](3, workspaces.size())
+    h.assert_eq[USize](4, workspaces.size())
 
     // Verify all expected workspaces were found
     // (order is not guaranteed because path.walk
@@ -39,6 +39,7 @@ class \nodoc\ iso _RouterFindTest is UnitTest
         folder.path
         folder.join("error_workspace")?.path
         folder.join("workspace")?.path
+        folder.join("workspace with space")?.path
       ]
     h.assert_array_eq_unordered[String](expected, actual)
 
