@@ -34,7 +34,7 @@ actor LanguageServer is (Notifier & RequestSender)
   """
   let _channel: Channel
   let _compiler: LspCompiler
-  let _router: WorkspaceRouter
+  var _mgr: (WorkspaceManager | None)
   let _env: Env
   let _file_auth: FileAuth
   var _state: _LspState = _Uninitialized
@@ -46,12 +46,12 @@ actor LanguageServer is (Notifier & RequestSender)
     channel'.set_notifier(this)
     _channel = channel'
     _compiler = compiler'
-    _router = WorkspaceRouter.create()
     _env = env'
     _file_auth = FileAuth(env'.root)
     _expect_responses_for = _expect_responses_for.create(4)
     _request_id_gen = I64(0)
     _client = None
+    _mgr = None
     // _channel.log("PonyLSP Server ready")
 
   fun tag _get_document_uri(
@@ -118,10 +118,7 @@ actor LanguageServer is (Notifier & RequestSender)
     """
     try
       let document_uri = _get_document_uri(r.params)?
-      dispatch(
-        _router.find_workspace(document_uri) as WorkspaceManager,
-        document_uri,
-        r)
+      dispatch(this._mgr as WorkspaceManager, document_uri, r)
     else
       _send_no_workspace(r)
     end
@@ -146,7 +143,7 @@ actor LanguageServer is (Notifier & RequestSender)
       end
     try
       dispatch(
-        _router.find_workspace(document_uri) as WorkspaceManager,
+        this._mgr as WorkspaceManager,
         document_uri,
         r)
     else
@@ -168,7 +165,7 @@ actor LanguageServer is (Notifier & RequestSender)
       (let item_uri, let sel_line, let sel_col) =
         _get_item_uri_and_sel(r.params)?
       dispatch(
-        _router.find_workspace(item_uri) as WorkspaceManager,
+        this._mgr as WorkspaceManager,
         item_uri,
         sel_line,
         sel_col,
@@ -264,7 +261,9 @@ actor LanguageServer is (Notifier & RequestSender)
           else
             ""
           end
-        _router.workspace_symbol(query, this._channel, r.id)
+        try
+          (this._mgr as WorkspaceManager).workspace_symbol(query, r)
+        end
       | Methods.shutdown() =>
         this._state = _ShuttingDown
         this._channel.send(ResponseMessage.create(r.id, None))
@@ -346,8 +345,7 @@ actor LanguageServer is (Notifier & RequestSender)
       try
         let document_uri = _get_document_uri(n.params)?
         // TODO: extract params into class according to spec
-        (_router.find_workspace(document_uri) as WorkspaceManager)
-          .did_open(document_uri, n)
+        (this._mgr as WorkspaceManager).did_open(document_uri, n)
       else
         this._channel.log(
           "[" + n.method + "] No workspace found for '" +
@@ -357,8 +355,7 @@ actor LanguageServer is (Notifier & RequestSender)
       try
         let document_uri = _get_document_uri(n.params)?
         // TODO: extract params into class according to spec
-        (_router.find_workspace(document_uri) as WorkspaceManager)
-          .did_save(document_uri, n)
+        (this._mgr as WorkspaceManager).did_save(document_uri, n)
       else
         this._channel.log(
           "[" + n.method + "] No workspace found for '" +
@@ -368,8 +365,7 @@ actor LanguageServer is (Notifier & RequestSender)
       try
         let document_uri = _get_document_uri(n.params)?
         // TODO: extract params into class according to spec
-        (_router.find_workspace(document_uri) as WorkspaceManager)
-          .did_close(document_uri, n)
+        (this._mgr as WorkspaceManager).did_close(document_uri, n)
       else
         this._channel.log(
           "[" + n.method + "] No workspace found for '" +
@@ -408,59 +404,50 @@ actor LanguageServer is (Notifier & RequestSender)
       this._client = client
       this._channel.log("Connected to client: " + client.string())
       // extract workspace folders, rootUri, rootPath in that order:
-      let found_workspace: JsonValue =
-        try
-          JsonPathParser
-            .compile("$['workspaceFolders','rootUri','rootPath']")?
-            .query(params)(0)?
-        else
-          None
-        end
-      let scanner = WorkspaceScanner.create(this._channel)
-      match found_workspace
-      | let workspace_str: String =>
-        try
-          this._channel.log(
-            "Scanning workspace " + workspace_str)
-          let pony_workspaces =
-            scanner.scan(this._file_auth, Uris.to_path(workspace_str))
-          for pony_workspace in pony_workspaces.values() do
-            let mgr =
-              WorkspaceManager.create(
-                pony_workspace,
-                this._file_auth,
-                this._channel,
-                this,
-                client,
-                this._compiler)
-            this._channel.log("Adding workspace " + pony_workspace.debug())
-            this._router.add_workspace(pony_workspace.folder, mgr)?
-          end
-        end
-      | let workspace_arr: JsonArray =>
-        for workspace_obj in workspace_arr.values() do
-          try
-            let obj = workspace_obj as JsonObject
-            let name = obj("name")? as String
-            let uri = obj("uri")? as String
-            this._channel.log("Scanning workspace " + uri)
-            for pony_workspace in
-              scanner
-                .scan(this._file_auth, Uris.to_path(uri), name)
-                .values()
-            do
-              let mgr =
-                WorkspaceManager.create(
-                  pony_workspace,
-                  this._file_auth,
-                  this._channel,
-                  this,
-                  client,
-                  this._compiler)
-              this._channel.log("Adding workspace " + pony_workspace.debug())
-              this._router.add_workspace(pony_workspace.folder, mgr)?
+      let workspace_folders_builder: Array[String val] trn = Array[String val].create(3)
+      let workspace_names: Map[String val, String val] = Map[String val, String val].create(3)
+      try
+        for workspace in JsonPathParser
+          .compile("$['workspaceFolders','rootUri','rootPath']")?
+          .query(params).values() do
+          match workspace
+          | let single_workspace: String val =>
+            workspace_folders_builder.push(Uris.to_path(single_workspace))
+          | let multiple_workspaces: JsonArray =>
+            for workspace_obj in multiple_workspaces.values() do
+              try
+                let obj = workspace_obj as JsonObject
+                let name = obj("name")? as String
+                let uri = obj("uri")? as String
+                let path = Uris.to_path(uri)
+                workspace_folders_builder.push(path)
+                workspace_names.insert(path, name)
+              end
             end
           end
+        end
+      end
+      let workspace_folders: Array[String val] val = consume workspace_folders_builder
+      this._mgr =
+        WorkspaceManager.create(
+          workspace_folders,
+          this._file_auth,
+          this._channel,
+          this,
+          client,
+          this._compiler
+        )
+      let scanner = WorkspaceScanner.create(this._channel)
+      for workspace_folder in workspace_folders.values() do
+        let workspace_name = try workspace_names(workspace_folder)? end
+        let workspace_packages =
+          scanner.scan(
+            this._file_auth,
+            workspace_folder,
+            workspace_name
+          )
+        try
+          (this._mgr as WorkspaceManager).add_packages(workspace_packages)
         end
       end
       // update our request-id-gen to the first
@@ -668,5 +655,7 @@ actor LanguageServer is (Notifier & RequestSender)
     )
 
   be dispose() =>
-    this._router.dispose()
+    try
+      (this._mgr as WorkspaceManager).dispose()
+    end
     this._channel.dispose()

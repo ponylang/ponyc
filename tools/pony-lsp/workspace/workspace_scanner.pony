@@ -5,6 +5,7 @@ use "files"
 use "itertools"
 use "json"
 
+
 class WorkspaceScanner
   """
   Scans directories to find Pony workspaces.
@@ -18,7 +19,17 @@ class WorkspaceScanner
     dir: FilePath,
     workspace_name: String,
     visited: Set[String] ref = Set[String].create()
-  ): WorkspaceData ? =>
+  ): Array[PackageData] val ? =>
+    """
+    Scan directory `dir`, that contains a `corral.json` file.
+    Extract dependencies listed in `deps` in `corral.json` and their transitive dependencies.
+
+    Return all found packages either listed in `corral.json` under `packages` or
+    simply found because they are in this directory and contain pony files.
+
+    Those packages all get the extracted dependencies applied.
+    """
+    let result = recover trn Array[PackageData].create(2) end
     visited.set(dir.path)
 
     // load corral.json if available
@@ -33,21 +44,40 @@ class WorkspaceScanner
       end
 
     // extract packages
-    let packages = JsonPathParser.compile("$.packages.*")?.query(corral_json)
-    let package_paths =
-      recover
-        trn Set[String].create(2)
-      end
-    for package in packages.values() do
-      let pp =
-        try
-          dir.join(package as String)?
-        else
-          _channel.log("packages element not a string")
-          error
-        end
+    let all_packages: Array[String] ref = Array[String].create(32)
+    let package_paths = Set[String].create(all_packages.size())
+    for json_package in JsonPathParser.compile("$.packages.*")?.query(corral_json).values() do
+      let package = json_package as String
+      let pp = dir.join(package)?
       Fact(pp.exists(), "Package path " + pp.path + " does not exist")?
-      package_paths.set(pp.path)
+      if not package_paths.contains(pp.path) then
+        package_paths.set(pp.path)
+        all_packages.push(package)
+      end
+    end
+    // find additional packages inside `dir` not listed in corral.json packages
+    // some projects don't list their packages
+    let walk_handler =
+      object is WalkHandler
+        var pony_packages: Set[String] = Set[String].create(4)
+        fun ref apply(
+          dir_path: FilePath val,
+          dir_entries: Array[String val] ref)
+        =>
+          let has_pony_file = Iter[String val](dir_entries.values())
+              .any({(a) => Path.ext(a) == "pony" })
+          if has_pony_file and not pony_packages.contains(dir_path.path) then
+            pony_packages.set(dir_path.path)
+          end
+      end
+    dir.walk(walk_handler)
+
+    for pkg in walk_handler.pony_packages.values() do
+      if not package_paths.contains(pkg) then
+        let package_str = pkg.trim(dir.path.size())
+        package_paths.set(pkg)
+        all_packages.push(package_str)
+      end
     end
 
     // extract dependencies, also transitive ones
@@ -65,6 +95,7 @@ class WorkspaceScanner
             dir.join(locator.path())?
           else
             let locator_flat_name = locator.flat_name()
+            // TODO: trigger a corral fetch command when _corral dir is not yet there
             dir.join("_corral")?.join(locator_flat_name)?
           end
 
@@ -75,30 +106,42 @@ class WorkspaceScanner
           try
             // scan for transitive dependencies but only if we havent visited
             // before to avoid endless loops over cyclic dependencies
-            let sub_workspace =
+            let corral_dependency_packages =
               this._scan_corral_dir(locator_dir, workspace_name, visited)?
-            for sub_dependency in
-              sub_workspace.dependencies.values()
-            do
-              dependencies.set(sub_dependency)
+            for sub_package in corral_dependency_packages.values() do
+              for sub_dependency in sub_package.dependencies.values() do
+                dependencies.set(sub_dependency)
+              end
             end
           end
         end
       end
     end
-    WorkspaceData(
-      workspace_name,
-      dir,
-      consume dependencies,
-      consume package_paths)
+    let dependencies_val: Set[String] val = consume dependencies
+    for package in all_packages.values() do
+      try
+        let pdir = dir.join(package)?
+        result.push(PackageData(
+          package,
+          pdir,
+          dependencies_val
+        ))
+      end
+    end
+    result
 
   fun scan(
     auth: FileAuth,
     folder: String,
     workspace_name: (String | None) = None
-  ): Array[WorkspaceData] val =>
+  ): Array[PackageData] val =>
     """
-    Scan a folder for Pony workspaces.
+    Scan a folder for Pony packages.
+
+    A package is a directory with .pony files in it.
+
+    A corral.json helps discover packages and configure their dependencies for
+    successful compilation.
     """
     let path = FilePath(auth, folder)
     let name =
@@ -109,53 +152,44 @@ class WorkspaceScanner
     let that: WorkspaceScanner box = this
     let handler =
       object is WalkHandler
-        var workspaces: Array[WorkspaceData] trn =
-          recover trn
-            Array[WorkspaceData].create(1)
-          end
+        var packages: Map[String, PackageData] iso = Map[String, PackageData].create(1)
 
         fun ref apply(
           dir_path: FilePath val,
           dir_entries: Array[String val] ref)
         =>
-          try
-            // skip over _corral folders
-            let idx =
-              dir_entries.find("_corral" where predicate = {(a, b) => a == b })?
-            dir_entries.delete(idx)?
-          end
           // first look for a `corral.json` file
-          try
-            dir_entries.find(
-              "corral.json" where predicate = {(a, b) => a == b })?
-            let workspace = that._scan_corral_dir(dir_path, name)?
-            _channel.log("Added workspace: " + workspace.debug())
-            workspaces.push(workspace)
-          end
-          // if no `corral.json` could be found, search for a `main.pony`
-          try
-            // ensure we are not inside a folder that is already in a workspace
-            dir_entries.find("main.pony" where predicate = {(a, b) => a == b })?
+          if Iter[String val](dir_entries.values()).any({(a) => a == "corral.json"}) then
             try
-              Iter[WorkspaceData](workspaces.values()).find(
-                {(workspace: WorkspaceData) =>
-                  dir_path.path.at(workspace.folder.path, 0)})?
-            else
-              // not inside a known workspace
-              let main_workspace_name: String =
-                dir_path.path.substring((folder.size() + 1).isize())
-              workspaces.push(
-                WorkspaceData(
-                  main_workspace_name,
-                  dir_path,
-                  Set[String].create(0),
-                  Set[String].create(0)))
+              for package in that._scan_corral_dir(dir_path, name)?.values() do
+                // let corral data overwrite other stuff
+                packages.insert(package.folder.path, package)
+              end
             end
+            // if no `corral.json` could be found, search for `.pony` files
+          elseif Iter[String val](dir_entries.values()).any({(a) => Path.ext(a) == "pony" }) then
+            // not inside a known workspace
+            let main_workspace_name: String =
+              if dir_path.path == folder then
+                Path.base(dir_path.path)
+              else
+                dir_path.path.substring((folder.size() + 1).isize())
+              end
+            let package = PackageData(main_workspace_name, dir_path)
+            packages.insert_if_absent(
+              dir_path.path,
+              package
+            )
           end
-
       end
     path.walk(handler)
-    let workspaces = handler.workspaces = []
-    _channel.log(
-      workspaces.size().string() + " Workspaces found in " + folder)
-    consume workspaces
+    
+    let packages = handler.packages = Map[String, PackageData].create()
+    _channel.log(packages.size().string() + " Packages found in " + folder)
+    let agg = recover iso Array[PackageData].create(packages.size()) end
+    let result = recover val Iter[PackageData]((consume packages).values()).collect(consume agg) end
+    for p in result.values() do
+      _channel.log("Found package: " + p.debug())
+    end
+    result
+
