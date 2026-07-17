@@ -14,7 +14,7 @@ primitive Rename
     modules: Map[String, ModuleState] box,
     new_name: String,
     workspace_folders: WorkspaceFolders)
-  : (JSONObject val | String val)
+    : (JSONObject val | String val)
   =>
     """
     Walk all module ASTs across all modules and return a WorkspaceEdit mapping

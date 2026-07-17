@@ -60,7 +60,9 @@ actor WorkspaceManager
     else
       this._modules.insert(
         module_path.path,
-        ModuleState.create(ModuleDataBuilder.from_path(module_path), this._channel))
+        ModuleState.create(
+          ModuleDataBuilder.from_path(module_path), this._channel)
+        )
     end
 
   fun _get_module(module_path: FilePath): (this->ModuleState | None) =>
@@ -311,7 +313,9 @@ actor WorkspaceManager
     actually triggering the compilation.
     """
     this._channel.log(
-      "Compiling module " + module.data.folder.path + " with dependencies: " +
+      "Compiling module " +
+      module.data.folder.path +
+      " with dependencies: " +
       ", ".join(module.data.dependencies.values()))
 
     let token = this._compilation_token(module.data.folder)
