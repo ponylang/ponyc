@@ -16,3 +16,13 @@ On Windows, a program that disposed its stdin notifier and installed a new one c
 
 Reading stdin through `env.input` and the standard library's `Stdin` actor, nothing was lost, duplicated, or reordered, so most programs saw no difference. A program that subscribed to stdin readiness through the asio event API directly could be sent a read posted for a notifier it had already replaced. A new notifier is now sent only the reads posted for it.
 
+## Fix `F32.ldexp` linking on Windows
+
+Any program that called `F32.ldexp` failed to build on Windows:
+
+```console
+unable to link: lld-link: error: undefined symbol: ldexpf
+```
+
+This has been fixed.
+
