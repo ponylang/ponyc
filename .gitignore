@@ -50,3 +50,4 @@ __pycache__/
 *.gcda
 *.gcno
 *.gcov
+compile_commands.json
