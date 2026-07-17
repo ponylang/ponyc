@@ -14,7 +14,7 @@ primitive Rename
     packages: Map[String, PackageState] box,
     new_name: String,
     workspace_folders: WorkspaceFolders)
-  : (JsonObject val | String val)
+    : (JsonObject val | String val)
   =>
     """
     Walk all module ASTs across all packages and return a WorkspaceEdit mapping

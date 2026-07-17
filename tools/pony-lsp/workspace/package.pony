@@ -4,6 +4,16 @@ use "itertools"
 use "json"
 
 class val PackageData
+  """
+  Data obtained for a package during workspace scanning or ad-hoc when
+  discovering new packages.
+
+  Dependency information is only provided via workspace scanning when a
+  `corral.json` file is involved.
+
+  stdlib is an implicit dependency of all pony packages
+  and is never listed here.
+  """
   let name: String
   let folder: FilePath
   // dependencies, either full paths or repo names
@@ -52,6 +62,11 @@ class val PackageData
       .print()
 
 primitive PackageDataBuilder
+  """
+  Build `PackageData` from folder path.
+
+  This exists because we cannot call other constructors from a constructor.
+  """
   fun tag from_path(folder: FilePath): PackageData =>
     let name = Path.base(folder.path)
     PackageData.create(name, folder)

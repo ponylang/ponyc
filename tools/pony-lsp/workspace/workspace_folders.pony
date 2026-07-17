@@ -1,6 +1,11 @@
 use "files"
 
 class val WorkspaceFolders
+  """
+  Collection of folders of a workspace.
+
+  Bundled here for easy querying if a given document is in any of those folders.
+  """
   let folders: Array[FilePath] val
 
   new val create(file_auth: FileAuth, workspace_folders: Array[String] val) =>

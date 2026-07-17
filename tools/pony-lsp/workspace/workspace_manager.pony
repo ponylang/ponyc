@@ -60,7 +60,9 @@ actor WorkspaceManager
     else
       this._packages.insert(
         package_path.path,
-        PackageState.create(PackageDataBuilder.from_path(package_path), this._channel))
+        PackageState.create(
+          PackageDataBuilder.from_path(package_path), this._channel)
+        )
     end
 
   fun _get_package(package_path: FilePath): (this->PackageState | None) =>
@@ -313,7 +315,9 @@ actor WorkspaceManager
     actually triggering the compilation.
     """
     this._channel.log(
-      "Compiling package " + package.data.folder.path + " with dependency-paths: " +
+      "Compiling package " +
+      package.data.folder.path +
+      " with dependency-paths: " +
       ", ".join(package.data.dependency_paths.values()))
 
     let token = this._compilation_token(package.data.folder)
@@ -796,7 +800,7 @@ actor WorkspaceManager
     end
     let document_path = Uris.to_path(document_uri)
     match _find_node_and_module(document_path, line, column)
-   | (let node: AST box, _) =>
+    | (let node: AST box, _) =>
       match \exhaustive\ Rename.collect(
         node,
         this._packages,

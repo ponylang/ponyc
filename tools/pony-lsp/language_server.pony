@@ -404,8 +404,10 @@ actor LanguageServer is (Notifier & RequestSender)
       this._client = client
       this._channel.log("Connected to client: " + client.string())
       // extract workspace folders, rootUri, rootPath in that order:
-      let workspace_folders_builder: Array[String val] trn = Array[String val].create(3)
-      let workspace_names: Map[String val, String val] = Map[String val, String val].create(3)
+      let workspace_folders_builder: Array[String val] trn =
+        Array[String val].create(3)
+      let workspace_names: Map[String val, String val] =
+        Map[String val, String val].create(3)
       try
         for workspace in JsonPathParser
           .compile("$['workspaceFolders','rootUri','rootPath']")?
@@ -427,7 +429,8 @@ actor LanguageServer is (Notifier & RequestSender)
           end
         end
       end
-      let workspace_folders: Array[String val] val = consume workspace_folders_builder
+      let workspace_folders: Array[String val] val =
+        consume workspace_folders_builder
       this._mgr =
         WorkspaceManager.create(
           workspace_folders,
