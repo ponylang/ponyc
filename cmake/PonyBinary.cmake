@@ -12,6 +12,10 @@
 #
 # Rebuilds when any watched .pony source changes, when the shared tool libraries
 # change (TOOLS_LIB_STAMP), or when ponyc itself is rebuilt.
+
+# Provides pony_prereq_glob.
+include(${CMAKE_CURRENT_LIST_DIR}/PonyGlob.cmake)
+
 function(add_pony_binary _target)
     cmake_parse_arguments(_pb "ALL" "NAME;SOURCE" "PATHS;WATCH" ${ARGN})
 
@@ -27,7 +31,7 @@ function(add_pony_binary _target)
 
     set(_watch_srcs "")
     foreach(_w IN LISTS _pb_WATCH)
-        file(GLOB_RECURSE _found CONFIGURE_DEPENDS "${_w}/*.pony")
+        pony_prereq_glob(_found "${_w}/*.pony")
         list(APPEND _watch_srcs ${_found})
     endforeach()
 
