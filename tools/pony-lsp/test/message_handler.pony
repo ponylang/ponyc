@@ -229,8 +229,21 @@ primitive LspMsg
     did_change_configuration_dynamic_registration:
       Bool = true,
     supports_configuration: Bool = true,
-    uri: (String | None) = None
+    uri: (String | None) = None,
+    send_workspace_folders: Bool = true,
+    send_root_uri: Bool = true
   ): Array[U8] iso^ =>
+    """
+    An LSP initialize request naming `dir` as the workspace.
+
+    By default the params carry the workspace location under all three keys
+    the spec allows — `rootPath`, `rootUri`, and a `workspaceFolders` array —
+    which is the shape VS Code sends. `send_workspace_folders = false` drops
+    the array and the matching client capability, for a client that does not
+    support workspace folders. `send_root_uri = false` drops `rootUri`. `uri`
+    replaces the spelling of the URI, for a test that needs the escaping a
+    particular client applies.
+    """
     let safe_dir = _json_escape(dir)
     let dir_uri =
       _json_escape(
@@ -239,6 +252,29 @@ primitive LspMsg
         else
           Uris.from_path(dir)
         end)
+    let root_uri_field =
+      if send_root_uri then
+        """
+          "rootUri": """" + dir_uri + """
+",
+"""
+      else
+        ""
+      end
+    let workspace_folders_field =
+      if send_workspace_folders then
+        "," + """
+          "workspaceFolders": [
+              {
+                  "uri": """" + dir_uri + """
+",
+                  "name": "workspace"
+              }
+          ]
+"""
+      else
+        ""
+      end
     this.apply("""
     {
       "jsonrpc": "2.0",
@@ -253,8 +289,7 @@ primitive LspMsg
           "locale": "en",
           "rootPath": """" + safe_dir + """
 ",
-          "rootUri": """" + dir_uri + """
-",
+""" + root_uri_field + """
           "capabilities": {
               "workspace": {
                   "applyEdit": true,
@@ -300,7 +335,9 @@ primitive LspMsg
       did_change_configuration_dynamic_registration
         .string() + """
                   },
-                  "workspaceFolders": true,
+                  "workspaceFolders": """ +
+      send_workspace_folders.string() + """
+,
                   "foldingRange": {"refreshSupport": true},
                   "semanticTokens": {"refreshSupport": true},
                   "fileOperations": {
@@ -567,14 +604,8 @@ primitive LspMsg
                   }
               }
           },
-          "trace": "verbose",
-          "workspaceFolders": [
-              {
-                  "uri": """" + dir_uri + """
-",
-                  "name": "workspace"
-              }
-          ]
+          "trace": "verbose"
+""" + workspace_folders_field + """
       }
     }
     """)

@@ -423,7 +423,7 @@ actor LanguageServer is (Notifier & RequestSender)
           this._channel.log(
             "Scanning workspace " + workspace_str)
           let pony_workspaces =
-            scanner.scan(this._file_auth, workspace_str)
+            scanner.scan(this._file_auth, Uris.to_path(workspace_str))
           for pony_workspace in pony_workspaces.values() do
             let mgr =
               WorkspaceManager.create(

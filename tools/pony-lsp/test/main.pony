@@ -26,6 +26,7 @@ actor Main is TestList
     _URITests.make().tests(test)
     _PercentEncodingTests.make().tests(test)
     _EncodedURIIntegrationTests.make().tests(test)
+    _RootURIIntegrationTests.make().tests(test)
     _SymbolKindsTests.make().tests(test)
     _HoverFormatterTests.make().tests(test)
     _DiagnosticTests.make().tests(test)
