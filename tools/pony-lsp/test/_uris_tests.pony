@@ -36,8 +36,9 @@ class \nodoc\ iso _URIToPathTest is UnitTest
 
 class \nodoc\ iso _URIToPathNoSchemeTest is UnitTest
   """
-  A string with no "://" is returned unchanged. Unchanged means undecoded: a
-  path is bytes, so a '%' in one is part of a filename.
+  A string with no "://" is returned without decoding: a path is bytes, so a
+  '%' in one is part of a filename. On Windows it is still normalised to
+  native separators.
   """
   fun name(): String => "uris/to_path/no_scheme"
 
@@ -46,6 +47,10 @@ class \nodoc\ iso _URIToPathNoSchemeTest is UnitTest
       h.assert_eq[String](
         "C:\\foo\\bar.pony",
         Uris.to_path("C:\\foo\\bar.pony"))
+      // A rootPath can arrive with forward slashes.
+      h.assert_eq[String](
+        "C:\\foo\\bar.pony",
+        Uris.to_path("C:/foo/bar.pony"))
       h.assert_eq[String](
         "C:\\foo\\50%20off.pony",
         Uris.to_path("C:\\foo\\50%20off.pony"))
