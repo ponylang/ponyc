@@ -667,7 +667,7 @@ trait val FloatingPoint[A: FloatingPoint[A] val] is Real[A]
   fun infinite(): Bool
   fun nan(): Bool
 
-  fun ldexp(x: A, exponent: I32): A
+  fun ldexp(exponent: I32): A
   fun frexp(): (A, I32)
   fun log(): A
   fun log2(): A

@@ -204,14 +204,14 @@ primitive F32 is FloatingPoint[F32]
     ((bits() and 0x7F800000) == 0x7F800000) and  // exp
     ((bits() and 0x007FFFFF) != 0)  // mantissa
 
-  fun ldexp(x: F32, exponent: I32): F32 =>
+  fun ldexp(exponent: I32): F32 =>
     // MSVC's CRT has no ldexpf to link against — corecrt_math.h defines it as
     // an inline. scalbnf is exported, and scales by a power of two like ldexpf
     // does whenever FLT_RADIX is 2.
     ifdef windows then
-      @scalbnf(x, exponent)
+      @scalbnf(this, exponent)
     else
-      @ldexpf(x, exponent)
+      @ldexpf(this, exponent)
     end
 
   fun frexp(): (F32, I32) =>
@@ -428,8 +428,8 @@ primitive F64 is FloatingPoint[F64]
     ((bits() and 0x7FF0_0000_0000_0000) == 0x7FF0_0000_0000_0000) and  // exp
     ((bits() and 0x000F_FFFF_FFFF_FFFF) != 0)  // mantissa
 
-  fun ldexp(x: F64, exponent: I32): F64 =>
-    @ldexp(x, exponent)
+  fun ldexp(exponent: I32): F64 =>
+    @ldexp(this, exponent)
 
   fun frexp(): (F64, I32) =>
     var exponent: I32 = 0

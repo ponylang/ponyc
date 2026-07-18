@@ -763,38 +763,38 @@ class \nodoc\ iso _TestLdexpF32 is UnitTest
   fun name(): String => "builtin/F32.ldexp"
 
   fun apply(h: TestHelper) =>
-    h.assert_eq[F32](12.0, F32(0).ldexp(1.5, 3))
-    h.assert_eq[F32](-3.0, F32(0).ldexp(-3.0, 0))
-    h.assert_eq[F32](1.0, F32(0).ldexp(4.0, -2))
+    h.assert_eq[F32](12.0, F32(1.5).ldexp(3))
+    h.assert_eq[F32](-3.0, F32(-3.0).ldexp(0))
+    h.assert_eq[F32](1.0, F32(4.0).ldexp(-2))
 
     // every mantissa bit set, so a scale that drops any of them shows up
     let all_ones = F32.from_bits(0x3FFF_FFFF)
-    h.assert_eq[U32](0x407F_FFFF, F32(0).ldexp(all_ones, 1).bits())
+    h.assert_eq[U32](0x407F_FFFF, all_ones.ldexp(1).bits())
 
     // scaling into the subnormal range, and down to the smallest subnormal
-    h.assert_eq[U32](0x0040_0000, F32(0).ldexp(1.0, -127).bits())
-    h.assert_eq[U32](0x0000_0001, F32(0).ldexp(1.0, -149).bits())
+    h.assert_eq[U32](0x0040_0000, F32(1.0).ldexp(-127).bits())
+    h.assert_eq[U32](0x0000_0001, F32(1.0).ldexp(-149).bits())
 
     // scaling up from a subnormal
     let smallest = F32.from_bits(0x0000_0001)
-    h.assert_eq[U32](0x3F80_0000, F32(0).ldexp(smallest, 149).bits())
+    h.assert_eq[U32](0x3F80_0000, smallest.ldexp(149).bits())
 
     // scaling past the exponent range at either end
-    h.assert_eq[U32](0x7F80_0000, F32(0).ldexp(1.0, 200).bits())
-    h.assert_eq[U32](0x0000_0000, F32(0).ldexp(1.0, -200).bits())
+    h.assert_eq[U32](0x7F80_0000, F32(1.0).ldexp(200).bits())
+    h.assert_eq[U32](0x0000_0000, F32(1.0).ldexp(-200).bits())
 
     // scaling leaves NaN and the infinities alone
-    h.assert_true(F32(0).ldexp(F32(0.0 / 0.0), 3).nan())
-    h.assert_eq[U32](0x7F80_0000, F32(0).ldexp(F32(1.0 / 0.0), -99).bits())
-    h.assert_eq[U32](0xFF80_0000, F32(0).ldexp(F32(-1.0 / 0.0), 99).bits())
+    h.assert_true(F32(0.0 / 0.0).ldexp(3).nan())
+    h.assert_eq[U32](0x7F80_0000, F32(1.0 / 0.0).ldexp(-99).bits())
+    h.assert_eq[U32](0xFF80_0000, F32(-1.0 / 0.0).ldexp(99).bits())
 
     // the sign of a zero survives, whether it was scaled or underflowed to
-    h.assert_eq[U32](0x8000_0000, F32(0).ldexp(-0.0, 5).bits())
-    h.assert_eq[U32](0x8000_0000, F32(0).ldexp(-1.0, -200).bits())
+    h.assert_eq[U32](0x8000_0000, F32(-0.0).ldexp(5).bits())
+    h.assert_eq[U32](0x8000_0000, F32(-1.0).ldexp(-200).bits())
 
     // ldexp reverses frexp
     (let mantissa: F32, let exponent: I32) = F32(12.0).frexp()
-    h.assert_eq[F32](12.0, F32(0).ldexp(mantissa, exponent))
+    h.assert_eq[F32](12.0, mantissa.ldexp(exponent))
 
 class \nodoc\ iso _TestStringReplace is UnitTest
   """
