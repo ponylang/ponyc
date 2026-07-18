@@ -217,3 +217,75 @@ TEST_F(ArrayTest, EmptyArrayLiteralMustBeInferable)
     "must specify the element type or it must be inferable",
     "must specify the element type or it must be inferable");
 }
+
+
+TEST_F(ArrayTest, EmbedFieldFromEmptyArrayLiteral)
+{
+  // An empty array literal desugars to a bare Array.create() constructor call,
+  // which an embedded field requires. (A non-empty literal desugars to a
+  // sequence ending in a reference, not a constructor -- see the negative case
+  // below.)
+  const char* src =
+    "class Foo\n"
+    "  embed _a: Array[U32] = []\n"
+    "  fun ref push(x: U32) => _a.push(x)";
+
+  TEST_COMPILE(src);
+}
+
+
+TEST_F(ArrayTest, EmbedFieldFromNonEmptyArrayLiteralFails)
+{
+  // A non-empty array literal desugars to a sequence whose last expression is
+  // the temp-local reference, not a constructor, so it can't initialise an
+  // embedded field. (The empty case above stays a bare constructor and does.)
+  const char* src =
+    "class Foo\n"
+    "  embed _a: Array[U32] = [1]";
+
+  TEST_ERRORS_1(src, "an embedded field must be assigned using a constructor");
+}
+
+
+TEST_F(ArrayTest, NonEmptyTupleArrayLiteral)
+{
+  // A multi-element literal desugars to a temp local filled by push() calls;
+  // check a representative literal (including tuple elements) type checks.
+  const char* src =
+    "primitive Foo\n"
+    "  fun apply(): Array[(U32, U32)] val =>\n"
+    "    [(0x41, 0x5A); (0xC0, 0xD6); (0x100, 0x100)]";
+
+  TEST_COMPILE(src);
+}
+
+
+TEST_F(ArrayTest, NestedArrayLiteral)
+{
+  // A literal whose elements are themselves array literals recurses through the
+  // desugar (a sequence with a temp local, nested inside another).
+  const char* src =
+    "primitive Foo\n"
+    "  fun apply(): Array[Array[U8]] =>\n"
+    "    [[as U8: 1; 2]; [as U8: 3; 4]]";
+
+  TEST_COMPILE(src);
+}
+
+
+TEST_F(ArrayTest, NonEmptyArrayLiteralCompilesThroughReach)
+{
+  // The desugared sequence is an expression-position rawseq, not a scoped seq.
+  // The full-tree well-formedness check only runs once compilation proceeds
+  // into reach, so a literal has to be compiled at least that far to exercise
+  // it -- the "expr"-pass cases above stop short of it.
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let a: Array[U32] = [1; 2; 3]\n"
+    "    env.out.print(a.size().string())";
+
+  set_builtin(nullptr);
+
+  DO(test_compile(src, "ir"));
+}
