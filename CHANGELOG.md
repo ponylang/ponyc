@@ -18,6 +18,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Changed
 
+- Correct the signature of `FloatingPoint.ldexp` ([PR #5772](https://github.com/ponylang/ponyc/pull/5772))
 
 ## [0.67.0] - 2026-07-11
 
