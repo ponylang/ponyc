@@ -680,10 +680,12 @@ else()
         add_subdirectory(src/ponyc-shim)
     endif()
 
+    include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/PonyGlob.cmake)
+
     # Stamp file so tools rebuild when shared library sources change.
     # Adding new shared libraries under tools/lib/ only requires updating
     # the glob here rather than every tool's CMakeLists.txt.
-    file(GLOB_RECURSE TOOLS_LIB_SOURCES CONFIGURE_DEPENDS "tools/lib/*.pony")
+    pony_prereq_glob(TOOLS_LIB_SOURCES "tools/lib/*.pony")
     set(TOOLS_LIB_STAMP ${CMAKE_BINARY_DIR}/tools_lib.stamp)
     add_custom_command(OUTPUT ${TOOLS_LIB_STAMP}
       COMMAND ${CMAKE_COMMAND} -E touch ${TOOLS_LIB_STAMP}
