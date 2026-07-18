@@ -64,6 +64,7 @@ add_library(libponyc STATIC
     pass/scope.c
     pass/sugar.c
     pass/syntax.c
+    pass/timing.cc
     pass/traits.c
     pass/typealias_recursion.c
     pass/verify.c
