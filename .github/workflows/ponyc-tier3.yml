@@ -143,12 +143,17 @@ jobs:
           LIBS_MODE: ${{ ((github.event_name == 'workflow_dispatch' && inputs.ref != 'main') && '--branch-cache') || '--require-cache-hit --skip-on-miss' }}
           LIBS_BUILD: ${{ ((github.event_name == 'workflow_dispatch' && inputs.ref != 'main') && '-- cmake -DJOBS=4 -P lib/build-libs.cmake') || '' }}
         run: python3 .ci-scripts/libs-cache/resolve_libs_cache.py $LIBS_MODE --image "$LIBS_IMAGE" --tag "$LIBS_TAG" $LIBS_BUILD
+      # Build the host ponyc's C and C++ at a fixed ISA baseline, as the x86-64
+      # rpm job above does. The debug and release presets set -march=native
+      # (CMakePresets.json), so the baseline follows whichever CPU GitHub
+      # assigns; ponyc's C compiles with -Werror, so a feature combination clang
+      # warns about is a build failure.
       - name: Build Debug Runtime
         if: ${{ hashFiles('.libs-cache-miss') == '' }}
         run: |
-          cmake --preset debug
-          cmake --build --preset debug
-          cmake --build --preset debug --target pony-doc-tests pony-lint-tests pony-lsp-tests
+          cmake --preset x86-64-debug
+          cmake --build --preset x86-64-debug
+          cmake --build --preset x86-64-debug --target pony-doc-tests pony-lint-tests pony-lsp-tests
       - name: Build Debug Cross-Compiled Runtime
         if: ${{ hashFiles('.libs-cache-miss') == '' }}
         run: sh .ci-scripts/cross-libponyrt.sh debug riscv64-linux-gnu-gcc-10 riscv64-linux-gnu-g++-10 rv64gc "-march=rv64gc -mtune=rocket"
@@ -161,28 +166,28 @@ jobs:
       # kernels on x86, arm64 macOS, and the BSD VMs.
       - name: Test with Debug Cross-Compiled Runtime
         if: ${{ hashFiles('.libs-cache-miss') == '' }}
-        run: sh .ci-scripts/cross-test.sh debug ../rv64gc/debug "--triple=riscv64-unknown-linux-gnu --cpu=generic-rv64 --link-arch=rv64gc --sysroot=/usr/riscv64-linux-gnu --abi=lp64d --features=+m,+a,+f,+d,+c" "qemu-riscv64 -L /usr/riscv64-linux-gnu/lib/" "--exclude=net/"
+        run: sh .ci-scripts/cross-test.sh x86-64-debug ../rv64gc/debug "--triple=riscv64-unknown-linux-gnu --cpu=generic-rv64 --link-arch=rv64gc --sysroot=/usr/riscv64-linux-gnu --abi=lp64d --features=+m,+a,+f,+d,+c" "qemu-riscv64 -L /usr/riscv64-linux-gnu/lib/" "--exclude=net/"
       - name: Build Release Runtime
         if: ${{ hashFiles('.libs-cache-miss') == '' }}
         run: |
-          cmake --preset release
-          cmake --build --preset release
+          cmake --preset x86-64-release
+          cmake --build --preset x86-64-release
       - name: Build Release Cross-Compiled Runtime
         if: ${{ hashFiles('.libs-cache-miss') == '' }}
         run: sh .ci-scripts/cross-libponyrt.sh release riscv64-linux-gnu-gcc-10 riscv64-linux-gnu-g++-10 rv64gc "-march=rv64gc -mtune=rocket"
       # See the debug step above for why net/ tests are excluded under qemu-user.
       - name: Test with Release Cross-Compiled Runtime
         if: ${{ hashFiles('.libs-cache-miss') == '' }}
-        run: sh .ci-scripts/cross-test.sh release ../rv64gc/release "--triple=riscv64-unknown-linux-gnu --cpu=generic-rv64 --link-arch=rv64gc --sysroot=/usr/riscv64-linux-gnu --abi=lp64d --features=+m,+a,+f,+d,+c" "qemu-riscv64 -L /usr/riscv64-linux-gnu/lib/" "--exclude=net/"
+        run: sh .ci-scripts/cross-test.sh x86-64-release ../rv64gc/release "--triple=riscv64-unknown-linux-gnu --cpu=generic-rv64 --link-arch=rv64gc --sysroot=/usr/riscv64-linux-gnu --abi=lp64d --features=+m,+a,+f,+d,+c" "qemu-riscv64 -L /usr/riscv64-linux-gnu/lib/" "--exclude=net/"
       - name: Test pony-doc
         if: ${{ hashFiles('.libs-cache-miss') == '' }}
-        run: ctest --preset debug -R pony-doc-tests
+        run: ctest --preset x86-64-debug -R pony-doc-tests
       - name: Test pony-lint
         if: ${{ hashFiles('.libs-cache-miss') == '' }}
-        run: ctest --preset debug -R pony-lint-tests
+        run: ctest --preset x86-64-debug -R pony-lint-tests
       - name: Test pony-lsp
         if: ${{ hashFiles('.libs-cache-miss') == '' }}
-        run: ctest --preset debug -R pony-lsp-tests
+        run: ctest --preset x86-64-debug -R pony-lsp-tests
       - name: Send alert on failure
         if: ${{ failure() }}
         uses: zulip/github-actions-zulip/send-message@bd8ec52de371d139ae8313661b7d8318c19266aa
@@ -227,40 +232,41 @@ jobs:
           LIBS_MODE: ${{ ((github.event_name == 'workflow_dispatch' && inputs.ref != 'main') && '--branch-cache') || '--require-cache-hit --skip-on-miss' }}
           LIBS_BUILD: ${{ ((github.event_name == 'workflow_dispatch' && inputs.ref != 'main') && '-- cmake -DJOBS=4 -P lib/build-libs.cmake') || '' }}
         run: python3 .ci-scripts/libs-cache/resolve_libs_cache.py $LIBS_MODE --image "$LIBS_IMAGE" --tag "$LIBS_TAG" $LIBS_BUILD
+      # The x86-64 presets pin the ISA baseline; see the riscv64 leg above.
       - name: Build Debug Runtime
         if: ${{ hashFiles('.libs-cache-miss') == '' }}
         run: |
-          cmake --preset debug
-          cmake --build --preset debug
-          cmake --build --preset debug --target pony-doc-tests pony-lint-tests pony-lsp-tests
+          cmake --preset x86-64-debug
+          cmake --build --preset x86-64-debug
+          cmake --build --preset x86-64-debug --target pony-doc-tests pony-lint-tests pony-lsp-tests
       - name: Build Debug Cross-Compiled Runtime
         if: ${{ hashFiles('.libs-cache-miss') == '' }}
         run: sh .ci-scripts/cross-libponyrt.sh debug arm-linux-gnueabi-gcc arm-linux-gnueabi-g++ armv7-a "-march=armv7-a -mtune=cortex-a9"
       # net/ tests are excluded under qemu-user; see the riscv64 leg above.
       - name: Test with Debug Cross-Compiled Runtime
         if: ${{ hashFiles('.libs-cache-miss') == '' }}
-        run: sh .ci-scripts/cross-test.sh debug ../armv7-a/debug "--triple=arm-unknown-linux-gnueabi --cpu=cortex-a9 --link-arch=armv7-a --sysroot=/usr/local/arm-linux-gnueabi/libc " "qemu-arm-static -cpu cortex-a9 -L /usr/local/arm-linux-gnueabi/libc" "--exclude=net/"
+        run: sh .ci-scripts/cross-test.sh x86-64-debug ../armv7-a/debug "--triple=arm-unknown-linux-gnueabi --cpu=cortex-a9 --link-arch=armv7-a --sysroot=/usr/local/arm-linux-gnueabi/libc " "qemu-arm-static -cpu cortex-a9 -L /usr/local/arm-linux-gnueabi/libc" "--exclude=net/"
       - name: Build Release Runtime
         if: ${{ hashFiles('.libs-cache-miss') == '' }}
         run: |
-          cmake --preset release
-          cmake --build --preset release
+          cmake --preset x86-64-release
+          cmake --build --preset x86-64-release
       - name: Build Release Cross-Compiled Runtime
         if: ${{ hashFiles('.libs-cache-miss') == '' }}
         run: sh .ci-scripts/cross-libponyrt.sh release arm-linux-gnueabi-gcc arm-linux-gnueabi-g++ armv7-a "-march=armv7-a -mtune=cortex-a9"
       # net/ tests are excluded under qemu-user; see the riscv64 leg above.
       - name: Test with Release Cross-Compiled Runtime
         if: ${{ hashFiles('.libs-cache-miss') == '' }}
-        run: sh .ci-scripts/cross-test.sh release ../armv7-a/release "--triple=arm-unknown-linux-gnueabi --cpu=cortex-a9 --link-arch=armv7-a --sysroot=/usr/local/arm-linux-gnueabi/libc " "qemu-arm-static -cpu cortex-a9 -L /usr/local/arm-linux-gnueabi/libc" "--exclude=net/"
+        run: sh .ci-scripts/cross-test.sh x86-64-release ../armv7-a/release "--triple=arm-unknown-linux-gnueabi --cpu=cortex-a9 --link-arch=armv7-a --sysroot=/usr/local/arm-linux-gnueabi/libc " "qemu-arm-static -cpu cortex-a9 -L /usr/local/arm-linux-gnueabi/libc" "--exclude=net/"
       - name: Test pony-doc
         if: ${{ hashFiles('.libs-cache-miss') == '' }}
-        run: ctest --preset debug -R pony-doc-tests
+        run: ctest --preset x86-64-debug -R pony-doc-tests
       - name: Test pony-lint
         if: ${{ hashFiles('.libs-cache-miss') == '' }}
-        run: ctest --preset debug -R pony-lint-tests
+        run: ctest --preset x86-64-debug -R pony-lint-tests
       - name: Test pony-lsp
         if: ${{ hashFiles('.libs-cache-miss') == '' }}
-        run: ctest --preset debug -R pony-lsp-tests
+        run: ctest --preset x86-64-debug -R pony-lsp-tests
       - name: Send alert on failure
         if: ${{ failure() }}
         uses: zulip/github-actions-zulip/send-message@bd8ec52de371d139ae8313661b7d8318c19266aa
@@ -305,40 +311,41 @@ jobs:
           LIBS_MODE: ${{ ((github.event_name == 'workflow_dispatch' && inputs.ref != 'main') && '--branch-cache') || '--require-cache-hit --skip-on-miss' }}
           LIBS_BUILD: ${{ ((github.event_name == 'workflow_dispatch' && inputs.ref != 'main') && '-- cmake -DJOBS=4 -P lib/build-libs.cmake') || '' }}
         run: python3 .ci-scripts/libs-cache/resolve_libs_cache.py $LIBS_MODE --image "$LIBS_IMAGE" --tag "$LIBS_TAG" $LIBS_BUILD
+      # The x86-64 presets pin the ISA baseline; see the riscv64 leg above.
       - name: Build Debug Runtime
         if: ${{ hashFiles('.libs-cache-miss') == '' }}
         run: |
-          cmake --preset debug
-          cmake --build --preset debug
-          cmake --build --preset debug --target pony-doc-tests pony-lint-tests pony-lsp-tests
+          cmake --preset x86-64-debug
+          cmake --build --preset x86-64-debug
+          cmake --build --preset x86-64-debug --target pony-doc-tests pony-lint-tests pony-lsp-tests
       - name: Build Debug Cross-Compiled Runtime
         if: ${{ hashFiles('.libs-cache-miss') == '' }}
         run: sh .ci-scripts/cross-libponyrt.sh debug arm-linux-gnueabihf-gcc arm-linux-gnueabihf-g++ armv7-a "-march=armv7-a -mtune=cortex-a9"
       # net/ tests are excluded under qemu-user; see the riscv64 leg above.
       - name: Test with Debug Cross-Compiled Runtime
         if: ${{ hashFiles('.libs-cache-miss') == '' }}
-        run: sh .ci-scripts/cross-test.sh debug ../armv7-a/debug "--triple=arm-unknown-linux-gnueabihf --cpu=cortex-a9 --link-arch=armv7-a --sysroot=/usr/local/arm-linux-gnueabihf/libc " "qemu-arm-static -cpu cortex-a9 -L /usr/local/arm-linux-gnueabihf/libc" "--exclude=net/"
+        run: sh .ci-scripts/cross-test.sh x86-64-debug ../armv7-a/debug "--triple=arm-unknown-linux-gnueabihf --cpu=cortex-a9 --link-arch=armv7-a --sysroot=/usr/local/arm-linux-gnueabihf/libc " "qemu-arm-static -cpu cortex-a9 -L /usr/local/arm-linux-gnueabihf/libc" "--exclude=net/"
       - name: Build Release Runtime
         if: ${{ hashFiles('.libs-cache-miss') == '' }}
         run: |
-          cmake --preset release
-          cmake --build --preset release
+          cmake --preset x86-64-release
+          cmake --build --preset x86-64-release
       - name: Build Release Cross-Compiled Runtime
         if: ${{ hashFiles('.libs-cache-miss') == '' }}
         run: sh .ci-scripts/cross-libponyrt.sh release arm-linux-gnueabihf-gcc arm-linux-gnueabihf-g++ armv7-a "-march=armv7-a -mtune=cortex-a9"
       # net/ tests are excluded under qemu-user; see the riscv64 leg above.
       - name: Test with Release Cross-Compiled Runtime
         if: ${{ hashFiles('.libs-cache-miss') == '' }}
-        run: sh .ci-scripts/cross-test.sh release ../armv7-a/release "--triple=arm-unknown-linux-gnueabihf --cpu=cortex-a9 --link-arch=armv7-a --sysroot=/usr/local/arm-linux-gnueabihf/libc " "qemu-arm-static -cpu cortex-a9 -L /usr/local/arm-linux-gnueabihf/libc" "--exclude=net/"
+        run: sh .ci-scripts/cross-test.sh x86-64-release ../armv7-a/release "--triple=arm-unknown-linux-gnueabihf --cpu=cortex-a9 --link-arch=armv7-a --sysroot=/usr/local/arm-linux-gnueabihf/libc " "qemu-arm-static -cpu cortex-a9 -L /usr/local/arm-linux-gnueabihf/libc" "--exclude=net/"
       - name: Test pony-doc
         if: ${{ hashFiles('.libs-cache-miss') == '' }}
-        run: ctest --preset debug -R pony-doc-tests
+        run: ctest --preset x86-64-debug -R pony-doc-tests
       - name: Test pony-lint
         if: ${{ hashFiles('.libs-cache-miss') == '' }}
-        run: ctest --preset debug -R pony-lint-tests
+        run: ctest --preset x86-64-debug -R pony-lint-tests
       - name: Test pony-lsp
         if: ${{ hashFiles('.libs-cache-miss') == '' }}
-        run: ctest --preset debug -R pony-lsp-tests
+        run: ctest --preset x86-64-debug -R pony-lsp-tests
       - name: Send alert on failure
         if: ${{ failure() }}
         uses: zulip/github-actions-zulip/send-message@bd8ec52de371d139ae8313661b7d8318c19266aa
