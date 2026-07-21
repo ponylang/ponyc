@@ -35,7 +35,11 @@ actor Custodian
       custodian(actor2)
       custodian(actor3)
 
-      SignalHandler(TermHandler(custodian), Sig.term())
+      let auth = SignalAuth(env.root)
+      match MakeHandleableSignal(Sig.term())
+      | let sig: HandleableSignal =>
+        SignalHandler(auth, TermHandler(custodian), sig)
+      end
 
   class TermHandler is SignalNotify
     let _custodian: Custodian
@@ -45,7 +49,8 @@ actor Custodian
 
     fun ref apply(count: U32): Bool =>
       _custodian.dispose()
-      true
+      // Returning false unsubscribes this handler; it has done its job.
+      false
   ```
   """
   embed _workers: SetIs[DisposableActor] = _workers.create()

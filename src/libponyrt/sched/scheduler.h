@@ -25,7 +25,10 @@ typedef struct scheduler_t scheduler_t;
 
 #if !defined(PLATFORM_IS_WINDOWS) && !defined(USE_SCHEDULER_SCALING_PTHREADS)
 // Signal to use for suspending/resuming threads via `sigwait`/`pthread_kill`
-// If you change this, change the `signals` package (Sig.usr2()) accordingly.
+// If you change this, change the `signals` package accordingly. Two gates there
+// mirror this reservation, and both must move together: `Sig.usr2()` in
+// sig.pony, and `HandleableSignalValidator._usr2_handleable` in
+// handleable_signal.pony.
 #define PONY_SCHED_SLEEP_WAKE_SIGNAL SIGUSR2
 #endif
 

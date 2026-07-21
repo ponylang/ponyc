@@ -1,7 +1,8 @@
 primitive Sig
   """
-  Define the portable signal numbers. Other signals can be used, but they are
-  not guaranteed to be portable.
+  Define the portable signal numbers. Other signal numbers can still be
+  raised (`SignalRaise` takes a raw number), but handling a signal requires
+  its number to pass `MakeHandleableSignal`.
   """
   fun hup(): U32 => 1
   fun int(): U32 => 2
@@ -153,9 +154,7 @@ primitive Sig
     // (PONY_SCHED_SLEEP_WAKE_SIGNAL in src/libponyrt/sched/scheduler.h) on
     // default builds, and frees it when built with scheduler_scaling_pthreads
     // (forced on macOS). So SIGUSR2 is available to this package only on
-    // scheduler_scaling_pthreads builds. Caveat: runtime_tracing builds reuse
-    // SIGUSR2 for the tracing thread regardless, but that flag is not visible
-    // to `ifdef`, so it cannot be gated on here.
+    // scheduler_scaling_pthreads builds.
     ifdef "scheduler_scaling_pthreads" then
       ifdef bsd or osx then 31
       elseif linux then 12
