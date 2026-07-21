@@ -12,6 +12,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Fix `F32.ldexp` linking on Windows ([PR #5775](https://github.com/ponylang/ponyc/pull/5775))
 - Fix pony-lsp not working when your editor escapes characters in a file path ([PR #5777](https://github.com/ponylang/ponyc/pull/5777))
 - Fix pony-lsp not working when your editor sends your project's location as a URI ([PR #5783](https://github.com/ponylang/ponyc/pull/5783))
+- Fix quadratic type checking of large array literals ([PR #5790](https://github.com/ponylang/ponyc/pull/5790))
 
 ### Added
 
