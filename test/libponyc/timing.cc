@@ -5,6 +5,7 @@
 
 #include <string>
 #include <cstdio>
+#include <cstdlib>
 #include <clocale>
 #include <cctype>
 
@@ -23,6 +24,22 @@ static std::string slurp(const char* path)
 
   fclose(f);
   return out;
+}
+
+
+// Wall seconds of the first JSON region whose row contains `name_key` (-1.0 if
+// absent). Reads the "wall": <number> that follows the matched name.
+static double wall_for(const std::string& json, const char* name_key)
+{
+  size_t at = json.find(name_key);
+  if(at == std::string::npos)
+    return -1.0;
+
+  size_t w = json.find("\"wall\": ", at);
+  if(w == std::string::npos)
+    return -1.0;
+
+  return strtod(json.c_str() + w + 8, NULL);
 }
 
 
@@ -47,31 +64,63 @@ TEST_F(TimingTest, NullContextIsNoOp)
 }
 
 
-// A region must nest inside itself (the expr pass re-enters expr on a
-// generic instantiation). The depth guard collapses the nesting; without it the
-// second startTimer() starts an already-running llvm::Timer -- an abort on an
-// assertions-enabled LLVM ("Start/Stop out of order").
-TEST_F(TimingTest, ReentrantSameRegionDoesNotAbort)
+// A region must nest inside itself (the expr pass re-enters expr on a generic
+// instantiation). The depth guard tracks the nesting so only the outermost
+// start/stop pair drives the underlying llvm::Timer -- re-entry increments the
+// depth without a second startTimer(), and the timer stops only when the depth
+// unwinds to zero. Asserting the depth transitions tests our guard directly, in
+// any build; the alternative -- relying on an abort from an already-running
+// llvm::Timer -- only fires against an assertions-enabled LLVM, which the
+// vendored (Release) LLVM is not.
+TEST_F(TimingTest, ReentrantSameRegionTracksDepth)
 {
   pony_timers_t* t = pony_timers_create();
+
   pony_timer_start(t, "phases", "expr");
-  pony_timer_start(t, "phases", "expr");
+  EXPECT_EQ(1u, pony_timer_depth(t, "phases", "expr"));
+  pony_timer_start(t, "phases", "expr");                 // re-enter
+  EXPECT_EQ(2u, pony_timer_depth(t, "phases", "expr"));
   pony_timer_stop(t, "phases", "expr");
+  EXPECT_EQ(1u, pony_timer_depth(t, "phases", "expr"));  // inner stop; still running
   pony_timer_stop(t, "phases", "expr");
+  EXPECT_EQ(0u, pony_timer_depth(t, "phases", "expr"));  // outer stop; unwound
+
   pony_timers_free(t);
-  SUCCEED();
 }
 
 
-// A stop with no matching start must be ignored, not turned into a stopTimer()
-// on an already-stopped timer (an abort on an assertions-enabled LLVM).
+// A stop with no matching start must be ignored. Without the depth guard,
+// llvm::Timer::stopTimer runs on a never-started (all-zero) timer and computes
+// Time += getCurrentTime() - StartTime with StartTime still zero, recording the
+// wall clock's seconds-since-epoch (~1.7e9) as the region's wall time instead of
+// the ~0 an ignored stop leaves. The region is emitted regardless (the stop
+// creates it), so asserting its recorded wall stays small catches a dropped
+// guard in any build -- unlike relying on an assertions-enabled LLVM to abort.
 TEST_F(TimingTest, UnbalancedStopIsIgnored)
 {
+  std::string path =
+    std::string(testing::TempDir()) + "pony_timing_unbalanced.json";
+
   pony_timers_t* t = pony_timers_create();
+  pony_timers_set_json(t, path.c_str());
   pony_timer_stop(t, "phases", "never_started");
   pony_timer_stop_pair(t, "package_passes", "pkg", "expr");
+  pony_timers_report(t);
   pony_timers_free(t);
-  SUCCEED();
+
+  std::string json = slurp(path.c_str());
+  remove(path.c_str());
+
+  ASSERT_FALSE(json.empty());
+  double plain = wall_for(json, "\"never_started\"");
+  double pair = wall_for(json, "\"pkg (expr)\"");
+  // Both rows must exist and read a sane duration. 1e6 s (~11 days) sits far
+  // above any real unit-test span and far below the ~1.7e9 s epoch value a
+  // stopTimer on a zero timer would record.
+  EXPECT_GE(plain, 0.0);
+  EXPECT_LT(plain, 1e6);
+  EXPECT_GE(pair, 0.0);
+  EXPECT_LT(pair, 1e6);
 }
 
 

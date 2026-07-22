@@ -86,6 +86,14 @@ void pony_timer_stop_pair(pony_timers_t* t, const char* group,
  */
 void pony_timers_report(pony_timers_t* t);
 
+/** Test-only introspection: current re-entrancy depth of a region -- 0 when the
+ * region does not exist or the context is NULL. Lets tests assert the depth
+ * guard's bookkeeping directly, without depending on wall-clock magnitudes or on
+ * whether the linked LLVM was built with assertions.
+ */
+unsigned int pony_timer_depth(pony_timers_t* t, const char* group,
+  const char* name);
+
 PONY_EXTERN_C_END
 
 #endif

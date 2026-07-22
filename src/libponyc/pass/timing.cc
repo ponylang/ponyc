@@ -10,6 +10,9 @@
 #include <string>
 #include <vector>
 
+// Invariant:
+//   Timing results are ordered by descending wall time. Currently the sorting
+//   is handled by llvm::TimerGroup.
 namespace
 {
   struct phase_timer_t
@@ -166,6 +169,25 @@ void pony_timer_stop(pony_timers_t* t, const char* group, const char* name)
     return;
 
   bump_stop(get_timer(get_group(t, group), std::string(name)));
+}
+
+unsigned int pony_timer_depth(pony_timers_t* t, const char* group,
+  const char* name)
+{
+  if(t == nullptr)
+    return 0;
+
+  // find(), not get_group/get_timer: introspection must not create a region as
+  // a side effect, so an absent region reads as depth 0.
+  auto git = t->groups.find(std::string(group));
+  if(git == t->groups.end())
+    return 0;
+
+  auto tit = git->second.timers.find(std::string(name));
+  if(tit == git->second.timers.end())
+    return 0;
+
+  return tit->second.depth;
 }
 
 static std::string pair_name(const char* name_a, const char* name_b)
