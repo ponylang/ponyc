@@ -19,7 +19,7 @@
 #define POOL_ALIGN_INDEX (POOL_ALIGN_BITS - POOL_MIN_BITS)
 #define POOL_ALIGN_MASK (POOL_ALIGN - 1)
 
-#ifdef POOL_USE_DEFAULT
+#ifdef POOL_USE_CLASSIC
 
 #ifdef USE_ADDRESS_SANITIZER
 #include <sanitizer/asan_interface.h>
@@ -704,7 +704,7 @@ static void pool_free_pages(void* p, size_t size)
     uintptr_t start = ((uintptr_t)p + pg - 1) & ~(pg - 1);
     uintptr_t end = ((uintptr_t)p + size) & ~(pg - 1);
     if(end > start)
-      ponyint_virt_decommit((void*)start, end - start);
+      ponyint_virt_discard((void*)start, end - start);
   }
 #endif
 
@@ -979,6 +979,12 @@ void* ponyint_pool_realloc_size(size_t old_size, size_t new_size, void* p)
   size_t new_index = ponyint_pool_index(new_size);
   size_t old_adj_size = 0;
 
+  // Computed for every path: the free at the end of the function needs it
+  // whenever the old block was larger than POOL_MAX, whichever branch the
+  // new size takes below.
+  if(old_index >= POOL_COUNT)
+    old_adj_size = ponyint_pool_adjust_size(old_size);
+
   void* new_p;
 
   if(new_index < POOL_COUNT)
@@ -990,13 +996,8 @@ void* ponyint_pool_realloc_size(size_t old_size, size_t new_size, void* p)
   } else {
     size_t new_adj_size = ponyint_pool_adjust_size(new_size);
 
-    if(old_index >= POOL_COUNT)
-    {
-      old_adj_size = ponyint_pool_adjust_size(old_size);
-
-      if(old_adj_size == new_adj_size)
-        return p;
-    }
+    if((old_index >= POOL_COUNT) && (old_adj_size == new_adj_size))
+      return p;
 
     new_p = pool_alloc_size(new_adj_size);
 
@@ -1054,6 +1055,26 @@ void ponyint_pool_thread_cleanup()
 
   pool_block_header.total_size = 0;
   pool_block_header.largest_size = 0;
+}
+
+/* The suspend-and-drain interface is arena-only: this backend has no
+ * inboxes, so these are no-ops.
+ */
+void ponyint_pool_suspend_flush()
+{
+}
+
+void ponyint_pool_drain()
+{
+}
+
+void ponyint_pool_return_idle()
+{
+}
+
+void ponyint_pool_set_memory_profile(pool_memory_profile_t profile)
+{
+  (void)profile;
 }
 
 #endif

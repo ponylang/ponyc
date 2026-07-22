@@ -3,6 +3,7 @@
 #include "scheduler.h"
 #include "cpu.h"
 #include "../mem/heap.h"
+#include "../mem/pool.h"
 #include "../actor/actor.h"
 #include "../gc/cycle.h"
 #include "../lang/process.h"
@@ -77,6 +78,7 @@ enum
   OPT_PINASIO,
   OPT_PINPAT,
   OPT_STATSINTERVAL,
+  OPT_MEMORYPROFILE,
   OPT_VERSION,
 #if defined(USE_SYSTEMATIC_TESTING)
   OPT_SYSTEMATIC_TESTING_SEED,
@@ -109,6 +111,7 @@ static opt_arg_t args[] =
   {"ponypinasio", 0, OPT_ARG_NONE, OPT_PINASIO},
   {"ponypinpinnedactorthread", 0, OPT_ARG_NONE, OPT_PINPAT},
   {"ponyprintstatsinterval", 0, OPT_ARG_REQUIRED, OPT_STATSINTERVAL},
+  {"ponymemoryprofile", 0, OPT_ARG_REQUIRED, OPT_MEMORYPROFILE},
   {"ponyversion", 0, OPT_ARG_NONE, OPT_VERSION},
 #if defined(USE_SYSTEMATIC_TESTING)
   {"ponysystematictestingseed", 0, OPT_ARG_REQUIRED, OPT_SYSTEMATIC_TESTING_SEED},
@@ -238,6 +241,16 @@ static int parse_opts(int argc, char** argv, options_t* opt)
       case OPT_PINASIO: opt->pinasio = true; break;
       case OPT_PINPAT: opt->pinpat = true; break;
       case OPT_STATSINTERVAL: if(parse_uint(&opt->stats_interval, 1, s.arg_val)) err_out(id, "can't be less than 1 second"); break;
+      case OPT_MEMORYPROFILE:
+        if(strcmp(s.arg_val, "balanced") == 0)
+          ponyint_pool_set_memory_profile(POOL_MEMORY_BALANCED);
+        else if(strcmp(s.arg_val, "low-memory") == 0)
+          ponyint_pool_set_memory_profile(POOL_MEMORY_LOW);
+        else if(strcmp(s.arg_val, "throughput") == 0)
+          ponyint_pool_set_memory_profile(POOL_MEMORY_THROUGHPUT);
+        else
+          err_out(id, "must be low-memory, balanced, or throughput");
+        break;
       case OPT_VERSION: opt->version = true; break;
 #if defined(USE_SYSTEMATIC_TESTING)
       case OPT_SYSTEMATIC_TESTING_SEED: if(parse_uint64(&opt->systematic_testing_seed, 1, s.arg_val)) err_out(id, "can't be less than 1"); break;

@@ -1,8 +1,28 @@
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
 #include <benchmark/benchmark.h>
+#include <platform.h>
+#include <mem/pool.h>
 
 int main(int argc, char** argv) {
+
+#ifdef POOL_USE_ARENA
+  // Select the arena memory profile from the environment, so one binary can be
+  // measured under each profile. Balanced is the default; leaving it unset
+  // keeps the default. Only the arena backend has this call.
+  const char* prof = getenv("PONY_MEMPROFILE");
+  if(prof != NULL)
+  {
+    if(strcmp(prof, "low") == 0)
+      ponyint_pool_set_memory_profile(POOL_MEMORY_LOW);
+    else if(strcmp(prof, "throughput") == 0)
+      ponyint_pool_set_memory_profile(POOL_MEMORY_THROUGHPUT);
+    else
+      ponyint_pool_set_memory_profile(POOL_MEMORY_BALANCED);
+  }
+#endif
 
   ::benchmark::Initialize(&argc, argv);
   ::benchmark::RunSpecifiedBenchmarks();

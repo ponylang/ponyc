@@ -7,9 +7,8 @@ primitive HandleableSignalValidator is Validator[U32]
   Only signals that can be safely caught and dispatched to Pony actors
   are accepted. Fatal signals (SIGILL, SIGTRAP, SIGABRT, SIGFPE, SIGBUS,
   SIGSEGV), uncatchable signals (SIGKILL, SIGSTOP), and unknown signal
-  numbers are rejected. SIGUSR2 is accepted only on
-  scheduler_scaling_pthreads builds; on other builds the runtime reserves
-  it for scheduler sleep/wake and `Sig.usr2()` is a compile error.
+  numbers are rejected. SIGUSR2 is handleable like any other signal; the
+  runtime's scheduler no longer uses it, so it reserves nothing here.
 
   Validation is necessary but not sufficient: the operating system can
   still refuse a registration the whitelist admits (for example, glibc
@@ -34,26 +33,14 @@ primitive HandleableSignalValidator is Validator[U32]
       end
     end
 
-  // SIGUSR2 is handleable only on scheduler_scaling_pthreads builds. On other
-  // builds the runtime reserves it as its scheduler sleep/wake signal and
-  // `Sig.usr2()` is a compile error, so it can never reach the whitelist. On
-  // scheduler_scaling_pthreads builds the scheduler uses condition variables
-  // instead, leaving SIGUSR2 free. runtime_tracing also uses SIGUSR2
-  // (PONY_TRACING_SLEEP_WAKE_SIGNAL in src/libponyrt/tracing/tracing.c), but it
-  // blocks the signal only inside its own tracing thread, not in every runtime
-  // thread the way the scheduler does. A process-directed SIGUSR2 is delivered
-  // to a thread that has not blocked it, so a user handler still fires and
-  // runtime_tracing does not need excluding here.
-  // This gate must match Sig.usr2()'s in sig.pony, and both mirror the
-  // runtime's PONY_SCHED_SLEEP_WAKE_SIGNAL (src/libponyrt/sched/scheduler.h).
-  // If the runtime's sleep/wake signal changes, or the build flag that frees
-  // it does, both gates must change to match or the package hands out a signal
-  // the runtime has taken.
+  // SIGUSR2 is handleable: the scheduler no longer uses it, so the runtime
+  // reserves nothing. On Windows SIGUSR2 does not exist and `Sig.usr2()` is a
+  // compile error, so the gate is guarded to non-Windows platforms.
   fun _usr2_handleable(sig: U32): Bool =>
-    ifdef "scheduler_scaling_pthreads" and not windows then
-      sig == Sig.usr2()
-    else
+    ifdef windows then
       false
+    else
+      sig == Sig.usr2()
     end
 
   fun _is_handleable(sig: U32): Bool =>

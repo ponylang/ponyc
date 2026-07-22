@@ -166,9 +166,12 @@ TEST(Heap, Init)
     ASSERT_EQ(chunk5, p5_chunk);
     ASSERT_EQ(actor, pagemap_actor);
   }
+  // One past the chunk must not map to this chunk: set_bulk must stop at
+  // the chunk's end. The entry may legitimately belong to a neighboring
+  // chunk of the same heap when the allocator places chunks densely, so
+  // only the chunk identity is asserted.
   p5_chunk = (chunk_t*)ponyint_pagemap_get(p5_end, &pagemap_actor);
   ASSERT_NE(chunk5, p5_chunk);
-  ASSERT_NE(actor, pagemap_actor);
 
   size_t size5 = ponyint_heap_size(chunk5);
   ASSERT_EQ(adjust_size, size5);

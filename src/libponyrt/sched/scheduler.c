@@ -25,6 +25,14 @@
 
 #define PONY_SCHED_BLOCK_THRESHOLD 2000000
 
+/// How long a passive thread pauses between visits: starts fast,
+/// doubles per quiet visit toward the cap, and snaps back to the floor
+/// when a visit consumes a message. The pause is the only wait there
+/// is — nothing wakes a passive thread; mail is read at its next
+/// visit.
+#define SCHED_TICK_MIN_NS UINT64_C(10000000)
+#define SCHED_TICK_MAX_NS UINT64_C(500000000)
+
 PONY_EXTERN_C_BEGIN
 
 static DECLARE_THREAD_FN(run_thread);
@@ -34,34 +42,21 @@ static uint64_t last_cd_tsc;
 static uint32_t scheduler_count;
 static uint32_t min_scheduler_count;
 static uint64_t scheduler_suspend_threshold;
-static PONY_ATOMIC(uint32_t) active_scheduler_count;
-static PONY_ATOMIC(uint32_t) active_scheduler_count_check;
 static scheduler_t* scheduler;
-static PONY_ATOMIC(bool) temporarily_disable_scheduler_scaling;
-static PONY_ATOMIC(bool) detect_quiescence;
+/// How many schedulers are active, as a gauge: each thread adjusts it
+/// by one at its own transitions. Advisory — nothing correctness-
+/// critical reads it: pony_active_schedulers reports it, the ASIO
+/// thread's all-passive check reads it, and the steal loop paces its
+/// block decision with it.
+static PONY_ATOMIC(uint32_t) active_scheduler_gauge;
 static PONY_ATOMIC(bool) runtime_shutdown_initiated;
 static bool use_yield;
 static mpmcq_t inject;
-static PONY_ATOMIC(bool) pinned_actor_scheduler_suspended;
-static PONY_ATOMIC(bool) pinned_actor_scheduler_suspended_check;
 static scheduler_t* pinned_actor_scheduler;
 static __pony_thread_local scheduler_t* this_scheduler;
 
-#if defined(USE_SCHEDULER_SCALING_PTHREADS)
-static pthread_mutex_t sched_mut;
-
-static pthread_once_t sched_mut_once = PTHREAD_ONCE_INIT;
-
-void sched_mut_init()
-{
-    pthread_mutex_init(&sched_mut, NULL);
-}
-#else
-static PONY_ATOMIC(bool) scheduler_count_changing;
-#endif
-
 #ifdef USE_RUNTIMESTATS
-// holds only size of pthread_cond variables and scheduler_t array
+// holds only size of the scheduler_t array
 static size_t mem_allocated;
 static size_t mem_used;
 static bool print_stats;
@@ -152,23 +147,7 @@ size_t ponyint_sched_total_alloc_size(pony_ctx_t* ctx)
  */
 static uint32_t get_active_scheduler_count()
 {
-   return atomic_load_explicit(&active_scheduler_count, memory_order_relaxed);
-}
-
-/**
- * Gets the current active scheduler count check
- */
-static uint32_t get_active_scheduler_count_check()
-{
-   return atomic_load_explicit(&active_scheduler_count_check, memory_order_relaxed);
-}
-
-/**
- * Gets the whether dynamic scheduler scaling is temporarily disabled
- */
-static bool get_temporarily_disable_scheduler_scaling()
-{
-   return atomic_load_explicit(&temporarily_disable_scheduler_scaling, memory_order_relaxed);
+   return atomic_load_explicit(&active_scheduler_gauge, memory_order_relaxed);
 }
 
 /**
@@ -256,164 +235,35 @@ static void send_msg(uint32_t from, uint32_t to, sched_msg_t msg, intptr_t arg)
   (void)from;
 }
 
-static uint32_t send_msg_all_active(uint32_t from, sched_msg_t msg, intptr_t arg)
-{
-  uint32_t current_active_scheduler_count = get_active_scheduler_count();
-
-  for(uint32_t i = 0; i < current_active_scheduler_count; i++)
-    send_msg(from, i, msg, arg);
-
-  return current_active_scheduler_count;
-}
-
 static void send_msg_all(uint32_t from, sched_msg_t msg, intptr_t arg)
 {
   for(uint32_t i = 0; i < scheduler_count; i++)
     send_msg(from, i, msg, arg);
 }
 
-static void signal_suspended_threads(uint32_t sched_count, int32_t curr_sched_id)
+/// How many words the per-scheduler blocked bitmap holds.
+static size_t blocked_map_words()
 {
-  // start at get_active_scheduler_count_check to not send signals to threads
-  // that are already known to be awake..
-  uint32_t start_sched_index = get_active_scheduler_count_check();
+  return (scheduler_count + 63) / 64;
+}
 
-  for(uint32_t i = start_sched_index; i < sched_count; i++)
+#if !defined(PONY_NDEBUG) || defined(PONY_ALWAYS_ASSERT)
+/// Population count of a scheduler's blocked map. Debug-only caller;
+/// scheduler 0's map and its block_count are fed by the same message
+/// stream, so they must always agree.
+static uint32_t blocked_map_count(scheduler_t* sched)
+{
+  uint32_t count = 0;
+
+  for(size_t i = 0; i < blocked_map_words(); i++)
   {
-    if((int32_t)i != curr_sched_id)
-    {
-#if defined(USE_SYSTEMATIC_TESTING)
-      SYSTEMATIC_TESTING_YIELD();
-#else
-      // only send signal if the thread id is not NULL (musl specifically
-      // crashes if it is even though posix says it should return `ESRCH`
-      // instead if an invalid thread id is passed)
-      // this is only a concern during startup until the thread is created
-      // and pthread_create updates the thread id
-      if(scheduler[i].tid)
-        ponyint_thread_wake(scheduler[i].tid, scheduler[i].sleep_object);
-#endif
-    }
+    count += __pony_popcount((uint32_t)sched->blocked_map[i]);
+    count += __pony_popcount((uint32_t)(sched->blocked_map[i] >> 32));
   }
+
+  return count;
 }
-
-static void signal_suspended_pinned_actor_thread()
-{
-#if defined(USE_SYSTEMATIC_TESTING)
-  SYSTEMATIC_TESTING_YIELD();
-#else
-  ponyint_thread_wake(pinned_actor_scheduler->tid, pinned_actor_scheduler->sleep_object);
 #endif
-}
-
-static void wake_suspended_pinned_actor_thread()
-{
-  while(atomic_load_explicit(&pinned_actor_scheduler_suspended_check, memory_order_relaxed))
-  {
-  #if defined(USE_SCHEDULER_SCALING_PTHREADS)
-    // acquire mutex if using pthreads
-    if(!pthread_mutex_lock(&sched_mut))
-  #else
-    // get the bool that controls modifying the active scheduler count variable
-    // if using signals
-    if(!atomic_load_explicit(&scheduler_count_changing, memory_order_relaxed)
-      && !atomic_exchange_explicit(&scheduler_count_changing, true,
-      memory_order_acquire))
-  #endif
-    {
-      atomic_store_explicit(&pinned_actor_scheduler_suspended, false, memory_order_relaxed);
-
-  #if !defined(USE_SCHEDULER_SCALING_PTHREADS)
-      // unlock the bool that controls modifying the active scheduler count
-      // variable if using signals.
-      atomic_store_explicit(&scheduler_count_changing, false,
-        memory_order_release);
-  #endif
-
-  #if defined(USE_SCHEDULER_SCALING_PTHREADS)
-      // unlock mutex if using pthreads
-      pthread_mutex_unlock(&sched_mut);
-  #endif
-    }
-
-    signal_suspended_pinned_actor_thread();
-
-    // wait for the sleeping thread to wake and update check variable
-    while(atomic_load_explicit(&pinned_actor_scheduler_suspended_check, memory_order_relaxed))
-    {
-      // send signals to the pinned actor scheduler thread that should be awake
-      // this is somewhat wasteful if the scheduler thread is already awake
-      // but is necessary in case the signal to wake the thread was missed
-      // NOTE: this intentionally allows for the case where the scheduler
-      // thread might miss the signal and not wake up. That is handled
-      // by a combination of the check variable and this while loop
-      signal_suspended_pinned_actor_thread();
-    }
-  }
-}
-
-static void wake_suspended_threads(int32_t current_scheduler_id)
-{
-  uint32_t current_active_scheduler_count = get_active_scheduler_count();
-
-  // wake up any sleeping threads
-  while ((current_active_scheduler_count = get_active_scheduler_count()) < scheduler_count)
-  {
-#if defined(USE_SCHEDULER_SCALING_PTHREADS)
-    // acquire mutex if using pthreads
-    if(!pthread_mutex_lock(&sched_mut))
-#else
-    // get the bool that controls modifying the active scheduler count variable
-    // if using signals
-    if(!atomic_load_explicit(&scheduler_count_changing, memory_order_relaxed)
-      && !atomic_exchange_explicit(&scheduler_count_changing, true,
-      memory_order_acquire))
-#endif
-    {
-      // in case the count changed between the while check and now
-      current_active_scheduler_count = get_active_scheduler_count();
-
-      if(current_active_scheduler_count < scheduler_count)
-      {
-        // set active_scheduler_count to wake all schedulers
-        current_active_scheduler_count = scheduler_count;
-        atomic_store_explicit(&active_scheduler_count, current_active_scheduler_count,
-          memory_order_relaxed);
-      }
-
-#if !defined(USE_SCHEDULER_SCALING_PTHREADS)
-      // unlock the bool that controls modifying the active scheduler count
-      // variable if using signals.
-      atomic_store_explicit(&scheduler_count_changing, false,
-        memory_order_release);
-#endif
-
-#if defined(USE_SCHEDULER_SCALING_PTHREADS)
-      // unlock mutex if using pthreads
-      pthread_mutex_unlock(&sched_mut);
-#endif
-
-      // send signals to all scheduler threads that should be awake
-      // this is somewhat wasteful if a scheduler thread is already awake
-      // NOTE: this intentionally allows for the case where some scheduler
-      // threads might miss the signal and not wake up. That is handled in
-      // the following while loop
-      signal_suspended_threads(current_active_scheduler_count, current_scheduler_id);
-    }
-
-    // wait for sleeping threads to wake and update check variable
-    while (get_active_scheduler_count() != get_active_scheduler_count_check())
-    {
-      // send signals to all scheduler threads that should be awake
-      // this is somewhat wasteful if a scheduler thread is already awake
-      // but is necessary in case the signal to wake a thread was missed
-      // NOTE: this intentionally allows for the case where some scheduler
-      // threads might miss the signal and not wake up. That is handled in
-      // by a combination of the check variable and this while loop
-      signal_suspended_threads(current_active_scheduler_count, current_scheduler_id);
-    }
-  }
-}
 
 // handle SCHED_BLOCK message
 static void handle_sched_block(scheduler_t* sched)
@@ -431,7 +281,6 @@ static void handle_sched_block(scheduler_t* sched)
   // only if there are no noisy actors subscribed with the ASIO subsystem
   // and the mutemap is empty
   if(!sched->asio_noisy &&
-    atomic_load_explicit(&detect_quiescence, memory_order_relaxed) &&
     ponyint_mutemap_size(&sched->mute_mapping) == 0 &&
     sched->block_count == scheduler_count)
   {
@@ -440,15 +289,6 @@ static void handle_sched_block(scheduler_t* sched)
       sched->ack_count = scheduler_count + 1;
       send_msg_all(sched->index, SCHED_CNF, sched->ack_token);
       send_msg_pinned_actor_thread(sched->index, SCHED_CNF, sched->ack_token);
-
-      // disable dynamic scheduler scaling since we need all scheulder awake
-      // for shutdown and a scheduler suspending during this process is
-      // unnecessary complexity
-      atomic_store_explicit(&temporarily_disable_scheduler_scaling, true, memory_order_relaxed);
-      wake_suspended_threads(sched->index);
-  } else {
-    // re-enable dynamic scheduler scaling in case it was disabled
-    atomic_store_explicit(&temporarily_disable_scheduler_scaling, false, memory_order_relaxed);
   }
 }
 
@@ -461,14 +301,29 @@ static void handle_sched_unblock(scheduler_t* sched)
   sched->ack_token++;
   sched->asio_stoppable = false;
   sched->ack_count = scheduler_count;
-
-  // re-enable dynamic scheduler scaling in case it was disabled
-  atomic_store_explicit(&temporarily_disable_scheduler_scaling, false, memory_order_relaxed);
   pony_assert(sched->ack_count > 0);
   pony_assert(sched->block_count <= scheduler_count);
 }
 
-static bool read_msg(scheduler_t* sched, pony_actor_t* actor)
+/// A quiescence probe recorded during a visit's message read, to be
+/// answered only after the visit's work check comes up empty.
+typedef struct recorded_cnf_t
+{
+  bool recorded;
+  intptr_t token;
+} recorded_cnf_t;
+
+/**
+ * Reads the message queue to completion. With recorded_cnf NULL, a
+ * CNF is ACKed inline when the caller is empty-handed (actor is
+ * NULL), as the active loops require. A passive or pinned-thread
+ * visit passes recorded_cnf instead: the token is recorded and the
+ * caller answers only if its work check comes up empty — never ACK a
+ * probe with work in hand. consumed, when non-NULL, reports whether
+ * any message was read at all; the visit's tick backoff resets on it.
+ */
+static bool read_msg(scheduler_t* sched, pony_actor_t* actor,
+  recorded_cnf_t* recorded_cnf, bool* consumed)
 {
 #ifdef USE_RUNTIMESTATS
     uint64_t used_cpu = ponyint_sched_cpu_used(&sched->ctx);
@@ -493,19 +348,45 @@ static bool read_msg(scheduler_t* sched, pony_actor_t* actor)
 
     TRACING_THREAD_RECEIVE_MESSAGE(m, (sched_msg_t)m->msg.id, m->i);
 
+    if(consumed != NULL)
+      *consumed = true;
+
     switch(m->msg.id)
     {
       case SCHED_BLOCK:
       {
-        pony_assert(0 == sched->index);
-        handle_sched_block(sched);
+        sched->blocked_map[m->i / 64] |= (UINT64_C(1) << (m->i % 64));
+
+        if(0 == sched->index)
+        {
+          handle_sched_block(sched);
+          pony_assert(blocked_map_count(sched) == sched->block_count);
+        }
         break;
       }
 
       case SCHED_UNBLOCK:
       {
-        pony_assert(0 == sched->index);
-        handle_sched_unblock(sched);
+        sched->blocked_map[m->i / 64] &= ~(UINT64_C(1) << (m->i % 64));
+
+        // The sender took work in hand, so it is a fresh activation
+        // target again.
+        sched->poked_map[m->i / 64] &= ~(UINT64_C(1) << (m->i % 64));
+
+        if(0 == sched->index)
+        {
+          handle_sched_unblock(sched);
+          pony_assert(blocked_map_count(sched) == sched->block_count);
+        }
+        break;
+      }
+
+      case SCHED_ACTIVATE:
+      {
+        pony_assert(PONY_UNKNOWN_SCHEDULER_INDEX != sched->index);
+        pony_assert(PONY_PINNED_ACTOR_THREAD_INDEX != sched->index);
+
+        sched->activate_requested = true;
         break;
       }
 
@@ -513,7 +394,14 @@ static bool read_msg(scheduler_t* sched, pony_actor_t* actor)
       {
         pony_assert(PONY_UNKNOWN_SCHEDULER_INDEX != sched->index);
 
-        if(NULL == actor)
+        if(recorded_cnf != NULL)
+        {
+          // A later CNF carries a newer token; the stale one would be
+          // dropped by the token check on scheduler 0 anyway.
+          recorded_cnf->recorded = true;
+          recorded_cnf->token = m->i;
+        }
+        else if(NULL == actor)
         {
           // Echo the token back as ACK(token) only if we don't have an actor to run.
           send_msg(sched->index, 0, SCHED_ACK, m->i);
@@ -628,9 +516,6 @@ static bool quiescent(scheduler_t* sched, uint64_t tsc, uint64_t tsc2)
         send_msg_all(sched->index, SCHED_TERMINATE, 0);
         send_msg_pinned_actor_thread(sched->index, SCHED_TERMINATE, 0);
 
-        wake_suspended_threads(sched->index);
-        wake_suspended_pinned_actor_thread();
-
         sched->ack_token++;
         sched->ack_count = scheduler_count;
         pony_assert(sched->ack_count > 0);
@@ -650,9 +535,6 @@ static bool quiescent(scheduler_t* sched, uint64_t tsc, uint64_t tsc2)
         sched->asio_stoppable = false;
         sched->ack_count = scheduler_count;
         pony_assert(sched->ack_count > 0);
-
-        // re-enable dynamic scheduler scaling in case it was disabled
-        atomic_store_explicit(&temporarily_disable_scheduler_scaling, false, memory_order_relaxed);
       }
     }
   }
@@ -681,14 +563,12 @@ static scheduler_t* choose_victim(scheduler_t* sched)
     // Back up one.
     victim--;
 
-    uint32_t current_active_scheduler_count = get_active_scheduler_count();
-
     if(victim < scheduler)
       // victim is before the first scheduler location
       // wrap around to the end.
-      victim = &scheduler[current_active_scheduler_count - 1];
+      victim = &scheduler[scheduler_count - 1];
 
-    if((victim == sched->last_victim) || (current_active_scheduler_count == 1))
+    if(victim == sched->last_victim)
     {
       // If we have tried all possible victims, return no victim. Set our last
       // victim to ourself to indicate we've started over.
@@ -700,6 +580,15 @@ static scheduler_t* choose_victim(scheduler_t* sched)
     if(victim == sched)
       continue;
 
+    // Skip victims this thread believes are blocked: their queues are
+    // empty. The map can lag — a stale bit costs one missed steal
+    // opportunity until the unblock broadcast is read, never a lost
+    // one.
+    uint32_t victim_index = (uint32_t)victim->index;
+    if(sched->blocked_map[victim_index / 64] &
+      (UINT64_C(1) << (victim_index % 64)))
+      continue;
+
     // Record that this is our victim and return it.
     sched->last_victim = victim;
     return victim;
@@ -709,228 +598,133 @@ static scheduler_t* choose_victim(scheduler_t* sched)
 }
 
 /**
- * Suspend this thread for some time, including no sleep at all if
- * pop_global() can give us an actor immediately.
- *
- * WARNING: suspend_scheduler must be called in critical section
- *          protected by sched_mut/scheduler_count_changing,
- *          and we return with that mechanism:
- *            * Pthreads: locked, because pthread_thread_suspend() does
- *              not permit a choice to avoid reacquiring the mutex.
- *            * Non-Pthreads: unlocked, because after the suspend,
- *              we only need to reacquire in special case of
- *              sched->index==0.
+ * Pause a passive thread for one tick. Under systematic testing the
+ * pause is a bare scheduling point: execution is serialized to one
+ * thread at a time, so there is no real time to wait out, and a
+ * passive thread must stay selectable for the seeded interleaving to
+ * reach its visits.
  */
-static pony_actor_t* suspend_scheduler(scheduler_t* sched,
-  uint32_t current_active_scheduler_count)
+static void sched_tick_pause(uint64_t ns)
 {
-  pony_actor_t* actor = NULL;
-
-  // decrement active_scheduler_count so other schedulers know we're
-  // sleeping
-  uint32_t sched_count = get_active_scheduler_count();
-
-  // make sure the scheduler count didn't change
-  // if it did, then another thread resumed and it may not be
-  // appropriate for us to suspend any longer, so don't suspend
-  if(sched_count != current_active_scheduler_count) {
-#if !defined(USE_SCHEDULER_SCALING_PTHREADS)
-    atomic_store_explicit(&scheduler_count_changing, false,
-      memory_order_release);
+#if defined(USE_SYSTEMATIC_TESTING)
+  (void)ns;
+  SYSTEMATIC_TESTING_YIELD();
+#else
+  ponyint_cpu_sleep_ns(ns);
 #endif
-    return actor;
-  }
+}
 
-  atomic_store_explicit(&active_scheduler_count, sched_count - 1,
+/**
+ * Wait passively until there is a reason to run again. A passive
+ * thread runs no actors and steals nothing, but it is not asleep: on
+ * every visit it reads its message queue to completion, reclaims
+ * foreign frees delivered to its allocator inbox, and pops the global
+ * inject queue once. Between visits it pauses for a tick, backing off
+ * while nothing happens. Nothing wakes a passive thread; everything
+ * sent to one is found within a tick.
+ *
+ * The inject pop is the backstop that keeps every race on advisory
+ * state (the blocked maps, the gauge) harmless: work stranded in
+ * inject with nobody active is found within a tick.
+ *
+ * Returns an actor popped from inject — work in hand, which the
+ * caller answers with the latch-guarded unblock — or NULL to resume
+ * stealing empty-handed: an ACTIVATE was consumed, scheduler 0 lost
+ * its noisy events, or termination was requested (the caller's
+ * quiescent check reads sched->terminate).
+ */
+static pony_actor_t* passive_wait(scheduler_t* sched)
+{
+  atomic_fetch_sub_explicit(&active_scheduler_gauge, 1,
     memory_order_relaxed);
-
-  // decrement active_scheduler_count_check
-  uint32_t sched_count_check = get_active_scheduler_count_check();
-
-  atomic_store_explicit(&active_scheduler_count_check, sched_count_check - 1,
-    memory_order_relaxed);
-
-  // ensure main active scheduler count and check variable match
-  pony_assert(sched_count == sched_count_check);
-
-#if !defined(USE_SCHEDULER_SCALING_PTHREADS)
-  // unlock the bool that controls modifying the active scheduler count
-  // variable if using signals
-  atomic_store_explicit(&scheduler_count_changing, false,
-    memory_order_release);
-#endif
 
   // dtrace suspend notification
   DTRACE1(THREAD_SUSPEND, (uintptr_t)sched);
   TRACING_THREAD_SUSPEND();
 
-  while(get_active_scheduler_count() <= (uint32_t)sched->index)
+  uint64_t tick_ns = SCHED_TICK_MIN_NS;
+  pony_actor_t* actor = NULL;
+
+  while(true)
   {
-    // If shutdown has been initiated, break out so we can process
-    // SCHED_TERMINATE and exit. Without this check, a suspended thread can
-    // re-enter sigwait indefinitely: as other threads exit during shutdown,
-    // active_scheduler_count drops, keeping this condition true.
-    if(atomic_load_explicit(&runtime_shutdown_initiated, memory_order_relaxed))
-      break;
+    recorded_cnf_t cnf = {false, 0};
+    bool consumed = false;
 
-    // if we're scheduler 0 with noisy actors check to make
-    // sure inject queue is empty to avoid race condition
-    // between thread 0 sleeping and the ASIO thread getting a
-    // new event
-    if(sched->index == 0)
+    // A passive thread's mutemap is empty — emptiness gated the
+    // transition, and only running actors can grow it — so no unmute
+    // read here can reschedule anything onto the run queue.
+    bool run_queue_changed = read_msg(sched, NULL, &cnf, &consumed);
+    pony_assert(!run_queue_changed);
+    (void)run_queue_changed;
+
+    // Take back what other threads freed into this thread's allocator
+    // inbox while it paused.
+    ponyint_pool_drain();
+
+    actor = pop_global(NULL);
+
+    if(sched->terminate)
     {
-      actor = pop_global(NULL);
-      if(actor != NULL)
-        break;
-
-      if(read_msg(sched, actor))
-      {
-        // An actor was unmuted and added to our run queue. Pop it and return.
-        // Effectively, we are "stealing" from ourselves. We need to verify that
-        // popping succeeded (actor != NULL) as some other scheduler might have
-        // stolen the newly scheduled actor from us already. Schedulers, what a
-        // bunch of thieving bastards!
-        actor = pop_global(sched);
-        if(actor != NULL)
-          break;
-      }
-
-      // if ASIO is no longer noisy due to reading a message from the ASIO
-      // thread
-      if(!sched->asio_noisy)
-        break;
+      pony_assert(actor == NULL);
+      break;
     }
 
-    // sleep waiting for signal to wake up again
-#if defined(USE_SYSTEMATIC_TESTING)
-#if defined(USE_SCHEDULER_SCALING_PTHREADS)
-    SYSTEMATIC_TESTING_SUSPEND(&sched_mut);
-#else
-    SYSTEMATIC_TESTING_SUSPEND();
-#endif
-#else
-#if defined(USE_SCHEDULER_SCALING_PTHREADS)
-    ponyint_thread_suspend(sched->sleep_object, &sched_mut);
-#else
-    ponyint_thread_suspend(sched->sleep_object);
-#endif
-#endif
+    // Work in hand: go active and run it. Taking work unblocks, and
+    // that token bump on scheduler 0 invalidates any probe answer, so
+    // this path leaves the probe unanswered on purpose.
+    if(actor != NULL)
+      break;
+
+    // No work in hand: answer a recorded quiescence probe. This holds
+    // whether the thread stays passive or leaves below to service an
+    // ACTIVATE — a work-free leave does not unblock, so the probe is
+    // still this thread's to answer, and no fresh probe would replace
+    // it while the round's token stands. A stale answer, if the thread
+    // then takes work and unblocks, is dropped by scheduler 0's token
+    // check.
+    if(cnf.recorded)
+      send_msg(sched->index, 0, SCHED_ACK, cnf.token);
+
+    // Asked to go active, or, for scheduler 0, the noisy events that
+    // allowed it to be passive are gone and the quiescence backstop
+    // must run again.
+    if(sched->activate_requested ||
+      ((sched->index == 0) && !sched->asio_noisy))
+      break;
+
+    // Deliver pending foreign frees so their owners can reclaim while
+    // this thread pauses.
+    ponyint_pool_suspend_flush();
+
+    // Once the tick has backed off to its cap, this thread has been idle long
+    // enough that holding its freed memory no longer pays: hand it back to the
+    // OS. Gating on the backoff keeps a thread that briefly parks and resumes
+    // from thrashing decommits; it rewarms its cache and pages when it runs.
+    if(tick_ns >= SCHED_TICK_MAX_NS)
+      ponyint_pool_return_idle();
+
+    if(consumed)
+      tick_ns = SCHED_TICK_MIN_NS;
+
+    sched_tick_pause(tick_ns);
+
+    tick_ns *= 2;
+    if(tick_ns > SCHED_TICK_MAX_NS)
+      tick_ns = SCHED_TICK_MAX_NS;
   }
+
+  // Leaving passive for any reason makes this thread active again.
+  // The blocked latch is untouched here: only work in hand unblocks,
+  // and the caller owns that.
+  sched->activate_requested = false;
+  atomic_fetch_add_explicit(&active_scheduler_gauge, 1,
+    memory_order_relaxed);
 
   // dtrace resume notification
   DTRACE1(THREAD_RESUME, (uintptr_t)sched);
   TRACING_THREAD_RESUME();
 
-#if !defined(USE_SCHEDULER_SCALING_PTHREADS)
-  // When using signals, need to acquire sched count changing variable
-  while (true)
-  {
-    // get the bool that controls modifying the active scheduler
-    // count variable if using signals
-    if(!atomic_load_explicit(&scheduler_count_changing, memory_order_relaxed)
-      && !atomic_exchange_explicit(&scheduler_count_changing, true,
-      memory_order_acquire))
-    {
-#endif
-      // get active_scheduler_count
-      sched_count = get_active_scheduler_count();
-
-      // make sure active_scheduler_count == 1 if it is 0
-      // and we're scheduler 0 with noisy actors
-      // and we just pulled an actor off the inject queue
-      // or the ASIO is no longer noisy
-      // and we broke out of the earlier loop before suspending
-      // to return the actor
-      if(sched_count == 0)
-      {
-        // set active_scheduler_count to 1
-        sched_count = 1;
-        atomic_store_explicit(&active_scheduler_count,
-          sched_count, memory_order_relaxed);
-      }
-
-      // increment active_scheduler_count_check
-      sched_count_check = get_active_scheduler_count_check();
-
-      atomic_store_explicit(&active_scheduler_count_check,
-        sched_count_check + 1, memory_order_relaxed);
-
-#if !defined(USE_SCHEDULER_SCALING_PTHREADS)
-      // unlock the bool that controls modifying the active scheduler count
-      // variable if using signals
-      atomic_store_explicit(&scheduler_count_changing, false,
-        memory_order_release);
-
-      // break while loop
-      break;
-    }
-  }
-#endif
-
   return actor;
-}
-
-static pony_actor_t* perhaps_suspend_scheduler(
-  scheduler_t* sched, uint32_t current_active_scheduler_count,
-  uint32_t* steal_attempts)
-{
-  // if we're the highest active scheduler thread
-  // and there are more active schedulers than the minimum requested
-  // and we're not terminating
-  // and active scheduler count matchs the check variable indicating all
-  // threads that should be awake are awake
-  // and dynamic scheduler scaling is not disabled for shutdown
-  if ((current_active_scheduler_count > min_scheduler_count)
-    && !get_temporarily_disable_scheduler_scaling()
-    && (sched == &scheduler[current_active_scheduler_count - 1])
-    && (!sched->terminate)
-    && (current_active_scheduler_count == get_active_scheduler_count_check())
-#if defined(USE_SCHEDULER_SCALING_PTHREADS)
-    // try to acquire mutex if using pthreads
-    && !pthread_mutex_trylock(&sched_mut)
-#else
-    // try and get the bool that controls modifying the active scheduler count
-    // variable if using signals
-    && (!atomic_load_explicit(&scheduler_count_changing, memory_order_relaxed)
-      && !atomic_exchange_explicit(&scheduler_count_changing, true,
-      memory_order_acquire))
-#endif
-    )
-  {
-    pony_actor_t* actor = NULL;
-
-    // can only sleep if we're scheduler > 0 or if we're scheduler 0 and
-    // there is at least one noisy actor registered.
-    // COUPLING: that scheduler 0 only suspends with a noisy actor is what keeps
-    // active_scheduler_count >= 1 (and so the systematic-testing round-robin
-    // divisor non-zero) when no ASIO event can be registered -- see the abort
-    // in pony_asio_event_create (asio/event.c).
-    if((sched->index > 0) || ((sched->index == 0) && sched->asio_noisy))
-    {
-      actor = suspend_scheduler(sched, current_active_scheduler_count);
-      // reset steal_attempts so we try to steal from all other schedulers
-      // prior to suspending again
-      *steal_attempts = 0;
-    }
-    else
-    {
-      pony_assert(sched->index == 0);
-      pony_assert(!sched->asio_noisy);
-#if !defined(USE_SCHEDULER_SCALING_PTHREADS)
-      // suspend_scheduler() would have unlocked for us,
-      // but we didn't call it, so unlock now.
-      atomic_store_explicit(&scheduler_count_changing, false,
-        memory_order_release);
-#endif
-    }
-#if defined(USE_SCHEDULER_SCALING_PTHREADS)
-    // unlock mutex if using pthreads
-    pthread_mutex_unlock(&sched_mut);
-#endif
-    if(actor != NULL)
-      return actor;
-  }
-  return NULL;
 }
 
 /**
@@ -939,7 +733,6 @@ static pony_actor_t* perhaps_suspend_scheduler(
  */
 static pony_actor_t* steal(scheduler_t* sched)
 {
-  bool block_sent = false;
   bool suspend_eligible = false;
   uint32_t steal_attempts = 0;
   uint64_t tsc = sched_clock();
@@ -956,7 +749,7 @@ static pony_actor_t* steal(scheduler_t* sched)
 
     uint64_t tsc2 = sched_clock();
 
-    if(read_msg(sched, actor))
+    if(read_msg(sched, actor, NULL, NULL))
     {
       // An actor was unmuted and added to our run queue. Pop it and return.
       // Effectively, we are "stealing" from ourselves. We need to verify that
@@ -967,6 +760,10 @@ static pony_actor_t* steal(scheduler_t* sched)
       if(actor != NULL)
         break;
     }
+
+    // An ACTIVATE consumed while already active asks for nothing;
+    // clear it so it cannot ride into a later passive stretch.
+    sched->activate_requested = false;
 
     if(quiescent(sched, tsc, tsc2))
     {
@@ -1009,67 +806,59 @@ static pony_actor_t* steal(scheduler_t* sched)
     uint32_t current_active_scheduler_count = get_active_scheduler_count();
     uint64_t clocks_elapsed = ponyint_cpu_tick_diff(tsc, tsc2);
 
-    // Once we've been trying to steal long enough to be eligible to suspend,
-    // stay eligible. tsc is a fixed baseline taken on entry, so a suspend can
-    // make clocks_elapsed span more than ponyint_cpu_tick()'s wrap period and
-    // read small again; latching keeps an idle scheduler suspending promptly
-    // instead of busy-spinning until the elapsed count grows back past the
-    // threshold.
+    // Once we've been trying to steal long enough to be eligible to go
+    // passive, stay eligible. tsc is a baseline that a passive stretch
+    // can push more than ponyint_cpu_tick()'s wrap period into the
+    // past, making clocks_elapsed read small again; latching keeps an
+    // idle scheduler transitioning promptly instead of busy-spinning
+    // until the elapsed count grows back past the threshold.
     if(clocks_elapsed > scheduler_suspend_threshold)
       suspend_eligible = true;
 
-    if (!block_sent)
+    if(!sched->blocked)
     {
-      // make sure thread scaling order is still valid. we should never be
-      // active if the active_scheduler_count isn't larger than our index.
-      pony_assert(current_active_scheduler_count > (uint32_t)sched->index);
-
-      if (steal_attempts < current_active_scheduler_count)
+      if(steal_attempts < current_active_scheduler_count)
       {
         steal_attempts++;
       }
-      else if ((clocks_elapsed > PONY_SCHED_BLOCK_THRESHOLD) &&
+      else if((clocks_elapsed > PONY_SCHED_BLOCK_THRESHOLD) &&
         (ponyint_mutemap_size(&sched->mute_mapping) == 0))
       {
         // only considered blocked if we're scheduler > 0 or if we're scheduler
         // 0 and there are no noiisy actors registered
         if((sched->index > 0) || ((sched->index == 0) && !sched->asio_noisy))
         {
-          send_msg(sched->index, 0, SCHED_BLOCK, 0);
-          block_sent = true;
-        }
-
-        // only try and suspend if enough time has passed
-        if(suspend_eligible)
-        {
-          // in case active scheduler count changed
-          current_active_scheduler_count = get_active_scheduler_count();
-
-          actor = perhaps_suspend_scheduler(sched, current_active_scheduler_count,
-            &steal_attempts);
-          if (actor != NULL)
-            break;
+          send_msg_all(sched->index, SCHED_BLOCK, sched->index);
+          sched->blocked = true;
         }
       }
     }
-    else
+
+    // Go passive once the idle clock has run down, on separate gates
+    // from the block decision: an index above zero needs the blocked
+    // latch; scheduler 0 goes passive — latched or not — only while
+    // ASIO is noisy and its mutemap is empty, and is otherwise the one
+    // thread that never goes passive, the quiescence backstop. Indices
+    // below the minimum thread count never go passive, which is how
+    // the minimum stays staffed with zero coordination. A passive
+    // thread stays counted as blocked the whole time, which is what
+    // lets quiescence trigger while threads are passive.
+    if(suspend_eligible && ((uint32_t)sched->index >= min_scheduler_count) &&
+      ((sched->index > 0) ? sched->blocked :
+        ((sched->asio_noisy != 0) &&
+          (ponyint_mutemap_size(&sched->mute_mapping) == 0))))
     {
-      // block sent and no work to do. We should try and suspend if we can now
-      // if we do suspend, we'll send a unblock message first to ensure cnf/ack
-      // cycle works as expected
+      actor = passive_wait(sched);
 
-      // make sure thread scaling order is still valid. we should never be
-      // active if the active_scheduler_count isn't larger than our index.
-      pony_assert(current_active_scheduler_count > (uint32_t)sched->index);
+      if(actor != NULL)
+        break;
 
-      // only try and suspend if enough time has passed
-      if(suspend_eligible)
-      {
-        actor = perhaps_suspend_scheduler(sched, current_active_scheduler_count,
-          &steal_attempts);
-        if (actor != NULL)
-          break;
-      }
+      // Resumed empty-handed: reset the idle clock so this thread
+      // steals for a full threshold window before it may go passive
+      // again, and re-tries every victim before blocking.
+      tsc = sched_clock();
+      suspend_eligible = false;
+      steal_attempts = 0;
     }
 
     // if we're scheduler 0 and cycle detection is enabled
@@ -1127,19 +916,16 @@ static pony_actor_t* steal(scheduler_t* sched)
         }
       }
     }
-
-    // if we're scheduler 0 and we're in a termination CNF/ACK cycle
-    // make sure all threads are awake in case any missed a wake up signal
-    if(sched->index == 0 && get_temporarily_disable_scheduler_scaling())
-    {
-      wake_suspended_threads(sched->index);
-      wake_suspended_pinned_actor_thread();
-    }
   }
 
-  // Only send unblock message if a corresponding block message was sent
-  if(block_sent)
-    send_msg(sched->index, 0, SCHED_UNBLOCK, 0);
+  // Work in hand: leave the blocked tally before running it. The
+  // inline cycle-detector run above stays exempt — it runs while
+  // blocked on purpose, and only a follow-on actor reaches here.
+  if(sched->blocked)
+  {
+    send_msg_all(sched->index, SCHED_UNBLOCK, sched->index);
+    sched->blocked = false;
+  }
 
   DTRACE3(WORK_STEAL_SUCCESSFUL, (uintptr_t)sched, (uintptr_t)victim, (uintptr_t)actor);
   return actor;
@@ -1156,6 +942,37 @@ uint64_t ponyint_sched_cpu_used(pony_ctx_t* ctx)
 #endif
 
 /**
+ * Ask one blocked scheduler to go active, picked from this thread's
+ * own blocked map. A poked bit per target debounces repeat requests
+ * until that target's next unblock broadcast arrives. Every targeting
+ * mistake is self-correcting: an ACTIVATE landing on an active thread
+ * is cleared unread, doubled requests collapse in the target's
+ * mailbox, and a thread activated for no reason finds nothing and
+ * goes passive again on its own.
+ */
+static void sched_maybe_activate(scheduler_t* sched)
+{
+  for(size_t w = 0; w < blocked_map_words(); w++)
+  {
+    uint64_t candidates = sched->blocked_map[w] & ~sched->poked_map[w];
+
+    // Broadcasts include the sender, so a thread's own blocked bit can
+    // be stale; never pick self.
+    if(w == ((uint32_t)sched->index / 64))
+      candidates &= ~(UINT64_C(1) << ((uint32_t)sched->index % 64));
+
+    if(candidates == 0)
+      continue;
+
+    uint32_t bit = __pony_ffsll(candidates) - 1;
+
+    sched->poked_map[w] |= (UINT64_C(1) << bit);
+    send_msg(sched->index, (uint32_t)(w * 64) + bit, SCHED_ACTIVATE, 0);
+    return;
+  }
+}
+
+/**
  * Run a scheduler thread until termination.
  */
 static void run(scheduler_t* sched)
@@ -1166,7 +983,7 @@ static void run(scheduler_t* sched)
 #endif
 
   // sleep thread until we're ready to start processing
-  SYSTEMATIC_TESTING_WAIT_START(sched->tid, sched->sleep_object);
+  SYSTEMATIC_TESTING_WAIT_START(sched->index);
 
   if(sched->index == 0) {
     last_cd_tsc = 0;
@@ -1213,35 +1030,26 @@ static void run(scheduler_t* sched)
             actor = pop_global(sched);
         }
       }
-
-      uint32_t current_active_scheduler_count = get_active_scheduler_count();
-      uint32_t current_active_scheduler_count_check = get_active_scheduler_count_check();
-
-      // if not all threads that should be awake are awake due to a missed signal
-      if(current_active_scheduler_count != current_active_scheduler_count_check)
-      {
-        // send signals to all scheduler threads that should be awake
-        // this is somewhat wasteful if a scheduler thread is already awake
-        // but is necessary in case the signal to wake a thread was missed
-        signal_suspended_threads(current_active_scheduler_count, sched->index);
-      }
     }
 
     // In response to reading a message, we might have unmuted an actor and
     // added it back to our queue. if we don't have an actor to run, we want
     // to pop from our queue to check for a recently unmuted actor
-    if(read_msg(sched, actor) && actor == NULL)
+    if(read_msg(sched, actor, NULL, NULL) && actor == NULL)
     {
       actor = pop_global(sched);
     }
 
+    // An ACTIVATE consumed while already active asks for nothing;
+    // clear it so it cannot ride into a later passive stretch.
+    sched->activate_requested = false;
+
     // if it's a pinned actor, send it to the pinned_actor_scheduler and get
-    // another actor to process
+    // another actor to process. The pinned thread's own visit finds it
+    // within a tick.
     while(NULL != actor && ponyint_actor_is_pinned(actor))
     {
       ponyint_mpmcq_push(&pinned_actor_scheduler->q, actor);
-      // wake pinned_actor_scheduler
-      wake_suspended_pinned_actor_thread();
       actor = pop_global(sched);
     }
 
@@ -1251,12 +1059,11 @@ static void run(scheduler_t* sched)
       actor = steal(sched);
 
       // if it's a pinned actor, send it to the pinned_actor_scheduler and get
-      // another actor to process
+      // another actor to process. The pinned thread's own visit finds
+      // it within a tick.
       if(NULL != actor && ponyint_actor_is_pinned(actor))
       {
         ponyint_mpmcq_push(&pinned_actor_scheduler->q, actor);
-        // wake pinned_actor_scheduler
-        wake_suspended_pinned_actor_thread();
         actor = NULL;
         // try and steal again
         continue;
@@ -1280,16 +1087,16 @@ static void run(scheduler_t* sched)
     }
 
     // We have at least one muted actor...
-    // Try and wake up a sleeping scheduler thread to help with the load.
-    // This is to err on the side of caution and wake up more threads in case
-    // of muted actors rather than potentially not wake up enough threads.
-    // If there isn't enough work, they'll go back to sleep.
+    // Try and activate a passive scheduler thread to help with the load.
+    // This is to err on the side of caution and activate more threads in case
+    // of muted actors rather than potentially not activate enough threads.
+    // If there isn't enough work, they'll go passive again.
     // NOTE: This could result in a pathological case where only one thread
     // has a muted actor but there is only one overloaded actor. In this case
-    // the extra scheduler threads would keep being woken up and then go back
-    // to sleep over and over again.
+    // the extra scheduler threads would keep being activated and then go
+    // passive over and over again.
     if(ponyint_mutemap_size(&sched->mute_mapping) > 0)
-      ponyint_sched_maybe_wakeup(sched->index);
+      sched_maybe_activate(sched);
 
     pony_assert(!ponyint_actor_is_pinned(actor));
 
@@ -1313,11 +1120,11 @@ static void run(scheduler_t* sched)
         // We have at least two actors worth of work; the one we just finished
         // running a batch for that needs to be rescheduled and the next one we
         // just `pop_global`d. This indicates that there is enough work in
-        // theory to have another scheduler thread be woken up to do work in
+        // theory to have another scheduler thread be activated to do work in
         // parallel.
-        // Try and wake up a sleeping scheduler thread to help with the load.
-        // If there isn't enough work, they'll go back to sleep.
-        ponyint_sched_maybe_wakeup(sched->index);
+        // Try and activate a passive scheduler thread to help with the load.
+        // If there isn't enough work, they'll go passive again.
+        sched_maybe_activate(sched);
       }
     } else {
       // We aren't rescheduling, so run the next actor. This may be NULL if our
@@ -1338,15 +1145,6 @@ static DECLARE_THREAD_FN(run_thread)
   ponyint_cpu_affinity(sched->cpu);
   TRACING_THREAD_START(this_scheduler);
 
-#if !defined(PLATFORM_IS_WINDOWS) && !defined(USE_SCHEDULER_SCALING_PTHREADS)
-  // Make sure we block signals related to scheduler sleeping/waking
-  // so they queue up to avoid race conditions
-  sigset_t set;
-  sigemptyset(&set);
-  sigaddset(&set, PONY_SCHED_SLEEP_WAKE_SIGNAL);
-  pthread_sigmask(SIG_BLOCK, &set, NULL);
-#endif
-
   run(sched);
 
   TRACING_THREAD_STOP();
@@ -1356,106 +1154,18 @@ static DECLARE_THREAD_FN(run_thread)
 }
 
 
-static void perhaps_suspend_pinned_actor_scheduler(
-  scheduler_t* sched, uint64_t tsc, uint64_t tsc2)
-{
-  // if we're not terminating
-  // and dynamic scheduler scaling is not disabled for shutdown
-  if ((!sched->terminate)
-    && !get_temporarily_disable_scheduler_scaling()
-#if defined(USE_SCHEDULER_SCALING_PTHREADS)
-    // try to acquire mutex if using pthreads
-    && !pthread_mutex_trylock(&sched_mut)
-#else
-    // try and get the bool that controls modifying the pinned_actor_scheduler_suspended
-    // variable if using signals
-    && (!atomic_load_explicit(&scheduler_count_changing, memory_order_relaxed)
-      && !atomic_exchange_explicit(&scheduler_count_changing, true,
-      memory_order_acquire))
-#endif
-    )
-  {
-    atomic_store_explicit(&pinned_actor_scheduler_suspended, true, memory_order_relaxed);
-    atomic_store_explicit(&pinned_actor_scheduler_suspended_check, true, memory_order_relaxed);
-
-#if !defined(USE_SCHEDULER_SCALING_PTHREADS)
-    // unlock the bool that controls modifying the pinned_actor_scheduler_suspended
-    // variable if using signals
-    atomic_store_explicit(&scheduler_count_changing, false,
-      memory_order_release);
-#endif
-
-    // dtrace suspend notification
-    DTRACE1(THREAD_SUSPEND, (uintptr_t)sched);
-    TRACING_THREAD_SUSPEND();
-
-    // sleep waiting for signal to wake up again
-#if defined(USE_SYSTEMATIC_TESTING)
-#if defined(USE_SCHEDULER_SCALING_PTHREADS)
-    SYSTEMATIC_TESTING_SUSPEND(&sched_mut);
-#else
-    SYSTEMATIC_TESTING_SUSPEND();
-#endif
-#else
-#if defined(USE_SCHEDULER_SCALING_PTHREADS)
-    ponyint_thread_suspend(sched->sleep_object, &sched_mut);
-#else
-    ponyint_thread_suspend(sched->sleep_object);
-#endif
-#endif
-
-    // dtrace resume notification
-    DTRACE1(THREAD_RESUME, (uintptr_t)sched);
-    TRACING_THREAD_RESUME();
-
-#if !defined(USE_SCHEDULER_SCALING_PTHREADS)
-    // When using signals, need to acquire sched count changing variable
-    while (true)
-    {
-      // get the bool that controls modifying the pinned_actor_scheduler_suspended
-      // variable if using signals
-      if(!atomic_load_explicit(&scheduler_count_changing, memory_order_relaxed)
-        && !atomic_exchange_explicit(&scheduler_count_changing, true,
-        memory_order_acquire))
-      {
-#endif
-
-        atomic_store_explicit(&pinned_actor_scheduler_suspended, false, memory_order_relaxed);
-        atomic_store_explicit(&pinned_actor_scheduler_suspended_check, false, memory_order_relaxed);
-
-#if !defined(USE_SCHEDULER_SCALING_PTHREADS)
-        // unlock the bool that controls modifying the pinned_actor_scheduler_suspended
-        // variable if using signals
-        atomic_store_explicit(&scheduler_count_changing, false,
-          memory_order_release);
-
-        // break while loop
-        break;
-      }
-    }
-#endif
-
-#if defined(USE_SCHEDULER_SCALING_PTHREADS)
-    // unlock mutex if using pthreads
-    pthread_mutex_unlock(&sched_mut);
-#endif
-  } else {
-  // unable to get the lock to suspend so sleep for a bit
-#if defined(USE_SYSTEMATIC_TESTING)
-    (void)tsc;
-    (void)tsc2;
-    SYSTEMATIC_TESTING_YIELD();
-#else
-    ponyint_cpu_core_pause(tsc, tsc2, true);
-#endif
-  }
-}
-
 /**
  * Run a custom scheduler thread for pinned actors until termination.
  * This thread does not partiticpate in most normal scheduler messaging
- * like CNF/ACK/block/unblock/suspend/noisy/unnoisy. it does participate in
+ * like CNF/ACK/block/unblock/noisy/unnoisy. it does participate in
  * muting messages and termination messages.
+ *
+ * It fits the passive model with one twist: it is the only thread
+ * whose run queue other threads write — schedulers hand pinned actors
+ * over by pushing onto it — so its own run queue is its activation
+ * signal, and no ACTIVATE message is involved. It broadcasts nothing,
+ * keeps no blocked map, and adjusts no gauge: nobody steals from it
+ * and nobody activates it.
  */
 static void run_pinned_actors()
 {
@@ -1465,7 +1175,7 @@ static void run_pinned_actors()
 
 #if defined(USE_SYSTEMATIC_TESTING)
   // start processing
-  SYSTEMATIC_TESTING_START(scheduler, sched->tid, sched->sleep_object);
+  SYSTEMATIC_TESTING_START();
 #endif
 
 #ifdef USE_RUNTIMESTATS
@@ -1474,8 +1184,18 @@ static void run_pinned_actors()
 #endif
 
   pony_actor_t* actor = NULL;
-  uint64_t tsc = sched_clock();
-  bool suspend_eligible = false;
+  uint64_t tick_ns = SCHED_TICK_MIN_NS;
+  bool passive = false;
+
+  // The pinned thread's recorded quiescence probe persists across
+  // iterations: unlike a scheduler thread, it takes work without ever
+  // unblocking, so a probe recorded in an iteration that then runs a
+  // pinned actor would be lost — and since block_count does not change,
+  // no fresh probe would replace it, stalling termination one ACK
+  // short. Keeping the token until an empty-handed visit answers it (or
+  // a newer probe overwrites it) closes that gap. Answering a stale
+  // token is safe: scheduler 0's token check drops it.
+  recorded_cnf_t cnf = {false, 0};
 
   while(true)
   {
@@ -1495,13 +1215,18 @@ static void run_pinned_actors()
     }
 #endif
 
+    bool consumed = false;
+
     // process pending messages; this might add an actor to the inject queue
     // due to an unmuted actor but that is for other scheduler threads to deal with
     // technically, this is inefficient since any actor unmuted by the pinned actor
     // scheduler should be handled by the pinned actor scheduler but for the moment
     // that is how things work and the actor will eventually come back to this thread
     // to be run anyways.
-    read_msg(sched, actor);
+    // A quiescence probe is recorded, not answered: the answer waits
+    // on the run-queue check below, so a probe is never ACKed with
+    // work in hand.
+    read_msg(sched, actor, &cnf, &consumed);
 
     // Termination. all the normal scheduler threads have decided there is no
     // more work to do so we can shutdown
@@ -1515,6 +1240,14 @@ static void run_pinned_actors()
 #endif
 
       pony_assert(pop(sched) == NULL);
+
+      if(passive)
+      {
+        // dtrace resume notification
+        DTRACE1(THREAD_RESUME, (uintptr_t)sched);
+        TRACING_THREAD_RESUME();
+      }
+
       SYSTEMATIC_TESTING_STOP_THREAD();
       return;
     }
@@ -1525,7 +1258,8 @@ static void run_pinned_actors()
 
     // if it's a not pinned actor, send it to a normal scheduler and get
     // another pinned actor to process; these are likely the result of pinned
-    // actors sending messages to non-pinned actors
+    // actors sending messages to non-pinned actors. If every scheduler
+    // is passive, their visits' inject pops find it within a tick.
     while(NULL != actor && !ponyint_actor_is_pinned(actor))
     {
       // Put on the shared mpmcq.
@@ -1535,31 +1269,51 @@ static void run_pinned_actors()
 
     if(actor == NULL)
     {
-      uint64_t tsc2 = sched_clock();
-      uint64_t clocks_elapsed = ponyint_cpu_tick_diff(tsc, tsc2);
-
-      // Latch suspend-eligibility, as in steal(). tsc here is the last time we
-      // did work, so a long idle can make clocks_elapsed span more than
-      // ponyint_cpu_tick()'s wrap period and read small again. The latch is
-      // cleared below when we next do work and reset tsc.
-      if(clocks_elapsed > scheduler_suspend_threshold)
-        suspend_eligible = true;
-
-      // We had an empty queue and no actor. need to suspend or sleep only if
-      // mutemap is empty as this thread doesn't participate in work stealing
-      if(ponyint_mutemap_size(&sched->mute_mapping) == 0 && suspend_eligible)
+      // Empty-handed visit: answer a recorded quiescence probe, then
+      // pause for a tick. Nothing wakes this thread; a pinned actor
+      // made runnable while it pauses waits for the next visit.
+      if(!passive)
       {
-        // suspend
-        perhaps_suspend_pinned_actor_scheduler(sched, tsc, tsc2);
-      } else {
-      #if defined(USE_SYSTEMATIC_TESTING)
-        SYSTEMATIC_TESTING_YIELD();
-      #else
-        // don't suspend the thread but sleep instead to not burn cpu
-        ponyint_cpu_core_pause(tsc, tsc2, true);
-      #endif
+        passive = true;
+
+        // dtrace suspend notification
+        DTRACE1(THREAD_SUSPEND, (uintptr_t)sched);
+        TRACING_THREAD_SUSPEND();
       }
+
+      if(cnf.recorded)
+      {
+        send_msg(sched->index, 0, SCHED_ACK, cnf.token);
+        cnf.recorded = false;
+      }
+
+      // Deliver pending foreign frees so their owners can reclaim
+      // while this thread pauses.
+      ponyint_pool_suspend_flush();
+
+      if(consumed)
+        tick_ns = SCHED_TICK_MIN_NS;
+
+      sched_tick_pause(tick_ns);
+
+      tick_ns *= 2;
+      if(tick_ns > SCHED_TICK_MAX_NS)
+        tick_ns = SCHED_TICK_MAX_NS;
+
+      // Take back what other threads freed into this thread's
+      // allocator inbox while it paused.
+      ponyint_pool_drain();
     } else {
+      if(passive)
+      {
+        passive = false;
+        tick_ns = SCHED_TICK_MIN_NS;
+
+        // dtrace resume notification
+        DTRACE1(THREAD_RESUME, (uintptr_t)sched);
+        TRACING_THREAD_RESUME();
+      }
+
       pony_assert(ponyint_actor_is_pinned(actor));
 
       // Run the current actor and get the next actor.
@@ -1567,20 +1321,7 @@ static void run_pinned_actors()
       sched->ctx.current = NULL;
       SYSTEMATIC_TESTING_YIELD();
 
-      // there's a small chance that the pinned actor was the only active one
-      // and all the other scheduler threads went to sleep (including scheduler
-      // 0 if ASIO is noisy) and so we try and wake up at least one scheduler
-      // thread just in case if that's the case
-      // maybe wake up a scheduler thread if they've all fallen asleep
-      ponyint_sched_maybe_wakeup_if_all_asleep(PONY_PINNED_ACTOR_THREAD_INDEX);
-
       pony_actor_t* next = pop(sched);
-
-      // update the last time the scheduler did meaningful work (used for
-      // deciding when to suspend the thread); this also clears the
-      // suspend-eligibility latch so we wait idle again before suspending
-      tsc = sched_clock();
-      suspend_eligible = false;
 
       if(reschedule)
       {
@@ -1610,20 +1351,11 @@ static void ponyint_sched_shutdown()
 {
   uint32_t start = 0;
 
-  // Signal all scheduler threads to stop suspending. The suspend loop in
-  // suspend_scheduler checks this flag and breaks out instead of re-entering
-  // sigwait. We also set active_scheduler_count high and send wake signals so
-  // threads currently in sigwait wake up and see the flag.
   atomic_store_explicit(&runtime_shutdown_initiated, true,
     memory_order_release);
-  atomic_store_explicit(&active_scheduler_count, scheduler_count,
-    memory_order_relaxed);
-  for(uint32_t i = 0; i < scheduler_count; i++)
-  {
-    if(scheduler[i].tid)
-      ponyint_thread_wake(scheduler[i].tid, scheduler[i].sleep_object);
-  }
 
+  // Every scheduler thread reads TERMINATE within a tick and exits on
+  // its own; nothing needs waking.
   while(start < scheduler_count)
   {
     if (ponyint_thread_join(scheduler[start].tid))
@@ -1643,23 +1375,17 @@ static void ponyint_sched_shutdown()
     ponyint_mutemap_destroy(&scheduler[i].mute_mapping);
     ponyint_messageq_destroy(&scheduler[i].mq, false);
     ponyint_mpmcq_destroy(&scheduler[i].q);
-
-#if defined(PLATFORM_IS_WINDOWS)
-    // close wait event objects
-    CloseHandle(scheduler[i].sleep_object);
-#elif defined(USE_SCHEDULER_SCALING_PTHREADS)
-    // destroy pthread condition object
-    pthread_cond_destroy(scheduler[i].sleep_object);
-#ifdef USE_RUNTIMESTATS
-    mem_used -= sizeof(pthread_cond_t);
-    mem_allocated -= POOL_ALLOC_SIZE(pthread_cond_t);
-#endif
-    POOL_FREE(pthread_cond_t, scheduler[i].sleep_object);
-    // set sleep condition object to NULL
-    scheduler[i].sleep_object = NULL;
-#endif
   }
 
+  size_t blocked_map_size = blocked_map_words() * sizeof(uint64_t);
+
+  for(uint32_t i = 0; i < scheduler_count; i++)
+  {
+    ponyint_pool_free_size(blocked_map_size, scheduler[i].blocked_map);
+    ponyint_pool_free_size(blocked_map_size, scheduler[i].poked_map);
+  }
+
+  atomic_store_explicit(&active_scheduler_gauge, 0, memory_order_relaxed);
   ponyint_pool_free_size(scheduler_count * sizeof(scheduler_t), scheduler);
 #ifdef USE_RUNTIMESTATS
   mem_used -= (scheduler_count * sizeof(scheduler_t));
@@ -1669,8 +1395,6 @@ static void ponyint_sched_shutdown()
   scheduler = NULL;
   pinned_actor_scheduler = NULL;
   scheduler_count = 0;
-  atomic_store_explicit(&active_scheduler_count, 0, memory_order_relaxed);
-  atomic_store_explicit(&temporarily_disable_scheduler_scaling, false, memory_order_relaxed);
 
   ponyint_mpmcq_destroy(&inject);
 }
@@ -1731,11 +1455,6 @@ pony_ctx_t* ponyint_sched_init(uint32_t threads, bool noyield, bool pin,
 
   scheduler_count = threads;
   min_scheduler_count = min_threads;
-  atomic_store_explicit(&active_scheduler_count, scheduler_count,
-    memory_order_relaxed);
-  atomic_store_explicit(&active_scheduler_count_check, scheduler_count,
-    memory_order_relaxed);
-  atomic_store_explicit(&temporarily_disable_scheduler_scaling, false, memory_order_relaxed);
   scheduler = (scheduler_t*)ponyint_pool_alloc_size(
     scheduler_count * sizeof(scheduler_t));
 #ifdef USE_RUNTIMESTATS
@@ -1745,6 +1464,21 @@ pony_ctx_t* ponyint_sched_init(uint32_t threads, bool noyield, bool pin,
 #endif
   memset(scheduler, 0, scheduler_count * sizeof(scheduler_t));
 
+  atomic_store_explicit(&active_scheduler_gauge, scheduler_count,
+    memory_order_relaxed);
+
+  size_t blocked_map_size = blocked_map_words() * sizeof(uint64_t);
+
+  for(uint32_t i = 0; i < scheduler_count; i++)
+  {
+    scheduler[i].blocked_map =
+      (uint64_t*)ponyint_pool_alloc_size(blocked_map_size);
+    memset(scheduler[i].blocked_map, 0, blocked_map_size);
+    scheduler[i].poked_map =
+      (uint64_t*)ponyint_pool_alloc_size(blocked_map_size);
+    memset(scheduler[i].poked_map, 0, blocked_map_size);
+  }
+
   uint32_t tracing_cpu = -1;
 
   uint32_t asio_cpu = ponyint_cpu_assign(scheduler_count, scheduler, pin,
@@ -1753,37 +1487,8 @@ pony_ctx_t* ponyint_sched_init(uint32_t threads, bool noyield, bool pin,
   // make sure tracing knows how mant schedulers there are
   TRACING_SCHEDULERS_INIT(scheduler_count, tracing_cpu);
 
-#if !defined(PLATFORM_IS_WINDOWS) && defined(USE_SCHEDULER_SCALING_PTHREADS)
-  pthread_once(&sched_mut_once, sched_mut_init);
-#endif
-
   for(uint32_t i = 0; i < scheduler_count; i++)
   {
-#if defined(PLATFORM_IS_WINDOWS)
-    // create wait event objects
-    scheduler[i].sleep_object = CreateEvent(NULL, FALSE, FALSE, NULL);
-#elif defined(USE_SCHEDULER_SCALING_PTHREADS)
-    // create pthread condition object
-#ifdef USE_RUNTIMESTATS
-    mem_used += sizeof(pthread_cond_t);
-    mem_allocated += POOL_ALLOC_SIZE(pthread_cond_t);
-#endif
-    scheduler[i].sleep_object = POOL_ALLOC(pthread_cond_t);
-    int ret = pthread_cond_init(scheduler[i].sleep_object, NULL);
-    if(ret != 0)
-    {
-      // if it failed, set `sleep_object` to `NULL` for error
-#ifdef USE_RUNTIMESTATS
-      mem_used -= sizeof(pthread_cond_t);
-      mem_allocated -= POOL_ALLOC_SIZE(pthread_cond_t);
-#endif
-      POOL_FREE(pthread_cond_t, scheduler[i].sleep_object);
-      scheduler[i].sleep_object = NULL;
-    }
-#else
-    scheduler[i].sleep_object = PONY_SCHED_SLEEP_WAKE_SIGNAL;
-#endif
-
     scheduler[i].ctx.scheduler = &scheduler[i];
     scheduler[i].last_victim = &scheduler[i];
     scheduler[i].index = i;
@@ -1798,43 +1503,12 @@ pony_ctx_t* ponyint_sched_init(uint32_t threads, bool noyield, bool pin,
   ponyint_asio_init(asio_cpu);
 
   // set up main thread as scheduler for running pinned actors
-#if defined(PLATFORM_IS_WINDOWS)
-  // create wait event objects
-  this_scheduler->sleep_object = CreateEvent(NULL, FALSE, FALSE, NULL);
-#elif defined(USE_SCHEDULER_SCALING_PTHREADS)
-  // create pthread condition object
-#ifdef USE_RUNTIMESTATS
-  mem_used += sizeof(pthread_cond_t);
-  mem_allocated += POOL_ALLOC_SIZE(pthread_cond_t);
-#endif
-  this_scheduler->sleep_object = POOL_ALLOC(pthread_cond_t);
-  int ret = pthread_cond_init(this_scheduler->sleep_object, NULL);
-  if(ret != 0)
-  {
-    // if it failed, set `sleep_object` to `NULL` for error
-#ifdef USE_RUNTIMESTATS
-    mem_used -= sizeof(pthread_cond_t);
-    mem_allocated -= POOL_ALLOC_SIZE(pthread_cond_t);
-#endif
-    POOL_FREE(pthread_cond_t, this_scheduler->sleep_object);
-    this_scheduler->sleep_object = NULL;
-  }
-#else
-  this_scheduler->sleep_object = PONY_SCHED_SLEEP_WAKE_SIGNAL;
-#endif
-
   this_scheduler->ctx.scheduler = this_scheduler;
   this_scheduler->last_victim = this_scheduler;
   this_scheduler->index = PONY_PINNED_ACTOR_THREAD_INDEX;
   this_scheduler->asio_noisy = false;
   ponyint_messageq_init(&this_scheduler->mq);
   ponyint_mpmcq_init(&this_scheduler->q);
-
-#if defined(PLATFORM_IS_WINDOWS) || defined(USE_SCHEDULER_SCALING_PTHREADS)
-  // there was an error creating a wait event or a pthread condition object
-  if(this_scheduler->sleep_object == NULL)
-    return false;
-#endif
 
   pinned_actor_scheduler = this_scheduler;
 
@@ -1853,35 +1527,15 @@ bool ponyint_sched_start()
   if(!ponyint_asio_start())
     return false;
 
-  atomic_store_explicit(&pinned_actor_scheduler_suspended, false, memory_order_relaxed);
-  atomic_store_explicit(&pinned_actor_scheduler_suspended_check, false, memory_order_relaxed);
-
-  atomic_store_explicit(&detect_quiescence, true, memory_order_relaxed);
-
   DTRACE0(RT_START);
   uint32_t start = 0;
 
   for(uint32_t i = start; i < scheduler_count; i++)
   {
-#if defined(PLATFORM_IS_WINDOWS) || defined(USE_SCHEDULER_SCALING_PTHREADS)
-    // there was an error creating a wait event or a pthread condition object
-    if(scheduler[i].sleep_object == NULL)
-      return false;
-#endif
-
     if(!ponyint_thread_create(&scheduler[i].tid, run_thread, scheduler[i].cpu,
       &scheduler[i]))
       return false;
   }
-
-#if !defined(PLATFORM_IS_WINDOWS) && !defined(USE_SCHEDULER_SCALING_PTHREADS)
-  // Make sure we block signals related to scheduler sleeping/waking
-  // so they queue up to avoid race conditions
-  sigset_t set;
-  sigemptyset(&set);
-  sigaddset(&set, PONY_SCHED_SLEEP_WAKE_SIGNAL);
-  pthread_sigmask(SIG_BLOCK, &set, NULL);
-#endif
 
   // custom run loop for pinned actors
   run_pinned_actors();
@@ -1983,14 +1637,6 @@ PONY_API pony_ctx_t* pony_ctx()
   return &this_scheduler->ctx;
 }
 
-/**
- * Gets whether the pinned actor scheduler is suspended or not
- */
-bool ponyint_get_pinned_actor_scheduler_suspended()
-{
-   return atomic_load_explicit(&pinned_actor_scheduler_suspended, memory_order_relaxed);
-}
-
 void ponyint_register_asio_thread()
 {
   ponyint_register_thread();
@@ -2010,87 +1656,12 @@ void ponyint_sched_unnoisy_asio(int32_t from)
   send_msg_all(from, SCHED_UNNOISY_ASIO, 0);
 }
 
-// Maybe wake up a scheduler thread if possible
-void ponyint_sched_maybe_wakeup_if_all_asleep(int32_t current_scheduler_id)
+void ponyint_sched_activate_if_all_passive(int32_t from)
 {
-  uint32_t current_active_scheduler_count = get_active_scheduler_count();
-
-  // wake up threads if the current active count is 0
-  // keep trying until successful to avoid deadlock
-  while((current_active_scheduler_count = get_active_scheduler_count()) == 0)
-  {
-    ponyint_sched_maybe_wakeup(current_scheduler_id);
-
-    current_active_scheduler_count = get_active_scheduler_count();
-
-    if(current_active_scheduler_count >= 1)
-    {
-      // wait for sleeping threads to wake and update check variable
-      // to ensure that we have at least one fully awake scheduler thread
-      while (get_active_scheduler_count_check() == 0 && get_active_scheduler_count() > 0)
-      {
-        // send signals to all scheduler threads that should be awake
-        // this is somewhat wasteful if a scheduler thread is already awake
-        // but is necessary in case the signal to wake a thread was missed
-        // NOTE: this intentionally allows for the case where some scheduler
-        // threads might miss the signal and not wake up. That is handled in
-        // by a combination of the check variable and this while loop
-        signal_suspended_threads(current_active_scheduler_count, current_scheduler_id);
-      }
-    }
-  }
-}
-
-// Maybe wake up a scheduler thread if possible
-void ponyint_sched_maybe_wakeup(int32_t current_scheduler_id)
-{
-  uint32_t current_active_scheduler_count = get_active_scheduler_count();
-
-  // if we have some schedulers that are sleeping, wake one up
-  if((current_active_scheduler_count < scheduler_count) &&
-#if defined(USE_SCHEDULER_SCALING_PTHREADS)
-    // try to acquire mutex if using pthreads
-    !pthread_mutex_trylock(&sched_mut)
-#else
-    // try and get the bool that controls modifying the active scheduler count
-    // variable if using signals
-    (!atomic_load_explicit(&scheduler_count_changing, memory_order_relaxed)
-      && !atomic_exchange_explicit(&scheduler_count_changing, true,
-      memory_order_acquire))
-#endif
-    )
-  {
-    // in case the count changed between the while check and now
-    current_active_scheduler_count = get_active_scheduler_count();
-
-    if(current_active_scheduler_count < scheduler_count)
-    {
-      // increment active_scheduler_count to wake a new scheduler up
-      current_active_scheduler_count++;
-      atomic_store_explicit(&active_scheduler_count, current_active_scheduler_count,
-        memory_order_relaxed);
-    }
-
-#if !defined(USE_SCHEDULER_SCALING_PTHREADS)
-    // unlock the bool that controls modifying the active scheduler count
-    // variable if using signals.
-    atomic_store_explicit(&scheduler_count_changing, false,
-      memory_order_release);
-#endif
-
-#if defined(USE_SCHEDULER_SCALING_PTHREADS)
-    // unlock mutex if using pthreads
-    pthread_mutex_unlock(&sched_mut);
-#endif
-
-    // send signals to all scheduler threads that should be awake
-    // this is somewhat wasteful if a scheduler thread is already awake
-    // NOTE: this intentionally allows for the case where some scheduler
-    // threads might miss the signal and not wake up. That is handled as
-    // part of the beginning of the `run` loop and the while loop in
-    // ponyint_sched_maybe_wakeup_if_all_asleep
-    signal_suspended_threads(current_active_scheduler_count, current_scheduler_id);
-  }
+  // Scheduler 0 is the natural target: it is only ever passive while
+  // ASIO has noisy events, which is exactly when this is called.
+  if(get_active_scheduler_count() == 0)
+    send_msg((uint32_t)from, 0, SCHED_ACTIVATE, 0);
 }
 
 // Manage a scheduler's mute map
@@ -2171,11 +1742,10 @@ void ponyint_sched_mute(pony_ctx_t* ctx, pony_actor_t* sender, pony_actor_t* rec
 
 void ponyint_sched_start_global_unmute(uint32_t from, pony_actor_t* actor)
 {
-  send_msg_all_active(from, SCHED_UNMUTE_ACTOR, (intptr_t)actor);
-
-  // only send if pinned actor thread is not suspended
-  if(!atomic_load_explicit(&pinned_actor_scheduler_suspended, memory_order_relaxed))
-    send_msg_pinned_actor_thread(from, SCHED_UNMUTE_ACTOR, (intptr_t)actor);
+  // Passive receivers hold no muted actors, so the message is a no-op
+  // for them, read at their next visit.
+  send_msg_all(from, SCHED_UNMUTE_ACTOR, (intptr_t)actor);
+  send_msg_pinned_actor_thread(from, SCHED_UNMUTE_ACTOR, (intptr_t)actor);
 }
 
 DECLARE_STACK(ponyint_actorstack, actorstack_t, pony_actor_t);

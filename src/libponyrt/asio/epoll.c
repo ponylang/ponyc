@@ -137,13 +137,6 @@ static void signal_handler(int sig)
   eventfd_write(fd, 1);
 }
 
-#if !defined(USE_SCHEDULER_SCALING_PTHREADS)
-static void empty_signal_handler(int sig)
-{
-  (void) sig;
-}
-#endif
-
 static void handle_queue(asio_backend_t* b)
 {
   asio_msg_t* msg;
@@ -310,19 +303,6 @@ asio_backend_t* ponyint_asio_backend_init()
     return NULL;
   }
 
-#if !defined(USE_SCHEDULER_SCALING_PTHREADS)
-  // Make sure we ignore signals related to scheduler sleeping/waking
-  // as the default for those signals is termination
-  struct sigaction new_action;
-  new_action.sa_handler = empty_signal_handler;
-  sigemptyset (&new_action.sa_mask);
-
-  // ask to restart interrupted syscalls to match `signal` behavior
-  new_action.sa_flags = SA_RESTART;
-
-  sigaction(PONY_SCHED_SLEEP_WAKE_SIGNAL, &new_action, NULL);
-#endif
-
   return b;
 }
 
@@ -404,20 +384,19 @@ DECLARE_THREAD_FN(ponyint_asio_backend_dispatch)
   asio_backend_t* b = arg;
   pony_assert(b != NULL);
 
-#if !defined(USE_SCHEDULER_SCALING_PTHREADS)
-  // Make sure we block signals related to scheduler sleeping/waking
-  // so they queue up to avoid race conditions
-  sigset_t set;
-  sigemptyset(&set);
-  sigaddset(&set, PONY_SCHED_SLEEP_WAKE_SIGNAL);
-  pthread_sigmask(SIG_BLOCK, &set, NULL);
-#endif
-
   while(!atomic_load_explicit(&b->terminate, memory_order_acquire))
   {
     int wait_time = -1;
 
+    // Deliver pending frees to their owners before blocking; this
+    // thread registers no scheduler, so its own mail waits for the
+    // drain below on its next wake.
+    ponyint_pool_suspend_flush();
+
     int event_cnt = epoll_wait(b->epfd, b->events, MAX_EVENTS, wait_time);
+
+    // This thread is running again: reclaim what arrived.
+    ponyint_pool_drain();
 
     for(int i = 0; i < event_cnt; i++)
     {

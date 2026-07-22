@@ -14,7 +14,7 @@ What it does, from the ponyc source root, in a container that has already built
 build/libs:
 
   1. Builds a systematic-testing ponyc
-     (`use=scheduler_scaling_pthreads,systematic_testing`). The build itself is
+     (`use=systematic_testing`). The build itself is
      the first assertion -- it is the only thing in CI that compiles that code
      path.
   2. Compiles the test/rt-systematic fixtures with it. Each folds the message
@@ -133,11 +133,11 @@ FIXTURES = [
     ("test/rt-systematic/cycle-collection-order-signature",
      "cycle-collection-order-signature", ["--ponycdinterval", "10"]),
 ]
-# The output suffix order (scheduler_scaling_pthreads then systematic_testing)
-# comes from the block order of the PONY_USE_* `if()`s in the top-level
-# CMakeLists.txt, NOT from the order passed to `use=`. If those blocks are
-# reordered this path goes stale; the os.access check below then fails loudly.
-PONYC_REL = "build/debug-scheduler_scaling_pthreads-systematic_testing/ponyc"
+# The output suffix comes from the PONY_USE_* `if()` block in the
+# top-level CMakeLists.txt, not from the order passed to `use=`. If that
+# block is renamed this path goes stale; the os.access check below then
+# fails loudly.
+PONYC_REL = "build/debug-systematic_testing/ponyc"
 
 
 def parse_order_sig(output):
@@ -175,7 +175,7 @@ def build_systematic_ponyc(root):
     # self-consistent, and staying on the native preset keeps the script usable
     # as-is if the job grows to other architectures.
     if run(["cmake", "--preset", "debug",
-            "-DPONY_USES=scheduler_scaling_pthreads,systematic_testing"],
+            "-DPONY_USES=systematic_testing"],
            cwd=root).returncode != 0:
         fail("`cmake --preset debug` for the systematic-testing build failed")
     if run(["cmake", "--build", "--preset", "debug"],

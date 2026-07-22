@@ -37,11 +37,11 @@ here. resolve_config is pinned in orchestrate_systematic_test.py.
 
 The ponyc passed in must be a debug + systematic build:
 
-    cmake --preset debug -DPONY_USES=scheduler_scaling_pthreads,systematic_testing
+    cmake --preset debug -DPONY_USES=systematic_testing
     cmake --build --preset debug
     python3 test/rt-stress/generative/orchestrate_systematic.py \\
-      --ponyc build/debug-scheduler_scaling_pthreads-systematic_testing/ponyc \\
-      --use-flags scheduler_scaling_pthreads,systematic_testing \\
+      --ponyc build/debug-systematic_testing/ponyc \\
+      --use-flags systematic_testing \\
       --count 50 --out ~/tmp/rt-stress-out
 
 `--version` does not echo the build's `use=` flags, so the bundle records
