@@ -406,6 +406,29 @@ void ponyint_cpu_core_pause(uint64_t tsc, uint64_t tsc2, bool yield)
   }
 }
 
+/**
+ * Sleep for at least ns nanoseconds. The floor is the contract:
+ * platform timer granularity (Windows especially, ~15ms) can make the
+ * actual pause considerably longer than asked.
+ */
+void ponyint_cpu_sleep_ns(uint64_t ns)
+{
+#ifdef PLATFORM_IS_WINDOWS
+  DWORD ms = (DWORD)(ns / 1000000);
+
+  if(ms == 0)
+    ms = 1;
+
+  SleepEx(ms, true);
+#else
+  struct timespec ts;
+  ts.tv_sec = (time_t)(ns / 1000000000);
+  ts.tv_nsec = (long)(ns % 1000000000);
+  DTRACE1(CPU_NANOSLEEP, (uint64_t)ts.tv_nsec);
+  nanosleep(&ts, NULL);
+#endif
+}
+
 void ponyint_cpu_relax()
 {
 #if defined(PLATFORM_IS_X86) && !defined(PLATFORM_IS_VISUAL_STUDIO)

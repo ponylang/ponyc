@@ -207,7 +207,26 @@ Note that you only need to run `cmake -P lib/build-libs.cmake` once the first ti
 
 ### Unsupported Windows build options
 
-Several `use=` build options aren't supported on Windows (MSVC). The supported ones are `systematic_testing`, `pool_retain`, `pooltrack`, `runtimestats`, `runtimestats_messages`, and `runtime_tracing`. The rest depend on POSIX interfaces or Clang/GCC toolchain features MSVC doesn't provide: `pool_memalign` needs `posix_memalign`, the sanitizers and `coverage` need the Clang/GCC `-fsanitize=`/`-fprofile-arcs` interfaces, and `scheduler_scaling_pthreads` needs pthreads. `cmake --preset windows-x86-64 -DPONY_USES=...` rejects the unsupported options with a clear error rather than failing partway through the build.
+Several `use=` build options aren't supported on Windows (MSVC). The supported ones are `systematic_testing`, `pool_classic`, `pool_retain`, `pooltrack`, `runtimestats`, `runtimestats_messages`, and `runtime_tracing`. The rest depend on POSIX interfaces or Clang/GCC toolchain features MSVC doesn't provide: `pool_memalign` needs `posix_memalign`, the sanitizers and `coverage` need the Clang/GCC `-fsanitize=`/`-fprofile-arcs` interfaces. `cmake --preset windows-x86-64 -DPONY_USES=...` rejects the unsupported options with a clear error rather than failing partway through the build.
+
+Supported doesn't mean each one builds alone: `pool_retain` and `pooltrack` need `pool_classic` alongside them, on Windows as on every other platform. See the runtime allocator section below.
+
+---
+
+## The Runtime Allocator, and pool_classic
+
+The runtime's default allocator on every platform is the arena allocator designed in [discussion #5735](https://github.com/ponylang/ponyc/discussions/5735): it gets memory from the operating system in large shared regions, carves them into thread-owned arenas, reuses freed memory across threads and size classes, and gives an empty arena's physical pages back to the operating system.
+
+`use=pool_classic` selects the classic pool on any platform:
+
+```bash
+cmake --preset release -DPONY_USES=pool_classic
+cmake --build --preset release
+```
+
+The arena allocator carries no AddressSanitizer, Valgrind, or pooltrack instrumentation, so combining it with `address_sanitizer`, `valgrind`, or `pooltrack` is rejected at compile time: a clean run that checked nothing misleads. Pair those options with `pool_classic` (or, for AddressSanitizer, `pool_memalign`). `use=pool_retain` changes how the classic pool returns memory, so it needs `pool_classic` too.
+
+One sizing limit to know about the arena allocator: memory comes from the operating system in 256 MiB regions (64 MiB on 32-bit platforms) whose address space is kept for the life of the process — emptied regions give back their physical pages but stay mapped for reuse. On Unix, reserving a region briefly maps twice its size before trimming, so a process running near an address-space cap needs twice the region size in headroom whenever the allocator opens a new region. Windows reserves a region at its alignment in one call and needs no such headroom.
 
 ---
 
@@ -226,7 +245,7 @@ cmake --build --preset release
 
 ponyc can be built with the Clang/LLVM sanitizers to catch bugs in the compiler and the Pony runtime at runtime. Three `use=` options are available: `address_sanitizer` (AddressSanitizer — buffer overflows, use-after-free, double-free), `thread_sanitizer` (ThreadSanitizer — data races), and `undefined_behavior_sanitizer` (UndefinedBehaviorSanitizer — signed integer overflow, misaligned access, and other undefined behavior). AddressSanitizer and ThreadSanitizer can't be combined; either can be combined with UndefinedBehaviorSanitizer.
 
-Pair `address_sanitizer` with `pool_memalign` so AddressSanitizer can track the Pony runtime's own allocations: `pool_memalign` routes every runtime allocation through `posix_memalign`/`free`, which AddressSanitizer intercepts and surrounds with redzones. The combination CI builds and tests has a preset:
+Pair `address_sanitizer` with `pool_memalign` so AddressSanitizer can track the Pony runtime's own allocations: `pool_memalign` routes every runtime allocation through `posix_memalign`/`free`, which AddressSanitizer intercepts and surrounds with redzones. The pairing is required, not just recommended — the default arena allocator rejects `address_sanitizer` at compile time (see the runtime allocator section above). The combination CI builds and tests has a preset:
 
 ```bash
 cmake --preset debug-asan
@@ -309,10 +328,10 @@ This functionality boils down to "super LTO" for the runtime. The Pony compiler 
 
 Systematic testing allows for running of Pony programs in a deterministic manner. It accomplishes this by coordinating the interleaving of the multiple runtime scheduler threads in a deterministic and reproducible manner instead of allowing them all to run in parallel like happens normally. This ability to reproduce a particular runtime behavior is invaluable for debugging runtime issues.
 
-Systematic testing is enabled by setting `use=scheduler_scaling_pthreads,systematic_testing` in the configure step like:
+Systematic testing is enabled by setting `use=systematic_testing` in the configure step like:
 
 ```bash
-cmake --preset release -DPONY_USES=scheduler_scaling_pthreads,systematic_testing
+cmake --preset release -DPONY_USES=systematic_testing
 cmake --build --preset release
 ```
 
