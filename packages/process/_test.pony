@@ -1609,18 +1609,28 @@ class \nodoc\ iso _TestManyStartsDoNotLeakFds is UnitTest
     ifdef windows then
       h.complete(true)
     else
-      _FdLeakDriver(h, 1200)
+      let true_path =
+        try
+          _PathResolver(h.env.vars, FileAuth(h.env.root)).resolve("true")?.path
+        else
+          h.fail("could not find 'true' on PATH")
+          h.complete(false)
+          return
+        end
+      _FdLeakDriver(h, 1200, true_path)
     end
     h.long_test(60_000_000_000)
 
 actor \nodoc\ _FdLeakDriver
   let _h: TestHelper
   let _total: USize
+  let _true_path: String
   var _n: USize = 0
 
-  new create(h: TestHelper, total: USize) =>
+  new create(h: TestHelper, total: USize, true_path: String) =>
     _h = h
     _total = total
+    _true_path = true_path
     _start_next()
 
   be _done() =>
@@ -1651,9 +1661,7 @@ actor \nodoc\ _FdLeakDriver
     let process_auth = StartProcessAuth(_h.env.root)
     let backpressure_auth = ApplyReleaseBackpressureAuth(_h.env.root)
     let file_auth = FileAuth(_h.env.root)
-    // /usr/bin/true exists on Linux, the BSDs, and macOS; /bin/true is
-    // Linux-only.
-    let path = FilePath(file_auth, "/usr/bin/true")
+    let path = FilePath(file_auth, _true_path)
     let args: Array[String] val = ["true"]
     let vars: Array[String] val = ["HOME=/"; "PATH=/bin"]
 
