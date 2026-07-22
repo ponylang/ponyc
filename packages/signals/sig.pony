@@ -199,6 +199,13 @@ primitive Sig
       else
         error
       end
+    elseif haiku then
+      // Haiku's SIGRTMIN is 33 and SIGRTMAX is 40
+      if n <= 7 then
+        33 + n.u32()
+      else
+        error
+      end
     else
       compile_error "no SIGRT"
     end
