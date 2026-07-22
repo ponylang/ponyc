@@ -30,6 +30,9 @@ PONY_API int32_t ponyint_pidfd_open(int32_t pid) {
 #ifdef SYS_pidfd_open
   return (int32_t)syscall(SYS_pidfd_open, (pid_t)pid, 0u);
 #else
+  // Build-time headers predate SYS_pidfd_open. Report it as unsupported; pid is
+  // unused on this path.
+  (void)pid;
   errno = ENOSYS;
   return -1;
 #endif
