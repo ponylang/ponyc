@@ -78,7 +78,7 @@ The `signals` package's signal handling system has been replaced, implementing [
 What the new system provides:
 
 - Signal handling is capability-secure: creating a `SignalHandler`, raising a signal, and disposing a handler all require a `SignalAuth` capability, derived from `AmbientAuth`.
-- Signal numbers are validated before they can be registered: `SignalHandler` takes a `HandleableSignal`, and `MakeHandleableSignal` rejects fatal signals like `SIGSEGV`, uncatchable ones like `SIGKILL`, and unknown numbers. `SIGUSR2` is accepted only on `scheduler_scaling_pthreads` builds, where the runtime leaves it free; on other builds the runtime reserves it for its scheduler and `Sig.usr2()` is a compile error. Previously, a `SIGUSR2` handler could be registered on a build where the runtime had reserved it and would silently never fire.
+- Signal numbers are validated before they can be registered: `SignalHandler` takes a `HandleableSignal`, and `MakeHandleableSignal` rejects fatal signals like `SIGSEGV`, uncatchable ones like `SIGKILL`, and unknown numbers.
 - Multiple actors can subscribe to the same signal: up to 16 subscribers per signal number, all notified when the signal fires.
 - Registration failure is reported instead of silent: if the 16-subscriber limit is reached or the operating system refuses the registration, the notify's new `registration_failed` method is called with the reason — `SignalSubscriberLimit` is transient (a slot opens when another subscriber unsubscribes), `SignalRegistrationRefused` is permanent — and the handler is automatically disposed without `apply` ever running.
 - The notify's end-of-life callback is now named `disposed` (previously `dispose`) and fires once the runtime has finished unregistering the handler, not when disposal was requested. If the handler was the signal's last subscriber, the disposition the signal had before it was first handled is already restored when `disposed` runs — the operating system default for most signals, and `SIG_IGN` for one the runtime keeps ignored like `SIGPIPE` — so a program can clean up on `SIGTERM`, dispose the handler, and re-raise the signal from the callback to end the process the way an unhandled `SIGTERM` ends it. A handler disposed while the runtime itself is shutting down may never receive the callback, since the process is already exiting.
@@ -130,3 +130,24 @@ Because `dispose` on the handler now takes a parameter, `SignalHandler` no longe
 
 A notify class that overrides `dispose` must rename it to `disposed`. The old method is no longer part of the `SignalNotify` interface, so an un-renamed override still compiles and is silently never called. `registration_failed` and `disposed` both have default implementations, so classes declaring `is SignalNotify` need no other changes; a class conforming to the interface only structurally must add the methods or declare `is SignalNotify`.
 
+## The runtime no longer reserves SIGUSR2
+
+The runtime used SIGUSR2 to wake sleeping scheduler threads on Linux and the BSDs, so it reserved the signal for its own use: the signals package could not touch it, and `Sig.usr2()` was a compile error on those platforms. The scheduler no longer uses SIGUSR2, so the runtime no longer reserves it. `Sig.usr2()` now returns the signal number on Linux and the BSDs, and a program can subscribe to SIGUSR2 like any other signal. macOS never reserved it, so nothing changes there.
+
+## Replace the runtime allocator
+
+The runtime's pool allocator couldn't return freed memory to the operating system, reuse a large block on a thread that didn't free it, or re-carve memory from one size class for another. A program that passed large blocks between threads reserved fresh address space for every block it freed and grew without bound.
+
+Every platform now uses a new allocator in which every piece of memory has an owning thread, following the design in [discussion #5735](https://github.com/ponylang/ponyc/discussions/5735). Memory comes from the operating system in large shared regions that threads carve into arenas; freed memory is reused across threads and size classes, and an emptied arena's physical memory goes back to the operating system while its address space is kept for reuse.
+
+The previous allocator stays available behind a new build option:
+
+```bash
+cmake --preset release -DPONY_USES=pool_classic
+```
+
+Building with `address_sanitizer`, `valgrind`, or `pooltrack` now requires pairing with `pool_classic` (or `pool_memalign` for AddressSanitizer), since none of the three can observe the new allocator's memory. `pool_retain` stops the classic pool returning memory to the operating system, so it requires `pool_classic` too. The build stops with an error saying so.
+
+## Remove the scheduler_scaling_pthreads build option
+
+The `scheduler_scaling_pthreads` build option selected one of two mechanisms the runtime used to pause and resume idle scheduler threads. The scheduler no longer uses either mechanism, so the option is gone: a build that passes `use=scheduler_scaling_pthreads` now fails. Systematic testing no longer pairs with it — build with `use=systematic_testing` alone.

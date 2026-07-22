@@ -61,10 +61,8 @@ jobs:
             python .ci-scripts/libs-cache/resolve_libs_cache.py --require-cache-hit --skip-on-miss --platform windows-2025-vs2026 --tag $env:LIBS_TAG
           }
       - name: Configure
-        # On Windows systematic testing is enabled on its own, not paired with
-        # scheduler_scaling_pthreads (a pthreads mechanism): Windows scales the
-        # scheduler with native primitives. The output dir is therefore
-        # build\debug-systematic_testing (no scheduler_scaling_pthreads segment).
+        # Systematic testing is enabled on its own. The output dir is
+        # build\debug-systematic_testing.
         if: ${{ hashFiles('.libs-cache-miss') == '' }}
         run: cmake --preset windows-x86-64 -DPONY_USES=systematic_testing
       - name: Build Debug Systematic Runtime

@@ -244,11 +244,16 @@ static bool find_kernel32(vcvars_t* vcvars, errors_t* errors)
   // it on recent SDKs, but not all do — a user reported "undefined symbol:
   // ProcessSocketNotifications" at link time on an SDK whose Ws2_32.lib lacked
   // it. Don't remove mswsock.lib as unused; it is here for that symbol.
+  // onecore.lib is linked for VirtualAlloc2, which the runtime's allocator
+  // (src/libponyrt/mem/alloc.c) calls to reserve address space aligned to its
+  // own size. kernel32.lib does not export it; onecore.lib is the umbrella
+  // Microsoft documents for it, and the SDK has no per-API-set library to
+  // link instead.
   strcpy(vcvars->default_libs,
     "kernel32.lib "
     "msvcrt.lib "
     "Ws2_32.lib mswsock.lib advapi32.lib vcruntime.lib "
-    "legacy_stdio_definitions.lib dbghelp.lib ntdll.lib");
+    "legacy_stdio_definitions.lib dbghelp.lib ntdll.lib onecore.lib");
 
   strcpy(vcvars->kernel32, sdk.path);
   strcat(vcvars->kernel32, "Lib\\");

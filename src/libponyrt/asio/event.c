@@ -28,10 +28,7 @@ PONY_API asio_event_t* pony_asio_event_create(pony_actor_t* owner, int fd,
   // interleaving cannot control. Registering any I/O event is therefore
   // unsupported. Fail loudly rather than silently dropping the event, so a
   // program that expects I/O to work under systematic testing is told plainly
-  // that it cannot. This abort is also load-bearing for the scheduler: because
-  // no ASIO event can ever be registered, scheduler 0 never suspends, which
-  // keeps active_scheduler_count >= 1 -- the round-robin divisor in
-  // systematic_testing.c.
+  // that it cannot.
   (void)fd;
   (void)nsec;
   (void)noisy;
@@ -180,6 +177,6 @@ PONY_API void pony_asio_event_send(asio_event_t* ev, uint32_t flags,
   // an unscheduled actor onto the global inject queue for any actor to pick up.
   ponyint_sendv_inject(ev->owner, &m->msg);
 
-  // maybe wake up a scheduler thread if they've all fallen asleep
-  ponyint_sched_maybe_wakeup_if_all_asleep(pony_scheduler_index());
+  // maybe activate a scheduler thread if they've all gone passive
+  ponyint_sched_activate_if_all_passive(pony_scheduler_index());
 }

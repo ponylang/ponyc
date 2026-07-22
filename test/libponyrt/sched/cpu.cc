@@ -80,3 +80,28 @@ TEST(CpuTickDiffTest, PublicDiffMatchesPlainDifference)
   ASSERT_EQ(UINT64_C(0), ponyint_cpu_tick_diff(500, 500));
   ASSERT_EQ(UINT64_C(150), ponyint_cpu_tick_diff(100, 250));
 }
+
+// The sleep contract is a floor: at least the requested time passes.
+// Platform granularity can stretch the pause far past the request, so no
+// upper bound is asserted (Windows sleep granularity is ~15ms).
+TEST(CpuSleepTest, SleepsAtLeastTheRequest)
+{
+  uint64_t before = ponyint_cpu_tick();
+  ponyint_cpu_sleep_ns(20 * 1000 * 1000);
+  uint64_t after = ponyint_cpu_tick();
+
+  // ponyint_cpu_tick's unit is the platform's, so the floor for 15ms of it
+  // is too. On x86 the tick is a cycle counter, at least 15M cycles in 15ms
+  // even at 1GHz; on the nanosecond platforms (Apple and generic ARM) it is
+  // 15M ns exactly. On arm64 Windows it is QueryPerformanceCounter, whose
+  // frequency varies by machine, so 15ms is that frequency times 15/1000.
+#if defined(PLATFORM_IS_ARM) && defined(PLATFORM_IS_WINDOWS)
+  LARGE_INTEGER freq;
+  QueryPerformanceFrequency(&freq);
+  uint64_t floor_ticks = ((uint64_t)freq.QuadPart * 15) / 1000;
+#else
+  uint64_t floor_ticks = UINT64_C(15000000);
+#endif
+
+  ASSERT_GE(ponyint_cpu_tick_diff(before, after), floor_ticks);
+}

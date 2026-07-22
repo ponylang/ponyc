@@ -237,12 +237,6 @@ static ponyc_opt_process_t special_opt_processing(pass_opt_t *opt)
   #endif
 #endif
 
-#if defined(USE_SCHEDULER_SCALING_PTHREADS)
-  // Defined "scheduler_scaling_pthreads" so that SIGUSR2 is made available for
-  // use by the signals package when not using signals for scheduler scaling
-  define_userflag(opt->user_flags, "scheduler_scaling_pthreads");
-#endif
-
 #ifndef NDEBUG
   // llvm-args might not be used, initialized with NULL pointer first
   opt->llvm_args = NULL;
