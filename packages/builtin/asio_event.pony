@@ -55,6 +55,24 @@ primitive AsioEvent
 
   fun signal(): U32 => 1 << 3
 
+  fun proc(): U32 =>
+    """
+    Subscribe for a process-exit event, which fires when the child exits. On
+    kqueue platforms the event's fd is the child's pid; on Windows its `nsec`
+    carries the child's process handle and its fd is unused. Must match
+    `ASIO_PROC` in the runtime's `asio.h`.
+    """
+    1 << 5
+
+  fun pipe(): U32 =>
+    """
+    Mark an event as a pipe that the Windows readiness backend peeks. A Windows
+    pipe has no readiness signal, so the backend peeks it and delivers
+    `ASIO_READ`/`ASIO_WRITE`. Combine with one direction flag (`read` or
+    `write`). Must match `ASIO_PIPE` in the runtime's `asio.h`.
+    """
+    1 << 6
+
   fun read_write(): U32 => read() or write()
 
   fun oneshot(): U32 => 1 << 8

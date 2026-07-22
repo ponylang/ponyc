@@ -16,6 +16,7 @@
 #include <signal.h>
 #include <stdbool.h>
 #include <winsock2.h>
+#include <io.h>
 
 // The Windows asio backend uses readiness notifications via
 // `ProcessSocketNotifications` (PSN), the documented Winsock socket-state
@@ -97,6 +98,7 @@ typedef struct signal_subscribers_t {
 #define KEY_WAKEUP ((ULONG_PTR)1)  // request queue has work / stop requested
 #define KEY_STDIN  ((ULONG_PTR)2)  // stdin readiness (epoch in bytes)
 #define KEY_SIGNAL ((ULONG_PTR)3)  // a CRT signal fired (sig number in bytes)
+#define KEY_PROC   ((ULONG_PTR)4)  // a child exited; its event is in lpOverlapped
 
 // How long the wait on the port runs before a pipe on stdin is peeked again. It
 // is how late a byte on a pipe can be, and how often this thread wakes while a
@@ -114,6 +116,18 @@ struct asio_backend_t
   // KEY_STDIN packet carries the epoch it was posted in, so the loop drops a
   // packet from an old epoch. Atomic: a pool-thread console callback reads it.
   PONY_ATOMIC(uint32_t) stdin_epoch;
+
+  // The events this backend owns between subscribe and unsubscribe, linked
+  // through ev->next: process-exit events (ASIO_PROC) and peeked pipe events
+  // (ASIO_PIPE). The dispatch loop peeks the pipe events every pass and matches
+  // a KEY_PROC packet against this list before it touches the event. Only the
+  // asio thread reads or writes the list, so it needs no lock.
+  asio_event_t* managed;
+
+  // How many of the managed events are pipe events. While any pipe is listed
+  // the port wait takes the peek timeout, because a pipe carries no readiness
+  // signal to wake the port.
+  size_t pipe_count;
 };
 
 
@@ -124,7 +138,11 @@ enum // Event requests
   ASIO_SET_TIMER = 7,
   ASIO_CANCEL_TIMER = 8,
   ASIO_CANCEL_SIGNAL = 10,
-  ASIO_STDIN_UNSUBSCRIBE = 11
+  ASIO_STDIN_UNSUBSCRIBE = 11,
+  ASIO_PROC_SUBSCRIBE = 12,
+  ASIO_PROC_UNSUBSCRIBE = 13,
+  ASIO_PIPE_SUBSCRIBE = 14,
+  ASIO_PIPE_UNSUBSCRIBE = 15
 };
 
 
@@ -258,6 +276,89 @@ static void disarm_stdin(HANDLE* stdin_wait)
 }
 
 
+// The managed list holds the process-exit and pipe events between subscribe and
+// unsubscribe. All three helpers run only on the asio thread.
+
+static void managed_add(asio_backend_t* b, asio_event_t* ev)
+{
+  ev->next = b->managed;
+  b->managed = ev;
+
+  if(ev->flags & ASIO_PIPE)
+    b->pipe_count++;
+}
+
+// Remove ev from the list. Returns true if it was there. A second unsubscribe
+// for the same event finds it gone, so the wait is unregistered, the handle
+// closed, and the event disposed at most once.
+static bool managed_remove(asio_backend_t* b, asio_event_t* ev)
+{
+  asio_event_t** link = &b->managed;
+
+  while(*link != NULL)
+  {
+    if(*link == ev)
+    {
+      *link = ev->next;
+      ev->next = NULL;
+
+      if(ev->flags & ASIO_PIPE)
+        b->pipe_count--;
+
+      return true;
+    }
+
+    link = &(*link)->next;
+  }
+
+  return false;
+}
+
+// Is ev still a managed event? A KEY_PROC packet can name an event that was
+// unsubscribed and freed after the wait fired, so this compares pointers only
+// and never dereferences ev -- safe to call on a freed pointer.
+static bool managed_contains(asio_backend_t* b, asio_event_t* ev)
+{
+  for(asio_event_t* p = b->managed; p != NULL; p = p->next)
+  {
+    if(p == ev)
+      return true;
+  }
+
+  return false;
+}
+
+
+// Thread-pool callback for a process-exit wait. Like stdin_notify_cb it only
+// posts to the port, touching no event state, so the asio thread stays the only
+// thread that sends events. The exited event rides in lpOverlapped; the dispatch
+// loop matches it against the managed list before it touches the event.
+static void CALLBACK proc_notify_cb(void* arg, BOOLEAN timed_out)
+{
+  (void)timed_out;
+  asio_backend_t* b = ponyint_asio_get_backend();
+
+  if(b != NULL)
+    PostQueuedCompletionStatus(b->port, 0, KEY_PROC, (LPOVERLAPPED)arg);
+}
+
+
+// A pipe carries no readiness signal, so it is peeked. A peek that fails means
+// the pipe has ended, which a read returns as zero bytes; avail > 0 means there
+// is data. Either case means read this pipe now. Mirrors ponyint_stdin_pipe_ready
+// for an actor-owned pipe fd.
+static bool pipe_read_ready(asio_event_t* ev)
+{
+  HANDLE h = (HANDLE)_get_osfhandle(ev->fd);
+  DWORD avail = 0;
+
+  if(!PeekNamedPipe(h, NULL, 0, NULL, &avail, NULL))
+    return true;
+
+  return avail > 0;
+}
+
+
 asio_backend_t* ponyint_asio_backend_init()
 {
   asio_backend_t* b = POOL_ALLOC(asio_backend_t);
@@ -375,7 +476,8 @@ DECLARE_THREAD_FN(ponyint_asio_backend_dispatch)
     // waits on the port with no timeout.
     DWORD wait_ms = INFINITE;
 
-    if((stdin_event != NULL) && (stdin_kind == STDIN_PIPE) && !stdin_reading)
+    if(((stdin_event != NULL) && (stdin_kind == STDIN_PIPE) && !stdin_reading)
+      || (b->pipe_count > 0))
       wait_ms = STDIN_POLL_MS;
 
     ULONG count = 0;
@@ -455,6 +557,26 @@ DECLARE_THREAD_FN(ponyint_asio_backend_dispatch)
           stdin_reading = true;
           pony_asio_event_send(stdin_event, ASIO_READ, 0);
         }
+
+        continue;
+      }
+      else if(key == KEY_PROC)
+      {
+        // A child exited. Its event rides in lpOverlapped. It may have been
+        // unsubscribed and freed between the wait firing and now, so match it
+        // against the managed list -- a pointer compare that never dereferences
+        // it -- and drop the packet if it is gone. Membership implies the event
+        // is still subscribed and not yet freed, because a managed event is
+        // removed from the list before it is disposed, so the send below never
+        // touches freed memory. The barrier and FIFO ordering (see
+        // ASIO_PROC_UNSUBSCRIBE) make it unlikely that a stale packet even
+        // reaches a reused address; what makes a matched stale packet harmless is
+        // idempotent handling -- a proc event re-runs its gated reap probe, a
+        // pipe event does one more non-blocking read.
+        asio_event_t* ev = (asio_event_t*)entries[i].lpOverlapped;
+
+        if(managed_contains(b, ev))
+          pony_asio_event_send(ev, ASIO_READ, 0);
 
         continue;
       }
@@ -591,6 +713,72 @@ DECLARE_THREAD_FN(ponyint_asio_backend_dispatch)
 
           ev->flags = ASIO_DISPOSABLE;
           pony_asio_event_send(ev, ASIO_DISPOSABLE, 0);
+          break;
+
+        case ASIO_PROC_SUBSCRIBE:
+        {
+          // Register a one-shot wait on the child's process handle (carried in
+          // ev->nsec). Add ev to the list first, so an unsubscribe that arrives
+          // with or before this subscribe still finds it and closes the handle.
+          managed_add(b, ev);
+
+          if(!RegisterWaitForSingleObject(&ev->proc_wait, (HANDLE)ev->nsec,
+            proc_notify_cb, ev, INFINITE, WT_EXECUTEONLYONCE))
+          {
+            // Could not register. Leave ev on the list so the matching
+            // unsubscribe still closes the handle, and report the failure so the
+            // owner tears down. Mirrors arm_stdin's failure path.
+            ev->proc_wait = NULL;
+            pony_asio_event_send(ev, ASIO_ERROR, 0);
+          }
+          break;
+        }
+
+        case ASIO_PROC_UNSUBSCRIBE:
+        {
+          // At-most-once: a second unsubscribe finds ev already gone.
+          if(!managed_remove(b, ev))
+            break;
+
+          // UnregisterWaitEx with INVALID_HANDLE_VALUE blocks until any running
+          // callback has finished and lets no further callback start. Once it
+          // returns, no callback will run again -- so the handle is safe to
+          // close below -- and any KEY_PROC the callback will ever post is
+          // already on the port. That ordering makes a stale KEY_PROC reaching a
+          // reused address unlikely; a match that does happen is caught at the
+          // KEY_PROC handler by the membership check and the idempotent send. The
+          // callback only posts to the port, so this cannot deadlock the asio
+          // thread.
+          if(ev->proc_wait != NULL)
+          {
+            UnregisterWaitEx(ev->proc_wait, INVALID_HANDLE_VALUE);
+            ev->proc_wait = NULL;
+          }
+
+          // The exit event owns the process handle's close (see
+          // ponyint_win_process_wait and the process package's exit-source
+          // teardown): close it once, now that no wait is registered on it.
+          CloseHandle((HANDLE)ev->nsec);
+
+          ev->flags = ASIO_DISPOSABLE;
+          pony_asio_event_send(ev, ASIO_DISPOSABLE, 0);
+          break;
+        }
+
+        case ASIO_PIPE_SUBSCRIBE:
+          managed_add(b, ev);
+          break;
+
+        case ASIO_PIPE_UNSUBSCRIBE:
+          // At-most-once. The backend owns the pipe fd's close: the peek reads
+          // ev->fd, so closing it on the owner thread could race a peek. Remove
+          // ev from the list first, so no further peek runs, then close.
+          if(managed_remove(b, ev))
+          {
+            _close(ev->fd);
+            ev->flags = ASIO_DISPOSABLE;
+            pony_asio_event_send(ev, ASIO_DISPOSABLE, 0);
+          }
           break;
 
         case ASIO_STDIN_RESUME:
@@ -747,6 +935,28 @@ DECLARE_THREAD_FN(ponyint_asio_backend_dispatch)
       stdin_reading = true;
       pony_asio_event_send(stdin_event, ASIO_READ, 0);
     }
+
+    // Peek the pipe events. A read pipe with data, or one that has ended, gets
+    // an ASIO_READ; a write pipe gets an ASIO_WRITE retry tick, since a Windows
+    // pipe carries no writeable signal either. The subscriber drains each read
+    // to EAGAIN, so a re-sent ASIO_READ before it drains is an idempotent no-op
+    // -- no per-pipe reading gate is needed, unlike stdin's read-once model.
+    // pony_asio_event_send does not touch the list, so iterating it is safe.
+    for(asio_event_t* ev = b->managed; ev != NULL; ev = ev->next)
+    {
+      if((ev->flags & ASIO_PIPE) == 0)
+        continue;
+
+      if(ev->flags & ASIO_READ)
+      {
+        if(pipe_read_ready(ev))
+          pony_asio_event_send(ev, ASIO_READ, 0);
+      }
+      else if(ev->flags & ASIO_WRITE)
+      {
+        pony_asio_event_send(ev, ASIO_WRITE, 0);
+      }
+    }
   }
 
   disarm_stdin(&stdin_wait);
@@ -761,6 +971,10 @@ DECLARE_THREAD_FN(ponyint_asio_backend_dispatch)
       memory_order_acquire) == 1)
       signal(i, b->sighandlers[i].saved_action);
   }
+
+  // The managed list needs no teardown sweep here: every managed event
+  // (process-exit and pipe) is noisy, and the runtime does not stop the asio
+  // backend while any noisy event is subscribed, so the list is already empty.
 
   CloseHandle(b->port);
   ponyint_messageq_destroy(&b->q, true);
@@ -900,6 +1114,14 @@ PONY_API void pony_asio_event_subscribe(asio_event_t* ev)
       atomic_store_explicit(&subs->subscribers[slot], NULL,
         memory_order_release);
     }
+  } else if((ev->flags & ASIO_PROC) != 0) {
+    // A process-exit event. Register the wait on the asio thread so the managed
+    // list stays single-threaded. Checked before the fd == 0 branch: a proc
+    // event carries fd == 0, and ASIO_PROC is what tells it from stdin.
+    send_request(ev, ASIO_PROC_SUBSCRIBE);
+  } else if((ev->flags & ASIO_PIPE) != 0) {
+    // A peeked pipe event.
+    send_request(ev, ASIO_PIPE_SUBSCRIBE);
   } else if(ev->fd == 0) {
     // Subscribe to stdin.
     send_request(ev, ASIO_STDIN_NOTIFY);
@@ -1011,6 +1233,10 @@ PONY_API void pony_asio_event_unsubscribe(asio_event_t* ev)
       ev->flags = ASIO_DISPOSABLE;
       pony_asio_event_send(ev, ASIO_DISPOSABLE, 0);
     }
+  } else if((ev->flags & ASIO_PROC) != 0) {
+    send_request(ev, ASIO_PROC_UNSUBSCRIBE);
+  } else if((ev->flags & ASIO_PIPE) != 0) {
+    send_request(ev, ASIO_PIPE_UNSUBSCRIBE);
   } else if(ev->fd == 0) {
     // Unsubscribe from stdin. Route disposal through the request queue, like
     // the timer and signal cancels above (and like epoll and kqueue). The asio

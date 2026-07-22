@@ -59,6 +59,8 @@ PONY_API asio_event_t* pony_asio_event_create(pony_actor_t* owner, int fd,
 #ifdef PLATFORM_IS_WINDOWS
   ev->timer = NULL;
   ev->removing = false;
+  ev->proc_wait = NULL;
+  ev->next = NULL;
 #endif
 
   owner->live_asio_events = owner->live_asio_events + 1;

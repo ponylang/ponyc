@@ -134,3 +134,39 @@ A notify class that overrides `dispose` must rename it to `disposed`. The old me
 
 32-bit ARM Linux is no longer tested in CI. It is now a best-effort target: we build and test it periodically on real hardware rather than continuously in CI. Pony still builds and runs on 32-bit ARM and we don't intend to break it, but a change can break the 32-bit build between those checks without CI catching it.
 
+## Report a process's exit even when its pipes stay open
+
+`ProcessMonitor` reported a child's exit status only once the child's stdout and stderr had both reached end-of-file. A pipe reaches end-of-file only when every process holding its write end has closed it, so a child that left a grandchild holding its stdout or stderr open, or that exited while you still held its stdin open, was reported late or never, and the program could hang. The exit is now detected directly, from the operating system, and reported promptly regardless of what still holds the pipes.
+
+## ProcessMonitor.dispose no longer risks signaling an unrelated process
+
+Disposing a `ProcessMonitor` after its child had already exited could send a signal to whatever process the operating system had since assigned the child's old process id. It no longer signals a child that has been reaped.
+
+## ProcessMonitor no longer leaks file descriptors when a process fails to start
+
+A process that failed to start left the pipes that had been opened for it open. They are now closed.
+
+## Starting a process returns a result
+
+Starting a process now returns either a `ProcessMonitor` or a `ProcessError`, instead of always giving you a monitor. Replace the constructor with `StartProcess`:
+
+Before:
+
+```pony
+let pm = ProcessMonitor(sp_auth, bp_auth, consume notifier, path, args, vars)
+```
+
+After:
+
+```pony
+match StartProcess(sp_auth, bp_auth, consume notifier, path, args, vars)
+| let pm: ProcessMonitor => // a live child is running
+| let err: ProcessError  => // never started; err says why
+end
+```
+
+Failures that used to arrive through `ProcessNotify.failed` — no execute permission, a missing executable, and, on Linux, a kernel older than 5.3 — are now returned by `StartProcess` instead. The `ExecveError` that meant both "the file is missing" and "execve failed in the child" is split; the missing-file case is now `ExecutableNotFound`.
+
+## ProcessMonitor requires Linux 5.3 or newer
+
+On Linux, detecting a child's exit now uses `pidfd_open`, which requires kernel 5.3 or newer. On an older kernel, `StartProcess` returns an `UnsupportedKernel` error rather than starting a process it cannot monitor.
