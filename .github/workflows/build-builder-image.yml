@@ -11,8 +11,6 @@ on:
           - alpine3.23-builder
           - alpine3.24-builder
           - arm64-unknown-linux-ubuntu24.04-builder
-          - cross-arm
-          - cross-armhf
           - cross-riscv64
           - ubuntu26.04-builder
           - x86-64-unknown-linux-fedora44-builder
@@ -93,54 +91,6 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
       - name: Build and push
         run: bash .ci-dockerfiles/arm64-unknown-linux-ubuntu24.04-builder/build-and-push.bash
-
-  cross-arm:
-    if: ${{ github.event.inputs.builder-name == 'cross-arm' }}
-    runs-on: ubuntu-latest
-
-    name: cross-arm
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v6.0.2
-      - name: Set up Docker Buildx
-        # v3.10.0
-        uses: docker/setup-buildx-action@v4
-        with:
-          version: v0.23.0
-          cache-binary: false
-      - name: Login to GitHub Container Registry
-        # v2.2.0
-        uses: docker/login-action@v4
-        with:
-          registry: ghcr.io
-          username: ${{ github.repository_owner }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Build and push
-        run: bash .ci-dockerfiles/cross-arm/build-and-push.bash
-
-  cross-armhf:
-    if: ${{ github.event.inputs.builder-name == 'cross-armhf' }}
-    runs-on: ubuntu-latest
-
-    name: cross-armhf
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v6.0.2
-      - name: Set up Docker Buildx
-        # v3.10.0
-        uses: docker/setup-buildx-action@v4
-        with:
-          version: v0.23.0
-          cache-binary: false
-      - name: Login to GitHub Container Registry
-        # v2.2.0
-        uses: docker/login-action@v4
-        with:
-          registry: ghcr.io
-          username: ${{ github.repository_owner }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Build and push
-        run: bash .ci-dockerfiles/cross-armhf/build-and-push.bash
 
   cross-riscv64:
     if: ${{ github.event.inputs.builder-name == 'cross-riscv64' }}
