@@ -3,13 +3,16 @@
 # invoked from .github/workflows/ponyc-tier3.yml. POSIX sh, not bash: FreeBSD's
 # base system has no bash. Expects to run from the ponyc source root.
 #
-# use=valgrind annotates the Pony runtime so Valgrind can understand its custom
-# allocator. FreeBSD ships a modern Valgrind port, so this is the one BSD where
-# running a Pony program under Valgrind actually works — unlike DragonFly, whose
-# Valgrind 3.15 is too old and hangs on the runtime's memory arena
-# (https://github.com/ponylang/ponyc/issues/5435). This smoke guards two things:
-#   1. use=valgrind still builds — `cmake --build` compiles the annotated runtime
-#      into ponyc; a build that can't compile or link is caught here.
+# use=valgrind annotates the classic pool so Valgrind can understand its
+# custom allocation; the arena allocator (the default) carries no
+# annotations and rejects the combination, so the smoke builds
+# pool_classic,valgrind. FreeBSD ships a modern Valgrind port, so this is the
+# one BSD where running a Pony program under Valgrind actually works — unlike
+# DragonFly, whose Valgrind 3.15 is too old and hangs on the runtime's memory
+# arena (https://github.com/ponylang/ponyc/issues/5435). This smoke guards two
+# things:
+#   1. the combination still builds — `cmake --build` compiles the annotated
+#      runtime into ponyc; a build that can't compile or link is caught here.
 #   2. a Pony program compiled with it runs to completion *under Valgrind*
 #      without hanging — the DragonFly failure mode.
 # It deliberately does NOT assert that Memcheck comes back clean: Pony's custom
@@ -26,16 +29,16 @@ set -eu
 # leave their own). This script is self-contained: it rebuilds from scratch, so
 # it can run as its own CI step regardless of what came before.
 rm -rf build/build_debug
-cmake --preset debug -DPONY_USES=valgrind
+cmake --preset debug -DPONY_USES=pool_classic,valgrind
 # The `cmake --build` below is itself the first assertion: it compiles ponyc with
 # the Valgrind-annotated runtime. A use=valgrind build that can't compile or
 # link fails here, at build time.
 cmake --build --preset debug
 
-# use=valgrind sets PONY_OUTPUT_SUFFIX to -valgrind, so the build output lands in
-# build/debug-valgrind. Derive it rather than hardcoding (the suffix is
-# CMake-determined and could grow more segments in a combined build).
-out=$(find build -maxdepth 1 -type d -name 'debug-valgrind' | head -1)
+# The use options set PONY_OUTPUT_SUFFIX, so the build output lands in
+# build/debug-valgrind-pool_classic. Derive it rather than hardcoding (the
+# suffix order is CMake-determined and could grow more segments).
+out=$(find build -maxdepth 1 -type d -name 'debug-valgrind*' | head -1)
 if [ -z "$out" ] || [ ! -x "$out/ponyc" ]; then
   echo "FAIL: valgrind build output directory not found"
   exit 1

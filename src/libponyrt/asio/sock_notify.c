@@ -378,6 +378,11 @@ DECLARE_THREAD_FN(ponyint_asio_backend_dispatch)
     if((stdin_event != NULL) && (stdin_kind == STDIN_PIPE) && !stdin_reading)
       wait_ms = STDIN_POLL_MS;
 
+    // Deliver pending frees to their owners before blocking; this
+    // thread registers no scheduler, so its own mail waits for the
+    // drain below on its next wake.
+    ponyint_pool_suspend_flush();
+
     ULONG count = 0;
     BOOL ok = GetQueuedCompletionStatusEx(b->port, entries, MAX_EVENTS, &count,
       wait_ms, TRUE);
@@ -388,6 +393,11 @@ DECLARE_THREAD_FN(ponyint_asio_backend_dispatch)
       count = 0;
       ok = TRUE;
     }
+
+    // This thread is running again: reclaim what arrived. Drain after the
+    // last-error check above, never before it: draining calls into the OS,
+    // which overwrites the thread's last error.
+    ponyint_pool_drain();
 
     if(!ok)
     {

@@ -142,11 +142,6 @@ if(PONY_USE_RUNTIMESTATS)
     add_compile_options(-DUSE_RUNTIMESTATS)
 endif()
 
-if(PONY_USE_SCHEDULER_SCALING_PTHREADS)
-    set(PONY_OUTPUT_SUFFIX "${PONY_OUTPUT_SUFFIX}-scheduler_scaling_pthreads")
-    add_compile_options(-DUSE_SCHEDULER_SCALING_PTHREADS)
-endif()
-
 if(PONY_USE_SYSTEMATIC_TESTING)
     set(PONY_OUTPUT_SUFFIX "${PONY_OUTPUT_SUFFIX}-systematic_testing")
     add_compile_options(-DUSE_SYSTEMATIC_TESTING)
@@ -160,6 +155,11 @@ endif()
 if(PONY_USE_POOL_MEMALIGN)
     set(PONY_OUTPUT_SUFFIX "${PONY_OUTPUT_SUFFIX}-pool_memalign")
     add_compile_options(-DUSE_POOL_MEMALIGN)
+endif()
+
+if(PONY_USE_POOL_CLASSIC)
+    set(PONY_OUTPUT_SUFFIX "${PONY_OUTPUT_SUFFIX}-pool_classic")
+    add_compile_options(-DUSE_POOL_CLASSIC)
 endif()
 
 if(PONY_USE_POOL_RETAIN)
@@ -617,7 +617,6 @@ else()
 endif()
 
 if(${CMAKE_HOST_SYSTEM_NAME} MATCHES "Darwin")
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DUSE_SCHEDULER_SCALING_PTHREADS")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -stdlib=libc++")
 endif()
 

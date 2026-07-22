@@ -138,11 +138,11 @@ serialized mode can't.
 Needs a **debug + systematic** ponyc:
 
 ```bash
-cmake --preset debug -DPONY_USES=scheduler_scaling_pthreads,systematic_testing
+cmake --preset debug -DPONY_USES=systematic_testing
 cmake --build --preset debug
 python3 test/rt-stress/generative/orchestrate_systematic.py \
-  --ponyc build/debug-scheduler_scaling_pthreads-systematic_testing/ponyc \
-  --use-flags scheduler_scaling_pthreads,systematic_testing \
+  --ponyc build/debug-systematic_testing/ponyc \
+  --use-flags systematic_testing \
   --count 50 --out ~/tmp/rt-stress-out
 ```
 

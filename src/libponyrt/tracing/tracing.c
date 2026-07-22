@@ -33,10 +33,8 @@
 #if !defined(PLATFORM_IS_WINDOWS)
 #if defined(PLATFORM_IS_BSD) || defined(PLATFORM_IS_MACOSX)
 #define PONY_TRACING_PAUSE_THREAD_SIGNAL SIGINFO
-#define PONY_TRACING_SLEEP_WAKE_SIGNAL SIGUSR2
 #else
 #define PONY_TRACING_PAUSE_THREAD_SIGNAL SIGRTMIN
-#define PONY_TRACING_SLEEP_WAKE_SIGNAL SIGUSR2
 #endif
 #endif
 
@@ -616,11 +614,8 @@ typedef struct tracing_scheduler_t
 } tracing_scheduler_t;
 
 
-static PONY_ATOMIC(bool) tracing_suspend_changing;
 static PONY_ATOMIC(bool) handling_flight_recorder_dump;
 static PONY_ATOMIC(bool) flight_recorder_dump_completed;
-static PONY_ATOMIC(bool) tracing_thread_suspended;
-static PONY_ATOMIC(bool) tracing_thread_suspended_check;
 #if defined(PLATFORM_IS_WINDOWS)
 static PONY_ATOMIC(bool) fr_handlers_installed;
 static PVOID fr_veh_handle;
@@ -757,9 +752,6 @@ static void flight_recorder_dump_signal_handler(int sig, siginfo_t* siginfo, voi
       #endif
           );
 
-    // wake the tracing thread to handle the flight recorder dump
-    pthread_kill(tracing_thread.tid, PONY_TRACING_SLEEP_WAKE_SIGNAL);
-
     uint8_t sleep_counter = 0;
 
     while(!atomic_load_explicit(&flight_recorder_dump_completed, memory_order_relaxed)
@@ -771,9 +763,8 @@ static void flight_recorder_dump_signal_handler(int sig, siginfo_t* siginfo, voi
       sleep(1);
       sleep_counter++;
 
-      // wake the tracing thread to handle the flight recorder dump if necessary
-      if(atomic_load_explicit(&tracing_thread_suspended, memory_order_relaxed))
-        pthread_kill(tracing_thread.tid, PONY_TRACING_SLEEP_WAKE_SIGNAL);
+      // The tracing thread finds the dump message at its next tick,
+      // at most half a second in; the 15 second budget dwarfs it.
     }
 
     if(sleep_counter >= 15)
@@ -894,8 +885,6 @@ static void windows_flight_recorder_dump(int signal_number, const char* signal_n
       #endif
           );
 
-    // wake the tracing thread to handle the flight recorder dump
-    ponyint_thread_wake(tracing_thread.tid, tracing_thread.sleep_object);
 
     uint8_t sleep_counter = 0;
 
@@ -908,9 +897,8 @@ static void windows_flight_recorder_dump(int signal_number, const char* signal_n
       Sleep(1000);
       sleep_counter++;
 
-      // wake the tracing thread to handle the flight recorder dump if necessary
-      if(atomic_load_explicit(&tracing_thread_suspended, memory_order_relaxed))
-        ponyint_thread_wake(tracing_thread.tid, tracing_thread.sleep_object);
+      // The tracing thread finds the dump message at its next tick,
+      // at most half a second in; the 15 second budget dwarfs it.
     }
 
     if(sleep_counter >= 15)
@@ -1061,113 +1049,29 @@ static const char* windows_format_frame(HANDLE process, void* addr, char* out,
 
 #endif // PLATFORM_IS_WINDOWS
 
-static void wake_suspended_tracing_thread()
+/// How long the tracing thread pauses between queue services when
+/// idle: starts fast, doubles per empty pass toward the cap. The
+/// pause is the only wait there is — nothing wakes this thread; mail
+/// is read at the next service.
+#define TRACING_TICK_MIN_NS UINT64_C(10000000)
+#define TRACING_TICK_MAX_NS UINT64_C(500000000)
+
+static uint64_t tracing_tick_ns = TRACING_TICK_MIN_NS;
+
+static void tracing_thread_pause()
 {
-  while(atomic_load_explicit(&tracing_thread_suspended_check, memory_order_relaxed))
-  {
-    // get the bool that controls modifying the active scheduler count variable
-    // if using signals
-    if(!atomic_load_explicit(&tracing_suspend_changing, memory_order_relaxed)
-      && !atomic_exchange_explicit(&tracing_suspend_changing, true,
-      memory_order_acquire))
-    {
-      atomic_store_explicit(&tracing_thread_suspended, false, memory_order_relaxed);
+  // This thread frees other threads' trace messages continuously;
+  // deliver the pending chains before pausing so their owners can
+  // reclaim. Mail for this thread waits for the drain below.
+  ponyint_pool_suspend_flush();
 
-      // unlock the bool that controls modifying the tracing suspend boolean
-      // variable if using signals.
-      atomic_store_explicit(&tracing_suspend_changing, false,
-        memory_order_release);
-    }
+  ponyint_cpu_sleep_ns(tracing_tick_ns);
 
-#if defined(PLATFORM_IS_WINDOWS)
-    ponyint_thread_wake(tracing_thread.tid, tracing_thread.sleep_object);
-#else
-    pthread_kill(tracing_thread.tid, PONY_TRACING_SLEEP_WAKE_SIGNAL);
-#endif
+  if(tracing_tick_ns < TRACING_TICK_MAX_NS)
+    tracing_tick_ns *= 2;
 
-    // wait for the sleeping thread to wake and update check variable
-    while(atomic_load_explicit(&tracing_thread_suspended_check, memory_order_relaxed))
-    {
-      // send wakeups to the tracing thread that should be awake
-      // this is somewhat wasteful if the tracing thread is already awake
-      // but is necessary in case the signal to wake the thread was missed
-      // NOTE: this intentionally allows for the case where the tracing
-      // thread might miss the signal and not wake up. That is handled
-      // by a combination of the check variable and this while loop
-#if defined(PLATFORM_IS_WINDOWS)
-      ponyint_thread_wake(tracing_thread.tid, tracing_thread.sleep_object);
-#else
-      pthread_kill(tracing_thread.tid, PONY_TRACING_SLEEP_WAKE_SIGNAL);
-#endif
-    }
-  }
-}
-
-static void perhaps_suspend_tracing_thread()
-{
-  // if we're not terminating
-  // and dynamic scheduler scaling is not disabled for shutdown
-  if (
-    // try and get the bool that controls modifying the pinned_actor_scheduler_suspended
-    // variable if using signals
-    (!atomic_load_explicit(&tracing_suspend_changing, memory_order_relaxed)
-      && !atomic_exchange_explicit(&tracing_suspend_changing, true,
-      memory_order_acquire))
-    )
-  {
-    atomic_store_explicit(&tracing_thread_suspended, true, memory_order_relaxed);
-    atomic_store_explicit(&tracing_thread_suspended_check, true, memory_order_relaxed);
-
-    // unlock the bool that controls modifying the tracing_thread_suspended
-    // variable if using signals
-    atomic_store_explicit(&tracing_suspend_changing, false,
-      memory_order_release);
-
-    // suspend and wait to be woken up again
-#if defined(PLATFORM_IS_WINDOWS)
-    // auto-reset Event: a `SetEvent` that arrives before the wait latches, so
-    // (unlike a POSIX signal) a wake cannot be missed and needs no retry
-    ponyint_thread_suspend(tracing_thread.sleep_object);
-#else
-    int sig;
-    sigset_t sigmask;
-    sigemptyset(&sigmask);         /* zero out all bits */
-    sigaddset(&sigmask, PONY_TRACING_SLEEP_WAKE_SIGNAL);   /* unblock desired signal */
-
-    // sleep waiting for signal to wake up again
-    sigwait(&sigmask, &sig);
-#endif
-
-    // When using signals, need to acquire sched count changing variable
-    while (true)
-    {
-      // get the bool that controls modifying the pinned_actor_scheduler_suspended
-      // variable if using signals
-      if(!atomic_load_explicit(&tracing_suspend_changing, memory_order_relaxed)
-        && !atomic_exchange_explicit(&tracing_suspend_changing, true,
-        memory_order_acquire))
-      {
-
-        atomic_store_explicit(&tracing_thread_suspended, false, memory_order_relaxed);
-        atomic_store_explicit(&tracing_thread_suspended_check, false, memory_order_relaxed);
-
-        // unlock the bool that controls modifying the tracing_thread_suspended
-        // variable if using signals
-        atomic_store_explicit(&tracing_suspend_changing, false,
-          memory_order_release);
-
-        // break while loop
-        break;
-      }
-    }
-  } else {
-    // unable to get the lock to suspend so yield for a bit
-#if defined(PLATFORM_IS_WINDOWS)
-    Sleep(0);
-#else
-    sleep(0);
-#endif
-  }
+  // Reclaim anything delivered while paused.
+  ponyint_pool_drain();
 }
 
 static char* get_tracing_category_string(tracing_category_t category)
@@ -1375,11 +1279,8 @@ static void send_trace_message(pony_msg_t* msg)
   #endif
       );
 
-    if(was_empty)
-    {
-      // wake tracing thread if it was sleeping because its queue was empty
-      wake_suspended_tracing_thread();
-    }
+    // No wake: the tracing thread reads its queue at its next tick.
+    (void)was_empty;
   }
 }
 
@@ -3185,22 +3086,20 @@ static DECLARE_THREAD_FN(run_thread)
   (void)arg;
   ponyint_cpu_affinity(tracing_thread.cpu);
 
-#if !defined(PLATFORM_IS_WINDOWS)
-  // Make sure we block signals related to scheduler sleeping/waking
-  // so they queue up to avoid race conditions
-  sigset_t set;
-  sigemptyset(&set);
-  sigaddset(&set, PONY_TRACING_SLEEP_WAKE_SIGNAL);
-  pthread_sigmask(SIG_BLOCK, &set, NULL);
-#endif
-
   while(!atomic_load_explicit(&stop_tracing_thread, memory_order_relaxed))
   {
     handle_queue();
     if(ponyint_messageq_markempty(&tracing_thread.mq))
     {
-      // message queue is empty, suspend until woken up
-      perhaps_suspend_tracing_thread();
+      // Queue is empty: pause for a tick. Everything that used to wake
+      // this thread now just lands in the queue and is read here, at
+      // most one tick later.
+      tracing_thread_pause();
+    }
+    else
+    {
+      // New messages arrived while we worked: back to the fast tick.
+      tracing_tick_ns = TRACING_TICK_MIN_NS;
     }
   }
 
@@ -3341,7 +3240,6 @@ void ponyint_tracing_init(char* format, char* output, char* enabled_categories_p
   // thread will actually run (categories enabled) -- otherwise `ponyint_tracing_stop`
   // returns early before closing it, which would leak the handle.
   if(enabled_categories_bitmask != 0)
-    tracing_thread.sleep_object = CreateEvent(NULL, FALSE, FALSE, NULL);
 #endif
 
   ponyint_messageq_init(&tracing_thread.mq);
@@ -3442,9 +3340,8 @@ void ponyint_tracing_stop()
   if(!enabled_categories_bitmask)
     return;
 
-  // wake tracing thread if it was sleeping because its queue was empty
-  wake_suspended_tracing_thread();
-
+  // The stop flag is read at the next tick; the join waits at most
+  // one backoff-capped pause longer than it used to.
   while(!ponyint_thread_join(tracing_thread.tid))
   { }
 
@@ -3453,11 +3350,6 @@ void ponyint_tracing_stop()
 #if defined(PLATFORM_IS_WINDOWS)
   // the tracing thread's wake event was created in `ponyint_tracing_init` for
   // both modes
-  if(tracing_thread.sleep_object != NULL)
-  {
-    CloseHandle(tracing_thread.sleep_object);
-    tracing_thread.sleep_object = NULL;
-  }
 #endif
 
   // need to free all the flight recorder events for all schedulers

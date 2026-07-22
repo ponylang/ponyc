@@ -8,6 +8,7 @@ add_executable(libponyrt.tests
     ds/hash.cc
     ds/list.cc
     lang/socket.cc
+    mem/alloc.cc
     mem/heap.cc
     mem/pagemap.cc
     mem/pool.cc
