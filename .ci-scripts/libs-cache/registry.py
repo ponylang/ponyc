@@ -46,8 +46,8 @@ ARCHIVE_TYPE = 'application/vnd.ponylang.libs-cache.archive.v1.tar+gzip'
 # A builder image is ghcr.io/ponylang/ponyc-ci-<name>:<YYYYMMDD>. The platform
 # carries everything after the redundant `ponyc-ci-` prefix plus the date tag,
 # so two distinct builder versions land in distinct packages. Not anchored on
-# `-builder`: the cross-compile images (ponyc-ci-cross-arm, -cross-armhf,
-# -cross-riscv64) have no `-builder` suffix.
+# `-builder`: the cross-compile image (ponyc-ci-cross-riscv64) has no
+# `-builder` suffix.
 IMAGE_RE = re.compile(r'^ghcr\.io/ponylang/ponyc-ci-(.+):(\d{8})$')
 
 # Paths (relative to the repo root) that make up the cached artifact. These are

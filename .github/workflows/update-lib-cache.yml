@@ -110,8 +110,6 @@ jobs:
       matrix:
         include:
           - image: ghcr.io/ponylang/ponyc-ci-x86-64-unknown-linux-fedora44-builder:20260614
-          - image: ghcr.io/ponylang/ponyc-ci-cross-arm:20250223
-          - image: ghcr.io/ponylang/ponyc-ci-cross-armhf:20250223
           - image: ghcr.io/ponylang/ponyc-ci-cross-riscv64:20240427
 
     name: ${{ matrix.image }}
