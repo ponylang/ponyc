@@ -60,7 +60,10 @@ jobs:
             directives: pool_memalign
           - image: ghcr.io/ponylang/ponyc-ci-ubuntu26.04-builder:20260425
             debugger: lldb
-            directives: pool_retain
+            directives: pool_classic
+          - image: ghcr.io/ponylang/ponyc-ci-ubuntu26.04-builder:20260425
+            debugger: lldb
+            directives: pool_classic,pool_retain
           - image: ghcr.io/ponylang/ponyc-ci-ubuntu26.04-builder:20260425
             debugger: lldb
             directives: runtimestats
@@ -130,10 +133,8 @@ jobs:
   # the Linux directive checks pass -- the slower Windows runner isn't spent on a
   # directive that's already broken on Linux. That dependency also carries the
   # no-changes gate for free: when there are no changes use_directives is skipped,
-  # which skips this job too, so it needs no check-for-changes `if` of its own. The
-  # matrix has one entry today (runtime_tracing, the only use= option with
-  # Windows-specific runtime code); add rows as more Windows-supported options
-  # become worth checking here.
+  # which skips this job too, so it needs no check-for-changes `if` of its own. Add
+  # rows as more Windows-supported options become worth checking here.
   use_directives_windows:
     needs: use_directives
     runs-on: windows-2025-vs2026
@@ -148,6 +149,10 @@ jobs:
           # runtime_tracing's format specifiers for the runtimestats-gated fields
           # only compile in this combined build, so cover it explicitly.
           - directives: runtime_tracing,runtimestats
+          # Windows defaults to the arena allocator, so this row builds the
+          # classic pool there, as PonyUses.cmake requires for every entry in
+          # its Windows allowlist.
+          - directives: pool_classic
     name: 'use ${{ matrix.directives }} (Windows)'
     steps:
       - name: Checkout

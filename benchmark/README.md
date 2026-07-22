@@ -1,7 +1,12 @@
-Benchmarks for pony runtime
+Benchmarks for the Pony runtime.
 
-Under this directory are benchmarks for the pony runtime that
-use the Google Benchmark Library. Run via `make benchmark` target.
+This directory holds benchmarks for the Pony runtime, built with the Google Benchmark library. Build and run the runtime benchmarks with:
 
-For details Google Benchmark Library readme at: ../lib/gbenchmark/README.md
-Google Benchmark examples can be found at: ../lib/gbenchmark/test/
+```
+cmake --build --preset release --target libponyrt.benchmarks
+build/release/libponyrt.benchmarks
+```
+
+The compiler benchmarks use the `libponyc.benchmarks` target and run the same way. See `libponyrt/mem/README.md` for what the runtime's memory benchmarks measure.
+
+Google Benchmark's own documentation and examples are at https://github.com/google/benchmark.

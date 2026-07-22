@@ -38,6 +38,7 @@ set(_c_src
     mem/heap.c
     mem/pagemap.c
     mem/pool.c
+    mem/pool_arena.c
     mem/pool_memalign.c
     options/options.c
     platform/ponyassert.c
@@ -166,6 +167,11 @@ target_include_directories(libponyrt
 )
 
 if (MSVC)
+    # VirtualAlloc2, which mem/alloc.c calls, is not exported by kernel32.lib.
+    # INTERFACE so every executable linking libponyrt gets it; ponyc links pony
+    # programs with its own list, in src/libponyc/platform/vcvars.c.
+    target_link_libraries(libponyrt INTERFACE onecore)
+
     file(GLOB_RECURSE CFILES "${PROJECT_SOURCE_DIR}/*.c")
     set_source_files_properties(${CFILES} PROPERTIES LANGUAGE CXX)
 

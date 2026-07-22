@@ -27,11 +27,19 @@ All notable changes to the Pony compiler and standard library will be documented
 - Fix spurious 'can't reuse name' errors when a multi-file package has a syntax error ([PR #5147](https://github.com/ponylang/ponyc/pull/5147))
 - Fix runtime crash when sending objects through `iso | val` unions ([PR #5799](https://github.com/ponylang/ponyc/pull/5799))
 
+### Added
+
+- Add the --ponymemoryprofile runtime option ([PR #5768](https://github.com/ponylang/ponyc/pull/5768))
+
 ### Changed
 
 - Correct the signature of `FloatingPoint.ldexp` ([PR #5772](https://github.com/ponylang/ponyc/pull/5772))
 - Replace the signal handling system ([PR #4984](https://github.com/ponylang/ponyc/pull/4984))
 - 32-bit ARM Linux is now a best-effort target ([PR #5795](https://github.com/ponylang/ponyc/pull/5795))
+- Replace the runtime allocator ([PR #5768](https://github.com/ponylang/ponyc/pull/5768))
+- Remove the scheduler_scaling_pthreads build option ([PR #5768](https://github.com/ponylang/ponyc/pull/5768))
+- The runtime no longer reserves SIGUSR2 ([PR #5768](https://github.com/ponylang/ponyc/pull/5768))
+
 
 ## [0.67.0] - 2026-07-11
 

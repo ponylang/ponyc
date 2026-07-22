@@ -39,20 +39,24 @@ set(_pony_known_uses
     coverage
     pooltrack
     dtrace
-    scheduler_scaling_pthreads
     systematic_testing
     runtimestats
     runtimestats_messages
     pool_memalign
+    pool_classic
     pool_retain
     runtime_tracing)
 
-# The subset of the above that compiles on Windows (MSVC), verified by building
-# each on Windows. See the MSVC check below. When you add an option here, add a
-# matching row to the use_directives_windows matrix in ponyc-weekly-checks.yml,
-# or it builds on Windows but is never tested there.
+# The subset of the above that Windows (MSVC) accepts. See the MSVC check
+# below. Accepted is not the same as buildable alone: pool_retain and pooltrack
+# need pool_classic alongside them, on Windows as on every other platform, and
+# pool.h stops the build when either is set without it. When you add an option
+# here, add a matching row to the use_directives_windows matrix in
+# ponyc-weekly-checks.yml -- in a combination that builds -- or it builds on
+# Windows but is never tested there.
 set(_pony_windows_uses
     systematic_testing
+    pool_classic
     pool_retain
     pooltrack
     runtimestats
@@ -79,11 +83,10 @@ list(REMOVE_DUPLICATES _pony_uses)
 
 foreach(_use IN LISTS _pony_uses)
     message(STATUS "Enabling use option: ${_use}")
-    # On Windows (MSVC) only the options in _pony_windows_uses build; the rest
-    # need POSIX or Clang/GCC toolchain features cl.exe doesn't provide, verified
-    # by building each on Windows: pool_memalign needs posix_memalign; the
-    # sanitizers and coverage need -fsanitize=/-fprofile-arcs;
-    # scheduler_scaling_pthreads needs pthreads.
+    # On Windows (MSVC) only the options in _pony_windows_uses are accepted.
+    # Most of the rest need POSIX or Clang/GCC toolchain features cl.exe
+    # doesn't provide: pool_memalign needs posix_memalign; the sanitizers and
+    # coverage need -fsanitize=/-fprofile-arcs.
     # Reject the unsupported ones here rather than let the build fail partway
     # through with a confusing error. Keep BUILD.md's option list in step.
     if(MSVC AND NOT _use IN_LIST _pony_windows_uses)
@@ -139,8 +142,6 @@ foreach(_use IN LISTS _pony_uses)
             message(FATAL_ERROR "No dtrace compatible user application static probe generation tool found")
         endif()
         _pony_set_use(DTRACE ON)
-    elseif(_use STREQUAL "scheduler_scaling_pthreads")
-        _pony_set_use(SCHEDULER_SCALING_PTHREADS ON)
     elseif(_use STREQUAL "systematic_testing")
         _pony_set_use(SYSTEMATIC_TESTING ON)
     elseif(_use STREQUAL "runtimestats")
@@ -149,6 +150,8 @@ foreach(_use IN LISTS _pony_uses)
         _pony_set_use(RUNTIMESTATS_MESSAGES ON)
     elseif(_use STREQUAL "pool_memalign")
         _pony_set_use(POOL_MEMALIGN ON)
+    elseif(_use STREQUAL "pool_classic")
+        _pony_set_use(POOL_CLASSIC ON)
     elseif(_use STREQUAL "pool_retain")
         _pony_set_use(POOL_RETAIN ON)
     elseif(_use STREQUAL "runtime_tracing")
