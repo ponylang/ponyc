@@ -30,12 +30,11 @@ actor \nodoc\ Main is TestList
     test(_TestHandleableSignalRejectsFatal)
     test(_TestHandleableSignalRejectsUncatchable)
     test(_TestHandleableSignalRejectsUnknown)
-    test(_TestHandleableSignalRejectsReserved)
     test(_TestHandleableSignalRTBoundaries)
     test(_TestSignalINT)
-    // SIGUSR2 is a compile error except on scheduler_scaling_pthreads builds
-    // off Windows, where the runtime frees it; register the test only there.
-    ifdef "scheduler_scaling_pthreads" and not windows then
+    // Sig.usr2() is a compile error on Windows (no SIGUSR2); register the
+    // test only where it yields a usable signal number.
+    ifdef not windows then
       test(_TestSignalUSR2)
     end
     test(_TestOSRefusedRegistration)
@@ -193,34 +192,6 @@ class \nodoc\ iso _TestHandleableSignalRejectsUnknown is UnitTest
     | let _: ValidationFailure => None
     end
 
-class \nodoc\ iso _TestHandleableSignalRejectsReserved is UnitTest
-  """
-  Verify that SIGUSR2 is rejected on the builds where the runtime reserves it
-  as its scheduler sleep/wake signal — every build except
-  scheduler_scaling_pthreads (which macOS forces). That reservation is what
-  made the old system's SIGUSR2 handlers silently never fire, and the
-  whitelist now refuses the number so the failure is visible instead. Sig.usr2()
-  is a compile error on these builds, so the number is written out: 12 on
-  Linux, 31 on BSD.
-  """
-  fun name(): String => "signals/HandleableSignal rejects reserved"
-
-  fun apply(h: TestHelper) =>
-    ifdef not "scheduler_scaling_pthreads" then
-      ifdef linux then
-        _assert_invalid(h, 12)
-      elseif bsd then
-        _assert_invalid(h, 31)
-      end
-    end
-
-  fun _assert_invalid(h: TestHelper, sig: U32) =>
-    match MakeHandleableSignal(sig)
-    | let _: HandleableSignal =>
-      h.fail("SIGUSR2 (" + sig.string() + ") should be rejected (reserved)")
-    | let _: ValidationFailure => None
-    end
-
 class \nodoc\ iso _TestHandleableSignalRTBoundaries is UnitTest
   """
   Pin the real-time signal ranges at their boundaries: the first and last
@@ -311,10 +282,9 @@ class \nodoc\ iso _TestSignalUSR2 is UnitTest
 
   fun ref apply(h: TestHelper) =>
     // Gated to match the registration in tests() and the whitelist in
-    // HandleableSignalValidator: the runtime frees SIGUSR2 only on
-    // scheduler_scaling_pthreads builds, and it exists only off Windows, so
-    // that is where Sig.usr2() yields a usable signal number.
-    ifdef "scheduler_scaling_pthreads" and not windows then
+    // HandleableSignalValidator: SIGUSR2 is handleable off Windows, so that is
+    // where Sig.usr2() yields a usable signal number.
+    ifdef not windows then
       let auth = SignalAuth(h.env.root)
       match MakeHandleableSignal(Sig.usr2())
       | let sig: HandleableSignal =>

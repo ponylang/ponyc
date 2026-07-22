@@ -23,15 +23,6 @@ typedef struct scheduler_t scheduler_t;
 // in the `actor_pinning` package
 #define PONY_PINNED_ACTOR_THREAD_INDEX -999
 
-#if !defined(PLATFORM_IS_WINDOWS) && !defined(USE_SCHEDULER_SCALING_PTHREADS)
-// Signal to use for suspending/resuming threads via `sigwait`/`pthread_kill`
-// If you change this, change the `signals` package accordingly. Two gates there
-// mirror this reservation, and both must move together: `Sig.usr2()` in
-// sig.pony, and `HandleableSignalValidator._usr2_handleable` in
-// handleable_signal.pony.
-#define PONY_SCHED_SLEEP_WAKE_SIGNAL SIGUSR2
-#endif
-
 PONY_EXTERN_C_BEGIN
 
 typedef void (*trace_object_fn)(pony_ctx_t* ctx, void* p, pony_type_t* t,
@@ -48,7 +39,8 @@ typedef enum
   SCHED_TERMINATE = 40,
   SCHED_UNMUTE_ACTOR = 50,
   SCHED_NOISY_ASIO = 51,
-  SCHED_UNNOISY_ASIO = 52
+  SCHED_UNNOISY_ASIO = 52,
+  SCHED_ACTIVATE = 53
 } sched_msg_t;
 
 typedef struct schedulerstats_t
@@ -112,10 +104,29 @@ struct scheduler_t
   bool terminate;
   bool asio_stoppable;
   int32_t asio_noisy;
-  pony_signal_event_t sleep_object;
 
   // These are changed primarily by the owning scheduler thread.
   alignas(64) struct scheduler_t* last_victim;
+
+  /// This thread has broadcast SCHED_BLOCK and has not taken work in
+  /// hand since. The latch persists across activations that find
+  /// nothing: only work in hand sends SCHED_UNBLOCK and clears it.
+  bool blocked;
+
+  /// A SCHED_ACTIVATE arrived. Consumed by the passive visit; cleared
+  /// unread while active, so a stale request cannot ride into a later
+  /// passive stretch.
+  bool activate_requested;
+
+  /// Which schedulers are blocked, one bit per scheduler, maintained
+  /// by this thread alone from the block/unblock broadcasts it reads.
+  uint64_t* blocked_map;
+
+  /// Which blocked schedulers this thread has already sent
+  /// SCHED_ACTIVATE, one bit per scheduler. Debounces repeat requests:
+  /// a bit set here blocks another send until that scheduler's next
+  /// unblock broadcast clears it.
+  uint64_t* poked_map;
 
   pony_ctx_t ctx;
   uint32_t block_count;
@@ -154,8 +165,6 @@ void ponyint_sched_start_global_unmute(uint32_t from, pony_actor_t* actor);
 
 bool ponyint_sched_unmute_senders(pony_ctx_t* ctx, pony_actor_t* actor);
 
-bool ponyint_get_pinned_actor_scheduler_suspended();
-
 PONY_API uint32_t pony_active_schedulers();
 
 PONY_API int32_t pony_scheduler_index();
@@ -186,12 +195,10 @@ void ponyint_sched_noisy_asio(int32_t from);
  */
 void ponyint_sched_unnoisy_asio(int32_t from);
 
-// Try and wake up a sleeping scheduler thread to help with load
-void ponyint_sched_maybe_wakeup(int32_t current_scheduler_id);
-
-// Try and wake up a sleeping scheduler thread only if all scheduler
-// threads are asleep
-void ponyint_sched_maybe_wakeup_if_all_asleep(int32_t current_scheduler_id);
+// Ask scheduler 0 to go active if every scheduler is passive. Advisory:
+// a stale gauge read in either direction is caught by the passive
+// visits' inject pops.
+void ponyint_sched_activate_if_all_passive(int32_t from);
 
 #ifdef USE_RUNTIMESTATS
 bool ponyint_sched_print_stats();

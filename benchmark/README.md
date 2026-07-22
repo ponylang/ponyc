@@ -1,4 +1,4 @@
-Benchmarks for pony runtime
+Benchmarks for the Pony runtime.
 
 Under this directory are benchmarks for the pony runtime and for libponyc
 that use the Google Benchmark Library.
@@ -20,6 +20,8 @@ That produces one executable per subdirectory here, next to ponyc in
 Run either one directly. `--help` lists the Google Benchmark options,
 among them `--benchmark_filter` to select cases by name and
 `--benchmark_repetitions` to repeat them.
+
+See `libponyrt/mem/README.md` for what the runtime's memory benchmarks measure.
 
 `cmake --install` does not install the benchmark binaries.
 
