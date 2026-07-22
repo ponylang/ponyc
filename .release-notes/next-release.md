@@ -130,3 +130,7 @@ Because `dispose` on the handler now takes a parameter, `SignalHandler` no longe
 
 A notify class that overrides `dispose` must rename it to `disposed`. The old method is no longer part of the `SignalNotify` interface, so an un-renamed override still compiles and is silently never called. `registration_failed` and `disposed` both have default implementations, so classes declaring `is SignalNotify` need no other changes; a class conforming to the interface only structurally must add the methods or declare `is SignalNotify`.
 
+## 32-bit ARM Linux is now a best-effort target
+
+32-bit ARM Linux is no longer tested in CI. It is now a best-effort target: we build and test it periodically on real hardware rather than continuously in CI. Pony still builds and runs on 32-bit ARM and we don't intend to break it, but a change can break the 32-bit build between those checks without CI catching it.
+
