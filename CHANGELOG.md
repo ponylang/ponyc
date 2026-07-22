@@ -21,6 +21,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 - Correct the signature of `FloatingPoint.ldexp` ([PR #5772](https://github.com/ponylang/ponyc/pull/5772))
 - Replace the signal handling system ([PR #4984](https://github.com/ponylang/ponyc/pull/4984))
+- 32-bit ARM Linux is now a best-effort target ([PR #5795](https://github.com/ponylang/ponyc/pull/5795))
 
 ## [0.67.0] - 2026-07-11
 
