@@ -43,6 +43,27 @@ static double wall_for(const std::string& json, const char* name_key)
 }
 
 
+// True iff `s` matches ^[0-9]+\.[0-9]{6}$ -- the exact shape json_print_seconds
+// emits: one or more integer digits, a '.', then exactly six fractional digits.
+static bool well_formed_seconds(const char* s)
+{
+  const char* p = s;
+  if(!isdigit((unsigned char)*p))
+    return false;
+  while(isdigit((unsigned char)*p))
+    p++;
+
+  if(*p++ != '.')
+    return false;
+
+  for(int i = 0; i < 6; i++)
+    if(!isdigit((unsigned char)*p++))
+      return false;
+
+  return *p == '\0';
+}
+
+
 class TimingTest: public testing::Test {};
 
 
@@ -315,4 +336,40 @@ TEST_F(TimingTest, JsonNumbersAreLocaleIndependent)
     }
   }
   EXPECT_FALSE(comma_decimal);
+}
+
+
+// The emitted number format -- integer digits, '.', six fractional digits -- is
+// a fixed contract for every value, and holds regardless of LC_NUMERIC because
+// json_print_seconds formats with integer conversions, not %f. Unlike
+// JsonNumbersAreLocaleIndependent this needs no comma-decimal locale, so it runs
+// (rather than skips) everywhere, including a CI host with only the C locale.
+TEST_F(TimingTest, SecondsFormatIsWellFormed)
+{
+  setlocale(LC_NUMERIC, "C");
+
+  const double vals[] =
+    {0.0, 0.5, 1.0, 9.999999, 123.456789, 1000000.0, 1.7e9};
+
+  char buf[32];
+  for(double v : vals)
+  {
+    pony_timers_format_seconds(v, buf, sizeof(buf));
+    EXPECT_TRUE(well_formed_seconds(buf)) << "not well-formed: " << buf;
+  }
+}
+
+
+// The two branches the timer API never reaches: a negative input clamps to zero
+// rather than emitting a '-', and a fractional part that rounds up to a whole
+// second carries into the integer part instead of printing ".1000000".
+TEST_F(TimingTest, SecondsFormatClampsAndCarries)
+{
+  char buf[32];
+
+  pony_timers_format_seconds(-1.5, buf, sizeof(buf));
+  EXPECT_STREQ("0.000000", buf); // clamp: negative -> 0
+
+  pony_timers_format_seconds(0.9999999, buf, sizeof(buf));
+  EXPECT_STREQ("1.000000", buf); // carry: 999999.9 us rounds to a full second
 }

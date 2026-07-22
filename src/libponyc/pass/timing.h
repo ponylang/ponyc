@@ -94,6 +94,14 @@ void pony_timers_report(pony_timers_t* t);
 unsigned int pony_timer_depth(pony_timers_t* t, const char* group,
   const char* name);
 
+/** Test-only: format `v` seconds into `buf` exactly as the JSON writer does.
+ * Exposed so tests can assert the locale-independent number format and its
+ * clamp (negative -> 0) and rounding-carry branches deterministically -- neither
+ * branch is reachable through the timer API, which only ever formats the
+ * non-negative durations LLVM reports.
+ */
+void pony_timers_format_seconds(double v, char* buf, size_t size);
+
 PONY_EXTERN_C_END
 
 #endif

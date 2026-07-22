@@ -248,7 +248,7 @@ static void json_print_escaped(FILE* f, const char* s)
 // Format seconds with microsecond precision, locale-independently: integer
 // formatting always uses '.', so the JSON stays valid whatever the process
 // LC_NUMERIC is (%f would honour it and could emit a ',').
-static void json_print_seconds(FILE* f, double v)
+static void format_seconds(char* buf, size_t size, double v)
 {
   if(v < 0.0)
     v = 0.0;
@@ -262,7 +262,19 @@ static void json_print_seconds(FILE* f, double v)
     micros -= 1000000;
   }
 
-  fprintf(f, "%lld.%06lld", whole, micros);
+  snprintf(buf, size, "%lld.%06lld", whole, micros);
+}
+
+static void json_print_seconds(FILE* f, double v)
+{
+  char buf[32]; // "%lld.%06lld": <=19-digit whole + '.' + 6 digits + NUL
+  format_seconds(buf, sizeof(buf), v);
+  fputs(buf, f);
+}
+
+void pony_timers_format_seconds(double v, char* buf, size_t size)
+{
+  format_seconds(buf, size, v);
 }
 
 static void write_json(pony_timers_t* t)

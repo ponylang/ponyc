@@ -1,4 +1,4 @@
-## Add `--pass-timings` for profiling compile times
+## Add --pass-timings/--pass-timings-json for profiling compiler pass times
 
 `ponyc` can now report how long each phase of compilation takes, to help you find where a slow build is spending its time.
 
