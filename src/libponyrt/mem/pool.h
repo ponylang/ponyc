@@ -37,7 +37,7 @@
 #  error "valgrind has no annotations for the arena allocator; add pool_classic"
 #endif
 
-#if defined(POOL_USE_ARENA) && defined(USE_POOLTRACK)
+#if defined(USE_POOLTRACK) && !defined(POOL_USE_CLASSIC)
 #  error "pooltrack instruments only the classic pool; add pool_classic"
 #endif
 

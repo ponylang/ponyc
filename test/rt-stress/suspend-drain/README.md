@@ -29,9 +29,9 @@ wakes without any of them coming active for work.
    work and re-suspends); a rise that persists for two seconds fails
    the phase: a drain wake must never raise the count.
 4. **Scale up** — fresh parallel work is spawned; the count must rise,
-   proving suspended threads still activate after drain episodes. This
-   asserts activation-after-draining; the precise scale-up-lands-mid-
-   drain interleaving cannot be timed from Pony code.
+   proving suspended threads still activate after drain episodes. The
+   exact interleaving -- a scale-up landing while a drain is in flight --
+   cannot be timed from Pony code.
 
 Exit 0 with a phase-by-phase report, or 1 naming the failed phase.
 
@@ -50,8 +50,8 @@ VmRSS read:
 
     /tmp/suspend-drain --ponyminthreads 1 --min-schedulers 2
 
-The floor is 2, not 1: polling rides a timer, and every timer fire
-wakes a scheduler to run the poll, so the count never settles at 1.
+The floor is 2, not 1: the poll runs on a timer, and every fire
+wakes a scheduler to run it, so the count never settles at 1.
 Any scheduler count works; more schedulers means more suspended owners. The polls are bounded, so a runtime bug
 that leaves the collector running shows up as a phase failure; one that
 stops the collector itself stops the poll clock with it.

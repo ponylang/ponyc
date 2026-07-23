@@ -156,11 +156,11 @@ The previous allocator stays available behind a new build option:
 cmake --preset release -DPONY_USES=pool_classic
 ```
 
-Building with `address_sanitizer`, `valgrind`, or `pooltrack` now requires pairing with `pool_classic` (or `pool_memalign` for AddressSanitizer), since none of the three can observe the new allocator's memory. `pool_retain` stops the classic pool returning memory to the operating system, so it requires `pool_classic` too. The build stops with an error saying so.
+Building with `address_sanitizer`, `valgrind`, or `pooltrack` now requires pairing with `pool_classic` (or `pool_memalign` for AddressSanitizer), since none of the three can track the new allocator's memory. `pool_retain` stops the classic pool returning memory to the operating system, so it requires `pool_classic` too. The build stops with an error saying so.
 
 ## Add the --ponymemoryprofile runtime option
 
-The new allocator trades resident memory against throughput by how promptly it returns freed memory to the operating system, and `--ponymemoryprofile` selects the trade at program startup. `low-memory` returns freed memory promptly for the smallest footprint, `throughput` holds it for reuse for the most speed, and `balanced`, the default, sits between them.
+The new allocator trades resident memory against throughput by how promptly it returns freed memory to the operating system, and `--ponymemoryprofile` selects the trade at program startup. `low_memory` returns freed memory promptly for the smallest footprint, `throughput` holds it for reuse for the most speed, and `balanced`, the default, sits between them.
 
 ```bash
 ./my-program --ponymemoryprofile=throughput

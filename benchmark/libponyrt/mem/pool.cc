@@ -200,7 +200,7 @@ BENCHMARK_DEFINE_F(PoolBench, pool_alloc_free_size_multiple)(benchmark::State& s
 
 BENCHMARK_REGISTER_F(PoolBench, pool_alloc_free_size_multiple)->Arg((int)(POOL_MMAP/LARGE_ALLOC));
 
-// --- Arena throughput benchmarks (task #17) ---------------------------------
+// --- Arena throughput benchmarks --------------------------------------------
 //
 // size_sweep_churn: same-thread allocate-and-free throughput at a range of
 // sizes. Each trial allocates a working set of two blocks at one size, frees

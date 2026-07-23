@@ -244,12 +244,12 @@ static int parse_opts(int argc, char** argv, options_t* opt)
       case OPT_MEMORYPROFILE:
         if(strcmp(s.arg_val, "balanced") == 0)
           ponyint_pool_set_memory_profile(POOL_MEMORY_BALANCED);
-        else if(strcmp(s.arg_val, "low-memory") == 0)
+        else if(strcmp(s.arg_val, "low_memory") == 0)
           ponyint_pool_set_memory_profile(POOL_MEMORY_LOW);
         else if(strcmp(s.arg_val, "throughput") == 0)
           ponyint_pool_set_memory_profile(POOL_MEMORY_THROUGHPUT);
         else
-          err_out(id, "must be low-memory, balanced, or throughput");
+          err_out(id, "must be low_memory, balanced, or throughput");
         break;
       case OPT_VERSION: opt->version = true; break;
 #if defined(USE_SYSTEMATIC_TESTING)

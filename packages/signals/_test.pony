@@ -78,6 +78,7 @@ class \nodoc\ iso _TestHandleableSignalAccepts is UnitTest
       _assert_valid(h, Sig.winch())
       _assert_valid(h, Sig.pwr())
       _assert_valid(h, Sig.usr1())
+      _assert_valid(h, Sig.usr2())
       _assert_valid(h, Sig.sys())
     elseif bsd or osx then
       _assert_valid(h, Sig.hup())
@@ -101,6 +102,7 @@ class \nodoc\ iso _TestHandleableSignalAccepts is UnitTest
       _assert_valid(h, Sig.winch())
       _assert_valid(h, Sig.info())
       _assert_valid(h, Sig.usr1())
+      _assert_valid(h, Sig.usr2())
       _assert_valid(h, Sig.sys())
     elseif windows then
       _assert_valid(h, Sig.int())

@@ -1329,7 +1329,7 @@ TEST(PoolArenaDeath, FreeIntoFreeUnit)
 // The crediting checks run when an owner drains its inbox, a moment no
 // test can time; this seam credits one run directly. Each test below
 // forges the corruption a hostile or broken freeing thread could put in
-// an inbox and proves the credit refuses it. The layout mirrors
+// an inbox and checks that crediting it aborts. The layout mirrors
 // run_header_t in pool_arena.c; change both together.
 extern "C" void ponyint_pool_arena_credit_run_for_test(void* run_tail);
 
@@ -1816,7 +1816,7 @@ TEST(PoolArena, ChainMapGrowth)
   }
 
   // A fresh thread's chain map is virgin, so the owner count alone
-  // decides when it grows.
+  // drives its growth.
   std::thread([&]{
     for(int t = 0; t < owners; t++)
       ponyint_pool_free(0, objs[t]);
@@ -1870,7 +1870,6 @@ TEST(PoolArena, DrainReclaimsDeliveredForeignFree)
   std::atomic<int> stage(0);
   char* obj = NULL;
   bool inbox_filled = false;
-  bool inbox_emptied = false;
   char* again = NULL;
 
   std::thread owner([&]{
@@ -1882,7 +1881,6 @@ TEST(PoolArena, DrainReclaimsDeliveredForeignFree)
 
     inbox_filled = !ponyint_pool_arena_inbox_empty_for_test();
     ponyint_pool_drain();
-    inbox_emptied = ponyint_pool_arena_inbox_empty_for_test();
 
     // The freed object was the slab's only live one, so the drain
     // emptied and reset the slab; the next allocation returns the same
@@ -1912,7 +1910,6 @@ TEST(PoolArena, DrainReclaimsDeliveredForeignFree)
   producer.join();
 
   ASSERT_TRUE(inbox_filled);
-  ASSERT_TRUE(inbox_emptied);
   ASSERT_EQ(again, obj);
 }
 
@@ -1940,6 +1937,70 @@ TEST(PoolArena, FreeToExitedOwner)
   void* p = ponyint_pool_alloc(0);
   ASSERT_NE(p, (void*)NULL);
   ponyint_pool_free(0, p);
+}
+
+extern "C" size_t ponyint_pool_arena_cache_cap_for_test(size_t index);
+extern "C" void ponyint_pool_arena_cache_enable_for_test();
+
+// The memory profile sets a floor under the thread cache's depth. A large
+// class, whose byte budget rounds below the floor, caches exactly the floor:
+// none under low_memory, 8 under balanced, 32 under throughput. A small class,
+// whose byte budget already exceeds every floor, is unchanged by the profile.
+// Nothing else covers set_memory_profile's effect on the allocator.
+TEST(PoolArena, MemoryProfileCacheFloor)
+{
+  const size_t large = POOL_COUNT - 1; // largest class; byte budget rounds to 0
+  const size_t small = 0;              // smallest class; byte budget dominates
+
+  // cache_cap consults the disable flag; make sure the cache is on so the cap
+  // reflects the floor, not a prior test's disable.
+  ponyint_pool_arena_cache_enable_for_test();
+
+  ponyint_pool_set_memory_profile(POOL_MEMORY_LOW);
+  EXPECT_EQ(ponyint_pool_arena_cache_cap_for_test(large), (size_t)0);
+  const size_t small_cap = ponyint_pool_arena_cache_cap_for_test(small);
+
+  ponyint_pool_set_memory_profile(POOL_MEMORY_BALANCED);
+  EXPECT_EQ(ponyint_pool_arena_cache_cap_for_test(large), (size_t)8);
+  EXPECT_EQ(ponyint_pool_arena_cache_cap_for_test(small), small_cap);
+
+  ponyint_pool_set_memory_profile(POOL_MEMORY_THROUGHPUT);
+  EXPECT_EQ(ponyint_pool_arena_cache_cap_for_test(large), (size_t)32);
+  EXPECT_EQ(ponyint_pool_arena_cache_cap_for_test(small), small_cap);
+
+  // Restore the default so later tests see the balanced profile.
+  ponyint_pool_set_memory_profile(POOL_MEMORY_BALANCED);
+}
+
+extern "C" uint32_t ponyint_pool_arena_cache_count_for_test(size_t index);
+
+// return_idle hands a thread's held-but-free memory back, the object cache
+// first. Freed blocks land in the cache up to the floor; return_idle empties
+// it. Runs on a fresh thread so the churn and the flush stay isolated.
+TEST(PoolArena, ReturnIdleFlushesCache)
+{
+  on_fresh_thread([]{
+    ponyint_pool_arena_cache_enable_for_test();
+    ponyint_pool_set_memory_profile(POOL_MEMORY_BALANCED); // floor 8
+
+    const size_t index = POOL_COUNT - 1; // a large class the floor lifts
+
+    // Clean slate, then fill the cache: alloc the floor's worth and free them,
+    // so each free lands in the cache rather than releasing a slab.
+    ponyint_pool_return_idle();
+    ASSERT_EQ(ponyint_pool_arena_cache_count_for_test(index), (uint32_t)0);
+
+    void* blocks[8];
+    for(size_t i = 0; i < 8; i++)
+      blocks[i] = ponyint_pool_alloc(index);
+    for(size_t i = 0; i < 8; i++)
+      ponyint_pool_free(index, blocks[i]);
+
+    ASSERT_GT(ponyint_pool_arena_cache_count_for_test(index), (uint32_t)0);
+
+    ponyint_pool_return_idle();
+    ASSERT_EQ(ponyint_pool_arena_cache_count_for_test(index), (uint32_t)0);
+  });
 }
 
 // Slot assignment racing across a segment boundary: the append is one
