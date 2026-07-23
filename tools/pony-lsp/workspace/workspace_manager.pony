@@ -19,7 +19,7 @@ actor WorkspaceManager
   we should have all information at hand to do LSP work.
   """
 
-  let workspace: WorkspaceData
+  let _folders: WorkspaceFolders
   let _file_auth: FileAuth
   let _client: Client
   let _channel: Channel
@@ -37,15 +37,15 @@ actor WorkspaceManager
     """
 
   new create(
-    workspace': WorkspaceData,
+    workspace_folders: Array[String val] val,
     file_auth': FileAuth,
     channel': Channel,
     request_sender': RequestSender,
     client': Client,
     compiler': LspCompiler)
   =>
-    workspace = workspace'
     _file_auth = file_auth'
+    _folders = WorkspaceFolders(_file_auth, workspace_folders)
     _client = client'
     _channel = channel'
     _request_sender = request_sender'
@@ -60,17 +60,28 @@ actor WorkspaceManager
     else
       this._packages.insert(
         package_path.path,
-        PackageState.create(package_path, this._channel))
+        PackageState.create(
+          PackageDataBuilder.from_path(package_path), this._channel)
+        )
     end
 
-  fun _get_package(package_path: FilePath ): (this->PackageState | None) =>
+  fun _get_package(package_path: FilePath): (this->PackageState | None) =>
     try
       this._packages(package_path.path)?
     else
       None
     end
 
-  fun box _find_workspace_package(document_path: String): FilePath ? =>
+  be add_packages(pkgs: Array[PackageData val] val) =>
+    // lets not overwrite here
+    for data in pkgs.values() do
+      this._packages.insert_if_absent(
+        data.folder.path,
+        PackageState.create(data, this._channel)
+      )
+    end
+
+  fun box _find_package(document_path: String): this->PackageState ? =>
     """
     Try to find the package in the workspace from the
     given `document_path` by iterating up the directory
@@ -81,13 +92,9 @@ actor WorkspaceManager
     """
     var dir_path = Path.dir(document_path)
     while (dir_path != ".") do
-      if this._packages.contains(dir_path) then
-        return
-          if Path.is_abs(dir_path) then
-            FilePath(this._file_auth, dir_path)
-          else
-            this.workspace.folder.join(dir_path)?
-          end
+      try
+        let pkg = this._packages(dir_path)?
+        return pkg
       end
       let parent = Path.dir(dir_path)
       if parent == dir_path then
@@ -170,7 +177,7 @@ actor WorkspaceManager
             this._awaiting_compilation_for.pairs()
           do
             let await_pkg_path = Path.base(await_comp_file)
-            if package_state.path.path == await_pkg_path then
+            if package_state.data.folder.path == await_pkg_path then
               try
                 // get the hash of the module file
                 // ponyc considered for compilation
@@ -193,7 +200,7 @@ actor WorkspaceManager
           if requires_another_compilation then
             this._channel.log(
               program_dir.path + " needs another compilation...")
-            this._compile(program_dir)
+            this._compile(package_state)
           end
         end
       | let errors: Array[Error val] val =>
@@ -220,8 +227,8 @@ actor WorkspaceManager
 
             // store the error in the document-state
             try
-              let package: FilePath = this._find_workspace_package(err_file)?
-              let package_state = this._ensure_package(package)
+              let package: PackageState = this._find_package(err_file)?
+              let package_state = this._ensure_package(package.data.folder)
               let document_state = package_state.ensure_document(err_file)
               document_state.add_diagnostic(run, diagnostic)
             end
@@ -300,7 +307,7 @@ actor WorkspaceManager
         " but already received results for run " + this._compile_run.string())
     end
 
-  fun ref _compile(package: FilePath) =>
+  fun ref _compile(package: PackageState) =>
     """
     Central entry point for triggering a compilation.
 
@@ -308,10 +315,12 @@ actor WorkspaceManager
     actually triggering the compilation.
     """
     this._channel.log(
-      "Compiling package " + package.path + " with dependency-paths: " +
-      ", ".join(workspace.dependency_paths.values()))
+      "Compiling package " +
+      package.data.folder.path +
+      " with dependency-paths: " +
+      ", ".join(package.data.dependency_paths.values()))
 
-    let token = this._compilation_token(package)
+    let token = this._compilation_token(package.data.folder)
     if this._client.supports_window_work_done_progress()
     then
       let chan = this._channel
@@ -326,7 +335,7 @@ actor WorkspaceManager
                 .update("kind", "begin")
                 .update(
                   "title",
-                  "Compiling " + Path.base(package.path) +
+                  "Compiling " + Path.base(package.data.folder.path) +
                   " (" + this._compile_run.string() + ")")
                 .update("cancellable", false)
             )
@@ -343,7 +352,7 @@ actor WorkspaceManager
         end
       )
     end
-    _compiler.compile(package, workspace.dependency_paths, this)
+    _compiler.compile(package.data.folder, package.data.dependency_paths, this)
     _compiling = true
 
   fun _compilation_token(package: FilePath): String =>
@@ -362,24 +371,15 @@ actor WorkspaceManager
     let document_path = Uris.to_path(document_uri)
     this._channel.log("handling did_open of " + document_path)
 
-    let package: FilePath =
+    let package_state: PackageState =
       try
-        this._find_workspace_package(document_path)?
+        this._find_package(document_path)?
       else
-        var package_path = Path.dir(document_path)
-        if not Path.is_abs(package_path) then
-          try
-            this.workspace.folder.join(package_path)?
-          else
-            _channel.log("Error determining package_path for " + document_path)
-            return
-          end
-        else
-          FilePath(this._file_auth, package_path)
-        end
+        let package_path = FilePath(this._file_auth, Path.dir(document_path))
+        this._ensure_package(package_path)
       end
-    this._channel.log("did_open in pony package @ " + package.path)
-    let package_state = this._ensure_package(package)
+    this._channel.log(
+      "did_open in pony package @ " + package_state.data.folder.path)
     let doc_state = package_state.ensure_document(document_path)
     if doc_state.needs_compilation() then
       if this._compiling then
@@ -389,7 +389,7 @@ actor WorkspaceManager
         _channel.log(
           "No module found for document " + document_path +
           ". Need to compile.")
-        this._compile(package)
+        this._compile(package_state)
       end
     end
 
@@ -399,14 +399,15 @@ actor WorkspaceManager
     """
     let document_path = Uris.to_path(document_uri)
     this._channel.log("handling did_close of " + document_path)
-    try
-      let package: FilePath = this._find_workspace_package(document_path)?
-      let package_state = this._ensure_package(package)
+    let package_state: PackageState =
       try
-        package_state.remove_document(document_path)?
+        this._find_package(document_path)?
+      else
+        let package_path = FilePath(this._file_auth, Path.dir(document_path))
+        this._ensure_package(package_path)
       end
-    else
-      _channel.log("document not in workspace: " + document_path)
+    try
+      package_state.remove_document(document_path)?
     end
 
   be did_save(document_uri: String, notification: Notification val) =>
@@ -415,22 +416,23 @@ actor WorkspaceManager
     """
     let document_path = Uris.to_path(document_uri)
     this._channel.log("handling did_save of " + document_path)
-    try
-      let package: FilePath = this._find_workspace_package(document_path)?
-      let package_state = this._ensure_package(package)
-      if this._compiling then
-        // put the hash of the doc at saving time
-        let text_content_hash =
-          try
-            (JsonPathParser.compile("$.text")?
-              .query_one(notification.params) as String).hash()
-          end
-        this._awaiting_compilation_for.insert(document_path, text_content_hash)
+    let package_state: PackageState =
+      try
+        this._find_package(document_path)?
       else
-        this._compile(package)
+        let package_path = FilePath(this._file_auth, Path.dir(document_path))
+        this._ensure_package(package_path)
       end
+    if this._compiling then
+      // put the hash of the doc at saving time
+      let text_content_hash =
+        try
+          (JsonPathParser.compile("$.text")?
+            .query_one(notification.params) as String).hash()
+        end
+      this._awaiting_compilation_for.insert(document_path, text_content_hash)
     else
-      _channel.log("document not in workspace: " + document_path)
+      this._compile(package_state)
     end
 
   be hover(document_uri: String, request: RequestMessage val) =>
@@ -601,30 +603,24 @@ actor WorkspaceManager
     been compiled, or its index is not yet available.
     """
     try
-      let package: FilePath = this._find_workspace_package(document_path)?
-      match \exhaustive\ this._get_package(package)
-      | let pkg_state: PackageState =>
-        match \exhaustive\ pkg_state.get_document(document_path)
-        | let doc: DocumentState =>
-          match (doc.position_index(), doc.module())
-          | (let index: PositionIndex val, let module: Module val) =>
-            (index, module)
-          else
-            this._channel.log(
-              "No index or module available for " + document_path)
-            None
-          end
+      let pkg_state = this._find_package(document_path)?
+      match \exhaustive\ pkg_state.get_document(document_path)
+      | let doc: DocumentState =>
+        match (doc.position_index(), doc.module())
+        | (let index: PositionIndex val, let module: Module val) =>
+          (index, module)
         else
-          this._channel.log("No document state available for " + document_path)
+          this._channel.log(
+            "No index or module available for " + document_path)
           None
         end
-      | None =>
-        this._channel.log(
-          "No package state available for package: " + package.path)
+      else
+        this._channel.log("No document state available for " + document_path)
         None
       end
     else
-      this._channel.log("document not in workspace: " + document_path)
+      this._channel.log(
+        "No package state available for document: " + document_path)
       None
     end
 
@@ -748,7 +744,7 @@ actor WorkspaceManager
                 ErrorCodes.request_failed(), "Symbol has no source location")))
           return
         end
-      if not target_file.at(workspace.folder.path + Path.sep(), 0) then
+      if not this._folders.contains(target_file) then
         this._channel.send(
           ResponseMessage.create(
             request.id,
@@ -808,8 +804,8 @@ actor WorkspaceManager
       match \exhaustive\ Rename.collect(
         node,
         this._packages,
-        workspace.folder.path,
-        new_name)
+        new_name,
+        this._folders)
       | let workspace_edit: JsonObject val =>
         this._channel.send(ResponseMessage(request.id, workspace_edit))
       | let err_msg: String val =>
@@ -898,35 +894,30 @@ actor WorkspaceManager
     this._channel.log("Handling textDocument/documentSymbol")
     let document_path = Uris.to_path(document_uri)
     try
-      let package: FilePath = this._find_workspace_package(document_path)?
-      match \exhaustive\ this._get_package(package)
-      | let pkg_state: PackageState =>
-        // this._channel.log(pkg_state.debug())
-        match \exhaustive\ pkg_state.get_document(document_path)
-        | let doc: DocumentState =>
-          let symbols = doc.document_symbols()
-          var json_arr = JsonArray
-          for symbol in symbols.values() do
-            json_arr = json_arr.push(symbol.to_json())
-          end
-          this._channel.send(ResponseMessage(request.id, json_arr))
-          return
-        | None =>
-          this._channel.log("No document state available for " + document_path)
+      let pkg_state: PackageState = this._find_package(document_path)?
+      // this._channel.log(pkg_state.debug())
+      match \exhaustive\ pkg_state.get_document(document_path)
+      | let doc: DocumentState =>
+        let symbols = doc.document_symbols()
+        var json_arr = JsonArray
+        for symbol in symbols.values() do
+          json_arr = json_arr.push(symbol.to_json())
         end
+        this._channel.send(ResponseMessage(request.id, json_arr))
+        return
       | None =>
-        this._channel.log(
-          "No package state available for package: " + package.path)
+        this._channel.log("No document state available for " + document_path)
       end
     else
-      this._channel.log("document not in workspace: " + document_path)
+      this._channel.log(
+        "No package state available for document: " + document_path)
     end
     // send a null-response in every failure case
     this._channel.send(ResponseMessage.create(request.id, None))
 
   be workspace_symbol(
     query: String val,
-    aggregator: WorkspaceSymbolAggregator)
+    request: RequestMessage val)
   =>
     """
     Handle workspace/symbol request.
@@ -971,7 +962,7 @@ actor WorkspaceManager
         end
       end
     end
-    aggregator.add_results(results)
+    this._channel.send(ResponseMessage(request.id, results))
 
   fun _node_location(node: AST box): (LspLocation val | None) =>
     """
@@ -1016,33 +1007,26 @@ actor WorkspaceManager
     let document_path = Uris.to_path(document_uri)
     var diagnostics = pc.Vec[JsonValue]
     try
-      let package: FilePath = this._find_workspace_package(document_path)?
-      match \exhaustive\ this._get_package(package)
-      | let pkg_state: PackageState =>
-        match \exhaustive\ pkg_state.get_document(document_path)
-        | let doc: DocumentState =>
-          try
-            diagnostics =
-              diagnostics
-                .concat(
-                  Iter[Diagnostic]((doc.diagnostics() as Array[Diagnostic] box)
-                    .values())
-                .map[JsonValue]({(diagnostic) => diagnostic.to_json() }))
-          end
-        | None =>
-          this._channel.log(
-            "[textDocument/diagnostic] No document state available for "
-            + document_path)
+      let pkg_state: PackageState = this._find_package(document_path)?
+      match \exhaustive\ pkg_state.get_document(document_path)
+      | let doc: DocumentState =>
+        try
+          diagnostics =
+            diagnostics
+              .concat(
+                Iter[Diagnostic]((doc.diagnostics() as Array[Diagnostic] box)
+                  .values())
+              .map[JsonValue]({(diagnostic) => diagnostic.to_json() }))
         end
       | None =>
         this._channel.log(
-          "[textDocument/diagnostic] No package state available for package: "
-          + package.path)
+          "[textDocument/diagnostic] No document state available for "
+          + document_path)
       end
     else
       this._channel.log(
-        "[textDocument/diagnostic] Unable to find workspace package for: "
-        + document_uri)
+          "[textDocument/diagnostic] No package state available for: "
+          + document_path)
     end
     this._channel.send(
       ResponseMessage.create(
@@ -1061,45 +1045,40 @@ actor WorkspaceManager
     this._channel.log("Handling textDocument/inlayHint")
     let document_path = Uris.to_path(document_uri)
     try
-      let package: FilePath = this._find_workspace_package(document_path)?
-      match \exhaustive\ this._get_package(package)
-      | let pkg_state: PackageState =>
-        match \exhaustive\ pkg_state.get_document(document_path)
-        | let doc: DocumentState =>
-          match \exhaustive\ doc.module()
-          | let module: Module val =>
-            let range: (None | (I64, I64, I64, I64)) =
-              try
-                let p = request.params
-                let sl = JsonNav(p)("range")("start")("line").as_i64()?
-                let sc = JsonNav(p)("range")("start")("character").as_i64()?
-                let el = JsonNav(p)("range")("end")("line").as_i64()?
-                let ec = JsonNav(p)("range")("end")("character").as_i64()?
-                (sl, sc, el, ec)
-              else
-                None
-              end
-            let hints = InlayHints.collect(module, range)
-            var json_arr = JsonArray
-            for hint in hints.values() do
-              json_arr = json_arr.push(hint)
+      let pkg_state: PackageState = this._find_package(document_path)?
+      match \exhaustive\ pkg_state.get_document(document_path)
+      | let doc: DocumentState =>
+        match \exhaustive\ doc.module()
+        | let module: Module val =>
+          let range: (None | (I64, I64, I64, I64)) =
+            try
+              let p = request.params
+              let sl = JsonNav(p)("range")("start")("line").as_i64()?
+              let sc = JsonNav(p)("range")("start")("character").as_i64()?
+              let el = JsonNav(p)("range")("end")("line").as_i64()?
+              let ec = JsonNav(p)("range")("end")("character").as_i64()?
+              (sl, sc, el, ec)
+            else
+              None
             end
-            this._channel.send(ResponseMessage(request.id, json_arr))
-            return
-          | None =>
-            this._channel.log(
-              "No module available for " + document_path)
+          let hints = InlayHints.collect(module, range)
+          var json_arr = JsonArray
+          for hint in hints.values() do
+            json_arr = json_arr.push(hint)
           end
+          this._channel.send(ResponseMessage(request.id, json_arr))
+          return
         | None =>
           this._channel.log(
-            "No document state available for " + document_path)
+            "No module available for " + document_path)
         end
       | None =>
         this._channel.log(
-          "No package state available for " + document_path)
+          "No document state available for " + document_path)
       end
     else
-      this._channel.log("document not in workspace: " + document_path)
+      this._channel.log(
+          "No package state available for " + document_path)
     end
     this._channel.send(ResponseMessage.create(request.id, None))
 
@@ -1110,34 +1089,29 @@ actor WorkspaceManager
     this._channel.log("Handling textDocument/foldingRange")
     let document_path = Uris.to_path(document_uri)
     try
-      let package: FilePath = this._find_workspace_package(document_path)?
-      match \exhaustive\ this._get_package(package)
-      | let pkg_state: PackageState =>
-        match \exhaustive\ pkg_state.get_document(document_path)
-        | let doc: DocumentState =>
-          match \exhaustive\ doc.module()
-          | let module: Module val =>
-            let fold_ranges = FoldingRanges.collect(module)
-            var json_arr = JsonArray
-            for range in fold_ranges.values() do
-              json_arr = json_arr.push(range)
-            end
-            this._channel.send(ResponseMessage(request.id, json_arr))
-            return
-          | None =>
-            this._channel.log(
-              "No module available for " + document_path)
+      let pkg_state: PackageState = this._find_package(document_path)?
+      match \exhaustive\ pkg_state.get_document(document_path)
+      | let doc: DocumentState =>
+        match \exhaustive\ doc.module()
+        | let module: Module val =>
+          let fold_ranges = FoldingRanges.collect(module)
+          var json_arr = JsonArray
+          for range in fold_ranges.values() do
+            json_arr = json_arr.push(range)
           end
+          this._channel.send(ResponseMessage(request.id, json_arr))
+          return
         | None =>
           this._channel.log(
-            "No document state available for " + document_path)
+            "No module available for " + document_path)
         end
       | None =>
         this._channel.log(
-          "No package state available for " + document_path)
+          "No document state available for " + document_path)
       end
     else
-      this._channel.log("document not in workspace: " + document_path)
+      this._channel.log(
+        "No package state available for " + document_path)
     end
     this._channel.send(ResponseMessage.create(request.id, None))
 
