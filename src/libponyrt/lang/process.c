@@ -12,6 +12,33 @@ PONY_API int32_t ponyint_wnohang() {
 }
 #endif
 
+#ifdef PLATFORM_IS_LINUX
+
+#include <errno.h>
+#include <unistd.h>
+#include <sys/syscall.h>
+
+// Open a pidfd for a process. A pidfd goes readable when the process exits and
+// registers with epoll like any other fd, giving exit detection that does not
+// depend on the child's pipes closing. Returns the fd, or -1 with errno set;
+// errno ENOSYS means the kernel is older than 5.3 and does not have the
+// syscall. We call the syscall directly rather than glibc's pidfd_open wrapper,
+// which only exists in glibc 2.36+; SYS_pidfd_open comes from the kernel
+// headers. If the build-time headers predate the syscall number, we report it
+// as unsupported.
+PONY_API int32_t ponyint_pidfd_open(int32_t pid) {
+#ifdef SYS_pidfd_open
+  return (int32_t)syscall(SYS_pidfd_open, (pid_t)pid, 0u);
+#else
+  // Build-time headers predate SYS_pidfd_open. Report it as unsupported; pid is
+  // unused on this path.
+  (void)pid;
+  errno = ENOSYS;
+  return -1;
+#endif
+}
+#endif
+
 #ifdef PLATFORM_IS_WINDOWS
 
 
@@ -119,44 +146,37 @@ PONY_API size_t ponyint_win_process_create(
 }
 
 /**
- * Wait for a Windows process to complete, and return its exit code.
- * This does block if the process is still running.
+ * Report a Windows child's exit status without blocking. Does not close the
+ * process handle: the asio backend registers a wait on that handle for the
+ * exit event, and the handle is closed once, later, when that wait is
+ * unregistered (see the process package's exit-source teardown). Closing it
+ * here while the wait is registered is undefined behavior.
  *
- * // https://stackoverflow.com/questions/5487249/how-write-posix-waitpid-analog-for-windows
+ * WaitForSingleObject with a zero timeout is the non-blocking poll:
+ * WAIT_OBJECT_0 means the child has exited, so a real exit code of 259 is not
+ * confused with the STILL_ACTIVE that GetExitCodeProcess returns for a running
+ * process; WAIT_TIMEOUT means it is still running.
  *
- * possible return values:
- * 0: all ok, extract the exitcode from exit_code_ptr
- * 1: process didnt finish yet
- * anything else: error waiting or getting the process exit code.
+ * Return values:
+ *   0: exited; read the exit code from exit_code_ptr.
+ *   1: still running.
+ *  -1: error waiting or reading the exit code. A fixed sentinel, never a raw
+ *      Windows error code, so an error can never collide with the 1 that means
+ *      still-running.
  */
 PONY_API int32_t ponyint_win_process_wait(size_t hProcess, int32_t* exit_code_ptr)
 {
-    int32_t retval = 0;
-
-    // just poll
-    DWORD result = WaitForSingleObject((HANDLE)hProcess, 0);
-    switch (result)
+    switch (WaitForSingleObject((HANDLE)hProcess, 0))
     {
         case WAIT_OBJECT_0: // process exited
             if (GetExitCodeProcess((HANDLE)hProcess, (DWORD*)exit_code_ptr) == 0)
-            {
-                retval = GetLastError();
-                if (retval == 0) retval = -1;
-            }
-            break;
-        case WAIT_TIMEOUT: // process is still going
-            return 1; // don't close the handle
-        case WAIT_ABANDONED: // shouldn't happen to a process
-        case WAIT_FAILED:
-            retval = GetLastError();
-            if (retval == 0) retval = -1;
-            break;
-        default:
-            break;
+                return -1;
+            return 0;
+        case WAIT_TIMEOUT: // process is still running
+            return 1;
+        default: // WAIT_ABANDONED (shouldn't happen to a process), WAIT_FAILED
+            return -1;
     }
-
-    CloseHandle((HANDLE)hProcess);
-    return retval;
 }
 
 /**

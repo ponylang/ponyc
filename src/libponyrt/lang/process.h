@@ -22,6 +22,12 @@ PONY_API int32_t ponyint_win_process_kill(size_t hProcess);
 
 PONY_API int32_t ponyint_wnohang();
 
+#ifdef PLATFORM_IS_LINUX
+
+PONY_API int32_t ponyint_pidfd_open(int32_t pid);
+
+#endif
+
 #endif
 
 PONY_EXTERN_C_END

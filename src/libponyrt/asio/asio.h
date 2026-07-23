@@ -33,6 +33,8 @@ enum
   ASIO_TIMER = 1 << 2,
   ASIO_SIGNAL = 1 << 3,
   ASIO_ERROR = 1 << 4,
+  ASIO_PROC = 1 << 5,
+  ASIO_PIPE = 1 << 6,
   ASIO_ONESHOT = 1 << 8,
   ASIO_DESTROYED = (uint32_t)-1
 };

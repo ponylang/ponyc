@@ -37,6 +37,16 @@ typedef struct asio_event_t
    * REMOVE-issuing unsubscribe. A future change that moved re-arm off the actor
    * thread would break that and must revisit this marker. */
   bool removing;
+
+  /* A process-exit event (ASIO_PROC) waits on the child's process handle via
+   * RegisterWaitForSingleObject; proc_wait is that registration, kept so the
+   * exit-source teardown can UnregisterWaitEx it. NULL until registered. */
+  HANDLE proc_wait;
+
+  /* Intrusive link for the readiness backend's list of the Windows-managed
+   * events it owns between subscribe and unsubscribe: the process-exit events
+   * and the peeked pipe events. NULL when the event is not on that list. */
+  asio_event_t* next;
 #endif
 } asio_event_t;
 
