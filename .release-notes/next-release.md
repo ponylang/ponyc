@@ -134,3 +134,9 @@ A notify class that overrides `dispose` must rename it to `disposed`. The old me
 
 32-bit ARM Linux is no longer tested in CI. It is now a best-effort target: we build and test it periodically on real hardware rather than continuously in CI. Pony still builds and runs on 32-bit ARM and we don't intend to break it, but a change can break the 32-bit build between those checks without CI catching it.
 
+## Fix spurious 'can't reuse name' errors when a multi-file package has a syntax error
+
+When a package contained multiple `.pony` files and one of them had a syntax error, the compiler would produce spurious `can't reuse name` errors for unrelated valid code in the other files. This was most visible when a valid file reused a loop variable name across consecutive `for` loops — a perfectly legal pattern that the compiler would incorrectly flag.
+
+The spurious errors no longer appear. You'll still see the real syntax error, but the compiler won't pile on with bogus errors from other files in the same package.
+
