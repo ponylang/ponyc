@@ -48,6 +48,7 @@ add_executable(libponyc.tests
     sugar_traits.cc
     suggest_alt_name.cc
     symtab.cc
+    timing.cc
     token.cc
     traits.cc
     type_check_bind.cc
