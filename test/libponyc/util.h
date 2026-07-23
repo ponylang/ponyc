@@ -49,6 +49,9 @@ protected:
   // Add an additional package source
   void add_package(const char* path, const char* src);
 
+  // Add an additional package backed by a real filesystem directory
+  void add_package_path(const char* path, const char* real_dir);
+
   // Override the default path of the main package (useful for package loops)
   void default_package_name(const char* path);
 
