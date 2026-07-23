@@ -8,7 +8,7 @@ primitive HandleableSignalValidator is Validator[U32]
   are accepted. Fatal signals (SIGILL, SIGTRAP, SIGABRT, SIGFPE, SIGBUS,
   SIGSEGV), uncatchable signals (SIGKILL, SIGSTOP), and unknown signal
   numbers are rejected. SIGUSR2 is handleable like any other signal; the
-  runtime's scheduler no longer uses it, so it reserves nothing here.
+  runtime's scheduler no longer uses it, so the runtime reserves nothing.
 
   Validation is necessary but not sufficient: the operating system can
   still refuse a registration the whitelist admits (for example, glibc

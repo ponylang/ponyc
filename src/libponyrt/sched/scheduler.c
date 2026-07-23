@@ -49,7 +49,6 @@ static scheduler_t* scheduler;
 /// thread's all-passive check reads it, and the steal loop paces its
 /// block decision with it.
 static PONY_ATOMIC(uint32_t) active_scheduler_gauge;
-static PONY_ATOMIC(bool) runtime_shutdown_initiated;
 static bool use_yield;
 static mpmcq_t inject;
 static scheduler_t* pinned_actor_scheduler;
@@ -580,7 +579,7 @@ static scheduler_t* choose_victim(scheduler_t* sched)
     if(victim == sched)
       continue;
 
-    // Skip victims this thread believes are blocked: their queues are
+    // Skip victims this thread has marked blocked: their queues are
     // empty. The map can lag — a stale bit costs one missed steal
     // opportunity until the unblock broadcast is read, never a lost
     // one.
@@ -761,7 +760,7 @@ static pony_actor_t* steal(scheduler_t* sched)
         break;
     }
 
-    // An ACTIVATE consumed while already active asks for nothing;
+    // An ACTIVATE consumed while already active requires no action;
     // clear it so it cannot ride into a later passive stretch.
     sched->activate_requested = false;
 
@@ -1040,7 +1039,7 @@ static void run(scheduler_t* sched)
       actor = pop_global(sched);
     }
 
-    // An ACTIVATE consumed while already active asks for nothing;
+    // An ACTIVATE consumed while already active requires no action;
     // clear it so it cannot ride into a later passive stretch.
     sched->activate_requested = false;
 
@@ -1350,9 +1349,6 @@ static void run_pinned_actors()
 static void ponyint_sched_shutdown()
 {
   uint32_t start = 0;
-
-  atomic_store_explicit(&runtime_shutdown_initiated, true,
-    memory_order_release);
 
   // Every scheduler thread reads TERMINATE within a tick and exits on
   // its own; nothing needs waking.

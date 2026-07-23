@@ -96,10 +96,10 @@ TEST(Alloc, DecommitReturnsThePages)
 {
   // The observation is Windows-only because it is only true there: on POSIX
   // decommit and discard are one madvise call, and neither returns the
-  // address space. Without this, a decommit that quietly returned nothing --
-  // MEM_RESET, or no call at all -- passes every other test in the suite
-  // while the allocator holds each page it ever touched for the life of the
-  // process.
+  // address space. Without a direct page-state check, a decommit that quietly
+  // returned nothing -- MEM_RESET, or no call at all -- would leave the
+  // allocator holding each page it ever touched for the life of the process,
+  // with nothing to catch it.
   size_t size = 1024 * 1024;
   char* p = (char*)ponyint_virt_reserve_aligned(size);
   ASSERT_NE(p, (char*)NULL);
