@@ -75,31 +75,65 @@ qemu-system-x86_64 \
   -daemonize
 echo "::endgroup::"
 
-echo "::group::Configure VM"
+echo "::group::Configure and wait for VM"
 # Declare then export PUB_KEY separately (SC2155) so dfly_configure_vm.py can
 # read the VM ssh public key from the environment.
 PUB_KEY="$(cat vm_key.pub)"
 export PUB_KEY
 
-# Wait for the VM to boot
-sleep 90
-
-# DragonFly BSD raw images boot to a login prompt with root having no password
-# and no cloud-init support; dfly_configure_vm.py types the setup commands into
-# the VGA console via the QEMU monitor, reading the key from PUB_KEY and the
-# monitor socket path (created by qemu above, under VM_ARTIFACTS) from
-# DFLY_MONITOR_SOCK.
-DFLY_MONITOR_SOCK="$VM_ARTIFACTS/dfly-monitor.sock" \
-  python3 .ci-scripts/bsd/dfly_configure_vm.py
-echo "::endgroup::"
-
-echo "::group::Wait for VM"
-timeout 300 bash -c '
-  while ! ssh -o StrictHostKeyChecking=no -o ConnectTimeout=2 -i vm_key -p 2222 root@localhost true 2>/dev/null; do
+# dfly_configure_vm.py types the ssh-bring-up commands (login, network, sshd, ssh
+# key) into the VGA console over the QEMU monitor on fixed timers, with no
+# feedback. When a slow host pushes boot past those timers, the keystrokes land
+# before the login prompt is up and sshd never starts. So type the sequence, poll
+# ssh, and retype if it did not take: a later attempt, after boot has finished,
+# lands correctly. The script clears the console at the start of each run, so a
+# retype starts fresh.
+poll_ssh() { # 0 if ssh answers within $1 seconds, else 1
+  local deadline=$(( SECONDS + $1 ))
+  while [ "$SECONDS" -lt "$deadline" ]; do
+    if ssh -o StrictHostKeyChecking=no -o ConnectTimeout=2 -i vm_key -p 2222 \
+        root@localhost true 2>/dev/null; then
+      return 0
+    fi
     sleep 2
   done
-'
-echo "SSH available"
+  return 1
+}
+
+max_attempts=4
+sleep 90 # wait for boot to reach the login prompt before the first attempt
+
+configured=false
+for (( attempt = 1; attempt <= max_attempts; attempt++ )); do
+  echo "Configure attempt ${attempt}/${max_attempts}: typing setup into the console"
+  DFLY_MONITOR_SOCK="$VM_ARTIFACTS/dfly-monitor.sock" \
+    python3 .ci-scripts/bsd/dfly_configure_vm.py
+  if poll_ssh 30; then
+    configured=true
+    echo "SSH available after ${attempt} attempt(s)"
+    break
+  fi
+  echo "SSH not up after attempt ${attempt}"
+done
+
+if [ "$configured" != true ]; then
+  echo "::error::DragonFly VM never became ssh-reachable after ${max_attempts} configure attempts"
+  echo "::endgroup::"
+  exit 1
+fi
+echo "::endgroup::"
+
+echo "::group::Mount build disk"
+# The root partition is too small for the build, so it uses the second disk
+# (vbd1). newfs runs here over ssh, once, rather than being blind-typed into the
+# console on each configure attempt, where a retype could newfs an already-mounted
+# disk.
+ssh -o StrictHostKeyChecking=no -i vm_key -p 2222 root@localhost /bin/sh <<'EOF'
+set -e
+newfs /dev/vbd1
+mkdir -p /build
+mount /dev/vbd1 /build
+EOF
 echo "::endgroup::"
 
 echo "::group::Install build dependencies"

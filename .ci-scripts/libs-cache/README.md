@@ -207,8 +207,10 @@ main), or the main-cache build and push (the warmer).
 
 Both sets of scripts are file-based, so Super-Linter's shellcheck covers them,
 which it could not do for the embedded `run:` blocks they replaced.
-`dfly_configure_vm_test.py` guards the `KEYMAP` de-escaping and the
-`DFLY_MONITOR_SOCK` monitor-socket path contract with `dragonfly-provision.bash`.
+`dfly_configure_vm_test.py` guards the `KEYMAP` de-escaping, the
+`DFLY_MONITOR_SOCK` monitor-socket path contract with `dragonfly-provision.bash`,
+and the console reset that lets a re-typed configure attempt start from a clean
+prompt.
 
 The two callers differ only in how they invoke the script.
 

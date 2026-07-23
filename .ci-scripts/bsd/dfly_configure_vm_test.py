@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-"""Tests for dfly_configure_vm: KEYMAP de-escaping, send_line key mapping, and
-the monitor-socket path selection.
+"""Tests for dfly_configure_vm: KEYMAP de-escaping, send_line key mapping, the
+monitor-socket path selection, and the console reset.
 
 The KEYMAP checks guard the heredoc-to-standalone-.py extraction: the entries for
 backslash, backtick and dollar were shell-escaped in the original embedded
@@ -8,7 +8,9 @@ heredoc, so a botched de-escape would silently corrupt them. The monitor-socket
 checks guard the contract with dragonfly-provision.bash, which creates the socket
 under VM_ARTIFACTS (outside the checkout, so it isn't rsynced into the guest) and
 passes its path via DFLY_MONITOR_SOCK; hardcoding the path back would break
-DragonFly provisioning. No VM required.
+DragonFly provisioning. The console-reset check guards that main() sends ctrl-c
+before any login keystroke, so a re-run after a dropped keystroke starts at a fresh
+prompt rather than adding to a half-typed line. No VM required.
 """
 import os
 import sys
@@ -82,6 +84,57 @@ def monitor_path_for(env):
     return ConnectSock.connected_path
 
 
+class RecordingSock:
+    """A socket stand-in that records every command main() sends."""
+
+    def __init__(self):
+        self.sent = []
+
+    def connect(self, _):
+        pass
+
+    def sendall(self, data):
+        self.sent.append(data.decode().strip())
+
+    def settimeout(self, _):
+        pass
+
+    def recv(self, _):
+        return b''
+
+    def close(self):
+        pass
+
+
+def capture_main(env):
+    """Run main() with a recording socket and send_line captured; return
+    (sendkeys, typed_lines) -- the ordered sendkey args and the text of each line
+    main() types into the console."""
+    saved_env = dict(os.environ)
+    saved_socket = d.socket.socket
+    saved_send_line = d.send_line
+    rec = RecordingSock()
+    typed = []
+
+    def capturing_send_line(sock, text):
+        typed.append(text)
+        saved_send_line(sock, text)
+
+    os.environ.clear()
+    os.environ.update(env)
+    d.socket.socket = lambda *_a, **_k: rec
+    d.send_line = capturing_send_line
+    try:
+        d.main()
+    finally:
+        d.send_line = saved_send_line
+        d.socket.socket = saved_socket
+        os.environ.clear()
+        os.environ.update(saved_env)
+    sendkeys = [c.removeprefix('sendkey ') for c in rec.sent if c.startswith('sendkey ')]
+    return sendkeys, typed
+
+
 def main():
     failures = []
 
@@ -119,10 +172,22 @@ def main():
         monitor_path_for({"PUB_KEY": "k"}) == "dfly-monitor.sock",
     )
 
+    # main() clears the console before it logs in, so a re-run after a dropped
+    # keystroke starts at a fresh prompt; newfs/mount are no longer typed (the
+    # provision script mounts the build disk over ssh once ssh is up); and the
+    # bring-up still starts sshd.
+    sendkeys, typed = capture_main({"PUB_KEY": "k"})
+    check("console is reset (ctrl-c) before any login keystroke", sendkeys[0] == "ctrl-c")
+    check(
+        "newfs/mount are not typed into the console",
+        not any("newfs" in line or "mount" in line for line in typed),
+    )
+    check("bring-up starts sshd", any("/usr/sbin/sshd" in line for line in typed))
+
     if failures:
         print(f"dfly_configure_vm_test: FAIL ({len(failures)}): {', '.join(failures)}")
         return 1
-    print("dfly_configure_vm_test: ok (12 checks)")
+    print("dfly_configure_vm_test: ok (15 checks)")
     return 0
 
 
