@@ -2,11 +2,13 @@
 """Drive the DragonFly BSD VM's VGA console over the QEMU monitor.
 
 DragonFly raw images boot to a passwordless root login with no cloud-init, so the
-setup commands (login, network, sshd, ssh key, build disk) are typed in with QEMU
-monitor `sendkey`. Runs on the GitHub Actions host after the VM boots; reads the
-public key to install from the PUB_KEY environment variable and the QEMU monitor
-socket path from DFLY_MONITOR_SOCK (defaulting to dfly-monitor.sock in the
-current directory). Called by dragonfly-provision.bash.
+commands that bring SSH up (login, network, sshd, ssh key) are typed in with QEMU
+monitor `sendkey`. Each run first clears any half-typed line, then logs in fresh,
+so a re-run after a failed attempt starts from a clean prompt instead of adding to
+a line an earlier run left unfinished. Reads the public key to install from the
+PUB_KEY environment variable and the QEMU monitor socket path from DFLY_MONITOR_SOCK
+(defaulting to dfly-monitor.sock in the current directory). Called by
+dragonfly-provision.bash.
 """
 import os
 import socket
@@ -61,6 +63,13 @@ def main():
     time.sleep(0.5)
     sock.recv(4096)
 
+    # Clear any half-typed line left by a dropped keystroke on an earlier run: an
+    # unterminated quote leaves the shell at a continuation prompt, and without
+    # this the next run's keystrokes are swallowed by the open string. ctrl-c
+    # cancels the pending line so this run starts at a fresh prompt.
+    send_hmp(sock, 'sendkey ctrl-c')
+    time.sleep(0.5)
+
     # Press enter and login as root (no password)
     send_line(sock, '')
     time.sleep(2)
@@ -90,12 +99,6 @@ def main():
     time.sleep(10)
     send_line(sock, '/usr/sbin/sshd')
     time.sleep(3)
-
-    # Format and mount build disk
-    send_line(sock, 'newfs /dev/vbd1')
-    time.sleep(10)
-    send_line(sock, 'mkdir -p /build && mount /dev/vbd1 /build')
-    time.sleep(2)
 
     sock.close()
 
