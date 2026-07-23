@@ -136,7 +136,7 @@ typedef struct run_header_t
 /* The inbox is a single head pointer. A producer pushes its linked
  * runs onto it with one compare-and-swap; the owner takes the whole
  * chain with one exchange when it drains. Nothing notifies the owner:
- * a delivery waits in the inbox until the owner's next drain, which
+ * a delivery stays in the inbox until the owner's next drain, which
  * every passive visit and every allocation slow path performs.
  */
 typedef struct inbox_t
@@ -364,7 +364,7 @@ static __pony_thread_local pool_arena_thread_t this_thread =
   NO_OWNER_SLOT, NULL, NULL, NULL, { NULL }, { NULL }, NULL, 0, 0
 };
 
-// Thread cache (task #17): a per-class LIFO in front of the slab path, for
+// Thread cache: a per-class LIFO in front of the slab path, for
 // same-thread churn. cache_cap sets each class's depth from two terms. A byte
 // budget (POOL_CACHE_BUDGET / class size) lets small classes cache many and
 // bounds the resident memory the cache holds. A floor count (active_cache_floor)
@@ -1095,9 +1095,8 @@ static void slab_free(size_t index, void* p)
 /// Debug-only validation before a same-thread free enters the cache. It runs
 /// the same integrity checks the slab path would (recovering the unit record),
 /// then writes a sentinel so a double-free of the still-cached block is caught.
-/// Compiled out in release, where the cache path is bare (Sean: no release
-/// perf cost for debug safety); a release-safe build (-DPONY_ALWAYS_ASSERT)
-/// turns it back on with the rest of the checks.
+/// Compiled out in release, where the cache path is bare; a release-safe
+/// build (-DPONY_ALWAYS_ASSERT) turns it back on with the rest of the checks.
 static void cache_validate_push(size_t index, void* p, arena_t* arena)
 {
 #if !defined(PONY_NDEBUG) || defined(PONY_ALWAYS_ASSERT)
@@ -1445,7 +1444,7 @@ void ponyint_pool_free(size_t index, void* p)
 
   if(arena->owner_slot != this_thread.slot)
   {
-    // Another thread's memory goes home through its owner's inbox. Nothing
+    // Another thread's memory returns to its owner through the inbox. Nothing
     // of the owner's bookkeeping is touched here: only the object's own
     // first word, this thread's chain, and (at a batch) the inbox head.
     chain_push(arena->owner_slot, p);
@@ -1709,7 +1708,7 @@ void ponyint_pool_set_memory_profile(pool_memory_profile_t profile)
     case POOL_MEMORY_THROUGHPUT:
       // Hold freed memory: defer immediate decommit for every pool class (a
       // 1 MiB slab is 64 units), let an arena hold a full arena of dirty pages
-      // before sweeping, and keep a deeper cache floor so large-block churn
+      // before sweeping, and keep a deeper cache floor so large-class churn
       // reuses from the cache. Highest throughput; the idle return keeps this
       // from costing memory once a thread parks.
       active_decommit_immediate_span = 65;
@@ -1803,6 +1802,19 @@ void ponyint_pool_arena_cache_enable_for_test()
   pool_cache_disabled = false;
 }
 
+/// Test seam: the cache depth cap for a size class under the current memory
+/// profile. Reflects active_cache_floor, so a test can check that each
+/// profile's floor takes effect.
+size_t ponyint_pool_arena_cache_cap_for_test(size_t index)
+{
+  return cache_cap(index);
+}
+
+/// Test seam: how many blocks of a size class sit in the thread cache now.
+uint32_t ponyint_pool_arena_cache_count_for_test(size_t index)
+{
+  return pool_cache_count[index];
+}
 
 PONY_EXTERN_C_END
 

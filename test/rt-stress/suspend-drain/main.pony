@@ -31,8 +31,8 @@ Phases:
 
 Exit code 0 with a report on success; 1 with the failed phase on failure.
 Run with --ponyminthreads 1 so phase 2 has a floor to reach, and
---min-schedulers 2: polling rides a timer, every timer fire activates a
-scheduler to run the poll, and so a floor of 1 is never reached.
+--min-schedulers 2: the poll runs on a timer, every fire activates a
+scheduler to run it, and so a floor of 1 is never reached.
 """
 use "cli"
 use "time"
@@ -116,7 +116,7 @@ actor Collector
 
   fun ref _schedule_poll() =>
     """
-    Polling rides a timer so nothing is runnable between polls: an
+    The poll runs on a timer, so nothing is runnable between polls: an
     always-runnable poll actor gets stolen back and forth, and every
     successful steal resets the thief's suspend clock — the schedulers
     would never scale down.
@@ -136,7 +136,7 @@ actor Collector
 
   be poll_busy() =>
     """
-    Phase 3's poll never sleeps: while this actor burns, at least one
+    Phase 3's poll never sleeps: while this actor keeps running, at least one
     scheduler stays runnable, so the runtime never winds down and
     reclaims the memory through a global teardown that would mask the
     path under test. With one runnable actor and no other work, the only

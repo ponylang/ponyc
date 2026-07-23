@@ -3217,6 +3217,10 @@ void ponyint_tracing_init(char* format, char* output, char* enabled_categories_p
 
   atomic_store_explicit(&stop_tracing_thread, false, memory_order_relaxed);
 
+  // A fresh init (an embedding that restarts the runtime) starts the tracing
+  // thread's poll backoff at the floor, not wherever the previous run left it.
+  tracing_tick_ns = TRACING_TICK_MIN_NS;
+
 #if defined(PLATFORM_IS_WINDOWS)
   LARGE_INTEGER freq;
   QueryPerformanceFrequency(&freq);
@@ -3232,15 +3236,6 @@ void ponyint_tracing_init(char* format, char* output, char* enabled_categories_p
   tracing_thread.index = PONY_TRACING_THREAD_INDEX;
   // gets replace later with cpu to pin tracing thread on
   tracing_thread.cpu = -1;
-
-#if defined(PLATFORM_IS_WINDOWS)
-  // The tracing thread suspends/wakes on an auto-reset event (created here,
-  // before `run_thread` is spawned in `ponyint_tracing_start`). On POSIX the
-  // wake is a signal, so no object is needed. Only create it when a tracing
-  // thread will actually run (categories enabled) -- otherwise `ponyint_tracing_stop`
-  // returns early before closing it, which would leak the handle.
-  if(enabled_categories_bitmask != 0)
-#endif
 
   ponyint_messageq_init(&tracing_thread.mq);
 }

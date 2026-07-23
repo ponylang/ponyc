@@ -156,6 +156,11 @@ foreach(_use IN LISTS _pony_uses)
         _pony_set_use(POOL_RETAIN ON)
     elseif(_use STREQUAL "runtime_tracing")
         _pony_set_use(RUNTIME_TRACING ON)
+    elseif(_use STREQUAL "scheduler_scaling_pthreads")
+        message(FATAL_ERROR
+            "scheduler_scaling_pthreads was removed: the scheduler no longer "
+            "pauses idle threads with a signal or a condition variable, so the "
+            "option no longer selects anything. Drop it from PONY_USES.")
     else()
         message(FATAL_ERROR "Unknown use option specified: ${_use}")
     endif()
