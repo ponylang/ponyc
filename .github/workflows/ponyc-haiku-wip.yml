@@ -1,0 +1,163 @@
+name: Haiku WIP
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: "Git ref to check out and test (branch, tag, or SHA)"
+        required: false
+        default: "main"
+      force-install:
+        description: "Reinstall system disk, even when it was found in our cache"
+        required: false
+        default: false
+        type: boolean
+
+jobs:
+  check-for-changes:
+    runs-on: ubuntu-latest
+    outputs:
+      has-changes: ${{ steps.check.outputs.has-changes }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6.0.2
+        with:
+          ref: ${{ inputs.ref || github.sha }}
+          fetch-depth: 0
+      - name: Check for recent commits
+        id: check
+        run: |
+          if [ "${{ github.event_name }}" != "schedule" ]; then
+            echo "has-changes=true" >> "$GITHUB_OUTPUT"
+          # 3 days covers the widest gap between scheduled runs (Fri->Mon)
+          # in the Mon/Wed/Fri cadence; revisit this if the schedule changes.
+          elif git log --since="3 days ago" --oneline | head -1 | grep -q .; then
+            echo "has-changes=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has-changes=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  x86_64_haiku:
+    needs: check-for-changes
+    if: needs.check-for-changes.outputs.has-changes == 'true'
+    runs-on: ubuntu-latest
+    name: x86-64 Haiku Nightly
+    env:
+      HAIKU_NIGHTLY_VERSION: hrev59860
+
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.ref || github.sha }}
+
+      - name: Create source for LIBS_TAG
+        run: |
+          echo $HAIKU_NIGHTLY_VERSION >haiku_libs_tag.source
+          sha256sum \
+            lib/CMakePresets.json \
+            CMakeLists.txt \
+            lib/CMakeLists.txt \
+            lib/build-libs.cmake \
+            lib/llvm/patches/* \
+            >>haiku_libs_tag.source
+
+      - name: Check libs cache
+        id: check
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          LIBS_TAG: ${{ hashFiles('haiku_libs_tag.source') }}
+        run: |
+          # The libs live in the VM but the .libs-cache-miss marker and its gate
+          # live on the host, so the decision has to happen here, before the VM
+          # boots. Off main (a manual dispatch of a branch): build LLVM in the VM if
+          # it isn't cached (hit=false; the "Build libs" step pushes it). On main (a
+          # scheduled run, or a dispatch left on main): if it isn't cached, write
+          # the marker and skip -- we don't build LLVM on main.
+          cd ponyc
+          if python3 .ci-scripts/libs-cache/oci_libs_cache.py exists --platform haiku --tag "$LIBS_TAG"; then
+            echo "Libs present in the main GHCR cache."
+            echo "hit=true" >> "$GITHUB_OUTPUT"
+          elif [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ "${{ inputs.ref }}" != "main" ]; then
+            if python3 .ci-scripts/libs-cache/branch_libs_cache.py exists --platform haiku --tag "$LIBS_TAG"; then
+              echo "Libs present in the branch GHCR cache."
+              echo "hit=true" >> "$GITHUB_OUTPUT"
+            else
+              echo "Off-main manual run, cache miss; the VM will build LLVM."
+              echo "hit=false" >> "$GITHUB_OUTPUT"
+            fi
+          else
+            touch .libs-cache-miss
+            echo "::notice::Haiku libs cache miss (tag $LIBS_TAG) on a main run; skipping this tier-3 run. The warmer refills it on the next push to main."
+          fi
+
+      # Avoid burdening Haiku project by caching configured system disk
+      - name: Restore Haiku system disk from repo cache
+        id: haiku-cache
+        if: ${{ hashFiles('.libs-cache-miss') == '' }}
+        uses: actions/cache/restore@v6
+        with:
+          path: |
+            ${{ format('{0}/vm-artifacts/haiku_system.qcow2', runner.temp) }}
+            haiku_vm_key*
+          key: ${{ env.HAIKU_NIGHTLY_VERSION }}
+
+      - name: Force reinstall by removing cached system disk
+        if: ${{ hashFiles('.libs-cache-miss') == '' && inputs.force-install }}
+        run: rm -f "${{ runner.temp }}/vm-artifacts/haiku_system.qcow2"
+
+      - name: Provision VM
+        if: ${{ hashFiles('.libs-cache-miss') == '' }}
+        run: |
+          export GITHUB_WORKSPACE=${GITHUB_WORKSPACE}/ponyc
+          bash .ci-scripts/haiku/haiku-provision.bash
+
+      - name: Store system disk in repo cache
+        if: ${{ hashFiles('.libs-cache-miss') == '' && (inputs.force-install || steps.haiku-cache.outputs.cache-hit != 'true') }}
+        uses: actions/cache/save@v6
+        with:
+          path: |
+            ${{ format('{0}/vm-artifacts/haiku_system.qcow2', runner.temp) }}
+            haiku_vm_key*
+          key: ${{ steps.haiku-cache.outputs.cache-primary-key }}
+
+      - name: Restore libs
+        if: ${{ hashFiles('ponyc/.libs-cache-miss') == '' && steps.check.outputs.hit == 'true' }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          LIBS_TAG: ${{ hashFiles('haiku_libs_tag.source') }}
+        run: bash .ci-scripts/haiku/haiku-libs-cache.bash restore
+
+      - name: Build libs
+        if: ${{ hashFiles('.libs-cache-miss') == '' && steps.check.outputs.hit == 'false' }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          LIBS_TAG: ${{ hashFiles('haiku_libs_tag.source') }}
+        # When off main and the libs aren't cached, build LLVM in the VM (hours)
+        # and push it to the branch cache, so a re-dispatch reuses the build.
+        run: bash .ci-scripts/haiku/haiku-libs-cache.bash build-push-branch
+
+      - name: Build and test
+        if: ${{ hashFiles('.libs-cache-miss') == '' }}
+        run: |
+          ssh -o StrictHostKeyChecking=no -o ServerAliveInterval=60 -i haiku_vm_key -p 2222 user@localhost /bin/sh <<'EOF'
+            set -e
+            cd /Data/ponyc
+            cmake --preset debug -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++
+            cmake --build --preset debug
+            cmake --build --preset debug --target pony-doc-tests pony-lint-tests pony-lsp-tests
+            ctest --preset debug -L ci-core
+            ctest --preset debug -R pony-doc-tests
+            ctest --preset debug -R pony-lint-tests
+            ctest --preset debug -R pony-lsp-tests
+            cmake --preset release -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++
+            cmake --build --preset release
+            ctest --preset release -L ci-core
+          EOF
+
+      - name: Shutdown VM
+        if: ${{ always() }}
+        run: |
+          pkill -f qemu-system-x86 || true

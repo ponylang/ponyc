@@ -73,8 +73,8 @@ class CleanupHandler is SignalNotify
 ## Signal portability
 
 The `Sig` primitive provides support for portable signal handling across Linux,
-FreeBSD and OSX. On Windows only the subset of signals the C runtime supports is
-available: the accessors that do not depend on the platform (such as `Sig.int()`
+FreeBSD, Haiku and OSX. On Windows only the subset of signals the C runtime supports
+is available: the accessors that do not depend on the platform (such as `Sig.int()`
 for `SIGINT`) work, while platform-specific accessors (for example
 `Sig.trap()`) raise a compile error there. A few platform-independent
 accessors (such as `Sig.hup()`) compile on Windows but name signals it does

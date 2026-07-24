@@ -68,6 +68,16 @@ primitive HandleableSignalValidator is Validator[U32]
         or (sig == Sig.sys())
         or _usr2_handleable(sig)
         or _is_rt(sig)
+    elseif haiku then
+      (sig == Sig.hup()) or (sig == Sig.int()) or (sig == Sig.quit())
+        or (sig == Sig.pipe()) or (sig == Sig.alrm()) or (sig == Sig.term())
+        or (sig == Sig.urg()) or (sig == Sig.tstp()) or (sig == Sig.cont())
+        or (sig == Sig.chld()) or (sig == Sig.ttin()) or (sig == Sig.ttou())
+        or (sig == Sig.xcpu()) or (sig == Sig.xfsz()) or (sig == Sig.vtalrm())
+        or (sig == Sig.prof()) or (sig == Sig.winch()) or (sig == Sig.usr1())
+        or (sig == Sig.sys())
+        or _usr2_handleable(sig)
+        or _is_rt(sig)
     elseif linux then
       (sig == Sig.hup()) or (sig == Sig.int()) or (sig == Sig.quit())
         or (sig == Sig.pipe()) or (sig == Sig.alrm()) or (sig == Sig.term())
@@ -93,6 +103,8 @@ primitive HandleableSignalValidator is Validator[U32]
       (sig >= 65) and (sig <= 126)
     elseif linux then
       (sig >= 32) and (sig <= 64)
+    elseif haiku then
+      (sig >= 33) and (sig <= 40)
     else
       false
     end
