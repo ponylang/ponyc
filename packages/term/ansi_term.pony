@@ -39,6 +39,8 @@ primitive _TIOCGWINSZ
       21523
     elseif osx or bsd then
       1074295912
+    elseif haiku then
+      32780
     else
       0
     end

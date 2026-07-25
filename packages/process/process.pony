@@ -67,8 +67,8 @@ class ProcessClient is ProcessNotify
 
 ## Process portability
 
-The ProcessMonitor supports spawning processes on Linux, FreeBSD, OSX and
-Windows.
+The ProcessMonitor supports spawning processes on Linux, FreeBSD, OSX,
+Haiku and Windows.
 
 ## Shutting down ProcessMonitor and external process
 
