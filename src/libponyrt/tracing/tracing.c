@@ -22,9 +22,12 @@
 #else
 #  include <fnmatch.h>
 #  include <unistd.h>
-#  if defined(__GLIBC__) || defined(PLATFORM_IS_BSD) || defined(ALPINE_LINUX) || defined(PLATFORM_IS_MACOSX)
+#  if defined(__GLIBC__) || defined(PLATFORM_IS_BSD) || defined(ALPINE_LINUX) || defined(PLATFORM_IS_MACOSX) || defined(PLATFORM_IS_HAIKU)
 #    include <execinfo.h>
 #  endif
+#endif
+#if defined(PLATFORM_IS_HAIKU)
+#  include <os/kernel/OS.h>
 #endif
 
 #define PONY_TRACING_THREAD_INDEX -998
@@ -781,7 +784,11 @@ static void flight_recorder_dump_signal_handler(int sig, siginfo_t* siginfo, voi
       // if we timed out waiting for the flight recorder dump to finish, we
       // should exit the program immediately. This is a safety measure in case
       // something went wrong in the tracing thread dump process.
+#if defined(PLATFORM_IS_HAIKU)
+      const char* strsig = strsignal(sig);
+#else
       char* strsig = strsignal(sig);
+#endif
       char* msg = "Flight recorder dump timed out.\n Exiting program without waiting for it to complete.\n Signal encountered: ";
       write(1, msg, strlen(msg));
       write(1, strsig, strlen(strsig));
@@ -1402,6 +1409,8 @@ void ponyint_tracing_thread_start(scheduler_t* sched)
   this_tracing_scheduler->tid = (uint64_t)GetCurrentThreadId();
 #elif defined(PLATFORM_IS_LINUX)
   this_tracing_scheduler->tid = gettid();
+#elif defined(PLATFORM_IS_HAIKU)
+  this_tracing_scheduler->tid = get_pthread_thread_id(pthread_self());
 #else
   pthread_threadid_np(NULL, &this_tracing_scheduler->tid);
 #endif
@@ -3184,6 +3193,10 @@ static DECLARE_THREAD_FN(run_thread)
 {
   (void)arg;
   ponyint_cpu_affinity(tracing_thread.cpu);
+
+#if defined(PLATFORM_IS_HAIKU)
+  rename_thread(get_pthread_thread_id(pthread_self()), "tracing::run_thread");
+#endif
 
 #if !defined(PLATFORM_IS_WINDOWS)
   // Make sure we block signals related to scheduler sleeping/waking

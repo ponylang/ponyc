@@ -45,27 +45,36 @@ primitive _STDERRFILENO
 
 // Operation not permitted
 primitive _EPERM
-  fun apply(): I32 => 1
+  fun apply(): I32 =>
+    ifdef haiku then -2147483633 // 0x8000000f
+    else 1 end
 
 // No such process
 primitive _ESRCH
-  fun apply(): I32 => 3
+  fun apply(): I32 =>
+    ifdef haiku then -2147454963 // 0x8000700d
+    else 3 end
 
 // Interrupted function
 primitive _EINTR
-  fun apply(): I32 => 4
+  fun apply(): I32 =>
+    ifdef haiku then -2147483638 // 0x8000000a
+    else 4 end
 
 // Try again
 primitive _EAGAIN
   fun apply(): I32 =>
     ifdef bsd or osx then 35
     elseif linux then 11
+    elseif haiku then -2147483637 // 0x8000000b
     elseif windows then 22
     else compile_error "no EAGAIN" end
 
 // Invalid argument
 primitive _EINVAL
-  fun apply(): I32 => 22
+  fun apply(): I32 =>
+    ifdef haiku then -2147483643 // 0x80000005
+    else 22 end
 
 primitive _EXOSERR
   fun apply(): I32 => 71
@@ -320,28 +329,36 @@ primitive _WaitPidStatus
   """
 
   fun exited(wstatus: I32): Bool =>
-    termsig(wstatus) == 0
+    ifdef haiku then (wstatus and (not 0xff)) == 0
+    else termsig(wstatus) == 0 end
 
   fun exit_code(wstatus: I32): I32 =>
-    (wstatus and 0xff00) >> 8
+    ifdef haiku then (wstatus and 0xff)
+    else (wstatus and 0xff00) >> 8 end
 
   fun signaled(wstatus: I32): Bool =>
-    ((termsig(wstatus) + 1) >> 1).i8() > 0
+    ifdef haiku then ((wstatus >> 8) and 0xff) != 0
+    else ((termsig(wstatus) + 1) >> 1).i8() > 0 end
 
   fun termsig(wstatus: I32): I32 =>
-    (wstatus and 0x7f)
+    ifdef haiku then ((wstatus >> 8) and 0xff)
+    else (wstatus and 0x7f) end
 
   fun stopped(wstatus: I32): Bool =>
-    (wstatus and 0xff) == 0x7f
+    ifdef haiku then ((wstatus >> 16) and 0xff) != 0
+    else (wstatus and 0xff) == 0x7f end
 
   fun stopsig(wstatus: I32): I32 =>
-    exit_code(wstatus)
+    ifdef haiku then ((wstatus >> 16) and 0xff)
+    else exit_code(wstatus) end
 
   fun coredumped(wstatus: I32): Bool =>
-    (wstatus and 0x80) != 0
+    ifdef haiku then (wstatus and 0x10000) != 0
+    else (wstatus and 0x80) != 0 end
 
   fun continued(wstatus: I32): Bool =>
-    wstatus == 0xffff
+    ifdef haiku then (wstatus and 0x20000) != 0
+    else wstatus == 0xffff end
 
 
 class _ProcessWindows is _Process

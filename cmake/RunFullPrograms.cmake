@@ -28,6 +28,12 @@ endif()
 # where it already exists.
 file(MAKE_DIRECTORY "${OUTPUT}")
 
+# On Haiku create symlink lib -> test_lib in target directory,
+# to use system's default path to find custom libraries needed to run executables.
+if(${CMAKE_HOST_SYSTEM_NAME} MATCHES "Haiku")
+    file(CREATE_LINK "${TEST_LIB}" "${OUTPUT}/lib" SYMBOLIC)
+endif()
+
 set(_run "${RUNNER}"
     "--debugger=$ENV{PONY_TEST_DEBUGGER}"
     "--timeout_s=${_timeout}"

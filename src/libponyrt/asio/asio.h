@@ -14,6 +14,9 @@
 #elif defined(PLATFORM_IS_WINDOWS)
 #  define ASIO_USE_SOCK_NOTIFY
 #  define PONY_ASIO_SCHEDULER_INDEX PONY_SOCK_NOTIFY_SCHEDULER_INDEX
+#elif defined(PLATFORM_IS_HAIKU)
+#  define ASIO_USE_WFO
+#  define PONY_ASIO_SCHEDULER_INDEX PONY_WFO_SCHEDULER_INDEX
 #elif defined(PLATFORM_IS_EMSCRIPTEN)
 #  define ASIO_USE_EMSCRIPTEN
 #  define PONY_ASIO_SCHEDULER_INDEX PONY_EPOLL_SCHEDULER_INDEX
@@ -67,6 +70,7 @@ bool ponyint_asio_start();
  * ASIO base.
  *
  * The concrete mechanism is platform specific:
+ *   Haiku: wait_for_objects
  *   Linux: epoll
  *   MacOSX/BSD: kqueue
  *   Windows: I/O completion ports - to be implemented.
