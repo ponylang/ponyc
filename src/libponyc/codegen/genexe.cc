@@ -1521,12 +1521,7 @@ static bool link_exe_lld_elf(compile_t* c, ast_t* program,
     snprintf(buf, sizeof(buf), "-L%s", path);
     args.push_back(stringtab(c->opt->strtab, buf));
 
-    // On Haiku installations go to one of standard paths, so there's no need
-    // to support non-standard installations. It also would end up with incorrect
-    // RUNPATHs specified in pony-[lsp|doc|lint] executables because
-    // `cmake --install` does not update RUNPATHS for target environment
-    // and paths stay as they are for build environment.
-    if(!c->opt->staticbin && !is_haiku)
+    if(!c->opt->staticbin)
     {
       args.push_back("-rpath");
       args.push_back(path);
