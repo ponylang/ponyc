@@ -160,13 +160,13 @@ Building with `address_sanitizer`, `valgrind`, or `pooltrack` now requires pairi
 
 ## Add the --ponymemoryprofile runtime option
 
-The new allocator trades resident memory against throughput by how promptly it returns freed memory to the operating system, and `--ponymemoryprofile` selects the trade at program startup. `low_memory` returns freed memory promptly for the smallest footprint, `throughput` holds it for reuse for the most speed, and `balanced`, the default, sits between them.
+The new allocator trades resident memory against throughput by how promptly it returns freed memory to the operating system, and `--ponymemoryprofile` picks where on that trade a program runs. It takes a number from 1 to 10: 1 returns memory quickly for the smallest footprint, 10 holds it for the most throughput, and the default sits in the balanced middle. Today the mapping is coarse -- 1 through 3 are the low-memory behavior, 4 through 7 balanced, and 8 through 10 throughput.
 
 ```bash
-./my-program --ponymemoryprofile=throughput
+./my-program --ponymemoryprofile=8
 ```
 
-The option affects only the new allocator; a program built with `pool_classic` ignores it.
+A program can also set it in code through the `RuntimeOptions` struct, the same as the other runtime options. The option affects only the new allocator; a program built with `pool_classic` ignores it.
 
 ## Remove the scheduler_scaling_pthreads build option
 
