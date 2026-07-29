@@ -133,6 +133,8 @@ Note that you only need to run `cmake -P lib/build-libs.cmake` once the first ti
 
 ### 32-bit Raspbian
 
+32-bit ARM is a best-effort target — not tested in CI, but built and tested periodically on real hardware. A change can break it between those checks.
+
 Installing on a 32-bit Raspbian is slightly different from other Linux based
 Operating Systems. There are two important things to note:
 

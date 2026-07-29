@@ -12,7 +12,7 @@ Pony is still pre-1.0 and as such, semi-regularly introduces breaking changes. T
 
 | OS \ CPU | `amd64` | `arm64` | `arm32` | `riscv64` |
 |---|---|---|---|---|
-| **Linux** | ✅ Released | ✅ Released | 🧪 Tested | 🧪 Tested |
+| **Linux** | ✅ Released | ✅ Released | 🔧 Best-effort | 🧪 Tested |
 | **macOS** | ✅ Released | ✅ Released | — | — |
 | **Windows** | ✅ Released | ✅ Released | — | — |
 | **FreeBSD** | 🧪 Tested | ✗ Unsupported | — | — |
@@ -21,6 +21,7 @@ Pony is still pre-1.0 and as such, semi-regularly introduces breaking changes. T
 
 * ✅ **Released** — official prebuilt binaries; also tested in CI
 * 🧪 **Tested** — tested in CI; build from source (no prebuilt binary)
+* 🔧 **Best-effort** — not in CI; built from source and tested periodically on real hardware
 * ✗ **Unsupported** — no support
 * — **Not applicable** — combination doesn't exist
 

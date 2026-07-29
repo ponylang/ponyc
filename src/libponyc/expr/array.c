@@ -1,14 +1,9 @@
 #include "array.h"
-#include "call.h"
-#include "control.h"
 #include "literal.h"
-#include "postfix.h"
-#include "reference.h"
 #include "../ast/astbuild.h"
 #include "../pkg/package.h"
 #include "../pass/names.h"
 #include "../pass/expr.h"
-#include "../pass/refer.h"
 #include "../type/alias.h"
 #include "../type/assemble.h"
 #include "../type/reify.h"
@@ -547,61 +542,77 @@ bool expr_array(pass_opt_t* opt, ast_t** astp)
     ast_free_unattached(aliasable_type);
   }
 
-  BUILD(ref, ast, NODE(TK_REFERENCE, ID("Array")));
-
-  BUILD(qualify, ast,
-    NODE(TK_QUALIFY,
-      TREE(ref)
-      NODE(TK_TYPEARGS, TREE(type))));
-
-  BUILD(dot, ast, NODE(TK_DOT, TREE(qualify) ID("create")));
-
-  ast_t* size_arg = ast_from_int(ast, size);
-  BUILD(size_arg_seq, ast, NODE(TK_SEQ, TREE(size_arg)));
-  ast_settype(size_arg, type_builtin(opt, ast, "USize"));
-  ast_settype(size_arg_seq, type_builtin(opt, ast, "USize"));
-
-  BUILD(call, ast,
+  // Desugar the literal to a flat sequence that fills the array through a temp
+  // local:
+  //   (let $array = Array[T].create(N); $array.push(e1); ...; $array)
+  // rather than the left-nested `Array[T].create(N).>push(e1).>push(e2)...`
+  // chain this used to build. The chain deepened by one level per element, and
+  // re-attaching the growing expression each iteration made building it O(N^2):
+  // TREE() duplicates an already-parented node and ast_replace() frees one, so
+  // both touched the whole accumulated tree every time. The flat form touches
+  // only fixed-size nodes per element, so the build is O(N). The sequence is
+  // left unprocessed and run through ast_passes_subtree, which sets up the temp
+  // local and resolves its references through the normal front-end passes
+  // (sugar through expr).
+  BUILD(array_create, ast,
     NODE(TK_CALL,
-      TREE(dot)
-      NODE(TK_POSITIONALARGS, TREE(size_arg_seq))
+      NODE(TK_DOT,
+        NODE(TK_QUALIFY,
+          NODE(TK_REFERENCE, ID("Array"))
+          NODE(TK_TYPEARGS, TREE(type)))
+        ID("create"))
+      NODE(TK_POSITIONALARGS, NODE(TK_SEQ, INT(size)))
       NONE
       NONE));
 
-  if(!refer_reference(opt, &ref) ||
-    !refer_qualify(opt, qualify) ||
-    !expr_typeref(opt, &qualify) ||
-    !expr_dot(opt, &dot) ||
-    !expr_call(opt, &call)
-    )
-    return false;
-
-  ast_swap(ast, call);
-  *astp = call;
-
-  elements = ast_childidx(ast, 1);
-
-  for(ast_t* ele = ast_child(elements); ele != NULL; ele = ast_sibling(ele))
+  if(size == 0)
   {
-    BUILD(append_chain, ast, NODE(TK_CHAIN, TREE(*astp) ID("push")));
-    BUILD(ele_seq, ast, NODE(TK_SEQ, TREE(ele)));
+    // No elements to push: leave the array as a bare constructor call. An
+    // embedded field must be assigned a constructor. is_expr_constructor
+    // (expr/operator.c) looks through a sequence to its last expression, so the
+    // size>0 form above is rejected for an embed field not because it is a
+    // sequence but because it ends in the temp-local reference; keeping the bare
+    // create for an empty literal is what lets `embed field = []` stay valid.
+    ast_replace(astp, array_create);
+  }
+  else
+  {
+    const char* tmp_name = package_hygienic_id(&opt->check, opt);
 
-    BUILD(append, ast,
-      NODE(TK_CALL,
-        TREE(append_chain)
-        NODE(TK_POSITIONALARGS, TREE(ele_seq))
-        NONE
-        NONE));
+    // No AST_SCOPE on the sequence: an expression-position sequence is a
+    // rawseq, exactly as Pony represents a parenthesised `(let x = ...; x)`.
+    // The temp local is defined in the enclosing scope; its hygienic name
+    // rules out any collision. A scope here would make the node a scoped seq,
+    // which the tree-check `expr` group rejects in expression position.
+    BUILD(seq, ast,
+      NODE(TK_SEQ,
+        NODE(TK_ASSIGN,
+          NODE(TK_LET, NICE_ID(tmp_name, "array literal") NONE)
+          TREE(array_create))));
 
-    ast_replace(astp, append);
+    // Track the last sibling so each push is appended in O(1) instead of
+    // walking to the end of the sequence's child list.
+    ast_t* last = ast_child(seq); // the TK_ASSIGN
+    for(ast_t* ele = ast_pop(elements); ele != NULL; ele = ast_pop(elements))
+    {
+      BUILD(push, ast,
+        NODE(TK_CALL,
+          NODE(TK_DOT, NODE(TK_REFERENCE, ID(tmp_name)) ID("push"))
+          NODE(TK_POSITIONALARGS, NODE(TK_SEQ, TREE(ele)))
+          NONE
+          NONE));
+      last = ast_add_sibling(last, push);
+    }
 
-    if(!expr_chain(opt, &append_chain) ||
-      !expr_seq(opt, ele_seq) ||
-      !expr_call(opt, &append)
-      )
-      return false;
+    BUILD(array_ref, ast, NODE(TK_REFERENCE, ID(tmp_name)));
+    ast_add_sibling(last, array_ref);
+
+    ast_replace(astp, seq);
   }
 
-  ast_free_unattached(ast);
-  return true;
+  // Run the front-end passes over the spliced-in nodes. The already-processed
+  // elements carry the expr pass flag, so each pass skips them; only the new
+  // structural nodes (the let, references, push calls and sequence) are
+  // processed.
+  return ast_passes_subtree(astp, opt, PASS_EXPR);
 }

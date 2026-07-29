@@ -1,3 +1,4 @@
+use "constrained_types"
 use "time"
 use "signals"
 use @ioctl[I32](fx: I32, cmd: ULong, ...) if posix
@@ -50,15 +51,17 @@ actor ANSITerm
   var _timer: (Timer tag | None) = None
   let _notify: ANSINotify
   let _source: DisposableActor
-  var _signal: (SignalHandler | None) = None
   var _escape: _EscapeState = _EscapeNone
   var _esc_num: U8 = 0
   var _esc_mod: U8 = 0
   var _esc_private: Bool = false
   embed _esc_buf: Array[U8] = Array[U8]
   var _closed: Bool = false
+  let _auth: SignalAuth
+  var _winch: (SignalHandler | None) = None
 
   new create(
+    auth: SignalAuth,
     notify: ANSINotify iso,
     source: DisposableActor,
     timers: Timers = Timers)
@@ -69,9 +72,17 @@ actor ANSITerm
     _timers = timers
     _notify = consume notify
     _source = source
+    _auth = auth
 
     ifdef not windows then
-      _signal = SignalHandler(recover _TermResizeNotify(this) end, Sig.winch())
+      match MakeHandleableSignal(Sig.winch())
+      | let sig: HandleableSignal =>
+        _winch = SignalHandler(auth, recover _TermResizeNotify(this) end, sig)
+      | let _: ValidationFailure =>
+        // SIGWINCH is whitelisted on every platform where this branch
+        // compiles; a rejection means the whitelist regressed.
+        _Unreachable()
+      end
     end
 
     _size()
@@ -207,9 +218,7 @@ actor ANSITerm
       _source.dispose()
       // Unregister the SIGWINCH handler installed in the constructor so it
       // stops delivering resize callbacks and frees its subscription.
-      match _signal
-      | let s: SignalHandler => s.dispose()
-      end
+      try (_winch as SignalHandler).dispose(_auth) end
       _closed = true
     end
 

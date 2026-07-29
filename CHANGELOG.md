@@ -12,12 +12,17 @@ All notable changes to the Pony compiler and standard library will be documented
 - Fix `F32.ldexp` linking on Windows ([PR #5775](https://github.com/ponylang/ponyc/pull/5775))
 - Fix pony-lsp not working when your editor escapes characters in a file path ([PR #5777](https://github.com/ponylang/ponyc/pull/5777))
 - Fix pony-lsp not working when your editor sends your project's location as a URI ([PR #5783](https://github.com/ponylang/ponyc/pull/5783))
+- Fix quadratic type checking of large array literals ([PR #5790](https://github.com/ponylang/ponyc/pull/5790))
+- Fix spurious 'can't reuse name' errors when a multi-file package has a syntax error ([PR #5147](https://github.com/ponylang/ponyc/pull/5147))
 
 ### Added
 
 
 ### Changed
 
+- Correct the signature of `FloatingPoint.ldexp` ([PR #5772](https://github.com/ponylang/ponyc/pull/5772))
+- Replace the signal handling system ([PR #4984](https://github.com/ponylang/ponyc/pull/4984))
+- 32-bit ARM Linux is now a best-effort target ([PR #5795](https://github.com/ponylang/ponyc/pull/5795))
 
 ## [0.67.0] - 2026-07-11
 
