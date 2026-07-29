@@ -91,11 +91,11 @@
   "                   usage N times its current value. This is a floating\n" \
   "                   point value. Defaults to 2.0.\n" \
   "  --ponymemoryprofile\n" \
-  "                   Trade the allocator's resident memory against\n" \
-  "                   throughput by how quickly it returns freed memory to the\n" \
-  "                   operating system. low_memory returns it quickly for a\n" \
-  "                   smaller footprint, throughput keeps it longer for speed,\n" \
-  "                   balanced is in between. Defaults to balanced.\n" \
+  "                   Trade the allocator's resident memory against throughput\n" \
+  "                   on a scale from 1 to 10: 1 returns freed memory quickly\n" \
+  "                   for the smallest footprint, 10 holds it for the most\n" \
+  "                   throughput. The scale is coarse today -- 1-3 low memory,\n" \
+  "                   4-7 balanced, 8-10 throughput. Defaults to balanced.\n" \
   "  --ponynoyield    Do not yield the CPU when no work is available.\n" \
   "  --ponynoblock    Do not send block messages to the cycle detector.\n" \
   "                   Turning this on with disable the cycle detector.\n" \
@@ -115,8 +115,7 @@
   "  --ponyversion    Print the version of the compiler and exit.\n" \
   "  --ponyhelp       Print the runtime usage options and exit.\n" \
   "\n" \
-  "NOTE: These can be programmatically overridden, except --ponymemoryprofile,\n" \
-  "      which is set only on the command line. See the docstring in the\n" \
+  "NOTE: These can be programmatically overridden. See the docstring in the\n" \
   "      `RuntimeOptions` struct in the `builtin` package.\n"
 
 typedef struct opt_arg_t
