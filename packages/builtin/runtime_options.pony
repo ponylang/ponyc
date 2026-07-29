@@ -125,3 +125,20 @@ struct RuntimeOptions
     """
     Print the runtime usage options and exit.
     """
+
+  var ponymemoryprofile: U32 = 0
+    """
+    Trade the allocator's resident memory against throughput on a scale from 1
+    to 10: 1 returns freed memory to the operating system quickly for the
+    smallest footprint, 10 holds it for the most throughput. 0, the default,
+    leaves the balanced middle in place. The scale is coarse today: 1 through 3
+    are the low-memory behavior, 4 through 7 balanced, and 8 through 10
+    throughput. A value outside 1 to 10 is rejected at startup.
+
+    ```
+    rto.ponymemoryprofile = 8
+    ```
+
+    Only the arena allocator acts on it; a program built with pool_classic
+    ignores it.
+    """

@@ -35,6 +35,7 @@ typedef struct options_t
   uint32_t stats_interval;
   bool version;
   bool ponyhelp;
+  uint32_t memory_profile;
 #if defined(USE_SYSTEMATIC_TESTING)
   uint64_t systematic_testing_seed;
 #endif
@@ -242,14 +243,10 @@ static int parse_opts(int argc, char** argv, options_t* opt)
       case OPT_PINPAT: opt->pinpat = true; break;
       case OPT_STATSINTERVAL: if(parse_uint(&opt->stats_interval, 1, s.arg_val)) err_out(id, "can't be less than 1 second"); break;
       case OPT_MEMORYPROFILE:
-        if(strcmp(s.arg_val, "balanced") == 0)
-          ponyint_pool_set_memory_profile(POOL_MEMORY_BALANCED);
-        else if(strcmp(s.arg_val, "low_memory") == 0)
-          ponyint_pool_set_memory_profile(POOL_MEMORY_LOW);
-        else if(strcmp(s.arg_val, "throughput") == 0)
-          ponyint_pool_set_memory_profile(POOL_MEMORY_THROUGHPUT);
-        else
-          err_out(id, "must be low_memory, balanced, or throughput");
+        if(parse_uint(&opt->memory_profile, 1, s.arg_val))
+          err_out(id, "must be between 1 and 10");
+        if(opt->memory_profile > 10)
+          err_out(id, "must be between 1 and 10");
         break;
       case OPT_VERSION: opt->version = true; break;
 #if defined(USE_SYSTEMATIC_TESTING)
@@ -345,6 +342,26 @@ PONY_API int pony_init(int argc, char** argv)
         printf("%s\n", PONY_VERSION_STR);
 #endif
     exit(0);
+  }
+
+  // Map the memory-profile dial (1-10) to a profile and apply it, after both
+  // the override and the command line have set it; the command line wins
+  // because parse_opts runs after the override. 0 means neither set it, so the
+  // allocator keeps its balanced default. The command line rejected an out-of-
+  // range value at parse; this rejects one set through RuntimeOptions.
+  if(opt.memory_profile != 0)
+  {
+    if(opt.memory_profile <= 3)
+      ponyint_pool_set_memory_profile(POOL_MEMORY_LOW);
+    else if(opt.memory_profile <= 7)
+      ponyint_pool_set_memory_profile(POOL_MEMORY_BALANCED);
+    else if(opt.memory_profile <= 10)
+      ponyint_pool_set_memory_profile(POOL_MEMORY_THROUGHPUT);
+    else
+    {
+      printf("ponymemoryprofile must be between 1 and 10\n");
+      exit(-1);
+    }
   }
 
   ponyint_cpu_init();
