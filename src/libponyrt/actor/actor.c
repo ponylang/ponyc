@@ -205,7 +205,10 @@ static void maybe_mark_should_mute(pony_ctx_t* ctx, pony_actor_t* to)
   }
 }
 
-#ifndef PONY_NDEBUG
+// Runs whenever pony_assert does, so it must be defined then too -- including
+// a release-safe -DPONY_ALWAYS_ASSERT build, not just debug. A plain #ifndef
+// PONY_NDEBUG would drop the definition while the assert calls below remain.
+#if !defined(PONY_NDEBUG) || defined(PONY_ALWAYS_ASSERT)
 static bool well_formed_msg_chain(pony_msg_t* first, pony_msg_t* last)
 {
   // A message chain is well formed if last is reachable from first and is the
@@ -943,7 +946,10 @@ PONY_API pony_msg_t* pony_alloc_msg(uint32_t index, uint32_t id)
   pony_msg_t* msg = (pony_msg_t*)ponyint_pool_alloc(index);
   msg->index = index;
   msg->id = id;
-#ifndef PONY_NDEBUG
+  // Null a fresh message's link so well_formed_msg_chain sees a clean chain
+  // end. Gated with that check, not just on debug, so it holds in a
+  // release-safe build too.
+#if !defined(PONY_NDEBUG) || defined(PONY_ALWAYS_ASSERT)
   atomic_store_explicit(&msg->next, NULL, memory_order_relaxed);
 #endif
 
