@@ -144,9 +144,15 @@ static const char* arg_name(const int id) {
   return args[id].long_opt;
 }
 
+// The exit code for a rejected runtime option. A negative code is not the same
+// value on every platform: a POSIX exit status carries only the low 8 bits, so
+// -1 arrives there as 255, while a Windows exit code carries all 32 bits and -1
+// arrives as 4294967295.
+#define BAD_OPTION_EXIT_CODE 255
+
 static void err_out(int id, const char* msg) {
   printf("--%s %s\n", arg_name(id), msg);
-  exit(255);
+  exit(BAD_OPTION_EXIT_CODE);
 }
 
 static int parse_uint(uint32_t* target, int min, const char *value) {
@@ -266,11 +272,11 @@ static int parse_opts(int argc, char** argv, options_t* opt)
 
       case -2:
         // an error message has been printed by ponyint_opt_next
-        exit(-1);
+        exit(BAD_OPTION_EXIT_CODE);
         break;
 
       default:
-        exit(-1);
+        exit(BAD_OPTION_EXIT_CODE);
         break;
     }
   }
@@ -280,7 +286,7 @@ static int parse_opts(int argc, char** argv, options_t* opt)
     if (minthreads_set)
     {
       printf("--%s & --%s are mutually exclusive\n", arg_name(OPT_MINTHREADS), arg_name(OPT_NOSCALE));
-      exit(-1);
+      exit(BAD_OPTION_EXIT_CODE);
     }
     opt->min_threads = opt->threads;
   }
@@ -360,7 +366,7 @@ PONY_API int pony_init(int argc, char** argv)
     else
     {
       printf("ponymemoryprofile must be between 1 and 10\n");
-      exit(-1);
+      exit(BAD_OPTION_EXIT_CODE);
     }
   }
 
@@ -372,13 +378,13 @@ PONY_API int pony_init(int argc, char** argv)
   else if (opt.threads > ponyint_cpu_count())
   {
     printf("Can't have --%s > physical cores, the number of threads you'd be running with (%u > %u)\n", arg_name(OPT_MAXTHREADS), opt.threads, ponyint_cpu_count());
-    exit(-1);
+    exit(BAD_OPTION_EXIT_CODE);
   }
 
   if (opt.min_threads > opt.threads)
   {
     printf("Can't have --%s > --%s (%u > %u)\n", arg_name(OPT_MINTHREADS), arg_name(OPT_MAXTHREADS), opt.min_threads, opt.threads);
-    exit(-1);
+    exit(BAD_OPTION_EXIT_CODE);
   }
 
 #ifndef USE_RUNTIMESTATS
