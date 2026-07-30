@@ -172,6 +172,15 @@ if(PONY_USE_RUNTIME_TRACING)
     add_compile_options(-DUSE_RUNTIME_TRACING)
 endif()
 
+# Keep the runtime's asserts -- pony_assert and the arena allocator's integrity
+# checks -- compiled in even in a release build, where NDEBUG would otherwise
+# drop them (see src/common/ponyassert.h). Not a use= directive; an internal
+# knob the weekly checks flip with -DPONY_ALWAYS_ASSERT=ON to run the arena's
+# checks against optimized code.
+if(PONY_ALWAYS_ASSERT)
+    add_compile_options(-DPONY_ALWAYS_ASSERT)
+endif()
+
 # The build's output directory, a sibling of the CMake binary directory. CMake
 # places the executables via CMAKE_RUNTIME_OUTPUT_DIRECTORY, set here from
 # PONY_OUTPUT_DIR; the static libraries and other artifacts are copied into the
