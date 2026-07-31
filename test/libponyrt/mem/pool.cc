@@ -926,7 +926,7 @@ TEST(Pool, LiveRecordChurn)
 #define TEST_ARENA_SIZE ((size_t)8 * 1024 * 1024)
 #endif
 #define TEST_UNIT_SIZE ((size_t)16 * 1024)
-#define TEST_SWEEP_THRESHOLD ((TEST_ARENA_SIZE / TEST_UNIT_SIZE) / 4)
+#define TEST_SWEEP_THRESHOLD ((TEST_ARENA_SIZE / TEST_UNIT_SIZE) / 16)
 #define TEST_SEGMENT_SLOTS 256
 #define TEST_CHAIN_MAP_INITIAL 128
 
@@ -1939,37 +1939,43 @@ TEST(PoolArena, FreeToExitedOwner)
   ponyint_pool_free(0, p);
 }
 
-extern "C" size_t ponyint_pool_arena_cache_cap_for_test(size_t index);
 extern "C" void ponyint_pool_arena_cache_enable_for_test();
+extern "C" size_t ponyint_pool_arena_cache_floor_for_test(void);
+extern "C" size_t ponyint_pool_arena_decommit_span_for_test(void);
+extern "C" size_t ponyint_pool_arena_dirty_threshold_for_test(void);
 
-// The memory profile sets a floor under the thread cache's depth. A large
-// class, whose byte budget rounds below the floor, caches exactly the floor:
-// none under low_memory, 8 under balanced, 32 under throughput. A small class,
-// whose byte budget already exceeds every floor, is unchanged by the profile.
-// Nothing else covers set_memory_profile's effect on the allocator.
-TEST(PoolArena, MemoryProfileCacheFloor)
+// The --ponymemoryprofile dial (1-10) sets three arena knobs per rung. The cache
+// floor is an absolute per-class count; the decommit span and dirty-sweep
+// threshold are given against a PROFILE_TUNED_UNITS-unit arena in pool_arena.c
+// and scaled to this arena, so the expected values scale the same way. These
+// mirror memory_profiles[] in pool_arena.c -- change both together. Nothing else
+// covers set_memory_profile's effect on the allocator.
+TEST(PoolArena, MemoryProfileRungs)
 {
-  const size_t large = POOL_COUNT - 1; // largest class; byte budget rounds to 0
-  const size_t small = 0;              // smallest class; byte budget dominates
+  const size_t arena_units = TEST_ARENA_SIZE / TEST_UNIT_SIZE;
+  const size_t tuned_units = 512; // PROFILE_TUNED_UNITS in pool_arena.c
 
-  // cache_cap consults the disable flag; make sure the cache is on so the cap
-  // reflects the floor, not a prior test's disable.
-  ponyint_pool_arena_cache_enable_for_test();
+  const size_t expected_floor[10] =
+    { 0, 4, 8, 16, 24, 32, 48, 64, 96, 128 };
+  const size_t raw_span[10] =
+    { 1, 64, 128, 256, 512, 512, 512, 512, 512, 512 };
+  const size_t raw_threshold[10] =
+    { 4, 16, 32, 64, 128, 160, 256, 384, 512, 512 };
 
-  ponyint_pool_set_memory_profile(POOL_MEMORY_LOW);
-  EXPECT_EQ(ponyint_pool_arena_cache_cap_for_test(large), (size_t)0);
-  const size_t small_cap = ponyint_pool_arena_cache_cap_for_test(small);
+  for(uint32_t rung = 1; rung <= 10; rung++)
+  {
+    ponyint_pool_set_memory_profile(rung);
 
-  ponyint_pool_set_memory_profile(POOL_MEMORY_BALANCED);
-  EXPECT_EQ(ponyint_pool_arena_cache_cap_for_test(large), (size_t)8);
-  EXPECT_EQ(ponyint_pool_arena_cache_cap_for_test(small), small_cap);
+    EXPECT_EQ(ponyint_pool_arena_cache_floor_for_test(),
+      expected_floor[rung - 1]);
+    EXPECT_EQ(ponyint_pool_arena_decommit_span_for_test(),
+      (raw_span[rung - 1] * arena_units) / tuned_units);
+    EXPECT_EQ(ponyint_pool_arena_dirty_threshold_for_test(),
+      (raw_threshold[rung - 1] * arena_units) / tuned_units);
+  }
 
-  ponyint_pool_set_memory_profile(POOL_MEMORY_THROUGHPUT);
-  EXPECT_EQ(ponyint_pool_arena_cache_cap_for_test(large), (size_t)32);
-  EXPECT_EQ(ponyint_pool_arena_cache_cap_for_test(small), small_cap);
-
-  // Restore the default so later tests see the balanced profile.
-  ponyint_pool_set_memory_profile(POOL_MEMORY_BALANCED);
+  // rung 3 is the default; restore it so later tests see it.
+  ponyint_pool_set_memory_profile(3);
 }
 
 extern "C" uint32_t ponyint_pool_arena_cache_count_for_test(size_t index);
@@ -1981,7 +1987,7 @@ TEST(PoolArena, ReturnIdleFlushesCache)
 {
   on_fresh_thread([]{
     ponyint_pool_arena_cache_enable_for_test();
-    ponyint_pool_set_memory_profile(POOL_MEMORY_BALANCED); // floor 8
+    ponyint_pool_set_memory_profile(3); // rung 3 (default): floor 8
 
     const size_t index = POOL_COUNT - 1; // a large class the floor lifts
 

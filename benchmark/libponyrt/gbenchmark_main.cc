@@ -10,17 +10,22 @@ int main(int argc, char** argv) {
 
 #ifdef POOL_USE_ARENA
   // Select the arena memory profile from the environment, so one binary can be
-  // measured under each profile. Balanced is the default; leaving it unset
-  // keeps the default. Only the arena backend has this call.
+  // measured under each rung of the --ponymemoryprofile dial. Accepts a rung
+  // number 1-10, or the names low/balanced/throughput (rungs 1/3/10). Leaving
+  // it unset keeps the default (rung 3). Only the arena backend has this call.
   const char* prof = getenv("PONY_MEMPROFILE");
   if(prof != NULL)
   {
+    uint32_t rung;
     if(strcmp(prof, "low") == 0)
-      ponyint_pool_set_memory_profile(POOL_MEMORY_LOW);
+      rung = 1;
+    else if(strcmp(prof, "balanced") == 0)
+      rung = 3;
     else if(strcmp(prof, "throughput") == 0)
-      ponyint_pool_set_memory_profile(POOL_MEMORY_THROUGHPUT);
+      rung = 10;
     else
-      ponyint_pool_set_memory_profile(POOL_MEMORY_BALANCED);
+      rung = (uint32_t)atoi(prof);
+    ponyint_pool_set_memory_profile(rung);
   }
 #endif
 
