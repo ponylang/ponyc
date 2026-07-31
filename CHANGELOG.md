@@ -14,6 +14,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Fix pony-lsp not working when your editor sends your project's location as a URI ([PR #5783](https://github.com/ponylang/ponyc/pull/5783))
 - Fix quadratic type checking of large array literals ([PR #5790](https://github.com/ponylang/ponyc/pull/5790))
 - Fix spurious 'can't reuse name' errors when a multi-file package has a syntax error ([PR #5147](https://github.com/ponylang/ponyc/pull/5147))
+- Fix runtime crash when sending objects through `iso | val` unions ([PR #5799](https://github.com/ponylang/ponyc/pull/5799))
 
 ### Added
 
