@@ -533,35 +533,41 @@ static void trace_unknown(compile_t* c, LLVMValueRef ctx, LLVMValueRef object,
   gencall_runtime(c, "pony_traceunknown", args, 3, "");
 }
 
-static int trace_cap_nominal(pass_opt_t* opt, ast_t* type, ast_t* orig,
-  ast_t* tuple)
+static ast_t* find_dup(ast_t* original, ast_t* duplicate, ast_t* target)
+{
+  if(original == target)
+    return duplicate;
+
+  ast_t* original_child = ast_child(original);
+  ast_t* duplicate_child = ast_child(duplicate);
+
+  while(original_child != NULL)
+  {
+    pony_assert(duplicate_child != NULL);
+
+    ast_t* found = find_dup(original_child, duplicate_child, target);
+    if(found != NULL)
+      return found;
+
+    original_child = ast_sibling(original_child);
+    duplicate_child = ast_sibling(duplicate_child);
+  }
+
+  pony_assert(duplicate_child == NULL);
+  return NULL;
+}
+
+static int trace_cap_nominal_probe(pass_opt_t* opt, ast_t* type, ast_t* orig,
+  ast_t* match_type)
 {
   pony_assert(ast_id(type) == TK_NOMINAL);
 
   ast_t* cap = cap_fetch(type);
-
-  if(tuple != NULL)
-  {
-    // We are a tuple element. Our type is in the correct position in the
-    // tuple, everything else is TK_DONTCARETYPE.
-    type = tuple;
-  }
-
   token_id orig_cap = ast_id(cap);
 
-  // Strip ephemeral before the matchtype probes below. Tracing is a
-  // receiver-side question ("could a receiver match-extract this as cap
-  // X?"), and ephemerality is a sender-side consume-semantic concern the
-  // receiver never sees. The call sites are asymmetric: gencall.c (send
-  // side) passes the call-site expression type, which is ephemeral when
-  // the argument came from a consume, recover, or destructive read.
-  // genfun.c (receive side) passes the parameter AST, which is never
-  // ephemeral. Without the strip, the strict ephemeral check in
-  // is_cap_sub_cap (tightened as the soundness fix for #4588, codified
-  // at test/libponyc/matchtype.cc:466-477) makes the iso probe fail, the
-  // tag probe wins, and the sender emits PONY_TRACE_OPAQUE while the
-  // receiver emits PONY_TRACE_MUTABLE. The recursion mismatch crashes
-  // the GC. See #4807.
+  // Ephemerality applies only to sender-side ownership transfer. Including it
+  // in receiver-side matching can produce different trace operations on each
+  // side.
   ast_t* eph = ast_sibling(cap);
   token_id orig_eph = ast_id(eph);
   if(orig_eph == TK_EPHEMERAL)
@@ -570,51 +576,49 @@ static int trace_cap_nominal(pass_opt_t* opt, ast_t* type, ast_t* orig,
   // We can have a non-sendable rcap if we're tracing a field in a type's trace
   // function. In this case we must always recurse and we have to trace the
   // field as mutable.
-  switch(orig_cap)
-  {
-    case TK_TRN:
-    case TK_REF:
-    case TK_BOX:
-      ast_setid(eph, orig_eph);
-      return PONY_TRACE_MUTABLE;
-
-    default: {}
-  }
+  if((orig_cap == TK_TRN) || (orig_cap == TK_REF) || (orig_cap == TK_BOX))
+    return PONY_TRACE_MUTABLE;
 
   // If it's possible to use match or to extract the source type from the
   // destination type with a given cap, then we must trace as this cap. Try iso,
   // val and tag in that order.
   if(orig_cap == TK_ISO)
   {
-    if(is_matchtype(orig, type, NULL, opt) == MATCHTYPE_ACCEPT)
-    {
-      ast_setid(eph, orig_eph);
+    if(is_matchtype(orig, match_type, NULL, opt) == MATCHTYPE_ACCEPT)
       return PONY_TRACE_MUTABLE;
-    } else {
-      ast_setid(cap, TK_VAL);
-    }
+
+    ast_setid(cap, TK_VAL);
   }
 
   if(ast_id(cap) == TK_VAL)
   {
-    if(is_matchtype(orig, type, NULL, opt) == MATCHTYPE_ACCEPT)
-    {
-      ast_setid(cap, orig_cap);
-      ast_setid(eph, orig_eph);
+    if(is_matchtype(orig, match_type, NULL, opt) == MATCHTYPE_ACCEPT)
       return PONY_TRACE_IMMUTABLE;
-    } else {
-      ast_setid(cap, TK_TAG);
-    }
+
+    ast_setid(cap, TK_TAG);
   }
 
   pony_assert(ast_id(cap) == TK_TAG);
 
-  int ret = -1;
-  if(is_matchtype(orig, type, NULL, opt) == MATCHTYPE_ACCEPT)
-    ret = PONY_TRACE_OPAQUE;
+  if(is_matchtype(orig, match_type, NULL, opt) == MATCHTYPE_ACCEPT)
+    return PONY_TRACE_OPAQUE;
 
-  ast_setid(cap, orig_cap);
-  ast_setid(eph, orig_eph);
+  return -1;
+}
+
+static int trace_cap_nominal(pass_opt_t* opt, ast_t* type, ast_t* orig,
+  ast_t* tuple)
+{
+  pony_assert(ast_id(type) == TK_NOMINAL);
+
+  ast_t* match_type = (tuple == NULL) ? type : tuple;
+  ast_t* match_type_dup = ast_dup(match_type);
+  ast_t* type_dup = find_dup(match_type, match_type_dup, type);
+  pony_assert(type_dup != NULL);
+
+  int ret = trace_cap_nominal_probe(opt, type_dup, orig, match_type_dup);
+
+  ast_free_unattached(match_type_dup);
   return ret;
 }
 
