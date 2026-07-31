@@ -14,9 +14,11 @@ Run under the dial and watch throughput against peak RSS:
       /usr/bin/time -v ./actor-churn 64 8000 65536 8 --ponymemoryprofile $r
     done
 
-Positional args: batch rounds base-size ngap. Three more optional args -- floor
-span thresh -- set the arena knobs directly (bypassing the dial) for re-tuning
-sweeps; omit them to honor --ponymemoryprofile.
+Positional args: batch rounds base-size ngap, each optional from the left. Three
+more optional args -- floor span thresh -- set the arena knobs directly
+(bypassing the dial) for re-tuning sweeps, all three or none; omit them to honor
+--ponymemoryprofile. A non-numeric argument, or a partial floor/span/thresh list,
+is rejected rather than silently run at the default.
 """
 use "time"
 
@@ -72,15 +74,29 @@ actor Coordinator
 
 actor Main
   new create(env: Env) =>
-    let batch = try env.args(1)?.usize()? else 64 end
-    let rounds = try env.args(2)?.usize()? else 8000 end
-    let base = try env.args(3)?.usize()? else 65536 end
-    let ngap = try env.args(4)?.usize()? else 8 end
-
-    // Optional raw-knob override (floor span thresh) for re-tuning sweeps. Read
-    // all three before setting any, so a partial list overrides nothing. When
-    // omitted, the run honors --ponymemoryprofile.
+    // A missing argument takes its default; a present but non-numeric one, or a
+    // partial floor/span/thresh list, is a typo, so reject the run rather than
+    // silently measure the default.
     try
+      _run(env)?
+    else
+      env.err.print("usage: actor-churn [batch [rounds [base-size [ngap "
+        + "[floor span thresh]]]]] -- each argument is a non-negative integer, "
+        + "and floor/span/thresh are all-or-nothing")
+      env.exitcode(1)
+    end
+
+  fun _run(env: Env) ? =>
+    let batch = _arg(env, 1, 64)?
+    let rounds = _arg(env, 2, 8000)?
+    let base = _arg(env, 3, 65536)?
+    let ngap = _arg(env, 4, 8)?
+
+    // Optional raw-knob override (floor span thresh) for re-tuning sweeps: all
+    // three or none. Read all three before setting any, so a partial or garbled
+    // list errors out above and sets nothing. When omitted, the run honors
+    // --ponymemoryprofile.
+    if env.args.size() > 5 then
       let floor = env.args(5)?.usize()?
       let span = env.args(6)?.usize()?
       let thresh = env.args(7)?.usize()?
@@ -96,3 +112,9 @@ actor Main
       arr
     end
     Coordinator(env, batch, rounds, sizes)
+
+  fun _arg(env: Env, i: USize, fallback: USize): USize ? =>
+    // Absent -> fallback. Present -> parse, erroring to _run's caller on a
+    // non-numeric value, so a mistyped argument is rejected instead of run
+    // silently at the default.
+    if i >= env.args.size() then fallback else env.args(i)?.usize()? end
