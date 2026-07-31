@@ -350,24 +350,19 @@ PONY_API int pony_init(int argc, char** argv)
     exit(0);
   }
 
-  // Map the memory-profile dial (1-10) to a profile and apply it, after both
-  // the override and the command line have set it; the command line wins
-  // because parse_opts runs after the override. 0 means neither set it, so the
-  // allocator keeps its balanced default. The command line rejected an out-of-
-  // range value at parse; this rejects one set through RuntimeOptions.
+  // Apply the memory-profile dial (1-10), after both the override and the
+  // command line have set it; the command line wins because parse_opts runs
+  // after the override. 0 means neither set it, so the allocator keeps its
+  // rung-3 default. The command line rejected an out-of-range value at parse;
+  // this rejects one set through RuntimeOptions.
   if(opt.memory_profile != 0)
   {
-    if(opt.memory_profile <= 3)
-      ponyint_pool_set_memory_profile(POOL_MEMORY_LOW);
-    else if(opt.memory_profile <= 7)
-      ponyint_pool_set_memory_profile(POOL_MEMORY_BALANCED);
-    else if(opt.memory_profile <= 10)
-      ponyint_pool_set_memory_profile(POOL_MEMORY_THROUGHPUT);
-    else
+    if(opt.memory_profile > 10)
     {
       printf("ponymemoryprofile must be between 1 and 10\n");
       exit(BAD_OPTION_EXIT_CODE);
     }
+    ponyint_pool_set_memory_profile(opt.memory_profile);
   }
 
   ponyint_cpu_init();

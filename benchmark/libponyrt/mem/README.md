@@ -17,7 +17,7 @@ Run a subset by name:
 build/release/libponyrt.benchmarks --benchmark_filter=size_sweep_churn
 ```
 
-Set the `PONY_MEMPROFILE` environment variable to `low`, `balanced`, or `throughput` to select the arena allocator's memory profile for the run — the same trade the `--ponymemoryprofile` runtime option makes for a Pony program. The default is balanced, and it affects only the arena backend.
+Set the `PONY_MEMPROFILE` environment variable to a rung `1` through `10` (or the names `low`, `balanced`, or `throughput`, which are rungs 1, 3, and 10) to select the arena allocator's memory profile for the run — the same 1-to-10 dial the `--ponymemoryprofile` runtime option makes for a Pony program. The default is rung 3, and it affects only the arena backend.
 
 ## pool.cc
 

@@ -23,6 +23,8 @@ among them `--benchmark_filter` to select cases by name and
 
 See `libponyrt/mem/README.md` for what the runtime's memory benchmarks measure.
 
+The `memory-profile/` directory holds a different kind of benchmark: standalone Pony programs that exercise the arena allocator's `--ponymemoryprofile` dial, so the dial's per-rung values can be measured and re-derived. They are ordinary Pony programs, not Google Benchmark suites -- build them with the compiler you are testing and run them directly. See `memory-profile/README.md`.
+
 `cmake --install` does not install the benchmark binaries.
 
 `lib/CMakeLists.txt` sets the Google Benchmark version in

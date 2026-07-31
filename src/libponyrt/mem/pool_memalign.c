@@ -136,9 +136,9 @@ void ponyint_pool_return_idle()
 {
 }
 
-void ponyint_pool_set_memory_profile(pool_memory_profile_t profile)
+void ponyint_pool_set_memory_profile(uint32_t rung)
 {
-  (void)profile;
+  (void)rung;
 }
 
 void ponyint_pool_drain()

@@ -131,9 +131,9 @@ struct RuntimeOptions
     Trade the allocator's resident memory against throughput on a scale from 1
     to 10: 1 returns freed memory to the operating system quickly for the
     smallest footprint, 10 holds it for the most throughput. 0, the default,
-    leaves the balanced middle in place. The scale is coarse today: 1 through 3
-    are the low-memory behavior, 4 through 7 balanced, and 8 through 10
-    throughput. A value outside 1 to 10 is rejected at startup.
+    leaves rung 3 in place -- the scale has little room below it for less memory
+    and much more above it for throughput, so rung 3 sits low on it. A value
+    outside 1 to 10 is rejected at startup.
 
     ```
     rto.ponymemoryprofile = 8
