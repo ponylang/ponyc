@@ -142,7 +142,7 @@ The spurious errors no longer appear. You'll still see the real syntax error, bu
 
 ## The runtime no longer reserves SIGUSR2
 
-The runtime used SIGUSR2 to wake sleeping scheduler threads on Linux and the BSDs, so it reserved the signal for its own use: the signals package could not touch it, and `Sig.usr2()` was a compile error on those platforms. The scheduler no longer uses SIGUSR2, so the runtime no longer reserves it. `Sig.usr2()` now returns the signal number on Linux and the BSDs, and a program can subscribe to SIGUSR2 like any other signal. macOS never reserved it, so nothing changes there.
+The runtime used SIGUSR2 to wake paused scheduler threads on Linux and the BSDs, so it reserved the signal for its own use: the signals package could not touch it, and `Sig.usr2()` was a compile error on those platforms. The scheduler no longer uses SIGUSR2, so the runtime no longer reserves it. `Sig.usr2()` now returns the signal number on Linux and the BSDs, and a program can subscribe to SIGUSR2 like any other signal. macOS never reserved it, so nothing changes there.
 
 ## Replace the runtime allocator
 
@@ -168,6 +168,8 @@ The new allocator trades resident memory against throughput by how promptly it r
 
 A program can also set it in code through the `RuntimeOptions` struct, the same as the other runtime options. The option affects only the new allocator; a program built with `pool_classic` ignores it.
 
-## Remove the scheduler_scaling_pthreads build option
+## Change how scheduler scaling works
 
-The `scheduler_scaling_pthreads` build option selected one of two mechanisms the runtime used to pause and resume idle scheduler threads. The scheduler no longer uses either mechanism, so the option is gone: a build that passes `use=scheduler_scaling_pthreads` now fails. Systematic testing no longer pairs with it — build with `use=systematic_testing` alone.
+The runtime paused idle scheduler threads through one of three per-platform mechanisms — signals on Linux and the BSDs, pthread condition variables on macOS and on builds that passed `use=scheduler_scaling_pthreads`, a native event on Windows — and a paused thread waited for another thread to wake it. All three mechanisms are gone: on every platform, an idle scheduler thread now suspends on its own and periodically checks for work. Nothing wakes a suspended thread; anything sent to one is found at its next check.
+
+The `scheduler_scaling_pthreads` build option selected the condition-variable mechanism on platforms where signals were the default, so it is gone too: a build that passes `use=scheduler_scaling_pthreads` now fails. Systematic testing no longer pairs with it — build with `use=systematic_testing` alone.
