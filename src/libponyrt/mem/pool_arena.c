@@ -231,22 +231,29 @@ typedef struct arena_unit_t
 
 struct pool_arena_thread_t;
 
-/// A released slab this many units or larger has its pages dropped at once;
-/// smaller ones go dirty and are swept in batches, so that churning small
-/// slabs does not pay a system call per slab.
-#define DECOMMIT_IMMEDIATE_SPAN 16
+/// This span, the dirty-sweep threshold below, and the cache floor
+/// (POOL_CACHE_FLOOR) are the default memory profile -- rung 3 of the
+/// --ponymemoryprofile dial; the memory_profiles table further down holds the
+/// full dial, and pony_static_asserts there keep rung 3 and these defaults in
+/// step. A released slab this many units or larger has its pages dropped at
+/// once; smaller ones go dirty and are swept in batches, so churning small
+/// slabs does not pay a system call per slab. Expressed against ARENA_UNITS so
+/// the value scales with the arena.
+#define DECOMMIT_IMMEDIATE_SPAN (ARENA_UNITS / 4)
 
-/// Sweep an arena's dirty units once this many accumulate: a quarter of the
-/// arena (2 MiB on 64-bit). Below that, free units keep their pages as a
-/// reuse cache; dropping them eagerly makes a churning workload re-fault
-/// the pages back in, which costs more than the memory is worth.
-#define DIRTY_SWEEP_THRESHOLD (ARENA_UNITS / 4)
+/// Sweep an arena's dirty units once this many accumulate. Below that, free
+/// units keep their pages as a reuse cache; dropping them eagerly makes a
+/// churning workload re-fault the pages back in, which costs more than the
+/// memory is worth. The default profile's threshold (rung 3).
+#define DIRTY_SWEEP_THRESHOLD (ARENA_UNITS / 16)
 
 // The active memory-return thresholds. The memory profile sets them once at
-// startup (ponyint_pool_set_memory_profile); the free path reads them. They
-// start at the balanced values (the #defines above), so a program that sets no
-// profile behaves exactly as before. Set before any scheduler thread starts,
-// so a plain read is safe.
+// startup (ponyint_pool_set_memory_profile) before any scheduler thread starts,
+// so the free path reads them without synchronization. They start at the
+// default-profile values (the #defines above -- rung 3 of the dial), so a
+// program that sets no profile gets the default. The _for_test setters below
+// also write them, for benchmarks; set those at startup too, before the workload
+// allocates -- a write racing a concurrent free is not synchronized.
 static size_t active_decommit_immediate_span = DECOMMIT_IMMEDIATE_SPAN;
 static size_t active_dirty_sweep_threshold = DIRTY_SWEEP_THRESHOLD;
 
@@ -393,7 +400,7 @@ static __pony_thread_local bool pool_cache_disabled = false;
 
 // The floor count cache_cap holds for every class regardless of the byte budget.
 // Set per memory profile (ponyint_pool_set_memory_profile); starts at the
-// balanced value so a program that sets no profile gets it.
+// default-profile value (rung 3) so a program that sets no profile gets it.
 static size_t active_cache_floor = POOL_CACHE_FLOOR;
 
 // The number of class-`index` blocks the cache may hold: the larger of the byte
@@ -1692,36 +1699,58 @@ void ponyint_pool_return_idle()
     dirty_sweep(a);
 }
 
-void ponyint_pool_set_memory_profile(pool_memory_profile_t profile)
+// The --ponymemoryprofile dial: rung 1 (smallest footprint, return freed memory
+// at once) to rung 10 (most throughput, hold it for reuse). `floor` is an
+// absolute per-class cache count; `span` and `threshold` are given against a
+// PROFILE_TUNED_UNITS-unit arena and scaled to ARENA_UNITS below. On a smaller
+// (32-bit) arena the top rungs' span reaches the whole arena and stops changing;
+// `floor` and `threshold` still separate those rungs.
+#define PROFILE_TUNED_UNITS 512
+
+// Rung 3 is the default. Its values live here so the memory_profiles row and the
+// compile-time defaults above share one source; the asserts pin the two, so
+// re-tuning the default means editing one place.
+#define RUNG3_FLOOR 8
+#define RUNG3_SPAN 128
+#define RUNG3_THRESHOLD 32
+pony_static_assert(POOL_CACHE_FLOOR == RUNG3_FLOOR,
+  "the default cache floor must equal memory_profiles rung 3");
+pony_static_assert(
+  DECOMMIT_IMMEDIATE_SPAN == (RUNG3_SPAN * ARENA_UNITS) / PROFILE_TUNED_UNITS,
+  "the default decommit span must equal memory_profiles rung 3");
+pony_static_assert(
+  DIRTY_SWEEP_THRESHOLD == (RUNG3_THRESHOLD * ARENA_UNITS) / PROFILE_TUNED_UNITS,
+  "the default sweep threshold must equal memory_profiles rung 3");
+
+static const struct { size_t floor; size_t span; size_t threshold; }
+  memory_profiles[10] =
 {
-  switch(profile)
-  {
-    case POOL_MEMORY_LOW:
-      // Return promptly: decommit even single-unit slabs on free, and sweep
-      // the dirty allotment after eight units (128 KiB). Lowest footprint, and
-      // no cache floor -- large classes cache only what their byte budget buys.
-      active_decommit_immediate_span = 1;
-      active_dirty_sweep_threshold = 8;
-      active_cache_floor = 0;
-      break;
+  {           0,          1,               4 }, //  1
+  {           4,         64,              16 }, //  2
+  { RUNG3_FLOOR, RUNG3_SPAN, RUNG3_THRESHOLD }, //  3 (default)
+  {          16,        256,              64 }, //  4
+  {          24,        512,             128 }, //  5
+  {          32,        512,             160 }, //  6
+  {          48,        512,             256 }, //  7
+  {          64,        512,             384 }, //  8
+  {          96,        512,             512 }, //  9
+  {         128,        512,             512 }  // 10
+};
 
-    case POOL_MEMORY_THROUGHPUT:
-      // Hold freed memory: defer immediate decommit for every pool class (a
-      // 1 MiB slab is 64 units), let an arena hold a full arena of dirty pages
-      // before sweeping, and keep a deeper cache floor so large-class churn
-      // reuses from the cache. Highest throughput; the idle return keeps this
-      // from costing memory once a thread parks.
-      active_decommit_immediate_span = 65;
-      active_dirty_sweep_threshold = ARENA_UNITS;
-      active_cache_floor = 32;
-      break;
+void ponyint_pool_set_memory_profile(uint32_t rung)
+{
+  // Out of range is ignored, leaving the default in place. The command-line path
+  // rejects it before here; a caller passing a raw number, like a benchmark,
+  // relies on this guard.
+  if((rung < 1) || (rung > 10))
+    return;
 
-    default: // POOL_MEMORY_BALANCED
-      active_decommit_immediate_span = DECOMMIT_IMMEDIATE_SPAN;
-      active_dirty_sweep_threshold = DIRTY_SWEEP_THRESHOLD;
-      active_cache_floor = POOL_CACHE_FLOOR;
-      break;
-  }
+  const size_t span = memory_profiles[rung - 1].span;
+  const size_t threshold = memory_profiles[rung - 1].threshold;
+
+  active_cache_floor = memory_profiles[rung - 1].floor;
+  active_decommit_immediate_span = (span * ARENA_UNITS) / PROFILE_TUNED_UNITS;
+  active_dirty_sweep_threshold = (threshold * ARENA_UNITS) / PROFILE_TUNED_UNITS;
 }
 
 void ponyint_pool_drain()
@@ -1802,18 +1831,54 @@ void ponyint_pool_arena_cache_enable_for_test()
   pool_cache_disabled = false;
 }
 
-/// Test seam: the cache depth cap for a size class under the current memory
-/// profile. Reflects active_cache_floor, so a test can check that each
-/// profile's floor takes effect.
-size_t ponyint_pool_arena_cache_cap_for_test(size_t index)
-{
-  return cache_cap(index);
-}
-
 /// Test seam: how many blocks of a size class sit in the thread cache now.
 uint32_t ponyint_pool_arena_cache_count_for_test(size_t index)
 {
   return pool_cache_count[index];
+}
+
+/// Test/benchmark seam: set the per-class cache floor directly, bypassing the
+/// --ponymemoryprofile dial so a benchmark can sweep arbitrary values. Applied
+/// after any profile selection, so it wins. Set it at startup, before the
+/// workload allocates; it and the two setters below write process-global state a
+/// concurrent free reads unsynchronized (see active_decommit_immediate_span).
+void ponyint_pool_arena_set_cache_floor_for_test(size_t floor)
+{
+  active_cache_floor = floor;
+}
+
+/// Test/benchmark seam: set the immediate-decommit span directly (how large a
+/// freed span must be, in units, to have its pages returned at once). Bypasses
+/// the profile dial.
+void ponyint_pool_arena_set_decommit_span_for_test(size_t span)
+{
+  active_decommit_immediate_span = span;
+}
+
+/// Test/benchmark seam: set the dirty-sweep threshold directly (how many dirty
+/// units accumulate before a return pass runs). Bypasses the profile dial.
+void ponyint_pool_arena_set_dirty_threshold_for_test(size_t threshold)
+{
+  active_dirty_sweep_threshold = threshold;
+}
+
+/// Test seam: the active per-class cache floor, so a test can assert each
+/// profile rung sets the expected floor.
+size_t ponyint_pool_arena_cache_floor_for_test(void)
+{
+  return active_cache_floor;
+}
+
+/// Test seam: the active immediate-decommit span.
+size_t ponyint_pool_arena_decommit_span_for_test(void)
+{
+  return active_decommit_immediate_span;
+}
+
+/// Test seam: the active dirty-sweep threshold.
+size_t ponyint_pool_arena_dirty_threshold_for_test(void)
+{
+  return active_dirty_sweep_threshold;
 }
 
 PONY_EXTERN_C_END
