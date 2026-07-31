@@ -62,3 +62,8 @@ directly (via the runtime's `_for_test` seams) and bypass the dial:
 
 - `churn`: `workers rounds base-size ngap depth [floor span thresh]`
 - `actor-churn`: `batch rounds base-size ngap [floor span thresh]`
+
+Each argument is optional from the left and must be a non-negative integer; the
+trailing `floor span thresh` are all-or-nothing. A non-numeric argument, or a
+partial raw-knob list, is rejected with a usage message and a non-zero exit,
+rather than run silently at the default.
