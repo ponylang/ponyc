@@ -38,7 +38,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Replace the signal handling system ([PR #4984](https://github.com/ponylang/ponyc/pull/4984))
 - 32-bit ARM Linux is now a best-effort target ([PR #5795](https://github.com/ponylang/ponyc/pull/5795))
 - Replace the runtime allocator ([PR #5768](https://github.com/ponylang/ponyc/pull/5768))
-- Remove the scheduler_scaling_pthreads build option ([PR #5768](https://github.com/ponylang/ponyc/pull/5768))
+- Change how scheduler scaling works ([PR #5768](https://github.com/ponylang/ponyc/pull/5768))
 - The runtime no longer reserves SIGUSR2 ([PR #5768](https://github.com/ponylang/ponyc/pull/5768))
 
 
