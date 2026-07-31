@@ -643,8 +643,8 @@ def test_lldb_argv():
     sep = argv.index("--")
     check("lldb_argv: engine argv follows --",
           argv[sep + 1:] == ["/bin/generative", "--seed", "5"])
-    # POSIX MUST pass SIGUSR2 through without stopping -- the runtime uses it for
-    # scheduler wakeups, so stopping on it hangs the run. (This test host is posix.)
+    # POSIX passes SIGUSR2 through without stopping, mirroring the test harness's
+    # pass-through list (.ci-scripts/test-debugger.sh). (This test host is posix.)
     if os.name == "posix":
         joined = " ".join(argv)
         check("lldb_argv (posix): passes SIGUSR2 through without stopping",

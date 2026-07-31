@@ -9,9 +9,10 @@ activating any of them into scheduling work.
 Phases:
 
 1. Allocate: N actors, spread across all scheduler threads, each
-   allocate `--blocks` raw pool blocks of `--block-size` bytes (the
-   default is an immediate-decommit span in the arena allocator, so its
-   return is deterministic) and hand the pointers to one collector.
+   allocate `--blocks` raw pool blocks of `--block-size` bytes (one
+   freed block at the default 512 KiB crosses the arena allocator's
+   dirty-sweep threshold by itself, so its return is deterministic)
+   and hand the pointers to one collector.
 2. Scale down: the allocators go idle; the schedulers scale down. The
    collector polls `pony_active_schedulers` until the count reaches
    `--min-schedulers`.
@@ -30,9 +31,11 @@ Phases:
    drain episodes.
 
 Exit code 0 with a report on success; 1 with the failed phase on failure.
-Run with --ponyminthreads 1 so phase 2 has a floor to reach, and
---min-schedulers 2: the poll runs on a timer, every fire activates a
-scheduler to run it, and so a floor of 1 is never reached.
+Run with `--ponyminthreads 1` to keep one scheduler always active:
+that scheduler runs the poll timer itself, so the count settles at 1
+and the default `--min-schedulers` floor of 1 is reachable. The
+machine must provide more schedulers than the floor; phase 4 needs
+the count to rise above it.
 """
 use "cli"
 use "time"
@@ -136,9 +139,9 @@ actor Collector
 
   be poll_busy() =>
     """
-    Phase 3's poll never sleeps: while this actor keeps running, at least one
-    scheduler stays runnable, so the runtime never winds down and
-    reclaims the memory through a global teardown that would mask the
+    Phase 3's poll runs without a timer: while this actor keeps running,
+    at least one scheduler stays active, so the runtime never reaches
+    the global teardown that would reclaim the memory and mask the
     path under test. With one runnable actor and no other work, the only
     thing that reclaims a suspended owner's memory is that owner draining
     its own inbox on its polling tick: exactly what the phase asserts.
@@ -389,8 +392,9 @@ actor Main
           OptionSpec.u64("block-size", "Bytes per block"
             where default' = 524288)
           OptionSpec.u64("min-schedulers",
-            "The floor phase 2 must reach; pass --ponyminthreads with the "
-            + "same value" where default' = 1)
+            "The floor phase 2 must reach; run with --ponyminthreads 1 "
+            + "and keep this floor below the machine's scheduler count"
+            where default' = 1)
           OptionSpec.f64("reclaim-fraction",
             "Payload fraction that must return in phase 3"
             where default' = 0.5)
