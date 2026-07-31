@@ -2,10 +2,6 @@
 
 When a transient system error occurred during socket teardown on Windows, the runtime freed memory that its I/O thread could still reference. The runtime now retries the operation and, if the error persists, leaves the memory allocated rather than freeing it while references remain.
 
-## The runtime no longer reserves SIGUSR2
-
-The runtime used SIGUSR2 to wake paused scheduler threads on Linux and the BSDs, so it reserved the signal for its own use: the signals package could not touch it, and `Sig.usr2()` was a compile error on those platforms. The scheduler no longer uses SIGUSR2, so the runtime no longer reserves it. `Sig.usr2()` now returns the signal number on Linux and the BSDs, and a program can subscribe to SIGUSR2 like any other signal. macOS never reserved it, so nothing changes there.
-
 ## Replace the runtime allocator
 
 The runtime's pool allocator couldn't return freed memory to the operating system, reuse a large block on a thread that didn't free it, or re-carve memory from one size class for another. A program that passed large blocks between threads reserved fresh address space for every block it freed and grew without bound.
@@ -35,3 +31,7 @@ A program can also set it in code through the `RuntimeOptions` struct, the same 
 The runtime paused idle scheduler threads through one of three per-platform mechanisms — signals on Linux and the BSDs, pthread condition variables on macOS and on builds that passed `use=scheduler_scaling_pthreads`, a native event on Windows — and a paused thread waited for another thread to wake it. All three mechanisms are gone: on every platform, an idle scheduler thread now suspends on its own and periodically checks for work. Nothing wakes a suspended thread; anything sent to one is found at its next check.
 
 The `scheduler_scaling_pthreads` build option selected the condition-variable mechanism on platforms where signals were the default, so it is gone too: a build that passes `use=scheduler_scaling_pthreads` now fails. Systematic testing no longer pairs with it — build with `use=systematic_testing` alone.
+
+The signal mechanism used SIGUSR2, so the runtime reserved that signal on Linux and the BSDs: you could not handle SIGUSR2 through the `signals` package, and `Sig.usr2()` was a compile error on those platforms. The runtime no longer reserves it — `Sig.usr2()` now returns the signal number on Linux and the BSDs, and a program can subscribe to SIGUSR2 like any other signal. The runtime never reserved it on macOS, so nothing changes there.
+
+In the `runtime_info` package, `Scheduler.sleeping_schedulers` is now `Scheduler.suspended_schedulers`, using the same word for an idle scheduler thread as the rest of the runtime. A program calling the old name will not compile; change the call to the new name.
