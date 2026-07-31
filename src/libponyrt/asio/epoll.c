@@ -68,11 +68,11 @@ typedef struct signal_subscribers_t {
   // The disposition in place before the first subscriber replaced it, captured
   // by sigaction's oldact at install and put back on last-subscriber teardown.
   // Restoring this instead of SIG_DFL returns a signal the runtime had
-  // configured — SIGPIPE to SIG_IGN, the scheduler sleep/wake signal to a no-op
-  // handler — to that configuration, rather than leaving it to terminate the
-  // process on the next delivery. Written by the first subscriber before it
-  // publishes registered == 1 and read by the last canceler after it claims
-  // registered, so the registered protocol orders the two with no extra sync.
+  // configured — SIGPIPE to SIG_IGN — to that configuration, rather than
+  // leaving it to terminate the process on the next delivery. Written by the
+  // first subscriber before it publishes registered == 1 and read by the last
+  // canceler after it claims registered, so the registered protocol orders
+  // the two with no extra sync.
   struct sigaction saved_action;
 } signal_subscribers_t;
 

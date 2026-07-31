@@ -1012,11 +1012,11 @@ def lldb_argv(lldb, engine_argv):
     """Wrap the engine argv to run under `lldb --batch`. On a crash the on-crash
     commands (`frame variable`, `bt all`) print the crash site to the captured
     output and `quit 1` makes lldb exit non-zero, so the backtrace survives even
-    when the run doesn't reproduce. POSIX is the careful path: the Pony runtime
-    uses SIGUSR2 for scheduler wakeups (and SIGINT for shutdown), so lldb must pass
-    those through WITHOUT stopping -- otherwise it halts on every scheduler signal
-    and the run hangs. We stop at `main`, configure that pass-through, then
-    continue. Windows has no such signals, so it just runs. Mirrors the lldb
+    when the run doesn't reproduce. POSIX is the careful path: lldb stops on any
+    delivered signal it was not told to pass through, and a stop nobody resumes
+    hangs the run, so SIGINT and SIGUSR2 are passed through WITHOUT stopping. We
+    stop at `main`, configure that pass-through, then continue. Windows has no
+    such signals, so it just runs. Mirrors the lldb
     invocation the test harness uses (`.ci-scripts/test-debugger.sh`, or
     `.ci-scripts/test-debugger.ps1` on Windows).
 
