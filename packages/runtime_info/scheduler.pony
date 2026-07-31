@@ -28,7 +28,7 @@ primitive Scheduler
     """
     @pony_min_schedulers()
 
-  fun sleeping_schedulers(auth: SchedulerInfoAuth): U32 =>
+  fun suspended_schedulers(auth: SchedulerInfoAuth): U32 =>
     """
     Returns the number of schedulers that have suspended and are not
     available to run actors. A scheduler suspends when there isn't enough
