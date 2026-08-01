@@ -668,7 +668,16 @@ trait val FloatingPoint[A: FloatingPoint[A] val] is Real[A]
   fun nan(): Bool
 
   fun ldexp(exponent: I32): A
+    """
+    `this` multiplied by two raised to `exponent`.
+    """
   fun frexp(): (A, I32)
+    """
+    The mantissa and exponent of `this`, such that `this` equals the mantissa
+    multiplied by two raised to the exponent. The mantissa has a magnitude in
+    the range [0.5, 1), except for zero, infinity and NaN, which are returned
+    unchanged with an exponent of 0.
+    """
   fun log(): A
   fun log2(): A
   fun log10(): A
