@@ -295,19 +295,82 @@ primitive _TypeExtractor
 
   fun get_default_value(def_val: ast.AST box): (String | None) =>
     """
-    Extracts the default value string from a parameter's default AST node.
+    The default value of a parameter, rendered as source.
 
-    TK_STRING defaults are wrapped in explicit double quotes, all
-    others use raw `get_print()`.
+    Literals come straight from `get_print()`. Anything built from other
+    nodes — a call, a field access, a negated literal — is reassembled from
+    the AST by `_render_expr`, because `get_print()` on such a node returns
+    the token's own name: `USize.max_value()` came out as `call`.
     """
     if def_val.id() != ast.TokenIds.tk_none() then
       try
-        let child = def_val(0)?
-        let print_val = child.get_print()
-        if child.id() == ast.TokenIds.tk_string() then
-          "\"" + print_val + "\""
-        else
-          print_val
-        end
+        _render_expr(def_val(0)?)
       end
+    end
+
+  fun _render_expr(node: ast.AST box): String =>
+    """
+    An expression AST rendered back to source text.
+
+    Covers what appears in a default value: literals, references, field and
+    method access, calls with their arguments, and qualified type arguments.
+    A node this doesn't know falls back to `get_print()`, which is right for
+    every leaf token and no worse than the previous behaviour for the rest.
+    """
+    let id = node.id()
+    if id == ast.TokenIds.tk_string() then
+      "\"" + node.get_print() + "\""
+    elseif id == ast.TokenIds.tk_dot() then
+      try
+        _render_expr(node(0)?) + "." + node(1)?.get_print()
+      else
+        node.get_print()
+      end
+    elseif id == ast.TokenIds.tk_call() then
+      try
+        let receiver = node(0)?
+        // `-1` reaches the AST as a call to `neg` on the literal. Write the
+        // minus back rather than exposing the desugaring — and without the
+        // empty argument list a plain call would print.
+        if
+          (receiver.id() == ast.TokenIds.tk_dot()) and
+          (receiver(1)?.get_print() == "neg")
+        then
+          "-" + _render_expr(receiver(0)?)
+        else
+          _render_expr(receiver) + "(" + _render_args(node(1)?) + ")"
+        end
+      else
+        node.get_print()
+      end
+    elseif id == ast.TokenIds.tk_qualify() then
+      try
+        _render_expr(node(0)?) + "[" + _render_args(node(1)?) + "]"
+      else
+        node.get_print()
+      end
+    elseif (id == ast.TokenIds.tk_reference()) or (id == ast.TokenIds.tk_seq())
+    then
+      try _render_expr(node(0)?) else node.get_print() end
+    else
+      node.get_print()
+    end
+
+  fun _render_args(args: ast.AST box): String =>
+    """
+    Argument list rendered as source, comma-separated. An absent list
+    (`TK_NONE`) renders as the empty string, which is what a call with no
+    arguments needs.
+    """
+    if args.id() == ast.TokenIds.tk_none() then
+      ""
+    else
+      let result = String
+      var first = true
+      for arg in args.children() do
+        if not first then result.append(", ") end
+        result.append(_render_expr(arg))
+        first = false
+      end
+      result.clone()
     end
