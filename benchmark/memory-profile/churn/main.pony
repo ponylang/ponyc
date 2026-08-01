@@ -17,16 +17,17 @@ Run under the dial and watch throughput against peak RSS:
     done
 
 Positional args: workers rounds base-size ngap depth, each optional from the
-left. Three more optional args -- floor span thresh -- set the arena knobs
-directly (bypassing the dial) for re-tuning sweeps, all three or none; omit them
-to honor --ponymemoryprofile. A non-numeric argument, or a partial
-floor/span/thresh list, is rejected rather than silently run at the default.
+left. Four more optional args -- floor span thresh budget -- set the arena
+knobs directly (bypassing the dial) for re-tuning sweeps, all four or none;
+omit them to honor --ponymemoryprofile. A non-numeric argument, or a partial
+raw-knob list, is rejected rather than silently run at the default.
 """
 use "time"
 
 use @ponyint_pool_arena_set_cache_floor_for_test[None](floor: USize)
 use @ponyint_pool_arena_set_decommit_span_for_test[None](span: USize)
 use @ponyint_pool_arena_set_dirty_threshold_for_test[None](threshold: USize)
+use @ponyint_pool_arena_set_cache_budget_for_test[None](budget: USize)
 
 actor Worker
   let _coord: Coordinator
@@ -114,17 +115,19 @@ actor Main
     let ngap = _arg(env, 4, 8)?
     let depth = _arg(env, 5, 32)?
 
-    // Optional raw-knob override (floor span thresh) for re-tuning sweeps: all
-    // three or none. Read all three before setting any, so a partial or garbled
-    // list errors out above and sets nothing. When omitted, the run honors
-    // --ponymemoryprofile.
+    // Optional raw-knob override (floor span thresh budget) for re-tuning
+    // sweeps: all four or none. Read all four before setting any, so a partial
+    // or garbled list errors out above and sets nothing. When omitted, the run
+    // honors --ponymemoryprofile.
     if env.args.size() > 6 then
       let floor = env.args(6)?.usize()?
       let span = env.args(7)?.usize()?
       let thresh = env.args(8)?.usize()?
+      let budget = env.args(9)?.usize()?
       @ponyint_pool_arena_set_cache_floor_for_test(floor)
       @ponyint_pool_arena_set_decommit_span_for_test(span)
       @ponyint_pool_arena_set_dirty_threshold_for_test(thresh)
+      @ponyint_pool_arena_set_cache_budget_for_test(budget)
     end
 
     let sizes = recover val

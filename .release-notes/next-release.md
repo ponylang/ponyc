@@ -14,7 +14,7 @@ Building with `address_sanitizer`, `valgrind`, or `pooltrack` now requires pairi
 
 ## Add the --ponymemoryprofile runtime option
 
-The new allocator trades resident memory against throughput by how promptly it returns freed memory to the operating system, and `--ponymemoryprofile` picks where on that trade a program runs. It takes a number from 1 to 10: 1 returns memory quickly for the smallest footprint, 10 holds it for the most throughput, and each of the ten steps is a distinct setting. The default is 3 -- the scale has little room below it for less memory and much more above it for throughput, so the balanced default sits low on it.
+`--ponymemoryprofile` picks where a program runs on the new allocator's trade between resident memory and throughput. The allocator makes that trade by how much freed memory each thread holds for immediate reuse and how promptly the rest returns to the operating system. It takes a number from 1 to 10: 1 returns memory quickly for the smallest footprint, 10 holds it for the most throughput, and each of the ten steps is a distinct setting. The default is 3 -- the scale has little room below it for less memory and much more above it for throughput, so the balanced default sits low on it.
 
 ```bash
 ./my-program --ponymemoryprofile=8

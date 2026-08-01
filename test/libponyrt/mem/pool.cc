@@ -1867,8 +1867,8 @@ extern "C" uint32_t ponyint_pool_arena_cache_count_for_test(size_t index);
 // nothing notifies the owner. suspend_flush is the producer side — it
 // delivers this thread's pending chains — and drain is the owner side,
 // taking the whole inbox back. The producer frees one block past the
-// class's cache cap: the largest class's byte budget rounds to zero, so
-// its cap is the profile floor (8 at the default profile — the rung 3
+// class's cache cap: at the default profile the largest class's byte
+// budget rounds to zero, so its cap is the profile floor (8 — the rung 3
 // row in pool_arena.c's memory_profiles), the first eight frees fill the
 // cache, and only the ninth reaches the chain, below the batch
 // threshold, so only suspend_flush delivers it. That keeps the test
@@ -2051,15 +2051,16 @@ TEST(PoolArena, FreeToExitedOwner)
 
 extern "C" void ponyint_pool_arena_cache_enable_for_test();
 extern "C" size_t ponyint_pool_arena_cache_floor_for_test(void);
+extern "C" size_t ponyint_pool_arena_cache_budget_for_test(void);
 extern "C" size_t ponyint_pool_arena_decommit_span_for_test(void);
 extern "C" size_t ponyint_pool_arena_dirty_threshold_for_test(void);
 
-// The --ponymemoryprofile dial (1-10) sets three arena knobs per rung. The cache
-// floor is an absolute per-class count; the decommit span and dirty-sweep
-// threshold are given against a PROFILE_TUNED_UNITS-unit arena in pool_arena.c
-// and scaled to this arena, so the expected values scale the same way. These
-// mirror memory_profiles[] in pool_arena.c -- change both together. Nothing else
-// covers set_memory_profile's effect on the allocator.
+// The --ponymemoryprofile dial (1-10) sets four arena knobs per rung. The cache
+// floor is an absolute per-class count and the cache budget is bytes per size
+// class; the decommit span and dirty-sweep threshold are given against a
+// PROFILE_TUNED_UNITS-unit arena in pool_arena.c and scaled to this arena, so
+// the expected values scale the same way. These mirror memory_profiles[] in
+// pool_arena.c, in its column order -- change both together.
 TEST(PoolArena, MemoryProfileRungs)
 {
   const size_t arena_units = TEST_ARENA_SIZE / TEST_UNIT_SIZE;
@@ -2071,6 +2072,9 @@ TEST(PoolArena, MemoryProfileRungs)
     { 1, 64, 128, 256, 512, 512, 512, 512, 512, 512 };
   const size_t raw_threshold[10] =
     { 4, 16, 32, 64, 128, 160, 256, 384, 512, 512 };
+  const size_t expected_budget[10] =
+    { 64 * 1024, 256 * 1024, 640 * 1024, 768 * 1024, 1024 * 1024,
+      1024 * 1024, 1536 * 1024, 1536 * 1024, 2048 * 1024, 2048 * 1024 };
 
   for(uint32_t rung = 1; rung <= 10; rung++)
   {
@@ -2078,10 +2082,17 @@ TEST(PoolArena, MemoryProfileRungs)
 
     EXPECT_EQ(ponyint_pool_arena_cache_floor_for_test(),
       expected_floor[rung - 1]);
+    EXPECT_EQ(ponyint_pool_arena_cache_budget_for_test(),
+      expected_budget[rung - 1]);
     EXPECT_EQ(ponyint_pool_arena_decommit_span_for_test(),
       (raw_span[rung - 1] * arena_units) / tuned_units);
     EXPECT_EQ(ponyint_pool_arena_dirty_threshold_for_test(),
       (raw_threshold[rung - 1] * arena_units) / tuned_units);
+
+    // Every rung is a distinct setting; the floor column alone rises at
+    // every step, which keeps that true however the other columns repeat.
+    if(rung > 1)
+      EXPECT_GT(expected_floor[rung - 1], expected_floor[rung - 2]);
   }
 
   // rung 3 is the default; restore it so later tests see it.
@@ -2089,6 +2100,64 @@ TEST(PoolArena, MemoryProfileRungs)
 }
 
 extern "C" uint32_t ponyint_pool_arena_cache_count_for_test(size_t index);
+
+// The budget column reaching the cache: at a class the budget alone decides,
+// the cache holds exactly budget/size blocks and one more free takes the slab
+// path instead of evicting anything. Class 9 (16 KiB) is budget-decided at
+// both ends tested: rung 1 gives 64 KiB / 16 KiB = 4 over a floor of 0, rung
+// 3 gives 640 KiB / 16 KiB = 40 over a floor of 8. The smallest class pins
+// the depth clamp: rung 10's 2 MiB budget yields far more 32-byte slots than
+// the cache array holds, so its cap is the depth limit (POOL_CACHE_DEPTH in
+// pool_arena.c). Runs on a fresh thread so the churn stays isolated.
+TEST(PoolArena, CacheDepthFollowsBudget)
+{
+  on_fresh_thread([]{
+    ponyint_pool_arena_cache_enable_for_test();
+
+    const size_t index = 9;      // 16 KiB blocks
+    const size_t rung1_cap = 4;  // 64 KiB budget / 16 KiB, floor 0
+    const size_t rung3_cap = 40; // 640 KiB budget / 16 KiB, floor 8
+
+    ponyint_pool_set_memory_profile(1);
+    ponyint_pool_return_idle();
+    ASSERT_EQ(ponyint_pool_arena_cache_count_for_test(index), (uint32_t)0);
+
+    void* blocks[rung3_cap + 1];
+    for(size_t i = 0; i < (rung1_cap + 1); i++)
+      blocks[i] = ponyint_pool_alloc(index);
+    for(size_t i = 0; i < (rung1_cap + 1); i++)
+      ponyint_pool_free(index, blocks[i]);
+
+    ASSERT_EQ(ponyint_pool_arena_cache_count_for_test(index),
+      (uint32_t)rung1_cap);
+
+    ponyint_pool_set_memory_profile(3);
+    ponyint_pool_return_idle();
+
+    for(size_t i = 0; i < (rung3_cap + 1); i++)
+      blocks[i] = ponyint_pool_alloc(index);
+    for(size_t i = 0; i < (rung3_cap + 1); i++)
+      ponyint_pool_free(index, blocks[i]);
+
+    ASSERT_EQ(ponyint_pool_arena_cache_count_for_test(index),
+      (uint32_t)rung3_cap);
+
+    ponyint_pool_set_memory_profile(10);
+    ponyint_pool_return_idle();
+
+    static void* small[513];
+    for(size_t i = 0; i < 513; i++)
+      small[i] = ponyint_pool_alloc(0);
+    for(size_t i = 0; i < 513; i++)
+      ponyint_pool_free(0, small[i]);
+
+    ASSERT_EQ(ponyint_pool_arena_cache_count_for_test(0), (uint32_t)512);
+
+    // rung 3 is the default; restore it so later tests see it.
+    ponyint_pool_set_memory_profile(3);
+    ponyint_pool_return_idle();
+  });
+}
 
 // return_idle hands a thread's held-but-free memory back, the object cache
 // first. Freed blocks land in the cache up to the floor; return_idle empties

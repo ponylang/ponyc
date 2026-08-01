@@ -210,12 +210,14 @@ BENCHMARK_REGISTER_F(PoolBench, pool_alloc_free_size_multiple)->Arg((int)(POOL_M
 // in place.
 //
 // Which path a size reaches depends on the per-class thread cache. The cache
-// holds up to cache_cap(class) blocks of a class -- POOL_CACHE_BUDGET divided
-// by the class size -- so its per-class room shrinks as the class grows. A
-// same-thread free below that count fills the cache and skips the slab, and an
-// alloc empties the cache before it touches the slab. So a working set of two
-// never reaches the slab for any class whose cache_cap is two or more, which is
-// every class of 128 KB and smaller; only larger sizes drive the slab.
+// holds up to cache_cap(class) blocks of a class -- the larger of the active
+// profile's byte budget divided by the class size and the profile's floor
+// count -- so its per-class room shrinks as the class grows until the floor
+// takes over. A same-thread free below that count fills the cache and skips
+// the slab, and an alloc empties the cache before it touches the slab. At the
+// default profile every class's cap is at least the floor of 8, so a working
+// set of two stays in the cache at every class size; only rung 1 (floor 0)
+// has classes whose cap falls below two, where these frees reach the slab.
 BENCHMARK_DEFINE_F(PoolBench, size_sweep_churn)(benchmark::State& st) {
   size_t size = static_cast<size_t>(st.range(0));
   size_t ws = static_cast<size_t>(st.range(1));
@@ -229,13 +231,11 @@ BENCHMARK_DEFINE_F(PoolBench, size_sweep_churn)(benchmark::State& st) {
   st.SetItemsProcessed((int64_t)(st.iterations() * ws));
 }
 
-// Each size drives a distinct path:
-//   32 B, 128 KB  cache pop and push (cache_cap >= 2). 128 KB is the largest
-//                 such class, so it sits next to 256 KB to show the step from
-//                 the cache to the slab.
-//   256 KB        cache_cap 1: one of the two frees overflows to the slab.
-//   1 MB          cache_cap 0: every alloc and free reaches the slab, driving
-//                 slab reserve and release.
+// The sizes:
+//   32 B - 1 MB   the size-class range. At the default profile all four rows
+//                 measure the cache's pop and push; under PONY_MEMPROFILE=1
+//                 (floor 0) the classes from 128 KB up hold no blocks, and
+//                 the same rows drive slab reserve and release.
 //   2 MB, 4 MB    above POOL_MAX: the multi-unit block path within an arena.
 //   16 MB         above one arena: its own mapping.
 BENCHMARK_REGISTER_F(PoolBench, size_sweep_churn)
@@ -250,10 +250,11 @@ BENCHMARK_REGISTER_F(PoolBench, size_sweep_churn)
 // (16 KB and up, one object per slab) there is no partial-slab list to reuse a
 // held slab, so past the cache every alloc drives a slab reserve and every free
 // a slab release -- the work the classic pool does with a free-list push and
-// pop. The 16 KB rows ramp the depth to show the crossover as the cache is
-// outrun; 256 KB and 1 MB (cache_cap 1 and 0) reach the slab almost at once.
-// The 32 B row is the control: a class with many objects per slab bump-
-// allocates within one slab and stays cheap at any depth.
+// pop. The 16 KB rows ramp the depth across the class's default-profile cap
+// of 40 (the 640 KiB budget over 16 KiB) to show the crossover as the cache
+// is outrun; 256 KB and 1 MB's deeper rows pass their floor cap of 8 almost
+// at once. The 32 B row is the control: a class with many objects per slab
+// bump-allocates within one slab and stays cheap at any depth.
 BENCHMARK_DEFINE_F(PoolBench, size_sweep_depth)(benchmark::State& st) {
   size_t size = static_cast<size_t>(st.range(0));
   size_t depth = static_cast<size_t>(st.range(1));
@@ -269,7 +270,7 @@ BENCHMARK_DEFINE_F(PoolBench, size_sweep_depth)(benchmark::State& st) {
 }
 BENCHMARK_REGISTER_F(PoolBench, size_sweep_depth)
   ->Args({32, 1024})
-  ->Args({16384, 16})->Args({16384, 48})->Args({16384, 64})->Args({16384, 96})
+  ->Args({16384, 16})->Args({16384, 40})->Args({16384, 64})->Args({16384, 96})
   ->Args({262144, 1})->Args({262144, 4})->Args({262144, 16})->Args({262144, 64})
   ->Args({524288, 1})->Args({524288, 2})->Args({524288, 8})
   ->Args({1048576, 1})->Args({1048576, 2})->Args({1048576, 8})->Args({1048576, 64});
