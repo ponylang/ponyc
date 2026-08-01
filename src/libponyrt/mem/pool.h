@@ -99,10 +99,9 @@ void ponyint_pool_drain();
 /* return_idle gives up this thread's held-but-free memory: the arena backend
  * empties its per-thread cache — its own blocks to their slabs, other
  * threads' blocks home through their owners' chains, delivered at once — and
- * decommits its arenas' dirty pages. The passive path calls it once a thread
- * has been idle long enough that holding the memory no longer pays; the
- * thread rewarms when it runs again. The other backends define it as a
- * no-op.
+ * decommits its arenas' dirty pages. A thread calls it at its return moment,
+ * once holding the memory no longer pays; it rewarms when it runs again.
+ * The other backends define it as a no-op.
  */
 void ponyint_pool_return_idle();
 
