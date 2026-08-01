@@ -1484,9 +1484,29 @@ void ponyint_pool_free(size_t index, void* p)
 
   if(arena->owner_slot != this_thread.slot)
   {
-    // Another thread's memory returns to its owner through the inbox. Nothing
-    // of the owner's bookkeeping is touched here: only the object's own
-    // first word, this thread's chain, and (at a batch) the inbox head.
+    // The cache is full and the incoming block is another thread's. Shed
+    // local memory first: an own block returns to its slab for local
+    // bookkeeping alone, while a foreign block sent home costs its owner a
+    // cache-line transfer per block. Release the oldest own block in the
+    // cache and keep the foreign one circulating; only an all-foreign cache
+    // sends the incoming block home through the owner's chain. Nothing of
+    // the owner's bookkeeping is touched on that path: only the object's
+    // own first word, this thread's chain, and (at a batch) the inbox head.
+    size_t count = pool_cache_count[index];
+
+    for(size_t i = 0; i < count; i++)
+    {
+      void* q = pool_cache[index][i];
+
+      if(arena_of(q)->owner_slot == this_thread.slot)
+      {
+        slab_free(index, q);
+        cache_validate_push(index, p, arena);
+        pool_cache[index][i] = p;
+        return;
+      }
+    }
+
     chain_push(arena->owner_slot, p);
     return;
   }
