@@ -384,9 +384,13 @@ DECLARE_THREAD_FN(ponyint_asio_backend_dispatch)
   asio_backend_t* b = arg;
   pony_assert(b != NULL);
 
+  // Whether held memory has been returned since the last event; see
+  // ASIO_RETURN_IDLE_WAIT_MS.
+  bool returned_idle = false;
+
   while(!atomic_load_explicit(&b->terminate, memory_order_acquire))
   {
-    int wait_time = -1;
+    int wait_time = returned_idle ? -1 : ASIO_RETURN_IDLE_WAIT_MS;
 
     // Deliver pending frees to their owners before blocking; this
     // thread registers no scheduler, so its own mail waits for the
@@ -397,6 +401,17 @@ DECLARE_THREAD_FN(ponyint_asio_backend_dispatch)
 
     // This thread is running again: reclaim what arrived.
     ponyint_pool_drain();
+
+    if(event_cnt > 0)
+    {
+      returned_idle = false;
+    } else if((event_cnt == 0) && !returned_idle) {
+      // The bounded wait expired with no events: this thread has gone
+      // quiet, so hand held memory back — cached foreign blocks sent
+      // home, own dirty pages decommitted — and wait unbounded from here.
+      ponyint_pool_return_idle();
+      returned_idle = true;
+    }
 
     for(int i = 0; i < event_cnt; i++)
     {

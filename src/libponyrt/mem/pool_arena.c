@@ -1731,8 +1731,14 @@ void ponyint_pool_return_idle()
   cache_flush_routed();
   chains_flush_all();
 
+  // A parked thread re-fires this on every pause tick; skipping clean
+  // arenas keeps the repeat firings from re-walking bitmaps that the
+  // first one already emptied.
   for(arena_t* a = this_thread.arenas; a != NULL; a = a->next)
-    dirty_sweep(a);
+  {
+    if(a->dirty_units > 0)
+      dirty_sweep(a);
+  }
 }
 
 // The --ponymemoryprofile dial: rung 1 (smallest footprint, return freed memory

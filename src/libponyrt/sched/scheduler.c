@@ -696,8 +696,9 @@ static pony_actor_t* passive_wait(scheduler_t* sched)
     ponyint_pool_suspend_flush();
 
     // Once the tick has backed off to its cap, this thread has been idle long
-    // enough that holding its freed memory no longer pays: hand it back to the
-    // OS. Gating on the backoff keeps a thread that briefly parks and resumes
+    // enough that holding its freed memory no longer pays: give it up — cached
+    // blocks flushed, foreign ones sent home, own dirty pages decommitted.
+    // Gating on the backoff keeps a thread that briefly parks and resumes
     // from thrashing decommits; it rewarms its cache and pages when it runs.
     if(tick_ns >= SCHED_TICK_MAX_NS)
       ponyint_pool_return_idle();
@@ -1289,6 +1290,15 @@ static void run_pinned_actors()
       // Deliver pending foreign frees so their owners can reclaim
       // while this thread pauses.
       ponyint_pool_suspend_flush();
+
+      // Once the tick has backed off to its cap, this thread has been idle
+      // long enough that holding its freed memory no longer pays: give it
+      // up — cached blocks flushed, foreign ones sent home, own dirty
+      // pages decommitted. Gating on the backoff keeps a thread that
+      // briefly parks and resumes from thrashing decommits; it rewarms its
+      // cache and pages when it runs.
+      if(tick_ns >= SCHED_TICK_MAX_NS)
+        ponyint_pool_return_idle();
 
       if(consumed)
         tick_ns = SCHED_TICK_MIN_NS;
