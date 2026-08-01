@@ -2,7 +2,7 @@
 
 All notable changes to the Pony compiler and standard library will be documented in this file. This project adheres to [Semantic Versioning](http://semver.org/) and [Keep a CHANGELOG](http://keepachangelog.com/).
 
-## [unreleased] - unreleased
+## [0.68.0] - 2026-08-01
 
 ### Fixed
 
@@ -15,9 +15,6 @@ All notable changes to the Pony compiler and standard library will be documented
 - Fix quadratic type checking of large array literals ([PR #5790](https://github.com/ponylang/ponyc/pull/5790))
 - Fix spurious 'can't reuse name' errors when a multi-file package has a syntax error ([PR #5147](https://github.com/ponylang/ponyc/pull/5147))
 - Fix runtime crash when sending objects through `iso | val` unions ([PR #5799](https://github.com/ponylang/ponyc/pull/5799))
-
-### Added
-
 
 ### Changed
 
