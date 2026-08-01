@@ -30,11 +30,11 @@ those tick-drains without any of them coming active for work.
    no other work, the only thing that can bring the memory back is
    each owner draining its own inbox on its polling tick. The collector
    also returns its own held memory each poll through the allocator's
-   idle-return path: the allocator holds freed memory regardless of
-   owner until an idle moment, the busy poll loop never has one on its
-   own, and a held foreign block keeps its owner's slab — and the last
-   of the payload's pages — resident. Brief count rises are
-   tolerated (the cycle detector's periodic prod makes an actor
+   idle-return path: the allocator holds a bounded cache of freed
+   memory regardless of owner until an idle moment, the busy poll loop
+   never has one on its own, and a held foreign block keeps its owner's
+   slab — and the last of the payload's pages — resident. Brief count
+   rises are tolerated (the cycle detector's periodic prod makes an actor
    runnable, and a scheduler activated by real work re-suspends once
    the work is gone); a rise that persists for two seconds fails the
    phase: draining must never raise the count.

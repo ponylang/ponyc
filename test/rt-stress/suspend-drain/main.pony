@@ -21,7 +21,11 @@ Phases:
    ran on. No actor work is involved, so with the collector's own busy
    polling keeping the runtime from reclaiming through any global path,
    the only thing that can bring the memory back is each owner draining
-   its own inbox on its polling tick. The collector polls resident
+   its own inbox on its polling tick. The collector returns its own
+   held memory each poll through the allocator's idle-return path —
+   its busy polling means that moment never arrives on its own — so
+   what the phase measures is the owners' drains, not the collector's
+   holdings. The collector polls resident
    memory (VmRSS) until at least `--reclaim-fraction` of the payload
    has returned and the active count has held at the floor for a run of
    polls; a rise that persists with no work to run means draining
@@ -204,9 +208,10 @@ actor Collector
 
     // The busy polling keeps this thread from ever idling, so the moment
     // the allocator returns held memory never arrives here on its own.
-    // Declare it each poll: the cache on this thread can hold blocks the
-    // suspended threads own, and one held block keeps its owner's slab
-    // live, which would keep the last of the payload's pages resident.
+    // Call the idle return each poll: this thread's cache can hold blocks
+    // the suspended threads own, its chains can hold frees below the
+    // batch threshold, and either kind kept here keeps the owner's slab
+    // live and the last of the payload's pages resident.
     @ponyint_pool_return_idle()
 
     // The frees went to suspended owners; their tick-drains bring the
