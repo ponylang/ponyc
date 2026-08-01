@@ -91,12 +91,15 @@ typedef struct pool_item_t
   struct pool_item_t* next;
 } pool_item_t;
 
-/* Cross-thread frees do not touch the owning thread's bookkeeping. The
- * freeing thread accumulates foreign objects in per-owner chains; at
- * BATCH_SIZE, or when the thread hands its pending work over before it
- * exits, it sorts the chain into runs — one run per unit, which is one run
- * per slab, since multi-unit slabs hold a single object at their base —
- * and pushes the linked runs onto the owner's inbox with one atomic
+/* Cross-thread frees do not touch the owning thread's bookkeeping. A
+ * foreign object goes into the freeing thread's cache like any other
+ * freed block, and moves toward its owner only when it leaves the cache
+ * — the cache was full when it arrived, or the thread flushes on idle
+ * return or at exit. On that path the freeing thread accumulates foreign
+ * objects in per-owner chains; at BATCH_SIZE, or at a flush, it sorts
+ * the chain into runs — one run per unit, which is one run per slab,
+ * since multi-unit slabs hold a single object at their base — and pushes
+ * the linked runs onto the owner's inbox with one atomic
  * compare-and-swap. The owner takes the whole inbox with one atomic
  * exchange on its allocation slow path and credits each run to its slab.
  *
@@ -371,8 +374,10 @@ static __pony_thread_local pool_arena_thread_t this_thread =
   NO_OWNER_SLOT, NULL, NULL, NULL, { NULL }, { NULL }, NULL, 0, 0
 };
 
-// Thread cache: a per-class LIFO in front of the slab path, for
-// same-thread churn. cache_cap sets each class's depth from two terms. A byte
+// Thread cache: a per-class LIFO in front of the whole free path. It holds
+// freed blocks regardless of which thread owns them; ownership is decided
+// when a block leaves it downward. cache_cap sets each class's depth from two
+// terms. A byte
 // budget (POOL_CACHE_BUDGET / class size) lets small classes cache many and
 // bounds the resident memory the cache holds. A floor count (active_cache_floor)
 // keeps a few blocks even for large classes, whose byte budget alone rounds to
@@ -392,8 +397,9 @@ static __pony_thread_local pool_arena_thread_t this_thread =
 static __pony_thread_local void* pool_cache[POOL_COUNT][POOL_CACHE_DEPTH];
 static __pony_thread_local uint32_t pool_cache_count[POOL_COUNT];
 
-// Test-only: lets the slab-layer unit tests route frees straight to the slab
-// path so they can assert slab release/geometry the cache would otherwise
+// Test-only: lets unit tests route frees past the cache — own blocks straight
+// to the slab path, foreign blocks straight to the chain path — so they can
+// assert slab release/geometry or chain delivery the cache would otherwise
 // defer. cache_cap reads it only where the checks are active, so a release
 // build never consults it and pays no hot-path cost.
 static __pony_thread_local bool pool_cache_disabled = false;
@@ -1070,9 +1076,8 @@ static void slab_after_free(arena_t* arena, arena_unit_t* rec, size_t index,
 }
 
 /// Returns a same-thread block to its slab: the free path without the cache
-/// front-end. The cache-overflow branch and the teardown flush both call this,
-/// so a cached block is never routed back through ponyint_pool_free (which
-/// would just re-cache it).
+/// front-end. A cached block is never routed back through ponyint_pool_free,
+/// which would just re-cache it.
 static void slab_free(size_t index, void* p)
 {
   arena_t* arena = arena_of(p);
@@ -1099,26 +1104,34 @@ static void slab_free(size_t index, void* p)
   slab_after_free(arena, rec, index, was_full);
 }
 
-/// Debug-only validation before a same-thread free enters the cache. It runs
-/// the same integrity checks the slab path would (recovering the unit record),
-/// then writes a sentinel so a double-free of the still-cached block is caught.
-/// Compiled out in release, where the cache path is bare; a release-safe
-/// build (-DPONY_ALWAYS_ASSERT) turns it back on with the rest of the checks.
+/// Debug-only validation before a freed block enters the cache. For this
+/// thread's own blocks it runs the same integrity checks the slab path would
+/// (recovering the unit record); for another thread's block it checks only
+/// the block's own memory — the owner mutates its slab records concurrently,
+/// and the freeing thread never reads a slab record. Either way it writes a
+/// sentinel so a double-free of the still-cached block is caught; a foreign
+/// block's record-level checks run when the owner credits it. Compiled out
+/// in release, where the cache path is bare; a release-safe build
+/// (-DPONY_ALWAYS_ASSERT) turns it back on with the rest of the checks.
 static void cache_validate_push(size_t index, void* p, arena_t* arena)
 {
 #if !defined(PONY_NDEBUG) || defined(PONY_ALWAYS_ASSERT)
-  arena_unit_t* rec = &arena->units[unit_index(arena, p)];
+  if(arena->owner_slot == this_thread.slot)
+  {
+    arena_unit_t* rec = &arena->units[unit_index(arena, p)];
 
-  if(rec->state == UNIT_STATE_CONT)
-    rec -= rec->head_offset;
+    if(rec->state == UNIT_STATE_CONT)
+      rec -= rec->head_offset;
 
-  size_t size = class_size(index);
-  char* base = unit_base(arena, rec);
+    size_t size = class_size(index);
+    char* base = unit_base(arena, rec);
 
-  ARENA_CHECK(rec->state == UNIT_STATE_HEAD);
-  ARENA_CHECK(rec->size_class == index);
-  ARENA_CHECK((((uintptr_t)p - (uintptr_t)base) & (size - 1)) == 0);
-  ARENA_CHECK(rec->live > 0);
+    ARENA_CHECK(rec->state == UNIT_STATE_HEAD);
+    ARENA_CHECK(rec->size_class == index);
+    ARENA_CHECK((((uintptr_t)p - (uintptr_t)base) & (size - 1)) == 0);
+    ARENA_CHECK(rec->live > 0);
+  }
+
   ARENA_CHECK(*(uint64_t*)p != POOL_CACHE_SENTINEL);
 
   *(uint64_t*)p = POOL_CACHE_SENTINEL;
@@ -1442,6 +1455,26 @@ void* ponyint_pool_alloc(size_t index)
   return slab_get(arena_of(rec), rec, index);
 }
 
+/// Empties the thread cache: this thread's own blocks return to their
+/// slabs, another thread's go onto their owners' chains. Callers that
+/// need the chained blocks delivered flush the chains after.
+static void cache_flush_routed()
+{
+  for(size_t i = 0; i < POOL_COUNT; i++)
+  {
+    while(pool_cache_count[i] > 0)
+    {
+      void* p = pool_cache[i][--pool_cache_count[i]];
+      arena_t* arena = arena_of(p);
+
+      if(arena->owner_slot != this_thread.slot)
+        chain_push(arena->owner_slot, p);
+      else
+        slab_free(i, p);
+    }
+  }
+}
+
 void ponyint_pool_free(size_t index, void* p)
 {
   pony_assert(index < POOL_COUNT);
@@ -1449,23 +1482,25 @@ void ponyint_pool_free(size_t index, void* p)
   arena_t* arena = arena_of(p);
   ARENA_CHECK(arena->kind == MAPPING_ARENA);
 
+  // Any freed block goes into the thread cache while there is room, and
+  // ownership is decided only when a block moves toward the slabs or an
+  // owner's chain: a block arriving at a full cache takes that path
+  // directly — nothing already cached is evicted for it — and the idle and
+  // teardown flushes empty the cache. A cached block stays live in its slab
+  // from the owner's view; caching it here only delays the real free.
+  if(pool_cache_count[index] < cache_cap(index))
+  {
+    cache_validate_push(index, p, arena);
+    pool_cache[index][pool_cache_count[index]++] = p;
+    return;
+  }
+
   if(arena->owner_slot != this_thread.slot)
   {
     // Another thread's memory returns to its owner through the inbox. Nothing
     // of the owner's bookkeeping is touched here: only the object's own
     // first word, this thread's chain, and (at a batch) the inbox head.
     chain_push(arena->owner_slot, p);
-    return;
-  }
-
-  // Same-thread free: cache it if there is room, skipping the slab bookkeeping
-  // (unit lookup, free-list splice, and the slab_after_free state machine).
-  // A cached block stays live in its slab until the cache hands it back out or
-  // the overflow/teardown path returns it through slab_free.
-  if(pool_cache_count[index] < cache_cap(index))
-  {
-    cache_validate_push(index, p, arena);
-    pool_cache[index][pool_cache_count[index]++] = p;
     return;
   }
 
@@ -1687,13 +1722,14 @@ void ponyint_pool_suspend_flush()
 
 void ponyint_pool_return_idle()
 {
-  // Flush the thread cache back to its slabs (their pages become dirty and
-  // free), then decommit every dirty unit in the arenas this thread owns.
-  // Flushing runs first and may release a fully-emptied arena, so the arena
-  // walk that follows sees a stable list.
-  for(size_t i = 0; i < POOL_COUNT; i++)
-    while(pool_cache_count[i] > 0)
-      slab_free(i, pool_cache[i][--pool_cache_count[i]]);
+  // Flush the thread cache — own blocks back to their slabs (their pages
+  // become dirty and free), foreign blocks home through their owners'
+  // chains, delivered now rather than at this thread's next flush moment —
+  // then decommit every dirty unit in the arenas this thread owns.
+  // Flushing runs first and may release a fully-emptied arena, so the
+  // arena walk that follows is over a stable list.
+  cache_flush_routed();
+  chains_flush_all();
 
   for(arena_t* a = this_thread.arenas; a != NULL; a = a->next)
     dirty_sweep(a);
@@ -1760,22 +1796,16 @@ void ponyint_pool_drain()
 
 void ponyint_pool_thread_cleanup()
 {
-  // Deliver every pending foreign free to its owner and take back what
-  // others delivered here (crediting one's own inbox touches only this
-  // thread's arenas). The allocator's own memory stays in place:
-  // threads exit in no fixed order, and unmapping could hit memory
-  // another thread still uses.
+  // Empty the cache first — it can hold foreign blocks, and routing them
+  // through the chains must precede the chain flush below or they would sit
+  // in flushed chains while the map is freed. Then deliver every pending
+  // foreign free to its owner and take back what others delivered here
+  // (crediting one's own inbox touches only this thread's arenas). The
+  // allocator's own memory stays in place: threads exit in no fixed order,
+  // and unmapping could hit memory another thread still uses.
+  cache_flush_routed();
   chains_flush_all();
   inbox_drain();
-
-  // Return every cached block to its slab through slab_free (not
-  // ponyint_pool_free, which would just re-cache it). Emptied slabs release as
-  // usual, so this gives back only what the cache was holding.
-  for(size_t i = 0; i < POOL_COUNT; i++)
-  {
-    while(pool_cache_count[i] > 0)
-      slab_free(i, pool_cache[i][--pool_cache_count[i]]);
-  }
 
   chain_t* map = this_thread.chains;
 
@@ -1813,15 +1843,16 @@ bool ponyint_pool_arena_inbox_empty_for_test()
     memory_order_seq_cst) == NULL;
 }
 
-/// Test seam: flush and disable the thread cache so frees reach the slab path
-/// directly. Lets slab-layer tests assert release/geometry the cache defers.
-/// The disable takes effect only where cache_cap consults the flag (checks-
-/// active builds); in release the flag is set but never read.
+/// Test seam: flush and disable the thread cache so frees bypass it — own
+/// blocks to the slab path, foreign blocks to the chain path — and deliver
+/// every pending chain. Lets tests assert slab release/geometry or chain
+/// delivery the cache defers. The disable takes effect only where cache_cap
+/// consults the flag (checks-active builds); in release the flag is set but
+/// never read.
 void ponyint_pool_arena_cache_disable_for_test()
 {
-  for(size_t i = 0; i < POOL_COUNT; i++)
-    while(pool_cache_count[i] > 0)
-      slab_free(i, pool_cache[i][--pool_cache_count[i]]);
+  cache_flush_routed();
+  chains_flush_all();
   pool_cache_disabled = true;
 }
 
