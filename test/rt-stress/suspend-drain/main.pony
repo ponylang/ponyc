@@ -43,6 +43,7 @@ use "time"
 use @pony_active_schedulers[U32]()
 use @ponyint_pool_alloc_size[Pointer[U8]](size: USize)
 use @ponyint_pool_free_size[None](size: USize, p: USize)
+use @ponyint_pool_return_idle[None]()
 use @memset[Pointer[None]](p: Pointer[U8] tag, c: I32, n: USize)
 use @fopen[Pointer[None]](path: Pointer[U8] tag, mode: Pointer[U8] tag)
 use @fgets[Pointer[U8]](buf: Pointer[U8] tag, n: I32, f: Pointer[None])
@@ -200,6 +201,13 @@ actor Collector
       poll_busy()
       return
     end
+
+    // The busy polling keeps this thread from ever idling, so the moment
+    // the allocator returns held memory never arrives here on its own.
+    // Declare it each poll: the cache on this thread can hold blocks the
+    // suspended threads own, and one held block keeps its owner's slab
+    // live, which would keep the last of the payload's pages resident.
+    @ponyint_pool_return_idle()
 
     // The frees went to suspended owners; their tick-drains bring the
     // resident memory back. The runtime still has legitimate reasons
