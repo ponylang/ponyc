@@ -392,6 +392,13 @@ static __pony_thread_local pool_arena_thread_t this_thread =
 static __pony_thread_local void* pool_cache[POOL_COUNT][POOL_CACHE_DEPTH];
 static __pony_thread_local uint32_t pool_cache_count[POOL_COUNT];
 
+// How many of a class's cached blocks this thread owns. Exact: push,
+// pop, and the overflow eviction keep it current, and the flush paths
+// zero it with the cache. Lets the overflow path skip its scan for an
+// own block whenever the cache holds none — the common state on a
+// thread that mostly frees other threads' memory.
+static __pony_thread_local uint16_t pool_cache_own[POOL_COUNT];
+
 // Test-only: lets the slab-layer unit tests route frees straight to the slab
 // path so they can assert slab release/geometry the cache would otherwise
 // defer. cache_cap reads it only where the checks are active, so a release
@@ -1402,6 +1409,11 @@ void* ponyint_pool_alloc(size_t index)
   {
     void* p = pool_cache[index][--pool_cache_count[index]];
     cache_validate_pop(p);
+
+    if((pool_cache_own[index] > 0) &&
+      (arena_of(p)->owner_slot == this_thread.slot))
+      pool_cache_own[index]--;
+
     return p;
   }
 
@@ -1460,6 +1472,8 @@ static void cache_flush_routed()
       else
         slab_free(i, p);
     }
+
+    pool_cache_own[i] = 0;
   }
 }
 
@@ -1479,6 +1493,10 @@ void ponyint_pool_free(size_t index, void* p)
   {
     cache_validate_push(index, p, arena);
     pool_cache[index][pool_cache_count[index]++] = p;
+
+    if(arena->owner_slot == this_thread.slot)
+      pool_cache_own[index]++;
+
     return;
   }
 
@@ -1488,23 +1506,33 @@ void ponyint_pool_free(size_t index, void* p)
     // local memory first: an own block returns to its slab for local
     // bookkeeping alone, while a foreign block sent home costs its owner a
     // cache-line transfer per block. Release the oldest own block in the
-    // cache and keep the foreign one circulating; only an all-foreign cache
-    // sends the incoming block home through the owner's chain. Nothing of
-    // the owner's bookkeeping is touched on that path: only the object's
-    // own first word, this thread's chain, and (at a batch) the inbox head.
-    size_t count = pool_cache_count[index];
-
-    for(size_t i = 0; i < count; i++)
+    // cache and keep the foreign one circulating; the scan runs only when
+    // the own count says it will find one, so an all-foreign cache sends
+    // the incoming block home through the owner's chain at once. Nothing
+    // of the owner's bookkeeping is touched on that path: only the
+    // object's own first word, this thread's chain, and (at a batch) the
+    // inbox head.
+    if(pool_cache_own[index] > 0)
     {
-      void* q = pool_cache[index][i];
+      size_t count = pool_cache_count[index];
 
-      if(arena_of(q)->owner_slot == this_thread.slot)
+      for(size_t i = 0; i < count; i++)
       {
-        slab_free(index, q);
-        cache_validate_push(index, p, arena);
-        pool_cache[index][i] = p;
-        return;
+        void* q = pool_cache[index][i];
+
+        if(arena_of(q)->owner_slot == this_thread.slot)
+        {
+          slab_free(index, q);
+          cache_validate_push(index, p, arena);
+          pool_cache[index][i] = p;
+          pool_cache_own[index]--;
+          return;
+        }
       }
+
+      // The count is exact, so a positive count means the scan finds an
+      // own block; falling through here is corrupt bookkeeping.
+      ARENA_CHECK(false);
     }
 
     chain_push(arena->owner_slot, p);
