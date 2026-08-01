@@ -1565,9 +1565,10 @@ TEST(PoolArena, CrossThreadBlockChurn)
 }
 
 // Small objects freed on another thread return to their slabs: the slab
-// empties through the inbox path and its unit is re-carved. The freeing
-// thread batches 32 objects per handoff, so the counts here cross several
-// batch boundaries, and the explicit cleanup delivers the remainder.
+// empties through the inbox path and its unit is re-carved. The count here
+// is exactly the class's cache cap, so every free is held in the freeing
+// thread's cache, and the explicit cleanup routes them into per-owner
+// chains and delivers them in full batches.
 TEST(PoolArena, CrossThreadSmallFrees)
 {
   on_fresh_thread([]{
@@ -1655,8 +1656,10 @@ TEST(PoolArena, CrossThreadManyOwners)
   }
 
   // One thread frees every owner's filled slab, round-robin across
-  // owners so each per-owner chain grows in interleaved order, verifying
-  // the stamps first.
+  // owners, verifying the stamps first. The frees up to the class's cache
+  // cap are held in the freeing thread's cache; the rest chain at free
+  // time, and the teardown flush routes the cached ones, so the per-owner
+  // chains grow in interleaved order on both paths.
   std::thread([&]{
     for(size_t i = 0; i < cap; i++)
     {
@@ -1770,8 +1773,9 @@ TEST(PoolArena, OwnerRegistryGrowth)
 // A freeing thread's per-owner chains live in an open-addressing map
 // that doubles when it fills; the doubling rehash must carry every live
 // chain with it. One thread frees to more owners than the initial map
-// admits, forcing a grow with chains in hand, then every owner proves
-// its object came home.
+// admits — the frees are held in its cache, so the teardown flush routes
+// them and the map doubles mid-flush with chains in hand — then every
+// owner proves its object came home.
 TEST(PoolArena, ChainMapGrowth)
 {
   // Past half the initial capacity, where the map doubles mid-stream.
@@ -1857,15 +1861,119 @@ TEST(PoolArena, FreeOnlyThreadTakesNoSlot)
 
 extern "C" bool ponyint_pool_arena_inbox_empty_for_test();
 
+extern "C" uint32_t ponyint_pool_arena_cache_count_for_test(size_t index);
+
 // A foreign free waits in the owner's inbox until the owner drains it;
 // nothing notifies the owner. suspend_flush is the producer side — it
 // delivers this thread's pending chains — and drain is the owner side,
-// taking the whole inbox back. The producer holds a lone free below the
-// batch threshold, so only its suspend_flush delivers it; the owner
+// taking the whole inbox back. The producer frees one block past the
+// class's cache cap: the largest class's byte budget rounds to zero, so
+// its cap is the profile floor (8 at the default profile — the rung 3
+// row in pool_arena.c's memory_profiles), the first eight frees fill the
+// cache, and only the ninth reaches the chain, below the batch
+// threshold, so only suspend_flush delivers it. That keeps the test
+// independent of build mode and pins the cap boundary. The owner
 // observes the delivery waiting and reclaims it with drain, emptying
 // the slab and re-serving the same address. The producer parks after
 // the flush so its thread_cleanup cannot be the delivery under test.
 TEST(PoolArena, DrainReclaimsDeliveredForeignFree)
+{
+  static const size_t index = 15;  // 1 MiB blocks, one per slab
+  static const size_t cap = 8;     // default-profile floor
+
+  std::atomic<int> stage(0);
+  char* objs[cap + 1];
+  bool inbox_filled = false;
+  bool overflowed_one = false;
+  char* again = NULL;
+
+  std::thread owner([&]{
+    for(size_t i = 0; i < (cap + 1); i++)
+      objs[i] = (char*)ponyint_pool_alloc(index);
+
+    stage.store(1);
+
+    while(stage.load() != 2) // the producer delivered via suspend_flush
+      std::this_thread::yield();
+
+    inbox_filled = !ponyint_pool_arena_inbox_empty_for_test();
+    ponyint_pool_drain();
+
+    // The delivered block was its slab's only live one and that slab is
+    // the current one, so the drain emptied and reset it; the next
+    // allocation returns the same address.
+    again = (char*)ponyint_pool_alloc(index);
+    ponyint_pool_free(index, again);
+    stage.store(3);
+  });
+
+  while(stage.load() != 1)
+    std::this_thread::yield();
+
+  std::thread producer([&]{
+    for(size_t i = 0; i < (cap + 1); i++)
+      ponyint_pool_free(index, objs[i]);
+
+    overflowed_one =
+      ponyint_pool_arena_cache_count_for_test(index) == (uint32_t)cap;
+
+    ponyint_pool_suspend_flush();
+    stage.store(2);
+
+    while(stage.load() != 3) // hold the chain map until the owner drained
+      std::this_thread::yield();
+
+    ponyint_pool_thread_cleanup();
+  });
+
+  owner.join();
+  producer.join();
+
+  ASSERT_TRUE(overflowed_one);
+  ASSERT_TRUE(inbox_filled);
+  ASSERT_EQ(again, objs[cap]);
+}
+
+// A foreign free is held in the freeing thread's cache and handed back
+// out by that thread's next allocation of the class; the owner's
+// accounting keeps the block live the whole time.
+TEST(PoolArena, ForeignFreeCachedAndReServed)
+{
+  std::atomic<int> stage(0);
+  char* obj = NULL;
+
+  std::thread owner([&]{
+    obj = (char*)ponyint_pool_alloc(0);
+    stage.store(1);
+
+    while(stage.load() != 2)
+      std::this_thread::yield();
+  });
+
+  while(stage.load() != 1)
+    std::this_thread::yield();
+
+  std::thread freer([&]{
+    ponyint_pool_free(0, obj);
+    EXPECT_EQ(ponyint_pool_arena_cache_count_for_test(0), (uint32_t)1);
+
+    char* served = (char*)ponyint_pool_alloc(0);
+    EXPECT_EQ(served, obj);
+    EXPECT_EQ(ponyint_pool_arena_cache_count_for_test(0), (uint32_t)0);
+
+    ponyint_pool_free(0, served);
+    ponyint_pool_thread_cleanup();
+    stage.store(2);
+  });
+
+  owner.join();
+  freer.join();
+}
+
+// return_idle sends cached foreign blocks home through their owners'
+// chains and delivers them at once: the owner reclaims without the
+// freeing thread reaching any other flush moment.
+TEST(PoolArena, ReturnIdleDeliversForeignCache)
 {
   std::atomic<int> stage(0);
   char* obj = NULL;
@@ -1876,7 +1984,7 @@ TEST(PoolArena, DrainReclaimsDeliveredForeignFree)
     obj = (char*)ponyint_pool_alloc(0);
     stage.store(1);
 
-    while(stage.load() != 2) // the producer delivered via suspend_flush
+    while(stage.load() != 2)
       std::this_thread::yield();
 
     inbox_filled = !ponyint_pool_arena_inbox_empty_for_test();
@@ -1893,21 +2001,23 @@ TEST(PoolArena, DrainReclaimsDeliveredForeignFree)
   while(stage.load() != 1)
     std::this_thread::yield();
 
-  // One foreign free sits on the producer's chain, under the batch
-  // threshold, so only suspend_flush hands it to the owner.
-  std::thread producer([&]{
+  std::thread freer([&]{
     ponyint_pool_free(0, obj);
-    ponyint_pool_suspend_flush();
+    EXPECT_EQ(ponyint_pool_arena_cache_count_for_test(0), (uint32_t)1);
+
+    ponyint_pool_return_idle();
+    EXPECT_EQ(ponyint_pool_arena_cache_count_for_test(0), (uint32_t)0);
+
     stage.store(2);
 
-    while(stage.load() != 3) // hold the chain map until the owner drained
+    while(stage.load() != 3)
       std::this_thread::yield();
 
     ponyint_pool_thread_cleanup();
   });
 
   owner.join();
-  producer.join();
+  freer.join();
 
   ASSERT_TRUE(inbox_filled);
   ASSERT_EQ(again, obj);
@@ -2641,6 +2751,92 @@ TEST(PoolArena, ConcurrentChurnStress)
         // credited by the frees below come home mid-churn and their
         // arenas release while other threads are carving.
         char* b = (char*)ponyint_pool_alloc_size(big);
+        memset(b, 0x80 | ((i * 31 + r) & 0x3F), 64);
+
+        int to = (i + 1 + (r % (nthreads - 1))) % nthreads;
+        char* expected = NULL;
+
+        while(!mailbox[to][i].compare_exchange_weak(expected, b))
+        {
+          expected = NULL;
+          drain_row(i); // keep consuming so the ring cannot deadlock
+          std::this_thread::yield();
+        }
+
+        drain_row(i);
+      }
+
+      senders_done.fetch_add(1);
+
+      // Every put precedes its sender's counter bump, so one sweep
+      // after the counter tops out cannot miss a block.
+      while(senders_done.load() != nthreads)
+      {
+        drain_row(i);
+        std::this_thread::yield();
+      }
+
+      drain_row(i);
+      ponyint_pool_thread_cleanup();
+    });
+  }
+
+  for(int i = 0; i < nthreads; i++)
+    workers[i].join();
+
+  // Conservation: every block sent was received, verified, and freed
+  // exactly once.
+  ASSERT_EQ(received.load(), nthreads * rounds);
+}
+
+// The same churn over a cache-managed small class: a foreign free enters
+// a live thread cache and is handed back out into that thread's own
+// sends while the block's owner keeps carving. This is the
+// ownership-blind cache's concurrent surface, and what puts it in front
+// of the thread sanitizer.
+TEST(PoolArena, ConcurrentSmallChurnStress)
+{
+  static const int nthreads = 4;
+  static const int rounds = 400;
+  static const size_t index = 1; // 64-byte blocks
+
+  std::atomic<char*> mailbox[nthreads][nthreads]; // [to][from]
+  std::atomic<int> received(0);
+  std::atomic<int> senders_done(0);
+
+  for(int i = 0; i < nthreads; i++)
+  {
+    for(int j = 0; j < nthreads; j++)
+      mailbox[i][j].store(NULL);
+  }
+
+  auto drain_row = [&](int me)
+  {
+    for(int j = 0; j < nthreads; j++)
+    {
+      if(j == me)
+        continue;
+
+      char* got = mailbox[me][j].exchange(NULL);
+
+      if(got != NULL)
+      {
+        EXPECT_EQ((uint8_t)got[0], (uint8_t)got[63]);
+        EXPECT_NE((uint8_t)got[0] & 0x80, 0);
+        ponyint_pool_free(index, got);
+        received.fetch_add(1);
+      }
+    }
+  };
+
+  std::vector<std::thread> workers(nthreads);
+
+  for(int i = 0; i < nthreads; i++)
+  {
+    workers[i] = std::thread([&, i]{
+      for(int r = 0; r < rounds; r++)
+      {
+        char* b = (char*)ponyint_pool_alloc(index);
         memset(b, 0x80 | ((i * 31 + r) & 0x3F), 64);
 
         int to = (i + 1 + (r % (nthreads - 1))) % nthreads;

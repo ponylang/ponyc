@@ -83,22 +83,26 @@ void* ponyint_pool_realloc_size(size_t old_size, size_t new_size, void* p);
 void ponyint_pool_thread_cleanup();
 
 /* The suspend-and-drain interface. suspend_flush delivers this thread's
- * pending foreign frees to their owners and drains its own inbox; a
- * passive thread calls it before it sleeps. drain only drains this
- * thread's own inbox, crediting what other threads delivered to it.
- * Nothing notifies an owner of a delivery, so an owner reclaims foreign
- * frees on its next drain. Only the arena allocator has inboxes; the
- * other backends define these as no-ops.
+ * pending chained foreign frees to their owners and drains its own inbox;
+ * a passive thread calls it before it sleeps. Foreign frees held in the
+ * thread cache are not delivered here — they leave through return_idle or
+ * thread cleanup. drain only drains this thread's own inbox, crediting
+ * what other threads delivered to it. Nothing notifies an owner of a
+ * delivery, so an owner reclaims foreign frees on its next drain. Only
+ * the arena allocator has inboxes; the other backends define these as
+ * no-ops.
  */
 void ponyint_pool_suspend_flush();
 
 void ponyint_pool_drain();
 
-/* return_idle hands this thread's held-but-free memory back to the operating
- * system: the arena backend flushes its per-thread cache to slabs and
+/* return_idle gives up this thread's held-but-free memory: the arena backend
+ * empties its per-thread cache — its own blocks to their slabs, other
+ * threads' blocks home through their owners' chains, delivered at once — and
  * decommits its arenas' dirty pages. The passive path calls it once a thread
- * has been idle long enough that holding the memory no longer pays; the thread
- * rewarms when it runs again. The other backends define it as a no-op.
+ * has been idle long enough that holding the memory no longer pays; the
+ * thread rewarms when it runs again. The other backends define it as a
+ * no-op.
  */
 void ponyint_pool_return_idle();
 
