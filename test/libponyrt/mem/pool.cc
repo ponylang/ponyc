@@ -1894,8 +1894,11 @@ TEST(PoolArena, DrainReclaimsDeliveredForeignFree)
     std::this_thread::yield();
 
   // One foreign free sits on the producer's chain, under the batch
-  // threshold, so only suspend_flush hands it to the owner.
+  // threshold, so only suspend_flush hands it to the owner. The cache is
+  // disabled first: with it on, the free would be held in the producer's
+  // cache instead of reaching the chain this test exercises.
   std::thread producer([&]{
+    ponyint_pool_arena_cache_disable_for_test();
     ponyint_pool_free(0, obj);
     ponyint_pool_suspend_flush();
     stage.store(2);

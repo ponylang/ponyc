@@ -1442,6 +1442,27 @@ void* ponyint_pool_alloc(size_t index)
   return slab_get(arena_of(rec), rec, index);
 }
 
+/// Empties the thread cache, sending each block where it belongs: this
+/// thread's own blocks back to their slabs, another thread's onto its
+/// owner's chain. Callers that need the chained blocks delivered flush
+/// the chains after.
+static void cache_flush_routed()
+{
+  for(size_t i = 0; i < POOL_COUNT; i++)
+  {
+    while(pool_cache_count[i] > 0)
+    {
+      void* p = pool_cache[i][--pool_cache_count[i]];
+      arena_t* arena = arena_of(p);
+
+      if(arena->owner_slot != this_thread.slot)
+        chain_push(arena->owner_slot, p);
+      else
+        slab_free(i, p);
+    }
+  }
+}
+
 void ponyint_pool_free(size_t index, void* p)
 {
   pony_assert(index < POOL_COUNT);
@@ -1449,23 +1470,24 @@ void ponyint_pool_free(size_t index, void* p)
   arena_t* arena = arena_of(p);
   ARENA_CHECK(arena->kind == MAPPING_ARENA);
 
+  // Held memory is held memory, wherever it came from: any freed block goes
+  // into the thread cache while there is room, and ownership is decided only
+  // when a block leaves the cache downward (overflow, idle, teardown). A
+  // cached block stays live in its slab from the owner's view — caching it
+  // here only delays the real free.
+  if(pool_cache_count[index] < cache_cap(index))
+  {
+    cache_validate_push(index, p, arena);
+    pool_cache[index][pool_cache_count[index]++] = p;
+    return;
+  }
+
   if(arena->owner_slot != this_thread.slot)
   {
     // Another thread's memory returns to its owner through the inbox. Nothing
     // of the owner's bookkeeping is touched here: only the object's own
     // first word, this thread's chain, and (at a batch) the inbox head.
     chain_push(arena->owner_slot, p);
-    return;
-  }
-
-  // Same-thread free: cache it if there is room, skipping the slab bookkeeping
-  // (unit lookup, free-list splice, and the slab_after_free state machine).
-  // A cached block stays live in its slab until the cache hands it back out or
-  // the overflow/teardown path returns it through slab_free.
-  if(pool_cache_count[index] < cache_cap(index))
-  {
-    cache_validate_push(index, p, arena);
-    pool_cache[index][pool_cache_count[index]++] = p;
     return;
   }
 
@@ -1687,13 +1709,14 @@ void ponyint_pool_suspend_flush()
 
 void ponyint_pool_return_idle()
 {
-  // Flush the thread cache back to its slabs (their pages become dirty and
-  // free), then decommit every dirty unit in the arenas this thread owns.
-  // Flushing runs first and may release a fully-emptied arena, so the arena
-  // walk that follows sees a stable list.
-  for(size_t i = 0; i < POOL_COUNT; i++)
-    while(pool_cache_count[i] > 0)
-      slab_free(i, pool_cache[i][--pool_cache_count[i]]);
+  // Flush the thread cache — own blocks back to their slabs (their pages
+  // become dirty and free), foreign blocks home through their owners'
+  // chains, delivered at once so the owners can reclaim without waiting
+  // for another pause — then decommit every dirty unit in the arenas this
+  // thread owns. Flushing runs first and may release a fully-emptied
+  // arena, so the arena walk that follows sees a stable list.
+  cache_flush_routed();
+  chains_flush_all();
 
   for(arena_t* a = this_thread.arenas; a != NULL; a = a->next)
     dirty_sweep(a);
@@ -1760,22 +1783,16 @@ void ponyint_pool_drain()
 
 void ponyint_pool_thread_cleanup()
 {
-  // Deliver every pending foreign free to its owner and take back what
-  // others delivered here (crediting one's own inbox touches only this
-  // thread's arenas). The allocator's own memory stays in place:
-  // threads exit in no fixed order, and unmapping could hit memory
-  // another thread still uses.
+  // Empty the cache first — it can hold foreign blocks, and routing them
+  // through the chains must precede the chain flush below or they would sit
+  // in flushed chains while the map is freed. Then deliver every pending
+  // foreign free to its owner and take back what others delivered here
+  // (crediting one's own inbox touches only this thread's arenas). The
+  // allocator's own memory stays in place: threads exit in no fixed order,
+  // and unmapping could hit memory another thread still uses.
+  cache_flush_routed();
   chains_flush_all();
   inbox_drain();
-
-  // Return every cached block to its slab through slab_free (not
-  // ponyint_pool_free, which would just re-cache it). Emptied slabs release as
-  // usual, so this gives back only what the cache was holding.
-  for(size_t i = 0; i < POOL_COUNT; i++)
-  {
-    while(pool_cache_count[i] > 0)
-      slab_free(i, pool_cache[i][--pool_cache_count[i]]);
-  }
 
   chain_t* map = this_thread.chains;
 
@@ -1819,9 +1836,8 @@ bool ponyint_pool_arena_inbox_empty_for_test()
 /// active builds); in release the flag is set but never read.
 void ponyint_pool_arena_cache_disable_for_test()
 {
-  for(size_t i = 0; i < POOL_COUNT; i++)
-    while(pool_cache_count[i] > 0)
-      slab_free(i, pool_cache[i][--pool_cache_count[i]]);
+  cache_flush_routed();
+  chains_flush_all();
   pool_cache_disabled = true;
 }
 
