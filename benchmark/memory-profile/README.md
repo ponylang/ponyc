@@ -46,24 +46,25 @@ done
 
 ### Raw-knob sweep (re-tuning)
 
-To search values beyond the ten rungs -- how the dial's numbers were derived --
-pass three more positional args, `floor span thresh`, which set the arena knobs
-directly (via the runtime's `_for_test` seams) and bypass the dial:
+To search values beyond the ten rungs, pass four more positional args,
+`floor span thresh budget`, which set the arena knobs directly (via the
+runtime's `_for_test` seams) and bypass the dial:
 
 ```
-/tmp/bin/churn 8 2000 65536 8 32 0 1 4      # return everything (leanest)
-/tmp/bin/churn 8 2000 65536 8 32 128 512 512 # hold everything (fastest)
+/tmp/bin/churn 8 2000 65536 8 32 0 1 4 65536         # return everything (leanest)
+/tmp/bin/churn 8 2000 65536 8 32 128 512 512 2097152 # hold everything (fastest)
 ```
 
 `span` and `threshold` are in arena units; the arena is 512 units (8 MiB) on
-64-bit. See `src/libponyrt/mem/pool_arena.c` for what each knob does.
+64-bit. `budget` is bytes of cache per size class. See
+`src/libponyrt/mem/pool_arena.c` for what each knob does.
 
 ## Program arguments
 
-- `churn`: `workers rounds base-size ngap depth [floor span thresh]`
-- `actor-churn`: `batch rounds base-size ngap [floor span thresh]`
+- `churn`: `workers rounds base-size ngap depth [floor span thresh budget]`
+- `actor-churn`: `batch rounds base-size ngap [floor span thresh budget]`
 
 Each argument is optional from the left and must be a non-negative integer; the
-trailing `floor span thresh` are all-or-nothing. A non-numeric argument, or a
+trailing `floor span thresh budget` are all-or-nothing. A non-numeric argument, or a
 partial raw-knob list, is rejected with a usage message and a non-zero exit,
 rather than run silently at the default.

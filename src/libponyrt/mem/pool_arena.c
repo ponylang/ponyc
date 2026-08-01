@@ -234,14 +234,14 @@ typedef struct arena_unit_t
 
 struct pool_arena_thread_t;
 
-/// This span, the dirty-sweep threshold below, and the cache floor
-/// (POOL_CACHE_FLOOR) are the default memory profile -- rung 3 of the
-/// --ponymemoryprofile dial; the memory_profiles table further down holds the
-/// full dial, and pony_static_asserts there keep rung 3 and these defaults in
-/// step. A released slab this many units or larger has its pages dropped at
-/// once; smaller ones go dirty and are swept in batches, so churning small
-/// slabs does not pay a system call per slab. Expressed against ARENA_UNITS so
-/// the value scales with the arena.
+/// This span, the dirty-sweep threshold below, the cache floor, and the cache
+/// byte budget (POOL_CACHE_FLOOR, POOL_CACHE_BUDGET) are the default memory
+/// profile -- rung 3 of the --ponymemoryprofile dial; the memory_profiles
+/// table further down holds the full dial, and pony_static_asserts there keep
+/// rung 3 and these defaults in step. A released slab this many units or
+/// larger has its pages dropped at once; smaller ones go dirty and are swept
+/// in batches, so churning small slabs does not pay a system call per slab.
+/// Expressed against ARENA_UNITS so the value scales with the arena.
 #define DECOMMIT_IMMEDIATE_SPAN (ARENA_UNITS / 4)
 
 /// Sweep an arena's dirty units once this many accumulate. Below that, free
@@ -377,19 +377,20 @@ static __pony_thread_local pool_arena_thread_t this_thread =
 // Thread cache: a per-class LIFO in front of the whole free path. It holds
 // freed blocks regardless of which thread owns them; ownership is decided
 // when a block leaves it downward. cache_cap sets each class's depth from two
-// terms. A byte
-// budget (POOL_CACHE_BUDGET / class size) lets small classes cache many and
-// bounds the resident memory the cache holds. A floor count (active_cache_floor)
-// keeps a few blocks even for large classes, whose byte budget alone rounds to
-// 0 or 1: without it, churning a large working set deeper than the budget pays a
-// slab reserve and release -- and, for spans past DECOMMIT_IMMEDIATE_SPAN, a
-// decommit and recommit syscall -- every cycle. The idle return flushes the
-// whole cache, so the floor costs resident memory only while a thread actively
-// churns. POOL_CACHE_DEPTH hard-caps the count so the smallest class cannot
-// cache an unbounded number; the floor is set per memory profile.
-// POOL_CACHE_SENTINEL is a debug-only guard word (distinct from POISON) marking
-// a block as sitting in the cache.
-#define POOL_CACHE_BUDGET (256 * 1024)
+// terms. A byte budget (active_cache_budget / class size) lets small classes
+// cache many and bounds what one class's cache holds resident. A floor count
+// (active_cache_floor) keeps a few blocks even for large classes, whose byte
+// budget alone rounds to at most a few: without it, churning a large
+// working set deeper than the budget pays a slab reserve and release -- and,
+// for spans
+// past DECOMMIT_IMMEDIATE_SPAN, a decommit and recommit syscall -- every
+// cycle. The idle return flushes the whole cache, so the cache costs resident
+// memory only while a thread actively churns. POOL_CACHE_DEPTH hard-caps the
+// count so the smallest class cannot cache an unbounded number; the budget
+// and the floor are set per memory profile. POOL_CACHE_SENTINEL is a
+// debug-only guard word (distinct from POISON) marking a block as sitting in
+// the cache.
+#define POOL_CACHE_BUDGET (640 * 1024)
 #define POOL_CACHE_DEPTH 512
 #define POOL_CACHE_FLOOR 8
 #define POOL_CACHE_SENTINEL ((uint64_t)0xCAC4E5A17ECAC4E5ULL)
@@ -404,22 +405,25 @@ static __pony_thread_local uint32_t pool_cache_count[POOL_COUNT];
 // build never consults it and pays no hot-path cost.
 static __pony_thread_local bool pool_cache_disabled = false;
 
-// The floor count cache_cap holds for every class regardless of the byte budget.
-// Set per memory profile (ponyint_pool_set_memory_profile); starts at the
-// default-profile value (rung 3) so a program that sets no profile gets it.
+// Two per-class cache terms, both set per memory profile
+// (ponyint_pool_set_memory_profile): the floor is the count cache_cap holds
+// for every class regardless of the budget, and the budget is the bytes
+// cache_cap divides by the class size. They start at the default-profile
+// values (rung 3), so a program that sets no profile gets them.
 static size_t active_cache_floor = POOL_CACHE_FLOOR;
+static size_t active_cache_budget = POOL_CACHE_BUDGET;
 
 // The number of class-`index` blocks the cache may hold: the larger of the byte
-// budget (POOL_CACHE_BUDGET / class size) and the floor, capped at
-// POOL_CACHE_DEPTH. The floor keeps large classes -- whose byte budget rounds to
-// 0 or 1 -- from paying a slab cycle on every same-thread churn.
+// budget (active_cache_budget / class size) and the floor, capped at
+// POOL_CACHE_DEPTH. The floor keeps large classes -- whose byte budget rounds
+// to at most a few -- from paying a slab cycle on every same-thread churn.
 static size_t cache_cap(size_t index)
 {
 #if !defined(PONY_NDEBUG) || defined(PONY_ALWAYS_ASSERT)
   if(pool_cache_disabled)
     return 0;
 #endif
-  size_t by_bytes = POOL_CACHE_BUDGET >> (POOL_MIN_BITS + index);
+  size_t by_bytes = active_cache_budget >> (POOL_MIN_BITS + index);
   size_t cap = (by_bytes < active_cache_floor) ? active_cache_floor : by_bytes;
   return (cap < POOL_CACHE_DEPTH) ? cap : POOL_CACHE_DEPTH;
 }
@@ -1743,10 +1747,12 @@ void ponyint_pool_return_idle()
 
 // The --ponymemoryprofile dial: rung 1 (smallest footprint, return freed memory
 // at once) to rung 10 (most throughput, hold it for reuse). `floor` is an
-// absolute per-class cache count; `span` and `threshold` are given against a
+// absolute per-class cache count; `budget` is bytes of cache per size class,
+// and a class's cache depth is the larger of budget/size and `floor`, capped
+// at POOL_CACHE_DEPTH; `span` and `threshold` are given against a
 // PROFILE_TUNED_UNITS-unit arena and scaled to ARENA_UNITS below. On a smaller
 // (32-bit) arena the top rungs' span reaches the whole arena and stops changing;
-// `floor` and `threshold` still separate those rungs.
+// the `floor` column still separates those rungs.
 #define PROFILE_TUNED_UNITS 512
 
 // Rung 3 is the default. Its values live here so the memory_profiles row and the
@@ -1755,8 +1761,11 @@ void ponyint_pool_return_idle()
 #define RUNG3_FLOOR 8
 #define RUNG3_SPAN 128
 #define RUNG3_THRESHOLD 32
+#define RUNG3_BUDGET (640 * 1024)
 pony_static_assert(POOL_CACHE_FLOOR == RUNG3_FLOOR,
   "the default cache floor must equal memory_profiles rung 3");
+pony_static_assert(POOL_CACHE_BUDGET == RUNG3_BUDGET,
+  "the default cache budget must equal memory_profiles rung 3");
 pony_static_assert(
   DECOMMIT_IMMEDIATE_SPAN == (RUNG3_SPAN * ARENA_UNITS) / PROFILE_TUNED_UNITS,
   "the default decommit span must equal memory_profiles rung 3");
@@ -1764,19 +1773,19 @@ pony_static_assert(
   DIRTY_SWEEP_THRESHOLD == (RUNG3_THRESHOLD * ARENA_UNITS) / PROFILE_TUNED_UNITS,
   "the default sweep threshold must equal memory_profiles rung 3");
 
-static const struct { size_t floor; size_t span; size_t threshold; }
-  memory_profiles[10] =
+static const struct { size_t floor; size_t span; size_t threshold;
+  size_t budget; } memory_profiles[10] =
 {
-  {           0,          1,               4 }, //  1
-  {           4,         64,              16 }, //  2
-  { RUNG3_FLOOR, RUNG3_SPAN, RUNG3_THRESHOLD }, //  3 (default)
-  {          16,        256,              64 }, //  4
-  {          24,        512,             128 }, //  5
-  {          32,        512,             160 }, //  6
-  {          48,        512,             256 }, //  7
-  {          64,        512,             384 }, //  8
-  {          96,        512,             512 }, //  9
-  {         128,        512,             512 }  // 10
+  {           0,          1,               4,    64 * 1024 }, //  1
+  {           4,         64,              16,   256 * 1024 }, //  2
+  { RUNG3_FLOOR, RUNG3_SPAN, RUNG3_THRESHOLD, RUNG3_BUDGET }, //  3 (default)
+  {          16,        256,              64,   768 * 1024 }, //  4
+  {          24,        512,             128,  1024 * 1024 }, //  5
+  {          32,        512,             160,  1024 * 1024 }, //  6
+  {          48,        512,             256,  1536 * 1024 }, //  7
+  {          64,        512,             384,  1536 * 1024 }, //  8
+  {          96,        512,             512,  2048 * 1024 }, //  9
+  {         128,        512,             512,  2048 * 1024 }  // 10
 };
 
 void ponyint_pool_set_memory_profile(uint32_t rung)
@@ -1791,6 +1800,7 @@ void ponyint_pool_set_memory_profile(uint32_t rung)
   const size_t threshold = memory_profiles[rung - 1].threshold;
 
   active_cache_floor = memory_profiles[rung - 1].floor;
+  active_cache_budget = memory_profiles[rung - 1].budget;
   active_decommit_immediate_span = (span * ARENA_UNITS) / PROFILE_TUNED_UNITS;
   active_dirty_sweep_threshold = (threshold * ARENA_UNITS) / PROFILE_TUNED_UNITS;
 }
@@ -1877,11 +1887,18 @@ uint32_t ponyint_pool_arena_cache_count_for_test(size_t index)
 /// Test/benchmark seam: set the per-class cache floor directly, bypassing the
 /// --ponymemoryprofile dial so a benchmark can sweep arbitrary values. Applied
 /// after any profile selection, so it wins. Set it at startup, before the
-/// workload allocates; it and the two setters below write process-global state a
+/// workload allocates; it and the setters below write process-global state a
 /// concurrent free reads unsynchronized (see active_decommit_immediate_span).
 void ponyint_pool_arena_set_cache_floor_for_test(size_t floor)
 {
   active_cache_floor = floor;
+}
+
+/// Test/benchmark seam: set the per-class cache byte budget directly (the
+/// bytes cache_cap divides by the class size). Bypasses the profile dial.
+void ponyint_pool_arena_set_cache_budget_for_test(size_t budget)
+{
+  active_cache_budget = budget;
 }
 
 /// Test/benchmark seam: set the immediate-decommit span directly (how large a
@@ -1904,6 +1921,12 @@ void ponyint_pool_arena_set_dirty_threshold_for_test(size_t threshold)
 size_t ponyint_pool_arena_cache_floor_for_test(void)
 {
   return active_cache_floor;
+}
+
+/// Test seam: the active per-class cache byte budget.
+size_t ponyint_pool_arena_cache_budget_for_test(void)
+{
+  return active_cache_budget;
 }
 
 /// Test seam: the active immediate-decommit span.

@@ -106,10 +106,11 @@ void ponyint_pool_drain();
 void ponyint_pool_return_idle();
 
 /* The memory profile trades resident footprint against throughput by setting
- * how quickly the allocator returns freed memory to the operating system. A
- * dial from 1 (return freed memory quickly, for the smallest footprint) to 10
- * (hold it for the most throughput); rung 3 is the default. Selected once at
- * startup by --ponymemoryprofile. Only the arena backend acts on it.
+ * how much freed memory each thread holds for reuse and how quickly the rest
+ * returns to the operating system. A dial from 1 (return freed memory
+ * quickly, for the smallest footprint) to 10 (hold it for the most
+ * throughput); rung 3 is the default. Selected once at startup by
+ * --ponymemoryprofile. Only the arena backend acts on it.
  */
 void ponyint_pool_set_memory_profile(uint32_t rung);
 

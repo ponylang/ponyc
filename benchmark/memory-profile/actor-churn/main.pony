@@ -14,17 +14,18 @@ Run under the dial and watch throughput against peak RSS:
       /usr/bin/time -v ./actor-churn 64 8000 65536 8 --ponymemoryprofile $r
     done
 
-Positional args: batch rounds base-size ngap, each optional from the left. Three
-more optional args -- floor span thresh -- set the arena knobs directly
-(bypassing the dial) for re-tuning sweeps, all three or none; omit them to honor
---ponymemoryprofile. A non-numeric argument, or a partial floor/span/thresh list,
-is rejected rather than silently run at the default.
+Positional args: batch rounds base-size ngap, each optional from the left. Four
+more optional args -- floor span thresh budget -- set the arena knobs directly
+(bypassing the dial) for re-tuning sweeps, all four or none; omit them to honor
+--ponymemoryprofile. A non-numeric argument, or a partial raw-knob list, is
+rejected rather than silently run at the default.
 """
 use "time"
 
 use @ponyint_pool_arena_set_cache_floor_for_test[None](floor: USize)
 use @ponyint_pool_arena_set_decommit_span_for_test[None](span: USize)
 use @ponyint_pool_arena_set_dirty_threshold_for_test[None](threshold: USize)
+use @ponyint_pool_arena_set_cache_budget_for_test[None](budget: USize)
 
 actor Worker
   new create(coord: Coordinator, size: USize, seed: U8) =>
@@ -92,17 +93,19 @@ actor Main
     let base = _arg(env, 3, 65536)?
     let ngap = _arg(env, 4, 8)?
 
-    // Optional raw-knob override (floor span thresh) for re-tuning sweeps: all
-    // three or none. Read all three before setting any, so a partial or garbled
-    // list errors out above and sets nothing. When omitted, the run honors
-    // --ponymemoryprofile.
+    // Optional raw-knob override (floor span thresh budget) for re-tuning
+    // sweeps: all four or none. Read all four before setting any, so a partial
+    // or garbled list errors out above and sets nothing. When omitted, the run
+    // honors --ponymemoryprofile.
     if env.args.size() > 5 then
       let floor = env.args(5)?.usize()?
       let span = env.args(6)?.usize()?
       let thresh = env.args(7)?.usize()?
+      let budget = env.args(8)?.usize()?
       @ponyint_pool_arena_set_cache_floor_for_test(floor)
       @ponyint_pool_arena_set_decommit_span_for_test(span)
       @ponyint_pool_arena_set_dirty_threshold_for_test(thresh)
+      @ponyint_pool_arena_set_cache_budget_for_test(budget)
     end
 
     let sizes = recover val

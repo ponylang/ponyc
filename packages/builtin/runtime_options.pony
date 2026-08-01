@@ -129,8 +129,9 @@ struct RuntimeOptions
   var ponymemoryprofile: U32 = 0
     """
     Trade the allocator's resident memory against throughput on a scale from 1
-    to 10: 1 returns freed memory to the operating system quickly for the
-    smallest footprint, 10 holds it for the most throughput. 0, the default,
+    to 10: 1 holds little freed memory for reuse and returns the rest to the
+    operating system quickly for the smallest footprint, 10 holds the most for
+    the most throughput. 0, the default,
     leaves rung 3 in place -- the scale has little room below it for less memory
     and much more above it for throughput, so rung 3 sits low on it. A value
     outside 1 to 10 is rejected at startup.
