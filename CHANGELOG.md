@@ -6,6 +6,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
+- Fix potential use-after-free on Windows during socket teardown ([PR #5805](https://github.com/ponylang/ponyc/pull/5805))
 
 ### Added
 
