@@ -942,6 +942,26 @@ static_assert((TEST_REGION_SIZE / TEST_ARENA_SIZE) == 32,
 #define TEST_LARGE_RETAIN_DEFAULT ((size_t)8 * 1024 * 1024)
 #define TEST_LARGE_RETAIN_EMPTY_CAP ((size_t)4)
 
+extern "C" void ponyint_pool_arena_set_large_retain_for_test(size_t bytes);
+extern "C" size_t ponyint_pool_arena_large_retain_for_test(void);
+extern "C" size_t ponyint_pool_arena_large_retain_held_for_test(void);
+
+/// Sets the large-retention budget for a test body whose asserts run at
+/// test scope (not inside an on_fresh_thread lambda), restoring the
+/// default even when a fatal assertion exits the body early.
+struct ScopedLargeRetain
+{
+  explicit ScopedLargeRetain(size_t bytes)
+  {
+    ponyint_pool_arena_set_large_retain_for_test(bytes);
+  }
+
+  ~ScopedLargeRetain()
+  {
+    ponyint_pool_arena_set_large_retain_for_test(TEST_LARGE_RETAIN_DEFAULT);
+  }
+};
+
 namespace
 {
 
@@ -1179,8 +1199,8 @@ TEST(PoolArena, BlockPlacement)
 
 #ifndef PLATFORM_IS_ILP32
     // Two 4 MiB blocks cannot share an 8 MiB arena with the pin; the
-    // second one opens its own arena, and freeing it drops that arena's
-    // pages without touching the first block's memory.
+    // second one opens its own arena, and freeing it leaves the first
+    // block's memory untouched.
     size_t big = 4 * 1024 * 1024;
     char* b1 = (char*)ponyint_pool_alloc_size(big);
     ASSERT_EQ(arena_base_of(b1), arena_base_of(pin));
@@ -2059,9 +2079,6 @@ extern "C" size_t ponyint_pool_arena_cache_floor_for_test(void);
 extern "C" size_t ponyint_pool_arena_cache_budget_for_test(void);
 extern "C" size_t ponyint_pool_arena_decommit_span_for_test(void);
 extern "C" size_t ponyint_pool_arena_dirty_threshold_for_test(void);
-extern "C" void ponyint_pool_arena_set_large_retain_for_test(size_t bytes);
-extern "C" size_t ponyint_pool_arena_large_retain_for_test(void);
-extern "C" size_t ponyint_pool_arena_large_retain_held_for_test(void);
 
 // The --ponymemoryprofile dial (1-10) sets five arena knobs per rung. The cache
 // floor is an absolute per-class count and the cache budget is bytes per size
@@ -2116,6 +2133,10 @@ TEST(PoolArena, MemoryProfileRungs)
         expected_large_retain[rung - 2]);
     }
   }
+
+  // The tests' mirrored default must be the rung-3 value the runtime
+  // pins, or every restore-the-default in this file restores a lie.
+  EXPECT_EQ(expected_large_retain[2], TEST_LARGE_RETAIN_DEFAULT);
 
   // rung 3 is the default; restore it so later tests see it.
   ponyint_pool_set_memory_profile(3);
@@ -2363,7 +2384,7 @@ TEST(PoolArena, CrossThreadOversizedFree)
 {
   // Retention off: the direct-return assertions below are about the
   // ownerless free path, not about what a budget would keep.
-  ponyint_pool_arena_set_large_retain_for_test(0);
+  ScopedLargeRetain budget(0);
 
 #ifdef PLATFORM_IS_ILP32
   static const size_t size = 24 * 1024 * 1024;
@@ -2391,8 +2412,6 @@ TEST(PoolArena, CrossThreadOversizedFree)
   ASSERT_NE(q, (char*)NULL);
   q[0] = 's';
   ponyint_pool_free_size(size, q);
-
-  ponyint_pool_arena_set_large_retain_for_test(TEST_LARGE_RETAIN_DEFAULT);
 }
 
 // One empty arena stays in reserve with only its payload pages dropped;
@@ -2595,11 +2614,22 @@ TEST(PoolArena, ExemptEmptyCap)
 
 #ifdef PLATFORM_IS_LINUX
     // The ledger's claim, checked against the pages: the survivors'
-    // spans stay resident, the shed ones' are gone.
+    // spans stay resident, the shed ones' are gone -- and a shed arena
+    // gave its slot back at once, so even its header is out.
     for(size_t i = 0; i < (TEST_LARGE_RETAIN_EMPTY_CAP - 1); i++)
+    {
       ASSERT_GT(resident_bytes(blocks[i], big), (size_t)0);
+      ASSERT_GT(
+        resident_bytes((void*)arena_base_of(blocks[i]), TEST_UNIT_SIZE),
+        (size_t)0);
+    }
     for(size_t i = TEST_LARGE_RETAIN_EMPTY_CAP - 1; i < count; i++)
+    {
       ASSERT_EQ(resident_bytes(blocks[i], big), (size_t)0);
+      ASSERT_EQ(
+        resident_bytes((void*)arena_base_of(blocks[i]), TEST_ARENA_SIZE),
+        (size_t)0);
+    }
 #endif
 
     ponyint_pool_return_idle();
@@ -2736,19 +2766,16 @@ TEST(PoolArena, LargeRetainMidArena)
     ASSERT_GT(resident_bytes(b, block), (size_t)0);
 #endif
 
-#ifndef PLATFORM_IS_ILP32
     // A smaller block carved from inside the retained span debits the
-    // ledger per consumed unit and leaves the remnant retained. (On
-    // ILP32 no strictly smaller size stays in the block class, so the
-    // partial carve is 64-bit-only.)
-    size_t partial_units = span_units - 8;
+    // ledger per consumed unit and leaves a one-unit remnant retained;
+    // one unit under the span stays block-class on both geometries.
+    size_t partial_units = span_units - 1;
     size_t partial = partial_units * TEST_UNIT_SIZE;
     char* c = (char*)ponyint_pool_alloc_size(partial);
     ASSERT_NE(c, (char*)NULL);
     ASSERT_EQ(ponyint_pool_arena_large_retain_held_for_test(),
       span_bytes - (partial_units * TEST_UNIT_SIZE));
     ponyint_pool_free_size(partial, c);
-#endif
 
     // Budget zero: the next free is rejected in place -- holdings stay,
     // its own pages go back.
@@ -2866,11 +2893,146 @@ TEST(PoolArena, OversizedStashVictimOrder)
     ASSERT_EQ(resident_bytes(m2, m2_size), (size_t)0);
 #endif
 
+    // Oldest-victim discrimination: two candidates share a key different
+    // from the incoming free's (m1 older than m4), and the budget is
+    // raised so evicting the oldest suffices. The trade must take m1,
+    // the tail of the walk, not m4, the first mismatch it visits.
+    static const size_t m5_size = (size_t)33 * 1024 * 1024; // 64 MiB key
+    char* m5 = (char*)ponyint_pool_alloc_size(m5_size);
+    ASSERT_NE(m5, (char*)NULL);
+    memset(m5, 0x45, 4096);
+    ponyint_pool_arena_set_large_retain_for_test((size_t)48 * 1024 * 1024);
+    ponyint_pool_free_size(m5_size, m5);
+    ASSERT_EQ(ponyint_pool_arena_large_retain_held_for_test(),
+      m4_size + m5_size);
+#ifdef PLATFORM_IS_LINUX
+    ASSERT_EQ(resident_bytes(m1, m1_size), (size_t)0);
+    ASSERT_GT(resident_bytes(m4, m4_size), (size_t)0);
+#endif
+
     ponyint_pool_return_idle();
     ASSERT_EQ(ponyint_pool_arena_large_retain_held_for_test(), (size_t)0);
   });
 
   ponyint_pool_arena_set_large_retain_for_test(TEST_LARGE_RETAIN_DEFAULT);
+}
+
+// A retained arena emptying while a clean empty sits in reserve: the
+// clean arena gives its slot back and the retained one becomes the
+// reserve.
+TEST(PoolArena, CleanVictimDisplaced)
+{
+  on_fresh_thread([]{
+    static const size_t big = TEST_ARENA_FILLING_BLOCK;
+    size_t span_bytes =
+      ((big + TEST_UNIT_SIZE - 1) / TEST_UNIT_SIZE) * TEST_UNIT_SIZE;
+
+    char* a = (char*)ponyint_pool_alloc_size(big);
+    char* b = (char*)ponyint_pool_alloc_size(big);
+    ASSERT_NE(a, (char*)NULL);
+    ASSERT_NE(b, (char*)NULL);
+    memset(a, 0x81, 4096);
+    memset(b, 0x82, 4096);
+
+    // A's free is rejected (budget 0): its arena becomes the clean
+    // reserve. B's free is admitted: B's arena is retained-empty, and
+    // the clean reserve is the release victim.
+    ponyint_pool_arena_set_large_retain_for_test(0);
+    ponyint_pool_free_size(big, a);
+    ponyint_pool_arena_set_large_retain_for_test(span_bytes);
+    ponyint_pool_free_size(big, b);
+
+    ASSERT_EQ(ponyint_pool_arena_large_retain_held_for_test(), span_bytes);
+#ifdef PLATFORM_IS_LINUX
+    ASSERT_GT(resident_bytes(b, big), (size_t)0);
+    // The clean arena's slot went back: even its header is gone.
+    ASSERT_EQ(
+      resident_bytes((void*)arena_base_of(a), TEST_ARENA_SIZE), (size_t)0);
+#endif
+
+    // The retained arena serves the next carve.
+    char* c = (char*)ponyint_pool_alloc_size(big);
+    ASSERT_EQ(c, b);
+    ponyint_pool_free_size(big, c);
+
+    ponyint_pool_return_idle();
+    ASSERT_EQ(ponyint_pool_arena_large_retain_held_for_test(), (size_t)0);
+  });
+
+  ponyint_pool_arena_set_large_retain_for_test(TEST_LARGE_RETAIN_DEFAULT);
+}
+
+// Stash reuse at a smaller size under the same reservation key: the pop
+// debits the full raised committed size and a re-free re-adds it -- the
+// raised-never-lowered contract's other half.
+TEST(PoolArena, OversizedStashShrunkReuse)
+{
+  on_fresh_thread([]{
+    static const size_t large_size = (size_t)14 * 1024 * 1024;
+    static const size_t small_size = (size_t)12 * 1024 * 1024;
+
+    ponyint_pool_arena_set_large_retain_for_test((size_t)64 * 1024 * 1024);
+
+    char* p = (char*)ponyint_pool_alloc_size(large_size);
+    ASSERT_NE(p, (char*)NULL);
+    memset(p, 0x91, 4096);
+    ponyint_pool_free_size(large_size, p);
+    ASSERT_EQ(ponyint_pool_arena_large_retain_held_for_test(), large_size);
+
+    // Same 16 MiB key, smaller payload: the pop debits the full
+    // committed size, not the request.
+    char* q = (char*)ponyint_pool_alloc_size(small_size);
+    ASSERT_EQ(q, p);
+    ASSERT_EQ(ponyint_pool_arena_large_retain_held_for_test(), (size_t)0);
+
+    // Re-free at the smaller size: committed never lowered, so the
+    // ledger carries the larger size again.
+    ponyint_pool_free_size(small_size, q);
+    ASSERT_EQ(ponyint_pool_arena_large_retain_held_for_test(), large_size);
+
+    ponyint_pool_return_idle();
+    ASSERT_EQ(ponyint_pool_arena_large_retain_held_for_test(), (size_t)0);
+  });
+
+  ponyint_pool_arena_set_large_retain_for_test(TEST_LARGE_RETAIN_DEFAULT);
+}
+
+// A write into a stashed mapping's guard word is caught at the next
+// same-key allocation.
+TEST(PoolArenaDeath, OversizedStashUseAfterFree)
+{
+  SKIP_WITHOUT_ARENA_CHECKS();
+  testing::FLAGS_gtest_death_test_style = "threadsafe";
+
+  EXPECT_DEATH({
+    ponyint_pool_arena_set_large_retain_for_test((size_t)32 * 1024 * 1024);
+    static const size_t size = (size_t)12 * 1024 * 1024;
+    char* p = (char*)ponyint_pool_alloc_size(size);
+    memset(p, 0x66, 4096);
+    ponyint_pool_free_size(size, p);
+    p[0] = 'w'; // use after free clobbers the guard word
+    ponyint_pool_alloc_size(size);
+  }, "POISON");
+}
+
+// A double free the budget rejects must not unmap the still-stashed
+// mapping: the eviction walk finds it and stops.
+TEST(PoolArenaDeath, OversizedStashDoubleFreeRejected)
+{
+  SKIP_WITHOUT_ARENA_CHECKS();
+  testing::FLAGS_gtest_death_test_style = "threadsafe";
+
+  EXPECT_DEATH({
+    static const size_t size = (size_t)12 * 1024 * 1024;
+    ponyint_pool_arena_set_large_retain_for_test((size_t)32 * 1024 * 1024);
+    char* p = (char*)ponyint_pool_alloc_size(size);
+    memset(p, 0x67, 4096);
+    ponyint_pool_free_size(size, p);
+    // The second free must be rejected, not admitted: zero the budget so
+    // it takes the eviction-walk path.
+    ponyint_pool_arena_set_large_retain_for_test(0);
+    ponyint_pool_free_size(size, p);
+  }, "node != over");
 }
 
 // The small sweep's threshold nets out retained units, so small dirt
@@ -2946,6 +3108,8 @@ TEST(PoolArena, CrossThreadRetainLedger)
   static const size_t span_bytes =
     ((block + TEST_UNIT_SIZE - 1) / TEST_UNIT_SIZE) * TEST_UNIT_SIZE;
 
+  ScopedLargeRetain budget(TEST_LARGE_RETAIN_DEFAULT);
+
   std::atomic<int> stage(0);
   char* b = NULL;
   size_t owner_held_after_drain = 0;
@@ -3002,7 +3166,7 @@ TEST(PoolArena, CleanupReturnsRetention)
   static const size_t block = TEST_ARENA_FILLING_BLOCK;
   static const size_t over_size = (size_t)12 * 1024 * 1024;
 
-  ponyint_pool_arena_set_large_retain_for_test((size_t)32 * 1024 * 1024);
+  ScopedLargeRetain budget((size_t)32 * 1024 * 1024);
 
   char* b = NULL;
   char* m = NULL;
@@ -3053,8 +3217,6 @@ TEST(PoolArena, CleanupReturnsRetention)
   ASSERT_EQ(resident_bytes(b, block), (size_t)0);
   ASSERT_EQ(resident_bytes(m, over_size), (size_t)0);
 #endif
-
-  ponyint_pool_arena_set_large_retain_for_test(TEST_LARGE_RETAIN_DEFAULT);
 }
 
 namespace

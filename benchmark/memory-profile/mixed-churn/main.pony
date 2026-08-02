@@ -67,14 +67,14 @@ Churn-shape flags, all off by default:
   below the `--size` cap. Not combinable with `--grow-once`.
 - `--grow-once` has every worker make one realloc call from `--size` to this
   target at the start of its first cycle, and every later allocation runs at
-  the target. With an oversized-tier `--size` (above ~8 MiB) and a target
+  the target. With an oversized-tier `--size` (above ~8 MiB on 64-bit) and a target
   in a larger power-of-two reservation, the single growth orphans one
   smaller-reservation mapping while all steady churn carries the target's
   reservation key; at smaller sizes the freed original is a block span or
   cached block, and no orphaned key exists. The one-shot runs inside the
   first `receive`, on whichever thread carries that worker's churn.
 - `--seed` has every worker allocate, touch, and free one block of this size
-  once, at the start of its first cycle -- a one-shot cold span, on the
+  once, at the start of its first cycle -- a one-shot cold block, on the
   worker's churn thread.
 - `--pipeline` needs exactly 2 workers and splits the batch roles: worker 0
   allocates and sends the circulating batch, worker 1 only frees it. The
@@ -86,13 +86,13 @@ Churn-shape flags, all off by default:
   normal runs at the same `--total`.
 - `--tail` parks ~4.5 s after the last batch, sampling VmRSS from
   /proc/self/status every 1.5 s as `TAIL_RSS_KB <n>` lines. The samples
-  read the post-run drain phase, where a terminating program sits in the
-  scheduler's quiescence protocol; a thread's held memory returns at its
+  are taken during the post-run drain phase, where a terminating program
+  sits in the scheduler's quiescence protocol; a thread's held memory returns at its
   first capped pause tick, which arrives ~630 ms into a park
   (SCHED_TICK_MIN_NS doubling to SCHED_TICK_MAX_NS in
   src/libponyrt/sched/scheduler.c -- re-derive if those change), so
-  whether the drain phase reaches that state is what the samples show,
-  not a given. Observing return cadence mid-run needs a lull phase this
+  the samples show whether the drain phase reaches that state; it is not
+  guaranteed to. Observing return cadence mid-run needs a lull phase this
   program does not have. Linux only; elsewhere the samples are skipped.
 
 The seams only exist in arena builds, so a binary compiled from this source
@@ -211,7 +211,7 @@ actor Main
 
       // The --size tier cap: one bound covers the class, block, and
       // oversized tiers.
-      let size_cap: USize = 67108864
+      let size_cap: USize = 64 * 1024 * 1024
 
       let workers = cmd.option("workers").u64().usize()
       let size = cmd.option("size").u64().usize()
@@ -519,7 +519,7 @@ actor Worker
     // synchronously in its creator's context, which would put every
     // worker's one-shot on the creating thread instead.
     if _seed > 0 then
-      // A one-shot cold span: touched, freed, never reused at this size.
+      // A one-shot cold block: touched, freed, never reused at this size.
       let p = @ponyint_pool_alloc_size(_seed)
       @memset(p.usize(), 0x5A, 64)
       @ponyint_pool_free_size(_seed, p.usize())

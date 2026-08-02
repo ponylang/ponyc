@@ -323,8 +323,8 @@ typedef struct arena_t
   uint32_t dirty_units;
   /// The subset of dirty units held under the large-retention byte
   /// budget. The small dirty-sweep never touches them; they leave by
-  /// consumption, by a full sweep at a return moment, or by the
-  /// exempt-empty cap shed.
+  /// consumption, by a full sweep at a return moment, or when the
+  /// empty-arena cap (LARGE_RETAIN_EMPTY_CAP below) is reached.
   uint32_t large_dirty_units;
   uint64_t bitmap[BITMAP_WORDS];
   /// A set bit is a free unit whose pages are still committed.
@@ -344,6 +344,9 @@ typedef struct oversized_t
   size_t reserved;
   /// Bytes of committed payload. Raised, never lowered, across reuse:
   /// the resident cost a stashed mapping counts against the budget.
+  /// While a reused mapping is live at a smaller same-key size, the
+  /// difference stays resident and counted by nothing; the power-of-two
+  /// key bounds it below the live request's own size.
   size_t committed;
   /// The next stashed mapping. Meaningful only while the mapping sits
   /// on a thread's stash.
@@ -377,7 +380,7 @@ typedef struct pool_arena_thread_t
   size_t large_retain_held;
   /// Oversized mappings this thread kept instead of unmapping, a list
   /// through the mapping headers. Bounded by the byte budget.
-  oversized_t* oversized_cache;
+  oversized_t* oversized_stash;
 } pool_arena_thread_t;
 
 // The initializer below gives every member a value, in order, and slot is the
@@ -425,8 +428,8 @@ static __pony_thread_local pool_arena_thread_t this_thread =
 // freed block-class and oversized memory a thread may keep committed for
 // reuse instead of returning to the operating system. An arena's worth on
 // 64-bit; on either geometry it covers any single block-class cycle.
-// Mirrored by the PoolArena tests'
-// TEST_LARGE_RETAIN_DEFAULT; change both together.
+// Mirrored by the PoolArena tests' TEST_LARGE_RETAIN_DEFAULT; change
+// both together.
 #define POOL_LARGE_RETAIN (8 * 1024 * 1024)
 
 // The count of empty release-exempt arenas at which the newly emptied one
@@ -952,9 +955,9 @@ static arena_t* arena_new()
 
 static void arena_release(arena_t* arena)
 {
-  // No path releases an arena still holding retained units: the empty
-  // event prefers a clean victim, and the idle return, cleanup, and cap
-  // shed sweep before releasing. The whole-arena decommit below would
+  // No path releases an arena still holding retained units: the emptying
+  // path releases a clean arena first, and the idle return, cleanup, and
+  // cap shed sweep before releasing. The whole-arena decommit below would
   // otherwise drop pages the budget still counts.
   ARENA_CHECK(arena->large_dirty_units == 0);
 
@@ -1804,14 +1807,16 @@ static void* oversized_alloc(size_t adjusted)
   if(reserved < ARENA_SIZE)
     reserved = ARENA_SIZE;
 
-  oversized_t** prev = &this_thread.oversized_cache;
-  oversized_t* node = this_thread.oversized_cache;
+  oversized_t** prev = &this_thread.oversized_stash;
+  oversized_t* node = this_thread.oversized_stash;
 
   while(node != NULL)
   {
     // The link lives in memory adjacent to program-writable payload, so
     // validate every node the walk visits, the way the slab free list
-    // validates its in-band links.
+    // validates its in-band links: a legitimate node is the base of a
+    // reservation-aligned mapping, checked before its fields are read.
+    ARENA_CHECK(((uintptr_t)node & (ARENA_SIZE - 1)) == 0);
     ARENA_CHECK(node->kind == MAPPING_OVERSIZED);
 
     if(node->reserved == reserved)
@@ -1873,8 +1878,8 @@ static void oversized_free(void* p)
   if(fits_large_retain(over->committed))
   {
     stash_validate_push(p);
-    over->next = this_thread.oversized_cache;
-    this_thread.oversized_cache = over;
+    over->next = this_thread.oversized_stash;
+    this_thread.oversized_stash = over;
     this_thread.large_retain_held += over->committed;
     return;
   }
@@ -1888,13 +1893,14 @@ static void oversized_free(void* p)
   // and same-key entries are never touched -- they are what the churn is
   // reusing.
   {
-    oversized_t** prev = &this_thread.oversized_cache;
+    oversized_t** prev = &this_thread.oversized_stash;
     oversized_t** victim_prev = NULL;
     oversized_t* victim = NULL;
 
-    for(oversized_t* node = this_thread.oversized_cache; node != NULL;
+    for(oversized_t* node = this_thread.oversized_stash; node != NULL;
       node = node->next)
     {
+      ARENA_CHECK(((uintptr_t)node & (ARENA_SIZE - 1)) == 0);
       ARENA_CHECK(node->kind == MAPPING_OVERSIZED);
       // A mapping being freed must not already sit on the stash: a double
       // free that the budget rejects would otherwise unmap this
@@ -1920,8 +1926,8 @@ static void oversized_free(void* p)
       ponyint_virt_free(victim, victim->reserved);
 
       stash_validate_push(p);
-      over->next = this_thread.oversized_cache;
-      this_thread.oversized_cache = over;
+      over->next = this_thread.oversized_stash;
+      this_thread.oversized_stash = over;
       this_thread.large_retain_held += over->committed;
       return;
     }
@@ -2051,8 +2057,8 @@ static void large_retain_purge()
       dirty_sweep_all(a);
   }
 
-  oversized_t* node = this_thread.oversized_cache;
-  this_thread.oversized_cache = NULL;
+  oversized_t* node = this_thread.oversized_stash;
+  this_thread.oversized_stash = NULL;
 
   while(node != NULL)
   {
@@ -2088,7 +2094,7 @@ void ponyint_pool_return_idle()
     for(arena_t* a = this_thread.arenas; a != NULL; a = a->next)
       held += (size_t)a->large_dirty_units << UNIT_BITS;
 
-    for(oversized_t* o = this_thread.oversized_cache; o != NULL;
+    for(oversized_t* o = this_thread.oversized_stash; o != NULL;
       o = o->next)
       held += o->committed;
 

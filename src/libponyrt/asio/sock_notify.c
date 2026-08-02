@@ -425,7 +425,8 @@ DECLARE_THREAD_FN(ponyint_asio_backend_dispatch)
     } else if(!returned_idle) {
       // The wait expired with no completions. Once half a second of quiet
       // has accumulated, this thread has gone idle: hand held memory back
-      // — cached foreign blocks sent home, own dirty pages decommitted, the oversized stash unmapped —
+      // — cached foreign blocks sent home, own dirty pages decommitted,
+      // the oversized stash unmapped —
       // and wait unbounded from here (or at the stdin poll cadence while
       // a pipe is being watched).
       quiet_ms += wait_ms;

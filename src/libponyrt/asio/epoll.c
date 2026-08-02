@@ -408,7 +408,8 @@ DECLARE_THREAD_FN(ponyint_asio_backend_dispatch)
     } else if((event_cnt == 0) && !returned_idle) {
       // The bounded wait expired with no events: this thread has gone
       // quiet, so hand held memory back — cached foreign blocks sent
-      // home, own dirty pages decommitted, the oversized stash unmapped — and wait unbounded from here.
+      // home, own dirty pages decommitted, the oversized stash unmapped
+      // — and wait unbounded from here.
       ponyint_pool_return_idle();
       returned_idle = true;
     }
