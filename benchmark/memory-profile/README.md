@@ -94,9 +94,8 @@ for reuse.
   tiers. Churn-shape flags: `--size2` (alternate batch sizes), `--grow`
   (scratch becomes a realloc-doubling ladder), `--grow-once` (one growth
   per worker, then all churn at the target), `--seed` (a one-shot cold
-  block per worker), `--pipeline` (worker 0 allocates, worker 1 frees),
-  and `--tail` (post-run VmRSS samples, Linux only) -- the program
-  docstring has each flag's exact shape.
+  block per worker), and `--pipeline` (worker 0 allocates, worker 1 frees)
+  -- the program docstring has each flag's exact shape.
 
 For `churn` and `actor-churn`, each argument is optional from the left and must
 be a non-negative integer; the trailing `floor span thresh budget` are

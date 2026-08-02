@@ -25,7 +25,7 @@ Usage:
   mixed-churn [--workers=N] [--size=BYTES] [--batch=N] [--scratch=N]
     [--tokens=N] [--total=N] [--floor=N] [--span=N] [--thresh=N] [--budget=N]
     [--retain=BYTES] [--size2=BYTES] [--grow=N] [--grow-once=BYTES]
-    [--seed=BYTES] [--pipeline] [--tail]
+    [--seed=BYTES] [--pipeline]
 
 The geometries the thread-cache byte budget was sized against, as
 batch/scratch pairs at the default 4096-byte size: 16/8 (a 24-block cycle the
@@ -85,16 +85,6 @@ Churn-shape flags, all off by default:
   tick the batch counter -- the free-only worker's empty return legs
   count -- so BATCHES_PER_SEC is not comparable between pipeline and
   normal runs at the same `--total`.
-- `--tail` parks ~4.5 s after the last batch, sampling VmRSS from
-  /proc/self/status every 1.5 s as `TAIL_RSS_KB <n>` lines. The samples
-  are taken during the post-run drain phase, where a terminating program
-  sits in the scheduler's quiescence protocol; a thread's held memory
-  returns at its first capped pause tick, which arrives ~630 ms into a
-  park (SCHED_TICK_MIN_NS doubling to SCHED_TICK_MAX_NS in
-  src/libponyrt/sched/scheduler.c -- re-derive if those change), so
-  the samples show whether the drain phase reaches that state; it is not
-  guaranteed to. Observing return cadence mid-run needs a lull phase this
-  program does not have. Linux only; elsewhere the samples are skipped.
 
 The seams only exist in arena builds, so a binary compiled from this source
 does not link against a runtime built with the classic or memalign allocator.
@@ -107,7 +97,6 @@ effective knob values, then:
 The elapsed time is measured from the first batch processed to the last.
 """
 use "cli"
-use "files"
 use "time"
 use @ponyint_pool_alloc_size[Pointer[U8]](size: USize)
 use @ponyint_pool_free_size[None](size: USize, p: USize)
@@ -133,7 +122,6 @@ type _Role is (_Normal | _AllocOnly | _FreeOnly)
 
 actor Main
   let _env: Env
-  var _tail: Bool = false
 
   new create(env: Env) =>
     _env = env
@@ -194,9 +182,6 @@ actor Main
               "Two workers: worker 0 allocates the batch, worker 1 frees"
               + " it; scratch still runs on both"
               where default' = false)
-            OptionSpec.bool("tail",
-              "Park ~4.5 s after the run, sampling VmRSS as TAIL_RSS_KB"
-              where default' = false)
           ],
           [])?.>add_help()?
       let cmd =
@@ -230,7 +215,6 @@ actor Main
       let grow_once = cmd.option("grow-once").u64().usize()
       let seed = cmd.option("seed").u64().usize()
       let pipeline = cmd.option("pipeline").bool()
-      _tail = cmd.option("tail").bool()
 
       if workers < 2 then
         env.out.print("mixed-churn: --workers must be at least 2")
@@ -332,8 +316,7 @@ actor Main
         ", grow " + grow.string() +
         ", grow-once " + grow_once.string() +
         ", seed " + seed.string() +
-        ", pipeline " + pipeline.string() +
-        ", tail " + _tail.string())
+        ", pipeline " + pipeline.string())
 
       let counter = Counter(this, total)
 
@@ -385,8 +368,7 @@ actor Main
     """
     Prints the batch count, the elapsed time, and the throughput. The
     ring drains after this: stopped workers free their incoming batches
-    without sending new ones. With --tail, a timer then samples VmRSS
-    three times at 1.5 s spacing before the program exits.
+    without sending new ones.
     """
     let elapsed_s: F64 = elapsed_ns.f64() / 1_000_000_000
     let rate: F64 = processed.f64() / elapsed_s
@@ -394,47 +376,6 @@ actor Main
     _env.out.print("total batches: " + processed.string())
     _env.out.print("elapsed ns: " + elapsed_ns.string())
     _env.out.print("BATCHES_PER_SEC " + rate.string())
-
-    if _tail then
-      Timers.>apply(Timer(
-        _TailSampler(_env), 1_500_000_000, 1_500_000_000))
-    end
-
-class _TailSampler is TimerNotify
-  """
-  Prints a TAIL_RSS_KB line per firing, three firings 1.5 s apart. The
-  spacing exceeds the scheduler's pause-tick ramp, so the thread running
-  this timer still reaches the capped tick between samples.
-  """
-  let _env: Env
-  var _fired: USize = 0
-
-  new iso create(env: Env) =>
-    _env = env
-
-  fun ref apply(timer: Timer, count: U64): Bool =>
-    match OpenFile(
-      FilePath(FileAuth(_env.root), "/proc/self/status"))
-    | let f: File =>
-      for line in FileLines(f) do
-        let l: String = consume line
-        if l.compare_sub("VmRSS:", 6) == Equal then
-          let digits = String
-          for c in l.values() do
-            if (c >= '0') and (c <= '9') then
-              digits.push(c)
-            end
-          end
-          _env.out.print("TAIL_RSS_KB " + digits)
-          break
-        end
-      end
-    else
-      None
-    end
-
-    _fired = _fired + 1
-    _fired < 3
 
 actor Counter
   """
