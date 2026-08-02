@@ -2063,12 +2063,13 @@ extern "C" void ponyint_pool_arena_set_large_retain_for_test(size_t bytes);
 extern "C" size_t ponyint_pool_arena_large_retain_for_test(void);
 extern "C" size_t ponyint_pool_arena_large_retain_held_for_test(void);
 
-// The --ponymemoryprofile dial (1-10) sets four arena knobs per rung. The cache
+// The --ponymemoryprofile dial (1-10) sets five arena knobs per rung. The cache
 // floor is an absolute per-class count and the cache budget is bytes per size
 // class; the decommit span and dirty-sweep threshold are given against a
 // PROFILE_TUNED_UNITS-unit arena in pool_arena.c and scaled to this arena, so
-// the expected values scale the same way. These mirror memory_profiles[] in
-// pool_arena.c, in its column order -- change both together.
+// the expected values scale the same way; the large-retention budget is plain
+// bytes, unscaled. These mirror memory_profiles[] in pool_arena.c, in its
+// column order -- change both together.
 TEST(PoolArena, MemoryProfileRungs)
 {
   const size_t arena_units = TEST_ARENA_SIZE / TEST_UNIT_SIZE;
@@ -2946,6 +2947,11 @@ TEST(PoolArena, ParkedRegionRecarve)
 // first must come back through the walk.
 TEST(PoolArena, RegionListWalkReclaims)
 {
+  // Retention off: the walk this test proves is only reached when freed
+  // arena-filling spans release their slots; on ILP32 the default budget
+  // would admit them all and no slot would ever release.
+  ponyint_pool_arena_set_large_retain_for_test(0);
+
   on_fresh_thread([]{
     static const size_t big = TEST_ARENA_FILLING_BLOCK;
 
@@ -3023,6 +3029,8 @@ TEST(PoolArena, RegionListWalkReclaims)
 
     ponyint_pool_free(0, pin);
   });
+
+  ponyint_pool_arena_set_large_retain_for_test(TEST_LARGE_RETAIN_DEFAULT);
 }
 
 // The lock-free protocols under real contention. The single-purpose

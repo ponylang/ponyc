@@ -71,9 +71,8 @@ Churn-shape flags, all off by default:
   in a larger power-of-two reservation, the single growth orphans one
   smaller-reservation mapping while all steady churn carries the target's
   reservation key; at smaller sizes the freed original is a block span or
-  cached block, and no orphaned key exists. The one-shot
-  runs inside the first `receive`, on whichever thread carries that worker's
-  churn.
+  cached block, and no orphaned key exists. The one-shot runs inside the
+  first `receive`, on whichever thread carries that worker's churn.
 - `--seed` has every worker allocate, touch, and free one block of this size
   once, at the start of its first cycle -- a one-shot cold span, on the
   worker's churn thread.
@@ -81,15 +80,20 @@ Churn-shape flags, all off by default:
   allocates and sends the circulating batch, worker 1 only frees it. The
   scratch cycle still runs on both -- pass `--scratch=0` for a pure split.
   The split is between actors; running with as many scheduler threads as
-  workers is what keeps the two roles on different threads.
+  workers is what keeps the two roles on different threads. Both workers
+  tick the batch counter -- the free-only worker's empty return legs
+  count -- so BATCHES_PER_SEC is not comparable between pipeline and
+  normal runs at the same `--total`.
 - `--tail` parks ~4.5 s after the last batch, sampling VmRSS from
-  /proc/self/status every 1.5 s as `TAIL_RSS_KB <n>` lines. The interval sits
-  above the pause-tick ramp -- SCHED_TICK_MIN_NS doubling to
-  SCHED_TICK_MAX_NS in src/libponyrt/sched/scheduler.c, ~1.13 s from first
-  park to first capped tick -- so the sampling timer's own thread still
-  reaches the capped tick that returns its held memory; re-derive the
-  interval if those constants change. Linux only; elsewhere the samples are
-  skipped.
+  /proc/self/status every 1.5 s as `TAIL_RSS_KB <n>` lines. The samples
+  read the post-run drain phase, where a terminating program sits in the
+  scheduler's quiescence protocol; a thread's held memory returns at its
+  first capped pause tick, which arrives ~630 ms into a park
+  (SCHED_TICK_MIN_NS doubling to SCHED_TICK_MAX_NS in
+  src/libponyrt/sched/scheduler.c -- re-derive if those change), so
+  whether the drain phase reaches that state is what the samples show,
+  not a given. Observing return cadence mid-run needs a lull phase this
+  program does not have. Linux only; elsewhere the samples are skipped.
 
 The seams only exist in arena builds, so a binary compiled from this source
 does not link against a runtime built with the classic or memalign allocator.
@@ -205,6 +209,10 @@ actor Main
           error
         end
 
+      // The --size tier cap: one bound covers the class, block, and
+      // oversized tiers.
+      let size_cap: USize = 67108864
+
       let workers = cmd.option("workers").u64().usize()
       let size = cmd.option("size").u64().usize()
       let batch = cmd.option("batch").u64().usize()
@@ -227,18 +235,21 @@ actor Main
         env.out.print("mixed-churn: --workers must be at least 2")
         error
       end
-      if (size < 64) or (size > 67108864) then
+      if (size < 64) or (size > size_cap) then
         // Below 64 the head touch on free would write past the smallest
-        // block; 64 MiB covers the class, block, and oversized tiers.
-        env.out.print("mixed-churn: --size must be 64 to 67108864")
+        // block.
+        env.out.print(
+          "mixed-churn: --size must be 64 to " + size_cap.string())
         error
       end
-      if (size2 != 0) and ((size2 < 64) or (size2 > 67108864)) then
-        env.out.print("mixed-churn: --size2 must be 0, or 64 to 67108864")
+      if (size2 != 0) and ((size2 < 64) or (size2 > size_cap)) then
+        env.out.print(
+          "mixed-churn: --size2 must be 0, or 64 to " + size_cap.string())
         error
       end
-      if (seed != 0) and ((seed < 64) or (seed > 67108864)) then
-        env.out.print("mixed-churn: --seed must be 0, or 64 to 67108864")
+      if (seed != 0) and ((seed < 64) or (seed > size_cap)) then
+        env.out.print(
+          "mixed-churn: --seed must be 0, or 64 to " + size_cap.string())
         error
       end
       if (batch == 0) or (tokens == 0) or (total == 0) then
@@ -250,17 +261,29 @@ actor Main
         env.out.print("mixed-churn: --grow and --grow-once are exclusive")
         error
       end
-      if (grow_once != 0) and
-        ((grow_once <= size) or (grow_once > 67108864))
-      then
-        env.out.print(
-          "mixed-churn: --grow-once must exceed --size, up to 67108864")
+      if (size2 > 0) and (grow_once > 0) then
+        // grow-once moves all churn to the target size; size2 would then
+        // alternate against the target, not --size as documented.
+        env.out.print("mixed-churn: --size2 and --grow-once are exclusive")
         error
       end
-      if (grow > 0) and ((grow > 10) or (size > (67108864 >> grow))) then
+      if (grow > 0) and (scratch == 0) then
+        env.out.print(
+          "mixed-churn: --grow shapes the scratch cycle; --scratch is 0")
+        error
+      end
+      if (grow_once != 0) and
+        ((grow_once <= size) or (grow_once > size_cap))
+      then
+        env.out.print(
+          "mixed-churn: --grow-once must exceed --size, up to "
+          + size_cap.string())
+        error
+      end
+      if (grow > 0) and ((grow > 10) or (size > (size_cap >> grow))) then
         env.out.print(
           "mixed-churn: --grow allows at most 10 doublings, topping out"
-          + " at or below 67108864")
+          + " at or below " + size_cap.string())
         error
       end
       if pipeline and (workers != 2) then
@@ -283,6 +306,10 @@ actor Main
         @ponyint_pool_arena_set_cache_budget_for_test(budget)
       end
       if retain != U64.max_value() then
+        if retain > USize.max_value().u64() then
+          env.out.print("mixed-churn: --retain exceeds this platform's USize")
+          error
+        end
         @ponyint_pool_arena_set_large_retain_for_test(retain.usize())
       end
 
@@ -319,8 +346,9 @@ actor Main
             _Normal
           end
         ring.push(
-          Worker(counter, size, batch, scratch, size2, grow, grow_once,
-            seed, role))
+          Worker(counter, size, batch
+            where scratch = scratch, size2 = size2, grow = grow,
+              grow_once = grow_once, seed = seed, role = role))
         i = i + 1
       end
       let ring': Array[Worker] val = consume ring

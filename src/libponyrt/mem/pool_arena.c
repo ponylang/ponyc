@@ -85,7 +85,10 @@
 /// dropped in between, assert the word still holds it. A program that
 /// wrote to a freed unit's first word in that window fails the assert;
 /// writes elsewhere in the unit are not caught. (The window ends at a
-/// sweep because a dropped page's refault content is undefined.)
+/// sweep because a dropped page's refault content is undefined.) The
+/// oversized stash reuses this word as its guard
+/// (stash_validate_push/pop), gated like ARENA_CHECK, so release-safe
+/// builds keep that use.
 #define POISON ((uint64_t)0xDEADFA11DEADFA11)
 
 typedef struct pool_item_t
@@ -370,7 +373,7 @@ typedef struct pool_arena_thread_t
   uint32_t chain_used;
   /// Bytes of freed large memory this thread holds committed: retained
   /// block spans in its owned arenas plus stashed oversized mappings.
-  /// The one number the large-retention admission check reads.
+  /// The single ledger the admission check compares against the budget.
   size_t large_retain_held;
   /// Oversized mappings this thread kept instead of unmapping, a list
   /// through the mapping headers. Bounded by the byte budget.
@@ -382,7 +385,7 @@ typedef struct pool_arena_thread_t
 // you would write, and it doesn't compile everywhere this file does. Writing
 // it `.slot =` needs designated initializers, which MSVC (CMAKE_CXX_STANDARD
 // 17, and it compiles this file as C++) accepts only from C++20. Writing it
-// bare leaves eight members implicit, which -Wextra's
+// bare leaves the remaining members implicit, which -Wextra's
 // -Wmissing-field-initializers reports and -Werror fails, on the compilers
 // that build this file as C. Both settings are in the top-level CMakeLists.
 //
@@ -420,16 +423,18 @@ static __pony_thread_local pool_arena_thread_t this_thread =
 
 // The large-retention byte budget's default (rung 3 of the dial): bytes of
 // freed block-class and oversized memory a thread may keep committed for
-// reuse instead of returning to the operating system. One arena's worth: it
-// covers any single block-class cycle. Mirrored by the PoolArena tests'
+// reuse instead of returning to the operating system. An arena's worth on
+// 64-bit; on either geometry it covers any single block-class cycle.
+// Mirrored by the PoolArena tests'
 // TEST_LARGE_RETAIN_DEFAULT; change both together.
 #define POOL_LARGE_RETAIN (8 * 1024 * 1024)
 
-// How many empty arenas may sit release-exempt because they hold retained
-// units. Each keeps a committed header the budget does not count, so the cap
-// bounds that overhead at LARGE_RETAIN_EMPTY_CAP times the header size per
-// thread. Mirrored by the PoolArena tests' TEST_LARGE_RETAIN_EMPTY_CAP;
-// change both together.
+// The count of empty release-exempt arenas at which the newly emptied one
+// sheds its retained pages and releases: at most LARGE_RETAIN_EMPTY_CAP - 1
+// retained empties ever persist. Each keeps a committed header the budget
+// does not count, bounding that overhead below the cap times the header
+// size per thread. Mirrored by the PoolArena tests'
+// TEST_LARGE_RETAIN_EMPTY_CAP; change both together.
 #define LARGE_RETAIN_EMPTY_CAP 4
 
 static __pony_thread_local void* pool_cache[POOL_COUNT][POOL_CACHE_DEPTH];
@@ -619,8 +624,7 @@ static bool dirty_is_set(arena_t* arena, size_t i)
 }
 
 /// Drops the pages behind every dirty unit that is not budget-retained,
-/// one run at a time, so small-slab churn can never evict block
-/// retention.
+/// one run at a time, so small-slab churn can never evict block retention.
 static void dirty_sweep_small(arena_t* arena)
 {
   size_t i = 0;
@@ -653,11 +657,9 @@ static void dirty_sweep_small(arena_t* arena)
 }
 
 /// Drops the pages behind every dirty unit, retained ones included, and
-/// returns the arena's retained bytes to the thread's budget. This is the
-/// sweep that evicts retention: retained pages leave by consumption, by a
-/// return moment, or -- the one churn-path exception, bounded by
-/// LARGE_RETAIN_EMPTY_CAP -- by the shed that trades a capped empty
-/// arena's remnants for its slot.
+/// returns the arena's retained bytes to the thread's budget. Runs at
+/// return moments and at the exempt-empty cap shed -- the one place churn
+/// decommits retained pages; consumption reuses them with no OS call.
 static void dirty_sweep_all(arena_t* arena)
 {
   size_t i = 0;
@@ -690,8 +692,9 @@ static void dirty_sweep_all(arena_t* arena)
   arena->large_dirty_units = 0;
 }
 
-/// Whether span_bytes more retained memory fits under the budget.
-static bool fits_budget(size_t span_bytes)
+/// Whether span_bytes more retained memory fits under the
+/// large-retention budget.
+static bool fits_large_retain(size_t span_bytes)
 {
   return (this_thread.large_retain_held + span_bytes) <=
     active_large_retain;
@@ -725,8 +728,7 @@ static size_t exempt_empties()
 
   for(arena_t* a = this_thread.arenas; a != NULL; a = a->next)
   {
-    if((a->used_units == arena_header_units()) &&
-      (a->large_dirty_units > 0))
+    if((a->used_units == arena_header_units()) && (a->large_dirty_units > 0))
       count++;
   }
 
@@ -1091,10 +1093,10 @@ static void slab_release(arena_t* arena, arena_unit_t* rec)
     // churn across the arena boundary does not pay a release and
     // re-claim each time. An admitted block span keeps its pages in the
     // reserve; when two empties coexist, a clean one gives its slot
-    // back, and retained empties are release-exempt up to
-    // LARGE_RETAIN_EMPTY_CAP -- past the cap the newly emptied arena
-    // sheds its retained pages and releases.
-    bool admitted = is_block && fits_budget(span << UNIT_BITS);
+    // back, and retained empties are release-exempt until their count
+    // reaches LARGE_RETAIN_EMPTY_CAP -- at the cap the newly emptied
+    // arena sheds its retained pages and releases.
+    bool admitted = is_block && fits_large_retain(span << UNIT_BITS);
 
     if(admitted)
       retain_span(arena, start, span);
@@ -1135,13 +1137,14 @@ static void slab_release(arena_t* arena, arena_unit_t* rec)
 
   if(is_block)
   {
-    // Block spans answer only to the large-retention byte budget: an
-    // admitted span keeps its pages for the next carve of any size, a
-    // rejected one decommits at once with no dirty entry. Either way the
-    // small sweep's threshold, which compares dirty_units net of
-    // large_dirty_units, never fires off a block free, so block churn
-    // cannot drop the arena's small dirt.
-    if(fits_budget(span << UNIT_BITS))
+    // Whether a freed block span keeps its pages is decided by the
+    // large-retention byte budget alone: an admitted span keeps them for
+    // the next carve of any size, a rejected one decommits at once with
+    // no dirty entry. Either way a block free never trips the small
+    // sweep's threshold, which compares dirty_units net of
+    // large_dirty_units, so block churn cannot drop the arena's
+    // small-slab dirty units.
+    if(fits_large_retain(span << UNIT_BITS))
       retain_span(arena, start, span);
     else
       ponyint_virt_decommit(unit_base(arena, rec), span << UNIT_BITS);
@@ -1867,8 +1870,7 @@ static void oversized_free(void* p)
   // frees it may hold it, and that thread's next same-reservation
   // allocation reuses it with no faults. Over budget, the mapping is
   // unmapped like any rejected free.
-  if((this_thread.large_retain_held + over->committed) <=
-    active_large_retain)
+  if(fits_large_retain(over->committed))
   {
     stash_validate_push(p);
     over->next = this_thread.oversized_cache;
@@ -1878,12 +1880,13 @@ static void oversized_free(void* p)
   }
 
   // A workload that grows once and then churns at the grown size leaves
-  // the pre-growth mapping stashed under a reservation key nothing asks
-  // for again; it would pin the budget and starve every later free. When
-  // evicting the oldest differently-keyed mapping makes this one fit,
-  // trade them: the eviction is an unmap the no-stash path would have
-  // done anyway, so the swap adds no OS call, and same-key entries are
-  // never touched -- they are what the churn is reusing.
+  // the pre-growth mapping stashed under a reservation key no later
+  // allocation requests -- a corpse that would pin the budget and starve
+  // every later free. When evicting the oldest differently-keyed mapping
+  // makes this one fit, trade them: the eviction is an unmap the
+  // no-stash path would have done anyway, so the swap adds no OS call,
+  // and same-key entries are never touched -- they are what the churn is
+  // reusing.
   {
     oversized_t** prev = &this_thread.oversized_cache;
     oversized_t** victim_prev = NULL;
@@ -1893,6 +1896,10 @@ static void oversized_free(void* p)
       node = node->next)
     {
       ARENA_CHECK(node->kind == MAPPING_OVERSIZED);
+      // A mapping being freed must not already sit on the stash: a double
+      // free that the budget rejects would otherwise unmap this
+      // still-linked node and leave the walk reading unmapped memory.
+      ARENA_CHECK(node != over);
 
       if(node->reserved != over->reserved)
       {
@@ -1949,8 +1956,9 @@ void ponyint_pool_free_size(size_t size, void* p)
 
   if(arena->kind == MAPPING_OVERSIZED)
   {
-    // An oversized mapping has no bookkeeping shared with anything, so any
-    // thread can return it to the operating system directly.
+    // An oversized mapping has no bookkeeping shared with anything, so
+    // whichever thread frees it handles it directly: oversized_free keeps
+    // it under the retention budget or unmaps it.
     oversized_free(p);
     return;
   }
@@ -2032,6 +2040,32 @@ void ponyint_pool_suspend_flush()
   inbox_drain();
 }
 
+/// Returns everything this thread retains: every owned arena's dirty
+/// pages, budget-retained spans included, and the whole oversized stash.
+/// The ledger reads zero afterward.
+static void large_retain_purge()
+{
+  for(arena_t* a = this_thread.arenas; a != NULL; a = a->next)
+  {
+    if(a->dirty_units > 0)
+      dirty_sweep_all(a);
+  }
+
+  oversized_t* node = this_thread.oversized_cache;
+  this_thread.oversized_cache = NULL;
+
+  while(node != NULL)
+  {
+    ARENA_CHECK(node->kind == MAPPING_OVERSIZED);
+    oversized_t* next = node->next;
+    this_thread.large_retain_held -= node->committed;
+    ponyint_virt_free(node, node->reserved);
+    node = next;
+  }
+
+  ARENA_CHECK(this_thread.large_retain_held == 0);
+}
+
 void ponyint_pool_return_idle()
 {
   // Flush the thread cache — own blocks back to their slabs (their pages
@@ -2065,25 +2099,7 @@ void ponyint_pool_return_idle()
   // A parked thread re-fires this on every pause tick; skipping clean
   // arenas keeps the repeat firings from re-walking bitmaps that the
   // first one already emptied.
-  for(arena_t* a = this_thread.arenas; a != NULL; a = a->next)
-  {
-    if(a->dirty_units > 0)
-      dirty_sweep_all(a);
-  }
-
-  oversized_t* node = this_thread.oversized_cache;
-  this_thread.oversized_cache = NULL;
-
-  while(node != NULL)
-  {
-    ARENA_CHECK(node->kind == MAPPING_OVERSIZED);
-    oversized_t* next = node->next;
-    this_thread.large_retain_held -= node->committed;
-    ponyint_virt_free(node, node->reserved);
-    node = next;
-  }
-
-  ARENA_CHECK(this_thread.large_retain_held == 0);
+  large_retain_purge();
 
   // With everything swept, empty arenas are clean again; give back every
   // slot past the single reserve, restoring the one-empty invariant a
@@ -2208,25 +2224,7 @@ void ponyint_pool_thread_cleanup()
   chains_flush_all();
   inbox_drain();
 
-  for(arena_t* a = this_thread.arenas; a != NULL; a = a->next)
-  {
-    if(a->dirty_units > 0)
-      dirty_sweep_all(a);
-  }
-
-  oversized_t* node = this_thread.oversized_cache;
-  this_thread.oversized_cache = NULL;
-
-  while(node != NULL)
-  {
-    ARENA_CHECK(node->kind == MAPPING_OVERSIZED);
-    oversized_t* next = node->next;
-    this_thread.large_retain_held -= node->committed;
-    ponyint_virt_free(node, node->reserved);
-    node = next;
-  }
-
-  ARENA_CHECK(this_thread.large_retain_held == 0);
+  large_retain_purge();
 
   chain_t* map = this_thread.chains;
 
