@@ -10,16 +10,22 @@ blocks are resident when the next burst lands, so the cycle a cache must hold
 is `batch + scratch` blocks: a cycle above the per-class cache cap overflows a
 cache holding a mix of own and foreign blocks, where the overflow path either
 passes the arriving block onward or keeps it; a cycle at or below the cap
-stays in the cache and serves as the guard configuration.
+stays in the cache and serves as the guard configuration. Sizes above 1 MiB
+take the block-class and oversized paths, whose retention is governed by the
+large-retention byte budget rather than the per-class cache.
 
 Blocks are raw ponyint_pool_alloc_size/free_size allocations, not Pony
 objects, so the pool receives every allocation and free directly with no
 garbage collector in between. Every block is written on allocation and its
-head touched on free, so the payload lines travel between cores.
+head touched on free, so the payload lines travel between cores. Each batch
+message carries the size its blocks were allocated at, so the freeing worker
+always frees with the true size.
 
 Usage:
   mixed-churn [--workers=N] [--size=BYTES] [--batch=N] [--scratch=N]
     [--tokens=N] [--total=N] [--floor=N] [--span=N] [--thresh=N] [--budget=N]
+    [--retain=BYTES] [--size2=BYTES] [--grow=N] [--grow-once=BYTES]
+    [--seed=BYTES] [--pipeline] [--tail]
 
 The geometries the thread-cache byte budget was sized against, as
 batch/scratch pairs at the default 4096-byte size: 16/8 (a 24-block cycle the
@@ -42,9 +48,39 @@ leanest configuration use `--ponymemoryprofile=1` rather than zero overrides.
 A class's cache depth is the larger of budget/size and floor, so `--floor`
 binds only where it exceeds the class's byte share; `--budget` is what moves
 the 4096-byte class this program churns. `span` and `thresh` are in arena
-units; `budget` is bytes of cache per size class. The seams only exist in
-arena builds, so a binary compiled from this source does not link against a
-runtime built with the classic or memalign allocator.
+units; `budget` is bytes of cache per size class.
+
+`--retain` replaces the large-retention byte budget (bytes of freed
+block-class and oversized memory a thread may keep committed). Unlike the
+four knobs above, its keep-the-profile value is the flag being absent, not 0:
+an explicit `--retain=0` forces retention off, which is the control cell a
+budget sweep needs and a value the other seams never take.
+
+Churn-shape flags, all off by default:
+
+- `--size2` alternates the circulating batch between `--size` and this size,
+  cycle by cycle, so two sizes share one budget. The scratch cycle stays at
+  `--size`.
+- `--grow` turns each scratch iteration into a realloc-doubling ladder:
+  allocate at `--size`, double N times via ponyint_pool_realloc_size, free at
+  the final size. Not combinable with `--grow-once`.
+- `--grow-once` has every worker make one realloc call from `--size` to this
+  target before its first cycle, and every later allocation runs at the
+  target: the single growth orphans one smaller-reservation mapping while all
+  steady churn carries the target's reservation key.
+- `--seed` has every worker allocate, touch, and free one block of this size
+  once, before its first cycle -- a one-shot cold span.
+- `--pipeline` needs exactly 2 workers and splits the roles: worker 0 only
+  allocates and sends, worker 1 only frees, so allocation and freeing stay on
+  different threads for the whole run.
+- `--tail` parks ~4.5 s after the last batch, sampling VmRSS from
+  /proc/self/status every 1.5 s as `TAIL_RSS_KB <n>` lines. The interval sits
+  above the scheduler's ~1.13 s pause-tick ramp, so the sampling timer's own
+  thread still reaches the capped tick that returns its held memory. Linux
+  only; elsewhere the samples are skipped.
+
+The seams only exist in arena builds, so a binary compiled from this source
+does not link against a runtime built with the classic or memalign allocator.
 
 Runs until `total` batches have been processed, then prints a header with the
 effective knob values, then:
@@ -54,21 +90,33 @@ effective knob values, then:
 The elapsed time is measured from the first batch processed to the last.
 """
 use "cli"
+use "files"
 use "time"
 use @ponyint_pool_alloc_size[Pointer[U8]](size: USize)
 use @ponyint_pool_free_size[None](size: USize, p: USize)
+use @ponyint_pool_realloc_size[Pointer[U8]](
+  old_size: USize, new_size: USize, p: USize)
 use @ponyint_pool_arena_set_cache_floor_for_test[None](floor: USize)
 use @ponyint_pool_arena_set_decommit_span_for_test[None](span: USize)
 use @ponyint_pool_arena_set_dirty_threshold_for_test[None](threshold: USize)
 use @ponyint_pool_arena_set_cache_budget_for_test[None](budget: USize)
+use @ponyint_pool_arena_set_large_retain_for_test[None](bytes: USize)
 use @ponyint_pool_arena_cache_floor_for_test[USize]()
 use @ponyint_pool_arena_decommit_span_for_test[USize]()
 use @ponyint_pool_arena_dirty_threshold_for_test[USize]()
 use @ponyint_pool_arena_cache_budget_for_test[USize]()
+use @ponyint_pool_arena_large_retain_for_test[USize]()
 use @memset[Pointer[None]](p: USize, c: I32, n: USize)
+
+primitive _Normal
+primitive _AllocOnly
+primitive _FreeOnly
+
+type _Role is (_Normal | _AllocOnly | _FreeOnly)
 
 actor Main
   let _env: Env
+  var _tail: Bool = false
 
   new create(env: Env) =>
     _env = env
@@ -107,6 +155,30 @@ actor Main
             OptionSpec.u64("budget",
               "Per-class cache byte budget override; 0 keeps the profile's"
               where default' = 0)
+            OptionSpec.u64("retain",
+              "Large-retention byte budget override; absent keeps the"
+              + " profile's, 0 forces retention off"
+              where default' = U64.max_value())
+            OptionSpec.u64("size2",
+              "Alternate circulating batches between --size and this;"
+              + " 0 = off"
+              where default' = 0)
+            OptionSpec.u64("grow",
+              "Realloc doublings per scratch iteration; 0 = off"
+              where default' = 0)
+            OptionSpec.u64("grow-once",
+              "One realloc per worker from --size to this target, then all"
+              + " churn at the target; 0 = off"
+              where default' = 0)
+            OptionSpec.u64("seed",
+              "One-shot cold block per worker, this many bytes; 0 = off"
+              where default' = 0)
+            OptionSpec.bool("pipeline",
+              "Two workers: worker 0 only allocates, worker 1 only frees"
+              where default' = false)
+            OptionSpec.bool("tail",
+              "Park ~4.5 s after the run, sampling VmRSS as TAIL_RSS_KB"
+              where default' = false)
           ],
           [])?.>add_help()?
       let cmd =
@@ -130,21 +202,55 @@ actor Main
       let span = cmd.option("span").u64().usize()
       let thresh = cmd.option("thresh").u64().usize()
       let budget = cmd.option("budget").u64().usize()
+      let retain = cmd.option("retain").u64()
+      let size2 = cmd.option("size2").u64().usize()
+      let grow = cmd.option("grow").u64().usize()
+      let grow_once = cmd.option("grow-once").u64().usize()
+      let seed = cmd.option("seed").u64().usize()
+      let pipeline = cmd.option("pipeline").bool()
+      _tail = cmd.option("tail").bool()
 
       if workers < 2 then
         env.out.print("mixed-churn: --workers must be at least 2")
         error
       end
-      if (size < 64) or (size > 1048576) then
+      if (size < 64) or (size > 67108864) then
         // Below 64 the head touch on free would write past the smallest
-        // block; above 1 MiB the allocation takes the block path, which
-        // has no thread cache to measure.
-        env.out.print("mixed-churn: --size must be 64 to 1048576")
+        // block; 64 MiB covers the class, block, and oversized tiers.
+        env.out.print("mixed-churn: --size must be 64 to 67108864")
+        error
+      end
+      if (size2 != 0) and ((size2 < 64) or (size2 > 67108864)) then
+        env.out.print("mixed-churn: --size2 must be 0, or 64 to 67108864")
+        error
+      end
+      if (seed != 0) and ((seed < 64) or (seed > 67108864)) then
+        env.out.print("mixed-churn: --seed must be 0, or 64 to 67108864")
         error
       end
       if (batch == 0) or (tokens == 0) or (total == 0) then
         env.out.print(
           "mixed-churn: --batch, --tokens, and --total must be nonzero")
+        error
+      end
+      if (grow > 0) and (grow_once > 0) then
+        env.out.print("mixed-churn: --grow and --grow-once are exclusive")
+        error
+      end
+      if (grow_once != 0) and
+        ((grow_once <= size) or (grow_once > 67108864))
+      then
+        env.out.print(
+          "mixed-churn: --grow-once must exceed --size, up to 67108864")
+        error
+      end
+      if (grow > 0) and ((grow > 10) or ((size << grow) > 67108864)) then
+        env.out.print(
+          "mixed-churn: --grow ladder must top out at or below 67108864")
+        error
+      end
+      if pipeline and (workers != 2) then
+        env.out.print("mixed-churn: --pipeline needs exactly 2 workers")
         error
       end
 
@@ -162,6 +268,9 @@ actor Main
       if budget > 0 then
         @ponyint_pool_arena_set_cache_budget_for_test(budget)
       end
+      if retain != U64.max_value() then
+        @ponyint_pool_arena_set_large_retain_for_test(retain.usize())
+      end
 
       // The header records the effective values, read back from the
       // allocator, so a run at profile defaults is distinguishable from
@@ -175,14 +284,29 @@ actor Main
         ", floor " + @ponyint_pool_arena_cache_floor_for_test().string() +
         ", span " + @ponyint_pool_arena_decommit_span_for_test().string() +
         ", thresh " + @ponyint_pool_arena_dirty_threshold_for_test().string() +
-        ", budget " + @ponyint_pool_arena_cache_budget_for_test().string())
+        ", budget " + @ponyint_pool_arena_cache_budget_for_test().string() +
+        ", retain " + @ponyint_pool_arena_large_retain_for_test().string() +
+        ", size2 " + size2.string() +
+        ", grow " + grow.string() +
+        ", grow-once " + grow_once.string() +
+        ", seed " + seed.string() +
+        ", pipeline " + pipeline.string() +
+        ", tail " + _tail.string())
 
       let counter = Counter(this, total)
 
       let ring: Array[Worker] iso = recover ring.create(workers) end
       var i: USize = 0
       while i < workers do
-        ring.push(Worker(counter, size, batch, scratch))
+        let role: _Role =
+          if pipeline then
+            if i == 0 then _AllocOnly else _FreeOnly end
+          else
+            _Normal
+          end
+        ring.push(
+          Worker(counter, size, batch, scratch, size2, grow, grow_once,
+            seed, role))
         i = i + 1
       end
       let ring': Array[Worker] val = consume ring
@@ -206,7 +330,7 @@ actor Main
       for w in ring'.values() do
         var t: USize = 0
         while t < tokens do
-          w.receive(recover val Array[USize](0) end)
+          w.receive(size, recover val Array[USize](0) end)
           t = t + 1
         end
       end
@@ -218,7 +342,8 @@ actor Main
     """
     Prints the batch count, the elapsed time, and the throughput. The
     ring drains after this: stopped workers free their incoming batches
-    without sending new ones.
+    without sending new ones. With --tail, a timer then samples VmRSS
+    three times at 1.5 s spacing before the program exits.
     """
     let elapsed_s: F64 = elapsed_ns.f64() / 1_000_000_000
     let rate: F64 = processed.f64() / elapsed_s
@@ -226,6 +351,47 @@ actor Main
     _env.out.print("total batches: " + processed.string())
     _env.out.print("elapsed ns: " + elapsed_ns.string())
     _env.out.print("BATCHES_PER_SEC " + rate.string())
+
+    if _tail then
+      Timers.>apply(Timer(
+        _TailSampler(_env), 1_500_000_000, 1_500_000_000))
+    end
+
+class _TailSampler is TimerNotify
+  """
+  Prints a TAIL_RSS_KB line per firing, three firings 1.5 s apart. The
+  spacing exceeds the scheduler's pause-tick ramp, so the thread running
+  this timer still reaches the capped tick between samples.
+  """
+  let _env: Env
+  var _fired: USize = 0
+
+  new iso create(env: Env) =>
+    _env = env
+
+  fun ref apply(timer: Timer, count: U64): Bool =>
+    match OpenFile(
+      FilePath(FileAuth(_env.root), "/proc/self/status"))
+    | let f: File =>
+      for line in FileLines(f) do
+        let l: String = consume line
+        if l.compare_sub("VmRSS:", 6) == Equal then
+          let digits = String
+          for c in l.values() do
+            if (c >= '0') and (c <= '9') then
+              digits.push(c)
+            end
+          end
+          _env.out.print("TAIL_RSS_KB " + digits)
+          break
+        end
+      end
+    else
+      None
+    end
+
+    _fired = _fired + 1
+    _fired < 3
 
 actor Counter
   """
@@ -263,24 +429,54 @@ actor Counter
 actor Worker
   """
   One ring member. Each cycle: free the incoming batch (a burst of
-  frees, mostly of other threads' blocks), allocate and send a fresh
-  batch to the next worker, then run the scratch cycle that leaves own
-  blocks in the thread cache for the next burst to shed against.
+  frees, mostly of other threads' blocks) at the size the batch message
+  carries, allocate and send a fresh batch to the next worker, then run
+  the scratch cycle that leaves own blocks in the thread cache for the
+  next burst to shed against. The role narrows this for --pipeline:
+  an alloc-only worker skips the frees, a free-only worker sends empty
+  batches.
   """
   let _counter: Counter
-  let _size: USize
+  var _size: USize
   let _batch: USize
   let _scratch: USize
+  let _size2: USize
+  let _grow: USize
+  let _role: _Role
   let _scratch_held: Array[USize]
+  var _use2: Bool = false
   var _next: (Worker | None) = None
   var _stopped: Bool = false
 
-  new create(counter: Counter, size: USize, batch: USize, scratch: USize) =>
+  new create(counter: Counter, size: USize, batch: USize, scratch: USize,
+    size2: USize, grow: USize, grow_once: USize, seed: USize, role: _Role)
+  =>
     _counter = counter
     _size = size
     _batch = batch
     _scratch = scratch
+    _size2 = size2
+    _grow = grow
+    _role = role
     _scratch_held = Array[USize](scratch)
+
+    if seed > 0 then
+      // A one-shot cold span: touched, freed, never reused at this size.
+      let p = @ponyint_pool_alloc_size(seed)
+      @memset(p.usize(), 0x5A, 64)
+      @ponyint_pool_free_size(seed, p.usize())
+    end
+
+    if grow_once > 0 then
+      // One growth: the freed original is the orphaned reservation; all
+      // later churn runs at the target size.
+      var p = @ponyint_pool_alloc_size(_size)
+      @memset(p.usize(), 0x5A, 64)
+      p = @ponyint_pool_realloc_size(_size, grow_once, p.usize())
+      @memset(p.usize(), 0x5A, 64)
+      @ponyint_pool_free_size(grow_once, p.usize())
+      _size = grow_once
+    end
 
   be set_next(w: Worker) =>
     _next = w
@@ -288,39 +484,74 @@ actor Worker
   be stop() =>
     _stopped = true
 
-  be receive(batch: Array[USize] val) =>
-    for p in batch.values() do
-      @memset(p, 0, 64)
-      @ponyint_pool_free_size(_size, p)
+  be receive(size: USize, batch: Array[USize] val) =>
+    match _role
+    | _AllocOnly => None
+    else
+      for p in batch.values() do
+        @memset(p, 0, 64)
+        @ponyint_pool_free_size(size, p)
+      end
     end
 
     if _stopped then
       return
     end
 
+    let cur =
+      if (_size2 > 0) and _use2 then _size2 else _size end
+    if _size2 > 0 then
+      _use2 = not _use2
+    end
+
     let out: Array[USize] iso = recover out.create(_batch) end
-    var i: USize = 0
-    while i < _batch do
-      let p = @ponyint_pool_alloc_size(_size)
-      @memset(p.usize(), 0xA5, _size)
-      out.push(p.usize())
-      i = i + 1
+    match _role
+    | _FreeOnly => None
+    else
+      var i: USize = 0
+      while i < _batch do
+        let p = @ponyint_pool_alloc_size(cur)
+        @memset(p.usize(), 0xA5, cur)
+        out.push(p.usize())
+        i = i + 1
+      end
     end
 
     match _next
-    | let w: Worker => w.receive(consume out)
+    | let w: Worker => w.receive(cur, consume out)
     end
 
-    i = 0
-    while i < _scratch do
-      let p = @ponyint_pool_alloc_size(_size)
-      @memset(p.usize(), 0x5A, 64)
-      _scratch_held.push(p.usize())
-      i = i + 1
+    if _grow > 0 then
+      // Each scratch iteration is a realloc-doubling ladder instead of a
+      // held block.
+      var i: USize = 0
+      while i < _scratch do
+        var sz = _size
+        var p = @ponyint_pool_alloc_size(sz)
+        @memset(p.usize(), 0x5A, 64)
+        var g: USize = 0
+        while g < _grow do
+          let nsz = sz << 1
+          p = @ponyint_pool_realloc_size(sz, nsz, p.usize())
+          @memset(p.usize(), 0x5A, 64)
+          sz = nsz
+          g = g + 1
+        end
+        @ponyint_pool_free_size(sz, p.usize())
+        i = i + 1
+      end
+    else
+      var i: USize = 0
+      while i < _scratch do
+        let p = @ponyint_pool_alloc_size(_size)
+        @memset(p.usize(), 0x5A, 64)
+        _scratch_held.push(p.usize())
+        i = i + 1
+      end
+      for p in _scratch_held.values() do
+        @ponyint_pool_free_size(_size, p)
+      end
+      _scratch_held.clear()
     end
-    for p in _scratch_held.values() do
-      @ponyint_pool_free_size(_size, p)
-    end
-    _scratch_held.clear()
 
     _counter.tick()

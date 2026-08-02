@@ -413,6 +413,11 @@ static __pony_thread_local bool pool_cache_disabled = false;
 static size_t active_cache_floor = POOL_CACHE_FLOOR;
 static size_t active_cache_budget = POOL_CACHE_BUDGET;
 
+// The large-retention byte budget: bytes of freed block-class and oversized
+// memory a thread may keep committed. Set the same way as the values above --
+// once at startup, read unsynchronized.
+static size_t active_large_retain = 8 * 1024 * 1024;
+
 // The number of class-`index` blocks the cache may hold: the larger of the byte
 // budget (active_cache_budget / class size) and the floor, capped at
 // POOL_CACHE_DEPTH. The floor keeps large classes -- whose byte budget rounds
@@ -1939,6 +1944,31 @@ size_t ponyint_pool_arena_decommit_span_for_test(void)
 size_t ponyint_pool_arena_dirty_threshold_for_test(void)
 {
   return active_dirty_sweep_threshold;
+}
+
+/// Test/benchmark seam: set the large-retention byte budget directly (the
+/// bytes of freed block-class and oversized memory a thread may keep
+/// committed). Bypasses the profile dial.
+void ponyint_pool_arena_set_large_retain_for_test(size_t bytes)
+{
+  active_large_retain = bytes;
+}
+
+/// Test seam: the active large-retention byte budget.
+size_t ponyint_pool_arena_large_retain_for_test(void)
+{
+  return active_large_retain;
+}
+
+/// Test seam: the calling thread's bytes of retained large memory —
+/// freed-but-committed block spans in its owned arenas plus stashed
+/// oversized mappings. Thread-affine: Pony actors migrate between
+/// scheduler threads, so successive calls from Pony code may sample
+/// different threads. C unit tests calling from a fixed thread get that
+/// thread's holdings.
+size_t ponyint_pool_arena_large_retain_held_for_test(void)
+{
+  return 0;
 }
 
 PONY_EXTERN_C_END
