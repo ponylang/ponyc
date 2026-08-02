@@ -63,7 +63,8 @@ Churn-shape flags, all off by default:
   `--size`.
 - `--grow` turns each scratch iteration into a realloc-doubling ladder:
   allocate at `--size`, double N times via ponyint_pool_realloc_size, free at
-  the final size. Not combinable with `--grow-once`.
+  the final size. At most 10 doublings, and the ladder must top out at or
+  below the `--size` cap. Not combinable with `--grow-once`.
 - `--grow-once` has every worker make one realloc call from `--size` to this
   target before its first cycle, and every later allocation runs at the
   target: the single growth orphans one smaller-reservation mapping while all
@@ -71,13 +72,17 @@ Churn-shape flags, all off by default:
 - `--seed` has every worker allocate, touch, and free one block of this size
   once, before its first cycle -- a one-shot cold span.
 - `--pipeline` needs exactly 2 workers and splits the roles: worker 0 only
-  allocates and sends, worker 1 only frees, so allocation and freeing stay on
-  different threads for the whole run.
+  allocates and sends, worker 1 only frees. The split is between actors;
+  running with as many scheduler threads as workers is what keeps the two
+  roles on different threads.
 - `--tail` parks ~4.5 s after the last batch, sampling VmRSS from
   /proc/self/status every 1.5 s as `TAIL_RSS_KB <n>` lines. The interval sits
-  above the scheduler's ~1.13 s pause-tick ramp, so the sampling timer's own
-  thread still reaches the capped tick that returns its held memory. Linux
-  only; elsewhere the samples are skipped.
+  above the pause-tick ramp -- SCHED_TICK_MIN_NS doubling to
+  SCHED_TICK_MAX_NS in src/libponyrt/sched/scheduler.c, ~1.13 s from first
+  park to first capped tick -- so the sampling timer's own thread still
+  reaches the capped tick that returns its held memory; re-derive the
+  interval if those constants change. Linux only; elsewhere the samples are
+  skipped.
 
 The seams only exist in arena builds, so a binary compiled from this source
 does not link against a runtime built with the classic or memalign allocator.
@@ -246,7 +251,8 @@ actor Main
       end
       if (grow > 0) and ((grow > 10) or ((size << grow) > 67108864)) then
         env.out.print(
-          "mixed-churn: --grow ladder must top out at or below 67108864")
+          "mixed-churn: --grow allows at most 10 doublings, topping out"
+          + " at or below 67108864")
         error
       end
       if pipeline and (workers != 2) then

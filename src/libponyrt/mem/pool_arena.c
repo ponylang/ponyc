@@ -420,13 +420,15 @@ static __pony_thread_local pool_arena_thread_t this_thread =
 // The large-retention byte budget's default (rung 3 of the dial): bytes of
 // freed block-class and oversized memory a thread may keep committed for
 // reuse instead of returning to the operating system. One arena's worth: it
-// covers any single block-class cycle.
+// covers any single block-class cycle. Mirrored by the PoolArena tests'
+// TEST_LARGE_RETAIN_DEFAULT; change both together.
 #define POOL_LARGE_RETAIN (8 * 1024 * 1024)
 
 // How many empty arenas may sit release-exempt because they hold retained
 // units. Each keeps a committed header the budget does not count, so the cap
 // bounds that overhead at LARGE_RETAIN_EMPTY_CAP times the header size per
-// thread.
+// thread. Mirrored by the PoolArena tests' TEST_LARGE_RETAIN_EMPTY_CAP;
+// change both together.
 #define LARGE_RETAIN_EMPTY_CAP 4
 
 static __pony_thread_local void* pool_cache[POOL_COUNT][POOL_CACHE_DEPTH];
@@ -616,9 +618,8 @@ static bool dirty_is_set(arena_t* arena, size_t i)
 }
 
 /// Drops the pages behind every dirty unit that is not budget-retained,
-/// one run at a time. The masks combine per word, so retained runs cost
-/// one extra load per 64 units, and small-slab churn can never evict
-/// block retention.
+/// one run at a time, so small-slab churn can never evict block
+/// retention.
 static void dirty_sweep_small(arena_t* arena)
 {
   size_t i = 0;
@@ -1133,8 +1134,10 @@ static void slab_release(arena_t* arena, arena_unit_t* rec)
   {
     // Block spans answer only to the large-retention byte budget: an
     // admitted span keeps its pages for the next carve of any size, a
-    // rejected one decommits at once -- never a dirty entry, so a block
-    // free cannot trip the small sweep and drop the arena's small dirt.
+    // rejected one decommits at once with no dirty entry. Either way the
+    // small sweep's threshold, which compares dirty_units net of
+    // large_dirty_units, never fires off a block free, so block churn
+    // cannot drop the arena's small dirt.
     if(fits_budget(span << UNIT_BITS))
       retain_span(arena, start, span);
     else
@@ -1859,8 +1862,8 @@ static void oversized_free(void* p)
   // The freeing thread keeps the mapping when it fits the budget: a
   // mapping shares no bookkeeping with anything, so whichever thread
   // frees it may hold it, and that thread's next same-reservation
-  // allocation reuses it with no faults. Over budget, the OS gets it
-  // back exactly as before.
+  // allocation reuses it with no faults. Over budget, the mapping is
+  // unmapped like any rejected free.
   if((this_thread.large_retain_held + over->committed) <=
     active_large_retain)
   {
@@ -2315,6 +2318,14 @@ void ponyint_pool_arena_set_dirty_threshold_for_test(size_t threshold)
   active_dirty_sweep_threshold = threshold;
 }
 
+/// Test/benchmark seam: set the large-retention byte budget directly (the
+/// bytes of freed block-class and oversized memory a thread may keep
+/// committed). Bypasses the profile dial.
+void ponyint_pool_arena_set_large_retain_for_test(size_t bytes)
+{
+  active_large_retain = bytes;
+}
+
 /// Test seam: the active per-class cache floor, so a test can assert each
 /// profile rung sets the expected floor.
 size_t ponyint_pool_arena_cache_floor_for_test(void)
@@ -2338,14 +2349,6 @@ size_t ponyint_pool_arena_decommit_span_for_test(void)
 size_t ponyint_pool_arena_dirty_threshold_for_test(void)
 {
   return active_dirty_sweep_threshold;
-}
-
-/// Test/benchmark seam: set the large-retention byte budget directly (the
-/// bytes of freed block-class and oversized memory a thread may keep
-/// committed). Bypasses the profile dial.
-void ponyint_pool_arena_set_large_retain_for_test(size_t bytes)
-{
-  active_large_retain = bytes;
 }
 
 /// Test seam: the active large-retention byte budget.

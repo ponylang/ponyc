@@ -2360,6 +2360,10 @@ TEST(PoolArena, CrossThreadMultiSlabBatch)
 // mapping directly and a fresh allocation of the same size still works.
 TEST(PoolArena, CrossThreadOversizedFree)
 {
+  // Retention off: the direct-return assertions below are about the
+  // ownerless free path, not about what a budget would keep.
+  ponyint_pool_arena_set_large_retain_for_test(0);
+
 #ifdef PLATFORM_IS_ILP32
   static const size_t size = 24 * 1024 * 1024;
 #else
@@ -2386,6 +2390,8 @@ TEST(PoolArena, CrossThreadOversizedFree)
   ASSERT_NE(q, (char*)NULL);
   q[0] = 's';
   ponyint_pool_free_size(size, q);
+
+  ponyint_pool_arena_set_large_retain_for_test(TEST_LARGE_RETAIN_DEFAULT);
 }
 
 // One empty arena stays in reserve with only its payload pages dropped;
@@ -2547,8 +2553,9 @@ TEST(PoolArena, LargeRetainAdmission)
 
     ponyint_pool_return_idle();
     ASSERT_EQ(ponyint_pool_arena_large_retain_held_for_test(), (size_t)0);
-    ponyint_pool_arena_set_large_retain_for_test(TEST_LARGE_RETAIN_DEFAULT);
   });
+
+  ponyint_pool_arena_set_large_retain_for_test(TEST_LARGE_RETAIN_DEFAULT);
 }
 
 // The release-exempt empty-arena population is capped: past
@@ -2586,8 +2593,9 @@ TEST(PoolArena, ExemptEmptyCap)
 
     ponyint_pool_return_idle();
     ASSERT_EQ(ponyint_pool_arena_large_retain_held_for_test(), (size_t)0);
-    ponyint_pool_arena_set_large_retain_for_test(TEST_LARGE_RETAIN_DEFAULT);
   });
+
+  ponyint_pool_arena_set_large_retain_for_test(TEST_LARGE_RETAIN_DEFAULT);
 }
 
 // A freed oversized mapping is kept by the freeing thread and the next
@@ -2621,8 +2629,9 @@ TEST(PoolArena, OversizedStashReuse)
     ASSERT_FALSE(maps_covers(p));
 #endif
 
-    ponyint_pool_arena_set_large_retain_for_test(TEST_LARGE_RETAIN_DEFAULT);
   });
+
+  ponyint_pool_arena_set_large_retain_for_test(TEST_LARGE_RETAIN_DEFAULT);
 }
 
 // A stashed mapping whose reservation key nothing asks for again must not
@@ -2661,8 +2670,9 @@ TEST(PoolArena, OversizedStashCorpseBreaker)
     ponyint_pool_free_size(plateau, q);
     ponyint_pool_return_idle();
     ASSERT_EQ(ponyint_pool_arena_large_retain_held_for_test(), (size_t)0);
-    ponyint_pool_arena_set_large_retain_for_test(TEST_LARGE_RETAIN_DEFAULT);
   });
+
+  ponyint_pool_arena_set_large_retain_for_test(TEST_LARGE_RETAIN_DEFAULT);
 }
 
 namespace
@@ -2842,6 +2852,11 @@ TEST(PoolArena, RegionCarveRace)
 // mapping involved.
 TEST(PoolArena, ParkedRegionRecarve)
 {
+  // Retention off: the per-arena resident assertions below are about
+  // region parking, and a budget-retained span on the kept reserve would
+  // fail them for reasons this test is not about.
+  ponyint_pool_arena_set_large_retain_for_test(0);
+
   on_fresh_thread([]{
     static const size_t big = TEST_ARENA_FILLING_BLOCK;
     static const size_t usable = (TEST_REGION_SIZE / TEST_ARENA_SIZE) - 1;
@@ -2921,6 +2936,8 @@ TEST(PoolArena, ParkedRegionRecarve)
 
     ponyint_pool_free(0, pin);
   });
+
+  ponyint_pool_arena_set_large_retain_for_test(TEST_LARGE_RETAIN_DEFAULT);
 }
 
 // Parked slots live in regions behind the list head, and only the walk
@@ -3368,7 +3385,7 @@ TEST(PoolArenaDeath, OversizedStashDoubleFree)
     memset(p, 0x66, 4096);
     ponyint_pool_free_size(size, p);
     ponyint_pool_free_size(size, p);
-  }, "");
+  }, "POISON");
 }
 
 #ifdef PLATFORM_IS_LINUX
