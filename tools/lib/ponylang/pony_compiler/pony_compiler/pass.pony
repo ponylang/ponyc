@@ -104,8 +104,12 @@ struct _PassOpt
     """user-provided defines"""
   var data: Pointer[None] ref = data.create() // user-defined data for unit test callbacks
   // Interned-string table for this compilation. Mirrors the strtab field
-  // appended to pass_opt_t (src/libponyc/pass/pass.h); kept last so the offsets
-  // of every field above are unchanged.
+  // appended to pass_opt_t (src/libponyc/pass/pass.h).
   var strtab: Pointer[_StrTable] ref = strtab.create()
+
+  // Compile-phase timing context. Mirrors the timers field appended last to
+  // pass_opt_t (src/libponyc/pass/pass.h). The Pony tools never enable timing,
+  // so this stays null; it exists only to keep the struct layout matching C.
+  var timers: Pointer[None] ref = timers.create()
 
   new ref create() => None

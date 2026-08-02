@@ -18,6 +18,7 @@ LLD_HAS_DRIVER(wasm)
 #include "../pkg/package.h"
 #include "../pkg/program.h"
 #include "../plugin/plugin.h"
+#include "../pass/timing.h"
 #include "../type/assemble.h"
 #include "../type/lookup.h"
 #include "../../libponyrt/mem/pool.h"
@@ -2313,9 +2314,13 @@ bool genexe(compile_t* c, ast_t* program)
 
   if(c->opt->verbosity >= VERBOSITY_INFO)
     fprintf(stderr, " Reachability\n");
+  pony_timer_start(c->opt->timers, PONY_TIMER_GROUP_PHASES,
+    pass_name(PASS_REACH));
   reach(c->reach, main_ast, c->str_create, NULL, c->opt);
   reach(c->reach, main_ast, stringtab(c->opt->strtab, "runtime_override_defaults"), NULL, c->opt);
   reach(c->reach, env_ast, c->str__create, NULL, c->opt);
+  pony_timer_stop(c->opt->timers, PONY_TIMER_GROUP_PHASES,
+    pass_name(PASS_REACH));
 
   // reach() can't signal failure through its void return. If it aborted on an
   // over-large generic instantiation it left stub types behind and already
@@ -2337,7 +2342,11 @@ bool genexe(compile_t* c, ast_t* program)
 
   if(c->opt->verbosity >= VERBOSITY_INFO)
     fprintf(stderr, " Selector painting\n");
+  pony_timer_start(c->opt->timers, PONY_TIMER_GROUP_PHASES,
+    pass_name(PASS_PAINT));
   paint(&c->reach->types);
+  pony_timer_stop(c->opt->timers, PONY_TIMER_GROUP_PHASES,
+    pass_name(PASS_PAINT));
 
   plugin_visit_reach(c->reach, c->opt, true);
 
@@ -2348,7 +2357,11 @@ bool genexe(compile_t* c, ast_t* program)
     return true;
   }
 
-  if(!gentypes(c))
+  pony_timer_start(c->opt->timers, PONY_TIMER_GROUP_PHASES, "gentypes");
+  bool typed = gentypes(c);
+  pony_timer_stop(c->opt->timers, PONY_TIMER_GROUP_PHASES, "gentypes");
+
+  if(!typed)
   {
     ast_free(main_ast);
     ast_free(env_ast);
@@ -2371,7 +2384,13 @@ bool genexe(compile_t* c, ast_t* program)
 
   plugin_visit_compile(c, c->opt);
 
-  if(!genopt(c, true))
+  // Both genopt runs fold into one "optimize" row (they are sequential, not
+  // nested), so the phase total is the whole LLVM optimisation cost.
+  pony_timer_start(c->opt->timers, PONY_TIMER_GROUP_PHASES, "optimize");
+  bool optimised = genopt(c, true);
+  pony_timer_stop(c->opt->timers, PONY_TIMER_GROUP_PHASES, "optimize");
+
+  if(!optimised)
     return false;
 
   if(c->opt->runtimebc)
@@ -2382,11 +2401,17 @@ bool genexe(compile_t* c, ast_t* program)
     // Rerun the optimiser without the Pony-specific optimisation passes.
     // Inlining runtime functions can screw up these passes so we can't
     // run the optimiser only once after merging.
-    if(!genopt(c, false))
+    pony_timer_start(c->opt->timers, PONY_TIMER_GROUP_PHASES, "optimize");
+    bool optimised_rt = genopt(c, false);
+    pony_timer_stop(c->opt->timers, PONY_TIMER_GROUP_PHASES, "optimize");
+
+    if(!optimised_rt)
       return false;
   }
 
+  pony_timer_start(c->opt->timers, PONY_TIMER_GROUP_PHASES, "emit-obj");
   const char* file_o = genobj(c);
+  pony_timer_stop(c->opt->timers, PONY_TIMER_GROUP_PHASES, "emit-obj");
 
   if(file_o == NULL)
     return false;
@@ -2394,7 +2419,11 @@ bool genexe(compile_t* c, ast_t* program)
   if(c->opt->limit < PASS_ALL)
     return true;
 
-  if(!link_exe(c, program, file_o))
+  pony_timer_start(c->opt->timers, PONY_TIMER_GROUP_PHASES, "link");
+  bool linked = link_exe(c, program, file_o);
+  pony_timer_stop(c->opt->timers, PONY_TIMER_GROUP_PHASES, "link");
+
+  if(!linked)
     return false;
 
   // Shim objects share the Pony object's lifetime: removed only here, after
