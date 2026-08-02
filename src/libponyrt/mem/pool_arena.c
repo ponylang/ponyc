@@ -15,9 +15,11 @@
 
 #ifdef POOL_USE_ARENA
 
-/* An allocator in which every piece of memory has an owner, so that freed
- * memory can be merged, reused across threads, and returned to the operating
- * system. The design is laid out in ponylang/ponyc discussion #5735.
+/* An allocator in which every piece of arena memory has an owner, so that
+ * freed memory can be merged, reused across threads, and returned to the
+ * operating system; oversized mappings are the exception -- self-contained,
+ * owned by nobody, and freed or held by whichever thread frees them. The
+ * design is laid out in ponylang/ponyc discussion #5735.
  *
  * Memory comes from the operating system in regions: single mappings
  * aligned to their size, shared by every thread and never unmapped. A
@@ -314,10 +316,17 @@ typedef struct arena_t
   /// the reserve guard can skip a fragmented arena without scanning it.
   uint32_t span_bound;
   /// Free units whose pages are still committed, not yet given back.
+  /// Counts every dirty unit, budget-retained ones included.
   uint32_t dirty_units;
+  /// The subset of dirty units held under the large-retention byte
+  /// budget. The small dirty-sweep never touches them; they leave by
+  /// consumption, the idle return, thread cleanup, or the cap shed.
+  uint32_t large_dirty_units;
   uint64_t bitmap[BITMAP_WORDS];
   /// A set bit is a free unit whose pages are still committed.
   uint64_t dirty[BITMAP_WORDS];
+  /// A set bit is a budget-retained unit. Always a subset of dirty.
+  uint64_t dirty_large[BITMAP_WORDS];
   arena_unit_t units[ARENA_UNITS];
 } arena_t;
 
@@ -329,6 +338,12 @@ typedef struct oversized_t
   uint8_t kind;
   /// The whole mapping's reserved size.
   size_t reserved;
+  /// Bytes of committed payload. Raised, never lowered, across reuse:
+  /// the resident cost a stashed mapping counts against the budget.
+  size_t committed;
+  /// The next stashed mapping. Meaningful only while the mapping sits
+  /// on a thread's stash.
+  struct oversized_t* next;
 } oversized_t;
 
 typedef struct pool_arena_thread_t
@@ -352,6 +367,13 @@ typedef struct pool_arena_thread_t
   chain_t* chains;
   uint32_t chain_cap;
   uint32_t chain_used;
+  /// Bytes of freed large memory this thread holds committed: retained
+  /// block spans in its owned arenas plus stashed oversized mappings.
+  /// The one number the large-retention admission check reads.
+  size_t large_retain_held;
+  /// Oversized mappings this thread kept instead of unmapping, a list
+  /// through the mapping headers. Bounded by the byte budget.
+  oversized_t* oversized_cache;
 } pool_arena_thread_t;
 
 // The initializer below gives every member a value, in order, and slot is the
@@ -371,7 +393,7 @@ pony_static_assert(offsetof(pool_arena_thread_t, slot) == 0,
 
 static __pony_thread_local pool_arena_thread_t this_thread =
 {
-  NO_OWNER_SLOT, NULL, NULL, NULL, { NULL }, { NULL }, NULL, 0, 0
+  NO_OWNER_SLOT, NULL, NULL, NULL, { NULL }, { NULL }, NULL, 0, 0, 0, NULL
 };
 
 // Thread cache: a per-class LIFO in front of the whole free path. It holds
@@ -395,6 +417,18 @@ static __pony_thread_local pool_arena_thread_t this_thread =
 #define POOL_CACHE_FLOOR 8
 #define POOL_CACHE_SENTINEL ((uint64_t)0xCAC4E5A17ECAC4E5ULL)
 
+// The large-retention byte budget's default (rung 3 of the dial): bytes of
+// freed block-class and oversized memory a thread may keep committed for
+// reuse instead of returning to the operating system. One arena's worth: it
+// covers any single block-class cycle.
+#define POOL_LARGE_RETAIN (8 * 1024 * 1024)
+
+// How many empty arenas may sit release-exempt because they hold retained
+// units. Each keeps a committed header the budget does not count, so the cap
+// bounds that overhead at LARGE_RETAIN_EMPTY_CAP times the header size per
+// thread.
+#define LARGE_RETAIN_EMPTY_CAP 4
+
 static __pony_thread_local void* pool_cache[POOL_COUNT][POOL_CACHE_DEPTH];
 static __pony_thread_local uint32_t pool_cache_count[POOL_COUNT];
 
@@ -416,7 +450,7 @@ static size_t active_cache_budget = POOL_CACHE_BUDGET;
 // The large-retention byte budget: bytes of freed block-class and oversized
 // memory a thread may keep committed. Set the same way as the values above --
 // once at startup, read unsynchronized.
-static size_t active_large_retain = 8 * 1024 * 1024;
+static size_t active_large_retain = POOL_LARGE_RETAIN;
 
 // The number of class-`index` blocks the cache may hold: the larger of the byte
 // budget (active_cache_budget / class size) and the floor, capped at
@@ -562,6 +596,16 @@ static void dirty_clear(arena_t* arena, size_t from, size_t count)
     {
       arena->dirty[i >> 6] &= ~bit;
       arena->dirty_units--;
+
+      // Consuming a budget-retained unit frees its share of the budget:
+      // this runs on the owner, the only thread that retains into or
+      // carves from this arena.
+      if((arena->dirty_large[i >> 6] & bit) != 0)
+      {
+        arena->dirty_large[i >> 6] &= ~bit;
+        arena->large_dirty_units--;
+        this_thread.large_retain_held -= UNIT_SIZE;
+      }
     }
   }
 }
@@ -571,8 +615,46 @@ static bool dirty_is_set(arena_t* arena, size_t i)
   return (arena->dirty[i >> 6] & ((uint64_t)1 << (i & 63))) != 0;
 }
 
-/// Drops the pages behind every dirty unit, one run at a time.
-static void dirty_sweep(arena_t* arena)
+/// Drops the pages behind every dirty unit that is not budget-retained,
+/// one run at a time. The masks combine per word, so retained runs cost
+/// one extra load per 64 units, and small-slab churn can never evict
+/// block retention.
+static void dirty_sweep_small(arena_t* arena)
+{
+  size_t i = 0;
+
+  while(i < ARENA_UNITS)
+  {
+    uint64_t word =
+      arena->dirty[i >> 6] & ~arena->dirty_large[i >> 6];
+
+    if((word & ((uint64_t)1 << (i & 63))) == 0)
+    {
+      i++;
+      continue;
+    }
+
+    size_t start = i;
+
+    while((i < ARENA_UNITS) &&
+      ((arena->dirty[i >> 6] & ~arena->dirty_large[i >> 6] &
+        ((uint64_t)1 << (i & 63))) != 0))
+    {
+      arena->dirty[i >> 6] &= ~((uint64_t)1 << (i & 63));
+      arena->dirty_units--;
+      i++;
+    }
+
+    ponyint_virt_decommit((char*)arena + (start << UNIT_BITS),
+      (i - start) << UNIT_BITS);
+  }
+}
+
+/// Drops the pages behind every dirty unit, retained ones included, and
+/// returns the arena's retained bytes to the thread's budget. The idle
+/// return, thread cleanup, and the cap shed call this; nothing on the
+/// churn path does.
+static void dirty_sweep_all(arena_t* arena)
 {
   size_t i = 0;
 
@@ -597,6 +679,54 @@ static void dirty_sweep(arena_t* arena)
   }
 
   arena->dirty_units = 0;
+
+  this_thread.large_retain_held -=
+    (size_t)arena->large_dirty_units << UNIT_BITS;
+  memset(arena->dirty_large, 0, sizeof(arena->dirty_large));
+  arena->large_dirty_units = 0;
+}
+
+/// Whether span_bytes more retained memory fits under the budget.
+static bool fits_budget(size_t span_bytes)
+{
+  return (this_thread.large_retain_held + span_bytes) <=
+    active_large_retain;
+}
+
+/// Marks a just-released block span as budget-retained: dirty (so the
+/// existing carve path reuses and debits it) and dirty_large (so the
+/// small sweep cannot touch it). No operating-system call.
+static void retain_span(arena_t* arena, size_t start, size_t span)
+{
+#ifndef PONY_NDEBUG
+  for(size_t i = 0; i < span; i++)
+    *(uint64_t*)((char*)arena + ((start + i) << UNIT_BITS)) = POISON;
+#endif
+
+  dirty_set(arena, start, span);
+
+  for(size_t i = start; i < (start + span); i++)
+    arena->dirty_large[i >> 6] |= ((uint64_t)1 << (i & 63));
+
+  arena->large_dirty_units += (uint32_t)span;
+  this_thread.large_retain_held += span << UNIT_BITS;
+}
+
+/// The number of owned arenas sitting empty but release-exempt because
+/// they hold retained units. An empty arena still counts its header
+/// units as used.
+static size_t exempt_empties()
+{
+  size_t count = 0;
+
+  for(arena_t* a = this_thread.arenas; a != NULL; a = a->next)
+  {
+    if((a->used_units == arena_header_units()) &&
+      (a->large_dirty_units > 0))
+      count++;
+  }
+
+  return count;
 }
 
 /// Finds a run of span free units, or ARENA_UNITS if none exists.
@@ -792,8 +922,10 @@ static arena_t* arena_new()
   // rather than trusting refault content.
   memset(arena->bitmap, 0, sizeof(arena->bitmap));
   memset(arena->dirty, 0, sizeof(arena->dirty));
+  memset(arena->dirty_large, 0, sizeof(arena->dirty_large));
   memset(arena->units, 0, sizeof(arena->units));
   arena->dirty_units = 0;
+  arena->large_dirty_units = 0;
 
   arena->kind = MAPPING_ARENA;
   arena->owner_slot = this_thread.slot;
@@ -814,6 +946,12 @@ static arena_t* arena_new()
 
 static void arena_release(arena_t* arena)
 {
+  // No path releases an arena still holding retained units: the empty
+  // event prefers a clean victim, and the idle return, cleanup, and cap
+  // shed sweep before releasing. The whole-arena decommit below would
+  // otherwise drop pages the budget still counts.
+  ARENA_CHECK(arena->large_dirty_units == 0);
+
   if(arena->prev != NULL)
     arena->prev->next = arena->next;
   else
@@ -914,6 +1052,7 @@ static void slab_release(arena_t* arena, arena_unit_t* rec)
 {
   size_t start = (size_t)(rec - arena->units);
   size_t span = rec->span;
+  bool is_block = (rec->size_class == SLAB_CLASS_BLOCK);
 
   rec->state = UNIT_STATE_FREE;
 
@@ -944,11 +1083,18 @@ static void slab_release(arena_t* arena, arena_unit_t* rec)
 
   if(arena->used_units == arena_header_units())
   {
-    // Keep one completely empty arena per thread in reserve, its payload
-    // pages dropped but its slot and header kept, so churn across the
-    // arena boundary does not pay a release and re-claim each time. A
-    // second empty arena releases its slot back to its region, every
-    // page dropped.
+    // Keep empty arenas in reserve rather than releasing their slots, so
+    // churn across the arena boundary does not pay a release and
+    // re-claim each time. An admitted block span keeps its pages in the
+    // reserve; when two empties coexist, a clean one gives its slot
+    // back, and retained empties are release-exempt up to
+    // LARGE_RETAIN_EMPTY_CAP -- past the cap the newly emptied arena
+    // sheds its retained pages and releases.
+    bool admitted = is_block && fits_budget(span << UNIT_BITS);
+
+    if(admitted)
+      retain_span(arena, start, span);
+
     arena_t* other = this_thread.arenas;
 
     while(other != NULL)
@@ -961,12 +1107,39 @@ static void slab_release(arena_t* arena, arena_unit_t* rec)
 
     if(other != NULL)
     {
-      arena_release(arena);
-      return;
+      if(arena->large_dirty_units == 0)
+      {
+        arena_release(arena);
+        return;
+      } else if(other->large_dirty_units == 0) {
+        arena_release(other);
+      } else if(exempt_empties() >= LARGE_RETAIN_EMPTY_CAP) {
+        dirty_sweep_all(arena);
+        arena_release(arena);
+        return;
+      }
+      // Both retained, under the cap: both stay.
     }
 
-    dirty_sweep(arena);
-    ponyint_virt_decommit(unit_base(arena, rec), span << UNIT_BITS);
+    dirty_sweep_small(arena);
+
+    if(!admitted)
+      ponyint_virt_decommit(unit_base(arena, rec), span << UNIT_BITS);
+
+    return;
+  }
+
+  if(is_block)
+  {
+    // Block spans answer only to the large-retention byte budget: an
+    // admitted span keeps its pages for the next carve of any size, a
+    // rejected one decommits at once -- never a dirty entry, so a block
+    // free cannot trip the small sweep and drop the arena's small dirt.
+    if(fits_budget(span << UNIT_BITS))
+      retain_span(arena, start, span);
+    else
+      ponyint_virt_decommit(unit_base(arena, rec), span << UNIT_BITS);
+
     return;
   }
 
@@ -983,8 +1156,9 @@ static void slab_release(arena_t* arena, arena_unit_t* rec)
 
   dirty_set(arena, start, span);
 
-  if(arena->dirty_units >= dirty_sweep_threshold())
-    dirty_sweep(arena);
+  if((arena->dirty_units - arena->large_dirty_units) >=
+    dirty_sweep_threshold())
+    dirty_sweep_small(arena);
 }
 
 static void partial_push(arena_unit_t* rec)
@@ -1572,9 +1746,38 @@ static size_t next_pow2(size_t size)
   return p;
 }
 
+/// Guard word discipline for stashed mappings, the cache sentinel's
+/// idiom at the oversized tier: the push checks the payload base does
+/// not already carry POISON -- a double free would re-push a stashed
+/// mapping and two later pops would alias it -- then writes POISON; the
+/// pop checks the word survived. Gated exactly like ARENA_CHECK so a
+/// release-safe build keeps both sides or neither.
+static void stash_validate_push(void* p)
+{
+#if !defined(PONY_NDEBUG) || defined(PONY_ALWAYS_ASSERT)
+  ARENA_CHECK(*(uint64_t*)p != POISON);
+  *(uint64_t*)p = POISON;
+#else
+  (void)p;
+#endif
+}
+
+static void stash_validate_pop(void* p)
+{
+#if !defined(PONY_NDEBUG) || defined(PONY_ALWAYS_ASSERT)
+  ARENA_CHECK(*(uint64_t*)p == POISON);
+  *(uint64_t*)p = 0;
+#else
+  (void)p;
+#endif
+}
+
 /// An allocation too large to fit in an arena gets its own mapping. The
 /// payload starts one unit in, so masking the payload pointer finds the
-/// mapping's header, the same way it finds an arena.
+/// mapping's header, the same way it finds an arena. A stashed mapping
+/// with the same reservation is reused before anything is mapped: the
+/// stash is keyed by the power-of-two reservation, which is what repeats
+/// across same-size cycles and realloc growth chains.
 static void* oversized_alloc(size_t adjusted)
 {
   // Near SIZE_MAX the header room would wrap the sum and the power-of-two
@@ -1592,6 +1795,39 @@ static void* oversized_alloc(size_t adjusted)
   if(reserved < ARENA_SIZE)
     reserved = ARENA_SIZE;
 
+  oversized_t** prev = &this_thread.oversized_cache;
+  oversized_t* node = this_thread.oversized_cache;
+
+  while(node != NULL)
+  {
+    // The link lives in memory adjacent to program-writable payload, so
+    // validate every node the walk visits, the way the slab free list
+    // validates its in-band links.
+    ARENA_CHECK(node->kind == MAPPING_OVERSIZED);
+
+    if(node->reserved == reserved)
+    {
+      *prev = node->next;
+      node->next = NULL;
+      this_thread.large_retain_held -= node->committed;
+
+      char* p = (char*)node + UNIT_SIZE;
+      stash_validate_pop(p);
+
+      if(adjusted > node->committed)
+      {
+        ponyint_virt_commit(p, adjusted);
+        node->committed = adjusted;
+      }
+
+      ARENA_CHECK(((uintptr_t)p & (POOL_ALIGN - 1)) == 0);
+      return p;
+    }
+
+    prev = &node->next;
+    node = node->next;
+  }
+
   oversized_t* over = (oversized_t*)ponyint_virt_reserve_aligned(reserved);
 
   if(over == NULL)
@@ -1605,6 +1841,8 @@ static void* oversized_alloc(size_t adjusted)
 
   over->kind = MAPPING_OVERSIZED;
   over->reserved = reserved;
+  over->committed = adjusted;
+  over->next = NULL;
 
   char* p = (char*)over + UNIT_SIZE;
   ponyint_virt_commit(p, adjusted);
@@ -1617,6 +1855,22 @@ static void oversized_free(void* p)
   oversized_t* over = (oversized_t*)((uintptr_t)p - UNIT_SIZE);
 
   ARENA_CHECK(over->kind == MAPPING_OVERSIZED);
+
+  // The freeing thread keeps the mapping when it fits the budget: a
+  // mapping shares no bookkeeping with anything, so whichever thread
+  // frees it may hold it, and that thread's next same-reservation
+  // allocation reuses it with no faults. Over budget, the OS gets it
+  // back exactly as before.
+  if((this_thread.large_retain_held + over->committed) <=
+    active_large_retain)
+  {
+    stash_validate_push(p);
+    over->next = this_thread.oversized_cache;
+    this_thread.oversized_cache = over;
+    this_thread.large_retain_held += over->committed;
+    return;
+  }
+
   ponyint_virt_free(over, over->reserved);
 }
 
@@ -1734,11 +1988,30 @@ void ponyint_pool_return_idle()
   // Flush the thread cache — own blocks back to their slabs (their pages
   // become dirty and free), foreign blocks home through their owners'
   // chains, delivered now rather than at this thread's next flush moment —
-  // then decommit every dirty unit in the arenas this thread owns.
-  // Flushing runs first and may release a fully-emptied arena, so the
-  // arena walk that follows is over a stable list.
+  // then decommit every dirty unit, budget-retained ones included, in the
+  // arenas this thread owns, and unmap the oversized stash. Flushing runs
+  // first and may release a fully-emptied arena, so the arena walk that
+  // follows is over a stable list.
   cache_flush_routed();
   chains_flush_all();
+
+#if !defined(PONY_NDEBUG) || defined(PONY_ALWAYS_ASSERT)
+  // The held counter equals what the structures actually hold: retained
+  // units across owned arenas plus stashed committed bytes. Checked here,
+  // where every contributor is about to be returned.
+  {
+    size_t held = 0;
+
+    for(arena_t* a = this_thread.arenas; a != NULL; a = a->next)
+      held += (size_t)a->large_dirty_units << UNIT_BITS;
+
+    for(oversized_t* o = this_thread.oversized_cache; o != NULL;
+      o = o->next)
+      held += o->committed;
+
+    ARENA_CHECK(held == this_thread.large_retain_held);
+  }
+#endif
 
   // A parked thread re-fires this on every pause tick; skipping clean
   // arenas keeps the repeat firings from re-walking bitmaps that the
@@ -1746,7 +2019,44 @@ void ponyint_pool_return_idle()
   for(arena_t* a = this_thread.arenas; a != NULL; a = a->next)
   {
     if(a->dirty_units > 0)
-      dirty_sweep(a);
+      dirty_sweep_all(a);
+  }
+
+  oversized_t* node = this_thread.oversized_cache;
+  this_thread.oversized_cache = NULL;
+
+  while(node != NULL)
+  {
+    ARENA_CHECK(node->kind == MAPPING_OVERSIZED);
+    oversized_t* next = node->next;
+    this_thread.large_retain_held -= node->committed;
+    ponyint_virt_free(node, node->reserved);
+    node = next;
+  }
+
+  ARENA_CHECK(this_thread.large_retain_held == 0);
+
+  // With everything swept, empty arenas are clean again; give back every
+  // slot past the single reserve, restoring the one-empty invariant a
+  // release-exempt arena suspended.
+  {
+    bool kept_one = false;
+    arena_t* a = this_thread.arenas;
+
+    while(a != NULL)
+    {
+      arena_t* next = a->next;
+
+      if(a->used_units == arena_header_units())
+      {
+        if(kept_one)
+          arena_release(a);
+        else
+          kept_one = true;
+      }
+
+      a = next;
+    }
   }
 }
 
@@ -1767,6 +2077,7 @@ void ponyint_pool_return_idle()
 #define RUNG3_SPAN 128
 #define RUNG3_THRESHOLD 32
 #define RUNG3_BUDGET (640 * 1024)
+#define RUNG3_LARGE_RETAIN (8 * 1024 * 1024)
 pony_static_assert(POOL_CACHE_FLOOR == RUNG3_FLOOR,
   "the default cache floor must equal memory_profiles rung 3");
 pony_static_assert(POOL_CACHE_BUDGET == RUNG3_BUDGET,
@@ -1777,20 +2088,35 @@ pony_static_assert(
 pony_static_assert(
   DIRTY_SWEEP_THRESHOLD == (RUNG3_THRESHOLD * ARENA_UNITS) / PROFILE_TUNED_UNITS,
   "the default sweep threshold must equal memory_profiles rung 3");
+pony_static_assert(POOL_LARGE_RETAIN == RUNG3_LARGE_RETAIN,
+  "the default large-retention budget must equal memory_profiles rung 3");
 
+// `large_retain` is plain bytes, not a unit geometry: the large tiers'
+// only profile value, so a monotone column alone proves no rung retains
+// less at those tiers than a lower rung.
 static const struct { size_t floor; size_t span; size_t threshold;
-  size_t budget; } memory_profiles[10] =
+  size_t budget; size_t large_retain; } memory_profiles[10] =
 {
-  {           0,          1,               4,    64 * 1024 }, //  1
-  {           4,         64,              16,   256 * 1024 }, //  2
-  { RUNG3_FLOOR, RUNG3_SPAN, RUNG3_THRESHOLD, RUNG3_BUDGET }, //  3 (default)
-  {          16,        256,              64,   768 * 1024 }, //  4
-  {          24,        512,             128,  1024 * 1024 }, //  5
-  {          32,        512,             160,  1024 * 1024 }, //  6
-  {          48,        512,             256,  1536 * 1024 }, //  7
-  {          64,        512,             384,  1536 * 1024 }, //  8
-  {          96,        512,             512,  2048 * 1024 }, //  9
-  {         128,        512,             512,  2048 * 1024 }  // 10
+  {           0,          1,               4,    64 * 1024,
+                       0 }, //  1
+  {           4,         64,              16,   256 * 1024,
+         2 * 1024 * 1024 }, //  2
+  { RUNG3_FLOOR, RUNG3_SPAN, RUNG3_THRESHOLD, RUNG3_BUDGET,
+      RUNG3_LARGE_RETAIN }, //  3 (default)
+  {          16,        256,              64,   768 * 1024,
+        16 * 1024 * 1024 }, //  4
+  {          24,        512,             128,  1024 * 1024,
+        24 * 1024 * 1024 }, //  5
+  {          32,        512,             160,  1024 * 1024,
+        32 * 1024 * 1024 }, //  6
+  {          48,        512,             256,  1536 * 1024,
+        48 * 1024 * 1024 }, //  7
+  {          64,        512,             384,  1536 * 1024,
+        64 * 1024 * 1024 }, //  8
+  {          96,        512,             512,  2048 * 1024,
+        96 * 1024 * 1024 }, //  9
+  {         128,        512,             512,  2048 * 1024,
+       128 * 1024 * 1024 }  // 10
 };
 
 void ponyint_pool_set_memory_profile(uint32_t rung)
@@ -1808,6 +2134,7 @@ void ponyint_pool_set_memory_profile(uint32_t rung)
   active_cache_budget = memory_profiles[rung - 1].budget;
   active_decommit_immediate_span = (span * ARENA_UNITS) / PROFILE_TUNED_UNITS;
   active_dirty_sweep_threshold = (threshold * ARENA_UNITS) / PROFILE_TUNED_UNITS;
+  active_large_retain = memory_profiles[rung - 1].large_retain;
 }
 
 void ponyint_pool_drain()
@@ -1822,11 +2149,35 @@ void ponyint_pool_thread_cleanup()
   // in flushed chains while the map is freed. Then deliver every pending
   // foreign free to its owner and take back what others delivered here
   // (crediting one's own inbox touches only this thread's arenas). The
-  // allocator's own memory stays in place: threads exit in no fixed order,
-  // and unmapping could hit memory another thread still uses.
+  // arenas themselves stay mapped: threads exit in no fixed order, and
+  // unmapping could hit memory another thread still uses. Retained pages
+  // and the oversized stash, though, are this thread's alone and would
+  // outlive it as committed memory nothing ever returns, so the sweep and
+  // purge run here — after the drain, which can admit retention on this
+  // dying thread.
   cache_flush_routed();
   chains_flush_all();
   inbox_drain();
+
+  for(arena_t* a = this_thread.arenas; a != NULL; a = a->next)
+  {
+    if(a->dirty_units > 0)
+      dirty_sweep_all(a);
+  }
+
+  oversized_t* node = this_thread.oversized_cache;
+  this_thread.oversized_cache = NULL;
+
+  while(node != NULL)
+  {
+    ARENA_CHECK(node->kind == MAPPING_OVERSIZED);
+    oversized_t* next = node->next;
+    this_thread.large_retain_held -= node->committed;
+    ponyint_virt_free(node, node->reserved);
+    node = next;
+  }
+
+  ARENA_CHECK(this_thread.large_retain_held == 0);
 
   chain_t* map = this_thread.chains;
 
@@ -1968,7 +2319,7 @@ size_t ponyint_pool_arena_large_retain_for_test(void)
 /// thread's holdings.
 size_t ponyint_pool_arena_large_retain_held_for_test(void)
 {
-  return 0;
+  return this_thread.large_retain_held;
 }
 
 PONY_EXTERN_C_END
