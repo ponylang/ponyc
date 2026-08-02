@@ -316,18 +316,24 @@ static UINT8 sock_notify_trigger(asio_event_t* ev)
 }
 
 
+typedef enum {
+  SOCK_NOTIFY_OK,
+  SOCK_NOTIFY_CALL_FAILED,
+  SOCK_NOTIFY_REG_FAILED
+} sock_notify_result_t;
+
+
 // Issue a single ProcessSocketNotifications control op for a socket event. Like
 // epoll_ctl, this is thread-safe and called from the owning actor's thread.
-// Returns true on success.
-static bool sock_notify_ctl(asio_event_t* ev, UINT16 filter, UINT8 op,
-  UINT8 trigger)
+static sock_notify_result_t sock_notify_ctl(asio_event_t* ev, UINT16 filter,
+  UINT8 op, UINT8 trigger)
 {
   asio_backend_t* b = ponyint_asio_get_backend();
 
   // Teardown has committed (see send_request, #5564); report failure so the
   // caller takes its existing error path.
   if(b == NULL)
-    return false;
+    return SOCK_NOTIFY_CALL_FAILED;
 
   SOCK_NOTIFY_REGISTRATION reg;
   memset(&reg, 0, sizeof(reg));
@@ -338,7 +344,14 @@ static bool sock_notify_ctl(asio_event_t* ev, UINT16 filter, UINT8 op,
   reg.triggerFlags = trigger;
 
   DWORD r = ProcessSocketNotifications(b->port, 1, &reg, 0, 0, NULL, NULL);
-  return (r == ERROR_SUCCESS) && (reg.registrationResult == ERROR_SUCCESS);
+
+  if(r != ERROR_SUCCESS)
+    return SOCK_NOTIFY_CALL_FAILED;
+
+  if(reg.registrationResult != ERROR_SUCCESS)
+    return SOCK_NOTIFY_REG_FAILED;
+
+  return SOCK_NOTIFY_OK;
 }
 
 
@@ -906,8 +919,8 @@ PONY_API void pony_asio_event_subscribe(asio_event_t* ev)
   } else {
     // Socket: register for readiness notifications on our port. Like
     // epoll_ctl(ADD), this runs on the owning actor's thread.
-    if(!sock_notify_ctl(ev, sock_notify_filter(ev), SOCK_NOTIFY_OP_ENABLE,
-      sock_notify_trigger(ev)))
+    if(sock_notify_ctl(ev, sock_notify_filter(ev), SOCK_NOTIFY_OP_ENABLE,
+      sock_notify_trigger(ev)) != SOCK_NOTIFY_OK)
       pony_asio_event_send(ev, ASIO_ERROR, 0);
   }
 }
@@ -943,8 +956,8 @@ PONY_API void pony_asio_event_resubscribe(asio_event_t* ev)
   // only resubscribe if there is something to resubscribe to
   if(filter != SOCK_NOTIFY_REGISTER_EVENT_NONE)
   {
-    if(!sock_notify_ctl(ev, filter, SOCK_NOTIFY_OP_ENABLE,
-      SOCK_NOTIFY_TRIGGER_LEVEL | SOCK_NOTIFY_TRIGGER_ONESHOT))
+    if(sock_notify_ctl(ev, filter, SOCK_NOTIFY_OP_ENABLE,
+      SOCK_NOTIFY_TRIGGER_LEVEL | SOCK_NOTIFY_TRIGGER_ONESHOT) != SOCK_NOTIFY_OK)
       pony_asio_event_send(ev, ASIO_ERROR, 0);
   }
 }
@@ -1029,26 +1042,52 @@ PONY_API void pony_asio_event_unsubscribe(asio_event_t* ev)
     {
       ev->removing = true;
 
-      if(!sock_notify_ctl(ev, SOCK_NOTIFY_REGISTER_EVENT_NONE,
-        SOCK_NOTIFY_OP_REMOVE, 0))
+      sock_notify_result_t result;
+      int attempts = 0;
+
+      do {
+        result = sock_notify_ctl(ev, SOCK_NOTIFY_REGISTER_EVENT_NONE,
+          SOCK_NOTIFY_OP_REMOVE, 0);
+        attempts++;
+      } while(result == SOCK_NOTIFY_CALL_FAILED && attempts < 4);
+
+      if(result != SOCK_NOTIFY_OK)
       {
         // Teardown can commit between this function's guard and the ctl
-        // call. In that case the dispatch loop may still be draining packets
-        // for this socket, so the synchronous disposal below would free
-        // memory the asio thread can touch. Drop instead, like every other
-        // teardown guard (#5564).
+        // call (#5564).
         if(ponyint_asio_get_backend() == NULL)
           return;
 
-        // The REMOVE control call failed, so no SOCK_NOTIFY_EVENT_REMOVE packet
-        // will arrive to drive the deferred close + disposal. Dispose
-        // synchronously here on the owning actor's thread, as the timer/signal
-        // branches do. Without this, the event would leak and the actor would
-        // never quiesce, matching epoll's unconditional disposal.
-        closesocket((SOCKET)ev->fd);
-        ev->fd = -1;
-        ev->flags = ASIO_DISPOSABLE;
-        pony_asio_event_send(ev, ASIO_DISPOSABLE, 0);
+        if(result == SOCK_NOTIFY_REG_FAILED)
+        {
+          // The socket was never registered or was already removed. No
+          // REMOVE packet will arrive. Dispose synchronously, as the
+          // timer/signal branches do.
+          closesocket((SOCKET)ev->fd);
+          ev->fd = -1;
+          ev->flags = ASIO_DISPOSABLE;
+          pony_asio_event_send(ev, ASIO_DISPOSABLE, 0);
+        }
+        else
+        {
+          // PSN itself failed on every attempt — the registration is still
+          // live. Freeing the event would let queued notifications
+          // dereference freed memory. Close the socket to auto-deregister
+          // it, preventing new notifications. Clear the noisy flag so the
+          // runtime can quiesce. The event stays allocated so any
+          // already-queued notifications can safely dereference it
+          // (ev->removing drops them).
+          closesocket((SOCKET)ev->fd);
+          ev->fd = -1;
+
+          if(ev->noisy)
+          {
+            uint64_t old_count = ponyint_asio_noisy_remove();
+            if(old_count == 1)
+              ponyint_sched_unnoisy_asio(pony_scheduler_index());
+            ev->noisy = false;
+          }
+        }
       }
     }
   }
