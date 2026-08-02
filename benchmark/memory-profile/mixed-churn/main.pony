@@ -67,9 +67,10 @@ Churn-shape flags, all off by default:
   below the `--size` cap. Not combinable with `--grow-once`.
 - `--grow-once` has every worker make one realloc call from `--size` to this
   target at the start of its first cycle, and every later allocation runs at
-  the target. With an oversized-tier `--size` (above ~8 MiB on 64-bit) and a target
-  in a larger power-of-two reservation, the single growth orphans one
-  smaller-reservation mapping while all steady churn carries the target's
+  the target. With an oversized-tier `--size` (above ~8 MiB on 64-bit)
+  and a target in a larger power-of-two reservation, the single growth
+  orphans one smaller-reservation
+  mapping while all steady churn carries the target's
   reservation key; at smaller sizes the freed original is a block span or
   cached block, and no orphaned key exists. The one-shot runs inside the
   first `receive`, on whichever thread carries that worker's churn.
@@ -87,9 +88,9 @@ Churn-shape flags, all off by default:
 - `--tail` parks ~4.5 s after the last batch, sampling VmRSS from
   /proc/self/status every 1.5 s as `TAIL_RSS_KB <n>` lines. The samples
   are taken during the post-run drain phase, where a terminating program
-  sits in the scheduler's quiescence protocol; a thread's held memory returns at its
-  first capped pause tick, which arrives ~630 ms into a park
-  (SCHED_TICK_MIN_NS doubling to SCHED_TICK_MAX_NS in
+  sits in the scheduler's quiescence protocol; a thread's held memory
+  returns at its first capped pause tick, which arrives ~630 ms into a
+  park (SCHED_TICK_MIN_NS doubling to SCHED_TICK_MAX_NS in
   src/libponyrt/sched/scheduler.c -- re-derive if those change), so
   the samples show whether the drain phase reaches that state; it is not
   guaranteed to. Observing return cadence mid-run needs a lull phase this
