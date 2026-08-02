@@ -2558,11 +2558,10 @@ TEST(PoolArena, LargeRetainAdmission)
   ponyint_pool_arena_set_large_retain_for_test(TEST_LARGE_RETAIN_DEFAULT);
 }
 
-// The release-exempt empty-arena population is capped: once
-// LARGE_RETAIN_EMPTY_CAP arenas sit empty holding retained spans, each
-// further arena that empties retained sheds its pages and gives its slot
-// back at once, so the holdings stop growing no matter how many more
-// arenas empty.
+// The release-exempt empty-arena population is capped: the arena whose
+// emptying brings the count of retained empties to LARGE_RETAIN_EMPTY_CAP
+// sheds its pages and gives its slot back at once, so at most cap-minus-one
+// retained empties persist however many more arenas empty.
 TEST(PoolArena, ExemptEmptyCap)
 {
   on_fresh_thread([]{

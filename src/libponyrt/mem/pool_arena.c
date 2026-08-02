@@ -320,7 +320,8 @@ typedef struct arena_t
   uint32_t dirty_units;
   /// The subset of dirty units held under the large-retention byte
   /// budget. The small dirty-sweep never touches them; they leave by
-  /// consumption or by a full sweep at a return moment.
+  /// consumption, by a full sweep at a return moment, or by the
+  /// exempt-empty cap shed.
   uint32_t large_dirty_units;
   uint64_t bitmap[BITMAP_WORDS];
   /// A set bit is a free unit whose pages are still committed.
@@ -653,9 +654,10 @@ static void dirty_sweep_small(arena_t* arena)
 
 /// Drops the pages behind every dirty unit, retained ones included, and
 /// returns the arena's retained bytes to the thread's budget. This is the
-/// sweep that evicts retention, so it must stay off the churn path:
-/// retained pages leave by consumption or by a return moment, never
-/// because more churn arrived.
+/// sweep that evicts retention: retained pages leave by consumption, by a
+/// return moment, or -- the one churn-path exception, bounded by
+/// LARGE_RETAIN_EMPTY_CAP -- by the shed that trades a capped empty
+/// arena's remnants for its slot.
 static void dirty_sweep_all(arena_t* arena)
 {
   size_t i = 0;
