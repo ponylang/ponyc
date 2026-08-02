@@ -26,7 +26,10 @@ the other workers' cycles.
   own resident, so every burst lands on a thread cache holding a mix of own and
   foreign blocks. What this program varies is the burst size against the
   cache's depth: the thread cache's byte budget was sized against it (its
-  docstring has the geometries and a sweep recipe). Run it with
+  docstring has the geometries and a sweep recipe). Its `--size` reaches the
+  block and oversized tiers, where the large-retention budget governs
+  instead of the cache, and its churn-shape flags cover two-size, growth,
+  pipeline, and one-shot geometries. Run it with
   `--ponymaxthreads 8 --ponynoscale` -- eight workers carry the work, and a
   measurement run gets no more scheduler threads than the program keeps busy.
 
@@ -72,13 +75,27 @@ take them as four more positional args, `floor span thresh budget`;
 `mixed-churn`'s geometries is how the dial's budget column was sized. See
 `src/libponyrt/mem/pool_arena.c` for what each knob does.
 
+`mixed-churn` also takes `--retain`, the large-retention byte budget (bytes
+of freed block-class and oversized memory a thread may keep committed).
+Unlike the four knobs above, its keep-the-profile value is the flag being
+absent rather than 0 -- an explicit `--retain=0` forces retention off, the
+control cell a budget sweep needs.
+
 ## Program arguments
 
 - `churn`: `workers rounds base-size ngap depth [floor span thresh budget]`
 - `actor-churn`: `batch rounds base-size ngap [floor span thresh budget]`
 - `mixed-churn`: named flags -- `--workers --size --batch --scratch --tokens
   --total`, plus `--floor --span --thresh --budget` for the same four raw
-  knobs, each independent, 0 keeping that knob's profile value.
+  knobs, each independent, 0 keeping that knob's profile value, and
+  `--retain` (absent keeps the profile's; 0 is a real value). `--size`
+  reaches 64 MiB, so one program covers the class, block, and oversized
+  tiers. Churn-shape flags: `--size2` (alternate batch sizes), `--grow`
+  (scratch becomes a realloc-doubling ladder), `--grow-once` (one growth
+  per worker, then all churn at the target), `--seed` (a one-shot cold
+  block per worker), `--pipeline` (worker 0 allocates, worker 1 frees),
+  and `--tail` (post-run VmRSS samples, Linux only) -- the program
+  docstring has each flag's exact shape.
 
 For `churn` and `actor-churn`, each argument is optional from the left and must
 be a non-negative integer; the trailing `floor span thresh budget` are
