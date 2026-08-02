@@ -2625,6 +2625,46 @@ TEST(PoolArena, OversizedStashReuse)
   });
 }
 
+// A stashed mapping whose reservation key nothing asks for again must not
+// pin the budget: when a free that would be rejected can fit by evicting
+// the oldest differently-keyed entry, the two trade places.
+TEST(PoolArena, OversizedStashCorpseBreaker)
+{
+  on_fresh_thread([]{
+    static const size_t orphan = (size_t)9 * 1024 * 1024;   // 16 MiB key
+    static const size_t plateau = (size_t)25 * 1024 * 1024; // 32 MiB key
+
+    ponyint_pool_arena_set_large_retain_for_test((size_t)32 * 1024 * 1024);
+
+    char* p9 = (char*)ponyint_pool_alloc_size(orphan);
+    char* p25 = (char*)ponyint_pool_alloc_size(plateau);
+    ASSERT_NE(p9, (char*)NULL);
+    ASSERT_NE(p25, (char*)NULL);
+    memset(p9, 0x71, 4096);
+    memset(p25, 0x72, 4096);
+
+    ponyint_pool_free_size(orphan, p9);
+    ASSERT_EQ(ponyint_pool_arena_large_retain_held_for_test(), orphan);
+
+    // Over budget with the orphan held (9 + 25 > 32), fits without it:
+    // the breaker evicts the orphan and admits the plateau mapping.
+    ponyint_pool_free_size(plateau, p25);
+    ASSERT_EQ(ponyint_pool_arena_large_retain_held_for_test(), plateau);
+#ifdef PLATFORM_IS_LINUX
+    ASSERT_FALSE(maps_covers(p9));
+#endif
+
+    char* q = (char*)ponyint_pool_alloc_size(plateau);
+    ASSERT_EQ(q, p25);
+    ASSERT_EQ(ponyint_pool_arena_large_retain_held_for_test(), (size_t)0);
+
+    ponyint_pool_free_size(plateau, q);
+    ponyint_pool_return_idle();
+    ASSERT_EQ(ponyint_pool_arena_large_retain_held_for_test(), (size_t)0);
+    ponyint_pool_arena_set_large_retain_for_test(TEST_LARGE_RETAIN_DEFAULT);
+  });
+}
+
 namespace
 {
 

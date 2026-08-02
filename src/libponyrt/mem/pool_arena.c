@@ -1871,6 +1871,49 @@ static void oversized_free(void* p)
     return;
   }
 
+  // A workload that grows once and then churns at the grown size leaves
+  // the pre-growth mapping stashed under a reservation key nothing asks
+  // for again; it would pin the budget and starve every later free. When
+  // evicting the oldest differently-keyed mapping makes this one fit,
+  // trade them: the eviction is an unmap the no-stash path would have
+  // done anyway, so the swap adds no OS call, and same-key entries are
+  // never touched -- they are what the churn is reusing.
+  {
+    oversized_t** prev = &this_thread.oversized_cache;
+    oversized_t** victim_prev = NULL;
+    oversized_t* victim = NULL;
+
+    for(oversized_t* node = this_thread.oversized_cache; node != NULL;
+      node = node->next)
+    {
+      ARENA_CHECK(node->kind == MAPPING_OVERSIZED);
+
+      if(node->reserved != over->reserved)
+      {
+        victim_prev = prev;
+        victim = node;
+      }
+
+      prev = &node->next;
+    }
+
+    if((victim != NULL) &&
+      ((this_thread.large_retain_held - victim->committed +
+        over->committed) <= active_large_retain))
+    {
+      *victim_prev = victim->next;
+      this_thread.large_retain_held -= victim->committed;
+      stash_validate_pop((char*)victim + UNIT_SIZE);
+      ponyint_virt_free(victim, victim->reserved);
+
+      stash_validate_push(p);
+      over->next = this_thread.oversized_cache;
+      this_thread.oversized_cache = over;
+      this_thread.large_retain_held += over->committed;
+      return;
+    }
+  }
+
   ponyint_virt_free(over, over->reserved);
 }
 
