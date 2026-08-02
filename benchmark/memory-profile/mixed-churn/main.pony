@@ -66,15 +66,21 @@ Churn-shape flags, all off by default:
   the final size. At most 10 doublings, and the ladder must top out at or
   below the `--size` cap. Not combinable with `--grow-once`.
 - `--grow-once` has every worker make one realloc call from `--size` to this
-  target before its first cycle, and every later allocation runs at the
-  target: the single growth orphans one smaller-reservation mapping while all
-  steady churn carries the target's reservation key.
+  target at the start of its first cycle, and every later allocation runs at
+  the target. With an oversized-tier `--size` (above ~8 MiB) the single
+  growth orphans one smaller-reservation mapping while all steady churn
+  carries the target's reservation key; at smaller sizes the freed original
+  is a block span or cached block, and no orphaned key exists. The one-shot
+  runs inside the first `receive`, on whichever thread carries that worker's
+  churn.
 - `--seed` has every worker allocate, touch, and free one block of this size
-  once, before its first cycle -- a one-shot cold span.
-- `--pipeline` needs exactly 2 workers and splits the roles: worker 0 only
-  allocates and sends, worker 1 only frees. The split is between actors;
-  running with as many scheduler threads as workers is what keeps the two
-  roles on different threads.
+  once, at the start of its first cycle -- a one-shot cold span, on the
+  worker's churn thread.
+- `--pipeline` needs exactly 2 workers and splits the batch roles: worker 0
+  allocates and sends the circulating batch, worker 1 only frees it. The
+  scratch cycle still runs on both -- pass `--scratch=0` for a pure split.
+  The split is between actors; running with as many scheduler threads as
+  workers is what keeps the two roles on different threads.
 - `--tail` parks ~4.5 s after the last batch, sampling VmRSS from
   /proc/self/status every 1.5 s as `TAIL_RSS_KB <n>` lines. The interval sits
   above the pause-tick ramp -- SCHED_TICK_MIN_NS doubling to
@@ -179,7 +185,8 @@ actor Main
               "One-shot cold block per worker, this many bytes; 0 = off"
               where default' = 0)
             OptionSpec.bool("pipeline",
-              "Two workers: worker 0 only allocates, worker 1 only frees"
+              "Two workers: worker 0 allocates the batch, worker 1 frees"
+              + " it; scratch still runs on both"
               where default' = false)
             OptionSpec.bool("tail",
               "Park ~4.5 s after the run, sampling VmRSS as TAIL_RSS_KB"
@@ -249,7 +256,7 @@ actor Main
           "mixed-churn: --grow-once must exceed --size, up to 67108864")
         error
       end
-      if (grow > 0) and ((grow > 10) or ((size << grow) > 67108864)) then
+      if (grow > 0) and ((grow > 10) or (size > (67108864 >> grow))) then
         env.out.print(
           "mixed-churn: --grow allows at most 10 doublings, topping out"
           + " at or below 67108864")
@@ -448,11 +455,14 @@ actor Worker
   let _scratch: USize
   let _size2: USize
   let _grow: USize
+  let _grow_once: USize
+  let _seed: USize
   let _role: _Role
   let _scratch_held: Array[USize]
   var _use2: Bool = false
   var _next: (Worker | None) = None
   var _stopped: Bool = false
+  var _initialized: Bool = false
 
   new create(counter: Counter, size: USize, batch: USize, scratch: USize,
     size2: USize, grow: USize, grow_once: USize, seed: USize, role: _Role)
@@ -463,26 +473,10 @@ actor Worker
     _scratch = scratch
     _size2 = size2
     _grow = grow
+    _grow_once = grow_once
+    _seed = seed
     _role = role
     _scratch_held = Array[USize](scratch)
-
-    if seed > 0 then
-      // A one-shot cold span: touched, freed, never reused at this size.
-      let p = @ponyint_pool_alloc_size(seed)
-      @memset(p.usize(), 0x5A, 64)
-      @ponyint_pool_free_size(seed, p.usize())
-    end
-
-    if grow_once > 0 then
-      // One growth: the freed original is the orphaned reservation; all
-      // later churn runs at the target size.
-      var p = @ponyint_pool_alloc_size(_size)
-      @memset(p.usize(), 0x5A, 64)
-      p = @ponyint_pool_realloc_size(_size, grow_once, p.usize())
-      @memset(p.usize(), 0x5A, 64)
-      @ponyint_pool_free_size(grow_once, p.usize())
-      _size = grow_once
-    end
 
   be set_next(w: Worker) =>
     _next = w
@@ -490,7 +484,35 @@ actor Worker
   be stop() =>
     _stopped = true
 
+  fun ref _first_cycle_setup() =>
+    // Runs at the start of the first receive, so the one-shots land on the
+    // thread carrying this worker's churn. An actor constructor runs
+    // synchronously in its creator's context, which would put every
+    // worker's one-shot on the creating thread instead.
+    if _seed > 0 then
+      // A one-shot cold span: touched, freed, never reused at this size.
+      let p = @ponyint_pool_alloc_size(_seed)
+      @memset(p.usize(), 0x5A, 64)
+      @ponyint_pool_free_size(_seed, p.usize())
+    end
+
+    if _grow_once > 0 then
+      // One growth: the freed original is the orphaned reservation; all
+      // later churn runs at the target size.
+      var p = @ponyint_pool_alloc_size(_size)
+      @memset(p.usize(), 0x5A, 64)
+      p = @ponyint_pool_realloc_size(_size, _grow_once, p.usize())
+      @memset(p.usize(), 0x5A, 64)
+      @ponyint_pool_free_size(_grow_once, p.usize())
+      _size = _grow_once
+    end
+
   be receive(size: USize, batch: Array[USize] val) =>
+    if not _initialized then
+      _initialized = true
+      _first_cycle_setup()
+    end
+
     match _role
     | _AllocOnly => None
     else

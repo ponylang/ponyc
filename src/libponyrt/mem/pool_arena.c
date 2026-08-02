@@ -320,7 +320,7 @@ typedef struct arena_t
   uint32_t dirty_units;
   /// The subset of dirty units held under the large-retention byte
   /// budget. The small dirty-sweep never touches them; they leave by
-  /// consumption, the idle return, thread cleanup, or the cap shed.
+  /// consumption or by a full sweep at a return moment.
   uint32_t large_dirty_units;
   uint64_t bitmap[BITMAP_WORDS];
   /// A set bit is a free unit whose pages are still committed.
@@ -652,9 +652,10 @@ static void dirty_sweep_small(arena_t* arena)
 }
 
 /// Drops the pages behind every dirty unit, retained ones included, and
-/// returns the arena's retained bytes to the thread's budget. The idle
-/// return, thread cleanup, and the cap shed call this; nothing on the
-/// churn path does.
+/// returns the arena's retained bytes to the thread's budget. This is the
+/// sweep that evicts retention, so it must stay off the churn path:
+/// retained pages leave by consumption or by a return moment, never
+/// because more churn arrived.
 static void dirty_sweep_all(arena_t* arena)
 {
   size_t i = 0;
@@ -695,8 +696,8 @@ static bool fits_budget(size_t span_bytes)
 }
 
 /// Marks a just-released block span as budget-retained: dirty (so the
-/// existing carve path reuses and debits it) and dirty_large (so the
-/// small sweep cannot touch it). No operating-system call.
+/// carve path reuses and debits it) and dirty_large (so the small sweep
+/// cannot touch it). No operating-system call.
 static void retain_span(arena_t* arena, size_t start, size_t span)
 {
 #ifndef PONY_NDEBUG
