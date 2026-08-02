@@ -1068,9 +1068,9 @@ static void tracing_thread_pause()
   // Once the pause has backed off past the cap, this thread has been
   // idle long enough that holding its freed memory no longer pays: give
   // it up — cached blocks flushed, foreign ones sent home, own dirty
-  // pages decommitted. The tick snaps back to the floor when messages
-  // arrive, so a busy stretch never reaches the cap or pays for the
-  // flush.
+  // pages decommitted, the oversized stash unmapped. The tick snaps back
+  // to the floor when messages arrive, so a busy stretch never reaches
+  // the cap or pays for the flush.
   if(tracing_tick_ns >= TRACING_TICK_MAX_NS)
     ponyint_pool_return_idle();
 
