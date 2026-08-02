@@ -78,8 +78,9 @@ take them as four more positional args, `floor span thresh budget`;
 `mixed-churn` also takes `--retain`, the large-retention byte budget (bytes
 of freed block-class and oversized memory a thread may keep committed).
 Unlike the four knobs above, its keep-the-profile value is the flag being
-absent rather than 0 -- an explicit `--retain=0` forces retention off, the
-control cell a budget sweep needs.
+absent rather than 0 -- an explicit `--retain=0` turns retention off,
+releasing freed large memory immediately instead of keeping it committed
+for reuse.
 
 ## Program arguments
 

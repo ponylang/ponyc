@@ -53,8 +53,8 @@ units; `budget` is bytes of cache per size class.
 `--retain` replaces the large-retention byte budget (bytes of freed
 block-class and oversized memory a thread may keep committed). Unlike the
 four knobs above, its keep-the-profile value is the flag being absent, not 0:
-an explicit `--retain=0` forces retention off, which is the control cell a
-budget sweep needs and a value the other seams never take.
+an explicit `--retain=0` turns retention off, releasing freed large memory
+immediately instead of keeping it committed for reuse.
 
 Churn-shape flags, all off by default:
 
