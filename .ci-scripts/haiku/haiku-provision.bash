@@ -9,7 +9,7 @@
 # with the source under /Data/ponyc.
 set -euo pipefail
 
-: "${HAIKU_NIGHTLY_VERSION:?set HAIKU_NIGHTLY_VERSION, e.g. hrev59860}"
+: "${HAIKU_NIGHTLY_VERSION:?set HAIKU_NIGHTLY_VERSION, e.g. hrev59929}"
 : "${GITHUB_WORKSPACE:?set GITHUB_WORKSPACE, e.g., ./ponyc/}"
 
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
@@ -122,6 +122,12 @@ cat >>/boot/system/settings/ssh/sshd_config <<'EOF'
 Match User user
   ForceCommand /bin/bash -c "/boot/home/config/settings/ssh/entry"
 EOF
+
+# Haiku's virtual memory might cause problems, so disable it
+echo "::guest::Disable Virtual Memory"
+mkdir -p /boot/home/config/settings/kernel/drivers/
+sed -i "s/vm on/vm off/" /boot/home/config/settings/kernel/drivers/virtual_memory || echo "vm off" >/boot/home/config/settings/kernel/drivers/virtual_memory
+mimeset -f /boot/home/config/settings/kernel/drivers/virtual_memory
 CUSTOMIZE
   # Create ISO with stuff we want to pass into the VM. This way we won't have to
   # "type" everything through QEmu monitor's console in haiku_configure_vm.py.
@@ -201,9 +207,11 @@ rsync -avz -e "ssh -o StrictHostKeyChecking=no -i haiku_vm_key -p 2222" \
   "$GITHUB_WORKSPACE/" user@localhost:/Data/ponyc/
 echo "::endgroup::"
 
-echo "::group::List ulimits"
+echo "::group::System info"
 ssh -o StrictHostKeyChecking=no -i haiku_vm_key -p 2222 user@localhost /bin/sh <<'EOF'
-ulimit -a
+set -x
+ulimit -a || true
+vmstat || true
 EOF
 echo "::endgroup::"
 
