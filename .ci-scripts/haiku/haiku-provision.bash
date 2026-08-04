@@ -151,7 +151,7 @@ fi
 qemu-system-x86_64 \
   -machine pc,accel=kvm \
   -cpu host \
-  -smp 4 \
+  -smp 2 \
   -m 8G \
   -snapshot \
   $CDROM1 \
