@@ -89,7 +89,8 @@ for reuse.
 - `mixed-churn`: named flags -- `--workers --size --batch --scratch --tokens
   --total`, plus `--floor --span --thresh --budget` for the same four raw
   knobs, each independent, 0 keeping that knob's profile value, and
-  `--retain` (absent keeps the profile's; 0 is a real value). `--size`
+  `--retain` (absent keeps the profile's; 0 is a real value), and
+  `--empty-cap` (empty-arena retention cap; 0 keeps the default). `--size`
   reaches 64 MiB, so one program covers the class, block, and oversized
   tiers. Churn-shape flags: `--size2` (alternate batch sizes), `--grow`
   (scratch becomes a realloc-doubling ladder), `--grow-once` (one growth

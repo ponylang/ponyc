@@ -324,7 +324,7 @@ typedef struct arena_t
   /// The subset of dirty units held under the large-retention byte
   /// budget. The small dirty-sweep never touches them; they leave by
   /// consumption, by a full sweep at a return moment, or when the
-  /// empty-arena cap (LARGE_RETAIN_EMPTY_CAP below) is reached.
+  /// empty-arena cap (active_large_retain_empty_cap) is reached.
   uint32_t large_dirty_units;
   uint64_t bitmap[BITMAP_WORDS];
   /// A set bit is a free unit whose pages are still committed.
@@ -432,13 +432,10 @@ static __pony_thread_local pool_arena_thread_t this_thread =
 // both together.
 #define POOL_LARGE_RETAIN (8 * 1024 * 1024)
 
-// The count of empty release-exempt arenas at which the newly emptied one
-// sheds its retained pages and releases: at most LARGE_RETAIN_EMPTY_CAP - 1
-// retained empties ever persist. Each keeps a committed header the budget
-// does not count, bounding that overhead below the cap times the header
-// size per thread. Mirrored by the PoolArena tests'
-// TEST_LARGE_RETAIN_EMPTY_CAP; change both together.
-#define LARGE_RETAIN_EMPTY_CAP 4
+// The default count of empty release-exempt arenas at which the newly
+// emptied one sheds its retained pages and releases. Mirrored by the
+// PoolArena tests' TEST_LARGE_RETAIN_EMPTY_CAP; change both together.
+#define POOL_LARGE_RETAIN_EMPTY_CAP 4
 
 static __pony_thread_local void* pool_cache[POOL_COUNT][POOL_CACHE_DEPTH];
 static __pony_thread_local uint32_t pool_cache_count[POOL_COUNT];
@@ -462,6 +459,12 @@ static size_t active_cache_budget = POOL_CACHE_BUDGET;
 // memory a thread may keep committed. Set the same way as the values above --
 // once at startup, read unsynchronized.
 static size_t active_large_retain = POOL_LARGE_RETAIN;
+
+// The empty-arena cap: the count of owned empties with retained pages at
+// which the newly emptied one sheds and releases. At most cap - 1
+// retained empties persist per thread; each keeps a committed header the
+// budget does not count, bounded at cap times the header size.
+static uint32_t active_large_retain_empty_cap = POOL_LARGE_RETAIN_EMPTY_CAP;
 
 // The number of class-`index` blocks the cache may hold: the larger of the byte
 // budget (active_cache_budget / class size) and the floor, capped at
@@ -1097,7 +1100,7 @@ static void slab_release(arena_t* arena, arena_unit_t* rec)
     // re-claim each time. An admitted block span keeps its pages in the
     // reserve; when two empties coexist, a clean one gives its slot
     // back, and retained empties are release-exempt until their count
-    // reaches LARGE_RETAIN_EMPTY_CAP -- at the cap the newly emptied
+    // reaches the active empty cap -- at the cap the newly emptied
     // arena sheds its retained pages and releases.
     bool admitted = is_block && fits_large_retain(span << UNIT_BITS);
 
@@ -1122,7 +1125,7 @@ static void slab_release(arena_t* arena, arena_unit_t* rec)
         return;
       } else if(other->large_dirty_units == 0) {
         arena_release(other);
-      } else if(exempt_empties() >= LARGE_RETAIN_EMPTY_CAP) {
+      } else if(exempt_empties() >= active_large_retain_empty_cap) {
         dirty_sweep_all(arena);
         arena_release(arena);
         return;
@@ -2373,6 +2376,18 @@ size_t ponyint_pool_arena_large_retain_for_test(void)
 size_t ponyint_pool_arena_large_retain_held_for_test(void)
 {
   return this_thread.large_retain_held;
+}
+
+/// Test/benchmark seam: set the empty-arena retention cap directly.
+void ponyint_pool_arena_set_large_retain_empty_cap_for_test(uint32_t cap)
+{
+  active_large_retain_empty_cap = cap;
+}
+
+/// Test seam: the active empty-arena retention cap.
+uint32_t ponyint_pool_arena_large_retain_empty_cap_for_test(void)
+{
+  return active_large_retain_empty_cap;
 }
 
 PONY_EXTERN_C_END

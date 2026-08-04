@@ -937,14 +937,17 @@ static_assert((TEST_REGION_SIZE / TEST_ARENA_SIZE) == 32,
 /// half the arena's units), on both geometries. One block, one arena.
 #define TEST_ARENA_FILLING_BLOCK (TEST_ARENA_SIZE - (4 * TEST_UNIT_SIZE))
 
-/// Mirrors POOL_LARGE_RETAIN and LARGE_RETAIN_EMPTY_CAP in pool_arena.c --
-/// change both together.
+/// Mirrors POOL_LARGE_RETAIN and POOL_LARGE_RETAIN_EMPTY_CAP in
+/// pool_arena.c -- change both together.
 #define TEST_LARGE_RETAIN_DEFAULT ((size_t)8 * 1024 * 1024)
-#define TEST_LARGE_RETAIN_EMPTY_CAP ((size_t)4)
+#define TEST_LARGE_RETAIN_EMPTY_CAP ((uint32_t)4)
 
 extern "C" void ponyint_pool_arena_set_large_retain_for_test(size_t bytes);
 extern "C" size_t ponyint_pool_arena_large_retain_for_test(void);
 extern "C" size_t ponyint_pool_arena_large_retain_held_for_test(void);
+extern "C" void ponyint_pool_arena_set_large_retain_empty_cap_for_test(
+  uint32_t cap);
+extern "C" uint32_t ponyint_pool_arena_large_retain_empty_cap_for_test(void);
 
 /// Sets the large-retention budget for a test body whose asserts run at
 /// test scope (not inside an on_fresh_thread lambda), restoring the

@@ -24,8 +24,8 @@ always frees with the true size.
 Usage:
   mixed-churn [--workers=N] [--size=BYTES] [--batch=N] [--scratch=N]
     [--tokens=N] [--total=N] [--floor=N] [--span=N] [--thresh=N] [--budget=N]
-    [--retain=BYTES] [--size2=BYTES] [--grow=N] [--grow-once=BYTES]
-    [--seed=BYTES] [--pipeline]
+    [--retain=BYTES] [--empty-cap=N] [--size2=BYTES] [--grow=N]
+    [--grow-once=BYTES] [--seed=BYTES] [--pipeline]
 
 The geometries the thread-cache byte budget was sized against, as
 batch/scratch pairs at the default 4096-byte size: 16/8 (a 24-block cycle the
@@ -107,11 +107,13 @@ use @ponyint_pool_arena_set_decommit_span_for_test[None](span: USize)
 use @ponyint_pool_arena_set_dirty_threshold_for_test[None](threshold: USize)
 use @ponyint_pool_arena_set_cache_budget_for_test[None](budget: USize)
 use @ponyint_pool_arena_set_large_retain_for_test[None](bytes: USize)
+use @ponyint_pool_arena_set_large_retain_empty_cap_for_test[None](cap: U32)
 use @ponyint_pool_arena_cache_floor_for_test[USize]()
 use @ponyint_pool_arena_decommit_span_for_test[USize]()
 use @ponyint_pool_arena_dirty_threshold_for_test[USize]()
 use @ponyint_pool_arena_cache_budget_for_test[USize]()
 use @ponyint_pool_arena_large_retain_for_test[USize]()
+use @ponyint_pool_arena_large_retain_empty_cap_for_test[U32]()
 use @memset[Pointer[None]](p: USize, c: I32, n: USize)
 
 primitive _Normal
@@ -178,6 +180,9 @@ actor Main
             OptionSpec.u64("seed",
               "One-shot cold block per worker, this many bytes; 0 = off"
               where default' = 0)
+            OptionSpec.u64("empty-cap",
+              "Empty-arena retention cap override; 0 keeps the default"
+              where default' = 0)
             OptionSpec.bool("pipeline",
               "Two workers: worker 0 allocates the batch, worker 1 frees"
               + " it; scratch still runs on both"
@@ -214,6 +219,7 @@ actor Main
       let grow = cmd.option("grow").u64().usize()
       let grow_once = cmd.option("grow-once").u64().usize()
       let seed = cmd.option("seed").u64().usize()
+      let empty_cap = cmd.option("empty-cap").u64()
       let pipeline = cmd.option("pipeline").bool()
 
       if workers < 2 then
@@ -297,6 +303,15 @@ actor Main
         end
         @ponyint_pool_arena_set_large_retain_for_test(retain.usize())
       end
+      if empty_cap > 0 then
+        if empty_cap > U32.max_value().u64() then
+          env.out.print(
+            "mixed-churn: --empty-cap exceeds this platform's U32")
+          error
+        end
+        @ponyint_pool_arena_set_large_retain_empty_cap_for_test(
+          empty_cap.u32())
+      end
 
       // The header records the effective values, read back from the
       // allocator, so a run at profile defaults is distinguishable from
@@ -312,6 +327,8 @@ actor Main
         ", thresh " + @ponyint_pool_arena_dirty_threshold_for_test().string() +
         ", budget " + @ponyint_pool_arena_cache_budget_for_test().string() +
         ", retain " + @ponyint_pool_arena_large_retain_for_test().string() +
+        ", empty-cap " +
+          @ponyint_pool_arena_large_retain_empty_cap_for_test().string() +
         ", size2 " + size2.string() +
         ", grow " + grow.string() +
         ", grow-once " + grow_once.string() +
