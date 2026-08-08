@@ -53,6 +53,10 @@ Never add a mutex or a new thread unless the idea came from the human operator o
 
 On the Windows MSVC build, libponyrt's `.c` files compile as C++ (`src/libponyrt/CMakeLists.txt` sets `LANGUAGE CXX` on them). A `PONY_API` function whose definition is not inside a `PONY_EXTERN_C_BEGIN`/`PONY_EXTERN_C_END` region gets a C++-mangled symbol, which the stdlib FFI — referencing the plain C name — can't resolve at link (`lld-link: undefined symbol`). Linux, macOS, and BSD compile `.c` as C, so the failure is Windows-only and won't show up in a local build there. Every runtime `.c` already wraps its definitions in that region (see `lang/stat.c`, `lang/socket.c`); put any new `PONY_API` function inside it. To check a symbol's linkage, run `dumpbin /SYMBOLS <lib> | findstr <name>` from a vcvars64 shell: a C-linkage function shows the plain name, a mangled one shows the C++ form.
 
+## Dispatching workflows on a branch
+
+`gh workflow run <workflow> --ref <branch> -f ref=<branch>` — both flags are needed. `--ref` selects which branch the workflow YAML is read from; `-f ref=` sets the `inputs.ref` that the checkout step uses. Without `-f ref=`, the job checks out main regardless of `--ref`.
+
 ## Release notes
 
 Load the `/pony-release-notes` skill for the full procedure. The one thing to know without it: add a `.release-notes/<slug>.md` file for each user-facing PR — do **not** edit `next-release.md` directly, because CI aggregates the individual files.
