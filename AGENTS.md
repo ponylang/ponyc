@@ -22,10 +22,6 @@ When you start working on this project, load the `pony-skills` skill — it tell
 Read [CONTRIBUTING.md](CONTRIBUTING.md).
 <!-- /contributor-only -->
 
-## Prose model
-
-If you are running on an Anthropic model, use `claude-opus-4-6` for writing comments, documentation, and other prose. Prose quality from Anthropic models dropped starting with Opus 4.7 and has gotten worse with each subsequent release.
-
 ## Testing the self-hosted tools
 
 The build uses CMake presets (see BUILD.md). The self-hosted tools' test binaries — for the compiler, pony-lsp, pony-lint, and pony-doc — are **built on demand**: a normal `cmake --build` does not build them. Build the test target, then run it through ctest:

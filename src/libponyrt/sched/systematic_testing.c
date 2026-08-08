@@ -6,13 +6,15 @@
 #include <stdlib.h>
 #include <string.h>
 #include "cpu.h"
-#include "ponyassert.h"
 #include "../tracing/tracing.h"
 
 typedef struct systematic_testing_thread_t
 {
-  pony_thread_id_t tid;
-  pony_signal_event_t sleep_object;
+#if !defined(PLATFORM_IS_WINDOWS)
+  /// Signaled when this slot becomes the active thread. Owned by this
+  /// subsystem: created at init, destroyed when the last thread stops.
+  pthread_cond_t turn;
+#endif
   bool stopped;
 } systematic_testing_thread_t;
 
@@ -27,16 +29,17 @@ static PONY_ATOMIC(uint32_t) waiting_to_start_count;
 // Under systematic testing the wall clock is meaningless because execution is
 // serialized to one thread at a time; a thread sits parked waiting its turn
 // while real time keeps advancing. The scheduler's clock-gated decisions (when
-// to send SCHED_BLOCK, when a thread becomes suspend-eligible, the cycle
+// to send SCHED_BLOCK, when a thread becomes eligible to go passive, the cycle
 // detector cadence) must therefore run off this deterministic step counter
 // instead of ponyint_cpu_tick(), or the spin where a threshold trips moves run
 // to run and desyncs the seeded rand() stream that picks the next thread.
 //
 // The clock advances by a fixed number of pseudo-cycles once per yield (one
 // "scheduling step"). The increment scales logical steps onto the existing
-// cycle-scale thresholds (block/suspend at 2,000,000; cycle detector at
-// detect_interval * 2,000,000) so those thresholds keep their meaning and CLI
-// configurability, now measured in scheduling steps rather than CPU cycles.
+// cycle-scale thresholds (block/passive-eligibility at 2,000,000; cycle
+// detector at detect_interval * 2,000,000) so those thresholds keep their
+// meaning and CLI configurability, now measured in scheduling steps rather
+// than CPU cycles.
 //
 // Only the active thread runs at any moment. That invariant is not free: the
 // handoff (pick the next thread, wake it, park self) must be mutually
@@ -50,30 +53,75 @@ static PONY_ATOMIC(uint32_t) waiting_to_start_count;
 #define SYSTEMATIC_TESTING_TICK_PER_YIELD 20000
 static uint64_t logical_clock = 0;
 
-#if defined(USE_SCHEDULER_SCALING_PTHREADS)
-static pthread_mutex_t systematic_testing_mut;
-
-static pthread_once_t systematic_testing_mut_once = PTHREAD_ONCE_INIT;
-
-void systematic_testing_mut_init()
-{
-  pthread_mutex_init(&systematic_testing_mut, NULL);
-}
-#elif defined(PLATFORM_IS_WINDOWS)
-// The Windows systematic build is the one systematic config not built with
-// pthreads (the static_assert in systematic_testing.h requires pthreads on
-// every other platform). It gets the native analogue of the pthreads mutex +
-// per-thread condvar: an SRW lock plus a single shared condition variable. A
+#if defined(PLATFORM_IS_WINDOWS)
+// The Windows arm gets the native analogue of the pthreads mutex +
+// per-thread condvars: an SRW lock plus a single shared condition variable. A
 // wake targets no particular thread -- WakeAllConditionVariable wakes every
 // parked thread and each re-checks `active_thread == self`, so only the
 // intended one proceeds and the rest re-park. Both are statically initialized,
 // so no setup or teardown is needed. The condition-variable wait is not
-// alertable: the normal Windows scheduler suspend stays alertable so socket-I/O
-// APCs can run, but systematic testing starts no ASIO thread and does no I/O,
-// so there are no APCs to service.
+// alertable: systematic testing starts no ASIO thread and does no I/O, so
+// there are no APCs to service.
 static SRWLOCK systematic_testing_win_lock = SRWLOCK_INIT;
 static CONDITION_VARIABLE systematic_testing_win_cv = CONDITION_VARIABLE_INIT;
+#else
+static pthread_mutex_t systematic_testing_mut;
+
+static pthread_once_t systematic_testing_mut_once = PTHREAD_ONCE_INIT;
+
+static void systematic_testing_mut_init()
+{
+  pthread_mutex_init(&systematic_testing_mut, NULL);
+}
 #endif
+
+/// Acquire the single-runner lock. Held by the running thread for its
+/// whole timeslice and released only while parked.
+static void systematic_testing_lock()
+{
+#if defined(PLATFORM_IS_WINDOWS)
+  AcquireSRWLockExclusive(&systematic_testing_win_lock);
+#else
+  pthread_mutex_lock(&systematic_testing_mut);
+#endif
+}
+
+static void systematic_testing_unlock()
+{
+#if defined(PLATFORM_IS_WINDOWS)
+  ReleaseSRWLockExclusive(&systematic_testing_win_lock);
+#else
+  pthread_mutex_unlock(&systematic_testing_mut);
+#endif
+}
+
+/// Park the calling thread until woken, releasing the single-runner
+/// lock while parked and holding it again on return. The wait can
+/// return without a matching wake (POSIX allows spurious returns, and
+/// the Windows arm wakes every parked thread on purpose); callers
+/// re-check `active_thread` and re-park in a loop.
+static void systematic_testing_park(systematic_testing_thread_t* self)
+{
+#if defined(PLATFORM_IS_WINDOWS)
+  (void)self;
+  SleepConditionVariableSRW(&systematic_testing_win_cv,
+    &systematic_testing_win_lock, INFINITE, 0);
+#else
+  pthread_cond_wait(&self->turn, &systematic_testing_mut);
+#endif
+}
+
+/// Wake the target thread. The caller holds the single-runner lock, so
+/// the woken thread proceeds only once the caller parks or unlocks.
+static void systematic_testing_wake(systematic_testing_thread_t* target)
+{
+#if defined(PLATFORM_IS_WINDOWS)
+  (void)target;
+  WakeAllConditionVariable(&systematic_testing_win_cv);
+#else
+  pthread_cond_signal(&target->turn);
+#endif
+}
 
 #ifdef USE_RUNTIMESTATS
 // holds only size of systematic_testing_thread_t array
@@ -97,7 +145,7 @@ size_t ponyint_systematic_testing_static_alloc_size()
 
 void ponyint_systematic_testing_init(uint64_t random_seed, uint32_t max_threads)
 {
-  #if defined(USE_SCHEDULER_SCALING_PTHREADS)
+#if !defined(PLATFORM_IS_WINDOWS)
   pthread_once(&systematic_testing_mut_once, systematic_testing_mut_init);
 #endif
 
@@ -130,6 +178,11 @@ void ponyint_systematic_testing_init(uint64_t random_seed, uint32_t max_threads)
     mem_needed);
   memset(threads_to_track, 0, mem_needed);
 
+#if !defined(PLATFORM_IS_WINDOWS)
+  for(uint32_t i = 0; i < total_threads; i++)
+    pthread_cond_init(&threads_to_track[i].turn, NULL);
+#endif
+
 #ifdef USE_RUNTIMESTATS
   mem_used += (mem_needed);
   mem_allocated += (ponyint_pool_used_size(mem_needed));
@@ -138,60 +191,35 @@ void ponyint_systematic_testing_init(uint64_t random_seed, uint32_t max_threads)
   active_thread = threads_to_track;
 }
 
-void ponyint_systematic_testing_wait_start(pony_thread_id_t thread, pony_signal_event_t signal)
+void ponyint_systematic_testing_wait_start(int32_t scheduler_index)
 {
+  // Slot 0 is the pinned actor thread; slots 1..N are the scheduler
+  // threads. The ASIO thread is not run under systematic testing, so
+  // it gets no slot.
+  systematic_testing_thread_t* self =
+    &threads_to_track[scheduler_index + 1];
+
   TRACING_SYSTEMATIC_TESTING_WAITING_TO_START_BEGIN();
 
-#if defined(USE_SCHEDULER_SCALING_PTHREADS)
-  pthread_mutex_lock(&systematic_testing_mut);
-#elif defined(PLATFORM_IS_WINDOWS)
-  AcquireSRWLockExclusive(&systematic_testing_win_lock);
-  (void)signal;
-#endif
+  systematic_testing_lock();
 
   atomic_fetch_add_explicit(&waiting_to_start_count, 1, memory_order_relaxed);
 
-  // Park until it is truly this thread's turn. The wait can return without a
-  // matching wake -- `pthread_cond_wait` may return spuriously (POSIX), and a
-  // stray wake is likelier under load -- re-check `active_thread` and re-park
-  // on each wake. Converting this loop to a bare `if` lets a spuriously-woken
-  // thread run out of turn and desync the single-runner handoff, deadlocking
-  // every thread. The yield handoff and the coordinator park below do the same.
-#if defined(PLATFORM_IS_WINDOWS)
-  while(active_thread->tid != thread)
-#else
-  while(0 == pthread_equal(active_thread->tid, thread))
-#endif
-  {
-#if defined(USE_SCHEDULER_SCALING_PTHREADS)
-    ponyint_thread_suspend(signal, &systematic_testing_mut);
-#elif defined(PLATFORM_IS_WINDOWS)
-    SleepConditionVariableSRW(&systematic_testing_win_cv,
-      &systematic_testing_win_lock, INFINITE, 0);
-#else
-    ponyint_thread_suspend(signal);
-#endif
-  }
+  // Park until it is truly this thread's turn. The wait can return
+  // without a matching wake -- re-check `active_thread` and re-park on
+  // each wake. Converting this loop to a bare `if` lets a spuriously-
+  // woken thread run out of turn and desync the single-runner handoff,
+  // deadlocking every thread. The yield handoff and the coordinator
+  // park below do the same.
+  while(active_thread != self)
+    systematic_testing_park(self);
 
   TRACING_SYSTEMATIC_TESTING_WAITING_TO_START_END();
   TRACING_SYSTEMATIC_TESTING_TIMESLICE_BEGIN();
 }
 
-void ponyint_systematic_testing_start(scheduler_t* schedulers, pony_thread_id_t pinned_actor_thread, pony_signal_event_t pinned_actor_signal)
+void ponyint_systematic_testing_start()
 {
-  threads_to_track[0].tid = pinned_actor_thread;
-  threads_to_track[0].sleep_object = pinned_actor_signal;
-  threads_to_track[0].stopped = false;
-
-  // The ASIO thread is not run under systematic testing, so it gets no slot.
-  // Slot 0 is the pinned actor thread; slots 1..N are the scheduler threads.
-  for(uint32_t i = 1; i < total_threads; i++)
-  {
-    threads_to_track[i].tid = schedulers[i-1].tid;
-    threads_to_track[i].sleep_object = schedulers[i-1].sleep_object;
-    threads_to_track[i].stopped = false;
-  }
-
   TRACING_SYSTEMATIC_TESTING_WAITING_TO_START_BEGIN();
 
   while((total_threads - 1) != atomic_load_explicit(&waiting_to_start_count, memory_order_relaxed))
@@ -199,41 +227,23 @@ void ponyint_systematic_testing_start(scheduler_t* schedulers, pony_thread_id_t 
     ponyint_cpu_core_pause(1, 10000002, true);
   }
 
-#if defined(USE_SCHEDULER_SCALING_PTHREADS)
-  pthread_mutex_lock(&systematic_testing_mut);
-#elif defined(PLATFORM_IS_WINDOWS)
-  AcquireSRWLockExclusive(&systematic_testing_win_lock);
-#endif
+  systematic_testing_lock();
 
   // always start the first scheduler thread (slot 1; slot 0 is the pinned actor
-  // thread). The ASIO thread is not run under systematic testing.
+  // thread).
   active_thread = &threads_to_track[1];
 
   TRACING_SYSTEMATIC_TESTING_STARTED();
 
-#if defined(PLATFORM_IS_WINDOWS)
-  WakeAllConditionVariable(&systematic_testing_win_cv);
-#else
-  ponyint_thread_wake(active_thread->tid, active_thread->sleep_object);
-#endif
+  systematic_testing_wake(active_thread);
 
   // Park until it is genuinely this (pinned actor) thread's turn. As in the
-  // yield handoff and `wait_start`, the wait can return without a matching wake
-  // -- `pthread_cond_wait` is allowed to return spuriously (POSIX), and a stray
-  // wake is likelier under load. Returning here while `active_thread` still
-  // points at another thread would let this thread run out of turn and desync
-  // the single-runner handoff, deadlocking every thread. Re-check and re-park.
+  // yield handoff and `wait_start`, the wait can return without a matching
+  // wake. Returning here while `active_thread` still points at another thread
+  // would let this thread run out of turn and desync the single-runner
+  // handoff, deadlocking every thread. Re-check and re-park.
   while(active_thread != &threads_to_track[0])
-  {
-#if defined(USE_SCHEDULER_SCALING_PTHREADS)
-    ponyint_thread_suspend(threads_to_track[0].sleep_object, &systematic_testing_mut);
-#elif defined(PLATFORM_IS_WINDOWS)
-    SleepConditionVariableSRW(&systematic_testing_win_cv,
-      &systematic_testing_win_lock, INFINITE, 0);
-#else
-    ponyint_thread_suspend(threads_to_track[0].sleep_object);
-#endif
-  }
+    systematic_testing_park(&threads_to_track[0]);
 
   TRACING_SYSTEMATIC_TESTING_WAITING_TO_START_END();
   TRACING_SYSTEMATIC_TESTING_TIMESLICE_BEGIN();
@@ -246,31 +256,14 @@ uint64_t ponyint_systematic_testing_clock()
 
 static uint32_t get_next_index()
 {
-  uint32_t active_scheduler_count = pony_active_schedulers();
-  bool pinned_actor_scheduler_suspended = ponyint_get_pinned_actor_scheduler_suspended();
-  uint32_t active_count = active_scheduler_count;
-  // account for pinned actor thread if it is not suspended
-  if(!pinned_actor_scheduler_suspended)
-    active_count = active_count + 1;
+  // Every tracked thread that has not stopped is eligible, passive
+  // ones included: a passive thread does protocol work on its visits,
+  // and its timed pause is a bare yield, always resumable.
+  uint32_t next_index;
 
-  // active_count is the modulo divisor below and must be >= 1. It stays >= 1
-  // because scheduler 0 never suspends under systematic testing: it only
-  // suspends with a noisy actor (a registered ASIO event), which
-  // pony_asio_event_create refuses. That invariant is the real protection; in a
-  // debug build the assert also traps a future break loudly instead of dividing
-  // by zero.
-  pony_assert(active_count > 0);
-
-  uint32_t next_index = -1;
   do
   {
-    next_index = rand() % active_count;
-
-    // skip over pinned actor thread index if it is suspended
-    if(pinned_actor_scheduler_suspended)
-      next_index = next_index + 1;
-
-    pony_assert(next_index < total_threads);
+    next_index = (uint32_t)rand() % total_threads;
   }
   while (threads_to_track[next_index].stopped);
 
@@ -286,6 +279,11 @@ void ponyint_systematic_testing_yield()
 
   if(stopped_threads == total_threads)
   {
+#if !defined(PLATFORM_IS_WINDOWS)
+    for(uint32_t i = 0; i < total_threads; i++)
+      pthread_cond_destroy(&threads_to_track[i].turn);
+#endif
+
     size_t mem_needed = total_threads * sizeof(systematic_testing_thread_t);
     ponyint_pool_free_size(mem_needed, threads_to_track);
 #ifdef USE_RUNTIMESTATS
@@ -299,11 +297,7 @@ void ponyint_systematic_testing_yield()
     logical_clock = 0;
     atomic_store_explicit(&waiting_to_start_count, 0, memory_order_relaxed);
 
-#if defined(USE_SCHEDULER_SCALING_PTHREADS)
-    pthread_mutex_unlock(&systematic_testing_mut);
-#elif defined(PLATFORM_IS_WINDOWS)
-    ReleaseSRWLockExclusive(&systematic_testing_win_lock);
-#endif
+    systematic_testing_unlock();
 
     TRACING_SYSTEMATIC_TESTING_TIMESLICE_END();
     SYSTEMATIC_TESTING_PRINTF("Systematic testing successfully finished!\n");
@@ -317,71 +311,31 @@ void ponyint_systematic_testing_yield()
   systematic_testing_thread_t *next_thread = &threads_to_track[next_index];
   systematic_testing_thread_t *current_thread = active_thread;
 
-#if defined(PLATFORM_IS_WINDOWS)
-  if(active_thread->tid != next_thread->tid)
-#else
-  if(0 == pthread_equal(active_thread->tid, next_thread->tid))
-#endif
+  if(next_thread != current_thread)
   {
     active_thread = next_thread;
 
     TRACING_SYSTEMATIC_TESTING_TIMESLICE_END();
 
-#if defined(PLATFORM_IS_WINDOWS)
-    WakeAllConditionVariable(&systematic_testing_win_cv);
-#else
-    ponyint_thread_wake(active_thread->tid, active_thread->sleep_object);
-#endif
+    systematic_testing_wake(next_thread);
 
     if(!current_thread->stopped)
     {
       // Park until it is genuinely this thread's turn again. The underlying
-      // wait can return without a matching wake -- pthread_cond_wait is allowed
-      // to wake spuriously (POSIX), and a stray wake is more likely under load.
-      // Returning here while active_thread still points at another thread would
-      // let this thread run out of turn and desync the single-runner handoff,
-      // deadlocking every thread. Re-check and re-park, as wait_start does.
+      // wait can return without a matching wake. Returning here while
+      // active_thread still points at another thread would let this thread
+      // run out of turn and desync the single-runner handoff, deadlocking
+      // every thread. Re-check and re-park, as wait_start does.
       while(active_thread != current_thread)
-      {
-#if defined(USE_SCHEDULER_SCALING_PTHREADS)
-        ponyint_thread_suspend(current_thread->sleep_object, &systematic_testing_mut);
-#elif defined(PLATFORM_IS_WINDOWS)
-        SleepConditionVariableSRW(&systematic_testing_win_cv,
-          &systematic_testing_win_lock, INFINITE, 0);
-#else
-        ponyint_thread_suspend(current_thread->sleep_object);
-#endif
-      }
+        systematic_testing_park(current_thread);
+
       TRACING_SYSTEMATIC_TESTING_TIMESLICE_BEGIN();
     }
     else
     {
-#if defined(USE_SCHEDULER_SCALING_PTHREADS)
-      pthread_mutex_unlock(&systematic_testing_mut);
-#elif defined(PLATFORM_IS_WINDOWS)
-      ReleaseSRWLockExclusive(&systematic_testing_win_lock);
-#endif
+      systematic_testing_unlock();
     }
   }
-}
-
-#if defined(USE_SCHEDULER_SCALING_PTHREADS)
-void ponyint_systematic_testing_suspend(pthread_mutex_t* mut)
-#else
-void ponyint_systematic_testing_suspend()
-#endif
-{
-#if defined(USE_SCHEDULER_SCALING_PTHREADS)
-  // unlock mutex as `pthread_suspend` would before suspend
-  pthread_mutex_unlock(mut);
-#endif
-
-  ponyint_systematic_testing_yield();
-
-#if defined(USE_SCHEDULER_SCALING_PTHREADS)
-  // lock mutex as `pthread_suspend` would after resume
-  pthread_mutex_lock(mut);
-#endif
 }
 
 void ponyint_systematic_testing_stop_thread()

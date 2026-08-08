@@ -518,9 +518,9 @@ def _decode(raw):
 
 def lldb_argv(lldb, engine_argv):
     """Wrap the engine argv under `lldb --batch` so a crash leaves a backtrace.
-    POSIX passes SIGINT/SIGUSR2 through without stopping (the runtime uses them for
-    shutdown/scheduler wakeups); everything else stops the process, which is the
-    crash we want to capture."""
+    POSIX passes SIGINT/SIGUSR2 through without stopping, mirroring the test
+    harness's pass-through list (`.ci-scripts/test-debugger.sh`); everything else
+    stops the process, which is the crash we want to capture."""
     on_crash = ["--one-line-on-crash", "frame variable",
                 "--one-line-on-crash", "bt all",
                 "--one-line-on-crash", "quit 1"]

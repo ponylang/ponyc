@@ -22,6 +22,10 @@ void ponyint_cpu_core_pause(uint64_t tsc, uint64_t tsc2, bool yield);
 
 void ponyint_cpu_relax();
 
+/// Sleep for at least ns nanoseconds; platform timer granularity can
+/// stretch the actual pause well past the request.
+void ponyint_cpu_sleep_ns(uint64_t ns);
+
 uint64_t ponyint_cpu_tick();
 
 uint64_t ponyint_cpu_tick_diff(uint64_t supposedly_earlier,

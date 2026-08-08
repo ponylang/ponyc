@@ -15,12 +15,13 @@
 # is on the list even though the runtime sets it to SIG_IGN: a debugger stops on
 # an ignored signal too, seeing it before the process's disposition applies.
 #
-# SIGTERM is on the list for a different reason: nothing in the runtime raises
-# it, the tests do. CI exports PONY_TEST_DEBUGGER and runs `ctest -L ci-core`,
-# which puts both the stdlib suite and every full-program test under the
-# debugger. A test that raises a signal missing from these lists does not fail
-# outright — the debugger stops on the first delivery and exits, killing the
-# whole leg — so a test that raises a new signal must add it here.
+# SIGTERM and SIGUSR2 are on the list for a different reason: nothing in the
+# runtime raises them, the tests do. CI exports PONY_TEST_DEBUGGER and runs
+# `ctest -L ci-core`, which puts both the stdlib suite and every full-program
+# test under the debugger. A test that raises a signal missing from these
+# lists does not fail outright — the debugger stops on the first delivery and
+# exits, killing the whole leg — so a test that raises a new signal must add
+# it here.
 #
 # The Windows counterpart, test-debugger.ps1, forwards no signals: Windows
 # raise() calls the handler directly instead of raising an OS signal the

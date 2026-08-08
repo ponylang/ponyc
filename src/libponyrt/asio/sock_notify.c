@@ -362,6 +362,15 @@ DECLARE_THREAD_FN(ponyint_asio_backend_dispatch)
   asio_backend_t* b = (asio_backend_t*)arg;
   pony_assert(b != NULL);
 
+  // Whether held memory has been returned since the last event, and how
+  // much quiet has accumulated toward returning it; see
+  // ASIO_RETURN_IDLE_WAIT_MS. Quiet accumulates across expired waits
+  // because the stdin-pipe poll bounds waits at STDIN_POLL_MS: one such
+  // poll expiring empty is a lull, not the half second of quiet that
+  // means this thread has gone idle.
+  bool returned_idle = false;
+  DWORD quiet_ms = 0;
+
   asio_event_t* stdin_event = NULL;
   HANDLE stdin_handle = GetStdHandle(STD_INPUT_HANDLE);
   HANDLE stdin_wait = NULL;  // thread-pool wait registration for console stdin
@@ -391,6 +400,14 @@ DECLARE_THREAD_FN(ponyint_asio_backend_dispatch)
     if((stdin_event != NULL) && (stdin_kind == STDIN_PIPE) && !stdin_reading)
       wait_ms = STDIN_POLL_MS;
 
+    if(!returned_idle && (wait_ms == INFINITE))
+      wait_ms = ASIO_RETURN_IDLE_WAIT_MS;
+
+    // Deliver pending frees to their owners before blocking; this
+    // thread registers no scheduler, so its own mail waits for the
+    // drain below on its next wake.
+    ponyint_pool_suspend_flush();
+
     ULONG count = 0;
     BOOL ok = GetQueuedCompletionStatusEx(b->port, entries, MAX_EVENTS, &count,
       wait_ms, TRUE);
@@ -402,11 +419,35 @@ DECLARE_THREAD_FN(ponyint_asio_backend_dispatch)
       ok = TRUE;
     }
 
+    // This thread is running again: reclaim what arrived. Drain after the
+    // last-error check above, never before it: draining calls into the OS,
+    // which overwrites the thread's last error.
+    ponyint_pool_drain();
+
     if(!ok)
     {
       // WAIT_IO_COMPLETION: an APC (e.g. a timer fire) ran during the alertable
       // wait -- just loop. Any other error: loop and re-wait.
       continue;
+    }
+
+    if(count > 0)
+    {
+      returned_idle = false;
+      quiet_ms = 0;
+    } else if(!returned_idle) {
+      // The wait expired with no completions. Once half a second of quiet
+      // has accumulated, this thread has gone idle: hand held memory back
+      // — cached foreign blocks sent home, own dirty pages decommitted,
+      // the oversized stash unmapped — and wait unbounded from here (or
+      // at the stdin poll cadence while a pipe is being watched).
+      quiet_ms += wait_ms;
+
+      if(quiet_ms >= ASIO_RETURN_IDLE_WAIT_MS)
+      {
+        ponyint_pool_return_idle();
+        returned_idle = true;
+      }
     }
 
     // Socket events whose REMOVE packet we saw this batch. We defer the
