@@ -103,6 +103,26 @@ class \nodoc\ iso _TestHandleableSignalAccepts is UnitTest
       _assert_valid(h, Sig.info())
       _assert_valid(h, Sig.usr1())
       _assert_valid(h, Sig.sys())
+    elseif haiku then
+      _assert_valid(h, Sig.hup())
+      _assert_valid(h, Sig.int())
+      _assert_valid(h, Sig.quit())
+      _assert_valid(h, Sig.pipe())
+      _assert_valid(h, Sig.alrm())
+      _assert_valid(h, Sig.term())
+      _assert_valid(h, Sig.urg())
+      _assert_valid(h, Sig.tstp())
+      _assert_valid(h, Sig.cont())
+      _assert_valid(h, Sig.chld())
+      _assert_valid(h, Sig.ttin())
+      _assert_valid(h, Sig.ttou())
+      _assert_valid(h, Sig.xcpu())
+      _assert_valid(h, Sig.xfsz())
+      _assert_valid(h, Sig.vtalrm())
+      _assert_valid(h, Sig.prof())
+      _assert_valid(h, Sig.winch())
+      _assert_valid(h, Sig.usr1())
+      _assert_valid(h, Sig.sys())
     elseif windows then
       _assert_valid(h, Sig.int())
       _assert_valid(h, Sig.term())
@@ -122,7 +142,7 @@ class \nodoc\ iso _TestHandleableSignalRejectsFatal is UnitTest
   fun name(): String => "signals/HandleableSignal rejects fatal"
 
   fun apply(h: TestHelper) =>
-    ifdef linux or bsd or osx then
+    ifdef linux or bsd or osx or haiku then
       _assert_invalid(h, Sig.ill())
       _assert_invalid(h, Sig.trap())
       _assert_invalid(h, Sig.abrt())
@@ -154,7 +174,7 @@ class \nodoc\ iso _TestHandleableSignalRejectsUncatchable is UnitTest
   fun name(): String => "signals/HandleableSignal rejects uncatchable"
 
   fun apply(h: TestHelper) =>
-    ifdef linux or bsd or osx then
+    ifdef linux or bsd or osx or haiku then
       _assert_invalid(h, Sig.kill())
       _assert_invalid(h, Sig.stop())
     elseif windows then
@@ -201,7 +221,7 @@ class \nodoc\ iso _TestHandleableSignalRejectsReserved is UnitTest
   made the old system's SIGUSR2 handlers silently never fire, and the
   whitelist now refuses the number so the failure is visible instead. Sig.usr2()
   is a compile error on these builds, so the number is written out: 12 on
-  Linux, 31 on BSD.
+  Linux, 31 on BSD, 19 on Haiku.
   """
   fun name(): String => "signals/HandleableSignal rejects reserved"
 
@@ -211,6 +231,8 @@ class \nodoc\ iso _TestHandleableSignalRejectsReserved is UnitTest
         _assert_invalid(h, 12)
       elseif bsd then
         _assert_invalid(h, 31)
+      elseif haiku then
+        _assert_invalid(h, 19)
       end
     end
 
@@ -251,6 +273,14 @@ class \nodoc\ iso _TestHandleableSignalRTBoundaries is UnitTest
     elseif osx then
       // The RT range is bsd-only; it must not leak into the osx whitelist.
       _assert_invalid(h, 65)
+    elseif haiku then
+      try
+        _assert_valid(h, Sig.rt(0)?)
+        _assert_valid(h, Sig.rt(7)?)
+      else
+        h.fail("in-range Sig.rt errored")
+      end
+      _assert_invalid(h, 8)
     end
 
   fun _assert_valid(h: TestHelper, sig: U32) =>
