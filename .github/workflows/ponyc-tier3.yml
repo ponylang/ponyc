@@ -387,6 +387,7 @@ jobs:
           set -e
           cd /build/ponyc
           df -h
+          export PONY_FULL_PROGRAM_TIMEOUT=120
           cmake --preset debug
           cmake --build --preset debug
           cmake --build --preset debug --target pony-doc-tests pony-lint-tests pony-lsp-tests

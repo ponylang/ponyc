@@ -28,18 +28,18 @@ primitive Scheduler
     """
     @pony_min_schedulers()
 
-  fun sleeping_schedulers(auth: SchedulerInfoAuth): U32 =>
+  fun suspended_schedulers(auth: SchedulerInfoAuth): U32 =>
     """
-    Returns the number of schedulers that are currently sleeping and not
-    available run actors. Schedulers are put to sleep if there isn't enough
-    work to keep all of the possible schedulers busy.
+    Returns the number of schedulers that have suspended and are not
+    available to run actors. A scheduler suspends when there isn't enough
+    work to keep all of the schedulers busy.
     """
     @pony_schedulers() - @pony_active_schedulers()
 
   fun scaling_is_active(auth: SchedulerInfoAuth): Bool =>
     """
-    Returns true is scheduler scaling is on and the number of active schedulers
-    can change while the program is running based on load.
+    Returns true if scheduler scaling is on and the number of active schedulers
+    can change with load while the program is running.
     """
     schedulers(auth) > minimum_schedulers(auth)
 
