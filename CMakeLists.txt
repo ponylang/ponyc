@@ -142,11 +142,6 @@ if(PONY_USE_RUNTIMESTATS)
     add_compile_options(-DUSE_RUNTIMESTATS)
 endif()
 
-if(PONY_USE_SCHEDULER_SCALING_PTHREADS)
-    set(PONY_OUTPUT_SUFFIX "${PONY_OUTPUT_SUFFIX}-scheduler_scaling_pthreads")
-    add_compile_options(-DUSE_SCHEDULER_SCALING_PTHREADS)
-endif()
-
 if(PONY_USE_SYSTEMATIC_TESTING)
     set(PONY_OUTPUT_SUFFIX "${PONY_OUTPUT_SUFFIX}-systematic_testing")
     add_compile_options(-DUSE_SYSTEMATIC_TESTING)
@@ -162,6 +157,11 @@ if(PONY_USE_POOL_MEMALIGN)
     add_compile_options(-DUSE_POOL_MEMALIGN)
 endif()
 
+if(PONY_USE_POOL_CLASSIC)
+    set(PONY_OUTPUT_SUFFIX "${PONY_OUTPUT_SUFFIX}-pool_classic")
+    add_compile_options(-DUSE_POOL_CLASSIC)
+endif()
+
 if(PONY_USE_POOL_RETAIN)
     set(PONY_OUTPUT_SUFFIX "${PONY_OUTPUT_SUFFIX}-pool_retain")
     add_compile_options(-DUSE_POOL_RETAIN)
@@ -170,6 +170,15 @@ endif()
 if(PONY_USE_RUNTIME_TRACING)
     set(PONY_OUTPUT_SUFFIX "${PONY_OUTPUT_SUFFIX}-runtime_tracing")
     add_compile_options(-DUSE_RUNTIME_TRACING)
+endif()
+
+# Keep the runtime's asserts -- pony_assert and the arena allocator's integrity
+# checks -- compiled in even in a release build, where NDEBUG would otherwise
+# drop them (see src/common/ponyassert.h). Not a use= directive; an internal
+# knob the weekly checks flip with -DPONY_ALWAYS_ASSERT=ON to run the arena's
+# checks against optimized code.
+if(PONY_ALWAYS_ASSERT)
+    add_compile_options(-DPONY_ALWAYS_ASSERT)
 endif()
 
 # The build's output directory, a sibling of the CMake binary directory. CMake
@@ -617,7 +626,6 @@ else()
 endif()
 
 if(${CMAKE_HOST_SYSTEM_NAME} MATCHES "Darwin")
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DUSE_SCHEDULER_SCALING_PTHREADS")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -stdlib=libc++")
 endif()
 

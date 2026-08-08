@@ -90,6 +90,13 @@
   "  --ponygcfactor   After GC, an actor will next be GC'd at a heap memory\n" \
   "                   usage N times its current value. This is a floating\n" \
   "                   point value. Defaults to 2.0.\n" \
+  "  --ponymemoryprofile\n" \
+  "                   Trade the allocator's resident memory against throughput\n" \
+  "                   on a scale from 1 to 10: 1 returns freed memory quickly\n" \
+  "                   for the smallest footprint, 10 holds it for the most\n" \
+  "                   throughput. Defaults to 3: the scale has little room below\n" \
+  "                   it for less memory and much more above it for throughput,\n" \
+  "                   so the balanced default sits low on it.\n" \
   "  --ponynoyield    Do not yield the CPU when no work is available.\n" \
   "  --ponynoblock    Do not send block messages to the cycle detector.\n" \
   "                   Turning this on with disable the cycle detector.\n" \

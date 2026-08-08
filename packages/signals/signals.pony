@@ -23,9 +23,7 @@ Signal numbers must be validated through `MakeHandleableSignal` before they can
 be used with `SignalHandler`. Validation is a per-platform whitelist of
 signals that can be meaningfully handled via the ASIO mechanism: it rejects
 fatal signals (SIGILL, SIGTRAP, SIGABRT, SIGFPE, SIGBUS, SIGSEGV),
-uncatchable signals (SIGKILL, SIGSTOP), SIGUSR2 (reserved by the Pony
-runtime for scheduler sleep/wake, so a handler could never fire), and any
-number outside the whitelist.
+uncatchable signals (SIGKILL, SIGSTOP), and any number outside the whitelist.
 
 ## Example program
 

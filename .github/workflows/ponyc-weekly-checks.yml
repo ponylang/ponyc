@@ -60,7 +60,10 @@ jobs:
             directives: pool_memalign
           - image: ghcr.io/ponylang/ponyc-ci-ubuntu26.04-builder:20260425
             debugger: lldb
-            directives: pool_retain
+            directives: pool_classic
+          - image: ghcr.io/ponylang/ponyc-ci-ubuntu26.04-builder:20260425
+            debugger: lldb
+            directives: pool_classic,pool_retain
           - image: ghcr.io/ponylang/ponyc-ci-ubuntu26.04-builder:20260425
             debugger: lldb
             directives: runtimestats
@@ -130,10 +133,8 @@ jobs:
   # the Linux directive checks pass -- the slower Windows runner isn't spent on a
   # directive that's already broken on Linux. That dependency also carries the
   # no-changes gate for free: when there are no changes use_directives is skipped,
-  # which skips this job too, so it needs no check-for-changes `if` of its own. The
-  # matrix has one entry today (runtime_tracing, the only use= option with
-  # Windows-specific runtime code); add rows as more Windows-supported options
-  # become worth checking here.
+  # which skips this job too, so it needs no check-for-changes `if` of its own. Add
+  # rows as more Windows-supported options become worth checking here.
   use_directives_windows:
     needs: use_directives
     runs-on: windows-2025-vs2026
@@ -148,6 +149,10 @@ jobs:
           # runtime_tracing's format specifiers for the runtimestats-gated fields
           # only compile in this combined build, so cover it explicitly.
           - directives: runtime_tracing,runtimestats
+          # Windows defaults to the arena allocator, so this row builds the
+          # classic pool there, as PonyUses.cmake requires for every entry in
+          # its Windows allowlist.
+          - directives: pool_classic
     name: 'use ${{ matrix.directives }} (Windows)'
     steps:
       - name: Checkout
@@ -276,6 +281,61 @@ jobs:
         run: python3 .ci-scripts/libs-cache/resolve_libs_cache.py --branch-cache --image "$LIBS_IMAGE" --tag "$LIBS_TAG" -- cmake -DJOBS=4 -P lib/build-libs.cmake
       - name: Determinism smoke test
         run: python3 .ci-scripts/systematic-testing/determinism_smoke.py
+      - name: Send alert on failure
+        if: ${{ failure() }}
+        uses: zulip/github-actions-zulip/send-message@bd8ec52de371d139ae8313661b7d8318c19266aa
+        with:
+          api-key: ${{ secrets.ZULIP_SCHEDULED_JOB_FAILURE_API_KEY }}
+          email: ${{ secrets.ZULIP_SCHEDULED_JOB_FAILURE_EMAIL }}
+          organization-url: 'https://ponylang.zulipchat.com/'
+          to: notifications
+          type: stream
+          topic: ${{ github.repository }} scheduled job failure
+          content: ${{ github.server_url}}/${{ github.repository }}/actions/runs/${{ github.run_id }} failed.
+
+  always_assert:
+    needs: check-for-changes
+    if: needs.check-for-changes.outputs.has-changes == 'true'
+    runs-on: ubuntu-latest
+
+    # Builds the runtime optimized (release) with its asserts and the arena
+    # allocator's integrity checks kept in, via -DPONY_ALWAYS_ASSERT=ON. A plain
+    # release compiles those checks out; the debug suites run them but
+    # unoptimized. This is the only lane that runs them against optimized code,
+    # where the compiler can expose ordering or undefined behavior the checks
+    # then catch.
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - image: ghcr.io/ponylang/ponyc-ci-ubuntu26.04-builder:20260425
+            debugger: lldb
+
+    name: release with always-assert
+    container:
+      image: ${{ matrix.image }}
+      options: --user pony --cap-add=SYS_PTRACE --security-opt seccomp=unconfined
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6.0.2
+        with:
+          ref: ${{ inputs.ref || github.sha }}
+      - name: Build libs
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          LIBS_IMAGE: ${{ matrix.image }}
+          LIBS_TAG: ${{ hashFiles('lib/CMakePresets.json', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/build-libs.cmake', 'lib/llvm/patches/*') }}
+        run: python3 .ci-scripts/libs-cache/resolve_libs_cache.py --branch-cache --image "$LIBS_IMAGE" --tag "$LIBS_TAG" -- cmake -DJOBS=4 -P lib/build-libs.cmake
+      - name: Build Release Runtime with always-assert
+        run: |
+          cmake --preset x86-64-release -DPONY_ALWAYS_ASSERT=ON
+          cmake --build --preset x86-64-release
+      - name: Test with Release Runtime
+        run: |
+          PONY_TEST_DEBUGGER="$(.ci-scripts/test-debugger.sh ${{ matrix.debugger }})"
+          export PONY_TEST_DEBUGGER
+          export PONY_FULL_PROGRAM_TIMEOUT=120
+          ctest --preset x86-64-release -L ci-core
       - name: Send alert on failure
         if: ${{ failure() }}
         uses: zulip/github-actions-zulip/send-message@bd8ec52de371d139ae8313661b7d8318c19266aa

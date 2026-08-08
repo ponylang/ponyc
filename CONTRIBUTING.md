@@ -32,8 +32,6 @@ What we won't do is teach an AI. If a PR's open questions can only be resolved b
 
 You don't have to disclose AI use, though saying so up front often makes review faster. What you do have to do is stand behind the code. If you can't answer questions about why your PR looks the way it does, it isn't ready.
 
-If you or your AI assistant are using an Anthropic model, use `claude-opus-4-6` for writing comments, documentation, and other prose. We've found that prose quality from Anthropic models started dropping with Opus 4.7 and has gotten worse with each subsequent release.
-
 ### Junk PRs
 
 This isn't new policy. Long before AI tools were any good, low-effort PRs that wasted maintainer time could get a contributor blocked. That hasn't changed. What's changed is how easy it has become to produce a junk PR. One won't get you blocked. A pattern of them will. How many makes a pattern is our call.
