@@ -3,6 +3,7 @@
 #include "scheduler.h"
 #include "cpu.h"
 #include "../mem/heap.h"
+#include "../mem/pool.h"
 #include "../actor/actor.h"
 #include "../gc/cycle.h"
 #include "../lang/process.h"
@@ -34,6 +35,7 @@ typedef struct options_t
   uint32_t stats_interval;
   bool version;
   bool ponyhelp;
+  uint32_t memory_profile;
 #if defined(USE_SYSTEMATIC_TESTING)
   uint64_t systematic_testing_seed;
 #endif
@@ -77,6 +79,7 @@ enum
   OPT_PINASIO,
   OPT_PINPAT,
   OPT_STATSINTERVAL,
+  OPT_MEMORYPROFILE,
   OPT_VERSION,
 #if defined(USE_SYSTEMATIC_TESTING)
   OPT_SYSTEMATIC_TESTING_SEED,
@@ -109,6 +112,7 @@ static opt_arg_t args[] =
   {"ponypinasio", 0, OPT_ARG_NONE, OPT_PINASIO},
   {"ponypinpinnedactorthread", 0, OPT_ARG_NONE, OPT_PINPAT},
   {"ponyprintstatsinterval", 0, OPT_ARG_REQUIRED, OPT_STATSINTERVAL},
+  {"ponymemoryprofile", 0, OPT_ARG_REQUIRED, OPT_MEMORYPROFILE},
   {"ponyversion", 0, OPT_ARG_NONE, OPT_VERSION},
 #if defined(USE_SYSTEMATIC_TESTING)
   {"ponysystematictestingseed", 0, OPT_ARG_REQUIRED, OPT_SYSTEMATIC_TESTING_SEED},
@@ -140,9 +144,15 @@ static const char* arg_name(const int id) {
   return args[id].long_opt;
 }
 
+// The exit code for a rejected runtime option. A negative code is not the same
+// value on every platform: a POSIX exit status carries only the low 8 bits, so
+// -1 arrives there as 255, while a Windows exit code carries all 32 bits and -1
+// arrives as 4294967295.
+#define BAD_OPTION_EXIT_CODE 255
+
 static void err_out(int id, const char* msg) {
   printf("--%s %s\n", arg_name(id), msg);
-  exit(255);
+  exit(BAD_OPTION_EXIT_CODE);
 }
 
 static int parse_uint(uint32_t* target, int min, const char *value) {
@@ -238,6 +248,12 @@ static int parse_opts(int argc, char** argv, options_t* opt)
       case OPT_PINASIO: opt->pinasio = true; break;
       case OPT_PINPAT: opt->pinpat = true; break;
       case OPT_STATSINTERVAL: if(parse_uint(&opt->stats_interval, 1, s.arg_val)) err_out(id, "can't be less than 1 second"); break;
+      case OPT_MEMORYPROFILE:
+        if(parse_uint(&opt->memory_profile, 1, s.arg_val))
+          err_out(id, "must be between 1 and 10");
+        if(opt->memory_profile > 10)
+          err_out(id, "must be between 1 and 10");
+        break;
       case OPT_VERSION: opt->version = true; break;
 #if defined(USE_SYSTEMATIC_TESTING)
       case OPT_SYSTEMATIC_TESTING_SEED: if(parse_uint64(&opt->systematic_testing_seed, 1, s.arg_val)) err_out(id, "can't be less than 1"); break;
@@ -256,11 +272,11 @@ static int parse_opts(int argc, char** argv, options_t* opt)
 
       case -2:
         // an error message has been printed by ponyint_opt_next
-        exit(-1);
+        exit(BAD_OPTION_EXIT_CODE);
         break;
 
       default:
-        exit(-1);
+        exit(BAD_OPTION_EXIT_CODE);
         break;
     }
   }
@@ -270,7 +286,7 @@ static int parse_opts(int argc, char** argv, options_t* opt)
     if (minthreads_set)
     {
       printf("--%s & --%s are mutually exclusive\n", arg_name(OPT_MINTHREADS), arg_name(OPT_NOSCALE));
-      exit(-1);
+      exit(BAD_OPTION_EXIT_CODE);
     }
     opt->min_threads = opt->threads;
   }
@@ -334,6 +350,21 @@ PONY_API int pony_init(int argc, char** argv)
     exit(0);
   }
 
+  // Apply the memory-profile dial (1-10), after both the override and the
+  // command line have set it; the command line wins because parse_opts runs
+  // after the override. 0 means neither set it, so the allocator keeps its
+  // rung-3 default. The command line rejected an out-of-range value at parse;
+  // this rejects one set through RuntimeOptions.
+  if(opt.memory_profile != 0)
+  {
+    if(opt.memory_profile > 10)
+    {
+      printf("ponymemoryprofile must be between 1 and 10\n");
+      exit(BAD_OPTION_EXIT_CODE);
+    }
+    ponyint_pool_set_memory_profile(opt.memory_profile);
+  }
+
   ponyint_cpu_init();
 
   if (opt.threads == 0) {
@@ -342,13 +373,13 @@ PONY_API int pony_init(int argc, char** argv)
   else if (opt.threads > ponyint_cpu_count())
   {
     printf("Can't have --%s > physical cores, the number of threads you'd be running with (%u > %u)\n", arg_name(OPT_MAXTHREADS), opt.threads, ponyint_cpu_count());
-    exit(-1);
+    exit(BAD_OPTION_EXIT_CODE);
   }
 
   if (opt.min_threads > opt.threads)
   {
     printf("Can't have --%s > --%s (%u > %u)\n", arg_name(OPT_MINTHREADS), arg_name(OPT_MAXTHREADS), opt.min_threads, opt.threads);
-    exit(-1);
+    exit(BAD_OPTION_EXIT_CODE);
   }
 
 #ifndef USE_RUNTIMESTATS

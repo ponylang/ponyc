@@ -246,52 +246,6 @@ pony_thread_id_t ponyint_thread_self()
 #endif
 }
 
-#if defined(USE_SCHEDULER_SCALING_PTHREADS)
-void ponyint_thread_suspend(pony_signal_event_t signal, pthread_mutex_t* mut)
-#else
-void ponyint_thread_suspend(pony_signal_event_t signal)
-#endif
-{
-#ifdef PLATFORM_IS_WINDOWS
-  // Wait for the signal, but stay in an "alertable" state so that APCs can run.
-  // Things like socket I/O depend on being able to run APCs on the thread.
-  // If we wake due to an APC (instead of the signal), wait some more.
-  while (WaitForSingleObjectEx(signal, INFINITE, true) == WAIT_IO_COMPLETION);
-
-#elif defined(USE_SCHEDULER_SCALING_PTHREADS)
-  int ret;
-
-  // wait for condition variable (will sleep and release mutex)
-  ret = pthread_cond_wait(signal, mut);
-  // TODO: What to do if `ret` is an unrecoverable error?
-  (void) ret;
-#else
-  int sig;
-  sigset_t sigmask;
-  sigemptyset(&sigmask);         /* zero out all bits */
-  sigaddset(&sigmask, signal);   /* unblock desired signal */
-
-  // sleep waiting for signal to wake up again
-  sigwait(&sigmask, &sig);
-#endif
-}
-
-int ponyint_thread_wake(pony_thread_id_t thread, pony_signal_event_t signal)
-{
-  int ret;
-#if defined(PLATFORM_IS_WINDOWS)
-  (void) thread;
-  ret = !SetEvent(signal);
-#elif defined(USE_SCHEDULER_SCALING_PTHREADS)
-  (void) thread;
-  // signal condition variable
-  ret = pthread_cond_signal(signal);
-#else
-  ret = pthread_kill(thread, signal);
-#endif
-  return ret;
-}
-
 #ifdef PLATFORM_IS_ARM32
 uint32_t __pony_popcount(uint32_t x) {
   return (uint32_t)__builtin_popcount(x);

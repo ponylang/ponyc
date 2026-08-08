@@ -68,11 +68,11 @@ typedef struct signal_subscribers_t {
   // The disposition in place before the first subscriber replaced it, captured
   // by sigaction's oldact at install and put back on last-subscriber teardown.
   // Restoring this instead of SIG_DFL returns a signal the runtime had
-  // configured — SIGPIPE to SIG_IGN, the scheduler sleep/wake signal to a no-op
-  // handler — to that configuration, rather than leaving it to terminate the
-  // process on the next delivery. Written by the first subscriber before it
-  // publishes registered == 1 and read by the last canceler after it claims
-  // registered, so the registered protocol orders the two with no extra sync.
+  // configured — SIGPIPE to SIG_IGN — to that configuration, rather than
+  // leaving it to terminate the process on the next delivery. Written by the
+  // first subscriber before it publishes registered == 1 and read by the last
+  // canceler after it claims registered, so the registered protocol orders
+  // the two with no extra sync.
   struct sigaction saved_action;
 } signal_subscribers_t;
 
@@ -136,13 +136,6 @@ static void signal_handler(int sig)
 
   eventfd_write(fd, 1);
 }
-
-#if !defined(USE_SCHEDULER_SCALING_PTHREADS)
-static void empty_signal_handler(int sig)
-{
-  (void) sig;
-}
-#endif
 
 static void handle_queue(asio_backend_t* b)
 {
@@ -310,19 +303,6 @@ asio_backend_t* ponyint_asio_backend_init()
     return NULL;
   }
 
-#if !defined(USE_SCHEDULER_SCALING_PTHREADS)
-  // Make sure we ignore signals related to scheduler sleeping/waking
-  // as the default for those signals is termination
-  struct sigaction new_action;
-  new_action.sa_handler = empty_signal_handler;
-  sigemptyset (&new_action.sa_mask);
-
-  // ask to restart interrupted syscalls to match `signal` behavior
-  new_action.sa_flags = SA_RESTART;
-
-  sigaction(PONY_SCHED_SLEEP_WAKE_SIGNAL, &new_action, NULL);
-#endif
-
   return b;
 }
 
@@ -404,20 +384,35 @@ DECLARE_THREAD_FN(ponyint_asio_backend_dispatch)
   asio_backend_t* b = arg;
   pony_assert(b != NULL);
 
-#if !defined(USE_SCHEDULER_SCALING_PTHREADS)
-  // Make sure we block signals related to scheduler sleeping/waking
-  // so they queue up to avoid race conditions
-  sigset_t set;
-  sigemptyset(&set);
-  sigaddset(&set, PONY_SCHED_SLEEP_WAKE_SIGNAL);
-  pthread_sigmask(SIG_BLOCK, &set, NULL);
-#endif
+  // Whether held memory has been returned since the last event; see
+  // ASIO_RETURN_IDLE_WAIT_MS.
+  bool returned_idle = false;
 
   while(!atomic_load_explicit(&b->terminate, memory_order_acquire))
   {
-    int wait_time = -1;
+    int wait_time = returned_idle ? -1 : ASIO_RETURN_IDLE_WAIT_MS;
+
+    // Deliver pending frees to their owners before blocking; this
+    // thread registers no scheduler, so its own mail waits for the
+    // drain below on its next wake.
+    ponyint_pool_suspend_flush();
 
     int event_cnt = epoll_wait(b->epfd, b->events, MAX_EVENTS, wait_time);
+
+    // This thread is running again: reclaim what arrived.
+    ponyint_pool_drain();
+
+    if(event_cnt > 0)
+    {
+      returned_idle = false;
+    } else if((event_cnt == 0) && !returned_idle) {
+      // The bounded wait expired with no events: this thread has gone
+      // quiet, so hand held memory back — cached foreign blocks sent
+      // home, own dirty pages decommitted, the oversized stash unmapped
+      // — and wait unbounded from here.
+      ponyint_pool_return_idle();
+      returned_idle = true;
+    }
 
     for(int i = 0; i < event_cnt; i++)
     {

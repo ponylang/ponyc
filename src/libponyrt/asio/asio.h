@@ -23,6 +23,14 @@
 
 #define MAX_EVENTS 64
 
+/// The backend thread returns held memory once it has gone quiet: until it
+/// has, it waits with this timeout, and a wait that expires with no events
+/// is the signal to return. After returning it waits unbounded, so an idle
+/// thread wakes for nothing; any event arms the bounded wait again. A busy
+/// thread never returns — its waits produce events before they expire — and
+/// keeps its warm cache.
+#define ASIO_RETURN_IDLE_WAIT_MS 500
+
 PONY_EXTERN_C_BEGIN
 
 enum
