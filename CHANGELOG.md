@@ -7,6 +7,7 @@ All notable changes to the Pony compiler and standard library will be documented
 ### Fixed
 
 - Fix potential use-after-free on Windows during socket teardown ([PR #5805](https://github.com/ponylang/ponyc/pull/5805))
+- Fix pony-lint running out of memory on repos with many packages ([PR #5809](https://github.com/ponylang/ponyc/pull/5809))
 
 ### Added
 
@@ -16,7 +17,6 @@ All notable changes to the Pony compiler and standard library will be documented
 
 - Replace the runtime allocator ([PR #5768](https://github.com/ponylang/ponyc/pull/5768))
 - Change how scheduler scaling works ([PR #5768](https://github.com/ponylang/ponyc/pull/5768))
-
 
 ## [0.68.0] - 2026-08-01
 
