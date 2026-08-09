@@ -474,6 +474,10 @@ actor \nodoc\ Main is TestList
     test(_TestTypeParamFormatIsMisaligned)
     test(_TestTypeParamFormatMultipleViolations)
 
+    // ExprNodeScanner tests (end-to-end via Linter.run)
+    test(_TestExprNodeScannerFindsMatch)
+    test(_TestExprNodeScannerSkipsPassExpr)
+
     // ExhaustiveMatch tests
     test(_TestExhaustiveMatchFlagged)
     test(_TestExhaustiveMatchAnnotated)
