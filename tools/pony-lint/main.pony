@@ -14,8 +14,36 @@ actor Main
   """
   CLI entry point for pony-lint. Parses command-line arguments, loads
   configuration, builds the rule registry, and runs the linter.
+
+  The AST phase processes one package per behavior call so GC can collect
+  each `Program val` (and its C-level AST) before the next compilation.
+  Without this, repos with many packages (e.g., 35 example programs each
+  importing the same library) accumulate all ASTs in memory at once.
   """
+  let _env: Env
+  var _linter: Linter
+  var _all_diags: Array[Diagnostic val]
+  var _has_error: Bool
+  let _remaining: Array[_PackageInfo val]
+  var _file_info: Map[String, _FileInfo val] val
+
   new create(env: Env) =>
+    _env = env
+    // Placeholders — overwritten below on the happy path, needed for
+    // early-return branches where the actor fields must be initialized.
+    _linter =
+      Linter(
+        RuleRegistry(
+          recover val Array[TextRule val] end,
+          recover val Array[ASTRule val] end,
+          LintConfig.default()),
+        FileAuth(env.root),
+        "")
+    _all_diags = Array[Diagnostic val]
+    _has_error = false
+    _remaining = Array[_PackageInfo val]
+    _file_info = recover val Map[String, _FileInfo val] end
+
     let cs =
       try
         CommandSpec.leaf(
@@ -194,18 +222,74 @@ actor Main
     let argv0 = try env.args(0)? else "" end
     let package_paths = _build_package_paths(env.vars, argv0)
 
-    // Run linter
+    // Run text phase synchronously
     let cwd = Path.cwd()
-    let linter =
-      Linter(registry, file_auth, cwd, package_paths, root_dir)
-    (let diags, let exit_code) = linter.run(targets)
+    _linter = Linter(registry, file_auth, cwd, package_paths, root_dir)
+    let text_result = _linter.run_text_phase(targets)
+    _has_error = text_result.has_error
+    _file_info = text_result.file_info
 
-    // Output diagnostics to stdout
-    for diag in diags.values() do
-      env.out.print(diag.string())
+    // Copy text diagnostics into mutable accumulator
+    for d in text_result.diagnostics.values() do
+      _all_diags.push(d)
     end
 
-    env.exitcode(exit_code())
+    // Copy package list into mutable array for shift()
+    for pkg in text_result.packages.values() do
+      _remaining.push(pkg)
+    end
+
+    // Start AST phase — one package per behavior call
+    if _remaining.size() > 0 then
+      _process_next_package()
+    else
+      _finish()
+    end
+
+  be _process_next_package() =>
+    """
+    Compile and lint one package. GC can run between behavior calls,
+    collecting the previous iteration's `Program val` and its C-level AST.
+    """
+    let pkg =
+      try _remaining.shift()?
+      else
+        _finish()
+        return
+      end
+    (let diags, let had_error) =
+      _linter.run_ast_package(
+        pkg.dir, pkg.file_paths, _file_info, pkg.registry)
+    for d in diags.values() do
+      _all_diags.push(d)
+    end
+    if had_error then _has_error = true end
+
+    if _remaining.size() > 0 then
+      _process_next_package()
+    else
+      _finish()
+    end
+
+  fun ref _finish() =>
+    """
+    Sort diagnostics, print them, and set the exit code.
+    """
+    Sort[Array[Diagnostic val], Diagnostic val](_all_diags)
+
+    for diag in _all_diags.values() do
+      _env.out.print(diag.string())
+    end
+
+    let exit_code: ExitCode =
+      if _has_error then
+        ExitError
+      elseif _all_diags.size() > 0 then
+        ExitViolations
+      else
+        ExitSuccess
+      end
+    _env.exitcode(exit_code())
 
   fun _build_package_paths(
     vars: (Array[String val] val | None),

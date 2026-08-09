@@ -30,6 +30,10 @@ class val Linter
   Subdirectory `.pony-lint.json` files are discovered during the walk
   alongside ignore files. The `ConfigResolver` merges subdirectory overrides
   with the root config using proximity-first precedence.
+
+  The two phases can be invoked separately via `run_text_phase()` and
+  `run_ast_package()` to allow GC between package compilations. The combined
+  `run()` method calls both in sequence for callers that don't need this.
   """
   let _registry: RuleRegistry
   let _file_auth: FileAuth
@@ -60,9 +64,52 @@ class val Linter
     Run all enabled rules against the given target paths (files or
     directories). Returns sorted diagnostics and the appropriate exit code.
 
-    Creates a `ConfigResolver` to manage hierarchical configuration. The
-    resolver is populated during file discovery and used in both lint phases
-    to select per-directory rule registries.
+    Calls `run_text_phase()` then `run_ast_package()` for each package in
+    sequence. Callers that need GC between package compilations (to avoid
+    accumulating `Program val` ASTs in memory) should call the two methods
+    separately, driving the AST loop from actor behaviors.
+    """
+    let result = run_text_phase(targets)
+    let all_diags = Array[Diagnostic val]
+    var has_error = result.has_error
+
+    for d in result.diagnostics.values() do
+      all_diags.push(d)
+    end
+
+    for pkg in result.packages.values() do
+      (let pkg_diags, let pkg_error) =
+        run_ast_package(
+          pkg.dir, pkg.file_paths, result.file_info, pkg.registry)
+      for d in pkg_diags.values() do
+        all_diags.push(d)
+      end
+      if pkg_error then has_error = true end
+    end
+
+    // Determine exit code
+    let exit_code: ExitCode =
+      if has_error then
+        ExitError
+      elseif all_diags.size() > 0 then
+        ExitViolations
+      else
+        ExitSuccess
+      end
+
+    // Sort results
+    Sort[Array[Diagnostic val], Diagnostic val](all_diags)
+
+    (all_diags, exit_code)
+
+  fun run_text_phase(targets: Array[String val] val): _TextPhaseResult =>
+    """
+    Run file discovery and text-phase rules. Returns intermediate state
+    needed by the AST phase: per-file metadata, the package list with
+    pre-resolved registries, text diagnostics, and the error flag.
+
+    This is the first half of what `run()` does. Call `run_ast_package()`
+    for each package in the result to complete the lint.
     """
     let all_diags = Array[Diagnostic val]
     var has_error = false
@@ -97,10 +144,9 @@ class val Linter
       has_error = true
     end
 
-    // Per-file metadata indexed by absolute path, for reuse in AST phase
-    let file_info = Map[String, _FileInfo val]
+    // file_info is built as a ref map, then frozen to val at the end.
+    let fi = Map[String, _FileInfo val]
 
-    // --- Text phase ---
     for path in pony_files.values() do
       let fp = FilePath(_file_auth, path)
       let file = File.open(fp)
@@ -121,76 +167,294 @@ class val Linter
       let magic_lines = sup.magic_comment_lines()
 
       // Store for AST phase reuse
-      file_info(path) = _FileInfo(source, sup, magic_lines)
+      fi(path) = _FileInfo(source, sup, magic_lines)
 
       // Collect rule diagnostics, filtering suppressed ones
-      let file_registry = _registry_for(Path.dir(path), resolver, _registry)
+      let file_registry =
+        _registry_for(Path.dir(path), resolver, _registry)
       for rule in file_registry.enabled_text_rules().values() do
         let rule_diags = rule.check(source)
         for diag in rule_diags.values() do
           // Skip diagnostics on magic comment lines
           if magic_lines.contains(diag.line) then continue end
           // Skip suppressed diagnostics
-          if sup.is_suppressed(diag.line, diag.rule_id) then continue end
+          if sup.is_suppressed(diag.line, diag.rule_id) then
+            continue
+          end
           all_diags.push(diag)
         end
       end
 
-      // Collect suppression error diagnostics (lint/* — never suppressed)
+      // Collect suppression error diagnostics (lint/* — never
+      // suppressed)
       for err in sup.errors().values() do
         all_diags.push(err)
         has_error = true
       end
     end
 
-    // --- AST phase ---
-    // Use all_ast_rules size for the outer guard: a subdirectory config
-    // might enable rules that are off at root, so we can't skip based on
-    // the root config's enabled count alone.
-    if _registry.all_ast_rules().size() > 0 then
-      // Group files by directory (package)
-      let packages = Map[String, Array[String val]]
-      for path in pony_files.values() do
-        let dir = Path.dir(path)
-        let pkg_files =
-          try
-            packages(dir)?
-          else
-            let a = Array[String val]
-            packages(dir) = a
-            a
-          end
-        pkg_files.push(path)
-      end
+    // Freeze file_info to val for sharing across behaviors
+    let fi_iso = recover iso Map[String, _FileInfo val](fi.size()) end
+    for (k, v) in fi.pairs() do
+      fi_iso(k) = v
+    end
+    let file_info: Map[String, _FileInfo val] val = consume fi_iso
 
-      // Compile each package and run AST rules
-      for (pkg_dir, pkg_file_paths) in packages.pairs() do
-        let pkg_registry = _registry_for(pkg_dir, resolver, _registry)
-        let parse_rules = pkg_registry.enabled_parse_ast_rules()
-        let expr_rules = pkg_registry.enabled_expr_ast_rules()
-
-        if (parse_rules.size() == 0) and (expr_rules.size() == 0) then
-          continue
+    // Build package list with pre-resolved registries.
+    // Each entry carries the directory, its file paths, and its
+    // RuleRegistry so the AST phase needs no ConfigResolver.
+    let packages: Array[_PackageInfo val] val =
+      if _registry.all_ast_rules().size() > 0 then
+        // Group files by directory (package)
+        let pkg_map = Map[String, Array[String val]]
+        for path in pony_files.values() do
+          let dir = Path.dir(path)
+          let pkg_files =
+            try
+              pkg_map(dir)?
+            else
+              let a = Array[String val]
+              pkg_map(dir) = a
+              a
+            end
+          pkg_files.push(path)
         end
 
-        let pkg_fp = FilePath(_file_auth, pkg_dir)
-        let session =
-          ast.CompileSession(
-            pkg_fp where package_search_paths = _package_paths,
-            limit = ast.PassParse)
-        match session.program()
-        | let program: ast.Program val =>
-          match program.package()
-          | let pkg: ast.Package val =>
-            // Parse-level dispatch (style rules)
-            if parse_rules.size() > 0 then
+        let pkgs = Array[_PackageInfo val]
+        for (pkg_dir, pkg_file_paths) in pkg_map.pairs() do
+          let pkg_registry =
+            _registry_for(pkg_dir, resolver, _registry)
+          let parse_rules = pkg_registry.enabled_parse_ast_rules()
+          let expr_rules = pkg_registry.enabled_expr_ast_rules()
+          if (parse_rules.size() == 0) and (expr_rules.size() == 0) then
+            continue
+          end
+          // Copy file paths into a val array for sendability
+          let fps_iso =
+            recover iso
+              Array[String val](pkg_file_paths.size())
+            end
+          for p in pkg_file_paths.values() do
+            fps_iso.push(p)
+          end
+          let fps: Array[String val] val = consume fps_iso
+          pkgs.push(_PackageInfo(pkg_dir, fps, pkg_registry))
+        end
+        // Freeze the package list to val for sharing across behaviors
+        let pkgs_iso =
+          recover iso
+            Array[_PackageInfo val](pkgs.size())
+          end
+        for pkg in pkgs.values() do
+          pkgs_iso.push(pkg)
+        end
+        consume pkgs_iso
+      else
+        recover val Array[_PackageInfo val] end
+      end
+
+    let diags_iso =
+      recover iso Array[Diagnostic val](all_diags.size()) end
+    for d in all_diags.values() do diags_iso.push(d) end
+    let diags_val: Array[Diagnostic val] val = consume diags_iso
+
+    _TextPhaseResult(diags_val, has_error, file_info, packages)
+
+  fun run_ast_package(
+    pkg_dir: String val,
+    pkg_file_paths: Array[String val] val,
+    file_info: Map[String, _FileInfo val] val,
+    pkg_registry: RuleRegistry)
+    : (Array[Diagnostic val] val, Bool)
+  =>
+    """
+    Compile one package and run its AST rules. Returns diagnostics and
+    whether an error occurred. The `CompileSession` is created and disposed
+    within this call.
+
+    Called once per package from actor behaviors so GC can collect each
+    `Program val` between calls.
+    """
+    let all_diags = Array[Diagnostic val]
+    var has_error = false
+
+    let parse_rules = pkg_registry.enabled_parse_ast_rules()
+    let expr_rules = pkg_registry.enabled_expr_ast_rules()
+
+    let pkg_fp = FilePath(_file_auth, pkg_dir)
+    let session =
+      ast.CompileSession(
+        pkg_fp where package_search_paths = _package_paths,
+        limit = ast.PassParse)
+    match session.program()
+    | let program: ast.Program val =>
+      match program.package()
+      | let pkg: ast.Package val =>
+        // Parse-level dispatch (style rules)
+        if parse_rules.size() > 0 then
+          for mod in pkg.modules() do
+            let mod_file = mod.file
+            try
+              let info = file_info(mod_file)?
+              let dispatcher =
+                _ASTDispatcher(
+                  parse_rules,
+                  info.source,
+                  info.magic_lines,
+                  info.suppressions)
+              mod.ast.visit(dispatcher)
+
+              for d in dispatcher.diagnostics().values() do
+                all_diags.push(d)
+              end
+
+              // File-naming check (module-level)
+              if pkg_registry.is_enabled(
+                FileNaming.id(),
+                FileNaming.category(),
+                FileNaming.default_status())
+              then
+                let file_diags =
+                  FileNaming.check_module(
+                    dispatcher.entities(), info.source)
+                for d in file_diags.values() do
+                  if info.magic_lines.contains(d.line) then continue end
+                  if info.suppressions.is_suppressed(
+                    d.line, d.rule_id)
+                  then
+                    continue
+                  end
+                  all_diags.push(d)
+                end
+              end
+
+              // Blank-lines between-entity check (module-level)
+              if pkg_registry.is_enabled(
+                BlankLines.id(),
+                BlankLines.category(),
+                BlankLines.default_status())
+              then
+                let bl_diags =
+                  BlankLines.check_module(
+                    dispatcher.entities(), info.source)
+                for d in bl_diags.values() do
+                  if info.magic_lines.contains(d.line) then continue end
+                  if info.suppressions.is_suppressed(
+                    d.line, d.rule_id)
+                  then
+                    continue
+                  end
+                  all_diags.push(d)
+                end
+              end
+            end
+          end
+        end
+
+        // Use first file in the package for diagnostic location
+        let first_rel =
+          try
+            let first_path = pkg_file_paths(0)?
+            try file_info(first_path)?.source.rel_path
+            else first_path
+            end
+          else
+            pkg_dir
+          end
+
+        // Package-naming check (once per package)
+        if pkg_registry.is_enabled(
+          PackageNaming.id(),
+          PackageNaming.category(),
+          PackageNaming.default_status())
+        then
+          let pkg_diags =
+            PackageNaming.check_package(
+              Path.base(pkg.path), first_rel)
+          for d in pkg_diags.values() do
+            all_diags.push(d)
+          end
+        end
+
+        // Package-docstring check (once per package, before
+        // PassExpr which can transform the docstring AST node)
+        if pkg_registry.is_enabled(
+          PackageDocstring.id(),
+          PackageDocstring.category(),
+          PackageDocstring.default_status())
+        then
+          let pkg_base = Path.base(pkg.path)
+          // Normalize hyphens to underscores for Pony identifiers
+          let norm_name =
+            recover val
+              let s = String(pkg_base.size())
+              for ch in pkg_base.values() do
+                if ch == '-' then s.push('_') else s.push(ch) end
+              end
+              s
+            end
+          let expected_file: String val = norm_name + ".pony"
+          var has_pkg_file = false
+          var has_docstring = false
+          for mod in pkg.modules() do
+            let mod_basename = Path.base(mod.file)
+            if mod_basename == expected_file then
+              has_pkg_file = true
+              // Check if module AST child 0 is TK_STRING
+              match mod.ast.child()
+              | let first_child: ast.AST =>
+                if first_child.id() == ast.TokenIds.tk_string() then
+                  has_docstring = true
+                end
+              end
+              break
+            end
+          end
+          let pd_diags =
+            PackageDocstring.check_package(
+              norm_name, has_pkg_file, has_docstring, first_rel)
+          for d in pd_diags.values() do
+            all_diags.push(d)
+          end
+        end
+
+        // Expr-level dispatch (safety rules).
+        // Skip PassExpr when the target files have no nodes matching
+        // expr-level rules — avoids a full type-checking pass through
+        // the entire dependency tree for packages that don't need it.
+        if expr_rules.size() > 0 then
+          var needs_expr = false
+          let expr_tokens =
+            recover val
+              let s = Set[ast.TokenId]
+              for rule in expr_rules.values() do
+                for tid in rule.node_filter().values() do
+                  s.set(tid)
+                end
+              end
+              s
+            end
+          for mod in pkg.modules() do
+            try
+              let info = file_info(mod.file)?
+              let scanner = _ExprNodeScanner(expr_tokens)
+              mod.ast.visit(scanner)
+              if scanner.found then
+                needs_expr = true
+                break
+              end
+            end
+          end
+
+          if needs_expr then
+            if session.continue_to(ast.PassExpr) then
               for mod in pkg.modules() do
                 let mod_file = mod.file
                 try
                   let info = file_info(mod_file)?
                   let dispatcher =
                     _ASTDispatcher(
-                      parse_rules,
+                      expr_rules,
                       info.source,
                       info.magic_lines,
                       info.suppressions)
@@ -199,201 +463,63 @@ class val Linter
                   for d in dispatcher.diagnostics().values() do
                     all_diags.push(d)
                   end
-
-                  // File-naming check (module-level)
-                  if pkg_registry.is_enabled(
-                    FileNaming.id(),
-                    FileNaming.category(),
-                    FileNaming.default_status())
-                  then
-                    let file_diags =
-                      FileNaming.check_module(
-                        dispatcher.entities(), info.source)
-                    for d in file_diags.values() do
-                      if info.magic_lines.contains(d.line) then continue end
-                      if info.suppressions.is_suppressed(
-                        d.line, d.rule_id)
-                      then
-                        continue
-                      end
-                      all_diags.push(d)
-                    end
-                  end
-
-                  // Blank-lines between-entity check (module-level)
-                  if pkg_registry.is_enabled(
-                    BlankLines.id(),
-                    BlankLines.category(),
-                    BlankLines.default_status())
-                  then
-                    let bl_diags =
-                      BlankLines.check_module(
-                        dispatcher.entities(), info.source)
-                    for d in bl_diags.values() do
-                      if info.magic_lines.contains(d.line) then continue end
-                      if info.suppressions.is_suppressed(
-                        d.line, d.rule_id)
-                      then
-                        continue
-                      end
-                      all_diags.push(d)
-                    end
-                  end
                 end
+              end
+            else
+              // PassExpr failed — report errors so safety rules aren't
+              // silently skipped
+              has_error = true
+              let rel_dir =
+                try Path.rel(_cwd, pkg_dir)? else pkg_dir end
+              let errors = session.errors()
+              for err in errors.values() do
+                let err_file =
+                  match err.file
+                  | let f: String val =>
+                    try Path.rel(_cwd, f)? else f end
+                  else
+                    rel_dir
+                  end
+                all_diags.push(Diagnostic(
+                  "lint/ast-error",
+                  err.msg,
+                  err_file,
+                  err.position.line(),
+                  err.position.column()))
               end
             end
-
-            // Use first file in the package for diagnostic location
-            let first_rel =
-              try
-                let first_path = pkg_file_paths(0)?
-                try file_info(first_path)?.source.rel_path
-                else first_path
-                end
-              else
-                pkg_dir
-              end
-
-            // Package-naming check (once per package)
-            if pkg_registry.is_enabled(
-              PackageNaming.id(),
-              PackageNaming.category(),
-              PackageNaming.default_status())
-            then
-              let pkg_diags =
-                PackageNaming.check_package(
-                  Path.base(pkg.path), first_rel)
-              for d in pkg_diags.values() do
-                all_diags.push(d)
-              end
-            end
-
-            // Package-docstring check (once per package, before
-            // PassExpr which can transform the docstring AST node)
-            if pkg_registry.is_enabled(
-              PackageDocstring.id(),
-              PackageDocstring.category(),
-              PackageDocstring.default_status())
-            then
-              let pkg_base = Path.base(pkg.path)
-              // Normalize hyphens to underscores for Pony identifiers
-              let norm_name =
-                recover val
-                  let s = String(pkg_base.size())
-                  for ch in pkg_base.values() do
-                    if ch == '-' then s.push('_') else s.push(ch) end
-                  end
-                  s
-                end
-              let expected_file: String val = norm_name + ".pony"
-              var has_pkg_file = false
-              var has_docstring = false
-              for mod in pkg.modules() do
-                let mod_basename = Path.base(mod.file)
-                if mod_basename == expected_file then
-                  has_pkg_file = true
-                  // Check if module AST child 0 is TK_STRING
-                  match mod.ast.child()
-                  | let first_child: ast.AST =>
-                    if first_child.id() == ast.TokenIds.tk_string() then
-                      has_docstring = true
-                    end
-                  end
-                  break
-                end
-              end
-              let pd_diags =
-                PackageDocstring.check_package(
-                  norm_name, has_pkg_file, has_docstring, first_rel)
-              for d in pd_diags.values() do
-                all_diags.push(d)
-              end
-            end
-
-            // Expr-level dispatch (safety rules)
-            if expr_rules.size() > 0 then
-              if session.continue_to(ast.PassExpr) then
-                for mod in pkg.modules() do
-                  let mod_file = mod.file
-                  try
-                    let info = file_info(mod_file)?
-                    let dispatcher =
-                      _ASTDispatcher(
-                        expr_rules,
-                        info.source,
-                        info.magic_lines,
-                        info.suppressions)
-                    mod.ast.visit(dispatcher)
-
-                    for d in dispatcher.diagnostics().values() do
-                      all_diags.push(d)
-                    end
-                  end
-                end
-              else
-                // PassExpr failed — report errors so safety rules aren't
-                // silently skipped
-                has_error = true
-                let rel_dir =
-                  try Path.rel(_cwd, pkg_dir)? else pkg_dir end
-                let errors = session.errors()
-                for err in errors.values() do
-                  let err_file =
-                    match err.file
-                    | let f: String val =>
-                      try Path.rel(_cwd, f)? else f end
-                    else
-                      rel_dir
-                    end
-                  all_diags.push(Diagnostic(
-                    "lint/ast-error",
-                    err.msg,
-                    err_file,
-                    err.position.line(),
-                    err.position.column()))
-                end
-              end
-            end
-          end
-        else
-          // Compilation failed — report as lint/ast-error
-          has_error = true
-          let rel_dir = try Path.rel(_cwd, pkg_dir)? else pkg_dir end
-          let errors = session.errors()
-          for err in errors.values() do
-            let err_file =
-              match err.file
-              | let f: String val =>
-                try Path.rel(_cwd, f)? else f end
-              else
-                rel_dir
-              end
-            all_diags.push(Diagnostic(
-              "lint/ast-error",
-              err.msg,
-              err_file,
-              err.position.line(),
-              err.position.column()))
           end
         end
-        session.dispose()
+      end
+    else
+      // Compilation failed — report as lint/ast-error
+      has_error = true
+      let rel_dir = try Path.rel(_cwd, pkg_dir)? else pkg_dir end
+      let errors = session.errors()
+      for err in errors.values() do
+        let err_file =
+          match err.file
+          | let f: String val =>
+            try Path.rel(_cwd, f)? else f end
+          else
+            rel_dir
+          end
+        all_diags.push(Diagnostic(
+          "lint/ast-error",
+          err.msg,
+          err_file,
+          err.position.line(),
+          err.position.column()))
       end
     end
+    session.dispose()
 
-    // Determine exit code
-    let exit_code: ExitCode =
-      if has_error then
-        ExitError
-      elseif all_diags.size() > 0 then
-        ExitViolations
-      else
-        ExitSuccess
-      end
+    let diags_iso =
+      recover iso Array[Diagnostic val](all_diags.size()) end
+    for d in all_diags.values() do diags_iso.push(d) end
+    let diags_val: Array[Diagnostic val] val = consume diags_iso
 
-    // Sort results
-    Sort[Array[Diagnostic val], Diagnostic val](all_diags)
-
-    (all_diags, exit_code)
+    (diags_val, has_error)
 
   fun _registry_for(
     dir: String val,
@@ -630,6 +756,66 @@ class val Linter
         0,
         0))
     end
+
+class val _TextPhaseResult
+  """
+  Output of the text phase, carrying everything the AST phase needs.
+  All fields are `val` so the result can be stored in actor fields and
+  accessed from behaviors.
+  """
+  let diagnostics: Array[Diagnostic val] val
+  let has_error: Bool
+  let file_info: Map[String, _FileInfo val] val
+  let packages: Array[_PackageInfo val] val
+
+  new val create(
+    diagnostics': Array[Diagnostic val] val,
+    has_error': Bool,
+    file_info': Map[String, _FileInfo val] val,
+    packages': Array[_PackageInfo val] val)
+  =>
+    diagnostics = diagnostics'
+    has_error = has_error'
+    file_info = file_info'
+    packages = packages'
+
+class val _PackageInfo
+  """
+  A package directory to be AST-linted, with its file paths and
+  pre-resolved `RuleRegistry`.
+  """
+  let dir: String val
+  let file_paths: Array[String val] val
+  let registry: RuleRegistry
+
+  new val create(
+    dir': String val,
+    file_paths': Array[String val] val,
+    registry': RuleRegistry)
+  =>
+    dir = dir'
+    file_paths = file_paths'
+    registry = registry'
+
+class ref _ExprNodeScanner is ast.ASTVisitor
+  """
+  Scans a parse-level AST for nodes matching expr-level rule filters.
+  Stops as soon as one is found. Used to decide whether `PassExpr` is
+  needed for a package — skipping it avoids a full type-checking pass
+  through the entire dependency tree.
+  """
+  let _tokens: Set[ast.TokenId] val
+  var found: Bool = false
+
+  new ref create(tokens: Set[ast.TokenId] val) =>
+    _tokens = tokens
+
+  fun ref visit(node: ast.AST box): ast.VisitResult =>
+    if _tokens.contains(node.id()) then
+      found = true
+      return ast.Stop
+    end
+    ast.Continue
 
 class val _FileInfo
   """
