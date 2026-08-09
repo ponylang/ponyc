@@ -35,3 +35,9 @@ The `scheduler_scaling_pthreads` build option selected the condition-variable me
 The signal mechanism used SIGUSR2, so the runtime reserved that signal on Linux and the BSDs: you could not handle SIGUSR2 through the `signals` package, and `Sig.usr2()` was a compile error on those platforms. The runtime no longer reserves it — `Sig.usr2()` now returns the signal number on Linux and the BSDs, and a program can subscribe to SIGUSR2 like any other signal. The runtime never reserved it on macOS, so nothing changes there.
 
 In the `runtime_info` package, `Scheduler.sleeping_schedulers` is now `Scheduler.suspended_schedulers`, using the same word for an idle scheduler thread as the rest of the runtime. A program calling the old name will not compile; change the call to the new name.
+## Fix pony-lint running out of memory on repos with many packages
+
+Running `pony-lint` on a repository with many package directories — for example, a library with 35 example programs — used enough memory to crash the process. Memory grew with each package and was not released until the run finished, so a repo that needed about 1 GB for one package could need 18 GB for 37.
+
+pony-lint now releases memory between packages. Peak usage stays near the cost of one compilation regardless of how many packages the repo contains.
+
