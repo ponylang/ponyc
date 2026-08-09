@@ -3,7 +3,7 @@ name: Release Notes
 on:
   push:
     branches:
-      - '**'
+      - main
     tags-ignore:
       - '**'
     paths-ignore:
