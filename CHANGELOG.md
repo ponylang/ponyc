@@ -9,6 +9,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Fix potential use-after-free on Windows during socket teardown ([PR #5805](https://github.com/ponylang/ponyc/pull/5805))
 - Fix pony-lint running out of memory on repos with many packages ([PR #5809](https://github.com/ponylang/ponyc/pull/5809))
 - Readline preserves the in-progress line when browsing history ([PR #5816](https://github.com/ponylang/ponyc/pull/5816))
+- Fix slow stdin reads from redirected files on Windows ([PR #5815](https://github.com/ponylang/ponyc/pull/5815))
 
 ### Added
 
