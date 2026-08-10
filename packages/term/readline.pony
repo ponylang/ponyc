@@ -19,6 +19,8 @@ class Readline is ANSINotify
   var _cur_line: USize = 0
   var _cur_pos: ISize = 0
   var _blocked: Bool = true
+  var _stash: String ref = String
+  embed _edits: Map[USize, String] = Map[USize, String]
 
   new iso create(
     notify: ReadlineNotify iso,
@@ -109,8 +111,16 @@ class Readline is ANSINotify
     """
     try
       if _cur_line > 0 then
+        if _cur_line == _history.size() then
+          _stash = _edit.clone()
+        else
+          _edits(_cur_line) = _edit.clone()
+        end
         _cur_line = _cur_line - 1
-        _edit = _history(_cur_line)?.clone()
+        _edit =
+          try _edits(_cur_line)?.clone()
+          else _history(_cur_line)?.clone()
+          end
         end_key()
       end
     end
@@ -119,19 +129,22 @@ class Readline is ANSINotify
     """
     Next line.
     """
-    // With no history there is no next line, and _history.size() - 1 would
-    // underflow. Do nothing, as up does when there is no previous line.
-    if _history.size() == 0 then
+    if _cur_line >= _history.size() then
       return
     end
 
     try
+      _edits(_cur_line) = _edit.clone()
+
       if _cur_line < (_history.size() - 1) then
         _cur_line = _cur_line + 1
-        _edit = _history(_cur_line)?.clone()
+        _edit =
+          try _edits(_cur_line)?.clone()
+          else _history(_cur_line)?.clone()
+          end
       else
         _cur_line = _history.size()
-        _edit.clear()
+        _edit = _stash.clone()
       end
 
       end_key()
@@ -306,6 +319,9 @@ class Readline is ANSINotify
     """
     if _edit.size() > 0 then
       let line: String = _edit = recover String end
+      _stash.clear()
+      _edits.clear()
+      _cur_line = _history.size()
 
       if _blocked then
         _queue.push(line)

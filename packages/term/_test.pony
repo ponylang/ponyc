@@ -49,6 +49,9 @@ actor \nodoc\ Main is TestList
     test(_TestReadlineRejectDisposes)
     test(_TestReadlineHistoryNavigation)
     test(_TestReadlineDownEmptyHistory)
+    test(_TestReadlineHistoryPreservesInput)
+    test(_TestReadlineHistoryPreservesEdits)
+    test(_TestReadlineHistoryStashClearedOnDispatch)
     test(_TestReadlineHistoryDedup)
     test(_TestReadlineHistoryMaxlen)
     test(_TestReadlineHistoryMissingFile)
@@ -1183,12 +1186,8 @@ class \nodoc\ iso _TestReadlineHistoryNavigation is UnitTest
 class \nodoc\ iso _TestReadlineDownEmptyHistory is UnitTest
   """
   Pressing down (ctrl-n) with an empty history leaves the edit line and cursor
-  untouched. An empty history makes _history.size() - 1 underflow; the guard
-  makes down a clean no-op, matching up when there is no previous line. The
-  underflow was swallowed by a try, so down is an observable no-op either way —
-  the test pins that down never disturbs the line on an empty history. Typing
-  "abc", pressing down, typing "d", then dispatching yields "abcd": down neither
-  changed the buffer nor moved the cursor off the end.
+  untouched. Typing "abc", pressing down, typing "d", then dispatching yields
+  "abcd": down neither changed the buffer nor moved the cursor off the end.
   """
   fun name(): String => "term/Readline.down-empty-history"
 
@@ -1203,6 +1202,100 @@ class \nodoc\ iso _TestReadlineDownEmptyHistory is UnitTest
     // ctrl-n (down) with no history must not move the cursor or change the
     // buffer, so the trailing "d" appends at the end.
     term.apply(_Bytes("abc\x0Ed\n"))
+
+class \nodoc\ iso _TestReadlineHistoryPreservesInput is UnitTest
+  """
+  Typing a partial line, browsing history with up, then returning with down
+  restores the in-progress line.
+  """
+  var _dir: (FilePath | None) = None
+
+  fun name(): String => "term/Readline.history-preserves-input"
+
+  fun ref apply(h: TestHelper) ? =>
+    let dir = FilePath.mkdtemp(FileAuth(h.env.root), "term.history.")?
+    _dir = dir
+    let path = dir.join("history")?
+    _HistoryFile.write(path, ["old"])
+    let timers = Timers
+    let term = ANSITerm(SignalAuth(h.env.root),
+      Readline(_LineNotify(h, "wip"), _NullOut, path), _NullSource, timers)
+    h.dispose_when_done(term)
+    h.dispose_when_done(timers)
+    h.long_test(5_000_000_000)
+    term.prompt("")
+    // Type "wip", up into history, down back to the fresh line, dispatch.
+    term.apply(_Bytes("wip\x10\x0E\n"))
+
+  fun ref tear_down(h: TestHelper) =>
+    try (_dir as FilePath).remove() end
+
+class \nodoc\ iso _TestReadlineHistoryPreservesEdits is UnitTest
+  """
+  Recalling a history entry, editing it, navigating away, and returning
+  restores the edited version rather than the original history entry.
+  """
+  var _dir: (FilePath | None) = None
+
+  fun name(): String => "term/Readline.history-preserves-edits"
+
+  fun ref apply(h: TestHelper) ? =>
+    let dir = FilePath.mkdtemp(FileAuth(h.env.root), "term.history.")?
+    _dir = dir
+    let path = dir.join("history")?
+    _HistoryFile.write(path, ["first"; "second"])
+    let timers = Timers
+    // Up once recalls "second", append "!" to make "second!", up to "first",
+    // down back — dispatches the edited "second!".
+    let term = ANSITerm(SignalAuth(h.env.root),
+      Readline(_LineNotify(h, "second!"), _NullOut, path), _NullSource, timers)
+    h.dispose_when_done(term)
+    h.dispose_when_done(timers)
+    h.long_test(5_000_000_000)
+    term.prompt("")
+    term.apply(_Bytes("\x10!\x10\x0E\n"))
+
+  fun ref tear_down(h: TestHelper) =>
+    try (_dir as FilePath).remove() end
+
+class \nodoc\ iso _TestReadlineHistoryStashClearedOnDispatch is UnitTest
+  """
+  Dispatching clears per-entry edits so a subsequent history browse starts
+  clean. Browses to "first", edits it to "first!", navigates away (which
+  stores the edit), then navigates back and dispatches "first!". On the
+  next input, browsing to the same index shows original "first", not
+  stale "first!".
+  """
+  var _dir: (FilePath | None) = None
+
+  fun name(): String => "term/Readline.history-stash-cleared-on-dispatch"
+
+  fun ref apply(h: TestHelper) ? =>
+    let dir = FilePath.mkdtemp(FileAuth(h.env.root), "term.history.")?
+    _dir = dir
+    let path = dir.join("history")?
+    _HistoryFile.write(path, ["first"; "second"])
+    let steps = recover val
+      [ // Step 1: up twice to "first" (index 0), append "!", up is a no-op
+        // at top so down to "second" (stores {0 => "first!"} in _edits),
+        // up again to "first!" (loaded from _edits), dispatch "first!".
+        ("\x10\x10!\x0E\x10\n", "first!")
+        // Step 2: history is now ["first", "second", "first!"]. Up three
+        // times to index 0 — should show original "first", not stale
+        // "first!" from the cleared _edits.
+        ("\x10\x10\x10\n", "first") ]
+    end
+    let timers = Timers
+    let driver = _ReadlineDriver(h, steps)
+    let term = ANSITerm(SignalAuth(h.env.root),
+      Readline(_DriverNotify(driver), _NullOut, path), _NullSource, timers)
+    h.dispose_when_done(term)
+    h.dispose_when_done(timers)
+    h.long_test(10_000_000_000)
+    driver.start(term)
+
+  fun ref tear_down(h: TestHelper) =>
+    try (_dir as FilePath).remove() end
 
 class \nodoc\ iso _TestReadlineHistoryDedup is UnitTest
   """
