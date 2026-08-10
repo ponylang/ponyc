@@ -56,6 +56,7 @@ actor ANSITerm
   var _esc_mod: U8 = 0
   var _esc_private: Bool = false
   embed _esc_buf: Array[U8] = Array[U8]
+  var _esc_gen: USize = 0
   var _closed: Bool = false
   let _auth: SignalAuth
   var _winch: (SignalHandler | None) = None
@@ -165,12 +166,16 @@ actor ANSITerm
         try _timers.cancel(_timer as Timer tag) end
       end
 
+      _esc_gen = _esc_gen + 1
+      let esc_gen = _esc_gen
+
       let t = recover
         object is TimerNotify
           let term: ANSITerm = this
+          let gen: USize = esc_gen
 
           fun ref apply(timer: Timer, count: U64): Bool =>
-            term._timeout()
+            term._timeout(gen)
             false
         end
       end
@@ -222,13 +227,20 @@ actor ANSITerm
       _closed = true
     end
 
-  be _timeout() =>
+  be _timeout(gen: USize) =>
     """
     Our timer since receiving an ESC has expired. Send the buffered data as if
-    it was not an escape sequence. Guarded like the other notifier-forwarding
-    behaviors so a timer that fires after dispose delivers nothing.
+    it was not an escape sequence. Each timer captures the generation that was
+    current when it was armed; a timeout whose generation doesn't match the
+    current one is stale (new data arrived and re-armed the timer) and is
+    ignored. Guarded like the other notifier-forwarding behaviors so a timer
+    that fires after dispose delivers nothing.
     """
     if _closed then
+      return
+    end
+
+    if gen != _esc_gen then
       return
     end
 
