@@ -36,9 +36,10 @@ filter, or the workflow never starts and that suite silently never runs.
 Editing `pr.yml` itself re-triggers every suite: each suite's original filter
 re-included its own workflow file, and now there is one shared file.
 
-A `pulls/<n>/files` listing caps at 3000 files; a larger PR comes back truncated,
-so a full listing of exactly the cap (or more) is treated as "run everything"
-rather than risk skipping a suite whose only changed file fell past the cap.
+An empty listing and a truncated listing both run every suite. An empty listing
+means the API failed (an outage, a transient error), not that nothing changed. A
+truncated listing (3000 files, the API cap) means changed files were dropped. In
+both cases, skipping suites risks a false green.
 
 Stdlib only; no pip install on any CI runner.
 """
@@ -96,7 +97,11 @@ def render(result):
 
 def main():
     paths = [line.strip() for line in sys.stdin if line.strip()]
-    if len(paths) >= FILES_API_CAP:                 # truncated listing -> run all
+    if not paths:                                    # empty listing -> run all
+        print("warning: no changed files on stdin; "
+              "running all suites.", file=sys.stderr)
+        result = {n: True for n, _ in SUITES}
+    elif len(paths) >= FILES_API_CAP:                # truncated listing -> run all
         print(f"warning: changed-file list hit the API cap ({FILES_API_CAP}); "
               "running all suites.", file=sys.stderr)
         result = {n: True for n, _ in SUITES}
