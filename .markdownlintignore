@@ -1,7 +1,8 @@
-benchmark/*
+benchmark/**
 CHANGELOG.md
 CODE_OF_CONDUCT.md
-.release-notes/
+.release-notes/**
 CLAUDE.md
-.claude/
+.ci-scripts/**
+.claude/**
 AGENTS.md
