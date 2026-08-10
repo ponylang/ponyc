@@ -49,10 +49,10 @@ SINGLE_PATH_TABLE = [
     ('lib/CMakePresets.json', (True, False, True)),
     ('cmakefoo/build.cmake', (True, False, True)),
     ('cmake/notes.md', (False, False, False)),
-    # scheduled-only test workloads trigger no suite: nothing under
-    # test/rt-stress/ or test/rt-systematic/ feeds test-ci-core or the tools
-    # build, so the whole directory is excluded -- a .py orchestration file and
-    # a .pony workload alike classify to nothing.
+    # The generative stress engine's .pony source triggers the ponyc suite
+    # (not excluded like the rest of test/rt-stress/). Python, other workloads'
+    # Pony, and rt-systematic stay excluded.
+    ('test/rt-stress/generative/main.pony', (True, False, True)),
     ('test/rt-stress/generative/orchestrate_normal_test.py', (False, False,
                                                               False)),
     ('test/rt-stress/generative/stress_common.py', (False, False, False)),

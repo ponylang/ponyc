@@ -7,8 +7,10 @@ on:
     # for any file that triggers any suite in `.ci-scripts/pr_changed_suites.py`;
     # otherwise that PR never starts the workflow and the suite silently never
     # runs. `ponyc` is a subset of `tools`, so the union is `tools` plus
-    # `pony_compiler` plus this workflow file. The re-includes below add back the
-    # pony_compiler paths (which have no doc/yaml exclusion) and this file.
+    # `pony_compiler` plus this workflow file. The re-includes below add back
+    # the pony_compiler paths (which have no doc/yaml exclusion), this file,
+    # and the generative stress engine's Pony source (compiled in the ponyc
+    # suite to catch breaks at PR time).
     paths:
       - '**'
       - '!**/*.md'
@@ -17,13 +19,15 @@ on:
       - '!.ci-dockerfiles/**'
       - '!.gitignore'
       - '!.markdownlintignore'
-      # Test workloads these suites build nothing of: their Pony runs only in
-      # scheduled workflows (stress-test-*, ponyc-weekly-checks). The stress
-      # harness's Python is linted by lint-python.yml and tested by
-      # test-rt-stress.yml; rt-systematic has no Python. Excluded here AND in
-      # pr_changed_suites.py.
+      # Test workloads whose Pony runs only in scheduled workflows
+      # (stress-test-*, ponyc-weekly-checks). The stress harness's Python is
+      # linted by lint-python.yml and tested by test-rt-stress.yml;
+      # rt-systematic has no Python. Excluded here AND in
+      # pr_changed_suites.py, except the generative engine's .pony source
+      # (re-included below; compiled in the ponyc suite).
       - '!test/rt-stress/**'
       - '!test/rt-systematic/**'
+      - 'test/rt-stress/generative/**/*.pony'
       - 'src/libponyc/**'
       - 'tools/lib/ponylang/pony_compiler/**'
       - '.github/workflows/pr.yml'
@@ -162,6 +166,8 @@ jobs:
           PONY_TEST_DEBUGGER="$(.ci-scripts/test-debugger.sh lldb)"
           export PONY_TEST_DEBUGGER
           ctest --preset x86-64-debug -L ci-core
+      - name: Compile generative stress engine
+        run: PONYPATH=packages build/debug/ponyc -d --pic -b generative -o build/debug test/rt-stress/generative/
       - name: Build Release Runtime
         run: |
           cmake --preset x86-64-release
