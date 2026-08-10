@@ -138,8 +138,8 @@ actor Stdin is AsioEventNotify
 
   fun ref _read(): Bool =>
     """
-    Read a chunk of data from stdin. Read a maximum of _chunk_size bytes, send
-    ourself a resume message and stop reading to avoid starving other actors.
+    Read chunks of data from stdin until ~4KB has been delivered, then return
+    true so the caller can yield to other actors before continuing.
     """
     try
       let notify = _notify as InputNotify
@@ -167,8 +167,10 @@ actor Stdin is AsioEventNotify
         notify(consume data)
 
         ifdef windows then
-          // Not allowed to call pony_os_stdin_read again yet, exit loop.
-          return true
+          if _use_event then
+            // The asio backend must re-arm before the next read.
+            return true
+          end
         end
 
         sum = sum + len

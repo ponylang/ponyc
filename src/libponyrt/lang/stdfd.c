@@ -471,8 +471,13 @@ PONY_API bool pony_os_stdin_setup()
     if(GetConsoleMode(handle, &mode))
       SetConsoleMode(handle, mode & ~(ENABLE_ECHO_INPUT | ENABLE_LINE_INPUT));
   }
+
+  // A file (or NUL) returns data at once from ReadFile — there is nothing to
+  // wait for — so read it in a loop. A pipe or a console needs the event.
+  if(ponyint_stdin_kind() == STDIN_OTHER)
+    stdin_event_based = false;
 #else
-  // on *nix only not use events when stdin is a redirected file
+  // Skip events when stdin is a redirected file.
   fd_type_t stdin_type = fd_type(STDIN_FILENO);
   if((stdin_type == FD_TYPE_TTY) && is_stdout_tty)
     stdin_tty();
@@ -562,7 +567,10 @@ PONY_API size_t pony_os_stdin_read(char* buffer, size_t space)
     }
   }
 
-  if(len != 0)  // Start listening to stdin notifications again
+  // Resume stdin notifications only when the asio backend is managing events
+  // for stdin. In loop mode (STDIN_OTHER — a file or NUL) there is no event
+  // to resume.
+  if(len != 0 && ponyint_stdin_kind() != STDIN_OTHER)
     ponyint_sock_notify_resume_stdin();
 
   return len;
