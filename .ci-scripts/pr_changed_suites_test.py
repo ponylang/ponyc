@@ -136,8 +136,16 @@ def run_main(stdin_text):
 def test_main_integration():
     out, _ = run_main("src/libponyc/README.md\n")
     check("main gotcha", out, "ponyc=false\npony_compiler=true\ntools=false\n")
-    out, _ = run_main("\n  \n")  # blank lines are stripped -> empty changeset
-    check("main empty", out, "ponyc=false\npony_compiler=false\ntools=false\n")
+
+
+def test_main_empty_runs_all():
+    # An empty listing (API failure, blank lines only) is never "nothing
+    # changed" -- run every suite rather than report a false green.
+    for label, stdin in [("empty", ""), ("blanks", "\n  \n")]:
+        out, err = run_main(stdin)
+        check(f"empty-{label} runs all", out,
+              "ponyc=true\npony_compiler=true\ntools=true\n")
+        check(f"empty-{label} warns", "no changed files" in err, True)
 
 
 def test_main_truncation_runs_all():
@@ -157,7 +165,7 @@ def test_main_truncation_runs_all():
 TESTS = [test_single_path_table, test_or_aggregation, test_empty_changeset,
          test_ponyc_subset_of_tools, test_render_format,
          test_truncation_constant, test_main_integration,
-         test_main_truncation_runs_all]
+         test_main_empty_runs_all, test_main_truncation_runs_all]
 
 
 def main():

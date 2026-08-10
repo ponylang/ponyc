@@ -57,6 +57,7 @@ jobs:
         uses: actions/checkout@v6.0.2
       - name: Classify changed files
         id: classify
+        shell: bash
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: gh api --paginate "repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/files" --jq '.[].filename' | python3 .ci-scripts/pr_changed_suites.py >> "$GITHUB_OUTPUT"
