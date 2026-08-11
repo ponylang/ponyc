@@ -27,13 +27,19 @@ primitive FileExists
 primitive FilePermissionDenied
 
 primitive _EBADF
-  fun apply(): I32 => 9
+  fun apply(): I32 =>
+    ifdef haiku then -2147459072 // 0x80006000
+    else 9 end
 
 primitive _EEXIST
-  fun apply(): I32 => 17
+  fun apply(): I32 =>
+    ifdef haiku then -2147459070 // 0x80006002
+    else 17 end
 
 primitive _EACCES
-  fun apply(): I32 => 13
+  fun apply(): I32 =>
+    ifdef haiku then -2147483646 // 0x80000002
+    else 13 end
 
 type FileErrNo is
   ( FileOK

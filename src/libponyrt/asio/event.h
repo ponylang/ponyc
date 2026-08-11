@@ -38,6 +38,11 @@ typedef struct asio_event_t
    * thread would break that and must revisit this marker. */
   bool removing;
 #endif
+#ifdef PLATFORM_IS_HAIKU
+  int32_t wfo_id;       /* object_wait_info id, controlled only by wfo */
+  timer_t timerID;      /* timer handle */
+#endif
+
 } asio_event_t;
 
 /// Message that carries an event and event flags.

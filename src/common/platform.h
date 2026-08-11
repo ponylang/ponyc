@@ -37,6 +37,10 @@
 #elif defined(__OpenBSD__)
 #  define PLATFORM_IS_BSD
 #  define PLATFORM_IS_OPENBSD
+#elif defined(__HAIKU__)
+#  define PLATFORM_IS_HAIKU
+#  define _DEFAULT_SOURCE
+#  define _BSD_SOURCE
 #elif defined(__EMSCRIPTEN__)
 #  define PLATFORM_IS_EMSCRIPTEN
 #elif defined(_WIN32)
@@ -108,7 +112,8 @@
 #endif
 
 #if defined(PLATFORM_IS_MACOSX) || defined(PLATFORM_IS_LINUX) \
-  || defined(PLATFORM_IS_BSD) || defined(PLATFORM_IS_EMSCRIPTEN)
+  || defined(PLATFORM_IS_BSD) || defined(PLATFORM_IS_HAIKU) \
+  || defined(PLATFORM_IS_EMSCRIPTEN)
 #  define PLATFORM_IS_POSIX_BASED
 #endif
 
