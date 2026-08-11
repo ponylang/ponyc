@@ -197,7 +197,7 @@ static size_t viewrefmap_total_alloc_size(viewrefmap_t* map)
 }
 #endif
 
-enum
+typedef enum
 {
   COLOR_BLACK,
   COLOR_GREY,
