@@ -30,6 +30,7 @@ actor \nodoc\ Main is TestList
     test(_TestANSITermPrivateParam)
     test(_TestANSITermControlAbort)
     test(_TestANSITermTimeoutFlush)
+    test(_TestANSITermStaleTimeout)
     test(_TestANSITermRealTimerFlush)
     test(_TestANSITermDispose)
     test(_TestANSITermPromptForward)
@@ -512,9 +513,36 @@ class \nodoc\ iso _TestANSITermTimeoutFlush is UnitTest
     h.dispose_when_done(timers)
     h.long_test(2_000_000_000)
     term.apply(_Bytes("\x1B"))
-    term._timeout()
+    term._timeout(1)
     term.apply(_Bytes("\x1B["))
-    term._timeout()
+    term._timeout(2)
+    term.prompt("")
+
+class \nodoc\ iso _TestANSITermStaleTimeout is UnitTest
+  """
+  A timeout armed for one escape sequence must not flush a later sequence's
+  buffer. Sequence 1 completes normally (up-arrow). Sequence 2 starts with a
+  lone ESC. A stale timeout tagged with sequence 1's generation fires while
+  sequence 2 is in progress; it is ignored because the generation doesn't
+  match, and the remaining bytes complete a second up-arrow. Without the
+  generation check the stale timeout's callback would flush the ESC as plain
+  input and the `[A` bytes would be delivered as literal characters instead.
+  """
+  fun name(): String => "term/ANSITerm.stale-timeout"
+
+  fun ref apply(h: TestHelper) =>
+    let expected = recover val ["up 000"; "up 000"] end
+    let timers = Timers
+    let term = ANSITerm(
+      SignalAuth(h.env.root), _RecordNotify(h, expected), _NullSource, timers)
+    h.dispose_when_done(term)
+    h.dispose_when_done(timers)
+    h.long_test(2_000_000_000)
+    term.apply(_Bytes("\x1B"))
+    term.apply(_Bytes("[A"))
+    term.apply(_Bytes("\x1B"))
+    term._timeout(1)
+    term.apply(_Bytes("[A"))
     term.prompt("")
 
 class \nodoc\ iso _TestANSITermRealTimerFlush is UnitTest
