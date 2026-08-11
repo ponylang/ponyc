@@ -10,12 +10,16 @@ each suite to stdout in `$GITHUB_OUTPUT` (`name=value`) format.
 The rules are the three suites' original `paths:` blocks, transcribed as plain
 prefix/suffix/exact tests -- no glob engine -- plus two deliberate departures
 from those blocks. First, `test/rt-stress/` and `test/rt-systematic/` are
-excluded from every suite. They hold test workloads the PR suites build nothing
-of -- their Pony is compiled and run only by scheduled workflows (`stress-test-*`
-and `ponyc-weekly-checks.yml`). The stress harness's Python orchestration is
-linted by `lint-python.yml` and tested by `test-rt-stress.yml` when it changes;
+excluded from every suite -- with one exception: the generative stress engine's
+`.pony` source (`test/rt-stress/generative/**/*.pony`) triggers the `ponyc`
+suite so a compile check catches syntax errors, type errors, and stdlib API
+drift at PR time. The remaining test workloads' Pony
+is compiled and run only by scheduled workflows (`stress-test-*` and
+`ponyc-weekly-checks.yml`). The stress harness's Python orchestration is linted
+by `lint-python.yml` and tested by `test-rt-stress.yml` when it changes;
 `test/rt-systematic/` carries no Python (its orchestrator lives under
-`.ci-scripts/`). So a PR touching only these needs none of these suites.
+`.ci-scripts/`). So a PR touching only the excluded subset needs none of these
+suites.
 
 Second, the shared CMake build system -- the top-level `CMakeLists.txt`,
 `CMakePresets.json`, and `cmake/` -- triggers `pony_compiler`. That suite builds
@@ -50,6 +54,9 @@ WORKFLOW_FILE = '.github/workflows/pr.yml'
 
 
 def excluded(path):
+    if (path.startswith('test/rt-stress/generative/')
+            and path.endswith('.pony')):
+        return False
     return (path.endswith('.md') or path.endswith('.yml')
             or path.startswith('.dockerfiles/')
             or path.startswith('.ci-dockerfiles/')
