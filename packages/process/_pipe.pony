@@ -131,11 +131,21 @@ class _Pipe
   fun ref begin(owner: AsioEventNotify) =>
     """
     Prepare the pipe for read or write, and listening, after the far end has
-    been handed to the other process.
+    been handed to the other process. A none/placeholder pipe (no fds) creates
+    no event.
     """
-    ifdef posix then
-      let flags = if _outgoing then AsioEvent.write() else AsioEvent.read() end
-      event = @pony_asio_event_create(owner, near_fd, flags, 0, true)
+    if near_fd != -1 then
+      ifdef posix then
+        let flags =
+          if _outgoing then AsioEvent.write() else AsioEvent.read() end
+        event = @pony_asio_event_create(owner, near_fd, flags, 0, true)
+      elseif windows then
+        // The readiness backend peeks the pipe (it has no readiness signal) and
+        // delivers ASIO_READ/ASIO_WRITE. One direction flag, as on posix.
+        let flags = AsioEvent.pipe() or
+          (if _outgoing then AsioEvent.write() else AsioEvent.read() end)
+        event = @pony_asio_event_create(owner, near_fd, flags, 0, true)
+      end
     end
     close_far()
 
@@ -156,7 +166,7 @@ class _Pipe
       let len =
         @read(near_fd, read_buf.cpointer(offset),
           read_buf.size() - offset)
-      if len == -1 then // OS signals write error
+      if len == -1 then // OS signals read error
         (consume read_buf, len, @pony_os_errno())
       else
         (consume read_buf, len, 0)
@@ -253,17 +263,23 @@ class _Pipe
 
   fun ref close_near() =>
     """
-    Close the near end of the pipe--the end that this process is using
-    directly. Also handle unsubscribing the asio event (if there was one). File
-    descriptors should always be closed _after_ unsubscribing its event,
-    otherwise there is the possibility of reusing the file descriptor in
-    another thread and then unsubscribing the reused file descriptor here!
-    Unsubscribing and closing the file descriptor should be treated as one
-    operation.
+    Close the near end of the pipe--the end that this process is using directly,
+    and unsubscribe its asio event if there is one. On posix the fd is closed
+    here, after unsubscribing, so no other thread can reuse the fd number before
+    we have unsubscribed it. On Windows a subscribed pipe fd is closed by the
+    readiness backend instead: unsubscribe there is asynchronous and the backend
+    peeks the fd until it processes the unsubscribe, so closing the fd here could
+    race that peek. A pipe with no event--a failure path where begin() never
+    ran--is closed here on every platform.
     """
     if near_fd != -1 then
       if event isnt AsioEvent.none() then
         @pony_asio_event_unsubscribe(event)
+        ifdef windows then
+          // The backend closes the fd when it processes the unsubscribe.
+          near_fd = -1
+          return
+        end
       end
       @close(near_fd)
       near_fd = -1
@@ -274,5 +290,7 @@ class _Pipe
     close_near()
 
   fun ref dispose() =>
-    @pony_asio_event_destroy(event)
-    event = AsioEvent.none()
+    if event isnt AsioEvent.none() then
+      @pony_asio_event_destroy(event)
+      event = AsioEvent.none()
+    end

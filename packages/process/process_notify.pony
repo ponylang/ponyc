@@ -22,8 +22,11 @@ interface ProcessNotify
 
   fun ref failed(process: ProcessMonitor ref, err: ProcessError) =>
     """
-    ProcessMonitor calls this if we run into errors communicating with the
-    forked process.
+    Called for an error while the child runs — a failed write to its STDIN, or
+    an exec/chdir failure the child reported as it started. These are followed
+    by `dispose` once the child exits. `failed` is also called once, with a
+    `WaitpidError`, if the child's exit status cannot be read; that is terminal
+    and replaces `dispose`.
     """
 
   fun ref expect(process: ProcessMonitor ref, qty: USize): USize =>
@@ -36,10 +39,12 @@ interface ProcessNotify
 
   fun ref dispose(process: ProcessMonitor ref, child_exit_status: ProcessExitStatus) =>
     """
-    Called when ProcessMonitor terminates to cleanup ProcessNotify if a child
-    process was in fact started. `dispose` will not be called if a child process
-    was never started. The notify will know that a process was started and to
-    expect a `dispose` call by having received a `created` call.
+    Called with the child's exit status once the child has exited. A monitor
+    only exists around a running child, so `created` is always called first.
+    While the child runs, operational errors may arrive through `failed`; then,
+    when the child exits, `dispose` is called with its status. If the exit
+    status itself cannot be read, a terminal `failed` is called in place of
+    `dispose`. `dispose` is called at most once.
 
     `dispose` includes the exit status of the child process. If the process
     finished, then `child_exit_status` will be an instance of [Exited](process-Exited.md).
