@@ -77,17 +77,17 @@ primitive _PackageGroup
   """STUB"""
 
 struct _Package
-  let _path: Pointer[U8] val = _path.create()
+  let _path: UnsafePointer[U8] val = _path.create()
     """absolute path"""
-  let _qualified_name: Pointer[U8] val = _qualified_name.create()
+  let _qualified_name: UnsafePointer[U8] val = _qualified_name.create()
     """
     For pretty printing, eg "builtin"
     """
-  let _id: Pointer[U8] val = _id.create()
+  let _id: UnsafePointer[U8] val = _id.create()
     """hygienic identifier"""
-  let _filename: Pointer[U8] val = _filename.create()
+  let _filename: UnsafePointer[U8] val = _filename.create()
     """directory name"""
-  let symbol: Pointer[U8] val = symbol.create()
+  let symbol: UnsafePointer[U8] val = symbol.create()
     """Wart to use for symbol names"""
   let ast: Pointer[_AST] = ast.create()
   let dependencies: Pointer[_PackageSet] = dependencies.create()

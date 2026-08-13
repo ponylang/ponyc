@@ -36,8 +36,8 @@ class val Env
 
   new _create(
     argc: U32,
-    argv: Pointer[Pointer[U8]] val,
-    envp: Pointer[Pointer[U8]] val)
+    argv: UnsafePointer[UnsafePointer[U8]] val,
+    envp: UnsafePointer[UnsafePointer[U8]] val)
   =>
     """
     Builds an environment from the command line. This is done before the Main
@@ -73,7 +73,7 @@ class val Env
     vars = vars'
     exitcode = exitcode'
 
-  fun tag _count_strings(data: Pointer[Pointer[U8]] val): USize =>
+  fun tag _count_strings(data: UnsafePointer[UnsafePointer[U8]] val): USize =>
     if data.is_null() then
       return 0
     end
@@ -89,7 +89,7 @@ class val Env
     i
 
   fun tag _strings_from_pointers(
-    data: Pointer[Pointer[U8]] val,
+    data: UnsafePointer[UnsafePointer[U8]] val,
     len: USize)
     : Array[String] iso^
   =>

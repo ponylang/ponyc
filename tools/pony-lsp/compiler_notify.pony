@@ -6,8 +6,7 @@ use "files"
 use @get_compiler_exe_directory[Bool](
   output_path: Pointer[U8] tag,
   argv0: Pointer[U8] tag)
-use @ponyint_pool_alloc_size[Pointer[U8] val](size: USize)
-use @ponyint_pool_free_size[None](size: USize, p: Pointer[U8] tag)
+use @strlen[USize](s: Pointer[U8] tag)
 
 actor PonyCompiler is LspCompiler
   """
@@ -78,17 +77,13 @@ actor PonyCompiler is LspCompiler
     Find the directory containing the currently running executable
     using the same platform-specific mechanism as ponyc.
     """
-    let buf_size: USize = 4096
-    let buf = @ponyint_pool_alloc_size(buf_size)
-    if @get_compiler_exe_directory(buf, argv0.cstring()) then
-      let result =
-        recover
-          val String.copy_cstring(buf)
-        end
-      @ponyint_pool_free_size(buf_size, buf)
-      result
+    // Hand C a Pony-allocated buffer to fill, then keep it as the result
+    // String: it is a Pony object start to finish, never foreign memory.
+    let buf = recover Array[U8] .> undefined(USize(4096)) end
+    if @get_compiler_exe_directory(buf.cpointer(), argv0.cstring()) then
+      buf.truncate(@strlen(buf.cpointer()))
+      String.from_array(consume buf)
     else
-      @ponyint_pool_free_size(buf_size, buf)
       None
     end
 

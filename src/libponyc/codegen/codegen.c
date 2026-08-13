@@ -120,6 +120,7 @@ static void init_runtime(compile_t* c)
   c->str_F32 = stringtab(c->opt->strtab, "F32");
   c->str_F64 = stringtab(c->opt->strtab, "F64");
   c->str_Pointer = stringtab(c->opt->strtab, "Pointer");
+  c->str_UnsafePointer = stringtab(c->opt->strtab, "UnsafePointer");
   c->str_NullablePointer = stringtab(c->opt->strtab, "NullablePointer");
   c->str_DoNotOptimise = stringtab(c->opt->strtab, "DoNotOptimise");
   c->str_Array = stringtab(c->opt->strtab, "Array");
