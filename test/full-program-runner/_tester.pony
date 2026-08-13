@@ -94,10 +94,17 @@ actor _Tester
     _stage = _Building
     let spa = StartProcessAuth(_env.root)
     let bpa = ApplyReleaseBackpressureAuth(_env.root)
-    _build_process = ProcessMonitor(spa, bpa, _BuildProcessNotify(this),
-      ponyc_file_path, consume args, _env.vars,
-      FilePath(FileAuth(_env.root), _definition.path))
-      .>done_writing()
+    _build_process =
+      match StartProcess(spa, bpa, _BuildProcessNotify(this),
+        ponyc_file_path, consume args, _env.vars,
+        FilePath(FileAuth(_env.root), _definition.path))
+      | let pm: ProcessMonitor =>
+        pm.done_writing()
+        pm
+      | let err: ProcessError =>
+        _shutdown_failed("unable to start ponyc: " + err.string())
+        None
+      end
 
   fun _get_build_args(ponyc_file_path: FilePath): Array[String] val =>
     recover val
@@ -194,22 +201,25 @@ actor _Tester
         _stage = _Testing
         let spa = StartProcessAuth(_env.root)
         let bpa = ApplyReleaseBackpressureAuth(_env.root)
-        let process = ProcessMonitor(spa, bpa, _TestProcessNotify(this),
+        match StartProcess(spa, bpa, _TestProcessNotify(this),
           executable_file_path, args, vars,
           FilePath(FileAuth(_env.root), _definition.path))
+        | let process: ProcessMonitor =>
+          _test_process = process
 
-        _test_process = process
-
-        match _definition.stdin
-        | _StdinClose =>
-          process.done_writing()
-        | let w: _StdinWrite =>
-          _write_stdin_and_close(process, w.data)
-        | let d: _StdinDelay =>
-          let timer = Timer(_TesterStdinTimerNotify(this),
-            d.seconds * 1_000_000_000)
-          _stdin_timer = timer
-          _timers(consume timer)
+          match _definition.stdin
+          | _StdinClose =>
+            process.done_writing()
+          | let w: _StdinWrite =>
+            _write_stdin_and_close(process, w.data)
+          | let d: _StdinDelay =>
+            let timer = Timer(_TesterStdinTimerNotify(this),
+              d.seconds * 1_000_000_000)
+            _stdin_timer = timer
+            _timers(consume timer)
+          end
+        | let err: ProcessError =>
+          _shutdown_failed("unable to start test program: " + err.string())
         end
       else
         _notify.print(_definition.name,

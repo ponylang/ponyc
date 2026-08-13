@@ -10,6 +10,9 @@ All notable changes to the Pony compiler and standard library will be documented
 - Fix pony-lint running out of memory on repos with many packages ([PR #5809](https://github.com/ponylang/ponyc/pull/5809))
 - Readline preserves the in-progress line when browsing history ([PR #5816](https://github.com/ponylang/ponyc/pull/5816))
 - Fix slow stdin reads from redirected files on Windows ([PR #5815](https://github.com/ponylang/ponyc/pull/5815))
+- Report a process's exit even when its pipes stay open ([PR #5770](https://github.com/ponylang/ponyc/pull/5770))
+- ProcessMonitor.dispose no longer risks signaling an unrelated process ([PR #5770](https://github.com/ponylang/ponyc/pull/5770))
+- ProcessMonitor no longer leaks file descriptors when a process fails to start ([PR #5770](https://github.com/ponylang/ponyc/pull/5770))
 
 ### Added
 
@@ -21,6 +24,8 @@ All notable changes to the Pony compiler and standard library will be documented
 - Replace the runtime allocator ([PR #5768](https://github.com/ponylang/ponyc/pull/5768))
 - Change how scheduler scaling works ([PR #5768](https://github.com/ponylang/ponyc/pull/5768))
 - Change JsonTokenParser to carry values on its tokens ([PR #5658](https://github.com/ponylang/ponyc/pull/5658))
+- Starting a process returns a result ([PR #5770](https://github.com/ponylang/ponyc/pull/5770))
+- ProcessMonitor requires Linux 5.3 or newer ([PR #5770](https://github.com/ponylang/ponyc/pull/5770))
 
 ## [0.68.0] - 2026-08-01
 

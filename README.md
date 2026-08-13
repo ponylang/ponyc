@@ -30,6 +30,11 @@ On Windows, the minimum supported version is **Windows 11 / Windows Server 2022*
 build; earlier versions, including Windows 10, are unsupported and a Pony binary
 will not run on them.
 
+On Linux, the minimum supported version is **kernel 5.3**. Pony's process
+support detects a child's exit with `pidfd_open`, a system call added in that
+release; on an older kernel, starting a process returns an error. Earlier
+kernels are unsupported.
+
 ## More Information
 
 * [Installation](INSTALL.md)
