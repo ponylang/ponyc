@@ -112,10 +112,12 @@ void ponyint_mpmcq_push_single(mpmcq_t* q, void* data)
   atomic_store_explicit(&prev->next, node, memory_order_release);
 }
 
-// There's a known issue with "use after free" in the do loop. However,
-// we are handling in a way that ASAN doesn't understand with the CAS so
-// it is actually ok. If the CAS loop is changed, this no sanitize might
-// become problematic.
+// The loop reads tail->next from a node another consumer may already have
+// freed; ASAN would report that use-after-free, so it is suppressed here. The
+// read is safe to act on because neither outcome is trusted on its own: a
+// non-NULL next is validated by the tail CAS below, and a NULL next is never
+// taken as "empty" by itself — a recycled node reads next == NULL and would
+// lie, so emptiness is decided from head and tail (never-freed fields) instead.
 __attribute__((no_sanitize_address))
 void* ponyint_mpmcq_pop(mpmcq_t* q)
 {
@@ -130,7 +132,7 @@ void* ponyint_mpmcq_pop(mpmcq_t* q)
 
   mpmcq_node_t* next;
 
-  do
+  while(true)
   {
     tail = cmp.object;
     // Get the next node rather than the tail. The tail is either a stub or has
@@ -138,13 +140,32 @@ void* ponyint_mpmcq_pop(mpmcq_t* q)
     next = atomic_load_explicit(&tail->next, memory_order_relaxed);
 
     if(next == NULL)
-      return NULL;
+    {
+      // A freed, recycled tail node reads next == NULL (node_alloc resets
+      // it), so next is not a reliable emptiness signal. Decide from head and
+      // tail instead, both never-freed fields: the queue is non-empty exactly
+      // when head has advanced past tail. Only a producer advances head, and a
+      // single-producer queue's producer always observes its own head, so a
+      // scheduler draining its own run queue never sees a false empty here, on
+      // any memory model. head == tail is genuinely empty; otherwise there is
+      // work (or a push not yet linked), so refresh tail and retry.
+      mpmcq_node_t* head = atomic_load_explicit(&q->head, memory_order_acquire);
+      cmp.object = q->tail.object;
+      cmp.counter = q->tail.counter;
+
+      if(head == cmp.object)
+        return NULL;
+
+      continue;
+    }
 
     xchg.object = next;
     xchg.counter = cmp.counter + 1;
+
+    if(bigatomic_compare_exchange_strong_explicit(&q->tail, &cmp, xchg,
+      memory_order_acq_rel, memory_order_acquire))
+      break;
   }
-  while(!bigatomic_compare_exchange_strong_explicit(&q->tail, &cmp, xchg,
-    memory_order_acq_rel, memory_order_acquire));
 
   // Synchronise on tail->next to ensure we see the write to next->data from
   // the push. Also synchronise on next->data (see comment below).
