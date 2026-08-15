@@ -13,6 +13,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Report a process's exit even when its pipes stay open ([PR #5770](https://github.com/ponylang/ponyc/pull/5770))
 - ProcessMonitor.dispose no longer risks signaling an unrelated process ([PR #5770](https://github.com/ponylang/ponyc/pull/5770))
 - ProcessMonitor no longer leaks file descriptors when a process fails to start ([PR #5770](https://github.com/ponylang/ponyc/pull/5770))
+- Fix FilePath.from allowing paths outside the base directory ([PR #5821](https://github.com/ponylang/ponyc/pull/5821))
 
 ### Added
 
