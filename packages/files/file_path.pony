@@ -77,10 +77,12 @@ class val FilePath
     Create a new path from an existing `FilePath`.
 
     `path'` is relative to the existing `FilePath`. It is joined onto that path
-    and cleaned, and the result must be the existing path or lie within it. A
-    sibling whose name merely begins with the existing path's name is not within
-    it and raises an error, as does a `path'` that escapes upward with `..` or
-    contains a NUL byte.
+    and the result cleaned; that result must be the existing path itself or a
+    path within it, and any other result is an error.
+
+    A sibling whose name begins with the existing path's name is not within it:
+    from a base of `/srv/app`, a `path'` of `../app-backup/secret` is an error.
+    A `path'` containing a NUL byte is an error.
 
     Containment is textual: it does not resolve symlinks, so a symlink within
     the existing path may still lead outside it.
@@ -97,18 +99,23 @@ class val FilePath
     caps.intersect(base.caps)
 
     // `tmp_path` must be `base.path` or lie beneath it. A byte-prefix match is
-    // not enough — a sibling like `.../sandbox_evil` shares the prefix
-    // `.../sandbox` without being within it — so the match must fall on a
-    // separator (or span the whole of a root `base.path` that ends in one). A
-    // NUL byte is rejected: the OS would stop at it and act on a shorter path
-    // than the one checked here.
+    // not enough: a sibling like `.../sandbox_evil` has `.../sandbox` as a
+    // prefix without being within it, so the match must end at a separator or
+    // at the end of a base path that already ends in one.
+    //
+    // Both strings are checked for a NUL byte. `Directory` hands `path'`
+    // straight to the *at syscalls, which stop at the first NUL, and
+    // `Path.clean` drops a NUL-bearing component when a later `..` backtracks
+    // over it, so a NUL in `path'` need not survive into `tmp_path`.
     let contained =
       tmp_path.at(base.path, 0) and
         ((tmp_path.size() == base.path.size()) or
           (try Path.is_sep(base.path(base.path.size() - 1)?) else false end) or
           (try Path.is_sep(tmp_path(base.path.size())?) else false end))
 
-    if tmp_path.contains("\x00") or not contained then
+    if
+      path'.contains("\x00") or tmp_path.contains("\x00") or not contained
+    then
       error
     end
     path = tmp_path
@@ -124,8 +131,8 @@ class val FilePath
 
     If `FileAuth` is provided, the resulting `FilePath` will
     be relative to the program's working directory. Otherwise, it will be
-    relative to the existing `FilePath`, and the existing `FilePath` must be a
-    prefix of the resulting path.
+    relative to the existing `FilePath`, and must be that path or a path within
+    it, on the same terms as `FilePath.from`.
 
     The resulting `FilePath` will have capabilities that are the intersection
     of the supplied capabilities and the capabilities on the base.
