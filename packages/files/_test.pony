@@ -34,7 +34,9 @@ actor \nodoc\ Main is TestList
     test(_TestFileOpenWrite)
     test(_TestFilePathFileAuth)
     test(_TestFilePathFrom)
+    test(_TestFilePathFromContainment)
     test(_TestFilePathFromError)
+    test(_TestFilePathFromNul)
     test(_TestFileQueue)
     test(_TestFileQueuev)
     test(_TestFileReadMore)
@@ -222,6 +224,41 @@ class \nodoc\ iso _TestFilePathFrom is UnitTest
     let path = "tmp.filepath"
     let filepath = FilePath(FileAuth(h.env.root), path)
     h.assert_no_error({()? => FilePath.from(filepath, path)? })
+
+class \nodoc\ iso _TestFilePathFromContainment is UnitTest
+  """
+  _TestFilePathFromContainment checks that `FilePath.from` rejects a sibling
+  whose name merely begins with the base path's name, while still allowing a
+  genuine child. The containment check must fall on a path separator, not on a
+  raw byte prefix.
+  """
+  fun name(): String => "files/FilePath.from-containment"
+  fun apply(h: TestHelper) =>
+    let base = FilePath(FileAuth(h.env.root), "/tmp/pony_sandbox")
+    // A genuine child is within the hierarchy.
+    h.assert_no_error({()? => FilePath.from(base, "child")? })
+    // A sibling that extends the base name is not, even though its absolute
+    // path has the base path as a byte prefix.
+    h.assert_error({()? => FilePath.from(base, "../pony_sandbox_evil")? })
+
+class \nodoc\ iso _TestFilePathFromNul is UnitTest
+  """
+  _TestFilePathFromNul checks that `FilePath.from` rejects a path containing an
+  embedded NUL byte. A Pony string may hold a NUL; the OS, reading a C string,
+  stops at it and acts on a shorter, different path.
+  """
+  fun name(): String => "files/FilePath.from-nul"
+  fun apply(h: TestHelper) =>
+    let base = FilePath(FileAuth(h.env.root), "/tmp/pony_sandbox")
+    h.assert_error(
+      {()? => FilePath.from(base, "..\x00/etc")? },
+      "a NUL byte surviving into the joined path must be rejected")
+    // `Path.clean` deletes the component before a `..`, taking the NUL with it,
+    // so the joined path is NUL-free and within the base. `Directory` passes
+    // this argument to the OS unchanged, where it names `../secret` instead.
+    h.assert_error(
+      {()? => FilePath.from(base, "../secret\x00/../pony_sandbox/child")? },
+      "a NUL byte that cleaning removes must still be rejected")
 
 class \nodoc\ iso _TestFilePathFromError is UnitTest
   """
