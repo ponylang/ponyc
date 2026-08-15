@@ -76,8 +76,14 @@ class val FilePath
     """
     Create a new path from an existing `FilePath`.
 
-    path' is relative to the existing `FilePath`,
-    and the existing `FilePath` must be a prefix of the resulting path.
+    `path'` is relative to the existing `FilePath`. It is joined onto that path
+    and cleaned, and the result must be the existing path or lie within it. A
+    sibling whose name merely begins with the existing path's name is not within
+    it and raises an error, as does a `path'` that escapes upward with `..` or
+    contains a NUL byte.
+
+    Containment is textual: it does not resolve symlinks, so a symlink within
+    the existing path may still lead outside it.
 
     The resulting `FilePath` will have capabilities that are the intersection of
     the supplied capabilities and the capabilities of the existing `FilePath`.
@@ -90,7 +96,19 @@ class val FilePath
     let tmp_path = Path.join(base.path, path')
     caps.intersect(base.caps)
 
-    if not tmp_path.at(base.path, 0) then
+    // `tmp_path` must be `base.path` or lie beneath it. A byte-prefix match is
+    // not enough — a sibling like `.../sandbox_evil` shares the prefix
+    // `.../sandbox` without being within it — so the match must fall on a
+    // separator (or span the whole of a root `base.path` that ends in one). A
+    // NUL byte is rejected: the OS would stop at it and act on a shorter path
+    // than the one checked here.
+    let contained =
+      tmp_path.at(base.path, 0) and
+        ((tmp_path.size() == base.path.size()) or
+          (try Path.is_sep(base.path(base.path.size() - 1)?) else false end) or
+          (try Path.is_sep(tmp_path(base.path.size())?) else false end))
+
+    if tmp_path.contains("\x00") or not contained then
       error
     end
     path = tmp_path

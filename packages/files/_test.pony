@@ -34,7 +34,9 @@ actor \nodoc\ Main is TestList
     test(_TestFileOpenWrite)
     test(_TestFilePathFileAuth)
     test(_TestFilePathFrom)
+    test(_TestFilePathFromContainment)
     test(_TestFilePathFromError)
+    test(_TestFilePathFromNul)
     test(_TestFileQueue)
     test(_TestFileQueuev)
     test(_TestFileReadMore)
@@ -222,6 +224,37 @@ class \nodoc\ iso _TestFilePathFrom is UnitTest
     let path = "tmp.filepath"
     let filepath = FilePath(FileAuth(h.env.root), path)
     h.assert_no_error({()? => FilePath.from(filepath, path)? })
+
+class \nodoc\ iso _TestFilePathFromContainment is UnitTest
+  """
+  _TestFilePathFromContainment checks that `FilePath.from` rejects a sibling
+  whose name merely begins with the base path's name, while still allowing a
+  genuine child. The containment check must fall on a path separator, not on a
+  raw byte prefix.
+  """
+  fun name(): String => "files/FilePath.from-containment"
+  fun apply(h: TestHelper) =>
+    let base = FilePath(FileAuth(h.env.root), "/tmp/pony_sandbox")
+    // A genuine child is within the hierarchy.
+    h.assert_no_error({()? => FilePath.from(base, "child")? })
+    // A sibling that extends the base name is not, even though its absolute
+    // path has the base path as a byte prefix.
+    h.assert_error({()? => FilePath.from(base, "../pony_sandbox_evil")? })
+
+class \nodoc\ iso _TestFilePathFromNul is UnitTest
+  """
+  _TestFilePathFromNul checks that `FilePath.from` rejects a path containing an
+  embedded NUL byte. Without this the lexical containment check sees the whole
+  string while the OS, reading a C string, stops at the NUL and acts on a
+  shorter, different path.
+  """
+  fun name(): String => "files/FilePath.from-nul"
+  fun apply(h: TestHelper) =>
+    let base = FilePath(FileAuth(h.env.root), "/tmp/pony_sandbox")
+    let evil: String val = recover val
+      (String .> append("..")) .> push(0) .> append("/etc")
+    end
+    h.assert_error({()? => FilePath.from(base, evil)? })
 
 class \nodoc\ iso _TestFilePathFromError is UnitTest
   """
