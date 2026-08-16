@@ -16,6 +16,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Fix FilePath.from allowing paths outside the base directory ([PR #5821](https://github.com/ponylang/ponyc/pull/5821))
 - Fix trait default method bodies failing to compile with aliased use packages ([PR #5824](https://github.com/ponylang/ponyc/pull/5824))
 - Fix TCP and UDP sockets being closed when the system runs low on socket buffers ([PR #5823](https://github.com/ponylang/ponyc/pull/5823))
+- Fix compiler crash when combining traits with abstract and default method ([PR #5827](https://github.com/ponylang/ponyc/pull/5827))
 
 ### Added
 
