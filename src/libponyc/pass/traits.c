@@ -402,6 +402,38 @@ static ast_t* add_method(ast_t* entity, ast_t* trait_ref, ast_t* basis_method,
 }
 
 
+// Copy aliased use-package symbols from the donor trait's module into the
+// implementing type's module so that references in the copied default body
+// can resolve the package alias.
+static void import_use_aliases(ast_t* entity, ast_t* body_donor,
+  pass_opt_t* opt)
+{
+  ast_t* donor_module = ast_nearest(body_donor, TK_MODULE);
+  ast_t* target_module = ast_nearest(entity, TK_MODULE);
+
+  if(donor_module == target_module)
+    return;
+
+  for(ast_t* use = ast_child(donor_module); use != NULL;
+    use = ast_sibling(use))
+  {
+    if(ast_id(use) != TK_USE)
+      continue;
+
+    ast_t* alias = ast_child(use);
+
+    if(ast_id(alias) != TK_ID)
+      continue;
+
+    const char* name = ast_name(alias);
+    ast_t* package = (ast_t*)ast_data(use);
+
+    if(package != NULL)
+      ast_set(target_module, name, package, SYM_NONE, false, opt->strtab);
+  }
+}
+
+
 // Sort out symbol table for copied method body.
 static ast_result_t rescope(ast_t** astp, pass_opt_t* options)
 {
@@ -484,6 +516,11 @@ static bool add_method_from_trait(ast_t* entity, ast_t* method,
 
   if(existing_method == NULL)
   {
+    // Save the body donor before add_method overwrites ast_data on the method
+    // node. The body donor may differ from ast_data(trait_ref) when the body
+    // was inherited through a trait chain.
+    ast_t* body_donor = (ast_t*)ast_data(method);
+
     // We don't have a method yet with this name, add the one from this trait.
     ast_t* m = add_method(entity, trait_ref, method, "provided", opt);
 
@@ -491,7 +528,12 @@ static bool add_method_from_trait(ast_t* entity, ast_t* method,
       return false;
 
     if(ast_id(ast_childidx(m, 6)) != TK_NONE)
+    {
+      if(body_donor != NULL)
+        import_use_aliases(entity, body_donor, opt);
+
       ast_visit(&m, rescope, NULL, opt, PASS_ALL);
+    }
 
     return true;
   }
@@ -556,6 +598,7 @@ static bool add_method_from_trait(ast_t* entity, ast_t* method,
 
   // Trait provides default body. Use it and patch up symbol tables.
   pony_assert(ast_id(existing_body) == TK_NONE);
+  import_use_aliases(entity, (ast_t*)ast_data(method), opt);
   ast_replace(&existing_body, method_body);
   ast_visit(&existing_body, rescope, NULL, opt, PASS_ALL);
 
