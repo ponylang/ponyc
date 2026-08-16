@@ -259,7 +259,11 @@ actor Main
       end
     (let diags, let had_error) =
       _linter.run_ast_package(
-        pkg.dir, pkg.file_paths, _file_info, pkg.registry)
+        pkg.dir,
+        pkg.file_paths,
+        _file_info,
+        pkg.registry,
+        pkg.children)
     for d in diags.values() do
       _all_diags.push(d)
     end
