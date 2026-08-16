@@ -180,3 +180,23 @@ actor Main is Greeting
 
 Under heavy load the operating system can momentarily run out of buffer space while a socket is sending. Previously the runtime treated this as a fatal error: a `TCPConnection` closed the connection, dropping data that had not yet been delivered, and a `UDPSocket` closed entirely because a single datagram could not be queued. The condition is transient, so it is now handled the way a full send buffer already is — a `TCPConnection` pauses sending and resumes once space is available, and a `UDPSocket` drops the datagram and keeps running. This was most visible on macOS under high connection churn.
 
+## Fix compiler crash when combining traits with abstract and default method
+
+When a type implemented two traits that declared the same method — one without a body and one with a default body — the compiler crashed instead of compiling the program. The crash depended on the order of traits in the provides list: it occurred when the trait without a body appeared before the trait with a default body.
+
+```pony
+// no_body.pony
+trait HasHello
+  fun hello(env: Env)
+
+// greeting.pony
+trait Greeting
+  fun hello(env: Env) =>
+    env.out.print("hello!")
+
+// main.pony — crashed with `(HasHello & Greeting)`, compiled fine with `(Greeting & HasHello)`
+actor Main is (HasHello & Greeting)
+  new create(env: Env) =>
+    hello(env)
+```
+
