@@ -602,7 +602,7 @@ static bool add_method_from_trait(ast_t* entity, ast_t* method,
   pony_assert(ast_id(existing_body) == TK_NONE);
   import_use_aliases(entity, (ast_t*)ast_data(method), opt);
   ast_replace(&existing_body, method_body);
-  ast_visit(&existing_body, rescope, NULL, opt, PASS_ALL);
+  ast_visit(&existing_method, rescope, NULL, opt, PASS_ALL);
 
   info->body_donor = (ast_t*)ast_data(method);
   info->trait_ref = trait_ref;
