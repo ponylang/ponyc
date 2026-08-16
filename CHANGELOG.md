@@ -18,6 +18,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Fix TCP and UDP sockets being closed when the system runs low on socket buffers ([PR #5823](https://github.com/ponylang/ponyc/pull/5823))
 - Fix compiler crash when combining traits with abstract and default method ([PR #5827](https://github.com/ponylang/ponyc/pull/5827))
 - Fix stdin end-of-input and error handling ([PR #5832](https://github.com/ponylang/ponyc/pull/5832))
+- Fix compiler crash with multiple traits sharing a method with a default body ([PR #5831](https://github.com/ponylang/ponyc/pull/5831))
 
 ### Added
 
