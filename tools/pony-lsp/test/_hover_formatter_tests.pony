@@ -1,7 +1,7 @@
 use "pony_test"
 use "../workspace"
 
-primitive _HoverFormatterTests is TestList
+primitive \nodoc\ _HoverFormatterTests is TestList
   new make() =>
     None
 

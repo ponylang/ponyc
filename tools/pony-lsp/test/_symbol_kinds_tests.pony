@@ -1,7 +1,7 @@
 use "pony_test"
 use ".."
 
-primitive _SymbolKindsTests is TestList
+primitive \nodoc\ _SymbolKindsTests is TestList
   new make() =>
     None
 

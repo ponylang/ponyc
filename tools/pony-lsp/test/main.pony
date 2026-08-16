@@ -5,7 +5,7 @@ use "json"
 use ast = "pony_compiler"
 use ".."
 
-actor Main is TestList
+actor \nodoc\ Main is TestList
   new create(env: Env) =>
     PonyTest(env, this)
 

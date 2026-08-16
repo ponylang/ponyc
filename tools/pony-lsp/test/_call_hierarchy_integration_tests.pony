@@ -46,7 +46,7 @@ use "json"
 // _TConstructorWithBody.create  new, name (9,6)..(9,12)  full (9,2)..(10,10)
 // a.f_a()  call site f_a (10,6)..(10,9)
 
-primitive _CallHierarchyIntegrationTests is TestList
+primitive \nodoc\ _CallHierarchyIntegrationTests is TestList
   new make() => None
 
   fun tag tests(test: PonyTest) =>

@@ -38,7 +38,7 @@ use "json"
 // (_THierDupClass provides _THierDupBase & _THierDupBase — the duplication
 // exercises Set[AST val] dedup in _collect_supertypes.)
 
-primitive _TypeHierarchyIntegrationTests is TestList
+primitive \nodoc\ _TypeHierarchyIntegrationTests is TestList
   new make() => None
 
   fun tag tests(test: PonyTest) =>

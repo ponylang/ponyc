@@ -4,7 +4,7 @@ use "files"
 use "json"
 use "collections"
 
-primitive _TypeDefinitionIntegrationTests is TestList
+primitive \nodoc\ _TypeDefinitionIntegrationTests is TestList
   new make() => None
 
   fun tag tests(test: PonyTest) =>

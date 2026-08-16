@@ -485,6 +485,15 @@ actor \nodoc\ Main is TestList
     test(_TestExhaustiveMatchExplicitElse)
     test(_TestExhaustiveMatchMetadata)
 
+    // TestListNodoc tests
+    test(_TestTestListNodocFlagged)
+    test(_TestTestListNodocClean)
+    test(_TestTestListNodocNoTestList)
+    test(_TestTestListNodocNoProvidesClean)
+    test(_TestTestListNodocActorFlagged)
+    test(_TestTestListNodocIsectFlagged)
+    test(_TestTestListNodocMetadata)
+
     // CallArgumentFormat tests
     test(_TestCallArgFmtSingleLine)
     test(_TestCallArgFmtAllOnNextLine)

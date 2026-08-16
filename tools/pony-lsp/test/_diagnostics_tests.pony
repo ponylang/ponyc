@@ -3,7 +3,7 @@ use "pony_test"
 use "files"
 use "json"
 
-primitive _DiagnosticTests is TestList
+primitive \nodoc\ _DiagnosticTests is TestList
   new make() =>
     None
 

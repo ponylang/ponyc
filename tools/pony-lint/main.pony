@@ -129,6 +129,7 @@ actor Main
         .> push(TypeParameterFormat)
         .> push(CallArgumentFormat)
         .> push(ExhaustiveMatch)
+        .> push(TestListNodoc)
     end
 
     // Handle --explain

@@ -43,7 +43,7 @@ class Node
   fun print_values(env: Env) =>
     env.out.print(this.univals().string())
 
-actor Main is TestList
+actor \nodoc\ Main is TestList
   new create(env: Env) =>
     PonyTest(env, this)
 
