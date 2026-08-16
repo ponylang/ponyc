@@ -353,6 +353,38 @@ def test_max_connections_cap():
     check("max_connections: actually caps some seeds (not vacuous)", capped_any)
 
 
+def test_macos_payload_cap():
+    # macOS caps the payload (MACOS_MAX_PAYLOAD) to stay clear of the loopback
+    # sendmsg-block. Confirm it caps to min(drawn, cap); keeps the run consistent
+    # (expect must never exceed the capped payload, or the framed read never
+    # completes); leaves the independent levers alone; is deterministic; and isn't
+    # vacuous. The cap MAY change messages/connections too, since the byte-ceiling
+    # clamp (clamp_run) is a function of payload -- so those are not checked here.
+    cap = o.MACOS_MAX_PAYLOAD
+    ok = True
+    capped_any = False
+    untouched = ("concurrency", "read-buffer-size", "write-shape", "writev-chunks",
+                 "yield-after-reading", "yield-after-writing", "close")
+    for seed in range(300):
+        base = o.resolve_config(seed, 8)
+        capped = o.resolve_config(seed, 8, max_payload=cap)
+        w = capped["workload"]
+        if w["payload-size"] != min(base["workload"]["payload-size"], cap):
+            ok = False
+        if w["expect"] > w["payload-size"]:
+            ok = False
+        if any(w[k] != base["workload"][k] for k in untouched):
+            ok = False
+        if capped["runtime"] != base["runtime"]:
+            ok = False
+        if o.resolve_config(seed, 8, max_payload=cap) != capped:
+            ok = False
+        if base["workload"]["payload-size"] > cap:
+            capped_any = True
+    check("macOS payload cap: caps to min(drawn, cap), expect stays <= payload", ok)
+    check("macOS payload cap: actually caps some seeds (not vacuous)", capped_any)
+
+
 def test_ponymaxthreads_is_last_and_host_dependent():
     # Everything but --ponymaxthreads must be identical across host core counts;
     # only the last draw (ponymaxthreads) may differ. This is what lets the draw
@@ -712,7 +744,7 @@ def main():
                test_memory_budget, test_memory_budget_trims,
                test_est_peak_bytes_monotonic,
                test_memory_budget_rotates_the_trimmed_lever,
-               test_max_connections_cap,
+               test_max_connections_cap, test_macos_payload_cap,
                test_resolve_config_coverage_and_invariants,
                test_ponymaxthreads_is_last_and_host_dependent,
                test_build_argv, test_parse_result, test_lldb_argv,
