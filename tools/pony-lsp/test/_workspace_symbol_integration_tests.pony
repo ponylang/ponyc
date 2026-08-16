@@ -3,7 +3,7 @@ use "pony_test"
 use "files"
 use "json"
 
-primitive _WorkspaceSymbolIntegrationTests is TestList
+primitive \nodoc\ _WorkspaceSymbolIntegrationTests is TestList
   new make() => None
 
   fun tag tests(test: PonyTest) =>

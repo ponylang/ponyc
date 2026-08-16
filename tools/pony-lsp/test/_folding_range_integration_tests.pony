@@ -3,7 +3,7 @@ use "pony_test"
 use "files"
 use "json"
 
-primitive _FoldingRangeIntegrationTests is TestList
+primitive \nodoc\ _FoldingRangeIntegrationTests is TestList
   new make() => None
 
   fun tag tests(test: PonyTest) =>

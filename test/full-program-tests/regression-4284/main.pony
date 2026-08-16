@@ -4,7 +4,7 @@ use "pony_test"
 // _TestIssue4284 will pass. If a regression is introduced, this
 // program will crash.
 
-actor Main is TestList
+actor \nodoc\ Main is TestList
   new create(env: Env) =>
     PonyTest(env, this)
 

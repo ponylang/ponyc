@@ -4,7 +4,7 @@ use "files"
 use ".."
 use "../workspace"
 
-primitive _WorkspaceTests is TestList
+primitive \nodoc\ _WorkspaceTests is TestList
   new make() =>
     None
 

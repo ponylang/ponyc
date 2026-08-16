@@ -2,7 +2,7 @@ use "pony_check"
 use "pony_test"
 use ".."
 
-primitive _URITests is TestList
+primitive \nodoc\ _URITests is TestList
   new make() =>
     None
 

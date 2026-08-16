@@ -3,7 +3,7 @@ use "pony_test"
 use "files"
 use "json"
 
-primitive _InlayHintIntegrationTests is TestList
+primitive \nodoc\ _InlayHintIntegrationTests is TestList
   new make() => None
 
   fun tag tests(test: PonyTest) =>

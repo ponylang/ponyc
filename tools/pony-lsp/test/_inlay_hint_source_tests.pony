@@ -1,7 +1,7 @@
 use "pony_test"
 use "../workspace"
 
-primitive _InlayHintSourceTests is TestList
+primitive \nodoc\ _InlayHintSourceTests is TestList
   new make() =>
     None
 

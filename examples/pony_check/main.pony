@@ -1,7 +1,7 @@
 use "pony_test"
 use "pony_check"
 
-actor Main is TestList
+actor \nodoc\ Main is TestList
   new create(env: Env) =>
     PonyTest(env, this)
 
