@@ -1,3 +1,0 @@
-## Fix TCP and UDP sockets being closed when the system runs low on socket buffers
-
-Under heavy load the operating system can momentarily run out of buffer space while a socket is sending. Previously the runtime treated this as a fatal error: a `TCPConnection` closed the connection, dropping data that had not yet been delivered, and a `UDPSocket` closed entirely because a single datagram could not be queued. The condition is transient, so it is now handled the way a full send buffer already is — a `TCPConnection` pauses sending and resumes once space is available, and a `UDPSocket` drops the datagram and keeps running. This was most visible on macOS under high connection churn.
