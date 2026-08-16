@@ -90,6 +90,22 @@ CLOSE_KINDS = ["graceful", "hard"]
 # Payload sizes span the runtime's 16384-byte default read buffer: below, at, and
 # above it, so runs straddle the read-chunk boundary rather than clustering small.
 PAYLOAD_SIZES = [1, 8, 64, 256, 1024, 4096, 16384, 65536]
+# macOS-only: cap the drawn payload at 16384 (applied in resolve_config when the
+# orchestrator runs on macOS). WHY: macOS loopback has no wire rate limit, so at
+# the largest payload the swarm pushes data onto lo0 faster than the interface's
+# buffer pool drains. sendmsg then BLOCKS in the kernel waiting for buffers (and
+# returns ENOBUFS) EVEN on a non-blocking socket -- O_NONBLOCK/MSG_DONTWAIT govern
+# the socket buffer, not the interface's buffer pool. A blocked send freezes the
+# scheduler thread that issued it and stalls the whole run, which the swarm reports
+# as a failure. This is a macOS kernel behavior, not a runtime bug: the runtime
+# cannot force the send non-blocking from userspace short of moving socket I/O off
+# the scheduler threads (an I/O-model change we are deliberately not making). The
+# 65536 payload paired with small read buffers (slow drain) triggers it reliably on
+# a real runner; 16384 stays clear of it while keeping the small-read-buffer yield
+# coverage. Linux and Windows loopback do not behave this way, so they are uncapped.
+# (The separate defect where the runtime treated ENOBUFS as fatal was fixed in
+# ponyc PR #5823; that fix does not stop the send from blocking.)
+MACOS_MAX_PAYLOAD = 16384
 # Read buffer + yield thresholds: small values drive frequent yields back to the
 # scheduler on any payload size; the 16384 default anchors the "unchanged" end.
 READ_BUFFER_SIZES = [128, 1024, 16384, 65536]
@@ -277,7 +293,8 @@ def _draw_memory_levers(rng, use_writev):
     return chosen
 
 
-def resolve_config(master_seed, max_threads, max_connections=None):
+def resolve_config(master_seed, max_threads, max_connections=None,
+                   max_payload=None):
     """Draw one TCP workload from a master seed. The draw is the seed-stability
     contract: change it and every seed remaps (breaking a historical --replay), so
     change it deliberately and regenerate the pinned goldens in orchestrate_tcp_test.py
@@ -291,7 +308,14 @@ def resolve_config(master_seed, max_threads, max_connections=None):
     max_connections, if set, caps the drawn connection count after the draw (no rng
     consumed, so within-host seed stability holds). Windows CI passes a small value
     because Windows opens TCP connections very slowly -- ~5.5/s, so 10k connections
-    is ~30 min and 100k would never finish inside the job's time budget."""
+    is ~30 min and 100k would never finish inside the job's time budget.
+
+    max_payload, if set, caps the drawn payload size (macOS passes MACOS_MAX_PAYLOAD;
+    see that constant for why). Like ponymaxthreads it makes the draw host-dependent,
+    but deterministically (the same cap is always applied on the same host), so
+    --replay still holds within a host. It caps payload BEFORE payload is used for
+    `expect` and the byte ceilings, so those reflect the capped size; it consumes no
+    rng."""
     rng = random.Random(master_seed)
 
     workload = {}
@@ -302,6 +326,11 @@ def resolve_config(master_seed, max_threads, max_connections=None):
     use_writev = rng.choice(WRITE_SHAPES) == "writev"
     mem = _draw_memory_levers(rng, use_writev)
     payload = mem["payload"]
+    # macOS loopback cap (see MACOS_MAX_PAYLOAD). Applied here, before payload is
+    # used for `expect` and the byte ceilings, so a capped run stays self-consistent
+    # (e.g. expect never exceeds the payload). Consumes no rng.
+    if max_payload is not None:
+        payload = min(payload, max_payload)
     read_buffer = mem["read_buffer"]
     workload["connections"] = mem["connections"]
     workload["concurrency"] = mem["concurrency"]
@@ -770,8 +799,13 @@ def main():
 
     failures = []
 
+    # macOS caps the payload to keep the swarm clear of the loopback sendmsg-block
+    # (see MACOS_MAX_PAYLOAD). Other platforms draw uncapped.
+    max_payload = MACOS_MAX_PAYLOAD if sys.platform == "darwin" else None
+
     def run_seed(seed):
-        config = resolve_config(seed, max_threads, args.max_connections)
+        config = resolve_config(seed, max_threads, args.max_connections,
+                                max_payload)
         result = execute(binary, config, version, args.out,
                          args.timeout_seconds, mem_limit_bytes,
                          args.no_progress_seconds, args.lldb)
