@@ -17,6 +17,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Fix trait default method bodies failing to compile with aliased use packages ([PR #5824](https://github.com/ponylang/ponyc/pull/5824))
 - Fix TCP and UDP sockets being closed when the system runs low on socket buffers ([PR #5823](https://github.com/ponylang/ponyc/pull/5823))
 - Fix compiler crash when combining traits with abstract and default method ([PR #5827](https://github.com/ponylang/ponyc/pull/5827))
+- Fix stdin end-of-input and error handling ([PR #5832](https://github.com/ponylang/ponyc/pull/5832))
 
 ### Added
 
@@ -31,6 +32,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Change JsonTokenParser to carry values on its tokens ([PR #5658](https://github.com/ponylang/ponyc/pull/5658))
 - Starting a process returns a result ([PR #5770](https://github.com/ponylang/ponyc/pull/5770))
 - ProcessMonitor requires Linux 5.3 or newer ([PR #5770](https://github.com/ponylang/ponyc/pull/5770))
+- Add read_failed to InputNotify ([PR #5832](https://github.com/ponylang/ponyc/pull/5832))
 
 ## [0.68.0] - 2026-08-01
 

@@ -14,6 +14,12 @@ interface InputNotify
     """
     None
 
+  fun ref read_failed() =>
+    """
+    Called when a read from the stream fails, before `dispose`.
+    """
+    None
+
   fun ref dispose() =>
     """
     Called when no more data will arrive on the stream.
@@ -124,7 +130,11 @@ actor Stdin is AsioEventNotify
       @pony_asio_event_destroy(event)
     elseif (_event is event) and AsioEvent.errored(flags) then
       _close_event()
-      try (_notify as InputNotify).dispose() end
+      try
+        let notify = _notify as InputNotify
+        notify.read_failed()
+        notify.dispose()
+      end
       _notify = None
     elseif (_event is event) and AsioEvent.readable(flags) then
       _read()
@@ -153,11 +163,15 @@ actor Stdin is AsioEventNotify
 
         match len
         | -1 =>
-          // Error, possibly would block. Try again.
           return true
         | 0 =>
-          // EOF. Close everything, stop reading.
           _close_event()
+          notify.dispose()
+          _notify = None
+          return false
+        | -2 =>
+          _close_event()
+          notify.read_failed()
           notify.dispose()
           _notify = None
           return false

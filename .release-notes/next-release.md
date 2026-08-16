@@ -218,3 +218,51 @@ primitive \nodoc\ _MyTests is TestList
 
 The rule is on by default. Disable it with `--disable style/testlist-nodoc` or in `.pony-lint.json`.
 
+## Fix stdin end-of-input and error handling
+
+On Windows, a program reading stdin from the console could never reach end of input. Typing Ctrl+Z — the Windows end-of-input key — delivered the byte 0x1A to the program instead of ending the stream. The program ran until killed. Ctrl+Z now ends console input.
+
+Separately, a failed read from stdin was not reported to the program on any platform. `InputNotify` now has a `read_failed` method, called before `dispose` when the stream ends because of a read failure:
+
+```pony
+env.input(
+  object iso is InputNotify
+    fun ref apply(data: Array[U8] iso) =>
+      // process data
+
+    fun ref read_failed() =>
+      env.exitcode(1)
+
+    fun ref dispose() =>
+      // cleanup
+  end)
+```
+
+Existing programs that do not override `read_failed` behave as before.
+
+## Add read_failed to InputNotify
+
+`InputNotify` has a new method, `read_failed`, called before `dispose` when a read from the stream fails. Code that structurally matches `InputNotify` without `is InputNotify` will not compile until `read_failed` is added or `is InputNotify` is declared:
+
+Before:
+
+```pony
+let notify = object iso
+  fun ref apply(data: Array[U8] iso) => // ...
+  fun ref dispose() => // ...
+end
+env.input(consume notify)
+```
+
+After:
+
+```pony
+let notify = object iso is InputNotify
+  fun ref apply(data: Array[U8] iso) => // ...
+  fun ref dispose() => // ...
+end
+env.input(consume notify)
+```
+
+Code that already uses `is InputNotify` is unaffected — it picks up the default no-op.
+
