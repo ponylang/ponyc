@@ -61,6 +61,7 @@ typedef struct method_t
 
 
 static bool trait_entity(ast_t* entity, pass_opt_t* options);
+static void local_types(ast_t* ast);
 
 
 // Report whether the given node is a method.
@@ -462,6 +463,7 @@ static ast_result_t rescope(ast_t** astp, pass_opt_t* options)
       pony_assert(ast_child(ast) != NULL);
       ast_set(ast, ast_name(ast_child(ast)), ast, SYM_UNDEFINED, true,
         options->strtab);
+      local_types(ast);
       break;
     }
 
