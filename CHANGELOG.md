@@ -22,6 +22,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 - Add the --ponymemoryprofile runtime option ([PR #5768](https://github.com/ponylang/ponyc/pull/5768))
 - Add a streaming JSON parser ([PR #5658](https://github.com/ponylang/ponyc/pull/5658))
+- Add the style/testlist-nodoc pony-lint rule ([PR #5830](https://github.com/ponylang/ponyc/pull/5830))
 
 ### Changed
 
