@@ -370,8 +370,8 @@ actor UDPSocket is AsioEventNotify
     if not _closed then
       // `count` (bytes sent on Ok) is discarded: UDP is unreliable, so we
       // don't track partial-send progress. The local is required by the FFI
-      // shape. `_SocketResultRetry` (EWOULDBLOCK/EAGAIN) silently drops the
-      // datagram on every platform. A send Error closes the socket.
+      // shape. `_SocketResultRetry` (EWOULDBLOCK/EAGAIN/ENOBUFS) silently drops
+      // the datagram on every platform. A send Error closes the socket.
       var count: USize = 0
       match \exhaustive\ _SocketResultDecoder(
         @pony_os_sendto(_fd, data.cpointer(), data.size(), to,

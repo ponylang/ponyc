@@ -702,7 +702,10 @@ PONY_API pony_socket_result_t pony_os_sendv(asio_event_t* ev,
 
   if(r == SOCKET_ERROR)
   {
-    if(WSAGetLastError() == WSAEWOULDBLOCK)
+    int wsa_err = WSAGetLastError();
+    // WSAENOBUFS is retryable transient buffer exhaustion, like WSAEWOULDBLOCK;
+    // see pony_os_sendv's POSIX branch for the rationale.
+    if(wsa_err == WSAEWOULDBLOCK || wsa_err == WSAENOBUFS)
     {
       *count_out = 0;
       return PONY_SOCKET_RETRY;
@@ -741,7 +744,11 @@ PONY_API pony_socket_result_t pony_os_sendv(asio_event_t* ev,
 
   if(sent < 0)
   {
-    if(errno == EWOULDBLOCK || errno == EAGAIN)
+    // ENOBUFS is transient buffer exhaustion, not a dead connection: the kernel
+    // momentarily has no send buffers (macOS does this on a congested
+    // interface). Retry with backpressure like EAGAIN instead of returning an
+    // error, which the stdlib turns into a connection-killing hard close.
+    if(errno == EWOULDBLOCK || errno == EAGAIN || errno == ENOBUFS)
     {
       *count_out = 0;
       return PONY_SOCKET_RETRY;
@@ -762,7 +769,8 @@ PONY_API pony_socket_result_t pony_os_writev(asio_event_t* ev,
 
   if(sent < 0)
   {
-    if(errno == EWOULDBLOCK || errno == EAGAIN)
+    // ENOBUFS is retryable transient buffer exhaustion; see pony_os_sendv.
+    if(errno == EWOULDBLOCK || errno == EAGAIN || errno == ENOBUFS)
     {
       *count_out = 0;
       return PONY_SOCKET_RETRY;
@@ -785,7 +793,9 @@ PONY_API pony_socket_result_t pony_os_send(asio_event_t* ev, const char* buf,
 
   if(sent == SOCKET_ERROR)
   {
-    if(WSAGetLastError() == WSAEWOULDBLOCK)
+    int wsa_err = WSAGetLastError();
+    // WSAENOBUFS is retryable transient buffer exhaustion; see pony_os_sendv.
+    if(wsa_err == WSAEWOULDBLOCK || wsa_err == WSAENOBUFS)
     {
       *count_out = 0;
       return PONY_SOCKET_RETRY;
@@ -802,7 +812,8 @@ PONY_API pony_socket_result_t pony_os_send(asio_event_t* ev, const char* buf,
 
   if(sent < 0)
   {
-    if(errno == EWOULDBLOCK || errno == EAGAIN)
+    // ENOBUFS is retryable transient buffer exhaustion; see pony_os_sendv.
+    if(errno == EWOULDBLOCK || errno == EAGAIN || errno == ENOBUFS)
     {
       *count_out = 0;
       return PONY_SOCKET_RETRY;
@@ -890,7 +901,9 @@ PONY_API pony_socket_result_t pony_os_sendto(int fd, const char* buf,
 
   if(sent == SOCKET_ERROR)
   {
-    if(WSAGetLastError() == WSAEWOULDBLOCK)
+    int wsa_err = WSAGetLastError();
+    // WSAENOBUFS is retryable transient buffer exhaustion; see pony_os_sendv.
+    if(wsa_err == WSAEWOULDBLOCK || wsa_err == WSAENOBUFS)
     {
       *count_out = 0;
       return PONY_SOCKET_RETRY;
@@ -916,7 +929,9 @@ PONY_API pony_socket_result_t pony_os_sendto(int fd, const char* buf,
 
   if(sent < 0)
   {
-    if(errno == EWOULDBLOCK || errno == EAGAIN)
+    // ENOBUFS is retryable transient buffer exhaustion; see pony_os_sendv. For
+    // UDP the retry result drops the datagram rather than closing the socket.
+    if(errno == EWOULDBLOCK || errno == EAGAIN || errno == ENOBUFS)
     {
       *count_out = 0;
       return PONY_SOCKET_RETRY;
