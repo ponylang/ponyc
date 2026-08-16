@@ -49,7 +49,7 @@ actor Main
       Readline(recover Handler end, env.out), env.input)
     term.prompt("0 > ")
 
-    let notify = object iso
+    let notify = object iso is InputNotify
       let term: ANSITerm = term
       fun ref apply(data: Array[U8] iso) => term(consume data)
       fun ref dispose() => term.dispose()

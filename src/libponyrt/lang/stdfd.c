@@ -5,6 +5,7 @@
 #include "stdfd.h"
 
 #ifndef PLATFORM_IS_WINDOWS
+#include <errno.h>
 #include <poll.h>
 #include <termios.h>
 #include <unistd.h>
@@ -500,6 +501,7 @@ PONY_API size_t pony_os_stdin_read(char* buffer, size_t space)
       // Peek at the console input.
       INPUT_RECORD record[64];
       DWORD count;
+      bool eof = false;
 
       BOOL r = PeekConsoleInput(handle, record, 64, &count);
 
@@ -509,6 +511,23 @@ PONY_API size_t pony_os_stdin_read(char* buffer, size_t space)
 
         while(consumed < count)
         {
+          // Ctrl+Z (SUB, 0x1A) is the Windows end-of-input key. The console
+          // does not process it because ENABLE_LINE_INPUT is cleared, so it
+          // arrives as a key event. Consume it when nothing is buffered (EOF);
+          // leave it when data precedes it so the data is delivered first and
+          // the next read sees the EOF.
+          if(record[consumed].EventType == KEY_EVENT &&
+            record[consumed].Event.KeyEvent.bKeyDown &&
+            record[consumed].Event.KeyEvent.uChar.UnicodeChar == 0x001A)
+          {
+            if(len == 0)
+            {
+              consumed++;
+              eof = true;
+            }
+            break;
+          }
+
           if(!add_input_record(buffer, space, &len, &record[consumed]))
             break;
 
@@ -519,8 +538,7 @@ PONY_API size_t pony_os_stdin_read(char* buffer, size_t space)
         ReadConsoleInput(handle, record, consumed, &count);
       }
 
-      // We have no data, but 0 means EOF, so we return -1 which is try again
-      if(len == 0)
+      if(len == 0 && !eof)
         len = -1;
       break;
     }
@@ -548,6 +566,8 @@ PONY_API size_t pony_os_stdin_read(char* buffer, size_t space)
 
       if(ReadFile(handle, buffer, take, &actual_len, NULL))
         len = actual_len;
+      else
+        len = (size_t)-2;
 
       break;
     }
@@ -560,7 +580,10 @@ PONY_API size_t pony_os_stdin_read(char* buffer, size_t space)
       DWORD actual_len = 0;
 
       if(!ReadFile(handle, buffer, buf_size, &actual_len, NULL))
-        actual_len = 0;  // A failed read is the end of the input.
+      {
+        len = (size_t)-2;
+        break;
+      }
 
       len = actual_len;
       break;
@@ -570,7 +593,7 @@ PONY_API size_t pony_os_stdin_read(char* buffer, size_t space)
   // Resume stdin notifications only when the asio backend is managing events
   // for stdin. In loop mode (STDIN_OTHER — a file or NUL) there is no event
   // to resume.
-  if(len != 0 && ponyint_stdin_kind() != STDIN_OTHER)
+  if(len != 0 && len != (size_t)-2 && ponyint_stdin_kind() != STDIN_OTHER)
     ponyint_sock_notify_resume_stdin();
 
   return len;
@@ -585,7 +608,16 @@ PONY_API size_t pony_os_stdin_read(char* buffer, size_t space)
   if(n != 1)
     return -1;
 
-  return read(STDIN_FILENO, buffer, space);
+  ssize_t result = read(STDIN_FILENO, buffer, space);
+
+  if(result < 0)
+  {
+    if(errno == EAGAIN || errno == EWOULDBLOCK || errno == EINTR)
+      return (size_t)-1;
+    return (size_t)-2;
+  }
+
+  return (size_t)result;
 #endif
 }
 
