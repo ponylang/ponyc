@@ -15,6 +15,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - ProcessMonitor no longer leaks file descriptors when a process fails to start ([PR #5770](https://github.com/ponylang/ponyc/pull/5770))
 - Fix FilePath.from allowing paths outside the base directory ([PR #5821](https://github.com/ponylang/ponyc/pull/5821))
 - Fix trait default method bodies failing to compile with aliased use packages ([PR #5824](https://github.com/ponylang/ponyc/pull/5824))
+- Fix TCP and UDP sockets being closed when the system runs low on socket buffers ([PR #5823](https://github.com/ponylang/ponyc/pull/5823))
 
 ### Added
 
