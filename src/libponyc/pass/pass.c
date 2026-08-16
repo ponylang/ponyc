@@ -12,11 +12,13 @@
 #include "completeness.h"
 #include "verify.h"
 #include "finalisers.h"
+#include "timing.h"
 #include "../ast/ast.h"
 #include "../ast/parser.h"
 #include "../ast/treecheck.h"
 #include "../codegen/codegen.h"
 #include "../codegen/gencshim.h"
+#include "../pkg/package.h"
 #include "../pkg/program.h"
 #include "../pkg/buildflagset.h"
 #include "../plugin/plugin.h"
@@ -144,6 +146,15 @@ void pass_opt_done(pass_opt_t* options)
       );
   }
 
+  // Free the timing context if it survived to here (the normal ponyc path frees
+  // it earlier, in the driver, before ponyc_shutdown -- see timing.h). This
+  // covers the early-exit paths, where no compilation and no LLVM teardown ran.
+  if(options->timers != NULL)
+  {
+    pony_timers_free(options->timers);
+    options->timers = NULL;
+  }
+
   // Free the interned-string table last: every interned pointer handed out
   // during this compilation (including those inside the AST) dangles after
   // this, so nothing that holds one may be used past here.
@@ -190,7 +201,14 @@ static bool visit_pass(ast_t** astp, pass_opt_t* options, pass_id last_pass,
   //fprintf(stderr, "Pass %s (last %s) on %s\n", pass_name(pass),
   //  pass_name(last_pass), ast_get_print(*astp));
 
-  if(ast_visit(astp, pre_fn, post_fn, options, pass) != AST_OK)
+  // A pass can re-enter itself here via ast_passes_subtree (expr on a generic
+  // instantiation); the timer counts each phase's inclusive span once
+  // (timing.h).
+  pony_timer_start(options->timers, PONY_TIMER_GROUP_PHASES, pass_name(pass));
+  ast_result_t r = ast_visit(astp, pre_fn, post_fn, options, pass);
+  pony_timer_stop(options->timers, PONY_TIMER_GROUP_PHASES, pass_name(pass));
+
+  if(r != AST_OK)
   {
     *out_r = false;
     return false;
@@ -202,8 +220,24 @@ static bool visit_pass(ast_t** astp, pass_opt_t* options, pass_id last_pass,
 
 bool module_passes(ast_t* package, pass_opt_t* options, source_t* source)
 {
-  if(!pass_parse(package, source, options->check.errors, options->strtab,
-    options->allow_test_symbols, options->parse_trace))
+  // module_passes runs once per module; the per-package timers accumulate all
+  // of a package's modules. parse and syntax are timed per module here; the
+  // later whole-program passes are attributed per package by the TK_PACKAGE
+  // hook in ast_visit.
+  const char* pkg = package_qualified_name(package);
+
+  pony_timer_start(options->timers, PONY_TIMER_GROUP_PHASES, "parse");
+  pony_timer_start(options->timers, PONY_TIMER_GROUP_PACKAGES, pkg);
+  pony_timer_start_pair(options->timers, PONY_TIMER_GROUP_PACKAGE_PASSES, pkg,
+    "parse");
+  bool parsed = pass_parse(package, source, options->check.errors,
+    options->strtab, options->allow_test_symbols, options->parse_trace);
+  pony_timer_stop_pair(options->timers, PONY_TIMER_GROUP_PACKAGE_PASSES, pkg,
+    "parse");
+  pony_timer_stop(options->timers, PONY_TIMER_GROUP_PACKAGES, pkg);
+  pony_timer_stop(options->timers, PONY_TIMER_GROUP_PHASES, "parse");
+
+  if(!parsed)
     return false;
 
   if(options->limit < PASS_SYNTAX)
@@ -211,7 +245,17 @@ bool module_passes(ast_t* package, pass_opt_t* options, source_t* source)
 
   ast_t* module = ast_child(package);
 
-  if(ast_visit(&module, pass_syntax, NULL, options, PASS_SYNTAX) != AST_OK)
+  pony_timer_start(options->timers, PONY_TIMER_GROUP_PHASES, "syntax");
+  pony_timer_start(options->timers, PONY_TIMER_GROUP_PACKAGES, pkg);
+  pony_timer_start_pair(options->timers, PONY_TIMER_GROUP_PACKAGE_PASSES, pkg,
+    "syntax");
+  ast_result_t r = ast_visit(&module, pass_syntax, NULL, options, PASS_SYNTAX);
+  pony_timer_stop_pair(options->timers, PONY_TIMER_GROUP_PACKAGE_PASSES, pkg,
+    "syntax");
+  pony_timer_stop(options->timers, PONY_TIMER_GROUP_PACKAGES, pkg);
+  pony_timer_stop(options->timers, PONY_TIMER_GROUP_PHASES, "syntax");
+
+  if(r != AST_OK)
     return false;
 
   if(options->check_tree)
@@ -307,7 +351,13 @@ static bool ast_passes(ast_t** astp, pass_opt_t* options, pass_id last)
   if(!check_limit(astp, options, PASS_FINALISER, last))
     return true;
 
-  if(!pass_finalisers(*astp, options))
+  pony_timer_start(options->timers, PONY_TIMER_GROUP_PHASES,
+    pass_name(PASS_FINALISER));
+  bool finalised = pass_finalisers(*astp, options);
+  pony_timer_stop(options->timers, PONY_TIMER_GROUP_PHASES,
+    pass_name(PASS_FINALISER));
+
+  if(!finalised)
     return false;
 
   if(is_program)
@@ -346,7 +396,14 @@ bool ast_passes_program(ast_t* ast, pass_opt_t* options)
   // site, and so clang errors fail the build before codegen starts.
   // Front-end tools stop at limit <= PASS_FINALISER and never invoke clang.
   if(options->limit >= PASS_C)
-    return gencshim(ast, options);
+  {
+    pony_timer_start(options->timers, PONY_TIMER_GROUP_PHASES,
+      pass_name(PASS_C));
+    bool ok = gencshim(ast, options);
+    pony_timer_stop(options->timers, PONY_TIMER_GROUP_PHASES,
+      pass_name(PASS_C));
+    return ok;
+  }
 
   return true;
 }
@@ -424,6 +481,23 @@ ast_result_t ast_visit(ast_t** ast, ast_visit_t pre, ast_visit_t post,
   typecheck_t* t = &options->check;
   bool pop = frame_push(t, *ast);
 
+  // Per-package front-end timing. A package subtree is entered once per pass,
+  // so wrapping its whole visit attributes that pass's work on the package --
+  // including generic instantiations demanded while type-checking it, whose
+  // re-entrant ast_passes_subtree runs inside this span. The name is captured
+  // now because pre/post may replace *ast; package_qualified_name returns an
+  // interned pointer that outlives this call, and pass is fixed. Stopped on
+  // every return path below.
+  bool time_pkg = (options->timers != NULL) && (ast_id(*ast) == TK_PACKAGE);
+  const char* pkg_qname = time_pkg ? package_qualified_name(*ast) : NULL;
+
+  if(time_pkg)
+  {
+    pony_timer_start(options->timers, PONY_TIMER_GROUP_PACKAGES, pkg_qname);
+    pony_timer_start_pair(options->timers, PONY_TIMER_GROUP_PACKAGE_PASSES,
+      pkg_qname, pass_name(pass));
+  }
+
   ast_result_t ret = AST_OK;
   bool ignore = false;
 
@@ -443,6 +517,14 @@ ast_result_t ast_visit(ast_t** ast, ast_visit_t pre, ast_visit_t post,
         break;
 
       case AST_FATAL:
+        if(time_pkg)
+        {
+          pony_timer_stop_pair(options->timers, PONY_TIMER_GROUP_PACKAGE_PASSES,
+            pkg_qname, pass_name(pass));
+          pony_timer_stop(options->timers, PONY_TIMER_GROUP_PACKAGES,
+            pkg_qname);
+        }
+
         ast_pass_record(*ast, pass);
 
         if(pop)
@@ -473,6 +555,14 @@ ast_result_t ast_visit(ast_t** ast, ast_visit_t pre, ast_visit_t post,
           break;
 
         case AST_FATAL:
+          if(time_pkg)
+          {
+            pony_timer_stop_pair(options->timers,
+              PONY_TIMER_GROUP_PACKAGE_PASSES, pkg_qname, pass_name(pass));
+            pony_timer_stop(options->timers, PONY_TIMER_GROUP_PACKAGES,
+              pkg_qname);
+          }
+
           ast_pass_record(*ast, pass);
 
           if(pop)
@@ -498,6 +588,14 @@ ast_result_t ast_visit(ast_t** ast, ast_visit_t pre, ast_visit_t post,
         break;
 
       case AST_FATAL:
+        if(time_pkg)
+        {
+          pony_timer_stop_pair(options->timers, PONY_TIMER_GROUP_PACKAGE_PASSES,
+            pkg_qname, pass_name(pass));
+          pony_timer_stop(options->timers, PONY_TIMER_GROUP_PACKAGES,
+            pkg_qname);
+        }
+
         ast_pass_record(*ast, pass);
 
         if(pop)
@@ -505,6 +603,13 @@ ast_result_t ast_visit(ast_t** ast, ast_visit_t pre, ast_visit_t post,
 
         return AST_FATAL;
     }
+  }
+
+  if(time_pkg)
+  {
+    pony_timer_stop_pair(options->timers, PONY_TIMER_GROUP_PACKAGE_PASSES,
+      pkg_qname, pass_name(pass));
+    pony_timer_stop(options->timers, PONY_TIMER_GROUP_PACKAGES, pkg_qname);
   }
 
   if(pop)

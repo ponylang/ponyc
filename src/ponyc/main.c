@@ -4,6 +4,7 @@
 #include "../libponyc/pkg/package.h"
 #include "../libponyc/pkg/buildflagset.h"
 #include "../libponyc/pass/pass.h"
+#include "../libponyc/pass/timing.h"
 #include "../libponyc/options/options.h"
 #include "../libponyc/ast/stringtab.h"
 #include "../libponyc/ast/treecheck.h"
@@ -138,6 +139,20 @@ int main(int argc, char* argv[])
 
   if(!ok && errors_get_count(opt.check.errors) == 0)
     printf("Error: internal failure not reported\n");
+
+  // Report and free the timings before ponyc_shutdown (timing.h explains why
+  // the teardown ordering matters).
+  if(opt.timers != NULL)
+  {
+    // opt.triple holds the effective target triple, resolved in ponyc_init
+    // (codegen_pass_init) before compilation -- so it is set whenever init
+    // succeeded, and NULL only if init itself failed. A build that failed later
+    // still reports the target it was aimed at; status records the failure.
+    pony_timers_set_report_meta(opt.timers, ok, PONY_VERSION, opt.triple);
+    pony_timers_report(opt.timers);
+    pony_timers_free(opt.timers);
+    opt.timers = NULL;
+  }
 
   ponyc_shutdown(&opt);
   pass_opt_done(&opt);
