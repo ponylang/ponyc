@@ -1,6 +1,9 @@
 use "net"
 
 class Pong is UDPNotify
+  """
+  Listens for a UDP ping and replies with pong.
+  """
   let _env: Env
 
   new create(env: Env) =>
@@ -32,6 +35,9 @@ class Pong is UDPNotify
 
   fun ref received(sock: UDPSocket ref, data: Array[U8] iso, from: NetAddress)
   =>
+    """
+    Handle an incoming UDP datagram and reply with pong.
+    """
     try
       (let host, let service) = from.name()?
       _env.out.print("from " + host + ":" + service)

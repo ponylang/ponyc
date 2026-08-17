@@ -3,6 +3,10 @@ use "collections"
 use "time"
 
 class val Config
+  """
+  Benchmark parameters parsed from the command line.
+  """
+
   let logtable: USize
   let iterate: USize
   let chunk: USize
@@ -10,15 +14,33 @@ class val Config
   let updater_count: USize
 
   new val create(env: Env) ? =>
-    let cs = CommandSpec.leaf("gups_basic", "", [
-      OptionSpec.i64("table", "Log2 of the total table size." where default' = 20)
-      OptionSpec.i64("iterate", "Number of iterations." where default' = 10000)
-      OptionSpec.i64("chunk", "Chunk size." where default' = 1024)
-      OptionSpec.i64("streamers", "Number of streamers." where default' = 4)
-      OptionSpec.i64("updaters", "Number of updaters." where default' = 8)
-    ])?.>add_help()?
+    let cs =
+      CommandSpec.leaf(
+        "gups_basic",
+        "",
+        [
+          OptionSpec.i64(
+            "table",
+            "Log2 of the total table size."
+            where default' = 20)
+          OptionSpec.i64(
+            "iterate",
+            "Number of iterations."
+            where default' = 10000)
+          OptionSpec.i64(
+            "chunk", "Chunk size." where default' = 1024)
+          OptionSpec.i64(
+            "streamers",
+            "Number of streamers."
+            where default' = 4)
+          OptionSpec.i64(
+            "updaters",
+            "Number of updaters."
+            where default' = 8)
+        ])? .> add_help()?
     let cmd =
-      match \exhaustive\ CommandParser(cs).parse(env.args, env.vars)
+      match \exhaustive\ CommandParser(cs).parse(
+        env.args, env.vars)
       | let c: Command => c
       | let ch: CommandHelp =>
         ch.print_help(env.out)
@@ -32,8 +54,10 @@ class val Config
     logtable = cmd.option("table").i64().usize()
     iterate = cmd.option("iterate").i64().usize()
     chunk = cmd.option("chunk").i64().usize()
-    streamer_count = cmd.option("streamers").i64().usize()
-    updater_count = cmd.option("updaters").i64().usize()
+    streamer_count =
+      cmd.option("streamers").i64().usize()
+    updater_count =
+      cmd.option("updaters").i64().usize()
 
 actor Main
   let _env: Env
@@ -58,18 +82,21 @@ actor Main
 
       let count = _updater_count
 
-      _to = recover
-        var updaters = Array[Updater](count)
+      _to =
+        recover
+          var updaters = Array[Updater](count)
 
-        for i in Range(0, count) do
-          updaters.push(Updater(i, size))
+          for i in Range(0, count) do
+            updaters.push(Updater(i, size))
+          end
+
+          consume updaters
         end
 
-        consume updaters
-      end
-
       for i in Range(0, _streamer_count) do
-        Streamer(this, _to, size, c.chunk, c.chunk * c.iterate * i)(c.iterate)
+        Streamer(
+          this, _to, size, c.chunk, c.chunk * c.iterate * i)(
+          c.iterate)
       end
     end
 
@@ -85,12 +112,15 @@ actor Main
       var elapsed = (Time.nanos() - _start).f64()
       var gups = _updates.f64() / elapsed
       _env.out.print(
-        "Time: " + (elapsed / 1e9).string() + " GUPS: " + gups.string()
-        )
+        "Time: " + (elapsed / 1e9).string()
+          + " GUPS: " + gups.string())
     end
 
-
 actor Streamer
+  """
+  Generates random data and distributes it to updaters.
+  """
+
   let main: Main
   let updaters: Array[Updater] val
   let shift: U64
@@ -98,8 +128,12 @@ actor Streamer
   let chunk: USize
   let rand: PolyRand
 
-  new create(main': Main, updaters': Array[Updater] val, size: USize,
-    chunk': USize, seed: USize)
+  new create(
+    main': Main,
+    updaters': Array[Updater] val,
+    size: USize,
+    chunk': USize,
+    seed: USize)
   =>
     main = main'
     updaters = updaters'
@@ -109,10 +143,14 @@ actor Streamer
     rand = PolyRand(seed.u64())
 
   be apply(iterate: USize) =>
+    """
+    Generates a chunk of random data and sends it to updaters.
+    """
     let upts = updaters.size()
     let chks = chunk
 
-    var list = recover Array[Array[U64] iso](upts) end
+    var list =
+      recover Array[Array[U64] iso](upts) end
 
     for i in Range(0, upts) do
       list.push(recover Array[U64](chks) end)
@@ -121,11 +159,13 @@ actor Streamer
     try
       for i in Range(0, chks) do
         var datum = rand()
-        var updater = ((datum >> shift) and mask).usize()
+        var updater =
+          ((datum >> shift) and mask).usize()
         list(updater)?.push(datum)
       end
 
-      var vlist: Array[Array[U64] iso] val = consume list
+      var vlist: Array[Array[U64] iso] val =
+        consume list
 
       for i in vlist.keys() do
         var data = vlist(i)?
@@ -143,6 +183,10 @@ actor Streamer
     end
 
 actor Updater
+  """
+  Applies XOR updates to a local table segment.
+  """
+
   var table: Array[U64] ref
 
   new create(index: USize, size: USize) =>
@@ -157,7 +201,8 @@ actor Updater
   be apply(data: Array[U64] val) =>
     try
       for datum in data.values() do
-        var i = (datum and (table.size() - 1).u64()).usize()
+        var i =
+          (datum and (table.size() - 1).u64()).usize()
         table(i)? = table(i)? xor datum
       end
     end
@@ -165,6 +210,10 @@ actor Updater
   be done(main: Main) => main.updater_done()
 
 class PolyRand
+  """
+  A polynomial random number generator for the GUPS benchmark.
+  """
+
   let poly: U64
   let period: U64
   var last: U64
@@ -176,8 +225,11 @@ class PolyRand
     _seed(seed)
 
   fun ref apply(): U64 =>
-    last = (last << 1) xor
-      if (last and (1 << 63)) != 0 then poly else 0 end
+    last =
+      (last << 1) xor
+        if (last and (1 << 63)) != 0 then poly
+        else 0
+        end
 
   fun ref _seed(seed: U64) =>
     var n = seed % period

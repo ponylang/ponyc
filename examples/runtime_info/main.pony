@@ -9,6 +9,10 @@ actor Main
     Stat(env)
 
 actor Stat
+  """
+  Collects and prints actor and scheduler statistics.
+  """
+
   new create(env: Env) =>
     print_actor_stats(env)
     print_scheduler_stats(env)
@@ -26,20 +30,26 @@ actor Stat
     print_scheduler_stats(env)
 
   be print_actor_stats(env: Env) =>
-    var ha = ActorStats.heap_mem_allocated(ActorStatsAuth(env.root))
-    var hu = ActorStats.heap_mem_used(ActorStatsAuth(env.root))
-    var hn = ActorStats.heap_num_allocated(ActorStatsAuth(env.root))
-    var rc = ActorStats.heap_realloc_counter(ActorStatsAuth(env.root))
-    var ac = ActorStats.heap_alloc_counter(ActorStatsAuth(env.root))
-    var fc = ActorStats.heap_free_counter(ActorStatsAuth(env.root))
-    var gc = ActorStats.heap_gc_counter(ActorStatsAuth(env.root))
-    var asc = ActorStats.system_cpu(ActorStatsAuth(env.root))
-    var aac = ActorStats.app_cpu(ActorStatsAuth(env.root))
-    var agmc = ActorStats.gc_mark_cpu(ActorStatsAuth(env.root))
-    var agsc = ActorStats.gc_sweep_cpu(ActorStatsAuth(env.root))
-    var msc = ActorStats.messages_sent_counter(ActorStatsAuth(env.root))
-    var smpc = ActorStats.system_messages_processed_counter(ActorStatsAuth(env.root))
-    var ampc = ActorStats.app_messages_processed_counter(ActorStatsAuth(env.root))
+    """
+    Prints heap and CPU statistics for this actor.
+    """
+    let auth = ActorStatsAuth(env.root)
+    var ha = ActorStats.heap_mem_allocated(auth)
+    var hu = ActorStats.heap_mem_used(auth)
+    var hn = ActorStats.heap_num_allocated(auth)
+    var rc = ActorStats.heap_realloc_counter(auth)
+    var ac = ActorStats.heap_alloc_counter(auth)
+    var fc = ActorStats.heap_free_counter(auth)
+    var gc = ActorStats.heap_gc_counter(auth)
+    var asc = ActorStats.system_cpu(auth)
+    var aac = ActorStats.app_cpu(auth)
+    var agmc = ActorStats.gc_mark_cpu(auth)
+    var agsc = ActorStats.gc_sweep_cpu(auth)
+    var msc = ActorStats.messages_sent_counter(auth)
+    var smpc =
+      ActorStats.system_messages_processed_counter(auth)
+    var ampc =
+      ActorStats.app_messages_processed_counter(auth)
     env.out.print("Actor stats:"
       + "\n  id: " + (digestof this).string()
       + "\n  heap memory allocated: " + ha.string()
@@ -58,20 +68,33 @@ actor Stat
       + "\n  app messages processed counter: " + ampc.string())
 
   be print_scheduler_stats(env: Env) =>
-    var i = Scheduler.scheduler_index(SchedulerInfoAuth(env.root))
-    var ta = SchedulerStats.total_mem_allocated(SchedulerStatsAuth(env.root))
-    var tu = SchedulerStats.total_mem_used(SchedulerStatsAuth(env.root))
-    var cac = SchedulerStats.created_actors_counter(SchedulerStatsAuth(env.root))
-    var dac = SchedulerStats.destroyed_actors_counter(SchedulerStatsAuth(env.root))
-    var aac = SchedulerStats.actor_app_cpu(SchedulerStatsAuth(env.root))
-    var agmc = SchedulerStats.actor_gc_mark_cpu(SchedulerStatsAuth(env.root))
-    var agsc = SchedulerStats.actor_gc_sweep_cpu(SchedulerStatsAuth(env.root))
-    var asc = SchedulerStats.actor_system_cpu(SchedulerStatsAuth(env.root))
-    var mc = SchedulerStats.msg_cpu(SchedulerStatsAuth(env.root))
-    var msc = SchedulerStats.misc_cpu(SchedulerStatsAuth(env.root))
-    var mum = SchedulerStats.mem_used_inflight_messages(SchedulerStatsAuth(env.root))
-    var mam = SchedulerStats.mem_allocated_inflight_messages(SchedulerStatsAuth(env.root))
-    var nim = SchedulerStats.num_inflight_messages(SchedulerStatsAuth(env.root))
+    """
+    Prints memory, actor, and CPU statistics for this scheduler.
+    """
+    let si_auth = SchedulerInfoAuth(env.root)
+    let ss_auth = SchedulerStatsAuth(env.root)
+    var i = Scheduler.scheduler_index(si_auth)
+    var ta = SchedulerStats.total_mem_allocated(ss_auth)
+    var tu = SchedulerStats.total_mem_used(ss_auth)
+    var cac =
+      SchedulerStats.created_actors_counter(ss_auth)
+    var dac =
+      SchedulerStats.destroyed_actors_counter(ss_auth)
+    var aac = SchedulerStats.actor_app_cpu(ss_auth)
+    var agmc =
+      SchedulerStats.actor_gc_mark_cpu(ss_auth)
+    var agsc =
+      SchedulerStats.actor_gc_sweep_cpu(ss_auth)
+    var asc = SchedulerStats.actor_system_cpu(ss_auth)
+    var mc = SchedulerStats.msg_cpu(ss_auth)
+    var msc = SchedulerStats.misc_cpu(ss_auth)
+    var mum =
+      SchedulerStats.mem_used_inflight_messages(ss_auth)
+    var mam =
+      SchedulerStats.mem_allocated_inflight_messages(
+        ss_auth)
+    var nim =
+      SchedulerStats.num_inflight_messages(ss_auth)
     env.out.print("Scheduler stats:"
       + "\n  index: " + i.string()
       + "\n  total memory allocated: " + ta.string()

@@ -1,7 +1,10 @@
 actor Spreader
+  """
+  Spawns two children recursively, forming a binary tree of actors.
+  """
+
   var _env: (Env | None)
   var _count: U64 = 0
-
   var _parent: (Spreader | None) = None
   var _result: U64 = 0
   var _received: U64 = 0

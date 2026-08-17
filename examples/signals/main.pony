@@ -2,6 +2,9 @@ use "constrained_types"
 use "signals"
 
 class Handler is SignalNotify
+  """
+  Prints when a signal is received and unsubscribes after one delivery.
+  """
   let _env: Env
   let _name: String
 
@@ -41,7 +44,7 @@ actor Main
   new create(env: Env) =>
     let auth = SignalAuth(env.root)
 
-    match MakeHandleableSignal(Sig.int())
+    match \exhaustive\ MakeHandleableSignal(Sig.int())
     | let sig: HandleableSignal =>
       let h1 =
         SignalHandler(auth, Handler(env, "handler-1"), sig where wait = true)

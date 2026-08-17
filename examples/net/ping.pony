@@ -1,6 +1,9 @@
 use "net"
 
 class Ping is UDPNotify
+  """
+  Sends a UDP ping and prints the response.
+  """
   let _env: Env
   let _ip: NetAddress
 

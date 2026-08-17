@@ -1,30 +1,3 @@
-"""
-A microbenchmark for measuring message passing rates in the Pony runtime.
-
-This microbenchmark executes a sequence of intervals.  During an interval,
-1 second long by default, the SyncLeader actor sends an initial
-set of ping messages to a static set of Pinger actors.  When a Pinger
-actor receives a ping() message, the Pinger will randomly choose
-another Pinger to forward the ping() message.  This technique limits
-the total number of messages "in flight" in the runtime to avoid
-causing unnecessary memory consumption & overhead by the Pony runtime.
-
-This small program has several intended uses:
-
-* Demonstrate use of three types of actors in a Pony program: a timer,
-  a SyncLeader, and many Pinger actors.
-
-* As a stress test for Pony runtime development, for example, finding
-  deadlocks caused by experiments in the "Generalized runtime
-  backpressure" work in pull request
-  https://github.com/ponylang/ponyc/pull/2264
-
-* As a stress test for measuring message send & receive overhead for
-  experiments in the "Add DTrace probes for all message push and pop
-  operations" work in pull request
-  https://github.com/ponylang/ponyc/pull/2295
-"""
-
 use "assert"
 use "cli"
 use "collections"
@@ -41,35 +14,43 @@ actor Main
     """
     try
       let cs =
-        CommandSpec.leaf("do",
+        CommandSpec.leaf(
+          "do",
           "A message-passing micro-benchmark for the Pony runtime",
           [
-            OptionSpec.i64("pingers",
+            OptionSpec.i64(
+              "pingers",
               "Number of intra-process Pony ping actors"
               where default' = 8)
-            OptionSpec.i64("report-interval",
-              "Print report every N centiseconds (10 centiseconds = 1 second)"
+            OptionSpec.i64(
+              "report-interval",
+              "Print report every N centiseconds "
+                + "(10 centiseconds = 1 second)"
               where default' = 10)
-            OptionSpec.i64("report-count",
-              "Number of reports to generate, default 0 is infinite"
+            OptionSpec.i64(
+              "report-count",
+              "Number of reports to generate, "
+                + "default 0 is infinite"
               where default' = 0)
-            OptionSpec.i64("initial-pings",
-              "Initial # of pings to send to each Pinger actor in an interval"
+            OptionSpec.i64(
+              "initial-pings",
+              "Initial # of pings to send to each "
+                + "Pinger actor in an interval"
               where default' = 5)
           ],
           [
             ArgSpec.string_seq("", "")
-          ])?.>add_help()?
+          ])? .> add_help()?
       let cmd =
-      match \exhaustive\ CommandParser(cs).parse(env.args, env.vars)
-      | let c: Command => c
-      | let ch: CommandHelp =>
-        ch.print_help(env.out)
-        error
-      | let se: SyntaxError =>
-        env.out.print(se.string())
-        error
-      end
+        match \exhaustive\ CommandParser(cs).parse(env.args, env.vars)
+        | let c: Command => c
+        | let ch: CommandHelp =>
+          ch.print_help(env.out)
+          error
+        | let se: SyntaxError =>
+          env.out.print(se.string())
+          error
+        end
 
       let num_pingers = cmd.option("pingers").i64()
       let report_interval = cmd.option("report-interval").i64()
@@ -83,11 +64,13 @@ actor Main
         "initial-pings " + initial_pings.string())
       env.out.print("time,run-ns,rate")
 
-      let sync_leader = SyncLeader(env,
-        num_pingers.i32(), initial_pings.usize())
-      let interval: U64 = (report_interval.u64() * 1_000_000_000) / 10
+      let sync_leader =
+        SyncLeader(env, num_pingers.i32(), initial_pings.usize())
+      let interval: U64 =
+        (report_interval.u64() * 1_000_000_000) / 10
       let timers = Timers
-      let timer = Timer(Tick(env, sync_leader, report_count), interval, interval)
+      let timer =
+        Timer(Tick(env, sync_leader, report_count), interval, interval)
       timers(consume timer)
     else
       env.exitcode(1)
@@ -229,6 +212,10 @@ actor SyncLeader
     end
 
 actor Pinger
+  """
+  Forwards ping messages to randomly chosen peers and counts
+  received pings during each measurement interval.
+  """
   let _env: Env
   let _id: I32
   let _leader: SyncLeader
@@ -288,6 +275,10 @@ actor Pinger
     end
 
 class Tick is TimerNotify
+  """
+  Timer callback that fires at each reporting interval and
+  notifies the SyncLeader.
+  """
   let _env: Env
   let _sync_leader: SyncLeader
   let _report_count: U64
@@ -298,8 +289,13 @@ class Tick is TimerNotify
     _sync_leader = sync_leader
     _report_count = report_count
 
-    fun ref apply(timer: Timer, count: U64): Bool =>
-      _tick_count = _tick_count + count
-      let done = (_report_count > 0) and (_tick_count >= _report_count)
-      _sync_leader.tick_fired(done)
-      not (done)
+  fun ref apply(timer: Timer, count: U64): Bool =>
+    """
+    Increment the tick count and tell the SyncLeader
+    the interval ended.
+    """
+    _tick_count = _tick_count + count
+    let done =
+      (_report_count > 0) and (_tick_count >= _report_count)
+    _sync_leader.tick_fired(done)
+    not (done)

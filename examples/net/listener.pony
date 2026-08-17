@@ -2,6 +2,10 @@ use "net"
 use "files"
 
 class Listener is TCPListenNotify
+  """
+  Accepts TCP connections and spawns a client connection
+  after each.
+  """
   let _env: Env
   let _limit: USize
   var _host: String = ""
@@ -27,6 +31,9 @@ class Listener is TCPListenNotify
     listen.close()
 
   fun ref connected(listen: TCPListener ref): TCPConnectionNotify iso^ =>
+    """
+    Accept an incoming connection and spawn a new client.
+    """
     _env.out.print("Server starting")
 
     let server = ServerSide(_env)

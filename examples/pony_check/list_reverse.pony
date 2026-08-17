@@ -15,7 +15,9 @@ class _ListReverseOneProperty is Property1[Array[USize]]
   fun name(): String => "list/reverse/one"
 
   fun gen(): Generator[Array[USize]] =>
-    Generators.seq_of[USize, Array[USize]](Generators.usize() where min=1, max=1)
+    Generators.seq_of[USize, Array[USize]](
+      Generators.usize()
+      where min=1, max=1)
 
   fun ref property(arg1: Array[USize], ph: PropertyHelper) =>
     ph.assert_eq[USize](arg1.size(), 1)

@@ -6,6 +6,9 @@ actor Main is BenchmarkList
     PonyBench(env, this)
 
   fun tag benchmarks(bench: PonyBench) =>
+    """
+    Registers all benchmarks to run.
+    """
     bench(_Nothing)
     bench(_Fib(5))
     bench(_Fib(10))
