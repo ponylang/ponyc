@@ -6,22 +6,54 @@ use "files"
 
 use @program_create[_Program]()
 use @program_free[None](program: _Program)
-use @program_load[Pointer[_AST] val](path: Pointer[U8] tag, opt: _PassOpt)
+use @program_load[Pointer[_AST] val](
+  path: Pointer[U8] tag, opt: _PassOpt)
 
 use @printf[None](s: Pointer[U8] tag, ...)
 
 struct _Program
 
-type VerbosityLevel is (VerbosityQuiet | VerbosityMinimal | VerbosityInfo |
-VerbosityToolInfo | VerbosityAll)
+type VerbosityLevel is
+  ( VerbosityQuiet
+  | VerbosityMinimal
+  | VerbosityInfo
+  | VerbosityToolInfo
+  | VerbosityAll )
 
-primitive VerbosityQuiet fun apply(): I32 => 0
-primitive VerbosityMinimal fun apply(): I32 => 1
-primitive VerbosityInfo fun apply(): I32 => 2
-primitive VerbosityToolInfo fun apply(): I32 => 3
-primitive VerbosityAll fun apply(): I32 => 4
+primitive VerbosityQuiet
+  """
+  No output.
+  """
+  fun apply(): I32 => 0
+
+primitive VerbosityMinimal
+  """
+  Minimal output.
+  """
+  fun apply(): I32 => 1
+
+primitive VerbosityInfo
+  """
+  Informational output.
+  """
+  fun apply(): I32 => 2
+
+primitive VerbosityToolInfo
+  """
+  Tool-level informational output.
+  """
+  fun apply(): I32 => 3
+
+primitive VerbosityAll
+  """
+  All output.
+  """
+  fun apply(): I32 => 4
 
 class val Program
+  """
+  A compiled Pony program, wrapping the underlying AST.
+  """
   let ast: AST
 
   new val create(ast': AST) =>
@@ -29,7 +61,7 @@ class val Program
 
   fun val package(): (Package | None) =>
     """
-    The package representing the source directory
+    The package representing the source directory.
     """
     match ast.child()
     | let p_ast: AST =>
@@ -47,14 +79,17 @@ class val Program
     _PackageIter.create(this)
 
   fun val apply(package': String): Package ? =>
-    let package_ast = ast.find_in_scope(package') as AST
+    let package_ast =
+      ast.find_in_scope(package') as AST
     Package.create(this, package_ast)?
 
   fun _final() =>
-    // The Program owns both the AST and its interned-string table. The table
-    // is detached from the pass_opt at construction time (so pass_opt_done does
-    // not free it while the AST is still in use) and freed here, once the AST
-    // that references its interned strings is gone.
+    // The Program owns both the AST and its
+    // interned-string table. The table is detached from
+    // the pass_opt at construction time (so
+    // pass_opt_done does not free it while the AST is
+    // still in use) and freed here, once the AST that
+    // references its interned strings is gone.
     if not ast.raw.is_null() then
       @ast_free(ast.raw)
     end

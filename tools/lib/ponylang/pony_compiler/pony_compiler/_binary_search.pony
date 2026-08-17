@@ -10,7 +10,7 @@ primitive _BinarySearch
   fun apply[T: Comparable[T] #read](
     needle: T,
     haystack: ReadSeq[T])
-  : (USize, Bool)
+    : (USize, Bool)
   =>
     try
       var i = USize(0)

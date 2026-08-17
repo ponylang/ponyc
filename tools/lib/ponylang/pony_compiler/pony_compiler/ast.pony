@@ -1,4 +1,4 @@
-//use "debug"
+// use "debug"
 use "collections"
 
 use @ast_blank[_AST](id: TokenId)
@@ -22,11 +22,15 @@ use @ast_name[Pointer[U8] val](ast: Pointer[_AST] box)
 use @ast_name_len[USize](ast: Pointer[_AST] box)
 use @ast_nice_name[Pointer[U8] val](ast: Pointer[_AST] box)
 use @ast_type[Pointer[_AST] val](ast: Pointer[_AST] box)
-use @ast_print_type[Pointer[U8] val](ast: Pointer[_AST] box, strtab: Pointer[_StrTable] tag)
+use @ast_print_type[Pointer[U8] val](
+  ast: Pointer[_AST] box, strtab: Pointer[_StrTable] tag)
 use @ast_print[Pointer[U8] val](ast: Pointer[_AST] box, width: USize)
 // mark the given AST as having its own scope
-//use @ast_scope[None](ast: _AST ref)
-use @ast_get[Pointer[_AST] val](ast: Pointer[_AST] box, name: Pointer[U8] tag, status: NullablePointer[SymStatus])
+// use @ast_scope[None](ast: _AST ref)
+use @ast_get[Pointer[_AST] val](
+  ast: Pointer[_AST] box,
+  name: Pointer[U8] tag,
+  status: NullablePointer[SymStatus])
 
 use @ast_parent[Pointer[_AST] val](ast: Pointer[_AST] box)
 use @ast_child[Pointer[_AST] val](ast: Pointer[_AST] box)
@@ -37,12 +41,14 @@ use @ast_childidx[Pointer[_AST] val](ast: Pointer[_AST] box, idx: USize)
 use @ast_childcount[USize](ast: Pointer[_AST] box)
 use @ast_data[Pointer[None]](ast: Pointer[_AST] box)
 use @ast_index[USize](ast: Pointer[_AST] box)
-use @ast_has_annotation[Bool](ast: Pointer[_AST] box, name: Pointer[U8] tag, strtab: Pointer[_StrTable] tag)
+use @ast_has_annotation[Bool](
+  ast: Pointer[_AST] box,
+  name: Pointer[U8] tag,
+  strtab: Pointer[_StrTable] tag)
 use @ast_get_print[Pointer[U8] val](ast: Pointer[_AST] box)
 
 
 primitive _AST
-
 
 class val AST is (Stringable & Hashable & Equatable[AST box])
   """
@@ -82,7 +88,8 @@ class val AST is (Stringable & Hashable & Equatable[AST box])
 
   fun box data[T](): Pointer[T] =>
     """
-    Access the data pointer, which can be anything and isn't typed in any way in the `ast_t` struct, #yolo!
+    Access the data pointer, which can be anything and isn't typed
+    in any way in the `ast_t` struct, #yolo!
 
     ### DANGER
 
@@ -151,6 +158,9 @@ class val AST is (Stringable & Hashable & Equatable[AST box])
     end
 
   fun box num_parents(): USize =>
+    """
+    Count the number of ancestors above this node.
+    """
     var parents = USize(0)
     var p: (AST | None) = parent()
     while p isnt None do
@@ -201,8 +211,10 @@ class val AST is (Stringable & Hashable & Equatable[AST box])
   fun box children(): Iterator[AST] =>
     // see ponyc/src/libponyc/ast/parser.c for the REORDER instructions
     match id()
-    | TokenIds.tk_actor() | TokenIds.tk_class() | TokenIds.tk_struct() | TokenIds.tk_primitive()
-    | TokenIds.tk_interface() | TokenIds.tk_trait() | TokenIds.tk_type() =>
+    | TokenIds.tk_actor() | TokenIds.tk_class()
+    | TokenIds.tk_struct() | TokenIds.tk_primitive()
+    | TokenIds.tk_interface() | TokenIds.tk_trait()
+    | TokenIds.tk_type() =>
       _ASTReorderedChildIter(this, [5; 2; 0; 1; 3; 6; 4])
     | TokenIds.tk_fun() | TokenIds.tk_new() | TokenIds.tk_be() =>
       _ASTReorderedChildIter(this, [0; 1; 2; 3; 4; 5; 7; 6])
@@ -223,7 +235,6 @@ class val AST is (Stringable & Hashable & Equatable[AST box])
 
   fun box has_scope(): Bool =>
     @ast_has_scope(raw)
-
 
   fun box source(): NullablePointer[_Source] =>
     """
@@ -327,7 +338,11 @@ class val AST is (Stringable & Hashable & Equatable[AST box])
     If all you want to do is searching the scope of this node alone,
     not traversing upwards into parent scopes, have a look at `find_in_scope`.
     """
-    let ptr = @ast_get(raw, StringTab(strtab, name).cstring(), NullablePointer[SymStatus].none())
+    let ptr =
+      @ast_get(
+        raw,
+        StringTab(strtab, name).cstring(),
+        NullablePointer[SymStatus].none())
     if ptr.is_null() then
       None
     else
@@ -358,8 +373,8 @@ class val AST is (Stringable & Hashable & Equatable[AST box])
 
   fun find_node(
     predicate: {(AST box): Bool},
-    stop_if: {(AST box): Bool} = {(ast: AST box): Bool => false})
-  : (AST box | None)
+    stop_if: {(AST box): Bool} = {(ast: AST box): Bool => false })
+    : (AST box | None)
   =>
     """
     Find the first node in this AST that satisfies the given `predicate`.
@@ -377,10 +392,10 @@ class val AST is (Stringable & Hashable & Equatable[AST box])
       match \exhaustive\ token_value()
       | let s: String val =>
         " " + match id()
-        | TokenIds.tk_string() => "\"" + s + "\""
-        else
-          s
-        end
+              | TokenIds.tk_string() => "\"" + s + "\""
+              else
+                s
+              end
       | None => ""
       end
     let source_file' =
@@ -393,7 +408,9 @@ class val AST is (Stringable & Hashable & Equatable[AST box])
       else
         ""
       end
-    TokenIds.string(id()) + value + " @ " + line().string() + ":" + pos().string() + source_file'
+    TokenIds.string(id()) + value
+      + " @ " + line().string()
+      + ":" + pos().string() + source_file'
 
   fun string(): String iso^ =>
     """
@@ -412,10 +429,14 @@ class val AST is (Stringable & Hashable & Equatable[AST box])
       match id()
       // these nodes have some optional ast fields that just confuse the hell
       // out of us
-      | TokenIds.tk_call() | TokenIds.tk_typeref() | TokenIds.tk_use()
-      | TokenIds.tk_actor() | TokenIds.tk_class() | TokenIds.tk_struct()  // entities
-      | TokenIds.tk_trait() | TokenIds.tk_interface() | TokenIds.tk_type() // entities
-      | TokenIds.tk_new() | TokenIds.tk_fun() | TokenIds.tk_be() // method constructs
+      | TokenIds.tk_call() | TokenIds.tk_typeref()
+      | TokenIds.tk_use()
+      | TokenIds.tk_actor() | TokenIds.tk_class()
+      | TokenIds.tk_struct() // entities
+      | TokenIds.tk_trait() | TokenIds.tk_interface()
+      | TokenIds.tk_type() // entities
+      | TokenIds.tk_new() | TokenIds.tk_fun()
+      | TokenIds.tk_be() // method constructs
       | TokenIds.tk_fvar() | TokenIds.tk_flet() | TokenIds.tk_embed() // fields
       | TokenIds.tk_nominal() | TokenIds.tk_typealiasref() // types
       | TokenIds.tk_param()
@@ -430,7 +451,7 @@ class val AST is (Stringable & Hashable & Equatable[AST box])
           // filtered out
           None
         else
-          ////Debug("Visiting: " + child'.debug(true))
+          // Debug("Visiting: " + child'.debug(true))
           if visitor.visit(child') is Stop then
             return Stop
           end
@@ -466,18 +487,18 @@ class val AST is (Stringable & Hashable & Equatable[AST box])
     | TokenIds.tk_package()
     | TokenIds.tk_module()
     | TokenIds.tk_members()
-    //| TokenIds.tk_fvar() // points to the var keyword
-    //| TokenIds.tk_flet() // points to the let keyword
+    // | TokenIds.tk_fvar() // points to the var keyword
+    // | TokenIds.tk_flet() // points to the let keyword
     | TokenIds.tk_dontcare()
     | TokenIds.tk_ffidecl()
     | TokenIds.tk_fficall()
     | TokenIds.tk_provides()
     // the pipe symbol in types
-    //| TokenIds.tk_uniontype()
+    // | TokenIds.tk_uniontype()
     // the ampersand symbol in types
-    //| TokenIds.tk_isecttype()
+    // | TokenIds.tk_isecttype()
     // the opening paren
-    //| TokenIds.tk_tupletype()
+    // | TokenIds.tk_tupletype()
     | TokenIds.tk_nominal()
     | TokenIds.tk_thistype()
     | TokenIds.tk_funtype()
@@ -506,7 +527,7 @@ class val AST is (Stringable & Hashable & Equatable[AST box])
     | TokenIds.tk_barelambda()
     | TokenIds.tk_seq()
     | TokenIds.tk_qualify()
-    //| TokenIds.tk_call()
+    // | TokenIds.tk_call()
     | TokenIds.tk_tuple()
     | TokenIds.tk_array()
     | TokenIds.tk_cases()
@@ -518,25 +539,25 @@ class val AST is (Stringable & Hashable & Equatable[AST box])
     | TokenIds.tk_typealiasref()
     | TokenIds.tk_typeparamref()
     // those correspond to the member access dot
-    //| TokenIds.tk_newref()
-    //| TokenIds.tk_newberef()
-    //| TokenIds.tk_beref()
-    //| TokenIds.tk_funref()
+    // | TokenIds.tk_newref()
+    // | TokenIds.tk_newberef()
+    // | TokenIds.tk_beref()
+    // | TokenIds.tk_funref()
     // those correspond to the member access dot
-    //| TokenIds.tk_fvarref()
-    //| TokenIds.tk_fletref()
-    //| TokenIds.tk_tupleelemref()
-    //| TokenIds.tk_embedref()
+    // | TokenIds.tk_fvarref()
+    // | TokenIds.tk_fletref()
+    // | TokenIds.tk_tupleelemref()
+    // | TokenIds.tk_embedref()
     | TokenIds.tk_varref()
     | TokenIds.tk_letref()
     | TokenIds.tk_paramref()
     | TokenIds.tk_dontcareref()
     // those take the place of the symbols
-    //| TokenIds.tk_newapp()
-    //| TokenIds.tk_beapp()
-    //| TokenIds.tk_funapp()
-    //| TokenIds.tk_bechain()
-    //| TokenIds.tk_funchain()
+    // | TokenIds.tk_newapp()
+    // | TokenIds.tk_beapp()
+    // | TokenIds.tk_funapp()
+    // | TokenIds.tk_bechain()
+    // | TokenIds.tk_funchain()
     | TokenIds.tk_annotation()
     | TokenIds.tk_disposing_block()
     | TokenIds.tk_newline() => true
@@ -544,12 +565,12 @@ class val AST is (Stringable & Hashable & Equatable[AST box])
       false
     end
 
-
   fun end_pos(): (Position | None) =>
     """
     Return the position of the last character of the given AST node.
 
-    For some nodes we know the actual size, so we can provide its exact end position.
+    For some nodes we know the actual size, so we can provide its
+    exact end position.
     """
     let l = line()
     let col = pos()
@@ -557,8 +578,11 @@ class val AST is (Stringable & Hashable & Equatable[AST box])
       match id()
       // symbols
       // 3 character symbols
-      | TokenIds.tk_ellipsis() | TokenIds.tk_lshift_tilde() | TokenIds.tk_rshift_tilde()
-      | TokenIds.tk_eq_tilde() | TokenIds.tk_ne_tilde() | TokenIds.tk_le_tilde() | TokenIds.tk_ge_tilde()
+      | TokenIds.tk_ellipsis()
+      | TokenIds.tk_lshift_tilde()
+      | TokenIds.tk_rshift_tilde()
+      | TokenIds.tk_eq_tilde() | TokenIds.tk_ne_tilde()
+      | TokenIds.tk_le_tilde() | TokenIds.tk_ge_tilde()
       | TokenIds.tk_lt_tilde() | TokenIds.tk_gt_tilde()
       | TokenIds.tk_mod_tilde()
       => Position(l, col + 2)
@@ -584,8 +608,10 @@ class val AST is (Stringable & Hashable & Equatable[AST box])
       | TokenIds.tk_plus() | TokenIds.tk_minus() | TokenIds.tk_multiply()
       | TokenIds.tk_divide() | TokenIds.tk_rem() | TokenIds.tk_at()
       | TokenIds.tk_lt() | TokenIds.tk_gt()
-      | TokenIds.tk_pipe() | TokenIds.tk_isecttype() | TokenIds.tk_ephemeral() | TokenIds.tk_aliased()
-      | TokenIds.tk_question() | TokenIds.tk_unary_minus() | TokenIds.tk_constant()
+      | TokenIds.tk_pipe() | TokenIds.tk_isecttype()
+      | TokenIds.tk_ephemeral() | TokenIds.tk_aliased()
+      | TokenIds.tk_question()
+      | TokenIds.tk_unary_minus() | TokenIds.tk_constant()
       | TokenIds.tk_minus_new()
       => Position(l, col)
       // Keywords
@@ -595,9 +621,13 @@ class val AST is (Stringable & Hashable & Equatable[AST box])
       | TokenIds.tk_or()
       => Position(l, col + 1)
       // 3 character keywords
-      | TokenIds.tk_use() | TokenIds.tk_var() | TokenIds.tk_let() | TokenIds.tk_fvar() | TokenIds.tk_flet()
+      | TokenIds.tk_use() | TokenIds.tk_var()
+      | TokenIds.tk_let() | TokenIds.tk_fvar()
+      | TokenIds.tk_flet()
       | TokenIds.tk_new() | TokenIds.tk_fun()
-      | TokenIds.tk_iso() | TokenIds.tk_trn()| TokenIds.tk_ref()| TokenIds.tk_val()| TokenIds.tk_box()| TokenIds.tk_tag()
+      | TokenIds.tk_iso() | TokenIds.tk_trn()
+      | TokenIds.tk_ref() | TokenIds.tk_val()
+      | TokenIds.tk_box() | TokenIds.tk_tag()
       | TokenIds.tk_end() | TokenIds.tk_for() | TokenIds.tk_try()
       | TokenIds.tk_not() | TokenIds.tk_and() | TokenIds.tk_xor()
       => Position(l, col + 2)
@@ -608,7 +638,8 @@ class val AST is (Stringable & Hashable & Equatable[AST box])
       | TokenIds.tk_cap_any()
       => Position(l, col + 3)
       // 5 character keywords
-      | TokenIds.tk_trait() | TokenIds.tk_struct() | TokenIds.tk_class() | TokenIds.tk_actor()
+      | TokenIds.tk_trait() | TokenIds.tk_struct()
+      | TokenIds.tk_class() | TokenIds.tk_actor()
       | TokenIds.tk_embed() | TokenIds.tk_break()
       | TokenIds.tk_ifdef() | TokenIds.tk_while()
       | TokenIds.tk_until() | TokenIds.tk_match() | TokenIds.tk_where()
@@ -628,7 +659,8 @@ class val AST is (Stringable & Hashable & Equatable[AST box])
       | TokenIds.tk_continue() | TokenIds.tk_digestof()
       => Position(l, col + 7)
       // 9 character keywords
-      | TokenIds.tk_interface() | TokenIds.tk_primitive() | TokenIds.tk_address()
+      | TokenIds.tk_interface() | TokenIds.tk_primitive()
+      | TokenIds.tk_address()
       => Position(l, col + 8)
       // 13 character keywords
       | TokenIds.tk_compile_error()
@@ -648,7 +680,7 @@ class val AST is (Stringable & Hashable & Equatable[AST box])
             USize(line_idx.usize() + col)
           end
         var c = src(offset)?
-        //Debug("[STRING] FIRST C: " + String.from_utf32(c.u32()))
+        // Debug("[STRING] FIRST C: " + String.from_utf32(c.u32()))
         var end_line = l
         var end_col = col
         var start_quotes = USize(0)
@@ -659,7 +691,7 @@ class val AST is (Stringable & Hashable & Equatable[AST box])
           offset = offset + 1
           c = src(offset)?
         end
-        //Debug("[STRING] " + start_quotes.string() + " - quoted string")
+        // Debug("[STRING] " + start_quotes.string() + " - quoted string")
 
         while true do
           // check for \" escapes
@@ -688,7 +720,8 @@ class val AST is (Stringable & Hashable & Equatable[AST box])
               c = src(offset)?
               end_col = end_col + 1
             end
-            //Debug("[STRING] END: " + end_line.string() + ":" + end_col.string())
+            // Debug("[STRING] END: " + end_line.string()
+            // + ":" + end_col.string())
             return Position(end_line, end_col)
           end
           offset = offset + 1
@@ -706,7 +739,7 @@ class val AST is (Stringable & Hashable & Equatable[AST box])
             let line_idx = src.find("\n" where nth = l - 2)?
             line_idx.usize() + col
           end
-        //Debug("INT start offset: " + start_offset.string())
+        // Debug("INT start offset: " + start_offset.string())
         let end_offset = _Num.int(src, start_offset)
         Position(l, col + (end_offset - start_offset))
       | TokenIds.tk_float() =>
@@ -721,11 +754,10 @@ class val AST is (Stringable & Hashable & Equatable[AST box])
           end
         let end_offset = _Num.float(src, start_offset)
         let end_col = col + (end_offset - start_offset)
-        //Debug("[FLOAT] " + end_col.string())
+        // Debug("[FLOAT] " + end_col.string())
         Position(l, end_col)
       end
     end
-
 
   fun span(): (Position, Position) =>
     """
@@ -745,10 +777,11 @@ class val AST is (Stringable & Hashable & Equatable[AST box])
 
         fun ref visit(ast: AST box): VisitResult =>
           let cur_min = ast.position()
-          let cur_max = match \exhaustive\ ast.end_pos()
-          | let pos: Position => pos
-          | None => cur_min
-          end
+          let cur_max =
+            match \exhaustive\ ast.end_pos()
+            | let pos: Position => pos
+            | None => cur_min
+            end
           if cur_max > max_pos then
             max_pos = cur_max
           end
@@ -786,39 +819,9 @@ class val AST is (Stringable & Hashable & Equatable[AST box])
     """
     this.raw == other.raw
 
-
-interface ASTVisitor
-  fun ref visit(ast: AST box): VisitResult
-    """
-    Visit an AST node, return `Continue` if traversing
-    the AST should continue, `Stop` if it should stop.
-    """
-
-  fun ref leave(ast: AST box): VisitResult =>
-    """
-    Signal that we are done with all the children of this ast node.
-    Return `Continue` if traversing the AST should continue, `Stop` if it should stop.
-    """
-    Continue
-
-primitive Continue is Equatable[VisitResult]
-  fun string(): String iso^ =>
-    recover iso
-      String.create(8) .> append("Continue")
-    end
-
-primitive Stop is Equatable[VisitResult]
-  fun string(): String iso^ =>
-    recover iso
-      String.create(4) .> append("Stop")
-    end
-
-type VisitResult is (Continue | Stop)
-
 class _ASTFindNodeVisitor
   let _predicate: {(AST box): Bool}
   let _stop_if: {(AST box): Bool}
-
   var _node: (AST box | None) = None
 
   new create(
@@ -830,7 +833,7 @@ class _ASTFindNodeVisitor
 
   fun ref visit(ast: AST box): VisitResult =>
     if _predicate(ast) then
-      //Debug("found node " + ast.debug())
+      // Debug("found node " + ast.debug())
       _node = ast
       Stop
     else
@@ -855,6 +858,7 @@ class _ASTReorderedChildIter is Iterator[AST]
   let _parent: AST box
   let _indices: Array[USize] box
   var _current: USize
+
   new ref create(ast: AST box, indices: Array[USize] box) =>
     _parent = ast
     _indices = indices
@@ -866,7 +870,6 @@ class _ASTReorderedChildIter is Iterator[AST]
   fun ref next(): AST ? =>
     let idx = _indices(_current = _current + 1)?
     _parent(idx)?
-
 
 class _ASTChildIter is Iterator[AST]
   """

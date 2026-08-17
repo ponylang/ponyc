@@ -27,11 +27,10 @@ struct _TypecheckFrame
   var rrecover: Pointer[_AST] val = rrecover.create()
   var ifdef_cond: Pointer[_AST] val = ifdef_cond.create()
   var ifdef_clause: Pointer[_AST] val = ifdef_clause.create()
-  var iftype_constraint: Pointer[_AST] val = iftype_constraint.create()
+  var iftype_constraint: Pointer[_AST] val =
+    iftype_constraint.create()
   var iftype_body: Pointer[_AST] val = iftype_body.create()
-
   var prev: NullablePointer[_TypecheckFrame] ref = prev.none()
-
 
 struct _TypecheckStats
   var names_count: USize = 0
@@ -39,8 +38,10 @@ struct _TypecheckStats
   var heap_alloc: USize = 0
   var stack_alloc: USize = 0
 
-
 class val Error
+  """
+  A compilation error with source location and message.
+  """
   let file: (String val | None)
     """
     Absolute path to the file containing this error.
@@ -54,18 +55,21 @@ class val Error
     """
   let infos: Array[Error] val
     """
-    Additional informational messages, possibly with a file context.
+    Additional informational messages, possibly with a
+    file context.
     """
   let source_snippet: (String val | None)
     """
-    Used for displaying the error message in the context of the source.
+    Used for displaying the error message in the context
+    of the source.
 
     Is `None` for errors without file context.
     """
 
   new val create(msg': _ErrorMsg val) =>
     """
-    Copy out all the error information, so the ErrorMsg can be deleted afterwards
+    Copy out all the error information, so the ErrorMsg
+    can be deleted afterwards.
     """
     let file_ptr = msg'.file
     file =
@@ -86,7 +90,8 @@ class val Error
       end
 
     var frame_ptr = msg'.frame
-    let infos_arr = recover trn Array[Error].create(0) end
+    let infos_arr =
+      recover trn Array[Error].create(0) end
     while not frame_ptr.is_none() do
       try
         let frame: _ErrorMsg val = frame_ptr()?
@@ -98,7 +103,8 @@ class val Error
 
   new val message(message': String val) =>
     """
-    Create an error with file context, only containing the given `message`.
+    Create an error without file context, containing
+    only the given `message`.
     """
     file = None
     position = Position.min()
@@ -109,28 +115,34 @@ class val Error
   fun has_file_context(): Bool =>
     (file isnt None) and (position > Position.min())
 
-
 struct val _ErrorMsg
-  var file: Pointer[U8] val = recover val file.create() end
+  var file: Pointer[U8] val =
+    recover val file.create() end
   var line: USize = 0
   var pos: USize = 0
-  var msg: Pointer[U8] val = recover val msg.create() end
-  var source: Pointer[U8] val = recover val source.create() end
+  var msg: Pointer[U8] val =
+    recover val msg.create() end
+  var source: Pointer[U8] val =
+    recover val source.create() end
   var frame: NullablePointer[_ErrorMsg] val = frame.none()
   var next: NullablePointer[_ErrorMsg] val = next.none()
 
 struct _FILE
-  """STUB"""
+  """
+  STUB
+  """
 
 struct _Errors
   var head: NullablePointer[_ErrorMsg] val = head.none()
   var tail: NullablePointer[_ErrorMsg] val = tail.none()
   var count: USize = 0
   var immediate_report: Bool = false
-  var output_stream: Pointer[I32] = output_stream.create() // FILE*
+  var output_stream: Pointer[I32] =
+    output_stream.create()
 
   fun ref extract(): Array[Error] val =>
-    let errs = recover trn Array[Error].create(this.count) end
+    let errs =
+      recover trn Array[Error].create(this.count) end
     var msg_ptr: NullablePointer[_ErrorMsg] val = head
     while not msg_ptr.is_none() do
       try
@@ -143,6 +155,7 @@ struct _Errors
 
 struct _Typecheck
   """
+  Typecheck state.
   """
   var frame: NullablePointer[_TypecheckFrame] ref
   embed stats: _TypecheckStats
@@ -150,7 +163,7 @@ struct _Typecheck
 
   new create() =>
     """
-    no allocation
+    No allocation.
     """
     frame = NullablePointer[_TypecheckFrame].none()
     stats = _TypecheckStats.create()

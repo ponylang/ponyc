@@ -1,18 +1,41 @@
 use @symtab_new[Pointer[_Symtab] ref]()
-use @symtab_free[None](symtab: Pointer[_Symtab] box) // box is needed as this is
-// called in a finalizer
-use @symtab_add[Bool](symtab: Pointer[_Symtab] ref, name: Pointer[U8] tag, def: Pointer[_AST] box, status: NullablePointer[SymStatus], strtab: Pointer[_StrTable] tag)
-use @symtab_find[Pointer[_AST] val](symtab: Pointer[_Symtab] box, name: Pointer[U8] tag, status: NullablePointer[SymStatus])
-use @symtab_init[None](symtab: Pointer[_Symtab] ref, size: USize)
-use @symtab_destroy[None](symtab: Pointer[_Symtab] ref)
-use @symtab_optimize[None](symtab: Pointer[_Symtab] ref)
-use @symtab_get[NullablePointer[_Symbol]](symtab: Pointer[_Symtab] box, key: NullablePointer[_Symbol], index: Pointer[USize])
-use @symtab_put[NullablePointer[_Symbol]](symtab: Pointer[_Symtab] ref, entry: NullablePointer[_Symbol])
-use @symtab_putindex[None](symtab: Pointer[_Symbol] ref, entry: NullablePointer[_Symbol], index: USize)
-use @symtab_size[USize](symtab: Pointer[_Symtab] box)
-use @symtab_next[NullablePointer[_Symbol]](symtab: Pointer[_Symtab] box, i: Pointer[USize])
+// box is needed as this is called in a finalizer
+use @symtab_free[None](
+  symtab: Pointer[_Symtab] box)
+use @symtab_add[Bool](
+  symtab: Pointer[_Symtab] ref,
+  name: Pointer[U8] tag,
+  def: Pointer[_AST] box,
+  status: NullablePointer[SymStatus],
+  strtab: Pointer[_StrTable] tag)
+use @symtab_find[Pointer[_AST] val](
+  symtab: Pointer[_Symtab] box,
+  name: Pointer[U8] tag,
+  status: NullablePointer[SymStatus])
+use @symtab_init[None](
+  symtab: Pointer[_Symtab] ref, size: USize)
+use @symtab_destroy[None](
+  symtab: Pointer[_Symtab] ref)
+use @symtab_optimize[None](
+  symtab: Pointer[_Symtab] ref)
+use @symtab_get[NullablePointer[_Symbol]](
+  symtab: Pointer[_Symtab] box,
+  key: NullablePointer[_Symbol],
+  index: Pointer[USize])
+use @symtab_put[NullablePointer[_Symbol]](
+  symtab: Pointer[_Symtab] ref,
+  entry: NullablePointer[_Symbol])
+use @symtab_putindex[None](
+  symtab: Pointer[_Symbol] ref,
+  entry: NullablePointer[_Symbol],
+  index: USize)
+use @symtab_size[USize](
+  symtab: Pointer[_Symtab] box)
+use @symtab_next[NullablePointer[_Symbol]](
+  symtab: Pointer[_Symtab] box,
+  i: Pointer[USize])
 
-//use "debug"
+// use "debug"
 
 struct _Symbol
   """
@@ -31,31 +54,40 @@ struct _Symbol
 
 struct _Symtab
   """
-  stupid stub
+  Stub for the C-level symbol table struct.
   """
 
 struct SymStatus
+  """
+  Status of a symbol in a scope's symbol table.
+  """
   var status: I32 = SymStati.none()
 
   new ref create() => None
 
   fun box string(): String iso^ =>
-    recover iso
-      String.create() .> append(match status
+    let label =
+      match status
       | SymStati.none() => "NONE"
       | SymStati.nocase() => "NO_CASE"
       | SymStati.defined() => "DEFINED"
       | SymStati.undefined() => "UNDEFINED"
       | SymStati.consumed() => "CONSUMED"
-      | SymStati.consumed_same_expr() => "CONSUMED_SAME_EXPR"
+      | SymStati.consumed_same_expr() =>
+        "CONSUMED_SAME_EXPR"
       | SymStati.ffidecl() => "FFIDECL"
       | SymStati.err() => "ERROR"
       else
         "IMPOSSIBLE"
-      end)
+      end
+    recover iso
+      String.create() .> append(label)
     end
 
 primitive SymStati
+  """
+  Maps C-level sym_status_t enum values to Pony.
+  """
   fun none(): I32 => 0
   fun nocase(): I32 => 1
   fun defined(): I32 => 3
@@ -65,20 +97,29 @@ primitive SymStati
   fun ffidecl(): I32 => 7
   fun err(): I32 => 8
 
-
 class ref SymbolTable
+  """
+  Pony wrapper around the C-level symbol table.
+  """
   let ptr: Pointer[_Symtab]
-  // Interned-string table of the owning compilation, carried so AST nodes
-  // looked up here can be wrapped with the same table (see AST.strtab).
+  // Interned-string table of the owning compilation,
+  // carried so AST nodes looked up here can be wrapped
+  // with the same table (see AST.strtab).
   let strtab: Pointer[_StrTable] tag
   let _owned_alloc: Bool
 
-  new from_pointer(ptr': Pointer[_Symtab], strtab': Pointer[_StrTable] tag) =>
+  new from_pointer(
+    ptr': Pointer[_Symtab],
+    strtab': Pointer[_StrTable] tag)
+  =>
     ptr = ptr'
     strtab = strtab'
     _owned_alloc = false
 
-  new iso create(strtab': Pointer[_StrTable] tag, size': USize = 0) =>
+  new iso create(
+    strtab': Pointer[_StrTable] tag,
+    size': USize = 0)
+  =>
     ptr = @symtab_new()
     @symtab_init(ptr, size')
     strtab = strtab'
@@ -86,7 +127,11 @@ class ref SymbolTable
 
   fun box apply(name: String box): (AST | None) =>
     var status = SymStatus.create()
-    let ptr' = @symtab_find(ptr, name.cpointer(), NullablePointer[SymStatus](status))
+    let ptr' =
+      @symtab_find(
+        ptr,
+        name.cpointer(),
+        NullablePointer[SymStatus](status))
     if ptr'.is_null() then
       None
     else
@@ -107,15 +152,17 @@ class ref SymbolTable
   fun debug(): String val =>
     var s = recover val String() end
     for (name, definition) in this.iter() do
-      s = s + name + ": " + definition.debug() + ", "
+      s = s + name + ": "
+        + definition.debug() + ", "
     end
     s
 
-// TODO: reason about Iterator element types
-//       They should actually be `(S->String, S->AST)`
-//       but the capabilities don't allow for that unless we redesign all of the
-//       AST creation
-class _SymbolTableIter[S: SymbolTable #read] is Iterator[(String, AST)]
+// TODO: reason about Iterator element types.
+// They should actually be `(S->String, S->AST)`
+// but the capabilities don't allow for that
+// unless we redesign all of the AST creation.
+class _SymbolTableIter[S: SymbolTable #read]
+  is Iterator[(String, AST)]
   let _table: S
   var _i: USize
   var _count: USize
@@ -129,7 +176,8 @@ class _SymbolTableIter[S: SymbolTable #read] is Iterator[(String, AST)]
     _count < _table.size()
 
   fun ref next(): (String, AST) ? =>
-    let ptr = @symtab_next(_table.ptr, addressof _i)
+    let ptr =
+      @symtab_next(_table.ptr, addressof _i)
     let symbol = ptr()?
     _count = _count + 1
     let symbol_name =

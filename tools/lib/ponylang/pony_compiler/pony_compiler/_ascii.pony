@@ -1,5 +1,4 @@
 primitive _ASCII
-
   fun tag is_binary(c: U8): Bool =>
     (c == '0') or (c == '1')
 
