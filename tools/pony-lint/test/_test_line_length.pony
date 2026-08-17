@@ -1,5 +1,6 @@
 use "pony_test"
 use "pony_check"
+use ast = "pony_compiler"
 use lint = ".."
 
 class \nodoc\ _TestLineLengthExactly80 is UnitTest
@@ -9,7 +10,7 @@ class \nodoc\ _TestLineLengthExactly80 is UnitTest
   fun apply(h: TestHelper) =>
     let line = recover val String .> append("a".mul(80)) end
     let sf = lint.SourceFile("/tmp/t.pony", line, "/tmp")
-    let diags = lint.LineLength.check(sf)
+    let diags = lint.LineLength.check_text(sf)
     h.assert_eq[USize](0, diags.size())
 
 class \nodoc\ _TestLineLengthOver80 is UnitTest
@@ -19,7 +20,7 @@ class \nodoc\ _TestLineLengthOver80 is UnitTest
   fun apply(h: TestHelper) =>
     let line = recover val String .> append("a".mul(95)) end
     let sf = lint.SourceFile("/tmp/t.pony", line, "/tmp")
-    let diags = lint.LineLength.check(sf)
+    let diags = lint.LineLength.check_text(sf)
     h.assert_eq[USize](1, diags.size())
     try
       h.assert_eq[USize](81, diags(0)?.column)
@@ -40,7 +41,7 @@ class \nodoc\ _TestLineLengthMultiByteUTF8 is UnitTest
         String .> append("a".mul(79)) .> append("é")
       end
     let sf = lint.SourceFile("/tmp/t.pony", line, "/tmp")
-    let diags = lint.LineLength.check(sf)
+    let diags = lint.LineLength.check_text(sf)
     h.assert_eq[USize](0, diags.size())
 
 class \nodoc\ _TestLineLengthEmptyLine is UnitTest
@@ -49,7 +50,7 @@ class \nodoc\ _TestLineLengthEmptyLine is UnitTest
 
   fun apply(h: TestHelper) =>
     let sf = lint.SourceFile("/tmp/t.pony", "", "/tmp")
-    let diags = lint.LineLength.check(sf)
+    let diags = lint.LineLength.check_text(sf)
     h.assert_eq[USize](0, diags.size())
 
 class \nodoc\ _TestLineLengthProperty is UnitTest
@@ -72,7 +73,7 @@ class \nodoc\ _TestLineLengthProperty is UnitTest
         let safe_line: String val = consume line
         if safe_line.codepoints() <= 80 then
           let sf = lint.SourceFile("/tmp/t.pony", safe_line, "/tmp")
-          let diags = lint.LineLength.check(sf)
+          let diags = lint.LineLength.check_text(sf)
           ph.assert_eq[USize](0, diags.size())
         end
       })?
@@ -84,7 +85,7 @@ class \nodoc\ _TestLineLengthProperty is UnitTest
         // ASCIILetters has no whitespace, so no newlines or \r
         let sf =
           lint.SourceFile("/tmp/t.pony", content, "/tmp")
-        let diags = lint.LineLength.check(sf)
+        let diags = lint.LineLength.check_text(sf)
         ph.assert_eq[USize](1, diags.size())
       })?
 
@@ -105,7 +106,7 @@ class \nodoc\ _TestLineLengthStringExemptNoSpaces is UnitTest
       end
     h.assert_true(line.codepoints() > 80)
     let sf = lint.SourceFile("/tmp/t.pony", line, "/tmp")
-    let diags = lint.LineLength.check(sf)
+    let diags = lint.LineLength.check_text(sf)
     h.assert_eq[USize](0, diags.size())
 
 class \nodoc\ _TestLineLengthStringNotExemptSpaces is UnitTest
@@ -125,7 +126,7 @@ class \nodoc\ _TestLineLengthStringNotExemptSpaces is UnitTest
       end
     h.assert_true(line.codepoints() > 80)
     let sf = lint.SourceFile("/tmp/t.pony", line, "/tmp")
-    let diags = lint.LineLength.check(sf)
+    let diags = lint.LineLength.check_text(sf)
     h.assert_eq[USize](1, diags.size())
 
 class \nodoc\ _TestLineLengthStringBeforeCol80 is UnitTest
@@ -144,7 +145,7 @@ class \nodoc\ _TestLineLengthStringBeforeCol80 is UnitTest
       end
     h.assert_true(line.codepoints() > 80)
     let sf = lint.SourceFile("/tmp/t.pony", line, "/tmp")
-    let diags = lint.LineLength.check(sf)
+    let diags = lint.LineLength.check_text(sf)
     h.assert_eq[USize](1, diags.size())
 
 class \nodoc\ _TestLineLengthStringAfterCol80 is UnitTest
@@ -162,7 +163,7 @@ class \nodoc\ _TestLineLengthStringAfterCol80 is UnitTest
       end
     h.assert_true(line.codepoints() > 80)
     let sf = lint.SourceFile("/tmp/t.pony", line, "/tmp")
-    let diags = lint.LineLength.check(sf)
+    let diags = lint.LineLength.check_text(sf)
     h.assert_eq[USize](1, diags.size())
 
 class \nodoc\ _TestLineLengthStringEndsAtCol80 is UnitTest
@@ -182,17 +183,23 @@ class \nodoc\ _TestLineLengthStringEndsAtCol80 is UnitTest
       end
     h.assert_true(line.codepoints() > 80)
     let sf = lint.SourceFile("/tmp/t.pony", line, "/tmp")
-    let diags = lint.LineLength.check(sf)
+    let diags = lint.LineLength.check_text(sf)
     h.assert_eq[USize](1, diags.size())
 
 class \nodoc\ _TestLineLengthDocstringNoExempt is UnitTest
-  """Long line inside a docstring is not eligible for exemption."""
+  """
+  Long line inside a triple-quoted block gets the single-line string
+  exemption when checked via text-only check_text (no AST context).
+
+  The docstring-vs-literal distinction is handled by the AST layer
+  (check_module), not check_text. This test verifies that check_text
+  applies the no-space string exemption uniformly, including inside
+  triple-quoted blocks.
+  """
   fun name(): String =>
-    "LineLength: long line inside docstring -> flagged"
+    "LineLength: triple-quote content with no-space string -> exempt"
 
   fun apply(h: TestHelper) =>
-    // Three lines: opening """, long content with a no-space "string",
-    // closing """
     let content: String val =
       recover val
         String
@@ -203,8 +210,8 @@ class \nodoc\ _TestLineLengthDocstringNoExempt is UnitTest
           .> append("  \"\"\"")
       end
     let sf = lint.SourceFile("/tmp/t.pony", content, "/tmp")
-    let diags = lint.LineLength.check(sf)
-    h.assert_eq[USize](1, diags.size())
+    let diags = lint.LineLength.check_text(sf)
+    h.assert_eq[USize](0, diags.size())
 
 class \nodoc\ _TestLineLengthMultipleStringsOneExempt is UnitTest
   """Two strings on one line; second one qualifies for exemption."""
@@ -222,7 +229,7 @@ class \nodoc\ _TestLineLengthMultipleStringsOneExempt is UnitTest
       end
     h.assert_true(line.codepoints() > 80)
     let sf = lint.SourceFile("/tmp/t.pony", line, "/tmp")
-    let diags = lint.LineLength.check(sf)
+    let diags = lint.LineLength.check_text(sf)
     h.assert_eq[USize](0, diags.size())
 
 class \nodoc\ _TestLineLengthEscapedQuotes is UnitTest
@@ -241,7 +248,7 @@ class \nodoc\ _TestLineLengthEscapedQuotes is UnitTest
       end
     h.assert_true(line.codepoints() > 80)
     let sf = lint.SourceFile("/tmp/t.pony", line, "/tmp")
-    let diags = lint.LineLength.check(sf)
+    let diags = lint.LineLength.check_text(sf)
     h.assert_eq[USize](0, diags.size())
 
 class \nodoc\ _TestLineLengthTripleQuoteLineNoExempt is UnitTest
@@ -258,7 +265,7 @@ class \nodoc\ _TestLineLengthTripleQuoteLineNoExempt is UnitTest
       end
     h.assert_true(line.codepoints() > 80)
     let sf = lint.SourceFile("/tmp/t.pony", line, "/tmp")
-    let diags = lint.LineLength.check(sf)
+    let diags = lint.LineLength.check_text(sf)
     h.assert_eq[USize](1, diags.size())
 
 class \nodoc\ _TestLineLengthStringExemptUTF8 is UnitTest
@@ -280,7 +287,7 @@ class \nodoc\ _TestLineLengthStringExemptUTF8 is UnitTest
     // 13 + 35 + 35 + 1 = 84 codepoints
     h.assert_true(line.codepoints() > 80)
     let sf = lint.SourceFile("/tmp/t.pony", line, "/tmp")
-    let diags = lint.LineLength.check(sf)
+    let diags = lint.LineLength.check_text(sf)
     h.assert_eq[USize](0, diags.size())
 
 class \nodoc\ _TestLineLengthStringExemptProperty is UnitTest
@@ -305,7 +312,7 @@ class \nodoc\ _TestLineLengthStringExemptProperty is UnitTest
               .> append("\"")
           end
         let sf = lint.SourceFile("/tmp/t.pony", line, "/tmp")
-        let diags = lint.LineLength.check(sf)
+        let diags = lint.LineLength.check_text(sf)
         ph.assert_eq[USize](0, diags.size())
       })?
 
@@ -335,6 +342,198 @@ class \nodoc\ _TestLineLengthStringFlaggedProperty is UnitTest
               .> append("\"")
           end
         let sf = lint.SourceFile("/tmp/t.pony", line, "/tmp")
-        let diags = lint.LineLength.check(sf)
+        let diags = lint.LineLength.check_text(sf)
         ph.assert_eq[USize](1, diags.size())
       })?
+
+class \nodoc\ _TestLineLengthASTStringLiteralExempt is UnitTest
+  """
+  Lines inside a triple-quoted string literal (not a docstring) are
+  exempt from the 80-column check via the AST-based check_module.
+  """
+  fun name(): String =>
+    "LineLength: AST string literal lines exempt"
+
+  fun apply(h: TestHelper) ? =>
+    let long_content = recover val String .> append("a".mul(100)) end
+    let source: String val =
+      recover val
+        String
+          .> append("primitive Foo\n")
+          .> append("  fun apply(): String =>\n")
+          .> append("    let x: String =\n")
+          .> append("      \"\"\"\n")
+          .> append("      " + long_content + "\n")
+          .> append("      \"\"\"\n")
+          .> append("    x")
+      end
+    (let program, let sf) = _ASTTestHelper.compile(h, source)?
+    let mod_ast =
+      (program.package() as ast.Package).module()
+        as ast.Module
+    let diags = lint.LineLength.check_module(mod_ast.ast, sf)
+    h.assert_eq[USize](0, diags.size())
+
+class \nodoc\ _TestLineLengthASTDocstringNotExempt is UnitTest
+  """
+  Lines inside a docstring are NOT exempt from the 80-column check.
+  The AST-based check_module recognizes docstrings and does not add
+  their lines to the exempt set.
+  """
+  fun name(): String =>
+    "LineLength: AST docstring lines not exempt"
+
+  fun apply(h: TestHelper) ? =>
+    let long_content = recover val String .> append("a".mul(100)) end
+    let source: String val =
+      recover val
+        String
+          .> append("primitive Foo\n")
+          .> append("  \"\"\"\n")
+          .> append("  " + long_content + "\n")
+          .> append("  \"\"\"\n")
+          .> append("  fun apply(): None => None")
+      end
+    (let program, let sf) = _ASTTestHelper.compile(h, source)?
+    let mod_ast =
+      (program.package() as ast.Package).module()
+        as ast.Module
+    let diags = lint.LineLength.check_module(mod_ast.ast, sf)
+    h.assert_eq[USize](1, diags.size())
+    try
+      h.assert_eq[USize](3, diags(0)?.line)
+    else
+      h.fail("could not access diagnostic")
+    end
+
+class \nodoc\ _TestLineLengthASTMethodDocstringNotExempt is UnitTest
+  """
+  Lines inside a method-body docstring are NOT exempt. The AST
+  identifies child 0 of the body TK_SEQ under a method as a docstring.
+  """
+  fun name(): String =>
+    "LineLength: AST method-body docstring lines not exempt"
+
+  fun apply(h: TestHelper) ? =>
+    let long_content = recover val String .> append("a".mul(100)) end
+    let source: String val =
+      recover val
+        String
+          .> append("primitive Foo\n")
+          .> append("  fun apply(): None =>\n")
+          .> append("    \"\"\"\n")
+          .> append("    " + long_content + "\n")
+          .> append("    \"\"\"\n")
+          .> append("    None")
+      end
+    (let program, let sf) = _ASTTestHelper.compile(h, source)?
+    let mod_ast =
+      (program.package() as ast.Package).module()
+        as ast.Module
+    let diags = lint.LineLength.check_module(mod_ast.ast, sf)
+    h.assert_eq[USize](1, diags.size())
+    try
+      h.assert_eq[USize](4, diags(0)?.line)
+    else
+      h.fail("could not access diagnostic")
+    end
+
+class \nodoc\ _TestLineLengthASTModuleDocstringNotExempt is UnitTest
+  """
+  Lines inside a module-level docstring are NOT exempt. The AST
+  identifies child 0 of the module as the package docstring.
+  """
+  fun name(): String =>
+    "LineLength: AST module-level docstring lines not exempt"
+
+  fun apply(h: TestHelper) ? =>
+    let long_content = recover val String .> append("a".mul(100)) end
+    let source: String val =
+      recover val
+        String
+          .> append("\"\"\"\n")
+          .> append(long_content + "\n")
+          .> append("\"\"\"\n")
+          .> append("\n")
+          .> append("primitive Foo")
+      end
+    (let program, let sf) = _ASTTestHelper.compile(h, source)?
+    let mod_ast =
+      (program.package() as ast.Package).module()
+        as ast.Module
+    let diags = lint.LineLength.check_module(mod_ast.ast, sf)
+    h.assert_eq[USize](1, diags.size())
+    try
+      h.assert_eq[USize](2, diags(0)?.line)
+    else
+      h.fail("could not access diagnostic")
+    end
+
+class \nodoc\ _TestLineLengthASTDocstringQuotedIdFlagged is UnitTest
+  """
+  A docstring line with a quoted identifier (no spaces) crossing column
+  80 is still flagged. The no-space string exemption does not apply
+  inside docstrings because quoted text in prose is not a string literal.
+  """
+  fun name(): String =>
+    "LineLength: AST docstring quoted identifier -> flagged"
+
+  fun apply(h: TestHelper) ? =>
+    let long_name =
+      recover val String .> append("a".mul(75)) end
+    let source: String val =
+      recover val
+        String
+          .> append("primitive Foo\n")
+          .> append("  \"\"\"\n")
+          .> append("  Wraps \"" + long_name + "\" type.\n")
+          .> append("  \"\"\"\n")
+          .> append("  fun apply(): None => None")
+      end
+    (let program, let sf) = _ASTTestHelper.compile(h, source)?
+    let mod_ast =
+      (program.package() as ast.Package).module()
+        as ast.Module
+    let diags = lint.LineLength.check_module(mod_ast.ast, sf)
+    h.assert_eq[USize](1, diags.size())
+    try
+      h.assert_eq[USize](3, diags(0)?.line)
+    else
+      h.fail("could not access diagnostic")
+    end
+
+class \nodoc\ _TestLineLengthASTMixedDocstringAndLiteral is UnitTest
+  """
+  A file with both a docstring and a string literal, each containing
+  long lines. Only the docstring's long line should be flagged.
+  """
+  fun name(): String =>
+    "LineLength: AST mixed docstring and literal"
+
+  fun apply(h: TestHelper) ? =>
+    let long_content = recover val String .> append("a".mul(100)) end
+    let source: String val =
+      recover val
+        String
+          .> append("primitive Foo\n")
+          .> append("  \"\"\"\n")
+          .> append("  " + long_content + "\n")
+          .> append("  \"\"\"\n")
+          .> append("  fun apply(): String =>\n")
+          .> append("    let x: String =\n")
+          .> append("      \"\"\"\n")
+          .> append("      " + long_content + "\n")
+          .> append("      \"\"\"\n")
+          .> append("    x")
+      end
+    (let program, let sf) = _ASTTestHelper.compile(h, source)?
+    let mod_ast =
+      (program.package() as ast.Package).module()
+        as ast.Module
+    let diags = lint.LineLength.check_module(mod_ast.ast, sf)
+    h.assert_eq[USize](1, diags.size())
+    try
+      h.assert_eq[USize](3, diags(0)?.line)
+    else
+      h.fail("could not access diagnostic")
+    end
