@@ -8,6 +8,59 @@ primitive \nodoc\ _NoASTRules
   fun apply(): Array[lint.ASTRule val] val =>
     recover val Array[lint.ASTRule val] end
 
+primitive \nodoc\ _NoTextRules
+  """Empty text rules array for AST-only linter tests."""
+  fun apply(): Array[lint.TextRule val] val =>
+    recover val Array[lint.TextRule val] end
+
+primitive \nodoc\ _LineLengthRules
+  """LineLength as the sole AST rule."""
+  fun apply(): Array[lint.ASTRule val] val =>
+    recover val [as lint.ASTRule val: lint.LineLength] end
+
+primitive \nodoc\ _LineLengthOnlyConfig
+  """Config that disables everything except style/line-length."""
+  fun apply(): lint.LintConfig =>
+    let rules =
+      recover val
+        let m = Map[String, lint.RuleStatus]
+        m("style") = lint.RuleOff
+        m("style/line-length") = lint.RuleOn
+        m
+      end
+    lint.LintConfig(recover val Set[String] end, rules)
+
+primitive \nodoc\ _WriteLongPony
+  """Write a valid Pony file with a comment line exceeding 80 columns."""
+  fun apply(file: File ref, long_line: String val) =>
+    file.print("actor Main")
+    file.print("  new create(env: Env) =>")
+    file.print("    // " + long_line)
+    file.print("    None")
+
+primitive \nodoc\ _PonyPath
+  """Extract PONYPATH from environment and split into package paths."""
+  fun apply(
+    vars: (Array[String val] val | None))
+    : Array[String val] val
+  =>
+    match vars
+    | let env_vars: Array[String val] val =>
+      for pair in env_vars.values() do
+        if pair.at("PONYPATH=") then
+          let pp: String val = pair.substring(ISize(9))
+          return recover val
+            let result = Array[String val]
+            for p in Path.split_list(pp).values() do
+              result.push(p)
+            end
+            result
+          end
+        end
+      end
+    end
+    recover val Array[String val] end
+
 class \nodoc\ _TestLinterSingleFile is UnitTest
   """Linting a single file with a violation produces diagnostics."""
   fun name(): String => "Linter: single file with violation"
@@ -21,15 +74,17 @@ class \nodoc\ _TestLinterSingleFile is UnitTest
           FileAuth(auth), Path.join(tmp.path, "test.pony"))
       let file = File(pony_file)
       let long_line = recover val String .> append("a".mul(100)) end
-      file.print(long_line)
+      _WriteLongPony(file, long_line)
       file.dispose()
 
-      let rules: Array[lint.TextRule val] val =
-        recover val [as lint.TextRule val: lint.LineLength] end
       let registry =
         lint.RuleRegistry(
-          rules, _NoASTRules(), lint.LintConfig.default())
-      let linter = lint.Linter(registry, FileAuth(auth), tmp.path)
+          _NoTextRules(), _LineLengthRules(),
+          _LineLengthOnlyConfig())
+      let pkg_paths = _PonyPath(h.env.vars)
+      let linter =
+        lint.Linter(
+          registry, FileAuth(auth), tmp.path, pkg_paths)
       let targets = recover val [as String val: tmp.path] end
       (let diags, let exit_code) = linter.run(targets)
       h.assert_true(diags.size() > 0)
@@ -63,18 +118,21 @@ class \nodoc\ _TestLinterCleanFile is UnitTest
       file.print("    None")
       file.dispose()
 
-      let rules: Array[lint.TextRule val] val =
+      let text_rules: Array[lint.TextRule val] val =
         recover val
           Array[lint.TextRule val]
-            .> push(lint.LineLength)
             .> push(lint.TrailingWhitespace)
             .> push(lint.HardTabs)
             .> push(lint.CommentSpacing)
         end
       let registry =
         lint.RuleRegistry(
-          rules, _NoASTRules(), lint.LintConfig.default())
-      let linter = lint.Linter(registry, FileAuth(auth), tmp.path)
+          text_rules, _LineLengthRules(),
+          _LineLengthOnlyConfig())
+      let pkg_paths = _PonyPath(h.env.vars)
+      let linter =
+        lint.Linter(
+          registry, FileAuth(auth), tmp.path, pkg_paths)
       let targets = recover val [as String val: tmp.path] end
       (let diags, let exit_code) = linter.run(targets)
       h.assert_eq[USize](0, diags.size())
@@ -108,15 +166,17 @@ class \nodoc\ _TestLinterSkipsCorral is UnitTest
           FileAuth(auth), Path.join(corral_dir.path, "dep.pony"))
       let file = File(corral_file)
       let long_line = recover val String .> append("a".mul(100)) end
-      file.print(long_line)
+      _WriteLongPony(file, long_line)
       file.dispose()
 
-      let rules: Array[lint.TextRule val] val =
-        recover val [as lint.TextRule val: lint.LineLength] end
       let registry =
         lint.RuleRegistry(
-          rules, _NoASTRules(), lint.LintConfig.default())
-      let linter = lint.Linter(registry, FileAuth(auth), tmp.path)
+          _NoTextRules(), _LineLengthRules(),
+          _LineLengthOnlyConfig())
+      let pkg_paths = _PonyPath(h.env.vars)
+      let linter =
+        lint.Linter(
+          registry, FileAuth(auth), tmp.path, pkg_paths)
       let targets = recover val [as String val: tmp.path] end
       (let diags, _) = linter.run(targets)
       h.assert_eq[USize](0, diags.size())
@@ -142,16 +202,25 @@ class \nodoc\ _TestLinterSuppressedDiagnosticsFiltered is UnitTest
       let file = File(pony_file)
       let long_line = recover val String .> append("a".mul(100)) end
       let content: String val =
-        "// pony-lint: allow style/line-length\n" + long_line + "\n"
+        recover val
+          String
+            .> append("actor Main\n")
+            .> append("  new create(env: Env) =>\n")
+            .> append("    // pony-lint: allow style/line-length\n")
+            .> append("    // " + long_line + "\n")
+            .> append("    None\n")
+        end
       file.write(content)
       file.dispose()
 
-      let rules: Array[lint.TextRule val] val =
-        recover val [as lint.TextRule val: lint.LineLength] end
       let registry =
         lint.RuleRegistry(
-          rules, _NoASTRules(), lint.LintConfig.default())
-      let linter = lint.Linter(registry, FileAuth(auth), tmp.path)
+          _NoTextRules(), _LineLengthRules(),
+          _LineLengthOnlyConfig())
+      let pkg_paths = _PonyPath(h.env.vars)
+      let linter =
+        lint.Linter(
+          registry, FileAuth(auth), tmp.path, pkg_paths)
       let targets = recover val [as String val: tmp.path] end
       (let diags, _) = linter.run(targets)
       h.assert_eq[USize](0, diags.size())
@@ -171,27 +240,32 @@ class \nodoc\ _TestLinterDiagnosticsSorted is UnitTest
     try
       let tmp = FilePath.mkdtemp(FileAuth(auth), "pony-lint-test")?
       // Create two files with violations — sorted order by filename
+      let long_line = recover val String .> append("a".mul(100)) end
+
       let file_b =
         FilePath(
           FileAuth(auth), Path.join(tmp.path, "b.pony"))
       let fb = File(file_b)
-      let long_line = recover val String .> append("a".mul(100)) end
-      fb.print(long_line)
+      fb.print("primitive B")
+      fb.print("  // " + long_line)
       fb.dispose()
 
       let file_a =
         FilePath(
           FileAuth(auth), Path.join(tmp.path, "a.pony"))
       let fa = File(file_a)
-      fa.print(long_line)
+      fa.print("primitive A")
+      fa.print("  // " + long_line)
       fa.dispose()
 
-      let rules: Array[lint.TextRule val] val =
-        recover val [as lint.TextRule val: lint.LineLength] end
       let registry =
         lint.RuleRegistry(
-          rules, _NoASTRules(), lint.LintConfig.default())
-      let linter = lint.Linter(registry, FileAuth(auth), tmp.path)
+          _NoTextRules(), _LineLengthRules(),
+          _LineLengthOnlyConfig())
+      let pkg_paths = _PonyPath(h.env.vars)
+      let linter =
+        lint.Linter(
+          registry, FileAuth(auth), tmp.path, pkg_paths)
       let targets = recover val [as String val: tmp.path] end
       (let diags, _) = linter.run(targets)
       h.assert_eq[USize](2, diags.size())
@@ -215,13 +289,15 @@ class \nodoc\ _TestLinterNonExistentTarget is UnitTest
 
   fun apply(h: TestHelper) =>
     let auth = h.env.root
-    let rules: Array[lint.TextRule val] val =
-      recover val [as lint.TextRule val: lint.LineLength] end
     let registry =
       lint.RuleRegistry(
-        rules, _NoASTRules(), lint.LintConfig.default())
+        _NoTextRules(), _LineLengthRules(),
+        lint.LintConfig.default())
     let cwd = Path.cwd()
-    let linter = lint.Linter(registry, FileAuth(auth), cwd)
+    let pkg_paths = _PonyPath(h.env.vars)
+    let linter =
+      lint.Linter(
+        registry, FileAuth(auth), cwd, pkg_paths)
     let targets =
       recover val [as String val: "no_such_file_or_dir_xyzzy"] end
     (let diags, let exit_code) = linter.run(targets)
@@ -269,7 +345,7 @@ class \nodoc\ _TestLinterRespectsGitignore is UnitTest
           FileAuth(auth), Path.join(gen_dir.path, "gen.pony"))
       let gf = File(gen_file)
       let long_line = recover val String .> append("a".mul(100)) end
-      gf.print(long_line)
+      _WriteLongPony(gf, long_line)
       gf.dispose()
       // Create a non-ignored .pony file that is clean
       let clean_file =
@@ -279,12 +355,14 @@ class \nodoc\ _TestLinterRespectsGitignore is UnitTest
       cf.print("actor Main")
       cf.dispose()
 
-      let rules: Array[lint.TextRule val] val =
-        recover val [as lint.TextRule val: lint.LineLength] end
       let registry =
         lint.RuleRegistry(
-          rules, _NoASTRules(), lint.LintConfig.default())
-      let linter = lint.Linter(registry, FileAuth(auth), tmp.path)
+          _NoTextRules(), _LineLengthRules(),
+          _LineLengthOnlyConfig())
+      let pkg_paths = _PonyPath(h.env.vars)
+      let linter =
+        lint.Linter(
+          registry, FileAuth(auth), tmp.path, pkg_paths)
       let targets = recover val [as String val: tmp.path] end
       (let diags, let exit_code) = linter.run(targets)
       // The generated/ file should be ignored, only clean.pony is linted
@@ -334,15 +412,17 @@ class \nodoc\ _TestLinterExplicitFileBypassesIgnore is UnitTest
           FileAuth(auth), Path.join(tmp.path, "test.pony"))
       let f = File(pony_file)
       let long_line = recover val String .> append("a".mul(100)) end
-      f.print(long_line)
+      _WriteLongPony(f, long_line)
       f.dispose()
 
-      let rules: Array[lint.TextRule val] val =
-        recover val [as lint.TextRule val: lint.LineLength] end
       let registry =
         lint.RuleRegistry(
-          rules, _NoASTRules(), lint.LintConfig.default())
-      let linter = lint.Linter(registry, FileAuth(auth), tmp.path)
+          _NoTextRules(), _LineLengthRules(),
+          _LineLengthOnlyConfig())
+      let pkg_paths = _PonyPath(h.env.vars)
+      let linter =
+        lint.Linter(
+          registry, FileAuth(auth), tmp.path, pkg_paths)
       // Target the file directly, not the directory
       let targets =
         recover val
@@ -398,7 +478,7 @@ class \nodoc\ _TestLinterRespectsGitignoreFromParent is UnitTest
           FileAuth(auth), Path.join(gen_dir.path, "gen.pony"))
       let gf = File(gen_file)
       let long_line = recover val String .> append("a".mul(100)) end
-      gf.print(long_line)
+      _WriteLongPony(gf, long_line)
       gf.dispose()
       // Create a clean file in src/
       let clean_file =
@@ -408,15 +488,14 @@ class \nodoc\ _TestLinterRespectsGitignoreFromParent is UnitTest
       cf.print("actor Main")
       cf.dispose()
 
-      let rules: Array[lint.TextRule val] val =
-        recover val [as lint.TextRule val: lint.LineLength] end
       let registry =
         lint.RuleRegistry(
-          rules, _NoASTRules(), lint.LintConfig.default())
-      // Target is src/, not the repo root — tests that _GitRepoFinder
-      // walks up to find .git and that _load_intermediate_ignores loads
-      // root's .gitignore for the subdirectory target
-      let linter = lint.Linter(registry, FileAuth(auth), tmp.path)
+          _NoTextRules(), _LineLengthRules(),
+          _LineLengthOnlyConfig())
+      let pkg_paths = _PonyPath(h.env.vars)
+      let linter =
+        lint.Linter(
+          registry, FileAuth(auth), tmp.path, pkg_paths)
       let targets = recover val [as String val: src_dir.path] end
       (let diags, let exit_code) = linter.run(targets)
       // generated/ should be ignored via parent .gitignore
@@ -449,14 +528,14 @@ class \nodoc\ _TestLinterSubdirConfigDisablesRule is UnitTest
     let auth = h.env.root
     try
       let tmp = FilePath.mkdtemp(FileAuth(auth), "pony-lint-test")?
+      let long_line = recover val String .> append("a".mul(100)) end
 
       // Root file with a long line (violation)
       let root_file =
         FilePath(
           FileAuth(auth), Path.join(tmp.path, "root.pony"))
       let rf = File(root_file)
-      let long_line = recover val String .> append("a".mul(100)) end
-      rf.print(long_line)
+      _WriteLongPony(rf, long_line)
       rf.dispose()
 
       // Create examples/ subdirectory
@@ -480,17 +559,17 @@ class \nodoc\ _TestLinterSubdirConfigDisablesRule is UnitTest
         FilePath(
           FileAuth(auth), Path.join(examples_dir.path, "ex.pony"))
       let ef = File(ex_file)
-      ef.print(long_line)
+      _WriteLongPony(ef, long_line)
       ef.dispose()
 
-      let rules: Array[lint.TextRule val] val =
-        recover val [as lint.TextRule val: lint.LineLength] end
       let registry =
         lint.RuleRegistry(
-          rules, _NoASTRules(), lint.LintConfig.default())
+          _NoTextRules(), _LineLengthRules(),
+          _LineLengthOnlyConfig())
+      let pkg_paths = _PonyPath(h.env.vars)
       let linter =
         lint.Linter(
-          registry, FileAuth(auth), tmp.path
+          registry, FileAuth(auth), tmp.path, pkg_paths
           where root_dir = tmp.path)
       let targets = recover val [as String val: tmp.path] end
       (let diags, _) = linter.run(targets)
@@ -524,6 +603,7 @@ class \nodoc\ _TestLinterSubdirConfigEnablesRule is UnitTest
     let auth = h.env.root
     try
       let tmp = FilePath.mkdtemp(FileAuth(auth), "pony-lint-test")?
+      let long_line = recover val String .> append("a".mul(100)) end
 
       // Root .pony-lint.json disables line-length
       let root_config =
@@ -540,8 +620,7 @@ class \nodoc\ _TestLinterSubdirConfigEnablesRule is UnitTest
         FilePath(
           FileAuth(auth), Path.join(tmp.path, "root.pony"))
       let rf = File(root_file)
-      let long_line = recover val String .> append("a".mul(100)) end
-      rf.print(long_line)
+      _WriteLongPony(rf, long_line)
       rf.dispose()
 
       // Create strict/ subdirectory
@@ -565,25 +644,26 @@ class \nodoc\ _TestLinterSubdirConfigEnablesRule is UnitTest
         FilePath(
           FileAuth(auth), Path.join(strict_dir.path, "strict.pony"))
       let sf = File(strict_file)
-      sf.print(long_line)
+      _WriteLongPony(sf, long_line)
       sf.dispose()
 
-      // Load root config manually since test creates its own
       let file_auth = FileAuth(auth)
       let root_rules =
         recover val
           let m = Map[String, lint.RuleStatus]
+          m("style") = lint.RuleOff
           m("style/line-length") = lint.RuleOff
           m
         end
       let config =
         lint.LintConfig(recover val Set[String] end, root_rules)
-      let rules: Array[lint.TextRule val] val =
-        recover val [as lint.TextRule val: lint.LineLength] end
-      let registry = lint.RuleRegistry(rules, _NoASTRules(), config)
+      let registry =
+        lint.RuleRegistry(
+          _NoTextRules(), _LineLengthRules(), config)
+      let pkg_paths = _PonyPath(h.env.vars)
       let linter =
         lint.Linter(
-          registry, file_auth, tmp.path
+          registry, file_auth, tmp.path, pkg_paths
           where root_dir = tmp.path)
       let targets = recover val [as String val: tmp.path] end
       (let diags, _) = linter.run(targets)
@@ -643,14 +723,14 @@ class \nodoc\ _TestLinterSubdirConfigError is UnitTest
       sf.print("actor Main")
       sf.dispose()
 
-      let rules: Array[lint.TextRule val] val =
-        recover val [as lint.TextRule val: lint.LineLength] end
       let registry =
         lint.RuleRegistry(
-          rules, _NoASTRules(), lint.LintConfig.default())
+          _NoTextRules(), _LineLengthRules(),
+          _LineLengthOnlyConfig())
+      let pkg_paths = _PonyPath(h.env.vars)
       let linter =
         lint.Linter(
-          registry, FileAuth(auth), tmp.path
+          registry, FileAuth(auth), tmp.path, pkg_paths
           where root_dir = tmp.path)
       let targets = recover val [as String val: tmp.path] end
       (let diags, let exit_code) = linter.run(targets)
@@ -721,15 +801,15 @@ class \nodoc\ _TestLinterSubdirConfigCategoryCleaning is UnitTest
           FileAuth(auth), Path.join(examples_dir.path, "ex.pony"))
       let ef = File(ex_file)
       let long_line = recover val String .> append("a".mul(100)) end
-      ef.print(long_line)
+      _WriteLongPony(ef, long_line)
       ef.dispose()
 
-      let rules: Array[lint.TextRule val] val =
-        recover val [as lint.TextRule val: lint.LineLength] end
-      let registry = lint.RuleRegistry(rules, _NoASTRules(), config)
+      let registry =
+        lint.RuleRegistry(_NoTextRules(), _LineLengthRules(), config)
+      let pkg_paths = _PonyPath(h.env.vars)
       let linter =
         lint.Linter(
-          registry, FileAuth(auth), tmp.path
+          registry, FileAuth(auth), tmp.path, pkg_paths
           where root_dir = tmp.path)
       let targets =
         recover val [as String val: examples_dir.path] end
@@ -780,17 +860,17 @@ class \nodoc\ _TestLinterExplicitFileSubdirConfig is UnitTest
           FileAuth(auth), Path.join(examples_dir.path, "ex.pony"))
       let ef = File(ex_file)
       let long_line = recover val String .> append("a".mul(100)) end
-      ef.print(long_line)
+      _WriteLongPony(ef, long_line)
       ef.dispose()
 
-      let rules: Array[lint.TextRule val] val =
-        recover val [as lint.TextRule val: lint.LineLength] end
       let registry =
         lint.RuleRegistry(
-          rules, _NoASTRules(), lint.LintConfig.default())
+          _NoTextRules(), _LineLengthRules(),
+          _LineLengthOnlyConfig())
+      let pkg_paths = _PonyPath(h.env.vars)
       let linter =
         lint.Linter(
-          registry, FileAuth(auth), tmp.path
+          registry, FileAuth(auth), tmp.path, pkg_paths
           where root_dir = tmp.path)
       // Target the file directly, not the directory
       let targets =
@@ -852,18 +932,18 @@ class \nodoc\ _TestLinterIntermediateConfigLoading is UnitTest
           FileAuth(auth), Path.join(sub_dir.path, "test.pony"))
       let sf = File(sub_file)
       let long_line = recover val String .> append("a".mul(100)) end
-      sf.print(long_line)
+      _WriteLongPony(sf, long_line)
       sf.dispose()
 
-      let rules: Array[lint.TextRule val] val =
-        recover val [as lint.TextRule val: lint.LineLength] end
       let registry =
         lint.RuleRegistry(
-          rules, _NoASTRules(), lint.LintConfig.default())
+          _NoTextRules(), _LineLengthRules(),
+          _LineLengthOnlyConfig())
+      let pkg_paths = _PonyPath(h.env.vars)
       // Target is sub/, so mid/ is an intermediate directory
       let linter =
         lint.Linter(
-          registry, FileAuth(auth), tmp.path
+          registry, FileAuth(auth), tmp.path, pkg_paths
           where root_dir = tmp.path)
       let targets = recover val [as String val: sub_dir.path] end
       (let diags, _) = linter.run(targets)

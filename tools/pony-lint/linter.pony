@@ -556,6 +556,26 @@ class val Linter
               all_diags.push(d)
             end
           end
+
+          // Line-length check (module-level, needs AST for
+          // string literal vs docstring distinction)
+          if pkg_registry.is_enabled(
+            LineLength.id(),
+            LineLength.category(),
+            LineLength.default_status())
+          then
+            let ll_diags =
+              LineLength.check_module(mod.ast, info.source)
+            for d in ll_diags.values() do
+              if info.magic_lines.contains(d.line) then continue end
+              if info.suppressions.is_suppressed(
+                d.line, d.rule_id)
+              then
+                continue
+              end
+              all_diags.push(d)
+            end
+          end
         end
       end
     end

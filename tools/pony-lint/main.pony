@@ -95,7 +95,6 @@ actor Main
     // Build rule arrays (needed by --explain and normal linting)
     let all_rules: Array[TextRule val] val =
       recover val Array[TextRule val]
-        .> push(LineLength)
         .> push(TrailingWhitespace)
         .> push(HardTabs)
         .> push(CommentSpacing)
@@ -103,6 +102,7 @@ actor Main
     end
     let all_ast_rules: Array[ASTRule val] val =
       recover val Array[ASTRule val]
+        .> push(LineLength)
         .> push(TypeNaming)
         .> push(MemberNaming)
         .> push(AcronymCasing)

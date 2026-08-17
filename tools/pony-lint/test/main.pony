@@ -104,6 +104,12 @@ actor \nodoc\ Main is TestList
     test(_TestLineLengthStringExemptUTF8)
     test(_TestLineLengthStringExemptProperty)
     test(_TestLineLengthStringFlaggedProperty)
+    test(_TestLineLengthASTStringLiteralExempt)
+    test(_TestLineLengthASTDocstringNotExempt)
+    test(_TestLineLengthASTMethodDocstringNotExempt)
+    test(_TestLineLengthASTModuleDocstringNotExempt)
+    test(_TestLineLengthASTDocstringQuotedIdFlagged)
+    test(_TestLineLengthASTMixedDocstringAndLiteral)
 
     // TrailingWhitespace tests
     test(_TestTrailingWhitespaceSpace)
