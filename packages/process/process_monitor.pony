@@ -200,10 +200,12 @@ actor ProcessMonitor is AsioEventNotify
 
   // Backstop for the exit-signal reap retry. Once the OS signals that the child
   // exited, the child is a zombie we own, so waitpid will collect it and the
-  // retry converges. The cap only guards a non-convergence that should never
-  // occur — a kernel that signals the exit but never lets waitpid reap — where
-  // we surrender to WaitpidError rather than spin forever.
-  let _reap_retry_cap: U32 = 100_000
+  // retry converges. The window between the exit notification and waitpid
+  // readiness varies by platform — on FreeBSD it can span tens of thousands of
+  // actor behavior turns. The cap is set high enough to accommodate the widest
+  // observed window with ample margin, while still bounding a genuine
+  // non-convergence (a kernel that signals exit but never lets waitpid reap).
+  let _reap_retry_cap: U32 = 10_000_000
 
   embed _pending: List[(ByteSeq, USize)] = _pending.create()
   var _done_writing: Bool = false
