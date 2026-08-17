@@ -26,8 +26,9 @@ class val _Options
     debug = command.option(_CliOptions._str_debug()).bool()
     debugger = command.option(_CliOptions._str_debugger()).string()
     verbose = command.option(_CliOptions._str_verbose()).bool()
-    max_parallel = USize.from[U64](
-      command.option(_CliOptions._str_max_parallel()).u64())
+    max_parallel =
+      USize.from[U64](
+        command.option(_CliOptions._str_max_parallel()).u64())
     only =
       recover
         let only' = Set[String]
@@ -60,38 +61,61 @@ primitive _CliOptions
   fun apply(env: Env): _Options ? =>
     let spec =
       recover val
-        CommandSpec.leaf("runner", "Test runner for Pony compiler tests", [
-          OptionSpec.string(_compiler_path(), "Path to the ponyc binary"
-            where short' = 'c', default' = "ponyc")
-          OptionSpec.string(_str_output(), "Output directory for test programs"
-            where short' = 'o', default' = ".")
-          OptionSpec.string(_str_pony_path(), "Path to pass to ponyc --path"
-            where short' = 'p', default' = "")
-          OptionSpec.string(_str_test_lib(),
-            "Directory containing the additional test libraries"
-            where short' = 'L', default' = "test_lib")
-          OptionSpec.u64(_str_timeout_s(),
-            "Timeout (in seconds) for any one test"
-            where short' = 't', default' = 60)
-          OptionSpec.bool(_str_debug(), "Whether to compile in debug mode"
-            where short' = 'd', default' = false)
-          OptionSpec.string(_str_debugger(), "Debugger to use when running"
-            where short' = 'g', default' = "")
-          OptionSpec.bool(_str_verbose(), "Whether to print more progress info"
-            where short' = 'v', default' = false)
-          OptionSpec.u64(_str_max_parallel(),
-            "Maximum number of tests to run in parallel"
-            where short' = 'P', default' = 1)
-          OptionSpec.string(_str_only(),
-            "Comma-separated list of test names to run"
-            where short' = 'O', default' = "")
-          OptionSpec.string(_str_exclude(),
-            "Comma-separated list of directories to exclude"
-            where short' = 'e', default' = "")
-        ], [
-          ArgSpec.string("test_path", "Directory containing test directories"
-            where default' = ".")
-        ])? .> add_help()?
+        CommandSpec.leaf(
+          "runner",
+          "Test runner for Pony compiler tests",
+          [
+            OptionSpec.string(
+              _compiler_path(),
+              "Path to the ponyc binary"
+              where short' = 'c', default' = "ponyc")
+            OptionSpec.string(
+              _str_output(),
+              "Output directory for test programs"
+              where short' = 'o', default' = ".")
+            OptionSpec.string(
+              _str_pony_path(),
+              "Path to pass to ponyc --path"
+              where short' = 'p', default' = "")
+            OptionSpec.string(
+              _str_test_lib(),
+              "Directory containing the additional test libraries"
+              where short' = 'L', default' = "test_lib")
+            OptionSpec.u64(
+              _str_timeout_s(),
+              "Timeout (in seconds) for any one test"
+              where short' = 't', default' = 60)
+            OptionSpec.bool(
+              _str_debug(),
+              "Whether to compile in debug mode"
+              where short' = 'd', default' = false)
+            OptionSpec.string(
+              _str_debugger(),
+              "Debugger to use when running"
+              where short' = 'g', default' = "")
+            OptionSpec.bool(
+              _str_verbose(),
+              "Whether to print more progress info"
+              where short' = 'v', default' = false)
+            OptionSpec.u64(
+              _str_max_parallel(),
+              "Maximum number of tests to run in parallel"
+              where short' = 'P', default' = 1)
+            OptionSpec.string(
+              _str_only(),
+              "Comma-separated list of test names to run"
+              where short' = 'O', default' = "")
+            OptionSpec.string(
+              _str_exclude(),
+              "Comma-separated list of directories to exclude"
+              where short' = 'e', default' = "")
+          ],
+          [
+            ArgSpec.string(
+              "test_path",
+              "Directory containing test directories"
+              where default' = ".")
+          ])? .> add_help()?
       end
 
     let options =

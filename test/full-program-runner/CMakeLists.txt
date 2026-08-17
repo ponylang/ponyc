@@ -8,6 +8,7 @@ add_custom_command(OUTPUT ${RUNNER_EXECUTABLE}
   COMMAND $<TARGET_FILE:ponyc> ${CMAKE_CURRENT_SOURCE_DIR}
   DEPENDS
     main.pony
+    full_program_runner.pony
     _build_process_notify.pony
     _cli_options.pony
     _colors.pony
@@ -18,5 +19,6 @@ add_custom_command(OUTPUT ${RUNNER_EXECUTABLE}
     _tester_stdin_timer_notify.pony
     _tester_timer_notify.pony
     _tester.pony
+    _tester_notify.pony
     $<TARGET_FILE:ponyc>
 )
