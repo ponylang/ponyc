@@ -44,14 +44,15 @@ class val _TestDefinition
   let name: String
   let path: String
   let expected_exit_code: I32
-
   let stdin: _Stdin
-
-  // Arguments passed to the program, from the test's program-args.txt.
   let program_args: Array[String] val
 
-  new val create(name': String, path': String, expected_exit_code': I32,
-    stdin': _Stdin, program_args': Array[String] val)
+  new val create(
+    name': String,
+    path': String,
+    expected_exit_code': I32,
+    stdin': _Stdin,
+    program_args': Array[String] val)
   =>
     name = name'
     path = path'
@@ -79,7 +80,10 @@ class _TestDefinitions
   let _out: OutStream
   let _err: OutStream
 
-  new create(verbose: Bool, exclude: Set[String] val, out: OutStream,
+  new create(
+    verbose: Bool,
+    exclude: Set[String] val,
+    out: OutStream,
     err: OutStream)
   =>
     _verbose = verbose
@@ -166,8 +170,11 @@ class _TestDefinitions
     end
     result
 
-  fun _get_definition(auth: FileAuth, parent: String,
-    child: String): (_TestDefinition | _BrokenTest | None)
+  fun _get_definition(
+    auth: FileAuth,
+    parent: String,
+    child: String)
+    : (_TestDefinition | _BrokenTest | None)
   =>
     let fp = FilePath(auth, Path.join(parent, child))
 
@@ -260,8 +267,8 @@ class _TestDefinitions
       match \exhaustive\ config_error
       | let reason: String => _BrokenTest(child, reason)
       | None =>
-        _TestDefinition(child, dir.path.path, expected_exit_code, stdin,
-          program_args)
+        _TestDefinition(
+          child, dir.path.path, expected_exit_code, stdin, program_args)
       end
     end
 

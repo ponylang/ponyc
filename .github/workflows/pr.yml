@@ -392,6 +392,8 @@ jobs:
           cd build/debug
           PONYPATH=../../packages ./pony-lint \
             $(find ../../examples -maxdepth 2 -name '*.pony' -printf '%h\n' | sort -u)
+      - name: Lint full-program-runner
+        run: cd build/debug && ./pony-lint ../../test/full-program-runner/
 
   tools-macos:
     needs: [changes, maybe-build-macos]

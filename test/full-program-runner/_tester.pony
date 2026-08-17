@@ -5,11 +5,6 @@ use "process"
 use "time"
 use "backpressure"
 
-interface tag _TesterNotify
-  be print(name: String, str: String)
-  be succeeded(name: String)
-  be failed(name: String)
-
 primitive _NotStarted
 primitive _Building
 primitive _Testing
@@ -24,21 +19,22 @@ actor _Tester
   let _options: _Options
   let _definition: _TestDefinition
   let _notify: _TesterNotify
-
   var _stage: _TesterStage
   let _timer: Timer tag
   var _stdin_timer: (Timer tag | None) = None
   var _start_ms: U64
   var _end_ms: U64
-
   var _build_process: (ProcessMonitor | None) = None
   var _test_process: (ProcessMonitor | None) = None
-
   let _out_buf: String iso = recover String end
   let _err_buf: String iso = recover String end
 
-  new create(env: Env, timers: Timers, options: _Options,
-    definition: _TestDefinition, notify: _TesterNotify)
+  new create(
+    env: Env,
+    timers: Timers,
+    options: _Options,
+    definition: _TestDefinition,
+    notify: _TesterNotify)
   =>
     _env = env
     _timers = timers
@@ -47,8 +43,10 @@ actor _Tester
     _notify = notify
 
     _stage = _NotStarted
-    let timer = Timer(_TesterTimerNotify(this),
-      _options.timeout_s * 1_000_000_000)
+    let timer =
+      Timer(
+        _TesterTimerNotify(this),
+        _options.timeout_s * 1_000_000_000)
     _timer = timer
     _timers(consume timer)
     _start_ms = 0
@@ -82,9 +80,11 @@ actor _Tester
         args_join.append(" ")
         args_join.append(arg)
       end
-      _notify.print(_definition.name,
+      _notify.print(
+        _definition.name,
         _Colors.info(_definition.name + ": building in: " + _definition.path))
-      _notify.print(_definition.name,
+      _notify.print(
+        _definition.name,
         _Colors.info(_definition.name + ": building:" + args_join))
     end
 
@@ -95,8 +95,13 @@ actor _Tester
     let spa = StartProcessAuth(_env.root)
     let bpa = ApplyReleaseBackpressureAuth(_env.root)
     _build_process =
-      match StartProcess(spa, bpa, _BuildProcessNotify(this),
-        ponyc_file_path, consume args, _env.vars,
+      match \exhaustive\ StartProcess(
+        spa,
+        bpa,
+        _BuildProcessNotify(this),
+        ponyc_file_path,
+        consume args,
+        _env.vars,
         FilePath(FileAuth(_env.root), _definition.path))
       | let pm: ProcessMonitor =>
         pm.done_writing()
@@ -175,7 +180,8 @@ actor _Tester
         if _options.verbose then
           for v in vars.values() do
             if v.contains("DYLD_LIBRARY_PATH") then
-              _notify.print(_definition.name,
+              _notify.print(
+                _definition.name,
                 _Colors.info(_definition.name + ": testing: " + v))
             end
           end
@@ -194,27 +200,35 @@ actor _Tester
             arg_join.append(arg)
           end
 
-          _notify.print(_definition.name,
+          _notify.print(
+            _definition.name,
             _Colors.info(_definition.name + ": testing:" + arg_join))
         end
 
         _stage = _Testing
         let spa = StartProcessAuth(_env.root)
         let bpa = ApplyReleaseBackpressureAuth(_env.root)
-        match StartProcess(spa, bpa, _TestProcessNotify(this),
-          executable_file_path, args, vars,
+        match \exhaustive\ StartProcess(
+          spa,
+          bpa,
+          _TestProcessNotify(this),
+          executable_file_path,
+          args,
+          vars,
           FilePath(FileAuth(_env.root), _definition.path))
         | let process: ProcessMonitor =>
           _test_process = process
 
-          match _definition.stdin
+          match \exhaustive\ _definition.stdin
           | _StdinClose =>
             process.done_writing()
           | let w: _StdinWrite =>
             _write_stdin_and_close(process, w.data)
           | let d: _StdinDelay =>
-            let timer = Timer(_TesterStdinTimerNotify(this),
-              d.seconds * 1_000_000_000)
+            let timer =
+              Timer(
+                _TesterStdinTimerNotify(this),
+                d.seconds * 1_000_000_000)
             _stdin_timer = timer
             _timers(consume timer)
           end
@@ -222,7 +236,8 @@ actor _Tester
           _shutdown_failed("unable to start test program: " + err.string())
         end
       else
-        _notify.print(_definition.name,
+        _notify.print(
+          _definition.name,
           _Colors.err(_definition.name + ": unable to find debugger"))
       end
     end
@@ -244,10 +259,10 @@ actor _Tester
           try
             let debugger_split =
               recover val
-                var debugger: String iso = _options.debugger.clone()
-                debugger.replace("%20", " ")
-                debugger.replace("%22", "\"")
-                debugger.split(" ")
+                _options.debugger.clone()
+                  .> replace("%20", " ")
+                  .> replace("%22", "\"")
+                  .split(" ")
               end
             var in_quote = false
             var cur_arg = String
@@ -389,8 +404,10 @@ actor _Tester
   fun ref _shutdown_succeeded() =>
     if not (_stage is _Succeeded) then
       _end_ms = Time.millis()
-      _notify.print(_definition.name, _Colors.ok(_definition.name + " ("
-        + (_end_ms - _start_ms).string() + " ms)"))
+      _notify.print(
+        _definition.name,
+        _Colors.ok(_definition.name + " ("
+          + (_end_ms - _start_ms).string() + " ms)"))
       _timers.cancel(_timer)
       _cancel_stdin_timer()
       _stage = _Succeeded
@@ -401,8 +418,10 @@ actor _Tester
     if not (_stage is _Failed) then
       _end_ms = Time.millis()
 
-      _notify.print(_definition.name, _Colors.fail(_definition.name + " ("
-        + (_end_ms - _start_ms).string() + " ms): " + msg))
+      _notify.print(
+        _definition.name,
+        _Colors.fail(_definition.name + " ("
+          + (_end_ms - _start_ms).string() + " ms): " + msg))
 
       match _build_process
       | let process: ProcessMonitor =>
@@ -431,10 +450,14 @@ actor _Tester
 
   fun ref _dump_io_streams() =>
     if _out_buf.size() > 0 then
-      _notify.print(_definition.name, _definition.name + ": STDOUT:\n"
-        + recover val _out_buf.clone() end)
+      _notify.print(
+        _definition.name,
+        _definition.name + ": STDOUT:\n"
+          + recover val _out_buf.clone() end)
     end
     if _err_buf.size() > 0 then
-      _notify.print(_definition.name, _definition.name + ": STDERR\n"
-        + recover val _err_buf.clone() end)
+      _notify.print(
+        _definition.name,
+        _definition.name + ": STDERR\n"
+          + recover val _err_buf.clone() end)
     end

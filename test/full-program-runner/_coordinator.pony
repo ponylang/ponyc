@@ -10,12 +10,13 @@ actor _Coordinator is _TesterNotify
   let _num_to_run: USize
   let _success: Map[String, Bool]
   let _timers: Timers
-
   var _cur_output_name: (String | None) = None
   let _tester_outputs: Map[String, Array[String] ref] =
     Map[String, Array[String] ref]
 
-  new create(env: Env, options: _Options,
+  new create(
+    env: Env,
+    options: _Options,
     definitions: Array[_TestDefinition] val)
   =>
     _env = env
@@ -35,23 +36,23 @@ actor _Coordinator is _TesterNotify
     _success = Map[String, Bool](_num_to_run)
     _timers = Timers
 
-    let start_message = recover val
-      var m: String ref = "Running " + _num_to_run.string() + " tests"
+    let start_message =
+      recover val
+        var m: String ref = "Running " + _num_to_run.string() + " tests"
 
-      if _options.debug then
-        m = m + " compiled in debug mode."
-      else
-        m = m + " compiled in release mode."
+        if _options.debug then
+          m = m + " compiled in debug mode."
+        else
+          m = m + " compiled in release mode."
+        end
+        m
       end
-      m
-    end
 
     _env.out.print(_Colors.info(start_message, true))
 
     for i in Range(0, _options.max_parallel) do
       _run_test()
     end
-
 
   be _run_test() =>
     try
@@ -65,11 +66,12 @@ actor _Coordinator is _TesterNotify
       if cur_name == tester_name then
         _env.out.print(str)
       else
-        let array = try
-          _tester_outputs(tester_name)?
-        else
-          _tester_outputs.insert(tester_name, Array[String])
-        end
+        let array =
+          try
+            _tester_outputs(tester_name)?
+          else
+            _tester_outputs.insert(tester_name, Array[String])
+          end
         array.push(str)
       end
     else
@@ -102,7 +104,7 @@ actor _Coordinator is _TesterNotify
     if pick_new then
       // flush all finished tests
       let keys = Array[String](_tester_outputs.size())
-        .>concat(_tester_outputs.keys())
+        .> concat(_tester_outputs.keys())
 
       for key in keys.values() do
         if _success.contains(key) then
@@ -137,7 +139,8 @@ actor _Coordinator is _TesterNotify
       // collect the number of successes and failures
       (let num_succeeded: USize, let num_failed: USize) =
         Iter[Bool](_success.values())
-          .fold[(USize, USize)]((0, 0),
+          .fold[(USize, USize)](
+            (0, 0),
             {(sum, s) =>
               if s then (sum._1 + 1, sum._2) else (sum._1, sum._2 + 1) end
             })
