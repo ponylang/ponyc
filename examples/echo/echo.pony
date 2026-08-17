@@ -1,10 +1,14 @@
+"""
+Demonstrates a basic TCP echo server that accepts connections and sends
+received data back to the client.
+"""
 use "net"
 
-actor Main
-  new create(env: Env) =>
-    TCPListener(TCPListenAuth(env.root), Listener(env.out))
-
 class Listener is TCPListenNotify
+  """
+  Accepts incoming TCP connections and creates a Server
+  notifier for each.
+  """
   let _out: OutStream
   var _host: String = ""
   var _port: String = ""
@@ -29,6 +33,9 @@ class Listener is TCPListenNotify
     Server(_out)
 
 class Server is TCPConnectionNotify
+  """
+  Echoes received data back to the sender.
+  """
   let _out: OutStream
 
   new iso create(out: OutStream) =>
@@ -37,9 +44,15 @@ class Server is TCPConnectionNotify
   fun ref accepted(conn: TCPConnection ref) =>
     _out.print("connection accepted")
 
-  fun ref received(conn: TCPConnection ref, data: Array[U8] iso,
-    times: USize): Bool
+  fun ref received(
+    conn: TCPConnection ref,
+    data: Array[U8] iso,
+    times: USize)
+    : Bool
   =>
+    """
+    Sends received data back to the client.
+    """
     _out.print("data received, looping it back")
     conn.write("server says: ")
     conn.write(consume data)

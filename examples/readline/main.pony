@@ -3,6 +3,10 @@ use "term"
 use "promises"
 
 class Handler is ReadlineNotify
+  """
+  Evaluates each input line and offers tab completion
+  from a command list.
+  """
   let _commands: Array[String] = _commands.create()
   var _i: U64 = 0
 
@@ -45,12 +49,16 @@ actor Main
     env.out.print("Use 'quit' to exit.")
 
     // Building a delegate manually
-    let term = ANSITerm(SignalAuth(env.root),
-      Readline(recover Handler end, env.out), env.input)
+    let term =
+      ANSITerm(
+        SignalAuth(env.root),
+        Readline(recover Handler end, env.out),
+        env.input)
     term.prompt("0 > ")
 
-    let notify = object iso is InputNotify
-      let term: ANSITerm = term
+    let notify =
+      object iso is InputNotify
+        let term: ANSITerm = term
       fun ref apply(data: Array[U8] iso) => term(consume data)
       fun ref dispose() => term.dispose()
     end

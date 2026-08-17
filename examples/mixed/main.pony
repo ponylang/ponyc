@@ -1,6 +1,10 @@
 use "collections"
 
 actor Worker
+  """
+  Performs integer factorization of a product of two primes.
+  """
+
   var _env: Env
 
   new create(env: Env) =>
@@ -9,7 +13,7 @@ actor Worker
     var a: U64 = 86028157
     var b: U64 = 329545133
 
-    var result = factorize(a*b)
+    var result = factorize(a * b)
 
     var correct =
       try
@@ -46,6 +50,10 @@ actor Worker
     factors
 
 actor Ring
+  """
+  An actor in a ring that passes messages to its neighbor.
+  """
+
   var _env: Env
   var _size: U32
   var _pass: U32
@@ -61,6 +69,9 @@ actor Ring
     run()
 
   new neighbor(env: Env, next: Ring) =>
+    """
+    Creates a ring node linked to an existing neighbor.
+    """
     _env = env
     _next = next
     _size = 0
@@ -108,11 +119,14 @@ actor Main
     end
 
   fun ref arguments() ? =>
+    """
+    Parses the command-line arguments.
+    """
     _count = _env.args(1)?.u32()?
     _size = _env.args(2)?.u32()?
     _pass = _env.args(3)?.u32()?
     _repetitions = _env.args(4)?.u32()?
-    
+
   fun ref start_benchmark() =>
     for i in Range[U32](0, _count) do
       Ring(_env, _size, _pass, _repetitions)

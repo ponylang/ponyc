@@ -1,6 +1,10 @@
 use "net"
 
 class ServerSide is TCPConnectionNotify
+  """
+  TCPConnectionNotify for the server side: sends a greeting
+  on accept and prints received data.
+  """
   let _env: Env
 
   new iso create(env: Env) =>
@@ -13,8 +17,11 @@ class ServerSide is TCPConnectionNotify
       conn.write("server says hi")
     end
 
-  fun ref received(conn: TCPConnection ref, data: Array[U8] iso,
-    times: USize): Bool
+  fun ref received(
+    conn: TCPConnection ref,
+    data: Array[U8] iso,
+    times: USize)
+    : Bool
   =>
     _env.out.print(consume data)
     conn.dispose()

@@ -3,21 +3,41 @@ use "collections"
 use "time"
 
 class val Config
+  """
+  Benchmark parameters parsed from the command line.
+  """
+
   let logtable: USize
   let iterate: USize
   let logchunk: USize
   let logactors: USize
 
   new val create(env: Env) ? =>
-    let cs = CommandSpec.leaf("gups_opt", "", [
-      OptionSpec.i64("table", "Log2 of the total table size."
-        where default' = 20)
-      OptionSpec.i64("iterate", "Number of iterations." where default' = 10000)
-      OptionSpec.i64("chunk", "Log2 of the chunk size." where default' = 10)
-      OptionSpec.i64("actors", "Log2 of the actor count." where default' = 2)
-    ])?.>add_help()?
+    let cs =
+      CommandSpec.leaf(
+        "gups_opt",
+        "",
+        [
+          OptionSpec.i64(
+            "table",
+            "Log2 of the total table size."
+            where default' = 20)
+          OptionSpec.i64(
+            "iterate",
+            "Number of iterations."
+            where default' = 10000)
+          OptionSpec.i64(
+            "chunk",
+            "Log2 of the chunk size."
+            where default' = 10)
+          OptionSpec.i64(
+            "actors",
+            "Log2 of the actor count."
+            where default' = 2)
+        ])? .> add_help()?
     let cmd =
-      match \exhaustive\ CommandParser(cs).parse(env.args, env.vars)
+      match \exhaustive\ CommandParser(cs).parse(
+        env.args, env.vars)
       | let c: Command => c
       | let ch: CommandHelp =>
         ch.print_help(env.out)
@@ -34,10 +54,10 @@ class val Config
     logactors = cmd.option("actors").i64().usize()
 
     env.out.print(
-      "logtable: " + logtable.string() +
-      "\niterate: " + iterate.string() +
-      "\nlogchunk: " + logchunk.string() +
-      "\nlogactors: " + logactors.string())
+      "logtable: " + logtable.string()
+        + "\niterate: " + iterate.string()
+        + "\nlogchunk: " + logchunk.string()
+        + "\nlogactors: " + logactors.string())
 
 actor Main
   let _env: Env
@@ -49,12 +69,13 @@ actor Main
   new create(env: Env) =>
     _env = env
 
-    let c = try
-      Config(env)?
-    else
-      _actors = recover Array[Updater] end
-      return
-    end
+    let c =
+      try
+        Config(env)?
+      else
+        _actors = recover Array[Updater] end
+        return
+      end
 
     let actor_count = 1 << c.logactors
     let loglocal = c.logtable - c.logactors
@@ -64,11 +85,18 @@ actor Main
     _updates = chunk_iterate * actor_count
     _confirm = actor_count
 
-    var updaters = recover Array[Updater](actor_count) end
+    var updaters =
+      recover Array[Updater](actor_count) end
 
     for i in Range(0, actor_count) do
-      updaters.push(Updater(this, actor_count, i, loglocal, chunk_size,
-        chunk_iterate * i))
+      updaters.push(
+        Updater(
+          this,
+          actor_count,
+          i,
+          loglocal,
+          chunk_size,
+          chunk_iterate * i))
     end
 
     _actors = consume updaters
@@ -93,27 +121,34 @@ actor Main
       let gups = _updates.f64() / elapsed
 
       _env.out.print(
-        "Time: " + (elapsed / 1e9).string() +
-        "\nGUPS: " + gups.string()
-        )
+        "Time: " + (elapsed / 1e9).string()
+          + "\nGUPS: " + gups.string())
     end
 
 actor Updater
+  """
+  Manages a local table segment and processes batched updates.
+  """
+
   let _main: Main
   let _index: USize
   let _updaters: USize
   let _chunk: USize
   let _mask: USize
   let _loglocal: USize
-
   let _output: Array[Array[U64] iso]
   let _reuse: List[Array[U64] iso] = List[Array[U64] iso]
   var _others: (Array[Updater] val | None) = None
   var _table: Array[U64]
   var _rand: U64
 
-  new create(main:Main, updaters: USize, index: USize, loglocal: USize,
-    chunk: USize, seed: USize)
+  new create(
+    main: Main,
+    updaters: USize,
+    index: USize,
+    loglocal: USize,
+    chunk: USize,
+    seed: USize)
   =>
     _main = main
     _index = index
@@ -126,7 +161,7 @@ actor Updater
     _output = _output.create(updaters)
 
     let size = 1 << loglocal
-    _table = Array[U64].>undefined(size)
+    _table = Array[U64] .> undefined(size)
 
     var offset = index * size
 
@@ -136,7 +171,10 @@ actor Updater
       end
     end
 
-  be start(others: Array[Updater] val, iterate: USize) =>
+  be start(
+    others: Array[Updater] val,
+    iterate: USize)
+  =>
     _others = others
     iteration(iterate)
 
@@ -144,6 +182,9 @@ actor Updater
     iteration(iterate)
 
   fun ref iteration(iterate: USize) =>
+    """
+    Runs one iteration of the benchmark.
+    """
     let chk = _chunk
 
     for i in Range(0, _updaters) do
@@ -158,7 +199,9 @@ actor Updater
 
     for i in Range(0, _chunk) do
       var datum = _rand = PolyRand(_rand)
-      var updater = ((datum >> _loglocal.u64()) and _mask.u64()).usize()
+      var updater =
+        ((datum >> _loglocal.u64()) and _mask.u64())
+          .usize()
 
       try
         if updater == _index then
@@ -193,7 +236,9 @@ actor Updater
     try
       for i in Range(0, data.size()) do
         let datum = data(i)?
-        var j = ((datum >> _loglocal.u64()) and _mask.u64()).usize()
+        var j =
+          ((datum >> _loglocal.u64()) and _mask.u64())
+            .usize()
         _table(j)? = _table(j)? xor datum
       end
 
@@ -205,17 +250,25 @@ actor Updater
     _main.confirm()
 
 primitive PolyRand
+  """
+  A polynomial random number generator for the GUPS benchmark.
+  """
+
   fun apply(prev: U64): U64 =>
-    (prev << 1) xor if prev.i64() < 0 then _poly() else 0 end
+    (prev << 1) xor
+      if prev.i64() < 0 then _poly() else 0 end
 
   fun seed(from: U64): U64 =>
+    """
+    Advances the generator to the given seed position.
+    """
     var n = from % _period()
 
     if n == 0 then
       return 1
     end
 
-    var m2 = Array[U64].>undefined(64)
+    var m2 = Array[U64] .> undefined(64)
     var temp = U64(1)
 
     try

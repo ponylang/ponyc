@@ -1,6 +1,9 @@
 use "collections"
 
 actor Counter
+  """
+  An actor that counts increments and reports the total.
+  """
   var _count: U32
 
   new create() =>

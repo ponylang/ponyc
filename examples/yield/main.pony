@@ -1,41 +1,3 @@
-"""
-An actor behaviour is intended for short lived finite interactions executed
-asynchronously. Sometimes it is useful to be able to naturally code behaviours
-of short lived finite signals punctuating over a longer lived (but finite)
-behaviour. In actor implementations that do not feature causal messaging this is
-fairly natural and idiomatic. But in pony, without yield, this is impossible.
-
-The causal messaging guarantee, and asynchronous execution means that the
-messages enqueued in the actor's mailbox will never be scheduled for execution
-if the receiving behaviour is infinite, which it can be in the worst case (bad
-code).
-
-By rediculo ad absurdum the simplest manifestation of this problem is a
-signaling behaviour, say a 'kill' message, that sets a flag to conditionally
-stop accepting messages. The runtime will only detect an actor as GCable if it
-reaches quiescence *and* there are no pending messages waiting to be enqueued to
-the actor in its mailbox. But, our 'kill' message can never proceed from the
-mailbox as the currently active behaviour (infinite) never completes.
-
-We call this the lonely pony problem. And, it can be solved in 0 lines of pony.
-
-Yield in pony is a simple clever trick. By transforming loops in long running
-behaviours to lazy tail-recursive behaviour calls composed, we can yield
-conditionally whilst preserving causal messaging guarantees, and enforcing at-
-most-once delivery semantics.
-
-The benefits of causal messaging, garbage collectible actors, and safe mutable
-actors far outweigh the small price manifested by the lonely pony problem. The
-solution, that uncovered the consume apply idiom and its application to enable
-interruptible behaviours that are easy to use are far more valuable at the cost
-to the actor implementor of only a few extra lines of code per behaviour to
-enable interruptible semantics with strong causal guarantees.
-
-In a nutshell, by avoiding for and while loops, and writing behaviours tail
-recursively, the ability to compose long-lived with short-lived behaviours is a
-builtin feature of pony.
-"""
-
 use "cli"
 use "collections"
 use "debug"
@@ -79,7 +41,8 @@ actor LonelyPony
 
   be forever() =>
     """
-    The trivial case of a badly written behaviour that eats a scheduler (forever)
+    The trivial case of a badly written behaviour that
+    eats a scheduler (forever)
     """
     while _alive do
       if _debug then
@@ -88,6 +51,9 @@ actor LonelyPony
     end
 
   be perf() =>
+    """
+    Run a simple loop and time it for benchmarking.
+    """
     var r = Range[U64](0,_n)
     _sw.start()
     for i in r do
@@ -96,7 +62,9 @@ actor LonelyPony
       end
     end
     let d = _sw.delta()
-    _env.out.print("N: " + _m.string() + ", Lonely: " + d.string())
+    _env.out.print(
+      "N: " + _m.string()
+        + ", Lonely: " + d.string())
 
 actor InterruptiblePony
   """
@@ -134,7 +102,9 @@ actor InterruptiblePony
     | 0 =>
       Debug.err("Ugah!")
       let d = _sw.delta()
-      _env.out.print("N=" + _n.string() + ", Interruptible: " + d.string())
+      _env.out.print(
+        "N=" + _n.string()
+          + ", Interruptible: " + d.string())
     else
       if _debug then
         _env.err.print("I: " + _n.string())
@@ -149,6 +119,10 @@ actor InterruptiblePony
     this
 
 actor PunkDemo
+  """
+  Demonstrates punctuated stream processing with
+  interruptible behaviours.
+  """
   var _env: Env
   var _alive: Bool = false
   var _current: U8 = 0
@@ -182,36 +156,49 @@ actor PunkDemo
 
 actor Main
   var _env: Env
+
   new create(env: Env) =>
     _env = env
 
-    let cs = try
-        CommandSpec.leaf("yield",
-        """
-        Demonstrate use of the yield behaviour when writing tail recursive
-        behaviours in pony.
+    let cs =
+      try
+        CommandSpec.leaf(
+          "yield",
+          """
+          Demonstrate use of the yield behaviour when
+          writing tail recursive behaviours in pony.
 
-        By Default, the actor will run quiet and interruptibly.""",
-        [
-        OptionSpec.bool("punk",
-          "Run a punctuated stream demonstration."
-          where short' = 'p', default' = false)
-        OptionSpec.i64("bench",
-          "Run an instrumented behaviour to guesstimate overhead of non/interruptive."
-          where short' = 'b', default' = 0)
-        OptionSpec.bool("lonely",
-          "Run a non-interruptible behaviour with logic that runs forever."
-          where short' = 'l', default' = false)
-        OptionSpec.bool("debug", "Run in debug mode with verbose output."
-          where short' = 'd', default' = false)
-      ])?.>add_help()?
-    else
-      _env.exitcode(-1)  // some kind of coding error
-      return
-    end
+          By Default, the actor will run quiet and
+          interruptibly.""",
+          [
+            OptionSpec.bool(
+              "punk",
+              "Run a punctuated stream demonstration."
+              where short' = 'p', default' = false)
+            OptionSpec.i64(
+              "bench",
+              "Run an instrumented behaviour to "
+                + "guesstimate overhead of "
+                + "non/interruptive."
+              where short' = 'b', default' = 0)
+            OptionSpec.bool(
+              "lonely",
+              "Run a non-interruptible behaviour "
+                + "with logic that runs forever."
+              where short' = 'l', default' = false)
+            OptionSpec.bool(
+              "debug",
+              "Run in debug mode with verbose output."
+              where short' = 'd', default' = false)
+          ])? .> add_help()?
+      else
+        _env.exitcode(-1)
+        return
+      end
 
     let cmd =
-      match \exhaustive\ CommandParser(cs).parse(_env.args, _env.vars)
+      match \exhaustive\ CommandParser(cs).parse(
+        _env.args, _env.vars)
       | let c: Command => c
       | let ch: CommandHelp =>
         ch.print_help(_env.out)
@@ -231,11 +218,11 @@ actor Main
     match punk
     | true =>
       PunkDemo(env)
-        .>loop()
-        .>inc().>inc().>inc()
-        .>dec().>dec().>dec()
-        .>inc().>dec()
-        .>kill()
+        .> loop()
+        .> inc() .> inc() .> inc()
+        .> dec() .> dec() .> dec()
+        .> inc() .> dec()
+        .> kill()
     else
       match perf > 0
       | true =>
@@ -243,8 +230,12 @@ actor Main
         LonelyPony(env,debug,perf).perf()
       else
         match \exhaustive\ lonely
-        | false => InterruptiblePony(env,debug).>forever().>kill()
-        | true => LonelyPony(env,debug).>forever().>kill()
+        | false =>
+          InterruptiblePony(env,debug)
+            .> forever() .> kill()
+        | true =>
+          LonelyPony(env,debug)
+            .> forever() .> kill()
         end
       end
     end

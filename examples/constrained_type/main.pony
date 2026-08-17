@@ -4,6 +4,9 @@ type Username is Constrained[String, UsernameValidator]
 type MakeUsername is MakeConstrained[String, UsernameValidator]
 
 primitive UsernameValidator is Validator[String]
+  """
+  Validates that a username is 6-12 lowercase ASCII characters.
+  """
   fun apply(string: String): ValidationResult =>
     recover val
       let errors: Array[String] = Array[String]()

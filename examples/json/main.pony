@@ -42,12 +42,16 @@ actor Main
       .update("name", "Alice")
       .update("age", I64(30))
       .update("active", true)
-      .update("tags", json.JsonArray
-        .push("admin")
-        .push("developer"))
-      .update("address", json.JsonObject
-        .update("city", "Portland")
-        .update("state", "OR"))
+      .update(
+        "tags",
+        json.JsonArray
+          .push("admin")
+          .push("developer"))
+      .update(
+        "address",
+        json.JsonObject
+          .update("city", "Portland")
+          .update("state", "OR"))
 
     env.out.print("Compact: " + doc.print())
     env.out.print("Pretty:")
@@ -196,7 +200,19 @@ actor Main
   fun _jsonpath_example(env: Env) =>
     let source =
       """
-      {"store":{"book":[{"title":"Sayings","author":"Rees","price":8.95},{"title":"Sword","author":"Waugh","price":12.99},{"title":"Moby Dick","author":"Melville","price":8.99}],"bicycle":{"color":"red","price":399}}}
+      {
+        "store": {
+          "book": [
+            {"title": "Sayings",
+             "author": "Rees", "price": 8.95},
+            {"title": "Sword",
+             "author": "Waugh", "price": 12.99},
+            {"title": "Moby Dick",
+             "author": "Melville", "price": 8.99}
+          ],
+          "bicycle": {"color": "red", "price": 399}
+        }
+      }
       """
 
     match \exhaustive\ json.JsonParser.parse(source)
@@ -269,7 +285,19 @@ actor Main
   fun _jsonpath_filter_example(env: Env) =>
     let source =
       """
-      {"store":{"book":[{"title":"Sayings","author":"Rees","price":8.95},{"title":"Sword","author":"Waugh","price":12.99},{"title":"Moby Dick","author":"Melville","price":8.99}],"bicycle":{"color":"red","price":399}}}
+      {
+        "store": {
+          "book": [
+            {"title": "Sayings",
+             "author": "Rees", "price": 8.95},
+            {"title": "Sword",
+             "author": "Waugh", "price": 12.99},
+            {"title": "Moby Dick",
+             "author": "Melville", "price": 8.99}
+          ],
+          "bicycle": {"color": "red", "price": 399}
+        }
+      }
       """
 
     match \exhaustive\ json.JsonParser.parse(source)
@@ -295,16 +323,18 @@ actor Main
 
       // Logical combination: cheap books by specific author
       try
-        let combined = json.JsonPathParser.compile(
-          "$.store.book[?@.price < 10 && @.author == 'Rees']")?
+        let combined =
+          json.JsonPathParser.compile(
+            "$.store.book[?@.price < 10 && @.author == 'Rees']")?
         let results = combined.query(doc)
         env.out.print("Cheap books by Rees: " + _format_results(results))
       end
 
       // String comparison
       try
-        let alpha = json.JsonPathParser.compile(
-          "$.store.book[?@.author >= 'N'].title")?
+        let alpha =
+          json.JsonPathParser.compile(
+            "$.store.book[?@.author >= 'N'].title")?
         let results = alpha.query(doc)
         env.out.print("Authors >= 'N': " + _format_results(results))
       end
@@ -316,7 +346,16 @@ actor Main
   fun _jsonpath_function_example(env: Env) =>
     let source =
       """
-      {"users":[{"name":"Alice","role":"admin","tags":["a","b"]},{"name":"Bob","role":"user","tags":["c"]},{"name":"Carol","role":"admin","tags":["d","e","f"]}]}
+      {
+        "users": [
+          {"name": "Alice", "role": "admin",
+           "tags": ["a", "b"]},
+          {"name": "Bob", "role": "user",
+           "tags": ["c"]},
+          {"name": "Carol", "role": "admin",
+           "tags": ["d", "e", "f"]}
+        ]
+      }
       """
 
     match \exhaustive\ json.JsonParser.parse(source)

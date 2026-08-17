@@ -1,6 +1,9 @@
 use "collections"
 
 class Circle
+  """
+  A circle with a given radius.
+  """
   var _radius: F32
 
   new create(radius': F32) =>

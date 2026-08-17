@@ -1,6 +1,10 @@
 use "net"
 
 class ClientSide is TCPConnectionNotify
+  """
+  TCPConnectionNotify for the client side: logs connect
+  progress, sends a greeting, and prints received data.
+  """
   let _env: Env
 
   new iso create(env: Env) =>
@@ -21,8 +25,11 @@ class ClientSide is TCPConnectionNotify
   fun ref connect_failed(conn: TCPConnection ref) =>
     _env.out.print("connect failed")
 
-  fun ref received(conn: TCPConnection ref, data: Array[U8] iso,
-    times: USize): Bool
+  fun ref received(
+    conn: TCPConnection ref,
+    data: Array[U8] iso,
+    times: USize)
+    : Bool
   =>
     _env.out.print(consume data)
     true

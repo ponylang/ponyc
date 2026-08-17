@@ -47,9 +47,10 @@ class val TCPSender
       host,
       port)
 
-
-// Test Cruft
 class MyTCPConnectionNotify is TCPConnectionNotify
+  """
+  Verifies that received data matches the expected string.
+  """
   let _ph: PropertyHelper
   let _expected: String
 
@@ -63,14 +64,19 @@ class MyTCPConnectionNotify is TCPConnectionNotify
     times: USize)
     : Bool
   =>
-    _ph.log("received " + data.size().string() + " bytes", true)
-    // assert we received the expected string
+    """
+    Assert we received the expected string.
+    """
+    _ph.log(
+      "received " + data.size().string() + " bytes",
+      true)
     _ph.assert_eq[USize](data.size(), _expected.size())
-    for bytes in Iter[U8](_expected.values()).zip[U8]((consume data).values()) do
+    for bytes in
+      Iter[U8](_expected.values())
+        .zip[U8]((consume data).values())
+    do
       _ph.assert_eq[U8](bytes._1, bytes._2)
     end
-    // this will signal to the PonyCheck engine that this property is done
-    // it will nonetheless execute until the end
     _ph.complete(true)
     conn.close()
     true
@@ -80,6 +86,9 @@ class MyTCPConnectionNotify is TCPConnectionNotify
     conn.close()
 
 class MyTCPListenNotify is TCPListenNotify
+  """
+  Listens for a connection, then sends the expected string.
+  """
 
   let _sender: TCPSender
   let _ph: PropertyHelper
@@ -93,20 +102,25 @@ class MyTCPListenNotify is TCPListenNotify
     _ph = ph
     _expected = expected
 
-
   fun ref listening(listen: TCPListener ref) =>
     let address = listen.local_address()
     try
-      (let host, let port) = address.name(where reversedns = None, servicename = false)?
+      (let host, let port) =
+        address.name(
+          where reversedns = None,
+            servicename = false)?
 
-      // now that we know the server's address we can actually send something
       _ph.dispose_when_done(
         _sender.send(host, port, _expected))
     else
-      _ph.fail("could not determine server host and port")
+      _ph.fail(
+        "could not determine server host and port")
     end
 
-  fun ref connected(listen: TCPListener ref): TCPConnectionNotify iso^ =>
+  fun ref connected(
+    listen: TCPListener ref)
+    : TCPConnectionNotify iso^
+  =>
     recover iso
       MyTCPConnectionNotify(_ph, _expected)
     end
@@ -118,17 +132,20 @@ class _AsyncTCPSenderProperty is Property1[String]
   fun name(): String => "async/tcp_sender"
 
   fun params(): PropertyParams =>
-    PropertyParams(where async' = true, timeout' = 5_000_000_000)
+    PropertyParams(
+      where async' = true, timeout' = 5_000_000_000)
 
   fun gen(): Generator[String] =>
     Generators.unicode()
 
   fun ref property(sample: String, ph: PropertyHelper) =>
-    let sender = TCPSender(TCPConnectAuth(ph.env.root))
+    let sender =
+      TCPSender(TCPConnectAuth(ph.env.root))
     ph.dispose_when_done(
       TCPListener(
         TCPListenAuth(ph.env.root),
-        recover MyTCPListenNotify(sender, ph, "PONYCHECK") end,
+        recover
+          MyTCPListenNotify(sender, ph, "PONYCHECK")
+        end,
         "127.0.0.1",
         "0"))
-

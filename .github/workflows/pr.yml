@@ -387,6 +387,11 @@ jobs:
         run: cd build/debug && PONYPATH=../../tools/lib/ponylang/pony_compiler ./pony-lint ../../tools/pony-doc/
       - name: Lint pony-lsp
         run: cd build/debug && PONYPATH=../../tools/lib/ponylang/pony_compiler ./pony-lint ../../tools/pony-lsp/
+      - name: Lint examples
+        run: |
+          cd build/debug
+          PONYPATH=../../packages ./pony-lint \
+            $(find ../../examples -maxdepth 2 -name '*.pony' -printf '%h\n' | sort -u)
 
   tools-macos:
     needs: [changes, maybe-build-macos]
