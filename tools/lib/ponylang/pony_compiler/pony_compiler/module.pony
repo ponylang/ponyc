@@ -1,8 +1,12 @@
 use @ponyint_hash_block[USize](ptr: Pointer[None] tag, size: USize)
 use "collections"
-//use "debug"
+// use "debug"
 
 class val Module is (Hashable & Equatable[Module])
+  """
+  A compiled Pony module, corresponding to one source file within a package.
+  """
+
   let ast: AST val
   let file: String val
     """Absolute path to the file of this module"""
@@ -12,9 +16,7 @@ class val Module is (Hashable & Equatable[Module])
     """
     A hash of the module contents.
     """
-
-  // this one is just kept around so the underlying AST is not lost
-  // it is reaped when the Program is collected by GC
+  // kept so the underlying AST is not lost; reaped when Program is GC'd
   let _program: Program box
 
   new val create(program: Program val, ast': AST) ? =>
@@ -33,7 +35,9 @@ class val Module is (Hashable & Equatable[Module])
     PositionIndex.create(this)
 
   fun box hash(): USize =>
-    """Return a hash of the file contents"""
+    """
+    Return a hash of the file contents.
+    """
     _hash
 
   fun eq(that: box->Module): Bool =>
@@ -44,7 +48,6 @@ class val Module is (Hashable & Equatable[Module])
     let same_file = (this.file == that.file)
     let same_content = this._hash == that._hash
     same_file and same_content
-
 
 class _ModuleIter is Iterator[Module val]
   var _module_ast: (AST val | None)
@@ -62,12 +65,9 @@ class _ModuleIter is Iterator[Module val]
     _module_ast = module_ast.sibling()
     Module.create(_program, module_ast)?
 
-
 class val PositionIndex
   """
   Index for AST nodes sorted by their position in the index.
-
-
   """
   // IMPORTANT: keep the reference to the module alive,
   // as long as we keep this class around
@@ -123,7 +123,8 @@ class val PositionIndex
       if filter_none and (child'.id() == TokenIds.tk_none()) then
         None // skip TK_NONE children of certain parent types
       else
-        let from_module = match child'.source_file()
+        let from_module =
+          match child'.source_file()
           | let sf: String val => sf == module_file
           else true
           end
@@ -143,7 +144,7 @@ class val PositionIndex
 
   fun find_node_at(line: USize, pos: USize): (AST box | None) =>
     let needle = _Entry.empty(line, pos)
-    match _BinarySearch.apply[_Entry](needle, _index)
+    match \exhaustive\ _BinarySearch.apply[_Entry](needle, _index)
     | (let found_pos: USize, true) =>
       // exact match, return the first item
       try
@@ -160,7 +161,8 @@ class val PositionIndex
             // take the first entry that contains our position
             (let start_pos, let end_pos) = candidate.span()
 
-            //Debug("candidate: " + candidate.debug() + " end_pos: " + end_pos.string())
+            // Debug("candidate: " + candidate.debug()
+            // + " end_pos: " + end_pos.string())
             if (start_pos <= needle.start) and (needle.start <= end_pos) then
               // refine to a meaningful node
               return _refine_node(candidate)
@@ -189,37 +191,57 @@ class val PositionIndex
       match node.parent()
       | let parent': AST box =>
         match parent'.id()
-        | TokenIds.tk_param() // name of a parameter
-        | TokenIds.tk_fun() | TokenIds.tk_be() | TokenIds.tk_new() // function name
-        | TokenIds.tk_funref() | TokenIds.tk_beref() | TokenIds.tk_newref() | TokenIds.tk_newberef() // reference to function
-        | TokenIds.tk_funchain() | TokenIds.tk_bechain()
-        | TokenIds.tk_typeref() // reference to type
-        | TokenIds.tk_typealiasref() // reference to type alias
-        | TokenIds.tk_typeparamref() // reference to generic type parameter
-        | TokenIds.tk_nominal() // name of a type
-        | TokenIds.tk_flet() | TokenIds.tk_fvar() | TokenIds.tk_embed() // fields
-        | TokenIds.tk_fletref() | TokenIds.tk_fvarref() | TokenIds.tk_embedref() // references to fields
-        | TokenIds.tk_varref() | TokenIds.tk_letref() // references to local variables
+        | TokenIds.tk_param()
+        | TokenIds.tk_fun()
+        | TokenIds.tk_be()
+        | TokenIds.tk_new()
+        | TokenIds.tk_funref()
+        | TokenIds.tk_beref()
+        | TokenIds.tk_newref()
+        | TokenIds.tk_newberef()
+        | TokenIds.tk_funchain()
+        | TokenIds.tk_bechain()
+        | TokenIds.tk_typeref()
+        | TokenIds.tk_typealiasref()
+        | TokenIds.tk_typeparamref()
+        | TokenIds.tk_nominal()
+        | TokenIds.tk_flet()
+        | TokenIds.tk_fvar()
+        | TokenIds.tk_embed()
+        | TokenIds.tk_fletref()
+        | TokenIds.tk_fvarref()
+        | TokenIds.tk_embedref()
+        | TokenIds.tk_varref()
+        | TokenIds.tk_letref()
         | TokenIds.tk_paramref()
-        | TokenIds.tk_var() | TokenIds.tk_let() // local variables
-        | TokenIds.tk_packageref() // package reference
+        | TokenIds.tk_var()
+        | TokenIds.tk_let()
+        | TokenIds.tk_packageref()
         => return parent'
-        //else
-          //Debug("Parent unknown: " + TokenIds.string(parent'.id()))
+        // else
+          // Debug("Parent unknown: "
+          // + TokenIds.string(parent'.id()))
         end
       end
     | TokenIds.tk_seq() | TokenIds.tk_params() =>
       // assuming when we get a seq (a block of expressions) or params
       // we almost always want the first element
       node.child()
-    | TokenIds.tk_tag() | TokenIds.tk_iso() | TokenIds.tk_trn() | TokenIds.tk_val() | TokenIds.tk_box() | TokenIds.tk_ref() =>
+    | TokenIds.tk_tag()
+    | TokenIds.tk_iso()
+    | TokenIds.tk_trn()
+    | TokenIds.tk_val()
+    | TokenIds.tk_box()
+    | TokenIds.tk_ref() =>
       // capabilities on types go to the type
       // capabilities on definitions go to the definition
       match node.parent()
       | let parent': AST box =>
         match parent'.id()
         | TokenIds.tk_actor() | TokenIds.tk_class() | TokenIds.tk_struct()
-        | TokenIds.tk_primitive() | TokenIds.tk_trait() | TokenIds.tk_interface()
+        | TokenIds.tk_primitive()
+        | TokenIds.tk_trait()
+        | TokenIds.tk_interface()
         | TokenIds.tk_nominal() | TokenIds.tk_typealiasref()
         | TokenIds.tk_new() | TokenIds.tk_fun() | TokenIds.tk_be() =>
           return parent'
@@ -265,13 +287,17 @@ class ref _PositionIndexBuilder is ASTVisitor
           // skip them, as they don't appear in the sources
           let par = ast.parent() as AST box
           match par.id()
-          | TokenIds.tk_fvarref() | TokenIds.tk_fletref() | TokenIds.tk_embedref() =>
+          | TokenIds.tk_fvarref()
+          | TokenIds.tk_fletref()
+          | TokenIds.tk_embedref() =>
             let sibl = ast.sibling() as AST box
             if ast.position() == sibl.position() then
               return Continue
             end
           end
-        | TokenIds.tk_fvarref() | TokenIds.tk_fletref() | TokenIds.tk_embedref() =>
+        | TokenIds.tk_fvarref()
+        | TokenIds.tk_fletref()
+        | TokenIds.tk_embedref() =>
           // exclude artificially created field access nodes,
           // added when a field is referenced without explicit `this.`
           let pos = ast.position()
@@ -282,19 +308,22 @@ class ref _PositionIndexBuilder is ASTVisitor
         end
       end
       let entry = _Entry(ast)
-      match _BinarySearch.apply[_Entry](entry, _index)
+      match \exhaustive\
+        _BinarySearch.apply[_Entry](entry, _index)
       | (let pos: USize, true) =>
         try
           let existing = _index(pos)?
           existing.merge(entry)
-        //else
-          //Debug("Binarysearch found an invalid existing position")
+        // else
+          // Debug("Binarysearch found an invalid
+          // existing position")
         end
       | (let pos: USize, false) =>
         try
           _index.insert(pos, entry)?
-        //else
-          //Debug("Binarysearch found an invalid insert position")
+        // else
+          // Debug("Binarysearch found an invalid
+          // insert position")
         end
       end
     end
@@ -341,7 +370,7 @@ class ref _Entry is Comparable[_Entry]
           s.append(",")
         end
         s.append("]")
-        //Debug("CANDIDATES: " + s)
+        // Debug("CANDIDATES: " + s)
       end
       first()?
     else

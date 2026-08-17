@@ -25,7 +25,8 @@ struct _Token
   var opaque_value_1: U64 = 0
   var opaque_value_2: U64 = 0
     """
-    Probably wrong derive from, just to get the right struct layout for reaching the frozen field
+    Probably wrong derive from, just to get the right struct
+    layout for reaching the frozen field
     ```c
     union
     {
@@ -239,7 +240,8 @@ primitive TokenIds
   fun tk_infertype(): I32 => 159
   fun tk_errortype(): I32 => 160
 
-  fun tk_literal(): I32 => 161 // A literal expression whose type is not yet inferred
+  // A literal expression whose type is not yet inferred
+  fun tk_literal(): I32 => 161
   fun tk_literalbranch(): I32 => 162 // Literal branch of a control structure
   fun tk_operatorliteral(): I32 => 163 // Operator function access to a literal
 

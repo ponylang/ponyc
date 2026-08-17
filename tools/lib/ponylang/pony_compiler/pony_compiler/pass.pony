@@ -2,58 +2,192 @@ use @pass_opt_init[None](options: _PassOpt)
 use @pass_opt_done[None](options: _PassOpt)
 use @ast_passes_program[Bool](program: Pointer[_AST] val, options: _PassOpt)
 
-type PassId is (
-  PassParse      | PassSyntax         | PassSugar        | PassScope  |
-  PassImport     | PassNameResolution | PassTypeAliasRecursion |
-  PassFlatten    | PassTraits         |
-  PassRefer      | PassExpr           | PassCompleteness | PassVerify | PassFinaliser |
-  PassC          |
-  PassReach      | PassPaint          | PassLLVMIR       | PassBitcode |
-  PassASM        | PassObj            | PassAll
-)
+type PassId is
+  ( PassParse      | PassSyntax         | PassSugar
+  | PassScope      | PassImport         | PassNameResolution
+  | PassTypeAliasRecursion | PassFlatten | PassTraits
+  | PassRefer      | PassExpr           | PassCompleteness
+  | PassVerify     | PassFinaliser      | PassC
+  | PassReach      | PassPaint          | PassLLVMIR
+  | PassBitcode    | PassASM            | PassObj
+  | PassAll )
 
-primitive PassParse fun apply(): I32 => 0
-primitive PassSyntax fun apply(): I32 => 1
-primitive PassSugar fun apply(): I32 => 2
-primitive PassScope fun apply(): I32 => 3
-primitive PassImport fun apply(): I32 => 4
-primitive PassNameResolution fun apply(): I32 => 5
-primitive PassTypeAliasRecursion fun apply(): I32 => 6
-primitive PassFlatten fun apply(): I32 => 7
-primitive PassTraits fun apply(): I32 => 8
-primitive PassRefer fun apply(): I32 => 9
-primitive PassExpr fun apply(): I32 => 10
-primitive PassCompleteness fun apply(): I32 => 11
-primitive PassVerify fun apply(): I32 => 12
-primitive PassFinaliser fun apply(): I32 => 13
-primitive PassC fun apply(): I32 => 14
-primitive PassReach fun apply(): I32 => 15
-primitive PassPaint fun apply(): I32 => 16
-primitive PassLLVMIR fun apply(): I32 => 17
-primitive PassBitcode fun apply(): I32 => 18
-primitive PassASM fun apply(): I32 => 19
-primitive PassObj fun apply(): I32 => 20
-primitive PassAll fun apply(): I32 => 21
+primitive PassParse
+  """
+  Source text to raw AST. Some illegal syntax is kept
+  for better error reporting in later passes.
+  """
+  fun apply(): I32 => 0
+
+primitive PassSyntax
+  """
+  Validates syntax the parser deliberately allowed.
+  After this pass the AST is syntactically correct.
+  """
+  fun apply(): I32 => 1
+
+primitive PassSugar
+  """
+  Expands shorthand: default capabilities, implicit
+  return values, else blocks, for-to-while rewrites.
+  """
+  fun apply(): I32 => 2
+
+primitive PassScope
+  """
+  Populates symbol tables for types, fields, methods,
+  and locals. Loads used packages.
+  """
+  fun apply(): I32 => 3
+
+primitive PassImport
+  """
+  Imports symbols from packages used without an alias.
+  Deferred from the scope pass to handle circular
+  package dependencies.
+  """
+  fun apply(): I32 => 4
+
+primitive PassNameResolution
+  """
+  Resolves nominal type references to their
+  definitions.
+  """
+  fun apply(): I32 => 5
+
+primitive PassTypeAliasRecursion
+  """
+  Rejects type aliases that refer to themselves.
+  """
+  fun apply(): I32 => 6
+
+primitive PassFlatten
+  """
+  Flattens nested union and intersection types. Also
+  validates constructor capabilities and embedded
+  field types.
+  """
+  fun apply(): I32 => 7
+
+primitive PassTraits
+  """
+  Adds methods inherited from traits and interfaces,
+  including default bodies.
+  """
+  fun apply(): I32 => 8
+
+primitive PassRefer
+  """
+  Resolves references via symbol tables and tracks
+  consume and assignment ordering.
+  """
+  fun apply(): I32 => 9
+
+primitive PassExpr
+  """
+  Type-checks all expressions and confirms type
+  safety. Also applies sugar that needs type
+  information.
+  """
+  fun apply(): I32 => 10
+
+primitive PassCompleteness
+  """
+  Post-expression AST fixup before verification.
+  """
+  fun apply(): I32 => 11
+
+primitive PassVerify
+  """
+  Checks not intrinsic to type resolution: run after
+  expression typing, before code generation. Does not
+  mutate AST structure.
+  """
+  fun apply(): I32 => 12
+
+primitive PassFinaliser
+  """
+  Checks that `_final` methods do not create actors
+  or send messages.
+  """
+  fun apply(): I32 => 13
+
+primitive PassC
+  """
+  Compiles C shim sources (.c files next to .pony
+  files) with embedded clang.
+  """
+  fun apply(): I32 => 14
+
+primitive PassReach
+  """
+  Determines which types and methods are reachable
+  from the program entry point.
+  """
+  fun apply(): I32 => 15
+
+primitive PassPaint
+  """
+  Assigns vtable indices to methods.
+  """
+  fun apply(): I32 => 16
+
+primitive PassLLVMIR
+  """
+  Generates LLVM IR from the typed AST.
+  """
+  fun apply(): I32 => 17
+
+primitive PassBitcode
+  """
+  Emits LLVM bitcode.
+  """
+  fun apply(): I32 => 18
+
+primitive PassASM
+  """
+  Emits assembly.
+  """
+  fun apply(): I32 => 19
+
+primitive PassObj
+  """
+  Emits an object file.
+  """
+  fun apply(): I32 => 20
+
+primitive PassAll
+  """
+  Limit value: compile through all passes.
+  """
+  fun apply(): I32 => 21
 
 primitive _StrList
-  """STUB"""
+  """
+  STUB
+  """
 
 primitive _MagicPackage
-  """STUB"""
-
+  """
+  STUB
+  """
 
 primitive _Plugins
-  """STUB"""
+  """
+  STUB
+  """
 
 struct _StrTable
-  """Opaque mirror of libponyc's strtable_t (the interned-string table)."""
+  """
+  Opaque mirror of libponyc's strtable_t (the interned-string table).
+  """
 
 struct _PassOpt
   """
-  Layout mirror of libponyc's pass_opt_t (pass.h), reached over FFI. The two
-  must have identical memory layout: a field added, removed, or reordered on
-  either side shifts every offset below it, and this side then reads garbage.
-  Keep them in step.
+  Layout mirror of libponyc's pass_opt_t (pass.h), reached over FFI.
+  The two must have identical memory layout: a field added, removed,
+  or reordered on either side shifts every offset below it, and this
+  side then reads garbage. Keep them in step.
   """
   var limit: I32 = PassParse()
   var programm_pass: I32 = PassParse()
@@ -70,42 +204,44 @@ struct _PassOpt
   var check_tree: Bool = false
   var lint_llvm: Bool = false
   var verbosity: I32 = VerbosityQuiet()
-
   var ast_print_width: USize = 0
   var allow_test_symbols: Bool = false
   var parse_trace: Bool = false
   // Mirrors pass_opt_t.user_triple (pass.h).
   var user_triple: Bool = false
-
-  var package_search_paths: Pointer[_StrList] = package_search_paths.create()
+  var package_search_paths: Pointer[_StrList] =
+    package_search_paths.create()
   var safe_packages: Pointer[_StrList] = safe_packages.create()
-  var magic_packages: Pointer[_MagicPackage] = magic_packages.create()
-
+  var magic_packages: Pointer[_MagicPackage] =
+    magic_packages.create()
   var argv0: Pointer[U8] tag = argv0.create()
-  var all_args: Pointer[U8] val = recover val all_args.create() end
+  var all_args: Pointer[U8] val =
+    recover val all_args.create() end
   var output: Pointer[U8] tag = output.create()
-  var bin_name: Pointer[U8] val = recover val bin_name.create() end
-
+  var bin_name: Pointer[U8] val =
+    recover val bin_name.create() end
   var link_arch: Pointer[U8] ref = link_arch.create()
   var sysroot: Pointer[U8] ref = sysroot.create()
-
-  // Mirrors pass_opt_t.llvm_args (pass.h), which is unconditional; this field
-  // must stay present in all builds to keep the struct layout matching C.
-  var llvm_args: Pointer[U8] val = recover val llvm_args.create() end
-
+  // Mirrors pass_opt_t.llvm_args (pass.h), which is unconditional;
+  // this field must stay present in all builds to keep the struct
+  // layout matching C.
+  var llvm_args: Pointer[U8] val =
+    recover val llvm_args.create() end
   var triple: Pointer[U8] ref = triple.create()
   var abi: Pointer[U8] ref = abi.create()
   var cpu: Pointer[U8] ref = cpu.create()
   var features: Pointer[U8] ref = features.create()
-
   embed check: _Typecheck = check.create()
   var plugins: Pointer[_Plugins] ref = plugins.create()
   var userflags: Pointer[_UserFlags] ref = userflags.create()
-    """user-provided defines"""
-  var data: Pointer[None] ref = data.create() // user-defined data for unit test callbacks
-  // Interned-string table for this compilation. Mirrors the strtab field
-  // appended to pass_opt_t (src/libponyc/pass/pass.h); kept last so the offsets
-  // of every field above are unchanged.
+    """
+    user-provided defines
+    """
+  // user-defined data for unit test callbacks
+  var data: Pointer[None] ref = data.create()
+  // Interned-string table for this compilation. Mirrors the strtab
+  // field appended to pass_opt_t (src/libponyc/pass/pass.h); kept
+  // last so the offsets of every field above are unchanged.
   var strtab: Pointer[_StrTable] ref = strtab.create()
 
   new ref create() => None

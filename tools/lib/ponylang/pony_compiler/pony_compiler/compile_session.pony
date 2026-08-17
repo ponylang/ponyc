@@ -46,7 +46,7 @@ class CompileSession
     end
 
     @codegen_pass_init(_pass_opt)
-    match package_search_paths
+    match \exhaustive\ package_search_paths
     | let single: String box =>
       @package_add_paths(single.cstring(), _pass_opt)
     | let multiple: ReadSeq[String val] box =>
@@ -80,7 +80,7 @@ class CompileSession
       errs.extract()
     else
       recover val
-        [Error.message(
+        [ Error.message(
           "Compilation failed but libponyc produced no error messages.")]
       end
     end
