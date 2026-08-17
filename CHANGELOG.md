@@ -34,6 +34,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Starting a process returns a result ([PR #5770](https://github.com/ponylang/ponyc/pull/5770))
 - ProcessMonitor requires Linux 5.3 or newer ([PR #5770](https://github.com/ponylang/ponyc/pull/5770))
 - Add read_failed to InputNotify ([PR #5832](https://github.com/ponylang/ponyc/pull/5832))
+- Exempt triple-quoted string literals from the 80-column lint rule ([PR #5837](https://github.com/ponylang/ponyc/pull/5837))
 
 ## [0.68.0] - 2026-08-01
 
