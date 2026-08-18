@@ -735,11 +735,9 @@ else()
         PATHS ${CMAKE_SOURCE_DIR}/tools/lib/ponylang/pony_compiler
         WATCH ${CMAKE_SOURCE_DIR}/tools/pony-lint)
 
-    # pony-lsp-tests compiles tools/ (tools/_test.pony pulls in pony-lsp/test via
-    # `use`), not tools/pony-lsp/test.
     add_pony_binary(pony-lsp-tests
         NAME pony-lsp-tests
-        SOURCE ${CMAKE_SOURCE_DIR}/tools
+        SOURCE ${CMAKE_SOURCE_DIR}/tools/pony-lsp/test
         PATHS ${CMAKE_SOURCE_DIR}/tools/lib/ponylang/pony_compiler
         WATCH ${CMAKE_SOURCE_DIR}/tools/pony-lsp)
 
