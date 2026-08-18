@@ -395,7 +395,7 @@ jobs:
       - name: Lint full-program-runner
         run: cd build/debug && ./pony-lint ../../test/full-program-runner/
       - name: Lint pony-compiler
-        run: cd build/debug && ./pony-lint ../../tools/lib/ponylang/pony_compiler/pony_compiler/
+        run: cd build/debug && ./pony-lint ../../tools/lib/ponylang/pony_compiler/
 
   tools-macos:
     needs: [changes, maybe-build-macos]
