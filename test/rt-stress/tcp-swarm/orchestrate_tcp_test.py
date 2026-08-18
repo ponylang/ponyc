@@ -137,18 +137,21 @@ def test_memory_budget_trims():
     # The fit helpers -- the building block of the rotating draw -- trim a value that
     # would break the budget down to the largest one that fits (never below the
     # minimum) and leave a fitting value alone.
-    mins = {"connections": o.MIN_CONNECTIONS, "concurrency": min(o.CONCURRENCY),
-            "messages": o.MESSAGE_BUCKETS["small"][0], "payload": min(o.PAYLOAD_SIZES),
-            "writev_chunks": min(o.WRITEV_CHUNKS),
-            "read_buffer": min(o.READ_BUFFER_SIZES), "use_writev": True}
+    dp = o.DEFAULT_PROFILE
+    read_buffers = dp["read_buffer_sizes"]
+    mins = {"connections": o.MIN_CONNECTIONS, "concurrency": min(dp["concurrency"]),
+            "messages": dp["message_buckets"]["small"][0],
+            "payload": min(dp["payload_sizes"]),
+            "writev_chunks": min(dp["writev_chunks"]),
+            "read_buffer": min(read_buffers), "use_writev": True}
     check("fit_discrete: a fitting value passes through unchanged",
-          o._fit_discrete("read_buffer", 65536, mins, o.READ_BUFFER_SIZES) == 65536)
+          o._fit_discrete("read_buffer", 65536, mins, read_buffers) == 65536)
     # With connections at the max, a 64 KiB read buffer blows the budget -> trimmed to
     # a smaller listed value. Boundary: the trimmed value fits and the NEXT larger
     # listed value would not (so the helper returns the largest that fits, not any).
     loaded = dict(mins, connections=100000)
-    trimmed = o._fit_discrete("read_buffer", 65536, loaded, o.READ_BUFFER_SIZES)
-    nxt = o.READ_BUFFER_SIZES[o.READ_BUFFER_SIZES.index(trimmed) + 1]
+    trimmed = o._fit_discrete("read_buffer", 65536, loaded, read_buffers)
+    nxt = read_buffers[read_buffers.index(trimmed) + 1]
     check("fit_discrete: trims to the largest listed value that fits (next would not)",
           trimmed < 65536
           and o.est_peak_bytes(**dict(loaded, read_buffer=trimmed))
@@ -173,11 +176,11 @@ def test_est_peak_bytes_monotonic():
     base = {"connections": 10000, "concurrency": 32, "messages": 8, "payload": 1024,
             "writev_chunks": 64, "read_buffer": 16384, "use_writev": True}
     domains = {"connections": range(100, 100001, 2500),
-               "concurrency": o.CONCURRENCY,
+               "concurrency": o.DEFAULT_PROFILE["concurrency"],
                "messages": range(1, 65),
-               "payload": o.PAYLOAD_SIZES,
-               "writev_chunks": o.WRITEV_CHUNKS,
-               "read_buffer": o.READ_BUFFER_SIZES}
+               "payload": o.DEFAULT_PROFILE["payload_sizes"],
+               "writev_chunks": o.DEFAULT_PROFILE["writev_chunks"],
+               "read_buffer": o.DEFAULT_PROFILE["read_buffer_sizes"]}
     non_monotone = []
     for lever, values in domains.items():
         prev = None
@@ -224,17 +227,17 @@ def test_memory_budget_rotates_the_trimmed_lever():
     try:
         for seed in range(4000):
             w = o.resolve_config(seed, 8)["workload"]
-            if w["concurrency"] == max(o.CONCURRENCY):
+            if w["concurrency"] == max(o.DEFAULT_PROFILE["concurrency"]):
                 reached["concurrency"] = True
-            if w["payload-size"] == max(o.PAYLOAD_SIZES):
+            if w["payload-size"] == max(o.DEFAULT_PROFILE["payload_sizes"]):
                 reached["payload"] = True
-            if w["writev-chunks"] == max(o.WRITEV_CHUNKS):
+            if w["writev-chunks"] == max(o.DEFAULT_PROFILE["writev_chunks"]):
                 reached["writev_chunks"] = True
-            if w["read-buffer-size"] == max(o.READ_BUFFER_SIZES):
+            if w["read-buffer-size"] == max(o.DEFAULT_PROFILE["read_buffer_sizes"]):
                 reached["read_buffer"] = True
-            if w["connections"] > o.CONNECTION_BUCKETS["medium"][1]:
+            if w["connections"] > o.DEFAULT_PROFILE["connection_buckets"]["medium"][1]:
                 reached["connections"] = True   # into the large connection bucket
-            if w["messages"] == o.MESSAGE_BUCKETS["large"][1]:
+            if w["messages"] == o.DEFAULT_PROFILE["message_buckets"]["large"][1]:
                 reached["messages"] = True
     finally:
         o._fit_discrete, o._fit_continuous = orig_d, orig_c
@@ -296,27 +299,28 @@ def test_resolve_config_coverage_and_invariants():
         # it fails here instead of hanging a CI run.
         if w["expect"] > 0 and (w["payload-size"] * w["messages"]) % w["expect"]:
             invariants = False
-        if w["concurrency"] not in o.CONCURRENCY:
+        if w["concurrency"] not in o.DEFAULT_PROFILE["concurrency"]:
             invariants = False
-        if w["payload-size"] not in o.PAYLOAD_SIZES:
+        if w["payload-size"] not in o.DEFAULT_PROFILE["payload_sizes"]:
             invariants = False
-        if w["read-buffer-size"] not in o.READ_BUFFER_SIZES:
+        if w["read-buffer-size"] not in o.DEFAULT_PROFILE["read_buffer_sizes"]:
             invariants = False
-        if w["write-shape"] not in o.WRITE_SHAPES:
+        if w["write-shape"] not in o.DEFAULT_PROFILE["write_shapes"]:
             invariants = False
-        if w["writev-chunks"] not in o.WRITEV_CHUNKS:
+        if w["writev-chunks"] not in o.DEFAULT_PROFILE["writev_chunks"]:
             invariants = False
-        if w["close"] not in o.CLOSE_KINDS:
+        if w["close"] not in o.DEFAULT_PROFILE["close_kinds"]:
             invariants = False
         if not (1 <= r["ponymaxthreads"] <= 8):
             invariants = False
-        clo, chi = o.CONNECTION_BUCKETS["small"][0], o.CONNECTION_BUCKETS["large"][1]
+        cb = o.DEFAULT_PROFILE["connection_buckets"]
+        clo, chi = cb["small"][0], cb["large"][1]
         if not (clo <= w["connections"] <= chi):
             invariants = False
         if r.get("ponypinasio") and not r.get("ponypin"):
             invariants = False           # pinasio requires pin
     check("both write shapes appear", write_shapes == {"write", "writev"})
-    # Hardcoded literal (not set(o.WRITEV_CHUNKS)) so narrowing the constant is
+    # Hardcoded literal (not derived from the profile list) so narrowing the list is
     # caught here, matching the sibling write-shape/close checks.
     check("all writev-chunk counts appear", chunk_vals == {4, 64, 2048})
     check("multi-batch writev is reachable by the draw", multibatch_seeds > 0)
@@ -353,36 +357,131 @@ def test_max_connections_cap():
     check("max_connections: actually caps some seeds (not vacuous)", capped_any)
 
 
-def test_macos_payload_cap():
-    # macOS caps the payload (MACOS_MAX_PAYLOAD) to stay clear of the loopback
-    # sendmsg-block. Confirm it caps to min(drawn, cap); keeps the run consistent
-    # (expect must never exceed the capped payload, or the framed read never
-    # completes); leaves the independent levers alone; is deterministic; and isn't
-    # vacuous. The cap MAY change messages/connections too, since the byte-ceiling
-    # clamp (clamp_run) is a function of payload -- so those are not checked here.
-    cap = o.MACOS_MAX_PAYLOAD
+def test_macos_draw_golden():
+    # macOS draws from its own profile lists, so its draws differ from the default's and
+    # need their own pins (same role as the default goldens: a change to macOS's lists
+    # or the draw shows here). The seeds span macOS's lists: seed 0 a small payload with
+    # expect off and yield above its read buffer; seed 1 the largest payload (16384);
+    # seed 23 expect on and the smaller read buffer. All draw write shape.
+    golden0 = {
+        "master_seed": 0,
+        "runtime": {"ponymaxthreads": 6, "ponynoscale": True},
+        "workload": {
+            "close": "graceful", "concurrency": 32, "connections": 11236,
+            "expect": 0, "messages": 3, "payload-size": 8,
+            "read-buffer-size": 65536, "write-shape": "write",
+            "writev-chunks": 4,
+            "yield-after-reading": 32768, "yield-after-writing": 65536,
+        },
+    }
+    golden1 = {
+        "master_seed": 1,
+        "runtime": {"ponymaxthreads": 1, "ponypin": True},
+        "workload": {
+            "close": "hard", "concurrency": 64, "connections": 158,
+            "expect": 0, "messages": 3, "payload-size": 16384,
+            "read-buffer-size": 65536, "write-shape": "write",
+            "writev-chunks": 4,
+            "yield-after-reading": 65536, "yield-after-writing": 32768,
+        },
+    }
+    golden23 = {
+        "master_seed": 23,
+        "runtime": {"ponymaxthreads": 6, "ponynoscale": True},
+        "workload": {
+            "close": "hard", "concurrency": 256, "connections": 1031,
+            "expect": 8, "messages": 2, "payload-size": 8,
+            "read-buffer-size": 32768, "write-shape": "write",
+            "writev-chunks": 4,
+            "yield-after-reading": 32768, "yield-after-writing": 32768,
+        },
+    }
+    check("resolve_config(0, 8, profile='macos') matches the pinned draw",
+          o.resolve_config(0, 8, profile="macos") == golden0)
+    check("resolve_config(1, 8, profile='macos') matches the pinned draw",
+          o.resolve_config(1, 8, profile="macos") == golden1)
+    check("resolve_config(23, 8, profile='macos') matches the pinned draw",
+          o.resolve_config(23, 8, profile="macos") == golden23)
+
+
+def test_macos_draw_from_own_sets():
+    # macOS draws every field from its own profile lists, not the default's -- there is
+    # no reshape, nothing is drawn then modified. So every macOS workload lands in those
+    # lists, and the per-connection byte total stays under the freeze-free ceiling the
+    # lists were measured to bound (largest payload * largest messages). The draw is
+    # deterministic per seed (so --replay holds) and remaps freely relative to the
+    # default -- the profiles are separate, so nothing here is compared to the default
+    # draw. The coverage flags confirm the lists are exercised.
+    mp = o.WORKLOAD_PROFILES["macos"]
+    max_total = max(mp["payload_sizes"]) * mp["message_buckets"]["large"][1]
+    msg_lo = mp["message_buckets"]["small"][0]
+    msg_hi = mp["message_buckets"]["large"][1]
     ok = True
-    capped_any = False
-    untouched = ("concurrency", "read-buffer-size", "write-shape", "writev-chunks",
-                 "yield-after-reading", "yield-after-writing", "close")
-    for seed in range(300):
-        base = o.resolve_config(seed, 8)
-        capped = o.resolve_config(seed, 8, max_payload=cap)
-        w = capped["workload"]
-        if w["payload-size"] != min(base["workload"]["payload-size"], cap):
+    payloads = set()
+    rbufs = set()
+    yields = set()
+    concs = set()
+    closes = set()
+    expect_states = set()
+    msg_hit_max = False
+    for seed in range(500):
+        mac = o.resolve_config(seed, 8, profile="macos")
+        mw = mac["workload"]
+        p, rb = mw["payload-size"], mw["read-buffer-size"]
+        # Deterministic per seed.
+        if o.resolve_config(seed, 8, profile="macos") != mac:
             ok = False
-        if w["expect"] > w["payload-size"]:
+        # Every field is drawn from macOS's own lists.
+        if mw["write-shape"] != "write":
             ok = False
-        if any(w[k] != base["workload"][k] for k in untouched):
+        if p not in mp["payload_sizes"]:
             ok = False
-        if capped["runtime"] != base["runtime"]:
+        if rb not in mp["read_buffer_sizes"]:
             ok = False
-        if o.resolve_config(seed, 8, max_payload=cap) != capped:
+        if mw["yield-after-reading"] not in mp["yield_sizes"]:
             ok = False
-        if base["workload"]["payload-size"] > cap:
-            capped_any = True
-    check("macOS payload cap: caps to min(drawn, cap), expect stays <= payload", ok)
-    check("macOS payload cap: actually caps some seeds (not vacuous)", capped_any)
+        if mw["yield-after-writing"] not in mp["yield_sizes"]:
+            ok = False
+        if mw["writev-chunks"] not in mp["writev_chunks"]:
+            ok = False
+        if mw["concurrency"] not in mp["concurrency"]:
+            ok = False
+        if mw["close"] not in mp["close_kinds"]:
+            ok = False
+        # messages: clamp_run may trim, so 1..msg_hi; the read buffer out-drains any
+        # payload (min read buffer >= 2 * max payload); the total stays freeze-free;
+        # expect is off or a valid frame no larger than the read buffer.
+        if not (1 <= mw["messages"] <= msg_hi):
+            ok = False
+        if rb < 2 * p:
+            ok = False
+        if p * mw["messages"] > max_total:
+            ok = False
+        if mw["expect"] not in (0, min(p, rb)):
+            ok = False
+        payloads.add(p)
+        rbufs.add(rb)
+        yields.add(mw["yield-after-reading"])
+        concs.add(mw["concurrency"])
+        closes.add(mw["close"])
+        expect_states.add(mw["expect"] > 0)
+        msg_hit_max = msg_hit_max or (mw["messages"] == msg_hi)
+    check("macOS draw: deterministic, every field drawn from macOS's own lists, and "
+          "the per-connection total stays freeze-free", ok)
+    check("macOS draw: every payload size appears",
+          payloads == set(mp["payload_sizes"]))
+    check("macOS draw: both read buffers appear",
+          rbufs == set(mp["read_buffer_sizes"]))
+    check("macOS draw: both yields appear", yields == set(mp["yield_sizes"]))
+    check("macOS draw: every concurrency appears",
+          concs == set(mp["concurrency"]))
+    check("macOS draw: both close kinds appear", closes == set(mp["close_kinds"]))
+    check("macOS draw: expect appears both on and off",
+          expect_states == {True, False})
+    check("macOS draw: the largest message count is reached (%d)" % msg_hi,
+          msg_hit_max)
+    check("macOS draw: messages never fall below the minimum (%d)" % msg_lo,
+          msg_lo >= 1)
 
 
 def test_ponymaxthreads_is_last_and_host_dependent():
@@ -744,7 +843,9 @@ def main():
                test_memory_budget, test_memory_budget_trims,
                test_est_peak_bytes_monotonic,
                test_memory_budget_rotates_the_trimmed_lever,
-               test_max_connections_cap, test_macos_payload_cap,
+               test_max_connections_cap,
+               test_macos_draw_golden,
+               test_macos_draw_from_own_sets,
                test_resolve_config_coverage_and_invariants,
                test_ponymaxthreads_is_last_and_host_dependent,
                test_build_argv, test_parse_result, test_lldb_argv,

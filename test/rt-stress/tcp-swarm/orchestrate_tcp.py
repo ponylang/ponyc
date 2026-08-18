@@ -75,49 +75,87 @@ def die(message):
 
 # ------------------------------------------------------------------- the draw
 
-# Feature levers (each drawn independently -- omission is the swarm). Magnitudes
-# are bucketed small/medium/large at 25/50/25 then uniform within the bucket.
-WRITE_SHAPES = ["write", "writev"]
-# writev buffer counts (writev only). 2048 exceeds POSIX IOV_MAX (1024): drawn
-# with a payload at least that large, a single writev then queues more buffers
-# than one writev() syscall can send, so TCPConnection takes its multi-batch send
-# path -- the only path on which the mid-write yield (--yield-after-writing) fires
-# on POSIX. 4 and 64 are ordinary small vector writes. The large value
-# must stay above pony_os_writev_max()'s POSIX return, or the multi-batch coverage
-# silently vanishes.
-WRITEV_CHUNKS = [4, 64, 2048]
-CLOSE_KINDS = ["graceful", "hard"]
-# Payload sizes span the runtime's 16384-byte default read buffer: below, at, and
-# above it, so runs straddle the read-chunk boundary rather than clustering small.
-PAYLOAD_SIZES = [1, 8, 64, 256, 1024, 4096, 16384, 65536]
-# macOS-only: cap the drawn payload at 16384 (applied in resolve_config when the
-# orchestrator runs on macOS). WHY: macOS loopback has no wire rate limit, so at
-# the largest payload the swarm pushes data onto lo0 faster than the interface's
-# buffer pool drains. sendmsg then BLOCKS in the kernel waiting for buffers (and
-# returns ENOBUFS) EVEN on a non-blocking socket -- O_NONBLOCK/MSG_DONTWAIT govern
-# the socket buffer, not the interface's buffer pool. A blocked send freezes the
-# scheduler thread that issued it and stalls the whole run, which the swarm reports
-# as a failure. This is a macOS kernel behavior, not a runtime bug: the runtime
-# cannot force the send non-blocking from userspace short of moving socket I/O off
-# the scheduler threads (an I/O-model change we are deliberately not making). The
-# 65536 payload paired with small read buffers (slow drain) triggers it reliably on
-# a real runner; 16384 stays clear of it while keeping the small-read-buffer yield
-# coverage. Linux and Windows loopback do not behave this way, so they are uncapped.
-# (The separate defect where the runtime treated ENOBUFS as fatal was fixed in
-# ponyc PR #5823; that fix does not stop the send from blocking.)
-MACOS_MAX_PAYLOAD = 16384
-# Read buffer + yield thresholds: small values drive frequent yields back to the
-# scheduler on any payload size; the 16384 default anchors the "unchanged" end.
-READ_BUFFER_SIZES = [128, 1024, 16384, 65536]
-YIELD_SIZES = [64, 1024, 16384]
-CONCURRENCY = [8, 16, 32, 64, 128, 256]
-# COUPLING: the max per-connection work -- max `messages` (64) below * max
-# `payload-size` (65536) ~ 4 MiB, with concurrency >= 8 -- must keep the slowest single
-# connection completing well within the orchestrator's no-progress window, or a healthy
-# run reads as a hang.
-MESSAGE_BUCKETS = {"small": (1, 2), "medium": (3, 16), "large": (17, 64)}
-CONNECTION_BUCKETS = {"small": (100, 2000), "medium": (2001, 20000),
-                      "large": (20001, 100000)}
+# The draw is parameterized by a workload PROFILE: a complete, self-contained set of
+# the lists each lever draws from. main() selects a profile from the host (the machine
+# driving loopback); resolve_config draws every workload field from the selected
+# profile's lists and nothing else. The profiles are fully separate -- each carries its
+# own copy of every list, so editing one profile's lists cannot change another's.
+# Values that match across profiles are duplicated on purpose; that duplication is what
+# keeps them independent. Each lever is drawn independently (omission is the swarm);
+# magnitudes are bucketed small/medium/large at 25/50/25, then uniform within the
+# bucket.
+
+# The default profile: Linux and Windows, whose loopback has no shared buffer pool, so
+# the full lever ranges run as drawn.
+DEFAULT_PROFILE = {
+    "write_shapes": ["write", "writev"],
+    # writev buffer counts (writev only). 2048 exceeds POSIX IOV_MAX (1024): drawn with
+    # a payload at least that large, a single writev then queues more buffers than one
+    # writev() syscall can send, so TCPConnection takes its multi-batch send path -- the
+    # only path on which the mid-write yield (yield-after-writing) fires on POSIX. 4 and
+    # 64 are ordinary small vector writes. The large value must stay above
+    # pony_os_writev_max()'s POSIX return, or the multi-batch coverage silently vanishes.
+    "writev_chunks": [4, 64, 2048],
+    "close_kinds": ["graceful", "hard"],
+    # Payload sizes span the runtime's 16384-byte default read buffer: below, at, and
+    # above it, so runs straddle the read-chunk boundary rather than clustering small.
+    "payload_sizes": [1, 8, 64, 256, 1024, 4096, 16384, 65536],
+    # Read buffer + yield thresholds: small values drive frequent yields back to the
+    # scheduler on any payload size; the 16384 default anchors the "unchanged" end.
+    "read_buffer_sizes": [128, 1024, 16384, 65536],
+    "yield_sizes": [64, 1024, 16384],
+    "concurrency": [8, 16, 32, 64, 128, 256],
+    # COUPLING: the max per-connection work -- max messages (64) * max payload (65536)
+    # ~ 4 MiB, with concurrency >= 8 -- must keep the slowest single connection
+    # completing well within the no-progress window, or a healthy run reads as a hang.
+    "message_buckets": {"small": (1, 2), "medium": (3, 16), "large": (17, 64)},
+    "connection_buckets": {"small": (100, 2000), "medium": (2001, 20000),
+                           "large": (20001, 100000)},
+}
+
+# The macos profile: macOS loopback shares a finite kernel buffer pool that every
+# socket draws from. A wide workload exhausts it, and a non-blocking sendmsg then
+# blocks in the kernel for many seconds -- freezing the scheduler thread that issued it
+# and hanging the run. (The runtime treats the ENOBUFS this surfaces as retryable, PR
+# #5823, but the block happens before any errno returns, so the workload has to stay
+# out of the exhaustion regime on its own.) So macOS draws from its own narrower lists,
+# chosen so every combination they can produce is block-free -- verified by drawing
+# across them at 8x the loopback pressure of a single CI process (more than CI's
+# one-at-a-time runs ever reach) and timing every send: within these lists no send
+# blocks longer than about 60 ms and every run completes, versus the many seconds -- a
+# minute at worst -- a wider workload froze a scheduler thread and hung the run. Capping
+# payload alone did not do it (PR #5826, reverted): the block is driven by send shape,
+# drain rate, and per-connection byte total together, and each list below answers one.
+MACOS_PROFILE = {
+    # write only: a scatter-gather writev pins a kernel mbuf per iovec segment, draining
+    # the shared pool faster per byte than a contiguous write -- even a 4-segment writev
+    # blocks under a high message count where the same bytes as one write do not, and
+    # the multi-batch path (thousands of segments) blocks readily. The writev batching
+    # logic is platform-independent and stays covered on the other hosts; only the macOS
+    # writev() syscall goes unexercised.
+    "write_shapes": ["write"],
+    "writev_chunks": [4],       # inert (write only), but the draw still picks one
+    "close_kinds": ["graceful", "hard"],
+    # no 65536: a single send larger than 16384 blocks even when the reader drains as
+    # fast as data arrives -- the send size alone is the trigger.
+    "payload_sizes": [1, 8, 64, 256, 1024, 4096, 16384],
+    # every value >= 2x the largest payload (16384), and the read yield draws from the
+    # same list, so the reader always drains at least as fast as data arrives -- the
+    # drain margin holds because the list makes it hold, not by a per-draw rule.
+    "read_buffer_sizes": [32768, 65536],
+    "yield_sizes": [32768, 65536],
+    "concurrency": [8, 16, 32, 64, 128, 256],
+    # max 8: what freezes a send here is the per-connection byte total, and the onset
+    # sits between 128 KB and 256 KB (measured); 8 * the largest payload (16384) is
+    # 128 KB, held under the onset with margin. The cap is a flat count, not a payload
+    # rule -- so the small payloads carry it too, costing their high-message coverage,
+    # which is the price of bounding it with the list rather than a per-draw rule.
+    "message_buckets": {"small": (1, 2), "medium": (3, 5), "large": (6, 8)},
+    "connection_buckets": {"small": (100, 2000), "medium": (2001, 20000),
+                           "large": (20001, 100000)},
+}
+
+WORKLOAD_PROFILES = {"default": DEFAULT_PROFILE, "macos": MACOS_PROFILE}
 
 # Per-run bounds -- BEST GUESSES, to be tuned from CI timings (the local WSL2
 # loopback caps throughput at ~100 conns/s, which makes local run-time meaningless
@@ -252,19 +290,26 @@ def _fit_continuous(key, drawn, chosen, floor):
     return best
 
 
-def _draw_memory_levers(rng, use_writev):
-    """Draw the memory levers in a per-seed random order against MEM_BUDGET_BYTES.
-    Undrawn levers reserve their minimum, so every pick leaves room for the rest and
-    the draw can never wedge (all-minimums is ~80 KB, far under budget). Each lever
-    consumes its usual draw once; the fit is a no-rng clamp, so total rng consumption
-    is fixed per seed. Returns the chosen values under internal keys."""
+def _draw_memory_levers(rng, use_writev, profile):
+    """Draw the memory levers in a per-seed random order against MEM_BUDGET_BYTES,
+    pulling every list from `profile`. Undrawn levers reserve their minimum, so every
+    pick leaves room for the rest and the draw can never wedge (all-minimums is ~80 KB,
+    far under budget). Each lever consumes its usual draw once; the fit is a no-rng
+    clamp, so total rng consumption is fixed per seed regardless of profile. Returns the
+    chosen values under internal keys."""
+    message_buckets = profile["message_buckets"]
+    connection_buckets = profile["connection_buckets"]
+    concurrency = profile["concurrency"]
+    payload_sizes = profile["payload_sizes"]
+    writev_chunks = profile["writev_chunks"]
+    read_buffer_sizes = profile["read_buffer_sizes"]
     chosen = {
         "connections": MIN_CONNECTIONS,
-        "concurrency": min(CONCURRENCY),
-        "messages": MESSAGE_BUCKETS["small"][0],
-        "payload": min(PAYLOAD_SIZES),
-        "writev_chunks": min(WRITEV_CHUNKS),
-        "read_buffer": min(READ_BUFFER_SIZES),
+        "concurrency": min(concurrency),
+        "messages": message_buckets["small"][0],
+        "payload": min(payload_sizes),
+        "writev_chunks": min(writev_chunks),
+        "read_buffer": min(read_buffer_sizes),
         "use_writev": use_writev,
     }
     order = list(MEM_LEVERS)
@@ -272,29 +317,29 @@ def _draw_memory_levers(rng, use_writev):
     for lever in order:
         if lever == "connections":
             chosen[lever] = _fit_continuous(
-                lever, draw_bucketed(rng, CONNECTION_BUCKETS), chosen,
+                lever, draw_bucketed(rng, connection_buckets), chosen,
                 MIN_CONNECTIONS)
         elif lever == "messages":
             chosen[lever] = _fit_continuous(
-                lever, draw_bucketed(rng, MESSAGE_BUCKETS), chosen,
-                MESSAGE_BUCKETS["small"][0])
+                lever, draw_bucketed(rng, message_buckets), chosen,
+                message_buckets["small"][0])
         elif lever == "concurrency":
             chosen[lever] = _fit_discrete(
-                lever, rng.choice(CONCURRENCY), chosen, CONCURRENCY)
+                lever, rng.choice(concurrency), chosen, concurrency)
         elif lever == "payload":
             chosen[lever] = _fit_discrete(
-                lever, rng.choice(PAYLOAD_SIZES), chosen, PAYLOAD_SIZES)
+                lever, rng.choice(payload_sizes), chosen, payload_sizes)
         elif lever == "writev_chunks":
             chosen[lever] = _fit_discrete(
-                lever, rng.choice(WRITEV_CHUNKS), chosen, WRITEV_CHUNKS)
+                lever, rng.choice(writev_chunks), chosen, writev_chunks)
         elif lever == "read_buffer":
             chosen[lever] = _fit_discrete(
-                lever, rng.choice(READ_BUFFER_SIZES), chosen, READ_BUFFER_SIZES)
+                lever, rng.choice(read_buffer_sizes), chosen, read_buffer_sizes)
     return chosen
 
 
 def resolve_config(master_seed, max_threads, max_connections=None,
-                   max_payload=None):
+                   profile="default"):
     """Draw one TCP workload from a master seed. The draw is the seed-stability
     contract: change it and every seed remaps (breaking a historical --replay), so
     change it deliberately and regenerate the pinned goldens in orchestrate_tcp_test.py
@@ -310,27 +355,24 @@ def resolve_config(master_seed, max_threads, max_connections=None,
     because Windows opens TCP connections very slowly -- ~5.5/s, so 10k connections
     is ~30 min and 100k would never finish inside the job's time budget.
 
-    max_payload, if set, caps the drawn payload size (macOS passes MACOS_MAX_PAYLOAD;
-    see that constant for why). Like ponymaxthreads it makes the draw host-dependent,
-    but deterministically (the same cap is always applied on the same host), so
-    --replay still holds within a host. It caps payload BEFORE payload is used for
-    `expect` and the byte ceilings, so those reflect the capped size; it consumes no
-    rng."""
+    profile names the host workload profile the draw pulls every list from (see
+    WORKLOAD_PROFILES); main() selects it from the platform. The profiles are fully
+    separate, so a constrained profile (macOS) draws different values and remaps
+    relative to the default -- intended, since the platform needs its own lists -- and
+    keeps its own pinned goldens in orchestrate_tcp_test.py. rng consumption is the same
+    for every profile (a choice or a bucketed draw costs the same regardless of the
+    list's size), so within a profile seeds stay stable."""
     rng = random.Random(master_seed)
+    profile = WORKLOAD_PROFILES[profile]
 
     workload = {}
     # write-shape is drawn BEFORE the memory levers: it carries no magnitude, but the
     # memory budget needs to know whether a writev-chunks draw counts (chunks_eff is 1
     # for a plain write). The memory levers then draw in a shuffled order against the
     # budget so no config can exceed the RLIMIT_AS cap; see _draw_memory_levers.
-    use_writev = rng.choice(WRITE_SHAPES) == "writev"
-    mem = _draw_memory_levers(rng, use_writev)
+    use_writev = rng.choice(profile["write_shapes"]) == "writev"
+    mem = _draw_memory_levers(rng, use_writev, profile)
     payload = mem["payload"]
-    # macOS loopback cap (see MACOS_MAX_PAYLOAD). Applied here, before payload is
-    # used for `expect` and the byte ceilings, so a capped run stays self-consistent
-    # (e.g. expect never exceeds the payload). Consumes no rng.
-    if max_payload is not None:
-        payload = min(payload, max_payload)
     read_buffer = mem["read_buffer"]
     workload["connections"] = mem["connections"]
     workload["concurrency"] = mem["concurrency"]
@@ -339,8 +381,8 @@ def resolve_config(master_seed, max_threads, max_connections=None,
     workload["write-shape"] = "writev" if use_writev else "write"
     workload["writev-chunks"] = mem["writev_chunks"]
     workload["read-buffer-size"] = read_buffer
-    workload["yield-after-reading"] = rng.choice(YIELD_SIZES)
-    workload["yield-after-writing"] = rng.choice(YIELD_SIZES)
+    workload["yield-after-reading"] = rng.choice(profile["yield_sizes"])
+    workload["yield-after-writing"] = rng.choice(profile["yield_sizes"])
     # expect: on/off. When on, the frame must not exceed the read buffer (the
     # engine's expect() errors above it), so clamp to it -- the oracle is
     # positional over the whole stream, so any valid frame size verifies.
@@ -348,7 +390,7 @@ def resolve_config(master_seed, max_threads, max_connections=None,
         workload["expect"] = min(payload, read_buffer)
     else:
         workload["expect"] = 0
-    workload["close"] = rng.choice(CLOSE_KINDS)
+    workload["close"] = rng.choice(profile["close_kinds"])
 
     # Post-draw clamp to the per-run ceilings (consumes no rng, so seeds stay
     # stable). Keeps connections and payload; trims messages, then connections.
@@ -798,14 +840,12 @@ def main():
                        if args.mem_limit_mb > 0 else None)
 
     failures = []
-
-    # macOS caps the payload to keep the swarm clear of the loopback sendmsg-block
-    # (see MACOS_MAX_PAYLOAD). Other platforms draw uncapped.
-    max_payload = MACOS_MAX_PAYLOAD if sys.platform == "darwin" else None
+    # The workload profile keys off the host the orchestrator runs on -- it is the
+    # machine driving loopback -- so it can't be forgotten by a missed CI flag.
+    profile = "macos" if sys.platform == "darwin" else "default"
 
     def run_seed(seed):
-        config = resolve_config(seed, max_threads, args.max_connections,
-                                max_payload)
+        config = resolve_config(seed, max_threads, args.max_connections, profile)
         result = execute(binary, config, version, args.out,
                          args.timeout_seconds, mem_limit_bytes,
                          args.no_progress_seconds, args.lldb)
