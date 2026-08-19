@@ -1,58 +1,3 @@
-"""
-Swarm TCP stress engine.
-
-A closed, count-driven TCP workload for stressing the runtime's net stack. Every
-behaviour is a CLI flag set by the orchestrator; the engine draws nothing and sets
-no runtime defaults. A fixed number of client connections is churned through a
-listener at a bounded concurrency; each client sends a stamped payload, the server
-echoes it, and the client verifies the echo byte-for-byte before closing.
-
-The swarm dimensions are each tied to a distinct code path in
-`packages/net/tcp_connection.pony` (see test/rt-stress/tcp-swarm/README.md):
-
-* `--payload-size` / `--messages` -- how much each connection sends, and in how
-  many messages.
-* `--write-shape` (`write` | `writev`) -- single vs vectored writes.
-* `--writev-chunks` (N, writev only) -- how many buffers a `writev` splits its
-  payload into. Above `@pony_os_writev_max()` -- IOV_MAX (1024 on Linux/macOS) on
-  POSIX, 1 on Windows -- the send takes TCPConnection's multi-batch path, sending
-  one
-  `writev_max`-sized batch per pass and re-entering the send loop, which is the
-  only thing that makes the mid-write yield below actually fire on POSIX.
-* `--expect` (0 = off, N = frame size) -- fixed-size framed reads vs whole-buffer.
-* `--close` (`graceful` | `hard`) -- a graceful `dispose()` (FIN, drains the send
-  buffer) vs a muted `dispose()`, which takes TCPConnection's `hard_close` path
-  (immediate teardown, no lingering drain). The client closes only after its whole
-  echo is back, so the hard path drops no data here -- it exercises the distinct
-  teardown/unsubscribe code, not write loss.
-* `--read-buffer-size` / `--yield-after-reading` / `--yield-after-writing` -- the
-  TCPConnection read-buffer size and the byte counts at which it yields back to the
-  scheduler mid-read/mid-write. A small `--yield-after-reading` yields on any
-  payload big enough to fill the read buffer more than once. `--yield-after-writing`
-  is different: the send loop only re-checks it when a write spans more than one
-  `writev_max` batch, so on POSIX it needs a `--writev-chunks` above IOV_MAX to
-  bite at all (on Windows, where writev_max is 1, any multi-chunk writev triggers
-  it).
-
-Oracles:
-
-* Echo integrity -- each connection sends a unique, non-repeating byte stream
-  (byte at stream position p is a splitmix64 hash of (connection-id, p)), and
-  verifies every echoed byte against it. Because the stream is unique per
-  connection and never repeats, this catches not only a corrupted byte or a short
-  read but a byte delivered out of order, duplicated, or from another connection.
-  Every connection must verify: the client closes only after it has read its whole
-  echo back, so even a hard close tears down an already-drained connection. Fewer
-  verified than spawned is a failure (see `_report`).
-* Conservation -- every spawned connection reaches a terminal state
-  (closed or connect-failed); the engine reports the tally.
-* Crash / assert -- debug build, asserts on.
-
-On success (every connection verified) the engine prints its RESULT line and PASS,
-then returns, letting the program reach natural quiescence (clean runtime shutdown
-is itself exercised). Anything short of full verification -- a connect failure, a
-short echo, or a byte mismatch -- prints FAIL and forces a non-zero exit.
-"""
 use "collections"
 use "net"
 use "time"
@@ -125,22 +70,28 @@ class val _Config
     messages = _usize(m, "messages", 1)
     close_hard = _str(m, "close", "graceful") == "hard"
     use_writev = _str(m, "write-shape", "write") == "writev"
-    // How many buffers a single `writev` splits its payload into. Above
-    // `@pony_os_writev_max()` -- IOV_MAX (1024 on Linux/macOS) on POSIX, 1 on
-    // Windows -- it drives TCPConnection's multi-batch send and the mid-write
-    // yield, so on POSIX it bites only when payload_size >= writev_chunks > 1024.
-    // Default 4; writev only.
+    // How many buffers a single `writev` splits its payload
+    // into. Above `@pony_os_writev_max()` -- IOV_MAX (1024 on
+    // Linux/macOS) on POSIX, 1 on Windows -- it drives
+    // TCPConnection's multi-batch send and the mid-write yield,
+    // so on POSIX it bites only when
+    // payload_size >= writev_chunks > 1024. Default 4; writev
+    // only.
     writev_chunks = _usize(m, "writev-chunks", 4).max(1)
     read_buffer_size = _usize(m, "read-buffer-size", 16384)
-    // Clamp expect to the read buffer: TCPConnection.expect() errors when the frame
-    // exceeds it, so clamping here keeps the call from erroring (the call sites then
-    // assert that with _Unreachable). The orchestrator already draws
-    // expect <= read-buffer; this clamp only makes a directly-run engine safe from
-    // that one error. NOTE: it does NOT save a directly-run engine from a
-    // non-dividing --expect: for framed reads to terminate, payload_size * messages
-    // must be a whole number of frames, or the trailing partial frame is never
-    // delivered and the client hangs. The orchestrator guarantees divisibility by
-    // drawing only power-of-two sizes; a hand-run engine must arrange it itself.
+    // Clamp expect to the read buffer:
+    // TCPConnection.expect() errors when the frame exceeds it,
+    // so clamping here keeps the call from erroring (the call
+    // sites then assert that with _Unreachable). The
+    // orchestrator already draws expect <= read-buffer; this
+    // clamp only makes a directly-run engine safe from that one
+    // error. NOTE: it does NOT save a directly-run engine from
+    // a non-dividing --expect: for framed reads to terminate,
+    // payload_size * messages must be a whole number of frames,
+    // or the trailing partial frame is never delivered and the
+    // client hangs. The orchestrator guarantees divisibility by
+    // drawing only power-of-two sizes; a hand-run engine must
+    // arrange it itself.
     expect_frame = _usize(m, "expect", 0).min(read_buffer_size)
     yield_after_reading = _usize(m, "yield-after-reading", 16384)
     yield_after_writing = _usize(m, "yield-after-writing", 16384)
@@ -157,14 +108,15 @@ class val _Config
 
 primitive _Keystream
   """
-  The echo oracle checks a unique, non-repeating byte stream per connection: the
-  byte at stream position `p` is the low 8 bits of a splitmix64 hash of
-  (seed, p). `seed` identifies the connection. Because the stream is unique per
-  connection and does not repeat, a byte that arrives out of order, duplicated, or
-  from another connection fails the check -- not only a corrupted or truncated one.
-  It is generated per position (no template to bulk-copy), which is the price of a
-  stream that is meant to be unique everywhere; the per-run byte volume is bounded
-  by the orchestrator so the build is not the bottleneck.
+  Per-connection unique byte stream for the echo oracle. The
+  byte at stream position `p` is the low 8 bits of a splitmix64
+  hash of (seed, p). `seed` identifies the connection. Because
+  the stream is unique per connection and does not repeat, a
+  byte that arrives out of order, duplicated, or from another
+  connection fails the check -- not only a corrupted or
+  truncated one. Generated per position (no template to
+  bulk-copy); the per-run byte volume is bounded by the
+  orchestrator so the build is not the bottleneck.
   """
   fun byte(seed: U64, p: USize): U8 =>
     var z: U64 = seed + (p.u64() * 0x9E3779B97F4A7C15)
@@ -191,12 +143,14 @@ primitive _Keystream
     `writev` -- contiguous over `start .. start + total`, so the echo verifies
     identically regardless of write shape.
     """
-    // COUPLING: this allocates `nchunks` buffer objects per call regardless of
-    // payload size (the extras are zero-length when nchunks > total). The
-    // orchestrator's memory budget models peak memory as
-    // OBJ_BYTES * concurrency * messages * writev_chunks off exactly this count
-    // (est_peak_bytes in orchestrate_tcp.py) -- change how many objects this creates
-    // and the budget can let an OOM through.
+    // COUPLING: this allocates `nchunks` buffer objects per
+    // call regardless of payload size (the extras are
+    // zero-length when nchunks > total). The orchestrator's
+    // memory budget models peak memory as
+    // OBJ_BYTES * concurrency * messages * writev_chunks off
+    // exactly this count (est_peak_bytes in
+    // orchestrate_tcp.py) -- change how many objects this
+    // creates and the budget can let an OOM through.
     recover val
       let out = Array[ByteSeq]
       let n = if nchunks == 0 then 1 else nchunks end
@@ -221,13 +175,13 @@ primitive _Keystream
 
 actor Spawner
   """
-  Drives the run. Once the listener is up it keeps `concurrency` connections in
-  flight at a time, refilling as each finishes, until `connections` have been
-  spawned. It tallies every connection's terminal state (verified, mismatched,
-  short, connect-failed), emits a heartbeat carrying the completed count on a fixed
-  wall-clock timer (the orchestrator's watchdog reads that count and fails the run
-  only if it stops advancing), and prints the pass/fail report when the last
-  connection is accounted for.
+  Keeps `concurrency` connections in flight at a time, refilling
+  as each finishes, until `connections` have been spawned.
+  Tallies every connection's terminal state (verified,
+  mismatched, short, connect-failed), emits a heartbeat on a
+  wall-clock timer so the orchestrator can detect hangs, and
+  prints the pass/fail report when the last connection is
+  accounted for.
   """
   let _config: _Config
   let _connect_auth: TCPConnectAuth
@@ -253,17 +207,22 @@ actor Spawner
     _port = port
     if not _started then
       _started = true
-      // Heartbeat on a wall-clock timer, not per-completion: the orchestrator's
-      // watchdog decides "hang" from whether `done` advances between heartbeats,
-      // so liveness must be signalled on a fixed cadence a slow run can always
-      // meet, independent of how fast connections complete. COUPLING: the interval
-      // must stay well under the orchestrator's --no-progress-seconds window.
+      // Heartbeat on a wall-clock timer, not per-completion:
+      // the orchestrator's watchdog decides "hang" from whether
+      // `done` advances between heartbeats, so liveness must be
+      // signalled on a fixed cadence a slow run can always
+      // meet. COUPLING: the interval must stay well under the
+      // orchestrator's --no-progress-seconds window.
       let interval: U64 = 5_000_000_000  // 5s
       _timers(Timer(_HeartbeatTimer(this), interval, interval))
       _refill()
     end
 
   be connection_done(verified: Bool, mismatch: Bool) =>
+    """
+    Called by a client when its connection reaches a terminal
+    state. Tallies the result and refills the flight window.
+    """
     _inflight = _inflight - 1
     _completed = _completed + 1
     if verified then _verified = _verified + 1 end
@@ -276,22 +235,27 @@ actor Spawner
     _refill()
 
   be heartbeat_tick() =>
-    // Fired by _HeartbeatTimer on a fixed wall-clock cadence. Prints the current
-    // completed count so the orchestrator can see progress advancing; a run that
-    // has stopped completing connections stops advancing `done` (the line keeps
-    // coming), which is how the watchdog tells a slow run from a hang.
+    // Prints the current completed count so the orchestrator
+    // can see progress advancing; a run that has stopped
+    // completing connections stops advancing `done` (the line
+    // keeps coming), which is how the watchdog tells a slow run
+    // from a hang.
     if not _finished then _emit_heartbeat() end
 
   fun _emit_heartbeat() =>
     let done = _completed + _failed
-    // Flushed: a block-buffered line would not reach the watchdog until the buffer
-    // fills, which would defeat the no-progress detection.
+    // Flushed: a block-buffered line would not reach the
+    // watchdog until the buffer fills, which would defeat the
+    // no-progress detection.
     @printf("HEARTBEAT done=%zu of %zu\n".cstring(), done, _config.connections)
     @fflush(@pony_os_stdout())
 
   fun ref _refill() =>
-    while (_inflight < _config.concurrency) and (_spawned < _config.connections) do
-      TCPConnection(_connect_auth,
+    while (_inflight < _config.concurrency)
+      and (_spawned < _config.connections)
+    do
+      TCPConnection(
+        _connect_auth,
         SwarmClient(this, _config, _spawned),
         _config.host,
         _port,
@@ -310,14 +274,16 @@ actor Spawner
       and (_inflight == 0)
     then
       _finished = true
-      // A final heartbeat with the true completed count before the timer stops: the
-      // last wave completes after the previous tick, so this records the full total
-      // and resets the watchdog's clock at finish (the shutdown that follows gets a
-      // fresh no-progress window).
+      // A final heartbeat with the true completed count
+      // before the timer stops: the last wave completes after
+      // the previous tick, so this records the full total and
+      // resets the watchdog's clock at finish (the shutdown
+      // that follows gets a fresh no-progress window).
       _emit_heartbeat()
-      // Stop the heartbeat timer so the runtime can reach quiescence: a live
-      // repeating timer is a noisy ASIO event that would keep the program from
-      // exiting after the last connection is done.
+      // Stop the heartbeat timer so the runtime can reach
+      // quiescence: a live repeating timer is a noisy ASIO
+      // event that would keep the program from exiting after
+      // the last connection is done.
       _timers.dispose()
       _report()
       match _listener
@@ -327,31 +293,48 @@ actor Spawner
     end
 
   fun _report() =>
-    // %zu (size_t) is the portable format for USize -- %lu is 32-bit on Windows.
-    @printf(("RESULT connections=%zu spawned=%zu completed=%zu failed=%zu "
-      + "verified=%zu mismatched=%zu\n").cstring(),
-      _config.connections, _spawned, _completed, _failed, _verified,
+    // %zu (size_t) is the portable format for USize;
+    // %lu is 32-bit on Windows.
+    let fmt =
+      ("RESULT connections=%zu spawned=%zu "
+        + "completed=%zu failed=%zu "
+        + "verified=%zu mismatched=%zu\n")
+    @printf(
+      fmt.cstring(),
+      _config.connections,
+      _spawned,
+      _completed,
+      _failed,
+      _verified,
       _mismatched)
-    // This is a stress test, not fault injection: every connection must connect,
-    // exchange, and verify its echo. Anything less is a failure -- a connect that
-    // failed (a bug, or a mis-set-up harness exhausting ports), a short echo (a
-    // connection that closed with fewer bytes than it sent), or a byte mismatch.
-    // All of them leave verified < connections.
+    // Every connection must connect, exchange, and verify
+    // its echo. Anything less -- a connect failure, a short
+    // echo, or a byte mismatch -- leaves
+    // verified < connections.
     if _verified == _config.connections then
       @printf("PASS\n".cstring())
     else
-      let truncated = (_completed - _verified) - _mismatched
-      @printf(("FAIL: %zu of %zu connections did not verify "
-        + "(connect_failed=%zu truncated=%zu mismatched=%zu)\n").cstring(),
-        _config.connections - _verified, _config.connections,
-        _failed, truncated, _mismatched)
+      let truncated =
+        (_completed - _verified) - _mismatched
+      let fail_fmt =
+        ("FAIL: %zu of %zu connections did not "
+          + "verify (connect_failed=%zu "
+          + "truncated=%zu mismatched=%zu)\n")
+      @printf(
+        fail_fmt.cstring(),
+        _config.connections - _verified,
+        _config.connections,
+        _failed,
+        truncated,
+        _mismatched)
       @exit(1)
     end
 
 class _HeartbeatTimer is TimerNotify
   """
-  Fires the Spawner's wall-clock heartbeat. Repeats on a fixed interval until the
-  Spawner disposes the timer when the run finishes.
+  Fires the Spawner's wall-clock heartbeat. Repeats on a fixed
+  interval until the Spawner disposes the timer when the run
+  finishes.
   """
   let _spawner: Spawner
 
@@ -416,11 +399,13 @@ class EchoServer is TCPConnectionNotify
 
 class SwarmClient is TCPConnectionNotify
   """
-  The client half of a connection. On connect it writes its whole keystream --
-  `messages` payloads of `payload_size` bytes, via `write` or `writev` -- then
-  verifies the echo byte for byte against the same keystream as it comes back.
-  When it has read back everything it sent it closes (gracefully, or muted for a
-  hard close) and reports to the `Spawner` whether the echo verified.
+  The client half of a connection. On connect it writes its
+  whole keystream -- `messages` payloads of `payload_size`
+  bytes, via `write` or `writev` -- then verifies the echo
+  byte for byte against the same keystream as it comes back.
+  When it has read back everything it sent it closes
+  (gracefully, or muted for a hard close) and reports to the
+  Spawner whether the echo verified.
   """
   let _spawner: Spawner
   let _config: _Config
@@ -439,22 +424,35 @@ class SwarmClient is TCPConnectionNotify
     _seed = id.u64()
 
   fun ref connected(conn: TCPConnection ref) =>
+    """
+    Set the expect frame if configured, then write the full
+    keystream payload as `messages` writes or writevs.
+    """
     if _config.expect_frame > 0 then
-      // Unreachable error: expect() errors only when the frame exceeds the
-      // connection's read buffer, and _Config clamps expect_frame to it (both
-      // endpoints are created with read_buffer_size).
-      try conn.expect(_config.expect_frame)? else _Unreachable() end
+      // Unreachable error: expect() errors only when the
+      // frame exceeds the connection's read buffer, and
+      // _Config clamps expect_frame to it (both endpoints are
+      // created with read_buffer_size).
+      try conn.expect(_config.expect_frame)?
+      else _Unreachable()
+      end
     end
 
     var m: USize = 0
     while m < _config.messages do
       if _config.use_writev then
-        // Split across `writev_chunks` buffers to drive the vectored-write path.
-        // Several non-empty iovecs need payload_size >= writev_chunks; a chunk
-        // count above the payload collapses to a single iovec (writev skips the
-        // empty buffers). A chunk count above IOV_MAX drives the multi-batch send.
-        conn.writev(_Keystream.make_chunks(
-          _seed, _sent_total, _config.payload_size, _config.writev_chunks))
+        // Split across `writev_chunks` buffers to drive the
+        // vectored-write path. Several non-empty iovecs need
+        // payload_size >= writev_chunks; a chunk count above
+        // the payload collapses to a single iovec (writev
+        // skips the empty buffers). A chunk count above
+        // IOV_MAX drives the multi-batch send.
+        conn.writev(
+          _Keystream.make_chunks(
+            _seed,
+            _sent_total,
+            _config.payload_size,
+            _config.writev_chunks))
       else
         conn.write(_Keystream.make(_seed, _sent_total, _config.payload_size))
       end
@@ -466,9 +464,16 @@ class SwarmClient is TCPConnectionNotify
       _close(conn)
     end
 
-  fun ref received(conn: TCPConnection ref, data: Array[U8] iso, times: USize)
+  fun ref received(
+    conn: TCPConnection ref,
+    data: Array[U8] iso,
+    times: USize)
     : Bool
   =>
+    """
+    Verify each echoed byte against the keystream oracle. Close
+    the connection once the full echo has been received.
+    """
     let n = data.size()
     try
       var i: USize = 0
@@ -512,13 +517,14 @@ class SwarmClient is TCPConnectionNotify
 
 actor Main
   """
-  Parses the flags into a `_Config`, stands up the echo listener, and starts the
-  run. All the work happens in the `Spawner` and the per-connection notifiers.
+  Parses the flags into a `_Config`, stands up the echo
+  listener, and starts the run.
   """
   new create(env: Env) =>
     let config = _Config(_Flags(env.args))
     let spawner = Spawner(config, TCPConnectAuth(env.root))
-    TCPListener(TCPListenAuth(env.root),
+    TCPListener(
+      TCPListenAuth(env.root),
       SwarmListener(spawner, config),
       config.host,
       config.port,
@@ -529,12 +535,14 @@ actor Main
 
 primitive _Unreachable
   """
-  For a branch the compiler forces us to write but that we know is dead: if it is
-  ever reached, crash with the source location rather than silently continuing on
-  corrupt state.
+  For a branch the compiler requires but that cannot execute:
+  crash with the source location rather than silently
+  continuing on corrupt state.
   """
   fun apply(loc: SourceLoc = __loc) =>
-    @fprintf(@pony_os_stderr(),
+    @fprintf(
+      @pony_os_stderr(),
       "Reached unreachable code at %s:%s\n".cstring(),
-      loc.file().cstring(), loc.line().string().cstring())
+      loc.file().cstring(),
+      loc.line().string().cstring())
     @exit(1)

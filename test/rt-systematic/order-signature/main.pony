@@ -1,18 +1,3 @@
-"""
-Reproducer fixture for the systematic-testing reproducibility check (#5560).
-
-Eight Sender actors each send 64 messages to a single Collector. The arrival
-order is a pure function of the scheduler's interleaving; the Collector folds
-(sender_id, seq) of every arrival into an order-sensitive hash and prints it as
-ORDER_SIG. There is no randomness and no clock reads in the program itself, so
-under systematic testing a seed-deterministic scheduler must print the same
-ORDER_SIG for two runs at the same --ponysystematictestingseed, and different
-seeds must be free to produce different ones.
-
-Driven by .ci-scripts/systematic-testing/determinism_smoke.py, which builds
-a systematic-testing ponyc, compiles this program with it, and asserts that
-property under --ponynoscale. It is not part of the normal test suites.
-"""
 use @printf[I32](fmt: Pointer[U8] tag, ...)
 use @exit[None](status: I32)
 
@@ -28,6 +13,10 @@ actor Main
     end
 
 actor Sender
+  """
+  Sends a numbered sequence of messages to the Collector, one per
+  behavior run, so each send is a scheduler interleaving point.
+  """
   let _collector: Collector
   let _id: USize
   let _total: USize
@@ -50,6 +39,11 @@ actor Sender
     end
 
 actor Collector
+  """
+  Folds every arrival's (sender_id, seq) into an order-sensitive
+  FNV-1a hash and prints the resulting ORDER_SIG when all messages
+  have arrived.
+  """
   let _expected: USize
   var _received: USize = 0
   // FNV-1a-style rolling hash of the arrival order: an interleaving signature
@@ -59,14 +53,19 @@ actor Collector
     _expected = expected
 
   be recv(sender_id: USize, seq: USize) =>
+    """
+    Record one arrival and, when all have arrived, print the
+    ORDER_SIG and exit.
+    """
     _mix(sender_id.u64())
     _mix(seq.u64())
     _received = _received + 1
     if _received == _expected then
-      // Synchronous printf then forced exit. env.out.print is async and would be
-      // lost on @exit. The forced exit also sidesteps the separate shutdown-hang
-      // symptom under systematic testing. The signature is fully computed before
-      // we exit, so the determinism result is unaffected.
+      // Synchronous printf then forced exit. env.out.print is
+      // async and would be lost on @exit. The forced exit also
+      // sidesteps the separate shutdown-hang symptom under
+      // systematic testing. The signature is fully computed
+      // before we exit, so the determinism result is unaffected.
       let line = "RECEIVED=" + _received.string()
         + " ORDER_SIG=" + _sig.string() + "\n"
       @printf("%s".cstring(), line.cstring())
