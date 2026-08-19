@@ -10,22 +10,19 @@ primitive LineLength is ASTRule
   codepoint each. Note that compound emoji (e.g., flag sequences) may count
   as multiple codepoints.
 
-  Lines containing a string literal with no spaces that crosses column 80 are
-  exempt. Such strings (URLs, file paths, identifiers) cannot be meaningfully
-  split, so flagging them produces noise. Strings that contain spaces are not
-  exempt because they can be split at space boundaries using compile-time
-  string concatenation (`+` on string literals) at zero runtime cost.
+  Lines where one of the first two space-delimited words crosses column 80
+  are exempt. A word at position 1 or 2 that starts at or before column 80
+  and extends past it is treated as unbreakable — breaking the line cannot
+  bring the word under 80 columns given realistic indentation. Words deeper
+  in the line (position 3+) can be moved to their own line, so they do not
+  earn an exemption.
 
   Lines inside triple-quoted string literals (non-docstring `\"\"\"` blocks)
   are exempt from the 80-column check. Triple-quoted strings used as data
   (JSON, inline test fixtures, etc.) exist for readability; forcing them to
   wrap defeats their purpose. Lines inside docstrings are not exempt —
-  docstring prose should be wrapped at 80 columns.
-
-  Known limitations:
-  - Does not handle escaped backslashes before quotes. A string ending in a
-    literal backslash (e.g., "path\\\\") may cause incorrect string boundary
-    detection. This limitation is shared with `CommentSpacing`.
+  docstring prose should be wrapped at 80 columns, though the word rule
+  above still applies.
   """
   fun id(): String val => "style/line-length"
   fun category(): String val => "style"
@@ -44,22 +41,18 @@ primitive LineLength is ASTRule
     : Array[Diagnostic val] val
   =>
     """
-    Uses the module AST to identify triple-quoted string literals and
-    docstrings, then checks lines for the 80-column limit. String
-    literal content lines are fully exempt; docstring content lines
-    skip the no-space string exemption so that long quoted identifiers
-    in prose are still flagged.
+    Uses the module AST to identify triple-quoted string literals,
+    then checks lines for the 80-column limit. String literal content
+    lines are fully exempt.
     """
     let visitor = _StringLiteralVisitor(source)
     module_ast.visit(visitor)
     let exempt_lines = _collect_lines(visitor.literal_ranges())
-    let docstring_lines = _collect_lines(visitor.docstring_ranges())
-    check_text(source, exempt_lines, docstring_lines)
+    check_text(source, exempt_lines)
 
   fun check_text(
     source: SourceFile val,
-    exempt_lines: Set[USize] val = recover val Set[USize] end,
-    docstring_lines: Set[USize] val = recover val Set[USize] end)
+    exempt_lines: Set[USize] val = recover val Set[USize] end)
     : Array[Diagnostic val] val
   =>
     recover val
@@ -71,15 +64,7 @@ primitive LineLength is ASTRule
           if exempt_lines.contains(line_no) then
             continue
           end
-          let exempt =
-            if docstring_lines.contains(line_no) then
-              false
-            elseif _count_triple_quotes(line) == 0 then
-              _has_exempt_string(line)
-            else
-              false
-            end
-          if not exempt then
+          if not _has_exempt_word(line) then
             result.push(Diagnostic(
               id(),
               "line exceeds 80 columns (" + cp_count.string() + ")",
@@ -103,102 +88,62 @@ primitive LineLength is ASTRule
     end
     consume lines
 
-  fun _count_triple_quotes(line: String val): USize =>
+  fun _has_exempt_word(line: String val): Bool =>
     """
-    Count non-overlapping occurrences of `\"\"\"` on a line, scanning
-    left to right.
+    True when one of the first two space-delimited words on the line
+    crosses column 80 — starts at or before column 80 and extends past
+    it. Only the first two words qualify because a long word later on
+    the line can be moved to its own line where it would be exempt.
     """
-    var count: USize = 0
-    var i: USize = 0
-    let size = line.size()
-    while (i + 2) < size do
-      try
-        if (line(i)? == '"') and (line(i + 1)? == '"')
-          and (line(i + 2)? == '"')
-        then
-          count = count + 1
-          i = i + 3
-        else
-          i = i + 1
-        end
-      else
-        _Unreachable()
-        i = i + 1
-      end
-    end
-    count
-
-  fun _has_exempt_string(line: String val): Bool =>
-    """
-    Check whether the line contains a string literal with no spaces that
-    crosses column 80 (starts at or before column 80, ends after column 80).
-
-    Scans byte-by-byte, tracking codepoint position (1-indexed) and toggling
-    an in-string flag on each unescaped double-quote. Triple-quote sequences
-    are defensively skipped (caller already filters triple-quote lines).
-    """
-    var in_string = false
+    var in_word = false
     var i: USize = 0
     let size = line.size()
     var cp_pos: USize = 0
-    var string_start_cp: USize = 0
-    var string_has_space: Bool = false
+    var word_start_cp: USize = 0
+    var word_count: USize = 0
 
     while i < size do
       try
         let byte = line(i)?
 
-        // Track codepoint position: increment on each codepoint-start byte
         if (byte and 0xC0) != 0x80 then
           cp_pos = cp_pos + 1
         end
 
-        if byte == '"' then
-          if (i == 0) or (line(i - 1)? != '\\') then
-            if not in_string then
-              // Defensive triple-quote skip
-              if ((i + 2) < size) and (line(i + 1)? == '"')
-                and (line(i + 2)? == '"')
-              then
-                i = i + 3
-                continue
-              end
-              in_string = true
-              string_start_cp = cp_pos
-              string_has_space = false
-            else
-              // String closing
-              if (string_start_cp <= 80) and (cp_pos > 80)
-                and (not string_has_space)
-              then
-                return true
-              end
-              in_string = false
-            end
+        if byte == ' ' then
+          if in_word and (word_start_cp <= 80)
+            and ((cp_pos - 1) > 80)
+          then
+            return true
           end
-        elseif in_string and (byte == ' ') then
-          string_has_space = true
+          in_word = false
+        elseif not in_word then
+          word_count = word_count + 1
+          if word_count > 2 then return false end
+          word_start_cp = cp_pos
+          in_word = true
         end
       else
         _Unreachable()
       end
       i = i + 1
     end
-    false
+
+    in_word and (word_count <= 2)
+      and (word_start_cp <= 80) and (cp_pos > 80)
 
 class ref _StringLiteralVisitor is ast.ASTVisitor
   """
-  Walks the AST collecting line ranges of triple-quoted strings,
-  separated into non-docstring literals and docstrings.
+  Walks the AST collecting line ranges of non-docstring triple-quoted
+  string literals. Docstrings are identified and excluded — their
+  content lines go through the normal line-length check.
   """
   let _source: SourceFile val
   let _literal_ranges: Array[(USize, USize)]
-  let _docstring_ranges: Array[(USize, USize)]
 
   new ref create(source: SourceFile val) =>
     _source = source
     _literal_ranges = Array[(USize, USize)]
-    _docstring_ranges = Array[(USize, USize)]
 
   fun ref visit(node: ast.AST box): ast.VisitResult =>
     if node.id() != ast.TokenIds.tk_string() then
@@ -216,26 +161,14 @@ class ref _StringLiteralVisitor is ast.ASTVisitor
       else
         start_line
       end
-    if end_line > start_line then
-      if _is_docstring(node) then
-        _docstring_ranges.push((start_line, end_line))
-      else
-        _literal_ranges.push((start_line, end_line))
-      end
+    if (end_line > start_line) and (not _is_docstring(node)) then
+      _literal_ranges.push((start_line, end_line))
     end
     ast.Continue
 
   fun literal_ranges(): Array[(USize, USize)] val =>
-    _copy_ranges(_literal_ranges)
-
-  fun docstring_ranges(): Array[(USize, USize)] val =>
-    _copy_ranges(_docstring_ranges)
-
-  fun _copy_ranges(src: Array[(USize, USize)] box)
-    : Array[(USize, USize)] val
-  =>
     let result = recover iso Array[(USize, USize)] end
-    for r in src.values() do
+    for r in _literal_ranges.values() do
       result.push(r)
     end
     consume result

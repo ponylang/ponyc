@@ -14,11 +14,18 @@ class \nodoc\ _TestLineLengthExactly80 is UnitTest
     h.assert_eq[USize](0, diags.size())
 
 class \nodoc\ _TestLineLengthOver80 is UnitTest
-  """Line of 81+ characters triggers with column 81."""
+  """Breakable line of 81+ characters is flagged at column 81."""
   fun name(): String => "LineLength: over 80 chars -> diagnostic"
 
   fun apply(h: TestHelper) =>
-    let line = recover val String .> append("a".mul(95)) end
+    // Space at col 80 so neither word crosses the boundary.
+    let line: String val =
+      recover val
+        String
+          .> append("a".mul(79))
+          .> append(" ")
+          .> append("a".mul(15))
+      end
     let sf = lint.SourceFile("/tmp/t.pony", line, "/tmp")
     let diags = lint.LineLength.check_text(sf)
     h.assert_eq[USize](1, diags.size())
@@ -56,8 +63,8 @@ class \nodoc\ _TestLineLengthEmptyLine is UnitTest
 class \nodoc\ _TestLineLengthProperty is UnitTest
   """
   Property: lines <= 80 codepoints never produce diagnostics;
-  lines > 80 codepoints always do (when the line contains no string
-  literals — the ASCIILetters generator never produces `"`).
+  breakable lines > 80 codepoints (where no single word crosses
+  column 80) always do.
   """
   fun name(): String =>
     "LineLength: property - short lines OK, long lines flagged"
@@ -77,26 +84,33 @@ class \nodoc\ _TestLineLengthProperty is UnitTest
           ph.assert_eq[USize](0, diags.size())
         end
       })?
-    // Lines over 80 chars always produce diagnostics
-    PonyCheck.for_all[String](
-      recover val Generators.ascii(where min = 81, max = 120,
-        range = ASCIILetters) end, h)(
-      {(content: String, ph: PropertyHelper) =>
-        // ASCIILetters has no whitespace, so no newlines or \r
-        let sf =
-          lint.SourceFile("/tmp/t.pony", content, "/tmp")
+    // Space at column 80 ensures neither word crosses the boundary.
+    PonyCheck.for_all[USize](
+      recover val Generators.usize(where min = 81, max = 120) end, h)(
+      {(n: USize, ph: PropertyHelper) =>
+        let line: String val =
+          recover val
+            String
+              .> append("a".mul(79))
+              .> append(" ")
+              .> append("b".mul(n - 80))
+          end
+        let sf = lint.SourceFile("/tmp/t.pony", line, "/tmp")
         let diags = lint.LineLength.check_text(sf)
         ph.assert_eq[USize](1, diags.size())
       })?
 
-class \nodoc\ _TestLineLengthStringExemptNoSpaces is UnitTest
-  """No-space string crossing column 80 is exempt."""
+class \nodoc\ _TestLineLengthStringNoSpacesFlagged is UnitTest
+  """
+  No-space string crossing column 80 is flagged when not among the
+  first two words — the line can be broken before the string.
+  """
   fun name(): String =>
-    "LineLength: no-space string crossing col 80 -> exempt"
+    "LineLength: no-space string crossing col 80 -> flagged"
 
   fun apply(h: TestHelper) =>
-    // 4 spaces + `let x = "` = 13 chars prefix, then 70 'a's + `"`
-    // String starts at col 14, ends at col 84. No spaces -> exempt.
+    // `    let x = "` = 13 chars prefix, then 70 'a's + `"`
+    // The string word `"aaa..."` is at word position 4 (let, x, =, "aaa...").
     let line: String val =
       recover val
         String
@@ -107,21 +121,26 @@ class \nodoc\ _TestLineLengthStringExemptNoSpaces is UnitTest
     h.assert_true(line.codepoints() > 80)
     let sf = lint.SourceFile("/tmp/t.pony", line, "/tmp")
     let diags = lint.LineLength.check_text(sf)
-    h.assert_eq[USize](0, diags.size())
+    h.assert_eq[USize](1, diags.size())
 
 class \nodoc\ _TestLineLengthStringNotExemptSpaces is UnitTest
-  """String with spaces crossing column 80 is not exempt."""
+  """
+  String with spaces crossing column 80 is flagged — no word among
+  the first two crosses the boundary.
+  """
   fun name(): String =>
     "LineLength: string with spaces crossing col 80 -> flagged"
 
   fun apply(h: TestHelper) =>
+    // Prefix is 13 chars. The string is at word position 4 (let, x,
+    // =, "aaa..."). Not among first two words.
     let line: String val =
       recover val
         String
           .> append("    let x = \"")
-          .> append("a".mul(30))
+          .> append("a".mul(67))
           .> append(" ")
-          .> append("a".mul(39))
+          .> append("a".mul(10))
           .> append("\"")
       end
     h.assert_true(line.codepoints() > 80)
@@ -135,13 +154,16 @@ class \nodoc\ _TestLineLengthStringBeforeCol80 is UnitTest
     "LineLength: string before col 80 -> flagged"
 
   fun apply(h: TestHelper) =>
-    // Short string at beginning, then lots of trailing code
+    // Short string then breakable trailing content. Prefix
+    // `    let x = "short" + ` is 22 chars. 57 a's fill cols 23-79,
+    // space at col 80, 10 a's at cols 81-90. No word crosses col 80.
     let line: String val =
       recover val
         String
-          .> append("    let x = \"short\"")
-          .> append(" + ")
-          .> append("a".mul(70))
+          .> append("    let x = \"short\" + ")
+          .> append("a".mul(57))
+          .> append(" ")
+          .> append("a".mul(10))
       end
     h.assert_true(line.codepoints() > 80)
     let sf = lint.SourceFile("/tmp/t.pony", line, "/tmp")
@@ -154,12 +176,13 @@ class \nodoc\ _TestLineLengthStringAfterCol80 is UnitTest
     "LineLength: string starts after col 80 -> flagged"
 
   fun apply(h: TestHelper) =>
-    // 82 chars of code, then a short string
+    // Breakable code then a short string after col 80. 79 a's fill
+    // cols 1-79, space at col 80, `aa"url"` at cols 81-87.
     let line: String val =
       recover val
         String
-          .> append("a".mul(82))
-          .> append("\"url\"")
+          .> append("a".mul(79))
+          .> append(" aa\"url\"")
       end
     h.assert_true(line.codepoints() > 80)
     let sf = lint.SourceFile("/tmp/t.pony", line, "/tmp")
@@ -188,16 +211,13 @@ class \nodoc\ _TestLineLengthStringEndsAtCol80 is UnitTest
 
 class \nodoc\ _TestLineLengthDocstringNoExempt is UnitTest
   """
-  Long line inside a triple-quoted block gets the single-line string
-  exemption when checked via text-only check_text (no AST context).
-
-  The docstring-vs-literal distinction is handled by the AST layer
-  (check_module), not check_text. This test verifies that check_text
-  applies the no-space string exemption uniformly, including inside
-  triple-quoted blocks.
+  Long line inside a triple-quoted block with a no-space string is
+  flagged when checked via text-only check_text (no AST context).
+  The string is at word position 4 (let, x, =, string), so the
+  first-two-words exemption does not apply.
   """
   fun name(): String =>
-    "LineLength: triple-quote content with no-space string -> exempt"
+    "LineLength: triple-quote content with no-space string -> flagged"
 
   fun apply(h: TestHelper) =>
     let content: String val =
@@ -211,15 +231,18 @@ class \nodoc\ _TestLineLengthDocstringNoExempt is UnitTest
       end
     let sf = lint.SourceFile("/tmp/t.pony", content, "/tmp")
     let diags = lint.LineLength.check_text(sf)
-    h.assert_eq[USize](0, diags.size())
+    h.assert_eq[USize](1, diags.size())
 
-class \nodoc\ _TestLineLengthMultipleStringsOneExempt is UnitTest
-  """Two strings on one line; second one qualifies for exemption."""
+class \nodoc\ _TestLineLengthMultipleStringsFlagged is UnitTest
+  """
+  Two strings on one line; the long one is at word position 3+, so
+  the line is flagged.
+  """
   fun name(): String =>
-    "LineLength: second string qualifies -> exempt"
+    "LineLength: long string at word 3+ -> flagged"
 
   fun apply(h: TestHelper) =>
-    // Short string with spaces, then a long no-space string crossing 80
+    // `    f("a` is word 1, `b",` is word 2, `"xxx...")` is word 3.
     let line: String val =
       recover val
         String
@@ -230,15 +253,18 @@ class \nodoc\ _TestLineLengthMultipleStringsOneExempt is UnitTest
     h.assert_true(line.codepoints() > 80)
     let sf = lint.SourceFile("/tmp/t.pony", line, "/tmp")
     let diags = lint.LineLength.check_text(sf)
-    h.assert_eq[USize](0, diags.size())
+    h.assert_eq[USize](1, diags.size())
 
-class \nodoc\ _TestLineLengthEscapedQuotes is UnitTest
-  """String with escaped quotes inside, crossing col 80."""
+class \nodoc\ _TestLineLengthEscapedQuotesFlagged is UnitTest
+  """
+  String with escaped quotes inside, crossing col 80 — flagged
+  because the string is at word position 4.
+  """
   fun name(): String =>
-    "LineLength: escaped quotes in string -> exempt"
+    "LineLength: escaped quotes in string -> flagged"
 
   fun apply(h: TestHelper) =>
-    // String contains \" inside but no spaces, crosses col 80
+    // String at word position 4 (let, x, =, "abc\"def...").
     let line: String val =
       recover val
         String
@@ -249,7 +275,7 @@ class \nodoc\ _TestLineLengthEscapedQuotes is UnitTest
     h.assert_true(line.codepoints() > 80)
     let sf = lint.SourceFile("/tmp/t.pony", line, "/tmp")
     let diags = lint.LineLength.check_text(sf)
-    h.assert_eq[USize](0, diags.size())
+    h.assert_eq[USize](1, diags.size())
 
 class \nodoc\ _TestLineLengthTripleQuoteLineNoExempt is UnitTest
   """Long line containing triple-quote delimiter is not eligible."""
@@ -257,25 +283,29 @@ class \nodoc\ _TestLineLengthTripleQuoteLineNoExempt is UnitTest
     "LineLength: triple-quote delimiter line -> flagged"
 
   fun apply(h: TestHelper) =>
+    // `  """` is 5 chars. 74 a's fill cols 6-79, space at col 80,
+    // 5 a's at cols 81-85. No word crosses col 80.
     let line: String val =
       recover val
         String
           .> append("  \"\"\"")
-          .> append("a".mul(80))
+          .> append("a".mul(74))
+          .> append(" ")
+          .> append("a".mul(5))
       end
     h.assert_true(line.codepoints() > 80)
     let sf = lint.SourceFile("/tmp/t.pony", line, "/tmp")
     let diags = lint.LineLength.check_text(sf)
     h.assert_eq[USize](1, diags.size())
 
-class \nodoc\ _TestLineLengthStringExemptUTF8 is UnitTest
-  """Multi-byte UTF-8 in string; codepoint counting is correct."""
+class \nodoc\ _TestLineLengthStringUTF8Flagged is UnitTest
+  """Multi-byte UTF-8 in string at word position 4 is flagged."""
   fun name(): String =>
-    "LineLength: UTF-8 string crossing col 80 -> exempt"
+    "LineLength: UTF-8 string crossing col 80 -> flagged"
 
   fun apply(h: TestHelper) =>
-    // 13 prefix + string with multi-byte chars crossing col 80
-    // "é" is 2 bytes but 1 codepoint
+    // String at word position 4 (let, x, =, "éé..."). 13 prefix +
+    // 35 é + 35 a + 1 closing quote = 84 codepoints.
     let line: String val =
       recover val
         String
@@ -284,20 +314,19 @@ class \nodoc\ _TestLineLengthStringExemptUTF8 is UnitTest
           .> append("a".mul(35))
           .> append("\"")
       end
-    // 13 + 35 + 35 + 1 = 84 codepoints
     h.assert_true(line.codepoints() > 80)
     let sf = lint.SourceFile("/tmp/t.pony", line, "/tmp")
     let diags = lint.LineLength.check_text(sf)
-    h.assert_eq[USize](0, diags.size())
+    h.assert_eq[USize](1, diags.size())
 
-class \nodoc\ _TestLineLengthStringExemptProperty is UnitTest
+class \nodoc\ _TestLineLengthStringFlaggedWhenDeepProperty is UnitTest
   """
-  Property: a line with a no-space string crossing column 80 is always
-  exempt. String length ranges from 67 to 200, ensuring the string
-  always crosses column 80 (prefix is 14 codepoints including quotes).
+  Property: a no-space string at word position 4 is always flagged
+  regardless of length. The string crosses column 80 but is not among
+  the first two words (let, x, =, string).
   """
   fun name(): String =>
-    "LineLength: property - no-space strings always exempt"
+    "LineLength: property - deep no-space strings always flagged"
 
   fun apply(h: TestHelper) ? =>
     let gen =
@@ -313,32 +342,31 @@ class \nodoc\ _TestLineLengthStringExemptProperty is UnitTest
           end
         let sf = lint.SourceFile("/tmp/t.pony", line, "/tmp")
         let diags = lint.LineLength.check_text(sf)
-        ph.assert_eq[USize](0, diags.size())
+        ph.assert_eq[USize](1, diags.size())
       })?
 
 class \nodoc\ _TestLineLengthStringFlaggedProperty is UnitTest
   """
-  Property: a line with a space-containing string crossing column 80 is
-  always flagged. Same construction as the exempt property but one
-  character is replaced with a space.
+  Property: a space-containing string crossing column 80 is always
+  flagged — no word among the first two crosses the boundary.
   """
   fun name(): String =>
-    "LineLength: property - space strings always flagged"
+    "LineLength: property - breakable strings always flagged"
 
   fun apply(h: TestHelper) ? =>
     let gen =
-      recover val Generators.usize(where min = 67, max = 200) end
+      recover val Generators.usize(where min = 1, max = 134) end
     PonyCheck.for_all[USize](gen, h)(
-      {(str_len: USize, ph: PropertyHelper) =>
-        // Put a space in the middle of the string
-        let half = str_len / 2
+      {(n2: USize, ph: PropertyHelper) =>
+        // Prefix `    let x = "` = 13 chars. The string is at word
+        // position 4 (let, x, =, "aaa...").
         let line: String val =
           recover val
             String
               .> append("    let x = \"")
-              .> append("a".mul(half))
+              .> append("a".mul(67))
               .> append(" ")
-              .> append("a".mul(str_len - half - 1))
+              .> append("a".mul(n2))
               .> append("\"")
           end
         let sf = lint.SourceFile("/tmp/t.pony", line, "/tmp")
@@ -376,15 +404,23 @@ class \nodoc\ _TestLineLengthASTStringLiteralExempt is UnitTest
 
 class \nodoc\ _TestLineLengthASTDocstringNotExempt is UnitTest
   """
-  Lines inside a docstring are NOT exempt from the 80-column check.
-  The AST-based check_module recognizes docstrings and does not add
-  their lines to the exempt set.
+  Lines inside a docstring are NOT exempt from the 80-column check
+  when the overflow is caused by breakable prose (no single word
+  crosses column 80).
   """
   fun name(): String =>
     "LineLength: AST docstring lines not exempt"
 
   fun apply(h: TestHelper) ? =>
-    let long_content = recover val String .> append("a".mul(100)) end
+    // 77 a's + space + 23 a's = 101 chars. With 2-space indent the
+    // space falls at col 80, so neither word crosses the boundary.
+    let long_content =
+      recover val
+        String
+          .> append("a".mul(77))
+          .> append(" ")
+          .> append("a".mul(23))
+      end
     let source: String val =
       recover val
         String
@@ -408,14 +444,23 @@ class \nodoc\ _TestLineLengthASTDocstringNotExempt is UnitTest
 
 class \nodoc\ _TestLineLengthASTMethodDocstringNotExempt is UnitTest
   """
-  Lines inside a method-body docstring are NOT exempt. The AST
-  identifies child 0 of the body TK_SEQ under a method as a docstring.
+  Lines inside a method-body docstring are NOT exempt when the
+  overflow is breakable prose. The AST identifies child 0 of the body
+  TK_SEQ under a method as a docstring.
   """
   fun name(): String =>
     "LineLength: AST method-body docstring lines not exempt"
 
   fun apply(h: TestHelper) ? =>
-    let long_content = recover val String .> append("a".mul(100)) end
+    // 75 a's + space + 25 a's = 101 chars. With 4-space indent the
+    // space falls at col 80, so neither word crosses the boundary.
+    let long_content =
+      recover val
+        String
+          .> append("a".mul(75))
+          .> append(" ")
+          .> append("a".mul(25))
+      end
     let source: String val =
       recover val
         String
@@ -440,14 +485,23 @@ class \nodoc\ _TestLineLengthASTMethodDocstringNotExempt is UnitTest
 
 class \nodoc\ _TestLineLengthASTModuleDocstringNotExempt is UnitTest
   """
-  Lines inside a module-level docstring are NOT exempt. The AST
-  identifies child 0 of the module as the package docstring.
+  Lines inside a module-level docstring are NOT exempt when the
+  overflow is breakable prose. The AST identifies child 0 of the
+  module as the package docstring.
   """
   fun name(): String =>
     "LineLength: AST module-level docstring lines not exempt"
 
   fun apply(h: TestHelper) ? =>
-    let long_content = recover val String .> append("a".mul(100)) end
+    // 79 a's + space + 21 a's = 101 chars. No indent, so the space
+    // falls at col 80 and neither word crosses the boundary.
+    let long_content =
+      recover val
+        String
+          .> append("a".mul(79))
+          .> append(" ")
+          .> append("a".mul(21))
+      end
     let source: String val =
       recover val
         String
@@ -469,14 +523,13 @@ class \nodoc\ _TestLineLengthASTModuleDocstringNotExempt is UnitTest
       h.fail("could not access diagnostic")
     end
 
-class \nodoc\ _TestLineLengthASTDocstringQuotedIdFlagged is UnitTest
+class \nodoc\ _TestLineLengthASTDocstringQuotedIdExempt is UnitTest
   """
   A docstring line with a quoted identifier (no spaces) crossing column
-  80 is still flagged. The no-space string exemption does not apply
-  inside docstrings because quoted text in prose is not a string literal.
+  80 is exempt. The quoted identifier is an unbreakable word.
   """
   fun name(): String =>
-    "LineLength: AST docstring quoted identifier -> flagged"
+    "LineLength: AST docstring quoted identifier -> exempt"
 
   fun apply(h: TestHelper) ? =>
     let long_name =
@@ -495,34 +548,74 @@ class \nodoc\ _TestLineLengthASTDocstringQuotedIdFlagged is UnitTest
       (program.package() as ast.Package).module()
         as ast.Module
     let diags = lint.LineLength.check_module(mod_ast.ast, sf)
-    h.assert_eq[USize](1, diags.size())
-    try
-      h.assert_eq[USize](3, diags(0)?.line)
-    else
-      h.fail("could not access diagnostic")
-    end
+    h.assert_eq[USize](0, diags.size())
 
-class \nodoc\ _TestLineLengthASTMixedDocstringAndLiteral is UnitTest
+class \nodoc\ _TestLineLengthASTDocstringURLExempt is UnitTest
   """
-  A file with both a docstring and a string literal, each containing
-  long lines. Only the docstring's long line should be flagged.
+  A docstring line with a URL crossing column 80 is exempt. The URL
+  is an unbreakable word, even though docstring prose is normally held
+  to the 80-column limit.
   """
   fun name(): String =>
-    "LineLength: AST mixed docstring and literal"
+    "LineLength: AST docstring URL -> exempt"
 
   fun apply(h: TestHelper) ? =>
-    let long_content = recover val String .> append("a".mul(100)) end
+    // The markdown link token `[RFC-0038](...md)` is 78 chars and
+    // starts at col 7 (after `  See `), ending at col 84 — it crosses
+    // col 80, so the word exemption applies.
     let source: String val =
       recover val
         String
           .> append("primitive Foo\n")
           .> append("  \"\"\"\n")
-          .> append("  " + long_content + "\n")
+          .> append("  See [RFC-0038](https://github.com/")
+          .> append("ponylang/rfcs/blob/main/text/")
+          .> append("0038-cli-format.md)")
+          .> append(" for more background.\n")
+          .> append("  \"\"\"\n")
+          .> append("  fun apply(): None => None")
+      end
+    (let program, let sf) = _ASTTestHelper.compile(h, source)?
+    let mod_ast =
+      (program.package() as ast.Package).module()
+        as ast.Module
+    let diags = lint.LineLength.check_module(mod_ast.ast, sf)
+    h.assert_eq[USize](0, diags.size())
+
+class \nodoc\ _TestLineLengthASTMixedDocstringAndLiteral is UnitTest
+  """
+  A file with both a docstring and a string literal, each containing
+  long lines. Only the docstring's long line should be flagged (the
+  string literal is exempt via the AST). The docstring content uses
+  breakable prose so the word exemption does not apply.
+  """
+  fun name(): String =>
+    "LineLength: AST mixed docstring and literal"
+
+  fun apply(h: TestHelper) ? =>
+    // Docstring at 2-space indent: 77 a's + space + 23 a's = 101 chars.
+    // Space at col 80 so neither word crosses the boundary.
+    let ds_content =
+      recover val
+        String
+          .> append("a".mul(77))
+          .> append(" ")
+          .> append("a".mul(23))
+      end
+    // String literal content can be anything — it's exempt via AST.
+    let lit_content =
+      recover val String .> append("a".mul(100)) end
+    let source: String val =
+      recover val
+        String
+          .> append("primitive Foo\n")
+          .> append("  \"\"\"\n")
+          .> append("  " + ds_content + "\n")
           .> append("  \"\"\"\n")
           .> append("  fun apply(): String =>\n")
           .> append("    let x: String =\n")
           .> append("      \"\"\"\n")
-          .> append("      " + long_content + "\n")
+          .> append("      " + lit_content + "\n")
           .> append("      \"\"\"\n")
           .> append("    x")
       end
@@ -537,3 +630,198 @@ class \nodoc\ _TestLineLengthASTMixedDocstringAndLiteral is UnitTest
     else
       h.fail("could not access diagnostic")
     end
+
+class \nodoc\ _TestLineLengthWordExemptCommentURL is UnitTest
+  """
+  A URL as the only content in a comment is exempt. The URL is word 2,
+  so the first-two-words exemption applies.
+  """
+  fun name(): String =>
+    "LineLength: URL alone in comment -> exempt"
+
+  fun apply(h: TestHelper) =>
+    // URL is word 2 (after //), 78 chars, starts at col 4, ends at
+    // col 81. Crosses col 80. Total line: 81 codepoints.
+    let line: String val =
+      recover val
+        String
+          .> append("// https://docs.microsoft.com")
+          .> append("/de-de/windows/desktop/Debug/")
+          .> append("system-error-codes-list")
+      end
+    h.assert_eq[USize](81, line.codepoints())
+    let sf = lint.SourceFile("/tmp/t.pony", line, "/tmp")
+    let diags = lint.LineLength.check_text(sf)
+    h.assert_eq[USize](0, diags.size())
+
+class \nodoc\ _TestLineLengthWordFlaggedCommentURL is UnitTest
+  """
+  A URL in a comment with text before it (word 3+) is flagged.
+  The text and URL can go on separate lines.
+  """
+  fun name(): String =>
+    "LineLength: URL after text in comment -> flagged"
+
+  fun apply(h: TestHelper) =>
+    // URL is word 3 (after // and see:). Total: 86 codepoints.
+    let line: String val =
+      recover val
+        String
+          .> append("// see: https://docs.microsoft.com")
+          .> append("/de-de/windows/desktop/Debug/")
+          .> append("system-error-codes-list")
+      end
+    h.assert_eq[USize](86, line.codepoints())
+    let sf = lint.SourceFile("/tmp/t.pony", line, "/tmp")
+    let diags = lint.LineLength.check_text(sf)
+    h.assert_eq[USize](1, diags.size())
+
+class \nodoc\ _TestLineLengthWordThirdWordCrossingFlagged is UnitTest
+  """
+  Word 3 crosses column 80 but the exemption only covers the first
+  two words, so the line is flagged.
+  """
+  fun name(): String =>
+    "LineLength: word 3 crosses col 80 -> flagged"
+
+  fun apply(h: TestHelper) =>
+    // "ab cd " (6 chars) + 77 e's = 83 codepoints.
+    // Word 1 = "ab" (cols 1-2), word 2 = "cd" (cols 4-5),
+    // word 3 = 77 e's (cols 7-83). Word 3 crosses col 80,
+    // but word_count > 2 so it returns false. Flagged.
+    let line: String val =
+      recover val
+        String
+          .> append("ab cd ")
+          .> append("e".mul(77))
+      end
+    h.assert_eq[USize](83, line.codepoints())
+    let sf = lint.SourceFile("/tmp/t.pony", line, "/tmp")
+    let diags = lint.LineLength.check_text(sf)
+    h.assert_eq[USize](1, diags.size())
+
+class \nodoc\ _TestLineLengthWordExemptLongWord is UnitTest
+  """
+  A long word as the second word in a comment crossing column 80 is
+  exempt.
+  """
+  fun name(): String =>
+    "LineLength: long word as word 2 crossing col 80 -> exempt"
+
+  fun apply(h: TestHelper) =>
+    let line: String val =
+      recover val
+        String
+          .> append("// ")
+          .> append("a".mul(80))
+      end
+    h.assert_true(line.codepoints() > 80)
+    let sf = lint.SourceFile("/tmp/t.pony", line, "/tmp")
+    let diags = lint.LineLength.check_text(sf)
+    h.assert_eq[USize](0, diags.size())
+
+class \nodoc\ _TestLineLengthWordNotExemptShortWords is UnitTest
+  """
+  A line over 80 columns where every word ends at or before column
+  80 is flagged. No single word crosses the boundary.
+  """
+  fun name(): String =>
+    "LineLength: short words totaling > 80 -> flagged"
+
+  fun apply(h: TestHelper) =>
+    let line: String val =
+      recover val
+        String
+          .> append("a".mul(79))
+          .> append(" ")
+          .> append("b".mul(10))
+      end
+    h.assert_eq[USize](90, line.codepoints())
+    let sf = lint.SourceFile("/tmp/t.pony", line, "/tmp")
+    let diags = lint.LineLength.check_text(sf)
+    h.assert_eq[USize](1, diags.size())
+
+class \nodoc\ _TestLineLengthWordAtCol80Exempt is UnitTest
+  """
+  A word starting at exactly column 80 and extending past it is exempt.
+  """
+  fun name(): String =>
+    "LineLength: word starting at col 80 -> exempt"
+
+  fun apply(h: TestHelper) =>
+    // 79 spaces + "ab": word starts at col 80, ends at col 81.
+    let line: String val =
+      recover val
+        String
+          .> append(" ".mul(79))
+          .> append("ab")
+      end
+    h.assert_eq[USize](81, line.codepoints())
+    let sf = lint.SourceFile("/tmp/t.pony", line, "/tmp")
+    let diags = lint.LineLength.check_text(sf)
+    h.assert_eq[USize](0, diags.size())
+
+class \nodoc\ _TestLineLengthWordAtCol81NotExempt is UnitTest
+  """
+  A word starting at column 81 does not cross the boundary; the line
+  is flagged.
+  """
+  fun name(): String =>
+    "LineLength: word starting at col 81 -> flagged"
+
+  fun apply(h: TestHelper) =>
+    // 80 spaces + "ab": word starts at col 81, does not cross col 80.
+    let line: String val =
+      recover val
+        String
+          .> append(" ".mul(80))
+          .> append("ab")
+      end
+    h.assert_eq[USize](82, line.codepoints())
+    let sf = lint.SourceFile("/tmp/t.pony", line, "/tmp")
+    let diags = lint.LineLength.check_text(sf)
+    h.assert_eq[USize](1, diags.size())
+
+class \nodoc\ _TestLineLengthWordExemptProperty is UnitTest
+  """
+  Property: a line with a single word crossing column 80 is always
+  exempt, regardless of the word's length.
+  """
+  fun name(): String =>
+    "LineLength: property - single word crossing col 80 exempt"
+
+  fun apply(h: TestHelper) ? =>
+    let gen =
+      recover val Generators.usize(where min = 81, max = 200) end
+    PonyCheck.for_all[USize](gen, h)(
+      {(n: USize, ph: PropertyHelper) =>
+        let line: String val =
+          recover val String .> append("a".mul(n)) end
+        ph.assert_true(line.codepoints() > 80)
+        let sf = lint.SourceFile("/tmp/t.pony", line, "/tmp")
+        let diags = lint.LineLength.check_text(sf)
+        ph.assert_eq[USize](0, diags.size())
+      })?
+
+class \nodoc\ _TestLineLengthWordExemptUTF8 is UnitTest
+  """
+  A comment containing a long multi-byte UTF-8 word crossing column 80
+  is exempt.
+  """
+  fun name(): String =>
+    "LineLength: UTF-8 word in comment crossing col 80 -> exempt"
+
+  fun apply(h: TestHelper) =>
+    // Each char is 3 bytes (U+3042 hiragana "a"), 1 codepoint.
+    // "// " is 3 chars; 78 hiragana chars puts last char at col 81.
+    let hiragana = String.from_utf32(0x3042)
+    let line: String val =
+      recover val
+        String
+          .> append("// ")
+          .> append(hiragana.mul(78))
+      end
+    h.assert_true(line.codepoints() > 80)
+    let sf = lint.SourceFile("/tmp/t.pony", line, "/tmp")
+    let diags = lint.LineLength.check_text(sf)
+    h.assert_eq[USize](0, diags.size())
