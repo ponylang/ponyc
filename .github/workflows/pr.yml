@@ -388,7 +388,7 @@ jobs:
       - name: Lint pony-lsp
         run: cd build/debug && PONYPATH=../../tools/lib/ponylang/pony_compiler ./pony-lint ../../tools/pony-lsp/
       - name: Lint examples
-        run: cd build/debug && PONYPATH=../../packages ./pony-lint ../../examples/
+        run: cd build/debug && ./pony-lint ../../examples/
       - name: Lint test
         run: cd build/debug && ./pony-lint ../../test/
       - name: Lint pony-compiler
