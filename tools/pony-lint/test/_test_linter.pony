@@ -73,7 +73,10 @@ class \nodoc\ _TestLinterSingleFile is UnitTest
         FilePath(
           FileAuth(auth), Path.join(tmp.path, "test.pony"))
       let file = File(pony_file)
-      let long_line = recover val String .> append("a".mul(100)) end
+      let long_line =
+        recover val
+          String .> append("a".mul(72)) .> append(" ") .> append("a".mul(27))
+        end
       _WriteLongPony(file, long_line)
       file.dispose()
 
@@ -165,7 +168,10 @@ class \nodoc\ _TestLinterSkipsCorral is UnitTest
         FilePath(
           FileAuth(auth), Path.join(corral_dir.path, "dep.pony"))
       let file = File(corral_file)
-      let long_line = recover val String .> append("a".mul(100)) end
+      let long_line =
+        recover val
+          String .> append("a".mul(72)) .> append(" ") .> append("a".mul(27))
+        end
       _WriteLongPony(file, long_line)
       file.dispose()
 
@@ -200,7 +206,10 @@ class \nodoc\ _TestLinterSuppressedDiagnosticsFiltered is UnitTest
         FilePath(
           FileAuth(auth), Path.join(tmp.path, "test.pony"))
       let file = File(pony_file)
-      let long_line = recover val String .> append("a".mul(100)) end
+      let long_line =
+        recover val
+          String .> append("a".mul(72)) .> append(" ") .> append("a".mul(27))
+        end
       let content: String val =
         recover val
           String
@@ -239,8 +248,13 @@ class \nodoc\ _TestLinterDiagnosticsSorted is UnitTest
     let auth = h.env.root
     try
       let tmp = FilePath.mkdtemp(FileAuth(auth), "pony-lint-test")?
-      // Create two files with violations — sorted order by filename
-      let long_line = recover val String .> append("a".mul(100)) end
+      // Create two files with violations — sorted order by filename.
+      // Prefix `  // ` is 5 chars so the space in long_line must
+      // land at col 80 to keep both words on their side.
+      let long_line =
+        recover val
+          String .> append("a".mul(74)) .> append(" ") .> append("a".mul(25))
+        end
 
       let file_b =
         FilePath(
@@ -344,7 +358,10 @@ class \nodoc\ _TestLinterRespectsGitignore is UnitTest
         FilePath(
           FileAuth(auth), Path.join(gen_dir.path, "gen.pony"))
       let gf = File(gen_file)
-      let long_line = recover val String .> append("a".mul(100)) end
+      let long_line =
+        recover val
+          String .> append("a".mul(72)) .> append(" ") .> append("a".mul(27))
+        end
       _WriteLongPony(gf, long_line)
       gf.dispose()
       // Create a non-ignored .pony file that is clean
@@ -411,7 +428,10 @@ class \nodoc\ _TestLinterExplicitFileBypassesIgnore is UnitTest
         FilePath(
           FileAuth(auth), Path.join(tmp.path, "test.pony"))
       let f = File(pony_file)
-      let long_line = recover val String .> append("a".mul(100)) end
+      let long_line =
+        recover val
+          String .> append("a".mul(72)) .> append(" ") .> append("a".mul(27))
+        end
       _WriteLongPony(f, long_line)
       f.dispose()
 
@@ -477,7 +497,10 @@ class \nodoc\ _TestLinterRespectsGitignoreFromParent is UnitTest
         FilePath(
           FileAuth(auth), Path.join(gen_dir.path, "gen.pony"))
       let gf = File(gen_file)
-      let long_line = recover val String .> append("a".mul(100)) end
+      let long_line =
+        recover val
+          String .> append("a".mul(72)) .> append(" ") .> append("a".mul(27))
+        end
       _WriteLongPony(gf, long_line)
       gf.dispose()
       // Create a clean file in src/
@@ -528,7 +551,10 @@ class \nodoc\ _TestLinterSubdirConfigDisablesRule is UnitTest
     let auth = h.env.root
     try
       let tmp = FilePath.mkdtemp(FileAuth(auth), "pony-lint-test")?
-      let long_line = recover val String .> append("a".mul(100)) end
+      let long_line =
+        recover val
+          String .> append("a".mul(72)) .> append(" ") .> append("a".mul(27))
+        end
 
       // Root file with a long line (violation)
       let root_file =
@@ -603,7 +629,10 @@ class \nodoc\ _TestLinterSubdirConfigEnablesRule is UnitTest
     let auth = h.env.root
     try
       let tmp = FilePath.mkdtemp(FileAuth(auth), "pony-lint-test")?
-      let long_line = recover val String .> append("a".mul(100)) end
+      let long_line =
+        recover val
+          String .> append("a".mul(72)) .> append(" ") .> append("a".mul(27))
+        end
 
       // Root .pony-lint.json disables line-length
       let root_config =
@@ -800,7 +829,10 @@ class \nodoc\ _TestLinterSubdirConfigCategoryCleaning is UnitTest
         FilePath(
           FileAuth(auth), Path.join(examples_dir.path, "ex.pony"))
       let ef = File(ex_file)
-      let long_line = recover val String .> append("a".mul(100)) end
+      let long_line =
+        recover val
+          String .> append("a".mul(72)) .> append(" ") .> append("a".mul(27))
+        end
       _WriteLongPony(ef, long_line)
       ef.dispose()
 
@@ -859,7 +891,10 @@ class \nodoc\ _TestLinterExplicitFileSubdirConfig is UnitTest
         FilePath(
           FileAuth(auth), Path.join(examples_dir.path, "ex.pony"))
       let ef = File(ex_file)
-      let long_line = recover val String .> append("a".mul(100)) end
+      let long_line =
+        recover val
+          String .> append("a".mul(72)) .> append(" ") .> append("a".mul(27))
+        end
       _WriteLongPony(ef, long_line)
       ef.dispose()
 
@@ -931,7 +966,10 @@ class \nodoc\ _TestLinterIntermediateConfigLoading is UnitTest
         FilePath(
           FileAuth(auth), Path.join(sub_dir.path, "test.pony"))
       let sf = File(sub_file)
-      let long_line = recover val String .> append("a".mul(100)) end
+      let long_line =
+        recover val
+          String .> append("a".mul(72)) .> append(" ") .> append("a".mul(27))
+        end
       _WriteLongPony(sf, long_line)
       sf.dispose()
 
