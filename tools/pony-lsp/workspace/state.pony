@@ -10,21 +10,21 @@ class PackageState
   """
   State of a compiled package, containing its modules and document states.
   """
-  let path: FilePath
+  let data: PackageData
   let _documents: Map[String, DocumentState]
   let _channel: Channel
   var _package: FromCompilerRun[Package]
   var _compiler_run_id: USize
 
-  new create(path': FilePath, channel: Channel) =>
-    path = path'
+  new create(data': PackageData, channel: Channel) =>
+    data = data'
     _channel = channel
     _documents = _documents.create()
     _package = _package.empty()
     _compiler_run_id = 0
 
   fun debug(): String val =>
-    "Package " + path.path + " (" + (
+    "Package " + this.data.folder.path + " (" + (
       try
         (package() as Package).qualified_name
       else
@@ -110,7 +110,7 @@ class PackageState
   fun ref add_diagnostic(run_id: USize, diagnostic: Diagnostic) =>
     if run_id >= _compiler_run_id then
       _compiler_run_id = run_id
-      // TODO:
+      // TODO: store package/document diagnostics
     end
 
   fun dispose() =>

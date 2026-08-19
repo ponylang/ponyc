@@ -12,8 +12,9 @@ primitive Rename
   fun collect(
     node: AST box,
     packages: Map[String, PackageState] box,
-    workspace_folder: String,
-    new_name: String): (JsonObject val | String val)
+    new_name: String,
+    workspace_folders: WorkspaceFolders)
+    : (JsonObject val | String val)
   =>
     """
     Walk all module ASTs across all packages and return a WorkspaceEdit mapping
@@ -36,7 +37,7 @@ primitive Rename
       else
         return "Cannot rename: symbol has no source location"
       end
-    if not target_file.at(workspace_folder + Path.sep(), 0) then
+    if not workspace_folders.contains(target_file) then
       return "Cannot rename: symbol is defined outside the workspace"
     end
 
