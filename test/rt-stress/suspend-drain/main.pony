@@ -1,46 +1,3 @@
-"""
-Suspend-and-drain stress engine.
-
-Drives the allocator's suspend-and-drain path with real schedulers: memory
-allocated on every scheduler thread is freed after those threads have
-suspended, and the freeing must bring the physical memory back without
-activating any of them into scheduling work.
-
-Phases:
-
-1. Allocate: N actors, spread across all scheduler threads, each
-   allocate `--blocks` raw pool blocks of `--block-size` bytes (one
-   freed block at the default 512 KiB crosses the arena allocator's
-   dirty-sweep threshold by itself, so its return is deterministic)
-   and hand the pointers to one collector.
-2. Scale down: the allocators go idle; the schedulers scale down. The
-   collector polls `pony_active_schedulers` until the count reaches
-   `--min-schedulers`.
-3. Drain: the collector frees every raw block from its own thread —
-   all of them foreign, owned by the suspended threads the allocators
-   ran on. No actor work is involved, so with the collector's own busy
-   polling keeping the runtime from reclaiming through any global path,
-   the only thing that can bring the memory back is each owner draining
-   its own inbox on its polling tick. The collector returns its own
-   held memory each poll through the allocator's idle-return path —
-   its busy polling means that moment never arrives on its own — so
-   what the phase measures is the owners' drains, not the collector's
-   holdings. The collector polls resident
-   memory (VmRSS) until at least `--reclaim-fraction` of the payload
-   has returned and the active count has held at the floor for a run of
-   polls; a rise that persists with no work to run means draining
-   activated a suspended thread into scheduling, which it must not.
-4. Scale up: fresh work is spawned; the count must rise above the
-   minimum, proving the suspended threads still activate after their
-   drain episodes.
-
-Exit code 0 with a report on success; 1 with the failed phase on failure.
-Run with `--ponyminthreads 1` to keep one scheduler always active:
-that scheduler runs the poll timer itself, so the count settles at 1
-and the default `--min-schedulers` floor of 1 is reachable. The
-machine must provide more schedulers than the floor; phase 4 needs
-the count to rise above it.
-"""
 use "cli"
 use "time"
 
@@ -74,6 +31,12 @@ actor Allocator
     collector.allocator_done()
 
 actor Collector
+  """
+  Orchestrates the four-phase stress sequence: waits for
+  allocators, polls for scale-down, frees blocks from a foreign
+  thread and polls for memory reclaim, then spawns fresh work to
+  verify scale-up.
+  """
   let _env: Env
   var _blocks: Array[USize] = _blocks.create()
   let _expected_blocks: USize
@@ -91,8 +54,13 @@ actor Collector
   var _released: Bool = false
   let _timers: Timers = Timers
 
-  new create(env: Env, allocator_count: USize, blocks: USize,
-    block_size: USize, min_schedulers: U32, reclaim_fraction: F64)
+  new create(
+    env: Env,
+    allocator_count: USize,
+    blocks: USize,
+    block_size: USize,
+    min_schedulers: U32,
+    reclaim_fraction: F64)
   =>
     _env = env
     _expected_blocks = allocator_count * blocks
@@ -130,11 +98,13 @@ actor Collector
     would never scale down.
     """
     let c: Collector tag = this
-    _timers(Timer(object iso is TimerNotify
-      fun apply(timer: Timer, count: U64): Bool =>
-        c.poll()
-        false
-    end, 250_000_000))
+    _timers(Timer(
+      object iso is TimerNotify
+        fun apply(timer: Timer, count: U64): Bool =>
+          c.poll()
+          false
+      end,
+      250_000_000))
 
   be poll() =>
     match _phase
@@ -190,6 +160,11 @@ actor Collector
     end
 
   fun ref wait_for_reclaim() =>
+    """
+    Phase 3: free every block from this thread (all foreign) and
+    poll VmRSS until the suspended owners drain their inboxes and
+    return the memory.
+    """
     if not _released then
       // Free every block from this thread: all of them foreign to it,
       // owned by whichever threads the allocators ran on — threads that
@@ -378,6 +353,10 @@ actor Spinner
     spin(2_000)
 
   be spin(rounds: U64) =>
+    """
+    Run one round of busy work, then self-send for the remaining
+    rounds so the scheduler sees runnable actors.
+    """
     var i: U64 = 0
     var acc: U64 = _n
 
@@ -396,22 +375,34 @@ actor Main
   new create(env: Env) =>
     let cs =
       try
-        CommandSpec.leaf("suspend-drain",
-          "Suspend-and-drain stress engine", [
-          OptionSpec.u64("allocators", "Allocating actors"
-            where default' = 8)
-          OptionSpec.u64("blocks", "Blocks per allocator"
-            where default' = 32)
-          OptionSpec.u64("block-size", "Bytes per block"
-            where default' = 524288)
-          OptionSpec.u64("min-schedulers",
-            "The floor phase 2 must reach; run with --ponyminthreads 1 "
-            + "and keep this floor below the machine's scheduler count"
-            where default' = 1)
-          OptionSpec.f64("reclaim-fraction",
-            "Payload fraction that must return in phase 3"
-            where default' = 0.5)
-        ], [])?
+        CommandSpec.leaf(
+          "suspend-drain",
+          "Suspend-and-drain stress engine",
+          [
+            OptionSpec.u64(
+              "allocators",
+              "Allocating actors"
+              where default' = 8)
+            OptionSpec.u64(
+              "blocks",
+              "Blocks per allocator"
+              where default' = 32)
+            OptionSpec.u64(
+              "block-size",
+              "Bytes per block"
+              where default' = 524288)
+            OptionSpec.u64(
+              "min-schedulers",
+              "The floor phase 2 must reach; "
+                + "run with --ponyminthreads 1"
+              where default' = 1)
+            OptionSpec.f64(
+              "reclaim-fraction",
+              "Payload fraction that must "
+                + "return in phase 3"
+              where default' = 0.5)
+          ],
+          [])?
       else
         env.exitcode(1)
         return
@@ -425,7 +416,8 @@ actor Main
         return
       end
 
-    Collector(env,
+    Collector(
+      env,
       cmd.option("allocators").u64().usize(),
       cmd.option("blocks").u64().usize(),
       cmd.option("block-size").u64().usize(),

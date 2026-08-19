@@ -1,29 +1,3 @@
-"""
-Reproducer fixture for the systematic-testing reproducibility check (#5560),
-covering the actor muting / unmuting scheduling path.
-
-A ring of 48 Node actors each forwards a token to the next node a fixed number
-of times (deterministic `(id + 1) % n` routing -- no randomness, no clock), then
-reports the token's arrival to a single Collector. The Collector folds
-(token_id, node_id) of every arrival into an order-sensitive hash printed as
-ORDER_SIG, a pure function of the scheduler interleaving.
-
-Unlike order-signature (whose senders only self-send and fan into the collector,
-so no actor ever overloads another), the volume of foreign actor-to-actor sends
-here drives backpressure: nodes overload, their senders get muted, and are later
-rescheduled when the overloaded node drains. That unmute-rescheduling step is a
-distinct part of the scheduler that order-signature does not exercise, so this
-fixture guards a different slice of the "fixed seed replays one interleaving"
-property.
-
-The muting-driven reordering only manifests when scheduler-thread count and load
-are in balance, so the node and token counts here are sized to overload actors
-at the handful of physical cores a CI runner typically has (the runtime defaults
-to one scheduler thread per physical core). See
-.ci-scripts/systematic-testing/determinism_smoke.py, which builds a
-systematic-testing ponyc, compiles this program with it, and asserts the
-property under --ponynoscale. It is not part of the normal test suites.
-"""
 use @printf[I32](fmt: Pointer[U8] tag, ...)
 use @exit[None](status: I32)
 
@@ -53,6 +27,11 @@ actor Main
     end
 
 actor Node
+  """
+  Forwards tokens around the ring. The volume of sends drives
+  backpressure: the receiver overloads, the sender gets muted,
+  and the unmute-reschedule path is exercised.
+  """
   let _collector: Collector
   let _id: USize
   var _ring: Array[Node] val = recover val Array[Node] end
@@ -76,6 +55,11 @@ actor Node
     end
 
 actor Collector
+  """
+  Folds every arrival's (token_id, node_id) into an order-sensitive
+  FNV-1a hash and prints the resulting ORDER_SIG when all tokens
+  have arrived.
+  """
   let _expected: USize
   var _received: USize = 0
   // FNV-1a-style rolling hash of the arrival order: an interleaving signature
@@ -85,6 +69,10 @@ actor Collector
     _expected = expected
 
   be recv(token_id: USize, node_id: USize) =>
+    """
+    Record one arrival and, when all have arrived, print the
+    ORDER_SIG and exit.
+    """
     _mix(token_id.u64())
     _mix(node_id.u64())
     _received = _received + 1

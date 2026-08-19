@@ -1,35 +1,3 @@
-"""
-Reproducer fixture for the systematic-testing reproducibility check (#5560),
-covering the ORCA reference-counting send ordering (#5568).
-
-A mesh of `nodes` Node actors forwards tokens, but unlike mute-order-signature
-(whose tokens carry only primitives) every hop carries a freshly allocated
-`String val` payload, and the next hop is `(id + hops) % nodes` -- a *spreading*
-route, not a ring. Because each fresh payload is owned by the node that forwards
-it, a receiving node accumulates references to `String`s owned by many distinct
-nodes in its foreign GC map. When that map is swept, the runtime sends one
-`ACTORMSG_RELEASE` per surviving distinct owner; forwarding a payload likewise
-sends one `ACTORMSG_ACQUIRE` per newly referenced owner. Before #5568 those
-sends went out in the GC map's pointer-hash iteration order, and since a send
-schedules its recipient, the resulting interleaving -- folded into ORDER_SIG by
-the Collector -- depended on actor addresses (ASLR). #5568 orders the sends by a
-stable creation-order id instead, so a fixed `--ponysystematictestingseed`
-replays one interleaving regardless of layout.
-
-A spreading route is essential: in a ring each node only ever receives from one
-predecessor, so its foreign map holds a single owner and the send order is
-trivially fixed -- nothing to reorder. The spread puts multiple distinct owners
-in the map per GC pass, which is the condition #5568 addresses.
-
-This fixture runs with the cycle detector disabled (`--ponynoblock`, wired in by
-.ci-scripts/systematic-testing/determinism_smoke.py). #5568 makes the ORCA send
-ordering layout-independent; the cycle detector's own pointer-ordered sends are
-a separate matter (#5569, covered by cycle-collection-order-signature), so
-disabling it here keeps the two fixtures from confounding each other. The
-node/token counts are sized to drive multi-owner GC sweeps at the handful of
-physical cores a CI runner typically has; see determinism_smoke.py for the
-coverage ceiling. It is not part of the normal test suites.
-"""
 use @printf[I32](fmt: Pointer[U8] tag, ...)
 use @exit[None](status: I32)
 
@@ -59,6 +27,11 @@ actor Main
     end
 
 actor Node
+  """
+  Forwards tokens on a spreading route and allocates a fresh
+  `String val` payload each hop, so receiving nodes accumulate
+  references to payloads owned by many distinct senders.
+  """
   let _collector: Collector
   let _id: USize
   let _n: USize
@@ -74,11 +47,13 @@ actor Node
 
   be ping(payload: String val, hops: USize, id: USize) =>
     if hops > 0 then
-      // Spread the route across many neighbors so each node receives payloads
-      // owned by many distinct nodes (-> multi-owner foreign GC map). `next` is
-      // always in [0, _n), so the indexed access cannot error. The incoming
-      // payload is dropped and a fresh one (owned by this node) is forwarded, so
-      // the owner of each in-flight payload is its immediate sender.
+      // Spread the route across many neighbors so each node
+      // receives payloads owned by many distinct nodes (->
+      // multi-owner foreign GC map). `next` is always in
+      // [0, _n), so the indexed access cannot error. The
+      // incoming payload is dropped and a fresh one (owned by
+      // this node) is forwarded, so the owner of each in-flight
+      // payload is its immediate sender.
       let next = (_id + hops) % _n
       let fresh: String val = "p-" + id.string() + "-" + hops.string()
       try _mesh(next)?.ping(fresh, hops - 1, id) end
@@ -87,6 +62,11 @@ actor Node
     end
 
 actor Collector
+  """
+  Folds every arrival's (token_id, node_id) into an order-sensitive
+  FNV-1a hash and prints the resulting ORDER_SIG when all tokens
+  have arrived.
+  """
   let _expected: USize
   var _received: USize = 0
   // FNV-1a-style rolling hash of the arrival order: an interleaving signature
@@ -96,6 +76,10 @@ actor Collector
     _expected = expected
 
   be recv(token_id: USize, node_id: USize) =>
+    """
+    Record one arrival and, when all have arrived, print the
+    ORDER_SIG and exit.
+    """
     _mix(token_id.u64())
     _mix(node_id.u64())
     _received = _received + 1
