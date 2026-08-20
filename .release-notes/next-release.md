@@ -296,3 +296,7 @@ The `style/line-length` rule now exempts a line only when one of the first two s
 
 This replaces the previous string-literal exemption. Lines like `// https://very-long-url` are exempt (the URL is the second word and cannot be shortened by breaking the line). Lines like `// some text https://very-long-url` are flagged — "some text" and the URL can go on separate comment lines, and the URL-only line is then exempt on its own.
 
+## Fix pony-lint false positive on identifiers with multiple trailing primes
+
+pony-lint flagged identifiers like `path''` as naming violations because it only stripped one trailing prime before checking the name. An identifier with two or more primes kept the extras and failed the snake_case or CamelCase check. pony-lint now strips all trailing primes before validating.
+
