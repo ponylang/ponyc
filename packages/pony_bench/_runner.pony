@@ -51,7 +51,7 @@ actor _RunSync is _Runner
           else
             Time.nanos()
           end
-         _bench.after_iteration()?
+        _bench.after_iteration()?
         _run_iteration(n + 1, a + (e - s))
       else
         _fail()
@@ -80,17 +80,21 @@ actor _RunAsync is _Runner
   var _start_time: U64 = 0
   var _n: U64 = 0
   var _a: U64 = 0
-
   embed _before_cont: AsyncBenchContinue =
-    AsyncBenchContinue._create(this, recover this~_before_done_cont() end)
+    AsyncBenchContinue._create(
+      this, recover this~_before_done_cont() end)
   embed _before_iteration_cont: AsyncBenchContinue =
-    AsyncBenchContinue._create(this, recover this~_before_iteration_done_cont() end)
+    AsyncBenchContinue._create(
+      this, recover this~_before_iteration_done_cont() end)
   embed _iteration_cont: AsyncBenchContinue =
-    AsyncBenchContinue._create(this, recover this~_iteration_done_cont() end)
+    AsyncBenchContinue._create(
+      this, recover this~_iteration_done_cont() end)
   embed _after_iteration_cont: AsyncBenchContinue =
-    AsyncBenchContinue._create(this, recover this~_after_iteration_done_cont() end)
+    AsyncBenchContinue._create(
+      this, recover this~_after_iteration_done_cont() end)
   embed _after_cont: AsyncBenchContinue =
-    AsyncBenchContinue._create(this, recover this~_after_done_cont() end)
+    AsyncBenchContinue._create(
+      this, recover this~_after_done_cont() end)
 
   new create(
     ponybench: PonyBench,
@@ -146,6 +150,9 @@ actor _RunAsync is _Runner
     @pony_triggergc(@pony_ctx())
 
 class val AsyncBenchContinue
+  """
+  Continuation token passed to async benchmark callbacks.
+  """
   let _run_async: _RunAsync
   let _f: {(U64)} val
 

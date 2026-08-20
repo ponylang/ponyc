@@ -76,7 +76,7 @@ actor ANSITerm
     _auth = auth
 
     ifdef not windows then
-      match MakeHandleableSignal(Sig.winch())
+      match \exhaustive\ MakeHandleableSignal(Sig.winch())
       | let sig: HandleableSignal =>
         _winch = SignalHandler(auth, recover _TermResizeNotify(this) end, sig)
       | let _: ValidationFailure =>
@@ -169,16 +169,17 @@ actor ANSITerm
       _esc_gen = _esc_gen + 1
       let esc_gen = _esc_gen
 
-      let t = recover
-        object is TimerNotify
-          let term: ANSITerm = this
-          let gen: USize = esc_gen
+      let t =
+        recover
+          object is TimerNotify
+            let term: ANSITerm = this
+            let gen: USize = esc_gen
 
-          fun ref apply(timer: Timer, count: U64): Bool =>
-            term._timeout(gen)
-            false
+            fun ref apply(timer: Timer, count: U64): Bool =>
+              term._timeout(gen)
+              false
+          end
         end
-      end
 
       let timer = Timer(consume t, 25000000)
       _timer = timer
@@ -320,16 +321,17 @@ actor ANSITerm
     """
     Set the modifier bools.
     """
-    let r = match _esc_mod
-    | 2 => (false, false, true)
-    | 3 => (false, true, false)
-    | 4 => (false, true, true)
-    | 5 => (true, false, false)
-    | 6 => (true, false, true)
-    | 7 => (true, true, false)
-    | 8 => (true, true, true)
-    else (false, false, false)
-    end
+    let r =
+      match _esc_mod
+      | 2 => (false, false, true)
+      | 3 => (false, true, false)
+      | 4 => (false, true, true)
+      | 5 => (true, false, false)
+      | 6 => (true, false, true)
+      | 7 => (true, true, false)
+      | 8 => (true, true, true)
+      else (false, false, false)
+      end
 
     _esc_mod = 0
     r

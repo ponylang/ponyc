@@ -8,7 +8,7 @@ class val Client
   let process_id: (I64 | None)
   let client_name: (String val | None)
   let client_version: (String val | None)
-  let capabilities: JsonObject
+  let capabilities: JSONObject
   let _supports_configuration: Bool
   let _supports_configuration_dynamic_registration: Bool
   let _supports_publish_diagnostics: Bool
@@ -18,41 +18,41 @@ class val Client
   let _supports_folding_range_refresh: Bool
   let _supports_window_work_done_progress: Bool
 
-  new val from(initialize_params: JsonObject) =>
+  new val from(initialize_params: JSONObject) =>
     """
     Create a Client from initialize request parameters.
     """
     this.process_id =
       try
-        JsonPathParser.compile("$.processId")?
+        JSONPathParser.compile("$.processId")?
           .query_one(initialize_params) as I64
       else
         None
       end
     this.client_name =
       try
-        JsonPathParser.compile("$.clientInfo.name")?
+        JSONPathParser.compile("$.clientInfo.name")?
           .query_one(initialize_params) as String
       else
         None
       end
     this.client_version =
       try
-        JsonPathParser.compile("$.clientInfo.version")?
+        JSONPathParser.compile("$.clientInfo.version")?
           .query_one(initialize_params) as String
       else
         None
       end
     this.capabilities =
       try
-        JsonPathParser.compile("$.capabilities")?
-          .query_one(initialize_params) as JsonObject
+        JSONPathParser.compile("$.capabilities")?
+          .query_one(initialize_params) as JSONObject
       else
-        JsonObject
+        JSONObject
       end
     this._supports_configuration =
       try
-        JsonPathParser
+        JSONPathParser
           .compile("$.workspace.configuration")?
           .query_one(this.capabilities) as Bool
       else
@@ -60,7 +60,7 @@ class val Client
       end
     this._supports_configuration_dynamic_registration =
       try
-        JsonPathParser.compile(
+        JSONPathParser.compile(
           "$.workspace.didChangeConfiguration.dynamicRegistration"
         )?.query_one(this.capabilities) as Bool
       else
@@ -68,16 +68,16 @@ class val Client
       end
     this._supports_publish_diagnostics =
       try
-        JsonPathParser.compile(
+        JSONPathParser.compile(
           "$.textDocument.publishDiagnostics"
-        )?.query_one(this.capabilities) as JsonObject
+        )?.query_one(this.capabilities) as JSONObject
         true
       else
         false
       end
     this._supports_publish_diagnostic_related_info =
       try
-        JsonPathParser.compile(
+        JSONPathParser.compile(
           "$.textDocument.publishDiagnostics.relatedInformation"
         )?.query_one(this.capabilities) as Bool
       else
@@ -85,7 +85,7 @@ class val Client
       end
     this._supports_workspace_diagnostic_refresh =
       try
-        JsonPathParser.compile(
+        JSONPathParser.compile(
           "$.workspace.diagnostics.refreshSupport"
         )?.query_one(this.capabilities) as Bool
       else
@@ -93,7 +93,7 @@ class val Client
       end
     this._supports_inlay_hint_refresh =
       try
-        JsonPathParser.compile(
+        JSONPathParser.compile(
           "$.workspace.inlayHint.refreshSupport"
         )?.query_one(this.capabilities) as Bool
       else
@@ -101,7 +101,7 @@ class val Client
       end
     this._supports_folding_range_refresh =
       try
-        JsonPathParser.compile(
+        JSONPathParser.compile(
           "$.workspace.foldingRange.refreshSupport"
         )?.query_one(this.capabilities) as Bool
       else
@@ -109,7 +109,7 @@ class val Client
       end
     this._supports_window_work_done_progress =
       try
-        JsonPathParser.compile(
+        JSONPathParser.compile(
           "$.window.workDoneProgress"
         )?.query_one(this.capabilities) as Bool
       else

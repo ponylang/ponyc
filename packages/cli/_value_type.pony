@@ -25,7 +25,6 @@ class CommandSpec
   let _options: Map[String, OptionSpec] = _options.create()
   var _help_name: String = ""
   var _help_info: String = ""
-
   // A parent commands can have sub-commands; leaf commands can have args.
   let _commands: Map[String, CommandSpec box] = _commands.create()
   let _args: Array[ArgSpec] = _args.create()
@@ -41,7 +40,7 @@ class CommandSpec
     arguments.
     """
     _type = _CommandSpecParent
-    _name = _assertName(name')?
+    _name = _assert_name(name')?
     _descr = descr'
     for o in options'.values() do
       _options.update(o.name(), o)
@@ -61,7 +60,7 @@ class CommandSpec
     commands.
     """
     _type = _CommandSpecLeaf
-    _name = _assertName(name')?
+    _name = _assert_name(name')?
     _descr = descr'
     for o in options'.values() do
       _options.update(o.name(), o)
@@ -70,7 +69,7 @@ class CommandSpec
       _args.push(a)
     end
 
-  fun tag _assertName(nm: String): String ? =>
+  fun tag _assert_name(nm: String): String ? =>
     for b in nm.values() do
       if (b != '-') and (b != '_') and
         not ((b >= '0') and (b <= '9')) and
@@ -97,9 +96,14 @@ class CommandSpec
     let help_option = OptionSpec.bool(_help_name, _help_info, 'h', false)
     _options.update(_help_name, help_option)
     if is_parent() then
-      let help_cmd = CommandSpec.leaf(_help_name, "", Array[OptionSpec](), [
-        ArgSpec.string("command" where default' = "")
-      ])?
+      let help_cmd =
+        CommandSpec.leaf(
+          _help_name,
+          "",
+          Array[OptionSpec](),
+          [
+            ArgSpec.string("command" where default' = "")
+          ])?
       _commands.update(_help_name, help_cmd)
     end
 
@@ -542,8 +546,11 @@ primitive _F64Type is _ValueType
 
 primitive _StringSeqType is _ValueType
   fun string(): String => "ReadSeq[String]"
+
   fun value_of(s: String): _Value => _StringSeq.from_string(s)
+
   fun is_seq(): Bool => true
+
   fun append(v1: _Value, v2: _Value): _Value =>
     """
     When is_seq() returns true, append() is called during parsing to append

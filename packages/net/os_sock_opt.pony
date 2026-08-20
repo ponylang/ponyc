@@ -56,21 +56,11 @@ primitive OSSockOpt
   ```
   """
 
-  /* Constants are from
-   *   macOS Sierra 10.12.6
-   *   Ubuntu Linux Xenial/16.04 LTS + kernel 4.4.0-109-generic
-   *   FreeBSD 11.1-RELEASE
-   *   Windows Winsock function reference for getsockopt & setsockopt:
-   *     https://msdn.microsoft.com/en-us/library/windows/desktop/ms738544(v=vs.85).aspx
-   *     https://msdn.microsoft.com/en-us/library/windows/desktop/ms740476(v=vs.85).aspx
-
-   * Harvested by recipe given in socket.c
-   */
-
-  /*
-   * Levels formatted in Pony by:
-   *   egrep '^(IP[A-Z0-6]*PROTO_|NSPROTO_|SOL_)' ~/sum-of-all-constants.txt | egrep -v '\(' | sort -u | egrep -v '^$' | sed 's/__/_/g' | awk 'BEGIN { count=4000; } { printf("  fun %s():I32 => @pony_os_sockopt_level(I32(%d))\n", tolower($1), count++); }'
-   */
+  // Constants are from macOS Sierra 10.12.6, Ubuntu Linux
+  // Xenial/16.04 LTS + kernel 4.4.0-109-generic,
+  // FreeBSD 11.1-RELEASE, and the Windows Winsock function
+  // reference for getsockopt & setsockopt.
+  // Harvested by recipe given in socket.c.
 
   // levels
   fun ipproto_3pc():I32 => @pony_os_sockopt_level(I32(4000))
@@ -214,12 +204,6 @@ primitive OSSockOpt
   fun sol_socket():I32 => @pony_os_sockopt_level(I32(4138))
   fun sol_tipc():I32 => @pony_os_sockopt_level(I32(4139))
   fun sol_udp():I32 => @pony_os_sockopt_level(I32(4140))
-
-  /*
-   *
-   * Options formatted in Pony by:
-   *   egrep -v '^(IP[A-Z0-6]*PROTO_|NSPROTO_|SOL_)' ~/sum-of-all-constants.txt | egrep -v '\(' | sort -u | egrep -v '^$' | sed 's/__/_/g' | awk 'BEGIN { count=0; } { printf("  fun %s():I32 => @pony_os_sockopt_option(I32(%d))\n", tolower($1), count++); }'
-   */
 
   // options
   fun af_coip():I32 => @pony_os_sockopt_option(I32(0))
@@ -677,9 +661,16 @@ primitive OSSockOpt
   fun rds_ib_abi_version():I32 => @pony_os_sockopt_option(I32(452))
   fun rds_ib_gid_len():I32 => @pony_os_sockopt_option(I32(453))
   fun rds_info_connections():I32 => @pony_os_sockopt_option(I32(454))
-  fun rds_info_connection_flag_connected():I32 => @pony_os_sockopt_option(I32(455))
-  fun rds_info_connection_flag_connecting():I32 => @pony_os_sockopt_option(I32(456))
-  fun rds_info_connection_flag_sending():I32 => @pony_os_sockopt_option(I32(457))
+
+  fun rds_info_connection_flag_connected(): I32 =>
+    @pony_os_sockopt_option(I32(455))
+
+  fun rds_info_connection_flag_connecting(): I32 =>
+    @pony_os_sockopt_option(I32(456))
+
+  fun rds_info_connection_flag_sending(): I32 =>
+    @pony_os_sockopt_option(I32(457))
+
   fun rds_info_connection_stats():I32 => @pony_os_sockopt_option(I32(458))
   fun rds_info_counters():I32 => @pony_os_sockopt_option(I32(459))
   fun rds_info_first():I32 => @pony_os_sockopt_option(I32(460))
@@ -935,7 +926,10 @@ primitive OSSockOpt
   fun sctp_pcb_flags_portreuse():I32 => @pony_os_sockopt_option(I32(710))
   fun sctp_pcb_flags_recvassocevnt():I32 => @pony_os_sockopt_option(I32(711))
   fun sctp_pcb_flags_recvdataioevnt():I32 => @pony_os_sockopt_option(I32(712))
-  fun sctp_pcb_flags_recvnsendfailevnt():I32 => @pony_os_sockopt_option(I32(713))
+
+  fun sctp_pcb_flags_recvnsendfailevnt(): I32 =>
+    @pony_os_sockopt_option(I32(713))
+
   fun sctp_pcb_flags_recvnxtinfo():I32 => @pony_os_sockopt_option(I32(714))
   fun sctp_pcb_flags_recvpaddrevnt():I32 => @pony_os_sockopt_option(I32(715))
   fun sctp_pcb_flags_recvpeererr():I32 => @pony_os_sockopt_option(I32(716))
@@ -945,7 +939,10 @@ primitive OSSockOpt
   fun sctp_pcb_flags_socket_allgone():I32 => @pony_os_sockopt_option(I32(720))
   fun sctp_pcb_flags_socket_cant_read():I32 => @pony_os_sockopt_option(I32(721))
   fun sctp_pcb_flags_socket_gone():I32 => @pony_os_sockopt_option(I32(722))
-  fun sctp_pcb_flags_stream_changeevnt():I32 => @pony_os_sockopt_option(I32(723))
+
+  fun sctp_pcb_flags_stream_changeevnt(): I32 =>
+    @pony_os_sockopt_option(I32(723))
+
   fun sctp_pcb_flags_stream_resetevnt():I32 => @pony_os_sockopt_option(I32(724))
   fun sctp_pcb_flags_tcptype():I32 => @pony_os_sockopt_option(I32(725))
   fun sctp_pcb_flags_udptype():I32 => @pony_os_sockopt_option(I32(726))
@@ -1121,7 +1118,10 @@ primitive OSSockOpt
   fun so_sco_mtu():I32 => @pony_os_sockopt_option(I32(896))
   fun so_security_authentication():I32 => @pony_os_sockopt_option(I32(897))
   fun so_security_encryption_network():I32 => @pony_os_sockopt_option(I32(898))
-  fun so_security_encryption_transport():I32 => @pony_os_sockopt_option(I32(899))
+
+  fun so_security_encryption_transport(): I32 =>
+    @pony_os_sockopt_option(I32(899))
+
   fun so_select_err_queue():I32 => @pony_os_sockopt_option(I32(900))
   fun so_setclp():I32 => @pony_os_sockopt_option(I32(901))
   fun so_setfib():I32 => @pony_os_sockopt_option(I32(902))

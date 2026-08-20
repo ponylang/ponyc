@@ -1,10 +1,10 @@
-class ref _JsonPathParser
+class ref _JSONPathParser
   """
   Internal recursive descent parser for JSONPath expressions.
 
-  Raises on invalid input. The public JsonPathParser.parse() wraps
-  this and catches errors, consistent with how JsonParser wraps
-  JsonTokenParser.
+  Raises on invalid input. The public JSONPathParser.parse() wraps
+  this and catches errors, consistent with how JSONParser wraps
+  JSONTokenParser.
   """
   let _source: String
   var _offset: USize = 0
@@ -14,7 +14,9 @@ class ref _JsonPathParser
     _source = source'
 
   fun ref parse(): Array[_Segment] val ? =>
-    """Parse a complete JSONPath expression. Raises on invalid input."""
+    """
+    Parse a complete JSONPath expression. Raises on invalid input.
+    """
     _eat('$')?
     let segments = recover iso Array[_Segment] end
     while _offset < _source.size() do
@@ -22,14 +24,17 @@ class ref _JsonPathParser
     end
     consume segments
 
-  fun error_result(): JsonPathParseError =>
-    """Return a parse error with current position context."""
-    JsonPathParseError(_error_message, _offset)
+  fun error_result(): JSONPathParseError =>
+    """
+    Return a parse error with current position context.
+    """
+    JSONPathParseError(_error_message, _offset)
 
   // --- Segment parsing ---
-
   fun ref _parse_segment(): _Segment ? =>
-    """Parse a child or descendant segment."""
+    """
+    Parse a child or descendant segment.
+    """
     if _looking_at_str("..") then
       _advance(2)
       _parse_descendant_segment()?
@@ -44,38 +49,47 @@ class ref _JsonPathParser
     end
 
   fun ref _parse_descendant_segment(): _Segment ? =>
-    """Parse after '..' — either bracket selectors or dot member/wildcard."""
-    let selectors = if _looking_at('[') then
-      _parse_bracket_selectors()?
-    elseif _looking_at('*') then
-      _advance(1)
-      recover val [as _Selector: _WildcardSelector] end
-    else
-      let name = _parse_member_name()?
-      recover val [as _Selector: _NameSelector(name)] end
-    end
+    """
+    Parse after '..' — either bracket selectors or dot member/wildcard.
+    """
+    let selectors =
+      if _looking_at('[') then
+        _parse_bracket_selectors()?
+      elseif _looking_at('*') then
+        _advance(1)
+        recover val [as _Selector: _WildcardSelector] end
+      else
+        let name = _parse_member_name()?
+        recover val [as _Selector: _NameSelector(name)] end
+      end
     _DescendantSegment(selectors)
 
   fun ref _parse_dot_child(): _Segment ? =>
-    """Parse after '.' — either wildcard or member name."""
-    let selectors = if _looking_at('*') then
-      _advance(1)
-      recover val [as _Selector: _WildcardSelector] end
-    else
-      let name = _parse_member_name()?
-      recover val [as _Selector: _NameSelector(name)] end
-    end
+    """
+    Parse after '.' — either wildcard or member name.
+    """
+    let selectors =
+      if _looking_at('*') then
+        _advance(1)
+        recover val [as _Selector: _WildcardSelector] end
+      else
+        let name = _parse_member_name()?
+        recover val [as _Selector: _NameSelector(name)] end
+      end
     _ChildSegment(selectors)
 
   fun ref _parse_bracket_child(): _Segment ? =>
-    """Parse bracket notation '[selectors]' as a child segment."""
+    """
+    Parse bracket notation '[selectors]' as a child segment.
+    """
     let selectors = _parse_bracket_selectors()?
     _ChildSegment(selectors)
 
   // --- Bracket selector parsing ---
-
   fun ref _parse_bracket_selectors(): Array[_Selector] val ? =>
-    """Parse '[' selector (',' selector)* ']'."""
+    """
+    Parse '[' selector (',' selector)* ']'.
+    """
     _eat('[')?
     _skip_whitespace()
     let selectors = recover iso Array[_Selector] end
@@ -130,13 +144,14 @@ class ref _JsonPathParser
       _skip_whitespace()
       let end_val: (I64 | None) = _try_parse_int()
       _skip_whitespace()
-      let step_val: (I64 | None) = if _looking_at(':') then
-        _advance(1)
-        _skip_whitespace()
-        _try_parse_int()
-      else
-        None
-      end
+      let step_val: (I64 | None) =
+        if _looking_at(':') then
+          _advance(1)
+          _skip_whitespace()
+          _try_parse_int()
+        else
+          None
+        end
       _SliceSelector(first, end_val, step_val)
     else
       match first
@@ -148,9 +163,10 @@ class ref _JsonPathParser
     end
 
   // --- Leaf parsing ---
-
   fun ref _parse_member_name(): String ? =>
-    """Parse an unquoted member name (dot notation)."""
+    """
+    Parse an unquoted member name (dot notation).
+    """
     let start = _offset
     if _offset >= _source.size() then
       _fail("Expected member name")
@@ -173,7 +189,9 @@ class ref _JsonPathParser
     _source.substring(start.isize(), _offset.isize())
 
   fun ref _parse_quoted_string(): String ? =>
-    """Parse a single- or double-quoted string with escape handling."""
+    """
+    Parse a single- or double-quoted string with escape handling.
+    """
     let quote = _next()?
     let buf = String
     while true do
@@ -212,7 +230,9 @@ class ref _JsonPathParser
     buf.clone()
 
   fun ref _parse_unicode_escape(buf: String ref) ? =>
-    """Parse \\uXXXX and surrogate pairs, appending to buf."""
+    """
+    Parse \\uXXXX and surrogate pairs, appending to buf.
+    """
     let value = _read_hex4()?
     if (value >= 0xD800) and (value < 0xDC00) then
       // High surrogate — expect \uXXXX low surrogate
@@ -235,28 +255,33 @@ class ref _JsonPathParser
     end
 
   fun ref _read_hex4(): U32 ? =>
-    """Read exactly 4 hex digits and return the value."""
+    """
+    Read exactly 4 hex digits and return the value.
+    """
     var result: U32 = 0
     var i: USize = 0
     while i < 4 do
       let c = _next()?
-      let digit: U32 = if (c >= '0') and (c <= '9') then
-        (c - '0').u32()
-      elseif (c >= 'a') and (c <= 'f') then
-        (c - 'a').u32() + 10
-      elseif (c >= 'A') and (c <= 'F') then
-        (c - 'A').u32() + 10
-      else
-        _fail("Invalid hex digit")
-        error
-      end
+      let digit: U32 =
+        if (c >= '0') and (c <= '9') then
+          (c - '0').u32()
+        elseif (c >= 'a') and (c <= 'f') then
+          (c - 'a').u32() + 10
+        elseif (c >= 'A') and (c <= 'F') then
+          (c - 'A').u32() + 10
+        else
+          _fail("Invalid hex digit")
+          error
+        end
       result = (result << 4) or digit
       i = i + 1
     end
     result
 
   fun ref _try_parse_int(): (I64 | None) =>
-    """Try to parse an integer. Returns None if not at a digit or '-'."""
+    """
+    Try to parse an integer. Returns None if not at a digit or '-'.
+    """
     if _offset >= _source.size() then return None end
     try
       let c = _source(_offset)?
@@ -270,7 +295,9 @@ class ref _JsonPathParser
     end
 
   fun ref _parse_int(): I64 ? =>
-    """Parse a (possibly negative) integer."""
+    """
+    Parse a (possibly negative) integer.
+    """
     var negative = false
     if _looking_at('-') then
       negative = true
@@ -292,16 +319,19 @@ class ref _JsonPathParser
     if negative then -abs_val else abs_val end
 
   // --- Filter expression parsing ---
-
   fun ref _parse_filter_selector(): _FilterSelector ? =>
-    """Parse a filter selector: '?' logical-expr."""
+    """
+    Parse a filter selector: '?' logical-expr.
+    """
     _advance(1) // consume '?'
     _skip_whitespace()
     let expr = _parse_logical_or_expr()?
     _FilterSelector(expr)
 
   fun ref _parse_logical_or_expr(): _LogicalExpr ? =>
-    """Parse logical-or: logical-and *('||' logical-and)."""
+    """
+    Parse logical-or: logical-and *('||' logical-and).
+    """
     var left = _parse_logical_and_expr()?
     while true do
       _skip_whitespace()
@@ -317,7 +347,9 @@ class ref _JsonPathParser
     left
 
   fun ref _parse_logical_and_expr(): _LogicalExpr ? =>
-    """Parse logical-and: basic-expr *('&&' basic-expr)."""
+    """
+    Parse logical-and: basic-expr *('&&' basic-expr).
+    """
     var left = _parse_basic_expr()?
     while true do
       _skip_whitespace()
@@ -349,11 +381,12 @@ class ref _JsonPathParser
         let is_rel = _looking_at('@')
         _advance(1)
         let segments = _parse_filter_segments()?
-        let query: _FilterQuery = if is_rel then
-          _RelFilterQuery(segments)
-        else
-          _AbsFilterQuery(segments)
-        end
+        let query: _FilterQuery =
+          if is_rel then
+            _RelFilterQuery(segments)
+          else
+            _AbsFilterQuery(segments)
+          end
         _NotExpr(_ExistenceExpr(query))
       elseif _looking_at_function_name() or _looking_at_general_function() then
         // Negated function call — only LogicalType functions allowed
@@ -383,14 +416,15 @@ class ref _JsonPathParser
       | let s: _SearchExpr => s
       else
         // ValueType function — must be left side of a comparison
-        let left: _Comparable = match func
-        | let l: _LengthExpr => l
-        | let c: _CountExpr => c
-        | let v: _ValueExpr => v
-        else
-          _Unreachable(__loc)
-          error
-        end
+        let left: _Comparable =
+          match func
+          | let l: _LengthExpr => l
+          | let c: _CountExpr => c
+          | let v: _ValueExpr => v
+          else
+            _Unreachable(__loc)
+            error
+          end
         _skip_whitespace()
         if not _looking_at_comparison_op() then
           _fail(
@@ -414,7 +448,9 @@ class ref _JsonPathParser
     end
 
   fun ref _parse_paren_expr(): _LogicalExpr ? =>
-    """Parse '(' logical-expr ')'."""
+    """
+    Parse '(' logical-expr ')'.
+    """
     _eat('(')?
     _skip_whitespace()
     let expr = _parse_logical_or_expr()?
@@ -440,11 +476,12 @@ class ref _JsonPathParser
       _skip_whitespace()
       if _looking_at_comparison_op() then
         // It's a comparison
-        let query: _SingularQuery = if is_rel then
-          _RelSingularQuery(singular_segs)
-        else
-          _AbsSingularQuery(singular_segs)
-        end
+        let query: _SingularQuery =
+          if is_rel then
+            _RelSingularQuery(singular_segs)
+          else
+            _AbsSingularQuery(singular_segs)
+          end
         let left: _Comparable = query
         let op = _parse_comparison_op()?
         _skip_whitespace()
@@ -456,15 +493,18 @@ class ref _JsonPathParser
     // Not a comparison — re-parse as general filter query for existence test
     _offset = segments_start
     let segments = _parse_filter_segments()?
-    let query: _FilterQuery = if is_rel then
-      _RelFilterQuery(segments)
-    else
-      _AbsFilterQuery(segments)
-    end
+    let query: _FilterQuery =
+      if is_rel then
+        _RelFilterQuery(segments)
+      else
+        _AbsFilterQuery(segments)
+      end
     _ExistenceExpr(query)
 
   fun ref _parse_comparable(): _Comparable ? =>
-    """Parse a comparable: singular query, function expression, or literal."""
+    """
+    Parse a comparable: singular query, function expression, or literal.
+    """
     _skip_whitespace()
     if _looking_at('@') then
       _advance(1)
@@ -490,7 +530,9 @@ class ref _JsonPathParser
     end
 
   fun ref _parse_literal(): _LiteralValue ? =>
-    """Parse a literal value: string, number, true, false, or null."""
+    """
+    Parse a literal value: string, number, true, false, or null.
+    """
     _skip_whitespace()
     if _looking_at('\'') or _looking_at('"') then
       _parse_quoted_string()?
@@ -508,7 +550,10 @@ class ref _JsonPathParser
     end
 
   fun ref _parse_json_number(): _LiteralValue ? =>
-    """Parse a full JSON number: ['-'] int ['.' digits] [('e'|'E') [sign] digits]."""
+    """
+    Parse a full JSON number:
+    ['-'] int ['.' digits] [('e'|'E') [sign] digits].
+    """
     let start = _offset
     var is_float = false
 
@@ -553,10 +598,14 @@ class ref _JsonPathParser
     end
 
     // Optional exponent
-    if try
-      let c = _source(_offset)?
-      (c == 'e') or (c == 'E')
-    else false end then
+    let has_exp =
+      try
+        let c = _source(_offset)?
+        (c == 'e') or (c == 'E')
+      else
+        false
+      end
+    if has_exp then
       is_float = true
       _advance(1)
       if _looking_at('+') or _looking_at('-') then _advance(1) end
@@ -632,9 +681,10 @@ class ref _JsonPathParser
     consume segments
 
   // --- Function extension parsing (RFC 9535 Section 2.4) ---
-
   fun _looking_at_function_name(): Bool =>
-    """Check if current position starts with a known function name + '('."""
+    """
+    Check if current position starts with a known function name + '('.
+    """
     _looking_at_str("length(") or _looking_at_str("count(") or
     _looking_at_str("match(") or _looking_at_str("search(") or
     _looking_at_str("value(")
@@ -702,44 +752,45 @@ class ref _JsonPathParser
     let name = _parse_function_name()?
     _eat('(')?
     _skip_whitespace()
-    let result = match \exhaustive\ name
-    | "length" =>
-      let arg = _parse_comparable()?
-      let r: (_MatchExpr | _SearchExpr | _LengthExpr
-        | _CountExpr | _ValueExpr) = _LengthExpr(arg)
-      r
-    | "count" =>
-      let query = _parse_filter_query_arg()?
-      let r: (_MatchExpr | _SearchExpr | _LengthExpr
-        | _CountExpr | _ValueExpr) = _CountExpr(query)
-      r
-    | "match" =>
-      let input = _parse_comparable()?
-      _skip_whitespace()
-      _eat(',')?
-      _skip_whitespace()
-      let pattern = _parse_comparable()?
-      let r: (_MatchExpr | _SearchExpr | _LengthExpr
-        | _CountExpr | _ValueExpr) = _MatchExpr(input, pattern)
-      r
-    | "search" =>
-      let input = _parse_comparable()?
-      _skip_whitespace()
-      _eat(',')?
-      _skip_whitespace()
-      let pattern = _parse_comparable()?
-      let r: (_MatchExpr | _SearchExpr | _LengthExpr
-        | _CountExpr | _ValueExpr) = _SearchExpr(input, pattern)
-      r
-    | "value" =>
-      let query = _parse_filter_query_arg()?
-      let r: (_MatchExpr | _SearchExpr | _LengthExpr
-        | _CountExpr | _ValueExpr) = _ValueExpr(query)
-      r
-    else
-      _fail("Unknown function: " + name)
-      error
-    end
+    let result =
+      match \exhaustive\ name
+      | "length" =>
+        let arg = _parse_comparable()?
+        let r: (_MatchExpr | _SearchExpr | _LengthExpr
+          | _CountExpr | _ValueExpr) = _LengthExpr(arg)
+        r
+      | "count" =>
+        let query = _parse_filter_query_arg()?
+        let r: (_MatchExpr | _SearchExpr | _LengthExpr
+          | _CountExpr | _ValueExpr) = _CountExpr(query)
+        r
+      | "match" =>
+        let input = _parse_comparable()?
+        _skip_whitespace()
+        _eat(',')?
+        _skip_whitespace()
+        let pattern = _parse_comparable()?
+        let r: (_MatchExpr | _SearchExpr | _LengthExpr
+          | _CountExpr | _ValueExpr) = _MatchExpr(input, pattern)
+        r
+      | "search" =>
+        let input = _parse_comparable()?
+        _skip_whitespace()
+        _eat(',')?
+        _skip_whitespace()
+        let pattern = _parse_comparable()?
+        let r: (_MatchExpr | _SearchExpr | _LengthExpr
+          | _CountExpr | _ValueExpr) = _SearchExpr(input, pattern)
+        r
+      | "value" =>
+        let query = _parse_filter_query_arg()?
+        let r: (_MatchExpr | _SearchExpr | _LengthExpr
+          | _CountExpr | _ValueExpr) = _ValueExpr(query)
+        r
+      else
+        _fail("Unknown function: " + name)
+        error
+      end
     _skip_whitespace()
     _eat(')')?
     result
@@ -749,19 +800,22 @@ class ref _JsonPathParser
     Parse a NodesType function argument: a filter query starting with
     '@' or '$' followed by segments.
     """
-    let is_rel = if _looking_at('@') then
-      _advance(1); true
-    elseif _looking_at('$') then
-      _advance(1); false
-    else
-      _fail("Expected '@' or '$' for query argument")
-      error
-    end
+    let is_rel =
+      if _looking_at('@') then
+        _advance(1); true
+      elseif _looking_at('$') then
+        _advance(1); false
+      else
+        _fail("Expected '@' or '$' for query argument")
+        error
+      end
     let segments = _parse_filter_segments()?
     if is_rel then _RelFilterQuery(segments) else _AbsFilterQuery(segments) end
 
   fun ref _parse_comparison_op(): _ComparisonOp ? =>
-    """Parse a comparison operator: ==, !=, <=, >=, <, >."""
+    """
+    Parse a comparison operator: ==, !=, <=, >=, <, >.
+    """
     // Check two-char operators before single-char
     if _looking_at_str("==") then _advance(2); _CmpEq
     elseif _looking_at_str("!=") then _advance(2); _CmpNeq
@@ -775,13 +829,14 @@ class ref _JsonPathParser
     end
 
   fun _looking_at_comparison_op(): Bool =>
-    """Check if the current position starts with a comparison operator."""
+    """
+    Check if the current position starts with a comparison operator.
+    """
     _looking_at_str("==") or _looking_at_str("!=") or
     _looking_at_str("<=") or _looking_at_str(">=") or
     _looking_at('<') or _looking_at('>')
 
   // --- Character primitives ---
-
   fun _looking_at(c: U8): Bool =>
     try _source(_offset)? == c else false end
 

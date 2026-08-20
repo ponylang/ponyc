@@ -1,5 +1,7 @@
-class val JsonParseError is Stringable
-  """Structured parse error with location information."""
+class val JSONParseError is Stringable
+  """
+  Structured parse error with location information.
+  """
 
   let message: String
   let offset: USize

@@ -548,19 +548,19 @@ class val _RefsChecker
   fun lsp_method(): String =>
     Methods.text_document().references()
 
-  fun lsp_params(): (None | JsonObject) =>
-    JsonObject
+  fun lsp_params(): (None | JSONObject) =>
+    JSONObject
       .update(
         "position",
-        JsonObject.update("line", _line).update("character", _character))
+        JSONObject.update("line", _line).update("character", _character))
       .update(
         "context",
-        JsonObject.update("includeDeclaration", _include_declaration))
+        JSONObject.update("includeDeclaration", _include_declaration))
 
   fun check(res: ResponseMessage val, h: TestHelper): Bool =>
     var ok = true
     match res.result
-    | let arr: JsonArray =>
+    | let arr: JSONArray =>
       let got = arr.size()
       let want = _expected.size()
       if not h.assert_eq[USize](
@@ -571,9 +571,9 @@ class val _RefsChecker
         ok = false
         for item in arr.values() do
           try
-            let uri = JsonNav(item)("uri").as_string()?
+            let uri = JSONNav(item)("uri").as_string()?
             let file = Path.base(Uris.to_path(uri))
-            let range = JsonNav(item)("range")
+            let range = JSONNav(item)("range")
             let sl = range("start")("line").as_i64()?
             let sc = range("start")("character").as_i64()?
             let el = range("end")("line").as_i64()?
@@ -589,9 +589,9 @@ class val _RefsChecker
         var found = false
         for item in arr.values() do
           try
-            let uri = JsonNav(item)("uri").as_string()?
+            let uri = JSONNav(item)("uri").as_string()?
             let file = Path.base(Uris.to_path(uri))
-            let range = JsonNav(item)("range")
+            let range = JSONNav(item)("range")
             let sl = range("start")("line").as_i64()?
             let sc = range("start")("character").as_i64()?
             let el = range("end")("line").as_i64()?

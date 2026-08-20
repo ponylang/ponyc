@@ -138,11 +138,12 @@ class Reader
       let need = len - i
       let copy_len = need.min(avail)
 
-      out = recover
-        let r = consume ref out
-        data.copy_to(r, offset, i, copy_len)
-        consume r
-      end
+      out =
+        recover
+          let r = consume ref out
+          data.copy_to(r, offset, i, copy_len)
+          consume r
+        end
 
       if avail > need then
         node()? = (data, offset + need)
@@ -154,7 +155,6 @@ class Reader
     end
 
     out
-
 
   fun ref read_until(separator: U8): Array[U8] iso^ ? =>
     """
@@ -169,9 +169,10 @@ class Reader
 
   fun ref line(keep_line_breaks: Bool = false): String iso^ ? =>
     """
-    Return a \n or \r\n terminated line as a string. By default the newline is not
-    included in the returned string, but it is removed from the buffer.
-    Set `keep_line_breaks` to `true` to keep the line breaks in the returned line.
+    Return a \n or \r\n terminated line as a string. By default the
+    newline is not included in the returned string, but it is removed
+    from the buffer. Set `keep_line_breaks` to `true` to keep the
+    line breaks in the returned line.
     """
     let len = _search_length()?
 

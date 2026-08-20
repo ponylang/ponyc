@@ -26,7 +26,7 @@ primitive SelectionRanges
   a useful "select all" outermost range.
   """
 
-  fun collect(node: AST box, doc_path: String val): JsonValue =>
+  fun collect(node: AST box, doc_path: String val): JSONValue =>
     """
     Build the SelectionRange chain starting at `node` and walking to the
     root via `parent()`. Returns the innermost SelectionRange with ancestors
@@ -52,7 +52,7 @@ primitive SelectionRanges
 
     // 2. Build the JSON linked list from outermost to innermost, nesting as
     // we go. Walk `chain` in reverse (index chain.size()-1 down to 0).
-    var result: JsonValue = None
+    var result: JSONValue = None
     var last_sl: USize = 0
     var last_sc: USize = 0
     var last_el: USize = 0
@@ -102,9 +102,9 @@ primitive SelectionRanges
         result =
           match \exhaustive\ result
           | None =>
-            JsonObject.update("range", range_json)
-          | let parent_json: JsonValue =>
-            JsonObject
+            JSONObject.update("range", range_json)
+          | let parent_json: JSONValue =>
+            JSONObject
               .update("range", range_json)
               .update("parent", parent_json)
           end

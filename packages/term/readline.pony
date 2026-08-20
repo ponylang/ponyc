@@ -13,7 +13,6 @@ class Readline is ANSINotify
   embed _history: Array[String]
   embed _queue: Array[String] = Array[String]
   let _maxlen: USize
-
   var _edit: String iso = recover String end
   var _cur_prompt: String = ""
   var _cur_line: USize = 0

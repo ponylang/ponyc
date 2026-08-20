@@ -36,19 +36,22 @@ class \nodoc\ iso _TestMinimal is UnitTest
   fun name(): String => "cli/minimal"
 
   fun apply(h: TestHelper) ? =>
-    let cs = CommandSpec.leaf("minimal", "", [
-      OptionSpec.bool("aflag", "")
-    ])?
+    let cs =
+      CommandSpec.leaf(
+        "minimal",
+        "",
+        [ OptionSpec.bool("aflag", "")
+        ])?
 
     h.assert_eq[String]("minimal", cs.name())
     h.assert_true(cs.is_leaf())
     h.assert_false(cs.is_parent())
 
     let args: Array[String] = ["ignored"; "--aflag=true"]
-    let cmdErr = CommandParser(cs).parse(args)
-    h.log("Parsed: " + cmdErr.string())
+    let cmd_err = CommandParser(cs).parse(args)
+    h.log("Parsed: " + cmd_err.string())
 
-    let cmd = cmdErr as Command
+    let cmd = cmd_err as Command
 
     h.assert_eq[String]("minimal", cmd.fullname())
     h.assert_eq[Bool](true, cmd.option("aflag").bool())
@@ -64,7 +67,7 @@ class \nodoc\ iso _TestMinimalWithHelp is UnitTest
 
     let args: Array[String] = ["--help"]
     // test for successful parsing
-    let cmdErr = CommandParser(cs).parse(args) as Command
+    let cmd_err = CommandParser(cs).parse(args) as Command
 
 class \nodoc\ iso _TestBadName is UnitTest
   fun name(): String => "cli/badname"
@@ -85,19 +88,19 @@ class \nodoc\ iso _TestUnknownCommand is UnitTest
     h.assert_false(cs.is_leaf())
     h.assert_true(cs.is_parent())
 
-    let args: Array[String] = [
-      "ignored"
+    let args: Array[String] =
+      [ "ignored"
       "unknown"
     ]
 
-    let cmdErr = CommandParser(cs).parse(args)
-    h.log("Parsed: " + cmdErr.string())
+    let cmd_err = CommandParser(cs).parse(args)
+    h.log("Parsed: " + cmd_err.string())
 
-    match cmdErr
+    match cmd_err
     | let se: SyntaxError => None
       h.assert_eq[String]("Error: unknown command at: 'unknown'", se.string())
     else
-      h.fail("expected syntax error for unknown command: " + cmdErr.string())
+      h.fail("expected syntax error for unknown command: " + cmd_err.string())
     end
 
 class \nodoc\ iso _TestUnexpectedArg is UnitTest
@@ -109,20 +112,20 @@ class \nodoc\ iso _TestUnexpectedArg is UnitTest
     h.assert_true(cs.is_leaf())
     h.assert_false(cs.is_parent())
 
-    let args: Array[String] = [
-      "ignored"
+    let args: Array[String] =
+      [ "ignored"
       "unknown"
     ]
 
-    let cmdErr = CommandParser(cs).parse(args)
-    h.log("Parsed: " + cmdErr.string())
+    let cmd_err = CommandParser(cs).parse(args)
+    h.log("Parsed: " + cmd_err.string())
 
-    match cmdErr
+    match cmd_err
     | let se: SyntaxError => None
       h.assert_eq[String](
         "Error: too many positional arguments at: 'unknown'", se.string())
     else
-      h.fail("expected syntax error for unknown command: " + cmdErr.string())
+      h.fail("expected syntax error for unknown command: " + cmd_err.string())
     end
 
 class \nodoc\ iso _TestUnknownShort is UnitTest
@@ -134,20 +137,20 @@ class \nodoc\ iso _TestUnknownShort is UnitTest
     h.assert_true(cs.is_leaf())
     h.assert_false(cs.is_parent())
 
-    let args: Array[String] = [
-      "ignored"
+    let args: Array[String] =
+      [ "ignored"
       "-Z"
     ]
 
-    let cmdErr = CommandParser(cs).parse(args)
-    h.log("Parsed: " + cmdErr.string())
+    let cmd_err = CommandParser(cs).parse(args)
+    h.log("Parsed: " + cmd_err.string())
 
-    match cmdErr
+    match cmd_err
     | let se: SyntaxError => None
       h.assert_eq[String]("Error: unknown short option at: 'Z'", se.string())
     else
       h.fail(
-        "expected syntax error for unknown short option: " + cmdErr.string())
+        "expected syntax error for unknown short option: " + cmd_err.string())
     end
 
 class \nodoc\ iso _TestUnknownLong is UnitTest
@@ -159,21 +162,21 @@ class \nodoc\ iso _TestUnknownLong is UnitTest
     h.assert_true(cs.is_leaf())
     h.assert_false(cs.is_parent())
 
-    let args: Array[String] = [
-      "ignored"
+    let args: Array[String] =
+      [ "ignored"
       "--unknown"
     ]
 
-    let cmdErr = CommandParser(cs).parse(args)
-    h.log("Parsed: " + cmdErr.string())
+    let cmd_err = CommandParser(cs).parse(args)
+    h.log("Parsed: " + cmd_err.string())
 
-    match cmdErr
+    match cmd_err
     | let se: SyntaxError => None
       h.assert_eq[String](
         "Error: unknown long option at: 'unknown'", se.string())
     else
       h.fail(
-        "expected syntax error for unknown long option: " + cmdErr.string())
+        "expected syntax error for unknown long option: " + cmd_err.string())
     end
 
 class \nodoc\ iso _TestHyphenArg is UnitTest
@@ -181,16 +184,18 @@ class \nodoc\ iso _TestHyphenArg is UnitTest
 
   // Rule 1
   fun apply(h: TestHelper) ? =>
-    let cs = CommandSpec.leaf("minimal" where args' = [
-      ArgSpec.string("name", "")
-    ])?
+    let cs =
+      CommandSpec.leaf(
+        "minimal" where args' =
+        [ ArgSpec.string("name", "")
+        ])?
     h.assert_true(cs.is_leaf())
     h.assert_false(cs.is_parent())
     let args: Array[String] = ["ignored"; "-"]
-    let cmdErr = CommandParser(cs).parse(args)
-    h.log("Parsed: " + cmdErr.string())
+    let cmd_err = CommandParser(cs).parse(args)
+    h.log("Parsed: " + cmd_err.string())
 
-    let cmd = cmdErr as Command
+    let cmd = cmd_err as Command
 
     h.assert_eq[String]("minimal", cmd.fullname())
     h.assert_eq[String]("-", cmd.arg("name").string())
@@ -205,10 +210,10 @@ class \nodoc\ iso _TestBools is UnitTest
     h.assert_false(cs.is_parent())
 
     let args: Array[String] = ["ignored"; "-ab"; "-c=true"; "-d=false"]
-    let cmdErr = CommandParser(cs).parse(args)
-    h.log("Parsed: " + cmdErr.string())
+    let cmd_err = CommandParser(cs).parse(args)
+    h.log("Parsed: " + cmd_err.string())
 
-    let cmd = cmdErr as Command
+    let cmd = cmd_err as Command
 
     h.assert_eq[String]("bools", cmd.fullname())
     h.assert_eq[Bool](true, cmd.option("aaa").bool())
@@ -227,10 +232,10 @@ class \nodoc\ iso _TestDefaults is UnitTest
 
     let args: Array[String] =
       ["ignored"; "-B"; "-S--"; "-I42"; "-U47"; "-F42.0"]
-    let cmdErr = CommandParser(cs).parse(args)
-    h.log("Parsed: " + cmdErr.string())
+    let cmd_err = CommandParser(cs).parse(args)
+    h.log("Parsed: " + cmd_err.string())
 
-    let cmd = cmdErr as Command
+    let cmd = cmd_err as Command
 
     h.assert_eq[Bool](true, cmd.option("boolo").bool())
     h.assert_eq[String]("astring", cmd.option("stringo").string())
@@ -259,14 +264,14 @@ class \nodoc\ iso _TestShortsAdj is UnitTest
     h.assert_true(cs.is_leaf())
     h.assert_false(cs.is_parent())
 
-    let args: Array[String] = [
-      "ignored"
+    let args: Array[String] =
+      [ "ignored"
       "-BS--"; "-I42"; "-U47"; "-F42.0"; "-zaaa"; "-zbbb"
     ]
-    let cmdErr = CommandParser(cs).parse(args)
-    h.log("Parsed: " + cmdErr.string())
+    let cmd_err = CommandParser(cs).parse(args)
+    h.log("Parsed: " + cmd_err.string())
 
-    let cmd = cmdErr as Command
+    let cmd = cmd_err as Command
 
     h.assert_eq[Bool](true, cmd.option("boolr").bool())
     h.assert_eq[String]("--", cmd.option("stringr").string())
@@ -278,16 +283,16 @@ class \nodoc\ iso _TestShortsAdj is UnitTest
     h.assert_eq[String]("aaa", stringso.string_seq()(0)?)
     h.assert_eq[String]("bbb", stringso.string_seq()(1)?)
 
-    let ambiguous_args: Array[String] = [
-      "ignored"; "-swords=with=signs"
-    ]
-    let cmdSyntax = CommandParser(cs).parse(ambiguous_args)
-    match \exhaustive\ cmdSyntax
+    let ambiguous_args: Array[String] =
+      [ "ignored"; "-swords=with=signs"
+      ]
+    let cmd_syntax = CommandParser(cs).parse(ambiguous_args)
+    match \exhaustive\ cmd_syntax
     | let se: SyntaxError =>
       h.assert_eq[String](
         "Error: ambiguous args for short option at: 's'", se.string())
     else
-      h.fail("expected syntax error for ambiguous args: " + cmdSyntax.string())
+      h.fail("expected syntax error for ambiguous args: " + cmd_syntax.string())
     end
 
 class \nodoc\ iso _TestShortsEq is UnitTest
@@ -297,15 +302,15 @@ class \nodoc\ iso _TestShortsEq is UnitTest
   fun apply(h: TestHelper) ? =>
     let cs = _Fixtures.simple_cli_spec()?
 
-    let args: Array[String] = [
-      "ignored"
+    let args: Array[String] =
+      [ "ignored"
       "-BS=astring"; "-s=words=with=signs"
       "-I=42"; "-U=47"; "-F=42.0"; "-z=aaa"; "-z=bbb"
     ]
-    let cmdErr = CommandParser(cs).parse(args)
-    h.log("Parsed: " + cmdErr.string())
+    let cmd_err = CommandParser(cs).parse(args)
+    h.log("Parsed: " + cmd_err.string())
 
-    let cmd = cmdErr as Command
+    let cmd = cmd_err as Command
 
     h.assert_eq[Bool](true, cmd.option("boolr").bool())
     h.assert_eq[String]("astring", cmd.option("stringr").string())
@@ -325,16 +330,16 @@ class \nodoc\ iso _TestShortsNext is UnitTest
   fun apply(h: TestHelper) ? =>
     let cs = _Fixtures.simple_cli_spec()?
 
-    let args: Array[String] = [
-      "ignored"
+    let args: Array[String] =
+      [ "ignored"
       "-BS"; "--"; "-s"; "words=with=signs"
       "-I"; "42"; "-U"; "47"
       "-F"; "42.0"; "-z"; "aaa"; "-z"; "bbb"
     ]
-    let cmdErr = CommandParser(cs).parse(args)
-    h.log("Parsed: " + cmdErr.string())
+    let cmd_err = CommandParser(cs).parse(args)
+    h.log("Parsed: " + cmd_err.string())
 
-    let cmd = cmdErr as Command
+    let cmd = cmd_err as Command
 
     h.assert_eq[Bool](true, cmd.option("boolr").bool())
     h.assert_eq[String]("--", cmd.option("stringr").string())
@@ -354,16 +359,16 @@ class \nodoc\ iso _TestLongsEq is UnitTest
   fun apply(h: TestHelper) ? =>
     let cs = _Fixtures.simple_cli_spec()?
 
-    let args: Array[String] = [
-      "ignored"
+    let args: Array[String] =
+      [ "ignored"
       "--boolr=true"; "--stringr=astring"; "--stringo=words=with=signs"
       "--intr=42"; "--uintr=47"; "--floatr=42.0"
       "--stringso=aaa"; "--stringso=bbb"
     ]
-    let cmdErr = CommandParser(cs).parse(args)
-    h.log("Parsed: " + cmdErr.string())
+    let cmd_err = CommandParser(cs).parse(args)
+    h.log("Parsed: " + cmd_err.string())
 
-    let cmd = cmdErr as Command
+    let cmd = cmd_err as Command
 
     h.assert_eq[Bool](true, cmd.option("boolr").bool())
     h.assert_eq[String]("astring", cmd.option("stringr").string())
@@ -383,16 +388,16 @@ class \nodoc\ iso _TestLongsNext is UnitTest
   fun apply(h: TestHelper) ? =>
     let cs = _Fixtures.simple_cli_spec()?
 
-    let args: Array[String] = [
-      "ignored"
+    let args: Array[String] =
+      [ "ignored"
       "--boolr"; "--stringr"; "--"; "--stringo"; "words=with=signs"
       "--intr"; "42"; "--uintr"; "47"; "--floatr"; "42.0"
       "--stringso"; "aaa"; "--stringso"; "bbb"
     ]
-    let cmdErr = CommandParser(cs).parse(args)
-    h.log("Parsed: " + cmdErr.string())
+    let cmd_err = CommandParser(cs).parse(args)
+    h.log("Parsed: " + cmd_err.string())
 
-    let cmd = cmdErr as Command
+    let cmd = cmd_err as Command
 
     h.assert_eq[String]("--", cmd.option("stringr").string())
     h.assert_eq[String]("words=with=signs", cmd.option("stringo").string())
@@ -411,20 +416,20 @@ class \nodoc\ iso _TestEnvs is UnitTest
   fun apply(h: TestHelper) ? =>
     let cs = _Fixtures.simple_cli_spec()?
 
-    let args: Array[String] = [
-      "ignored"
+    let args: Array[String] =
+      [ "ignored"
     ]
-    let envs: Array[String] = [
-      "SIMPLE_BOOLR=true"
+    let envs: Array[String] =
+      [ "SIMPLE_BOOLR=true"
       "SIMPLE_STRINGR=astring"
       "SIMPLE_INTR=42"
       "SIMPLE_UINTR=47"
       "SIMPLE_FLOATR=42.0"
     ]
-    let cmdErr = CommandParser(cs).parse(args, envs)
-    h.log("Parsed: " + cmdErr.string())
+    let cmd_err = CommandParser(cs).parse(args, envs)
+    h.log("Parsed: " + cmd_err.string())
 
-    let cmd = cmdErr as Command
+    let cmd = cmd_err as Command
 
     h.assert_eq[Bool](true, cmd.option("boolr").bool())
     h.assert_eq[String]("astring", cmd.option("stringr").string())
@@ -439,15 +444,15 @@ class \nodoc\ iso _TestOptionStop is UnitTest
   fun apply(h: TestHelper) ? =>
     let cs = _Fixtures.simple_cli_spec()?
 
-    let args: Array[String] = [
-      "ignored"
+    let args: Array[String] =
+      [ "ignored"
       "-BS=astring"; "-I=42"; "-F=42.0"; "-U=23"
       "--"; "-f=1.0"
     ]
-    let cmdErr = CommandParser(cs).parse(args)
-    h.log("Parsed: " + cmdErr.string())
+    let cmd_err = CommandParser(cs).parse(args)
+    h.log("Parsed: " + cmd_err.string())
 
-    let cmd = cmdErr as Command
+    let cmd = cmd_err as Command
 
     h.assert_eq[String]("-f=1.0", cmd.arg("words").string())
     h.assert_eq[F64](42.0, cmd.option("floato").f64())
@@ -459,15 +464,15 @@ class \nodoc\ iso _TestDuplicate is UnitTest
   fun apply(h: TestHelper) ? =>
     let cs = _Fixtures.simple_cli_spec()?
 
-    let args: Array[String] = [
-      "ignored"
+    let args: Array[String] =
+      [ "ignored"
       "--boolr=true"; "--stringr=astring"; "--intr=42"; "--uintr=47"
       "--floatr=42.0"; "--stringr=newstring"
     ]
-    let cmdErr = CommandParser(cs).parse(args)
-    h.log("Parsed: " + cmdErr.string())
+    let cmd_err = CommandParser(cs).parse(args)
+    h.log("Parsed: " + cmd_err.string())
 
-    let cmd = cmdErr as Command
+    let cmd = cmd_err as Command
 
     h.assert_eq[String]("newstring", cmd.option("stringr").string())
 
@@ -479,15 +484,15 @@ class \nodoc\ iso _TestChat is UnitTest
     h.assert_false(cs.is_leaf())
     h.assert_true(cs.is_parent())
 
-    let args: Array[String] = [
-      "ignored"
+    let args: Array[String] =
+      [ "ignored"
       "--admin"; "--name=carl"; "say"; "-v80"; "hi"; "yo"; "hey"
     ]
 
-    let cmdErr = CommandParser(cs).parse(args)
-    h.log("Parsed: " + cmdErr.string())
+    let cmd_err = CommandParser(cs).parse(args)
+    h.log("Parsed: " + cmd_err.string())
 
-    let cmd = cmdErr as Command
+    let cmd = cmd_err as Command
 
     h.assert_eq[String]("chat/say", cmd.fullname())
 
@@ -522,18 +527,18 @@ class \nodoc\ iso _TestMustBeLeaf is UnitTest
     h.assert_false(cs.is_leaf())
     h.assert_true(cs.is_parent())
 
-    let args: Array[String] = [
-      "ignored"
+    let args: Array[String] =
+      [ "ignored"
       "--admin"; "--name=carl"; "config"
     ]
 
-    let cmdErr = CommandParser(cs).parse(args)
-    h.log("Parsed: " + cmdErr.string())
+    let cmd_err = CommandParser(cs).parse(args)
+    h.log("Parsed: " + cmd_err.string())
 
-    match cmdErr
+    match cmd_err
     | let se: SyntaxError => None
     else
-      h.fail("expected syntax error for non-leaf command: " + cmdErr.string())
+      h.fail("expected syntax error for non-leaf command: " + cmd_err.string())
     end
 
 class \nodoc\ iso _TestHelp is UnitTest
@@ -542,8 +547,8 @@ class \nodoc\ iso _TestHelp is UnitTest
   fun apply(h: TestHelper) ? =>
     let cs = _Fixtures.chat_cli_spec()?
 
-    let chErr = Help.for_command(cs, ["config"; "server"])
-    let ch = chErr as CommandHelp
+    let ch_err = Help.for_command(cs, ["config"; "server"])
+    let ch = ch_err as CommandHelp
 
     let help = ch.help_string()
     h.log(help)
@@ -554,19 +559,22 @@ class \nodoc\ iso _TestHelpFalse is UnitTest
 
   fun apply(h: TestHelper) ? =>
     let cs =
-      CommandSpec.leaf("bools", "A sample CLI with four bool options", [
-        OptionSpec.string("name" where short' = 'n', default' = "John")
-      ])?.>add_help()?
-    let args = [
-       "ignored"
-       "--help=false"
-    ]
+      CommandSpec.leaf(
+        "bools",
+        "A sample CLI with four bool options",
+        [ OptionSpec.string("name" where short' = 'n', default' = "John")
+        ])? .> add_help()?
+    let args =
+      [ "ignored"
+        "--help=false"
+      ]
     let cmd = CommandParser(cs).parse(args)
     match \exhaustive\ cmd
     | let c: Command =>
       h.assert_false(c.option("help").bool())
       h.assert_eq[String]("John", c.option("name").string())
-    | let ch: CommandHelp => h.fail("--help=false is interpretet as demanding help output.")
+    | let ch: CommandHelp =>
+      h.fail("--help=false is interpretet as demanding help output.")
     | let se: SyntaxError =>
       h.fail("--help=false is not handled correctly: " + se.string())
     end
@@ -588,11 +596,12 @@ class \nodoc\ iso _TestMultipleEndOfOptions is UnitTest
   fun apply(h: TestHelper) ? =>
     let cs = _Fixtures.corral_spec()?
 
-    let args: Array[String] = ["ignored"; "exec"; "--"; "lldb"; "ponyc"; "--"; "-v" ]
-    let cmdErr = CommandParser(cs).parse(args)
-    h.log("Parsed: " + cmdErr.string())
+    let args: Array[String] =
+      ["ignored"; "exec"; "--"; "lldb"; "ponyc"; "--"; "-v"]
+    let cmd_err = CommandParser(cs).parse(args)
+    h.log("Parsed: " + cmd_err.string())
 
-    let cmd = cmdErr as Command
+    let cmd = cmd_err as Command
     h.assert_eq[String]("corral/exec", cmd.fullname())
 
     let argss = cmd.arg("args").string_seq()
@@ -606,86 +615,108 @@ primitive _Fixtures
     """
     Builds and returns the spec for a CLI with four bool options.
     """
-    CommandSpec.leaf("bools", "A sample CLI with four bool options", [
-      OptionSpec.bool("aaa" where short' = 'a')
-      OptionSpec.bool("bbb" where short' = 'b')
-      OptionSpec.bool("ccc" where short' = 'c')
-      OptionSpec.bool("ddd" where short' = 'd')
-    ])?
+    CommandSpec.leaf(
+      "bools",
+      "A sample CLI with four bool options",
+      [ OptionSpec.bool("aaa" where short' = 'a')
+        OptionSpec.bool("bbb" where short' = 'b')
+        OptionSpec.bool("ccc" where short' = 'c')
+        OptionSpec.bool("ddd" where short' = 'd')
+      ])?
 
   fun simple_cli_spec(): CommandSpec box ? =>
     """
     Builds and returns the spec for a CLI with short options of each type.
     """
-    CommandSpec.leaf("simple",
-        "A sample program with various short options, optional and required", [
-      OptionSpec.bool("boolr" where short' = 'B')
-      OptionSpec.bool("boolo" where short' = 'b', default' = true)
-      OptionSpec.string("stringr" where short' = 'S')
-      OptionSpec.string("stringo" where short' = 's', default' = "astring")
-      OptionSpec.i64("intr" where short' = 'I')
-      OptionSpec.i64("into" where short' = 'i', default' = I64(42))
-      OptionSpec.u64("uintr" where short' = 'U')
-      OptionSpec.u64("uinto" where short' = 'u', default' = U64(47))
-      OptionSpec.f64("floatr" where short' = 'F')
-      OptionSpec.f64("floato" where short' = 'f', default' = F64(42.0))
-      OptionSpec.string_seq("stringso" where short' = 'z')
-    ], [
-      ArgSpec.string("words" where default' = "hello")
-      ArgSpec.string_seq("argz")
-    ])?
+    CommandSpec.leaf(
+      "simple",
+      "A sample program with various short options, optional and required",
+      [ OptionSpec.bool("boolr" where short' = 'B')
+        OptionSpec.bool("boolo" where short' = 'b', default' = true)
+        OptionSpec.string("stringr" where short' = 'S')
+        OptionSpec.string("stringo" where short' = 's', default' = "astring")
+        OptionSpec.i64("intr" where short' = 'I')
+        OptionSpec.i64("into" where short' = 'i', default' = I64(42))
+        OptionSpec.u64("uintr" where short' = 'U')
+        OptionSpec.u64("uinto" where short' = 'u', default' = U64(47))
+        OptionSpec.f64("floatr" where short' = 'F')
+        OptionSpec.f64("floato" where short' = 'f', default' = F64(42.0))
+        OptionSpec.string_seq("stringso" where short' = 'z')
+      ],
+      [ ArgSpec.string("words" where default' = "hello")
+        ArgSpec.string_seq("argz")
+      ])?
 
   fun chat_cli_spec(): CommandSpec box ? =>
     """
     Builds and returns the spec for a sample chat client's CLI.
     """
-    CommandSpec.parent("chat", "A sample chat program", [
-      OptionSpec.bool("admin", "Chat as admin" where default' = false)
-      OptionSpec.string("name", "Your name" where short' = 'n')
-      OptionSpec.f64("volume", "Chat volume" where short' = 'v', default' = 1.0)
-    ], [
-      CommandSpec.leaf("say", "Say something", Array[OptionSpec](), [
-        ArgSpec.string_seq("words", "The words to say")
+    CommandSpec.parent(
+      "chat",
+      "A sample chat program",
+      [ OptionSpec.bool("admin", "Chat as admin" where default' = false)
+        OptionSpec.string("name", "Your name" where short' = 'n')
+        OptionSpec.f64(
+          "volume",
+          "Chat volume" where short' = 'v',
+          default' = 1.0)
+      ],
+      [ CommandSpec.leaf(
+          "say",
+          "Say something",
+          Array[OptionSpec](),
+          [ ArgSpec.string_seq("words", "The words to say")
+          ])?
+        CommandSpec.leaf(
+          "emote",
+          "Send an emotion",
+          [ OptionSpec.f64(
+              "speed",
+              "Emote play speed" where default' = F64(1.0))
+          ],
+          [ ArgSpec.string("emotion", "Emote to send")
+          ])?
+        CommandSpec.parent(
+          "config",
+          "Configuration commands",
+          Array[OptionSpec](),
+          [ CommandSpec.leaf(
+              "server",
+              "Server configuration",
+              Array[OptionSpec](),
+              [ ArgSpec.string("address", "Address of the server")
+              ])?
+          ])?
       ])?
-      CommandSpec.leaf("emote", "Send an emotion", [
-        OptionSpec.f64("speed", "Emote play speed" where default' = F64(1.0))
-      ], [
-        ArgSpec.string("emotion", "Emote to send")
-      ])?
-      CommandSpec.parent("config", "Configuration commands",
-        Array[OptionSpec](), [
-        CommandSpec.leaf("server", "Server configuration", Array[OptionSpec](), [
-          ArgSpec.string("address", "Address of the server")
-        ])?
-      ])?
-    ])?
-
 
   fun corral_spec(): CommandSpec box ? =>
     """
-    A snippet from Corral's command spec to demonstrate multiple end of option arguments
+    A snippet from Corral's command spec to demonstrate multiple end of
+    option arguments
     """
-    CommandSpec.parent("corral", "", [
-        OptionSpec.u64(
+    CommandSpec.parent(
+      "corral",
+      "",
+      [ OptionSpec.u64(
           "debug",
           "Configure debug output: 0=off, 1=err, 2=warn, 3=info, 4=fine."
-          where short'='g',
+          where short' = 'g',
           default' = 0)
-      ], [
-      CommandSpec.leaf(
-        "exec",
-        "For executing shell commands which require user interaction",
-        Array[OptionSpec](),
-        [
-          ArgSpec.string_seq("args", "Arguments to run.")
-        ])?
-    ])?
+      ],
+      [ CommandSpec.leaf(
+          "exec",
+          "For executing shell commands which require user interaction",
+          Array[OptionSpec](),
+          [ ArgSpec.string_seq("args", "Arguments to run.")
+          ])?
+      ])?
 
   fun default_with_sub_spec(): CommandSpec box ? =>
-    let root = CommandSpec.parent(
-      "cmd",
-      "Main command",
-      [ OptionSpec.string("arg", "an arg" where default' = "foo") ])?
+    let root =
+      CommandSpec.parent(
+        "cmd",
+        "Main command",
+        [ OptionSpec.string("arg", "an arg" where default' = "foo") ])?
     let sub = CommandSpec.leaf("sub", "Sub command")?
 
     root.add_command(sub)?

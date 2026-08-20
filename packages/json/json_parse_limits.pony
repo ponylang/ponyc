@@ -1,32 +1,31 @@
-class val JsonParseLimits
+class val JSONParseLimits
   """
-  Resource bounds for `JsonTokenParser` over untrusted input.
+  Resource bounds for `JSONTokenParser` over untrusted input.
 
-  These bound the parser's own working memory: the container-depth stack, and the
-  single string or number it is part-way through. They do not bound how much a
-  `JsonReassembler` — or your own notifier — chooses to retain; that memory is the
-  caller's choice, so a raw-notifier consumer that drops the tokens it doesn't need
-  stays flat no matter how large the document.
+  These bound the parser's own working memory: the container-depth
+  stack, and the single string or number it is part-way through. They
+  do not bound how much a `JSONReassembler` — or your own notifier —
+  chooses to retain; that memory is the caller's choice, so a
+  raw-notifier consumer that drops the tokens it doesn't need stays
+  flat no matter how large the document.
 
-  The default constructor applies conservative limits; raise a specific bound when
-  a trusted source legitimately has a large value or deep nesting, or use
-  `unlimited()` for fully trusted input.
+  The default constructor applies conservative limits; raise a
+  specific bound when a trusted source legitimately has a large value
+  or deep nesting, or use `unlimited()` for fully trusted input.
 
   ```pony
-  let parser = JsonTokenParser(notify) // default limits
-  let parser = JsonTokenParser(notify, JsonParseLimits(where max_depth' = 32))
-  let parser = JsonTokenParser(notify, JsonParseLimits.unlimited())
+  let parser = JSONTokenParser(notify) // default limits
+  let parser = JSONTokenParser(notify, JSONParseLimits(where max_depth' = 32))
+  let parser = JSONTokenParser(notify, JSONParseLimits.unlimited())
   ```
   """
   let max_depth: USize
-    """Maximum container nesting depth. This bounds the parser's frame stack."""
-
+    """Maximum container nesting depth. Bounds the parser's frame stack."""
   let max_string_len: USize
     """
-    Maximum length, in bytes, of a single string's source text (the bytes between
-    the quotes, before any escapes are decoded).
+    Maximum length, in bytes, of a single string's source text (the
+    bytes between the quotes, before any escapes are decoded).
     """
-
   let max_number_len: USize
     """Maximum length, in bytes, of a single number's source text."""
 
@@ -42,7 +41,7 @@ class val JsonParseLimits
   new val unlimited() =>
     """
     No bounds — every limit is set to its maximum. For fully trusted input, such
-    as a whole document already held in memory. This is what `JsonParser.parse`
+    as a whole document already held in memory. This is what `JSONParser.parse`
     uses.
     """
     max_depth = USize.max_value()

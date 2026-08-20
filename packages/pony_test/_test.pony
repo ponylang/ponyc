@@ -15,14 +15,15 @@ class \nodoc\ iso _TestListPreservesOrder is UnitTest
 
   fun apply(h: TestHelper) =>
     h.long_test(2_000_000_000)
-    let list = object tag is TestList
-      fun tag tests(test: PonyTest) =>
-        test(_NamedTest("A"))
-        test(_NamedTest("B"))
-        test(_NamedTest("C"))
-        test(_NamedTest("D"))
-        test(_NamedTest("E"))
-    end
+    let list =
+      object tag is TestList
+        fun tag tests(test: PonyTest) =>
+          test(_NamedTest("A"))
+          test(_NamedTest("B"))
+          test(_NamedTest("C"))
+          test(_NamedTest("D"))
+          test(_NamedTest("E"))
+      end
     let expected = recover val ["A"; "B"; "C"; "D"; "E"] end
     _RunList(h, ["test"; "--list"], list, expected)
 
@@ -42,22 +43,24 @@ class \nodoc\ iso _TestShuffleVariesAcrossSeeds is UnitTest
     let collector = _MultiSeedCollector(h, num_seeds)
     var seed: U64 = 1
     while seed <= num_seeds.u64() do
-      let list = object tag is TestList
-        fun tag tests(test: PonyTest) =>
-          test(_NamedTest("A"))
-          test(_NamedTest("B"))
-          test(_NamedTest("C"))
-          test(_NamedTest("D"))
-          test(_NamedTest("E"))
-          test(_NamedTest("F"))
-          test(_NamedTest("G"))
-          test(_NamedTest("H"))
-          test(_NamedTest("I"))
-          test(_NamedTest("J"))
-      end
-      let args = recover val
-        ["test"; "--list"; "--shuffle=" + seed.string()]
-      end
+      let list =
+        object tag is TestList
+          fun tag tests(test: PonyTest) =>
+            test(_NamedTest("A"))
+            test(_NamedTest("B"))
+            test(_NamedTest("C"))
+            test(_NamedTest("D"))
+            test(_NamedTest("E"))
+            test(_NamedTest("F"))
+            test(_NamedTest("G"))
+            test(_NamedTest("H"))
+            test(_NamedTest("I"))
+            test(_NamedTest("J"))
+        end
+      let args =
+        recover val
+          ["test"; "--list"; "--shuffle=" + seed.string()]
+        end
       let out = _PerSeedCollector(collector, num_tests + 1)
       _RunListWith(h, args, list, out)
       seed = seed + 1
@@ -71,23 +74,24 @@ class \nodoc\ iso _TestListShuffleSeedZero is UnitTest
 
   fun apply(h: TestHelper) =>
     h.long_test(2_000_000_000)
-    let list = object tag is TestList
-      fun tag tests(test: PonyTest) =>
-        test(_NamedTest("A"))
-        test(_NamedTest("B"))
-        test(_NamedTest("C"))
-        test(_NamedTest("D"))
-        test(_NamedTest("E"))
-    end
-    let expected = recover val
-      ["Test seed: 0"; "E"; "A"; "C"; "D"; "B"]
-    end
+    let list =
+      object tag is TestList
+        fun tag tests(test: PonyTest) =>
+          test(_NamedTest("A"))
+          test(_NamedTest("B"))
+          test(_NamedTest("C"))
+          test(_NamedTest("D"))
+          test(_NamedTest("E"))
+      end
+    let expected =
+      recover val
+        ["Test seed: 0"; "E"; "A"; "C"; "D"; "B"]
+      end
     _RunList(h, ["test"; "--list"; "--shuffle=0"], list, expected)
 
 // ---------------------------------------------------------------------------
 // Test infrastructure
 // ---------------------------------------------------------------------------
-
 primitive \nodoc\ _RunList
   """
   Create a PonyTest in --list mode with controlled args and verify its output.
@@ -105,17 +109,21 @@ primitive \nodoc\ _RunListWith
   """
   Create a PonyTest in --list mode, sending output to the given collector.
   """
-  fun apply(h: TestHelper, args: Array[String] val, list: TestList tag,
+  fun apply(
+    h: TestHelper,
+    args: Array[String] val,
+    list: TestList tag,
     collector: OutStream)
   =>
-    let env = Env.create(
-      h.env.root,
-      h.env.input,
-      collector,
-      h.env.err,
-      args,
-      h.env.vars,
-      {(code: I32) => None})
+    let env =
+      Env.create(
+        h.env.root,
+        h.env.input,
+        collector,
+        h.env.err,
+        args,
+        h.env.vars,
+        {(code: I32) => None })
     PonyTest(env, list)
 
 class \nodoc\ iso _NamedTest is UnitTest
@@ -123,6 +131,7 @@ class \nodoc\ iso _NamedTest is UnitTest
   A trivially-passing test with a configurable name.
   """
   let _name: String
+
   new iso create(name': String) => _name = name'
   fun name(): String => _name
   fun apply(h: TestHelper) => None
@@ -139,7 +148,9 @@ actor \nodoc\ _OutputCollector is OutStream
   var _runs_remaining: USize
   embed _received: Array[String] = Array[String]
 
-  new create(h: TestHelper, expected: Array[String] val,
+  new create(
+    h: TestHelper,
+    expected: Array[String] val,
     runs: USize = 1)
   =>
     _h = h
@@ -148,7 +159,7 @@ actor \nodoc\ _OutputCollector is OutStream
 
   be print(data: ByteSeq) =>
     if _runs_remaining == 0 then return end
-    match data
+    match \exhaustive\ data
     | let s: String => _received.push(s)
     | let a: Array[U8] val => _received.push(String.from_array(a))
     end
@@ -199,7 +210,8 @@ actor \nodoc\ _MultiSeedCollector
         i = i + 1
       end
     end
-    _h.assert_true(found_different,
+    _h.assert_true(
+      found_different,
       "All 10 seeds produced the same test order")
     _h.complete(true)
 
@@ -233,7 +245,7 @@ actor \nodoc\ _PerSeedCollector is OutStream
 
   be print(data: ByteSeq) =>
     if _done then return end
-    match data
+    match \exhaustive\ data
     | let s: String => _received.push(s)
     | let a: Array[U8] val => _received.push(String.from_array(a))
     end

@@ -255,23 +255,23 @@ class val _DefinitionChecker
   fun lsp_method(): String =>
     Methods.text_document().definition()
 
-  fun lsp_params(): (None | JsonObject) =>
-    JsonObject.update(
+  fun lsp_params(): (None | JSONObject) =>
+    JSONObject.update(
       "position",
-      JsonObject.update("line", _line).update("character", _character))
+      JSONObject.update("line", _line).update("character", _character))
 
   fun check(res: ResponseMessage val, h: TestHelper): Bool =>
     var ok =
       h.assert_eq[USize](
         _expected.size(),
-        try JsonNav(res.result).size()? else 0 end,
+        try JSONNav(res.result).size()? else 0 end,
         "Wrong number of definitions")
     for (i, loc) in _expected.pairs() do
       (let file_suffix, let start_pos, let end_pos) = loc
       (let exp_start_line, let exp_start_char) = start_pos
       (let exp_end_line, let exp_end_char) = end_pos
       try
-        let nav = JsonNav(res.result)(i)
+        let nav = JSONNav(res.result)(i)
         let uri = nav("uri").as_string()?
         let got_start_line = nav("range")("start")("line").as_i64()?
         let got_start_char = nav("range")("start")("character").as_i64()?

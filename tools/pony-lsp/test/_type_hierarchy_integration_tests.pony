@@ -403,10 +403,10 @@ class val _PrepareTypeHierarchyChecker
   fun lsp_method(): String =>
     Methods.text_document().prepare_type_hierarchy()
 
-  fun lsp_params(): (None | JsonObject) =>
-    JsonObject.update(
+  fun lsp_params(): (None | JSONObject) =>
+    JSONObject.update(
       "position",
-      JsonObject
+      JSONObject
         .update("line", _sel_pos._1)
         .update("character", _sel_pos._2))
 
@@ -421,13 +421,13 @@ class val _PrepareTypeHierarchyChecker
       end
     | let exp: _THierExpected val =>
       match res.result
-      | let arr: JsonArray =>
+      | let arr: JSONArray =>
         var ok =
           h.assert_eq[USize](
             1,
-            try JsonNav(arr).size()? else 0 end,
+            try JSONNav(arr).size()? else 0 end,
             "prepare: expected single item")
-        ok = _THierCheckItem(JsonNav(arr), 0, exp, h) and ok
+        ok = _THierCheckItem(JSONNav(arr), 0, exp, h) and ok
         ok
       | None =>
         h.fail("prepare: expected item, got null")
@@ -441,7 +441,7 @@ class val _PrepareTypeHierarchyChecker
 class val _THierItemsChecker
   """
   Checker for typeHierarchy/supertypes and typeHierarchy/subtypes.
-  Asserts the result is a JsonArray (not null), verifies item count, and
+  Asserts the result is a JSONArray (not null), verifies item count, and
   checks all TypeHierarchyItem fields: name, kind, uri, selectionRange,
   range.
   """
@@ -464,16 +464,16 @@ class val _THierItemsChecker
 
   fun lsp_method(): String => _method
 
-  fun lsp_params(): (None | JsonObject) =>
-    JsonObject.update(
+  fun lsp_params(): (None | JSONObject) =>
+    JSONObject.update(
       "item",
-      JsonObject
+      JSONObject
         .update("uri", _item_uri)
         .update(
           "selectionRange",
-          JsonObject.update(
+          JSONObject.update(
             "start",
-            JsonObject
+            JSONObject
               .update("line", _sel_pos._1)
               .update("character", _sel_pos._2))))
 
@@ -486,8 +486,8 @@ class val _THierItemsChecker
         h.fail(_method + ": expected items, got null")
       end
       false
-    | let arr: JsonArray =>
-      let nav = JsonNav(arr)
+    | let arr: JSONArray =>
+      let nav = JSONNav(arr)
       var ok =
         h.assert_eq[USize](
           _expected.size(),
@@ -507,7 +507,7 @@ primitive _THierCheckItem
   Asserts all TypeHierarchyItem fields of the item at index i in nav.
   """
   fun apply(
-    nav: JsonNav box,
+    nav: JSONNav box,
     i: USize,
     exp: _THierExpected val,
     h: TestHelper): Bool

@@ -7,16 +7,19 @@ class FileLines is Iterator[String iso^]
   Returns lines without trailing line breaks.
   Advances the file cursor to the end of each line returned from `next`.
 
-  This class buffers the file contents to accumulate full lines. If the file
-  does not contain linebreaks, the whole file content is read and buffered, which
-  might exceed memory resources. Take care.
+  This class buffers the file contents to accumulate full lines. If
+  the file does not contain linebreaks, the whole file content is read
+  and buffered, which might exceed memory resources. Take care.
   """
   let _reader: Reader = Reader
   let _file: File
   let _min_read_size: USize
   var _last_line_length: USize
   var _buffer_cursor: USize
-    """Internal cursor for keeping track until where in the file we already buffered."""
+    """
+    Internal cursor for keeping track until where in the file we
+    already buffered.
+    """
   var _cursor: USize
     """Keeps track of the file position we update after every returned line."""
   var _has_next: Bool
@@ -26,9 +29,10 @@ class FileLines is Iterator[String iso^]
     Create a FileLines instance on a given file.
 
     This instance returns lines from the position of the given `file`
-    at the time this constructor is called. Later manipulation of the file position
-    is not accounted for. As a result iterating with this class will always return the full
-    file content without gaps or repeated lines.
+    at the time this constructor is called. Later manipulation of the
+    file position is not accounted for. As a result iterating with
+    this class will always return the full file content without gaps
+    or repeated lines.
 
     `min_read_size` determines the minimum amount of bytes to read from the file
     in one go. This class keeps track of the line lengths in the current file
@@ -121,6 +125,4 @@ class FileLines is Iterator[String iso^]
   fun ref _inc_public_file_cursor(amount: USize) =>
     _cursor = _cursor + amount
     _file.seek_start(_cursor)
-
-
 

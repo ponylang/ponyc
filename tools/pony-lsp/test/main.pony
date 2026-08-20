@@ -116,16 +116,16 @@ class \nodoc\ iso _WorkspaceConfigurationTest is UnitTest
             server(
               ResponseMessage(
                 req.id,
-                JsonArray.push(
-                  JsonObject
+                JSONArray.push(
+                  JSONObject
                     .update(
                       "defines",
-                      JsonArray
+                      JSONArray
                         .push("FOO")
                         .push("BAR"))
                     .update(
                       "ponypath",
-                      JsonArray
+                      JSONArray
                         .push("/pony/path")
                         .push("/foo/bar")))
               ).string().iso_array())
@@ -188,19 +188,19 @@ class \nodoc\ iso _DidChangeConfigurationTest is UnitTest
             server(
               Notification(
                 Methods.workspace().did_change_configuration(),
-                JsonObject.update(
+                JSONObject.update(
                   "settings",
-                  JsonObject.update(
+                  JSONObject.update(
                     "pony-lsp",
-                    JsonObject
+                    JSONObject
                       .update(
                         "defines",
-                        JsonArray
+                        JSONArray
                           .push("FOO")
                           .push("BAR"))
                       .update(
                         "ponypath",
-                        JsonArray
+                        JSONArray
                           .push("/pony/path")
                           .push("/foo/bar"))))
               ).into_bytes())
@@ -268,29 +268,29 @@ class \nodoc\ iso _DidChangeConfigurationNullTest is UnitTest
               server(
                 Notification(
                   Methods.workspace().did_change_configuration(),
-                  JsonObject.update("settings", None)
+                  JSONObject.update("settings", None)
                 ).into_bytes()
               )
             | Methods.workspace().configuration() =>
               if num_conf_requests == 0 then
                 // send empty settings at first
-                server(ResponseMessage(req.id, JsonArray).into_bytes())
+                server(ResponseMessage(req.id, JSONArray).into_bytes())
               else
                 // this request should be triggered by the null
                 // didChangeConfiguration above
                 server(
                   ResponseMessage(
                     req.id,
-                    JsonArray.push(
-                      JsonObject
+                    JSONArray.push(
+                      JSONObject
                         .update(
                           "defines",
-                          JsonArray
+                          JSONArray
                             .push("FOO")
                             .push("BAR"))
                         .update(
                           "ponypath",
-                          JsonArray
+                          JSONArray
                             .push("/pony/path")
                             .push("/foo/bar")))
                   ).into_bytes())
@@ -346,9 +346,9 @@ class \nodoc\ iso _PrepareMissingURITest is UnitTest
                 RequestMessage(
                   I64(200),
                   Methods.text_document().prepare_call_hierarchy(),
-                  JsonObject.update(
+                  JSONObject.update(
                     "position",
-                    JsonObject
+                    JSONObject
                       .update("line", I64(0))
                       .update("character", I64(0))))
                 .into_bytes())

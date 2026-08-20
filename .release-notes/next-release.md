@@ -53,29 +53,29 @@ On Windows, reading a file redirected into stdin (`program < file.txt`) was abou
 
 ## Add a streaming JSON parser
 
-`JsonTokenParser` now parses JSON incrementally, so you can parse input that arrives in pieces — over a socket, or a large file read in chunks — or that is too big to hold in memory at once. Feed it bytes with `feed()` as they arrive and it pushes tokens to your notifier as they complete, building no tree, so you control how much memory the parse uses: process each token and drop it and memory stays flat however large the document.
+`JSONTokenParser` now parses JSON incrementally, so you can parse input that arrives in pieces — over a socket, or a large file read in chunks — or that is too big to hold in memory at once. Feed it bytes with `feed()` as they arrive and it pushes tokens to your notifier as they complete, building no tree, so you control how much memory the parse uses: process each token and drop it and memory stays flat however large the document.
 
 ```pony
-let parser = JsonTokenParser(notify)
+let parser = JSONTokenParser(notify)
 parser.feed(chunk)?  // once per chunk, as bytes arrive
 parser.finish()?     // when the input ends
 ```
 
-When a string or key value fits within a single fed chunk with no escapes, it is a zero-copy view into that chunk rather than a fresh copy. `JsonReassembler` folds a token stream back into the same `JsonValue` the batch `JsonParser` builds, when you want one, and `JsonParseLimits` caps nesting depth and string and number length for untrusted input. `JsonParser.parse()` is unchanged.
+When a string or key value fits within a single fed chunk with no escapes, it is a zero-copy view into that chunk rather than a fresh copy. `JSONReassembler` folds a token stream back into the same `JSONValue` the batch `JSONParser` builds, when you want one, and `JSONParseLimits` caps nesting depth and string and number length for untrusted input. `JSONParser.parse()` is unchanged.
 
-## Change JsonTokenParser to carry values on its tokens
+## Change JSONTokenParser to carry values on its tokens
 
-This is a breaking change to `JsonTokenParser`. Its tokens now carry their own value instead of exposing it through `parser.last_string` / `parser.last_number`, and it is driven with `feed()` / `finish()` instead of `parse()`.
+This is a breaking change to `JSONTokenParser`. Its tokens now carry their own value instead of exposing it through `parser.last_string` / `parser.last_number`, and it is driven with `feed()` / `finish()` instead of `parse()`.
 
 Before:
 
 ```pony
-let parser = JsonTokenParser(
-  object is JsonTokenNotify
-    fun ref apply(p: JsonTokenParser, token: JsonToken) =>
+let parser = JSONTokenParser(
+  object is JSONTokenNotify
+    fun ref apply(p: JSONTokenParser, token: JSONToken) =>
       match token
-      | JsonTokenKey => use_key(p.last_string)
-      | JsonTokenNumber =>
+      | JSONTokenKey => use_key(p.last_string)
+      | JSONTokenNumber =>
         match p.last_number
         | let i: I64 => use_int(i)
         | let f: F64 => use_float(f)
@@ -88,12 +88,12 @@ parser.parse(whole_document)?
 After:
 
 ```pony
-let parser = JsonTokenParser(
-  object is JsonTokenNotify
-    fun ref apply(p: JsonTokenParser, token: JsonToken) =>
+let parser = JSONTokenParser(
+  object is JSONTokenNotify
+    fun ref apply(p: JSONTokenParser, token: JSONToken) =>
       match token
-      | let k: JsonTokenKey => use_key(k.value)
-      | let n: JsonTokenNumber =>
+      | let k: JSONTokenKey => use_key(k.value)
+      | let n: JSONTokenNumber =>
         match n.value
         | let i: I64 => use_int(i)
         | let f: F64 => use_float(f)
@@ -104,7 +104,7 @@ parser.feed(whole_document)?
 parser.finish()?
 ```
 
-`JsonParser.parse()` is unchanged.
+`JSONParser.parse()` is unchanged.
 
 ## Report a process's exit even when its pipes stay open
 
@@ -331,4 +331,58 @@ let x = a +
 ## pony-lint: `- expr` with a space at the start of a line is now a lint error
 
 pony-lint's `style/operator-spacing` rule now flags `- expr` (with a space after the minus) at the start of a line. The Pony parser treats `-` there as unary negation, so a space after it — which normally signals a binary operator — is misleading. The diagnostic says the minus is negation, not subtraction, and suggests moving it to the end of the previous line.
+
+## Rename Json prefix to JSON in the json package
+
+All public types in the `json` package that used the `Json` prefix now use `JSON` to follow the acronym-casing convention (acronyms of three or more letters are fully capitalized).
+
+Before:
+
+```pony
+use "json"
+
+match JsonParser.parse(source)
+| let v: JsonValue => JsonPrinter.print(v)
+| let e: JsonParseError => env.err.print(e.string())
+end
+
+let nav = JsonNav(json_value)
+let lens = JsonLens
+let path = JsonPathParser.compile("$.store.book[0].title")?
+```
+
+After:
+
+```pony
+use "json"
+
+match JSONParser.parse(source)
+| let v: JSONValue => JSONPrinter.print(v)
+| let e: JSONParseError => env.err.print(e.string())
+end
+
+let nav = JSONNav(json_value)
+let lens = JSONLens
+let path = JSONPathParser.compile("$.store.book[0].title")?
+```
+
+The full list of renamed types: `JsonArray` → `JSONArray`, `JsonLens` → `JSONLens`, `JsonNav` → `JSONNav`, `JsonNotFound` → `JSONNotFound`, `JsonObject` → `JSONObject`, `JsonParseError` → `JSONParseError`, `JsonParseLimits` → `JSONParseLimits`, `JsonParser` → `JSONParser`, `JsonPath` → `JSONPath`, `JsonPathParseError` → `JSONPathParseError`, `JsonPathParser` → `JSONPathParser`, `JsonPrinter` → `JSONPrinter`, `JsonReassembler` → `JSONReassembler`, `JsonToken` → `JSONToken` (and all token subtypes), `JsonTokenNotify` → `JSONTokenNotify`, `JsonTokenParser` → `JSONTokenParser`, `JsonValue` → `JSONValue`.
+
+## Rename ForAll constructor parameter from testHelper to test_helper
+
+The `ForAll` class constructor in the `pony_check` package renamed its `testHelper` parameter to `test_helper` to follow the snake_case naming convention.
+
+Before:
+
+```pony
+ForAll[U32](gen, testHelper)
+```
+
+After:
+
+```pony
+ForAll[U32](gen, test_helper)
+```
+
+This only affects callers that pass the argument by name using `where`.
 

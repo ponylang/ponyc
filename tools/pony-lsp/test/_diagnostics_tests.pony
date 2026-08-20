@@ -44,15 +44,15 @@ class \nodoc\ iso _DiagnosticTest is UnitTest
             | Methods.workspace().configuration() =>
               // this will initialize the compiler
               server(
-                ResponseMessage.create(req.id, JsonArray).string().iso_array())
+                ResponseMessage.create(req.id, JSONArray).string().iso_array())
               // send did_open notification to trigger compilation
               server(
                 Notification(
                   Methods.text_document().did_open(),
-                  JsonObject
+                  JSONObject
                     .update(
                       "textDocument",
-                      JsonObject
+                      JSONObject
                         .update(
                           "uri",
                           Uris.from_path(Path.join(workspace_dir, "main.pony")))
@@ -73,7 +73,7 @@ class \nodoc\ iso _DiagnosticTest is UnitTest
             | Methods.text_document().publish_diagnostics() =>
               try
                 for diagnostic in
-                  JsonNav(notification.params)("diagnostics")
+                  JSONNav(notification.params)("diagnostics")
                     .as_array()?.values()
                 do
                   received_diagnostics = received_diagnostics + 1
@@ -83,7 +83,7 @@ class \nodoc\ iso _DiagnosticTest is UnitTest
                   // strip off linebreak from error message
                   let message: String val =
                     recover val
-                      JsonNav(diagnostic)("message").as_string()?.clone()
+                      JSONNav(diagnostic)("message").as_string()?.clone()
                         .> strip()
                     end
                   h.assert_true(

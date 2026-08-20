@@ -691,15 +691,15 @@ class val _HoverChecker
   fun lsp_method(): String =>
     Methods.text_document().hover()
 
-  fun lsp_params(): (None | JsonObject) =>
-    JsonObject.update(
+  fun lsp_params(): (None | JSONObject) =>
+    JSONObject.update(
       "position",
-      JsonObject.update("line", _line).update("character", _character))
+      JSONObject.update("line", _line).update("character", _character))
 
   fun check(res: ResponseMessage val, h: TestHelper): Bool =>
     var ok = true
     try
-      let value = JsonNav(res.result)("contents")("value").as_string()?
+      let value = JSONNav(res.result)("contents")("value").as_string()?
       if _expected.size() == 0 then
         ok = false
         h.log("Expected no hover result but got: " + res.string())

@@ -5,25 +5,25 @@ JSON library for Pony. All JSON values are `val` — construction
 uses chained method calls that return new values with structural sharing
 via persistent collections.
 
-The two ends of the library are `JsonParser` (JSON text → `JsonValue`) and
-`JsonPrinter` (`JsonValue` → JSON text); `JsonTokenParser` is a third, streaming
-path from text that never builds the whole tree. On top of `JsonValue`, three
+The two ends of the library are `JSONParser` (JSON text → `JSONValue`) and
+`JSONPrinter` (`JSONValue` → JSON text); `JSONTokenParser` is a third, streaming
+path from text that never builds the whole tree. On top of `JSONValue`, three
 access patterns are available for reading and modifying structures, from simple
 one-shot lookups to composable paths to string-based multi-match queries.
 
 ## Parsing JSON
 
-`JsonParser.parse()` returns errors as data — no exceptions to catch:
+`JSONParser.parse()` returns errors as data — no exceptions to catch:
 
 ```pony
-match json.JsonParser.parse(source)
-| let j: json.JsonValue =>
+match json.JSONParser.parse(source)
+| let j: json.JSONValue =>
   // j is the parsed document (object, array, or scalar)
   match j
-  | let obj: json.JsonObject =>
+  | let obj: json.JSONObject =>
     env.out.print("Root is object with " + obj.size().string() + " keys")
   end
-| let err: json.JsonParseError =>
+| let err: json.JSONParseError =>
   env.out.print("Error at offset " + err.offset.string() + ": "
     + err.message)
 end
@@ -31,19 +31,19 @@ end
 
 ## Serializing JSON
 
-`JsonPrinter` is the dual of `JsonParser`: it encodes any `JsonValue` —
+`JSONPrinter` is the dual of `JSONParser`: it encodes any `JSONValue` —
 objects, arrays, and scalars alike — into valid JSON. `print()` produces
 compact output; `pretty()` produces indented output:
 
 ```pony
-let doc = json.JsonObject
+let doc = json.JSONObject
   .update("a", I64(1))
-  .update("b", json.JsonArray.push(I64(2)).push(I64(3)))
+  .update("b", json.JSONArray.push(I64(2)).push(I64(3)))
 
-env.out.print(json.JsonPrinter.print(doc))
+env.out.print(json.JSONPrinter.print(doc))
 // {"a":1,"b":[2,3]}
 
-env.out.print(json.JsonPrinter.pretty(doc))
+env.out.print(json.JSONPrinter.pretty(doc))
 // {
 //   "a": 1,
 //   "b": [
@@ -53,68 +53,68 @@ env.out.print(json.JsonPrinter.pretty(doc))
 // }
 
 // Custom indent string (default is two spaces)
-env.out.print(json.JsonPrinter.pretty(doc, "\t"))
+env.out.print(json.JSONPrinter.pretty(doc, "\t"))
 
 // Scalars and JSON null serialize correctly too
-env.out.print(json.JsonPrinter.print(None))  // null
-env.out.print(json.JsonPrinter.print(true))  // true
+env.out.print(json.JSONPrinter.print(None))  // null
+env.out.print(json.JSONPrinter.print(true))  // true
 ```
 
-This is also how you serialize Pony data as JSON: build a `JsonValue`, then
-hand it to `JsonPrinter.print()`.
+This is also how you serialize Pony data as JSON: build a `JSONValue`, then
+hand it to `JSONPrinter.print()`.
 
-`JsonPrinter.print` is the general entry point and the form to reach for
+`JSONPrinter.print` is the general entry point and the form to reach for
 first: it is the only one that serializes scalars (`String`, `I64`,
-`F64`, `Bool`) and JSON null (`None`). For convenience, `JsonObject` and
-`JsonArray` also expose `print()` and `pretty_print()` directly,
-equivalent to passing them to `JsonPrinter`:
+`F64`, `Bool`) and JSON null (`None`). For convenience, `JSONObject` and
+`JSONArray` also expose `print()` and `pretty_print()` directly,
+equivalent to passing them to `JSONPrinter`:
 
 ```pony
-env.out.print(doc.print())         // same as JsonPrinter.print(doc)
-env.out.print(doc.pretty_print())  // same as JsonPrinter.pretty(doc)
+env.out.print(doc.print())         // same as JSONPrinter.print(doc)
+env.out.print(doc.pretty_print())  // same as JSONPrinter.pretty(doc)
 ```
 
 ## Building JSON
 
-`JsonObject` and `JsonArray` are constructed via chained method calls.
+`JSONObject` and `JSONArray` are constructed via chained method calls.
 Each call returns a new value; the original is unchanged:
 
 ```pony
 use json = "json"
 
-let doc = json.JsonObject
+let doc = json.JSONObject
   .update("name", "Alice")
   .update("age", I64(30))
   .update("active", true)
-  .update("tags", json.JsonArray
+  .update("tags", json.JSONArray
     .push("admin")
     .push("developer"))
-  .update("address", json.JsonObject
+  .update("address", json.JSONObject
     .update("city", "Portland")
     .update("state", "OR"))
 ```
 
-Values in the `JsonValue` union — `JsonObject`, `JsonArray`, `String`,
+Values in the `JSONValue` union — `JSONObject`, `JSONArray`, `String`,
 `I64`, `F64`, `Bool`, and `None` — can be stored in objects and arrays.
 JSON null is Pony's `None`.
 
-## Reading Values: JsonNav
+## Reading Values: JSONNav
 
-`JsonNav` wraps a value for chained read-only access. If any step
+`JSONNav` wraps a value for chained read-only access. If any step
 in the chain fails (missing key, out-of-bounds index, type mismatch),
-`JsonNotFound` propagates silently through the rest of the chain — no
+`JSONNotFound` propagates silently through the rest of the chain — no
 partial failures or exceptions:
 
 ```pony
-let nav = json.JsonNav(doc)
+let nav = json.JSONNav(doc)
 
-// Chained access — returns the value or JsonNotFound
+// Chained access — returns the value or JSONNotFound
 try
   let city = nav("address")("city").as_string()?
   env.out.print("City: " + city)
 end
 
-// JsonNotFound propagates — no crash, just JsonNotFound at the end
+// JSONNotFound propagates — no crash, just JSONNotFound at the end
 let missing = nav("nonexistent")("deep")("path")
 if not missing.found() then
   env.out.print("Path not found")
@@ -123,72 +123,72 @@ end
 
 Terminal extractors — `as_string()`, `as_i64()`, `as_f64()`,
 `as_bool()`, `as_null()`, `as_object()`, `as_array()` — unwrap the
-value or raise if the type doesn't match or the nav holds JsonNotFound.
+value or raise if the type doesn't match or the nav holds JSONNotFound.
 
-## Composable Paths: JsonLens
+## Composable Paths: JSONLens
 
-`JsonLens` describes a reusable path (not tied to a specific document).
+`JSONLens` describes a reusable path (not tied to a specific document).
 It supports reading, updating, and removing values. `compose()` chains
 two lenses sequentially; `or_else()` tries a primary lens and falls
 back to an alternative:
 
 ```pony
 // Define a reusable path
-let host_lens = json.JsonLens("config")("database")("host")
+let host_lens = json.JSONLens("config")("database")("host")
 
 // Read
 match host_lens.get(doc)
-| let host: json.JsonValue =>
-  env.out.print("Host: " + json.JsonPrinter.print(host))
-| json.JsonNotFound => env.out.print("no host configured")
+| let host: json.JSONValue =>
+  env.out.print("Host: " + json.JSONPrinter.print(host))
+| json.JSONNotFound => env.out.print("no host configured")
 end
 
 // Update — returns a new document with the value changed
 match host_lens.set(doc, "prod.example.com")
-| let updated: json.JsonValue =>
+| let updated: json.JSONValue =>
   // updated is a new doc; original doc is unchanged
   None
-| json.JsonNotFound => env.out.print("path doesn't exist")
+| json.JSONNotFound => env.out.print("path doesn't exist")
 end
 
 // Remove a key
-let debug_lens = json.JsonLens("config")("debug")
+let debug_lens = json.JSONLens("config")("debug")
 match debug_lens.remove(doc)
-| let updated: json.JsonValue => None // debug key removed
-| json.JsonNotFound => None // path didn't exist
+| let updated: json.JSONValue => None // debug key removed
+| json.JSONNotFound => None // path didn't exist
 end
 
 // Compose two lenses
-let db_lens = json.JsonLens("config")("database")
-let port_lens = db_lens.compose(json.JsonLens("port"))
+let db_lens = json.JSONLens("config")("database")
+let port_lens = db_lens.compose(json.JSONLens("port"))
 
 // Fallback: try primary, fall back to alternative
-let fallback = json.JsonLens("primary_host")
-  .or_else(json.JsonLens("fallback_host"))
+let fallback = json.JSONLens("primary_host")
+  .or_else(json.JSONLens("fallback_host"))
 ```
 
-## String-Based Queries: JsonPath
+## String-Based Queries: JSONPath
 
-`JsonPath` implements a subset of RFC 9535 — string-based query
+`JSONPath` implements a subset of RFC 9535 — string-based query
 expressions that can match multiple values via wildcards, recursive
 descent, and slicing. Parse a path string once, then apply it to any
 number of documents:
 
 ```pony
-// Parse returns errors as data (consistent with JsonParser)
-match json.JsonPathParser.parse("$.store.book[*].author")
-| let path: json.JsonPath =>
-  let authors = path.query(doc) // Array[JsonValue] val
+// Parse returns errors as data (consistent with JSONParser)
+match json.JSONPathParser.parse("$.store.book[*].author")
+| let path: json.JSONPath =>
+  let authors = path.query(doc) // Array[JSONValue] val
   for author in authors.values() do
-    env.out.print(json.JsonPrinter.print(author))
+    env.out.print(json.JSONPrinter.print(author))
   end
-| let err: json.JsonPathParseError =>
+| let err: json.JSONPathParseError =>
   env.out.print(err.string())
 end
 
 // compile() raises on invalid input — use for known-valid paths
 try
-  let prices = json.JsonPathParser.compile("$.store..price")?
+  let prices = json.JSONPathParser.compile("$.store..price")?
   let results = prices.query(doc)
 end
 ```
@@ -208,54 +208,54 @@ Supported JSONPath syntax:
 * `$[?@.type == $.default]` — absolute query (`$`) in filters
 * `$[?match(@.name, "[A-Z].*")]` — function extensions (`length`, `count`,
   `match`, `search`, `value`)
-* `query_one()` — convenience returning first match or `JsonNotFound`
+* `query_one()` — convenience returning first match or `JSONNotFound`
 
 ## Choosing an Access Pattern
 
-* **`JsonNav`** — one-shot chained access. Read-only. Best for
-  "grab this one value." Wraps a specific document; JsonNotFound propagates
+* **`JSONNav`** — one-shot chained access. Read-only. Best for
+  "grab this one value." Wraps a specific document; JSONNotFound propagates
   through chains.
 
-* **`JsonLens`** — reusable path with get/set/remove. Best for
+* **`JSONLens`** — reusable path with get/set/remove. Best for
   "define a path once, apply it to many documents." Supports
   composition (`compose`) and fallbacks (`or_else`). Not tied to a
   specific document.
 
-* **`JsonPath`** — string-based query language (RFC 9535 subset). Best
+* **`JSONPath`** — string-based query language (RFC 9535 subset). Best
   for "find all values matching a pattern." Supports wildcards,
   recursive descent, and slicing. Returns arrays of results.
 
-Start with `JsonNav` for simple reads. Move to `JsonLens` when you
-need to modify values or reuse paths. Use `JsonPath` when you need
+Start with `JSONNav` for simple reads. Move to `JSONLens` when you
+need to modify values or reuse paths. Use `JSONPath` when you need
 multi-match queries, wildcard selection, or user-provided path strings.
 
-## Streaming with JsonTokenParser
+## Streaming with JSONTokenParser
 
-`JsonParser.parse()` needs the whole document in memory and builds the whole
+`JSONParser.parse()` needs the whole document in memory and builds the whole
 tree. When JSON arrives in pieces — over a socket, or a file read in chunks — or
-is too big to hold at once, `JsonTokenParser` streams it. Feed it bytes with
+is too big to hold at once, `JSONTokenParser` streams it. Feed it bytes with
 `feed()` and it pushes tokens (object start, a key, a value, and so on) to your
 notifier as they complete, walking the structure to any depth without building a
 tree. A value split across a chunk boundary is held and finished by the next
 `feed()`. Each token carries its own value:
 
 ```pony
-let parser = json.JsonTokenParser(
-  object is json.JsonTokenNotify
-    fun ref apply(p: json.JsonTokenParser, token: json.JsonToken) =>
+let parser = json.JSONTokenParser(
+  object is json.JSONTokenNotify
+    fun ref apply(p: json.JSONTokenParser, token: json.JSONToken) =>
       match token
-      | let k: json.JsonTokenKey    => env.out.print("Key: " + k.value)
-      | let s: json.JsonTokenString => env.out.print("String: " + s.value)
-      | let n: json.JsonTokenNumber =>
+      | let k: json.JSONTokenKey    => env.out.print("Key: " + k.value)
+      | let s: json.JSONTokenString => env.out.print("String: " + s.value)
+      | let n: json.JSONTokenNumber =>
         match n.value
         | let i: I64 => env.out.print("Int: " + i.string())
         | let f: F64 => env.out.print("Float: " + f.string())
         end
-      | json.JsonTokenObjectStart => env.out.print("{")
-      | json.JsonTokenObjectEnd => env.out.print("}")
-      | json.JsonTokenArrayStart => env.out.print("[")
-      | json.JsonTokenArrayEnd => env.out.print("]")
-      | json.JsonTokenTrue | json.JsonTokenFalse | json.JsonTokenNull => None
+      | json.JSONTokenObjectStart => env.out.print("{")
+      | json.JSONTokenObjectEnd => env.out.print("}")
+      | json.JSONTokenArrayStart => env.out.print("[")
+      | json.JSONTokenArrayEnd => env.out.print("]")
+      | json.JSONTokenTrue | json.JSONTokenFalse | json.JSONTokenNull => None
       end
   end)
 try
@@ -264,30 +264,31 @@ try
 end
 ```
 
-You control the memory. Process each token and drop it, and memory stays flat no
-matter how big the document — the parser holds only the container-depth stack, the
-one value it is mid-parse on, and the fed bytes it has not yet consumed (feed in
-chunks and drain to keep that last part small). To pull a few fields out of a
-large document, ignore the tokens you don't want; there is no skip to learn, and a
-value you never keep is never held. Always call `finish()` when the input ends:
-it completes a trailing number (the one value with no self-delimiter), and
-`incomplete()` then tells you whether the input ended mid-value. For untrusted
-input, pass a `JsonParseLimits` to cap depth and the length of a single string or
-number.
+You control the memory. Process each token and drop it, and memory
+stays flat no matter how big the document — the parser holds only the
+container-depth stack, the one value it is mid-parse on, and the fed
+bytes it has not yet consumed (feed in chunks and drain to keep that
+last part small). To pull a few fields out of a large document, ignore
+the tokens you don't want; there is no skip to learn, and a value you
+never keep is never held. Always call `finish()` when the input ends:
+it completes a trailing number (the one value with no self-delimiter),
+and `incomplete()` then tells you whether the input ended mid-value.
+For untrusted input, pass a `JSONParseLimits` to cap depth and the
+length of a single string or number.
 
 ## Reassembling values from a token stream
 
-When you do want a `JsonValue` — for one record, say, not the whole document —
-`JsonReassembler` folds a run of tokens back into the same `JsonValue` a batch
-parse would return. It is a `JsonTokenNotify`, so it plugs straight into the
+When you do want a `JSONValue` — for one record, say, not the whole document —
+`JSONReassembler` folds a run of tokens back into the same `JSONValue` a batch
+parse would return. It is a `JSONTokenNotify`, so it plugs straight into the
 parser:
 
 ```pony
-let reassembler = json.JsonReassembler
-let parser = json.JsonTokenParser(reassembler)
+let reassembler = json.JSONReassembler
+let parser = json.JSONTokenParser(reassembler)
 parser.feed(chunk)?
 for value in reassembler.take_values().values() do
-  // value : JsonValue — use it with JsonNav, JsonLens, JsonPath, JsonPrinter
+  // value : JSONValue — use it with JSONNav, JSONLens, JSONPath, JSONPrinter
 end
 ```
 
@@ -297,19 +298,15 @@ is yours.
 
 ## Choosing between the parsers
 
-* **`JsonParser.parse()`** — the whole document is in memory and you want the
+* **`JSONParser.parse()`** — the whole document is in memory and you want the
   whole tree. Simplest; reach for it first. It applies no resource limits, so it
-  is for trusted input; for a document of unknown origin, use `JsonTokenParser`
-  with a `JsonParseLimits`.
-* **`JsonTokenParser` with your own notifier** — JSON arrives in pieces, or is
+  is for trusted input; for a document of unknown origin, use `JSONTokenParser`
+  with a `JSONParseLimits`.
+* **`JSONTokenParser` with your own notifier** — JSON arrives in pieces, or is
   too large to hold, or you want to react to values as they stream past without
   building a tree.
-* **`JsonTokenParser` with `JsonReassembler`** — streaming input, but you want
-  `JsonValue`s out. You decide which values to materialize, so you decide the
+* **`JSONTokenParser` with `JSONReassembler`** — streaming input, but you want
+  `JSONValue`s out. You decide which values to materialize, so you decide the
   memory cost.
 
 """
-
-use "collections/persistent"
-
-type JsonValue is (JsonObject | JsonArray | String | I64 | F64 | Bool | None)

@@ -1,6 +1,9 @@
 use "collections"
 
 primitive EnvVars
+  """
+  Parses environment variable arrays into key/value maps.
+  """
   fun apply(
     envs: (Array[String] box | None),
     prefix: String = "",

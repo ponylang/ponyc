@@ -1,5 +1,11 @@
 interface ITest
+  """
+  Interface for a test that can be run.
+  """
   fun apply() ?
+    """
+    Runs the test.
+    """
 
 class val TestHelper
   """

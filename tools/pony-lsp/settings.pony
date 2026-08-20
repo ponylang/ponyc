@@ -26,7 +26,7 @@ class val Settings
     2. path list extracted from the `PONYPATH` environment variable
     """
 
-  new val from_json(data: JsonObject) =>
+  new val from_json(data: JSONObject) =>
     """
     Parse settings from a JSON object.
     """
@@ -34,23 +34,23 @@ class val Settings
       recover trn Array[String].create(4) end
     try
       let json_arr =
-        JsonPathParser.compile("$.defines")?.query_one(data) as JsonArray
+        JSONPathParser.compile("$.defines")?.query_one(data) as JSONArray
       for elem in json_arr.values() do
         try
           defs.push(elem as String)
         end
       end
     else
-      JsonArray
+      JSONArray
     end
     this._defines = consume defs
 
     this._ponypath =
       try
         let pony_path_json =
-          JsonPathParser.compile("$.ponypath")?.query_one(data)
+          JSONPathParser.compile("$.ponypath")?.query_one(data)
         match pony_path_json
-        | let arr: JsonArray =>
+        | let arr: JSONArray =>
           let pony_path_array =
             recover trn
               Array[String].create(arr.size())

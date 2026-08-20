@@ -20,11 +20,34 @@ use @pony_os_errno[I32]()
 use "collections"
 
 primitive FileOK
+  """
+  File operation succeeded.
+  """
+
 primitive FileError
+  """
+  An unspecified file error occurred.
+  """
+
 primitive FileEOF
+  """
+  End of file reached.
+  """
+
 primitive FileBadFileNumber
+  """
+  The file descriptor is invalid.
+  """
+
 primitive FileExists
+  """
+  The file already exists.
+  """
+
 primitive FilePermissionDenied
+  """
+  Permission to access the file was denied.
+  """
 
 primitive _EBADF
   fun apply(): I32 => 9
@@ -82,18 +105,17 @@ class File
     This is the filesystem path locating this file on the file system
     and an object capability granting access to operate on this file.
     """
-
   let writeable: Bool
     """
     `true` if the underlying file descriptor has been opened as writeable.
     """
-
   let _newline: String = "\n"
   var _unsynced_data: Bool = false
   var _unsynced_metadata: Bool = false
   var _fd: I32
   var _errno: FileErrNo = FileOK
-  embed _pending_writev: Array[(Pointer[U8] tag, USize)] = _pending_writev.create()
+  embed _pending_writev: Array[(Pointer[U8] tag, USize)] =
+    _pending_writev.create()
   var _pending_writev_total: USize = 0
 
   new create(from: FilePath) =>
@@ -119,11 +141,12 @@ class File
         end
       end
 
-      _fd = ifdef windows then
-        @_open(path.path.cstring(), flags, mode.i32())
-      else
-        @open(path.path.cstring(), flags, mode)
-      end
+      _fd =
+        ifdef windows then
+          @_open(path.path.cstring(), flags, mode.i32())
+        else
+          @open(path.path.cstring(), flags, mode)
+        end
 
       if _fd == -1 then
         _errno = _get_error()
@@ -156,11 +179,12 @@ class File
     then
       _errno = FileError
     else
-      _fd = ifdef windows then
-        @_open(path.path.cstring(), @ponyint_o_rdonly())
-      else
-        @open(path.path.cstring(), @ponyint_o_rdonly())
-      end
+      _fd =
+        ifdef windows then
+          @_open(path.path.cstring(), @ponyint_o_rdonly())
+        else
+          @open(path.path.cstring(), @ponyint_o_rdonly())
+        end
 
       if _fd == -1 then
         _errno = _get_error()
@@ -213,13 +237,11 @@ class File
       return FileError
     end
 
-
   fun valid(): Bool =>
     """
     Returns true if the file is currently open.
     """
     not (_fd == -1)
-
 
   fun ref read(len: USize): Array[U8] iso^ =>
     """
@@ -228,13 +250,12 @@ class File
     if _fd != -1 then
       let result = recover Array[U8] .> undefined(len) end
 
-      let r =
-        (ifdef windows then
-          @_read(_fd, result.cpointer(), len.i32())
+      let r: ISize =
+        ifdef windows then
+          @_read(_fd, result.cpointer(), len.i32()).isize()
         else
-          @read(_fd, result.cpointer(), len)
-        end)
-          .isize()
+          @read(_fd, result.cpointer(), len).isize()
+        end
 
       match r
       | 0  => _errno = FileEOF
@@ -255,11 +276,12 @@ class File
     if _fd != -1 then
       let result = recover String(len) end
 
-      let r = (ifdef windows then
-        @_read(_fd, result.cpointer(), len.i32())
-      else
-        @read(_fd, result.cpointer(), len)
-      end).isize()
+      let r: ISize =
+        ifdef windows then
+          @_read(_fd, result.cpointer(), len.i32()).isize()
+        else
+          @read(_fd, result.cpointer(), len).isize()
+        end
 
       match r
       | 0  => _errno = FileEOF
@@ -410,13 +432,18 @@ class File
 
       // Write as much data as possible (vectored i/o).
       // On Windows only write 1 buffer at a time.
-      var len = ifdef windows then
-        @_write(_fd, _pending_writev(num_sent)?._1,
-          bytes_to_send.i32()).isize()
-      else
-        @writev(_fd, _pending_writev.cpointer(num_sent),
-          num_to_send).isize()
-      end
+      var len =
+        ifdef windows then
+          @_write(
+            _fd,
+            _pending_writev(num_sent)?._1,
+            bytes_to_send.i32()).isize()
+        else
+          @writev(
+            _fd,
+            _pending_writev.cpointer(num_sent),
+            num_to_send).isize()
+        end
 
       if len < bytes_to_send.isize() then error end
 
@@ -588,11 +615,12 @@ class File
       if _unsynced_data or _unsynced_metadata then
         sync()
       end
-      let r = ifdef windows then
-        @_close(_fd)
-      else
-        @close(_fd)
-      end
+      let r =
+        ifdef windows then
+          @_close(_fd)
+        else
+          @close(_fd)
+        end
       if r < 0 then
         _errno = _get_error()
       end

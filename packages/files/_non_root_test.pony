@@ -66,8 +66,11 @@ actor \nodoc\ Main is TestList
 
 primitive \nodoc\ _FileHelper
   fun make_files(h: TestHelper, files: Array[String]): FilePath ? =>
-    let top = Directory(FilePath.mkdtemp(FileAuth(h.env.root),
-      "tmp._FileHelper.")?)?
+    let top =
+      Directory(
+        FilePath.mkdtemp(
+          FileAuth(h.env.root),
+          "tmp._FileHelper.")?)?
     for f in files.values() do
       try
         // Since we embed paths, we use the posix separator, even on Windows.
@@ -94,7 +97,6 @@ primitive \nodoc\ _GetUID
     end
 
 trait \nodoc\ iso _NonRootTest is UnitTest
-
   fun apply_as_non_root(h: TestHelper) ?
 
   fun apply(h: TestHelper) ? =>
@@ -121,6 +123,7 @@ trait \nodoc\ iso _NonRootTest is UnitTest
 
 class \nodoc\ iso _TestMkdtemp is UnitTest
   fun name(): String => "files/FilePath.mkdtemp"
+
   fun apply(h: TestHelper) ? =>
     let tmp = FilePath.mkdtemp(FileAuth(h.env.root), "tmp.TestMkdtemp.")?
     try
@@ -131,9 +134,11 @@ class \nodoc\ iso _TestMkdtemp is UnitTest
 
 class \nodoc\ iso _TestWalk is UnitTest
   fun name(): String => "files/FilePath.walk"
+
   fun apply(h: TestHelper) ? =>
     let top =
-      _FileHelper.make_files(h,
+      _FileHelper.make_files(
+        h,
         ["a/1"; "a/2"; "b"; "c/3"; "c/4"; "d/5"; "d/6"])?
     try
       top.walk(
@@ -206,6 +211,7 @@ class \nodoc\ iso _TestFilePathFileAuth is UnitTest
   using `FileAuth` created from `AmbientAuth`.
   """
   fun name(): String => "files/FilePath.create-w-fileauth"
+
   fun apply(h: TestHelper) =>
     let path = "tmp.filepath"
     let filepath = FilePath(FileAuth(h.env.root), path)
@@ -220,6 +226,7 @@ class \nodoc\ iso _TestFilePathFrom is UnitTest
   a FilePath to the same file/directory.
   """
   fun name(): String => "files/FilePath.from-success"
+
   fun apply(h: TestHelper) =>
     let path = "tmp.filepath"
     let filepath = FilePath(FileAuth(h.env.root), path)
@@ -233,6 +240,7 @@ class \nodoc\ iso _TestFilePathFromContainment is UnitTest
   raw byte prefix.
   """
   fun name(): String => "files/FilePath.from-containment"
+
   fun apply(h: TestHelper) =>
     let base = FilePath(FileAuth(h.env.root), "/tmp/pony_sandbox")
     // A genuine child is within the hierarchy.
@@ -248,6 +256,7 @@ class \nodoc\ iso _TestFilePathFromNul is UnitTest
   stops at it and acts on a shorter, different path.
   """
   fun name(): String => "files/FilePath.from-nul"
+
   fun apply(h: TestHelper) =>
     let base = FilePath(FileAuth(h.env.root), "/tmp/pony_sandbox")
     h.assert_error(
@@ -265,10 +274,11 @@ class \nodoc\ iso _TestFilePathFromError is UnitTest
   _TestFilePathFromError checks that it is an error to produce a filepath
   using the from constructor which is not a subpath of the provided `FilePath`.
 
-  That is, a FilePath to some user file/directory cannot be used to create a FilePath to
-  the root directory.
+  That is, a FilePath to some user file/directory cannot be used to
+  create a FilePath to the root directory.
   """
   fun name(): String => "files/FilePath.from-error"
+
   fun apply(h: TestHelper) =>
     let path = "tmp.filepath"
     let filepath = FilePath(FileAuth(h.env.root), path)
@@ -276,6 +286,7 @@ class \nodoc\ iso _TestFilePathFromError is UnitTest
 
 class \nodoc\ iso _TestDirectoryOpen is UnitTest
   fun name(): String => "files/File.open.directory"
+
   fun apply(h: TestHelper) ? =>
     let tmp = FilePath.mkdtemp(FileAuth(h.env.root), "tmp.TestDiropen.")?
 
@@ -291,12 +302,14 @@ class \nodoc\ iso _TestDirectoryOpen is UnitTest
 
 class \nodoc\ iso _TestDirectoryFileOpen is UnitTest
   fun name(): String => "files/Directory.open-file"
+
   fun apply(h: TestHelper) =>
   try
     // make a temporary directory
-    let dir_path = FilePath.mkdtemp(
-      FileAuth(h.env.root),
-      "tmp.directory.open-file")?
+    let dir_path =
+      FilePath.mkdtemp(
+        FileAuth(h.env.root),
+        "tmp.directory.open-file")?
     try
       let dir = Directory(dir_path)?
 
@@ -320,6 +333,7 @@ class \nodoc\ iso _TestDirectoryFileOpen is UnitTest
 
 class \nodoc\ iso _TestPathClean is UnitTest
   fun name(): String => "files/Path.clean"
+
   fun apply(h: TestHelper) =>
     let res1 = Path.clean("//foo/bar///")
     let res2 = Path.clean("foo/./bar")
@@ -349,6 +363,7 @@ class \nodoc\ iso _TestPathClean is UnitTest
 
 class \nodoc\ iso _TestPathJoin is UnitTest
   fun name(): String => "files/Path.join"
+
   fun apply(h: TestHelper) =>
     let path1 = "//foo/bar///"
     let path2 = "foo/./bar"
@@ -371,12 +386,14 @@ class \nodoc\ iso _TestPathJoin is UnitTest
 
 class \nodoc\ iso _TestPathRel is UnitTest
   fun name(): String => "files/Path.rel"
+
   fun apply(h: TestHelper) ? =>
     let res = Path.rel("foo/bar", "foo/bar/baz")?
     h.assert_eq[String](res, "baz")
 
 class \nodoc\ iso _TestPathSplit is UnitTest
   fun name(): String => "files/Path.split"
+
   fun apply(h: TestHelper) =>
     ifdef windows then
       var path = "\\foo\\bar\\dir\\"
@@ -415,8 +432,8 @@ class \nodoc\ iso _TestPathSplit is UnitTest
 
 class \nodoc\ iso _TestPathDir is UnitTest
   fun name(): String => "files/Path.dir"
-  fun apply(h: TestHelper) =>
 
+  fun apply(h: TestHelper) =>
     ifdef windows then
       let res1 = Path.dir("\\foo\\bar\\dir\\base.ext")
       let res2 = Path.dir("\\foo\\bar\\dir\\")
@@ -432,13 +449,14 @@ class \nodoc\ iso _TestPathDir is UnitTest
 
 class \nodoc\ iso _TestPathBase is UnitTest
   fun name(): String => "files/Path.dir"
-  fun apply(h: TestHelper) =>
 
-    (let p1, let p2) = ifdef windows then
-      ("\\dir\\base.ext", "\\dir\\")
-    else
-      ("/dir/base.ext", "/dir/")
-    end
+  fun apply(h: TestHelper) =>
+    (let p1, let p2) =
+      ifdef windows then
+        ("\\dir\\base.ext", "\\dir\\")
+      else
+        ("/dir/base.ext", "/dir/")
+      end
 
     h.assert_eq[String](Path.base(p1), "base.ext")
     h.assert_eq[String](Path.base(p1, false), "base")
@@ -446,6 +464,7 @@ class \nodoc\ iso _TestPathBase is UnitTest
 
 class \nodoc\ iso _TestPathExt is UnitTest
   fun name(): String => "files/Path.ext"
+
   fun apply(h: TestHelper) =>
     ifdef windows then
       let res1 = Path.ext("\\dir\\base.ext")
@@ -464,6 +483,7 @@ class \nodoc\ iso _TestPathExt is UnitTest
 
 class \nodoc\ iso _TestPathVolume is UnitTest
   fun name(): String => "files/Path.volume"
+
   fun apply(h: TestHelper) =>
     let res1 = Path.volume("C:\\foo")
     let res2 = Path.volume("\\foo")
@@ -478,6 +498,7 @@ class \nodoc\ iso _TestPathVolume is UnitTest
 
 class \nodoc\ iso _TestPathRoot is UnitTest
   fun name(): String => "files/Path.root"
+
   fun apply(h: TestHelper) =>
     let res1 = Path.abs("/")
     let res2 = Path.abs("/foo/../")
@@ -486,6 +507,7 @@ class \nodoc\ iso _TestPathRoot is UnitTest
 
 class \nodoc\ iso _TestFileEOF is UnitTest
   fun name(): String => "files/File.eof-error"
+
   fun apply(h: TestHelper) =>
     let path = "tmp.eof"
     let filepath = FilePath(FileAuth(h.env.root), path)
@@ -504,6 +526,7 @@ class \nodoc\ iso _TestFileEOF is UnitTest
 
 class \nodoc\ iso _TestFileReadStringSmall is UnitTest
   fun name(): String => "files/File.read_string-small"
+
   fun apply(h: TestHelper) =>
     let path = "tmp.read_string_small"
     let filepath = FilePath(FileAuth(h.env.root), path)
@@ -521,6 +544,7 @@ class \nodoc\ iso _TestFileReadStringSmall is UnitTest
 
 class \nodoc\ iso _TestFileCreate is UnitTest
   fun name(): String => "files/File.create"
+
   fun apply(h: TestHelper) =>
     try
       let path = "tmp.create"
@@ -538,11 +562,12 @@ class \nodoc\ iso _TestFileCreate is UnitTest
 
 class \nodoc\ iso _TestFileCreateExistsNotWriteable is _NonRootTest
   fun name(): String => "files/File.create-exists-not-writeable"
+
   fun apply_as_non_root(h: TestHelper) ? =>
     let content = "unwriteable"
     let path = "tmp.create-not-writeable"
     let filepath = FilePath(FileAuth(h.env.root), path)
-    let mode: FileMode ref = FileMode.>private()
+    let mode: FileMode ref = FileMode .> private()
     mode.owner_read = true
     mode.owner_write = false
 
@@ -565,6 +590,7 @@ class \nodoc\ iso _TestFileCreateExistsNotWriteable is _NonRootTest
 
 class \nodoc\ iso _TestFileCreateDirNotWriteable is _NonRootTest
   fun name(): String => "files/File.create-dir-not-writeable"
+
   fun apply_as_non_root(h: TestHelper) =>
     ifdef not windows then
       try
@@ -572,7 +598,7 @@ class \nodoc\ iso _TestFileCreateDirNotWriteable is _NonRootTest
           FilePath.mkdtemp(
             FileAuth(h.env.root),
             "tmp.create-dir-not-writeable")?
-        let mode: FileMode ref = FileMode.>private()
+        let mode: FileMode ref = FileMode .> private()
         mode.owner_read = true
         mode.owner_write = false
         mode.owner_exec = false
@@ -598,13 +624,15 @@ class \nodoc\ iso _TestFileCreateDirNotWriteable is _NonRootTest
 
 class \nodoc\ iso _TestFileOpenInDirNotWriteable is UnitTest
   fun name(): String => "files/File.open-dir-not-writeable"
+
   fun apply(h: TestHelper) =>
     ifdef not windows then
       try
         // make a temporary directory
-        let dir_path = FilePath.mkdtemp(
-          FileAuth(h.env.root),
-          "tmp.open-dir-not-writeable")?
+        let dir_path =
+          FilePath.mkdtemp(
+            FileAuth(h.env.root),
+            "tmp.open-dir-not-writeable")?
         try
           let dir = Directory(dir_path)?
 
@@ -631,37 +659,42 @@ class \nodoc\ iso _TestFileOpenInDirNotWriteable is UnitTest
 
 class \nodoc\ iso _TestFileCreateMissingCaps is UnitTest
   fun name(): String => "files/File.create-missing-caps"
-  fun apply(h: TestHelper) =>
-    let no_create_caps = FileCaps.>all().>unset(FileCreate)
-    let no_read_caps = FileCaps.>all().>unset(FileWrite)
-    let no_write_caps = FileCaps.>all().>unset(FileRead)
 
-    let file_path1 = FilePath(
-      FileAuth(h.env.root),
-      "tmp.create-missing-caps1",
-      consume no_create_caps)
+  fun apply(h: TestHelper) =>
+    let no_create_caps = FileCaps .> all() .> unset(FileCreate)
+    let no_read_caps = FileCaps .> all() .> unset(FileWrite)
+    let no_write_caps = FileCaps .> all() .> unset(FileRead)
+
+    let file_path1 =
+      FilePath(
+        FileAuth(h.env.root),
+        "tmp.create-missing-caps1",
+        consume no_create_caps)
     let file1 = File(file_path1)
     h.assert_false(file1.valid())
     h.assert_is[FileErrNo](file1.errno(), FileError)
 
-    let file_path2 = FilePath(
-      FileAuth(h.env.root),
-      "tmp.create-missing-caps2",
-      consume no_read_caps)
+    let file_path2 =
+      FilePath(
+        FileAuth(h.env.root),
+        "tmp.create-missing-caps2",
+        consume no_read_caps)
     let file2 = File(file_path2)
     h.assert_false(file2.valid())
     h.assert_is[FileErrNo](file2.errno(), FileError)
 
-    let file_path3 = FilePath(
-      FileAuth(h.env.root),
-      "tmp.create-missing-caps3",
-      consume no_write_caps)
+    let file_path3 =
+      FilePath(
+        FileAuth(h.env.root),
+        "tmp.create-missing-caps3",
+        consume no_write_caps)
     let file3 = File(file_path3)
     h.assert_false(file3.valid())
     h.assert_is[FileErrNo](file3.errno(), FileError)
 
 class \nodoc\ iso _TestFileOpen is UnitTest
   fun name(): String => "files/File.open"
+
   fun apply(h: TestHelper) =>
     try
       let path = "tmp.open"
@@ -685,6 +718,7 @@ class \nodoc\ iso _TestFileOpen is UnitTest
 
 class \nodoc\ iso _TestFileOpenError is UnitTest
   fun name(): String => "files/File.open-error"
+
   fun apply(h: TestHelper) =>
     let path = "tmp.openerror"
     let filepath = FilePath(FileAuth(h.env.root), path)
@@ -694,6 +728,7 @@ class \nodoc\ iso _TestFileOpenError is UnitTest
 
 class _TestFileOpenWrite is UnitTest
   fun name(): String => "files/File.open.write"
+
   fun apply(h: TestHelper) =>
     try
       let path = "tmp.open-write"
@@ -715,6 +750,7 @@ class _TestFileOpenWrite is UnitTest
 
 class \nodoc\ iso _TestFileOpenPermissionDenied is _NonRootTest
   fun name(): String => "files/File.open-permission-denied"
+
   fun apply_as_non_root(h: TestHelper) =>
     ifdef not windows then
         // on windows all files are always writeable
@@ -724,7 +760,7 @@ class \nodoc\ iso _TestFileOpenPermissionDenied is _NonRootTest
         with file = CreateFile(filepath) as File do
           file.print("unreadable")
         end
-        let mode: FileMode ref = FileMode.>private()
+        let mode: FileMode ref = FileMode .> private()
         mode.owner_read = false
         mode.owner_write = false
         h.assert_true(filepath.chmod(mode))
@@ -745,6 +781,7 @@ class \nodoc\ iso _TestFileOpenPermissionDenied is _NonRootTest
 
 class \nodoc\ iso _TestFileLongLine is UnitTest
   fun name(): String => "files/File.longline"
+
   fun apply(h: TestHelper) =>
     let path = "tmp.longline"
     let filepath = FilePath(FileAuth(h.env.root), path)
@@ -763,6 +800,7 @@ class \nodoc\ iso _TestFileLongLine is UnitTest
 
 class \nodoc\ iso _TestFileWrite is UnitTest
   fun name(): String => "files/File.write"
+
   fun apply(h: TestHelper) =>
     try
       let path = "tmp.write"
@@ -781,6 +819,7 @@ class \nodoc\ iso _TestFileWrite is UnitTest
 
 class \nodoc\ iso _TestFileWritev is UnitTest
   fun name(): String => "files/File.writev"
+
   fun apply(h: TestHelper) =>
     try
       let wb: Writer ref = Writer
@@ -806,6 +845,7 @@ class \nodoc\ iso _TestFileWritev is UnitTest
 
 class \nodoc\ iso _TestFileQueue is UnitTest
   fun name(): String => "files/File.queue"
+
   fun apply(h: TestHelper) =>
     try
       let path = "tmp.queue"
@@ -823,6 +863,7 @@ class \nodoc\ iso _TestFileQueue is UnitTest
 
 class \nodoc\ iso _TestFileQueuev is UnitTest
   fun name(): String => "files/File.queuev"
+
   fun apply(h: TestHelper) =>
     try
       let wb: Writer ref = Writer
@@ -845,6 +886,7 @@ class \nodoc\ iso _TestFileQueuev is UnitTest
 
 class \nodoc\ iso _TestFileMixedWriteQueue is UnitTest
   fun name(): String => "files/File.mixedwrite"
+
   fun apply(h: TestHelper) =>
     try
       let wb: Writer ref = Writer
@@ -875,17 +917,18 @@ class \nodoc\ iso _TestFileMixedWriteQueue is UnitTest
       end
       with file2 = CreateFile(filepath) as File do
         h.assert_eq[String](
-          "".join([
-            line3 + "\n"
-            line5
-            line1
-            line3
-            line4 + "\n"
-            line5
-            line6
-            line1
-            line2
-          ].values()),
+          "".join(
+            [
+              line3 + "\n"
+              line5
+              line1
+              line3
+              line4 + "\n"
+              line5
+              line6
+              line1
+              line2
+            ].values()),
           file2.read_string(256))
       end
       filepath.remove()
@@ -895,6 +938,7 @@ class \nodoc\ iso _TestFileMixedWriteQueue is UnitTest
 
 class \nodoc\ iso _TestFileWritevLarge is UnitTest
   fun name(): String => "files/File.writevlarge"
+
   fun apply(h: TestHelper) =>
     try
       let wb: Writer ref = Writer
@@ -924,6 +968,7 @@ class \nodoc\ iso _TestFileWritevLarge is UnitTest
 
 class \nodoc\ iso _TestFileFlush is UnitTest
   fun name(): String => "files/File.flush"
+
   fun apply(h: TestHelper) =>
     try
       let path = FilePath(FileAuth(h.env.root), "tmp.flush")
@@ -952,7 +997,8 @@ class \nodoc\ iso _TestFileFlush is UnitTest
 
 class \nodoc\ iso _TestFileReadMore is UnitTest
   fun name(): String => "files/File.read-more"
-  fun apply(h: TestHelper)? =>
+
+  fun apply(h: TestHelper) ? =>
     let path = FilePath(FileAuth(h.env.root), "tmp-read-more")
     with file = CreateFile(path) as File do
       h.assert_true(file.write("foobar"))
@@ -975,6 +1021,7 @@ class \nodoc\ iso _TestFileReadMore is UnitTest
 
 class \nodoc\ iso _TestFileRemoveReadOnly is UnitTest
   fun name(): String => "files/File.remove-readonly-file"
+
   fun apply(h: TestHelper) ? =>
     let path = FilePath(FileAuth(h.env.root), "tmp-read-only")
     with file = CreateFile(path) as File do
@@ -1033,30 +1080,32 @@ class \nodoc\ iso _TestFileLinesEmptyFile is UnitTest
       for _ in fl do
         lines_returned = lines_returned + 1
       end
-      h.assert_eq[USize](lines_returned, 0, "FileLines returned a line for an empty file")
+      h.assert_eq[USize](
+        lines_returned,
+        0,
+        "FileLines returned a line for an empty file")
     end
 
 class \nodoc\ iso _TestFileLinesSingleLine is UnitTest
-
-  let lines: Array[String] = [ as String:
-    "a"
-    "a\n"
-    "a\r\n"
-    "abcd"
-    "ABCD\n"
-    "ABCD\r\n"
-    String.from_array(recover val Array[U8].init('a', 255) end)
-    String.from_array(recover val Array[U8].init('a', 255) end) + "\n"
-    String.from_array(recover val Array[U8].init('a', 255) end) + "\r\n"
-    String.from_array(recover val Array[U8].init('b', 256) end)
-    String.from_array(recover val Array[U8].init('b', 256) end) + "\n"
-    String.from_array(recover val Array[U8].init('b', 256) end) + "\r\n"
-    String.from_array(recover val Array[U8].init('c', 257) end)
-    String.from_array(recover val Array[U8].init('c', 257) end) + "\n"
-    String.from_array(recover val Array[U8].init('c', 257) end) + "\r\n"
-    String.from_array(recover val Array[U8].init('d', 100_000) end)
-  ]
-
+  let lines: Array[String] =
+    [ as String:
+      "a"
+      "a\n"
+      "a\r\n"
+      "abcd"
+      "ABCD\n"
+      "ABCD\r\n"
+      String.from_array(recover val Array[U8].init('a', 255) end)
+      String.from_array(recover val Array[U8].init('a', 255) end) + "\n"
+      String.from_array(recover val Array[U8].init('a', 255) end) + "\r\n"
+      String.from_array(recover val Array[U8].init('b', 256) end)
+      String.from_array(recover val Array[U8].init('b', 256) end) + "\n"
+      String.from_array(recover val Array[U8].init('b', 256) end) + "\r\n"
+      String.from_array(recover val Array[U8].init('c', 257) end)
+      String.from_array(recover val Array[U8].init('c', 257) end) + "\n"
+      String.from_array(recover val Array[U8].init('c', 257) end) + "\r\n"
+      String.from_array(recover val Array[U8].init('d', 100_000) end)
+    ]
   var tmp_dir: (FilePath | None) = None
 
   fun ref set_up(h: TestHelper) ? =>
@@ -1069,7 +1118,7 @@ class \nodoc\ iso _TestFileLinesSingleLine is UnitTest
 
   fun name(): String => "files/FileLines.single_line"
 
-  fun ref apply(h: TestHelper)? =>
+  fun ref apply(h: TestHelper) ? =>
     var i: USize = 0
     for line in lines.values() do
       let tmp_file = (tmp_dir as FilePath).join("single-line-" + i.string())?
@@ -1087,44 +1136,54 @@ class \nodoc\ iso _TestFileLinesSingleLine is UnitTest
             if line.contains("\r\n") then
               line.substring(0, line.size().isize() - 2)
             elseif line.contains("\n") then
-              line.substring(0, line.size().isize() -1)
+              line.substring(0, line.size().isize() - 1)
             else
               line
             end
           h.assert_eq[String](consume read_line, compare_line)
           lines_returned = lines_returned + 1
         end
-        h.assert_eq[USize](lines_returned, 1,
-          "FileLines returned " + lines_returned.string() +
-          " for single line: '" + line + "'")
-        h.assert_eq[USize](file.position(), line.size(),
-          "FileLines advanced the file cursor to " + file.position().string() +
-          " though the line has " + line.size().string() + " bytes.")
+        h.assert_eq[USize](
+          lines_returned,
+          1,
+          "FileLines returned " +
+            lines_returned.string() +
+            " for single line: '" + line + "'")
+        h.assert_eq[USize](
+          file.position(),
+          line.size(),
+          "FileLines advanced the file cursor to " +
+            file.position().string() +
+            " though the line has " +
+            line.size().string() + " bytes.")
       end
       i = i + 1
     end
 
 class \nodoc\ _TestFileLinesMultiLine is UnitTest
   var tmp_dir: (FilePath | None) = None
-
   let line_endings: Array[String] val = ["\n"; "\r\n"]
-  let file_contents: Array[(Array[String] val, USize)] val = [
-    (["a"; "b"], 2)
-    (["a"; ""; "b"], 3)
-    (["a"; "b"; ""], 2)
-    ([""; "b"; "c"], 3)
-    ([""; ""], 1)
-    ([""; " "], 2)
-    ([""; ""; ""], 2)
-    ([
-      String.from_array(recover val Array[U8].init('a', 254) end)
-      String.from_array(recover val Array[U8].init('a', 257) end)], 2)
-    ([
-      String.from_array(recover val Array[U8].init('b', 256) end)
-      ""
-      String.from_array(recover val Array[U8].init('c', 256) end)
-      ], 3)
-  ]
+  let file_contents: Array[(Array[String] val, USize)] val =
+    [
+      (["a"; "b"], 2)
+      (["a"; ""; "b"], 3)
+      (["a"; "b"; ""], 2)
+      ([""; "b"; "c"], 3)
+      ([""; ""], 1)
+      ([""; " "], 2)
+      ([""; ""; ""], 2)
+      (
+        [
+          String.from_array(recover val Array[U8].init('a', 254) end)
+          String.from_array(recover val Array[U8].init('a', 257) end)
+        ], 2)
+      (
+        [
+          String.from_array(recover val Array[U8].init('b', 256) end)
+          ""
+          String.from_array(recover val Array[U8].init('c', 256) end)
+        ], 3)
+    ]
 
   fun ref set_up(h: TestHelper) ? =>
     tmp_dir = FilePath.mkdtemp(FileAuth(h.env.root), "multi-line")?
@@ -1136,7 +1195,7 @@ class \nodoc\ _TestFileLinesMultiLine is UnitTest
 
   fun name(): String => "files/FileLines.multi_line"
 
-  fun ref apply(h: TestHelper)? =>
+  fun ref apply(h: TestHelper) ? =>
     var i: USize = 0
     for lines_and_count in file_contents.values() do
       let lines = lines_and_count._1
@@ -1181,7 +1240,7 @@ class \nodoc\ _TestFileLinesMovingCursor is UnitTest
 
   fun name(): String => "files/FileLines.moving_cursor"
 
-  fun ref apply(h: TestHelper)? =>
+  fun ref apply(h: TestHelper) ? =>
     let tmp_file = (tmp_dir as FilePath).join("moving-cursor")?
     let content = "a\nb\nc\nd"
     with file = CreateFile(tmp_file) as File do

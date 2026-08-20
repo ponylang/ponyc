@@ -4,9 +4,9 @@ use @snprintf[I32](str: Pointer[U8] tag, size: USize, fmt: Pointer[U8] tag, ...)
 use @_snprintf[I32](str: Pointer[U8] tag, count: USize, fmt: Pointer[U8] tag,
   ...) if windows
 
-primitive _JsonPrint
+primitive _JSONPrint
   """
-  Private serialization helper. Handles all JsonValue members.
+  Private serialization helper. Handles all JSONValue members.
 
   Serialization is iterative, not recursive: an explicit stack of container
   frames bounds nesting depth by the heap instead of the scheduler thread's
@@ -14,39 +14,66 @@ primitive _JsonPrint
   buffer is a single `String iso` threaded through the walk.
   """
 
-  fun compact(value: JsonValue): String iso^ =>
-    """Compact serialization of any JSON value."""
+  fun compact(value: JSONValue): String iso^ =>
+    """
+    Compact serialization of any JSON value.
+    """
     let stack = Array[(_PrintObjectFrame | _PrintArrayFrame)]
     _run(_open(recover iso String(256) end, value, 0, stack), "", false, stack)
 
-  fun pretty(value: JsonValue, indent: String = "  "): String iso^ =>
-    """Pretty-printed serialization of any JSON value."""
+  fun pretty(value: JSONValue, indent: String = "  "): String iso^ =>
+    """
+    Pretty-printed serialization of any JSON value.
+    """
     let stack = Array[(_PrintObjectFrame | _PrintArrayFrame)]
-    _run(_open(recover iso String(256) end, value, 0, stack), indent, true,
+    _run(
+      _open(recover iso String(256) end, value, 0, stack),
+      indent,
+      true,
       stack)
 
-  fun compact_object(obj: JsonObject box): String iso^ =>
-    """Compact serialization from a box reference (backs JsonObject.print)."""
+  fun compact_object(obj: JSONObject box): String iso^ =>
+    """
+    Compact serialization from a box reference (backs JSONObject.print).
+    """
     let stack = Array[(_PrintObjectFrame | _PrintArrayFrame)]
-    _run(_seed_object(recover iso String(256) end, obj, 0, stack), "", false,
+    _run(
+      _seed_object(recover iso String(256) end, obj, 0, stack),
+      "",
+      false,
       stack)
 
-  fun pretty_object(obj: JsonObject box, indent: String = "  "): String iso^ =>
-    """Pretty-printed serialization from a box reference."""
+  fun pretty_object(obj: JSONObject box, indent: String = "  "): String iso^ =>
+    """
+    Pretty-printed serialization from a box reference.
+    """
     let stack = Array[(_PrintObjectFrame | _PrintArrayFrame)]
-    _run(_seed_object(recover iso String(256) end, obj, 0, stack), indent, true,
+    _run(
+      _seed_object(recover iso String(256) end, obj, 0, stack),
+      indent,
+      true,
       stack)
 
-  fun compact_array(arr: JsonArray box): String iso^ =>
-    """Compact serialization from a box reference (backs JsonArray.print)."""
+  fun compact_array(arr: JSONArray box): String iso^ =>
+    """
+    Compact serialization from a box reference (backs JSONArray.print).
+    """
     let stack = Array[(_PrintObjectFrame | _PrintArrayFrame)]
-    _run(_seed_array(recover iso String(256) end, arr, 0, stack), "", false,
+    _run(
+      _seed_array(recover iso String(256) end, arr, 0, stack),
+      "",
+      false,
       stack)
 
-  fun pretty_array(arr: JsonArray box, indent: String = "  "): String iso^ =>
-    """Pretty-printed serialization from a box reference."""
+  fun pretty_array(arr: JSONArray box, indent: String = "  "): String iso^ =>
+    """
+    Pretty-printed serialization from a box reference.
+    """
     let stack = Array[(_PrintObjectFrame | _PrintArrayFrame)]
-    _run(_seed_array(recover iso String(256) end, arr, 0, stack), indent, true,
+    _run(
+      _seed_array(recover iso String(256) end, arr, 0, stack),
+      indent,
+      true,
       stack)
 
   fun _run(
@@ -118,7 +145,7 @@ primitive _JsonPrint
 
   fun _open(
     buf: String iso,
-    value: JsonValue,
+    value: JSONValue,
     level: USize,
     stack: Array[(_PrintObjectFrame | _PrintArrayFrame)])
     : String iso^
@@ -129,8 +156,8 @@ primitive _JsonPrint
     inline and never push a frame.
     """
     match \exhaustive\ value
-    | let obj: JsonObject => _seed_object(consume buf, obj, level, stack)
-    | let arr: JsonArray => _seed_array(consume buf, arr, level, stack)
+    | let obj: JSONObject => _seed_object(consume buf, obj, level, stack)
+    | let arr: JSONArray => _seed_array(consume buf, arr, level, stack)
     | let s: String => _escaped_string(consume buf, s)
     | let n: I64 =>
       buf.append(n.string())
@@ -146,12 +173,14 @@ primitive _JsonPrint
 
   fun _seed_object(
     buf: String iso,
-    obj: JsonObject box,
+    obj: JSONObject box,
     level: USize,
     stack: Array[(_PrintObjectFrame | _PrintArrayFrame)])
     : String iso^
   =>
-    """Write `{`; close an empty object inline, else push a frame for `_run`."""
+    """
+    Write `{`; close an empty object inline, else push a frame for `_run`.
+    """
     var b = consume buf
     b.push('{')
     if obj.size() == 0 then
@@ -163,12 +192,14 @@ primitive _JsonPrint
 
   fun _seed_array(
     buf: String iso,
-    arr: JsonArray box,
+    arr: JSONArray box,
     level: USize,
     stack: Array[(_PrintObjectFrame | _PrintArrayFrame)])
     : String iso^
   =>
-    """Write `[`; close an empty array inline, else push a frame for `_run`."""
+    """
+    Write `[`; close an empty array inline, else push a frame for `_run`.
+    """
     var b = consume buf
     b.push('[')
     if arr.size() == 0 then
@@ -203,7 +234,7 @@ primitive _JsonPrint
 
   fun _float(buf: String iso, n: F64): String iso^ =>
     // RFC 8259 has no representation for infinity or NaN, so emit `null`: the
-    // printer must always produce parseable JSON. `JsonParser` rejects
+    // printer must always produce parseable JSON. `JSONParser` rejects
     // out-of-range literals, so a non-finite value reaches here only when one
     // is constructed directly.
     if not n.finite() then
@@ -243,11 +274,19 @@ primitive _JsonPrint
       while true do
         scratch.clear()
         ifdef windows then
-          @_snprintf(scratch.cstring(), scratch.space(), "%.*g".cstring(),
-            precision, n)
+          @_snprintf(
+            scratch.cstring(),
+            scratch.space(),
+            "%.*g".cstring(),
+            precision,
+            n)
         else
-          @snprintf(scratch.cstring(), scratch.space(), "%.*g".cstring(),
-            precision, n)
+          @snprintf(
+            scratch.cstring(),
+            scratch.space(),
+            "%.*g".cstring(),
+            precision,
+            n)
         end
         scratch.recalc()
         if precision == 17 then break end
@@ -276,11 +315,11 @@ class _PrintObjectFrame
   A JSON object being serialized: its pair iterator, indent level, and
   whether its first entry has been written yet.
   """
-  let iter: Iterator[(String, JsonValue)]
+  let iter: Iterator[(String, JSONValue)]
   let level: USize
   var first: Bool = true
 
-  new create(obj: JsonObject box, level': USize) =>
+  new create(obj: JSONObject box, level': USize) =>
     iter = obj.pairs()
     level = level'
 
@@ -289,10 +328,10 @@ class _PrintArrayFrame
   A JSON array being serialized: its value iterator, indent level, and
   whether its first element has been written yet.
   """
-  let iter: Iterator[JsonValue]
+  let iter: Iterator[JSONValue]
   let level: USize
   var first: Bool = true
 
-  new create(arr: JsonArray box, level': USize) =>
+  new create(arr: JSONArray box, level': USize) =>
     iter = arr.values()
     level = level'

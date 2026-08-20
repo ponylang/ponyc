@@ -110,7 +110,7 @@ class \nodoc\ iso _TestHandleableSignalAccepts is UnitTest
     end
 
   fun _assert_valid(h: TestHelper, sig: U32) =>
-    match MakeHandleableSignal(sig)
+    match \exhaustive\ MakeHandleableSignal(sig)
     | let _: HandleableSignal => None
     | let _: ValidationFailure =>
       h.fail("signal " + sig.string() + " should be valid")
@@ -142,7 +142,7 @@ class \nodoc\ iso _TestHandleableSignalRejectsFatal is UnitTest
     end
 
   fun _assert_invalid(h: TestHelper, sig: U32) =>
-    match MakeHandleableSignal(sig)
+    match \exhaustive\ MakeHandleableSignal(sig)
     | let _: HandleableSignal =>
       h.fail("signal " + sig.string() + " should be rejected (fatal)")
     | let _: ValidationFailure => None
@@ -163,7 +163,7 @@ class \nodoc\ iso _TestHandleableSignalRejectsUncatchable is UnitTest
     end
 
   fun _assert_invalid(h: TestHelper, sig: U32) =>
-    match MakeHandleableSignal(sig)
+    match \exhaustive\ MakeHandleableSignal(sig)
     | let _: HandleableSignal =>
       h.fail("signal " + sig.string() + " should be rejected (uncatchable)")
     | let _: ValidationFailure => None
@@ -188,7 +188,7 @@ class \nodoc\ iso _TestHandleableSignalRejectsUnknown is UnitTest
     end
 
   fun _assert_invalid(h: TestHelper, sig: U32) =>
-    match MakeHandleableSignal(sig)
+    match \exhaustive\ MakeHandleableSignal(sig)
     | let _: HandleableSignal =>
       h.fail("signal " + sig.string() + " should be rejected (unknown)")
     | let _: ValidationFailure => None
@@ -227,14 +227,14 @@ class \nodoc\ iso _TestHandleableSignalRTBoundaries is UnitTest
     end
 
   fun _assert_valid(h: TestHelper, sig: U32) =>
-    match MakeHandleableSignal(sig)
+    match \exhaustive\ MakeHandleableSignal(sig)
     | let _: HandleableSignal => None
     | let _: ValidationFailure =>
       h.fail("signal " + sig.string() + " should be valid")
     end
 
   fun _assert_invalid(h: TestHelper, sig: U32) =>
-    match MakeHandleableSignal(sig)
+    match \exhaustive\ MakeHandleableSignal(sig)
     | let _: HandleableSignal =>
       h.fail("signal " + sig.string() + " should be rejected (out of range)")
     | let _: ValidationFailure => None
@@ -258,7 +258,7 @@ class \nodoc\ iso _TestSignalINT is UnitTest
 
   fun ref apply(h: TestHelper) =>
     let auth = SignalAuth(h.env.root)
-    match MakeHandleableSignal(Sig.int())
+    match \exhaustive\ MakeHandleableSignal(Sig.int())
     | let sig: HandleableSignal =>
       let signal = SignalHandler(auth, _TestSignalNotify(h), sig)
       signal.raise(auth)
@@ -288,7 +288,7 @@ class \nodoc\ iso _TestSignalUSR2 is UnitTest
     // where Sig.usr2() yields a usable signal number.
     ifdef not windows then
       let auth = SignalAuth(h.env.root)
-      match MakeHandleableSignal(Sig.usr2())
+      match \exhaustive\ MakeHandleableSignal(Sig.usr2())
       | let sig: HandleableSignal =>
         let signal = SignalHandler(auth, _TestSignalNotify(h), sig)
         signal.raise(auth)
@@ -333,7 +333,10 @@ class \nodoc\ _TestMultiHandlerChainNotify is SignalNotify
   let _auth: SignalAuth
   var _chained: Bool = false
 
-  new iso create(h: TestHelper, action: String, next: SignalHandler,
+  new iso create(
+    h: TestHelper,
+    action: String,
+    next: SignalHandler,
     auth: SignalAuth)
   =>
     _h = h
@@ -372,12 +375,18 @@ class \nodoc\ iso _TestMultipleHandlers is UnitTest
     let auth = SignalAuth(h.env.root)
     h.expect_action("handler1")
     h.expect_action("handler2")
-    match MakeHandleableSignal(Sig.int())
+    match \exhaustive\ MakeHandleableSignal(Sig.int())
     | let sig: HandleableSignal =>
-      let s2 = SignalHandler(auth,
-        _TestMultiHandlerNotify(h, "handler2"), sig)
-      let s1 = SignalHandler(auth,
-        _TestMultiHandlerChainNotify(h, "handler1", s2, auth), sig)
+      let s2 =
+        SignalHandler(
+          auth,
+          _TestMultiHandlerNotify(h, "handler2"),
+          sig)
+      let s1 =
+        SignalHandler(
+          auth,
+          _TestMultiHandlerChainNotify(h, "handler1", s2, auth),
+          sig)
       // Same-actor message ordering guarantees s1's constructor (and thus
       // its subscription) has completed before this raise executes. s2's
       // subscription may or may not be in place for this first raise;
@@ -427,7 +436,7 @@ class \nodoc\ iso _TestDispose is UnitTest
 
   fun ref apply(h: TestHelper) =>
     let auth = SignalAuth(h.env.root)
-    match MakeHandleableSignal(Sig.int())
+    match \exhaustive\ MakeHandleableSignal(Sig.int())
     | let sig: HandleableSignal =>
       let signal = SignalHandler(auth, _TestDisposeNotify(h), sig)
       signal.dispose(auth)
@@ -455,7 +464,8 @@ class \nodoc\ _DispositionProbeNotify is SignalNotify
     // previous handler; SIG_DFL is the null pointer on every supported
     // platform, and re-installing it here is idempotent.
     let previous = @signal(Sig.term().i32(), USize(0))
-    _h.assert_true(previous.is_null(),
+    _h.assert_true(
+      previous.is_null(),
       "disposing the last handler must restore the default disposition")
     _h.complete(true)
 
@@ -478,7 +488,7 @@ class \nodoc\ iso _TestDisposeRestoresDefaultDisposition is UnitTest
 
   fun ref apply(h: TestHelper) =>
     let auth = SignalAuth(h.env.root)
-    match MakeHandleableSignal(Sig.term())
+    match \exhaustive\ MakeHandleableSignal(Sig.term())
     | let sig: HandleableSignal =>
       let signal = SignalHandler(auth, _DispositionProbeNotify(h), sig)
       signal.dispose(auth)
@@ -509,7 +519,9 @@ class \nodoc\ _IgnoredDispositionProbeNotify is SignalNotify
     // is 0. Passing SIG_IGN keeps the signal ignored, so the probe does not
     // reintroduce the SIG_DFL it is checking against.
     let previous = @signal(_signum, USize(1))
-    _h.assert_eq[USize](USize(1), previous.usize(),
+    _h.assert_eq[USize](
+      USize(1),
+      previous.usize(),
       "disposing the last handler must restore SIG_IGN, not SIG_DFL")
     _h.complete(true)
 
@@ -531,10 +543,13 @@ class \nodoc\ iso _TestDisposeRestoresIgnoredDisposition is UnitTest
   fun ref apply(h: TestHelper) =>
     ifdef not windows then
       let auth = SignalAuth(h.env.root)
-      match MakeHandleableSignal(Sig.pipe())
+      match \exhaustive\ MakeHandleableSignal(Sig.pipe())
       | let sig: HandleableSignal =>
-        let signal = SignalHandler(auth,
-          _IgnoredDispositionProbeNotify(h, Sig.pipe().i32()), sig)
+        let signal =
+          SignalHandler(
+            auth,
+            _IgnoredDispositionProbeNotify(h, Sig.pipe().i32()),
+            sig)
         signal.dispose(auth)
         h.long_test(10_000_000_000)
       | let _: ValidationFailure =>
@@ -569,7 +584,7 @@ class \nodoc\ iso _TestNotifyReturnsFalse is UnitTest
 
   fun ref apply(h: TestHelper) =>
     let auth = SignalAuth(h.env.root)
-    match MakeHandleableSignal(Sig.int())
+    match \exhaustive\ MakeHandleableSignal(Sig.int())
     | let sig: HandleableSignal =>
       let signal = SignalHandler(auth, _TestReturnsFalseNotify(h), sig)
       signal.raise(auth)
@@ -593,7 +608,9 @@ class \nodoc\ _LimitFillNotify is SignalNotify
   let _n: USize
   var _fired: Bool = false
 
-  new iso create(h: TestHelper, coordinator: _SubscriberLimitCoordinator,
+  new iso create(
+    h: TestHelper,
+    coordinator: _SubscriberLimitCoordinator,
     n: USize)
   =>
     _h = h
@@ -640,7 +657,7 @@ class \nodoc\ _LimitRejectNotify is SignalNotify
       return
     end
     _rejected = true
-    match reason
+    match \exhaustive\ reason
     | SignalSubscriberLimit =>
       _h.complete_action("limit-rejected")
       _coordinator.rejected()
@@ -680,7 +697,7 @@ class \nodoc\ _LimitReuseNotify is SignalNotify
     true
 
   fun ref registration_failed(reason: SignalRegistrationError) =>
-    match reason
+    match \exhaustive\ reason
     | SignalSubscriberLimit =>
       // The freed slot's cancel hadn't been processed yet — try again.
       _coordinator.retry_reuse()
@@ -818,7 +835,7 @@ class \nodoc\ iso _TestSubscriberLimit is UnitTest
 
   fun ref apply(h: TestHelper) =>
     let auth = SignalAuth(h.env.root)
-    match MakeHandleableSignal(Sig.term())
+    match \exhaustive\ MakeHandleableSignal(Sig.term())
     | let sig: HandleableSignal =>
       // Declare every expected action before any handler exists so no
       // completion can be lost.
@@ -859,7 +876,7 @@ class \nodoc\ _RefusedNotify is SignalNotify
     true
 
   fun ref registration_failed(reason: SignalRegistrationError) =>
-    match reason
+    match \exhaustive\ reason
     | SignalRegistrationRefused =>
       _failed = true
     | SignalSubscriberLimit =>
@@ -893,7 +910,7 @@ class \nodoc\ iso _TestOSRefusedRegistration is UnitTest
     ifdef linux then
       let auth = SignalAuth(h.env.root)
       try
-        match MakeHandleableSignal(Sig.rt(0)?)
+        match \exhaustive\ MakeHandleableSignal(Sig.rt(0)?)
         | let sig: HandleableSignal =>
           h.expect_action("refused-1")
           h.expect_action("refused-2")

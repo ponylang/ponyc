@@ -29,7 +29,10 @@ actor SignalHandler is AsioEventNotify
   let _sig: U32
   var _event: AsioEventID
 
-  new create(auth: SignalAuth, notify: SignalNotify iso, sig: HandleableSignal,
+  new create(
+    auth: SignalAuth,
+    notify: SignalNotify iso,
+    sig: HandleableSignal,
     wait: Bool = false)
   =>
     """

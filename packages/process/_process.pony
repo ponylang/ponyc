@@ -7,8 +7,8 @@ use @ponyint_win_process_create[USize](appname: Pointer[U8] tag,
   cmdline: Pointer[U8] tag, environ: Pointer[U8] tag, wdir: Pointer[U8] tag,
   stdin_fd: U32, stdout_fd: U32, stderr_fd: U32,
   error_code: Pointer[U32], error_msg: Pointer[Pointer[U8]] tag)
-use @ponyint_win_process_wait[I32](hProc: USize, code: Pointer[I32])
-use @ponyint_win_process_kill[I32](hProc: USize)
+use @ponyint_win_process_wait[I32](h_proc: USize, code: Pointer[I32])
+use @ponyint_win_process_kill[I32](h_proc: USize)
 use @execve[I32](path: Pointer[U8] tag, argp: Pointer[Pointer[U8] tag] tag,
   envp: Pointer[Pointer[U8] tag] tag)
 use @fork[I32]()
@@ -19,7 +19,8 @@ use @kill[I32](pid_t: I32, sig: U32)
 use @waitpid[I32](pid: I32, stat_loc: Pointer[I32] tag, opts: I32)
 use @_exit[None](status: I32)
 
-// for Windows System Error Codes see: https://docs.microsoft.com/de-de/windows/desktop/Debug/system-error-codes
+// for Windows System Error Codes see:
+// https://docs.microsoft.com/de-de/windows/desktop/Debug/system-error-codes
 primitive _ERRORBADEXEFORMAT
   fun apply(): U32 =>
     """
@@ -110,9 +111,9 @@ class val Exited is (Stringable & Equatable[ProcessExitStatus])
   fun string(): String iso^ =>
     recover iso
       String(10)
-        .>append("Exited(")
-        .>append(_exit_code.string())
-        .>append(")")
+        .> append("Exited(")
+        .> append(_exit_code.string())
+        .> append(")")
     end
 
   fun eq(other: ProcessExitStatus): Bool =>
@@ -141,9 +142,9 @@ class val Signaled is (Stringable & Equatable[ProcessExitStatus])
   fun string(): String iso^ =>
     recover iso
       String(12)
-        .>append("Signaled(")
-        .>append(_signal.string())
-        .>append(")")
+        .> append("Signaled(")
+        .> append(_signal.string())
+        .> append(")")
     end
 
   fun eq(other: ProcessExitStatus): Bool =>
@@ -153,7 +154,6 @@ class val Signaled is (Stringable & Equatable[ProcessExitStatus])
     else
       false
     end
-
 
 type ProcessExitStatus is (Exited | Signaled)
   """
@@ -172,19 +172,21 @@ primitive _StillRunning
 
 type _WaitResult is (ProcessExitStatus | WaitpidError | _StillRunning)
 
-
 interface _Process
   fun box kill()
+
   fun ref wait(): _WaitResult
     """
     Non-blocking reap of the child. Collects the exit status if the child has
     exited; does not block a scheduler thread.
     """
+
   fun ref arm_exit_event(owner: AsioEventNotify): AsioEventID
     """
     Register the child's native exit event with the asio backend and return its
     id. The event fires when the child exits.
     """
+
   fun ref close_exit_source(event: AsioEventID)
     """
     Unsubscribe the exit event and release the native exit source (the pidfd on
@@ -216,8 +218,15 @@ class _ProcessPosix is _Process
     match pid
     | -1 => error
     | 0 =>
-      _child_fork(path, argp, envp, wdir, err_far_fd, stdin_far_fd,
-        stdout_far_fd, stderr_far_fd)
+      _child_fork(
+        path,
+        argp,
+        envp,
+        wdir,
+        err_far_fd,
+        stdin_far_fd,
+        stdout_far_fd,
+        stderr_far_fd)
     end
 
     // Parent. Open the child's exit source. On Linux that is a pidfd; a
@@ -289,7 +298,9 @@ class _ProcessPosix is _Process
     end
 
     step = _StepExecve()
-    if 0 > @execve(path.cstring(), argp.cpointer(),
+    if 0 > @execve(
+      path.cstring(),
+      argp.cpointer(),
       envp.cpointer())
     then
       @write(err_far_fd, addressof step, USize(1))
@@ -433,7 +444,6 @@ primitive _WaitPidStatus
   fun continued(wstatus: I32): Bool =>
     wstatus == 0xffff
 
-
 class _ProcessWindows is _Process
   let h_process: USize
   let process_error: (ProcessError | None)
@@ -456,13 +466,17 @@ class _ProcessWindows is _Process
         end
       var error_code: U32 = 0
       var error_message = Pointer[U8]
-      h_process = @ponyint_win_process_create(
+      h_process =
+        @ponyint_win_process_create(
           path.cstring(),
           _make_cmdline(args).cstring(),
           _make_environ(vars).cpointer(),
           wdir_ptr,
-          stdin_far_fd, stdout_far_fd, stderr_far_fd,
-          addressof error_code, addressof error_message)
+          stdin_far_fd,
+          stdout_far_fd,
+          stderr_far_fd,
+          addressof error_code,
+          addressof error_message)
       process_error =
         if h_process == 0 then
           match error_code
@@ -473,8 +487,9 @@ class _ProcessWindows is _Process
               | let wdir_str: String => wdir_str
               | None => "?"
               end
-            ProcessError(ChdirError, "Failed to change directory to " +
-              wdirpath)
+            ProcessError(
+              ChdirError,
+              "Failed to change directory to " + wdirpath)
           else
             let message = String.from_cstring(error_message)
             ProcessError(ForkError, recover message.clone() end)
@@ -559,7 +574,8 @@ class _ProcessWindows is _Process
       var wr: _WaitResult = WaitpidError
       if h_process != 0 then
         var exit_code: I32 = 0
-        match \exhaustive\ @ponyint_win_process_wait(h_process, addressof exit_code)
+        match \exhaustive\
+          @ponyint_win_process_wait(h_process, addressof exit_code)
         | 0 =>
           wr = Exited(exit_code)
           final_wait_result = wr

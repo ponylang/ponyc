@@ -154,17 +154,17 @@ class ref BaseProtocol
       else
         return NeedMore
       end
-    let message_json: JsonObject =
-      match JsonParser.parse(
+    let message_json: JSONObject =
+      match JSONParser.parse(
         String.from_array(content))
-      | let obj: JsonObject => obj
+      | let obj: JSONObject => obj
       else
         // syntactically invalid json or not an object
         return InvalidJSON
       end
     parse_message(message_json)
 
-  fun ref parse_message(json: JsonObject): (Message val | ParseError) =>
+  fun ref parse_message(json: JSONObject): (Message val | ParseError) =>
     if json.contains("method") then
       let method: String =
         try
@@ -178,11 +178,11 @@ class ref BaseProtocol
         end
       // params are optional, but if present must be
       // object or array
-      let params: (JsonObject | JsonArray | None) =
+      let params: (JSONObject | JSONArray | None) =
         try
           match json("params")?
-          | let obj: JsonObject => obj
-          | let arr: JsonArray => arr
+          | let obj: JSONObject => obj
+          | let arr: JSONArray => arr
           else
             return InvalidMessage("Invalid request params")
           end
@@ -209,7 +209,7 @@ class ref BaseProtocol
       end
     else
       // response
-      let result: JsonValue =
+      let result: JSONValue =
         try
           json("result")?
         end
@@ -228,7 +228,7 @@ class ref BaseProtocol
         (ResponseError val | None) =
           try
             match json("error")?
-            | let err: JsonObject =>
+            | let err: JSONObject =>
               // parse ResponseError object
               match \exhaustive\ parse_response_error(err)
               | let pe: ParseError => return pe
@@ -243,7 +243,7 @@ class ref BaseProtocol
       ResponseMessage.create(id, result, response_error)
     end
 
-  fun parse_response_error(json: JsonObject):
+  fun parse_response_error(json: JSONObject):
     (ResponseError val | ParseError)
   =>
     """
@@ -269,7 +269,7 @@ class ref BaseProtocol
       else
         return InvalidMessage("Missing ResponseError message")
       end
-    let data: JsonValue =
+    let data: JSONValue =
       try
         json("data")?
       end

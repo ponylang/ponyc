@@ -77,28 +77,28 @@ By default, the results are printed to stdout like so:
 Benchmark results will have their mean and median adjusted for overhead.
 You may disable this with --noadjust.
 
-Benchmark                                   mean            median   deviation  iterations
-Nothing                                     1 ns              1 ns      ±0.87%     3000000
-_Fib(5)                                    12 ns             12 ns      ±1.02%     2000000
-_Fib(10)                                  185 ns            184 ns      ±1.03%     1000000
-_Fib(20)                                23943 ns          23898 ns      ±1.11%       10000
-_Timer (10000ns)                        10360 ns          10238 ns      ±3.25%       10000
+Benchmark              mean      median  deviation  iterations
+Nothing                1 ns        1 ns    ±0.87%     3000000
+_Fib(5)               12 ns       12 ns    ±1.02%     2000000
+_Fib(10)             185 ns      184 ns    ±1.03%     1000000
+_Fib(20)           23943 ns    23898 ns    ±1.11%       10000
+_Timer (10000ns)   10360 ns    10238 ns    ±3.25%       10000
 ```
 The `--noadjust` option outputs results of the overhead measured prior to each
 benchmark run followed by the unadjusted benchmark result. An example of the
 output of this program with `--noadjust` is as follows:
 ```
-Benchmark                                   mean            median   deviation  iterations
-Benchmark Overhead                        604 ns            603 ns      ±0.58%      300000
-Nothing                                   553 ns            553 ns      ±0.30%      300000
-Benchmark Overhead                        555 ns            555 ns      ±0.51%      300000
-_Fib(5)                                   574 ns            574 ns      ±0.43%      300000
-Benchmark Overhead                        554 ns            556 ns      ±0.48%      300000
-_Fib(10)                                  822 ns            821 ns      ±0.39%      200000
-Benchmark Overhead                        554 ns            553 ns      ±0.65%      300000
-_Fib(20)                                30470 ns          30304 ns      ±1.55%        5000
-Benchmark Overhead                        552 ns            552 ns      ±0.39%      300000
-_Timer (10000 ns)                       10780 ns          10800 ns      ±3.60%       10000
+Benchmark              mean      median  deviation  iterations
+Benchmark Overhead    604 ns      603 ns    ±0.58%      300000
+Nothing               553 ns      553 ns    ±0.30%      300000
+Benchmark Overhead    555 ns      555 ns    ±0.51%      300000
+_Fib(5)               574 ns      574 ns    ±0.43%      300000
+Benchmark Overhead    554 ns      556 ns    ±0.48%      300000
+_Fib(10)              822 ns      821 ns    ±0.39%      200000
+Benchmark Overhead    554 ns      553 ns    ±0.65%      300000
+_Fib(20)            30470 ns    30304 ns    ±1.55%        5000
+Benchmark Overhead    552 ns      552 ns    ±0.39%      300000
+_Timer (10000 ns)   10780 ns    10800 ns    ±3.60%       10000
 ```
 
 It is recommended that a PonyBench program is compiled with the `--runtimebc`
@@ -107,6 +107,9 @@ option, if possible, and run with the `--ponynoyield` option.
 // TODO more examples in tutorial
 
 actor PonyBench
+  """
+  Runs a list of benchmarks and reports their results.
+  """
   let _env: Env
   let _output_manager: _OutputManager
   embed _bench_q: Array[(Benchmark, Bool)] = Array[(Benchmark, Bool)]
@@ -115,7 +118,9 @@ actor PonyBench
   new create(env: Env, list: BenchmarkList) =>
     _env = consume env
     ifdef debug then
-      _env.err.print("***WARNING*** Benchmark was built as DEBUG. Timings may be affected.")
+      _env.err.print(
+        "***WARNING*** Benchmark was built as DEBUG." +
+          " Timings may be affected.")
     end
 
     _output_manager =
@@ -144,7 +149,7 @@ actor PonyBench
   be _next_benchmark() =>
     if _bench_q.size() > 0 then
       try
-        match _bench_q.shift()?
+        match \exhaustive\ _bench_q.shift()?
         | (let b: MicroBenchmark, let overhead: Bool) =>
           _RunSync(this, consume b, overhead)
         | (let b: AsyncMicroBenchmark, let overhead: Bool) =>

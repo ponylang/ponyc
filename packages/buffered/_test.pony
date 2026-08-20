@@ -84,18 +84,18 @@ class \nodoc\ iso _TestReader is UnitTest
     b.append(recover [as U8: 0xDE] end)
 
     // normal/contiguous data
-    b.append([
-      0x42
-      0xDE; 0xAD
-      0xAD; 0xDE
-      0xDE; 0xAD; 0xBE; 0xEF
-      0xEF; 0xBE; 0xAD; 0xDE
-      0xDE; 0xAD; 0xBE; 0xEF; 0xFE; 0xED; 0xFA; 0xCE
-      0xCE; 0xFA; 0xED; 0xFE; 0xEF; 0xBE; 0xAD; 0xDE
-      0xDE; 0xAD; 0xBE; 0xEF; 0xFE; 0xED; 0xFA; 0xCE
-      0xDE; 0xAD; 0xBE; 0xEF; 0xFE; 0xED; 0xFA; 0xCE
-      0xCE; 0xFA; 0xED; 0xFE; 0xEF; 0xBE; 0xAD; 0xDE
-      0xCE; 0xFA; 0xED; 0xFE; 0xEF; 0xBE; 0xAD; 0xDE ])
+    b.append(
+      [ 0x42
+        0xDE; 0xAD
+        0xAD; 0xDE
+        0xDE; 0xAD; 0xBE; 0xEF
+        0xEF; 0xBE; 0xAD; 0xDE
+        0xDE; 0xAD; 0xBE; 0xEF; 0xFE; 0xED; 0xFA; 0xCE
+        0xCE; 0xFA; 0xED; 0xFE; 0xEF; 0xBE; 0xAD; 0xDE
+        0xDE; 0xAD; 0xBE; 0xEF; 0xFE; 0xED; 0xFA; 0xCE
+        0xDE; 0xAD; 0xBE; 0xEF; 0xFE; 0xED; 0xFA; 0xCE
+        0xCE; 0xFA; 0xED; 0xFE; 0xEF; 0xBE; 0xAD; 0xDE
+        0xCE; 0xFA; 0xED; 0xFE; 0xEF; 0xBE; 0xAD; 0xDE ])
 
     b.append(['h'; 'i'])
     b.append(['\n'; 't'; 'h'; 'e'])
@@ -123,9 +123,11 @@ class \nodoc\ iso _TestReader is UnitTest
     h.assert_eq[U32](b.peek_u32_le(70)?, 0xDEADBEEF)
     h.assert_eq[U64](b.peek_u64_be(74)?, 0xDEADBEEFFEEDFACE)
     h.assert_eq[U64](b.peek_u64_le(82)?, 0xDEADBEEFFEEDFACE)
-    h.assert_eq[U128](b.peek_u128_be(90)?,
+    h.assert_eq[U128](
+      b.peek_u128_be(90)?,
       0xDEADBEEFFEEDFACEDEADBEEFFEEDFACE)
-    h.assert_eq[U128](b.peek_u128_le(106)?,
+    h.assert_eq[U128](
+      b.peek_u128_le(106)?,
       0xDEADBEEFFEEDFACEDEADBEEFFEEDFACE)
 
 
@@ -144,9 +146,11 @@ class \nodoc\ iso _TestReader is UnitTest
     h.assert_eq[U32](b.u32_le()?, 0xDEADBEEF)
     h.assert_eq[U64](b.u64_be()?, 0xDEADBEEFFEEDFACE)
     h.assert_eq[U64](b.u64_le()?, 0xDEADBEEFFEEDFACE)
-    h.assert_eq[U128](b.u128_be()?,
+    h.assert_eq[U128](
+      b.u128_be()?,
       0xDEADBEEFFEEDFACEDEADBEEFFEEDFACE)
-    h.assert_eq[U128](b.u128_le()?,
+    h.assert_eq[U128](
+      b.u128_le()?,
       0xDEADBEEFFEEDFACEDEADBEEFFEEDFACE)
 
 
@@ -187,9 +191,9 @@ class \nodoc\ iso _TestReader is UnitTest
       h.fail("should fail reading until 0")
     end
     b.append([0])
-    b.append([
-      'f'; 'i'; 'e'; 'l'; 'd'; '1'; ';'
-      'f'; 'i'; 'e'; 'l'; 'd'; '2'; ';'; ';'])
+    b.append(
+      [ 'f'; 'i'; 'e'; 'l'; 'd'; '1'; ';'
+        'f'; 'i'; 'e'; 'l'; 'd'; '2'; ';'; ';'])
     h.assert_eq[String](String.from_array(b.read_until(0)?), "str1")
     h.assert_eq[String](String.from_array(b.read_until(';')?), "field1")
     h.assert_eq[String](String.from_array(b.read_until(';')?), "field2")
@@ -220,9 +224,9 @@ class \nodoc\ iso _TestWriter is UnitTest
       .> u128_le(0xDEADBEEFFEEDFACEDEADBEEFFEEDFACE)
 
     wb.write(['h'; 'i'])
-    wb.writev([
-      ['\n'; 't'; 'h'; 'e']
-      ['r'; 'e'; '\r'; '\n']])
+    wb.writev(
+      [ ['\n'; 't'; 'h'; 'e']
+        ['r'; 'e'; '\r'; '\n']])
 
     for bs in wb.done().values() do
       b.append(bs)

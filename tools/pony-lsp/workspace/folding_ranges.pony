@@ -47,12 +47,12 @@ primitive FoldingRanges
   the last top-level entity by start line contains an `object`/lambda and
   there is no subsequent entity with a higher start line to act as a sentinel.
   """
-  fun collect(module: Module val): Array[JsonValue] =>
+  fun collect(module: Module val): Array[JSONValue] =>
     """
     Returns an array of folding range objects for all top-level entities,
     their members, and multi-line expressions within method bodies.
     """
-    let ranges: Array[JsonValue] ref = Array[JsonValue].create()
+    let ranges: Array[JSONValue] ref = Array[JSONValue].create()
     let entities: Array[AST box] = Array[AST box]
     let synthetic_entities: Array[AST box] = Array[AST box]
     var max_entity_line: USize = 0
@@ -102,7 +102,7 @@ primitive FoldingRanges
 
   fun _collect_members(
     entity: AST box,
-    ranges: Array[JsonValue] ref,
+    ranges: Array[JSONValue] ref,
     entity_cap: USize)
   =>
     """
@@ -151,7 +151,7 @@ primitive FoldingRanges
           end
         let sl = member.line()
         ranges.push(
-          JsonObject
+          JSONObject
             .update("startLine", sl.i64() - 1)
             .update("endLine", el.i64() - 1))
         _collect_body(member, ranges, member_cap)
@@ -160,7 +160,7 @@ primitive FoldingRanges
 
   fun _collect_body(
     node: AST box,
-    ranges: Array[JsonValue] ref,
+    ranges: Array[JSONValue] ref,
     cap: USize)
   =>
     """
@@ -197,7 +197,7 @@ primitive FoldingRanges
             let el = FoldingRanges._end_line(n, cap).i64() - 1
             if el > sl then
               ranges.push(
-                JsonObject.update("startLine", sl).update("endLine", el))
+                JSONObject.update("startLine", sl).update("endLine", el))
             end
           end
           Continue
@@ -206,7 +206,7 @@ primitive FoldingRanges
 
   fun _push_range(
     node: AST box,
-    ranges: Array[JsonValue] ref,
+    ranges: Array[JSONValue] ref,
     cap: USize = USize.max_value())
   =>
     """
@@ -215,7 +215,7 @@ primitive FoldingRanges
     let sl: I64 = node.line().i64() - 1
     let el: I64 = _end_line(node, cap).i64() - 1
     if el > sl then
-      ranges.push(JsonObject.update("startLine", sl).update("endLine", el))
+      ranges.push(JSONObject.update("startLine", sl).update("endLine", el))
     end
 
   fun _end_line(node: AST box, cap: USize = USize.max_value()): USize =>

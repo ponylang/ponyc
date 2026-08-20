@@ -12,7 +12,7 @@ primitive SignatureHelp
   fun collect(
     node: AST box,
     cursor_line: USize,
-    cursor_col: USize): (JsonObject | None)
+    cursor_col: USize): (JSONObject | None)
   =>
     match \exhaustive\ _find_enclosing_call(node, cursor_line, cursor_col)
     | (_, let callee: AST box, let active_param: USize) =>
@@ -65,18 +65,18 @@ primitive SignatureHelp
         (let label, let offsets) =
           _build_label(def, keyword, param_strs)
 
-        var params_json = JsonArray
+        var params_json = JSONArray
         for (p_start, p_end) in offsets.values() do
           params_json =
             params_json.push(
-              JsonObject.update(
+              JSONObject.update(
                 "label",
-                JsonArray
+                JSONArray
                   .push(I64.from[USize](p_start))
                   .push(I64.from[USize](p_end))))
         end
 
-        let base_sig = JsonObject
+        let base_sig = JSONObject
           .update("label", label)
           .update("parameters", params_json)
 
@@ -88,7 +88,7 @@ primitive SignatureHelp
               if docstring.size() > 0 then
                 base_sig.update(
                   "documentation",
-                  JsonObject
+                  JSONObject
                     .update("kind", "markdown")
                     .update("value", docstring))
               else
@@ -103,8 +103,8 @@ primitive SignatureHelp
 
         // Omit activeParameter for zero-param signatures: index 0 into an
         // empty parameters array is out of range per LSP 3.17 spec.
-        let base_result = JsonObject
-          .update("signatures", JsonArray.push(sig))
+        let base_result = JSONObject
+          .update("signatures", JSONArray.push(sig))
           .update("activeSignature", I64(0))
         if param_strs.size() > 0 then
           base_result.update("activeParameter", I64.from[USize](active_param))

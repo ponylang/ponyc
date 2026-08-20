@@ -379,16 +379,19 @@ class \nodoc\ iso _TestIterLast is UnitTest
     let input1 = Array[I64]
     h.assert_error({() ? => Iter[I64](input1.values()).last()? })
 
-    let input2 =[as I64: 1]
-    h.assert_eq[I64](1,
+    let input2 = [as I64: 1]
+    h.assert_eq[I64](
+      1,
       Iter[I64](input2.values()).last()?)
 
     let input3 = [as I64: 1; 2]
-    h.assert_eq[I64](2,
+    h.assert_eq[I64](
+      2,
       Iter[I64](input3.values()).last()?)
 
     let input4 = [as I64: 1; 2; 3]
-    h.assert_eq[I64](3,
+    h.assert_eq[I64](
+      3,
       Iter[I64](input4.values()).last()?)
 
 class \nodoc\ iso _TestIterMap is UnitTest
@@ -426,11 +429,14 @@ class \nodoc\ iso _TestIterNth is UnitTest
 
   fun apply(h: TestHelper) ? =>
     let input = [as USize: 1; 2; 3]
-    h.assert_eq[USize](1,
+    h.assert_eq[USize](
+      1,
       Iter[USize](input.values()).nth(1)?)
-    h.assert_eq[USize](2,
+    h.assert_eq[USize](
+      2,
       Iter[USize](input.values()).nth(2)?)
-    h.assert_eq[USize](3,
+    h.assert_eq[USize](
+      3,
       Iter[USize](input.values()).nth(3)?)
     h.assert_error({()? => Iter[USize](input.values()).nth(4)? })
     h.assert_error({()? =>
@@ -478,10 +484,12 @@ class \nodoc\ iso _TestIterSkip is UnitTest
       Iter[I64](input.values()).skip(1).next()?
     })
     input.push(2)
-    h.assert_eq[I64](2,
+    h.assert_eq[I64](
+      2,
       Iter[I64](input.values()).skip(1).next()?)
     input.push(3)
-    h.assert_eq[I64](3,
+    h.assert_eq[I64](
+      3,
       Iter[I64](input.values()).skip(2).next()?)
 
     h.assert_false(Iter[I64](input.values()).skip(4).has_next())
@@ -491,9 +499,11 @@ class \nodoc\ iso _TestIterSkipWhile is UnitTest
 
   fun apply(h: TestHelper) ? =>
     let input = [as I64: -1; 0; 1; 2; 3]
-    h.assert_eq[I64](1,
+    h.assert_eq[I64](
+      1,
       Iter[I64](input.values()).skip_while({(x) => x <= 0 }).next()?)
-    h.assert_eq[I64](-1,
+    h.assert_eq[I64](
+      -1,
       Iter[I64](input.values()).skip_while({(x) => x < -2 }).next()?)
 
 class \nodoc\ iso _TestIterStepBy is UnitTest
@@ -534,12 +544,13 @@ class \nodoc\ iso _TestIterTake is UnitTest
 
     h.assert_eq[USize](3, infinite.take(3).collect(Array[U64]).size())
 
-    let short = Iter[U64](
-      object is Iterator[U64]
-        var counter: U64 = 0
-        fun ref has_next(): Bool => false
-        fun ref next(): U64^ => counter = counter + 1
-      end)
+    let short =
+      Iter[U64](
+        object is Iterator[U64]
+          var counter: U64 = 0
+          fun ref has_next(): Bool => false
+          fun ref next(): U64^ => counter = counter + 1
+        end)
     h.assert_eq[USize](0, short.take(10).collect(Array[U64]).size())
 
     h.complete(true)
@@ -610,8 +621,11 @@ class \nodoc\ iso _TestIterZip is UnitTest
 
     for (a1, a2, a3, a4, a5) in
       Iter[String](input1.values())
-        .zip4[U32, F32, I32, USize](input2.values(),
-          input3.values(), input4.values(), input5.values())
+        .zip4[U32, F32, I32, USize](
+          input2.values(),
+          input3.values(),
+          input4.values(),
+          input5.values())
     do
       actual1.push(a1)
       actual2.push(a2)

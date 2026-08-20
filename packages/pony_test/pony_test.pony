@@ -211,36 +211,49 @@ given seed would produce.
 
 ### Set Up
 
-Any kind of fixture or environment necessary for executing a [UnitTest](pony_test-UnitTest.md)
-can be set up either in the tests constructor or in a function called [set_up()](pony_test-UnitTest.md#set_up).
+Any kind of fixture or environment necessary for executing a
+[UnitTest](pony_test-UnitTest.md) can be set up either in the tests
+constructor or in a function called
+[set_up()](pony_test-UnitTest.md#set_up).
 
-[set_up()](pony_test-UnitTest.md#set_up) is called before the test is executed. It is partial,
-if it errors, the test is not executed but reported as failing during set up.
-The test's [TestHelper](pony_test-TestHelper.md) is handed to [set_up()](pony_test-UnitTest.md#set_up)
-in order to log messages or access the tests [Env](builtin-Env.md) via [TestHelper.env](pony_test-TestHelper.md#let-env-env-val).
+[set_up()](pony_test-UnitTest.md#set_up) is called before the test
+is executed. It is partial, if it errors, the test is not executed
+but reported as failing during set up. The test's
+[TestHelper](pony_test-TestHelper.md) is handed to
+[set_up()](pony_test-UnitTest.md#set_up) in order to log messages
+or access the tests [Env](builtin-Env.md) via
+[TestHelper.env](pony_test-TestHelper.md#let-env-env-val).
 
 ### Tear Down
 
-Each unit test object may define a [tear_down()](pony_test-UnitTest.md#tear_down) function. This is called after
-the test has finished to allow tearing down of any complex environment that had
-to be set up for the test.
+Each unit test object may define a
+[tear_down()](pony_test-UnitTest.md#tear_down) function. This is
+called after the test has finished to allow tearing down of any
+complex environment that had to be set up for the test.
 
-The [tear_down()](pony_test-UnitTest.md#tear_down) function is called for each test regardless of whether it
-passed or failed. If a test times out [tear_down()](pony_test-UnitTest.md#tear_down) will be called after
-timed_out() returns.
+The [tear_down()](pony_test-UnitTest.md#tear_down) function is
+called for each test regardless of whether it passed or failed.
+If a test times out
+[tear_down()](pony_test-UnitTest.md#tear_down) will be called
+after timed_out() returns.
 
-When a test is in an exclusion group, the [tear_down()](pony_test-UnitTest.md#tear_down) call is considered part
-of the tests run. The next test in the exclusion group will not start until
-after [tear_down()](pony_test-UnitTest.md#tear_down) returns on the current test.
+When a test is in an exclusion group, the
+[tear_down()](pony_test-UnitTest.md#tear_down) call is considered
+part of the tests run. The next test in the exclusion group will
+not start until after
+[tear_down()](pony_test-UnitTest.md#tear_down) returns on the
+current test.
 
-The test's [TestHelper](pony_test-TestHelper.md) is handed to [tear_down()](pony_test-UnitTest.md#tear_down) and it is permitted to log
-messages and call assert functions during tear down.
+The test's [TestHelper](pony_test-TestHelper.md) is handed to
+[tear_down()](pony_test-UnitTest.md#tear_down) and it is permitted
+to log messages and call assert functions during tear down.
 
 ### Example
 
-The following example creates a temporary directory in the [set_up()](pony_test-UnitTest.md#set_up) function
-and removes it in the [tear_down()](pony_test-UnitTest.md#tear_down) function, thus
-simplifying the test function itself:
+The following example creates a temporary directory in the
+[set_up()](pony_test-UnitTest.md#set_up) function and removes it
+in the [tear_down()](pony_test-UnitTest.md#tear_down) function,
+thus simplifying the test function itself:
 
 ```pony
 use "pony_test"
@@ -280,6 +293,7 @@ class val _Shuffled
   Tests are dispatched in a randomized order derived from the given seed.
   """
   let seed: U64
+
   new val create(seed': U64) => seed = seed'
 
   fun apply[A](array: Array[A]) =>
@@ -316,7 +330,6 @@ actor PonyTest
   var _finished: USize = 0
   var _any_found: Bool = false
   var _all_started: Bool = false
-
   // Filtering options
   var _exclude: String = ""
   var _label: String = ""
@@ -370,8 +383,15 @@ actor PonyTest
     _records.push(_TestRecord(_env, name))
 
     var group = _find_group(test.exclusion_group())
-    let runner = _TestRunner(this, index, consume test, group, _verbose, _env,
-      _timers)
+    let runner =
+      _TestRunner(
+        this,
+        index,
+        consume test,
+        group,
+        _verbose,
+        _env,
+        _timers)
     _pending.push((runner, group))
 
   fun ref _find_group(group_name: String): _Group =>

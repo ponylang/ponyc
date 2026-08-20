@@ -59,6 +59,9 @@ interface val HashFunction64[A]
     """
 
 primitive HashEq[A: (Hashable #read & Equatable[A] #read)] is HashFunction[A]
+  """
+  Hashes and compares using structural equality.
+  """
   fun hash(x: box->A): USize =>
     """
     Use the hash function from the type parameter.
@@ -73,6 +76,9 @@ primitive HashEq[A: (Hashable #read & Equatable[A] #read)] is HashFunction[A]
 
 primitive HashEq64[A: (Hashable64 #read & Equatable[A] #read)] is
   HashFunction64[A]
+  """
+  64-bit hash and comparison using structural equality.
+  """
   fun hash64(x: box->A): U64 =>
     """
     Use the hash function from the type parameter.
@@ -86,6 +92,9 @@ primitive HashEq64[A: (Hashable64 #read & Equatable[A] #read)] is
     x == y
 
 primitive HashIs[A] is (HashFunction[A] & HashFunction64[A])
+  """
+  Hashes and compares using identity equality.
+  """
   fun hash(x: box->A!): USize =>
     """
     Hash the identity rather than the contents.

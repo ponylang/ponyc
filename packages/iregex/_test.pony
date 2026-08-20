@@ -25,7 +25,6 @@ actor \nodoc\ Main is TestList
 // ===================================================================
 // Generator — I-Regexp
 // ===================================================================
-
 primitive \nodoc\ _IRegexpGen
   """Grammar-aware generator for valid I-Regexp patterns."""
 
@@ -95,7 +94,6 @@ primitive \nodoc\ _IRegexpGen
 // ===================================================================
 // Property Tests — I-Regexp
 // ===================================================================
-
 class \nodoc\ iso _IRegexpParserSafetyProperty is Property1[String]
   fun name(): String => "iregex/parser-safety"
 
@@ -130,7 +128,6 @@ class \nodoc\ iso _IRegexpMatchSafetyProperty is Property1[(String, String)]
 
 class \nodoc\ iso _IRegexpIsMatchImpliesSearchProperty
   is Property1[(String, String)]
-
   fun name(): String => "iregex/is_match-implies-search"
 
   fun gen(): Generator[(String, String)] =>
@@ -143,7 +140,8 @@ class \nodoc\ iso _IRegexpIsMatchImpliesSearchProperty
     match \exhaustive\ IRegexpCompiler.parse(pattern)
     | let re: IRegexp =>
       if re.is_match(input) then
-        ph.assert_true(re.search(input),
+        ph.assert_true(
+          re.search(input),
           "is_match implies search should also match")
       end
     | let _: IRegexpParseError => None
@@ -171,7 +169,8 @@ class \nodoc\ iso _IRegexpLiteralRoundtripProperty is Property1[String]
     let pattern: String val = buf.clone()
     match \exhaustive\ IRegexpCompiler.parse(pattern)
     | let re: IRegexp =>
-      ph.assert_true(re.is_match(sample),
+      ph.assert_true(
+        re.is_match(sample),
         "Escaped literal pattern should match original string")
     | let e: IRegexpParseError =>
       ph.fail("Failed to compile escaped literal: " + e.string())
@@ -179,7 +178,6 @@ class \nodoc\ iso _IRegexpLiteralRoundtripProperty is Property1[String]
 
 class \nodoc\ iso _IRegexpSearchSubstringProperty
   is Property1[(String, String)]
-
   fun name(): String => "iregex/search-substring"
 
   fun gen(): Generator[(String, String)] =>
@@ -193,7 +191,9 @@ class \nodoc\ iso _IRegexpSearchSubstringProperty
     | let re: IRegexp =>
       let regexp_found = re.search(input)
       let string_found = input.contains(pattern)
-      ph.assert_eq[Bool](string_found, regexp_found,
+      ph.assert_eq[Bool](
+        string_found,
+        regexp_found,
         "Literal search should agree with String.contains for pattern: '" +
           pattern + "' in input")
     | let _: IRegexpParseError =>
@@ -203,22 +203,22 @@ class \nodoc\ iso _IRegexpSearchSubstringProperty
 // ===================================================================
 // Example Tests — I-Regexp Parse
 // ===================================================================
-
 class \nodoc\ iso _TestIRegexpParse is UnitTest
   fun name(): String => "iregex/parse"
 
   fun apply(h: TestHelper) =>
     // Valid patterns
-    let valid: Array[String] val = [
-      "a"; "abc"; "."; "a*"; "a+"; "a?"; "a{2}"; "a{2,4}"; "a{2,}"
-      "(a|b)"; "[abc]"; "[a-z]"; "[^a-z]"
-      "\\n"; "\\r"; "\\t"
-      "\\."; "\\|"; "\\("; "\\)"; "\\*"; "\\+"; "\\?"; "\\["; "\\]"
-      "\\^"; "\\\\"; "\\{"; "\\}"; "\\-"
-      "\\p{L}"; "\\p{Lu}"; "\\p{Nd}"; "\\P{L}"
-      "[a-z0-9]"; "[-a]"; "[a-]"
-      "" // empty pattern matches empty string
-    ]
+    let valid: Array[String] val =
+      [
+        "a"; "abc"; "."; "a*"; "a+"; "a?"; "a{2}"; "a{2,4}"; "a{2,}"
+        "(a|b)"; "[abc]"; "[a-z]"; "[^a-z]"
+        "\\n"; "\\r"; "\\t"
+        "\\."; "\\|"; "\\("; "\\)"; "\\*"; "\\+"; "\\?"; "\\["; "\\]"
+        "\\^"; "\\\\"; "\\{"; "\\}"; "\\-"
+        "\\p{L}"; "\\p{Lu}"; "\\p{Nd}"; "\\P{L}"
+        "[a-z0-9]"; "[-a]"; "[a-]"
+        "" // empty pattern matches empty string
+      ]
     for pattern in valid.values() do
       match \exhaustive\ IRegexpCompiler.parse(pattern)
       | let _: IRegexp => None
@@ -228,23 +228,24 @@ class \nodoc\ iso _TestIRegexpParse is UnitTest
     end
 
     // Invalid patterns
-    let invalid: Array[String] val = [
-      "[" // unclosed class
-      "(" // unclosed group
-      "\\d" // multi-char escape not in I-Regexp
-      "\\w" // multi-char escape not in I-Regexp
-      "\\s" // multi-char escape not in I-Regexp
-      "\\D"; "\\W"; "\\S"
-      "[^]" // empty negated class forbidden
-      "\\p{}" // empty category name
-      "\\p{XYZ}" // too long
-      "\\p{Q}" // unknown category
-      "[z-a]" // reversed range
-      "a{3,1}" // max < min
-      "\\" // trailing backslash
-      "[[a]]" // bare [ inside class (must be escaped)
-      "a{99999}" // quantifier value too large
-    ]
+    let invalid: Array[String] val =
+      [
+        "[" // unclosed class
+        "(" // unclosed group
+        "\\d" // multi-char escape not in I-Regexp
+        "\\w" // multi-char escape not in I-Regexp
+        "\\s" // multi-char escape not in I-Regexp
+        "\\D"; "\\W"; "\\S"
+        "[^]" // empty negated class forbidden
+        "\\p{}" // empty category name
+        "\\p{XYZ}" // too long
+        "\\p{Q}" // unknown category
+        "[z-a]" // reversed range
+        "a{3,1}" // max < min
+        "\\" // trailing backslash
+        "[[a]]" // bare [ inside class (must be escaped)
+        "a{99999}" // quantifier value too large
+      ]
     for pattern in invalid.values() do
       match \exhaustive\ IRegexpCompiler.parse(pattern)
       | let _: IRegexpParseError => None
@@ -266,7 +267,6 @@ class \nodoc\ iso _TestIRegexpParse is UnitTest
 // ===================================================================
 // Example Tests — I-Regexp is_match
 // ===================================================================
-
 class \nodoc\ iso _TestIRegexpIsMatch is UnitTest
   fun name(): String => "iregex/is_match"
 
@@ -341,7 +341,9 @@ class \nodoc\ iso _TestIRegexpIsMatch is UnitTest
   =>
     match \exhaustive\ IRegexpCompiler.parse(pattern)
     | let re: IRegexp =>
-      h.assert_eq[Bool](expected, re.is_match(input),
+      h.assert_eq[Bool](
+        expected,
+        re.is_match(input),
         "Pattern '" + pattern + "' vs '" + input + "'")
     | let e: IRegexpParseError =>
       h.fail("Failed to compile '" + pattern + "': " + e.string())
@@ -350,7 +352,6 @@ class \nodoc\ iso _TestIRegexpIsMatch is UnitTest
 // ===================================================================
 // Example Tests — I-Regexp search
 // ===================================================================
-
 class \nodoc\ iso _TestIRegexpSearch is UnitTest
   fun name(): String => "iregex/search"
 
@@ -384,7 +385,9 @@ class \nodoc\ iso _TestIRegexpSearch is UnitTest
   =>
     match \exhaustive\ IRegexpCompiler.parse(pattern)
     | let re: IRegexp =>
-      h.assert_eq[Bool](expected, re.search(input),
+      h.assert_eq[Bool](
+        expected,
+        re.search(input),
         "Search '" + pattern + "' in '" + input + "'")
     | let e: IRegexpParseError =>
       h.fail("Failed to compile '" + pattern + "': " + e.string())
@@ -393,7 +396,6 @@ class \nodoc\ iso _TestIRegexpSearch is UnitTest
 // ===================================================================
 // Example Tests — I-Regexp Unicode
 // ===================================================================
-
 class \nodoc\ iso _TestIRegexpUnicode is UnitTest
   fun name(): String => "iregex/unicode"
 
@@ -437,7 +439,9 @@ class \nodoc\ iso _TestIRegexpUnicode is UnitTest
   =>
     match \exhaustive\ IRegexpCompiler.parse(pattern)
     | let re: IRegexp =>
-      h.assert_eq[Bool](expected, re.is_match(input),
+      h.assert_eq[Bool](
+        expected,
+        re.is_match(input),
         "Pattern '" + pattern + "' vs input")
     | let e: IRegexpParseError =>
       h.fail("Failed to compile '" + pattern + "': " + e.string())
@@ -446,7 +450,6 @@ class \nodoc\ iso _TestIRegexpUnicode is UnitTest
 // ===================================================================
 // Example Tests — I-Regexp Escapes
 // ===================================================================
-
 class \nodoc\ iso _TestIRegexpEscapes is UnitTest
   fun name(): String => "iregex/escapes"
 
@@ -486,7 +489,9 @@ class \nodoc\ iso _TestIRegexpEscapes is UnitTest
   =>
     match \exhaustive\ IRegexpCompiler.parse(pattern)
     | let re: IRegexp =>
-      h.assert_eq[Bool](expected, re.is_match(input),
+      h.assert_eq[Bool](
+        expected,
+        re.is_match(input),
         "Pattern '" + pattern + "' vs input")
     | let e: IRegexpParseError =>
       h.fail("Failed to compile '" + pattern + "': " + e.string())
@@ -495,7 +500,6 @@ class \nodoc\ iso _TestIRegexpEscapes is UnitTest
 // ===================================================================
 // Example Tests — I-Regexp Edge Cases
 // ===================================================================
-
 class \nodoc\ iso _TestIRegexpEdgeCases is UnitTest
   fun name(): String => "iregex/edge-cases"
 
@@ -556,7 +560,9 @@ class \nodoc\ iso _TestIRegexpEdgeCases is UnitTest
   =>
     match \exhaustive\ IRegexpCompiler.parse(pattern)
     | let re: IRegexp =>
-      h.assert_eq[Bool](expected, re.is_match(input),
+      h.assert_eq[Bool](
+        expected,
+        re.is_match(input),
         "Pattern '" + pattern + "' vs '" + input + "'")
     | let e: IRegexpParseError =>
       h.fail("Failed to compile '" + pattern + "': " + e.string())

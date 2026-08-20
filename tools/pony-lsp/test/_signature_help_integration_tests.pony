@@ -625,10 +625,10 @@ class val _SigHelpChecker
   fun lsp_method(): String =>
     Methods.text_document().signature_help()
 
-  fun lsp_params(): (None | JsonObject) =>
-    JsonObject.update(
+  fun lsp_params(): (None | JSONObject) =>
+    JSONObject.update(
       "position",
-      JsonObject.update("line", _line).update("character", _character))
+      JSONObject.update("line", _line).update("character", _character))
 
   fun check(res: ResponseMessage val, h: TestHelper): Bool =>
     var ok = true
@@ -636,7 +636,7 @@ class val _SigHelpChecker
     | None =>
       // Expect no signatures (null result or empty signatures array)
       try
-        let sigs = JsonNav(res.result)("signatures").as_array()?
+        let sigs = JSONNav(res.result)("signatures").as_array()?
         if sigs.size() > 0 then
           ok = false
           h.log("Expected no signature help but got: " + res.string())
@@ -644,7 +644,7 @@ class val _SigHelpChecker
       end
     | let expected_label: String val =>
       let sigs =
-        try JsonNav(res.result)("signatures").as_array()?
+        try JSONNav(res.result)("signatures").as_array()?
         else
           h.fail(
             "signatureHelp response missing signatures[] for '" +
@@ -655,7 +655,7 @@ class val _SigHelpChecker
         return false
       end
       let label =
-        try JsonNav(sigs(0)?)("label").as_string()?
+        try JSONNav(sigs(0)?)("label").as_string()?
         else
           h.fail(
             "signatureHelp response missing signatures[0].label for '" +
@@ -684,7 +684,7 @@ class val _SigHelpChecker
         // Zero-param signature: activeParameter must be absent.
         try
           let unexpected_active =
-            JsonNav(res.result)("activeParameter").as_i64()?
+            JSONNav(res.result)("activeParameter").as_i64()?
           if not h.assert_true(
             false,
             "Expected activeParameter absent for zero-param signature, got: " +
@@ -695,7 +695,7 @@ class val _SigHelpChecker
         end
       | let expected_active: I64 =>
         let active =
-          try JsonNav(res.result)("activeParameter").as_i64()?
+          try JSONNav(res.result)("activeParameter").as_i64()?
           else
             h.fail(
               "signatureHelp response missing activeParameter for '" +
@@ -715,7 +715,7 @@ class val _SigHelpChecker
       | let expected_doc: String val =>
         try
           let doc_val =
-            JsonNav(sigs(0)?)("documentation")("value").as_string()?
+            JSONNav(sigs(0)?)("documentation")("value").as_string()?
           if not h.assert_true(
             doc_val.contains(expected_doc),
             "Expected doc to contain '" + expected_doc +
@@ -733,13 +733,13 @@ class val _SigHelpChecker
       | let expected_text: String val =>
         try
           let params_arr =
-            JsonNav(sigs(0)?)("parameters").as_array()?
+            JSONNav(sigs(0)?)("parameters").as_array()?
           let active_idx =
-            JsonNav(res.result)("activeParameter").as_i64()?.usize()
+            JSONNav(res.result)("activeParameter").as_i64()?.usize()
           let param_offsets =
-            JsonNav(params_arr(active_idx)?)("label").as_array()?
-          let p_start = JsonNav(param_offsets(0)?).as_i64()?
-          let p_end = JsonNav(param_offsets(1)?).as_i64()?
+            JSONNav(params_arr(active_idx)?)("label").as_array()?
+          let p_start = JSONNav(param_offsets(0)?).as_i64()?
+          let p_end = JSONNav(param_offsets(1)?).as_i64()?
           let param_text: String val =
             label.substring(p_start.isize(), p_end.isize())
           if not h.assert_true(

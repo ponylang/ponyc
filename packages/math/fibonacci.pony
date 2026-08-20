@@ -25,7 +25,7 @@ class Fibonacci[A: (Integer[A] val & Unsigned) = U64] is Iterator[A]
       end
     end
 
-  //The generator stops on overflow.
+  // The generator stops on overflow.
   fun has_next(): Bool => _last <= _next
 
   fun ref next(): A =>

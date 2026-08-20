@@ -11,36 +11,38 @@ class val FileInfo
   can and will set the broken flag.
   """
   let filepath: FilePath
-
   let mode: FileMode val = recover FileMode end
-    """UNIX-style file mode."""
-
+    """
+    UNIX-style file mode.
+    """
   let hard_links: U32 = 0
-    """Number of hardlinks to this `filepath`."""
-
+    """
+    Number of hardlinks to this `filepath`.
+    """
   let device: U64 = 0
     """
     OS id of the device containing this `filepath`.
     Device IDs consist of a major and minor device id,
     denoting the type of device and the instance of this type on the system.
     """
-
   let inode: U64 = 0
-    """UNIX specific INODE number of `filepath`. Is 0 on Windows."""
-
+    """
+    UNIX specific INODE number of `filepath`. Is 0 on Windows.
+    """
   let uid: U32 = 0
-    """UNIX-style user ID of the owner of `filepath`."""
-
+    """
+    UNIX-style user ID of the owner of `filepath`.
+    """
   let gid: U32 = 0
-    """UNIX-style user ID of the owning group of `filepath`."""
-
+    """
+    UNIX-style user ID of the owning group of `filepath`.
+    """
   let size: USize = 0
     """
     Total size of `filepath` in bytes.
 
     In case of a symlink this is the size of the target, not the symlink itself.
     """
-
   let access_time: (I64, I64) = (0, 0)
     """
     Time of last access as a tuple of seconds and nanoseconds since the epoch:
@@ -49,7 +51,6 @@ class val FileInfo
     (let a_secs: I64, let a_nanos: I64) = file_info.access_time
     ```
     """
-
   let modified_time: (I64, I64) = (0, 0)
     """
     Time of last modification as tuple of seconds and nanoseconds since the epoch:
@@ -58,7 +59,6 @@ class val FileInfo
     (let m_secs: I64, let m_nanos: I64) = file_info.modified_time
     ```
     """
-
   let change_time: (I64, I64) = (0, 0)
     """
     Time of the last change either the attributes (number of links, owner,
@@ -71,21 +71,26 @@ class val FileInfo
 
     On Windows this will be the file creation time.
     """
-
   let file: Bool = false
-    """`true` if `filepath` points to an a regular file."""
-
+    """
+    `true` if `filepath` points to an a regular file.
+    """
   let directory: Bool = false
-    """`true` if `filepath` points to a directory."""
-
+    """
+    `true` if `filepath` points to a directory.
+    """
   let pipe: Bool = false
-    """`true` if `filepath` points to a named pipe."""
-
+    """
+    `true` if `filepath` points to a named pipe.
+    """
   let symlink: Bool = false
-    """`true` if `filepath` points to a symbolic link."""
-
+    """
+    `true` if `filepath` points to a symbolic link.
+    """
   let broken: Bool = false
-    """`true` if `filepath` points to a broken symlink."""
+    """
+    `true` if `filepath` points to a broken symlink.
+    """
 
   new val create(from: FilePath) ? =>
     """

@@ -393,7 +393,7 @@ class Iter[A] is Iterator[A]
               _prev_hash = cur_hash
               cur_value
             end
-          | None => 
+          | None =>
             _prev_value = cur_value
             _prev_hash = cur_hash
             cur_value
@@ -482,7 +482,7 @@ class Iter[A] is Iterator[A]
     `1 4 7`
     ```
     """
-    filter_map_stateful[B]({(a: A!): (B^ | None) ? => f(a) ? })
+    filter_map_stateful[B]({(a: A!): (B^ | None) ? => f(a)? })
 
   fun ref flat_map[B](f: {(A!): Iterator[B] ?} box): Iter[B]^ =>
     """
@@ -694,7 +694,7 @@ class Iter[A] is Iterator[A]
     ```
     `1 4 9`
     """
-    map_stateful[B]({(a: A!): B ? => f(a) ? })
+    map_stateful[B]({(a: A!): B ? => f(a)? })
 
   fun ref nth(n: USize): A ? =>
     """

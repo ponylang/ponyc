@@ -9,15 +9,15 @@ actor WorkspaceSymbolAggregator
   let _channel: Channel
   let _request_id: RequestId
   var _remaining: USize
-  var _results: JsonArray
+  var _results: JSONArray
 
   new create(channel: Channel, request_id: RequestId, workspace_count: USize) =>
     _channel = channel
     _request_id = request_id
     _remaining = workspace_count
-    _results = JsonArray
+    _results = JSONArray
 
-  be add_results(symbols: JsonArray) =>
+  be add_results(symbols: JSONArray) =>
     for s in symbols.values() do
       _results = _results.push(s)
     end

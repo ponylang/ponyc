@@ -1,6 +1,9 @@
 use "collections"
 
 class CommandParser
+  """
+  Parses command-line arguments against a `CommandSpec`.
+  """
   let _spec: CommandSpec box
   let _parent: (CommandParser box | None)
 
@@ -29,7 +32,9 @@ class CommandParser
     let options: Map[String,Option] ref = options.create()
     let args: Map[String,Arg] ref = args.create()
     _parse_command(
-      tokens, options, args,
+      tokens,
+      options,
+      args,
       EnvVars(envs, _spec.name().upper() + "_", true),
       false)
 
@@ -212,7 +217,9 @@ class CommandParser
         let ars = _spec.args()(arg_pos)?
         if not args.contains(ars.name()) then // latest arg may be a seq
           if ars.required() then
-            return SyntaxError(ars.name(), "missing value for required argument")
+            return SyntaxError(
+              ars.name(),
+              "missing value for required argument")
           end
           args.update(ars.name(), Arg(ars, ars._default_p()))
         end
@@ -231,7 +238,8 @@ class CommandParser
     --opt foo => --opt has argument foo, iff arg is required
     """
     // Only split the token in two parts. If argument contains '=',
-    // and the token is of the form --opt=foo=bar, then targ will contain foo=bar
+    // and the token is of the form --opt=foo=bar, then targ will
+    // contain foo=bar
     let parts = token.split("=", 2)
     let name = try parts(0)? else "???" end
     let targ = try parts(1)? else None end
@@ -277,7 +285,9 @@ class CommandParser
             targ = shorts.clone()
             shorts.truncate(0)
           else
-            return SyntaxError(_short_string(c), "ambiguous args for short option")
+            return SyntaxError(
+              _short_string(c),
+              "ambiguous args for short option")
           end
         end
         let arg = if shorts.size() == 0 then targ else None end
@@ -334,7 +344,8 @@ primitive _OptionParser
     : (Option | SyntaxError)
   =>
     // Grab the token-arg if provided, else consume an arg if one is required.
-    let arg = match \exhaustive\ targ
+    let arg =
+      match \exhaustive\ targ
       | (let fn: None) if spec._requires_arg() =>
         try args.shift()? else None end
       else

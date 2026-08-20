@@ -130,16 +130,22 @@ class BinaryHeap[A: Comparable[A] #read, P: BinaryHeapPriority[A]]
 
 type BinaryHeapPriority[A: Comparable[A] #read] is
   ( _BinaryHeapPriority[A]
-  & (MinHeapPriority[A] | MaxHeapPriority[A]))
+  & (MinHeapPriority[A] | MaxHeapPriority[A]) )
 
 interface val _BinaryHeapPriority[A: Comparable[A] #read]
   new val create()
   fun apply(x: A, y: A): Bool
 
 primitive MinHeapPriority[A: Comparable[A] #read] is _BinaryHeapPriority[A]
+  """
+  Heap priority where the smallest element is at the top.
+  """
   fun apply(x: A, y: A): Bool =>
     x < y
 
 primitive MaxHeapPriority [A: Comparable[A] #read] is _BinaryHeapPriority[A]
+  """
+  Heap priority where the largest element is at the top.
+  """
   fun apply(x: A, y: A): Bool =>
     x > y

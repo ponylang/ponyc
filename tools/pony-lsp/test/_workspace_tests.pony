@@ -48,7 +48,7 @@ class \nodoc\ iso _RouterFindTest is UnitTest
     // dummy, not actually in use
     let compiler = PonyCompiler("")
     let request_sender = FakeRequestSender
-    let client = Client.from(JsonObject)
+    let client = Client.from(JSONObject)
 
     let mgr =
       WorkspaceManager(
@@ -136,7 +136,7 @@ class tag FakeRequestSender is RequestSender
 
   fun tag send_request(
     method: String val,
-    params: (JsonObject | JsonArray | None),
+    params: (JSONObject | JSONArray | None),
     notify: (ResponseNotify | None) = None)
   =>
     None

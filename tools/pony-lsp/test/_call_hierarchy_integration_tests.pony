@@ -115,11 +115,11 @@ class val _CHierExpected
 
 primitive _CHierCheckItem
   """
-  Asserts all CallHierarchyItem fields from `item_nav` — a JsonNav pointing
+  Asserts all CallHierarchyItem fields from `item_nav` — a JSONNav pointing
   directly at the item object (not an array element).
   """
   fun apply(
-    item_nav: JsonNav,
+    item_nav: JSONNav,
     exp: _CHierItem val,
     label: String val,
     h: TestHelper): Bool
@@ -191,7 +191,7 @@ primitive _CHierFindByPos
   classes).
   """
   fun apply(
-    nav: JsonNav, item_key: String, exp: _CHierItem val): (USize | None) =>
+    nav: JSONNav, item_key: String, exp: _CHierItem val): (USize | None) =>
     try
       let n = nav.size()?
       var i: USize = 0
@@ -218,7 +218,7 @@ primitive _CHierCheckEntry
   fields and fromRanges. `item_key` is "from" for incoming, "to" for outgoing.
   """
   fun apply(
-    nav: JsonNav,
+    nav: JSONNav,
     item_key: String,
     exp: _CHierExpected val,
     h: TestHelper): Bool
@@ -279,10 +279,10 @@ class val _PrepareCHierChecker
   fun lsp_method(): String =>
     Methods.text_document().prepare_call_hierarchy()
 
-  fun lsp_params(): (None | JsonObject) =>
-    JsonObject.update(
+  fun lsp_params(): (None | JSONObject) =>
+    JSONObject.update(
       "position",
-      JsonObject
+      JSONObject
         .update("line", _pos._1)
         .update("character", _pos._2))
 
@@ -297,8 +297,8 @@ class val _PrepareCHierChecker
       end
     | let exp: _CHierItem val =>
       match res.result
-      | let arr: JsonArray =>
-        let nav = JsonNav(arr)
+      | let arr: JSONArray =>
+        let nav = JSONNav(arr)
         var ok =
           h.assert_eq[USize](
             1,
@@ -341,16 +341,16 @@ class val _CHierCallsChecker
 
   fun lsp_method(): String => _method
 
-  fun lsp_params(): (None | JsonObject) =>
-    JsonObject.update(
+  fun lsp_params(): (None | JSONObject) =>
+    JSONObject.update(
       "item",
-      JsonObject
+      JSONObject
         .update("uri", _item_uri)
         .update(
           "selectionRange",
-          JsonObject.update(
+          JSONObject.update(
             "start",
-            JsonObject
+            JSONObject
               .update("line", _sel_pos._1)
               .update("character", _sel_pos._2))))
 
@@ -363,8 +363,8 @@ class val _CHierCallsChecker
         h.fail(_method + ": expected items, got null")
       end
       false
-    | let arr: JsonArray =>
-      let nav = JsonNav(arr)
+    | let arr: JSONArray =>
+      let nav = JSONNav(arr)
       var ok =
         h.assert_eq[USize](
           _expected.size(),
@@ -726,18 +726,18 @@ class val _PrepareKindChecker
   fun lsp_method(): String =>
     Methods.text_document().prepare_call_hierarchy()
 
-  fun lsp_params(): (None | JsonObject) =>
-    JsonObject.update(
+  fun lsp_params(): (None | JSONObject) =>
+    JSONObject.update(
       "position",
-      JsonObject
+      JSONObject
         .update("line", _pos._1)
         .update("character", _pos._2))
 
   fun check(res: ResponseMessage val, h: TestHelper): Bool =>
     match res.result
-    | let arr: JsonArray =>
+    | let arr: JSONArray =>
       try
-        let item = JsonNav(arr)(0)
+        let item = JSONNav(arr)(0)
         let ok_kind =
           h.assert_eq[I64](
             _expected_kind, item("kind").as_i64()?, "prepare: kind")

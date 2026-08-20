@@ -2,27 +2,34 @@ class List[A] is Seq[A]
   """
   A doubly linked list.
 
-  The following is paraphrased from [Wikipedia](https://en.wikipedia.org/wiki/Doubly_linked_list).
+  The following is paraphrased from
+  [Wikipedia](https://en.wikipedia.org/wiki/Doubly_linked_list).
 
-  A doubly linked list is a linked data structure that consists of a set of sequentially
-  linked records called nodes (implemented in Pony via the collections.ListNode class). Each
-  node contains four fields: two link fields (references to the previous and to the next node in
-  the sequence of nodes), one data field, and the reference to the List in which it resides. A doubly
-  linked list can be conceptualized as two singly linked lists formed from the same data items, but
-  in opposite sequential orders.
+  A doubly linked list is a linked data structure that consists
+  of a set of sequentially linked records called nodes
+  (implemented in Pony via the collections.ListNode class).
+  Each node contains four fields: two link fields (references
+  to the previous and to the next node in the sequence of
+  nodes), one data field, and the reference to the List in
+  which it resides. A doubly linked list can be conceptualized
+  as two singly linked lists formed from the same data items,
+  but in opposite sequential orders.
 
-  As you would expect. functions are provided to perform all the common list operations such as
-  creation, traversal, node addition and removal, iteration, mapping, filtering, etc.
+  As you would expect. functions are provided to perform all
+  the common list operations such as creation, traversal, node
+  addition and removal, iteration, mapping, filtering, etc.
 
   ## Example program
-  There are a _lot_ of functions in List. The following code picks out a few common examples.
+  There are a _lot_ of functions in List. The following
+  code picks out a few common examples.
 
   It outputs:
 
       A new empty list has 0 nodes.
       Adding one node to our empty list means it now has a size of 1.
       The first (index 0) node has the value: A single String
-      A list created by appending our second single-node list onto our first has size: 2
+      A list created by appending our second
+        single-node list onto our first has size: 2
       The List nodes of our first list are now:
         A single String
         Another String
@@ -53,62 +60,99 @@ class List[A] is Seq[A]
         // Create a new empty List of type String
         let my_list = List[String]()
 
-        env.out.print("A new empty list has " + my_list.size().string() + " nodes.") // 0
+        env.out.print(
+          "A new empty list has "
+          + my_list.size().string() + " nodes.")
 
         // Push a String literal onto our empty List
         my_list.push("A single String")
-        env.out.print("Adding one node to our empty list means it now has a size of "
-                      + my_list.size().string() + ".") // 1
+        env.out.print(
+          "Adding one node to our empty list "
+          + "means it now has a size of "
+          + my_list.size().string() + ".")
 
         // Get the first element of our List
-        try env.out.print("The first (index 0) node has the value: "
-                          + my_list.index(0)?()?.string()) end // A single String
+        try
+          env.out.print(
+            "The first (index 0) node has the value: "
+            + my_list.index(0)?()?.string())
+        end
 
         // Create a second List from a single String literal
         let my_second_list = List[String].unit("Another String")
 
         // Append the second List to the first
         my_list.append_list(my_second_list)
-        env.out.print("A list created by appending our second single-node list onto our first has size: "
-                      + my_list.size().string()) // 2
+        env.out.print(
+          "A list created by appending our second "
+          + "single-node list onto our first "
+          + "has size: "
+          + my_list.size().string())
         env.out.print("The List nodes of our first list are now:")
         for n in my_list.values() do
           env.out.print("\t" + n.string())
         end
-        // NOTE: this _moves_ the elements so second_list consequently ends up empty
-        env.out.print("Append *moves* the nodes from the second list so that now has "
-                      + my_second_list.size().string() + " nodes.") // 0
+        // NOTE: this _moves_ the elements so
+        // second_list consequently ends up empty
+        env.out.print(
+          "Append *moves* the nodes from the "
+          + "second list so that now has "
+          + my_second_list.size().string()
+          + " nodes.")
 
         // Create a third List from a Seq(ence)
         // (In this case a literal array of Strings)
         let my_third_list = List[String].from(["First"; "Second"; "Third"])
-        env.out.print("A list created from an array of three strings has size: "
-                      + my_third_list.size().string()) // 3
+        env.out.print(
+          "A list created from an array of three "
+          + "strings has size: "
+          + my_third_list.size().string())
         for n in my_third_list.values() do
           env.out.print("\t" + n.string())
         end
 
-        // Map over the third List, concatenating some "BOOM!'s" into a new List
-        let new_list = my_third_list.map[String]({ (n) => n + " BOOM!" })
-        env.out.print("Mapping over our three-node list produces a new list of size: "
-                      + new_list.size().string()) // 3
-        env.out.print("Each node-value in the resulting list is now far more exciting:")
+        // Map over the third List, concatenating
+        // some "BOOM!'s" into a new List
+        let new_list =
+          my_third_list.map[String](
+            {(n) => n + " BOOM!" })
+        env.out.print(
+          "Mapping over our three-node list "
+          + "produces a new list of size: "
+          + new_list.size().string())
+        env.out.print(
+          "Each node-value in the resulting "
+          + "list is now far more exciting:")
         for n in new_list.values() do
           env.out.print("\t" + n.string())
         end
 
         // Filter the new list to extract 2 elements
-        let filtered_list = new_list.filter({ (n) => n.string().contains("d BOOM!") })
-        env.out.print("Filtering our three-node list produces a new list of size: "
-                          + filtered_list.size().string()) // 2
+        let filtered_list =
+          new_list.filter(
+            {(n) => n.string().contains("d BOOM!") })
+        env.out.print(
+          "Filtering our three-node list "
+          + "produces a new list of size: "
+          + filtered_list.size().string())
         for n in filtered_list.values() do
           env.out.print("\t" + n.string()) // Second BOOM!\nThird BOOM!
         end
 
         // Partition the filtered list
-        let partitioned_lists = filtered_list.partition({ (n) => n.string().contains("Second") })
-        env.out.print("The size of our first partitioned list (matches predicate): " + partitioned_lists._1.size().string())        // 1
-        env.out.print("The size of our second partitioned list (doesn't match predicate): " + partitioned_lists._2.size().string())  // 1
+        let partitioned_lists =
+          filtered_list.partition(
+            {(n) =>
+              n.string().contains("Second")
+            })
+        env.out.print(
+          "The size of our first partitioned "
+          + "list (matches predicate): "
+          + partitioned_lists._1.size().string())
+        env.out.print(
+          "The size of our second partitioned "
+          + "list (doesn't match predicate): "
+          + partitioned_lists._2.size().string())
         env.out.print("Our matching partition elements are:")
         for n in partitioned_lists._1.values() do
           env.out.print("\t" + n.string()) // Second BOOM!
@@ -143,7 +187,8 @@ class List[A] is Seq[A]
 
   new from(seq: Array[A^]) =>
     """
-    Creates a list equivalent to the provided Array (both node number and order are preserved).
+    Creates a list equivalent to the provided Array (both
+    node number and order are preserved).
 
     ```pony
     let my_list = List[String].from(["a"; "b"; "c"])
@@ -190,7 +235,8 @@ class List[A] is Seq[A]
 
     ```pony
     let my_list = List[String].from(["a"; "b"; "c"])
-    try my_list.update(1, "z")? end // Returns "b" and List now contains ["a"; "z"; "c"]
+    // Returns "b"; List is now ["a"; "z"; "c"]
+    try my_list.update(1, "z")? end
     ```
     """
     index(i)?()? = consume value
@@ -225,7 +271,8 @@ class List[A] is Seq[A]
 
     ```pony
     let my_list = List[String].from(["a"; "b"; "c"])
-    try my_list.remove(0)? end // Returns a ListNode[String] containing "a" and List now contains ["b"; "c"]
+    // Returns ListNode containing "a"; List is ["b"; "c"]
+    try my_list.remove(0)? end
     ```
     """
     index(i)? .> remove()
@@ -301,7 +348,9 @@ class List[A] is Seq[A]
     ```pony
     let my_list = List[String].from(["a"; "b"; "c"])
     let other_list = List[String].from(["d"; "e"; "f"])
-    my_list.append_list(other_list)  // my_list is ["a"; "b"; "c"; "d"; "e"; "f"], other_list is empty
+    // my_list is ["a";"b";"c";"d";"e";"f"],
+    // other_list is empty
+    my_list.append_list(other_list)
     ```
     """
     if this isnt that then
@@ -312,12 +361,15 @@ class List[A] is Seq[A]
 
   fun ref prepend_list(that: List[A]) =>
     """
-    Empties the provided List by prepending all elements onto the receiving List.
+    Empties the provided List by prepending all elements
+    onto the receiving List.
 
     ```pony
     let my_list = List[String].from(["a"; "b"; "c"])
     let other_list = List[String].from(["d"; "e"; "f"])
-    my_list.prepend_list(other_list)  // my_list is ["d"; "e"; "f"; "a"; "b"; "c"], other_list is empty
+    // my_list is ["d";"e";"f";"a";"b";"c"],
+    // other_list is empty
+    my_list.prepend_list(other_list)
     ```
     """
     if this isnt that then
@@ -385,7 +437,9 @@ class List[A] is Seq[A]
     ```pony
     let my_list = List[String].from(["a"; "b"; "c"])
     let other_list = List[String].from(["d"; "e"; "f"])
-    my_list.append(other_list)  // my_list is ["a"; "b"; "c"; "d"; "e"; "f"], other_list is unchanged
+    // my_list is ["a";"b";"c";"d";"e";"f"],
+    // other_list is unchanged
+    my_list.append(other_list)
     ```
     """
     if offset >= seq.size() then
@@ -417,7 +471,9 @@ class List[A] is Seq[A]
     ```pony
     let my_list = List[String].from(["a"; "b"; "c"])
     let other_list = List[String].from(["d"; "e"; "f"])
-    my_list.concat(other_list.values())  // my_list is ["a"; "b"; "c"; "d"; "e"; "f"], other_list is unchanged
+    // my_list is ["a";"b";"c";"d";"e";"f"],
+    // other_list is unchanged
+    my_list.concat(other_list.values())
     ```
     """
     try
@@ -458,11 +514,13 @@ class List[A] is Seq[A]
     """
     Clone all elements into a new List.
 
-    Note: elements are not copied, an additional reference to each element is created in the new List.
+    Note: elements are not copied, an additional reference
+    to each element is created in the new List.
 
     ```pony
     let my_list = List[String].from(["a"; "b"; "c"])
-    let other_list = my_list.clone()  // my_list is ["a"; "b"; "c"], other_list is ["a"; "b"; "c"]
+    // both lists are now ["a"; "b"; "c"]
+    let other_list = my_list.clone()
     ```
     """
     let out = List[this->A!]
@@ -478,7 +536,10 @@ class List[A] is Seq[A]
 
     ```pony
     let my_list = List[String].from(["a"; "b"; "c"])
-    let other_list = my_list.map[String]( {(s: String): String => "m: " + s } )  // other_list is ["m: a"; "m: b"; "m: c"]
+    // other_list is ["m: a"; "m: b"; "m: c"]
+    let other_list =
+      my_list.map[String](
+        {(s: String): String => "m: " + s })
     ```
     """
     try
@@ -506,12 +567,18 @@ class List[A] is Seq[A]
 
   fun flat_map[B](f: {(this->A!): List[B]} box): List[B]^ =>
     """
-    Builds a new `List` by applying a function to every element of the `List`, 
-    producing a new `List` for each element, then flattened into a single `List`.
+    Builds a new `List` by applying a function to every element of the `List`,
+    producing a new `List` for each element, then flattened
+    into a single `List`.
 
     ```pony
     let my_list = List[String].from(["a"; "b"; "c"])
-    let other_list = my_list.flat_map[String]( {(s: String): List[String] => List[String].from( ["m"; s] )} )  // other_list is ["m"; "a"; "m"; "b"; "m"; c"]
+    // other_list is ["m"; "a"; "m"; "b"; "m"; "c"]
+    let other_list =
+      my_list.flat_map[String](
+        {(s: String): List[String] =>
+          List[String].from(["m"; s])
+        })
     ```
     """
     try
@@ -542,7 +609,10 @@ class List[A] is Seq[A]
 
     ```pony
     let my_list = List[String].from(["a"; "b"; "c"])
-    let other_list = my_list.filter( {(s: String): Bool => s == "b" } )  // other_list is ["b"]
+    // other_list is ["b"]
+    let other_list =
+      my_list.filter(
+        {(s: String): Bool => s == "b" })
     ```
     """
     try
@@ -574,20 +644,26 @@ class List[A] is Seq[A]
     """
     Folds the elements of the `List` using the supplied function.
 
-    On the first iteration, the `B` argument in `f` is the value `acc`, 
+    On the first iteration, the `B` argument in `f` is the value `acc`,
     on the second iteration `B` is the result of the first iteration,
     on the third iteration `B` is the result of the second iteration, and so on.
 
     ```pony
     let my_list = List[String].from(["a"; "b"; "c"])
-    let folded = my_list.fold[String]( {(str: String, s: String): String => str + s }, "z")  // "zabc"
+    // folded is "zabc"
+    let folded =
+      my_list.fold[String](
+        {(str: String, s: String): String =>
+          str + s
+        }, "z")
     ```
     """
-    let h = try
-      head()?
-    else
-      return acc
-    end
+    let h =
+      try
+        head()?
+      else
+        return acc
+      end
 
     _fold[B](h, f, consume acc)
 
@@ -600,18 +676,20 @@ class List[A] is Seq[A]
     """
     Private helper for `fold`, recursively working with `ListNode`s.
     """
-    let nextAcc: B = try f(acc, ln()?) else consume acc end
-    let h = try
-      ln.next() as this->ListNode[A]
-    else
-      return nextAcc
-    end
+    let next_acc: B = try f(acc, ln()?) else consume acc end
+    let h =
+      try
+        ln.next() as this->ListNode[A]
+      else
+        return next_acc
+      end
 
-    _fold[B](h, f, consume nextAcc)
+    _fold[B](h, f, consume next_acc)
 
   fun every(f: {(this->A!): Bool} box): Bool =>
     """
-    Returns `true` if every element satisfies the predicate, otherwise returns `false`.
+    Returns `true` if every element satisfies the predicate,
+    otherwise returns `false`.
 
     ```pony
     let my_list = List[String].from(["a"; "b"; "c"])
@@ -629,7 +707,7 @@ class List[A] is Seq[A]
     Private helper for `every`, recursively working with `ListNode`s.
     """
     try
-      if not(f(ln()?)) then
+      if not f(ln()?) then
         false
       else
         _every(ln.next() as this->ListNode[A], f)
@@ -640,7 +718,8 @@ class List[A] is Seq[A]
 
   fun exists(f: {(this->A!): Bool} box): Bool =>
     """
-    Returns `true` if at least one element satisfies the predicate, otherwise returns `false`.
+    Returns `true` if at least one element satisfies the
+    predicate, otherwise returns `false`.
 
     ```pony
     let my_list = List[String].from(["a"; "b"; "c"])
@@ -678,7 +757,10 @@ class List[A] is Seq[A]
 
     ```pony
     let my_list = List[String].from(["a"; "b"; "c"])
-    (let lt_b, let gt_b) = my_list.partition( {(s: String): Bool => s < "b"} )  // lt_b is ["a"], while gt_b is ["b"; "c"]
+    // lt_b is ["a"], gt_b is ["b"; "c"]
+    (let lt_b, let gt_b) =
+      my_list.partition(
+        {(s: String): Bool => s < "b" })
     ```
     """
     let l1 = List[this->A!]
@@ -736,11 +818,15 @@ class List[A] is Seq[A]
 
   fun take_while(f: {(this->A!): Bool} box): List[this->A!]^ =>
     """
-    Builds a `List` of elements satisfying the predicate, stopping at the first `false` return.
+    Builds a `List` of elements satisfying the predicate,
+    stopping at the first `false` return.
 
     ```pony
     let my_list = List[String].from(["a"; "b"; "c"])
-    let other_list = my_list.take_while( {(s: String): Bool => s < "b"} )  // ["a"]
+    // other_list is ["a"]
+    let other_list =
+      my_list.take_while(
+        {(s: String): Bool => s < "b" })
     ```
     """
     let l = List[this->A!]
@@ -787,7 +873,8 @@ class List[A] is Seq[A]
 
   fun contains[B: (A & HasEq[A!] #read) = A](a: box->B): Bool =>
     """
-    Returns `true` if the `List` contains the provided element, otherwise returns `false`.
+    Returns `true` if the `List` contains the provided
+    element, otherwise returns `false`.
 
     ```pony
     let my_list = List[String].from(["a"; "b"; "c"])
@@ -922,7 +1009,7 @@ class ListNodes[A, N: ListNode[A] #read] is Iterator[N]
   fun ref next(): N ? =>
     """
     Return the next node in the iterator, advancing the iterator by one element.
-    
+
     Order of return is determined by `reverse` argument during creation.
     """
     match _next
@@ -964,7 +1051,7 @@ class ListValues[A, N: ListNode[A] #read] is Iterator[N->A]
   fun ref next(): N->A ? =>
     """
     Return the next node in the iterator, advancing the iterator by one element.
-    
+
     Order of return is determined by `reverse` argument during creation.
     """
     match _next

@@ -1,6 +1,6 @@
 use pc = "collections/persistent"
 
-class val JsonArray
+class val JSONArray
   """
   Immutable JSON array backed by a persistent vector.
 
@@ -8,57 +8,71 @@ class val JsonArray
   with structural sharing:
 
   ```pony
-  let arr = JsonArray
+  let arr = JSONArray
     .push(I64(1))
     .push(I64(2))
     .push(I64(3))
   ```
   """
 
-  let _data: pc.Vec[JsonValue]
+  let _data: pc.Vec[JSONValue]
 
-  new val create(data': pc.Vec[JsonValue] = pc.Vec[JsonValue]) =>
+  new val create(data': pc.Vec[JSONValue] = pc.Vec[JSONValue]) =>
     _data = data'
 
-  fun apply(i: USize): JsonValue ? =>
-    """Look up a value by index. Raises if out of bounds."""
+  fun apply(i: USize): JSONValue ? =>
+    """
+    Look up a value by index. Raises if out of bounds.
+    """
     _data(i)?
 
   fun size(): USize =>
-    """Number of elements."""
+    """
+    Number of elements.
+    """
     _data.size()
 
-  fun update(i: USize, value: JsonValue): JsonArray ? =>
+  fun update(i: USize, value: JSONValue): JSONArray ? =>
     """
     Return a new array with element at index i replaced.
     Raises if out of bounds.
     """
-    JsonArray(_data(i)? = value)
+    JSONArray(_data(i)? = value)
 
-  fun push(value: JsonValue): JsonArray =>
-    """Return a new array with value appended."""
-    JsonArray(_data.push(value))
+  fun push(value: JSONValue): JSONArray =>
+    """
+    Return a new array with value appended.
+    """
+    JSONArray(_data.push(value))
 
-  fun pop(): (JsonArray, JsonValue) ? =>
+  fun pop(): (JSONArray, JSONValue) ? =>
     """
     Return (new array without last element, removed element).
     Raises if empty.
     """
     let last = _data(_data.size() - 1)?
-    (JsonArray(_data.pop()?), last)
+    (JSONArray(_data.pop()?), last)
 
-  fun values(): pc.VecValues[JsonValue] =>
-    """Iterate over values."""
+  fun values(): pc.VecValues[JSONValue] =>
+    """
+    Iterate over values.
+    """
     _data.values()
 
-  fun pairs(): pc.VecPairs[JsonValue] =>
-    """Iterate over (index, value) pairs."""
+  fun pairs(): pc.VecPairs[JSONValue] =>
+    """
+    Iterate over (index, value) pairs.
+    """
     _data.pairs()
 
   fun print(): String iso^ =>
-    """Compact JSON serialization."""
-    _JsonPrint.compact_array(this)
+    """
+    Compact JSON serialization.
+    """
+    _JSONPrint.compact_array(this)
 
   fun pretty_print(indent: String = "  "): String iso^ =>
-    """Pretty-printed JSON serialization."""
-    _JsonPrint.pretty_array(this, indent)
+    """
+    Pretty-printed JSON serialization.
+    """
+    _JSONPrint.pretty_array(this, indent)

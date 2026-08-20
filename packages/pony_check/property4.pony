@@ -7,7 +7,8 @@ class val PropertyParams is Stringable
   * seed: the seed for the source of Randomness
   * num_samples: the number of samples to produce from the property generator
   * max_shrink_rounds: the maximum rounds of shrinking to perform
-  * max_generator_retries: the maximum number of retries to do if a generator fails to generate a sample
+  * max_generator_retries: the maximum number of retries to do if a generator
+    fails to generate a sample
   * timeout: the timeout for the PonyTest runner, in nanoseconds
   * async: if true the property is expected to finish asynchronously by calling
     `PropertyHelper.complete(...)`
@@ -37,9 +38,9 @@ class val PropertyParams is Stringable
   fun string(): String iso^ =>
     recover
       String()
-        .>append("Params(seed=")
-        .>append(seed.string())
-        .>append(")")
+        .> append("Params(seed=")
+        .> append(seed.string())
+        .> append(")")
     end
 
 trait Property1[T]
@@ -99,6 +100,9 @@ trait Property1[T]
     """
 
 trait Property2[T1, T2] is Property1[(T1, T2)]
+  """
+  A property with two generated arguments.
+  """
 
   fun gen1(): Generator[T1]
     """
@@ -127,6 +131,9 @@ trait Property2[T1, T2] is Property1[(T1, T2)]
     """
 
 trait Property3[T1, T2, T3] is Property1[(T1, T2, T3)]
+  """
+  A property with three generated arguments.
+  """
 
   fun gen1(): Generator[T1]
     """
@@ -161,6 +168,9 @@ trait Property3[T1, T2, T3] is Property1[(T1, T2, T3)]
     """
 
 trait Property4[T1, T2, T3, T4] is Property1[(T1, T2, T3, T4)]
+  """
+  A property with four generated arguments.
+  """
 
   fun gen1(): Generator[T1]
     """

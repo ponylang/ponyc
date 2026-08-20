@@ -597,6 +597,7 @@ class \nodoc\ iso _TestXorShift128Plus is UnitTest
   and thus also ignores the first value.
   """
   fun name(): String => "random/xorshift128+"
+
   fun apply(h: TestHelper) =>
     let xorshift128 = XorShift128Plus(5489)
     h.assert_eq[U64](xorshift128.next(), 46045248337)

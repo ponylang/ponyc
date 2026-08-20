@@ -255,13 +255,13 @@ class val _WsSymChecker
   fun lsp_method(): String =>
     Methods.workspace().symbol()
 
-  fun lsp_params(): (None | JsonObject) =>
-    JsonObject.update("query", _query)
+  fun lsp_params(): (None | JSONObject) =>
+    JSONObject.update("query", _query)
 
   fun check(res: ResponseMessage val, h: TestHelper): Bool =>
     var ok = true
     match res.result
-    | let arr: JsonArray =>
+    | let arr: JSONArray =>
       let got = arr.size()
       let want = _expected.size()
       if not h.assert_eq[USize](
@@ -273,9 +273,9 @@ class val _WsSymChecker
         ok = false
         for item in arr.values() do
           try
-            let n = JsonNav(item)("name").as_string()?
-            let k = JsonNav(item)("kind").as_i64()?
-            let uri = JsonNav(item)("location")("uri").as_string()?
+            let n = JSONNav(item)("name").as_string()?
+            let k = JSONNav(item)("kind").as_i64()?
+            let uri = JSONNav(item)("location")("uri").as_string()?
             let file = Path.base(Uris.to_path(uri))
             h.log("  actual: " + n + " (kind " + k.string() + ") in " + file)
           end
@@ -285,12 +285,12 @@ class val _WsSymChecker
         var found = false
         for item in arr.values() do
           try
-            let n = JsonNav(item)("name").as_string()?
-            let k = JsonNav(item)("kind").as_i64()?
-            let uri = JsonNav(item)("location")("uri").as_string()?
+            let n = JSONNav(item)("name").as_string()?
+            let k = JSONNav(item)("kind").as_i64()?
+            let uri = JSONNav(item)("location")("uri").as_string()?
             let file = Path.base(Uris.to_path(uri))
             let container: (String | None) =
-              try JsonNav(item)("containerName").as_string()? else None end
+              try JSONNav(item)("containerName").as_string()? else None end
             let container_ok =
               match (exp_container, container)
               | (None, None) => true
@@ -356,17 +356,17 @@ class val _WsSymRangeChecker
   fun lsp_method(): String =>
     Methods.workspace().symbol()
 
-  fun lsp_params(): (None | JsonObject) =>
-    JsonObject.update("query", _query)
+  fun lsp_params(): (None | JSONObject) =>
+    JSONObject.update("query", _query)
 
   fun check(res: ResponseMessage val, h: TestHelper): Bool =>
     (let exp_sl, let exp_sc, let exp_el, let exp_ec) = _expected
     match res.result
-    | let arr: JsonArray =>
+    | let arr: JSONArray =>
       for item in arr.values() do
         try
           let container: (String | None) =
-            try JsonNav(item)("containerName").as_string()? else None end
+            try JSONNav(item)("containerName").as_string()? else None end
           let container_ok =
             match (_container, container)
             | (None, None) => true
@@ -374,9 +374,9 @@ class val _WsSymRangeChecker
             else false
             end
           let name_ok =
-            JsonNav(item)("name").as_string()? == _symbol_name
+            JSONNav(item)("name").as_string()? == _symbol_name
           if name_ok and container_ok then
-            let r = JsonNav(item)("location")("range")
+            let r = JSONNav(item)("location")("range")
             let sl = r("start")("line").as_i64()?
             let sc = r("start")("character").as_i64()?
             let el = r("end")("line").as_i64()?

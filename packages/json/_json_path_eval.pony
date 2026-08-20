@@ -1,4 +1,4 @@
-primitive _JsonPathEval
+primitive _JSONPathEval
   """
   Internal evaluator for compiled JSONPath queries.
 
@@ -14,14 +14,16 @@ primitive _JsonPathEval
   """
 
   fun apply(
-    start: JsonValue,
-    root: JsonValue,
+    start: JSONValue,
+    root: JSONValue,
     segments: Array[_Segment] val)
-    : Array[JsonValue] val
+    : Array[JSONValue] val
   =>
-    """Execute segments against start, returning matching values."""
+    """
+    Execute segments against start, returning matching values.
+    """
     recover val
-      var current: Array[JsonValue] ref = Array[JsonValue]
+      var current: Array[JSONValue] ref = Array[JSONValue]
       current.push(start)
 
       for segment in segments.values() do
@@ -33,11 +35,13 @@ primitive _JsonPathEval
 
   fun _apply_segment(
     segment: _Segment,
-    input: Array[JsonValue] ref,
-    root: JsonValue)
-    : Array[JsonValue] ref
+    input: Array[JSONValue] ref,
+    root: JSONValue)
+    : Array[JSONValue] ref
   =>
-    """Apply a segment to produce a new nodelist."""
+    """
+    Apply a segment to produce a new nodelist.
+    """
     match \exhaustive\ segment
     | let cs: _ChildSegment =>
       _apply_child(cs.selectors(), input, root)
@@ -47,12 +51,14 @@ primitive _JsonPathEval
 
   fun _apply_child(
     selectors: Array[_Selector] val,
-    input: Array[JsonValue] ref,
-    root: JsonValue)
-    : Array[JsonValue] ref
+    input: Array[JSONValue] ref,
+    root: JSONValue)
+    : Array[JSONValue] ref
   =>
-    """Apply selectors to each node in the input list."""
-    let out = Array[JsonValue]
+    """
+    Apply selectors to each node in the input list.
+    """
+    let out = Array[JSONValue]
     for node in input.values() do
       _select_all(selectors, node, root, out)
     end
@@ -60,15 +66,15 @@ primitive _JsonPathEval
 
   fun _apply_descendant(
     selectors: Array[_Selector] val,
-    input: Array[JsonValue] ref,
-    root: JsonValue)
-    : Array[JsonValue] ref
+    input: Array[JSONValue] ref,
+    root: JSONValue)
+    : Array[JSONValue] ref
   =>
     """
     For each input node, walk the entire subtree depth-first and
     apply selectors at every level.
     """
-    let out = Array[JsonValue]
+    let out = Array[JSONValue]
     for node in input.values() do
       _descend(selectors, node, root, out)
     end
@@ -76,9 +82,9 @@ primitive _JsonPathEval
 
   fun _descend(
     selectors: Array[_Selector] val,
-    node: JsonValue,
-    root: JsonValue,
-    out: Array[JsonValue] ref)
+    node: JSONValue,
+    root: JSONValue,
+    out: Array[JSONValue] ref)
   =>
     """
     Depth-first pre-order: apply selectors to a node, then to each of its
@@ -91,21 +97,21 @@ primitive _JsonPathEval
     pushed in reverse so they pop in that forward order, preserving the
     pre-order traversal of the recursive walk exactly.
     """
-    let stack = Array[JsonValue]
+    let stack = Array[JSONValue]
     stack.push(node)
     while stack.size() > 0 do
       let n = try stack.pop()? else _Unreachable(); return end
       _select_all(selectors, n, root, out)
       match n
-      | let obj: JsonObject =>
-        let kids = Array[JsonValue](obj.size())
+      | let obj: JSONObject =>
+        let kids = Array[JSONValue](obj.size())
         for v in obj.values() do kids.push(v) end
         var i = kids.size()
         while i > 0 do
           i = i - 1
           try stack.push(kids(i)?) else _Unreachable() end
         end
-      | let arr: JsonArray =>
+      | let arr: JSONArray =>
         var i = arr.size()
         while i > 0 do
           i = i - 1
@@ -119,11 +125,13 @@ primitive _JsonPathEval
   // match arm without affecting other selectors' signatures.
   fun _select_all(
     selectors: Array[_Selector] val,
-    node: JsonValue,
-    root: JsonValue,
-    out: Array[JsonValue] ref)
+    node: JSONValue,
+    root: JSONValue,
+    out: Array[JSONValue] ref)
   =>
-    """Apply all selectors to a single node."""
+    """
+    Apply all selectors to a single node.
+    """
     for selector in selectors.values() do
       match \exhaustive\ selector
       | let s: _NameSelector => s.select(node, out)

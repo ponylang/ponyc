@@ -5,6 +5,9 @@ interface val Flag[A: (Unsigned & Integer[A] val)]
   combination of bits.
   """
   fun value(): A
+    """
+    Returns the bits that represent this flag.
+    """
 
 class Flags[A: Flag[B] val, B: (Unsigned & Integer[B] val) = U64] is
   Comparable[Flags[A, B] box]

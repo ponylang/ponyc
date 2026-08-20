@@ -190,7 +190,6 @@ primitive Time
         (qpc * subseconds) / qpf
       end
 
-
   fun _query_performance_counter(): (U64 /* qpc */, U64 /* qpf */) =>
     """
     Return QPC and QPF.

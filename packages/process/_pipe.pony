@@ -9,9 +9,9 @@ use @ponyint_win_pipe_create[U32](near_fd: Pointer[U32] tag,
 use @close[I32](fd: U32)
 use @read[ISize](fd: U32, buf: Pointer[U8] tag, size: USize) if posix
 use @_get_osfhandle[Pointer[None]](fd: U32) if not posix
-use @PeekNamedPipe[Bool](pipeHandle: Pointer[None], buffer: Pointer[None],
-  bufferSize: U32, bytesRead: Pointer[None], bytesAvail: Pointer[None],
-  bytesLeft: Pointer[None]) if not posix
+use @PeekNamedPipe[Bool](pipe_handle: Pointer[None], buffer: Pointer[None],
+  buffer_size: U32, bytes_read: Pointer[None], bytes_avail: Pointer[None],
+  bytes_left: Pointer[None]) if not posix
 use @ReadFile[Bool](handle: Pointer[None], buffer: Pointer[None],
   bytes_to_read: U32, bytes_read: Pointer[U32], overlapped: Pointer[None])
   if not posix
@@ -112,8 +112,11 @@ class _Pipe
       far_fd = 0
       // create the pipe and set one handle to not inherit. That needs
       // to be done with the knowledge of which way this pipe goes.
-      if @ponyint_win_pipe_create(addressof near_fd, addressof far_fd,
-          _outgoing) == 0 then
+      if @ponyint_win_pipe_create(
+        addressof near_fd,
+        addressof far_fd,
+        _outgoing) == 0
+      then
         error
       end
     else
@@ -142,8 +145,13 @@ class _Pipe
       elseif windows then
         // The readiness backend peeks the pipe (it has no readiness signal) and
         // delivers ASIO_READ/ASIO_WRITE. One direction flag, as on posix.
-        let flags = AsioEvent.pipe() or
-          (if _outgoing then AsioEvent.write() else AsioEvent.read() end)
+        let flags =
+          AsioEvent.pipe() or
+            if _outgoing then
+              AsioEvent.write()
+            else
+              AsioEvent.read()
+            end
         event = @pony_asio_event_create(owner, near_fd, flags, 0, true)
       end
     end
@@ -164,7 +172,9 @@ class _Pipe
   =>
     ifdef posix then
       let len =
-        @read(near_fd, read_buf.cpointer(offset),
+        @read(
+          near_fd,
+          read_buf.cpointer(offset),
           read_buf.size() - offset)
       if len == -1 then // OS signals read error
         (consume read_buf, len, @pony_os_errno())
@@ -176,8 +186,14 @@ class _Pipe
       var bytes_to_read: U32 = (read_buf.size() - offset).u32()
       // Peek ahead to see if there is anything to read, return if not
       var bytes_avail: U32 = 0
-      let okp = @PeekNamedPipe(hnd, USize(0), bytes_to_read, USize(0),
-          addressof bytes_avail, USize(0))
+      let okp =
+        @PeekNamedPipe(
+          hnd,
+          USize(0),
+          bytes_to_read,
+          USize(0),
+          addressof bytes_avail,
+          USize(0))
       let winerrp = @GetLastError()
       if not okp then
         if (winerrp == _ERRORBROKENPIPE()) then
@@ -201,8 +217,13 @@ class _Pipe
       end
       // Read up to the bytes available
       var bytes_read: U32 = 0
-      let ok = @ReadFile(hnd, read_buf.cpointer(offset),
-          bytes_to_read, addressof bytes_read, USize(0))
+      let ok =
+        @ReadFile(
+          hnd,
+          read_buf.cpointer(offset),
+          bytes_to_read,
+          addressof bytes_read,
+          USize(0))
       let winerr = @GetLastError()
       if not ok then
         if (winerr == _ERRORBROKENPIPE()) then
@@ -221,8 +242,11 @@ class _Pipe
 
   fun ref write(data: ByteSeq box, offset: USize): (ISize, I32) =>
     ifdef posix then
-      let len = @write(near_fd, data.cpointer(offset),
-        data.size() - offset)
+      let len =
+        @write(
+          near_fd,
+          data.cpointer(offset),
+          data.size() - offset)
       if len == -1 then // OS signals write error
         (len, @pony_os_errno())
       else
@@ -237,8 +261,13 @@ class _Pipe
       var bytes_to_write: U32 = (data.size() - offset).u32()
       if bytes_to_write > 65536 then bytes_to_write = 65536 end
       var bytes_written: U32 = 0
-      let ok = @WriteFile(hnd, data.cpointer(offset),
-          bytes_to_write, addressof bytes_written, USize(0))
+      let ok =
+        @WriteFile(
+          hnd,
+          data.cpointer(offset),
+          bytes_to_write,
+          addressof bytes_written,
+          USize(0))
       let winerr = @GetLastError()
       if not ok then
         if (winerr == _ERRORBROKENPIPE()) then
@@ -268,9 +297,9 @@ class _Pipe
     here, after unsubscribing, so no other thread can reuse the fd number before
     we have unsubscribed it. On Windows a subscribed pipe fd is closed by the
     readiness backend instead: unsubscribe there is asynchronous and the backend
-    peeks the fd until it processes the unsubscribe, so closing the fd here could
-    race that peek. A pipe with no event--a failure path where begin() never
-    ran--is closed here on every platform.
+    peeks the fd until it processes the unsubscribe, so closing the fd here
+    could race that peek. A pipe with no event--a failure path where
+    begin() never ran--is closed here on every platform.
     """
     if near_fd != -1 then
       if event isnt AsioEvent.none() then

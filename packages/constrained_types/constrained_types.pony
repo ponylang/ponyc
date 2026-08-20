@@ -1,15 +1,28 @@
 """
 # Constrained Types package
 
-The constrained types package provides a standard means for encoding domain constraints using the Pony type system.
+The constrained types package provides a standard means for encoding
+domain constraints using the Pony type system.
 
-For example, in your applications domain, you have usernames that must be between 6 and 12 characters and can only contain lower case ASCII letters. The constrained types package allows you to express those constraints in the type system and assure that your usernames conform.
+For example, in your applications domain, you have usernames that must
+be between 6 and 12 characters and can only contain lower case ASCII
+letters. The constrained types package allows you to express those
+constraints in the type system and assure that your usernames conform.
 
-The key user supplied component of constrained types is a `Validator`. A validator takes a base type and confirms that meets certain criteria. You then have a type of `Constrained[BaseType, ValidatedBy]` to enforce the constraint via the Pony type system.
+The key user supplied component of constrained types is a `Validator`.
+A validator takes a base type and confirms that meets certain criteria.
+You then have a type of `Constrained[BaseType, ValidatedBy]` to
+enforce the constraint via the Pony type system.
 
 ## Example
 
-For the sake of simplicity, let's represent a username as a constrained `String`. Here's a full Pony program that takes a potential username as a command line argument and validates whether is is acceptable as a username and if it is, prints the username. Note, that the "username printing" function will only take a valid username and there's no way to create a Username that doesn't involve going through the validation step:
+For the sake of simplicity, let's represent a username as a
+constrained `String`. Here's a full Pony program that takes a
+potential username as a command line argument and validates whether is
+is acceptable as a username and if it is, prints the username. Note,
+that the "username printing" function will only take a valid username
+and there's no way to create a Username that doesn't involve going
+through the validation step:
 
 ```pony
 use "constrained_types"
@@ -84,11 +97,22 @@ primitive UsernameValidator is Validator[String]
 
 Let's dig into that code some:
 
-`type Username is Constrained[String, UsernameValidator]` defines a type `Username` that is `Constrained` type. `Constrained` is a generic type that takes two type arguments: the base type being constrained and the validator used to validate that base type conforms to our constraints. So, `Username` is an alias for a `String` that has been constrained using the `UsernameValidator`.
+`type Username is Constrained[String, UsernameValidator]` defines a
+type `Username` that is `Constrained` type. `Constrained` is a
+generic type that takes two type arguments: the base type being
+constrained and the validator used to validate that base type conforms
+to our constraints. So, `Username` is an alias for a `String` that
+has been constrained using the `UsernameValidator`.
 
-`type MakeUsername is MakeConstrained[String, UsernameValidator]` is another type alias. It's a nice name for "constraint constructor" type `MakeConstrained`. Like `Constrained`, `MakeConstrained` takes the base type being constrained and the validator used.
+`type MakeUsername is MakeConstrained[String, UsernameValidator]` is
+another type alias. It's a nice name for "constraint constructor"
+type `MakeConstrained`. Like `Constrained`, `MakeConstrained` takes
+the base type being constrained and the validator used.
 
-`primitive UsernameValidator is Validator[String]` is our validator for the `Username` type. It's single function `apply` takes a `String` and examines it returning either `ValidationSuccess` or `ValidationFailure`.
+`primitive UsernameValidator is Validator[String]` is our validator
+for the `Username` type. It's single function `apply` takes a
+`String` and examines it returning either `ValidationSuccess` or
+`ValidationFailure`.
 
 On our usage side we have:
 
@@ -113,7 +137,9 @@ fun print_username(username: Username) =>
   _env.out.print(username() + " is a valid username!")
 ```
 
-In a "real program", we would be doing more complicated things with our `Username` safe in the knowledge that it will always be between 6 and 12 characters and only contain lower case ASCII values.
+In a "real program", we would be doing more complicated things with
+our `Username` safe in the knowledge that it will always be between 6
+and 12 characters and only contain lower case ASCII values.
 
 ## Notes
 
@@ -131,7 +157,10 @@ Because validators must:
 - Be `val`
 - Have a zero argument constructor that returns a `val` Validator
 
-We recommend using `primitive` for your validators although, using a class is supported. However, given that validators are required to be stateless, there is no advantage to using a `class` instead of a `primitive`.
+We recommend using `primitive` for your validators although, using a
+class is supported. However, given that validators are required to be
+stateless, there is no advantage to using a `class` instead of a
+`primitive`.
 
 The `interface` for validators is:
 
@@ -143,5 +172,10 @@ interface val Validator[T]
 
 ### Validators aren't Composable
 
-Also note, that unfortunately, there is no way with the Pony type system to be able to compose validators. You can't for example have a function that takes a "must be lower case" `String` and use a `Username` in place of it. We know that the `Username` type has been validated to be "only lower case strings", but there's no way to represent that in the type system.
+Also note, that unfortunately, there is no way with the Pony type
+system to be able to compose validators. You can't for example have a
+function that takes a "must be lower case" `String` and use a
+`Username` in place of it. We know that the `Username` type has been
+validated to be "only lower case strings", but there's no way to
+represent that in the type system.
 """

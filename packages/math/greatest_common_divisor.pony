@@ -20,6 +20,10 @@ primitive GreatestCommonDivisor
   ```
   """
   fun apply[A: Integer[A] val](x: A, y: A): A ? =>
+    """
+    Returns the greatest common divisor of `x` and `y`. Errors if
+    either is zero.
+    """
     let zero = A.from[U8](0)
     if (x == zero) or (y == zero) then
       error

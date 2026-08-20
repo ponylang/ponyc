@@ -12,6 +12,9 @@ use @if_indextoname[Pointer[U8]](ifindex: U32, ifname: Pointer[U8] tag)
 use @if_nametoindex[U32](ifname: Pointer[U8] tag)
 
 primitive TimeoutValue
+  """
+  Timeout duration for network tests, in nanoseconds.
+  """
   fun apply(): U64 =>
     ifdef windows then
       // Windows networking is just damn slow at many things
@@ -86,40 +89,42 @@ class \nodoc\ _TestPing is UDPNotify
   new create(h: TestHelper, ip: NetAddress) =>
     _h = h
 
-    _ip = try
-      let auth = DNSAuth(h.env.root)
-      (_, let service) = ip.name()?
+    _ip =
+      try
+        let auth = DNSAuth(h.env.root)
+        (_, let service) = ip.name()?
 
-      let list = ifdef bsd then
-        DNS.ip4(auth, "", service)
+        let list =
+          ifdef bsd then
+            DNS.ip4(auth, "", service)
+          else
+            DNS.broadcast_ip4(auth, service)
+          end
+
+        let addr = list(0)?
+
+        // Pin the destination actually used for the ping. Without this, a
+        // broadcast_ip4 regression (or a quiet retargeting of this test) is
+        // masked by the pong socket's INADDR_ANY bind, which completes the
+        // test on any datagram reaching the port.
+        _h.assert_true(addr.ip4())
+        _h.assert_eq[U16](addr.port(), service.u16()?)
+        ifdef bsd then
+          // The empty-host result is rewritten by the runtime's
+          // map_any_to_loopback, deterministically 127.0.0.1.
+          _h.assert_eq[U32](addr.ipv4_addr(), 0x7F00_0001)
+        else
+          _h.assert_eq[U32](addr.ipv4_addr(), U32.max_value())
+        end
+
+        addr
       else
-        DNS.broadcast_ip4(auth, service)
+        // Coarse on purpose: this else also covers the port-conversion
+        // error path above, which is unreachable for the numeric service
+        // strings name() produces.
+        _h.fail("Couldn't make or verify broadcast address")
+        ip
       end
-
-      let addr = list(0)?
-
-      // Pin the destination actually used for the ping. Without this, a
-      // broadcast_ip4 regression (or a quiet retargeting of this test) is
-      // masked by the pong socket's INADDR_ANY bind, which completes the
-      // test on any datagram reaching the port.
-      _h.assert_true(addr.ip4())
-      _h.assert_eq[U16](addr.port(), service.u16()?)
-      ifdef bsd then
-        // The empty-host result is rewritten by the runtime's
-        // map_any_to_loopback, deterministically 127.0.0.1.
-        _h.assert_eq[U32](addr.ipv4_addr(), 0x7F00_0001)
-      else
-        _h.assert_eq[U32](addr.ipv4_addr(), U32.max_value())
-      end
-
-      addr
-    else
-      // Coarse on purpose: this else also covers the port-conversion
-      // error path above, which is unreachable for the numeric service
-      // strings name() produces.
-      _h.fail("Couldn't make or verify broadcast address")
-      ip
-    end
 
   fun ref not_listening(sock: UDPSocket ref) =>
     _h.fail_action("ping listen")
@@ -140,13 +145,15 @@ class \nodoc\ _TestPing is UDPNotify
     let udp: UDPSocket tag = sock
     let to = _ip
     let timers = Timers
-    timers(Timer(
-      object iso is TimerNotify
-        fun ref apply(timer: Timer, count: U64): Bool =>
-          udp.write("ping!", to)
-          true
-      end,
-      250_000_000, 250_000_000))
+    timers(
+      Timer(
+        object iso is TimerNotify
+          fun ref apply(timer: Timer, count: U64): Bool =>
+            udp.write("ping!", to)
+            true
+        end,
+        250_000_000,
+        250_000_000))
     _h.dispose_when_done(timers)
 
   fun ref received(
@@ -210,14 +217,15 @@ class \nodoc\ _TestMulticastNotify is UDPNotify
     // read back would not match what was set.
     sock.set_ip_multicast_ttl(7)
     (let ttl_err: U32, let ttl: U32) =
-      sock.getsockopt_u32(OSSockOpt.ipproto_ip(), OSSockOpt.ip_multicast_ttl())
+      sock.getsockopt_u32(
+        OSSockOpt.ipproto_ip(), OSSockOpt.ip_multicast_ttl())
     _h.assert_eq[U32](ttl_err, 0, "getsockopt IP_MULTICAST_TTL failed")
     _h.assert_eq[U32](ttl, 7, "IP_MULTICAST_TTL did not round-trip")
 
     sock.set_ip_multicast_loop(false)
     (let loop_err: U32, let loop: U32) =
-      sock.getsockopt_u32(OSSockOpt.ipproto_ip(),
-        OSSockOpt.ip_multicast_loop())
+      sock.getsockopt_u32(
+        OSSockOpt.ipproto_ip(), OSSockOpt.ip_multicast_loop())
     _h.assert_eq[U32](loop_err, 0, "getsockopt IP_MULTICAST_LOOP failed")
     _h.assert_eq[U32](loop, 0, "IP_MULTICAST_LOOP did not round-trip")
 
@@ -266,13 +274,16 @@ class \nodoc\ iso _TestSocketResultDecoder is UnitTest
       let r = _SocketResultDecoder(v)
       match v
       | 0 =>
-        h.assert_true(r is _SocketResultOk,
+        h.assert_true(
+          r is _SocketResultOk,
           "decoder(" + v.string() + ") should be Ok")
       | 1 =>
-        h.assert_true(r is _SocketResultRetry,
+        h.assert_true(
+          r is _SocketResultRetry,
           "decoder(" + v.string() + ") should be Retry")
       else
-        h.assert_true(r is _SocketResultError,
+        h.assert_true(
+          r is _SocketResultError,
           "decoder(" + v.string() + ") should be Error")
       end
       if v == U8.max_value() then break end
@@ -353,7 +364,8 @@ class \nodoc\ _TestBroadcastReceiver is UDPNotify
 
     let h = _h
     _h.dispose_when_done(
-      UDPSocket.ip4(UDPAuth(h.env.root),
+      UDPSocket.ip4(
+        UDPAuth(h.env.root),
         recover _TestBroadcastSender(h, ip.port(), _expected) end))
 
   fun ref received(
@@ -415,13 +427,15 @@ class \nodoc\ _TestBroadcastSender is UDPNotify
       let udp: UDPSocket tag = sock
       let payload = _payload
       let timers = Timers
-      timers(Timer(
-        object iso is TimerNotify
-          fun ref apply(timer: Timer, count: U64): Bool =>
-            udp.write(payload, dest)
-            true
-        end,
-        250_000_000, 250_000_000))
+      timers(
+        Timer(
+          object iso is TimerNotify
+            fun ref apply(timer: Timer, count: U64): Bool =>
+              udp.write(payload, dest)
+              true
+          end,
+          250_000_000,
+          250_000_000))
       _h.dispose_when_done(timers)
     else
       // complete(false) so the failure reports immediately instead of
@@ -458,7 +472,8 @@ class \nodoc\ iso _TestBroadcastReceive is UnitTest
     h.expect_action("broadcast receive")
 
     h.dispose_when_done(
-      UDPSocket.ip4(UDPAuth(h.env.root),
+      UDPSocket.ip4(
+        UDPAuth(h.env.root),
         recover _TestBroadcastReceiver(h) end,
         "255.255.255.255"))
 
@@ -503,7 +518,8 @@ class \nodoc\ iso _TestDNSBroadcastIP4 is UnitTest
         .values()
     do
       let broadcast: Array[NetAddress] val = DNS.broadcast_ip4(auth, service)
-      h.assert_true(broadcast.size() >= 1,
+      h.assert_true(
+        broadcast.size() >= 1,
         "broadcast_ip4(" + service + ") resolved no addresses")
       for addr in broadcast.values() do
         h.assert_true(addr.ip4())
@@ -514,7 +530,8 @@ class \nodoc\ iso _TestDNSBroadcastIP4 is UnitTest
 
       let loopback: Array[NetAddress] val =
         DNS.ip4(auth, "127.0.0.1", service)
-      h.assert_true(loopback.size() >= 1,
+      h.assert_true(
+        loopback.size() >= 1,
         "ip4(127.0.0.1, " + service + ") resolved no addresses")
       for addr in loopback.values() do
         h.assert_true(addr.ip4())
@@ -575,7 +592,8 @@ class \nodoc\ iso _TestDNSBroadcastIP6 is UnitTest
         .values()
     do
       let list: Array[NetAddress] val = DNS.broadcast_ip6(auth, service)
-      h.assert_true(list.size() >= 1,
+      h.assert_true(
+        list.size() >= 1,
         "broadcast_ip6(" + service + ") resolved no addresses")
       for addr in list.values() do
         h.assert_true(addr.ip6())
@@ -885,13 +903,15 @@ class \nodoc\ _TestMulticastIP6Notify is UDPNotify
       let udp: UDPSocket tag = sock
       let payload = _expected
       let timers = Timers
-      timers(Timer(
-        object iso is TimerNotify
-          fun ref apply(timer: Timer, count: U64): Bool =>
-            udp.write(payload, dest)
-            true
-        end,
-        250_000_000, 250_000_000))
+      timers(
+        Timer(
+          object iso is TimerNotify
+            fun ref apply(timer: Timer, count: U64): Bool =>
+              udp.write(payload, dest)
+              true
+          end,
+          250_000_000,
+          250_000_000))
       _h.dispose_when_done(timers)
     else
       // complete(false) so the failure reports immediately instead of
@@ -1001,7 +1021,7 @@ class \nodoc\ iso _TestMulticastIP6 is UnitTest
       return
     end
 
-    match _scoped_group()
+    match \exhaustive\ _scoped_group()
     | None =>
       h.log("no candidate multicast interface; skipping")
     | let group: String =>
@@ -1014,7 +1034,8 @@ class \nodoc\ iso _TestMulticastIP6 is UnitTest
       h.expect_action("multicast listen")
       h.expect_action("multicast receive")
       h.dispose_when_done(
-        UDPSocket.ip6(UDPAuth(h.env.root),
+        UDPSocket.ip6(
+          UDPAuth(h.env.root),
           recover _TestMulticastIP6Notify(h, group) end))
       h.long_test(TimeoutValue())
     end
@@ -1038,7 +1059,7 @@ class \nodoc\ iso _TestMulticastIP6 is UnitTest
     let group = "ff12:1122:3344:5566:7788:99aa:bbcc:ddee"
     ifdef linux then
       // The Linux loopback has no MULTICAST flag, so scan for a real one.
-      match _linux_interface()
+      match \exhaustive\ _linux_interface()
       | let name': String => group + "%" + name'
       | None => None
       end
@@ -1051,7 +1072,7 @@ class \nodoc\ iso _TestMulticastIP6 is UnitTest
       // interface index, not its name. The index is discovered by name via
       // if_indextoname rather than hardcoded, so it does not assume the
       // loopback is index 1.
-      match _windows_loopback_index()
+      match \exhaustive\ _windows_loopback_index()
       | let idx: U32 => group + "%" + idx.string()
       | None => None
       end
@@ -1182,13 +1203,15 @@ class \nodoc\ _TestMulticastIP4Notify is UDPNotify
       let udp: UDPSocket tag = sock
       let payload = _expected
       let timers = Timers
-      timers(Timer(
-        object iso is TimerNotify
-          fun ref apply(timer: Timer, count: U64): Bool =>
-            udp.write(payload, dest)
-            true
-        end,
-        250_000_000, 250_000_000))
+      timers(
+        Timer(
+          object iso is TimerNotify
+            fun ref apply(timer: Timer, count: U64): Bool =>
+              udp.write(payload, dest)
+              true
+          end,
+          250_000_000,
+          250_000_000))
       _h.dispose_when_done(timers)
     else
       // complete(false) so the failure reports immediately instead of burning
@@ -1288,7 +1311,8 @@ class \nodoc\ iso _TestMulticastIP4 is UnitTest
     h.expect_action("multicast listen")
     h.expect_action("multicast receive")
     h.dispose_when_done(
-      UDPSocket.ip4(UDPAuth(h.env.root),
+      UDPSocket.ip4(
+        UDPAuth(h.env.root),
         recover _TestMulticastIP4Notify(h, "239.1.2.3") end))
     h.long_test(TimeoutValue())
 
@@ -1315,7 +1339,8 @@ class \nodoc\ _TestCloseOnSendFailureNotify is UDPNotify
       // The destination port is the socket's own; its value is irrelevant
       // because the datagram never leaves -- the send fails EACCES.
       let list: Array[NetAddress] val =
-        DNS.broadcast_ip4(DNSAuth(_h.env.root),
+        DNS.broadcast_ip4(
+          DNSAuth(_h.env.root),
           sock.local_address().port().string())
       let dest = list(0)?
 
@@ -1359,7 +1384,8 @@ class \nodoc\ iso _TestUDPCloseOnSendFailure is UnitTest
     h.expect_action("send failure close")
 
     h.dispose_when_done(
-      UDPSocket.ip4(UDPAuth(h.env.root),
+      UDPSocket.ip4(
+        UDPAuth(h.env.root),
         recover _TestCloseOnSendFailureNotify(h) end))
 
     h.long_test(TimeoutValue())
@@ -1422,17 +1448,19 @@ class \nodoc\ iso _TestUDPListenFailure is UnitTest
     h.expect_action("ip4 ctor with v6 literal refuses to listen")
 
     h.dispose_when_done(
-      UDPSocket.ip6(UDPAuth(h.env.root),
+      UDPSocket.ip6(
+        UDPAuth(h.env.root),
         recover
-          _TestListenFailureNotify(h,
-            "ip6 ctor with v4 literal refuses to listen")
+          _TestListenFailureNotify(
+            h, "ip6 ctor with v4 literal refuses to listen")
         end,
         "127.0.0.1"))
     h.dispose_when_done(
-      UDPSocket.ip4(UDPAuth(h.env.root),
+      UDPSocket.ip4(
+        UDPAuth(h.env.root),
         recover
-          _TestListenFailureNotify(h,
-            "ip4 ctor with v6 literal refuses to listen")
+          _TestListenFailureNotify(
+            h, "ip4 ctor with v6 literal refuses to listen")
         end,
         "::1"))
 
@@ -1465,7 +1493,8 @@ class \nodoc\ _TestUnicastIP6Receiver is UDPNotify
 
     let h = _h
     _h.dispose_when_done(
-      UDPSocket.ip6(UDPAuth(h.env.root),
+      UDPSocket.ip6(
+        UDPAuth(h.env.root),
         recover _TestUnicastIP6Sender(h, ip) end,
         "::1"))
 
@@ -1507,13 +1536,15 @@ class \nodoc\ _TestUnicastIP6Sender is UDPNotify
     let udp: UDPSocket tag = sock
     let dest = _dest
     let timers = Timers
-    timers(Timer(
-      object iso is TimerNotify
-        fun ref apply(timer: Timer, count: U64): Bool =>
-          udp.write("ping6!", dest)
-          true
-      end,
-      250_000_000, 250_000_000))
+    timers(
+      Timer(
+        object iso is TimerNotify
+          fun ref apply(timer: Timer, count: U64): Bool =>
+            udp.write("ping6!", dest)
+            true
+        end,
+        250_000_000,
+        250_000_000))
     _h.dispose_when_done(timers)
 
   fun ref received(
@@ -1572,7 +1603,8 @@ class \nodoc\ iso _TestUnicastIP6Loopback is UnitTest
     h.expect_action("unicast echo")
 
     h.dispose_when_done(
-      UDPSocket.ip6(UDPAuth(h.env.root),
+      UDPSocket.ip6(
+        UDPAuth(h.env.root),
         recover _TestUnicastIP6Receiver(h) end,
         "::1"))
 
@@ -1618,7 +1650,8 @@ class \nodoc\ _TestUDPReadBufferReceiver is UDPNotify
     // is our bug, not a stray datagram (as in net/UnicastIP6Loopback).
     let h = _h
     _h.dispose_when_done(
-      UDPSocket.ip4(UDPAuth(h.env.root),
+      UDPSocket.ip4(
+        UDPAuth(h.env.root),
         recover _TestUDPReadBufferSender(h, sock.local_address(), _payload) end,
         "127.0.0.1"))
 
@@ -1660,13 +1693,15 @@ class \nodoc\ _TestUDPReadBufferSender is UDPNotify
     let dest = _dest
     let payload = _payload
     let timers = Timers
-    timers(Timer(
-      object iso is TimerNotify
-        fun ref apply(timer: Timer, count: U64): Bool =>
-          udp.write(payload, dest)
-          true
-      end,
-      250_000_000, 250_000_000))
+    timers(
+      Timer(
+        object iso is TimerNotify
+          fun ref apply(timer: Timer, count: U64): Bool =>
+            udp.write(payload, dest)
+            true
+        end,
+        250_000_000,
+        250_000_000))
     _h.dispose_when_done(timers)
 
   fun ref received(
@@ -1705,12 +1740,15 @@ class \nodoc\ iso _TestUDPOversizedDatagramTruncated is UnitTest
     // Buffer 64, payload 200: delivered = min(64, 200) = 64, the first 64
     // bytes of the payload.
     h.dispose_when_done(
-      UDPSocket.ip4(UDPAuth(h.env.root),
+      UDPSocket.ip4(
+        UDPAuth(h.env.root),
         recover
-          _TestUDPReadBufferReceiver(h, _AscendingBytes(64),
-            _AscendingBytes(200))
+          _TestUDPReadBufferReceiver(
+            h, _AscendingBytes(64), _AscendingBytes(200))
         end,
-        "127.0.0.1", "0", 64))
+        "127.0.0.1",
+        "0",
+        64))
 
     h.long_test(TimeoutValue())
 
@@ -1737,12 +1775,15 @@ class \nodoc\ iso _TestUDPUndersizedDatagramDelivered is UnitTest
 
     // Buffer 64, payload 20: delivered = min(64, 20) = 20, the whole payload.
     h.dispose_when_done(
-      UDPSocket.ip4(UDPAuth(h.env.root),
+      UDPSocket.ip4(
+        UDPAuth(h.env.root),
         recover
-          _TestUDPReadBufferReceiver(h, _AscendingBytes(20),
-            _AscendingBytes(20))
+          _TestUDPReadBufferReceiver(
+            h, _AscendingBytes(20), _AscendingBytes(20))
         end,
-        "127.0.0.1", "0", 64))
+        "127.0.0.1",
+        "0",
+        64))
 
     h.long_test(TimeoutValue())
 
@@ -1770,11 +1811,15 @@ class \nodoc\ iso _TestUDPEmptyDatagramDelivered is UnitTest
 
     // Buffer 64, payload 0: delivered = min(64, 0) = 0, an empty datagram.
     h.dispose_when_done(
-      UDPSocket.ip4(UDPAuth(h.env.root),
+      UDPSocket.ip4(
+        UDPAuth(h.env.root),
         recover
-          _TestUDPReadBufferReceiver(h, _AscendingBytes(0), _AscendingBytes(0))
+          _TestUDPReadBufferReceiver(
+            h, _AscendingBytes(0), _AscendingBytes(0))
         end,
-        "127.0.0.1", "0", 64))
+        "127.0.0.1",
+        "0",
+        64))
 
     h.long_test(TimeoutValue())
 
@@ -1801,11 +1846,15 @@ class \nodoc\ iso _TestUDPZeroSizeReadBufferDelivers is UnitTest
     h.expect_action("receive")
 
     h.dispose_when_done(
-      UDPSocket.ip4(UDPAuth(h.env.root),
+      UDPSocket.ip4(
+        UDPAuth(h.env.root),
         recover
-          _TestUDPReadBufferReceiver(h, _AscendingBytes(1), _AscendingBytes(3))
+          _TestUDPReadBufferReceiver(
+            h, _AscendingBytes(1), _AscendingBytes(3))
         end,
-        "127.0.0.1", "0", 0))
+        "127.0.0.1",
+        "0",
+        0))
 
     h.long_test(TimeoutValue())
 
@@ -1826,15 +1875,15 @@ class \nodoc\ _TestTCP is TCPListenNotify
     _server_conn_notify = consume s
 
     let h = _h
-    h.expect_action("server create")
-    h.expect_action("server listen")
-    h.expect_action("client create")
-    h.expect_action("server accept")
-
-    h.dispose_when_done(TCPListener(TCPListenAuth(h.env.root), consume this))
-    h.complete_action("server create")
-
-    h.long_test(TimeoutValue())
+    h
+      .> expect_action("server create")
+      .> expect_action("server listen")
+      .> expect_action("client create")
+      .> expect_action("server accept")
+      .> dispose_when_done(
+        TCPListener(TCPListenAuth(h.env.root), consume this))
+      .> complete_action("server create")
+      .> long_test(TimeoutValue())
 
   fun ref not_listening(listen: TCPListener ref) =>
     _h.fail_action("server listen")
@@ -1891,7 +1940,8 @@ class \nodoc\ iso _TestTCPExpectOverBufferSize is UnitTest
     h.expect_action("connected")
     h.expect_action("accepted")
 
-    _TestTCP(h)(_TestTCPExpectOverBufferSizeNotify(h),
+    _TestTCP(h)(
+      _TestTCPExpectOverBufferSizeNotify(h),
       _TestTCPExpectOverBufferSizeNotify(h))
 
 class \nodoc\ _TestTCPExpectNotify is TCPConnectionNotify
@@ -2078,8 +2128,9 @@ class \nodoc\ _TestTCPExpectSetToZeroClientNotify is TCPConnectionNotify
       // Accumulate data delivered with expect(0)
       _accumulated.append(data)
       if _accumulated.size() >= 6 then
-        let s = String.from_array(
-          _accumulated = recover Array[U8] end)
+        let s =
+          String.from_array(
+            _accumulated = recover Array[U8] end)
         _h.assert_eq[String](s, " world")
         _h.complete_action("client receive")
       end
@@ -2167,7 +2218,8 @@ class \nodoc\ iso _TestTCPMute is UnitTest
     h.expect_action("receiver asks for data")
     h.expect_action("sender sent data")
 
-    _TestTCP(h)(_TestTCPMuteSendNotify(h),
+    _TestTCP(h)(
+      _TestTCPMuteSendNotify(h),
       _TestTCPMuteReceiveNotify(h))
 
   fun timed_out(h: TestHelper) =>
@@ -2222,15 +2274,15 @@ class \nodoc\ _TestTCPMuteSendNotify is TCPConnectionNotify
   fun ref connect_failed(conn: TCPConnection ref) =>
     _h.fail_action("sender connect failed")
 
-   fun ref received(
+  fun ref received(
     conn: TCPConnection ref,
     data: Array[U8] val,
     times: USize)
     : Bool
-   =>
-     conn.write("it's sad that you won't ever read this")
-     _h.complete_action("sender sent data")
-     true
+  =>
+    conn.write("it's sad that you won't ever read this")
+    _h.complete_action("sender sent data")
+    true
 
 class \nodoc\ iso _TestTCPUnmute is UnitTest
   """
@@ -2256,7 +2308,8 @@ class \nodoc\ iso _TestTCPUnmute is UnitTest
     h.expect_action("receiver unmuted")
     h.expect_action("sender sent data")
 
-    _TestTCP(h)(_TestTCPMuteSendNotify(h),
+    _TestTCP(h)(
+      _TestTCPMuteSendNotify(h),
       _TestTCPUnmuteReceiveNotify(h))
 
 class \nodoc\ _TestTCPUnmuteReceiveNotify is TCPConnectionNotify
@@ -2313,7 +2366,8 @@ class \nodoc\ iso _TestTCPMutePeerCloseUndetected is UnitTest
     h.expect_action("sender connected")
     h.expect_action("sender closed")
 
-    _TestTCP(h)(_TestTCPMuteClosePeerNotify(h),
+    _TestTCP(h)(
+      _TestTCPMuteClosePeerNotify(h),
       _TestTCPMuteCloseReceiveNotify(h))
 
   fun timed_out(h: TestHelper) =>
@@ -2402,7 +2456,8 @@ class \nodoc\ iso _TestTCPGracefulClose is UnitTest
     h.expect_action("client connected")
     h.expect_action("client closed")
 
-    _TestTCP(h)(_TestTCPGracefulCloseClientNotify(h),
+    _TestTCP(h)(
+      _TestTCPGracefulCloseClientNotify(h),
       _TestTCPGracefulCloseServerNotify(h))
 
 class \nodoc\ _TestTCPGracefulCloseClientNotify is TCPConnectionNotify
@@ -2468,7 +2523,8 @@ class \nodoc\ iso _TestTCPThrottle is UnitTest
     h.expect_action("sender sent data")
     h.expect_action("sender throttled")
 
-    _TestTCP(h)(_TestTCPThrottleSendNotify(h),
+    _TestTCP(h)(
+      _TestTCPThrottleSendNotify(h),
       _TestTCPThrottleReceiveNotify(h))
 
 class \nodoc\ _TestTCPThrottleReceiveNotify is TCPConnectionNotify
@@ -2539,17 +2595,20 @@ class \nodoc\ _TestTCPProxy is UnitTest
   Check that the proxy callback is called on creation of a TCPConnection.
   """
   fun name(): String => "net/TCPProxy"
+
   fun exclusion_group(): String => "network"
 
   fun ref apply(h: TestHelper) =>
     h.expect_action("sender connected")
     h.expect_action("sender proxy request")
 
-    _TestTCP(h)(_TestTCPProxyNotify(h),
+    _TestTCP(h)(
+      _TestTCPProxyNotify(h),
       _TestTCPProxyNotify(h))
 
 class \nodoc\ _TestTCPProxyNotify is TCPConnectionNotify
   let _h: TestHelper
+
   new iso create(h: TestHelper) =>
     _h = h
 
@@ -2569,22 +2628,24 @@ class \nodoc\ _TestTCPConnectionFailed is UnitTest
   fun ref apply(h: TestHelper) =>
     h.expect_action("connection failed")
 
-    let host = ifdef linux then "127.0.0.2" else "127.0.0.1" end
+    let host =
+      ifdef linux then "127.0.0.2" else "127.0.0.1" end
     let port = "7669"
 
-    let connection = TCPConnection(
-      TCPConnectAuth(h.env.root),
-      object iso is TCPConnectionNotify
-        let _h: TestHelper = h
+    let connection =
+      TCPConnection(
+        TCPConnectAuth(h.env.root),
+        object iso is TCPConnectionNotify
+          let _h: TestHelper = h
 
-        fun ref connected(conn: TCPConnection ref) =>
-          _h.fail_action("connection failed")
+          fun ref connected(conn: TCPConnection ref) =>
+            _h.fail_action("connection failed")
 
-        fun ref connect_failed(conn: TCPConnection ref) =>
-          _h.complete_action("connection failed")
-      end,
-      host,
-      port)
+          fun ref connect_failed(conn: TCPConnection ref) =>
+            _h.complete_action("connection failed")
+        end,
+        host,
+        port)
     h.long_test(TimeoutValue())
     h.dispose_when_done(connection)
 
@@ -2599,55 +2660,63 @@ class \nodoc\ _TestTCPConnectionToClosedServerFailed is UnitTest
     h.expect_action("server listening")
     h.expect_action("client connection failed")
 
-    let listener = TCPListener(
-      TCPListenAuth(h.env.root),
-      object iso is TCPListenNotify
-        let _h: TestHelper = h
-        var host: String = "?"
-        var port: String = "?"
+    let listener =
+      TCPListener(
+        TCPListenAuth(h.env.root),
+        object iso is TCPListenNotify
+          let _h: TestHelper = h
+          var host: String = "?"
+          var port: String = "?"
 
-        fun ref listening(listener: TCPListener ref) =>
-          _h.complete_action("server listening")
-          listener.close()
+          fun ref listening(listener: TCPListener ref) =>
+            _h.complete_action("server listening")
+            listener.close()
 
-        fun ref not_listening(listener: TCPListener ref) =>
-          _h.fail_action("server listening")
+          fun ref not_listening(listener: TCPListener ref) =>
+            _h.fail_action("server listening")
 
-        fun ref closed(listener: TCPListener ref) =>
-          _TCPConnectionToClosedServerFailedConnector.connect(_h, host, port)
+          fun ref closed(listener: TCPListener ref) =>
+            _TCPConnectionToClosedServerFailedConnector
+              .connect(_h, host, port)
 
-        fun ref connected(listener: TCPListener ref)
-          : TCPConnectionNotify iso^
-        =>
-          object iso is TCPConnectionNotify
-            fun ref received(conn: TCPConnection ref, data: Array[U8] iso,
-              times: USize): Bool => true
-            fun ref accepted(conn: TCPConnection ref) => None
-            fun ref connect_failed(conn: TCPConnection ref) => None
-            fun ref closed(conn: TCPConnection ref) => None
-          end
-      end,
-      "127.0.0.1"
-    )
+          fun ref connected(listener: TCPListener ref)
+            : TCPConnectionNotify iso^
+          =>
+            object iso is TCPConnectionNotify
+              fun ref received(
+                conn: TCPConnection ref,
+                data: Array[U8] iso,
+                times: USize)
+                : Bool
+              =>
+                true
+              fun ref accepted(conn: TCPConnection ref) => None
+              fun ref connect_failed(conn: TCPConnection ref) => None
+              fun ref closed(conn: TCPConnection ref) => None
+            end
+        end,
+        "127.0.0.1"
+      )
 
     h.dispose_when_done(listener)
     h.long_test(TimeoutValue())
 
 actor \nodoc\ _TCPConnectionToClosedServerFailedConnector
   be connect(h: TestHelper, host: String, port: String) =>
-    let connection = TCPConnection(
-      TCPConnectAuth(h.env.root),
-      object iso is TCPConnectionNotify
-        let _h: TestHelper = h
+    let connection =
+      TCPConnection(
+        TCPConnectAuth(h.env.root),
+        object iso is TCPConnectionNotify
+          let _h: TestHelper = h
 
-        fun ref connected(conn: TCPConnection ref) =>
-          _h.fail_action("client connection failed")
+          fun ref connected(conn: TCPConnection ref) =>
+            _h.fail_action("client connection failed")
 
-        fun ref connect_failed(conn: TCPConnection ref) =>
-          _h.complete_action("client connection failed")
-      end,
-      host,
-      port)
+          fun ref connect_failed(conn: TCPConnection ref) =>
+            _h.complete_action("client connection failed")
+        end,
+        host,
+        port)
     h.dispose_when_done(connection)
 
 class \nodoc\ _TestOsIpString is UnitTest
@@ -2662,14 +2731,16 @@ class \nodoc\ _TestOsIpString is UnitTest
   fun apply(h: TestHelper) =>
     // IPv4: 127.0.0.1
     let ipv4 = [as U8: 0x7F; 0x00; 0x00; 0x01]
-    let ipv4_str: String val = recover
-      String.from_cstring(@pony_os_ip_string(ipv4.cpointer(), I32(4)))
-    end
+    let ipv4_str: String val =
+      recover
+        String.from_cstring(@pony_os_ip_string(ipv4.cpointer(), I32(4)))
+      end
     h.assert_eq[String](ipv4_str, "127.0.0.1")
 
     // IPv6: ::1
     let ipv6 = [as U8: 0; 0; 0; 0; 0; 0; 0; 0; 0; 0; 0; 0; 0; 0; 0; 1]
-    let ipv6_str: String val = recover
-      String.from_cstring(@pony_os_ip_string(ipv6.cpointer(), I32(16)))
-    end
+    let ipv6_str: String val =
+      recover
+        String.from_cstring(@pony_os_ip_string(ipv6.cpointer(), I32(16)))
+      end
     h.assert_eq[String](ipv6_str, "::1")

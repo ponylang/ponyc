@@ -30,7 +30,11 @@ class Range[A: (Real[A] val & Number) = USize] is Iterator[A]
   end
   ```
 
-  If `inc` is nonzero, but cannot produce progress towards `max` because of its sign, the `Range` is considered empty and will not produce any iterations. The `Range` is also empty if either `min` equals `max`, independent of the value of `inc`, or if `inc` is zero.
+  If `inc` is nonzero, but cannot produce progress towards `max`
+  because of its sign, the `Range` is considered empty and will not
+  produce any iterations. The `Range` is also empty if either `min`
+  equals `max`, independent of the value of `inc`, or if `inc` is
+  zero.
 
   ```pony
   let empty_range1 = Range(0, 10, -1)
@@ -41,9 +45,18 @@ class Range[A: (Real[A] val & Number) = USize] is Iterator[A]
   empty_range3.is_empty() == true
   ```
 
-  Note that when using unsigned integers, a negative literal wraps around so while `Range[ISize](0, 10, -1)` is empty as above, `Range[USize](0, 10, -1)` produces a single value of `min` or `[0]` here.
+  Note that when using unsigned integers, a negative literal wraps
+  around so while `Range[ISize](0, 10, -1)` is empty as above,
+  `Range[USize](0, 10, -1)` produces a single value of `min` or
+  `[0]` here.
 
-  When using `Range` with floating point types (`F32` and `F64`) `inc` steps < 1.0 are possible. If any arguments contains NaN, the `Range` is considered empty. It is also empty if the lower bound `min` or the step `inc` are +Inf or -Inf. However, if only the upper bound `max` is +Inf or -Inf and the step parameter `inc` has the same sign, then the `Range` is considered infinite and will iterate indefinitely.
+  When using `Range` with floating point types (`F32` and `F64`)
+  `inc` steps < 1.0 are possible. If any arguments contains NaN,
+  the `Range` is considered empty. It is also empty if the lower
+  bound `min` or the step `inc` are +Inf or -Inf. However, if only
+  the upper bound `max` is +Inf or -Inf and the step parameter
+  `inc` has the same sign, then the `Range` is considered infinite
+  and will iterate indefinitely.
 
   ```pony
   let p_inf: F64 = F64.max_value() + F64.max_value()
@@ -82,12 +95,14 @@ class Range[A: (Real[A] val & Number) = USize] is Iterator[A]
       else
         (true, true, true)
       end
-    let progress = ((_min < _max) and (_inc > 0)) or
-                    ((_min > _max) and (_inc < 0)) // false if any is NaN!
+    let progress =
+      ((_min < _max) and (_inc > 0)) or
+      ((_min > _max) and (_inc < 0)) // false if any is NaN!
     if progress and min_finite and inc_finite then
       _empty = false
-      _infinite = not max_finite // ok to use not max_finite for max_infinite
-                                 // since progress excludes _max == nan
+      // ok to use not max_finite for max_infinite since progress
+      // excludes _max == nan
+      _infinite = not max_finite
       _idx = _min
     else
       _empty = true

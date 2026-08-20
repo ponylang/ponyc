@@ -12,11 +12,11 @@ interface val _RoundTripCheck
   fun lsp_method(): String
 
   // Optional request parameters merged into the params object beyond
-  // textDocument.uri. Return a JsonObject whose key-value pairs are merged
+  // textDocument.uri. Return a JSONObject whose key-value pairs are merged
   // directly, or None to add nothing. Include "position" for point-based
   // methods, "range" for span-based methods, and any other LSP-defined keys
   // as needed.
-  fun lsp_params(): (None | JsonObject)
+  fun lsp_params(): (None | JSONObject)
 
   // Validate the server response. Return true if all assertions pass, false
   // if any fail. Implementations call h.assert_*/h.fail directly so failures

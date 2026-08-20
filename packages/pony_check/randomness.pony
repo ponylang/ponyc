@@ -70,7 +70,8 @@ class ref Randomness
     if (min == U64.min_value()) and (max == U64.max_value()) then
       _random.u64()
     elseif min > U32.max_value().u64() then
-      (u32((min >> 32).u32(), (max >> 32).u32()).u64() << 32) or _random.u32().u64()
+      (u32((min >> 32).u32(), (max >> 32).u32()).u64() << 32) or
+        _random.u32().u64()
     elseif max > U32.max_value().u64() then
       let high = (u32((min >> 32).u32(), (max >> 32).u32()).u64() << 32).u64()
       let low =
@@ -106,10 +107,12 @@ class ref Randomness
       let high = (u64((min >> 64).u64(), (max >> 64).u64()).u128() << 64)
       let low =
         if high > 0 then
-          // number will be bigger than U64 max anyway, so chose a random lower u64
+          // number will be bigger than U64 max anyway, so chose a
+          // random lower u64
           u64().u128()
         else
-          // number <= U64 max, so chose lower u64 while considering requested range min
+          // number <= U64 max, so chose lower u64 while considering
+          // requested range min
           u64(min.u64(), U64.max_value()).u128()
         end
       high or low
@@ -180,7 +183,6 @@ class ref Randomness
     """
     min + u64(0, (max - min).u64()).i64()
 
-
   fun ref i128(
     min: I128 = I128.min_value(),
     max: I128 = I128.max_value())
@@ -193,7 +195,6 @@ class ref Randomness
     Behavior is undefined if `min` > `max`.
     """
     min + u128(0, (max - min).u128()).i128()
-
 
   fun ref ilong(
     min: ILong = ILong.min_value(),
@@ -221,7 +222,6 @@ class ref Randomness
     """
     min + usize(0, (max - min).usize()).isize()
 
-
   fun ref f32(min: F32 = 0.0, max: F32 = 1.0): F32 =>
     """
     Generate an F32 in the range from `min` to `max` (default: 0.0 to 1.0).
@@ -231,8 +231,7 @@ class ref Randomness
     converted to F32, so `max` is produced when that top value is drawn. See
     `Randomness` for how `max` behaves on other ranges.
     """
-    (_random.real().f32() * (max-min)) + min
-
+    (_random.real().f32() * (max - min)) + min
 
   fun ref f64(min: F64 = 0.0, max: F64 = 1.0): F64 =>
     """
@@ -242,7 +241,7 @@ class ref Randomness
     interval [0.0, 1.0); `max` (1.0) is never produced. See `Randomness` for how
     `max` behaves on other ranges.
     """
-    (_random.real() * (max-min)) + min
+    (_random.real() * (max - min)) + min
 
   fun ref bool(): Bool =>
     """

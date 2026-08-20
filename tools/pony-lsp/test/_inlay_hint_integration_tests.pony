@@ -813,15 +813,15 @@ class val _InlayHintChecker
   fun lsp_method(): String =>
     Methods.text_document().inlay_hint()
 
-  fun lsp_params(): (None | JsonObject) =>
+  fun lsp_params(): (None | JSONObject) =>
     match \exhaustive\ _range
     | (let sl: I64, let sc: I64, let el: I64, let ec: I64) =>
-      JsonObject.update(
+      JSONObject.update(
         "range",
-        JsonObject
+        JSONObject
           .update(
-            "start", JsonObject.update("line", sl).update("character", sc))
-          .update("end", JsonObject.update("line", el).update("character", ec)))
+            "start", JSONObject.update("line", sl).update("character", sc))
+          .update("end", JSONObject.update("line", el).update("character", ec)))
     | None =>
       None
     end
@@ -829,7 +829,7 @@ class val _InlayHintChecker
   fun check(res: ResponseMessage val, h: TestHelper): Bool =>
     var ok = true
     try
-      let hints = res.result as JsonArray
+      let hints = res.result as JSONArray
       if not h.assert_eq[USize](
         _expected.size(),
         hints.size(),
@@ -842,11 +842,11 @@ class val _InlayHintChecker
         var found = false
         for hint_val in hints.values() do
           try
-            let hint = hint_val as JsonObject
-            let hint_line = JsonNav(hint)("position")("line").as_i64()?
-            let hint_char = JsonNav(hint)("position")("character").as_i64()?
+            let hint = hint_val as JSONObject
+            let hint_line = JSONNav(hint)("position")("line").as_i64()?
+            let hint_char = JSONNav(hint)("position")("character").as_i64()?
             if (hint_line == exp_line) and (hint_char == exp_char) then
-              let label = JsonNav(hint)("label").as_string()?
+              let label = JSONNav(hint)("label").as_string()?
               if not h.assert_true(
                 label.contains(exp_label),
                 "At " + exp_line.string() + ":" + exp_char.string() +

@@ -1,15 +1,20 @@
 use "pony_test"
 
 class ForAll[T]
+  """
+  Runs a single-argument property check inline within a `UnitTest`.
+  """
   let _gen: Generator[T] val
   let _helper: TestHelper
 
-  new create(gen': Generator[T] val, testHelper: TestHelper) =>
+  new create(gen': Generator[T] val, test_helper: TestHelper) =>
     _gen = gen'
-    _helper = testHelper
+    _helper = test_helper
 
   fun ref apply(prop: {(T, PropertyHelper) ?} val) ? =>
-    """execute"""
+    """
+    execute
+    """
     Property1UnitTest[T](
       object iso is Property1[T]
         fun name(): String => ""
@@ -22,6 +27,9 @@ class ForAll[T]
     ).apply(_helper)?
 
 class ForAll2[T1, T2]
+  """
+  Runs a two-argument property check inline within a `UnitTest`.
+  """
   let _gen1: Generator[T1] val
   let _gen2: Generator[T2] val
   let _helper: TestHelper
@@ -47,6 +55,9 @@ class ForAll2[T1, T2]
     ).apply(_helper)?
 
 class ForAll3[T1, T2, T3]
+  """
+  Runs a three-argument property check inline within a `UnitTest`.
+  """
   let _gen1: Generator[T1] val
   let _gen2: Generator[T2] val
   let _gen3: Generator[T3] val
@@ -76,6 +87,9 @@ class ForAll3[T1, T2, T3]
     ).apply(_helper)?
 
 class ForAll4[T1, T2, T3, T4]
+  """
+  Runs a four-argument property check inline within a `UnitTest`.
+  """
   let _gen1: Generator[T1] val
   let _gen2: Generator[T2] val
   let _gen3: Generator[T3] val
@@ -103,8 +117,20 @@ class ForAll4[T1, T2, T3, T4]
         fun gen2(): Generator[T2] => _gen2
         fun gen3(): Generator[T3] => _gen3
         fun gen4(): Generator[T4] => _gen4
-        fun ref property4(arg1: T1, arg2: T2, arg3: T3, arg4: T4, h: PropertyHelper) ? =>
-          prop(consume arg1, consume arg2, consume arg3, consume arg4, h)?
+        fun ref property4(
+          arg1: T1,
+          arg2: T2,
+          arg3: T3,
+          arg4: T4,
+          h: PropertyHelper)
+          ?
+        =>
+          prop(
+            consume arg1,
+            consume arg2,
+            consume arg3,
+            consume arg4,
+            h)?
       end
     ).apply(_helper)?
 

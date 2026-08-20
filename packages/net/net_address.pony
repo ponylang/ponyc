@@ -21,25 +21,21 @@ class val NetAddress is Equatable[NetAddress]
   Use the `name` method to obtain address/hostname and port/service as Strings.
   """
   let _family: U16 = 0
-
   let _port: U16 = 0
     """
     Port number in network byte order.
     """
-
   let _addr: U32 = 0
     """
     IPv4 address in network byte order.
     Will be `0` for IPv6 addresses. Check with `ipv4()` and `ipv6()`.
     """
-
   let _addr1: U32 = 0
     """
     Bits 0-32 of the IPv6 address in network byte order.
 
     `0` if this is an IPv4 address. Check with `ipv4()` and `ipv6()`.
     """
-
   let _addr2: U32 = 0
     """
     Bits 33-64 of the IPv6 address in network byte order.
@@ -58,7 +54,6 @@ class val NetAddress is Equatable[NetAddress]
 
     `0` if this is an IPv4 address. Check with `ipv4()` and `ipv6()`.
     """
-
   let _scope: U32 = 0
     """
     IPv6 scope zone identifier (`sin6_scope_id`) in host byte order.
@@ -108,7 +103,11 @@ class val NetAddress is Equatable[NetAddress]
     let reverse = reversedns isnt None
 
     if not
-      @pony_os_nameinfo(this, addressof host, addressof serv, reverse,
+      @pony_os_nameinfo(
+        this,
+        addressof host,
+        addressof serv,
+        reverse,
         servicename)
     then
       error
@@ -205,10 +204,10 @@ class val NetAddress is Equatable[NetAddress]
         `a._3 = _addr3  // Bits 65-96 of the IPv6 address in host byte order.
         `a._4 = _addr4  // Bits 97-128 of the IPv6 address in host byte order.
 
-        The contents of the 4-tuple returned are valid only if `ip6()` is `True`.
+        The contents of the 4-tuple returned are valid only if
+        `ip6()` is `True`.
       """
-      (@ntohl(_addr1),
-       @ntohl(_addr2),
-       @ntohl(_addr3),
-       @ntohl(_addr4)
-      )
+      ( @ntohl(_addr1),
+        @ntohl(_addr2),
+        @ntohl(_addr3),
+        @ntohl(_addr4) )
