@@ -236,6 +236,7 @@ actor \nodoc\ Main is TestList
     test(_TestMemberNamingMethodViolation)
     test(_TestMemberNamingFieldViolation)
     test(_TestMemberNamingDontcareSkipped)
+    test(_TestMemberNamingMultiPrimeClean)
     test(_TestMemberNamingParamViolation)
 
     // AcronymCasing tests

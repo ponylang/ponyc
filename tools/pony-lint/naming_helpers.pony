@@ -13,11 +13,11 @@ primitive NamingHelpers
     """
     Returns true if `name` follows CamelCase conventions: starts with an
     uppercase letter (after optional leading `_`), contains only alphanumeric
-    characters, and has no underscores after the optional prefix. A trailing
-    prime (`'`) is permitted (Pony uses primes on parameter names).
+    characters, and has no underscores after the optional prefix. Trailing
+    primes (`'`) are permitted (Pony uses primes on parameter names).
     """
     if name.size() == 0 then return false end
-    // Strip trailing prime before validation
+    // Strip trailing primes before validation
     let check = _strip_prime(name)
     if check.size() == 0 then return false end
     var i: USize = 0
@@ -48,11 +48,11 @@ primitive NamingHelpers
     """
     Returns true if `name` follows snake_case conventions: starts with a
     lowercase letter (after optional leading `_`), contains only lowercase
-    letters, digits, and underscores. A trailing prime (`'`) is permitted
+    letters, digits, and underscores. Trailing primes (`'`) are permitted
     (Pony uses primes on parameter names).
     """
     if name.size() == 0 then return false end
-    // Strip trailing prime before validation
+    // Strip trailing primes before validation
     let check = _strip_prime(name)
     if check.size() == 0 then return false end
     var i: USize = 0
@@ -207,17 +207,19 @@ primitive NamingHelpers
 
   fun _strip_prime(name: String val): String val =>
     """
-    Strip a trailing prime character from the name.
+    Strip all trailing prime characters from the name.
     """
     if name.size() == 0 then return name end
+    var i = name.size()
     try
-      if name(name.size() - 1)? == '\'' then
-        name.substring(0, (name.size() - 1).isize())
-      else
-        name
+      while (i > 0) and (name(i - 1)? == '\'') do
+        i = i - 1
       end
-    else
+    end
+    if i == name.size() then
       name
+    else
+      name.substring(0, i.isize())
     end
 
   fun is_upper(ch: U8): Bool =>

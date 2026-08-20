@@ -16,9 +16,11 @@ class \nodoc\ _TestIsCamelCaseValid is UnitTest
     h.assert_true(lint.NamingHelpers.is_camel_case("A1B2"))
     h.assert_true(lint.NamingHelpers.is_camel_case("_PrivateType"))
     h.assert_true(lint.NamingHelpers.is_camel_case("_F"))
-    // Trailing prime is accepted
+    // Trailing primes are accepted
     h.assert_true(lint.NamingHelpers.is_camel_case("Foo'"))
     h.assert_true(lint.NamingHelpers.is_camel_case("_Foo'"))
+    h.assert_true(lint.NamingHelpers.is_camel_case("Foo''"))
+    h.assert_true(lint.NamingHelpers.is_camel_case("Foo'''"))
 
 class \nodoc\ _TestIsCamelCaseInvalid is UnitTest
   """Invalid CamelCase names fail."""
@@ -49,10 +51,12 @@ class \nodoc\ _TestIsSnakeCaseValid is UnitTest
     h.assert_true(lint.NamingHelpers.is_snake_case("_private"))
     h.assert_true(lint.NamingHelpers.is_snake_case("_f"))
     h.assert_true(lint.NamingHelpers.is_snake_case("create"))
-    // Trailing prime is accepted
+    // Trailing primes are accepted
     h.assert_true(lint.NamingHelpers.is_snake_case("foo'"))
     h.assert_true(lint.NamingHelpers.is_snake_case("rule_id'"))
     h.assert_true(lint.NamingHelpers.is_snake_case("_private'"))
+    h.assert_true(lint.NamingHelpers.is_snake_case("path''"))
+    h.assert_true(lint.NamingHelpers.is_snake_case("x'''"))
 
 class \nodoc\ _TestIsSnakeCaseInvalid is UnitTest
   """Invalid snake_case names fail."""
