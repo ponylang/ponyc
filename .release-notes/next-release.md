@@ -300,3 +300,7 @@ This replaces the previous string-literal exemption. Lines like `// https://very
 
 pony-lint flagged identifiers like `path''` as naming violations because it only stripped one trailing prime before checking the name. An identifier with two or more primes kept the extras and failed the snake_case or CamelCase check. pony-lint now strips all trailing primes before validating.
 
+## Fix pony-lint false positive on partial operators
+
+pony-lint's operator-spacing rule flagged partial arithmetic operators (`*?`, `+?`, etc.) as missing a space after the base operator. The `?` that makes the operation partial shares the same AST token as the non-partial form, so the rule saw `?` where it expected a space.
+
