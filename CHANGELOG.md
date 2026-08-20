@@ -20,6 +20,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Fix stdin end-of-input and error handling ([PR #5832](https://github.com/ponylang/ponyc/pull/5832))
 - Fix compiler crash with multiple traits sharing a method with a default body ([PR #5831](https://github.com/ponylang/ponyc/pull/5831))
 - Fix pony-lint false positive on identifiers with multiple trailing primes ([PR #5849](https://github.com/ponylang/ponyc/pull/5849))
+- Fix pony-lint false positive on partial operators ([PR #5850](https://github.com/ponylang/ponyc/pull/5850))
 
 ### Added
 
