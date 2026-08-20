@@ -1,9 +1,15 @@
 use @pony_os_accept[I32](event: AsioEventID)
-use @pony_os_listen_tcp[AsioEventID](owner: AsioEventNotify, host: Pointer[U8] tag,
+use @pony_os_listen_tcp[AsioEventID](
+  owner: AsioEventNotify,
+  host: Pointer[U8] tag,
   service: Pointer[U8] tag)
-use @pony_os_listen_tcp4[AsioEventID](owner: AsioEventNotify, host: Pointer[U8] tag,
+use @pony_os_listen_tcp4[AsioEventID](
+  owner: AsioEventNotify,
+  host: Pointer[U8] tag,
   service: Pointer[U8] tag)
-use @pony_os_listen_tcp6[AsioEventID](owner: AsioEventNotify, host: Pointer[U8] tag,
+use @pony_os_listen_tcp6[AsioEventID](
+  owner: AsioEventNotify,
+  host: Pointer[U8] tag,
   service: Pointer[U8] tag)
 
 actor TCPListener is AsioEventNotify
@@ -207,8 +213,13 @@ actor TCPListener is AsioEventNotify
     Spawn a new connection.
     """
     try
-      TCPConnection._accept(this, _notify.connected(this)?, ns,
-        _read_buffer_size, _yield_after_reading, _yield_after_writing)
+      TCPConnection._accept(
+        this,
+        _notify.connected(this)?,
+        ns,
+        _read_buffer_size,
+        _yield_after_reading,
+        _yield_after_writing)
       _count = _count + 1
     else
       @pony_os_socket_close(ns)

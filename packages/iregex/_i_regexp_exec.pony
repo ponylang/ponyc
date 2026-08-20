@@ -31,7 +31,9 @@ class _StateSet
     _active.values()
 
 primitive _RangeMatcher
-  """Binary search on sorted (start, end) codepoint range arrays."""
+  """
+  Binary search on sorted (start, end) codepoint range arrays.
+  """
 
   fun matches(
     cp: U32,
@@ -63,7 +65,9 @@ primitive _RangeMatcher
     false
 
 primitive _NFAExec
-  """Thompson NFA simulation for is_match and search."""
+  """
+  Thompson NFA simulation for is_match and search.
+  """
 
   fun is_match(nfa: _NFA, input: String): Bool =>
     """
@@ -130,11 +134,14 @@ primitive _NFAExec
     false
 
   fun _matches_char(nfa: _NFA, state_idx: USize, cp: U32): Bool =>
-    """Check if a state matches a given codepoint."""
+    """
+    Check if a state matches a given codepoint.
+    """
     try
       match nfa.kinds(state_idx)?
       | _NFACharRange =>
-        _RangeMatcher.matches(cp, nfa.ranges(state_idx)?, nfa.negated(state_idx)?)
+        _RangeMatcher.matches(
+          cp, nfa.ranges(state_idx)?, nfa.negated(state_idx)?)
       | _NFADot =>
         // Matches any character except \n and \r (XSD semantics)
         (cp != 0x0A) and (cp != 0x0D)
@@ -171,7 +178,9 @@ primitive _NFAExec
     end
 
   fun _has_match(nfa: _NFA, set: _StateSet): Bool =>
-    """Check if any state in the set is a match state."""
+    """
+    Check if any state in the set is a match state.
+    """
     for s in set.values() do
       try
         match nfa.kinds(s)?

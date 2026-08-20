@@ -16,7 +16,9 @@ class _IRegexpParser
     _source = source'
 
   fun ref parse(): _RegexNode ? =>
-    """Parse a complete I-Regexp. Raises on invalid input."""
+    """
+    Parse a complete I-Regexp. Raises on invalid input.
+    """
     let result = _parse_alternation()?
     if _offset < _source.size() then
       _fail("Unexpected character")
@@ -28,9 +30,10 @@ class _IRegexpParser
     IRegexpParseError(_error_message, _offset)
 
   // --- Grammar productions ---
-
   fun ref _parse_alternation(): _RegexNode ? =>
-    """i-regexp = branch *( "|" branch)"""
+    """
+    i-regexp = branch *( "|" branch)
+    """
     var left = _parse_branch()?
     while _looking_at('|') do
       _advance(1)
@@ -40,7 +43,9 @@ class _IRegexpParser
     left
 
   fun ref _parse_branch(): _RegexNode ? =>
-    """branch = *piece"""
+    """
+    branch = *piece
+    """
     var pieces = Array[_RegexNode]
     while _at_atom_start() do
       pieces.push(_parse_piece()?)
@@ -60,7 +65,9 @@ class _IRegexpParser
     end
 
   fun ref _parse_piece(): _RegexNode ? =>
-    """piece = atom [ quantifier ]"""
+    """
+    piece = atom [ quantifier ]
+    """
     let atom = _parse_atom()?
     if _at_quantifier() then
       _parse_quantifier(atom)?
@@ -69,7 +76,9 @@ class _IRegexpParser
     end
 
   fun ref _parse_quantifier(base: _RegexNode): _RegexNode ? =>
-    """quantifier = ("*" / "+" / "?") / range-quantifier"""
+    """
+    quantifier = ("*" / "+" / "?") / range-quantifier
+    """
     if _looking_at('*') then
       _advance(1)
       _Quantified(base, 0, None)
@@ -87,7 +96,9 @@ class _IRegexpParser
     end
 
   fun ref _parse_range_quantifier(base: _RegexNode): _RegexNode ? =>
-    """range-quantifier = "{" QuantExact [ "," [ QuantExact ] ] "}" """
+    """
+    range-quantifier = "{" QuantExact [ "," [ QuantExact ] ] "}"
+    """
     _eat('{')?
     let min_val = _parse_quant_exact()?
     if _looking_at(',') then
@@ -113,7 +124,9 @@ class _IRegexpParser
     end
 
   fun ref _parse_quant_exact(): USize ? =>
-    """QuantExact = 1*(%x30-39)"""
+    """
+    QuantExact = 1*(%x30-39)
+    """
     if not _is_digit() then
       _fail("Expected digit in quantifier")
       error
@@ -132,7 +145,9 @@ class _IRegexpParser
     n
 
   fun ref _parse_atom(): _RegexNode ? =>
-    """atom = NormalChar / charClass / ( "(" i-regexp ")" )"""
+    """
+    atom = NormalChar / charClass / ( "(" i-regexp ")" )
+    """
     if _looking_at('(') then
       _advance(1)
       let inner = _parse_alternation()?
@@ -145,7 +160,9 @@ class _IRegexpParser
     end
 
   fun ref _parse_char_class(): _RegexNode ? =>
-    """charClass = "." / SingleCharEsc / charClassEsc / charClassExpr"""
+    """
+    charClass = "." / SingleCharEsc / charClassEsc / charClassExpr
+    """
     if _looking_at('.') then
       _advance(1)
       _Dot
@@ -159,7 +176,9 @@ class _IRegexpParser
     end
 
   fun ref _parse_escape(): _RegexNode ? =>
-    """Parse \x escape sequences: SingleCharEsc, catEsc, complEsc."""
+    """
+    Parse \x escape sequences: SingleCharEsc, catEsc, complEsc.
+    """
     _eat('\\')?
     if _offset >= _source.size() then
       _fail("Unexpected end of pattern after backslash")
@@ -188,9 +207,11 @@ class _IRegexpParser
       elseif (c == 'd') or (c == 'D') or (c == 'w') or (c == 'W') or
         (c == 's') or (c == 'S')
       then
-        _fail("Multi-character escapes (\\d, \\w, \\s) are not part of I-Regexp" +
-          " (RFC 9485). Use explicit character classes instead" +
-          " (e.g., [0-9] for \\d, \\p{Nd} for Unicode digits).")
+        _fail(
+          "Multi-character escapes (\\d, \\w, \\s) are not part" +
+          " of I-Regexp (RFC 9485). Use explicit character" +
+          " classes instead (e.g., [0-9] for \\d," +
+          " \\p{Nd} for Unicode digits).")
         error
       else
         _fail("Invalid escape sequence: \\" + String.from_array([c]))
@@ -204,7 +225,9 @@ class _IRegexpParser
   fun ref _parse_unicode_property(negate_outer: Bool)
     : (Array[(U32, U32)] val, Bool) ?
   =>
-    """Parse \p{Name} or \P{Name}. negate_outer is true for \P."""
+    """
+    Parse \p{Name} or \P{Name}. negate_outer is true for \P.
+    """
     _advance(1) // consume 'p' or 'P'
     _eat('{')?
     // Read category name (1-2 alphanumeric characters)
@@ -398,7 +421,9 @@ class _IRegexpParser
     end
 
   fun ref _parse_normal_char(): _RegexNode ? =>
-    """Parse a NormalChar (any Unicode codepoint that is not a metacharacter)."""
+    """
+    Parse a NormalChar (any codepoint that is not a metacharacter).
+    """
     if _offset >= _source.size() then
       _fail("Unexpected end of pattern")
       error
@@ -418,17 +443,20 @@ class _IRegexpParser
     end
 
   // --- Character classification helpers ---
-
   fun _is_metachar(c: U8): Bool =>
-    """Check if a byte is an I-Regexp metacharacter."""
+    """
+    Check if a byte is an I-Regexp metacharacter.
+    """
     (c == '(') or (c == ')') or (c == '*') or (c == '+') or
     (c == '.') or (c == '?') or (c == '[') or (c == '\\') or
     (c == ']') or (c == '^') or (c == '{') or (c == '|') or (c == '}')
 
   fun _is_escapable_metachar(c: U8): Bool =>
-    """Check if a byte can appear after backslash as a SingleCharEsc."""
+    """
+    Check if a byte can appear after backslash as a SingleCharEsc.
+    """
     // RFC 9485 SingleCharEsc: ( %x28-2B / "-" / "." / "?" /
-    //   %x5B-5E / "n" / "r" / "t" / %x7B-7D )
+    // %x5B-5E / "n" / "r" / "t" / %x7B-7D )
     // Note: n, r, t are handled separately by caller
     (c == '(') or (c == ')') or (c == '*') or (c == '+') or  // %x28-2B
     (c == '-') or (c == '.') or (c == '?') or                // -, ., ?
@@ -436,19 +464,23 @@ class _IRegexpParser
     (c == '{') or (c == '|') or (c == '}')                   // %x7B-7D
 
   fun _at_atom_start(): Bool =>
-    """Check if current position could be the start of an atom."""
+    """
+    Check if current position could be the start of an atom.
+    """
     if _offset >= _source.size() then return false end
     try
       let c = _source(_offset)?
       // Not at atom start if at: ), |, *, +, ?, {, }, ], or end
       not ((c == ')') or (c == '|') or (c == '*') or (c == '+') or
-           (c == '?') or (c == '{') or (c == '}') or (c == ']'))
+        (c == '?') or (c == '{') or (c == '}') or (c == ']'))
     else
       false
     end
 
   fun _at_quantifier(): Bool =>
-    """Check if current position is a quantifier start."""
+    """
+    Check if current position is a quantifier start.
+    """
     if _offset >= _source.size() then return false end
     try
       let c = _source(_offset)?
@@ -458,11 +490,15 @@ class _IRegexpParser
     end
 
   fun _next_is_bracket(): Bool =>
-    """Check if the next position (after current) is ']'."""
+    """
+    Check if the next position (after current) is ']'.
+    """
     try _source(_offset + 1)? == ']' else false end
 
   fun _negate_ranges(ranges: Array[(U32, U32)] val): Array[(U32, U32)] val =>
-    """Compute the complement of ranges over valid Unicode scalar values."""
+    """
+    Compute the complement of ranges over valid Unicode scalar values.
+    """
     // Valid: 0x0000-0xD7FF, 0xE000-0x10FFFF
     let result = recover iso Array[(U32, U32)] end
     var pos: U32 = 0
@@ -502,7 +538,6 @@ class _IRegexpParser
     consume result
 
   // --- Character primitives ---
-
   fun _looking_at(c: U8): Bool =>
     try _source(_offset)? == c else false end
 

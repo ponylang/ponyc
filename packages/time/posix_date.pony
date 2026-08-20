@@ -23,7 +23,8 @@ class PosixDate
     """
     Create a date from a POSIX time. Negative arguments will be changed to zero.
     """
-    @ponyint_gmtime(this,
+    @ponyint_gmtime(
+      this,
       _negative_to_zero(seconds),
       _negative_to_zero(nanoseconds))
 

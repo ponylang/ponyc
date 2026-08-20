@@ -7,49 +7,56 @@ type _Selector is
   )
 
 class val _NameSelector
-  """Select an object member by key name."""
+  """
+  Select an object member by key name.
+  """
   let _name: String
 
   new val create(name': String) =>
     _name = name'
 
-  fun select(node: JsonValue, out: Array[JsonValue] ref) =>
+  fun select(node: JSONValue, out: Array[JSONValue] ref) =>
     match node
-    | let obj: JsonObject =>
+    | let obj: JSONObject =>
       try out.push(obj(_name)?) end
     end
 
 class val _IndexSelector
-  """Select an array element by index. Supports negative indices."""
+  """
+  Select an array element by index. Supports negative indices.
+  """
   let _index: I64
 
   new val create(index': I64) =>
     _index = index'
 
-  fun select(node: JsonValue, out: Array[JsonValue] ref) =>
+  fun select(node: JSONValue, out: Array[JSONValue] ref) =>
     match node
-    | let arr: JsonArray =>
-      let effective = if _index >= 0 then
-        _index.usize()
-      else
-        let abs_idx = _index.abs().usize()
-        if abs_idx <= arr.size() then
-          arr.size() - abs_idx
+    | let arr: JSONArray =>
+      let effective =
+        if _index >= 0 then
+          _index.usize()
         else
-          return
+          let abs_idx = _index.abs().usize()
+          if abs_idx <= arr.size() then
+            arr.size() - abs_idx
+          else
+            return
+          end
         end
-      end
       try out.push(arr(effective)?) end
     end
 
 primitive _WildcardSelector
-  """Select all children of an object or array."""
+  """
+  Select all children of an object or array.
+  """
 
-  fun select(node: JsonValue, out: Array[JsonValue] ref) =>
+  fun select(node: JSONValue, out: Array[JSONValue] ref) =>
     match node
-    | let obj: JsonObject =>
+    | let obj: JSONObject =>
       for v in obj.values() do out.push(v) end
-    | let arr: JsonArray =>
+    | let arr: JSONArray =>
       for v in arr.values() do out.push(v) end
     end
 
@@ -75,24 +82,42 @@ class val _SliceSelector
     _end = end'
     _step = step'
 
-  fun select(node: JsonValue, out: Array[JsonValue] ref) =>
+  fun select(node: JSONValue, out: Array[JSONValue] ref) =>
     match node
-    | let arr: JsonArray =>
+    | let arr: JSONArray =>
       let len = arr.size().i64()
-      let step = match \exhaustive\ _step | let n: I64 => n else I64(1) end
+      let step =
+        match \exhaustive\ _step
+        | let n: I64 => n
+        else I64(1)
+        end
 
       if step == 0 then return end
 
-      let s = if step >= 0 then
-        match _start | let n: I64 => n else I64(0) end
-      else
-        match \exhaustive\ _start | let n: I64 => n else len - 1 end
-      end
-      let e = if step >= 0 then
-        match _end | let n: I64 => n else len end
-      else
-        match \exhaustive\ _end | let n: I64 => n else (-len) - 1 end
-      end
+      let s =
+        if step >= 0 then
+          match _start
+          | let n: I64 => n
+          else I64(0)
+          end
+        else
+          match \exhaustive\ _start
+          | let n: I64 => n
+          else len - 1
+          end
+        end
+      let e =
+        if step >= 0 then
+          match _end
+          | let n: I64 => n
+          else len
+          end
+        else
+          match \exhaustive\ _end
+          | let n: I64 => n
+          else (-len) - 1
+          end
+        end
 
       let n_start = _normalize(s, len)
       let n_end = _normalize(e, len)
@@ -129,22 +154,23 @@ class val _FilterSelector
 
   Unlike other selectors, `select` takes an additional `root` parameter
   for resolving absolute queries (`$`) within filter expressions. This
-  difference is handled by explicit match dispatch in `_JsonPathEval._select_all`.
+  difference is handled by explicit match dispatch in
+  `_JSONPathEval._select_all`.
   """
   let _expr: _LogicalExpr
 
   new val create(expr': _LogicalExpr) =>
     _expr = expr'
 
-  fun select(node: JsonValue, root: JsonValue, out: Array[JsonValue] ref) =>
+  fun select(node: JSONValue, root: JSONValue, out: Array[JSONValue] ref) =>
     match node
-    | let arr: JsonArray =>
+    | let arr: JSONArray =>
       for v in arr.values() do
         if _FilterEval(_expr, v, root) then
           out.push(v)
         end
       end
-    | let obj: JsonObject =>
+    | let obj: JSONObject =>
       for v in obj.values() do
         if _FilterEval(_expr, v, root) then
           out.push(v)

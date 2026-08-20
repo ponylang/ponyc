@@ -70,11 +70,11 @@ actor _LspTestServer is Channel
     _next_id = id + 1
     try
       var params =
-        JsonObject.update(
+        JSONObject.update(
           "textDocument",
-          JsonObject.update("uri", Uris.from_path(pending.file_path)))
+          JSONObject.update("uri", Uris.from_path(pending.file_path)))
       match pending.checker.lsp_params()
-      | let extra: JsonObject =>
+      | let extra: JSONObject =>
         for (k, v) in extra.pairs() do
           params = params.update(k, v)
         end
@@ -123,7 +123,7 @@ actor _LspTestServer is Channel
       if req.method == Methods.workspace().configuration() then
         try
           let proto = _server as BaseProtocol
-          proto(ResponseMessage(req.id, JsonArray).into_bytes())
+          proto(ResponseMessage(req.id, JSONArray).into_bytes())
           for p in _pending.values() do
             if not _opened.contains(p.file_path) then
               _opened.set(p.file_path)
@@ -159,9 +159,9 @@ actor _LspTestServer is Channel
       (_server as BaseProtocol)(
         Notification(
           Methods.text_document().did_open(),
-          JsonObject.update(
+          JSONObject.update(
             "textDocument",
-            JsonObject
+            JSONObject
               .update("uri", Uris.from_path(file_path))
               .update("languageId", "pony")
               .update("version", I64(1))

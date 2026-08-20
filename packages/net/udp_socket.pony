@@ -339,8 +339,12 @@ actor UDPSocket is AsioEventNotify
         let from = recover NetAddress end
         var count: USize = 0
         match \exhaustive\ _SocketResultDecoder(
-          @pony_os_recvfrom(_event, data.cpointer(), data.space(),
-            from, addressof count))
+          @pony_os_recvfrom(
+            _event,
+            data.cpointer(),
+            data.space(),
+            from,
+            addressof count))
         | _SocketResultOk =>
           data.truncate(count)
           _notify.received(this, consume data, consume from)
@@ -374,7 +378,11 @@ actor UDPSocket is AsioEventNotify
       // the datagram on every platform. A send Error closes the socket.
       var count: USize = 0
       match \exhaustive\ _SocketResultDecoder(
-        @pony_os_sendto(_fd, data.cpointer(), data.size(), to,
+        @pony_os_sendto(
+          _fd,
+          data.cpointer(),
+          data.size(),
+          to,
           addressof count))
       | _SocketResultOk => None
       | _SocketResultRetry => None
@@ -396,8 +404,9 @@ actor UDPSocket is AsioEventNotify
     """
     Inform the notifier that we've closed.
     """
-    // Unsubscribe immediately. On Windows this issues a ProcessSocketNotifications
-    // REMOVE; the backend closes the fd and disposes the event once the REMOVE
+    // Unsubscribe immediately. On Windows this issues a
+    // ProcessSocketNotifications REMOVE; the backend closes the fd and
+    // disposes the event once the REMOVE
     // is seen. The `is_null` guard tolerates a failed listen (issue #5474),
     // which leaves a null event.
     if not _event.is_null() then
@@ -417,7 +426,12 @@ actor UDPSocket is AsioEventNotify
       _fd = -1
     end
 
-  fun ref getsockopt(level: I32, option_name: I32, option_max_size: USize = 4): (U32, Array[U8] iso^) =>
+  fun ref getsockopt(
+    level: I32,
+    option_name: I32,
+    option_max_size: USize = 4)
+    : (U32, Array[U8] iso^)
+  =>
     """
     General wrapper for UDP sockets to the `getsockopt(2)` system call.
 
@@ -496,7 +510,10 @@ actor UDPSocket is AsioEventNotify
       for bs in sb.done().values() do
         sbytes.append(bs)
       end
-      match sock.setsockopt(OSSockOpt.sol_socket(), OSSockOpt.so_rcvbuf(), sbytes)
+      match sock.setsockopt(
+        OSSockOpt.sol_socket(),
+        OSSockOpt.so_rcvbuf(),
+        sbytes)
         | 0 =>
           // System call was successful
         | let errno: U32 =>
@@ -517,7 +534,6 @@ actor UDPSocket is AsioEventNotify
     """
     _OSSocket.setsockopt_u32(_fd, level, option_name, option)
 
-
   fun ref get_so_error(): (U32, U32) =>
     """
     Wrapper for the FFI call `getsockopt(fd, SOL_SOCKET, SO_ERROR, ...)`
@@ -536,21 +552,30 @@ actor UDPSocket is AsioEventNotify
     """
     _OSSocket.get_so_sndbuf(_fd)
 
-
   fun ref set_ip_multicast_loop(loopback: Bool): U32 =>
     """
-    Wrapper for the FFI call `setsockopt(fd, IPPROTO_IP, IP_MULTICAST_LOOP, ...)`
+    Wrapper for the FFI call
+    `setsockopt(fd, IPPROTO_IP, IP_MULTICAST_LOOP, ...)`
     """
     var word: Array[U8] ref =
       _OSSocket.u32_to_bytes4(if loopback then 1 else 0 end)
-    _OSSocket.setsockopt(_fd, OSSockOpt.ipproto_ip(), OSSockOpt.ip_multicast_loop(), word)
+    _OSSocket.setsockopt(
+      _fd,
+      OSSockOpt.ipproto_ip(),
+      OSSockOpt.ip_multicast_loop(),
+      word)
 
   fun ref set_ip_multicast_ttl(ttl: U8): U32 =>
     """
-    Wrapper for the FFI call `setsockopt(fd, IPPROTO_IP, IP_MULTICAST_TTL, ...)`
+    Wrapper for the FFI call
+    `setsockopt(fd, IPPROTO_IP, IP_MULTICAST_TTL, ...)`
     """
     var word: Array[U8] ref = _OSSocket.u32_to_bytes4(ttl.u32())
-    _OSSocket.setsockopt(_fd, OSSockOpt.ipproto_ip(), OSSockOpt.ip_multicast_ttl(), word)
+    _OSSocket.setsockopt(
+      _fd,
+      OSSockOpt.ipproto_ip(),
+      OSSockOpt.ip_multicast_ttl(),
+      word)
 
   fun ref set_so_broadcast(state: Bool): U32 =>
     """
@@ -558,7 +583,11 @@ actor UDPSocket is AsioEventNotify
     """
     var word: Array[U8] ref =
       _OSSocket.u32_to_bytes4(if state then 1 else 0 end)
-    _OSSocket.setsockopt(_fd, OSSockOpt.sol_socket(), OSSockOpt.so_broadcast(), word)
+    _OSSocket.setsockopt(
+      _fd,
+      OSSockOpt.sol_socket(),
+      OSSockOpt.so_broadcast(),
+      word)
 
   fun ref set_so_rcvbuf(bufsize: U32): U32 =>
     """

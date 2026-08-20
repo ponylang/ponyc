@@ -367,13 +367,13 @@ class val _FoldingRangeChecker
   fun lsp_method(): String =>
     Methods.text_document().folding_range()
 
-  fun lsp_params(): (None | JsonObject) =>
+  fun lsp_params(): (None | JSONObject) =>
     None
 
   fun check(res: ResponseMessage val, h: TestHelper): Bool =>
     var ok = true
     try
-      let ranges = res.result as JsonArray
+      let ranges = res.result as JSONArray
       if not h.assert_eq[USize](
         _expected.size(),
         ranges.size(),
@@ -386,8 +386,8 @@ class val _FoldingRangeChecker
         var found = false
         for range_val in ranges.values() do
           try
-            let sl = JsonNav(range_val)("startLine").as_i64()?
-            let el = JsonNav(range_val)("endLine").as_i64()?
+            let sl = JSONNav(range_val)("startLine").as_i64()?
+            let el = JSONNav(range_val)("endLine").as_i64()?
             if (sl == exp_sl) and (el == exp_el) then
               found = true
               break
@@ -406,8 +406,8 @@ class val _FoldingRangeChecker
         h.log("Actual ranges:")
         for r in ranges.values() do
           try
-            let sl = JsonNav(r)("startLine").as_i64()?
-            let el = JsonNav(r)("endLine").as_i64()?
+            let sl = JSONNav(r)("startLine").as_i64()?
+            let el = JSONNav(r)("endLine").as_i64()?
             h.log("  (" + sl.string() + ", " + el.string() + ")")
           end
         end

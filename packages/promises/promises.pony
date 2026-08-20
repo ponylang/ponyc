@@ -82,9 +82,12 @@ primitive Computation
 actor Main
   new create(env: Env) =>
      let promise = Promise[String]
-     promise.next[Array[String] val](recover Computation~string_to_strings() end)
-            .next[Array[USize] val](recover Computation~strings_to_sizes() end)
-            .next[USize](recover Computation~sizes_to_avg() end)
+     promise
+       .next[Array[String] val](
+         recover Computation~string_to_strings() end)
+       .next[Array[USize] val](
+         recover Computation~strings_to_sizes() end)
+       .next[USize](recover Computation~sizes_to_avg() end)
             .next[None](recover Computation~output(env) end)
      promise(" ".join(env.args.slice(1).values()))
 ```

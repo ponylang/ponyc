@@ -118,12 +118,14 @@ class \nodoc\ iso _TestIniParseBlankLinesIgnored is UnitTest
   fun name(): String => "ini/ParseBlankLinesIgnored"
 
   fun apply(h: TestHelper) ? =>
-    let input: Array[String] = [ as String:
-      ""
-      "   "
-      "\t"
-      " \t \t "
-      "k=v" ]
+    let input: Array[String] =
+      [ as String:
+        ""
+        "   "
+        "\t"
+        " \t \t "
+        "k=v"
+      ]
     let map = IniParse(input.values())?
     h.assert_eq[USize](map.size(), 1)
     h.assert_eq[String](map("")?("k")?, "v")
@@ -132,12 +134,14 @@ class \nodoc\ iso _TestIniParseCaseSensitive is UnitTest
   fun name(): String => "ini/ParseCaseSensitive"
 
   fun apply(h: TestHelper) ? =>
-    let input: Array[String] = [ as String:
-      "[Section]"
-      "Key=A"
-      "key=B"
-      "[section]"
-      "k=other" ]
+    let input: Array[String] =
+      [ as String:
+        "[Section]"
+        "Key=A"
+        "key=B"
+        "[section]"
+        "k=other"
+      ]
     let map = IniParse(input.values())?
     h.assert_true(map.contains("Section"))
     h.assert_true(map.contains("section"))
@@ -149,10 +153,12 @@ class \nodoc\ iso _TestIniParseCommentCharsInKeyLiteral is UnitTest
   fun name(): String => "ini/ParseCommentCharsInKeyLiteral"
 
   fun apply(h: TestHelper) ? =>
-    let input: Array[String] = [ as String:
-      "a;b=c"
-      "a#b=d"
-      "a;#=e" ]
+    let input: Array[String] =
+      [ as String:
+        "a;b=c"
+        "a#b=d"
+        "a;#=e"
+      ]
     let map = IniParse(input.values())?
     h.assert_eq[String](map("")?("a;b")?, "c")
     h.assert_eq[String](map("")?("a#b")?, "d")
@@ -165,13 +171,15 @@ class \nodoc\ iso _TestIniParseCommentMarkerAtValueIndexZeroLiteral is UnitTest
     // The marker may be at index 0 with no whitespace between it and `=`,
     // OR there may be whitespace which then gets trimmed away — either way,
     // the marker ends up at index 0 of the trimmed value and is kept literal.
-    let input: Array[String] = [ as String:
-      "k1=;literal"
-      "k2=#literal"
-      "k3=;"
-      "k4=#"
-      "k5=    ;trimmed-then-literal"
-      "k6=\t#trimmed-then-literal" ]
+    let input: Array[String] =
+      [ as String:
+        "k1=;literal"
+        "k2=#literal"
+        "k3=;"
+        "k4=#"
+        "k5=    ;trimmed-then-literal"
+        "k6=\t#trimmed-then-literal"
+      ]
     let map = IniParse(input.values())?
     h.assert_eq[String](map("")?("k1")?, ";literal")
     h.assert_eq[String](map("")?("k2")?, "#literal")
@@ -184,11 +192,13 @@ class \nodoc\ iso _TestIniParseDelimiterSelection is UnitTest
   fun name(): String => "ini/ParseDelimiterSelection"
 
   fun apply(h: TestHelper) ? =>
-    let input: Array[String] = [ as String:
-      "a:b=c"
-      "p:q=r:s"
-      "x:y"
-      "only:colon=here" ]
+    let input: Array[String] =
+      [ as String:
+        "a:b=c"
+        "p:q=r:s"
+        "x:y"
+        "only:colon=here"
+      ]
     let map = IniParse(input.values())?
     h.assert_eq[String](map("")?("a:b")?, "c")
     h.assert_eq[String](map("")?("p:q")?, "r:s")
@@ -199,11 +209,13 @@ class \nodoc\ iso _TestIniParseDuplicateKeyLastWins is UnitTest
   fun name(): String => "ini/ParseDuplicateKeyLastWins"
 
   fun apply(h: TestHelper) ? =>
-    let input: Array[String] = [ as String:
-      "[s]"
-      "k=first"
-      "k=second"
-      "k=third" ]
+    let input: Array[String] =
+      [ as String:
+        "[s]"
+        "k=first"
+        "k=second"
+        "k=third"
+      ]
     let map = IniParse(input.values())?
     h.assert_eq[USize](map("s")?.size(), 1)
     h.assert_eq[String](map("s")?("k")?, "third")
@@ -214,11 +226,13 @@ class \nodoc\ iso _TestIniParseEmptyBrackets is UnitTest
   fun apply(h: TestHelper) ? =>
     // The active section before `[]` is `s1`; after `[]` it must be `""`.
     // If `[]` were silently dropped, `k2` would land in `s1`.
-    let input: Array[String] = [ as String:
-      "[s1]"
-      "k1=v1"
-      "[]"
-      "k2=v2" ]
+    let input: Array[String] =
+      [ as String:
+        "[s1]"
+        "k1=v1"
+        "[]"
+        "k2=v2"
+      ]
     let map = IniParse(input.values())?
     h.assert_eq[String](map("s1")?("k1")?, "v1")
     h.assert_eq[String](map("")?("k2")?, "v2")
@@ -293,9 +307,11 @@ class \nodoc\ iso _TestIniParseFirstClosingBracketWins is UnitTest
   fun name(): String => "ini/ParseFirstClosingBracketWins"
 
   fun apply(h: TestHelper) ? =>
-    let input: Array[String] = [ as String:
-      "[a]b]c"
-      "k=v" ]
+    let input: Array[String] =
+      [ as String:
+        "[a]b]c"
+        "k=v"
+      ]
     let map = IniParse(input.values())?
     h.assert_true(map.contains("a"))
     h.assert_false(map.contains("a]b]c"))
@@ -305,12 +321,14 @@ class \nodoc\ iso _TestIniParseFullLineCommentsSkipped is UnitTest
   fun name(): String => "ini/ParseFullLineCommentsSkipped"
 
   fun apply(h: TestHelper) ? =>
-    let input: Array[String] = [ as String:
-      "; one"
-      "   ; two"
-      "\t# three"
-      "# four"
-      "k=v" ]
+    let input: Array[String] =
+      [ as String:
+        "; one"
+        "   ; two"
+        "\t# three"
+        "# four"
+        "k=v"
+      ]
     let map = IniParse(input.values())?
     h.assert_eq[USize](map.size(), 1)
     h.assert_eq[USize](map("")?.size(), 1)
@@ -320,11 +338,13 @@ class \nodoc\ iso _TestIniParseGlobalSectionForPreHeaderKeys is UnitTest
   fun name(): String => "ini/ParseGlobalSectionForPreHeaderKeys"
 
   fun apply(h: TestHelper) ? =>
-    let input: Array[String] = [ as String:
-      "k1=v1"
-      "k2=v2"
-      "[s]"
-      "k3=v3" ]
+    let input: Array[String] =
+      [ as String:
+        "k1=v1"
+        "k2=v2"
+        "[s]"
+        "k3=v3"
+      ]
     let map = IniParse(input.values())?
     h.assert_eq[String](map("")?("k1")?, "v1")
     h.assert_eq[String](map("")?("k2")?, "v2")
@@ -336,10 +356,12 @@ class \nodoc\ iso _TestIniParseInlineCommentInsideQuotedLooking is UnitTest
   fun name(): String => "ini/ParseInlineCommentInsideQuotedLooking"
 
   fun apply(h: TestHelper) ? =>
-    let input: Array[String] = [ as String:
-      "a=\"x ; y\""
-      "b=\"x ;\""
-      "c=\"x # y\"" ]
+    let input: Array[String] =
+      [ as String:
+        "a=\"x ; y\""
+        "b=\"x ;\""
+        "c=\"x # y\""
+      ]
     let map = IniParse(input.values())?
     h.assert_eq[String](map("")?("a")?, "\"x")
     h.assert_eq[String](map("")?("b")?, "\"x")
@@ -349,11 +371,13 @@ class \nodoc\ iso _TestIniParseInlineCommentRequiresSpaceOrTab is UnitTest
   fun name(): String => "ini/ParseInlineCommentRequiresSpaceOrTab"
 
   fun apply(h: TestHelper) ? =>
-    let input: Array[String] = [ as String:
-      "k1=val ; c"
-      "k2=val\t; c"
-      "k3=val;c"
-      "k4=val#c" ]
+    let input: Array[String] =
+      [ as String:
+        "k1=val ; c"
+        "k2=val\t; c"
+        "k3=val;c"
+        "k4=val#c"
+      ]
     let map = IniParse(input.values())?
     h.assert_eq[String](map("")?("k1")?, "val")
     h.assert_eq[String](map("")?("k2")?, "val")
@@ -366,7 +390,7 @@ class \nodoc\ iso _TestIniParseInternalKeyAndValueWhitespacePreserved is
 
   fun apply(h: TestHelper) ? =>
     let input: Array[String] =
-      [as String: "key with spaces = value with spaces"]
+      [ as String: "key with spaces = value with spaces"]
     let map = IniParse(input.values())?
     h.assert_eq[String](map("")?("key with spaces")?, "value with spaces")
 
@@ -374,9 +398,11 @@ class \nodoc\ iso _TestIniParseKeyAndValueIndividuallyStripped is UnitTest
   fun name(): String => "ini/ParseKeyAndValueIndividuallyStripped"
 
   fun apply(h: TestHelper) ? =>
-    let input: Array[String] = [ as String:
-      "   key   =   value   "
-      "k\t=\tv" ]
+    let input: Array[String] =
+      [ as String:
+        "   key   =   value   "
+        "k\t=\tv"
+      ]
     let map = IniParse(input.values())?
     h.assert_eq[String](map("")?("key")?, "value")
     h.assert_eq[String](map("")?("k")?, "v")
@@ -385,9 +411,11 @@ class \nodoc\ iso _TestIniParseLooksLikeSectionButIsnt is UnitTest
   fun name(): String => "ini/ParseLooksLikeSectionButIsnt"
 
   fun apply(h: TestHelper) ? =>
-    let input: Array[String] = [ as String:
-      "]foo=bar"
-      "foo[bar]=baz" ]
+    let input: Array[String] =
+      [ as String:
+        "]foo=bar"
+        "foo[bar]=baz"
+      ]
     let map = IniParse(input.values())?
     h.assert_eq[String](map("")?("]foo")?, "bar")
     h.assert_eq[String](map("")?("foo[bar]")?, "baz")
@@ -396,9 +424,11 @@ class \nodoc\ iso _TestIniParseNestedSectionNotInterpreted is UnitTest
   fun name(): String => "ini/ParseNestedSectionNotInterpreted"
 
   fun apply(h: TestHelper) ? =>
-    let input: Array[String] = [ as String:
-      "[a.b]"
-      "k=v" ]
+    let input: Array[String] =
+      [ as String:
+        "[a.b]"
+        "k=v"
+      ]
     let map = IniParse(input.values())?
     h.assert_true(map.contains("a.b"))
     h.assert_false(map.contains("a"))
@@ -408,10 +438,12 @@ class \nodoc\ iso _TestIniParseQuoteCharsLiteral is UnitTest
   fun name(): String => "ini/ParseQuoteCharsLiteral"
 
   fun apply(h: TestHelper) ? =>
-    let input: Array[String] = [ as String:
-      "a=\"hello\""
-      "b='world'"
-      "c=a\\b\\c" ]
+    let input: Array[String] =
+      [ as String:
+        "a=\"hello\""
+        "b='world'"
+        "c=a\\b\\c"
+      ]
     let map = IniParse(input.values())?
     h.assert_eq[String](map("")?("a")?, "\"hello\"")
     h.assert_eq[String](map("")?("b")?, "'world'")
@@ -455,13 +487,15 @@ class \nodoc\ iso _TestIniParseRepeatedSectionMerges is UnitTest
   fun name(): String => "ini/ParseRepeatedSectionMerges"
 
   fun apply(h: TestHelper) ? =>
-    let input: Array[String] = [ as String:
-      "[s]"
-      "k1=v1"
-      "[other]"
-      "x=y"
-      "[s]"
-      "k2=v2" ]
+    let input: Array[String] =
+      [ as String:
+        "[s]"
+        "k1=v1"
+        "[other]"
+        "x=y"
+        "[s]"
+        "k2=v2"
+      ]
     let map = IniParse(input.values())?
     h.assert_eq[USize](map("s")?.size(), 2)
     h.assert_eq[String](map("s")?("k1")?, "v1")
@@ -480,9 +514,11 @@ class \nodoc\ iso _TestIniParseSectionHeaderBeatsKv is UnitTest
   fun name(): String => "ini/ParseSectionHeaderBeatsKv"
 
   fun apply(h: TestHelper) ? =>
-    let input: Array[String] = [ as String:
-      "[a=b]"
-      "k=v" ]
+    let input: Array[String] =
+      [ as String:
+        "[a=b]"
+        "k=v"
+      ]
     let map = IniParse(input.values())?
     h.assert_true(map.contains("a=b"))
     h.assert_eq[String](map("a=b")?("k")?, "v")
@@ -495,17 +531,19 @@ class \nodoc\ iso _TestIniParseSectionNameWhitespaceHandling is UnitTest
   fun name(): String => "ini/ParseSectionNameWhitespaceHandling"
 
   fun apply(h: TestHelper) ? =>
-    let input: Array[String] = [ as String:
-      "[ name ]"
-      "k1=v1"
-      "[\ttabbed\t]"
-      "k2=v2"
-      "[a b]"
-      "k3=v3"
-      "[   ]"
-      "k4=v4"
-      "[ [a ]"
-      "k5=v5" ]
+    let input: Array[String] =
+      [ as String:
+        "[ name ]"
+        "k1=v1"
+        "[\ttabbed\t]"
+        "k2=v2"
+        "[a b]"
+        "k3=v3"
+        "[   ]"
+        "k4=v4"
+        "[ [a ]"
+        "k5=v5"
+      ]
     let map = IniParse(input.values())?
     // Leading/trailing spaces and tabs are stripped.
     h.assert_true(map.contains("name"))
@@ -528,9 +566,11 @@ class \nodoc\ iso _TestIniParseSectionNameWithDelimitersAndCommentChars is
   fun name(): String => "ini/ParseSectionNameWithDelimitersAndCommentChars"
 
   fun apply(h: TestHelper) ? =>
-    let input: Array[String] = [ as String:
-      "[a=b:c;d#e]"
-      "k=v" ]
+    let input: Array[String] =
+      [ as String:
+        "[a=b:c;d#e]"
+        "k=v"
+      ]
     let map = IniParse(input.values())?
     h.assert_true(map.contains("a=b:c;d#e"))
     h.assert_eq[String](map("a=b:c;d#e")?("k")?, "v")
@@ -539,11 +579,13 @@ class \nodoc\ iso _TestIniParseSemicolonShadowsLaterComment is UnitTest
   fun name(): String => "ini/ParseSemicolonShadowsLaterComment"
 
   fun apply(h: TestHelper) ? =>
-    let input: Array[String] = [ as String:
-      "k1=a;b ; c"
-      "k2=a;b # c"
-      "k3=a ;b # c"
-      "k4=a # b" ]
+    let input: Array[String] =
+      [ as String:
+        "k1=a;b ; c"
+        "k2=a;b # c"
+        "k3=a ;b # c"
+        "k4=a # b"
+      ]
     let map = IniParse(input.values())?
     h.assert_eq[String](map("")?("k1")?, "a;b ; c")
     h.assert_eq[String](map("")?("k2")?, "a;b # c")
@@ -622,9 +664,11 @@ class \nodoc\ iso _TestIniParseTrailingWhitespaceBeforeCommentStripped is
   fun name(): String => "ini/ParseTrailingWhitespaceBeforeCommentStripped"
 
   fun apply(h: TestHelper) ? =>
-    let input: Array[String] = [ as String:
-      "k1=val   ;c"
-      "k2=val\t\t;c" ]
+    let input: Array[String] =
+      [ as String:
+        "k1=val   ;c"
+        "k2=val\t\t;c"
+      ]
     let map = IniParse(input.values())?
     h.assert_eq[String](map("")?("k1")?, "val")
     h.assert_eq[String](map("")?("k2")?, "val")
@@ -633,9 +677,11 @@ class \nodoc\ iso _TestIniParseUtf8Passthrough is UnitTest
   fun name(): String => "ini/ParseUtf8Passthrough"
 
   fun apply(h: TestHelper) ? =>
-    let input: Array[String] = [ as String:
-      "[café]"
-      "clé=valeur" ]
+    let input: Array[String] =
+      [ as String:
+        "[café]"
+        "clé=valeur"
+      ]
     let map = IniParse(input.values())?
     h.assert_true(map.contains("café"))
     h.assert_eq[String](map("café")?("clé")?, "valeur")
@@ -671,9 +717,13 @@ class \nodoc\ iso _TestIniPropertyCommentLineRecognition is UnitTest
       let line: String val = consume prefix
       let input: Array[String] = [as String: line; "k=v"]
       let map = IniParse(input.values())?
-      h.assert_eq[USize](map.size(), 1,
+      h.assert_eq[USize](
+        map.size(),
+        1,
         "expected only the control entry; line=" + line)
-      h.assert_eq[String](map("")?("k")?, "v",
+      h.assert_eq[String](
+        map("")?("k")?,
+        "v",
         "control entry missing; line=" + line)
       iter = iter + 1
     end
@@ -703,7 +753,9 @@ class \nodoc\ iso _TestIniPropertyLineLevelTrimInvariance is UnitTest
       line.append(_ws(rand, 4))
       let final_line: String val = consume line
       let map = IniParse([as String: final_line].values())?
-      h.assert_eq[String](map("")?("key")?, "value",
+      h.assert_eq[String](
+        map("")?("key")?,
+        "value",
         "trim invariance failed; line=" + final_line)
       iter = iter + 1
     end
@@ -789,12 +841,14 @@ class \nodoc\ iso _TestIniStreamingCallOrderPreservesInputOrder is UnitTest
 
   fun apply(h: TestHelper) ? =>
     let n = _RecordingNotify
-    let input: Array[String] = [as String:
-      "a=1"
-      "[s1]"
-      "b=2"
-      "[s2]"
-      "c=3" ]
+    let input: Array[String] =
+      [ as String:
+        "a=1"
+        "[s1]"
+        "b=2"
+        "[s2]"
+        "c=3"
+      ]
     let ok = Ini(input.values(), n)
     h.assert_true(ok)
     h.assert_eq[USize](n.sections.size(), 2)
@@ -823,11 +877,13 @@ class \nodoc\ iso _TestIniStreamingCaseSensitive is UnitTest
 
   fun apply(h: TestHelper) ? =>
     let n = _RecordingNotify
-    let input: Array[String] = [as String:
-      "[Section]"
-      "Key=A"
-      "[section]"
-      "key=B" ]
+    let input: Array[String] =
+      [ as String:
+        "[Section]"
+        "Key=A"
+        "[section]"
+        "key=B"
+      ]
     let ok = Ini(input.values(), n)
     h.assert_true(ok)
     h.assert_eq[USize](n.sections.size(), 2)
@@ -850,12 +906,13 @@ class \nodoc\ iso _TestIniStreamingDefaultErrorsContinuesParsing is UnitTest
 
   fun apply(h: TestHelper) =>
     let recorder: Array[(String, String, String)] = recorder.create()
-    let n = object ref is IniNotify
-      let r: Array[(String, String, String)] = recorder
-      fun ref apply(section: String, key: String, value: String): Bool =>
-        r.push((section, key, value))
-        true
-    end
+    let n =
+      object ref is IniNotify
+        let r: Array[(String, String, String)] = recorder
+        fun ref apply(section: String, key: String, value: String): Bool =>
+          r.push((section, key, value))
+          true
+      end
     let input: Array[String] = [as String: "abc"; "[s]"; "k=v"]
     let ok = Ini(input.values(), n)
     h.assert_false(ok)
@@ -874,11 +931,13 @@ class \nodoc\ iso _TestIniStreamingDuplicateKeyFiresAll is UnitTest
 
   fun apply(h: TestHelper) ? =>
     let n = _RecordingNotify
-    let input: Array[String] = [as String:
-      "[s]"
-      "k=first"
-      "k=second"
-      "k=third" ]
+    let input: Array[String] =
+      [ as String:
+        "[s]"
+        "k=first"
+        "k=second"
+        "k=third"
+      ]
     let ok = Ini(input.values(), n)
     h.assert_true(ok)
     h.assert_eq[USize](n.kvs.size(), 3)
@@ -907,10 +966,12 @@ class \nodoc\ iso _TestIniStreamingErrorsContinueButFinalFalse is UnitTest
   fun apply(h: TestHelper) ? =>
     let n = _RecordingNotify
     n.errors_returns = true
-    let input: Array[String] = [as String:
-      "[broken"
-      "good=ok"
-      "alsoBad" ]
+    let input: Array[String] =
+      [ as String:
+        "[broken"
+        "good=ok"
+        "alsoBad"
+      ]
     let ok = Ini(input.values(), n)
     h.assert_false(ok)
     h.assert_eq[USize](n.errs.size(), 2)
@@ -946,11 +1007,13 @@ class \nodoc\ iso _TestIniStreamingIncompleteSectionDoesNotChangeCurrentSection
   fun apply(h: TestHelper) ? =>
     let n = _RecordingNotify
     n.errors_returns = true
-    let input: Array[String] = [as String:
-      "[good]"
-      "k1=v1"
-      "[bad"
-      "k2=v2" ]
+    let input: Array[String] =
+      [ as String:
+        "[good]"
+        "k1=v1"
+        "[bad"
+        "k2=v2"
+      ]
     let ok = Ini(input.values(), n)
     h.assert_false(ok)
     h.assert_eq[USize](n.kvs.size(), 2)
@@ -965,12 +1028,14 @@ class \nodoc\ iso _TestIniStreamingLineNumbersOneBased is UnitTest
   fun apply(h: TestHelper) ? =>
     let n = _RecordingNotify
     n.errors_returns = true
-    let input: Array[String] = [as String:
-      ""
-      "; comment"
-      "[bad"
-      ""
-      "alsoBad" ]
+    let input: Array[String] =
+      [ as String:
+        ""
+        "; comment"
+        "[bad"
+        ""
+        "alsoBad"
+      ]
     let ok = Ini(input.values(), n)
     h.assert_false(ok)
     h.assert_eq[USize](n.errs.size(), 2)
@@ -1021,21 +1086,23 @@ class \nodoc\ iso _TestIniStreamingNoDelimiterReports is UnitTest
 class \nodoc\ iso _TestIniStreamingSectionNameWhitespaceHandling is UnitTest
   // The streaming parser dispatches the stripped section name to both
   // `add_section` and `apply`. Mirrors the dimensions covered by the
-  // parse-side `_TestIniParseSectionNameWhitespaceHandling` so both code paths get
-  // parallel rigor.
+  // parse-side `_TestIniParseSectionNameWhitespaceHandling` so both code
+  // paths get parallel rigor.
   fun name(): String => "ini/StreamingSectionNameWhitespaceHandling"
 
   fun apply(h: TestHelper) ? =>
     let n = _RecordingNotify
-    let input: Array[String] = [as String:
-      "[ name ]"
-      "k1=v1"
-      "[\ttabbed\t]"
-      "k2=v2"
-      "[a b]"
-      "k3=v3"
-      "[   ]"
-      "k4=v4" ]
+    let input: Array[String] =
+      [ as String:
+        "[ name ]"
+        "k1=v1"
+        "[\ttabbed\t]"
+        "k2=v2"
+        "[a b]"
+        "k3=v3"
+        "[   ]"
+        "k4=v4"
+      ]
     let ok = Ini(input.values(), n)
     h.assert_true(ok)
     h.assert_eq[USize](n.sections.size(), 4)

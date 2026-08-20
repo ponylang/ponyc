@@ -12,8 +12,13 @@ primitive _Unreachable
   """
 
   fun apply(loc: SourceLoc = __loc) =>
-    @fprintf(@pony_os_stderr(),
-      "Unreachable code reached at %s:%lu in %s.%s\nPlease file an issue at https://github.com/ponylang/ponyc/issues\n".cstring(),
-      loc.file().cstring(), loc.line(), loc.type_name().cstring(),
+    @fprintf(
+      @pony_os_stderr(),
+      ("Unreachable code reached at %s:%lu in %s.%s\n" +
+        "Please file an issue at " +
+        "https://github.com/ponylang/ponyc/issues\n").cstring(),
+      loc.file().cstring(),
+      loc.line(),
+      loc.type_name().cstring(),
       loc.method_name().cstring())
     @exit(1)

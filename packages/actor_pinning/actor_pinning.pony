@@ -1,23 +1,25 @@
 """
 # Actor Pinning Package
 
-The Actor Pinning package allows Pony programmers to pin actors to a dedicated 
+The Actor Pinning package allows Pony programmers to pin actors to a dedicated
 scheduler thread. This can be required/used for interfacing with C libraries
-that rely on thread local storage. A common example of this is graphics/windowing
-libraries.
+that rely on thread local storage. A common example of this is
+graphics/windowing libraries.
 
 The way it works is that an actor can request that it be pinned (which may or
 may not happen immediately) and then it must wait and check to confirm that the
-pinning was successfully applied (prior to running any workload that required the
-actor to be pinned) after which all subsequent behaviors on that actor will run
+pinning was successfully applied (prior to running any workload that
+required the actor to be pinned) after which all subsequent behaviors
+on that actor will run
 on the same scheduler thread until the actor is destroyed or the actor requests
 to be unpinned.
 
 ## Example program
 
 ```pony
-// Here we have the Main actor that upon construction requests a PinUnpinActorAuth
-// token from AmbientAuth and then requests that it be pinned. It then recursively
+// Here we have the Main actor that upon construction requests a
+// PinUnpinActorAuth token from AmbientAuth and then requests that
+// it be pinned. It then recursively
 // calls the `check_pinned` behavior until the runtime reports that it has
 // successfully been pinned after which it starts `do_stuff` to do whatever
 // work it needs to do that requires it to be pinned. Once it has completed all
@@ -67,6 +69,10 @@ use @pony_actor_unset_pinned[None]()
 use @pony_scheduler_index[I32]()
 
 primitive ActorPinning
+  """
+  Provides functions to pin and unpin actors to a dedicated scheduler
+  thread.
+  """
   fun request_pin(auth: PinUnpinActorAuth) =>
     @pony_actor_set_pinned()
 

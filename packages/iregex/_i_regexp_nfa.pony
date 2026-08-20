@@ -1,15 +1,24 @@
 // NFA state kind primitives
 primitive _NFASplit
-  """Epsilon branch: follow both out1 and out2."""
+  """
+  Epsilon branch: follow both out1 and out2.
+  """
+
 primitive _NFACharRange
-  """Match codepoint in sorted ranges, then follow out1."""
+  """
+  Match codepoint in sorted ranges, then follow out1.
+  """
+
 primitive _NFADot
   """
   Match any codepoint except newline (U+000A) and carriage return (U+000D),
   then follow out1. Per XSD regex semantics (RFC 9485).
   """
+
 primitive _NFAMatch
-  """Accepting state."""
+  """
+  Accepting state.
+  """
 
 type _NFAStateKind is (_NFASplit | _NFACharRange | _NFADot | _NFAMatch)
 
@@ -135,7 +144,9 @@ class _NFABuildCtx
     _kinds.size()
 
   fun ref build_node(node: _RegexNode): _NFAFragment ? =>
-    """Compile an AST node to an NFA fragment via Thompson construction."""
+    """
+    Compile an AST node to an NFA fragment via Thompson construction.
+    """
     if _kinds.size() > _max_states then error end
     match \exhaustive\ node
     | let lit: _Literal =>
@@ -170,7 +181,9 @@ class _NFABuildCtx
     end
 
   fun ref _build_quantified(q: _Quantified): _NFAFragment ? =>
-    """Build NFA for quantified expression."""
+    """
+    Build NFA for quantified expression.
+    """
     let min_count = q.min_count
     match \exhaustive\ q.max_count
     | None =>
@@ -266,7 +279,9 @@ class _NFABuildCtx
     result
 
   fun ref to_nfa(start: USize): _NFA =>
-    """Freeze mutable ref arrays to val by copying into iso arrays."""
+    """
+    Freeze mutable ref arrays to val by copying into iso arrays.
+    """
     let sz = _kinds.size()
     let k = recover iso Array[_NFAStateKind](sz) end
     let o1 = recover iso Array[USize](sz) end
@@ -286,11 +301,18 @@ class _NFABuildCtx
       end
       i = i + 1
     end
-    _NFA._create(consume k, consume o1, consume o2, consume r, consume n,
+    _NFA._create(
+      consume k,
+      consume o1,
+      consume o2,
+      consume r,
+      consume n,
       start)
 
 primitive _NFABuilder
-  """Build an NFA from a _RegexNode AST."""
+  """
+  Build an NFA from a _RegexNode AST.
+  """
 
   fun build(ast: _RegexNode): _NFA ? =>
     let ctx: _NFABuildCtx ref = _NFABuildCtx

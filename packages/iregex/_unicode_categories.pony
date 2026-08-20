@@ -4250,7 +4250,9 @@ primitive _UnicodeCategoryCo
     ]
 
 primitive _RangeOps
-  """Utilities for working with sorted (start, end) codepoint range arrays."""
+  """
+  Utilities for working with sorted (start, end) codepoint range arrays.
+  """
 
   fun merge(input: Array[(U32, U32)] val): Array[(U32, U32)] val =>
     """
@@ -4308,13 +4310,16 @@ primitive _RangeOps
     b: Array[(U32, U32)] val)
     : Array[(U32, U32)] val
   =>
-    """Merge two sorted range arrays into one sorted, merged array."""
-    let combined: Array[(U32, U32)] val = recover val
-      let c = Array[(U32, U32)](a.size() + b.size())
-      for r in a.values() do c.push(r) end
-      for r in b.values() do c.push(r) end
-      c
-    end
+    """
+    Merge two sorted range arrays into one sorted, merged array.
+    """
+    let combined: Array[(U32, U32)] val =
+      recover val
+        let c = Array[(U32, U32)](a.size() + b.size())
+        for r in a.values() do c.push(r) end
+        for r in b.values() do c.push(r) end
+        c
+      end
     merge(combined)
 
 primitive _UnicodeCategories

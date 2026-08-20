@@ -55,7 +55,7 @@ class WorkspaceRouter
     """
     let count = workspaces.size()
     if count == 0 then
-      channel.send(ResponseMessage.create(request_id, JsonArray))
+      channel.send(ResponseMessage.create(request_id, JSONArray))
     else
       let agg = WorkspaceSymbolAggregator(channel, request_id, count)
       for mgr in workspaces.values() do

@@ -47,7 +47,6 @@ actor _ExclusiveGroup is _Group
       end
     end
 
-
 actor _SimultaneousGroup is _Group
   """
   Test group in which all tests can run concurrently.

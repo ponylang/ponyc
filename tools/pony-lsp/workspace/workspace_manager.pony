@@ -115,13 +115,13 @@ actor WorkspaceManager
       this._channel.send(
         Notification(
           Methods.progress(),
-          JsonObject
+          JSONObject
             .update(
               "token",
               this._compilation_token(program_dir))
             .update(
               "value",
-              JsonObject
+              JSONObject
                 .update("kind", "end")
                 .update("message", message)
             )
@@ -140,14 +140,14 @@ actor WorkspaceManager
     if run > this._compile_run then
       this._compile_run = run
       // group errors by file
-      let errors_by_file = Map[String, pc.Vec[JsonValue]].create(4)
+      let errors_by_file = Map[String, pc.Vec[JSONValue]].create(4)
 
       if this._client.supports_publish_diagnostics() then
         // pre-fill with empty list of errors for
         // all files for which we have errors now
         for pkg in this._packages.values() do
           for doc in pkg.document_paths() do
-            errors_by_file(doc) = pc.Vec[JsonValue]
+            errors_by_file(doc) = pc.Vec[JSONValue]
           end
         end
       end
@@ -230,8 +230,8 @@ actor WorkspaceManager
               // collect errors by file
               errors_by_file.upsert(
                 err_file,
-                pc.Vec[JsonValue].push(diagnostic.to_json()),
-                {(current: pc.Vec[JsonValue], provided: pc.Vec[JsonValue]) =>
+                pc.Vec[JSONValue].push(diagnostic.to_json()),
+                {(current: pc.Vec[JSONValue], provided: pc.Vec[JSONValue]) =>
                   current.concat(provided.values())
                 }
               )
@@ -246,13 +246,13 @@ actor WorkspaceManager
       if this._client.supports_publish_diagnostics() then
         for file in errors_by_file.keys() do
           try
-            let file_errors: pc.Vec[JsonValue] = errors_by_file(file)?
+            let file_errors: pc.Vec[JSONValue] = errors_by_file(file)?
             let msg =
               Notification.create(
                 Methods.text_document().publish_diagnostics(),
-                JsonObject
+                JSONObject
                   .update("uri", Uris.from_path(file))
-                  .update("diagnostics", JsonArray(consume file_errors)))
+                  .update("diagnostics", JSONArray(consume file_errors)))
             this._channel.send(msg)
           end
         end
@@ -261,16 +261,16 @@ actor WorkspaceManager
         let num_global_errs = this._global_errors.size()
         if (num_global_errs > 0) then
           let json_global_diagnostics =
-            pc.Vec[JsonValue].concat(
+            pc.Vec[JSONValue].concat(
               Iter[Diagnostic](
                 this._global_errors.values())
-                  .map[JsonValue]({(diagnostic) => diagnostic.to_json() }))
+                  .map[JSONValue]({(diagnostic) => diagnostic.to_json() }))
           let global_notifications =
             Notification.create(
               Methods.text_document().publish_diagnostics(),
-              JsonObject
+              JSONObject
                 .update("uri", "global")
-                .update("diagnostics", JsonArray(json_global_diagnostics)))
+                .update("diagnostics", JSONArray(json_global_diagnostics)))
           this._channel.send(global_notifications)
         end
       elseif this._client.supports_workspace_diagnostic_refresh() then
@@ -318,11 +318,11 @@ actor WorkspaceManager
       let progress_begin_notification =
         Notification(
           Methods.progress(),
-          JsonObject
+          JSONObject
             .update("token", token)
             .update(
               "value",
-              JsonObject
+              JSONObject
                 .update("kind", "begin")
                 .update(
                   "title",
@@ -333,7 +333,7 @@ actor WorkspaceManager
         )
       this._request_sender.send_request(
         Methods.window().work_done_progress().create(),
-        JsonObject.update("token", token),
+        JSONObject.update("token", token),
         object is ResponseNotify
           let _chan: Channel = chan
           be notify(method: String val, r: ResponseMessage val) =>
@@ -422,7 +422,7 @@ actor WorkspaceManager
         // put the hash of the doc at saving time
         let text_content_hash =
           try
-            (JsonPathParser.compile("$.text")?
+            (JSONPathParser.compile("$.text")?
               .query_one(notification.params) as String).hash()
           end
         this._awaiting_compilation_for.insert(document_path, text_content_hash)
@@ -526,7 +526,7 @@ actor WorkspaceManager
     Sends error response and returns None if invalid.
     """
     try
-      let nav = JsonNav(request.params)("position")
+      let nav = JSONNav(request.params)("position")
       let l = nav("line").as_i64()? // 0-based
       let c = nav("character").as_i64()? // 0-based
       (l, c)
@@ -628,11 +628,11 @@ actor WorkspaceManager
       None
     end
 
-  fun _build_hover_response(hover_text: String, ast: AST box): JsonValue =>
+  fun _build_hover_response(hover_text: String, ast: AST box): JSONValue =>
     """
     Build the LSP Hover response JSON from hover text and AST node.
     """
-    let hover_contents = JsonObject
+    let hover_contents = JSONObject
       .update("kind", "markdown")
       .update("value", hover_text)
 
@@ -645,7 +645,7 @@ actor WorkspaceManager
         LspPosition.from_ast_pos(start_pos),
         LspPosition.from_ast_pos_end(end_pos))
 
-    JsonObject
+    JSONObject
       .update("contents", hover_contents)
       .update("range", hover_range.to_json())
 
@@ -663,11 +663,11 @@ actor WorkspaceManager
     match _find_node_and_module(document_path, line, column)
     | (let node: AST box, let module: Module val) =>
       let highlights = DocumentHighlights.collect(node, module)
-      var json_arr = JsonArray
+      var json_arr = JSONArray
       for (range, kind) in highlights.values() do
         json_arr =
           json_arr.push(
-            JsonObject
+            JSONObject
               .update("range", range.to_json())
               .update("kind", kind))
       end
@@ -688,7 +688,7 @@ actor WorkspaceManager
       end
     let include_declaration: Bool =
       try
-        JsonNav(request.params)("context")("includeDeclaration").as_bool()?
+        JSONNav(request.params)("context")("includeDeclaration").as_bool()?
       else
         true
       end
@@ -697,7 +697,7 @@ actor WorkspaceManager
     | (let node: AST box, _) =>
       let locations =
         References.collect(node, this._packages, include_declaration)
-      var json_arr = JsonArray
+      var json_arr = JSONArray
       for loc in locations.values() do
         json_arr = json_arr.push(loc.to_json())
       end
@@ -781,7 +781,7 @@ actor WorkspaceManager
       end
     let new_name: String val =
       try
-        JsonNav(request.params)("newName").as_string()?
+        JSONNav(request.params)("newName").as_string()?
       else
         this._channel.send(
           ResponseMessage.create(
@@ -810,7 +810,7 @@ actor WorkspaceManager
         this._packages,
         workspace.folder.path,
         new_name)
-      | let workspace_edit: JsonObject val =>
+      | let workspace_edit: JSONObject val =>
         this._channel.send(ResponseMessage(request.id, workspace_edit))
       | let err_msg: String val =>
         this._channel.send(
@@ -837,7 +837,7 @@ actor WorkspaceManager
     match \exhaustive\ _find_node_and_module(document_path, line, column)
     | (let ast: AST box, _) =>
       this._channel.log(ast.debug())
-      var json_arr = JsonArray
+      var json_arr = JSONArray
       for ast_definition in ast.definitions().values() do
         match \exhaustive\ _node_location(ast_definition)
         | let loc: LspLocation val =>
@@ -871,7 +871,7 @@ actor WorkspaceManager
     match \exhaustive\ _find_node_and_module(document_path, line, column)
     | (let ast: AST box, _) =>
       this._channel.log(ast.debug())
-      var json_arr = JsonArray
+      var json_arr = JSONArray
       match ast.ast_type()
       | let type_ast: AST =>
         for type_def in type_ast.definitions().values() do
@@ -905,7 +905,7 @@ actor WorkspaceManager
         match \exhaustive\ pkg_state.get_document(document_path)
         | let doc: DocumentState =>
           let symbols = doc.document_symbols()
-          var json_arr = JsonArray
+          var json_arr = JSONArray
           for symbol in symbols.values() do
             json_arr = json_arr.push(symbol.to_json())
           end
@@ -935,7 +935,7 @@ actor WorkspaceManager
     """
     this._channel.log("Handling workspace/symbol: '" + query + "'")
     let query_lower: String val = query.lower()
-    var results = JsonArray
+    var results = JSONArray
     for pkg_state in this._packages.values() do
       for doc_state in pkg_state.document_states() do
         let file_uri = Uris.from_path(doc_state.path)
@@ -944,12 +944,12 @@ actor WorkspaceManager
           if _symbol_matches(symbol.name, query_lower) then
             results =
               results.push(
-                JsonObject
+                JSONObject
                   .update("name", symbol.name)
                   .update("kind", symbol.kind)
                   .update(
                     "location",
-                    JsonObject
+                    JSONObject
                       .update("uri", file_uri)
                       .update("range", symbol.range.to_json())))
           end
@@ -957,13 +957,13 @@ actor WorkspaceManager
             if _symbol_matches(child.name, query_lower) then
               results =
                 results.push(
-                  JsonObject
+                  JSONObject
                     .update("name", child.name)
                     .update("kind", child.kind)
                     .update("containerName", symbol.name)
                     .update(
                       "location",
-                      JsonObject
+                      JSONObject
                         .update("uri", file_uri)
                         .update("range", child.range.to_json())))
             end
@@ -1014,7 +1014,7 @@ actor WorkspaceManager
     """
     this._channel.log("Handling textDocument/diagnostic")
     let document_path = Uris.to_path(document_uri)
-    var diagnostics = pc.Vec[JsonValue]
+    var diagnostics = pc.Vec[JSONValue]
     try
       let package: FilePath = this._find_workspace_package(document_path)?
       match \exhaustive\ this._get_package(package)
@@ -1027,7 +1027,7 @@ actor WorkspaceManager
                 .concat(
                   Iter[Diagnostic]((doc.diagnostics() as Array[Diagnostic] box)
                     .values())
-                .map[JsonValue]({(diagnostic) => diagnostic.to_json() }))
+                .map[JSONValue]({(diagnostic) => diagnostic.to_json() }))
           end
         | None =>
           this._channel.log(
@@ -1047,10 +1047,10 @@ actor WorkspaceManager
     this._channel.send(
       ResponseMessage.create(
         request.id,
-        JsonObject
+        JSONObject
           .update("kind", "full")
           .update("resultId", this._compile_run.string())
-          .update("items", JsonArray(diagnostics))
+          .update("items", JSONArray(diagnostics))
       )
     )
 
@@ -1071,16 +1071,16 @@ actor WorkspaceManager
             let range: (None | (I64, I64, I64, I64)) =
               try
                 let p = request.params
-                let sl = JsonNav(p)("range")("start")("line").as_i64()?
-                let sc = JsonNav(p)("range")("start")("character").as_i64()?
-                let el = JsonNav(p)("range")("end")("line").as_i64()?
-                let ec = JsonNav(p)("range")("end")("character").as_i64()?
+                let sl = JSONNav(p)("range")("start")("line").as_i64()?
+                let sc = JSONNav(p)("range")("start")("character").as_i64()?
+                let el = JSONNav(p)("range")("end")("line").as_i64()?
+                let ec = JSONNav(p)("range")("end")("character").as_i64()?
                 (sl, sc, el, ec)
               else
                 None
               end
             let hints = InlayHints.collect(module, range)
-            var json_arr = JsonArray
+            var json_arr = JSONArray
             for hint in hints.values() do
               json_arr = json_arr.push(hint)
             end
@@ -1118,7 +1118,7 @@ actor WorkspaceManager
           match \exhaustive\ doc.module()
           | let module: Module val =>
             let fold_ranges = FoldingRanges.collect(module)
-            var json_arr = JsonArray
+            var json_arr = JSONArray
             for range in fold_ranges.values() do
               json_arr = json_arr.push(range)
             end
@@ -1147,7 +1147,7 @@ actor WorkspaceManager
 
     Parses the `positions` array from the request params. For each position,
     finds the AST node under the cursor and builds a SelectionRange linked list
-    from innermost to outermost. The response is a JsonArray parallel to the
+    from innermost to outermost. The response is a JSONArray parallel to the
     request positions array; entries are null when no node is found at a
     position. Returns null if the request has no valid `positions` array.
     """
@@ -1156,14 +1156,14 @@ actor WorkspaceManager
 
     // Each position maps to one response entry (null when no node found), so
     // the output array is always parallel to the input positions array.
-    var out = JsonArray
+    var out = JSONArray
     try
-      let arr = JsonNav(request.params)("positions").as_array()?
+      let arr = JSONNav(request.params)("positions").as_array()?
       for pos_val in arr.values() do
-        let entry: JsonValue =
+        let entry: JSONValue =
           try
-            let l = JsonNav(pos_val)("line").as_i64()?
-            let c = JsonNav(pos_val)("character").as_i64()?
+            let l = JSONNav(pos_val)("line").as_i64()?
+            let c = JSONNav(pos_val)("character").as_i64()?
             match _find_node_and_module(document_path, l, c)
             | (let node: AST box, _) =>
               SelectionRanges.collect(node, document_path)
@@ -1218,7 +1218,7 @@ actor WorkspaceManager
       | let node: AST box =>
         match \exhaustive\ SignatureHelp.collect(
           node, tok_line, tok_col)
-        | let result: JsonObject =>
+        | let result: JSONObject =>
           this._channel.send(ResponseMessage(request.id, result))
           return
         | None => None
@@ -1244,7 +1244,7 @@ actor WorkspaceManager
     match \exhaustive\ _find_node_and_module(document_path, line, column)
     | (let node: AST box, _) =>
       match CallHierarchy.prepare(node)
-      | let result: JsonArray =>
+      | let result: JSONArray =>
         this._channel.send(ResponseMessage(request.id, result))
         return
       end
@@ -1266,7 +1266,7 @@ actor WorkspaceManager
     match _find_method_node(document_path, sel_line, sel_col)
     | let node: AST box =>
       match CallHierarchy.incoming_calls(node, this._packages)
-      | let result: JsonArray =>
+      | let result: JSONArray =>
         this._channel.send(ResponseMessage(request.id, result))
         return
       end
@@ -1287,7 +1287,7 @@ actor WorkspaceManager
     match _find_method_node(document_path, sel_line, sel_col)
     | let node: AST box =>
       match CallHierarchy.outgoing_calls(node, this._packages)
-      | let result: JsonArray =>
+      | let result: JSONArray =>
         this._channel.send(ResponseMessage(request.id, result))
         return
       end
@@ -1311,7 +1311,7 @@ actor WorkspaceManager
     match \exhaustive\ _find_node_and_module(document_path, line, column)
     | (let node: AST box, _) =>
       match TypeHierarchy.prepare(node)
-      | let result: JsonArray =>
+      | let result: JSONArray =>
         this._channel.send(ResponseMessage(request.id, result))
         return
       end
@@ -1333,7 +1333,7 @@ actor WorkspaceManager
     match _find_entity_node(document_path, sel_line, sel_col)
     | let node: AST box =>
       match TypeHierarchy.supertypes(node)
-      | let result: JsonArray =>
+      | let result: JSONArray =>
         this._channel.send(ResponseMessage(request.id, result))
         return
       end
@@ -1354,7 +1354,7 @@ actor WorkspaceManager
     match _find_entity_node(document_path, sel_line, sel_col)
     | let node: AST box =>
       match TypeHierarchy.subtypes(node, this._packages)
-      | let result: JsonArray =>
+      | let result: JSONArray =>
         this._channel.send(ResponseMessage(request.id, result))
         return
       end

@@ -11,8 +11,8 @@ primitive _FilterEval
 
   fun apply(
     expr: _LogicalExpr,
-    current: JsonValue,
-    root: JsonValue)
+    current: JSONValue,
+    root: JSONValue)
     : Bool
   =>
     match \exhaustive\ expr
@@ -34,62 +34,69 @@ primitive _FilterEval
 
   fun _eval_existence(
     query: _FilterQuery,
-    current: JsonValue,
-    root: JsonValue)
+    current: JSONValue,
+    root: JSONValue)
     : Bool
   =>
-    """True if the query selects at least one node."""
-    let results = match \exhaustive\ query
-    | let q: _RelFilterQuery =>
-      _JsonPathEval(current, root, q.segments)
-    | let q: _AbsFilterQuery =>
-      _JsonPathEval(root, root, q.segments)
-    end
+    """
+    True if the query selects at least one node.
+    """
+    let results =
+      match \exhaustive\ query
+      | let q: _RelFilterQuery =>
+        _JSONPathEval(current, root, q.segments)
+      | let q: _AbsFilterQuery =>
+        _JSONPathEval(root, root, q.segments)
+      end
     results.size() > 0
 
   fun _eval_singular(
     query: _SingularQuery,
-    current: JsonValue,
-    root: JsonValue)
+    current: JSONValue,
+    root: JSONValue)
     : _QueryResult
   =>
     """
     Evaluate a singular query, returning the single value or `_Nothing`
     if no value exists at that path.
     """
-    var node: _QueryResult = match \exhaustive\ query
-    | let q: _RelSingularQuery => current
-    | let q: _AbsSingularQuery => root
-    end
-    let segs = match \exhaustive\ query
-    | let q: _RelSingularQuery => q.segments
-    | let q: _AbsSingularQuery => q.segments
-    end
+    var node: _QueryResult =
+      match \exhaustive\ query
+      | let q: _RelSingularQuery => current
+      | let q: _AbsSingularQuery => root
+      end
+    let segs =
+      match \exhaustive\ query
+      | let q: _RelSingularQuery => q.segments
+      | let q: _AbsSingularQuery => q.segments
+      end
     for seg in segs.values() do
       match \exhaustive\ node
-      | let j: JsonValue =>
-        node = match \exhaustive\ seg
-        | let ns: _SingularNameSegment =>
-          match j
-          | let obj: JsonObject =>
-            try obj(ns.name)? else _Nothing end
-          else
-            _Nothing
-          end
-        | let is': _SingularIndexSegment =>
-          match j
-          | let arr: JsonArray =>
-            let idx = is'.index
-            let effective = if idx >= 0 then
-              idx.usize()
+      | let j: JSONValue =>
+        node =
+          match \exhaustive\ seg
+          | let ns: _SingularNameSegment =>
+            match j
+            | let obj: JSONObject =>
+              try obj(ns.name)? else _Nothing end
             else
-              let abs_idx = idx.abs().usize()
-              if abs_idx <= arr.size() then
-                arr.size() - abs_idx
-              else
-                return _Nothing
-              end
+              _Nothing
             end
+          | let is': _SingularIndexSegment =>
+            match j
+            | let arr: JSONArray =>
+              let idx = is'.index
+              let effective =
+                if idx >= 0 then
+                  idx.usize()
+                else
+                  let abs_idx = idx.abs().usize()
+                  if abs_idx <= arr.size() then
+                    arr.size() - abs_idx
+                  else
+                    return _Nothing
+                  end
+                end
             try arr(effective)? else _Nothing end
           else
             _Nothing
@@ -102,8 +109,8 @@ primitive _FilterEval
 
   fun _eval_match(
     expr: _MatchExpr,
-    current: JsonValue,
-    root: JsonValue)
+    current: JSONValue,
+    root: JSONValue)
     : Bool
   =>
     """
@@ -125,8 +132,8 @@ primitive _FilterEval
 
   fun _eval_search(
     expr: _SearchExpr,
-    current: JsonValue,
-    root: JsonValue)
+    current: JSONValue,
+    root: JSONValue)
     : Bool
   =>
     """
@@ -146,7 +153,6 @@ primitive _FilterEval
       false
     end
 
-
 primitive _FilterCompare
   """
   RFC 9535 comparison semantics for filter expressions.
@@ -160,8 +166,8 @@ primitive _FilterCompare
     left: _Comparable,
     op: _ComparisonOp,
     right: _Comparable,
-    current: JsonValue,
-    root: JsonValue)
+    current: JSONValue,
+    root: JSONValue)
     : Bool
   =>
     let lval = _resolve(left, current, root)
@@ -177,11 +183,13 @@ primitive _FilterCompare
 
   fun _resolve(
     c: _Comparable,
-    current: JsonValue,
-    root: JsonValue)
+    current: JSONValue,
+    root: JSONValue)
     : _QueryResult
   =>
-    """Resolve a comparable to a concrete value or Nothing."""
+    """
+    Resolve a comparable to a concrete value or Nothing.
+    """
     match \exhaustive\ c
     | let s: String => s
     | let n: I64 => n
@@ -199,8 +207,8 @@ primitive _FilterCompare
 
   fun _eval_length(
     arg: _Comparable,
-    current: JsonValue,
-    root: JsonValue)
+    current: JSONValue,
+    root: JSONValue)
     : _QueryResult
   =>
     """
@@ -223,43 +231,47 @@ primitive _FilterCompare
         end
       end
       count
-    | let arr: JsonArray => arr.size().i64()
-    | let obj: JsonObject => obj.size().i64()
+    | let arr: JSONArray => arr.size().i64()
+    | let obj: JSONObject => obj.size().i64()
     else
       _Nothing
     end
 
   fun _eval_count(
     query: _FilterQuery,
-    current: JsonValue,
-    root: JsonValue)
+    current: JSONValue,
+    root: JSONValue)
     : _QueryResult
   =>
-    """Evaluate count(): cardinality of the nodelist from a query."""
-    let results = match \exhaustive\ query
-    | let q: _RelFilterQuery =>
-      _JsonPathEval(current, root, q.segments)
-    | let q: _AbsFilterQuery =>
-      _JsonPathEval(root, root, q.segments)
-    end
+    """
+    Evaluate count(): cardinality of the nodelist from a query.
+    """
+    let results =
+      match \exhaustive\ query
+      | let q: _RelFilterQuery =>
+        _JSONPathEval(current, root, q.segments)
+      | let q: _AbsFilterQuery =>
+        _JSONPathEval(root, root, q.segments)
+      end
     results.size().i64()
 
   fun _eval_value(
     query: _FilterQuery,
-    current: JsonValue,
-    root: JsonValue)
+    current: JSONValue,
+    root: JSONValue)
     : _QueryResult
   =>
     """
     Evaluate value(): extract a single value from a nodelist.
     Returns the value if exactly one node, Nothing otherwise.
     """
-    let results = match \exhaustive\ query
-    | let q: _RelFilterQuery =>
-      _JsonPathEval(current, root, q.segments)
-    | let q: _AbsFilterQuery =>
-      _JsonPathEval(root, root, q.segments)
-    end
+    let results =
+      match \exhaustive\ query
+      | let q: _RelFilterQuery =>
+        _JSONPathEval(current, root, q.segments)
+      | let q: _AbsFilterQuery =>
+        _JSONPathEval(root, root, q.segments)
+      end
     if results.size() == 1 then
       try results(0)? else _Nothing end
     else
@@ -287,8 +299,8 @@ primitive _FilterCompare
     | (let a: String, let b: String) => a == b
     | (let a: Bool, let b: Bool) => a == b
     | (None, None) => true
-    | (let a: JsonArray, let b: JsonArray) => _deep_eq(a, b)
-    | (let a: JsonObject, let b: JsonObject) => _deep_eq(a, b)
+    | (let a: JSONArray, let b: JSONArray) => _deep_eq(a, b)
+    | (let a: JSONObject, let b: JSONObject) => _deep_eq(a, b)
     else
       false
     end
@@ -314,17 +326,17 @@ primitive _FilterCompare
       false
     end
 
-  fun _deep_eq(a: JsonValue, b: JsonValue): Bool =>
+  fun _deep_eq(a: JSONValue, b: JSONValue): Bool =>
     """
-    Structural equality for JsonValue values.
+    Structural equality for JSONValue values.
 
     Arrays compare element-wise; objects compare by same key set with equal
-    values (iteration order doesn't matter — JsonObject is backed by a CHAMP
+    values (iteration order doesn't matter — JSONObject is backed by a CHAMP
     map). Walked with an explicit work stack rather than native recursion so
     that nesting depth is bounded by the heap, not the scheduler thread's
     native stack, which deeply nested input would otherwise overflow.
     """
-    let stack = Array[(JsonValue, JsonValue)]
+    let stack = Array[(JSONValue, JSONValue)]
     stack.push((a, b))
     while stack.size() > 0 do
       (let x, let y) = try stack.pop()? else _Unreachable(); return false end
@@ -336,7 +348,7 @@ primitive _FilterCompare
       | (let p: String, let q: String) => if p != q then return false end
       | (let p: Bool, let q: Bool) => if p != q then return false end
       | (None, None) => None
-      | (let p: JsonArray, let q: JsonArray) =>
+      | (let p: JSONArray, let q: JSONArray) =>
         if p.size() != q.size() then return false end
         var i: USize = 0
         while i < p.size() do
@@ -345,7 +357,7 @@ primitive _FilterCompare
           stack.push((xv, yv))
           i = i + 1
         end
-      | (let p: JsonObject, let q: JsonObject) =>
+      | (let p: JSONObject, let q: JSONObject) =>
         if p.size() != q.size() then return false end
         for (key, pv) in p.pairs() do
           // A missing key means the objects differ — not an impossible path.

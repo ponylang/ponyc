@@ -1343,27 +1343,27 @@ class val _DocHighlightChecker
   fun lsp_method(): String =>
     Methods.text_document().document_highlight()
 
-  fun lsp_params(): (None | JsonObject) =>
-    JsonObject.update(
+  fun lsp_params(): (None | JSONObject) =>
+    JSONObject.update(
       "position",
-      JsonObject.update("line", _line).update("character", _character))
+      JSONObject.update("line", _line).update("character", _character))
 
   fun check(res: ResponseMessage val, h: TestHelper): Bool =>
     var ok = true
     match res.result
-    | let arr: JsonArray =>
+    | let arr: JSONArray =>
       // Log all actual highlights upfront so they appear on any failure,
       // including kind mismatches where the count happens to match.
       for item in arr.values() do
         try
-          let range = JsonNav(item)("range")
+          let range = JSONNav(item)("range")
           let sl = range("start")("line").as_i64()?
           let sc = range("start")("character").as_i64()?
           let el = range("end")("line").as_i64()?
           let ec = range("end")("character").as_i64()?
           let kind =
             try
-              JsonNav(item)("kind").as_i64()?
+              JSONNav(item)("kind").as_i64()?
             else
               I64(1)
             end
@@ -1386,12 +1386,12 @@ class val _DocHighlightChecker
         var found = false
         for candidate in arr.values() do
           try
-            let range = JsonNav(candidate)("range")
+            let range = JSONNav(candidate)("range")
             let sl = range("start")("line").as_i64()?
             let sc = range("start")("character").as_i64()?
             let el = range("end")("line").as_i64()?
             let ec = range("end")("character").as_i64()?
-            let kind = JsonNav(candidate)("kind").as_i64()?
+            let kind = JSONNav(candidate)("kind").as_i64()?
             if (sl == exp_sl) and (sc == exp_sc) and
               (el == exp_el) and (ec == exp_ec) and (kind == exp_kind)
             then

@@ -25,11 +25,15 @@ class val IRegexp
     _nfa = nfa'
 
   fun is_match(input: String): Bool =>
-    """Test if the entire input string matches the pattern."""
+    """
+    Test if the entire input string matches the pattern.
+    """
     _NFAExec.is_match(_nfa, input)
 
   fun search(input: String): Bool =>
-    """Test if any substring of input matches the pattern."""
+    """
+    Test if any substring of input matches the pattern.
+    """
     _NFAExec.search(_nfa, input)
 
 primitive IRegexpCompiler
@@ -38,7 +42,9 @@ primitive IRegexpCompiler
   """
 
   fun parse(pattern: String): (IRegexp | IRegexpParseError) =>
-    """Parse pattern, returning compiled regexp or error."""
+    """
+    Parse pattern, returning compiled regexp or error.
+    """
     let parser = _IRegexpParser(pattern)
     try
       let ast = parser.parse()?

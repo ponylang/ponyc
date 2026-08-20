@@ -7,7 +7,7 @@ class val ServerOptions
   """
   let pony_path: (Array[String] val | None)
 
-  new val from_json(json: JsonObject) =>
+  new val from_json(json: JSONObject) =>
     pony_path =
       try
         recover val

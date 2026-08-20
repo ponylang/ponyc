@@ -32,21 +32,27 @@ primitive StartProcess
     args: Array[String] val,
     vars: Array[String] val,
     wdir: (FilePath | None) = None)
-  : (ProcessMonitor | ProcessError)
+    : (ProcessMonitor | ProcessError)
   =>
+    """
+    Start a child process running the executable at `path`.
+    """
     // We need permission to execute and the file itself needs to be an
     // executable.
     if not path.caps(FileExec) then
-      return ProcessError(CapError, path.path +
-        " is not an executable or we do not have execute capability.")
+      return ProcessError(
+        CapError,
+        path.path +
+          " is not an executable or we do not have execute capability.")
     end
 
     let is_file = try FileInfo(path)?.file else false end
     if not is_file then
       // Unable to stat the path given, so it may not exist or may be a
       // directory.
-      return ProcessError(ExecutableNotFound, path.path +
-        " does not exist or is a directory.")
+      return ProcessError(
+        ExecutableNotFound,
+        path.path + " does not exist or is a directory.")
     end
 
     // On Linux, exit detection uses a pidfd, which needs kernel >= 5.3. Probe
@@ -57,7 +63,8 @@ primitive StartProcess
       let probe = @ponyint_pidfd_open(@getpid())
       if probe < 0 then
         if @pony_os_errno() == _ENOSYS() then
-          return ProcessError(UnsupportedKernel,
+          return ProcessError(
+            UnsupportedKernel,
             "the kernel does not support pidfd_open (needs Linux >= 5.3).")
         end
       else
@@ -115,8 +122,15 @@ primitive StartProcess
       let child: _Process iso =
         try
           recover iso
-            _ProcessPosix(exec_path, args, vars, wdir_str, err_far, in_far,
-              out_far, err2_far)?
+            _ProcessPosix(
+              exec_path,
+              args,
+              vars,
+              wdir_str,
+              err_far,
+              in_far,
+              out_far,
+              err2_far)?
           end
         else
           stdin_pipe.close()
@@ -125,13 +139,24 @@ primitive StartProcess
           err_pipe.close()
           return ProcessError(ForkError)
         end
-      ProcessMonitor._create(backpressure_auth, consume notifier,
-        consume child, consume stdin_pipe, consume stdout_pipe,
-        consume stderr_pipe, consume err_pipe)
+      ProcessMonitor._create(
+        backpressure_auth,
+        consume notifier,
+        consume child,
+        consume stdin_pipe,
+        consume stdout_pipe,
+        consume stderr_pipe,
+        consume err_pipe)
     elseif windows then
       let windows_child: _ProcessWindows iso =
         recover iso
-          _ProcessWindows(exec_path, args, vars, wdir_str, in_far, out_far,
+          _ProcessWindows(
+            exec_path,
+            args,
+            vars,
+            wdir_str,
+            in_far,
+            out_far,
             err2_far)
         end
       // Reading the sendable `process_error` field off the iso neither aliases
@@ -144,9 +169,14 @@ primitive StartProcess
         err_pipe.close()
         return pe
       end
-      ProcessMonitor._create(backpressure_auth, consume notifier,
-        consume windows_child, consume stdin_pipe, consume stdout_pipe,
-        consume stderr_pipe, consume err_pipe)
+      ProcessMonitor._create(
+        backpressure_auth,
+        consume notifier,
+        consume windows_child,
+        consume stdin_pipe,
+        consume stdout_pipe,
+        consume stderr_pipe,
+        consume err_pipe)
     else
       compile_error "unsupported platform"
     end
@@ -154,6 +184,7 @@ primitive StartProcess
 primitive _Running
 primitive _Disposing
 primitive _Reaped
+
 type _Lifecycle is (_Running | _Disposing | _Reaped)
   """
   The monitor's lifecycle. A monitor exists only around a running child, so
@@ -180,13 +211,11 @@ actor ProcessMonitor is AsioEventNotify
   let _notifier: ProcessNotify
   let _backpressure_auth: ApplyReleaseBackpressureAuth
   let _child: _Process
-
   var _stdin: _Pipe
   var _stdout: _Pipe
   var _stderr: _Pipe
   var _err: _Pipe
   var _exit_event: AsioEventID = AsioEvent.none()
-
   let _max_size: USize = 4096
   // Per-pipe bound on the reap-edge drain. A fixed constant of at least one
   // default pipe capacity, so all of a well-behaved child's own output is
@@ -197,7 +226,6 @@ actor ProcessMonitor is AsioEventNotify
   var _read_buf: Array[U8] iso = recover Array[U8] .> undefined(_max_size) end
   var _read_len: USize = 0
   var _expect: USize = 0
-
   // Backstop for the exit-signal reap retry. Once the OS signals that the child
   // exited, the child is a zombie we own, so waitpid will collect it and the
   // retry converges. The window between the exit notification and waitpid
@@ -206,11 +234,9 @@ actor ProcessMonitor is AsioEventNotify
   // observed window with ample margin, while still bounding a genuine
   // non-convergence (a kernel that signals exit but never lets waitpid reap).
   let _reap_retry_cap: U32 = 10_000_000
-
   embed _pending: List[(ByteSeq, USize)] = _pending.create()
   var _done_writing: Bool = false
   var _backpressure_applied: Bool = false
-
   var _state: _Lifecycle = _Running
 
   new _create(
@@ -701,7 +727,6 @@ actor ProcessMonitor is AsioEventNotify
   // --- test seam (package-private) ---------------------------------------
   // These exist so a package-private test factory can drive the state machine
   // with a spy `_Process` and placeholder pipes. They have no public surface.
-
   be _test_trigger_exit() =>
     """
     Simulate the native exit event firing. The spy `_Process.wait()` returns

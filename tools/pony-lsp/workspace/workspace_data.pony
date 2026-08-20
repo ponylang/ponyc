@@ -61,15 +61,15 @@ class val WorkspaceData
     """
     Return a JSON string representation for logging.
     """
-    var dp_arr = JsonArray
+    var dp_arr = JSONArray
     for dp in dependencies.values() do
       dp_arr = dp_arr.push(dp)
     end
-    var pp_arr = JsonArray
+    var pp_arr = JSONArray
     for pp in package_paths.values() do
       pp_arr = pp_arr.push(pp)
     end
-    JsonObject
+    JSONObject
       .update("name", name)
       .update("folder", folder.path)
       .update("dependencies", dp_arr)

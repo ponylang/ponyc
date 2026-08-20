@@ -1,16 +1,16 @@
-class val JsonPath
+class val JSONPath
   """
   Compiled JSONPath query for extracting values from JSON documents.
 
   JSONPath queries navigate JSON structures using string path expressions
-  (RFC 9535). Compile a path with `JsonPathParser.parse()`, then apply
+  (RFC 9535). Compile a path with `JSONPathParser.parse()`, then apply
   it to any number of documents with `query()`:
 
   ```pony
-  match JsonPathParser.parse("$.store.book[*].author")
-  | let path: JsonPath =>
+  match JSONPathParser.parse("$.store.book[*].author")
+  | let path: JSONPath =>
     let authors = path.query(doc)
-  | let err: JsonPathParseError =>
+  | let err: JSONPathParseError =>
     env.err.print(err.string())
   end
   ```
@@ -22,7 +22,7 @@ class val JsonPath
   `search`, `value`) per RFC 9535 Section 2.4.
 
   For simple single-value extraction, `query_one()` returns the first
-  match or JsonNotFound.
+  match or JSONNotFound.
   """
 
   let _segments: Array[_Segment] val
@@ -30,53 +30,52 @@ class val JsonPath
   new val _create(segments': Array[_Segment] val) =>
     _segments = segments'
 
-  fun query(root: JsonValue): Array[JsonValue] val =>
+  fun query(root: JSONValue): Array[JSONValue] val =>
     """
     Execute this query against a JSON document.
 
     Returns all matching values. Returns an empty array if no values
     match. Evaluation never errors.
     """
-    _JsonPathEval(root, root, _segments)
+    _JSONPathEval(root, root, _segments)
 
-  fun query_one(root: JsonValue): (JsonValue | JsonNotFound) =>
+  fun query_one(root: JSONValue): (JSONValue | JSONNotFound) =>
     """
     Execute this query and return the first matching value, or
-    JsonNotFound if no values match.
+    JSONNotFound if no values match.
 
     Convenience for paths known to select at most one value.
     """
     let results = query(root)
     if results.size() > 0 then
-      try results(0)? else JsonNotFound end
+      try results(0)? else JSONNotFound end
     else
-      JsonNotFound
+      JSONNotFound
     end
 
-
-primitive JsonPathParser
+primitive JSONPathParser
   """
   Parser for JSONPath expressions.
 
   Provides two entry points:
-  - `parse()` returns errors as data (consistent with `JsonParser.parse()`)
+  - `parse()` returns errors as data (consistent with `JSONParser.parse()`)
   - `compile()` raises on invalid input (convenience for known-valid paths)
   """
 
-  fun parse(path: String): (JsonPath | JsonPathParseError) =>
+  fun parse(path: String): (JSONPath | JSONPathParseError) =>
     """
     Parse a JSONPath expression. Returns a compiled query on success
     or a structured error on failure.
     """
-    let parser = _JsonPathParser(path)
+    let parser = _JSONPathParser(path)
     try
       let segments = parser.parse()?
-      JsonPath._create(segments)
+      JSONPath._create(segments)
     else
       parser.error_result()
     end
 
-  fun compile(path: String): JsonPath ? =>
+  fun compile(path: String): JSONPath ? =>
     """
     Parse a JSONPath expression, raising on invalid input.
 
@@ -84,14 +83,15 @@ primitive JsonPathParser
     literal). For user-provided paths, prefer `parse()` which returns
     errors as data.
     """
-    match \exhaustive\ JsonPathParser.parse(path)
-    | let jp: JsonPath => jp
-    | let _: JsonPathParseError => error
+    match \exhaustive\ JSONPathParser.parse(path)
+    | let jp: JSONPath => jp
+    | let _: JSONPathParseError => error
     end
 
-
-class val JsonPathParseError is Stringable
-  """Structured parse error for JSONPath expressions."""
+class val JSONPathParseError is Stringable
+  """
+  Structured parse error for JSONPath expressions.
+  """
 
   let message: String
   let offset: USize

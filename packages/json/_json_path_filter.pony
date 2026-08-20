@@ -14,10 +14,9 @@ primitive _Nothing
   """
 
 // The result of evaluating a singular query: either a value or absence.
-type _QueryResult is (JsonValue | _Nothing)
+type _QueryResult is (JSONValue | _Nothing)
 
 // --- Comparison operators ---
-
 primitive _CmpEq
 primitive _CmpNeq
 primitive _CmpLt
@@ -29,16 +28,19 @@ type _ComparisonOp is
   (_CmpEq | _CmpNeq | _CmpLt | _CmpLte | _CmpGt | _CmpGte)
 
 // --- Singular segments (name/index only, no wildcards/slices/descendants) ---
-
 class val _SingularNameSegment
-  """Select an object member by key in a singular query."""
+  """
+  Select an object member by key in a singular query.
+  """
   let name: String
 
   new val create(name': String) =>
     name = name'
 
 class val _SingularIndexSegment
-  """Select an array element by index in a singular query."""
+  """
+  Select an array element by index in a singular query.
+  """
   let index: I64
 
   new val create(index': I64) =>
@@ -47,16 +49,19 @@ class val _SingularIndexSegment
 type _SingularSegment is (_SingularNameSegment | _SingularIndexSegment)
 
 // --- Singular queries (used in comparisons) ---
-
 class val _RelSingularQuery
-  """Singular query relative to the current node (@)."""
+  """
+  Singular query relative to the current node (@).
+  """
   let segments: Array[_SingularSegment] val
 
   new val create(segments': Array[_SingularSegment] val) =>
     segments = segments'
 
 class val _AbsSingularQuery
-  """Singular query relative to the document root ($)."""
+  """
+  Singular query relative to the document root ($).
+  """
   let segments: Array[_SingularSegment] val
 
   new val create(segments': Array[_SingularSegment] val) =>
@@ -67,23 +72,25 @@ type _SingularQuery is (_RelSingularQuery | _AbsSingularQuery)
 // --- Comparables (what can appear on either side of a comparison) ---
 // Includes literal values, singular queries, and ValueType-returning
 // function expressions (length, count, value).
-
 type _LiteralValue is (String | I64 | F64 | Bool | None)
 
 type _Comparable is
   (_LiteralValue | _SingularQuery | _LengthExpr | _CountExpr | _ValueExpr)
 
 // --- Filter queries (used in existence tests, can be non-singular) ---
-
 class val _RelFilterQuery
-  """General query relative to the current node (@)."""
+  """
+  General query relative to the current node (@).
+  """
   let segments: Array[_Segment] val
 
   new val create(segments': Array[_Segment] val) =>
     segments = segments'
 
 class val _AbsFilterQuery
-  """General query relative to the document root ($)."""
+  """
+  General query relative to the document root ($).
+  """
   let segments: Array[_Segment] val
 
   new val create(segments': Array[_Segment] val) =>
@@ -92,9 +99,10 @@ class val _AbsFilterQuery
 type _FilterQuery is (_RelFilterQuery | _AbsFilterQuery)
 
 // --- Logical expression AST ---
-
 class val _OrExpr
-  """Logical OR: true if either operand is true."""
+  """
+  Logical OR: true if either operand is true.
+  """
   let left: _LogicalExpr
   let right: _LogicalExpr
 
@@ -103,7 +111,9 @@ class val _OrExpr
     right = right'
 
 class val _AndExpr
-  """Logical AND: true if both operands are true."""
+  """
+  Logical AND: true if both operands are true.
+  """
   let left: _LogicalExpr
   let right: _LogicalExpr
 
@@ -112,7 +122,9 @@ class val _AndExpr
     right = right'
 
 class val _NotExpr
-  """Logical NOT: inverts the operand."""
+  """
+  Logical NOT: inverts the operand.
+  """
   let expr: _LogicalExpr
 
   new val create(expr': _LogicalExpr) =>
@@ -153,7 +165,6 @@ class val _ExistenceExpr
     query = query'
 
 // --- Function extension AST (RFC 9535 Section 2.4) ---
-
 class val _MatchExpr
   """
   Full-string I-Regexp match (RFC 9535 Section 2.4.6).

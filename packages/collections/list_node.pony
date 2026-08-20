@@ -1,23 +1,23 @@
 class ListNode[A]
   """
   A node in a doubly linked list.
-  
+
   See Pony [collections.List](https://stdlib.ponylang.io/collections-List/)
   class for usage examples.
-  
-  Each node contains four fields: two link fields (references to the previous and
-  to the next node in the sequence of nodes), one data field, and the reference to
-  the List in which it resides.
+
+  Each node contains four fields: two link fields (references to the
+  previous and to the next node in the sequence of nodes), one data
+  field, and the reference to the List in which it resides.
 
   As you would expect functions are provided to create a ListNode, update a
   ListNode's contained item, and pop the item from the ListNode.
 
-  Additional functions are provided to operate on a ListNode as part of a Linked
-  List. These provide for prepending, appending, removal, and safe traversal in
-  both directions.  The Ponylang
-  [collections.List](https://stdlib.ponylang.io/collections-List/) class is the
-  correct way to create these. _Do not attempt to create a Linked List using only
-  ListNodes._
+  Additional functions are provided to operate on a ListNode as part
+  of a Linked List. These provide for prepending, appending, removal,
+  and safe traversal in both directions. The Ponylang
+  [collections.List](https://stdlib.ponylang.io/collections-List/)
+  class is the correct way to create these. _Do not attempt to
+  create a Linked List using only ListNodes._
 
   ## Example program
   The functions which are illustrated below are only those which operate on an
@@ -37,7 +37,7 @@ class ListNode[A]
 
         // Create a new ListNode of type String
         let my_list_node = ListNode[String]("My Node item")
-        try 
+        try
           env.out.print("My node has the item value: "
                         + my_list_node.apply()?) // My Node item
         end
@@ -163,7 +163,7 @@ class ListNode[A]
     """
     match _list
     | let list': List[A] =>
-      match (_prev, _next)
+      match \exhaustive\ (_prev, _next)
       | (let prev': ListNode[A], let next': ListNode[A]) =>
         // We're in the middle of the list.
         prev'._next = _next

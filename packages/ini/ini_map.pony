@@ -23,27 +23,33 @@ primitive IniParse
     """
     let map = IniMap
 
-    let f = object
-      let map: IniMap = map
+    let f =
+      object
+        let map: IniMap = map
 
-      fun ref apply(section: String, key: String, value: String): Bool =>
-        try
+        fun ref apply(
+          section: String,
+          key: String,
+          value: String)
+          : Bool
+        =>
+          try
+            if not map.contains(section) then
+              map.insert(section, Map[String, String])
+            end
+            map(section)?(key) = value
+          end
+          true
+
+        fun ref add_section(section: String): Bool =>
           if not map.contains(section) then
             map.insert(section, Map[String, String])
           end
-          map(section)?(key) = value
-        end
-        true
+          true
 
-      fun ref add_section(section: String): Bool =>
-        if not map.contains(section) then
-          map.insert(section, Map[String, String])
-        end
-        true
-
-      fun ref errors(line: USize, err: IniError): Bool =>
-        false
-    end
+        fun ref errors(line: USize, err: IniError): Bool =>
+          false
+      end
 
     if not Ini(lines, f) then
       error

@@ -40,7 +40,13 @@ primitive _OSSocket
     """
     setsockopt_u32(fd, OSSockOpt.sol_socket(), OSSockOpt.so_sndbuf(), bufsize)
 
-  fun getsockopt(fd: U32, level: I32, option_name: I32, option_max_size: USize = 4): (U32, Array[U8] iso^) =>
+  fun getsockopt(
+    fd: U32,
+    level: I32,
+    option_name: I32,
+    option_max_size: USize = 4)
+    : (U32, Array[U8] iso^)
+  =>
     """
     General wrapper for sockets to the `getsockopt(2)` system call.
 
@@ -89,7 +95,13 @@ primitive _OSSocket
       (errno, 0)
     end
 
-  fun setsockopt(fd: U32, level: I32, option_name: I32, option: Array[U8]): U32 =>
+  fun setsockopt(
+    fd: U32,
+    level: I32,
+    option_name: I32,
+    option: Array[U8])
+    : U32
+  =>
     """
     General wrapper for sockets to the `setsockopt(2)` system call.
 
@@ -114,7 +126,13 @@ primitive _OSSocket
     var word: Array[U8] ref = u32_to_bytes4(option)
     set_so(fd, level, option_name, word)
 
-  fun get_so(fd: U32, level: I32, option_name: I32, option_max_size: USize): (U32, Array[U8] iso^) =>
+  fun get_so(
+    fd: U32,
+    level: I32,
+    option_name: I32,
+    option_max_size: USize)
+    : (U32, Array[U8] iso^)
+  =>
     """
     Low-level interface to `getsockopt(2)`.
 
@@ -127,10 +145,16 @@ primitive _OSSocket
     In case of system call failure, `errno` is returned in the first
     element of the 2-tuple, and the second element's value is junk.
     """
-    var option: Array[U8] iso = recover option.create().>undefined(option_max_size) end
+    var option: Array[U8] iso =
+      recover option.create() .> undefined(option_max_size) end
     var option_size: USize = option_max_size
-    let result: I32 = @getsockopt(fd, level, option_name,
-       option.cpointer(), addressof option_size)
+    let result: I32 =
+      @getsockopt(
+        fd,
+        level,
+        option_name,
+        option.cpointer(),
+        addressof option_size)
 
     if result == 0 then
       option.truncate(option_size)
@@ -148,8 +172,13 @@ primitive _OSSocket
     This function returns `0` on success, else the value of `errno` on
     failure.
     """
-    let result: I32 = @setsockopt(fd, level, option_name,
-       option.cpointer(), option_size)
+    let result: I32 =
+      @setsockopt(
+        fd,
+        level,
+        option_name,
+        option.cpointer(),
+        option_size)
 
     if result == 0 then
       0
@@ -161,4 +190,4 @@ primitive _OSSocket
     b.read_u32(0)?
 
   fun u32_to_bytes4(option: U32): Array[U8] =>
-    Array[U8](4).>push_u32(option)
+    Array[U8](4) .> push_u32(option)

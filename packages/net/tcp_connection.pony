@@ -216,7 +216,8 @@ actor TCPConnection is AsioEventNotify
       MyClient.create(
         "example.com", // we actually want to connect to this host
         "80",
-        ExampleProxy.create("proxy.example.com", "80")) // we connect via this proxy
+        // we connect via this proxy
+        ExampleProxy.create("proxy.example.com", "80"))
 
   actor MyClient
     new create(host: String, service: String, proxy: Proxy = NoProxy) =>
@@ -246,7 +247,11 @@ actor TCPConnection is AsioEventNotify
     var _destination_service: (None | String) = None
     let _wrapped: TCPConnectionNotify iso
 
-    new iso create(wrap: TCPConnectionNotify iso, proxy_host: String, proxy_service: String) =>
+    new iso create(
+      wrap: TCPConnectionNotify iso,
+      proxy_host: String,
+      proxy_service: String)
+    =>
       _wrapped = wrap
       _proxy_host = proxy_host
       _proxy_service = proxy_service
@@ -286,20 +291,16 @@ actor TCPConnection is AsioEventNotify
   var _shutdown: Bool = false
   var _shutdown_peer: Bool = false
   var _in_sent: Bool = false
-  embed _pending_writev: Array[(Pointer[U8] tag, USize)] = _pending_writev.create()
-
+  embed _pending_writev: Array[(Pointer[U8] tag, USize)] =
+    _pending_writev.create()
   var _pending_writev_total: USize = 0
   var _read_buf: Array[U8] iso
   var _read_buf_offset: USize = 0
   var _max_received_called: USize = 50
-
   let _read_buffer_size: USize
-
   let _yield_after_reading: USize
   let _yield_after_writing: USize
-
   var _expect: USize = 0
-
   var _muted: Bool = false
 
   new create(
@@ -324,8 +325,12 @@ actor TCPConnection is AsioEventNotify
     let asio_flags = AsioEvent.read_write_oneshot()
     (let host', let service') = _notify.proxy_via(host, service)
     _connect_count =
-      @pony_os_connect_tcp(this, host'.cstring(), service'.cstring(),
-        from.cstring(), asio_flags)
+      @pony_os_connect_tcp(
+        this,
+        host'.cstring(),
+        service'.cstring(),
+        from.cstring(),
+        asio_flags)
     _notify_connecting()
 
   new ip4(
@@ -349,8 +354,12 @@ actor TCPConnection is AsioEventNotify
     let asio_flags = AsioEvent.read_write_oneshot()
     (let host', let service') = _notify.proxy_via(host, service)
     _connect_count =
-      @pony_os_connect_tcp4(this, host'.cstring(), service'.cstring(),
-        from.cstring(), asio_flags)
+      @pony_os_connect_tcp4(
+        this,
+        host'.cstring(),
+        service'.cstring(),
+        from.cstring(),
+        asio_flags)
     _notify_connecting()
 
   new ip6(
@@ -374,8 +383,12 @@ actor TCPConnection is AsioEventNotify
     let asio_flags = AsioEvent.read_write_oneshot()
     (let host', let service') = _notify.proxy_via(host, service)
     _connect_count =
-      @pony_os_connect_tcp6(this, host'.cstring(), service'.cstring(),
-        from.cstring(), asio_flags)
+      @pony_os_connect_tcp6(
+        this,
+        host'.cstring(),
+        service'.cstring(),
+        from.cstring(),
+        asio_flags)
     _notify_connecting()
 
   new _accept(
@@ -393,8 +406,9 @@ actor TCPConnection is AsioEventNotify
     _notify = consume notify
     _connect_count = 0
     _fd = fd
-    _event = @pony_asio_event_create(this, fd,
-      AsioEvent.read_write_oneshot(), 0, true)
+    _event =
+      @pony_asio_event_create(
+        this, fd, AsioEvent.read_write_oneshot(), 0, true)
     _connected = true
     @pony_asio_event_set_writeable(_event, true)
     _writeable = true
@@ -620,16 +634,18 @@ actor TCPConnection is AsioEventNotify
           // Sent all data. Release backpressure.
           _release_backpressure()
         end
-        // On the epoll and Windows readiness backends read and write share ONE
-        // one-shot registration, so this writeable event disarmed the read side
-        // too. Unless we hit write backpressure (`_apply_backpressure` re-arms
-        // both and owns the write arm), nothing re-arms reads after a full drain
-        // -- a later readable is silently lost and the connection hangs. Re-arm
-        // reads here, gated on `_writeable` (true only when NOT backpressured,
-        // which also keeps the combined resubscribe from touching the write arm).
-        // Skip if this event also carried a readable (handled below), reads are
-        // muted, or the peer has closed. (kqueue arms read and write on separate
-        // one-shots, so it never loses the read arm and this is an inert no-op.)
+        // On the epoll and Windows readiness backends read and write
+        // share ONE one-shot registration, so this writeable event
+        // disarmed the read side too. Unless we hit write backpressure
+        // (`_apply_backpressure` re-arms both and owns the write arm),
+        // nothing re-arms reads after a full drain -- a later readable
+        // is silently lost and the connection hangs. Re-arm reads here,
+        // gated on `_writeable` (true only when NOT backpressured,
+        // which also keeps the combined resubscribe from touching the
+        // write arm). Skip if this event also carried a readable
+        // (handled below), reads are muted, or the peer has closed.
+        // (kqueue arms read and write on separate one-shots, so it
+        // never loses the read arm and this is an inert no-op.)
         if _writeable and not AsioEvent.readable(flags) and _connected and
           not _readable and not _muted and not _shutdown_peer
         then
@@ -731,8 +747,10 @@ actor TCPConnection is AsioEventNotify
         // Write as much data as possible.
         var count: USize = 0
         match \exhaustive\ _SocketResultDecoder(
-          @pony_os_sendv(_event,
-            _pending_writev.cpointer(), num_to_send.i32(),
+          @pony_os_sendv(
+            _event,
+            _pending_writev.cpointer(),
+            num_to_send.i32(),
             addressof count))
         | _SocketResultOk =>
           if _manage_pending_buffer(count, bytes_to_send, num_to_send)? then
@@ -770,7 +788,7 @@ actor TCPConnection is AsioEventNotify
           len = len - iov_s
           _pending_writev_total = _pending_writev_total - iov_s
         else
-          _pending_writev(num_sent)? = (iov_p.offset(len), iov_s-len)
+          _pending_writev(num_sent)? = (iov_p.offset(len), iov_s - len)
           _pending_writev_total = _pending_writev_total - len
           len = 0
         end
@@ -833,8 +851,8 @@ actor TCPConnection is AsioEventNotify
           received_called = received_called + 1
 
           // check if we should yield to let another actor run
-          if (not _notify.received(this, consume data,
-            received_called)) or
+          if (not _notify.received(
+            this, consume data, received_called)) or
             (received_called >= _max_received_called)
           then
             _read_again()
@@ -980,7 +998,6 @@ actor TCPConnection is AsioEventNotify
 
     try (_listen as TCPListener)._conn_closed() end
 
-
   // Check this when a connection gets its first writeable event.
   fun _is_sock_connected(fd: U32): Bool =>
     (let errno: U32, let value: U32) = _OSSocket.get_so_error(fd)
@@ -1006,7 +1023,6 @@ actor TCPConnection is AsioEventNotify
     end
 
   /**************************************/
-
   fun ref getsockopt(level: I32, option_name: I32, option_max_size: USize = 4):
     (U32, Array[U8] iso^) =>
     """
@@ -1087,7 +1103,8 @@ actor TCPConnection is AsioEventNotify
       for bs in sb.done().values() do
         sbytes.append(bs)
       end
-      match conn.setsockopt(OSSockOpt.sol_socket(), OSSockOpt.so_rcvbuf(), sbytes)
+      match conn.setsockopt(
+        OSSockOpt.sol_socket(), OSSockOpt.so_rcvbuf(), sbytes)
         | 0 =>
           // System call was successful
         | let errno: U32 =>
@@ -1107,7 +1124,6 @@ actor TCPConnection is AsioEventNotify
     failure.
     """
     _OSSocket.setsockopt_u32(_fd, level, option_name, option)
-
 
   fun ref get_so_error(): (U32, U32) =>
     """
@@ -1131,8 +1147,8 @@ actor TCPConnection is AsioEventNotify
     """
     Wrapper for the FFI call `getsockopt(fd, SOL_SOCKET, TCP_NODELAY, ...)`
     """
-    _OSSocket.getsockopt_u32(_fd, OSSockOpt.sol_socket(), OSSockOpt.tcp_nodelay())
-
+    _OSSocket.getsockopt_u32(
+      _fd, OSSockOpt.sol_socket(), OSSockOpt.tcp_nodelay())
 
   fun ref set_so_rcvbuf(bufsize: U32): U32 =>
     """
@@ -1152,4 +1168,5 @@ actor TCPConnection is AsioEventNotify
     """
     var word: Array[U8] ref =
       _OSSocket.u32_to_bytes4(if state then 1 else 0 end)
-    _OSSocket.setsockopt(_fd, OSSockOpt.sol_socket(), OSSockOpt.tcp_nodelay(), word)
+    _OSSocket.setsockopt(
+      _fd, OSSockOpt.sol_socket(), OSSockOpt.tcp_nodelay(), word)

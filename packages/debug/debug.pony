@@ -23,7 +23,14 @@ use @pony_os_stdout[Pointer[U8]]()
 use @pony_os_stderr[Pointer[U8]]()
 
 primitive DebugOut
+  """
+  Directs debug output to stdout.
+  """
+
 primitive DebugErr
+  """
+  Directs debug output to stderr.
+  """
 
 type DebugStream is (DebugOut | DebugErr)
 

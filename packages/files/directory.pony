@@ -12,13 +12,16 @@ use @openat[I32](fd: I32, path: Pointer[U8] tag, flags: I32, ...)
 use @unlinkat[I32](fd: I32, target: Pointer[U8] tag, flags: I32)
 use @futimes[I32](fildes: I32, tv: Pointer[(ILong, ILong, ILong, ILong)])
   if not windows
-use @renameat[I32](fd: I32, from: Pointer[U8] tag, tofd: I32, to_path: Pointer[U8] tag)
-  if linux or bsd
-use @symlinkat[I32](source: Pointer[U8] tag, fd: I32, dst: Pointer[U8] tag) if linux or bsd
+use @renameat[I32](fd: I32, from: Pointer[U8] tag, tofd: I32,
+  to_path: Pointer[U8] tag) if linux or bsd
+use @symlinkat[I32](source: Pointer[U8] tag, fd: I32,
+  dst: Pointer[U8] tag) if linux or bsd
 use @futimesat[I32](fd: I32, path: Pointer[U8] tag,
- timeval: Pointer[(ILong, ILong, ILong, ILong)]) if linux or bsd
-use @fchownat[I32](fd: I32, path: Pointer[U8] tag, uid: U32, gid: U32, flags: I32) if linux or bsd
-use @fchmodat[I32](fd: I32, path: Pointer[U8] tag, mode: U32, flag: I32) if linux or bsd
+  timeval: Pointer[(ILong, ILong, ILong, ILong)]) if linux or bsd
+use @fchownat[I32](fd: I32, path: Pointer[U8] tag, uid: U32, gid: U32,
+  flags: I32) if linux or bsd
+use @fchmodat[I32](fd: I32, path: Pointer[U8] tag, mode: U32,
+  flag: I32) if linux or bsd
 use @mkdirat[I32](fd: I32, path: Pointer[U8] tag, mode: U32)
 use @fdopendir[Pointer[_DirectoryHandle]](fd: I32) if posix
 use @opendir[Pointer[_DirectoryHandle]](name: Pointer[U8] tag) if posix
@@ -30,9 +33,11 @@ use @ponyint_windows_find_data_free[None](data: Pointer[_DirectoryEntry])
   if windows
 use @ponyint_windows_readdir[Pointer[U8] iso^](data: Pointer[_DirectoryEntry])
   if windows
-use @FindFirstFileA[Pointer[_DirectoryHandle]](file_name: Pointer[U8] tag, data: Pointer[_DirectoryEntry])
+use @FindFirstFileA[Pointer[_DirectoryHandle]](
+  file_name: Pointer[U8] tag, data: Pointer[_DirectoryEntry])
   if windows
-use @FindNextFileA[Bool](handle: Pointer[None] tag, data: Pointer[_DirectoryEntry])
+use @FindNextFileA[Bool](handle: Pointer[None] tag,
+  data: Pointer[_DirectoryEntry])
   if windows
 use @FindClose[Bool](handle: Pointer[_DirectoryHandle] tag) if windows
 
@@ -53,7 +58,6 @@ class Directory
     This is the filesystem path locating this directory on the file system
     and an object capability granting access to operate on this directory.
     """
-
   var _fd: I32 = -1
   // We don't need a file descriptor in Windows. However we do still need to
   // know whether we've disposed of this object, so we use the _fd to indicate
@@ -78,7 +82,8 @@ class Directory
 
     ifdef posix then
       _fd =
-        @open(from.path.cstring(),
+        @open(
+          from.path.cstring(),
           @ponyint_o_rdonly() or
             @ponyint_o_directory() or
             @ponyint_o_cloexec())
@@ -126,7 +131,9 @@ class Directory
         let h =
           ifdef linux or bsd then
             let fd =
-              @openat(fd', ".".cstring(),
+              @openat(
+                fd',
+                ".".cstring(),
                 @ponyint_o_rdonly() or
                   @ponyint_o_directory() or
                   @ponyint_o_cloexec())
@@ -185,7 +192,9 @@ class Directory
 
     ifdef linux or bsd then
       let fd' =
-        @openat(_fd, target.cstring(),
+        @openat(
+          _fd,
+          target.cstring(),
           @ponyint_o_rdonly() or
             @ponyint_o_directory() or
             @ponyint_o_cloexec())
@@ -214,13 +223,14 @@ class Directory
         var offset: ISize = 0
 
         repeat
-          let element = try
-            offset = target.find(Path.sep(), offset)? + 1
-            target.substring(0, offset - 1)
-          else
-            offset = -1
-            target
-          end
+          let element =
+            try
+              offset = target.find(Path.sep(), offset)? + 1
+              target.substring(0, offset - 1)
+            else
+              offset = -1
+              target
+            end
 
           @mkdirat(_fd, element.cstring(), U32(0x1FF))
         until offset < 0 end
@@ -251,7 +261,9 @@ class Directory
 
     ifdef linux or bsd then
       let fd' =
-        @openat(_fd, target.cstring(),
+        @openat(
+          _fd,
+          target.cstring(),
           @ponyint_o_rdwr() or
             @ponyint_o_creat() or
             @ponyint_o_cloexec(),
@@ -276,7 +288,9 @@ class Directory
 
     ifdef linux or bsd then
       let fd' =
-        @openat(_fd, target.cstring(),
+        @openat(
+          _fd,
+          target.cstring(),
           @ponyint_o_rdonly() or @ponyint_o_cloexec(),
           I32(0x1B6))
       recover File._descriptor(fd', path')? end
@@ -497,11 +511,11 @@ class Directory
     """
     if
       not path.caps(FileLookup) or
-       not path.caps(FileRename) or
-       not to.path.caps(FileLookup) or
-       not to.path.caps(FileCreate) or
-       (_fd == -1) or
-       (to._fd == -1)
+      not path.caps(FileRename) or
+      not to.path.caps(FileLookup) or
+      not to.path.caps(FileCreate) or
+      (_fd == -1) or
+      (to._fd == -1)
     then
       return false
     end

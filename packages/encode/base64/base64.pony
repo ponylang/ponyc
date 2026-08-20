@@ -24,6 +24,9 @@ use "collections"
 use "assert"
 
 primitive Base64
+  """
+  Base64 encoding and decoding.
+  """
   fun encode_pem(data: ReadSeq[U8]): String iso^ =>
     """
     Encode for PEM (RFC 1421).

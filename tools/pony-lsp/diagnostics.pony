@@ -99,14 +99,14 @@ class val Diagnostic
     end
     consume expanded
 
-  fun to_json(): JsonValue =>
-    var obj = JsonObject
+  fun to_json(): JSONValue =>
+    var obj = JSONObject
       .update("range", this.location.range.to_json())
       .update("severity", this.severity)
       .update("source", "pony-lsp")
       .update("message", this.message)
     if this.related_information.size() > 0 then
-      var arr = JsonArray
+      var arr = JSONArray
       for rel_info in this.related_information.values() do
         arr = arr.push(rel_info.to_json())
       end
@@ -135,7 +135,7 @@ class val DiagnosticRelatedInformation
     location = location'
     message = message'
 
-  fun to_json(): JsonValue =>
-    JsonObject
+  fun to_json(): JSONValue =>
+    JSONObject
       .update("location", this.location.to_json())
       .update("message", this.message)

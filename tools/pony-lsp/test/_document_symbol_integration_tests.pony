@@ -415,12 +415,12 @@ class val _DocSymContainmentChecker
   fun lsp_method(): String =>
     Methods.text_document().document_symbol()
 
-  fun lsp_params(): (None | JsonObject) =>
+  fun lsp_params(): (None | JSONObject) =>
     None
 
   fun check(res: ResponseMessage val, h: TestHelper): Bool =>
     match res.result
-    | let arr: JsonArray =>
+    | let arr: JSONArray =>
       var ok = true
       for item in arr.values() do
         ok = _check_symbol(item, h) and ok
@@ -431,18 +431,18 @@ class val _DocSymContainmentChecker
       false
     end
 
-  fun _check_symbol(item: JsonValue, h: TestHelper): Bool =>
+  fun _check_symbol(item: JSONValue, h: TestHelper): Bool =>
     var ok = true
     try
-      let name = JsonNav(item)("name").as_string()?
-      let r_sl = JsonNav(item)("range")("start")("line").as_i64()?
-      let r_sc = JsonNav(item)("range")("start")("character").as_i64()?
-      let r_el = JsonNav(item)("range")("end")("line").as_i64()?
-      let r_ec = JsonNav(item)("range")("end")("character").as_i64()?
-      let s_sl = JsonNav(item)("selectionRange")("start")("line").as_i64()?
-      let s_sc = JsonNav(item)("selectionRange")("start")("character").as_i64()?
-      let s_el = JsonNav(item)("selectionRange")("end")("line").as_i64()?
-      let s_ec = JsonNav(item)("selectionRange")("end")("character").as_i64()?
+      let name = JSONNav(item)("name").as_string()?
+      let r_sl = JSONNav(item)("range")("start")("line").as_i64()?
+      let r_sc = JSONNav(item)("range")("start")("character").as_i64()?
+      let r_el = JSONNav(item)("range")("end")("line").as_i64()?
+      let r_ec = JSONNav(item)("range")("end")("character").as_i64()?
+      let s_sl = JSONNav(item)("selectionRange")("start")("line").as_i64()?
+      let s_sc = JSONNav(item)("selectionRange")("start")("character").as_i64()?
+      let s_el = JSONNav(item)("selectionRange")("end")("line").as_i64()?
+      let s_ec = JSONNav(item)("selectionRange")("end")("character").as_i64()?
 
       // selectionRange.start must be >= range.start
       let start_ok =
@@ -472,7 +472,7 @@ class val _DocSymContainmentChecker
 
       // Recurse into children if present.
       try
-        let children = JsonNav(item)("children").as_array()?
+        let children = JSONNav(item)("children").as_array()?
         for child in children.values() do
           ok = _check_symbol(child, h) and ok
         end
@@ -510,12 +510,12 @@ class val _DocSymRangeChecker
   fun lsp_method(): String =>
     Methods.text_document().document_symbol()
 
-  fun lsp_params(): (None | JsonObject) =>
+  fun lsp_params(): (None | JSONObject) =>
     None
 
   fun check(res: ResponseMessage val, h: TestHelper): Bool =>
     match res.result
-    | let arr: JsonArray =>
+    | let arr: JSONArray =>
       let found = _find(arr, _symbol_name, _parent_name)
       match found
       | None =>
@@ -532,24 +532,24 @@ class val _DocSymRangeChecker
     end
 
   fun _find(
-    arr: JsonArray,
+    arr: JSONArray,
     name: String,
     parent: (String | None))
-    : JsonValue
+    : JSONValue
   =>
     for item in arr.values() do
       try
-        let item_name = JsonNav(item)("name").as_string()?
+        let item_name = JSONNav(item)("name").as_string()?
         match \exhaustive\ parent
         | None =>
           if item_name == name then return item end
         | let p: String =>
           if item_name == p then
             try
-              let children = JsonNav(item)("children").as_array()?
+              let children = JSONNav(item)("children").as_array()?
               for child in children.values() do
                 try
-                  if JsonNav(child)("name").as_string()? == name then
+                  if JSONNav(child)("name").as_string()? == name then
                     return child
                   end
                 end
@@ -561,19 +561,19 @@ class val _DocSymRangeChecker
     end
     None
 
-  fun _assert_ranges(item: JsonValue, h: TestHelper): Bool =>
+  fun _assert_ranges(item: JSONValue, h: TestHelper): Bool =>
     (let exp_r_sl, let exp_r_sc, let exp_r_el, let exp_r_ec) = _range
     (let exp_s_sl, let exp_s_sc, let exp_s_el, let exp_s_ec) = _selection_range
     var ok = true
     try
-      let r_sl = JsonNav(item)("range")("start")("line").as_i64()?
-      let r_sc = JsonNav(item)("range")("start")("character").as_i64()?
-      let r_el = JsonNav(item)("range")("end")("line").as_i64()?
-      let r_ec = JsonNav(item)("range")("end")("character").as_i64()?
-      let s_sl = JsonNav(item)("selectionRange")("start")("line").as_i64()?
-      let s_sc = JsonNav(item)("selectionRange")("start")("character").as_i64()?
-      let s_el = JsonNav(item)("selectionRange")("end")("line").as_i64()?
-      let s_ec = JsonNav(item)("selectionRange")("end")("character").as_i64()?
+      let r_sl = JSONNav(item)("range")("start")("line").as_i64()?
+      let r_sc = JSONNav(item)("range")("start")("character").as_i64()?
+      let r_el = JSONNav(item)("range")("end")("line").as_i64()?
+      let r_ec = JSONNav(item)("range")("end")("character").as_i64()?
+      let s_sl = JSONNav(item)("selectionRange")("start")("line").as_i64()?
+      let s_sc = JSONNav(item)("selectionRange")("start")("character").as_i64()?
+      let s_el = JSONNav(item)("selectionRange")("end")("line").as_i64()?
+      let s_ec = JSONNav(item)("selectionRange")("end")("character").as_i64()?
 
       ok = h.assert_eq[I64](
         exp_r_sl, r_sl, _symbol_name + ": range.start.line") and ok
@@ -612,13 +612,13 @@ class val _DocSymTopLevelKindsChecker
   fun lsp_method(): String =>
     Methods.text_document().document_symbol()
 
-  fun lsp_params(): (None | JsonObject) =>
+  fun lsp_params(): (None | JSONObject) =>
     None
 
   fun check(res: ResponseMessage val, h: TestHelper): Bool =>
     var ok = true
     match res.result
-    | let arr: JsonArray =>
+    | let arr: JSONArray =>
       ok = h.assert_eq[USize](
         _expected.size(),
         arr.size(),
@@ -627,8 +627,8 @@ class val _DocSymTopLevelKindsChecker
         var found = false
         for item in arr.values() do
           try
-            let n = JsonNav(item)("name").as_string()?
-            let k = JsonNav(item)("kind").as_i64()?
+            let n = JSONNav(item)("name").as_string()?
+            let k = JSONNav(item)("kind").as_i64()?
             if (n == exp_name) and (k == exp_kind) then
               found = true
               break
@@ -665,15 +665,15 @@ class val _DocSymChildKindsChecker
   fun lsp_method(): String =>
     Methods.text_document().document_symbol()
 
-  fun lsp_params(): (None | JsonObject) =>
+  fun lsp_params(): (None | JSONObject) =>
     None
 
   fun check(res: ResponseMessage val, h: TestHelper): Bool =>
     match res.result
-    | let arr: JsonArray =>
+    | let arr: JSONArray =>
       for item in arr.values() do
         try
-          if JsonNav(item)("name").as_string()? == _parent_name then
+          if JSONNav(item)("name").as_string()? == _parent_name then
             return _check_children(item, h)
           end
         end
@@ -686,10 +686,10 @@ class val _DocSymChildKindsChecker
       false
     end
 
-  fun _check_children(parent: JsonValue, h: TestHelper): Bool =>
+  fun _check_children(parent: JSONValue, h: TestHelper): Bool =>
     var ok = true
     try
-      let children = JsonNav(parent)("children").as_array()?
+      let children = JSONNav(parent)("children").as_array()?
       ok = h.assert_eq[USize](
         _expected.size(),
         children.size(),
@@ -698,8 +698,8 @@ class val _DocSymChildKindsChecker
         var found = false
         for child in children.values() do
           try
-            let n = JsonNav(child)("name").as_string()?
-            let k = JsonNav(child)("kind").as_i64()?
+            let n = JSONNav(child)("name").as_string()?
+            let k = JSONNav(child)("kind").as_i64()?
             if (n == exp_name) and (k == exp_kind) then
               found = true
               break
@@ -737,17 +737,17 @@ class val _DocSymMaxEndLineChecker
   fun lsp_method(): String =>
     Methods.text_document().document_symbol()
 
-  fun lsp_params(): (None | JsonObject) =>
+  fun lsp_params(): (None | JSONObject) =>
     None
 
   fun check(res: ResponseMessage val, h: TestHelper): Bool =>
     match res.result
-    | let arr: JsonArray =>
+    | let arr: JSONArray =>
       for item in arr.values() do
         try
-          if JsonNav(item)("name").as_string()? == _symbol_name then
+          if JSONNav(item)("name").as_string()? == _symbol_name then
             let end_line =
-              JsonNav(item)("range")("end")("line").as_i64()?
+              JSONNav(item)("range")("end")("line").as_i64()?
             return h.assert_true(
               end_line < _max_end_line,
               _symbol_name +
@@ -779,19 +779,19 @@ class val _DocSymNoChildrenChecker
   fun lsp_method(): String =>
     Methods.text_document().document_symbol()
 
-  fun lsp_params(): (None | JsonObject) =>
+  fun lsp_params(): (None | JSONObject) =>
     None
 
   fun check(res: ResponseMessage val, h: TestHelper): Bool =>
     match res.result
-    | let arr: JsonArray =>
+    | let arr: JSONArray =>
       for item in arr.values() do
         try
-          if JsonNav(item)("name").as_string()? == _symbol_name then
+          if JSONNav(item)("name").as_string()? == _symbol_name then
             // children key is omitted from JSON when the array is empty;
             // if present it must be empty.
             try
-              let children = JsonNav(item)("children").as_array()?
+              let children = JSONNav(item)("children").as_array()?
               return h.assert_eq[USize](
                 0,
                 children.size(),

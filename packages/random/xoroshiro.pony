@@ -47,8 +47,10 @@ class XorOshiro128StarStar is Random
 
   http://xoshiro.di.unimi.it/
 
-  This Rand implementation is slightly slower than [XorOshiro128Plus](random-XorOshiro128Plus.md)
-  but does not exhibit "mild dependencies in Hamming weights" (the lower four bits might fail linearity tests).
+  This Rand implementation is slightly slower than
+  [XorOshiro128Plus](random-XorOshiro128Plus.md) but does not exhibit
+  "mild dependencies in Hamming weights" (the lower four bits might
+  fail linearity tests).
   """
 
   var _x: U64

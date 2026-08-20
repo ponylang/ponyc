@@ -14,7 +14,9 @@ class _TerminalOutput is _OutputManager
     _env = env
     _noadjust = _env.args.contains("--noadjust", {(a, b) => a == b })
     if not _noadjust then
-      _print("Benchmark results will have their mean and median adjusted for overhead.")
+      _print(
+        "Benchmark results will have their mean and median" +
+        " adjusted for overhead.")
       _print("You may disable this with --noadjust.\n")
     end
     _print_heading()

@@ -55,16 +55,16 @@ actor LanguageServer is (Notifier & RequestSender)
     // _channel.log("PonyLSP Server ready")
 
   fun tag _get_document_uri(
-    params: (JsonObject | JsonArray | None)
+    params: (JSONObject | JSONArray | None)
   ): String ? =>
-    JsonNav(params)("textDocument")("uri").as_string()?
+    JSONNav(params)("textDocument")("uri").as_string()?
 
   fun tag _get_item_uri_and_sel(
-    params: (JsonObject | JsonArray | None)
+    params: (JSONObject | JSONArray | None)
   ): (String, I64, I64) ? =>
-    ( JsonNav(params)("item")("uri").as_string()?
-    , JsonNav(params)("item")("selectionRange")("start")("line").as_i64()?
-    , JsonNav(params)("item")("selectionRange")("start")("character")
+    ( JSONNav(params)("item")("uri").as_string()?
+    , JSONNav(params)("item")("selectionRange")("start")("line").as_i64()?
+    , JSONNav(params)("item")("selectionRange")("start")("character")
         .as_i64()? )
 
   be handle_parse_error(err: ParseError val) =>
@@ -260,7 +260,7 @@ actor LanguageServer is (Notifier & RequestSender)
       | Methods.workspace().symbol() =>
         let query =
           try
-            JsonNav(r.params)("query").as_string()?
+            JSONNav(r.params)("query").as_string()?
           else
             ""
           end
@@ -379,7 +379,7 @@ actor LanguageServer is (Notifier & RequestSender)
     =>
       try
         let settings =
-          JsonPathParser.compile("$.settings")?.query_one(n.params) as JsonValue
+          JSONPathParser.compile("$.settings")?.query_one(n.params) as JSONValue
         this.handle_did_change_configuration(settings)
       else
         this._channel.log("[" + n.method + "] Invalid or missing settings")
@@ -397,20 +397,20 @@ actor LanguageServer is (Notifier & RequestSender)
 
   fun ref handle_initialize(msg: RequestMessage val) =>
     match msg.params
-    | let params: JsonObject val =>
+    | let params: JSONObject val =>
       // extract server_options from "initializationOptions"
       let server_options =
         try
           ServerOptions.from_json(
-            params("initializationOptions")? as JsonObject)
+            params("initializationOptions")? as JSONObject)
         end
       let client = Client.from(params)
       this._client = client
       this._channel.log("Connected to client: " + client.string())
       // extract workspace folders, rootUri, rootPath in that order:
-      let found_workspace: JsonValue =
+      let found_workspace: JSONValue =
         try
-          JsonPathParser
+          JSONPathParser
             .compile("$['workspaceFolders','rootUri','rootPath']")?
             .query(params)(0)?
         else
@@ -437,10 +437,10 @@ actor LanguageServer is (Notifier & RequestSender)
             this._router.add_workspace(pony_workspace.folder, mgr)?
           end
         end
-      | let workspace_arr: JsonArray =>
+      | let workspace_arr: JSONArray =>
         for workspace_obj in workspace_arr.values() do
           try
-            let obj = workspace_obj as JsonObject
+            let obj = workspace_obj as JSONObject
             let name = obj("name")? as String
             let uri = obj("uri")? as String
             this._channel.log("Scanning workspace " + uri)
@@ -471,28 +471,28 @@ actor LanguageServer is (Notifier & RequestSender)
       this._channel.send(
         ResponseMessage.create(
           msg.id,
-          JsonObject
+          JSONObject
             .update(
               "capabilities",
-              JsonObject
+              JSONObject
                 .update("documentHighlightProvider", true)
                 .update("hoverProvider", true)
                 .update(
                   "textDocumentSync",
-                  JsonObject
+                  JSONObject
                     .update("change", I64(0))
                     .update("openClose", true)
-                    .update("save", JsonObject.update("includeText", true)))
+                    .update("save", JSONObject.update("includeText", true)))
                 .update("declarationProvider", true)
                 .update("definitionProvider", true)
                 .update("typeDefinitionProvider", true)
                 .update("referencesProvider", true)
                 .update(
                   "renameProvider",
-                  JsonObject.update("prepareProvider", true))
+                  JSONObject.update("prepareProvider", true))
                 .update(
                   "diagnosticProvider",
-                  JsonObject
+                  JSONObject
                     .update("identifier", "pony-lsp")
                     .update("interFileDependencies", true)
                     .update("workspaceDiagnostics", false))
@@ -502,21 +502,21 @@ actor LanguageServer is (Notifier & RequestSender)
                 .update("workspaceSymbolProvider", true)
                 .update(
                   "inlayHintProvider",
-                  JsonObject.update("resolveProvider", false))
+                  JSONObject.update("resolveProvider", false))
                 .update(
                   "signatureHelpProvider",
-                  JsonObject
+                  JSONObject
                     .update(
                       "triggerCharacters",
-                      JsonArray.push("(").push(","))
+                      JSONArray.push("(").push(","))
                     .update(
                       "retriggerCharacters",
-                      JsonArray.push("(").push(",")))
+                      JSONArray.push("(").push(",")))
                 .update("typeHierarchyProvider", true)
                 .update("callHierarchyProvider", true))
             .update(
               "serverInfo",
-              JsonObject
+              JSONObject
                 .update("name", "Pony Language Server")
                 .update("version", Version()))
         )
@@ -560,11 +560,11 @@ actor LanguageServer is (Notifier & RequestSender)
           where message_type = Warning)
     end
 
-  fun ref handle_did_change_configuration(settings: JsonValue val) =>
+  fun ref handle_did_change_configuration(settings: JSONValue val) =>
     // example output: for settings: {"pony-lsp":{"defines":["FOO","BAR"]}}
     this._channel.log(
       "Received didChangeConfiguration response: " +
-      JsonPrinter.print(settings))
+      JSONPrinter.print(settings))
     match settings
     | None =>
       // this is a signal to pull the settings again, so we do it here
@@ -576,11 +576,11 @@ actor LanguageServer is (Notifier & RequestSender)
           this.send_configuration_request()
         end
       end
-    | let json_settings: JsonObject =>
+    | let json_settings: JSONObject =>
       let maybe_settings =
         try
           let json_settings_obj =
-            JsonNav(json_settings)("pony-lsp").as_object()?
+            JSONNav(json_settings)("pony-lsp").as_object()?
           Settings.from_json(json_settings_obj)
         end
       this._compiler.apply_settings(maybe_settings)
@@ -598,7 +598,7 @@ actor LanguageServer is (Notifier & RequestSender)
       try
         // LSPAny[] - we only read the first one,
         // as we only ever request settings for 1 item
-        let json_settings = (r.result as JsonArray)(0)? as JsonObject
+        let json_settings = (r.result as JSONArray)(0)? as JSONObject
         this._channel.log(
           "Received workspace/configuration response = " +
           json_settings.print())
@@ -620,7 +620,7 @@ actor LanguageServer is (Notifier & RequestSender)
 
   be send_request(
     method: String val,
-    params: (JsonObject | JsonArray | None),
+    params: (JSONObject | JSONArray | None),
     notify: (ResponseNotify | None) = None)
   =>
     let request_id: RequestId = this._next_request_id()
@@ -635,7 +635,7 @@ actor LanguageServer is (Notifier & RequestSender)
 
   be register_capability(
     register_for_method: String val,
-    register_options: JsonValue)
+    register_options: JSONValue)
   =>
     """
     Register to the LSP client for a certain capability/method.
@@ -643,11 +643,11 @@ actor LanguageServer is (Notifier & RequestSender)
     let id = register_for_method.hash()
     this.send_request(
       Methods.client().register_capability(),
-      JsonObject
+      JSONObject
         .update(
           "registrations",
-          JsonArray.push(
-            JsonObject
+          JSONArray.push(
+            JSONObject
               .update("id", id.string())
               .update("method", register_for_method)
               .update("registerOptions", register_options))
@@ -660,10 +660,10 @@ actor LanguageServer is (Notifier & RequestSender)
     """
     this.send_request(
       Methods.workspace().configuration(),
-      JsonObject
+      JSONObject
         .update(
           "items",
-          JsonArray.push(JsonObject.update("section", "pony-lsp"))
+          JSONArray.push(JSONObject.update("section", "pony-lsp"))
         )
     )
 

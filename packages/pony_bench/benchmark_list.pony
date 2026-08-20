@@ -2,10 +2,9 @@
 type Benchmark is (MicroBenchmark | AsyncMicroBenchmark)
 
 // interface iso _IBenchmark
-//   fun name(): String
-//   fun config(): BenchConfig
-//   fun overhead(): _IBenchmark^
-
+// fun name(): String
+// fun config(): BenchConfig
+// fun overhead(): _IBenchmark^
 trait iso MicroBenchmark
   """
   Synchronous benchmarks must provide this trait. The `apply` method defines a
@@ -17,11 +16,20 @@ trait iso MicroBenchmark
   `after_iteration` methods respectively that run before/after each iteration.
   """
   fun name(): String
+    """
+    The name of this benchmark.
+    """
+
   fun config(): BenchConfig => BenchConfig
   fun overhead(): MicroBenchmark^ => OverheadBenchmark
   fun ref before() ? => None
   fun ref before_iteration() ? => None
+
   fun ref apply() ?
+    """
+    A single iteration of the benchmark.
+    """
+
   fun ref after() ? => None
   fun ref after_iteration() ? => None
 
@@ -38,16 +46,32 @@ trait iso AsyncMicroBenchmark
   that run before/after each iteration.
   """
   fun name(): String
+    """
+    The name of this benchmark.
+    """
+
   fun config(): BenchConfig => BenchConfig
   fun overhead(): AsyncMicroBenchmark^ => AsyncOverheadBenchmark
   fun ref before(c: AsyncBenchContinue) => c.complete()
   fun ref before_iteration(c: AsyncBenchContinue) => c.complete()
+
   fun ref apply(c: AsyncBenchContinue) ?
+    """
+    A single iteration of the benchmark.
+    """
+
   fun ref after(c: AsyncBenchContinue) => c.complete()
   fun ref after_iteration(c: AsyncBenchContinue) => c.complete()
 
 interface tag BenchmarkList
+  """
+  A list of benchmarks to run.
+  """
+
   fun tag benchmarks(bench: PonyBench)
+    """
+    Add benchmarks to the runner.
+    """
 
 // TODO documentation
 class val BenchConfig

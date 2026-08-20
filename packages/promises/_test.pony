@@ -144,8 +144,9 @@ class \nodoc\ iso _TestPromisesJoinThenReject is UnitTest
     h.expect_action("rejected")
     (let a, let b, let c) = (Promise[String], Promise[String], Promise[String])
     let abc = Promises[String].join([a; b; c].values())
-      .next[String]({(l) => String.join(l.values()) },
-        {() => h.complete_action("rejected"); "string"})
+      .next[String](
+        {(l) => String.join(l.values()) },
+        {() => h.complete_action("rejected"); "string" })
 
     a("a")
     b("b")
@@ -169,11 +170,12 @@ class \nodoc\ iso _TestFlattenNextHappyPath is UnitTest
     h.expect_action(second_string)
 
     let start = Promise[String]
-    let inter = start.flatten_next[String](
-      _FlattenNextFirstPromise~successful_fulfill(
-        second_string, h, initial_string),
-      _FlattenNextFirstPromise~fail_if_reject_is_called(h)
-    )
+    let inter =
+      start.flatten_next[String](
+        _FlattenNextFirstPromise~successful_fulfill(
+          second_string, h, initial_string),
+        _FlattenNextFirstPromise~fail_if_reject_is_called(h)
+      )
     inter.next[None](
       _FlattenNextSecondPromise~successful_fulfill(h, second_string),
       _FlattenNextSecondPromise~fail_if_reject_is_called(h)
@@ -203,17 +205,17 @@ class \nodoc\ iso _TestFlattenNextFirstHasFulfillError is UnitTest
     h.expect_action(expected_reject_string)
 
     let start = Promise[String]
-    let inter = start.flatten_next[String](
-      _FlattenNextFirstPromise~fulfill_will_error(h, initial_string),
-      _FlattenNextFirstPromise~fail_if_reject_is_called(h)
-    )
+    let inter =
+      start.flatten_next[String](
+        _FlattenNextFirstPromise~fulfill_will_error(h, initial_string),
+        _FlattenNextFirstPromise~fail_if_reject_is_called(h)
+      )
     inter.next[None](
       _FlattenNextSecondPromise~fail_if_fulfill_is_called(h),
       _FlattenNextSecondPromise~reject_expected(h, expected_reject_string)
     )
 
     start(initial_string)
-
 
 class \nodoc\ iso _TestFlattenNextSecondHasFulfillError is UnitTest
   """
@@ -234,11 +236,12 @@ class \nodoc\ iso _TestFlattenNextSecondHasFulfillError is UnitTest
     h.expect_action(second_string)
 
     let start = Promise[String]
-    let inter = start.flatten_next[String](
-      _FlattenNextFirstPromise~successful_fulfill(
-        second_string, h, initial_string),
-      _FlattenNextFirstPromise~fail_if_reject_is_called(h)
-    )
+    let inter =
+      start.flatten_next[String](
+        _FlattenNextFirstPromise~successful_fulfill(
+          second_string, h, initial_string),
+        _FlattenNextFirstPromise~fail_if_reject_is_called(h)
+      )
     inter.next[None](
       _FlattenNextSecondPromise~fulfill_will_error(h, second_string),
       _FlattenNextSecondPromise~fail_if_reject_is_called(h)
@@ -267,10 +270,11 @@ class \nodoc\ iso _TestFlattenNextRejectFirst is UnitTest
     h.expect_action(second_reject)
 
     let start = Promise[String]
-    let inter = start.flatten_next[String](
-      _FlattenNextFirstPromise~fail_if_fulfill_is_called(h),
-      _FlattenNextFirstPromise~reject_expected(h, first_reject)
-    )
+    let inter =
+      start.flatten_next[String](
+        _FlattenNextFirstPromise~fail_if_fulfill_is_called(h),
+        _FlattenNextFirstPromise~reject_expected(h, first_reject)
+      )
     inter.next[None](
       _FlattenNextSecondPromise~fail_if_fulfill_is_called(h),
       _FlattenNextSecondPromise~reject_expected(h, second_reject)
@@ -287,9 +291,12 @@ primitive \nodoc\ _FlattenNextFirstPromise
   actions should ever call `complete` on the `TestHelper` as there's another
   promise in the chain.
   """
-  fun successful_fulfill(send_on: String, h: TestHelper,
+  fun successful_fulfill(
+    send_on: String,
+    h: TestHelper,
     expected: String,
-    actual: String): Promise[String]
+    actual: String)
+    : Promise[String]
   =>
     h.assert_eq[String](expected, actual)
     h.complete_action(expected)

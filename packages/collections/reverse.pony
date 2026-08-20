@@ -3,7 +3,7 @@ class Reverse[A: (Real[A] val & Number) = USize] is Iterator[A]
   Produces a decreasing range [max, min] with step `dec`, for any `Number` type.
   (i.e. the reverse of `Range`)
 
-  Example program: 
+  Example program:
 
   ```pony
   use "collections"
@@ -11,9 +11,9 @@ class Reverse[A: (Real[A] val & Number) = USize] is Iterator[A]
     new create(env: Env) =>
       for e in Reverse(10, 2, 2) do
         env.out.print(e.string())
-      end 
+      end
   ```
-  Which outputs: 
+  Which outputs:
   ```
   10
   8

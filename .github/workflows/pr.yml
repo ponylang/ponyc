@@ -393,6 +393,8 @@ jobs:
         run: cd build/debug && ./pony-lint ../../test/
       - name: Lint pony-compiler
         run: cd build/debug && ./pony-lint ../../tools/lib/ponylang/pony_compiler/
+      - name: Lint packages
+        run: cd build/debug && ./pony-lint ../../packages/
 
   tools-macos:
     needs: [changes, maybe-build-macos]

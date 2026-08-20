@@ -27,13 +27,13 @@ class WorkspaceScanner
     let corral_json_file = OpenFile(corral_json_path) as File
     let corral_json_str = corral_json_file.read_string(corral_json_file.size())
     let corral_json =
-      match JsonParser.parse(consume corral_json_str)
-      | let obj: JsonObject => obj
+      match JSONParser.parse(consume corral_json_str)
+      | let obj: JSONObject => obj
       else error
       end
 
     // extract packages
-    let packages = JsonPathParser.compile("$.packages.*")?.query(corral_json)
+    let packages = JSONPathParser.compile("$.packages.*")?.query(corral_json)
     let package_paths =
       recover
         trn Set[String].create(2)
@@ -52,7 +52,7 @@ class WorkspaceScanner
 
     // extract dependencies, also transitive ones
     let locators =
-      JsonPathParser.compile("$.deps.*.locator")?.query(corral_json)
+      JSONPathParser.compile("$.deps.*.locator")?.query(corral_json)
     let dependencies =
       recover
         trn Set[String].create(4)

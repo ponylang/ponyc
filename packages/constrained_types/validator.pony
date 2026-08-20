@@ -1,6 +1,9 @@
 type ValidationResult is (ValidationSuccess | ValidationFailure)
 
 primitive ValidationSuccess
+  """
+  Indicates a value passed validation.
+  """
 
 class val ValidationFailure
   """
@@ -33,6 +36,7 @@ interface val Validator[T]
   are required to be stateless.
   """
   new val create()
+
   fun apply(i: T): ValidationResult
   """
   Takes an instance and returns either `ValidationSuccess` if it meets the

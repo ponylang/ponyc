@@ -4,7 +4,7 @@ trait Message is Stringable
   """
   Base trait for all LSP messages.
   """
-  fun json(): JsonObject
+  fun json(): JSONObject
     """
     Return the JSON representation of this message.
     """
@@ -83,24 +83,24 @@ class val RequestMessage is Message
   """
   let id: RequestId
   let method: String
-  let params: (JsonObject | JsonArray | None)
+  let params: (JSONObject | JSONArray | None)
 
   new val create(
     id': RequestId,
     method': String,
-    params': (JsonObject | JsonArray | None) = None)
+    params': (JSONObject | JSONArray | None) = None)
   =>
     id = id'
     method = method'
     params = params'
 
-  fun json(): JsonObject =>
-    let obj = JsonObject
+  fun json(): JSONObject =>
+    let obj = JSONObject
       .update("jsonrpc", "2.0")
       .update("id", id)
       .update("method", method)
     match this.params
-    | let p: (JsonObject | JsonArray) =>
+    | let p: (JSONObject | JSONArray) =>
       obj.update("params", p)
     else
       obj
@@ -111,21 +111,21 @@ class val Notification is Message
   An LSP notification message (no id).
   """
   let method: String
-  let params: (JsonObject | JsonArray | None)
+  let params: (JSONObject | JSONArray | None)
 
   new val create(
     method': String,
-    params': (JsonObject | JsonArray | None) = None)
+    params': (JSONObject | JSONArray | None) = None)
   =>
     method = method'
     params = params'
 
-  fun json(): JsonObject =>
-    let obj = JsonObject
+  fun json(): JSONObject =>
+    let obj = JSONObject
       .update("jsonrpc", "2.0")
       .update("method", method)
     match this.params
-    | let p: (JsonObject | JsonArray) =>
+    | let p: (JSONObject | JSONArray) =>
       obj.update("params", p)
     else
       obj
@@ -136,12 +136,12 @@ class val ResponseMessage is Message
   An LSP response message.
   """
   let id: (RequestId | None)
-  let result: JsonValue
+  let result: JSONValue
   let err: (ResponseError val | None)
 
   new val create(
     id': (RequestId | None),
-    result': JsonValue,
+    result': JSONValue,
     error': (ResponseError val | None) = None)
   =>
     """
@@ -165,8 +165,8 @@ class val ResponseMessage is Message
     """
     this.err is None
 
-  fun json(): JsonObject =>
-    let obj = JsonObject
+  fun json(): JSONObject =>
+    let obj = JSONObject
       .update("jsonrpc", "2.0")
       .update("id", id)
     match \exhaustive\ this.err
@@ -182,19 +182,19 @@ class val ResponseError
   """
   let code: I64
   let message: String
-  let data: JsonValue
+  let data: JSONValue
 
   new val create(
     code': I64,
     message': String,
-    data': JsonValue = None)
+    data': JSONValue = None)
   =>
     code = code'
     message = message'
     data = data'
 
-  fun json(): JsonObject =>
-    JsonObject
+  fun json(): JSONObject =>
+    JSONObject
       .update("code", code)
       .update("message", message)
       .update("data", data)

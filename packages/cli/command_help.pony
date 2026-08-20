@@ -1,6 +1,9 @@
 use "buffered"
 
 primitive Help
+  """
+  Generates formatted help text from a `CommandSpec`.
+  """
   fun general(cs: CommandSpec box): CommandHelp =>
     """
     Creates a command help that can print a general program help message.
@@ -132,7 +135,7 @@ class box CommandHelp
     level: USize)
   =>
     for c in cs.commands().values() do
-      cols.push((level*2, c.help_string(), c.descr()))
+      cols.push((level * 2, c.help_string(), c.descr()))
       _list_commands(c, cols, level + 1)
     end
 

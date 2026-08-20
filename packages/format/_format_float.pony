@@ -1,6 +1,7 @@
 use @snprintf[I32](str: Pointer[U8] tag, size: USize, fmt: Pointer[U8] tag, ...)
   if not windows
-use @_snprintf[I32](str: Pointer[U8] tag, count: USize, fmt: Pointer[U8] tag, ...)
+use @_snprintf[I32](
+  str: Pointer[U8] tag, count: USize, fmt: Pointer[U8] tag, ...)
   if windows
 
 primitive _FormatFloat

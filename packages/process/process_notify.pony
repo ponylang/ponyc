@@ -37,7 +37,10 @@ interface ProcessNotify
     """
     qty
 
-  fun ref dispose(process: ProcessMonitor ref, child_exit_status: ProcessExitStatus) =>
+  fun ref dispose(
+    process: ProcessMonitor ref,
+    child_exit_status: ProcessExitStatus)
+  =>
     """
     Called with the child's exit status once the child has exited. A monitor
     only exists around a running child, so `created` is always called first.
@@ -47,7 +50,8 @@ interface ProcessNotify
     `dispose`. `dispose` is called at most once.
 
     `dispose` includes the exit status of the child process. If the process
-    finished, then `child_exit_status` will be an instance of [Exited](process-Exited.md).
+    finished, then `child_exit_status` will be an instance of
+    [Exited](process-Exited.md).
 
     The child's exit code can be retrieved from the `Exited` instance by using
     [Exited.exit_code()](process-Exited.md#exit_code).

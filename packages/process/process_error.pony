@@ -20,11 +20,11 @@ class val ProcessError
     | let m: String =>
       recover
         let etc = error_type.string()
-        let err = String(etc.size() + 2 + m.size())
-        err.append(consume etc)
-        err.append(": ")
-        err.append(m)
-        err
+        let len = etc.size() + 2 + m.size()
+        String(len)
+          .> append(consume etc)
+          .> append(": ")
+          .> append(m)
       end
     else
       error_type.string()

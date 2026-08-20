@@ -63,7 +63,7 @@ class \nodoc\ _PathResolver
             break
               recover val
                 Iter[String]((consume paths).values())
-                  .map[FilePath]({(str_path) => FilePath(auth, str_path)})
+                  .map[FilePath]({(str_path) => FilePath(auth, str_path) })
                   .collect[Array[FilePath] ref](Array[FilePath](size))
               end
           end
@@ -123,8 +123,13 @@ class \nodoc\ iso _TestFileExecCapabilityIsRequired is UnitTest
       let vars: Array[String] val = ["HOME=/"; "PATH=/bin"]
       let notifier = _NoStartNotify(h)
 
-      match StartProcess(process_auth, backpressure_auth, consume notifier,
-        path, args, vars)
+      match \exhaustive\ StartProcess(
+        process_auth,
+        backpressure_auth,
+        consume notifier,
+        path,
+        args,
+        vars)
       | let pm: ProcessMonitor =>
         h.fail("StartProcess should have returned an error")
         pm.dispose()
@@ -152,8 +157,13 @@ class \nodoc\ iso _TestExecutableNotFound is UnitTest
       let vars: Array[String] val = []
       let notifier = _NoStartNotify(h)
 
-      match StartProcess(process_auth, backpressure_auth, consume notifier,
-        path, args, vars)
+      match \exhaustive\ StartProcess(
+        process_auth,
+        backpressure_auth,
+        consume notifier,
+        path,
+        args,
+        vars)
       | let pm: ProcessMonitor =>
         h.fail("StartProcess should have returned an error")
         pm.dispose()
@@ -186,8 +196,13 @@ class \nodoc\ iso _TestStdinStdout is UnitTest
       let args: Array[String] val = _CatCommand.args()
       let vars: Array[String] val = ["HOME=/"; "PATH=/bin"]
 
-      match StartProcess(process_auth, backpressure_auth, consume notifier,
-        path, args, vars)
+      match \exhaustive\ StartProcess(
+        process_auth,
+        backpressure_auth,
+        consume notifier,
+        path,
+        args,
+        vars)
       | let pm: ProcessMonitor =>
         pm.write(input)
         pm.done_writing() // closing stdin allows "cat" to terminate
@@ -203,6 +218,7 @@ class \nodoc\ iso _TestStdinStdout is UnitTest
 class \nodoc\ iso _TestLongRunningChild is UnitTest
   fun name(): String => "process/long-running-child"
   fun exclusion_group(): String => "process-monitor"
+
   fun apply(h: TestHelper) =>
     let notifier =
       object iso is ProcessNotify
@@ -227,8 +243,13 @@ class \nodoc\ iso _TestLongRunningChild is UnitTest
     let args = _SleepArgs(2)
     let vars: Array[String] val = ["HOME=/"; "PATH=/bin"]
 
-    match StartProcess(process_auth, backpressure_auth, consume notifier,
-      path, args, vars)
+    match \exhaustive\ StartProcess(
+      process_auth,
+      backpressure_auth,
+      consume notifier,
+      path,
+      args,
+      vars)
     | let pm: ProcessMonitor =>
       pm.done_writing()
       h.dispose_when_done(pm)
@@ -240,6 +261,7 @@ class \nodoc\ iso _TestLongRunningChild is UnitTest
 class \nodoc\ iso _TestKillLongRunningChild is UnitTest
   fun name(): String => "process/kill-long-running-child"
   fun exclusion_group(): String => "process-monitor"
+
   fun apply(h: TestHelper) =>
     let notifier =
       object iso is ProcessNotify
@@ -270,8 +292,13 @@ class \nodoc\ iso _TestKillLongRunningChild is UnitTest
     let args = _SleepArgs(2)
     let vars: Array[String] val = ["HOME=/"; "PATH=/bin"]
 
-    match StartProcess(process_auth, backpressure_auth, consume notifier,
-      path, args, vars)
+    match \exhaustive\ StartProcess(
+      process_auth,
+      backpressure_auth,
+      consume notifier,
+      path,
+      args,
+      vars)
     | let pm: ProcessMonitor =>
       pm.dispose()
       pm.done_writing()
@@ -290,6 +317,7 @@ class \nodoc\ iso _TestGrandchildDoesNotBlockExit is UnitTest
   """
   fun name(): String => "process/grandchild-does-not-block-exit"
   fun exclusion_group(): String => "process-monitor"
+
   fun apply(h: TestHelper) =>
     ifdef windows then
       // posix-only shell semantics; covered on posix.
@@ -319,8 +347,13 @@ class \nodoc\ iso _TestGrandchildDoesNotBlockExit is UnitTest
       let args: Array[String] val = ["sh"; "-c"; "sleep 30 & exit 7"]
       let vars: Array[String] val = ["HOME=/"; "PATH=/bin"]
 
-      match StartProcess(process_auth, backpressure_auth, consume notifier,
-        path, args, vars)
+      match \exhaustive\ StartProcess(
+        process_auth,
+        backpressure_auth,
+        consume notifier,
+        path,
+        args,
+        vars)
       | let pm: ProcessMonitor =>
         pm.done_writing()
         h.dispose_when_done(pm)
@@ -342,6 +375,7 @@ class \nodoc\ iso _TestWindowsGrandchildDoesNotBlockExit is UnitTest
   """
   fun name(): String => "process/windows-grandchild-does-not-block-exit"
   fun exclusion_group(): String => "process-monitor"
+
   fun apply(h: TestHelper) =>
     ifdef windows then
       let notifier =
@@ -373,8 +407,13 @@ class \nodoc\ iso _TestWindowsGrandchildDoesNotBlockExit is UnitTest
       let vars: Array[String] val =
         ["SystemRoot=C:\\Windows"; "PATH=C:\\Windows\\System32"]
 
-      match StartProcess(process_auth, backpressure_auth, consume notifier,
-        path, args, vars)
+      match \exhaustive\ StartProcess(
+        process_auth,
+        backpressure_auth,
+        consume notifier,
+        path,
+        args,
+        vars)
       | let pm: ProcessMonitor =>
         pm.done_writing()
         h.dispose_when_done(pm)
@@ -395,6 +434,7 @@ class \nodoc\ iso _TestWindowsEmptyEnvironment is UnitTest
   """
   fun name(): String => "process/windows-empty-environment"
   fun exclusion_group(): String => "process-monitor"
+
   fun apply(h: TestHelper) =>
     ifdef windows then
       let notifier =
@@ -421,8 +461,13 @@ class \nodoc\ iso _TestWindowsEmptyEnvironment is UnitTest
       let args: Array[String] val = ["cmd"; "/c"; "exit 0"]
       let vars: Array[String] val = []
 
-      match StartProcess(process_auth, backpressure_auth, consume notifier,
-        path, args, vars)
+      match \exhaustive\ StartProcess(
+        process_auth,
+        backpressure_auth,
+        consume notifier,
+        path,
+        args,
+        vars)
       | let pm: ProcessMonitor =>
         pm.done_writing()
         h.dispose_when_done(pm)
@@ -446,6 +491,7 @@ class \nodoc\ iso _TestStdinOpenChildExits is UnitTest
   """
   fun name(): String => "process/stdin-open-child-exits"
   fun exclusion_group(): String => "process-monitor"
+
   fun apply(h: TestHelper) =>
     ifdef windows then
       h.complete(true)
@@ -474,8 +520,13 @@ class \nodoc\ iso _TestStdinOpenChildExits is UnitTest
       let args: Array[String] val = ["sh"; "-c"; "exit 7"]
       let vars: Array[String] val = ["HOME=/"; "PATH=/bin"]
 
-      match StartProcess(process_auth, backpressure_auth, consume notifier,
-        path, args, vars)
+      match \exhaustive\ StartProcess(
+        process_auth,
+        backpressure_auth,
+        consume notifier,
+        path,
+        args,
+        vars)
       | let pm: ProcessMonitor =>
         // Deliberately do NOT call done_writing(): stdin stays open.
         h.dispose_when_done(pm)
@@ -505,22 +556,29 @@ class \nodoc\ iso _TestStderr is UnitTest
       let file_auth = FileAuth(h.env.root)
 
       let path_resolver = _PathResolver(h.env.vars, file_auth)
-      let path = FilePath(
-        file_auth,
+      let path =
+        FilePath(
+          file_auth,
+          ifdef windows then
+            "C:\\Windows\\System32\\cmd.exe"
+          else
+            _CatCommand.path(path_resolver)?
+          end)
+      let args: Array[String] val =
         ifdef windows then
-          "C:\\Windows\\System32\\cmd.exe"
+          ["cmd"; "/c"; "\"(echo message-to-stderr)1>&2\""]
         else
-          _CatCommand.path(path_resolver)?
-        end)
-      let args: Array[String] val = ifdef windows then
-        ["cmd"; "/c"; "\"(echo message-to-stderr)1>&2\""]
-      else
-        ["cat"; "file_does_not_exist"]
-      end
+          ["cat"; "file_does_not_exist"]
+        end
       let vars: Array[String] val = ["HOME=/"; "PATH=/bin"]
 
-      match StartProcess(process_auth, backpressure_auth, consume notifier,
-        path, args, vars)
+      match \exhaustive\ StartProcess(
+        process_auth,
+        backpressure_auth,
+        consume notifier,
+        path,
+        args,
+        vars)
       | let pm: ProcessMonitor =>
         pm.done_writing()
         h.dispose_when_done(pm)
@@ -560,11 +618,12 @@ class \nodoc\ iso _TestExpect is UnitTest
         =>
           match child_exit_status
           | Exited(0) =>
-            let expected: Array[String] val = ifdef windows then
-              ["he"; "llo "; "ca"; "rl \r"]
-            else
-              ["he"; "llo "; "th"; "ere!"]
-            end
+            let expected: Array[String] val =
+              ifdef windows then
+                ["he"; "llo "; "ca"; "rl \r"]
+              else
+                ["he"; "llo "; "th"; "ere!"]
+              end
             _h.assert_array_eq[String](_out, expected)
             _h.complete(true)
           else
@@ -580,15 +639,21 @@ class \nodoc\ iso _TestExpect is UnitTest
 
       let path_resolver = _PathResolver(h.env.vars, file_auth)
       let path = FilePath(file_auth, _EchoPath(path_resolver)?)
-      let args: Array[String] val = ifdef windows then
-        ["cmd"; "/c"; "echo"; "hello carl"]
-      else
-        ["echo"; "hello there!"]
-      end
+      let args: Array[String] val =
+        ifdef windows then
+          ["cmd"; "/c"; "echo"; "hello carl"]
+        else
+          ["echo"; "hello there!"]
+        end
       let vars: Array[String] val = ["HOME=/"; "PATH=/bin"]
 
-      match StartProcess(process_auth, backpressure_auth, consume notifier,
-        path, args, vars)
+      match \exhaustive\ StartProcess(
+        process_auth,
+        backpressure_auth,
+        consume notifier,
+        path,
+        args,
+        vars)
       | let pm: ProcessMonitor =>
         pm.done_writing()
         h.dispose_when_done(pm)
@@ -617,8 +682,13 @@ class \nodoc\ iso _TestWritevOrdering is UnitTest
       let args: Array[String] val = _CatCommand.args()
       let vars: Array[String] val = ["HOME=/"; "PATH=/bin"]
 
-      match StartProcess(process_auth, backpressure_auth, consume notifier,
-        path, args, vars)
+      match \exhaustive\ StartProcess(
+        process_auth,
+        backpressure_auth,
+        consume notifier,
+        path,
+        args,
+        vars)
       | let pm: ProcessMonitor =>
         pm.writev(["one"; "two"; "three"])
         pm.done_writing()
@@ -648,8 +718,13 @@ class \nodoc\ iso _TestPrintvOrdering is UnitTest
       let args: Array[String] val = _CatCommand.args()
       let vars: Array[String] val = ["HOME=/"; "PATH=/bin"]
 
-      match StartProcess(process_auth, backpressure_auth, consume notifier,
-        path, args, vars)
+      match \exhaustive\ StartProcess(
+        process_auth,
+        backpressure_auth,
+        consume notifier,
+        path,
+        args,
+        vars)
       | let pm: ProcessMonitor =>
         pm.printv(["one"; "two"; "three"])
         pm.done_writing()
@@ -672,15 +747,25 @@ class \nodoc\ _TestChdir is UnitTest
     let file_auth = FileAuth(h.env.root)
 
     let parent = Path.dir(Path.cwd())
-    let notifier: ProcessNotify iso = _ProcessClient(parent.size() +
-      (ifdef windows then 2 else 1 end), "", 0, h)
+    let notifier: ProcessNotify iso =
+      _ProcessClient(
+        parent.size() + (ifdef windows then 2 else 1 end),
+        "",
+        0,
+        h)
 
     let path = FilePath(file_auth, _PwdPath())
     let args: Array[String] val = _PwdArgs()
     let vars: Array[String] val = ["HOME=/"; "PATH=/bin"]
 
-    match StartProcess(process_auth, backpressure_auth, consume notifier,
-      path, args, vars, FilePath(file_auth, parent))
+    match \exhaustive\ StartProcess(
+      process_auth,
+      backpressure_auth,
+      consume notifier,
+      path,
+      args,
+      vars,
+      FilePath(file_auth, parent))
     | let pm: ProcessMonitor =>
       pm.done_writing()
       h.dispose_when_done(pm)
@@ -708,8 +793,14 @@ class \nodoc\ _TestBadChdir is UnitTest
       // so StartProcess returns the error rather than reporting it through the
       // notifier; there is no fork/exec split to defer it to.
       let notifier = _NoStartNotify(h)
-      match StartProcess(process_auth, backpressure_auth, consume notifier,
-        path, args, vars, bad_wdir)
+      match \exhaustive\ StartProcess(
+        process_auth,
+        backpressure_auth,
+        consume notifier,
+        path,
+        args,
+        vars,
+        bad_wdir)
       | let pm: ProcessMonitor =>
         h.fail("StartProcess should have returned an error")
         pm.dispose()
@@ -718,8 +809,14 @@ class \nodoc\ _TestBadChdir is UnitTest
       end
     else
       let notifier: ProcessNotify iso = _FailAndExitClient(h, ChdirError)
-      match StartProcess(process_auth, backpressure_auth, consume notifier,
-        path, args, vars, bad_wdir)
+      match \exhaustive\ StartProcess(
+        process_auth,
+        backpressure_auth,
+        consume notifier,
+        path,
+        args,
+        vars,
+        bad_wdir)
       | let pm: ProcessMonitor =>
         pm.done_writing()
         h.dispose_when_done(pm)
@@ -747,8 +844,9 @@ class \nodoc\ _TestBadExec is UnitTest
     ifdef windows then
       _bad_exec_path = FilePath(file_auth, "C:\\Windows\\system.ini")
     else
-      let tmp_dir = FilePath.mkdtemp(file_auth,
-        "pony_stdlib_test_process_bad_exec")?
+      let tmp_dir =
+        FilePath.mkdtemp(
+          file_auth, "pony_stdlib_test_process_bad_exec")?
       _tmp_dir = tmp_dir
       let bad_exec_path = tmp_dir.join("_bad_exec.sh")?
       _bad_exec_path = bad_exec_path
@@ -767,12 +865,17 @@ class \nodoc\ _TestBadExec is UnitTest
       let path = _bad_exec_path as FilePath
 
       ifdef windows then
-        // Windows CreateProcess fails synchronously on a non-executable file,
-        // so StartProcess returns the error rather than reporting it through the
-        // notifier.
+        // Windows CreateProcess fails synchronously on a non-executable
+        // file, so StartProcess returns the error rather than reporting
+        // it through the notifier.
         let notifier = _NoStartNotify(h)
-        match StartProcess(process_auth, backpressure_auth, consume notifier,
-          path, [], [])
+        match \exhaustive\ StartProcess(
+          process_auth,
+          backpressure_auth,
+          consume notifier,
+          path,
+          [],
+          [])
         | let pm: ProcessMonitor =>
           h.fail("StartProcess should have returned an error")
           pm.dispose()
@@ -781,8 +884,13 @@ class \nodoc\ _TestBadExec is UnitTest
         end
       else
         let notifier: ProcessNotify iso = _FailAndExitClient(h, ExecveError)
-        match StartProcess(process_auth, backpressure_auth, consume notifier,
-          path, [], [])
+        match \exhaustive\ StartProcess(
+          process_auth,
+          backpressure_auth,
+          consume notifier,
+          path,
+          [],
+          [])
         | let pm: ProcessMonitor =>
           pm.done_writing()
           h.dispose_when_done(pm)
@@ -817,8 +925,13 @@ class \nodoc\ iso _TestStdinWriteBuf is UnitTest
       let args: Array[String] val = _CatCommand.args()
       let vars: Array[String] val = ["HOME=/"; "PATH=/bin"]
 
-      match StartProcess(process_auth, backpressure_auth, consume notifier,
-        path, args, vars)
+      match \exhaustive\ StartProcess(
+        process_auth,
+        backpressure_auth,
+        consume notifier,
+        path,
+        args,
+        vars)
       | let pm: ProcessMonitor =>
         _pm = pm
         pm.write(message)
@@ -863,7 +976,8 @@ class \nodoc\ _TestWaitingOnClosedProcessTwice is UnitTest
     let timers = Timers
     _timers = timers
 
-    let pn = object iso is ProcessNotify
+    let pn =
+      object iso is ProcessNotify
       var n: USize = 0
       fun ref dispose(pm: ProcessMonitor ref, status: ProcessExitStatus) =>
         n = n + 1
@@ -877,33 +991,42 @@ class \nodoc\ _TestWaitingOnClosedProcessTwice is UnitTest
         end
 
         if n == 1 then
-          let timer2 = Timer(
-            object iso is TimerNotify
-              fun ref apply(timer: Timer, count: U64): Bool =>
-                if n == 1 then
-                  h.complete(true)
-                else
-                  h.fail("notifier received dispose() more than once")
-                  h.complete(false)
-                end
-                true
-            end,
-            500_000_000, 0)
+          let timer2 =
+            Timer(
+              object iso is TimerNotify
+                fun ref apply(timer: Timer, count: U64): Bool =>
+                  if n == 1 then
+                    h.complete(true)
+                  else
+                    h.fail("notifier received dispose() more than once")
+                    h.complete(false)
+                  end
+                  true
+              end,
+              500_000_000,
+              0)
           timers(consume timer2)
         end
     end
 
-    match StartProcess(process_auth, backpressure_auth, consume pn, path, args,
+    match \exhaustive\ StartProcess(
+      process_auth,
+      backpressure_auth,
+      consume pn,
+      path,
+      args,
       vars)
     | let pm: ProcessMonitor =>
-      let timer1 = Timer(
-        object iso is TimerNotify
-          fun ref apply(timer: Timer, count: U64): Bool =>
-            pm.dispose()
-            pm.dispose()
-            true
-        end,
-        3_000_000_000, 0)
+      let timer1 =
+        Timer(
+          object iso is TimerNotify
+            fun ref apply(timer: Timer, count: U64): Bool =>
+              pm.dispose()
+              pm.dispose()
+              true
+          end,
+          3_000_000_000,
+          0)
       timers(consume timer1)
     | let err: ProcessError =>
       h.fail("StartProcess failed: " + err.string())
@@ -1032,7 +1155,6 @@ class \nodoc\ _ProcessClient is ProcessNotify
 // --------------------------------------------------------------------------
 // The redesign's motivating cases, continued
 // --------------------------------------------------------------------------
-
 class \nodoc\ iso _TestGrandchildDeliversBufferedOutput is UnitTest
   """
   The child writes output, then backgrounds a long-lived grandchild that
@@ -1042,6 +1164,7 @@ class \nodoc\ iso _TestGrandchildDeliversBufferedOutput is UnitTest
   """
   fun name(): String => "process/grandchild-delivers-buffered-output"
   fun exclusion_group(): String => "process-monitor"
+
   fun apply(h: TestHelper) =>
     ifdef windows then
       h.complete(true)
@@ -1055,8 +1178,13 @@ class \nodoc\ iso _TestGrandchildDeliversBufferedOutput is UnitTest
         ["sh"; "-c"; "echo hello; sleep 30 & exit 0"]
       let vars: Array[String] val = ["HOME=/"; "PATH=/bin"]
 
-      match StartProcess(process_auth, backpressure_auth, consume notifier,
-        path, args, vars)
+      match \exhaustive\ StartProcess(
+        process_auth,
+        backpressure_auth,
+        consume notifier,
+        path,
+        args,
+        vars)
       | let pm: ProcessMonitor =>
         pm.done_writing()
         h.dispose_when_done(pm)
@@ -1075,6 +1203,7 @@ class \nodoc\ iso _TestChildClosesOutputKeepsRunning is UnitTest
   """
   fun name(): String => "process/child-closes-output-keeps-running"
   fun exclusion_group(): String => "process-monitor"
+
   fun apply(h: TestHelper) =>
     ifdef windows then
       h.complete(true)
@@ -1105,8 +1234,13 @@ class \nodoc\ iso _TestChildClosesOutputKeepsRunning is UnitTest
         ["sh"; "-c"; "exec 1>&- 2>&-; sleep 1; exit 5"]
       let vars: Array[String] val = ["HOME=/"; "PATH=/bin"]
 
-      match StartProcess(process_auth, backpressure_auth, consume notifier,
-        path, args, vars)
+      match \exhaustive\ StartProcess(
+        process_auth,
+        backpressure_auth,
+        consume notifier,
+        path,
+        args,
+        vars)
       | let pm: ProcessMonitor =>
         // Deliberately do not call done_writing(): stdin stays open.
         h.dispose_when_done(pm)
@@ -1126,6 +1260,7 @@ class \nodoc\ iso _TestBackpressureAppliedThenReleased is UnitTest
   """
   fun name(): String => "process/backpressure-applied-then-released"
   fun exclusion_group(): String => "process-monitor"
+
   fun apply(h: TestHelper) =>
     ifdef windows then
       h.complete(true)
@@ -1149,14 +1284,20 @@ class \nodoc\ iso _TestBackpressureAppliedThenReleased is UnitTest
       // applies backpressure.
       let message: Array[U8] val = recover Array[U8].init('x', 262144) end
 
-      match StartProcess(process_auth, backpressure_auth, consume notifier,
-        path, args, vars)
+      match \exhaustive\ StartProcess(
+        process_auth,
+        backpressure_auth,
+        consume notifier,
+        path,
+        args,
+        vars)
       | let pm: ProcessMonitor =>
         pm.write(message)
         let applied_q = Promise[Bool]
         pm._test_query_backpressure(applied_q)
         applied_q.next[None]({(applied)(h, pm) =>
-          h.assert_true(applied,
+          h.assert_true(
+            applied,
             "backpressure should be applied after an over-buffer write")
           pm.dispose()
           let released_q = Promise[Bool]
@@ -1180,7 +1321,6 @@ class \nodoc\ iso _TestBackpressureAppliedThenReleased is UnitTest
 // --------------------------------------------------------------------------
 // State-machine invariants via the injectable _Process seam
 // --------------------------------------------------------------------------
-
 class \nodoc\ val _SpyResults
   let disposes: USize
   let failures: USize
@@ -1189,8 +1329,12 @@ class \nodoc\ val _SpyResults
   let last_status: (ProcessExitStatus | None)
   let backpressure_applied: Bool
 
-  new val create(disposes': USize, failures': USize, kills': USize,
-    kill_after_reap': Bool, last_status': (ProcessExitStatus | None),
+  new val create(
+    disposes': USize,
+    failures': USize,
+    kills': USize,
+    kill_after_reap': Bool,
+    last_status': (ProcessExitStatus | None),
     backpressure_applied': Bool)
   =>
     disposes = disposes'
@@ -1240,8 +1384,14 @@ actor \nodoc\ _SpyRecorder
     _failures = _failures + 1
 
   be results(backpressure_applied: Bool, p: Promise[_SpyResults]) =>
-    p(_SpyResults(_disposes, _failures, _kills, _kill_after_reap, _last_status,
-      backpressure_applied))
+    p(
+      _SpyResults(
+        _disposes,
+        _failures,
+        _kills,
+        _kill_after_reap,
+        _last_status,
+        backpressure_applied))
 
 class \nodoc\ _ProcessSpy is _Process
   """
@@ -1258,8 +1408,11 @@ class \nodoc\ _ProcessSpy is _Process
   let _fail: Bool
   var _waits: USize = 0
 
-  new create(recorder: _SpyRecorder, status: ProcessExitStatus,
-    lag: USize = 0, fail: Bool = false)
+  new create(
+    recorder: _SpyRecorder,
+    status: ProcessExitStatus,
+    lag: USize = 0,
+    fail: Bool = false)
   =>
     _recorder = recorder
     _status = status
@@ -1350,14 +1503,21 @@ class \nodoc\ _ExpectFailedClient is ProcessNotify
     _h.complete(false)
 
 primitive \nodoc\ _Spy
-  fun monitor(h: TestHelper, recorder: _SpyRecorder,
-    status: ProcessExitStatus): ProcessMonitor
+  fun monitor(
+    h: TestHelper,
+    recorder: _SpyRecorder,
+    status: ProcessExitStatus)
+    : ProcessMonitor
   =>
     let bp_auth = ApplyReleaseBackpressureAuth(h.env.root)
-    ProcessMonitor._create(bp_auth, _SpyNotify(recorder),
+    ProcessMonitor._create(
+      bp_auth,
+      _SpyNotify(recorder),
       recover iso _ProcessSpy(recorder, status) end,
-      recover iso _Pipe.none() end, recover iso _Pipe.none() end,
-      recover iso _Pipe.none() end, recover iso _Pipe.none() end)
+      recover iso _Pipe.none() end,
+      recover iso _Pipe.none() end,
+      recover iso _Pipe.none() end,
+      recover iso _Pipe.none() end)
 
   fun settle_then_check(
     h: TestHelper,
@@ -1389,16 +1549,22 @@ class \nodoc\ iso _TestExitReportsExactlyOnce is UnitTest
   """
   fun name(): String => "process/exit-reports-exactly-once"
   fun exclusion_group(): String => "process-monitor-seam"
+
   fun apply(h: TestHelper) =>
     let recorder = _SpyRecorder
     let pm = _Spy.monitor(h, recorder, Exited(3))
     pm._test_trigger_exit()
     pm._test_trigger_exit()
-    _Spy.settle_then_check(h, pm, recorder, {(r: _SpyResults): (Bool, String) =>
-      ((r.disposes == 1) and r.last_is(Exited(3)) and (not r.kill_after_reap) and
-        (not r.backpressure_applied),
-       "expected exactly one dispose of Exited(3), no kill after reap")
-    })
+    _Spy.settle_then_check(
+      h,
+      pm,
+      recorder,
+      {(r: _SpyResults): (Bool, String) =>
+        ((r.disposes == 1) and r.last_is(Exited(3)) and
+          (not r.kill_after_reap) and (not r.backpressure_applied),
+          "expected exactly one dispose of Exited(3), " +
+            "no kill after reap")
+      })
     h.long_test(5_000_000_000)
 
 class \nodoc\ iso _TestExitSignalRetriesUntilReapable is UnitTest
@@ -1410,16 +1576,21 @@ class \nodoc\ iso _TestExitSignalRetriesUntilReapable is UnitTest
   """
   fun name(): String => "process/exit-signal-retries-until-reapable"
   fun exclusion_group(): String => "process-monitor-seam"
+
   fun apply(h: TestHelper) =>
     let recorder = _SpyRecorder
     let bp_auth = ApplyReleaseBackpressureAuth(h.env.root)
     // lag = 5: the probe and the first five exit-signal reaps return
     // `_StillRunning`; the reap converges only by retrying.
-    let pm = ProcessMonitor._create(bp_auth,
-      _ExpectDisposeClient(h, Exited(4)),
-      recover iso _ProcessSpy(recorder, Exited(4), 5) end,
-      recover iso _Pipe.none() end, recover iso _Pipe.none() end,
-      recover iso _Pipe.none() end, recover iso _Pipe.none() end)
+    let pm =
+      ProcessMonitor._create(
+        bp_auth,
+        _ExpectDisposeClient(h, Exited(4)),
+        recover iso _ProcessSpy(recorder, Exited(4), 5) end,
+        recover iso _Pipe.none() end,
+        recover iso _Pipe.none() end,
+        recover iso _Pipe.none() end,
+        recover iso _Pipe.none() end)
     pm._test_trigger_exit()
     h.long_test(5_000_000_000)
 
@@ -1431,14 +1602,19 @@ class \nodoc\ iso _TestRetryWhileDisposing is UnitTest
   """
   fun name(): String => "process/retry-while-disposing"
   fun exclusion_group(): String => "process-monitor-seam"
+
   fun apply(h: TestHelper) =>
     let recorder = _SpyRecorder
     let bp_auth = ApplyReleaseBackpressureAuth(h.env.root)
-    let pm = ProcessMonitor._create(bp_auth,
-      _ExpectDisposeClient(h, Exited(0)),
-      recover iso _ProcessSpy(recorder, Exited(0), 3) end,
-      recover iso _Pipe.none() end, recover iso _Pipe.none() end,
-      recover iso _Pipe.none() end, recover iso _Pipe.none() end)
+    let pm =
+      ProcessMonitor._create(
+        bp_auth,
+        _ExpectDisposeClient(h, Exited(0)),
+        recover iso _ProcessSpy(recorder, Exited(0), 3) end,
+        recover iso _Pipe.none() end,
+        recover iso _Pipe.none() end,
+        recover iso _Pipe.none() end,
+        recover iso _Pipe.none() end)
     pm.dispose()
     pm._test_trigger_exit()
     h.long_test(5_000_000_000)
@@ -1451,16 +1627,23 @@ class \nodoc\ iso _TestExitSignalReapErrorReportsFailed is UnitTest
   """
   fun name(): String => "process/exit-signal-reap-error-reports-failed"
   fun exclusion_group(): String => "process-monitor-seam"
+
   fun apply(h: TestHelper) =>
     let recorder = _SpyRecorder
     let bp_auth = ApplyReleaseBackpressureAuth(h.env.root)
     // lag = 2, fail = true: the probe and two exit-signal reaps return
     // `_StillRunning`, then the reap returns `WaitpidError`.
-    let pm = ProcessMonitor._create(bp_auth,
-      _ExpectFailedClient(h, WaitpidError),
-      recover iso _ProcessSpy(recorder, Exited(0), 2 where fail = true) end,
-      recover iso _Pipe.none() end, recover iso _Pipe.none() end,
-      recover iso _Pipe.none() end, recover iso _Pipe.none() end)
+    let pm =
+      ProcessMonitor._create(
+        bp_auth,
+        _ExpectFailedClient(h, WaitpidError),
+        recover iso
+          _ProcessSpy(recorder, Exited(0), 2 where fail = true)
+        end,
+        recover iso _Pipe.none() end,
+        recover iso _Pipe.none() end,
+        recover iso _Pipe.none() end,
+        recover iso _Pipe.none() end)
     pm._test_trigger_exit()
     h.long_test(5_000_000_000)
 
@@ -1471,15 +1654,21 @@ class \nodoc\ iso _TestDisposeThenExit is UnitTest
   """
   fun name(): String => "process/dispose-then-exit"
   fun exclusion_group(): String => "process-monitor-seam"
+
   fun apply(h: TestHelper) =>
     let recorder = _SpyRecorder
     let pm = _Spy.monitor(h, recorder, Exited(0))
     pm.dispose()
     pm._test_trigger_exit()
-    _Spy.settle_then_check(h, pm, recorder, {(r: _SpyResults): (Bool, String) =>
-      ((r.disposes == 1) and (r.kills == 1) and (not r.kill_after_reap),
-       "expected one kill, one dispose, no kill after reap")
-    })
+    _Spy.settle_then_check(
+      h,
+      pm,
+      recorder,
+      {(r: _SpyResults): (Bool, String) =>
+        ((r.disposes == 1) and (r.kills == 1) and
+          (not r.kill_after_reap),
+          "expected one kill, one dispose, no kill after reap")
+      })
     h.long_test(5_000_000_000)
 
 class \nodoc\ iso _TestDoubleDispose is UnitTest
@@ -1489,15 +1678,21 @@ class \nodoc\ iso _TestDoubleDispose is UnitTest
   """
   fun name(): String => "process/double-dispose"
   fun exclusion_group(): String => "process-monitor-seam"
+
   fun apply(h: TestHelper) =>
     let recorder = _SpyRecorder
     let pm = _Spy.monitor(h, recorder, Exited(0))
     pm.dispose()
     pm.dispose()
-    _Spy.settle_then_check(h, pm, recorder, {(r: _SpyResults): (Bool, String) =>
-      ((r.kills == 1) and (r.disposes == 0) and (not r.backpressure_applied),
-       "expected exactly one kill and no dispose")
-    })
+    _Spy.settle_then_check(
+      h,
+      pm,
+      recorder,
+      {(r: _SpyResults): (Bool, String) =>
+        ((r.kills == 1) and (r.disposes == 0) and
+          (not r.backpressure_applied),
+          "expected exactly one kill and no dispose")
+      })
     h.long_test(5_000_000_000)
 
 class \nodoc\ iso _TestNoKillAfterReap is UnitTest
@@ -1506,16 +1701,21 @@ class \nodoc\ iso _TestNoKillAfterReap is UnitTest
   """
   fun name(): String => "process/no-kill-after-reap"
   fun exclusion_group(): String => "process-monitor-seam"
+
   fun apply(h: TestHelper) =>
     let recorder = _SpyRecorder
     let pm = _Spy.monitor(h, recorder, Exited(7))
     pm._test_trigger_exit()
     pm.dispose()
-    _Spy.settle_then_check(h, pm, recorder, {(r: _SpyResults): (Bool, String) =>
-      ((r.kills == 0) and (not r.kill_after_reap) and (r.disposes == 1) and
-        r.last_is(Exited(7)),
-       "expected no kill after reap and exactly one dispose")
-    })
+    _Spy.settle_then_check(
+      h,
+      pm,
+      recorder,
+      {(r: _SpyResults): (Bool, String) =>
+        ((r.kills == 0) and (not r.kill_after_reap) and
+          (r.disposes == 1) and r.last_is(Exited(7)),
+          "expected no kill after reap and exactly one dispose")
+      })
     h.long_test(5_000_000_000)
 
 class \nodoc\ iso _TestWriteAfterExitIsDropped is UnitTest
@@ -1525,22 +1725,27 @@ class \nodoc\ iso _TestWriteAfterExitIsDropped is UnitTest
   """
   fun name(): String => "process/write-after-exit-is-dropped"
   fun exclusion_group(): String => "process-monitor-seam"
+
   fun apply(h: TestHelper) =>
     let recorder = _SpyRecorder
     let pm = _Spy.monitor(h, recorder, Exited(0))
     pm._test_trigger_exit()
     pm.write("late data")
     pm.done_writing()
-    _Spy.settle_then_check(h, pm, recorder, {(r: _SpyResults): (Bool, String) =>
-      ((r.disposes == 1) and (not r.backpressure_applied),
-       "a write after exit must not add a dispose or strand backpressure")
-    })
+    _Spy.settle_then_check(
+      h,
+      pm,
+      recorder,
+      {(r: _SpyResults): (Bool, String) =>
+        ((r.disposes == 1) and (not r.backpressure_applied),
+          "a write after exit must not add a dispose or strand " +
+            "backpressure")
+      })
     h.long_test(5_000_000_000)
 
 // --------------------------------------------------------------------------
 // The drain cap and the no-fd-leak invariant (real processes)
 // --------------------------------------------------------------------------
-
 class \nodoc\ iso _TestFloodingGrandchildDoesNotStallTeardown is UnitTest
   """
   The child backgrounds a grandchild that floods the inherited stdout without
@@ -1552,6 +1757,7 @@ class \nodoc\ iso _TestFloodingGrandchildDoesNotStallTeardown is UnitTest
   """
   fun name(): String => "process/flooding-grandchild-does-not-stall-teardown"
   fun exclusion_group(): String => "process-monitor"
+
   fun apply(h: TestHelper) =>
     ifdef windows then
       h.complete(true)
@@ -1582,8 +1788,13 @@ class \nodoc\ iso _TestFloodingGrandchildDoesNotStallTeardown is UnitTest
       let args: Array[String] val = ["sh"; "-c"; "cat /dev/zero & exit 0"]
       let vars: Array[String] val = ["HOME=/"; "PATH=/bin"]
 
-      match StartProcess(process_auth, backpressure_auth, consume notifier,
-        path, args, vars)
+      match \exhaustive\ StartProcess(
+        process_auth,
+        backpressure_auth,
+        consume notifier,
+        path,
+        args,
+        vars)
       | let pm: ProcessMonitor =>
         pm.done_writing()
         h.dispose_when_done(pm)
@@ -1617,7 +1828,7 @@ class \nodoc\ iso _TestManyStartsDoNotLeakFds is UnitTest
           h.complete(false)
           return
         end
-      match _OpenFdCount(file_auth)
+      match \exhaustive\ _OpenFdCount(file_auth)
       | let baseline: USize =>
         _FdLeakDriver(h, 100, true_path, baseline)
       | None =>
@@ -1662,14 +1873,16 @@ actor \nodoc\ _FdLeakDriver
   be _done() =>
     _n = _n + 1
     if _n >= _total then
-      match _OpenFdCount(FileAuth(_h.env.root))
+      match \exhaustive\ _OpenFdCount(FileAuth(_h.env.root))
       | let final_count: USize =>
         // A leaked descriptor per child would add _total to the count. Allow a
         // small margin for descriptors other packages' tests open while this
         // one runs in the same test binary.
-        _h.assert_true(final_count <= (_baseline + 30),
-          "open fd count grew from " + _baseline.string() + " to " +
-            final_count.string() + " over " + _total.string() + " starts")
+        _h.assert_true(
+          final_count <= (_baseline + 30),
+          "open fd count grew from " + _baseline.string() +
+            " to " + final_count.string() + " over " +
+            _total.string() + " starts")
         _h.complete(true)
       | None =>
         _h.fail("could not read /proc/self/fd")
@@ -1703,8 +1916,13 @@ actor \nodoc\ _FdLeakDriver
     let args: Array[String] val = ["true"]
     let vars: Array[String] val = ["HOME=/"; "PATH=/bin"]
 
-    match StartProcess(process_auth, backpressure_auth, consume notifier, path,
-      args, vars)
+    match \exhaustive\ StartProcess(
+      process_auth,
+      backpressure_auth,
+      consume notifier,
+      path,
+      args,
+      vars)
     | let pm: ProcessMonitor =>
       pm.done_writing()
     | let err: ProcessError =>

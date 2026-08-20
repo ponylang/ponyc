@@ -33,7 +33,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 - Replace the runtime allocator ([PR #5768](https://github.com/ponylang/ponyc/pull/5768))
 - Change how scheduler scaling works ([PR #5768](https://github.com/ponylang/ponyc/pull/5768))
-- Change JsonTokenParser to carry values on its tokens ([PR #5658](https://github.com/ponylang/ponyc/pull/5658))
+- Change JSONTokenParser to carry values on its tokens ([PR #5658](https://github.com/ponylang/ponyc/pull/5658))
 - Starting a process returns a result ([PR #5770](https://github.com/ponylang/ponyc/pull/5770))
 - ProcessMonitor requires Linux 5.3 or newer ([PR #5770](https://github.com/ponylang/ponyc/pull/5770))
 - Add read_failed to InputNotify ([PR #5832](https://github.com/ponylang/ponyc/pull/5832))
@@ -41,6 +41,8 @@ All notable changes to the Pony compiler and standard library will be documented
 - pony-lint line-length rule narrows unbreakable-word exemption ([PR #5847](https://github.com/ponylang/ponyc/pull/5847))
 - pony-lint: binary operators on continuation lines must now be at the end of the previous line ([PR #5851](https://github.com/ponylang/ponyc/pull/5851))
 - pony-lint: `- expr` with a space at the start of a line is now a lint error ([PR #5851](https://github.com/ponylang/ponyc/pull/5851))
+- Rename Json prefix to JSON in the json package ([PR #5848](https://github.com/ponylang/ponyc/pull/5848))
+- Rename ForAll constructor parameter from testHelper to test_helper ([PR #5848](https://github.com/ponylang/ponyc/pull/5848))
 
 ## [0.68.0] - 2026-08-01
 
@@ -106,7 +108,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Don't run the ASIO thread under systematic testing ([PR #5647](https://github.com/ponylang/ponyc/pull/5647))
 - pony-lsp now rejects unrecognized command-line arguments ([PR #5668](https://github.com/ponylang/ponyc/pull/5668))
 - Remove the rest of the library-mode runtime surface ([PR #5729](https://github.com/ponylang/ponyc/pull/5729))
-- Change JsonTokenParser to carry values on its tokens ([PR #5658](https://github.com/ponylang/ponyc/pull/5658))
+- Change JSONTokenParser to carry values on its tokens ([PR #5658](https://github.com/ponylang/ponyc/pull/5658))
 
 ## [0.66.0] - 2026-06-29
 

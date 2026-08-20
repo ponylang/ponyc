@@ -13,7 +13,7 @@ primitive Rename
     node: AST box,
     packages: Map[String, PackageState] box,
     workspace_folder: String,
-    new_name: String): (JsonObject val | String val)
+    new_name: String): (JSONObject val | String val)
   =>
     """
     Walk all module ASTs across all packages and return a WorkspaceEdit mapping
@@ -53,19 +53,19 @@ primitive Rename
       end
     end
 
-    var changes = JsonObject
+    var changes = JSONObject
     for (uri, locs) in by_uri.pairs() do
-      var edits = JsonArray
+      var edits = JSONArray
       for loc in locs.values() do
         edits =
           edits.push(
-            JsonObject
+            JSONObject
               .update("range", loc.range.to_json())
               .update("newText", new_name))
       end
       changes = changes.update(uri, edits)
     end
-    JsonObject.update("changes", changes)
+    JSONObject.update("changes", changes)
 
 primitive _IsValidPonyIdentifier
   """

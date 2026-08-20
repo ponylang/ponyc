@@ -297,7 +297,18 @@ primitive ANSI
     "\x1B[47m"
 
 primitive EraseLeft
+  """
+  Erase to the left of the cursor.
+  """
+
 primitive EraseLine
+  """
+  Erase the entire line.
+  """
+
 primitive EraseRight
+  """
+  Erase to the right of the cursor.
+  """
 
 type _EraseDirection is (EraseLeft | EraseLine | EraseRight)

@@ -155,7 +155,6 @@ trait Random
       int_fp_mult[N](n)
     end
 
-
   fun ref int_unbiased[N: (Unsigned val & Real[N] val) = U64](n: N): N =>
     """
     A random integer in [0, n)

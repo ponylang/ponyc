@@ -1,14 +1,15 @@
-// Internal support types for the resumable JsonTokenParser: the grammar frame
+// Internal support types for the resumable JSONTokenParser: the grammar frame
 // stack, the suspendable leaf-scan state, and a standalone number parser. The
 // resume logic itself lives in json_token_parser.pony; this file is just the
 // state those routines carry across feeds.
 
 // --- parser lifecycle ----------------------------------------------------
 //
-// The parser accepts input only while `_Open`. It leaves that state exactly once
-// and never returns, so every terminal condition — a deliberate abort, malformed
-// input, or the end of input — is a distinct value the guards can check, instead
-// of a set of booleans whose illegal combinations would have to be reasoned about.
+// The parser accepts input only while `_Open`. It leaves that state
+// exactly once and never returns, so every terminal condition — a
+// deliberate abort, malformed input, or the end of input — is a
+// distinct value the guards can check, instead of a set of booleans
+// whose illegal combinations would have to be reasoned about.
 
 primitive _Open      // accepting input
 primitive _Aborted   // the notifier called abort()
@@ -17,20 +18,27 @@ primitive _Finished  // finish() was called; no more input is accepted
 type _ParserState is (_Open | _Aborted | _Failed | _Finished)
 
 primitive _StepGo
-  """Dispatch made progress between tokens; keep looping."""
+  """
+  Dispatch made progress between tokens; keep looping.
+  """
 
 primitive _ScanComplete
-  """A leaf scan finished the current value."""
+  """
+  A leaf scan finished the current value.
+  """
+
 primitive _ScanNeedMore
-  """A leaf scan ran out of fed bytes; resume when more arrive."""
-type _ScanOutcome is (_ScanComplete | _ScanNeedMore | JsonParseError)
+  """
+  A leaf scan ran out of fed bytes; resume when more arrive.
+  """
+
+type _ScanOutcome is (_ScanComplete | _ScanNeedMore | JSONParseError)
 
 // --- grammar frames ------------------------------------------------------
 //
 // One frame per open container, holding the grammar sub-position. The position
 // is split so that a post-comma state forbids the closing delimiter, which is
 // how trailing commas (`[1,]`, `{"a":1,}`) are rejected.
-
 primitive _ArrValueOrEnd  // after '['; a value or ']'
 primitive _ArrValue       // after ','; a value is required, ']' is illegal
 primitive _ArrCommaOrEnd  // after a value; ',' or ']'
@@ -41,15 +49,18 @@ primitive _ObjKey         // after ','; a key is required, '}' is illegal
 primitive _ObjColon       // after a key; ':'
 primitive _ObjValue       // after ':'; a value
 primitive _ObjCommaOrEnd  // after a value; ',' or '}'
+
 type _ObjPos is
   (_ObjKeyOrEnd | _ObjKey | _ObjColon | _ObjValue | _ObjCommaOrEnd)
 
 class _ArrayFrame
   var pos: _ArrPos
+
   new create(pos': _ArrPos) => pos = pos'
 
 class _ObjectFrame
   var pos: _ObjPos
+
   new create(pos': _ObjPos) => pos = pos'
 
 type _StreamFrame is (_ArrayFrame | _ObjectFrame)
@@ -58,7 +69,6 @@ type _StreamFrame is (_ArrayFrame | _ObjectFrame)
 //
 // State held across feeds while a scalar is scanned, so a value split across a
 // chunk boundary resumes exactly where it stopped.
-
 primitive _StrNormal
 primitive _StrEscape
 primitive _StrUnicode
@@ -66,19 +76,21 @@ type _StrPhase is (_StrNormal | _StrEscape | _StrUnicode)
 
 class _StringScan
   let is_key: Bool
-  let start: USize          // byte offset of the opening quote (for token_start)
-
-  // Extent scan (phase 1): scan forward for the closing quote without consuming,
-  // tracking whether any escape was seen, so a string with no escapes that lies
-  // in one chunk can be handed back as a zero-copy view. `escaped` is the running
-  // "previous byte was a backslash" state; `result` holds the completed value.
+  let start: USize // byte offset of the opening quote
+  // Extent scan (phase 1): scan forward for the closing
+  // quote without consuming, tracking whether any escape
+  // was seen, so a string with no escapes that lies in one
+  // chunk can be handed back as a zero-copy view.
+  // `escaped` is the running "previous byte was a
+  // backslash" state; `result` holds the completed value.
   var had_escape: Bool = false
   var escaped: Bool = false
   var result: (String val | None) = None
-
-  // Decode scratch (phase 2, copy path only): a string with escapes or split
-  // across chunks is decoded into `buf`. The whole string is present by then, so
-  // this runs in one pass; the fields are working state, not resume state.
+  // Decode scratch (phase 2, copy path only): a string
+  // with escapes or split across chunks is decoded into
+  // `buf`. The whole string is present by then, so this
+  // runs in one pass; the fields are working state, not
+  // resume state.
   var buf: String iso = recover iso String end
   var phase: _StrPhase = _StrNormal
   var hex_value: U32 = 0
@@ -100,10 +112,10 @@ class _NumberScan
 class _KeywordScan
   let start: USize          // byte offset of the first keyword byte
   let word: String
-  let token: JsonToken
+  let token: JSONToken
   var matched: USize
 
-  new create(start': USize, word': String, token': JsonToken) =>
+  new create(start': USize, word': String, token': JSONToken) =>
     start = start'
     word = word'
     token = token'
@@ -112,7 +124,6 @@ class _KeywordScan
 type _LeafScan is (_StringScan | _NumberScan | _KeywordScan)
 
 // --- number parsing ------------------------------------------------------
-
 primitive _NumberMalformed
 primitive _NumberOutOfRange
 
@@ -121,7 +132,10 @@ primitive _NumberParse
   Parse a number from its complete text, applying RFC 8259 rules: leading-zero
   rejection, >18 integer digits force F64, and fraction/exponent handling.
   """
-  fun apply(s: String box): (I64 | F64 | _NumberMalformed | _NumberOutOfRange) =>
+  fun apply(
+    s: String box)
+    : (I64 | F64 | _NumberMalformed | _NumberOutOfRange)
+  =>
     let n = s.size()
     if n == 0 then return _NumberMalformed end
 

@@ -34,7 +34,8 @@ primitive \nodoc\ _IsPrimeTestBuilder[A: (UnsignedInteger[A] val & Unsigned)]
   and (6k + 4), while 3 divides (6k + 3) that leaves only (6k - 1) and (6k + 1)
   for expressing primes.
 
-  Given the above, (6k + 0), (6k + 2), 6k + 4), (6k + 3) should always express composites.
+  Given the above, (6k + 0), (6k + 2), 6k + 4), (6k + 3) should
+  always express composites.
   """
   fun apply(s: String): UnitTest iso^ =>
     object iso is UnitTest
@@ -51,15 +52,15 @@ primitive \nodoc\ _IsPrimeTestBuilder[A: (UnsignedInteger[A] val & Unsigned)]
           if k == 0 then
             continue
           end
-          let plusNone: A = 6 * k
-          let plusTwo: A = plusNone + 2
-          let plusThree: A = plusNone + 3
-          let plusFour: A = plusNone + 4
+          let plus_none: A = 6 * k
+          let plus_two: A = plus_none + 2
+          let plus_three: A = plus_none + 3
+          let plus_four: A = plus_none + 4
 
-          h.assert_false(IsPrime[A](plusNone))
-          h.assert_false(IsPrime[A](plusTwo))
-          h.assert_false(IsPrime[A](plusThree))
-          h.assert_false(IsPrime[A](plusFour))
+          h.assert_false(IsPrime[A](plus_none))
+          h.assert_false(IsPrime[A](plus_two))
+          h.assert_false(IsPrime[A](plus_three))
+          h.assert_false(IsPrime[A](plus_four))
         end
 
         h.assert_false(IsPrime[A](0))
@@ -75,11 +76,12 @@ primitive \nodoc\ _MersennePrimeTest[A: (UnsignedInteger[A] val & Unsigned)]
       fun name(): String => "math/MersennePrimeTest -- " + s
 
       fun apply(h: TestHelper) =>
-        let mersenne_prime_exponents: Array[A] = [
-          2; 3; 5; 7
-          13; 17; 19; 31
-          61; 89; 107; 127
-        ]
+        let mersenne_prime_exponents: Array[A] =
+          [
+            2; 3; 5; 7
+            13; 17; 19; 31
+            61; 89; 107; 127
+          ]
         var p: A = A(0).bitwidth()
         var x: A = A.max_value()  // (2 ^ p) - 1
         while p >= 2 do

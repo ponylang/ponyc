@@ -62,9 +62,9 @@ class \nodoc\ iso _RootURIRoutesToWorkspaceTest is UnitTest
                 RequestMessage(
                   I64(400),
                   Methods.text_document().document_symbol(),
-                  JsonObject.update(
+                  JSONObject.update(
                     "textDocument",
-                    JsonObject.update("uri", document_uri)))
+                    JSONObject.update("uri", document_uri)))
                 .into_bytes())
             elseif _seen == 2 then
               match \exhaustive\ res.err
@@ -140,9 +140,9 @@ class \nodoc\ iso _RootPathRoutesToWorkspaceTest is UnitTest
                 RequestMessage(
                   I64(401),
                   Methods.text_document().document_symbol(),
-                  JsonObject.update(
+                  JSONObject.update(
                     "textDocument",
-                    JsonObject.update("uri", document_uri)))
+                    JSONObject.update("uri", document_uri)))
                 .into_bytes())
             elseif _seen == 2 then
               match \exhaustive\ res.err

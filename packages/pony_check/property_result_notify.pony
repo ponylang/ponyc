@@ -51,13 +51,23 @@ class val _Run is Equatable[_Round]
     ("run(" + this._round.string() + ")").string()
 
 type _Round is (_Shrink | _Run)
-  """Represents a single execution of a property."""
-
+  """
+  Represents a single execution of a property.
+  """
 
 interface val PropertyLogger
+  """
+  Receives log messages from property-based tests.
+  """
   fun log(msg: String, verbose: Bool = false)
+    """
+    Log a message during property execution.
+    """
 
 interface val PropertyResultNotify
+  """
+  Receives notifications about property-based test results.
+  """
   fun fail(msg: String)
     """
     Called when a Property has failed (did not hold for a sample)
@@ -87,7 +97,6 @@ actor PropertyRunner[T]
   let _gen: Generator[T]
   let _logger: PropertyLogger
   let _env: Env
-
   // state changed during runtime
   var _current_round: _Round = _Run.create(0)
     """
@@ -122,9 +131,7 @@ actor PropertyRunner[T]
     _rnd = Randomness(_params.seed)
     _gen = _prop1.gen()
 
-
 // RUNNING PROPERTIES //
-
   be complete_run(round: _Round, success: Bool) =>
     """
     Complete a property run.
@@ -135,8 +142,13 @@ actor PropertyRunner[T]
 
     // verify that this is an expected call
     if this._current_round != round then
-      _logger.log("unexpected " + if success then "finish" else "fail" end + " msg for " + round.string() +
-        ". expecting " + this._current_round.string(), true)
+      _logger.log(
+        "unexpected " +
+          (if success then "finish" else "fail" end) +
+          " msg for " + round.string() +
+          ". expecting " +
+          this._current_round.string(),
+        true)
       return
     end
 
@@ -181,6 +193,9 @@ actor PropertyRunner[T]
     error
 
   be run() =>
+    """
+    Execute the next property sample.
+    """
     if this._current_round.round() >= _params.num_samples then
       complete() // all samples have been successful
       return
@@ -200,11 +215,17 @@ actor PropertyRunner[T]
         return
       end
 
-
-    // create a string representation before consuming ``sample`` with property
+    // create a string representation before consuming ``sample``
+    // with property
     (sample, _sample_repr) = _Stringify.apply[T](consume sample)
     let run_notify = recover val this~complete_run() end
-    let helper = PropertyHelper(_env, this, run_notify, this._current_round, _params.string())
+    let helper =
+      PropertyHelper(
+        _env,
+        this,
+        run_notify,
+        this._current_round,
+        _params.string())
     _pass = true // will be set to false by fail calls
 
     try
@@ -225,13 +246,21 @@ actor PropertyRunner[T]
     end
 
 // SHRINKING //
-
-  be complete_shrink(failed_repr: String, last_repr: String, shrink_round: _Round, success: Bool) =>
-
+  be complete_shrink(
+    failed_repr: String,
+    last_repr: String,
+    shrink_round: _Round,
+    success: Bool)
+  =>
     // verify that this is an expected call
     if this._current_round != shrink_round then
-      _logger.log("unexpected " + if success then "complete" else "fail" end + " msg for " + shrink_round.string() +
-        ". Currently at " + _current_round.string(), true)
+      _logger.log(
+        "unexpected " +
+          (if success then "complete" else "fail" end) +
+          " msg for " + shrink_round.string() +
+          ". Currently at " +
+          _current_round.string(),
+        true)
       return
     end
 
@@ -248,7 +277,9 @@ actor PropertyRunner[T]
     end
 
   be do_shrink(failed_repr: String) =>
-
+    """
+    Attempt to shrink a failing sample.
+    """
     // shrink iters can be infinite, so we need to limit
     // the examples we consider during shrinking
     let round_num = this._current_round.round()
@@ -270,13 +301,13 @@ actor PropertyRunner[T]
       recover val
         this~complete_shrink(failed_repr, current_repr)
       end
-    let helper = PropertyHelper(
-      _env,
-      this,
-      run_notify,
-      this._current_round,
-      _params.string()
-    )
+    let helper =
+      PropertyHelper(
+        _env,
+        this,
+        run_notify,
+        this._current_round,
+        _params.string())
     _pass = true // will be set to false by fail calls
 
     try
@@ -300,35 +331,59 @@ actor PropertyRunner[T]
     end
 
 // interface towards PropertyHelper
-
   be expect_action(name: String, round: _Round) =>
     if round != this._current_round then
-      _logger.log("unexpected expect action \"" + name + "\" call for " + round.string() +
-        ". Currently at " + this._current_round.string(), true)
+      _logger.log(
+        "unexpected expect action \"" + name +
+          "\" call for " + round.string() +
+          ". Currently at " +
+          this._current_round.string(),
+        true)
       return
     end
     _logger.log("Action expected: " + name)
     _expected_actions.set(name)
 
-  be complete_action(name: String, round: _Round, ph: PropertyHelper) =>
+  be complete_action(
+    name: String,
+    round: _Round,
+    ph: PropertyHelper)
+  =>
     if round != this._current_round then
-      _logger.log("unexpected complete action \"" + name + "\" msg for " + round.string() +
-        ". Currently at " + this._current_round.string(), true)
+      _logger.log(
+        "unexpected complete action \"" + name +
+          "\" msg for " + round.string() +
+          ". Currently at " +
+          this._current_round.string(),
+        true)
       return
     end
     _logger.log("Action completed: " + name)
     _finish_action(name, true, round, ph)
 
-  be fail_action(name: String, round: _Round, ph: PropertyHelper) =>
+  be fail_action(
+    name: String,
+    round: _Round,
+    ph: PropertyHelper)
+  =>
     if round != this._current_round then
-      _logger.log("unexpected fail action \"" + name + "\" msg for " + round.string() +
-        ". Currently at " + this._current_round.string(), true)
+      _logger.log(
+        "unexpected fail action \"" + name +
+          "\" msg for " + round.string() +
+          ". Currently at " +
+          this._current_round.string(),
+        true)
       return
     end
     _logger.log("Action failed: " + name)
     _finish_action(name, false, round, ph)
 
-  fun ref _finish_action(name: String, success: Bool, round: _Round, ph: PropertyHelper) =>
+  fun ref _finish_action(
+    name: String,
+    success: Bool,
+    round: _Round,
+    ph: PropertyHelper)
+  =>
     try
       _expected_actions.extract(name)?
 
@@ -340,16 +395,19 @@ actor PropertyRunner[T]
         ph.complete(true)
       end
     else
-      _logger.log("Action '" + name + "' finished unexpectedly at " + round.string() + ". ignoring.")
+      _logger.log(
+        "Action '" + name +
+          "' finished unexpectedly at " +
+          round.string() + ". ignoring.")
     end
 
   be dispose_when_done(disposable: DisposableActor, round: _Round) =>
     """
-    Let us not have older rounds interfere with newer ones, 
+    Let us not have older rounds interfere with newer ones,
     thus dispose directly.
     """
     if round != this._current_round then
-      _logger.log("Unexpected dispose_when_done for " + round.string() + 
+      _logger.log("Unexpected dispose_when_done for " + round.string() +
         ". Currently at " + this._current_round.string(), true)
       _logger.log("Disposing right now...", true)
       disposable.dispose()
@@ -369,7 +427,6 @@ actor PropertyRunner[T]
     _logger.log(msg, verbose)
 
   // end interface towards PropertyHelper
-
   fun ref complete() =>
     """
     Complete the Property execution successfully.
@@ -417,14 +474,15 @@ actor PropertyRunner[T]
         " shrinks)"
     )
 
-
 class _EmptyIterator[T]
   fun ref has_next(): Bool => false
   fun ref next(): T^ ? => error
 
 primitive _Stringify
   fun apply[T](t: T): (T^, String) =>
-    """turn anything into a string"""
+    """
+    turn anything into a string
+    """
     let digest = (digestof t)
     let s =
       match t

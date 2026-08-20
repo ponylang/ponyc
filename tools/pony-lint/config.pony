@@ -276,13 +276,13 @@ primitive ConfigLoader
     """
     Parse JSON content into rule status overrides.
     """
-    match \exhaustive\ json.JsonParser.parse(content)
-    | let value: json.JsonValue =>
+    match \exhaustive\ json.JSONParser.parse(content)
+    | let value: json.JSONValue =>
       match \exhaustive\ value
-      | let obj: json.JsonObject =>
+      | let obj: json.JSONObject =>
         try
           match obj("rules")?
-          | let rules_obj: json.JsonObject =>
+          | let rules_obj: json.JSONObject =>
             _parse_rules(rules_obj)
           else
             ConfigError("\"rules\" must be an object")
@@ -294,13 +294,13 @@ primitive ConfigLoader
       else
         ConfigError("config file must contain a JSON object")
       end
-    | let err: json.JsonParseError =>
+    | let err: json.JSONParseError =>
       ConfigError("malformed JSON in config file: " + err.string())
     end
 
   fun _max_config_size(): USize => 65_536
 
-  fun _parse_rules(rules: json.JsonObject)
+  fun _parse_rules(rules: json.JSONObject)
     : (Map[String, RuleStatus] val | ConfigError)
   =>
     recover val

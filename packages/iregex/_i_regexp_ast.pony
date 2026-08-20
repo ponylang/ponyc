@@ -9,7 +9,9 @@ type _RegexNode is
   | _EmptyMatch )
 
 class val _Literal
-  """Single Unicode codepoint match."""
+  """
+  Single Unicode codepoint match.
+  """
   let codepoint: U32
 
   new val create(codepoint': U32) =>
@@ -34,7 +36,9 @@ class val _CharClass
     negated = negated'
 
 class val _Alternation
-  """Alternation: matches left or right."""
+  """
+  Alternation: matches left or right.
+  """
   let left: _RegexNode
   let right: _RegexNode
 
@@ -43,7 +47,9 @@ class val _Alternation
     right = right'
 
 class val _Concatenation
-  """Concatenation: matches left followed by right."""
+  """
+  Concatenation: matches left followed by right.
+  """
   let left: _RegexNode
   let right: _RegexNode
 
@@ -70,11 +76,15 @@ class val _Quantified
     max_count = max_count'
 
 class val _Group
-  """Grouping wrapper (no capture semantics)."""
+  """
+  Grouping wrapper (no capture semantics).
+  """
   let expr: _RegexNode
 
   new val create(expr': _RegexNode) =>
     expr = expr'
 
 primitive _EmptyMatch
-  """Matches the empty string. Used for empty branches in alternation."""
+  """
+  Matches the empty string. Used for empty branches in alternation.
+  """

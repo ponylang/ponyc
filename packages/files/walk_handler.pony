@@ -37,6 +37,9 @@ interface WalkHandler
   A handler for `FilePath.walk`.
   """
   fun ref apply(dir_path: FilePath, dir_entries: Array[String] ref)
+    """
+    Called for each directory during a walk.
+    """
 
 class val FilePath
   """
@@ -138,10 +141,11 @@ class val FilePath
     of the supplied capabilities and the capabilities on the base.
     """
     (let dir, let pre) = Path.split(prefix)
-    let parent: FilePath = match \exhaustive\ base
+    let parent: FilePath =
+      match \exhaustive\ base
       | let base': FileAuth => FilePath(base', dir)
       | let base': FilePath => FilePath.from(base', dir)?
-    end
+      end
 
     if not parent.mkdir() then
       error
@@ -229,20 +233,22 @@ class val FilePath
     var offset: ISize = 0
 
     repeat
-      let element = try
-        offset = path.find(Path.sep(), offset)? + 1
-        path.substring(0, offset - 1)
-      else
-        offset = -1
-        path
-      end
+      let element =
+        try
+          offset = path.find(Path.sep(), offset)? + 1
+          path.substring(0, offset - 1)
+        else
+          offset = -1
+          path
+        end
 
       if element.size() > 0 then
-        let r = ifdef windows then
-          @_mkdir(element.cstring())
-        else
-          @mkdir(element.cstring(), U32(0x1FF))
-        end
+        let r =
+          ifdef windows then
+            @_mkdir(element.cstring())
+          else
+            @mkdir(element.cstring(), U32(0x1FF))
+          end
 
         if r != 0 then
           if @pony_os_errno() != @pony_os_eexist() then
@@ -332,10 +338,11 @@ class val FilePath
         // look up the ID of the SE_CREATE_SYMBOLIC_LINK privilege
         let priv_name = "SeCreateSymbolicLinkPrivilege"
         var luid: U64 = 0
-        var ret = @LookupPrivilegeValueA(
-          USize(0),
-          priv_name.cstring(),
-          addressof luid)
+        var ret =
+          @LookupPrivilegeValueA(
+            USize(0),
+            priv_name.cstring(),
+            addressof luid)
         if ret == 0 then
           return false
         end
@@ -361,8 +368,14 @@ class val FilePath
         privileges.privilege_count = 1
         privileges.privileges_0.luid = luid
         privileges.privileges_0.attributes = 0x00000002 // SE_PRIVILEGE_ENABLED
-        ret = @AdjustTokenPrivileges(token, U8(0), privileges,
-          U32(0), USize(0), USize(0))
+        ret =
+          @AdjustTokenPrivileges(
+            token,
+            U8(0),
+            privileges,
+            U32(0),
+            USize(0),
+            USize(0))
         @CloseHandle(token)
         if ret == 0 then
           return false
@@ -370,8 +383,11 @@ class val FilePath
 
         // now actually try to create the link
         let flags: U32 = if FileInfo(this)?.directory then 3 else 0 end
-        ret = @CreateSymbolicLinkA(link_name.path.cstring(),
-          path.cstring(), flags)
+        ret =
+          @CreateSymbolicLinkA(
+            link_name.path.cstring(),
+            path.cstring(),
+            flags)
         ret != 0
       else
         false

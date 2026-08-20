@@ -57,7 +57,7 @@ primitive Path
       clean(next_path)
     else
       try
-        if is_sep(path(path.size()-1)?) then
+        if is_sep(path(path.size() - 1)?) then
           if is_sep(next_path(0)?) then
             return clean(path + next_path.trim(1))
           else
@@ -176,7 +176,7 @@ primitive Path
     end
 
     try
-      if is_sep(s(s.size()-1)?) and (s.size() > 1) then
+      if is_sep(s(s.size() - 1)?) and (s.size() > 1) then
         s.delete(-1, sep().size())
       end
     end
@@ -249,17 +249,19 @@ primitive Path
     var target_0 = target_i
 
     while true do
-      to_i = try
-        to_clean.find(sep(), to_i)?
-      else
-        to_clean.size().isize()
-      end
+      to_i =
+        try
+          to_clean.find(sep(), to_i)?
+        else
+          to_clean.size().isize()
+        end
 
-      target_i = try
-        target_clean.find(sep(), target_i)?
-      else
-        target_clean.size().isize()
-      end
+      target_i =
+        try
+          target_clean.find(sep(), target_i)?
+        else
+          target_clean.size().isize()
+        end
 
       if
         (to_i != target_i) or
@@ -318,7 +320,7 @@ primitive Path
     """
     try
       let i = path.rfind(separator)?.usize()
-      (clean(path.trim(0, i)), path.trim(i+separator.size()))
+      (clean(path.trim(0, i)), path.trim(i + separator.size()))
     else
       ("", path)
     end
@@ -330,11 +332,12 @@ primitive Path
     If `with_ext` is `false`, the extension as defined by the `ext()` method
     will be omitted from the result.
     """
-    let b = try
-      path.trim(path.rfind(sep())?.usize() + 1)
-    else
-      path
-    end
+    let b =
+      try
+        path.trim(path.rfind(sep())?.usize() + 1)
+      else
+        path
+      end
 
     if with_ext then
       b
@@ -367,11 +370,12 @@ primitive Path
     try
       let i = path.rfind(".")?
 
-      let j = try
-        path.rfind(sep())?
-      else
-        i
-      end
+      let j =
+        try
+          path.rfind(sep())?
+        else
+          i
+        end
 
       if i >= j then
         return path.trim(i.usize() + 1)

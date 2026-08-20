@@ -22,6 +22,9 @@ primitive _StringifyIntArg
     num.clone()
 
 class IntPropertySample is Stringable
+  """
+  A sample holding a type choice and an integer value.
+  """
   let choice: U8
   let int: U128
 
@@ -77,9 +80,18 @@ trait IntProperty is Property1[IntPropertySample]
       error
     end
 
-  fun ref int_property[T: (Int & Integer[T] val)](x: T, h: PropertyHelper)?
+  fun ref int_property[T: (Int & Integer[T] val)](
+    x: T,
+    h: PropertyHelper)
+    ?
+    """
+    Test the property for a single integer type.
+    """
 
 class IntPairPropertySample is Stringable
+  """
+  A sample holding a type choice and two integer values.
+  """
   let choice: U8
   let int1: U128
   let int2: U128
@@ -94,7 +106,6 @@ class IntPairPropertySample is Stringable
     let num2: String val = _StringifyIntArg(choice, int2)
     "".join(["("; num1; ", "; num2; ")"].values())
 
-
 type IntPairUnitTest is Property1UnitTest[IntPairPropertySample]
 
 trait IntPairProperty is Property1[IntPairPropertySample]
@@ -108,7 +119,9 @@ trait IntPairProperty is Property1[IntPairPropertySample]
   class CommutativeMultiplicationProperty is IntPairProperty
     fun name(): String => "commutativity/mul"
 
-    fun int_property[T: (Int & Integer[T] val)](x: T, y: T, h: PropertyHelper)? =>
+    fun int_property[T: (Int & Integer[T] val)](
+      x: T, y: T, h: PropertyHelper)?
+    =>
       h.assert_eq[T](x * y, y * x)
   ```
   """
@@ -142,4 +155,11 @@ trait IntPairProperty is Property1[IntPairPropertySample]
       error
     end
 
-  fun ref int_property[T: (Int & Integer[T] val)](x: T, y: T, h: PropertyHelper)?
+  fun ref int_property[T: (Int & Integer[T] val)](
+    x: T,
+    y: T,
+    h: PropertyHelper)
+    ?
+    """
+    Test the property for a single integer type with two values.
+    """

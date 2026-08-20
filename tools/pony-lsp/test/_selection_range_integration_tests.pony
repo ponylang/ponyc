@@ -166,7 +166,7 @@ class \nodoc\ iso _SelectionRangeEmptyPositionsTest is UnitTest
 
   Exercises the zero-position path in workspace_manager.be selection_range:
   the positions loop runs zero iterations and the response is an empty
-  JsonArray rather than null.
+  JSONArray rather than null.
   """
   let _server: _LspTestServer
 
@@ -209,18 +209,18 @@ class val _SelectionRangeChecker
   fun lsp_method(): String =>
     Methods.text_document().selection_range()
 
-  fun lsp_params(): (None | JsonObject) =>
-    var positions = JsonArray
+  fun lsp_params(): (None | JSONObject) =>
+    var positions = JSONArray
     for c in _checks.values() do
       positions =
         positions.push(
-          JsonObject.update("line", c._1).update("character", c._2))
+          JSONObject.update("line", c._1).update("character", c._2))
     end
-    JsonObject.update("positions", positions)
+    JSONObject.update("positions", positions)
 
   fun check(res: ResponseMessage val, h: TestHelper): Bool =>
     try
-      let result_arr = res.result as JsonArray
+      let result_arr = res.result as JSONArray
       if not h.assert_true(
         result_arr.size() == _checks.size(),
         "expected " + _checks.size().string() + " response entries, got " +
@@ -237,7 +237,7 @@ class val _SelectionRangeChecker
           if not h.assert_true(
             entry is None,
             "positions[" + i.string() + "]: expected null, got: " +
-            JsonPrinter.print(entry))
+            JSONPrinter.print(entry))
           then
             ok = false
           end
@@ -306,25 +306,25 @@ class val _SelectionRangeChecker
       end
       ok
     else
-      h.fail("Expected selectionRange JsonArray, got: " + res.string())
+      h.fail("Expected selectionRange JSONArray, got: " + res.string())
       false
     end
 
-  fun _flatten_chain(val': JsonValue): Array[(I64, I64, I64, I64)] =>
+  fun _flatten_chain(val': JSONValue): Array[(I64, I64, I64, I64)] =>
     """
     Walk the linked-list { range, parent? } structure and return a flat array
     of (startLine, startChar, endLine, endChar) tuples, innermost first.
     """
     let result: Array[(I64, I64, I64, I64)] = Array[(I64, I64, I64, I64)]
-    var current: JsonValue = val'
+    var current: JSONValue = val'
     while true do
       match current
-      | let obj: JsonObject =>
+      | let obj: JSONObject =>
         try
-          let sl = JsonNav(obj)("range")("start")("line").as_i64()?
-          let sc = JsonNav(obj)("range")("start")("character").as_i64()?
-          let el = JsonNav(obj)("range")("end")("line").as_i64()?
-          let ec = JsonNav(obj)("range")("end")("character").as_i64()?
+          let sl = JSONNav(obj)("range")("start")("line").as_i64()?
+          let sc = JSONNav(obj)("range")("start")("character").as_i64()?
+          let el = JSONNav(obj)("range")("end")("line").as_i64()?
+          let ec = JSONNav(obj)("range")("end")("character").as_i64()?
           result.push((sl, sc, el, ec))
           current = obj("parent")?
         else

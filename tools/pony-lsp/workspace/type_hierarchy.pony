@@ -9,7 +9,7 @@ primitive TypeHierarchy
   and typeHierarchy/subtypes.
   """
 
-  fun prepare(node: AST box): (JsonArray | None) =>
+  fun prepare(node: AST box): (JSONArray | None) =>
     """
     Resolve the entity at `node` and build a one-element TypeHierarchyItem
     array, or None if no entity is found at the cursor.
@@ -17,13 +17,13 @@ primitive TypeHierarchy
     match \exhaustive\ _entity_for_node(node)
     | let entity: AST val =>
       match \exhaustive\ _build_item(entity)
-      | let item: JsonObject => JsonArray.push(item)
+      | let item: JSONObject => JSONArray.push(item)
       | None => None
       end
     | None => None
     end
 
-  fun supertypes(node: AST box): (JsonArray | None) =>
+  fun supertypes(node: AST box): (JSONArray | None) =>
     """
     Resolve the entity at `node` and return TypeHierarchyItems for each
     type in its provides list (direct supertypes only).
@@ -35,7 +35,7 @@ primitive TypeHierarchy
 
   fun subtypes(
     node: AST box,
-    packages: Map[String, PackageState] box): (JsonArray | None)
+    packages: Map[String, PackageState] box): (JSONArray | None)
   =>
     """
     Resolve the entity at `node`, then cross-package walk to collect all
@@ -83,7 +83,7 @@ primitive TypeHierarchy
       SymbolKinds.sk_class()
     end
 
-  fun _build_item(entity: AST box): (JsonObject | None) =>
+  fun _build_item(entity: AST box): (JSONObject | None) =>
     """
     Build a LSP TypeHierarchyItem JSON object for the given entity AST node.
     """
@@ -114,7 +114,7 @@ primitive TypeHierarchy
         | None => sel_range
         end
 
-      JsonObject
+      JSONObject
         .update("name", name)
         .update("kind", kind)
         .update("uri", uri)
@@ -124,12 +124,12 @@ primitive TypeHierarchy
       None
     end
 
-  fun _collect_supertypes(entity: AST box): JsonArray =>
+  fun _collect_supertypes(entity: AST box): JSONArray =>
     """
     Walk the entity's provides node and build TypeHierarchyItems for each
     directly referenced supertype.
     """
-    var result = JsonArray
+    var result = JSONArray
     let seen = Set[AST val]
     try
       // Entity child layout:
@@ -145,7 +145,7 @@ primitive TypeHierarchy
         end
         seen.set(def)
         match _build_item(def)
-        | let item: JsonObject => result = result.push(item)
+        | let item: JSONObject => result = result.push(item)
         end
       end
     end
@@ -218,7 +218,7 @@ class ref _SubtypeCollector is ASTVisitor
   // recursive type-table descent. Skip it when no nominal in the provides
   // clause even mentions the target name. Mirrors _IncomingCallCollector.
   let _target_name: String val
-  var _result: JsonArray
+  var _result: JSONArray
 
   new ref create(target: AST val) =>
     _target = target
@@ -228,7 +228,7 @@ class ref _SubtypeCollector is ASTVisitor
       else
         ""
       end
-    _result = JsonArray
+    _result = JSONArray
 
   fun ref visit(ast: AST box): VisitResult =>
     if not TypeHierarchy._is_entity(ast.id()) then
@@ -253,7 +253,7 @@ class ref _SubtypeCollector is ASTVisitor
         // entity has a unique AST node, so == is an exact match.
         if def == _target then
           match TypeHierarchy._build_item(ast)
-          | let item: JsonObject => _result = _result.push(item)
+          | let item: JSONObject => _result = _result.push(item)
           end
           return Continue
         end
@@ -261,5 +261,5 @@ class ref _SubtypeCollector is ASTVisitor
     end
     Continue
 
-  fun ref result(): JsonArray =>
+  fun ref result(): JSONArray =>
     _result

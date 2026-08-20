@@ -48,10 +48,12 @@ class iso Property1UnitTest[T] is UnitTest
       end
     _prop1 = consume p1
 
-
   fun name(): String => _name
 
   fun ref apply(h: TestHelper) ? =>
+    """
+    Run the property as a unit test.
+    """
     let prop = ((_prop1 = None) as Property1[T] iso^)
     let params = prop.params()
     h.long_test(params.timeout)
@@ -67,7 +69,9 @@ class iso Property1UnitTest[T] is UnitTest
     property_runner.run()
 
 class iso Property2UnitTest[T1, T2] is UnitTest
-
+  """
+  Wraps a `Property2` for use as a PonyTest `UnitTest`.
+  """
   var _prop2: ( Property2[T1, T2] iso | None )
   let _name: String
 
@@ -82,6 +86,9 @@ class iso Property2UnitTest[T1, T2] is UnitTest
   fun name(): String => _name
 
   fun ref apply(h: TestHelper) ? =>
+    """
+    Run the property as a unit test.
+    """
     let prop = ((_prop2 = None) as Property2[T1, T2] iso^)
     let params = prop.params()
     h.long_test(params.timeout)
@@ -97,11 +104,16 @@ class iso Property2UnitTest[T1, T2] is UnitTest
     property_runner.run()
 
 class iso Property3UnitTest[T1, T2, T3] is UnitTest
-
+  """
+  Wraps a `Property3` for use as a PonyTest `UnitTest`.
+  """
   var _prop3: ( Property3[T1, T2, T3] iso | None )
   let _name: String
 
-  new iso create(p3: Property3[T1, T2, T3] iso, name': (String | None) = None) =>
+  new iso create(
+    p3: Property3[T1, T2, T3] iso,
+    name': (String | None) = None)
+  =>
     _name =
       match \exhaustive\ name'
       | None => p3.name()
@@ -112,6 +124,9 @@ class iso Property3UnitTest[T1, T2, T3] is UnitTest
   fun name(): String => _name
 
   fun ref apply(h: TestHelper) ? =>
+    """
+    Run the property as a unit test.
+    """
     let prop = ((_prop3 = None) as Property3[T1, T2, T3] iso^)
     let params = prop.params()
     h.long_test(params.timeout)
@@ -127,11 +142,16 @@ class iso Property3UnitTest[T1, T2, T3] is UnitTest
     property_runner.run()
 
 class iso Property4UnitTest[T1, T2, T3, T4] is UnitTest
-
+  """
+  Wraps a `Property4` for use as a PonyTest `UnitTest`.
+  """
   var _prop4: ( Property4[T1, T2, T3, T4] iso | None )
   let _name: String
 
-  new iso create(p4: Property4[T1, T2, T3, T4] iso, name': (String | None) = None) =>
+  new iso create(
+    p4: Property4[T1, T2, T3, T4] iso,
+    name': (String | None) = None)
+  =>
     _name =
       match \exhaustive\ name'
       | None => p4.name()
@@ -142,6 +162,9 @@ class iso Property4UnitTest[T1, T2, T3, T4] is UnitTest
   fun name(): String => _name
 
   fun ref apply(h: TestHelper) ? =>
+    """
+    Run the property as a unit test.
+    """
     let prop = ((_prop4 = None) as Property4[T1, T2, T3, T4] iso^)
     let params = prop.params()
     h.long_test(params.timeout)
@@ -155,4 +178,3 @@ class iso Property4UnitTest[T1, T2, T3, T4] is UnitTest
       )
     h.dispose_when_done(property_runner)
     property_runner.run()
-

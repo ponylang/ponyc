@@ -89,11 +89,11 @@ class DocumentSymbol
   fun ref push_child(child: DocumentSymbol) =>
     this.children.push(child)
 
-  fun to_json(): JsonValue =>
+  fun to_json(): JSONValue =>
     """
     Serialise this symbol to JSON.
     """
-    var obj = JsonObject
+    var obj = JSONObject
       .update("name", this.name)
       .update("kind", this.kind)
       .update("range", this.range.to_json())
@@ -102,14 +102,14 @@ class DocumentSymbol
       obj = obj.update("detail", detail)
     end
     try
-      var json_tags = JsonArray
+      var json_tags = JSONArray
       for tagg in (this.tags as this->Array[I64]).values() do
         json_tags = json_tags.push(tagg)
       end
       obj = obj.update("tags", json_tags)
     end
     if this.children.size() > 0 then
-      var json_children = JsonArray
+      var json_children = JSONArray
       for child in this.children.values() do
         json_children = json_children.push(child.to_json())
       end

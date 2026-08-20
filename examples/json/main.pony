@@ -6,7 +6,7 @@ actor Main
     _build_example(env)
     env.out.print("")
 
-    env.out.print("=== Serializing (JsonPrinter) ===")
+    env.out.print("=== Serializing (JSONPrinter) ===")
     _printer_example(env)
     env.out.print("")
 
@@ -14,11 +14,11 @@ actor Main
     _parse_example(env)
     env.out.print("")
 
-    env.out.print("=== Navigation (JsonNav) ===")
+    env.out.print("=== Navigation (JSONNav) ===")
     _nav_example(env)
     env.out.print("")
 
-    env.out.print("=== Lenses (JsonLens) ===")
+    env.out.print("=== Lenses (JSONLens) ===")
     _lens_example(env)
     env.out.print("")
 
@@ -38,18 +38,18 @@ actor Main
     _jsonpath_function_example(env)
 
   fun _build_example(env: Env) =>
-    let doc = json.JsonObject
+    let doc = json.JSONObject
       .update("name", "Alice")
       .update("age", I64(30))
       .update("active", true)
       .update(
         "tags",
-        json.JsonArray
+        json.JSONArray
           .push("admin")
           .push("developer"))
       .update(
         "address",
-        json.JsonObject
+        json.JSONObject
           .update("city", "Portland")
           .update("state", "OR"))
 
@@ -58,27 +58,27 @@ actor Main
     env.out.print(doc.pretty_print())
 
   fun _printer_example(env: Env) =>
-    // JsonPrinter.print serializes any JsonValue — objects, arrays, and
-    // scalars alike — which is what JsonObject.print()/JsonArray.print()
+    // JSONPrinter.print serializes any JSONValue — objects, arrays, and
+    // scalars alike — which is what JSONObject.print()/JSONArray.print()
     // cannot do on their own.
-    let doc = json.JsonObject
+    let doc = json.JSONObject
       .update("ok", true)
       .update("count", I64(3))
       .update("ratio", F64(1.5))
       .update("note", None)
-      .update("items", json.JsonArray.push("a").push("b"))
+      .update("items", json.JSONArray.push("a").push("b"))
 
-    env.out.print("Whole value: " + json.JsonPrinter.print(doc))
+    env.out.print("Whole value: " + json.JSONPrinter.print(doc))
 
     // Scalars and JSON null serialize correctly on their own.
-    env.out.print("Bool:   " + json.JsonPrinter.print(true))
-    env.out.print("Int:    " + json.JsonPrinter.print(I64(42)))
-    env.out.print("Float:  " + json.JsonPrinter.print(F64(2)))
-    env.out.print("String: " + json.JsonPrinter.print("hi\"there"))
-    env.out.print("Null:   " + json.JsonPrinter.print(None))
+    env.out.print("Bool:   " + json.JSONPrinter.print(true))
+    env.out.print("Int:    " + json.JSONPrinter.print(I64(42)))
+    env.out.print("Float:  " + json.JSONPrinter.print(F64(2)))
+    env.out.print("String: " + json.JSONPrinter.print("hi\"there"))
+    env.out.print("Null:   " + json.JSONPrinter.print(None))
 
     env.out.print("Pretty:")
-    env.out.print(json.JsonPrinter.pretty(doc))
+    env.out.print(json.JSONPrinter.pretty(doc))
 
   fun _parse_example(env: Env) =>
     let source =
@@ -86,14 +86,14 @@ actor Main
       {"users":[{"name":"Bob","age":25},{"name":"Carol","age":35}],"count":2}
       """
 
-    match \exhaustive\ json.JsonParser.parse(source)
-    | let j: json.JsonValue =>
+    match \exhaustive\ json.JSONParser.parse(source)
+    | let j: json.JSONValue =>
       env.out.print("Parsed successfully")
       match j
-      | let obj: json.JsonObject => env.out.print("Root is object with " +
+      | let obj: json.JSONObject => env.out.print("Root is object with " +
         obj.size().string() + " keys")
       end
-    | let err: json.JsonParseError =>
+    | let err: json.JSONParseError =>
       env.out.print("Parse error: " + err.string())
     end
 
@@ -103,9 +103,9 @@ actor Main
       {"users":[{"name":"Bob","age":25},{"name":"Carol","age":35}],"count":2}
       """
 
-    match \exhaustive\ json.JsonParser.parse(source)
-    | let j: json.JsonValue =>
-      let nav = json.JsonNav(j)
+    match \exhaustive\ json.JSONParser.parse(source)
+    | let j: json.JSONValue =>
+      let nav = json.JSONNav(j)
       try
         let first_name = nav("users")(USize(0))("name").as_string()?
         let first_age = nav("users")(USize(0))("age").as_i64()?
@@ -120,11 +120,11 @@ actor Main
         env.out.print("Count: " + count.string())
       end
 
-      // JsonNotFound propagation — no crash, just JsonNotFound at the end
+      // JSONNotFound propagation — no crash, just JSONNotFound at the end
       let missing = nav("nonexistent")("deep")("path")
       env.out.print("Missing path found? " + missing.found().string())
 
-    | let err: json.JsonParseError =>
+    | let err: json.JSONParseError =>
       env.out.print("Parse error: " + err.string())
     end
 
@@ -134,28 +134,28 @@ actor Main
       {"config":{"database":{"host":"localhost","port":5432},"debug":false}}
       """
 
-    match \exhaustive\ json.JsonParser.parse(source)
-    | let j: json.JsonValue =>
+    match \exhaustive\ json.JSONParser.parse(source)
+    | let j: json.JSONValue =>
       // Read via lens
-      let host_lens = json.JsonLens("config")("database")("host")
+      let host_lens = json.JSONLens("config")("database")("host")
       match \exhaustive\ host_lens.get(j)
-      | let host: json.JsonValue =>
-        env.out.print("Host: " + json.JsonPrinter.print(host))
-      | json.JsonNotFound =>
+      | let host: json.JSONValue =>
+        env.out.print("Host: " + json.JSONPrinter.print(host))
+      | json.JSONNotFound =>
         env.out.print("Host not found")
       end
 
       // Composed lens
-      let db_lens = json.JsonLens("config")("database")
-      let port_lens = db_lens.compose(json.JsonLens("port"))
+      let db_lens = json.JSONLens("config")("database")
+      let port_lens = db_lens.compose(json.JSONLens("port"))
       match \exhaustive\ port_lens.get(j)
-      | let port: json.JsonValue =>
-        env.out.print("Port: " + json.JsonPrinter.print(port))
-      | json.JsonNotFound =>
+      | let port: json.JSONValue =>
+        env.out.print("Port: " + json.JSONPrinter.print(port))
+      | json.JSONNotFound =>
         env.out.print("Port not found")
       end
 
-    | let err: json.JsonParseError =>
+    | let err: json.JSONParseError =>
       env.out.print("Parse error: " + err.string())
     end
 
@@ -165,35 +165,35 @@ actor Main
       {"config":{"database":{"host":"localhost","port":5432},"debug":false}}
       """
 
-    match \exhaustive\ json.JsonParser.parse(source)
-    | let j: json.JsonValue =>
+    match \exhaustive\ json.JSONParser.parse(source)
+    | let j: json.JSONValue =>
       // Modify a deeply nested value
-      let host_lens = json.JsonLens("config")("database")("host")
+      let host_lens = json.JSONLens("config")("database")("host")
       match \exhaustive\ host_lens.set(j, "prod.example.com")
-      | let updated: json.JsonValue =>
+      | let updated: json.JSONValue =>
         match updated
-        | let obj: json.JsonObject =>
+        | let obj: json.JSONObject =>
           env.out.print("After host change:")
           env.out.print(obj.pretty_print())
         end
-      | json.JsonNotFound =>
+      | json.JSONNotFound =>
         env.out.print("Could not set host — path not found")
       end
 
       // Remove a value
-      let debug_lens = json.JsonLens("config")("debug")
+      let debug_lens = json.JSONLens("config")("debug")
       match \exhaustive\ debug_lens.remove(j)
-      | let updated: json.JsonValue =>
+      | let updated: json.JSONValue =>
         match updated
-        | let obj: json.JsonObject =>
+        | let obj: json.JSONObject =>
           env.out.print("After removing debug:")
           env.out.print(obj.pretty_print())
         end
-      | json.JsonNotFound =>
+      | json.JSONNotFound =>
         env.out.print("Could not remove debug — path not found")
       end
 
-    | let err: json.JsonParseError =>
+    | let err: json.JSONParseError =>
       env.out.print("Parse error: " + err.string())
     end
 
@@ -215,20 +215,20 @@ actor Main
       }
       """
 
-    match \exhaustive\ json.JsonParser.parse(source)
-    | let doc: json.JsonValue =>
+    match \exhaustive\ json.JSONParser.parse(source)
+    | let doc: json.JSONValue =>
       // Wildcard: all authors
-      match \exhaustive\ json.JsonPathParser.parse("$.store.book[*].author")
-      | let path: json.JsonPath =>
+      match \exhaustive\ json.JSONPathParser.parse("$.store.book[*].author")
+      | let path: json.JSONPath =>
         let authors = path.query(doc)
         env.out.print("Authors: " + _format_results(authors))
-      | let err: json.JsonPathParseError =>
+      | let err: json.JSONPathParseError =>
         env.out.print("Path error: " + err.string())
       end
 
       // Recursive descent: all prices in the store
       try
-        let price_path = json.JsonPathParser.compile("$.store..price")?
+        let price_path = json.JSONPathParser.compile("$.store..price")?
         let prices = price_path.query(doc)
         env.out.print("All prices (" + prices.size().string() + "): " +
           _format_results(prices))
@@ -237,11 +237,11 @@ actor Main
       // query_one: first book title
       try
         let first_title =
-          json.JsonPathParser.compile("$.store.book[0].title")?
+          json.JSONPathParser.compile("$.store.book[0].title")?
         match \exhaustive\ first_title.query_one(doc)
-        | let title: json.JsonValue =>
-          env.out.print("First title: " + json.JsonPrinter.print(title))
-        | json.JsonNotFound =>
+        | let title: json.JSONValue =>
+          env.out.print("First title: " + json.JSONPrinter.print(title))
+        | json.JSONNotFound =>
           env.out.print("No title found")
         end
       end
@@ -249,7 +249,7 @@ actor Main
       // Union selectors: first two books
       try
         let first_two =
-          json.JsonPathParser.compile("$.store.book[0,1].title")?
+          json.JSONPathParser.compile("$.store.book[0,1].title")?
         let titles = first_two.query(doc)
         env.out.print("First two titles: " + _format_results(titles))
       end
@@ -257,7 +257,7 @@ actor Main
       // Slice: first two books via slice
       try
         let slice =
-          json.JsonPathParser.compile("$.store.book[:2].title")?
+          json.JSONPathParser.compile("$.store.book[:2].title")?
         let titles = slice.query(doc)
         env.out.print("Slice [:2] titles: " + _format_results(titles))
       end
@@ -265,7 +265,7 @@ actor Main
       // Slice with step: every other book
       try
         let step_slice =
-          json.JsonPathParser.compile("$.store.book[::2].title")?
+          json.JSONPathParser.compile("$.store.book[::2].title")?
         let titles = step_slice.query(doc)
         env.out.print("Slice [::2] titles: " + _format_results(titles))
       end
@@ -273,12 +273,12 @@ actor Main
       // Slice with negative step: books in reverse
       try
         let rev_slice =
-          json.JsonPathParser.compile("$.store.book[::-1].title")?
+          json.JSONPathParser.compile("$.store.book[::-1].title")?
         let titles = rev_slice.query(doc)
         env.out.print("Slice [::-1] titles: " + _format_results(titles))
       end
 
-    | let err: json.JsonParseError =>
+    | let err: json.JSONParseError =>
       env.out.print("JSON parse error: " + err.string())
     end
 
@@ -300,23 +300,23 @@ actor Main
       }
       """
 
-    match \exhaustive\ json.JsonParser.parse(source)
-    | let doc: json.JsonValue =>
+    match \exhaustive\ json.JSONParser.parse(source)
+    | let doc: json.JSONValue =>
       // Comparison filter: books under $10
       try
         let cheap =
-          json.JsonPathParser.compile("$.store.book[?@.price < 10]")?
+          json.JSONPathParser.compile("$.store.book[?@.price < 10]")?
         let results = cheap.query(doc)
         env.out.print("Books under $10 (" + results.size().string() + "):")
         for book in results.values() do
-          env.out.print("  " + json.JsonPrinter.print(book))
+          env.out.print("  " + json.JSONPrinter.print(book))
         end
       end
 
       // Existence filter: books that have an author
       try
         let has_author =
-          json.JsonPathParser.compile("$.store.book[?@.author]")?
+          json.JSONPathParser.compile("$.store.book[?@.author]")?
         let results = has_author.query(doc)
         env.out.print("Books with author: " + results.size().string())
       end
@@ -324,7 +324,7 @@ actor Main
       // Logical combination: cheap books by specific author
       try
         let combined =
-          json.JsonPathParser.compile(
+          json.JSONPathParser.compile(
             "$.store.book[?@.price < 10 && @.author == 'Rees']")?
         let results = combined.query(doc)
         env.out.print("Cheap books by Rees: " + _format_results(results))
@@ -333,13 +333,13 @@ actor Main
       // String comparison
       try
         let alpha =
-          json.JsonPathParser.compile(
+          json.JSONPathParser.compile(
             "$.store.book[?@.author >= 'N'].title")?
         let results = alpha.query(doc)
         env.out.print("Authors >= 'N': " + _format_results(results))
       end
 
-    | let err: json.JsonParseError =>
+    | let err: json.JSONParseError =>
       env.out.print("JSON parse error: " + err.string())
     end
 
@@ -358,12 +358,12 @@ actor Main
       }
       """
 
-    match \exhaustive\ json.JsonParser.parse(source)
-    | let doc: json.JsonValue =>
+    match \exhaustive\ json.JSONParser.parse(source)
+    | let doc: json.JSONValue =>
       // match(): full-string I-Regexp match
       try
         let admins =
-          json.JsonPathParser.compile("""$.users[?match(@.role, "admin")]""")?
+          json.JSONPathParser.compile("""$.users[?match(@.role, "admin")]""")?
         let results = admins.query(doc)
         env.out.print("Admins (match): " + _format_results(results))
       end
@@ -371,7 +371,7 @@ actor Main
       // search(): substring I-Regexp search
       try
         let has_a =
-          json.JsonPathParser.compile("""$.users[?search(@.name, "a")]""")?
+          json.JSONPathParser.compile("""$.users[?search(@.name, "a")]""")?
         let results = has_a.query(doc)
         env.out.print("Names containing 'a' (search): " +
           results.size().string())
@@ -380,7 +380,7 @@ actor Main
       // length(): filter by string length
       try
         let short =
-          json.JsonPathParser.compile("$.users[?length(@.name) <= 3]")?
+          json.JSONPathParser.compile("$.users[?length(@.name) <= 3]")?
         let results = short.query(doc)
         env.out.print("Short names (length <= 3): " +
           _format_results(results))
@@ -389,24 +389,24 @@ actor Main
       // count(): filter by array size
       try
         let multi =
-          json.JsonPathParser.compile("$.users[?count(@.tags[*]) > 1]")?
+          json.JSONPathParser.compile("$.users[?count(@.tags[*]) > 1]")?
         let results = multi.query(doc)
         env.out.print("Multiple tags (count > 1): " +
           results.size().string())
       end
 
-    | let err: json.JsonParseError =>
+    | let err: json.JSONParseError =>
       env.out.print("JSON parse error: " + err.string())
     end
 
-  fun _format_results(results: Array[json.JsonValue] val): String =>
+  fun _format_results(results: Array[json.JSONValue] val): String =>
     let buf = recover iso String end
     buf.push('[')
     var first = true
     for v in results.values() do
       if not first then buf.append(", ") end
       first = false
-      buf.append(json.JsonPrinter.print(v))
+      buf.append(json.JSONPrinter.print(v))
     end
     buf.push(']')
     consume buf

@@ -9,17 +9,17 @@ primitive CallHierarchy
   and callHierarchy/outgoingCalls.
   """
 
-  fun prepare(node: AST box): (JsonArray | None) =>
+  fun prepare(node: AST box): (JSONArray | None) =>
     """
     Resolve the method at `node` and build a CallHierarchyItem array.
     Returns one item for a declaration or one item per definition for a
     polymorphic call site. Returns None if no method is found.
     """
     var found = false
-    var arr = JsonArray
+    var arr = JSONArray
     for method in _methods_for_node(node).values() do
       match \exhaustive\ _build_item(method)
-      | let item: JsonObject =>
+      | let item: JSONObject =>
         arr = arr.push(item)
         found = true
       | None => None
@@ -33,7 +33,7 @@ primitive CallHierarchy
 
   fun incoming_calls(
     node: AST box,
-    packages: Map[String, PackageState] box): (JsonArray | None)
+    packages: Map[String, PackageState] box): (JSONArray | None)
   =>
     """
     Resolve the method at `node`, then cross-package walk to collect all
@@ -49,7 +49,7 @@ primitive CallHierarchy
 
   fun outgoing_calls(
     node: AST box,
-    packages: Map[String, PackageState] box): (JsonArray | None)
+    packages: Map[String, PackageState] box): (JSONArray | None)
   =>
     """
     Resolve the method at `node`, then walk its AST body to collect all
@@ -164,7 +164,7 @@ primitive CallHierarchy
       ""
     end
 
-  fun _build_item(method: AST box): (JsonObject | None) =>
+  fun _build_item(method: AST box): (JSONObject | None) =>
     """
     Build a LSP CallHierarchyItem JSON object for the given method AST node.
     """
@@ -196,7 +196,7 @@ primitive CallHierarchy
         end
 
       var obj =
-        JsonObject
+        JSONObject
           .update("name", name)
           .update("kind", kind)
           .update("uri", uri)
@@ -362,18 +362,18 @@ class ref _IncomingCallCollector is ASTVisitor
     end
     None
 
-  fun ref result(): JsonArray =>
-    var arr = JsonArray
+  fun ref result(): JSONArray =>
+    var arr = JSONArray
     for (caller, ranges) in _callers.values() do
       match CallHierarchy._build_item(caller)
-      | let item: JsonObject =>
-        var from_ranges = JsonArray
+      | let item: JSONObject =>
+        var from_ranges = JSONArray
         for r in ranges.values() do
           from_ranges = from_ranges.push(r.to_json())
         end
         arr =
           arr.push(
-            JsonObject
+            JSONObject
               .update("from", item)
               .update("fromRanges", from_ranges))
       end
@@ -484,18 +484,18 @@ class ref _OutgoingCallCollector is ASTVisitor
     end
     Continue
 
-  fun ref result(): JsonArray =>
-    var arr = JsonArray
+  fun ref result(): JSONArray =>
+    var arr = JSONArray
     for (callee, ranges) in _callees.values() do
       match CallHierarchy._build_item(callee)
-      | let item: JsonObject =>
-        var from_ranges = JsonArray
+      | let item: JSONObject =>
+        var from_ranges = JSONArray
         for r in ranges.values() do
           from_ranges = from_ranges.push(r.to_json())
         end
         arr =
           arr.push(
-            JsonObject
+            JSONObject
               .update("to", item)
               .update("fromRanges", from_ranges))
       end

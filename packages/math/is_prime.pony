@@ -72,6 +72,9 @@ primitive IsPrime[A: (UnsignedInteger[A] val & Unsigned)]
   fun _u8_prime_table_size():  USize => 54
 
   fun apply(n: A): Bool =>
+    """
+    Returns `true` if `n` is prime.
+    """
     if n <= 3 then return n > 1 end
 
     let table_end: USize =

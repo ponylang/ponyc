@@ -13,7 +13,7 @@ primitive InlayHints
   """
   fun collect(
     module: Module val,
-    range: (None | (I64, I64, I64, I64)) = None): Array[JsonValue]
+    range: (None | (I64, I64, I64, I64)) = None): Array[JSONValue]
   =>
     """
     Returns all inlay hints for module, optionally filtered to range
@@ -30,13 +30,13 @@ class ref _InlayHintCollector is ASTVisitor
   inferred types, missing capability annotations, and implicit receiver
   capabilities.
   """
-  let _hints: Array[JsonValue] ref
+  let _hints: Array[JSONValue] ref
   let _range: (None | (I64, I64, I64, I64))
   var _cursor_line: USize
   var _cursor_line_start: USize
 
   new ref create(range: (None | (I64, I64, I64, I64)) = None) =>
-    _hints = Array[JsonValue].create()
+    _hints = Array[JSONValue].create()
     _range = range
     _cursor_line = 1
     _cursor_line_start = 0
@@ -374,7 +374,7 @@ class ref _InlayHintCollector is ASTVisitor
     _cursor_line_start = j
     j + (col - 1)
 
-  fun ref hints(): Array[JsonValue] =>
+  fun ref hints(): Array[JSONValue] =>
     _hints
 
   fun ref _push_hint(hint_line: I64, hint_char: I64, label: String) =>
@@ -390,10 +390,10 @@ class ref _InlayHintCollector is ASTVisitor
       if (hint_line == el) and (hint_char >= ec) then return end
     end
     _hints.push(
-      JsonObject
+      JSONObject
         .update(
           "position",
-          JsonObject
+          JSONObject
             .update("line", hint_line)
             .update("character", hint_char))
         .update("label", label)

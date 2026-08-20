@@ -103,6 +103,9 @@ for reporting.
 use "pony_test"
 
 primitive PonyCheck
+  """
+  Entry point for inline property-based testing within PonyTest.
+  """
   fun for_all[T](gen: Generator[T] val, h: TestHelper): ForAll[T] =>
     """
     Convenience method for running 1 to many properties as part of

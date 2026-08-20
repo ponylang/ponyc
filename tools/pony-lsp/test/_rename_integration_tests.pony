@@ -588,11 +588,11 @@ class val _RenameErrorChecker
   fun lsp_method(): String =>
     Methods.text_document().rename()
 
-  fun lsp_params(): (None | JsonObject) =>
+  fun lsp_params(): (None | JSONObject) =>
     let pos =
-      JsonObject.update(
+      JSONObject.update(
         "position",
-        JsonObject.update("line", _line).update("character", _character))
+        JSONObject.update("line", _line).update("character", _character))
     match \exhaustive\ _new_name
     | let n: String val => pos.update("newName", n)
     | None => pos
@@ -633,11 +633,11 @@ class val _RenameChecker
   fun lsp_method(): String =>
     Methods.text_document().rename()
 
-  fun lsp_params(): (None | JsonObject) =>
-    JsonObject
+  fun lsp_params(): (None | JSONObject) =>
+    JSONObject
       .update(
         "position",
-        JsonObject.update("line", _line).update("character", _character))
+        JSONObject.update("line", _line).update("character", _character))
       .update("newName", _new_name)
 
   fun check(res: ResponseMessage val, h: TestHelper): Bool =>
@@ -646,17 +646,17 @@ class val _RenameChecker
     let got: Array[(String, I64, I64, I64, I64, String)] =
       Array[(String, I64, I64, I64, I64, String)].create()
     try
-      let changes = JsonNav(res.result)("changes").as_object()?
+      let changes = JSONNav(res.result)("changes").as_object()?
       for (uri, edits_val) in changes.pairs() do
         let file = Path.base(Uris.to_path(uri))
-        let edits = edits_val as JsonArray
+        let edits = edits_val as JSONArray
         for edit in edits.values() do
-          let range = JsonNav(edit)("range")
+          let range = JSONNav(edit)("range")
           let sl = range("start")("line").as_i64()?
           let sc = range("start")("character").as_i64()?
           let el = range("end")("line").as_i64()?
           let ec = range("end")("character").as_i64()?
-          let new_text = JsonNav(edit)("newText").as_string()?
+          let new_text = JSONNav(edit)("newText").as_string()?
           got.push((file, sl, sc, el, ec, new_text))
         end
       end
@@ -733,14 +733,14 @@ class val _PrepareRenameChecker
   fun lsp_method(): String =>
     Methods.text_document().prepare_rename()
 
-  fun lsp_params(): (None | JsonObject) =>
-    JsonObject.update(
+  fun lsp_params(): (None | JSONObject) =>
+    JSONObject.update(
       "position",
-      JsonObject.update("line", _line).update("character", _character))
+      JSONObject.update("line", _line).update("character", _character))
 
   fun check(res: ResponseMessage val, h: TestHelper): Bool =>
     try
-      let range = JsonNav(res.result)
+      let range = JSONNav(res.result)
       let sl = range("start")("line").as_i64()?
       let sc = range("start")("character").as_i64()?
       let el = range("end")("line").as_i64()?
@@ -773,10 +773,10 @@ class val _PrepareRenameErrorChecker
   fun lsp_method(): String =>
     Methods.text_document().prepare_rename()
 
-  fun lsp_params(): (None | JsonObject) =>
-    JsonObject.update(
+  fun lsp_params(): (None | JSONObject) =>
+    JSONObject.update(
       "position",
-      JsonObject.update("line", _line).update("character", _character))
+      JSONObject.update("line", _line).update("character", _character))
 
   fun check(res: ResponseMessage val, h: TestHelper): Bool =>
     match \exhaustive\ res.err

@@ -198,36 +198,37 @@ actor Promise[A: Any #share]
     """
     let outer = Promise[B]
 
-    next[None](object iso
-      var f: Fulfill[A, Promise[B]] = consume fulfill
-      let p: Promise[B] = outer
+    next[None](
+      object iso
+        var f: Fulfill[A, Promise[B]] = consume fulfill
+        let p: Promise[B] = outer
 
-      fun ref apply(value: A) =>
-        let fulfill' = f = _PromiseFulFill[A, B]
+        fun ref apply(value: A) =>
+          let fulfill' = f = _PromiseFulFill[A, B]
 
-        try
-          let inner = (consume fulfill').apply(value)?
+          try
+            let inner = (consume fulfill').apply(value)?
 
-          inner.next[None](
-            {(fulfilled: B) => p(fulfilled)},
-            {()? => p.reject(); error})
-        else
-          p.reject()
-        end
-    end,
-    object iso
-      var r: Reject[Promise[B]] = consume rejected
-      let p: Promise[B] = outer
+            inner.next[None](
+              {(fulfilled: B) => p(fulfilled) },
+              {()? => p.reject(); error })
+          else
+            p.reject()
+          end
+      end,
+      object iso
+        var r: Reject[Promise[B]] = consume rejected
+        let p: Promise[B] = outer
 
-      fun ref apply() =>
-        let rejected' = r = RejectAlways[Promise[B]]
+        fun ref apply() =>
+          let rejected' = r = RejectAlways[Promise[B]]
 
-        try
-          (consume rejected').apply()?
-        else
-          p.reject()
-        end
-    end)
+          try
+            (consume rejected').apply()?
+          else
+            p.reject()
+          end
+      end)
 
     outer
 
@@ -353,6 +354,9 @@ actor Promise[A: Any #share]
     end
 
 primitive Promises[A: Any #share]
+  """
+  Utilities for combining multiple promises.
+  """
   fun join(ps: Iterator[Promise[A]]): Promise[Array[A] val] =>
     """
     Create a promise that is fulfilled when all promises in the given sequence
@@ -394,7 +398,7 @@ primitive Promises[A: Any #share]
 
     let j = _Join[A](p', ps'.size())
     for p in ps'.values() do
-      p.next[None]({(a)(j) => j(a)}, {() => p'.reject()})
+      p.next[None]({(a)(j) => j(a) }, {() => p'.reject() })
     end
 
     p'
@@ -420,8 +424,8 @@ actor _Join[A: Any #share]
 
 primitive _None
 
-
-class iso _PromiseFulFill[A: Any #share, B: Any #share] is Fulfill[A, Promise[B]]
+class iso _PromiseFulFill[A: Any #share, B: Any #share]
+  is Fulfill[A, Promise[B]]
   """
   Fulfill discarding its input value of `A` and returning a promise of type `B`.
   """

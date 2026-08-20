@@ -89,6 +89,9 @@ use @pony_apply_backpressure[None]()
 use @pony_release_backpressure[None]()
 
 primitive Backpressure
+  """
+  Applies and releases runtime backpressure.
+  """
   fun apply(auth: ApplyReleaseBackpressureAuth) =>
     @pony_apply_backpressure()
 

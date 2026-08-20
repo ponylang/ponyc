@@ -19,7 +19,7 @@ trait tag RequestSender
 
   be send_request(
     method: String val,
-    params: (JsonObject | JsonArray | None),
+    params: (JSONObject | JSONArray | None),
     notify: (ResponseNotify | None) = None)
     """
     Send a request to the client.

@@ -22,8 +22,8 @@ class val LspPositionRange
     _start = start_pos
     _end = end_pos
 
-  fun to_json(): JsonValue =>
-    JsonObject
+  fun to_json(): JSONValue =>
+    JSONObject
       .update("start", this._start.to_json())
       .update("end", this._end.to_json())
 
@@ -56,8 +56,8 @@ class val LspPosition
     // Don't subtract 1 for end position
     _character = position.column().max(0)
 
-  fun to_json(): JsonValue =>
-    JsonObject
+  fun to_json(): JSONValue =>
+    JSONObject
       .update("line", this._line.i64())
       .update("character", this._character.i64())
 
@@ -72,7 +72,7 @@ class val LspLocation
     uri = uri'
     range = range'
 
-  fun to_json(): JsonValue =>
-    JsonObject
+  fun to_json(): JSONValue =>
+    JSONObject
       .update("uri", uri)
       .update("range", this.range.to_json())
