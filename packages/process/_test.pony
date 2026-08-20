@@ -672,8 +672,8 @@ class \nodoc\ _TestChdir is UnitTest
     let file_auth = FileAuth(h.env.root)
 
     let parent = Path.dir(Path.cwd())
-    let notifier: ProcessNotify iso = _ProcessClient(parent.size()
-      + (ifdef windows then 2 else 1 end), "", 0, h)
+    let notifier: ProcessNotify iso = _ProcessClient(parent.size() +
+      (ifdef windows then 2 else 1 end), "", 0, h)
 
     let path = FilePath(file_auth, _PwdPath())
     let args: Array[String] val = _PwdArgs()
@@ -1006,8 +1006,8 @@ class \nodoc\ _ProcessClient is ProcessNotify
       if actual.error_type is expected.error_type then
         _h.complete(true)
       else
-        _h.fail("Expected '" + expected.string() + "'; actual was '"
-          + actual.string() + "'")
+        _h.fail("Expected '" + expected.string() + "'; actual was '" +
+          actual.string() + "'")
       end
     else
       _h.fail(actual.string())
@@ -1315,8 +1315,8 @@ class \nodoc\ _ExpectDisposeClient is ProcessNotify
     if s == _expected then
       _h.complete(true)
     else
-      _h.fail("expected dispose(" + _expected.string() + "), got "
-        + s.string())
+      _h.fail("expected dispose(" + _expected.string() + "), got " +
+        s.string())
       _h.complete(false)
     end
 
@@ -1340,8 +1340,8 @@ class \nodoc\ _ExpectFailedClient is ProcessNotify
     if e.error_type is _expected then
       _h.complete(true)
     else
-      _h.fail("expected failed(" + _expected.string() + "), got "
-        + e.error_type.string())
+      _h.fail("expected failed(" + _expected.string() + "), got " +
+        e.error_type.string())
       _h.complete(false)
     end
 
@@ -1395,8 +1395,8 @@ class \nodoc\ iso _TestExitReportsExactlyOnce is UnitTest
     pm._test_trigger_exit()
     pm._test_trigger_exit()
     _Spy.settle_then_check(h, pm, recorder, {(r: _SpyResults): (Bool, String) =>
-      ((r.disposes == 1) and r.last_is(Exited(3)) and (not r.kill_after_reap)
-        and (not r.backpressure_applied),
+      ((r.disposes == 1) and r.last_is(Exited(3)) and (not r.kill_after_reap) and
+        (not r.backpressure_applied),
        "expected exactly one dispose of Exited(3), no kill after reap")
     })
     h.long_test(5_000_000_000)
@@ -1512,8 +1512,8 @@ class \nodoc\ iso _TestNoKillAfterReap is UnitTest
     pm._test_trigger_exit()
     pm.dispose()
     _Spy.settle_then_check(h, pm, recorder, {(r: _SpyResults): (Bool, String) =>
-      ((r.kills == 0) and (not r.kill_after_reap) and (r.disposes == 1)
-        and r.last_is(Exited(7)),
+      ((r.kills == 0) and (not r.kill_after_reap) and (r.disposes == 1) and
+        r.last_is(Exited(7)),
        "expected no kill after reap and exactly one dispose")
     })
     h.long_test(5_000_000_000)
@@ -1668,8 +1668,8 @@ actor \nodoc\ _FdLeakDriver
         // small margin for descriptors other packages' tests open while this
         // one runs in the same test binary.
         _h.assert_true(final_count <= (_baseline + 30),
-          "open fd count grew from " + _baseline.string() + " to "
-            + final_count.string() + " over " + _total.string() + " starts")
+          "open fd count grew from " + _baseline.string() + " to " +
+            final_count.string() + " over " + _total.string() + " starts")
         _h.complete(true)
       | None =>
         _h.fail("could not read /proc/self/fd")
@@ -1735,8 +1735,8 @@ class \nodoc\ _FailAndExitClient is ProcessNotify
     if err.error_type is _expected then
       _failed_fired = true
     else
-      _h.fail("expected " + _expected.string() + ", got "
-        + err.error_type.string())
+      _h.fail("expected " + _expected.string() + ", got " +
+        err.error_type.string())
       _h.complete(false)
     end
 
@@ -1751,7 +1751,7 @@ class \nodoc\ _FailAndExitClient is ProcessNotify
     match child_exit_status
     | Exited(_EXOSERR()) => _h.complete(true)
     else
-      _h.fail("expected Exited(" + _EXOSERR().string() + "), got "
-        + child_exit_status.string())
+      _h.fail("expected Exited(" + _EXOSERR().string() + "), got " +
+        child_exit_status.string())
       _h.complete(false)
     end

@@ -48,9 +48,9 @@ primitive PublicDocstring is ASTRule
     """
     let token_id = node.id()
     let is_method =
-      (token_id == ast.TokenIds.tk_fun())
-        or (token_id == ast.TokenIds.tk_new())
-        or (token_id == ast.TokenIds.tk_be())
+      (token_id == ast.TokenIds.tk_fun()) or
+        (token_id == ast.TokenIds.tk_new()) or
+        (token_id == ast.TokenIds.tk_be())
 
     // Skip \nodoc\-annotated nodes — excluded from documentation
     if node.has_annotation("nodoc") then
@@ -108,8 +108,8 @@ primitive PublicDocstring is ASTRule
           end
         else
           // Entity types: skip Main actors
-          if (token_id == ast.TokenIds.tk_actor())
-            and (name == "Main")
+          if (token_id == ast.TokenIds.tk_actor()) and
+            (name == "Main")
           then
             return recover val Array[Diagnostic val] end
           end

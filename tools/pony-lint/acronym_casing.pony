@@ -37,8 +37,8 @@ primitive AcronymCasing is ASTRule
           return recover val
             [ Diagnostic(
               id(),
-              "acronym '" + acronym + "' in '" + name
-                + "' should be fully uppercased",
+              "acronym '" + acronym + "' in '" + name +
+                "' should be fully uppercased",
               source.rel_path,
               name_node.line(),
               name_node.pos())]

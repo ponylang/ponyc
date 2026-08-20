@@ -25,8 +25,8 @@ primitive CallArgumentFormat is ASTRule
   fun category(): String val => "style"
 
   fun description(): String val =>
-    "multiline call argument formatting"
-      + " (argument layout and placement)"
+    "multiline call argument formatting" +
+      " (argument layout and placement)"
 
   fun default_status(): RuleStatus => RuleOn
 
@@ -93,8 +93,8 @@ primitive CallArgumentFormat is ASTRule
       if arg_line == open_line then
         diags.push(Diagnostic(
           id(),
-          "in a multiline call, arguments should start"
-            + " on the line after '('",
+          "in a multiline call, arguments should start" +
+            " on the line after '('",
           source.rel_path,
           open_line,
           open_col))
@@ -107,8 +107,8 @@ primitive CallArgumentFormat is ASTRule
     if (distinct != 1) and (distinct != arg_lines.size()) then
       diags.push(Diagnostic(
         id(),
-        "multiline call arguments must all be on one line"
-          + " or each on its own line",
+        "multiline call arguments must all be on one line" +
+          " or each on its own line",
         source.rel_path,
         open_line,
         open_col))

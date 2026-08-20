@@ -174,8 +174,8 @@ class val Suppressions
       for (target, start_line) in active_offs.pairs() do
         errs.push(Diagnostic(
           "lint/unclosed-suppression",
-          "suppression for '" + target + "' opened at line "
-            + start_line.string() + " was never closed",
+          "suppression for '" + target + "' opened at line " +
+            start_line.string() + " was never closed",
           source.rel_path,
           start_line,
           1))

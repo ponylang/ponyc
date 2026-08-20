@@ -251,8 +251,8 @@ actor Spawner
     @fflush(@pony_os_stdout())
 
   fun ref _refill() =>
-    while (_inflight < _config.concurrency)
-      and (_spawned < _config.connections)
+    while (_inflight < _config.concurrency) and
+      (_spawned < _config.connections)
     do
       TCPConnection(
         _connect_auth,
@@ -269,9 +269,9 @@ actor Spawner
     _try_finish()
 
   fun ref _try_finish() =>
-    if (not _finished)
-      and (_spawned >= _config.connections)
-      and (_inflight == 0)
+    if (not _finished) and
+      (_spawned >= _config.connections) and
+      (_inflight == 0)
     then
       _finished = true
       // A final heartbeat with the true completed count
@@ -296,9 +296,9 @@ actor Spawner
     // %zu (size_t) is the portable format for USize;
     // %lu is 32-bit on Windows.
     let fmt =
-      ("RESULT connections=%zu spawned=%zu "
-        + "completed=%zu failed=%zu "
-        + "verified=%zu mismatched=%zu\n")
+      ("RESULT connections=%zu spawned=%zu " +
+        "completed=%zu failed=%zu " +
+        "verified=%zu mismatched=%zu\n")
     @printf(
       fmt.cstring(),
       _config.connections,
@@ -317,9 +317,9 @@ actor Spawner
       let truncated =
         (_completed - _verified) - _mismatched
       let fail_fmt =
-        ("FAIL: %zu of %zu connections did not "
-          + "verify (connect_failed=%zu "
-          + "truncated=%zu mismatched=%zu)\n")
+        ("FAIL: %zu of %zu connections did not " +
+          "verify (connect_failed=%zu " +
+          "truncated=%zu mismatched=%zu)\n")
       @printf(
         fail_fmt.cstring(),
         _config.connections - _verified,

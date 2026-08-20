@@ -164,16 +164,16 @@ class val PropertyHelper
     Assert that the 2 given expressions resolve to the same instance.
     """
     if expect isnt actual then
-      _fail(_fmt_msg(loc, "Assert is failed. " + msg
-        + " Expected (" + (digestof expect).string() + ") is ("
-        + (digestof actual).string() + ")"))
+      _fail(_fmt_msg(loc, "Assert is failed. " + msg +
+        " Expected (" + (digestof expect).string() + ") is (" +
+        (digestof actual).string() + ")"))
       return false
     end
 
     _runner.log(
-      _fmt_msg(loc, "Assert is passed. " + msg
-        + " Got (" + (digestof expect).string() + ") is ("
-        + (digestof actual).string() + ")"),
+      _fmt_msg(loc, "Assert is passed. " + msg +
+        " Got (" + (digestof expect).string() + ") is (" +
+        (digestof actual).string() + ")"),
       true)
     true
 
@@ -188,16 +188,16 @@ class val PropertyHelper
     Assert that the 2 given expressions resolve to different instances.
     """
     if not_expect is actual then
-      _fail(_fmt_msg(loc, "Assert isn't failed. " + msg
-        + " Expected (" + (digestof not_expect).string() + ") isnt ("
-        + (digestof actual).string() + ")"))
+      _fail(_fmt_msg(loc, "Assert isn't failed. " + msg +
+        " Expected (" + (digestof not_expect).string() + ") isnt (" +
+        (digestof actual).string() + ")"))
       return false
     end
 
     _runner.log(
-      _fmt_msg(loc, "Assert isn't passed. " + msg
-        + " Got (" + (digestof not_expect).string() + ") isnt ("
-        + (digestof actual).string() + ")"),
+      _fmt_msg(loc, "Assert isn't passed. " + msg +
+        " Got (" + (digestof not_expect).string() + ") isnt (" +
+        (digestof actual).string() + ")"),
       true)
     true
 
@@ -212,13 +212,13 @@ class val PropertyHelper
     Assert that the 2 given expressions are equal.
     """
     if expect != actual then
-      _fail(_fmt_msg(loc,  "Assert eq failed. " + msg
-        + " Expected (" + expect.string() + ") == (" + actual.string() + ")"))
+      _fail(_fmt_msg(loc,  "Assert eq failed. " + msg +
+        " Expected (" + expect.string() + ") == (" + actual.string() + ")"))
       return false
     end
 
-    _runner.log(_fmt_msg(loc, "Assert eq passed. " + msg
-      + " Got (" + expect.string() + ") == (" + actual.string() + ")"),
+    _runner.log(_fmt_msg(loc, "Assert eq passed. " + msg +
+      " Got (" + expect.string() + ") == (" + actual.string() + ")"),
       true)
     true
 
@@ -233,15 +233,15 @@ class val PropertyHelper
     Assert that the 2 given expressions are not equal.
     """
     if not_expect == actual then
-      _fail(_fmt_msg(loc, "Assert ne failed. " + msg
-        + " Expected (" + not_expect.string() + ") != (" + actual.string()
-        + ")"))
+      _fail(_fmt_msg(loc, "Assert ne failed. " + msg +
+        " Expected (" + not_expect.string() + ") != (" + actual.string() +
+        ")"))
       return false
     end
 
     _runner.log(
-      _fmt_msg(loc, "Assert ne passed. " + msg
-        + " Got (" + not_expect.string() + ") != (" + actual.string() + ")"),
+      _fmt_msg(loc, "Assert ne passed. " + msg +
+        " Got (" + not_expect.string() + ") != (" + actual.string() + ")"),
       true)
     true
 
@@ -276,14 +276,14 @@ class val PropertyHelper
     end
 
     if not ok then
-      _fail(_fmt_msg(loc, "Assert EQ failed. " + msg + " Expected ("
-        + _print_array[A](expect) + ") == (" + _print_array[A](actual) + ")"))
+      _fail(_fmt_msg(loc, "Assert EQ failed. " + msg + " Expected (" +
+        _print_array[A](expect) + ") == (" + _print_array[A](actual) + ")"))
       return false
     end
 
     _runner.log(
-      _fmt_msg(loc, "Assert EQ passed. " + msg + " Got ("
-        + _print_array[A](expect) + ") == (" + _print_array[A](actual) + ")"),
+      _fmt_msg(loc, "Assert EQ passed. " + msg + " Got (" +
+        _print_array[A](expect) + ") == (" + _print_array[A](actual) + ")"),
       true)
     true
 
@@ -324,11 +324,11 @@ class val PropertyHelper
 
       if (extra.size() != 0) or (missing.size() != 0) then
         _fail(
-          _fmt_msg(loc, "Assert EQ_UNORDERED failed. " + msg
-            + " Expected (" + _print_array[A](expect) + ") == ("
-            + _print_array[A](actual) + "):"
-            + "\nMissing: " + _print_array[box->A](missing)
-            + "\nExtra: " + _print_array[box->A](extra)
+          _fmt_msg(loc, "Assert EQ_UNORDERED failed. " + msg +
+            " Expected (" + _print_array[A](expect) + ") == (" +
+            _print_array[A](actual) + "):" +
+            "\nMissing: " + _print_array[box->A](missing) +
+            "\nExtra: " + _print_array[box->A](extra)
           )
         )
         return false
@@ -336,13 +336,13 @@ class val PropertyHelper
       _runner.log(
         _fmt_msg(
           loc,
-          "Assert EQ_UNORDERED passed. "
-          + msg
-          + " Got ("
-          + _print_array[A](expect)
-          + ") == ("
-          + _print_array[A](actual)
-          + ")"
+          "Assert EQ_UNORDERED passed. " +
+          msg +
+          " Got (" +
+          _print_array[A](expect) +
+          ") == (" +
+          _print_array[A](actual) +
+          ")"
         ),
         true
       )

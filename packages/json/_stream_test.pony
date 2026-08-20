@@ -153,8 +153,8 @@ class \nodoc\ iso _TestStreamSplitInvariance is UnitTest
         h.assert_eq[String](whole, _StreamHelp.render(vs)
           where msg = "mismatch at chunk size " + n.string())
       | let e: JsonParseError =>
-        h.fail("split parse failed at chunk size " + n.string()
-          + ": " + e.string())
+        h.fail("split parse failed at chunk size " + n.string() +
+          ": " + e.string())
       end
     end
 
@@ -820,8 +820,8 @@ class \nodoc\ iso _StreamSplitInvariantProperty is Property1[String]
         | let vs: Array[JsonValue] =>
           ph.assert_eq[String val](whole, _StreamHelp.render(vs))
         | let e: JsonParseError =>
-          ph.fail("split at " + n.string() + " failed on " + doc + ": "
-            + e.string())
+          ph.fail("split at " + n.string() + " failed on " + doc + ": " +
+            e.string())
         end
       end
     | let e: JsonParseError =>

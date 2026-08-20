@@ -33,9 +33,9 @@ primitive DocumentHighlights
     """
     // Literals have no referenceable identity — do not highlight.
     let nid = node.id()
-    if (nid == TokenIds.tk_true()) or (nid == TokenIds.tk_false())
-      or (nid == TokenIds.tk_int()) or (nid == TokenIds.tk_float())
-      or (nid == TokenIds.tk_string())
+    if (nid == TokenIds.tk_true()) or (nid == TokenIds.tk_false()) or
+      (nid == TokenIds.tk_int()) or (nid == TokenIds.tk_float()) or
+      (nid == TokenIds.tk_string())
     then
       return Array[DocumentHighlight]
     end

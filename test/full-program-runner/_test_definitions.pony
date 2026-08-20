@@ -106,8 +106,8 @@ class _TestDefinitions
 
     let fp = FilePath(auth, path)
     if not fp.exists() then
-      _err.print(_Colors.red() + path + ": path does not exist"
-        + _Colors.none())
+      _err.print(_Colors.red() + path + ": path does not exist" +
+        _Colors.none())
       return
     end
 
@@ -115,8 +115,8 @@ class _TestDefinitions
       try
         FileInfo(fp)?
       else
-        _err.print(_Colors.red() + path + ": unable to get file info"
-          + _Colors.none())
+        _err.print(_Colors.red() + path + ": unable to get file info" +
+          _Colors.none())
         return
       end
 
@@ -129,8 +129,8 @@ class _TestDefinitions
       try
         Directory(fp)?
       else
-        _err.print(_Colors.red() + path + ": unable to open directory"
-          + _Colors.none())
+        _err.print(_Colors.red() + path + ": unable to open directory" +
+          _Colors.none())
         return
       end
 
@@ -138,8 +138,8 @@ class _TestDefinitions
       try
         dir.entries()?
       else
-        _err.print(_Colors.red() + path + ": unable to get entries"
-          + _Colors.none())
+        _err.print(_Colors.red() + path + ": unable to get entries" +
+          _Colors.none())
         return
       end
 
@@ -155,11 +155,11 @@ class _TestDefinitions
     end
 
     if broken.size() > 0 then
-      _err.print(_Colors.red() + broken.size().string()
-        + " test(s) could not be configured; failing the run:" + _Colors.none())
+      _err.print(_Colors.red() + broken.size().string() +
+        " test(s) could not be configured; failing the run:" + _Colors.none())
       for bt in broken.values() do
-        _err.print(_Colors.red() + "  " + bt.name + ": " + bt.reason
-          + _Colors.none())
+        _err.print(_Colors.red() + "  " + bt.name + ": " + bt.reason +
+          _Colors.none())
       end
       return
     end

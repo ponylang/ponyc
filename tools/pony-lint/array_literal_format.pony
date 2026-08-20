@@ -51,8 +51,8 @@ primitive ArrayLiteralFormat is ASTRule
       if not _is_first_nonws(line_text, open_col) then
         diags.push(Diagnostic(
           id(),
-          "opening '[' of multiline array must be the first"
-            + " non-whitespace on its line",
+          "opening '[' of multiline array must be the first" +
+            " non-whitespace on its line",
           source.rel_path,
           open_line,
           open_col))

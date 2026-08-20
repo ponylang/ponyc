@@ -35,8 +35,8 @@ class SlowDown is TCPConnectionNotify
       "\tgetsockopt get_tcp_nodelay = %d\n".cstring(),
       conn.get_tcp_nodelay()._2)
     @printf(
-      ("\tgetsockopt set_tcp_nodelay(true) "
-        + "return value = %d\n")
+      ("\tgetsockopt set_tcp_nodelay(true) " +
+        "return value = %d\n")
         .cstring(),
       conn.set_tcp_nodelay(true))
     @printf(

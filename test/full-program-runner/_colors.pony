@@ -5,9 +5,9 @@ primitive _Colors
   fun none(): String => "\x1b[0m"
 
   fun info(msg: String, double: Bool = false): String =>
-    green()
-      + (if double then "[==========] " else "[----------] " end)
-      + none() + msg
+    green() +
+      (if double then "[==========] " else "[----------] " end) +
+      none() + msg
 
   fun warn(msg: String): String =>
     yellow() + "[----------] " + none() + msg

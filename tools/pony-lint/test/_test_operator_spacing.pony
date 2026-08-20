@@ -160,9 +160,11 @@ class \nodoc\ _TestOperatorSpacingUnaryMinusClean is UnitTest
       h.fail("compilation failed")
     end
 
-class \nodoc\ _TestOperatorSpacingUnaryMinusSpaceViolation is UnitTest
-  """Unary minus with space after is flagged."""
-  fun name(): String => "OperatorSpacing: '- a' flagged"
+class \nodoc\ _TestOperatorSpacingUnaryMinusStartOfLineViolation is UnitTest
+  """Unary minus with space at start of line gets negation-specific message."""
+  fun name(): String =>
+    "OperatorSpacing: '- a' at start of line flagged as negation"
+
   fun exclusion_group(): String => "ast-compile"
 
   fun apply(h: TestHelper) =>
@@ -171,6 +173,43 @@ class \nodoc\ _TestOperatorSpacingUnaryMinusSpaceViolation is UnitTest
       "  fun apply(): I32 =>\n" +
       "    let a: I32 = 5\n" +
       "    - a\n"
+    try
+      (let program, let sf) = _ASTTestHelper.compile(h, source)?
+      match program.package()
+      | let pkg: ast.Package val =>
+        match pkg.module()
+        | let mod: ast.Module val =>
+          let diags = _CollectRuleDiags(mod, sf, lint.OperatorSpacing)
+          h.assert_true(diags.size() > 0)
+          try
+            h.assert_true(
+              diags(0)?.message.contains("negation"))
+          else
+            h.fail("could not access diagnostic")
+          end
+        else
+          h.fail("no module")
+        end
+      else
+        h.fail("no package")
+      end
+    else
+      h.fail("compilation failed")
+    end
+
+class \nodoc\ _TestOperatorSpacingUnaryMinusSpaceMidLine is UnitTest
+  """Unary minus with space mid-line gets the standard spacing message."""
+  fun name(): String =>
+    "OperatorSpacing: '(- a)' mid-line flagged"
+
+  fun exclusion_group(): String => "ast-compile"
+
+  fun apply(h: TestHelper) =>
+    let source: String val =
+      "class Foo\n" +
+      "  fun apply(): I32 =>\n" +
+      "    let a: I32 = 5\n" +
+      "    1 + (- a)\n"
     try
       (let program, let sf) = _ASTTestHelper.compile(h, source)?
       match program.package()
@@ -557,10 +596,10 @@ class \nodoc\ _TestOperatorSpacingStyleGuideExample is UnitTest
       h.fail("compilation failed")
     end
 
-class \nodoc\ _TestOperatorSpacingContinuationLineClean is UnitTest
-  """Operator at start of continuation line is clean (before-check exempt)."""
+class \nodoc\ _TestOperatorSpacingContinuationLineViolation is UnitTest
+  """Operator at start of continuation line is flagged."""
   fun name(): String =>
-    "OperatorSpacing: continuation line is clean"
+    "OperatorSpacing: continuation line flagged"
 
   fun exclusion_group(): String => "ast-compile"
 
@@ -570,6 +609,80 @@ class \nodoc\ _TestOperatorSpacingContinuationLineClean is UnitTest
       "  fun apply(x: U32, y: U32): U32 =>\n" +
       "    x\n" +
       "      + y\n"
+    try
+      (let program, let sf) = _ASTTestHelper.compile(h, source)?
+      match program.package()
+      | let pkg: ast.Package val =>
+        match pkg.module()
+        | let mod: ast.Module val =>
+          let diags = _CollectRuleDiags(mod, sf, lint.OperatorSpacing)
+          h.assert_true(diags.size() > 0)
+          try
+            h.assert_true(
+              diags(0)?.message.contains("start of line"))
+          else
+            h.fail("could not access diagnostic")
+          end
+        else
+          h.fail("no module")
+        end
+      else
+        h.fail("no package")
+      end
+    else
+      h.fail("compilation failed")
+    end
+
+class \nodoc\ _TestOperatorSpacingKeywordContinuationViolation is UnitTest
+  """Keyword operator at start of continuation line is flagged."""
+  fun name(): String =>
+    "OperatorSpacing: keyword continuation flagged"
+
+  fun exclusion_group(): String => "ast-compile"
+
+  fun apply(h: TestHelper) =>
+    let source: String val =
+      "primitive Foo\n" +
+      "  fun apply(x: Bool, y: Bool): Bool =>\n" +
+      "    x\n" +
+      "      and y\n"
+    try
+      (let program, let sf) = _ASTTestHelper.compile(h, source)?
+      match program.package()
+      | let pkg: ast.Package val =>
+        match pkg.module()
+        | let mod: ast.Module val =>
+          let diags = _CollectRuleDiags(mod, sf, lint.OperatorSpacing)
+          h.assert_true(diags.size() > 0)
+          try
+            h.assert_true(
+              diags(0)?.message.contains("start of line"))
+          else
+            h.fail("could not access diagnostic")
+          end
+        else
+          h.fail("no module")
+        end
+      else
+        h.fail("no package")
+      end
+    else
+      h.fail("compilation failed")
+    end
+
+class \nodoc\ _TestOperatorSpacingEndOfLineClean is UnitTest
+  """Operator at end of line with operand on next line is clean."""
+  fun name(): String =>
+    "OperatorSpacing: operator at end of line is clean"
+
+  fun exclusion_group(): String => "ast-compile"
+
+  fun apply(h: TestHelper) =>
+    let source: String val =
+      "primitive Foo\n" +
+      "  fun apply(x: U32, y: U32): U32 =>\n" +
+      "    x +\n" +
+      "      y\n"
     try
       (let program, let sf) = _ASTTestHelper.compile(h, source)?
       match program.package()

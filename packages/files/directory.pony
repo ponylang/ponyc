@@ -79,9 +79,9 @@ class Directory
     ifdef posix then
       _fd =
         @open(from.path.cstring(),
-          @ponyint_o_rdonly()
-            or @ponyint_o_directory()
-            or @ponyint_o_cloexec())
+          @ponyint_o_rdonly() or
+            @ponyint_o_directory() or
+            @ponyint_o_cloexec())
 
       if _fd == -1 then
         error
@@ -127,9 +127,9 @@ class Directory
           ifdef linux or bsd then
             let fd =
               @openat(fd', ".".cstring(),
-                @ponyint_o_rdonly()
-                  or @ponyint_o_directory()
-                  or @ponyint_o_cloexec())
+                @ponyint_o_rdonly() or
+                  @ponyint_o_directory() or
+                  @ponyint_o_cloexec())
             @fdopendir(fd)
           else
             @opendir(path'.cstring())
@@ -186,9 +186,9 @@ class Directory
     ifdef linux or bsd then
       let fd' =
         @openat(_fd, target.cstring(),
-          @ponyint_o_rdonly()
-            or @ponyint_o_directory()
-            or @ponyint_o_cloexec())
+          @ponyint_o_rdonly() or
+            @ponyint_o_directory() or
+            @ponyint_o_cloexec())
       _relative(path', fd')
     else
       recover create(path')? end
@@ -239,10 +239,10 @@ class Directory
     if it does exist.
     """
     if
-      not path.caps(FileCreate)
-        or not path.caps(FileRead)
-        or not path.caps(FileWrite)
-        or (_fd == -1)
+      not path.caps(FileCreate) or
+        not path.caps(FileRead) or
+        not path.caps(FileWrite) or
+        (_fd == -1)
     then
       error
     end
@@ -252,9 +252,9 @@ class Directory
     ifdef linux or bsd then
       let fd' =
         @openat(_fd, target.cstring(),
-          @ponyint_o_rdwr()
-            or @ponyint_o_creat()
-            or @ponyint_o_cloexec(),
+          @ponyint_o_rdwr() or
+            @ponyint_o_creat() or
+            @ponyint_o_cloexec(),
           I32(0x1B6))
       recover File._descriptor(fd', path')? end
     else
@@ -266,8 +266,8 @@ class Directory
     Open for read only, failing if it doesn't exist.
     """
     if
-      not path.caps(FileRead)
-        or (_fd == -1)
+      not path.caps(FileRead) or
+        (_fd == -1)
     then
       error
     end
@@ -321,9 +321,9 @@ class Directory
     Return a FileInfo for some path relative to this directory.
     """
     if
-      not path.caps(FileStat)
-        or not path.caps(FileLookup)
-        or (_fd == -1)
+      not path.caps(FileStat) or
+        not path.caps(FileLookup) or
+        (_fd == -1)
     then
       error
     end
@@ -341,9 +341,9 @@ class Directory
     Set the FileMode for some path relative to this directory.
     """
     if
-      not path.caps(FileChmod)
-        or not path.caps(FileLookup)
-        or (_fd == -1)
+      not path.caps(FileChmod) or
+        not path.caps(FileLookup) or
+        (_fd == -1)
     then
       return false
     end
@@ -365,9 +365,9 @@ class Directory
     Set the FileMode for some path relative to this directory.
     """
     if
-      not path.caps(FileChown)
-        or not path.caps(FileLookup)
-        or (_fd == -1)
+      not path.caps(FileChown) or
+        not path.caps(FileLookup) or
+        (_fd == -1)
     then
       return false
     end
@@ -401,9 +401,9 @@ class Directory
     values.
     """
     if
-      not path.caps(FileChown)
-        or not path.caps(FileLookup)
-        or (_fd == -1)
+      not path.caps(FileChown) or
+        not path.caps(FileLookup) or
+        (_fd == -1)
     then
       return false
     end
@@ -430,11 +430,11 @@ class Directory
     this directory.
     """
     if
-      not path.caps(FileLink)
-        or not path.caps(FileLookup)
-        or not path.caps(FileCreate)
-        or not source.caps(FileLink)
-        or (_fd == -1)
+      not path.caps(FileLink) or
+        not path.caps(FileLookup) or
+        not path.caps(FileCreate) or
+        not source.caps(FileLink) or
+        (_fd == -1)
     then
       return false
     end
@@ -457,9 +457,9 @@ class Directory
     well, recursively. Symlinks will be removed but not traversed.
     """
     if
-      not path.caps(FileLookup)
-        or not path.caps(FileRemove)
-        or (_fd == -1)
+      not path.caps(FileLookup) or
+        not path.caps(FileRemove) or
+        (_fd == -1)
     then
       return false
     end
@@ -496,12 +496,12 @@ class Directory
     relative to the `to` directory).
     """
     if
-      not path.caps(FileLookup)
-       or not path.caps(FileRename)
-       or not to.path.caps(FileLookup)
-       or not to.path.caps(FileCreate)
-       or (_fd == -1)
-       or (to._fd == -1)
+      not path.caps(FileLookup) or
+       not path.caps(FileRename) or
+       not to.path.caps(FileLookup) or
+       not to.path.caps(FileCreate) or
+       (_fd == -1) or
+       (to._fd == -1)
     then
       return false
     end

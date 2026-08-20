@@ -393,13 +393,13 @@ actor Main
               where default' = 524288)
             OptionSpec.u64(
               "min-schedulers",
-              "The floor phase 2 must reach; "
-                + "run with --ponyminthreads 1"
+              "The floor phase 2 must reach; " +
+                "run with --ponyminthreads 1"
               where default' = 1)
             OptionSpec.f64(
               "reclaim-fraction",
-              "Payload fraction that must "
-                + "return in phase 3"
+              "Payload fraction that must " +
+                "return in phase 3"
               where default' = 0.5)
           ],
           [])?

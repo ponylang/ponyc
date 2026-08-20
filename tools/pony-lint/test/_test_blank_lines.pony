@@ -452,8 +452,8 @@ class \nodoc\ _TestMaxLineVisitor is ast.ASTVisitor
   new ref create(seed: USize) => max_line = seed
 
   fun ref visit(node: ast.AST box): ast.VisitResult =>
-    if (node.id() == ast.TokenIds.tk_members())
-      and (node.num_children() == 0)
+    if (node.id() == ast.TokenIds.tk_members()) and
+      (node.num_children() == 0)
     then
       return ast.Continue
     end
@@ -489,8 +489,8 @@ class \nodoc\ _TestEntityCollector is ast.ASTVisitor
 
   fun ref visit(node: ast.AST box): ast.VisitResult =>
     let token_id = node.id()
-    if ast.TokenIds.is_entity(token_id)
-      or (token_id == ast.TokenIds.tk_type())
+    if ast.TokenIds.is_entity(token_id) or
+      (token_id == ast.TokenIds.tk_type())
     then
       try
         let name_node = node(0)?

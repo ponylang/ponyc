@@ -538,10 +538,10 @@ primitive TokenIds
 
     Lambdas are not included. Maybe they should.
     """
-    (token_id == this.tk_class())
-      or (token_id == this.tk_actor())
-      or (token_id == this.tk_primitive())
-      or (token_id == this.tk_struct())
-      or (token_id == this.tk_interface())
-      or (token_id == this.tk_trait())
-      or (token_id == this.tk_object())
+    (token_id == this.tk_class()) or
+      (token_id == this.tk_actor()) or
+      (token_id == this.tk_primitive()) or
+      (token_id == this.tk_struct()) or
+      (token_id == this.tk_interface()) or
+      (token_id == this.tk_trait()) or
+      (token_id == this.tk_object())

@@ -363,8 +363,8 @@ class ref _JsonPathParser
         | let s: _SearchExpr => _NotExpr(s)
         else
           _fail(
-            "Cannot negate value-returning function"
-            + " — only match() and search() can be negated")
+            "Cannot negate value-returning function" +
+            " — only match() and search() can be negated")
           error
         end
       else
@@ -394,8 +394,8 @@ class ref _JsonPathParser
         _skip_whitespace()
         if not _looking_at_comparison_op() then
           _fail(
-            "Value-returning function requires a comparison operator"
-            + " (e.g., length(@.a) > 3)")
+            "Value-returning function requires a comparison operator" +
+            " (e.g., length(@.a) > 3)")
           error
         end
         let op = _parse_comparison_op()?

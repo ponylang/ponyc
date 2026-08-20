@@ -77,8 +77,8 @@ class val Diagnostic is (Comparable[Diagnostic] & Stringable)
     end
 
   fun eq(that: box->Diagnostic): Bool =>
-    (file == that.file) and (line == that.line) and (column == that.column)
-      and (rule_id == that.rule_id) and (message == that.message)
+    (file == that.file) and (line == that.line) and (column == that.column) and
+      (rule_id == that.rule_id) and (message == that.message)
 
   fun lt(that: box->Diagnostic): Bool =>
     if file != that.file then

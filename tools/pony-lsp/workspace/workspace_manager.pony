@@ -483,9 +483,9 @@ actor WorkspaceManager
       // the refined node's children for a cap keyword covering the cursor.
       for child in hover_node.children() do
         let child_id = child.id()
-        if (child_id == TokenIds.tk_iso()) or (child_id == TokenIds.tk_trn())
-          or (child_id == TokenIds.tk_ref()) or (child_id == TokenIds.tk_val())
-          or (child_id == TokenIds.tk_box()) or (child_id == TokenIds.tk_tag())
+        if (child_id == TokenIds.tk_iso()) or (child_id == TokenIds.tk_trn()) or
+          (child_id == TokenIds.tk_ref()) or (child_id == TokenIds.tk_val()) or
+          (child_id == TokenIds.tk_box()) or (child_id == TokenIds.tk_tag())
         then
           let cap_col = child.position().column()
           if (cursor_line == child.position().line()) and
@@ -1031,18 +1031,18 @@ actor WorkspaceManager
           end
         | None =>
           this._channel.log(
-            "[textDocument/diagnostic] No document state available for "
-            + document_path)
+            "[textDocument/diagnostic] No document state available for " +
+            document_path)
         end
       | None =>
         this._channel.log(
-          "[textDocument/diagnostic] No package state available for package: "
-          + package.path)
+          "[textDocument/diagnostic] No package state available for package: " +
+          package.path)
       end
     else
       this._channel.log(
-        "[textDocument/diagnostic] Unable to find workspace package for: "
-        + document_uri)
+        "[textDocument/diagnostic] Unable to find workspace package for: " +
+        document_uri)
     end
     this._channel.send(
       ResponseMessage.create(

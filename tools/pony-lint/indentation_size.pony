@@ -71,8 +71,8 @@ primitive IndentationSize is TextRule
     let size = line.size()
     while (i + 2) < size do
       try
-        if (line(i)? == '"') and (line(i + 1)? == '"')
-          and (line(i + 2)? == '"')
+        if (line(i)? == '"') and (line(i + 1)? == '"') and
+          (line(i + 2)? == '"')
         then
           count = count + 1
           i = i + 3

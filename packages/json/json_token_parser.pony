@@ -153,8 +153,8 @@ class ref JsonTokenParser
       if _error_message != "" then
         _error_message
       else
-        "Invalid JSON at byte offset " + _offset.string()
-          + ", line " + _line.string()
+        "Invalid JSON at byte offset " + _offset.string() +
+          ", line " + _line.string()
       end
     end
 
@@ -546,8 +546,8 @@ class ref JsonTokenParser
     end
 
   fun _is_number_byte(c: U8): Bool =>
-    ((c >= '0') and (c <= '9')) or (c == '-') or (c == '+') or (c == '.')
-      or (c == 'e') or (c == 'E')
+    ((c >= '0') and (c <= '9')) or (c == '-') or (c == '+') or (c == '.') or
+      (c == 'e') or (c == 'E')
 
   // --- token emission and failure -----------------------------------------
 

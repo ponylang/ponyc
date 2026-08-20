@@ -151,9 +151,9 @@ actor TestHarness is Channel
     do_expect()
 
   fun ref do_expect(force: Bool = false) =>
-    if force
-      or (sent.size() >= this._after_sends)
-      or (logs.size() >= this._after_logs)
+    if force or
+      (sent.size() >= this._after_sends) or
+      (logs.size() >= this._after_logs)
     then
       if not this._expect_fun(h, this) then
         // print out some debug stuff

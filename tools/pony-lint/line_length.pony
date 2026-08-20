@@ -111,8 +111,8 @@ primitive LineLength is ASTRule
         end
 
         if byte == ' ' then
-          if in_word and (word_start_cp <= 80)
-            and ((cp_pos - 1) > 80)
+          if in_word and (word_start_cp <= 80) and
+            ((cp_pos - 1) > 80)
           then
             return true
           end
@@ -129,8 +129,8 @@ primitive LineLength is ASTRule
       i = i + 1
     end
 
-    in_word and (word_count <= 2)
-      and (word_start_cp <= 80) and (cp_pos > 80)
+    in_word and (word_count <= 2) and
+      (word_start_cp <= 80) and (cp_pos > 80)
 
 class ref _StringLiteralVisitor is ast.ASTVisitor
   """
@@ -205,9 +205,9 @@ class ref _StringLiteralVisitor is ast.ASTVisitor
 
     // Method docstrings
     let is_method =
-      (parent_id == ast.TokenIds.tk_fun())
-        or (parent_id == ast.TokenIds.tk_new())
-        or (parent_id == ast.TokenIds.tk_be())
+      (parent_id == ast.TokenIds.tk_fun()) or
+        (parent_id == ast.TokenIds.tk_new()) or
+        (parent_id == ast.TokenIds.tk_be())
 
     // Abstract method docstring at child 7
     if is_method and (idx == 7) then
@@ -219,9 +219,9 @@ class ref _StringLiteralVisitor is ast.ASTVisitor
       match parent.parent()
       | let grandparent: ast.AST =>
         let gp_id = grandparent.id()
-        if (gp_id == ast.TokenIds.tk_fun())
-          or (gp_id == ast.TokenIds.tk_new())
-          or (gp_id == ast.TokenIds.tk_be())
+        if (gp_id == ast.TokenIds.tk_fun()) or
+          (gp_id == ast.TokenIds.tk_new()) or
+          (gp_id == ast.TokenIds.tk_be())
         then
           return true
         end
@@ -243,9 +243,9 @@ class ref _StringLiteralVisitor is ast.ASTVisitor
       let line_text = _source.lines(l - 1)?
       let byte_offset = col - 1
       if (byte_offset + 2) < line_text.size() then
-        (line_text(byte_offset)? == '"')
-          and (line_text(byte_offset + 1)? == '"')
-          and (line_text(byte_offset + 2)? == '"')
+        (line_text(byte_offset)? == '"') and
+          (line_text(byte_offset + 1)? == '"') and
+          (line_text(byte_offset + 2)? == '"')
       else
         false
       end

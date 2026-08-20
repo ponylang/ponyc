@@ -90,8 +90,8 @@ actor Main
     | let j: json.JsonValue =>
       env.out.print("Parsed successfully")
       match j
-      | let obj: json.JsonObject => env.out.print("Root is object with "
-        + obj.size().string() + " keys")
+      | let obj: json.JsonObject => env.out.print("Root is object with " +
+        obj.size().string() + " keys")
       end
     | let err: json.JsonParseError =>
       env.out.print("Parse error: " + err.string())
@@ -109,8 +109,8 @@ actor Main
       try
         let first_name = nav("users")(USize(0))("name").as_string()?
         let first_age = nav("users")(USize(0))("age").as_i64()?
-        env.out.print("First user: " + first_name
-          + ", age " + first_age.string())
+        env.out.print("First user: " + first_name +
+          ", age " + first_age.string())
       else
         env.out.print("Navigation failed")
       end
@@ -230,8 +230,8 @@ actor Main
       try
         let price_path = json.JsonPathParser.compile("$.store..price")?
         let prices = price_path.query(doc)
-        env.out.print("All prices (" + prices.size().string() + "): "
-          + _format_results(prices))
+        env.out.print("All prices (" + prices.size().string() + "): " +
+          _format_results(prices))
       end
 
       // query_one: first book title
@@ -373,8 +373,8 @@ actor Main
         let has_a =
           json.JsonPathParser.compile("""$.users[?search(@.name, "a")]""")?
         let results = has_a.query(doc)
-        env.out.print("Names containing 'a' (search): "
-          + results.size().string())
+        env.out.print("Names containing 'a' (search): " +
+          results.size().string())
       end
 
       // length(): filter by string length
@@ -382,8 +382,8 @@ actor Main
         let short =
           json.JsonPathParser.compile("$.users[?length(@.name) <= 3]")?
         let results = short.query(doc)
-        env.out.print("Short names (length <= 3): "
-          + _format_results(results))
+        env.out.print("Short names (length <= 3): " +
+          _format_results(results))
       end
 
       // count(): filter by array size
@@ -391,8 +391,8 @@ actor Main
         let multi =
           json.JsonPathParser.compile("$.users[?count(@.tags[*]) > 1]")?
         let results = multi.query(doc)
-        env.out.print("Multiple tags (count > 1): "
-          + results.size().string())
+        env.out.print("Multiple tags (count > 1): " +
+          results.size().string())
       end
 
     | let err: json.JsonParseError =>

@@ -152,8 +152,8 @@ class ref SymbolTable
   fun debug(): String val =>
     var s = recover val String() end
     for (name, definition) in this.iter() do
-      s = s + name + ": "
-        + definition.debug() + ", "
+      s = s + name + ": " +
+        definition.debug() + ", "
     end
     s
 

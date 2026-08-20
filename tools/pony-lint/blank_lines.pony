@@ -209,14 +209,14 @@ primitive BlankLines is ASTRule
     None
 
   fun _is_field(token_id: ast.TokenId): Bool =>
-    (token_id == ast.TokenIds.tk_flet())
-      or (token_id == ast.TokenIds.tk_fvar())
-      or (token_id == ast.TokenIds.tk_embed())
+    (token_id == ast.TokenIds.tk_flet()) or
+      (token_id == ast.TokenIds.tk_fvar()) or
+      (token_id == ast.TokenIds.tk_embed())
 
   fun _is_method(token_id: ast.TokenId): Bool =>
-    (token_id == ast.TokenIds.tk_fun())
-      or (token_id == ast.TokenIds.tk_new())
-      or (token_id == ast.TokenIds.tk_be())
+    (token_id == ast.TokenIds.tk_fun()) or
+      (token_id == ast.TokenIds.tk_new()) or
+      (token_id == ast.TokenIds.tk_be())
 
   fun _max_line(node: ast.AST box): USize =>
     """

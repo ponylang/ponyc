@@ -22,10 +22,10 @@ primitive ASCIILetters
 
 primitive ASCIIPrintable
   fun apply(): String =>
-    ASCIIDigits()
-      + ASCIILetters()
-      + ASCIIPunctuation()
-      + ASCIIWhiteSpace()
+    ASCIIDigits() +
+      ASCIILetters() +
+      ASCIIPunctuation() +
+      ASCIIWhiteSpace()
 
 primitive ASCIINonPrintable
   fun apply(): String =>

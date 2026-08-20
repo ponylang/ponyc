@@ -48,8 +48,8 @@ primitive MatchCaseIndent is ASTRule
                 if case_col != match_col then
                   result.push(Diagnostic(
                     id(),
-                    "'|' should align with 'match' keyword (column "
-                      + match_col.string() + ")",
+                    "'|' should align with 'match' keyword (column " +
+                      match_col.string() + ")",
                     source.rel_path,
                     case_node.line(),
                     case_col))

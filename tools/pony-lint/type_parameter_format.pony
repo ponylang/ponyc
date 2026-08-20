@@ -19,8 +19,8 @@ primitive TypeParameterFormat is ASTRule
   fun category(): String val => "style"
 
   fun description(): String val =>
-    "multiline type parameter formatting"
-      + " (bracket placement, layout, and 'is' alignment)"
+    "multiline type parameter formatting" +
+      " (bracket placement, layout, and 'is' alignment)"
 
   fun default_status(): RuleStatus => RuleOn
 
@@ -99,8 +99,8 @@ primitive TypeParameterFormat is ASTRule
             if tp_l == prev_line then
               diags.push(Diagnostic(
                 id(),
-                "each type parameter should be on its own line"
-                  + " in a multiline declaration",
+                "each type parameter should be on its own line" +
+                  " in a multiline declaration",
                 source.rel_path,
                 tp_l,
                 tp_node.pos()))
@@ -140,10 +140,10 @@ primitive TypeParameterFormat is ASTRule
                 if word_col != expected_col then
                   diags.push(Diagnostic(
                     id(),
-                    "'is' should align at column "
-                      + expected_col.string()
-                      + " (indented from '"
-                      + _keyword_name(token_id) + "')",
+                    "'is' should align at column " +
+                      expected_col.string() +
+                      " (indented from '" +
+                      _keyword_name(token_id) + "')",
                     source.rel_path,
                     prov_line,
                     word_col))
@@ -161,9 +161,9 @@ primitive TypeParameterFormat is ASTRule
     """
     Check if the token represents a method declaration.
     """
-    (token_id == ast.TokenIds.tk_fun())
-      or (token_id == ast.TokenIds.tk_new())
-      or (token_id == ast.TokenIds.tk_be())
+    (token_id == ast.TokenIds.tk_fun()) or
+      (token_id == ast.TokenIds.tk_new()) or
+      (token_id == ast.TokenIds.tk_be())
 
   fun _keyword_name(token_id: ast.TokenId): String val =>
     """

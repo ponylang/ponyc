@@ -158,8 +158,8 @@ primitive TypeRenderer
 
     match format
     | let f: LinkFormat if
-        (not n.is_anonymous)
-          and (include_private or (not n.is_private))
+        (not n.is_anonymous) and
+          (include_private or (not n.is_private))
     =>
       result.append(f.link(n.name, n.tqfn))
       // Type args with format-specific brackets and links

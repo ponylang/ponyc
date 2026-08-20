@@ -2,17 +2,22 @@ use ast = "pony_compiler"
 
 primitive OperatorSpacing is ASTRule
   """
-  Checks whitespace around operators per the style guide.
+  Checks whitespace and placement of operators per the style guide.
 
-  Binary operators require a space before and after. The `not` keyword requires
-  a space after; before `not`, either a space or a non-alphanumeric character
-  (e.g., `(`) is acceptable. Unary minus must NOT have a space after.
+  Binary operators require a space before and after, and belong at the end of
+  a line when an expression spans multiple lines. A binary operator at the
+  start of a continuation line is an error. The `not` keyword requires a space
+  after; before `not`, either a space or a non-alphanumeric character (e.g.,
+  `(`) is acceptable. Unary minus must not have a space after; at the start of
+  a line, `- expr` with a space is flagged because the parser treats `-` there
+  as negation, not subtraction.
   """
   fun id(): String val => "style/operator-spacing"
   fun category(): String val => "style"
 
   fun description(): String val =>
-    "binary operators need surrounding spaces; no space after unary '-'"
+    "binary operators need surrounding spaces and belong at line end," +
+      " not line start; no space after unary '-'"
 
   fun default_status(): RuleStatus => RuleOn
 
@@ -56,8 +61,8 @@ primitive OperatorSpacing is ASTRule
     unary minus, `not`, or a binary operator.
     """
     let token = node.id()
-    if (token == ast.TokenIds.tk_unary_minus())
-      or (token == ast.TokenIds.tk_unary_minus_tilde())
+    if (token == ast.TokenIds.tk_unary_minus()) or
+      (token == ast.TokenIds.tk_unary_minus_tilde())
     then
       _check_unary_minus(node, source, token)
     elseif token == ast.TokenIds.tk_not() then
@@ -73,9 +78,9 @@ primitive OperatorSpacing is ASTRule
     : Array[Diagnostic val] val
   =>
     """
-    Binary operators require a space before and after. The "before" check is
-    skipped when the operator is the first non-whitespace on its line
-    (continuation line). The "after" check is skipped at end-of-line.
+    Binary operators require a space before and after. A binary operator at
+    the start of a continuation line is an error; it belongs at the end of
+    the previous line.
     """
     let op_line = node.line()
     let op_col = node.pos()
@@ -85,8 +90,19 @@ primitive OperatorSpacing is ASTRule
       let starts_line = _is_first_nonws(line_text, op_col)
       let symbol = _op_symbol(token)
 
-      // Check character before operator
-      if (not starts_line) and (op_col > 1) then
+      if starts_line then
+        return recover val
+          [ Diagnostic(
+            id(),
+            "'" + symbol +
+              "' at start of line; move to end of previous line",
+            source.rel_path,
+            op_line,
+            op_col)]
+        end
+      end
+
+      if op_col > 1 then
         try
           if line_text((op_col - 2).usize())? != ' ' then
             return recover val
@@ -133,7 +149,9 @@ primitive OperatorSpacing is ASTRule
     : Array[Diagnostic val] val
   =>
     """
-    Unary minus must NOT have a space after the operator (`-` or `-~`).
+    Unary minus must not have a space after the operator (`-` or `-~`).
+    At the start of a line, `- expr` with a space is flagged with a specific
+    message: the parser treats `-` there as negation, not subtraction.
     """
     let op_line = node.line()
     let op_col = node.pos()
@@ -143,13 +161,22 @@ primitive OperatorSpacing is ASTRule
       if token == ast.TokenIds.tk_unary_minus_tilde() then "-~" else "-" end
     try
       let line_text = source.lines(op_line - 1)?
+      let starts_line = _is_first_nonws(line_text, op_col)
       let after_idx = ((op_col - 1) + width).usize()
       try
         if line_text(after_idx)? == ' ' then
+          let msg =
+            if starts_line then
+              "'" + symbol +
+                "' at start of line is negation, not subtraction;" +
+                " move to end of previous line"
+            else
+              "no space after unary '" + symbol + "'"
+            end
           return recover val
             [ Diagnostic(
               id(),
-              "no space after unary '" + symbol + "'",
+              consume msg,
               source.rel_path,
               op_line,
               op_col)]
@@ -230,55 +257,55 @@ primitive OperatorSpacing is ASTRule
     """
     Check if a character is alphanumeric or underscore.
     """
-    ((ch >= 'a') and (ch <= 'z'))
-      or ((ch >= 'A') and (ch <= 'Z'))
-      or ((ch >= '0') and (ch <= '9'))
-      or (ch == '_')
+    ((ch >= 'a') and (ch <= 'z')) or
+      ((ch >= 'A') and (ch <= 'Z')) or
+      ((ch >= '0') and (ch <= '9')) or
+      (ch == '_')
 
   fun _op_width(token: ast.TokenId): USize =>
     """
     Return the character width of the operator token.
     """
-    if (token == ast.TokenIds.tk_plus())
-      or (token == ast.TokenIds.tk_minus())
-      or (token == ast.TokenIds.tk_multiply())
-      or (token == ast.TokenIds.tk_divide())
-      or (token == ast.TokenIds.tk_rem())
-      or (token == ast.TokenIds.tk_lt())
-      or (token == ast.TokenIds.tk_gt())
-      or (token == ast.TokenIds.tk_assign())
-      or (token == ast.TokenIds.tk_unary_minus())
+    if (token == ast.TokenIds.tk_plus()) or
+      (token == ast.TokenIds.tk_minus()) or
+      (token == ast.TokenIds.tk_multiply()) or
+      (token == ast.TokenIds.tk_divide()) or
+      (token == ast.TokenIds.tk_rem()) or
+      (token == ast.TokenIds.tk_lt()) or
+      (token == ast.TokenIds.tk_gt()) or
+      (token == ast.TokenIds.tk_assign()) or
+      (token == ast.TokenIds.tk_unary_minus())
     then
       1
-    elseif (token == ast.TokenIds.tk_plus_tilde())
-      or (token == ast.TokenIds.tk_minus_tilde())
-      or (token == ast.TokenIds.tk_multiply_tilde())
-      or (token == ast.TokenIds.tk_divide_tilde())
-      or (token == ast.TokenIds.tk_rem_tilde())
-      or (token == ast.TokenIds.tk_mod())
-      or (token == ast.TokenIds.tk_lshift())
-      or (token == ast.TokenIds.tk_rshift())
-      or (token == ast.TokenIds.tk_eq())
-      or (token == ast.TokenIds.tk_ne())
-      or (token == ast.TokenIds.tk_le())
-      or (token == ast.TokenIds.tk_ge())
-      or (token == ast.TokenIds.tk_or())
-      or (token == ast.TokenIds.tk_is())
-      or (token == ast.TokenIds.tk_lt_tilde())
-      or (token == ast.TokenIds.tk_gt_tilde())
-      or (token == ast.TokenIds.tk_unary_minus_tilde())
+    elseif (token == ast.TokenIds.tk_plus_tilde()) or
+      (token == ast.TokenIds.tk_minus_tilde()) or
+      (token == ast.TokenIds.tk_multiply_tilde()) or
+      (token == ast.TokenIds.tk_divide_tilde()) or
+      (token == ast.TokenIds.tk_rem_tilde()) or
+      (token == ast.TokenIds.tk_mod()) or
+      (token == ast.TokenIds.tk_lshift()) or
+      (token == ast.TokenIds.tk_rshift()) or
+      (token == ast.TokenIds.tk_eq()) or
+      (token == ast.TokenIds.tk_ne()) or
+      (token == ast.TokenIds.tk_le()) or
+      (token == ast.TokenIds.tk_ge()) or
+      (token == ast.TokenIds.tk_or()) or
+      (token == ast.TokenIds.tk_is()) or
+      (token == ast.TokenIds.tk_lt_tilde()) or
+      (token == ast.TokenIds.tk_gt_tilde()) or
+      (token == ast.TokenIds.tk_unary_minus_tilde())
     then
       2
-    elseif (token == ast.TokenIds.tk_mod_tilde())
-      or (token == ast.TokenIds.tk_lshift_tilde())
-      or (token == ast.TokenIds.tk_rshift_tilde())
-      or (token == ast.TokenIds.tk_eq_tilde())
-      or (token == ast.TokenIds.tk_ne_tilde())
-      or (token == ast.TokenIds.tk_le_tilde())
-      or (token == ast.TokenIds.tk_ge_tilde())
-      or (token == ast.TokenIds.tk_not())
-      or (token == ast.TokenIds.tk_and())
-      or (token == ast.TokenIds.tk_xor())
+    elseif (token == ast.TokenIds.tk_mod_tilde()) or
+      (token == ast.TokenIds.tk_lshift_tilde()) or
+      (token == ast.TokenIds.tk_rshift_tilde()) or
+      (token == ast.TokenIds.tk_eq_tilde()) or
+      (token == ast.TokenIds.tk_ne_tilde()) or
+      (token == ast.TokenIds.tk_le_tilde()) or
+      (token == ast.TokenIds.tk_ge_tilde()) or
+      (token == ast.TokenIds.tk_not()) or
+      (token == ast.TokenIds.tk_and()) or
+      (token == ast.TokenIds.tk_xor())
     then
       3
     elseif token == ast.TokenIds.tk_isnt() then

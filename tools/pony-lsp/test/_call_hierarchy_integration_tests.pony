@@ -177,8 +177,8 @@ primitive _CHierCheckItem
       ok
     else
       h.fail(
-        label + " missing or has wrong structure (expected: "
-          + exp.name + ")")
+        label + " missing or has wrong structure (expected: " +
+          exp.name + ")")
       false
     end
 

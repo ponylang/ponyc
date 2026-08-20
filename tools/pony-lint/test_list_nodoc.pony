@@ -60,8 +60,8 @@ primitive TestListNodoc is ASTRule
         | "TestList" => return true
         end
       end
-    elseif (tk == ast.TokenIds.tk_provides())
-      or (tk == ast.TokenIds.tk_isecttype())
+    elseif (tk == ast.TokenIds.tk_provides()) or
+      (tk == ast.TokenIds.tk_isecttype())
     then
       var i: USize = 0
       while true do

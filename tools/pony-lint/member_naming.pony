@@ -38,9 +38,9 @@ primitive MemberNaming is ASTRule
     // Methods: name is child 1
     // Fields, params, locals: name is child 0
     let name_idx: USize =
-      if (token_id == ast.TokenIds.tk_fun())
-        or (token_id == ast.TokenIds.tk_new())
-        or (token_id == ast.TokenIds.tk_be())
+      if (token_id == ast.TokenIds.tk_fun()) or
+        (token_id == ast.TokenIds.tk_new()) or
+        (token_id == ast.TokenIds.tk_be())
       then
         1
       else

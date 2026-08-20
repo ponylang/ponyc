@@ -118,19 +118,19 @@ class val NetAddress is Equatable[NetAddress]
       recover String.from_cstring(consume serv) end)
 
   fun eq(that: NetAddress box): Bool =>
-      (this._family == that._family)
-      and (this._port == that._port)
-      and (host_eq(that))
-      and (this._scope == that._scope)
+      (this._family == that._family) and
+      (this._port == that._port) and
+      (host_eq(that)) and
+      (this._scope == that._scope)
 
   fun host_eq(that: NetAddress box): Bool =>
     if ip4() then
       this._addr == that._addr
     else
-      (this._addr1 == that._addr1)
-        and (this._addr2 == that._addr2)
-        and (this._addr3 == that._addr3)
-        and (this._addr4 == that._addr4)
+      (this._addr1 == that._addr1) and
+        (this._addr2 == that._addr2) and
+        (this._addr3 == that._addr3) and
+        (this._addr4 == that._addr4)
     end
 
   fun length() : U8 =>

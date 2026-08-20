@@ -408,9 +408,9 @@ class val AST is (Stringable & Hashable & Equatable[AST box])
       else
         ""
       end
-    TokenIds.string(id()) + value
-      + " @ " + line().string()
-      + ":" + pos().string() + source_file'
+    TokenIds.string(id()) + value +
+      " @ " + line().string() +
+      ":" + pos().string() + source_file'
 
   fun string(): String iso^ =>
     """

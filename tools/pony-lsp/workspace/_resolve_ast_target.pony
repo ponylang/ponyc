@@ -15,9 +15,9 @@ primitive _ResolveASTTarget
     let nid = node.id()
 
     // Literals have no referenceable identity.
-    if (nid == TokenIds.tk_true()) or (nid == TokenIds.tk_false())
-      or (nid == TokenIds.tk_int()) or (nid == TokenIds.tk_float())
-      or (nid == TokenIds.tk_string())
+    if (nid == TokenIds.tk_true()) or (nid == TokenIds.tk_false()) or
+      (nid == TokenIds.tk_int()) or (nid == TokenIds.tk_float()) or
+      (nid == TokenIds.tk_string())
     then
       return None
     end

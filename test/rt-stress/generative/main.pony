@@ -232,10 +232,10 @@ actor Coordinator
 
     // Synchronous print so the result survives even though we do not force an
     // exit: env.out.print is async and could be lost if a later exit raced it.
-    let line = "RECEIVED=" + _total_received.string()
-      + " SENT=" + total_sent.string()
-      + " EXPECTED=" + expected.string()
-      + " ORDER_SIG=" + _sig.string() + "\n"
+    let line = "RECEIVED=" + _total_received.string() +
+      " SENT=" + total_sent.string() +
+      " EXPECTED=" + expected.string() +
+      " ORDER_SIG=" + _sig.string() + "\n"
     @printf("%s".cstring(), line.cstring())
 
     // On success: return and let the program reach natural
@@ -250,9 +250,9 @@ actor Coordinator
     // fast once a bug is detected rather than risk
     // quiescing a broken run.
     if not conserved then
-      let diag = "CONSERVATION FAILURE: received=" + _total_received.string()
-        + " sent=" + total_sent.string()
-        + " expected=" + expected.string() + "\n"
+      let diag = "CONSERVATION FAILURE: received=" + _total_received.string() +
+        " sent=" + total_sent.string() +
+        " expected=" + expected.string() + "\n"
       @fprintf(@pony_os_stderr(), "%s".cstring(), diag.cstring())
       @exit(I32(1))
     end
@@ -520,9 +520,9 @@ actor CyclicCollector
       // Synchronous print so the result survives natural quiescence (no SENT --
       // the garbage workers cannot be polled for a send tally; see module
       // docs).
-      let line = "RECEIVED=" + _received.string()
-        + " EXPECTED=" + _expected.string()
-        + " ORDER_SIG=" + _sig.string() + "\n"
+      let line = "RECEIVED=" + _received.string() +
+        " EXPECTED=" + _expected.string() +
+        " ORDER_SIG=" + _sig.string() + "\n"
       @printf("%s".cstring(), line.cstring())
     elseif _received > _expected then
       _Fatal("late/duplicate completion (received > expected)")
@@ -735,19 +735,19 @@ actor Consumer
 
     // Synchronous print so the result survives natural quiescence
     // (env.out.print is async and could be lost if a later exit raced it).
-    let line = "RECEIVED=" + _received.string()
-      + " SENT=" + _total_sent.string()
-      + " EXPECTED=" + _expected.string()
-      + " ORDER_SIG=" + _sig.string() + "\n"
+    let line = "RECEIVED=" + _received.string() +
+      " SENT=" + _total_sent.string() +
+      " EXPECTED=" + _expected.string() +
+      " ORDER_SIG=" + _sig.string() + "\n"
     @printf("%s".cstring(), line.cstring())
 
     // On success: return and let the program reach natural quiescence (no
     // forced exit), same as the mesh/cyclic. Only a conservation FAILURE forces
     // a non-zero exit: fail fast once a bug is detected.
     if not conserved then
-      let diag = "CONSERVATION FAILURE: received=" + _received.string()
-        + " sent=" + _total_sent.string()
-        + " expected=" + _expected.string() + "\n"
+      let diag = "CONSERVATION FAILURE: received=" + _received.string() +
+        " sent=" + _total_sent.string() +
+        " expected=" + _expected.string() + "\n"
       @fprintf(@pony_os_stderr(), "%s".cstring(), diag.cstring())
       @exit(I32(1))
     end
@@ -993,19 +993,19 @@ actor Dispatcher
 
     // Synchronous print so the result survives natural quiescence
     // (env.out.print is async and could be lost if a later exit raced it).
-    let line = "RECEIVED=" + _total_received.string()
-      + " SENT=" + total_sent.string()
-      + " EXPECTED=" + expected.string()
-      + " ORDER_SIG=" + _sig.string() + "\n"
+    let line = "RECEIVED=" + _total_received.string() +
+      " SENT=" + total_sent.string() +
+      " EXPECTED=" + expected.string() +
+      " ORDER_SIG=" + _sig.string() + "\n"
     @printf("%s".cstring(), line.cstring())
 
     // On success: return and let the program reach natural quiescence (no
     // forced exit), same as the other workloads. Only a conservation FAILURE
     // forces a non-zero exit: fail fast once a bug is detected.
     if not conserved then
-      let diag = "CONSERVATION FAILURE: received=" + _total_received.string()
-        + " sent=" + total_sent.string()
-        + " expected=" + expected.string() + "\n"
+      let diag = "CONSERVATION FAILURE: received=" + _total_received.string() +
+        " sent=" + total_sent.string() +
+        " expected=" + expected.string() + "\n"
       @fprintf(@pony_os_stderr(), "%s".cstring(), diag.cstring())
       @exit(I32(1))
     end
@@ -1220,19 +1220,19 @@ actor Referrer
 
     // Synchronous print so the result survives natural quiescence
     // (env.out.print is async and could be lost if a later exit raced it).
-    let line = "RECEIVED=" + _total_received.string()
-      + " SENT=" + total_sent.string()
-      + " EXPECTED=" + expected.string()
-      + " ORDER_SIG=" + _sig.string() + "\n"
+    let line = "RECEIVED=" + _total_received.string() +
+      " SENT=" + total_sent.string() +
+      " EXPECTED=" + expected.string() +
+      " ORDER_SIG=" + _sig.string() + "\n"
     @printf("%s".cstring(), line.cstring())
 
     // On success: return and let the program reach natural quiescence (no
     // forced exit), same as the other workloads. Only a conservation FAILURE
     // forces a non-zero exit: fail fast once a bug is detected.
     if not conserved then
-      let diag = "CONSERVATION FAILURE: received=" + _total_received.string()
-        + " sent=" + total_sent.string()
-        + " expected=" + expected.string() + "\n"
+      let diag = "CONSERVATION FAILURE: received=" + _total_received.string() +
+        " sent=" + total_sent.string() +
+        " expected=" + expected.string() + "\n"
       @fprintf(@pony_os_stderr(), "%s".cstring(), diag.cstring())
       @exit(I32(1))
     end
@@ -1400,9 +1400,9 @@ primitive _Cli
   fun spec(): CommandSpec ? =>
     CommandSpec.leaf(
       "generative",
-      "Generative runtime stress workload"
-        + " (driven by the orchestrate_*.py"
-        + " harnesses)",
+      "Generative runtime stress workload" +
+        " (driven by the orchestrate_*.py" +
+        " harnesses)",
       [
         OptionSpec.u64(
           "seed",
@@ -1410,73 +1410,73 @@ primitive _Cli
           where default' = 1)
         OptionSpec.string(
           "workload",
-          "workload kind: mesh | cyclic"
-            + " | backpressure | iso | actorref"
+          "workload kind: mesh | cyclic" +
+            " | backpressure | iso | actorref"
           where default' = "mesh")
         OptionSpec.u64(
           "pingers",
-          "mesh/iso/actorref only"
-            + " (ignored otherwise):"
-            + " number of mesh actors (>= 1)"
+          "mesh/iso/actorref only" +
+            " (ignored otherwise):" +
+            " number of mesh actors (>= 1)"
           where default' = 8)
         OptionSpec.u64(
           "generations",
-          "cyclic only (ignored otherwise):"
-            + " garbage-group generations"
-            + " (>= 1)"
+          "cyclic only (ignored otherwise):" +
+            " garbage-group generations" +
+            " (>= 1)"
           where default' = 1)
         OptionSpec.u64(
           "group",
-          "cyclic only (ignored otherwise):"
-            + " actors per garbage group"
-            + " (>= 2)"
+          "cyclic only (ignored otherwise):" +
+            " actors per garbage group" +
+            " (>= 2)"
           where default' = 2)
         OptionSpec.u64(
           "producers",
-          "backpressure only"
-            + " (ignored otherwise):"
-            + " flooding producers (>= 1)"
+          "backpressure only" +
+            " (ignored otherwise):" +
+            " flooding producers (>= 1)"
           where default' = 64)
         OptionSpec.u64(
           "messages",
-          "backpressure only"
-            + " (ignored otherwise):"
-            + " work msgs per producer (>= 1)"
+          "backpressure only" +
+            " (ignored otherwise):" +
+            " work msgs per producer (>= 1)"
           where default' = 1000)
         OptionSpec.u64(
           "apply-every",
-          "backpressure only"
-            + " (ignored otherwise):"
-            + " received msgs between"
-            + " apply/release toggles (>= 1)"
+          "backpressure only" +
+            " (ignored otherwise):" +
+            " received msgs between" +
+            " apply/release toggles (>= 1)"
           where default' = 200)
         OptionSpec.u64(
           "node-size",
-          "iso only (ignored otherwise):"
-            + " bytes per graph node array"
-            + " (>= 1)"
+          "iso only (ignored otherwise):" +
+            " bytes per graph node array" +
+            " (>= 1)"
           where default' = 64)
         OptionSpec.u64(
           "node-depth",
-          "iso only (ignored otherwise):"
-            + " graph nesting levels (>= 1)"
+          "iso only (ignored otherwise):" +
+            " graph nesting levels (>= 1)"
           where default' = 2)
         OptionSpec.u64(
           "node-breadth",
-          "iso only (ignored otherwise):"
-            + " child nodes per graph node"
+          "iso only (ignored otherwise):" +
+            " child nodes per graph node"
           where default' = 1)
         OptionSpec.u64(
           "chains",
-          "mesh/cyclic/iso/actorref only"
-            + " (ignored for backpressure):"
-            + " chains to inject (>= 1)"
+          "mesh/cyclic/iso/actorref only" +
+            " (ignored for backpressure):" +
+            " chains to inject (>= 1)"
           where default' = 8)
         OptionSpec.u64(
           "ttl",
-          "mesh/cyclic/iso/actorref only"
-            + " (ignored for backpressure):"
-            + " hops per chain"
+          "mesh/cyclic/iso/actorref only" +
+            " (ignored for backpressure):" +
+            " hops per chain"
           where default' = 16)
         OptionSpec.string(
           "payload",
@@ -1484,13 +1484,13 @@ primitive _Cli
           where default' = "string")
         OptionSpec.u64(
           "payload-size",
-          "string payload size in bytes"
-            + " (>= 1)"
+          "string payload size in bytes" +
+            " (>= 1)"
           where default' = 64)
         OptionSpec.string(
           "payload-mode",
-          "per-send payload allocation:"
-            + " forward | fresh"
+          "per-send payload allocation:" +
+            " forward | fresh"
           where default' = "forward")
       ])? .> add_help()?
 
@@ -1563,9 +1563,9 @@ primitive _Cli
         if chains < 1 then return "--chains must be >= 1" end
         _ActorRef(pingers, chains, ttl)
       else
-        return "bad --workload (expected 'mesh',"
-          + " 'cyclic', 'backpressure', 'iso'"
-          + " or 'actorref')"
+        return "bad --workload (expected 'mesh'," +
+          " 'cyclic', 'backpressure', 'iso'" +
+          " or 'actorref')"
       end
 
     _Config(seed, payload_string, payload_size, payload_fresh, workload)
@@ -1583,8 +1583,8 @@ primitive _Fatal
   one -- so the stress run fails loudly with a location rather than passing.
   """
   fun apply(msg: String, loc: SourceLoc = __loc) =>
-    let line = "FATAL: " + msg + " (" + loc.file() + ":"
-      + loc.line().string() + ")\n"
+    let line = "FATAL: " + msg + " (" + loc.file() + ":" +
+      loc.line().string() + ")\n"
     @fprintf(@pony_os_stderr(), "%s".cstring(), line.cstring())
     @exit(I32(1))
 
@@ -1599,7 +1599,7 @@ primitive _Unreachable
   should be impossible, not one the harness is built to catch.
   """
   fun apply(msg: String, loc: SourceLoc = __loc) =>
-    let line = "UNREACHABLE: " + msg + " (" + loc.file() + ":"
-      + loc.line().string() + ")\n"
+    let line = "UNREACHABLE: " + msg + " (" + loc.file() + ":" +
+      loc.line().string() + ")\n"
     @fprintf(@pony_os_stderr(), "%s".cstring(), line.cstring())
     @exit(I32(1))

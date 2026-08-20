@@ -405,10 +405,10 @@ class ref _InlayHintCollector is ASTVisitor
     (iso, trn, ref, val, box, tag). Returns false for cap sets (#read,
     #any, etc.) and tk_none.
     """
-    (id == TokenIds.tk_iso()) or (id == TokenIds.tk_trn())
-      or (id == TokenIds.tk_ref()) or (id == TokenIds.tk_val())
-      or (id == TokenIds.tk_box()) or (id == TokenIds.tk_tag())
+    (id == TokenIds.tk_iso()) or (id == TokenIds.tk_trn()) or
+      (id == TokenIds.tk_ref()) or (id == TokenIds.tk_val()) or
+      (id == TokenIds.tk_box()) or (id == TokenIds.tk_tag())
 
   fun _is_ident_char(c: U8): Bool =>
-    ((c >= 'a') and (c <= 'z')) or ((c >= 'A') and (c <= 'Z'))
-      or ((c >= '0') and (c <= '9')) or (c == '_')
+    ((c >= 'a') and (c <= 'z')) or ((c >= 'A') and (c <= 'Z')) or
+      ((c >= '0') and (c <= '9')) or (c == '_')

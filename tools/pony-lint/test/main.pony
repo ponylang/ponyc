@@ -377,7 +377,8 @@ actor \nodoc\ Main is TestList
     test(_TestOperatorSpacingSpaceOnlyBefore)
     test(_TestOperatorSpacingSpaceOnlyAfter)
     test(_TestOperatorSpacingUnaryMinusClean)
-    test(_TestOperatorSpacingUnaryMinusSpaceViolation)
+    test(_TestOperatorSpacingUnaryMinusStartOfLineViolation)
+    test(_TestOperatorSpacingUnaryMinusSpaceMidLine)
     test(_TestOperatorSpacingNotClean)
     test(_TestOperatorSpacingNotAfterParenClean)
     test(_TestOperatorSpacingNotNoSpaceAfter)
@@ -390,7 +391,9 @@ actor \nodoc\ Main is TestList
     test(_TestOperatorSpacingPartialModClean)
     test(_TestOperatorSpacingSaturatingClean)
     test(_TestOperatorSpacingStyleGuideExample)
-    test(_TestOperatorSpacingContinuationLineClean)
+    test(_TestOperatorSpacingContinuationLineViolation)
+    test(_TestOperatorSpacingKeywordContinuationViolation)
+    test(_TestOperatorSpacingEndOfLineClean)
 
     // LambdaSpacing tests
     test(_TestLambdaSpacingSingleLineClean)

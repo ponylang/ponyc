@@ -82,8 +82,8 @@ class Range[A: (Real[A] val & Number) = USize] is Iterator[A]
       else
         (true, true, true)
       end
-    let progress = ((_min < _max) and (_inc > 0))
-                    or ((_min > _max) and (_inc < 0)) // false if any is NaN!
+    let progress = ((_min < _max) and (_inc > 0)) or
+                    ((_min > _max) and (_inc < 0)) // false if any is NaN!
     if progress and min_finite and inc_finite then
       _empty = false
       _infinite = not max_finite // ok to use not max_finite for max_infinite

@@ -165,9 +165,9 @@ primitive \nodoc\ _JsonValueStringGen
     let f = numerator.f64() / denom.f64()
     let s: String val = f.string()
     if
-      (not s.contains("."))
-        and (not s.contains("e"))
-        and (not s.contains("E"))
+      (not s.contains(".")) and
+        (not s.contains("e")) and
+        (not s.contains("E"))
     then
       s + ".0"
     else
@@ -1932,9 +1932,9 @@ class \nodoc\ iso _FunctionMatchImpliesSearchProperty
         let search_results = sp.query(doc)
         // Every match result must also be a search result
         ph.assert_true(match_results.size() <= search_results.size(),
-          "match returned " + match_results.size().string()
-          + " but search returned " + search_results.size().string()
-          + " for pattern '" + pattern + "'")
+          "match returned " + match_results.size().string() +
+          " but search returned " + search_results.size().string() +
+          " for pattern '" + pattern + "'")
       end
     | let _: JsonParseError => None
     end

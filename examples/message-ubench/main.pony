@@ -24,18 +24,18 @@ actor Main
               where default' = 8)
             OptionSpec.i64(
               "report-interval",
-              "Print report every N centiseconds "
-                + "(10 centiseconds = 1 second)"
+              "Print report every N centiseconds " +
+                "(10 centiseconds = 1 second)"
               where default' = 10)
             OptionSpec.i64(
               "report-count",
-              "Number of reports to generate, "
-                + "default 0 is infinite"
+              "Number of reports to generate, " +
+                "default 0 is infinite"
               where default' = 0)
             OptionSpec.i64(
               "initial-pings",
-              "Initial # of pings to send to each "
-                + "Pinger actor in an interval"
+              "Initial # of pings to send to each " +
+                "Pinger actor in an interval"
               where default' = 5)
           ],
           [

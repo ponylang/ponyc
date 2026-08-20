@@ -181,8 +181,8 @@ primitive _NumberParse
     // exponent part
     var has_exp = false
     var exp: I64 = 0
-    if (i < n)
-      and (try (s(i)? == 'e') or (s(i)? == 'E') else false end)
+    if (i < n) and
+      (try (s(i)? == 'e') or (s(i)? == 'E') else false end)
     then
       has_exp = true
       i = i + 1

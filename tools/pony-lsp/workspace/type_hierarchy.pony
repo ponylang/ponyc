@@ -195,8 +195,8 @@ primitive TypeHierarchy
     let nid = provides.id()
     if nid == TokenIds.tk_none() then
       None
-    elseif (nid == TokenIds.tk_provides())
-      or (nid == TokenIds.tk_isecttype()) then
+    elseif (nid == TokenIds.tk_provides()) or
+      (nid == TokenIds.tk_isecttype()) then
       for child in provides.children() do
         _append_provides_defs(child, result)
       end
@@ -243,8 +243,8 @@ class ref _SubtypeCollector is ASTVisitor
       end
       // Name prefilter: cheap identifier-only walk before the expensive
       // definitions() call inside _provides_defs.
-      if (_target_name.size() > 0)
-        and not TypeHierarchy._provides_mentions(provides_node, _target_name)
+      if (_target_name.size() > 0) and
+        not TypeHierarchy._provides_mentions(provides_node, _target_name)
       then
         return Continue
       end

@@ -172,8 +172,8 @@ primitive TypeAliasFormat is ASTRule
     TK_ISECTTYPE.
     """
     let token = node.id()
-    if (token == ast.TokenIds.tk_uniontype())
-      or (token == ast.TokenIds.tk_isecttype())
+    if (token == ast.TokenIds.tk_uniontype()) or
+      (token == ast.TokenIds.tk_isecttype())
     then
       return true
     end
@@ -189,8 +189,8 @@ primitive TypeAliasFormat is ASTRule
     leaf type component.
     """
     let token = node.id()
-    if (token == ast.TokenIds.tk_uniontype())
-      or (token == ast.TokenIds.tk_isecttype())
+    if (token == ast.TokenIds.tk_uniontype()) or
+      (token == ast.TokenIds.tk_isecttype())
     then
       try
         return _leftmost_leaf(node(0)?)

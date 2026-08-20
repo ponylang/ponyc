@@ -98,9 +98,9 @@ class \nodoc\ _RecordNotify is ANSINotify
     _expected = expected
 
   fun _mods(ctrl: Bool, alt: Bool, shift: Bool): String =>
-    (if ctrl then "1" else "0" end)
-      + (if alt then "1" else "0" end)
-      + (if shift then "1" else "0" end)
+    (if ctrl then "1" else "0" end) +
+      (if alt then "1" else "0" end) +
+      (if shift then "1" else "0" end)
 
   fun ref apply(term: ANSITerm ref, input: U8) =>
     _got.push("byte " + input.string())

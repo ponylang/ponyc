@@ -19,8 +19,8 @@ class \nodoc\ _TestExplainFormatEnabled is UnitTest
         "no spaces around '.'; '.>' spaced as infix operator"))
     h.assert_true(
       output.contains(
-        "https://www.ponylang.io/use/linting/rule-reference/"
-          + "#styledot-spacing"))
+        "https://www.ponylang.io/use/linting/rule-reference/" +
+          "#styledot-spacing"))
 
 class \nodoc\ _TestExplainFormatDisabled is UnitTest
   """Verify format output for a disabled-by-default rule."""

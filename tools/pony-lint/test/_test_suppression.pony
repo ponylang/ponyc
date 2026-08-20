@@ -7,11 +7,11 @@ class \nodoc\ _TestSuppressionOffOn is UnitTest
 
   fun apply(h: TestHelper) =>
     let content: String val =
-      "line 1\n"
-      + "// pony-lint: off style/line-length\n"
-      + "line 3\n"
-      + "// pony-lint: on style/line-length\n"
-      + "line 5\n"
+      "line 1\n" +
+      "// pony-lint: off style/line-length\n" +
+      "line 3\n" +
+      "// pony-lint: on style/line-length\n" +
+      "line 5\n"
     let sf = lint.SourceFile("/tmp/t.pony", content, "/tmp")
     let sup = lint.Suppressions(sf)
     h.assert_false(sup.is_suppressed(1, "style/line-length"))
@@ -25,11 +25,11 @@ class \nodoc\ _TestSuppressionOffOnAll is UnitTest
 
   fun apply(h: TestHelper) =>
     let content: String val =
-      "line 1\n"
-      + "// pony-lint: off\n"
-      + "line 3\n"
-      + "// pony-lint: on\n"
-      + "line 5\n"
+      "line 1\n" +
+      "// pony-lint: off\n" +
+      "line 3\n" +
+      "// pony-lint: on\n" +
+      "line 5\n"
     let sf = lint.SourceFile("/tmp/t.pony", content, "/tmp")
     let sup = lint.Suppressions(sf)
     h.assert_false(sup.is_suppressed(1, "style/line-length"))
@@ -44,10 +44,10 @@ class \nodoc\ _TestSuppressionAllow is UnitTest
 
   fun apply(h: TestHelper) =>
     let content: String val =
-      "line 1\n"
-      + "// pony-lint: allow style/line-length\n"
-      + "line 3\n"
-      + "line 4\n"
+      "line 1\n" +
+      "// pony-lint: allow style/line-length\n" +
+      "line 3\n" +
+      "line 4\n"
     let sf = lint.SourceFile("/tmp/t.pony", content, "/tmp")
     let sup = lint.Suppressions(sf)
     h.assert_false(sup.is_suppressed(1, "style/line-length"))
@@ -61,9 +61,9 @@ class \nodoc\ _TestSuppressionCategory is UnitTest
 
   fun apply(h: TestHelper) =>
     let content: String val =
-      "// pony-lint: off style\n"
-      + "line 2\n"
-      + "// pony-lint: on style\n"
+      "// pony-lint: off style\n" +
+      "line 2\n" +
+      "// pony-lint: on style\n"
     let sf = lint.SourceFile("/tmp/t.pony", content, "/tmp")
     let sup = lint.Suppressions(sf)
     h.assert_true(sup.is_suppressed(2, "style/line-length"))
@@ -77,10 +77,10 @@ class \nodoc\ _TestSuppressionRuleOverridesCategory is UnitTest
 
   fun apply(h: TestHelper) =>
     let content: String val =
-      "// pony-lint: off style\n"
-      + "// pony-lint: on style/line-length\n"
-      + "line 3\n"
-      + "// pony-lint: on style\n"
+      "// pony-lint: off style\n" +
+      "// pony-lint: on style/line-length\n" +
+      "line 3\n" +
+      "// pony-lint: on style\n"
     let sf = lint.SourceFile("/tmp/t.pony", content, "/tmp")
     let sup = lint.Suppressions(sf)
     h.assert_false(sup.is_suppressed(3, "style/line-length"))
@@ -93,8 +93,8 @@ class \nodoc\ _TestSuppressionUnclosed is UnitTest
 
   fun apply(h: TestHelper) =>
     let content: String val =
-      "// pony-lint: off style/line-length\n"
-      + "line 2\n"
+      "// pony-lint: off style/line-length\n" +
+      "line 2\n"
     let sf = lint.SourceFile("/tmp/t.pony", content, "/tmp")
     let sup = lint.Suppressions(sf)
     h.assert_eq[USize](1, sup.errors().size())
@@ -111,9 +111,9 @@ class \nodoc\ _TestSuppressionDuplicateOff is UnitTest
 
   fun apply(h: TestHelper) =>
     let content: String val =
-      "// pony-lint: off style/line-length\n"
-      + "// pony-lint: off style/line-length\n"
-      + "// pony-lint: on style/line-length\n"
+      "// pony-lint: off style/line-length\n" +
+      "// pony-lint: off style/line-length\n" +
+      "// pony-lint: on style/line-length\n"
     let sf = lint.SourceFile("/tmp/t.pony", content, "/tmp")
     let sup = lint.Suppressions(sf)
     var found_malformed = false
@@ -150,12 +150,12 @@ class \nodoc\ _TestSuppressionMagicCommentLines is UnitTest
 
   fun apply(h: TestHelper) =>
     let content: String val =
-      "line 1\n"
-      + "// pony-lint: off style\n"
-      + "line 3\n"
-      + "// pony-lint: on style\n"
-      + "// pony-lint: allow style/hard-tabs\n"
-      + "line 6\n"
+      "line 1\n" +
+      "// pony-lint: off style\n" +
+      "line 3\n" +
+      "// pony-lint: on style\n" +
+      "// pony-lint: allow style/hard-tabs\n" +
+      "line 6\n"
     let sf = lint.SourceFile("/tmp/t.pony", content, "/tmp")
     let sup = lint.Suppressions(sf)
     h.assert_true(sup.magic_comment_lines().contains(2))
@@ -171,9 +171,9 @@ class \nodoc\ _TestSuppressionLintNotSuppressible is UnitTest
 
   fun apply(h: TestHelper) =>
     let content: String val =
-      "// pony-lint: off\n"
-      + "line 2\n"
-      + "// pony-lint: on\n"
+      "// pony-lint: off\n" +
+      "line 2\n" +
+      "// pony-lint: on\n"
     let sf = lint.SourceFile("/tmp/t.pony", content, "/tmp")
     let sup = lint.Suppressions(sf)
     h.assert_false(sup.is_suppressed(2, "lint/unclosed-suppression"))
@@ -209,13 +209,13 @@ class \nodoc\ _TestSuppressionOverrideThenReSuppress is UnitTest
 
   fun apply(h: TestHelper) =>
     let content: String val =
-      "// pony-lint: off style\n"       // line 1
-        + "// pony-lint: on style/ll\n"  // line 2: override
-        + "code A\n"                     // line 3: ll NOT suppressed
-        + "// pony-lint: on style\n"     // line 4: end category off
-        + "// pony-lint: off style/ll\n" // line 5: explicit off
-        + "code B\n"                     // line 6: ll suppressed
-        + "// pony-lint: on style/ll\n"  // line 7: end
+      "// pony-lint: off style\n" +       // line 1
+        "// pony-lint: on style/ll\n" +  // line 2: override
+        "code A\n" +                     // line 3: ll NOT suppressed
+        "// pony-lint: on style\n" +     // line 4: end category off
+        "// pony-lint: off style/ll\n" + // line 5: explicit off
+        "code B\n" +                     // line 6: ll suppressed
+        "// pony-lint: on style/ll\n"    // line 7: end
     let sf = lint.SourceFile("/tmp/t.pony", content, "/tmp")
     let sup = lint.Suppressions(sf)
     // Line 3: style/ll overridden, not suppressed
@@ -233,10 +233,10 @@ class \nodoc\ _TestSuppressionCategoryOnOverridesWildcardOff is UnitTest
 
   fun apply(h: TestHelper) =>
     let content: String val =
-      "// pony-lint: off\n"               // line 1: suppress all
-        + "// pony-lint: on style\n"       // line 2: re-enable style
-        + "code\n"                         // line 3
-        + "// pony-lint: on\n"             // line 4: end
+      "// pony-lint: off\n" +               // line 1: suppress all
+        "// pony-lint: on style\n" +       // line 2: re-enable style
+        "code\n" +                         // line 3
+        "// pony-lint: on\n"               // line 4: end
     let sf = lint.SourceFile("/tmp/t.pony", content, "/tmp")
     let sup = lint.Suppressions(sf)
     // style rules re-enabled by category on
@@ -253,9 +253,9 @@ class \nodoc\ _TestSuppressionWildcardOnOverridesCategoryOff is UnitTest
 
   fun apply(h: TestHelper) =>
     let content: String val =
-      "// pony-lint: off style\n"          // line 1: suppress style
-        + "// pony-lint: on\n"             // line 2: re-enable all
-        + "code\n"                         // line 3
+      "// pony-lint: off style\n" +          // line 1: suppress style
+        "// pony-lint: on\n" +             // line 2: re-enable all
+        "code\n"                           // line 3
     let sf = lint.SourceFile("/tmp/t.pony", content, "/tmp")
     let sup = lint.Suppressions(sf)
     h.assert_false(sup.is_suppressed(3, "style/line-length"))
@@ -290,9 +290,9 @@ class \nodoc\ _TestSuppressionDoubleSpaceInDirective is UnitTest
 
   fun apply(h: TestHelper) =>
     let content: String val =
-      "// pony-lint: off  style/line-length\n"
-        + "line 2\n"
-        + "// pony-lint: on style/line-length\n"
+      "// pony-lint: off  style/line-length\n" +
+        "line 2\n" +
+        "// pony-lint: on style/line-length\n"
     let sf = lint.SourceFile("/tmp/t.pony", content, "/tmp")
     let sup = lint.Suppressions(sf)
     h.assert_true(sup.is_suppressed(2, "style/line-length"))

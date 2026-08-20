@@ -549,8 +549,8 @@ class \nodoc\ _TestRenderProvides is UnitTest
         "\n",
         doc.MkDocsLinkFormat,
         false),
-      "* [Stringable](builtin-Stringable.md)"
-        + "\n* [Hashable](collections-Hashable.md)\n")
+      "* [Stringable](builtin-Stringable.md)" +
+        "\n* [Hashable](collections-Hashable.md)\n")
 
     // Without links
     h.assert_eq[String](

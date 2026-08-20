@@ -46,21 +46,21 @@ actor Main
               where default' = 1000)
             OptionSpec.i64(
               "analyzer-interval",
-              "How often analyzers send messages to "
-                + "receiver in centiseconds "
-                + "(10 centiseconds = 1 second)"
+              "How often analyzers send messages to " +
+                "receiver in centiseconds " +
+                "(10 centiseconds = 1 second)"
               where default' = 100)
             OptionSpec.i64(
               "analyzer-report-count",
-              "Number of times analyzers send messages "
-                + "to receiver before shutting down, "
-                + "0 is infinite"
+              "Number of times analyzers send messages " +
+                "to receiver before shutting down, " +
+                "0 is infinite"
               where default' = 10)
             OptionSpec.i64(
               "receiver-workload",
-              "Number of microseconds the receiver "
-                + "takes to process each message "
-                + "it receives"
+              "Number of microseconds the receiver " +
+                "takes to process each message " +
+                "it receives"
               where default' = 10000)
           ],
           [
@@ -90,15 +90,15 @@ actor Main
         cmd.option("receiver-workload").i64().u64()
 
       env.out.print(
-        "# "
-          + "senders " + num_senders.string() + ", "
-          + "analyzers " + num_analyzers.string() + ", "
-          + "analyzer-interval "
-          + analyzer_interval.string() + ", "
-          + "analyzer-report-count "
-          + analyzer_report_count.string() + ", "
-          + "receiver-workload "
-          + receiver_workload.string())
+        "# " +
+          "senders " + num_senders.string() + ", " +
+          "analyzers " + num_analyzers.string() + ", " +
+          "analyzer-interval " +
+          analyzer_interval.string() + ", " +
+          "analyzer-report-count " +
+          analyzer_report_count.string() + ", " +
+          "receiver-workload " +
+          receiver_workload.string())
       env.out.print("time,run-ns,rate")
 
       let coordinator =
@@ -225,15 +225,15 @@ actor Coordinator
       let rate: I64 =
         (total_msgs.i64() * 1_000_000_000) / run_ns
       _env.out.print(
-        ts.string() + ","
-          + run_ns.string() + ","
-          + rate.string())
+        ts.string() + "," +
+          run_ns.string() + "," +
+          rate.string())
 
       if _done and (ts == _current_t) then
         _env.out.print(
-          "Done with message sending... "
-            + "Waiting for Receiver to work "
-            + "through its backlog...")
+          "Done with message sending... " +
+            "Waiting for Receiver to work " +
+            "through its backlog...")
       end
 
       try

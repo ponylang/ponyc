@@ -255,8 +255,8 @@ class val Linter
           let pkg_prefix: String val = pkg.dir + sep
           let kids = Array[_PackageInfo val]
           for other in all_pkgs.values() do
-            if (other.dir != pkg.dir)
-              and other.dir.at(pkg_prefix)
+            if (other.dir != pkg.dir) and
+              other.dir.at(pkg_prefix)
             then
               kids.push(other)
               child_dirs.set(other.dir)
@@ -1100,8 +1100,8 @@ class ref _FileCollector is WalkHandler
             if _matcher.is_ignored(full, entry, info.directory) then
               dir_entries.delete(i)?
             else
-              if info.file
-                and entry.at(".pony", entry.size().isize() - 5)
+              if info.file and
+                entry.at(".pony", entry.size().isize() - 5)
               then
                 _files.push(full)
               end

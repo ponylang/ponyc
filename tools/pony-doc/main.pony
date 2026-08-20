@@ -94,8 +94,8 @@ actor Main
       try
         MkDocsBackend.generate(doc_program, output_fp, include_private)?
         env.out.print(
-          "Documentation generated in "
-            + output_dir_path + "/" + doc_program.name + "-docs/")
+          "Documentation generated in " +
+            output_dir_path + "/" + doc_program.name + "-docs/")
       else
         env.err.print("error: failed to write documentation output")
         env.exitcode(1)

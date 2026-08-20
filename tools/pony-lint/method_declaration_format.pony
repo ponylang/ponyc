@@ -19,8 +19,8 @@ primitive MethodDeclarationFormat is ASTRule
   fun category(): String val => "style"
 
   fun description(): String val =>
-    "multiline method declaration formatting"
-      + " (parameter layout, return type and '=>' alignment)"
+    "multiline method declaration formatting" +
+      " (parameter layout, return type and '=>' alignment)"
 
   fun default_status(): RuleStatus => RuleOn
 
@@ -64,8 +64,8 @@ primitive MethodDeclarationFormat is ASTRule
                 if param_l == prev_line then
                   diags.push(Diagnostic(
                     id(),
-                    "each parameter should be on its own line"
-                      + " in a multiline declaration",
+                    "each parameter should be on its own line" +
+                      " in a multiline declaration",
                     source.rel_path,
                     param_l,
                     param_node.pos()))
@@ -94,9 +94,9 @@ primitive MethodDeclarationFormat is ASTRule
               if actual_col != expected_col then
                 diags.push(Diagnostic(
                   id(),
-                  "':' should align at column "
-                    + expected_col.string()
-                    + " (indented from '" + keyword_name + "')",
+                  "':' should align at column " +
+                    expected_col.string() +
+                    " (indented from '" + keyword_name + "')",
                   source.rel_path,
                   ret_line,
                   actual_col))
@@ -125,9 +125,9 @@ primitive MethodDeclarationFormat is ASTRule
                 if actual_col != keyword_col then
                   diags.push(Diagnostic(
                     id(),
-                    "'=>' should align with '" + keyword_name
-                      + "' keyword (column "
-                      + keyword_col.string() + ")",
+                    "'=>' should align with '" + keyword_name +
+                      "' keyword (column " +
+                      keyword_col.string() + ")",
                     source.rel_path,
                     scan_line,
                     actual_col))

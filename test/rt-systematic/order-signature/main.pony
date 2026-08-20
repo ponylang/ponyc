@@ -66,8 +66,8 @@ actor Collector
       // sidesteps the separate shutdown-hang symptom under
       // systematic testing. The signature is fully computed
       // before we exit, so the determinism result is unaffected.
-      let line = "RECEIVED=" + _received.string()
-        + " ORDER_SIG=" + _sig.string() + "\n"
+      let line = "RECEIVED=" + _received.string() +
+        " ORDER_SIG=" + _sig.string() + "\n"
       @printf("%s".cstring(), line.cstring())
       @exit(0)
     end
