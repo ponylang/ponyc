@@ -124,6 +124,36 @@ class \nodoc\ _TestMemberNamingDontcareSkipped is UnitTest
       h.fail("compilation failed")
     end
 
+class \nodoc\ _TestMemberNamingMultiPrimeClean is UnitTest
+  """Multi-prime member names are valid snake_case."""
+  fun name(): String => "MemberNaming: multi-prime local is clean"
+  fun exclusion_group(): String => "ast-compile"
+
+  fun apply(h: TestHelper) =>
+    let source: String val =
+      "class Foo\n" +
+      "  fun apply(): U32 =>\n" +
+      "    let path' = U32(1)\n" +
+      "    let path'' = U32(2)\n" +
+      "    path' + path''\n"
+    try
+      (let program, let sf) = _ASTTestHelper.compile(h, source)?
+      match program.package()
+      | let pkg: ast.Package val =>
+        match pkg.module()
+        | let mod: ast.Module val =>
+          let diags = _CollectRuleDiags(mod, sf, lint.MemberNaming)
+          h.assert_eq[USize](0, diags.size())
+        else
+          h.fail("no module")
+        end
+      else
+        h.fail("no package")
+      end
+    else
+      h.fail("compilation failed")
+    end
+
 class \nodoc\ _TestMemberNamingParamViolation is UnitTest
   """Non-snake_case parameter names produce diagnostics."""
   fun name(): String => "MemberNaming: non-snake_case param flagged"
