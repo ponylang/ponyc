@@ -101,8 +101,16 @@ primitive OperatorSpacing is ASTRule
         end
       end
 
-      // Check character after operator
-      let after_idx = ((op_col - 1) + width).usize()
+      // Partial operators (+?, *?, etc.) have a TK_QUESTION child but
+      // share the base operator's token, so widen past the '?'.
+      var op_width = width
+      for c in node.children() do
+        if c.id() == ast.TokenIds.tk_question() then
+          op_width = op_width + 1
+          break
+        end
+      end
+      let after_idx = ((op_col - 1) + op_width).usize()
       try
         if line_text(after_idx)? != ' ' then
           return recover val

@@ -441,6 +441,62 @@ class \nodoc\ _TestOperatorSpacingIdentityClean is UnitTest
       h.fail("compilation failed")
     end
 
+class \nodoc\ _TestOperatorSpacingPartialClean is UnitTest
+  """Partial operator with spaces is clean."""
+  fun name(): String => "OperatorSpacing: 'x *? y' is clean"
+  fun exclusion_group(): String => "ast-compile"
+
+  fun apply(h: TestHelper) =>
+    let source: String val =
+      "primitive Foo\n" +
+      "  fun apply(x: U32, y: U32): U32 ? =>\n" +
+      "    x *? y\n"
+    try
+      (let program, let sf) = _ASTTestHelper.compile(h, source)?
+      match program.package()
+      | let pkg: ast.Package val =>
+        match pkg.module()
+        | let mod: ast.Module val =>
+          let diags = _CollectRuleDiags(mod, sf, lint.OperatorSpacing)
+          h.assert_eq[USize](0, diags.size())
+        else
+          h.fail("no module")
+        end
+      else
+        h.fail("no package")
+      end
+    else
+      h.fail("compilation failed")
+    end
+
+class \nodoc\ _TestOperatorSpacingPartialModClean is UnitTest
+  """Partial mod operator with spaces is clean."""
+  fun name(): String => "OperatorSpacing: 'x %%? y' is clean"
+  fun exclusion_group(): String => "ast-compile"
+
+  fun apply(h: TestHelper) =>
+    let source: String val =
+      "primitive Foo\n" +
+      "  fun apply(x: U32, y: U32): U32 ? =>\n" +
+      "    x %%? y\n"
+    try
+      (let program, let sf) = _ASTTestHelper.compile(h, source)?
+      match program.package()
+      | let pkg: ast.Package val =>
+        match pkg.module()
+        | let mod: ast.Module val =>
+          let diags = _CollectRuleDiags(mod, sf, lint.OperatorSpacing)
+          h.assert_eq[USize](0, diags.size())
+        else
+          h.fail("no module")
+        end
+      else
+        h.fail("no package")
+      end
+    else
+      h.fail("compilation failed")
+    end
+
 class \nodoc\ _TestOperatorSpacingSaturatingClean is UnitTest
   """Saturating operator with spaces is clean."""
   fun name(): String => "OperatorSpacing: 'x +~ y' is clean"

@@ -386,6 +386,8 @@ actor \nodoc\ Main is TestList
     test(_TestOperatorSpacingMultipleViolations)
     test(_TestOperatorSpacingKeywordBinaryClean)
     test(_TestOperatorSpacingIdentityClean)
+    test(_TestOperatorSpacingPartialClean)
+    test(_TestOperatorSpacingPartialModClean)
     test(_TestOperatorSpacingSaturatingClean)
     test(_TestOperatorSpacingStyleGuideExample)
     test(_TestOperatorSpacingContinuationLineClean)
