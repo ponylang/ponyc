@@ -112,8 +112,8 @@ class ref IgnoreMatcher
     if size > _max_ignore_file_size() then
       file.dispose()
       _errors.push((
-        "ignore file too large (" + size.string() + " bytes, max "
-          + _max_ignore_file_size().string() + "): " + file_path,
+        "ignore file too large (" + size.string() + " bytes, max " +
+          _max_ignore_file_size().string() + "): " + file_path,
         file_path))
       return
     end
@@ -197,8 +197,8 @@ class ref IgnoreMatcher
     if abs_path.at(base_dir) then
       let blen = base_dir.size()
       // Exact match or path continues with a separator
-      (abs_path.size() == blen)
-        or (try Path.is_sep(abs_path(blen)?) else false end)
+      (abs_path.size() == blen) or
+        (try Path.is_sep(abs_path(blen)?) else false end)
     else
       false
     end

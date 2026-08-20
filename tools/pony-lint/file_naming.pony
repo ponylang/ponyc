@@ -75,8 +75,9 @@ primitive FileNaming is ASTRule
       recover val
         [ Diagnostic(
           id(),
-          "file '" + _filename_stem(source.path) + ".pony' should be named '"
-            + expected + ".pony' (principal type: " + principal + ")",
+          "file '" + _filename_stem(source.path) +
+            ".pony' should be named '" +
+            expected + ".pony' (principal type: " + principal + ")",
           source.rel_path,
           1,
           1)]
@@ -103,8 +104,8 @@ primitive FileNaming is ASTRule
     var trait_name: (String val | None) = None
     var non_trait_count: USize = 0
     for (name, token_id, _, _) in entities.values() do
-      if (token_id == ast.TokenIds.tk_trait())
-        or (token_id == ast.TokenIds.tk_interface())
+      if (token_id == ast.TokenIds.tk_trait()) or
+        (token_id == ast.TokenIds.tk_interface())
       then
         trait_name = name
       else

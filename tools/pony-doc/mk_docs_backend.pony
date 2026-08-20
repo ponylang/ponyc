@@ -135,8 +135,8 @@ primitive MkDocsBackend is Backend
           _write_source_page(src_dir, sanitized_pkg, sf)?
 
           source_entries.push(
-            "  - " + sf.filename + " : \""
-              + _source_doc_path(sanitized_pkg, sf.filename) + "\" \n")
+            "  - " + sf.filename + " : \"" +
+              _source_doc_path(sanitized_pkg, sf.filename) + "\" \n")
         end
       end
     end

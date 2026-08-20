@@ -151,8 +151,8 @@ actor _Coordinator is _TesterNotify
         _env.out.print(_Colors.pass(num_succeeded.string() + " test(s)."))
       end
       if num_failed > 0 then
-        _env.out.print(_Colors.fail(num_failed.string()
-          + " test(s), listed below:"))
+        _env.out.print(_Colors.fail(num_failed.string() +
+          " test(s), listed below:"))
         for (name, succeeded') in _success.pairs() do
           if not succeeded' then
             _env.out.print(_Colors.fail(name))

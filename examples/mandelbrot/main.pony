@@ -53,8 +53,8 @@ actor Main
     match outfile
     | let f: File =>
       f.print(
-        "P4\n " + c.width.string()
-          + " " + c.width.string() + "\n")
+        "P4\n " + c.width.string() +
+          " " + c.width.string() + "\n")
       header = f.size()
       f.set_length(
         (c.width * (c.width >> 3)) + header)

@@ -13,8 +13,8 @@ class \nodoc\ _TestDiagnosticString is UnitTest
         10,
         81)
     let expected: String val =
-      "src/main.pony:10:81: error[style/line-length]: "
-        + "line exceeds 80 columns (95)"
+      "src/main.pony:10:81: error[style/line-length]: " +
+        "line exceeds 80 columns (95)"
     h.assert_eq[String](expected, d.string())
 
 class \nodoc\ _TestDiagnosticStringSpecialChars is UnitTest

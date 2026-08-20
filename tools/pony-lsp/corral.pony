@@ -106,10 +106,7 @@ primitive _Flattened
     String.from_array(consume path_name_arr)
 
   fun _is_alphanum(c: U8): Bool =>
-    (('0' <= c) and (c <= '9'))
-      or
-    (('A' <= c) and (c <= 'Z'))
-      or
-    (('a' <= c) and (c <= 'z'))
-      or
+    (('0' <= c) and (c <= '9')) or
+    (('A' <= c) and (c <= 'Z')) or
+    (('a' <= c) and (c <= 'z')) or
     (c == '_')

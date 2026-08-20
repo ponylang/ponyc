@@ -54,10 +54,10 @@ class val Config
     logactors = cmd.option("actors").i64().usize()
 
     env.out.print(
-      "logtable: " + logtable.string()
-        + "\niterate: " + iterate.string()
-        + "\nlogchunk: " + logchunk.string()
-        + "\nlogactors: " + logactors.string())
+      "logtable: " + logtable.string() +
+        "\niterate: " + iterate.string() +
+        "\nlogchunk: " + logchunk.string() +
+        "\nlogactors: " + logactors.string())
 
 actor Main
   let _env: Env
@@ -121,8 +121,8 @@ actor Main
       let gups = _updates.f64() / elapsed
 
       _env.out.print(
-        "Time: " + (elapsed / 1e9).string()
-          + "\nGUPS: " + gups.string())
+        "Time: " + (elapsed / 1e9).string() +
+          "\nGUPS: " + gups.string())
     end
 
 actor Updater

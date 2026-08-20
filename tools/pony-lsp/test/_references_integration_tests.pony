@@ -596,8 +596,8 @@ class val _RefsChecker
             let sc = range("start")("character").as_i64()?
             let el = range("end")("line").as_i64()?
             let ec = range("end")("character").as_i64()?
-            if (file == exp_file) and (sl == exp_sl) and (sc == exp_sc)
-              and (el == exp_el) and (ec == exp_ec)
+            if (file == exp_file) and (sl == exp_sl) and (sc == exp_sc) and
+              (el == exp_el) and (ec == exp_ec)
             then
               found = true
               break

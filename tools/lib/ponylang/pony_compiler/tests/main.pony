@@ -214,15 +214,15 @@ class \nodoc\ iso _PositionIndexFind is UnitTest
               h.assert_eq[String val](
                 TokenIds.string(expected_token_id),
                 TokenIds.string(ast.id()),
-                "Found wrong node at "
-                  + line.string() + ":"
-                  + column.string() + ": "
-                  + ast.debug())
+                "Found wrong node at " +
+                  line.string() + ":" +
+                  column.string() + ": " +
+                  ast.debug())
             | None =>
               h.fail(
-                "No AST node found at "
-                  + line.string() + ":"
-                  + column.string())
+                "No AST node found at " +
+                  line.string() + ":" +
+                  column.string())
               return
             end
 
@@ -340,18 +340,18 @@ class \nodoc\ _DefinitionTest is UnitTest
                 ast.definitions()
               if definitions.size() == 0 then
                 h.fail(
-                  "No definition for node: "
-                    + ast.debug())
+                  "No definition for node: " +
+                    ast.debug())
                 return
               end
               h.assert_eq[USize](
                 definitions.size(),
                 expected_def_positions.size(),
-                "Expected to find "
-                  + expected_def_positions
-                    .size().string()
-                  + " definitions, found: "
-                  + definitions.size().string())
+                "Expected to find " +
+                  expected_def_positions
+                    .size().string() +
+                  " definitions, found: " +
+                  definitions.size().string())
               let iter =
                 Iter[Position](
                   expected_def_positions.values())
@@ -362,8 +362,8 @@ class \nodoc\ _DefinitionTest is UnitTest
                 h.assert_eq[Position](
                   expected_def_pos,
                   definition.position(),
-                  "Definition at wrong position "
-                    + definition.debug())
+                  "Definition at wrong position " +
+                    definition.debug())
                 h.assert_eq[String val](
                   TokenIds.string(
                     expected_def_token_id),
@@ -372,8 +372,8 @@ class \nodoc\ _DefinitionTest is UnitTest
               end
             | None =>
               h.fail(
-                "No AST node found at "
-                  + ref_pos.string())
+                "No AST node found at " +
+                  ref_pos.string())
               return
             end
 
@@ -504,8 +504,8 @@ class \nodoc\ _CompileErrorTest is UnitTest
         "compile_errors_02",
         [
           ("main.pony", Position(5, 17),
-            "this parameter must be sendable"
-              + " (iso, val or tag)")
+            "this parameter must be sendable" +
+              " (iso, val or tag)")
         ])
       _ExpectedCompileErrors(
         "compile_errors_03",
@@ -515,8 +515,8 @@ class \nodoc\ _CompileErrorTest is UnitTest
           ("main.pony", Position(6, 5),
             "can't find declaration of 'foo'")
           ("main.pony", Position(6, 9),
-            "left side must be something"
-              + " that can be assigned to")
+            "left side must be something" +
+              " that can be assigned to")
         ])
       _ExpectedCompileErrors(
         "compile_errors_04",
@@ -550,17 +550,17 @@ class \nodoc\ _CompileErrorTest is UnitTest
         [pony_path] where limit = PassFinaliser)
       | let p: Program =>
         h.fail(
-          "Program successfully compiled,"
-            + " although we expected it to fail")
+          "Program successfully compiled," +
+            " although we expected it to fail")
       | let e: Array[Error] val =>
         h.assert_eq[USize](
           e.size(),
           expected_errs.expected_errors.size(),
-          "Expected "
-            + expected_errs
-              .expected_errors.size().string()
-            + " Errors, got "
-            + e.size().string())
+          "Expected " +
+            expected_errs
+              .expected_errors.size().string() +
+            " Errors, got " +
+            e.size().string())
         for i in Range(0, e.size()) do
           let err = e(i)?
           (let expected_file,
@@ -573,26 +573,26 @@ class \nodoc\ _CompileErrorTest is UnitTest
           h.assert_eq[String](
             Path.base(err.file as String),
             expected_file,
-            "Error file "
-              + (err.file as String)
-              + " does not match expected file "
-              + expected_file)
+            "Error file " +
+              (err.file as String) +
+              " does not match expected file " +
+              expected_file)
           h.assert_eq[Position](
             err.position,
             expected_position,
-            "Error position "
-              + err.position.string()
-              + " does not match expected "
-              + "position "
-              + expected_position.string())
+            "Error position " +
+              err.position.string() +
+              " does not match expected " +
+              "position " +
+              expected_position.string())
           h.assert_eq[String](
             err.msg,
             expected_message,
-            "Error message \""
-              + err.msg
-              + "\" doesn't match expected "
-              + "message \""
-              + expected_message + "\"")
+            "Error message \"" +
+              err.msg +
+              "\" doesn't match expected " +
+              "message \"" +
+              expected_message + "\"")
         end
       end
     end

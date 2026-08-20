@@ -50,22 +50,22 @@ actor Stat
       ActorStats.system_messages_processed_counter(auth)
     var ampc =
       ActorStats.app_messages_processed_counter(auth)
-    env.out.print("Actor stats:"
-      + "\n  id: " + (digestof this).string()
-      + "\n  heap memory allocated: " + ha.string()
-      + "\n  heap memory used: " + hu.string()
-      + "\n  heap num allocated: " + hn.string()
-      + "\n  heap realloc counter: " + rc.string()
-      + "\n  heap alloc counter: " + ac.string()
-      + "\n  heap free counter: " + fc.string()
-      + "\n  heap gc counter: " + gc.string()
-      + "\n  system cpu: " + asc.string()
-      + "\n  app cpu: " + aac.string()
-      + "\n  garbage collection marking cpu: " + agmc.string()
-      + "\n  garbage collection sweeping cpu: " + agsc.string()
-      + "\n  messages sent counter: " + msc.string()
-      + "\n  system messages processed counter: " + smpc.string()
-      + "\n  app messages processed counter: " + ampc.string())
+    env.out.print("Actor stats:" +
+      "\n  id: " + (digestof this).string() +
+      "\n  heap memory allocated: " + ha.string() +
+      "\n  heap memory used: " + hu.string() +
+      "\n  heap num allocated: " + hn.string() +
+      "\n  heap realloc counter: " + rc.string() +
+      "\n  heap alloc counter: " + ac.string() +
+      "\n  heap free counter: " + fc.string() +
+      "\n  heap gc counter: " + gc.string() +
+      "\n  system cpu: " + asc.string() +
+      "\n  app cpu: " + aac.string() +
+      "\n  garbage collection marking cpu: " + agmc.string() +
+      "\n  garbage collection sweeping cpu: " + agsc.string() +
+      "\n  messages sent counter: " + msc.string() +
+      "\n  system messages processed counter: " + smpc.string() +
+      "\n  app messages processed counter: " + ampc.string())
 
   be print_scheduler_stats(env: Env) =>
     """
@@ -95,18 +95,18 @@ actor Stat
         ss_auth)
     var nim =
       SchedulerStats.num_inflight_messages(ss_auth)
-    env.out.print("Scheduler stats:"
-      + "\n  index: " + i.string()
-      + "\n  total memory allocated: " + ta.string()
-      + "\n  total memory used: " + tu.string()
-      + "\n  created actors counter: " + cac.string()
-      + "\n  destroyed actors counter: " + dac.string()
-      + "\n  actors app cpu: " + aac.string()
-      + "\n  actors gc marking cpu: " + agmc.string()
-      + "\n  actors gc sweeping cpu: " + agsc.string()
-      + "\n  actors system cpu: " + asc.string()
-      + "\n  scheduler msgs cpu: " + mc.string()
-      + "\n  scheduler misc cpu: " + msc.string()
-      + "\n  memory used inflight messages: " + mum.string()
-      + "\n  memory allocated influght messages: " + mam.string()
-      + "\n  number of inflight messages: " + nim.string())
+    env.out.print("Scheduler stats:" +
+      "\n  index: " + i.string() +
+      "\n  total memory allocated: " + ta.string() +
+      "\n  total memory used: " + tu.string() +
+      "\n  created actors counter: " + cac.string() +
+      "\n  destroyed actors counter: " + dac.string() +
+      "\n  actors app cpu: " + aac.string() +
+      "\n  actors gc marking cpu: " + agmc.string() +
+      "\n  actors gc sweeping cpu: " + agsc.string() +
+      "\n  actors system cpu: " + asc.string() +
+      "\n  scheduler msgs cpu: " + mc.string() +
+      "\n  scheduler misc cpu: " + msc.string() +
+      "\n  memory used inflight messages: " + mum.string() +
+      "\n  memory allocated influght messages: " + mam.string() +
+      "\n  number of inflight messages: " + nim.string())

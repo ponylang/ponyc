@@ -35,8 +35,8 @@ class val Position is (Comparable[Position] & Hashable & Stringable)
     (_line == other._line) and (_column == other._column)
 
   fun lt(other: box->Position): Bool =>
-    (_line < other._line)
-      or ((_line == other._line) and (_column < other._column))
+    (_line < other._line) or
+      ((_line == other._line) and (_column < other._column))
 
   fun hash(): USize =>
     _line.hash() xor _column.hash() // TODO: better hashing support for Pony

@@ -123,8 +123,8 @@ primitive DefinitionResolver
           let rhs = lhs.sibling() as AST
           Assert(
             rhs.id() == TokenIds.tk_id(),
-            "RHS not an ID, but "
-              + rhs.id().string())?
+            "RHS not an ID, but " +
+              rhs.id().string())?
           let rhs_id =
             rhs.token_value() as String
           _find_in_type(lhs_type, rhs_id, [])?

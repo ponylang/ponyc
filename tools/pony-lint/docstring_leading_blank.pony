@@ -39,9 +39,9 @@ primitive DocstringLeadingBlank is ASTRule
     """
     let token_id = node.id()
     let is_method =
-      (token_id == ast.TokenIds.tk_fun())
-        or (token_id == ast.TokenIds.tk_new())
-        or (token_id == ast.TokenIds.tk_be())
+      (token_id == ast.TokenIds.tk_fun()) or
+        (token_id == ast.TokenIds.tk_new()) or
+        (token_id == ast.TokenIds.tk_be())
 
     // Skip \nodoc\-annotated nodes
     if node.has_annotation("nodoc") then
@@ -153,8 +153,8 @@ primitive DocstringLeadingBlank is ASTRule
     while i < size do
       try
         let ch = line(i)?
-        if (ch == '"') and ((i + 3) <= size)
-          and (line(i + 1)? == '"') and (line(i + 2)? == '"')
+        if (ch == '"') and ((i + 3) <= size) and
+          (line(i + 1)? == '"') and (line(i + 2)? == '"')
         then
           if found_quote then return false end
           found_quote = true

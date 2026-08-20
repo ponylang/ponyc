@@ -396,11 +396,11 @@ actor PropertyRunner[T]
     and signal failure to the `PropertyResultNotify`.
     """
     _notify.fail(
-      "Property errored for sample "
-        + sample_repr
-        + " (after "
-        + shrink_rounds.string()
-        + " shrinks)"
+      "Property errored for sample " +
+        sample_repr +
+        " (after " +
+        shrink_rounds.string() +
+        " shrinks)"
     )
 
   fun _report_failed(sample_repr: String,
@@ -410,11 +410,11 @@ actor PropertyRunner[T]
     Report a failed property and signal failure to the `PropertyResultNotify`.
     """
     _notify.fail(
-      "Property failed for sample "
-        + sample_repr
-        + " (after "
-        + shrink_rounds.string()
-        + " shrinks)"
+      "Property failed for sample " +
+        sample_repr +
+        " (after " +
+        shrink_rounds.string() +
+        " shrinks)"
     )
 
 

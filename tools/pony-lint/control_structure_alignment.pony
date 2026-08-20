@@ -456,8 +456,8 @@ primitive ControlStructureAlignment is ASTRule
     """
     Diagnostic(
       id(),
-      "'" + keyword + "' should align with '" + opening
-        + "' keyword (column " + expected_col.string() + ")",
+      "'" + keyword + "' should align with '" + opening +
+        "' keyword (column " + expected_col.string() + ")",
       file,
       line,
       actual_col)
@@ -601,8 +601,8 @@ primitive ControlStructureAlignment is ASTRule
     while i < line.size() do
       try
         let ch = line(i)?
-        if (ch == ' ') or (ch == '\t') or (ch == '(') or (ch == '\\')
-          or (ch == '"')
+        if (ch == ' ') or (ch == '\t') or (ch == '(') or (ch == '\\') or
+          (ch == '"')
         then
           break
         end
@@ -682,10 +682,10 @@ primitive ControlStructureAlignment is ASTRule
       try
         let ch = line(i)?
         if (ch != ' ') and (ch != '\t') then
-          return (((i + 2) < line.size())
-            and (ch == '"')
-            and (line(i + 1)? == '"')
-            and (line(i + 2)? == '"'))
+          return (((i + 2) < line.size()) and
+            (ch == '"') and
+            (line(i + 1)? == '"') and
+            (line(i + 2)? == '"'))
         end
       end
       i = i + 1
@@ -696,16 +696,16 @@ primitive ControlStructureAlignment is ASTRule
     """
     Check if a character can appear in a Pony identifier.
     """
-    ((ch >= 'a') and (ch <= 'z'))
-      or ((ch >= 'A') and (ch <= 'Z'))
-      or ((ch >= '0') and (ch <= '9'))
-      or (ch == '_')
+    ((ch >= 'a') and (ch <= 'z')) or
+      ((ch >= 'A') and (ch <= 'Z')) or
+      ((ch >= '0') and (ch <= '9')) or
+      (ch == '_')
 
   fun _is_block_opener(word: String val): Bool =>
     """
     Check if a word is a keyword that opens a block terminated by `end`.
     """
-    (word == "if") or (word == "ifdef") or (word == "iftype")
-      or (word == "while") or (word == "for") or (word == "try")
-      or (word == "match") or (word == "repeat") or (word == "with")
-      or (word == "recover") or (word == "object")
+    (word == "if") or (word == "ifdef") or (word == "iftype") or
+      (word == "while") or (word == "for") or (word == "try") or
+      (word == "match") or (word == "repeat") or (word == "with") or
+      (word == "recover") or (word == "object")

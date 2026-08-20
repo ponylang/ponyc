@@ -998,10 +998,10 @@ class Iter[A] is Iterator[A]
         let _i4: Iterator[D] = i4
 
         fun ref has_next(): Bool =>
-          _i1.has_next()
-            and _i2.has_next()
-            and _i3.has_next()
-            and _i4.has_next()
+          _i1.has_next() and
+            _i2.has_next() and
+            _i3.has_next() and
+            _i4.has_next()
 
         fun ref next(): (A, B, C, D) ? =>
           (_i1.next()?, _i2.next()?, _i3.next()?, _i4.next()?)
@@ -1029,11 +1029,11 @@ class Iter[A] is Iterator[A]
         let _i5: Iterator[E] = i5
 
         fun ref has_next(): Bool =>
-          _i1.has_next()
-            and _i2.has_next()
-            and _i3.has_next()
-            and _i4.has_next()
-            and _i5.has_next()
+          _i1.has_next() and
+            _i2.has_next() and
+            _i3.has_next() and
+            _i4.has_next() and
+            _i5.has_next()
 
         fun ref next(): (A, B, C, D, E) ? =>
           (_i1.next()?, _i2.next()?, _i3.next()?, _i4.next()?, _i5.next()?)

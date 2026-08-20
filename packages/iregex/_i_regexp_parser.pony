@@ -185,12 +185,12 @@ class _IRegexpParser
       elseif _is_escapable_metachar(c) then
         _advance(1)
         _Literal(c.u32())
-      elseif (c == 'd') or (c == 'D') or (c == 'w') or (c == 'W')
-        or (c == 's') or (c == 'S')
+      elseif (c == 'd') or (c == 'D') or (c == 'w') or (c == 'W') or
+        (c == 's') or (c == 'S')
       then
-        _fail("Multi-character escapes (\\d, \\w, \\s) are not part of I-Regexp"
-          + " (RFC 9485). Use explicit character classes instead"
-          + " (e.g., [0-9] for \\d, \\p{Nd} for Unicode digits).")
+        _fail("Multi-character escapes (\\d, \\w, \\s) are not part of I-Regexp" +
+          " (RFC 9485). Use explicit character classes instead" +
+          " (e.g., [0-9] for \\d, \\p{Nd} for Unicode digits).")
         error
       else
         _fail("Invalid escape sequence: \\" + String.from_array([c]))

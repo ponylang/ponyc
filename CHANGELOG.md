@@ -21,6 +21,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Fix compiler crash with multiple traits sharing a method with a default body ([PR #5831](https://github.com/ponylang/ponyc/pull/5831))
 - Fix pony-lint false positive on identifiers with multiple trailing primes ([PR #5849](https://github.com/ponylang/ponyc/pull/5849))
 - Fix pony-lint false positive on partial operators ([PR #5850](https://github.com/ponylang/ponyc/pull/5850))
+- Fix Timer.abs computing wrong expiration time ([PR #5851](https://github.com/ponylang/ponyc/pull/5851))
 
 ### Added
 
@@ -38,6 +39,8 @@ All notable changes to the Pony compiler and standard library will be documented
 - Add read_failed to InputNotify ([PR #5832](https://github.com/ponylang/ponyc/pull/5832))
 - Exempt triple-quoted string literals from the 80-column lint rule ([PR #5837](https://github.com/ponylang/ponyc/pull/5837))
 - pony-lint line-length rule narrows unbreakable-word exemption ([PR #5847](https://github.com/ponylang/ponyc/pull/5847))
+- pony-lint: binary operators on continuation lines must now be at the end of the previous line ([PR #5851](https://github.com/ponylang/ponyc/pull/5851))
+- pony-lint: `- expr` with a space at the start of a line is now a lint error ([PR #5851](https://github.com/ponylang/ponyc/pull/5851))
 
 ## [0.68.0] - 2026-08-01
 

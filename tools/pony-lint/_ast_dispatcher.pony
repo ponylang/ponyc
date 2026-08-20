@@ -17,8 +17,8 @@ class ref _MaxLineVisitor is ast.ASTVisitor
     // Empty TK_MEMBERS has a parser-assigned position beyond the entity's
     // actual content (at the start of the next entity). Skip it so it
     // doesn't inflate end_line.
-    if (node.id() == ast.TokenIds.tk_members())
-      and (node.num_children() == 0)
+    if (node.id() == ast.TokenIds.tk_members()) and
+      (node.num_children() == 0)
     then
       return ast.Continue
     end
@@ -117,8 +117,8 @@ class ref _ASTDispatcher is ast.ASTVisitor
     let token_id = node.id()
 
     // Collect entity info for file-naming and blank-lines
-    if ast.TokenIds.is_entity(token_id)
-      or (token_id == ast.TokenIds.tk_type())
+    if ast.TokenIds.is_entity(token_id) or
+      (token_id == ast.TokenIds.tk_type())
     then
       try
         let name_node = node(0)?

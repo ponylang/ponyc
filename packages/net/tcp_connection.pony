@@ -630,8 +630,8 @@ actor TCPConnection is AsioEventNotify
         // Skip if this event also carried a readable (handled below), reads are
         // muted, or the peer has closed. (kqueue arms read and write on separate
         // one-shots, so it never loses the read arm and this is an inert no-op.)
-        if _writeable and not AsioEvent.readable(flags) and _connected
-          and not _readable and not _muted and not _shutdown_peer
+        if _writeable and not AsioEvent.readable(flags) and _connected and
+          not _readable and not _muted and not _shutdown_peer
         then
           @pony_asio_event_resubscribe_read(_event)
         end
@@ -834,8 +834,8 @@ actor TCPConnection is AsioEventNotify
 
           // check if we should yield to let another actor run
           if (not _notify.received(this, consume data,
-            received_called))
-            or (received_called >= _max_received_called)
+            received_called)) or
+            (received_called >= _max_received_called)
           then
             _read_again()
             _reading = false

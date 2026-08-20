@@ -37,16 +37,16 @@ primitive StartProcess
     // We need permission to execute and the file itself needs to be an
     // executable.
     if not path.caps(FileExec) then
-      return ProcessError(CapError, path.path
-        + " is not an executable or we do not have execute capability.")
+      return ProcessError(CapError, path.path +
+        " is not an executable or we do not have execute capability.")
     end
 
     let is_file = try FileInfo(path)?.file else false end
     if not is_file then
       // Unable to stat the path given, so it may not exist or may be a
       // directory.
-      return ProcessError(ExecutableNotFound, path.path
-        + " does not exist or is a directory.")
+      return ProcessError(ExecutableNotFound, path.path +
+        " does not exist or is a directory.")
     end
 
     // On Linux, exit detection uses a pidfd, which needs kernel >= 5.3. Probe

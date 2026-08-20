@@ -112,8 +112,8 @@ actor Main
       var elapsed = (Time.nanos() - _start).f64()
       var gups = _updates.f64() / elapsed
       _env.out.print(
-        "Time: " + (elapsed / 1e9).string()
-          + " GUPS: " + gups.string())
+        "Time: " + (elapsed / 1e9).string() +
+          " GUPS: " + gups.string())
     end
 
 actor Streamer

@@ -65,8 +65,8 @@ primitive Compiler
           else
             recover val
               [ Error.message(
-                "Compilation failed but libponyc "
-                + "produced no error messages.")]
+                "Compilation failed but libponyc " +
+                "produced no error messages.")]
             end
           end
         else

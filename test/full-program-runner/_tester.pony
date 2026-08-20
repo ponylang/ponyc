@@ -272,8 +272,8 @@ actor _Tester
               if in_quote then
                 cur_arg.append(fragment)
                 if fragment(fragment.size() - 1)? == '"' then
-                  if (cur_arg(0)? == '"')
-                    and (cur_arg(cur_arg.size() - 1)? == '"')
+                  if (cur_arg(0)? == '"') and
+                    (cur_arg(cur_arg.size() - 1)? == '"')
                   then
                     let quoted: String val = cur_arg.clone()
                     ifdef windows then
@@ -369,9 +369,9 @@ actor _Tester
       if exit_code' == _definition.expected_exit_code then
         _shutdown_succeeded()
       else
-        _shutdown_failed("expected exit code "
-          + _definition.expected_exit_code.string() + "; actual was "
-          + exit_code'.string())
+        _shutdown_failed("expected exit code " +
+          _definition.expected_exit_code.string() + "; actual was " +
+          exit_code'.string())
       end
     end
 
@@ -382,8 +382,8 @@ actor _Tester
 
   be timeout() =>
     if (_stage is _Building) or (_stage is _Testing) then
-      _shutdown_failed("timed out after " + _options.timeout_s.string()
-        + " seconds")
+      _shutdown_failed("timed out after " + _options.timeout_s.string() +
+        " seconds")
     end
 
   be stdin_delay_over() =>
@@ -406,8 +406,8 @@ actor _Tester
       _end_ms = Time.millis()
       _notify.print(
         _definition.name,
-        _Colors.ok(_definition.name + " ("
-          + (_end_ms - _start_ms).string() + " ms)"))
+        _Colors.ok(_definition.name + " (" +
+          (_end_ms - _start_ms).string() + " ms)"))
       _timers.cancel(_timer)
       _cancel_stdin_timer()
       _stage = _Succeeded
@@ -420,8 +420,8 @@ actor _Tester
 
       _notify.print(
         _definition.name,
-        _Colors.fail(_definition.name + " ("
-          + (_end_ms - _start_ms).string() + " ms): " + msg))
+        _Colors.fail(_definition.name + " (" +
+          (_end_ms - _start_ms).string() + " ms): " + msg))
 
       match _build_process
       | let process: ProcessMonitor =>
@@ -452,12 +452,12 @@ actor _Tester
     if _out_buf.size() > 0 then
       _notify.print(
         _definition.name,
-        _definition.name + ": STDOUT:\n"
-          + recover val _out_buf.clone() end)
+        _definition.name + ": STDOUT:\n" +
+          recover val _out_buf.clone() end)
     end
     if _err_buf.size() > 0 then
       _notify.print(
         _definition.name,
-        _definition.name + ": STDERR\n"
-          + recover val _err_buf.clone() end)
+        _definition.name + ": STDERR\n" +
+          recover val _err_buf.clone() end)
     end

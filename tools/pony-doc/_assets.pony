@@ -7,9 +7,9 @@ primitive _Assets
     """
     CSS for the ponylang MkDocs color scheme.
     """
-    "[data-md-color-scheme=\"ponylang\"] {\n"
-      + "  --md-typeset-a-color: var(--md-primary-fg-color);\n"
-      + "}"
+    "[data-md-color-scheme=\"ponylang\"] {\n" +
+      "  --md-typeset-a-color: var(--md-primary-fg-color);\n" +
+      "}"
 
   fun logo(): Array[U8] val =>
     """

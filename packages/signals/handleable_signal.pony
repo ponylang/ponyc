@@ -45,27 +45,27 @@ primitive HandleableSignalValidator is Validator[U32]
 
   fun _is_handleable(sig: U32): Bool =>
     ifdef bsd or osx then
-      (sig == Sig.hup()) or (sig == Sig.int()) or (sig == Sig.quit())
-        or (sig == Sig.emt()) or (sig == Sig.pipe()) or (sig == Sig.alrm())
-        or (sig == Sig.term()) or (sig == Sig.urg()) or (sig == Sig.tstp())
-        or (sig == Sig.cont()) or (sig == Sig.chld()) or (sig == Sig.ttin())
-        or (sig == Sig.ttou()) or (sig == Sig.io()) or (sig == Sig.xcpu())
-        or (sig == Sig.xfsz()) or (sig == Sig.vtalrm()) or (sig == Sig.prof())
-        or (sig == Sig.winch()) or (sig == Sig.info()) or (sig == Sig.usr1())
-        or (sig == Sig.sys())
-        or _usr2_handleable(sig)
-        or _is_rt(sig)
+      (sig == Sig.hup()) or (sig == Sig.int()) or (sig == Sig.quit()) or
+        (sig == Sig.emt()) or (sig == Sig.pipe()) or (sig == Sig.alrm()) or
+        (sig == Sig.term()) or (sig == Sig.urg()) or (sig == Sig.tstp()) or
+        (sig == Sig.cont()) or (sig == Sig.chld()) or (sig == Sig.ttin()) or
+        (sig == Sig.ttou()) or (sig == Sig.io()) or (sig == Sig.xcpu()) or
+        (sig == Sig.xfsz()) or (sig == Sig.vtalrm()) or (sig == Sig.prof()) or
+        (sig == Sig.winch()) or (sig == Sig.info()) or (sig == Sig.usr1()) or
+        (sig == Sig.sys()) or
+        _usr2_handleable(sig) or
+        _is_rt(sig)
     elseif linux then
-      (sig == Sig.hup()) or (sig == Sig.int()) or (sig == Sig.quit())
-        or (sig == Sig.pipe()) or (sig == Sig.alrm()) or (sig == Sig.term())
-        or (sig == Sig.urg()) or (sig == Sig.stkflt()) or (sig == Sig.tstp())
-        or (sig == Sig.cont()) or (sig == Sig.chld()) or (sig == Sig.ttin())
-        or (sig == Sig.ttou()) or (sig == Sig.io()) or (sig == Sig.xcpu())
-        or (sig == Sig.xfsz()) or (sig == Sig.vtalrm()) or (sig == Sig.prof())
-        or (sig == Sig.winch()) or (sig == Sig.pwr()) or (sig == Sig.usr1())
-        or (sig == Sig.sys())
-        or _usr2_handleable(sig)
-        or _is_rt(sig)
+      (sig == Sig.hup()) or (sig == Sig.int()) or (sig == Sig.quit()) or
+        (sig == Sig.pipe()) or (sig == Sig.alrm()) or (sig == Sig.term()) or
+        (sig == Sig.urg()) or (sig == Sig.stkflt()) or (sig == Sig.tstp()) or
+        (sig == Sig.cont()) or (sig == Sig.chld()) or (sig == Sig.ttin()) or
+        (sig == Sig.ttou()) or (sig == Sig.io()) or (sig == Sig.xcpu()) or
+        (sig == Sig.xfsz()) or (sig == Sig.vtalrm()) or (sig == Sig.prof()) or
+        (sig == Sig.winch()) or (sig == Sig.pwr()) or (sig == Sig.usr1()) or
+        (sig == Sig.sys()) or
+        _usr2_handleable(sig) or
+        _is_rt(sig)
     elseif windows then
       // Only SIGINT and SIGTERM can be meaningfully handled through the
       // ASIO mechanism on Windows; the other signals the CRT knows

@@ -232,8 +232,8 @@ class _ProcessPosix is _Process
         @kill(pid, Sig.kill())
         var wstatus: I32 = 0
         while
-          (@waitpid(pid, addressof wstatus, 0) < 0)
-            and (@pony_os_errno() == _EINTR())
+          (@waitpid(pid, addressof wstatus, 0) < 0) and
+            (@pony_os_errno() == _EINTR())
         do
           None
         end
@@ -473,8 +473,8 @@ class _ProcessWindows is _Process
               | let wdir_str: String => wdir_str
               | None => "?"
               end
-            ProcessError(ChdirError, "Failed to change directory to "
-              + wdirpath)
+            ProcessError(ChdirError, "Failed to change directory to " +
+              wdirpath)
           else
             let message = String.from_cstring(error_message)
             ProcessError(ForkError, recover message.clone() end)

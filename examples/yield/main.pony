@@ -63,8 +63,8 @@ actor LonelyPony
     end
     let d = _sw.delta()
     _env.out.print(
-      "N: " + _m.string()
-        + ", Lonely: " + d.string())
+      "N: " + _m.string() +
+        ", Lonely: " + d.string())
 
 actor InterruptiblePony
   """
@@ -103,8 +103,8 @@ actor InterruptiblePony
       Debug.err("Ugah!")
       let d = _sw.delta()
       _env.out.print(
-        "N=" + _n.string()
-          + ", Interruptible: " + d.string())
+        "N=" + _n.string() +
+          ", Interruptible: " + d.string())
     else
       if _debug then
         _env.err.print("I: " + _n.string())
@@ -177,14 +177,14 @@ actor Main
               where short' = 'p', default' = false)
             OptionSpec.i64(
               "bench",
-              "Run an instrumented behaviour to "
-                + "guesstimate overhead of "
-                + "non/interruptive."
+              "Run an instrumented behaviour to " +
+                "guesstimate overhead of " +
+                "non/interruptive."
               where short' = 'b', default' = 0)
             OptionSpec.bool(
               "lonely",
-              "Run a non-interruptible behaviour "
-                + "with logic that runs forever."
+              "Run a non-interruptible behaviour " +
+                "with logic that runs forever."
               where short' = 'l', default' = false)
             OptionSpec.bool(
               "debug",

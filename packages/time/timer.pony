@@ -121,7 +121,7 @@ class Timer
     Converts a wall-clock adjusted system time to absolute expiration time
     """
     let wall_now = Time.now()
-    Time.nanos()
-      + (((wall._1 * 1000000000) + wall._2)
-      - ((wall_now._1 * 1000000000) + wall_now._2)).u64()
+    Time.nanos() +
+      (((wall._1 * 1000000000) + wall._2) -
+      ((wall_now._1 * 1000000000) + wall_now._2)).u64()
 

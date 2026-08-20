@@ -561,8 +561,8 @@ primitive _THierCheckItem
       ok
     else
       h.fail(
-        "item[" + i.string() + "] missing or has wrong structure"
-          + " (expected: " + exp.name + ")")
+        "item[" + i.string() + "] missing or has wrong structure" +
+          " (expected: " + exp.name + ")")
       false
     end
 

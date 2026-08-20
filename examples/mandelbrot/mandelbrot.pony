@@ -113,25 +113,25 @@ class val Config
         [
           OptionSpec.i64(
             "iterations",
-            "Maximum amount of iterations to be "
-              + "done for each pixel."
+            "Maximum amount of iterations to be " +
+              "done for each pixel."
             where short' = 'i', default' = 50)
           OptionSpec.f64(
             "limit",
-            "Square of the limit that pixels need "
-              + "to exceed in order to escape from "
-              + "the Mandelbrot set."
+            "Square of the limit that pixels need " +
+              "to exceed in order to escape from " +
+              "the Mandelbrot set."
             where short' = 'l', default' = 4.0)
           OptionSpec.i64(
             "chunks",
-            "Maximum line count of chunks the "
-              + "image should be divided into for "
-              + "divide & conquer processing."
+            "Maximum line count of chunks the " +
+              "image should be divided into for " +
+              "divide & conquer processing."
             where short' = 'c', default' = 16)
           OptionSpec.i64(
             "width",
-            "Lateral length of the resulting "
-              + "mandelbrot image."
+            "Lateral length of the resulting " +
+              "mandelbrot image."
             where short' = 'w', default' = 16000)
           OptionSpec.string(
             "output",

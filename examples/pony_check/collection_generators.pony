@@ -33,8 +33,8 @@ class val _OperationOnCollection[T, R = String]
     recover
       String
         .> append(
-          "_OperationOnCollection("
-            + idx.string() + ")")
+          "_OperationOnCollection(" +
+            idx.string() + ")")
     end
 
 class _OperationOnCollectionProperty
@@ -135,8 +135,8 @@ class _OperationOnCollectionProperty
         let res = op.op(elem)
         if
           not h.assert_true(
-            res.contains("foo")
-              or res.contains("bar"))
+            res.contains("foo") or
+              res.contains("bar"))
         then
           return
         end

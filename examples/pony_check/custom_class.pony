@@ -52,9 +52,9 @@ class MyLittlePony is Stringable
     recover
       String(17 + name.size())
         .> append(
-          "Pony(\"" + name + "\", "
-            + cuteness.string() + ", "
-            + color.string() + ")")
+          "Pony(\"" + name + "\", " +
+            cuteness.string() + ", " +
+            color.string() + ")")
     end
 
 class _CustomClassMapProperty is Property1[MyLittlePony]

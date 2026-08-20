@@ -138,16 +138,16 @@ class val TestHelper
     Check that the 2 given expressions resolve to the same instance
     """
     if expect isnt actual then
-      fail(_format_loc(loc) + "Assert " + check + " failed. " + msg
-        + " Expected (" + (digestof expect).string() + ") is ("
-        + (digestof actual).string() + ")")
+      fail(_format_loc(loc) + "Assert " + check + " failed. " + msg +
+        " Expected (" + (digestof expect).string() + ") is (" +
+        (digestof actual).string() + ")")
       return false
     end
 
     log(
-      _format_loc(loc) + "Assert " + check + " passed. " + msg
-        + " Got (" + (digestof expect).string() + ") is ("
-        + (digestof actual).string() + ")",
+      _format_loc(loc) + "Assert " + check + " passed. " + msg +
+        " Got (" + (digestof expect).string() + ") is (" +
+        (digestof actual).string() + ")",
       true)
     true
 
@@ -167,13 +167,13 @@ class val TestHelper
     Check that the 2 given expressions are equal.
     """
     if expect != actual then
-      fail(_format_loc(loc) + "Assert " + check + " failed. " + msg
-        + " Expected (" + expect.string() + ") == (" + actual.string() + ")")
+      fail(_format_loc(loc) + "Assert " + check + " failed. " + msg +
+        " Expected (" + expect.string() + ") == (" + actual.string() + ")")
       return false
     end
 
-    log(_format_loc(loc) + "Assert " + check + " passed. " + msg
-      + " Got (" + expect.string() + ") == (" + actual.string() + ")", true)
+    log(_format_loc(loc) + "Assert " + check + " passed. " + msg +
+      " Got (" + expect.string() + ") == (" + actual.string() + ")", true)
     true
 
   fun assert_isnt[A](
@@ -200,16 +200,16 @@ class val TestHelper
     Check that the 2 given expressions resolve to different instances.
     """
     if not_expect is actual then
-      fail(_format_loc(loc) + "Assert " + check + " failed. " + msg
-        + " Expected (" + (digestof not_expect).string() + ") isnt ("
-        + (digestof actual).string() + ")")
+      fail(_format_loc(loc) + "Assert " + check + " failed. " + msg +
+        " Expected (" + (digestof not_expect).string() + ") isnt (" +
+        (digestof actual).string() + ")")
       return false
     end
 
     log(
-      _format_loc(loc) + "Assert " + check + " passed. " + msg
-        + " Got (" + (digestof not_expect).string() + ") isnt ("
-        + (digestof actual).string() + ")",
+      _format_loc(loc) + "Assert " + check + " passed. " + msg +
+        " Got (" + (digestof not_expect).string() + ") isnt (" +
+        (digestof actual).string() + ")",
       true)
     true
 
@@ -229,15 +229,15 @@ class val TestHelper
     Check that the 2 given expressions are not equal.
     """
     if not_expect == actual then
-      fail(_format_loc(loc) + "Assert " + check + " failed. " + msg
-        + " Expected (" + not_expect.string() + ") != (" + actual.string()
-        + ")")
+      fail(_format_loc(loc) + "Assert " + check + " failed. " + msg +
+        " Expected (" + not_expect.string() + ") != (" + actual.string() +
+        ")")
       return false
     end
 
     log(
-      _format_loc(loc) + "Assert " + check + " passed. " + msg
-        + " Got (" + not_expect.string() + ") != (" + actual.string() + ")",
+      _format_loc(loc) + "Assert " + check + " passed. " + msg +
+        " Got (" + not_expect.string() + ") != (" + actual.string() + ")",
       true)
     true
 
@@ -283,14 +283,14 @@ class val TestHelper
     end
 
     if not ok then
-      fail(_format_loc(loc) + "Assert EQ failed. " + msg + " Expected ("
-        + _print_array[A](expect) + ") == (" + _print_array[A](actual) + ")")
+      fail(_format_loc(loc) + "Assert EQ failed. " + msg + " Expected (" +
+        _print_array[A](expect) + ") == (" + _print_array[A](actual) + ")")
       return false
     end
 
     log(
-      _format_loc(loc) + "Assert EQ passed. " + msg + " Got ("
-        + _print_array[A](expect) + ") == (" + _print_array[A](actual) + ")",
+      _format_loc(loc) + "Assert EQ passed. " + msg + " Got (" +
+        _print_array[A](expect) + ") == (" + _print_array[A](actual) + ")",
       true)
     true
 
@@ -342,16 +342,16 @@ class val TestHelper
 
       if (extra.size() != 0) or (missing.size() != 0) then
         fail(
-          _format_loc(loc) + "Assert EQ_UNORDERED failed. " + msg
-            + " Expected (" + _print_array[A](expect) + ") == ("
-            + _print_array[A](actual) + "):"
-            + "\nMissing: " + _print_array[box->A](missing)
-            + "\nExtra: " + _print_array[box->A](extra))
+          _format_loc(loc) + "Assert EQ_UNORDERED failed. " + msg +
+            " Expected (" + _print_array[A](expect) + ") == (" +
+            _print_array[A](actual) + "):" +
+            "\nMissing: " + _print_array[box->A](missing) +
+            "\nExtra: " + _print_array[box->A](extra))
         return false
       end
       log(
-        _format_loc(loc) + "Assert EQ_UNORDERED passed. " + msg + " Got ("
-          + _print_array[A](expect) + ") == (" + _print_array[A](actual) + ")",
+        _format_loc(loc) + "Assert EQ_UNORDERED passed. " + msg + " Got (" +
+          _print_array[A](expect) + ") == (" + _print_array[A](actual) + ")",
         true)
       true
     else

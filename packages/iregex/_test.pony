@@ -124,8 +124,8 @@ class \nodoc\ iso _IRegexpMatchSafetyProperty is Property1[(String, String)]
       re.is_match(input)
       re.search(input)
     | let e: IRegexpParseError =>
-      ph.fail("Generated pattern should be valid: " + pattern
-        + " — " + e.string())
+      ph.fail("Generated pattern should be valid: " + pattern +
+        " — " + e.string())
     end
 
 class \nodoc\ iso _IRegexpIsMatchImpliesSearchProperty
@@ -159,10 +159,10 @@ class \nodoc\ iso _IRegexpLiteralRoundtripProperty is Property1[String]
     // Escape metacharacters to make a literal pattern
     let buf = String(sample.size() * 2)
     for byte in sample.values() do
-      if (byte == '(') or (byte == ')') or (byte == '*') or (byte == '+')
-        or (byte == '.') or (byte == '?') or (byte == '[') or (byte == '\\')
-        or (byte == ']') or (byte == '^') or (byte == '{') or (byte == '|')
-        or (byte == '}')
+      if (byte == '(') or (byte == ')') or (byte == '*') or (byte == '+') or
+        (byte == '.') or (byte == '?') or (byte == '[') or (byte == '\\') or
+        (byte == ']') or (byte == '^') or (byte == '{') or (byte == '|') or
+        (byte == '}')
       then
         buf.push('\\')
       end
@@ -194,8 +194,8 @@ class \nodoc\ iso _IRegexpSearchSubstringProperty
       let regexp_found = re.search(input)
       let string_found = input.contains(pattern)
       ph.assert_eq[Bool](string_found, regexp_found,
-        "Literal search should agree with String.contains for pattern: '"
-          + pattern + "' in input")
+        "Literal search should agree with String.contains for pattern: '" +
+          pattern + "' in input")
     | let _: IRegexpParseError =>
       ph.fail("ASCII letter pattern should always be valid: " + pattern)
     end

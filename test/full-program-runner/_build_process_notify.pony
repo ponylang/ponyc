@@ -33,8 +33,8 @@ class iso _BuildProcessNotify is ProcessNotify
         if exited.exit_code() == 0 then
           _tester.building_succeeded()
         else
-          _tester.building_failed("exited with code "
-            + exited.exit_code().string())
+          _tester.building_failed("exited with code " +
+            exited.exit_code().string())
         end
       | let signaled: Signaled =>
         _tester.building_failed("signal " + signaled.signal().string())

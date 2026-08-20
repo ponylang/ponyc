@@ -304,3 +304,31 @@ pony-lint flagged identifiers like `path''` as naming violations because it only
 
 pony-lint's operator-spacing rule flagged partial arithmetic operators (`*?`, `+?`, etc.) as missing a space after the base operator. The `?` that makes the operation partial shares the same AST token as the non-partial form, so the rule saw `?` where it expected a space.
 
+## Fix Timer.abs computing wrong expiration time
+
+`Timer.abs`, which creates a timer with an absolute wall-clock expiration, has been computing the wrong expiration time since 2017. A formatting change moved a binary `-` operator to the start of a continuation line, where the Pony parser treats it as unary negation instead of subtraction. The target wall-clock time was silently discarded and the current wall-clock time was negated, producing a wrapped U64 expiration far in the future. Timers created with `Timer.abs` would effectively never fire. The bug was found by the new pony-lint operator-placement rule described below.
+
+`Timer.create`, which takes a relative nanosecond offset, was not affected.
+
+## pony-lint: binary operators on continuation lines must now be at the end of the previous line
+
+pony-lint's `style/operator-spacing` rule now flags a binary operator at the start of a continuation line. The operator belongs at the end of the previous line instead. The Pony parser treats `-` at the start of a line as unary negation, not subtraction, so placing a binary `-` there silently changes the meaning of the expression. The rule flags all binary operators at line start for consistency, not only `-`.
+
+Before (flagged):
+
+```pony
+let x = a
+  + b
+```
+
+After (clean):
+
+```pony
+let x = a +
+  b
+```
+
+## pony-lint: `- expr` with a space at the start of a line is now a lint error
+
+pony-lint's `style/operator-spacing` rule now flags `- expr` (with a space after the minus) at the start of a line. The Pony parser treats `-` there as unary negation, so a space after it — which normally signals a binary operator — is misleading. The diagnostic says the minus is negation, not subtraction, and suggests moving it to the end of the previous line.
+

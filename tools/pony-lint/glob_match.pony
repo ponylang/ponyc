@@ -38,8 +38,8 @@ primitive GlobMatch
     end
 
     // Leading **/
-    if (plen >= 3) and _is_star(p, ps) and _is_star(p, ps + 1)
-      and _is_slash(p, ps + 2)
+    if (plen >= 3) and _is_star(p, ps) and _is_star(p, ps + 1) and
+      _is_slash(p, ps + 2)
     then
       let rest = ps + 3
       // Try rest against the whole text
@@ -56,8 +56,8 @@ primitive GlobMatch
     end
 
     // Trailing /**
-    if (plen >= 3) and _is_slash(p, pe - 3) and _is_star(p, pe - 2)
-      and _is_star(p, pe - 1)
+    if (plen >= 3) and _is_slash(p, pe - 3) and _is_star(p, pe - 2) and
+      _is_star(p, pe - 1)
     then
       let prefix_end = pe - 3
       // Try prefix against text up to each / boundary; /** requires at least
@@ -75,8 +75,8 @@ primitive GlobMatch
     // Middle /**/
     var search = ps
     while (search + 3) < pe do
-      if _is_slash(p, search) and _is_star(p, search + 1)
-        and _is_star(p, search + 2) and _is_slash(p, search + 3)
+      if _is_slash(p, search) and _is_star(p, search + 1) and
+        _is_star(p, search + 2) and _is_slash(p, search + 3)
       then
         let left_end = search
         let right_start = search + 4

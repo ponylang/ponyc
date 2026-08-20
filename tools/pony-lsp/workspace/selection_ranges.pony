@@ -85,8 +85,8 @@ primitive SelectionRanges
         let sc = s.column()
         let el = e.line()
         let ec = e.column()
-        if (sl == last_sl) and (sc == last_sc)
-          and (el == last_el) and (ec == last_ec)
+        if (sl == last_sl) and (sc == last_sc) and
+          (el == last_el) and (ec == last_ec)
         then
           continue
         end

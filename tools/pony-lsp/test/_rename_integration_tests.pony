@@ -685,8 +685,8 @@ class val _RenameChecker
     for (exp_file, exp_sl, exp_sc, exp_el, exp_ec) in _expected.values() do
       var found = false
       for (file, sl, sc, el, ec, new_text) in got.values() do
-        if (file == exp_file) and (sl == exp_sl) and (sc == exp_sc)
-          and (el == exp_el) and (ec == exp_ec) and (new_text == _new_name)
+        if (file == exp_file) and (sl == exp_sl) and (sc == exp_sc) and
+          (el == exp_el) and (ec == exp_ec) and (new_text == _new_name)
         then
           found = true
           break

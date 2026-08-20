@@ -374,8 +374,8 @@ primitive Extractor
         result.push(_TypeExtractor(child, package_map))
       end
       // If provides has no children but is itself a type, extract it
-      if (result.size() == 0)
-        and (provides_node.id() != ast.TokenIds.tk_provides())
+      if (result.size() == 0) and
+        (provides_node.id() != ast.TokenIds.tk_provides())
       then
         result.push(_TypeExtractor(provides_node, package_map))
       end
@@ -494,8 +494,8 @@ primitive Extractor
 
       // Cap — only for fun and new (not be)
       let cap: (String | None) =
-        if (method_ast.id() == ast.TokenIds.tk_fun())
-          or (method_ast.id() == ast.TokenIds.tk_new())
+        if (method_ast.id() == ast.TokenIds.tk_fun()) or
+          (method_ast.id() == ast.TokenIds.tk_new())
         then
           _TypeExtractor.get_cap(method_ast(0)?)
         else
@@ -509,8 +509,8 @@ primitive Extractor
 
       // Return type — only for fun and new
       let return_type: (DocType | None) =
-        if (method_ast.id() == ast.TokenIds.tk_fun())
-          or (method_ast.id() == ast.TokenIds.tk_new())
+        if (method_ast.id() == ast.TokenIds.tk_fun()) or
+          (method_ast.id() == ast.TokenIds.tk_new())
         then
           let ret_node = method_ast(4)?
           if ret_node.id() != ast.TokenIds.tk_none() then
@@ -630,8 +630,8 @@ primitive Extractor
       try
         var j = i
         while (j > 0) and
-          (NameSort.compare(entities(j)?.name, entities(j - 1)?.name)
-            is Less)
+          (NameSort.compare(
+            entities(j)?.name, entities(j - 1)?.name) is Less)
         do
           let tmp = entities(j)?
           entities(j)? = entities(j - 1)?

@@ -194,8 +194,8 @@ class \nodoc\ _TestGlobMatchStarNoCrossSlashProperty is Property1[String]
     ph.assert_eq[Bool](
       expected,
       lint.GlobMatch.matches("*", arg1),
-      "* vs '" + arg1 + "': expected "
-        + if expected then "match" else "no match" end)
+      "* vs '" + arg1 + "': expected " +
+        if expected then "match" else "no match" end)
 
 class \nodoc\ _TestGlobMatchDoubleStarMatchesAllProperty is Property1[String]
   """** matches every string."""

@@ -32,11 +32,11 @@ primitive LambdaSpacing is ASTRule
     """
     let token = node.id()
     let is_bare =
-      (token == ast.TokenIds.tk_barelambda())
-        or (token == ast.TokenIds.tk_barelambdatype())
+      (token == ast.TokenIds.tk_barelambda()) or
+        (token == ast.TokenIds.tk_barelambdatype())
     let is_type =
-      (token == ast.TokenIds.tk_lambdatype())
-        or (token == ast.TokenIds.tk_barelambdatype())
+      (token == ast.TokenIds.tk_lambdatype()) or
+        (token == ast.TokenIds.tk_barelambdatype())
 
     let op_line = node.line()
     let op_col = node.pos()

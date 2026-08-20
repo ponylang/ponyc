@@ -93,10 +93,22 @@ actor Main
   foo(x where bar = y)
   ```
 
-- The `not` operator is surrounded by spaces, but the `-` operator is not followed by a space.
+- The `not` operator is surrounded by spaces, but the unary `-` operator is not followed by a space.
 
   ```pony
   if not x then -a end
+  ```
+
+- When an expression with a binary operator spans multiple lines, the operator belongs at the end of the line, not the start of the next. `-` at the start of a line is parsed as unary negation, not binary subtraction — moving the operator to the end of the previous line avoids a silent misparse.
+
+  ```pony
+  // OK
+  let x = a +
+    b
+
+  // Not OK — and for `-`, silently changes meaning
+  let x = a
+    + b
   ```
 
 - Lambda expressions follow the rules above except that a space is placed before the closing brace only if the lambda is on one line.
@@ -303,11 +315,11 @@ var x =
 // OK
 let output =
   recover String(
-    file_name.size()
-      + file_linenum.size()
-      + file_linepos.size()
-      + msg.size()
-      + 4)
+    file_name.size() +
+      file_linenum.size() +
+      file_linepos.size() +
+      msg.size() +
+      4)
   end
 
 // Not OK

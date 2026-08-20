@@ -81,8 +81,8 @@ actor Collector
       // env.out.print is async and would be lost on @exit, and the forced exit
       // sidesteps the separate shutdown-hang symptom. The signature is fully
       // computed first, so the determinism result is unaffected.
-      let line = "RECEIVED=" + _received.string()
-        + " ORDER_SIG=" + _sig.string() + "\n"
+      let line = "RECEIVED=" + _received.string() +
+        " ORDER_SIG=" + _sig.string() + "\n"
       @printf("%s".cstring(), line.cstring())
       @exit(0)
     end

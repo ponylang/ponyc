@@ -263,8 +263,8 @@ primitive ConfigLoader
     if size > _max_config_size() then
       file.dispose()
       return ConfigError(
-        "config file too large (" + size.string() + " bytes, max "
-          + _max_config_size().string() + "): " + fp.path)
+        "config file too large (" + size.string() + " bytes, max " +
+          _max_config_size().string() + "): " + fp.path)
     end
     let content: String val = file.read_string(size)
     file.dispose()
@@ -314,8 +314,8 @@ primitive ConfigLoader
             result(key) = RuleOff
           else
             return ConfigError(
-              "invalid rule status '" + s + "' for '" + key
-                + "': must be \"on\" or \"off\"")
+              "invalid rule status '" + s + "' for '" + key +
+                "': must be \"on\" or \"off\"")
           end
         else
           return ConfigError(
