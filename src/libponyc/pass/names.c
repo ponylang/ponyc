@@ -5,6 +5,25 @@
 #include "../pkg/package.h"
 #include "ponyassert.h"
 
+static bool resolve_default_typeargs(pass_opt_t* opt, ast_t* typeparams)
+{
+  for(ast_t* tp = ast_child(typeparams);
+    tp != NULL;
+    tp = ast_sibling(tp))
+  {
+    ast_t* defarg = ast_childidx(tp, 2);
+
+    if(ast_id(defarg) != TK_NONE)
+    {
+      if(ast_visit_scope(&defarg, NULL, pass_names, opt,
+        PASS_NAME_RESOLUTION) != AST_OK)
+        return false;
+    }
+  }
+
+  return true;
+}
+
 static bool names_typeargs(pass_opt_t* opt, ast_t* typeargs)
 {
   for(ast_t* typearg = ast_child(typeargs);
@@ -29,6 +48,9 @@ static bool names_typealias(pass_opt_t* opt, ast_t** astp, ast_t* def,
   // recursion through aliases is legal and checked later by
   // PASS_TYPEALIAS_RECURSION.
   AST_GET_CHILDREN(def, alias_id, typeparams, def_cap, provides);
+
+  if(!resolve_default_typeargs(opt, typeparams))
+    return false;
 
   if(!reify_defaults(typeparams, typeargs, true, opt))
     return false;
@@ -129,6 +151,9 @@ static bool names_type(pass_opt_t* opt, ast_t** astp, ast_t* def)
 
   // Store our definition for later use.
   ast_setdata(ast, def);
+
+  if(!resolve_default_typeargs(opt, typeparams))
+    return false;
 
   if(!reify_defaults(typeparams, typeargs, true, opt))
     return false;
