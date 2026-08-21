@@ -22,6 +22,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Fix pony-lint false positive on identifiers with multiple trailing primes ([PR #5849](https://github.com/ponylang/ponyc/pull/5849))
 - Fix pony-lint false positive on partial operators ([PR #5850](https://github.com/ponylang/ponyc/pull/5850))
 - Fix Timer.abs computing wrong expiration time ([PR #5851](https://github.com/ponylang/ponyc/pull/5851))
+- Fix stale version and git hash in local rebuilds ([PR #5852](https://github.com/ponylang/ponyc/pull/5852))
 
 ### Added
 
