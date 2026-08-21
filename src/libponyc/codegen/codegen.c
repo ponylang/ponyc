@@ -1,4 +1,5 @@
 #include "codegen.h"
+#include "pony_version.h"
 #include "genexe.h"
 #include "genprim.h"
 #include "genname.h"

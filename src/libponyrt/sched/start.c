@@ -1,5 +1,6 @@
 #define PONY_WANT_ATOMIC_DEFS
 
+#include "pony_version.h"
 #include "scheduler.h"
 #include "cpu.h"
 #include "../mem/heap.h"
