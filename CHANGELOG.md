@@ -6,6 +6,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
+- Fix default type arguments failing to resolve with aliased use packages ([PR #5854](https://github.com/ponylang/ponyc/pull/5854))
 
 ### Added
 
