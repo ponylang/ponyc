@@ -1,0 +1,11 @@
+#ifndef PONY_VERSION_H
+#define PONY_VERSION_H
+
+#define PONY_VERSION "@PONYC_VERSION@"
+
+#define PONY_VERSION_STR \
+    PONY_VERSION " [" PONY_BUILD_CONFIG "]\n" \
+    "Compiled with: LLVM @LLVM_VERSION@ -- " \
+    "@CMAKE_C_COMPILER_ID@-@CMAKE_C_COMPILER_VERSION@-@COMPILER_ARCH@"
+
+#endif

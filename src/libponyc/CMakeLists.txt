@@ -107,16 +107,10 @@ target_compile_definitions(libponyc PRIVATE
 target_include_directories(libponyc
     PUBLIC ../common
     PRIVATE ../../build/libs/include
+    PRIVATE ${CMAKE_BINARY_DIR}/pony_generated
 )
 
-# In sanitizer builds (and gcc coverage builds), genexe.cc includes a generated
-# header from pony_generated/ (sanitizer_link_args.h / coverage_link_args.h —
-# the captured runtime link fragment; see the driver link-fragment capture in
-# the top-level CMakeLists.txt). PONY_GENERATED_INCLUDE_NEEDED is set there when
-# either capture runs, so both builds get the dir on the include path.
-if(PONY_GENERATED_INCLUDE_NEEDED)
-    target_include_directories(libponyc PRIVATE ${CMAKE_BINARY_DIR}/pony_generated)
-endif()
+add_dependencies(libponyc pony_version)
 
 if(${CMAKE_HOST_SYSTEM_NAME} MATCHES "Darwin")
     set(CMAKE_OSX_DEPLOYMENT_TARGET ${PONY_OSX_PLATFORM})

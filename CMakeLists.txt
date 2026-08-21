@@ -5,11 +5,14 @@ project(Pony VERSION ${PONYC_PROJECT_VERSION} LANGUAGES C CXX)
 
 # Grab the PonyC version number from the "VERSION" source file. When building in
 # a git checkout, append the short commit sha; from a release tarball (no .git,
-# or git unavailable) use the bare version. The
-# git-success guard matters: without it a tarball build produces a trailing dash
-# ("0.66.0-"), which would put the install in lib/pony/0.66.0- instead of
-# lib/pony/0.66.0.
-if(NOT DEFINED PONYC_VERSION)
+# or git unavailable) use the bare version.
+#
+# This configure-time copy is used only for install paths (see
+# PONY_VERSIONED_DIR below) and the Windows active-version marker.
+if(DEFINED PONYC_VERSION)
+    set(_ponyc_version_overridden TRUE)
+else()
+    set(_ponyc_version_overridden FALSE)
     set(PONYC_VERSION "${PONYC_PROJECT_VERSION}")
     if(EXISTS "${CMAKE_SOURCE_DIR}/.git")
         execute_process(
@@ -54,7 +57,7 @@ include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/PonyUses.cmake)
 #    (build/debug, build/release), so a capitalized "Release" would build into
 #    build/Release, which none of those lowercase paths point at.
 #  - The per-config compile flags and the PONY_BUILD_CONFIG / DEBUG / NDEBUG /
-#    PONY_VERSION_STR definitions are gated on $<CONFIG:Debug>/$<CONFIG:Release>.
+#    definitions are gated on $<CONFIG:Debug>/$<CONFIG:Release>.
 #    A name CMake doesn't recognize matches neither, so those definitions are
 #    dropped and the runtime fails to compile ("PONY_BUILD_CONFIG undeclared")
 #    partway through, far from the cause.
@@ -389,8 +392,7 @@ endfunction()
 # -lasan/-lubsan, Apple clang the clang_rt dylib by absolute path + -rpath (and
 # folds UBSan into ASan). Native Linux, FreeBSD, and macOS sanitizer builds
 # consume this (see genexe.cc); DragonFly/OpenBSD sanitizer builds are rejected
-# at configure time. The matching include dir is wired in below via
-# PONY_GENERATED_INCLUDE_NEEDED, and the splice lives in genexe.cc under
+# at configure time. The splice lives in genexe.cc under
 # #if defined(PONY_SANITIZER).
 if(PONY_SANITIZERS_ENABLED)
     _pony_capture_driver_link_fragment(
@@ -399,7 +401,6 @@ if(PONY_SANITIZERS_ENABLED)
         "sanitizer_link_args.h"
         "PONY_SANITIZER"
         "sanitizer")
-    set(PONY_GENERATED_INCLUDE_NEEDED TRUE)
 endif()
 
 # Coverage build with gcc: -fprofile-arcs instruments libponyrt's C objects with
@@ -428,7 +429,6 @@ if(PONY_USE_COVERAGE AND CMAKE_C_COMPILER_ID STREQUAL "GNU")
     # options only (unlike the sanitizer block's -fsanitize=, which the linker
     # genuinely needs).
     add_compile_options(-DPONY_COVERAGE)
-    set(PONY_GENERATED_INCLUDE_NEEDED TRUE)
 endif()
 
 if(DEFINED PONY_CPU AND NOT PONY_CPU STREQUAL "")
@@ -565,6 +565,30 @@ if(NOT PONY_CROSS_LIBPONYRT)
     endif()
 endif()
 
+# Build-time version header — recomputed on every build so the git hash and
+# VERSION file stay current without a manual reconfigure.  The generated
+# pony_version.h defines PONY_VERSION and PONY_VERSION_STR; source files that
+# need them include it directly.
+set(_version_header "${CMAKE_BINARY_DIR}/pony_generated/pony_version.h")
+set(_version_override "")
+if(_ponyc_version_overridden)
+    set(_version_override "${PONYC_VERSION}")
+endif()
+
+add_custom_target(pony_version ALL
+    COMMAND ${CMAKE_COMMAND}
+        -DSOURCE_DIR=${CMAKE_SOURCE_DIR}
+        -DOUTPUT_FILE=${_version_header}
+        -DTEMPLATE_FILE=${CMAKE_SOURCE_DIR}/cmake/pony_version.h.in
+        -DLLVM_VERSION=${LLVM_VERSION}
+        -DCMAKE_C_COMPILER_ID=${CMAKE_C_COMPILER_ID}
+        -DCMAKE_C_COMPILER_VERSION=${CMAKE_C_COMPILER_VERSION}
+        -DCOMPILER_ARCH=${_compiler_arch}
+        -DOVERRIDE_VERSION=${_version_override}
+        -P ${CMAKE_SOURCE_DIR}/cmake/GenerateVersion.cmake
+    COMMENT "Refreshing pony_version.h"
+)
+
 # Required definitions.  We use these generators so that the defines are correct for both *nix (where the config applies at configuration time) and Windows (where the config applies at build time).
 add_compile_definitions(
     BUILD_COMPILER="${CMAKE_C_COMPILER_VERSION}"
@@ -580,11 +604,8 @@ add_compile_definitions(
     $<$<CONFIG:Debug>:PONY_BUILD_CONFIG="debug">
     $<$<CONFIG:Release>:PONY_BUILD_CONFIG="release">
     PONY_USE_BIGINT
-    PONY_VERSION="${PONYC_VERSION}"
     $<$<CONFIG:Debug>:DEBUG>
     $<$<CONFIG:Release>:NDEBUG>
-    $<$<CONFIG:Debug>:PONY_VERSION_STR="${PONYC_VERSION} [debug]\\nCompiled with: LLVM ${LLVM_VERSION} -- ${CMAKE_C_COMPILER_ID}-${CMAKE_C_COMPILER_VERSION}-${_compiler_arch}">
-    $<$<CONFIG:Release>:PONY_VERSION_STR="${PONYC_VERSION} [release]\\nCompiled with: LLVM ${LLVM_VERSION} -- ${CMAKE_C_COMPILER_ID}-${CMAKE_C_COMPILER_VERSION}-${_compiler_arch}">
     PONY_OSX_PLATFORM=${PONY_OSX_PLATFORM}
 )
 

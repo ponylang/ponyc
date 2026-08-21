@@ -1,4 +1,5 @@
 #include "options.h"
+#include "pony_version.h"
 
 #include "../ponyc.h"
 #include "../ast/parserapi.h"
