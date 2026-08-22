@@ -208,8 +208,10 @@ class val Vec[A: Any #share]
     exclusive and saturated.
     """
     var vec = Vec[A]
-    for i in mut.Range(0, if _size < to then _size else to end, step) do
-      try vec.push(this(i)?) end
+    try
+      for i in mut.Range(from, _size.min(to), step) do
+        vec = vec.push(this(i)?)
+      end
     end
     vec
 
@@ -218,8 +220,12 @@ class val Vec[A: Any #share]
     Return a vector with the elements in reverse order.
     """
     var vec = Vec[A]
-    for i in mut.Reverse(_size - 1, 0) do
-      try vec = vec.push(this(i)?) end
+    try
+      // counting up and subtracting avoids the underflow that
+      // `Reverse(_size - 1, 0)` produces on an empty vector
+      for i in mut.Range(0, _size) do
+        vec = vec.push(this((_size - 1) - i)?)
+      end
     end
     vec
 
@@ -240,16 +246,6 @@ class val Vec[A: Any #share]
     Return an iterator over the (index, value) pairs in the vector.
     """
     VecPairs[A](this)
-
-  fun _pow32(n: USize): USize =>
-    """
-    Raise 32 to the power of n.
-    """
-    if n == 0 then
-      1
-    else
-      32 << ((n - 1) * 5)
-    end
 
   fun _leaf_nodes(): Array[Array[A] val]^ =>
     let lns = Array[Array[A] val](_size / 32)
