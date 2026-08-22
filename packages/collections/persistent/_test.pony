@@ -32,7 +32,11 @@ actor \nodoc\ Main is TestList
     test(_TestMapVsMap)
     test(_TestSet)
     test(_TestVec)
+    test(_TestVecContains)
+    test(_TestVecFind)
     test(_TestVecIterators)
+    test(_TestVecReverse)
+    test(_TestVecSlice)
 
 class \nodoc\ iso _TestListPrepend is UnitTest
   fun name(): String => "collections/persistent/List (prepend)"
@@ -559,3 +563,143 @@ class \nodoc\ iso _TestVecIterators is UnitTest
       h.assert_eq[USize](v, vec(i)?)
     end
     h.assert_eq[USize](c, 0)
+
+class \nodoc\ iso _TestVecFind is UnitTest
+  fun name(): String => "collections/persistent/Vec (find)"
+
+  fun apply(h: TestHelper) ? =>
+    // 1_100 elements fill 34 leaf nodes and leave 12 in the tail, so the
+    // search crosses the boundary between the root trie and the tail.
+    let n: USize = 1_100
+    let v = Vec[USize].concat(mut.Range(0, n))
+
+    // each value is found at its own index
+    for i in mut.Range(0, n) do
+      h.assert_eq[USize](v.find(i)?, i)
+    end
+
+    // the search starts at offset
+    h.assert_eq[USize](v.find(5, 5)?, 5)
+    h.assert_error({() ? => v.find(5, 6)? })
+    h.assert_eq[USize](v.find(n - 1, n - 1)?, n - 1)
+
+    // a value that is never matched raises an error
+    h.assert_error({() ? => v.find(n)? })
+    h.assert_error({() ? => v.find(0, n)? })
+    h.assert_error({() ? => Vec[USize].find(0)? })
+
+    // nth counts appearances from offset, starting at zero
+    let period: USize = 4
+    var repeats = Vec[USize]
+    for i in mut.Range(0, n) do repeats = repeats.push(i % period) end
+    for k in mut.Range(0, n / period) do
+      h.assert_eq[USize](repeats.find(1, 0, k)?, 1 + (k * period))
+    end
+    h.assert_error({() ? => repeats.find(1, 0, n / period)? })
+
+    // the predicate is applied as predicate(element, value)
+    let successor = {(l: USize, r: USize): Bool => l == (r + 1) }
+    h.assert_eq[USize](v.find(5, 0, 0, successor)?, 6)
+
+class \nodoc\ iso _TestVecContains is UnitTest
+  fun name(): String => "collections/persistent/Vec (contains)"
+
+  fun apply(h: TestHelper) =>
+    h.assert_false(Vec[USize].contains(0))
+
+    // 1_100 elements fill 34 leaf nodes and leave 12 in the tail, so the
+    // search crosses the boundary between the root trie and the tail.
+    let n: USize = 1_100
+    let v = Vec[USize].concat(mut.Range(0, n))
+
+    for i in mut.Range(0, n) do
+      h.assert_true(v.contains(i))
+    end
+    h.assert_false(v.contains(n))
+    h.assert_false(v.contains(-1))
+
+    // the predicate is applied as predicate(element, value)
+    let successor = {(l: USize, r: USize): Bool => l == (r + 1) }
+    h.assert_true(v.contains(0, successor))
+    h.assert_false(v.contains(n - 1, successor))
+
+class \nodoc\ iso _TestVecSlice is UnitTest
+  fun name(): String => "collections/persistent/Vec (slice)"
+
+  fun apply(h: TestHelper) ? =>
+    // 1_100 elements fill 34 leaf nodes and leave 12 in the tail, so the tail
+    // begins at index 1_088.
+    let n: USize = 1_100
+    let tail_offset = (n / 32) * 32
+    let v = Vec[USize].concat(mut.Range(0, n))
+
+    // the default range copies the whole vector
+    let all = v.slice()
+    h.assert_eq[USize](all.size(), n)
+    for i in mut.Range(0, n) do
+      h.assert_eq[USize](all(i)?, i)
+    end
+
+    // an interior range begins at from and stops before to
+    let mid = v.slice(10, 20)
+    h.assert_eq[USize](mid.size(), 10)
+    for i in mut.Range(0, 10) do
+      h.assert_eq[USize](mid(i)?, 10 + i)
+    end
+
+    // a range spanning the root/tail boundary
+    let edge = v.slice(tail_offset - 2, tail_offset + 2)
+    h.assert_eq[USize](edge.size(), 4)
+    for i in mut.Range(0, 4) do
+      h.assert_eq[USize](edge(i)?, (tail_offset - 2) + i)
+    end
+
+    // step skips elements
+    let stepped = v.slice(0, 10, 3)
+    h.assert_eq[USize](stepped.size(), 4)
+    h.assert_eq[USize](stepped(0)?, 0)
+    h.assert_eq[USize](stepped(1)?, 3)
+    h.assert_eq[USize](stepped(2)?, 6)
+    h.assert_eq[USize](stepped(3)?, 9)
+
+    // to saturates at the size of the vector
+    h.assert_eq[USize](v.slice(n - 5, n + 100).size(), 5)
+
+    // ranges that select nothing give an empty vector
+    h.assert_eq[USize](v.slice(5, 5).size(), 0)
+    h.assert_eq[USize](v.slice(20, 10).size(), 0)
+    h.assert_eq[USize](v.slice(n).size(), 0)
+    h.assert_eq[USize](Vec[USize].slice().size(), 0)
+
+class \nodoc\ iso _TestVecReverse is UnitTest
+  fun name(): String => "collections/persistent/Vec (reverse)"
+
+  fun apply(h: TestHelper) ? =>
+    // 1_100 elements fill 34 leaf nodes and leave 12 in the tail, so the
+    // reversed vector is read from both the root trie and the tail.
+    let n: USize = 1_100
+    let v = Vec[USize].concat(mut.Range(0, n))
+
+    let r = v.reverse()
+    h.assert_eq[USize](r.size(), n)
+    for i in mut.Range(0, n) do
+      h.assert_eq[USize](r(i)?, (n - 1) - i)
+    end
+
+    // reversing twice restores the original order
+    let rr = r.reverse()
+    h.assert_eq[USize](rr.size(), n)
+    for i in mut.Range(0, n) do
+      h.assert_eq[USize](rr(i)?, i)
+    end
+
+    // the vector reversed from is left alone
+    for i in mut.Range(0, n) do
+      h.assert_eq[USize](v(i)?, i)
+    end
+
+    let one = Vec[USize].push(7).reverse()
+    h.assert_eq[USize](one.size(), 1)
+    h.assert_eq[USize](one(0)?, 7)
+
+    h.assert_eq[USize](Vec[USize].reverse().size(), 0)
