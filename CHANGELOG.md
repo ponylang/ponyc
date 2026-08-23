@@ -1949,26 +1949,14 @@ All notable changes to the Pony compiler and standard library will be documented
 ### Added
 
 - Alpine Linux compatibility for pony ([PR #1844](https://github.com/ponylang/ponyc/pull/1844))
-- Add cli package implementing the CLI syntax ([RFC #38](https://github.com/ponylang/rfcs/blob/main/text/0038-cli-format.md))
-   - Initial ([PR #1897](https://github.com/ponylang/ponyc/pull/1897)) implemented the full RFC and contained:
-      - Enhanced Posix / GNU program argument syntax.
-      - Commands and sub-commands.
-      - Bool, String, I64 and F64 option / arg types.
-      - Help command and syntax errors with formatted output.
-   - Update ([PR #2019](https://github.com/ponylang/ponyc/pull/2019)) added:
-      - String-seq (ReadSeq[String]) types for repeated string options / args.
-      - Command fullname() to make it easier to match on unique command names.
-      - Checking that commands are leaves so that partial commands return syntax errors.
+- Add cli package implementing the CLI syntax ([PR #1897](https://github.com/ponylang/ponyc/pull/1897))
+- Update cli package with string-seq types, command fullname, and leaf command checking ([PR #2019](https://github.com/ponylang/ponyc/pull/2019))
 
 ### Changed
 
 - Forbid returning and passing tuples to FFI functions ([PR #2012](https://github.com/ponylang/ponyc/pull/2012))
 - Deprecate support of Clang 3.3
-- Explicit partial calls - a question mark is now required to be at the call site for every call to a partial function.
-    - See [RFC 39](https://github.com/ponylang/rfcs/blob/main/text/0039-explicit-partial-calls.md).
-    - Migration scripts for user code, for convenience, are provided here:
-        - [Unix](https://gist.github.com/jemc/95969e3e2b58ddb0dede138c737907f5)
-        - [Windows](https://gist.github.com/kulibali/cd5caf3a32d510bb86412f3fd4d52d0f)
+- Explicit partial calls - a question mark is now required to be at the call site for every call to a partial function ([RFC #39](https://github.com/ponylang/rfcs/blob/main/text/0039-explicit-partial-calls.md))
 
 ## [0.15.0] - 2017-07-08
 
@@ -2188,135 +2176,12 @@ All notable changes to the Pony compiler and standard library will be documented
 - Rename IPAddress to NetAddress ([PR #1559](https://github.com/ponylang/ponyc/pull/1559))
 - Remove delegates (RFC 31) ([PR #1534](https://github.com/ponylang/ponyc/pull/1534))
 - Upgrade to LLVM 3.9.1 ([PR #1498](https://github.com/ponylang/ponyc/pull/1498))
-- Deprecate LLVM 3.6.2 support ([PR #1511](https://github.com/ponylang/ponyc/pull/1511)) ([PR #1502](https://github.com/ponylang/ponyc/pull/1502)) (PR ##1512)
+- Deprecate LLVM 3.6.2 support ([PR #1511](https://github.com/ponylang/ponyc/pull/1511))
+- Deprecate LLVM 3.6.2 support ([PR #1502](https://github.com/ponylang/ponyc/pull/1502))
+- Deprecate LLVM 3.6.2 support ([PR #1512](https://github.com/ponylang/ponyc/pull/1512))
 - Ensure TCPConnection is established before writing data to it (issue #1310)
 - Always allow writing to `_` (dontcare) ([PR #1499](https://github.com/ponylang/ponyc/pull/1499))
-- Methods returning their receiver to allow call chaining have been changed to return either None or some useful value. Generalised method chaining implemented in version 0.9.0 should be used as a replacement. The full list of updated methods follows. No details means that the method now returns None.
-  - builtin.Seq
-    - reserve
-    - clear
-    - push
-    - unshift
-    - append
-    - concat
-    - truncate
-  - builtin.Array
-    - reserve
-    - compact
-    - undefined
-    - insert
-    - truncate
-    - trim_in_place
-    - copy_to
-    - remove
-    - clear
-    - push
-    - unshift
-    - append
-    - concat
-    - reverse_in_place
-  - builtin.String
-    - reserve
-    - compact
-    - recalc
-    - truncate
-    - trim_in_place
-    - delete
-    - lower_in_place
-    - upper_in_place
-    - reverse_in_place
-    - push
-    - unshift
-    - append
-    - concat
-    - clear
-    - insert_in_place
-    - insert_byte
-    - cut_in_place
-    - replace (returns the number of occurrences replaced)
-    - strip
-    - lstrip
-    - rstrip
-  - buffered.Reader
-    - clear
-    - append
-    - skip
-  - buffered.Writer
-    - reserve
-    - reserve_chunks
-    - number writing functions (e.g. u16_le)
-    - write
-    - writev
-  - capsicum.CapRights0
-    - set
-    - unset
-  - collections.Flag
-    - all
-    - clear
-    - set
-    - unset
-    - flip
-    - union
-    - intersect
-    - difference
-    - remove
-  - collections.ListNode
-    - prepend (returns whether the node was removed from another List)
-    - append (returns whether the node was removed from another List)
-    - remove
-  - collections.List
-    - reserve
-    - remove
-    - clear
-    - prepend_node
-    - append_node
-    - prepend_list
-    - append_list
-    - push
-    - unshift
-    - append
-    - concat
-    - truncate
-  - collections.Map
-    - concat
-    - compact
-    - clear
-  - collections.RingBuffer
-    - push (returns whether the collection was full)
-    - clear
-  - collections.Set
-    - clear
-    - set
-    - unset
-    - union
-    - intersect
-    - difference
-    - remove
-  - files.FileMode
-    - exec
-    - shared
-    - group
-    - private
-  - files.File
-    - seek_start
-    - seek_end
-    - seek
-    - flush
-    - sync
-  - time.Date
-    - normal
-  - net.http.Payload
-    - update (returns the old value)
-  - net.ssl.SSLContext
-    - set_cert
-    - set_authority
-    - set_ciphers
-    - set_client_verify
-    - set_server_verify
-    - set_verify_depth
-    - allow_tls_v1
-    - allow_tls_v1_1
-    - allow_tls_v1_2
+- Methods returning their receiver to allow call chaining have been changed to return either None or some useful value
 - TCP sockets on Linux now use Epoll One Shot
 - Non-sendable locals and parameters are now seen as `tag` inside of recover expressions instead of being inaccessible.
 - TCP sockets on FreeBSD and MacOSX now use Kqueue one shot
