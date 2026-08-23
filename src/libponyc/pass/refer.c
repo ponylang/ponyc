@@ -558,8 +558,15 @@ bool refer_reference(pass_opt_t* opt, ast_t** astp)
         return false;
       }
 
-      if(!def_before_use(opt, def, ast, name))
-        return false;
+      // After trait body adoption, the parameter definition and the body
+      // reference can originate from different traits, so their line numbers
+      // are not comparable.
+      if((opt->check.frame->method != NULL) &&
+        (ast_data(opt->check.frame->method) == opt->check.frame->type))
+      {
+        if(!def_before_use(opt, def, ast, name))
+          return false;
+      }
 
       if(!valid_reference(opt, ast, status))
         return false;

@@ -933,3 +933,22 @@ TEST_F(ReferTest, MemberAccessWithConsumeLhs)
 
   TEST_COMPILE(src);
 }
+
+TEST_F(ReferTest, TraitDefaultBodyWithAbstractTraitParam)
+{
+  // From issue #5833
+  const char* src =
+    "trait Concrete\n"
+      "fun hello(env: Env) =>\n"
+        "env.out.print(\"hello\")\n"
+
+    "trait Abstract1\n"
+      "fun hello(env: Env)\n"
+
+    "actor Main is (Abstract1 & Concrete)\n"
+      "new create(env: Env) =>\n"
+        "hello(env)";
+
+  TEST_COMPILE(src);
+}
+
