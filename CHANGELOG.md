@@ -6,6 +6,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
+- Fix false "declaration appears after use" error with trait default method bodies ([PR #5857](https://github.com/ponylang/ponyc/pull/5857))
 
 ### Added
 
