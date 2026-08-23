@@ -68,8 +68,17 @@ static bool make_capture_field(pass_opt_t* opt, ast_t* capture,
 
     // lambda captures used before their declaration with their type
     // not defined are not legal
-    if(!def_before_use(opt, def, capture, name))
-      return false;
+    //
+    // After trait body adoption, the parameter definition and the body
+    // reference can originate from different traits, so their line numbers
+    // are not comparable.
+    if(ast_id(def) != TK_PARAM ||
+      ((opt->check.frame->method != NULL) &&
+       (ast_data(opt->check.frame->method) == opt->check.frame->type)))
+    {
+      if(!def_before_use(opt, def, capture, name))
+        return false;
+    }
 
     switch(ast_id(def))
     {
@@ -574,8 +583,16 @@ static bool capture_from_reference(pass_opt_t* opt, ast_t* ctx, ast_t* ast,
     return false;
   }
 
-  if(!def_before_use(opt, refdef, ctx, name))
-    return false;
+  // After trait body adoption, the parameter definition and the body
+  // reference can originate from different traits, so their line numbers
+  // are not comparable.
+  if(ast_id(refdef) != TK_PARAM ||
+    ((opt->check.frame->method != NULL) &&
+     (ast_data(opt->check.frame->method) == opt->check.frame->type)))
+  {
+    if(!def_before_use(opt, refdef, ctx, name))
+      return false;
+  }
 
   switch(ast_id(refdef))
   {

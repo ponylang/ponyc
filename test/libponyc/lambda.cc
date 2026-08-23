@@ -619,3 +619,41 @@ TEST_F(LambdaTest, LambdaCaptureDefinedFieldOk)
 
   TEST_COMPILE(src);
 }
+
+TEST_F(LambdaTest, TraitDefaultBodyWithExplicitLambdaCaptureParam)
+{
+  // From issue #5833 — explicit capture
+  const char* src =
+    "trait Concrete\n"
+      "fun hello(x: U32): U32 =>\n"
+        "let f = {()(x): U32 => x }\n"
+        "f()\n"
+
+    "trait Abstract1\n"
+      "fun hello(x: U32): U32\n"
+
+    "actor Main is (Abstract1 & Concrete)\n"
+      "new create(env: Env) =>\n"
+        "hello(42)";
+
+  TEST_COMPILE(src);
+}
+
+TEST_F(LambdaTest, TraitDefaultBodyWithImplicitLambdaCaptureParam)
+{
+  // From issue #5833 — implicit capture
+  const char* src =
+    "trait Concrete\n"
+      "fun hello(x: U32): U32 =>\n"
+        "let f = {(): U32 => x }\n"
+        "f()\n"
+
+    "trait Abstract1\n"
+      "fun hello(x: U32): U32\n"
+
+    "actor Main is (Abstract1 & Concrete)\n"
+      "new create(env: Env) =>\n"
+        "hello(42)";
+
+  TEST_COMPILE(src);
+}
