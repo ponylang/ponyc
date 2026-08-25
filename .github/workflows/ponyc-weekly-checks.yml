@@ -246,6 +246,51 @@ jobs:
           topic: ${{ github.repository }} scheduled job failure
           content: ${{ github.server_url}}/${{ github.repository }}/actions/runs/${{ github.run_id }} failed.
 
+  runtimebc:
+    needs: check-for-changes
+    if: needs.check-for-changes.outputs.has-changes == 'true'
+    runs-on: ubuntu-latest
+
+    # PONY_RUNTIME_BITCODE builds every libponyrt .c file to LLVM bitcode and
+    # links them into libponyrt.bc with llvm-link. ponyc --runtimebc then merges
+    # that bitcode into the program's IR before optimisation, enabling cross-module
+    # interprocedural optimisation between Pony code and the runtime ("super LTO").
+    # Clang-only; incompatible with use=dtrace.
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - image: ghcr.io/ponylang/ponyc-ci-ubuntu26.04-builder:20260425
+
+    name: runtimebc
+    container:
+      image: ${{ matrix.image }}
+      options: --user pony
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6.0.2
+        with:
+          ref: ${{ inputs.ref || github.sha }}
+      - name: Build libs
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          LIBS_IMAGE: ${{ matrix.image }}
+          LIBS_TAG: ${{ hashFiles('lib/CMakePresets.json', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/build-libs.cmake', 'lib/llvm/patches/*') }}
+        run: python3 .ci-scripts/libs-cache/resolve_libs_cache.py --branch-cache --image "$LIBS_IMAGE" --tag "$LIBS_TAG" -- cmake -DJOBS=4 -P lib/build-libs.cmake
+      - name: Runtime bitcode smoke test
+        run: sh .ci-scripts/linux-runtimebc-smoke.sh
+      - name: Send alert on failure
+        if: ${{ failure() }}
+        uses: zulip/github-actions-zulip/send-message@bd8ec52de371d139ae8313661b7d8318c19266aa
+        with:
+          api-key: ${{ secrets.ZULIP_SCHEDULED_JOB_FAILURE_API_KEY }}
+          email: ${{ secrets.ZULIP_SCHEDULED_JOB_FAILURE_EMAIL }}
+          organization-url: 'https://ponylang.zulipchat.com/'
+          to: notifications
+          type: stream
+          topic: ${{ github.repository }} scheduled job failure
+          content: ${{ github.server_url}}/${{ github.repository }}/actions/runs/${{ github.run_id }} failed.
+
   systematic_testing_tests:
     needs: check-for-changes
     if: needs.check-for-changes.outputs.has-changes == 'true'
