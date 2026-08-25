@@ -563,6 +563,198 @@ static matchtype_t is_x_match_tuple(ast_t* operand, ast_t* pattern,
   return MATCHTYPE_DENY_CAP;
 }
 
+static bool contains_typeparam(ast_t* ast)
+{
+  if(ast_id(ast) == TK_TYPEPARAMREF)
+    return true;
+
+  if(ast_id(ast) == TK_TYPEALIASREF)
+  {
+    ast_t* unfolded = typealias_unfold(ast);
+    if(unfolded == NULL)
+      return false;
+
+    bool r = contains_typeparam(unfolded);
+    if(unfolded != ast)
+      ast_free_unattached(unfolded);
+    return r;
+  }
+
+  ast_t* child = ast_child(ast);
+  while(child != NULL)
+  {
+    if(contains_typeparam(child))
+      return true;
+
+    child = ast_sibling(child);
+  }
+
+  return false;
+}
+
+// Could two type-argument positions reify to equal types for some
+// substitution of the type parameters they contain?
+//
+// The is_eqtype fast path is cap-aware. The type-parameter fallback
+// deliberately ignores capabilities: the outer entity descriptor identity
+// check at runtime discriminates on the fully reified type arguments'
+// caps, so a compile-time cap check on the pair itself would spuriously
+// reject matches the runtime would accept.
+//
+//   - eqtype pairs unify.
+//   - a bare type parameter unifies with anything the other side satisfies
+//     as a reification of the parameter's constraint (subtype, ignoring
+//     caps); an unconstrained parameter unifies with anything.
+//   - two type parameters unify when their constraints share any type
+//     (approximated as one constraint being a subtype of the other; two
+//     constraints that only overlap through a common subtype are not
+//     recognized here — see follow-up work).
+//   - two same-definition nominals unify when every pair of type arguments
+//     recursively unifies.
+//   - a type alias reference is unfolded and re-tried.
+//   - anything else does not unify.
+static bool typeargs_could_unify(ast_t* a, ast_t* b, pass_opt_t* opt)
+{
+  if(is_eqtype(a, b, NULL, opt))
+    return true;
+
+  if(ast_id(a) == TK_TYPEALIASREF)
+  {
+    ast_t* unfolded = typealias_unfold(a);
+    if(unfolded == NULL)
+      return false;
+
+    bool r = typeargs_could_unify(unfolded, b, opt);
+    if(unfolded != a)
+      ast_free_unattached(unfolded);
+    return r;
+  }
+
+  if(ast_id(b) == TK_TYPEALIASREF)
+  {
+    ast_t* unfolded = typealias_unfold(b);
+    if(unfolded == NULL)
+      return false;
+
+    bool r = typeargs_could_unify(a, unfolded, opt);
+    if(unfolded != b)
+      ast_free_unattached(unfolded);
+    return r;
+  }
+
+  bool a_tp = ast_id(a) == TK_TYPEPARAMREF;
+  bool b_tp = ast_id(b) == TK_TYPEPARAMREF;
+
+  if(a_tp && b_tp)
+  {
+    ast_t* a_up = typeparam_upper(a);
+    ast_t* b_up = typeparam_upper(b);
+    bool r;
+
+    if((a_up == NULL) || (b_up == NULL))
+      r = true;
+    else
+      r = is_subtype_ignore_cap(a_up, b_up, NULL, opt)
+       || is_subtype_ignore_cap(b_up, a_up, NULL, opt);
+
+    if(a_up != NULL) ast_free_unattached(a_up);
+    if(b_up != NULL) ast_free_unattached(b_up);
+    return r;
+  }
+
+  if(a_tp || b_tp)
+  {
+    ast_t* tp = a_tp ? a : b;
+    ast_t* other = a_tp ? b : a;
+
+    ast_t* upper = typeparam_upper(tp);
+    if(upper == NULL)
+      return true;
+
+    bool r = is_subtype_ignore_cap(other, upper, NULL, opt);
+    ast_free_unattached(upper);
+    return r;
+  }
+
+  if((ast_id(a) == TK_NOMINAL) && (ast_id(b) == TK_NOMINAL))
+  {
+    ast_t* a_def = (ast_t*)ast_data(a);
+    ast_t* b_def = (ast_t*)ast_data(b);
+
+    if(a_def != b_def)
+      return false;
+
+    ast_t* a_typeargs = ast_childidx(a, 2);
+    ast_t* b_typeargs = ast_childidx(b, 2);
+
+    ast_t* a_arg = ast_child(a_typeargs);
+    ast_t* b_arg = ast_child(b_typeargs);
+
+    while((a_arg != NULL) && (b_arg != NULL))
+    {
+      if(!typeargs_could_unify(a_arg, b_arg, opt))
+        return false;
+
+      a_arg = ast_sibling(a_arg);
+      b_arg = ast_sibling(b_arg);
+    }
+
+    return (a_arg == NULL) && (b_arg == NULL);
+  }
+
+  return false;
+}
+
+// Pairwise match of two type-argument lists for same-definition nominals.
+//
+// For each pair:
+//   - is_eqtype: the pair matches.
+//   - both sides fully concrete but not eqtype: reject.
+//   - a type parameter appears in either side:
+//       - struct_pattern: deny_nodesc. A struct has no runtime descriptor,
+//         so the type argument cannot be checked; the runtime would treat
+//         any match as unconditional.
+//       - otherwise: check whether the pair could unify under some
+//         reification of the type parameters.
+//
+// A deny_nodesc from any pair propagates; a single failing pair otherwise
+// rejects the whole list.
+static matchtype_t match_typeargs_pairwise(ast_t* o_typeargs, ast_t* p_typeargs,
+  bool struct_pattern, pass_opt_t* opt)
+{
+  ast_t* o_arg = ast_child(o_typeargs);
+  ast_t* p_arg = ast_child(p_typeargs);
+
+  matchtype_t ok = MATCHTYPE_ACCEPT;
+
+  while((o_arg != NULL) && (p_arg != NULL))
+  {
+    matchtype_t pair;
+
+    if(is_eqtype(o_arg, p_arg, NULL, opt))
+      pair = MATCHTYPE_ACCEPT;
+    else if(!contains_typeparam(o_arg) && !contains_typeparam(p_arg))
+      pair = MATCHTYPE_REJECT;
+    else if(struct_pattern)
+      pair = MATCHTYPE_DENY_NODESC;
+    else if(typeargs_could_unify(o_arg, p_arg, opt))
+      pair = MATCHTYPE_ACCEPT;
+    else
+      pair = MATCHTYPE_REJECT;
+
+    if(pair == MATCHTYPE_DENY_NODESC)
+      return MATCHTYPE_DENY_NODESC;
+
+    if((pair == MATCHTYPE_REJECT) && (ok == MATCHTYPE_ACCEPT))
+      ok = MATCHTYPE_REJECT;
+
+    o_arg = ast_sibling(o_arg);
+    p_arg = ast_sibling(p_arg);
+  }
+
+  return ok;
+}
+
 static matchtype_t is_nominal_match_entity(ast_t* operand, ast_t* pattern,
   errorframe_t* errorf, bool report_reject, pass_opt_t* opt)
 {
@@ -572,6 +764,26 @@ static matchtype_t is_nominal_match_entity(ast_t* operand, ast_t* pattern,
   // We say the pattern provides the operand if it is a subtype without taking
   // capabilities into account.
   bool provides = is_subtype_ignore_cap(pattern, operand, NULL, opt);
+
+  // If the strict subtype check rejects but the operand and pattern share
+  // the same entity definition, the rejection may be caused solely by type
+  // arguments that cannot be proved equivalent when a type parameter is
+  // involved. Re-check the type arguments pairwise; a type parameter can
+  // reify to make the pair equal at runtime, and a same-definition entity
+  // pattern is discriminated at runtime by descriptor identity of the fully
+  // reified type. See #723.
+  if(!provides)
+  {
+    ast_t* operand_def = (ast_t*)ast_data(operand);
+    ast_t* pattern_def = (ast_t*)ast_data(pattern);
+
+    if(operand_def == pattern_def
+      && match_typeargs_pairwise(o_typeargs, p_typeargs, false, opt)
+        == MATCHTYPE_ACCEPT)
+    {
+      provides = true;
+    }
+  }
 
   // If the pattern doesn't provide the operand, reject the match.
   if(!provides)
@@ -636,6 +848,29 @@ static matchtype_t is_nominal_match_struct(ast_t* operand, ast_t* pattern,
       ast_error_frame(errorf, pattern,
         "since a struct has no type descriptor, pattern matching at runtime "
         "would be impossible");
+    }
+
+    return MATCHTYPE_DENY_NODESC;
+  }
+
+  // Same-definition struct: a type parameter inside a type argument cannot
+  // be discriminated at runtime (a struct has no descriptor), so accepting
+  // the pair would make the runtime match unconditional. Deny here; the
+  // concrete-argument cases fall through to the entity path, which reports
+  // reject or accept as it does for any other same-definition nominal.
+  AST_GET_CHILDREN(operand, o_pkg, o_id, o_typeargs, o_cap, o_eph);
+  AST_GET_CHILDREN(pattern, p_pkg, p_id, p_typeargs, p_cap, p_eph);
+
+  if(match_typeargs_pairwise(o_typeargs, p_typeargs, true, opt)
+    == MATCHTYPE_DENY_NODESC)
+  {
+    if(errorf != NULL)
+    {
+      ast_error_frame(errorf, pattern,
+        "matching %s with %s is not possible, since a struct lacks a type "
+        "descriptor",
+        ast_print_type(operand, opt->strtab),
+        ast_print_type(pattern, opt->strtab));
     }
 
     return MATCHTYPE_DENY_NODESC;

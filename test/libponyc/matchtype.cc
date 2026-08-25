@@ -604,3 +604,271 @@ TEST_F(MatchTypeTest, GenericCap)
   if(any != any_base)
     ast_free_unattached(any);
 }
+
+
+// Regression tests for ponylang/ponyc#723: a type parameter appearing inside
+// a type argument was being rejected with "this pattern can never match"
+// even though the parameter could reify to make the pair equal at runtime.
+TEST_F(MatchTypeTest, TypeParamInTypeArgSameDef)
+{
+  const char* src =
+    "class val C1[A: Any #share]\n"
+    "  let value: A\n"
+    "  new val create(v: A) => value = v\n"
+
+    "class val C2[A: Any #share]\n"
+    "  let value: A\n"
+    "  new val create(v: A) => value = v\n"
+
+    "class val Wrap[A: Any #share]\n"
+    "  let value: A\n"
+    "  new val create(v: A) => value = v\n"
+
+    "interface Test\n"
+    "  fun z[A: Any #share, B: Any #share]\n"
+    "    (c1_a: C1[A], c1_wrap_b: C1[Wrap[B] val], c1_u8: C1[U8],\n"
+    "     c1_wrap_u8: C1[Wrap[U8] val], c1_wrap_a: C1[Wrap[A] val],\n"
+    "     c1_wrap_wrap_b: C1[Wrap[Wrap[B] val] val],\n"
+    "     c2_a: C2[A])";
+
+  TEST_COMPILE(src);
+
+  // C1[A] operand, C1[Wrap[B]] pattern — the #723 shape: A could reify to
+  // Wrap[B], so this must accept.
+  ASSERT_EQ(MATCHTYPE_ACCEPT,
+    is_matchtype(type_of("c1_a"), type_of("c1_wrap_b"), NULL, &opt));
+
+  // Symmetric direction.
+  ASSERT_EQ(MATCHTYPE_ACCEPT,
+    is_matchtype(type_of("c1_wrap_b"), type_of("c1_a"), NULL, &opt));
+
+  // One-level nested with a concrete inner: C1[Wrap[A]] operand vs
+  // C1[Wrap[U8]] pattern. A could reify to U8, making the pair equal.
+  ASSERT_EQ(MATCHTYPE_ACCEPT,
+    is_matchtype(type_of("c1_wrap_a"), type_of("c1_wrap_u8"), NULL, &opt));
+
+  // Recursive nesting: C1[Wrap[A]] operand vs C1[Wrap[Wrap[B]]] pattern.
+  // A could reify to Wrap[B], making Wrap[A] equal to Wrap[Wrap[B]].
+  ASSERT_EQ(MATCHTYPE_ACCEPT,
+    is_matchtype(type_of("c1_wrap_a"), type_of("c1_wrap_wrap_b"), NULL, &opt));
+
+  ASSERT_EQ(MATCHTYPE_ACCEPT,
+    is_matchtype(type_of("c1_u8"), type_of("c1_u8"), NULL, &opt));
+
+  // Fully concrete mismatch stays a compile-time reject — keeps the
+  // "this pattern can never match" diagnostic for statically impossible
+  // matches.
+  ASSERT_EQ(MATCHTYPE_REJECT,
+    is_matchtype(type_of("c1_u8"), type_of("c1_wrap_u8"), NULL, &opt));
+
+  // A concrete type against a type-parameter-bearing pattern where the
+  // concrete side has nothing to substitute: U8 cannot become Wrap[B]
+  // under any reification of B.
+  ASSERT_EQ(MATCHTYPE_REJECT,
+    is_matchtype(type_of("c1_u8"), type_of("c1_wrap_b"), NULL, &opt));
+
+  // Different definitions never match, regardless of type-parameter presence.
+  ASSERT_EQ(MATCHTYPE_REJECT,
+    is_matchtype(type_of("c1_a"), type_of("c2_a"), NULL, &opt));
+}
+
+
+TEST_F(MatchTypeTest, TypeParamInTypeArgTypeAlias)
+{
+  // A type alias reference in a type-argument position must be unfolded
+  // before the pair comparison.
+  const char* src =
+    "class val C1[A: Any #share]\n"
+    "  let value: A\n"
+    "  new val create(v: A) => value = v\n"
+
+    "class val Wrap[A: Any #share]\n"
+    "  let value: A\n"
+    "  new val create(v: A) => value = v\n"
+
+    "type WrapAlias[X: Any #share] is Wrap[X] val\n"
+
+    "interface Test\n"
+    "  fun z[A: Any #share, B: Any #share]\n"
+    "    (c1_a: C1[A], c1_wrap_alias_b: C1[WrapAlias[B]])";
+
+  TEST_COMPILE(src);
+
+  // C1[A] operand vs C1[WrapAlias[B]] pattern. WrapAlias[B] unfolds to
+  // Wrap[B] val — the same shape as TypeParamInTypeArgSameDef's accept.
+  ASSERT_EQ(MATCHTYPE_ACCEPT,
+    is_matchtype(type_of("c1_a"), type_of("c1_wrap_alias_b"), NULL, &opt));
+}
+
+
+TEST_F(MatchTypeTest, TypeParamInTypeArgUnconstrained)
+{
+  // Bare type parameters produce a NULL upper bound (typeparam_upper).
+  // The "unconstrained typeparam unifies with anything" branch must accept
+  // any reification-compatible partner.
+  const char* src =
+    "class val Cell[A]\n"
+
+    "interface Test\n"
+    "  fun z[A, B](cell_a: Cell[A], cell_b: Cell[B],\n"
+    "              cell_u8: Cell[U8])";
+
+  TEST_COMPILE(src);
+
+  // Two unconstrained typeparams — any reification is possible.
+  ASSERT_EQ(MATCHTYPE_ACCEPT,
+    is_matchtype(type_of("cell_a"), type_of("cell_b"), NULL, &opt));
+
+  // Unconstrained typeparam vs concrete — the concrete is a valid
+  // reification.
+  ASSERT_EQ(MATCHTYPE_ACCEPT,
+    is_matchtype(type_of("cell_a"), type_of("cell_u8"), NULL, &opt));
+}
+
+
+TEST_F(MatchTypeTest, TypeParamInTypeArgMultiArg)
+{
+  // A multi-argument generic exercises the pairwise iteration in
+  // match_typeargs_pairwise. A wrong implementation that stopped at the
+  // first accepting pair, or got deny/reject precedence wrong, would pass
+  // the earlier single-argument tests.
+  const char* src =
+    "class val Pair[A: Any #share, B: Any #share]\n"
+    "  let first: A\n"
+    "  let second: B\n"
+    "  new val create(a: A, b: B) => first = a; second = b\n"
+
+    "struct SPair[A: Any #share, B: Any #share]\n"
+    "  let first: A\n"
+    "  let second: B\n"
+    "  new create(a: A, b: B) => first = a; second = b\n"
+
+    "interface Test\n"
+    "  fun z[A: Any #share, U: U8, I: I32]\n"
+    "    (p_a_u: Pair[A, U], p_u_i: Pair[U, I],\n"
+    "     p_a_u8: Pair[A, U8], p_u_u8: Pair[U, U8],\n"
+    "     sp_u8_a: SPair[U8, A], sp_u8_u8: SPair[U8, U8],\n"
+    "     sp_u8_i32: SPair[U8, I32])";
+
+  TEST_COMPILE(src);
+
+  // First pair could unify (A could reify to U), second pair could not
+  // (U ~ U8, I ~ I32 — disjoint constraints). Whole list rejects.
+  ASSERT_EQ(MATCHTYPE_REJECT,
+    is_matchtype(type_of("p_a_u"), type_of("p_u_i"), NULL, &opt));
+
+  // Both pairs unify (A could reify to U, U8 concrete matches U8).
+  ASSERT_EQ(MATCHTYPE_ACCEPT,
+    is_matchtype(type_of("p_a_u8"), type_of("p_u_u8"), NULL, &opt));
+
+  // Struct pairwise: first pair is eqtype-concrete (U8 vs U8), second
+  // contains a typeparam — deny_nodesc must propagate for the whole list.
+  ASSERT_EQ(MATCHTYPE_DENY_NODESC,
+    is_matchtype(type_of("sp_u8_u8"), type_of("sp_u8_a"), NULL, &opt));
+
+  // Struct pairwise, both concrete: first eqtype, second concrete-unequal
+  // — reject (delegated to the entity path via the concrete fallthrough).
+  ASSERT_EQ(MATCHTYPE_REJECT,
+    is_matchtype(type_of("sp_u8_u8"), type_of("sp_u8_i32"), NULL, &opt));
+}
+
+
+TEST_F(MatchTypeTest, TypeParamInTypeArgTypeParamPair)
+{
+  // Two distinct type parameters, one on each side of the type-argument
+  // pair. When both constraints admit a common concrete type, the pair
+  // could unify at runtime — accept. When constraints are disjoint,
+  // unification is impossible — reject.
+  const char* src =
+    "class val C1[A: Any #share]\n"
+    "  let value: A\n"
+    "  new val create(v: A) => value = v\n"
+
+    "interface Test\n"
+    "  fun z[A: Any #share, B: Any #share,\n"
+    "        U: U8, I: I32]\n"
+    "    (c1_a: C1[A], c1_b: C1[B],\n"
+    "     c1_u: C1[U], c1_i: C1[I])";
+
+  TEST_COMPILE(src);
+
+  // C1[A] vs C1[B]: constraints are the same (Any #share), so a common
+  // reification exists — accept.
+  ASSERT_EQ(MATCHTYPE_ACCEPT,
+    is_matchtype(type_of("c1_a"), type_of("c1_b"), NULL, &opt));
+
+  // C1[U] vs C1[I]: U is constrained to U8, I to I32; no type is both —
+  // reject.
+  ASSERT_EQ(MATCHTYPE_REJECT,
+    is_matchtype(type_of("c1_u"), type_of("c1_i"), NULL, &opt));
+}
+
+
+TEST_F(MatchTypeTest, TypeParamInTypeArgConstraintIncompatible)
+{
+  // Constraint-incompatible reification: the type parameter's constraint
+  // does not admit the concrete pattern, so no reification could make the
+  // pair equal — reject in either direction.
+  const char* src =
+    "class val C1[A: Any #share]\n"
+    "  let value: A\n"
+    "  new val create(v: A) => value = v\n"
+
+    "interface Test\n"
+    "  fun z[A: I32 val]\n"
+    "    (c1_a: C1[A], c1_string: C1[String val])";
+
+  TEST_COMPILE(src);
+
+  // A is constrained to I32; matching C1[A] against C1[String val] cannot
+  // succeed under any reification — String is not a subtype of I32.
+  ASSERT_EQ(MATCHTYPE_REJECT,
+    is_matchtype(type_of("c1_a"), type_of("c1_string"), NULL, &opt));
+
+  ASSERT_EQ(MATCHTYPE_REJECT,
+    is_matchtype(type_of("c1_string"), type_of("c1_a"), NULL, &opt));
+}
+
+
+TEST_F(MatchTypeTest, TypeParamInTypeArgStructDenies)
+{
+  // Structs have no runtime type descriptor, so type arguments cannot be
+  // checked at runtime. A same-def struct pattern whose type arguments
+  // include a type parameter must not accept — the runtime would treat the
+  // match as unconditional. Deny with the "lacks a type descriptor"
+  // diagnostic rather than the "can never match" reject.
+  const char* src =
+    "struct SGen[A: Any #share]\n"
+    "  let value: A\n"
+    "  new create(v: A) => value = v\n"
+
+    "interface Test\n"
+    "  fun z[A: Any #share, B: Any #share, I: I32 val]\n"
+    "    (s_a: SGen[A], s_b: SGen[B], s_u8: SGen[U8], s_i32: SGen[I32],\n"
+    "     s_i: SGen[I], s_string: SGen[String val])";
+
+  TEST_COMPILE(src);
+
+  // Same-def struct, both type parameters — deny_nodesc.
+  ASSERT_EQ(MATCHTYPE_DENY_NODESC,
+    is_matchtype(type_of("s_a"), type_of("s_b"), NULL, &opt));
+
+  // Same-def struct, one type parameter one concrete — deny_nodesc.
+  ASSERT_EQ(MATCHTYPE_DENY_NODESC,
+    is_matchtype(type_of("s_a"), type_of("s_u8"), NULL, &opt));
+
+  // Same-def struct, both concrete equal — accept.
+  ASSERT_EQ(MATCHTYPE_ACCEPT,
+    is_matchtype(type_of("s_u8"), type_of("s_u8"), NULL, &opt));
+
+  // Same-def struct, both concrete unequal — reject.
+  ASSERT_EQ(MATCHTYPE_REJECT,
+    is_matchtype(type_of("s_u8"), type_of("s_i32"), NULL, &opt));
+
+  // Same-def struct, constraint-incompatible type parameter vs concrete —
+  // pin the current behavior: still deny_nodesc, not reject. The
+  // struct_pattern gate denies any type-parameter-bearing pair regardless
+  // of whether the constraint could admit the pattern.
+  ASSERT_EQ(MATCHTYPE_DENY_NODESC,
+    is_matchtype(type_of("s_i"), type_of("s_string"), NULL, &opt));
+}
