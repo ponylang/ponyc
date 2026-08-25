@@ -1,6 +1,7 @@
 #include "matchtype.h"
 #include "cap.h"
 #include "assemble.h"
+#include "reify.h"
 #include "subtype.h"
 #include "typealias.h"
 #include "typeparam.h"
@@ -592,6 +593,58 @@ static bool contains_typeparam(ast_t* ast)
   return false;
 }
 
+// Does the type parameter identified by tp_def appear anywhere inside
+// other's structure, under a generative type constructor (a nominal,
+// a tuple, or an arrow)?
+//
+// A pair like A vs Wrap[A] cannot unify: no substitution for A satisfies
+// A = Wrap[A] without an infinite type. Direct occurrences in a union or
+// intersection arm do NOT count — A vs (A | U8) is satisfied by any
+// reification with U8 ⊆ A (e.g. A = (U8 | I32) makes (A | U8) = A).
+// under_wrapper becomes true when the walk descends into a generative
+// constructor. Canonicalizes each typeparamref def through typeparam_root
+// — a raw def pointer may be one layer in a chain built by
+// collect_type_params.
+static bool typeparam_occurs_in(ast_t* tp_def, ast_t* other,
+  bool under_wrapper)
+{
+  if(ast_id(other) == TK_TYPEPARAMREF)
+  {
+    if(!under_wrapper)
+      return false;
+
+    ast_t* other_def = typeparam_root((ast_t*)ast_data(other));
+    return other_def == tp_def;
+  }
+
+  if(ast_id(other) == TK_TYPEALIASREF)
+  {
+    ast_t* unfolded = typealias_unfold(other);
+    if(unfolded == NULL)
+      return false;
+
+    bool r = typeparam_occurs_in(tp_def, unfolded, under_wrapper);
+    if(unfolded != other)
+      ast_free_unattached(unfolded);
+    return r;
+  }
+
+  token_id id = ast_id(other);
+  bool descend_wrapped = under_wrapper
+    || (id == TK_NOMINAL) || (id == TK_TUPLETYPE) || (id == TK_ARROW);
+
+  ast_t* child = ast_child(other);
+  while(child != NULL)
+  {
+    if(typeparam_occurs_in(tp_def, child, descend_wrapped))
+      return true;
+
+    child = ast_sibling(child);
+  }
+
+  return false;
+}
+
 // Could two type-argument positions reify to equal types for some
 // substitution of the type parameters they contain?
 //
@@ -604,7 +657,11 @@ static bool contains_typeparam(ast_t* ast)
 //   - eqtype pairs unify.
 //   - a bare type parameter unifies with anything the other side satisfies
 //     as a reification of the parameter's constraint (subtype, ignoring
-//     caps); an unconstrained parameter unifies with anything.
+//     caps); an unconstrained parameter unifies with anything. The
+//     parameter's def must not appear inside a generative constructor on
+//     the other side (occurs check): no reification satisfies A = f(A)
+//     without an infinite type. Occurrences in a union or intersection
+//     arm are not generative — A vs (A | U8) can unify.
 //   - two type parameters unify when their constraints share any type
 //     (approximated as one constraint being a subtype of the other; two
 //     constraints that only overlap through a common subtype are not
@@ -666,6 +723,10 @@ static bool typeargs_could_unify(ast_t* a, ast_t* b, pass_opt_t* opt)
   {
     ast_t* tp = a_tp ? a : b;
     ast_t* other = a_tp ? b : a;
+
+    ast_t* tp_def = typeparam_root((ast_t*)ast_data(tp));
+    if(typeparam_occurs_in(tp_def, other, false))
+      return false;
 
     ast_t* upper = typeparam_upper(tp);
     if(upper == NULL)
@@ -879,6 +940,68 @@ static matchtype_t is_nominal_match_struct(ast_t* operand, ast_t* pattern,
   return is_nominal_match_entity(operand, pattern, errorf, report_reject, opt);
 }
 
+// Same-def match in an open-ended provides walk: the operand's declared
+// provides list is followed transitively; at any reified provided nominal
+// whose def matches the pattern's, the type-argument pair is checked with
+// match_typeargs_pairwise, which accepts when a type parameter could reify
+// to make the pair equal. See #5859.
+//
+// Handles nominal provides only. Structural interface satisfaction (a
+// class that satisfies an interface without declaring `is I`) is left to
+// follow-up work.
+//
+// The walk terminates because Pony rejects cyclic trait/interface provides
+// declarations at compile time ("traits and interfaces can't be recursive"),
+// so the provides DAG the walk follows is finite.
+static bool provides_could_match_pattern(ast_t* operand, ast_t* pattern,
+  pass_opt_t* opt)
+{
+  if(ast_id(operand) == TK_TYPEALIASREF)
+  {
+    ast_t* unfolded = typealias_unfold(operand);
+    if(unfolded == NULL)
+      return false;
+    bool r = provides_could_match_pattern(unfolded, pattern, opt);
+    if(unfolded != operand)
+      ast_free_unattached(unfolded);
+    return r;
+  }
+
+  if(ast_id(operand) != TK_NOMINAL)
+    return false;
+
+  ast_t* operand_def = (ast_t*)ast_data(operand);
+  ast_t* pattern_def = (ast_t*)ast_data(pattern);
+  ast_t* o_typeargs = ast_childidx(operand, 2);
+  ast_t* p_typeargs = ast_childidx(pattern, 2);
+
+  if(operand_def == pattern_def)
+  {
+    return match_typeargs_pairwise(o_typeargs, p_typeargs, false, opt)
+      == MATCHTYPE_ACCEPT;
+  }
+
+  AST_GET_CHILDREN(operand_def, o_id, o_typeparams, o_defcap, o_provides);
+  ast_t* child = ast_child(o_provides);
+  while(child != NULL)
+  {
+    ast_t* r_child = reify(child, o_typeparams, o_typeargs, opt, true);
+    pony_assert(r_child != NULL);
+
+    bool matched = provides_could_match_pattern(r_child, pattern, opt);
+
+    if(r_child != child)
+      ast_free_unattached(r_child);
+
+    if(matched)
+      return true;
+
+    child = ast_sibling(child);
+  }
+
+  return false;
+}
+
 static matchtype_t is_entity_match_trait(ast_t* operand, ast_t* pattern,
   errorframe_t* errorf, bool report_reject, pass_opt_t* opt)
 {
@@ -886,6 +1009,22 @@ static matchtype_t is_entity_match_trait(ast_t* operand, ast_t* pattern,
   AST_GET_CHILDREN(pattern, p_pkg, p_id, p_typeargs, p_cap, p_eph);
 
   bool provides = is_subtype_ignore_cap(operand, pattern, NULL, opt);
+
+  // If the strict subtype check rejects, the rejection may be caused solely
+  // by type arguments that cannot be proved equivalent when a type parameter
+  // is involved. Walk the operand's `provides` transitively: at any reified
+  // provided type that shares its def with the pattern, a type parameter
+  // could reify to make the pair equal at runtime, and the reachable-trait
+  // bitmap discriminates on the fully reified type. See #5859.
+  //
+  // Struct operands are excluded: is_struct_sub_trait denies unconditionally
+  // because a struct has no descriptor to discriminate a trait/interface
+  // match at runtime, and that denial is load-bearing — accepting here would
+  // compile a match with no runtime check and can crash on dispatch.
+  if(!provides
+    && ast_id((ast_t*)ast_data(operand)) != TK_STRUCT
+    && provides_could_match_pattern(operand, pattern, opt))
+    provides = true;
 
   // If the operand doesn't provide the pattern (trait or interface), reject
   // the match.
