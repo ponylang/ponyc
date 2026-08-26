@@ -8,6 +8,7 @@
 #include "viewpoint.h"
 #include "ponyassert.h"
 #include "alias.h"
+#include "../ast/astbuild.h"
 #include "../../libponyrt/mem/pool.h"
 
 // Substitution tracked across a single match_typeargs_pairwise walk. When
@@ -1421,9 +1422,8 @@ static matchtype_t is_nominal_match_struct(ast_t* operand, ast_t* pattern,
 // match_typeargs_pairwise, which accepts when a type parameter could reify
 // to make the pair equal. See #5859.
 //
-// Handles nominal provides only. Structural interface satisfaction (a
-// class that satisfies an interface without declaring `is I`) is left to
-// follow-up work.
+// Handles nominal provides only. Structural interface satisfaction is
+// handled separately in structural_could_match_pattern below.
 //
 // The walk terminates because Pony rejects cyclic trait/interface provides
 // declarations at compile time ("traits and interfaces can't be recursive"),
@@ -1477,6 +1477,188 @@ static bool provides_could_match_pattern(ast_t* operand, ast_t* pattern,
   return false;
 }
 
+// Loose structural match: could the operand entity structurally satisfy the
+// pattern interface for some reification of type parameters in their type
+// arguments?
+//
+// Mirrors is_nominal_sub_structural in subtype.c but replaces strict subtype
+// checks on method result types and parameter types with
+// typeargs_could_unify. This avoids duplicating the four subtype recursion
+// sites in is_reified_fun_sub_fun — we only need to know whether a
+// reification COULD make the method signatures compatible, not whether they
+// ARE compatible right now.
+//
+// Structural checks that remain strict: method existence, name match,
+// fun/be/new kind compatibility, type-parameter count, parameter count,
+// bareness, and throws. Receiver capability and type-parameter constraints
+// are not checked here; any mismatch is caught by the full structural
+// subtype check at runtime, so this is a safe over-approximation.
+static bool structural_could_match_pattern(ast_t* operand, ast_t* pattern,
+  pass_opt_t* opt)
+{
+  ast_t* sub_def = (ast_t*)ast_data(operand);
+  ast_t* super_def = (ast_t*)ast_data(pattern);
+
+  if(ast_has_annotation(sub_def, "nosupertype", opt->strtab))
+    return false;
+
+  if(is_bare(operand, opt) != is_bare(pattern, opt))
+    return false;
+
+  ast_t* sub_typeargs = ast_childidx(operand, 2);
+  ast_t* sub_typeparams = ast_childidx(sub_def, 1);
+
+  ast_t* super_typeargs = ast_childidx(pattern, 2);
+  ast_t* super_typeparams = ast_childidx(super_def, 1);
+
+  ast_t* super_members = ast_childidx(super_def, 4);
+  ast_t* super_member = ast_child(super_members);
+
+  subst_t subst;
+  subst_init(&subst);
+
+  while(super_member != NULL)
+  {
+    ast_t* super_member_id = ast_childidx(super_member, 1);
+    ast_t* sub_member = ast_get(sub_def, ast_name(super_member_id), NULL);
+
+    if((sub_member == NULL) || (ast_id(sub_member) != TK_FUN &&
+      ast_id(sub_member) != TK_BE && ast_id(sub_member) != TK_NEW))
+    {
+      subst_free(&subst);
+      return false;
+    }
+
+    // Reify both methods with their class-level type arguments.
+    ast_t* r_sub = reify_method_def(sub_member, sub_typeparams,
+      sub_typeargs, opt);
+    pony_assert(r_sub != NULL);
+
+    ast_t* r_super = reify_method_def(super_member, super_typeparams,
+      super_typeargs, opt);
+    pony_assert(r_super != NULL);
+
+    // Structural shape checks (these don't depend on type-arg reification).
+    token_id tsub = ast_id(r_sub);
+    token_id tsuper = ast_id(r_super);
+
+    // A constructor can only match a constructor.
+    if(((tsub == TK_NEW) || (tsuper == TK_NEW)) && (tsub != tsuper))
+    {
+      if(r_sub != sub_member) ast_free_unattached(r_sub);
+      if(r_super != super_member) ast_free_unattached(r_super);
+      subst_free(&subst);
+      return false;
+    }
+
+    AST_GET_CHILDREN(r_sub, sub_cap, sub_id, sub_tps, sub_params,
+      sub_result, sub_throws);
+    AST_GET_CHILDREN(r_super, super_cap, super_id, super_tps, super_params,
+      super_result, super_throws);
+
+    // Must have same number of type parameters and parameters.
+    if(ast_childcount(sub_tps) != ast_childcount(super_tps)
+      || ast_childcount(sub_params) != ast_childcount(super_params))
+    {
+      if(r_sub != sub_member) ast_free_unattached(r_sub);
+      if(r_super != super_member) ast_free_unattached(r_super);
+      subst_free(&subst);
+      return false;
+    }
+
+    // Bareness must match.
+    bool sub_bare = ast_id(sub_cap) == TK_AT;
+    bool super_bare = ast_id(super_cap) == TK_AT;
+    if(sub_bare != super_bare)
+    {
+      if(r_sub != sub_member) ast_free_unattached(r_sub);
+      if(r_super != super_member) ast_free_unattached(r_super);
+      subst_free(&subst);
+      return false;
+    }
+
+    // If the super method has method-level type params, reify the sub method
+    // with the super's type params so both are in the same variable space
+    // (mirrors is_fun_sub_fun).
+    ast_t* rr_sub = r_sub;
+    if(ast_id(super_tps) != TK_NONE)
+    {
+      BUILD(typeargs, super_tps, NODE(TK_TYPEARGS));
+      ast_t* stp = ast_child(super_tps);
+      while(stp != NULL)
+      {
+        AST_GET_CHILDREN(stp, stp_id, stp_constraint);
+        BUILD(typearg, stp, NODE(TK_TYPEPARAMREF, TREE(stp_id) NONE NONE));
+        ast_t* def = ast_get(stp, ast_name(stp_id), NULL);
+        ast_setdata(typearg, def);
+        typeparam_set_cap(typearg);
+        ast_append(typeargs, typearg);
+        stp = ast_sibling(stp);
+      }
+
+      rr_sub = reify_method_def(r_sub, sub_tps, typeargs, opt);
+      ast_free_unattached(typeargs);
+
+      // Re-extract children from the re-reified sub method.
+      sub_result = ast_childidx(rr_sub, 4);
+      sub_throws = ast_childidx(rr_sub, 5);
+      sub_params = ast_childidx(rr_sub, 3);
+    }
+
+    // Park reified trees on the substitution so typeargs_could_unify's
+    // subst bindings (which point into these trees) stay valid across
+    // method iterations. subst_free releases them at the end.
+    if(rr_sub != r_sub) subst_keep(&subst, rr_sub);
+    if(r_sub != sub_member) subst_keep(&subst, r_sub);
+    if(r_super != super_member) subst_keep(&subst, r_super);
+
+    // Covariant result: could the types unify?
+    if(!typeargs_could_unify(&subst, sub_result, super_result, opt))
+    {
+      subst_free(&subst);
+      return false;
+    }
+
+    // Contravariant parameters: could each pair unify?
+    ast_t* sub_param = ast_child(sub_params);
+    ast_t* super_param = ast_child(super_params);
+    bool params_ok = true;
+    while((sub_param != NULL) && (super_param != NULL))
+    {
+      ast_t* sub_type = ast_childidx(sub_param, 1);
+      ast_t* super_type = ast_childidx(super_param, 1);
+
+      if(!typeargs_could_unify(&subst, sub_type, super_type, opt))
+      {
+        params_ok = false;
+        break;
+      }
+
+      sub_param = ast_sibling(sub_param);
+      super_param = ast_sibling(super_param);
+    }
+
+    if(!params_ok)
+    {
+      subst_free(&subst);
+      return false;
+    }
+
+    // Covariant throws.
+    if((ast_id(sub_throws) == TK_QUESTION) &&
+      (ast_id(super_throws) != TK_QUESTION))
+    {
+      subst_free(&subst);
+      return false;
+    }
+
+    super_member = ast_sibling(super_member);
+  }
+
+  subst_free(&subst);
+  return true;
+}
+
 static matchtype_t is_entity_match_trait(ast_t* operand, ast_t* pattern,
   errorframe_t* errorf, bool report_reject, pass_opt_t* opt)
 {
@@ -1499,6 +1681,17 @@ static matchtype_t is_entity_match_trait(ast_t* operand, ast_t* pattern,
   if(!provides
     && ast_id((ast_t*)ast_data(operand)) != TK_STRUCT
     && provides_could_match_pattern(operand, pattern, opt))
+    provides = true;
+
+  // If the nominal provides walk didn't find a match and the pattern is an
+  // interface, the class may still satisfy it structurally (no `is I`
+  // declaration). Check whether the entity's methods could match the
+  // interface's methods for some reification of the type parameters. See
+  // #5863.
+  if(!provides
+    && ast_id((ast_t*)ast_data(operand)) != TK_STRUCT
+    && ast_id((ast_t*)ast_data(pattern)) == TK_INTERFACE
+    && structural_could_match_pattern(operand, pattern, opt))
     provides = true;
 
   // If the operand doesn't provide the pattern (trait or interface), reject
