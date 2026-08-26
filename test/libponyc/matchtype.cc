@@ -2087,3 +2087,536 @@ TEST_F(MatchTypeTest, TypeParamInTypeArgTupleOccurs)
   ASSERT_EQ(MATCHTYPE_REJECT,
     is_matchtype(type_of("c1_a"), type_of("c1_tuple_wrap_a"), NULL, &opt));
 }
+
+
+TEST_F(MatchTypeTest, TypeParamInTypeArgConsistentSubstitutionRepeatedParam)
+{
+  // The same type parameter appearing in more than one typearg position
+  // must reify to the same type at every occurrence. `Pair[A, A]` vs
+  // `Pair[String val, U8]` has no reification of A that is both String and
+  // U8, so match_typeargs_pairwise must reject.
+  //
+  // The consistent-both-concrete case `Pair[A, A]` vs `Pair[String, String]`
+  // must still accept — A = String satisfies both positions.
+  const char* src =
+    "class val Pair[A: Any #share, B: Any #share]\n"
+    "  let first: A\n"
+    "  let second: B\n"
+    "  new val create(a: A, b: B) => first = a; second = b\n"
+
+    "interface Test\n"
+    "  fun z[A: Any #share]\n"
+    "    (p_aa: Pair[A, A],\n"
+    "     p_string_u8: Pair[String val, U8],\n"
+    "     p_string_string: Pair[String val, String val])";
+
+  TEST_COMPILE(src);
+
+  ASSERT_EQ(MATCHTYPE_REJECT,
+    is_matchtype(type_of("p_aa"), type_of("p_string_u8"), NULL, &opt));
+
+  ASSERT_EQ(MATCHTYPE_REJECT,
+    is_matchtype(type_of("p_string_u8"), type_of("p_aa"), NULL, &opt));
+
+  ASSERT_EQ(MATCHTYPE_ACCEPT,
+    is_matchtype(type_of("p_aa"), type_of("p_string_string"), NULL, &opt));
+}
+
+
+TEST_F(MatchTypeTest, TypeParamInTypeArgConsistentSubstitutionDistinctParams)
+{
+  // Distinct type parameters bind independently. `Pair[A, B]` vs
+  // `Pair[String val, U8]` must still accept: A can reify to String and B
+  // to U8; the consistency check only fires for repeated occurrences of
+  // the same def.
+  const char* src =
+    "class val Pair[A: Any #share, B: Any #share]\n"
+    "  let first: A\n"
+    "  let second: B\n"
+    "  new val create(a: A, b: B) => first = a; second = b\n"
+
+    "interface Test\n"
+    "  fun z[A: Any #share, B: Any #share]\n"
+    "    (p_ab: Pair[A, B],\n"
+    "     p_string_u8: Pair[String val, U8])";
+
+  TEST_COMPILE(src);
+
+  ASSERT_EQ(MATCHTYPE_ACCEPT,
+    is_matchtype(type_of("p_ab"), type_of("p_string_u8"), NULL, &opt));
+}
+
+
+TEST_F(MatchTypeTest, TypeParamInTypeArgConsistentSubstitutionNested)
+{
+  // Substitution threads through nested nominal recursion:
+  // `Cell[Pair[A, A]]` vs `Cell[Pair[String val, U8]]` recurses into the
+  // outer Cell's typearg, which is itself Pair[..] vs Pair[..], and the
+  // inner walk must reject the mismatched pair.
+  const char* src =
+    "class val Cell[X: Any #share]\n"
+    "  let value: X\n"
+    "  new val create(v: X) => value = v\n"
+
+    "class val Pair[A: Any #share, B: Any #share]\n"
+    "  let first: A\n"
+    "  let second: B\n"
+    "  new val create(a: A, b: B) => first = a; second = b\n"
+
+    "interface Test\n"
+    "  fun z[A: Any #share]\n"
+    "    (cell_pair_aa: Cell[Pair[A, A]],\n"
+    "     cell_pair_string_u8: Cell[Pair[String val, U8]])";
+
+  TEST_COMPILE(src);
+
+  ASSERT_EQ(MATCHTYPE_REJECT,
+    is_matchtype(type_of("cell_pair_aa"),
+      type_of("cell_pair_string_u8"), NULL, &opt));
+}
+
+
+TEST_F(MatchTypeTest, TypeParamInTypeArgConsistentSubstitutionMixedPosition)
+{
+  // Repeated typeparam on the operand paired against a mix of concrete and
+  // typeparam on the pattern side. `Pair[A, A]` vs `Pair[String val, B]`:
+  // position 0 binds A = String; position 1 pairs A against B (two-typeparam
+  // branch, over-approximates without consulting subst). The pair still
+  // accepts because a consistent reification exists — A = B = String —
+  // even though the current algorithm doesn't check it.
+  const char* src =
+    "class val Pair[A: Any #share, B: Any #share]\n"
+    "  let first: A\n"
+    "  let second: B\n"
+    "  new val create(a: A, b: B) => first = a; second = b\n"
+
+    "interface Test\n"
+    "  fun z[A: Any #share, B: Any #share]\n"
+    "    (p_aa: Pair[A, A],\n"
+    "     p_string_b: Pair[String val, B])";
+
+  TEST_COMPILE(src);
+
+  ASSERT_EQ(MATCHTYPE_ACCEPT,
+    is_matchtype(type_of("p_aa"), type_of("p_string_b"), NULL, &opt));
+}
+
+
+TEST_F(MatchTypeTest, TypeParamInTypeArgConsistentSubstitutionAlias)
+{
+  // Type alias in a typearg position exercises typealias_unfold, which
+  // returns a freshly allocated tree. The unfolded tree may contribute a
+  // subtree to subst; subst_keep must hold it alive across positions or a
+  // later position's lookup would dereference freed memory.
+  //
+  // `Pair[A, A]` vs `Pair[StringAlias, U8]` (with StringAlias = String val)
+  // must reject: after unfolding StringAlias the pattern is effectively
+  // Pair[String val, U8], and the reported shape's rejection applies.
+  const char* src =
+    "type StringAlias is String val\n"
+
+    "class val Pair[A: Any #share, B: Any #share]\n"
+    "  let first: A\n"
+    "  let second: B\n"
+    "  new val create(a: A, b: B) => first = a; second = b\n"
+
+    "interface Test\n"
+    "  fun z[A: Any #share]\n"
+    "    (p_aa: Pair[A, A],\n"
+    "     p_alias_u8: Pair[StringAlias, U8])";
+
+  TEST_COMPILE(src);
+
+  ASSERT_EQ(MATCHTYPE_REJECT,
+    is_matchtype(type_of("p_aa"), type_of("p_alias_u8"), NULL, &opt));
+}
+
+
+TEST_F(MatchTypeTest, TypeParamInTypeArgConsistentSubstitutionRepeatedCompoundArg)
+{
+  // Repeated typeparam paired against a repeated compound arg. `Pair[A, A]`
+  // vs `Pair[(U8 | I32), (U8 | I32)]`: position 0 enters the one-typeparam
+  // branch (typeparam checks come before the compound branch) and binds A
+  // to the union; position 1 looks up A and recurses on the two identical
+  // unions, which is_eqtype accepts. Whole pair accepts because
+  // A = (U8 | I32) is a consistent reification.
+  const char* src =
+    "class val Pair[A: Any #share, B: Any #share]\n"
+    "  let first: A\n"
+    "  let second: B\n"
+    "  new val create(a: A, b: B) => first = a; second = b\n"
+
+    "interface Test\n"
+    "  fun z[A: Any #share]\n"
+    "    (p_aa: Pair[A, A],\n"
+    "     p_union_union: Pair[(U8 | I32), (U8 | I32)])";
+
+  TEST_COMPILE(src);
+
+  ASSERT_EQ(MATCHTYPE_ACCEPT,
+    is_matchtype(type_of("p_aa"), type_of("p_union_union"), NULL, &opt));
+}
+
+
+TEST_F(MatchTypeTest,
+  TypeParamInTypeArgConsistentSubstitutionConstrainedTypeParam)
+{
+  // Constrained typeparam repeated across positions. A is constrained to
+  // (U8 | String val); position 0 binds A = U8, position 1 recurses with
+  // the bound U8 against String — is_eqtype false, nominal-nominal
+  // different-def rejects. Whole pair rejects.
+  const char* src =
+    "class val Pair[A: Any #share, B: Any #share]\n"
+    "  let first: A\n"
+    "  let second: B\n"
+    "  new val create(a: A, b: B) => first = a; second = b\n"
+
+    "interface Test\n"
+    "  fun z[A: (U8 | String val)]\n"
+    "    (p_aa: Pair[A, A],\n"
+    "     p_u8_string: Pair[U8, String val])";
+
+  TEST_COMPILE(src);
+
+  ASSERT_EQ(MATCHTYPE_REJECT,
+    is_matchtype(type_of("p_aa"), type_of("p_u8_string"), NULL, &opt));
+}
+
+
+TEST_F(MatchTypeTest, TypeParamInTypeArgConsistentSubstitutionTraitPath)
+{
+  // Same-shape consistency for the trait/interface path
+  // (provides_could_match_pattern → match_typeargs_pairwise). Cons[A]
+  // provides T[A, A]; the pattern T[String val, U8] can never be reached
+  // from a Cons[A] operand because no reification of A is both String and
+  // U8.
+  const char* src =
+    "trait val T[A: Any #share, B: Any #share]\n"
+    "  fun first(): A\n"
+    "  fun second(): B\n"
+
+    "class val Cons[A: Any #share] is T[A, A]\n"
+    "  let _v: A\n"
+    "  new val create(v: A) => _v = v\n"
+    "  fun first(): A => _v\n"
+    "  fun second(): A => _v\n"
+
+    "interface Test\n"
+    "  fun z[A: Any #share]\n"
+    "    (cons_a: Cons[A],\n"
+    "     t_string_u8: T[String val, U8] val)";
+
+  TEST_COMPILE(src);
+
+  ASSERT_EQ(MATCHTYPE_REJECT,
+    is_matchtype(type_of("cons_a"), type_of("t_string_u8"), NULL, &opt));
+}
+
+
+TEST_F(MatchTypeTest, TypeParamInTypeArgConsistentSubstitutionInterfacePath)
+{
+  // Interface-path parallel to the TraitPath test above. Cons[A] provides
+  // an interface I that carries T[A, A]; the pattern I[String val, U8]
+  // has no reification of A that is both String and U8.
+  const char* src =
+    "interface val I[A: Any #share, B: Any #share]\n"
+    "  fun first(): A\n"
+    "  fun second(): B\n"
+
+    "class val Cons[A: Any #share] is I[A, A]\n"
+    "  let _v: A\n"
+    "  new val create(v: A) => _v = v\n"
+    "  fun first(): A => _v\n"
+    "  fun second(): A => _v\n"
+
+    "interface Test\n"
+    "  fun z[A: Any #share]\n"
+    "    (cons_a: Cons[A],\n"
+    "     i_string_u8: I[String val, U8] val)";
+
+  TEST_COMPILE(src);
+
+  ASSERT_EQ(MATCHTYPE_REJECT,
+    is_matchtype(type_of("cons_a"), type_of("i_string_u8"), NULL, &opt));
+}
+
+
+TEST_F(MatchTypeTest, TypeParamInTypeArgConsistentSubstitutionTupleElement)
+{
+  // Substitution threads through the tuple recursion path in
+  // typeargs_could_unify. `Cell[(A, A)]` vs `Cell[(String val, U8)]`
+  // reaches the tuple branch during the outer Cell's typearg walk, and the
+  // tuple's second element rejects because A is already bound to String.
+  const char* src =
+    "class val Cell[X: Any #share]\n"
+    "  let value: X\n"
+    "  new val create(v: X) => value = v\n"
+
+    "interface Test\n"
+    "  fun z[A: Any #share]\n"
+    "    (cell_tuple_aa: Cell[(A, A)],\n"
+    "     cell_tuple_string_u8: Cell[(String val, U8)])";
+
+  TEST_COMPILE(src);
+
+  ASSERT_EQ(MATCHTYPE_REJECT,
+    is_matchtype(type_of("cell_tuple_aa"),
+      type_of("cell_tuple_string_u8"), NULL, &opt));
+}
+
+
+TEST_F(MatchTypeTest,
+  TypeParamInTypeArgConsistentSubstitutionMultipleRepeatedParams)
+{
+  // Multiple distinct repeated typeparams live in subst simultaneously.
+  // Quad[A, A, B, B] vs Quad[String, U8, I32, I32]: A binds to String at
+  // position 0 and mismatches U8 at position 1, so the whole list rejects.
+  // A separate accept case swaps position 1 to String to prove B's binding
+  // is looked up independently of A's.
+  const char* src =
+    "class val Quad[A: Any #share, B: Any #share,\n"
+    "               C: Any #share, D: Any #share]\n"
+    "  let a: A\n"
+    "  let b: B\n"
+    "  let c: C\n"
+    "  let d: D\n"
+    "  new val create(a': A, b': B, c': C, d': D) =>\n"
+    "    a = a'; b = b'; c = c'; d = d'\n"
+
+    "interface Test\n"
+    "  fun z[A: Any #share, B: Any #share]\n"
+    "    (q_aabb: Quad[A, A, B, B],\n"
+    "     q_reject: Quad[String val, U8, I32, I32],\n"
+    "     q_accept: Quad[String val, String val, I32, I32])";
+
+  TEST_COMPILE(src);
+
+  ASSERT_EQ(MATCHTYPE_REJECT,
+    is_matchtype(type_of("q_aabb"), type_of("q_reject"), NULL, &opt));
+
+  ASSERT_EQ(MATCHTYPE_ACCEPT,
+    is_matchtype(type_of("q_aabb"), type_of("q_accept"), NULL, &opt));
+}
+
+
+TEST_F(MatchTypeTest, TypeParamInTypeArgConsistentSubstitutionWithOccurs)
+{
+  // Occurs and consistent-substitution interact when a typeparam appears
+  // both bare in one position and inside a generative constructor in a
+  // later position that also carries a concrete on the other side.
+  //
+  // Pair[A, Wrap[A]] vs Pair[String val, Wrap[String val]] accepts:
+  // A = String satisfies both positions.
+  //
+  // Pair[A, Wrap[A]] vs Pair[String val, Wrap[U8]] rejects: A bound to
+  // String at position 0, then position 1's nominal-nominal recursion into
+  // Wrap's typearg finds A already bound to String, which does not unify
+  // with U8.
+  const char* src =
+    "class val Wrap[A: Any #share]\n"
+    "  let value: A\n"
+    "  new val create(v: A) => value = v\n"
+
+    "class val Pair[A: Any #share, B: Any #share]\n"
+    "  let first: A\n"
+    "  let second: B\n"
+    "  new val create(a: A, b: B) => first = a; second = b\n"
+
+    "interface Test\n"
+    "  fun z[A: Any #share]\n"
+    "    (p_a_wrap_a: Pair[A, Wrap[A] val],\n"
+    "     p_string_wrap_string: Pair[String val, Wrap[String val] val],\n"
+    "     p_string_wrap_u8: Pair[String val, Wrap[U8] val])";
+
+  TEST_COMPILE(src);
+
+  ASSERT_EQ(MATCHTYPE_ACCEPT,
+    is_matchtype(type_of("p_a_wrap_a"),
+      type_of("p_string_wrap_string"), NULL, &opt));
+
+  ASSERT_EQ(MATCHTYPE_REJECT,
+    is_matchtype(type_of("p_a_wrap_a"),
+      type_of("p_string_wrap_u8"), NULL, &opt));
+}
+
+
+TEST_F(MatchTypeTest,
+  TypeParamInTypeArgConsistentSubstitutionCompoundArg)
+{
+  // Compound (union / intersection) typearg position honors outer subst.
+  // `Pair[A, (A | U8)]` vs `Pair[String val, (I32 | U8)]` rejects: position
+  // 0 binds A = String, position 1's arm-covering finds no b-arm that
+  // matches a-arm A once A is bound (String ≠ I32, String ≠ U8).
+  //
+  // Intersection variant checks the same in every_arm_could_unify's path.
+  //
+  // Legit-accept `(P | A)` vs `(Q | A)` must still accept — the per-arm
+  // snapshot/restore in any_arm_could_unify keeps sibling arm attempts
+  // independent so A can bind to P and Q in separate attempts without
+  // conflict. That's covered by TypeParamInTypeArgUnionArmSameTypeParam.
+  const char* src =
+    "primitive P\n"
+
+    "class val Pair[A: Any #share, B: Any #share]\n"
+    "  let first: A\n"
+    "  let second: B\n"
+    "  new val create(a: A, b: B) => first = a; second = b\n"
+
+    "interface Test\n"
+    "  fun z[A: Any #share]\n"
+    "    (p_a_union_a_u8: Pair[A, (A | U8)],\n"
+    "     p_string_union_i32_u8: Pair[String val, (I32 | U8)],\n"
+    "     p_string_union_string_u8: Pair[String val, (String val | U8)],\n"
+    "     p_a_isect_a_any: Pair[A, (A & Any val)],\n"
+    "     p_string_isect_i32_any: Pair[String val, (I32 & Any val)])";
+
+  TEST_COMPILE(src);
+
+  ASSERT_EQ(MATCHTYPE_REJECT,
+    is_matchtype(type_of("p_a_union_a_u8"),
+      type_of("p_string_union_i32_u8"), NULL, &opt));
+
+  ASSERT_EQ(MATCHTYPE_REJECT,
+    is_matchtype(type_of("p_string_union_i32_u8"),
+      type_of("p_a_union_a_u8"), NULL, &opt));
+
+  // A = String val makes (A | U8) = (String val | U8). Both positions
+  // reify consistently — accept.
+  ASSERT_EQ(MATCHTYPE_ACCEPT,
+    is_matchtype(type_of("p_a_union_a_u8"),
+      type_of("p_string_union_string_u8"), NULL, &opt));
+
+  // Intersection variant of the same shape.
+  ASSERT_EQ(MATCHTYPE_REJECT,
+    is_matchtype(type_of("p_a_isect_a_any"),
+      type_of("p_string_isect_i32_any"), NULL, &opt));
+}
+
+
+TEST_F(MatchTypeTest,
+  TypeParamInTypeArgConsistentSubstitutionCompoundArgNested)
+{
+  // Nested inside another nominal — the outer Cell recursion still
+  // threads subst into the inner Pair's typearg walk, so the same
+  // rejection fires at any depth.
+  const char* src =
+    "class val Cell[X: Any #share]\n"
+    "  let value: X\n"
+    "  new val create(v: X) => value = v\n"
+
+    "class val Pair[A: Any #share, B: Any #share]\n"
+    "  let first: A\n"
+    "  let second: B\n"
+    "  new val create(a: A, b: B) => first = a; second = b\n"
+
+    "interface Test\n"
+    "  fun z[A: Any #share]\n"
+    "    (cell_pair_a_union_a_u8:\n"
+    "       Cell[Pair[A, (A | U8)] val],\n"
+    "     cell_pair_string_union_i32_u8:\n"
+    "       Cell[Pair[String val, (I32 | U8)] val])";
+
+  TEST_COMPILE(src);
+
+  ASSERT_EQ(MATCHTYPE_REJECT,
+    is_matchtype(type_of("cell_pair_a_union_a_u8"),
+      type_of("cell_pair_string_union_i32_u8"), NULL, &opt));
+}
+
+
+TEST_F(MatchTypeTest,
+  TypeParamInTypeArgConsistentSubstitutionCompoundArgArmNominal)
+{
+  // Typeparam one nominal down inside a compound arm. Position 0 binds
+  // A = String; position 1's arm-covering tries Cell[A] vs Cell[I32],
+  // which recurses into the inner typearg and hits A already bound to
+  // String — String ≠ I32 → reject.
+  const char* src =
+    "class val Cell[X: Any #share]\n"
+    "  let value: X\n"
+    "  new val create(v: X) => value = v\n"
+
+    "class val Pair[A: Any #share, B: Any #share]\n"
+    "  let first: A\n"
+    "  let second: B\n"
+    "  new val create(a: A, b: B) => first = a; second = b\n"
+
+    "interface Test\n"
+    "  fun z[A: Any #share]\n"
+    "    (p_a_cell_a_u8:\n"
+    "       Pair[A, (Cell[A] val | U8)],\n"
+    "     p_string_cell_i32_u8:\n"
+    "       Pair[String val, (Cell[I32] val | U8)])";
+
+  TEST_COMPILE(src);
+
+  ASSERT_EQ(MATCHTYPE_REJECT,
+    is_matchtype(type_of("p_a_cell_a_u8"),
+      type_of("p_string_cell_i32_u8"), NULL, &opt));
+}
+
+
+TEST_F(MatchTypeTest,
+  TypeParamInTypeArgConsistentSubstitutionCompoundArgTraitPath)
+{
+  // Trait/interface path exercises the same subst threading via
+  // provides_could_match_pattern. Cons[A] provides T[A, (A | U8)]; the
+  // pattern T[String val, (I32 | U8)] requires A both String and (I32|U8)
+  // — impossible.
+  const char* src =
+    "trait val T[A: Any #share, B: Any #share]\n"
+    "  fun first(): A\n"
+    "  fun second(): B\n"
+
+    "class val Cons[A: Any #share] is T[A, (A | U8)]\n"
+    "  let _v: A\n"
+    "  new val create(v: A) => _v = v\n"
+    "  fun first(): A => _v\n"
+    "  fun second(): (A | U8) => _v\n"
+
+    "interface Test\n"
+    "  fun z[A: Any #share]\n"
+    "    (cons_a: Cons[A],\n"
+    "     t_string_union_i32_u8: T[String val, (I32 | U8)] val)";
+
+  TEST_COMPILE(src);
+
+  ASSERT_EQ(MATCHTYPE_REJECT,
+    is_matchtype(type_of("cons_a"),
+      type_of("t_string_union_i32_u8"), NULL, &opt));
+}
+
+
+TEST_F(MatchTypeTest,
+  TypeParamInTypeArgConsistentSubstitutionTwoTypeParams)
+{
+  // Two-typeparam branch also consults subst. `Pair[A, A]` vs
+  // `Pair[String val, B]` where B: I32: position 0 binds A = String,
+  // position 1 pairs A (bound to String) against B (unbound); the
+  // recursive check on String val vs B falls to the one-typeparam branch
+  // and rejects because B's I32 constraint doesn't admit String.
+  //
+  // The legit-accept counterpart — `Pair[A, A]` vs `Pair[String, B]`
+  // where B: Any share — must still accept, because after A binds to
+  // String at position 0, position 1's B vs String recurse binds B =
+  // String successfully.
+  const char* src =
+    "class val Pair[A: Any #share, B: Any #share]\n"
+    "  let first: A\n"
+    "  let second: B\n"
+    "  new val create(a: A, b: B) => first = a; second = b\n"
+
+    "interface Test\n"
+    "  fun z[A: Any #share, B: I32, C: Any #share]\n"
+    "    (p_aa: Pair[A, A],\n"
+    "     p_string_b: Pair[String val, B],\n"
+    "     p_string_c: Pair[String val, C])";
+
+  TEST_COMPILE(src);
+
+  ASSERT_EQ(MATCHTYPE_REJECT,
+    is_matchtype(type_of("p_aa"), type_of("p_string_b"), NULL, &opt));
+
+  ASSERT_EQ(MATCHTYPE_ACCEPT,
+    is_matchtype(type_of("p_aa"), type_of("p_string_c"), NULL, &opt));
+}
