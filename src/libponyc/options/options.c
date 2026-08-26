@@ -9,6 +9,7 @@
 #include "../ast/stringtab.h"
 #include "../ast/treecheck.h"
 #include "../pass/pass.h"
+#include "../pass/timing.h"
 #include "../plugin/plugin.h"
 #include "../libponyrt/options/options.h"
 #include "../libponyrt/mem/pool.h"
@@ -41,6 +42,8 @@ enum
   OPT_FEATURES,
   OPT_TRIPLE,
   OPT_STATS,
+  OPT_PASS_TIMINGS,
+  OPT_PASS_TIMINGS_JSON,
   OPT_LINK_ARCH,
   OPT_SYSROOT,
   OPT_PLUGIN,
@@ -84,6 +87,8 @@ static opt_arg_t std_args[] =
   {"features", '\0', OPT_ARG_REQUIRED, OPT_FEATURES},
   {"triple", '\0', OPT_ARG_REQUIRED, OPT_TRIPLE},
   {"stats", '\0', OPT_ARG_NONE, OPT_STATS},
+  {"pass-timings", '\0', OPT_ARG_NONE, OPT_PASS_TIMINGS},
+  {"pass-timings-json", '\0', OPT_ARG_REQUIRED, OPT_PASS_TIMINGS_JSON},
   {"link-arch", '\0', OPT_ARG_REQUIRED, OPT_LINK_ARCH},
   {"sysroot", '\0', OPT_ARG_REQUIRED, OPT_SYSROOT},
   {"plugin", '\0', OPT_ARG_REQUIRED, OPT_PLUGIN},
@@ -152,6 +157,12 @@ static void usage(void)
     "  --triple         Set the target triple.\n"
     "    =name          Defaults to the host triple.\n"
     "  --stats          Print some compiler stats.\n"
+    "  --pass-timings   Print a table of front-end time by package and pass\n"
+    "                   to stderr. Only the front-end passes are timed.\n"
+    "  --pass-timings-json\n"
+    "    =path          Write the same timings as JSON to this file. On its\n"
+    "                   own this writes only the file; add --pass-timings to\n"
+    "                   get the table as well.\n"
     "  --link-arch      Architecture subdirectory for finding the Pony\n"
     "                   runtime libraries (lib/<arch>).\n"
     "    =name          Default is the host architecture.\n"
@@ -306,6 +317,19 @@ ponyc_opt_process_t ponyc_opt_process(opt_state_t* s, pass_opt_t* opt,
       case OPT_FEATURES: opt->features = s->arg_val; break;
       case OPT_TRIPLE: opt->triple = s->arg_val; break;
       case OPT_STATS: opt->print_stats = true; break;
+      case OPT_PASS_TIMINGS:
+        if(opt->timers == NULL)
+          opt->timers = pass_timers_create();
+        pass_timers_enable_table(opt->timers);
+        break;
+      case OPT_PASS_TIMINGS_JSON:
+        if(opt->timers == NULL)
+          opt->timers = pass_timers_create();
+        // Opened now, so an unwritable path fails here instead of after a
+        // whole build has run.
+        if(!pass_timers_set_json(opt->timers, s->arg_val))
+          exit_code = EXIT_255;
+        break;
       case OPT_LINK_ARCH: opt->link_arch = s->arg_val; break;
       case OPT_SYSROOT: opt->sysroot = s->arg_val; break;
       case OPT_PLUGIN:

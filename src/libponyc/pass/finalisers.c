@@ -1,4 +1,7 @@
 #include "finalisers.h"
+#include "pass.h"
+#include "timing.h"
+#include "../pkg/package.h"
 #include "../type/lookup.h"
 #include "../type/subtype.h"
 #include "../type/reify.h"
@@ -261,8 +264,16 @@ bool pass_finalisers(ast_t* program, pass_opt_t* options)
 
   while(package != NULL)
   {
+    // Timed here rather than by the TK_PACKAGE hook in ast_visit, because this
+    // pass walks the program itself instead of going through ast_visit.
+    const char* pkg = package_qualified_name(package);
+
+    pass_timers_start(options->timers, pkg, pass_name(PASS_FINALISER));
+
     if(!package_finalisers(options, package, final))
       ok = false;
+
+    pass_timers_stop(options->timers, pkg, pass_name(PASS_FINALISER));
 
     package = ast_sibling(package);
   }

@@ -12,11 +12,13 @@
 #include "completeness.h"
 #include "verify.h"
 #include "finalisers.h"
+#include "timing.h"
 #include "../ast/ast.h"
 #include "../ast/parser.h"
 #include "../ast/treecheck.h"
 #include "../codegen/codegen.h"
 #include "../codegen/gencshim.h"
+#include "../pkg/package.h"
 #include "../pkg/program.h"
 #include "../pkg/buildflagset.h"
 #include "../plugin/plugin.h"
@@ -144,6 +146,16 @@ void pass_opt_done(pass_opt_t* options)
       );
   }
 
+  // Free the timing context if it survived to here. This covers the early-exit
+  // option paths, which never start LLVM; reaching it after LLVM teardown would
+  // be a bug (timing.h gives the reason), and the ponyc driver frees it before
+  // then.
+  if(options->timers != NULL)
+  {
+    pass_timers_free(options->timers);
+    options->timers = NULL;
+  }
+
   // Free the interned-string table last: every interned pointer handed out
   // during this compilation (including those inside the AST) dangles after
   // this, so nothing that holds one may be used past here.
@@ -202,8 +214,16 @@ static bool visit_pass(ast_t** astp, pass_opt_t* options, pass_id last_pass,
 
 bool module_passes(ast_t* package, pass_opt_t* options, source_t* source)
 {
-  if(!pass_parse(package, source, options->check.errors, options->strtab,
-    options->allow_test_symbols, options->parse_trace))
+  // module_passes runs once per module, and the timers accumulate by
+  // (package, pass), so a package's modules fold into one row per pass.
+  const char* pkg = package_qualified_name(package);
+
+  pass_timers_start(options->timers, pkg, pass_name(PASS_PARSE));
+  bool parsed = pass_parse(package, source, options->check.errors,
+    options->strtab, options->allow_test_symbols, options->parse_trace);
+  pass_timers_stop(options->timers, pkg, pass_name(PASS_PARSE));
+
+  if(!parsed)
     return false;
 
   if(options->limit < PASS_SYNTAX)
@@ -211,7 +231,11 @@ bool module_passes(ast_t* package, pass_opt_t* options, source_t* source)
 
   ast_t* module = ast_child(package);
 
-  if(ast_visit(&module, pass_syntax, NULL, options, PASS_SYNTAX) != AST_OK)
+  pass_timers_start(options->timers, pkg, pass_name(PASS_SYNTAX));
+  ast_result_t r = ast_visit(&module, pass_syntax, NULL, options, PASS_SYNTAX);
+  pass_timers_stop(options->timers, pkg, pass_name(PASS_SYNTAX));
+
+  if(r != AST_OK)
     return false;
 
   if(options->check_tree)
@@ -424,6 +448,24 @@ ast_result_t ast_visit(ast_t** ast, ast_visit_t pre, ast_visit_t post,
   typecheck_t* t = &options->check;
   bool pop = frame_push(t, *ast);
 
+  // Per-package front-end timing. A package subtree is entered once per pass,
+  // so wrapping its whole visit attributes that pass's work on the package. The
+  // span is inclusive rather than exclusive: use_package loads a dependency
+  // from the scope pass, so the dependency's parse and syntax run inside this
+  // package's scope span and are counted in both rows.
+  //
+  // The context is tested before the node id because this runs on every AST
+  // node and ast_id is an out-of-line call, so a build without --pass-timings
+  // pays one predictable branch.
+  //
+  // The name is captured here because pre/post may replace *ast;
+  // package_qualified_name returns an interned pointer that outlives this call.
+  bool time_pkg = (options->timers != NULL) && (ast_id(*ast) == TK_PACKAGE);
+  const char* pkg_qname = time_pkg ? package_qualified_name(*ast) : NULL;
+
+  if(time_pkg)
+    pass_timers_start(options->timers, pkg_qname, pass_name(pass));
+
   ast_result_t ret = AST_OK;
   bool ignore = false;
 
@@ -443,12 +485,7 @@ ast_result_t ast_visit(ast_t** ast, ast_visit_t pre, ast_visit_t post,
         break;
 
       case AST_FATAL:
-        ast_pass_record(*ast, pass);
-
-        if(pop)
-          frame_pop(t);
-
-        return AST_FATAL;
+        goto fatal;
     }
   }
 
@@ -473,12 +510,7 @@ ast_result_t ast_visit(ast_t** ast, ast_visit_t pre, ast_visit_t post,
           break;
 
         case AST_FATAL:
-          ast_pass_record(*ast, pass);
-
-          if(pop)
-            frame_pop(t);
-
-          return AST_FATAL;
+          goto fatal;
       }
 
       child = ast_sibling(child);
@@ -498,20 +530,31 @@ ast_result_t ast_visit(ast_t** ast, ast_visit_t pre, ast_visit_t post,
         break;
 
       case AST_FATAL:
-        ast_pass_record(*ast, pass);
-
-        if(pop)
-          frame_pop(t);
-
-        return AST_FATAL;
+        goto fatal;
     }
   }
+
+  if(time_pkg)
+    pass_timers_stop(options->timers, pkg_qname, pass_name(pass));
 
   if(pop)
     frame_pop(t);
 
   ast_pass_record(*ast, pass);
   return ret;
+
+  // Shared by the three fatal arms above, so that stopping the timer cannot be
+  // missed by a return added later.
+fatal:
+  if(time_pkg)
+    pass_timers_stop(options->timers, pkg_qname, pass_name(pass));
+
+  ast_pass_record(*ast, pass);
+
+  if(pop)
+    frame_pop(t);
+
+  return AST_FATAL;
 }
 
 

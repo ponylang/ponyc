@@ -277,13 +277,15 @@ typedef enum pass_id
 
 typedef struct magic_package_t magic_package_t;
 typedef struct plugins_t plugins_t;
+typedef struct pass_timers_t pass_timers_t;
 
 /** Pass options.
  *
  * Any field change here must be mirrored in _PassOpt (pass.pony), through which
  * the Pony tools reach these options over FFI. Adding, removing, or reordering
  * a field -- even a bool that lands in existing padding -- shifts every offset
- * below it, and the tools then read garbage.
+ * below it, and the tools then read garbage. Add a new field at the end, where
+ * it moves nothing above it.
  */
 typedef struct pass_opt_t
 {
@@ -344,9 +346,12 @@ typedef struct pass_opt_t
   // produced while this pass_opt is live (lexer identifiers, scope names,
   // package paths, generated names, ...). Created in pass_opt_init and freed in
   // pass_opt_done, so it must outlive any AST or symtab built under this opt.
-  // Appended last to keep the Pony-side _PassOpt mirror's existing field offsets
-  // (tools/.../pony_compiler/pass.pony).
   strtable_t* strtab;
+
+  // Per-package, per-pass timing context for --pass-timings and
+  // --pass-timings-json, or NULL when timing is off. Opaque; timing.h declares
+  // it and its operations are NULL-safe. Owned by this pass_opt.
+  pass_timers_t* timers;
 } pass_opt_t;
 
 /** Limit processing to the specified pass. All passes up to and including the
