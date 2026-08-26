@@ -292,11 +292,13 @@ cmake --build --preset release
 
 ### lto
 
-Link-time optimizations make the compiler itself faster. On a 64-core x86-64 Linux machine, compiling `packages/stdlib` drops from 201 to 188 seconds, and the front end through reachability analysis from 59 to 48 seconds. LLVM does the bulk of the work in a release build, which is why the whole-build figure moves less than the front end does.
+Link-time optimizations make the compiler itself faster. On a 64-core x86-64 Linux machine, compiling `packages/stdlib` drops from 201 to 186 seconds, and the front end through reachability analysis from 59 to 47 seconds. LLVM does the bulk of the work in a release build, which is why the whole-build figure moves less than the front end does.
 
-LTO applies to the compiler — `libponyc`, `ponyc`, and the test and benchmark binaries that link them — and not to the runtime. `libponyrt.a` and `libponyrt-pic.a` hold native objects either way, so linking a Pony program costs the same whether or not the compiler was built with LTO. `libponyc.a` and `libponyc-standalone.a` do hold bitcode under LTO; embedding either one needs an LTO-capable linker.
+LTO reaches the `ponyc` binary and the test and benchmark binaries, and nothing that gets installed. `libponyrt.a`, `libponyrt-pic.a`, `libponyc.a` and `libponyc-standalone.a` all hold native objects whether or not LTO is on, so linking a Pony program and embedding the compiler as a library both cost the same either way. Keeping it that way means compiling libponyc's sources twice, once for each, which adds about a minute to a full build on a 64-core machine.
 
-LTO needs Clang. Building with GCC or MSVC skips it, with a message at the configure step: their LTO objects hold GIMPLE or MSVC IL rather than machine code, and the LLD embedded in ponyc reads only LLVM bitcode, so `libponyc-standalone.a` would come out unlinkable and the self-hosted tools would fail to build.
+The installed archives have to stay native because ponyc links them itself. `libponyc-standalone.a` is what `pony-lsp`, `pony-lint` and `pony-doc` link through `use "lib:ponyc-standalone"`, and the linker reading it is the LLD embedded in ponyc — which is ponyc's own vendored LLVM, generating machine code from IR your clang emitted. The two need not agree on what that IR may contain. Apple clang stamps `"probe-stack"="__chkstk_darwin"` into every module, LLVM's AArch64 backend accepts only `"inline-asm"`, and so on macOS arm64 the link aborts with `Unsupported stack probing method`.
+
+LTO needs Clang. Building with GCC or MSVC skips it, with a message at the configure step: their LTO objects hold GIMPLE or MSVC IL rather than LLVM bitcode, and each needs its own archiver and linker plugin before an LTO static library will link — a path ponyc has never built against.
 
 We've seen LTO generate incorrect binaries when clang isn't the linker. It's rare, and it reaches only the `ponyc` binary, which your own toolchain links. It doesn't reach the programs ponyc compiles: those are linked by the LLD embedded in ponyc, on every platform. On macOS that's `ld64.lld`, and Xcode or CommandLineTools supplies only the SDK library path it links against, so upgrading Xcode doesn't require rebuilding ponyc.
 

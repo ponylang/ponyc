@@ -2,7 +2,11 @@ cmake_minimum_required(VERSION 3.25 FATAL_ERROR)
 
 project(libponyc VERSION ${PONYC_PROJECT_VERSION} LANGUAGES C CXX)
 
-add_library(libponyc STATIC
+# Built twice when LTO is on: once as bitcode for the ponyc binary and its test
+# and benchmark harnesses, and once as native objects for libponyc.a and
+# libponyc-standalone.a, which we install. See the PONY_USE_LTO block in the
+# top-level CMakeLists.txt for why the installed archives cannot hold bitcode.
+set(LIBPONYC_SOURCES
     ponyc.c
     ponydoc.c
     ast/ast.c
@@ -101,17 +105,26 @@ add_library(libponyc STATIC
     verify/type.c
 )
 
-target_compile_definitions(libponyc PRIVATE
-    PONY_ALWAYS_ASSERT
-)
+set(LIBPONYC_TARGETS libponyc)
+if(PONY_LTO_ENABLED)
+    list(APPEND LIBPONYC_TARGETS libponyc-lto)
+endif()
 
-target_include_directories(libponyc
-    PUBLIC ../common
-    PRIVATE ../../build/libs/include
-    PRIVATE ${CMAKE_BINARY_DIR}/pony_generated
-)
+foreach(_libponyc IN LISTS LIBPONYC_TARGETS)
+    add_library(${_libponyc} STATIC ${LIBPONYC_SOURCES})
 
-add_dependencies(libponyc pony_version)
+    target_compile_definitions(${_libponyc} PRIVATE
+        PONY_ALWAYS_ASSERT
+    )
+
+    target_include_directories(${_libponyc}
+        PUBLIC ../common
+        PRIVATE ../../build/libs/include
+        PRIVATE ${CMAKE_BINARY_DIR}/pony_generated
+    )
+
+    add_dependencies(${_libponyc} pony_version)
+endforeach()
 
 if(${CMAKE_HOST_SYSTEM_NAME} MATCHES "Darwin")
     set(CMAKE_OSX_DEPLOYMENT_TARGET ${PONY_OSX_PLATFORM})

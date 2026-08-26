@@ -18,7 +18,7 @@ target_link_directories(libponyc.benchmarks
 )
 
 target_link_libraries(libponyc.benchmarks
-    PRIVATE libponyc
+    PRIVATE ${PONY_LIBPONYC}
     PRIVATE libponyrt
     PRIVATE benchmark::benchmark
 )

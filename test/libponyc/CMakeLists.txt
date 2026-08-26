@@ -87,7 +87,7 @@ target_link_directories(libponyc.tests
 
 if (MSVC)
     target_link_libraries(libponyc.tests
-        PRIVATE libponyc
+        PRIVATE ${PONY_LIBPONYC}
         PRIVATE libponyrt
         PRIVATE GTest::gtest
         PRIVATE dbghelp
@@ -103,7 +103,7 @@ else()
     if(${CMAKE_HOST_SYSTEM_NAME} MATCHES "Darwin")
         target_link_libraries(libponyc.tests PRIVATE
             -Wl,-force_load,../../src/libponyrt/libponyrt.a
-            libponyc
+            ${PONY_LIBPONYC}
             GTest::gtest
         )
     else()
@@ -111,7 +111,7 @@ else()
             -Wl,--whole-archive
             libponyrt
             -Wl,--no-whole-archive
-            libponyc
+            ${PONY_LIBPONYC}
             GTest::gtest
         )
     endif()

@@ -16,7 +16,7 @@ target_link_directories(ponyc
 
 if (MSVC)
     target_link_libraries(ponyc
-        PRIVATE libponyc
+        PRIVATE ${PONY_LIBPONYC}
         PRIVATE libponyrt
         PRIVATE dbghelp
         PRIVATE ucrt
@@ -28,7 +28,7 @@ if (MSVC)
     set_source_files_properties(main.c PROPERTIES LANGUAGE CXX)
 else()
     target_link_libraries(ponyc PRIVATE
-        libponyc
+        ${PONY_LIBPONYC}
         libponyrt
     )
 
