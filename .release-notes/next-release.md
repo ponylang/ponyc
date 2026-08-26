@@ -49,7 +49,7 @@ main.pony:14:7: this pattern can never match
       ^
 ```
 
-Class, actor, and primitive patterns of this shape are now accepted; the match uses the fully reified type at runtime as it does for any other pattern. Trait and interface patterns still produce the same false error, as do a few less common shapes — union or intersection types appearing in a type argument, and two type parameters whose constraints only overlap through a common subtype. All are tracked as follow-up work.
+Class, actor, and primitive patterns of this shape are now accepted; the match uses the fully reified type at runtime as it does for any other pattern.
 
 ## Fix false "this pattern can never match" error for a type parameter inside a trait or interface type argument
 
@@ -86,7 +86,7 @@ main.pony:16:7: this pattern can never match
 
 Trait and interface patterns of this shape are now accepted when the operand's class nominally provides the pattern's trait or interface via `is`; the match uses the fully reified type at runtime as it does for any other pattern.
 
-A class that structurally satisfies an interface without declaring `is I` is not covered by this fix and still produces the same error — either add `is I[A]` on the class, or wait for a future release. The other shapes named in the earlier entity-side fix — union or intersection types appearing in a type argument, and two type parameters whose constraints only overlap through a common subtype — are also still tracked as follow-up work.
+A class that structurally satisfies an interface without declaring `is I` is not covered by this fix and still produces the same error — either add `is I[A]` on the class, or wait for a future release.
 
 ## Fix false "this pattern can never match" error for constraint-overlapping type parameters and union, intersection, or tuple type arguments
 

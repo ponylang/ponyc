@@ -8,6 +8,165 @@
 #include "viewpoint.h"
 #include "ponyassert.h"
 #include "alias.h"
+#include "../../libponyrt/mem/pool.h"
+
+// Substitution tracked across a single match_typeargs_pairwise walk. When
+// the same type parameter appears in more than one position of the two
+// typeargs lists being compared, every occurrence must reify to the same
+// type; without tracking, Pair[A, A] vs Pair[String, U8] would accept each
+// position independently even though no reification of A is both String
+// and U8.
+//
+// The typeparam_root(def) canonicalization keys each binding. The bound
+// type is a raw pointer into the AST tree being walked. When a recursive
+// call unfolds a type alias — typealias_unfold returns a freshly allocated
+// tree — subtrees of that unfolded tree may be bound; the tree therefore
+// has to outlive the walk, so subst_keep parks it on the substitution and
+// subst_free releases it at the end.
+typedef struct
+{
+  ast_t* def;
+  ast_t* type;
+} subst_entry_t;
+
+typedef struct
+{
+  subst_entry_t* entries;
+  size_t len;
+  size_t cap;
+  ast_t** keep;
+  size_t keep_len;
+  size_t keep_cap;
+} subst_t;
+
+static void subst_init(subst_t* s)
+{
+  s->entries = NULL;
+  s->len = 0;
+  s->cap = 0;
+  s->keep = NULL;
+  s->keep_len = 0;
+  s->keep_cap = 0;
+}
+
+static void subst_free(subst_t* s)
+{
+  if(s->entries != NULL)
+  {
+    ponyint_pool_free_size(s->cap * sizeof(subst_entry_t), s->entries);
+    s->entries = NULL;
+    s->len = 0;
+    s->cap = 0;
+  }
+
+  if(s->keep != NULL)
+  {
+    for(size_t i = 0; i < s->keep_len; i++)
+      ast_free_unattached(s->keep[i]);
+
+    ponyint_pool_free_size(s->keep_cap * sizeof(ast_t*), s->keep);
+    s->keep = NULL;
+    s->keep_len = 0;
+    s->keep_cap = 0;
+  }
+}
+
+static ast_t* subst_lookup(subst_t* s, ast_t* def)
+{
+  if(s == NULL)
+    return NULL;
+
+  for(size_t i = 0; i < s->len; i++)
+  {
+    if(s->entries[i].def == def)
+      return s->entries[i].type;
+  }
+
+  return NULL;
+}
+
+static void subst_bind(subst_t* s, ast_t* def, ast_t* type)
+{
+  if(s == NULL)
+    return;
+
+  // Invariant: callers look up first and only bind on a miss.
+  pony_assert(subst_lookup(s, def) == NULL);
+
+  if(s->len == s->cap)
+  {
+    size_t new_cap = (s->cap == 0) ? 4 : (s->cap * 2);
+    size_t old_size = s->cap * sizeof(subst_entry_t);
+    size_t new_size = new_cap * sizeof(subst_entry_t);
+    s->entries = (subst_entry_t*)ponyint_pool_realloc_size(old_size, new_size,
+      s->entries);
+    s->cap = new_cap;
+  }
+
+  s->entries[s->len].def = def;
+  s->entries[s->len].type = type;
+  s->len++;
+}
+
+static void subst_keep(subst_t* s, ast_t* ast)
+{
+  if(s == NULL)
+  {
+    ast_free_unattached(ast);
+    return;
+  }
+
+  if(s->keep_len == s->keep_cap)
+  {
+    size_t new_cap = (s->keep_cap == 0) ? 4 : (s->keep_cap * 2);
+    size_t old_size = s->keep_cap * sizeof(ast_t*);
+    size_t new_size = new_cap * sizeof(ast_t*);
+    s->keep = (ast_t**)ponyint_pool_realloc_size(old_size, new_size, s->keep);
+    s->keep_cap = new_cap;
+  }
+
+  s->keep[s->keep_len++] = ast;
+}
+
+// Save/restore checkpoint. Used by compound arm-covering to make each arm
+// attempt's bindings transient: one arm's bind must not leak to sibling
+// arms (which would spuriously reject `(P | A)` vs `(Q | A)`, where A can
+// reify to (P | Q)), and no arm's transient bind persists past the compound
+// branch. Restore truncates entries AND frees the extra keep trees; the
+// entries added since the checkpoint are the only references to those trees.
+typedef struct
+{
+  size_t entries_len;
+  size_t keep_len;
+} subst_checkpoint_t;
+
+static subst_checkpoint_t subst_save(subst_t* s)
+{
+  subst_checkpoint_t cp;
+
+  if(s == NULL)
+  {
+    cp.entries_len = 0;
+    cp.keep_len = 0;
+  } else {
+    cp.entries_len = s->len;
+    cp.keep_len = s->keep_len;
+  }
+
+  return cp;
+}
+
+static void subst_restore(subst_t* s, subst_checkpoint_t cp)
+{
+  if(s == NULL)
+    return;
+
+  for(size_t i = cp.keep_len; i < s->keep_len; i++)
+    ast_free_unattached(s->keep[i]);
+
+  s->keep_len = cp.keep_len;
+  s->len = cp.entries_len;
+}
 
 static matchtype_t is_x_match_x(ast_t* operand, ast_t* pattern,
   errorframe_t* errorf, bool report_reject, pass_opt_t* opt);
@@ -645,7 +804,8 @@ static bool typeparam_occurs_in(ast_t* tp_def, ast_t* other,
   return false;
 }
 
-static bool typeargs_could_unify(ast_t* a, ast_t* b, pass_opt_t* opt);
+static bool typeargs_could_unify(subst_t* subst, ast_t* a, ast_t* b,
+  pass_opt_t* opt);
 
 // A concrete entity — class, primitive, actor, or struct — has no user-
 // visible subtype other than itself: Pony has no class-extends-class
@@ -730,14 +890,25 @@ static bool constraints_could_overlap(ast_t* a, ast_t* b, pass_opt_t* opt)
   return true;
 }
 
-// True if any arm of `compound` could unify with `other`.
-static bool any_arm_could_unify(ast_t* compound, ast_t* other,
+// True if any arm of `compound` could unify with `other`. Each arm attempt
+// snapshots subst on entry and restores on exit — bindings added by a
+// failed attempt must not leak to the next attempt, and bindings from a
+// successful attempt must not leak past the compound to the outer walk
+// (a bind of A→P from one arm attempt would then block a sibling arm from
+// binding A→Q that would otherwise succeed). Lookups still see outer
+// bindings, so a typeparam already bound by an earlier position is honored
+// inside the arm attempts.
+static bool any_arm_could_unify(subst_t* subst, ast_t* compound, ast_t* other,
   pass_opt_t* opt)
 {
   ast_t* arm = ast_child(compound);
   while(arm != NULL)
   {
-    if(typeargs_could_unify(arm, other, opt))
+    subst_checkpoint_t cp = subst_save(subst);
+    bool r = typeargs_could_unify(subst, arm, other, opt);
+    subst_restore(subst, cp);
+
+    if(r)
       return true;
 
     arm = ast_sibling(arm);
@@ -746,14 +917,21 @@ static bool any_arm_could_unify(ast_t* compound, ast_t* other,
   return false;
 }
 
-// True if every arm of `compound` could unify with `other`.
-static bool every_arm_could_unify(ast_t* compound, ast_t* other,
+// True if every arm of `compound` could unify with `other`. Same
+// snapshot/restore discipline as any_arm_could_unify — bindings from one
+// arm are transient. This is safe because compound-arm consistency is not
+// enforced across arms here; outer bindings are still visible via lookup.
+static bool every_arm_could_unify(subst_t* subst, ast_t* compound, ast_t* other,
   pass_opt_t* opt)
 {
   ast_t* arm = ast_child(compound);
   while(arm != NULL)
   {
-    if(!typeargs_could_unify(arm, other, opt))
+    subst_checkpoint_t cp = subst_save(subst);
+    bool r = typeargs_could_unify(subst, arm, other, opt);
+    subst_restore(subst, cp);
+
+    if(!r)
       return false;
 
     arm = ast_sibling(arm);
@@ -790,14 +968,18 @@ static bool other_is_subtype_of_every_arm(ast_t* compound, ast_t* other,
 // is handled by typeargs_could_unify's earlier branches, whose occurs
 // check would otherwise be bypassed.
 //
+// `subst` is looked up but effectively read-only through this branch:
+// any_arm_could_unify and every_arm_could_unify snapshot on each arm
+// attempt and restore on exit. Outer bindings from an earlier position
+// are honored inside arm attempts (so `Pair[A, (A | U8)]` vs
+// `Pair[String val, (I32 | U8)]` rejects — position 1 sees A bound to
+// String and no arm of the pattern matches). Bindings added inside an
+// arm attempt don't leak — required for `(P | A)` vs `(Q | A)` to accept,
+// which needs each arm to be tried with a fresh A.
+//
 // Rules:
 //   - Same kind (both union or both intersection): each arm on either side
-//     must have some arm on the other side that could unify. This is set-
-//     equality style: it does not enforce cross-arm consistency of a
-//     typeparam's reification, so `(P | A)` vs `(Q | A)` (same A on both
-//     sides) accepts even though no single reification of A satisfies
-//     both `(P | T) = (Q | T)`. Same over-approximation as
-//     `Pair[A, A]` vs `Pair[U8, U16]` in the same-def nominal recursion.
+//     must have some arm on the other side that could unify.
 //   - Mixed kinds (union vs intersection): any arm-vs-arm pair that could
 //     unify accepts. A common subtype of both sides supplies a valid
 //     reification.
@@ -808,7 +990,12 @@ static bool other_is_subtype_of_every_arm(ast_t* compound, ast_t* other,
 //     a subtype of every arm (so W inhabits the intersection). A
 //     typeparam arm accepts W iff W is admitted by the arm's constraint,
 //     which is_subtype_ignore_cap already models.
-static bool compound_types_could_unify(ast_t* a, ast_t* b, pass_opt_t* opt)
+//
+// Residual gap: a typeparam bound inside a compound arm doesn't constrain
+// positions outside the compound. Fully closing that requires backtracking
+// across arm pairings, which is combinatorial.
+static bool compound_types_could_unify(subst_t* subst, ast_t* a, ast_t* b,
+  pass_opt_t* opt)
 {
   bool a_union = ast_id(a) == TK_UNIONTYPE;
   bool a_isect = ast_id(a) == TK_ISECTTYPE;
@@ -824,7 +1011,7 @@ static bool compound_types_could_unify(ast_t* a, ast_t* b, pass_opt_t* opt)
     ast_t* arm = ast_child(a);
     while(arm != NULL)
     {
-      if(!any_arm_could_unify(b, arm, opt))
+      if(!any_arm_could_unify(subst, b, arm, opt))
         return false;
 
       arm = ast_sibling(arm);
@@ -833,7 +1020,7 @@ static bool compound_types_could_unify(ast_t* a, ast_t* b, pass_opt_t* opt)
     arm = ast_child(b);
     while(arm != NULL)
     {
-      if(!any_arm_could_unify(a, arm, opt))
+      if(!any_arm_could_unify(subst, a, arm, opt))
         return false;
 
       arm = ast_sibling(arm);
@@ -847,7 +1034,7 @@ static bool compound_types_could_unify(ast_t* a, ast_t* b, pass_opt_t* opt)
     ast_t* a_arm = ast_child(a);
     while(a_arm != NULL)
     {
-      if(any_arm_could_unify(b, a_arm, opt))
+      if(any_arm_could_unify(subst, b, a_arm, opt))
         return true;
 
       a_arm = ast_sibling(a_arm);
@@ -860,7 +1047,7 @@ static bool compound_types_could_unify(ast_t* a, ast_t* b, pass_opt_t* opt)
   ast_t* other = a_compound ? b : a;
 
   if(ast_id(compound) == TK_UNIONTYPE)
-    return every_arm_could_unify(compound, other, opt);
+    return every_arm_could_unify(subst, compound, other, opt);
 
   return other_is_subtype_of_every_arm(compound, other, opt);
 }
@@ -874,6 +1061,12 @@ static bool compound_types_could_unify(ast_t* a, ast_t* b, pass_opt_t* opt)
 // caps, so a compile-time cap check on the pair itself would spuriously
 // reject matches the runtime would accept.
 //
+// `subst` threads a substitution through the recursion so repeated
+// occurrences of the same type parameter across positions must reify to
+// the same type. Compound branches thread subst too, but each arm attempt
+// snapshots and restores it (see any_arm_could_unify) so within-compound
+// bindings are transient.
+//
 //   - eqtype pairs unify.
 //   - a bare type parameter unifies with anything the other side satisfies
 //     as a reification of the parameter's constraint (subtype, ignoring
@@ -881,10 +1074,16 @@ static bool compound_types_could_unify(ast_t* a, ast_t* b, pass_opt_t* opt)
 //     parameter's def must not appear inside a generative constructor on
 //     the other side (occurs check): no reification satisfies A = f(A)
 //     without an infinite type. Occurrences in a union or intersection
-//     arm are not generative — A vs (A | U8) can unify.
-//   - two type parameters unify when their constraints share any common
-//     inhabitant (see constraints_could_overlap for the check and its
-//     over-approximation trade-offs).
+//     arm are not generative — A vs (A | U8) can unify. If the parameter
+//     is already bound in subst, the recorded binding must in turn unify
+//     with the other side; on a miss we record the binding.
+//   - two type parameters unify when either side is bound in subst and its
+//     binding unifies with the other side, or when neither side is bound
+//     and their constraints share any common inhabitant (see
+//     constraints_could_overlap for the check and its over-approximation
+//     trade-offs). The two-typeparam case doesn't add its own binding —
+//     that would require unifying two unification variables — but honors
+//     bindings recorded by earlier positions.
 //   - a union or intersection literal on either side (with neither side a
 //     bare type parameter) distributes over the arms (see
 //     compound_types_could_unify).
@@ -894,7 +1093,8 @@ static bool compound_types_could_unify(ast_t* a, ast_t* b, pass_opt_t* opt)
 //     pair recursively unifies.
 //   - a type alias reference is unfolded and re-tried.
 //   - anything else does not unify.
-static bool typeargs_could_unify(ast_t* a, ast_t* b, pass_opt_t* opt)
+static bool typeargs_could_unify(subst_t* subst, ast_t* a, ast_t* b,
+  pass_opt_t* opt)
 {
   if(is_eqtype(a, b, NULL, opt))
     return true;
@@ -905,9 +1105,9 @@ static bool typeargs_could_unify(ast_t* a, ast_t* b, pass_opt_t* opt)
     if(unfolded == NULL)
       return false;
 
-    bool r = typeargs_could_unify(unfolded, b, opt);
+    bool r = typeargs_could_unify(subst, unfolded, b, opt);
     if(unfolded != a)
-      ast_free_unattached(unfolded);
+      subst_keep(subst, unfolded);
     return r;
   }
 
@@ -917,9 +1117,9 @@ static bool typeargs_could_unify(ast_t* a, ast_t* b, pass_opt_t* opt)
     if(unfolded == NULL)
       return false;
 
-    bool r = typeargs_could_unify(a, unfolded, opt);
+    bool r = typeargs_could_unify(subst, a, unfolded, opt);
     if(unfolded != b)
-      ast_free_unattached(unfolded);
+      subst_keep(subst, unfolded);
     return r;
   }
 
@@ -928,6 +1128,21 @@ static bool typeargs_could_unify(ast_t* a, ast_t* b, pass_opt_t* opt)
 
   if(a_tp && b_tp)
   {
+    ast_t* a_def = typeparam_root((ast_t*)ast_data(a));
+    ast_t* b_def = typeparam_root((ast_t*)ast_data(b));
+
+    // If either side is bound in subst, recurse through the binding — a
+    // later position that pairs an already-bound typeparam with another
+    // typeparam must check the bound value, not just constraint overlap.
+    ast_t* a_bound = subst_lookup(subst, a_def);
+    ast_t* b_bound = subst_lookup(subst, b_def);
+    if(a_bound != NULL && b_bound != NULL)
+      return typeargs_could_unify(subst, a_bound, b_bound, opt);
+    if(a_bound != NULL)
+      return typeargs_could_unify(subst, a_bound, b, opt);
+    if(b_bound != NULL)
+      return typeargs_could_unify(subst, a, b_bound, opt);
+
     ast_t* a_up = typeparam_upper(a);
     ast_t* b_up = typeparam_upper(b);
     bool r;
@@ -951,19 +1166,27 @@ static bool typeargs_could_unify(ast_t* a, ast_t* b, pass_opt_t* opt)
     if(typeparam_occurs_in(tp_def, other, false))
       return false;
 
-    ast_t* upper = typeparam_upper(tp);
-    if(upper == NULL)
-      return true;
+    ast_t* bound = subst_lookup(subst, tp_def);
+    if(bound != NULL)
+      return typeargs_could_unify(subst, bound, other, opt);
 
-    bool r = is_subtype_ignore_cap(other, upper, NULL, opt);
-    ast_free_unattached(upper);
-    return r;
+    ast_t* upper = typeparam_upper(tp);
+    if(upper != NULL)
+    {
+      bool ok = is_subtype_ignore_cap(other, upper, NULL, opt);
+      ast_free_unattached(upper);
+      if(!ok)
+        return false;
+    }
+
+    subst_bind(subst, tp_def, other);
+    return true;
   }
 
   if((ast_id(a) == TK_UNIONTYPE) || (ast_id(a) == TK_ISECTTYPE)
     || (ast_id(b) == TK_UNIONTYPE) || (ast_id(b) == TK_ISECTTYPE))
   {
-    return compound_types_could_unify(a, b, opt);
+    return compound_types_could_unify(subst, a, b, opt);
   }
 
   if((ast_id(a) == TK_NOMINAL) && (ast_id(b) == TK_NOMINAL))
@@ -982,7 +1205,7 @@ static bool typeargs_could_unify(ast_t* a, ast_t* b, pass_opt_t* opt)
 
     while((a_arg != NULL) && (b_arg != NULL))
     {
-      if(!typeargs_could_unify(a_arg, b_arg, opt))
+      if(!typeargs_could_unify(subst, a_arg, b_arg, opt))
         return false;
 
       a_arg = ast_sibling(a_arg);
@@ -999,7 +1222,7 @@ static bool typeargs_could_unify(ast_t* a, ast_t* b, pass_opt_t* opt)
 
     while((a_elem != NULL) && (b_elem != NULL))
     {
-      if(!typeargs_could_unify(a_elem, b_elem, opt))
+      if(!typeargs_could_unify(subst, a_elem, b_elem, opt))
         return false;
 
       a_elem = ast_sibling(a_elem);
@@ -1033,6 +1256,8 @@ static matchtype_t match_typeargs_pairwise(ast_t* o_typeargs, ast_t* p_typeargs,
   ast_t* p_arg = ast_child(p_typeargs);
 
   matchtype_t ok = MATCHTYPE_ACCEPT;
+  subst_t subst;
+  subst_init(&subst);
 
   while((o_arg != NULL) && (p_arg != NULL))
   {
@@ -1044,13 +1269,16 @@ static matchtype_t match_typeargs_pairwise(ast_t* o_typeargs, ast_t* p_typeargs,
       pair = MATCHTYPE_REJECT;
     else if(struct_pattern)
       pair = MATCHTYPE_DENY_NODESC;
-    else if(typeargs_could_unify(o_arg, p_arg, opt))
+    else if(typeargs_could_unify(&subst, o_arg, p_arg, opt))
       pair = MATCHTYPE_ACCEPT;
     else
       pair = MATCHTYPE_REJECT;
 
     if(pair == MATCHTYPE_DENY_NODESC)
+    {
+      subst_free(&subst);
       return MATCHTYPE_DENY_NODESC;
+    }
 
     if((pair == MATCHTYPE_REJECT) && (ok == MATCHTYPE_ACCEPT))
       ok = MATCHTYPE_REJECT;
@@ -1059,6 +1287,7 @@ static matchtype_t match_typeargs_pairwise(ast_t* o_typeargs, ast_t* p_typeargs,
     p_arg = ast_sibling(p_arg);
   }
 
+  subst_free(&subst);
   return ok;
 }
 
