@@ -1,17 +1,27 @@
 #!/usr/bin/env python3
-"""Drive the DragonFly BSD VM's VGA console over the QEMU monitor.
+"""Drive the DragonFly BSD VM setup via QEMU serial console.
 
-DragonFly raw images boot to a passwordless root login with no cloud-init, so the
-commands that bring SSH up (login, network, sshd, ssh key) are typed in with QEMU
-monitor `sendkey`. Each run first clears any half-typed line, then logs in fresh,
-so a re-run after a failed attempt starts from a clean prompt instead of adding to
-a line an earlier run left unfinished. Reads the public key to install from the
-PUB_KEY environment variable and the QEMU monitor socket path from DFLY_MONITOR_SOCK
-(defaulting to dfly-monitor.sock in the current directory). Called by
-dragonfly-provision.bash.
+DragonFly raw images boot to a passwordless root login with no cloud-init.
+Typing every command blind via VGA sendkey fails when boot is slow enough that
+keystrokes arrive before the login prompt.  This script uses a two-phase
+approach:
+
+  Phase 1 (sendkey bootstrap): After waiting for the boot loader to pass, type
+  the root login and a command that starts a /bin/sh on the serial port, all via
+  QEMU sendkey into the VGA console.  A retry loop handles the variable boot
+  time — each attempt clears the console, logs in, and starts the serial shell,
+  checking for a shell prompt on the serial socket before moving on.
+
+  Phase 2 (serial setup): Run all setup commands (network, sshd, ssh key)
+  through the serial console with prompt detection, so each command is confirmed
+  before the next is sent.
+
+Reads PUB_KEY, DFLY_MONITOR_SOCK, and DFLY_SERIAL_SOCK from the environment.
+Called by dragonfly-provision.bash.
 """
 import os
 import socket
+import sys
 import time
 
 KEYMAP = {
@@ -27,6 +37,12 @@ KEYMAP = {
     '%': 'shift-5', '^': 'shift-6', '&': 'shift-7', '*': 'shift-8',
     '(': 'shift-9', ')': 'shift-0',
 }
+
+BOOT_LOADER_WAIT = 30
+BOOT_TIMEOUT = 300
+COMMAND_TIMEOUT = 60
+MAX_BOOTSTRAP_ATTEMPTS = 20
+SERIAL_DEVICE = '/dev/cuaa0'
 
 
 def send_hmp(sock, cmd):
@@ -54,54 +70,141 @@ def send_line(sock, text):
         time.sleep(0.03)
 
 
+def serial_recv(sock, timeout=3):
+    sock.settimeout(timeout)
+    data = b''
+    try:
+        while True:
+            chunk = sock.recv(4096)
+            if not chunk:
+                break
+            data += chunk
+    except socket.timeout:
+        pass
+    sock.settimeout(None)
+    return data.decode(errors='replace')
+
+
+def serial_drain(sock):
+    sock.settimeout(0.3)
+    try:
+        while sock.recv(4096):
+            pass
+    except socket.timeout:
+        pass
+    sock.settimeout(None)
+
+
+def serial_cmd(sock, cmd, timeout=COMMAND_TIMEOUT):
+    """Send a command over serial and wait for the next shell prompt.
+
+    Returns the output on success, raises RuntimeError on timeout.
+    """
+    sock.sendall((cmd + '\n').encode())
+    output = ''
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        remaining = deadline - time.time()
+        chunk = serial_recv(sock, timeout=min(2, max(0.1, remaining)))
+        output += chunk
+        # The serial shell is /bin/sh running as root, whose default prompt
+        # ends with '#'.  None of the commands this script runs produce
+        # output ending with '#'.
+        if output.rstrip().endswith('#'):
+            return output
+    raise RuntimeError(f"serial_cmd timed out after {timeout}s: {cmd!r}")
+
+
+def bootstrap_serial_shell(monitor, serial):
+    """Type login + serial shell start via sendkey; retry until serial responds.
+
+    Returns True once a shell prompt appears on the serial socket.
+    """
+    time.sleep(BOOT_LOADER_WAIT)
+
+    deadline = time.time() + BOOT_TIMEOUT
+    for attempt in range(1, MAX_BOOTSTRAP_ATTEMPTS + 1):
+        if time.time() > deadline:
+            break
+
+        print(f"  attempt {attempt}: sendkey login + serial shell...")
+
+        send_hmp(monitor, 'sendkey ctrl-c')
+        time.sleep(0.3)
+
+        send_line(monitor, '')
+        time.sleep(0.5)
+        send_line(monitor, 'root')
+        time.sleep(2)
+
+        # Kill stale serial shells, then start a fresh one.
+        # Root's login shell is csh, so wrap sh-specific redirects in /bin/sh -c.
+        send_line(monitor, 'pkill -f cuaa0')
+        time.sleep(1)
+        cmd = f"/bin/sh -c '/bin/sh <{SERIAL_DEVICE} >{SERIAL_DEVICE} 2>&1 &'"
+        send_line(monitor, cmd)
+        time.sleep(2)
+
+        serial.sendall(b'\n')
+        response = serial_recv(serial, timeout=3)
+        if '#' in response or '$' in response:
+            print(f"  serial shell up after {attempt} attempt(s)")
+            return True
+
+        print(f"  no serial prompt (got: {response!r})")
+        time.sleep(10)
+
+    return False
+
+
 def main():
     pub_key = os.environ["PUB_KEY"]
     monitor_sock = os.environ.get("DFLY_MONITOR_SOCK", "dfly-monitor.sock")
+    serial_sock = os.environ.get("DFLY_SERIAL_SOCK", "dfly-serial.sock")
 
-    sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-    sock.connect(monitor_sock)
+    monitor = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+    monitor.connect(monitor_sock)
     time.sleep(0.5)
-    sock.recv(4096)
+    monitor.recv(4096)
 
-    # Clear any half-typed line left by a dropped keystroke on an earlier run: an
-    # unterminated quote leaves the shell at a continuation prompt, and without
-    # this the next run's keystrokes are swallowed by the open string. ctrl-c
-    # cancels the pending line so this run starts at a fresh prompt.
-    send_hmp(sock, 'sendkey ctrl-c')
-    time.sleep(0.5)
+    serial = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+    serial.connect(serial_sock)
+    serial_drain(serial)
 
-    # Press enter and login as root (no password)
-    send_line(sock, '')
-    time.sleep(2)
-    send_line(sock, 'root')
-    time.sleep(3)
+    try:
+        print("Bootstrapping serial shell via sendkey...")
+        if not bootstrap_serial_shell(monitor, serial):
+            print("ERROR: serial shell never came up", file=sys.stderr)
+            return 1
 
-    # Configure network
-    send_line(sock, 'dhclient vtnet0')
-    time.sleep(15)
+        serial_drain(serial)
 
-    # Configure sshd
-    send_line(sock, 'echo "PermitRootLogin yes" >> /etc/ssh/sshd_config')
-    time.sleep(0.5)
-    send_line(sock, 'echo "PermitEmptyPasswords yes" >> /etc/ssh/sshd_config')
-    time.sleep(0.5)
+        print("Configuring VM via serial console...")
 
-    # Install SSH key
-    send_line(sock, 'mkdir -p /root/.ssh && chmod 700 /root/.ssh')
-    time.sleep(0.5)
-    send_line(sock, f'echo "{pub_key}" > /root/.ssh/authorized_keys')
-    time.sleep(0.5)
-    send_line(sock, 'chmod 600 /root/.ssh/authorized_keys')
-    time.sleep(0.5)
+        serial_cmd(serial, 'dhclient vtnet0', timeout=COMMAND_TIMEOUT)
 
-    # Generate host keys (virtio-rng provides entropy) and start sshd
-    send_line(sock, 'ssh-keygen -A')
-    time.sleep(10)
-    send_line(sock, '/usr/sbin/sshd')
-    time.sleep(3)
+        serial_cmd(serial,
+                   'echo "PermitRootLogin yes" >> /etc/ssh/sshd_config')
+        serial_cmd(serial,
+                   'echo "PermitEmptyPasswords yes" >> /etc/ssh/sshd_config')
 
-    sock.close()
+        serial_cmd(serial, 'mkdir -p /root/.ssh && chmod 700 /root/.ssh')
+        serial_cmd(serial,
+                   f'echo "{pub_key}" > /root/.ssh/authorized_keys')
+        serial_cmd(serial, 'chmod 600 /root/.ssh/authorized_keys')
+
+        serial_cmd(serial, 'ssh-keygen -A', timeout=COMMAND_TIMEOUT)
+        serial_cmd(serial, '/usr/sbin/sshd')
+
+        print("VM configured successfully")
+        return 0
+    except RuntimeError as exc:
+        print(f"ERROR: {exc}", file=sys.stderr)
+        return 1
+    finally:
+        monitor.close()
+        serial.close()
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

@@ -36,19 +36,18 @@ several steps:
   a here-string MUST go through an explicit `/bin/sh`:
   `ssh ... root@localhost /bin/sh <<'EOF' ... EOF`. A bare
   `ssh ... root@localhost 'cmd with $(...)'` fails with `Illegal variable name.`
-- **Don't blind-`sleep` for boot.** Verify the VM reached the `login:` prompt by taking
-  a console screendump over the QEMU monitor and looking at it; re-screendump until it's
-  there. Driving the console early types the whole setup into a half-booted VM and it's
-  silently lost.
+- **Boot timing is handled by the script.** `dfly_configure_vm.py` waits past the boot
+  loader and retries login + serial shell start until the serial port responds. If
+  something goes wrong, screendump the console (Step 5 has a helper) to see the VM state.
 - **A daemonized QEMU `chdir`s to `/`.** The monitor `screendump` (and any relative path
   the daemon writes) needs an **absolute** path, or it fails `Permission denied`.
 - **No `sudo` needed (and often unavailable).** CI loop-mounts the ISO with `sudo` to get
   `/usr/include`; locally, extract it with `bsdtar` instead — same result, no privilege.
 - **Detach long in-VM builds.** The libs build (LLVM) takes hours; run it
   `nohup … > /build/x.log 2>&1 &` and poll the log, so an ssh drop doesn't kill it.
-- **Reuse the CI console script verbatim.** `.ci-scripts/bsd/dfly_configure_vm.py` types
-  the setup commands into the VGA console via QEMU `sendkey`; the timing/KEYMAP is fiddly
-  and already correct. Copy it, don't reimplement console typing.
+- **Reuse the CI console script verbatim.** `.ci-scripts/bsd/dfly_configure_vm.py`
+  bootstraps a serial shell via QEMU sendkey, then runs setup commands through the serial
+  console with prompt detection. Copy it, don't reimplement the bootstrap or setup.
 
 ## Step 0 — verify prerequisites (do NOT assume they're installed)
 
@@ -159,6 +158,7 @@ qemu-system-x86_64 \
   -object rng-random,id=rng0,filename=/dev/urandom \
   -device virtio-rng-pci,rng=rng0 \
   -monitor unix:dfly-monitor.sock,server,nowait \
+  -serial unix:dfly-serial.sock,server,nowait \
   -display none -pidfile dfly.pid -daemonize
 ```
 
@@ -166,12 +166,26 @@ qemu-system-x86_64 \
 it never silently falls back to slow TCG. `-smp`/`-m` are speed knobs; CI uses 4 CPUs /
 12G. `hostfwd 2222->22` is the ssh port.)
 
-### 5. Confirm the login prompt (re-screendump until ready), then drive the console
+### 5. Run the console setup script
 
-Save the monitor helper and screendump the console. The daemonized QEMU writes to an
-**absolute** path. Boot takes ~80s; **if the image isn't at the `login:` prompt yet,
-wait ~20s and screendump again — repeat until you see `login:`.** Do not run the console
-script before then (it blind-types into the console and a half-booted VM loses it).
+The CI console script waits past the boot loader, bootstraps a serial shell via sendkey
+with retries, and runs all setup commands through the serial console with prompt detection.
+It handles boot timing internally, so no screendump wait is needed.
+
+The script lives in the repo at `.ci-scripts/bsd/dfly_configure_vm.py`. Copy it into
+`$VMDIR` (it connects to `dfly-monitor.sock` and `dfly-serial.sock` in its working
+directory) and run it there. It logs in, brings up networking, configures sshd, and
+installs your key:
+
+```sh
+VMDIR=~/vms/dragonfly-6.4.2; cd "$VMDIR"
+cp "$(git rev-parse --show-toplevel)/.ci-scripts/bsd/dfly_configure_vm.py" "$VMDIR/"
+export PUB_KEY="$(cat vm_key.pub)"
+python3 dfly_configure_vm.py
+```
+
+A `monitor_cmd.py` helper is still useful for ad-hoc screendumps when debugging boot
+problems. Create one if needed:
 
 ```sh
 VMDIR=~/vms/dragonfly-6.4.2; cd "$VMDIR"
@@ -196,20 +210,6 @@ to_png() {  # convert PPM->PNG with whichever converter is installed
 }
 python3 monitor_cmd.py "screendump $VMDIR/console1.ppm"   # absolute path is required
 to_png "$VMDIR/console1.ppm" "$VMDIR/console1.png"
-# open console1.png. If it is NOT yet at "login:", wait ~20s and re-run THIS WHOLE block
-# (a fresh shell won't have $VMDIR or to_png). Only continue once you see "login:".
-```
-
-Then run the CI console script verbatim — it lives in the repo at
-`.ci-scripts/bsd/dfly_configure_vm.py`. Copy it into `$VMDIR` (it connects to the
-`dfly-monitor.sock` in its working directory) and run it there. It logs in, brings up
-networking, configures sshd, installs your key, and formats/mounts the build disk:
-
-```sh
-VMDIR=~/vms/dragonfly-6.4.2; cd "$VMDIR"
-cp "$(git rev-parse --show-toplevel)/.ci-scripts/bsd/dfly_configure_vm.py" "$VMDIR/"
-export PUB_KEY="$(cat vm_key.pub)"
-python3 dfly_configure_vm.py
 ```
 
 ### 6. Wait for ssh
@@ -240,9 +240,25 @@ uname -a
 EOF
 ```
 
-### 7. Move `/usr/local` to the build disk, install headers, install deps
+### 7. Format and mount the build disk
 
-Root is only ~1.8G; `gcc13` alone is ~418M, so package installs must land on `/build`.
+The root partition is only ~1.8G — not enough for the build or packages. Format the
+second disk and mount it at `/build`.
+
+```sh
+VMDIR=~/vms/dragonfly-6.4.2
+SSH="ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR -i $VMDIR/vm_key -p 2222 root@localhost"
+$SSH /bin/sh <<'EOF'
+set -e
+newfs /dev/vbd1
+mkdir -p /build
+mount /dev/vbd1 /build
+EOF
+```
+
+### 8. Move `/usr/local` to the build disk, install headers, install deps
+
+`gcc13` alone is ~418M, so package installs must land on `/build`.
 
 ```sh
 VMDIR=~/vms/dragonfly-6.4.2
@@ -270,7 +286,7 @@ git config --global --add safe.directory /build/ponyc
 EOF
 ```
 
-### 8. Rsync the ponyc checkout in (exclude the host `build/`)
+### 9. Rsync the ponyc checkout in (exclude the host `build/`)
 
 Run from your ponyc checkout. Exclude the top-level `build/` (host artifacts; the VM
 builds its own). Keep `.git` (CMake runs `git rev-parse`). The vendored LLVM submodule
@@ -327,7 +343,7 @@ ctest --preset debug -L ci-core
 EOF
 ```
 
-To iterate on a fix: edit on the host, re-run Step 8's `rsync` (it's incremental — only
+To iterate on a fix: edit on the host, re-run Step 9's `rsync` (it's incremental — only
 changed files are sent), then re-run the build block above (long rebuilds should also be
 detached + polled). For exact CI parity, the tier-3 `dragonflybsd` job
 (`.github/workflows/ponyc-tier3.yml`) runs more than this — the reject-unsupported-builds
@@ -366,7 +382,8 @@ unchanged**. The local setup deliberately differs from CI, and each difference i
   `known_hosts` entry from a prior VM. CI's ephemeral runners never reuse the port, so
   `dragonfly-provision.bash` doesn't bother.
 - `-smp 8` for build speed (CI uses 4).
-- Screendump-verified boot instead of a blind `sleep 90`.
+- Both use the serial console script for boot timing; locally you can also screendump
+  for debugging.
 - No GHCR libs cache (that's token-gated CI plumbing) — you just run `cmake -P lib/build-libs.cmake` once.
 
 The FreeBSD and OpenBSD CI VMs follow the same shape
