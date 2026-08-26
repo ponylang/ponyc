@@ -1373,3 +1373,717 @@ TEST_F(MatchTypeTest, TypeParamInTypeArgStructOperandTraitRejects)
   ASSERT_EQ(MATCHTYPE_REJECT,
     is_matchtype(type_of("s_a"), type_of("t_wrap_b"), NULL, &opt));
 }
+
+
+TEST_F(MatchTypeTest, TypeParamInTypeArgConstraintOverlap)
+{
+  // Two type parameters whose constraints only overlap through a common
+  // subtype. Both admit P2, so a reification A = B = P2 makes the pair
+  // equal — accept.
+  const char* src =
+    "primitive P1\n"
+    "primitive P2\n"
+    "primitive P3\n"
+    "primitive P4\n"
+
+    "class val C1[A: Any #share]\n"
+    "  let value: A\n"
+    "  new val create(v: A) => value = v\n"
+
+    "interface Test\n"
+    "  fun z[A: (P1 | P2), B: (P2 | P3), D: (P3 | P4)]\n"
+    "    (c1_a: C1[A], c1_b: C1[B], c1_d: C1[D])";
+
+  TEST_COMPILE(src);
+
+  // Constraints share P2 — accept.
+  ASSERT_EQ(MATCHTYPE_ACCEPT,
+    is_matchtype(type_of("c1_a"), type_of("c1_b"), NULL, &opt));
+
+  // Symmetric direction.
+  ASSERT_EQ(MATCHTYPE_ACCEPT,
+    is_matchtype(type_of("c1_b"), type_of("c1_a"), NULL, &opt));
+
+  // (P1 | P2) and (P3 | P4) — no common member. Reject; compile check
+  // preserved.
+  ASSERT_EQ(MATCHTYPE_REJECT,
+    is_matchtype(type_of("c1_a"), type_of("c1_d"), NULL, &opt));
+}
+
+
+TEST_F(MatchTypeTest, TypeParamInTypeArgConstraintOverlapTrait)
+{
+  // Two type parameters constrained to disjoint traits: neither
+  // constraint is a subtype of the other, and precise inhabitation of
+  // the two-trait intersection would require walking every class in the
+  // program. The check accepts unconditionally when either side is a
+  // trait or interface — a common implementer, if one exists (like the
+  // class `Both` here), makes runtime match legitimate; when none
+  // exists, the runtime descriptor check discriminates.
+  const char* src =
+    "trait val Named\n"
+    "  fun name(): String\n"
+    "trait val Aged\n"
+    "  fun age(): U32\n"
+
+    "class val Both is (Named & Aged)\n"
+    "  fun name(): String => \"x\"\n"
+    "  fun age(): U32 => 0\n"
+
+    "class val C1[A: Any #share]\n"
+    "  let value: A\n"
+    "  new val create(v: A) => value = v\n"
+
+    "interface Test\n"
+    "  fun z[A: Named val, B: Aged val]\n"
+    "    (c1_a: C1[A], c1_b: C1[B])";
+
+  TEST_COMPILE(src);
+
+  ASSERT_EQ(MATCHTYPE_ACCEPT,
+    is_matchtype(type_of("c1_a"), type_of("c1_b"), NULL, &opt));
+}
+
+
+TEST_F(MatchTypeTest, TypeParamInTypeArgConstraintOverlapTraitNoImplementer)
+{
+  // Same trait-vs-trait shape as TypeParamInTypeArgConstraintOverlapTrait
+  // but with no common implementer in the program. The check still
+  // accepts — the constraint-overlap helper doesn't attempt trait
+  // inhabitation, so the presence or absence of a common implementer
+  // isn't consulted. Runtime descriptor identity discriminates, so an
+  // accepted match with no legitimate reification simply never fires.
+  const char* src =
+    "trait val Named\n"
+    "  fun name(): String\n"
+    "trait val Aged\n"
+    "  fun age(): U32\n"
+
+    "class val C1[A: Any #share]\n"
+    "  let value: A\n"
+    "  new val create(v: A) => value = v\n"
+
+    "interface Test\n"
+    "  fun z[A: Named val, B: Aged val]\n"
+    "    (c1_a: C1[A], c1_b: C1[B])";
+
+  TEST_COMPILE(src);
+
+  ASSERT_EQ(MATCHTYPE_ACCEPT,
+    is_matchtype(type_of("c1_a"), type_of("c1_b"), NULL, &opt));
+}
+
+
+TEST_F(MatchTypeTest, TypeParamInTypeArgConstraintDisjointConcrete)
+{
+  // Two type parameters constrained to different concrete entities cannot
+  // share any inhabitant — Pony has no user-facing subclassing. Covers
+  // class, primitive, and actor kinds pairwise. Struct constraints can't
+  // satisfy `Any` (structs aren't subtypes of interfaces), so a struct
+  // never reaches the constraint-overlap helper.
+  const char* src =
+    "primitive P1\n"
+    "actor A1\n"
+
+    "class val C1[A: Any #share]\n"
+    "  let value: A\n"
+    "  new val create(v: A) => value = v\n"
+
+    "interface Test\n"
+    "  fun z[Ac: String val, Bp: U8, Cp: P1, Ea: A1 tag]\n"
+    "    (c1_class_str: C1[Ac], c1_prim_u8: C1[Bp],\n"
+    "     c1_prim_p1: C1[Cp], c1_actor: C1[Ea])";
+
+  TEST_COMPILE(src);
+
+  // class vs primitive
+  ASSERT_EQ(MATCHTYPE_REJECT,
+    is_matchtype(type_of("c1_class_str"), type_of("c1_prim_u8"), NULL, &opt));
+
+  // primitive vs primitive (different defs)
+  ASSERT_EQ(MATCHTYPE_REJECT,
+    is_matchtype(type_of("c1_prim_u8"), type_of("c1_prim_p1"), NULL, &opt));
+
+  // class vs actor
+  ASSERT_EQ(MATCHTYPE_REJECT,
+    is_matchtype(type_of("c1_class_str"), type_of("c1_actor"), NULL, &opt));
+
+  // primitive vs actor
+  ASSERT_EQ(MATCHTYPE_REJECT,
+    is_matchtype(type_of("c1_prim_p1"), type_of("c1_actor"), NULL, &opt));
+}
+
+
+TEST_F(MatchTypeTest, TypeParamInTypeArgUnionArm)
+{
+  // Type argument is a union containing a type parameter. Distributing
+  // over arms: A can reify to U8, making the two type arguments equal
+  // as sets — accept.
+  const char* src =
+    "primitive P\n"
+
+    "class val C1[A: Any #share]\n"
+    "  let value: A\n"
+    "  new val create(v: A) => value = v\n"
+
+    "interface Test\n"
+    "  fun z[A: Any #share]\n"
+    "    (c1_a: C1[(P | A)], c1_p_u8: C1[(P | U8)])";
+
+  TEST_COMPILE(src);
+
+  ASSERT_EQ(MATCHTYPE_ACCEPT,
+    is_matchtype(type_of("c1_a"), type_of("c1_p_u8"), NULL, &opt));
+
+  ASSERT_EQ(MATCHTYPE_ACCEPT,
+    is_matchtype(type_of("c1_p_u8"), type_of("c1_a"), NULL, &opt));
+}
+
+
+TEST_F(MatchTypeTest, TypeParamInTypeArgUnionArmDisjoint)
+{
+  // Union arms on both sides but no arm on the operand side can line up
+  // with a pattern arm. No reification of A makes the pair equal —
+  // reject.
+  const char* src =
+    "primitive Foo\n"
+    "primitive Bar\n"
+
+    "class val C1[A: Any #share]\n"
+    "  let value: A\n"
+    "  new val create(v: A) => value = v\n"
+
+    "interface Test\n"
+    "  fun z[A: U16]\n"
+    "    (c1_left: C1[(Foo | A)], c1_right: C1[(Bar | U8)])";
+
+  TEST_COMPILE(src);
+
+  ASSERT_EQ(MATCHTYPE_REJECT,
+    is_matchtype(type_of("c1_left"), type_of("c1_right"), NULL, &opt));
+}
+
+
+TEST_F(MatchTypeTest, TypeParamInTypeArgUnionArmConcreteMismatch)
+{
+  // Two unions of concrete primitives that are not eqtype: rejected
+  // because both sides are typeparam-free, so no reification could
+  // relate them. Companion to TypeParamInTypeArgUnionArmMismatchTyped,
+  // which exercises the same rejection through the compound branch
+  // when a typeparam is present.
+  const char* src =
+    "primitive P\n"
+    "primitive Q\n"
+    "primitive R\n"
+
+    "class val C1[A: Any #share]\n"
+    "  let value: A\n"
+    "  new val create(v: A) => value = v\n"
+
+    "interface Test\n"
+    "  fun z (c1_pq: C1[(P | Q)], c1_pqr: C1[(P | Q | R)])";
+
+  TEST_COMPILE(src);
+
+  ASSERT_EQ(MATCHTYPE_REJECT,
+    is_matchtype(type_of("c1_pq"), type_of("c1_pqr"), NULL, &opt));
+
+  ASSERT_EQ(MATCHTYPE_REJECT,
+    is_matchtype(type_of("c1_pqr"), type_of("c1_pq"), NULL, &opt));
+}
+
+
+TEST_F(MatchTypeTest, TypeParamInTypeArgUnionArmMismatchTyped)
+{
+  // Union-vs-union in the compound branch: pattern has an arm no operand
+  // arm can supply even under any reification of the operand's
+  // typeparams. Neither `Ai` (constrained to (I32 | I8)) nor `Au`
+  // (constrained to (U32 | U8)) can reify to `String`, so the pattern
+  // arm String has no operand match.
+  const char* src =
+    "class val C1[A: Any #share]\n"
+    "  let value: A\n"
+    "  new val create(v: A) => value = v\n"
+
+    "interface Test\n"
+    "  fun z[Ai: (I32 | I8), Au: (U32 | U8)]\n"
+    "    (c1_ai_au: C1[(Ai | Au)],\n"
+    "     c1_ai_au_string: C1[(Ai | Au | String val)])";
+
+  TEST_COMPILE(src);
+
+  // Pattern arm String has no operand-side match; neither Ai nor Au can
+  // reify to String. Reject via compound branch.
+  ASSERT_EQ(MATCHTYPE_REJECT,
+    is_matchtype(type_of("c1_ai_au"), type_of("c1_ai_au_string"), NULL, &opt));
+}
+
+
+TEST_F(MatchTypeTest, TypeParamInTypeArgUnionArmSameTypeParam)
+{
+  // `(P | A)` vs `(Q | A)` with the same unconstrained `A` on both
+  // sides — accepted by the compound branch's mutual arm-covering rule
+  // (P<->A, A<->Q both unify). A CAN reify to a union such as (P | Q),
+  // making `(P | (P|Q))` and `(Q | (P|Q))` both equal to `(P | Q)`, so
+  // the accept is legitimate for that reification. The check does not
+  // require every arm-vs-arm choice to share a consistent reification,
+  // same as the same-def nominal recursion accepts `Pair[A, A]` vs
+  // `Pair[U8, U16]` without cross-position consistency.
+  const char* src =
+    "primitive P\n"
+    "primitive Q\n"
+
+    "class val C1[A: Any #share]\n"
+    "  let value: A\n"
+    "  new val create(v: A) => value = v\n"
+
+    "interface Test\n"
+    "  fun z[A: Any #share]\n"
+    "    (c1_pa: C1[(P | A)], c1_qa: C1[(Q | A)])";
+
+  TEST_COMPILE(src);
+
+  ASSERT_EQ(MATCHTYPE_ACCEPT,
+    is_matchtype(type_of("c1_pa"), type_of("c1_qa"), NULL, &opt));
+
+  ASSERT_EQ(MATCHTYPE_ACCEPT,
+    is_matchtype(type_of("c1_qa"), type_of("c1_pa"), NULL, &opt));
+}
+
+
+TEST_F(MatchTypeTest, TypeParamInTypeArgUnionArmOccurs)
+{
+  // Occurs check propagates through union arms: A vs `(P | Wrap[A])` —
+  // A appears wrapped in the union arm, so no reification satisfies
+  // A = (P | Wrap[A]) without an infinite type. Reject.
+  const char* src =
+    "primitive P\n"
+
+    "class val Wrap[A: Any #share]\n"
+    "  let value: A\n"
+    "  new val create(v: A) => value = v\n"
+
+    "class val C1[A: Any #share]\n"
+    "  let value: A\n"
+    "  new val create(v: A) => value = v\n"
+
+    "interface Test\n"
+    "  fun z[A: Any #share]\n"
+    "    (c1_a: C1[A], c1_union_wrap_a: C1[(P | Wrap[A] val)])";
+
+  TEST_COMPILE(src);
+
+  ASSERT_EQ(MATCHTYPE_REJECT,
+    is_matchtype(type_of("c1_a"), type_of("c1_union_wrap_a"), NULL, &opt));
+
+  ASSERT_EQ(MATCHTYPE_REJECT,
+    is_matchtype(type_of("c1_union_wrap_a"), type_of("c1_a"), NULL, &opt));
+}
+
+
+TEST_F(MatchTypeTest, TypeParamInTypeArgTypeParamVsCompoundConstraintReject)
+{
+  // Bare typeparam on one side, union on the other. A's constraint (I32)
+  // doesn't admit the union, so no reification of A makes the pair
+  // equal — reject.
+  const char* src =
+    "class val C1[A: Any #share]\n"
+    "  let value: A\n"
+    "  new val create(v: A) => value = v\n"
+
+    "interface Test\n"
+    "  fun z[A: I32]\n"
+    "    (c1_a: C1[A], c1_string_u8: C1[(String val | U8)])";
+
+  TEST_COMPILE(src);
+
+  ASSERT_EQ(MATCHTYPE_REJECT,
+    is_matchtype(type_of("c1_a"), type_of("c1_string_u8"), NULL, &opt));
+
+  ASSERT_EQ(MATCHTYPE_REJECT,
+    is_matchtype(type_of("c1_string_u8"), type_of("c1_a"), NULL, &opt));
+}
+
+
+TEST_F(MatchTypeTest, TypeParamInTypeArgUnionVsNominal)
+{
+  // Union on one side, non-compound on the other. Every arm of the
+  // union must be able to unify with the nominal — for the union to
+  // equal the nominal at runtime, every arm must reify to that nominal.
+  const char* src =
+    "primitive P\n"
+    "primitive Q\n"
+
+    "class val C1[A: Any #share]\n"
+    "  let value: A\n"
+    "  new val create(v: A) => value = v\n"
+
+    "interface Test\n"
+    "  fun z[A: Any #share, Aq: (P | Q)]\n"
+    "    (c1_p_a: C1[(P | A)], c1_p: C1[P],\n"
+    "     c1_q_aq: C1[(Q | Aq)], c1_q: C1[Q])";
+
+  TEST_COMPILE(src);
+
+  // (P | A) vs P: P arm is P, A arm can reify to P. Reification A = P
+  // collapses (P | P) to P. Accept.
+  ASSERT_EQ(MATCHTYPE_ACCEPT,
+    is_matchtype(type_of("c1_p_a"), type_of("c1_p"), NULL, &opt));
+
+  ASSERT_EQ(MATCHTYPE_ACCEPT,
+    is_matchtype(type_of("c1_p"), type_of("c1_p_a"), NULL, &opt));
+
+  // (Q | Aq) vs Q: Q arm is Q, Aq arm — its constraint is (P | Q), so it
+  // can reify to Q. Accept.
+  ASSERT_EQ(MATCHTYPE_ACCEPT,
+    is_matchtype(type_of("c1_q_aq"), type_of("c1_q"), NULL, &opt));
+
+  ASSERT_EQ(MATCHTYPE_ACCEPT,
+    is_matchtype(type_of("c1_q"), type_of("c1_q_aq"), NULL, &opt));
+}
+
+
+TEST_F(MatchTypeTest, TypeParamInTypeArgUnionVsNominalDisjoint)
+{
+  // Compound-vs-non-compound branch reject: even under any reification
+  // of the operand's typeparam, one arm can never equal the pattern
+  // nominal, so the union can never collapse to the pattern's shape.
+  const char* src =
+    "primitive P\n"
+    "primitive Q\n"
+
+    "class val C1[A: Any #share]\n"
+    "  let value: A\n"
+    "  new val create(v: A) => value = v\n"
+
+    "interface Test\n"
+    "  fun z[A: Any #share] (c1_qa: C1[(Q | A)], c1_p: C1[P])";
+
+  TEST_COMPILE(src);
+
+  // (Q | A) vs P: Q arm can never equal P. Reject even though A could
+  // reify to P.
+  ASSERT_EQ(MATCHTYPE_REJECT,
+    is_matchtype(type_of("c1_qa"), type_of("c1_p"), NULL, &opt));
+}
+
+
+TEST_F(MatchTypeTest, TypeParamInTypeArgUnionArmStructDenies)
+{
+  // Struct pattern with a typeparam inside a union arm must still
+  // deny_nodesc — a struct has no runtime descriptor, so a type
+  // argument containing a typeparam cannot be discriminated at
+  // runtime regardless of how the compound arms line up.
+  const char* src =
+    "primitive P\n"
+
+    "struct val SGen[A: Any #share]\n"
+    "  let value: A\n"
+    "  new create(v: A) => value = v\n"
+
+    "interface Test\n"
+    "  fun z[A: Any #share]\n"
+    "    (s_p_a: SGen[(P | A)], s_p_u8: SGen[(P | U8)])";
+
+  TEST_COMPILE(src);
+
+  ASSERT_EQ(MATCHTYPE_DENY_NODESC,
+    is_matchtype(type_of("s_p_a"), type_of("s_p_u8"), NULL, &opt));
+}
+
+
+TEST_F(MatchTypeTest, TypeParamInTypeArgMixedCompoundArms)
+{
+  // Mixed-kind compound arms: one type argument is a union, the other is
+  // an intersection. Accepts iff any arm-vs-arm pair could unify — a
+  // common subtype supplies a valid reification. See compound_types_
+  // could_unify's mixed-kinds rule.
+  const char* src =
+    "trait val Named\n"
+    "  fun name(): String\n"
+    "trait val Aged\n"
+    "  fun age(): U32\n"
+
+    "class val Both is (Named & Aged)\n"
+    "  fun name(): String => \"x\"\n"
+    "  fun age(): U32 => 0\n"
+
+    "class val C1[A: Any #share]\n"
+    "  let value: A\n"
+    "  new val create(v: A) => value = v\n"
+
+    "interface Test\n"
+    "  fun z[A: Any #share]\n"
+    "    (c1_union: C1[(Both val | A)],\n"
+    "     c1_isect: C1[(Named val & Aged val)])";
+
+  TEST_COMPILE(src);
+
+  // Union arm Both val is a subtype of the intersection (Named & Aged),
+  // so a reification A = Both val makes the compound arms line up.
+  ASSERT_EQ(MATCHTYPE_ACCEPT,
+    is_matchtype(type_of("c1_union"), type_of("c1_isect"), NULL, &opt));
+
+  ASSERT_EQ(MATCHTYPE_ACCEPT,
+    is_matchtype(type_of("c1_isect"), type_of("c1_union"), NULL, &opt));
+}
+
+
+TEST_F(MatchTypeTest, TypeParamInTypeArgMixedCompoundArmsReject)
+{
+  // Mixed-kind compound arms with no arm-vs-arm pair that could unify.
+  // The typeparam `A` is constrained to I32, so it can't reify to
+  // anything inhabiting `(Named & Aged)`, and neither primitive
+  // provides those traits — no arm-vs-arm pair accepts.
+  const char* src =
+    "primitive P\n"
+    "primitive Q\n"
+
+    "trait val Named\n"
+    "  fun name(): String\n"
+    "trait val Aged\n"
+    "  fun age(): U32\n"
+
+    "class val C1[A: Any #share]\n"
+    "  let value: A\n"
+    "  new val create(v: A) => value = v\n"
+
+    "interface Test\n"
+    "  fun z[A: I32]\n"
+    "    (c1_union: C1[(P | Q | A)],\n"
+    "     c1_isect: C1[(Named val & Aged val)])";
+
+  TEST_COMPILE(src);
+
+  ASSERT_EQ(MATCHTYPE_REJECT,
+    is_matchtype(type_of("c1_union"), type_of("c1_isect"), NULL, &opt));
+
+  ASSERT_EQ(MATCHTYPE_REJECT,
+    is_matchtype(type_of("c1_isect"), type_of("c1_union"), NULL, &opt));
+}
+
+
+TEST_F(MatchTypeTest, TypeParamInTypeArgIsectVsIsect)
+{
+  // Same-kind intersection distribution. Every arm on each side must
+  // have a matching arm on the other. `(Named & Aged & A)` vs
+  // `(Named & Aged & Both val)`: Both val is a subtype of Named and of
+  // Aged, and A can reify to a type that is a subtype of Both. Accept.
+  const char* src =
+    "trait val Named\n"
+    "  fun name(): String\n"
+    "trait val Aged\n"
+    "  fun age(): U32\n"
+
+    "class val Both is (Named & Aged)\n"
+    "  fun name(): String => \"x\"\n"
+    "  fun age(): U32 => 0\n"
+
+    "class val C1[A: Any #share]\n"
+    "  let value: A\n"
+    "  new val create(v: A) => value = v\n"
+
+    "interface Test\n"
+    "  fun z[A: Named val]\n"
+    "    (c1_left: C1[(Named val & Aged val & A)],\n"
+    "     c1_right: C1[(Named val & Aged val & Both val)])";
+
+  TEST_COMPILE(src);
+
+  ASSERT_EQ(MATCHTYPE_ACCEPT,
+    is_matchtype(type_of("c1_left"), type_of("c1_right"), NULL, &opt));
+
+  ASSERT_EQ(MATCHTYPE_ACCEPT,
+    is_matchtype(type_of("c1_right"), type_of("c1_left"), NULL, &opt));
+}
+
+
+TEST_F(MatchTypeTest, TypeParamInTypeArgIsectVsNominal)
+{
+  // Intersection on one side, nominal on the other. Every arm of the
+  // intersection must be able to unify with the nominal — an
+  // over-approximation of "the meet of the arms must equal the
+  // nominal." Here `(Named & A)` where `A: Aged val`: Both val is a
+  // subtype of Named, and A can reify to Both val (which is Aged).
+  const char* src =
+    "trait val Named\n"
+    "  fun name(): String\n"
+    "trait val Aged\n"
+    "  fun age(): U32\n"
+
+    "class val Both is (Named & Aged)\n"
+    "  fun name(): String => \"x\"\n"
+    "  fun age(): U32 => 0\n"
+
+    "class val C1[A: Any #share]\n"
+    "  let value: A\n"
+    "  new val create(v: A) => value = v\n"
+
+    "interface Test\n"
+    "  fun z[A: Aged val]\n"
+    "    (c1_isect: C1[(Named val & A)], c1_both: C1[Both val])";
+
+  TEST_COMPILE(src);
+
+  ASSERT_EQ(MATCHTYPE_ACCEPT,
+    is_matchtype(type_of("c1_isect"), type_of("c1_both"), NULL, &opt));
+
+  ASSERT_EQ(MATCHTYPE_ACCEPT,
+    is_matchtype(type_of("c1_both"), type_of("c1_isect"), NULL, &opt));
+}
+
+
+TEST_F(MatchTypeTest, TypeParamInTypeArgIsectVsNominalReject)
+{
+  // Intersection-vs-non-compound reject: the nominal isn't a subtype of
+  // every arm of the intersection. `(Named & String val)` has no
+  // inhabitant that is both Named and String, so it can't reify to
+  // `Both val`. String val is not a supertype of Both val, so the arm
+  // check fails.
+  const char* src =
+    "trait val Named\n"
+    "  fun name(): String\n"
+    "trait val Aged\n"
+    "  fun age(): U32\n"
+
+    "class val Both is (Named & Aged)\n"
+    "  fun name(): String => \"x\"\n"
+    "  fun age(): U32 => 0\n"
+
+    "class val C1[A: Any #share]\n"
+    "  let value: A\n"
+    "  new val create(v: A) => value = v\n"
+
+    "interface Test\n"
+    "  fun z[A: Any #share]\n"
+    "    (c1_isect: C1[(Named val & String val & A)],\n"
+    "     c1_both: C1[Both val])";
+
+  TEST_COMPILE(src);
+
+  ASSERT_EQ(MATCHTYPE_REJECT,
+    is_matchtype(type_of("c1_isect"), type_of("c1_both"), NULL, &opt));
+}
+
+
+TEST_F(MatchTypeTest, TypeParamInTypeArgUnionArmMissingArmReject)
+{
+  // The same-kind branch's second loop covers a specific case: the
+  // operand side has an arm no pattern arm can supply, so even after
+  // the first loop passes (every operand arm found a match), the
+  // reverse check fails. Here operand arm `String val` has no pattern
+  // arm to line up with (pattern's `A: I32` can't reify to String, and
+  // U8 is not String).
+  const char* src =
+    "class val C1[A: Any #share]\n"
+    "  let value: A\n"
+    "  new val create(v: A) => value = v\n"
+
+    "interface Test\n"
+    "  fun z[Astr: String val, Ai: I32]\n"
+    "    (c1_left: C1[(Astr | U8)],\n"
+    "     c1_right: C1[(Ai | U8)])";
+
+  TEST_COMPILE(src);
+
+  ASSERT_EQ(MATCHTYPE_REJECT,
+    is_matchtype(type_of("c1_left"), type_of("c1_right"), NULL, &opt));
+}
+
+
+TEST_F(MatchTypeTest, TypeParamInTypeArgTuple)
+{
+  // Tuple type argument containing a type parameter: same-arity
+  // element-pair recursion. Reifying A to U8 makes the two tuple
+  // arguments equal, so the two Cell descriptors coincide at runtime —
+  // accept.
+  const char* src =
+    "primitive P\n"
+
+    "class val C1[A: Any #share]\n"
+    "  let value: A\n"
+    "  new val create(v: A) => value = v\n"
+
+    "interface Test\n"
+    "  fun z[A: Any #share]\n"
+    "    (c1_pa: C1[(P, A)], c1_pu8: C1[(P, U8)])";
+
+  TEST_COMPILE(src);
+
+  ASSERT_EQ(MATCHTYPE_ACCEPT,
+    is_matchtype(type_of("c1_pa"), type_of("c1_pu8"), NULL, &opt));
+
+  ASSERT_EQ(MATCHTYPE_ACCEPT,
+    is_matchtype(type_of("c1_pu8"), type_of("c1_pa"), NULL, &opt));
+}
+
+
+TEST_F(MatchTypeTest, TypeParamInTypeArgTupleDisjointElement)
+{
+  // Tuple element pair rejects: `A: I32` can't reify to `String`, so
+  // the second element pair can never equal.
+  const char* src =
+    "primitive P\n"
+
+    "class val C1[A: Any #share]\n"
+    "  let value: A\n"
+    "  new val create(v: A) => value = v\n"
+
+    "interface Test\n"
+    "  fun z[A: I32]\n"
+    "    (c1_pa: C1[(P, A)], c1_pstring: C1[(P, String val)])";
+
+  TEST_COMPILE(src);
+
+  ASSERT_EQ(MATCHTYPE_REJECT,
+    is_matchtype(type_of("c1_pa"), type_of("c1_pstring"), NULL, &opt));
+}
+
+
+TEST_F(MatchTypeTest, TypeParamInTypeArgTupleArityMismatch)
+{
+  // Tuples of different arities can never equal at runtime; the arity
+  // is part of the tuple type's descriptor.
+  const char* src =
+    "primitive P\n"
+
+    "class val C1[A: Any #share]\n"
+    "  let value: A\n"
+    "  new val create(v: A) => value = v\n"
+
+    "interface Test\n"
+    "  fun z[A: Any #share]\n"
+    "    (c1_pair: C1[(P, A)], c1_triple: C1[(P, A, U8)])";
+
+  TEST_COMPILE(src);
+
+  ASSERT_EQ(MATCHTYPE_REJECT,
+    is_matchtype(type_of("c1_pair"), type_of("c1_triple"), NULL, &opt));
+}
+
+
+TEST_F(MatchTypeTest, TypeParamInTypeArgTupleOccurs)
+{
+  // Occurs check propagates through tuple elements: `A` vs `(P, Wrap[A])`
+  // — A appears wrapped in the tuple element, so no reification
+  // satisfies A = (P, Wrap[A]) without an infinite type.
+  const char* src =
+    "primitive P\n"
+
+    "class val Wrap[A: Any #share]\n"
+    "  let value: A\n"
+    "  new val create(v: A) => value = v\n"
+
+    "class val C1[A: Any #share]\n"
+    "  let value: A\n"
+    "  new val create(v: A) => value = v\n"
+
+    "interface Test\n"
+    "  fun z[A: Any #share]\n"
+    "    (c1_a: C1[A], c1_tuple_wrap_a: C1[(P, Wrap[A] val)])";
+
+  TEST_COMPILE(src);
+
+  ASSERT_EQ(MATCHTYPE_REJECT,
+    is_matchtype(type_of("c1_a"), type_of("c1_tuple_wrap_a"), NULL, &opt));
+}

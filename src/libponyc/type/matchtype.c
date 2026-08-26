@@ -645,6 +645,226 @@ static bool typeparam_occurs_in(ast_t* tp_def, ast_t* other,
   return false;
 }
 
+static bool typeargs_could_unify(ast_t* a, ast_t* b, pass_opt_t* opt);
+
+// A concrete entity — class, primitive, actor, or struct — has no user-
+// visible subtype other than itself: Pony has no class-extends-class
+// inheritance. Two distinct concrete entities therefore share no common
+// inhabitant, which lets constraints_could_overlap reject that pair
+// precisely instead of over-approximating.
+static bool nominal_is_concrete_entity(ast_t* nominal)
+{
+  if(ast_id(nominal) != TK_NOMINAL)
+    return false;
+
+  ast_t* def = (ast_t*)ast_data(nominal);
+  switch(ast_id(def))
+  {
+    case TK_CLASS:
+    case TK_PRIMITIVE:
+    case TK_ACTOR:
+    case TK_STRUCT:
+      return true;
+
+    default:
+      return false;
+  }
+}
+
+// Do two typeparam constraints share any common inhabitant? Used by the
+// two-typeparam branch of typeargs_could_unify to decide whether some
+// concrete reification could satisfy both constraints simultaneously.
+//
+//   - The subtype fast path in either direction accepts.
+//   - A union on either side distributes: (X | Y) shares an inhabitant
+//     with Z iff X shares one with Z or Y does.
+//   - After distribution reaches two nominals, only two distinct concrete
+//     entities can be proved disjoint. Any other pair — trait or
+//     interface on either side, intersection constraint, type alias
+//     reference, arrow, tuple, typeparamref — is over-approximated to
+//     accept.
+//
+// Over-approximation trade-off: two disjoint traits with no common
+// implementer in the program accept unconditionally. Precise trait
+// inhabitation would require walking every class in the program, which is
+// not cheap and not available at this pass.
+static bool constraints_could_overlap(ast_t* a, ast_t* b, pass_opt_t* opt)
+{
+  if(is_subtype_ignore_cap(a, b, NULL, opt))
+    return true;
+
+  if(is_subtype_ignore_cap(b, a, NULL, opt))
+    return true;
+
+  if(ast_id(a) == TK_UNIONTYPE)
+  {
+    ast_t* arm = ast_child(a);
+    while(arm != NULL)
+    {
+      if(constraints_could_overlap(arm, b, opt))
+        return true;
+
+      arm = ast_sibling(arm);
+    }
+
+    return false;
+  }
+
+  if(ast_id(b) == TK_UNIONTYPE)
+  {
+    ast_t* arm = ast_child(b);
+    while(arm != NULL)
+    {
+      if(constraints_could_overlap(a, arm, opt))
+        return true;
+
+      arm = ast_sibling(arm);
+    }
+
+    return false;
+  }
+
+  if(nominal_is_concrete_entity(a) && nominal_is_concrete_entity(b))
+    return false;
+
+  return true;
+}
+
+// True if any arm of `compound` could unify with `other`.
+static bool any_arm_could_unify(ast_t* compound, ast_t* other,
+  pass_opt_t* opt)
+{
+  ast_t* arm = ast_child(compound);
+  while(arm != NULL)
+  {
+    if(typeargs_could_unify(arm, other, opt))
+      return true;
+
+    arm = ast_sibling(arm);
+  }
+
+  return false;
+}
+
+// True if every arm of `compound` could unify with `other`.
+static bool every_arm_could_unify(ast_t* compound, ast_t* other,
+  pass_opt_t* opt)
+{
+  ast_t* arm = ast_child(compound);
+  while(arm != NULL)
+  {
+    if(!typeargs_could_unify(arm, other, opt))
+      return false;
+
+    arm = ast_sibling(arm);
+  }
+
+  return true;
+}
+
+// True if `other` is a subtype of every arm of `compound` (an
+// intersection). Used for intersection-vs-non-compound: an intersection
+// `(X & Y & ...)` could reify to a runtime type equal to `other` iff
+// `other` is an inhabitant, i.e. a subtype of every arm.
+// is_subtype_ignore_cap handles typeparam arms by checking against their
+// constraints, so a typeparam arm A accepts `other` iff `other` is
+// admitted by A's constraint.
+static bool other_is_subtype_of_every_arm(ast_t* compound, ast_t* other,
+  pass_opt_t* opt)
+{
+  ast_t* arm = ast_child(compound);
+  while(arm != NULL)
+  {
+    if(!is_subtype_ignore_cap(other, arm, NULL, opt))
+      return false;
+
+    arm = ast_sibling(arm);
+  }
+
+  return true;
+}
+
+// Could two type-argument positions reify to equal types when at least one
+// side is a union or intersection literal? Callers must have already ruled
+// out the type-parameter branches — a bare type parameter on either side
+// is handled by typeargs_could_unify's earlier branches, whose occurs
+// check would otherwise be bypassed.
+//
+// Rules:
+//   - Same kind (both union or both intersection): each arm on either side
+//     must have some arm on the other side that could unify. This is set-
+//     equality style: it does not enforce cross-arm consistency of a
+//     typeparam's reification, so `(P | A)` vs `(Q | A)` (same A on both
+//     sides) accepts even though no single reification of A satisfies
+//     both `(P | T) = (Q | T)`. Same over-approximation as
+//     `Pair[A, A]` vs `Pair[U8, U16]` in the same-def nominal recursion.
+//   - Mixed kinds (union vs intersection): any arm-vs-arm pair that could
+//     unify accepts. A common subtype of both sides supplies a valid
+//     reification.
+//   - Union vs non-compound: every arm on the union side must could-unify
+//     with the non-compound side. `(X | Y | ...) = W` requires every arm
+//     to reify equal to W (union collapse).
+//   - Intersection vs non-compound: `(X & Y & ...) = W` requires W to be
+//     a subtype of every arm (so W inhabits the intersection). A
+//     typeparam arm accepts W iff W is admitted by the arm's constraint,
+//     which is_subtype_ignore_cap already models.
+static bool compound_types_could_unify(ast_t* a, ast_t* b, pass_opt_t* opt)
+{
+  bool a_union = ast_id(a) == TK_UNIONTYPE;
+  bool a_isect = ast_id(a) == TK_ISECTTYPE;
+  bool b_union = ast_id(b) == TK_UNIONTYPE;
+  bool b_isect = ast_id(b) == TK_ISECTTYPE;
+  bool a_compound = a_union || a_isect;
+  bool b_compound = b_union || b_isect;
+
+  pony_assert(a_compound || b_compound);
+
+  if((a_union && b_union) || (a_isect && b_isect))
+  {
+    ast_t* arm = ast_child(a);
+    while(arm != NULL)
+    {
+      if(!any_arm_could_unify(b, arm, opt))
+        return false;
+
+      arm = ast_sibling(arm);
+    }
+
+    arm = ast_child(b);
+    while(arm != NULL)
+    {
+      if(!any_arm_could_unify(a, arm, opt))
+        return false;
+
+      arm = ast_sibling(arm);
+    }
+
+    return true;
+  }
+
+  if(a_compound && b_compound)
+  {
+    ast_t* a_arm = ast_child(a);
+    while(a_arm != NULL)
+    {
+      if(any_arm_could_unify(b, a_arm, opt))
+        return true;
+
+      a_arm = ast_sibling(a_arm);
+    }
+
+    return false;
+  }
+
+  ast_t* compound = a_compound ? a : b;
+  ast_t* other = a_compound ? b : a;
+
+  if(ast_id(compound) == TK_UNIONTYPE)
+    return every_arm_could_unify(compound, other, opt);
+
+  return other_is_subtype_of_every_arm(compound, other, opt);
+}
+
 // Could two type-argument positions reify to equal types for some
 // substitution of the type parameters they contain?
 //
@@ -662,12 +882,16 @@ static bool typeparam_occurs_in(ast_t* tp_def, ast_t* other,
 //     the other side (occurs check): no reification satisfies A = f(A)
 //     without an infinite type. Occurrences in a union or intersection
 //     arm are not generative — A vs (A | U8) can unify.
-//   - two type parameters unify when their constraints share any type
-//     (approximated as one constraint being a subtype of the other; two
-//     constraints that only overlap through a common subtype are not
-//     recognized here — see follow-up work).
+//   - two type parameters unify when their constraints share any common
+//     inhabitant (see constraints_could_overlap for the check and its
+//     over-approximation trade-offs).
+//   - a union or intersection literal on either side (with neither side a
+//     bare type parameter) distributes over the arms (see
+//     compound_types_could_unify).
 //   - two same-definition nominals unify when every pair of type arguments
 //     recursively unifies.
+//   - two tuples unify when they have the same arity and every element
+//     pair recursively unifies.
 //   - a type alias reference is unfolded and re-tried.
 //   - anything else does not unify.
 static bool typeargs_could_unify(ast_t* a, ast_t* b, pass_opt_t* opt)
@@ -711,8 +935,7 @@ static bool typeargs_could_unify(ast_t* a, ast_t* b, pass_opt_t* opt)
     if((a_up == NULL) || (b_up == NULL))
       r = true;
     else
-      r = is_subtype_ignore_cap(a_up, b_up, NULL, opt)
-       || is_subtype_ignore_cap(b_up, a_up, NULL, opt);
+      r = constraints_could_overlap(a_up, b_up, opt);
 
     if(a_up != NULL) ast_free_unattached(a_up);
     if(b_up != NULL) ast_free_unattached(b_up);
@@ -735,6 +958,12 @@ static bool typeargs_could_unify(ast_t* a, ast_t* b, pass_opt_t* opt)
     bool r = is_subtype_ignore_cap(other, upper, NULL, opt);
     ast_free_unattached(upper);
     return r;
+  }
+
+  if((ast_id(a) == TK_UNIONTYPE) || (ast_id(a) == TK_ISECTTYPE)
+    || (ast_id(b) == TK_UNIONTYPE) || (ast_id(b) == TK_ISECTTYPE))
+  {
+    return compound_types_could_unify(a, b, opt);
   }
 
   if((ast_id(a) == TK_NOMINAL) && (ast_id(b) == TK_NOMINAL))
@@ -761,6 +990,23 @@ static bool typeargs_could_unify(ast_t* a, ast_t* b, pass_opt_t* opt)
     }
 
     return (a_arg == NULL) && (b_arg == NULL);
+  }
+
+  if((ast_id(a) == TK_TUPLETYPE) && (ast_id(b) == TK_TUPLETYPE))
+  {
+    ast_t* a_elem = ast_child(a);
+    ast_t* b_elem = ast_child(b);
+
+    while((a_elem != NULL) && (b_elem != NULL))
+    {
+      if(!typeargs_could_unify(a_elem, b_elem, opt))
+        return false;
+
+      a_elem = ast_sibling(a_elem);
+      b_elem = ast_sibling(b_elem);
+    }
+
+    return (a_elem == NULL) && (b_elem == NULL);
   }
 
   return false;
