@@ -292,18 +292,24 @@ cmake --build --preset release
 
 ### lto
 
-Link-time optimizations provide a performance improvement. You should strongly consider turning on LTO if you build ponyc from source. It's off by default as it comes with some caveats:
+Link-time optimizations make the compiler itself faster. On a 64-core x86-64 Linux machine, compiling `packages/stdlib` drops from 201 to 188 seconds, and the front end through reachability analysis from 59 to 48 seconds. LLVM does the bulk of the work in a release build, which is why the whole-build figure moves less than the front end does.
 
-- If you aren't using clang as your linker, we've seen LTO generate incorrect binaries. It's rare but it can happen. Before turning on LTO you need to be aware that it's possible.
+LTO applies to the compiler — `libponyc`, `ponyc`, and the test and benchmark binaries that link them — and not to the runtime. `libponyrt.a` and `libponyrt-pic.a` hold native objects either way, so linking a Pony program costs the same whether or not the compiler was built with LTO. `libponyc.a` and `libponyc-standalone.a` do hold bitcode under LTO; embedding either one needs an LTO-capable linker.
 
-- If you are on MacOS, turning on LTO means that if you upgrade your version of XCode, you will have to rebuild your Pony compiler. You won't be able to link Pony programs if there is a mismatch between the version of XCode used to build the Pony runtime and the version of XCode you currently have installed.
+LTO needs Clang. Building with GCC or MSVC skips it, with a message at the configure step: their LTO objects hold GIMPLE or MSVC IL rather than machine code, and the LLD embedded in ponyc reads only LLVM bitcode, so `libponyc-standalone.a` would come out unlinkable and the self-hosted tools would fail to build.
 
-LTO is enabled by setting `PONY_USE_LTO` to `true` in the configure step like:
+We've seen LTO generate incorrect binaries when clang isn't the linker. It's rare, and it reaches only the `ponyc` binary, which your own toolchain links. It doesn't reach the programs ponyc compiles: those are linked by the LLD embedded in ponyc, on every platform. On macOS that's `ld64.lld`, and Xcode or CommandLineTools supplies only the SDK library path it links against, so upgrading Xcode doesn't require rebuilding ponyc.
+
+The `release`, `x86-64-release`, `armv8-release` and `armv8-a-release` presets turn LTO on. The Windows presets don't, for two reasons: MSVC can't use it at all, and one Windows configure preset serves both the debug and the release build, so `PONY_USE_LTO` would cover both.
+
+To turn LTO off, or to turn it on for a preset that doesn't set it, set `PONY_USE_LTO` in the configure step:
 
 ```bash
-cmake --preset release -DPONY_USE_LTO=true
+cmake --preset release -DPONY_USE_LTO=OFF
 cmake --build --preset release
 ```
+
+If the toolchain doesn't support IPO, the configure step prints a warning and builds without LTO.
 
 ### runtime-bitcode
 

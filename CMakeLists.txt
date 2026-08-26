@@ -609,15 +609,49 @@ add_compile_definitions(
     PONY_OSX_PLATFORM=${PONY_OSX_PLATFORM}
 )
 
+# Interprocedural optimization for the compiler itself. libponyc spends a large
+# share of its time in one-line accessors -- ast_id, token_get_id, ast_childidx
+# -- that sit in a different translation unit from every caller, so without
+# cross-TU inlining they stay out of line and are called once per AST node
+# visited.
+#
+# This is applied per target, next to the compiler's own add_subdirectory calls
+# below, rather than as a global CMAKE_INTERPROCEDURAL_OPTIMIZATION. Global IPO
+# would also compile libponyrt to LLVM bitcode, and libponyrt.a /
+# libponyrt-pic.a are installed and linked into every Pony program: the embedded
+# LLD would then run LTO over the runtime on every user link. That is a fixed
+# per-program cost, and on small programs it is larger than the compile time
+# this saves.
+#
+# Clang only, because libponyc.a -- and so libponyc-standalone.a, which the
+# self-hosted tools link through `use "lib:ponyc-standalone"` -- is read by the
+# LLD embedded in ponyc, and LLD reads only LLVM bitcode. GCC's -flto writes
+# slim objects instead: an empty .text plus the GIMPLE its own linker plugin
+# consumes. GCC also writes a symbol table for that plugin, so the archive looks
+# linkable and then fails with an undefined symbol for everything in it. MSVC's
+# /GL produces its own IL and fails the same way. check_ipo_supported catches
+# neither, because both toolchains do support IPO, just not in a form LLD reads.
+# Building ponyc with GCC is documented (see BUILD.md) and the DragonFly BSD CI
+# does it, so a release preset must not turn LTO on underneath them.
 include(CheckIPOSupported)
+set(PONY_LTO_ENABLED FALSE)
 if(PONY_USE_LTO)
-    check_ipo_supported(RESULT _ipo_supported OUTPUT error)
-endif()
+    if(NOT CMAKE_C_COMPILER_ID MATCHES "Clang")
+        message("PONY_USE_LTO is set but the compiler is "
+            "${CMAKE_C_COMPILER_ID}, not Clang. Building without LTO: "
+            "libponyc-standalone.a would hold ${CMAKE_C_COMPILER_ID} LTO "
+            "objects, which the LLD embedded in ponyc cannot read.")
+    else()
+        check_ipo_supported(RESULT _ipo_supported OUTPUT _ipo_error)
 
-if(_ipo_supported)
-    message("Configuring with IPO/LTO")
-    set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)
-    add_compile_definitions(PONY_USE_LTO)
+        if(_ipo_supported)
+            message("Configuring with IPO/LTO")
+            set(PONY_LTO_ENABLED TRUE)
+        else()
+            message(WARNING
+                "PONY_USE_LTO is set but IPO is unavailable: ${_ipo_error}")
+        endif()
+    endif()
 endif()
 
 if(MSVC)
@@ -699,6 +733,23 @@ else()
 
     add_subdirectory(benchmark/libponyc)
     add_subdirectory(benchmark/libponyrt)
+
+    # LTO covers the compiler and nothing else. libponyrt is deliberately absent
+    # -- see the PONY_USE_LTO block above for why.
+    #
+    # Every target that links libponyc is listed, not just the ones we want
+    # faster. libponyc.a holds bitcode under this option, and CMake only adds
+    # the -flto that selects clang's LTO link path to targets that have the
+    # property themselves. A consumer left out here links libponyc.a with the
+    # default system linker, and GNU ld rejects bitcode members outright:
+    # "file format not recognized".
+    #
+    # The same applies to libponyc-standalone.a, which an embedder outside this
+    # build links with an LTO-capable linker.
+    if(PONY_LTO_ENABLED)
+        set_property(TARGET libponyc ponyc libponyc.tests libponyc.benchmarks
+            PROPERTY INTERPROCEDURAL_OPTIMIZATION TRUE)
+    endif()
 
     if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
         add_subdirectory(src/crt)
