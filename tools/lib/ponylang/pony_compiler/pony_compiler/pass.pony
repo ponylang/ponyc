@@ -182,6 +182,11 @@ struct _StrTable
   Opaque mirror of libponyc's strtable_t (the interned-string table).
   """
 
+struct _PassTimers
+  """
+  Opaque mirror of libponyc's pass_timers_t (the pass-timing context).
+  """
+
 struct _PassOpt
   """
   Layout mirror of libponyc's pass_opt_t (pass.h), reached over FFI.
@@ -240,8 +245,11 @@ struct _PassOpt
   // user-defined data for unit test callbacks
   var data: Pointer[None] ref = data.create()
   // Interned-string table for this compilation. Mirrors the strtab
-  // field appended to pass_opt_t (src/libponyc/pass/pass.h); kept
-  // last so the offsets of every field above are unchanged.
+  // field of pass_opt_t (src/libponyc/pass/pass.h).
   var strtab: Pointer[_StrTable] ref = strtab.create()
+  // Pass-timing context. Mirrors the timers field of pass_opt_t
+  // (src/libponyc/pass/pass.h). A layout placeholder: the Pony tools
+  // do not use it.
+  var timers: Pointer[_PassTimers] ref = timers.create()
 
   new ref create() => None

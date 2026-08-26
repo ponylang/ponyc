@@ -4,6 +4,7 @@
 #include "../libponyc/pkg/package.h"
 #include "../libponyc/pkg/buildflagset.h"
 #include "../libponyc/pass/pass.h"
+#include "../libponyc/pass/timing.h"
 #include "../libponyc/options/options.h"
 #include "../libponyc/ast/stringtab.h"
 #include "../libponyc/ast/treecheck.h"
@@ -123,8 +124,11 @@ int main(int argc, char* argv[])
     return 0;
   }
 
-  bool ok = true;
-  if(ponyc_init(&opt))
+  // An init failure is a failed run: without this, ok stays true and a report
+  // written below would claim a build succeeded that never started.
+  bool ok = ponyc_init(&opt);
+
+  if(ok)
   {
     if(argc == 1)
     {
@@ -138,6 +142,27 @@ int main(int argc, char* argv[])
 
   if(!ok && errors_get_count(opt.check.errors) == 0)
     printf("Error: internal failure not reported\n");
+
+  // Print the errors before the timings, not with the rest of the teardown in
+  // ponyc_shutdown: a table is tens of lines, and the diagnostics have to come
+  // out from under it.
+  errors_print(opt.check.errors);
+
+  // Report and free the timings before ponyc_shutdown, which tears LLVM down
+  // (timing.h explains why that ordering matters).
+  if(opt.timers != NULL)
+  {
+    // opt.triple is the effective target triple, resolved by ponyc_init before
+    // any compilation, so a build that failed later still records what it was
+    // aimed at.
+    pass_timers_set_report_meta(opt.timers, ok, opt.triple);
+
+    if(!pass_timers_report(opt.timers))
+      ok = false;
+
+    pass_timers_free(opt.timers);
+    opt.timers = NULL;
+  }
 
   ponyc_shutdown(&opt);
   pass_opt_done(&opt);
