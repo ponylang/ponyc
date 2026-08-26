@@ -1,4 +1,5 @@
 use "pony_test"
+use "pony_check"
 use mut = "collections"
 use "random"
 use "time"
@@ -32,7 +33,15 @@ actor \nodoc\ Main is TestList
     test(_TestMapVsMap)
     test(_TestSet)
     test(_TestVec)
+    test(_TestVecContains)
+    test(_TestVecFind)
     test(_TestVecIterators)
+    test(_TestVecReverse)
+    test(_TestVecSlice)
+    test(Property1UnitTest[(Array[USize], USize)](_VecFindContainsProperty))
+    test(Property1UnitTest[Array[USize]](_VecIteratorsProperty))
+    test(Property1UnitTest[(Array[USize], USize, USize)](_VecLawsProperty))
+    test(Property1UnitTest[(USize, Array[_VecAction])](_VecModelProperty))
 
 class \nodoc\ iso _TestListPrepend is UnitTest
   fun name(): String => "collections/persistent/List (prepend)"
@@ -559,3 +568,419 @@ class \nodoc\ iso _TestVecIterators is UnitTest
       h.assert_eq[USize](v, vec(i)?)
     end
     h.assert_eq[USize](c, 0)
+
+class \nodoc\ iso _TestVecFind is UnitTest
+  fun name(): String => "collections/persistent/Vec (find)"
+
+  fun apply(h: TestHelper) ? =>
+    // 1_100 elements fill 34 leaf nodes and leave 12 in the tail, so the
+    // search crosses the boundary between the root trie and the tail.
+    let n: USize = 1_100
+    let v = Vec[USize].concat(mut.Range(0, n))
+
+    // each value is found at its own index
+    for i in mut.Range(0, n) do
+      h.assert_eq[USize](v.find(i)?, i)
+    end
+
+    // the search starts at offset
+    h.assert_eq[USize](v.find(5, 5)?, 5)
+    h.assert_error({() ? => v.find(5, 6)? })
+    h.assert_eq[USize](v.find(n - 1, n - 1)?, n - 1)
+
+    // a value that is never matched raises an error
+    h.assert_error({() ? => v.find(n)? })
+    h.assert_error({() ? => v.find(0, n)? })
+    h.assert_error({() ? => Vec[USize].find(0)? })
+
+    // nth counts appearances from offset, starting at zero
+    let period: USize = 4
+    var repeats = Vec[USize]
+    for i in mut.Range(0, n) do repeats = repeats.push(i % period) end
+    for k in mut.Range(0, n / period) do
+      h.assert_eq[USize](repeats.find(1, 0, k)?, 1 + (k * period))
+    end
+    h.assert_error({() ? => repeats.find(1, 0, n / period)? })
+
+    // the predicate is applied as predicate(element, value)
+    let successor = {(l: USize, r: USize): Bool => l == (r + 1) }
+    h.assert_eq[USize](v.find(5, 0, 0, successor)?, 6)
+
+class \nodoc\ iso _TestVecContains is UnitTest
+  fun name(): String => "collections/persistent/Vec (contains)"
+
+  fun apply(h: TestHelper) =>
+    h.assert_false(Vec[USize].contains(0))
+
+    // 1_100 elements fill 34 leaf nodes and leave 12 in the tail, so the
+    // search crosses the boundary between the root trie and the tail.
+    let n: USize = 1_100
+    let v = Vec[USize].concat(mut.Range(0, n))
+
+    for i in mut.Range(0, n) do
+      h.assert_true(v.contains(i))
+    end
+    h.assert_false(v.contains(n))
+    h.assert_false(v.contains(-1))
+
+    // the predicate is applied as predicate(element, value)
+    let successor = {(l: USize, r: USize): Bool => l == (r + 1) }
+    h.assert_true(v.contains(0, successor))
+    h.assert_false(v.contains(n - 1, successor))
+
+class \nodoc\ iso _TestVecSlice is UnitTest
+  fun name(): String => "collections/persistent/Vec (slice)"
+
+  fun apply(h: TestHelper) ? =>
+    // 1_100 elements fill 34 leaf nodes and leave 12 in the tail, so the tail
+    // begins at index 1_088.
+    let n: USize = 1_100
+    let tail_offset = (n / 32) * 32
+    let v = Vec[USize].concat(mut.Range(0, n))
+
+    // the default range copies the whole vector
+    let all = v.slice()
+    h.assert_eq[USize](all.size(), n)
+    for i in mut.Range(0, n) do
+      h.assert_eq[USize](all(i)?, i)
+    end
+
+    // an interior range begins at from and stops before to
+    let mid = v.slice(10, 20)
+    h.assert_eq[USize](mid.size(), 10)
+    for i in mut.Range(0, 10) do
+      h.assert_eq[USize](mid(i)?, 10 + i)
+    end
+
+    // a range spanning the root/tail boundary
+    let edge = v.slice(tail_offset - 2, tail_offset + 2)
+    h.assert_eq[USize](edge.size(), 4)
+    for i in mut.Range(0, 4) do
+      h.assert_eq[USize](edge(i)?, (tail_offset - 2) + i)
+    end
+
+    // step skips elements
+    let stepped = v.slice(0, 10, 3)
+    h.assert_eq[USize](stepped.size(), 4)
+    h.assert_eq[USize](stepped(0)?, 0)
+    h.assert_eq[USize](stepped(1)?, 3)
+    h.assert_eq[USize](stepped(2)?, 6)
+    h.assert_eq[USize](stepped(3)?, 9)
+
+    // to saturates at the size of the vector
+    h.assert_eq[USize](v.slice(n - 5, n + 100).size(), 5)
+
+    // ranges that select nothing give an empty vector
+    h.assert_eq[USize](v.slice(5, 5).size(), 0)
+    h.assert_eq[USize](v.slice(20, 10).size(), 0)
+    h.assert_eq[USize](v.slice(n).size(), 0)
+    h.assert_eq[USize](Vec[USize].slice().size(), 0)
+
+class \nodoc\ iso _TestVecReverse is UnitTest
+  fun name(): String => "collections/persistent/Vec (reverse)"
+
+  fun apply(h: TestHelper) ? =>
+    // 1_100 elements fill 34 leaf nodes and leave 12 in the tail, so the
+    // reversed vector is read from both the root trie and the tail.
+    let n: USize = 1_100
+    let v = Vec[USize].concat(mut.Range(0, n))
+
+    let r = v.reverse()
+    h.assert_eq[USize](r.size(), n)
+    for i in mut.Range(0, n) do
+      h.assert_eq[USize](r(i)?, (n - 1) - i)
+    end
+
+    // reversing twice restores the original order
+    let rr = r.reverse()
+    h.assert_eq[USize](rr.size(), n)
+    for i in mut.Range(0, n) do
+      h.assert_eq[USize](rr(i)?, i)
+    end
+
+    // the vector reversed from is left alone
+    for i in mut.Range(0, n) do
+      h.assert_eq[USize](v(i)?, i)
+    end
+
+    let one = Vec[USize].push(7).reverse()
+    h.assert_eq[USize](one.size(), 1)
+    h.assert_eq[USize](one(0)?, 7)
+
+    h.assert_eq[USize](Vec[USize].reverse().size(), 0)
+
+type _VecAction is (U8, USize, USize)
+  """
+  One generated operation: an operation tag and two arguments whose meaning
+  depends on the tag.
+  """
+
+primitive \nodoc\ _VecGen
+  fun sizes(): Generator[USize] =>
+    """
+    Sizes biased toward the points where the trie changes shape: at 32 the tail
+    is flushed into the root, and at 64 and 1_056 the root gains a level.
+    """
+    Generators.frequency[USize]([
+      as WeightedGenerator[USize]:
+      (5, Generators.usize(0, 70))
+      (3, Generators.usize(0, 1_500))
+      (2, Generators.one_of[USize]([
+        as USize: 0; 1; 31; 32; 33; 63; 64; 65; 1_023; 1_055; 1_056; 1_057 ]))
+    ])
+
+  fun contents(): Generator[Array[USize]] =>
+    """
+    Elements are drawn from a small range so that repeats are common, which is
+    what `find` and `contains` need to be interesting.
+    """
+    sizes().flat_map[Array[USize]](
+      {(n: USize): Generator[Array[USize]] =>
+        Generators.seq_of[USize, Array[USize]](Generators.usize(0, 99), n, n) })
+
+  fun build(elements: ReadSeq[USize]): Vec[USize] =>
+    var v = Vec[USize]
+    for x in elements.values() do v = v.push(x) end
+    v
+
+primitive \nodoc\ _VecCheck
+  fun contents(v: Vec[USize]): Array[USize] =>
+    """
+    Read a vector out through `apply`, which the example based tests cover, so
+    that the iterators can be checked against it rather than against
+    themselves.
+    """
+    let out = Array[USize](v.size())
+    try
+      for i in mut.Range(0, v.size()) do out.push(v(i)?) end
+    end
+    out
+
+class \nodoc\ iso _VecModelProperty is Property1[(USize, Array[_VecAction])]
+  """
+  Apply a generated sequence of operations to a `Vec` and to an `Array` used as
+  a model, then check that the two hold the same elements.
+
+  Each sample enables a random subset of the operations. A sequence drawing
+  from every operation random walks around a small size and never grows the
+  trie past its first level; withholding `pop`, `delete` and `remove` from some
+  samples is what drives the vector deep enough to add levels to the root.
+  """
+  fun name(): String => "collections/persistent/Vec (property: model)"
+
+  fun gen(): Generator[(USize, Array[_VecAction])] =>
+    Generators.usize(0, 127)
+      .flat_map[(USize, Array[_VecAction])](
+        {(bits: USize): Generator[(USize, Array[_VecAction])] =>
+          // `push` is always enabled; with no way to add elements a sample
+          // exercises nothing
+          let config = bits or 1
+          let ops = Array[U8]
+          for op in mut.Range[U8](0, 7) do
+            if (config and (USize(1) << op.usize())) != 0 then ops.push(op) end
+          end
+          Generators.seq_of[_VecAction, Array[_VecAction]](
+            Generators.zip3[U8, USize, USize](
+              Generators.one_of[U8](ops),
+              Generators.usize(0, 1_000),
+              Generators.usize(0, 1_000)),
+            1,
+            100)
+            .map[(USize, Array[_VecAction])](
+              {(actions: Array[_VecAction]): (USize, Array[_VecAction]) =>
+                (config, actions) })
+        })
+
+  fun ref property(arg1: (USize, Array[_VecAction]), h: PropertyHelper) ? =>
+    (let config, let actions) = arg1
+    var v = Vec[USize]
+    let model = Array[USize]
+
+    for (op, a, b) in actions.values() do
+      let n = model.size()
+      match op
+      | 0 =>
+        v = v.push(a)
+        model.push(a)
+      | 1 =>
+        if n > 0 then
+          v = v.pop()?
+          model.pop()?
+        end
+      | 2 =>
+        if n > 0 then
+          let i = a % n
+          v = v.update(i, b)?
+          model.update(i, b)?
+        end
+      | 3 =>
+        if n > 0 then
+          let i = a % n
+          v = v.insert(i, b)?
+          model.insert(i, b)?
+        end
+      | 4 =>
+        if n > 0 then
+          let i = a % n
+          v = v.delete(i)?
+          model.delete(i)?
+        end
+      | 5 =>
+        if n > 0 then
+          let i = a % n
+          let count = 1 + (b % (n - i))
+          v = v.remove(i, count)?
+          model.remove(i, count)
+        end
+      | 6 =>
+        // batches large enough that a sequence of them carries the vector past
+        // 1_056 elements, where the root gains its second level
+        let count = b % 300
+        let added = Array[USize](count)
+        for j in mut.Range(0, count) do added.push(a + j) end
+        v = v.concat(added.values())
+        model.append(added)
+      end
+    end
+
+    h.assert_eq[USize](model.size(), v.size(), "size, config " + config.string())
+    h.assert_array_eq[USize](
+      model, _VecCheck.contents(v), "contents, config " + config.string())
+
+class \nodoc\ iso _VecLawsProperty is Property1[(Array[USize], USize, USize)]
+  """
+  Laws that relate the operations to each other, each of which must hold for
+  any vector.
+  """
+  fun name(): String => "collections/persistent/Vec (property: laws)"
+
+  fun gen(): Generator[(Array[USize], USize, USize)] =>
+    Generators.zip3[Array[USize], USize, USize](
+      _VecGen.contents(), Generators.usize(0, 1_000), Generators.usize(0, 99))
+
+  fun ref property(arg1: (Array[USize], USize, USize), h: PropertyHelper) ? =>
+    (let elements, let idx, let value) = arg1
+    let v = _VecGen.build(elements)
+    let n = elements.size()
+
+    // reverse maps index i to n - 1 - i
+    let backwards = Array[USize](n)
+    for i in mut.Range(0, n) do backwards.push(elements((n - 1) - i)?) end
+    h.assert_array_eq[USize](
+      backwards, _VecCheck.contents(v.reverse()), "reverse")
+
+    // reversing twice is the identity
+    h.assert_array_eq[USize](
+      elements, _VecCheck.contents(v.reverse().reverse()), "reverse . reverse")
+
+    // pushing then popping is the identity
+    h.assert_array_eq[USize](
+      elements, _VecCheck.contents(v.push(value).pop()?), "push . pop")
+
+    // inserting then deleting at the same index is the identity
+    if n > 0 then
+      let i = idx % n
+      h.assert_array_eq[USize](
+        elements,
+        _VecCheck.contents(v.insert(i, value)?.delete(i)?),
+        "insert . delete")
+    end
+
+    // splitting anywhere and rejoining is the identity
+    let k = idx % (n + 1)
+    h.assert_array_eq[USize](
+      elements,
+      _VecCheck.contents(v.slice(0, k).concat(v.slice(k).values())),
+      "slice . concat")
+
+class \nodoc\ iso _VecIteratorsProperty is Property1[Array[USize]]
+  """
+  The three iterators agree with `apply`, with each other, and leave the vector
+  they were created from alone.
+  """
+  fun name(): String => "collections/persistent/Vec (property: iterators)"
+
+  fun gen(): Generator[Array[USize]] => _VecGen.contents()
+
+  fun ref property(arg1: Array[USize], h: PropertyHelper) =>
+    let n = arg1.size()
+    let v = _VecGen.build(arg1)
+
+    let indices = Array[USize](n)
+    for i in mut.Range(0, n) do indices.push(i) end
+
+    let seen_values = Array[USize](n)
+    for x in v.values() do seen_values.push(x) end
+    h.assert_array_eq[USize](arg1, seen_values, "values")
+
+    let seen_keys = Array[USize](n)
+    for i in v.keys() do seen_keys.push(i) end
+    h.assert_array_eq[USize](indices, seen_keys, "keys")
+
+    let paired_keys = Array[USize](n)
+    let paired_values = Array[USize](n)
+    for (i, x) in v.pairs() do
+      paired_keys.push(i)
+      paired_values.push(x)
+    end
+    h.assert_array_eq[USize](indices, paired_keys, "pairs indices")
+    h.assert_array_eq[USize](arg1, paired_values, "pairs values")
+
+    // the iterators consume a copy of the leaf nodes, not the vector
+    h.assert_array_eq[USize](arg1, _VecCheck.contents(v), "source after iteration")
+
+class \nodoc\ iso _VecFindContainsProperty is Property1[(Array[USize], USize)]
+  """
+  `find` and `contains` agree with a scan of the elements, including which
+  appearance `nth` selects and where `offset` starts.
+  """
+  fun name(): String => "collections/persistent/Vec (property: find and contains)"
+
+  fun gen(): Generator[(Array[USize], USize)] =>
+    _VecGen.contents().flat_map[(Array[USize], USize)](
+      {(elements: Array[USize]): Generator[(Array[USize], USize)] =>
+        // search for a value that is present as often as one that is not
+        let probes = Array[USize](elements.size() + 1)
+        probes.append(elements)
+        probes.push(1_000)
+        Generators.one_of[USize](probes)
+          .map[(Array[USize], USize)](
+            {(probe: USize): (Array[USize], USize) =>
+              // the capture is seen as `box` from inside the lambda
+              (elements.clone(), probe) })
+      })
+
+  fun ref property(arg1: (Array[USize], USize), h: PropertyHelper) ? =>
+    (let elements, let probe) = arg1
+    let v = _VecGen.build(elements)
+
+    let hits = Array[USize]
+    for (i, x) in elements.pairs() do
+      if x == probe then hits.push(i) end
+    end
+
+    h.assert_eq[Bool](hits.size() > 0, v.contains(probe), "contains")
+
+    // nth selects the nth appearance
+    var found = Array[USize](hits.size())
+    for k in mut.Range(0, hits.size()) do
+      found.push(try v.find(probe, 0, k)? else USize.max_value() end)
+    end
+    h.assert_array_eq[USize](hits, found, "find nth")
+
+    // there is no appearance after the last one
+    h.assert_error({() ? => v.find(probe, 0, hits.size())? }, "find past last")
+
+    // offset starts the search
+    if hits.size() > 0 then
+      let last = hits(hits.size() - 1)?
+      h.assert_eq[USize](last, v.find(probe, last)?, "find from offset")
+      h.assert_error({() ? => v.find(probe, last + 1)? }, "find past offset")
+    end
+
+    // every element of the vector is found
+    var missing = false
+    for x in elements.values() do
+      if not v.contains(x) then missing = true end
+    end
+    h.assert_false(missing, "contains every element")
