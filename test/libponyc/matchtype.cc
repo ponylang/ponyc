@@ -830,6 +830,94 @@ TEST_F(MatchTypeTest, TypeParamInTypeArgConstraintIncompatible)
 }
 
 
+TEST_F(MatchTypeTest, TypeParamInTypeArgOccurs)
+{
+  // Occurs check: when the same type parameter appears on one side of a
+  // type-argument pair and inside the other, no reification satisfies
+  // A = f(A) without an infinite type, so the pair cannot unify.
+  const char* src =
+    "class val C1[A: Any #share]\n"
+    "  let value: A\n"
+    "  new val create(v: A) => value = v\n"
+
+    "class val Wrap[A: Any #share]\n"
+    "  let value: A\n"
+    "  new val create(v: A) => value = v\n"
+
+    "type WrapAlias[X: Any #share] is Wrap[X] val\n"
+
+    "primitive P\n"
+    "trait val P1\n"
+
+    "interface Test\n"
+    "  fun z[A: Any #share, B: Any #share]\n"
+    "    (c1_a: C1[A], c1_wrap_a: C1[Wrap[A] val],\n"
+    "     c1_wrap_wrap_a: C1[Wrap[Wrap[A] val] val],\n"
+    "     c1_wrap_alias_a: C1[WrapAlias[A]],\n"
+    "     c1_wrap_wrap_alias_a: C1[Wrap[WrapAlias[A]] val],\n"
+    "     c1_union_wrap_a: C1[(P | Wrap[A] val)],\n"
+    "     c1_tuple_wrap_a: C1[(P, Wrap[A] val)],\n"
+    "     c1_isect_wrap_a: C1[(P1 & Wrap[A] val)],\n"
+    "     c1_union_direct_a: C1[(A | U8)],\n"
+    "     c1_isect_direct_a: C1[(P1 & A)],\n"
+    "     c1_wrap_b: C1[Wrap[B] val])";
+
+  TEST_COMPILE(src);
+
+  // Direct occurs: A on one side, Wrap[A] on the other.
+  ASSERT_EQ(MATCHTYPE_REJECT,
+    is_matchtype(type_of("c1_a"), type_of("c1_wrap_a"), NULL, &opt));
+
+  // Reversed direction.
+  ASSERT_EQ(MATCHTYPE_REJECT,
+    is_matchtype(type_of("c1_wrap_a"), type_of("c1_a"), NULL, &opt));
+
+  // Nested wrapping: A appears two levels deep.
+  ASSERT_EQ(MATCHTYPE_REJECT,
+    is_matchtype(type_of("c1_a"), type_of("c1_wrap_wrap_a"), NULL, &opt));
+
+  // Alias on the pattern side: WrapAlias[A] unfolds to Wrap[A] val.
+  ASSERT_EQ(MATCHTYPE_REJECT,
+    is_matchtype(type_of("c1_a"), type_of("c1_wrap_alias_a"), NULL, &opt));
+
+  // Alias nested under a wrapper: Wrap[WrapAlias[A]] — the alias is inside
+  // the wrapper, so the pattern-side alias is not unfolded before the
+  // occurs walk starts.
+  ASSERT_EQ(MATCHTYPE_REJECT,
+    is_matchtype(type_of("c1_a"), type_of("c1_wrap_wrap_alias_a"), NULL, &opt));
+
+  // Union arm carrying occurs through a wrapper: A appears inside Wrap in
+  // one arm.
+  ASSERT_EQ(MATCHTYPE_REJECT,
+    is_matchtype(type_of("c1_a"), type_of("c1_union_wrap_a"), NULL, &opt));
+
+  // Tuple element carrying occurs through a wrapper.
+  ASSERT_EQ(MATCHTYPE_REJECT,
+    is_matchtype(type_of("c1_a"), type_of("c1_tuple_wrap_a"), NULL, &opt));
+
+  // Intersection arm carrying occurs through a wrapper.
+  ASSERT_EQ(MATCHTYPE_REJECT,
+    is_matchtype(type_of("c1_a"), type_of("c1_isect_wrap_a"), NULL, &opt));
+
+  // A appears directly as a union arm — not under any generative wrapper.
+  // A can reify to (U8 | I32); the pattern reifies to ((U8 | I32) | U8),
+  // which equals (U8 | I32) = A. Must accept.
+  ASSERT_EQ(MATCHTYPE_ACCEPT,
+    is_matchtype(type_of("c1_a"), type_of("c1_union_direct_a"), NULL, &opt));
+
+  // A appears directly as an intersection arm — not under a generative
+  // wrapper. Must accept.
+  ASSERT_EQ(MATCHTYPE_ACCEPT,
+    is_matchtype(type_of("c1_a"), type_of("c1_isect_direct_a"), NULL, &opt));
+
+  // Regression: distinct type parameters, one wrapped in the other. Occurs
+  // keys on parameter identity, not "any typeparam present" — this pair
+  // must still accept because A can reify to Wrap[B].
+  ASSERT_EQ(MATCHTYPE_ACCEPT,
+    is_matchtype(type_of("c1_a"), type_of("c1_wrap_b"), NULL, &opt));
+}
+
+
 TEST_F(MatchTypeTest, TypeParamInTypeArgStructDenies)
 {
   // Structs have no runtime type descriptor, so type arguments cannot be
@@ -871,4 +959,417 @@ TEST_F(MatchTypeTest, TypeParamInTypeArgStructDenies)
   // of whether the constraint could admit the pattern.
   ASSERT_EQ(MATCHTYPE_DENY_NODESC,
     is_matchtype(type_of("s_i"), type_of("s_string"), NULL, &opt));
+}
+
+
+TEST_F(MatchTypeTest, TypeParamInTypeArgTraitProvides)
+{
+  // Class nominally provides a trait; pattern is the same trait with a
+  // type parameter in its type argument. The type parameter on the
+  // operand side could reify to make the pair equal at runtime — accept.
+  // See #5859.
+  const char* src =
+    "class val Wrap[A: Any #share]\n"
+    "  let value: A\n"
+    "  new val create(v: A) => value = v\n"
+
+    "trait val T[A: Any #share]\n"
+    "  fun get_value(): A\n"
+
+    "trait val U[A: Any #share]\n"
+    "  fun other(): A\n"
+
+    "class val Cons[A: Any #share] is T[A]\n"
+    "  let _v: A\n"
+    "  new val create(v: A) => _v = v\n"
+    "  fun get_value(): A => _v\n"
+
+    "interface Test\n"
+    "  fun z[A: Any #share, B: Any #share]\n"
+    "    (cons_a: Cons[A], t_wrap_b: T[Wrap[B] val] val,\n"
+    "     t_u8: T[U8] val, cons_u8: Cons[U8],\n"
+    "     u_wrap_b: U[Wrap[B] val] val)";
+
+  TEST_COMPILE(src);
+
+  // Cons[A] operand, T[Wrap[B]] pattern — Cons provides T[A]; A could
+  // reify to Wrap[B], so this must accept.
+  ASSERT_EQ(MATCHTYPE_ACCEPT,
+    is_matchtype(type_of("cons_a"), type_of("t_wrap_b"), NULL, &opt));
+
+  // Cons[U8] operand, T[U8] pattern — the strict subtype check already
+  // accepts this. Pin that it still accepts after the fallback runs.
+  ASSERT_EQ(MATCHTYPE_ACCEPT,
+    is_matchtype(type_of("cons_u8"), type_of("t_u8"), NULL, &opt));
+
+  // Cons[U8] operand, T[Wrap[B]] pattern — Cons provides T[U8]; U8 is
+  // concrete and cannot equal Wrap[B] under any reification of B. Reject.
+  // The strict subtype check already rejects this; the assertion pins
+  // that the fallback doesn't over-accept.
+  ASSERT_EQ(MATCHTYPE_REJECT,
+    is_matchtype(type_of("cons_u8"), type_of("t_wrap_b"), NULL, &opt));
+
+  // Cons[A] operand, U[Wrap[B]] pattern — Cons doesn't provide U at all.
+  // No reification can add a provides declaration; reject. The strict
+  // subtype check already rejects this; the assertion pins that the
+  // fallback doesn't over-accept (it's the issue's literal repro for
+  // the trait side).
+  ASSERT_EQ(MATCHTYPE_REJECT,
+    is_matchtype(type_of("cons_a"), type_of("u_wrap_b"), NULL, &opt));
+}
+
+
+TEST_F(MatchTypeTest, TypeParamInTypeArgTraitOccurs)
+{
+  // Occurs check on the trait-provides path: when the operand's provided
+  // trait's type argument shares a type parameter with the pattern's type
+  // argument such that the pattern's argument wraps that parameter, no
+  // reification satisfies the equality.
+  const char* src =
+    "class val Wrap[A: Any #share]\n"
+    "  let value: A\n"
+    "  new val create(v: A) => value = v\n"
+
+    "trait val T[A: Any #share]\n"
+    "  fun get_value(): A\n"
+
+    "class val Cons[A: Any #share] is T[A]\n"
+    "  let _v: A\n"
+    "  new val create(v: A) => _v = v\n"
+    "  fun get_value(): A => _v\n"
+
+    "interface Test\n"
+    "  fun z[A: Any #share]\n"
+    "    (cons_a: Cons[A], t_wrap_a: T[Wrap[A] val] val,\n"
+    "     t_wrap_wrap_a: T[Wrap[Wrap[A] val] val] val)";
+
+  TEST_COMPILE(src);
+
+  // Cons[A] provides T[A]; matched against T[Wrap[A]], the pair is
+  // A vs Wrap[A] — A appears inside Wrap[A], reject.
+  ASSERT_EQ(MATCHTYPE_REJECT,
+    is_matchtype(type_of("cons_a"), type_of("t_wrap_a"), NULL, &opt));
+
+  // Nested wrapping on the trait path.
+  ASSERT_EQ(MATCHTYPE_REJECT,
+    is_matchtype(type_of("cons_a"), type_of("t_wrap_wrap_a"), NULL, &opt));
+}
+
+
+TEST_F(MatchTypeTest, TypeParamInTypeArgInterfaceProvides)
+{
+  // Class nominally provides an interface; pattern is the same interface
+  // with a type parameter in its type argument. See #5859.
+  const char* src =
+    "class val Wrap[A: Any #share]\n"
+    "  let value: A\n"
+    "  new val create(v: A) => value = v\n"
+
+    "interface val I[A: Any #share]\n"
+    "  fun get_value(): A\n"
+
+    "class val Cons[A: Any #share] is I[A]\n"
+    "  let _v: A\n"
+    "  new val create(v: A) => _v = v\n"
+    "  fun get_value(): A => _v\n"
+
+    "interface Test\n"
+    "  fun z[A: Any #share, B: Any #share]\n"
+    "    (cons_a: Cons[A], i_wrap_b: I[Wrap[B] val] val,\n"
+    "     cons_u8: Cons[U8], i_wrap_u8: I[Wrap[U8] val] val)";
+
+  TEST_COMPILE(src);
+
+  // Cons[A] operand, I[Wrap[B]] pattern — Cons provides I[A]; A could
+  // reify to Wrap[B], so this must accept.
+  ASSERT_EQ(MATCHTYPE_ACCEPT,
+    is_matchtype(type_of("cons_a"), type_of("i_wrap_b"), NULL, &opt));
+
+  // Cons[U8] operand, I[Wrap[U8]] pattern — Cons provides I[U8]; U8 is
+  // concrete and cannot equal Wrap[U8]. Reject. The strict subtype
+  // check already rejects this; the assertion pins that the fallback
+  // doesn't over-accept.
+  ASSERT_EQ(MATCHTYPE_REJECT,
+    is_matchtype(type_of("cons_u8"), type_of("i_wrap_u8"), NULL, &opt));
+}
+
+
+TEST_F(MatchTypeTest, TypeParamInTypeArgInterfaceOccurs)
+{
+  // Occurs check on the interface-provides path.
+  const char* src =
+    "class val Wrap[A: Any #share]\n"
+    "  let value: A\n"
+    "  new val create(v: A) => value = v\n"
+
+    "interface val I[A: Any #share]\n"
+    "  fun get_value(): A\n"
+
+    "class val Cons[A: Any #share] is I[A]\n"
+    "  let _v: A\n"
+    "  new val create(v: A) => _v = v\n"
+    "  fun get_value(): A => _v\n"
+
+    "interface Test\n"
+    "  fun z[A: Any #share]\n"
+    "    (cons_a: Cons[A], i_wrap_a: I[Wrap[A] val] val,\n"
+    "     i_wrap_wrap_a: I[Wrap[Wrap[A] val] val] val)";
+
+  TEST_COMPILE(src);
+
+  // Cons[A] provides I[A]; matched against I[Wrap[A]], the pair is
+  // A vs Wrap[A] — A appears inside Wrap[A], reject.
+  ASSERT_EQ(MATCHTYPE_REJECT,
+    is_matchtype(type_of("cons_a"), type_of("i_wrap_a"), NULL, &opt));
+
+  // Nested wrapping on the interface path.
+  ASSERT_EQ(MATCHTYPE_REJECT,
+    is_matchtype(type_of("cons_a"), type_of("i_wrap_wrap_a"), NULL, &opt));
+}
+
+
+TEST_F(MatchTypeTest, TypeParamInTypeArgTraitTransitiveProvides)
+{
+  // The provides walk is transitive: Cons is Mid, Mid is Top, pattern is
+  // Top with a type parameter in its type argument. The reified Mid[A]
+  // yields Top[A] via Mid's own provides declaration; A could reify to
+  // Wrap[B].
+  const char* src =
+    "class val Wrap[A: Any #share]\n"
+    "  let value: A\n"
+    "  new val create(v: A) => value = v\n"
+
+    "trait val Top[A: Any #share]\n"
+    "  fun top_value(): A\n"
+
+    "trait val Mid[A: Any #share] is Top[A]\n"
+
+    "class val Cons[A: Any #share] is Mid[A]\n"
+    "  let _v: A\n"
+    "  new val create(v: A) => _v = v\n"
+    "  fun top_value(): A => _v\n"
+
+    "class val Other[A: Any #share] is Mid[A]\n"
+    "  let _v: A\n"
+    "  new val create(v: A) => _v = v\n"
+    "  fun top_value(): A => _v\n"
+
+    "interface Test\n"
+    "  fun z[A: Any #share, B: Any #share]\n"
+    "    (cons_a: Cons[A], top_wrap_b: Top[Wrap[B] val] val,\n"
+    "     other_u8: Other[U8], top_wrap_u8: Top[Wrap[U8] val] val)";
+
+  TEST_COMPILE(src);
+
+  ASSERT_EQ(MATCHTYPE_ACCEPT,
+    is_matchtype(type_of("cons_a"), type_of("top_wrap_b"), NULL, &opt));
+
+  // Transitive walk with a concrete-only operand: Other[U8] provides
+  // Mid[U8] provides Top[U8]; U8 can't equal Wrap[U8] at any layer.
+  // The strict subtype check already rejects this; the assertion pins
+  // that the fallback doesn't over-accept along the transitive walk.
+  ASSERT_EQ(MATCHTYPE_REJECT,
+    is_matchtype(type_of("other_u8"), type_of("top_wrap_u8"), NULL, &opt));
+}
+
+
+TEST_F(MatchTypeTest, TypeParamInTypeArgActorAndPrimitiveOperand)
+{
+  // The fallback applies to every entity operand kind is_nominal_match_trait
+  // routes to is_entity_match_trait. Pin actor and primitive operands
+  // separately from the class cases above.
+  const char* src =
+    "class val Wrap[A: Any #share]\n"
+    "  let value: A\n"
+    "  new val create(v: A) => value = v\n"
+
+    "trait tag T[A: Any #share]\n"
+    "  be do_thing()\n"
+
+    "trait val P[A: Any #share]\n"
+    "  fun label(): U64\n"
+
+    "actor ActorCons[A: Any #share] is T[A]\n"
+    "  let _v: A\n"
+    "  new create(v: A) => _v = v\n"
+    "  be do_thing() => None\n"
+
+    "primitive PrimCons[A: Any #share] is P[A]\n"
+    "  fun label(): U64 => 0\n"
+
+    "interface Test\n"
+    "  fun z[A: Any #share, B: Any #share]\n"
+    "    (actor_cons_a: ActorCons[A],\n"
+    "     t_wrap_b: T[Wrap[B] val] tag,\n"
+    "     prim_cons_a: PrimCons[A],\n"
+    "     p_wrap_b: P[Wrap[B] val] val)";
+
+  TEST_COMPILE(src);
+
+  // ActorCons[A] operand, T[Wrap[B]] pattern — A could reify to Wrap[B].
+  ASSERT_EQ(MATCHTYPE_ACCEPT,
+    is_matchtype(type_of("actor_cons_a"), type_of("t_wrap_b"), NULL, &opt));
+
+  // PrimCons[A] operand, P[Wrap[B]] pattern — same shape via primitive.
+  ASSERT_EQ(MATCHTYPE_ACCEPT,
+    is_matchtype(type_of("prim_cons_a"), type_of("p_wrap_b"), NULL, &opt));
+}
+
+
+TEST_F(MatchTypeTest, TypeParamInTypeArgTraitPatternCapDenies)
+{
+  // The fallback is cap-agnostic; the outer cap check in
+  // is_entity_match_trait must still deny when the operand refcap can't
+  // become the pattern refcap.
+  const char* src =
+    "class val Wrap[A: Any #share]\n"
+    "  let value: A\n"
+    "  new val create(v: A) => value = v\n"
+
+    "trait val T[A: Any #share]\n"
+    "  fun get_value(): A\n"
+
+    "class ref Cons[A: Any #share] is T[A]\n"
+    "  let _v: A\n"
+    "  new ref create(v: A) => _v = v\n"
+    "  fun get_value(): A => _v\n"
+
+    "interface Test\n"
+    "  fun z[A: Any #share, B: Any #share]\n"
+    "    (cons_a: Cons[A] ref, t_wrap_b: T[Wrap[B] val] val)";
+
+  TEST_COMPILE(src);
+
+  // Cons[A] ref cannot become T[Wrap[B]] val: the fallback finds the
+  // same-def provides match, but the outer cap check must deny.
+  ASSERT_EQ(MATCHTYPE_DENY_CAP,
+    is_matchtype(type_of("cons_a"), type_of("t_wrap_b"), NULL, &opt));
+}
+
+
+TEST_F(MatchTypeTest, TypeParamInTypeArgTraitProvidesTypeAlias)
+{
+  // A class provides via a type alias. The alias should resolve so the
+  // walk finds the trait via the reified provides list.
+  const char* src =
+    "class val Wrap[A: Any #share]\n"
+    "  let value: A\n"
+    "  new val create(v: A) => value = v\n"
+
+    "trait val Base[A: Any #share]\n"
+    "  fun get_value(): A\n"
+
+    "type BaseAlias[X: Any #share] is Base[X] val\n"
+
+    "class val Cons[A: Any #share] is BaseAlias[A]\n"
+    "  let _v: A\n"
+    "  new val create(v: A) => _v = v\n"
+    "  fun get_value(): A => _v\n"
+
+    "interface Test\n"
+    "  fun z[A: Any #share, B: Any #share]\n"
+    "    (cons_a: Cons[A], base_wrap_b: Base[Wrap[B] val] val)";
+
+  TEST_COMPILE(src);
+
+  ASSERT_EQ(MATCHTYPE_ACCEPT,
+    is_matchtype(type_of("cons_a"), type_of("base_wrap_b"), NULL, &opt));
+}
+
+
+TEST_F(MatchTypeTest, TypeParamInTypeArgTraitProvidesSiblings)
+{
+  // A class provides more than one trait via an intersection. The pass/
+  // flatten step expands the intersection into sibling children in the
+  // provides list; pin that the walk finds the matching sibling in
+  // either position.
+  const char* src =
+    "class val Wrap[A: Any #share]\n"
+    "  let value: A\n"
+    "  new val create(v: A) => value = v\n"
+
+    "trait val Left[A: Any #share]\n"
+    "  fun left_value(): A\n"
+
+    "trait val Right[A: Any #share]\n"
+    "  fun right_value(): A\n"
+
+    "class val Cons[A: Any #share] is (Left[A] & Right[A])\n"
+    "  let _v: A\n"
+    "  new val create(v: A) => _v = v\n"
+    "  fun left_value(): A => _v\n"
+    "  fun right_value(): A => _v\n"
+
+    "interface Test\n"
+    "  fun z[A: Any #share, B: Any #share]\n"
+    "    (cons_a: Cons[A],\n"
+    "     left_wrap_b: Left[Wrap[B] val] val,\n"
+    "     right_wrap_b: Right[Wrap[B] val] val)";
+
+  TEST_COMPILE(src);
+
+  // Walk finds the first sibling.
+  ASSERT_EQ(MATCHTYPE_ACCEPT,
+    is_matchtype(type_of("cons_a"), type_of("left_wrap_b"), NULL, &opt));
+
+  // Walk continues past the first sibling to find the second.
+  ASSERT_EQ(MATCHTYPE_ACCEPT,
+    is_matchtype(type_of("cons_a"), type_of("right_wrap_b"), NULL, &opt));
+}
+
+
+TEST_F(MatchTypeTest, TypeParamInTypeArgTraitProvidesConstraintIncompatible)
+{
+  // The operand's type parameter's constraint doesn't admit the pattern's
+  // concrete type argument — no reification could make the pair equal.
+  const char* src =
+    "trait val T[A: Any #share]\n"
+    "  fun get_value(): A\n"
+
+    "class val Cons[A: I32 val] is T[A]\n"
+    "  let _v: A\n"
+    "  new val create(v: A) => _v = v\n"
+    "  fun get_value(): A => _v\n"
+
+    "interface Test\n"
+    "  fun z[A: I32 val]\n"
+    "    (cons_a: Cons[A], t_string: T[String val] val)";
+
+  TEST_COMPILE(src);
+
+  // A is constrained to I32; the pattern's type argument is String.
+  // No reification of A makes T[A] equal T[String].
+  ASSERT_EQ(MATCHTYPE_REJECT,
+    is_matchtype(type_of("cons_a"), type_of("t_string"), NULL, &opt));
+}
+
+
+TEST_F(MatchTypeTest, TypeParamInTypeArgStructOperandTraitRejects)
+{
+  // A struct has no runtime type descriptor, so matching a struct
+  // operand against a trait or interface pattern has no runtime
+  // discriminator; is_struct_sub_trait denies unconditionally. The
+  // provides-walk fallback must not bypass that denial — accepting here
+  // would compile a match with no runtime check.
+  const char* src =
+    "class val Wrap[A: Any #share]\n"
+    "  let value: A\n"
+    "  new val create(v: A) => value = v\n"
+
+    "trait val T[A: Any #share]\n"
+    "  fun get_value(): A\n"
+
+    "struct val S[A: Any #share] is T[A]\n"
+    "  let _v: A\n"
+    "  new val create(v: A) => _v = v\n"
+    "  fun get_value(): A => _v\n"
+
+    "interface Test\n"
+    "  fun z[A: Any #share, B: Any #share]\n"
+    "    (s_a: S[A], t_wrap_b: T[Wrap[B] val] val)";
+
+  TEST_COMPILE(src);
+
+  ASSERT_EQ(MATCHTYPE_REJECT,
+    is_matchtype(type_of("s_a"), type_of("t_wrap_b"), NULL, &opt));
 }
