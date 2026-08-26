@@ -84,9 +84,7 @@ main.pony:16:7: this pattern can never match
       ^
 ```
 
-Trait and interface patterns of this shape are now accepted when the operand's class nominally provides the pattern's trait or interface via `is`; the match uses the fully reified type at runtime as it does for any other pattern.
-
-A class that structurally satisfies an interface without declaring `is I` is not covered by this fix and still produces the same error — either add `is I[A]` on the class, or wait for a future release.
+Trait and interface patterns of this shape are now accepted when the operand's class provides the pattern's trait or interface; the match uses the fully reified type at runtime as it does for any other pattern.
 
 ## Fix false "this pattern can never match" error for constraint-overlapping type parameters and union, intersection, or tuple type arguments
 

@@ -2620,3 +2620,186 @@ TEST_F(MatchTypeTest,
   ASSERT_EQ(MATCHTYPE_ACCEPT,
     is_matchtype(type_of("p_aa"), type_of("p_string_c"), NULL, &opt));
 }
+
+
+TEST_F(MatchTypeTest, TypeParamInTypeArgStructuralInterface)
+{
+  // Class structurally satisfies an interface (no `is I` declaration);
+  // pattern is that interface with a type parameter in its type argument.
+  // The type parameter on the operand side could reify to make the
+  // structural methods match at runtime — accept. See #5863.
+  const char* src =
+    "class val Wrap[A: Any #share]\n"
+    "  let _value: A\n"
+    "  new val create(v: A) => _value = v\n"
+    "  fun value(): A => _value\n"
+
+    "interface val I[A: Any #share]\n"
+    "  fun value(): A\n"
+
+    "class val Cons[A: Any #share]\n"
+    "  let _v: A\n"
+    "  new val create(v: A) => _v = v\n"
+    "  fun value(): A => _v\n"
+
+    "interface Test\n"
+    "  fun z[A: Any #share, B: Any #share]\n"
+    "    (cons_a: Cons[A], i_wrap_b: I[Wrap[B] val] val,\n"
+    "     cons_u8: Cons[U8], i_wrap_u8: I[Wrap[U8] val] val,\n"
+    "     i_u8: I[U8] val)";
+
+  TEST_COMPILE(src);
+
+  // Cons[A] operand, I[Wrap[B]] pattern — Cons structurally satisfies
+  // I[A]; A could reify to Wrap[B], so this must accept.
+  ASSERT_EQ(MATCHTYPE_ACCEPT,
+    is_matchtype(type_of("cons_a"), type_of("i_wrap_b"), NULL, &opt));
+
+  // Cons[U8] operand, I[Wrap[U8]] pattern — Cons structurally satisfies
+  // I[U8]; U8 is concrete and cannot equal Wrap[U8]. Reject.
+  ASSERT_EQ(MATCHTYPE_REJECT,
+    is_matchtype(type_of("cons_u8"), type_of("i_wrap_u8"), NULL, &opt));
+
+  // Cons[A] operand, I[U8] pattern — strict subtype already accepts
+  // (A's constraint is Any #share which is a supertype of U8). Pin that
+  // the structural fallback doesn't break that.
+  ASSERT_EQ(MATCHTYPE_ACCEPT,
+    is_matchtype(type_of("cons_a"), type_of("i_u8"), NULL, &opt));
+}
+
+
+TEST_F(MatchTypeTest, TypeParamInTypeArgStructuralInterfaceOccurs)
+{
+  // Occurs check on the structural-interface path: A vs Wrap[A] under a
+  // generative wrapper cannot unify. See #5863.
+  const char* src =
+    "class val Wrap[A: Any #share]\n"
+    "  let _value: A\n"
+    "  new val create(v: A) => _value = v\n"
+    "  fun value(): A => _value\n"
+
+    "interface val I[A: Any #share]\n"
+    "  fun value(): A\n"
+
+    "class val Cons[A: Any #share]\n"
+    "  let _v: A\n"
+    "  new val create(v: A) => _v = v\n"
+    "  fun value(): A => _v\n"
+
+    "interface Test\n"
+    "  fun z[A: Any #share]\n"
+    "    (cons_a: Cons[A], i_wrap_a: I[Wrap[A] val] val)";
+
+  TEST_COMPILE(src);
+
+  // Cons[A] structurally satisfies I[A]; matched against I[Wrap[A]], the
+  // reified method result pair is A vs Wrap[A] — A appears inside Wrap[A],
+  // reject.
+  ASSERT_EQ(MATCHTYPE_REJECT,
+    is_matchtype(type_of("cons_a"), type_of("i_wrap_a"), NULL, &opt));
+}
+
+
+TEST_F(MatchTypeTest, TypeParamInTypeArgStructuralInterfaceNoMethod)
+{
+  // The operand class is missing a method the interface requires. No
+  // reification can add a method; reject. See #5863.
+  const char* src =
+    "class val Wrap[A: Any #share]\n"
+    "  let _value: A\n"
+    "  new val create(v: A) => _value = v\n"
+    "  fun value(): A => _value\n"
+
+    "interface val I[A: Any #share]\n"
+    "  fun value(): A\n"
+    "  fun other(): A\n"
+
+    "class val Cons[A: Any #share]\n"
+    "  let _v: A\n"
+    "  new val create(v: A) => _v = v\n"
+    "  fun value(): A => _v\n"
+
+    "interface Test\n"
+    "  fun z[A: Any #share, B: Any #share]\n"
+    "    (cons_a: Cons[A], i_wrap_b: I[Wrap[B] val] val)";
+
+  TEST_COMPILE(src);
+
+  // Cons has `value()` but not `other()`. Reject.
+  ASSERT_EQ(MATCHTYPE_REJECT,
+    is_matchtype(type_of("cons_a"), type_of("i_wrap_b"), NULL, &opt));
+}
+
+
+TEST_F(MatchTypeTest, TypeParamInTypeArgStructuralInterfaceMultiMethod)
+{
+  // Interface with two methods exercises cross-method substitution
+  // consistency: the subst state accumulated from the first method's
+  // typeargs_could_unify call must remain consistent with the second
+  // method's result type. See #5863.
+  const char* src =
+    "class val Wrap[A: Any #share]\n"
+    "  let _value: A\n"
+    "  new val create(v: A) => _value = v\n"
+    "  fun value(): A => _value\n"
+
+    "interface val I[A: Any #share]\n"
+    "  fun value(): A\n"
+    "  fun display(): String val\n"
+
+    "class val Cons[A: Any #share]\n"
+    "  let _v: A\n"
+    "  new val create(v: A) => _v = v\n"
+    "  fun value(): A => _v\n"
+    "  fun display(): String val => \"x\"\n"
+
+    "interface Test\n"
+    "  fun z[A: Any #share, B: Any #share]\n"
+    "    (cons_a: Cons[A], i_wrap_b: I[Wrap[B] val] val)";
+
+  TEST_COMPILE(src);
+
+  // Cons has both value() and display(). Cons[A] structurally satisfies
+  // I[A]; A could reify to Wrap[B] — accept.
+  ASSERT_EQ(MATCHTYPE_ACCEPT,
+    is_matchtype(type_of("cons_a"), type_of("i_wrap_b"), NULL, &opt));
+}
+
+
+TEST_F(MatchTypeTest, TypeParamInTypeArgStructuralInterfaceMethodTypeParam)
+{
+  // Interface method with its own type parameter exercises the
+  // method-level reification branch in structural_could_match_pattern:
+  // the sub method is re-reified with the super method's type params
+  // before comparison. See #5863.
+  const char* src =
+    "class val Wrap[A: Any #share]\n"
+    "  let _value: A\n"
+    "  new val create(v: A) => _value = v\n"
+    "  fun value(): A => _value\n"
+
+    "interface val I[A: Any #share]\n"
+    "  fun get[X: Any #share](key: X): A\n"
+
+    "class val Store[A: Any #share]\n"
+    "  let _v: A\n"
+    "  new val create(v: A) => _v = v\n"
+    "  fun get[X: Any #share](key: X): A => _v\n"
+
+    "interface Test\n"
+    "  fun z[A: Any #share, B: Any #share]\n"
+    "    (store_a: Store[A], i_wrap_b: I[Wrap[B] val] val,\n"
+    "     store_u8: Store[U8], i_wrap_u8: I[Wrap[U8] val] val)";
+
+  TEST_COMPILE(src);
+
+  // Store[A] structurally satisfies I[A]; A could reify to Wrap[B] —
+  // accept.
+  ASSERT_EQ(MATCHTYPE_ACCEPT,
+    is_matchtype(type_of("store_a"), type_of("i_wrap_b"), NULL, &opt));
+
+  // Store[U8] structurally satisfies I[U8]; U8 is concrete and cannot
+  // equal Wrap[U8] — reject.
+  ASSERT_EQ(MATCHTYPE_REJECT,
+    is_matchtype(type_of("store_u8"), type_of("i_wrap_u8"), NULL, &opt));
+}
