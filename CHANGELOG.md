@@ -14,6 +14,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Added
 
+- Add --pass-timings/--pass-timings-json for profiling compiler pass times ([PR #5792](https://github.com/ponylang/ponyc/pull/5792))
 
 ### Changed
 
