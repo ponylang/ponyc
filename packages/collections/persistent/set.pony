@@ -44,7 +44,8 @@ class val HashSet[A: Any #share, H: mut.HashFunction[A] val]
 
   fun val sub(value: val->A): HashSet[A, H] =>
     """
-    Return a set with the value removed.
+    Return a set with the value removed, unchanged if the set does not
+    contain it.
     """
     try _create(_map.remove(value)?) else this end
 

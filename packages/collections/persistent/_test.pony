@@ -1,8 +1,6 @@
 use "pony_test"
 use "pony_check"
 use mut = "collections"
-use "random"
-use "time"
 
 actor \nodoc\ Main is TestList
   new create(env: Env) => PonyTest(env, this)
@@ -29,15 +27,21 @@ actor \nodoc\ Main is TestList
     test(_TestListTakeWhile)
     test(_TestListValues)
     test(_TestMap)
+    test(_TestMapDefaultHash)
+    test(_TestMapEmptyIteratorContract)
     test(_TestMapNoneValue)
-    test(_TestMapVsMap)
+    test(_TestMapRemoveAbsentKey)
     test(_TestSet)
+    test(_TestSetRemoveAbsent)
     test(_TestVec)
     test(_TestVecContains)
     test(_TestVecFind)
     test(_TestVecIterators)
     test(_TestVecReverse)
     test(_TestVecSlice)
+    test(Property1UnitTest[Array[_MapAction]](_MapIteratorsProperty))
+    test(Property1UnitTest[(USize, Array[_MapAction])](_MapModelProperty))
+    test(Property1UnitTest[Array[_MapAction]](_MapStructureProperty))
     test(Property1UnitTest[(Array[USize], USize)](_VecFindContainsProperty))
     test(Property1UnitTest[Array[USize]](_VecIteratorsProperty))
     test(Property1UnitTest[(Array[USize], USize, USize)](_VecLawsProperty))
@@ -287,10 +291,6 @@ class \nodoc\ iso _TestMap is UnitTest
     let m12 = m11 - "b"
     h.assert_error({() ? => m12("b")? })
 
-    let seed = Time.millis()
-    h.log("seed: " + seed.string())
-    let rand = Rand(seed)
-
     var map = Map[USize, None]
     for n in mut.Range(0, 100) do
       try
@@ -298,91 +298,8 @@ class \nodoc\ iso _TestMap is UnitTest
         h.fail("expected error for nonexistent key")
         return
       end
-      map = map.update(rand.int[USize](USize.max_value() - 1), None)
+      map = map.update(n, None)
     end
-
-    gen_test(h, rand)?
-
-  fun gen_test(h: TestHelper, rand: Rand) ? =>
-    var a = _Map
-    let b = mut.Map[U64, U64]
-
-    let ops = gen_ops(300, rand)?
-    for op in ops.values() do
-      h.log(op.str())
-      let prev = a
-      a = op(a, b)?
-
-      var n: USize = 0
-      for (k, v) in a.pairs() do
-        n = n + 1
-        h.assert_eq[U64](b(k)?, v)
-      end
-      h.assert_eq[USize](n, a.size())
-    end
-
-  fun gen_ops(n: USize, rand: Rand): Array[_TestOp] ? =>
-    let ops = Array[_TestOp](n)
-    let keys = Array[U64](n)
-    for v in mut.Range[U64](0, n.u64()) do
-      let op_n = if keys.size() == 0 then 0 else rand.int[U64](4) end
-      ops.push(
-        match op_n
-        | 0 | 1 =>
-          // insert
-          let k = rand.u64()
-          keys.push(k)
-          _OpMapUpdate(k, v)
-        | 2 =>
-          // update
-          let k = keys(rand.int[USize](keys.size()))?
-          _OpMapUpdate(k, v)
-        | 3 =>
-          // remove
-          let k = keys.delete(rand.int[USize](keys.size()))?
-          _OpMapRemove(k)
-        else error
-        end)
-    end
-    ops
-
-type _Map is HashMap[U64, U64, _CollisionHash]
-
-primitive \nodoc\ _CollisionHash is mut.HashFunction[U64]
-  fun hash(x: U64): USize => x.usize() % 100
-  fun eq(x: U64, y: U64): Bool => x == y
-
-interface \nodoc\ val _TestOp
-  fun apply(a: _Map, b: mut.Map[U64, U64]): _Map ?
-  fun str(): String
-
-class \nodoc\ val _OpMapUpdate
-  let k: U64
-  let v: U64
-
-  new val create(k': U64, v': U64) =>
-    k = k'
-    v = v'
-
-  fun apply(a: _Map, b: mut.Map[U64, U64]): _Map =>
-    b.update(k, v)
-    a(k) = v
-
-  fun str(): String =>
-    "".join(["Update("; k; "_"; _CollisionHash.hash(k); ", "; v; ")"].values())
-
-class \nodoc\ val _OpMapRemove
-  let k: U64
-
-  new val create(k': U64) =>
-    k = k'
-
-  fun apply(a: _Map, b: mut.Map[U64, U64]): _Map ? =>
-    b.remove(k)?
-    a.remove(k)?
-
-  fun str(): String =>
-    "".join(["Remove("; k; ")"].values())
 
 class \nodoc\ iso _TestMapNoneValue is UnitTest
   fun name(): String => "collections/persistent/Map (None values)"
@@ -426,40 +343,6 @@ class \nodoc\ iso _TestMapNoneValue is UnitTest
     h.assert_false(m2.contains("b"))
     h.assert_error({() ? => m2("b")? })
     h.assert_eq[USize](m2.size(), 2)
-
-class \nodoc\ iso _TestMapVsMap is UnitTest
-  fun name(): String => "collections/persistent/Map (persistent vs mutable)"
-
-  fun apply(h: TestHelper) ? =>
-    let keys: USize = 300
-    var p_map = Map[String, U64]
-    let m_map = mut.Map[String, U64](keys)
-    let r = MT
-
-    var count: USize = 0
-    while count < keys do
-      let k: String = count.string()
-      let v = r.next()
-      p_map = p_map(k) = v
-      m_map(k) = v
-      count = count + 1
-      h.assert_eq[USize](m_map.size(), p_map.size())
-    end
-
-    h.assert_eq[USize](m_map.size(), keys)
-    h.assert_eq[USize](p_map.size(), keys)
-
-    for (k, v) in m_map.pairs() do
-      h.assert_eq[U64](p_map(k)?, v)
-    end
-
-    var c: USize = 0
-    for (k, v) in p_map.pairs() do
-      c = c + 1
-      m_map.remove(k)?
-    end
-    h.assert_eq[USize](p_map.size(), c)
-    h.assert_eq[USize](m_map.size(), 0)
 
 class \nodoc\ iso _TestSet is UnitTest
   fun name(): String => "collections/persistent/Set"
@@ -984,3 +867,718 @@ class \nodoc\ iso _VecFindContainsProperty is Property1[(Array[USize], USize)]
       if not v.contains(x) then missing = true end
     end
     h.assert_false(missing, "contains every element")
+
+type _TrieMap is HashMap[U64, U64, _TrieHash]
+
+primitive \nodoc\ _TrieHash is mut.HashFunction[U64]
+  """
+  The low 32 bits of a key are its hash, so a test states where a key sits in
+  the trie rather than assuming it. Bits 0 to 29 are the six 5-bit level
+  indices, bits 30 and 31 select the collision bin, and bits 32 and up
+  separate keys that share a hash.
+  """
+  fun hash(x: U64): USize => (x and 0xFFFF_FFFF).usize()
+  fun eq(x: U64, y: U64): Bool => x == y
+
+primitive \nodoc\ _TrieKey
+  fun apply(levels: Array[U32] box, bin: U32 = 0, dup: U64 = 0): U64 =>
+    """
+    A key sitting at `levels`, one 5-bit index per depth counting from 0, in
+    collision bin `bin`. Keys that differ only in `dup` have the same hash.
+    """
+    var h: U64 = 0
+    for (d, i) in levels.pairs() do
+      h = h or ((i and 0b11111).u64() << (d * 5).u64())
+    end
+    (h or ((bin and 0b11).u64() << 30)) or (dup << 32)
+
+  fun build(keys: Array[U64] box): _TrieMap =>
+    var m = _TrieMap
+    for k in keys.values() do m = m.update(k, k) end
+    m
+
+class \nodoc\ iso _TestMapRemoveAbsentKey is UnitTest
+  """
+  Reaching a slot that holds a single entry means only that the key's hash
+  indexes there. The entry may belong to a different key, so `remove` must
+  compare before it deletes.
+
+  The walk can stop on an entry at any depth, so both sides of the comparison
+  are checked at every depth rather than only at the root.
+  """
+  fun name(): String => "collections/persistent/Map (remove absent key)"
+
+  fun apply(h: TestHelper) ? =>
+    for d in mut.Range[USize](0, 6) do
+      let at: String val = " at depth " + d.string()
+
+      // two keys sharing every level above `d` and differing at `d`, so the
+      // levels above hold subnodes and `d` holds two bare entries
+      let a_levels = _levels(d, 3)
+      let b_levels = _levels(d, 7)
+      let a = _TrieKey(a_levels)
+      let b = _TrieKey(b_levels)
+      let m = _TrieKey.build([a; b])
+      h.assert_eq[USize](m.size(), 2, "built" + at)
+      h.assert_eq[U64](m(a)?, a, "a present" + at)
+      h.assert_eq[U64](m(b)?, b, "b present" + at)
+
+      // an absent key whose walk stops on a's slot: below depth 5 it differs
+      // one level further down, at depth 5 it has a's hash and a different key
+      let absent =
+        if d < 5 then
+          let c_levels = _levels(d, 3)
+          c_levels.push(9)
+          _TrieKey(c_levels)
+        else
+          _TrieKey(a_levels, 0, 1)
+        end
+      h.assert_error({() ? => m.remove(absent)? }, "absent raises" + at)
+      h.assert_eq[USize](m.size(), 2, "size after absent" + at)
+      h.assert_eq[U64](m(a)?, a, "a survives absent" + at)
+      h.assert_eq[U64](m(b)?, b, "b survives absent" + at)
+
+      // the other side of the same comparison: a key that is there still goes
+      let m2 = m.remove(a)?
+      h.assert_eq[USize](m2.size(), 1, "size after present" + at)
+      h.assert_false(m2.contains(a), "a gone" + at)
+      h.assert_eq[U64](m2(b)?, b, "b survives present" + at)
+
+      // sub returns a map instead of raising, so a caller sees no difference
+      // between a no-op and a deletion
+      let m3 = m - absent
+      h.assert_eq[USize](m3.size(), 2, "sub size" + at)
+      h.assert_eq[U64](m3(a)?, a, "sub keeps a" + at)
+      h.assert_eq[U64](m3(b)?, b, "sub keeps b" + at)
+    end
+
+    // an absent key indexing to an empty slot must raise too, so the checks
+    // above cannot be passing for the trivial reason
+    let lone = _TrieKey([5])
+    let m4 = _TrieKey.build([lone])
+    h.assert_error({() ? => m4.remove(_TrieKey([6]))? }, "empty slot")
+    h.assert_eq[USize](m4.size(), 1, "empty slot size")
+
+    // removing from an empty map must raise rather than wrap `size` round
+    let empty = _TrieMap
+    h.assert_error({() ? => empty.remove(lone)? }, "empty map")
+    h.assert_eq[USize](empty.size(), 0, "empty map size")
+    h.assert_eq[USize]((empty - lone).size(), 0, "empty map sub size")
+
+    // the collision layer compared keys already; this pins that it still does
+    let c_a = _TrieKey([9], 0, 0)
+    let c_b = _TrieKey([9], 0, 1)
+    let m5 = _TrieKey.build([c_a; c_b])
+    h.assert_error({() ? => m5.remove(_TrieKey([9], 0, 2))? }, "collision")
+    h.assert_eq[USize](m5.size(), 2, "collision size")
+    h.assert_eq[U64](m5(c_a)?, c_a, "collision keeps a")
+    h.assert_eq[U64](m5(c_b)?, c_b, "collision keeps b")
+
+    // Set removes through the same path, and `-` swallows the error, so the
+    // set a caller gets back is the only evidence. Stated over a hash that
+    // puts the absent element on a resident element's slot, which the default
+    // hash would only do by chance.
+    let s_a = _TrieKey([4])
+    let s_b = _TrieKey([4; 6])
+    let s = (HashSet[U64, _TrieHash] + s_a) + s_b
+    h.assert_eq[USize](s.size(), 2, "set built")
+    let s2 = s - _TrieKey([4; 2])
+    h.assert_eq[USize](s2.size(), 2, "set size")
+    h.assert_true(s2.contains(s_a), "set keeps a")
+    h.assert_true(s2.contains(s_b), "set keeps b")
+
+  fun _levels(depth: USize, last: U32): Array[U32] =>
+    """
+    Level indices that are 1 above `depth` and `last` at it, so two keys built
+    with different `last` values split exactly at `depth`.
+    """
+    let levels = Array[U32](depth + 1)
+    for _ in mut.Range[USize](0, depth) do levels.push(1) end
+    levels.push(last)
+    levels
+
+class \nodoc\ iso _TestMapEmptyIteratorContract is UnitTest
+  """
+  `Iterator` requires `has_next` to be false once there is nothing left. A
+  `for` loop cannot see a violation, because the sugar turns the error from
+  `next` into a `break`, so this drives the protocol directly.
+  """
+  fun name(): String => "collections/persistent/Map (empty iterators)"
+
+  fun apply(h: TestHelper) ? =>
+    let fresh = Map[String, U32]
+    h.assert_false(fresh.pairs().has_next(), "fresh pairs")
+    h.assert_false(fresh.keys().has_next(), "fresh keys")
+    h.assert_false(fresh.values().has_next(), "fresh values")
+    h.assert_error({() ? => Map[String, U32].pairs().next()? }, "fresh next")
+
+    // a map emptied by removal, which is the state a running program reaches
+    let emptied = (Map[String, U32]("a") = 1).remove("a")?
+    h.assert_eq[USize](emptied.size(), 0, "emptied size")
+    h.assert_false(emptied.pairs().has_next(), "emptied pairs")
+    h.assert_false(emptied.keys().has_next(), "emptied keys")
+    h.assert_false(emptied.values().has_next(), "emptied values")
+
+    h.assert_false(Set[String].values().has_next(), "set values")
+
+    // one entry: has_next must be true exactly until the entry is taken
+    let one = Map[String, U32]("a") = 1
+    let p = one.pairs()
+    h.assert_true(p.has_next(), "one before")
+    h.assert_eq[String](p.next()?._1, "a", "one value")
+    h.assert_false(p.has_next(), "one after")
+
+class \nodoc\ val _MapAction is Stringable
+  """
+  One generated operation: an operation tag, a key seed and a value.
+
+  A class rather than a tuple so that a failing sample prints the operations
+  that produced it. An array of tuples is not `ReadSeq[Stringable]`, so
+  PonyCheck reports it as a digest, which for a map says nothing about which
+  keys were involved.
+  """
+  let op: U8
+  let seed: U64
+  let value: U64
+
+  new val create(op': U8, seed': U64, value': U64) =>
+    op = op'
+    seed = seed'
+    value = value'
+
+  fun string(): String iso^ =>
+    "op" + op.string() + "/k" + _MapGen.key(seed).string() +
+      "=" + value.string()
+
+primitive \nodoc\ _MapGen
+  fun key(seed: U64): U64 =>
+    """
+    A key that is zero at every level except one, so that two keys diverging
+    at the same level branch there and keys diverging at different levels
+    share the prefix above them. Drawing each level independently instead
+    leaves depths three and below with a single child throughout, and the
+    splits and compactions there are never reached.
+
+    Keys differing only in the salt have one hash, which is what carries a
+    pair down to the collision layer.
+    """
+    let depth = (seed and 0b111) % 6
+    let index = (seed >> 3) and 0b11111
+    let bin = (seed >> 8) and 0b11
+    let salt = (seed >> 10) and 0b11
+    ((index << (depth * 5)) or (bin << 30)) or (salt << 32)
+
+  fun seeds(): Generator[U64] => Generators.u64(0, 16_383)
+
+  fun actions(op_gen: Generator[U8]): Generator[_MapAction] =>
+    Generators.zip3[U8, U64, U64](op_gen, seeds(), Generators.u64(0, 1_000))
+      .map[_MapAction](
+        {(t: (U8, U64, U64)): _MapAction =>
+          _MapAction(t._1, t._2, t._3)
+        })
+
+  fun nth_key(model: mut.Map[U64, U64] box, n: USize): U64 ? =>
+    """
+    A key the model holds, so that an operation on a present key does not have
+    to guess one.
+    """
+    var i: USize = 0
+    for k in model.keys() do
+      if i == n then return k end
+      i = i + 1
+    end
+    error
+
+primitive \nodoc\ _MapCheck
+  fun drain(m: _TrieMap): (Array[(U64, U64)], Bool) =>
+    """
+    Drain an iterator through `has_next` and `next` rather than a `for` loop.
+    The `for` sugar turns an error from `next` into a `break`, so a `for` loop
+    cannot tell an exhausted iterator from one that raised.
+
+    The returned flag is true when `next` raised while `has_next` was still
+    true, or when `has_next` stayed true past the number of pairs the map
+    holds. Both are the same contract violation, and swallowing either would
+    leave this unable to fail.
+    """
+    let out = Array[(U64, U64)](m.size())
+    let it = m.pairs()
+    let limit = m.size() + 2
+    while it.has_next() do
+      if out.size() >= limit then return (out, true) end
+      try out.push(it.next()?) else return (out, true) end
+    end
+    (out, false)
+
+class \nodoc\ iso _MapModelProperty is Property1[(USize, Array[_MapAction])]
+  """
+  Apply a generated sequence of operations to a persistent map and to a
+  mutable map used as a model, then check that the two hold the same pairs.
+
+  Each sample enables a random subset of the operations. A sequence drawing
+  from every operation random walks around a small size; withholding the
+  removals is what drives the trie deep enough to reach the collision layer.
+  """
+  fun name(): String => "collections/persistent/Map (property: model)"
+
+  fun gen(): Generator[(USize, Array[_MapAction])] =>
+    Generators.usize(0, 255)
+      .flat_map[(USize, Array[_MapAction])](
+        {(bits: USize): Generator[(USize, Array[_MapAction])] =>
+          // insert is always enabled; with no way to add pairs a sample
+          // exercises nothing
+          let config = bits or 1
+          let ops = Array[U8]
+          for op in mut.Range[U8](0, 8) do
+            if (config and (USize(1) << op.usize())) != 0 then ops.push(op) end
+          end
+          Generators.seq_of[_MapAction, Array[_MapAction]](
+            _MapGen.actions(Generators.one_of[U8](ops)), 1, 60)
+            .map[(USize, Array[_MapAction])](
+              {(actions: Array[_MapAction]): (USize, Array[_MapAction]) =>
+                (config, actions)
+              })
+        })
+
+  fun ref property(arg1: (USize, Array[_MapAction]), h: PropertyHelper) ? =>
+    (let config, let actions) = arg1
+    let msg: String val = ", config " + config.string()
+    var m = _TrieMap
+    let model = mut.Map[U64, U64]
+
+    for action in actions.values() do
+      let op = action.op
+      let v = action.value
+      let k = _MapGen.key(action.seed)
+      let n = model.size()
+      match op
+      | 0 =>
+        m = m.update(k, v)
+        model(k) = v
+      | 1 =>
+        if n > 0 then
+          let k' = _MapGen.nth_key(model, v.usize() % n)?
+          m = m.update(k', v)
+          model(k') = v
+        end
+      | 2 =>
+        if n > 0 then
+          let k' = _MapGen.nth_key(model, v.usize() % n)?
+          m = m.remove(k')?
+          model.remove(k')?
+        end
+      | 3 =>
+        // an absent key that walks to a resident key's slot: the same hash
+        // bits below 32, a different key. Built by flipping a bit above the
+        // hash, so it reaches that key's slot at whatever depth it sits. A
+        // uniformly drawn key lands on an occupied slot only by chance.
+        if n > 0 then
+          let resident = _MapGen.nth_key(model, v.usize() % n)?
+          let absent = resident xor (U64(1) << 32)
+          if not model.contains(absent) then
+            let before = m
+            h.assert_error(
+              {() ? => before.remove(absent)? },
+              "remove absent" + msg)
+            h.assert_eq[USize](m.size(), n, "remove absent size" + msg)
+            h.assert_eq[U64](
+              m(resident)?, model(resident)?, "remove absent victim" + msg)
+          end
+        end
+      | 4 =>
+        if n > 0 then
+          let k' = _MapGen.nth_key(model, v.usize() % n)?
+          m = m - k'
+          model.remove(k')?
+        end
+      | 5 =>
+        if n > 0 then
+          let resident = _MapGen.nth_key(model, v.usize() % n)?
+          let absent = resident xor (U64(1) << 32)
+          if not model.contains(absent) then
+            m = m - absent
+            h.assert_eq[USize](m.size(), n, "sub absent size" + msg)
+            h.assert_eq[U64](
+              m(resident)?, model(resident)?, "sub absent victim" + msg)
+          end
+        end
+      | 6 =>
+        let batch = Array[(U64, U64)]
+        for j in mut.Range[U64](0, 1 + (v % 8)) do
+          let k' = _MapGen.key(action.seed + j)
+          batch.push((k', v + j))
+          model(k') = v + j
+        end
+        m = m.concat(batch.values())
+      | 7 =>
+        // the three lookups are three views of one operation and must agree
+        if model.contains(k) then
+          let want = model(k)?
+          h.assert_eq[U64](m(k)?, want, "apply" + msg)
+          h.assert_true(m.contains(k), "contains" + msg)
+          h.assert_eq[U64](
+            m.get_or_else(k, U64.max_value()), want, "get_or_else" + msg)
+        else
+          h.assert_false(m.contains(k), "contains absent" + msg)
+          h.assert_eq[U64](
+            m.get_or_else(k, U64.max_value()),
+            U64.max_value(),
+            "get_or_else absent" + msg)
+        end
+      end
+    end
+
+    // both directions: the map holds everything the model does, and nothing
+    // the model does not. Checking one direction and a count passes even when
+    // an entry has been silently dropped.
+    h.assert_eq[USize](model.size(), m.size(), "size" + msg)
+    for (k, v) in model.pairs() do
+      h.assert_eq[U64](m(k)?, v, "model to map" + msg)
+    end
+    (let drained, let broke) = _MapCheck.drain(m)
+    h.assert_false(broke, "iterator contract" + msg)
+    h.assert_eq[USize](drained.size(), m.size(), "pairs count" + msg)
+    let seen = mut.Set[U64]
+    for (k, v) in drained.values() do
+      h.assert_eq[U64](model(k)?, v, "map to model" + msg)
+      h.assert_false(seen.contains(k), "duplicate key" + msg)
+      seen.set(k)
+    end
+
+class \nodoc\ iso _MapIteratorsProperty is Property1[Array[_MapAction]]
+  """
+  The three iterators agree with `apply`, agree with each other, and report
+  exhaustion honestly. Driven through `has_next` and `next` directly, because
+  the `for` sugar hides an iterator that raises instead of ending.
+  """
+  fun name(): String => "collections/persistent/Map (property: iterators)"
+
+  fun gen(): Generator[Array[_MapAction]] =>
+    Generators.seq_of[_MapAction, Array[_MapAction]](
+      _MapGen.actions(Generators.one_of[U8]([as U8: 0; 1])), 0, 60)
+
+  fun ref property(arg1: Array[_MapAction], h: PropertyHelper) ? =>
+    var m = _TrieMap
+    let model = mut.Map[U64, U64]
+
+    for action in arg1.values() do
+      let op = action.op
+      let v = action.value
+      let k = _MapGen.key(action.seed)
+      match op
+      | 0 =>
+        m = m.update(k, v)
+        model(k) = v
+      | 1 =>
+        if model.size() > 0 then
+          let k' = _MapGen.nth_key(model, v.usize() % model.size())?
+          m = m.remove(k')?
+          model.remove(k')?
+        end
+      end
+    end
+
+    (let drained, let broke) = _MapCheck.drain(m)
+    h.assert_false(broke, "pairs contract")
+    h.assert_eq[USize](m.size(), drained.size(), "pairs count")
+
+    // keys() and values() are separate classes with their own next()
+    let ks = Array[U64](m.size())
+    let kit = m.keys()
+    while kit.has_next() do
+      if ks.size() >= (m.size() + 2) then break end
+      try ks.push(kit.next()?) else h.fail("keys contract"); break end
+    end
+    h.assert_eq[USize](m.size(), ks.size(), "keys count")
+
+    let vs = Array[U64](m.size())
+    let vit = m.values()
+    while vit.has_next() do
+      if vs.size() >= (m.size() + 2) then break end
+      try vs.push(vit.next()?) else h.fail("values contract"); break end
+    end
+    h.assert_eq[USize](m.size(), vs.size(), "values count")
+
+    let pair_keys = Array[U64](drained.size())
+    let pair_values = Array[U64](drained.size())
+    for (k, v) in drained.values() do
+      pair_keys.push(k)
+      pair_values.push(v)
+    end
+    h.assert_array_eq_unordered[U64](pair_keys, ks, "keys agree with pairs")
+    h.assert_array_eq_unordered[U64](pair_values, vs, "values agree with pairs")
+
+    // the keys the iterator yields are compared against the model rather than
+    // against another iterator, so the check is not circular
+    let model_keys = Array[U64](model.size())
+    for k in model.keys() do model_keys.push(k) end
+    h.assert_array_eq_unordered[U64](
+      model_keys, pair_keys, "keys agree with the model")
+
+    // the map is unchanged by having been iterated
+    h.assert_eq[USize](model.size(), m.size(), "size after iterating")
+    for (k, v) in model.pairs() do
+      h.assert_eq[U64](m(k)?, v, "value after iterating")
+    end
+
+class \nodoc\ iso _TestMapDefaultHash is UnitTest
+  """
+  Uses the default `String` hash over ordinary keys, which is the distribution
+  a caller gets, and checks the map against a mutable one built from the same
+  pairs.
+  """
+  fun name(): String => "collections/persistent/Map (default hash)"
+
+  fun apply(h: TestHelper) ? =>
+    let count: USize = 300
+    var p = Map[String, U64]
+    let model = mut.Map[String, U64]
+
+    for i in mut.Range(0, count) do
+      let k: String val = "key" + i.string()
+      let v = (i * 7919).u64()
+      p = p(k) = v
+      model(k) = v
+      h.assert_eq[USize](model.size(), p.size(), "size while building")
+    end
+
+    for (k, v) in model.pairs() do
+      h.assert_eq[U64](p(k)?, v, "model to map")
+      h.assert_true(p.contains(k), "contains")
+    end
+
+    var seen: USize = 0
+    let it = p.pairs()
+    while it.has_next() do
+      if seen > count then
+        h.fail("pairs did not report exhaustion")
+        break
+      end
+      (let k, let v) = it.next()?
+      seen = seen + 1
+      h.assert_eq[U64](model(k)?, v, "map to model")
+    end
+    h.assert_eq[USize](count, seen, "pairs count")
+
+    // whatever the default hash does with these, none of them is in the map,
+    // so none of them may change it
+    for i in mut.Range(0, count) do
+      let absent: String val = "absent" + i.string()
+      let before = p
+      h.assert_error({() ? => before.remove(absent)? }, "absent " + i.string())
+    end
+    h.assert_eq[USize](count, p.size(), "size after absent removes")
+    for (k, v) in model.pairs() do
+      h.assert_eq[U64](p(k)?, v, "value after absent removes")
+    end
+
+    for k in model.keys() do
+      p = p.remove(k)?
+    end
+    h.assert_eq[USize](0, p.size(), "drained size")
+    h.assert_false(p.pairs().has_next(), "drained iterator")
+
+primitive \nodoc\ _MapShape
+  fun check(root: _MapSubNodes[U64, U64, _TrieHash]): (USize, String) =>
+    """
+    Walk the trie and check the shape the node code maintains. Returns the
+    number of entries found, and the first invariant broken or an empty
+    string when the shape is sound.
+
+    Counting the entries here is independent of both `size`, which is a
+    field, and `pairs`, which walks the same nodes an operation just rebuilt,
+    so it disagrees with them when either is wrong.
+
+    The walk reports rather than asserts, for two reasons. A failure carries
+    the depth and slot it happened at, which an assertion per node cannot
+    because every node reaches the same handful of checks from the same
+    lines. And the caller asserts once per operation, so a broken shape names
+    the operation that broke it instead of repeating itself for every node
+    left in the trie.
+    """
+    try _walk(root, 0, 0, true)? else (0, "the walk raised") end
+
+  fun _walk(
+    node: _MapSubNodes[U64, U64, _TrieHash],
+    depth: U32,
+    path: U32,
+    is_root: Bool)
+    : (USize, String) ?
+  =>
+    """
+    `path` is the hash bits every key below this node shares: the level
+    indices from the root down to `depth`, each in its own five bits.
+    """
+    let at: String val =
+      " at depth " + depth.string() + ", path " + path.string()
+
+    if (node.data_map and node.node_map) != 0 then
+      return (0, "bitmaps overlap" + at)
+    end
+    let counted = (node.data_map.popcount() + node.node_map.popcount()).usize()
+    if counted != node.nodes.size() then
+      return (0, "node count disagrees with the bitmaps" + at)
+    end
+    if depth > 5 then return (0, "subnode below depth five" + at) end
+
+    if not is_root then
+      // only the root may hold nothing: there is no parent to compact it
+      // into. `MapPairs` relies on this to iterate without a guard per node.
+      if node.nodes.size() == 0 then
+        return (0, "empty node below the root" + at)
+      end
+      if (node.nodes.size() == 1) and (node.data_map != 0) then
+        return (0, "a lone entry was left uncompacted" + at)
+      end
+    end
+
+    var found: USize = 0
+    for idx in mut.Range[U32](0, 32) do
+      let c_idx = node.compressed_idx(idx)
+      if c_idx != -1 then
+        // the bits a key in this slot has from the root down to here
+        let slot = path or (idx << (depth * 5))
+        let in_slot: String val = at + ", slot " + idx.string()
+
+        match \exhaustive\ node.nodes(c_idx.usize_unsafe())?
+        | let e: _MapEntry[U64, U64, _TrieHash] val =>
+          // an entry reached by walking to this slot must be one the walk
+          // for its own key would reach. Compaction lifts entries between
+          // slots, and a lift to the wrong one leaves every count and
+          // bitmap intact.
+          let mask = (U32(1) << ((depth + 1) * 5)) - 1
+          if (_TrieHash.hash(e.key).u32() and mask) != slot then
+            return (found, "entry off its hash path" + in_slot)
+          end
+          found = found + 1
+        | let sn: _MapSubNodes[U64, U64, _TrieHash] val =>
+          (let n, let err) = _walk(sn, depth + 1, slot, false)?
+          found = found + n
+          if err != "" then return (found, err) end
+        | let cs: _MapCollisions[U64, U64, _TrieHash] val =>
+          if depth != 5 then
+            return (found, "collisions node above depth five" + in_slot)
+          end
+          var n: USize = 0
+          for (b, bin) in cs.bins.pairs() do
+            for e in bin.values() do
+              let hash = _TrieHash.hash(e.key).u32()
+              // depths zero to five take bits 0 to 29; the bin is 30 and 31
+              if (hash and 0x3FFF_FFFF) != slot then
+                return (found + n, "collision entry off its path" + in_slot)
+              end
+              if _Bits.mask32(hash, _Bits.collision_depth()) != b.u32() then
+                return (found + n, "collision entry in the wrong bin" + in_slot)
+              end
+              n = n + 1
+            end
+          end
+          found = found + n
+          if n < 2 then
+            return (found, "collisions node holding one entry" + in_slot)
+          end
+        end
+      end
+    end
+    (found, "")
+
+class \nodoc\ iso _MapStructureProperty is Property1[Array[_MapAction]]
+  """
+  The trie's shape after every operation, checked against the invariants the
+  node code maintains rather than against what a lookup returns.
+  """
+  fun name(): String => "collections/persistent/Map (property: structure)"
+
+  fun gen(): Generator[Array[_MapAction]] =>
+    Generators.seq_of[_MapAction, Array[_MapAction]](
+      _MapGen.actions(Generators.one_of[U8]([as U8: 0; 1; 2])), 0, 60)
+
+  fun ref property(arg1: Array[_MapAction], h: PropertyHelper) ? =>
+    var m = _TrieMap
+    let model = mut.Map[U64, U64]
+
+    for (i, action) in arg1.pairs() do
+      let k = _MapGen.key(action.seed)
+      let n = model.size()
+      match action.op
+      | 0 | 2 =>
+        m = m.update(k, action.value)
+        model(k) = action.value
+      | 1 =>
+        if n > 0 then
+          let k' = _MapGen.nth_key(model, action.value.usize() % n)?
+          m = m.remove(k')?
+          model.remove(k')?
+        end
+      end
+      let after: String val =
+        " after action " + i.string() + " " + action.string()
+      (let leaves, let broken) = _MapShape.check(m._root_node())
+      h.assert_eq[String]("", broken, "shape" + after)
+      h.assert_eq[USize](m.size(), leaves, "leaf count" + after)
+    end
+
+class \nodoc\ iso _TestSetRemoveAbsent is UnitTest
+  """
+  `HashSet` has no `remove`, so `sub` is its only removal, and `sub` returns a
+  set rather than raising. The set a caller gets back is the only evidence
+  that anything went wrong.
+
+  `without` and `op_xor` reach the same path without the caller removing
+  anything at all. Both test membership against the receiver but subtract from
+  an accumulator, so an argument that yields an element twice subtracts it
+  twice, and the second subtraction asks the accumulator to drop an element it
+  no longer holds. Reading the receiver is what makes the toggle in `op_xor`
+  idempotent, so these depend on `sub` leaving a set alone when the element is
+  not there.
+  """
+  fun name(): String => "collections/persistent/Set (remove absent)"
+
+  fun apply(h: TestHelper) =>
+    // a and b share the root slot, so a stray removal of one takes the other
+    // and the loss is visible rather than a matter of chance
+    let a = _TrieKey([4])
+    let b = _TrieKey([4; 6])
+    // walks to a's slot and stops on it, which is where a removal that does
+    // not compare the element takes a with it
+    let absent = _TrieKey([4; 0; 9])
+    // stops on a slot holding nothing, so a removal has nothing to take
+    let unrelated = _TrieKey([7])
+    let s = (HashSet[U64, _TrieHash] + a) + b
+    _expect(h, "built", s, [a; b])
+
+    _expect(h, "sub absent", s - absent, [a; b])
+    _expect(h, "sub unrelated", s - unrelated, [a; b])
+    _expect(h, "sub present", s - a, [b])
+
+    // an argument yielding the same element twice removes it twice
+    _expect(h, "without duplicate", s.without([a; a].values()), [b])
+    _expect(h, "xor duplicate present", s.op_xor([a; a].values()), [b])
+
+    // the same duplicate on the adding side of the toggle: xor against the
+    // elements of an argument, not against each yield of it
+    _expect(
+      h,
+      "xor duplicate absent",
+      s.op_xor([absent; absent].values()),
+      [a; b; absent])
+
+    // every operator also takes a bare Iterator, which is the arm that a set
+    // operand never reaches
+    _expect(h, "or iterator", s.op_or([absent].values()), [a; b; absent])
+    _expect(h, "and iterator", s.op_and([a; absent].values()), [a])
+    _expect(h, "without iterator", s.without([b].values()), [a])
+
+    // and the receiver is unchanged by any of it
+    _expect(h, "receiver", s, [a; b])
+
+  fun _expect(
+    h: TestHelper,
+    label: String,
+    got: HashSet[U64, _TrieHash],
+    want: Array[U64])
+  =>
+    h.assert_eq[USize](want.size(), got.size(), label + ": size")
+    for v in want.values() do
+      h.assert_true(got.contains(v), label + ": element missing")
+    end

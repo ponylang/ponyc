@@ -73,7 +73,8 @@ class val HashMap[K: Any #share, V: Any #share, H: mut.HashFunction[K] val]
 
   fun val remove(k: K): HashMap[K, V, H] ? =>
     """
-    Try to remove the provided key from the Map.
+    Try to remove the provided key from the Map. Raises an error if the Map
+    does not contain the key.
     """
     _create(_root.remove(0, H.hash(k).u32(), k)?, _size - 1)
 
@@ -117,7 +118,8 @@ class val HashMap[K: Any #share, V: Any #share, H: mut.HashFunction[K] val]
 
   fun val sub(key: K): HashMap[K, V, H] =>
     """
-    Return this Map without the given key.
+    Return this Map without the given key, unchanged if the Map does not
+    contain it.
     """
     try
       remove(key)?
@@ -158,7 +160,10 @@ class MapPairs[K: Any #share, V: Any #share, H: mut.HashFunction[K] val]
   embed _stack: Array[_MapIter[K, V, H]] = []
 
   new create(m: HashMap[K, V, H]) =>
-    _stack.push(m._root_node().iter())
+    // Below the root, every node holds at least one child, so only the root
+    // iterator can be empty. That is why the pushes in next() do not ask.
+    let root = m._root_node().iter()
+    if root.has_next() then _stack.push(root) end
 
   fun has_next(): Bool =>
     _stack.size() > 0

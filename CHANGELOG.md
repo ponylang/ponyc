@@ -21,6 +21,8 @@ All notable changes to the Pony compiler and standard library will be documented
 - Fix overly strict consumed-variable check in try/else blocks ([PR #5891](https://github.com/ponylang/ponyc/pull/5891))
 - Fix destructuring assignment for unions of same-arity tuples ([PR #5892](https://github.com/ponylang/ponyc/pull/5892))
 - Fix `style/blank-lines` false positive on block comments between declarations ([PR #5895](https://github.com/ponylang/ponyc/pull/5895))
+- Fix persistent Map iterators reporting items on an empty map ([PR #5877](https://github.com/ponylang/ponyc/pull/5877))
+- Fix persistent Map removing the wrong entry for a key it doesn't contain ([PR #5877](https://github.com/ponylang/ponyc/pull/5877))
 
 ### Added
 

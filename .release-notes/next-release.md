@@ -427,3 +427,30 @@ fun foo[A: AST val](node: A) =>
   end
 ```
 
+## Fix persistent Map iterators reporting items on an empty map
+
+`keys`, `values` and `pairs` on an empty `collections/persistent` `Map`, and `values` on an empty `Set`, returned an iterator whose `has_next` was `true` while `next` raised. A `for` loop over one of these was unaffected, but code that drives the iterator directly, or passes it to something that does, saw an iterator that never reported being exhausted.
+
+```pony
+let m = Map[String, U32]
+m.pairs().has_next() // returned true, now returns false
+```
+
+## Fix persistent Map removing the wrong entry for a key it doesn't contain
+
+Removing a key that isn't in a `collections/persistent` `Map` could delete a different entry instead of raising an error. The returned map was missing an entry the caller never named, and `size` was decremented to match, so nothing downstream flagged the loss.
+
+This affected `remove`, `sub` and the `-` operator, and `Set` through the same operators. `sub` and `-` gave no signal at all, because they return a map rather than raising.
+
+`Set.without` and `Set.op_xor` reach the same path internally, so a set could lose an element without the calling code removing anything: an argument that yields the same element twice was enough, because both test membership against the receiver while subtracting from an accumulator.
+
+`json` is built on this map, so `JSONObject.remove` and `JSONLens.remove` were affected too: removing a key or a path the document doesn't contain could delete a different one, despite `JSONObject.remove` documenting itself as a no-op in that case.
+
+```pony
+let m = Map[String, U32] // {}
+let m2 = m("a") = 5      // {a: 5}
+let m3 = m2 - "2"        // returned {} instead of {a: 5}
+```
+
+`remove` now raises for any key the map doesn't contain, and `sub` and `-` return the map unchanged.
+
