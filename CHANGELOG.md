@@ -9,6 +9,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Fix false "declaration appears after use" error with trait default method bodies ([PR #5857](https://github.com/ponylang/ponyc/pull/5857))
 - Fix false "this pattern can never match" error for a type parameter inside a type argument ([PR #5858](https://github.com/ponylang/ponyc/pull/5858))
 - Fix false "this pattern can never match" error for a type parameter inside a trait or interface type argument ([PR #5861](https://github.com/ponylang/ponyc/pull/5861))
+- Fix false "this pattern can never match" error for constraint-overlapping type parameters and union, intersection, or tuple type arguments ([PR #5866](https://github.com/ponylang/ponyc/pull/5866))
 
 ### Added
 
