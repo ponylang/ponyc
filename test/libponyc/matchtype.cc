@@ -2803,3 +2803,101 @@ TEST_F(MatchTypeTest, TypeParamInTypeArgStructuralInterfaceMethodTypeParam)
   ASSERT_EQ(MATCHTYPE_REJECT,
     is_matchtype(type_of("store_u8"), type_of("i_wrap_u8"), NULL, &opt));
 }
+
+
+TEST_F(MatchTypeTest, TypeParamInTypeArgArrowThisViewpoint)
+{
+  // A viewpoint-adapted type argument (this->A vs this->B) where both
+  // sides share the same viewpoint. The right-hand sides are type
+  // parameters that could reify to the same type. See #5867.
+  const char* src =
+    "class val Cell[C: Any #share]\n"
+
+    "interface Test\n"
+    "  fun z[A: Any #share, B: Any #share]\n"
+    "    (cell_this_a: Cell[this->A], cell_this_b: Cell[this->B])";
+
+  TEST_COMPILE(src);
+
+  // Cell[this->A] vs Cell[this->B] — A and B could both reify to U8.
+  ASSERT_EQ(MATCHTYPE_ACCEPT,
+    is_matchtype(type_of("cell_this_a"), type_of("cell_this_b"), NULL, &opt));
+
+  // Symmetric.
+  ASSERT_EQ(MATCHTYPE_ACCEPT,
+    is_matchtype(type_of("cell_this_b"), type_of("cell_this_a"), NULL, &opt));
+}
+
+
+TEST_F(MatchTypeTest, TypeParamInTypeArgArrowVsConcrete)
+{
+  // Arrow type argument vs concrete type argument. The arrow side reduces
+  // to its viewpoint bound, and the type parameter inside could reify to
+  // the concrete type. See #5867.
+  const char* src =
+    "class val Cell[C: Any #share]\n"
+
+    "interface Test\n"
+    "  fun z[A: Any #share]\n"
+    "    (cell_this_a: Cell[this->A], cell_u8: Cell[U8])";
+
+  TEST_COMPILE(src);
+
+  // Cell[this->A] vs Cell[U8] — A could reify to U8, and this->U8 = U8
+  // for any sendable receiver.
+  ASSERT_EQ(MATCHTYPE_ACCEPT,
+    is_matchtype(type_of("cell_this_a"), type_of("cell_u8"), NULL, &opt));
+
+  // Symmetric.
+  ASSERT_EQ(MATCHTYPE_ACCEPT,
+    is_matchtype(type_of("cell_u8"), type_of("cell_this_a"), NULL, &opt));
+}
+
+
+TEST_F(MatchTypeTest, TypeParamInTypeArgArrowNested)
+{
+  // Viewpoint-adapted type argument with a nested type constructor on
+  // one side.
+  const char* src =
+    "class val Cell[C: Any #share]\n"
+    "class val Wrap[C: Any #share]\n"
+
+    "interface Test\n"
+    "  fun z[A: Any #share, B: Any #share]\n"
+    "    (cell_this_a: Cell[this->A],\n"
+    "     cell_this_wrap_b: Cell[this->Wrap[B] val])";
+
+  TEST_COMPILE(src);
+
+  // Cell[this->A] vs Cell[this->Wrap[B]] — same viewpoint, so recurse
+  // on A vs Wrap[B]. A could reify to Wrap[B].
+  ASSERT_EQ(MATCHTYPE_ACCEPT,
+    is_matchtype(type_of("cell_this_a"), type_of("cell_this_wrap_b"),
+      NULL, &opt));
+
+  // Symmetric.
+  ASSERT_EQ(MATCHTYPE_ACCEPT,
+    is_matchtype(type_of("cell_this_wrap_b"), type_of("cell_this_a"),
+      NULL, &opt));
+}
+
+
+TEST_F(MatchTypeTest, TypeParamInTypeArgArrowConstraintReject)
+{
+  // Same viewpoint but the right-hand sides can never unify: A is
+  // constrained to I32 so it cannot reify to Wrap[B].
+  const char* src =
+    "class val Cell[C: Any #share]\n"
+    "class val Wrap[C: Any #share]\n"
+
+    "interface Test\n"
+    "  fun z[A: I32, B: Any #share]\n"
+    "    (cell_this_a: Cell[this->A],\n"
+    "     cell_this_wrap_b: Cell[this->Wrap[B] val])";
+
+  TEST_COMPILE(src);
+
+  ASSERT_EQ(MATCHTYPE_REJECT,
+    is_matchtype(type_of("cell_this_a"), type_of("cell_this_wrap_b"),
+      NULL, &opt));
+}

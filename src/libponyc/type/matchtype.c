@@ -1088,6 +1088,12 @@ static bool compound_types_could_unify(subst_t* subst, ast_t* a, ast_t* b,
 //   - a union or intersection literal on either side (with neither side a
 //     bare type parameter) distributes over the arms (see
 //     compound_types_could_unify).
+//   - an arrow type (viewpoint adaptation) on either side: when both
+//     sides are arrows with the same left-hand side, the viewpoint is
+//     deterministic so the arrows unify iff the right-hand sides do.
+//     Otherwise, each arrow is reduced to its viewpoint bound
+//     (viewpoint_upper for this->X, viewpoint_lower for P->X) and the
+//     bounds are compared recursively.
 //   - two same-definition nominals unify when every pair of type arguments
 //     recursively unifies.
 //   - two tuples unify when they have the same arity and every element
@@ -1188,6 +1194,81 @@ static bool typeargs_could_unify(subst_t* subst, ast_t* a, ast_t* b,
     || (ast_id(b) == TK_UNIONTYPE) || (ast_id(b) == TK_ISECTTYPE))
   {
     return compound_types_could_unify(subst, a, b, opt);
+  }
+
+  if(ast_id(a) == TK_ARROW || ast_id(b) == TK_ARROW)
+  {
+    if(ast_id(a) == TK_ARROW && ast_id(b) == TK_ARROW)
+    {
+      ast_t* a_left = ast_child(a);
+      ast_t* b_left = ast_child(b);
+
+      bool same_lhs = false;
+
+      if(ast_id(a_left) == ast_id(b_left))
+      {
+        switch(ast_id(a_left))
+        {
+          case TK_THISTYPE:
+            same_lhs = true;
+            break;
+
+          case TK_TYPEPARAMREF:
+            same_lhs = typeparam_root((ast_t*)ast_data(a_left)) ==
+                        typeparam_root((ast_t*)ast_data(b_left));
+            break;
+
+          default:
+            same_lhs = is_eqtype(a_left, b_left, NULL, opt);
+            break;
+        }
+      }
+
+      if(same_lhs)
+      {
+        ast_t* a_right = ast_sibling(a_left);
+        ast_t* b_right = ast_sibling(b_left);
+        return typeargs_could_unify(subst, a_right, b_right, opt);
+      }
+    }
+
+    ast_t* r_a = a;
+    ast_t* r_b = b;
+
+    if(ast_id(a) == TK_ARROW)
+    {
+      AST_GET_CHILDREN(a, a_left, a_right);
+      if(ast_id(a_left) == TK_THISTYPE)
+        r_a = viewpoint_upper(a, opt);
+      else
+        r_a = viewpoint_lower(a, opt);
+
+      if(r_a == NULL)
+        return false;
+    }
+
+    if(ast_id(b) == TK_ARROW)
+    {
+      AST_GET_CHILDREN(b, b_left, b_right);
+      if(ast_id(b_left) == TK_THISTYPE)
+        r_b = viewpoint_upper(b, opt);
+      else
+        r_b = viewpoint_lower(b, opt);
+
+      if(r_b == NULL)
+      {
+        if(r_a != a)
+          ast_free_unattached(r_a);
+        return false;
+      }
+    }
+
+    bool result = typeargs_could_unify(subst, r_a, r_b, opt);
+
+    if(r_a != a) subst_keep(subst, r_a);
+    if(r_b != b) subst_keep(subst, r_b);
+
+    return result;
   }
 
   if((ast_id(a) == TK_NOMINAL) && (ast_id(b) == TK_NOMINAL))
