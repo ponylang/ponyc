@@ -5,7 +5,9 @@
 
 #include "util.h"
 
+#include <chrono>
 #include <string>
+#include <thread>
 #include <vector>
 #include <cstdio>
 #include <cstdlib>
@@ -289,11 +291,10 @@ TEST_F(TimingTest, NullContextIsNoOp)
 }
 
 
-// llvm::Timer forbids starting a running timer, so only the outermost start and
-// stop may drive it. Asserting the depth alone would pass with the guard
-// dropped from either side, so assert the recorded time too: the timer banks
-// wall time only in stopTimer, so the region must read zero until the outer
-// stop and non-zero after it.
+// Depth alone would still pass with the stop-side guard dropped, so this
+// test also asserts the recorded wall time. The timer banks wall time only
+// in stopTimer, so the region must read zero until the outer stop and
+// non-zero after it.
 TEST_F(TimingTest, ReentrantSameRegionCountsSpanOnce)
 {
   pass_timers_t* t = pass_timers_create();
@@ -303,6 +304,10 @@ TEST_F(TimingTest, ReentrantSameRegionCountsSpanOnce)
 
   pass_timers_start(t, "builtin", "expr");                 // re-enter
   EXPECT_EQ(2u, pass_timers_depth(t, "builtin", "expr"));
+
+  // An empty span can measure zero. Sleeping here widens both the inner span
+  // and the outer span that contains it.
+  std::this_thread::sleep_for(std::chrono::milliseconds(2));
 
   pass_timers_stop(t, "builtin", "expr");                  // inner stop
   EXPECT_EQ(1u, pass_timers_depth(t, "builtin", "expr"));
@@ -515,14 +520,15 @@ TEST_F(TimingTest, RepeatedRegionAccumulatesIntoOneRow)
   ASSERT_TRUE(pass_timers_set_json(t, path.c_str()));
 
   pass_timers_start(t, "builtin", "parse");
+  std::this_thread::sleep_for(std::chrono::milliseconds(30));
   pass_timers_stop(t, "builtin", "parse");
   double first = pass_timers_wall(t, "builtin", "parse");
 
   pass_timers_start(t, "builtin", "parse");
+  std::this_thread::sleep_for(std::chrono::milliseconds(2));
   pass_timers_stop(t, "builtin", "parse");
   double second = pass_timers_wall(t, "builtin", "parse");
 
-  // The second span added to the first rather than replacing it.
   EXPECT_GT(second, first);
 
   ASSERT_TRUE(pass_timers_report(t));
@@ -675,7 +681,7 @@ TEST_F(TimingTest, FailedRunLeavesPreviousFileIntact)
   std::string path = temp_path("intact");
 
   // An earlier run's file.
-  FILE* f = fopen(path.c_str(), "w");
+  FILE* f = fopen(path.c_str(), "wb");
   ASSERT_NE((FILE*)NULL, f);
   fputs("{\"previous\": true}\n", f);
   fclose(f);
