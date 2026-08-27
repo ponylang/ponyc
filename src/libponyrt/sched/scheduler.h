@@ -17,6 +17,7 @@ typedef struct scheduler_t scheduler_t;
 #define PONY_KQUEUE_SCHEDULER_INDEX        -10
 #define PONY_SOCK_NOTIFY_SCHEDULER_INDEX   -11
 #define PONY_EPOLL_SCHEDULER_INDEX         -12
+#define PONY_WFO_SCHEDULER_INDEX           -13
 #define PONY_UNKNOWN_SCHEDULER_INDEX -1
 
 // the `-999` constant is the same value that is hardcoded in `actor_pinning.pony`
