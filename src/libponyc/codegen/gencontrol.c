@@ -23,6 +23,9 @@ LLVMValueRef gen_seq(compile_t* c, ast_t* ast)
     if(value == NULL)
       return NULL;
 
+    if(value == GEN_NOVALUE)
+      break;
+
     child = ast_sibling(child);
   }
 

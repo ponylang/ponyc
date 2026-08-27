@@ -12,6 +12,29 @@
 #include "../type/alias.h"
 #include "../type/typeparam.h"
 #include "ponyassert.h"
+#include <string.h>
+
+// The sugar pass appends a TK_REFERENCE("None") to the body of every
+// None-returning function (fun_defaults in sugar.c). By the time the expr
+// pass runs, the refer pass has resolved it to a TK_TYPEREF whose second
+// child is TK_ID("None"). When the preceding expression jumps away in all
+// branches, the expr pass would flag this trailing None as unreachable.
+// But the user never wrote it, so the error is misleading. This helper
+// identifies the shape so the error can be suppressed.
+bool is_trailing_none_ref(ast_t* ast)
+{
+  if(ast_sibling(ast) != NULL)
+    return false;
+
+  if(ast_id(ast) == TK_TYPEREF)
+  {
+    ast_t* id = ast_childidx(ast, 1);
+    return (id != NULL) && (ast_id(id) == TK_ID)
+      && !strcmp(ast_name(id), "None");
+  }
+
+  return false;
+}
 
 bool expr_seq(pass_opt_t* opt, ast_t* ast)
 {
@@ -132,8 +155,11 @@ bool expr_if(pass_opt_t* opt, ast_t* ast)
   {
     if((ast_id(ast_parent(ast)) == TK_SEQ) && ast_sibling(ast) != NULL)
     {
-      ast_error(opt->check.errors, ast_sibling(ast), "unreachable code");
-      return false;
+      if(!is_trailing_none_ref(ast_sibling(ast)))
+      {
+        ast_error(opt->check.errors, ast_sibling(ast), "unreachable code");
+        return false;
+      }
     }
   }
 
@@ -177,8 +203,11 @@ bool expr_iftype(pass_opt_t* opt, ast_t* ast)
   {
     if((ast_id(ast_parent(ast)) == TK_SEQ) && ast_sibling(ast) != NULL)
     {
-      ast_error(opt->check.errors, ast_sibling(ast), "unreachable code");
-      return false;
+      if(!is_trailing_none_ref(ast_sibling(ast)))
+      {
+        ast_error(opt->check.errors, ast_sibling(ast), "unreachable code");
+        return false;
+      }
     }
   }
 
@@ -242,17 +271,20 @@ bool expr_while(pass_opt_t* opt, ast_t* ast)
 
   // A loop with no value-producing exit yields nothing and control never
   // resumes past it (the refer pass flags it AST_FLAG_JUMPS_AWAY). Any sibling
-  // in the enclosing sequence is therefore unreachable. This includes the
-  // implicit `None` the sugar pass appends to a None-returning function body
-  // (fun_defaults in sugar.c), which would otherwise be emitted after the
-  // loop's unreachable-terminated post block in codegen, producing invalid IR.
-  // Mirrors the same guard in expr_if/expr_iftype.
+  // in the enclosing sequence is therefore unreachable -- unless it is just
+  // the trailing None the sugar pass appends to None-returning function bodies
+  // (fun_defaults in sugar.c), in which case the error would be misleading
+  // since the user never wrote it. gen_seq stops emitting code after a
+  // GEN_NOVALUE child, so the dead node is harmless in codegen.
   if(ast_checkflag(ast, AST_FLAG_JUMPS_AWAY))
   {
     if((ast_id(ast_parent(ast)) == TK_SEQ) && ast_sibling(ast) != NULL)
     {
-      ast_error(opt->check.errors, ast_sibling(ast), "unreachable code");
-      return false;
+      if(!is_trailing_none_ref(ast_sibling(ast)))
+      {
+        ast_error(opt->check.errors, ast_sibling(ast), "unreachable code");
+        return false;
+      }
     }
   }
 
@@ -330,14 +362,16 @@ bool expr_repeat(pass_opt_t* opt, ast_t* ast)
       ast_free_unattached(prev_type);
   }
 
-  // See the matching comment in expr_while: a jumps-away loop makes any sibling
-  // unreachable, including the sugar-appended implicit `None`.
+  // See the matching comment in expr_while.
   if(ast_checkflag(ast, AST_FLAG_JUMPS_AWAY))
   {
     if((ast_id(ast_parent(ast)) == TK_SEQ) && ast_sibling(ast) != NULL)
     {
-      ast_error(opt->check.errors, ast_sibling(ast), "unreachable code");
-      return false;
+      if(!is_trailing_none_ref(ast_sibling(ast)))
+      {
+        ast_error(opt->check.errors, ast_sibling(ast), "unreachable code");
+        return false;
+      }
     }
   }
 
@@ -375,8 +409,11 @@ bool expr_try(pass_opt_t* opt, ast_t* ast)
 
   if((type == NULL) && (ast_sibling(ast) != NULL))
   {
-    ast_error(opt->check.errors, ast_sibling(ast), "unreachable code");
-    return false;
+    if(!is_trailing_none_ref(ast_sibling(ast)))
+    {
+      ast_error(opt->check.errors, ast_sibling(ast), "unreachable code");
+      return false;
+    }
   }
 
   ast_t* then_type = ast_type(then_clause);
@@ -419,8 +456,11 @@ bool expr_disposing_block(pass_opt_t* opt, ast_t* ast)
 
   if((type == NULL) && (ast_sibling(ast) != NULL))
   {
-    ast_error(opt->check.errors, ast_sibling(ast), "unreachable code");
-    return false;
+    if(!is_trailing_none_ref(ast_sibling(ast)))
+    {
+      ast_error(opt->check.errors, ast_sibling(ast), "unreachable code");
+      return false;
+    }
   }
 
   ast_t* dispose_type = ast_type(dispose_clause);
