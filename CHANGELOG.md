@@ -15,6 +15,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Fix false unreachable match for structural interface patterns with lambda parameters ([PR #5881](https://github.com/ponylang/ponyc/pull/5881))
 - Fix deferred stdout output on Windows ([PR #5885](https://github.com/ponylang/ponyc/pull/5885))
 - Fix false "unreachable code" error when all branches jump away in a None-returning function ([PR #5887](https://github.com/ponylang/ponyc/pull/5887))
+- Fix `repeat` loop field initialization tracking with `break` ([PR #5888](https://github.com/ponylang/ponyc/pull/5888))
 
 ### Added
 
