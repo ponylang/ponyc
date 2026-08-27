@@ -14,6 +14,7 @@ bool target_is_dragonfly(char* triple);
 bool target_is_openbsd(char* triple);
 bool target_is_macosx(char* triple);
 bool target_is_windows(char* triple);
+bool target_is_haiku(char* triple);
 bool target_is_posix(char* triple);
 bool target_is_x86(char* triple);
 bool target_is_arm(char* triple);
