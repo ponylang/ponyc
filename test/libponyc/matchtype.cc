@@ -2805,6 +2805,166 @@ TEST_F(MatchTypeTest, TypeParamInTypeArgStructuralInterfaceMethodTypeParam)
 }
 
 
+TEST_F(MatchTypeTest, TypeParamInTypeArgStructuralInterfaceLambdaParam)
+{
+  // Lambda parameters desugar into unique anonymous interfaces per source
+  // position. structural_could_match_pattern compares method signatures
+  // through typeargs_could_unify, which must recognise two structurally
+  // identical lambda interfaces as potentially equal rather than comparing
+  // by def pointer identity. See #5873.
+  const char* src =
+    "class val Wrap[A: Any #share]\n"
+    "  let _value: A\n"
+    "  new val create(v: A) => _value = v\n"
+    "  fun value(): A => _value\n"
+
+    "interface val Mapper[A: Any #share]\n"
+    "  fun map_it[B: Any #share](f: {(A): B} val): B\n"
+
+    "class val Box[A: Any #share]\n"
+    "  let _v: A\n"
+    "  new val create(v: A) => _v = v\n"
+    "  fun map_it[B: Any #share](f: {(A): B} val): B => f(_v)\n"
+
+    "interface Test\n"
+    "  fun z[A: Any #share, B: Any #share]\n"
+    "    (box_a: Box[A], mapper_wrap_b: Mapper[Wrap[B] val] val,\n"
+    "     box_u8: Box[U8], mapper_wrap_u8: Mapper[Wrap[U8] val] val)";
+
+  TEST_COMPILE(src);
+
+  // Box[A] structurally satisfies Mapper[A]; A could reify to Wrap[B] —
+  // accept despite lambda parameter types having different def pointers.
+  ASSERT_EQ(MATCHTYPE_ACCEPT,
+    is_matchtype(type_of("box_a"), type_of("mapper_wrap_b"), NULL, &opt));
+
+  // Box[U8] structurally satisfies Mapper[U8]; U8 is concrete and cannot
+  // equal Wrap[U8] — reject.
+  ASSERT_EQ(MATCHTYPE_REJECT,
+    is_matchtype(type_of("box_u8"), type_of("mapper_wrap_u8"), NULL, &opt));
+}
+
+
+TEST_F(MatchTypeTest, TypeParamInTypeArgStructuralInterfaceLambdaNoMethodTypeParam)
+{
+  // Lambda interfaces without method-level type parameters exercise the path
+  // where method-level reification is skipped in lambda_interfaces_could_unify.
+  const char* src =
+    "interface val Applier[A: Any #share]\n"
+    "  fun apply_it(f: {(A): U8} val): U8\n"
+
+    "class val Doer[A: Any #share]\n"
+    "  let _v: A\n"
+    "  new val create(v: A) => _v = v\n"
+    "  fun apply_it(f: {(A): U8} val): U8 => f(_v)\n"
+
+    "interface Test\n"
+    "  fun z[X: Any #share]\n"
+    "    (doer_x: Doer[X], applier_x: Applier[X] val)";
+
+  TEST_COMPILE(src);
+
+  // Doer[X] structurally satisfies Applier[X]; the lambda {(X): U8} has no
+  // method-level type params — accept.
+  ASSERT_EQ(MATCHTYPE_ACCEPT,
+    is_matchtype(type_of("doer_x"), type_of("applier_x"), NULL, &opt));
+}
+
+
+TEST_F(MatchTypeTest, TypeParamInTypeArgStructuralInterfaceLambdaThrowsMismatch)
+{
+  // A partial lambda ({(A): B ?} val) must not unify with a total lambda
+  // ({(A): B} val) — throws annotations must match.
+  const char* src =
+    "interface val TotalMapper[A: Any #share]\n"
+    "  fun map_it[B: Any #share](f: {(A): B} val): B\n"
+
+    "class val PartialBox[A: Any #share]\n"
+    "  let _v: A\n"
+    "  new val create(v: A) => _v = v\n"
+    "  fun map_it[B: Any #share](f: {(A): B ?} val): B ? => f(_v)?\n"
+
+    "interface Test\n"
+    "  fun z[A: Any #share]\n"
+    "    (pbox_a: PartialBox[A],\n"
+    "     total_a: TotalMapper[A] val)";
+
+  TEST_COMPILE(src);
+
+  // PartialBox has a partial lambda param; TotalMapper has a total lambda
+  // param — throws mismatch, reject.
+  ASSERT_EQ(MATCHTYPE_REJECT,
+    is_matchtype(type_of("pbox_a"), type_of("total_a"), NULL, &opt));
+}
+
+
+TEST_F(MatchTypeTest, TypeParamInTypeArgStructuralInterfaceLambdaBareMismatch)
+{
+  // A bare lambda (@{(A): B} val) must not unify with a non-bare lambda
+  // ({(A): B} val) — bareness must match.
+  const char* src =
+    "interface val NonBareMapper[A: Any #share]\n"
+    "  fun map_it[B: Any #share](f: {(A): B} val): B\n"
+
+    "class val BareBox[A: Any #share]\n"
+    "  let _v: A\n"
+    "  new val create(v: A) => _v = v\n"
+    "  fun map_it[B: Any #share](f: @{(A): B} val): B => f(_v)\n"
+
+    "interface Test\n"
+    "  fun z[A: Any #share]\n"
+    "    (bare_a: BareBox[A],\n"
+    "     nonbare_a: NonBareMapper[A] val)";
+
+  TEST_COMPILE(src);
+
+  // BareBox has a bare lambda param; NonBareMapper has a non-bare lambda
+  // param — bareness mismatch, reject.
+  ASSERT_EQ(MATCHTYPE_REJECT,
+    is_matchtype(type_of("bare_a"), type_of("nonbare_a"), NULL, &opt));
+}
+
+
+TEST_F(MatchTypeTest, TypeParamInTypeArgStructuralInterfaceUserDefinedVsLambda)
+{
+  // A user-defined single-method interface (MyFunc) and a lambda type
+  // ({(A): B} val) are structurally equivalent but have different defs.
+  // typeargs_could_unify must recognise them as potentially equal.
+  const char* src =
+    "interface val MyFunc[A: Any #share, B: Any #share]\n"
+    "  fun apply(a: A): B\n"
+
+    "class val Wrap[A: Any #share]\n"
+    "  let _value: A\n"
+    "  new val create(v: A) => _value = v\n"
+
+    "interface val UserMapper[A: Any #share]\n"
+    "  fun map_it[B: Any #share](f: MyFunc[A, B]): B\n"
+
+    "class val Box[A: Any #share]\n"
+    "  let _v: A\n"
+    "  new val create(v: A) => _v = v\n"
+    "  fun map_it[B: Any #share](f: {(A): B} val): B => f(_v)\n"
+
+    "interface Test\n"
+    "  fun z[A: Any #share, B: Any #share]\n"
+    "    (box_a: Box[A], user_mapper_wrap_b: UserMapper[Wrap[B] val] val,\n"
+    "     box_u8: Box[U8], user_mapper_wrap_u8: UserMapper[Wrap[U8] val] val)";
+
+  TEST_COMPILE(src);
+
+  // Box[A] vs UserMapper[Wrap[B] val]: Box's lambda param {(A): B} and
+  // UserMapper's MyFunc[A, B] are structurally identical single-method
+  // interfaces — accept.
+  ASSERT_EQ(MATCHTYPE_ACCEPT,
+    is_matchtype(type_of("box_a"), type_of("user_mapper_wrap_b"), NULL, &opt));
+
+  // Box[U8] vs UserMapper[Wrap[U8] val]: U8 cannot equal Wrap[U8] — reject.
+  ASSERT_EQ(MATCHTYPE_REJECT,
+    is_matchtype(type_of("box_u8"), type_of("user_mapper_wrap_u8"), NULL, &opt));
+}
+
+
 TEST_F(MatchTypeTest, TypeParamInTypeArgArrowThisViewpoint)
 {
   // A viewpoint-adapted type argument (this->A vs this->B) where both
