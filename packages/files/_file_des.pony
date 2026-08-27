@@ -60,6 +60,8 @@ primitive _FileDes
 
     ifdef windows then
       path.set_time(atime, mtime)
+    elseif haiku then
+      path.set_time(atime, mtime)
     else
       @ponyint_futimes(
         fd,

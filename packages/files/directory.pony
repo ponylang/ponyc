@@ -8,21 +8,21 @@ use @ponyint_o_directory[I32]()
 use @ponyint_o_cloexec[I32]()
 use @ponyint_at_removedir[I32]()
 use @openat[I32](fd: I32, path: Pointer[U8] tag, flags: I32, ...)
-  if linux or bsd
+  if linux or bsd or haiku
 use @unlinkat[I32](fd: I32, target: Pointer[U8] tag, flags: I32)
 use @ponyint_futimes[I32](fd: I32, atime_sec: I64, atime_usec: I64,
-  mtime_sec: I64, mtime_usec: I64) if not windows
+  mtime_sec: I64, mtime_usec: I64) if not windows and not haiku
 use @renameat[I32](fd: I32, from: Pointer[U8] tag, tofd: I32,
-  to_path: Pointer[U8] tag) if linux or bsd
+  to_path: Pointer[U8] tag) if linux or bsd or haiku
 use @symlinkat[I32](source: Pointer[U8] tag, fd: I32,
-  dst: Pointer[U8] tag) if linux or bsd
+  dst: Pointer[U8] tag) if linux or bsd or haiku
 use @ponyint_utimensat[I32](fd: I32, path: Pointer[U8] tag,
   atime_sec: I64, atime_usec: I64, mtime_sec: I64, mtime_usec: I64)
-  if linux or bsd
+  if linux or bsd or haiku
 use @fchownat[I32](fd: I32, path: Pointer[U8] tag, uid: U32, gid: U32,
-  flags: I32) if linux or bsd
+  flags: I32) if linux or bsd or haiku
 use @fchmodat[I32](fd: I32, path: Pointer[U8] tag, mode: U32,
-  flag: I32) if linux or bsd
+  flag: I32) if linux or bsd or haiku
 use @mkdirat[I32](fd: I32, path: Pointer[U8] tag, mode: U32)
 use @fdopendir[Pointer[_DirectoryHandle]](fd: I32) if posix
 use @opendir[Pointer[_DirectoryHandle]](name: Pointer[U8] tag) if posix
@@ -130,7 +130,7 @@ class Directory
         end
 
         let h =
-          ifdef linux or bsd then
+          ifdef linux or bsd or haiku then
             let fd =
               @openat(
                 fd',
@@ -191,7 +191,7 @@ class Directory
 
     let path' = FilePath.from(path, target, path.caps)?
 
-    ifdef linux or bsd then
+    ifdef linux or bsd or haiku then
       let fd' =
         @openat(
           _fd,
@@ -220,7 +220,7 @@ class Directory
     try
       let path' = FilePath.from(path, target, path.caps)?
 
-      ifdef linux or bsd then
+      ifdef linux or bsd or haiku then
         var offset: ISize = 0
 
         repeat
@@ -260,7 +260,7 @@ class Directory
 
     let path' = FilePath.from(path, target, path.caps)?
 
-    ifdef linux or bsd then
+    ifdef linux or bsd or haiku then
       let fd' =
         @openat(
           _fd,
@@ -287,7 +287,7 @@ class Directory
 
     let path' = FilePath.from(path, target, path.caps - FileWrite)?
 
-    ifdef linux or bsd then
+    ifdef linux or bsd or haiku then
       let fd' =
         @openat(
           _fd,
@@ -345,7 +345,7 @@ class Directory
 
     let path' = FilePath.from(path, target, path.caps)?
 
-    ifdef linux or bsd then
+    ifdef linux or bsd or haiku then
       FileInfo._relative(_fd, path', target)?
     else
       FileInfo(path')?
@@ -366,7 +366,7 @@ class Directory
     try
       let path' = FilePath.from(path, target, path.caps)?
 
-      ifdef linux or bsd then
+      ifdef linux or bsd or haiku then
         0 == @fchmodat(_fd, target.cstring(), mode.u32(), I32(0))
       else
         path'.chmod(mode)
@@ -390,7 +390,7 @@ class Directory
     try
       let path' = FilePath.from(path, target, path.caps)?
 
-      ifdef linux or bsd then
+      ifdef linux or bsd or haiku then
         0 == @fchownat(_fd, target.cstring(), uid, gid, I32(0))
       else
         path'.chown(uid, gid)
@@ -460,7 +460,7 @@ class Directory
     try
       let path' = FilePath.from(path, link_name, path.caps)?
 
-      ifdef linux or bsd then
+      ifdef linux or bsd or haiku then
         0 == @symlinkat(source.path.cstring(), _fd, link_name.cstring())
       else
         source.symlink(path')
@@ -485,7 +485,7 @@ class Directory
     try
       let path' = FilePath.from(path, target, path.caps)?
 
-      ifdef linux or bsd then
+      ifdef linux or bsd or haiku then
         let fi = FileInfo(path')?
 
         if fi.directory and not fi.symlink then
@@ -528,7 +528,7 @@ class Directory
       let path' = FilePath.from(path, source, path.caps)?
       let path'' = FilePath.from(to.path, target, to.path.caps)?
 
-      ifdef linux or bsd then
+      ifdef linux or bsd or haiku then
         0 == @renameat(_fd, source.cstring(), to._fd, target.cstring())
       else
         path'.rename(path'')
