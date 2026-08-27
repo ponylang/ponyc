@@ -13,6 +13,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Fix `Vec.slice` and `Vec.reverse` in `collections/persistent` ([PR #5856](https://github.com/ponylang/ponyc/pull/5856))
 - Fix false unreachable match for structural interface patterns ([PR #5872](https://github.com/ponylang/ponyc/pull/5872))
 - Fix false unreachable match for structural interface patterns with lambda parameters ([PR #5881](https://github.com/ponylang/ponyc/pull/5881))
+- Fix deferred stdout output on Windows ([PR #5885](https://github.com/ponylang/ponyc/pull/5885))
 
 ### Added
 
