@@ -461,8 +461,11 @@ bool expr_match(pass_opt_t* opt, ast_t* ast)
 
   if((type == NULL) && (ast_sibling(ast) != NULL))
   {
-    ast_error(opt->check.errors, ast_sibling(ast), "unreachable code");
-    return false;
+    if(!is_trailing_none_ref(ast_sibling(ast)))
+    {
+      ast_error(opt->check.errors, ast_sibling(ast), "unreachable code");
+      return false;
+    }
   }
 
   ast_settype(ast, type);

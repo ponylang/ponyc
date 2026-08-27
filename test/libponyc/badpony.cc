@@ -2993,17 +2993,10 @@ TEST_F(BadPonyTest, UnconstrainedTypeParameterCompiles)
 
 TEST_F(BadPonyTest, WhileBodyAndElseJumpAwayInSeparateFunction)
 {
-  // From issue #2792 (first example). A while loop whose body and else both
-  // jump away (a valueless break runs the else, which returns) produces no
-  // value and never resumes past the loop -- it jumps away. The sugar pass
-  // appends an implicit `None` to the None-returning function body, which is
-  // then unreachable. This is rejected as "unreachable code", the same error
-  // an equivalent `if true then return else return end` gets. (Previously the
-  // loop compiled, relying on the implicit `None` to luckily terminate the
-  // dead post block; once that block is terminated as unreachable in codegen
-  // -- required for the try-wrapped case -- the implicit `None` would land
-  // after the terminator, producing invalid IR. The expr pass now rejects the
-  // shape before codegen sees it.)
+  // From issue #2792. A while loop whose body and else both jump away
+  // produces no value and never resumes past the loop. The only sibling is
+  // the implicit None the sugar pass appends; that is not user-written code,
+  // so no "unreachable code" error should be reported.
   const char* src =
     "actor Main\n"
     "  fun a() =>\n"
@@ -3016,14 +3009,12 @@ TEST_F(BadPonyTest, WhileBodyAndElseJumpAwayInSeparateFunction)
     "  new create(env: Env) =>\n"
     "    a()";
 
-  TEST_ERRORS_1(src, "unreachable code");
+  TEST_COMPILE(src);
 }
 
 TEST_F(BadPonyTest, RepeatBodyAndElseJumpAwayInSeparateFunction)
 {
   // Same shape as WhileBodyAndElseJumpAwayInSeparateFunction but for repeat.
-  // The guard in expr_repeat mirrors the one in expr_while; this guards against
-  // a future regression that special-cases one loop kind.
   const char* src =
     "actor Main\n"
     "  fun a() =>\n"
@@ -3037,7 +3028,7 @@ TEST_F(BadPonyTest, RepeatBodyAndElseJumpAwayInSeparateFunction)
     "  new create(env: Env) =>\n"
     "    a()";
 
-  TEST_ERRORS_1(src, "unreachable code");
+  TEST_COMPILE(src);
 }
 
 TEST_F(BadPonyTest, WhileWithLiteralBreakValueAndJumpsAwayElse)
@@ -3082,6 +3073,119 @@ TEST_F(BadPonyTest, RepeatWithLiteralBreakValueAndJumpsAwayElse)
     "    a()";
 
   TEST_ERRORS_1(src, "Cannot infer type of unused literal");
+}
+
+// Issue #4565: when all branches of a control construct jump away and the
+// function returns None, the sugar-appended implicit None is the only
+// unreachable sibling. Since the user never wrote it, no error is reported.
+
+TEST_F(BadPonyTest, IfAllBranchesJumpAwayInNoneFunction)
+{
+  const char* src =
+    "actor Main\n"
+    "  fun maybe_error(dont_err: Bool = false) ? =>\n"
+    "    if dont_err then\n"
+    "      return\n"
+    "    else\n"
+    "      error\n"
+    "    end\n"
+
+    "  new create(env: Env) =>\n"
+    "    try maybe_error()? end";
+
+  TEST_COMPILE(src);
+}
+
+TEST_F(BadPonyTest, TryAllBranchesJumpAwayInNoneFunction)
+{
+  const char* src =
+    "actor Main\n"
+    "  fun a() ? =>\n"
+    "    try\n"
+    "      error\n"
+    "    else\n"
+    "      error\n"
+    "    end\n"
+
+    "  new create(env: Env) =>\n"
+    "    try a()? end";
+
+  TEST_COMPILE(src);
+}
+
+TEST_F(BadPonyTest, MatchAllCasesJumpAwayInNoneFunction)
+{
+  const char* src =
+    "actor Main\n"
+    "  fun a(x: (U32 | String)) ? =>\n"
+    "    match x\n"
+    "    | let _: U32 => return\n"
+    "    | let _: String => error\n"
+    "    else\n"
+    "      error\n"
+    "    end\n"
+
+    "  new create(env: Env) =>\n"
+    "    try a(U32(1))? end";
+
+  TEST_COMPILE(src);
+}
+
+TEST_F(BadPonyTest, IftypeAllBranchesJumpAwayInNoneFunction)
+{
+  const char* src =
+    "trait T\n"
+    "class C is T\n"
+
+    "actor Main\n"
+    "  fun a[A: T]() ? =>\n"
+    "    iftype A <: C then\n"
+    "      return\n"
+    "    else\n"
+    "      error\n"
+    "    end\n"
+
+    "  new create(env: Env) =>\n"
+    "    try a[C]()? end";
+
+  TEST_COMPILE(src);
+}
+
+TEST_F(BadPonyTest, WithBodyJumpsAwayInNoneFunction)
+{
+  const char* src =
+    "class Disposable\n"
+    "  fun ref dispose() => None\n"
+
+    "actor Main\n"
+    "  fun a() ? =>\n"
+    "    with d = Disposable do\n"
+    "      error\n"
+    "    end\n"
+
+    "  new create(env: Env) =>\n"
+    "    try a()? end";
+
+  TEST_COMPILE(src);
+}
+
+TEST_F(BadPonyTest, IfAllBranchesJumpAwayWithRealUnreachable)
+{
+  // Real user code after a fully-jumping if is still an error.
+  const char* src =
+    "actor Main\n"
+    "  fun a() ? =>\n"
+    "    if true then\n"
+    "      return\n"
+    "    else\n"
+    "      error\n"
+    "    end\n"
+    "    let x: U32 = 42\n"
+
+    "  new create(env: Env) =>\n"
+    "    try a()? end";
+
+  TEST_ERRORS_1(src, "unreachable code");
 }
 
 // A control expression that jumps away with no value (`error`, `return`,
