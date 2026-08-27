@@ -945,7 +945,9 @@ TEST_F(TimingPassTest, FailedCompileLeavesNoRegionRunning)
 
 
 // The finaliser pass does not run through ast_visit, so it is timed at its own
-// call site.
+// call site. The pass is fast enough to measure zero on a microsecond wall
+// clock, so the test checks that the row exists in the JSON report rather than
+// that the wall time is positive.
 TEST_F(TimingPassTest, FinaliserPassIsTimed)
 {
   const char* src =
@@ -955,10 +957,22 @@ TEST_F(TimingPassTest, FinaliserPassIsTimed)
     "  fun _final() =>\n"
     "    None";
 
+  std::string path = temp_path("final");
+
   opt.timers = pass_timers_create();
+  ASSERT_TRUE(pass_timers_set_json(opt.timers, path.c_str()));
 
   DO(test_compile(src, "final"));
 
   EXPECT_EQ(0u, pass_timers_depth(opt.timers, "prog", "final"));
-  EXPECT_GT(pass_timers_wall(opt.timers, "prog", "final"), 0.0);
+
+  ASSERT_TRUE(pass_timers_report(opt.timers));
+
+  std::string json = slurp(path.c_str());
+  remove(path.c_str());
+
+  ASSERT_FALSE(json.empty());
+  EXPECT_TRUE(is_valid_json(json)) << json;
+  EXPECT_NE(std::string::npos,
+    json.find("\"package\": \"prog\", \"pass\": \"final\""));
 }
