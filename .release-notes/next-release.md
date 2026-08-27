@@ -252,3 +252,27 @@ Single-method interfaces with different definitions but identical method signatu
 
 On Windows, stdout and stderr were left at the C runtime's default full buffering. Output from `env.out` could sit in the buffer and not appear until the program exited, especially when the program spent time in blocking FFI calls between prints. The same buffering was already configured on Unix (unbuffered for a terminal, line-buffered otherwise) but the Windows path was missing it.
 
+## Fix false "unreachable code" error when all branches jump away in a None-returning function
+
+Previously, a function returning `None` where every branch of a control construct jumped away (via `return`, `error`, `break`, or `continue`) was rejected with a false "unreachable code" error:
+
+```pony
+actor Main
+  fun maybe_error(dont_err: Bool = false) ? =>
+    if dont_err then
+      return
+    else
+      error
+    end
+
+  new create(env: Env) =>
+    try maybe_error()? end
+```
+
+```
+Error:
+main.pony:8:5: unreachable code
+```
+
+This affected `if`, `iftype`, `while`, `repeat`, `try`, `match`, and `with` constructs. The error pointed at compiler-generated code the user never wrote. This has been fixed.
+
