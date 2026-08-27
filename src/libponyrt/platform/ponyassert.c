@@ -8,7 +8,7 @@
 #include <crtdbg.h>
 #endif
 #ifdef PLATFORM_IS_POSIX_BASED
-#if defined(__GLIBC__) || defined(PLATFORM_IS_BSD) || defined(ALPINE_LINUX) || defined(PLATFORM_IS_MACOSX)
+#if defined(__GLIBC__) || defined(PLATFORM_IS_BSD) || defined(ALPINE_LINUX) || defined(PLATFORM_IS_MACOSX) || defined(PLATFORM_IS_HAIKU)
 #  include <execinfo.h>
 #endif
 #  include <unistd.h>
@@ -43,7 +43,7 @@ void ponyint_assert_fail(const char* expr, const char* file, size_t line,
   fprintf(stderr, "%s:" __zu ": %s: Assertion `%s` failed.\n\n", file, line,
     func, expr);
 
-#if defined(__GLIBC__) || defined(PLATFORM_IS_BSD) || defined(ALPINE_LINUX) || defined(PLATFORM_IS_MACOSX)
+#if defined(__GLIBC__) || defined(PLATFORM_IS_BSD) || defined(ALPINE_LINUX) || defined(PLATFORM_IS_MACOSX) || defined(PLATFORM_IS_HAIKU)
   void* addrs[256];
   stack_depth_t depth = backtrace(addrs, 256);
   char** strings = backtrace_symbols(addrs, depth);
