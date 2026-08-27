@@ -1053,6 +1053,132 @@ static bool compound_types_could_unify(subst_t* subst, ast_t* a, ast_t* b,
   return other_is_subtype_of_every_arm(compound, other, opt);
 }
 
+// Two single-method interfaces with different def pointers can still be
+// structurally equivalent — lambda types desugared at different source
+// positions, or a user-defined interface vs a lambda. When
+// typeargs_could_unify encounters two such nominals, it compares the
+// interfaces structurally rather than by identity.
+static bool single_method_interfaces_could_unify(subst_t* subst,
+  ast_t* a, ast_t* a_def, ast_t* b, ast_t* b_def, pass_opt_t* opt)
+{
+  if(ast_id(a_def) != TK_INTERFACE || ast_id(b_def) != TK_INTERFACE)
+    return false;
+
+  // Both must have exactly one member.
+  ast_t* a_members = ast_childidx(a_def, 4);
+  ast_t* b_members = ast_childidx(b_def, 4);
+  ast_t* a_method = ast_child(a_members);
+  ast_t* b_method = ast_child(b_members);
+
+  if(a_method == NULL || b_method == NULL)
+    return false;
+
+  if(ast_sibling(a_method) != NULL || ast_sibling(b_method) != NULL)
+    return false;
+
+  // Reify both methods with their class-level type arguments.
+  ast_t* a_typeparams = ast_childidx(a_def, 1);
+  ast_t* a_typeargs = ast_childidx(a, 2);
+  ast_t* b_typeparams = ast_childidx(b_def, 1);
+  ast_t* b_typeargs = ast_childidx(b, 2);
+
+  ast_t* r_a = reify_method_def(a_method, a_typeparams, a_typeargs, opt);
+  if(r_a == NULL) return false;
+
+  ast_t* r_b = reify_method_def(b_method, b_typeparams, b_typeargs, opt);
+  if(r_b == NULL)
+  {
+    if(r_a != a_method) ast_free_unattached(r_a);
+    return false;
+  }
+
+  bool result = false;
+
+  // Structural shape checks.
+  token_id t_a = ast_id(r_a);
+  token_id t_b = ast_id(r_b);
+
+  if(((t_a == TK_NEW) || (t_b == TK_NEW)) && (t_a != t_b))
+    goto cleanup;
+
+  AST_GET_CHILDREN(r_a, a_cap, a_id, a_tps, a_params, a_result, a_throws);
+  AST_GET_CHILDREN(r_b, b_cap, b_id, b_tps, b_params, b_result, b_throws);
+
+  if(ast_name(a_id) != ast_name(b_id))
+    goto cleanup;
+
+  if((ast_id(a_cap) == TK_AT) != (ast_id(b_cap) == TK_AT))
+    goto cleanup;
+
+  if(ast_childcount(a_tps) != ast_childcount(b_tps))
+    goto cleanup;
+
+  if(ast_childcount(a_params) != ast_childcount(b_params))
+    goto cleanup;
+
+  // If method-level type params exist, reify a's method with b's type params
+  // so both are in the same variable space (mirrors structural_could_match_pattern).
+  ast_t* rr_a = r_a;
+  if(ast_id(b_tps) != TK_NONE)
+  {
+    BUILD(typeargs, b_tps, NODE(TK_TYPEARGS));
+    ast_t* tp = ast_child(b_tps);
+    while(tp != NULL)
+    {
+      AST_GET_CHILDREN(tp, tp_id, tp_constraint);
+      BUILD(typearg, tp, NODE(TK_TYPEPARAMREF, TREE(tp_id) NONE NONE));
+      ast_t* def = ast_get(tp, ast_name(tp_id), NULL);
+      ast_setdata(typearg, def);
+      typeparam_set_cap(typearg);
+      ast_append(typeargs, typearg);
+      tp = ast_sibling(tp);
+    }
+
+    rr_a = reify_method_def(r_a, a_tps, typeargs, opt);
+    ast_free_unattached(typeargs);
+
+    a_result = ast_childidx(rr_a, 4);
+    a_throws = ast_childidx(rr_a, 5);
+    a_params = ast_childidx(rr_a, 3);
+  }
+
+  // Throws must match for unification.
+  if((ast_id(a_throws) == TK_QUESTION) != (ast_id(b_throws) == TK_QUESTION))
+    goto cleanup_rr;
+
+  // Result types must be unifiable.
+  if(!typeargs_could_unify(subst, a_result, b_result, opt))
+    goto cleanup_rr;
+
+  // Parameters.
+  {
+    ast_t* ap = ast_child(a_params);
+    ast_t* bp = ast_child(b_params);
+    while(ap != NULL && bp != NULL)
+    {
+      ast_t* a_type = ast_childidx(ap, 1);
+      ast_t* b_type = ast_childidx(bp, 1);
+
+      if(!typeargs_could_unify(subst, a_type, b_type, opt))
+        goto cleanup_rr;
+
+      ap = ast_sibling(ap);
+      bp = ast_sibling(bp);
+    }
+  }
+
+  result = true;
+
+cleanup_rr:
+  if(rr_a != r_a)
+    subst_keep(subst, rr_a);
+
+cleanup:
+  if(r_a != a_method) subst_keep(subst, r_a);
+  if(r_b != b_method) subst_keep(subst, r_b);
+  return result;
+}
+
 // Could two type-argument positions reify to equal types for some
 // substitution of the type parameters they contain?
 //
@@ -1277,7 +1403,8 @@ static bool typeargs_could_unify(subst_t* subst, ast_t* a, ast_t* b,
     ast_t* b_def = (ast_t*)ast_data(b);
 
     if(a_def != b_def)
-      return false;
+      return single_method_interfaces_could_unify(subst, a, a_def, b, b_def,
+        opt);
 
     ast_t* a_typeargs = ast_childidx(a, 2);
     ast_t* b_typeargs = ast_childidx(b, 2);
