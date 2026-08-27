@@ -441,6 +441,16 @@ PONY_API void pony_os_stdout_setup()
   GetConsoleScreenBufferInfo(handle, &csbi);
   stderr_reset = csbi.wAttributes;
   is_stderr_tty = (type == FILE_TYPE_CHAR);
+
+  if(is_stdout_tty)
+    setvbuf(stdout, NULL, _IONBF, 0);
+  else
+    setvbuf(stdout, NULL, _IOLBF, BUFSIZ);
+
+  if(is_stderr_tty)
+    setvbuf(stderr, NULL, _IONBF, 0);
+  else
+    setvbuf(stderr, NULL, _IOLBF, BUFSIZ);
 #else
   is_stdout_tty = (fd_type(STDOUT_FILENO) == FD_TYPE_TTY);
   is_stderr_tty = (fd_type(STDERR_FILENO) == FD_TYPE_TTY);
