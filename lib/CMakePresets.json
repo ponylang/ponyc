@@ -26,6 +26,16 @@
       }
     },
     {
+      "name": "libs-haiku-x86-64",
+      "displayName": "Vendored LLVM + support libraries (Haiku x86-64, gcc)",
+      "inherits": "libs-base",
+      "cacheVariables": {
+        "CMAKE_C_COMPILER": "gcc",
+        "CMAKE_CXX_COMPILER": "g++",
+        "LLVM_TARGETS_TO_BUILD": "X86"
+      }
+    },
+    {
       "name": "libs-windows-x86-64",
       "displayName": "Vendored LLVM + support libraries (Windows x86-64, MSVC)",
       "inherits": "libs-base",

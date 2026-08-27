@@ -48,6 +48,11 @@ typedef struct asio_event_t
    * and the peeked pipe events. NULL when the event is not on that list. */
   asio_event_t* next;
 #endif
+#ifdef PLATFORM_IS_HAIKU
+  int32_t wfo_id;       /* object_wait_info id, controlled only by wfo */
+  timer_t timerID;      /* timer handle */
+#endif
+
 } asio_event_t;
 
 /// Message that carries an event and event flags.
