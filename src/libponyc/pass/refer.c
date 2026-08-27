@@ -1528,6 +1528,32 @@ static bool refer_while(pass_opt_t* opt, ast_t* ast)
   return true;
 }
 
+// Returns true if the subtree contains a TK_BREAK targeting the enclosing
+// loop. Stops at nested loop and lambda boundaries.
+static bool subtree_contains_break(ast_t* ast)
+{
+  if(ast == NULL)
+    return false;
+
+  token_id id = ast_id(ast);
+
+  if(id == TK_BREAK)
+    return true;
+
+  if(id == TK_WHILE || id == TK_REPEAT ||
+    id == TK_LAMBDA || id == TK_BARELAMBDA)
+    return false;
+
+  for(ast_t* child = ast_child(ast); child != NULL;
+    child = ast_sibling(child))
+  {
+    if(subtree_contains_break(child))
+      return true;
+  }
+
+  return false;
+}
+
 static bool refer_repeat(pass_opt_t* opt, ast_t* ast)
 {
   pony_assert(ast_id(ast) == TK_REPEAT);
@@ -1542,10 +1568,40 @@ static bool refer_repeat(pass_opt_t* opt, ast_t* ast)
   }
 
   size_t branch_count = 0;
+  bool body_falls_through = !ast_checkflag(body, AST_FLAG_JUMPS_AWAY);
 
-  // No symbol status is inherited from the loop body. Nothing from outside the
-  // loop body can be consumed, and definitions in the body may not occur.
-  if(!ast_checkflag(body, AST_FLAG_JUMPS_AWAY))
+  // When the body jumps away via a trailing break with no earlier breaks,
+  // the body-end status accurately reflects what is defined on the break
+  // path (all definitions precede the break). When there are earlier
+  // conditional breaks, the body-end status may include definitions that
+  // happen after an early break, making it unsafe to trust.
+  bool body_break_clean = false;
+
+  if(!body_falls_through && ast_checkflag(body, AST_FLAG_MAY_BREAK))
+  {
+    ast_t* last = ast_childlast(body);
+
+    if((last != NULL) && (ast_id(last) == TK_BREAK))
+    {
+      body_break_clean = true;
+
+      for(ast_t* child = ast_child(body); child != last;
+        child = ast_sibling(child))
+      {
+        if(subtree_contains_break(child))
+        {
+          body_break_clean = false;
+          break;
+        }
+      }
+    }
+  }
+
+  // Count the body as a definition branch when its end-of-sequence status
+  // is accurate for the exit path: either the body falls through to the
+  // condition (normal path), or its only break is a trailing one whose
+  // definitions are the body-end definitions.
+  if(body_falls_through || body_break_clean)
   {
     branch_count++;
     ast_inheritbranch(ast, body);
@@ -1553,15 +1609,13 @@ static bool refer_repeat(pass_opt_t* opt, ast_t* ast)
 
   if(!ast_checkflag(else_clause, AST_FLAG_JUMPS_AWAY))
   {
-    // Only include the else clause in the branch analysis
-    // if the loop has a break statement somewhere in it.
-    // This allows us to treat the entire loop body as being
-    // sure to execute in every case, at least for the purposes
-    // of analyzing variables being defined in its scope.
-    // For the case of errors and return statements that may
-    // exit the loop, they do not affect our analysis here
-    // because they will skip past more than just the loop itself.
-    if(ast_checkflag(body, AST_FLAG_MAY_BREAK))
+    // The else clause is reachable via continue and via valueless break
+    // (see gen_repeat: break_novalue_target = else_block). Count it as a
+    // definition branch when those paths exist. When the body has early
+    // conditional breaks (body_break_clean is false), the body-end status
+    // is unsafe, so the else serves as a conservative proxy.
+    if(ast_checkflag(body, AST_FLAG_MAY_CONTINUE) ||
+      (!body_break_clean && ast_checkflag(body, AST_FLAG_MAY_BREAK)))
     {
       branch_count++;
       ast_inheritbranch(ast, else_clause);
@@ -1570,18 +1624,17 @@ static bool refer_repeat(pass_opt_t* opt, ast_t* ast)
 
   ast_consolidate_branches(ast, branch_count);
 
-  // The loop produces no value -- and so jumps away -- only when none of its
-  // exits yields one. branch_count is 0 when the body never falls through to
-  // the condition. On top of that, a break carrying a value gives the loop that
-  // value, and a continue routes to the else clause (see gen_repeat), so a body
-  // that may continue past a non-jumps-away else gives the loop that else's
-  // value. Any of those is a value-producing exit that lets control resume past
-  // the loop.
-  bool value_via_continue = ast_checkflag(body, AST_FLAG_MAY_CONTINUE) &&
-    !ast_checkflag(else_clause, AST_FLAG_JUMPS_AWAY);
+  // The loop jumps away only when no exit yields a value. Both continue
+  // and valueless break route through the else clause (see gen_repeat),
+  // so either path past a non-jumps-away else gives the loop a value.
+  bool exits_via_else =
+    !ast_checkflag(else_clause, AST_FLAG_JUMPS_AWAY) &&
+    (ast_checkflag(body, AST_FLAG_MAY_CONTINUE) ||
+      (ast_checkflag(body, AST_FLAG_MAY_BREAK) &&
+        !ast_checkflag(body, AST_FLAG_MAY_BREAK_VALUE)));
 
-  if((branch_count == 0) && !ast_checkflag(body, AST_FLAG_MAY_BREAK_VALUE) &&
-    !value_via_continue)
+  if(!body_falls_through && !ast_checkflag(body, AST_FLAG_MAY_BREAK_VALUE) &&
+    !exits_via_else)
     ast_setflag(ast, AST_FLAG_JUMPS_AWAY);
 
   // Push our symbol status to our parent scope.

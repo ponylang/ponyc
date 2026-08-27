@@ -6118,6 +6118,301 @@ TEST_F(VerifyTest, TryElseNoFieldInitializationInElse)
     "constructor with undefined fields is here");
 }
 
+TEST_F(VerifyTest, RepeatFieldInitInBody)
+{
+  const char* src =
+    "actor Main\n"
+    "  var _s: (String | None)\n"
+    "  new create(env: Env) =>\n"
+    "    repeat\n"
+    "      _s = None\n"
+    "    until true end";
+
+  TEST_COMPILE(src);
+}
+
+TEST_F(VerifyTest, RepeatFieldInitInBodyWithElse)
+{
+  const char* src =
+    "actor Main\n"
+    "  var _s: (String | None)\n"
+    "  new create(env: Env) =>\n"
+    "    repeat\n"
+    "      _s = None\n"
+    "    until true else\n"
+    "      None\n"
+    "    end";
+
+  TEST_COMPILE(src);
+}
+
+TEST_F(VerifyTest, RepeatFieldInitInBodyAndElseWithBreak)
+{
+  const char* src =
+    "actor Main\n"
+    "  var _s: (String | None)\n"
+    "  new create(env: Env) =>\n"
+    "    repeat\n"
+    "      _s = None\n"
+    "      if true then break end\n"
+    "    until true else\n"
+    "      _s = None\n"
+    "    end";
+
+  TEST_COMPILE(src);
+}
+
+TEST_F(VerifyTest, RepeatFieldInitInBodyAndElseWithContinue)
+{
+  const char* src =
+    "actor Main\n"
+    "  var _s: (String | None)\n"
+    "  new create(env: Env) =>\n"
+    "    repeat\n"
+    "      _s = None\n"
+    "      if true then continue end\n"
+    "    until true else\n"
+    "      _s = None\n"
+    "    end";
+
+  TEST_COMPILE(src);
+}
+
+TEST_F(VerifyTest, RepeatNoFieldInitialization)
+{
+  const char* src =
+    "actor Main\n"
+    "  var _s: (String | None)\n"
+    "  new create(env: Env) =>\n"
+    "    repeat\n"
+    "      None\n"
+    "    until true end";
+
+  TEST_ERRORS_2(src,
+    "field left undefined in constructor",
+    "constructor with undefined fields is here");
+}
+
+TEST_F(VerifyTest, RepeatNoFieldInitializationWithElse)
+{
+  const char* src =
+    "actor Main\n"
+    "  var _s: (String | None)\n"
+    "  new create(env: Env) =>\n"
+    "    repeat\n"
+    "      None\n"
+    "    until true else\n"
+    "      None\n"
+    "    end";
+
+  TEST_ERRORS_2(src,
+    "field left undefined in constructor",
+    "constructor with undefined fields is here");
+}
+
+TEST_F(VerifyTest, RepeatFieldInitOnlyInElse)
+{
+  const char* src =
+    "actor Main\n"
+    "  var _s: (String | None)\n"
+    "  new create(env: Env) =>\n"
+    "    repeat\n"
+    "      None\n"
+    "    until true else\n"
+    "      _s = None\n"
+    "    end";
+
+  TEST_ERRORS_2(src,
+    "field left undefined in constructor",
+    "constructor with undefined fields is here");
+}
+
+TEST_F(VerifyTest, RepeatFieldInitInBodyNotElseWithBreak)
+{
+  // Issue #4010. The body unconditionally initializes _s before breaking,
+  // so the field is always defined. The valueless break routes through the
+  // else clause (see gen_repeat), but the body's definitions carry through.
+  const char* src =
+    "actor Main\n"
+    "  var _s: (String | None)\n"
+    "  new create(env: Env) =>\n"
+    "    repeat\n"
+    "      _s = None\n"
+    "      break\n"
+    "    until true else\n"
+    "      None\n"
+    "    end";
+
+  TEST_COMPILE(src);
+}
+
+TEST_F(VerifyTest, RepeatFieldInitAfterBreak)
+{
+  // Field init after a conditional break — the break path exits without
+  // initializing the field.
+  const char* src =
+    "actor Main\n"
+    "  var _s: (String | None)\n"
+    "  new create(env: Env) =>\n"
+    "    repeat\n"
+    "      if true then break end\n"
+    "      _s = None\n"
+    "    until true else\n"
+    "      None\n"
+    "    end";
+
+  TEST_ERRORS_2(src,
+    "field left undefined in constructor",
+    "constructor with undefined fields is here");
+}
+
+TEST_F(VerifyTest, RepeatFieldInitInConditionalWithBreak)
+{
+  // Field is only initialized in one branch of an if inside the body.
+  // With a break present, the else also becomes a branch, and neither
+  // path guarantees initialization.
+  const char* src =
+    "actor Main\n"
+    "  var _s: (String | None)\n"
+    "  new create(env: Env) =>\n"
+    "    repeat\n"
+    "      if true then\n"
+    "        _s = None\n"
+    "        break\n"
+    "      end\n"
+    "    until true else\n"
+    "      None\n"
+    "    end";
+
+  TEST_ERRORS_2(src,
+    "field left undefined in constructor",
+    "constructor with undefined fields is here");
+}
+
+TEST_F(VerifyTest, RepeatFieldInitInBodyWithBreakAndContinue)
+{
+  // Both break and continue paths exist. Both route through else
+  // (valueless break and continue), so body and else must both init.
+  const char* src =
+    "actor Main\n"
+    "  var _s: (String | None)\n"
+    "  new create(env: Env) =>\n"
+    "    repeat\n"
+    "      _s = None\n"
+    "      if true then\n"
+    "        break\n"
+    "      else\n"
+    "        continue\n"
+    "      end\n"
+    "    until true else\n"
+    "      _s = None\n"
+    "    end";
+
+  TEST_COMPILE(src);
+}
+
+TEST_F(VerifyTest, RepeatFieldInitInBodyNotElseWithBreakAndContinue)
+{
+  // Both break and continue paths exist but else does not init the field.
+  const char* src =
+    "actor Main\n"
+    "  var _s: (String | None)\n"
+    "  new create(env: Env) =>\n"
+    "    repeat\n"
+    "      _s = None\n"
+    "      if true then\n"
+    "        break\n"
+    "      else\n"
+    "        continue\n"
+    "      end\n"
+    "    until true else\n"
+    "      None\n"
+    "    end";
+
+  TEST_ERRORS_2(src,
+    "field left undefined in constructor",
+    "constructor with undefined fields is here");
+}
+
+TEST_F(VerifyTest, RepeatFieldInitInBodyNotElseWithBreakCodeAfterLoop)
+{
+  // Valueless break routes through the else clause to post (see gen_repeat).
+  // Code after the loop must be considered reachable.
+  const char* src =
+    "actor Main\n"
+    "  var _s: (String | None)\n"
+    "  new create(env: Env) =>\n"
+    "    repeat\n"
+    "      _s = None\n"
+    "      break\n"
+    "    until true else\n"
+    "      None\n"
+    "    end\n"
+    "    None";
+
+  TEST_COMPILE(src);
+}
+
+TEST_F(VerifyTest, RepeatFieldInitConditionalBreakBeforeInit)
+{
+  // A conditional break before the field init can exit the loop without
+  // initializing the field, even though the body-end status shows it as
+  // defined.
+  const char* src =
+    "actor Main\n"
+    "  var _s: (String | None)\n"
+    "  new create(env: Env) =>\n"
+    "    repeat\n"
+    "      if true then break end\n"
+    "      _s = None\n"
+    "      break\n"
+    "    until true else\n"
+    "      None\n"
+    "    end";
+
+  TEST_ERRORS_2(src,
+    "field left undefined in constructor",
+    "constructor with undefined fields is here");
+}
+
+TEST_F(VerifyTest, RepeatFieldInitInBodyWithBreakValue)
+{
+  // Break with a value routes directly to post (break_target = post_block),
+  // bypassing the else clause entirely. The body initializes the field before
+  // breaking, so this should compile.
+  const char* src =
+    "actor Main\n"
+    "  var _s: (String | None)\n"
+    "  new create(env: Env) =>\n"
+    "    _s = repeat\n"
+    "      _s = None\n"
+    "      break _s\n"
+    "    until true else\n"
+    "      None\n"
+    "    end";
+
+  TEST_COMPILE(src);
+}
+
+TEST_F(VerifyTest, RepeatFieldInitBodyUnconditionalError)
+{
+  // Body unconditionally errors — no path through the loop defines the
+  // field, and the loop jumps away entirely.
+  const char* src =
+    "actor Main\n"
+    "  var _s: (String | None)\n"
+    "  new create(env: Env) =>\n"
+    "    repeat\n"
+    "      error\n"
+    "    until true else\n"
+    "      _s = None\n"
+    "    end";
+
+  TEST_ERRORS_2(src,
+    "field left undefined in constructor",
+    "constructor with undefined fields is here");
+}
+
 // The compile-time disjoint-concrete check from #1977 must not flag these
 // cases. Each test pins down a specific shape the rule is intentionally
 // blind to (same type, alias, trait/interface, union, type parameter, or
