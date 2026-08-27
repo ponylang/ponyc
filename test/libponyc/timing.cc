@@ -34,8 +34,7 @@ static std::string slurp(const char* path)
 }
 
 
-// A path in the temp dir unique to the calling test, so two test processes
-// sharing /tmp cannot collide.
+// A path in the temp dir unique to the calling test within one process.
 static std::string temp_path(const char* tag)
 {
   const testing::TestInfo* info =
@@ -69,8 +68,7 @@ static bool well_formed_seconds(const char* s)
 
 // A minimal JSON validator: enough to reject the malformed output a mutation to
 // the writer produces (a dangling or missing separator, an unterminated string,
-// an unbalanced bracket, a bare or comma-decimal number). Every assertion in
-// this file used to be a substring search, which cannot see any of that.
+// an unbalanced bracket, a bare or comma-decimal number).
 namespace
 {
   class JsonCheck
@@ -325,7 +323,7 @@ TEST_F(TimingTest, ReentrantSameRegionCountsSpanOnce)
 
 // A stop with no matching start must be ignored and must leave no row: the
 // stderr table skips a timer that never ran, so a row created here would appear
-// in the JSON and nowhere else. Asserting the depth catches the unsigned
+// in the JSON and nowhere else. The depth assertion fails on the unsigned
 // underflow that dropping the guard produces -- `--depth == 0` on a zero
 // unsigned is false, so the timer is never touched and a wall-time assertion
 // alone would still pass.
@@ -477,8 +475,8 @@ TEST_F(TimingTest, IllFormedUtf8BecomesReplacementChar)
 
 // Two regions exercise the row separator, which one region cannot: a writer
 // that never advances past its first row emits a leading comma, and the file
-// stops being JSON. Row order is by name, which the JSON writer's std::map
-// gives it -- a consumer relies on that being stable across runs.
+// stops being JSON. Row order is by name; a consumer relies on that being
+// stable across runs.
 TEST_F(TimingTest, MultipleRowsAreSeparatedAndNameOrdered)
 {
   std::string path = temp_path("rows2");
@@ -575,8 +573,7 @@ TEST_F(TimingTest, JsonOnlyWritesFileAndPrintsNothing)
 }
 
 
-// The stderr table is the primary output of --pass-timings and was previously
-// never exercised. It must carry the row, the elapsed-wall denominator (without
+// The stderr table must carry the row, the elapsed-wall denominator (without
 // which the reader cannot tell what share of the build the rows cover), and the
 // statement that only the front end is timed.
 TEST_F(TimingTest, TablePrintsRowsAndDenominator)
@@ -734,8 +731,8 @@ TEST_F(TimingTest, MetaFieldsAppearInJson)
 }
 
 
-// A NULL triple is the documented case for a build that failed before the
-// target was resolved: the field is omitted rather than written empty.
+// A NULL triple omits the field rather than writing it empty. main.c passes
+// NULL when the build failed before the target was resolved.
 TEST_F(TimingTest, NullTripleOmitsTheField)
 {
   std::string path = temp_path("nulltriple");
@@ -787,10 +784,6 @@ TEST_F(TimingTest, DefaultMetaIsOkAndOmitsTriple)
 // being in a comma-decimal locale, so this skips rather than false-passing
 // where the platform has none: in a "C"-only environment even %f prints '.',
 // so a passing assertion there would prove nothing.
-//
-// No ponyc CI image installs such a locale today, so this guarantee is not
-// verified by CI. SecondsFormatIsWellFormed is not a substitute -- printf's
-// "%.6f" satisfies that shape too in the C locale.
 TEST_F(TimingTest, JsonNumbersAreLocaleIndependent)
 {
   const char* comma_locales[] =
@@ -898,10 +891,10 @@ TEST_F(TimingTest, SecondsFormatRejectsNanAndOutOfRange)
 }
 
 
-// The instrumentation in pass.c is what the option actually drives, and none of
-// the tests above touch it. A compile must leave every region it opened closed
-// -- a start whose stop is missed on some return path leaves the timer running,
-// and the row then reports 0.000000 next to the pass that is actually slow.
+// The instrumentation in pass.c is what the option actually drives. A compile
+// must leave every region it opened closed -- a start whose stop is missed on
+// some return path leaves the timer running, and the row then reports 0.000000
+// next to the pass that is actually slow.
 class TimingPassTest: public PassTest {};
 
 
@@ -952,8 +945,7 @@ TEST_F(TimingPassTest, FailedCompileLeavesNoRegionRunning)
 
 
 // The finaliser pass does not run through ast_visit, so it is timed at its own
-// call site. Without that it silently produced no row at all, while the docs
-// claimed every front-end pass was covered.
+// call site.
 TEST_F(TimingPassTest, FinaliserPassIsTimed)
 {
   const char* src =
