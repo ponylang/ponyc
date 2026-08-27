@@ -503,6 +503,9 @@ LLVMValueRef gen_recover(compile_t* c, ast_t* ast)
   ast_t* body = ast_childidx(ast, 1);
   LLVMValueRef ret = gen_expr(c, body);
 
+  if(ret == GEN_NOVALUE)
+    return GEN_NOVALUE;
+
   if(is_result_needed(ast, c->opt))
   {
     deferred_reification_t* reify = c->frame->reify;

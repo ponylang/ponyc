@@ -918,6 +918,9 @@ LLVMValueRef gen_assign(compile_t* c, ast_t* ast)
   if(r_value == NULL)
     return NULL;
 
+  if(r_value == GEN_NOVALUE)
+    return GEN_NOVALUE;
+
   codegen_debugloc(c, ast);
   ast_t* type = deferred_reify(c->frame->reify, ast_type(right), c->opt);
   LLVMValueRef result = assign_rvalue(c, left, type, r_value);
