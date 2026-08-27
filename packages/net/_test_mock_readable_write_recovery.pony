@@ -54,7 +54,7 @@ class \nodoc\ _FAReadableWhileThrottled is AsioBackend
 
   fun ref resubscribe_read(event: AsioEventID) =>
     _readable_processed = true
-    ifdef bsd then
+    ifdef bsd or haiku then
       match _target
       | let t: _AsioEventInjectable tag =>
         t._inject_asio_event(_main_event, AsioEvent.write())
@@ -62,7 +62,7 @@ class \nodoc\ _FAReadableWhileThrottled is AsioBackend
     end
 
   fun ref resubscribe_write(event: AsioEventID) =>
-    ifdef not bsd then
+    ifdef not bsd and not haiku then
       if _readable_processed then
         match _target
         | let t: _AsioEventInjectable tag =>
