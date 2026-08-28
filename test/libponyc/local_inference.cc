@@ -99,7 +99,12 @@ TEST_F(LocalInferTest, UnionOfTuples)
     "  fun f(x:((None, U32) | (Bool, U32))) =>\n"
     "    (var a, var b) = x";
 
-  TEST_ERROR(short_form);
+  const char* full_form =
+    "class C\n"
+    "  fun f(x:((None, U32) | (Bool, U32))) =>\n"
+    "    (var a: (None | Bool), var b: U32) = x";
+
+  TEST_EQUIV(short_form, full_form);
 }
 
 
@@ -132,6 +137,60 @@ TEST_F(LocalInferTest, DeclAndNot)
     "  fun f() =>\n"
     "    var b: Bool\n"
     "    (var a: None, (b, let c: U32)) = (None, (true, U32))";
+
+  TEST_EQUIV(short_form, full_form);
+}
+
+
+TEST_F(LocalInferTest, UnionOfTuplesMixedArity)
+{
+  const char* src =
+    "class C\n"
+    "  fun f(x:((None, U32) | (Bool, U32, String))) =>\n"
+    "    (var a, var b) = x";
+
+  TEST_ERROR(src);
+}
+
+
+TEST_F(LocalInferTest, UnionWithNonTupleMember)
+{
+  const char* src =
+    "class C\n"
+    "  fun f(x:((None, U32) | Bool)) =>\n"
+    "    (var a, var b) = x";
+
+  TEST_ERROR(src);
+}
+
+
+TEST_F(LocalInferTest, UnionOfTuplesDontCare)
+{
+  const char* short_form =
+    "class C\n"
+    "  fun f(x:((None, U32) | (Bool, U32))) =>\n"
+    "    (_, var b) = x";
+
+  const char* full_form =
+    "class C\n"
+    "  fun f(x:((None, U32) | (Bool, U32))) =>\n"
+    "    (_, var b: U32) = x";
+
+  TEST_EQUIV(short_form, full_form);
+}
+
+
+TEST_F(LocalInferTest, UnionOfTuplesThreeMembers)
+{
+  const char* short_form =
+    "class C\n"
+    "  fun f(x:((None, U32) | (Bool, U32) | (String, U32))) =>\n"
+    "    (var a, var b) = x";
+
+  const char* full_form =
+    "class C\n"
+    "  fun f(x:((None, U32) | (Bool, U32) | (String, U32))) =>\n"
+    "    (var a: (None | Bool | String), var b: U32) = x";
 
   TEST_EQUIV(short_form, full_form);
 }
