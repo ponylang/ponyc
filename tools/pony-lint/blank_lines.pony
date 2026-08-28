@@ -240,20 +240,56 @@ primitive BlankLines is ASTRule
   =>
     """
     Count blank lines between `after_line` and `before_line` (1-based,
-    exclusive on both ends).
+    exclusive on both ends). Blank lines inside block comments are not
+    counted — they are paragraph breaks in comment prose, not entity
+    separators.
     """
     if before_line <= (after_line + 1) then return 0 end
     var count: USize = 0
+    var comment_depth: USize = 0
     var line_idx = after_line // 0-based index of next line to check
     while line_idx < (before_line - 1) do
       try
-        if _is_blank(source.lines(line_idx)?) then
+        let line = source.lines(line_idx)?
+        comment_depth = _comment_depth_after(line, comment_depth)
+        if (comment_depth == 0) and _is_blank(line) then
           count = count + 1
         end
       end
       line_idx = line_idx + 1
     end
     count
+
+  fun _comment_depth_after(line: String val, depth: USize): USize =>
+    """
+    Scan a source line for `/*` and `*/` delimiters and return the
+    updated nesting depth. Handles multiple opens/closes on one
+    line and Pony's nested block comments.
+    """
+    var i: USize = 0
+    var d = depth
+    let len = line.size()
+    if len < 2 then return d end
+    while i < (len - 1) do
+      try
+        let c0 = line(i)?
+        let c1 = line(i + 1)?
+        if (c0 == '/') and (c1 == '/') and (d == 0) then
+          return d
+        elseif (c0 == '/') and (c1 == '*') then
+          d = d + 1
+          i = i + 2
+        elseif (c0 == '*') and (c1 == '/') and (d > 0) then
+          d = d - 1
+          i = i + 2
+        else
+          i = i + 1
+        end
+      else
+        i = i + 1
+      end
+    end
+    d
 
   fun _is_blank(line: String val): Bool =>
     """
