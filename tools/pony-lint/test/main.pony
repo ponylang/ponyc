@@ -336,6 +336,11 @@ actor \nodoc\ Main is TestList
     test(_TestBlankLinesLeadingBlankDocEntitiesNoBlank)
     test(_TestBlankLinesLeadingBlankDocMethodClean)
     test(_TestBlankLinesLeadingBlankDocMethodNoBlank)
+    test(_TestBlankLinesBlockCommentBetweenEntitiesClean)
+    test(_TestBlankLinesBlockCommentNoSeparator)
+    test(_TestBlankLinesNestedBlockCommentClean)
+    test(_TestBlankLinesLineCommentWithBlockDelimiterClean)
+    test(_TestBlankLinesBlockCommentBetweenMethodsClean)
 
     // IndentationSize tests
     test(_TestIndentationSizeClean)

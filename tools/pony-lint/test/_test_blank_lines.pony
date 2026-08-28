@@ -820,6 +820,168 @@ class \nodoc\ _TestBlankLinesLeadingBlankDocEntitiesNoBlank is UnitTest
       h.fail("compilation failed")
     end
 
+class \nodoc\ _TestBlankLinesBlockCommentBetweenEntitiesClean is UnitTest
+  """
+  Block comment with blank lines between entities, with 1 blank
+  line before the comment — should be clean. The blank lines inside
+  the comment are paragraph breaks, not entity separators.
+  Regression test for #5893.
+  """
+  fun name(): String =>
+    "BlankLines: block comment between entities is clean"
+
+  fun apply(h: TestHelper) =>
+    let sf =
+      lint.SourceFile(
+        "test.pony",
+        "class Foo\n" +                       // 1
+        "  fun apply(): None => None\n" +     // 2
+        "\n" +                                // 3 (blank — separator)
+        "/*\n" +                              // 4
+        "Comment with\n" +                    // 5
+        "\n" +                                // 6 (blank inside comment)
+        "a paragraph break.\n" +              // 7
+        "*/\n" +                              // 8
+        "type Bar is (Foo | None)\n",         // 9
+        ".")
+    let entities =
+      recover val
+        Array[(String val, ast.TokenId, USize, USize)]
+          .> push(("Foo", ast.TokenIds.tk_class(), 1, 2))
+          .> push(("Bar", ast.TokenIds.tk_type(), 9, 9))
+      end
+    let diags = lint.BlankLines.check_module(entities, sf)
+    h.assert_eq[USize](0, diags.size())
+
+class \nodoc\ _TestBlankLinesBlockCommentNoSeparator is UnitTest
+  """
+  Block comment immediately after entity with no blank separator
+  — should be flagged. The comment doesn't substitute for the
+  blank line. Regression test for #5893.
+  """
+  fun name(): String =>
+    "BlankLines: block comment no blank separator flagged"
+
+  fun apply(h: TestHelper) =>
+    let sf =
+      lint.SourceFile(
+        "test.pony",
+        "class Foo\n" +                       // 1
+        "  fun apply(): None => None\n" +     // 2
+        "/* comment */\n" +                   // 3
+        "type Bar is (Foo | None)\n",         // 4
+        ".")
+    let entities =
+      recover val
+        Array[(String val, ast.TokenId, USize, USize)]
+          .> push(("Foo", ast.TokenIds.tk_class(), 1, 2))
+          .> push(("Bar", ast.TokenIds.tk_type(), 4, 4))
+      end
+    let diags = lint.BlankLines.check_module(entities, sf)
+    h.assert_eq[USize](1, diags.size())
+    try
+      h.assert_true(diags(0)?.message.contains("between entities"))
+    else
+      h.fail("could not access diagnostic")
+    end
+
+class \nodoc\ _TestBlankLinesNestedBlockCommentClean is UnitTest
+  """
+  Nested block comment with blank lines between entities —
+  should be clean. Regression test for #5893.
+  """
+  fun name(): String =>
+    "BlankLines: nested block comment between entities is clean"
+
+  fun apply(h: TestHelper) =>
+    let sf =
+      lint.SourceFile(
+        "test.pony",
+        "class Foo\n" +                       // 1
+        "  fun apply(): None => None\n" +     // 2
+        "\n" +                                // 3
+        "/* outer /* inner\n" +               // 4
+        "\n" +                                // 5 (blank inside nested)
+        "*/ still outer */\n" +               // 6
+        "type Bar is (Foo | None)\n",         // 7
+        ".")
+    let entities =
+      recover val
+        Array[(String val, ast.TokenId, USize, USize)]
+          .> push(("Foo", ast.TokenIds.tk_class(), 1, 2))
+          .> push(("Bar", ast.TokenIds.tk_type(), 7, 7))
+      end
+    let diags = lint.BlankLines.check_module(entities, sf)
+    h.assert_eq[USize](0, diags.size())
+
+class \nodoc\ _TestBlankLinesLineCommentWithBlockDelimiterClean is UnitTest
+  """
+  Line comment containing `/*` between entities does not poison
+  the block-comment depth tracker. Regression test for #5893.
+  """
+  fun name(): String =>
+    "BlankLines: line comment with block delimiter is clean"
+
+  fun apply(h: TestHelper) =>
+    let sf =
+      lint.SourceFile(
+        "test.pony",
+        "class Foo\n" +                       // 1
+        "  fun apply(): None => None\n" +     // 2
+        "// contains /* unmatched\n" +        // 3
+        "\n" +                                // 4 (blank — separator)
+        "type Bar is (Foo | None)\n",         // 5
+        ".")
+    let entities =
+      recover val
+        Array[(String val, ast.TokenId, USize, USize)]
+          .> push(("Foo", ast.TokenIds.tk_class(), 1, 2))
+          .> push(("Bar", ast.TokenIds.tk_type(), 5, 5))
+      end
+    let diags = lint.BlankLines.check_module(entities, sf)
+    h.assert_eq[USize](0, diags.size())
+
+class \nodoc\ _TestBlankLinesBlockCommentBetweenMethodsClean is UnitTest
+  """
+  Block comment with blank lines between methods within an entity
+  — should be clean. Regression test for #5893.
+  """
+  fun name(): String =>
+    "BlankLines: block comment between methods is clean"
+
+  fun exclusion_group(): String => "ast-compile"
+
+  fun apply(h: TestHelper) =>
+    let source: String val =
+      "class Foo\n" +
+      "  fun foo(): U32 =>\n" +
+      "    U32(1)\n" +
+      "\n" +
+      "  /*\n" +
+      "  Comment with\n" +
+      "\n" +
+      "  a paragraph break.\n" +
+      "  */\n" +
+      "  fun bar(): U32 =>\n" +
+      "    U32(2)\n"
+    try
+      (let program, let sf) = _ASTTestHelper.compile(h, source)?
+      match program.package()
+      | let pkg: ast.Package val =>
+        match pkg.module()
+        | let mod: ast.Module val =>
+          let diags = _CollectRuleDiags(mod, sf, lint.BlankLines)
+          h.assert_eq[USize](0, diags.size())
+        else
+          h.fail("no module")
+        end
+      else
+        h.fail("no package")
+      end
+    else
+      h.fail("compilation failed")
+    end
+
 class \nodoc\ _TestBlankLinesLeadingBlankDocMethodClean is UnitTest
   """
   Abstract method with docstring that starts with a blank line
