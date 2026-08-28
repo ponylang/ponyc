@@ -1349,6 +1349,450 @@ static bool refer_local(pass_opt_t* opt, ast_t* ast)
   return true;
 }
 
+// Check if an AST node syntactically contains an expression that can error.
+// CAN_ERROR is not set until the verify pass, so this uses syntactic markers
+// (TK_QUESTION on calls, TK_ERROR, TK_AS) to approximate.
+static bool can_error_syntactic(ast_t* ast)
+{
+  switch(ast_id(ast))
+  {
+    case TK_ERROR:
+    case TK_AS:
+      return true;
+
+    case TK_CALL:
+    {
+      ast_t* question = ast_childidx(ast, 3);
+      if((question != NULL) && (ast_id(question) == TK_QUESTION))
+        return true;
+      break;
+    }
+
+    case TK_FFICALL:
+    {
+      ast_t* question = ast_childidx(ast, 4);
+      if((question != NULL) && (ast_id(question) == TK_QUESTION))
+        return true;
+      break;
+    }
+
+    case TK_TRY:
+    case TK_TRY_NO_CHECK:
+      return false;
+
+    default:
+      break;
+  }
+
+  ast_t* child = ast_child(ast);
+  while(child != NULL)
+  {
+    if(can_error_syntactic(child))
+      return true;
+    child = ast_sibling(child);
+  }
+
+  return false;
+}
+
+// Name set for tracking consumed variables at error points.
+// Uses interned string pointers (compared by address).
+#define NAME_SET_MAX 64
+
+typedef struct name_set_t
+{
+  const char* names[NAME_SET_MAX];
+  size_t count;
+  bool overflow;
+} name_set_t;
+
+static void name_set_init(name_set_t* set)
+{
+  set->count = 0;
+  set->overflow = false;
+}
+
+static bool name_set_contains(name_set_t* set, const char* name)
+{
+  for(size_t i = 0; i < set->count; i++)
+  {
+    if(set->names[i] == name)
+      return true;
+  }
+  return false;
+}
+
+static void name_set_add(name_set_t* set, const char* name)
+{
+  if(name_set_contains(set, name))
+    return;
+
+  if(set->count >= NAME_SET_MAX)
+  {
+    set->overflow = true;
+    return;
+  }
+
+  set->names[set->count++] = name;
+}
+
+static void name_set_remove(name_set_t* set, const char* name)
+{
+  for(size_t i = 0; i < set->count; i++)
+  {
+    if(set->names[i] == name)
+    {
+      set->names[i] = set->names[set->count - 1];
+      set->count--;
+      return;
+    }
+  }
+}
+
+static void name_set_union(name_set_t* dst, name_set_t* src)
+{
+  if(src->overflow)
+    dst->overflow = true;
+
+  for(size_t i = 0; i < src->count; i++)
+    name_set_add(dst, src->names[i]);
+}
+
+static void name_set_copy(name_set_t* dst, name_set_t* src)
+{
+  dst->count = src->count;
+  dst->overflow = src->overflow;
+  for(size_t i = 0; i < src->count; i++)
+    dst->names[i] = src->names[i];
+}
+
+// Collect the names of all local/param/this variables consumed in this
+// subtree. Does not recurse into nested try blocks.
+static void collect_consumes(ast_t* ast, name_set_t* out,
+  strtable_t* strtab)
+{
+  if(ast_id(ast) == TK_CONSUME)
+  {
+    ast_t* term = ast_childidx(ast, 1);
+
+    if((ast_id(term) == TK_VARREF) || (ast_id(term) == TK_LETREF) ||
+      (ast_id(term) == TK_PARAMREF))
+    {
+      name_set_add(out, ast_name(ast_child(term)));
+    }
+    else if(ast_id(term) == TK_THIS)
+    {
+      name_set_add(out, stringtab(strtab, "this"));
+    }
+
+    return;
+  }
+
+  if((ast_id(ast) == TK_TRY) || (ast_id(ast) == TK_TRY_NO_CHECK))
+    return;
+
+  ast_t* child = ast_child(ast);
+  while(child != NULL)
+  {
+    collect_consumes(child, out, strtab);
+    child = ast_sibling(child);
+  }
+}
+
+// Collect variables that are consumed and reassigned in the same expression
+// within this subtree (net effect: variable goes back to SYM_DEFINED).
+static void collect_same_expr_reassigns(ast_t* ast, name_set_t* out)
+{
+  if(ast_id(ast) == TK_CONSUME)
+  {
+    ast_t* term = ast_childidx(ast, 1);
+
+    if((ast_id(term) == TK_VARREF) || (ast_id(term) == TK_LETREF) ||
+      (ast_id(term) == TK_PARAMREF))
+    {
+      const char* name = ast_name(ast_child(term));
+
+      // Walk up to see if this consume is inside an assignment to the same var
+      ast_t* p = ast_parent(ast);
+      while(p != NULL)
+      {
+        if(ast_id(p) == TK_ASSIGN)
+        {
+          ast_t* lhs = ast_child(p);
+          if(lhs != NULL)
+          {
+            const char* lhs_name = NULL;
+            if((ast_id(lhs) == TK_VARREF) || (ast_id(lhs) == TK_LETREF) ||
+              (ast_id(lhs) == TK_PARAMREF))
+            {
+              lhs_name = ast_name(ast_child(lhs));
+            }
+            if((lhs_name != NULL) && (lhs_name == name))
+              name_set_add(out, name);
+          }
+          break;
+        }
+        if(ast_has_scope(p))
+          break;
+        p = ast_parent(p);
+      }
+    }
+
+    return;
+  }
+
+  if((ast_id(ast) == TK_TRY) || (ast_id(ast) == TK_TRY_NO_CHECK))
+    return;
+
+  ast_t* child = ast_child(ast);
+  while(child != NULL)
+  {
+    collect_same_expr_reassigns(child, out);
+    child = ast_sibling(child);
+  }
+}
+
+// Recursively walk the AST to find which variables are consumed on the path
+// to each error point. `running` tracks the variables consumed before
+// entering this node. Results accumulate in `result`.
+static void consumed_at_errors(ast_t* ast, name_set_t* running,
+  name_set_t* result, strtable_t* strtab)
+{
+  switch(ast_id(ast))
+  {
+    case TK_ERROR:
+    {
+      name_set_union(result, running);
+      return;
+    }
+
+    case TK_AS:
+    {
+      name_set_union(result, running);
+      name_set_t child_consumes;
+      name_set_init(&child_consumes);
+      ast_t* child = ast_child(ast);
+      while(child != NULL)
+      {
+        collect_consumes(child, &child_consumes, strtab);
+        child = ast_sibling(child);
+      }
+      name_set_union(result, &child_consumes);
+      return;
+    }
+
+    case TK_CALL:
+    {
+      ast_t* question = ast_childidx(ast, 3);
+      if((question != NULL) && (ast_id(question) == TK_QUESTION))
+      {
+        name_set_union(result, running);
+        name_set_t arg_consumes;
+        name_set_init(&arg_consumes);
+        ast_t* child = ast_child(ast);
+        while(child != NULL)
+        {
+          collect_consumes(child, &arg_consumes, strtab);
+          child = ast_sibling(child);
+        }
+        name_set_union(result, &arg_consumes);
+        return;
+      }
+      break;
+    }
+
+    case TK_FFICALL:
+    {
+      ast_t* question = ast_childidx(ast, 4);
+      if((question != NULL) && (ast_id(question) == TK_QUESTION))
+      {
+        name_set_union(result, running);
+        name_set_t arg_consumes;
+        name_set_init(&arg_consumes);
+        ast_t* child = ast_child(ast);
+        while(child != NULL)
+        {
+          collect_consumes(child, &arg_consumes, strtab);
+          child = ast_sibling(child);
+        }
+        name_set_union(result, &arg_consumes);
+        return;
+      }
+      break;
+    }
+
+    default:
+      break;
+  }
+
+  // Don't recurse into nested try blocks — they catch their own errors.
+  if((ast_id(ast) == TK_TRY) || (ast_id(ast) == TK_TRY_NO_CHECK))
+    return;
+
+  // For sequences, process children left to right updating the running set.
+  if(ast_id(ast) == TK_SEQ)
+  {
+    name_set_t current;
+    name_set_copy(&current, running);
+
+    ast_t* child = ast_child(ast);
+    while(child != NULL)
+    {
+      if(can_error_syntactic(child))
+        consumed_at_errors(child, &current, result, strtab);
+
+      name_set_t child_consumes;
+      name_set_init(&child_consumes);
+      collect_consumes(child, &child_consumes, strtab);
+      name_set_union(&current, &child_consumes);
+
+      name_set_t child_reassigns;
+      name_set_init(&child_reassigns);
+      collect_same_expr_reassigns(child, &child_reassigns);
+      for(size_t i = 0; i < child_reassigns.count; i++)
+        name_set_remove(&current, child_reassigns.names[i]);
+
+      child = ast_sibling(child);
+    }
+    return;
+  }
+
+  // For if/ifdef, branches are mutually exclusive.
+  if((ast_id(ast) == TK_IF) || (ast_id(ast) == TK_IFDEF))
+  {
+    AST_GET_CHILDREN(ast, cond, then_clause, else_clause);
+
+    name_set_t after_cond;
+    name_set_copy(&after_cond, running);
+    name_set_t cond_consumes;
+    name_set_init(&cond_consumes);
+    collect_consumes(cond, &cond_consumes, strtab);
+    name_set_union(&after_cond, &cond_consumes);
+
+    if(can_error_syntactic(cond))
+      consumed_at_errors(cond, running, result, strtab);
+
+    if(can_error_syntactic(then_clause))
+      consumed_at_errors(then_clause, &after_cond, result, strtab);
+
+    if(can_error_syntactic(else_clause))
+      consumed_at_errors(else_clause, &after_cond, result, strtab);
+
+    return;
+  }
+
+  // For iftype_set, branches are mutually exclusive (same as if/ifdef).
+  if(ast_id(ast) == TK_IFTYPE_SET)
+  {
+    AST_GET_CHILDREN(ast, left_clause, right);
+    AST_GET_CHILDREN(left_clause, sub, super, left);
+
+    if(can_error_syntactic(left))
+      consumed_at_errors(left, running, result, strtab);
+
+    if(can_error_syntactic(right))
+      consumed_at_errors(right, running, result, strtab);
+
+    return;
+  }
+
+  // For match, each case is independent.
+  if(ast_id(ast) == TK_MATCH)
+  {
+    AST_GET_CHILDREN(ast, expr, cases, else_clause);
+
+    name_set_t after_expr;
+    name_set_copy(&after_expr, running);
+    name_set_t expr_consumes;
+    name_set_init(&expr_consumes);
+    collect_consumes(expr, &expr_consumes, strtab);
+    name_set_union(&after_expr, &expr_consumes);
+
+    if(can_error_syntactic(expr))
+      consumed_at_errors(expr, running, result, strtab);
+
+    ast_t* the_case = ast_child(cases);
+    while(the_case != NULL)
+    {
+      if(can_error_syntactic(the_case))
+        consumed_at_errors(the_case, &after_expr, result, strtab);
+      the_case = ast_sibling(the_case);
+    }
+
+    if(can_error_syntactic(else_clause))
+      consumed_at_errors(else_clause, &after_expr, result, strtab);
+
+    return;
+  }
+
+  // For while/repeat, conservative: treat as sequential.
+  if(ast_id(ast) == TK_WHILE)
+  {
+    AST_GET_CHILDREN(ast, cond, body, else_clause);
+
+    name_set_t after_cond;
+    name_set_copy(&after_cond, running);
+    name_set_t cond_consumes;
+    name_set_init(&cond_consumes);
+    collect_consumes(cond, &cond_consumes, strtab);
+    name_set_union(&after_cond, &cond_consumes);
+
+    if(can_error_syntactic(cond))
+      consumed_at_errors(cond, running, result, strtab);
+
+    if(can_error_syntactic(body))
+      consumed_at_errors(body, &after_cond, result, strtab);
+
+    if(can_error_syntactic(else_clause))
+      consumed_at_errors(else_clause, &after_cond, result, strtab);
+
+    return;
+  }
+
+  if(ast_id(ast) == TK_REPEAT)
+  {
+    AST_GET_CHILDREN(ast, body, cond, else_clause);
+
+    if(can_error_syntactic(body))
+      consumed_at_errors(body, running, result, strtab);
+
+    name_set_t after_body;
+    name_set_copy(&after_body, running);
+    name_set_t body_consumes;
+    name_set_init(&body_consumes);
+    collect_consumes(body, &body_consumes, strtab);
+    name_set_union(&after_body, &body_consumes);
+
+    if(can_error_syntactic(cond))
+      consumed_at_errors(cond, &after_body, result, strtab);
+
+    if(can_error_syntactic(else_clause))
+      consumed_at_errors(else_clause, &after_body, result, strtab);
+
+    return;
+  }
+
+  // Default: recurse into children sequentially with conservative tracking.
+  {
+    name_set_t current;
+    name_set_copy(&current, running);
+
+    ast_t* child = ast_child(ast);
+    while(child != NULL)
+    {
+      if(can_error_syntactic(child))
+        consumed_at_errors(child, &current, result, strtab);
+
+      name_set_t child_consumes;
+      name_set_init(&child_consumes);
+      collect_consumes(child, &child_consumes, strtab);
+      name_set_union(&current, &child_consumes);
+
+      child = ast_sibling(child);
+    }
+  }
+}
+
 static bool refer_seq(pass_opt_t* opt, ast_t* ast)
 {
   (void)opt;
@@ -1375,6 +1819,45 @@ static bool refer_seq(pass_opt_t* opt, ast_t* ast)
         {
           // Push our consumes, but not defines, to the else clause.
           ast_inheritbranch(else_clause, body);
+
+          // The else clause runs when any error point in the body fires.
+          // A variable should appear consumed in the else clause only if
+          // it was consumed on the path to some error point — not if it
+          // was consumed only after all error points.
+          //
+          // Walk the body to compute which variables are consumed at any
+          // error point, then revert consumed entries in the else clause
+          // that don't appear in that set.
+          if(can_error_syntactic(body))
+          {
+            name_set_t at_errors;
+            name_set_init(&at_errors);
+            name_set_t running;
+            name_set_init(&running);
+            consumed_at_errors(body, &running, &at_errors,
+              opt->strtab);
+
+            if(!at_errors.overflow)
+            {
+              const char* this_name =
+                stringtab(opt->strtab, "this");
+              symtab_t* symtab = ast_get_symtab(else_clause);
+              size_t i = HASHMAP_BEGIN;
+              symbol_t* sym;
+              while((sym = symtab_next(symtab, &i)) != NULL)
+              {
+                if((sym->status == SYM_CONSUMED) ||
+                  (sym->status == SYM_CONSUMED_SAME_EXPR))
+                {
+                  if(!name_set_contains(&at_errors, sym->name))
+                    sym->status =
+                      (sym->name == this_name) ?
+                        SYM_NONE : SYM_DEFINED;
+                }
+              }
+            }
+          }
+
           ast_consolidate_branches(else_clause, 2);
         } else if(else_clause == ast) {
           // Push our consumes, but not defines, to the then clause. This

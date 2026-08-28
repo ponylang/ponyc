@@ -952,3 +952,468 @@ TEST_F(ReferTest, TraitDefaultBodyWithAbstractTraitParam)
   TEST_COMPILE(src);
 }
 
+
+TEST_F(ReferTest, ConsumeAfterErrorInTryElse)
+{
+  // Issue #862: consume after the last error point in a try body should
+  // not prevent using the variable in the else clause.
+  const char* src =
+    "class iso C\n"
+
+    "primitive P\n"
+      "fun apply() ? => error\n"
+
+    "actor Main\n"
+      "new create(env: Env) =>\n"
+        "let c = C\n"
+        "try\n"
+        "  P() ?\n"
+        "  let d = consume c\n"
+        "else\n"
+        "  let d = consume c\n"
+        "end";
+
+  TEST_COMPILE(src);
+}
+
+
+TEST_F(ReferTest, ConsumeBeforeErrorInTryElse)
+{
+  // Consuming a variable before the error point means it IS consumed
+  // when entering the else clause.
+  const char* src =
+    "class iso C\n"
+
+    "primitive P\n"
+      "fun apply(c: C) ? => error\n"
+
+    "actor Main\n"
+      "new create(env: Env) =>\n"
+        "let c = C\n"
+        "try\n"
+        "  P(consume c) ?\n"
+        "else\n"
+        "  let d = consume c\n"
+        "end";
+
+  TEST_ERRORS_2(src,
+    "can't use a consumed local or field in an expression",
+    "consume must take 'this', a local, or a parameter");
+}
+
+
+TEST_F(ReferTest, ConsumeAfterMultipleErrorsInTryElse)
+{
+  // Variable consumed after all error points is available in else.
+  const char* src =
+    "class iso C\n"
+
+    "primitive P\n"
+      "fun apply() ? => error\n"
+
+    "actor Main\n"
+      "new create(env: Env) =>\n"
+        "let c = C\n"
+        "try\n"
+        "  P() ?\n"
+        "  P() ?\n"
+        "  let d = consume c\n"
+        "else\n"
+        "  let d = consume c\n"
+        "end";
+
+  TEST_COMPILE(src);
+}
+
+
+TEST_F(ReferTest, ConsumeAndReassignBetweenErrorsInTryElse)
+{
+  // Variable consumed and reassigned (same expression) between two error
+  // points is still defined at both — else clause can use it.
+  const char* src =
+    "class iso C\n"
+
+    "primitive P\n"
+      "fun apply() ? => error\n"
+
+    "actor Main\n"
+      "new create(env: Env) =>\n"
+        "var c = C\n"
+        "try\n"
+        "  P() ?\n"
+        "  c = consume c\n"
+        "  P() ?\n"
+        "else\n"
+        "  let d = consume c\n"
+        "end";
+
+  TEST_COMPILE(src);
+}
+
+
+TEST_F(ReferTest, ConsumeAfterErrorInNestedIfTryElse)
+{
+  // Consume inside a nested if after the last error point is still
+  // unreachable on the error path.
+  const char* src =
+    "class iso C\n"
+
+    "primitive P\n"
+      "fun apply() ? => error\n"
+
+    "actor Main\n"
+      "new create(env: Env) =>\n"
+        "var c = C\n"
+        "try\n"
+        "  P() ?\n"
+        "  if true then\n"
+        "    c = consume c\n"
+        "  end\n"
+        "else\n"
+        "  let d = consume c\n"
+        "end";
+
+  TEST_COMPILE(src);
+}
+
+
+TEST_F(ReferTest, ConsumeAfterErrorKeywordInTryElse)
+{
+  // An `error` keyword inside a conditional is an error point; consumes
+  // after it are unreachable on the error path.
+  const char* src =
+    "class iso C\n"
+
+    "actor Main\n"
+      "new create(env: Env) =>\n"
+        "foo(true)\n"
+
+      "fun foo(cond: Bool) =>\n"
+        "let c = C\n"
+        "try\n"
+        "  if cond then error end\n"
+        "  let d = consume c\n"
+        "else\n"
+        "  let d = consume c\n"
+        "end";
+
+  TEST_COMPILE(src);
+}
+
+
+TEST_F(ReferTest, ConsumeAfterAsCastInTryElse)
+{
+  // An `as` cast is a syntactic error point; consumes after it are
+  // unreachable on the error path.
+  const char* src =
+    "trait T\n"
+    "class iso C is T\n"
+
+    "actor Main\n"
+      "new create(env: Env) =>\n"
+        "var c: T = C\n"
+        "var d = C\n"
+        "try\n"
+        "  c = c as C\n"
+        "  let e = consume d\n"
+        "else\n"
+        "  let e = consume d\n"
+        "end";
+
+  TEST_COMPILE(src);
+}
+
+
+TEST_F(ReferTest, TwoVarsConsumedAtDifferentPointsInTryElse)
+{
+  // x consumed before the error point is rejected in else; y consumed
+  // after the error point is available.
+  const char* src =
+    "class iso C\n"
+
+    "primitive P\n"
+      "fun apply(c: C) ? => error\n"
+
+    "actor Main\n"
+      "new create(env: Env) =>\n"
+        "let x = C\n"
+        "let y = C\n"
+        "try\n"
+        "  P(consume x) ?\n"
+        "  let z = consume y\n"
+        "else\n"
+        "  let z = consume x\n"
+        "end";
+
+  TEST_ERRORS_2(src,
+    "can't use a consumed local or field in an expression",
+    "consume must take 'this', a local, or a parameter");
+}
+
+
+TEST_F(ReferTest, ConsumeAfterNestedTryInTryElse)
+{
+  // An inner try swallows its own errors — it is not an error point
+  // for the outer try.
+  const char* src =
+    "class iso C\n"
+
+    "primitive P\n"
+      "fun apply() ? => error\n"
+
+    "actor Main\n"
+      "new create(env: Env) =>\n"
+        "let c = C\n"
+        "try\n"
+        "  P() ?\n"
+        "  try P() ? end\n"
+        "  let d = consume c\n"
+        "else\n"
+        "  let d = consume c\n"
+        "end";
+
+  TEST_COMPILE(src);
+}
+
+
+TEST_F(ReferTest, ConsumeParamAfterErrorInTryElse)
+{
+  // Parameter consumed after the last error point is available in else.
+  const char* src =
+    "class iso C\n"
+
+    "primitive P\n"
+      "fun apply() ? => error\n"
+
+    "actor Main\n"
+      "new create(env: Env) =>\n"
+        "foo(C)\n"
+
+      "fun foo(c: C iso) =>\n"
+        "try\n"
+        "  P() ?\n"
+        "  let d = consume c\n"
+        "else\n"
+        "  let d = consume c\n"
+        "end";
+
+  TEST_COMPILE(src);
+}
+
+
+TEST_F(ReferTest, ConsumeOnMutuallyExclusiveBranchFromErrorInTryElse)
+{
+  // Error and consume are in different branches of an if inside try.
+  // The consume cannot have executed when the error fires, so the
+  // variable is available in else.
+  const char* src =
+    "class iso C\n"
+
+    "primitive P\n"
+      "fun apply() ? => error\n"
+
+    "actor Main\n"
+      "new create(env: Env) =>\n"
+        "foo(true)\n"
+
+      "fun foo(cond: Bool) =>\n"
+        "let c = C\n"
+        "try\n"
+        "  if cond then P() ? else let d = consume c end\n"
+        "else\n"
+        "  let d = consume c\n"
+        "end";
+
+  TEST_COMPILE(src);
+}
+
+
+TEST_F(ReferTest, ConsumeOnSameBranchAsErrorInTryElse)
+{
+  // Consume and error on the same branch — the consume happens before
+  // the error, so the variable is consumed at the error point and
+  // must be rejected in else.
+  const char* src =
+    "class iso C\n"
+
+    "primitive P\n"
+      "fun apply(c: C) ? => error\n"
+
+    "actor Main\n"
+      "new create(env: Env) =>\n"
+        "foo(true)\n"
+
+      "fun foo(cond: Bool) =>\n"
+        "let c = C\n"
+        "try\n"
+        "  if cond then P(consume c) ? end\n"
+        "else\n"
+        "  let d = consume c\n"
+        "end";
+
+  TEST_ERRORS_2(src,
+    "can't use a consumed local or field in an expression",
+    "consume must take 'this', a local, or a parameter");
+}
+
+
+TEST_F(ReferTest, ConsumeInConditionWithErrorInBranchTryElse)
+{
+  // Consume in the condition of an if; error in a branch.
+  // The condition executes before either branch, so the variable
+  // is consumed at the error point.
+  const char* src =
+    "class iso C\n"
+
+    "primitive P\n"
+      "fun apply() ? => error\n"
+
+    "actor Main\n"
+      "new create(env: Env) =>\n"
+        "foo(C)\n"
+
+      "fun foo(c: C iso) =>\n"
+        "try\n"
+        "  let cond = (consume c; true)\n"
+        "  if cond then P() ? end\n"
+        "else\n"
+        "  let d = consume c\n"
+        "end";
+
+  TEST_ERRORS_2(src,
+    "can't use a consumed local or field in an expression",
+    "consume must take 'this', a local, or a parameter");
+}
+
+
+TEST_F(ReferTest, ConsumeInAsCastAtErrorPointTryElse)
+{
+  // A variable consumed inside an `as` expression is consumed at the
+  // error point (as can error), so the else clause cannot use it.
+  const char* src =
+    "trait T\n"
+    "class iso C is T\n"
+
+    "actor Main\n"
+      "new create(env: Env) =>\n"
+        "let c: (T | C) = C\n"
+        "let d = C\n"
+        "try\n"
+        "  let e = (consume d) as C\n"
+        "else\n"
+        "  let f = consume d\n"
+        "end";
+
+  TEST_ERRORS_2(src,
+    "can't use a consumed local or field in an expression",
+    "consume must take 'this', a local, or a parameter");
+}
+
+
+TEST_F(ReferTest, ConsumeThisAfterErrorInTryElse)
+{
+  // `consume this` after the last error point is unreachable on the
+  // error path, so `this` is available in the else clause.
+  const char* src =
+    "class iso C\n"
+      "var x: U32 = 0\n"
+      "fun iso foo(): (C iso^ | None) =>\n"
+        "try\n"
+        "  P() ?\n"
+        "  consume this\n"
+        "else\n"
+        "  x = 42\n"
+        "  None\n"
+        "end\n"
+
+    "primitive P\n"
+      "fun apply() ? => error\n"
+
+    "actor Main\n"
+      "new create(env: Env) => None";
+
+  TEST_COMPILE(src);
+}
+
+
+TEST_F(ReferTest, ConsumeInMatchCaseWithErrorInOtherCaseTryElse)
+{
+  // Error and consume are in different match cases inside try.
+  // Cases are mutually exclusive, so the variable is available in else.
+  const char* src =
+    "class iso C\n"
+
+    "primitive P\n"
+      "fun apply() ? => error\n"
+
+    "actor Main\n"
+      "new create(env: Env) =>\n"
+        "foo(U32(1))\n"
+
+      "fun foo(x: (U32 | String val)) =>\n"
+        "let c = C\n"
+        "try\n"
+        "  match x\n"
+        "  | let n: U32 => P() ?\n"
+        "  | let s: String val => let d = consume c\n"
+        "  end\n"
+        "else\n"
+        "  let d = consume c\n"
+        "end";
+
+  TEST_COMPILE(src);
+}
+
+
+TEST_F(ReferTest, ConsumeAfterWhileWithErrorInTryElse)
+{
+  // Error is inside a while body, consume is after the while.
+  // The while can error, so `c` isn't consumed on the error path.
+  const char* src =
+    "class iso C\n"
+
+    "primitive P\n"
+      "fun apply() ? => error\n"
+
+    "actor Main\n"
+      "new create(env: Env) =>\n"
+        "let c = C\n"
+        "try\n"
+        "  while true do\n"
+        "    P() ?\n"
+        "    break\n"
+        "  end\n"
+        "  let d = consume c\n"
+        "else\n"
+        "  let d = consume c\n"
+        "end";
+
+  TEST_COMPILE(src);
+}
+
+
+TEST_F(ReferTest, ConsumeAfterRepeatWithErrorInTryElse)
+{
+  // Error is inside a repeat body, consume is after the repeat.
+  // The repeat can error, so `c` isn't consumed on the error path.
+  const char* src =
+    "class iso C\n"
+
+    "primitive P\n"
+      "fun apply() ? => error\n"
+
+    "actor Main\n"
+      "new create(env: Env) =>\n"
+        "let c = C\n"
+        "try\n"
+        "  repeat\n"
+        "    P() ?\n"
+        "    break\n"
+        "  until true end\n"
+        "  let d = consume c\n"
+        "else\n"
+        "  let d = consume c\n"
+        "end";
+
+  TEST_COMPILE(src);
+}
