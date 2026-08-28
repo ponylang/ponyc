@@ -19,6 +19,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Fix crash when compiling with --runtimebc ([PR #5889](https://github.com/ponylang/ponyc/pull/5889))
 - Fix compiler crash from return inside resolved iftype branch ([PR #5890](https://github.com/ponylang/ponyc/pull/5890))
 - Fix overly strict consumed-variable check in try/else blocks ([PR #5891](https://github.com/ponylang/ponyc/pull/5891))
+- Fix destructuring assignment for unions of same-arity tuples ([PR #5892](https://github.com/ponylang/ponyc/pull/5892))
 
 ### Added
 
