@@ -69,7 +69,7 @@ qemu-system-x86_64 \
   -machine pc,accel=kvm \
   -cpu host \
   -smp 4 \
-  -m 6G \
+  -m 8G \
   -drive file="$VM_ARTIFACTS/openbsd.qcow2",format=qcow2,if=virtio \
   -drive file="$VM_ARTIFACTS/openbsd-data.qcow2",format=qcow2,if=virtio \
   -drive file="$VM_ARTIFACTS/seed.iso",media=cdrom \
@@ -109,7 +109,7 @@ echo "::endgroup::"
 
 echo "::group::Raise datasize limit"
 ssh -o StrictHostKeyChecking=no -i vm_key -p 2222 openbsd@localhost \
-  "doas sed -i 's/datasize-max=1536M/datasize-max=4096M/' /etc/login.conf && doas sed -i 's/datasize-cur=1536M/datasize-cur=4096M/' /etc/login.conf"
+  "doas sed -i 's/datasize-max=1536M/datasize-max=6144M/' /etc/login.conf && doas sed -i 's/datasize-cur=1536M/datasize-cur=6144M/' /etc/login.conf"
 echo "::endgroup::"
 
 echo "::group::Copy source to VM"
