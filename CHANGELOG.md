@@ -18,6 +18,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Fix `repeat` loop field initialization tracking with `break` ([PR #5888](https://github.com/ponylang/ponyc/pull/5888))
 - Fix crash when compiling with --runtimebc ([PR #5889](https://github.com/ponylang/ponyc/pull/5889))
 - Fix compiler crash from return inside resolved iftype branch ([PR #5890](https://github.com/ponylang/ponyc/pull/5890))
+- Fix overly strict consumed-variable check in try/else blocks ([PR #5891](https://github.com/ponylang/ponyc/pull/5891))
 
 ### Added
 
