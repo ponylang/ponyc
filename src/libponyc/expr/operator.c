@@ -682,34 +682,79 @@ bool expr_assign(pass_opt_t* opt, ast_t* ast)
 
   if((ast_id(left) == TK_TUPLE) && (ast_id(check_r_type) != TK_TUPLETYPE))
   {
-    switch(ast_id(check_r_type))
+    bool is_union_of_tuples = false;
+
+    if(ast_id(check_r_type) == TK_UNIONTYPE)
     {
-      case TK_UNIONTYPE:
-        ast_error(opt->check.errors, ast,
-          "can't destructure a union using assignment, use pattern matching "
-          "instead");
-        ast_error_continue(opt->check.errors, right,
-          "inferred type of expression: %s", ast_print_type(r_type, opt->strtab));
-        break;
+      // Check whether every member of the union is a tuple with the same
+      // arity as the destructuring target.
+      size_t target_arity = ast_childcount(left);
+      is_union_of_tuples = true;
 
-      case TK_ISECTTYPE:
-        ast_error(opt->check.errors, ast,
-          "can't destructure an intersection using assignment, use pattern "
-          "matching instead");
-        ast_error_continue(opt->check.errors, right,
-          "inferred type of expression: %s", ast_print_type(r_type, opt->strtab));
-        break;
+      for(ast_t* member = ast_child(check_r_type);
+        member != NULL;
+        member = ast_sibling(member))
+      {
+        ast_t* check_member = member;
+        ast_t* member_unfolded = NULL;
 
-      default:
-        pony_assert(0);
-        break;
+        if(ast_id(check_member) == TK_TYPEALIASREF)
+        {
+          member_unfolded = typealias_unfold(check_member);
+
+          if(member_unfolded != NULL)
+            check_member = member_unfolded;
+        }
+
+        if((ast_id(check_member) != TK_TUPLETYPE) ||
+          (ast_childcount(check_member) != target_arity))
+        {
+          is_union_of_tuples = false;
+
+          if(member_unfolded != NULL)
+            ast_free_unattached(member_unfolded);
+
+          break;
+        }
+
+        if(member_unfolded != NULL)
+          ast_free_unattached(member_unfolded);
+      }
     }
 
-    if(r_type_unfolded != NULL)
-      ast_free_unattached(r_type_unfolded);
+    if(!is_union_of_tuples)
+    {
+      switch(ast_id(check_r_type))
+      {
+        case TK_UNIONTYPE:
+          ast_error(opt->check.errors, ast,
+            "can't destructure a union using assignment, use pattern matching "
+            "instead");
+          ast_error_continue(opt->check.errors, right,
+            "inferred type of expression: %s",
+            ast_print_type(r_type, opt->strtab));
+          break;
 
-    ast_free_unattached(wl_type);
-    return false;
+        case TK_ISECTTYPE:
+          ast_error(opt->check.errors, ast,
+            "can't destructure an intersection using assignment, use pattern "
+            "matching instead");
+          ast_error_continue(opt->check.errors, right,
+            "inferred type of expression: %s",
+            ast_print_type(r_type, opt->strtab));
+          break;
+
+        default:
+          pony_assert(0);
+          break;
+      }
+
+      if(r_type_unfolded != NULL)
+        ast_free_unattached(r_type_unfolded);
+
+      ast_free_unattached(wl_type);
+      return false;
+    }
   }
 
   if(r_type_unfolded != NULL)

@@ -1,5 +1,6 @@
 #include "safeto.h"
 #include "cap.h"
+#include "../type/assemble.h"
 #include "typealias.h"
 #include "viewpoint.h"
 #include "ponyassert.h"
@@ -139,6 +140,71 @@ bool safe_to_move(ast_t* ast, ast_t* type, direction direction, pass_opt_t* opt)
 
         if(unfolded != NULL)
           tuple_type = unfolded;
+      }
+
+      if(ast_id(tuple_type) == TK_UNIONTYPE)
+      {
+        size_t arity = ast_childcount(ast);
+        bool ok = true;
+
+        for(size_t i = 0; i < arity; i++)
+        {
+          ast_t* elem_type = NULL;
+
+          for(ast_t* member = ast_child(tuple_type);
+            member != NULL;
+            member = ast_sibling(member))
+          {
+            ast_t* check_member = member;
+            ast_t* member_unfolded = NULL;
+
+            if(ast_id(check_member) == TK_TYPEALIASREF)
+            {
+              member_unfolded = typealias_unfold(check_member);
+
+              if(member_unfolded != NULL)
+                check_member = member_unfolded;
+            }
+
+            pony_assert(ast_id(check_member) == TK_TUPLETYPE);
+            ast_t* member_elem = ast_childidx(check_member, i);
+
+            // When the member was unfolded from a type alias, member_elem is
+            // a child of member_unfolded. Dup it so that freeing the unfolded
+            // tree doesn't leave elem_type dangling.
+            if(member_unfolded != NULL)
+              member_elem = ast_dup(member_elem);
+
+            ast_t* prev_elem = elem_type;
+            elem_type = type_union(opt, prev_elem, member_elem);
+
+            if(elem_type != prev_elem)
+              ast_free_unattached(prev_elem);
+
+            if(member_unfolded != NULL)
+            {
+              if(elem_type != member_elem)
+                ast_free_unattached(member_elem);
+
+              ast_free_unattached(member_unfolded);
+            }
+          }
+
+          ast_t* child_i = ast_childidx(ast, i);
+
+          if(!safe_to_move(child_i, elem_type, direction, opt))
+            ok = false;
+
+          ast_free_unattached(elem_type);
+
+          if(!ok)
+            break;
+        }
+
+        if(unfolded != NULL)
+          ast_free_unattached(unfolded);
+
+        return ok;
       }
 
       // At this point, we know these will be the same length.

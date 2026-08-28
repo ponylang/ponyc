@@ -1,10 +1,13 @@
 #include "genoperator.h"
+#include "genbox.h"
 #include "gencall.h"
+#include "gendesc.h"
 #include "genexpr.h"
 #include "genreference.h"
 #include "genname.h"
 #include "gentype.h"
 #include "../pkg/platformfuns.h"
+#include "../reach/reach.h"
 #include "../type/subtype.h"
 #include "../type/typealias.h"
 #include "ponyassert.h"
@@ -516,8 +519,56 @@ static LLVMValueRef assign_rvalue(compile_t* c, ast_t* left, ast_t* r_type,
       if(result == NULL)
         return NULL;
 
-      if(!assign_tuple(c, left, r_type, r_value))
-        return NULL;
+      if(ast_id(r_type) == TK_UNIONTYPE)
+      {
+        reach_type_t* t = reach_type(c->reach, r_type, c->opt);
+        pony_assert(t != NULL);
+
+        LLVMValueRef r_desc = gendesc_fetch(c, r_value);
+        LLVMValueRef r_typeid = gendesc_typeid(c, r_desc);
+
+        LLVMBasicBlockRef unreachable_block =
+          codegen_block(c, "destructure_unreachable");
+        LLVMBasicBlockRef post_block =
+          codegen_block(c, "destructure_post");
+        LLVMValueRef type_switch = LLVMBuildSwitch(c->builder, r_typeid,
+          unreachable_block, 0);
+
+        reach_type_t* sub;
+        size_t si = HASHMAP_BEGIN;
+
+        while((sub = reach_type_cache_next(&t->subtypes, &si)) != NULL)
+        {
+          if(sub->underlying != TK_TUPLETYPE)
+            continue;
+
+          LLVMBasicBlockRef sub_block =
+            codegen_block(c, "destructure_variant");
+          LLVMAddCase(type_switch,
+            LLVMConstInt(c->i32, sub->type_id, false), sub_block);
+          LLVMPositionBuilderAtEnd(c->builder, sub_block);
+
+          LLVMValueRef r_unbox = gen_unbox(c, sub->ast_cap, r_value);
+
+          if(!assign_tuple(c, left, sub->ast_cap, r_unbox))
+            return NULL;
+
+          LLVMBuildBr(c->builder, post_block);
+        }
+
+        LLVMMoveBasicBlockAfter(unreachable_block,
+          LLVMGetInsertBlock(c->builder));
+        LLVMPositionBuilderAtEnd(c->builder, unreachable_block);
+        LLVMBuildUnreachable(c->builder);
+
+        LLVMMoveBasicBlockAfter(post_block, unreachable_block);
+        LLVMPositionBuilderAtEnd(c->builder, post_block);
+      }
+      else
+      {
+        if(!assign_tuple(c, left, r_type, r_value))
+          return NULL;
+      }
 
       // Return the original tuple.
       return result;
