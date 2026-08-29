@@ -8,6 +8,7 @@ LLD_HAS_DRIVER(coff)
 LLD_HAS_DRIVER(mingw)
 LLD_HAS_DRIVER(wasm)
 
+#include "genexport.h"
 #include "gencall.h"
 #include "genfun.h"
 #include "genname.h"
@@ -15,6 +16,8 @@ LLD_HAS_DRIVER(wasm)
 #include "genopt.h"
 #include "genprim.h"
 #include "../reach/paint.h"
+#include "../reach/reach.h"
+#include "../ast/printbuf.h"
 #include "../pkg/package.h"
 #include "../pkg/program.h"
 #include "../plugin/plugin.h"
@@ -2274,6 +2277,270 @@ static bool link_exe(compile_t* c, ast_t* program,
 #endif
 }
 
+static void gen_export_wrapper(compile_t* c, reach_type_t* t,
+  reach_method_t* m, const char* export_name)
+{
+  compile_method_t* c_m = (compile_method_t*)m->c_method;
+
+  if(c_m == NULL || c_m->func == NULL)
+    return;
+
+  LLVMTypeRef func_type = c_m->func_type;
+  unsigned param_count = LLVMCountParamTypes(func_type);
+
+  size_t buf_size = param_count * sizeof(LLVMTypeRef);
+  LLVMTypeRef* param_types = (LLVMTypeRef*)ponyint_pool_alloc_size(buf_size);
+  LLVMGetParamTypes(func_type, param_types);
+
+  LLVMTypeRef ret_type = LLVMGetReturnType(func_type);
+
+  LLVMTypeRef wrapper_type = LLVMFunctionType(ret_type, param_types,
+    param_count, false);
+
+  LLVMValueRef wrapper = LLVMAddFunction(c->module, export_name, wrapper_type);
+  LLVMSetFunctionCallConv(wrapper, LLVMCCallConv);
+  LLVMSetLinkage(wrapper, LLVMExternalLinkage);
+  LLVMSetUnnamedAddr(wrapper, false);
+
+  LLVMBasicBlockRef block = LLVMAppendBasicBlockInContext(c->context,
+    wrapper, "");
+  LLVMPositionBuilderAtEnd(c->builder, block);
+
+  size_t args_size = param_count * sizeof(LLVMValueRef);
+  LLVMValueRef* args = (LLVMValueRef*)ponyint_pool_alloc_size(args_size);
+
+  for(unsigned i = 0; i < param_count; i++)
+    args[i] = LLVMGetParam(wrapper, i);
+
+  LLVMValueRef result = LLVMBuildCall2(c->builder, func_type, c_m->func,
+    args, param_count, "");
+  LLVMSetInstructionCallConv(result, c->callconv);
+
+  if(LLVMGetTypeKind(ret_type) == LLVMVoidTypeKind)
+    LLVMBuildRetVoid(c->builder);
+  else
+    LLVMBuildRet(c->builder, result);
+
+  ponyint_pool_free_size(buf_size, param_types);
+  ponyint_pool_free_size(args_size, args);
+}
+
+
+static void gen_wrappers_for_exports(compile_t* c, ast_t* exported_pkg,
+  const char* use_name)
+{
+  for(ast_t* module = ast_child(exported_pkg); module != NULL;
+    module = ast_sibling(module))
+  {
+    for(ast_t* node = ast_child(module); node != NULL;
+      node = ast_sibling(node))
+    {
+      if(ast_id(node) != TK_EXPORT)
+        continue;
+
+      ast_t* nominal = ast_child(node);
+      reach_type_t* t = reach_type(c->reach, nominal, c->opt);
+
+      if(t == NULL)
+        continue;
+
+      ast_t* def = (ast_t*)ast_data(nominal);
+
+      if(def == NULL)
+        continue;
+
+      token_id def_kind = ast_id(def);
+
+      if(def_kind == TK_TRAIT || def_kind == TK_INTERFACE ||
+        def_kind == TK_TYPE)
+        continue;
+
+      const char* bare_name = ast_name(ast_child(def));
+
+      size_t i = HASHMAP_BEGIN;
+      reach_method_name_t* mn;
+
+      while((mn = reach_method_names_next(&t->methods, &i)) != NULL)
+      {
+        if(mn->internal || mn->id == TK_NEW || mn->id == TK_BE)
+          continue;
+
+        if(mn->name[0] == '_')
+          continue;
+
+        size_t j = HASHMAP_BEGIN;
+        reach_method_t* m;
+        reach_method_t* best = NULL;
+
+        while((m = reach_mangled_next(&mn->r_mangled, &j)) != NULL)
+        {
+          if(m->internal || m->intrinsic)
+            continue;
+
+          compile_method_t* c_m = (compile_method_t*)m->c_method;
+
+          if(c_m == NULL || c_m->func == NULL)
+            continue;
+
+          if(m->cap == mn->cap)
+            best = m;
+          else if(best == NULL)
+            best = m;
+        }
+
+        if(best == NULL)
+          continue;
+
+        ast_t* fun_ast = best->fun->ast;
+        ast_t* question = ast_childidx(fun_ast, 5);
+
+        if(ast_id(question) == TK_QUESTION)
+          continue;
+
+        if(export_has_tuple_types(fun_ast, NULL, NULL))
+          continue;
+
+        printbuf_t* buf = printbuf_new();
+
+        if(use_name[0] != '\0')
+          printbuf(buf, "%s_%s_%s", use_name, bare_name, mn->name);
+        else
+          printbuf(buf, "%s_%s", bare_name, mn->name);
+
+        const char* export_name = stringtab(c->opt->strtab, buf->m);
+        printbuf_free(buf);
+
+        if(LLVMGetNamedFunction(c->module, export_name) != NULL)
+          continue;
+
+        gen_export_wrapper(c, t, best, export_name);
+      }
+    }
+  }
+}
+
+static void gen_export_wrappers(compile_t* c, ast_t* program)
+{
+  for(ast_t* package = ast_child(program); package != NULL;
+    package = ast_sibling(package))
+  {
+    for(ast_t* module = ast_child(package); module != NULL;
+      module = ast_sibling(module))
+    {
+      for(ast_t* node = ast_child(module); node != NULL;
+        node = ast_sibling(node))
+      {
+        if(ast_id(node) != TK_USE)
+          continue;
+
+        const char* use_name = resolve_use_name(node);
+
+        if(use_name == NULL)
+          continue;
+
+        ast_t* used_pkg = (ast_t*)ast_data(node);
+
+        if(used_pkg == NULL || ast_id(used_pkg) != TK_PACKAGE)
+          continue;
+
+        if(!package_has_exports(used_pkg))
+          continue;
+
+        char sym_prefix[256];
+        strncpy(sym_prefix, use_name, sizeof(sym_prefix) - 1);
+        sym_prefix[sizeof(sym_prefix) - 1] = '\0';
+
+        for(char* p = sym_prefix; *p != '\0'; p++)
+        {
+          if(!((*p >= 'a' && *p <= 'z') || (*p >= 'A' && *p <= 'Z') ||
+            (*p >= '0' && *p <= '9') || *p == '_'))
+            *p = '_';
+        }
+
+        gen_wrappers_for_exports(c, used_pkg, sym_prefix);
+      }
+    }
+  }
+
+  ast_t* main_pkg = ast_child(program);
+
+  if(package_has_exports(main_pkg))
+    gen_wrappers_for_exports(c, main_pkg, "");
+}
+
+static void reach_exported_types(compile_t* c, ast_t* program)
+{
+  for(ast_t* package = ast_child(program); package != NULL;
+    package = ast_sibling(package))
+  {
+    for(ast_t* module = ast_child(package); module != NULL;
+      module = ast_sibling(module))
+    {
+      for(ast_t* node = ast_child(module); node != NULL;
+        node = ast_sibling(node))
+      {
+        if(ast_id(node) != TK_EXPORT)
+          continue;
+
+        ast_t* nominal = ast_child(node);
+
+        pony_assert(ast_id(nominal) == TK_NOMINAL);
+
+        ast_t* def = (ast_t*)ast_data(nominal);
+
+        if(def == NULL)
+          continue;
+
+        token_id def_kind = ast_id(def);
+
+        if(def_kind == TK_TRAIT || def_kind == TK_INTERFACE ||
+          def_kind == TK_TYPE)
+          continue;
+
+        ast_t* members = ast_childidx(def, 4);
+
+        if(ast_id(members) == TK_NONE)
+          continue;
+
+        for(ast_t* member = ast_child(members); member != NULL;
+          member = ast_sibling(member))
+        {
+          switch(ast_id(member))
+          {
+            case TK_FUN:
+            {
+              ast_t* method_id = ast_childidx(member, 1);
+              const char* method_name = ast_name(method_id);
+
+              if(method_name[0] == '_')
+                break;
+
+              ast_t* method_typeparams = ast_childidx(member, 2);
+
+              if(ast_id(method_typeparams) != TK_NONE)
+                break;
+
+              ast_t* question = ast_childidx(member, 5);
+
+              if(ast_id(question) == TK_QUESTION)
+                break;
+
+              if(export_has_tuple_types(member, NULL, NULL))
+                break;
+
+              reach(c->reach, nominal, method_name, NULL, c->opt);
+              break;
+            }
+
+            default:
+              break;
+          }
+        }
+      }
+    }
+  }
+}
+
 bool genexe(compile_t* c, ast_t* program)
 {
   errors_t* errors = c->opt->check.errors;
@@ -2317,6 +2584,8 @@ bool genexe(compile_t* c, ast_t* program)
   reach(c->reach, main_ast, stringtab(c->opt->strtab, "runtime_override_defaults"), NULL, c->opt);
   reach(c->reach, env_ast, c->str__create, NULL, c->opt);
 
+  reach_exported_types(c, program);
+
   // reach() can't signal failure through its void return. If it aborted on an
   // over-large generic instantiation it left stub types behind and already
   // reported the error, so fail now — before painting/codegen, which would
@@ -2354,6 +2623,8 @@ bool genexe(compile_t* c, ast_t* program)
     ast_free(env_ast);
     return false;
   }
+
+  gen_export_wrappers(c, program);
 
   if(c->opt->verbosity >= VERBOSITY_ALL)
     reach_dump(c->reach);

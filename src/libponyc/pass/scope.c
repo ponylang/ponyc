@@ -7,6 +7,7 @@
 #include "../ast/stringtab.h"
 #include "../ast/astbuild.h"
 #include "../ast/id.h"
+#include "../pkg/ifdef.h"
 #include "ponyassert.h"
 #include <string.h>
 
@@ -364,6 +365,19 @@ ast_result_t pass_scope(ast_t** astp, pass_opt_t* options)
   {
     case TK_USE:
       return use_command(ast, options);
+
+    case TK_EXPORT:
+    {
+      ast_t* guard = ast_childidx(ast, 1);
+
+      if(ifdef_cond_normalise(&guard, options) &&
+        !ifdef_cond_eval(guard, options))
+      {
+        ast_setid(ast, TK_NONE);
+      }
+
+      break;
+    }
 
     case TK_TYPE:
     case TK_INTERFACE:

@@ -376,3 +376,43 @@ type Bar is (Foo | None)
 
 Blank lines inside `/* */` comments are now excluded from the between-entities count. A blank line before the comment still satisfies the one-blank-line requirement between declarations.
 
+## Add `export` keyword for C-ABI interop
+
+Marking a Pony type with `export` exposes its public methods to C callers. The compiler generates C-ABI wrapper functions and a `.h` header for C shim files to include.
+
+Export a type by placing `export TypeName` in any `.pony` file in the same package as the type:
+
+```pony
+class val Adder
+  let _base: I64
+  new val create(base: I64) => _base = base
+  fun add(x: I64): I64 => _base + x
+
+export Adder
+```
+
+The `use` statement in the consuming package determines C-facing names. With `use "mylib"`, the wrapper function is `mylib_Adder_add` and the header is `mylib_export.h`. With `use math = "mylib"`, they become `math_Adder_add` and `math_export.h`. In the main package, names have no prefix: `Adder_add` in a header named after the binary.
+
+```c
+#include "mylib_export.h"
+
+int64_t add_from_c(void* adder, int64_t x) {
+  return mylib_Adder_add(adder, x);
+}
+```
+
+The header is written to the output directory. Conditional guards (`export Adder if linux`) and concrete generic instantiations (`export MyBox[I64]`) are both valid. Constructors are not exported — C code operates on already-allocated Pony objects by calling methods on them.
+
+## `export` is now a reserved word
+
+`export` is now a keyword. Code that uses `export` as an identifier — a variable name, field name, method name, or type name — will not compile.
+
+```pony
+// Before: compiles
+let export = "something"
+
+// After: compile error
+// Rename the identifier:
+let exported = "something"
+```
+

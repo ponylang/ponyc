@@ -1028,6 +1028,30 @@ static ast_result_t syntax_use(pass_opt_t* opt, ast_t* ast)
 }
 
 
+static ast_result_t syntax_export(pass_opt_t* opt, ast_t* ast)
+{
+  pony_assert(ast != NULL);
+
+  ast_t* nominal = ast_child(ast);
+  ast_t* type_name = ast_childidx(nominal, 1);
+
+  if(is_name_private(ast_name(type_name)))
+  {
+    ast_error(opt->check.errors, type_name,
+      "only public types can be exported");
+    return AST_ERROR;
+  }
+
+  ast_t* guard = ast_childidx(ast, 1);
+
+  if(ast_id(guard) != TK_NONE &&
+    !syntax_ifdef_cond(opt, guard, "export condition"))
+    return AST_ERROR;
+
+  return AST_OK;
+}
+
+
 static ast_result_t syntax_lambda_capture(pass_opt_t* opt, ast_t* ast)
 {
   AST_GET_CHILDREN(ast, name, type, value);
@@ -1495,6 +1519,7 @@ ast_result_t pass_syntax(ast_t** astp, pass_opt_t* options)
     case TK_TYPEPARAM:  r = syntax_type_param(options, ast); break;
     case TK_IFDEF:      r = syntax_ifdef(options, ast); break;
     case TK_USE:        r = syntax_use(options, ast); break;
+    case TK_EXPORT:     r = syntax_export(options, ast); break;
     case TK_LAMBDACAPTURE:
                         r = syntax_lambda_capture(options, ast); break;
     case TK_BARELAMBDATYPE:

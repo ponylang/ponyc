@@ -10,7 +10,11 @@ options
 // Parser
 
 module
-  : STRING? use* class_def* 
+  : STRING? use* export* class_def* 
+  ;
+
+export
+  : 'export' nominal ('if' infix)?
   ;
 
 use

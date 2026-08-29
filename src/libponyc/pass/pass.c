@@ -18,6 +18,7 @@
 #include "../ast/treecheck.h"
 #include "../codegen/codegen.h"
 #include "../codegen/gencshim.h"
+#include "../codegen/genexport.h"
 #include "../pkg/package.h"
 #include "../pkg/program.h"
 #include "../pkg/buildflagset.h"
@@ -362,6 +363,13 @@ bool ast_passes_program(ast_t* ast, pass_opt_t* options)
 {
   if(!ast_passes(&ast, options, PASS_ALL))
     return false;
+
+  // Generate export headers before C shim compilation.
+  if(options->limit >= PASS_C)
+  {
+    if(!genexport_header(ast, options))
+      return false;
+  }
 
   // PASS_C is not an AST pass: it compiles each package's C shim sources
   // with the embedded clang, recording the objects on the program for the

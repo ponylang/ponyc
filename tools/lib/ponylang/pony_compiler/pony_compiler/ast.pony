@@ -430,7 +430,7 @@ class val AST is (Stringable & Hashable & Equatable[AST box])
       // these nodes have some optional ast fields that just confuse the hell
       // out of us
       | TokenIds.tk_call() | TokenIds.tk_typeref()
-      | TokenIds.tk_use()
+      | TokenIds.tk_use() | TokenIds.tk_export()
       | TokenIds.tk_actor() | TokenIds.tk_class()
       | TokenIds.tk_struct() // entities
       | TokenIds.tk_trait() | TokenIds.tk_interface()
@@ -647,6 +647,7 @@ class val AST is (Stringable & Hashable & Equatable[AST box])
       | TokenIds.tk_cap_read() | TokenIds.tk_cap_send()
       => Position(l, col + 4)
       // 6 character keywords
+      | TokenIds.tk_export()
       | TokenIds.tk_object() | TokenIds.tk_return()
       | TokenIds.tk_iftype() | TokenIds.tk_elseif()
       | TokenIds.tk_repeat()

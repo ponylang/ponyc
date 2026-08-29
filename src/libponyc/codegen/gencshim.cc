@@ -576,6 +576,13 @@ static bool compile_shim(pass_opt_t* opt, ast_t* package, const char* src,
     args.push_back(stringtab(opt->strtab, include.c_str()));
   }
 
+  if(package_needs_export_include(package))
+  {
+    const char* output = (opt->output != NULL) ? opt->output : ".";
+    std::string include = std::string("-I") + output;
+    args.push_back(stringtab(opt->strtab, include.c_str()));
+  }
+
   // Without this, debug info names every shim's compile unit "<stdin>"
   // (cc1 default); gdb's source listings, coverage, and profilers then
   // can't tell shims apart.

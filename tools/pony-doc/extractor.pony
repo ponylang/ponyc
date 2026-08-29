@@ -133,7 +133,9 @@ primitive Extractor
         let module_for_child = _find_module_for_ast(pkg, child)
 
         for entity_ast in child.children() do
-          if entity_ast.id() == ast.TokenIds.tk_use() then
+          if (entity_ast.id() == ast.TokenIds.tk_use())
+            or (entity_ast.id() == ast.TokenIds.tk_export())
+          then
             continue
           end
 

@@ -105,6 +105,7 @@ typedef enum token_id
   TK_COMPILE_INTRINSIC,
 
   TK_USE,
+  TK_EXPORT,
   TK_TYPE,
   TK_INTERFACE,
   TK_TRAIT,

@@ -90,6 +90,7 @@ class val PositionIndex
     """
     match ast_id
     | TokenIds.tk_call() | TokenIds.tk_typeref() | TokenIds.tk_use()
+    | TokenIds.tk_export()
     | TokenIds.tk_actor() | TokenIds.tk_class() | TokenIds.tk_struct()
     | TokenIds.tk_trait() | TokenIds.tk_interface() | TokenIds.tk_type()
     | TokenIds.tk_new() | TokenIds.tk_fun() | TokenIds.tk_be()
@@ -182,7 +183,7 @@ class val PositionIndex
         let parent' = node.parent() as AST
         match parent'.id()
         | TokenIds.tk_fun() | TokenIds.tk_be() | TokenIds.tk_new()
-        | TokenIds.tk_use()
+        | TokenIds.tk_use() | TokenIds.tk_export()
         | TokenIds.tk_nominal() | TokenIds.tk_typealiasref() =>
           return parent'
         end
