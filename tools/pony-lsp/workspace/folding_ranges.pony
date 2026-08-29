@@ -21,7 +21,7 @@ primitive FoldingRanges
   the LSP processes. Fold ranges for `ifdef` expressions are produced via the
   `tk_if` arm.
 
-  Note: `for` is desugared to a `let` binding and a `while` loop by
+  Note: `for` is desugared to `let` bindings and a `while` loop by
   `sugar_for()` in `src/libponyc/pass/sugar.c`, so `tk_for` never appears in
   the AST that the LSP processes. Fold ranges for `for` expressions are
   produced via the `tk_while` arm.
@@ -178,7 +178,7 @@ primitive FoldingRanges
     produced via the tk_if arm.
 
     Note: tk_for is not matched here because sugar_for() in
-    src/libponyc/pass/sugar.c replaces the for node with a let binding
+    src/libponyc/pass/sugar.c replaces the for node with let bindings
     and a while loop before the AST reaches the LSP. Fold ranges for for
     expressions are produced via the tk_while arm.
     """

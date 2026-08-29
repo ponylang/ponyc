@@ -862,10 +862,17 @@ DEF(repeat);
 
 // FOR [annotations] idseq IN rawseq DO rawseq [ELSE annotatedseq] END
 // =>
-// (SEQ
-//   (ASSIGN (LET $1) iterator)
-//   (WHILE $1.has_next()
-//     (SEQ (ASSIGN idseq $1.next()) body) else))
+// Single iterator:
+//   (SEQ
+//     (ASSIGN (LET $1) iterator)
+//     (WHILE $1.has_next()
+//       (SEQ (ASSIGN idseq (TRY $1.next() ELSE break)) body) else))
+// Multiple iterators (rawseq is a tuple):
+//   (SEQ
+//     (ASSIGN (LET $1) iter1) (ASSIGN (LET $2) iter2) ...
+//     (WHILE $1.has_next() and $2.has_next() and ...
+//       (SEQ (ASSIGN idseq (TRY ($1.next(), $2.next(), ...) ELSE break))
+//         body) else))
 // The body is not a scope since the sugar wraps it in a seq for us.
 DEF(forloop);
   PRINT_INLINE();

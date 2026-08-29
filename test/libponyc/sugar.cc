@@ -925,7 +925,7 @@ TEST_F(SugarTest, NotForWithElse)
 }
 
 
-TEST_F(SugarTest, MultiIteratorFor)
+TEST_F(SugarTest, DestructuredFor)
 {
   const char* short_form =
     "class Foo\n"
@@ -949,6 +949,167 @@ TEST_F(SugarTest, MultiIteratorFor)
     "        None\n"
     "      end\n"
     "      (2)\n"
+    "    else None end\n"
+    "  )";
+
+  TEST_EQUIV(short_form, full_form);
+}
+
+
+TEST_F(SugarTest, MultiIteratorForTwoIterators)
+{
+  const char* short_form =
+    "class Foo\n"
+    "  var create: U32\n"
+    "  fun f(): U32 val =>\n"
+    "    for (i, j) in (1, 2) do 3 end";
+
+  const char* full_form =
+    "use \"builtin\"\n"
+    "class ref Foo\n"
+    "  var create: U32\n"
+    "  fun box f(): U32 val =>\n"
+    "  (\n"
+    "    let $1 = (1)\n"
+    "    let $2 = (2)\n"
+    "    while $1.has_next().op_and($2.has_next()) do\n"
+    "      (let i, let j) = $try_no_check\n"
+    "        ($1.next()?, $2.next()?)\n"
+    "      else\n"
+    "        break\n"
+    "      then\n"
+    "        None\n"
+    "      end\n"
+    "      (3)\n"
+    "    else None end\n"
+    "  )";
+
+  TEST_EQUIV(short_form, full_form);
+}
+
+
+TEST_F(SugarTest, MultiIteratorForSingleName)
+{
+  const char* short_form =
+    "class Foo\n"
+    "  var create: U32\n"
+    "  fun f(): U32 val =>\n"
+    "    for x in (1, 2) do 3 end";
+
+  const char* full_form =
+    "use \"builtin\"\n"
+    "class ref Foo\n"
+    "  var create: U32\n"
+    "  fun box f(): U32 val =>\n"
+    "  (\n"
+    "    let $1 = (1)\n"
+    "    let $2 = (2)\n"
+    "    while $1.has_next().op_and($2.has_next()) do\n"
+    "      let x = $try_no_check\n"
+    "        ($1.next()?, $2.next()?)\n"
+    "      else\n"
+    "        break\n"
+    "      then\n"
+    "        None\n"
+    "      end\n"
+    "      (3)\n"
+    "    else None end\n"
+    "  )";
+
+  TEST_EQUIV(short_form, full_form);
+}
+
+
+TEST_F(SugarTest, MultiIteratorForThreeIterators)
+{
+  const char* short_form =
+    "class Foo\n"
+    "  var create: U32\n"
+    "  fun f(): U32 val =>\n"
+    "    for (a, b, c) in (1, 2, 3) do 4 end";
+
+  const char* full_form =
+    "use \"builtin\"\n"
+    "class ref Foo\n"
+    "  var create: U32\n"
+    "  fun box f(): U32 val =>\n"
+    "  (\n"
+    "    let $1 = (1)\n"
+    "    let $2 = (2)\n"
+    "    let $3 = (3)\n"
+    "    while $1.has_next().op_and($2.has_next()).op_and($3.has_next()) do\n"
+    "      (let a, let b, let c) = $try_no_check\n"
+    "        ($1.next()?, $2.next()?, $3.next()?)\n"
+    "      else\n"
+    "        break\n"
+    "      then\n"
+    "        None\n"
+    "      end\n"
+    "      (4)\n"
+    "    else None end\n"
+    "  )";
+
+  TEST_EQUIV(short_form, full_form);
+}
+
+
+TEST_F(SugarTest, MultiIteratorForWithElse)
+{
+  const char* short_form =
+    "class Foo\n"
+    "  var create: U32\n"
+    "  fun f(): U32 val =>\n"
+    "    for (i, j) in (1, 2) do 3 else 4 end";
+
+  const char* full_form =
+    "use \"builtin\"\n"
+    "class ref Foo\n"
+    "  var create: U32\n"
+    "  fun box f(): U32 val =>\n"
+    "  (\n"
+    "    let $1 = (1)\n"
+    "    let $2 = (2)\n"
+    "    while $1.has_next().op_and($2.has_next()) do\n"
+    "      (let i, let j) = $try_no_check\n"
+    "        ($1.next()?, $2.next()?)\n"
+    "      else\n"
+    "        break\n"
+    "      then\n"
+    "        None\n"
+    "      end\n"
+    "      (3)\n"
+    "    else 4 end\n"
+    "  )";
+
+  TEST_EQUIV(short_form, full_form);
+}
+
+
+TEST_F(SugarTest, MultiIteratorForNestedDestructure)
+{
+  const char* short_form =
+    "class Foo\n"
+    "  var create: U32\n"
+    "  fun f(): U32 val =>\n"
+    "    for (a, (b, c)) in (1, 2) do 3 end";
+
+  const char* full_form =
+    "use \"builtin\"\n"
+    "class ref Foo\n"
+    "  var create: U32\n"
+    "  fun box f(): U32 val =>\n"
+    "  (\n"
+    "    let $1 = (1)\n"
+    "    let $2 = (2)\n"
+    "    while $1.has_next().op_and($2.has_next()) do\n"
+    "      (let a, (let b, let c)) = $try_no_check\n"
+    "        ($1.next()?, $2.next()?)\n"
+    "      else\n"
+    "        break\n"
+    "      then\n"
+    "        None\n"
+    "      end\n"
+    "      (3)\n"
     "    else None end\n"
     "  )";
 

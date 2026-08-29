@@ -515,41 +515,167 @@ static ast_result_t sugar_for(pass_opt_t* opt, ast_t** astp)
   ast_t* annotation = ast_consumeannotation(*astp);
 
   expand_none(for_else, true, opt);
-  const char* iter_name = package_hygienic_id(&opt->check, opt);
 
-  BUILD(try_next, for_iter,
-    NODE(TK_TRY_NO_CHECK,
-      NODE(TK_SEQ, AST_SCOPE
-        NODE(TK_CALL,
-          NODE(TK_DOT, NODE(TK_REFERENCE, ID(iter_name)) ID("next"))
+  // Check if the iterator expression is a tuple (multi-iterator for loop).
+  // for_iter is a TK_SEQ; if its sole child is a TK_TUPLE, we have
+  // multiple iterators.
+  ast_t* iter_child = ast_child(for_iter);
+  bool multi = (iter_child != NULL)
+    && (ast_sibling(iter_child) == NULL)
+    && (ast_id(iter_child) == TK_TUPLE);
+
+  if(multi)
+  {
+    // Multi-iterator for loop:
+    //   for (a, b) in (iter_a, iter_b) do body else else_body end
+    // desugars to:
+    //   (let $1 = iter_a
+    //    let $2 = iter_b
+    //    while $1.has_next() and $2.has_next() do
+    //      (a, b) = try ($1.next()?, $2.next()?) else break end
+    //      body
+    //    else else_body end)
+
+    ast_t* iter_tuple = iter_child;
+    size_t iter_count = ast_childcount(iter_tuple);
+    pony_assert(iter_count >= 2);
+
+    ast_t* outer_seq = ast_from(*astp, TK_SEQ);
+
+    const char** iter_names =
+      (const char**)ponyint_pool_alloc_size(iter_count * sizeof(const char*));
+
+    ast_t* iter_expr = ast_child(iter_tuple);
+    for(size_t i = 0; i < iter_count; i++)
+    {
+      iter_names[i] = package_hygienic_id(&opt->check, opt);
+
+      BUILD(assign, iter_expr,
+        NODE(TK_ASSIGN,
+          NODE(TK_LET, NICE_ID(iter_names[i], "for loop iterator") NONE)
+          TREE(iter_expr)));
+
+      ast_append(outer_seq, assign);
+      iter_expr = ast_sibling(iter_expr);
+    }
+
+    //   $1.has_next() and $2.has_next() and ...
+    ast_t* first_iter_expr = ast_child(iter_tuple);
+
+    BUILD(condition, first_iter_expr,
+      NODE_ERROR_AT(TK_CALL, first_iter_expr,
+        NODE(TK_DOT, NODE(TK_REFERENCE, ID(iter_names[0])) ID("has_next"))
+        NONE
+        NONE
+        NONE));
+
+    ast_t* cond_iter_expr = ast_sibling(first_iter_expr);
+    for(size_t i = 1; i < iter_count; i++)
+    {
+      BUILD(next_cond, cond_iter_expr,
+        NODE_ERROR_AT(TK_CALL, cond_iter_expr,
+          NODE(TK_DOT, NODE(TK_REFERENCE, ID(iter_names[i])) ID("has_next"))
           NONE
           NONE
-          NODE(TK_QUESTION)))
-      NODE(TK_SEQ, AST_SCOPE
-        NODE(TK_BREAK, NONE))
-      NONE));
+          NONE));
 
-  sugar_try(try_next, opt);
+      BUILD(combined, condition,
+        NODE(TK_AND,
+          TREE(condition)
+          TREE(next_cond)
+          NONE));
 
-  REPLACE(astp,
-    NODE(TK_SEQ,
-      NODE(TK_ASSIGN,
-        NODE(TK_LET, NICE_ID(iter_name, "for loop iterator") NONE)
-        TREE(for_iter))
+      condition = combined;
+      cond_iter_expr = ast_sibling(cond_iter_expr);
+    }
+
+    //   ($1.next()?, $2.next()?)
+    ast_t* next_tuple = ast_from(first_iter_expr, TK_TUPLE);
+
+    iter_expr = ast_child(iter_tuple);
+    for(size_t i = 0; i < iter_count; i++)
+    {
+      BUILD(next_call, iter_expr,
+        NODE(TK_SEQ,
+          NODE(TK_CALL,
+            NODE(TK_DOT,
+              NODE(TK_REFERENCE, ID(iter_names[i]))
+              ID("next"))
+            NONE
+            NONE
+            NODE(TK_QUESTION))));
+
+      ast_append(next_tuple, next_call);
+      iter_expr = ast_sibling(iter_expr);
+    }
+
+    //   try (tuple of nexts) else break end
+    BUILD(try_next, first_iter_expr,
+      NODE(TK_TRY_NO_CHECK,
+        NODE(TK_SEQ, AST_SCOPE
+          TREE(next_tuple))
+        NODE(TK_SEQ, AST_SCOPE
+          NODE(TK_BREAK, NONE))
+        NONE));
+
+    sugar_try(try_next, opt);
+
+    BUILD(while_loop, *astp,
       NODE(TK_WHILE, AST_SCOPE
         ANNOTATE(annotation)
-        NODE(TK_SEQ,
-          NODE_ERROR_AT(TK_CALL, for_iter,
-            NODE(TK_DOT, NODE(TK_REFERENCE, ID(iter_name)) ID("has_next"))
-            NONE
-            NONE
-            NONE))
+        NODE(TK_SEQ, TREE(condition))
         NODE(TK_SEQ, AST_SCOPE
           NODE_ERROR_AT(TK_ASSIGN, for_idseq,
             TREE(for_idseq)
             TREE(try_next))
           TREE(for_body))
-        TREE(for_else))));
+        TREE(for_else)));
+
+    ast_append(outer_seq, while_loop);
+
+    ponyint_pool_free_size(iter_count * sizeof(const char*), iter_names);
+
+    ast_replace(astp, outer_seq);
+    ast_free(for_iter);
+  }
+  else
+  {
+    const char* iter_name = package_hygienic_id(&opt->check, opt);
+
+    BUILD(try_next, for_iter,
+      NODE(TK_TRY_NO_CHECK,
+        NODE(TK_SEQ, AST_SCOPE
+          NODE(TK_CALL,
+            NODE(TK_DOT, NODE(TK_REFERENCE, ID(iter_name)) ID("next"))
+            NONE
+            NONE
+            NODE(TK_QUESTION)))
+        NODE(TK_SEQ, AST_SCOPE
+          NODE(TK_BREAK, NONE))
+        NONE));
+
+    sugar_try(try_next, opt);
+
+    REPLACE(astp,
+      NODE(TK_SEQ,
+        NODE(TK_ASSIGN,
+          NODE(TK_LET, NICE_ID(iter_name, "for loop iterator") NONE)
+          TREE(for_iter))
+        NODE(TK_WHILE, AST_SCOPE
+          ANNOTATE(annotation)
+          NODE(TK_SEQ,
+            NODE_ERROR_AT(TK_CALL, for_iter,
+              NODE(TK_DOT, NODE(TK_REFERENCE, ID(iter_name)) ID("has_next"))
+              NONE
+              NONE
+              NONE))
+          NODE(TK_SEQ, AST_SCOPE
+            NODE_ERROR_AT(TK_ASSIGN, for_idseq,
+              TREE(for_idseq)
+              TREE(try_next))
+            TREE(for_body))
+          TREE(for_else))));
+  }
 
   return AST_OK;
 }
