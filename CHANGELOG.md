@@ -24,9 +24,12 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Added
 
+- Add `export` keyword for C-ABI interop ([PR #5897](https://github.com/ponylang/ponyc/pull/5897))
 - Add --pass-timings/--pass-timings-json for profiling compiler pass times ([PR #5792](https://github.com/ponylang/ponyc/pull/5792))
 
 ### Changed
+
+- `export` is now a reserved word ([PR #5897](https://github.com/ponylang/ponyc/pull/5897))
 
 
 ## [0.69.1] - 2026-08-21
