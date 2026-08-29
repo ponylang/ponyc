@@ -75,6 +75,7 @@ struct package_t
   ast_t* c_first_flag_use;
   bool allow_ffi;
   bool on_stack;
+  bool needs_export_include;
 };
 
 // A strongly connected component in the package dependency graph
@@ -657,6 +658,7 @@ ast_t* create_package(ast_t* program, const char* name,
   pkg->c_define_uses = NULL;
   pkg->c_sources = NULL;
   pkg->c_first_flag_use = NULL;
+  pkg->needs_export_include = false;
   ast_setdata(package, pkg);
 
   ast_scope(package);
@@ -1448,6 +1450,28 @@ ast_t* package_c_first_flag_use(ast_t* package)
   pony_assert(pkg != NULL);
 
   return pkg->c_first_flag_use;
+}
+
+
+bool package_needs_export_include(ast_t* package)
+{
+  pony_assert(package != NULL);
+  pony_assert(ast_id(package) == TK_PACKAGE);
+  package_t* pkg = (package_t*)ast_data(package);
+  pony_assert(pkg != NULL);
+
+  return pkg->needs_export_include;
+}
+
+
+void package_set_needs_export_include(ast_t* package)
+{
+  pony_assert(package != NULL);
+  pony_assert(ast_id(package) == TK_PACKAGE);
+  package_t* pkg = (package_t*)ast_data(package);
+  pony_assert(pkg != NULL);
+
+  pkg->needs_export_include = true;
 }
 
 
