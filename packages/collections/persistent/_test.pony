@@ -20,6 +20,7 @@ actor \nodoc\ Main is TestList
     test(_TestListFlatMap)
     test(_TestListFold)
     test(_TestListFrom)
+    test(_TestListLong)
     test(_TestListMap)
     test(_TestListPartition)
     test(_TestListPrepend)
@@ -132,6 +133,57 @@ class \nodoc\ iso _TestListConcat is UnitTest
     let l8 = Lists[U32]([1])
     let l9 = l8.reverse()
     h.assert_true(Lists[U32].eq(l9, Lists[U32]([1]))?)
+
+class \nodoc\ iso _TestListLong is UnitTest
+  """
+  Every transformation, over a list long enough that one stack frame per
+  element would exhaust the stack.
+
+  These used to recurse once per element. A Pony stack overflow is not an
+  error a caller can catch: it takes the runtime down, and every actor with
+  it. Nothing here would have failed on that, because no other example test
+  in this file builds a list long enough for recursion depth to matter.
+
+  200_000 is about five times the length that overflowed an 8 MB stack. A
+  machine with a larger stack raises that length, so a regression shows up as
+  the test binary dying rather than as a failed assertion.
+  """
+  fun name(): String => "collections/persistent/List (long list)"
+
+  fun apply(h: TestHelper) ? =>
+    let n: USize = 200_000
+    let source = Array[USize](n)
+    for i in mut.Range(0, n) do source.push(i) end
+
+    // `Lists.apply` reverses, so building the list exercises `reverse`
+    let l = Lists[USize](source)
+    h.assert_eq[USize](l.size(), n)
+    h.assert_eq[USize](l(0)?, 0, "apply, first")
+    h.assert_eq[USize](l(n - 1)?, n - 1, "apply, last")
+
+    h.assert_eq[USize](l.reverse()(0)?, n - 1, "reverse")
+    h.assert_eq[USize](l.map[USize]({(x) => x + 1 })(0)?, 1, "map")
+    h.assert_eq[USize](l.filter({(x) => (x % 2) == 0 }).size(), n / 2, "filter")
+    h.assert_eq[USize](
+      l.fold[USize]({(acc, x) => acc + 1 }, 0), n, "fold")
+    h.assert_true(l.every({(x) => x < n }), "every")
+    h.assert_true(l.exists({(x) => x == (n - 1) }), "exists")
+    h.assert_eq[USize](l.concat(l).size(), n * 2, "concat")
+    h.assert_eq[USize](
+      l.flat_map[USize]({(x) => Lists[USize]([x]) }).size(), n, "flat_map")
+    h.assert_eq[USize](l.take(n).size(), n, "take")
+    h.assert_eq[USize](
+      l.take_while({(x) => true }).size(), n, "take_while")
+    h.assert_eq[USize](l.drop(1).size(), n - 1, "drop")
+
+    (let hits, let misses) = l.partition({(x) => (x % 2) == 0 })
+    h.assert_eq[USize](hits.size(), n / 2, "partition, hits")
+    h.assert_eq[USize](misses.size(), n / 2, "partition, misses")
+
+    l.for_each({(x) => None })
+
+    // `eq` walks both lists, and was not tail called even in a release build
+    h.assert_true(Lists[USize].eq[USize](l, Lists[USize](source))?, "eq")
 
 class \nodoc\ iso _TestListMap is UnitTest
   fun name(): String => "collections/persistent/Lists (map)"
