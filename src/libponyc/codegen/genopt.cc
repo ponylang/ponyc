@@ -368,14 +368,84 @@ public:
 
         case Instruction::Store:
         {
-          // If we store the pointer, it is captured.
-          // TODO: if we store the pointer in something that is stack allocated
-          // is it still captured?
           if(value == inst->getOperand(0))
           {
-            print_transform(c, alloc, "captured allocation");
-            print_transform(c, inst, "captured here (store)");
-            return false;
+            Value* dest = inst->getOperand(1);
+            const DataLayout& dl =
+              inst->getModule()->getDataLayout();
+
+            APInt store_offset(64, 0);
+            Value* store_base =
+              dest->stripAndAccumulateConstantOffsets(dl, store_offset,
+                true);
+
+            if(!isa<AllocaInst>(store_base))
+            {
+              print_transform(c, alloc, "captured allocation");
+              print_transform(c, inst, "captured here (store to non-stack)");
+              return false;
+            }
+
+            // Walk every use of the alloca to find loads from the same
+            // (base, offset). Those loads may produce our pointer.
+            AllocaInst* slot = cast<AllocaInst>(store_base);
+            SmallVector<Value*, 8> slot_ptrs;
+            SmallSet<Value*, 8> slot_seen;
+            slot_ptrs.push_back(slot);
+            slot_seen.insert(slot);
+
+            while(!slot_ptrs.empty())
+            {
+              Value* ptr = slot_ptrs.pop_back_val();
+
+              for(auto ui = ptr->user_begin(), ue = ptr->user_end();
+                ui != ue; ++ui)
+              {
+                Instruction* user = dyn_cast<Instruction>(*ui);
+                if(user == nullptr)
+                  continue;
+
+                if(isa<GetElementPtrInst>(user) ||
+                  isa<BitCastInst>(user))
+                {
+                  if(slot_seen.insert(user).second)
+                    slot_ptrs.push_back(user);
+                }
+                else if(auto *li = dyn_cast<LoadInst>(user))
+                {
+                  Value* load_addr = li->getPointerOperand();
+                  APInt load_offset(64, 0);
+                  Value* load_base =
+                    load_addr->stripAndAccumulateConstantOffsets(
+                      dl, load_offset, true);
+
+                  // Skip only when we can prove the load accesses a
+                  // different field: same base, different offset.
+                  if(load_base == store_base &&
+                    load_offset != store_offset)
+                    continue;
+
+                  if(canBeReused(li, alloc, dt))
+                    return false;
+
+                  for(auto lui = li->use_begin(), lue = li->use_end();
+                    lui != lue; ++lui)
+                  {
+                    Use* load_use = &(*lui);
+
+                    if(visited.insert(load_use).second)
+                      work.push_back(load_use);
+                  }
+                }
+                else if(!isa<StoreInst>(user))
+                {
+                  print_transform(c, alloc, "captured allocation");
+                  print_transform(c, inst,
+                    "captured here (alloca use in call/unknown)");
+                  return false;
+                }
+              }
+            }
           }
           break;
         }
