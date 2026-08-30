@@ -10,7 +10,7 @@ actor Main
     try
       let v = Vec[USize].concat([as USize: 0; 1; 2; 3; 4].values())
 
-      // asks to remove index 4 and two indices that do not exist
+      // specifies removal of index 4 and two indices that do not exist
       let r = v.remove(4, 3)?
 
       // elements 2 and 3 were live, were not named, and are gone
