@@ -40,6 +40,10 @@ actor \nodoc\ Main is TestList
     test(_TestVecRemoveOverrun)
     test(_TestVecReverse)
     test(_TestVecSlice)
+    test(Property1UnitTest[Array[USize]](_ListIteratorsProperty))
+    test(Property1UnitTest[(Array[USize], Array[USize], USize)](
+      _ListLawsProperty))
+    test(Property1UnitTest[(USize, Array[_ListAction])](_ListModelProperty))
     test(Property1UnitTest[Array[_MapAction]](_MapIteratorsProperty))
     test(Property1UnitTest[(USize, Array[_MapAction])](_MapModelProperty))
     test(Property1UnitTest[Array[_MapAction]](_MapStructureProperty))
@@ -644,6 +648,316 @@ class \nodoc\ iso _TestVecReverse is UnitTest
     h.assert_eq[USize](one(0)?, 7)
 
     h.assert_eq[USize](Vec[USize].reverse().size(), 0)
+
+type _ListAction is (U8, USize, USize)
+  """
+  One generated operation: an operation tag and two arguments whose meaning
+  depends on the tag.
+  """
+
+primitive \nodoc\ _ListGen
+  fun sizes(): Generator[USize] =>
+    """
+    Sizes small enough that a sequence of operations stays cheap, with the
+    empty and single element lists drawn often because they are where the
+    `Nil` and `Cons` halves of the union meet.
+    """
+    Generators.frequency[USize](
+      [ as WeightedGenerator[USize]:
+        (5, Generators.usize(0, 20))
+        (3, Generators.usize(0, 200))
+        (2, Generators.one_of[USize]([as USize: 0; 1; 2; 3])) ])
+
+  fun contents(): Generator[Array[USize]] =>
+    """
+    Elements are drawn from a small range so that repeats are common, which is
+    what the predicates and `eq` need to be interesting.
+    """
+    sizes().flat_map[Array[USize]](
+      {(n: USize): Generator[Array[USize]] =>
+        Generators.seq_of[USize, Array[USize]](Generators.usize(0, 9), n, n)
+      })
+
+  fun build(elements: ReadSeq[USize]): List[USize] =>
+    """
+    Build with `prepend` alone, walking the source backwards. Everything else
+    that could build a list is under test, so this depends on the one
+    operation that cannot reorder anything.
+    """
+    var l: List[USize] = Nil[USize]
+    var i = elements.size()
+    while i > 0 do
+      i = i - 1
+      try l = l.prepend(elements(i)?) end
+    end
+    l
+
+primitive \nodoc\ _ListCheck
+  fun contents(l: List[USize]): Array[USize] =>
+    """
+    Read a list out through `head` and `tail`, which the example based tests
+    cover, so that the transformations and the iterator can be checked against
+    it rather than against themselves.
+    """
+    let out = Array[USize](l.size())
+    var cur: List[USize] = l
+    try
+      while cur.is_non_empty() do
+        out.push(cur.head()?)
+        cur = cur.tail()?
+      end
+    end
+    out
+
+  fun drain(l: List[USize]): (Array[USize], Bool) =>
+    """
+    Drain `values()` through `has_next` and `next` rather than a `for` loop.
+    The `for` sugar turns an error from `next` into a `break`, so a `for` loop
+    cannot tell an exhausted iterator from one that raised.
+
+    The returned flag is true when `next` raised while `has_next` was still
+    true, or when `has_next` stayed true past the number of elements the list
+    holds. Both are the same contract violation.
+    """
+    let out = Array[USize](l.size())
+    let it = l.values()
+    let limit = l.size() + 2
+    while it.has_next() do
+      if out.size() >= limit then return (out, true) end
+      try out.push(it.next()?) else return (out, true) end
+    end
+    (out, false)
+
+class \nodoc\ iso _ListModelProperty is Property1[(USize, Array[_ListAction])]
+  """
+  Apply a generated sequence of operations to a `List` and to an `Array` used
+  as a model, then check that the two hold the same elements.
+
+  Each sample enables a random subset of the operations, so that sequences
+  which only ever grow the list are drawn as well as sequences that shrink it
+  back to `Nil` and build it up again.
+  """
+  fun name(): String => "collections/persistent/List (property: model)"
+
+  fun gen(): Generator[(USize, Array[_ListAction])] =>
+    Generators.usize(0, 255)
+      .flat_map[(USize, Array[_ListAction])](
+        {(bits: USize): Generator[(USize, Array[_ListAction])] =>
+          // `prepend` is always enabled; with no way to add elements a sample
+          // exercises nothing
+          let config = bits or 1
+          let ops = Array[U8]
+          for op in mut.Range[U8](0, 8) do
+            if (config and (USize(1) << op.usize())) != 0 then ops.push(op) end
+          end
+          Generators.seq_of[_ListAction, Array[_ListAction]](
+            Generators.zip3[U8, USize, USize](
+              Generators.one_of[U8](ops),
+              Generators.usize(0, 99),
+              Generators.usize(0, 99)),
+            1,
+            60)
+            .map[(USize, Array[_ListAction])](
+              {(actions: Array[_ListAction]): (USize, Array[_ListAction]) =>
+                (config, actions)
+              })
+        })
+
+  fun ref property(arg1: (USize, Array[_ListAction]), h: PropertyHelper) =>
+    (let config, let actions) = arg1
+    var l: List[USize] = Nil[USize]
+    var model = Array[USize]
+
+    for (i, action) in actions.pairs() do
+      (let op, let a, let b) = action
+      let n = model.size()
+      match op
+      | 0 =>
+        l = l.prepend(a)
+        model.unshift(a)
+      | 1 =>
+        l = l.reverse()
+        model.reverse_in_place()
+      | 2 =>
+        l = l.map[USize]({(x) => x + 1 })
+        let m = Array[USize](n)
+        for x in model.values() do m.push(x + 1) end
+        model = m
+      | 3 =>
+        let keep = b % 10
+        l = l.filter({(x)(keep) => x >= keep })
+        let m = Array[USize](n)
+        for x in model.values() do if x >= keep then m.push(x) end end
+        model = m
+      | 4 =>
+        let k = a % (n + 1)
+        l = l.drop(k)
+        model = model.slice(k)
+      | 5 =>
+        let k = a % (n + 1)
+        l = l.take(k)
+        model = model.slice(0, k)
+      | 6 =>
+        // a short list, so a run of concats grows the list by a constant
+        // rather than doubling it
+        l = l.concat(Lists[USize]([a; b]))
+        model = Array[USize](n + 2) .> append(model) .> push(a) .> push(b)
+      | 7 =>
+        // doubling, so it is only drawn while the list is short enough that a
+        // run of them stays bounded
+        if n <= 200 then
+          l = l.flat_map[USize]({(x) => Lists[USize]([x; x]) })
+          let m = Array[USize](n * 2)
+          for x in model.values() do m .> push(x) .> push(x) end
+          model = m
+        end
+      end
+
+      let after: String val =
+        " after action " + i.string() + " (op " + op.string() + ", " +
+          a.string() + ", " + b.string() + "), config " + config.string()
+      h.assert_eq[USize](model.size(), l.size(), "size" + after)
+      h.assert_array_eq[USize](
+        model, _ListCheck.contents(l), "contents" + after)
+    end
+
+class \nodoc\ iso _ListLawsProperty
+  is Property1[(Array[USize], Array[USize], USize)]
+  """
+  Laws that relate the operations to each other, each of which must hold for
+  any list.
+
+  A model property checks each operation against a hand written model, so an
+  operation and its model can be wrong together. These check the operations
+  against each other instead, which does not need a model to be right.
+  """
+  fun name(): String => "collections/persistent/List (property: laws)"
+
+  fun gen(): Generator[(Array[USize], Array[USize], USize)] =>
+    Generators.zip3[Array[USize], Array[USize], USize](
+      _ListGen.contents(), _ListGen.contents(), Generators.usize(0, 99))
+
+  fun ref property(
+    arg1: (Array[USize], Array[USize], USize),
+    h: PropertyHelper)
+    ?
+  =>
+    (let xs, let ys, let k) = arg1
+    let l = _ListGen.build(xs)
+    let a = _ListGen.build(xs)
+    let b = _ListGen.build(ys)
+    let n = xs.size()
+    let cut = k % (n + 1)
+    let even = {(x: USize): Bool => (x % 2) == 0 }
+    let odd = {(x: USize): Bool => (x % 2) != 0 }
+
+    h.assert_array_eq[USize](
+      xs, _ListCheck.contents(l.reverse().reverse()), "reverse . reverse")
+
+    h.assert_array_eq[USize](
+      xs,
+      _ListCheck.contents(l.take(cut).concat(l.drop(cut))),
+      "take . concat . drop")
+
+    h.assert_array_eq[USize](
+      xs,
+      _ListCheck.contents(
+        l.take_while(even).concat(l.drop_while(even))),
+      "take_while . concat . drop_while")
+
+    (let hits, let misses) = l.partition(even)
+    h.assert_array_eq[USize](
+      _ListCheck.contents(l.filter(even)),
+      _ListCheck.contents(hits),
+      "partition agrees with filter")
+    h.assert_array_eq[USize](
+      _ListCheck.contents(l.filter(odd)),
+      _ListCheck.contents(misses),
+      "partition agrees with the complementary filter")
+
+    // reversing a concatenation swaps the operands
+    h.assert_array_eq[USize](
+      _ListCheck.contents(a.concat(b).reverse()),
+      _ListCheck.contents(b.reverse().concat(a.reverse())),
+      "reverse distributes over concat")
+
+    h.assert_eq[USize](
+      xs.size() + ys.size(), a.concat(b).size(), "concat adds the sizes")
+
+    // mapping twice is mapping the composition once
+    h.assert_array_eq[USize](
+      _ListCheck.contents(
+        l.map[USize]({(x) => x + 1 }).map[USize]({(x) => x * 2 })),
+      _ListCheck.contents(l.map[USize]({(x) => (x + 1) * 2 })),
+      "map composes")
+
+    // flat_map with a single element list is map
+    h.assert_array_eq[USize](
+      xs,
+      _ListCheck.contents(l.flat_map[USize]({(x) => Lists[USize]([x]) })),
+      "flat_map of a singleton is the identity")
+
+    // folding with prepend rebuilds the list backwards
+    h.assert_array_eq[USize](
+      _ListCheck.contents(l.reverse()),
+      _ListCheck.contents(
+        l.fold[List[USize]](
+          {(acc, x) => acc.prepend(x) }, Lists[USize].empty())),
+      "fold with prepend is reverse")
+
+    h.assert_eq[Bool](
+      l.every(even), not l.exists(odd), "every is not exists of the negation")
+
+    h.assert_true(
+      Lists[USize].eq[USize](l, _ListGen.build(xs))?, "eq of equal lists")
+
+    // `Lists.from` is the one constructor the generators avoid, so nothing
+    // else here would see it reorder. It returned its elements backwards
+    // once, which is what 8144dceb0 fixed.
+    h.assert_array_eq[USize](
+      xs, _ListCheck.contents(Lists[USize].from(xs.values())), "Lists.from")
+    h.assert_array_eq[USize](
+      xs, _ListCheck.contents(Lists[USize](xs)), "Lists.apply")
+
+class \nodoc\ iso _ListIteratorsProperty is Property1[Array[USize]]
+  """
+  `values()` agrees with reading the list through `head` and `tail`, keeps the
+  `Iterator` contract, and leaves the list it came from alone.
+
+  The iterator is driven through `has_next` and `next` rather than a `for`
+  loop. A `for` loop turns an error from `next` into a `break`, so it reports
+  a truncated iteration as a complete one, which is how the same defect
+  shipped in the map iterators.
+  """
+  fun name(): String => "collections/persistent/List (property: iterators)"
+
+  fun gen(): Generator[Array[USize]] => _ListGen.contents()
+
+  fun ref property(arg1: Array[USize], h: PropertyHelper) =>
+    let l = _ListGen.build(arg1)
+
+    (let drained, let broke) = _ListCheck.drain(l)
+    h.assert_false(broke, "iterator contract")
+    h.assert_array_eq[USize](arg1, drained, "values")
+
+    // an exhausted iterator stays exhausted, and does not yield again
+    let it = l.values()
+    while it.has_next() do
+      try it.next()? else break end
+    end
+    h.assert_false(it.has_next(), "exhausted iterator reports exhausted")
+    var raised = false
+    try it.next()? else raised = true end
+    h.assert_true(raised, "exhausted iterator raises")
+
+    // two iterators over one list do not disturb each other
+    (let first, let broke_first) = _ListCheck.drain(l)
+    (let second, let broke_second) = _ListCheck.drain(l)
+    h.assert_false(broke_first or broke_second, "two iterators, contract")
+    h.assert_array_eq[USize](first, second, "two iterators agree")
+
+    h.assert_array_eq[USize](
+      arg1, _ListCheck.contents(l), "the list after iterating")
 
 type _VecAction is (U8, USize, USize)
   """
