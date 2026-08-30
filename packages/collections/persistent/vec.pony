@@ -93,13 +93,16 @@ class val Vec[A: Any #share]
 
   fun val remove(i: USize, n: USize): Vec[A] ? =>
     """
-    Return a vector with n elements removed, beginning at index i.
+    Return a vector with n elements removed, beginning at index i. The range
+    is saturated: if fewer than n elements follow i, every element from i
+    onward is removed. Raises an error if i is out of bounds.
     """
     if i >= _size then error end
+    let count = n.min(_size - i)
     var vec = this
-    for _ in mut.Range(0, n) do vec = vec.pop()? end
-    for idx in mut.Range(i, _size - n) do
-      vec = vec.update(idx, this(idx + n)?)?
+    for _ in mut.Range(0, count) do vec = vec.pop()? end
+    for idx in mut.Range(i, _size - count) do
+      vec = vec.update(idx, this(idx + count)?)?
     end
     vec
 

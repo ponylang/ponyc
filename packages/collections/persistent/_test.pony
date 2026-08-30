@@ -37,6 +37,7 @@ actor \nodoc\ Main is TestList
     test(_TestVecContains)
     test(_TestVecFind)
     test(_TestVecIterators)
+    test(_TestVecRemoveOverrun)
     test(_TestVecReverse)
     test(_TestVecSlice)
     test(Property1UnitTest[Array[_MapAction]](_MapIteratorsProperty))
@@ -559,6 +560,58 @@ class \nodoc\ iso _TestVecSlice is UnitTest
     h.assert_eq[USize](v.slice(n).size(), 0)
     h.assert_eq[USize](Vec[USize].slice().size(), 0)
 
+class \nodoc\ iso _TestVecRemoveOverrun is UnitTest
+  """
+  `remove` pops `n` elements off the end before it shifts the survivors down.
+  When fewer than `n` elements follow `i`, the pop takes elements the caller
+  never named and the shift loop is empty, so they are not put back. `size`
+  is reduced to match, which is why nothing downstream reveals a discrepancy.
+
+  The count is saturated rather than rejected, matching `Array.remove`, which
+  this method is named after, and `slice`, which already documents a saturated
+  range. The two methods must agree on what remove means; a mismatch with
+  `Array.remove` on the same contents is a failure.
+  """
+  fun name(): String => "collections/persistent/Vec (remove overrun)"
+
+  fun apply(h: TestHelper) ? =>
+    // a size that stays inside the tail, so a failure is about the arithmetic
+    // rather than about which trie level it landed on
+    _check(h, 5, 4, 3)?  // one element follows i, three named
+    _check(h, 5, 3, 3)?  // two follow, three named
+    _check(h, 5, 4, 4)?
+    _check(h, 5, 0, 99)? // every element named and then some
+    _check(h, 5, 4, 1)?  // exactly reaches the end, no overrun
+    _check(h, 5, 1, 2)?  // wholly inside, the case that already worked
+    _check(h, 5, 2, 0)?  // removes nothing
+
+    // and across a level boundary, where the pop walks the trie rather than
+    // the tail
+    _check(h, 33, 32, 8)?
+    _check(h, 1056, 1050, 100)?
+
+    // `i` itself out of bounds still raises: saturating the count does not
+    // make an out of range start acceptable
+    let v = _VecGen.build([as USize: 0; 1; 2])
+    h.assert_error({() ? => v.remove(3, 1)? }, "i == size")
+    h.assert_error({() ? => v.remove(9, 1)? }, "i past size")
+    h.assert_error({() ? => Vec[USize].remove(0, 1)? }, "empty vec")
+
+  fun _check(h: TestHelper, size: USize, i: USize, n: USize) ? =>
+    let elements = Array[USize](size)
+    for x in mut.Range(0, size) do elements.push(x) end
+
+    let expected = Array[USize](size) .> append(elements)
+    expected.remove(i, n)
+
+    let got = _VecCheck.contents(_VecGen.build(elements).remove(i, n)?)
+
+    let at: String val =
+      " (size " + size.string() + ", remove(" + i.string() + ", " +
+        n.string() + "))"
+    h.assert_eq[USize](expected.size(), got.size(), "size" + at)
+    h.assert_array_eq[USize](expected, got, "contents" + at)
+
 class \nodoc\ iso _TestVecReverse is UnitTest
   fun name(): String => "collections/persistent/Vec (reverse)"
 
@@ -711,7 +764,10 @@ class \nodoc\ iso _VecModelProperty is Property1[(USize, Array[_VecAction])]
       | 5 =>
         if n > 0 then
           let i = a % n
-          let count = 1 + (b % (n - i))
+          // drawn from the whole size, so a count that runs past the end is
+          // generated as readily as one that fits. `Array.remove` saturates,
+          // so the model already carries the answer `Vec.remove` must give.
+          let count = 1 + (b % n)
           v = v.remove(i, count)?
           model.remove(i, count)
         end
