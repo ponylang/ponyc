@@ -25,6 +25,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Fix persistent Map removing the wrong entry for a key it doesn't contain ([PR #5877](https://github.com/ponylang/ponyc/pull/5877))
 - Fix data loss in collections/persistent Vec.remove ([PR #5903](https://github.com/ponylang/ponyc/pull/5903))
 - Fix object literal compilation with union-constrained type parameters ([PR #5905](https://github.com/ponylang/ponyc/pull/5905))
+- Fix iftype narrowing for methods that use `this->` viewpoint ([PR #5907](https://github.com/ponylang/ponyc/pull/5907))
 
 ### Added
 
