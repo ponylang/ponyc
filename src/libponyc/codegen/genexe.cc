@@ -8,6 +8,7 @@ LLD_HAS_DRIVER(coff)
 LLD_HAS_DRIVER(mingw)
 LLD_HAS_DRIVER(wasm)
 
+#include "genexport.h"
 #include "gencall.h"
 #include "genfun.h"
 #include "genname.h"
@@ -15,6 +16,9 @@ LLD_HAS_DRIVER(wasm)
 #include "genopt.h"
 #include "genprim.h"
 #include "../reach/paint.h"
+#include "../reach/reach.h"
+#include "../ast/printbuf.h"
+#include "../ast/stringtab.h"
 #include "../pkg/package.h"
 #include "../pkg/program.h"
 #include "../plugin/plugin.h"
@@ -2274,6 +2278,302 @@ static bool link_exe(compile_t* c, ast_t* program,
 #endif
 }
 
+static void gen_export_wrapper(compile_t* c, reach_type_t* t,
+  reach_method_t* m, const char* export_name, bool is_primitive)
+{
+  compile_method_t* c_m = (compile_method_t*)m->c_method;
+
+  if(c_m == NULL || c_m->func == NULL)
+    return;
+
+  LLVMTypeRef func_type = c_m->func_type;
+  unsigned inner_param_count = LLVMCountParamTypes(func_type);
+
+  size_t inner_buf_size = inner_param_count * sizeof(LLVMTypeRef);
+  LLVMTypeRef* inner_param_types =
+    (LLVMTypeRef*)ponyint_pool_alloc_size(inner_buf_size);
+  LLVMGetParamTypes(func_type, inner_param_types);
+
+  LLVMTypeRef ret_type = LLVMGetReturnType(func_type);
+
+  unsigned wrapper_param_count = inner_param_count;
+  LLVMTypeRef* wrapper_param_types = inner_param_types;
+  size_t wrapper_buf_size = 0;
+
+  if(is_primitive && inner_param_count > 0)
+  {
+    wrapper_param_count = inner_param_count - 1;
+
+    if(wrapper_param_count > 0)
+    {
+      wrapper_buf_size = wrapper_param_count * sizeof(LLVMTypeRef);
+      wrapper_param_types =
+        (LLVMTypeRef*)ponyint_pool_alloc_size(wrapper_buf_size);
+
+      for(unsigned i = 0; i < wrapper_param_count; i++)
+        wrapper_param_types[i] = inner_param_types[i + 1];
+    }
+  }
+
+  LLVMTypeRef wrapper_type = LLVMFunctionType(ret_type, wrapper_param_types,
+    wrapper_param_count, false);
+
+  LLVMValueRef wrapper = LLVMAddFunction(c->module, export_name, wrapper_type);
+  LLVMSetFunctionCallConv(wrapper, LLVMCCallConv);
+  LLVMSetLinkage(wrapper, LLVMExternalLinkage);
+  LLVMSetUnnamedAddr(wrapper, false);
+
+  LLVMBasicBlockRef block = LLVMAppendBasicBlockInContext(c->context,
+    wrapper, "");
+  LLVMPositionBuilderAtEnd(c->builder, block);
+
+  size_t args_size = inner_param_count * sizeof(LLVMValueRef);
+  LLVMValueRef* args = (LLVMValueRef*)ponyint_pool_alloc_size(args_size);
+
+  if(is_primitive)
+  {
+    compile_type_t* c_t = (compile_type_t*)t->c_type;
+    args[0] = c_t->instance;
+
+    for(unsigned i = 1; i < inner_param_count; i++)
+      args[i] = LLVMGetParam(wrapper, i - 1);
+  }
+  else
+  {
+    for(unsigned i = 0; i < inner_param_count; i++)
+      args[i] = LLVMGetParam(wrapper, i);
+  }
+
+  LLVMValueRef result = LLVMBuildCall2(c->builder, func_type, c_m->func,
+    args, inner_param_count, "");
+  LLVMSetInstructionCallConv(result, c->callconv);
+
+  if(LLVMGetTypeKind(ret_type) == LLVMVoidTypeKind)
+    LLVMBuildRetVoid(c->builder);
+  else
+    LLVMBuildRet(c->builder, result);
+
+  ponyint_pool_free_size(inner_buf_size, inner_param_types);
+
+  if(is_primitive && wrapper_buf_size > 0)
+    ponyint_pool_free_size(wrapper_buf_size, wrapper_param_types);
+
+  ponyint_pool_free_size(args_size, args);
+}
+
+static void gen_wrappers_for_exports(compile_t* c, ast_t* exported_pkg,
+  const char* use_name)
+{
+  for(ast_t* module = ast_child(exported_pkg); module != NULL;
+    module = ast_sibling(module))
+  {
+    for(ast_t* node = ast_child(module); node != NULL;
+      node = ast_sibling(node))
+    {
+      token_id nid = ast_id(node);
+
+      if(nid != TK_CLASS && nid != TK_PRIMITIVE && nid != TK_STRUCT &&
+        nid != TK_ACTOR && nid != TK_TYPE)
+        continue;
+
+      if(!ast_has_annotation(node, "c_api", c->opt->strtab))
+        continue;
+
+      const char* bare_name = ast_name(ast_child(node));
+      ast_t* def;
+      token_id def_nid;
+      ast_t* typeargs;
+      ast_t* class_typeparams;
+
+      if(!resolve_export_alias(node, nid, &def, &def_nid, &typeargs,
+        &class_typeparams))
+        continue;
+
+      if(def_nid == TK_TRAIT || def_nid == TK_INTERFACE)
+        continue;
+
+      const char* def_name = ast_name(ast_child(def));
+      ast_t* nominal = type_builtin_args(c->opt, def, def_name,
+        typeargs);
+
+      if(nominal == NULL)
+        continue;
+
+      reach_type_t* t = reach_type(c->reach, nominal, c->opt);
+
+      if(t == NULL)
+      {
+        ast_free(nominal);
+        continue;
+      }
+
+      size_t i = HASHMAP_BEGIN;
+      reach_method_name_t* mn;
+
+      while((mn = reach_method_names_next(&t->methods, &i)) != NULL)
+      {
+        if(mn->internal || mn->id == TK_NEW || mn->id == TK_BE)
+          continue;
+
+        if(mn->name[0] == '_')
+          continue;
+
+        size_t j = HASHMAP_BEGIN;
+        reach_method_t* m;
+        reach_method_t* best = NULL;
+
+        while((m = reach_mangled_next(&mn->r_mangled, &j)) != NULL)
+        {
+          if(m->internal || m->intrinsic)
+            continue;
+
+          compile_method_t* c_m = (compile_method_t*)m->c_method;
+
+          if(c_m == NULL || c_m->func == NULL)
+            continue;
+
+          if(m->cap == mn->cap)
+            best = m;
+          else if(best == NULL)
+            best = m;
+        }
+
+        if(best == NULL)
+          continue;
+
+        if(!should_export_method(best->fun->ast, class_typeparams,
+          typeargs))
+          continue;
+
+        printbuf_t* buf = printbuf_new();
+
+        if(use_name[0] != '\0')
+          printbuf(buf, "%s_%s_%s", use_name, bare_name, mn->name);
+        else
+          printbuf(buf, "%s_%s", bare_name, mn->name);
+
+        sanitize_c_name(buf->m);
+        const char* export_name = stringtab(c->opt->strtab, buf->m);
+        printbuf_free(buf);
+
+        if(LLVMGetNamedFunction(c->module, export_name) != NULL)
+          continue;
+
+        gen_export_wrapper(c, t, best, export_name, def_nid == TK_PRIMITIVE);
+      }
+
+      ast_free(nominal);
+    }
+  }
+}
+
+static void gen_export_wrappers(compile_t* c, ast_t* program)
+{
+  for(ast_t* package = ast_child(program); package != NULL;
+    package = ast_sibling(package))
+  {
+    for(ast_t* module = ast_child(package); module != NULL;
+      module = ast_sibling(module))
+    {
+      for(ast_t* node = ast_child(module); node != NULL;
+        node = ast_sibling(node))
+      {
+        if(ast_id(node) != TK_USE)
+          continue;
+
+        const char* use_name = resolve_use_name(node);
+
+        if(use_name == NULL)
+          continue;
+
+        ast_t* used_pkg = (ast_t*)ast_data(node);
+
+        if(used_pkg == NULL || ast_id(used_pkg) != TK_PACKAGE)
+          continue;
+
+        if(!package_has_exports(used_pkg, c->opt))
+          continue;
+
+        printbuf_t* prefix_buf = printbuf_new();
+        printbuf(prefix_buf, "%s", use_name);
+        sanitize_c_name(prefix_buf->m);
+
+        gen_wrappers_for_exports(c, used_pkg, prefix_buf->m);
+        printbuf_free(prefix_buf);
+      }
+    }
+  }
+
+  ast_t* main_pkg = ast_child(program);
+
+  if(package_has_exports(main_pkg, c->opt))
+    gen_wrappers_for_exports(c, main_pkg, "");
+}
+
+static void reach_exported_types(compile_t* c, ast_t* program)
+{
+  for(ast_t* package = ast_child(program); package != NULL;
+    package = ast_sibling(package))
+  {
+    for(ast_t* module = ast_child(package); module != NULL;
+      module = ast_sibling(module))
+    {
+      for(ast_t* node = ast_child(module); node != NULL;
+        node = ast_sibling(node))
+      {
+        token_id nid = ast_id(node);
+
+        if(nid != TK_CLASS && nid != TK_PRIMITIVE && nid != TK_STRUCT &&
+          nid != TK_ACTOR && nid != TK_TYPE)
+          continue;
+
+        if(!ast_has_annotation(node, "c_api", c->opt->strtab))
+          continue;
+
+        ast_t* def;
+        token_id def_nid;
+        ast_t* typeargs;
+        ast_t* class_typeparams;
+
+        if(!resolve_export_alias(node, nid, &def, &def_nid, &typeargs,
+          &class_typeparams))
+          continue;
+
+        if(def_nid == TK_TRAIT || def_nid == TK_INTERFACE)
+          continue;
+
+        const char* def_name = ast_name(ast_child(def));
+        ast_t* nominal = type_builtin_args(c->opt, def, def_name,
+          typeargs);
+
+        if(nominal == NULL)
+          continue;
+
+        ast_t* members = ast_childidx(def, 4);
+
+        if(ast_id(members) == TK_NONE)
+        {
+          ast_free(nominal);
+          continue;
+        }
+
+        for(ast_t* member = ast_child(members); member != NULL;
+          member = ast_sibling(member))
+        {
+          if(ast_id(member) == TK_FUN &&
+            should_export_method(member, class_typeparams, typeargs))
+          {
+            const char* method_name = ast_name(ast_childidx(member, 1));
+            reach(c->reach, nominal, method_name, NULL, c->opt);
+          }
+        }
+
+        ast_free(nominal);
+      }
+    }
+  }
+}
+
 bool genexe(compile_t* c, ast_t* program)
 {
   errors_t* errors = c->opt->check.errors;
@@ -2317,6 +2617,8 @@ bool genexe(compile_t* c, ast_t* program)
   reach(c->reach, main_ast, stringtab(c->opt->strtab, "runtime_override_defaults"), NULL, c->opt);
   reach(c->reach, env_ast, c->str__create, NULL, c->opt);
 
+  reach_exported_types(c, program);
+
   // reach() can't signal failure through its void return. If it aborted on an
   // over-large generic instantiation it left stub types behind and already
   // reported the error, so fail now — before painting/codegen, which would
@@ -2354,6 +2656,8 @@ bool genexe(compile_t* c, ast_t* program)
     ast_free(env_ast);
     return false;
   }
+
+  gen_export_wrappers(c, program);
 
   if(c->opt->verbosity >= VERBOSITY_ALL)
     reach_dump(c->reach);

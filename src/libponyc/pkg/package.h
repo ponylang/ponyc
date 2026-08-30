@@ -180,6 +180,16 @@ strlist_t* package_c_sources(ast_t* package);
 ast_t* package_c_first_flag_use(ast_t* package);
 
 /**
+ * Whether this package's C shims need -I<output> for export headers.
+ */
+bool package_needs_export_include(ast_t* package);
+
+/**
+ * Mark this package as needing -I<output> for export headers.
+ */
+void package_set_needs_export_include(ast_t* package);
+
+/**
  * Gets the alias of a package in the current module from the hygienic ID
  * of that package. Returns NULL if there is no alias. The package must have
  * been imported in the current module.

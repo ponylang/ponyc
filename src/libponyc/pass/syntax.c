@@ -1400,6 +1400,70 @@ static bool check_annotation_location(pass_opt_t* opt, ast_t* ast,
 
         return false;
     }
+  } else if(strcmp(str, "c_api") == 0) {
+    ast_t* parent = ast_parent(ast);
+    token_id parent_id = ast_id(parent);
+
+    switch(parent_id)
+    {
+      case TK_CLASS:
+      case TK_PRIMITIVE:
+      case TK_STRUCT:
+      case TK_ACTOR:
+      case TK_TYPE:
+        break;
+
+      case TK_TRAIT:
+      case TK_INTERFACE:
+        ast_error(opt->check.errors, loc,
+          "traits and interfaces cannot be exported");
+        return false;
+
+      default:
+        ast_error(opt->check.errors, loc,
+          "'c_api' annotation isn't valid here");
+        return false;
+    }
+
+    if(parent_id == TK_TYPE)
+    {
+      ast_t* provides = ast_childidx(parent, 3);
+
+      if(ast_id(provides) == TK_NONE)
+      {
+        ast_error(opt->check.errors, loc,
+          "exported type alias must have a target type");
+        return false;
+      }
+
+      ast_t* prov_child = ast_child(provides);
+
+      if(prov_child == NULL || ast_id(prov_child) != TK_NOMINAL)
+      {
+        ast_error(opt->check.errors, loc,
+          "only type aliases for a single concrete type can be exported");
+        return false;
+      }
+    }
+
+    ast_t* typeparams = ast_childidx(parent, 1);
+
+    if(ast_id(typeparams) != TK_NONE)
+    {
+      ast_error(opt->check.errors, loc,
+        "generic types cannot be exported directly; export a concrete "
+        "reification via a type alias");
+      return false;
+    }
+
+    ast_t* name = ast_child(parent);
+
+    if(is_name_private(ast_name(name)))
+    {
+      ast_error(opt->check.errors, loc,
+        "only public types can be exported");
+      return false;
+    }
   }
 
   return true;

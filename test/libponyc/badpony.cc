@@ -3638,3 +3638,154 @@ TEST_F(BadPonyTest, WhileLoopBreakLiteralElseJumpsAway)
 
   TEST_ERRORS_1(src, "could not infer literal type, no valid types found");
 }
+
+TEST_F(BadPonyTest, ExportAnnotationOnTrait)
+{
+  const char* src =
+    "trait \\c_api\\ Foo\n"
+
+    "actor Main\n"
+    "  new create(env: Env) => None";
+
+  TEST_ERRORS_1(src, "traits and interfaces cannot be exported");
+}
+
+TEST_F(BadPonyTest, ExportAnnotationOnInterface)
+{
+  const char* src =
+    "interface \\c_api\\ Foo\n"
+
+    "actor Main\n"
+    "  new create(env: Env) => None";
+
+  TEST_ERRORS_1(src, "traits and interfaces cannot be exported");
+}
+
+TEST_F(BadPonyTest, ExportAnnotationOnGenericClass)
+{
+  const char* src =
+    "class \\c_api\\ val Foo[A]\n"
+    "  let _x: A\n"
+    "  new val create(x: A) => _x = x\n"
+
+    "actor Main\n"
+    "  new create(env: Env) => None";
+
+  TEST_ERRORS_1(src, "generic types cannot be exported directly");
+}
+
+TEST_F(BadPonyTest, ExportAnnotationOnPrivateClass)
+{
+  const char* src =
+    "class \\c_api\\ val _Foo\n"
+    "  new val create() => None\n"
+
+    "actor Main\n"
+    "  new create(env: Env) => None";
+
+  TEST_ERRORS_1(src, "only public types can be exported");
+}
+
+TEST_F(BadPonyTest, ExportAnnotationEmptyExports)
+{
+  const char* src =
+    "class \\c_api\\ val Foo\n"
+    "  new val create() => None\n"
+
+    "actor Main\n"
+    "  new create(env: Env) => None";
+
+  TEST_ERRORS_1(src, "exported type 'Foo' has no exportable methods");
+}
+
+TEST_F(BadPonyTest, ExportAnnotationOnFunction)
+{
+  const char* src =
+    "class val Foo\n"
+    "  fun \\c_api\\ val get(): I64 => 42\n"
+
+    "actor Main\n"
+    "  new create(env: Env) => None";
+
+  TEST_ERRORS_1(src, "'c_api' annotation isn't valid here");
+}
+
+TEST_F(BadPonyTest, ExportAnnotationOnUnionTypeAlias)
+{
+  const char* src =
+    "class val Foo\n"
+    "  fun val get(): I64 => 42\n"
+
+    "class val Bar\n"
+    "  fun val get(): I64 => 43\n"
+
+    "type \\c_api\\ Either is (Foo | Bar)\n"
+
+    "actor Main\n"
+    "  new create(env: Env) => None";
+
+  TEST_ERRORS_1(src,
+    "only type aliases for a single concrete type can be exported");
+}
+
+TEST_F(BadPonyTest, ExportAnnotationOnIntersectionTypeAlias)
+{
+  const char* src =
+    "trait val Foo\n"
+    "  fun val get(): I64\n"
+
+    "trait val Bar\n"
+    "  fun val get(): I64\n"
+
+    "type \\c_api\\ Both is (Foo & Bar)\n"
+
+    "actor Main\n"
+    "  new create(env: Env) => None";
+
+  TEST_ERRORS_1(src,
+    "only type aliases for a single concrete type can be exported");
+}
+
+TEST_F(BadPonyTest, ExportAnnotationOnBareTypeAlias)
+{
+  const char* src =
+    "type \\c_api\\ Bare\n"
+
+    "actor Main\n"
+    "  new create(env: Env) => None";
+
+  TEST_ERRORS_2(src,
+    "a type alias must specify a type",
+    "exported type alias must have a target type");
+}
+
+TEST_F(BadPonyTest, ExportAnnotationOnTraitTypeAlias)
+{
+  const char* src =
+    "trait val Addable\n"
+    "  fun val add(y: I64): I64\n"
+
+    "type \\c_api\\ MyAddable is Addable\n"
+
+    "actor Main\n"
+    "  new create(env: Env) => None";
+
+  TEST_ERRORS_1(src,
+    "must refer to a class, primitive, struct, or actor, not a trait");
+}
+
+TEST_F(BadPonyTest, ExportAnnotationOnInterfaceTypeAlias)
+{
+  const char* src =
+    "interface val Gettable\n"
+    "  fun val get(): I64\n"
+
+    "type \\c_api\\ MyGettable is Gettable\n"
+
+    "actor Main\n"
+    "  new create(env: Env) => None";
+
+  TEST_ERRORS_1(src,
+    "must refer to a class, primitive, struct, or actor, not an interface");
+}
+
