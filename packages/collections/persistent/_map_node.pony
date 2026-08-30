@@ -201,6 +201,14 @@ class val _MapSubNodes[K: Any #share, V: Any #share, H: mut.HashFunction[K] val]
 
     if c_idx == -1 then error end
 
+    if _Bits.check_bit(data_map, idx) then
+      // Reaching this slot only establishes that k's hash indexes to it. The
+      // entry stored here may belong to a different key. Checked before the
+      // clone below, so a rejected key costs no allocation.
+      let entry = nodes(c_idx.usize_unsafe())? as _MapEntry[K, V, H]
+      if not H.eq(k, entry.key) then error end
+    end
+
     let ns = clone()
     if _Bits.check_bit(data_map, idx) then
       ns.data_map = _Bits.clear_bit(data_map, idx)
@@ -232,7 +240,7 @@ class val _MapSubNodes[K: Any #share, V: Any #share, H: mut.HashFunction[K] val]
           c_idx = ns.compressed_idx(idx)
           ns.nodes.insert(c_idx.usize_unsafe(), sn.pull_last()?)?
         else
-          ns.nodes(c_idx.usize_unsafe())? = cs.remove(hash, k)?
+          ns.nodes(c_idx.usize_unsafe())? = sn
         end
       end
     end
