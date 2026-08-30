@@ -252,8 +252,97 @@ static bool special_case_call(compile_t* c, ast_t* ast, LLVMValueRef* value)
   return false;
 }
 
+static bool contains_boxable(ast_t* type);
+
+static bool has_boxed_param_mismatch(reach_method_t* m,
+  reach_method_t* m_sub)
+{
+  pony_assert(m->param_count == m_sub->param_count);
+
+  for(size_t i = 0; i < m->param_count; i++)
+  {
+    reach_type_t* param = m->params[i].type;
+    reach_type_t* sub_param = m_sub->params[i].type;
+
+    if(param->can_be_boxed)
+    {
+      if(!sub_param->can_be_boxed)
+        return true;
+
+      if(param->underlying == TK_TUPLETYPE)
+      {
+        ast_t* child = ast_child(param->ast);
+        while(child != NULL)
+        {
+          if(contains_boxable(child))
+            return true;
+
+          child = ast_sibling(child);
+        }
+      }
+    }
+  }
+
+  return false;
+}
+
+static LLVMValueRef try_single_subtype_devirt(compile_t* c,
+  reach_type_t* t, reach_method_t* m, const char* method_name)
+{
+  size_t concrete_count = 0;
+  reach_type_t* only_sub = NULL;
+  size_t si = HASHMAP_BEGIN;
+  reach_type_t* sub;
+
+  while((sub = reach_type_cache_next(&t->subtypes, &si)) != NULL)
+  {
+    switch(sub->underlying)
+    {
+      case TK_PRIMITIVE:
+      case TK_CLASS:
+      case TK_ACTOR:
+        concrete_count++;
+        only_sub = sub;
+
+        if(concrete_count > 1)
+          return NULL;
+
+        break;
+
+      default:
+        break;
+    }
+  }
+
+  if((concrete_count != 1) || (only_sub == NULL) || only_sub->can_be_boxed)
+    return NULL;
+
+  reach_method_t* m_sub = reach_method(only_sub, m->cap, method_name,
+    m->typeargs, c->opt);
+
+  if(m_sub == NULL)
+    return NULL;
+
+  // The resolved method on the concrete type must have the same mangled name
+  // as the interface method. Partiality, different receiver capabilities, or
+  // other differences change the mangled name and may require a forwarding
+  // wrapper with a different calling convention.
+  if(m_sub->mangled_name != m->mangled_name)
+    return NULL;
+
+  if(has_boxed_param_mismatch(m, m_sub))
+    return NULL;
+
+  compile_method_t* c_m_sub = (compile_method_t*)m_sub->c_method;
+
+  if((c_m_sub != NULL) && (c_m_sub->func != NULL))
+    return c_m_sub->func;
+
+  return NULL;
+}
+
 static LLVMValueRef dispatch_function(compile_t* c, reach_type_t* t,
-  reach_method_t* m, LLVMValueRef l_value)
+  reach_method_t* m, LLVMValueRef l_value, const char* method_name)
 {
   compile_method_t* c_m = (compile_method_t*)m->c_method;
 
@@ -269,8 +358,13 @@ static LLVMValueRef dispatch_function(compile_t* c, reach_type_t* t,
     {
       pony_assert(t->bare_method == NULL);
 
-      // Get the function from the vtable.
-      LLVMValueRef func = gendesc_vtable(c, gendesc_fetch(c, l_value),
+      LLVMValueRef func = try_single_subtype_devirt(c, t, m, method_name);
+
+      if(func != NULL)
+        return func;
+
+      // Fall back to the vtable lookup.
+      func = gendesc_vtable(c, gendesc_fetch(c, l_value),
         m->vtable_index);
 
       return func;
@@ -471,7 +565,7 @@ LLVMValueRef gen_funptr(compile_t* c, ast_t* ast)
   const char* name = ast_name(method);
   token_id cap = cap_dispatch(type);
   reach_method_t* m = reach_method(t, cap, name, typeargs, c->opt);
-  LLVMValueRef funptr = dispatch_function(c, t, m, value);
+  LLVMValueRef funptr = dispatch_function(c, t, m, value, name);
 
   ast_free_unattached(type);
 
@@ -691,34 +785,8 @@ static bool can_inline_message_send(reach_type_t* t, reach_method_t* m,
       default: {}
     }
 
-    pony_assert(m->param_count == m_sub->param_count);
-    for(size_t i = 0; i < m->param_count; i++)
-    {
-      // If the param is a boxable type for us and an unboxable type for one of
-      // our subtypes, that subtype will take that param as boxed through an
-      // interface. In order to correctly box the value the actual function to
-      // call must be resolved through name mangling, therefore we can't inline
-      // the message send.
-      reach_type_t* param = m->params[i].type;
-      reach_type_t* sub_param = m_sub->params[i].type;
-      if(param->can_be_boxed)
-      {
-        if(!sub_param->can_be_boxed)
-          return false;
-
-        if(param->underlying == TK_TUPLETYPE)
-        {
-          ast_t* child = ast_child(param->ast);
-          while(child != NULL)
-          {
-            if(contains_boxable(child))
-              return false;
-
-            child = ast_sibling(child);
-          }
-        }
-      }
-    }
+    if(has_boxed_param_mismatch(m, m_sub))
+      return false;
   }
 
   return true;
@@ -827,7 +895,7 @@ LLVMValueRef gen_call(compile_t* c, ast_t* ast)
   }
 
   // Static or virtual dispatch.
-  LLVMValueRef func = dispatch_function(c, t, m, args[0]);
+  LLVMValueRef func = dispatch_function(c, t, m, args[0], method_name);
   LLVMTypeRef func_type = ((compile_method_t*)m->c_method)->func_type;
 
   bool is_message = false;
@@ -1033,7 +1101,7 @@ LLVMValueRef gen_pattern_eq(compile_t* c, ast_t* pattern, LLVMValueRef r_value)
   // Static or virtual dispatch.
   token_id cap = cap_dispatch(pattern_type);
   reach_method_t* m = reach_method(t, cap, c->str_eq, NULL, c->opt);
-  LLVMValueRef func = dispatch_function(c, t, m, l_value);
+  LLVMValueRef func = dispatch_function(c, t, m, l_value, c->str_eq);
 
   ast_free_unattached(pattern_type);
 
