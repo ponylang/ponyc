@@ -569,8 +569,8 @@ class \nodoc\ iso _TestVecRemoveOverrun is UnitTest
 
   The count is saturated rather than rejected, matching `Array.remove`, which
   this method is named after, and `slice`, which already documents a saturated
-  range. Each case below is checked against `Array.remove` on the same
-  contents so the two cannot drift.
+  range. The two methods must agree on what remove means; a mismatch with
+  `Array.remove` on the same contents is a failure.
   """
   fun name(): String => "collections/persistent/Vec (remove overrun)"
 
