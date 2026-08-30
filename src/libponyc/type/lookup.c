@@ -290,7 +290,31 @@ static deferred_reification_t* lookup_typeparam(pass_opt_t* opt, ast_t* from,
   }
 
   // Lookup on the constraint instead.
-  return lookup_base(opt, from, orig, constraint, name, errors, allow_private);
+  deferred_reification_t* result =
+    lookup_base(opt, from, orig, constraint, name, errors, allow_private);
+
+  if(result != NULL && result->thistype != NULL)
+  {
+    // The constraint lookup may have set thistype to one member of an
+    // intersection or union constraint. The actual receiver is the type
+    // parameter itself, so replace thistype with orig (applying the same
+    // iso/trn-to-ref downcast that lookup_nominal would).
+    ast_t* thistype = ast_dup(orig);
+
+    if(ast_id(result->ast) == TK_FUN &&
+      ast_id(ast_child(result->ast)) == TK_BOX)
+    {
+      ast_t* downcast = downcast_iso_trn_receiver_to_ref(thistype, opt);
+      if(downcast != thistype)
+        ast_free(thistype);
+      thistype = downcast;
+    }
+
+    ast_free(result->thistype);
+    result->thistype = thistype;
+  }
+
+  return result;
 }
 
 static bool param_names_match(ast_t* from, ast_t* prev_fun, ast_t* cur_fun,
