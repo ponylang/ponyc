@@ -565,7 +565,7 @@ class \nodoc\ iso _TestVecRemoveOverrun is UnitTest
   `remove` pops `n` elements off the end before it shifts the survivors down.
   When fewer than `n` elements follow `i`, the pop takes elements the caller
   never named and the shift loop is empty, so they are not put back. `size`
-  is reduced to match, which is why nothing downstream disagrees.
+  is reduced to match, which is why nothing downstream reveals a discrepancy.
 
   The count is saturated rather than rejected, matching `Array.remove`, which
   this method is named after, and `slice`, which already documents a saturated
