@@ -47,6 +47,7 @@ actor \nodoc\ Main is TestList
     test(Property1UnitTest[Array[USize]](_VecIteratorsProperty))
     test(Property1UnitTest[(Array[USize], USize, USize)](_VecLawsProperty))
     test(Property1UnitTest[(USize, Array[_VecAction])](_VecModelProperty))
+    test(Property1UnitTest[(USize, Array[_VecAction])](_VecStructureProperty))
 
 class \nodoc\ iso _TestListPrepend is UnitTest
   fun name(): String => "collections/persistent/List (prepend)"
@@ -674,6 +675,45 @@ primitive \nodoc\ _VecGen
       {(n: USize): Generator[Array[USize]] =>
         Generators.seq_of[USize, Array[USize]](Generators.usize(0, 99), n, n) })
 
+  fun configured_actions(max_actions: USize)
+    : Generator[(USize, Array[_VecAction])]
+  =>
+    """
+    A random subset of the operations, paired with a sequence drawing only
+    from that subset.
+
+    A sequence drawing from every operation walks a size in the high hundreds
+    and usually adds a level to the root; withholding `pop`, `delete` and
+    `remove` from some samples is what drives the vector deeper still.
+
+    The operations are numbered 0 push, 1 pop, 2 update, 3 insert, 4 delete,
+    5 remove, 6 a batch of additions. `config` is the bitmask of the ones a
+    sample enabled. Both numbers appear in a failure message and are not
+    otherwise decodable.
+    """
+    Generators.usize(0, 127)
+      .flat_map[(USize, Array[_VecAction])](
+        {(bits: USize)(max_actions): Generator[(USize, Array[_VecAction])] =>
+          // `push` is always enabled; with no way to add elements a sample
+          // exercises nothing
+          let config = bits or 1
+          let ops = Array[U8]
+          for op in mut.Range[U8](0, 7) do
+            if (config and (USize(1) << op.usize())) != 0 then ops.push(op) end
+          end
+          Generators.seq_of[_VecAction, Array[_VecAction]](
+            Generators.zip3[U8, USize, USize](
+              Generators.one_of[U8](ops),
+              Generators.usize(0, 1_000),
+              Generators.usize(0, 1_000)),
+            1,
+            max_actions)
+            .map[(USize, Array[_VecAction])](
+              {(actions: Array[_VecAction]): (USize, Array[_VecAction]) =>
+                (config, actions)
+              })
+        })
+
   fun build(elements: ReadSeq[USize]): Vec[USize] =>
     var v = Vec[USize]
     for x in elements.values() do v = v.push(x) end
@@ -697,35 +737,13 @@ class \nodoc\ iso _VecModelProperty is Property1[(USize, Array[_VecAction])]
   Apply a generated sequence of operations to a `Vec` and to an `Array` used as
   a model, then check that the two hold the same elements.
 
-  Each sample enables a random subset of the operations. A sequence drawing
-  from every operation random walks around a small size and never grows the
-  trie past its first level; withholding `pop`, `delete` and `remove` from some
-  samples is what drives the vector deep enough to add levels to the root.
+  Each sample enables a random subset of the operations; see
+  `_VecGen.configured_actions` for how the subset and the sequence are drawn.
   """
   fun name(): String => "collections/persistent/Vec (property: model)"
 
   fun gen(): Generator[(USize, Array[_VecAction])] =>
-    Generators.usize(0, 127)
-      .flat_map[(USize, Array[_VecAction])](
-        {(bits: USize): Generator[(USize, Array[_VecAction])] =>
-          // `push` is always enabled; with no way to add elements a sample
-          // exercises nothing
-          let config = bits or 1
-          let ops = Array[U8]
-          for op in mut.Range[U8](0, 7) do
-            if (config and (USize(1) << op.usize())) != 0 then ops.push(op) end
-          end
-          Generators.seq_of[_VecAction, Array[_VecAction]](
-            Generators.zip3[U8, USize, USize](
-              Generators.one_of[U8](ops),
-              Generators.usize(0, 1_000),
-              Generators.usize(0, 1_000)),
-            1,
-            100)
-            .map[(USize, Array[_VecAction])](
-              {(actions: Array[_VecAction]): (USize, Array[_VecAction]) =>
-                (config, actions) })
-        })
+    _VecGen.configured_actions(100)
 
   fun ref property(arg1: (USize, Array[_VecAction]), h: PropertyHelper) ? =>
     (let config, let actions) = arg1
@@ -923,6 +941,209 @@ class \nodoc\ iso _VecFindContainsProperty is Property1[(Array[USize], USize)]
       if not v.contains(x) then missing = true end
     end
     h.assert_false(missing, "contains every element")
+
+primitive \nodoc\ _VecShape
+  fun check(v: Vec[USize]): (USize, String) =>
+    """
+    Walk the trie and check the shape the vector code maintains. `Vec` holds
+    its most recent elements in a tail array beside the root and flushes them
+    into the trie as one leaf once 32 have gathered, so the trie holds whole
+    leaves and the tail holds the remainder. Returns the number of elements
+    in the trie, and the first invariant broken or an empty string when the
+    shape is sound.
+
+    The count comes from the trie's own arrays and never reads `size`, so a
+    wrong `size` shows up as a disagreement. `_depth` drives the walk instead,
+    so a wrong depth shows up as a leaf or a branch found where the other
+    belongs, not as a count that differs. Neither `apply` nor the iterators
+    are called, so a node an operation just rebuilt is read here for the first
+    time, and a defect confined to those two is not visible here at all.
+
+    Like `_MapShape`, this reports rather than asserts. A failure names the
+    invariant that broke, and the slot path from the root when `_walk` was
+    the one that found it; the caller names the operation.
+    """
+    let below = v._tail_offset()
+    // `_tail_offset` subtracts the tail from the size, so a tail longer than
+    // the vector shows up here as a wrapped count rather than a negative one
+    if below > v.size() then
+      return (0, "the tail is longer than the vector")
+    end
+    let tail = v.size() - below
+    if tail > 32 then
+      return (0, "tail holds " + tail.string() + ", over the 32 it flushes at")
+    end
+
+    match \exhaustive\ v._root_node()
+    | None =>
+      // -1 is the depth of a vector with no root. It is a `USize`, so the
+      // value is `USize.max_value()`, and `_Bits.next_pow32` of it is 0.
+      if v._root_depth() != -1 then
+        return (0, "no root, but depth is " + v._root_depth().string())
+      end
+      if below != 0 then
+        return (0, below.string() + " elements below the tail with no root")
+      end
+      (0, "")
+    | let r: _VecNode[USize] =>
+      if v._root_depth() == -1 then
+        return (0, "a root at the empty vector's depth")
+      end
+      // a leaf is a flushed tail and `pop` takes a whole leaf back, so the
+      // element count in the trie is always a multiple of 32
+      if (below % 32) != 0 then
+        return (0,
+          below.string() + " below the tail, not a multiple of 32")
+      end
+      (let found, let broken) = _walk(r, v._root_depth(), "")
+      if broken != "" then return (found, broken) end
+      if found != below then
+        return (found,
+          "the trie holds " + found.string() + ", size gives " +
+            below.string())
+      end
+      // an upper bound rather than an equality: `pop` lowers `_depth` only
+      // from zero to -1, so a vector that grew and then shrank keeps the
+      // depth it reached
+      if below > _capacity(v._root_depth()) then
+        return (found,
+          "depth " + v._root_depth().string() + " cannot hold " +
+            below.string())
+      end
+      (found, "")
+    end
+
+  fun _walk(node: _VecNode[USize], depth: USize, path: String val)
+    : (USize, String)
+  =>
+    """
+    `depth` counts up from zero at the leaves, the opposite of `_MapShape`'s,
+    which counts down from zero at the root. `path` is the slot trail so far.
+    """
+    match \exhaustive\ node.entries()
+    | let ls: Array[USize] val =>
+      if depth != 0 then
+        return (0, "a leaf above the bottom, at depth " + depth.string() + path)
+      end
+      // leaves are flushed tails, and `pop` takes a whole leaf back, so a
+      // short leaf means an operation rebuilt one
+      if ls.size() != 32 then
+        return (0, "a leaf holding " + ls.size().string() + " of 32" + path)
+      end
+      (32, "")
+    | let ns: _VecSubNodes[USize] val =>
+      if depth == 0 then return (0, "a branch at the bottom" + path) end
+      if ns.size() > 32 then
+        return (0, "a branch with " + ns.size().string() + " children" + path)
+      end
+
+      var found: USize = 0
+      var partial_seen = false
+      for (i, child) in ns.pairs() do
+        let here: String val = path + ", slot " + i.string()
+        (let n, let broken) = _walk(child, depth - 1, here)
+        if broken != "" then return (found + n, broken) end
+        // elements fill left to right, so every child but the last is full.
+        // A subtree emptied by `pop` is left in place rather than trimmed
+        // above depth one, so trailing empty children are allowed; a
+        // non-empty one after a child that is not full is not.
+        if partial_seen and (n > 0) then
+          return (found + n,
+            "a non-empty child follows one that is not full" + here)
+        end
+        if n != _capacity(depth - 1) then partial_seen = true end
+        found = found + n
+      end
+      (found, "")
+    end
+
+  fun _capacity(depth: USize): USize =>
+    """
+    Elements a full subtree at `depth` holds: 32 in a leaf, times 32 for each
+    level above it. Multiplied out here rather than taken from
+    `_Bits.next_pow32`, so an error in that function cannot reach both the
+    code and the check and cancel out.
+    """
+    var cap: USize = 32
+    for _ in mut.Range(0, depth) do cap = cap * 32 end
+    cap
+
+class \nodoc\ iso _VecStructureProperty is Property1[(USize, Array[_VecAction])]
+  """
+  The trie's shape after every operation, checked against the invariants the
+  vector code maintains rather than against what a read returns.
+
+  `_VecModelProperty` compares contents once the whole sequence has run, so a
+  shape defect it catches surfaces as a wrong element at the end. This checks
+  after each operation and names the operation that broke the shape and the
+  invariant it broke.
+
+  The check is on shape, not contents. No element value and no element
+  position is read, so two full leaves swapped between slots pass it.
+  `_VecModelProperty` stays the check on contents and order.
+
+  Two things the trie does not guarantee are left unchecked: a subtree that
+  `pop` empties above depth one, which stays in place, and a `_depth` that
+  `pop` never lowers. Neither has been ruled a defect or a decision, so the
+  check follows what `Vec` does today. Both loosen it, so a failure is never
+  a false positive.
+  """
+  fun name(): String => "collections/persistent/Vec (property: structure)"
+
+  fun gen(): Generator[(USize, Array[_VecAction])] =>
+    _VecGen.configured_actions(60)
+
+  fun ref property(arg1: (USize, Array[_VecAction]), h: PropertyHelper) ? =>
+    (let config, let actions) = arg1
+    var v = Vec[USize]
+    var size: USize = 0
+
+    for (i, action) in actions.pairs() do
+      (let op, let a, let b) = action
+      match op
+      | 0 =>
+        v = v.push(a)
+        size = size + 1
+      | 1 =>
+        if size > 0 then
+          v = v.pop()?
+          size = size - 1
+        end
+      | 2 => if size > 0 then v = v.update(a % size, b)? end
+      | 3 =>
+        if size > 0 then
+          v = v.insert(a % size, b)?
+          size = size + 1
+        end
+      | 4 =>
+        if size > 0 then
+          v = v.delete(a % size)?
+          size = size - 1
+        end
+      | 5 =>
+        if size > 0 then
+          let at = a % size
+          let count = (1 + (b % size)).min(size - at)
+          v = v.remove(at, count)?
+          size = size - count
+        end
+      | 6 =>
+        // batches large enough that a sequence of them carries the vector
+        // past 1_056 elements, where the root gains its second level
+        let count = b % 300
+        for j in mut.Range(0, count) do v = v.push(a + j) end
+        size = size + count
+      end
+
+      let after: String val =
+        " after action " + i.string() + " (op " + op.string() + ", " +
+          a.string() + ", " + b.string() + "), config " + config.string()
+      (let found, let broken) = _VecShape.check(v)
+      h.assert_eq[String]("", broken, "shape" + after)
+      h.assert_eq[USize](size, v.size(), "size" + after)
+      let in_tail = v.size() - v._tail_offset()
+      h.assert_eq[USize](size, found + in_tail, "elements" + after)
+    end
 
 type _TrieMap is HashMap[U64, U64, _TrieHash]
 

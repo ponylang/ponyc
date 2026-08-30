@@ -250,6 +250,12 @@ class val Vec[A: Any #share]
     """
     VecPairs[A](this)
 
+  // read by `_VecShape` in the tests, which walks the trie to check its
+  // shape. Pony does not allow reading a private field from outside its type.
+  fun _root_node(): (_VecNode[A] | None) => _root
+
+  fun _root_depth(): USize => _depth
+
   fun _leaf_nodes(): Array[Array[A] val]^ =>
     let lns = Array[Array[A] val](_size / 32)
     match _root

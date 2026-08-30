@@ -65,6 +65,9 @@ class val _VecNode[A: Any #share]
       create(recover ns.clone() .> update(idx, sn)? end)
     end
 
+  // read by `_VecShape` in the tests; see `Vec._root_node`
+  fun entries(): (Array[A] val | _VecSubNodes[A] val) => _entries
+
   fun val leaf_nodes(lns: Array[Array[A] val]): Array[Array[A] val]^ =>
     match \exhaustive\ _entries
     | let lns': Array[A] val =>
