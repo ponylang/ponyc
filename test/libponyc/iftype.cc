@@ -67,7 +67,7 @@ TEST_F(IftypeTest, ThenClause_CapConstraint)
     "  new create(env: Env) =>\n"
     "    foo[C](C)\n"
 
-    "  fun foo[A: C](x: A) =>\n"
+    "  fun foo[A: C #any](x: A) =>\n"
     "    iftype A <: C box then\n"
     "      x.c()\n"
     "    end";
@@ -86,7 +86,7 @@ TEST_F(IftypeTest, ElseClause_NoCapConstraint)
     "  new create(env: Env) =>\n"
     "    foo[C](C)\n"
 
-    "  fun foo[A: C](x: A) =>\n"
+    "  fun foo[A: C #any](x: A) =>\n"
     "    iftype A <: C box then\n"
     "      None\n"
     "    else\n"
@@ -663,7 +663,7 @@ TEST_F(IftypeTest, AsAroundIftypeWithNarrowedCall)
     "  new create(env: Env) => None\n"
     "  fun foo[A: AST val](node: A) =>\n"
     "    try\n"
-    "      iftype A <: HasDocs\n"
+    "      iftype A <: HasDocs val\n"
     "      then node.docs()\n"
     "      end as LitString\n"
     "    end";
@@ -685,7 +685,7 @@ TEST_F(IftypeTest, AsAroundIftypeTupleTypeparam)
     "  new create(env: Env) => None\n"
     "  fun foo[A: AST val, B: AST val](a: A, b: B) =>\n"
     "    try\n"
-    "      iftype (A, B) <: (HasDocs, HasDocs)\n"
+    "      iftype (A, B) <: (HasDocs val, HasDocs val)\n"
     "      then a.docs()\n"
     "      end as LitString\n"
     "    end";
@@ -708,8 +708,8 @@ TEST_F(IftypeTest, AsAroundNestedIftypeWithNarrowedCall)
     "  new create(env: Env) => None\n"
     "  fun foo[A: AST val](node: A) =>\n"
     "    try\n"
-    "      iftype A <: HasText then\n"
-    "        iftype A <: HasDocs\n"
+    "      iftype A <: HasText val then\n"
+    "        iftype A <: HasDocs val\n"
     "        then node.docs()\n"
     "        end\n"
     "      end as LitString\n"
@@ -732,7 +732,7 @@ TEST_F(IftypeTest, AsTupleAroundIftypeWithNarrowedCall)
     "  new create(env: Env) => None\n"
     "  fun foo[A: AST val](node: A) =>\n"
     "    try\n"
-    "      iftype A <: HasDocs\n"
+    "      iftype A <: HasDocs val\n"
     "      then node.docs()\n"
     "      end as (LitString, LitString)\n"
     "    end";
