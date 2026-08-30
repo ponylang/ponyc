@@ -629,6 +629,164 @@ token_id cap_dispatch(ast_t* type)
   return TK_NONE;
 }
 
+static bool tuple_cap_collect(ast_t* type, bool* has_iso, bool* has_trn,
+  bool* has_ref, bool* has_val, bool* has_box, bool* has_tag,
+  bool* all_ephemeral, pass_opt_t* opt)
+{
+  switch(ast_id(type))
+  {
+    case TK_TUPLETYPE:
+    {
+      ast_t* child = ast_child(type);
+      while(child != NULL)
+      {
+        if(!tuple_cap_collect(child, has_iso, has_trn, has_ref, has_val,
+          has_box, has_tag, all_ephemeral, opt))
+          return false;
+        child = ast_sibling(child);
+      }
+      return true;
+    }
+
+    case TK_NOMINAL:
+    case TK_TYPEPARAMREF:
+    {
+      ast_t* cap_ast = cap_fetch(type);
+      ast_t* eph_ast = ast_sibling(cap_ast);
+      token_id cap = ast_id(cap_ast);
+      token_id eph = ast_id(eph_ast);
+      cap_aliasing(&cap, &eph);
+
+      if(eph != TK_EPHEMERAL)
+      {
+        // Non-ephemeral element prevents the tuple from being ephemeral,
+        // unless the cap is val or tag (which don't meaningfully alias).
+        if(cap != TK_VAL && cap != TK_TAG)
+          *all_ephemeral = false;
+      }
+
+      switch(cap)
+      {
+        case TK_ISO: *has_iso = true; return true;
+        case TK_TRN: *has_trn = true; return true;
+        case TK_REF: *has_ref = true; return true;
+        case TK_VAL: *has_val = true; return true;
+        case TK_BOX: *has_box = true; return true;
+        case TK_TAG: *has_tag = true; return true;
+
+        case TK_CAP_READ:
+          *has_ref = true; *has_val = true; *has_box = true;
+          *all_ephemeral = false;
+          return true;
+
+        case TK_CAP_SEND:
+          *has_iso = true; *has_val = true; *has_tag = true;
+          return true;
+
+        case TK_CAP_SHARE:
+          *has_val = true; *has_tag = true;
+          return true;
+
+        case TK_CAP_ALIAS:
+          *has_ref = true; *has_val = true; *has_box = true; *has_tag = true;
+          *all_ephemeral = false;
+          return true;
+
+        case TK_CAP_ANY:
+          *has_iso = true; *has_trn = true; *has_ref = true;
+          *has_val = true; *has_box = true; *has_tag = true;
+          *all_ephemeral = false;
+          return true;
+
+        default: return false;
+      }
+    }
+
+    case TK_UNIONTYPE:
+    case TK_ISECTTYPE:
+    {
+      ast_t* child = ast_child(type);
+      while(child != NULL)
+      {
+        if(!tuple_cap_collect(child, has_iso, has_trn, has_ref, has_val,
+          has_box, has_tag, all_ephemeral, opt))
+          return false;
+        child = ast_sibling(child);
+      }
+      return true;
+    }
+
+    case TK_TYPEALIASREF:
+    {
+      ast_t* unfolded = typealias_unfold(type);
+      if(unfolded == NULL)
+        return false;
+      bool ok = tuple_cap_collect(unfolded, has_iso, has_trn, has_ref,
+        has_val, has_box, has_tag, all_ephemeral, opt);
+      ast_free_unattached(unfolded);
+      return ok;
+    }
+
+    case TK_ARROW:
+    {
+      ast_t* upper = viewpoint_upper(type, opt);
+      if(upper == NULL)
+        return false;
+      bool ok = tuple_cap_collect(upper, has_iso, has_trn, has_ref,
+        has_val, has_box, has_tag, all_ephemeral, opt);
+      ast_free_unattached(upper);
+      return ok;
+    }
+
+    default:
+      return false;
+  }
+}
+
+void tuple_cap_and_eph(ast_t* type, token_id* out_cap, token_id* out_eph,
+  pass_opt_t* opt)
+{
+  pony_assert(ast_id(type) == TK_TUPLETYPE);
+
+  bool has_iso = false;
+  bool has_trn = false;
+  bool has_ref = false;
+  bool has_val = false;
+  bool has_box = false;
+  bool has_tag = false;
+  bool all_ephemeral = true;
+
+  if(!tuple_cap_collect(type, &has_iso, &has_trn, &has_ref, &has_val,
+    &has_box, &has_tag, &all_ephemeral, opt))
+  {
+    *out_cap = TK_REF;
+    *out_eph = TK_NONE;
+    return;
+  }
+
+  // Sylvan's rule: the tuple cap is derived from element caps using
+  // the viewpoint adaptation table and safe-to-write constraints.
+  // A tuple is never tag because its fields are always accessible.
+  if(!has_iso && !has_trn && !has_ref && !has_box)
+    *out_cap = TK_VAL;
+  else if(!has_iso && !has_trn && !has_ref)
+    *out_cap = TK_BOX;
+  else if(!has_trn && !has_ref && !has_box)
+    *out_cap = TK_ISO;
+  else if(!has_ref && !has_box)
+    *out_cap = TK_TRN;
+  else
+    *out_cap = TK_REF;
+
+  // The tuple is ephemeral only if the derived cap is iso or trn
+  // (caps that are meaningful with ephemeral) and all elements that
+  // contribute that cap are ephemeral.
+  if(all_ephemeral && (*out_cap == TK_ISO || *out_cap == TK_TRN))
+    *out_eph = TK_EPHEMERAL;
+  else
+    *out_eph = TK_NONE;
+}
+
 token_id cap_for_this(typecheck_t* t)
 {
   // If this is a primitive, it's a val.

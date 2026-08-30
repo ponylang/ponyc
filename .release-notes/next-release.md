@@ -588,3 +588,34 @@ main.pony:11:43: argument not assignable to parameter
 
 The compiler now uses the narrowed capability when computing `this->` viewpoint types inside `iftype` branches.
 
+## Fix tuple subtyping for tuples with tag elements
+
+Tuples containing `tag` elements were rejected where `#read` or `val` capabilities were required. The most common trigger was a type alias like `type Rec is (USize, Actr tag)` used with a generic constrained to `Any #read`, such as a priority queue. The compiler applied the outer capability to every tuple element, which produced an impossible type when an element was already constrained — actors, for example, are always `tag`. The tuple's capability is now derived from its element capabilities, and these cases compile as expected.
+
+```pony
+actor Actr
+type Rec is (USize, Actr tag)
+
+class PQ[T: Any #read]
+  fun ref insert(value: T) => None
+
+actor Main
+  new create(env: Env) =>
+    let pq = PQ[Rec]
+    pq.insert((1, Actr))
+```
+
+## Applying a capability to a tuple type alias is a compile error
+
+A tuple's capability is derived from its element capabilities. Writing `FooPair val` where `type FooPair is (Foo, Foo)` now produces a compile error. Specify capabilities on each element directly.
+
+```pony
+// Before: the capability was distributed to each element
+type FooPair is (Foo, Foo)
+let x: FooPair val = ...
+
+// After: specify capabilities on the elements
+type FooPair is (Foo val, Foo val)
+let x: FooPair = ...
+```
+

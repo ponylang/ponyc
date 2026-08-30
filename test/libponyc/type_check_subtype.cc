@@ -1117,7 +1117,7 @@ TEST_F(SubTypeTest, TupleTagTagSubAnyTag)
 }
 
 
-TEST_F(SubTypeTest, TupleTagTagNotSubAnyVal)
+TEST_F(SubTypeTest, TupleTagTagSubAnyVal)
 {
   const char* src =
     "class C\n"
@@ -1126,7 +1126,7 @@ TEST_F(SubTypeTest, TupleTagTagNotSubAnyVal)
     "  fun apply(x: (C tag, C tag)) =>\n"
     "    let x': Any val = consume x";
 
-  TEST_ERRORS_1(src, "right side must be a subtype of left side");
+  TEST_COMPILE(src);
 }
 
 
@@ -1165,6 +1165,283 @@ TEST_F(SubTypeTest, TupleValRefNotSubAnyShare)
     "    C[(String val, String ref)]";
 
   TEST_ERRORS_1(src, "type argument is outside its constraint");
+}
+
+
+TEST_F(SubTypeTest, TupleValTagDerivedCapIsVal)
+{
+  // A tuple of (val, tag) elements has derived cap val.
+  const char* src =
+    "actor Actr\n"
+
+    "type Rec is (USize, Actr tag)\n"
+
+    "class PQ[T: Any #read]\n"
+    "  let _data: Array[T]\n"
+    "  new create() => _data = Array[T]\n"
+    "  fun ref insert(value: T) => _data.push(value)\n"
+
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let pq = PQ[Rec]\n"
+    "    pq.insert((1, Actr))";
+
+  TEST_COMPILE(src);
+}
+
+
+TEST_F(SubTypeTest, TupleValTagWithExplicitValCap)
+{
+  // A capability on a tuple type alias is an error — the tuple's cap is
+  // derived from its elements, not applied from outside.
+  const char* src =
+    "actor Actr\n"
+
+    "type Rec is (USize, Actr tag)\n"
+
+    "class PQ[T: Any #read]\n"
+    "  let _data: Array[T]\n"
+    "  new create() => _data = Array[T]\n"
+    "  fun ref insert(value: T) => _data.push(value)\n"
+
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let pq = PQ[Rec val]\n"
+    "    pq.insert((1, Actr))";
+
+  TEST_ERRORS_1(src, "can't apply a capability to a tuple type alias");
+}
+
+
+TEST_F(SubTypeTest, TupleIsoValDerivedCapIsIso)
+{
+  // A tuple of (iso, val) elements has derived cap iso.
+  const char* src =
+    "class C\n"
+
+    "primitive P\n"
+    "  fun apply(x: (C iso, C val)) =>\n"
+    "    let x': Any iso = consume x";
+
+  TEST_COMPILE(src);
+}
+
+
+TEST_F(SubTypeTest, TupleTrnValDerivedCapIsTrn)
+{
+  // A tuple of (trn, val) elements has derived cap trn.
+  const char* src =
+    "class C\n"
+
+    "primitive P\n"
+    "  fun apply(x: (C trn, C val)) =>\n"
+    "    let x': Any trn = consume x";
+
+  TEST_COMPILE(src);
+}
+
+
+TEST_F(SubTypeTest, TupleValBoxDerivedCapIsBox)
+{
+  // A tuple of (val, box) elements has derived cap box.
+  const char* src =
+    "class C\n"
+
+    "primitive P\n"
+    "  fun apply(x: (C val, C box)) =>\n"
+    "    let x': Any box = x";
+
+  TEST_COMPILE(src);
+}
+
+
+TEST_F(SubTypeTest, TupleIsoTrnDerivedCapIsTrn)
+{
+  // A tuple of (iso, trn) elements has derived cap trn.
+  const char* src =
+    "class C\n"
+
+    "primitive P\n"
+    "  fun apply(x: (C iso, C trn)) =>\n"
+    "    let x': Any trn = consume x";
+
+  TEST_COMPILE(src);
+}
+
+
+TEST_F(SubTypeTest, TupleTrnBoxDerivedCapIsRef)
+{
+  // A tuple of (trn, box) elements has derived cap ref, not trn,
+  // because box is not safe to write through trn.
+  const char* src =
+    "class C\n"
+
+    "primitive P\n"
+    "  fun apply(x: (C trn, C box)) =>\n"
+    "    let x': Any ref = consume x";
+
+  TEST_COMPILE(src);
+}
+
+
+TEST_F(SubTypeTest, TupleTrnBoxNotSubAnyTrn)
+{
+  // A tuple of (trn, box) has derived cap ref, which is not a subcap of trn.
+  const char* src =
+    "class C\n"
+
+    "primitive P\n"
+    "  fun apply(x: (C trn, C box)) =>\n"
+    "    let x': Any trn = consume x";
+
+  TEST_ERRORS_1(src, "right side must be a subtype of left side");
+}
+
+
+TEST_F(SubTypeTest, TupleValBoxNotSubAnyVal)
+{
+  // A tuple of (val, box) has derived cap box, which is not a subcap of val.
+  const char* src =
+    "class C\n"
+
+    "primitive P\n"
+    "  fun apply(x: (C val, C box)) =>\n"
+    "    let x': Any val = x";
+
+  TEST_ERRORS_1(src, "right side must be a subtype of left side");
+}
+
+
+TEST_F(SubTypeTest, TupleRefIsoNotSubAnyVal)
+{
+  // A tuple of (ref, iso) elements has derived cap ref, not a subcap of val.
+  const char* src =
+    "class C\n"
+
+    "primitive P\n"
+    "  fun apply(x: (C ref, C iso)) =>\n"
+    "    let x': Any val = consume x";
+
+  TEST_ERRORS_1(src, "right side must be a subtype of left side");
+}
+
+
+TEST_F(SubTypeTest, TupleIsoValConsumedDerivedCapIsEphemeralIso)
+{
+  // Consuming a tuple of (iso, val) produces ephemeral iso^ derived cap.
+  // Without ephemeral tracking, non-ephemeral iso is not a subcap of iso.
+  const char* src =
+    "class C\n"
+
+    "primitive P\n"
+    "  fun apply(x: (C iso, C val)) =>\n"
+    "    let x': Any iso = consume x";
+
+  TEST_COMPILE(src);
+}
+
+
+TEST_F(SubTypeTest, TupleIsoValNonEphemeralNotSubAnyIso)
+{
+  // Without consume, the derived cap iso is non-ephemeral,
+  // which is not a subcap of iso.
+  const char* src =
+    "class C\n"
+
+    "primitive P\n"
+    "  fun apply(x: (C iso, C val)) =>\n"
+    "    let x': Any iso = x";
+
+  TEST_ERRORS_1(src, "right side must be a subtype of left side");
+}
+
+
+TEST_F(SubTypeTest, TupleGenericReadCapDerivedCapIsRef)
+{
+  // A type parameter with #read cap expands to {ref, val, box}.
+  // Combined with tag, the derived cap is ref.
+  const char* src =
+    "class C\n"
+
+    "primitive P\n"
+    "  fun apply[A: Any #read](x: (A, C tag)) =>\n"
+    "    let x': Any ref = x";
+
+  TEST_COMPILE(src);
+}
+
+
+TEST_F(SubTypeTest, TupleGenericReadCapNotSubAnyVal)
+{
+  // A type parameter with #read cap expands to {ref, val, box}.
+  // Combined with tag, the derived cap is ref, not a subcap of val.
+  const char* src =
+    "class C\n"
+
+    "primitive P\n"
+    "  fun apply[A: Any #read](x: (A, C tag)) =>\n"
+    "    let x': Any val = x";
+
+  TEST_ERRORS_1(src, "right side must be a subtype of left side");
+}
+
+
+TEST_F(SubTypeTest, TupleNestedDerivedCapFromLeafElements)
+{
+  // Nested tuple: caps are collected from all leaf elements.
+  // ((iso, val), tag) has leaf caps {iso, val, tag}, derived cap iso.
+  const char* src =
+    "class C\n"
+
+    "primitive P\n"
+    "  fun apply(x: ((C iso, C val), C tag)) =>\n"
+    "    let x': Any iso = consume x";
+
+  TEST_COMPILE(src);
+}
+
+
+TEST_F(SubTypeTest, TupleTypeParamElementDerivedCap)
+{
+  // A type parameter element is handled as TK_TYPEPARAMREF.
+  // A ref type parameter combined with val gives derived cap ref.
+  const char* src =
+    "class C\n"
+
+    "primitive P\n"
+    "  fun apply[A: C ref](x: (A, C val)) =>\n"
+    "    let x': Any ref = x";
+
+  TEST_COMPILE(src);
+}
+
+
+TEST_F(SubTypeTest, TupleAliasCapAnnotationIsError)
+{
+  // Any capability on a tuple type alias is rejected, even when the cap
+  // matches the derived cap.
+  const char* src =
+    "type Pair is (String, U64)\n"
+
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let x: Pair val = (\"hello\", 42)";
+
+  TEST_ERRORS_1(src, "can't apply a capability to a tuple type alias");
+}
+
+
+TEST_F(SubTypeTest, TupleAliasCapAnnotationEphemeralIsError)
+{
+  // An ephemeral annotation on a tuple type alias is also rejected.
+  const char* src =
+    "type Pair is (String, U64)\n"
+
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let x: Pair iso^ = (\"hello\", 42)";
+
+  TEST_ERRORS_1(src, "can't apply a capability to a tuple type alias");
 }
 
 
