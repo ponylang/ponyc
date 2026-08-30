@@ -2,7 +2,7 @@ interface SafeOps[T]
   fun addc(t: T): (T, Bool)
   fun subc(t: T): (T, Bool)
 
-class GenericSum[T: (Int & Integer[T] val & SafeOps[T])]
+class GenericSum[T: (Int & Integer[T] val & SafeOps[T] val)]
   fun _plus_safe(x: T, y: T): (T, Bool) =>
     x.addc(y)
 
