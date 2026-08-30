@@ -29,6 +29,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Changed
 
+- Type parameter constraints now respect the default cap of the named type ([PR #5886](https://github.com/ponylang/ponyc/pull/5886))
 
 ## [0.69.1] - 2026-08-21
 
