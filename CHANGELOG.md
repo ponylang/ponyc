@@ -32,6 +32,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Add multi-iterator for loop sugar ([PR #5896](https://github.com/ponylang/ponyc/pull/5896))
 - Add `\c_api\` annotation for C-ABI interop ([PR #5898](https://github.com/ponylang/ponyc/pull/5898))
 - Single-subtype devirtualization for interface/trait dispatch ([PR #5901](https://github.com/ponylang/ponyc/pull/5901))
+- Improve heap-to-stack promotion for stored objects ([PR #5906](https://github.com/ponylang/ponyc/pull/5906))
 
 ### Changed
 
