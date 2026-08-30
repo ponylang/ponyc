@@ -1,6 +1,6 @@
 ## Fix data loss in `collections/persistent` `Vec.remove`
 
-`Vec.remove(i, n)` destroyed elements it was not asked to remove whenever fewer than `n` elements followed index `i`.
+`Vec.remove(i, n)` destroyed elements outside the requested range whenever fewer than `n` elements followed index `i`.
 
 ```pony
 use "collections/persistent"
