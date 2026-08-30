@@ -526,3 +526,30 @@ When fewer than `n` elements followed index `i`, elements before `i` were also d
 
 This has been fixed. The count is now saturated: if fewer than `n` elements follow `i`, every element from `i` onward is removed and nothing before `i` is touched. The example above now prints `0 1 2 3`. This matches `Array.remove`, which `Vec.remove` mirrors, and `Vec.slice`, which already documented a saturated range. An index `i` that is out of bounds still raises an error.
 
+## Fix object literal compilation with union-constrained type parameters
+
+Object literals inside methods whose type parameters have union constraints with mixed capabilities failed to compile:
+
+```pony
+interface box FnBox[A, B]
+  fun apply(a: A): B ?
+interface ref FnRef[A, B]
+  fun ref apply(a: A): B ?
+type Fn[A, B] is (FnBox[A, B] box | FnRef[A, B] ref)
+
+actor Main
+  new create(env: Env) => None
+  fun bar[A, B, F: Fn[A, B]](f: F) =>
+    object ref
+      fun ref foo(a: A) ? =>
+        iftype F <: FnBox[A, B] box then f(consume a)?
+        elseif F <: FnRef[A, B] ref then f(consume a)?
+        else error
+        end
+    end
+```
+
+The compiler reported "type argument is outside its constraint" for the object literal's captured type parameters. The same code without the object literal compiled correctly.
+
+This has been fixed. Object literals inside methods with union-constrained type parameters now compile correctly.
+
