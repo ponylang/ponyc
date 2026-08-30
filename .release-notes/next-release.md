@@ -492,3 +492,9 @@ type \c_api\ BoxedI64 is MyBox[I64]
 
 Constructors, behaviors, private methods, partial methods, and methods with tuple parameters or return types are excluded from export. It is an error to annotate a type whose methods are all excluded. Generic types cannot be exported directly; use a type alias to export a concrete reification.
 
+## Single-subtype devirtualization for interface/trait dispatch
+
+Calling a method through an interface or trait now uses a direct call instead of a vtable lookup when the program has exactly one concrete type implementing that interface. LLVM can then inline the direct call and optimize across the call boundary.
+
+This matters most for code that passes closures or iterators through generic combinators like `Iter.fold` — the lambda and iterator calls that were previously indirect become direct calls, eligible for inlining.
+
