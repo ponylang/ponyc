@@ -146,3 +146,73 @@ TEST_F(CodegenOptimisationTest, MergeSendTracedProducesSendNext)
 
   ASSERT_GT(count_calls_to("pony_send_next"), (size_t)0);
 }
+
+
+TEST_F(CodegenOptimisationTest, HeapToStackStoreToAlloca)
+{
+  // An object stored into a field of a stack-promoted parent should also
+  // be promotable.
+  const char* src =
+    "class Inner\n"
+    "  let x: U64\n"
+    "  new create(x': U64) => x = x'\n"
+
+    "class Outer\n"
+    "  let inner: Inner\n"
+    "  new create() =>\n"
+    "    inner = Inner(42)\n"
+
+    "  fun get_x(): U64 => inner.x\n"
+
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let o = Outer\n"
+    "    let x = o.get_x()";
+
+  opt.release = true;
+
+  TEST_COMPILE(src);
+
+  size_t before = count_calls_to("pony_alloc_small");
+  DO(optimise());
+  size_t after = count_calls_to("pony_alloc_small");
+
+  ASSERT_LT(after, before);
+}
+
+
+TEST_F(CodegenOptimisationTest, HeapToStackStoreToEscapingNotPromoted)
+{
+  // An object stored into an actor field escapes — it must stay on the
+  // heap, so the optimization should not reduce pony_alloc_small calls.
+  const char* src =
+    "class Inner\n"
+    "  let x: U64\n"
+    "  new create(x': U64) => x = x'\n"
+
+    "class Outer\n"
+    "  let inner: Inner\n"
+    "  new create() =>\n"
+    "    inner = Inner(42)\n"
+
+    "  fun get_x(): U64 => inner.x\n"
+
+    "actor Main\n"
+    "  var _o: (Outer | None)\n"
+    "  new create(env: Env) =>\n"
+    "    _o = Outer\n"
+    "    let x = match _o\n"
+    "    | let o: Outer => o.get_x()\n"
+    "    else 0\n"
+    "    end";
+
+  opt.release = true;
+
+  TEST_COMPILE(src);
+
+  size_t before = count_calls_to("pony_alloc_small");
+  DO(optimise());
+  size_t after = count_calls_to("pony_alloc_small");
+
+  ASSERT_GE(after, before);
+}
