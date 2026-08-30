@@ -161,22 +161,6 @@ TEST_F(BadPonyTest, LambdaCaptureVariableBeforeDeclarationWithTypeInferenceExpre
    TEST_ERRORS_1(src, "declaration of 'x' appears after use");
 }
 
-// TODO: This test is not correct because it does not fail without the fix.
-// I do not know how to generate a test that calls genheader().
-// Comments are welcomed.
-/*TEST_F(BadPonyTest, ExportedActorWithVariadicReturnTypeContainingNone)
-{
-  // From issue #891
-  const char* src =
-    "primitive T\n"
-    "\n"
-    "actor @A\n"
-    "  fun f(a: T): (T | None) =>\n"
-    "    a\n";
-
-  TEST_COMPILE(src);
-}*/
-
 TEST_F(BadPonyTest, TypeAliasRecursionThroughTypeParameterInTuple)
 {
   // From issue #901. The recursion has a constructive edge (Foo
