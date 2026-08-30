@@ -22,6 +22,6 @@ actor Main
 0 1
 ```
 
-The method removed `n` elements from the end of the vector before shifting the survivors down, so when the range ran past the end it took elements from before `i` and never put them back. No error was raised, and `size` was reduced to match the shortened vector, so nothing a caller could inspect disagreed.
+When fewer than `n` elements followed index `i`, elements before `i` were also destroyed. No error was raised, and `size` was reduced to match the shortened vector, so nothing a caller could inspect revealed the loss.
 
 This has been fixed. The count is now saturated: if fewer than `n` elements follow `i`, every element from `i` onward is removed and nothing before `i` is touched. The example above now prints `0 1 2 3`. This matches `Array.remove`, which `Vec.remove` mirrors, and `Vec.slice`, which already documented a saturated range. An index `i` that is out of bounds still raises an error.
