@@ -149,3 +149,80 @@ TEST_F(ObjectTest, ObjectProvidesEnclosingTraitWithTypeParams)
   TEST_COMPILE(src);
 }
 
+TEST_F(ObjectTest, ObjectInMethodWithUnionConstraint)
+{
+  // From issue #2924: an object literal inside a method whose type parameter
+  // has a union constraint with mixed capabilities should compile.
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) => None\n"
+    "  fun bar[F: (U32 val | String ref)]() =>\n"
+    "    object val end\n";
+  TEST_COMPILE(src);
+}
+
+TEST_F(ObjectTest, ObjectInMethodWithUnionConstraintShare)
+{
+  // Union of val and tag derives #share.
+  const char* src =
+    "actor Tag1\n"
+    "  new create() => None\n"
+    "actor Main\n"
+    "  new create(env: Env) => None\n"
+    "  fun bar[F: (U32 val | Tag1 tag)]() =>\n"
+    "    object val end\n";
+  TEST_COMPILE(src);
+}
+
+TEST_F(ObjectTest, ObjectInMethodWithUnionConstraintSend)
+{
+  // Union of iso and tag derives #send.
+  const char* src =
+    "class iso Iso1\n"
+    "  new iso create() => None\n"
+    "actor Tag2\n"
+    "  new create() => None\n"
+    "actor Main\n"
+    "  new create(env: Env) => None\n"
+    "  fun bar[F: (Iso1 iso | Tag2 tag)]() =>\n"
+    "    object val end\n";
+  TEST_COMPILE(src);
+}
+
+TEST_F(ObjectTest, ObjectInMethodWithUnionConstraintAlias)
+{
+  // Union of ref and tag derives #alias.
+  const char* src =
+    "actor Tag3\n"
+    "  new create() => None\n"
+    "actor Main\n"
+    "  new create(env: Env) => None\n"
+    "  fun bar[F: (String ref | Tag3 tag)]() =>\n"
+    "    object val end\n";
+  TEST_COMPILE(src);
+}
+
+TEST_F(ObjectTest, ObjectInMethodWithUnionConstraintAndIftype)
+{
+  // From issue #2924: iftype inside an object literal that captures type
+  // parameters from a method with a union constraint.
+  const char* src =
+    "interface box FnBox[A, B]\n"
+    "  fun apply(a: A): B ?\n"
+    "interface ref FnRef[A, B]\n"
+    "  fun ref apply(a: A): B ?\n"
+    "type Fn[A, B] is (FnBox[A, B] box | FnRef[A, B] ref)\n"
+    "\n"
+    "actor Main\n"
+    "  new create(env: Env) => None\n"
+    "  fun bar[A, B, F: Fn[A, B]](f: F) =>\n"
+    "    object ref\n"
+    "      fun ref foo(a: A) ? =>\n"
+    "        iftype F <: FnBox[A, B] box then f(consume a)?\n"
+    "        elseif F <: FnRef[A, B] ref then f(consume a)?\n"
+    "        else error\n"
+    "        end\n"
+    "    end\n";
+  TEST_COMPILE(src);
+}
+

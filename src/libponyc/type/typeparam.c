@@ -539,8 +539,51 @@ static bool apply_cap_to_single(ast_t* type, token_id tcap, token_id teph)
       break;
 
     default:
-      if(ast_id(cap) != tcap)
-        return false;
+    {
+      // When tcap is a generic cap, keep members whose concrete cap is a
+      // valid reification. Return early to preserve the concrete cap rather
+      // than overwriting it with the generic at ast_setid below.
+      switch(tcap)
+      {
+        case TK_CAP_READ:
+          switch(ast_id(cap))
+          {
+            case TK_REF: case TK_VAL: case TK_BOX: return true;
+            default: return false;
+          }
+
+        case TK_CAP_SEND:
+          switch(ast_id(cap))
+          {
+            case TK_ISO: case TK_VAL: case TK_TAG: return true;
+            default: return false;
+          }
+
+        case TK_CAP_SHARE:
+          switch(ast_id(cap))
+          {
+            case TK_VAL: case TK_TAG: return true;
+            default: return false;
+          }
+
+        case TK_CAP_ALIAS:
+          switch(ast_id(cap))
+          {
+            case TK_REF: case TK_VAL: case TK_BOX: case TK_TAG:
+              return true;
+            default: return false;
+          }
+
+        case TK_CAP_ANY:
+          return true;
+
+        default:
+          if(ast_id(cap) != tcap)
+            return false;
+          break;
+      }
+      break;
+    }
   }
 
   // Set the capability.
