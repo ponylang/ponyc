@@ -46,6 +46,7 @@ actor \nodoc\ Main is TestList
     test(_TestArrayPairsRewind)
     test(_TestDiv)
     test(_TestDivc)
+    test(_TestDivrem)
     test(_TestFld)
     test(_TestFldc)
     test(_TestFloatToString)
@@ -2267,6 +2268,64 @@ class \nodoc\ iso _TestMath128 is UnitTest
 
     h.assert_eq[I128](-5, I128(-13) %% -8)
     h.assert_eq[I128](-28, I128(-40_000_000_028) %% -10_000_000_000)
+
+class \nodoc\ iso _TestDivrem is UnitTest
+  fun name(): String => "builtin/Divrem"
+
+  fun test_divrem_signed[T: (Integer[T] val & Signed)](
+    h: TestHelper,
+    type_name: String)
+  =>
+    (let q1, let r1) = T(11).divrem(T(3))
+    h.assert_eq[T](3, q1, "[" + type_name + "] 11 divrem 3 quotient")
+    h.assert_eq[T](2, r1, "[" + type_name + "] 11 divrem 3 remainder")
+
+    (let q2, let r2) = T(-10).divrem(T(3))
+    h.assert_eq[T](-3, q2, "[" + type_name + "] -10 divrem 3 quotient")
+    h.assert_eq[T](-1, r2, "[" + type_name + "] -10 divrem 3 remainder")
+
+    // divrem_unsafe
+    (let q3, let r3) = T(11).divrem_unsafe(T(3))
+    h.assert_eq[T](3, q3, "[" + type_name + "] 11 divrem_unsafe 3 quotient")
+    h.assert_eq[T](2, r3, "[" + type_name + "] 11 divrem_unsafe 3 remainder")
+
+    (let q4, let r4) = T(-10).divrem_unsafe(T(3))
+    h.assert_eq[T](-3, q4,
+      "[" + type_name + "] -10 divrem_unsafe 3 quotient")
+    h.assert_eq[T](-1, r4,
+      "[" + type_name + "] -10 divrem_unsafe 3 remainder")
+
+  fun test_divrem_unsigned[T: (Integer[T] val & Unsigned)](
+    h: TestHelper,
+    type_name: String)
+  =>
+    (let q1, let r1) = T(11).divrem(T(3))
+    h.assert_eq[T](3, q1, "[" + type_name + "] 11 divrem 3 quotient")
+    h.assert_eq[T](2, r1, "[" + type_name + "] 11 divrem 3 remainder")
+
+    // divrem_unsafe
+    (let q2, let r2) = T(11).divrem_unsafe(T(3))
+    h.assert_eq[T](3, q2,
+      "[" + type_name + "] 11 divrem_unsafe 3 quotient")
+    h.assert_eq[T](2, r2,
+      "[" + type_name + "] 11 divrem_unsafe 3 remainder")
+
+  fun apply(h: TestHelper) =>
+    test_divrem_signed[I8](h, "I8")
+    test_divrem_signed[I16](h, "I16")
+    test_divrem_signed[I32](h, "I32")
+    test_divrem_signed[I64](h, "I64")
+    test_divrem_signed[ILong](h, "ILong")
+    test_divrem_signed[ISize](h, "ISize")
+    test_divrem_signed[I128](h, "I128")
+
+    test_divrem_unsigned[U8](h, "U8")
+    test_divrem_unsigned[U16](h, "U16")
+    test_divrem_unsigned[U32](h, "U32")
+    test_divrem_unsigned[U64](h, "U64")
+    test_divrem_unsigned[ULong](h, "ULong")
+    test_divrem_unsigned[USize](h, "USize")
+    test_divrem_unsigned[U128](h, "U128")
 
 class \nodoc\ iso _TestDiv is UnitTest
   fun name(): String => "builtin/Div"

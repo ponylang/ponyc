@@ -812,7 +812,7 @@ primitive I128 is SignedInteger[I128, U128]
     If the operation overflows, the result is undefined.
     """
     ifdef native128 then
-      (this *~ y, this /~ y)
+      (this /~ y, this %~ y)
     else
       divrem(y)
     end
