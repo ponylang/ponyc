@@ -29,6 +29,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Fix tuple subtyping for tuples with tag elements ([PR #5900](https://github.com/ponylang/ponyc/pull/5900))
 - Fix compiler accepting `?` functions whose only error source is self-recursion ([PR #5911](https://github.com/ponylang/ponyc/pull/5911))
 - Fix wrapping division of signed minimum value by -1 ([PR #5918](https://github.com/ponylang/ponyc/pull/5918))
+- Fix I128 and U128 divrem_unsafe on native128 platforms ([PR #5922](https://github.com/ponylang/ponyc/pull/5922))
 
 ### Added
 
