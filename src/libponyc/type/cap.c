@@ -933,12 +933,40 @@ bool cap_view_upper(token_id left_cap, token_id left_eph,
     }
 
     case TK_BOX:
+    {
+      switch(*right_cap)
+      {
+        case TK_ISO:
+          *right_cap = TK_TAG;
+          break;
+
+        case TK_VAL:
+        case TK_CAP_SHARE:
+          break;
+
+        case TK_CAP_SEND:
+        case TK_CAP_ALIAS:
+        case TK_CAP_ANY:
+          *right_cap = TK_TAG;
+          break;
+
+        default:
+          *right_cap = TK_BOX;
+      }
+
+      *right_eph = TK_NONE;
+      break;
+    }
+
     case TK_CAP_READ:
     {
       switch(*right_cap)
       {
         case TK_ISO:
           *right_cap = TK_TAG;
+          break;
+
+        case TK_TRN:
           break;
 
         case TK_VAL:
@@ -1146,6 +1174,10 @@ bool cap_view_lower(token_id left_cap, token_id left_eph,
       {
         case TK_ISO:
           *right_cap = TK_CAP_SEND;
+          break;
+
+        case TK_TRN:
+          *right_cap = TK_BOX;
           break;
 
         case TK_REF:

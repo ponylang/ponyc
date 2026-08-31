@@ -904,3 +904,25 @@ TEST_F(CapTest, ViewpointLowerFull)
   EXPECT_VP_UNDEF(lower_viewpoint_full, tag, none, box, none);
   EXPECT_VP_UNDEF(lower_viewpoint_full, tag, none, tag, none);
 }
+
+TEST_F(CapTest, ViewpointUpperRead)
+{
+  // #read = {ref, val, box}
+  ASSERT_EQ(upper_viewpoint(read, iso), tag);   // {iso, val, tag}
+  ASSERT_EQ(upper_viewpoint(read, trn), trn);   // {trn, val, box}
+  ASSERT_EQ(upper_viewpoint(read, ref), box);   // {ref, val, box}
+  ASSERT_EQ(upper_viewpoint(read, val), val);   // {val, val, val}
+  ASSERT_EQ(upper_viewpoint(read, box), box);   // {box, val, box}
+  ASSERT_EQ(upper_viewpoint(read, tag), tag);   // {tag, tag, tag}
+}
+
+TEST_F(CapTest, ViewpointLowerRead)
+{
+  // #read = {ref, val, box}
+  ASSERT_EQ(lower_viewpoint(read, iso), send);  // {iso, val, tag} = #send
+  ASSERT_EQ(lower_viewpoint(read, trn), box);   // {trn, val, box}
+  ASSERT_EQ(lower_viewpoint(read, ref), read);  // {ref, val, box} = #read
+  ASSERT_EQ(lower_viewpoint(read, val), val);   // {val}
+  ASSERT_EQ(lower_viewpoint(read, box), val);   // {val, box}
+  ASSERT_EQ(lower_viewpoint(read, tag), tag);   // {tag}
+}
