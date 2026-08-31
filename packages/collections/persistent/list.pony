@@ -72,17 +72,16 @@ primitive Lists[A]
     """
     Checks whether two lists are equal.
     """
-    if (l1.is_empty() and l2.is_empty()) then
-      true
-    elseif (l1.is_empty() and l2.is_non_empty()) then
-      false
-    elseif (l1.is_non_empty() and l2.is_empty()) then
-      false
-    elseif (l1.head()? != l2.head()?) then
-      false
-    else
-      eq[T](l1.tail()?, l2.tail()?)?
+    var a: List[T] = l1
+    var b: List[T] = l2
+    while true do
+      if a.is_empty() and b.is_empty() then return true end
+      if a.is_empty() or b.is_empty() then return false end
+      if a.head()? != b.head()? then return false end
+      a = a.tail()?
+      b = b.tail()?
     end
+    true
 
 primitive Nil[A] is ReadSeq[val->A]
   """
@@ -255,10 +254,22 @@ class val Cons[A] is ReadSeq[val->A]
     """
     Returns the i-th element of the list. Errors if the index is out of bounds.
     """
-    match i
-    | 0 => _head
-    else _tail(i - 1)?
+    if i == 0 then return _head end
+    // `apply` has a box receiver, so the walk starts from the tail field
+    // rather than from `this`
+    var cur: List[A] = _tail
+    var n = i - 1
+    while true do
+      match cur
+      | let cons: Cons[A] =>
+        if n == 0 then return cons.head() end
+        cur = cons.tail()
+        n = n - 1
+      else
+        error
+      end
     end
+    error
 
   fun values(): Iterator[val->A]^ =>
     """
@@ -298,17 +309,18 @@ class val Cons[A] is ReadSeq[val->A]
     """
     Builds a new list by reversing the elements in the list.
     """
-    _reverse(this, Nil[A])
-
-  fun val _reverse(l: List[A], acc: List[A]): List[A] =>
-    """
-    Private helper for reverse, recursively working on elements.
-    """
-    match l
-    | let cons: Cons[A] => _reverse(cons.tail(), acc.prepend(cons.head()))
-    else
-      acc
+    var out: List[A] = Nil[A]
+    var cur: List[A] = this
+    while true do
+      match cur
+      | let cons: Cons[A] =>
+        out = out.prepend(cons.head())
+        cur = cons.tail()
+      else
+        break
+      end
     end
+    out
 
   fun val prepend(a: val->A): Cons[A] =>
     """
@@ -321,166 +333,147 @@ class val Cons[A] is ReadSeq[val->A]
     Builds a new list that is the concatenation of this list and the provided
     list.
     """
-    _concat(l, this.reverse())
-
-  fun val _concat(l: List[A], acc: List[A]): List[A] =>
-    """
-    Private helper for concat that recursively builds the new list.
-    """
-    match l
-    | let cons: Cons[A] => _concat(cons.tail(), acc.prepend(cons.head()))
-    else
-      acc.reverse()
+    var out: List[A] = this.reverse()
+    var cur: List[A] = l
+    while true do
+      match cur
+      | let cons: Cons[A] =>
+        out = out.prepend(cons.head())
+        cur = cons.tail()
+      else
+        break
+      end
     end
+    out.reverse()
 
   fun val map[B](f: {(val->A): val->B} box): List[B] =>
     """
     Builds a new list by applying a function to every member of the list.
     """
-    _map[B](this, f, Nil[B])
-
-  fun _map[B](l: List[A], f: {(val->A): val->B} box, acc: List[B]): List[B] =>
-    """
-    Private helper for map, recursively applying function to elements.
-    """
-    match l
-    | let cons: Cons[A] =>
-      _map[B](cons.tail(), f, acc.prepend(f(cons.head())))
-    else
-      acc.reverse()
+    var out: List[B] = Nil[B]
+    var cur: List[A] = this
+    while true do
+      match cur
+      | let cons: Cons[A] =>
+        out = out.prepend(f(cons.head()))
+        cur = cons.tail()
+      else
+        break
+      end
     end
+    out.reverse()
 
   fun val flat_map[B](f: {(val->A): List[B]} box): List[B] =>
     """
     Builds a new list by applying a function to every member of the list and
     using the elements of the resulting lists.
     """
-    _flat_map[B](this, f, Nil[B])
-
-  fun _flat_map[B](l: List[A], f: {(val->A): List[B]} box, acc: List[B]):
-  List[B] =>
-    """
-    Private helper for flat_map, recursively working on elements.
-    """
-    match l
-    | let cons: Cons[A] =>
-      _flat_map[B](cons.tail(), f, _rev_prepend[B](f(cons.head()), acc))
-    else
-      acc.reverse()
+    var out: List[B] = Nil[B]
+    var cur: List[A] = this
+    while true do
+      match cur
+      | let cons: Cons[A] =>
+        // each result is prepended in order, which reverses it into `out`;
+        // the reverse at the end puts both levels back the right way round
+        var inner: List[B] = f(cons.head())
+        while true do
+          match inner
+          | let icons: Cons[B] =>
+            out = out.prepend(icons.head())
+            inner = icons.tail()
+          else
+            break
+          end
+        end
+        cur = cons.tail()
+      else
+        break
+      end
     end
-
-  fun tag _rev_prepend[B](l: List[B], target: List[B]): List[B] =>
-    """
-    Prepends l in reverse order onto target
-    """
-    match l
-    | let cns: Cons[B] =>
-      _rev_prepend[B](cns.tail(), target.prepend(cns.head()))
-    else
-      target
-    end
+    out.reverse()
 
   fun val for_each(f: {(val->A)} box) =>
     """
     Applies the supplied function to every element of the list in order.
     """
-    _for_each(this, f)
-
-  fun _for_each(l: List[A], f: {(val->A)} box) =>
-    """
-    Private helper for for_each, recursively working on elements.
-    """
-    match l
-    | let cons: Cons[A] =>
-      f(cons.head())
-      _for_each(cons.tail(), f)
+    var cur: List[A] = this
+    while true do
+      match cur
+      | let cons: Cons[A] =>
+        f(cons.head())
+        cur = cons.tail()
+      else
+        break
+      end
     end
 
   fun val filter(f: {(val->A): Bool} box): List[A] =>
     """
     Builds a new list with those elements that satisfy a provided predicate.
     """
-    _filter(this, f, Nil[A])
-
-  fun _filter(l: List[A], f: {(val->A): Bool} box, acc: List[A]): List[A] =>
-    """
-    Private helper for filter, recursively working on elements, keeping those
-    that match the predicate and discarding those that don't.
-    """
-    match l
-    | let cons: Cons[A] =>
-      if (f(cons.head())) then
-        _filter(cons.tail(), f, acc.prepend(cons.head()))
+    var out: List[A] = Nil[A]
+    var cur: List[A] = this
+    while true do
+      match cur
+      | let cons: Cons[A] =>
+        if f(cons.head()) then out = out.prepend(cons.head()) end
+        cur = cons.tail()
       else
-        _filter(cons.tail(), f, acc)
+        break
       end
-    else
-      acc.reverse()
     end
+    out.reverse()
 
   fun val fold[B](f: {(B, val->A): B^} box, acc: B): B =>
     """
     Folds the elements of the list using the supplied function.
     """
-    _fold[B](this, f, consume acc)
-
-  fun val _fold[B](l: List[A], f: {(B, val->A): B^} box, acc: B): B =>
-    """
-    Private helper for fold, recursively working on elements.
-    """
-    match l
-    | let cons: Cons[A] =>
-      _fold[B](cons.tail(), f, f(consume acc, cons.head()))
-    else
-      acc
+    var out: B = consume acc
+    var cur: List[A] = this
+    while true do
+      match cur
+      | let cons: Cons[A] =>
+        out = f(consume out, cons.head())
+        cur = cons.tail()
+      else
+        break
+      end
     end
+    consume out
 
   fun val every(f: {(val->A): Bool} box): Bool =>
     """
     Returns true if every element satisfies the provided predicate, false
     otherwise.
     """
-    _every(this, f)
-
-  fun _every(l: List[A], f: {(val->A): Bool} box): Bool =>
-    """
-    Private helper for every, recursively testing predicate on elements,
-    returning false immediately on an element that fails to satisfy the
-    predicate.
-    """
-    match l
-    | let cons: Cons[A] =>
-      if (f(cons.head())) then
-        _every(cons.tail(), f)
+    var cur: List[A] = this
+    while true do
+      match cur
+      | let cons: Cons[A] =>
+        if not f(cons.head()) then return false end
+        cur = cons.tail()
       else
-        false
+        break
       end
-    else
-      true
     end
+    true
 
   fun val exists(f: {(val->A): Bool} box): Bool =>
     """
     Returns true if at least one element satisfies the provided predicate,
     false otherwise.
     """
-    _exists(this, f)
-
-  fun _exists(l: List[A], f: {(val->A): Bool} box): Bool =>
-    """
-    Private helper for exists, recursively testing predicate on elements,
-    returning true immediately on an element satisfying the predicate.
-    """
-    match l
-    | let cons: Cons[A] =>
-      if (f(cons.head())) then
-        true
+    var cur: List[A] = this
+    while true do
+      match cur
+      | let cons: Cons[A] =>
+        if f(cons.head()) then return true end
+        cur = cons.tail()
       else
-        _exists(cons.tail(), f)
+        break
       end
-    else
-      false
     end
+    false
 
   fun val partition(f: {(val->A): Bool} box): (List[A], List[A]) =>
     """
