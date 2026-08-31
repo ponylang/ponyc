@@ -354,6 +354,134 @@ TEST_F(VerifyTest, PartialFunctionNoError)
     "body cannot raise an error");
 }
 
+TEST_F(VerifyTest, PartialFunctionSelfRecursiveOnly)
+{
+  // From issue #2392
+  const char* src =
+    "primitive Foo\n"
+    "  fun apply() ? =>\n"
+    "    apply()?";
+
+  TEST_ERRORS_1(src, "function signature is marked as partial but the function "
+    "body cannot raise an error");
+}
+
+TEST_F(VerifyTest, PartialFunctionSelfRecursiveWithError)
+{
+  const char* src =
+    "primitive Foo\n"
+    "  fun apply(x: Bool) ? =>\n"
+    "    if x then error end\n"
+    "    apply(x)?";
+
+  TEST_COMPILE(src);
+}
+
+TEST_F(VerifyTest, PartialFunctionSelfRecursiveInTry)
+{
+  const char* src =
+    "primitive Foo\n"
+    "  fun apply() ? =>\n"
+    "    try\n"
+    "      apply()?\n"
+    "    end";
+
+  TEST_ERRORS_1(src, "function signature is marked as partial but the function "
+    "body cannot raise an error");
+}
+
+TEST_F(VerifyTest, PartialFunctionSelfRecursiveInTryElse)
+{
+  const char* src =
+    "primitive Foo\n"
+    "  fun apply() ? =>\n"
+    "    try\n"
+    "      apply()?\n"
+    "    else\n"
+    "      apply()?\n"
+    "    end";
+
+  TEST_ERRORS_1(src, "function signature is marked as partial but the function "
+    "body cannot raise an error");
+}
+
+TEST_F(VerifyTest, PartialFunctionSelfRecursiveInBranch)
+{
+  const char* src =
+    "primitive Foo\n"
+    "  fun apply(x: Bool) ? =>\n"
+    "    if x then\n"
+    "      apply(x)?\n"
+    "    end";
+
+  TEST_ERRORS_1(src, "function signature is marked as partial but the function "
+    "body cannot raise an error");
+}
+
+TEST_F(VerifyTest, PartialFunctionSelfRecursiveDifferentArgs)
+{
+  const char* src =
+    "primitive Foo\n"
+    "  fun apply(x: Bool) ? =>\n"
+    "    apply(not x)?";
+
+  TEST_ERRORS_1(src, "function signature is marked as partial but the function "
+    "body cannot raise an error");
+}
+
+TEST_F(VerifyTest, PartialFunctionRecursiveOnUnionType)
+{
+  const char* src =
+    "type Step is (StepA | StepB)\n"
+    "\n"
+    "primitive StepA\n"
+    "  fun run(next: Step) ? =>\n"
+    "    next.run(StepB)?\n"
+    "\n"
+    "primitive StepB\n"
+    "  fun run(next: Step) ? =>\n"
+    "    error";
+
+  TEST_COMPILE(src);
+}
+
+TEST_F(VerifyTest, PartialFunctionSelfRecursiveChainedCall)
+{
+  const char* src =
+    "class Foo\n"
+    "  fun other(): Foo ? => error\n"
+    "  fun apply(): Foo ? =>\n"
+    "    apply()?.other()?";
+
+  TEST_COMPILE(src);
+}
+
+TEST_F(VerifyTest, PartialFunctionSelfRecursiveViaTypeAlias)
+{
+  const char* src =
+    "type MyFoo is Foo ref\n"
+    "class Foo\n"
+    "  fun ref apply(x: Bool): Bool ? =>\n"
+    "    let f: MyFoo = this\n"
+    "    f.apply(x)?";
+
+  TEST_ERRORS_1(src, "function signature is marked as partial but the function "
+    "body cannot raise an error");
+}
+
+TEST_F(VerifyTest, PartialFunctionSelfRecursiveViaTypeAliasWithError)
+{
+  const char* src =
+    "type MyFoo is Foo ref\n"
+    "class Foo\n"
+    "  fun ref apply(x: Bool): Bool ? =>\n"
+    "    if x then error end\n"
+    "    let f: MyFoo = this\n"
+    "    f.apply(x)?";
+
+  TEST_COMPILE(src);
+}
+
 TEST_F(VerifyTest, PartialFunctionError)
 {
   const char* src =
