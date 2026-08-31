@@ -31,6 +31,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Fix wrapping division of signed minimum value by -1 ([PR #5918](https://github.com/ponylang/ponyc/pull/5918))
 - Fix I128 and U128 divrem_unsafe on native128 platforms ([PR #5922](https://github.com/ponylang/ponyc/pull/5922))
 - Fix incorrect `#read->trn` viewpoint adaptation bounds ([PR #5925](https://github.com/ponylang/ponyc/pull/5925))
+- Fix stack overflow (SEGV) in persistent List from unbounded recursion ([PR #5909](https://github.com/ponylang/ponyc/pull/5909))
 
 ### Added
 
