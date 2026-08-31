@@ -27,6 +27,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Fix object literal compilation with union-constrained type parameters ([PR #5905](https://github.com/ponylang/ponyc/pull/5905))
 - Fix iftype narrowing for methods that use `this->` viewpoint ([PR #5907](https://github.com/ponylang/ponyc/pull/5907))
 - Fix tuple subtyping for tuples with tag elements ([PR #5900](https://github.com/ponylang/ponyc/pull/5900))
+- Fix compiler accepting `?` functions whose only error source is self-recursion ([PR #5911](https://github.com/ponylang/ponyc/pull/5911))
 
 ### Added
 
