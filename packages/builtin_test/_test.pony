@@ -2349,6 +2349,26 @@ class \nodoc\ iso _TestDiv is UnitTest
     h.assert_eq[T](0, T(13) / T(0))
     h.assert_eq[T](2, T(8) / 4)
 
+  fun test_div_unsafe_signed[T: (Integer[T] val & Signed)](
+    h: TestHelper,
+    type_name: String)
+  =>
+    h.assert_eq[T](2, T(8).div_unsafe(4),
+      "[" + type_name + "] 8 div_unsafe 4")
+    h.assert_eq[T](-2, T(-8).div_unsafe(4),
+      "[" + type_name + "] -8 div_unsafe 4")
+    h.assert_eq[T](-2, T(8).div_unsafe(-4),
+      "[" + type_name + "] 8 div_unsafe -4")
+    h.assert_eq[T](2, T(-8).div_unsafe(-4),
+      "[" + type_name + "] -8 div_unsafe -4")
+
+  fun test_div_unsafe_unsigned[T: (Integer[T] val & Unsigned)](
+    h: TestHelper,
+    type_name: String)
+  =>
+    h.assert_eq[T](2, T(8).div_unsafe(4),
+      "[" + type_name + "] 8 div_unsafe 4")
+
   fun apply(h: TestHelper) =>
     test_div_signed[I8](h)
     test_div_signed[I16](h)
@@ -2365,6 +2385,22 @@ class \nodoc\ iso _TestDiv is UnitTest
     test_div_unsigned[ULong](h)
     test_div_unsigned[USize](h)
     test_div_unsigned[U128](h)
+
+    test_div_unsafe_signed[I8](h, "I8")
+    test_div_unsafe_signed[I16](h, "I16")
+    test_div_unsafe_signed[I32](h, "I32")
+    test_div_unsafe_signed[I64](h, "I64")
+    test_div_unsafe_signed[ILong](h, "ILong")
+    test_div_unsafe_signed[ISize](h, "ISize")
+    test_div_unsafe_signed[I128](h, "I128")
+
+    test_div_unsafe_unsigned[U8](h, "U8")
+    test_div_unsafe_unsigned[U16](h, "U16")
+    test_div_unsafe_unsigned[U32](h, "U32")
+    test_div_unsafe_unsigned[U64](h, "U64")
+    test_div_unsafe_unsigned[ULong](h, "ULong")
+    test_div_unsafe_unsigned[USize](h, "USize")
+    test_div_unsafe_unsigned[U128](h, "U128")
 
 class \nodoc\ iso _TestRem is UnitTest
   """
@@ -2386,6 +2422,26 @@ class \nodoc\ iso _TestRem is UnitTest
     h.assert_eq[T](0, T(13) % T(0))
     h.assert_eq[T](5, T(13) % 8)
 
+  fun test_rem_unsafe_signed[T: (Integer[T] val & Signed)](
+    h: TestHelper,
+    type_name: String)
+  =>
+    h.assert_eq[T](5, T(13).rem_unsafe(8),
+      "[" + type_name + "] 13 rem_unsafe 8")
+    h.assert_eq[T](-5, T(-13).rem_unsafe(8),
+      "[" + type_name + "] -13 rem_unsafe 8")
+    h.assert_eq[T](5, T(13).rem_unsafe(-8),
+      "[" + type_name + "] 13 rem_unsafe -8")
+    h.assert_eq[T](-5, T(-13).rem_unsafe(-8),
+      "[" + type_name + "] -13 rem_unsafe -8")
+
+  fun test_rem_unsafe_unsigned[T: (Integer[T] val & Unsigned)](
+    h: TestHelper,
+    type_name: String)
+  =>
+    h.assert_eq[T](5, T(13).rem_unsafe(8),
+      "[" + type_name + "] 13 rem_unsafe 8")
+
   fun apply(h: TestHelper) =>
     test_rem_signed[I8](h)
     test_rem_signed[I16](h)
@@ -2402,6 +2458,22 @@ class \nodoc\ iso _TestRem is UnitTest
     test_rem_unsigned[USize](h)
     test_rem_unsigned[ULong](h)
     test_rem_unsigned[U128](h)
+
+    test_rem_unsafe_signed[I8](h, "I8")
+    test_rem_unsafe_signed[I16](h, "I16")
+    test_rem_unsafe_signed[I32](h, "I32")
+    test_rem_unsafe_signed[I64](h, "I64")
+    test_rem_unsafe_signed[ISize](h, "ISize")
+    test_rem_unsafe_signed[ILong](h, "ILong")
+    test_rem_unsafe_signed[I128](h, "I128")
+
+    test_rem_unsafe_unsigned[U8](h, "U8")
+    test_rem_unsafe_unsigned[U16](h, "U16")
+    test_rem_unsafe_unsigned[U32](h, "U32")
+    test_rem_unsafe_unsigned[U64](h, "U64")
+    test_rem_unsafe_unsigned[USize](h, "USize")
+    test_rem_unsafe_unsigned[ULong](h, "ULong")
+    test_rem_unsafe_unsigned[U128](h, "U128")
 
 class \nodoc\ iso _TestFld is UnitTest
   fun name(): String => "builtin/Fld"
