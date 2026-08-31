@@ -437,7 +437,17 @@ public:
                       work.push_back(load_use);
                   }
                 }
-                else if(!isa<StoreInst>(user))
+                else if(auto *si = dyn_cast<StoreInst>(user))
+                {
+                  if(si->getValueOperand() == ptr)
+                  {
+                    print_transform(c, alloc, "captured allocation");
+                    print_transform(c, inst,
+                      "captured here (alloca address stored)");
+                    return false;
+                  }
+                }
+                else
                 {
                   print_transform(c, alloc, "captured allocation");
                   print_transform(c, inst,
