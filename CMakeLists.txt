@@ -796,6 +796,8 @@ else()
     add_test(NAME pony-doc-tests
         COMMAND ${PONY_OUTPUT_DIR}/pony-doc-tests${CMAKE_EXECUTABLE_SUFFIX} --sequential
         WORKING_DIRECTORY ${PONY_OUTPUT_DIR})
+    set_tests_properties(pony-doc-tests PROPERTIES
+        ENVIRONMENT "PONYPATH=${CMAKE_SOURCE_DIR}/packages")
     add_test(NAME pony-lsp-tests
         COMMAND ${PONY_OUTPUT_DIR}/pony-lsp-tests${CMAKE_EXECUTABLE_SUFFIX} --sequential
         WORKING_DIRECTORY ${PONY_OUTPUT_DIR})

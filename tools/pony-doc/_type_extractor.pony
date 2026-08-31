@@ -295,19 +295,113 @@ primitive _TypeExtractor
 
   fun get_default_value(def_val: ast.AST box): (String | None) =>
     """
-    Extracts the default value string from a parameter's default AST node.
-
-    TK_STRING defaults are wrapped in explicit double quotes, all
-    others use raw `get_print()`.
+    Extracts the default value source text from a parameter's default
+    AST node by reading directly from the module's source buffer.
     """
-    if def_val.id() != ast.TokenIds.tk_none() then
-      try
-        let child = def_val(0)?
-        let print_val = child.get_print()
-        if child.id() == ast.TokenIds.tk_string() then
-          "\"" + print_val + "\""
-        else
-          print_val
-        end
-      end
+    if def_val.id() == ast.TokenIds.tk_none() then
+      return None
     end
+    try
+      let expr = def_val(0)?
+      let src = (expr.source_contents() as String box)
+      (let start_pos, _) = expr.span()
+      let start =
+        _line_col_to_offset(src, start_pos.line(), start_pos.column())?
+      let stop = _scan_expr_end(src, start)?
+      recover val src.substring(start.isize(), stop.isize()) end
+    end
+
+  fun _line_col_to_offset(
+    src: String box,
+    line: USize,
+    col: USize)
+    : USize ?
+  =>
+    """
+    Converts a 1-based line and column to a 0-based byte offset.
+    """
+    var offset: USize = 0
+    var cur_line: USize = 1
+    while cur_line < line do
+      while src(offset)? != '\n' do
+        offset = offset + 1
+      end
+      offset = offset + 1
+      cur_line = cur_line + 1
+    end
+    offset + (col - 1)
+
+  fun _scan_expr_end(
+    src: String box,
+    start: USize)
+    : USize ?
+  =>
+    """
+    Scans forward from `start` through balanced delimiters to find
+    where the expression ends. Stops at `,` or `)` at depth zero,
+    which are the parameter-list terminators that follow a default
+    value.
+    """
+    var i = start
+    var depth: USize = 0
+    var in_string = false
+    var in_triple = false
+    let len = src.size()
+
+    while i < len do
+      let c = src(i)?
+
+      if in_triple then
+        if (c == '"') and
+          ((i + 2) < len) and
+          (src(i + 1)? == '"') and
+          (src(i + 2)? == '"')
+        then
+          in_triple = false
+          in_string = false
+          i = i + 3
+          continue
+        end
+        i = i + 1
+        continue
+      end
+
+      if in_string then
+        if c == '\\' then
+          i = i + 2
+          continue
+        end
+        if c == '"' then
+          in_string = false
+        end
+        i = i + 1
+        continue
+      end
+
+      match c
+      | '"' =>
+        if ((i + 2) < len) and
+          (src(i + 1)? == '"') and
+          (src(i + 2)? == '"')
+        then
+          in_triple = true
+          in_string = true
+          i = i + 3
+          continue
+        end
+        in_string = true
+        i = i + 1
+        continue
+      | '(' | '[' =>
+        depth = depth + 1
+      | ')' =>
+        if depth == 0 then return i end
+        depth = depth - 1
+      | ']' =>
+        if depth > 0 then depth = depth - 1 end
+      | ',' =>
+        if depth == 0 then return i end
+      end
+      i = i + 1
+    end
+    error
