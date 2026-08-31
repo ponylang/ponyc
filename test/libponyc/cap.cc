@@ -909,7 +909,7 @@ TEST_F(CapTest, ViewpointUpperRead)
 {
   // #read = {ref, val, box}
   ASSERT_EQ(upper_viewpoint(read, iso), tag);   // {iso, val, tag}
-  ASSERT_EQ(upper_viewpoint(read, trn), trn);   // {trn, val, box}
+  ASSERT_EQ(upper_viewpoint(read, trn), box);   // {trn, val, box}
   ASSERT_EQ(upper_viewpoint(read, ref), box);   // {ref, val, box}
   ASSERT_EQ(upper_viewpoint(read, val), val);   // {val, val, val}
   ASSERT_EQ(upper_viewpoint(read, box), box);   // {box, val, box}
@@ -920,9 +920,145 @@ TEST_F(CapTest, ViewpointLowerRead)
 {
   // #read = {ref, val, box}
   ASSERT_EQ(lower_viewpoint(read, iso), send);  // {iso, val, tag} = #send
-  ASSERT_EQ(lower_viewpoint(read, trn), box);   // {trn, val, box}
+  EXPECT_VP_UNDEF(lower_viewpoint_full, read, none, trn, none); // {trn, val, box}: no valid lower
   ASSERT_EQ(lower_viewpoint(read, ref), read);  // {ref, val, box} = #read
   ASSERT_EQ(lower_viewpoint(read, val), val);   // {val}
   ASSERT_EQ(lower_viewpoint(read, box), val);   // {val, box}
   ASSERT_EQ(lower_viewpoint(read, tag), tag);   // {tag}
+}
+
+TEST_F(CapTest, ViewpointUpperGenericField)
+{
+  // iso origin: all generic fields produce result set {iso,val,tag} or subsets
+  EXPECT_VP(upper_viewpoint_full, iso, none, read, none, tag, none);
+  EXPECT_VP(upper_viewpoint_full, iso, none, send, none, send, none);
+  EXPECT_VP(upper_viewpoint_full, iso, none, share, none, share, none);
+  EXPECT_VP(upper_viewpoint_full, iso, none, alias, none, tag, none);
+  EXPECT_VP(upper_viewpoint_full, iso, none, any, none, tag, none);
+
+  // iso^ origin
+  EXPECT_VP(upper_viewpoint_full, iso, hat, read, none, tag, none);
+  EXPECT_VP(upper_viewpoint_full, iso, hat, send, none, send, hat);
+  EXPECT_VP(upper_viewpoint_full, iso, hat, share, none, share, none);
+  EXPECT_VP(upper_viewpoint_full, iso, hat, alias, none, tag, none);
+  EXPECT_VP(upper_viewpoint_full, iso, hat, any, none, tag, none);
+
+  // trn origin
+  EXPECT_VP(upper_viewpoint_full, trn, none, read, none, box, none);
+  EXPECT_VP(upper_viewpoint_full, trn, none, send, none, send, none);
+  EXPECT_VP(upper_viewpoint_full, trn, none, share, none, share, none);
+  EXPECT_VP(upper_viewpoint_full, trn, none, alias, none, tag, none);
+  EXPECT_VP(upper_viewpoint_full, trn, none, any, none, tag, none);
+
+  // trn^ origin
+  EXPECT_VP(upper_viewpoint_full, trn, hat, read, none, box, none);
+  EXPECT_VP(upper_viewpoint_full, trn, hat, send, none, send, hat);
+  EXPECT_VP(upper_viewpoint_full, trn, hat, share, none, share, none);
+  EXPECT_VP(upper_viewpoint_full, trn, hat, alias, none, tag, none);
+  EXPECT_VP(upper_viewpoint_full, trn, hat, any, none, tag, none);
+
+  // ref origin: identity
+  EXPECT_VP(upper_viewpoint_full, ref, none, read, none, read, none);
+  EXPECT_VP(upper_viewpoint_full, ref, none, send, none, send, none);
+  EXPECT_VP(upper_viewpoint_full, ref, none, share, none, share, none);
+  EXPECT_VP(upper_viewpoint_full, ref, none, alias, none, alias, none);
+  EXPECT_VP(upper_viewpoint_full, ref, none, any, none, any, none);
+
+  // val origin: all generic fields collapse to #share or val
+  EXPECT_VP(upper_viewpoint_full, val, none, read, none, val, none);
+  EXPECT_VP(upper_viewpoint_full, val, none, send, none, share, none);
+  EXPECT_VP(upper_viewpoint_full, val, none, share, none, share, none);
+  EXPECT_VP(upper_viewpoint_full, val, none, alias, none, share, none);
+  EXPECT_VP(upper_viewpoint_full, val, none, any, none, share, none);
+
+  // box origin
+  EXPECT_VP(upper_viewpoint_full, box, none, read, none, box, none);
+  EXPECT_VP(upper_viewpoint_full, box, none, send, none, tag, none);
+  EXPECT_VP(upper_viewpoint_full, box, none, share, none, share, none);
+  EXPECT_VP(upper_viewpoint_full, box, none, alias, none, tag, none);
+  EXPECT_VP(upper_viewpoint_full, box, none, any, none, tag, none);
+
+  // tag origin: no viewpoint through tag
+  EXPECT_VP_UNDEF(upper_viewpoint_full, tag, none, read, none);
+  EXPECT_VP_UNDEF(upper_viewpoint_full, tag, none, send, none);
+  EXPECT_VP_UNDEF(upper_viewpoint_full, tag, none, share, none);
+  EXPECT_VP_UNDEF(upper_viewpoint_full, tag, none, alias, none);
+  EXPECT_VP_UNDEF(upper_viewpoint_full, tag, none, any, none);
+}
+
+TEST_F(CapTest, ViewpointLowerGenericField)
+{
+  // iso origin: result sets match #send or #share
+  EXPECT_VP(lower_viewpoint_full, iso, none, read, none, send, none);
+  EXPECT_VP(lower_viewpoint_full, iso, none, send, none, send, none);
+  EXPECT_VP(lower_viewpoint_full, iso, none, share, none, share, none);
+  EXPECT_VP(lower_viewpoint_full, iso, none, alias, none, send, none);
+  EXPECT_VP(lower_viewpoint_full, iso, none, any, none, send, none);
+
+  // iso^ origin
+  EXPECT_VP(lower_viewpoint_full, iso, hat, read, none, send, hat);
+  EXPECT_VP(lower_viewpoint_full, iso, hat, send, none, send, hat);
+  EXPECT_VP(lower_viewpoint_full, iso, hat, share, none, share, none);
+  EXPECT_VP(lower_viewpoint_full, iso, hat, alias, none, send, hat);
+  EXPECT_VP(lower_viewpoint_full, iso, hat, any, none, send, hat);
+
+  // trn origin: #read/#alias/#any have no valid lower bound
+  EXPECT_VP_UNDEF(lower_viewpoint_full, trn, none, read, none);
+  EXPECT_VP(lower_viewpoint_full, trn, none, send, none, send, none);
+  EXPECT_VP(lower_viewpoint_full, trn, none, share, none, share, none);
+  EXPECT_VP_UNDEF(lower_viewpoint_full, trn, none, alias, none);
+  EXPECT_VP_UNDEF(lower_viewpoint_full, trn, none, any, none);
+
+  // trn^ origin: #read/#alias/#any have no valid lower bound
+  EXPECT_VP_UNDEF(lower_viewpoint_full, trn, hat, read, none);
+  EXPECT_VP(lower_viewpoint_full, trn, hat, send, none, send, hat);
+  EXPECT_VP(lower_viewpoint_full, trn, hat, share, none, share, none);
+  EXPECT_VP_UNDEF(lower_viewpoint_full, trn, hat, alias, none);
+  EXPECT_VP_UNDEF(lower_viewpoint_full, trn, hat, any, none);
+
+  // ref origin: identity
+  EXPECT_VP(lower_viewpoint_full, ref, none, read, none, read, none);
+  EXPECT_VP(lower_viewpoint_full, ref, none, send, none, send, none);
+  EXPECT_VP(lower_viewpoint_full, ref, none, share, none, share, none);
+  EXPECT_VP(lower_viewpoint_full, ref, none, alias, none, alias, none);
+  EXPECT_VP(lower_viewpoint_full, ref, none, any, none, any, none);
+
+  // val origin: all generic fields collapse to #share or val
+  EXPECT_VP(lower_viewpoint_full, val, none, read, none, val, none);
+  EXPECT_VP(lower_viewpoint_full, val, none, send, none, share, none);
+  EXPECT_VP(lower_viewpoint_full, val, none, share, none, share, none);
+  EXPECT_VP(lower_viewpoint_full, val, none, alias, none, share, none);
+  EXPECT_VP(lower_viewpoint_full, val, none, any, none, share, none);
+
+  // box origin
+  EXPECT_VP(lower_viewpoint_full, box, none, read, none, val, none);
+  EXPECT_VP(lower_viewpoint_full, box, none, send, none, share, none);
+  EXPECT_VP(lower_viewpoint_full, box, none, share, none, share, none);
+  EXPECT_VP(lower_viewpoint_full, box, none, alias, none, val, none);
+  EXPECT_VP(lower_viewpoint_full, box, none, any, none, val, none);
+
+  // tag origin: no viewpoint through tag
+  EXPECT_VP_UNDEF(lower_viewpoint_full, tag, none, read, none);
+  EXPECT_VP_UNDEF(lower_viewpoint_full, tag, none, send, none);
+  EXPECT_VP_UNDEF(lower_viewpoint_full, tag, none, share, none);
+  EXPECT_VP_UNDEF(lower_viewpoint_full, tag, none, alias, none);
+  EXPECT_VP_UNDEF(lower_viewpoint_full, tag, none, any, none);
+}
+
+TEST_F(CapTest, ViewpointUpperReadGenericField)
+{
+  EXPECT_VP(upper_viewpoint_full, read, none, read, none, box, none);
+  EXPECT_VP(upper_viewpoint_full, read, none, send, none, tag, none);
+  EXPECT_VP(upper_viewpoint_full, read, none, share, none, share, none);
+  EXPECT_VP(upper_viewpoint_full, read, none, alias, none, tag, none);
+  EXPECT_VP(upper_viewpoint_full, read, none, any, none, tag, none);
+}
+
+TEST_F(CapTest, ViewpointLowerReadGenericField)
+{
+  EXPECT_VP(lower_viewpoint_full, read, none, read, none, read, none);
+  EXPECT_VP(lower_viewpoint_full, read, none, send, none, send, none);
+  EXPECT_VP(lower_viewpoint_full, read, none, share, none, share, none);
+  EXPECT_VP(lower_viewpoint_full, read, none, alias, none, alias, none);
+  EXPECT_VP(lower_viewpoint_full, read, none, any, none, any, none);
 }
