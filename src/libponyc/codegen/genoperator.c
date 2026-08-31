@@ -68,7 +68,7 @@ static LLVMValueRef make_binop(compile_t* c, ast_t* left, ast_t* right,
 
 static LLVMValueRef make_divrem(compile_t* c, ast_t* left, ast_t* right,
   build_binop build_f, build_binop build_ui, build_binop build_si,
-  bool safe)
+  bool safe, bool is_div)
 {
   ast_t* type = deferred_reify(c->frame->reify, ast_type(left), c->opt);
   bool sign = is_signed(type);
@@ -102,11 +102,7 @@ static LLVMValueRef make_divrem(compile_t* c, ast_t* left, ast_t* right,
         LLVMConstInt(r_type, width - 1, false), "");
       long long min = LLVMConstIntGetSExtValue(v_min);
       if(LLVMConstIntGetSExtValue(l_value) == min)
-      {
-        ast_error(c->opt->check.errors, ast_parent(left),
-          "constant divide or rem overflow");
-        return NULL;
-      }
+        return is_div ? v_min : LLVMConstInt(r_type, 0, false);
     }
   }
 
@@ -118,6 +114,7 @@ static LLVMValueRef make_divrem(compile_t* c, ast_t* left, ast_t* right,
   LLVMBasicBlockRef no_overflow_block;
   LLVMBasicBlockRef post_block = NULL;
   LLVMValueRef zero;
+  LLVMValueRef overflow_val = NULL;
 
   if(safe)
   {
@@ -140,17 +137,19 @@ static LLVMValueRef make_divrem(compile_t* c, ast_t* left, ast_t* right,
     {
       // Check for overflow, e.g. I8(-128) / -1
       uint64_t width = LLVMGetIntTypeWidth(r_type);
-      LLVMValueRef v_min = LLVMConstInt(r_type, 0, false);
-      v_min = LLVMConstNot(v_min);
+      LLVMValueRef neg_one = LLVMConstInt(r_type, 0, false);
+      neg_one = LLVMConstNot(neg_one);
       LLVMValueRef denom_good = LLVMBuildICmp(c->builder, LLVMIntNE, r_value,
-        v_min, "");
-      v_min = LLVMBuildShl(c->builder, v_min,
+        neg_one, "");
+      LLVMValueRef v_min = LLVMBuildShl(c->builder, neg_one,
         LLVMConstInt(r_type, width - 1, false), "");
       LLVMValueRef numer_good = LLVMBuildICmp(c->builder, LLVMIntNE, l_value,
         v_min, "");
       LLVMValueRef no_overflow = LLVMBuildOr(c->builder, numer_good, denom_good,
         "");
       LLVMBuildCondBr(c->builder, no_overflow, no_overflow_block, post_block);
+
+      overflow_val = is_div ? v_min : zero;
 
       // No overflow.
       LLVMPositionBuilderAtEnd(c->builder, no_overflow_block);
@@ -174,7 +173,7 @@ static LLVMValueRef make_divrem(compile_t* c, ast_t* left, ast_t* right,
     LLVMAddIncoming(phi, &zero, &insert, 1);
     if(sign)
     {
-      LLVMAddIncoming(phi, &zero, &nonzero_block, 1);
+      LLVMAddIncoming(phi, &overflow_val, &nonzero_block, 1);
       LLVMAddIncoming(phi, &result, &no_overflow_block, 1);
     } else {
       LLVMAddIncoming(phi, &result, &nonzero_block, 1);
@@ -686,14 +685,14 @@ LLVMValueRef gen_div(compile_t* c, ast_t* left, ast_t* right, bool safe)
 {
   return make_divrem(c, left, right,
     safe ? LLVMBuildFDiv : make_unsafe_fdiv, LLVMBuildUDiv, LLVMBuildSDiv,
-    safe);
+    safe, true);
 }
 
 LLVMValueRef gen_rem(compile_t* c, ast_t* left, ast_t* right, bool safe)
 {
   return make_divrem(c, left, right,
     safe ? LLVMBuildFRem : make_unsafe_frem, LLVMBuildURem, LLVMBuildSRem,
-    safe);
+    safe, false);
 }
 
 LLVMValueRef gen_neg(compile_t* c, ast_t* ast, bool safe)

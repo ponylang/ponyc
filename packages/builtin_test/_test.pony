@@ -44,6 +44,7 @@ actor \nodoc\ Main is TestList
     test(_TestArrayValuesRewind)
     test(_TestArrayKeysRewind)
     test(_TestArrayPairsRewind)
+    test(_TestDiv)
     test(_TestDivc)
     test(_TestFld)
     test(_TestFldc)
@@ -2267,6 +2268,45 @@ class \nodoc\ iso _TestMath128 is UnitTest
     h.assert_eq[I128](-5, I128(-13) %% -8)
     h.assert_eq[I128](-28, I128(-40_000_000_028) %% -10_000_000_000)
 
+class \nodoc\ iso _TestDiv is UnitTest
+  fun name(): String => "builtin/Div"
+
+  fun test_div_signed[T: (Integer[T] val & Signed)](h: TestHelper) =>
+    h.assert_eq[T](0, T(13) / T(0))
+    h.assert_eq[T](T.min_value(), T.min_value() / -1)
+    h.assert_eq[T](2, T(8) / 4)
+    h.assert_eq[T](-2, T(-8) / 4)
+    h.assert_eq[T](-2, T(8) / -4)
+    h.assert_eq[T](2, T(-8) / -4)
+
+    // Variables prevent compile-time constant folding, exercising the
+    // runtime division path.
+    var neg_one = T.from[I8](-1)
+    var min_val = T.min_value()
+    h.assert_eq[T](T.min_value(), min_val / neg_one)
+    h.assert_eq[T](0, min_val % neg_one)
+
+  fun test_div_unsigned[T: (Integer[T] val & Unsigned)](h: TestHelper) =>
+    h.assert_eq[T](0, T(13) / T(0))
+    h.assert_eq[T](2, T(8) / 4)
+
+  fun apply(h: TestHelper) =>
+    test_div_signed[I8](h)
+    test_div_signed[I16](h)
+    test_div_signed[I32](h)
+    test_div_signed[I64](h)
+    test_div_signed[ILong](h)
+    test_div_signed[ISize](h)
+    test_div_signed[I128](h)
+
+    test_div_unsigned[U8](h)
+    test_div_unsigned[U16](h)
+    test_div_unsigned[U32](h)
+    test_div_unsigned[U64](h)
+    test_div_unsigned[ULong](h)
+    test_div_unsigned[USize](h)
+    test_div_unsigned[U128](h)
+
 class \nodoc\ iso _TestRem is UnitTest
   """
   Test rem on various bit widths.
@@ -2312,7 +2352,7 @@ class \nodoc\ iso _TestFld is UnitTest
     h.assert_eq[T](0, T(-11).fld(T(0)), "[" + type_name + "] -11 fld 0")
     h.assert_eq[T](0, T(0).fld(T(11)), "[" + type_name + "] 0 fld 11")
     h.assert_eq[T](0, T(0).fld(T(-11)), "[" + type_name + "] 0 fld -11")
-    h.assert_eq[T](0, T.min_value().fld(T(-1)), "[" + type_name + "] MIN fld -1")
+    h.assert_eq[T](T.min_value(), T.min_value().fld(T(-1)), "[" + type_name + "] MIN fld -1")
 
     h.assert_eq[T](-2, T(-12).fld(T(8)), "[" + type_name + "] -12 fld 8")
     h.assert_eq[T](-2, T(12).fld(T(-8)), "[" + type_name + "] 12 fld -8")
@@ -2687,35 +2727,31 @@ class \nodoc\ iso _TestDivc is SafeArithmeticTest
 
     test[I8](h, (0x20, false), I8(0x40).divc(2))
     test_overflow[I8](h, I8(0x40).divc(0))
-    test_overflow[I8](h, I8.min_value().divc(I8(-1)))
+    test[I8](h, (I8.min_value(), true), I8.min_value().divc(I8(-1)))
 
     test[I16](h, (0x20, false), I16(0x40).divc(2))
     test_overflow[I16](h, I16(0x40).divc(0))
-    test_overflow[I16](h, I16.min_value().divc(I16(-1)))
+    test[I16](h, (I16.min_value(), true), I16.min_value().divc(I16(-1)))
 
     test[I32](h, (0x20, false), I32(0x40).divc(2))
     test_overflow[I32](h, I32(0x40).divc(0))
-    test_overflow[I32](h, I32.min_value().divc(I32(-1)))
-
-    test[I32](h, (0x20, false), I32(0x40).divc(2))
-    test_overflow[I32](h, I32(0x40).divc(0))
-    test_overflow[I32](h, I32.min_value().divc(I32(-1)))
+    test[I32](h, (I32.min_value(), true), I32.min_value().divc(I32(-1)))
 
     test[I64](h, (0x20, false), I64(0x40).divc(2))
     test_overflow[I64](h, I64(0x40).divc(0))
-    test_overflow[I64](h, I64.min_value().divc(I64(-1)))
+    test[I64](h, (I64.min_value(), true), I64.min_value().divc(I64(-1)))
 
     test[ILong](h, (0x20, false), ILong(0x40).divc(2))
     test_overflow[ILong](h, ILong(0x40).divc(0))
-    test_overflow[ILong](h, ILong.min_value().divc(ILong(-1)))
+    test[ILong](h, (ILong.min_value(), true), ILong.min_value().divc(ILong(-1)))
 
     test[ISize](h, (0x20, false), ISize(0x40).divc(2))
     test_overflow[ISize](h, ISize(0x40).divc(0))
-    test_overflow[ISize](h, ISize.min_value().divc(ISize(-1)))
+    test[ISize](h, (ISize.min_value(), true), ISize.min_value().divc(ISize(-1)))
 
     test[I128](h, (0x20, false), I128(0x40).divc(2))
     test_overflow[I128](h, I128(0x40).divc(0))
-    test_overflow[I128](h, I128.min_value().divc(I128(-1)))
+    test[I128](h, (I128.min_value(), true), I128.min_value().divc(I128(-1)))
 
 class \nodoc\ iso _TestFldc is SafeArithmeticTest
   fun name(): String => "builtin/Fldc"
@@ -2744,35 +2780,31 @@ class \nodoc\ iso _TestFldc is SafeArithmeticTest
 
     test[I8](h, (0x20, false), I8(0x40).fldc(2))
     test_overflow[I8](h, I8(0x40).fldc(0))
-    test_overflow[I8](h, I8.min_value().fldc(I8(-1)))
+    test[I8](h, (I8.min_value(), true), I8.min_value().fldc(I8(-1)))
 
     test[I16](h, (0x20, false), I16(0x40).fldc(2))
     test_overflow[I16](h, I16(0x40).fldc(0))
-    test_overflow[I16](h, I16.min_value().fldc(I16(-1)))
+    test[I16](h, (I16.min_value(), true), I16.min_value().fldc(I16(-1)))
 
     test[I32](h, (0x20, false), I32(0x40).fldc(2))
     test_overflow[I32](h, I32(0x40).fldc(0))
-    test_overflow[I32](h, I32.min_value().fldc(I32(-1)))
-
-    test[I32](h, (0x20, false), I32(0x40).fldc(2))
-    test_overflow[I32](h, I32(0x40).fldc(0))
-    test_overflow[I32](h, I32.min_value().fldc(I32(-1)))
+    test[I32](h, (I32.min_value(), true), I32.min_value().fldc(I32(-1)))
 
     test[I64](h, (0x20, false), I64(0x40).fldc(2))
     test_overflow[I64](h, I64(0x40).fldc(0))
-    test_overflow[I64](h, I64.min_value().fldc(I64(-1)))
+    test[I64](h, (I64.min_value(), true), I64.min_value().fldc(I64(-1)))
 
     test[ILong](h, (0x20, false), ILong(0x40).fldc(2))
     test_overflow[ILong](h, ILong(0x40).fldc(0))
-    test_overflow[ILong](h, ILong.min_value().fldc(ILong(-1)))
+    test[ILong](h, (ILong.min_value(), true), ILong.min_value().fldc(ILong(-1)))
 
     test[ISize](h, (0x20, false), ISize(0x40).fldc(2))
     test_overflow[ISize](h, ISize(0x40).fldc(0))
-    test_overflow[ISize](h, ISize.min_value().fldc(ISize(-1)))
+    test[ISize](h, (ISize.min_value(), true), ISize.min_value().fldc(ISize(-1)))
 
     test[I128](h, (0x20, false), I128(0x40).fldc(2))
     test_overflow[I128](h, I128(0x40).fldc(0))
-    test_overflow[I128](h, I128.min_value().fldc(I128(-1)))
+    test[I128](h, (I128.min_value(), true), I128.min_value().fldc(I128(-1)))
 
 class \nodoc\ iso _TestRemc is SafeArithmeticTest
   fun name(): String => "builtin/Remc"
@@ -2804,49 +2836,49 @@ class \nodoc\ iso _TestRemc is SafeArithmeticTest
     test[I8](h, (-0x02, false), I8(-0x41).remc(-3))
     test_overflow[I8](h, I8(0x40).remc(0))
     test_overflow[I8](h, I8(-0x40).remc(0))
-    test_overflow[I8](h, I8.min_value().remc(-1))
+    test[I8](h, (I8(0), true), I8.min_value().remc(I8(-1)))
 
     test[I16](h, (0x01, false), I16(0x41).remc(2))
     test[I16](h, (-0x01, false), I16(-0x41).remc(2))
     test[I16](h, (-0x02, false), I16(-0x41).remc(-3))
     test_overflow[I16](h, I16(0x40).remc(0))
     test_overflow[I16](h, I16(-0x40).remc(0))
-    test_overflow[I16](h, I16.min_value().remc(-1))
+    test[I16](h, (I16(0), true), I16.min_value().remc(I16(-1)))
 
     test[I32](h, (0x01, false), I32(0x41).remc(2))
     test[I32](h, (-0x01, false), I32(-0x41).remc(2))
     test[I32](h, (-0x02, false), I32(-0x41).remc(-3))
     test_overflow[I32](h, I32(0x40).remc(0))
     test_overflow[I32](h, I32(-0x40).remc(0))
-    test_overflow[I32](h, I32.min_value().remc(-1))
+    test[I32](h, (I32(0), true), I32.min_value().remc(I32(-1)))
 
     test[I64](h, (0x01, false), I64(0x41).remc(2))
     test[I64](h, (-0x01, false), I64(-0x41).remc(2))
     test[I64](h, (-0x02, false), I64(-0x41).remc(-3))
     test_overflow[I64](h, I64(0x40).remc(0))
     test_overflow[I64](h, I64(-0x40).remc(0))
-    test_overflow[I64](h, I64.min_value().remc(-1))
+    test[I64](h, (I64(0), true), I64.min_value().remc(I64(-1)))
 
     test[I128](h, (0x01, false), I128(0x41).remc(2))
     test[I128](h, (-0x01, false), I128(-0x41).remc(2))
     test[I128](h, (-0x02, false), I128(-0x41).remc(-3))
     test_overflow[I128](h, I128(0x40).remc(0))
     test_overflow[I128](h, I128(-0x40).remc(0))
-    test_overflow[I128](h, I128.min_value().remc(-1))
+    test[I128](h, (I128(0), true), I128.min_value().remc(I128(-1)))
 
     test[ILong](h, (0x01, false), ILong(0x41).remc(2))
     test[ILong](h, (-0x01, false), ILong(-0x41).remc(2))
     test[ILong](h, (-0x02, false), ILong(-0x41).remc(-3))
     test_overflow[ILong](h, ILong(0x40).remc(0))
     test_overflow[ILong](h, ILong(-0x40).remc(0))
-    test_overflow[ILong](h, ILong.min_value().remc(-1))
+    test[ILong](h, (ILong(0), true), ILong.min_value().remc(ILong(-1)))
 
     test[ISize](h, (0x01, false), ISize(0x41).remc(2))
     test[ISize](h, (-0x01, false), ISize(-0x41).remc(2))
     test[ISize](h, (-0x02, false), ISize(-0x41).remc(-3))
     test_overflow[ISize](h, ISize(0x40).remc(0))
     test_overflow[ISize](h, ISize(-0x40).remc(0))
-    test_overflow[ISize](h, ISize.min_value().remc(-1))
+    test[ISize](h, (ISize(0), true), ISize.min_value().remc(ISize(-1)))
 
 class \nodoc\ iso _TestModc is SafeArithmeticTest
   fun name(): String => "builtin/Modc"
@@ -2878,49 +2910,49 @@ class \nodoc\ iso _TestModc is SafeArithmeticTest
     test[I8](h, (-0x02, false), I8(-0x41).modc(-3))
     test_overflow[I8](h, I8(0x40).modc(0))
     test_overflow[I8](h, I8(-0x40).modc(0))
-    test_overflow[I8](h, I8.min_value().modc(-1))
+    test[I8](h, (I8(0), true), I8.min_value().modc(I8(-1)))
 
     test[I16](h, (0x01, false), I16(0x41).modc(2))
     test[I16](h, (0x01, false), I16(-0x41).modc(2))
     test[I16](h, (-0x02, false), I16(-0x41).modc(-3))
     test_overflow[I16](h, I16(0x40).modc(0))
     test_overflow[I16](h, I16(-0x40).modc(0))
-    test_overflow[I16](h, I16.min_value().modc(-1))
+    test[I16](h, (I16(0), true), I16.min_value().modc(I16(-1)))
 
     test[I32](h, (0x01, false), I32(0x41).modc(2))
     test[I32](h, (0x01, false), I32(-0x41).modc(2))
     test[I32](h, (-0x02, false), I32(-0x41).modc(-3))
     test_overflow[I32](h, I32(0x40).modc(0))
     test_overflow[I32](h, I32(-0x40).modc(0))
-    test_overflow[I32](h, I32.min_value().modc(-1))
+    test[I32](h, (I32(0), true), I32.min_value().modc(I32(-1)))
 
     test[I64](h, (0x01, false), I64(0x41).modc(2))
     test[I64](h, (0x01, false), I64(-0x41).modc(2))
     test[I64](h, (-0x02, false), I64(-0x41).modc(-3))
     test_overflow[I64](h, I64(0x40).modc(0))
     test_overflow[I64](h, I64(-0x40).modc(0))
-    test_overflow[I64](h, I64.min_value().modc(-1))
+    test[I64](h, (I64(0), true), I64.min_value().modc(I64(-1)))
 
     test[I128](h, (0x01, false), I128(0x41).modc(2))
     test[I128](h, (0x01, false), I128(-0x41).modc(2))
     test[I128](h, (-0x02, false), I128(-0x41).modc(-3))
     test_overflow[I128](h, I128(0x40).modc(0))
     test_overflow[I128](h, I128(-0x40).modc(0))
-    test_overflow[I128](h, I128.min_value().modc(-1))
+    test[I128](h, (I128(0), true), I128.min_value().modc(I128(-1)))
 
     test[ILong](h, (0x01, false), ILong(0x41).modc(2))
     test[ILong](h, (0x01, false), ILong(-0x41).modc(2))
     test[ILong](h, (-0x02, false), ILong(-0x41).modc(-3))
     test_overflow[ILong](h, ILong(0x40).modc(0))
     test_overflow[ILong](h, ILong(-0x40).modc(0))
-    test_overflow[ILong](h, ILong.min_value().modc(-1))
+    test[ILong](h, (ILong(0), true), ILong.min_value().modc(ILong(-1)))
 
     test[ISize](h, (0x01, false), ISize(0x41).modc(2))
     test[ISize](h, (0x01, false), ISize(-0x41).modc(2))
     test[ISize](h, (-0x02, false), ISize(-0x41).modc(-3))
     test_overflow[ISize](h, ISize(0x40).modc(0))
     test_overflow[ISize](h, ISize(-0x40).modc(0))
-    test_overflow[ISize](h, ISize.min_value().modc(-1))
+    test[ISize](h, (ISize(0), true), ISize.min_value().modc(ISize(-1)))
 
 primitive \nodoc\ _CommonPartialArithmeticTests[T: (Integer[T] val & Int)]
   fun apply(h: TestHelper)? =>

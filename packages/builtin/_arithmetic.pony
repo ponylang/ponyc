@@ -1,7 +1,9 @@
 primitive _SignedArithmetic
   fun fld[T: (SignedInteger[T, U] val & Signed), U: UnsignedInteger[U] val](x: T, y: T): T =>
-    if (y == T.from[U8](0)) or ((x == T.min_value()) and (y == T.from[I8](-1))) then
+    if y == T.from[U8](0) then
       T.from[U8](0)
+    elseif (x == T.min_value()) and (y == T.from[I8](-1)) then
+      T.min_value()
     else
       _SignedUnsafeArithmetic.fld_unsafe[T, U](x, y)
     end
