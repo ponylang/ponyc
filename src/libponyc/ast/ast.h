@@ -73,6 +73,7 @@ void ast_setpos(ast_t* ast, source_t* source, size_t line, size_t pos);
 token_id ast_id(ast_t* ast);
 size_t ast_line(ast_t* ast);
 size_t ast_pos(ast_t* ast);
+size_t ast_len(ast_t* ast);
 source_t* ast_source(ast_t* ast);
 
 void* ast_data(ast_t* ast);

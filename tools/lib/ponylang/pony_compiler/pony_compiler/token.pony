@@ -21,6 +21,7 @@ struct _Token
   var source: NullablePointer[_Source] = source.none()
   var line: USize = 0
   var pos: USize = 0
+  var len: USize = 0
   var printed: Pointer[U8] ref = printed.create()
   var opaque_value_1: U64 = 0
   var opaque_value_2: U64 = 0
