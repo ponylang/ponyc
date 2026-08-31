@@ -125,6 +125,33 @@ protected:
     cap_view_upper(left, none, &right, &eph);
     return right;
   }
+
+  struct viewpoint_result
+  {
+    token_id cap;
+    token_id eph;
+    bool defined;
+  };
+
+  viewpoint_result lower_viewpoint_full(token_id left_cap,
+    token_id left_eph, token_id right_cap, token_id right_eph)
+  {
+    viewpoint_result r;
+    r.cap = right_cap;
+    r.eph = right_eph;
+    r.defined = cap_view_lower(left_cap, left_eph, &r.cap, &r.eph);
+    return r;
+  }
+
+  viewpoint_result upper_viewpoint_full(token_id left_cap,
+    token_id left_eph, token_id right_cap, token_id right_eph)
+  {
+    viewpoint_result r;
+    r.cap = right_cap;
+    r.eph = right_eph;
+    r.defined = cap_view_upper(left_cap, left_eph, &r.cap, &r.eph);
+    return r;
+  }
 };
 
 const token_id CapTest::iso;
@@ -141,6 +168,7 @@ const token_id CapTest::alias;
 const token_id CapTest::any;
 
 const token_id CapTest::none;
+const token_id CapTest::hat;
 
 TEST_F(CapTest, SubChecksConstraints)
 {
@@ -633,16 +661,16 @@ TEST_F(CapTest, ViewpointLower)
 {
   // iso->
   ASSERT_EQ(lower_viewpoint(iso, iso), iso);
-  ASSERT_EQ(lower_viewpoint(iso, trn), tag);
-  ASSERT_EQ(lower_viewpoint(iso, ref), tag);
+  ASSERT_EQ(lower_viewpoint(iso, trn), iso);
+  ASSERT_EQ(lower_viewpoint(iso, ref), iso);
   ASSERT_EQ(lower_viewpoint(iso, val), val);
   ASSERT_EQ(lower_viewpoint(iso, box), tag);
   ASSERT_EQ(lower_viewpoint(iso, tag), tag);
 
   // trn->
   ASSERT_EQ(lower_viewpoint(trn, iso), iso);
-  ASSERT_EQ(lower_viewpoint(trn, trn), box);
-  ASSERT_EQ(lower_viewpoint(trn, ref), box);
+  ASSERT_EQ(lower_viewpoint(trn, trn), trn);
+  ASSERT_EQ(lower_viewpoint(trn, ref), trn);
   ASSERT_EQ(lower_viewpoint(trn, val), val);
   ASSERT_EQ(lower_viewpoint(trn, box), box);
   ASSERT_EQ(lower_viewpoint(trn, tag), tag);
@@ -675,16 +703,16 @@ TEST_F(CapTest, ViewpointUpper)
 {
   // iso->
   ASSERT_EQ(upper_viewpoint(iso, iso), iso);
-  ASSERT_EQ(upper_viewpoint(iso, trn), tag);
-  ASSERT_EQ(upper_viewpoint(iso, ref), tag);
+  ASSERT_EQ(upper_viewpoint(iso, trn), iso);
+  ASSERT_EQ(upper_viewpoint(iso, ref), iso);
   ASSERT_EQ(upper_viewpoint(iso, val), val);
   ASSERT_EQ(upper_viewpoint(iso, box), tag);
   ASSERT_EQ(upper_viewpoint(iso, tag), tag);
 
   // trn->
   ASSERT_EQ(upper_viewpoint(trn, iso), iso);
-  ASSERT_EQ(upper_viewpoint(trn, trn), box);
-  ASSERT_EQ(upper_viewpoint(trn, ref), box);
+  ASSERT_EQ(upper_viewpoint(trn, trn), trn);
+  ASSERT_EQ(upper_viewpoint(trn, ref), trn);
   ASSERT_EQ(upper_viewpoint(trn, val), val);
   ASSERT_EQ(upper_viewpoint(trn, box), box);
   ASSERT_EQ(upper_viewpoint(trn, tag), tag);
@@ -712,4 +740,167 @@ TEST_F(CapTest, ViewpointUpper)
   ASSERT_EQ(upper_viewpoint(box, val), val);
   ASSERT_EQ(upper_viewpoint(box, box), box);
   ASSERT_EQ(upper_viewpoint(box, tag), tag);
+}
+
+// Exhaustive viewpoint adaptation tests covering ephemeral origins and
+// verifying both result cap and result ephemeral marker.
+
+#define EXPECT_VP(func, l_cap, l_eph, r_cap, r_eph, exp_cap, exp_eph) \
+  do { \
+    viewpoint_result _r = func(l_cap, l_eph, r_cap, r_eph); \
+    EXPECT_TRUE(_r.defined) << \
+      "Expected defined result for " #func "(" \
+      #l_cap ", " #l_eph ", " #r_cap ", " #r_eph ")"; \
+    EXPECT_EQ(_r.cap, exp_cap) << \
+      "Cap mismatch for " #func "(" \
+      #l_cap ", " #l_eph ", " #r_cap ", " #r_eph "): " \
+      "got " << token_id_desc(_r.cap) << \
+      " expected " << token_id_desc(exp_cap); \
+    EXPECT_EQ(_r.eph, exp_eph) << \
+      "Eph mismatch for " #func "(" \
+      #l_cap ", " #l_eph ", " #r_cap ", " #r_eph "): " \
+      "got " << token_id_desc(_r.eph) << \
+      " expected " << token_id_desc(exp_eph); \
+  } while(0)
+
+#define EXPECT_VP_UNDEF(func, l_cap, l_eph, r_cap, r_eph) \
+  do { \
+    viewpoint_result _r = func(l_cap, l_eph, r_cap, r_eph); \
+    EXPECT_FALSE(_r.defined) << \
+      "Expected undefined result for " #func "(" \
+      #l_cap ", " #l_eph ", " #r_cap ", " #r_eph ")"; \
+  } while(0)
+
+TEST_F(CapTest, ViewpointUpperFull)
+{
+  // iso^ (ephemeral iso) as origin
+  EXPECT_VP(upper_viewpoint_full, iso, hat, iso, none, iso, hat);
+  EXPECT_VP(upper_viewpoint_full, iso, hat, trn, none, iso, hat);
+  EXPECT_VP(upper_viewpoint_full, iso, hat, ref, none, iso, hat);
+  EXPECT_VP(upper_viewpoint_full, iso, hat, val, none, val, none);
+  EXPECT_VP(upper_viewpoint_full, iso, hat, box, none, val, none);
+  EXPECT_VP(upper_viewpoint_full, iso, hat, tag, none, tag, none);
+
+  // iso (non-ephemeral) as origin
+  EXPECT_VP(upper_viewpoint_full, iso, none, iso, none, iso, none);
+  EXPECT_VP(upper_viewpoint_full, iso, none, trn, none, iso, none);
+  EXPECT_VP(upper_viewpoint_full, iso, none, ref, none, iso, none);
+  EXPECT_VP(upper_viewpoint_full, iso, none, val, none, val, none);
+  EXPECT_VP(upper_viewpoint_full, iso, none, box, none, tag, none);
+  EXPECT_VP(upper_viewpoint_full, iso, none, tag, none, tag, none);
+
+  // trn^ (ephemeral trn) as origin
+  EXPECT_VP(upper_viewpoint_full, trn, hat, iso, none, iso, hat);
+  EXPECT_VP(upper_viewpoint_full, trn, hat, trn, none, trn, hat);
+  EXPECT_VP(upper_viewpoint_full, trn, hat, ref, none, trn, hat);
+  EXPECT_VP(upper_viewpoint_full, trn, hat, val, none, val, none);
+  EXPECT_VP(upper_viewpoint_full, trn, hat, box, none, val, none);
+  EXPECT_VP(upper_viewpoint_full, trn, hat, tag, none, tag, none);
+
+  // trn (non-ephemeral) as origin
+  EXPECT_VP(upper_viewpoint_full, trn, none, iso, none, iso, none);
+  EXPECT_VP(upper_viewpoint_full, trn, none, trn, none, trn, none);
+  EXPECT_VP(upper_viewpoint_full, trn, none, ref, none, trn, none);
+  EXPECT_VP(upper_viewpoint_full, trn, none, val, none, val, none);
+  EXPECT_VP(upper_viewpoint_full, trn, none, box, none, box, none);
+  EXPECT_VP(upper_viewpoint_full, trn, none, tag, none, tag, none);
+
+  // ref as origin (ref^ == ref, so no separate ephemeral test)
+  EXPECT_VP(upper_viewpoint_full, ref, none, iso, none, iso, none);
+  EXPECT_VP(upper_viewpoint_full, ref, none, trn, none, trn, none);
+  EXPECT_VP(upper_viewpoint_full, ref, none, ref, none, ref, none);
+  EXPECT_VP(upper_viewpoint_full, ref, none, val, none, val, none);
+  EXPECT_VP(upper_viewpoint_full, ref, none, box, none, box, none);
+  EXPECT_VP(upper_viewpoint_full, ref, none, tag, none, tag, none);
+
+  // val as origin
+  EXPECT_VP(upper_viewpoint_full, val, none, iso, none, val, none);
+  EXPECT_VP(upper_viewpoint_full, val, none, trn, none, val, none);
+  EXPECT_VP(upper_viewpoint_full, val, none, ref, none, val, none);
+  EXPECT_VP(upper_viewpoint_full, val, none, val, none, val, none);
+  EXPECT_VP(upper_viewpoint_full, val, none, box, none, val, none);
+  EXPECT_VP(upper_viewpoint_full, val, none, tag, none, tag, none);
+
+  // box as origin
+  EXPECT_VP(upper_viewpoint_full, box, none, iso, none, tag, none);
+  EXPECT_VP(upper_viewpoint_full, box, none, trn, none, box, none);
+  EXPECT_VP(upper_viewpoint_full, box, none, ref, none, box, none);
+  EXPECT_VP(upper_viewpoint_full, box, none, val, none, val, none);
+  EXPECT_VP(upper_viewpoint_full, box, none, box, none, box, none);
+  EXPECT_VP(upper_viewpoint_full, box, none, tag, none, tag, none);
+
+  // tag as origin — undefined (can't read through tag)
+  EXPECT_VP_UNDEF(upper_viewpoint_full, tag, none, iso, none);
+  EXPECT_VP_UNDEF(upper_viewpoint_full, tag, none, trn, none);
+  EXPECT_VP_UNDEF(upper_viewpoint_full, tag, none, ref, none);
+  EXPECT_VP_UNDEF(upper_viewpoint_full, tag, none, val, none);
+  EXPECT_VP_UNDEF(upper_viewpoint_full, tag, none, box, none);
+  EXPECT_VP_UNDEF(upper_viewpoint_full, tag, none, tag, none);
+}
+
+TEST_F(CapTest, ViewpointLowerFull)
+{
+  // iso^ (ephemeral iso) as origin
+  EXPECT_VP(lower_viewpoint_full, iso, hat, iso, none, iso, hat);
+  EXPECT_VP(lower_viewpoint_full, iso, hat, trn, none, iso, hat);
+  EXPECT_VP(lower_viewpoint_full, iso, hat, ref, none, iso, hat);
+  EXPECT_VP(lower_viewpoint_full, iso, hat, val, none, val, none);
+  EXPECT_VP(lower_viewpoint_full, iso, hat, box, none, val, none);
+  EXPECT_VP(lower_viewpoint_full, iso, hat, tag, none, tag, none);
+
+  // iso (non-ephemeral) as origin
+  EXPECT_VP(lower_viewpoint_full, iso, none, iso, none, iso, none);
+  EXPECT_VP(lower_viewpoint_full, iso, none, trn, none, iso, none);
+  EXPECT_VP(lower_viewpoint_full, iso, none, ref, none, iso, none);
+  EXPECT_VP(lower_viewpoint_full, iso, none, val, none, val, none);
+  EXPECT_VP(lower_viewpoint_full, iso, none, box, none, tag, none);
+  EXPECT_VP(lower_viewpoint_full, iso, none, tag, none, tag, none);
+
+  // trn^ (ephemeral trn) as origin
+  EXPECT_VP(lower_viewpoint_full, trn, hat, iso, none, iso, hat);
+  EXPECT_VP(lower_viewpoint_full, trn, hat, trn, none, trn, hat);
+  EXPECT_VP(lower_viewpoint_full, trn, hat, ref, none, trn, hat);
+  EXPECT_VP(lower_viewpoint_full, trn, hat, val, none, val, none);
+  EXPECT_VP(lower_viewpoint_full, trn, hat, box, none, val, none);
+  EXPECT_VP(lower_viewpoint_full, trn, hat, tag, none, tag, none);
+
+  // trn (non-ephemeral) as origin
+  EXPECT_VP(lower_viewpoint_full, trn, none, iso, none, iso, none);
+  EXPECT_VP(lower_viewpoint_full, trn, none, trn, none, trn, none);
+  EXPECT_VP(lower_viewpoint_full, trn, none, ref, none, trn, none);
+  EXPECT_VP(lower_viewpoint_full, trn, none, val, none, val, none);
+  EXPECT_VP(lower_viewpoint_full, trn, none, box, none, box, none);
+  EXPECT_VP(lower_viewpoint_full, trn, none, tag, none, tag, none);
+
+  // ref as origin
+  EXPECT_VP(lower_viewpoint_full, ref, none, iso, none, iso, none);
+  EXPECT_VP(lower_viewpoint_full, ref, none, trn, none, trn, none);
+  EXPECT_VP(lower_viewpoint_full, ref, none, ref, none, ref, none);
+  EXPECT_VP(lower_viewpoint_full, ref, none, val, none, val, none);
+  EXPECT_VP(lower_viewpoint_full, ref, none, box, none, box, none);
+  EXPECT_VP(lower_viewpoint_full, ref, none, tag, none, tag, none);
+
+  // val as origin
+  EXPECT_VP(lower_viewpoint_full, val, none, iso, none, val, none);
+  EXPECT_VP(lower_viewpoint_full, val, none, trn, none, val, none);
+  EXPECT_VP(lower_viewpoint_full, val, none, ref, none, val, none);
+  EXPECT_VP(lower_viewpoint_full, val, none, val, none, val, none);
+  EXPECT_VP(lower_viewpoint_full, val, none, box, none, val, none);
+  EXPECT_VP(lower_viewpoint_full, val, none, tag, none, tag, none);
+
+  // box as origin
+  EXPECT_VP(lower_viewpoint_full, box, none, iso, none, tag, none);
+  EXPECT_VP(lower_viewpoint_full, box, none, trn, none, box, none);
+  EXPECT_VP(lower_viewpoint_full, box, none, ref, none, box, none);
+  EXPECT_VP(lower_viewpoint_full, box, none, val, none, val, none);
+  EXPECT_VP(lower_viewpoint_full, box, none, box, none, box, none);
+  EXPECT_VP(lower_viewpoint_full, box, none, tag, none, tag, none);
+
+  // tag as origin — undefined
+  EXPECT_VP_UNDEF(lower_viewpoint_full, tag, none, iso, none);
+  EXPECT_VP_UNDEF(lower_viewpoint_full, tag, none, trn, none);
+  EXPECT_VP_UNDEF(lower_viewpoint_full, tag, none, ref, none);
+  EXPECT_VP_UNDEF(lower_viewpoint_full, tag, none, val, none);
+  EXPECT_VP_UNDEF(lower_viewpoint_full, tag, none, box, none);
+  EXPECT_VP_UNDEF(lower_viewpoint_full, tag, none, tag, none);
 }
