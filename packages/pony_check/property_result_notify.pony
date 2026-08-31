@@ -158,6 +158,7 @@ actor PropertyRunner[T]
       // found a bad example, try to shrink it
       if not _shrinker.has_next() then
         _logger.log("no shrinks available")
+        _prepare_next_round()
         fail(_sample_repr, 0)
       else
         // prepare next round
@@ -231,6 +232,7 @@ actor PropertyRunner[T]
     try
       _prop1.property(consume sample, helper)?
     else
+      _prepare_next_round()
       fail(_sample_repr, 0 where err=true)
       return
     end
@@ -313,6 +315,7 @@ actor PropertyRunner[T]
     try
       _prop1.property(consume shrink, helper)?
     else
+      _prepare_next_round()
       fail(current_repr, round_num where err=true)
       return
     end
