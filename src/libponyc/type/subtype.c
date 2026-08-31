@@ -883,18 +883,49 @@ static bool is_tuple_sub_nominal(ast_t* sub, ast_t* super,
 {
   if(is_top_type(super, true, opt))
   {
-    for(ast_t* child = ast_child(sub);
-      child != NULL;
-      child = ast_sibling(child))
+    if(check_cap != CHECK_CAP_IGNORE)
     {
-      if(!is_x_sub_x(child, super, check_cap, errorf, opt))
+      token_id sub_cap;
+      token_id sub_eph;
+      tuple_cap_and_eph(sub, &sub_cap, &sub_eph, opt);
+
+      ast_t* super_cap_ast = cap_fetch(super);
+      ast_t* super_eph_ast = ast_sibling(super_cap_ast);
+      token_id super_cap_id = ast_id(super_cap_ast);
+      token_id super_eph_id = ast_id(super_eph_ast);
+
+      bool cap_ok;
+      switch(check_cap)
+      {
+        case CHECK_CAP_EQ:
+          cap_ok = is_cap_sub_cap_constraint(sub_cap, sub_eph,
+            super_cap_id, super_eph_id);
+          break;
+
+        case CHECK_CAP_BOUND:
+          cap_ok = is_cap_sub_cap_bound(sub_cap, sub_eph,
+            super_cap_id, super_eph_id);
+          break;
+
+        default:
+          cap_ok = is_cap_sub_cap(sub_cap, sub_eph,
+            super_cap_id, super_eph_id);
+          break;
+      }
+
+      if(!cap_ok)
       {
         if(errorf != NULL)
         {
-          ast_error_frame(errorf, child,
-            "%s is not a subtype of %s: %s is not a subtype of %s",
-            ast_print_type(sub, opt->strtab), ast_print_type(super, opt->strtab),
-            ast_print_type(child, opt->strtab), ast_print_type(super, opt->strtab));
+          ast_error_frame(errorf, sub,
+            "%s is not a subtype of %s: tuple cap %s%s is not a subcap of"
+            " %s%s",
+            ast_print_type(sub, opt->strtab),
+            ast_print_type(super, opt->strtab),
+            token_id_desc(sub_cap),
+            sub_eph == TK_EPHEMERAL ? "^" : "",
+            token_id_desc(super_cap_id),
+            super_eph_id == TK_EPHEMERAL ? "^" : "");
         }
         return false;
       }

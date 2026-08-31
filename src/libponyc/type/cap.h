@@ -4,6 +4,7 @@
 #include <platform.h>
 #include "../ast/ast.h"
 #include "../ast/frame.h"
+#include "../pass/pass.h"
 
 PONY_EXTERN_C_BEGIN
 
@@ -65,6 +66,14 @@ token_id cap_single(ast_t* type);
  * Get the capability that should be used for dispatch.
  */
 token_id cap_dispatch(ast_t* type);
+
+/**
+ * Get the derived capability and ephemeral of a tuple type from its element
+ * capabilities. Uses viewpoint adaptation: the tuple cap is the cap that sees
+ * all element caps as themselves. A tuple is never tag.
+ */
+void tuple_cap_and_eph(ast_t* type, token_id* out_cap, token_id* out_eph,
+  pass_opt_t* opt);
 
 /**
  * The receiver capability is ref for constructors and behaviours. For

@@ -14,7 +14,6 @@ static void apply_cap_to_type(ast_t* type, token_id tcap, token_id teph)
   {
     case TK_UNIONTYPE:
     case TK_ISECTTYPE:
-    case TK_TUPLETYPE:
     {
       for(ast_t* child = ast_child(type);
         child != NULL;
@@ -25,6 +24,11 @@ static void apply_cap_to_type(ast_t* type, token_id tcap, token_id teph)
 
       return;
     }
+
+    case TK_TUPLETYPE:
+      // A tuple's capability is derived from its element capabilities,
+      // not imposed from outside. Leave element caps unchanged.
+      return;
 
     case TK_NOMINAL:
     case TK_TYPEPARAMREF:

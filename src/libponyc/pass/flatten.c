@@ -523,6 +523,33 @@ ast_result_t pass_flatten(ast_t** astp, pass_opt_t* options)
     case TK_TYPEPARAMREF:
       return flatten_typeparamref(options, ast);
 
+    case TK_TYPEALIASREF:
+    {
+      AST_GET_CHILDREN(ast, id, typeargs, cap, eph);
+
+      if(ast_id(cap) != TK_NONE)
+      {
+        ast_t* unfolded = typealias_unfold(ast);
+
+        if(unfolded != NULL)
+        {
+          if(ast_id(unfolded) == TK_TUPLETYPE)
+          {
+            ast_error(options->check.errors, cap,
+              "can't apply a capability to a tuple type alias");
+            ast_error_continue(options->check.errors, ast,
+              "a tuple's capability is derived from its element capabilities");
+            ast_free_unattached(unfolded);
+            return AST_ERROR;
+          }
+
+          ast_free_unattached(unfolded);
+        }
+      }
+
+      break;
+    }
+
     case TK_EMBED:
     {
       // An embedded field must have a known, class type.
