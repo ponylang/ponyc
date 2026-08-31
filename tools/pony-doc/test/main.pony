@@ -58,3 +58,13 @@ actor \nodoc\ Main is TestList
     test(_TestRenderProvides)
     test(_TestMkDocsLinkFormatMethods)
     test(_TestRenderCustomLinkFormat)
+
+    // DefaultValue tests
+    test(_TestDefaultValueIntLiteral)
+    test(_TestDefaultValueNegativeInt)
+    test(_TestDefaultValueStringLiteral)
+    test(_TestDefaultValueBoolLiteral)
+    test(_TestDefaultValueReference)
+    test(_TestDefaultValueMethodCall)
+    test(_TestDefaultValueConstructorCall)
+    test(_TestDefaultValueNone)

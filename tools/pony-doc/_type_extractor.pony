@@ -295,19 +295,296 @@ primitive _TypeExtractor
 
   fun get_default_value(def_val: ast.AST box): (String | None) =>
     """
-    Extracts the default value string from a parameter's default AST node.
-
-    TK_STRING defaults are wrapped in explicit double quotes, all
-    others use raw `get_print()`.
+    Extracts the default value string from a parameter's default AST
+    node.
     """
     if def_val.id() != ast.TokenIds.tk_none() then
-      try
-        let child = def_val(0)?
-        let print_val = child.get_print()
-        if child.id() == ast.TokenIds.tk_string() then
-          "\"" + print_val + "\""
-        else
-          print_val
+      try _unparse_expr(def_val(0)?) end
+    end
+
+  fun _unparse_expr(node: ast.AST box): (String | None) =>
+    """
+    Converts an expression AST node into its source-level string
+    representation.
+    """
+    let id = node.id()
+    if id == ast.TokenIds.tk_int() then
+      node.get_print()
+    elseif id == ast.TokenIds.tk_float() then
+      node.get_print()
+    elseif id == ast.TokenIds.tk_string() then
+      "\"" + node.get_print() + "\""
+    elseif id == ast.TokenIds.tk_true() then
+      "true"
+    elseif id == ast.TokenIds.tk_false() then
+      "false"
+    elseif id == ast.TokenIds.tk_this() then
+      "this"
+    elseif id == ast.TokenIds.tk_location() then
+      "__loc"
+    elseif id == ast.TokenIds.tk_reference() then
+      _unparse_reference(node)
+    elseif id == ast.TokenIds.tk_typeref() then
+      _unparse_typeref(node)
+    elseif id == ast.TokenIds.tk_dot() then
+      _unparse_dot(node)
+    elseif id == ast.TokenIds.tk_call() then
+      _unparse_call(node)
+    elseif id == ast.TokenIds.tk_qualify() then
+      _unparse_qualify(node)
+    elseif (id == ast.TokenIds.tk_minus_new()) or
+      (id == ast.TokenIds.tk_unary_minus())
+    then
+      _unparse_unary_minus(node)
+    elseif id == ast.TokenIds.tk_seq() then
+      try _unparse_expr(node(0)?) end
+    elseif (id == ast.TokenIds.tk_funref()) or
+      (id == ast.TokenIds.tk_newref()) or
+      (id == ast.TokenIds.tk_beref())
+    then
+      _unparse_member_ref(node)
+    elseif id == ast.TokenIds.tk_nominal() then
+      _unparse_nominal(node)
+    elseif id == ast.TokenIds.tk_typeparamref() then
+      try node(0)?.nice_name() end
+    elseif id == ast.TokenIds.tk_typealiasref() then
+      _unparse_type_alias_ref(node)
+    elseif id == ast.TokenIds.tk_tuple() then
+      _unparse_tuple(node)
+    else
+      node.get_print()
+    end
+
+  fun _unparse_reference(node: ast.AST box): (String | None) =>
+    try (node(0)?.token_value() as String) end
+
+  fun _unparse_typeref(node: ast.AST box): (String | None) =>
+    """
+    TK_TYPEREF children: [0] package, [1] id, [2] type_args.
+    """
+    try
+      let name = node(1)?.nice_name()
+      let targs = node(2)?
+      if targs.id() != ast.TokenIds.tk_none() then
+        let result = recover iso String end
+        result.append(name)
+        result.append("[")
+        var first = true
+        for child in targs.children() do
+          if not first then result.append(", ") end
+          first = false
+          match _unparse_expr(child)
+          | let s: String => result.append(s)
+          end
         end
+        result.append("]")
+        consume result
+      else
+        name
       end
     end
+
+  fun _unparse_dot(node: ast.AST box): (String | None) =>
+    try
+      let left = _unparse_expr(node(0)?) as String
+      let right = (node(1)?.token_value() as String)
+      left + "." + right
+    end
+
+  fun _unparse_call(node: ast.AST box): (String | None) =>
+    """
+    TK_CALL children: [0] receiver, [1] positional_args,
+    [2] named_args, [3] partial.
+
+    The sugar pass transforms `-literal` into `literal.neg()`, so
+    this reconstructs the original form for neg calls on literals.
+    """
+    try
+      let recv = node(0)?
+      let pos_args_node = node(1)?
+      if _is_desugared_neg(recv, pos_args_node) then
+        let lit = recv(0)?
+        let lit_str = _unparse_expr(lit) as String
+        return "-" + lit_str
+      end
+
+      let receiver = _unparse_expr(node(0)?) as String
+      let result = recover iso String end
+      result.append(receiver)
+      result.append("(")
+      let pos_args = node(1)?
+      if pos_args.id() != ast.TokenIds.tk_none() then
+        var first = true
+        for arg in pos_args.children() do
+          if not first then result.append(", ") end
+          first = false
+          match _unparse_expr(arg)
+          | let s: String => result.append(s)
+          end
+        end
+      end
+      let named_args = node(2)?
+      if named_args.id() != ast.TokenIds.tk_none() then
+        var first_named = true
+        for narg in named_args.children() do
+          if not first_named then
+            result.append(", ")
+          elseif pos_args.id() != ast.TokenIds.tk_none() then
+            result.append(" where ")
+          else
+            result.append("where ")
+          end
+          first_named = false
+          try
+            let arg_name =
+              (narg(0)?.token_value() as String)
+            result.append(arg_name)
+            result.append(" = ")
+            match _unparse_expr(narg(1)?)
+            | let s: String => result.append(s)
+            end
+          end
+        end
+      end
+      result.append(")")
+      if node(3)?.id() == ast.TokenIds.tk_question() then
+        result.append("?")
+      end
+      consume result
+    end
+
+  fun _is_desugared_neg(
+    recv: ast.AST box,
+    pos_args: ast.AST box)
+    : Bool
+  =>
+    """
+    Returns true when the call is `literal.neg()` with no
+    arguments — the form the sugar pass produces from `-literal`.
+    """
+    if pos_args.id() != ast.TokenIds.tk_none() then
+      return false
+    end
+    if recv.id() != ast.TokenIds.tk_dot() then
+      return false
+    end
+    try
+      let method_name =
+        (recv(1)?.token_value() as String)
+      if method_name != "neg" then return false end
+      let operand = recv(0)?
+      (operand.id() == ast.TokenIds.tk_int()) or
+        (operand.id() == ast.TokenIds.tk_float())
+    else
+      false
+    end
+
+  fun _unparse_qualify(node: ast.AST box): (String | None) =>
+    """
+    TK_QUALIFY children: [0] receiver, [1] type_args.
+    """
+    try
+      let receiver = _unparse_expr(node(0)?) as String
+      let targs = node(1)?
+      let result = recover iso String end
+      result.append(receiver)
+      result.append("[")
+      var first = true
+      for child in targs.children() do
+        if not first then result.append(", ") end
+        first = false
+        match _unparse_expr(child)
+        | let s: String => result.append(s)
+        end
+      end
+      result.append("]")
+      consume result
+    end
+
+  fun _unparse_unary_minus(node: ast.AST box): (String | None) =>
+    try
+      let operand = _unparse_expr(node(0)?) as String
+      "-" + operand
+    end
+
+  fun _unparse_member_ref(node: ast.AST box): (String | None) =>
+    """
+    TK_FUNREF/TK_NEWREF/TK_BEREF children: [0] receiver, [1] name.
+    After PassRefer these replace TK_DOT.
+    """
+    try
+      let left = _unparse_expr(node(0)?) as String
+      let right = (node(1)?.token_value() as String)
+      left + "." + right
+    end
+
+  fun _unparse_nominal(node: ast.AST box): (String | None) =>
+    """
+    TK_NOMINAL children: [0] package, [1] id, [2] type_args,
+    [3] cap, [4] ephemeral.
+    """
+    try
+      let name = node(1)?.nice_name()
+      let targs = node(2)?
+      if targs.id() != ast.TokenIds.tk_none() then
+        let result = recover iso String end
+        result.append(name)
+        result.append("[")
+        var first = true
+        for child in targs.children() do
+          if not first then result.append(", ") end
+          first = false
+          match _unparse_expr(child)
+          | let s: String => result.append(s)
+          end
+        end
+        result.append("]")
+        consume result
+      else
+        name
+      end
+    end
+
+  fun _unparse_type_alias_ref(node: ast.AST box): (String | None) =>
+    """
+    TK_TYPEALIASREF children: [0] id, [1] type_args, [2] cap,
+    [3] ephemeral.
+    """
+    try
+      let name = node(0)?.nice_name()
+      let targs = node(1)?
+      if targs.id() != ast.TokenIds.tk_none() then
+        let result = recover iso String end
+        result.append(name)
+        result.append("[")
+        var first = true
+        for child in targs.children() do
+          if not first then result.append(", ") end
+          first = false
+          match _unparse_expr(child)
+          | let s: String => result.append(s)
+          end
+        end
+        result.append("]")
+        consume result
+      else
+        name
+      end
+    end
+
+  fun _unparse_tuple(node: ast.AST box): (String | None) =>
+    """
+    TK_TUPLE children: sequence of elements.
+    """
+    let result = recover iso String end
+    result.append("(")
+    var first = true
+    for child in node.children() do
+      if not first then result.append(", ") end
+      first = false
+      match _unparse_expr(child)
+      | let s: String => result.append(s)
+      end
+    end
+    result.append(")")
+    consume result
