@@ -329,6 +329,9 @@ primitive MkDocsBackend is Backend
           include_private))
     end
 
+    content.append(
+      _render_toc(entity, include_private))
+
     // Member sections
     content.append(
       _render_methods(
@@ -369,6 +372,225 @@ primitive MkDocsBackend is Backend
 
     let filename: String val = entity.tqfn + ".md"
     _write_file(docs_dir, filename, consume content)?
+
+  fun _render_toc(
+    entity: DocEntity box,
+    include_private: Bool)
+    : String val
+  =>
+    """
+    Render a table of contents listing all members with full signatures.
+    """
+    if (entity.constructors.size() == 0) and
+      (entity.public_fields.size() == 0) and
+      (entity.public_behaviours.size() == 0) and
+      (entity.public_functions.size() == 0) and
+      (entity.private_behaviours.size() == 0) and
+      (entity.private_functions.size() == 0)
+    then
+      return ""
+    end
+
+    let result = recover iso String(2048) end
+
+    result.append(
+      _toc_methods(entity.constructors, "Constructors", include_private))
+    result.append(
+      _toc_fields(entity.public_fields, "Public fields", include_private))
+    result.append(
+      _toc_methods(
+        entity.public_behaviours, "Public Behaviours", include_private))
+    result.append(
+      _toc_methods(
+        entity.public_functions, "Public Functions", include_private))
+    result.append(
+      _toc_methods(
+        entity.private_behaviours, "Private Behaviours", include_private))
+    result.append(
+      _toc_methods(
+        entity.private_functions, "Private Functions", include_private))
+
+    result.append("---\n\n")
+    consume result
+
+  fun _toc_methods(
+    methods: Array[DocMethod] val,
+    title: String,
+    include_private: Bool)
+    : String val
+  =>
+    if methods.size() == 0 then return "" end
+
+    let result = recover iso String(512) end
+    result.append("**")
+    result.append(title)
+    result.append("**\n\n")
+
+    for method in methods.values() do
+      let heading_text: String val = method.name +
+        TypeRenderer.render_type_params(
+          method.type_params, MkDocsLinkFormat, false, include_private)
+      let anchor: String val = _heading_to_anchor(heading_text)
+
+      result.append("* [`")
+      result.append(method.kind.string())
+      result.append(" ")
+      match method.kind
+      | MethodConstructor | MethodFunction =>
+        match method.cap
+        | let c: String =>
+          result.append(c)
+          result.append(" ")
+        end
+      end
+      result.append(method.name)
+      result.append(
+        TypeRenderer.render_type_params(
+          method.type_params, None, false, include_private))
+      result.append("(")
+      for (i, param) in method.params.pairs() do
+        if i > 0 then result.append(", ") end
+        result.append(param.name)
+        result.append(": ")
+        result.append(
+          TypeRenderer.render(
+            param.param_type, None, false, include_private))
+        match param.default_value
+        | let dv: String =>
+          result.append(" = ")
+          result.append(dv)
+        end
+      end
+      result.append(")")
+      match method.kind
+      | MethodConstructor | MethodFunction =>
+        result.append(": ")
+        match method.return_type
+        | let rt: DocType =>
+          result.append(
+            TypeRenderer.render(rt, None, false, include_private))
+        end
+        if method.is_partial then
+          result.append(" ?")
+        end
+      end
+      result.append("`](#")
+      result.append(anchor)
+      result.append(")\n")
+    end
+    result.append("\n")
+    consume result
+
+  fun _toc_fields(
+    fields: Array[DocField] val,
+    title: String,
+    include_private: Bool)
+    : String val
+  =>
+    if fields.size() == 0 then return "" end
+
+    let result = recover iso String(512) end
+    result.append("**")
+    result.append(title)
+    result.append("**\n\n")
+
+    for field in fields.values() do
+      let heading_text: String val = field.kind.string() + " " +
+        field.name + ": " +
+        TypeRenderer.render(
+          field.field_type, MkDocsLinkFormat, false, include_private)
+      let anchor: String val = _heading_to_anchor(heading_text)
+
+      result.append("* [`")
+      result.append(field.kind.string())
+      result.append(" ")
+      result.append(field.name)
+      result.append(": ")
+      result.append(
+        TypeRenderer.render(
+          field.field_type, None, false, include_private))
+      result.append("`](#")
+      result.append(anchor)
+      result.append(")\n")
+    end
+    result.append("\n")
+    consume result
+
+  fun _heading_to_anchor(heading: String): String val =>
+    """
+    Convert heading text to a MkDocs-compatible anchor ID.
+
+    Strips Markdown link syntax, lowercases, keeps alphanumerics and
+    underscores, replaces spaces and hyphens with single hyphens, and
+    drops all other characters.
+    """
+    let stripped = _strip_md_links(heading)
+    let result = recover iso String(stripped.size()) end
+    var prev_hyphen = true
+    for byte in stripped.values() do
+      if ((byte >= 'a') and (byte <= 'z'))
+        or ((byte >= '0') and (byte <= '9'))
+        or (byte == '_')
+      then
+        result.push(byte)
+        prev_hyphen = false
+      elseif (byte >= 'A') and (byte <= 'Z') then
+        result.push(byte + 32)
+        prev_hyphen = false
+      elseif (byte == ' ') or (byte == '-') then
+        if not prev_hyphen then
+          result.push('-')
+          prev_hyphen = true
+        end
+      end
+    end
+    result.rstrip("-")
+    consume result
+
+  fun _strip_md_links(s: String): String val =>
+    """
+    Strip Markdown link syntax: `[text](url)` becomes `text`.
+
+    Also removes backslash escapes (`\[` becomes `[`).
+    """
+    let result = recover iso String(s.size()) end
+    var i: USize = 0
+    while i < s.size() do
+      try
+        if (s(i)? == '\\') and ((i + 1) < s.size()) then
+          result.push(s(i + 1)?)
+          i = i + 2
+        elseif s(i)? == '[' then
+          let bracket_start = i
+          var depth: USize = 1
+          i = i + 1
+          let text_start = i
+          while (i < s.size()) and (depth > 0) do
+            if s(i)? == '[' then depth = depth + 1
+            elseif s(i)? == ']' then depth = depth - 1
+            end
+            i = i + 1
+          end
+          let text_end = i - 1
+          if (i < s.size()) and (s(i)? == '(') then
+            result.append(s.substring(text_start.isize(), text_end.isize()))
+            while (i < s.size()) and (s(i)? != ')') do
+              i = i + 1
+            end
+            i = i + 1
+          else
+            result.append(
+              s.substring(bracket_start.isize(), i.isize()))
+          end
+        else
+          result.push(s(i)?)
+          i = i + 1
+        end
+      else
+        i = i + 1
+      end
+    end
+    consume result
 
   fun _render_methods(
     methods: Array[DocMethod] val,
