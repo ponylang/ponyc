@@ -13,19 +13,24 @@ use @ponyint_pool_free_size[None](
 actor Main
   """
   CLI entry point for pony-doc. Parses command-line arguments, compiles the
-  target package, extracts the documentation IR, and generates MkDocs output.
+  target package, extracts the documentation IR, and generates documentation
+  output in the selected format (MkDocs or self-contained HTML).
   """
   new create(env: Env) =>
     let cs =
       try
         CommandSpec.leaf(
           "pony-doc",
-          "Generate MkDocs documentation for Pony packages",
+          "Generate documentation for Pony packages",
           [
             OptionSpec.string(
               "output",
               "Output directory"
               where short' = 'o', default' = ".")
+            OptionSpec.string(
+              "format",
+              "Output format: mkdocs or html"
+              where short' = 'f', default' = "mkdocs")
             OptionSpec.bool(
               "include-private",
               "Include private types and methods"
@@ -71,6 +76,15 @@ actor Main
     // Get output directory
     let output_dir_path = cmd.option("output").string()
 
+    let format = cmd.option("format").string()
+    if (format != "mkdocs") and (format != "html") then
+      env.err.print(
+        "error: unknown format '" + format +
+          "' (expected 'mkdocs' or 'html')")
+      env.exitcode(1)
+      return
+    end
+
     // Get include_private flag
     let include_private = cmd.option("include-private").bool()
 
@@ -92,7 +106,13 @@ actor Main
       // Generate output
       let output_fp = FilePath(file_auth, output_dir_path)
       try
-        MkDocsBackend.generate(doc_program, output_fp, include_private)?
+        if format == "html" then
+          HtmlBackend.generate(
+            doc_program, output_fp, include_private)?
+        else
+          MkDocsBackend.generate(
+            doc_program, output_fp, include_private)?
+        end
         env.out.print(
           "Documentation generated in " +
             output_dir_path + "/" + doc_program.name + "-docs/")

@@ -58,3 +58,13 @@ actor \nodoc\ Main is TestList
     test(_TestRenderProvides)
     test(_TestMkDocsLinkFormatMethods)
     test(_TestRenderCustomLinkFormat)
+
+    // HtmlEscape tests
+    test(_TestHtmlEscapeContent)
+    test(_TestHtmlEscapeContentNoDoubleEscape)
+    test(_TestHtmlEscapeAttribute)
+
+    // HtmlLinkFormat tests
+    test(_TestHtmlLinkFormatMethods)
+    test(_TestHtmlLinkFormatEscaping)
+    test(_TestHtmlLinkFormatTypeRenderer)
