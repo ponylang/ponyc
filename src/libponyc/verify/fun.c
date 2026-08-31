@@ -1,5 +1,6 @@
 #include "fun.h"
 #include "../type/alias.h"
+#include "../type/typealias.h"
 #include "../type/cap.h"
 #include "../type/compattype.h"
 #include "../type/lookup.h"
@@ -323,6 +324,101 @@ static bool verify_any_final(pass_opt_t* opt, ast_t* ast)
   return ok;
 }
 
+static bool is_receiver_enclosing_type(pass_opt_t* opt, ast_t* type)
+{
+  switch(ast_id(type))
+  {
+    case TK_NOMINAL:
+      return (ast_t*)ast_data(type) == opt->check.frame->type;
+
+    case TK_ARROW:
+      return is_receiver_enclosing_type(opt, ast_childidx(type, 1));
+
+    case TK_TYPEALIASREF:
+    {
+      ast_t* unfolded = typealias_unfold(type);
+
+      if(unfolded == NULL)
+        return false;
+
+      bool result = is_receiver_enclosing_type(opt, unfolded);
+      ast_free_unattached(unfolded);
+      return result;
+    }
+
+    default:
+      return false;
+  }
+}
+
+static bool is_call_to_method(pass_opt_t* opt, ast_t* ast, ast_t* method)
+{
+  pony_assert((ast_id(ast) == TK_FUNREF) || (ast_id(ast) == TK_FUNCHAIN) ||
+    (ast_id(ast) == TK_NEWREF));
+
+  AST_GET_CHILDREN(ast, receiver, method_name);
+
+  if(ast_id(receiver) == ast_id(ast))
+    AST_GET_CHILDREN_NO_DECL(receiver, receiver, method_name);
+
+  ast_t* receiver_type = ast_type(receiver);
+
+  if(!is_receiver_enclosing_type(opt, receiver_type))
+    return false;
+
+  deferred_reification_t* method_def = lookup_try(opt, receiver,
+    receiver_type, ast_name(method_name), true);
+
+  if(method_def == NULL)
+    return false;
+
+  ast_t* method_ast = method_def->ast;
+  deferred_reify_free(method_def);
+
+  return method_ast == method;
+}
+
+static bool has_independent_error(pass_opt_t* opt, ast_t* ast, ast_t* method)
+{
+  ast_t* child = ast_child(ast);
+
+  if((ast_id(ast) == TK_TRY) || (ast_id(ast) == TK_TRY_NO_CHECK))
+  {
+    pony_assert(child != NULL);
+    child = ast_sibling(child);
+  }
+
+  bool found_child_error = false;
+
+  while(child != NULL)
+  {
+    if(ast_canerror(child))
+    {
+      found_child_error = true;
+
+      if(has_independent_error(opt, child, method))
+        return true;
+    }
+
+    child = ast_sibling(child);
+  }
+
+  if(ast_canerror(ast))
+  {
+    if(ast_id(ast) == TK_ERROR)
+      return true;
+
+    if((ast_id(ast) == TK_FUNREF) || (ast_id(ast) == TK_FUNCHAIN) ||
+      (ast_id(ast) == TK_NEWREF))
+      return !is_call_to_method(opt, ast, method);
+
+    if(!found_child_error)
+      return true;
+  }
+
+  return false;
+}
+
 static bool show_partiality(pass_opt_t* opt, ast_t* ast)
 {
   ast_t* child = ast_child(ast);
@@ -445,6 +541,19 @@ bool verify_fun(pass_opt_t* opt, ast_t* ast)
     {
       ast_error(opt->check.errors, can_error, "function signature is marked as "
         "partial but the function body cannot raise an error");
+      return false;
+    }
+
+    if(!is_trait &&
+      ast_canerror(body) &&
+      (ast_type(body) != NULL) &&
+      (ast_id(ast_type(body)) != TK_COMPILE_INTRINSIC) &&
+      !has_independent_error(opt, body, ast))
+    {
+      ast_error(opt->check.errors, can_error, "function signature is marked as "
+        "partial but the function body cannot raise an error");
+      ast_error_continue(opt->check.errors, can_error, "only source of "
+        "partiality is a recursive call to this method");
       return false;
     }
   } else {
