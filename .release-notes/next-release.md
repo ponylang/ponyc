@@ -660,3 +660,26 @@ The non-native128 fallback (Windows MSVC and 32-bit platforms) was not affected.
 
 The compiler computed wrong upper and lower bounds when adapting `trn` through the `#read` generic capability. The upper bound was `box` instead of `trn`, and the lower bound was `trn` instead of `box`. This affected type checking of `this->trn` fields in classes and actors whose receiver capability is generic, and any other code path where the compiler needs the bounds of `#read->trn`.
 
+## Fix stack overflow (SEGV) in persistent List from unbounded recursion
+
+Most persistent `List` operations caused a stack overflow at ordinary list sizes.
+
+```pony
+use "collections/persistent"
+use mut = "collections"
+
+actor Main
+  new create(env: Env) =>
+    var l: List[USize] = Lists[USize].empty()
+    for i in mut.Range(0, 50_000) do l = l.prepend(i) end
+    env.out.print(l.map[USize]({(x) => x * 2 }).size().string())
+```
+
+```
+Segmentation fault (core dumped)
+```
+
+The length that crashed depended on the stack size and the build, so the same program could work on one machine and crash on another. In a debug build with an 8 MB stack, `map`, `filter`, and `concat` crashed at around 50,000 elements; `apply` and `Lists.eq` at around 200,000 even in a release build.
+
+This has been fixed. The example above now prints `50000`. No signatures changed.
+
