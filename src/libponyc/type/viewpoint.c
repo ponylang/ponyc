@@ -4,6 +4,7 @@
 #include "cap.h"
 #include "type_assume.h"
 #include "typealias.h"
+#include "typeparam.h"
 #include "../ast/astbuild.h"
 #include "ponyassert.h"
 
@@ -534,7 +535,8 @@ static ast_t* find_typeparamref_in(ast_t* ast, ast_t* target)
 {
   if(ast_id(ast) == TK_TYPEPARAMREF)
   {
-    if(ast_data(ast) == ast_data(target))
+    if(typeparam_root((ast_t*)ast_data(ast)) ==
+      typeparam_root((ast_t*)ast_data(target)))
       return ast;
     return NULL;
   }
@@ -695,7 +697,8 @@ bool viewpoint_reifypair(ast_t* a, ast_t* b, ast_t** r_a, ast_t** r_b, pass_opt_
         {
           ast_t* candidate = ast_child(test_b);
           if((ast_id(candidate) == TK_TYPEPARAMREF) &&
-            (ast_data(candidate) == ast_data(left_a)))
+            (typeparam_root((ast_t*)ast_data(candidate)) ==
+              typeparam_root((ast_t*)ast_data(left_a))))
             left_b = candidate;
         }
 
@@ -724,7 +727,8 @@ bool viewpoint_reifypair(ast_t* a, ast_t* b, ast_t** r_a, ast_t** r_b, pass_opt_
     // refers to the same type parameter.
     ast_t* tp_b = test_a;
     if((ast_id(test_b) == TK_TYPEPARAMREF) &&
-      (ast_data(test_b) == ast_data(test_a)))
+      (typeparam_root((ast_t*)ast_data(test_b)) ==
+        typeparam_root((ast_t*)ast_data(test_a))))
       tp_b = test_b;
 
     *r_b = viewpoint_reifytypeparam(b, tp_b, opt);
