@@ -10,6 +10,10 @@
   { const char* errs[] = {err1, NULL}; \
     DO(test_expected_errors(src, "expr", errs)); }
 
+#define TEST_ERRORS_2(src, err1, err2) \
+  { const char* errs[] = {err1, err2, NULL}; \
+    DO(test_expected_errors(src, "expr", errs)); }
+
 
 class LambdaTest : public PassTest
 {};
@@ -787,4 +791,51 @@ TEST_F(LambdaTest, LambdaCaptureFieldInBoxMethodRejectsRefCall)
     "    {()(_data): USize => _data.mut_method()}";
 
   TEST_ERRORS_1(src, "receiver type is not a subtype of target type");
+}
+
+TEST_F(LambdaTest, LambdaBareCaptureFieldInTagMethod)
+{
+  // From issue #5947 — bare field capture in a tag method must report
+  // the enclosing type, not the lambda's own receiver.
+  const char* src =
+    "class Foo\n"
+    "  let _data: String ref\n"
+    "  new create() => _data = String\n"
+    "  fun tag _test() =>\n"
+    "    {()(_data) => None }";
+
+  TEST_ERRORS_1(src, "can't read a field through Foo tag");
+}
+
+TEST_F(LambdaTest, LambdaBareCaptureFieldVarInTagMethod)
+{
+  // From issue #5947 — var field capture in a tag method.
+  const char* src =
+    "class Foo\n"
+    "  var _data: String ref\n"
+    "  new create() => _data = String\n"
+    "  fun tag _test() =>\n"
+    "    {()(_data) => None }";
+
+  TEST_ERRORS_1(src, "can't read a field through Foo tag");
+}
+
+TEST_F(LambdaTest, ObjectImplicitCaptureFieldInTagMethod)
+{
+  // From issue #5947 — implicit field capture via object literal
+  // in a tag method must report the enclosing type.
+  const char* src =
+    "interface Runnable\n"
+    "  fun apply(): None\n"
+    "class Foo\n"
+    "  let _data: String ref\n"
+    "  new create() => _data = String\n"
+    "  fun tag _test(): Runnable =>\n"
+    "    object is Runnable\n"
+    "      fun apply() => let x = _data\n"
+    "    end";
+
+  TEST_ERRORS_2(src,
+    "can't read a field through Foo tag",
+    "can't find declaration of '_data'");
 }
