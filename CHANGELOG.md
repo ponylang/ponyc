@@ -33,6 +33,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Fix incorrect `#read->trn` viewpoint adaptation bounds ([PR #5925](https://github.com/ponylang/ponyc/pull/5925))
 - Fix stack overflow (SEGV) in persistent List from unbounded recursion ([PR #5909](https://github.com/ponylang/ponyc/pull/5909))
 - Fix incorrect viewpoint adaptation bounds for generic capability parameters ([PR #5933](https://github.com/ponylang/ponyc/pull/5933))
+- Fix pony-doc displaying default parameter values ([PR #5935](https://github.com/ponylang/ponyc/pull/5935))
 
 ### Added
 
