@@ -37,6 +37,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Fix incorrect rounding of float literals near the extremes of F64's range ([PR #5937](https://github.com/ponylang/ponyc/pull/5937))
 - Fix lambda type inference failure with generic #share constraints ([PR #5938](https://github.com/ponylang/ponyc/pull/5938))
 - Fix overly conservative viewpoint adaptation bounds for ephemeral generic capabilities ([PR #5939](https://github.com/ponylang/ponyc/pull/5939))
+- Fix soundness bug with aliased type parameter constraints ([PR #5941](https://github.com/ponylang/ponyc/pull/5941))
 
 ### Added
 
