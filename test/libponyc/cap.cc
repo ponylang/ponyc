@@ -937,7 +937,7 @@ TEST_F(CapTest, ViewpointUpperGenericField)
   EXPECT_VP(upper_viewpoint_full, iso, none, any, none, tag, none);
 
   // iso^ origin
-  EXPECT_VP(upper_viewpoint_full, iso, hat, read, none, tag, none);
+  EXPECT_VP(upper_viewpoint_full, iso, hat, read, none, val, none);
   EXPECT_VP(upper_viewpoint_full, iso, hat, send, none, send, hat);
   EXPECT_VP(upper_viewpoint_full, iso, hat, share, none, share, none);
   EXPECT_VP(upper_viewpoint_full, iso, hat, alias, none, tag, none);
@@ -951,7 +951,7 @@ TEST_F(CapTest, ViewpointUpperGenericField)
   EXPECT_VP(upper_viewpoint_full, trn, none, any, none, tag, none);
 
   // trn^ origin
-  EXPECT_VP(upper_viewpoint_full, trn, hat, read, none, box, none);
+  EXPECT_VP(upper_viewpoint_full, trn, hat, read, none, val, none);
   EXPECT_VP(upper_viewpoint_full, trn, hat, send, none, send, hat);
   EXPECT_VP(upper_viewpoint_full, trn, hat, share, none, share, none);
   EXPECT_VP(upper_viewpoint_full, trn, hat, alias, none, tag, none);
@@ -1002,19 +1002,19 @@ TEST_F(CapTest, ViewpointLowerGenericField)
   EXPECT_VP(lower_viewpoint_full, iso, hat, alias, none, send, hat);
   EXPECT_VP(lower_viewpoint_full, iso, hat, any, none, send, hat);
 
-  // trn origin: #read/#alias/#any have no valid lower bound
-  EXPECT_VP_UNDEF(lower_viewpoint_full, trn, none, read, none);
+  // trn origin
+  EXPECT_VP(lower_viewpoint_full, trn, none, read, none, trn, hat);
   EXPECT_VP(lower_viewpoint_full, trn, none, send, none, send, none);
   EXPECT_VP(lower_viewpoint_full, trn, none, share, none, share, none);
-  EXPECT_VP_UNDEF(lower_viewpoint_full, trn, none, alias, none);
-  EXPECT_VP_UNDEF(lower_viewpoint_full, trn, none, any, none);
+  EXPECT_VP(lower_viewpoint_full, trn, none, alias, none, trn, hat);
+  EXPECT_VP(lower_viewpoint_full, trn, none, any, none, iso, hat);
 
-  // trn^ origin: #read/#alias/#any have no valid lower bound
-  EXPECT_VP_UNDEF(lower_viewpoint_full, trn, hat, read, none);
+  // trn^ origin
+  EXPECT_VP(lower_viewpoint_full, trn, hat, read, none, trn, hat);
   EXPECT_VP(lower_viewpoint_full, trn, hat, send, none, send, hat);
   EXPECT_VP(lower_viewpoint_full, trn, hat, share, none, share, none);
-  EXPECT_VP_UNDEF(lower_viewpoint_full, trn, hat, alias, none);
-  EXPECT_VP_UNDEF(lower_viewpoint_full, trn, hat, any, none);
+  EXPECT_VP(lower_viewpoint_full, trn, hat, alias, none, trn, hat);
+  EXPECT_VP(lower_viewpoint_full, trn, hat, any, none, iso, hat);
 
   // ref origin: identity
   EXPECT_VP(lower_viewpoint_full, ref, none, read, none, read, none);
@@ -1061,4 +1061,262 @@ TEST_F(CapTest, ViewpointLowerReadGenericField)
   EXPECT_VP(lower_viewpoint_full, read, none, share, none, share, none);
   EXPECT_VP(lower_viewpoint_full, read, none, alias, none, alias, none);
   EXPECT_VP(lower_viewpoint_full, read, none, any, none, any, none);
+}
+
+// Verify that every upper bound satisfies the formal soundness criterion:
+// upset(U) ⊆ ∩{upset(r_k)} where r_k are the concrete viewpoint results
+// and upset(X) = {Y | X <: Y under is_cap_sub_cap}.
+TEST_F(CapTest, ViewpointUpperSoundness)
+{
+  token_id origins[] = { iso, trn, ref, val, box };
+  token_id origin_ephs[] = { none, hat };
+  token_id fields[] = { read, send, share, alias, any };
+
+  // All caps we check against (including ephemeral variants)
+  struct cap_eph { token_id cap; token_id eph; };
+  cap_eph all_caps[] = {
+    {iso, none}, {iso, hat}, {trn, none}, {trn, hat},
+    {ref, none}, {val, none}, {box, none}, {tag, none},
+    {read, none}, {send, none}, {send, hat},
+    {share, none}, {alias, none}, {any, none}, {any, hat}
+  };
+  int ncaps = sizeof(all_caps) / sizeof(all_caps[0]);
+
+  for(auto origin : origins)
+  {
+    for(auto origin_eph : origin_ephs)
+    {
+      // Skip ephemeral for caps that don't support it
+      if(origin_eph == hat && origin != iso && origin != trn)
+        continue;
+
+      for(auto field : fields)
+      {
+        viewpoint_result vp = upper_viewpoint_full(origin, origin_eph,
+          field, none);
+        if(!vp.defined)
+          continue;
+
+        // Compute upset of the returned bound
+        bool u_super[15];
+        for(int i = 0; i < ncaps; i++)
+          u_super[i] = is_sub(vp.cap, vp.eph, all_caps[i].cap, all_caps[i].eph);
+
+        // For each member of the generic field, compute concrete viewpoint
+        // and intersect their upsets
+        bool intersection[15];
+        for(int i = 0; i < ncaps; i++)
+          intersection[i] = true;
+
+        token_id members[6];
+        int nmembers = reify_cap_bounds(field, members);
+        for(int m = 0; m < nmembers; m++)
+        {
+          viewpoint_result concrete = upper_viewpoint_full(origin, origin_eph,
+            members[m], none);
+          ASSERT_TRUE(concrete.defined) <<
+            "Concrete viewpoint undefined for " <<
+            token_id_desc(origin) << (origin_eph == hat ? "^" : "") <<
+            " -> " << token_id_desc(members[m]);
+
+          for(int i = 0; i < ncaps; i++)
+          {
+            if(!is_sub(concrete.cap, concrete.eph,
+                       all_caps[i].cap, all_caps[i].eph))
+              intersection[i] = false;
+          }
+        }
+
+        // Verify: upset(U) ⊆ intersection
+        for(int i = 0; i < ncaps; i++)
+        {
+          if(u_super[i] && !intersection[i])
+          {
+            FAIL() <<
+              "Upper bound soundness violation: " <<
+              token_id_desc(origin) << (origin_eph == hat ? "^" : "") <<
+              " -> " << token_id_desc(field) <<
+              ": upper=" << token_id_desc(vp.cap) <<
+              (vp.eph == hat ? "^" : "") <<
+              " has " << token_id_desc(all_caps[i].cap) <<
+              (all_caps[i].eph == hat ? "^" : "") <<
+              " in its upset, but not all concrete results do";
+          }
+        }
+      }
+    }
+  }
+}
+
+// Verify that every lower bound satisfies the formal soundness criterion:
+// downset(L) ⊆ ∩{downset(r_k)} where downset(X) = {Y | Y <: X}.
+TEST_F(CapTest, ViewpointLowerSoundness)
+{
+  token_id origins[] = { iso, trn, ref, val, box };
+  token_id origin_ephs[] = { none, hat };
+  token_id fields[] = { read, send, share, alias, any };
+
+  struct cap_eph { token_id cap; token_id eph; };
+  cap_eph all_caps[] = {
+    {iso, none}, {iso, hat}, {trn, none}, {trn, hat},
+    {ref, none}, {val, none}, {box, none}, {tag, none},
+    {read, none}, {send, none}, {send, hat},
+    {share, none}, {alias, none}, {any, none}, {any, hat}
+  };
+  int ncaps = sizeof(all_caps) / sizeof(all_caps[0]);
+
+  for(auto origin : origins)
+  {
+    for(auto origin_eph : origin_ephs)
+    {
+      if(origin_eph == hat && origin != iso && origin != trn)
+        continue;
+
+      for(auto field : fields)
+      {
+        viewpoint_result vp = lower_viewpoint_full(origin, origin_eph,
+          field, none);
+        if(!vp.defined)
+          continue;
+
+        // Compute downset of the returned bound
+        bool l_sub[15];
+        for(int i = 0; i < ncaps; i++)
+          l_sub[i] = is_sub(all_caps[i].cap, all_caps[i].eph, vp.cap, vp.eph);
+
+        // Intersect downsets of concrete results
+        bool intersection[15];
+        for(int i = 0; i < ncaps; i++)
+          intersection[i] = true;
+
+        token_id members[6];
+        int nmembers = reify_cap_bounds(field, members);
+        for(int m = 0; m < nmembers; m++)
+        {
+          viewpoint_result concrete = lower_viewpoint_full(origin, origin_eph,
+            members[m], none);
+          ASSERT_TRUE(concrete.defined) <<
+            "Concrete viewpoint undefined for " <<
+            token_id_desc(origin) << (origin_eph == hat ? "^" : "") <<
+            " -> " << token_id_desc(members[m]);
+
+          for(int i = 0; i < ncaps; i++)
+          {
+            if(!is_sub(all_caps[i].cap, all_caps[i].eph,
+                       concrete.cap, concrete.eph))
+              intersection[i] = false;
+          }
+        }
+
+        // Verify: downset(L) ⊆ intersection
+        for(int i = 0; i < ncaps; i++)
+        {
+          if(l_sub[i] && !intersection[i])
+          {
+            FAIL() <<
+              "Lower bound soundness violation: " <<
+              token_id_desc(origin) << (origin_eph == hat ? "^" : "") <<
+              " -> " << token_id_desc(field) <<
+              ": lower=" << token_id_desc(vp.cap) <<
+              (vp.eph == hat ? "^" : "") <<
+              " has " << token_id_desc(all_caps[i].cap) <<
+              (all_caps[i].eph == hat ? "^" : "") <<
+              " in its downset, but not all concrete results do";
+          }
+        }
+      }
+    }
+  }
+}
+
+// Ephemeral origins with #read field produce tighter upper bounds
+// because eph.box = val (not tag/box).
+TEST_F(CapTest, ViewpointEphemeralReadFieldTightness)
+{
+  // iso^.{ref,val,box} = {iso^, val, val} = {iso^, val}
+  // Upper should be val, not tag
+  EXPECT_VP(upper_viewpoint_full, iso, hat, read, none, val, none);
+  // Verify the concrete results that drive this
+  EXPECT_VP(upper_viewpoint_full, iso, hat, ref, none, iso, hat);
+  EXPECT_VP(upper_viewpoint_full, iso, hat, val, none, val, none);
+  EXPECT_VP(upper_viewpoint_full, iso, hat, box, none, val, none);
+
+  // trn^.{ref,val,box} = {trn^, val, val} = {trn^, val}
+  // Upper should be val, not box
+  EXPECT_VP(upper_viewpoint_full, trn, hat, read, none, val, none);
+  EXPECT_VP(upper_viewpoint_full, trn, hat, ref, none, trn, hat);
+  EXPECT_VP(upper_viewpoint_full, trn, hat, val, none, val, none);
+  EXPECT_VP(upper_viewpoint_full, trn, hat, box, none, val, none);
+
+  // Non-ephemeral iso/trn should still have the less-tight bounds
+  // because iso.box = tag and trn.box = box
+  EXPECT_VP(upper_viewpoint_full, iso, none, read, none, tag, none);
+  EXPECT_VP(upper_viewpoint_full, trn, none, read, none, box, none);
+}
+
+// trn-origin lower bounds for #read/#alias/#any are ephemeral.
+TEST_F(CapTest, ViewpointTrnLowerGenericBounds)
+{
+  // trn→#read: results {trn, val, box}
+  // downset intersection (including ephemeral) = {iso^, trn^}
+  // Tightest lower: trn^
+  EXPECT_VP(lower_viewpoint_full, trn, none, read, none, trn, hat);
+  EXPECT_VP(lower_viewpoint_full, trn, hat, read, none, trn, hat);
+
+  // trn→#alias: results {trn, val, box, tag}
+  // downset intersection = {iso^, trn^}
+  // Tightest lower: trn^
+  EXPECT_VP(lower_viewpoint_full, trn, none, alias, none, trn, hat);
+  EXPECT_VP(lower_viewpoint_full, trn, hat, alias, none, trn, hat);
+
+  // trn→#any: results {iso, trn, val, box, tag}
+  // downset intersection = {iso^}
+  // Tightest lower: iso^
+  EXPECT_VP(lower_viewpoint_full, trn, none, any, none, iso, hat);
+  EXPECT_VP(lower_viewpoint_full, trn, hat, any, none, iso, hat);
+
+  // #send and #share should be unchanged
+  EXPECT_VP(lower_viewpoint_full, trn, none, send, none, send, none);
+  EXPECT_VP(lower_viewpoint_full, trn, none, share, none, share, none);
+  EXPECT_VP(lower_viewpoint_full, trn, hat, send, none, send, hat);
+  EXPECT_VP(lower_viewpoint_full, trn, hat, share, none, share, none);
+}
+
+// Non-ephemeral origins with non-#read generic fields retain
+// the same bounds as the concrete-cap viewpoints.
+TEST_F(CapTest, ViewpointNonEphemeralGenericFieldsUnchanged)
+{
+  // iso origin (non-eph)
+  EXPECT_VP(upper_viewpoint_full, iso, none, send, none, send, none);
+  EXPECT_VP(upper_viewpoint_full, iso, none, share, none, share, none);
+  EXPECT_VP(upper_viewpoint_full, iso, none, alias, none, tag, none);
+  EXPECT_VP(upper_viewpoint_full, iso, none, any, none, tag, none);
+
+  EXPECT_VP(lower_viewpoint_full, iso, none, read, none, send, none);
+  EXPECT_VP(lower_viewpoint_full, iso, none, send, none, send, none);
+  EXPECT_VP(lower_viewpoint_full, iso, none, share, none, share, none);
+  EXPECT_VP(lower_viewpoint_full, iso, none, alias, none, send, none);
+  EXPECT_VP(lower_viewpoint_full, iso, none, any, none, send, none);
+
+  // trn origin (non-eph) — send/share
+  EXPECT_VP(upper_viewpoint_full, trn, none, send, none, send, none);
+  EXPECT_VP(upper_viewpoint_full, trn, none, share, none, share, none);
+
+  // val origin
+  EXPECT_VP(upper_viewpoint_full, val, none, read, none, val, none);
+  EXPECT_VP(upper_viewpoint_full, val, none, send, none, share, none);
+  EXPECT_VP(lower_viewpoint_full, val, none, read, none, val, none);
+  EXPECT_VP(lower_viewpoint_full, val, none, send, none, share, none);
+
+  // box origin
+  EXPECT_VP(upper_viewpoint_full, box, none, read, none, box, none);
+  EXPECT_VP(upper_viewpoint_full, box, none, send, none, tag, none);
+  EXPECT_VP(lower_viewpoint_full, box, none, read, none, val, none);
+  EXPECT_VP(lower_viewpoint_full, box, none, send, none, share, none);
+
+  // ref origin (identity)
+  EXPECT_VP(upper_viewpoint_full, ref, none, read, none, read, none);
+  EXPECT_VP(upper_viewpoint_full, ref, none, send, none, send, none);
+  EXPECT_VP(lower_viewpoint_full, ref, none, read, none, read, none);
+  EXPECT_VP(lower_viewpoint_full, ref, none, send, none, send, none);
 }

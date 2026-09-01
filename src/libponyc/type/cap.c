@@ -861,6 +861,14 @@ bool cap_view_upper(token_id left_cap, token_id left_eph,
           *right_eph = TK_NONE;
           break;
 
+        case TK_CAP_READ:
+          if(left_eph == TK_EPHEMERAL)
+            *right_cap = TK_VAL;
+          else
+            *right_cap = TK_TAG;
+          *right_eph = TK_NONE;
+          break;
+
         default:
           *right_cap = TK_TAG;
           *right_eph = TK_NONE;
@@ -894,6 +902,14 @@ bool cap_view_upper(token_id left_cap, token_id left_eph,
         case TK_BOX:
           if(left_eph == TK_EPHEMERAL)
             *right_cap = TK_VAL;
+          *right_eph = TK_NONE;
+          break;
+
+        case TK_CAP_READ:
+          if(left_eph == TK_EPHEMERAL)
+            *right_cap = TK_VAL;
+          else
+            *right_cap = TK_BOX;
           *right_eph = TK_NONE;
           break;
 
@@ -1095,8 +1111,14 @@ bool cap_view_lower(token_id left_cap, token_id left_eph,
 
         case TK_CAP_READ:
         case TK_CAP_ALIAS:
+          *right_cap = TK_TRN;
+          *right_eph = TK_EPHEMERAL;
+          break;
+
         case TK_CAP_ANY:
-          return false;
+          *right_cap = TK_ISO;
+          *right_eph = TK_EPHEMERAL;
+          break;
 
         default:
           *right_cap = TK_BOX;
