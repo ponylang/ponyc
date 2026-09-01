@@ -664,16 +664,68 @@ static bool apply_cap(ast_t* type, token_id tcap, token_id teph)
   return false;
 }
 
+static token_id combine_ephemerals(token_id a, token_id b)
+{
+  if(a == TK_NONE)
+    return b;
+
+  if(b == TK_NONE)
+    return a;
+
+  if(a == b)
+    return a;
+
+  // TK_EPHEMERAL + TK_ALIASED cancel out (and vice versa).
+  return TK_NONE;
+}
+
+static ast_t* typeparam_constraint_with_eph(ast_t* typeparamref,
+  token_id* chain_eph)
+{
+  pony_assert(ast_id(typeparamref) == TK_TYPEPARAMREF);
+  ast_t* def = (ast_t*)ast_data(typeparamref);
+  ast_t* constraint = ast_childidx(def, 1);
+  token_id accumulated_eph = TK_NONE;
+  astlist_t* def_list = astlist_push(NULL, def);
+
+  while(ast_id(constraint) == TK_TYPEPARAMREF)
+  {
+    ast_t* constraint_def = (ast_t*)ast_data(constraint);
+
+    if(astlist_find(def_list, constraint_def))
+    {
+      constraint = NULL;
+      break;
+    }
+
+    // When a constraint is written as Y!, the ! must be applied to the
+    // terminal constraint's capability.
+    ast_t* c_eph = ast_childidx(constraint, 2);
+    accumulated_eph = combine_ephemerals(accumulated_eph, ast_id(c_eph));
+
+    def_list = astlist_push(def_list, constraint_def);
+    constraint = ast_childidx(constraint_def, 1);
+  }
+
+  astlist_free(def_list);
+
+  if(chain_eph != NULL)
+    *chain_eph = accumulated_eph;
+
+  return constraint;
+}
+
 static ast_t* constraint_cap(ast_t* typeparamref)
 {
-  ast_t* constraint = typeparam_constraint(typeparamref);
+  token_id chain_eph = TK_NONE;
+  ast_t* constraint = typeparam_constraint_with_eph(typeparamref, &chain_eph);
 
   if(constraint == NULL)
     return NULL;
 
   AST_GET_CHILDREN(typeparamref, id, cap, eph);
   token_id tcap = ast_id(cap);
-  token_id teph = ast_id(eph);
+  token_id teph = combine_ephemerals(ast_id(eph), chain_eph);
 
   ast_t* r_constraint;
 
@@ -697,27 +749,7 @@ static ast_t* constraint_cap(ast_t* typeparamref)
 
 ast_t* typeparam_constraint(ast_t* typeparamref)
 {
-  pony_assert(ast_id(typeparamref) == TK_TYPEPARAMREF);
-  ast_t* def = (ast_t*)ast_data(typeparamref);
-  ast_t* constraint = ast_childidx(def, 1);
-  astlist_t* def_list = astlist_push(NULL, def);
-
-  while(ast_id(constraint) == TK_TYPEPARAMREF)
-  {
-    ast_t* constraint_def = (ast_t*)ast_data(constraint);
-
-    if(astlist_find(def_list, constraint_def))
-    {
-      constraint = NULL;
-      break;
-    }
-
-    def_list = astlist_push(def_list, constraint_def);
-    constraint = ast_childidx(constraint_def, 1);
-  }
-
-  astlist_free(def_list);
-  return constraint;
+  return typeparam_constraint_with_eph(typeparamref, NULL);
 }
 
 ast_t* typeparam_root(ast_t* def)
@@ -752,8 +784,14 @@ void typeparam_set_cap(ast_t* typeparamref)
 {
   pony_assert(ast_id(typeparamref) == TK_TYPEPARAMREF);
   AST_GET_CHILDREN(typeparamref, id, cap, eph);
-  ast_t* constraint = typeparam_constraint(typeparamref);
+  token_id chain_eph = TK_NONE;
+  ast_t* constraint = typeparam_constraint_with_eph(typeparamref, &chain_eph);
   token_id tcap = cap_from_constraint(constraint);
+
+  // When a constraint is written as Y! (aliased), the effective capability
+  // must reflect that aliasing — e.g. iso aliased becomes tag.
+  cap_aliasing(&tcap, &chain_eph);
+
   ast_setid(cap, tcap);
 }
 

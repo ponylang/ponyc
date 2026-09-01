@@ -888,10 +888,52 @@ static ast_result_t syntax_embed(pass_opt_t* opt, ast_t* ast)
 }
 
 
+static bool check_constraint_ephemeral(pass_opt_t* opt, ast_t* type)
+{
+  if(type == NULL || ast_id(type) == TK_NONE)
+    return true;
+
+  switch(ast_id(type))
+  {
+    case TK_NOMINAL:
+    {
+      AST_GET_CHILDREN(type, ign0, ign1, ign2, ign3, ephemeral);
+
+      if(ast_id(ephemeral) == TK_EPHEMERAL)
+      {
+        ast_error(opt->check.errors, ephemeral,
+          "can't specify ephemeral (^) in a type parameter constraint");
+        return false;
+      }
+
+      return true;
+    }
+
+    case TK_UNIONTYPE:
+    case TK_ISECTTYPE:
+    case TK_TUPLETYPE:
+      for(ast_t* p = ast_child(type); p != NULL; p = ast_sibling(p))
+      {
+        if(!check_constraint_ephemeral(opt, p))
+          return false;
+      }
+
+      return true;
+
+    default:
+      return true;
+  }
+}
+
+
 static ast_result_t syntax_type_param(pass_opt_t* opt, ast_t* ast)
 {
-
   if(!check_id_type_param(opt, ast_child(ast)))
+    return AST_ERROR;
+
+  ast_t* constraint = ast_childidx(ast, 1);
+
+  if(!check_constraint_ephemeral(opt, constraint))
     return AST_ERROR;
 
   return AST_OK;

@@ -3773,3 +3773,97 @@ TEST_F(BadPonyTest, ExportAnnotationOnInterfaceTypeAlias)
     "must refer to a class, primitive, struct, or actor, not an interface");
 }
 
+TEST_F(BadPonyTest, AliasedConstraintOnTypeParamRef)
+{
+  // From issue #1889
+  // The ! modifier in X: Y! should alias Y's capability. When Y is A iso,
+  // Y! is A tag, so X can only be A tag — not A iso.
+  const char* src =
+    "class A\n"
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let opaque : A tag = A\n"
+    "    let not_opaque : A iso = reveal[A tag, A iso](opaque)\n"
+    "  fun reveal[X: Y!, Y: A iso](x: X) : A iso^ =>\n"
+    "    consume x\n";
+
+  TEST_ERRORS_1(src, "function body isn't the result type");
+}
+
+TEST_F(BadPonyTest, AliasedConstraintOnTypeParamRefChain)
+{
+  // From issue #1889 — 3-type-param chain
+  // X: Y!, Y: Z, Z: A iso should give X the capability A tag because ! aliases
+  // the terminal constraint's iso to tag.
+  const char* src =
+    "class A\n"
+    "actor Main\n"
+    "  new create(env: Env) => None\n"
+    "  fun reveal[X: Y!, Y: Z, Z: A iso](x: X) : A iso^ =>\n"
+    "    consume x\n";
+
+  TEST_ERRORS_1(src, "function body isn't the result type");
+}
+
+TEST_F(BadPonyTest, EphemeralOnTypeParamConstraint)
+{
+  // ^ on a type parameter constraint has no defined semantics and is rejected.
+  const char* src =
+    "class A\n"
+    "actor Main\n"
+    "  new create(env: Env) => None\n"
+    "  fun reveal[X: A iso^](x: X): None =>\n"
+    "    None\n";
+
+  TEST_ERRORS_1(src,
+    "can't specify ephemeral (^) in a type parameter constraint");
+}
+
+TEST_F(BadPonyTest, EphemeralOnTypeParamConstraintChain)
+{
+  // ^ on a constraint in a chain would allow ^ and ! to cancel, bypassing
+  // the aliased constraint. The syntax pass rejects ^ on any constraint.
+  const char* src =
+    "class A\n"
+    "actor Main\n"
+    "  new create(env: Env) => None\n"
+    "  fun reveal[X: Y^, Y: Z!, Z: A iso](x: X): A iso^ =>\n"
+    "    consume x\n";
+
+  TEST_ERRORS_1(src,
+    "can't specify ephemeral (^) in a type parameter constraint");
+}
+
+TEST_F(BadPonyTest, EphemeralOnTypeParamConstraintExploit)
+{
+  // Regression test for the soundness exploit: without the ^ rejection,
+  // X: Y^, Y: Z!, Z: A iso would allow converting A tag to A iso^.
+  const char* src =
+    "class A\n"
+    "  var data: String = \"hello\"\n"
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let opaque: A tag = A\n"
+    "    let stolen: A iso = reveal[A tag, A tag, A iso](opaque)\n"
+    "    stolen.data = \"pwned\"\n"
+    "  fun reveal[X: Y^, Y: Z!, Z: A iso](x: X): A iso^ =>\n"
+    "    consume x\n";
+
+  TEST_ERRORS_1(src,
+    "can't specify ephemeral (^) in a type parameter constraint");
+}
+
+TEST_F(BadPonyTest, AliasedConstraintOnTypeParamRefTrn)
+{
+  // From issue #1889 — trn variant
+  // Y! where Y is A trn gives A box, so consuming X should not satisfy A trn^.
+  const char* src =
+    "class A\n"
+    "actor Main\n"
+    "  new create(env: Env) => None\n"
+    "  fun reveal[X: Y!, Y: A trn](x: X) : A trn^ =>\n"
+    "    consume x\n";
+
+  TEST_ERRORS_1(src, "function body isn't the result type");
+}
+
