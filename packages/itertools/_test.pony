@@ -1,4 +1,5 @@
 use "collections"
+use "pony_check"
 use "pony_test"
 use "time"
 
@@ -11,15 +12,28 @@ actor \nodoc\ Main is TestList
     test(_TestIterAll)
     test(_TestIterAny)
     test(_TestIterChain)
+    test(Property1UnitTest[Array[USize]](_IterChainProperty))
+    test(_TestIterChainDeepPath)
     test(_TestIterCollect)
     test(_TestIterCount)
     test(_TestIterCycle)
     test(_TestIterDedup)
+    test(Property1UnitTest[Array[USize]](_IterDedupProperty))
+    test(_TestIterDedupDeepPath)
+    test(_TestIterDedupEdgeCases)
     test(_TestIterEnum)
     test(_TestIterFilter)
+    test(Property1UnitTest[Array[USize]](_IterFilterProperty))
+    test(_TestIterFilterDeepPath)
+    test(_TestIterFilterEdgeCases)
     test(_TestIterFilterMap)
+    test(Property1UnitTest[Array[USize]](_IterFilterMapProperty))
+    test(_TestIterFilterMapDeepPath)
+    test(_TestIterFilterMapEdgeCases)
     test(_TestIterFind)
     test(_TestIterFlatMap)
+    test(Property1UnitTest[Array[USize]](_IterFlatMapProperty))
+    test(_TestIterFlatMapDeepPath)
     test(_TestIterFold)
     test(_TestIterInterleave)
     test(_TestIterInterleaveShortest)
@@ -30,12 +44,16 @@ actor \nodoc\ Main is TestList
     test(_TestIterNth)
     test(_TestIterRepeatValue)
     test(_TestIterRun)
+    test(_TestIterRunDeepPath)
     test(_TestIterSkip)
     test(_TestIterSkipWhile)
     test(_TestIterStepBy)
     test(_TestIterTake)
     test(_TestIterTakeWhile)
     test(_TestIterUnique)
+    test(Property1UnitTest[Array[USize]](_IterUniqueProperty))
+    test(_TestIterUniqueDeepPath)
+    test(_TestIterUniqueEdgeCases)
     test(_TestIterZip)
 
 class \nodoc\ iso _TestIterChain is UnitTest
@@ -639,3 +657,323 @@ class \nodoc\ iso _TestIterZip is UnitTest
     h.assert_array_eq[F32](expected3, actual3)
     h.assert_array_eq[I32](expected4, actual4)
     h.assert_array_eq[USize](expected5, actual5)
+
+class \nodoc\ iso _IterChainProperty is Property1[Array[USize]]
+  fun name(): String => "itertools/Iter.chain (property)"
+
+  fun gen(): Generator[Array[USize]] =>
+    Generators.array_of[USize](Generators.usize(0, 99))
+
+  fun ref property(input: Array[USize], h: PropertyHelper) =>
+    let third = input.size() / 3
+    let a = Array[USize]
+    let b = Array[USize]
+    let c = Array[USize]
+    for (i, v) in input.pairs() do
+      if i < third then a.push(v)
+      elseif i < (third * 2) then b.push(v)
+      else c.push(v)
+      end
+    end
+    let result =
+      Iter[USize].chain(
+        [a.values(); b.values(); c.values()].values())
+        .collect(Array[USize])
+    h.assert_array_eq[USize](input, result)
+
+class \nodoc\ iso _IterDedupProperty is Property1[Array[USize]]
+  fun name(): String => "itertools/Iter.dedup (property)"
+
+  fun gen(): Generator[Array[USize]] =>
+    Generators.array_of[USize](Generators.usize(0, 5))
+
+  fun ref property(input: Array[USize], h: PropertyHelper) =>
+    let expected = Array[USize]
+    var prev: (USize | None) = None
+    for v in input.values() do
+      let is_dup =
+        match prev
+        | let p: USize => p == v
+        else false
+        end
+      if not is_dup then
+        expected.push(v)
+      end
+      prev = v
+    end
+    let actual =
+      Iter[USize](input.values()).dedup().collect(Array[USize])
+    h.assert_array_eq[USize](expected, actual)
+
+    var last: (USize | None) = None
+    for v in actual.values() do
+      match last
+      | let l: USize =>
+        h.assert_true(v != l, "consecutive duplicate in dedup output")
+      end
+      last = v
+    end
+
+class \nodoc\ iso _IterFilterProperty is Property1[Array[USize]]
+  fun name(): String => "itertools/Iter.filter (property)"
+
+  fun gen(): Generator[Array[USize]] =>
+    Generators.array_of[USize](Generators.usize(0, 99))
+
+  fun ref property(input: Array[USize], h: PropertyHelper) =>
+    let expected = Array[USize]
+    for v in input.values() do
+      if (v % 3) == 0 then expected.push(v) end
+    end
+    let actual =
+      Iter[USize](input.values())
+        .filter({(x: USize): Bool => (x % 3) == 0 })
+        .collect(Array[USize])
+    h.assert_array_eq[USize](expected, actual)
+
+class \nodoc\ iso _IterFilterMapProperty is Property1[Array[USize]]
+  fun name(): String => "itertools/Iter.filter_map (property)"
+
+  fun gen(): Generator[Array[USize]] =>
+    Generators.array_of[USize](Generators.usize(0, 99))
+
+  fun ref property(input: Array[USize], h: PropertyHelper) =>
+    let expected = Array[USize]
+    for v in input.values() do
+      if (v % 2) == 0 then expected.push(v * 2) end
+    end
+    let actual =
+      Iter[USize](input.values())
+        .filter_map[USize]({(x: USize): (USize | None) =>
+          if (x % 2) == 0 then x * 2 end
+        })
+        .collect(Array[USize])
+    h.assert_array_eq[USize](expected, actual)
+
+class \nodoc\ iso _IterFlatMapProperty is Property1[Array[USize]]
+  fun name(): String => "itertools/Iter.flat_map (property)"
+
+  fun gen(): Generator[Array[USize]] =>
+    Generators.array_of[USize](Generators.usize(0, 4))
+
+  fun ref property(input: Array[USize], h: PropertyHelper) =>
+    let expected = Array[USize]
+    for v in input.values() do
+      for i in Range(0, v) do expected.push(i) end
+    end
+    let actual =
+      Iter[USize](input.values())
+        .flat_map[USize]({(x: USize): Iterator[USize] => Range(0, x) })
+        .collect(Array[USize])
+    h.assert_array_eq[USize](expected, actual)
+
+class \nodoc\ iso _IterUniqueProperty is Property1[Array[USize]]
+  fun name(): String => "itertools/Iter.unique (property)"
+
+  fun gen(): Generator[Array[USize]] =>
+    Generators.array_of[USize](Generators.usize(0, 20))
+
+  fun ref property(input: Array[USize], h: PropertyHelper) =>
+    let expected = Array[USize]
+    let seen = HashSet[USize, HashIs[USize]]
+    for v in input.values() do
+      if not seen.contains(v) then
+        expected.push(v)
+        seen.set(v)
+      end
+    end
+    let actual =
+      Iter[USize](input.values()).unique().collect(Array[USize])
+    h.assert_array_eq[USize](expected, actual)
+
+class \nodoc\ iso _TestIterChainDeepPath is UnitTest
+  fun name(): String => "itertools/Iter.chain (deep path)"
+
+  fun apply(h: TestHelper) =>
+    let n: USize = 1_000_000
+    let outers = Array[Iterator[USize]](n + 1)
+    for _ in Range(0, n) do
+      outers.push(Array[USize].create().values())
+    end
+    outers.push([as USize: 42].values())
+    let result =
+      Iter[USize].chain(outers.values()).collect(Array[USize])
+    h.assert_eq[USize](1, result.size())
+    h.assert_eq[USize](42, try result(0)? else 0 end)
+
+class \nodoc\ iso _TestIterDedupDeepPath is UnitTest
+  fun name(): String => "itertools/Iter.dedup (deep path)"
+
+  fun apply(h: TestHelper) =>
+    let n: USize = 1_000_000
+    let input = Array[USize](n + 1)
+    for _ in Range(0, n) do input.push(0) end
+    input.push(1)
+    let result =
+      Iter[USize](input.values()).dedup().collect(Array[USize])
+    h.assert_array_eq[USize]([as USize: 0; 1], result)
+
+class \nodoc\ iso _TestIterFilterDeepPath is UnitTest
+  fun name(): String => "itertools/Iter.filter (deep path)"
+
+  fun apply(h: TestHelper) =>
+    let n: USize = 1_000_000
+    let result =
+      Iter[USize](Range(0, n + 1))
+        .filter({(x: USize): Bool => x == n })
+        .collect(Array[USize])
+    h.assert_eq[USize](1, result.size())
+    h.assert_eq[USize](n, try result(0)? else 0 end)
+
+class \nodoc\ iso _TestIterFilterMapDeepPath is UnitTest
+  fun name(): String => "itertools/Iter.filter_map (deep path)"
+
+  fun apply(h: TestHelper) =>
+    let n: USize = 1_000_000
+    let result =
+      Iter[USize](Range(0, n + 1))
+        .filter_map[USize]({(x: USize): (USize | None) =>
+          if x == n then x end
+        })
+        .collect(Array[USize])
+    h.assert_eq[USize](1, result.size())
+    h.assert_eq[USize](n, try result(0)? else 0 end)
+
+class \nodoc\ iso _TestIterFlatMapDeepPath is UnitTest
+  fun name(): String => "itertools/Iter.flat_map (deep path)"
+
+  fun apply(h: TestHelper) =>
+    let n: USize = 1_000_000
+    let result =
+      Iter[USize](Range(0, n + 1))
+        .flat_map[USize]({(x: USize): Iterator[USize] =>
+          if x == n then Range[USize](0, 3)
+          else Range[USize](0, 0)
+          end
+        })
+        .collect(Array[USize])
+    h.assert_array_eq[USize]([as USize: 0; 1; 2], result)
+
+class \nodoc\ iso _TestIterUniqueDeepPath is UnitTest
+  fun name(): String => "itertools/Iter.unique (deep path)"
+
+  fun apply(h: TestHelper) =>
+    let n: USize = 1_000_000
+    let input = Array[USize](n + 1)
+    for _ in Range(0, n) do input.push(0) end
+    input.push(1)
+    let result =
+      Iter[USize](input.values()).unique().collect(Array[USize])
+    h.assert_array_eq[USize]([as USize: 0; 1], result)
+
+class \nodoc\ iso _TestIterRunDeepPath is UnitTest
+  fun name(): String => "itertools/Iter.run (deep path)"
+
+  fun apply(h: TestHelper) =>
+    let n: USize = 1_000_000
+    let iter = Iter[USize](Range(0, n))
+    iter.run()
+    h.assert_false(iter.has_next())
+
+class \nodoc\ iso _TestIterDedupEdgeCases is UnitTest
+  fun name(): String => "itertools/Iter.dedup (edge cases)"
+
+  fun apply(h: TestHelper) =>
+    var result = Iter[USize](Array[USize].create().values())
+      .dedup().collect(Array[USize])
+    h.assert_eq[USize](0, result.size())
+
+    result = Iter[USize]([as USize: 1].values())
+      .dedup().collect(Array[USize])
+    h.assert_array_eq[USize]([as USize: 1], result)
+
+    result = Iter[USize]([as USize: 1; 1; 1; 1; 1].values())
+      .dedup().collect(Array[USize])
+    h.assert_array_eq[USize]([as USize: 1], result)
+
+    result = Iter[USize]([as USize: 1; 2; 3; 4; 5].values())
+      .dedup().collect(Array[USize])
+    h.assert_array_eq[USize]([as USize: 1; 2; 3; 4; 5], result)
+
+    result = Iter[USize]([as USize: 1; 2; 1; 2; 1].values())
+      .dedup().collect(Array[USize])
+    h.assert_array_eq[USize]([as USize: 1; 2; 1; 2; 1], result)
+
+class \nodoc\ iso _TestIterFilterEdgeCases is UnitTest
+  fun name(): String => "itertools/Iter.filter (edge cases)"
+
+  fun apply(h: TestHelper) =>
+    var result = Iter[USize](Array[USize].create().values())
+      .filter({(x: USize): Bool => true })
+      .collect(Array[USize])
+    h.assert_eq[USize](0, result.size())
+
+    result = Iter[USize]([as USize: 1].values())
+      .filter({(x: USize): Bool => true })
+      .collect(Array[USize])
+    h.assert_array_eq[USize]([as USize: 1], result)
+
+    result = Iter[USize]([as USize: 1].values())
+      .filter({(x: USize): Bool => false })
+      .collect(Array[USize])
+    h.assert_eq[USize](0, result.size())
+
+    result = Iter[USize]([as USize: 1; 2; 3; 4; 5].values())
+      .filter({(x: USize): Bool => true })
+      .collect(Array[USize])
+    h.assert_array_eq[USize]([as USize: 1; 2; 3; 4; 5], result)
+
+    result = Iter[USize]([as USize: 1; 2; 3; 4; 5].values())
+      .filter({(x: USize): Bool => false })
+      .collect(Array[USize])
+    h.assert_eq[USize](0, result.size())
+
+class \nodoc\ iso _TestIterFilterMapEdgeCases is UnitTest
+  fun name(): String => "itertools/Iter.filter_map (edge cases)"
+
+  fun apply(h: TestHelper) =>
+    var result = Iter[USize](Array[USize].create().values())
+      .filter_map[USize]({(x: USize): (USize | None) => x })
+      .collect(Array[USize])
+    h.assert_eq[USize](0, result.size())
+
+    result = Iter[USize]([as USize: 1; 2; 3].values())
+      .filter_map[USize]({(x: USize): (USize | None) => x * 2 })
+      .collect(Array[USize])
+    h.assert_array_eq[USize]([as USize: 2; 4; 6], result)
+
+    result = Iter[USize]([as USize: 1; 2; 3].values())
+      .filter_map[USize]({(x: USize): (USize | None) => None })
+      .collect(Array[USize])
+    h.assert_eq[USize](0, result.size())
+
+    result = Iter[USize]([as USize: 0; 1; 2; 3; 4].values())
+      .filter_map[USize]({(x: USize): (USize | None) =>
+        if (x % 2) == 0 then x end
+      })
+      .collect(Array[USize])
+    h.assert_array_eq[USize]([as USize: 0; 2; 4], result)
+
+class \nodoc\ iso _TestIterUniqueEdgeCases is UnitTest
+  fun name(): String => "itertools/Iter.unique (edge cases)"
+
+  fun apply(h: TestHelper) =>
+    var result = Iter[USize](Array[USize].create().values())
+      .unique().collect(Array[USize])
+    h.assert_eq[USize](0, result.size())
+
+    result = Iter[USize]([as USize: 1].values())
+      .unique().collect(Array[USize])
+    h.assert_array_eq[USize]([as USize: 1], result)
+
+    result = Iter[USize]([as USize: 1; 1; 1; 1; 1].values())
+      .unique().collect(Array[USize])
+    h.assert_array_eq[USize]([as USize: 1], result)
+
+    result = Iter[USize]([as USize: 1; 2; 3; 4; 5].values())
+      .unique().collect(Array[USize])
+    h.assert_array_eq[USize]([as USize: 1; 2; 3; 4; 5], result)
+
+    result = Iter[USize]([as USize: 1; 2; 3; 1; 2; 3].values())
+      .unique().collect(Array[USize])
+    h.assert_array_eq[USize]([as USize: 1; 2; 3], result)
