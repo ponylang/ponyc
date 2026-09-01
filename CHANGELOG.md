@@ -41,6 +41,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Fix lambda capture types for fields accessed through non-ref receivers ([PR #5942](https://github.com/ponylang/ponyc/pull/5942))
 - Fix iftype branches not satisfying type parameter return types ([PR #5944](https://github.com/ponylang/ponyc/pull/5944))
 - Fix misleading error for bare lambda captures in tag methods ([PR #5948](https://github.com/ponylang/ponyc/pull/5948))
+- Fix compiler crash when instantiating a generic with a union type argument that calls a constructor ([PR #5949](https://github.com/ponylang/ponyc/pull/5949))
 
 ### Added
 
