@@ -39,6 +39,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Fix overly conservative viewpoint adaptation bounds for ephemeral generic capabilities ([PR #5939](https://github.com/ponylang/ponyc/pull/5939))
 - Fix soundness bug with aliased type parameter constraints ([PR #5941](https://github.com/ponylang/ponyc/pull/5941))
 - Fix lambda capture types for fields accessed through non-ref receivers ([PR #5942](https://github.com/ponylang/ponyc/pull/5942))
+- Fix iftype branches not satisfying type parameter return types ([PR #5944](https://github.com/ponylang/ponyc/pull/5944))
 
 ### Added
 
