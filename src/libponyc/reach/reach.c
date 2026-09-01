@@ -297,7 +297,22 @@ static reach_method_name_t* add_method_name(reach_type_t* t, const char* name,
       n->cap = TK_BOX;
       n->internal = true;
     } else {
-      deferred_reification_t* fun = lookup(opt, NULL, t->ast, name);
+      deferred_reification_t* fun = lookup_try(opt, NULL, t->ast, name,
+        true);
+
+      if(fun == NULL)
+      {
+        ast_error(opt->check.errors, t->ast,
+          "can't find a compatible '%s' method on type '%s'",
+          name, ast_print_type(t->ast, opt->strtab));
+
+        reach_method_names_remove(&t->methods, n);
+        reach_methods_destroy(&n->r_methods);
+        reach_mangled_destroy(&n->r_mangled);
+        POOL_FREE(reach_method_name_t, n);
+        return NULL;
+      }
+
       ast_t* fun_ast = fun->ast;
       n->id = ast_id(fun_ast);
       n->cap = ast_id(ast_child(fun_ast));
@@ -539,6 +554,10 @@ static void add_rmethod_to_subtype(reach_t* r, reach_type_t* t,
 {
   // Add the method to the type if it isn't already there.
   reach_method_name_t* n2 = add_method_name(t, n->name, false, opt);
+
+  if(n2 == NULL)
+    return;
+
   add_rmethod(r, t, n2, m->cap, m->typeargs, opt, false);
 
   // Add this mangling to the type if it isn't already there.
@@ -1745,6 +1764,10 @@ static void reachable_method(reach_t* r, deferred_reification_t* reify,
   }
 
   reach_method_name_t* n = add_method_name(t, name, false, opt);
+
+  if(n == NULL)
+    return;
+
   reach_method_t* m = add_rmethod(r, t, n, n->cap, typeargs, opt, false);
 
   if((n->id == TK_FUN) && ((n->cap == TK_BOX) || (n->cap == TK_TAG)))
