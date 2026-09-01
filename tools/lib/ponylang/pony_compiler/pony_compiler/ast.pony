@@ -11,6 +11,7 @@ use @ast_id[TokenId](ast: Pointer[_AST] box)
 use @ast_source[NullablePointer[_Source]](ast: Pointer[_AST] box)
 use @ast_line[USize](ast: Pointer[_AST] box)
 use @ast_pos[USize](ast: Pointer[_AST] box)
+use @ast_len[USize](ast: Pointer[_AST] box)
 use @ast_has_scope[Bool](ast: Pointer[_AST] box)
 use @ast_get_symtab[Pointer[_Symtab]](ast: Pointer[_AST] box)
 
@@ -82,6 +83,13 @@ class val AST is (Stringable & Hashable & Equatable[AST box])
 
   fun box pos(): USize =>
     @ast_pos(raw)
+
+  fun box token_len(): USize =>
+    """
+    Source-text byte length of this node's token, as recorded by the
+    lexer. Zero for parser-created nodes that have no source text.
+    """
+    @ast_len(raw)
 
   fun box position(): Position =>
     Position(line(), pos())
@@ -569,8 +577,8 @@ class val AST is (Stringable & Hashable & Equatable[AST box])
     """
     Return the position of the last character of the given AST node.
 
-    For some nodes we know the actual size, so we can provide its
-    exact end position.
+    When the token carries a source-text length from the lexer, use it
+    directly. Otherwise fall back to per-token-kind width tables.
     """
     let l = line()
     let col = pos()
@@ -798,6 +806,84 @@ class val AST is (Stringable & Hashable & Equatable[AST box])
       end
     visit(visitor)
     (visitor.min(), visitor.max())
+
+  fun box source_span(): (Position, Position) =>
+    """
+    Like `span()` but walks all children including TK_NONE, so closing
+    delimiters whose positions are carried by placeholder children are
+    included. Uses token length for accurate end positions.
+
+    Uses a stack-based walk instead of the visitor pattern to avoid
+    the TK_NONE filtering in `visit()`.
+    """
+    var min_pos = Position.max()
+    var max_pos = Position.min()
+    let stack = Array[AST box]
+    stack.push(this)
+    while stack.size() > 0 do
+      try
+        let node = stack.pop()?
+        let cur_pos = node.position()
+        let tlen = node.token_len()
+        let cur_end =
+          if tlen > 0 then
+            _token_end_position(node, tlen)
+          else
+            cur_pos
+          end
+        if cur_end > max_pos then
+          max_pos = cur_end
+        end
+        if cur_pos < min_pos then
+          min_pos = cur_pos
+        end
+        for child' in node.children() do
+          stack.push(child')
+        end
+      end
+    end
+    (min_pos, max_pos)
+
+  fun box _token_end_position(node: AST box, tlen: USize): Position =>
+    """
+    Compute the end position of a token that spans `tlen` bytes.
+    Scans the source text to handle multi-line tokens correctly.
+    Falls back to single-line arithmetic when source is unavailable.
+    """
+    try
+      let src = (node.source_contents() as String box)
+      let start_line = node.line()
+      let start_col = node.pos()
+
+      // Find byte offset of token start
+      var offset: USize = 0
+      if start_line > 1 then
+        var lines_left = start_line - 1
+        while (offset < src.size()) and (lines_left > 0) do
+          if src(offset)? == '\n' then
+            lines_left = lines_left - 1
+          end
+          offset = offset + 1
+        end
+      end
+      offset = offset + (start_col - 1)
+
+      // Scan tlen bytes to find end line/col
+      let end_byte = (offset + tlen) - 1
+      var cur_line = start_line
+      var line_start = offset - (start_col - 1)
+      var i = offset
+      while i <= end_byte do
+        if (i < src.size()) and (src(i)? == '\n') then
+          cur_line = cur_line + 1
+          line_start = i + 1
+        end
+        i = i + 1
+      end
+      Position(cur_line, (end_byte - line_start) + 1)
+    else
+      Position(node.line(), (node.pos() + tlen) - 1)
+    end
 
   fun box definitions(): Array[AST] =>
     """

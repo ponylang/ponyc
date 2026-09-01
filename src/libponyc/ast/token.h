@@ -351,6 +351,11 @@ size_t token_line_number(token_t* token);
 /// Report the position within the line that the given token was found at
 size_t token_line_position(token_t* token);
 
+/// Report the source-text length of the given token in bytes.
+/// Zero for tokens whose length was not recorded (e.g. abstract/compound
+/// tokens created by the parser).
+size_t token_length(token_t* token);
+
 /// Report whether a real newline character separated this token from the
 /// previously emitted one. Set by the lexer; used by the parser to detect
 /// statement separators.
@@ -387,6 +392,9 @@ void token_set_int(token_t* token, lexint_t* value);
 /// source file.
 /// Set source to NULL to keep current file.
 void token_set_pos(token_t* token, source_t* source, size_t line, size_t pos);
+
+/// Set the source-text length of the given token in bytes.
+void token_set_length(token_t* token, size_t length);
 
 /// Set whether a real newline character separated this token from the
 /// previously emitted one.

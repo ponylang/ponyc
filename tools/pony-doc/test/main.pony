@@ -32,6 +32,19 @@ actor \nodoc\ Main is TestList
     test(_TestMethodKindStrings)
     test(_TestFieldKindStrings)
 
+    // DefaultValue tests
+    test(_TestDefaultValueCallExpr)
+    test(_TestDefaultValueIntLiteral)
+    test(_TestDefaultValueStringLiteral)
+    test(_TestDefaultValueNegation)
+    test(_TestDefaultValueMultipleParams)
+    test(_TestDefaultValueBoolLiteral)
+    test(_TestDefaultValueFloatLiteral)
+    test(_TestDefaultValueNoneValue)
+    test(_TestDefaultValueRecoverBlock)
+    test(_TestDefaultValueMultiLine)
+    test(_TestDefaultValueNone)
+
     // TypeRenderer tests
     test(_TestRenderNominalNoLink)
     test(_TestRenderNominalWithLink)

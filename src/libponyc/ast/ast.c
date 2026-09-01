@@ -602,6 +602,12 @@ source_t* ast_source(ast_t* ast)
   return token_source(ast->t);
 }
 
+size_t ast_len(ast_t* ast)
+{
+  pony_assert(ast != NULL);
+  return token_length(ast->t);
+}
+
 void* ast_data(ast_t* ast)
 {
   if(ast == NULL)

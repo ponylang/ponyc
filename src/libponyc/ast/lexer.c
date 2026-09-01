@@ -36,6 +36,7 @@ struct lexer_t
   // Position of current token
   size_t token_line;
   size_t token_pos;
+  size_t token_ptr;
 
   // Buffer containing current token text
   char* buffer;
@@ -376,6 +377,7 @@ static token_t* make_token(lexer_t* lexer, token_id id)
 {
   token_t* t = token_new(id);
   token_set_pos(t, lexer->source, lexer->token_line, lexer->token_pos);
+  token_set_length(t, lexer->ptr - lexer->token_ptr);
   token_set_newline(t, lexer->token_newline);
   return t;
 }
@@ -1319,6 +1321,7 @@ token_t* lexer_next(lexer_t* lexer)
   {
     lexer->token_line = lexer->line;
     lexer->token_pos = lexer->pos;
+    lexer->token_ptr = lexer->ptr;
     lexer->buflen = 0;
 
     if(is_eof(lexer))
