@@ -648,16 +648,55 @@ bool expr_return(pass_opt_t* opt, ast_t* ast)
       }
       if(!is_subtype(body_type, type, &info, opt))
       {
-        errorframe_t frame = NULL;
-        ast_t* last = ast_childlast(body);
-        ast_error_frame(&frame, last, "returned value isn't the return type");
-        ast_error_frame(&frame, type, "function return type: %s",
-          ast_print_type(type, opt->strtab));
-        ast_error_frame(&frame, body_type, "returned value type: %s",
-          ast_print_type(body_type, opt->strtab));
-        errorframe_append(&frame, &info);
-        errorframe_report(&frame, opt->check.errors);
-        ok = false;
+        bool narrowed_ok = false;
+        ast_t* method_body = opt->check.frame->method_body;
+
+        // Apply narrowings outer-to-inner so the innermost (most specific) wins.
+        ast_t* iftype_nodes[32];
+        size_t iftype_count = 0;
+        ast_t* walk = ast_parent(ast);
+
+        while(walk != NULL && walk != method_body)
+        {
+          if(ast_id(walk) == TK_IFTYPE)
+          {
+            pony_assert(iftype_count < 32);
+            iftype_nodes[iftype_count++] = walk;
+          }
+          walk = ast_parent(walk);
+        }
+
+        if(iftype_count > 0)
+        {
+          ast_t* narrowed = ast_dup(type);
+
+          for(size_t i = iftype_count; i > 0; i--)
+          {
+            ast_t* tps = ast_childidx(iftype_nodes[i - 1], 3);
+            if(ast_id(tps) != TK_NONE)
+              typeparam_narrow(narrowed, tps);
+          }
+
+          if(is_subtype(body_type, narrowed, NULL, opt))
+            narrowed_ok = true;
+
+          ast_free_unattached(narrowed);
+        }
+
+        if(!narrowed_ok)
+        {
+          errorframe_t frame = NULL;
+          ast_t* last = ast_childlast(body);
+          ast_error_frame(&frame, last,
+            "returned value isn't the return type");
+          ast_error_frame(&frame, type, "function return type: %s",
+            ast_print_type(type, opt->strtab));
+          ast_error_frame(&frame, body_type, "returned value type: %s",
+            ast_print_type(body_type, opt->strtab));
+          errorframe_append(&frame, &info);
+          errorframe_report(&frame, opt->check.errors);
+          ok = false;
+        }
       }
 
       if (r_type != NULL) {

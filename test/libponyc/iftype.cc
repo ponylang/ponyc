@@ -739,3 +739,298 @@ TEST_F(IftypeTest, AsTupleAroundIftypeWithNarrowedCall)
 
   TEST_COMPILE(src);
 }
+
+
+TEST_F(IftypeTest, ReturnTypeParam_ClassTypes)
+{
+  // Returning concrete class values from iftype branches when the return type
+  // is a type parameter (ponylang/ponyc#2121).
+  const char* src =
+    "class val Foo\n"
+    "class val Bar\n"
+    "type FooBar is (Foo | Bar)\n"
+
+    "primitive Helper\n"
+    "  fun test[J: FooBar val](): J ? =>\n"
+    "    iftype J <: Foo val then recover Foo end\n"
+    "    elseif J <: Bar val then recover Bar end\n"
+    "    else error\n"
+    "    end\n"
+
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    try Helper.test[Foo]()? end";
+
+  TEST_COMPILE(src);
+}
+
+
+TEST_F(IftypeTest, ReturnTypeParam_Primitives)
+{
+  // Returning primitive values from iftype branches when the return type
+  // is a type parameter (ponylang/ponyc#2121).
+  const char* src =
+    "primitive Foo\n"
+    "primitive Bar\n"
+    "type FooBar is (Foo | Bar)\n"
+
+    "primitive Helper\n"
+    "  fun test[J: FooBar val](): J ? =>\n"
+    "    iftype J <: Foo val then Foo\n"
+    "    elseif J <: Bar val then Bar\n"
+    "    else error\n"
+    "    end\n"
+
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    try Helper.test[Foo]()? end";
+
+  TEST_COMPILE(src);
+}
+
+
+TEST_F(IftypeTest, ReturnTypeParam_MachineWords)
+{
+  // Returning machine-word types from iftype branches when the return type
+  // is a type parameter (ponylang/ponyc#2121).
+  const char* src =
+    "type Nums is (F64 | I64)\n"
+
+    "primitive Helper\n"
+    "  fun test[J: Nums val](): J ? =>\n"
+    "    iftype J <: F64 val then F64(0)\n"
+    "    elseif J <: I64 val then I64(0)\n"
+    "    else error\n"
+    "    end\n"
+
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    try Helper.test[F64]()? end";
+
+  TEST_COMPILE(src);
+}
+
+
+TEST_F(IftypeTest, ReturnTypeParam_ThreeVariants)
+{
+  // Three-variant iftype returning concrete values for a type parameter
+  // (ponylang/ponyc#2121).
+  const char* src =
+    "class val A\n"
+    "class val B\n"
+    "class val C\n"
+    "type ABC is (A | B | C)\n"
+
+    "primitive Helper\n"
+    "  fun test[J: ABC val](): J ? =>\n"
+    "    iftype J <: A val then recover A end\n"
+    "    elseif J <: B val then recover B end\n"
+    "    elseif J <: C val then recover C end\n"
+    "    else error\n"
+    "    end\n"
+
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    try Helper.test[A]()? end";
+
+  TEST_COMPILE(src);
+}
+
+
+TEST_F(IftypeTest, ReturnTypeParam_ThreeVariantMachineWords)
+{
+  // Three-variant iftype with machine-word types — exercises ast_settype on
+  // intermediate elseif TK_IFTYPE_SET nodes (ponylang/ponyc#2121).
+  const char* src =
+    "type Nums is (F64 | I64 | U32)\n"
+
+    "primitive Helper\n"
+    "  fun test[J: Nums val](): J ? =>\n"
+    "    iftype J <: F64 val then F64(1)\n"
+    "    elseif J <: I64 val then I64(2)\n"
+    "    elseif J <: U32 val then U32(3)\n"
+    "    else error\n"
+    "    end\n"
+
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    try Helper.test[F64]()? end";
+
+  TEST_COMPILE(src);
+}
+
+
+TEST_F(IftypeTest, ReturnTypeParam_WrongBranchTypes)
+{
+  // Each branch must return a value that matches the narrowed type parameter,
+  // not just any member of the union (ponylang/ponyc#2121).
+  const char* src =
+    "class val Foo\n"
+    "class val Bar\n"
+    "type FooBar is (Foo | Bar)\n"
+
+    "primitive Helper\n"
+    "  fun test[J: FooBar val](): J ? =>\n"
+    "    iftype J <: Foo val then recover Bar end\n"
+    "    elseif J <: Bar val then recover Foo end\n"
+    "    else error\n"
+    "    end\n"
+
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    try Helper.test[Foo]()? end";
+
+  TEST_ERROR(src, "function body isn't the result type");
+}
+
+
+TEST_F(IftypeTest, ExplicitReturn_TypeParam)
+{
+  // Explicit return of concrete values from iftype branches when the return
+  // type is a type parameter (ponylang/ponyc#2121).
+  const char* src =
+    "class val Foo\n"
+    "class val Bar\n"
+    "type FooBar is (Foo | Bar)\n"
+
+    "primitive Helper\n"
+    "  fun test[J: FooBar val](): J ? =>\n"
+    "    iftype J <: Foo val then return recover Foo end\n"
+    "    elseif J <: Bar val then return recover Bar end\n"
+    "    end\n"
+    "    error\n"
+
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    try Helper.test[Foo]()? end";
+
+  TEST_COMPILE(src);
+}
+
+
+TEST_F(IftypeTest, ExplicitReturn_MachineWords)
+{
+  // Explicit return of machine-word types from iftype branches
+  // (ponylang/ponyc#2121).
+  const char* src =
+    "type Nums is (F64 | I64)\n"
+
+    "primitive Helper\n"
+    "  fun test[J: Nums val](): J ? =>\n"
+    "    iftype J <: F64 val then return F64(0)\n"
+    "    elseif J <: I64 val then return I64(0)\n"
+    "    end\n"
+    "    error\n"
+
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    try Helper.test[F64]()? end";
+
+  TEST_COMPILE(src);
+}
+
+
+TEST_F(IftypeTest, ExplicitReturn_WrongType)
+{
+  // Explicit return of wrong type from iftype branch must still fail
+  // (ponylang/ponyc#2121).
+  const char* src =
+    "class val Foo\n"
+    "class val Bar\n"
+    "type FooBar is (Foo | Bar)\n"
+
+    "primitive Helper\n"
+    "  fun test[J: FooBar val](): J ? =>\n"
+    "    iftype J <: Foo val then return recover Bar end\n"
+    "    end\n"
+    "    error\n"
+
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    try Helper.test[Foo]()? end";
+
+  TEST_ERROR(src, "returned value isn't the return type");
+}
+
+TEST_F(IftypeTest, NestedIftype_ImplicitReturn)
+{
+  // Nested iftype where the outer then-branch body is another iftype
+  // (ponylang/ponyc#2121).
+  const char* src =
+    "trait val Base\n"
+    "trait val Sub is Base\n"
+    "class val Foo is Sub\n"
+    "class val Bar is Base\n"
+    "type FooBar is (Foo | Bar)\n"
+
+    "primitive Helper\n"
+    "  fun test[J: FooBar val](): J ? =>\n"
+    "    iftype J <: Base val then\n"
+    "      iftype J <: Sub val then\n"
+    "        iftype J <: Foo val then recover Foo end\n"
+    "        else error\n"
+    "        end\n"
+    "      else error\n"
+    "      end\n"
+    "    elseif J <: Bar val then recover Bar end\n"
+    "    else error\n"
+    "    end\n"
+
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    try Helper.test[Foo]()? end";
+
+  TEST_COMPILE(src);
+}
+
+TEST_F(IftypeTest, NestedIftype_ExplicitReturn)
+{
+  // Explicit return inside nested iftype branches (ponylang/ponyc#2121).
+  const char* src =
+    "trait val Base\n"
+    "trait val Sub is Base\n"
+    "class val Foo is Sub\n"
+    "class val Bar is Base\n"
+    "type FooBar is (Foo | Bar)\n"
+
+    "primitive Helper\n"
+    "  fun test[J: FooBar val](): J ? =>\n"
+    "    iftype J <: Base val then\n"
+    "      iftype J <: Sub val then\n"
+    "        iftype J <: Foo val then return recover Foo end\n"
+    "        end\n"
+    "      end\n"
+    "    end\n"
+    "    error\n"
+
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    try Helper.test[Foo]()? end";
+
+  TEST_COMPILE(src);
+}
+
+TEST_F(IftypeTest, NestedIftype_WrongType)
+{
+  // Wrong type inside nested iftype must still fail (ponylang/ponyc#2121).
+  const char* src =
+    "trait val Base\n"
+    "class val Foo is Base\n"
+    "class val Bar is Base\n"
+    "type FooBar is (Foo | Bar)\n"
+
+    "primitive Helper\n"
+    "  fun test[J: FooBar val](): J ? =>\n"
+    "    iftype J <: Base val then\n"
+    "      iftype J <: Foo val then recover Bar end\n"
+    "      else error\n"
+    "      end\n"
+    "    else error\n"
+    "    end\n"
+
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    try Helper.test[Foo]()? end";
+
+  TEST_ERROR(src, "function body isn't the result type");
+}
