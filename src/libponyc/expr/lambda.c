@@ -23,7 +23,7 @@
 // For a field definition, return the aliased type as seen through `this` in
 // the current method (viewpoint-adapted). For a local/parameter, return the
 // aliased type directly.
-static ast_t* capture_type(pass_opt_t* opt, ast_t* def)
+static ast_t* capture_type(pass_opt_t* opt, ast_t* capture, ast_t* def)
 {
   switch(ast_id(def))
   {
@@ -39,6 +39,24 @@ static ast_t* capture_type(pass_opt_t* opt, ast_t* def)
 
       if(adapted == NULL)
         return NULL;
+
+      if(ast_id(adapted) == TK_ARROW)
+      {
+        ast_t* upper = viewpoint_upper(adapted, opt);
+
+        if(upper == NULL)
+        {
+          ast_t* this_type = type_for_this(opt, capture, cap, TK_NONE);
+          ast_error(opt->check.errors, capture,
+            "can't read a field through %s",
+            ast_print_type(this_type, opt->strtab));
+          ast_free_unattached(this_type);
+          ast_free_unattached(adapted);
+          return NULL;
+        }
+
+        ast_free_unattached(upper);
+      }
 
       ast_t* result = alias(adapted, opt);
 
@@ -142,7 +160,7 @@ static bool make_capture_field(pass_opt_t* opt, ast_t* capture,
 
     BUILD(capture_rhs, id_node, NODE(TK_REFERENCE, ID(name)));
 
-    type = capture_type(opt, def);
+    type = capture_type(opt, capture, def);
     value = capture_rhs;
   } else if(ast_id(type) == TK_NONE) {
     // No type specified, use type of the captured expression
@@ -663,7 +681,7 @@ static bool capture_from_reference(pass_opt_t* opt, ast_t* ctx, ast_t* ast,
       return true;
   }
 
-  ast_t* type = capture_type(opt, refdef);
+  ast_t* type = capture_type(opt, ast, refdef);
 
   if(is_typecheck_error(type))
     return false;
