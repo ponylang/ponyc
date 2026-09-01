@@ -707,3 +707,7 @@ let x: F64 = 2.2250738585072014e-308
 
 Float literal conversion is now correctly rounded per IEEE 754. A float literal and its string-parsed equivalent (via `String.f64()`) now produce the same bits.
 
+## Fix lambda type inference failure with generic #share constraints
+
+A generic class with a `#share`-constrained type parameter that passed a lambda with inferred parameter types to a generic method like `Iter.map` would fail to compile with "the type parameter has no lower bounds." Explicitly annotating the lambda's parameter types worked around the issue. Inferred parameter types now compile correctly.
+
