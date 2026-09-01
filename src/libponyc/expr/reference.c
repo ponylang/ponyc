@@ -1036,6 +1036,70 @@ bool expr_nominal(pass_opt_t* opt, ast_t** astp)
   return check_constraints(typeargs, typeparams, typeargs, true, opt);
 }
 
+static bool check_iftype_return(pass_opt_t* opt, ast_t* iftype_set,
+  ast_t* return_type)
+{
+  pony_assert(ast_id(iftype_set) == TK_IFTYPE_SET);
+  AST_GET_CHILDREN(iftype_set, left_control, right);
+  AST_GET_CHILDREN(left_control, sub, super, left);
+
+  if(!ast_checkflag(left, AST_FLAG_JUMPS_AWAY))
+  {
+    ast_t* left_type = ast_type(left);
+    if(is_typecheck_error(left_type))
+      return false;
+
+    ast_t* typeparam_store = ast_childidx(left_control, 3);
+    if(ast_id(typeparam_store) == TK_NONE)
+      return false;
+
+    ast_t* narrowed = ast_dup(return_type);
+    if(!typeparam_narrow(narrowed, typeparam_store))
+    {
+      ast_free_unattached(narrowed);
+      return false;
+    }
+
+    bool ok = is_subtype(left_type, narrowed, NULL, opt);
+
+    if(!ok)
+    {
+      ast_t* left_last = ast_childlast(left);
+      if(ast_id(left_last) == TK_IFTYPE_SET)
+      {
+        ok = check_iftype_return(opt, left_last, narrowed);
+        if(ok)
+        {
+          ast_settype(left_last, ast_dup(narrowed));
+          ast_settype(left, ast_dup(narrowed));
+        }
+      }
+    }
+
+    ast_free_unattached(narrowed);
+    if(!ok)
+      return false;
+  }
+
+  if(!ast_checkflag(right, AST_FLAG_JUMPS_AWAY))
+  {
+    if(ast_id(right) == TK_IFTYPE_SET)
+    {
+      bool rok = check_iftype_return(opt, right, return_type);
+      if(rok)
+        ast_settype(right, ast_dup(return_type));
+      return rok;
+    }
+
+    ast_t* right_type = ast_type(right);
+    if(is_typecheck_error(right_type))
+      return false;
+    return is_subtype(right_type, return_type, NULL, opt);
+  }
+
+  return true;
+}
+
 static bool check_return_type(pass_opt_t* opt, ast_t* ast)
 {
   AST_GET_CHILDREN(ast, cap, id, typeparams, params, type, can_error, body);
@@ -1058,16 +1122,34 @@ static bool check_return_type(pass_opt_t* opt, ast_t* ast)
   errorframe_t info = NULL;
   if(!is_subtype(body_type, type, &info, opt))
   {
-    errorframe_t frame = NULL;
     ast_t* last = ast_childlast(body);
-    ast_error_frame(&frame, last, "function body isn't the result type");
-    ast_error_frame(&frame, type, "function return type: %s",
-      ast_print_type(type, opt->strtab));
-    ast_error_frame(&frame, body_type, "function body type: %s",
-      ast_print_type(body_type, opt->strtab));
-    errorframe_append(&frame, &info);
-    errorframe_report(&frame, opt->check.errors);
-    ok = false;
+
+    if(ast_id(last) == TK_IFTYPE_SET)
+    {
+      ok = check_iftype_return(opt, last, type);
+      if(ok)
+      {
+        // Override the union type that expr_iftype computed from the branch
+        // types. Codegen reifies ast_type to decide boxing/unboxing; leaving
+        // the concrete union causes gen_assign_cast to miscast machine words.
+        ast_settype(last, ast_dup(type));
+        ast_settype(body, ast_dup(type));
+      }
+    }
+    else
+      ok = false;
+
+    if(!ok)
+    {
+      errorframe_t frame = NULL;
+      ast_error_frame(&frame, last, "function body isn't the result type");
+      ast_error_frame(&frame, type, "function return type: %s",
+        ast_print_type(type, opt->strtab));
+      ast_error_frame(&frame, body_type, "function body type: %s",
+        ast_print_type(body_type, opt->strtab));
+      errorframe_append(&frame, &info);
+      errorframe_report(&frame, opt->check.errors);
+    }
   }
   return ok;
 }

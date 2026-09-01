@@ -42,6 +42,13 @@ ast_t* typeparam_lower(ast_t* typeparamref);
 void typeparam_set_cap(ast_t* typeparamref);
 
 /**
+ * Substitute TK_TYPEPARAMREF nodes in a type AST with references to narrowed
+ * type parameters from an iftype's typeparam_store. Modifies `type` in place.
+ * Returns true when at least one substitution was made.
+ */
+bool typeparam_narrow(ast_t* type, ast_t* typeparam_store);
+
+/**
  * The constraint of the typeparam in the current scope.
  */
 ast_t* typeparam_current(pass_opt_t* opt, ast_t* typeparamref, ast_t* scope);

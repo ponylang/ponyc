@@ -795,6 +795,37 @@ void typeparam_set_cap(ast_t* typeparamref)
   ast_setid(cap, tcap);
 }
 
+bool typeparam_narrow(ast_t* type, ast_t* typeparam_store)
+{
+  if(ast_id(type) == TK_TYPEPARAMREF)
+  {
+    ast_t* def = (ast_t*)ast_data(type);
+    ast_t* root = typeparam_root(def);
+
+    ast_t* tp = ast_child(typeparam_store);
+    while(tp != NULL)
+    {
+      if(typeparam_root(tp) == root)
+      {
+        ast_setdata(type, tp);
+        return true;
+      }
+      tp = ast_sibling(tp);
+    }
+    return false;
+  }
+
+  bool changed = false;
+  ast_t* child = ast_child(type);
+  while(child != NULL)
+  {
+    if(typeparam_narrow(child, typeparam_store))
+      changed = true;
+    child = ast_sibling(child);
+  }
+  return changed;
+}
+
 static void typeparamref_current(ast_t* typeparamref, ast_t* scope)
 {
   pony_assert(ast_id(typeparamref) == TK_TYPEPARAMREF);
