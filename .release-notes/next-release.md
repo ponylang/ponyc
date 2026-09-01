@@ -711,3 +711,9 @@ Float literal conversion is now correctly rounded per IEEE 754. A float literal 
 
 A generic class with a `#share`-constrained type parameter that passed a lambda with inferred parameter types to a generic method like `Iter.map` would fail to compile with "the type parameter has no lower bounds." Explicitly annotating the lambda's parameter types worked around the issue. Inferred parameter types now compile correctly.
 
+## Fix overly conservative viewpoint adaptation bounds for ephemeral generic capabilities
+
+When reading a field with a generic capability constraint (`#read`, `#alias`, or `#any`) through an ephemeral origin (`iso^` or `trn^`), the compiler produced overly conservative type bounds. This could reject valid programs or assign less capable types than the soundness criterion permits.
+
+The compiler now returns the tightest bound the formal criterion validates. For example, reading a `#read` field through an `iso^` origin produces a `val` upper bound instead of `tag`.
+
