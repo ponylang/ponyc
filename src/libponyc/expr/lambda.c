@@ -15,8 +15,43 @@
 #include "../type/sanitise.h"
 #include "../type/subtype.h"
 #include "../type/typealias.h"
+#include "../type/viewpoint.h"
 #include "../pkg/package.h"
 #include "ponyassert.h"
+
+
+// For a field definition, return the aliased type as seen through `this` in
+// the current method (viewpoint-adapted). For a local/parameter, return the
+// aliased type directly.
+static ast_t* capture_type(pass_opt_t* opt, ast_t* def)
+{
+  switch(ast_id(def))
+  {
+    case TK_FVAR:
+    case TK_FLET:
+    case TK_EMBED:
+    {
+      token_id cap = cap_for_this(&opt->check);
+      ast_t* f_type = ast_type(def);
+      BUILD(cap_ast, f_type, NODE(cap));
+      ast_t* adapted = viewpoint_type(cap_ast, f_type, opt);
+      ast_free_unattached(cap_ast);
+
+      if(adapted == NULL)
+        return NULL;
+
+      ast_t* result = alias(adapted, opt);
+
+      if(result != adapted)
+        ast_free_unattached(adapted);
+
+      return result;
+    }
+
+    default:
+      return alias(ast_type(def), opt);
+  }
+}
 
 
 // Process the given capture and create the AST for the corresponding field.
@@ -107,7 +142,7 @@ static bool make_capture_field(pass_opt_t* opt, ast_t* capture,
 
     BUILD(capture_rhs, id_node, NODE(TK_REFERENCE, ID(name)));
 
-    type = alias(ast_type(def), opt);
+    type = capture_type(opt, def);
     value = capture_rhs;
   } else if(ast_id(type) == TK_NONE) {
     // No type specified, use type of the captured expression
@@ -628,7 +663,7 @@ static bool capture_from_reference(pass_opt_t* opt, ast_t* ctx, ast_t* ast,
       return true;
   }
 
-  ast_t* type = alias(ast_type(refdef), opt);
+  ast_t* type = capture_type(opt, refdef);
 
   if(is_typecheck_error(type))
     return false;
