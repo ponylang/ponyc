@@ -31,15 +31,45 @@ static bool safe_field_move(token_id cap, ast_t* type, direction direction,
     case TK_ARROW:
     {
       // Safe to write if the lower bounds is safe to write.
-      ast_t* upper = viewpoint_lower(type, opt);
+      ast_t* lower = viewpoint_lower(type, opt);
 
-      if(upper == NULL)
+      if(lower == NULL)
         return false;
 
-      bool ok = safe_field_move(cap, upper, direction, opt);
+      // An ephemeral lower bound marks a generic-cap approximation
+      // (e.g. lower(trn, #read) = trn^).  Some concrete members of the
+      // generic cap are less permissive than the bound — box is in #read
+      // but cap_safetomove(trn, box, WRITE) = false — and cap_safetomove
+      // is not monotonic under cap subtyping, so the bound passing does
+      // not imply all members pass.  Reject conservatively.
+      if(ast_id(lower) == TK_NOMINAL || ast_id(lower) == TK_TYPEPARAMREF)
+      {
+        ast_t* eph = ast_sibling(cap_fetch(lower));
 
-      if(upper != type)
-        ast_free_unattached(upper);
+        if(ast_id(eph) == TK_EPHEMERAL)
+        {
+          token_id lcap = ast_id(cap_fetch(lower));
+
+          // Only reject when cap_aliasing preserves the ephemeral —
+          // iso, trn, #send, #any.  For other caps (#read, #alias,
+          // #share, ref, val, box, tag), cap_aliasing strips the
+          // ephemeral, so the AST ephemeral is inert and the bound
+          // is concrete.
+          if(lcap == TK_ISO || lcap == TK_TRN ||
+            lcap == TK_CAP_SEND || lcap == TK_CAP_ANY)
+          {
+            if(lower != type)
+              ast_free_unattached(lower);
+
+            return false;
+          }
+        }
+      }
+
+      bool ok = safe_field_move(cap, lower, direction, opt);
+
+      if(lower != type)
+        ast_free_unattached(lower);
 
       return ok;
     }

@@ -195,6 +195,77 @@ TEST_F(CapSafetyTest, NoWriteArrow)
   TEST_ERROR(src);
 }
 
+// Auto-recovery of a trn receiver with a generic-cap arrow argument must be
+// rejected when the generic cap includes members unsafe for trn.  The subtype
+// check catches these cases before safe_field_move runs; these tests verify
+// the compiler rejects the programs regardless of which check fires first.
+//
+// #read: lower(trn, #read) = trn^, but #read includes box and
+// cap_safetomove(trn, box, WRITE) = false.
+TEST_F(CapSafetyTest, NoAutorecoverTrnWithGenericReadArrowArg)
+{
+  const char* src =
+    "class Holder[A: Any #read]\n"
+    "  var data: A\n"
+    "  new create(d: A) => data = d\n"
+    "  fun ref replace(v: A) => data = v\n"
+    "\n"
+    "primitive Helper\n"
+    "  fun apply[B: Any #read](h: Holder[B] trn, other: Holder[B] trn) =>\n"
+    "    h.replace(other.data)\n";
+
+  TEST_ERROR(src);
+}
+
+// #alias: lower(trn, #alias) = trn^, but #alias includes ref and box.
+TEST_F(CapSafetyTest, NoAutorecoverTrnWithGenericAliasArrowArg)
+{
+  const char* src =
+    "class Holder[A: Any #alias]\n"
+    "  var data: A\n"
+    "  new create(d: A) => data = d\n"
+    "  fun ref replace(v: A) => data = v\n"
+    "\n"
+    "primitive Helper\n"
+    "  fun apply[B: Any #alias](h: Holder[B] trn, other: Holder[B] trn) =>\n"
+    "    h.replace(other.data)\n";
+
+  TEST_ERROR(src);
+}
+
+// #any (default): lower(trn, #any) = iso^, but #any includes ref and box.
+TEST_F(CapSafetyTest, NoAutorecoverTrnWithGenericAnyArrowArg)
+{
+  const char* src =
+    "class Holder[A]\n"
+    "  var data: A\n"
+    "  new create(d: A) => data = d\n"
+    "  fun ref replace(v: A) => data = v\n"
+    "\n"
+    "primitive Helper\n"
+    "  fun apply[B](h: Holder[B] trn, other: Holder[B] trn) =>\n"
+    "    h.replace(other.data)\n";
+
+  TEST_ERROR(src);
+}
+
+// #share: all members (val, tag) are safe to move into a trn, so this
+// should compile.
+TEST_F(CapSafetyTest, AutorecoverTrnWithGenericShareArrowArg)
+{
+  const char* src =
+    "class Holder[A: Any #share]\n"
+    "  var data: A\n"
+    "  new create(d: A) => data = d\n"
+    "  fun ref replace(v: A) => data = v\n"
+    "\n"
+    "primitive Helper\n"
+    "  fun apply[B: Any #share](h: Holder[B] trn, other: Holder[B] trn) =>\n"
+    "    h.replace(other.data)\n";
+
+  TEST_COMPILE(src);
+}
+
 // When a 'this->' viewpoint parameter can't accept the argument because the
 // receiver's capability reduces it to a generic cap (here #read), the error is
 // accompanied by two explanatory frames: one describing the 'this->' viewpoint
