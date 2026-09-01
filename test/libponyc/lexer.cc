@@ -1108,6 +1108,66 @@ TEST_F(LexerTest, FloatIllegalExp)
 }
 
 
+TEST_F(LexerTest, FloatSmallestNormal)
+{
+  const char* src = "2.2250738585072014e-308";
+
+  expect(1, 1, TK_FLOAT, "2.22507e-308");
+  expect(1, 24, TK_EOF, "EOF");
+  DO(test(src));
+}
+
+
+TEST_F(LexerTest, FloatWithUnderscores)
+{
+  const char* src = "1_000.5e1";
+
+  expect(1, 1, TK_FLOAT, "10005.0");
+  expect(1, 10, TK_EOF, "EOF");
+  DO(test(src));
+}
+
+
+TEST_F(LexerTest, FloatWithUnderscoreInFraction)
+{
+  const char* src = "1.000_5e1";
+
+  expect(1, 1, TK_FLOAT, "10.005");
+  expect(1, 10, TK_EOF, "EOF");
+  DO(test(src));
+}
+
+
+TEST_F(LexerTest, FloatWithUnderscoreInExponent)
+{
+  const char* src = "1.5e1_0";
+
+  expect(1, 1, TK_FLOAT, "1.5e+10");
+  expect(1, 8, TK_EOF, "EOF");
+  DO(test(src));
+}
+
+
+TEST_F(LexerTest, FloatLargestFinite)
+{
+  const char* src = "1.7976931348623157e+308";
+
+  expect(1, 1, TK_FLOAT, "1.79769e+308");
+  expect(1, 24, TK_EOF, "EOF");
+  DO(test(src));
+}
+
+
+TEST_F(LexerTest, FloatZeroWithHugeExponent)
+{
+  const char* src = "0e999";
+
+  expect(1, 1, TK_FLOAT, "0.0");
+  expect(1, 6, TK_EOF, "EOF");
+  DO(test(src));
+}
+
+
 // Comments
 
 TEST_F(LexerTest, LineComment)

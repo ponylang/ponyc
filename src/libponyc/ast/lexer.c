@@ -8,7 +8,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
-#include <math.h>
 
 
 struct lexer_t
@@ -1016,15 +1015,15 @@ static bool lex_integer(lexer_t* lexer, uint32_t base,
 
 // Process a real literal, the leading integral part has already been read.
 // The . or e has been seen but not consumed.
-static token_t* real(lexer_t* lexer, lexint_t* integral_value)
+// number_start is the lexer->ptr position where the number literal began.
+static token_t* real(lexer_t* lexer, lexint_t* integral_value,
+  size_t number_start)
 {
-  lexint_t significand = *integral_value;
+  // lex_integer needs a destination even though strtod does the real
+  // conversion; we only call it to advance the lexer past each part
+  // and to get its digit-validation and underscore-checking.
+  lexint_t scratch;
 
-  lexint_t e;
-  lexint_zero(&e);
-  bool exp_neg = false;
-
-  uint32_t mantissa_digit_count = 0;
   char c = look(lexer);
   pony_assert(c == '.' || c == 'e' || c == 'E');
 
@@ -1042,8 +1041,9 @@ static token_t* real(lexer_t* lexer, lexint_t* integral_value)
 
     consume_chars(lexer, 1);  // Consume dot
 
-    // Read in rest of the significand
-    if(!lex_integer(lexer, 10, &significand, &mantissa_digit_count, true,
+    lexint_zero(&scratch);
+
+    if(!lex_integer(lexer, 10, &scratch, NULL, true,
       "real number mantissa"))
       return make_token(lexer, TK_LEX_ERROR);
   }
@@ -1054,27 +1054,48 @@ static token_t* real(lexer_t* lexer, lexint_t* integral_value)
 
     if((look(lexer) == '+') || (look(lexer) == '-'))
     {
-      exp_neg = (look(lexer) == '-');
       consume_chars(lexer, 1);
     }
 
-    if(!lex_integer(lexer, 10, &e, NULL, false,
+    lexint_zero(&scratch);
+
+    if(!lex_integer(lexer, 10, &scratch, NULL, false,
       "real number exponent"))
       return make_token(lexer, TK_LEX_ERROR);
   }
 
   token_t* t = make_token(lexer, TK_FLOAT);
 
-  double ds = lexint_double(&significand);
-  double de = lexint_double(&e);
+  // Extract the source text of the literal, stripping underscores, and
+  // pass it to strtod for a correctly rounded conversion.
+  size_t src_len = lexer->ptr - number_start;
+  const char* src = &lexer->source->m[number_start];
 
-  // Note that we must negate the exponent (if required) before applying the
-  // mantissa digit count offset.
-  if(exp_neg)
-    de = -de;
+  // Stack buffer for the common case; heap-allocate for pathological lengths.
+  char stack_buf[256];
+  char* buf;
+  bool heap = src_len >= sizeof(stack_buf);
 
-  de -= mantissa_digit_count;
-  token_set_float(t, ds * pow(10.0, de));
+  if(heap)
+    buf = (char*)ponyint_pool_alloc_size(src_len + 1);
+  else
+    buf = stack_buf;
+
+  size_t j = 0;
+
+  for(size_t i = 0; i < src_len; i++)
+  {
+    if(src[i] != '_')
+      buf[j++] = src[i];
+  }
+
+  buf[j] = '\0';
+
+  token_set_float(t, strtod(buf, NULL));
+
+  if(heap)
+    ponyint_pool_free_size(src_len + 1, buf);
+
   return t;
 }
 
@@ -1119,6 +1140,7 @@ static token_t* number(lexer_t* lexer)
   }
 
   // Decimal
+  size_t number_start = lexer->ptr;
   lexint_t value;
   lexint_zero(&value);
 
@@ -1126,7 +1148,7 @@ static token_t* number(lexer_t* lexer)
     return make_token(lexer, TK_LEX_ERROR);
 
   if((look(lexer) == '.') || (look(lexer) == 'e') || (look(lexer) == 'E'))
-    return real(lexer, &value);
+    return real(lexer, &value, number_start);
 
   token_t* t = make_token(lexer, TK_INT);
   token_set_int(t, &value);
