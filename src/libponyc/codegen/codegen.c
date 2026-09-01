@@ -10,6 +10,7 @@
 #include "../pkg/package.h"
 #include "../reach/paint.h"
 #include "../type/assemble.h"
+#include "../ast/error.h"
 #include "../type/lookup.h"
 #include "../../libponyrt/actor/actor.h"
 #include "../../libponyrt/mem/heap.h"
@@ -902,10 +903,10 @@ bool codegen_gen_test(compile_t* c, ast_t* program, pass_opt_t* opt,
     deferred_reify_free(main_create);
   }
 
-  // reach() can't signal failure through its void return. If it aborted on an
-  // over-large generic instantiation it already reported the error and left
-  // stub types behind, so fail before painting/codegen would touch them.
-  if(reach_limit_exceeded(c->reach))
+  // Bail before painting/codegen if reachability hit a limit or emitted
+  // errors (e.g. a method lookup failed on a union type).
+  if(reach_limit_exceeded(c->reach) ||
+    errors_get_count(opt->check.errors) > 0)
     return false;
 
   if(opt->limit == PASS_REACH)

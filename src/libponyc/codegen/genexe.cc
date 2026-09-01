@@ -17,6 +17,7 @@ LLD_HAS_DRIVER(wasm)
 #include "genprim.h"
 #include "../reach/paint.h"
 #include "../reach/reach.h"
+#include "../ast/error.h"
 #include "../ast/printbuf.h"
 #include "../ast/stringtab.h"
 #include "../pkg/package.h"
@@ -2622,8 +2623,10 @@ bool genexe(compile_t* c, ast_t* program)
   // reach() can't signal failure through its void return. If it aborted on an
   // over-large generic instantiation it left stub types behind and already
   // reported the error, so fail now — before painting/codegen, which would
-  // touch those stubs.
-  if(reach_limit_exceeded(c->reach))
+  // touch those stubs. The same applies when reachability emits errors (e.g. a
+  // method lookup failed on a union type).
+  if(reach_limit_exceeded(c->reach) ||
+    errors_get_count(c->opt->check.errors) > 0)
   {
     ast_free(main_ast);
     ast_free(env_ast);
