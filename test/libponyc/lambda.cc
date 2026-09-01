@@ -657,3 +657,134 @@ TEST_F(LambdaTest, TraitDefaultBodyWithImplicitLambdaCaptureParam)
 
   TEST_COMPILE(src);
 }
+
+TEST_F(LambdaTest, LambdaCaptureFieldInBoxMethod)
+{
+  // From issue #1441 — explicit field capture in a box method should
+  // viewpoint-adapt the field type through `this`.
+  const char* src =
+    "class Bar\n"
+    "  fun val_method(): USize => 0\n"
+    "class Foo\n"
+    "  let _data: Bar\n"
+    "  new create() => _data = Bar\n"
+    "  fun box _test(): {(): USize} =>\n"
+    "    {()(_data): USize => _data.val_method()}";
+
+  TEST_COMPILE(src);
+}
+
+TEST_F(LambdaTest, LambdaCaptureFieldVarInBoxMethod)
+{
+  // From issue #1441 — var field capture in a box method.
+  const char* src =
+    "class Bar\n"
+    "  fun val_method(): USize => 0\n"
+    "class Foo\n"
+    "  var _data: Bar\n"
+    "  new create() => _data = Bar\n"
+    "  fun box _test(): {(): USize} =>\n"
+    "    {()(_data): USize => _data.val_method()}";
+
+  TEST_COMPILE(src);
+}
+
+TEST_F(LambdaTest, LambdaCaptureFieldInRefMethod)
+{
+  // Field capture in a ref method should still work (ref->ref = ref).
+  const char* src =
+    "class Bar\n"
+    "  fun val_method(): USize => 0\n"
+    "class Foo\n"
+    "  let _data: Bar\n"
+    "  new create() => _data = Bar\n"
+    "  fun ref _test(): {(): USize} =>\n"
+    "    {()(_data): USize => _data.val_method()}";
+
+  TEST_COMPILE(src);
+}
+
+TEST_F(LambdaTest, LambdaCaptureFieldEmbedInBoxMethod)
+{
+  // Embed field capture in a box method.
+  const char* src =
+    "class Bar\n"
+    "  fun val_method(): USize => 0\n"
+    "class Foo\n"
+    "  embed _data: Bar\n"
+    "  new create() => _data = Bar\n"
+    "  fun box _test(): {(): USize} =>\n"
+    "    {()(_data): USize => _data.val_method()}";
+
+  TEST_COMPILE(src);
+}
+
+TEST_F(LambdaTest, LambdaCaptureFieldInValMethod)
+{
+  // Field capture in a val method: val->ref = val.
+  const char* src =
+    "class Bar\n"
+    "  fun val_method(): USize => 0\n"
+    "class Foo\n"
+    "  let _data: Bar\n"
+    "  new create() => _data = Bar\n"
+    "  fun val _test(): {(): USize} =>\n"
+    "    {()(_data): USize => _data.val_method()}";
+
+  TEST_COMPILE(src);
+}
+
+TEST_F(LambdaTest, ObjectImplicitCaptureFieldInBoxMethod)
+{
+  // From issue #1441 — implicit field capture via object literal
+  // in a box method should viewpoint-adapt through `this`.
+  const char* src =
+    "interface Sizable\n"
+    "  fun size_of(): USize\n"
+    "class Bar\n"
+    "  fun val_method(): USize => 0\n"
+    "class Foo\n"
+    "  let _data: Bar\n"
+    "  new create() => _data = Bar\n"
+    "  fun box _test(): Sizable =>\n"
+    "    object is Sizable\n"
+    "      fun size_of(): USize => _data.val_method()\n"
+    "    end";
+
+  TEST_COMPILE(src);
+}
+
+TEST_F(LambdaTest, ObjectImplicitCaptureFieldVarInBoxMethod)
+{
+  // Implicit var field capture via object literal in a box method.
+  const char* src =
+    "interface Sizable\n"
+    "  fun size_of(): USize\n"
+    "class Bar\n"
+    "  fun val_method(): USize => 0\n"
+    "class Foo\n"
+    "  var _data: Bar\n"
+    "  new create() => _data = Bar\n"
+    "  fun box _test(): Sizable =>\n"
+    "    object is Sizable\n"
+    "      fun size_of(): USize => _data.val_method()\n"
+    "    end";
+
+  TEST_COMPILE(src);
+}
+
+TEST_F(LambdaTest, LambdaCaptureFieldInBoxMethodRejectsRefCall)
+{
+  // A field captured through box this should be box-typed, so calling
+  // a ref method on it must fail.
+  const char* src =
+    "class Bar\n"
+    "  fun ref mut_method(): USize => 0\n"
+    "class Foo\n"
+    "  let _data: Bar\n"
+    "  new create() => _data = Bar\n"
+    "  fun box _test(): {(): USize} =>\n"
+    "    {()(_data): USize => _data.mut_method()}";
+
+  TEST_ERRORS_1(src, "receiver type is not a subtype of target type");
+}
