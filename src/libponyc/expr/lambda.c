@@ -15,6 +15,7 @@
 #include "../type/sanitise.h"
 #include "../type/subtype.h"
 #include "../type/typealias.h"
+#include "../type/typeparam.h"
 #include "../type/viewpoint.h"
 #include "../pkg/package.h"
 #include "ponyassert.h"
@@ -22,7 +23,8 @@
 
 // For a field definition, return the aliased type as seen through `this` in
 // the current method (viewpoint-adapted). For a local/parameter, return the
-// aliased type directly.
+// aliased type directly. When inside an iftype body, embeds the narrowed
+// constraint as an explicit intersection so it survives sanitise_type.
 static ast_t* capture_type(pass_opt_t* opt, ast_t* capture, ast_t* def)
 {
   switch(ast_id(def))
@@ -33,6 +35,7 @@ static ast_t* capture_type(pass_opt_t* opt, ast_t* capture, ast_t* def)
     {
       token_id cap = cap_for_this(&opt->check);
       ast_t* f_type = ast_type(def);
+      f_type = typeparam_embed_narrowing(opt, f_type, capture);
       BUILD(cap_ast, f_type, NODE(cap));
       ast_t* adapted = viewpoint_type(cap_ast, f_type, opt);
       ast_free_unattached(cap_ast);
@@ -67,7 +70,11 @@ static ast_t* capture_type(pass_opt_t* opt, ast_t* capture, ast_t* def)
     }
 
     default:
-      return alias(ast_type(def), opt);
+    {
+      ast_t* type = ast_type(def);
+      type = typeparam_embed_narrowing(opt, type, capture);
+      return alias(type, opt);
+    }
   }
 }
 
@@ -884,6 +891,25 @@ bool expr_object(pass_opt_t* opt, ast_t** astp)
   ast_t* t_params;
   ast_t* t_args;
   collect_type_params(ast, &t_params, &t_args, opt);
+
+  if(opt->check.frame->iftype_body != NULL)
+  {
+    for(ast_t* tp = ast_child(t_params); tp != NULL; tp = ast_sibling(tp))
+    {
+      const char* tp_name = ast_name(ast_child(tp));
+      ast_t* current_def = ast_get(ast, tp_name, NULL);
+
+      if((current_def != NULL) && (ast_id(current_def) == TK_TYPEPARAM) &&
+        (ast_data(current_def) != NULL) &&
+        ((ast_t*)ast_data(current_def) != current_def))
+      {
+        ast_t* narrowed = sanitise_type(ast_childidx(current_def, 1), opt);
+        ast_t* old_constraint = ast_childidx(tp, 1);
+        ast_swap(old_constraint, narrowed);
+        ast_free(old_constraint);
+      }
+    }
+  }
 
   const char* nice_id = (const char*)ast_data(ast);
 
