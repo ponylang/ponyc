@@ -3,6 +3,7 @@
 #include "genexpr.h"
 #include "genfun.h"
 #include "genname.h"
+#include "gentag.h"
 #include "gentype.h"
 #include "ponyassert.h"
 
@@ -21,6 +22,9 @@ LLVMValueRef gen_box(compile_t* c, ast_t* type, LLVMValueRef value)
     return NULL;
 
   value = gen_assign_cast(c, c_t->mem_type, value, t->ast_cap);
+
+  if(gentag_is_taggable(c, t))
+    return gentag_box(c, t, value);
 
   // Allocate the object.
   LLVMValueRef this_ptr = gencall_allocstruct(c, t);
@@ -46,6 +50,12 @@ LLVMValueRef gen_unbox(compile_t* c, ast_t* type, LLVMValueRef object)
 
   if(c_t->primitive == NULL)
     return object;
+
+  if(gentag_is_taggable(c, t))
+  {
+    LLVMValueRef value = gentag_unbox(c, t, object);
+    return gen_assign_cast(c, c_t->use_type, value, t->ast_cap);
+  }
 
   // Extract the primitive type from element 1 and return it.
   LLVMValueRef value_ptr = LLVMBuildStructGEP2(c->builder, c_t->structure,

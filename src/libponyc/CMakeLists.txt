@@ -37,6 +37,7 @@ add_library(libponyc STATIC
     codegen/genoperator.c
     codegen/genprim.c
     codegen/genreference.c
+    codegen/gentag.c
     codegen/gentrace.c
     codegen/gentype.c
     codegen/gendebug.cc

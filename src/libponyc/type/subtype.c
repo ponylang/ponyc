@@ -2289,6 +2289,27 @@ bool is_machine_word(ast_t* type)
   return is_bool(type) || is_integer(type) || is_float(type);
 }
 
+static bool is_small_integer(ast_t* type)
+{
+  return
+    is_literal(type, "I8") ||
+    is_literal(type, "I16") ||
+    is_literal(type, "I32") ||
+    is_literal(type, "U8") ||
+    is_literal(type, "U16") ||
+    is_literal(type, "U32");
+}
+
+static bool is_small_float(ast_t* type)
+{
+  return is_literal(type, "F32");
+}
+
+bool is_taggable_machine_word(ast_t* type)
+{
+  return is_bool(type) || is_small_integer(type) || is_small_float(type);
+}
+
 bool is_signed(ast_t* type)
 {
   return

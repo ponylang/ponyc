@@ -4,6 +4,7 @@
 #include "genfun.h"
 #include "genname.h"
 #include "genprim.h"
+#include "gentag.h"
 #include "../type/cap.h"
 #include "../type/matchtype.h"
 #include "../type/subtype.h"
@@ -1048,6 +1049,9 @@ bool gentrace_needed(compile_t* c, ast_t* src_type, ast_t* dst_type)
 
     case TRACE_MACHINE_WORD:
     {
+      if((c->tag_desc_table != NULL) && is_taggable_machine_word(src_type))
+        return false;
+
       ast_t* check_type = dst_type;
       ast_t* unfolded = NULL;
 
@@ -1228,7 +1232,8 @@ void gentrace(compile_t* c, LLVMValueRef ctx, LLVMValueRef src_value,
           boxed = false;
       }
 
-      if(boxed)
+      if(boxed && !((c->tag_desc_table != NULL) &&
+        is_taggable_machine_word(src_type)))
         trace_known(c, ctx, dst_value, src_type, PONY_TRACE_IMMUTABLE);
 
       break;

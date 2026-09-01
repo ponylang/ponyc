@@ -5,6 +5,7 @@
 #include "genexpr.h"
 #include "genfun.h"
 #include "genopt.h"
+#include "gentag.h"
 #include "../reach/subtype.h"
 #include "../type/subtype.h"
 #include "../type/typealias.h"
@@ -452,6 +453,7 @@ static LLVMValueRef box_is_box(compile_t* c, reach_type_t* left_type,
   LLVMBasicBlockRef bothnum_block = NULL;
   LLVMBasicBlockRef tuple_block = NULL;
   LLVMBasicBlockRef bothtuple_block = NULL;
+  LLVMBasicBlockRef tagged_false_block = NULL;
 
   if((sub_kind & SUBTYPE_KIND_NUMERIC) != 0)
   {
@@ -515,6 +517,24 @@ static LLVMValueRef box_is_box(compile_t* c, reach_type_t* left_type,
 
     // Get the machine word size and memcmp without unboxing.
     LLVMPositionBuilderAtEnd(c->builder, bothnum_block);
+
+    // Tagged pointers are not dereferenceable; bail to false
+    // (eq_addr already compared the raw values).
+    if(c->tag_desc_table != NULL)
+    {
+      tagged_false_block = codegen_block(c, "is_tagged_ne");
+      LLVMBasicBlockRef real_num_block = codegen_block(c, "is_real_num");
+
+      LLVMValueRef is_tagged = gentag_is_tagged(c, l_value);
+      LLVMBuildCondBr(c->builder, is_tagged, tagged_false_block,
+        real_num_block);
+
+      LLVMPositionBuilderAtEnd(c->builder, tagged_false_block);
+      LLVMBuildBr(c->builder, post_block);
+
+      LLVMPositionBuilderAtEnd(c->builder, real_num_block);
+      bothnum_block = real_num_block;
+    }
 
     if(l_typeid == NULL)
       l_typeid = gendesc_typeid(c, l_desc);
@@ -599,6 +619,9 @@ static LLVMValueRef box_is_box(compile_t* c, reach_type_t* left_type,
 
   if(bothtuple_block != NULL)
     LLVMAddIncoming(phi, &is_tuple, &bothtuple_block, 1);
+
+  if(tagged_false_block != NULL)
+    LLVMAddIncoming(phi, &zero, &tagged_false_block, 1);
 
   if(num_block != NULL)
     LLVMAddIncoming(phi, &zero, &num_block, 1);

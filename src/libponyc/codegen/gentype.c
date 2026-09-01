@@ -8,6 +8,7 @@
 #include "genopt.h"
 #include "genprim.h"
 #include "genreference.h"
+#include "gentag.h"
 #include "gentrace.h"
 #include "../ast/id.h"
 #include "../pkg/package.h"
@@ -786,6 +787,7 @@ bool gentypes(compile_t* c)
   }
 
   c->numeric_sizes = gen_numeric_size_table(c);
+  c->tag_desc_table = gen_tag_desc_table(c);
 
   if(c->opt->verbosity >= VERBOSITY_INFO)
     fprintf(stderr, " Data types\n");

@@ -9,7 +9,7 @@ actor Main
   var map_before: Pointer[None] = Pointer[None]
 
   new create(env: Env) =>
-    trace(U32(42))
+    trace(I64(42))
     map_before = @gc_local_snapshot(this)
 
   be trace(x: Any val) =>

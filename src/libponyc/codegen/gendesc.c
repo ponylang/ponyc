@@ -4,6 +4,7 @@
 #include "genfun.h"
 #include "genname.h"
 #include "genopt.h"
+#include "gentag.h"
 #include "gentype.h"
 #include "../type/reify.h"
 #include "../ast/stringtab.h"
@@ -89,14 +90,47 @@ static LLVMValueRef make_unbox_function(compile_t* c, reach_type_t* t,
   LLVMValueRef unbox_fun = codegen_addfun(c, unbox_name, unbox_type, true);
   codegen_startfun(c, unbox_fun, NULL, NULL, NULL, false);
 
-  // Extract the primitive type from element 1 and call the real function.
+  // Extract the primitive value. If this is a taggable type, the receiver
+  // might be a tagged pointer instead of a real boxed object.
   LLVMValueRef this_ptr = LLVMGetParam(unbox_fun, 0);
-  LLVMValueRef primitive_ptr = LLVMBuildStructGEP2(c->builder, c_t->structure,
-    this_ptr, 1, "");
-  LLVMValueRef primitive = LLVMBuildLoad2(c->builder, c_t->use_type,
-    primitive_ptr, "");
+  LLVMValueRef this_as_ptr = LLVMBuildBitCast(c->builder, this_ptr, c->ptr, "");
+  LLVMValueRef primitive;
 
-  primitive = gen_assign_cast(c, c_t->use_type, primitive, t->ast_cap);
+  if(gentag_is_taggable(c, t))
+  {
+    LLVMBasicBlockRef tagged_block = codegen_block(c, "unbox_tagged");
+    LLVMBasicBlockRef boxed_block = codegen_block(c, "unbox_boxed");
+    LLVMBasicBlockRef merge_block = codegen_block(c, "unbox_merge");
+
+    LLVMValueRef is_tagged = gentag_is_tagged(c, this_as_ptr);
+    LLVMBuildCondBr(c->builder, is_tagged, tagged_block, boxed_block);
+
+    LLVMPositionBuilderAtEnd(c->builder, tagged_block);
+    LLVMValueRef tagged_val = gentag_unbox(c, t, this_as_ptr);
+    tagged_val = gen_assign_cast(c, c_t->use_type, tagged_val, t->ast_cap);
+    LLVMBuildBr(c->builder, merge_block);
+    tagged_block = LLVMGetInsertBlock(c->builder);
+
+    LLVMPositionBuilderAtEnd(c->builder, boxed_block);
+    LLVMValueRef primitive_ptr = LLVMBuildStructGEP2(c->builder,
+      c_t->structure, this_ptr, 1, "");
+    LLVMValueRef boxed_val = LLVMBuildLoad2(c->builder, c_t->mem_type,
+      primitive_ptr, "");
+    boxed_val = gen_assign_cast(c, c_t->use_type, boxed_val, t->ast_cap);
+    LLVMBuildBr(c->builder, merge_block);
+    boxed_block = LLVMGetInsertBlock(c->builder);
+
+    LLVMPositionBuilderAtEnd(c->builder, merge_block);
+    primitive = LLVMBuildPhi(c->builder, c_t->use_type, "primitive");
+    LLVMValueRef incoming_vals[2] = { tagged_val, boxed_val };
+    LLVMBasicBlockRef incoming_blocks[2] = { tagged_block, boxed_block };
+    LLVMAddIncoming(primitive, incoming_vals, incoming_blocks, 2);
+  } else {
+    LLVMValueRef primitive_ptr = LLVMBuildStructGEP2(c->builder,
+      c_t->structure, this_ptr, 1, "");
+    primitive = LLVMBuildLoad2(c->builder, c_t->use_type, primitive_ptr, "");
+    primitive = gen_assign_cast(c, c_t->use_type, primitive, t->ast_cap);
+  }
 
   LLVMValueRef* args = (LLVMValueRef*)ponyint_pool_alloc_size(buf_size);
 
@@ -488,12 +522,20 @@ static LLVMValueRef desc_field(compile_t* c, LLVMValueRef desc, int index)
   return field;
 }
 
-LLVMValueRef gendesc_fetch(compile_t* c, LLVMValueRef object)
+LLVMValueRef gendesc_fetch_raw(compile_t* c, LLVMValueRef object)
 {
   LLVMValueRef ptr = LLVMBuildStructGEP2(c->builder, c->object_type, object,
     0, "");
   LLVMValueRef desc = LLVMBuildLoad2(c->builder, c->ptr, ptr, "");
   return desc;
+}
+
+LLVMValueRef gendesc_fetch(compile_t* c, LLVMValueRef object)
+{
+  if(c->tag_desc_table != NULL)
+    return gentag_fetch_desc(c, object);
+
+  return gendesc_fetch_raw(c, object);
 }
 
 LLVMValueRef gendesc_typeid(compile_t* c, LLVMValueRef desc)

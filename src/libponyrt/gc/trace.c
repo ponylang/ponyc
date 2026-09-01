@@ -99,13 +99,28 @@ PONY_API void pony_send_next(pony_ctx_t* ctx, pony_actor_t* to)
   ponyint_gc_done(ponyint_actor_gc(ctx->current));
 }
 
+// Must agree with PONY_TAG_BIT in codegen/gentag.h.
+static bool ponyint_is_tagged_ptr(void* p)
+{
+  if(sizeof(uintptr_t) < 8)
+    return false;
+
+  return ((uintptr_t)p >> 63) != 0;
+}
+
 PONY_API void pony_trace(pony_ctx_t* ctx, void* p)
 {
+  if(ponyint_is_tagged_ptr(p))
+    return;
+
   ctx->trace_object(ctx, p, NULL, PONY_TRACE_OPAQUE);
 }
 
 PONY_API void pony_traceknown(pony_ctx_t* ctx, void* p, pony_type_t* t, int m)
 {
+  if(ponyint_is_tagged_ptr(p))
+    return;
+
   if(t->dispatch != NULL)
   {
     ctx->trace_actor(ctx, (pony_actor_t*)p);
@@ -116,6 +131,9 @@ PONY_API void pony_traceknown(pony_ctx_t* ctx, void* p, pony_type_t* t, int m)
 
 PONY_API void pony_traceunknown(pony_ctx_t* ctx, void* p, int m)
 {
+  if(ponyint_is_tagged_ptr(p))
+    return;
+
   pony_type_t* t = *(pony_type_t**)p;
 
   if(t->dispatch != NULL)

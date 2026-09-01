@@ -47,6 +47,8 @@ bool is_integer(ast_t* type);
 
 bool is_machine_word(ast_t* type);
 
+bool is_taggable_machine_word(ast_t* type);
+
 bool is_signed(ast_t* type);
 
 bool is_constructable(ast_t* type);
