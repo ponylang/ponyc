@@ -35,6 +35,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Fix incorrect viewpoint adaptation bounds for generic capability parameters ([PR #5933](https://github.com/ponylang/ponyc/pull/5933))
 - Fix pony-doc displaying default parameter values ([PR #5935](https://github.com/ponylang/ponyc/pull/5935))
 - Fix incorrect rounding of float literals near the extremes of F64's range ([PR #5937](https://github.com/ponylang/ponyc/pull/5937))
+- Fix lambda type inference failure with generic #share constraints ([PR #5938](https://github.com/ponylang/ponyc/pull/5938))
 
 ### Added
 
