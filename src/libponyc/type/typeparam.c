@@ -4,6 +4,7 @@
 #include "subtype.h"
 #include "matchtype.h"
 #include "typealias.h"
+#include "../ast/astbuild.h"
 #include "../ast/token.h"
 #include "../../libponyrt/mem/pool.h"
 #include "ponyassert.h"
@@ -923,5 +924,80 @@ ast_t* typeparam_current(pass_opt_t* opt, ast_t* type, ast_t* scope)
   type = ast_dup(type);
   typeparam_current_inner(type, scope);
 
+  return type;
+}
+
+static void embed_narrowing(ast_t** astp, ast_t* scope)
+{
+  ast_t* type = *astp;
+
+  switch(ast_id(type))
+  {
+    case TK_TYPEPARAMREF:
+    {
+      ast_t* id = ast_child(type);
+      ast_t* current_def = ast_get(scope, ast_name(id), NULL);
+
+      if((current_def != NULL) && (ast_id(current_def) == TK_TYPEPARAM) &&
+        (ast_data(current_def) != NULL) &&
+        ((ast_t*)ast_data(current_def) != current_def))
+      {
+        ast_t* tpref_dup = ast_dup(type);
+        ast_t* constraint = ast_dup(ast_childidx(current_def, 1));
+
+        BUILD(isect, type,
+          NODE(TK_ISECTTYPE,
+            TREE(tpref_dup)
+            TREE(constraint)));
+
+        ast_replace(astp, isect);
+      }
+      return;
+    }
+
+    case TK_NOMINAL:
+    case TK_TYPEALIASREF:
+      break;
+
+    case TK_UNIONTYPE:
+    case TK_ISECTTYPE:
+    case TK_TUPLETYPE:
+    {
+      for(ast_t* p = ast_child(type); p != NULL; p = ast_sibling(p))
+        embed_narrowing(&p, scope);
+      break;
+    }
+
+    case TK_ARROW:
+    {
+      ast_t* left = ast_child(type);
+      ast_t* right = ast_sibling(left);
+
+      embed_narrowing(&left, scope);
+      embed_narrowing(&right, scope);
+      break;
+    }
+
+    case TK_ISO:
+    case TK_TRN:
+    case TK_REF:
+    case TK_VAL:
+    case TK_BOX:
+    case TK_TAG:
+    case TK_THISTYPE:
+      break;
+
+    default:
+      break;
+  }
+}
+
+ast_t* typeparam_embed_narrowing(pass_opt_t* opt, ast_t* type, ast_t* scope)
+{
+  if(opt->check.frame->iftype_body == NULL)
+    return type;
+
+  type = ast_dup(type);
+  embed_narrowing(&type, scope);
   return type;
 }

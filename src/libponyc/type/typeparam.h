@@ -53,6 +53,14 @@ bool typeparam_narrow(ast_t* type, ast_t* typeparam_store);
  */
 ast_t* typeparam_current(pass_opt_t* opt, ast_t* typeparamref, ast_t* scope);
 
+/**
+ * For each top-level TK_TYPEPARAMREF in `type` that has a narrowed iftype
+ * constraint in scope, wraps it in an explicit intersection so the constraint
+ * survives sanitise_type. Does not recurse into TK_NOMINAL type arguments;
+ * those are covered by the expr_object type-parameter narrowing in lambda.c.
+ */
+ast_t* typeparam_embed_narrowing(pass_opt_t* opt, ast_t* type, ast_t* scope);
+
 PONY_EXTERN_C_END
 
 #endif
