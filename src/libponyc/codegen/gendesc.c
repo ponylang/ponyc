@@ -1,8 +1,10 @@
 #include "gendesc.h"
+#include "genbox.h"
 #include "gencall.h"
 #include "genexpr.h"
 #include "genfun.h"
 #include "genname.h"
+#include "gentagged.h"
 #include "genopt.h"
 #include "gentype.h"
 #include "../type/reify.h"
@@ -89,14 +91,10 @@ static LLVMValueRef make_unbox_function(compile_t* c, reach_type_t* t,
   LLVMValueRef unbox_fun = codegen_addfun(c, unbox_name, unbox_type, true);
   codegen_startfun(c, unbox_fun, NULL, NULL, NULL, false);
 
-  // Extract the primitive type from element 1 and call the real function.
+  // For taggable types the pointer may be a tagged value, not a heap
+  // object.
   LLVMValueRef this_ptr = LLVMGetParam(unbox_fun, 0);
-  LLVMValueRef primitive_ptr = LLVMBuildStructGEP2(c->builder, c_t->structure,
-    this_ptr, 1, "");
-  LLVMValueRef primitive = LLVMBuildLoad2(c->builder, c_t->use_type,
-    primitive_ptr, "");
-
-  primitive = gen_assign_cast(c, c_t->use_type, primitive, t->ast_cap);
+  LLVMValueRef primitive = gen_unbox(c, t->ast_cap, this_ptr);
 
   LLVMValueRef* args = (LLVMValueRef*)ponyint_pool_alloc_size(buf_size);
 

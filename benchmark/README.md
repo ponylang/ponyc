@@ -25,6 +25,8 @@ See `libponyrt/mem/README.md` for what the runtime's memory benchmarks measure.
 
 The `memory-profile/` directory holds a different kind of benchmark: standalone Pony programs that exercise the arena allocator's `--ponymemoryprofile` dial, so the dial's per-rung values can be measured and re-derived. They are ordinary Pony programs, not Google Benchmark suites -- build them with the compiler you are testing and run them directly. See `memory-profile/README.md`.
 
+The `tagged-ptr/` directory holds Pony benchmarks that measure the performance of tagged-pointer encoding for small machine words in union types. It uses the `pony_bench` library. Build with the compiler under test and run directly.
+
 `cmake --install` does not install the benchmark binaries.
 
 `lib/CMakeLists.txt` sets the Google Benchmark version in

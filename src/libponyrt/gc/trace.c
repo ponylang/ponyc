@@ -101,11 +101,21 @@ PONY_API void pony_send_next(pony_ctx_t* ctx, pony_actor_t* to)
 
 PONY_API void pony_trace(pony_ctx_t* ctx, void* p)
 {
+  // Tagged pointers have bit 63 set. They encode a machine word directly
+  // in the pointer and have no heap allocation to trace.
+  if((sizeof(uintptr_t) >= 8) && (((uintptr_t)p >> 63) != 0))
+    return;
+
   ctx->trace_object(ctx, p, NULL, PONY_TRACE_OPAQUE);
 }
 
 PONY_API void pony_traceknown(pony_ctx_t* ctx, void* p, pony_type_t* t, int m)
 {
+  // Tagged pointers have bit 63 set. They encode a machine word directly
+  // in the pointer and have no heap allocation to trace.
+  if((sizeof(uintptr_t) >= 8) && (((uintptr_t)p >> 63) != 0))
+    return;
+
   if(t->dispatch != NULL)
   {
     ctx->trace_actor(ctx, (pony_actor_t*)p);
@@ -116,6 +126,11 @@ PONY_API void pony_traceknown(pony_ctx_t* ctx, void* p, pony_type_t* t, int m)
 
 PONY_API void pony_traceunknown(pony_ctx_t* ctx, void* p, int m)
 {
+  // Tagged pointers have bit 63 set. They encode a machine word directly
+  // in the pointer and have no heap allocation to trace.
+  if((sizeof(uintptr_t) >= 8) && (((uintptr_t)p >> 63) != 0))
+    return;
+
   pony_type_t* t = *(pony_type_t**)p;
 
   if(t->dispatch != NULL)

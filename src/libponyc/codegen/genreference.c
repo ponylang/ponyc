@@ -5,6 +5,7 @@
 #include "genexpr.h"
 #include "genfun.h"
 #include "genname.h"
+#include "gentagged.h"
 #include "genopt.h"
 #include "gentype.h"
 #include "../expr/literal.h"
@@ -353,7 +354,9 @@ static LLVMValueRef gen_digestof_box(compile_t* c, reach_type_t* type,
   LLVMBasicBlockRef nonbox_block = NULL;
   LLVMBasicBlockRef post_block = NULL;
 
-  LLVMValueRef desc = gendesc_fetch(c, value);
+  LLVMValueRef desc;
+
+  desc = gentagged_fetch_desc_or_heap(c, value, type, "dg");
 
   if((boxed_subtype & SUBTYPE_KIND_UNBOXED) != 0)
   {
