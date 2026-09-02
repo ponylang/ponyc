@@ -355,7 +355,9 @@ bool expr_lambda(pass_opt_t* opt, ast_t** astp)
   ast_t* annotation = ast_consumeannotation(ast);
 
   // Try to find an antecedent type, and find possible lambda interfaces in it.
-  ast_t* antecedent_type = find_antecedent_type(opt, ast, NULL);
+  ast_t* antecedent_owner = NULL;
+  ast_t* antecedent_type = find_antecedent_type(opt, ast, NULL,
+    &antecedent_owner);
   astlist_t* possible_fun_defs = NULL;
   astlist_t* possible_obj_caps = NULL;
   if(!is_typecheck_error(antecedent_type))
@@ -484,6 +486,9 @@ bool expr_lambda(pass_opt_t* opt, ast_t** astp)
     ast_free_unattached(astlist_data(oc));
   }
   astlist_free(possible_obj_caps);
+
+  if(antecedent_owner != NULL)
+    ast_free_unattached(antecedent_owner);
 
   // If any parameters still have no type specified, it's an error.
   ast_t* param = ast_child(params);
