@@ -863,3 +863,7 @@ Passing an array literal to an object with no `apply` method, or to a tuple, rep
 
 In rare cases where a property test failed an assertion and raised an error, the runner sent two completion notifications instead of one, causing the test harness to fall out of sync. The completion notification is now sent exactly once.
 
+## Fix stack overflow in itertools Iter methods
+
+Several methods on `Iter` in the `itertools` package used unbounded recursion internally and could crash on larger iterators. This has been fixed.
+
