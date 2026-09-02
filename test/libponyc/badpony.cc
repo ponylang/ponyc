@@ -4119,3 +4119,79 @@ TEST_F(BadPonyTest, NamedLiteralArgumentToObjectWithoutApplyReportsOnce)
   TEST_ERRORS_1(src, "couldn't find 'apply' in 'NoApply'");
 }
 
+TEST_F(BadPonyTest, RuntimeOverrideDefaultsGenericCallOnPrimitive)
+{
+  const char* src =
+    "primitive P\n"
+    "  fun @get[B: Any val](b: B): U32 => 4\n"
+
+    "actor Main\n"
+    "  new create(env: Env) => None\n"
+    "  fun @runtime_override_defaults(rto: RuntimeOptions) =>\n"
+    "    P.get[U8](U8(1))";
+
+  TEST_COMPILE(src);
+}
+
+TEST_F(BadPonyTest, RuntimeOverrideDefaultsGenericConstructorOnPrimitive)
+{
+  const char* src =
+    "primitive P\n"
+    "  new create[B: Any val](b: B) => None\n"
+    "  fun @result(): U32 => 4\n"
+
+    "actor Main\n"
+    "  new create(env: Env) => None\n"
+    "  fun @runtime_override_defaults(rto: RuntimeOptions) =>\n"
+    "    P.create[U8](U8(1)).result()";
+
+  TEST_COMPILE(src);
+}
+
+TEST_F(BadPonyTest, RuntimeOverrideDefaultsGenericCallOnNonPrimitive)
+{
+  const char* src =
+    "class Foo\n"
+    "  var x: U32 = 0\n"
+    "  fun @get[B: Any val](b: B): U32 => 4\n"
+
+    "actor Main\n"
+    "  new create(env: Env) => None\n"
+    "  fun @runtime_override_defaults(rto: RuntimeOptions) =>\n"
+    "    Foo.get[U8](U8(1))";
+
+  TEST_ERRORS_1(src,
+    "the runtime_override_defaults method of the Main actor can only call "
+    "functions on primitives");
+}
+
+TEST_F(BadPonyTest, RuntimeOverrideDefaultsGenericConstructorOnNonPrimitive)
+{
+  const char* src =
+    "class Foo\n"
+    "  new create[B: Any val](b: B) => None\n"
+
+    "actor Main\n"
+    "  new create(env: Env) => None\n"
+    "  fun @runtime_override_defaults(rto: RuntimeOptions) =>\n"
+    "    Foo.create[U8](U8(1))";
+
+  TEST_ERRORS_1(src,
+    "the runtime_override_defaults method of the Main actor can only call "
+    "functions on primitives");
+}
+
+TEST_F(BadPonyTest, RuntimeOverrideDefaultsDefaultedTypeParamsOnPrimitive)
+{
+  const char* src =
+    "primitive P\n"
+    "  fun @get[B: Any val = U8](b: B): U32 => 4\n"
+
+    "actor Main\n"
+    "  new create(env: Env) => None\n"
+    "  fun @runtime_override_defaults(rto: RuntimeOptions) =>\n"
+    "    P.get(U8(1))";
+
+  TEST_COMPILE(src);
+}
+

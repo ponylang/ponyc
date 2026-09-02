@@ -14,8 +14,11 @@ static bool verify_calls_runtime_override(pass_opt_t* opt, ast_t* ast)
   if((tk == TK_NEWREF) || (tk == TK_NEWBEREF) ||
      (tk == TK_FUNREF) || (tk == TK_BEREF))
   {
-    ast_t* method = ast_sibling(ast_child(ast));
     ast_t* receiver = ast_child(ast);
+    ast_t* method = ast_sibling(receiver);
+
+    if(ast_id(receiver) == ast_id(ast))
+      AST_GET_CHILDREN_NO_DECL(receiver, receiver, method);
 
     // Look up the original method definition for this method call.
     deferred_reification_t* method_def = lookup(opt, ast, ast_type(receiver),
