@@ -727,23 +727,32 @@ static bool method_call(pass_opt_t* opt, ast_t* ast)
 }
 
 static token_id partial_application_cap(pass_opt_t* opt, ast_t* ftype,
-  ast_t* receiver, ast_t* positional)
+  ast_t* receiver, ast_t* positional, bool is_constructor)
 {
   // Check if the apply method in the generated object literal can accept a box
   // receiver. If not, it must be a ref receiver. It can accept a box receiver
   // if box->receiver <: lhs->receiver and box->arg <: lhs->param.
   AST_GET_CHILDREN(ftype, cap, typeparams, params, result);
 
-  ast_t* type = ast_type(receiver);
-  ast_t* view_type = viewpoint_type(ast_from(type, TK_BOX), type, opt);
-  ast_t* need_type = set_cap_and_ephemeral(type, ast_id(cap), TK_NONE);
+  ast_t* type;
+  ast_t* view_type;
+  ast_t* need_type;
+  bool ok;
 
-  bool ok = is_subtype(view_type, need_type, NULL, opt);
-  ast_free_unattached(view_type);
-  ast_free_unattached(need_type);
+  // A constructor has no stored receiver, so the receiver check does not apply.
+  if(!is_constructor)
+  {
+    type = ast_type(receiver);
+    view_type = viewpoint_type(ast_from(type, TK_BOX), type, opt);
+    need_type = set_cap_and_ephemeral(type, ast_id(cap), TK_NONE);
 
-  if(!ok)
-    return TK_REF;
+    ok = is_subtype(view_type, need_type, NULL, opt);
+    ast_free_unattached(view_type);
+    ast_free_unattached(need_type);
+
+    if(!ok)
+      return TK_REF;
+  }
 
   ast_t* param = ast_child(params);
   ast_t* arg = ast_child(positional);
@@ -835,7 +844,8 @@ static bool partial_application(pass_opt_t* opt, ast_t** astp)
 
   token_id apply_cap = TK_AT;
   if(!bare)
-    apply_cap = partial_application_cap(opt, type, receiver, positional);
+    apply_cap = partial_application_cap(opt, type, receiver, positional,
+      ast_id(method_ast) == TK_NEW);
 
   token_id can_error = ast_id(ast_childidx(method_ast, 5));
   const char* recv_name = package_hygienic_id(t, opt);

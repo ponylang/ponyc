@@ -316,6 +316,117 @@ TEST_F(SugarExprTest, PartialFunctionTypeParameter)
 }
 
 
+TEST_F(SugarExprTest, PartialConstructorNoArgs)
+{
+  const char* src =
+    "class Bar\n"
+    "  new create() => None\n"
+
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let mk = Bar~create()\n"
+    "    let b = mk()";
+
+  TEST_COMPILE(src);
+}
+
+
+TEST_F(SugarExprTest, PartialConstructorNoArgsValAnnotation)
+{
+  const char* src =
+    "class Bar\n"
+    "  new create() => None\n"
+
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let mk: {(): Bar ref^} val = Bar~create()";
+
+  TEST_COMPILE(src);
+}
+
+
+TEST_F(SugarExprTest, PartialConstructorValCap)
+{
+  const char* src =
+    "class Bar\n"
+    "  new val create() => None\n"
+
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let mk = Bar~create()\n"
+    "    let b = mk()";
+
+  TEST_COMPILE(src);
+}
+
+
+TEST_F(SugarExprTest, PartialConstructorIsoCap)
+{
+  const char* src =
+    "class Bar\n"
+    "  new iso create() => None\n"
+
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let mk = Bar~create()\n"
+    "    let b = mk()";
+
+  TEST_COMPILE(src);
+}
+
+
+TEST_F(SugarExprTest, PartialConstructorRefCapturedArgRejectsVal)
+{
+  const char* src =
+    "class Wrapper\n"
+    "  let _data: Array[U8]\n"
+    "  new create(data: Array[U8]) =>\n"
+    "    _data = data\n"
+
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let data: Array[U8] ref = Array[U8]\n"
+    "    let mk: {(): Wrapper ref^} val = Wrapper~create(data)";
+
+  TEST_ERROR(src);
+}
+
+
+TEST_F(SugarExprTest, PartialConstructorRefCapturedArg)
+{
+  const char* src =
+    "class Wrapper\n"
+    "  let _data: Array[U8]\n"
+    "  new create(data: Array[U8]) =>\n"
+    "    _data = data\n"
+
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let data: Array[U8] ref = Array[U8]\n"
+    "    let mk = Wrapper~create(data)\n"
+    "    let w = mk()";
+
+  TEST_COMPILE(src);
+}
+
+
+TEST_F(SugarExprTest, PartialConstructorValCapturedArg)
+{
+  const char* src =
+    "class Bar\n"
+    "  let _n: U8\n"
+    "  new create(n: U8) =>\n"
+    "    _n = n\n"
+
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let n: U8 val = 42\n"
+    "    let mk: {(): Bar ref^} val = Bar~create(n)";
+
+  TEST_COMPILE(src);
+}
+
+
 // Lambdas
 
 TEST_F(SugarExprTest, LambdaMinimal)
