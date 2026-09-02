@@ -289,6 +289,35 @@ static ast_t* find_tuple_type(pass_opt_t* opt, ast_t* ast, size_t child_count)
   return NULL;
 }
 
+// Return the function type for a call's receiver. A function reference already
+// carries one; any other receiver gets it from its apply method. Returns NULL
+// when the type has no apply or cannot have members.
+static ast_t* call_funtype(pass_opt_t* opt, ast_t* receiver, ast_t* recv_type)
+{
+  if(ast_id(recv_type) == TK_FUNTYPE)
+    return recv_type;
+
+  // lookup_try: a missing apply is reported by the call's own lookup,
+  // not duplicated here.
+  deferred_reification_t* fun = lookup_try(opt, receiver, recv_type,
+    stringtab(opt->strtab, "apply"), false);
+
+  if(fun == NULL)
+    return NULL;
+
+  if((ast_id(fun->ast) != TK_BE) && (ast_id(fun->ast) != TK_FUN))
+  {
+    deferred_reify_free(fun);
+    return NULL;
+  }
+
+  ast_t* r_fun = deferred_reify_method_def(fun, fun->ast, opt);
+  ast_t* funtype = type_for_fun(r_fun);
+  ast_free_unattached(r_fun);
+  deferred_reify_free(fun);
+  return funtype;
+}
+
 ast_t* find_antecedent_type(pass_opt_t* opt, ast_t* ast, bool* is_recovered)
 {
   ast_t* parent = ast_parent(ast);
@@ -336,27 +365,9 @@ ast_t* find_antecedent_type(pass_opt_t* opt, ast_t* ast, bool* is_recovered)
       if(is_typecheck_error(funtype))
         return funtype;
 
-      // If this is a call to a callable object instead of a function reference,
-      // we need to use the funtype of the apply method of the object.
-      if(ast_id(funtype) != TK_FUNTYPE)
-      {
-        deferred_reification_t* fun = lookup(opt, receiver, funtype,
-          stringtab(opt->strtab, "apply"));
-
-        if(fun == NULL)
-          return NULL;
-
-        if((ast_id(fun->ast) != TK_BE) && (ast_id(fun->ast) != TK_FUN))
-        {
-          deferred_reify_free(fun);
-          return NULL;
-        }
-
-        ast_t* r_fun = deferred_reify_method_def(fun, fun->ast, opt);
-        funtype = type_for_fun(r_fun);
-        ast_free_unattached(r_fun);
-        deferred_reify_free(fun);
-      }
+      funtype = call_funtype(opt, receiver, funtype);
+      if(funtype == NULL)
+        return NULL;
 
       AST_GET_CHILDREN(funtype, cap, t_params, params, ret_type);
 
@@ -385,7 +396,11 @@ ast_t* find_antecedent_type(pass_opt_t* opt, ast_t* ast, bool* is_recovered)
       ast_t* funtype = ast_type(receiver);
       if(is_typecheck_error(funtype))
         return funtype;
-      pony_assert(ast_id(funtype) == TK_FUNTYPE);
+
+      funtype = call_funtype(opt, receiver, funtype);
+      if(funtype == NULL)
+        return NULL;
+
       AST_GET_CHILDREN(funtype, cap, t_params, params, ret_type);
 
       // Find the parameter type corresponding to this named argument.
