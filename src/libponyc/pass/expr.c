@@ -229,7 +229,8 @@ bool jumps_away_no_value(pass_opt_t* opt, ast_t* ast, const char* what)
   return true;
 }
 
-static ast_t* find_tuple_type(pass_opt_t* opt, ast_t* ast, size_t child_count)
+static ast_t* find_tuple_type(pass_opt_t* opt, ast_t* ast,
+  size_t child_count, ast_t** out_owner)
 {
   if((ast_id(ast) == TK_TUPLETYPE) && (ast_childcount(ast) == child_count))
     return ast;
@@ -248,7 +249,7 @@ static ast_t* find_tuple_type(pass_opt_t* opt, ast_t* ast, size_t child_count)
       while(member_type != NULL)
       {
         ast_t* member_tuple_type =
-          find_tuple_type(opt, member_type, child_count);
+          find_tuple_type(opt, member_type, child_count, out_owner);
 
         if(member_tuple_type != NULL)
           return member_tuple_type;
@@ -260,7 +261,7 @@ static ast_t* find_tuple_type(pass_opt_t* opt, ast_t* ast, size_t child_count)
 
     // For an arrow type, just dig into the RHS.
     case TK_ARROW:
-      return find_tuple_type(opt, ast_childlast(ast), child_count);
+      return find_tuple_type(opt, ast_childlast(ast), child_count, out_owner);
 
     case TK_TYPEPARAMREF: break; // TODO
 
@@ -271,14 +272,23 @@ static ast_t* find_tuple_type(pass_opt_t* opt, ast_t* ast, size_t child_count)
       if(unfolded == NULL)
         return NULL;
 
-      ast_t* r = find_tuple_type(opt, unfolded, child_count);
+      ast_t* inner_owner = NULL;
+      ast_t* r = find_tuple_type(opt, unfolded, child_count, &inner_owner);
 
-      // find_tuple_type may return a pointer into the unfolded subtree.
-      // Duplicate the result before freeing the unfolded AST.
       if(r != NULL)
+      {
         r = ast_dup(r);
+        ast_set_scope(r, NULL);
+      }
+
+      if(inner_owner != NULL)
+        ast_free_unattached(inner_owner);
 
       ast_free_unattached(unfolded);
+
+      if(out_owner != NULL)
+        *out_owner = r;
+
       return r;
     }
 
@@ -318,7 +328,8 @@ static ast_t* call_funtype(pass_opt_t* opt, ast_t* receiver, ast_t* recv_type)
   return funtype;
 }
 
-ast_t* find_antecedent_type(pass_opt_t* opt, ast_t* ast, bool* is_recovered)
+ast_t* find_antecedent_type(pass_opt_t* opt, ast_t* ast, bool* is_recovered,
+  ast_t** out_owner)
 {
   ast_t* parent = ast_parent(ast);
 
@@ -437,11 +448,11 @@ ast_t* find_antecedent_type(pass_opt_t* opt, ast_t* ast, bool* is_recovered)
     case TK_SEQ:
     {
       if(ast_childlast(parent) == ast)
-        return find_antecedent_type(opt, parent, is_recovered);
+        return find_antecedent_type(opt, parent, is_recovered, out_owner);
 
       // If this sequence is an array literal, every child uses the LHS type.
       if(ast_id(ast_parent(parent)) == TK_ARRAY)
-        return find_antecedent_type(opt, parent, is_recovered);
+        return find_antecedent_type(opt, parent, is_recovered, out_owner);
 
       return NULL;
     }
@@ -449,15 +460,41 @@ ast_t* find_antecedent_type(pass_opt_t* opt, ast_t* ast, bool* is_recovered)
     // For a tuple expression, take the nth element of the upper LHS type.
     case TK_TUPLE:
     {
-      ast_t* antecedent = find_antecedent_type(opt, parent, is_recovered);
+      ast_t* antecedent_owner = NULL;
+      ast_t* antecedent =
+        find_antecedent_type(opt, parent, is_recovered, &antecedent_owner);
       if(antecedent == NULL)
         return NULL;
 
-      // Dig through the LHS type until we find a tuple type.
-      antecedent = find_tuple_type(opt, antecedent, ast_childcount(parent));
+      ast_t* tuple_owner = NULL;
+      antecedent = find_tuple_type(opt, antecedent, ast_childcount(parent),
+        &tuple_owner);
+
       if(antecedent == NULL)
+      {
+        if(antecedent_owner != NULL)
+          ast_free_unattached(antecedent_owner);
         return NULL;
+      }
+
       pony_assert(ast_id(antecedent) == TK_TUPLETYPE);
+
+      // The returned child lives inside whichever tree owns the tuple:
+      // tuple_owner if find_tuple_type duped (type alias unfolding),
+      // antecedent_owner if the recursive call allocated, otherwise the
+      // live AST. When tuple_owner is set, antecedent_owner is
+      // independent and can be freed.
+      ast_t* owner = NULL;
+      if(tuple_owner != NULL)
+      {
+        if(antecedent_owner != NULL)
+          ast_free_unattached(antecedent_owner);
+        owner = tuple_owner;
+      }
+      else
+      {
+        owner = antecedent_owner;
+      }
 
       // Find the element of the LHS type that corresponds to our element.
       ast_t* elem = ast_child(parent);
@@ -465,11 +502,26 @@ ast_t* find_antecedent_type(pass_opt_t* opt, ast_t* ast, bool* is_recovered)
       while((elem != NULL) && (type_elem != NULL))
       {
         if(elem == ast)
+        {
+          if(out_owner != NULL)
+          {
+            *out_owner = owner;
+          }
+          else if(owner != NULL)
+          {
+            type_elem = ast_dup(type_elem);
+            ast_set_scope(type_elem, NULL);
+            ast_free_unattached(owner);
+          }
           return type_elem;
+        }
 
         elem = ast_sibling(elem);
         type_elem = ast_sibling(type_elem);
       }
+
+      if(owner != NULL)
+        ast_free_unattached(owner);
 
       break;
     }
@@ -481,7 +533,7 @@ ast_t* find_antecedent_type(pass_opt_t* opt, ast_t* ast, bool* is_recovered)
       if(body == NULL)
         return NULL;
 
-      return find_antecedent_type(opt, body, is_recovered);
+      return find_antecedent_type(opt, body, is_recovered, out_owner);
     }
 
     // For a break statement, recurse to the loop body that contains it.
@@ -491,7 +543,7 @@ ast_t* find_antecedent_type(pass_opt_t* opt, ast_t* ast, bool* is_recovered)
       if(body == NULL)
         return NULL;
 
-      return find_antecedent_type(opt, body, is_recovered);
+      return find_antecedent_type(opt, body, is_recovered, out_owner);
     }
 
     // For a recover block, note the recovery and move on to the parent.
@@ -500,7 +552,7 @@ ast_t* find_antecedent_type(pass_opt_t* opt, ast_t* ast, bool* is_recovered)
       if(is_recovered != NULL)
         *is_recovered = true;
 
-      return find_antecedent_type(opt, parent, is_recovered);
+      return find_antecedent_type(opt, parent, is_recovered, out_owner);
     }
 
     case TK_IF:
@@ -518,7 +570,7 @@ ast_t* find_antecedent_type(pass_opt_t* opt, ast_t* ast, bool* is_recovered)
     case TK_TRY_NO_CHECK:
     case TK_DISPOSING_BLOCK:
     case TK_CALL:
-      return find_antecedent_type(opt, parent, is_recovered);
+      return find_antecedent_type(opt, parent, is_recovered, out_owner);
 
     default:
       break;

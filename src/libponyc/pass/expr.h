@@ -27,7 +27,12 @@ bool is_typecheck_error(ast_t* type);
 // sequence) where jumping away is legal — those skip a jump-away child instead.
 bool jumps_away_no_value(pass_opt_t* opt, ast_t* ast, const char* what);
 
-ast_t* find_antecedent_type(pass_opt_t* opt, ast_t* ast, bool* is_recovered);
+// When a tuple antecedent reaches through a type alias, the returned
+// pointer is a child of a freshly allocated tree. Pass a non-NULL
+// out_owner; if *out_owner is non-NULL on return, the caller must
+// free it with ast_free_unattached after it is done with the result.
+ast_t* find_antecedent_type(pass_opt_t* opt, ast_t* ast, bool* is_recovered,
+  ast_t** out_owner);
 
 ast_result_t pass_pre_expr(ast_t** astp, pass_opt_t* options);
 

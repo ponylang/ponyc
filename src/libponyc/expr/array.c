@@ -264,6 +264,7 @@ static bool infer_element_type(pass_opt_t* opt, ast_t* ast,
   ast_t** type_spec_p, ast_t* antecedent_type)
 {
   astlist_t* possible_element_types = NULL;
+  ast_t* dot_owner = NULL;
 
   if(antecedent_type != NULL)
   {
@@ -276,7 +277,7 @@ static bool infer_element_type(pass_opt_t* opt, ast_t* ast,
       (ast_name(ast_sibling(ast)) == stringtab(opt->strtab, "values")))
     {
       ast_t* dot = ast_parent(ast);
-      antecedent_type = find_antecedent_type(opt, dot, NULL);
+      antecedent_type = find_antecedent_type(opt, dot, NULL, &dot_owner);
       if (antecedent_type != NULL)
         find_possible_iterator_element_types(opt, antecedent_type,
           &possible_element_types);
@@ -355,7 +356,11 @@ static bool infer_element_type(pass_opt_t* opt, ast_t* ast,
       {
         // Catch up the elem to the expr pass, so we can get its type.
         if(ast_visit(&elem, pass_pre_expr, pass_expr, opt, PASS_EXPR) != AST_OK)
+        {
+          if(dot_owner != NULL)
+            ast_free_unattached(dot_owner);
           return false;
+        }
 
         ast_t* elem_type = ast_type(elem);
         if(is_typecheck_error(elem_type) || ast_id(elem_type) == TK_LITERAL)
@@ -380,6 +385,9 @@ static bool infer_element_type(pass_opt_t* opt, ast_t* ast,
   if(astlist_length(possible_element_types) == 1)
     ast_replace(type_spec_p, astlist_data(possible_element_types));
 
+  if(dot_owner != NULL)
+    ast_free_unattached(dot_owner);
+
   return true;
 }
 
@@ -392,18 +400,28 @@ ast_result_t expr_pre_array(pass_opt_t* opt, ast_t** astp)
 
   // Try to find an antecedent type, or bail out if none was found.
   bool is_recovered = false;
-  ast_t* antecedent_type = find_antecedent_type(opt, ast, &is_recovered);
+  ast_t* antecedent_owner = NULL;
+  ast_t* antecedent_type =
+    find_antecedent_type(opt, ast, &is_recovered, &antecedent_owner);
 
   // If we don't have an explicit element type, try to infer it.
   if(ast_id(type_spec) == TK_NONE)
   {
     if(!infer_element_type(opt, ast, &type_spec, antecedent_type))
+    {
+      if(antecedent_owner != NULL)
+        ast_free_unattached(antecedent_owner);
       return AST_ERROR;
+    }
   }
 
   // If we still don't have an element type, bail out.
   if(ast_id(type_spec) == TK_NONE)
+  {
+    if(antecedent_owner != NULL)
+      ast_free_unattached(antecedent_owner);
     return AST_OK;
+  }
 
   // If there is no recover statement between the antecedent type and here,
   // and if the array literal is not a subtype of the antecedent type,
@@ -413,6 +431,8 @@ ast_result_t expr_pre_array(pass_opt_t* opt, ast_t** astp)
     !is_subtype(array_type, antecedent_type, NULL, opt) &&
     is_subtype_ignore_cap(array_type, antecedent_type, NULL, opt))
   {
+    if(antecedent_owner != NULL)
+      ast_free_unattached(antecedent_owner);
     ast_free_unattached(array_type);
 
     BUILD(recover, ast,
@@ -431,6 +451,8 @@ ast_result_t expr_pre_array(pass_opt_t* opt, ast_t** astp)
     return AST_IGNORE;
   }
 
+  if(antecedent_owner != NULL)
+    ast_free_unattached(antecedent_owner);
   ast_free_unattached(array_type);
   return AST_OK;
 }
