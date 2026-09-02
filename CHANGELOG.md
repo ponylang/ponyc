@@ -45,6 +45,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Fix lambda and object literal captures inside iftype bodies losing type parameter narrowing ([PR #5950](https://github.com/ponylang/ponyc/pull/5950))
 - Fix compiler crash on array literals passed by name or to a call on a literal ([PR #5959](https://github.com/ponylang/ponyc/pull/5959))
 - Fix PropertyRunner double completion on assert-and-error ([PR #5932](https://github.com/ponylang/ponyc/pull/5932))
+- Fix stack overflow in itertools Iter methods ([PR #5936](https://github.com/ponylang/ponyc/pull/5936))
 
 ### Added
 
