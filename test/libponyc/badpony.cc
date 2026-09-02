@@ -3867,3 +3867,91 @@ TEST_F(BadPonyTest, AliasedConstraintOnTypeParamRefTrn)
   TEST_ERRORS_1(src, "function body isn't the result type");
 }
 
+
+TEST_F(BadPonyTest, LiteralArgumentToOperatorOnIntegerLiteralIsAnError)
+{
+  // An integer literal has a literal type, which cannot have members.
+  const char* src =
+    "primitive Foo\n"
+    "  fun apply() =>\n"
+    "    let x = 1 + [as U8: 2]";
+
+  TEST_ERRORS_1(src, "could not infer literal type, no valid types found");
+}
+
+TEST_F(BadPonyTest, LiteralArgumentToCallOnIntegerLiteralIsAnError)
+{
+  const char* src =
+    "primitive Foo\n"
+    "  fun apply() =>\n"
+    "    let x = 1([as U8: 2])";
+
+  TEST_ERRORS_1(src, "Cannot call a literal");
+}
+
+TEST_F(BadPonyTest, CallOnTupleWithLiteralArgumentReportsOnce)
+{
+  // One error, from the call itself. The antecedent lookup returns NULL for
+  // the tuple rather than producing a duplicate.
+  const char* src =
+    "primitive Foo\n"
+    "  fun apply() =>\n"
+    "    let t = (U8(1), U8(2))\n"
+    "    t([as U8: 1])";
+
+  TEST_ERRORS_1(src, "lookup on a tuple must take the form _X");
+}
+
+TEST_F(BadPonyTest, CallOnObjectWithoutApplyReportsOnce)
+{
+  // One error, from the call itself. The antecedent lookup returns NULL for
+  // the missing apply rather than producing a duplicate.
+  const char* src =
+    "class NoApply\n"
+
+    "primitive Foo\n"
+    "  fun apply() =>\n"
+    "    let f = NoApply\n"
+    "    f([as U8: 1])";
+
+  TEST_ERRORS_1(src, "couldn't find 'apply' in 'NoApply'");
+}
+
+TEST_F(BadPonyTest, NamedLiteralArgumentToCallOnIntegerLiteralIsAnError)
+{
+  // Named path: a literal receiver produces the call's own error, not an
+  // abort.
+  const char* src =
+    "primitive Foo\n"
+    "  fun apply() =>\n"
+    "    let x = 1(where x = [as U8: 2])";
+
+  TEST_ERRORS_1(src, "Cannot call a literal");
+}
+
+TEST_F(BadPonyTest, NamedLiteralArgumentToCallOnTupleReportsOnce)
+{
+  // As for the positional argument: one error, from the call itself.
+  const char* src =
+    "primitive Foo\n"
+    "  fun apply() =>\n"
+    "    let t = (U8(1), U8(2))\n"
+    "    t(where x = [as U8: 1])";
+
+  TEST_ERRORS_1(src, "lookup on a tuple must take the form _X");
+}
+
+TEST_F(BadPonyTest, NamedLiteralArgumentToObjectWithoutApplyReportsOnce)
+{
+  // As for the positional argument: one error, from the call itself.
+  const char* src =
+    "class NoApply\n"
+
+    "primitive Foo\n"
+    "  fun apply() =>\n"
+    "    let f = NoApply\n"
+    "    f(where x = [as U8: 1])";
+
+  TEST_ERRORS_1(src, "couldn't find 'apply' in 'NoApply'");
+}
+

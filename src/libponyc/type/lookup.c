@@ -627,7 +627,8 @@ static deferred_reification_t* lookup_base(pass_opt_t* opt, ast_t* from,
     default: {}
   }
 
-  pony_assert(0);
+  // No other kind of type has members.
+  pony_assert(!errors);
   return NULL;
 }
 

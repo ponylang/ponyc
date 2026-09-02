@@ -289,3 +289,76 @@ TEST_F(ArrayTest, NonEmptyArrayLiteralCompilesThroughReach)
 
   DO(test_compile(src, "ir"));
 }
+
+
+TEST_F(ArrayTest, NamedLiteralArgumentToCallableObject)
+{
+  // The parameter is val on purpose: without the antecedent the literal would
+  // be Array[U8] ref, which is not a subtype of the val parameter.
+  const char* src =
+    "class Callable\n"
+    "  fun apply(x: Array[U8] val) => None\n"
+
+    "primitive Foo\n"
+    "  fun apply() =>\n"
+    "    let f = Callable\n"
+    "    f(where x = [as U8: 1])";
+
+  TEST_COMPILE(src);
+}
+
+
+TEST_F(ArrayTest, NamedLiteralArgumentToUnionOfCallableObjects)
+{
+  const char* src =
+    "class C1\n"
+    "  fun apply(x: Array[U8] val) => None\n"
+
+    "class C2\n"
+    "  fun apply(x: Array[U8] val) => None\n"
+
+    "primitive Foo\n"
+    "  fun apply() =>\n"
+    "    let f: (C1 | C2) = C1\n"
+    "    f(where x = [as U8: 1])";
+
+  TEST_COMPILE(src);
+}
+
+
+TEST_F(ArrayTest, NamedLiteralArgumentInfersElementType)
+{
+  // The literal has no element type of its own; the antecedent from the named
+  // parameter supplies it.
+  const char* src =
+    "class Callable\n"
+    "  fun apply(x: Array[U8] val) => None\n"
+
+    "primitive Foo\n"
+    "  fun apply() =>\n"
+    "    let f = Callable\n"
+    "    f(where x = [1])";
+
+  TEST_COMPILE(src);
+}
+
+
+TEST_F(ArrayTest, LiteralArgumentToUpdateSugarOnCallableField)
+{
+  // `o(0) = v` is sugar for a call to `o.update`, which here is a field
+  // holding a callable object rather than a method, so the call's receiver is
+  // that object.
+  const char* src =
+    "class Inner\n"
+    "  fun apply(key: USize, value: Array[U8] val) => None\n"
+
+    "class Outer\n"
+    "  let update: Inner = Inner\n"
+
+    "primitive Foo\n"
+    "  fun apply() =>\n"
+    "    let o = Outer\n"
+    "    o(0) = [as U8: 1]";
+
+  TEST_COMPILE(src);
+}
