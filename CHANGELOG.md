@@ -43,6 +43,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Fix misleading error for bare lambda captures in tag methods ([PR #5948](https://github.com/ponylang/ponyc/pull/5948))
 - Fix compiler crash when instantiating a generic with a union type argument that calls a constructor ([PR #5949](https://github.com/ponylang/ponyc/pull/5949))
 - Fix lambda and object literal captures inside iftype bodies losing type parameter narrowing ([PR #5950](https://github.com/ponylang/ponyc/pull/5950))
+- Fix compiler crash on array literals passed by name or to a call on a literal ([PR #5959](https://github.com/ponylang/ponyc/pull/5959))
 
 ### Added
 
