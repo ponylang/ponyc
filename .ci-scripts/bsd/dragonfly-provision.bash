@@ -82,12 +82,13 @@ echo "::group::Configure and wait for VM"
 PUB_KEY="$(cat vm_key.pub)"
 export PUB_KEY
 
-# dfly_configure_vm.py waits for the boot loader to pass, then types login +
-# serial shell start via sendkey. Once the serial shell responds, all setup
-# commands run through it with prompt detection. The sendkey phase retries
-# internally, so this script needs no retry loop.
+# dfly_configure_vm.py detects when boot finishes (VGA screendump stability),
+# then bootstraps a serial shell via sendkey and runs all setup commands through
+# it with prompt detection. It retries internally, so this script needs no
+# retry loop.
 DFLY_MONITOR_SOCK="$VM_ARTIFACTS/dfly-monitor.sock" \
   DFLY_SERIAL_SOCK="$VM_ARTIFACTS/dfly-serial.sock" \
+  DFLY_ARTIFACTS_DIR="$VM_ARTIFACTS" \
   python3 .ci-scripts/bsd/dfly_configure_vm.py
 
 # Verify ssh is reachable after the serial-driven setup.
