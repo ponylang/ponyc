@@ -6,19 +6,21 @@ Typing every command blind via VGA sendkey fails when boot is slow enough that
 keystrokes arrive before the login prompt.  This script uses a two-phase
 approach:
 
-  Phase 1 (sendkey bootstrap): After waiting for the boot loader to pass, type
-  the root login and a command that starts a /bin/sh on the serial port, all via
-  QEMU sendkey into the VGA console.  A retry loop handles the variable boot
-  time — each attempt clears the console, logs in, and starts the serial shell,
-  checking for a shell prompt on the serial socket before moving on.
+  Phase 1 (sendkey bootstrap): Wait for the boot to finish by taking periodic
+  VGA screendumps and detecting when the screen stabilizes (consecutive
+  identical frames).  Once stable — the login prompt is showing — type the root
+  login and a command that starts a /bin/sh on the serial port, all via QEMU
+  sendkey into the VGA console.  A retry loop handles the case where the first
+  attempt doesn't produce a serial shell.
 
   Phase 2 (serial setup): Run all setup commands (network, sshd, ssh key)
   through the serial console with prompt detection, so each command is confirmed
   before the next is sent.
 
-Reads PUB_KEY, DFLY_MONITOR_SOCK, and DFLY_SERIAL_SOCK from the environment.
-Called by dragonfly-provision.bash.
+Reads PUB_KEY, DFLY_MONITOR_SOCK, DFLY_SERIAL_SOCK, and (optionally)
+DFLY_ARTIFACTS_DIR from the environment.  Called by dragonfly-provision.bash.
 """
+import hashlib
 import os
 import socket
 import sys
@@ -38,9 +40,12 @@ KEYMAP = {
     '(': 'shift-9', ')': 'shift-0',
 }
 
-BOOT_LOADER_WAIT = 30
-BOOT_TIMEOUT = 300
+BIOS_WAIT = 5
+BOOT_TIMEOUT = 360
+STABLE_SECONDS = 10
+SCREENDUMP_INTERVAL = 5
 COMMAND_TIMEOUT = 60
+LOGIN_TIMEOUT = 300
 MAX_BOOTSTRAP_ATTEMPTS = 20
 SERIAL_DEVICE = '/dev/cuaa0'
 
@@ -107,22 +112,101 @@ def serial_cmd(sock, cmd, timeout=COMMAND_TIMEOUT):
         remaining = deadline - time.time()
         chunk = serial_recv(sock, timeout=min(2, max(0.1, remaining)))
         output += chunk
-        # The serial shell is /bin/sh running as root, whose default prompt
-        # ends with '#'.  None of the commands this script runs produce
-        # output ending with '#'.
         if output.rstrip().endswith('#'):
             return output
     raise RuntimeError(f"serial_cmd timed out after {timeout}s: {cmd!r}")
 
 
-def bootstrap_serial_shell(monitor, serial):
-    """Type login + serial shell start via sendkey; retry until serial responds.
+def screendump(monitor, path):
+    """Capture a VGA screendump to a file, return the raw bytes (or None)."""
+    send_hmp(monitor, f'screendump {path}')
+    time.sleep(0.5)
+    try:
+        with open(path, 'rb') as f:
+            return f.read()
+    except OSError:
+        return None
+
+
+def _ppm_pixel_hash(data):
+    """Hash just the pixel data of a PPM file, ignoring the header."""
+    if not data or not data.startswith(b'P6'):
+        return hashlib.sha1(data or b'').hexdigest()
+    pos = data.find(b'\n', 3)
+    if pos < 0:
+        return hashlib.sha1(data).hexdigest()
+    pos = data.find(b'\n', pos + 1)
+    if pos < 0:
+        return hashlib.sha1(data).hexdigest()
+    return hashlib.sha1(data[pos + 1:]).hexdigest()
+
+
+def wait_for_boot(monitor, artifacts_dir):
+    """Wait until the VGA console stabilizes, indicating boot is complete.
+
+    Takes periodic screendumps and compares their hashes.  Returns True once
+    the screen has been identical for STABLE_SECONDS, or False on timeout.
+    Saves the last screendump as 'last-console.ppm' in artifacts_dir.
+    """
+    time.sleep(BIOS_WAIT)
+
+    dump_path = os.path.join(artifacts_dir, 'console-check.ppm') \
+        if artifacts_dir else None
+    last_path = os.path.join(artifacts_dir, 'last-console.ppm') \
+        if artifacts_dir else None
+
+    prev_hash = None
+    stable_since = None
+    deadline = time.time() + BOOT_TIMEOUT
+
+    while time.time() < deadline:
+        if dump_path:
+            try:
+                os.remove(dump_path)
+            except OSError:
+                pass
+            data = screendump(monitor, dump_path)
+            if last_path and data:
+                try:
+                    with open(last_path, 'wb') as f:
+                        f.write(data)
+                except OSError:
+                    pass
+        else:
+            data = None
+
+        if data:
+            h = _ppm_pixel_hash(data)
+            if h == prev_hash:
+                if stable_since is None:
+                    stable_since = time.time()
+                elif time.time() - stable_since >= STABLE_SECONDS:
+                    print(f"  screen stable for {STABLE_SECONDS}s — boot done")
+                    return True
+            else:
+                prev_hash = h
+                stable_since = None
+        else:
+            stable_since = None
+
+        time.sleep(SCREENDUMP_INTERVAL)
+
+    return False
+
+
+def bootstrap_serial_shell(monitor, serial, artifacts_dir):
+    """Log in via VGA sendkey and start a serial shell; retry until it works.
 
     Returns True once a shell prompt appears on the serial socket.
     """
-    time.sleep(BOOT_LOADER_WAIT)
+    print("Waiting for boot to finish (screendump stability)...")
+    boot_ok = wait_for_boot(monitor, artifacts_dir)
 
-    deadline = time.time() + BOOT_TIMEOUT
+    if not boot_ok:
+        print("  WARNING: boot did not stabilize within timeout; "
+              "trying login anyway")
+
+    deadline = time.time() + LOGIN_TIMEOUT
     for attempt in range(1, MAX_BOOTSTRAP_ATTEMPTS + 1):
         if time.time() > deadline:
             break
@@ -137,8 +221,6 @@ def bootstrap_serial_shell(monitor, serial):
         send_line(monitor, 'root')
         time.sleep(2)
 
-        # Kill stale serial shells, then start a fresh one.
-        # Root's login shell is csh, so wrap sh-specific redirects in /bin/sh -c.
         send_line(monitor, 'pkill -f cuaa0')
         time.sleep(1)
         cmd = f"/bin/sh -c '/bin/sh <{SERIAL_DEVICE} >{SERIAL_DEVICE} 2>&1 &'"
@@ -161,6 +243,7 @@ def main():
     pub_key = os.environ["PUB_KEY"]
     monitor_sock = os.environ.get("DFLY_MONITOR_SOCK", "dfly-monitor.sock")
     serial_sock = os.environ.get("DFLY_SERIAL_SOCK", "dfly-serial.sock")
+    artifacts_dir = os.environ.get("DFLY_ARTIFACTS_DIR", "")
 
     monitor = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
     monitor.connect(monitor_sock)
@@ -173,8 +256,14 @@ def main():
 
     try:
         print("Bootstrapping serial shell via sendkey...")
-        if not bootstrap_serial_shell(monitor, serial):
+        if not bootstrap_serial_shell(monitor, serial, artifacts_dir):
             print("ERROR: serial shell never came up", file=sys.stderr)
+            if artifacts_dir:
+                last = os.path.join(artifacts_dir, 'last-console.ppm')
+                if os.path.exists(last):
+                    sz = os.path.getsize(last)
+                    print(f"  diagnostic screendump saved: {last} ({sz} bytes)",
+                          file=sys.stderr)
             return 1
 
         serial_drain(serial)

@@ -36,9 +36,11 @@ several steps:
   a here-string MUST go through an explicit `/bin/sh`:
   `ssh ... root@localhost /bin/sh <<'EOF' ... EOF`. A bare
   `ssh ... root@localhost 'cmd with $(...)'` fails with `Illegal variable name.`
-- **Boot timing is handled by the script.** `dfly_configure_vm.py` waits past the boot
-  loader and retries login + serial shell start until the serial port responds. If
-  something goes wrong, screendump the console (Step 5 has a helper) to see the VM state.
+- **Boot timing is handled by the script.** `dfly_configure_vm.py` takes periodic VGA
+  screendumps and waits for the screen to stabilize before attempting login, then retries
+  the login + serial shell start until the serial port responds. If something goes wrong,
+  check the diagnostic screendump the script saves, or use the manual screendump helper
+  (Step 5) to see the VM state.
 - **A daemonized QEMU `chdir`s to `/`.** The monitor `screendump` (and any relative path
   the daemon writes) needs an **absolute** path, or it fails `Permission denied`.
 - **No `sudo` needed (and often unavailable).** CI loop-mounts the ISO with `sudo` to get
@@ -168,19 +170,21 @@ it never silently falls back to slow TCG. `-smp`/`-m` are speed knobs; CI uses 4
 
 ### 5. Run the console setup script
 
-The CI console script waits past the boot loader, bootstraps a serial shell via sendkey
-with retries, and runs all setup commands through the serial console with prompt detection.
-It handles boot timing internally, so no screendump wait is needed.
+The CI console script takes periodic VGA screendumps to detect when boot finishes, then
+bootstraps a serial shell via sendkey with retries, and runs all setup commands through
+the serial console with prompt detection. It handles boot timing internally.
 
 The script lives in the repo at `.ci-scripts/bsd/dfly_configure_vm.py`. Copy it into
 `$VMDIR` (it connects to `dfly-monitor.sock` and `dfly-serial.sock` in its working
-directory) and run it there. It logs in, brings up networking, configures sshd, and
-installs your key:
+directory) and run it there. Set `DFLY_ARTIFACTS_DIR` to the VM directory so the script
+can write screendumps for boot detection and diagnostics. It logs in, brings up
+networking, configures sshd, and installs your key:
 
 ```sh
 VMDIR=~/vms/dragonfly-6.4.2; cd "$VMDIR"
 cp "$(git rev-parse --show-toplevel)/.ci-scripts/bsd/dfly_configure_vm.py" "$VMDIR/"
 export PUB_KEY="$(cat vm_key.pub)"
+export DFLY_ARTIFACTS_DIR="$VMDIR"
 python3 dfly_configure_vm.py
 ```
 
@@ -382,8 +386,8 @@ unchanged**. The local setup deliberately differs from CI, and each difference i
   `known_hosts` entry from a prior VM. CI's ephemeral runners never reuse the port, so
   `dragonfly-provision.bash` doesn't bother.
 - `-smp 8` for build speed (CI uses 4).
-- Both use the serial console script for boot timing; locally you can also screendump
-  for debugging.
+- Both use the serial console script with screendump-based boot detection; locally you
+  can also use the manual screendump helper for ad-hoc debugging.
 - No GHCR libs cache (that's token-gated CI plumbing) — you just run `cmake -P lib/build-libs.cmake` once.
 
 The FreeBSD and OpenBSD CI VMs follow the same shape
