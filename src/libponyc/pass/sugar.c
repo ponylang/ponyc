@@ -1145,6 +1145,80 @@ static void replace_thistype(ast_t* ast, pass_opt_t* opt)
 }
 
 
+// Walk up from a lambda type to see whether it sits inside a type
+// parameter's default.  Returns the TK_TYPEPARAM whose default contains
+// the lambda type, or NULL when the lambda type is not inside a default.
+static ast_t* find_enclosing_default(ast_t* ast)
+{
+  ast_t* child = ast;
+  ast_t* parent = ast_parent(ast);
+
+  while(parent != NULL)
+  {
+    if(ast_id(parent) == TK_TYPEPARAM)
+    {
+      if(child == ast_childidx(parent, 2))
+        return parent;
+
+      return NULL;
+    }
+
+    child = parent;
+    parent = ast_parent(parent);
+  }
+
+  return NULL;
+}
+
+// Check whether any TK_NOMINAL in the subtree has the given name and a
+// TK_NONE package (an unresolved reference to a type parameter at this
+// pass stage).
+static bool subtree_names_param(ast_t* ast, const char* name)
+{
+  if(ast == NULL)
+    return false;
+
+  if(ast_id(ast) == TK_NOMINAL)
+  {
+    ast_t* pkg = ast_child(ast);
+    ast_t* id = ast_sibling(pkg);
+
+    if((ast_id(pkg) == TK_NONE) && (ast_name(id) == name))
+      return true;
+  }
+
+  for(ast_t* child = ast_child(ast); child != NULL; child = ast_sibling(child))
+  {
+    if(subtree_names_param(child, name))
+      return true;
+  }
+
+  return false;
+}
+
+// Remove from `list` every child whose position is in `drop`, a
+// boolean array of `count` entries.  When the list ends up empty, reset
+// its id to TK_NONE to satisfy the tree checker.
+static void filter_list(ast_t* list, bool* drop, size_t count)
+{
+  size_t pos = 0;
+  ast_t* child = ast_child(list);
+
+  while(child != NULL)
+  {
+    ast_t* next = ast_sibling(child);
+
+    if((pos < count) && drop[pos])
+      ast_remove(child);
+
+    child = next;
+    pos++;
+  }
+
+  if(ast_childcount(list) == 0)
+    ast_setid(list, TK_NONE);
+}
+
 static ast_result_t sugar_lambdatype(pass_opt_t* opt, ast_t** astp)
 {
   pony_assert(astp != NULL);
@@ -1160,6 +1234,121 @@ static ast_result_t sugar_lambdatype(pass_opt_t* opt, ast_t** astp)
   {
     ast_setid(apply_cap, TK_AT);
     ast_setid(interface_cap, TK_VAL);
+  }
+
+  // When the lambda type sits inside a type parameter's default,
+  // collect_type_params captures the parameter being defaulted (and its
+  // later siblings) as type parameters of the generated interface.  Those
+  // captures produce an unbound TK_TYPEPARAMREF that reaches code
+  // generation and aborts.  Build a positional drop mask so we can filter
+  // each collected list before the $This append.
+  ast_t* defaulted_tp = find_enclosing_default(ast);
+  bool drop_mask[64];
+  size_t drop_count = 0;
+  memset(drop_mask, 0, sizeof(drop_mask));
+
+  if(defaulted_tp != NULL)
+  {
+    ast_t* tp_list = ast_parent(defaulted_tp);
+    size_t defaulted_index = ast_index(defaulted_tp);
+
+    // Walk entity params then method params (same order as
+    // collect_type_params) and mark the defaulted param and its later
+    // siblings as drop candidates.
+    ast_t* d_entity = ast;
+
+    while(d_entity != NULL && ast_id(d_entity) != TK_INTERFACE &&
+      ast_id(d_entity) != TK_TRAIT && ast_id(d_entity) != TK_PRIMITIVE &&
+      ast_id(d_entity) != TK_STRUCT && ast_id(d_entity) != TK_CLASS &&
+      ast_id(d_entity) != TK_ACTOR && ast_id(d_entity) != TK_TYPE)
+    {
+      d_entity = ast_parent(d_entity);
+    }
+
+    ast_t* d_method = ast;
+
+    while(d_method != NULL && ast_id(d_method) != TK_FUN &&
+      ast_id(d_method) != TK_NEW && ast_id(d_method) != TK_BE)
+    {
+      d_method = ast_parent(d_method);
+    }
+
+    ast_t* all_params[64];
+
+    if(d_entity != NULL)
+    {
+      ast_t* entity_tps = ast_childidx(d_entity, 1);
+
+      for(ast_t* p = ast_child(entity_tps); p != NULL; p = ast_sibling(p))
+      {
+        pony_assert(drop_count < 64);
+        all_params[drop_count] = p;
+        drop_mask[drop_count] =
+          (ast_parent(p) == tp_list) && (ast_index(p) >= defaulted_index);
+        drop_count++;
+      }
+    }
+
+    if(d_method != NULL)
+    {
+      ast_t* method_tps = ast_childidx(d_method, 2);
+
+      for(ast_t* p = ast_child(method_tps); p != NULL; p = ast_sibling(p))
+      {
+        pony_assert(drop_count < 64);
+        all_params[drop_count] = p;
+        drop_mask[drop_count] =
+          (ast_parent(p) == tp_list) && (ast_index(p) >= defaulted_index);
+        drop_count++;
+      }
+    }
+
+    // Retain candidates named in the lambda type's body.
+    for(size_t i = 0; i < drop_count; i++)
+    {
+      if(drop_mask[i])
+      {
+        const char* name = ast_name(ast_child(all_params[i]));
+
+        if(subtree_names_param(apply_t_params, name) ||
+          subtree_names_param(params, name) ||
+          subtree_names_param(ret_type, name))
+        {
+          drop_mask[i] = false;
+        }
+      }
+    }
+
+    // Retain candidates named by a retained param's constraint.
+    bool changed = true;
+
+    while(changed)
+    {
+      changed = false;
+
+      for(size_t i = 0; i < drop_count; i++)
+      {
+        if(!drop_mask[i])
+          continue;
+
+        const char* name = ast_name(ast_child(all_params[i]));
+
+        for(size_t j = 0; j < drop_count; j++)
+        {
+          if(drop_mask[j])
+            continue;
+
+          ast_t* constraint = ast_childidx(all_params[j], 1);
+
+          if(subtree_names_param(constraint, name))
+          {
+            drop_mask[i] = false;
+            changed = true;
+            break;
+          }
+        }
+      }
+    }
   }
 
   // Check if params or ret_type contain this-> viewpoints.
@@ -1198,6 +1387,9 @@ static ast_result_t sugar_lambdatype(pass_opt_t* opt, ast_t** astp)
   ast_t* interface_t_params;
   ast_t* t_args;
   collect_type_params(ast, NULL, &t_args, opt);
+
+  if(drop_count > 0)
+    filter_list(t_args, drop_mask, drop_count);
 
   if(has_thistype)
   {
@@ -1251,6 +1443,9 @@ static ast_result_t sugar_lambdatype(pass_opt_t* opt, ast_t** astp)
   // Fetch the interface type parameters after we replace the ast, so that if
   // we are an interface type parameter, we get ourselves as the constraint.
   collect_type_params(ast, &interface_t_params, NULL, opt);
+
+  if(drop_count > 0)
+    filter_list(interface_t_params, drop_mask, drop_count);
 
   if(has_thistype)
   {

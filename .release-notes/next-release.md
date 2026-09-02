@@ -873,3 +873,40 @@ Comparing a freshly constructed object with `is` or `isnt` is an error because t
 
 A primitive's constructor returns the one instance, so comparing its result with `is` is allowed. That comparison crashed when the constructor had type parameters or was called on a value, and was wrongly rejected when the primitive was named through a type alias. All three now compile.
 
+## Fix type parameter defaults that refer to an earlier type parameter
+
+A type parameter default that named an earlier type parameter in the same list was not substituted at the use site. The raw reference survived into later passes, producing a spurious "type argument is outside its constraint" error or, when the type was used to construct an object, a compiler crash at code generation.
+
+```pony
+class Iter[A, I: Iterator[A] ref = Iterator[A] ref] is Iterator[A]
+```
+
+`Iter[U8]([0].values())` now compiles. The default `Iterator[A] ref` is reified to `Iterator[U8] ref` when `A` is `U8`. Default type arguments are now reified in all positions: type annotations, aliases, provides lists, partially explicit type argument lists, and calls.
+
+## Fix compiler crash on a lambda type used as a type parameter default
+
+A lambda type serving as a type parameter default captured that parameter, producing an unbound type parameter reference that reached code generation and crashed the compiler.
+
+```pony
+primitive Bar
+  fun foo[A: Any val = {(U8): U8} val](a: A) => None
+```
+
+`Bar.foo(f)` now compiles. The generated interface for the lambda type no longer includes the defaulted parameter or its later siblings as type parameters, unless the lambda type's body names them.
+
+## Fix compiler crash on a type parameter default naming itself or a later one
+
+A type parameter default that named itself or a later type parameter in the same list made the compiler abort at code generation, or produced a misleading error about an internal name the user could not see from the use site.
+
+```pony
+class Foo[A: Any val = B, B: Any val = U8]
+
+actor Main
+  new create(env: Env) =>
+    let x: Foo = Foo
+```
+
+The compiler now reports "not enough type arguments" with a continuation naming the type parameter the default refers to. A definition with such a default that is only ever used with written type arguments keeps compiling.
+
+A type annotation that uses the default at a site that is never reached also becomes an error. `class Foo[A: Any val = A]` used only as `fun unused(x: Foo)` compiled before because the default was filled at the annotation and code generation never processed the unreached one. That program denotes a type with no meaning and is now rejected.
+

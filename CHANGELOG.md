@@ -47,6 +47,9 @@ All notable changes to the Pony compiler and standard library will be documented
 - Fix PropertyRunner double completion on assert-and-error ([PR #5932](https://github.com/ponylang/ponyc/pull/5932))
 - Fix stack overflow in itertools Iter methods ([PR #5936](https://github.com/ponylang/ponyc/pull/5936))
 - Fix compiler crash on `is` with a constructor call ([PR #5964](https://github.com/ponylang/ponyc/pull/5964))
+- Fix type parameter defaults that refer to an earlier type parameter ([PR #5967](https://github.com/ponylang/ponyc/pull/5967))
+- Fix compiler crash on a lambda type used as a type parameter default ([PR #5967](https://github.com/ponylang/ponyc/pull/5967))
+- Fix compiler crash on a type parameter default naming itself or a later one ([PR #5967](https://github.com/ponylang/ponyc/pull/5967))
 
 ### Added
 
@@ -61,6 +64,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Type parameter constraints now respect the default cap of the named type ([PR #5886](https://github.com/ponylang/ponyc/pull/5886))
 - Applying a capability to a tuple type alias is a compile error ([PR #5900](https://github.com/ponylang/ponyc/pull/5900))
 - Don't box machine words smaller than 64 bits ([PR #5952](https://github.com/ponylang/ponyc/pull/5952))
+- Reject unreachable type annotations with self-referencing defaults ([PR #5967](https://github.com/ponylang/ponyc/pull/5967))
 
 ## [0.69.1] - 2026-08-21
 
