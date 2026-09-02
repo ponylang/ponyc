@@ -6,7 +6,7 @@ use @objectmap_has_object_rc[Bool](obj_map: Pointer[None], obj: Any tag, rc: USi
 use @pony_exitcode[None](code: I32)
 
 interface tag I
-  be trace(x: U32)
+  be trace(x: U64)
 
 actor Main
   var map_before: Pointer[None] = Pointer[None]

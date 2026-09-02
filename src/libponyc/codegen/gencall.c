@@ -5,6 +5,7 @@
 #include "gendesc.h"
 #include "genfun.h"
 #include "genname.h"
+#include "gentagged.h"
 #include "genopt.h"
 #include "gentrace.h"
 #include "../pkg/platformfuns.h"
@@ -364,8 +365,11 @@ static LLVMValueRef dispatch_function(compile_t* c, reach_type_t* t,
         return func;
 
       // Fall back to the vtable lookup.
-      func = gendesc_vtable(c, gendesc_fetch(c, l_value),
-        m->vtable_index);
+      {
+        LLVMValueRef desc = gentagged_fetch_desc_or_heap(c, l_value, t,
+          "dispatch");
+        func = gendesc_vtable(c, desc, m->vtable_index);
+      }
 
       return func;
     }

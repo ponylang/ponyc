@@ -4,6 +4,7 @@
 #include "gendesc.h"
 #include "genfun.h"
 #include "genexpr.h"
+#include "gentagged.h"
 #include "genoperator.h"
 #include "genopt.h"
 #include "genreference.h"
@@ -102,6 +103,38 @@ static bool check_nominal(compile_t* c, LLVMValueRef desc, ast_t* pattern_type,
   return true;
 }
 
+static LLVMValueRef safe_ptr_to_fields(compile_t* c, LLVMValueRef object,
+  LLVMValueRef desc)
+{
+  if(!gentagged_has_any_taggable(c))
+    return gendesc_ptr_to_fields(c, object, desc);
+
+  LLVMValueRef is_tagged = gentagged_is_tagged(c, object);
+
+  LLVMBasicBlockRef tagged_block = codegen_block(c, "ptf_tagged");
+  LLVMBasicBlockRef heap_block = codegen_block(c, "ptf_heap");
+  LLVMBasicBlockRef merge_block = codegen_block(c, "ptf_merge");
+  LLVMBuildCondBr(c->builder, is_tagged, tagged_block, heap_block);
+
+  LLVMPositionBuilderAtEnd(c->builder, tagged_block);
+  LLVMValueRef null_ptr = LLVMConstNull(c->ptr);
+  LLVMBuildBr(c->builder, merge_block);
+
+  LLVMMoveBasicBlockAfter(heap_block, tagged_block);
+  LLVMPositionBuilderAtEnd(c->builder, heap_block);
+  LLVMValueRef heap_ptr = gendesc_ptr_to_fields(c, object, desc);
+  LLVMBasicBlockRef heap_from = LLVMGetInsertBlock(c->builder);
+  LLVMBuildBr(c->builder, merge_block);
+
+  LLVMMoveBasicBlockAfter(merge_block, heap_from);
+  LLVMPositionBuilderAtEnd(c->builder, merge_block);
+  LLVMValueRef phi = LLVMBuildPhi(c->builder, c->ptr, "");
+  LLVMValueRef ptrs[2] = {null_ptr, heap_ptr};
+  LLVMBasicBlockRef blocks[2] = {tagged_block, heap_from};
+  LLVMAddIncoming(phi, ptrs, blocks, 2);
+  return phi;
+}
+
 static void check_cardinality(compile_t* c, LLVMValueRef desc, size_t size,
   LLVMBasicBlockRef next_block)
 {
@@ -147,8 +180,11 @@ static bool check_tuple(compile_t* c, LLVMValueRef ptr, LLVMValueRef desc,
     LLVMValueRef object_ptr = field_ptr;
     LLVMValueRef object = LLVMBuildLoad2(c->builder, c->ptr, object_ptr,
       "");
-    LLVMValueRef object_desc = gendesc_fetch(c, object);
-    object_ptr = gendesc_ptr_to_fields(c, object, object_desc);
+
+    LLVMValueRef object_desc = gentagged_fetch_desc_or_heap_all(c, object,
+      "ct_obj");
+
+    object_ptr = safe_ptr_to_fields(c, object, object_desc);
 
     if(!check_type(c, object_ptr, object_desc, pattern_child, next_block,
       weight))
@@ -339,7 +375,9 @@ static bool dynamic_tuple_element(compile_t* c, LLVMValueRef ptr,
   LLVMPositionBuilderAtEnd(c->builder, null_block);
   LLVMValueRef object_ptr = field_ptr;
   LLVMValueRef object = LLVMBuildLoad2(c->builder, c->ptr, object_ptr, "");
-  LLVMValueRef object_desc = gendesc_fetch(c, object);
+
+  LLVMValueRef object_desc = gentagged_fetch_desc_or_heap_all(c, object,
+    "dte");
 
   if(!dynamic_match_object(c, object, object_desc, pattern, next_block))
     return false;
@@ -405,11 +443,6 @@ static bool dynamic_tuple_ptr(compile_t* c, LLVMValueRef ptr,
 // class), the actual field data may still be a raw unboxed primitive (e.g. a
 // U8 matched against (U8 | U16)). In that case we must box the raw value
 // into a heap object so the caller sees a uniform pointer representation.
-// We branch on the type_id to either load the pointer directly or box the
-// raw value before merging.
-//
-// When pattern_type's use_type is not a pointer (concrete primitive type),
-// we load directly with the pattern type's representation.
 static LLVMValueRef load_tuple_field_value(compile_t* c, LLVMValueRef ptr,
   LLVMValueRef desc, ast_t* pattern_type)
 {
@@ -551,8 +584,7 @@ static bool dynamic_value_object(compile_t* c, LLVMValueRef object,
   // Get the type of the right-hand side of the pattern's eq() function.
   ast_t* param_type = eq_param_type(c, pattern);
 
-  // Build a base pointer that skips the object header.
-  LLVMValueRef ptr = gendesc_ptr_to_fields(c, object, desc);
+  LLVMValueRef ptr = safe_ptr_to_fields(c, object, desc);
 
   ast_t* the_case = ast_parent(pattern);
   match_weight_t weight;
@@ -577,8 +609,7 @@ static bool dynamic_capture_object(compile_t* c, LLVMValueRef object,
   ast_t* pattern_type = deferred_reify(c->frame->reify, ast_type(pattern),
     c->opt);
 
-  // Build a base pointer that skips the object header.
-  LLVMValueRef ptr = gendesc_ptr_to_fields(c, object, desc);
+  LLVMValueRef ptr = safe_ptr_to_fields(c, object, desc);
 
   ast_t* the_case = ast_parent(pattern);
   match_weight_t weight;
@@ -628,8 +659,7 @@ static bool dynamic_match_object(compile_t* c, LLVMValueRef object,
       if(ast_sibling(child) == NULL)
         return dynamic_match_object(c, object, desc, child, next_block);
 
-      // Build a base pointer that skips the object header.
-      LLVMValueRef ptr = gendesc_ptr_to_fields(c, object, desc);
+      LLVMValueRef ptr = safe_ptr_to_fields(c, object, desc);
 
       // Destructure the match expression (or element thereof).
       return dynamic_tuple_ptr(c, ptr, desc, pattern, next_block);
@@ -686,9 +716,15 @@ static bool static_tuple(compile_t* c, LLVMValueRef value, ast_t* type,
     {
       pony_assert((ast_id(type) != TK_NOMINAL) || is_top_type(type, true, c->opt));
 
-      // Read the dynamic type and get a base pointer.
-      LLVMValueRef desc = gendesc_fetch(c, value);
-      LLVMValueRef ptr = gendesc_ptr_to_fields(c, value, desc);
+      reach_type_t* t = reach_type(c->reach, type, c->opt);
+      LLVMValueRef desc;
+
+      if(t != NULL)
+        desc = gentagged_fetch_desc_or_heap(c, value, t, "tup");
+      else
+        desc = gendesc_fetch(c, value);
+
+      LLVMValueRef ptr = safe_ptr_to_fields(c, value, desc);
       return dynamic_tuple_ptr(c, ptr, desc, pattern, next_block);
     }
 
@@ -727,7 +763,15 @@ static bool static_value(compile_t* c, LLVMValueRef value, ast_t* type,
   {
     // Switch to dynamic value checking.
     pony_assert(LLVMTypeOf(value) == c->ptr);
-    LLVMValueRef desc = gendesc_fetch(c, value);
+
+    reach_type_t* t = reach_type(c->reach, type, c->opt);
+    LLVMValueRef desc;
+
+    if(t != NULL)
+      desc = gentagged_fetch_desc_or_heap(c, value, t, "val");
+    else
+      desc = gendesc_fetch(c, value);
+
     return dynamic_value_object(c, value, desc, pattern, next_block);
   }
 
@@ -757,7 +801,15 @@ static bool static_capture(compile_t* c, LLVMValueRef value, ast_t* type,
   {
     // Switch to dynamic capture.
     pony_assert(LLVMTypeOf(value) == c->ptr);
-    LLVMValueRef desc = gendesc_fetch(c, value);
+
+    reach_type_t* t = reach_type(c->reach, type, c->opt);
+    LLVMValueRef desc;
+
+    if(t != NULL)
+      desc = gentagged_fetch_desc_or_heap(c, value, t, "cap");
+    else
+      desc = gendesc_fetch(c, value);
+
     return dynamic_capture_object(c, value, desc, pattern, next_block);
   }
 

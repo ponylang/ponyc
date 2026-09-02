@@ -4,6 +4,7 @@
 #include "gendesc.h"
 #include "genexpr.h"
 #include "genfun.h"
+#include "gentagged.h"
 #include "genopt.h"
 #include "../reach/subtype.h"
 #include "../type/subtype.h"
@@ -104,14 +105,117 @@ static LLVMValueRef raw_is_box(compile_t* c, ast_t* left_type,
 {
   pony_assert(LLVMGetTypeKind(LLVMTypeOf(r_value)) == LLVMPointerTypeKind);
 
+  reach_type_t* l_reach = reach_type(c->reach, left_type, c->opt);
+  LLVMValueRef zero = LLVMConstInt(c->i1, 0, false);
+
+  if(gentagged_is_taggable(c, l_reach))
+  {
+    // r_value may be tagged. Branch on the tag bit.
+    LLVMValueRef is_tagged = gentagged_is_tagged(c, r_value);
+
+    LLVMBasicBlockRef tagged_block = codegen_block(c, "is_tagged");
+    LLVMBasicBlockRef heap_block = codegen_block(c, "is_heap");
+    LLVMBasicBlockRef post_block = codegen_block(c, "is_post");
+    LLVMBuildCondBr(c->builder, is_tagged, tagged_block, heap_block);
+
+    // Tagged path: compare type_id and payload.
+    LLVMPositionBuilderAtEnd(c->builder, tagged_block);
+    LLVMValueRef r_tid = gentagged_typeid(c, r_value);
+    LLVMValueRef expected_tid = LLVMConstInt(c->i32, l_reach->type_id, false);
+    LLVMValueRef same_tid = LLVMBuildICmp(c->builder, LLVMIntEQ,
+      r_tid, expected_tid, "");
+
+    LLVMBasicBlockRef tagged_match_block = codegen_block(c, "is_tagged_match");
+    LLVMBasicBlockRef tagged_nomatch_block = codegen_block(c,
+      "is_tagged_nomatch");
+    LLVMBuildCondBr(c->builder, same_tid, tagged_match_block,
+      tagged_nomatch_block);
+
+    LLVMPositionBuilderAtEnd(c->builder, tagged_match_block);
+    compile_type_t* l_c_t = (compile_type_t*)l_reach->c_type;
+    LLVMValueRef r_payload = gentagged_payload(c, r_value, l_c_t->use_type);
+    LLVMValueRef tagged_eq = gen_is_value(c, left_type, left_type,
+      l_value, r_payload);
+    LLVMBuildBr(c->builder, post_block);
+    LLVMBasicBlockRef tagged_match_from = LLVMGetInsertBlock(c->builder);
+
+    LLVMMoveBasicBlockAfter(tagged_nomatch_block, tagged_match_from);
+    LLVMPositionBuilderAtEnd(c->builder, tagged_nomatch_block);
+    LLVMBuildBr(c->builder, post_block);
+
+    // Heap path: fall through to the original descriptor-based comparison.
+    LLVMMoveBasicBlockAfter(heap_block, tagged_nomatch_block);
+    LLVMPositionBuilderAtEnd(c->builder, heap_block);
+
+    LLVMValueRef r_desc = gendesc_fetch(c, r_value);
+    LLVMValueRef same_type = gendesc_isentity(c, r_desc, left_type);
+    pony_assert(same_type != GEN_NOVALUE);
+
+    LLVMBasicBlockRef heap_value_block = codegen_block(c, "is_heap_value");
+    LLVMBuildCondBr(c->builder, same_type, heap_value_block, post_block);
+
+    LLVMPositionBuilderAtEnd(c->builder, heap_value_block);
+    LLVMValueRef r_unboxed = gen_unbox(c, left_type, r_value);
+    LLVMValueRef heap_eq = gen_is_value(c, left_type, left_type,
+      l_value, r_unboxed);
+    LLVMBuildBr(c->builder, post_block);
+    LLVMBasicBlockRef heap_value_from = LLVMGetInsertBlock(c->builder);
+
+    // Merge all paths.
+    LLVMMoveBasicBlockAfter(post_block, heap_value_from);
+    LLVMPositionBuilderAtEnd(c->builder, post_block);
+    LLVMValueRef phi = LLVMBuildPhi(c->builder, c->i1, "");
+    LLVMAddIncoming(phi, &tagged_eq, &tagged_match_from, 1);
+    LLVMAddIncoming(phi, &zero, &tagged_nomatch_block, 1);
+    LLVMAddIncoming(phi, &zero, &heap_block, 1);
+    LLVMAddIncoming(phi, &heap_eq, &heap_value_from, 1);
+    return phi;
+  }
+
+  if(gentagged_has_any_taggable(c))
+  {
+    // r_value may be tagged. A tagged value can't match a non-taggable left
+    // type, and dereferencing it would segfault.
+    LLVMValueRef r_is_tagged = gentagged_is_tagged(c, r_value);
+    LLVMBasicBlockRef rib_heap_block = codegen_block(c, "rib_heap");
+    LLVMBasicBlockRef post_block = codegen_block(c, "is_post");
+    LLVMBuildCondBr(c->builder, r_is_tagged, post_block, rib_heap_block);
+
+    LLVMBasicBlockRef tagged_from = LLVMGetInsertBlock(c->builder);
+
+    LLVMPositionBuilderAtEnd(c->builder, rib_heap_block);
+    LLVMValueRef r_desc = gendesc_fetch(c, r_value);
+    LLVMValueRef same_type = gendesc_isentity(c, r_desc, left_type);
+    pony_assert(same_type != GEN_NOVALUE);
+
+    LLVMBasicBlockRef value_block = codegen_block(c, "is_value");
+    LLVMBuildCondBr(c->builder, same_type, value_block, post_block);
+    LLVMBasicBlockRef heap_from = LLVMGetInsertBlock(c->builder);
+
+    LLVMPositionBuilderAtEnd(c->builder, value_block);
+    r_value = gen_unbox(c, left_type, r_value);
+    LLVMValueRef is_value = gen_is_value(c, left_type, left_type, l_value,
+      r_value);
+    LLVMBuildBr(c->builder, post_block);
+    value_block = LLVMGetInsertBlock(c->builder);
+
+    LLVMMoveBasicBlockAfter(post_block, value_block);
+    LLVMPositionBuilderAtEnd(c->builder, post_block);
+    LLVMValueRef phi = LLVMBuildPhi(c->builder, c->i1, "");
+    LLVMAddIncoming(phi, &is_value, &value_block, 1);
+    LLVMAddIncoming(phi, &zero, &tagged_from, 1);
+    LLVMAddIncoming(phi, &zero, &heap_from, 1);
+    return phi;
+  }
+
   LLVMValueRef r_desc = gendesc_fetch(c, r_value);
   LLVMValueRef same_type = gendesc_isentity(c, r_desc, left_type);
   pony_assert(same_type != GEN_NOVALUE);
 
-  LLVMBasicBlockRef this_block = LLVMGetInsertBlock(c->builder);
   LLVMBasicBlockRef value_block = codegen_block(c, "is_value");
   LLVMBasicBlockRef post_block = codegen_block(c, "is_post");
   LLVMBuildCondBr(c->builder, same_type, value_block, post_block);
+  LLVMBasicBlockRef heap_from = LLVMGetInsertBlock(c->builder);
 
   LLVMPositionBuilderAtEnd(c->builder, value_block);
   r_value = gen_unbox(c, left_type, r_value);
@@ -123,9 +227,8 @@ static LLVMValueRef raw_is_box(compile_t* c, ast_t* left_type,
   LLVMMoveBasicBlockAfter(post_block, value_block);
   LLVMPositionBuilderAtEnd(c->builder, post_block);
   LLVMValueRef phi = LLVMBuildPhi(c->builder, c->i1, "");
-  LLVMValueRef zero = LLVMConstInt(c->i1, 0, false);
   LLVMAddIncoming(phi, &is_value, &value_block, 1);
-  LLVMAddIncoming(phi, &zero, &this_block, 1);
+  LLVMAddIncoming(phi, &zero, &heap_from, 1);
   return phi;
 }
 
@@ -385,6 +488,25 @@ static LLVMValueRef tuple_is_box(compile_t* c, ast_t* left_type,
   if(r_desc == NULL)
   {
     pony_assert(rhs_boxed);
+
+    if(gentagged_has_any_taggable(c))
+    {
+      // A tagged pointer is never a tuple.
+      LLVMValueRef is_tagged = gentagged_is_tagged(c, r_value);
+      LLVMBasicBlockRef heap_block = codegen_block(c, "is_tuple_heap");
+      LLVMBasicBlockRef tag_post = codegen_block(c, "is_tuple_tag_post");
+      LLVMBuildCondBr(c->builder, is_tagged, tag_post, heap_block);
+
+      LLVMPositionBuilderAtEnd(c->builder, tag_post);
+      LLVMValueRef tag_false = LLVMConstInt(c->i1, 0, false);
+      LLVMAddIncoming(phi, &tag_false, &tag_post, 1);
+      LLVMBuildBr(c->builder, post_block);
+
+      LLVMMoveBasicBlockAfter(heap_block, tag_post);
+      LLVMPositionBuilderAtEnd(c->builder, heap_block);
+      this_block = heap_block;
+    }
+
     r_desc = gendesc_fetch(c, r_value);
   }
 
@@ -473,6 +595,54 @@ static LLVMValueRef box_is_box(compile_t* c, reach_type_t* left_type,
   LLVMBuildCondBr(c->builder, eq_addr, post_block, box_block);
 
   LLVMPositionBuilderAtEnd(c->builder, box_block);
+
+  LLVMBasicBlockRef tagptr_block = NULL;
+  LLVMBasicBlockRef both_tagged_block = NULL;
+  LLVMBasicBlockRef mixed_block = NULL;
+  LLVMValueRef tagptr_eq = NULL;
+  LLVMBasicBlockRef switch_block = box_block;
+
+  if(gentagged_has_any_taggable(c))
+  {
+    // Either or both of l_value/r_value may be tagged pointers.
+    LLVMValueRef l_tagged = gentagged_is_tagged(c, l_value);
+    LLVMValueRef r_tagged = gentagged_is_tagged(c, r_value);
+    LLVMValueRef either_tagged = LLVMBuildOr(c->builder, l_tagged, r_tagged,
+      "");
+
+    tagptr_block = codegen_block(c, "is_tagptr");
+    LLVMBasicBlockRef heap_block = codegen_block(c, "is_heap");
+    LLVMBuildCondBr(c->builder, either_tagged, tagptr_block, heap_block);
+
+    // Tagged path: at least one side is tagged. If both are tagged, the raw
+    // i64 representation encodes type and value, so a direct compare suffices.
+    // If only one is tagged, gen_box always tags a taggable type, so within
+    // one compilation unit a tagged value never meets a heap-boxed value of
+    // the same type. Return false rather than dereference the tagged pointer.
+    LLVMPositionBuilderAtEnd(c->builder, tagptr_block);
+    LLVMValueRef both_tagged = LLVMBuildAnd(c->builder, l_tagged, r_tagged,
+      "");
+
+    both_tagged_block = codegen_block(c, "is_both_tagged");
+    mixed_block = codegen_block(c, "is_mixed_tag");
+    LLVMBuildCondBr(c->builder, both_tagged, both_tagged_block, mixed_block);
+
+    LLVMPositionBuilderAtEnd(c->builder, both_tagged_block);
+    LLVMValueRef l_int = LLVMBuildPtrToInt(c->builder, l_value, c->i64, "");
+    LLVMValueRef r_int = LLVMBuildPtrToInt(c->builder, r_value, c->i64, "");
+    tagptr_eq = LLVMBuildICmp(c->builder, LLVMIntEQ, l_int, r_int, "");
+    LLVMBuildBr(c->builder, post_block);
+
+    LLVMMoveBasicBlockAfter(mixed_block, both_tagged_block);
+    LLVMPositionBuilderAtEnd(c->builder, mixed_block);
+    LLVMBuildBr(c->builder, post_block);
+
+    // Heap path: neither side is tagged, use existing descriptor logic.
+    LLVMMoveBasicBlockAfter(heap_block, tagptr_block);
+    LLVMPositionBuilderAtEnd(c->builder, heap_block);
+    switch_block = heap_block;
+  }
+
   LLVMValueRef l_desc = NULL;
   LLVMValueRef l_typeid = NULL;
   bool has_unboxed_sub = (sub_kind & SUBTYPE_KIND_UNBOXED) != 0;
@@ -594,6 +764,12 @@ static LLVMValueRef box_is_box(compile_t* c, reach_type_t* left_type,
   LLVMValueRef zero = LLVMConstInt(c->i1, 0, false);
   LLVMAddIncoming(phi, &one, &this_block, 1);
 
+  if(tagptr_block != NULL)
+  {
+    LLVMAddIncoming(phi, &tagptr_eq, &both_tagged_block, 1);
+    LLVMAddIncoming(phi, &zero, &mixed_block, 1);
+  }
+
   if(bothnum_block != NULL)
     LLVMAddIncoming(phi, &is_num, &bothnum_block, 1);
 
@@ -607,7 +783,7 @@ static LLVMValueRef box_is_box(compile_t* c, reach_type_t* left_type,
     LLVMAddIncoming(phi, &zero, &tuple_block, 1);
 
   if(has_unboxed_sub)
-    LLVMAddIncoming(phi, &zero, &box_block, 1);
+    LLVMAddIncoming(phi, &zero, &switch_block, 1);
 
   return phi;
 }

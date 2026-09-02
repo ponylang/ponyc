@@ -3,6 +3,7 @@
 #include "gencall.h"
 #include "gendesc.h"
 #include "genexpr.h"
+#include "gentagged.h"
 #include "genreference.h"
 #include "genname.h"
 #include "gentype.h"
@@ -523,7 +524,9 @@ static LLVMValueRef assign_rvalue(compile_t* c, ast_t* left, ast_t* r_type,
         reach_type_t* t = reach_type(c->reach, r_type, c->opt);
         pony_assert(t != NULL);
 
-        LLVMValueRef r_desc = gendesc_fetch(c, r_value);
+        LLVMValueRef r_desc = gentagged_fetch_desc_or_heap(c, r_value, t,
+          "op");
+
         LLVMValueRef r_typeid = gendesc_typeid(c, r_desc);
 
         LLVMBasicBlockRef unreachable_block =

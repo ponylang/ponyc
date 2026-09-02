@@ -3,6 +3,7 @@
 #include "gendesc.h"
 #include "genfun.h"
 #include "genname.h"
+#include "gentagged.h"
 #include "genprim.h"
 #include "../type/cap.h"
 #include "../type/matchtype.h"
@@ -688,7 +689,25 @@ static void trace_dynamic_union_or_isect(compile_t* c, LLVMValueRef ctx,
   }
 
   // No type matched. This may be a boxed primitive: trace it here.
-  trace_unknown(c, ctx, object, PONY_TRACE_OPAQUE);
+  if(gentagged_has_any_taggable(c))
+  {
+    // A tagged pointer has no heap object — skip tracing.
+    LLVMValueRef is_tagged = gentagged_is_tagged(c, object);
+    LLVMBasicBlockRef trace_block = codegen_block(c, "trace_fallback");
+    LLVMBasicBlockRef skip_block = codegen_block(c, "trace_skip_tag");
+    LLVMBuildCondBr(c->builder, is_tagged, skip_block, trace_block);
+
+    LLVMPositionBuilderAtEnd(c->builder, trace_block);
+    trace_unknown(c, ctx, object, PONY_TRACE_OPAQUE);
+    LLVMBuildBr(c->builder, skip_block);
+
+    LLVMMoveBasicBlockAfter(skip_block, LLVMGetInsertBlock(c->builder));
+    LLVMPositionBuilderAtEnd(c->builder, skip_block);
+  }
+  else
+  {
+    trace_unknown(c, ctx, object, PONY_TRACE_OPAQUE);
+  }
 }
 
 static void trace_dynamic_tuple(compile_t* c, LLVMValueRef ctx,
@@ -949,11 +968,23 @@ static void trace_dynamic_nominal(compile_t* c, LLVMValueRef ctx,
     ast_setid(dst_eph, TK_NONE);
 
   // We aren't always this type. We need to check dynamically.
+  LLVMBasicBlockRef is_false = codegen_block(c, "");
+
+  if(gentagged_has_any_taggable(c))
+  {
+    // A tagged pointer is never a non-primitive nominal — skip it
+    // before calling gendesc_fetch, which would dereference the tagged pointer.
+    LLVMValueRef is_tagged = gentagged_is_tagged(c, object);
+    LLVMBasicBlockRef not_tagged_block = codegen_block(c, "trace_not_tagged");
+    LLVMBuildCondBr(c->builder, is_tagged, is_false, not_tagged_block);
+
+    LLVMPositionBuilderAtEnd(c->builder, not_tagged_block);
+  }
+
   LLVMValueRef desc = gendesc_fetch(c, object);
   LLVMValueRef test = gendesc_isnominal(c, desc, type);
 
   LLVMBasicBlockRef is_true = codegen_block(c, "");
-  LLVMBasicBlockRef is_false = codegen_block(c, "");
   LLVMBuildCondBr(c->builder, test, is_true, is_false);
 
   // Trace as this type.
@@ -987,12 +1018,33 @@ static void trace_dynamic(compile_t* c, LLVMValueRef ctx, LLVMValueRef object,
 
     case TK_TUPLETYPE:
     {
+      LLVMBasicBlockRef tuple_block;
+      LLVMBasicBlockRef skip_block = NULL;
+
+      if(gentagged_has_any_taggable(c))
+      {
+        // A tagged pointer is never a tuple — skip.
+        LLVMValueRef is_tagged = gentagged_is_tagged(c, object);
+        tuple_block = codegen_block(c, "trace_tuple");
+        skip_block = codegen_block(c, "trace_skip_tuple");
+        LLVMBuildCondBr(c->builder, is_tagged, skip_block, tuple_block);
+
+        LLVMPositionBuilderAtEnd(c->builder, tuple_block);
+      }
+
       // This is a boxed tuple. Trace the box, then handle the elements.
       trace_unknown(c, ctx, object, PONY_TRACE_OPAQUE);
 
       LLVMValueRef desc = gendesc_fetch(c, object);
       LLVMValueRef ptr = gendesc_ptr_to_fields(c, object, desc);
       trace_dynamic_tuple(c, ctx, ptr, desc, type, orig, tuple);
+
+      if(skip_block != NULL)
+      {
+        LLVMBuildBr(c->builder, skip_block);
+        LLVMMoveBasicBlockAfter(skip_block, LLVMGetInsertBlock(c->builder));
+        LLVMPositionBuilderAtEnd(c->builder, skip_block);
+      }
       break;
     }
 
@@ -1229,7 +1281,27 @@ void gentrace(compile_t* c, LLVMValueRef ctx, LLVMValueRef src_value,
       }
 
       if(boxed)
-        trace_known(c, ctx, dst_value, src_type, PONY_TRACE_IMMUTABLE);
+      {
+        if(gentagged_has_any_taggable(c))
+        {
+          // A tagged pointer has no heap object — skip tracing.
+          LLVMValueRef is_tagged = gentagged_is_tagged(c, dst_value);
+          LLVMBasicBlockRef trace_block = codegen_block(c, "trace_heap_box");
+          LLVMBasicBlockRef skip_block = codegen_block(c, "trace_skip_tag");
+          LLVMBuildCondBr(c->builder, is_tagged, skip_block, trace_block);
+
+          LLVMPositionBuilderAtEnd(c->builder, trace_block);
+          trace_known(c, ctx, dst_value, src_type, PONY_TRACE_IMMUTABLE);
+          LLVMBuildBr(c->builder, skip_block);
+
+          LLVMMoveBasicBlockAfter(skip_block, LLVMGetInsertBlock(c->builder));
+          LLVMPositionBuilderAtEnd(c->builder, skip_block);
+        }
+        else
+        {
+          trace_known(c, ctx, dst_value, src_type, PONY_TRACE_IMMUTABLE);
+        }
+      }
 
       break;
     }

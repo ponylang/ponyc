@@ -6,7 +6,7 @@ use @objectmap_has_object_rc[Bool](obj_map: Pointer[None], obj: Any tag, rc: USi
 use @pony_exitcode[None](code: I32)
 
 interface tag I
-  be trace(x: (U32, U32))
+  be trace(x: (U64, U64))
 
 actor Main
   var map_before: Pointer[None] = Pointer[None]
@@ -16,7 +16,7 @@ actor Main
     i.trace((42, 42))
     map_before = @gc_local_snapshot(this)
 
-  be trace(x: (Any val, U32)) =>
+  be trace(x: (Any val, U64)) =>
     let map_after = @gc_local(this)
     let ok = @objectmap_has_object_rc(map_before, x._1, USize(1)) and
       @objectmap_has_object_rc(map_after, x._1, USize(0))
