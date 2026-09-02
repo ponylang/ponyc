@@ -152,6 +152,55 @@ static void reify_reference(pass_opt_t* opt, ast_t** astp, ast_t* typeparams, as
 }
 
 
+static const char* find_dangling_default_ref(ast_t* ast, ast_t* typeparams,
+  size_t pos)
+{
+  if(ast == NULL)
+    return NULL;
+
+  if(ast_id(ast) == TK_TYPEPARAMREF)
+  {
+    ast_t* ref_def = typeparam_root((ast_t*)ast_data(ast));
+    ast_t* tp = ast_child(typeparams);
+    size_t j = 0;
+
+    while(tp != NULL)
+    {
+      if(j >= pos)
+      {
+        ast_t* tp_root = typeparam_root(tp);
+        if(ref_def == tp_root)
+          return ast_name(ast_child(tp));
+      }
+      tp = ast_sibling(tp);
+      j++;
+    }
+  }
+
+  for(ast_t* child = ast_child(ast); child != NULL; child = ast_sibling(child))
+  {
+    const char* name = find_dangling_default_ref(child, typeparams, pos);
+    if(name != NULL)
+      return name;
+  }
+
+  return NULL;
+}
+
+// Reify a type parameter's default against the type arguments decided so far.
+// Sibling references in the default must already be TK_TYPEPARAMREF nodes
+// (via resolve_default_typeargs) so that reify() can substitute them.
+static ast_t* reify_default(ast_t* typeparam, ast_t* typeparams,
+  ast_t* typeargs_so_far, pass_opt_t* opt)
+{
+  ast_t* defarg = ast_childidx(typeparam, 2);
+
+  if(ast_id(defarg) == TK_NONE)
+    return NULL;
+
+  return reify(defarg, typeparams, typeargs_so_far, opt, true);
+}
+
 bool reify_defaults(ast_t* typeparams, ast_t* typeargs, bool errors,
   pass_opt_t* opt)
 {
@@ -189,11 +238,29 @@ bool reify_defaults(ast_t* typeparams, ast_t* typeargs, bool errors,
   {
     ast_t* defarg = ast_childidx(typeparam, 2);
 
-    if(ast_id(defarg) == TK_NONE)
+    const char* dangling = find_dangling_default_ref(defarg, typeparams,
+      arg_count);
+
+    if(dangling != NULL)
+    {
+      if(errors)
+      {
+        ast_error(opt->check.errors, typeargs, "not enough type arguments");
+        ast_error_continue(opt->check.errors, defarg,
+          "default refers to type parameter %s", dangling);
+      }
+
+      return false;
+    }
+
+    ast_t* reified = reify_default(typeparam, typeparams, typeargs, opt);
+
+    if(reified == NULL)
       break;
 
-    ast_append(typeargs, defarg);
+    ast_append(typeargs, reified);
     typeparam = ast_sibling(typeparam);
+    arg_count++;
   }
 
   if(typeparam != NULL)
