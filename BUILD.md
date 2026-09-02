@@ -292,16 +292,12 @@ cmake --build --preset release
 
 ### lto
 
-Link-time optimizations provide a performance improvement. You should strongly consider turning on LTO if you build ponyc from source. It's off by default as it comes with some caveats:
+Link-time optimizations provide a performance improvement. On Linux with Clang, LTO is enabled automatically — no configuration is needed. On other platforms, LTO is not currently supported.
 
-- If you aren't using clang as your linker, we've seen LTO generate incorrect binaries. It's rare but it can happen. Before turning on LTO you need to be aware that it's possible.
-
-- If you are on MacOS, turning on LTO means that if you upgrade your version of XCode, you will have to rebuild your Pony compiler. You won't be able to link Pony programs if there is a mismatch between the version of XCode used to build the Pony runtime and the version of XCode you currently have installed.
-
-LTO is enabled by setting `PONY_USE_LTO` to `true` in the configure step like:
+To explicitly disable LTO on Linux:
 
 ```bash
-cmake --preset release -DPONY_USE_LTO=true
+cmake --preset release -DPONY_USE_LTO=OFF
 cmake --build --preset release
 ```
 
