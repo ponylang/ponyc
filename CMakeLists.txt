@@ -611,7 +611,7 @@ add_compile_definitions(
 
 include(CheckIPOSupported)
 if(NOT DEFINED PONY_USE_LTO)
-    if(CMAKE_SYSTEM_NAME STREQUAL "Linux" AND CMAKE_C_COMPILER_ID MATCHES "Clang")
+    if((CMAKE_SYSTEM_NAME STREQUAL "Linux" AND CMAKE_C_COMPILER_ID MATCHES "Clang") OR MSVC)
         set(PONY_USE_LTO ON)
     else()
         set(PONY_USE_LTO OFF)

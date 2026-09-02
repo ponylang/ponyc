@@ -292,9 +292,9 @@ cmake --build --preset release
 
 ### lto
 
-Link-time optimizations provide a performance improvement. On Linux with Clang, LTO is enabled automatically — no configuration is needed. On other platforms, LTO is not currently supported.
+Link-time optimizations provide a performance improvement. On Linux with Clang and on Windows with MSVC, LTO is enabled automatically — no configuration is needed. On other platforms, LTO is not currently supported.
 
-To explicitly disable LTO on Linux:
+To explicitly disable LTO:
 
 ```bash
 cmake --preset release -DPONY_USE_LTO=OFF
