@@ -519,56 +519,36 @@ static bool verify_assign(pass_opt_t* opt, ast_t* ast)
   return true;
 }
 
-// This function checks if the passed AST node represent
-// a constructor call assuming the passed AST node is
-// of TK_CALL type.
-//
-// This is going to be positive when creating a new object
-// or a new actor. If the constructor is invoked on a
-// primitive this will return false as we aren't really
-// creating a new object.
-static bool is_creating_object(ast_t *ast) {
-  ast_t* type;
-  ast_t* receiver;
+static ast_t* concrete_nominal_def(ast_t* type, ast_t** to_free);
 
+// Whether the call constructs a new object or actor. A primitive's
+// constructor returns the one instance, so it is not creating anything.
+// The entity comes from the call's type through concrete_nominal_def,
+// not from the callee's receiver, which may be a value, a wrapper
+// carrying type arguments, or a type reference to an alias or a type
+// parameter.
+static bool is_creating_object(ast_t* ast)
+{
   pony_assert(ast_id(ast) == TK_CALL);
 
-  // The following diagram represent the AST structure
-  // of the following example, where C is supposed to
-  // be a class:
-  //
-  //     C.create()
-  //
-  // type: TK_CALL (`C.create`)
-  // children:
-  // - type: TK_NEWREF
-  //
-  // In the previous example, if `C` is an actor, we'll
-  // the following structure:
-  //
-  // type: TK_CALL (`C.create`)
-  // children:
-  // - type: TK_NEWBEREF
-
+  // Only constructor calls are relevant. Any other call's type is the
+  // method's return type, which could also be a class.
   ast_t* callee = ast_child(ast);
-  switch(ast_id(callee))
-  {
-    case TK_NEWREF:
-    case TK_NEWBEREF:
-      receiver = ast_child(callee);
-      pony_assert(ast_id(receiver) == TK_TYPEREF);
+  if((ast_id(callee) != TK_NEWREF) && (ast_id(callee) != TK_NEWBEREF))
+    return false;
 
-      type = (ast_t*) ast_data(receiver);
-      if(ast_id(type) == TK_PRIMITIVE)
-      {
-        return false;
-      }
+  ast_t* to_free;
+  ast_t* def = concrete_nominal_def(ast_type(ast), &to_free);
 
-      return true;
+  // When the type does not resolve to a single entity (e.g. a type
+  // parameter), treat it as creating an object: the constraint does not
+  // determine whether the argument is a primitive.
+  bool creating = (def == NULL) || (ast_id(def) != TK_PRIMITIVE);
 
-    default:
-      return false;
-  }
+  if(to_free != NULL)
+    ast_free_unattached(to_free);
+
+  return creating;
 }
 
 static bool verify_is_comparand(pass_opt_t* opt, ast_t* ast)

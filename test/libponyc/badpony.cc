@@ -1704,6 +1704,170 @@ TEST_F(BadPonyTest, IsComparingCreate)
   }
 }
 
+TEST_F(BadPonyTest, IsComparingConstructorWithMethodTypeArguments)
+{
+  // Exercises both operand positions, isnt, and inside a tuple.
+  const char* src =
+    "class Foo[A]\n"
+    "  new create[B](a: A, b: B) => None\n"
+
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let y = Foo[String].create[U8](\"x\", U8(1))\n"
+    "    Foo[String].create[U8](\"x\", U8(1)) is y\n"
+    "    y isnt Foo[String].create[U8](\"x\", U8(1))\n"
+    "    y is (y, Foo[String].create[U8](\"x\", U8(1)))";
+
+  const char* err = "identity comparison with a new object will always be false";
+  const char* errs[] = {err, err, err, NULL};
+  DO(test_expected_errors(src, "verify", errs));
+}
+
+TEST_F(BadPonyTest, IsComparingConstructorCalledOnValue)
+{
+  const char* src =
+    "class Foo\n"
+
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let x = Foo\n"
+    "    let y = x.create()\n"
+    "    x.create() is y";
+
+  const char* errs[] =
+    {"identity comparison with a new object will always be false", NULL};
+  DO(test_expected_errors(src, "verify", errs));
+}
+
+TEST_F(BadPonyTest, IsComparingPrimitiveConstructorCalledOnValue)
+{
+  const char* src =
+    "primitive P\n"
+
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let x = P\n"
+    "    let y = x.create()\n"
+    "    x.create() is y";
+
+  TEST_COMPILE(src);
+}
+
+TEST_F(BadPonyTest, IsComparingConstructorOnTypeParameter)
+{
+  // The constraint does not determine whether the argument is a primitive.
+  const char* src =
+    "class Foo\n"
+
+    "class Maker[A: Foo ref]\n"
+    "  fun make(y: A) =>\n"
+    "    A.create() is y";
+
+  const char* errs[] =
+    {"identity comparison with a new object will always be false", NULL};
+  DO(test_expected_errors(src, "verify", errs));
+}
+
+TEST_F(BadPonyTest, IsComparingConstructorThroughAliasToClass)
+{
+  const char* src =
+    "class Foo\n"
+    "type FA is Foo\n"
+
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let y = FA.create()\n"
+    "    FA.create() is y";
+
+  const char* errs[] =
+    {"identity comparison with a new object will always be false", NULL};
+  DO(test_expected_errors(src, "verify", errs));
+}
+
+TEST_F(BadPonyTest, IsComparingConstructorWithDefaultedMethodTypeArguments)
+{
+  const char* src =
+    "class Foo[A]\n"
+    "  new create[B: Any val = U8](a: A, b: B) => None\n"
+
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let y = Foo[String].create(\"x\", U8(1))\n"
+    "    Foo[String].create(\"x\", U8(1)) is y";
+
+  const char* errs[] =
+    {"identity comparison with a new object will always be false", NULL};
+  DO(test_expected_errors(src, "verify", errs));
+}
+
+TEST_F(BadPonyTest, IsComparingActorConstructorWithMethodTypeArguments)
+{
+  const char* src =
+    "actor Act[A: Any val]\n"
+    "  new create[B: Any val](a: A, b: B) => None\n"
+
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let y = Act[String].create[U8](\"x\", U8(1))\n"
+    "    Act[String].create[U8](\"x\", U8(1)) is y";
+
+  const char* errs[] =
+    {"identity comparison with a new object will always be false", NULL};
+  DO(test_expected_errors(src, "verify", errs));
+}
+
+TEST_F(BadPonyTest, IsComparingActorConstructorWithDefaultedMethodTypeArguments)
+{
+  const char* src =
+    "actor Act[A: Any val]\n"
+    "  new create[B: Any val = U8](a: A, b: B) => None\n"
+
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let y = Act[String].create(\"x\", U8(1))\n"
+    "    Act[String].create(\"x\", U8(1)) is y";
+
+  const char* errs[] =
+    {"identity comparison with a new object will always be false", NULL};
+  DO(test_expected_errors(src, "verify", errs));
+}
+
+TEST_F(BadPonyTest, IsComparingPrimitiveConstructorWithMethodTypeArguments)
+{
+  const char* src =
+    "primitive P\n"
+    "  new create[B: Any val](b: B) => None\n"
+
+    "primitive Q\n"
+    "  new create[B: Any val = U8](b: B) => None\n"
+
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let y = P.create[U8](U8(1))\n"
+    "    P.create[U8](U8(1)) is y\n"
+    "    let z = Q.create(U8(1))\n"
+    "    Q.create(U8(1)) is z";
+
+  TEST_COMPILE(src);
+}
+
+TEST_F(BadPonyTest, IsComparingPrimitiveConstructorThroughAlias)
+{
+  const char* src =
+    "primitive P\n"
+    "type PA is P\n"
+    "type PV is P val\n"
+
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let y = PA.create()\n"
+    "    PA.create() is y\n"
+    "    let z = PV.create()\n"
+    "    PV.create() is z";
+
+  TEST_COMPILE(src);
+}
+
 TEST_F(BadPonyTest, IsComparingNamedConstructor)
 {
   // From issue #4162, this is about testing named
