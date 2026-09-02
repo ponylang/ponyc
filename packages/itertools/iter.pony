@@ -44,38 +44,44 @@ class Iter[A] is Iterator[A]
         var inner_iterator: (Iterator[A] | None) = None
 
         fun ref has_next(): Bool =>
-          if inner_iterator isnt None then
-            try
-              let iter = inner_iterator as Iterator[A]
-              if iter.has_next() then
-                return true
+          while true do
+            if inner_iterator isnt None then
+              try
+                let iter = inner_iterator as Iterator[A]
+                if iter.has_next() then
+                  return true
+                end
               end
             end
-          end
 
-          if outer_iterator.has_next() then
-            try
-              inner_iterator = outer_iterator.next()?
-              return has_next()
+            if outer_iterator.has_next() then
+              try
+                inner_iterator = outer_iterator.next()?
+              else
+                return false
+              end
+            else
+              return false
             end
           end
-
           false
 
         fun ref next(): A ? =>
-          if inner_iterator isnt None then
-            let iter = inner_iterator as Iterator[A]
+          while true do
+            if inner_iterator isnt None then
+              let iter = inner_iterator as Iterator[A]
 
-            if iter.has_next() then
-              return iter.next()?
+              if iter.has_next() then
+                return iter.next()?
+              end
+            end
+
+            if outer_iterator.has_next() then
+              inner_iterator = outer_iterator.next()?
+            else
+              error
             end
           end
-
-          if outer_iterator.has_next() then
-            inner_iterator = outer_iterator.next()?
-            return next()?
-          end
-
           error
       end
 
@@ -141,15 +147,14 @@ class Iter[A] is Iterator[A]
         var _next: (A! | _None) = _None
 
         fun ref _find_next() =>
-          try
-            match _next
-            | _None =>
-              if _iter.has_next() then
+          match _next
+          | _None =>
+            try
+              while _iter.has_next() do
                 let a = _iter.next()?
                 if try f(a)? else false end then
                   _next = a
-                else
-                  _find_next()
+                  return
                 end
               end
             end
@@ -191,13 +196,15 @@ class Iter[A] is Iterator[A]
         var _next: (B | _None) = _None
 
         fun ref _find_next() =>
-          try
-            match _next
-            | _None =>
-              if _iter.has_next() then
+          match _next
+          | _None =>
+            try
+              while _iter.has_next() do
                 match \exhaustive\ f(_iter.next()?)?
-                | let b: B => _next = consume b
-                | None => _find_next()
+                | let b: B =>
+                  _next = consume b
+                  return
+                | None => None
                 end
               end
             end
@@ -382,22 +389,27 @@ class Iter[A] is Iterator[A]
           _iter.has_next()
 
         fun ref next(): A! ? =>
-          let cur_value: A! = _iter.next()?
-          let cur_hash: USize = H.hash(cur_value)
-          match \exhaustive\ _prev_value
-          | let prev_value: A! =>
-            if (_prev_hash == cur_hash) and H.eq(prev_value, cur_value) then
-              this.next()?
-            else
+          while true do
+            let cur_value: A! = _iter.next()?
+            let cur_hash: USize = H.hash(cur_value)
+            match \exhaustive\ _prev_value
+            | let prev_value: A! =>
+              if (_prev_hash == cur_hash) and
+                H.eq(prev_value, cur_value)
+              then
+                None
+              else
+                _prev_value = cur_value
+                _prev_hash = cur_hash
+                return cur_value
+              end
+            | None =>
               _prev_value = cur_value
               _prev_hash = cur_hash
-              cur_value
+              return cur_value
             end
-          | None =>
-            _prev_value = cur_value
-            _prev_hash = cur_hash
-            cur_value
           end
+          error
       end)
 
   fun ref enum[B: (Real[B] val & Number) = USize](): Iter[(B, A)]^ =>
@@ -503,27 +515,28 @@ class Iter[A] is Iterator[A]
           try f(_iter.next()?)? else _EmptyIter[B] end
 
         fun ref has_next(): Bool =>
-          if _iterb.has_next() then true
-          else
+          while true do
+            if _iterb.has_next() then return true end
             if _iter.has_next() then
               try
                 _iterb = f(_iter.next()?)?
-                has_next()
               else
-                false
+                return false
               end
             else
-              false
+              return false
             end
           end
+          false
 
         fun ref next(): B ? =>
-          if _iterb.has_next() then
-            _iterb.next()?
-          else
+          while true do
+            if _iterb.has_next() then
+              return _iterb.next()?
+            end
             _iterb = f(_iter.next()?)?
-            next()?
           end
+          error
       end)
 
   fun ref fold[B](acc: B, f: {(B, A!): B^} box): B^ =>
@@ -738,12 +751,13 @@ class Iter[A] is Iterator[A]
     3
     ```
     """
-    if not _iter.has_next() then return end
-    try
-      _iter.next()?
-      run(on_error)
-    else
-      on_error()
+    while _iter.has_next() do
+      try
+        _iter.next()?
+      else
+        on_error()
+        return
+      end
     end
 
   fun ref skip(n: USize): Iter[A]^ =>
@@ -924,13 +938,14 @@ class Iter[A] is Iterator[A]
           _iter.has_next()
 
         fun ref next(): A! ? =>
-          let v = _iter.next()?
-          if _set.contains(v) then
-            next()?
-          else
-            _set.set(v)
-            v
+          while true do
+            let v = _iter.next()?
+            if not _set.contains(v) then
+              _set.set(v)
+              return v
+            end
           end
+          error
       end)
 
   fun ref zip[B](i2: Iterator[B]): Iter[(A, B)]^ =>
