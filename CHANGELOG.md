@@ -50,6 +50,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Fix type parameter defaults that refer to an earlier type parameter ([PR #5967](https://github.com/ponylang/ponyc/pull/5967))
 - Fix compiler crash on a lambda type used as a type parameter default ([PR #5967](https://github.com/ponylang/ponyc/pull/5967))
 - Fix compiler crash on a type parameter default naming itself or a later one ([PR #5967](https://github.com/ponylang/ponyc/pull/5967))
+- Fix the capability of a partially applied constructor ([PR #5965](https://github.com/ponylang/ponyc/pull/5965))
 
 ### Added
 
