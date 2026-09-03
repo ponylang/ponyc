@@ -126,7 +126,7 @@ class \nodoc\ _TestCommentSpacingProperty is UnitTest
   fun apply(h: TestHelper) ? =>
     // Good comments: "// " followed by text
     PonyCheck.for_all[String](
-      recover val Generators.ascii(where min = 1, max = 30,
+      recover val Generators.ascii(where from = 1, to = 30,
         range = ASCIILetters) end, h)(
       {(content: String, ph: PropertyHelper) =>
         let line: String val = "// " + content
@@ -136,7 +136,7 @@ class \nodoc\ _TestCommentSpacingProperty is UnitTest
       })?
     // Bad comments: "//" followed by text with no space
     PonyCheck.for_all[String](
-      recover val Generators.ascii(where min = 1, max = 30,
+      recover val Generators.ascii(where from = 1, to = 30,
         range = ASCIILetters) end, h)(
       {(content: String, ph: PropertyHelper) =>
         let line: String val = "//" + content

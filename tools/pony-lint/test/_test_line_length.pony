@@ -72,7 +72,7 @@ class \nodoc\ _TestLineLengthProperty is UnitTest
   fun apply(h: TestHelper) ? =>
     // Lines up to 80 chars never produce diagnostics
     PonyCheck.for_all[String](
-      recover val Generators.ascii(where min = 0, max = 80,
+      recover val Generators.ascii(where from = 0, to = 80,
         range = ASCIIPrintable) end, h)(
       {(content: String, ph: PropertyHelper) =>
         let line = content.clone()
@@ -86,7 +86,7 @@ class \nodoc\ _TestLineLengthProperty is UnitTest
       })?
     // Space at column 80 ensures neither word crosses the boundary.
     PonyCheck.for_all[USize](
-      recover val Generators.usize(where min = 81, max = 120) end, h)(
+      recover val Generators.usize(where from = 81, to = 120) end, h)(
       {(n: USize, ph: PropertyHelper) =>
         let line: String val =
           recover val
@@ -330,7 +330,7 @@ class \nodoc\ _TestLineLengthStringFlaggedWhenDeepProperty is UnitTest
 
   fun apply(h: TestHelper) ? =>
     let gen =
-      recover val Generators.usize(where min = 67, max = 200) end
+      recover val Generators.usize(where from = 67, to = 200) end
     PonyCheck.for_all[USize](gen, h)(
       {(str_len: USize, ph: PropertyHelper) =>
         let line: String val =
@@ -355,7 +355,7 @@ class \nodoc\ _TestLineLengthStringFlaggedProperty is UnitTest
 
   fun apply(h: TestHelper) ? =>
     let gen =
-      recover val Generators.usize(where min = 1, max = 134) end
+      recover val Generators.usize(where from = 1, to = 134) end
     PonyCheck.for_all[USize](gen, h)(
       {(n2: USize, ph: PropertyHelper) =>
         // Prefix `    let x = "` = 13 chars. The string is at word
@@ -792,7 +792,7 @@ class \nodoc\ _TestLineLengthWordExemptProperty is UnitTest
 
   fun apply(h: TestHelper) ? =>
     let gen =
-      recover val Generators.usize(where min = 81, max = 200) end
+      recover val Generators.usize(where from = 81, to = 200) end
     PonyCheck.for_all[USize](gen, h)(
       {(n: USize, ph: PropertyHelper) =>
         let line: String val =
