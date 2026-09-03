@@ -17,6 +17,12 @@ typedef struct deferred_reification_t
   ast_t* thistype;
 } deferred_reification_t;
 
+ast_t* reify_default(ast_t* typeparam, ast_t* typeparams,
+  ast_t* typeargs_so_far, pass_opt_t* opt);
+
+const char* find_dangling_default_ref(ast_t* ast, ast_t* typeparams,
+  size_t pos);
+
 bool reify_defaults(ast_t* typeparams, ast_t* typeargs, bool errors,
   pass_opt_t* opt);
 

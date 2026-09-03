@@ -152,7 +152,7 @@ static void reify_reference(pass_opt_t* opt, ast_t** astp, ast_t* typeparams, as
 }
 
 
-static const char* find_dangling_default_ref(ast_t* ast, ast_t* typeparams,
+const char* find_dangling_default_ref(ast_t* ast, ast_t* typeparams,
   size_t pos)
 {
   if(ast == NULL)
@@ -190,7 +190,7 @@ static const char* find_dangling_default_ref(ast_t* ast, ast_t* typeparams,
 // Reify a type parameter's default against the type arguments decided so far.
 // Sibling references in the default must already be TK_TYPEPARAMREF nodes
 // (via resolve_default_typeargs) so that reify() can substitute them.
-static ast_t* reify_default(ast_t* typeparam, ast_t* typeparams,
+ast_t* reify_default(ast_t* typeparam, ast_t* typeparams,
   ast_t* typeargs_so_far, pass_opt_t* opt)
 {
   ast_t* defarg = ast_childidx(typeparam, 2);

@@ -103,6 +103,17 @@ class ref _ReferenceCollector is ASTVisitor
         end
       end
 
+      // Inferred type arguments carry a non-null data pointer on their
+      // tk_typeargs parent — skip those too.
+      try
+        let p = ast.parent() as AST
+        if (p.id() == TokenIds.tk_typeargs()) and
+          (not p.data[None]().is_null())
+        then
+          return Continue
+        end
+      end
+
       let hl_node = ASTIdentifier.identifier_node(ast)
       (let start_pos, let end_pos) = hl_node.span()
       // AST.visit's _from_same_source filter ensures every node visited

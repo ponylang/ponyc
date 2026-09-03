@@ -1,5 +1,6 @@
 #include "call.h"
 #include "ffi.h"
+#include "infer.h"
 #include "postfix.h"
 #include "control.h"
 #include "literal.h"
@@ -94,6 +95,93 @@ bool method_check_type_params(pass_opt_t* opt, ast_t** astp)
   return true;
 }
 
+bool apply_typeargs(pass_opt_t* opt, ast_t** astp, ast_t* typeargs,
+  ast_t* inferred_from)
+{
+  ast_t* lhs = *astp;
+  ast_t* type = ast_type(lhs);
+
+  if(is_typecheck_error(type))
+  {
+    ast_free_unattached(typeargs);
+    return false;
+  }
+
+  ast_t* typeparams = ast_childidx(type, 1);
+  pony_assert(ast_id(type) == TK_FUNTYPE);
+
+  if(inferred_from != NULL)
+    ast_setdata(typeargs, inferred_from);
+
+  if(!check_constraints(lhs, typeparams, typeargs, true, opt))
+  {
+    if(inferred_from != NULL)
+    {
+      ast_t* tp = ast_child(inferred_from);
+      ast_t* ta = ast_child(typeargs);
+
+      while(tp != NULL && ta != NULL)
+      {
+        if(ast_line(ta) != ast_line(lhs) || ast_pos(ta) != ast_pos(lhs))
+        {
+          ast_error_continue(opt->check.errors, ta,
+            "'%s' was inferred as %s from this argument",
+            ast_name(ast_child(tp)),
+            ast_print_type(ta, opt->strtab));
+        }
+
+        tp = ast_sibling(tp);
+        ta = ast_sibling(ta);
+      }
+    }
+
+    ast_free_unattached(typeargs);
+    return false;
+  }
+
+  type = reify(type, typeparams, typeargs, opt, true);
+  typeparams = ast_childidx(type, 1);
+  ast_replace(&typeparams, ast_from(typeparams, TK_NONE));
+
+  REPLACE(astp, NODE(ast_id(lhs), TREE(lhs) TREE(typeargs)));
+  ast_settype(*astp, type);
+
+  return true;
+}
+
+static bool method_infer_type_params(pass_opt_t* opt, ast_t** astp,
+  ast_t* positional, ast_t* namedargs)
+{
+  ast_t* lhs = *astp;
+  ast_t* type = ast_type(lhs);
+
+  if(is_typecheck_error(type))
+    return false;
+
+  pony_assert(ast_id(type) == TK_FUNTYPE);
+  ast_t* typeparams = ast_childidx(type, 1);
+
+  if(ast_id(typeparams) == TK_NONE)
+    return true;
+
+  AST_GET_CHILDREN(type, cap, tp_node, params, result);
+
+  if(!normalise_args(opt, params, positional, namedargs))
+    return false;
+
+  ast_t* method_name = ast_childidx(lhs, 1);
+  const char* callee_name = (method_name != NULL && ast_id(method_name) == TK_ID)
+    ? ast_name(method_name) : "apply";
+
+  ast_t* typeargs = infer_typeargs(opt, typeparams, NULL, params, positional,
+    ast_parent(lhs), callee_name);
+
+  if(typeargs == NULL)
+    return false;
+
+  return apply_typeargs(opt, astp, typeargs, typeparams);
+}
+
 static bool extend_positional_args(pass_opt_t* opt, ast_t* params,
   ast_t* positional)
 {
@@ -175,6 +263,15 @@ static bool apply_named_args(pass_opt_t* opt, ast_t* params, ast_t* positional,
 
   ast_setid(namedargs, TK_NONE);
   return true;
+}
+
+bool normalise_args(pass_opt_t* opt, ast_t* params, ast_t* positional,
+  ast_t* namedargs)
+{
+  if(!extend_positional_args(opt, params, positional))
+    return false;
+
+  return apply_named_args(opt, params, positional, namedargs);
 }
 
 static bool apply_default_arg(pass_opt_t* opt, ast_t* param, ast_t** argp)
@@ -653,10 +750,47 @@ static bool method_application(pass_opt_t* opt, ast_t* ast, bool partial)
 {
   AST_GET_CHILDREN(ast, lhs, positional, namedargs, question);
 
-  if(!method_check_type_params(opt, &lhs))
+  ast_t* type = ast_type(lhs);
+
+  if(is_typecheck_error(type))
     return false;
 
-  ast_t* type = ast_type(lhs);
+  ast_t* typeparams_check = ast_childidx(type, 1);
+  bool needs_inference = (ast_id(typeparams_check) == TK_TYPEPARAMS);
+
+  if(needs_inference)
+  {
+    ast_t* params_check = ast_childidx(type, 2);
+    bool has_bindable = false;
+    ast_t* p = ast_child(params_check);
+
+    while(p != NULL)
+    {
+      if(infer_bindable_position(ast_childidx(p, 1), typeparams_check))
+      {
+        has_bindable = true;
+        break;
+      }
+
+      p = ast_sibling(p);
+    }
+
+    if(!has_bindable)
+      needs_inference = false;
+  }
+
+  if(needs_inference)
+  {
+    if(!method_infer_type_params(opt, &lhs, positional, namedargs))
+      return false;
+  }
+  else
+  {
+    if(!method_check_type_params(opt, &lhs))
+      return false;
+  }
+
+  type = ast_type(lhs);
 
   if(is_typecheck_error(type))
     return false;
@@ -664,11 +798,14 @@ static bool method_application(pass_opt_t* opt, ast_t* ast, bool partial)
   AST_GET_CHILDREN(type, cap, typeparams, params, result);
   bool bare = (ast_id(cap) == TK_AT);
 
-  if(!extend_positional_args(opt, params, positional))
-    return false;
+  if(!needs_inference)
+  {
+    if(!extend_positional_args(opt, params, positional))
+      return false;
 
-  if(!apply_named_args(opt, params, positional, namedargs))
-    return false;
+    if(!apply_named_args(opt, params, positional, namedargs))
+      return false;
+  }
 
   if(!check_arg_types(opt, params, positional, partial, bare))
     return false;
@@ -1208,6 +1345,318 @@ static bool method_chain(pass_opt_t* opt, ast_t* ast)
   }
 
   return true;
+}
+
+static ast_t* constructor_path_typeref(ast_t* lhs, const char** member_name)
+{
+  token_id lid = ast_id(lhs);
+
+  if(lid == TK_TYPEREF)
+  {
+    *member_name = "create";
+    return lhs;
+  }
+
+  if(lid == TK_DOT || lid == TK_TILDE)
+  {
+    ast_t* receiver = ast_child(lhs);
+
+    if(ast_id(receiver) == TK_TYPEREF)
+    {
+      ast_t* name_node = ast_sibling(receiver);
+
+      if(name_node != NULL && ast_id(name_node) == TK_ID)
+        *member_name = ast_name(name_node);
+      else
+        *member_name = "create";
+
+      return receiver;
+    }
+  }
+
+  if(lid == TK_QUALIFY)
+  {
+    ast_t* inner = ast_child(lhs);
+    token_id iid = ast_id(inner);
+
+    if(iid == TK_DOT || iid == TK_TILDE)
+    {
+      ast_t* receiver = ast_child(inner);
+
+      if(ast_id(receiver) == TK_TYPEREF)
+      {
+        ast_t* name_node = ast_sibling(receiver);
+
+        if(name_node != NULL && ast_id(name_node) == TK_ID)
+          *member_name = ast_name(name_node);
+        else
+          *member_name = "create";
+
+        return receiver;
+      }
+    }
+  }
+
+  return NULL;
+}
+
+static ast_result_t constructor_path_infer(pass_opt_t* opt, ast_t* ast,
+  ast_t* typeref, const char* member_name)
+{
+  ast_t* typeargs = ast_childidx(typeref, 2);
+
+  if(ast_id(typeargs) != TK_NONE)
+    return AST_OK;
+
+  ast_t* def = (ast_t*)ast_data(typeref);
+
+  if(def == NULL)
+    return AST_OK;
+
+  switch(ast_id(def))
+  {
+    case TK_PRIMITIVE:
+    case TK_STRUCT:
+    case TK_CLASS:
+    case TK_ACTOR:
+      break;
+
+    default:
+      return AST_OK;
+  }
+
+  ast_t* class_typeparams = ast_childidx(def, 1);
+
+  if(ast_id(class_typeparams) != TK_TYPEPARAMS)
+    return AST_OK;
+
+  ast_t* member = ast_get(def, stringtab(opt->strtab, member_name), NULL);
+
+  if(member == NULL || ast_id(member) != TK_NEW)
+    return AST_OK;
+
+  ast_t* method_typeparams = ast_childidx(member, 2);
+  ast_t* params = ast_childidx(member, 3);
+
+  if(ast_id(params) == TK_NONE || ast_childcount(params) == 0)
+    return AST_OK;
+
+  bool has_bindable = false;
+  ast_t* p = ast_child(params);
+
+  while(p != NULL)
+  {
+    if(infer_bindable_position(ast_childidx(p, 1), class_typeparams))
+    {
+      has_bindable = true;
+      break;
+    }
+
+    p = ast_sibling(p);
+  }
+
+  if(!has_bindable)
+    return AST_OK;
+
+  ast_t* positional = ast_childidx(ast, 1);
+  ast_t* namedargs = ast_childidx(ast, 2);
+
+  if(!normalise_args(opt, params, positional, namedargs))
+    return AST_ERROR;
+
+  ast_t* param = ast_child(params);
+  ast_t* arg = ast_child(positional);
+
+  while(param != NULL && arg != NULL)
+  {
+    if(ast_id(arg) != TK_NONE)
+    {
+      token_id aid = ast_id(arg);
+      bool skip = false;
+
+      if(aid == TK_ARRAY || aid == TK_LAMBDA || aid == TK_BARELAMBDA)
+      {
+        ast_t* p_type = ast_childidx(param, 1);
+
+        if(type_mentions_typeparams(p_type, class_typeparams))
+          skip = true;
+      }
+
+      if(!skip)
+      {
+        ast_result_t ar = ast_visit(&arg, pass_pre_expr, pass_expr,
+          opt, PASS_EXPR);
+
+        if(ar == AST_FATAL)
+          return AST_FATAL;
+      }
+    }
+
+    param = ast_sibling(param);
+    arg = ast_sibling(arg);
+  }
+
+  positional = ast_childidx(ast, 1);
+
+  ast_t* other_tp = (ast_id(method_typeparams) == TK_TYPEPARAMS)
+    ? method_typeparams : NULL;
+
+  ast_t* inferred = infer_typeargs(opt, class_typeparams, other_tp, params,
+    positional, typeref, member_name);
+
+  if(inferred == NULL)
+  {
+    ast_settype(ast, ast_from(ast, TK_ERRORTYPE));
+    return AST_ERROR;
+  }
+
+  if(!check_constraints(typeref, class_typeparams, inferred, true, opt))
+  {
+    ast_free_unattached(inferred);
+    ast_settype(ast, ast_from(ast, TK_ERRORTYPE));
+    return AST_ERROR;
+  }
+
+  ast_replace(&typeargs, inferred);
+  ast_setdata(inferred, (void*)class_typeparams);
+
+  ast_t* ta_child = ast_child(inferred);
+  while(ta_child != NULL)
+  {
+    ast_pass_record(ta_child, PASS_EXPR);
+    ta_child = ast_sibling(ta_child);
+  }
+  ast_pass_record(inferred, PASS_EXPR);
+
+  return AST_OK;
+}
+
+ast_result_t expr_pre_call(pass_opt_t* opt, ast_t** astp)
+{
+  ast_t* ast = *astp;
+  ast_t* lhs = ast_child(ast);
+
+  // Constructor-path shapes: the LHS is rooted at an unqualified TYPEREF.
+  const char* member_name = NULL;
+  ast_t* typeref = constructor_path_typeref(lhs, &member_name);
+
+  if(typeref != NULL)
+  {
+    ast_result_t cr = constructor_path_infer(opt, ast, typeref, member_name);
+
+    if(cr != AST_OK)
+      return cr;
+  }
+
+  // Type the LHS.
+  ast_result_t r = ast_visit(&lhs, pass_pre_expr, pass_expr, opt, PASS_EXPR);
+
+  // Re-read in case expr_dot/expr_tilde replaced the child.
+  lhs = ast_child(ast);
+
+  if(r == AST_FATAL)
+    return AST_FATAL;
+
+  if(r == AST_ERROR || is_typecheck_error(ast_type(lhs)))
+    return AST_ERROR;
+
+  ast_t* type = ast_type(lhs);
+
+  if(type == NULL || ast_id(type) != TK_FUNTYPE)
+    return AST_OK;
+
+  ast_t* typeparams = ast_childidx(type, 1);
+
+  if(ast_id(typeparams) != TK_TYPEPARAMS)
+    return AST_OK;
+
+  // Check that at least one parameter mentions a type parameter.
+  ast_t* params = ast_childidx(type, 2);
+  bool has_bindable = false;
+  ast_t* p = ast_child(params);
+
+  while(p != NULL)
+  {
+    if(infer_bindable_position(ast_childidx(p, 1), typeparams))
+    {
+      has_bindable = true;
+      break;
+    }
+
+    p = ast_sibling(p);
+  }
+
+  if(!has_bindable)
+    return AST_OK;
+
+  // Normalise arguments.
+  ast_t* positional = ast_childidx(ast, 1);
+  ast_t* namedargs = ast_childidx(ast, 2);
+
+  if(!normalise_args(opt, params, positional, namedargs))
+    return AST_ERROR;
+
+  // Visit arguments early. Skip array literals, lambdas, and bare lambdas
+  // at bindable positions — they are antecedent-dependent and will be typed
+  // by the normal post-order visit against the reified parameter type.
+  ast_t* param = ast_child(params);
+  ast_t* arg = ast_child(positional);
+
+  while(param != NULL && arg != NULL)
+  {
+    if(ast_id(arg) != TK_NONE)
+    {
+      token_id aid = ast_id(arg);
+      bool skip = false;
+
+      if(aid == TK_ARRAY || aid == TK_LAMBDA || aid == TK_BARELAMBDA)
+      {
+        ast_t* p_type = ast_childidx(param, 1);
+
+        if(type_mentions_typeparams(p_type, typeparams))
+          skip = true;
+      }
+
+      if(!skip)
+      {
+        ast_result_t ar = ast_visit(&arg, pass_pre_expr, pass_expr,
+          opt, PASS_EXPR);
+
+        if(ar == AST_FATAL)
+          return AST_FATAL;
+      }
+    }
+
+    param = ast_sibling(param);
+    arg = ast_sibling(arg);
+  }
+
+  // Re-read after visits may have replaced children.
+  positional = ast_childidx(ast, 1);
+  lhs = ast_child(ast);
+
+  ast_t* method_name = ast_childidx(lhs, 1);
+  const char* callee_name =
+    (method_name != NULL && ast_id(method_name) == TK_ID)
+    ? ast_name(method_name) : "apply";
+
+  ast_t* typeargs = infer_typeargs(opt, typeparams, NULL, params, positional,
+    ast_parent(lhs), callee_name);
+
+  if(typeargs == NULL)
+  {
+    ast_settype(ast, ast_from(ast, TK_ERRORTYPE));
+    return AST_ERROR;
+  }
+
+  // &lhs has a parent, so REPLACE updates the tree.
+  if(!apply_typeargs(opt, &lhs, typeargs, typeparams))
+  {
+    ast_settype(ast, ast_from(ast, TK_ERRORTYPE));
+    return AST_ERROR;
+  }
+
+  return AST_OK;
 }
 
 bool expr_call(pass_opt_t* opt, ast_t** astp)

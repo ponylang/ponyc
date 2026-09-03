@@ -92,7 +92,10 @@ RULE(type_param,
   CHILD(type, none),  // Default
   TK_TYPEPARAM);
 
-RULE(type_args, ONE_OR_MORE(type), TK_TYPEARGS);
+RULE(type_args,
+  HAS_DATA  // Non-NULL when inferred (points to definition TK_TYPEPARAMS)
+  ONE_OR_MORE(type),
+  TK_TYPEARGS);
 
 RULE(params,
   ZERO_OR_MORE(param)

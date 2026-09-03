@@ -167,6 +167,17 @@ class ref _HighlightCollector is ASTVisitor
         end
       end
 
+      // Inferred type arguments carry a non-null data pointer on their
+      // tk_typeargs parent — skip those too.
+      try
+        let p = ast.parent() as AST
+        if (p.id() == TokenIds.tk_typeargs()) and
+          (not p.data[None]().is_null())
+        then
+          return Continue
+        end
+      end
+
       let kind: I64 =
         if _is_assign_lhs(ast) then
           // LHS of any assignment — covers regular writes,
