@@ -13,6 +13,7 @@ actor \nodoc\ Main is TestList
   fun tag tests(test: PonyTest) =>
     test(_ASCIIRangeTest)
     test(_ASCIIStringShrinkTest)
+    test(_ByteStringInvertedMinMaxTest)
     test(_ErroringPropertyTest)
     test(_FailingPropertyTest)
     test(_FilterMapShrinkTest)
@@ -27,14 +28,17 @@ actor \nodoc\ Main is TestList
     test(_GenOneOfTest)
     test(_GenRndTest)
     test(_GenUnionTest)
+    test(_IsoSeqOfInvertedMinMaxTest)
     test(_IsoSeqOfTest)
     test(_MapIsOfEmptyTest)
     test(_MapIsOfIdentityTest)
+    test(_MapIsOfInvertedMinMaxTest)
     test(_MapIsOfMaxTest)
     test(_MapIsOfMinShrinkTest)
     test(_MapIsOfMinTest)
     test(_MapOfEmptyTest)
     test(_MapOfIdentityTest)
+    test(_MapOfInvertedMinMaxTest)
     test(_MapOfMaxTest)
     test(_MapOfMinShrinkTest)
     test(_MapOfMinTest)
@@ -77,11 +81,14 @@ actor \nodoc\ Main is TestList
     test(_RunnerInfiniteShrinkTest)
     test(_RunnerReportFailedSampleTest)
     test(_RunnerSometimesErroringGeneratorTest)
+    test(_SeqOfInvertedMinMaxTest)
     test(_SeqOfTest)
     test(_SetIsOfIdentityTest)
+    test(_SetIsOfInvertedMinMaxTest)
     test(_SetIsOfMinShrinkTest)
     test(_SetIsOfMinTest)
     test(_SetOfEmptyTest)
+    test(_SetOfInvertedMinMaxTest)
     test(_SetOfMaxTest)
     test(_SetOfMinMaxEqualTest)
     test(_SetOfMinShrinkTest)
@@ -103,6 +110,7 @@ actor \nodoc\ Main is TestList
     test(_SuccessfulProperty4Test)
     test(_UnicodeStringShrinkTest)
     test(_UnsignedShrinkTest)
+    test(_Utf32CodePointStringInvertedMinMaxTest)
     test(_UTF32CodePointStringTest)
 
 class \nodoc\ iso _StringifyTest is UnitTest
@@ -1031,6 +1039,165 @@ class \nodoc\ iso _SetOfMinMaxEqualTest is UnitTest
     else
       h.fail("set_of did not produce shrinks")
     end
+
+class \nodoc\ iso _SeqOfInvertedMinMaxTest is UnitTest
+  fun name(): String => "Gen/seq_of_inverted_min_max"
+
+  fun apply(h: TestHelper) ? =>
+    let seq_gen =
+      Generators.seq_of[U8, Array[U8]](
+        Generators.u8()
+        where min = 10, max = 5)
+    let rnd = Randomness(Time.millis())
+    h.assert_true(
+      Iter[Array[U8]^](seq_gen.value_iter(rnd))
+        .take(100)
+        .all(
+          {(a: Array[U8]): Bool =>
+            (a.size() >= 5) and (a.size() <= 10)
+          }),
+      "seq_of with inverted min/max produced out-of-bounds sizes")
+
+    match seq_gen.generate(rnd)?
+    | (let sample: Array[U8], let shrinks: Iterator[Array[U8]^]) =>
+      h.assert_true(
+        Iter[Array[U8]^](shrinks)
+          .all({(a: Array[U8]): Bool => a.size() >= 5 }),
+        "shrinking of seq_of with inverted min/max went below lower bound")
+    else
+      h.fail("seq_of with inverted min/max did not produce shrinks")
+    end
+
+class \nodoc\ iso _IsoSeqOfInvertedMinMaxTest is UnitTest
+  fun name(): String => "Gen/iso_seq_of_inverted_min_max"
+
+  fun apply(h: TestHelper) =>
+    let seq_gen =
+      Generators.iso_seq_of[String, Array[String] iso](
+        Generators.ascii()
+        where min = 10, max = 5)
+    let rnd = Randomness(Time.millis())
+    h.assert_true(
+      Iter[Array[String] iso^](seq_gen.value_iter(rnd))
+        .take(100)
+        .all(
+          {(a: Array[String] iso): Bool =>
+            (a.size() >= 5) and (a.size() <= 10)
+          }),
+      "iso_seq_of with inverted min/max produced out-of-bounds sizes")
+
+class \nodoc\ iso _SetOfInvertedMinMaxTest is UnitTest
+  fun name(): String => "Gen/set_of_inverted_min_max"
+
+  fun apply(h: TestHelper) ? =>
+    let set_gen =
+      Generators.set_of[U8](
+        Generators.u8()
+        where min = 10, max = 5)
+    let rnd = Randomness(Time.millis())
+    for i in Range(0, 100) do
+      let sample: Set[U8] = set_gen.generate_value(rnd)?
+      h.assert_true(
+        sample.size() <= 10,
+        "set_of with inverted min/max produced too large a set")
+    end
+
+class \nodoc\ iso _MapOfInvertedMinMaxTest is UnitTest
+  fun name(): String => "Gen/map_of_inverted_min_max"
+
+  fun apply(h: TestHelper) ? =>
+    let map_gen =
+      Generators.map_of[String, I64](
+        Generators.zip2[String, I64](
+          Generators.u8().map[String](
+            {(u: U8): String^ =>
+              let s = u.string()
+              consume s
+            }),
+          Generators.i64())
+        where min = 10, max = 5)
+    let rnd = Randomness(Time.millis())
+    for i in Range(0, 100) do
+      let sample: Map[String, I64] = map_gen.generate_value(rnd)?
+      h.assert_true(
+        sample.size() <= 10,
+        "map_of with inverted min/max produced too large a map")
+    end
+
+class \nodoc\ iso _SetIsOfInvertedMinMaxTest is UnitTest
+  fun name(): String => "Gen/set_is_of_inverted_min_max"
+
+  fun apply(h: TestHelper) ? =>
+    let set_gen =
+      Generators.set_is_of[String](
+        Generators.ascii()
+        where min = 10, max = 5)
+    let rnd = Randomness(Time.millis())
+    for i in Range(0, 100) do
+      let sample: SetIs[String] = set_gen.generate_value(rnd)?
+      h.assert_true(
+        sample.size() <= 10,
+        "set_is_of with inverted min/max produced too large a set")
+    end
+
+class \nodoc\ iso _MapIsOfInvertedMinMaxTest is UnitTest
+  fun name(): String => "Gen/map_is_of_inverted_min_max"
+
+  fun apply(h: TestHelper) ? =>
+    let map_gen =
+      Generators.map_is_of[String, I64](
+        Generators.zip2[String, I64](
+          Generators.u8().map[String](
+            {(u: U8): String^ =>
+              let s = u.string()
+              consume s
+            }),
+          Generators.i64())
+        where min = 10, max = 5)
+    let rnd = Randomness(Time.millis())
+    for i in Range(0, 100) do
+      let sample: MapIs[String, I64] = map_gen.generate_value(rnd)?
+      h.assert_true(
+        sample.size() <= 10,
+        "map_is_of with inverted min/max produced too large a map")
+    end
+
+class \nodoc\ iso _Utf32CodePointStringInvertedMinMaxTest is UnitTest
+  fun name(): String => "Gen/utf32_codepoint_string_inverted_min_max"
+
+  fun apply(h: TestHelper) =>
+    let str_gen =
+      Generators.utf32_codepoint_string(
+        Generators.u32()
+        where min = 10, max = 5)
+    let rnd = Randomness(Time.millis())
+    h.assert_true(
+      Iter[String^](str_gen.value_iter(rnd))
+        .take(100)
+        .all(
+          {(s: String): Bool =>
+            (s.codepoints() >= 5) and (s.codepoints() <= 10)
+          }),
+      "utf32_codepoint_string with inverted min/max produced out-of-bounds"
+      + " lengths")
+
+class \nodoc\ iso _ByteStringInvertedMinMaxTest is UnitTest
+  fun name(): String => "Gen/byte_string_inverted_min_max"
+
+  fun apply(h: TestHelper) =>
+    let str_gen =
+      Generators.byte_string(
+        Generators.u8()
+        where min = 10, max = 5)
+    let rnd = Randomness(Time.millis())
+    h.assert_true(
+      Iter[String^](str_gen.value_iter(rnd))
+        .take(100)
+        .all(
+          {(s: String): Bool =>
+            (s.size() >= 5) and (s.size() <= 10)
+          }),
+      "byte_string with inverted min/max produced out-of-bounds lengths")
 
 class \nodoc\ iso _ASCIIRangeTest is UnitTest
   fun name(): String => "Gen/ascii_range"

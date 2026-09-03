@@ -379,24 +379,25 @@ primitive Generators
     minimum and maximum size.
 
     Defaults are 0 and 100, respectively.
+
+    If `min > max`, the values are swapped.
     """
+    let lo = min.min(max)
+    let hi = min.max(max)
 
     Generator[S](
       object is GenObj[S]
         let _gen: GenObj[T] = gen
         fun generate(rnd: Randomness): GenerateResult[S] =>
-          let size = rnd.usize(min, max)
+          let size = rnd.usize(lo, hi)
 
           let result: S =
             Iter[T^](_gen.value_iter(rnd))
               .take(size)
               .collect[S](S.create(size))
 
-          // create shrink_iter with smaller seqs and elements
-          // generated from _gen.value_iter
           let shrink_iter =
-            Iter[USize](CountdownIter(size, min)) // Range(size, min, -1))
-              // .skip(1)
+            Iter[USize](CountdownIter(size, lo))
               .map_stateful[S^]({
                 (s: USize): S^ =>
                   Iter[T^](_gen.value_iter(rnd))
@@ -420,12 +421,17 @@ primitive Generators
     there is no other way to populate the iso seq if the elements might be
     non-sendable (i.e. ref), as then the seq would leak references via
     its elements.
+
+    If `min > max`, the values are swapped.
     """
+    let lo = min.min(max)
+    let hi = min.max(max)
+
     Generator[S](
       object is GenObj[S]
         let _gen: GenObj[T] = gen
         fun generate(rnd: Randomness): GenerateResult[S] =>
-          let size = rnd.usize(min, max)
+          let size = rnd.usize(lo, hi)
 
           let result: S = recover iso S.create(size) end
           let iter = _gen.value_iter(rnd)
@@ -437,11 +443,8 @@ primitive Generators
             result.push(consume elem)
             i = i + 1
           end
-          // create shrink_iter with smaller seqs and elements
-          // generated from _gen.value_iter
           let shrink_iter =
-            Iter[USize](CountdownIter(size, min)) // Range(size, min, -1))
-              // .skip(1)
+            Iter[USize](CountdownIter(size, lo))
               .map_stateful[S^]({
                 (s: USize): S^ =>
                   let res = recover iso S.create(s) end
@@ -523,19 +526,24 @@ primitive Generators
     when the source generator `gen` produces duplicates.
     E.g. if the given generator is for `U8` values and `max` is set to 1024,
     the set will only ever be of size 256.
+
+    If `min > max`, the values are swapped.
     """
+    let lo = min.min(max)
+    let hi = min.max(max)
+
     Generator[Set[T]](
       object is GenObj[Set[T]]
         let _gen: GenObj[T] = gen
         fun generate(rnd: Randomness): GenerateResult[Set[T]] =>
-          let size = rnd.usize(min, max)
+          let size = rnd.usize(lo, hi)
           let result: Set[T] =
             Set[T].create(size) .> union(
               Iter[T^](_gen.value_iter(rnd))
               .take(size)
             )
           let shrink_iter: Iterator[Set[T]^] =
-            Iter[USize](CountdownIter(size, min))
+            Iter[USize](CountdownIter(size, lo))
               .map_stateful[Set[T]^]({
                 (s: USize): Set[T]^ =>
                   Set[T].create(s) .> union(
@@ -562,11 +570,16 @@ primitive Generators
     when the source generator `gen` produces duplicates.
     E.g. if the given generator is for `U8` values and `max` is set to 1024,
     the set will only ever be of size 256.
+
+    If `min > max`, the values are swapped.
     """
+    let lo = min.min(max)
+    let hi = min.max(max)
+
     Generator[SetIs[T]](
       object is GenObj[SetIs[T]]
         fun generate(rnd: Randomness): GenerateResult[SetIs[T]] =>
-          let size = rnd.usize(min, max)
+          let size = rnd.usize(lo, hi)
 
           let result: SetIs[T] =
             SetIs[T].create(size) .> union(
@@ -574,7 +587,7 @@ primitive Generators
                 .take(size)
             )
           let shrink_iter: Iterator[SetIs[T]^] =
-            Iter[USize](CountdownIter(size, min))
+            Iter[USize](CountdownIter(size, lo))
               .map_stateful[SetIs[T]^]({
                 (s: USize): SetIs[T]^ =>
                   SetIs[T].create(s) .> union(
@@ -599,11 +612,16 @@ primitive Generators
     The generated maps can have fewer entries than `min`
     when the source generator `gen` produces duplicate keys.
     Duplicate keys (based on structural equality) overwrite earlier entries.
+
+    If `min > max`, the values are swapped.
     """
+    let lo = min.min(max)
+    let hi = min.max(max)
+
     Generator[Map[K, V]](
       object is GenObj[Map[K, V]]
         fun generate(rnd: Randomness): GenerateResult[Map[K, V]] =>
-          let size = rnd.usize(min, max)
+          let size = rnd.usize(lo, hi)
 
           let result: Map[K, V] =
             Map[K, V].create(size) .> concat(
@@ -611,7 +629,7 @@ primitive Generators
                 .take(size)
             )
           let shrink_iter: Iterator[Map[K, V]^] =
-            Iter[USize](CountdownIter(size, min))
+            Iter[USize](CountdownIter(size, lo))
               .map_stateful[Map[K, V]^]({
                 (s: USize): Map[K, V]^ =>
                   Map[K, V].create(s) .> concat(
@@ -636,11 +654,16 @@ primitive Generators
     The generated maps can have fewer entries than `min`
     when the source generator `gen` produces duplicate keys.
     Duplicate keys (based on identity) overwrite earlier entries.
+
+    If `min > max`, the values are swapped.
     """
+    let lo = min.min(max)
+    let hi = min.max(max)
+
     Generator[MapIs[K, V]](
       object is GenObj[MapIs[K, V]]
         fun generate(rnd: Randomness): GenerateResult[MapIs[K, V]] =>
-          let size = rnd.usize(min, max)
+          let size = rnd.usize(lo, hi)
 
           let result: MapIs[K, V] =
             MapIs[K, V].create(size) .> concat(
@@ -648,7 +671,7 @@ primitive Generators
                 .take(size)
             )
           let shrink_iter: Iterator[MapIs[K, V]^] =
-            Iter[USize](CountdownIter(size, min))
+            Iter[USize](CountdownIter(size, lo))
               .map_stateful[MapIs[K, V]^]({
                 (s: USize): MapIs[K, V]^ =>
                   MapIs[K, V].create(s) .> concat(
@@ -1253,11 +1276,16 @@ primitive Generators
     generated from the bytes returned by the generator `gen`,
     with a minimum length of `min` (default: 0)
     and a maximum length of `max` (default: 100).
+
+    If `min > max`, the values are swapped.
     """
+    let lo = min.min(max)
+    let hi = min.max(max)
+
     Generator[String](
       object is GenObj[String]
         fun generate(rnd: Randomness): GenerateResult[String] =>
-          let size = rnd.usize(min, max)
+          let size = rnd.usize(lo, hi)
           let gen_iter = Iter[U8^](gen.value_iter(rnd))
             .take(size)
           let arr: Array[U8] iso = recover Array[U8](size) end
@@ -1267,19 +1295,16 @@ primitive Generators
           String.from_iso_array(consume arr)
 
         fun shrink(s: String): ValueAndShrink[String] =>
-          """
-          shrink string until `min` length.
-          """
           var str: String = s.trim(0, s.size() - 1)
           let shorten_iter: Iterator[String^] =
             object is Iterator[String^]
-              fun ref has_next(): Bool => str.size() > min
+              fun ref has_next(): Bool => str.size() > lo
               fun ref next(): String^ =>
                 str = str.trim(0, str.size() - 1)
             end
           let min_iter =
-            if s.size() > min then
-              Poperator[String]([s.trim(0, min)])
+            if s.size() > lo then
+              Poperator[String]([s.trim(0, lo)])
             else
               Poperator[String].empty()
             end
@@ -1365,15 +1390,19 @@ primitive Generators
 
     Note that the byte length of the generated string can be up to 4 times
     the size in code points.
+
+    If `min > max`, the values are swapped.
     """
+    let lo = min.min(max)
+    let hi = min.max(max)
+
     Generator[String](
       object is GenObj[String]
         fun generate(rnd: Randomness): GenerateResult[String] =>
-          let size = rnd.usize(min, max)
+          let size = rnd.usize(lo, hi)
           let gen_iter = Iter[U32^](gen.value_iter(rnd))
             .filter(
               {(cp) =>
-                // excluding surrogate pairs
                 (cp <= 0xD7FF) or (cp >= 0xE000)
               })
             .take(size)
@@ -1384,16 +1413,11 @@ primitive Generators
           s
 
         fun shrink(s: String): ValueAndShrink[String] =>
-          """
-          Strip off codepoints from the end, not just bytes, so we
-          maintain a valid utf8 string.
-
-          Only shrink until given `min` is hit.
-          """
+          // Strips codepoints, not bytes, to keep the string valid UTF-8.
           var shrink_base = s
           let s_len = s.codepoints()
           let shrink_iter: Iterator[String^] =
-            if s_len > min then
+            if s_len > lo then
               Iter[String^].repeat_value(consume shrink_base)
                 .map_stateful[String^](
                   object
@@ -1401,9 +1425,7 @@ primitive Generators
                     fun ref apply(str: String): String =>
                       Generators._trim_codepoints(str, len = len - 1)
                   end
-                ).take(s_len - min)
-                // take_while is buggy in pony < 0.21.0
-                // .take_while({(t) => t.codepoints() > min})
+                ).take(s_len - lo)
             else
               Poperator[String].empty()
             end
