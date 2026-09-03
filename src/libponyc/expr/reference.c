@@ -331,6 +331,51 @@ bool expr_typeref(pass_opt_t* opt, ast_t** astp)
   ast_t* type = ast_type(ast);
   if(type == NULL || (ast_id(type) == TK_INFERTYPE))
   {
+    if(ast_id(typeargs) == TK_NONE)
+    {
+      ast_t* def = (ast_t*)ast_data(ast);
+
+      if(def != NULL)
+      {
+        switch(ast_id(def))
+        {
+          case TK_PRIMITIVE:
+          case TK_STRUCT:
+          case TK_CLASS:
+          case TK_ACTOR:
+          {
+            ast_t* def_typeparams = ast_childidx(def, 1);
+
+            if(ast_id(def_typeparams) == TK_TYPEPARAMS)
+            {
+              BUILD(probe_args, ast, NODE(TK_NONE));
+              bool has_defaults =
+                reify_defaults(def_typeparams, probe_args, false, opt);
+              ast_free_unattached(probe_args);
+
+              if(!has_defaults)
+              {
+                ast_error(opt->check.errors, ast,
+                  "not enough type arguments");
+                ast_error_continue(opt->check.errors, def_typeparams,
+                  "definition is here");
+                ast_error_continue(opt->check.errors, ast,
+                  "type arguments are inferred only from the arguments"
+                  " of a constructor call");
+                ast_settype(ast, ast_from(ast, TK_ERRORTYPE));
+                return false;
+              }
+            }
+
+            break;
+          }
+
+          default:
+            break;
+        }
+      }
+    }
+
     // Assemble the type node from the package name and type name strings.
     const char* name = ast_name(id);
     const char* package_name =

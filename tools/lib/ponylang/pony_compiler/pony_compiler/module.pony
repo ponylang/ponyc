@@ -122,6 +122,10 @@ class val PositionIndex
     for child' in ast.children() do
       if filter_none and (child'.id() == TokenIds.tk_none()) then
         None // skip TK_NONE children of certain parent types
+      elseif (child'.id() == TokenIds.tk_typeargs()) and
+        (not child'.data[None]().is_null())
+      then
+        None // skip inferred type arguments (non-null data on TK_TYPEARGS)
       else
         let from_module =
           match child'.source_file()

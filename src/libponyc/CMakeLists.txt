@@ -47,6 +47,7 @@ add_library(libponyc STATIC
     expr/call.c
     expr/control.c
     expr/ffi.c
+    expr/infer.c
     expr/lambda.c
     expr/literal.c
     expr/match.c

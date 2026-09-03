@@ -4,6 +4,7 @@
 #include "../expr/operator.h"
 #include "../expr/postfix.h"
 #include "../expr/call.h"
+#include "../expr/infer.h"
 #include "../expr/control.h"
 #include "../expr/match.h"
 #include "../expr/array.h"
@@ -388,7 +389,14 @@ ast_t* find_antecedent_type(pass_opt_t* opt, ast_t* ast, bool* is_recovered,
       while((arg != NULL) && (param != NULL))
       {
         if(arg == ast)
-          return ast_childidx(param, 1);
+        {
+          ast_t* ptype = ast_childidx(param, 1);
+
+          if(ast_id(t_params) != TK_NONE)
+            ptype = antecedent_prune(ptype, t_params);
+
+          return ptype;
+        }
 
         arg = ast_sibling(arg);
         param = ast_sibling(param);
@@ -420,7 +428,14 @@ ast_t* find_antecedent_type(pass_opt_t* opt, ast_t* ast, bool* is_recovered,
       while(param != NULL)
       {
         if(ast_name(ast_child(param)) == name)
-          return ast_childidx(param, 1);
+        {
+          ast_t* ptype = ast_childidx(param, 1);
+
+          if(ast_id(t_params) != TK_NONE)
+            ptype = antecedent_prune(ptype, t_params);
+
+          return ptype;
+        }
 
         param = ast_sibling(param);
       }
@@ -628,6 +643,7 @@ ast_result_t pass_pre_expr(ast_t** astp, pass_opt_t* options)
   switch(ast_id(ast))
   {
     case TK_ARRAY: return expr_pre_array(options, astp);
+    case TK_CALL: return expr_pre_call(options, astp);
     case TK_IFDEFNOT:
     case TK_IFDEFAND:
     case TK_IFDEFOR:
