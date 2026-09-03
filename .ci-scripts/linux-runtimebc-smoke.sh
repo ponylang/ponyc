@@ -30,8 +30,12 @@ smoke=/tmp/runtimebc-smoke
 rm -rf "$smoke"
 mkdir -p "$smoke"
 cat > "$smoke/main.pony" <<'PONY'
+class _Disposable
+  fun _final() => None
+
 actor Main
   new create(env: Env) =>
+    _Disposable
     env.out.print("runtimebc smoke ok")
 PONY
 
