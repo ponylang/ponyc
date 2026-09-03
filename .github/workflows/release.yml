@@ -179,7 +179,7 @@ jobs:
           LIBS_TAG: ${{ hashFiles('lib/CMakePresets.json', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/build-libs.cmake', 'lib/llvm/patches/*') }}
         run: python3 .ci-scripts/libs-cache/resolve_libs_cache.py --platform x86-macos-15-intel --tag "$LIBS_TAG" -- cmake -DJOBS=4 -P lib/build-libs.cmake
       - name: Install Cloudsmith
-        run: pip3 install --break-system-packages --upgrade cloudsmith-cli
+        run: pip3 install --break-system-packages --ignore-installed --upgrade cloudsmith-cli
       - name: Release
         run: bash .ci-scripts/x86-64-release.bash
         env:
@@ -205,7 +205,7 @@ jobs:
           LIBS_TAG: ${{ hashFiles('lib/CMakePresets.json', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/build-libs.cmake', 'lib/llvm/patches/*') }}
         run: python3 .ci-scripts/libs-cache/resolve_libs_cache.py --platform arm64-macos-26 --tag "$LIBS_TAG" -- cmake -DJOBS=3 -P lib/build-libs.cmake
       - name: Install Cloudsmith
-        run: pip3 install --upgrade --break-system-packages cloudsmith-cli
+        run: pip3 install --upgrade --break-system-packages --ignore-installed cloudsmith-cli
       - name: Release
         run: bash .ci-scripts/arm64-apple-darwin-release.bash
         env:
