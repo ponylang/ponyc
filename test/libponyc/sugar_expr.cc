@@ -427,6 +427,206 @@ TEST_F(SugarExprTest, PartialConstructorValCapturedArg)
 }
 
 
+TEST_F(SugarExprTest, PartialConstructorGenericWithArg)
+{
+  const char* src =
+    "class Foo[A: Any val]\n"
+    "  new create(a: A) => None\n"
+
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let mk = Foo[U8]~create(1)";
+
+  TEST_COMPILE(src);
+}
+
+
+TEST_F(SugarExprTest, PartialConstructorGenericKeepsTypeArg)
+{
+  const char* src =
+    "class Foo[A: Any val]\n"
+    "  let _a: A\n"
+    "  new create(a: A) => _a = a\n"
+
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let mk = Foo[U32]~create(U32(1))\n"
+    "    let v: Foo[U32] ref = mk()";
+
+  TEST_COMPILE(src);
+}
+
+
+TEST_F(SugarExprTest, PartialConstructorGenericNoArgs)
+{
+  const char* src =
+    "class Foo[A: Any val]\n"
+    "  new create() => None\n"
+
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let mk = Foo[U8]~create()\n"
+    "    let v: Foo[U8] ref = mk()";
+
+  TEST_COMPILE(src);
+}
+
+
+TEST_F(SugarExprTest, PartialConstructorThroughAlias)
+{
+  const char* src =
+    "class Foo[A: Any val]\n"
+    "  new create(a: A) => None\n"
+
+    "type Bar is Foo[U8]\n"
+
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let mk = Bar~create(U8(1))";
+
+  TEST_COMPILE(src);
+}
+
+
+TEST_F(SugarExprTest, PartialConstructorTypeParam)
+{
+  const char* src =
+    "class Foo\n"
+    "  new create() => None\n"
+
+    "class Bar[A: Foo ref]\n"
+    "  fun apply() =>\n"
+    "    let mk = A~create()\n"
+    "    let v: A = mk()";
+
+  TEST_COMPILE(src);
+}
+
+
+TEST_F(SugarExprTest, PartialConstructorGenericInsideGeneric)
+{
+  const char* src =
+    "class Foo[A: Any val]\n"
+    "  let _a: A\n"
+    "  new create(a: A) => _a = a\n"
+
+    "class Bar[B: Any val]\n"
+    "  fun apply(b: B) =>\n"
+    "    let mk = Foo[B]~create(b)\n"
+    "    let v: Foo[B] ref = mk()";
+
+  TEST_COMPILE(src);
+}
+
+
+TEST_F(SugarExprTest, PartialBareGeneric)
+{
+  const char* src =
+    "primitive P[A: Any val]\n"
+    "  fun @bare_fun(): U32 => 42\n"
+
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let f = P[U8]~bare_fun()";
+
+  TEST_COMPILE(src);
+}
+
+
+TEST_F(SugarExprTest, PartialBareThroughAlias)
+{
+  const char* src =
+    "primitive P\n"
+    "  fun @bare_fun(): U32 => 42\n"
+
+    "type Q is P\n"
+
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let f = Q~bare_fun()";
+
+  TEST_COMPILE(src);
+}
+
+
+TEST_F(SugarExprTest, PartialBareOnTypeParamError)
+{
+  const char* src =
+    "interface HasBare\n"
+    "  fun @bare_fun(): U32\n"
+
+    "class Foo[A: HasBare val]\n"
+    "  fun apply(x: A) =>\n"
+    "    let f = x~bare_fun()";
+
+  TEST_ERRORS_1(src, "a bare method cannot be called on an abstract type "
+    "reference");
+}
+
+
+TEST_F(SugarExprTest, PartialConstructorGenericFullProgram)
+{
+  const char* src =
+    "class Foo[A: Any val]\n"
+    "  let _a: A\n"
+    "  new create(a: A) => _a = a\n"
+    "  fun get(): A => _a\n"
+
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let mk = Foo[U8]~create(42)\n"
+    "    let foo = mk()\n"
+    "    let n: U8 = foo.get()";
+
+  TEST_COMPILE(src);
+}
+
+
+TEST_F(SugarExprTest, PartialConstructorCrossPackageAlias)
+{
+  const char* pkg =
+    "class Foo[A: Any val]\n"
+    "  let _a: A\n"
+    "  new create(a: A) => _a = a\n"
+    "  fun get(): A => _a";
+
+  const char* src =
+    "use \"pkg\"\n"
+
+    "type MyFoo is Foo[U8]\n"
+
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let mk = MyFoo~create(U8(1))";
+
+  add_package("pkg", pkg);
+  TEST_COMPILE(src);
+}
+
+
+TEST_F(SugarExprTest, PartialConstructorCrossPackageParamAlias)
+{
+  const char* pkg =
+    "class Foo[A: Any val]\n"
+    "  let _a: A\n"
+    "  new create(a: A) => _a = a\n"
+    "  fun get(): A => _a";
+
+  const char* src =
+    "use \"pkg\"\n"
+
+    "type MyFoo[B: Any val] is Foo[B]\n"
+
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let mk = MyFoo[U8]~create(U8(1))\n"
+    "    let v: Foo[U8] ref = mk()";
+
+  add_package("pkg", pkg);
+  TEST_COMPILE(src);
+}
+
+
 // Lambdas
 
 TEST_F(SugarExprTest, LambdaMinimal)
