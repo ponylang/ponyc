@@ -780,6 +780,150 @@ static token_id partial_application_cap(pass_opt_t* opt, ast_t* ftype,
   return TK_BOX;
 }
 
+// Build the call receiver AST for partial application from a receiver type.
+// Handles TK_TYPEALIASREF (unfolds to the underlying nominal), TK_NOMINAL
+// (with or without type arguments), and TK_TYPEPARAMREF.
+// Returns false on error.
+static bool build_partial_call_receiver(ast_t** out, ast_t* receiver_type,
+  ast_t* ast, ast_t* method, bool bare, pass_opt_t* opt)
+{
+  ast_t* unfolded = NULL;
+  const char* alias_name = NULL;
+  ast_t* alias_type_args = NULL;
+
+  if(ast_id(receiver_type) == TK_TYPEALIASREF)
+  {
+    // Save the alias name for the foreign-package fallback below.
+    alias_name = ast_name(ast_child(receiver_type));
+
+    ast_t* alias_targs = ast_childidx(receiver_type, 1);
+    if((ast_id(alias_targs) == TK_TYPEARGS)
+      && (ast_childcount(alias_targs) > 0))
+    {
+      alias_type_args = alias_targs;
+    }
+
+    unfolded = typealias_unfold(receiver_type);
+    if(unfolded == NULL)
+      return false;
+    receiver_type = unfolded;
+  }
+
+  bool ok = true;
+
+  switch(ast_id(receiver_type))
+  {
+    case TK_NOMINAL:
+    {
+      AST_GET_CHILDREN(receiver_type, recv_type_package, recv_type_name,
+        recv_type_args);
+
+      const char* recv_package_str = ast_name(recv_type_package);
+      const char* recv_name_str = ast_name(recv_type_name);
+
+      ast_t* module = ast_nearest(ast, TK_MODULE);
+      ast_t* package = ast_parent(module);
+      ast_t* pkg_id = package_id(package, opt);
+      const char* pkg_str = ast_name(pkg_id);
+
+      const char* pkg_alias = NULL;
+      bool use_alias_name = false;
+
+      if(recv_package_str != pkg_str)
+      {
+        if(alias_name != NULL)
+        {
+          // The unfolded type is from a foreign package the call site's
+          // module may not import. Use the alias name (which is in scope)
+          // rather than the unfolded nominal name (which may not be).
+          use_alias_name = true;
+          recv_name_str = alias_name;
+        } else {
+          pkg_alias = package_alias_from_id(module, recv_package_str, opt);
+        }
+      }
+
+      ast_free_unattached(pkg_id);
+
+      bool has_typeargs;
+      if(use_alias_name)
+        has_typeargs = (alias_type_args != NULL);
+      else
+        has_typeargs = (ast_id(recv_type_args) == TK_TYPEARGS)
+          && (ast_childcount(recv_type_args) > 0);
+
+      ast_t* type_ref = NULL;
+
+      if(pkg_alias != NULL)
+      {
+        // `package.Type`
+        BUILD_NO_DECL(type_ref, ast,
+          NODE(TK_DOT,
+            NODE(TK_REFERENCE, ID(pkg_alias))
+            ID(recv_name_str)));
+      } else {
+        // `Type`
+        BUILD_NO_DECL(type_ref, ast,
+          NODE(TK_REFERENCE, ID(recv_name_str)));
+      }
+
+      if(has_typeargs)
+      {
+        ast_t* targs = use_alias_name ? alias_type_args : recv_type_args;
+
+        // `Type[Args].f` or `package.Type[Args].f`
+        BUILD_NO_DECL(*out, ast,
+          NODE(TK_DOT,
+            NODE(TK_QUALIFY,
+              TREE(type_ref)
+              TREE(ast_dup(targs)))
+            TREE(method)));
+      } else {
+        // `Type.f` or `package.Type.f`
+        BUILD_NO_DECL(*out, ast,
+          NODE(TK_DOT,
+            TREE(type_ref)
+            TREE(method)));
+      }
+
+      break;
+    }
+
+    case TK_TYPEPARAMREF:
+    {
+      if(bare)
+      {
+        ast_error(opt->check.errors, ast, "a bare method cannot be called on "
+          "an abstract type reference");
+        ok = false;
+        break;
+      }
+
+      const char* param_name = ast_name(ast_child(receiver_type));
+
+      BUILD_NO_DECL(*out, ast,
+        NODE(TK_DOT,
+          NODE(TK_REFERENCE, ID(param_name))
+          TREE(method)));
+
+      break;
+    }
+
+    default:
+    {
+      ast_error(opt->check.errors, ast, "a bare method cannot be called on "
+        "an abstract type reference");
+      ok = false;
+      break;
+    }
+  }
+
+  if(unfolded != NULL)
+    ast_free_unattached(unfolded);
+
+  return ok;
+}
+
 // Sugar for partial application, which we convert to a lambda.
 static bool partial_application(pass_opt_t* opt, ast_t** astp)
 {
@@ -875,77 +1019,15 @@ static bool partial_application(pass_opt_t* opt, ast_t** astp)
       return true;
     }
 
-    AST_GET_CHILDREN(receiver_type, recv_type_package, recv_type_name);
-
-    const char* recv_package_str = ast_name(recv_type_package);
-    const char* recv_name_str = ast_name(recv_type_name);
-
-    ast_t* module = ast_nearest(ast, TK_MODULE);
-    ast_t* package = ast_parent(module);
-    ast_t* pkg_id = package_id(package, opt);
-    const char* pkg_str = ast_name(pkg_id);
-
-    const char* pkg_alias = NULL;
-
-    if(recv_package_str != pkg_str)
-      pkg_alias = package_alias_from_id(module, recv_package_str, opt);
-
-    ast_free_unattached(pkg_id);
-
-    if(pkg_alias != NULL)
-    {
-      // `package.Type.f`
-      BUILD_NO_DECL(call_receiver, ast,
-        NODE(TK_DOT,
-          NODE(TK_DOT,
-            NODE(TK_REFERENCE, ID(pkg_alias))
-            ID(recv_name_str))
-          TREE(method)));
-    } else {
-      // `Type.f`
-      BUILD_NO_DECL(call_receiver, ast,
-        NODE(TK_DOT,
-          NODE(TK_REFERENCE, ID(recv_name_str))
-          TREE(method)));
-    }
+    if(!build_partial_call_receiver(&call_receiver, receiver_type, ast,
+      method, bare, opt))
+      return false;
   } else if(ast_id(receiver) == TK_TYPEREF) {
-    // Constructor partial application - receiver is a type reference.
-    // Type references don't have runtime values and can't be captured.
-    // Use the type name directly like bare methods do.
     ast_t* receiver_type = ast_type(receiver);
-    AST_GET_CHILDREN(receiver_type, recv_type_package, recv_type_name);
 
-    const char* recv_package_str = ast_name(recv_type_package);
-    const char* recv_name_str = ast_name(recv_type_name);
-
-    ast_t* module = ast_nearest(ast, TK_MODULE);
-    ast_t* package = ast_parent(module);
-    ast_t* pkg_id = package_id(package, opt);
-    const char* pkg_str = ast_name(pkg_id);
-
-    const char* pkg_alias = NULL;
-
-    if(recv_package_str != pkg_str)
-      pkg_alias = package_alias_from_id(module, recv_package_str, opt);
-
-    ast_free_unattached(pkg_id);
-
-    if(pkg_alias != NULL)
-    {
-      // `package.Type.f`
-      BUILD_NO_DECL(call_receiver, ast,
-        NODE(TK_DOT,
-          NODE(TK_DOT,
-            NODE(TK_REFERENCE, ID(pkg_alias))
-            ID(recv_name_str))
-          TREE(method)));
-    } else {
-      // `Type.f`
-      BUILD_NO_DECL(call_receiver, ast,
-        NODE(TK_DOT,
-          NODE(TK_REFERENCE, ID(recv_name_str))
-          TREE(method)));
-    }
+    if(!build_partial_call_receiver(&call_receiver, receiver_type, ast,
+      method, bare, opt))
+      return false;
   } else {
     // `$0.f`
     BUILD_NO_DECL(call_receiver, ast,
