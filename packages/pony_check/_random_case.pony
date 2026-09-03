@@ -31,9 +31,13 @@ actor \nodoc\ Main is TestList
     test(_MapIsOfEmptyTest)
     test(_MapIsOfIdentityTest)
     test(_MapIsOfMaxTest)
+    test(_MapIsOfMinShrinkTest)
+    test(_MapIsOfMinTest)
     test(_MapOfEmptyTest)
     test(_MapOfIdentityTest)
     test(_MapOfMaxTest)
+    test(_MapOfMinShrinkTest)
+    test(_MapOfMinTest)
     test(_MinASCIIStringShrinkTest)
     test(_MinUnicodeStringShrinkTest)
     test(_MultipleForAllTest)
@@ -75,8 +79,13 @@ actor \nodoc\ Main is TestList
     test(_RunnerSometimesErroringGeneratorTest)
     test(_SeqOfTest)
     test(_SetIsOfIdentityTest)
+    test(_SetIsOfMinShrinkTest)
+    test(_SetIsOfMinTest)
     test(_SetOfEmptyTest)
     test(_SetOfMaxTest)
+    test(_SetOfMinMaxEqualTest)
+    test(_SetOfMinShrinkTest)
+    test(_SetOfMinTest)
     test(_SetOfTest)
     test(_SignedShrinkTest)
     test(_StringifyTest)
@@ -660,8 +669,8 @@ class \nodoc\ iso _SetOfTest is UnitTest
     """
     let set_gen =
       Generators.set_of[U8](
-        Generators.u8(),
-        1024)
+        Generators.u8()
+        where max = 1024)
     let rnd = Randomness(Time.millis())
     for i in Range(0, 100) do
       let sample: Set[U8] = set_gen.generate_value(rnd)?
@@ -678,8 +687,8 @@ class \nodoc\ iso _SetOfMaxTest is UnitTest
     for size in Range[USize](1, U8.max_value().usize()) do
       let set_gen =
         Generators.set_of[U8](
-          Generators.u8(),
-          size)
+          Generators.u8()
+          where max = size)
       let sample: Set[U8] = set_gen.generate_value(rnd)?
       h.assert_true(sample.size() <= size, "generated set is too big.")
     end
@@ -692,8 +701,8 @@ class \nodoc\ iso _SetOfEmptyTest is UnitTest
     """
     let set_gen =
       Generators.set_of[U8](
-        Generators.u8(),
-        0)
+        Generators.u8()
+        where max = 0)
     let rnd = Randomness(Time.millis())
     for i in Range(0, 100) do
       let sample: Set[U8] = set_gen.generate_value(rnd)?
@@ -708,8 +717,8 @@ class \nodoc\ iso _SetIsOfIdentityTest is UnitTest
     """
     let set_is_gen_same =
       Generators.set_is_of[String](
-        Generators.unit[String]("the highlander"),
-        100)
+        Generators.unit[String]("the highlander")
+        where max = 100)
     let rnd = Randomness(Time.millis())
     let sample: SetIs[String] = set_is_gen_same.generate_value(rnd)?
     h.assert_true(
@@ -730,8 +739,8 @@ class \nodoc\ iso _MapOfEmptyTest is UnitTest
               let s = u.string()
               consume s
             }),
-          Generators.i64(-10, 10)),
-        0)
+          Generators.i64(-10, 10))
+        where max = 0)
     let rnd = Randomness(Time.millis())
     let sample = map_gen.generate_value(rnd)?
     h.assert_eq[USize](sample.size(), 0, "non-empty map created")
@@ -749,9 +758,8 @@ class \nodoc\ iso _MapOfMaxTest is UnitTest
             Generators.u16().map[String^]({(u: U16): String^ =>
               u.string()
             }),
-            Generators.i64(-10, 10)
-            ),
-        size)
+            Generators.i64(-10, 10))
+          where max = size)
       let sample = map_gen.generate_value(rnd)?
       h.assert_true(sample.size() <= size, "generated map is too big.")
     end
@@ -770,8 +778,8 @@ class \nodoc\ iso _MapOfIdentityTest is UnitTest
               s.add("the highlander")
               consume s
             }),
-          Generators.i64(-10, 10)),
-      100)
+          Generators.i64(-10, 10))
+        where max = 100)
     let sample = map_gen.generate_value(rnd)?
     h.assert_true(sample.size() <= 1)
 
@@ -789,8 +797,8 @@ class \nodoc\ iso _MapIsOfEmptyTest is UnitTest
               let s = u.string()
               consume s
             }),
-          Generators.i64(-10, 10)),
-        0)
+          Generators.i64(-10, 10))
+        where max = 0)
     let rnd = Randomness(Time.millis())
     let sample = map_is_gen.generate_value(rnd)?
     h.assert_eq[USize](sample.size(), 0, "non-empty map created")
@@ -810,8 +818,8 @@ class \nodoc\ iso _MapIsOfMaxTest is UnitTest
                 let s = u.string()
                 consume s
               }),
-            Generators.i64(-10, 10)),
-        size)
+            Generators.i64(-10, 10))
+          where max = size)
       let sample = map_is_gen.generate_value(rnd)?
       h.assert_true(sample.size() <= size, "generated map is too big.")
     end
@@ -825,11 +833,204 @@ class \nodoc\ iso _MapIsOfIdentityTest is UnitTest
       Generators.map_is_of[String, I64](
         Generators.zip2[String, I64](
           Generators.unit[String]("the highlander"),
-          Generators.i64(-10, 10)
-          ),
-      100)
+          Generators.i64(-10, 10))
+        where max = 100)
     let sample = map_gen.generate_value(rnd)?
     h.assert_true(sample.size() <= 1)
+
+class \nodoc\ iso _SetOfMinTest is UnitTest
+  fun name(): String => "Gen/set_of_min"
+
+  fun apply(h: TestHelper) ? =>
+    let set_gen =
+      Generators.set_of[U8](
+        Generators.u8()
+        where min = 1)
+    let rnd = Randomness(Time.millis())
+    for i in Range(0, 100) do
+      let sample: Set[U8] = set_gen.generate_value(rnd)?
+      h.assert_true(
+        sample.size() >= 1,
+        "empty set created with min = 1")
+    end
+
+class \nodoc\ iso _SetOfMinShrinkTest is UnitTest
+  fun name(): String => "Gen/set_of_min_shrink"
+
+  fun apply(h: TestHelper) ? =>
+    let set_gen =
+      Generators.set_of[U8](
+        Generators.u8()
+        where min = 5)
+    let rnd = Randomness(Time.millis())
+    match set_gen.generate(rnd)?
+    | (let sample: Set[U8], let shrinks: Iterator[Set[U8]^]) =>
+      h.assert_true(
+        sample.size() >= 5,
+        "generated set has fewer than 5 elements")
+      for shrunk in shrinks do
+        h.assert_true(
+          shrunk.size() >= 5,
+          "shrunk set has fewer than 5 elements")
+      end
+    else
+      h.fail("set_of did not produce shrinks")
+    end
+
+class \nodoc\ iso _SetIsOfMinTest is UnitTest
+  fun name(): String => "Gen/set_is_of_min"
+
+  fun apply(h: TestHelper) ? =>
+    let set_is_gen =
+      Generators.set_is_of[String](
+        Generators.ascii(where min = 1, max = 10)
+        where min = 1)
+    let rnd = Randomness(Time.millis())
+    for i in Range(0, 100) do
+      let sample: SetIs[String] = set_is_gen.generate_value(rnd)?
+      h.assert_true(
+        sample.size() >= 1,
+        "empty SetIs created with min = 1")
+    end
+
+class \nodoc\ iso _MapOfMinTest is UnitTest
+  fun name(): String => "Gen/map_of_min"
+
+  fun apply(h: TestHelper) ? =>
+    let map_gen =
+      Generators.map_of[String, I64](
+        Generators.zip2[String, I64](
+          Generators.u16().map[String^]({(u: U16): String^ =>
+            u.string()
+          }),
+          Generators.i64(-10, 10))
+        where min = 1)
+    let rnd = Randomness(Time.millis())
+    for i in Range(0, 100) do
+      let sample = map_gen.generate_value(rnd)?
+      h.assert_true(
+        sample.size() >= 1,
+        "empty map created with min = 1")
+    end
+
+class \nodoc\ iso _MapIsOfMinTest is UnitTest
+  fun name(): String => "Gen/map_is_of_min"
+
+  fun apply(h: TestHelper) ? =>
+    let map_is_gen =
+      Generators.map_is_of[String, I64](
+        Generators.zip2[String, I64](
+          Generators.u16().map[String^]({(u: U16): String^ =>
+            u.string()
+          }),
+          Generators.i64(-10, 10))
+        where min = 1)
+    let rnd = Randomness(Time.millis())
+    for i in Range(0, 100) do
+      let sample = map_is_gen.generate_value(rnd)?
+      h.assert_true(
+        sample.size() >= 1,
+        "empty MapIs created with min = 1")
+    end
+
+class \nodoc\ iso _SetIsOfMinShrinkTest is UnitTest
+  fun name(): String => "Gen/set_is_of_min_shrink"
+
+  fun apply(h: TestHelper) ? =>
+    let set_is_gen =
+      Generators.set_is_of[String](
+        Generators.ascii(where min = 1, max = 10)
+        where min = 5)
+    let rnd = Randomness(Time.millis())
+    match set_is_gen.generate(rnd)?
+    | (let sample: SetIs[String], let shrinks: Iterator[SetIs[String]^]) =>
+      h.assert_true(
+        sample.size() >= 5,
+        "generated SetIs has fewer than 5 elements")
+      for shrunk in shrinks do
+        h.assert_true(
+          shrunk.size() >= 5,
+          "shrunk SetIs has fewer than 5 elements")
+      end
+    else
+      h.fail("set_is_of did not produce shrinks")
+    end
+
+class \nodoc\ iso _MapOfMinShrinkTest is UnitTest
+  fun name(): String => "Gen/map_of_min_shrink"
+
+  fun apply(h: TestHelper) ? =>
+    let map_gen =
+      Generators.map_of[String, I64](
+        Generators.zip2[String, I64](
+          Generators.u16().map[String^]({(u: U16): String^ =>
+            u.string()
+          }),
+          Generators.i64(-10, 10))
+        where min = 5)
+    let rnd = Randomness(Time.millis())
+    match map_gen.generate(rnd)?
+    | (let sample: Map[String, I64],
+      let shrinks: Iterator[Map[String, I64]^])
+    =>
+      h.assert_true(
+        sample.size() >= 5,
+        "generated Map has fewer than 5 elements")
+      for shrunk in shrinks do
+        h.assert_true(
+          shrunk.size() >= 5,
+          "shrunk Map has fewer than 5 elements")
+      end
+    else
+      h.fail("map_of did not produce shrinks")
+    end
+
+class \nodoc\ iso _MapIsOfMinShrinkTest is UnitTest
+  fun name(): String => "Gen/map_is_of_min_shrink"
+
+  fun apply(h: TestHelper) ? =>
+    let map_is_gen =
+      Generators.map_is_of[String, I64](
+        Generators.zip2[String, I64](
+          Generators.u16().map[String^]({(u: U16): String^ =>
+            u.string()
+          }),
+          Generators.i64(-10, 10))
+        where min = 5)
+    let rnd = Randomness(Time.millis())
+    match map_is_gen.generate(rnd)?
+    | (let sample: MapIs[String, I64],
+      let shrinks: Iterator[MapIs[String, I64]^])
+    =>
+      h.assert_true(
+        sample.size() >= 5,
+        "generated MapIs has fewer than 5 elements")
+      for shrunk in shrinks do
+        h.assert_true(
+          shrunk.size() >= 5,
+          "shrunk MapIs has fewer than 5 elements")
+      end
+    else
+      h.fail("map_is_of did not produce shrinks")
+    end
+
+class \nodoc\ iso _SetOfMinMaxEqualTest is UnitTest
+  fun name(): String => "Gen/set_of_min_max_equal"
+
+  fun apply(h: TestHelper) ? =>
+    let set_gen =
+      Generators.set_of[U8](
+        Generators.u8()
+        where min = 5, max = 5)
+    let rnd = Randomness(Time.millis())
+    match set_gen.generate(rnd)?
+    | (let sample: Set[U8], let shrinks: Iterator[Set[U8]^]) =>
+      h.assert_false(
+        shrinks.has_next(),
+        "shrink iterator should be empty when min == max")
+    else
+      h.fail("set_of did not produce shrinks")
+    end
 
 class \nodoc\ iso _ASCIIRangeTest is UnitTest
   fun name(): String => "Gen/ascii_range"
