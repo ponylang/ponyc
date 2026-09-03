@@ -54,6 +54,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Fix compiler crash on generic calls in runtime_override_defaults ([PR #5968](https://github.com/ponylang/ponyc/pull/5968))
 - Fix partial application of generic constructors ([PR #5970](https://github.com/ponylang/ponyc/pull/5970))
 - Fix type parameters constrained by other type parameters ([PR #5972](https://github.com/ponylang/ponyc/pull/5972))
+- Fix segfault in programs with finalizers compiled with --runtimebc ([PR #5975](https://github.com/ponylang/ponyc/pull/5975))
 
 ### Added
 
