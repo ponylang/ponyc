@@ -1536,6 +1536,38 @@ static bool is_typeparam_sub_typeparam(ast_t* sub, ast_t* super,
   if(sub_def == super_def)
     return is_sub_cap_and_eph(sub, super, check_cap, errorf, opt);
 
+  // Walk sub's constraint chain to see if super appears in it. When a type
+  // parameter Y is constrained by another type parameter X (class A[X, Y: X]),
+  // Y <: X holds by the constraint declaration. Unconstrained parameters are
+  // represented internally as self-constrained (X: X), so the walk terminates
+  // on a cycle without false positives.
+  ast_t* walk = sub_def;
+  astlist_t* visited = astlist_push(NULL, walk);
+
+  while(true)
+  {
+    ast_t* constraint = ast_childidx(walk, 1);
+
+    if(ast_id(constraint) != TK_TYPEPARAMREF)
+      break;
+
+    ast_t* constraint_def = typeparam_root((ast_t*)ast_data(constraint));
+
+    if(constraint_def == super_def)
+    {
+      astlist_free(visited);
+      return is_sub_cap_and_eph(sub, super, check_cap, errorf, opt);
+    }
+
+    if(astlist_find(visited, constraint_def))
+      break;
+
+    visited = astlist_push(visited, constraint_def);
+    walk = constraint_def;
+  }
+
+  astlist_free(visited);
+
   if(errorf != NULL)
   {
     ast_error_frame(errorf, sub,
