@@ -668,3 +668,74 @@ TEST_F(TypeParamsTest, DanglingDefault_ReturnUsesLaterParam_Green)
 
   TEST_COMPILE_IR(src);
 }
+
+TEST_F(TypeParamsTest, ConstrainedByTypeParam_DirectAssignment)
+{
+  // From issue #1697: Y constrained by X implies Y <: X.
+  const char* src =
+    "class A[X, Y: X]\n"
+    "  fun foo(y: Y) =>\n"
+    "    let x: X = consume y\n"
+
+    "actor Main\n"
+    "  new create(env: Env) => None\n";
+
+  TEST_COMPILE(src);
+}
+
+TEST_F(TypeParamsTest, ConstrainedByTypeParam_CrossClassTypeArg)
+{
+  // From issue #1697: Y constrained by X can be passed as a type argument
+  // to another class with the same constraint.
+  const char* src =
+    "class B[X, Y: X]\n"
+    "class A[X, Y: X]\n"
+    "  var f: B[X, Y] = B[X, Y]\n"
+
+    "actor Main\n"
+    "  new create(env: Env) => None\n";
+
+  TEST_COMPILE(src);
+}
+
+TEST_F(TypeParamsTest, ConstrainedByTypeParam_Transitive)
+{
+  // Transitive constraint: Z: Y and Y: X implies Z <: X directly, not just
+  // Z <: Y and Y <: X as separate single steps.
+  const char* src =
+    "class A[X, Y: X, Z: Y]\n"
+    "  fun foo(z: Z) =>\n"
+    "    let x: X = consume z\n"
+
+    "actor Main\n"
+    "  new create(env: Env) => None\n";
+
+  TEST_COMPILE(src);
+}
+
+TEST_F(TypeParamsTest, ConstrainedByTypeParam_ReverseNotSubtype)
+{
+  // X is NOT constrained by Y, so X <: Y must fail.
+  const char* src =
+    "class A[X, Y: X]\n"
+    "  fun foo(x: X) =>\n"
+    "    let y: Y = consume x\n"
+
+    "actor Main\n"
+    "  new create(env: Env) => None\n";
+
+  TEST_ERROR(src);
+}
+
+TEST_F(TypeParamsTest, ConstrainedByTypeParam_SelfReferentialStillWorks)
+{
+  // A type using itself with its own params should still compile.
+  const char* src =
+    "class A[X, Y: X]\n"
+    "  var f: A[X, Y] = A[X, Y]\n"
+
+    "actor Main\n"
+    "  new create(env: Env) => None\n";
+
+  TEST_COMPILE(src);
+}
