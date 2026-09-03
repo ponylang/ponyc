@@ -1,6 +1,7 @@
 use "pony_test"
 
 use "collections"
+use persistent = "collections/persistent"
 use "itertools"
 use "random"
 use "time"
@@ -41,6 +42,29 @@ actor \nodoc\ Main is TestList
     test(_MinASCIIStringShrinkTest)
     test(_MinUnicodeStringShrinkTest)
     test(_MultipleForAllTest)
+    test(_PersistentListOfEmptyTest)
+    test(_PersistentListOfMaxTest)
+    test(_PersistentListOfMinTest)
+    test(_PersistentListOfMinShrinkTest)
+    test(_PersistentMapIsOfEmptyTest)
+    test(_PersistentMapIsOfIdentityTest)
+    test(_PersistentMapIsOfMaxTest)
+    test(_PersistentMapIsOfMinTest)
+    test(_PersistentMapIsOfMinShrinkTest)
+    test(_PersistentMapOfEmptyTest)
+    test(_PersistentMapOfIdentityTest)
+    test(_PersistentMapOfMaxTest)
+    test(_PersistentMapOfMinTest)
+    test(_PersistentMapOfMinShrinkTest)
+    test(_PersistentSetIsOfEmptyTest)
+    test(_PersistentSetIsOfIdentityTest)
+    test(_PersistentSetIsOfMaxTest)
+    test(_PersistentSetIsOfMinTest)
+    test(_PersistentSetIsOfMinShrinkTest)
+    test(_PersistentSetOfEmptyTest)
+    test(_PersistentSetOfMaxTest)
+    test(_PersistentSetOfMinTest)
+    test(_PersistentSetOfMinShrinkTest)
     test(Property1UnitTest[(I8, I8)](
       _RandomnessProperty[I8, _RandomCaseI8]("I8")))
     test(Property1UnitTest[(I16, I16)](
@@ -102,6 +126,12 @@ actor \nodoc\ Main is TestList
     test(_SuccessfulProperty3Test)
     test(_SuccessfulProperty4Test)
     test(_UnicodeStringShrinkTest)
+    test(_VecOfEmptyTest)
+    test(_VecOfFromToReversedTest)
+    test(_VecOfMaxTest)
+    test(_VecOfMinMaxEqualTest)
+    test(_VecOfMinTest)
+    test(_VecOfMinShrinkTest)
     test(_UnsignedShrinkTest)
     test(_UTF32CodePointStringTest)
 
@@ -1689,3 +1719,523 @@ class \nodoc\ iso _RandomnessProperty[
     let value = R.test(min, max)
     ph.assert_true(value >= min)
     ph.assert_true(value <= max)
+
+class \nodoc\ iso _VecOfEmptyTest is UnitTest
+  fun name(): String => "Gen/vec_of_empty"
+
+  fun apply(h: TestHelper) ? =>
+    let gen =
+      Generators.vec_of[U8](
+        Generators.u8()
+        where to = 0)
+    let rnd = Randomness(Time.millis())
+    for i in Range(0, 100) do
+      let sample = gen.generate_value(rnd)?
+      h.assert_eq[USize](sample.size(), 0, "non-empty vec created")
+    end
+
+class \nodoc\ iso _VecOfFromToReversedTest is UnitTest
+  fun name(): String => "Gen/vec_of_from_to_reversed"
+
+  fun apply(h: TestHelper) ? =>
+    let gen =
+      Generators.vec_of[U8](
+        Generators.u8()
+        where from = 10, to = 5)
+    let rnd = Randomness(Time.millis())
+    for i in Range(0, 100) do
+      let sample = gen.generate_value(rnd)?
+      h.assert_true(
+        sample.size() >= 5,
+        "vec smaller than lo when from > to")
+      h.assert_true(
+        sample.size() <= 10,
+        "vec larger than hi when from > to")
+    end
+
+class \nodoc\ iso _VecOfMinMaxEqualTest is UnitTest
+  fun name(): String => "Gen/vec_of_min_max_equal"
+
+  fun apply(h: TestHelper) ? =>
+    let gen =
+      Generators.vec_of[U8](
+        Generators.u8()
+        where from = 5, to = 5)
+    let rnd = Randomness(Time.millis())
+    match gen.generate(rnd)?
+    | (let sample: persistent.Vec[U8],
+      let shrinks: Iterator[persistent.Vec[U8]^])
+    =>
+      h.assert_eq[USize](
+        sample.size(),
+        5,
+        "vec should have exactly 5 elements when from == to")
+      h.assert_false(
+        shrinks.has_next(),
+        "shrink iterator should be empty when from == to")
+    else
+      h.fail("vec_of did not produce shrinks")
+    end
+
+class \nodoc\ iso _VecOfMaxTest is UnitTest
+  fun name(): String => "Gen/vec_of_max"
+
+  fun apply(h: TestHelper) ? =>
+    let rnd = Randomness(Time.millis())
+    for size in Range[USize](1, 50) do
+      let gen =
+        Generators.vec_of[U8](
+          Generators.u8()
+          where to = size)
+      let sample = gen.generate_value(rnd)?
+      h.assert_true(sample.size() <= size, "generated vec is too big")
+    end
+
+class \nodoc\ iso _VecOfMinTest is UnitTest
+  fun name(): String => "Gen/vec_of_min"
+
+  fun apply(h: TestHelper) ? =>
+    let gen =
+      Generators.vec_of[U8](
+        Generators.u8()
+        where from = 1)
+    let rnd = Randomness(Time.millis())
+    for i in Range(0, 100) do
+      let sample = gen.generate_value(rnd)?
+      h.assert_true(
+        sample.size() >= 1,
+        "empty vec created with from = 1")
+    end
+
+class \nodoc\ iso _VecOfMinShrinkTest is UnitTest
+  fun name(): String => "Gen/vec_of_min_shrink"
+
+  fun apply(h: TestHelper) ? =>
+    let gen =
+      Generators.vec_of[U8](
+        Generators.u8()
+        where from = 5)
+    let rnd = Randomness(Time.millis())
+    match gen.generate(rnd)?
+    | (let sample: persistent.Vec[U8],
+      let shrinks: Iterator[persistent.Vec[U8]^])
+    =>
+      h.assert_true(
+        sample.size() >= 5,
+        "generated vec has fewer than 5 elements")
+      for shrunk in shrinks do
+        h.assert_true(
+          shrunk.size() >= 5,
+          "shrunk vec has fewer than 5 elements")
+      end
+    else
+      h.fail("vec_of did not produce shrinks")
+    end
+
+class \nodoc\ iso _PersistentListOfEmptyTest is UnitTest
+  fun name(): String => "Gen/persistent_list_of_empty"
+
+  fun apply(h: TestHelper) ? =>
+    let gen =
+      Generators.persistent_list_of[U8](
+        Generators.u8()
+        where to = 0)
+    let rnd = Randomness(Time.millis())
+    for i in Range(0, 100) do
+      let sample = gen.generate_value(rnd)?
+      h.assert_eq[USize](sample.size(), 0, "non-empty list created")
+    end
+
+class \nodoc\ iso _PersistentListOfMaxTest is UnitTest
+  fun name(): String => "Gen/persistent_list_of_max"
+
+  fun apply(h: TestHelper) ? =>
+    let rnd = Randomness(Time.millis())
+    for size in Range[USize](1, 50) do
+      let gen =
+        Generators.persistent_list_of[U8](
+          Generators.u8()
+          where to = size)
+      let sample = gen.generate_value(rnd)?
+      h.assert_true(sample.size() <= size, "generated list is too big")
+    end
+
+class \nodoc\ iso _PersistentListOfMinTest is UnitTest
+  fun name(): String => "Gen/persistent_list_of_min"
+
+  fun apply(h: TestHelper) ? =>
+    let gen =
+      Generators.persistent_list_of[U8](
+        Generators.u8()
+        where from = 1)
+    let rnd = Randomness(Time.millis())
+    for i in Range(0, 100) do
+      let sample = gen.generate_value(rnd)?
+      h.assert_true(
+        sample.size() >= 1,
+        "empty list created with from = 1")
+    end
+
+class \nodoc\ iso _PersistentListOfMinShrinkTest is UnitTest
+  fun name(): String => "Gen/persistent_list_of_min_shrink"
+
+  fun apply(h: TestHelper) ? =>
+    let gen =
+      Generators.persistent_list_of[U8](
+        Generators.u8()
+        where from = 5)
+    let rnd = Randomness(Time.millis())
+    match gen.generate(rnd)?
+    | (let sample: persistent.List[U8],
+      let shrinks: Iterator[persistent.List[U8]^])
+    =>
+      h.assert_true(
+        sample.size() >= 5,
+        "generated list has fewer than 5 elements")
+      for shrunk in shrinks do
+        h.assert_true(
+          shrunk.size() >= 5,
+          "shrunk list has fewer than 5 elements")
+      end
+    else
+      h.fail("persistent_list_of did not produce shrinks")
+    end
+
+class \nodoc\ iso _PersistentSetIsOfIdentityTest is UnitTest
+  fun name(): String => "Gen/persistent_set_is_of_identity"
+
+  fun apply(h: TestHelper) ? =>
+    let gen =
+      Generators.persistent_set_is_of[String](
+        Generators.unit[String]("the highlander")
+        where to = 100)
+    let rnd = Randomness(Time.millis())
+    let sample = gen.generate_value(rnd)?
+    h.assert_true(
+      sample.size() <= 1,
+      "invalid persistent SetIs: size " + sample.size().string())
+
+class \nodoc\ iso _PersistentSetOfEmptyTest is UnitTest
+  fun name(): String => "Gen/persistent_set_of_empty"
+
+  fun apply(h: TestHelper) ? =>
+    let gen =
+      Generators.persistent_set_of[U8](
+        Generators.u8()
+        where to = 0)
+    let rnd = Randomness(Time.millis())
+    for i in Range(0, 100) do
+      let sample = gen.generate_value(rnd)?
+      h.assert_eq[USize](sample.size(), 0, "non-empty set created")
+    end
+
+class \nodoc\ iso _PersistentSetOfMaxTest is UnitTest
+  fun name(): String => "Gen/persistent_set_of_max"
+
+  fun apply(h: TestHelper) ? =>
+    let rnd = Randomness(Time.millis())
+    for size in Range[USize](1, U8.max_value().usize()) do
+      let gen =
+        Generators.persistent_set_of[U8](
+          Generators.u8()
+          where to = size)
+      let sample = gen.generate_value(rnd)?
+      h.assert_true(sample.size() <= size, "generated set is too big")
+    end
+
+class \nodoc\ iso _PersistentSetOfMinTest is UnitTest
+  fun name(): String => "Gen/persistent_set_of_min"
+
+  fun apply(h: TestHelper) ? =>
+    let gen =
+      Generators.persistent_set_of[U8](
+        Generators.u8()
+        where from = 1)
+    let rnd = Randomness(Time.millis())
+    for i in Range(0, 100) do
+      let sample = gen.generate_value(rnd)?
+      h.assert_true(
+        sample.size() >= 1,
+        "empty set created with from = 1")
+    end
+
+class \nodoc\ iso _PersistentSetOfMinShrinkTest is UnitTest
+  fun name(): String => "Gen/persistent_set_of_min_shrink"
+
+  fun apply(h: TestHelper) ? =>
+    let gen =
+      Generators.persistent_set_of[U8](
+        Generators.u8()
+        where from = 5)
+    let rnd = Randomness(Time.millis())
+    match gen.generate(rnd)?
+    | (let sample: persistent.Set[U8],
+      let shrinks: Iterator[persistent.Set[U8]^])
+    =>
+      h.assert_true(
+        sample.size() >= 5,
+        "generated set has fewer than 5 elements")
+      for shrunk in shrinks do
+        h.assert_true(
+          shrunk.size() >= 5,
+          "shrunk set has fewer than 5 elements")
+      end
+    else
+      h.fail("persistent_set_of did not produce shrinks")
+    end
+
+class \nodoc\ iso _PersistentSetIsOfEmptyTest is UnitTest
+  fun name(): String => "Gen/persistent_set_is_of_empty"
+
+  fun apply(h: TestHelper) ? =>
+    let gen =
+      Generators.persistent_set_is_of[U8](
+        Generators.u8()
+        where to = 0)
+    let rnd = Randomness(Time.millis())
+    for i in Range(0, 100) do
+      let sample = gen.generate_value(rnd)?
+      h.assert_eq[USize](sample.size(), 0, "non-empty SetIs created")
+    end
+
+class \nodoc\ iso _PersistentSetIsOfMaxTest is UnitTest
+  fun name(): String => "Gen/persistent_set_is_of_max"
+
+  fun apply(h: TestHelper) ? =>
+    let rnd = Randomness(Time.millis())
+    for size in Range[USize](1, U8.max_value().usize()) do
+      let gen =
+        Generators.persistent_set_is_of[U8](
+          Generators.u8()
+          where to = size)
+      let sample = gen.generate_value(rnd)?
+      h.assert_true(sample.size() <= size, "generated SetIs is too big")
+    end
+
+class \nodoc\ iso _PersistentSetIsOfMinTest is UnitTest
+  fun name(): String => "Gen/persistent_set_is_of_min"
+
+  fun apply(h: TestHelper) ? =>
+    let gen =
+      Generators.persistent_set_is_of[U8](
+        Generators.u8()
+        where from = 1)
+    let rnd = Randomness(Time.millis())
+    for i in Range(0, 100) do
+      let sample = gen.generate_value(rnd)?
+      h.assert_true(
+        sample.size() >= 1,
+        "empty SetIs created with from = 1")
+    end
+
+class \nodoc\ iso _PersistentSetIsOfMinShrinkTest is UnitTest
+  fun name(): String => "Gen/persistent_set_is_of_min_shrink"
+
+  fun apply(h: TestHelper) ? =>
+    let gen =
+      Generators.persistent_set_is_of[String](
+        Generators.ascii(where from = 1, to = 10)
+        where from = 5)
+    let rnd = Randomness(Time.millis())
+    match gen.generate(rnd)?
+    | (let sample: persistent.SetIs[String],
+      let shrinks: Iterator[persistent.SetIs[String]^])
+    =>
+      h.assert_true(
+        sample.size() >= 5,
+        "generated SetIs has fewer than 5 elements")
+      for shrunk in shrinks do
+        h.assert_true(
+          shrunk.size() >= 5,
+          "shrunk SetIs has fewer than 5 elements")
+      end
+    else
+      h.fail("persistent_set_is_of did not produce shrinks")
+    end
+
+class \nodoc\ iso _PersistentMapOfIdentityTest is UnitTest
+  fun name(): String => "Gen/persistent_map_of_identity"
+
+  fun apply(h: TestHelper) ? =>
+    let rnd = Randomness(Time.millis())
+    let gen =
+      Generators.persistent_map_of[String, U8](
+        Generators.zip2[String, U8](
+          Generators.repeatedly[String](
+            {(): String^ =>
+              let s = recover String.create(14) end
+              s.add("the highlander")
+              consume s
+            }),
+          Generators.u8())
+        where to = 100)
+    let sample = gen.generate_value(rnd)?
+    h.assert_true(sample.size() <= 1)
+
+class \nodoc\ iso _PersistentMapIsOfIdentityTest is UnitTest
+  fun name(): String => "Gen/persistent_map_is_of_identity"
+
+  fun apply(h: TestHelper) ? =>
+    let rnd = Randomness(Time.millis())
+    let gen =
+      Generators.persistent_map_is_of[String, U8](
+        Generators.zip2[String, U8](
+          Generators.unit[String]("the highlander"),
+          Generators.u8())
+        where to = 100)
+    let sample = gen.generate_value(rnd)?
+    h.assert_true(sample.size() <= 1)
+
+class \nodoc\ iso _PersistentMapOfEmptyTest is UnitTest
+  fun name(): String => "Gen/persistent_map_of_empty"
+
+  fun apply(h: TestHelper) ? =>
+    let gen =
+      Generators.persistent_map_of[U8, U8](
+        Generators.zip2[U8, U8](
+          Generators.u8(),
+          Generators.u8())
+        where to = 0)
+    let rnd = Randomness(Time.millis())
+    let sample = gen.generate_value(rnd)?
+    h.assert_eq[USize](sample.size(), 0, "non-empty map created")
+
+class \nodoc\ iso _PersistentMapOfMaxTest is UnitTest
+  fun name(): String => "Gen/persistent_map_of_max"
+
+  fun apply(h: TestHelper) ? =>
+    let rnd = Randomness(Time.millis())
+    for size in Range[USize](1, U8.max_value().usize()) do
+      let gen =
+        Generators.persistent_map_of[U8, U8](
+          Generators.zip2[U8, U8](
+            Generators.u8(),
+            Generators.u8())
+          where to = size)
+      let sample = gen.generate_value(rnd)?
+      h.assert_true(sample.size() <= size, "generated map is too big")
+    end
+
+class \nodoc\ iso _PersistentMapOfMinTest is UnitTest
+  fun name(): String => "Gen/persistent_map_of_min"
+
+  fun apply(h: TestHelper) ? =>
+    let gen =
+      Generators.persistent_map_of[U8, U8](
+        Generators.zip2[U8, U8](
+          Generators.u8(),
+          Generators.u8())
+        where from = 1)
+    let rnd = Randomness(Time.millis())
+    for i in Range(0, 100) do
+      let sample = gen.generate_value(rnd)?
+      h.assert_true(
+        sample.size() >= 1,
+        "empty map created with from = 1")
+    end
+
+class \nodoc\ iso _PersistentMapOfMinShrinkTest is UnitTest
+  fun name(): String => "Gen/persistent_map_of_min_shrink"
+
+  fun apply(h: TestHelper) ? =>
+    let gen =
+      Generators.persistent_map_of[String, I64](
+        Generators.zip2[String, I64](
+          Generators.u16().map[String^]({(u: U16): String^ =>
+            u.string()
+          }),
+          Generators.i64(-10, 10))
+        where from = 5)
+    let rnd = Randomness(Time.millis())
+    match gen.generate(rnd)?
+    | (let sample: persistent.Map[String, I64],
+      let shrinks: Iterator[persistent.Map[String, I64]^])
+    =>
+      h.assert_true(
+        sample.size() >= 5,
+        "generated map has fewer than 5 elements")
+      for shrunk in shrinks do
+        h.assert_true(
+          shrunk.size() >= 5,
+          "shrunk map has fewer than 5 elements")
+      end
+    else
+      h.fail("persistent_map_of did not produce shrinks")
+    end
+
+class \nodoc\ iso _PersistentMapIsOfEmptyTest is UnitTest
+  fun name(): String => "Gen/persistent_map_is_of_empty"
+
+  fun apply(h: TestHelper) ? =>
+    let gen =
+      Generators.persistent_map_is_of[U8, U8](
+        Generators.zip2[U8, U8](
+          Generators.u8(),
+          Generators.u8())
+        where to = 0)
+    let rnd = Randomness(Time.millis())
+    let sample = gen.generate_value(rnd)?
+    h.assert_eq[USize](sample.size(), 0, "non-empty MapIs created")
+
+class \nodoc\ iso _PersistentMapIsOfMaxTest is UnitTest
+  fun name(): String => "Gen/persistent_map_is_of_max"
+
+  fun apply(h: TestHelper) ? =>
+    let rnd = Randomness(Time.millis())
+    for size in Range[USize](1, U8.max_value().usize()) do
+      let gen =
+        Generators.persistent_map_is_of[U8, U8](
+          Generators.zip2[U8, U8](
+            Generators.u8(),
+            Generators.u8())
+          where to = size)
+      let sample = gen.generate_value(rnd)?
+      h.assert_true(sample.size() <= size, "generated MapIs is too big")
+    end
+
+class \nodoc\ iso _PersistentMapIsOfMinTest is UnitTest
+  fun name(): String => "Gen/persistent_map_is_of_min"
+
+  fun apply(h: TestHelper) ? =>
+    let gen =
+      Generators.persistent_map_is_of[U8, U8](
+        Generators.zip2[U8, U8](
+          Generators.u8(),
+          Generators.u8())
+        where from = 1)
+    let rnd = Randomness(Time.millis())
+    for i in Range(0, 100) do
+      let sample = gen.generate_value(rnd)?
+      h.assert_true(
+        sample.size() >= 1,
+        "empty MapIs created with from = 1")
+    end
+
+class \nodoc\ iso _PersistentMapIsOfMinShrinkTest is UnitTest
+  fun name(): String => "Gen/persistent_map_is_of_min_shrink"
+
+  fun apply(h: TestHelper) ? =>
+    let gen =
+      Generators.persistent_map_is_of[String, I64](
+        Generators.zip2[String, I64](
+          Generators.u16().map[String^]({(u: U16): String^ =>
+            u.string()
+          }),
+          Generators.i64(-10, 10))
+        where from = 5)
+    let rnd = Randomness(Time.millis())
+    match gen.generate(rnd)?
+    | (let sample: persistent.MapIs[String, I64],
+      let shrinks: Iterator[persistent.MapIs[String, I64]^])
+    =>
+      h.assert_true(
+        sample.size() >= 5,
+        "generated MapIs has fewer than 5 elements")
+      for shrunk in shrinks do
+        h.assert_true(
+          shrunk.size() >= 5,
+          "shrunk MapIs has fewer than 5 elements")
+      end
+    else
+      h.fail("persistent_map_is_of did not produce shrinks")
+    end
