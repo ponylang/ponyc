@@ -74,7 +74,7 @@ class \nodoc\ _TestTrailingWhitespaceProperty is UnitTest
   fun apply(h: TestHelper) ? =>
     // Clean lines: no trailing whitespace
     PonyCheck.for_all[String](
-      recover val Generators.ascii(where min = 0, max = 40,
+      recover val Generators.ascii(where from = 0, to = 40,
         range = ASCIILetters) end, h)(
       {(content: String, ph: PropertyHelper) =>
         let line = content.clone()
@@ -86,7 +86,7 @@ class \nodoc\ _TestTrailingWhitespaceProperty is UnitTest
       })?
     // Lines with trailing space always flagged
     PonyCheck.for_all[String](
-      recover val Generators.ascii(where min = 1, max = 20,
+      recover val Generators.ascii(where from = 1, to = 20,
         range = ASCIILetters) end, h)(
       {(content: String, ph: PropertyHelper) =>
         let line: String val = content + " "

@@ -12,7 +12,7 @@ class \nodoc\ _TestSourceFileSplitPreservesContent is UnitTest
 
   fun apply(h: TestHelper) ? =>
     PonyCheck.for_all[String](
-      recover val Generators.ascii(where min = 0, max = 200,
+      recover val Generators.ascii(where from = 0, to = 200,
         range = ASCIIPrintable) end, h)(
       {(content: String, ph: PropertyHelper) =>
         let stripped = content.clone()
@@ -29,7 +29,7 @@ class \nodoc\ _TestSourceFileNoCR is UnitTest
 
   fun apply(h: TestHelper) ? =>
     PonyCheck.for_all[String](
-      recover val Generators.ascii(where min = 0, max = 200) end, h)(
+      recover val Generators.ascii(where from = 0, to = 200) end, h)(
       {(content: String, ph: PropertyHelper) =>
         let sf = lint.SourceFile("/tmp/test.pony", content, "/tmp")
         for line in sf.lines.values() do
@@ -45,7 +45,7 @@ class \nodoc\ _TestSourceFileLineCount is UnitTest
 
   fun apply(h: TestHelper) ? =>
     PonyCheck.for_all[String](
-      recover val Generators.ascii(where min = 0, max = 200,
+      recover val Generators.ascii(where from = 0, to = 200,
         range = ASCIIPrintable) end, h)(
       {(content: String, ph: PropertyHelper) =>
         let stripped = content.clone()

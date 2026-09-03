@@ -370,22 +370,25 @@ primitive Generators
 
   fun seq_of[T, S: Seq[T] ref](
     gen: Generator[T],
-    min: USize = 0,
-    max: USize = 100)
+    from: USize = 0,
+    to: USize = 100)
     : Generator[S]
   =>
     """
-    Create a `Seq` from the values of the given Generator with an optional
-    minimum and maximum size.
+    Create a `Seq` from the values of the given Generator
+    with size in the range `from` to `to`.
+    The order of `from` and `to` does not matter.
 
-    Defaults are 0 and 100, respectively.
+    Defaults are 0 and 100.
     """
+    let lo = from.min(to)
+    let hi = from.max(to)
 
     Generator[S](
       object is GenObj[S]
         let _gen: GenObj[T] = gen
         fun generate(rnd: Randomness): GenerateResult[S] =>
-          let size = rnd.usize(min, max)
+          let size = rnd.usize(lo, hi)
 
           let result: S =
             Iter[T^](_gen.value_iter(rnd))
@@ -395,7 +398,7 @@ primitive Generators
           // create shrink_iter with smaller seqs and elements
           // generated from _gen.value_iter
           let shrink_iter =
-            Iter[USize](CountdownIter(size, min)) // Range(size, min, -1))
+            Iter[USize](CountdownIter(size, lo)) // Range(size, lo, -1))
               // .skip(1)
               .map_stateful[S^]({
                 (s: USize): S^ =>
@@ -408,8 +411,8 @@ primitive Generators
 
   fun iso_seq_of[T: Any #send, S: Seq[T] iso](
     gen: Generator[T],
-    min: USize = 0,
-    max: USize = 100)
+    from: USize = 0,
+    to: USize = 100)
     : Generator[S]
   =>
     """
@@ -420,12 +423,18 @@ primitive Generators
     there is no other way to populate the iso seq if the elements might be
     non-sendable (i.e. ref), as then the seq would leak references via
     its elements.
+
+    Size is in the range `from` to `to`.
+    The order of `from` and `to` does not matter.
     """
+    let lo = from.min(to)
+    let hi = from.max(to)
+
     Generator[S](
       object is GenObj[S]
         let _gen: GenObj[T] = gen
         fun generate(rnd: Randomness): GenerateResult[S] =>
-          let size = rnd.usize(min, max)
+          let size = rnd.usize(lo, hi)
 
           let result: S = recover iso S.create(size) end
           let iter = _gen.value_iter(rnd)
@@ -440,7 +449,7 @@ primitive Generators
           // create shrink_iter with smaller seqs and elements
           // generated from _gen.value_iter
           let shrink_iter =
-            Iter[USize](CountdownIter(size, min)) // Range(size, min, -1))
+            Iter[USize](CountdownIter(size, lo)) // Range(size, lo, -1))
               // .skip(1)
               .map_stateful[S^]({
                 (s: USize): S^ =>
@@ -461,11 +470,11 @@ primitive Generators
 
   fun array_of[T](
     gen: Generator[T],
-    min: USize = 0,
-    max: USize = 100)
+    from: USize = 0,
+    to: USize = 100)
     : Generator[Array[T]]
   =>
-    Generators.seq_of[T, Array[T]](gen, min, max)
+    Generators.seq_of[T, Array[T]](gen, from, to)
 
   fun shuffled_array_gen[T](
     gen: Generator[Array[T]])
@@ -500,42 +509,46 @@ primitive Generators
 
   fun list_of[T](
     gen: Generator[T],
-    min: USize = 0,
-    max: USize = 100)
+    from: USize = 0,
+    to: USize = 100)
     : Generator[List[T]]
   =>
-    Generators.seq_of[T, List[T]](gen, min, max)
+    Generators.seq_of[T, List[T]](gen, from, to)
 
   fun set_of[T: (Hashable #read & Equatable[T] #read)](
     gen: Generator[T],
-    min: USize = 0,
-    max: USize = 100)
+    from: USize = 0,
+    to: USize = 100)
     : Generator[Set[T]]
   =>
     """
     Create a generator for `Set` filled with values
     of the given generator `gen`
-    with a minimum of `min` and a maximum of `max` insertion attempts.
+    with insertion attempts in the range `from` to `to`.
+    The order of `from` and `to` does not matter.
 
-    Defaults are 0 and 100, respectively.
+    Defaults are 0 and 100.
 
-    The returned sets can have fewer elements than `min`
+    The returned sets can have fewer elements than the lower bound
     when the source generator `gen` produces duplicates.
-    E.g. if the given generator is for `U8` values and `max` is set to 1024,
-    the set will only ever be of size 256.
+    E.g. if the given generator is for `U8` values and the upper bound
+    is set to 1024, the set will only ever be of size 256.
     """
+    let lo = from.min(to)
+    let hi = from.max(to)
+
     Generator[Set[T]](
       object is GenObj[Set[T]]
         let _gen: GenObj[T] = gen
         fun generate(rnd: Randomness): GenerateResult[Set[T]] =>
-          let size = rnd.usize(min, max)
+          let size = rnd.usize(lo, hi)
           let result: Set[T] =
             Set[T].create(size) .> union(
               Iter[T^](_gen.value_iter(rnd))
               .take(size)
             )
           let shrink_iter: Iterator[Set[T]^] =
-            Iter[USize](CountdownIter(size, min))
+            Iter[USize](CountdownIter(size, lo))
               .map_stateful[Set[T]^]({
                 (s: USize): Set[T]^ =>
                   Set[T].create(s) .> union(
@@ -547,26 +560,30 @@ primitive Generators
 
   fun set_is_of[T](
     gen: Generator[T],
-    min: USize = 0,
-    max: USize = 100)
+    from: USize = 0,
+    to: USize = 100)
     : Generator[SetIs[T]]
   =>
     """
     Create a generator for `SetIs` filled with values
     of the given generator `gen`
-    with a minimum of `min` and a maximum of `max` insertion attempts.
+    with insertion attempts in the range `from` to `to`.
+    The order of `from` and `to` does not matter.
 
-    Defaults are 0 and 100, respectively.
+    Defaults are 0 and 100.
 
-    The returned sets can have fewer elements than `min`
+    The returned sets can have fewer elements than the lower bound
     when the source generator `gen` produces duplicates.
-    E.g. if the given generator is for `U8` values and `max` is set to 1024,
-    the set will only ever be of size 256.
+    E.g. if the given generator is for `U8` values and the upper bound
+    is set to 1024, the set will only ever be of size 256.
     """
+    let lo = from.min(to)
+    let hi = from.max(to)
+
     Generator[SetIs[T]](
       object is GenObj[SetIs[T]]
         fun generate(rnd: Randomness): GenerateResult[SetIs[T]] =>
-          let size = rnd.usize(min, max)
+          let size = rnd.usize(lo, hi)
 
           let result: SetIs[T] =
             SetIs[T].create(size) .> union(
@@ -574,7 +591,7 @@ primitive Generators
                 .take(size)
             )
           let shrink_iter: Iterator[SetIs[T]^] =
-            Iter[USize](CountdownIter(size, min))
+            Iter[USize](CountdownIter(size, lo))
               .map_stateful[SetIs[T]^]({
                 (s: USize): SetIs[T]^ =>
                   SetIs[T].create(s) .> union(
@@ -586,24 +603,28 @@ primitive Generators
 
   fun map_of[K: (Hashable #read & Equatable[K] #read), V](
     gen: Generator[(K, V)],
-    min: USize = 0,
-    max: USize = 100)
+    from: USize = 0,
+    to: USize = 100)
     : Generator[Map[K, V]]
   =>
     """
     Create a generator for `Map` from a generator of key-value tuples
-    with a minimum of `min` and a maximum of `max` insertion attempts.
+    with insertion attempts in the range `from` to `to`.
+    The order of `from` and `to` does not matter.
 
-    Defaults are 0 and 100, respectively.
+    Defaults are 0 and 100.
 
-    The generated maps can have fewer entries than `min`
+    The generated maps can have fewer entries than the lower bound
     when the source generator `gen` produces duplicate keys.
     Duplicate keys (based on structural equality) overwrite earlier entries.
     """
+    let lo = from.min(to)
+    let hi = from.max(to)
+
     Generator[Map[K, V]](
       object is GenObj[Map[K, V]]
         fun generate(rnd: Randomness): GenerateResult[Map[K, V]] =>
-          let size = rnd.usize(min, max)
+          let size = rnd.usize(lo, hi)
 
           let result: Map[K, V] =
             Map[K, V].create(size) .> concat(
@@ -611,7 +632,7 @@ primitive Generators
                 .take(size)
             )
           let shrink_iter: Iterator[Map[K, V]^] =
-            Iter[USize](CountdownIter(size, min))
+            Iter[USize](CountdownIter(size, lo))
               .map_stateful[Map[K, V]^]({
                 (s: USize): Map[K, V]^ =>
                   Map[K, V].create(s) .> concat(
@@ -623,24 +644,28 @@ primitive Generators
 
   fun map_is_of[K, V](
     gen: Generator[(K, V)],
-    min: USize = 0,
-    max: USize = 100)
+    from: USize = 0,
+    to: USize = 100)
     : Generator[MapIs[K, V]]
   =>
     """
     Create a generator for `MapIs` from a generator of key-value tuples
-    with a minimum of `min` and a maximum of `max` insertion attempts.
+    with insertion attempts in the range `from` to `to`.
+    The order of `from` and `to` does not matter.
 
-    Defaults are 0 and 100, respectively.
+    Defaults are 0 and 100.
 
-    The generated maps can have fewer entries than `min`
+    The generated maps can have fewer entries than the lower bound
     when the source generator `gen` produces duplicate keys.
     Duplicate keys (based on identity) overwrite earlier entries.
     """
+    let lo = from.min(to)
+    let hi = from.max(to)
+
     Generator[MapIs[K, V]](
       object is GenObj[MapIs[K, V]]
         fun generate(rnd: Randomness): GenerateResult[MapIs[K, V]] =>
-          let size = rnd.usize(min, max)
+          let size = rnd.usize(lo, hi)
 
           let result: MapIs[K, V] =
             MapIs[K, V].create(size) .> concat(
@@ -648,7 +673,7 @@ primitive Generators
                 .take(size)
             )
           let shrink_iter: Iterator[MapIs[K, V]^] =
-            Iter[USize](CountdownIter(size, min))
+            Iter[USize](CountdownIter(size, lo))
               .map_stateful[MapIs[K, V]^]({
                 (s: USize): MapIs[K, V]^ =>
                   MapIs[K, V].create(s) .> concat(
@@ -991,273 +1016,334 @@ primitive Generators
     (consume t, shrunken_iter)
 
   fun u8(
-    min: U8 = U8.min_value(),
-    max: U8 = U8.max_value())
+    from: U8 = U8.min_value(),
+    to: U8 = U8.max_value())
     : Generator[U8]
   =>
     """
-    Create a generator for U8 values.
+    Create a generator for U8 values
+    in the range `from` to `to`.
+    The order of `from` and `to` does not matter.
     """
+    let lo = from.min(to)
+    let hi = from.max(to)
     let that = this
     Generator[U8](
       object is GenObj[U8]
         fun generate(rnd: Randomness): U8^ =>
-          rnd.u8(min, max)
+          rnd.u8(lo, hi)
 
         fun shrink(u: U8): ValueAndShrink[U8] =>
-          that._int_shrink[U8](consume u, min)
+          that._int_shrink[U8](consume u, lo)
         end)
 
   fun u16(
-    min: U16 = U16.min_value(),
-    max: U16 = U16.max_value())
+    from: U16 = U16.min_value(),
+    to: U16 = U16.max_value())
     : Generator[U16]
   =>
     """
-    create a generator for U16 values
+    Create a generator for U16 values
+    in the range `from` to `to`.
+    The order of `from` and `to` does not matter.
     """
+    let lo = from.min(to)
+    let hi = from.max(to)
     let that = this
     Generator[U16](
       object is GenObj[U16]
         fun generate(rnd: Randomness): U16^ =>
-          rnd.u16(min, max)
+          rnd.u16(lo, hi)
 
         fun shrink(u: U16): ValueAndShrink[U16] =>
-          that._int_shrink[U16](consume u, min)
+          that._int_shrink[U16](consume u, lo)
       end)
 
   fun u32(
-    min: U32 = U32.min_value(),
-    max: U32 = U32.max_value())
+    from: U32 = U32.min_value(),
+    to: U32 = U32.max_value())
     : Generator[U32]
   =>
     """
-    Create a generator for U32 values.
+    Create a generator for U32 values
+    in the range `from` to `to`.
+    The order of `from` and `to` does not matter.
     """
+    let lo = from.min(to)
+    let hi = from.max(to)
     let that = this
     Generator[U32](
       object is GenObj[U32]
         fun generate(rnd: Randomness): U32^ =>
-          rnd.u32(min, max)
+          rnd.u32(lo, hi)
 
         fun shrink(u: U32): ValueAndShrink[U32] =>
-          that._int_shrink[U32](consume u, min)
+          that._int_shrink[U32](consume u, lo)
       end)
 
   fun u64(
-    min: U64 = U64.min_value(),
-    max: U64 = U64.max_value())
+    from: U64 = U64.min_value(),
+    to: U64 = U64.max_value())
     : Generator[U64]
   =>
     """
-    Create a generator for U64 values.
+    Create a generator for U64 values
+    in the range `from` to `to`.
+    The order of `from` and `to` does not matter.
     """
+    let lo = from.min(to)
+    let hi = from.max(to)
     let that = this
     Generator[U64](
       object is GenObj[U64]
         fun generate(rnd: Randomness): U64^ =>
-          rnd.u64(min, max)
+          rnd.u64(lo, hi)
 
         fun shrink(u: U64): ValueAndShrink[U64] =>
-          that._int_shrink[U64](consume u, min)
+          that._int_shrink[U64](consume u, lo)
       end)
 
   fun u128(
-    min: U128 = U128.min_value(),
-    max: U128 = U128.max_value())
+    from: U128 = U128.min_value(),
+    to: U128 = U128.max_value())
     : Generator[U128]
   =>
     """
-    Create a generator for U128 values.
+    Create a generator for U128 values
+    in the range `from` to `to`.
+    The order of `from` and `to` does not matter.
     """
+    let lo = from.min(to)
+    let hi = from.max(to)
     let that = this
     Generator[U128](
       object is GenObj[U128]
         fun generate(rnd: Randomness): U128^ =>
-          rnd.u128(min, max)
+          rnd.u128(lo, hi)
 
         fun shrink(u: U128): ValueAndShrink[U128] =>
-          that._int_shrink[U128](consume u, min)
+          that._int_shrink[U128](consume u, lo)
       end)
 
   fun usize(
-    min: USize = USize.min_value(),
-    max: USize = USize.max_value())
+    from: USize = USize.min_value(),
+    to: USize = USize.max_value())
     : Generator[USize]
   =>
     """
-    Create a generator for USize values.
+    Create a generator for USize values
+    in the range `from` to `to`.
+    The order of `from` and `to` does not matter.
     """
+    let lo = from.min(to)
+    let hi = from.max(to)
     let that = this
     Generator[USize](
       object is GenObj[USize]
         fun generate(rnd: Randomness): GenerateResult[USize] =>
-          rnd.usize(min, max)
+          rnd.usize(lo, hi)
 
         fun shrink(u: USize): ValueAndShrink[USize] =>
-          that._int_shrink[USize](consume u, min)
+          that._int_shrink[USize](consume u, lo)
       end)
 
   fun ulong(
-    min: ULong = ULong.min_value(),
-    max: ULong = ULong.max_value())
+    from: ULong = ULong.min_value(),
+    to: ULong = ULong.max_value())
     : Generator[ULong]
   =>
     """
-    Create a generator for ULong values.
+    Create a generator for ULong values
+    in the range `from` to `to`.
+    The order of `from` and `to` does not matter.
     """
+    let lo = from.min(to)
+    let hi = from.max(to)
     let that = this
     Generator[ULong](
       object is GenObj[ULong]
         fun generate(rnd: Randomness): ULong^ =>
-          rnd.ulong(min, max)
+          rnd.ulong(lo, hi)
 
         fun shrink(u: ULong): ValueAndShrink[ULong] =>
-          that._int_shrink[ULong](consume u, min)
+          that._int_shrink[ULong](consume u, lo)
       end)
 
   fun i8(
-    min: I8 = I8.min_value(),
-    max: I8 = I8.max_value())
+    from: I8 = I8.min_value(),
+    to: I8 = I8.max_value())
     : Generator[I8]
   =>
     """
-    Create a generator for I8 values.
+    Create a generator for I8 values
+    in the range `from` to `to`.
+    The order of `from` and `to` does not matter.
     """
+    let lo = from.min(to)
+    let hi = from.max(to)
     let that = this
     Generator[I8](
       object is GenObj[I8]
         fun generate(rnd: Randomness): I8^ =>
-          rnd.i8(min, max)
+          rnd.i8(lo, hi)
 
         fun shrink(i: I8): ValueAndShrink[I8] =>
-          that._int_shrink[I8](consume i, min)
+          that._int_shrink[I8](consume i, lo)
       end)
 
   fun i16(
-    min: I16 = I16.min_value(),
-    max: I16 = I16.max_value())
+    from: I16 = I16.min_value(),
+    to: I16 = I16.max_value())
     : Generator[I16]
   =>
     """
-    Create a generator for I16 values.
+    Create a generator for I16 values
+    in the range `from` to `to`.
+    The order of `from` and `to` does not matter.
     """
+    let lo = from.min(to)
+    let hi = from.max(to)
     let that = this
     Generator[I16](
       object is GenObj[I16]
         fun generate(rnd: Randomness): I16^ =>
-          rnd.i16(min, max)
+          rnd.i16(lo, hi)
 
         fun shrink(i: I16): ValueAndShrink[I16] =>
-          that._int_shrink[I16](consume i, min)
+          that._int_shrink[I16](consume i, lo)
       end)
 
   fun i32(
-    min: I32 = I32.min_value(),
-    max: I32 = I32.max_value())
+    from: I32 = I32.min_value(),
+    to: I32 = I32.max_value())
     : Generator[I32]
   =>
     """
-    Create a generator for I32 values.
+    Create a generator for I32 values
+    in the range `from` to `to`.
+    The order of `from` and `to` does not matter.
     """
+    let lo = from.min(to)
+    let hi = from.max(to)
     let that = this
     Generator[I32](
       object is GenObj[I32]
         fun generate(rnd: Randomness): I32^ =>
-          rnd.i32(min, max)
+          rnd.i32(lo, hi)
 
         fun shrink(i: I32): ValueAndShrink[I32] =>
-          that._int_shrink[I32](consume i, min)
+          that._int_shrink[I32](consume i, lo)
       end)
 
   fun i64(
-    min: I64 = I64.min_value(),
-    max: I64 = I64.max_value())
+    from: I64 = I64.min_value(),
+    to: I64 = I64.max_value())
     : Generator[I64]
   =>
     """
-    Create a generator for I64 values.
+    Create a generator for I64 values
+    in the range `from` to `to`.
+    The order of `from` and `to` does not matter.
     """
+    let lo = from.min(to)
+    let hi = from.max(to)
     let that = this
     Generator[I64](
       object is GenObj[I64]
         fun generate(rnd: Randomness): I64^ =>
-          rnd.i64(min, max)
+          rnd.i64(lo, hi)
 
         fun shrink(i: I64): ValueAndShrink[I64] =>
-          that._int_shrink[I64](consume i, min)
+          that._int_shrink[I64](consume i, lo)
       end)
 
   fun i128(
-    min: I128 = I128.min_value(),
-    max: I128 = I128.max_value())
+    from: I128 = I128.min_value(),
+    to: I128 = I128.max_value())
     : Generator[I128]
   =>
     """
-    Create a generator for I128 values.
+    Create a generator for I128 values
+    in the range `from` to `to`.
+    The order of `from` and `to` does not matter.
     """
+    let lo = from.min(to)
+    let hi = from.max(to)
     let that = this
     Generator[I128](
       object is GenObj[I128]
         fun generate(rnd: Randomness): I128^ =>
-          rnd.i128(min, max)
+          rnd.i128(lo, hi)
 
         fun shrink(i: I128): ValueAndShrink[I128] =>
-          that._int_shrink[I128](consume i, min)
+          that._int_shrink[I128](consume i, lo)
       end)
 
   fun ilong(
-    min: ILong = ILong.min_value(),
-    max: ILong = ILong.max_value())
+    from: ILong = ILong.min_value(),
+    to: ILong = ILong.max_value())
     : Generator[ILong]
   =>
     """
-    Create a generator for ILong values.
+    Create a generator for ILong values
+    in the range `from` to `to`.
+    The order of `from` and `to` does not matter.
     """
+    let lo = from.min(to)
+    let hi = from.max(to)
     let that = this
     Generator[ILong](
       object is GenObj[ILong]
         fun generate(rnd: Randomness): ILong^ =>
-          rnd.ilong(min, max)
+          rnd.ilong(lo, hi)
 
         fun shrink(i: ILong): ValueAndShrink[ILong] =>
-          that._int_shrink[ILong](consume i, min)
+          that._int_shrink[ILong](consume i, lo)
       end)
 
   fun isize(
-    min: ISize = ISize.min_value(),
-    max: ISize = ISize.max_value())
+    from: ISize = ISize.min_value(),
+    to: ISize = ISize.max_value())
     : Generator[ISize]
   =>
     """
-    Create a generator for ISize values.
+    Create a generator for ISize values
+    in the range `from` to `to`.
+    The order of `from` and `to` does not matter.
     """
+    let lo = from.min(to)
+    let hi = from.max(to)
     let that = this
     Generator[ISize](
       object is GenObj[ISize]
         fun generate(rnd: Randomness): ISize^ =>
-          rnd.isize(min, max)
+          rnd.isize(lo, hi)
 
         fun shrink(i: ISize): ValueAndShrink[ISize] =>
-          that._int_shrink[ISize](consume i, min)
+          that._int_shrink[ISize](consume i, lo)
       end)
 
   fun byte_string(
     gen: Generator[U8],
-    min: USize = 0,
-    max: USize = 100)
+    from: USize = 0,
+    to: USize = 100)
     : Generator[String]
   =>
     """
     Create a generator for strings
     generated from the bytes returned by the generator `gen`,
-    with a minimum length of `min` (default: 0)
-    and a maximum length of `max` (default: 100).
+    with length in the range `from` to `to`.
+    The order of `from` and `to` does not matter.
+
+    Defaults are 0 and 100.
     """
+    let lo = from.min(to)
+    let hi = from.max(to)
+
     Generator[String](
       object is GenObj[String]
         fun generate(rnd: Randomness): GenerateResult[String] =>
-          let size = rnd.usize(min, max)
+          let size = rnd.usize(lo, hi)
           let gen_iter = Iter[U8^](gen.value_iter(rnd))
             .take(size)
           let arr: Array[U8] iso = recover Array[U8](size) end
@@ -1267,40 +1353,39 @@ primitive Generators
           String.from_iso_array(consume arr)
 
         fun shrink(s: String): ValueAndShrink[String] =>
-          """
-          shrink string until `min` length.
-          """
           var str: String = s.trim(0, s.size() - 1)
           let shorten_iter: Iterator[String^] =
             object is Iterator[String^]
-              fun ref has_next(): Bool => str.size() > min
+              fun ref has_next(): Bool => str.size() > lo
               fun ref next(): String^ =>
                 str = str.trim(0, str.size() - 1)
             end
-          let min_iter =
-            if s.size() > min then
-              Poperator[String]([s.trim(0, min)])
+          let lo_iter =
+            if s.size() > lo then
+              Poperator[String]([s.trim(0, lo)])
             else
               Poperator[String].empty()
             end
           let shrink_iter =
             Iter[String^].chain(
               [ shorten_iter
-                min_iter
+                lo_iter
               ].values())
           (consume s, shrink_iter)
       end)
 
   fun ascii(
-    min: USize = 0,
-    max: USize = 100,
+    from: USize = 0,
+    to: USize = 100,
     range: ASCIIRange = ASCIIAll)
     : Generator[String]
   =>
     """
     Create a generator for strings within the given `range`,
-    with a minimum length of `min` (default: 0)
-    and a maximum length of `max` (default: 100).
+    with length in the range `from` to `to`.
+    The order of `from` and `to` does not matter.
+
+    Defaults are 0 and 100.
     """
     let range_bytes = range.apply()
     let fallback = U8(0)
@@ -1313,63 +1398,74 @@ primitive Generators
           fallback
         end
       })
-    byte_string(range_bytes_gen, min, max)
+    byte_string(range_bytes_gen, from, to)
 
   fun ascii_printable(
-    min: USize = 0,
-    max: USize = 100)
+    from: USize = 0,
+    to: USize = 100)
     : Generator[String]
   =>
     """
     Create a generator for strings of printable ASCII characters,
-    with a minimum length of `min` (default: 0)
-    and a maximum length of `max` (default: 100).
+    with length in the range `from` to `to`.
+    The order of `from` and `to` does not matter.
+
+    Defaults are 0 and 100.
     """
-    ascii(min, max, ASCIIPrintable)
+    ascii(from, to, ASCIIPrintable)
 
   fun ascii_numeric(
-    min: USize = 0,
-    max: USize = 100)
+    from: USize = 0,
+    to: USize = 100)
     : Generator[String]
   =>
     """
     Create a generator for strings of numeric ASCII characters,
-    with a minimum length of `min` (default: 0)
-    and a maximum length of `max` (default: 100).
+    with length in the range `from` to `to`.
+    The order of `from` and `to` does not matter.
+
+    Defaults are 0 and 100.
     """
-    ascii(min, max, ASCIIDigits)
+    ascii(from, to, ASCIIDigits)
 
   fun ascii_letters(
-    min: USize = 0,
-    max: USize = 100)
+    from: USize = 0,
+    to: USize = 100)
     : Generator[String]
   =>
     """
     Create a generator for strings of ASCII letters,
-    with a minimum length of `min` (default: 0)
-    and a maximum length of `max` (default: 100).
+    with length in the range `from` to `to`.
+    The order of `from` and `to` does not matter.
+
+    Defaults are 0 and 100.
     """
-    ascii(min, max, ASCIILetters)
+    ascii(from, to, ASCIILetters)
 
   fun utf32_codepoint_string(
     gen: Generator[U32],
-    min: USize = 0,
-    max: USize = 100)
+    from: USize = 0,
+    to: USize = 100)
     : Generator[String]
   =>
     """
     Create a generator for strings
     from a generator of unicode codepoints,
-    with a minimum length of `min` codepoints (default: 0)
-    and a maximum length of `max` codepoints (default: 100).
+    with length in the range `from` to `to` codepoints.
+    The order of `from` and `to` does not matter.
+
+    Defaults are 0 and 100.
 
     Note that the byte length of the generated string can be up to 4 times
     the size in code points.
     """
+    let lo = from.min(to)
+    let hi = from.max(to)
+
     Generator[String](
       object is GenObj[String]
         fun generate(rnd: Randomness): GenerateResult[String] =>
-          let size = rnd.usize(min, max)
+          let size = rnd.usize(lo, hi)
           let gen_iter = Iter[U32^](gen.value_iter(rnd))
             .filter(
               {(cp) =>
@@ -1387,13 +1483,11 @@ primitive Generators
           """
           Strip off codepoints from the end, not just bytes, so we
           maintain a valid utf8 string.
-
-          Only shrink until given `min` is hit.
           """
           var shrink_base = s
           let s_len = s.codepoints()
           let shrink_iter: Iterator[String^] =
-            if s_len > min then
+            if s_len > lo then
               Iter[String^].repeat_value(consume shrink_base)
                 .map_stateful[String^](
                   object
@@ -1401,9 +1495,9 @@ primitive Generators
                     fun ref apply(str: String): String =>
                       Generators._trim_codepoints(str, len = len - 1)
                   end
-                ).take(s_len - min)
+                ).take(s_len - lo)
                 // take_while is buggy in pony < 0.21.0
-                // .take_while({(t) => t.codepoints() > min})
+                // .take_while({(t) => t.codepoints() > lo})
             else
               Poperator[String].empty()
             end
@@ -1420,14 +1514,16 @@ primitive Generators
     end
 
   fun unicode(
-    min: USize = 0,
-    max: USize = 100)
+    from: USize = 0,
+    to: USize = 100)
     : Generator[String]
   =>
     """
     Create a generator for unicode strings,
-    with a minimum length of `min` codepoints (default: 0)
-    and a maximum length of `max` codepoints (default: 100).
+    with length in the range `from` to `to` codepoints.
+    The order of `from` and `to` does not matter.
+
+    Defaults are 0 and 100.
 
     Note that the byte length of the generated string can be up to 4 times
     the size in code points.
@@ -1444,18 +1540,20 @@ primitive Generators
         [ (range_1_size, range_1)
           (range_2_size, range_2)
         ])
-    utf32_codepoint_string(code_point_gen, min, max)
+    utf32_codepoint_string(code_point_gen, from, to)
 
   fun unicode_bmp(
-    min: USize = 0,
-    max: USize = 100)
+    from: USize = 0,
+    to: USize = 100)
     : Generator[String]
   =>
     """
     Create a generator for unicode strings
     from the basic multilingual plane only,
-    with a minimum length of `min` codepoints (default: 0)
-    and a maximum length of `max` codepoints (default: 100).
+    with length in the range `from` to `to` codepoints.
+    The order of `from` and `to` does not matter.
+
+    Defaults are 0 and 100.
 
     Note that the byte length of the generated string can be up to 4 times
     the size in code points.
@@ -1472,5 +1570,5 @@ primitive Generators
         [ (range_1_size, range_1)
           (range_2_size, range_2)
         ])
-    utf32_codepoint_string(code_point_gen, min, max)
+    utf32_codepoint_string(code_point_gen, from, to)
 

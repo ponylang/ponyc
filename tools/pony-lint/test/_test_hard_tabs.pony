@@ -61,7 +61,7 @@ class \nodoc\ _TestHardTabsProperty is UnitTest
   fun apply(h: TestHelper) ? =>
     // Clean lines (only spaces and letters)
     PonyCheck.for_all[String](
-      recover val Generators.ascii(where min = 0, max = 40,
+      recover val Generators.ascii(where from = 0, to = 40,
         range = ASCIILetters) end, h)(
       {(content: String, ph: PropertyHelper) =>
         let sf = lint.SourceFile("/tmp/t.pony", content, "/tmp")
@@ -70,7 +70,7 @@ class \nodoc\ _TestHardTabsProperty is UnitTest
       })?
     // Lines with a tab always flagged
     PonyCheck.for_all[String](
-      recover val Generators.ascii(where min = 1, max = 20,
+      recover val Generators.ascii(where from = 1, to = 20,
         range = ASCIILetters) end, h)(
       {(content: String, ph: PropertyHelper) =>
         let line: String val = content + "\t"

@@ -211,7 +211,7 @@ class \nodoc\ iso _URIRoundTripPropertyTest is UnitTest
   fun apply(h: TestHelper) ? =>
     PonyCheck.for_all[String](
       recover val
-        Generators.ascii(where min = 0, max = 30, range = ASCIIPrintable)
+        Generators.ascii(where from = 0, to = 30, range = ASCIIPrintable)
       end,
       h)(
       {(segment: String, ph: PropertyHelper) =>
