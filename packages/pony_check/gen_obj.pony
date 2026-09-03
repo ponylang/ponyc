@@ -508,36 +508,34 @@ primitive Generators
 
   fun set_of[T: (Hashable #read & Equatable[T] #read)](
     gen: Generator[T],
+    min: USize = 0,
     max: USize = 100)
     : Generator[Set[T]]
   =>
     """
     Create a generator for `Set` filled with values
-    of the given generator `gen`.
-    The returned sets will have a size up to `max`,
-    but tend to have fewer than `max`
-    depending on the source generator `gen`.
+    of the given generator `gen`
+    with a minimum of `min` and a maximum of `max` insertion attempts.
 
+    Defaults are 0 and 100, respectively.
+
+    The returned sets can have fewer elements than `min`
+    when the source generator `gen` produces duplicates.
     E.g. if the given generator is for `U8` values and `max` is set to 1024,
-    the set will only ever be of size 256 max.
-
-    Also for efficiency purposes and to not loop forever,
-    this generator will only try to add at most `max` values to the set.
-    If there are duplicates, the set won't grow.
+    the set will only ever be of size 256.
     """
     Generator[Set[T]](
       object is GenObj[Set[T]]
         let _gen: GenObj[T] = gen
         fun generate(rnd: Randomness): GenerateResult[Set[T]] =>
-          let size = rnd.usize(0, max)
+          let size = rnd.usize(min, max)
           let result: Set[T] =
             Set[T].create(size) .> union(
               Iter[T^](_gen.value_iter(rnd))
               .take(size)
             )
           let shrink_iter: Iterator[Set[T]^] =
-            Iter[USize](CountdownIter(size, 0)) // Range(size, 0, -1))
-              // .skip(1)
+            Iter[USize](CountdownIter(size, min))
               .map_stateful[Set[T]^]({
                 (s: USize): Set[T]^ =>
                   Set[T].create(s) .> union(
@@ -549,28 +547,26 @@ primitive Generators
 
   fun set_is_of[T](
     gen: Generator[T],
+    min: USize = 0,
     max: USize = 100)
     : Generator[SetIs[T]]
   =>
     """
     Create a generator for `SetIs` filled with values
-    of the given generator `gen`.
-    The returned `SetIs` will have a size up to `max`,
-    but tend to have fewer entries
-    depending on the source generator `gen`.
+    of the given generator `gen`
+    with a minimum of `min` and a maximum of `max` insertion attempts.
 
-    E.g. if the given generator is for `U8` values and `max` is set to 1024
-    the set will only ever be of size 256 max.
+    Defaults are 0 and 100, respectively.
 
-    Also for efficiency purposes and to not loop forever,
-    this generator will only try to add at most `max` values to the set.
-    If there are duplicates, the set won't grow.
+    The returned sets can have fewer elements than `min`
+    when the source generator `gen` produces duplicates.
+    E.g. if the given generator is for `U8` values and `max` is set to 1024,
+    the set will only ever be of size 256.
     """
-    // TODO: how to remove code duplications
     Generator[SetIs[T]](
       object is GenObj[SetIs[T]]
         fun generate(rnd: Randomness): GenerateResult[SetIs[T]] =>
-          let size = rnd.usize(0, max)
+          let size = rnd.usize(min, max)
 
           let result: SetIs[T] =
             SetIs[T].create(size) .> union(
@@ -578,8 +574,7 @@ primitive Generators
                 .take(size)
             )
           let shrink_iter: Iterator[SetIs[T]^] =
-            Iter[USize](CountdownIter(size, 0)) // Range(size, 0, -1))
-              // .skip(1)
+            Iter[USize](CountdownIter(size, min))
               .map_stateful[SetIs[T]^]({
                 (s: USize): SetIs[T]^ =>
                   SetIs[T].create(s) .> union(
@@ -591,22 +586,24 @@ primitive Generators
 
   fun map_of[K: (Hashable #read & Equatable[K] #read), V](
     gen: Generator[(K, V)],
+    min: USize = 0,
     max: USize = 100)
     : Generator[Map[K, V]]
   =>
     """
-    Create a generator for `Map` from a generator of key-value tuples.
-    The generated maps will have a size up to `max`,
-    but tend to have fewer entries depending on the source generator `gen`.
+    Create a generator for `Map` from a generator of key-value tuples
+    with a minimum of `min` and a maximum of `max` insertion attempts.
 
-    If the generator generates key-value pairs with
-    duplicate keys (based on structural equality),
-    the pair that is generated later will overwrite earlier entries in the map.
+    Defaults are 0 and 100, respectively.
+
+    The generated maps can have fewer entries than `min`
+    when the source generator `gen` produces duplicate keys.
+    Duplicate keys (based on structural equality) overwrite earlier entries.
     """
     Generator[Map[K, V]](
       object is GenObj[Map[K, V]]
         fun generate(rnd: Randomness): GenerateResult[Map[K, V]] =>
-          let size = rnd.usize(0, max)
+          let size = rnd.usize(min, max)
 
           let result: Map[K, V] =
             Map[K, V].create(size) .> concat(
@@ -614,8 +611,7 @@ primitive Generators
                 .take(size)
             )
           let shrink_iter: Iterator[Map[K, V]^] =
-            Iter[USize](CountdownIter(size, 0)) // Range(size, 0, -1))
-              // .skip(1)
+            Iter[USize](CountdownIter(size, min))
               .map_stateful[Map[K, V]^]({
                 (s: USize): Map[K, V]^ =>
                   Map[K, V].create(s) .> concat(
@@ -627,22 +623,24 @@ primitive Generators
 
   fun map_is_of[K, V](
     gen: Generator[(K, V)],
+    min: USize = 0,
     max: USize = 100)
     : Generator[MapIs[K, V]]
   =>
     """
-    Create a generator for `MapIs` from a generator of key-value tuples.
-    The generated maps will have a size up to `max`,
-    but tend to have fewer entries depending on the source generator `gen`.
+    Create a generator for `MapIs` from a generator of key-value tuples
+    with a minimum of `min` and a maximum of `max` insertion attempts.
 
-    If the generator generates key-value pairs with
-    duplicate keys (based on identity),
-    the pair that is generated later will overwrite earlier entries in the map.
+    Defaults are 0 and 100, respectively.
+
+    The generated maps can have fewer entries than `min`
+    when the source generator `gen` produces duplicate keys.
+    Duplicate keys (based on identity) overwrite earlier entries.
     """
     Generator[MapIs[K, V]](
       object is GenObj[MapIs[K, V]]
         fun generate(rnd: Randomness): GenerateResult[MapIs[K, V]] =>
-          let size = rnd.usize(0, max)
+          let size = rnd.usize(min, max)
 
           let result: MapIs[K, V] =
             MapIs[K, V].create(size) .> concat(
@@ -650,8 +648,7 @@ primitive Generators
                 .take(size)
             )
           let shrink_iter: Iterator[MapIs[K, V]^] =
-            Iter[USize](CountdownIter(size, 0)) // Range(size, 0, -1))
-              // .skip(1)
+            Iter[USize](CountdownIter(size, min))
               .map_stateful[MapIs[K, V]^]({
                 (s: USize): MapIs[K, V]^ =>
                   MapIs[K, V].create(s) .> concat(

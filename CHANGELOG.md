@@ -57,6 +57,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Added
 
+- Add min parameter to PonyCheck set and map generators ([PR #5973](https://github.com/ponylang/ponyc/pull/5973))
 - Add --pass-timings/--pass-timings-json for profiling compiler pass times ([PR #5792](https://github.com/ponylang/ponyc/pull/5792))
 - Add multi-iterator for loop sugar ([PR #5896](https://github.com/ponylang/ponyc/pull/5896))
 - Add `\c_api\` annotation for C-ABI interop ([PR #5898](https://github.com/ponylang/ponyc/pull/5898))
@@ -65,6 +66,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Changed
 
+- Change PonyCheck set and map generator parameter order from `(gen, max)` to `(gen, min, max)` ([PR #5973](https://github.com/ponylang/ponyc/pull/5973))
 - Type parameter constraints now respect the default cap of the named type ([PR #5886](https://github.com/ponylang/ponyc/pull/5886))
 - Applying a capability to a tuple type alias is a compile error ([PR #5900](https://github.com/ponylang/ponyc/pull/5900))
 - Don't box machine words smaller than 64 bits ([PR #5952](https://github.com/ponylang/ponyc/pull/5952))

@@ -977,3 +977,35 @@ class A[X, Y: X]
 
 The constraint `Y: X` declares that `Y` is a subtype of `X`, and the compiler now accepts this. Transitive chains also work: `Z: Y` and `Y: X` together imply `Z` is a subtype of `X`.
 
+## Add min parameter to PonyCheck set and map generators
+
+`Generators.set_of`, `Generators.set_is_of`, `Generators.map_of`, and `Generators.map_is_of` now accept `min` and `max` parameters, matching the existing convention in `Generators.seq_of`. The defaults are `min = 0` and `max = 100`.
+
+To generate non-empty collections, pass `min = 1`:
+
+```pony
+let non_empty_set_gen =
+  Generators.set_of[U8](Generators.u8() where min = 1)
+
+let non_empty_map_gen =
+  Generators.map_of[String, I64](
+    Generators.zip2[String, I64](
+      Generators.ascii_printable(1, 10),
+      Generators.i64())
+    where min = 1)
+```
+
+The `min` value is the minimum number of insertion attempts, not a guaranteed minimum collection size. Duplicate keys or values can reduce the final size below `min`.
+
+## Change PonyCheck set and map generator parameter order from (gen, max) to (gen, min, max)
+
+The parameter order for `Generators.set_of`, `Generators.set_is_of`, `Generators.map_of`, and `Generators.map_is_of` changed from `(gen, max)` to `(gen, min, max)` to match `Generators.seq_of`. Callers that passed `max` positionally need to switch to a named argument:
+
+```pony
+// Before
+Generators.set_of[U8](Generators.u8(), 50)
+
+// After
+Generators.set_of[U8](Generators.u8() where max = 50)
+```
+
