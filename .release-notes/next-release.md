@@ -1084,3 +1084,19 @@ The following do not participate in type argument inference. Write the type argu
 - The `where` syntax for named-only arguments.
 - A generic method called on a generic type written without its type arguments (`Foo.some_method(x)` where `Foo` has defaulted type parameters): the method's arguments are typed before inference runs, so array literals and lambdas at those positions see the unresolved parameter type. Adding explicit type arguments to either `Foo` or the method avoids this.
 
+## Fix segfault in programs with finalizers compiled with --runtimebc
+
+Programs compiled with `--runtimebc` that used classes with `_final()` methods crashed with a segfault during garbage collection.
+
+```pony
+class Foo
+  fun _final() =>
+    None
+
+actor Main
+  new create(env: Env) =>
+    Foo
+```
+
+The same program ran correctly without `--runtimebc`. This has been fixed.
+
