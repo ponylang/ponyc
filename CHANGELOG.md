@@ -73,6 +73,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Applying a capability to a tuple type alias is a compile error ([PR #5900](https://github.com/ponylang/ponyc/pull/5900))
 - Don't box machine words smaller than 64 bits ([PR #5952](https://github.com/ponylang/ponyc/pull/5952))
 - Reject unreachable type annotations with self-referencing defaults ([PR #5967](https://github.com/ponylang/ponyc/pull/5967))
+- Rename PonyCheck generator range parameters from min/max to from/to ([PR #5979](https://github.com/ponylang/ponyc/pull/5979))
 
 ## [0.69.1] - 2026-08-21
 
