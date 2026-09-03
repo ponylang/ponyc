@@ -327,6 +327,20 @@ TEST_F(ParseExprTest, ParenthesisedSequenceDoesNotLeakMissingSemicolon)
   TEST_COMPILE(src);
 }
 
+TEST_F(ParseExprTest, MatchCaptureWithoutLetGivesSpecificError)
+{
+  const char* src =
+    "class Foo\n"
+    "  fun m() =>\n"
+    "    let a: (I64 | None) = 7\n"
+    "    match a\n"
+    "    | n: I64 => None\n"
+    "    end";
+
+  TEST_ERRORS_1(src, "match capture requires 'let'");
+}
+
+
 // Regression test for #3660: a long statement sequence must not overflow the
 // parser stack. The old right-recursive grammar recursed once per statement; a
 // regression to it fails this test by overflowing the stack (a crash that

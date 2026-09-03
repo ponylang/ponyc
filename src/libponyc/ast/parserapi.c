@@ -550,6 +550,27 @@ void parse_set_next_flags(parser_t* parser, uint32_t flags)
 }
 
 
+token_id parser_current_token_id(parser_t* parser)
+{
+  pony_assert(parser != NULL);
+  return current_token_id(parser);
+}
+
+
+errors_t* parser_errors(parser_t* parser)
+{
+  pony_assert(parser != NULL);
+  return parser->errors;
+}
+
+
+void parser_set_failed(parser_t* parser)
+{
+  pony_assert(parser != NULL);
+  parser->failed = true;
+}
+
+
 /* Tidy up a successfully parsed rule.
  * Args:
  *    rule_set is a NULL terminated list.

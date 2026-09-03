@@ -129,6 +129,11 @@ void parse_set_next_flags(parser_t* parser, uint32_t flags);
 
 ast_t* parse_rule_complete(parser_t* parser, rule_state_t* state);
 
+token_id parser_current_token_id(parser_t* parser);
+
+errors_t* parser_errors(parser_t* parser);
+
+void parser_set_failed(parser_t* parser);
 
 // External API
 

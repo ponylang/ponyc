@@ -810,6 +810,18 @@ DEF(caseexpr);
   SKIP(NULL, TK_PIPE);
   ANNOTATE(annotations);
   OPT RULE("case pattern", casepattern);
+  REWRITE(
+    if(parser_current_token_id(parser) == TK_COLON)
+    {
+      ast_t* pattern = ast_child(ast);
+      ast_error(parser_errors(parser), pattern != NULL ? pattern : ast,
+        "match capture requires 'let', e.g. 'let <name>: <type>'");
+      parser_set_failed(parser);
+      ast_free(ast);
+      ast = NULL;
+      return PARSE_ERROR;
+    }
+  );
   IF(TK_IF, RULE("guard expression", rawseq));
   IF(TK_DBLARROW, RULE("case body", rawseq));
   DONE();
