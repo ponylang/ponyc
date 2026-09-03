@@ -1217,7 +1217,7 @@ PONY_API void* pony_alloc_final(pony_ctx_t* ctx, size_t size)
     TRACK_ALL_FINALISERS);
 }
 
-void* pony_alloc_small_final(pony_ctx_t* ctx, uint32_t sizeclass)
+PONY_API void* pony_alloc_small_final(pony_ctx_t* ctx, uint32_t sizeclass)
 {
   pony_assert(ctx->current != NULL);
   DTRACE3(HEAP_ALLOC, (uintptr_t)ctx->scheduler, (uintptr_t)ctx->current, HEAP_MIN << sizeclass);
@@ -1226,7 +1226,7 @@ void* pony_alloc_small_final(pony_ctx_t* ctx, uint32_t sizeclass)
     sizeclass, TRACK_ALL_FINALISERS);
 }
 
-void* pony_alloc_large_final(pony_ctx_t* ctx, size_t size)
+PONY_API void* pony_alloc_large_final(pony_ctx_t* ctx, size_t size)
 {
   pony_assert(ctx->current != NULL);
   DTRACE3(HEAP_ALLOC, (uintptr_t)ctx->scheduler, (uintptr_t)ctx->current, size);
