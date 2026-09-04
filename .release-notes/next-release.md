@@ -50,3 +50,7 @@ Consumed `iso^` and `trn^` values are now treated as subtypes of `val` when reso
 
 Lambda parameters that relied on type inference from the calling context stopped compiling after the addition of generic type argument inference. Code like `m.upsert("key", 1, {(old, cur) => old + cur })` produced "a lambda parameter must specify a type or be inferable from context" where it previously compiled without error. Lambda parameter types are once again inferred from the expected function type at the call site.
 
+## Fix compiler crash on unresolved type names in object literal bodies
+
+The compiler crashed when invalid code used an undefined type name inside a lambda or object literal body and the source was split across multiple files. The same code in a single file correctly reported "can't find definition of 'X'". The compiler now reports that error in both cases.
+
