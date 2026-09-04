@@ -572,12 +572,18 @@ bool check_constraints(ast_t* orig, ast_t* typeparams, ast_t* typeargs,
       true);
 
     // A bound type must be a subtype of the constraint.
-    errorframe_t info = NULL;
-    errorframe_t* infop = (report_errors ? &info : NULL);
-    if(!is_subtype_constraint(typearg, r_constraint, infop, opt))
+    // The constraint check handles generic cap sets correctly
+    // (val is a member of #read = {ref, val, box}), and the subtype check
+    // handles concrete caps correctly (val <: box).
+    // A type argument is valid if either check passes.
+    if(!is_subtype_constraint(typearg, r_constraint, NULL, opt) &&
+      !is_subtype(typearg, r_constraint, NULL, opt))
     {
       if(report_errors)
       {
+        errorframe_t info = NULL;
+        is_subtype_constraint(typearg, r_constraint, &info, opt);
+
         errorframe_t frame = NULL;
         ast_error_frame(&frame, orig,
           "type argument is outside its constraint");

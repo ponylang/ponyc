@@ -890,3 +890,23 @@ TEST_F(TypeArgInferenceTest, EphemeralIso_ConflictsWithDifferentBaseType)
 
   TEST_ERRORS_1(src, "conflicting types for type parameter");
 }
+
+TEST_F(TypeArgInferenceTest, ConsumedIso_SatisfiesBoxConstraintInUnion)
+{
+  // A consumed iso argument alongside a val argument with a union box
+  // constraint. The inferred type (Array[U8] val) must satisfy the box
+  // constraint even though val != box.
+  const char* src =
+    "type BS is (String | Array[U8] val)\n"
+
+    "primitive Checker\n"
+    "  fun apply[S: BS box = BS box](xs: S, ys: S): Bool => true\n"
+
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let expected: Array[U8] val = [as U8: 1; 2; 3]\n"
+    "    var received: Array[U8] iso = recover iso [as U8: 4; 5; 6] end\n"
+    "    Checker(expected, consume received)\n";
+
+  TEST_COMPILE(src);
+}
