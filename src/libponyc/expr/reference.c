@@ -1002,7 +1002,9 @@ bool expr_nominal(pass_opt_t* opt, ast_t** astp)
 
   // If still nominal, check constraints.
   ast_t* def = (ast_t*)ast_data(ast);
-  pony_assert(def != NULL);
+
+  if(def == NULL)
+    return false;
 
   // Special case: don't check the constraint of a Pointer or an Array. These
   // builtin types have no contraint on their type parameter, and it is safe
@@ -1030,18 +1032,16 @@ bool expr_nominal(pass_opt_t* opt, ast_t** astp)
       case TK_NOMINAL:
       {
         ast_t* def = (ast_t*)ast_data(typearg);
-        pony_assert(def != NULL);
 
-        ok = ast_id(def) == TK_STRUCT;
+        ok = (def != NULL) && (ast_id(def) == TK_STRUCT);
         break;
       }
 
       case TK_TYPEPARAMREF:
       {
         ast_t* def = (ast_t*)ast_data(typearg);
-        pony_assert(def != NULL);
 
-        ok = def == typeparam;
+        ok = (def != NULL) && (def == typeparam);
         break;
       }
 
