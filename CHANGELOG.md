@@ -7,6 +7,7 @@ All notable changes to the Pony compiler and standard library will be documented
 ### Fixed
 
 - Fix type argument inference for consumed arguments ([PR #5984](https://github.com/ponylang/ponyc/pull/5984))
+- Fix lambda parameter type inference regression ([PR #5983](https://github.com/ponylang/ponyc/pull/5983))
 
 ### Added
 
