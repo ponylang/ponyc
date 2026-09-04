@@ -32,6 +32,13 @@ bool type_mentions_typeparams(ast_t* type, ast_t* typeparams);
 // one of its members, or NULL).
 ast_t* antecedent_prune(ast_t* type, ast_t* typeparams);
 
+// True when the argument subtree contains a dependent expression that lacks
+// explicit types and will fail if visited before the parameter type is
+// reified. Unlike is_antecedent_dependent (which marks any dependent
+// expression), this returns false for arrays with an `as` type and lambdas
+// with all parameters typed.
+bool infer_needs_antecedent_type(ast_t* arg);
+
 PONY_EXTERN_C_END
 
 #endif

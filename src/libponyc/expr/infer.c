@@ -423,6 +423,106 @@ static bool is_antecedent_dependent(ast_t* arg)
   return subtree_has_dependent(arg, arg);
 }
 
+// True when a lambda or bare lambda has any parameter without an explicit
+// type annotation.
+static bool lambda_has_untyped_params(ast_t* node)
+{
+  // Lambda: child 3 = params, bare lambda: child 4 = params.
+  ast_t* params = (ast_id(node) == TK_LAMBDA)
+    ? ast_childidx(node, 3)
+    : ast_childidx(node, 4);
+
+  if(ast_id(params) == TK_NONE)
+    return false;
+
+  for(ast_t* p = ast_child(params); p != NULL; p = ast_sibling(p))
+  {
+    if(ast_id(ast_childidx(p, 1)) == TK_NONE)
+      return true;
+  }
+
+  return false;
+}
+
+// True when an array literal has no explicit `as` type annotation.
+static bool array_has_no_explicit_type(ast_t* node)
+{
+  return ast_id(ast_child(node)) == TK_NONE;
+}
+
+// Like subtree_has_dependent, but only matches dependent expressions that
+// lack explicit types — ones that will fail if visited before the parameter
+// type is reified. An array with `as String val` or a lambda with all typed
+// parameters can be visited early and provide evidence for inference.
+static bool subtree_needs_antecedent(ast_t* node, ast_t* argument)
+{
+  switch(ast_id(node))
+  {
+    case TK_ARRAY:
+    case TK_LAMBDA:
+    case TK_BARELAMBDA:
+    {
+      bool needs_type = false;
+
+      if(ast_id(node) == TK_ARRAY)
+        needs_type = array_has_no_explicit_type(node);
+      else
+        needs_type = lambda_has_untyped_params(node);
+
+      if(!needs_type)
+        break;
+
+      ast_t* start = node;
+
+      if(ast_id(node) == TK_ARRAY)
+      {
+        ast_t* p = ast_parent(node);
+        if(p != NULL && ast_id(p) == TK_DOT && ast_child(p) == node)
+          start = p;
+      }
+
+      ast_t* walk = start;
+      while(walk != NULL && walk != argument)
+      {
+        ast_t* break_target = NULL;
+
+        if(ast_id(walk) == TK_BREAK)
+          break_target = structural_break_target(walk, argument);
+
+        walk = antecedent_parent(walk, NULL, break_target, NULL);
+      }
+
+      return (walk == argument);
+    }
+
+    // Object literals and `as` casts always have explicit types.
+    case TK_OBJECT:
+    case TK_AS:
+      break;
+
+    default:
+      break;
+  }
+
+  if(ast_id(node) == TK_FUN || ast_id(node) == TK_BE ||
+    ast_id(node) == TK_NEW)
+    return false;
+
+  for(ast_t* child = ast_child(node); child != NULL;
+    child = ast_sibling(child))
+  {
+    if(subtree_needs_antecedent(child, argument))
+      return true;
+  }
+
+  return false;
+}
+
+bool infer_needs_antecedent_type(ast_t* arg)
+{
+  return subtree_needs_antecedent(arg, arg);
+}
+
 // Find the index of a type parameter in the list by root pointer.
 static size_t typeparam_index(ast_t* def, ast_t* typeparams)
 {
