@@ -1,4 +1,5 @@
 use "collections"
+use persistent = "collections/persistent"
 use "assert"
 use "itertools"
 use "debug"
@@ -680,6 +681,240 @@ primitive Generators
                     Iter[(K^, V^)](gen.value_iter(rnd)).take(s)
                   )
                 })
+          (consume result, shrink_iter)
+      end)
+
+  fun vec_of[T: Any #share](
+    gen: Generator[T],
+    from: USize = 0,
+    to: USize = 100)
+    : Generator[persistent.Vec[T]]
+  =>
+    """
+    Create a generator for persistent `Vec` filled with values
+    of the given generator `gen`
+    with size in the range `from` to `to`.
+    The order of `from` and `to` does not matter.
+
+    Defaults are 0 and 100.
+    """
+    let lo = from.min(to)
+    let hi = from.max(to)
+
+    Generator[persistent.Vec[T]](
+      object is GenObj[persistent.Vec[T]]
+        let _gen: GenObj[T] = gen
+        fun generate(rnd: Randomness)
+          : GenerateResult[persistent.Vec[T]]
+        =>
+          let size = rnd.usize(lo, hi)
+          let result: persistent.Vec[T] =
+            persistent.Vec[T].concat(
+              Iter[T^](_gen.value_iter(rnd)).take(size))
+          let shrink_iter: Iterator[persistent.Vec[T]^] =
+            Iter[USize](CountdownIter(size, lo))
+              .map_stateful[persistent.Vec[T]^]({
+                (s: USize): persistent.Vec[T]^ =>
+                  persistent.Vec[T].concat(
+                    Iter[T^](_gen.value_iter(rnd)).take(s))
+              })
+          (consume result, shrink_iter)
+      end)
+
+  fun persistent_list_of[T: Any #share](
+    gen: Generator[T],
+    from: USize = 0,
+    to: USize = 100)
+    : Generator[persistent.List[T]]
+  =>
+    """
+    Create a generator for persistent `List` filled with values
+    of the given generator `gen`
+    with size in the range `from` to `to`.
+    The order of `from` and `to` does not matter.
+
+    Defaults are 0 and 100.
+    """
+    let lo = from.min(to)
+    let hi = from.max(to)
+
+    Generator[persistent.List[T]](
+      object is GenObj[persistent.List[T]]
+        let _gen: GenObj[T] = gen
+        fun generate(rnd: Randomness)
+          : GenerateResult[persistent.List[T]]
+        =>
+          let size = rnd.usize(lo, hi)
+          let result: persistent.List[T] =
+            persistent.Lists[T].from(
+              Iter[T^](_gen.value_iter(rnd)).take(size))
+          let shrink_iter: Iterator[persistent.List[T]^] =
+            Iter[USize](CountdownIter(size, lo))
+              .map_stateful[persistent.List[T]^]({
+                (s: USize): persistent.List[T]^ =>
+                  persistent.Lists[T].from(
+                    Iter[T^](_gen.value_iter(rnd)).take(s))
+              })
+          (consume result, shrink_iter)
+      end)
+
+  fun persistent_set_of[T: (Hashable val & Equatable[T] val)](
+    gen: Generator[T],
+    from: USize = 0,
+    to: USize = 100)
+    : Generator[persistent.Set[T]]
+  =>
+    """
+    Create a generator for persistent `Set` filled with values
+    of the given generator `gen`
+    with insertion attempts in the range `from` to `to`.
+    The order of `from` and `to` does not matter.
+
+    Defaults are 0 and 100.
+
+    The returned sets can have fewer elements than the lower bound
+    when the source generator `gen` produces duplicates.
+    """
+    let lo = from.min(to)
+    let hi = from.max(to)
+
+    Generator[persistent.Set[T]](
+      object is GenObj[persistent.Set[T]]
+        let _gen: GenObj[T] = gen
+        fun generate(rnd: Randomness)
+          : GenerateResult[persistent.Set[T]]
+        =>
+          let size = rnd.usize(lo, hi)
+          let result: persistent.Set[T] =
+            persistent.Set[T].create() or
+              Iter[T^](_gen.value_iter(rnd)).take(size)
+          let shrink_iter: Iterator[persistent.Set[T]^] =
+            Iter[USize](CountdownIter(size, lo))
+              .map_stateful[persistent.Set[T]^]({
+                (s: USize): persistent.Set[T]^ =>
+                  persistent.Set[T].create() or
+                    Iter[T^](_gen.value_iter(rnd)).take(s)
+              })
+          (consume result, shrink_iter)
+      end)
+
+  fun persistent_set_is_of[T: Any #share](
+    gen: Generator[T],
+    from: USize = 0,
+    to: USize = 100)
+    : Generator[persistent.SetIs[T]]
+  =>
+    """
+    Create a generator for persistent `SetIs` filled with values
+    of the given generator `gen`
+    with insertion attempts in the range `from` to `to`.
+    The order of `from` and `to` does not matter.
+
+    Defaults are 0 and 100.
+
+    The returned sets can have fewer elements than the lower bound
+    when the source generator `gen` produces duplicates.
+    """
+    let lo = from.min(to)
+    let hi = from.max(to)
+
+    Generator[persistent.SetIs[T]](
+      object is GenObj[persistent.SetIs[T]]
+        let _gen: GenObj[T] = gen
+        fun generate(rnd: Randomness)
+          : GenerateResult[persistent.SetIs[T]]
+        =>
+          let size = rnd.usize(lo, hi)
+          let result: persistent.SetIs[T] =
+            persistent.SetIs[T].create() or
+              Iter[T^](_gen.value_iter(rnd)).take(size)
+          let shrink_iter: Iterator[persistent.SetIs[T]^] =
+            Iter[USize](CountdownIter(size, lo))
+              .map_stateful[persistent.SetIs[T]^]({
+                (s: USize): persistent.SetIs[T]^ =>
+                  persistent.SetIs[T].create() or
+                    Iter[T^](_gen.value_iter(rnd)).take(s)
+              })
+          (consume result, shrink_iter)
+      end)
+
+  fun persistent_map_of[
+    K: (Hashable val & Equatable[K] val),
+    V: Any #share](
+    gen: Generator[(K, V)],
+    from: USize = 0,
+    to: USize = 100)
+    : Generator[persistent.Map[K, V]]
+  =>
+    """
+    Create a generator for persistent `Map` from a generator of key-value
+    tuples with insertion attempts in the range `from` to `to`.
+    The order of `from` and `to` does not matter.
+
+    Defaults are 0 and 100.
+
+    The generated maps can have fewer entries than the lower bound
+    when the source generator `gen` produces duplicate keys.
+    Duplicate keys (based on structural equality) overwrite earlier entries.
+    """
+    let lo = from.min(to)
+    let hi = from.max(to)
+
+    Generator[persistent.Map[K, V]](
+      object is GenObj[persistent.Map[K, V]]
+        fun generate(rnd: Randomness)
+          : GenerateResult[persistent.Map[K, V]]
+        =>
+          let size = rnd.usize(lo, hi)
+          let result: persistent.Map[K, V] =
+            persistent.Map[K, V].concat(
+              Iter[(K^, V^)](gen.value_iter(rnd)).take(size))
+          let shrink_iter: Iterator[persistent.Map[K, V]^] =
+            Iter[USize](CountdownIter(size, lo))
+              .map_stateful[persistent.Map[K, V]^]({
+                (s: USize): persistent.Map[K, V]^ =>
+                  persistent.Map[K, V].concat(
+                    Iter[(K^, V^)](gen.value_iter(rnd)).take(s))
+              })
+          (consume result, shrink_iter)
+      end)
+
+  fun persistent_map_is_of[K: Any #share, V: Any #share](
+    gen: Generator[(K, V)],
+    from: USize = 0,
+    to: USize = 100)
+    : Generator[persistent.MapIs[K, V]]
+  =>
+    """
+    Create a generator for persistent `MapIs` from a generator of key-value
+    tuples with insertion attempts in the range `from` to `to`.
+    The order of `from` and `to` does not matter.
+
+    Defaults are 0 and 100.
+
+    The generated maps can have fewer entries than the lower bound
+    when the source generator `gen` produces duplicate keys.
+    Duplicate keys (based on identity) overwrite earlier entries.
+    """
+    let lo = from.min(to)
+    let hi = from.max(to)
+
+    Generator[persistent.MapIs[K, V]](
+      object is GenObj[persistent.MapIs[K, V]]
+        fun generate(rnd: Randomness)
+          : GenerateResult[persistent.MapIs[K, V]]
+        =>
+          let size = rnd.usize(lo, hi)
+          let result: persistent.MapIs[K, V] =
+            persistent.MapIs[K, V].concat(
+              Iter[(K^, V^)](gen.value_iter(rnd)).take(size))
+          let shrink_iter: Iterator[persistent.MapIs[K, V]^] =
+            Iter[USize](CountdownIter(size, lo))
+              .map_stateful[persistent.MapIs[K, V]^]({
+                (s: USize): persistent.MapIs[K, V]^ =>
+                  persistent.MapIs[K, V].concat(
+                    Iter[(K^, V^)](gen.value_iter(rnd)).take(s))
+              })
           (consume result, shrink_iter)
       end)
 
