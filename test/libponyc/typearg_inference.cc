@@ -669,3 +669,150 @@ TEST_F(TypeArgInferenceTest, SubtypeMerge_WidensToSupertype)
 
   TEST_EQUIV(inferred, explicit_form);
 }
+
+TEST_F(TypeArgInferenceTest, EphemeralIso_MergesWithVal)
+{
+  // An iso^ argument is a subtype of val; inference should pick val.
+  const char* inferred =
+    "primitive Bar\n"
+    "  fun foo[A: Array[U8] val](a: A, b: A) => None\n"
+
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let x: Array[U8] val = [as U8: 1]\n"
+    "    let y: Array[U8] iso = recover iso [as U8: 2] end\n"
+    "    Bar.foo(x, consume y)\n";
+
+  const char* explicit_form =
+    "primitive Bar\n"
+    "  fun foo[A: Array[U8] val](a: A, b: A) => None\n"
+
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let x: Array[U8] val = [as U8: 1]\n"
+    "    let y: Array[U8] iso = recover iso [as U8: 2] end\n"
+    "    Bar.foo[Array[U8] val](x, consume y)\n";
+
+  TEST_EQUIV(inferred, explicit_form);
+}
+
+TEST_F(TypeArgInferenceTest, EphemeralIso_ReversedOrder_MergesWithVal)
+{
+  // Same as above but with iso^ first and val second.
+  const char* inferred =
+    "primitive Bar\n"
+    "  fun foo[A: Array[U8] val](a: A, b: A) => None\n"
+
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let x: Array[U8] iso = recover iso [as U8: 1] end\n"
+    "    let y: Array[U8] val = [as U8: 2]\n"
+    "    Bar.foo(consume x, y)\n";
+
+  const char* explicit_form =
+    "primitive Bar\n"
+    "  fun foo[A: Array[U8] val](a: A, b: A) => None\n"
+
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let x: Array[U8] iso = recover iso [as U8: 1] end\n"
+    "    let y: Array[U8] val = [as U8: 2]\n"
+    "    Bar.foo[Array[U8] val](consume x, y)\n";
+
+  TEST_EQUIV(inferred, explicit_form);
+}
+
+TEST_F(TypeArgInferenceTest, EphemeralTrn_MergesWithVal)
+{
+  // A trn^ argument is a subtype of val; inference should pick val.
+  // Non-ephemeral trn is NOT a subtype of val, so this reaches the
+  // un-aliased subtype check that the iso tests do not.
+  const char* inferred =
+    "primitive Bar\n"
+    "  fun foo[A: Array[U8] val](a: A, b: A) => None\n"
+
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let x: Array[U8] val = [as U8: 1]\n"
+    "    let y: Array[U8] trn = recover trn [as U8: 2] end\n"
+    "    Bar.foo(x, consume y)\n";
+
+  const char* explicit_form =
+    "primitive Bar\n"
+    "  fun foo[A: Array[U8] val](a: A, b: A) => None\n"
+
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let x: Array[U8] val = [as U8: 1]\n"
+    "    let y: Array[U8] trn = recover trn [as U8: 2] end\n"
+    "    Bar.foo[Array[U8] val](x, consume y)\n";
+
+  TEST_EQUIV(inferred, explicit_form);
+}
+
+TEST_F(TypeArgInferenceTest, EphemeralTrn_ReversedOrder_MergesWithVal)
+{
+  // trn^ first, val second — reversed argument order for trn^.
+  const char* inferred =
+    "primitive Bar\n"
+    "  fun foo[A: Array[U8] val](a: A, b: A) => None\n"
+
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let x: Array[U8] trn = recover trn [as U8: 1] end\n"
+    "    let y: Array[U8] val = [as U8: 2]\n"
+    "    Bar.foo(consume x, y)\n";
+
+  const char* explicit_form =
+    "primitive Bar\n"
+    "  fun foo[A: Array[U8] val](a: A, b: A) => None\n"
+
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let x: Array[U8] trn = recover trn [as U8: 1] end\n"
+    "    let y: Array[U8] val = [as U8: 2]\n"
+    "    Bar.foo[Array[U8] val](consume x, y)\n";
+
+  TEST_EQUIV(inferred, explicit_form);
+}
+
+TEST_F(TypeArgInferenceTest, EphemeralIso_MergesWithRef)
+{
+  // iso^ is also a subtype of ref; inference should pick ref.
+  const char* inferred =
+    "primitive Bar\n"
+    "  fun foo[A: Array[U8] ref](a: A, b: A) => None\n"
+
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let x: Array[U8] ref = Array[U8]\n"
+    "    let y: Array[U8] iso = recover iso Array[U8] end\n"
+    "    Bar.foo(x, consume y)\n";
+
+  const char* explicit_form =
+    "primitive Bar\n"
+    "  fun foo[A: Array[U8] ref](a: A, b: A) => None\n"
+
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let x: Array[U8] ref = Array[U8]\n"
+    "    let y: Array[U8] iso = recover iso Array[U8] end\n"
+    "    Bar.foo[Array[U8] ref](x, consume y)\n";
+
+  TEST_EQUIV(inferred, explicit_form);
+}
+
+TEST_F(TypeArgInferenceTest, EphemeralIso_ConflictsWithDifferentBaseType)
+{
+  // Consumed iso with a different base type must still conflict.
+  const char* src =
+    "primitive Bar\n"
+    "  fun foo[A: Any val](a: A, b: A) => None\n"
+
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let x: String iso = recover iso String end\n"
+    "    Bar.foo(U8(1), consume x)\n";
+
+  TEST_ERRORS_1(src, "conflicting types for type parameter");
+}
