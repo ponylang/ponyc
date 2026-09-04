@@ -9,6 +9,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Added
 
+- Add PonyCheck generators for persistent collections ([PR #5980](https://github.com/ponylang/ponyc/pull/5980))
 
 ### Changed
 
