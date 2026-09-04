@@ -1464,6 +1464,11 @@ static ast_result_t constructor_path_infer(pass_opt_t* opt, ast_t* ast,
   if(!normalise_args(opt, params, positional, namedargs))
     return AST_ERROR;
 
+  // Visit arguments early. Skip arguments that contain dependent
+  // expressions without explicit types (untyped lambdas, untyped arrays)
+  // at positions whose parameter type mentions a type parameter — they
+  // will be typed by the normal post-order visit against the reified
+  // parameter type.
   ast_t* param = ast_child(params);
   ast_t* arg = ast_child(positional);
 
@@ -1471,10 +1476,9 @@ static ast_result_t constructor_path_infer(pass_opt_t* opt, ast_t* ast,
   {
     if(ast_id(arg) != TK_NONE)
     {
-      token_id aid = ast_id(arg);
       bool skip = false;
 
-      if(aid == TK_ARRAY || aid == TK_LAMBDA || aid == TK_BARELAMBDA)
+      if(infer_needs_antecedent_type(arg))
       {
         ast_t* p_type = ast_childidx(param, 1);
 
@@ -1596,9 +1600,11 @@ ast_result_t expr_pre_call(pass_opt_t* opt, ast_t** astp)
   if(!normalise_args(opt, params, positional, namedargs))
     return AST_ERROR;
 
-  // Visit arguments early. Skip array literals, lambdas, and bare lambdas
-  // at bindable positions — they are antecedent-dependent and will be typed
-  // by the normal post-order visit against the reified parameter type.
+  // Visit arguments early. Skip arguments that contain dependent
+  // expressions without explicit types (untyped lambdas, untyped arrays)
+  // at positions whose parameter type mentions a type parameter — they
+  // will be typed by the normal post-order visit against the reified
+  // parameter type.
   ast_t* param = ast_child(params);
   ast_t* arg = ast_child(positional);
 
@@ -1606,10 +1612,9 @@ ast_result_t expr_pre_call(pass_opt_t* opt, ast_t** astp)
   {
     if(ast_id(arg) != TK_NONE)
     {
-      token_id aid = ast_id(arg);
       bool skip = false;
 
-      if(aid == TK_ARRAY || aid == TK_LAMBDA || aid == TK_BARELAMBDA)
+      if(infer_needs_antecedent_type(arg))
       {
         ast_t* p_type = ast_childidx(param, 1);
 

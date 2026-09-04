@@ -302,6 +302,53 @@ TEST_F(TypeArgInferenceTest, PreOrder_LambdaGetsReifiedType)
   TEST_EQUIV(inferred, explicit_form);
 }
 
+TEST_F(TypeArgInferenceTest, PreOrder_LambdaUntypedParams)
+{
+  // Regression test for issue #5981: lambda parameters without explicit
+  // types should be inferred from the reified parameter type after type
+  // argument inference.
+  const char* inferred =
+    "primitive Bar\n"
+    "  fun foo[A: Any val](a: A, f: {(A): A} val) => None\n"
+
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    Bar.foo(U8(1), {(x) => x})\n";
+
+  const char* explicit_form =
+    "primitive Bar\n"
+    "  fun foo[A: Any val](a: A, f: {(A): A} val) => None\n"
+
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    Bar.foo[U8](U8(1), {(x) => x})\n";
+
+  TEST_EQUIV(inferred, explicit_form);
+}
+
+TEST_F(TypeArgInferenceTest, PreOrder_LambdaInRecover)
+{
+  // Untyped lambda inside a recover block at a type-parameter-dependent
+  // position.
+  const char* inferred =
+    "primitive Bar\n"
+    "  fun foo[A: Any val](a: A, f: {(A): A} val) => None\n"
+
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    Bar.foo(U8(1), recover val {(x) => x} end)\n";
+
+  const char* explicit_form =
+    "primitive Bar\n"
+    "  fun foo[A: Any val](a: A, f: {(A): A} val) => None\n"
+
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    Bar.foo[U8](U8(1), recover val {(x) => x} end)\n";
+
+  TEST_EQUIV(inferred, explicit_form);
+}
+
 
 // --- Constructor-path inference ---
 
@@ -349,6 +396,33 @@ TEST_F(TypeArgInferenceTest, ConstructorPath_DotCreate)
     "actor Main\n"
     "  new create(env: Env) =>\n"
     "    Foo[String val].create(\"hello\")\n";
+
+  TEST_EQUIV(inferred, explicit_form);
+}
+
+TEST_F(TypeArgInferenceTest, ConstructorPath_LambdaUntypedParams)
+{
+  // Constructor path: lambda with untyped parameters at a position whose
+  // type mentions the class type parameter.
+  const char* inferred =
+    "class Foo[A: Any val]\n"
+    "  let _a: A\n"
+    "  let _f: {(A): A} val\n"
+    "  new create(a: A, f: {(A): A} val) => _a = a; _f = f\n"
+
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    Foo(U8(1), {(x) => x})\n";
+
+  const char* explicit_form =
+    "class Foo[A: Any val]\n"
+    "  let _a: A\n"
+    "  let _f: {(A): A} val\n"
+    "  new create(a: A, f: {(A): A} val) => _a = a; _f = f\n"
+
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    Foo[U8](U8(1), {(x) => x})\n";
 
   TEST_EQUIV(inferred, explicit_form);
 }
