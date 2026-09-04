@@ -525,15 +525,15 @@ primitive Generators
     """
     Create a generator for `Set` filled with values
     of the given generator `gen`
-    with insertion attempts in the range `from` to `to`.
+    with a number of elements in the range `from` to `to`.
     The order of `from` and `to` does not matter.
 
     Defaults are 0 and 100.
 
-    The returned sets can have fewer elements than the lower bound
-    when the source generator `gen` produces duplicates.
-    E.g. if the given generator is for `U8` values and the upper bound
-    is set to 1024, the set will only ever be of size 256.
+    The source generator must be able to produce enough distinct values
+    to reach the requested size. When the source generator is exhausted
+    (100 consecutive insertions without growth), the set is returned
+    at its current size.
     """
     let lo = from.min(to)
     let hi = from.max(to)
@@ -541,20 +541,37 @@ primitive Generators
     Generator[Set[T]](
       object is GenObj[Set[T]]
         let _gen: GenObj[T] = gen
-        fun generate(rnd: Randomness): GenerateResult[Set[T]] =>
+        fun generate(rnd: Randomness): GenerateResult[Set[T]] ? =>
           let size = rnd.usize(lo, hi)
-          let result: Set[T] =
-            Set[T].create(size) .> union(
-              Iter[T^](_gen.value_iter(rnd))
-              .take(size)
-            )
+          let result = Set[T].create(size)
+          let values = _gen.value_iter(rnd)
+          var stall: USize = 0
+          while (result.size() < size) and (stall < 100) do
+            let prev = result.size()
+            result.set(values.next()?)
+            if result.size() == prev then
+              stall = stall + 1
+            else
+              stall = 0
+            end
+          end
           let shrink_iter: Iterator[Set[T]^] =
             Iter[USize](CountdownIter(size, lo))
               .map_stateful[Set[T]^]({
-                (s: USize): Set[T]^ =>
-                  Set[T].create(s) .> union(
-                    Iter[T^](_gen.value_iter(rnd)).take(s)
-                  )
+                (s: USize): Set[T]^ ? =>
+                  let set = Set[T].create(s)
+                  let vs = _gen.value_iter(rnd)
+                  var stall': USize = 0
+                  while (set.size() < s) and (stall' < 100) do
+                    let prev = set.size()
+                    set.set(vs.next()?)
+                    if set.size() == prev then
+                      stall' = stall' + 1
+                    else
+                      stall' = 0
+                    end
+                  end
+                  set
                 })
           (consume result, shrink_iter)
       end)
@@ -568,36 +585,52 @@ primitive Generators
     """
     Create a generator for `SetIs` filled with values
     of the given generator `gen`
-    with insertion attempts in the range `from` to `to`.
+    with a number of elements in the range `from` to `to`.
     The order of `from` and `to` does not matter.
 
     Defaults are 0 and 100.
 
-    The returned sets can have fewer elements than the lower bound
-    when the source generator `gen` produces duplicates.
-    E.g. if the given generator is for `U8` values and the upper bound
-    is set to 1024, the set will only ever be of size 256.
+    The source generator must be able to produce enough distinct values
+    (by identity) to reach the requested size. When the source generator
+    is exhausted (100 consecutive insertions without growth), the set is
+    returned at its current size.
     """
     let lo = from.min(to)
     let hi = from.max(to)
 
     Generator[SetIs[T]](
       object is GenObj[SetIs[T]]
-        fun generate(rnd: Randomness): GenerateResult[SetIs[T]] =>
+        fun generate(rnd: Randomness): GenerateResult[SetIs[T]] ? =>
           let size = rnd.usize(lo, hi)
-
-          let result: SetIs[T] =
-            SetIs[T].create(size) .> union(
-              Iter[T^](gen.value_iter(rnd))
-                .take(size)
-            )
+          let result = SetIs[T].create(size)
+          let values = gen.value_iter(rnd)
+          var stall: USize = 0
+          while (result.size() < size) and (stall < 100) do
+            let prev = result.size()
+            result.set(values.next()?)
+            if result.size() == prev then
+              stall = stall + 1
+            else
+              stall = 0
+            end
+          end
           let shrink_iter: Iterator[SetIs[T]^] =
             Iter[USize](CountdownIter(size, lo))
               .map_stateful[SetIs[T]^]({
-                (s: USize): SetIs[T]^ =>
-                  SetIs[T].create(s) .> union(
-                    Iter[T^](gen.value_iter(rnd)).take(s)
-                  )
+                (s: USize): SetIs[T]^ ? =>
+                  let set = SetIs[T].create(s)
+                  let vs = gen.value_iter(rnd)
+                  var stall': USize = 0
+                  while (set.size() < s) and (stall' < 100) do
+                    let prev = set.size()
+                    set.set(vs.next()?)
+                    if set.size() == prev then
+                      stall' = stall' + 1
+                    else
+                      stall' = 0
+                    end
+                  end
+                  set
                 })
           (consume result, shrink_iter)
       end)
@@ -610,35 +643,54 @@ primitive Generators
   =>
     """
     Create a generator for `Map` from a generator of key-value tuples
-    with insertion attempts in the range `from` to `to`.
+    with a number of entries in the range `from` to `to`.
     The order of `from` and `to` does not matter.
 
     Defaults are 0 and 100.
 
-    The generated maps can have fewer entries than the lower bound
-    when the source generator `gen` produces duplicate keys.
-    Duplicate keys (based on structural equality) overwrite earlier entries.
+    The source generator must be able to produce enough distinct keys
+    (based on structural equality) to reach the requested size. When
+    the source generator is exhausted (100 consecutive insertions
+    without growth), the map is returned at its current size.
     """
     let lo = from.min(to)
     let hi = from.max(to)
 
     Generator[Map[K, V]](
       object is GenObj[Map[K, V]]
-        fun generate(rnd: Randomness): GenerateResult[Map[K, V]] =>
+        fun generate(rnd: Randomness): GenerateResult[Map[K, V]] ? =>
           let size = rnd.usize(lo, hi)
-
-          let result: Map[K, V] =
-            Map[K, V].create(size) .> concat(
-              Iter[(K^, V^)](gen.value_iter(rnd))
-                .take(size)
-            )
+          let result = Map[K, V].create(size)
+          let values = gen.value_iter(rnd)
+          var stall: USize = 0
+          while (result.size() < size) and (stall < 100) do
+            let prev = result.size()
+            (let k, let v) = values.next()?
+            result(consume k) = consume v
+            if result.size() == prev then
+              stall = stall + 1
+            else
+              stall = 0
+            end
+          end
           let shrink_iter: Iterator[Map[K, V]^] =
             Iter[USize](CountdownIter(size, lo))
               .map_stateful[Map[K, V]^]({
-                (s: USize): Map[K, V]^ =>
-                  Map[K, V].create(s) .> concat(
-                    Iter[(K^, V^)](gen.value_iter(rnd)).take(s)
-                  )
+                (s: USize): Map[K, V]^ ? =>
+                  let map = Map[K, V].create(s)
+                  let vs = gen.value_iter(rnd)
+                  var stall': USize = 0
+                  while (map.size() < s) and (stall' < 100) do
+                    let prev = map.size()
+                    (let k, let v) = vs.next()?
+                    map(consume k) = consume v
+                    if map.size() == prev then
+                      stall' = stall' + 1
+                    else
+                      stall' = 0
+                    end
+                  end
+                  map
                 })
           (consume result, shrink_iter)
       end)
@@ -651,35 +703,54 @@ primitive Generators
   =>
     """
     Create a generator for `MapIs` from a generator of key-value tuples
-    with insertion attempts in the range `from` to `to`.
+    with a number of entries in the range `from` to `to`.
     The order of `from` and `to` does not matter.
 
     Defaults are 0 and 100.
 
-    The generated maps can have fewer entries than the lower bound
-    when the source generator `gen` produces duplicate keys.
-    Duplicate keys (based on identity) overwrite earlier entries.
+    The source generator must be able to produce enough distinct keys
+    (based on identity) to reach the requested size. When the source
+    generator is exhausted (100 consecutive insertions without growth),
+    the map is returned at its current size.
     """
     let lo = from.min(to)
     let hi = from.max(to)
 
     Generator[MapIs[K, V]](
       object is GenObj[MapIs[K, V]]
-        fun generate(rnd: Randomness): GenerateResult[MapIs[K, V]] =>
+        fun generate(rnd: Randomness): GenerateResult[MapIs[K, V]] ? =>
           let size = rnd.usize(lo, hi)
-
-          let result: MapIs[K, V] =
-            MapIs[K, V].create(size) .> concat(
-              Iter[(K^, V^)](gen.value_iter(rnd))
-                .take(size)
-            )
+          let result = MapIs[K, V].create(size)
+          let values = gen.value_iter(rnd)
+          var stall: USize = 0
+          while (result.size() < size) and (stall < 100) do
+            let prev = result.size()
+            (let k, let v) = values.next()?
+            result(consume k) = consume v
+            if result.size() == prev then
+              stall = stall + 1
+            else
+              stall = 0
+            end
+          end
           let shrink_iter: Iterator[MapIs[K, V]^] =
             Iter[USize](CountdownIter(size, lo))
               .map_stateful[MapIs[K, V]^]({
-                (s: USize): MapIs[K, V]^ =>
-                  MapIs[K, V].create(s) .> concat(
-                    Iter[(K^, V^)](gen.value_iter(rnd)).take(s)
-                  )
+                (s: USize): MapIs[K, V]^ ? =>
+                  let map = MapIs[K, V].create(s)
+                  let vs = gen.value_iter(rnd)
+                  var stall': USize = 0
+                  while (map.size() < s) and (stall' < 100) do
+                    let prev = map.size()
+                    (let k, let v) = vs.next()?
+                    map(consume k) = consume v
+                    if map.size() == prev then
+                      stall' = stall' + 1
+                    else
+                      stall' = 0
+                    end
+                  end
+                  map
                 })
           (consume result, shrink_iter)
       end)
@@ -767,13 +838,15 @@ primitive Generators
     """
     Create a generator for persistent `Set` filled with values
     of the given generator `gen`
-    with insertion attempts in the range `from` to `to`.
+    with a number of elements in the range `from` to `to`.
     The order of `from` and `to` does not matter.
 
     Defaults are 0 and 100.
 
-    The returned sets can have fewer elements than the lower bound
-    when the source generator `gen` produces duplicates.
+    The source generator must be able to produce enough distinct values
+    to reach the requested size. When the source generator is exhausted
+    (100 consecutive insertions without growth), the set is returned
+    at its current size.
     """
     let lo = from.min(to)
     let hi = from.max(to)
@@ -782,18 +855,38 @@ primitive Generators
       object is GenObj[persistent.Set[T]]
         let _gen: GenObj[T] = gen
         fun generate(rnd: Randomness)
-          : GenerateResult[persistent.Set[T]]
+          : GenerateResult[persistent.Set[T]] ?
         =>
           let size = rnd.usize(lo, hi)
-          let result: persistent.Set[T] =
-            persistent.Set[T].create() or
-              Iter[T^](_gen.value_iter(rnd)).take(size)
+          var result = persistent.Set[T].create()
+          let values = _gen.value_iter(rnd)
+          var stall: USize = 0
+          while (result.size() < size) and (stall < 100) do
+            let prev = result.size()
+            result = result + values.next()?
+            if result.size() == prev then
+              stall = stall + 1
+            else
+              stall = 0
+            end
+          end
           let shrink_iter: Iterator[persistent.Set[T]^] =
             Iter[USize](CountdownIter(size, lo))
               .map_stateful[persistent.Set[T]^]({
-                (s: USize): persistent.Set[T]^ =>
-                  persistent.Set[T].create() or
-                    Iter[T^](_gen.value_iter(rnd)).take(s)
+                (s: USize): persistent.Set[T]^ ? =>
+                  var set = persistent.Set[T].create()
+                  let vs = _gen.value_iter(rnd)
+                  var stall': USize = 0
+                  while (set.size() < s) and (stall' < 100) do
+                    let prev = set.size()
+                    set = set + vs.next()?
+                    if set.size() == prev then
+                      stall' = stall' + 1
+                    else
+                      stall' = 0
+                    end
+                  end
+                  set
               })
           (consume result, shrink_iter)
       end)
@@ -807,13 +900,15 @@ primitive Generators
     """
     Create a generator for persistent `SetIs` filled with values
     of the given generator `gen`
-    with insertion attempts in the range `from` to `to`.
+    with a number of elements in the range `from` to `to`.
     The order of `from` and `to` does not matter.
 
     Defaults are 0 and 100.
 
-    The returned sets can have fewer elements than the lower bound
-    when the source generator `gen` produces duplicates.
+    The source generator must be able to produce enough distinct values
+    (by identity) to reach the requested size. When the source generator
+    is exhausted (100 consecutive insertions without growth), the set is
+    returned at its current size.
     """
     let lo = from.min(to)
     let hi = from.max(to)
@@ -822,18 +917,38 @@ primitive Generators
       object is GenObj[persistent.SetIs[T]]
         let _gen: GenObj[T] = gen
         fun generate(rnd: Randomness)
-          : GenerateResult[persistent.SetIs[T]]
+          : GenerateResult[persistent.SetIs[T]] ?
         =>
           let size = rnd.usize(lo, hi)
-          let result: persistent.SetIs[T] =
-            persistent.SetIs[T].create() or
-              Iter[T^](_gen.value_iter(rnd)).take(size)
+          var result = persistent.SetIs[T].create()
+          let values = _gen.value_iter(rnd)
+          var stall: USize = 0
+          while (result.size() < size) and (stall < 100) do
+            let prev = result.size()
+            result = result + values.next()?
+            if result.size() == prev then
+              stall = stall + 1
+            else
+              stall = 0
+            end
+          end
           let shrink_iter: Iterator[persistent.SetIs[T]^] =
             Iter[USize](CountdownIter(size, lo))
               .map_stateful[persistent.SetIs[T]^]({
-                (s: USize): persistent.SetIs[T]^ =>
-                  persistent.SetIs[T].create() or
-                    Iter[T^](_gen.value_iter(rnd)).take(s)
+                (s: USize): persistent.SetIs[T]^ ? =>
+                  var set = persistent.SetIs[T].create()
+                  let vs = _gen.value_iter(rnd)
+                  var stall': USize = 0
+                  while (set.size() < s) and (stall' < 100) do
+                    let prev = set.size()
+                    set = set + vs.next()?
+                    if set.size() == prev then
+                      stall' = stall' + 1
+                    else
+                      stall' = 0
+                    end
+                  end
+                  set
               })
           (consume result, shrink_iter)
       end)
@@ -848,14 +963,15 @@ primitive Generators
   =>
     """
     Create a generator for persistent `Map` from a generator of key-value
-    tuples with insertion attempts in the range `from` to `to`.
+    tuples with a number of entries in the range `from` to `to`.
     The order of `from` and `to` does not matter.
 
     Defaults are 0 and 100.
 
-    The generated maps can have fewer entries than the lower bound
-    when the source generator `gen` produces duplicate keys.
-    Duplicate keys (based on structural equality) overwrite earlier entries.
+    The source generator must be able to produce enough distinct keys
+    (based on structural equality) to reach the requested size. When
+    the source generator is exhausted (100 consecutive insertions
+    without growth), the map is returned at its current size.
     """
     let lo = from.min(to)
     let hi = from.max(to)
@@ -863,18 +979,40 @@ primitive Generators
     Generator[persistent.Map[K, V]](
       object is GenObj[persistent.Map[K, V]]
         fun generate(rnd: Randomness)
-          : GenerateResult[persistent.Map[K, V]]
+          : GenerateResult[persistent.Map[K, V]] ?
         =>
           let size = rnd.usize(lo, hi)
-          let result: persistent.Map[K, V] =
-            persistent.Map[K, V].concat(
-              Iter[(K^, V^)](gen.value_iter(rnd)).take(size))
+          var result = persistent.Map[K, V].create()
+          let values = gen.value_iter(rnd)
+          var stall: USize = 0
+          while (result.size() < size) and (stall < 100) do
+            let prev = result.size()
+            (let k, let v) = values.next()?
+            result = result.update(consume k, consume v)
+            if result.size() == prev then
+              stall = stall + 1
+            else
+              stall = 0
+            end
+          end
           let shrink_iter: Iterator[persistent.Map[K, V]^] =
             Iter[USize](CountdownIter(size, lo))
               .map_stateful[persistent.Map[K, V]^]({
-                (s: USize): persistent.Map[K, V]^ =>
-                  persistent.Map[K, V].concat(
-                    Iter[(K^, V^)](gen.value_iter(rnd)).take(s))
+                (s: USize): persistent.Map[K, V]^ ? =>
+                  var map = persistent.Map[K, V].create()
+                  let vs = gen.value_iter(rnd)
+                  var stall': USize = 0
+                  while (map.size() < s) and (stall' < 100) do
+                    let prev = map.size()
+                    (let k, let v) = vs.next()?
+                    map = map.update(consume k, consume v)
+                    if map.size() == prev then
+                      stall' = stall' + 1
+                    else
+                      stall' = 0
+                    end
+                  end
+                  map
               })
           (consume result, shrink_iter)
       end)
@@ -887,14 +1025,15 @@ primitive Generators
   =>
     """
     Create a generator for persistent `MapIs` from a generator of key-value
-    tuples with insertion attempts in the range `from` to `to`.
+    tuples with a number of entries in the range `from` to `to`.
     The order of `from` and `to` does not matter.
 
     Defaults are 0 and 100.
 
-    The generated maps can have fewer entries than the lower bound
-    when the source generator `gen` produces duplicate keys.
-    Duplicate keys (based on identity) overwrite earlier entries.
+    The source generator must be able to produce enough distinct keys
+    (based on identity) to reach the requested size. When the source
+    generator is exhausted (100 consecutive insertions without growth),
+    the map is returned at its current size.
     """
     let lo = from.min(to)
     let hi = from.max(to)
@@ -902,18 +1041,40 @@ primitive Generators
     Generator[persistent.MapIs[K, V]](
       object is GenObj[persistent.MapIs[K, V]]
         fun generate(rnd: Randomness)
-          : GenerateResult[persistent.MapIs[K, V]]
+          : GenerateResult[persistent.MapIs[K, V]] ?
         =>
           let size = rnd.usize(lo, hi)
-          let result: persistent.MapIs[K, V] =
-            persistent.MapIs[K, V].concat(
-              Iter[(K^, V^)](gen.value_iter(rnd)).take(size))
+          var result = persistent.MapIs[K, V].create()
+          let values = gen.value_iter(rnd)
+          var stall: USize = 0
+          while (result.size() < size) and (stall < 100) do
+            let prev = result.size()
+            (let k, let v) = values.next()?
+            result = result.update(consume k, consume v)
+            if result.size() == prev then
+              stall = stall + 1
+            else
+              stall = 0
+            end
+          end
           let shrink_iter: Iterator[persistent.MapIs[K, V]^] =
             Iter[USize](CountdownIter(size, lo))
               .map_stateful[persistent.MapIs[K, V]^]({
-                (s: USize): persistent.MapIs[K, V]^ =>
-                  persistent.MapIs[K, V].concat(
-                    Iter[(K^, V^)](gen.value_iter(rnd)).take(s))
+                (s: USize): persistent.MapIs[K, V]^ ? =>
+                  var map = persistent.MapIs[K, V].create()
+                  let vs = gen.value_iter(rnd)
+                  var stall': USize = 0
+                  while (map.size() < s) and (stall' < 100) do
+                    let prev = map.size()
+                    (let k, let v) = vs.next()?
+                    map = map.update(consume k, consume v)
+                    if map.size() == prev then
+                      stall' = stall' + 1
+                    else
+                      stall' = 0
+                    end
+                  end
+                  map
               })
           (consume result, shrink_iter)
       end)
