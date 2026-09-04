@@ -10,6 +10,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Fix lambda parameter type inference regression ([PR #5983](https://github.com/ponylang/ponyc/pull/5983))
 - Fix compiler crash on unresolved type names in object literal bodies ([PR #5985](https://github.com/ponylang/ponyc/pull/5985))
 - Fix type argument constraint check rejecting capability subtypes ([PR #5989](https://github.com/ponylang/ponyc/pull/5989))
+- Fix PonyCheck set and map generators to guarantee requested element counts ([PR #5987](https://github.com/ponylang/ponyc/pull/5987))
 
 ### Added
 
