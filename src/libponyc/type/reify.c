@@ -507,7 +507,7 @@ bool check_constraints(ast_t* orig, ast_t* typeparams, ast_t* typeargs,
       {
         ast_t* def = (ast_t*)ast_data(typearg);
 
-        if(ast_id(def) == TK_STRUCT)
+        if((def != NULL) && (ast_id(def) == TK_STRUCT))
         {
           if(report_errors)
           {

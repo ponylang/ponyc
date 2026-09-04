@@ -4195,3 +4195,23 @@ TEST_F(BadPonyTest, RuntimeOverrideDefaultsDefaultedTypeParamsOnPrimitive)
   TEST_COMPILE(src);
 }
 
+TEST_F(BadPonyTest, UnresolvedTypeParamInObjectLiteralBody)
+{
+  const char* src =
+    "class HashFunction[H]\n"
+
+    "class AnyMap[K, V]\n"
+    "  fun values(): Iterator[V] =>\n"
+    "    object ref is Iterator[V]\n"
+    "      fun ref has_next(): Bool =>\n"
+    "        let x: HashFunction[box->A!] = HashFunction[box->A!]\n"
+    "        false\n"
+    "      fun ref next(): V ? => error\n"
+    "    end\n"
+
+    "actor Main\n"
+    "  new create(env: Env) => None";
+
+  TEST_ERRORS_1(src, "can't find definition of 'A'");
+}
+

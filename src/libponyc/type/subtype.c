@@ -779,6 +779,9 @@ static bool is_isect_sub_x(ast_t* sub, ast_t* super, check_cap_t check_cap,
     {
       ast_t* super_def = (ast_t*)ast_data(super);
 
+      if(super_def == NULL)
+        return false;
+
       // TODO: can satisfy the interface in aggregate
       // (T1 & T2) <: I k
       if(ast_id(super_def) == TK_INTERFACE)
@@ -1919,6 +1922,12 @@ static bool is_x_sub_x(ast_t* sub, ast_t* super, check_cap_t check_cap,
   pony_assert(sub != NULL);
   pony_assert(super != NULL);
 
+  if((ast_id(sub) == TK_NOMINAL) && (ast_data(sub) == NULL))
+    return false;
+
+  if((ast_id(super) == TK_NOMINAL) && (ast_data(super) == NULL))
+    return false;
+
   size_t my_depth = type_assume_depth(TYPE_ASSUME_SUBTYPE);
 
   // Top-level boundary: drop any cache state from a prior user-level
@@ -2363,6 +2372,9 @@ bool is_constructable(ast_t* type)
     {
       ast_t* def = (ast_t*)ast_data(type);
 
+      if(def == NULL)
+        return false;
+
       switch(ast_id(def))
       {
         case TK_INTERFACE:
@@ -2446,6 +2458,9 @@ bool is_concrete(ast_t* type)
     {
       ast_t* def = (ast_t*)ast_data(type);
 
+      if(def == NULL)
+        return false;
+
       switch(ast_id(def))
       {
         case TK_INTERFACE:
@@ -2515,6 +2530,9 @@ bool is_known(ast_t* type)
     case TK_NOMINAL:
     {
       ast_t* def = (ast_t*)ast_data(type);
+
+      if(def == NULL)
+        return false;
 
       switch(ast_id(def))
       {
@@ -2588,6 +2606,8 @@ bool is_bare(ast_t* type, pass_opt_t* opt)
     case TK_NOMINAL:
     {
       ast_t* def = (ast_t*)ast_data(type);
+      if(def == NULL)
+        return false;
       return ast_has_annotation(def, "ponyint_bare", opt->strtab);
     }
 
@@ -2648,6 +2668,9 @@ bool is_top_type(ast_t* type, bool ignore_cap, pass_opt_t* opt)
 
       // An empty interface is a top type.
       ast_t* def = (ast_t*)ast_data(type);
+
+      if(def == NULL)
+        return false;
 
       if(ast_id(def) != TK_INTERFACE)
         return false;
@@ -2744,6 +2767,8 @@ bool is_entity(ast_t* type, token_id entity)
     case TK_NOMINAL:
     {
       ast_t* def = (ast_t*)ast_data(type);
+      if(def == NULL)
+        return false;
       return ast_id(def) == entity;
     }
 
