@@ -469,7 +469,24 @@ static void record_direct(infer_record_t* records, ast_t* typeparams,
         rec->bound.type = ast_dup(candidate);
         rec->bound.arg = arg;
       }
-      else if(!is_subtype(candidate, rec->bound.type, NULL, opt))
+      else if(is_subtype(candidate, rec->bound.type, NULL, opt))
+      {
+        // Existing bound is the supertype already.
+      }
+      else if(is_subtype(ast_type(arg), rec->bound.type, NULL, opt))
+      {
+        // The argument's un-aliased type (e.g. iso^) is a subtype of the
+        // existing bound; the bound is the supertype.
+      }
+      else if(is_subtype(ast_type(rec->bound.arg), candidate, NULL, opt))
+      {
+        // The previous argument's un-aliased type is a subtype of the new
+        // candidate; the candidate is the supertype.
+        ast_free_unattached(rec->bound.type);
+        rec->bound.type = ast_dup(candidate);
+        rec->bound.arg = arg;
+      }
+      else
       {
         ast_t* first_arg = rec->bound.arg;
         ast_free_unattached(rec->bound.type);
