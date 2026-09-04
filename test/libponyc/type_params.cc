@@ -739,3 +739,94 @@ TEST_F(TypeParamsTest, ConstrainedByTypeParam_SelfReferentialStillWorks)
 
   TEST_COMPILE(src);
 }
+
+TEST_F(TypeParamsTest, ValSatisfiesBoxConstraint)
+{
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let a: Array[U8] val = [as U8: 1]\n"
+    "    foo[Array[U8] val](a)\n"
+
+    "  fun foo[A: Array[U8] box](x: A) => None";
+
+  TEST_COMPILE(src);
+}
+
+TEST_F(TypeParamsTest, RefSatisfiesBoxConstraint)
+{
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let a: Array[U8] ref = Array[U8]\n"
+    "    foo[Array[U8] ref](a)\n"
+
+    "  fun foo[A: Array[U8] box](x: A) => None";
+
+  TEST_COMPILE(src);
+}
+
+TEST_F(TypeParamsTest, TrnSatisfiesBoxConstraint)
+{
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let a: Array[U8] trn = recover trn Array[U8] end\n"
+    "    foo[Array[U8] trn](consume a)\n"
+
+    "  fun foo[A: Array[U8] box](x: A) => None";
+
+  TEST_COMPILE(src);
+}
+
+TEST_F(TypeParamsTest, IsoDoesNotSatisfyBoxConstraint)
+{
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let a: Array[U8] iso = recover iso Array[U8] end\n"
+    "    foo[Array[U8] iso](consume a)\n"
+
+    "  fun foo[A: Array[U8] box](x: A) => None";
+
+  TEST_ERRORS_1(src, "type argument is outside its constraint");
+}
+
+TEST_F(TypeParamsTest, TagDoesNotSatisfyBoxConstraint)
+{
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let a: Array[U8] tag = recover tag Array[U8] end\n"
+    "    foo[Array[U8] tag](a)\n"
+
+    "  fun foo[A: Array[U8] box](x: A) => None";
+
+  TEST_ERRORS_1(src, "type argument is outside its constraint");
+}
+
+TEST_F(TypeParamsTest, ValDoesNotSatisfyRefConstraint)
+{
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let a: Array[U8] val = [as U8: 1]\n"
+    "    foo[Array[U8] val](a)\n"
+
+    "  fun foo[A: Array[U8] ref](x: A) => None";
+
+  TEST_ERRORS_1(src, "type argument is outside its constraint");
+}
+
+TEST_F(TypeParamsTest, RefDoesNotSatisfyValConstraint)
+{
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let a: Array[U8] ref = Array[U8]\n"
+    "    foo[Array[U8] ref](a)\n"
+
+    "  fun foo[A: Array[U8] val](x: A) => None";
+
+  TEST_ERRORS_1(src, "type argument is outside its constraint");
+}
