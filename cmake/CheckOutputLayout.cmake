@@ -3,7 +3,7 @@
 # the top-level CMakeLists), so a build that writes them anywhere else installs a
 # tree with no tools. DIR is ponyc's directory; SUFFIX is the platform executable
 # suffix.
-foreach(_tool pony-lsp pony-lint pony-doc)
+foreach(_tool pony-lsp pony-lint pony-doc pony-dep)
     if(NOT EXISTS "${DIR}/${_tool}${SUFFIX}")
         message(FATAL_ERROR
             "${_tool}${SUFFIX} is not in ${DIR}, where ponyc is and install() reads it")
