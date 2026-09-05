@@ -1034,3 +1034,136 @@ TEST_F(IftypeTest, NestedIftype_WrongType)
 
   TEST_ERROR(src, "function body isn't the result type");
 }
+
+
+TEST_F(IftypeTest, ReturnGenericContainer_CapNarrowing)
+{
+  const char* src =
+    "class MyBox[A]\n"
+    "  new create() => None\n"
+
+    "  fun clone(): MyBox[A]^ =>\n"
+    "    iftype A <: Any val then\n"
+    "      recover iso MyBox[A].create() end\n"
+    "    else\n"
+    "      MyBox[A].create()\n"
+    "    end\n"
+
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let a = MyBox[String val].create()\n"
+    "    a.clone()\n";
+
+  TEST_COMPILE(src);
+}
+
+
+TEST_F(IftypeTest, ReturnGenericContainer_ShareConstraint)
+{
+  const char* src =
+    "class MyBox[A]\n"
+    "  new create() => None\n"
+
+    "  fun clone(): MyBox[A]^ =>\n"
+    "    iftype A <: Any #share then\n"
+    "      recover iso MyBox[A].create() end\n"
+    "    else\n"
+    "      MyBox[A].create()\n"
+    "    end\n"
+
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let a = MyBox[U32].create()\n"
+    "    a.clone()\n";
+
+  TEST_COMPILE(src);
+}
+
+
+TEST_F(IftypeTest, ReturnGenericContainer_UnionConstraint)
+{
+  const char* src =
+    "type StringOrU32 is (String | U32)\n"
+
+    "class MyBox[A: StringOrU32]\n"
+    "  new create() => None\n"
+
+    "  fun clone(): MyBox[A]^ =>\n"
+    "    iftype A <: String val then\n"
+    "      recover iso MyBox[A].create() end\n"
+    "    else\n"
+    "      MyBox[A].create()\n"
+    "    end\n"
+
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let a = MyBox[String val].create()\n"
+    "    a.clone()\n";
+
+  TEST_COMPILE(src);
+}
+
+
+TEST_F(IftypeTest, ReturnGenericContainer_ExplicitReturn)
+{
+  const char* src =
+    "class MyBox[A]\n"
+    "  new create() => None\n"
+
+    "  fun clone(): MyBox[A]^ ? =>\n"
+    "    iftype A <: Any val then\n"
+    "      return recover iso MyBox[A].create() end\n"
+    "    end\n"
+    "    error\n"
+
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let a = MyBox[String val].create()\n"
+    "    try a.clone()? end\n";
+
+  TEST_COMPILE(src);
+}
+
+
+TEST_F(IftypeTest, ReturnGenericContainer_WrongTypeArg)
+{
+  const char* src =
+    "class MyBox[A]\n"
+    "  new create() => None\n"
+
+    "  fun clone(): MyBox[A]^ =>\n"
+    "    iftype A <: Any val then\n"
+    "      recover iso MyBox[U8].create() end\n"
+    "    else\n"
+    "      MyBox[A].create()\n"
+    "    end\n"
+
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let a = MyBox[String val].create()\n"
+    "    a.clone()\n";
+
+  TEST_ERROR(src, "function body isn't the result type");
+}
+
+
+TEST_F(IftypeTest, ReturnGenericContainer_MultipleTypeParams)
+{
+  const char* src =
+    "class Pair[A, B]\n"
+    "  new create() => None\n"
+
+    "  fun clone(): Pair[A, B]^ =>\n"
+    "    iftype (A, B) <: (Any val, Any val) then\n"
+    "      recover iso Pair[A, B].create() end\n"
+    "    else\n"
+    "      Pair[A, B].create()\n"
+    "    end\n"
+
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let p = Pair[String val, U32].create()\n"
+    "    p.clone()\n";
+
+  TEST_COMPILE(src);
+}
