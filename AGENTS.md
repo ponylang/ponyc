@@ -24,12 +24,13 @@ Read [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Testing the self-hosted tools
 
-The build uses CMake presets (see BUILD.md). The self-hosted tools' test binaries — for the compiler, pony-lsp, pony-lint, and pony-doc — are **built on demand**: a normal `cmake --build` does not build them. Build the test target, then run it through ctest:
+The build uses CMake presets (see BUILD.md). The self-hosted tools' test binaries — for the compiler, pony-lsp, pony-lint, pony-doc, and pony-dep — are **built on demand**: a normal `cmake --build` does not build them. Build the test target, then run it through ctest:
 
 - `cmake --build --preset debug --target pony-compiler-tests && ctest --preset debug -R pony-compiler-tests`
 - `cmake --build --preset debug --target pony-lsp-tests && ctest --preset debug -R pony-lsp-tests`
 - `cmake --build --preset debug --target pony-lint-tests && ctest --preset debug -R pony-lint-tests`
 - `cmake --build --preset debug --target pony-doc-tests && ctest --preset debug -R pony-doc-tests`
+- `cmake --build --preset debug --target pony-dep-tests && ctest --preset debug -R pony-dep-tests`
 
 The first build of a test binary compiles from Pony source (~60s); later runs skip the rebuild when nothing under its source tree changed. On Windows, use the `windows-x86-64-debug` preset the same way.
 
@@ -39,7 +40,7 @@ To lint a tool's own source, run the `pony-lint` binary (built by a normal `cmak
 cd build/debug && PONYPATH=../../tools/lib/ponylang/pony_compiler ./pony-lint ../../tools/pony-lint/
 ```
 
-The same works for `../../tools/pony-lsp/` and `../../tools/pony-doc/`.
+The same works for `../../tools/pony-lsp/`, `../../tools/pony-doc/`, and `../../tools/pony-dep/`.
 
 ## Adding threads or locks
 

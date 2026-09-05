@@ -374,13 +374,15 @@ jobs:
         run: |
           cmake --preset debug
           cmake --build --preset debug
-          cmake --build --preset debug --target pony-doc-tests pony-lint-tests pony-lsp-tests
+          cmake --build --preset debug --target pony-doc-tests pony-lint-tests pony-lsp-tests pony-dep-tests
       - name: Test pony-doc
         run: ctest --preset debug -R pony-doc-tests
       - name: Test pony-lint
         run: ctest --preset debug -R pony-lint-tests
       - name: Test pony-lsp
         run: ctest --preset debug -R pony-lsp-tests
+      - name: Test pony-dep
+        run: ctest --preset debug -R pony-dep-tests
       - name: Lint tools
         run: cd build/debug && PONYPATH=../../tools/lib/ponylang/pony_compiler ./pony-lint ../../tools/
       - name: Lint examples
@@ -413,13 +415,15 @@ jobs:
         run: |
           cmake --preset armv8-debug
           cmake --build --preset armv8-debug
-          cmake --build --preset armv8-debug --target pony-doc-tests pony-lint-tests pony-lsp-tests
+          cmake --build --preset armv8-debug --target pony-doc-tests pony-lint-tests pony-lsp-tests pony-dep-tests
       - name: Test pony-doc
         run: ctest --preset armv8-debug -R pony-doc-tests
       - name: Test pony-lint
         run: ctest --preset armv8-debug -R pony-lint-tests
       - name: Test pony-lsp
         run: ctest --preset armv8-debug -R pony-lsp-tests
+      - name: Test pony-dep
+        run: ctest --preset armv8-debug -R pony-dep-tests
 
   tools-windows:
     needs: [changes, maybe-build-windows]
@@ -450,10 +454,12 @@ jobs:
         run: |
           cmake --preset windows-x86-64
           cmake --build --preset windows-x86-64-debug
-          cmake --build --preset windows-x86-64-debug --target pony-doc-tests pony-lint-tests pony-lsp-tests
+          cmake --build --preset windows-x86-64-debug --target pony-doc-tests pony-lint-tests pony-lsp-tests pony-dep-tests
       - name: Test pony-doc
         run: ctest --preset windows-x86-64-debug -R pony-doc-tests
       - name: Test pony-lint
         run: ctest --preset windows-x86-64-debug -R pony-lint-tests
       - name: Test pony-lsp
         run: ctest --preset windows-x86-64-debug -R pony-lsp-tests
+      - name: Test pony-dep
+        run: ctest --preset windows-x86-64-debug -R pony-dep-tests

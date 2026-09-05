@@ -6,7 +6,9 @@
     "pony-lint",
     "pony-lint/test",
     "pony-doc",
-    "pony-doc/test"
+    "pony-doc/test",
+    "pony-dep",
+    "pony-dep/test"
   ],
   "deps": [
     {
