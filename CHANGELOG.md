@@ -6,6 +6,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
+- Fix iftype capability narrowing inside generic return types ([PR #5994](https://github.com/ponylang/ponyc/pull/5994))
 
 ### Added
 
