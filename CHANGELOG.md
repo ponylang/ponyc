@@ -2,7 +2,7 @@
 
 All notable changes to the Pony compiler and standard library will be documented in this file. This project adheres to [Semantic Versioning](http://semver.org/) and [Keep a CHANGELOG](http://keepachangelog.com/).
 
-## [unreleased] - unreleased
+## [0.70.1] - 2026-09-05
 
 ### Fixed
 
@@ -15,9 +15,6 @@ All notable changes to the Pony compiler and standard library will be documented
 ### Added
 
 - Add PonyCheck generators for persistent collections ([PR #5980](https://github.com/ponylang/ponyc/pull/5980))
-
-### Changed
-
 
 ## [0.70.0] - 2026-09-04
 
