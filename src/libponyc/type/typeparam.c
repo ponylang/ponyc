@@ -809,6 +809,7 @@ bool typeparam_narrow(ast_t* type, ast_t* typeparam_store)
       if(typeparam_root(tp) == root)
       {
         ast_setdata(type, tp);
+        typeparam_set_cap(type);
         return true;
       }
       tp = ast_sibling(tp);
