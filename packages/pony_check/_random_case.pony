@@ -2,7 +2,6 @@ use "pony_test"
 
 use "collections"
 use persistent = "collections/persistent"
-use "itertools"
 use "random"
 use "time"
 
@@ -13,10 +12,8 @@ actor \nodoc\ Main is TestList
 
   fun tag tests(test: PonyTest) =>
     test(_ASCIIRangeTest)
-    test(_ASCIIStringShrinkTest)
     test(_ErroringPropertyTest)
     test(_FailingPropertyTest)
-    test(_FilterMapShrinkTest)
     test(_ForAllTest)
     test(_ForAll2Test)
     test(_ForAll3Test)
@@ -28,43 +25,33 @@ actor \nodoc\ Main is TestList
     test(_GenOneOfTest)
     test(_GenRndTest)
     test(_GenUnionTest)
-    test(_IsoSeqOfTest)
     test(_MapIsOfEmptyTest)
     test(_MapIsOfIdentityTest)
     test(_MapIsOfMaxTest)
-    test(_MapIsOfMinShrinkTest)
     test(_MapIsOfMinTest)
     test(_MapOfEmptyTest)
     test(_MapOfIdentityTest)
     test(_MapOfMaxTest)
-    test(_MapOfMinShrinkTest)
     test(_MapOfMinTest)
-    test(_MinASCIIStringShrinkTest)
-    test(_MinUnicodeStringShrinkTest)
     test(_MultipleForAllTest)
     test(_PersistentListOfEmptyTest)
     test(_PersistentListOfMaxTest)
     test(_PersistentListOfMinTest)
-    test(_PersistentListOfMinShrinkTest)
     test(_PersistentMapIsOfEmptyTest)
     test(_PersistentMapIsOfIdentityTest)
     test(_PersistentMapIsOfMaxTest)
     test(_PersistentMapIsOfMinTest)
-    test(_PersistentMapIsOfMinShrinkTest)
     test(_PersistentMapOfEmptyTest)
     test(_PersistentMapOfIdentityTest)
     test(_PersistentMapOfMaxTest)
     test(_PersistentMapOfMinTest)
-    test(_PersistentMapOfMinShrinkTest)
     test(_PersistentSetIsOfEmptyTest)
     test(_PersistentSetIsOfIdentityTest)
     test(_PersistentSetIsOfMaxTest)
     test(_PersistentSetIsOfMinTest)
-    test(_PersistentSetIsOfMinShrinkTest)
     test(_PersistentSetOfEmptyTest)
     test(_PersistentSetOfMaxTest)
     test(_PersistentSetOfMinTest)
-    test(_PersistentSetOfMinShrinkTest)
     test(Property1UnitTest[(I8, I8)](
       _RandomnessProperty[I8, _RandomCaseI8]("I8")))
     test(Property1UnitTest[(I16, I16)](
@@ -98,20 +85,18 @@ actor \nodoc\ Main is TestList
     test(_RunnerAsyncPropertyCompleteFalseTest)
     test(_RunnerAsyncPropertyCompleteTest)
     test(_RunnerErroringGeneratorTest)
-    test(_RunnerInfiniteShrinkTest)
     test(_RunnerReportFailedSampleTest)
+    test(_ShrinkIntToMinTest)
+    test(_ShrinkIntAboveThresholdTest)
+    test(_ShrinkArrayToMinTest)
     test(_RunnerSometimesErroringGeneratorTest)
     test(_SeqOfTest)
     test(_SetIsOfIdentityTest)
-    test(_SetIsOfMinShrinkTest)
     test(_SetIsOfMinTest)
     test(_SetOfEmptyTest)
     test(_SetOfMaxTest)
-    test(_SetOfMinMaxEqualTest)
-    test(_SetOfMinShrinkTest)
     test(_SetOfMinTest)
     test(_SetOfTest)
-    test(_SignedShrinkTest)
     test(_StringifyTest)
     test(Property1UnitTest[U8](_SuccessfulProperty))
     test(Property2UnitTest[U8, U8](_SuccessfulProperty2))
@@ -125,14 +110,10 @@ actor \nodoc\ Main is TestList
     test(_SuccessfulProperty2Test)
     test(_SuccessfulProperty3Test)
     test(_SuccessfulProperty4Test)
-    test(_UnicodeStringShrinkTest)
     test(_VecOfEmptyTest)
     test(_VecOfFromToReversedTest)
     test(_VecOfMaxTest)
-    test(_VecOfMinMaxEqualTest)
     test(_VecOfMinTest)
-    test(_VecOfMinShrinkTest)
-    test(_UnsignedShrinkTest)
     test(_UTF32CodePointStringTest)
 
 class \nodoc\ iso _StringifyTest is UnitTest
@@ -485,9 +466,9 @@ class \nodoc\ iso _GenRndTest is UnitTest
     let rnd3 = Randomness(1)
     var same: U32 = 0
     for x in Range(0, 100) do
-      let g1 = gen.generate_value(rnd1)?
-      let g2 = gen.generate_value(rnd2)?
-      let g3 = gen.generate_value(rnd3)?
+      let g1 = gen.generate(rnd1)?
+      let g2 = gen.generate(rnd2)?
+      let g3 = gen.generate(rnd3)?
       h.assert_eq[U32](g1, g2)
       if g1 == g3 then
         same = same + 1
@@ -509,7 +490,7 @@ class \nodoc\ iso _GenFilterTest is UnitTest
       })
     let rnd = Randomness(Time.millis())
     for x in Range(0, 100) do
-      let v = gen.generate_value(rnd)?
+      let v = gen.generate(rnd)?
       h.assert_true((v % 2) == 0)
     end
 
@@ -518,34 +499,28 @@ class \nodoc\ iso _GenUnionTest is UnitTest
 
   fun apply(h: TestHelper) ? =>
     """
-    assert that a unioned Generator
-    produces shrinks of the same type than the generated value.
+    assert that a unioned Generator produces values of both types.
     """
     let gen = Generators.ascii().union[U8](Generators.u8())
     let rnd = Randomness(Time.millis())
+    var got_string: Bool = false
+    var got_u8: Bool = false
     for x in Range(0, 100) do
-      let gs = gen.generate(rnd)?
-      match gs
-      | (let vs: String, let shrink_iter: Iterator[String^]) =>
-        h.assert_true(true)
-      | (let vs: U8, let shrink_iter: Iterator[U8^]) =>
-        h.assert_true(true)
-      | (let vs: U8, let shrink_iter: Iterator[String^]) =>
-        h.fail("u8 value, string shrink iter")
-      | (let vs: String, let shrink_iter: Iterator[U8^]) =>
-        h.fail("string value, u8 shrink iter")
-      else
-        h.fail("invalid type generated")
+      match \exhaustive\ gen.generate(rnd)?
+      | let vs: String => got_string = true
+      | let vs: U8 => got_u8 = true
       end
     end
+    h.assert_true(got_string, "union never generated String")
+    h.assert_true(got_u8, "union never generated U8")
 
 class \nodoc\ iso _GenFrequencyTest is UnitTest
   fun name(): String => "Gen/frequency"
 
   fun apply(h: TestHelper) ? =>
     """
-    ensure that Generators.frequency(...) generators actually return different
-    values with given frequency
+    ensure that frequency generates values with given weights
+    and does not generate values with weight of 0
     """
     let gen =
       Generators.frequency[U8](
@@ -558,7 +533,7 @@ class \nodoc\ iso _GenFrequencyTest is UnitTest
 
     let generated = Array[U8](100)
     for i in Range(0, 100) do
-      generated.push(gen.generate_value(rnd)?)
+      generated.push(gen.generate(rnd)?)
     end
     h.assert_false(
       generated.contains(U8(42)),
@@ -573,7 +548,7 @@ class \nodoc\ iso _GenFrequencyTest is UnitTest
     let empty_gen = Generators.frequency[U8](Array[WeightedGenerator[U8]](0))
 
     h.assert_error({() ? =>
-      empty_gen.generate_value(Randomness(Time.millis()))?
+      empty_gen.generate(Randomness(Time.millis()))?
     })
 
 class \nodoc\ iso _GenFrequencySafeTest is UnitTest
@@ -587,18 +562,19 @@ class \nodoc\ iso _GenFrequencySafeTest is UnitTest
 class \nodoc\ iso _GenOneOfTest is UnitTest
   fun name(): String => "Gen/one_of"
 
-  fun apply(h: TestHelper) =>
+  fun apply(h: TestHelper) ? =>
     let gen = Generators.one_of[U8]([as U8: 0; 1])
     let rnd = Randomness(Time.millis())
-    h.assert_true(
-      Iter[U8^](gen.value_iter(rnd))
-        .take(100)
-        .all({(u: U8): Bool => (u == 0) or (u == 1) }),
-      "one_of generator generated illegal values")
+    for x in Range(0, 100) do
+      let v = gen.generate(rnd)?
+      h.assert_true(
+        (v == 0) or (v == 1),
+        "one_of generator generated illegal value")
+    end
     let empty_gen = Generators.one_of[U8](Array[U8](0))
 
     h.assert_error({() ? =>
-      empty_gen.generate_value(Randomness(Time.millis()))?
+      empty_gen.generate(Randomness(Time.millis()))?
     })
 
 class \nodoc\ iso _GenOneOfSafeTest is UnitTest
@@ -619,74 +595,11 @@ class \nodoc\ iso _SeqOfTest is UnitTest
         0,
         10)
     let rnd = Randomness(Time.millis())
-    h.assert_true(
-      Iter[Array[U8]^](seq_gen.value_iter(rnd))
-        .take(100)
-        .all(
-          {(a: Array[U8]): Bool =>
-            (a.size() >= 0) and (a.size() <= 10)
-          }),
-      "Seqs generated with Generators.seq_of are out of bounds")
-
-    match seq_gen.generate(rnd)?
-    | (let gen_sample: Array[U8], let shrinks: Iter[Array[U8]^]) =>
-      let max_size = gen_sample.size()
+    for i in Range(0, 100) do
+      let sample = seq_gen.generate(rnd)?
       h.assert_true(
-        Iter[Array[U8]^](shrinks)
-          .all({(a: Array[U8]): Bool =>
-            if not (a.size() < max_size) then
-              h.log(a.size().string() + " >= " + max_size.string())
-              false
-            else
-              true
-            end
-          }),
-        "shrinking of Generators.seq_of produces too big Seqs")
-    else
-      h.fail("Generators.seq_of did not produce any shrinks")
-    end
-
-class \nodoc\ iso _IsoSeqOfTest is UnitTest
-  let min: USize = 0
-  let max: USize = 200
-
-  fun name(): String => "Gen/iso_seq_of"
-
-  fun apply(h: TestHelper) ? =>
-    let seq_gen =
-      Generators.iso_seq_of[String, Array[String] iso](
-        Generators.ascii(),
-        min,
-        max
-      )
-    let rnd = Randomness(Time.millis())
-    h.assert_true(
-      Iter[Array[String] iso^](seq_gen.value_iter(rnd))
-        .take(100)
-        .all(
-          {(a: Array[String] iso): Bool =>
-            (a.size() >= min) and (a.size() <= max)
-          }),
-      "Seqs generated with Generators.iso_seq_of are out of bounds")
-
-    match seq_gen.generate(rnd)?
-    | (let gen_sample: Array[String] iso,
-      let shrinks: Iter[Array[String] iso^])
-    =>
-      let max_size = gen_sample.size()
-      h.assert_true(
-        Iter[Array[String] iso^](shrinks)
-          .all({(a: Array[String] iso): Bool =>
-            if not (a.size() < max_size) then
-              h.log(a.size().string() + " >= " + max_size.string())
-              false
-            else
-              true
-            end
-          }),
-        "shrinking of Generators.iso_seq_of produces too big Seqs")
-    else
-      h.fail("Generators.iso_seq_of did not produce any shrinks")
+        (sample.size() >= 0) and (sample.size() <= 10),
+        "Seqs generated with Generators.seq_of are out of bounds")
     end
 
 class \nodoc\ iso _SetOfTest is UnitTest
@@ -703,7 +616,7 @@ class \nodoc\ iso _SetOfTest is UnitTest
         where to = 1024)
     let rnd = Randomness(Time.millis())
     for i in Range(0, 100) do
-      let sample: Set[U8] = set_gen.generate_value(rnd)?
+      let sample: Set[U8] = set_gen.generate(rnd)?
       h.assert_true(sample.size() <= 256, "something about U8 is not right")
     end
 
@@ -711,15 +624,13 @@ class \nodoc\ iso _SetOfMaxTest is UnitTest
   fun name(): String => "Gen/set_of_max"
 
   fun apply(h: TestHelper) ? =>
-    """
-    """
     let rnd = Randomness(Time.millis())
     for size in Range[USize](1, U8.max_value().usize()) do
       let set_gen =
         Generators.set_of[U8](
           Generators.u8()
           where to = size)
-      let sample: Set[U8] = set_gen.generate_value(rnd)?
+      let sample: Set[U8] = set_gen.generate(rnd)?
       h.assert_true(sample.size() <= size, "generated set is too big.")
     end
 
@@ -727,15 +638,13 @@ class \nodoc\ iso _SetOfEmptyTest is UnitTest
   fun name(): String => "Gen/set_of_empty"
 
   fun apply(h: TestHelper) ? =>
-    """
-    """
     let set_gen =
       Generators.set_of[U8](
         Generators.u8()
         where to = 0)
     let rnd = Randomness(Time.millis())
     for i in Range(0, 100) do
-      let sample: Set[U8] = set_gen.generate_value(rnd)?
+      let sample: Set[U8] = set_gen.generate(rnd)?
       h.assert_true(sample.size() == 0, "non-empty set created.")
     end
 
@@ -743,14 +652,12 @@ class \nodoc\ iso _SetIsOfIdentityTest is UnitTest
   fun name(): String => "Gen/set_is_of_identity"
 
   fun apply(h: TestHelper) ? =>
-    """
-    """
     let set_is_gen_same =
       Generators.set_is_of[String](
         Generators.unit[String]("the highlander")
         where to = 100)
     let rnd = Randomness(Time.millis())
-    let sample: SetIs[String] = set_is_gen_same.generate_value(rnd)?
+    let sample: SetIs[String] = set_is_gen_same.generate(rnd)?
     h.assert_true(
       sample.size() <= 1,
       "invalid SetIs instances generated: size " + sample.size().string())
@@ -759,8 +666,6 @@ class \nodoc\ iso _MapOfEmptyTest is UnitTest
   fun name(): String => "Gen/map_of_empty"
 
   fun apply(h: TestHelper) ? =>
-    """
-    """
     let map_gen =
       Generators.map_of[String, I64](
         Generators.zip2[String, I64](
@@ -772,7 +677,7 @@ class \nodoc\ iso _MapOfEmptyTest is UnitTest
           Generators.i64(-10, 10))
         where to = 0)
     let rnd = Randomness(Time.millis())
-    let sample = map_gen.generate_value(rnd)?
+    let sample = map_gen.generate(rnd)?
     h.assert_eq[USize](sample.size(), 0, "non-empty map created")
 
 class \nodoc\ iso _MapOfMaxTest is UnitTest
@@ -790,7 +695,7 @@ class \nodoc\ iso _MapOfMaxTest is UnitTest
             }),
             Generators.i64(-10, 10))
           where to = size)
-      let sample = map_gen.generate_value(rnd)?
+      let sample = map_gen.generate(rnd)?
       h.assert_true(sample.size() <= size, "generated map is too big.")
     end
 
@@ -810,15 +715,13 @@ class \nodoc\ iso _MapOfIdentityTest is UnitTest
             }),
           Generators.i64(-10, 10))
         where to = 100)
-    let sample = map_gen.generate_value(rnd)?
+    let sample = map_gen.generate(rnd)?
     h.assert_true(sample.size() <= 1)
 
 class \nodoc\ iso _MapIsOfEmptyTest is UnitTest
   fun name(): String => "Gen/map_is_of_empty"
 
   fun apply(h: TestHelper) ? =>
-    """
-    """
     let map_is_gen =
       Generators.map_is_of[String, I64](
         Generators.zip2[String, I64](
@@ -830,7 +733,7 @@ class \nodoc\ iso _MapIsOfEmptyTest is UnitTest
           Generators.i64(-10, 10))
         where to = 0)
     let rnd = Randomness(Time.millis())
-    let sample = map_is_gen.generate_value(rnd)?
+    let sample = map_is_gen.generate(rnd)?
     h.assert_eq[USize](sample.size(), 0, "non-empty map created")
 
 class \nodoc\ iso _MapIsOfMaxTest is UnitTest
@@ -850,7 +753,7 @@ class \nodoc\ iso _MapIsOfMaxTest is UnitTest
               }),
             Generators.i64(-10, 10))
           where to = size)
-      let sample = map_is_gen.generate_value(rnd)?
+      let sample = map_is_gen.generate(rnd)?
       h.assert_true(sample.size() <= size, "generated map is too big.")
     end
 
@@ -865,7 +768,7 @@ class \nodoc\ iso _MapIsOfIdentityTest is UnitTest
           Generators.unit[String]("the highlander"),
           Generators.i64(-10, 10))
         where to = 100)
-    let sample = map_gen.generate_value(rnd)?
+    let sample = map_gen.generate(rnd)?
     h.assert_true(sample.size() <= 1)
 
 class \nodoc\ iso _SetOfMinTest is UnitTest
@@ -878,33 +781,10 @@ class \nodoc\ iso _SetOfMinTest is UnitTest
         where from = 1)
     let rnd = Randomness(Time.millis())
     for i in Range(0, 100) do
-      let sample: Set[U8] = set_gen.generate_value(rnd)?
+      let sample: Set[U8] = set_gen.generate(rnd)?
       h.assert_true(
         sample.size() >= 1,
         "empty set created with min = 1")
-    end
-
-class \nodoc\ iso _SetOfMinShrinkTest is UnitTest
-  fun name(): String => "Gen/set_of_min_shrink"
-
-  fun apply(h: TestHelper) ? =>
-    let set_gen =
-      Generators.set_of[U8](
-        Generators.u8()
-        where from = 5)
-    let rnd = Randomness(Time.millis())
-    match set_gen.generate(rnd)?
-    | (let sample: Set[U8], let shrinks: Iterator[Set[U8]^]) =>
-      h.assert_true(
-        sample.size() >= 5,
-        "generated set has fewer than 5 elements")
-      for shrunk in shrinks do
-        h.assert_true(
-          shrunk.size() >= 5,
-          "shrunk set has fewer than 5 elements")
-      end
-    else
-      h.fail("set_of did not produce shrinks")
     end
 
 class \nodoc\ iso _SetIsOfMinTest is UnitTest
@@ -917,7 +797,7 @@ class \nodoc\ iso _SetIsOfMinTest is UnitTest
         where from = 1)
     let rnd = Randomness(Time.millis())
     for i in Range(0, 100) do
-      let sample: SetIs[String] = set_is_gen.generate_value(rnd)?
+      let sample: SetIs[String] = set_is_gen.generate(rnd)?
       h.assert_true(
         sample.size() >= 1,
         "empty SetIs created with min = 1")
@@ -937,7 +817,7 @@ class \nodoc\ iso _MapOfMinTest is UnitTest
         where from = 1)
     let rnd = Randomness(Time.millis())
     for i in Range(0, 100) do
-      let sample = map_gen.generate_value(rnd)?
+      let sample = map_gen.generate(rnd)?
       h.assert_true(
         sample.size() >= 1,
         "empty map created with min = 1")
@@ -957,109 +837,10 @@ class \nodoc\ iso _MapIsOfMinTest is UnitTest
         where from = 1)
     let rnd = Randomness(Time.millis())
     for i in Range(0, 100) do
-      let sample = map_is_gen.generate_value(rnd)?
+      let sample = map_is_gen.generate(rnd)?
       h.assert_true(
         sample.size() >= 1,
         "empty MapIs created with min = 1")
-    end
-
-class \nodoc\ iso _SetIsOfMinShrinkTest is UnitTest
-  fun name(): String => "Gen/set_is_of_min_shrink"
-
-  fun apply(h: TestHelper) ? =>
-    let set_is_gen =
-      Generators.set_is_of[String](
-        Generators.ascii(where from = 1, to = 10)
-        where from = 5)
-    let rnd = Randomness(Time.millis())
-    match set_is_gen.generate(rnd)?
-    | (let sample: SetIs[String], let shrinks: Iterator[SetIs[String]^]) =>
-      h.assert_true(
-        sample.size() >= 5,
-        "generated SetIs has fewer than 5 elements")
-      for shrunk in shrinks do
-        h.assert_true(
-          shrunk.size() >= 5,
-          "shrunk SetIs has fewer than 5 elements")
-      end
-    else
-      h.fail("set_is_of did not produce shrinks")
-    end
-
-class \nodoc\ iso _MapOfMinShrinkTest is UnitTest
-  fun name(): String => "Gen/map_of_min_shrink"
-
-  fun apply(h: TestHelper) ? =>
-    let map_gen =
-      Generators.map_of[String, I64](
-        Generators.zip2[String, I64](
-          Generators.u16().map[String^]({(u: U16): String^ =>
-            u.string()
-          }),
-          Generators.i64(-10, 10))
-        where from = 5)
-    let rnd = Randomness(Time.millis())
-    match map_gen.generate(rnd)?
-    | (let sample: Map[String, I64],
-      let shrinks: Iterator[Map[String, I64]^])
-    =>
-      h.assert_true(
-        sample.size() >= 5,
-        "generated Map has fewer than 5 elements")
-      for shrunk in shrinks do
-        h.assert_true(
-          shrunk.size() >= 5,
-          "shrunk Map has fewer than 5 elements")
-      end
-    else
-      h.fail("map_of did not produce shrinks")
-    end
-
-class \nodoc\ iso _MapIsOfMinShrinkTest is UnitTest
-  fun name(): String => "Gen/map_is_of_min_shrink"
-
-  fun apply(h: TestHelper) ? =>
-    let map_is_gen =
-      Generators.map_is_of[String, I64](
-        Generators.zip2[String, I64](
-          Generators.u16().map[String^]({(u: U16): String^ =>
-            u.string()
-          }),
-          Generators.i64(-10, 10))
-        where from = 5)
-    let rnd = Randomness(Time.millis())
-    match map_is_gen.generate(rnd)?
-    | (let sample: MapIs[String, I64],
-      let shrinks: Iterator[MapIs[String, I64]^])
-    =>
-      h.assert_true(
-        sample.size() >= 5,
-        "generated MapIs has fewer than 5 elements")
-      for shrunk in shrinks do
-        h.assert_true(
-          shrunk.size() >= 5,
-          "shrunk MapIs has fewer than 5 elements")
-      end
-    else
-      h.fail("map_is_of did not produce shrinks")
-    end
-
-class \nodoc\ iso _SetOfMinMaxEqualTest is UnitTest
-  fun name(): String => "Gen/set_of_min_max_equal"
-
-  fun apply(h: TestHelper) ? =>
-    let set_gen =
-      Generators.set_of[U8](
-        Generators.u8()
-        where from = 5, to = 5)
-    let rnd = Randomness(Time.millis())
-    match set_gen.generate(rnd)?
-    | (let sample: Set[U8], let shrinks: Iterator[Set[U8]^]) =>
-      h.assert_false(
-        shrinks.has_next(),
-        "shrink iterator should be empty when min == max")
-    else
-      h.fail("set_of did not produce shrinks")
     end
 
 class \nodoc\ iso _ASCIIRangeTest is UnitTest
@@ -1071,7 +852,7 @@ class \nodoc\ iso _ASCIIRangeTest is UnitTest
       Generators.ascii(where from = 1, to = 1, range = ASCIIAll)
 
     for i in Range[USize](0, 100) do
-      let sample = ascii_gen.generate_value(rnd)?
+      let sample = ascii_gen.generate(rnd)?
       h.assert_true(
         ASCIIAll().contains(sample),
         "\"" + sample + "\" not valid ascii")
@@ -1089,7 +870,7 @@ class \nodoc\ iso _UTF32CodePointStringTest is UnitTest
         100)
 
     for i in Range[USize](0, 100) do
-      let sample = string_gen.generate_value(rnd)?
+      let sample = string_gen.generate(rnd)?
       for cp in sample.runes() do
         h.assert_true(
           (cp <= 0xD7FF) or (cp >= 0xE000),
@@ -1146,44 +927,6 @@ class \nodoc\ iso _SuccessfulIntPairPropertyTest is UnitTest
         h.env)
     runner.run()
 
-class \nodoc\ iso _InfiniteShrinkProperty is Property1[String]
-  fun name(): String => "property_runner/inifinite_shrink/property"
-
-  fun gen(): Generator[String] =>
-    Generator[String](
-      object is GenObj[String]
-        fun generate(r: Randomness): String^ =>
-          "decided by fair dice roll, totally random"
-
-        fun shrink(t: String): ValueAndShrink[String] =>
-          (t, Iter[String^].repeat_value(t))
-      end)
-
-  fun ref property(arg1: String, ph: PropertyHelper) =>
-    ph.assert_true(arg1.size() > 100) // assume this failing
-
-class \nodoc\ iso _RunnerInfiniteShrinkTest is UnitTest
-  """
-  ensure that having a failing property with an infinite generator
-  is not shrinking infinitely
-  """
-  fun name(): String => "property_runner/infinite_shrink"
-
-  fun apply(h: TestHelper) =>
-    let property = recover iso _InfiniteShrinkProperty end
-    let params = property.params()
-
-    h.long_test(params.timeout)
-
-    let runner =
-      PropertyRunner[String](
-        consume property,
-        params,
-        _UnitTestPropertyNotify(h, false),
-        _UnitTestPropertyLogger(h),
-        h.env)
-    runner.run()
-
 class \nodoc\ iso _ErroringGeneratorProperty is Property1[String]
   fun name(): String => "property_runner/erroring_generator/property"
 
@@ -1221,7 +964,7 @@ class \nodoc\ iso _SometimesErroringGeneratorProperty is Property1[String]
   fun params(): PropertyParams =>
     PropertyParams(where
       num_samples' = 3,
-      seed' = 6, // known seed to produce a value, an error and a value
+      seed' = 6,
       max_generator_retries' = 1
     )
 
@@ -1229,7 +972,7 @@ class \nodoc\ iso _SometimesErroringGeneratorProperty is Property1[String]
     Generator[String](
       object is GenObj[String]
         fun generate(r: Randomness): String^ ? =>
-          match (r.u64() % 2)
+          match (r.u64()? % 2)
           | 0 => "foo"
           else
             error
@@ -1302,198 +1045,6 @@ class \nodoc\ iso _RunnerReportFailedSampleTest is UnitTest
         logger,
         h.env)
     runner.run()
-
-trait \nodoc\ _ShrinkTest is UnitTest
-  fun shrink[T](gen: Generator[T], shrink_elem: T): Iterator[T^] =>
-    (_, let shrinks': Iterator[T^]) = gen.shrink(consume shrink_elem)
-    shrinks'
-
-  fun _collect_shrinks[T](gen: Generator[T], shrink_elem: T): Array[T] =>
-    Iter[T^](shrink[T](gen, consume shrink_elem)).collect[Array[T]](Array[T])
-
-  fun _size(shrinks: Iterator[Any^]): USize =>
-    Iter[Any^](shrinks).count()
-
-  fun _test_int_constraints[T: (Int & Integer[T] val)](
-    h: TestHelper,
-    gen: Generator[T],
-    x: T,
-    min: T = T.min_value()
-  ) ?
-  =>
-    let shrinks = shrink[T](gen, min)
-    h.assert_false(
-      shrinks.has_next(),
-      "non-empty shrinks for minimal value " + min.string())
-
-    let shrinks1 = _collect_shrinks[T](gen, min + 1)
-    h.assert_array_eq[T](
-      [min],
-      shrinks1,
-      "didn't include min in shrunken list of samples")
-
-    let shrinks2 = shrink[T](gen, x)
-    h.assert_true(
-      Iter[T^](shrinks2)
-        .all(
-          {(u: T): Bool =>
-            match \exhaustive\ x.compare(min)
-            | Less =>
-              (u <= min) and (u > x)
-            | Equal => true
-            | Greater =>
-              (u >= min) and (u < x)
-            end
-          }),
-      "generated shrinks from " + x.string() +
-        " that violate minimum or maximum")
-
-    let count_shrinks = shrink[T](gen, x)
-    let max_count =
-      if (x - min) < 0 then
-        -(x - min)
-      else
-        x - min
-      end
-    let actual_count = T.from[USize](Iter[T^](count_shrinks).count())
-    h.assert_true(
-      actual_count <= max_count,
-      "generated too much values from " + x.string() +
-        " : " + actual_count.string() +
-        " > " + max_count.string())
-
-class \nodoc\ iso _UnsignedShrinkTest is _ShrinkTest
-  fun name(): String => "shrink/unsigned_generators"
-
-  fun apply(h: TestHelper) ? =>
-    let gen = Generators.u8()
-    _test_int_constraints[U8](h, gen, U8(42))?
-    _test_int_constraints[U8](h, gen, U8.max_value())?
-
-    let min = U64(10)
-    let gen_min = Generators.u64(where from = min)
-    _test_int_constraints[U64](h, gen_min, 42, min)?
-
-class \nodoc\ iso _SignedShrinkTest is _ShrinkTest
-  fun name(): String => "shrink/signed_generators"
-
-  fun apply(h: TestHelper) ? =>
-    let gen = Generators.i64()
-    _test_int_constraints[I64](h, gen, (I64.min_value() + 100))?
-
-    let gen2 = Generators.i64(-10, 20)
-    _test_int_constraints[I64](h, gen2, 20, -10)?
-    _test_int_constraints[I64](h, gen2, 30, -10)?
-    // weird case but should still work
-    _test_int_constraints[I64](h, gen2, -12, -10)?
-
-class \nodoc\ iso _ASCIIStringShrinkTest is _ShrinkTest
-  fun name(): String => "shrink/ascii_string_generators"
-
-  fun apply(h: TestHelper) =>
-    let gen = Generators.ascii(where from = 0)
-
-    let shrinks_min = shrink[String](gen, "")
-    h.assert_false(
-      shrinks_min.has_next(),
-      "non-empty shrinks for minimal value")
-
-    let sample = "ABCDEF"
-    let shrinks = _collect_shrinks[String](gen, sample)
-    h.assert_array_eq[String](
-      ["ABCDE"; "ABCD"; "ABC"; "AB"; "A"; ""],
-      shrinks)
-
-    let short_sample = "A"
-    let short_shrinks = _collect_shrinks[String](gen, short_sample)
-    h.assert_array_eq[String](
-      [""],
-      short_shrinks,
-      "shrinking 'A' returns wrong results")
-
-class \nodoc\ iso _MinASCIIStringShrinkTest is _ShrinkTest
-  fun name(): String => "shrink/min_ascii_string_generators"
-
-  fun apply(h: TestHelper) =>
-    let min: USize = 10
-    let gen = Generators.ascii(where from = min)
-
-    let shrinks_min = shrink[String](gen, "abcdefghi")
-    h.assert_false(
-      shrinks_min.has_next(),
-      "generated non-empty shrinks for string smaller than minimum")
-
-    let shrinks = shrink[String](gen, "abcdefghijlkmnop")
-    h.assert_true(
-      Iter[String](shrinks)
-        .all({(s: String): Bool => s.size() >= min }),
-      "generated shrinks that violate minimum string length")
-
-class \nodoc\ iso _UnicodeStringShrinkTest is _ShrinkTest
-  fun name(): String => "shrink/unicode_string_generators"
-
-  fun apply(h: TestHelper) =>
-    let gen = Generators.unicode()
-
-    let shrinks_min = shrink[String](gen, "")
-    h.assert_false(
-      shrinks_min.has_next(),
-      "non-empty shrinks for minimal value")
-
-    let sample2 = "ΣΦΩ"
-    let shrinks2 = _collect_shrinks[String](gen, sample2)
-    h.assert_false(shrinks2.contains(sample2))
-    h.assert_true(
-      shrinks2.size() > 0,
-      "empty shrinks for non-minimal unicode string")
-
-    let sample3 = "Σ"
-    let shrinks3 = _collect_shrinks[String](gen, sample3)
-    h.assert_array_eq[String](
-      [""],
-      shrinks3,
-      "minimal non-empty string not properly shrunk")
-
-class \nodoc\ iso _MinUnicodeStringShrinkTest is _ShrinkTest
-  fun name(): String => "shrink/min_unicode_string_generators"
-
-  fun apply(h: TestHelper) =>
-    let min = USize(5)
-    let gen = Generators.unicode(where from = min)
-
-    let min_sample = "ΣΦΩ"
-    let shrinks_min = shrink[String](gen, min_sample)
-    h.assert_false(
-      shrinks_min.has_next(),
-      "non-empty shrinks for minimal value")
-
-    let sample = "ΣΦΩΣΦΩ"
-    let shrinks = _collect_shrinks[String](gen, sample)
-    h.assert_true(
-      Iter[String](shrinks.values())
-        .all({(s: String): Bool => s.codepoints() >= min }),
-      "generated shrinks that violate minimum string length")
-    h.assert_false(
-      shrinks.contains(sample),
-      "shrinks contain sample value")
-
-class \nodoc\ iso _FilterMapShrinkTest is _ShrinkTest
-  fun name(): String => "shrink/filter_map"
-
-  fun apply(h: TestHelper) =>
-    let gen: Generator[U64] =
-      Generators.u8()
-        .filter({(byte) => (byte, byte > 10) })
-        .map[U64]({(byte) => (byte * 2).u64() })
-    // shrink from 100 and only expect even values > 20
-    let shrink_iter = shrink[U64](gen, U64(100))
-    h.assert_true(
-      Iter[U64](shrink_iter)
-        .all(
-          {(u) =>
-            (u > 20) and ((u % 2) == 0)
-          }),
-      "shrinking does not maintain filter invariants")
 
 primitive \nodoc\ _Async
   """
@@ -1592,102 +1143,102 @@ class \nodoc\ iso _AsyncProperty is Property1[String]
 interface \nodoc\ val _RandomCase[A: Comparable[A] #read]
   new val create()
 
-  fun test(min: A, max: A): A
+  fun test(min: A, max: A): A ?
 
   fun generator(): Generator[A]
 
 primitive \nodoc\ _RandomCaseU8 is _RandomCase[U8]
-  fun test(min: U8, max: U8): U8 =>
+  fun test(min: U8, max: U8): U8 ? =>
     let rnd = Randomness(Time.millis())
-    rnd.u8(min, max)
+    rnd.u8(min, max)?
 
   fun generator(): Generator[U8] =>
     Generators.u8()
 
 primitive \nodoc\ _RandomCaseU16 is _RandomCase[U16]
-  fun test(min: U16, max: U16): U16 =>
+  fun test(min: U16, max: U16): U16 ? =>
     let rnd = Randomness(Time.millis())
-    rnd.u16(min, max)
+    rnd.u16(min, max)?
 
   fun generator(): Generator[U16] =>
     Generators.u16()
 
 primitive \nodoc\ _RandomCaseU32 is _RandomCase[U32]
-  fun test(min: U32, max: U32): U32 =>
+  fun test(min: U32, max: U32): U32 ? =>
     let rnd = Randomness(Time.millis())
-    rnd.u32(min, max)
+    rnd.u32(min, max)?
 
   fun generator(): Generator[U32] =>
     Generators.u32()
 
 primitive \nodoc\ _RandomCaseU64 is _RandomCase[U64]
-  fun test(min: U64, max: U64): U64 =>
+  fun test(min: U64, max: U64): U64 ? =>
     let rnd = Randomness(Time.millis())
-    rnd.u64(min, max)
+    rnd.u64(min, max)?
 
   fun generator(): Generator[U64] =>
     Generators.u64()
 
 primitive \nodoc\ _RandomCaseU128 is _RandomCase[U128]
-  fun test(min: U128, max: U128): U128 =>
+  fun test(min: U128, max: U128): U128 ? =>
     let rnd = Randomness(Time.millis())
-    rnd.u128(min, max)
+    rnd.u128(min, max)?
 
   fun generator(): Generator[U128] =>
     Generators.u128()
 
 primitive \nodoc\ _RandomCaseI8 is _RandomCase[I8]
-  fun test(min: I8, max: I8): I8 =>
+  fun test(min: I8, max: I8): I8 ? =>
     let rnd = Randomness(Time.millis())
-    rnd.i8(min, max)
+    rnd.i8(min, max)?
 
   fun generator(): Generator[I8] =>
     Generators.i8()
 
 primitive \nodoc\ _RandomCaseI16 is _RandomCase[I16]
-  fun test(min: I16, max: I16): I16 =>
+  fun test(min: I16, max: I16): I16 ? =>
     let rnd = Randomness(Time.millis())
-    rnd.i16(min, max)
+    rnd.i16(min, max)?
 
   fun generator(): Generator[I16] =>
     Generators.i16()
 
 primitive \nodoc\ _RandomCaseI32 is _RandomCase[I32]
-  fun test(min: I32, max: I32): I32 =>
+  fun test(min: I32, max: I32): I32 ? =>
     let rnd = Randomness(Time.millis())
-    rnd.i32(min, max)
+    rnd.i32(min, max)?
 
   fun generator(): Generator[I32] =>
     Generators.i32()
 
 primitive \nodoc\ _RandomCaseI64 is _RandomCase[I64]
-  fun test(min: I64, max: I64): I64 =>
+  fun test(min: I64, max: I64): I64 ? =>
     let rnd = Randomness(Time.millis())
-    rnd.i64(min, max)
+    rnd.i64(min, max)?
 
   fun generator(): Generator[I64] =>
     Generators.i64()
 
 primitive \nodoc\ _RandomCaseI128 is _RandomCase[I128]
-  fun test(min: I128, max: I128): I128 =>
+  fun test(min: I128, max: I128): I128 ? =>
     let rnd = Randomness(Time.millis())
-    rnd.i128(min, max)
+    rnd.i128(min, max)?
 
   fun generator(): Generator[I128] =>
     Generators.i128()
 
 primitive \nodoc\ _RandomCaseISize is _RandomCase[ISize]
-  fun test(min: ISize, max: ISize): ISize =>
+  fun test(min: ISize, max: ISize): ISize ? =>
     let rnd = Randomness(Time.millis())
-    rnd.isize(min, max)
+    rnd.isize(min, max)?
 
   fun generator(): Generator[ISize] =>
     Generators.isize()
 
 primitive \nodoc\ _RandomCaseILong is _RandomCase[ILong]
-  fun test(min: ILong, max: ILong): ILong =>
+  fun test(min: ILong, max: ILong): ILong ? =>
     let rnd = Randomness(Time.millis())
-    rnd.ilong(min, max)
+    rnd.ilong(min, max)?
 
   fun generator(): Generator[ILong] =>
     Generators.ilong()
@@ -1713,10 +1264,10 @@ class \nodoc\ iso _RandomnessProperty[
         {(pair) => (pair, (pair._1 <= pair._2)) }
       )
 
-  fun property(arg1: (A, A), ph: PropertyHelper) =>
+  fun property(arg1: (A, A), ph: PropertyHelper) ? =>
     (let min, let max) = arg1
 
-    let value = R.test(min, max)
+    let value = R.test(min, max)?
     ph.assert_true(value >= min)
     ph.assert_true(value <= max)
 
@@ -1730,7 +1281,7 @@ class \nodoc\ iso _VecOfEmptyTest is UnitTest
         where to = 0)
     let rnd = Randomness(Time.millis())
     for i in Range(0, 100) do
-      let sample = gen.generate_value(rnd)?
+      let sample = gen.generate(rnd)?
       h.assert_eq[USize](sample.size(), 0, "non-empty vec created")
     end
 
@@ -1744,37 +1295,13 @@ class \nodoc\ iso _VecOfFromToReversedTest is UnitTest
         where from = 10, to = 5)
     let rnd = Randomness(Time.millis())
     for i in Range(0, 100) do
-      let sample = gen.generate_value(rnd)?
+      let sample = gen.generate(rnd)?
       h.assert_true(
         sample.size() >= 5,
         "vec smaller than lo when from > to")
       h.assert_true(
         sample.size() <= 10,
         "vec larger than hi when from > to")
-    end
-
-class \nodoc\ iso _VecOfMinMaxEqualTest is UnitTest
-  fun name(): String => "Gen/vec_of_min_max_equal"
-
-  fun apply(h: TestHelper) ? =>
-    let gen =
-      Generators.vec_of[U8](
-        Generators.u8()
-        where from = 5, to = 5)
-    let rnd = Randomness(Time.millis())
-    match gen.generate(rnd)?
-    | (let sample: persistent.Vec[U8],
-      let shrinks: Iterator[persistent.Vec[U8]^])
-    =>
-      h.assert_eq[USize](
-        sample.size(),
-        5,
-        "vec should have exactly 5 elements when from == to")
-      h.assert_false(
-        shrinks.has_next(),
-        "shrink iterator should be empty when from == to")
-    else
-      h.fail("vec_of did not produce shrinks")
     end
 
 class \nodoc\ iso _VecOfMaxTest is UnitTest
@@ -1787,7 +1314,7 @@ class \nodoc\ iso _VecOfMaxTest is UnitTest
         Generators.vec_of[U8](
           Generators.u8()
           where to = size)
-      let sample = gen.generate_value(rnd)?
+      let sample = gen.generate(rnd)?
       h.assert_true(sample.size() <= size, "generated vec is too big")
     end
 
@@ -1801,35 +1328,10 @@ class \nodoc\ iso _VecOfMinTest is UnitTest
         where from = 1)
     let rnd = Randomness(Time.millis())
     for i in Range(0, 100) do
-      let sample = gen.generate_value(rnd)?
+      let sample = gen.generate(rnd)?
       h.assert_true(
         sample.size() >= 1,
         "empty vec created with from = 1")
-    end
-
-class \nodoc\ iso _VecOfMinShrinkTest is UnitTest
-  fun name(): String => "Gen/vec_of_min_shrink"
-
-  fun apply(h: TestHelper) ? =>
-    let gen =
-      Generators.vec_of[U8](
-        Generators.u8()
-        where from = 5)
-    let rnd = Randomness(Time.millis())
-    match gen.generate(rnd)?
-    | (let sample: persistent.Vec[U8],
-      let shrinks: Iterator[persistent.Vec[U8]^])
-    =>
-      h.assert_true(
-        sample.size() >= 5,
-        "generated vec has fewer than 5 elements")
-      for shrunk in shrinks do
-        h.assert_true(
-          shrunk.size() >= 5,
-          "shrunk vec has fewer than 5 elements")
-      end
-    else
-      h.fail("vec_of did not produce shrinks")
     end
 
 class \nodoc\ iso _PersistentListOfEmptyTest is UnitTest
@@ -1842,7 +1344,7 @@ class \nodoc\ iso _PersistentListOfEmptyTest is UnitTest
         where to = 0)
     let rnd = Randomness(Time.millis())
     for i in Range(0, 100) do
-      let sample = gen.generate_value(rnd)?
+      let sample = gen.generate(rnd)?
       h.assert_eq[USize](sample.size(), 0, "non-empty list created")
     end
 
@@ -1856,7 +1358,7 @@ class \nodoc\ iso _PersistentListOfMaxTest is UnitTest
         Generators.persistent_list_of[U8](
           Generators.u8()
           where to = size)
-      let sample = gen.generate_value(rnd)?
+      let sample = gen.generate(rnd)?
       h.assert_true(sample.size() <= size, "generated list is too big")
     end
 
@@ -1870,35 +1372,10 @@ class \nodoc\ iso _PersistentListOfMinTest is UnitTest
         where from = 1)
     let rnd = Randomness(Time.millis())
     for i in Range(0, 100) do
-      let sample = gen.generate_value(rnd)?
+      let sample = gen.generate(rnd)?
       h.assert_true(
         sample.size() >= 1,
         "empty list created with from = 1")
-    end
-
-class \nodoc\ iso _PersistentListOfMinShrinkTest is UnitTest
-  fun name(): String => "Gen/persistent_list_of_min_shrink"
-
-  fun apply(h: TestHelper) ? =>
-    let gen =
-      Generators.persistent_list_of[U8](
-        Generators.u8()
-        where from = 5)
-    let rnd = Randomness(Time.millis())
-    match gen.generate(rnd)?
-    | (let sample: persistent.List[U8],
-      let shrinks: Iterator[persistent.List[U8]^])
-    =>
-      h.assert_true(
-        sample.size() >= 5,
-        "generated list has fewer than 5 elements")
-      for shrunk in shrinks do
-        h.assert_true(
-          shrunk.size() >= 5,
-          "shrunk list has fewer than 5 elements")
-      end
-    else
-      h.fail("persistent_list_of did not produce shrinks")
     end
 
 class \nodoc\ iso _PersistentSetIsOfIdentityTest is UnitTest
@@ -1910,7 +1387,7 @@ class \nodoc\ iso _PersistentSetIsOfIdentityTest is UnitTest
         Generators.unit[String]("the highlander")
         where to = 100)
     let rnd = Randomness(Time.millis())
-    let sample = gen.generate_value(rnd)?
+    let sample = gen.generate(rnd)?
     h.assert_true(
       sample.size() <= 1,
       "invalid persistent SetIs: size " + sample.size().string())
@@ -1925,7 +1402,7 @@ class \nodoc\ iso _PersistentSetOfEmptyTest is UnitTest
         where to = 0)
     let rnd = Randomness(Time.millis())
     for i in Range(0, 100) do
-      let sample = gen.generate_value(rnd)?
+      let sample = gen.generate(rnd)?
       h.assert_eq[USize](sample.size(), 0, "non-empty set created")
     end
 
@@ -1939,7 +1416,7 @@ class \nodoc\ iso _PersistentSetOfMaxTest is UnitTest
         Generators.persistent_set_of[U8](
           Generators.u8()
           where to = size)
-      let sample = gen.generate_value(rnd)?
+      let sample = gen.generate(rnd)?
       h.assert_true(sample.size() <= size, "generated set is too big")
     end
 
@@ -1953,35 +1430,10 @@ class \nodoc\ iso _PersistentSetOfMinTest is UnitTest
         where from = 1)
     let rnd = Randomness(Time.millis())
     for i in Range(0, 100) do
-      let sample = gen.generate_value(rnd)?
+      let sample = gen.generate(rnd)?
       h.assert_true(
         sample.size() >= 1,
         "empty set created with from = 1")
-    end
-
-class \nodoc\ iso _PersistentSetOfMinShrinkTest is UnitTest
-  fun name(): String => "Gen/persistent_set_of_min_shrink"
-
-  fun apply(h: TestHelper) ? =>
-    let gen =
-      Generators.persistent_set_of[U8](
-        Generators.u8()
-        where from = 5)
-    let rnd = Randomness(Time.millis())
-    match gen.generate(rnd)?
-    | (let sample: persistent.Set[U8],
-      let shrinks: Iterator[persistent.Set[U8]^])
-    =>
-      h.assert_true(
-        sample.size() >= 5,
-        "generated set has fewer than 5 elements")
-      for shrunk in shrinks do
-        h.assert_true(
-          shrunk.size() >= 5,
-          "shrunk set has fewer than 5 elements")
-      end
-    else
-      h.fail("persistent_set_of did not produce shrinks")
     end
 
 class \nodoc\ iso _PersistentSetIsOfEmptyTest is UnitTest
@@ -1994,7 +1446,7 @@ class \nodoc\ iso _PersistentSetIsOfEmptyTest is UnitTest
         where to = 0)
     let rnd = Randomness(Time.millis())
     for i in Range(0, 100) do
-      let sample = gen.generate_value(rnd)?
+      let sample = gen.generate(rnd)?
       h.assert_eq[USize](sample.size(), 0, "non-empty SetIs created")
     end
 
@@ -2008,7 +1460,7 @@ class \nodoc\ iso _PersistentSetIsOfMaxTest is UnitTest
         Generators.persistent_set_is_of[U8](
           Generators.u8()
           where to = size)
-      let sample = gen.generate_value(rnd)?
+      let sample = gen.generate(rnd)?
       h.assert_true(sample.size() <= size, "generated SetIs is too big")
     end
 
@@ -2022,35 +1474,10 @@ class \nodoc\ iso _PersistentSetIsOfMinTest is UnitTest
         where from = 1)
     let rnd = Randomness(Time.millis())
     for i in Range(0, 100) do
-      let sample = gen.generate_value(rnd)?
+      let sample = gen.generate(rnd)?
       h.assert_true(
         sample.size() >= 1,
         "empty SetIs created with from = 1")
-    end
-
-class \nodoc\ iso _PersistentSetIsOfMinShrinkTest is UnitTest
-  fun name(): String => "Gen/persistent_set_is_of_min_shrink"
-
-  fun apply(h: TestHelper) ? =>
-    let gen =
-      Generators.persistent_set_is_of[String](
-        Generators.ascii(where from = 1, to = 10)
-        where from = 5)
-    let rnd = Randomness(Time.millis())
-    match gen.generate(rnd)?
-    | (let sample: persistent.SetIs[String],
-      let shrinks: Iterator[persistent.SetIs[String]^])
-    =>
-      h.assert_true(
-        sample.size() >= 5,
-        "generated SetIs has fewer than 5 elements")
-      for shrunk in shrinks do
-        h.assert_true(
-          shrunk.size() >= 5,
-          "shrunk SetIs has fewer than 5 elements")
-      end
-    else
-      h.fail("persistent_set_is_of did not produce shrinks")
     end
 
 class \nodoc\ iso _PersistentMapOfIdentityTest is UnitTest
@@ -2069,7 +1496,7 @@ class \nodoc\ iso _PersistentMapOfIdentityTest is UnitTest
             }),
           Generators.u8())
         where to = 100)
-    let sample = gen.generate_value(rnd)?
+    let sample = gen.generate(rnd)?
     h.assert_true(sample.size() <= 1)
 
 class \nodoc\ iso _PersistentMapIsOfIdentityTest is UnitTest
@@ -2083,7 +1510,7 @@ class \nodoc\ iso _PersistentMapIsOfIdentityTest is UnitTest
           Generators.unit[String]("the highlander"),
           Generators.u8())
         where to = 100)
-    let sample = gen.generate_value(rnd)?
+    let sample = gen.generate(rnd)?
     h.assert_true(sample.size() <= 1)
 
 class \nodoc\ iso _PersistentMapOfEmptyTest is UnitTest
@@ -2097,7 +1524,7 @@ class \nodoc\ iso _PersistentMapOfEmptyTest is UnitTest
           Generators.u8())
         where to = 0)
     let rnd = Randomness(Time.millis())
-    let sample = gen.generate_value(rnd)?
+    let sample = gen.generate(rnd)?
     h.assert_eq[USize](sample.size(), 0, "non-empty map created")
 
 class \nodoc\ iso _PersistentMapOfMaxTest is UnitTest
@@ -2112,7 +1539,7 @@ class \nodoc\ iso _PersistentMapOfMaxTest is UnitTest
             Generators.u8(),
             Generators.u8())
           where to = size)
-      let sample = gen.generate_value(rnd)?
+      let sample = gen.generate(rnd)?
       h.assert_true(sample.size() <= size, "generated map is too big")
     end
 
@@ -2128,39 +1555,10 @@ class \nodoc\ iso _PersistentMapOfMinTest is UnitTest
         where from = 1)
     let rnd = Randomness(Time.millis())
     for i in Range(0, 100) do
-      let sample = gen.generate_value(rnd)?
+      let sample = gen.generate(rnd)?
       h.assert_true(
         sample.size() >= 1,
         "empty map created with from = 1")
-    end
-
-class \nodoc\ iso _PersistentMapOfMinShrinkTest is UnitTest
-  fun name(): String => "Gen/persistent_map_of_min_shrink"
-
-  fun apply(h: TestHelper) ? =>
-    let gen =
-      Generators.persistent_map_of[String, I64](
-        Generators.zip2[String, I64](
-          Generators.u16().map[String^]({(u: U16): String^ =>
-            u.string()
-          }),
-          Generators.i64(-10, 10))
-        where from = 5)
-    let rnd = Randomness(Time.millis())
-    match gen.generate(rnd)?
-    | (let sample: persistent.Map[String, I64],
-      let shrinks: Iterator[persistent.Map[String, I64]^])
-    =>
-      h.assert_true(
-        sample.size() >= 5,
-        "generated map has fewer than 5 elements")
-      for shrunk in shrinks do
-        h.assert_true(
-          shrunk.size() >= 5,
-          "shrunk map has fewer than 5 elements")
-      end
-    else
-      h.fail("persistent_map_of did not produce shrinks")
     end
 
 class \nodoc\ iso _PersistentMapIsOfEmptyTest is UnitTest
@@ -2174,7 +1572,7 @@ class \nodoc\ iso _PersistentMapIsOfEmptyTest is UnitTest
           Generators.u8())
         where to = 0)
     let rnd = Randomness(Time.millis())
-    let sample = gen.generate_value(rnd)?
+    let sample = gen.generate(rnd)?
     h.assert_eq[USize](sample.size(), 0, "non-empty MapIs created")
 
 class \nodoc\ iso _PersistentMapIsOfMaxTest is UnitTest
@@ -2189,7 +1587,7 @@ class \nodoc\ iso _PersistentMapIsOfMaxTest is UnitTest
             Generators.u8(),
             Generators.u8())
           where to = size)
-      let sample = gen.generate_value(rnd)?
+      let sample = gen.generate(rnd)?
       h.assert_true(sample.size() <= size, "generated MapIs is too big")
     end
 
@@ -2205,37 +1603,158 @@ class \nodoc\ iso _PersistentMapIsOfMinTest is UnitTest
         where from = 1)
     let rnd = Randomness(Time.millis())
     for i in Range(0, 100) do
-      let sample = gen.generate_value(rnd)?
+      let sample = gen.generate(rnd)?
       h.assert_true(
         sample.size() >= 1,
         "empty MapIs created with from = 1")
     end
 
-class \nodoc\ iso _PersistentMapIsOfMinShrinkTest is UnitTest
-  fun name(): String => "Gen/persistent_map_is_of_min_shrink"
+// --- Shrinking tests ---
+class \nodoc\ iso _ShrinkIntToMinProperty is Property1[U32]
+  fun name(): String => "shrink/int_to_min/property"
 
-  fun apply(h: TestHelper) ? =>
-    let gen =
-      Generators.persistent_map_is_of[String, I64](
-        Generators.zip2[String, I64](
-          Generators.u16().map[String^]({(u: U16): String^ =>
-            u.string()
-          }),
-          Generators.i64(-10, 10))
-        where from = 5)
-    let rnd = Randomness(Time.millis())
-    match gen.generate(rnd)?
-    | (let sample: persistent.MapIs[String, I64],
-      let shrinks: Iterator[persistent.MapIs[String, I64]^])
-    =>
-      h.assert_true(
-        sample.size() >= 5,
-        "generated MapIs has fewer than 5 elements")
-      for shrunk in shrinks do
-        h.assert_true(
-          shrunk.size() >= 5,
-          "shrunk MapIs has fewer than 5 elements")
+  fun gen(): Generator[U32] => Generators.u32(0, 1000)
+
+  fun ref property(sample: U32, h: PropertyHelper) =>
+    h.assert_eq[U32](sample, U32(0))
+
+class \nodoc\ iso _ShrinkIntToMinTest is UnitTest
+  """
+  Any non-zero U32 fails the property. The shrinker should reduce it to 1.
+  """
+  fun name(): String => "shrink/int_to_min"
+
+  fun apply(h: TestHelper) =>
+    let property = recover iso _ShrinkIntToMinProperty end
+    let params =
+      PropertyParams(where num_samples' = 100,
+        max_shrink_reductions' = 100)
+
+    h.long_test(params.timeout)
+
+    let notify =
+      object val is PropertyResultNotify
+        fun fail(msg: String) =>
+          if msg.contains("Property failed for sample 1 ") then
+            h.complete(true)
+          else
+            h.fail("expected shrunk sample to be 1, got: " + msg)
+            h.complete(false)
+          end
+
+        fun complete(success: Bool) =>
+          if success then
+            h.fail("property should have failed")
+            h.complete(false)
+          end
       end
-    else
-      h.fail("persistent_map_is_of did not produce shrinks")
-    end
+    let logger = _UnitTestPropertyLogger(h)
+
+    let runner =
+      PropertyRunner[U32](
+        consume property,
+        params,
+        notify,
+        logger,
+        h.env)
+    runner.run()
+
+class \nodoc\ iso _ShrinkIntAboveThresholdProperty is Property1[U32]
+  fun name(): String => "shrink/int_above_threshold/property"
+
+  fun gen(): Generator[U32] => Generators.u32(0, 1000)
+
+  fun ref property(sample: U32, h: PropertyHelper) =>
+    h.assert_true(sample <= 5)
+
+class \nodoc\ iso _ShrinkIntAboveThresholdTest is UnitTest
+  """
+  U32 values above 5 fail. The shrinker should reduce to 6.
+  """
+  fun name(): String => "shrink/int_above_threshold"
+
+  fun apply(h: TestHelper) =>
+    let property = recover iso _ShrinkIntAboveThresholdProperty end
+    let params =
+      PropertyParams(where num_samples' = 100,
+        max_shrink_reductions' = 100)
+
+    h.long_test(params.timeout)
+
+    let notify =
+      object val is PropertyResultNotify
+        fun fail(msg: String) =>
+          if msg.contains("Property failed for sample 6 ") then
+            h.complete(true)
+          else
+            h.fail("expected shrunk sample to be 6, got: " + msg)
+            h.complete(false)
+          end
+
+        fun complete(success: Bool) =>
+          if success then
+            h.fail("property should have failed")
+            h.complete(false)
+          end
+      end
+    let logger = _UnitTestPropertyLogger(h)
+
+    let runner =
+      PropertyRunner[U32](
+        consume property,
+        params,
+        notify,
+        logger,
+        h.env)
+    runner.run()
+
+class \nodoc\ iso _ShrinkArrayToMinProperty is Property1[Array[U8]]
+  fun name(): String => "shrink/array_to_min/property"
+
+  fun gen(): Generator[Array[U8]] =>
+    Generators.array_of[U8](Generators.u8() where from = 1, to = 20)
+
+  fun ref property(sample: Array[U8], h: PropertyHelper) =>
+    h.assert_true(sample.size() == 0)
+
+class \nodoc\ iso _ShrinkArrayToMinTest is UnitTest
+  """
+  Any non-empty array fails. The shrinker should reduce it to a 1-element
+  array with the element shrunk toward 0.
+  """
+  fun name(): String => "shrink/array_to_min"
+
+  fun apply(h: TestHelper) =>
+    let property = recover iso _ShrinkArrayToMinProperty end
+    let params =
+      PropertyParams(where num_samples' = 100,
+        max_shrink_reductions' = 100)
+
+    h.long_test(params.timeout)
+
+    let notify =
+      object val is PropertyResultNotify
+        fun fail(msg: String) =>
+          if msg.contains("Property failed for sample [0] ") then
+            h.complete(true)
+          else
+            h.fail("expected shrunk sample to be [0], got: " + msg)
+            h.complete(false)
+          end
+
+        fun complete(success: Bool) =>
+          if success then
+            h.fail("property should have failed")
+            h.complete(false)
+          end
+      end
+    let logger = _UnitTestPropertyLogger(h)
+
+    let runner =
+      PropertyRunner[Array[U8]](
+        consume property,
+        params,
+        notify,
+        logger,
+        h.env)
+    runner.run()

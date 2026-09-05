@@ -89,6 +89,10 @@ actor PropertyRunner[T]
   in a way that allows garbage collection between single
   property executions, because it uses recursive behaviours
   for looping.
+
+  Shrinking uses choice-sequence recording and replay: the framework records
+  every random decision during generation, then replays generators against
+  mutated decision sequences to produce shrunk counterexamples.
   """
   let _prop1: Property1[T]
   let _params: PropertyParams
@@ -97,22 +101,15 @@ actor PropertyRunner[T]
   let _gen: Generator[T]
   let _logger: PropertyLogger
   let _env: Env
-  // state changed during runtime
   var _current_round: _Round = _Run.create(0)
-    """
-    The number and kind of the round currently executed.
-    Keep track of which runs/shrinks we expect to be notified about.
-    """
   let _expected_actions: Set[String] = Set[String]
-    """
-    List of expected actions for this round.
-    Will be cleared after each round.
-    """
   let _disposables: Array[DisposableActor] = Array[DisposableActor]
-    """
-    Disposable actors that are disposed of after every round.
-    """
-  var _shrinker: Iterator[T^] = _EmptyIterator[T^]
+  var _failing_choices: Array[_Choice val] val =
+    recover val Array[_Choice val] end
+  var _failing_spans: Array[_Span val] val =
+    recover val Array[_Span val] end
+  var _shrink_shrinker: (_Shrinker ref | None) = None
+  var _shrink_candidates: (Iterator[Array[_Choice val] val] | None) = None
   var _sample_repr: String = ""
   var _pass: Bool = true
 
@@ -139,8 +136,6 @@ actor PropertyRunner[T]
     This behaviour is called from the PropertyHelper
     or from the actor itself.
     """
-
-    // verify that this is an expected call
     if this._current_round != round then
       _logger.log(
         "unexpected " +
@@ -152,24 +147,22 @@ actor PropertyRunner[T]
       return
     end
 
-    _pass = success // in case of sync property - signal failure
+    _pass = success
 
     if not success then
-      // found a bad example, try to shrink it
-      if not _shrinker.has_next() then
-        _logger.log("no shrinks available")
+      _failing_choices = _rnd._get_choices()
+      _failing_spans = _rnd._get_spans()
+
+      if _failing_choices.size() == 0 then
+        _logger.log("no choices recorded, cannot shrink")
         _prepare_next_round()
         fail(_sample_repr, 0)
       else
-        // prepare next round
         _prepare_next_round()
-        // set rounds to shrinking
-        this._current_round = _Shrink.create(0) // reset rounds for shrinking
-        // start shrinking process
+        this._current_round = _Shrink.create(0)
         do_shrink(_sample_repr)
       end
     else
-      // property holds, recurse
       _prepare_next_round()
       run()
     end
@@ -181,11 +174,11 @@ actor PropertyRunner[T]
       disposable.dispose()
     end
 
-  fun ref _generate_with_retry(max_retries: USize): ValueAndShrink[T] ? =>
+  fun ref _generate_with_retry(max_retries: USize): T^ ? =>
     var tries: USize = 0
     repeat
       try
-        return _gen.generate_and_shrink(_rnd)?
+        return _gen.generate(_rnd)?
       else
         tries = tries + 1
       end
@@ -198,16 +191,17 @@ actor PropertyRunner[T]
     Execute the next property sample.
     """
     if this._current_round.round() >= _params.num_samples then
-      complete() // all samples have been successful
+      complete()
       return
     end
 
-    // prepare property run
-    (var sample, _shrinker) =
+    _rnd._start_recording()
+
+    var sample: T =
       try
         _generate_with_retry(_params.max_generator_retries)?
       else
-        // break out if we were not able to generate a sample
+        _rnd._reset()
         _notify.fail(
           "Unable to generate samples from the given iterator, tried " +
           _params.max_generator_retries.string() + " times." +
@@ -216,8 +210,6 @@ actor PropertyRunner[T]
         return
       end
 
-    // create a string representation before consuming ``sample``
-    // with property
     (sample, _sample_repr) = _Stringify.apply[T](consume sample)
     let run_notify = recover val this~complete_run() end
     let helper =
@@ -227,81 +219,96 @@ actor PropertyRunner[T]
         run_notify,
         this._current_round,
         _params.string())
-    _pass = true // will be set to false by fail calls
+    _pass = true
 
     try
       _prop1.property(consume sample, helper)?
     else
+      _failing_choices = _rnd._get_choices()
+      _failing_spans = _rnd._get_spans()
       _prepare_next_round()
       fail(_sample_repr, 0 where err=true)
       return
     end
-    // dispatch to another behavior
-    // as complete_run might have set _pass already through a call to
-    // complete_run
     _run_finished(this._current_round)
 
   be _run_finished(round: _Round) =>
     if not _params.async and _pass then
-      // otherwise complete_run has already been called
       complete_run(round, true)
     end
 
 // SHRINKING //
-  be complete_shrink(
-    failed_repr: String,
-    last_repr: String,
-    shrink_round: _Round,
-    success: Bool)
-  =>
-    // verify that this is an expected call
-    if this._current_round != shrink_round then
-      _logger.log(
-        "unexpected " +
-          (if success then "complete" else "fail" end) +
-          " msg for " + shrink_round.string() +
-          ". Currently at " +
-          _current_round.string(),
-        true)
-      return
-    end
-
-    _pass = success // in case of sync property - signal failure
-
-    if success then
-      // we have a sample that did not fail and thus can stop shrinking
-      fail(failed_repr, shrink_round.round())
-
-    else
-      // we have a failing shrink sample, recurse
-      _prepare_next_round()
-      do_shrink(last_repr)
-    end
-
   be do_shrink(failed_repr: String) =>
     """
-    Attempt to shrink a failing sample.
+    Shrink a failing sample using choice-sequence replay.
     """
-    // shrink iters can be infinite, so we need to limit
-    // the examples we consider during shrinking
-    let round_num = this._current_round.round()
-    if round_num == _params.max_shrink_rounds then
-      fail(failed_repr, round_num)
+    let shrinker =
+      _Shrinker(
+        _failing_choices,
+        _failing_spans,
+        _params.max_shrink_reductions)
+    _shrink_shrinker = shrinker
+    _shrink_candidates = shrinker.candidates()
+    _try_next_candidate(failed_repr)
+
+  be _try_next_candidate(failed_repr: String) =>
+    let candidates =
+      match _shrink_candidates
+      | let c: Iterator[Array[_Choice val] val] => c
+      else
+        fail(failed_repr, this._current_round.round())
+        return
+      end
+
+    if not candidates.has_next() then
+      fail(failed_repr, this._current_round.round())
       return
     end
 
-    (let shrink, let current_repr) =
+    let candidate =
       try
-        _Stringify.apply[T](_shrinker.next()?)
+        candidates.next()?
       else
-        // no more shrink samples, report previous failed example
-        fail(failed_repr, round_num)
+        fail(failed_repr, this._current_round.round())
         return
       end
-    // callback for asynchronous shrinking or aborting on error case
+
+    _rnd._replay(candidate)
+    var sample: T =
+      try
+        _gen.generate(_rnd)?
+      else
+        _rnd._reset()
+        _try_next_candidate(failed_repr)
+        return
+      end
+
+    let consumed = _rnd._consumed()
+    let new_choices =
+      if consumed < candidate.size() then
+        recover val
+          let trimmed = Array[_Choice val](consumed)
+          try
+            var i: USize = 0
+            while i < consumed do
+              trimmed.push(candidate(i)?)
+              i = i + 1
+            end
+          end
+          trimmed
+        end
+      else
+        candidate
+      end
+
+    (sample, let current_repr) = _Stringify.apply[T](consume sample)
+    let new_spans = _rnd._get_spans()
+    _rnd._reset()
+
     let run_notify =
       recover val
-        this~complete_shrink(failed_repr, current_repr)
+        this~_shrink_candidate_result(
+          failed_repr, current_repr, new_choices, new_spans)
       end
     let helper =
       PropertyHelper(
@@ -310,27 +317,67 @@ actor PropertyRunner[T]
         run_notify,
         this._current_round,
         _params.string())
-    _pass = true // will be set to false by fail calls
+    _pass = true
 
     try
-      _prop1.property(consume shrink, helper)?
+      _prop1.property(consume sample, helper)?
     else
+      _accept_shrink_candidate(new_choices, new_spans)
       _prepare_next_round()
-      fail(current_repr, round_num where err=true)
+      _try_next_candidate(current_repr)
       return
     end
-    // dispatch to another behaviour
-    // to ensure _complete_shrink has been called already
-    _shrink_finished(failed_repr, current_repr, this._current_round)
+    _shrink_candidate_finished(
+      failed_repr,
+      current_repr,
+      new_choices,
+      new_spans,
+      this._current_round)
 
-  be _shrink_finished(
+  fun ref _accept_shrink_candidate(
+    new_choices: Array[_Choice val] val,
+    new_spans: Array[_Span val] val)
+  =>
+    match _shrink_shrinker
+    | let s: _Shrinker ref =>
+      s.accept(new_choices, new_spans)
+    end
+    _failing_choices = new_choices
+    _failing_spans = new_spans
+
+  be _shrink_candidate_result(
     failed_repr: String,
     current_repr: String,
-    shrink_round: _Round)
+    new_choices: Array[_Choice val] val,
+    new_spans: Array[_Span val] val,
+    round: _Round,
+    success: Bool)
+  =>
+    if round != this._current_round then return end
+    if success then
+      _prepare_next_round()
+      _try_next_candidate(failed_repr)
+    else
+      _accept_shrink_candidate(new_choices, new_spans)
+      _prepare_next_round()
+      _try_next_candidate(current_repr)
+    end
+
+  be _shrink_candidate_finished(
+    failed_repr: String,
+    current_repr: String,
+    new_choices: Array[_Choice val] val,
+    new_spans: Array[_Span val] val,
+    round: _Round)
   =>
     if not _params.async and _pass then
-      // directly complete the shrink run
-      complete_shrink(failed_repr, current_repr, shrink_round, true)
+      _shrink_candidate_result(
+        failed_repr,
+        current_repr,
+        new_choices,
+        new_spans,
+        round,
+        true)
     end
 
 // interface towards PropertyHelper
@@ -390,8 +437,6 @@ actor PropertyRunner[T]
     try
       _expected_actions.extract(name)?
 
-      // call back into the helper to invoke the current run_notify
-      // that we don't have access to otherwise
       if not success then
         ph.complete(false)
       elseif _expected_actions.size() == 0 then
@@ -405,10 +450,6 @@ actor PropertyRunner[T]
     end
 
   be dispose_when_done(disposable: DisposableActor, round: _Round) =>
-    """
-    Let us not have older rounds interfere with newer ones,
-    thus dispose directly.
-    """
     if round != this._current_round then
       _logger.log("Unexpected dispose_when_done for " + round.string() +
         ". Currently at " + this._current_round.string(), true)
@@ -477,10 +518,6 @@ actor PropertyRunner[T]
         " shrinks)"
     )
 
-class _EmptyIterator[T]
-  fun ref has_next(): Bool => false
-  fun ref next(): T^ ? => error
-
 primitive _Stringify
   fun apply[T](t: T): (T^, String) =>
     """
@@ -511,4 +548,3 @@ primitive _Stringify
         "<identity:" + digest.string() + ">"
       end
     (consume t, consume s)
-

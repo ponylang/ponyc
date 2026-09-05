@@ -6,7 +6,7 @@ class val PropertyParams is Stringable
 
   * seed: the seed for the source of Randomness
   * num_samples: the number of samples to produce from the property generator
-  * max_shrink_rounds: the maximum rounds of shrinking to perform
+  * max_shrink_reductions: the maximum number of shrink reductions to accept
   * max_generator_retries: the maximum number of retries to do if a generator
     fails to generate a sample
   * timeout: the timeout for the PonyTest runner, in nanoseconds
@@ -15,7 +15,7 @@ class val PropertyParams is Stringable
   """
   let seed: U64
   let num_samples: USize
-  let max_shrink_rounds: USize
+  let max_shrink_reductions: USize
   let max_generator_retries: USize
   let timeout: U64
   let async: Bool
@@ -23,14 +23,14 @@ class val PropertyParams is Stringable
   new val create(
     num_samples': USize = 100,
     seed': U64 = Time.millis(),
-    max_shrink_rounds': USize = 10,
+    max_shrink_reductions': USize = 100,
     max_generator_retries': USize = 5,
     timeout': U64 = 60_000_000_000,
     async': Bool = false)
   =>
     num_samples = num_samples'
     seed = seed'
-    max_shrink_rounds = max_shrink_rounds'
+    max_shrink_reductions = max_shrink_reductions'
     max_generator_retries = max_generator_retries'
     timeout = timeout'
     async = async'
@@ -68,9 +68,9 @@ trait Property1[T]
   samples and each is passed to the
   [property](pony_check-Property1.md#property) method for verification.
 
-  If the property did not verify, the given sample is shrunken if the
-  generator supports shrinking.
-  The smallest shrunken sample will then be reported to the user.
+  If the property did not verify, the framework automatically shrinks the
+  failing sample by replaying the generator against mutated choice sequences.
+  The smallest counterexample found is reported to the user.
 
   A [Property1](pony_check-Property1.md) can be run with
   [Ponytest](pony_test--index.md).
