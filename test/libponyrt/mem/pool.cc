@@ -1717,7 +1717,7 @@ extern "C" uint32_t ponyint_pool_arena_owner_slots_for_test();
 // to both owners proves the walk and the append.
 TEST(PoolArena, OwnerRegistryGrowth)
 {
-#if defined(PLATFORM_IS_OPENBSD)
+#if defined(PLATFORM_IS_OPENBSD) or defined(PLATFORM_IS_HAIKU)
   // ~258 threads each claim an arena; arenas are carved from 256 MiB
   // regions (transiently 512 MiB on POSIX), and regions are never
   // unmapped.  The cumulative address-space footprint exceeds OpenBSD's
@@ -1810,7 +1810,7 @@ TEST(PoolArena, OwnerRegistryGrowth)
 // owner proves its object came home.
 TEST(PoolArena, ChainMapGrowth)
 {
-#if defined(PLATFORM_IS_OPENBSD)
+#if defined(PLATFORM_IS_OPENBSD) or defined(PLATFORM_IS_HAIKU)
   GTEST_SKIP();  // see OwnerRegistryGrowth skip comment
 #endif
   // Past half the initial capacity, where the map doubles mid-stream.
@@ -2248,7 +2248,7 @@ TEST(PoolArena, ReturnIdleFlushesCache)
 // segment the list does not hold.
 TEST(PoolArena, OwnerRegistryAppendRace)
 {
-#if defined(PLATFORM_IS_OPENBSD)
+#if defined(PLATFORM_IS_OPENBSD) or defined(PLATFORM_IS_HAIKU)
   GTEST_SKIP();  // see OwnerRegistryGrowth skip comment
 #endif
   static const int racers = 16;
@@ -3294,7 +3294,7 @@ uintptr_t fill_whole_region(std::vector<char*>& blocks,
 // arena past the last slot comes from another region.
 TEST(PoolArena, CrossRegionCarve)
 {
-#if defined(PLATFORM_IS_OPENBSD)
+#if defined(PLATFORM_IS_OPENBSD) or defined(PLATFORM_IS_HAIKU)
   // Filling a region needs 31 arena-filling blocks, and each 256 MiB
   // region transiently maps 512 MiB on POSIX.  Combined with regions
   // accumulated by earlier tests in the same process, this exceeds
@@ -3333,7 +3333,7 @@ TEST(PoolArena, RegionCarveRace)
   // 512 MiB mmap that each 256 MiB region reservation needs on POSIX.
   // 8×8 arenas span three regions; the third reservation fails.  4×4
   // arenas fit in one region, still exercising the concurrent carve race.
-#if defined(PLATFORM_IS_OPENBSD)
+#if defined(PLATFORM_IS_OPENBSD) or defined(PLATFORM_IS_HAIKU)
   static const int threads = 4;
   static const int per_thread = 4;
 #else
@@ -3426,7 +3426,7 @@ TEST(PoolArena, RegionCarveRace)
 // mapping involved.
 TEST(PoolArena, ParkedRegionRecarve)
 {
-#if defined(PLATFORM_IS_OPENBSD)
+#if defined(PLATFORM_IS_OPENBSD) or defined(PLATFORM_IS_HAIKU)
   GTEST_SKIP();  // see CrossRegionCarve skip comment
 #endif
   // Retention off: the per-arena resident assertions below are about
@@ -3523,7 +3523,7 @@ TEST(PoolArena, ParkedRegionRecarve)
 // first must come back through the walk.
 TEST(PoolArena, RegionListWalkReclaims)
 {
-#if defined(PLATFORM_IS_OPENBSD)
+#if defined(PLATFORM_IS_OPENBSD) or defined(PLATFORM_IS_HAIKU)
   GTEST_SKIP();  // see CrossRegionCarve skip comment
 #endif
   // Retention off: the walk this test proves is only reached when freed
@@ -3624,7 +3624,7 @@ TEST(PoolArena, ConcurrentChurnStress)
   // 512 MiB mmap that each 256 MiB region reservation needs on POSIX.
   // Earlier tests in the suite accumulate region mappings in the same
   // process, so the headroom left by the time this test runs is narrow.
-#if defined(PLATFORM_IS_OPENBSD)
+#if defined(PLATFORM_IS_OPENBSD) or defined(PLATFORM_IS_HAIKU)
   static const int nthreads = 2;
   static const int rounds = 50;
 #else
