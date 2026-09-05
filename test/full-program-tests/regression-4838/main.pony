@@ -10,9 +10,9 @@ use @pony_exitcode[None](code: I32)
 // method to not be marked as reachable, leaving a hole in the vtable and
 // producing a segfault at runtime.
 //
-// The bug manifests when Generator.map's internal _map_shrunken method
-// passes a lambda to Iter.map, creating a chain of nested object literals.
-// Iterating the resulting shrink iterator triggers the segfault because the
+// The bug manifests when Generator.map's internal object literal wraps
+// a lambda passed by the caller, creating a chain of nested object literals.
+// Calling generate on the mapped generator triggers the segfault because the
 // lambda's apply method has no vtable entry.
 
 actor Main
@@ -22,16 +22,10 @@ actor Main
     end
     let rnd = Randomness
     try
-      // generate_and_shrink returns the mapped value and a shrink iterator.
-      // The shrink iterator is produced by _map_shrunken, which uses the
-      // nested lambda pattern that triggers the bug.
-      (let value: U32, let shrunken: Iterator[U32^]) =
-        gen.generate_and_shrink(rnd)?
-      // Iterating the shrink iterator calls the nested lambda's apply.
+      // generate calls through the mapped generator's object literal,
+      // which invokes the lambda — the nested pattern that triggers the bug.
       // Without the fix, this segfaults due to the missing vtable entry.
-      while shrunken.has_next() do
-        shrunken.next()?
-      end
+      let value: U32 = gen.generate(rnd)?
       @pony_exitcode(0)
     else
       @pony_exitcode(1)

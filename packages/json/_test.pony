@@ -129,35 +129,35 @@ primitive \nodoc\ _JSONValueStringGen
     let that = this
     Generator[String](
       object is GenObj[String]
-        fun generate(rnd: Randomness): String =>
-          that._gen_value(rnd, max_depth)
+        fun generate(rnd: Randomness): String^ ? =>
+          that._gen_value(rnd, max_depth)?
       end)
 
-  fun _gen_value(rnd: Randomness, depth: USize): String =>
+  fun _gen_value(rnd: Randomness, depth: USize): String ? =>
     let choice =
       if depth == 0 then
-        rnd.usize(0, 4)
+        rnd.usize(0, 4)?
       else
-        rnd.usize(0, 6)
+        rnd.usize(0, 6)?
       end
     match choice
-    | 0 => _gen_int(rnd)
-    | 1 => _gen_float(rnd)
-    | 2 => if rnd.bool() then "true" else "false" end
+    | 0 => _gen_int(rnd)?
+    | 1 => _gen_float(rnd)?
+    | 2 => if rnd.bool()? then "true" else "false" end
     | 3 => "null"
-    | 4 => _gen_string(rnd)
-    | 5 => _gen_object(rnd, depth - 1)
-    | 6 => _gen_array(rnd, depth - 1)
+    | 4 => _gen_string(rnd)?
+    | 5 => _gen_object(rnd, depth - 1)?
+    | 6 => _gen_array(rnd, depth - 1)?
     else "null"
     end
 
-  fun _gen_int(rnd: Randomness): String =>
-    rnd.i64(-1000, 1000).string()
+  fun _gen_int(rnd: Randomness): String ? =>
+    rnd.i64(-1000, 1000)?.string()
 
-  fun _gen_float(rnd: Randomness): String =>
-    let numerator = rnd.i64(-100, 100)
+  fun _gen_float(rnd: Randomness): String ? =>
+    let numerator = rnd.i64(-100, 100)?
     let denom: I64 =
-      match rnd.usize(0, 3)
+      match rnd.usize(0, 3)?
       | 0 => 2
       | 1 => 4
       | 2 => 5
@@ -175,8 +175,8 @@ primitive \nodoc\ _JSONValueStringGen
       s
     end
 
-  fun _gen_string(rnd: Randomness): String =>
-    let len = rnd.usize(0, 15)
+  fun _gen_string(rnd: Randomness): String ? =>
+    let len = rnd.usize(0, 15)?
     var buf: String ref = String(len + 2)
     buf.push('"')
     var i: USize = 0
@@ -184,14 +184,14 @@ primitive \nodoc\ _JSONValueStringGen
       // Mix in escape and \uXXXX/surrogate sequences so property tests exercise
       // the escape and unicode decode paths (and their resume across chunks),
       // not just plain ASCII. Every branch is valid JSON.
-      match rnd.usize(0, 9)
+      match rnd.usize(0, 9)?
       | 0 => buf.append("\\n")
       | 1 => buf.append("\\t")
       | 2 => buf.append("\\r")
       | 3 => buf.append("\\u00e9")        // a BMP \uXXXX escape
       | 4 => buf.append("\\uD83D\\uDE00") // a surrogate pair
       else
-        let c = rnd.u8(0x20, 0x7E)
+        let c = rnd.u8(0x20, 0x7E)?
         if c == '"' then
           buf.append("\\\"")
         elseif c == '\\' then
@@ -205,39 +205,38 @@ primitive \nodoc\ _JSONValueStringGen
     buf.push('"')
     buf.clone()
 
-  fun _gen_object(rnd: Randomness, depth: USize): String =>
-    let count = rnd.usize(0, 3)
+  fun _gen_object(rnd: Randomness, depth: USize): String ? =>
+    let count = rnd.usize(0, 3)?
     if count == 0 then return "{}" end
     var buf: String ref = String(64)
     buf.push('{')
     var i: USize = 0
     while i < count do
       if i > 0 then buf.push(',') end
-      // generate a simple key
-      let key_len = rnd.usize(1, 6)
+      let key_len = rnd.usize(1, 6)?
       buf.push('"')
       var k: USize = 0
       while k < key_len do
-        buf.push(rnd.u8('a', 'z'))
+        buf.push(rnd.u8('a', 'z')?)
         k = k + 1
       end
       buf.push('"')
       buf.push(':')
-      buf.append(_gen_value(rnd, depth))
+      buf.append(_gen_value(rnd, depth)?)
       i = i + 1
     end
     buf.push('}')
     buf.clone()
 
-  fun _gen_array(rnd: Randomness, depth: USize): String =>
-    let count = rnd.usize(0, 4)
+  fun _gen_array(rnd: Randomness, depth: USize): String ? =>
+    let count = rnd.usize(0, 4)?
     if count == 0 then return "[]" end
     var buf: String ref = String(64)
     buf.push('[')
     var i: USize = 0
     while i < count do
       if i > 0 then buf.push(',') end
-      buf.append(_gen_value(rnd, depth))
+      buf.append(_gen_value(rnd, depth)?)
       i = i + 1
     end
     buf.push(']')
@@ -306,10 +305,10 @@ class \nodoc\ iso _F64RoundtripProperty is Property1[F64]
     // long-digit values that most stress the printer's precision.
     Generator[F64](
       object is GenObj[F64]
-        fun generate(rnd: Randomness): F64 =>
-          let sign = rnd.u64(0, 1) << 63
-          let exp = rnd.u64(0, 2046) << 52
-          let mant = rnd.u64() and 0x000F_FFFF_FFFF_FFFF
+        fun generate(rnd: Randomness): F64 ? =>
+          let sign = rnd.u64(0, 1)? << 63
+          let exp = rnd.u64(0, 2046)? << 52
+          let mant = rnd.u64()? and 0x000F_FFFF_FFFF_FFFF
           F64.from_bits(sign or exp or mant)
       end)
 
@@ -1886,33 +1885,33 @@ primitive \nodoc\ _SafeIRegexpGen
     let that = this
     Generator[String](
       object is GenObj[String]
-        fun generate(rnd: Randomness): String =>
-          that._gen(rnd, max_depth)
+        fun generate(rnd: Randomness): String^ ? =>
+          that._gen(rnd, max_depth)?
       end)
 
-  fun _gen(rnd: Randomness, depth: USize): String =>
-    if depth == 0 then return _gen_atom(rnd) end
-    match rnd.usize(0, 5)
-    | 0 => _gen_atom(rnd)
-    | 1 => _gen(rnd, depth - 1) + "|" + _gen(rnd, depth - 1)
-    | 2 => _gen_atom(rnd) + _gen_atom(rnd)
-    | 3 => "(" + _gen(rnd, depth - 1) + ")" + _gen_quant(rnd)
-    | 4 => _gen_atom(rnd) + _gen_quant(rnd)
-    | 5 => _gen(rnd, depth - 1) + _gen_atom(rnd)
-    else _gen_atom(rnd)
+  fun _gen(rnd: Randomness, depth: USize): String ? =>
+    if depth == 0 then return _gen_atom(rnd)? end
+    match rnd.usize(0, 5)?
+    | 0 => _gen_atom(rnd)?
+    | 1 => _gen(rnd, depth - 1)? + "|" + _gen(rnd, depth - 1)?
+    | 2 => _gen_atom(rnd)? + _gen_atom(rnd)?
+    | 3 => "(" + _gen(rnd, depth - 1)? + ")" + _gen_quant(rnd)?
+    | 4 => _gen_atom(rnd)? + _gen_quant(rnd)?
+    | 5 => _gen(rnd, depth - 1)? + _gen_atom(rnd)?
+    else _gen_atom(rnd)?
     end
 
-  fun _gen_atom(rnd: Randomness): String =>
-    match rnd.usize(0, 3)
-    | 0 => String.from_array([rnd.u8('a', 'z')])
+  fun _gen_atom(rnd: Randomness): String ? =>
+    match rnd.usize(0, 3)?
+    | 0 => String.from_array([rnd.u8('a', 'z')?])
     | 1 => "."
     | 2 => "[a-z]"
     | 3 => "[0-9]"
     else "a"
     end
 
-  fun _gen_quant(rnd: Randomness): String =>
-    match rnd.usize(0, 3)
+  fun _gen_quant(rnd: Randomness): String ? =>
+    match rnd.usize(0, 3)?
     | 0 => ""
     | 1 => "*"
     | 2 => "+"

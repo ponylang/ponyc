@@ -95,9 +95,9 @@ execute it for a configurable number of samples.
 
 If the property fails using an assertion method of
 [PropertyHelper](pony_check-PropertyHelper.md),
-the failed example will be shrunken by the generator
-to obtain a smaller and more informative, still failing, sample
-for reporting.
+the framework automatically shrinks the failing sample by replaying the
+generator against mutated choice sequences, producing a smaller and more
+informative counterexample for reporting.
 
 """
 use "pony_test"
