@@ -242,7 +242,11 @@ class \nodoc\ iso _TestANSITermCSINavigation is UnitTest
     let timers = Timers
     let term =
       ANSITerm(
-        SignalAuth(h.env.root), _RecordNotify(h, expected), _NullSource, timers)
+        SignalAuth(h.env.root),
+        TerminalAuth(h.env.root),
+        _RecordNotify(h, expected),
+        _NullSource,
+        timers)
     h.dispose_when_done(term)
     h.dispose_when_done(timers)
     h.long_test(2_000_000_000)
@@ -265,7 +269,11 @@ class \nodoc\ iso _TestANSITermPassthrough is UnitTest
     let timers = Timers
     let term =
       ANSITerm(
-        SignalAuth(h.env.root), _RecordNotify(h, expected), _NullSource, timers)
+        SignalAuth(h.env.root),
+        TerminalAuth(h.env.root),
+        _RecordNotify(h, expected),
+        _NullSource,
+        timers)
     h.dispose_when_done(term)
     h.dispose_when_done(timers)
     h.long_test(2_000_000_000)
@@ -288,7 +296,11 @@ class \nodoc\ iso _TestANSITermSS3Navigation is UnitTest
     let timers = Timers
     let term =
       ANSITerm(
-        SignalAuth(h.env.root), _RecordNotify(h, expected), _NullSource, timers)
+        SignalAuth(h.env.root),
+        TerminalAuth(h.env.root),
+        _RecordNotify(h, expected),
+        _NullSource,
+        timers)
     h.dispose_when_done(term)
     h.dispose_when_done(timers)
     h.long_test(2_000_000_000)
@@ -311,7 +323,11 @@ class \nodoc\ iso _TestANSITermKeypad is UnitTest
     let timers = Timers
     let term =
       ANSITerm(
-        SignalAuth(h.env.root), _RecordNotify(h, expected), _NullSource, timers)
+        SignalAuth(h.env.root),
+        TerminalAuth(h.env.root),
+        _RecordNotify(h, expected),
+        _NullSource,
+        timers)
     h.dispose_when_done(term)
     h.dispose_when_done(timers)
     h.long_test(2_000_000_000)
@@ -336,7 +352,11 @@ class \nodoc\ iso _TestANSITermFunctionKeys is UnitTest
     let timers = Timers
     let term =
       ANSITerm(
-        SignalAuth(h.env.root), _RecordNotify(h, expected), _NullSource, timers)
+        SignalAuth(h.env.root),
+        TerminalAuth(h.env.root),
+        _RecordNotify(h, expected),
+        _NullSource,
+        timers)
     h.dispose_when_done(term)
     h.dispose_when_done(timers)
     h.long_test(2_000_000_000)
@@ -366,7 +386,11 @@ class \nodoc\ iso _TestANSITermModifiers is UnitTest
     let timers = Timers
     let term =
       ANSITerm(
-        SignalAuth(h.env.root), _RecordNotify(h, expected), _NullSource, timers)
+        SignalAuth(h.env.root),
+        TerminalAuth(h.env.root),
+        _RecordNotify(h, expected),
+        _NullSource,
+        timers)
     h.dispose_when_done(term)
     h.dispose_when_done(timers)
     h.long_test(2_000_000_000)
@@ -386,7 +410,11 @@ class \nodoc\ iso _TestANSITermAltWord is UnitTest
     let timers = Timers
     let term =
       ANSITerm(
-        SignalAuth(h.env.root), _RecordNotify(h, expected), _NullSource, timers)
+        SignalAuth(h.env.root),
+        TerminalAuth(h.env.root),
+        _RecordNotify(h, expected),
+        _NullSource,
+        timers)
     h.dispose_when_done(term)
     h.dispose_when_done(timers)
     h.long_test(2_000_000_000)
@@ -414,7 +442,11 @@ class \nodoc\ iso _TestANSITermUnrecognizedEscape is UnitTest
     let timers = Timers
     let term =
       ANSITerm(
-        SignalAuth(h.env.root), _RecordNotify(h, expected), _NullSource, timers)
+        SignalAuth(h.env.root),
+        TerminalAuth(h.env.root),
+        _RecordNotify(h, expected),
+        _NullSource,
+        timers)
     h.dispose_when_done(term)
     h.dispose_when_done(timers)
     h.long_test(2_000_000_000)
@@ -436,7 +468,11 @@ class \nodoc\ iso _TestANSITermUnknownKeypad is UnitTest
     let timers = Timers
     let term =
       ANSITerm(
-        SignalAuth(h.env.root), _RecordNotify(h, expected), _NullSource, timers)
+        SignalAuth(h.env.root),
+        TerminalAuth(h.env.root),
+        _RecordNotify(h, expected),
+        _NullSource,
+        timers)
     h.dispose_when_done(term)
     h.dispose_when_done(timers)
     h.long_test(2_000_000_000)
@@ -458,7 +494,11 @@ class \nodoc\ iso _TestANSITermParamOverflow is UnitTest
     let timers = Timers
     let term =
       ANSITerm(
-        SignalAuth(h.env.root), _RecordNotify(h, expected), _NullSource, timers)
+        SignalAuth(h.env.root),
+        TerminalAuth(h.env.root),
+        _RecordNotify(h, expected),
+        _NullSource,
+        timers)
     h.dispose_when_done(term)
     h.dispose_when_done(timers)
     h.long_test(2_000_000_000)
@@ -480,7 +520,11 @@ class \nodoc\ iso _TestANSITermPrivateParam is UnitTest
     let timers = Timers
     let term =
       ANSITerm(
-        SignalAuth(h.env.root), _RecordNotify(h, expected), _NullSource, timers)
+        SignalAuth(h.env.root),
+        TerminalAuth(h.env.root),
+        _RecordNotify(h, expected),
+        _NullSource,
+        timers)
     h.dispose_when_done(term)
     h.dispose_when_done(timers)
     h.long_test(2_000_000_000)
@@ -507,7 +551,11 @@ class \nodoc\ iso _TestANSITermControlAbort is UnitTest
     let timers = Timers
     let term =
       ANSITerm(
-        SignalAuth(h.env.root), _RecordNotify(h, expected), _NullSource, timers)
+        SignalAuth(h.env.root),
+        TerminalAuth(h.env.root),
+        _RecordNotify(h, expected),
+        _NullSource,
+        timers)
     h.dispose_when_done(term)
     h.dispose_when_done(timers)
     h.long_test(2_000_000_000)
@@ -527,7 +575,11 @@ class \nodoc\ iso _TestANSITermTimeoutFlush is UnitTest
     let timers = Timers
     let term =
       ANSITerm(
-        SignalAuth(h.env.root), _RecordNotify(h, expected), _NullSource, timers)
+        SignalAuth(h.env.root),
+        TerminalAuth(h.env.root),
+        _RecordNotify(h, expected),
+        _NullSource,
+        timers)
     h.dispose_when_done(term)
     h.dispose_when_done(timers)
     h.long_test(2_000_000_000)
@@ -554,7 +606,11 @@ class \nodoc\ iso _TestANSITermStaleTimeout is UnitTest
     let timers = Timers
     let term =
       ANSITerm(
-        SignalAuth(h.env.root), _RecordNotify(h, expected), _NullSource, timers)
+        SignalAuth(h.env.root),
+        TerminalAuth(h.env.root),
+        _RecordNotify(h, expected),
+        _NullSource,
+        timers)
     h.dispose_when_done(term)
     h.dispose_when_done(timers)
     h.long_test(2_000_000_000)
@@ -577,7 +633,11 @@ class \nodoc\ iso _TestANSITermRealTimerFlush is UnitTest
     let timers = Timers
     let term =
       ANSITerm(
-        SignalAuth(h.env.root), _FlushNotify(h), _NullSource, timers)
+        SignalAuth(h.env.root),
+        TerminalAuth(h.env.root),
+        _FlushNotify(h),
+        _NullSource,
+        timers)
     h.dispose_when_done(term)
     h.dispose_when_done(timers)
     h.long_test(2_000_000_000)
@@ -594,7 +654,11 @@ class \nodoc\ iso _TestANSITermDispose is UnitTest
     let timers = Timers
     let term =
       ANSITerm(
-        SignalAuth(h.env.root), _DisposeNotify(h), _NullSource, timers)
+        SignalAuth(h.env.root),
+        TerminalAuth(h.env.root),
+        _DisposeNotify(h),
+        _NullSource,
+        timers)
     h.dispose_when_done(term)
     h.dispose_when_done(timers)
     h.long_test(2_000_000_000)
@@ -632,7 +696,11 @@ class \nodoc\ iso _TestANSITermPromptForward is UnitTest
     let timers = Timers
     let term =
       ANSITerm(
-        SignalAuth(h.env.root), _PromptNotify(h, "PS> "), _NullSource, timers)
+        SignalAuth(h.env.root),
+        TerminalAuth(h.env.root),
+        _PromptNotify(h, "PS> "),
+        _NullSource,
+        timers)
     h.dispose_when_done(term)
     h.dispose_when_done(timers)
     h.long_test(2_000_000_000)
@@ -650,7 +718,11 @@ class \nodoc\ iso _TestANSITermSize is UnitTest
     let timers = Timers
     let term =
       ANSITerm(
-        SignalAuth(h.env.root), _SizeNotify(h), _NullSource, timers)
+        SignalAuth(h.env.root),
+        TerminalAuth(h.env.root),
+        _SizeNotify(h),
+        _NullSource,
+        timers)
     h.dispose_when_done(term)
     h.dispose_when_done(timers)
     h.long_test(2_000_000_000)
@@ -786,9 +858,9 @@ class \nodoc\ iso _TestANSIColors is UnitTest
 // Readline test doubles.
 //
 // Readline can only be exercised through a real ANSITerm: its input methods
-// take an `ANSITerm ref` that exists only inside the actor. So each test builds
-// `ANSITerm(auth, Readline(notify, out, ...), source, timers)` and drives it
-// with `term.apply(bytes)`. Observation is through the injected ReadlineNotify
+// take an `ANSITerm ref` that exists only inside the actor. So each test
+// builds an ANSITerm with a Readline notifier and drives it with
+// `term.apply(bytes)`. Observation is through the injected ReadlineNotify
 // (the dispatched line) and, for the synchronous history tests, the history
 // file.
 // ---------------------------------------------------------------------------
@@ -1099,6 +1171,7 @@ class \nodoc\ iso _TestReadlineCtrlKRefresh is UnitTest
     let term =
       ANSITerm(
         SignalAuth(h.env.root),
+        TerminalAuth(h.env.root),
         Readline(_MatchNotify(h, out, 2), out),
         _NullSource,
         timers)
@@ -1126,6 +1199,7 @@ class \nodoc\ iso _TestReadlineEmptyLineCursor is UnitTest
     let term =
       ANSITerm(
         SignalAuth(h.env.root),
+        TerminalAuth(h.env.root),
         Readline(_MatchNotify(h, out, 1), out),
         _NullSource,
         timers)
@@ -1163,6 +1237,7 @@ primitive \nodoc\ _DriveReadline
     let term =
       ANSITerm(
         SignalAuth(h.env.root),
+        TerminalAuth(h.env.root),
         Readline(_DriverNotify(driver), _NullOut),
         _NullSource,
         timers)
@@ -1184,6 +1259,7 @@ class \nodoc\ iso _TestReadlineBlockedQueue is UnitTest
     let term =
       ANSITerm(
         SignalAuth(h.env.root),
+        TerminalAuth(h.env.root),
         Readline(_ScriptNotify(h, expected), _NullOut),
         _NullSource,
         timers)
@@ -1207,6 +1283,7 @@ class \nodoc\ iso _TestReadlineCtrlDEmptyDisposes is UnitTest
     let term =
       ANSITerm(
         SignalAuth(h.env.root),
+        TerminalAuth(h.env.root),
         Readline(_NullReadlineNotify, _NullOut),
         _DisposeProbe(h),
         timers)
@@ -1227,6 +1304,7 @@ class \nodoc\ iso _TestReadlineRejectDisposes is UnitTest
     let term =
       ANSITerm(
         SignalAuth(h.env.root),
+        TerminalAuth(h.env.root),
         Readline(_RejectNotify, _NullOut),
         _DisposeProbe(h),
         timers)
@@ -1257,6 +1335,7 @@ class \nodoc\ iso _TestReadlineHistoryNavigation is UnitTest
     let term =
       ANSITerm(
         SignalAuth(h.env.root),
+        TerminalAuth(h.env.root),
         Readline(_LineNotify(h, "beta"), _NullOut, path),
         _NullSource,
         timers)
@@ -1283,6 +1362,7 @@ class \nodoc\ iso _TestReadlineDownEmptyHistory is UnitTest
     let term =
       ANSITerm(
         SignalAuth(h.env.root),
+        TerminalAuth(h.env.root),
         Readline(_LineNotify(h, "abcd"), _NullOut),
         _NullSource,
         timers)
@@ -1312,6 +1392,7 @@ class \nodoc\ iso _TestReadlineHistoryPreservesInput is UnitTest
     let term =
       ANSITerm(
         SignalAuth(h.env.root),
+        TerminalAuth(h.env.root),
         Readline(_LineNotify(h, "wip"), _NullOut, path),
         _NullSource,
         timers)
@@ -1345,6 +1426,7 @@ class \nodoc\ iso _TestReadlineHistoryPreservesEdits is UnitTest
     let term =
       ANSITerm(
         SignalAuth(h.env.root),
+        TerminalAuth(h.env.root),
         Readline(_LineNotify(h, "second!"), _NullOut, path),
         _NullSource,
         timers)
@@ -1390,6 +1472,7 @@ class \nodoc\ iso _TestReadlineHistoryStashClearedOnDispatch is UnitTest
     let term =
       ANSITerm(
         SignalAuth(h.env.root),
+        TerminalAuth(h.env.root),
         Readline(_DriverNotify(driver), _NullOut, path),
         _NullSource,
         timers)
@@ -1482,6 +1565,7 @@ class \nodoc\ iso _TestReadlineTabNone is UnitTest
     let term =
       ANSITerm(
         SignalAuth(h.env.root),
+        TerminalAuth(h.env.root),
         Readline(consume notify, _NullOut),
         _NullSource,
         timers)
@@ -1503,6 +1587,7 @@ class \nodoc\ iso _TestReadlineTabSingle is UnitTest
     let term =
       ANSITerm(
         SignalAuth(h.env.root),
+        TerminalAuth(h.env.root),
         Readline(consume notify, _NullOut),
         _NullSource,
         timers)
@@ -1524,6 +1609,7 @@ class \nodoc\ iso _TestReadlineTabCommonPrefix is UnitTest
     let term =
       ANSITerm(
         SignalAuth(h.env.root),
+        TerminalAuth(h.env.root),
         Readline(consume notify, _NullOut),
         _NullSource,
         timers)

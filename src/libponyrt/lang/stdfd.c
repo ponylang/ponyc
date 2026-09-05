@@ -28,6 +28,7 @@ PONY_API FILE* pony_os_stderr()
 
 static bool is_stdout_tty = false;
 static bool is_stderr_tty = false;
+static bool tty_raw_set = false;
 
 #ifdef PLATFORM_IS_WINDOWS
 
@@ -43,6 +44,7 @@ static bool is_stderr_tty = false;
 
 static WORD stdout_reset;
 static WORD stderr_reset;
+static DWORD orig_console_mode;
 
 static void add_modifier(char* buffer, int* len, DWORD mod)
 {
@@ -340,6 +342,7 @@ static char ansi_parse(const char* buffer, size_t* pos, size_t len,
 #else
 
 static struct termios orig_termios;
+static bool tty_atexit_registered = false;
 
 typedef enum
 {
@@ -387,16 +390,41 @@ static fd_type_t fd_type(int fd)
   return type;
 }
 
-static void stdin_tty_restore()
+static void tty_restore()
 {
   tcsetattr(0, TCSAFLUSH, &orig_termios);
 }
+#endif
 
-static void stdin_tty()
+PONY_API bool pony_os_tty_set_raw()
 {
-  // Turn off canonical mode if we're reading from a tty.
-  if(tcgetattr(STDIN_FILENO, &orig_termios) == -1)
-    return;
+#ifdef PLATFORM_IS_WINDOWS
+  HANDLE handle = GetStdHandle(STD_INPUT_HANDLE);
+  DWORD mode;
+
+  if(!GetConsoleMode(handle, &mode))
+    return false;
+
+  if(!tty_raw_set)
+  {
+    orig_console_mode = mode;
+    tty_raw_set = true;
+  }
+
+  SetConsoleMode(handle,
+    orig_console_mode & ~(ENABLE_ECHO_INPUT | ENABLE_LINE_INPUT));
+  return true;
+#else
+  if(fd_type(STDIN_FILENO) != FD_TYPE_TTY)
+    return false;
+
+  if(!tty_raw_set)
+  {
+    if(tcgetattr(STDIN_FILENO, &orig_termios) == -1)
+      return false;
+
+    tty_raw_set = true;
+  }
 
   struct termios io = orig_termios;
 
@@ -407,9 +435,30 @@ static void stdin_tty()
   io.c_cc[VTIME] = 0;
 
   tcsetattr(STDIN_FILENO, TCSAFLUSH, &io);
-  atexit(stdin_tty_restore);
-}
+
+  if(!tty_atexit_registered)
+  {
+    atexit(tty_restore);
+    tty_atexit_registered = true;
+  }
+
+  return true;
 #endif
+}
+
+PONY_API void pony_os_tty_restore()
+{
+#ifdef PLATFORM_IS_WINDOWS
+  if(tty_raw_set)
+  {
+    HANDLE handle = GetStdHandle(STD_INPUT_HANDLE);
+    SetConsoleMode(handle, orig_console_mode);
+  }
+#else
+  if(tty_raw_set)
+    tcsetattr(STDIN_FILENO, TCSAFLUSH, &orig_termios);
+#endif
+}
 
 PONY_API void pony_os_stdout_setup()
 {
@@ -474,25 +523,13 @@ PONY_API bool pony_os_stdin_setup()
   bool stdin_event_based = true;
   // Return true if reading stdin should be event based.
 #ifdef PLATFORM_IS_WINDOWS
-  if(ponyint_stdin_kind() == STDIN_CONSOLE)
-  {
-    HANDLE handle = GetStdHandle(STD_INPUT_HANDLE);
-    DWORD mode;
-
-    if(GetConsoleMode(handle, &mode))
-      SetConsoleMode(handle, mode & ~(ENABLE_ECHO_INPUT | ENABLE_LINE_INPUT));
-  }
-
   // A file (or NUL) returns data at once from ReadFile — there is nothing to
   // wait for — so read it in a loop. A pipe or a console needs the event.
   if(ponyint_stdin_kind() == STDIN_OTHER)
     stdin_event_based = false;
 #else
   // Skip events when stdin is a redirected file.
-  fd_type_t stdin_type = fd_type(STDIN_FILENO);
-  if((stdin_type == FD_TYPE_TTY) && is_stdout_tty)
-    stdin_tty();
-  if(stdin_type == FD_TYPE_FILE)
+  if(fd_type(STDIN_FILENO) == FD_TYPE_FILE)
     stdin_event_based = false;
 #endif
   return stdin_event_based;

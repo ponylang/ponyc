@@ -52,6 +52,7 @@ actor Main
     let term =
       ANSITerm(
         SignalAuth(env.root),
+        TerminalAuth(env.root),
         Readline(recover Handler end, env.out),
         env.input)
     term.prompt("0 > ")

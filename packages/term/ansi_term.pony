@@ -33,6 +33,16 @@ class _TermResizeNotify is SignalNotify
     _term.size()
     true
 
+class _TermContNotify is SignalNotify
+  let _auth: TerminalAuth
+
+  new create(auth: TerminalAuth) =>
+    _auth = auth
+
+  fun apply(times: U32): Bool =>
+    TerminalMode.set_raw(_auth)
+    true
+
 primitive _TIOCGWINSZ
   fun apply(): ULong =>
     ifdef linux then
@@ -58,29 +68,53 @@ actor ANSITerm
   embed _esc_buf: Array[U8] = Array[U8]
   var _esc_gen: USize = 0
   var _closed: Bool = false
-  let _auth: SignalAuth
+  let _signal_auth: SignalAuth
+  let _terminal_auth: TerminalAuth
   var _winch: (SignalHandler | None) = None
+  var _cont: (SignalHandler | None) = None
 
   new create(
-    auth: SignalAuth,
+    signal_auth: SignalAuth,
+    terminal_auth: TerminalAuth,
     notify: ANSINotify iso,
     source: DisposableActor,
     timers: Timers = Timers)
   =>
     """
-    Create a new ANSI term.
+    Create a new ANSI term. Puts stdin into raw mode and restores it on
+    dispose.
     """
     _timers = timers
     _notify = consume notify
     _source = source
-    _auth = auth
+    _signal_auth = signal_auth
+    _terminal_auth = terminal_auth
+
+    TerminalMode.set_raw(_terminal_auth)
 
     ifdef not windows then
       match \exhaustive\ MakeHandleableSignal(Sig.winch())
       | let sig: HandleableSignal =>
-        _winch = SignalHandler(auth, recover _TermResizeNotify(this) end, sig)
+        _winch =
+          SignalHandler(
+            signal_auth,
+            recover _TermResizeNotify(this) end,
+            sig)
       | let _: ValidationFailure =>
         // SIGWINCH is whitelisted on every platform where this branch
+        // compiles; a rejection means the whitelist regressed.
+        _Unreachable()
+      end
+
+      match \exhaustive\ MakeHandleableSignal(Sig.cont())
+      | let sig: HandleableSignal =>
+        _cont =
+          SignalHandler(
+            signal_auth,
+            recover _TermContNotify(terminal_auth) end,
+            sig)
+      | let _: ValidationFailure =>
+        // SIGCONT is whitelisted on every platform where this branch
         // compiles; a rejection means the whitelist regressed.
         _Unreachable()
       end
@@ -216,15 +250,15 @@ actor ANSITerm
   be dispose() =>
     """
     Stop accepting input, inform the notifier we have closed, dispose of our
-    source, and remove our terminal-resize handler.
+    source, restore the terminal mode, and remove our signal handlers.
     """
     if not _closed then
       _esc_clear()
       _notify.closed()
       _source.dispose()
-      // Unregister the SIGWINCH handler installed in the constructor so it
-      // stops delivering resize callbacks and frees its subscription.
-      try (_winch as SignalHandler).dispose(_auth) end
+      TerminalMode.restore(_terminal_auth)
+      try (_winch as SignalHandler).dispose(_signal_auth) end
+      try (_cont as SignalHandler).dispose(_signal_auth) end
       _closed = true
     end
 
