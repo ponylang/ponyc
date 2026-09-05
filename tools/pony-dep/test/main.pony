@@ -30,6 +30,26 @@ actor \nodoc\ Main is TestList
     test(_TestArchiveEncoderRootDirectory)
     test(_TestArchiveEncoderUnreadableFile)
 
+    // Sha256 tests
+    test(_TestSha256Empty)
+    test(_TestSha256Abc)
+    test(_TestSha256TwoBlocks)
+    test(_TestSha256OneBlock)
+    test(_TestSha256LongMessage)
+    test(_TestSha256Hex)
+
+    // ContentHash tests
+    test(_TestContentHashSingleFile)
+    test(_TestContentHashTwoFiles)
+    test(_TestContentHashThreeFiles)
+    test(_TestContentHashFourFiles)
+    test(_TestContentHashFiveFiles)
+    test(_TestContentHashPathBinding)
+    test(_TestContentHashEmpty)
+    test(_TestContentHashEmptyContent)
+    test(_TestContentHashNestedDirs)
+    test(_TestContentHashSkipsSymlinks)
+
     // ArchiveDecoder tests
     test(_TestArchiveDecoderRoundTrip)
     test(_TestArchiveDecoderRoundTripNested)
