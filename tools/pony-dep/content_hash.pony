@@ -35,6 +35,23 @@ primitive ContentHash
     """
     let leaves = Array[_LeafEntry]
     _walk(root, root.path, leaves)?
+    _from_leaves(leaves)
+
+  fun leaf_hash(rel_path: String val, content: Array[U8] val): Array[U8] val
+  =>
+    """
+    Computes the leaf hash for a single file: SHA-256(path || 0x00 || content).
+    """
+    let input =
+      recover val
+        Array[U8](rel_path.size() + 1 + content.size())
+          .> append(rel_path)
+          .> push(0x00)
+          .> append(content)
+      end
+    Sha256(input)
+
+  fun _from_leaves(leaves: Array[_LeafEntry]): Array[U8] val =>
     Sort[Array[_LeafEntry], _LeafEntry](leaves)
 
     if leaves.size() == 0 then
@@ -109,14 +126,7 @@ primitive ContentHash
             else
               error
             end
-          let leaf_input =
-            recover val
-              Array[U8](rel_path.size() + 1 + content.size())
-                .> append(rel_path)
-                .> push(0x00)
-                .> append(content)
-            end
-          leaves.push(_LeafEntry(rel_path, Sha256(leaf_input)))
+          leaves.push(_LeafEntry(rel_path, leaf_hash(rel_path, content)))
         elseif info.directory then
           _walk(child, root_path, leaves)?
         end
