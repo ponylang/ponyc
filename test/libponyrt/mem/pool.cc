@@ -1126,10 +1126,11 @@ TEST(PoolArena, ArenaGeometry)
 
     // Re-carve a handful of those dirty units. If re-reserving failed to
     // clear their dirty bits, the sweep below would drop these pages and
-    // the canaries with them.
+    // the canaries with them. Don't ask for more than were freed.
+    int recarve_count = (below < 8) ? (int)below : 8;
     char* recarved[8];
 
-    for(int i = 0; i < 8; i++)
+    for(int i = 0; i < recarve_count; i++)
     {
       recarved[i] = (char*)ponyint_pool_alloc_size(obj);
       ASSERT_EQ(arena_base_of(recarved[i]), base1);
@@ -1149,7 +1150,7 @@ TEST(PoolArena, ArenaGeometry)
       ASSERT_EQ((uint8_t)a1[i][63], (uint8_t)(0x40 + (i % 64)));
     }
 
-    for(int i = 0; i < 8; i++)
+    for(int i = 0; i < recarve_count; i++)
       ASSERT_EQ((uint8_t)recarved[i][0], 0x7e) << "re-carved canary " << i;
 
     // Arena 1 is a checkerboard: about half its units free, no two in a
@@ -1164,7 +1165,7 @@ TEST(PoolArena, ArenaGeometry)
     for(size_t i = 1; i < usable; i += 2)
       ponyint_pool_free_size(obj, a1[i]);
 
-    for(int i = 0; i < 8; i++)
+    for(int i = 0; i < recarve_count; i++)
       ponyint_pool_free_size(obj, recarved[i]);
 
     for(size_t i = 0; i < usable; i++)
@@ -1188,8 +1189,9 @@ TEST(PoolArena, BlockPlacement)
     ASSERT_NE(pin, (void*)NULL);
 
     // A freed block's units are the lowest free span, so the same size
-    // comes straight back to the same address.
-    size_t block = 2 * 1024 * 1024;
+    // comes straight back to the same address. The block must fit alongside
+    // the pin within one arena; TEST_ARENA_SIZE / 4 works on both geometries.
+    size_t block = TEST_ARENA_SIZE / 4;
     char* p1 = (char*)ponyint_pool_alloc_size(block);
     ASSERT_EQ(arena_base_of(p1), arena_base_of(pin));
     ponyint_pool_free_size(block, p1);
