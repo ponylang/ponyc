@@ -18,24 +18,22 @@ PONY_API int32_t ponyint_wnohang() {
 #include <unistd.h>
 #include <sys/syscall.h>
 
+// pidfd_open was added in Linux 5.3 as syscall 434 on every architecture (it
+// landed in the unified-numbering era). Old kernel headers may lack it; define
+// it ourselves so a build against pre-5.3 headers still calls the syscall when
+// the running kernel is new enough.
+#ifndef SYS_pidfd_open
+#define SYS_pidfd_open 434
+#endif
+
 // Open a pidfd for a process. A pidfd goes readable when the process exits and
 // registers with epoll like any other fd, giving exit detection that does not
 // depend on the child's pipes closing. Returns the fd, or -1 with errno set;
 // errno ENOSYS means the kernel is older than 5.3 and does not have the
 // syscall. We call the syscall directly rather than glibc's pidfd_open wrapper,
-// which only exists in glibc 2.36+; SYS_pidfd_open comes from the kernel
-// headers. If the build-time headers predate the syscall number, we report it
-// as unsupported.
+// which only exists in glibc 2.36+.
 PONY_API int32_t ponyint_pidfd_open(int32_t pid) {
-#ifdef SYS_pidfd_open
   return (int32_t)syscall(SYS_pidfd_open, (pid_t)pid, 0u);
-#else
-  // Build-time headers predate SYS_pidfd_open. Report it as unsupported; pid is
-  // unused on this path.
-  (void)pid;
-  errno = ENOSYS;
-  return -1;
-#endif
 }
 #endif
 
