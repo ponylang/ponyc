@@ -235,7 +235,13 @@ private:
 template<typename F>
 void on_fresh_thread(F f)
 {
-  std::thread t(f);
+  std::thread t([&f]{
+    f();
+#ifdef POOL_USE_ARENA
+    ponyint_pool_return_idle();
+    ponyint_pool_thread_cleanup();
+#endif
+  });
   t.join();
 }
 
