@@ -63,6 +63,14 @@ actor \nodoc\ Main is TestList
     test(_TestArchiveDecoderRejectsUnknownType)
     test(_TestArchiveDecoderRejectsAbsolutePath)
 
+    // Pack tests
+    test(_TestPackRoundTrip)
+    test(_TestPackHash)
+    test(_TestPackEmptyDirectory)
+    test(_TestPackSourceNotFound)
+    test(_TestPackSourceIsFile)
+    test(_TestPackOutputInsideSource)
+
     // ConfigParser tests
     test(_TestConfigParserMinimalValid)
     test(_TestConfigParserSingleDep)

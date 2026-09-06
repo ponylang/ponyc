@@ -24,6 +24,29 @@ class ArchiveEncoder
     _root = root
     _writer.u8(1)
 
+  fun ref add_file_entry(name: String, content: Array[U8] val) ? =>
+    """
+    Writes a file entry with the given relative path and content.
+    """
+    if name.size() > U32.max_value().usize() then error end
+    if content.size() > U32.max_value().usize() then error end
+    _writer.u8(1)
+    _writer.u32_le(name.size().u32())
+    _writer.write(name)
+    _writer.u32_le(content.size().u32())
+    _writer.write(content)
+
+  fun ref add_dir_entry(name: String) ? =>
+    """
+    Writes a directory entry. Entries named `"."` or empty are skipped.
+    """
+    if (name.size() > 0) and (name != ".") then
+      if name.size() > U32.max_value().usize() then error end
+      _writer.u8(2)
+      _writer.u32_le(name.size().u32())
+      _writer.write(name)
+    end
+
   fun ref add(from: FilePath) ? =>
     """
     Descends recursively into directories. Symlinks are skipped. Errors on
@@ -68,8 +91,6 @@ class ArchiveEncoder
 
   fun ref _add_file(entry: FilePath) ? =>
     let name = _relative_path(entry.path)
-    if name.size() > U32.max_value().usize() then error end
-
     let content: Array[U8] val =
       match OpenFile(entry)
       | let file: File =>
@@ -79,22 +100,11 @@ class ArchiveEncoder
       else
         error
       end
-
-    if content.size() > U32.max_value().usize() then error end
-    _writer.u8(1)
-    _writer.u32_le(name.size().u32())
-    _writer.write(name)
-    _writer.u32_le(content.size().u32())
-    _writer.write(content)
+    add_file_entry(name, content)?
 
   fun ref _add_directory(dir: FilePath) ? =>
     let name = _relative_path(dir.path)
-    if (name.size() > 0) and (name != ".") then
-      if name.size() > U32.max_value().usize() then error end
-      _writer.u8(2)
-      _writer.u32_le(name.size().u32())
-      _writer.write(name)
-    end
+    add_dir_entry(name)?
 
     with d = Directory(dir)? do
       let sorted = Sort[Array[String], String](d.entries()?)

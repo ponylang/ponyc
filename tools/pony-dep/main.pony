@@ -1,4 +1,5 @@
 use "cli"
+use "files"
 
 actor Main
   """
@@ -20,7 +21,15 @@ actor Main
           [
             CommandSpec.leaf(
               "pack",
-              "Create an archive from a project's source")?
+              "Create an archive from a project's source",
+              [
+                OptionSpec.bool(
+                  "hash", "Print content hash to stdout", 'H', false)
+              ],
+              [
+                ArgSpec.string("directory")
+                ArgSpec.string("output")
+              ])?
             CommandSpec.leaf(
               "fetch",
               "Download and extract a package archive from a URL")?
@@ -52,8 +61,30 @@ actor Main
         return
       end
 
+    let auth = FileAuth(env.root)
+
     match cmd.spec().name()
-    | "pack" => _not_implemented(env, "pack")
+    | "pack" =>
+      let dir = cmd.arg("directory").string()
+      let out = cmd.arg("output").string()
+      match \exhaustive\ Pack(
+        auth, dir, out where hash = cmd.option("hash").bool())
+      | let s: String val => env.out.print(s)
+      | None => None
+      | PackSourceNotFound =>
+        env.err.print("error: cannot stat '" + dir + "'")
+        env.exitcode(1)
+      | PackSourceNotDirectory =>
+        env.err.print("error: '" + dir + "' is not a directory")
+        env.exitcode(1)
+      | PackOutputInsideSource =>
+        env.err.print(
+          "error: output path cannot be inside the source directory")
+        env.exitcode(1)
+      | PackFailed =>
+        env.err.print("error: pack failed for '" + dir + "'")
+        env.exitcode(1)
+      end
     | "fetch" => _not_implemented(env, "fetch")
     | "add" => _not_implemented(env, "add")
     | "remove" => _not_implemented(env, "remove")
