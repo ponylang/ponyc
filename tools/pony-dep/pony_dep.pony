@@ -2,9 +2,10 @@
 pony-dep: A dependency manager for Pony packages.
 
 Manages external dependencies by fetching, placing, and tracking package
-archives. Dependencies are recorded in a configuration file with content
-hashes so that different versions of the same package coexist without a
-solver.
+archives. Dependencies are recorded in a `pony.deps` configuration file
+with content hashes so that different versions of the same package coexist
+without a solver. Use `ConfigParser` to parse a `pony.deps` file into a
+`ConfigFile` containing `DepEntry` values.
 
 **Subcommands:**
 
