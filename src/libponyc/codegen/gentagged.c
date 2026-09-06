@@ -32,7 +32,8 @@ bool gentagged_is_taggable(compile_t* c, reach_type_t* t)
   // Any numeric primitive fitting in 32 bits is taggable.  On LP64 (Linux,
   // macOS) that covers Bool, U8–U32, I8–I32, and F32.  On LLP64 (Windows)
   // ILong and ULong are also 32-bit and therefore taggable.
-  size_t prim_bits = LLVMSizeOfTypeInBits(c->target_data, c_t->primitive);
+  unsigned long long prim_bits =
+    LLVMSizeOfTypeInBits(c->target_data, c_t->primitive);
   return prim_bits <= 32;
 }
 
