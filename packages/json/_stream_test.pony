@@ -876,10 +876,10 @@ primitive \nodoc\ _JSONDocStringGen
   fun apply(max_depth: USize = 3): Generator[String] =>
     Generator[String](
       object is GenObj[String]
-        fun generate(rnd: Randomness): String =>
-          if rnd.bool() then
-            _JSONValueStringGen._gen_array(rnd, max_depth)
+        fun generate(rnd: Randomness): String^ ? =>
+          if rnd.bool()? then
+            _JSONValueStringGen._gen_array(rnd, max_depth)?
           else
-            _JSONValueStringGen._gen_object(rnd, max_depth)
+            _JSONValueStringGen._gen_object(rnd, max_depth)?
           end
       end)
