@@ -2,14 +2,11 @@
 
 All notable changes to the Pony compiler and standard library will be documented in this file. This project adheres to [Semantic Versioning](http://semver.org/) and [Keep a CHANGELOG](http://keepachangelog.com/).
 
-## [unreleased] - unreleased
+## [0.71.0] - 2026-09-07
 
 ### Fixed
 
 - Fix iftype capability narrowing inside generic return types ([PR #5994](https://github.com/ponylang/ponyc/pull/5994))
-
-### Added
-
 
 ### Changed
 
