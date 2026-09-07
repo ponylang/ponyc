@@ -14,6 +14,7 @@ All notable changes to the Pony compiler and standard library will be documented
 ### Changed
 
 - Make terminal raw mode opt-in and auth-gated ([PR #5990](https://github.com/ponylang/ponyc/pull/5990))
+- PonyCheck: choice-sequence-based internal shrinking ([PR #5995](https://github.com/ponylang/ponyc/pull/5995))
 
 ## [0.70.1] - 2026-09-05
 
