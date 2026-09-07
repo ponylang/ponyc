@@ -32,28 +32,28 @@ primitive \nodoc\ _IRegexpGen
     let that = this
     Generator[String](
       object is GenObj[String]
-        fun generate(rnd: Randomness): String =>
-          that._gen(rnd, max_depth)
+        fun generate(rnd: Randomness): String^ ? =>
+          that._gen(rnd, max_depth)?
       end)
 
-  fun _gen(rnd: Randomness, depth: USize): String =>
+  fun _gen(rnd: Randomness, depth: USize): String ? =>
     if depth == 0 then
-      return _gen_atom(rnd)
+      return _gen_atom(rnd)?
     end
-    match rnd.usize(0, 6)
-    | 0 => _gen_atom(rnd)
-    | 1 => _gen(rnd, depth - 1) + "|" + _gen(rnd, depth - 1)
-    | 2 => _gen_atom(rnd) + _gen_atom(rnd)
-    | 3 => "(" + _gen(rnd, depth - 1) + ")" + _gen_quant(rnd)
-    | 4 => _gen_atom(rnd) + _gen_quant_nonempty(rnd)
-    | 5 => _gen(rnd, depth - 1) + _gen_atom(rnd)
-    | 6 => _gen_atom(rnd) + _gen(rnd, depth - 1)
-    else _gen_atom(rnd)
+    match rnd.usize(0, 6)?
+    | 0 => _gen_atom(rnd)?
+    | 1 => _gen(rnd, depth - 1)? + "|" + _gen(rnd, depth - 1)?
+    | 2 => _gen_atom(rnd)? + _gen_atom(rnd)?
+    | 3 => "(" + _gen(rnd, depth - 1)? + ")" + _gen_quant(rnd)?
+    | 4 => _gen_atom(rnd)? + _gen_quant_nonempty(rnd)?
+    | 5 => _gen(rnd, depth - 1)? + _gen_atom(rnd)?
+    | 6 => _gen_atom(rnd)? + _gen(rnd, depth - 1)?
+    else _gen_atom(rnd)?
     end
 
-  fun _gen_atom(rnd: Randomness): String =>
-    match rnd.usize(0, 6)
-    | 0 => String.from_array([rnd.u8('a', 'z')])
+  fun _gen_atom(rnd: Randomness): String ? =>
+    match rnd.usize(0, 6)?
+    | 0 => String.from_array([rnd.u8('a', 'z')?])
     | 1 => "."
     | 2 => "\\n"
     | 3 => "\\t"
@@ -63,30 +63,30 @@ primitive \nodoc\ _IRegexpGen
     else "a"
     end
 
-  fun _gen_quant(rnd: Randomness): String =>
-    match rnd.usize(0, 4)
+  fun _gen_quant(rnd: Randomness): String ? =>
+    match rnd.usize(0, 4)?
     | 0 => ""
     | 1 => "*"
     | 2 => "+"
     | 3 => "?"
     | 4 =>
-      let n = rnd.usize(0, 2)
-      let m = n + rnd.usize(1, 3)
+      let n = rnd.usize(0, 2)?
+      let m = n + rnd.usize(1, 3)?
       "{" + n.string() + "," + m.string() + "}"
     else ""
     end
 
-  fun _gen_quant_nonempty(rnd: Randomness): String =>
-    match rnd.usize(0, 4)
+  fun _gen_quant_nonempty(rnd: Randomness): String ? =>
+    match rnd.usize(0, 4)?
     | 0 => "*"
     | 1 => "+"
     | 2 => "?"
     | 3 =>
-      let n = rnd.usize(0, 2)
-      let m = n + rnd.usize(1, 3)
+      let n = rnd.usize(0, 2)?
+      let m = n + rnd.usize(1, 3)?
       "{" + n.string() + "," + m.string() + "}"
     | 4 =>
-      let n = rnd.usize(1, 3)
+      let n = rnd.usize(1, 3)?
       "{" + n.string() + "}"
     else "*"
     end

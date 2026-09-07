@@ -1,4 +1,3 @@
-use "itertools"
 use "pony_check"
 
 primitive Blue is Stringable
@@ -63,10 +62,6 @@ class _CustomClassMapProperty is Property1[MyLittlePony]
   `Generators.map2`, `Generators.map3` and `Generators.map4`
   combinators and of course the `map` method on `Generator`
   itself (for single argument constructors).
-
-  Generators created like this have better shrinking support
-  and their creation is much more readable than the `flat_map`
-  solution below.
   """
   fun name(): String => "custom_class/map"
 
@@ -75,8 +70,7 @@ class _CustomClassMapProperty is Property1[MyLittlePony]
     let cuteness_gen = Generators.u64(11, 100)
     let color_gen =
       Generators.one_of[Color](
-        [Blue; Green; Pink; Rose]
-        where do_shrink=true)
+        [Blue; Green; Pink; Rose])
     Generators.map3[String, U64, Color, MyLittlePony](
       name_gen,
       cuteness_gen,
@@ -96,14 +90,10 @@ class _CustomClassFlatMapProperty is Property1[MyLittlePony]
   generators into a single one that is based on multiple
   generators, one for each constructor argument.
 
-  ### Drawbacks
-
-  * The nested `flat_map` syntax is a little bit cumbersome
-    (e.g. the captured from the surrounding scope need to be
-    provided explicitly).
-  * The resulting generator has only limited shrinking support.
-    Only on the innermost created generator in the last
-    `flat_map` function will be properly shrunken.
+  The nested `flat_map` syntax is a little bit cumbersome
+  (e.g. the captured variables from the surrounding scope need
+  to be provided explicitly). Prefer `Generators.map2`/`map3`
+  when possible.
   """
   fun name(): String => "custom_class/flat_map"
 
@@ -112,8 +102,7 @@ class _CustomClassFlatMapProperty is Property1[MyLittlePony]
     let cuteness_gen = Generators.u64(11, 100)
     let color_gen =
       Generators.one_of[Color](
-        [Blue; Green; Pink; Rose]
-        where do_shrink=true)
+        [Blue; Green; Pink; Rose])
     color_gen
       .flat_map[MyLittlePony](
         {(color: Color)(cuteness_gen, name_gen) =>
@@ -135,25 +124,9 @@ class _CustomClassFlatMapProperty is Property1[MyLittlePony]
 class _CustomClassCustomGeneratorProperty
   is Property1[MyLittlePony]
   """
-  Generating your class given a custom generator is the most
-  flexible but also the most complicated approach.
-
-  You need to understand the types `GenerateResult[T]` and
-  `ValueAndShrink[T]` and how a basic `Generator` works.
-
-  You basically have two options on how to implement a
-  Generator:
-
-  * Return only the generated value from `generate` (and
-    optionally implement the `shrink` method to return an
-    `(T^, Iterator[T^])` whose values need to meet the
-    Generator's requirements
-  * Return both the generated value and the shrink-Iterator
-    from `generate`. This way you have the values from any
-    Generators available your Generator is based upon.
-
-  This Property is presenting the second option, returning a
-  `ValueAndShrink[MyLittlePony]` from `generate`.
+  Generating your class given a custom generator using a
+  GenObj. The generate method draws from Randomness to build
+  each field. Shrinking is automatic.
   """
 
   fun name(): String => "custom_class/custom_generator"
@@ -167,41 +140,17 @@ class _CustomClassCustomGeneratorProperty
           Generators.u64(11, 100)
         let color_gen: Generator[Color] =
           Generators.one_of[Color](
-            [Blue; Green; Pink; Rose]
-            where do_shrink=true)
+            [Blue; Green; Pink; Rose])
 
-        fun generate(
-          rnd: Randomness)
-          : GenerateResult[MyLittlePony] ?
-        =>
-          (let name, let name_shrinks) =
-            name_gen.generate_and_shrink(rnd)?
-          (let cuteness, let cuteness_shrinks) =
-            cuteness_gen.generate_and_shrink(rnd)?
-          (let color, let color_shrinks) =
-            color_gen.generate_and_shrink(rnd)?
-          let res =
-            MyLittlePony(
-              consume name,
-              consume cuteness,
-              consume color)
-          let shrinks =
-            Iter[String^](name_shrinks)
-              .zip2[U64^, Color^](
-                cuteness_shrinks, color_shrinks)
-              .map[MyLittlePony^](
-                {(zipped) =>
-                  (let n: String,
-                    let cute: U64,
-                    let col: Color) = consume zipped
-                  MyLittlePony(
-                    consume n,
-                    consume cute,
-                    consume col)
-                })
-          (consume res, shrinks)
-      end
-      )
+        fun generate(rnd: Randomness): MyLittlePony^ ? =>
+          let name' = name_gen.generate(rnd)?
+          let cuteness' = cuteness_gen.generate(rnd)?
+          let color' = color_gen.generate(rnd)?
+          MyLittlePony(
+            consume name',
+            consume cuteness',
+            consume color')
+      end)
 
   fun ref property(pony: MyLittlePony, ph: PropertyHelper) =>
     ph.assert_true(pony.is_cute())
