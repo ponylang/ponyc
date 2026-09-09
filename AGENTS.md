@@ -22,9 +22,47 @@ When you start working on this project, load the `pony-skills` skill — it tell
 Read [CONTRIBUTING.md](CONTRIBUTING.md).
 <!-- /contributor-only -->
 
-## Testing the self-hosted tools
+## Building
 
-The build uses CMake presets (see BUILD.md). The self-hosted tools' test binaries — for the compiler, pony-lsp, pony-lint, pony-doc, and pony-dep — are **built on demand**: a normal `cmake --build` does not build them. Build the test target, then run it through ctest:
+The build uses CMake presets. See [BUILD.md](BUILD.md) for platform-specific instructions and build options.
+
+Build ponyc in debug mode:
+
+```bash
+cmake --build --preset debug
+```
+
+The output goes in `build/debug`. Use `--preset release` for a release build. The vendored LLVM libraries must be built first with `cmake -P lib/build-libs.cmake` — this only needs to run once (or when the LLVM submodule changes).
+
+## Testing
+
+Tests are registered with ctest and grouped by label. Two labels matter:
+
+- **`ci-core`** — built by a normal `cmake --build --preset debug`. The C/C++ compiler tests (`libponyc.tests`), the runtime tests (`libponyrt.tests`), the stdlib suite, full-program integration tests, example compilation, and grammar validation.
+- **`tools`** — **not** built by a normal `cmake --build --preset debug`. The self-hosted tool test suites: pony-compiler, pony-lsp, pony-lint, pony-doc, and pony-dep.
+
+### Core tests (ci-core)
+
+Run the full core suite:
+
+```bash
+ctest --preset debug -L ci-core
+```
+
+Run individual tests by name:
+
+- `ctest --preset debug -R libponyc.tests` — compiler C/C++ unit tests (GTest)
+- `ctest --preset debug -R libponyrt.tests` — runtime C/C++ unit tests (GTest)
+- `ctest --preset debug -R stdlib-debug` — stdlib test suite, compiled and run in debug mode
+- `ctest --preset debug -R stdlib-release` — stdlib test suite, release mode
+- `ctest --preset debug -R full-programs-debug` — compile-and-run integration tests, debug mode
+- `ctest --preset debug -R full-programs-release` — compile-and-run integration tests, release mode
+- `ctest --preset debug -R examples` — compiles all examples
+- `ctest --preset debug -R validate-grammar` — checks `pony.g` against the compiler
+
+### Tool tests
+
+Tool test binaries must be built explicitly before running. Build one target, then run through ctest:
 
 - `cmake --build --preset debug --target pony-compiler-tests && ctest --preset debug -R pony-compiler-tests`
 - `cmake --build --preset debug --target pony-lsp-tests && ctest --preset debug -R pony-lsp-tests`
@@ -32,11 +70,15 @@ The build uses CMake presets (see BUILD.md). The self-hosted tools' test binarie
 - `cmake --build --preset debug --target pony-doc-tests && ctest --preset debug -R pony-doc-tests`
 - `cmake --build --preset debug --target pony-dep-tests && ctest --preset debug -R pony-dep-tests`
 
-The first build of a test binary compiles from Pony source (~60s); later runs skip the rebuild when nothing under its source tree changed. On Windows, use the `windows-x86-64-debug` preset the same way.
+Build all tool test binaries at once with `cmake --build --preset debug --target tool-tests`, then run them with `ctest --preset debug -L tools`.
 
-To lint a tool's own source, run the `pony-lint` binary (built by a normal `cmake --build --preset debug`) against the tool's directory:
+The first build of a tool test binary compiles from Pony source (~60s); the binary is not recompiled when nothing under its source tree changed. On Windows, use the `windows-x86-64-debug` preset the same way.
 
-```
+### Linting tool source
+
+Run the `pony-lint` binary (built by a normal `cmake --build --preset debug`) against a tool's directory:
+
+```bash
 cd build/debug && PONYPATH=../../tools/lib/ponylang/pony_compiler ./pony-lint ../../tools/pony-lint/
 ```
 
@@ -53,7 +95,3 @@ On the Windows MSVC build, libponyrt's `.c` files compile as C++ (`src/libponyrt
 ## Dispatching workflows on a branch
 
 `gh workflow run <workflow> --ref <branch> -f ref=<branch>` — both flags are needed. `--ref` selects which branch the workflow YAML is read from; `-f ref=` sets the `inputs.ref` that the checkout step uses. Without `-f ref=`, the job checks out main regardless of `--ref`.
-
-## Release notes
-
-Load the `/pony-release-notes` skill for the full procedure. The one thing to know without it: add a `.release-notes/<slug>.md` file for each user-facing PR — do **not** edit `next-release.md` directly, because CI aggregates the individual files.
