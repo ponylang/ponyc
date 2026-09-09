@@ -54,6 +54,10 @@ static void reach_instrument_report(reach_t* r)
 
   fprintf(stderr, "reach-instrument:\n");
   fprintf(stderr, "  reach_types_size:               %zu\n", types);
+  fprintf(stderr, "  concretes_bucket_size:          %zu\n",
+    reach_type_cache_size(&r->concretes));
+  fprintf(stderr, "  traits_bucket_size:             %zu\n",
+    reach_type_cache_size(&r->traits));
   fprintf(stderr, "  add_types_to_trait_calls:       %zu\n",
     reach_ct_add_types_to_trait_calls);
   fprintf(stderr, "  add_traits_to_type_calls:       %zu\n",
@@ -836,17 +840,58 @@ static void add_internal(reach_t* r, reach_type_t* t, const char* name,
   add_rmethod(r, t, n, TK_BOX, NULL, opt, true);
 }
 
+// Precondition: t->underlying is set. A kind with no bucket (nominal STRUCT)
+// falls through to no bucket. The default asserts catch a new kind added
+// without a case here.
+static void reach_index_type(reach_t* r, reach_type_t* t)
+{
+  switch(ast_id(t->ast))
+  {
+    case TK_UNIONTYPE:
+    case TK_ISECTTYPE:
+      reach_type_cache_put(&r->traits, t);
+      return;
+
+    case TK_TUPLETYPE:
+      reach_type_cache_put(&r->concretes, t);
+      return;
+
+    case TK_NOMINAL:
+      break;
+
+    default:
+      pony_assert(0);
+      return;
+  }
+
+  switch(t->underlying)
+  {
+    case TK_PRIMITIVE:
+    case TK_CLASS:
+    case TK_ACTOR:
+      reach_type_cache_put(&r->concretes, t);
+      return;
+
+    case TK_INTERFACE:
+    case TK_TRAIT:
+      reach_type_cache_put(&r->traits, t);
+      return;
+
+    case TK_STRUCT:
+      // Intentionally unbucketed.
+      return;
+
+    default:
+      pony_assert(0);
+      return;
+  }
+}
+
 static void add_types_to_trait(reach_t* r, reach_type_t* t,
   pass_opt_t* opt)
 {
-  size_t i = HASHMAP_BEGIN;
+  size_t i;
   reach_type_t* t2;
-
-#ifdef USE_REACH_INSTRUMENT
-  reach_ct_add_types_to_trait_calls++;
-  reach_ct_scan_batches++;
-  reach_ct_scan_candidates += reach_types_size(&r->types);
-#endif
 
   bool interface = false;
   switch(ast_id(t->ast))
@@ -866,59 +911,37 @@ static void add_types_to_trait(reach_t* r, reach_type_t* t,
     default: {}
   }
 
-  while((t2 = reach_types_next(&r->types, &i)) != NULL)
+#ifdef USE_REACH_INSTRUMENT
+  reach_ct_add_types_to_trait_calls++;
+  reach_ct_scan_batches++;
+  reach_ct_scan_candidates += reach_type_cache_size(&r->concretes);
+  if(interface)
+    reach_ct_scan_candidates += reach_type_cache_size(&r->traits);
+#endif
+
+  i = HASHMAP_BEGIN;
+  while((t2 = reach_type_cache_next(&r->concretes, &i)) != NULL)
   {
     switch(ast_id(t2->ast))
     {
       case TK_NOMINAL:
       {
-        ast_t* def2 = (ast_t*)ast_data(t2->ast);
-
-        switch(ast_id(def2))
+#ifdef USE_REACH_INSTRUMENT
+        reach_ct_subtype_check_calls++;
+#endif
+        if(is_subtype(t2->ast, t->ast, NULL, opt))
         {
-          case TK_INTERFACE:
-            // Use the same typeid.
-#ifdef USE_REACH_INSTRUMENT
-            if(interface) reach_ct_subtype_check_calls++;
-#endif
-            if(interface && is_eqtype(t->ast, t2->ast, NULL, opt))
-              t->type_id = t2->type_id;
-            break;
+          reach_type_cache_put(&t->subtypes, t2);
+          reach_type_cache_put(&t2->subtypes, t);
 
-          case TK_PRIMITIVE:
-          case TK_CLASS:
-          case TK_ACTOR:
-#ifdef USE_REACH_INSTRUMENT
-            reach_ct_subtype_check_calls++;
-#endif
-            if(is_subtype(t2->ast, t->ast, NULL, opt))
-            {
-              reach_type_cache_put(&t->subtypes, t2);
-              reach_type_cache_put(&t2->subtypes, t);
+          if(ast_id(t->ast) == TK_NOMINAL)
+            add_methods_to_type(r, t, t2, opt);
 
-              if(ast_id(t->ast) == TK_NOMINAL)
-                add_methods_to_type(r, t, t2, opt);
-
-              if(t2->can_be_boxed)
-                add_internal(r, t, "__digestof", opt);
-            }
-            break;
-
-          default: {}
+          if(t2->can_be_boxed)
+            add_internal(r, t, "__digestof", opt);
         }
-
         break;
       }
-
-      case TK_UNIONTYPE:
-      case TK_ISECTTYPE:
-        // Use the same typeid.
-#ifdef USE_REACH_INSTRUMENT
-        if(interface) reach_ct_subtype_check_calls++;
-#endif
-        if(interface && is_eqtype(t->ast, t2->ast, NULL, opt))
-          t->type_id = t2->type_id;
-        break;
 
       case TK_TUPLETYPE:
 #ifdef USE_REACH_INSTRUMENT
@@ -931,10 +954,51 @@ static void add_types_to_trait(reach_t* r, reach_type_t* t,
           add_internal(r, t, "__is", opt);
           add_internal(r, t, "__digestof", opt);
         }
-
         break;
 
-      default: {}
+      default:
+        pony_assert(0);
+    }
+  }
+
+  if(!interface)
+    return;
+
+  // TK_TRAIT candidates pass through the def2 == TK_INTERFACE guard as a
+  // no-op. Without the guard, is_eqtype would run on TRAIT candidates.
+  i = HASHMAP_BEGIN;
+  while((t2 = reach_type_cache_next(&r->traits, &i)) != NULL)
+  {
+    switch(ast_id(t2->ast))
+    {
+      case TK_NOMINAL:
+      {
+        ast_t* def2 = (ast_t*)ast_data(t2->ast);
+
+        if(ast_id(def2) == TK_INTERFACE)
+        {
+#ifdef USE_REACH_INSTRUMENT
+          reach_ct_subtype_check_calls++;
+#endif
+          // Use the same typeid.
+          if(is_eqtype(t->ast, t2->ast, NULL, opt))
+            t->type_id = t2->type_id;
+        }
+        break;
+      }
+
+      case TK_UNIONTYPE:
+      case TK_ISECTTYPE:
+#ifdef USE_REACH_INSTRUMENT
+        reach_ct_subtype_check_calls++;
+#endif
+        // Use the same typeid.
+        if(is_eqtype(t->ast, t2->ast, NULL, opt))
+          t->type_id = t2->type_id;
+        break;
+
+      default:
+        pony_assert(0);
     }
   }
 }
@@ -948,62 +1012,25 @@ static void add_traits_to_type(reach_t* r, reach_type_t* t,
 #ifdef USE_REACH_INSTRUMENT
   reach_ct_add_traits_to_type_calls++;
   reach_ct_scan_batches++;
-  reach_ct_scan_candidates += reach_types_size(&r->types);
+  reach_ct_scan_candidates += reach_type_cache_size(&r->traits);
 #endif
 
-  while((t2 = reach_types_next(&r->types, &i)) != NULL)
+  while((t2 = reach_type_cache_next(&r->traits, &i)) != NULL)
   {
-    if(ast_id(t2->ast) == TK_NOMINAL)
+#ifdef USE_REACH_INSTRUMENT
+    reach_ct_subtype_check_calls++;
+#endif
+    if(is_subtype(t->ast, t2->ast, NULL, opt))
     {
-      ast_t* def = (ast_t*)ast_data(t2->ast);
+      reach_type_cache_put(&t->subtypes, t2);
+      reach_type_cache_put(&t2->subtypes, t);
+      add_methods_to_type(r, t2, t, opt);
 
-      switch(ast_id(def))
-      {
-        case TK_INTERFACE:
-        case TK_TRAIT:
-#ifdef USE_REACH_INSTRUMENT
-          reach_ct_subtype_check_calls++;
-#endif
-          if(is_subtype(t->ast, t2->ast, NULL, opt))
-          {
-            reach_type_cache_put(&t->subtypes, t2);
-            reach_type_cache_put(&t2->subtypes, t);
-            add_methods_to_type(r, t2, t, opt);
+      if(t->underlying == TK_TUPLETYPE)
+        add_internal(r, t2, "__is", opt);
 
-            if(t->underlying == TK_TUPLETYPE)
-              add_internal(r, t2, "__is", opt);
-
-            if(t->can_be_boxed)
-              add_internal(r, t2, "__digestof", opt);
-          }
-          break;
-
-        default: {}
-      }
-    } else {
-      switch(ast_id(t2->ast))
-      {
-        case TK_UNIONTYPE:
-        case TK_ISECTTYPE:
-#ifdef USE_REACH_INSTRUMENT
-          reach_ct_subtype_check_calls++;
-#endif
-          if(is_subtype(t->ast, t2->ast, NULL, opt))
-          {
-            reach_type_cache_put(&t->subtypes, t2);
-            reach_type_cache_put(&t2->subtypes, t);
-            add_methods_to_type(r, t2, t, opt);
-
-            if(t->underlying == TK_TUPLETYPE)
-              add_internal(r, t2, "__is", opt);
-
-            if(t->can_be_boxed)
-              add_internal(r, t2, "__digestof", opt);
-          }
-          break;
-
-        default: {}
-      }
+      if(t->can_be_boxed)
+        add_internal(r, t2, "__digestof", opt);
     }
   }
 }
@@ -1225,6 +1252,7 @@ static reach_type_t* add_isect_or_union(reach_t* r, ast_t* type,
   t->underlying = ast_id(t->ast);
   t->is_trait = true;
 
+  reach_index_type(r, t);
   add_types_to_trait(r, t, opt);
 
   if(t->type_id == (uint32_t)-1)
@@ -1267,6 +1295,7 @@ static reach_type_t* add_tuple(reach_t* r, ast_t* type, pass_opt_t* opt)
   t->fields = (reach_field_t*)ponyint_pool_alloc_size(
       t->field_count * sizeof(reach_field_t));
 
+  reach_index_type(r, t);
   add_traits_to_type(r, t, opt);
   add_internal(r, t, "__is", opt);
   add_internal(r, t, "__digestof", opt);
@@ -1332,6 +1361,8 @@ static reach_type_t* add_nominal(reach_t* r, ast_t* type, pass_opt_t* opt)
 
   if(r->limit_exceeded)
     return t;
+
+  reach_index_type(r, t);
 
   AST_GET_CHILDREN(type, pkg, id, typeargs);
   ast_t* typearg = ast_child(typeargs);
@@ -1943,6 +1974,8 @@ reach_t* reach_new()
   r->trait_type_count = 0;
   r->limit_exceeded = false;
   reach_types_init(&r->types, 64);
+  reach_type_cache_init(&r->concretes, 1024);
+  reach_type_cache_init(&r->traits, 128);
 #ifdef USE_REACH_INSTRUMENT
   reach_instrument_reset();
 #endif
@@ -1958,6 +1991,8 @@ void reach_free(reach_t* r)
   reach_instrument_report(r);
 #endif
 
+  reach_type_cache_destroy(&r->concretes);
+  reach_type_cache_destroy(&r->traits);
   reach_types_destroy(&r->types);
   POOL_FREE(reach_t, r);
 }

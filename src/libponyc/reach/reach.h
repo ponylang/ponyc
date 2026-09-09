@@ -111,6 +111,14 @@ struct reach_type_t
 typedef struct reach_t
 {
   reach_types_t types;
+
+  //   concretes: nominal PRIMITIVE / CLASS / ACTOR + TK_TUPLETYPE
+  //   traits:    nominal TRAIT / INTERFACE + TK_UNIONTYPE + TK_ISECTTYPE
+  //
+  // Nominal STRUCT appears in neither bucket. See reach_index_type.
+  reach_type_cache_t concretes;
+  reach_type_cache_t traits;
+
   reach_method_stack_t* method_stack;
   uint32_t object_type_count;
   uint32_t numeric_type_count;
