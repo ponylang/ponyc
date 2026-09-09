@@ -45,7 +45,8 @@ set(_pony_known_uses
     pool_memalign
     pool_classic
     pool_retain
-    runtime_tracing)
+    runtime_tracing
+    reach_instrument)
 
 # The subset of the above that Windows (MSVC) accepts. See the MSVC check
 # below. Accepted is not the same as buildable alone: pool_retain and pooltrack
@@ -61,7 +62,8 @@ set(_pony_windows_uses
     pooltrack
     runtimestats
     runtimestats_messages
-    runtime_tracing)
+    runtime_tracing
+    reach_instrument)
 
 # Reset every option off before applying PONY_USES.
 foreach(_use IN LISTS _pony_known_uses)
@@ -156,6 +158,8 @@ foreach(_use IN LISTS _pony_uses)
         _pony_set_use(POOL_RETAIN ON)
     elseif(_use STREQUAL "runtime_tracing")
         _pony_set_use(RUNTIME_TRACING ON)
+    elseif(_use STREQUAL "reach_instrument")
+        _pony_set_use(REACH_INSTRUMENT ON)
     elseif(_use STREQUAL "scheduler_scaling_pthreads")
         message(FATAL_ERROR
             "scheduler_scaling_pthreads was removed: the scheduler no longer "

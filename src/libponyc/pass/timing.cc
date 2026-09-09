@@ -92,7 +92,7 @@ pass_timers_t* pass_timers_create()
   // PrintOnExit = false: pass_timers_report prints explicitly. The default
   // (true) would make LLVM print the group a second time at shutdown.
   t->group = std::make_unique<llvm::TimerGroup>("package_passes",
-    "Pony front-end time by package and pass", false);
+    "Pony pass time by package and pass", false);
   t->start_wall = llvm::TimeRecord::getCurrentTime(false).getWallTime();
   return t;
 }
@@ -462,9 +462,12 @@ static void print_table(pass_timers_t* t)
   // runs.
   llvm::errs() << "Rows above total " << rows_buf << " s of " << elapsed_buf
     << " s elapsed.\n"
-    << "Only the front-end passes are timed. Compiling C shims, plugin passes, "
-       "reach, codegen, LLVM optimisation and linking are not, so the rows can "
-       "cover far less of a build than the elapsed time.\n";
+    << "The front-end passes, reach, and paint are timed. Reach and paint run "
+       "over the whole program and appear under the synthetic package name '"
+    << PASS_TIMERS_PROGRAM_PKG
+    << "'. Compiling C shims, plugin passes, codegen, LLVM optimisation and "
+       "linking are not timed, so the rows can cover less of a build than the "
+       "elapsed time.\n";
 
   if(t->observed_nesting)
     llvm::errs() << "Rows are inclusive and nest -- loading a package runs its "

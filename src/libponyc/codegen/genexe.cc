@@ -15,6 +15,7 @@ LLD_HAS_DRIVER(wasm)
 #include "genobj.h"
 #include "genopt.h"
 #include "genprim.h"
+#include "../pass/timing.h"
 #include "../reach/paint.h"
 #include "../reach/reach.h"
 #include "../ast/error.h"
@@ -2642,7 +2643,9 @@ bool genexe(compile_t* c, ast_t* program)
 
   if(c->opt->verbosity >= VERBOSITY_INFO)
     fprintf(stderr, " Selector painting\n");
+  pass_timers_start(c->opt->timers, PASS_TIMERS_PROGRAM_PKG, pass_name(PASS_PAINT));
   paint(&c->reach->types);
+  pass_timers_stop(c->opt->timers, PASS_TIMERS_PROGRAM_PKG, pass_name(PASS_PAINT));
 
   plugin_visit_reach(c->reach, c->opt, true);
 

@@ -4,6 +4,8 @@
 #include "../codegen/genname.h"
 #include "../codegen/genopt.h"
 #include "../pass/expr.h"
+#include "../pass/pass.h"
+#include "../pass/timing.h"
 #include "../type/assemble.h"
 #include "../type/cap.h"
 #include "../type/lookup.h"
@@ -13,6 +15,64 @@
 #include "ponyassert.h"
 #include <stdio.h>
 #include <string.h>
+
+#ifdef USE_REACH_INSTRUMENT
+// File-scope statics: safe because compilation is single-threaded.
+static size_t reach_ct_add_types_to_trait_calls = 0;
+static size_t reach_ct_add_traits_to_type_calls = 0;
+static size_t reach_ct_scan_candidates = 0;
+static size_t reach_ct_scan_batches = 0;
+// is_subtype + is_eqtype from the scan sites
+static size_t reach_ct_subtype_check_calls = 0;
+// Cap-variant fan-out entries (each queues 2-3 rmethods).
+static size_t reach_ct_cap_variant_batches_box = 0;
+static size_t reach_ct_cap_variant_batches_tag = 0;
+static size_t reach_ct_cap_variant_batches_prim = 0;
+
+static void reach_instrument_reset(void)
+{
+  reach_ct_add_types_to_trait_calls = 0;
+  reach_ct_add_traits_to_type_calls = 0;
+  reach_ct_scan_candidates = 0;
+  reach_ct_scan_batches = 0;
+  reach_ct_subtype_check_calls = 0;
+  reach_ct_cap_variant_batches_box = 0;
+  reach_ct_cap_variant_batches_tag = 0;
+  reach_ct_cap_variant_batches_prim = 0;
+}
+
+static void reach_instrument_report(reach_t* r)
+{
+  size_t types = reach_types_size(&r->types);
+
+  if(types == 0 && reach_ct_scan_batches == 0)
+    return;
+
+  double mean_scan = reach_ct_scan_batches
+    ? (double)reach_ct_scan_candidates / (double)reach_ct_scan_batches
+    : 0.0;
+
+  fprintf(stderr, "reach-instrument:\n");
+  fprintf(stderr, "  reach_types_size:               %zu\n", types);
+  fprintf(stderr, "  add_types_to_trait_calls:       %zu\n",
+    reach_ct_add_types_to_trait_calls);
+  fprintf(stderr, "  add_traits_to_type_calls:       %zu\n",
+    reach_ct_add_traits_to_type_calls);
+  fprintf(stderr, "  scan_batches:                   %zu\n",
+    reach_ct_scan_batches);
+  fprintf(stderr, "  scan_candidates_total:          %zu\n",
+    reach_ct_scan_candidates);
+  fprintf(stderr, "  scan_candidates_mean_per_batch: %.2f\n", mean_scan);
+  fprintf(stderr, "  subtype_check_calls_from_scans: %zu\n",
+    reach_ct_subtype_check_calls);
+  fprintf(stderr, "  cap_variant_batches_box_origin: %zu\n",
+    reach_ct_cap_variant_batches_box);
+  fprintf(stderr, "  cap_variant_batches_tag_origin: %zu\n",
+    reach_ct_cap_variant_batches_tag);
+  fprintf(stderr, "  cap_variant_batches_primitive:  %zu\n",
+    reach_ct_cap_variant_batches_prim);
+}
+#endif
 
 DEFINE_STACK(reach_method_stack, reach_method_stack_t, reach_method_t);
 
@@ -782,6 +842,12 @@ static void add_types_to_trait(reach_t* r, reach_type_t* t,
   size_t i = HASHMAP_BEGIN;
   reach_type_t* t2;
 
+#ifdef USE_REACH_INSTRUMENT
+  reach_ct_add_types_to_trait_calls++;
+  reach_ct_scan_batches++;
+  reach_ct_scan_candidates += reach_types_size(&r->types);
+#endif
+
   bool interface = false;
   switch(ast_id(t->ast))
   {
@@ -812,6 +878,9 @@ static void add_types_to_trait(reach_t* r, reach_type_t* t,
         {
           case TK_INTERFACE:
             // Use the same typeid.
+#ifdef USE_REACH_INSTRUMENT
+            if(interface) reach_ct_subtype_check_calls++;
+#endif
             if(interface && is_eqtype(t->ast, t2->ast, NULL, opt))
               t->type_id = t2->type_id;
             break;
@@ -819,6 +888,9 @@ static void add_types_to_trait(reach_t* r, reach_type_t* t,
           case TK_PRIMITIVE:
           case TK_CLASS:
           case TK_ACTOR:
+#ifdef USE_REACH_INSTRUMENT
+            reach_ct_subtype_check_calls++;
+#endif
             if(is_subtype(t2->ast, t->ast, NULL, opt))
             {
               reach_type_cache_put(&t->subtypes, t2);
@@ -841,11 +913,17 @@ static void add_types_to_trait(reach_t* r, reach_type_t* t,
       case TK_UNIONTYPE:
       case TK_ISECTTYPE:
         // Use the same typeid.
+#ifdef USE_REACH_INSTRUMENT
+        if(interface) reach_ct_subtype_check_calls++;
+#endif
         if(interface && is_eqtype(t->ast, t2->ast, NULL, opt))
           t->type_id = t2->type_id;
         break;
 
       case TK_TUPLETYPE:
+#ifdef USE_REACH_INSTRUMENT
+        reach_ct_subtype_check_calls++;
+#endif
         if(is_subtype(t2->ast, t->ast, NULL, opt))
         {
           reach_type_cache_put(&t->subtypes, t2);
@@ -867,6 +945,12 @@ static void add_traits_to_type(reach_t* r, reach_type_t* t,
   size_t i = HASHMAP_BEGIN;
   reach_type_t* t2;
 
+#ifdef USE_REACH_INSTRUMENT
+  reach_ct_add_traits_to_type_calls++;
+  reach_ct_scan_batches++;
+  reach_ct_scan_candidates += reach_types_size(&r->types);
+#endif
+
   while((t2 = reach_types_next(&r->types, &i)) != NULL)
   {
     if(ast_id(t2->ast) == TK_NOMINAL)
@@ -877,6 +961,9 @@ static void add_traits_to_type(reach_t* r, reach_type_t* t,
       {
         case TK_INTERFACE:
         case TK_TRAIT:
+#ifdef USE_REACH_INSTRUMENT
+          reach_ct_subtype_check_calls++;
+#endif
           if(is_subtype(t->ast, t2->ast, NULL, opt))
           {
             reach_type_cache_put(&t->subtypes, t2);
@@ -898,6 +985,9 @@ static void add_traits_to_type(reach_t* r, reach_type_t* t,
       {
         case TK_UNIONTYPE:
         case TK_ISECTTYPE:
+#ifdef USE_REACH_INSTRUMENT
+          reach_ct_subtype_check_calls++;
+#endif
           if(is_subtype(t->ast, t2->ast, NULL, opt))
           {
             reach_type_cache_put(&t->subtypes, t2);
@@ -1785,6 +1875,15 @@ static void reachable_method(reach_t* r, deferred_reification_t* reify,
     bool subordinate = (n->cap == TK_TAG);
     reach_method_t* m2;
 
+#ifdef USE_REACH_INSTRUMENT
+    if(t->underlying == TK_PRIMITIVE)
+      reach_ct_cap_variant_batches_prim++;
+    else if(subordinate)
+      reach_ct_cap_variant_batches_tag++;
+    else
+      reach_ct_cap_variant_batches_box++;
+#endif
+
     if(t->underlying != TK_PRIMITIVE)
     {
       m2 = add_rmethod(r, t, n, TK_REF, typeargs, opt, false);
@@ -1844,6 +1943,9 @@ reach_t* reach_new()
   r->trait_type_count = 0;
   r->limit_exceeded = false;
   reach_types_init(&r->types, 64);
+#ifdef USE_REACH_INSTRUMENT
+  reach_instrument_reset();
+#endif
   return r;
 }
 
@@ -1852,6 +1954,10 @@ void reach_free(reach_t* r)
   if(r == NULL)
     return;
 
+#ifdef USE_REACH_INSTRUMENT
+  reach_instrument_report(r);
+#endif
+
   reach_types_destroy(&r->types);
   POOL_FREE(reach_t, r);
 }
@@ -1859,8 +1965,10 @@ void reach_free(reach_t* r)
 void reach(reach_t* r, ast_t* type, const char* name, ast_t* typeargs,
   pass_opt_t* opt)
 {
+  pass_timers_start(opt->timers, PASS_TIMERS_PROGRAM_PKG, pass_name(PASS_REACH));
   reachable_method(r, NULL, type, name, typeargs, opt);
   handle_method_stack(r, opt);
+  pass_timers_stop(opt->timers, PASS_TIMERS_PROGRAM_PKG, pass_name(PASS_REACH));
 }
 
 reach_type_t* reach_type(reach_t* r, ast_t* type, pass_opt_t* opt)

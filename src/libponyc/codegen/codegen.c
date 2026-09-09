@@ -7,6 +7,7 @@
 #include "gencall.h"
 #include "genopt.h"
 #include "gentype.h"
+#include "../pass/timing.h"
 #include "../pkg/package.h"
 #include "../reach/paint.h"
 #include "../type/assemble.h"
@@ -913,7 +914,11 @@ bool codegen_gen_test(compile_t* c, ast_t* program, pass_opt_t* opt,
     return true;
 
   if(last_pass < PASS_PAINT)
+  {
+    pass_timers_start(opt->timers, PASS_TIMERS_PROGRAM_PKG, pass_name(PASS_PAINT));
     paint(&c->reach->types);
+    pass_timers_stop(opt->timers, PASS_TIMERS_PROGRAM_PKG, pass_name(PASS_PAINT));
+  }
 
   if(opt->limit == PASS_PAINT)
     return true;
