@@ -5,16 +5,21 @@
 
 PONY_EXTERN_C_BEGIN
 
-/** Opaque front-end timing context.
+/** Opaque per-pass timing context.
  *
- * Backs the --pass-timings / --pass-timings-json options. A NULL context means
- * timing is off; every function below is a no-op on NULL, so instrumentation
- * call sites need no guard of their own. A site on a hot path may still test
- * the context first, to skip the work of building the arguments. Not
- * thread-safe: all calls for one context must come from a single thread
- * (compilation is single-threaded).
+ * Backs the --pass-timings / --pass-timings-json options. Covers the front-end
+ * passes, reach, and paint. A NULL context means timing is off; every function
+ * below is a no-op on NULL, so instrumentation call sites need no guard of
+ * their own. A site on a hot path may still test the context first, to skip
+ * the work of building the arguments. Not thread-safe: all calls for one
+ * context must come from a single thread (compilation is single-threaded).
  */
 typedef struct pass_timers_t pass_timers_t;
+
+/** Synthetic `package` key for passes that work over the whole program rather
+ * than a single package (reach, paint).
+ */
+#define PASS_TIMERS_PROGRAM_PKG "<program>"
 
 /** Create a timing context. Choose its output with pass_timers_enable_table (a
  * stderr table) and/or pass_timers_set_json (a file); a context with neither

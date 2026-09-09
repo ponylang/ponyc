@@ -575,7 +575,7 @@ TEST_F(TimingTest, JsonOnlyWritesFileAndPrintsNothing)
 
 // The stderr table must carry the row, the elapsed-wall denominator (without
 // which the reader cannot tell what share of the build the rows cover), and the
-// statement that only the front end is timed.
+// statement enumerating which passes are timed.
 TEST_F(TimingTest, TablePrintsRowsAndDenominator)
 {
   testing::internal::CaptureStderr();
@@ -591,7 +591,7 @@ TEST_F(TimingTest, TablePrintsRowsAndDenominator)
 
   EXPECT_NE(std::string::npos, err.find("mypkg (expr)")) << err;
   EXPECT_NE(std::string::npos, err.find("elapsed")) << err;
-  EXPECT_NE(std::string::npos, err.find("front-end")) << err;
+  EXPECT_NE(std::string::npos, err.find("reach, and paint are timed")) << err;
 }
 
 

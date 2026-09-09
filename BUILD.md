@@ -339,6 +339,15 @@ cmake --build --preset release
 
 More information about systematic testing can be found in [SYSTEMATIC_TESTING.md](SYSTEMATIC_TESTING.md).
 
+### reach pass instrumentation
+
+Emit reach-pass counters (reachable type count, per-scan candidate counts, subtype-check counts, cap-variant fan-out counts) to stderr at the end of each compile. For working on the reach pass — measuring where its time goes and confirming that a change moved the counts.
+
+```bash
+cmake --preset release -DPONY_USES=reach_instrument
+cmake --build --preset release
+```
+
 ## Compiler Development
 
 To ease development and support LSP tools like [clangd](https://clangd.llvm.org), create a `compile_commands.json` file with the following steps:

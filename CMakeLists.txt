@@ -175,6 +175,11 @@ if(PONY_USE_RUNTIME_TRACING)
     add_compile_options(-DUSE_RUNTIME_TRACING)
 endif()
 
+if(PONY_USE_REACH_INSTRUMENT)
+    set(PONY_OUTPUT_SUFFIX "${PONY_OUTPUT_SUFFIX}-reach_instrument")
+    add_compile_options(-DUSE_REACH_INSTRUMENT)
+endif()
+
 # Keep the runtime's asserts -- pony_assert and the arena allocator's integrity
 # checks -- compiled in even in a release build, where NDEBUG would otherwise
 # drop them (see src/common/ponyassert.h). Not a use= directive; an internal
