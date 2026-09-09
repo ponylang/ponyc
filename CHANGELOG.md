@@ -9,6 +9,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Added
 
+- Time the reach and paint passes with --pass-timings ([PR #6022](https://github.com/ponylang/ponyc/pull/6022))
 
 ### Changed
 
