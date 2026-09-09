@@ -6,6 +6,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
+- Speed up the reachability pass on large programs ([PR #6025](https://github.com/ponylang/ponyc/pull/6025))
 
 ### Added
 
