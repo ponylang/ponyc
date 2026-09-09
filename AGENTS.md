@@ -60,6 +60,17 @@ Run individual tests by name:
 - `ctest --preset debug -R examples` — compiles all examples
 - `ctest --preset debug -R validate-grammar` — checks `pony.g` against the compiler
 
+#### Per-package stdlib tests
+
+A single package's tests can be compiled and run without rebuilding the full stdlib suite:
+
+```bash
+cd build/debug && ./ponyc -d -b stdlib-debug --checktree --pic --strip ../../packages/collections
+./stdlib-debug --sequential
+```
+
+For a release build, drop `-d` and `--strip`.
+
 ### Tool tests
 
 Tool test binaries must be built explicitly before running. Build one target, then run through ctest:
