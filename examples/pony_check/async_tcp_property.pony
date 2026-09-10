@@ -1,28 +1,29 @@
+use "constrained_types"
 use "itertools"
 use "net"
+use notifier = "net/notifier"
 use "pony_check"
 use "pony_test"
 
-class _TCPSenderConnectionNotify is TCPConnectionNotify
+class _SenderNotify is notifier.ClientTCPConnectionNotify
   let _message: String
 
   new create(message: String) =>
     _message = message
 
-  fun ref connected(conn: TCPConnection ref) =>
+  fun ref on_connected(conn: notifier.ClientTCPConnection ref) =>
     conn.write(_message)
 
-  fun ref connect_failed(conn: TCPConnection ref) =>
-    None
-
-  fun ref received(
-    conn: TCPConnection ref,
-    data: Array[U8] iso,
-    times: USize)
-    : Bool
+  fun ref on_received(conn: notifier.ClientTCPConnection ref,
+    data: Array[U8] iso): ReadAction
   =>
     conn.close()
-    true
+    KeepReading
+
+  fun ref on_connect_failed(conn: notifier.ClientTCPConnection ref,
+    reason: ConnectionFailureReason)
+  =>
+    None
 
 class val TCPSender
   """
@@ -39,15 +40,15 @@ class val TCPSender
   fun send(
     host: String,
     port: String,
-    message: String): TCPConnection tag^
+    message: String): notifier.ClientTCPConnection tag
   =>
-    TCPConnection(
+    notifier.ClientTCPConnection(
       _auth,
-      recover _TCPSenderConnectionNotify(message) end,
+      recover _SenderNotify(message) end,
       host,
       port)
 
-class MyTCPConnectionNotify is TCPConnectionNotify
+class _VerifyNotify is notifier.ServerTCPConnectionNotify
   """
   Verifies that received data matches the expected string.
   """
@@ -58,15 +59,14 @@ class MyTCPConnectionNotify is TCPConnectionNotify
     _ph = ph
     _expected = expected
 
-  fun ref received(
-    conn: TCPConnection ref,
-    data: Array[U8] iso,
-    times: USize)
-    : Bool
+  fun ref on_start_failure(conn: notifier.ServerTCPConnection ref,
+    reason: StartFailureReason)
   =>
-    """
-    Assert we received the expected string.
-    """
+    _ph.fail("server start failure")
+
+  fun ref on_received(conn: notifier.ServerTCPConnection ref,
+    data: Array[U8] iso): ReadAction
+  =>
     _ph.log(
       "received " + data.size().string() + " bytes",
       true)
@@ -79,17 +79,9 @@ class MyTCPConnectionNotify is TCPConnectionNotify
     end
     _ph.complete(true)
     conn.close()
-    true
+    KeepReading
 
-  fun ref connect_failed(conn: TCPConnection ref) =>
-    _ph.fail("connect failed")
-    conn.close()
-
-class MyTCPListenNotify is TCPListenNotify
-  """
-  Listens for a connection, then sends the expected string.
-  """
-
+class _SenderListenNotify is notifier.TCPListenNotify
   let _sender: TCPSender
   let _ph: PropertyHelper
   let _expected: String
@@ -102,11 +94,10 @@ class MyTCPListenNotify is TCPListenNotify
     _ph = ph
     _expected = expected
 
-  fun ref listening(listen: TCPListener ref) =>
-    let address = listen.local_address()
+  fun ref on_listening(listen: notifier.TCPListener ref) =>
     try
       (let host, let port) =
-        address.name(
+        listen.local_address().name(
           where reversedns = None,
             servicename = false)?
 
@@ -117,15 +108,14 @@ class MyTCPListenNotify is TCPListenNotify
         "could not determine server host and port")
     end
 
-  fun ref connected(
-    listen: TCPListener ref)
-    : TCPConnectionNotify iso^
+  fun ref on_connected(listen: notifier.TCPListener ref):
+    notifier.ServerTCPConnectionNotify iso^
   =>
     recover iso
-      MyTCPConnectionNotify(_ph, _expected)
+      _VerifyNotify(_ph, _expected)
     end
 
-  fun ref not_listening(listen: TCPListener ref) =>
+  fun ref on_not_listening(listen: notifier.TCPListener ref) =>
     _ph.fail("not listening")
 
 class _AsyncTCPSenderProperty is Property1[String]
@@ -142,10 +132,10 @@ class _AsyncTCPSenderProperty is Property1[String]
     let sender =
       TCPSender(TCPConnectAuth(ph.env.root))
     ph.dispose_when_done(
-      TCPListener(
+      notifier.TCPListener(
         TCPListenAuth(ph.env.root),
         recover
-          MyTCPListenNotify(sender, ph, "PONYCHECK")
+          _SenderListenNotify(sender, ph, "PONYCHECK")
         end,
         "127.0.0.1",
         "0"))

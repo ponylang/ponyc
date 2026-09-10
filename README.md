@@ -35,6 +35,10 @@ support detects a child's exit with `pidfd_open`, a system call added in that
 release; on an older kernel, starting a process returns an error. Earlier
 kernels are unsupported.
 
+## Build prerequisites
+
+The standard library's `net` package requires an **SSL/TLS development library** at build time — OpenSSL (1.1.x, 3.0.x, or 4.0.x) or LibreSSL. CMake auto-detects the installed version and passes the right flag to ponyc; the build fails at configure time if no supported SSL library is found. See [BUILD.md](BUILD.md) for per-distribution package names.
+
 ## More Information
 
 * [Installation](INSTALL.md)

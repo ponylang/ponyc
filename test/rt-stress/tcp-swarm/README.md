@@ -1,129 +1,182 @@
-# Swarm TCP stress engine
+# TCP swarm stress engine
 
-A closed, count-driven TCP workload for stressing the runtime's net stack. Every
-behaviour is a CLI flag; the engine (`main.pony`) draws nothing and sets no runtime
-defaults, and a swarm orchestrator (`orchestrate_tcp.py`) draws the flags. A fixed
-number of client connections is churned through a listener at a bounded
-concurrency; each client sends a stamped payload, the server echoes it, and the
-client verifies the echo byte-for-byte before closing.
+A closed, count-driven TCP workload for stressing the net package's TCP stack. A fixed number
+of client connections is churned through a listener at a bounded concurrency; each
+client sends a stamped payload, the server echoes it, and the client verifies the
+echo byte-for-byte before closing. Every behaviour is a CLI flag; the engine
+(`tcp_swarm.pony`) draws nothing and sets no runtime defaults, and a
+swarm orchestrator (`orchestrate_tcp.py`) draws the flags.
 
-## How it stresses the runtime
+This is a port of ponyc's `tcp-swarm` runtime stress test. The draw and the run
+mechanism are carried over from there; the engine uses the net package's API.
 
-Heavy ASIO activity and lots of actor creation/destruction, with a content oracle
-on top and swarm dimensions each tied to a distinct code path in
-`packages/net/tcp_connection.pony`:
+## How it stresses the net package
+
+Heavy connection churn and lots of actor creation/destruction, with a content
+oracle on top. Each flag is tied to a distinct code path in `tcp_connection.pony`:
 
 - `--payload-size` / `--messages` — how much each connection sends, and in how many
-  messages (chatty vs single).
-- `--write-shape` (`write` | `writev`) — single vs vectored writes.
-- `--writev-chunks` (`N`, writev only) — how many buffers a `writev` splits its
-  payload into. Above `@pony_os_writev_max()` (IOV_MAX — 1024 on Linux/macOS — on
-  POSIX, 1 on Windows) a single writev queues more buffers than one syscall sends,
-  so
-  `TCPConnection` takes its multi-batch send path. That path is the only one that
-  re-checks `--yield-after-writing`, so on POSIX the mid-write yield needs a
-  chunk count above IOV_MAX to fire at all.
-- `--expect` (`0` = off, `N` = frame size) — fixed-size framed reads vs
-  whole-buffer, on both endpoints.
-- `--close` (`graceful` | `hard`) — a graceful `dispose()` (FIN, drains) vs a muted
-  `dispose()`, which takes the `hard_close` path (immediate teardown, no lingering
+  `send()` calls (chatty vs single).
+- `--write-shape` (`write` | `writev`) — a single-buffer `send(ByteSeq)` vs a
+  vectored `send(ByteSeqIter)`.
+- `--writev-chunks` (`N`, writev only) — how many buffers one vectored `send`
+  splits its payload into. Above `RuntimeBackend.writev_max()` (IOV_MAX on POSIX, 1 on
+  Windows) a single `send` queues more buffers than one `writev` syscall can carry,
+  so `_send_pending_writes()` takes its multi-batch path — one `writev_max`-sized
+  batch per pass.
+- `--expect` (`0` = off, `N` = frame size) — fixed-size framed reads via
+  `buffer_until(MakeBufferSize(N))` vs whole-buffer `Streaming` reads, on both
+  endpoints.
+- `--close` (`graceful` | `hard`) — a graceful `close()` (FIN, drains) vs a muted
+  `close()`, which the net package routes to `hard_close()` (immediate teardown, no lingering
   drain). The client closes only after its whole echo is back, so the hard path
   drops no data here — it exercises the distinct teardown/unsubscribe code.
-- `--read-buffer-size` / `--yield-after-reading` / `--yield-after-writing` — the
-  TCPConnection read-buffer size and the byte counts at which it yields back to the
-  scheduler mid-read/mid-write. A small `--yield-after-reading` yields on any
-  payload that fills the read buffer more than once; `--yield-after-writing` only
-  bites on the multi-batch write path (see `--writev-chunks`), so on POSIX it does
-  nothing unless the chunk count is above IOV_MAX.
+- `--read-buffer-size` — the per-connection read buffer size (a `ReadBufferSize`),
+  which sets both the initial allocation and the shrink-back floor. Because it sets
+  the two equal, this varies read chunking and the yield threshold but does not
+  exercise the net package's dynamic buffer resize/shrink paths (those need a mid-run resize).
+- `--yield-after-reading` — after this many received bytes an endpoint calls
+  `YieldReading` to leave the read loop cooperatively; reading resumes on its own
+  the next scheduler turn. Small values yield often, giving other actors a chance
+  to run mid-transfer.
 - `--connections` / `--concurrency` — total connections to churn, and the in-flight
   cap.
 - `--host` / `--port` — where the listener binds (default `localhost` / ephemeral).
-  `localhost`, not the literal `127.0.0.1`, sidesteps a macOS ephemeral-port wall
-  (see the note in `main.pony`).
+  `localhost`, not the literal `127.0.0.1`, sidesteps a macOS ephemeral-port wall.
+
+This is a plaintext echo workload, so it does not exercise the net package's SSL/TLS paths, its
+idle/connection/user timers, or its socket options — its
+idle/connection/user timers, or its socket options. Those are candidates for future swarm dimensions.
+
+## Backpressure handling
+
+The net package's `send()` is fallible: under backpressure it returns `SendErrorNotWriteable`
+and does not queue the data on the application's behalf. Over loopback with
+multi-megabyte payloads that happens constantly, on both endpoints, so the engine
+handles it explicitly. This is the main way the engine differs from an echo test
+written against the standard-library `net` package (whose `write()` queues
+unboundedly and never fails), and it means the engine also exercises the net package's
+backpressure and `mute`/`unmute` paths.
+
+- **Client** — a resumable send-pump. It hands the connection one message at a time
+  while `is_writeable()` is true, and resumes from `_on_unthrottled` after
+  backpressure clears. It closes only once it has read its whole echo back.
+- **Echo server** — when it cannot echo a chunk it stashes that one chunk and
+  `mute()`s (which stops further reads, so at most one chunk is ever held), then
+  sends the stash and `unmute()`s from `_on_unthrottled`. It checks `is_writeable()`
+  *before* `send()`: `send(consume data)` consumes the buffer even when it returns
+  an error, so a "try, then stash on failure" would drop the chunk.
+
+The client never stops reading for write backpressure (only the server ever mutes,
+and only while one echo chunk is stashed), so the two sides can't deadlock: the
+client keeps draining the server's echo, which clears the server's backpressure and
+lets it send the stash and unmute.
 
 ## Oracles
 
-- **Echo integrity** — each connection sends a unique, non-repeating byte stream
-  (byte at stream position `p` is a splitmix64 hash of the connection id and `p`)
-  and verifies every echoed byte against it. Because the stream is unique per
-  connection and never repeats, this catches not only a corrupted byte or a short
-  read but a byte delivered out of order, duplicated, or from another connection.
-  Every connection must verify: the client closes only after it has read its whole
-  echo back, so even a hard close tears down an already-drained connection.
+- **Echo integrity** — each connection sends a per-connection pseudo-random byte
+  stream (the byte at position `p` is the low 8 bits of a splitmix64 hash of the
+  connection id and `p`) and verifies every echoed byte against it. Systematic
+  corruption — a run of wrong bytes, a misrouted chunk, a byte from another
+  connection — is caught near-certainly; because the values are 8-bit, a lone
+  single-byte reorder or duplicate aliases ~1/256. A short echo is caught by the
+  conservation tally, not the byte check. Every connection must verify: the client
+  closes only after it has read its whole echo back, so even a hard close tears down
+  an already-drained connection.
 - **Conservation** — every spawned connection reaches a terminal state (closed or
   connect-failed); the `RESULT` line reports the tally.
 - **Crash / assert** — debug build, asserts on.
 
-This is a stress test, not fault injection: every connection is expected to
-connect, exchange, and verify. On success (every connection verified) it prints
-`RESULT ...` then `PASS` and returns, letting the program reach natural
-quiescence. Anything short of full verification — a connect failure, a short echo,
-or a byte mismatch — prints `FAIL` and exits non-zero.
+On success (every connection verified) the engine prints `RESULT ...` then `PASS`
+and returns, letting the program reach natural quiescence. Anything short of full
+verification — a connect failure, a short echo, or a byte mismatch — prints `FAIL`
+and exits non-zero.
 
-## Running the swarm
+## Building and running
 
-Build a debug ponyc, then let the orchestrator compile the engine and run seeds.
-Each seed draws one workload (a random subset of the features above plus bucketed
-magnitudes and a thin runtime backdrop — scaling, ASIO pinning, and the cycle
-detector on or off); the draw is stable per seed, so a failure replays from its
-number.
+Build the engine with the orchestrator's `--ponyc` option (which compiles
+from source) or directly with `ponyc`:
 
 ```bash
-cmake --preset debug
-cmake --build --preset debug
-python3 test/rt-stress/tcp-swarm/orchestrate_tcp.py \
-  --ponyc build/debug/ponyc --count 50 --out ~/tmp/tcp-swarm-out
+ponyc -d -o build/debug test/rt-stress/tcp-swarm     # -> build/debug/tcp-swarm
 ```
 
-`--seeds A,B,C` runs specific seeds; `--budget-seconds N` runs seeds from `--start`
-until N seconds pass (the soak); `--lldb <path>` runs each seed under lldb so a
-crash leaves a backtrace; `--max-connections N` caps each seed's connection count
-(Windows CI uses it, since Windows opens sockets slowly). On macOS the orchestrator
-also draws each workload from a narrower profile automatically (no flag), because
-macOS loopback shares a finite kernel buffer pool a wide workload can exhaust — which
-stalls a send and hangs the run; see `WORKLOAD_PROFILES` (the `macos` profile) in
-`orchestrate_tcp.py` for the lists and why. A run is a failure only if it crashes,
-mismatches, or hangs — makes no progress for `--no-progress-seconds` (the
-completed count stops rising); a failure writes `bundle-<seed>.json` to `--out`. A
-healthy run is never failed for running long: one still making progress at the
-`--timeout-seconds` backstop is reported `incomplete`, not failed.
-
-## Running the engine directly
+Run the engine directly for a single workload:
 
 ```bash
-cd build/debug
-PONYPATH=../../packages ./ponyc -d -b tcp_swarm ../../test/rt-stress/tcp-swarm
-./tcp_swarm --connections 1000 --concurrency 64 --payload-size 256 --messages 4
+build/debug/tcp-swarm --connections 1000 --concurrency 64 --payload-size 256 \
+  --messages 4
 ```
 
 On Linux under WSL, connecting to an *unoccupied* port can hang; here the listener
 occupies the port before any client dials, so the default `localhost` is fine.
 
+When hand-running with `--expect N`, `N` must not exceed `--read-buffer-size`, and
+`payload-size * messages` must be a whole number of `N`-byte frames — otherwise the
+trailing partial frame is never delivered and the client would hang. The engine rejects
+an `--expect` that violates either. The orchestrator satisfies both by construction.
+
+Every flag is checked against a schema and its valid range: an unknown, misspelled, or
+malformed flag, or a value out of range, is reported with a message and a non-zero exit
+rather than silently falling back to a default. `--help` lists the flags.
+
+## Running the swarm
+
+The orchestrator draws one workload per seed (a random subset of the features above
+plus bucketed magnitudes and a thin runtime backdrop — scaling, ASIO pinning, and
+the cycle detector on or off) and runs the prebuilt engine once per seed. It does
+not compile; point `--binary` at the engine you built above.
+
+```bash
+python3 test/rt-stress/tcp-swarm/orchestrate_tcp.py \
+  --binary build/debug/tcp-swarm --count 50 --out ~/tmp/tcp-swarm-out
+```
+
+The draw is stable per seed, so a failure replays its *workload* from its number
+(the concurrency timing a stress test hunts is not reproducible). Selectors:
+
+- `--count N` / `--start S` — run N seeds from S.
+- `--seeds A,B,C` — run specific seeds.
+- `--replay N` — reproduce seed N's workload (note: `--ponymaxthreads` is redrawn
+  against the local core count, so the runtime backdrop can differ across hosts).
+- `--budget-seconds N` — run seeds from `--start` until N seconds pass (a soak).
+- `--max-connections N` — cap each seed's connection count (useful where opens are
+  slow).
+- `--lldb <path>` — run each seed under lldb so a crash leaves a backtrace.
+
+On macOS the orchestrator draws each workload from a narrower profile automatically
+(no flag), because macOS loopback shares a finite kernel buffer pool a wide workload
+can exhaust — which stalls a send and hangs the run; see `WORKLOAD_PROFILES` (the
+`macos` profile) in `orchestrate_tcp.py` for the lists and why.
+
+A run is a failure only if it crashes, mismatches, or hangs — makes no progress for
+`--no-progress-seconds` (the completed count stops rising). A failure writes
+`bundle-<seed>.json` to `--out`. A healthy run is never failed for running long: one
+still making progress at the `--timeout-seconds` backstop is reported `incomplete`,
+not failed.
+
+`orchestrate_tcp_test.py` covers the pure pieces of the orchestrator (the draw, the
+memory budget, the watchdog, the run classifiers): `python3 orchestrate_tcp_test.py`.
+
 ## Memory and time bounds
 
 - **Memory** — the orchestrator caps each run at 14 GiB of address space
-  (`RLIMIT_AS`), and the *draw itself* is trimmed to keep well under that cap. A config
-  over the cap is killed by the runtime's own out-of-memory abort — which reads like a
-  runtime crash but is really the draw asking for more address space than the cap
-  allows, a false failure. So the memory-driving levers (connections, concurrency,
-  messages, payload, writev-chunks, read-buffer) are drawn against a shared memory
-  budget (`MEM_BUDGET_BYTES`, 2 GiB): the draw spends the budget, and once it is spent
-  the remaining levers are trimmed to fit. The levers are drawn in a per-seed *random
-  order*, so the trimmed lever rotates — on one seed a big `--writev-chunks` squeezes
-  concurrency and messages, on another a big connection count squeezes `--writev-chunks`
-  — and every lever still reaches large on some seeds, keeping the swarm a swarm. Why
-  14 GiB: the cap is on *virtual* address space, but the budget estimates *live* bytes,
-  which measured ~4-7x under the pool allocator's virtual high-water mark. That peak grows
-  as the run is CPU-starved (the deeper the in-flight backlog, the more the pool reserves)
-  — the failing 53k-connection seed the budget put at ~1.2 GiB peaked ~5 GiB virtual on
-  fast cores but ~8.4 GiB pinned to 2 cores, and the 2-core run reproduces the CI OOM
-  exactly (RSS stayed ~120 MiB throughout). CI's slow 4-vCPU runner builds that backlog and
-  the old 8 GiB cap sat just under it. Virtual is nearly free (RSS is the scarce resource,
-  the runner has 16 GiB), so 14 GiB clears the measured ~8.4 GiB worst case with margin
-  rather than re-fitting the constants.
-- **Time** — the per-run clamp (`clamp_run`) bounds round-trips
-  (`connections * messages`) and total bytes (`connections * messages * payload`),
-  so an outsized draw (e.g. 100k conns × 64 msgs × 64 KiB ≈ 400 GB) is trimmed.
+  (`RLIMIT_AS`, Linux), and the draw is trimmed to keep well under that cap: the
+  memory-driving levers (connections, concurrency, messages, payload, writev-chunks,
+  read-buffer) are drawn against a shared budget in a per-seed random order, so the
+  trimmed lever rotates and every lever still reaches large on some seeds. The cap is
+  on *virtual* address space, but the budget estimates *live* bytes — on ponyc's `net`
+  stack that measured ~4-7x under the pool allocator's virtual high-water mark, which grows
+  as the run is CPU-starved (a draw the budget put at ~1.2 GiB peaked ~5 GiB virtual on fast
+  cores but ~8.4 GiB on 2 cores, where it reproduces the CI OOM; ~120 MiB RSS throughout).
+  Virtual is nearly free (RSS is the scarce resource, the runner has 16 GiB), so the cap is
+  set high enough to clear that ~8.4 GiB worst case with margin. The budget's
+  cost constants (`MEM_OBJ_BYTES`, `MEM_RB_FACTOR`) were calibrated against ponyc's `net`
+  stack, not measured independently — the *shape* carries over but the constants are unconfirmed
+  here, so the net package is at least as exposed; confirm with a raised-cap run before
+  trusting the budget as a tight bound.
+- **Time** — the per-run clamp bounds round-trips (`connections * messages`) and
+  total bytes (`connections * messages * payload`), so an outsized draw is trimmed.
   Bytes are the heavier cost: each payload byte is generated by a per-position hash
   (the stream is unique and non-repeating, so it can't be bulk-copied), which is why
-  the byte ceiling — not just the round-trip ceiling — is the one the clamp defends.
+  the byte ceiling is the one the clamp defends.

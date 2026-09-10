@@ -25,7 +25,7 @@ jobs:
 
     name: x86-64-unknown-linux-ubuntu26.04 generative normal [debug]
     container:
-      image: ghcr.io/ponylang/ponyc-ci-ubuntu26.04-builder:20260425
+      image: ghcr.io/ponylang/ponyc-ci-ubuntu26.04-builder:20260908
       # SYS_PTRACE + unconfined seccomp so lldb can ptrace the engine: the normal
       # mode runs each seed under lldb to capture a crash backtrace (a normal-mode
       # crash does not reproduce, so the in-the-moment stack is the only artifact).
@@ -39,7 +39,7 @@ jobs:
       - name: Restore prebuilt libs
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          LIBS_IMAGE: ghcr.io/ponylang/ponyc-ci-ubuntu26.04-builder:20260425
+          LIBS_IMAGE: ghcr.io/ponylang/ponyc-ci-ubuntu26.04-builder:20260908
           LIBS_TAG: ${{ hashFiles('lib/CMakePresets.json', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/build-libs.cmake', 'lib/llvm/patches/*') }}
           # Off main (a manual dispatch of a branch): build LLVM if it isn't cached,
           # and push what we build. On main (a scheduled run, or a dispatch left on

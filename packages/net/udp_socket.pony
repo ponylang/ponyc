@@ -1,602 +1,324 @@
-use "collections"
-
-use @pony_os_listen_udp[AsioEventID](owner: AsioEventNotify,
-  host: Pointer[U8] tag, service: Pointer[U8] tag)
-use @pony_os_listen_udp4[AsioEventID](owner: AsioEventNotify,
-  host: Pointer[U8] tag, service: Pointer[U8] tag)
-use @pony_os_listen_udp6[AsioEventID](owner: AsioEventNotify,
-  host: Pointer[U8] tag, service: Pointer[U8] tag)
-use @pony_os_sendto[U8](fd: U32, buffer: Pointer[U8] tag,
-  size: USize, to: NetAddress tag, count_out: Pointer[USize])
-use @pony_os_recvfrom[U8](event: AsioEventID, buffer: Pointer[U8] tag,
-  size: USize, from: NetAddress tag, count_out: Pointer[USize])
-use @pony_os_multicast_join[None](fd: U32, group: Pointer[U8] tag,
-  to: Pointer[U8] tag)
-use @pony_os_multicast_leave[None](fd: U32, group: Pointer[U8] tag,
-  to: Pointer[U8] tag)
-use @pony_os_multicast_interface[None](fd: U32, from: Pointer[U8] tag)
-
-actor UDPSocket is AsioEventNotify
+class UDPSocket[UDP: UDPBackend ref = UDPRuntimeBackend]
   """
-  Creates a UDP socket that can be used for sending and receiving UDP messages.
+  A UDP socket: bind, send datagrams, receive datagrams, and close. A
+  `UDPSocketActor` owns one and delegates to it.
 
-  The following examples create:
-
-  * an echo server that listens for connections and returns whatever message it
-    receives
-  * a client that connects to the server, sends a message, and prints the
-    message it receives in response
-
-  The server is implemented like this:
-
-  ```pony
-  use "net"
-
-  class MyUDPNotify is UDPNotify
-    fun ref received(
-      sock: UDPSocket ref,
-      data: Array[U8] iso,
-      from: NetAddress)
-    =>
-      sock.write(consume data, from)
-
-    fun ref not_listening(sock: UDPSocket ref) =>
-      None
-
-  actor Main
-    new create(env: Env) =>
-      UDPSocket(UDPAuth(env.root),
-        MyUDPNotify, "", "8989")
-  ```
-
-  The client is implemented like this:
-
-  ```pony
-  use "net"
-
-  class MyUDPNotify is UDPNotify
-    let _out: OutStream
-    let _destination: NetAddress
-
-    new create(
-      out: OutStream,
-      destination: NetAddress)
-    =>
-      _out = out
-      _destination = destination
-
-    fun ref listening(sock: UDPSocket ref) =>
-      sock.write("hello world", _destination)
-
-    fun ref received(
-      sock: UDPSocket ref,
-      data: Array[U8] iso,
-      from: NetAddress)
-    =>
-      _out.print("GOT:" + String.from_array(consume data))
-      sock.dispose()
-
-    fun ref not_listening(sock: UDPSocket ref) =>
-      None
-
-  actor Main
-    new create(env: Env) =>
-      try
-        let destination =
-          DNS.ip4(DNSAuth(env.root), "localhost", "8989")(0)?
-        UDPSocket(UDPAuth(env.root),
-          recover MyUDPNotify(env.out, consume destination) end)
-      end
-  ```
+  Create with `UDPSocket(auth, host, port, enclosing, ler)`, using
+  `UDPSocket.none()` as the field initializer before that. See the package
+  documentation for the full lifecycle.
   """
-  var _notify: UDPNotify
-  var _fd: U32
-  var _event: AsioEventID
-  var _readable: Bool = false
-  var _closed: Bool = false
-  var _packet_size: USize
-  var _read_buf: Array[U8] iso
-  embed _ip: NetAddress = NetAddress
+  var _udp: UDP = UDP
+  var _state: _UDPSocketState[UDP] ref = _UDPNone[UDP]
+  var _event: AsioEventID = AsioEvent.none()
+  var _fd: U32 = -1
+  let _host: String
+  let _port: String
+  let _ip_version: IPVersion
+  let _read_buffer_size: USize
+  let _max_datagrams_per_turn: USize
+  var _enclosing: (UDPSocketActor[UDP] ref | None)
+  var _ler: (UDPLifecycleEventReceiver[UDP] ref | None)
 
-  new create(
-    auth: UDPAuth,
-    notify: UDPNotify iso,
-    host: String = "",
-    service: String = "0",
-    size: USize = 1024)
+  new create(auth: UDPAuth,
+    host: String,
+    port: String,
+    enclosing: UDPSocketActor[UDP] ref,
+    ler: UDPLifecycleEventReceiver[UDP] ref,
+    read_buffer_size: ReadBufferSize = DefaultReadBufferSize(),
+    ip_version: IPVersion = DualStack,
+    max_datagrams_per_turn: USize = 256)
   =>
     """
-    Listens for datagrams. The address family is whichever the resolver
-    returns first for `host`/`service`, so it depends on the environment;
-    use `ip4` or `ip6` to pin a specific family.
+    Bind a UDP socket to `host`:`port`. Port `"0"` lets the OS assign an
+    ephemeral port.
+    """
+    _host = host
+    _port = port
+    _ip_version = ip_version
+    _read_buffer_size = read_buffer_size()
+    _max_datagrams_per_turn = max_datagrams_per_turn
+    _enclosing = enclosing
+    _ler = ler
 
-    `size` is the read buffer size in bytes (default 1024) and therefore the
-    maximum datagram length delivered to `UDPNotify.received`; a larger datagram
-    is truncated to `size` and the excess is silently discarded (see
-    `UDPNotify.received`). A `size` of 0 is raised to 1, so an empty delivery to
-    `received` always means an empty datagram, never a dropped one.
-    """
-    _notify = consume notify
-    _event =
-      @pony_os_listen_udp(this, host.cstring(), service.cstring())
-    _fd = @pony_asio_event_fd(_event)
-    @pony_os_sockname(_fd, _ip)
-    _packet_size = size.max(1)
-    _read_buf = recover Array[U8] .> undefined(_packet_size) end
-    _notify_listening()
+    enclosing._finish_initialization()
 
-  new ip4(
-    auth: UDPAuth,
-    notify: UDPNotify iso,
-    host: String = "",
-    service: String = "0",
-    size: USize = 1024)
-  =>
+  new none() =>
     """
-    Listens for IPv4 datagrams.
+    Placeholder for field initialization before the real constructor runs.
+    """
+    _host = ""
+    _port = ""
+    _ip_version = DualStack
+    _read_buffer_size = 16384
+    _max_datagrams_per_turn = 256
+    _enclosing = None
+    _ler = None
 
-    `size` is the read buffer size in bytes (default 1024) and therefore the
-    maximum datagram length delivered to `UDPNotify.received`; a larger datagram
-    is truncated to `size` and the excess is silently discarded (see
-    `UDPNotify.received`). A `size` of 0 is raised to 1, so an empty delivery to
-    `received` always means an empty datagram, never a dropped one.
+  fun ref send_to(data: ByteSeq, to: NetAddress box): SendToResult =>
     """
-    _notify = consume notify
-    _event =
-      @pony_os_listen_udp4(this, host.cstring(), service.cstring())
-    _fd = @pony_asio_event_fd(_event)
-    @pony_os_sockname(_fd, _ip)
-    _packet_size = size.max(1)
-    _read_buf = recover Array[U8] .> undefined(_packet_size) end
-    _notify_listening()
+    Send one datagram to `to`. Returns `SendToOk` when the datagram was
+    handed to the OS. UDP sends are synchronous and all-or-nothing: the
+    entire datagram goes out or nothing does.
+    """
+    _state.send_to(this, data, to)
 
-  new ip6(
-    auth: UDPAuth,
-    notify: UDPNotify iso,
-    host: String = "",
-    service: String = "0",
-    size: USize = 1024)
-  =>
+  fun ref close() =>
     """
-    Listens for IPv6 datagrams.
+    Close the socket. No graceful shutdown: the fd is closed immediately.
+    """
+    _state.close(this)
 
-    `size` is the read buffer size in bytes (default 1024) and therefore the
-    maximum datagram length delivered to `UDPNotify.received`; a larger datagram
-    is truncated to `size` and the excess is silently discarded (see
-    `UDPNotify.received`). A `size` of 0 is raised to 1, so an empty delivery to
-    `received` always means an empty datagram, never a dropped one.
+  fun ref local_address(): NetAddress =>
     """
-    _notify = consume notify
-    _event =
-      @pony_os_listen_udp6(this, host.cstring(), service.cstring())
-    _fd = @pony_asio_event_fd(_event)
-    @pony_os_sockname(_fd, _ip)
-    _packet_size = size.max(1)
-    _read_buf = recover Array[U8] .> undefined(_packet_size) end
-    _notify_listening()
+    Return the local IP address. If the socket is closed the address returned
+    is invalid.
+    """
+    let ip = recover NetAddress end
+    _udp.sockname(_fd, ip)
+    ip
 
-  be write(data: ByteSeq, to: NetAddress) =>
+  fun ref read_again() =>
     """
-    Write a single sequence of bytes.
+    Re-enter the read loop. Called internally after yielding or exhausting the
+    per-turn budget; applications do not call this directly.
     """
-    _write(data, to)
+    _state.read_again(this)
 
-  be writev(data: ByteSeqIter, to: NetAddress) =>
+  fun is_open(): Bool =>
     """
-    Write a sequence of byte sequences. Each `ByteSeq` in `data` is sent
-    as a separate UDP datagram; this method does not combine them into a
-    single packet.
+    True when the socket is bound and has not been closed.
+    """
+    _state.is_open()
 
-    Note that this differs from the POSIX `writev` system call, which
-    for record-based protocols like UDP would produce a single datagram.
-    If you need a single datagram, concatenate the data yourself and call
-    `write`.
+  fun is_closed(): Bool =>
     """
-    for bytes in data.values() do
-      _write(bytes, to)
-    end
+    True when the socket has been closed.
+    """
+    _state.is_closed()
 
-  be set_notify(notify: UDPNotify iso) =>
+  fun get_so_rcvbuf(): (U32, U32) =>
     """
-    Change the notifier.
+    Get the OS receive buffer size for this socket.
+    Returns (errno, value). On success errno is 0.
     """
-    _notify = consume notify
+    getsockopt_u32(OSSockOpt.sol_socket(), OSSockOpt.so_rcvbuf())
 
-  be set_broadcast(state: Bool) =>
+  fun set_so_rcvbuf(bufsize: U32): U32 =>
     """
-    Enable or disable broadcasting from this socket. This sets the
-    `SO_BROADCAST` socket option, a sender-side permission to send to
-    IPv4 broadcast addresses (see `DNS.broadcast_ip4`).
+    Set the OS receive buffer size for this socket.
+    Returns 0 on success, or a non-zero errno.
+    """
+    setsockopt_u32(OSSockOpt.sol_socket(), OSSockOpt.so_rcvbuf(), bufsize)
 
-    On an IPv6 socket this is a no-op: IPv6 has no broadcast. Sending to
-    a multicast address such as the all-nodes group (see
-    `DNS.broadcast_ip6`) requires no permission; to receive traffic for
-    a multicast group, use `multicast_join`.
+  fun get_so_sndbuf(): (U32, U32) =>
+    """
+    Get the OS send buffer size for this socket.
+    Returns (errno, value). On success errno is 0.
+    """
+    getsockopt_u32(OSSockOpt.sol_socket(), OSSockOpt.so_sndbuf())
 
-    The default constructor binds whichever address family the resolver
-    returns first, so construct the socket with `ip4` if you need
-    broadcast; otherwise `set_broadcast` may silently be a no-op.
+  fun set_so_sndbuf(bufsize: U32): U32 =>
     """
-    if not _closed then
-      if _ip.ip4() then
-        set_so_broadcast(state)
-      end
-    end
+    Set the OS send buffer size for this socket.
+    Returns 0 on success, or a non-zero errno.
+    """
+    setsockopt_u32(OSSockOpt.sol_socket(), OSSockOpt.so_sndbuf(), bufsize)
 
-  be set_multicast_interface(from: String = "") =>
-    """
-    By default, the OS will choose which address is used to send packets bound
-    for multicast addresses. This can be used to force a specific interface.
-
-    For an IPv4 interface, pass the interface's IPv4 address. For an IPv6
-    interface, the interface is taken from the scope id of the resolved
-    address, so only a scoped address such as `"fe80::1%eth0"` selects an
-    interface; a plain IPv6 address does not.
-
-    Calling with an empty string currently has no effect.
-    """
-    if not _closed then
-      @pony_os_multicast_interface(_fd, from.cstring())
-    end
-
-  be set_multicast_loopback(loopback: Bool) =>
-    """
-    By default, packets sent to a multicast address will be received by the
-    sending system if it has subscribed to that address. Disabling loopback
-    prevents this.
-    """
-    if not _closed then
-      set_ip_multicast_loop(loopback)
-    end
-
-  be set_multicast_ttl(ttl: U8) =>
-    """
-    Set the TTL for multicast sends. Defaults to 1.
-    """
-    if not _closed then
-      set_ip_multicast_ttl(ttl)
-    end
-
-  be multicast_join(group: String, to: String = "") =>
-    """
-    Add a multicast group. This can be limited to packets arriving on a
-    specific interface.
-    """
-    if not _closed then
-      @pony_os_multicast_join(_fd, group.cstring(), to.cstring())
-    end
-
-  be multicast_leave(group: String, to: String = "") =>
-    """
-    Drop a multicast group. This can be limited to packets arriving on a
-    specific interface. No attempt is made to check that this socket has
-    previously added this group.
-    """
-    if not _closed then
-      @pony_os_multicast_leave(_fd, group.cstring(), to.cstring())
-    end
-
-  be dispose() =>
-    """
-    Stop listening.
-    """
-    if not _closed then
-      _close()
-    end
-
-  fun local_address(): NetAddress =>
-    """
-    Return the bound IP address.
-    """
-    _ip
-
-  be _event_notify(event: AsioEventID, flags: U32, arg: U32) =>
-    """
-    When we are readable, we accept new connections until none remain.
-    """
-    if event isnt _event then
-      return
-    end
-
-    if not _closed then
-      if AsioEvent.errored(flags) then
-        _close()
-        return
-      end
-
-      if AsioEvent.readable(flags) then
-        _readable = true
-        _pending_reads()
-      end
-    end
-
-    if AsioEvent.disposable(flags) then
-      @pony_asio_event_destroy(_event)
-      _event = AsioEvent.none()
-    end
-
-  be _read_again() =>
-    """
-    Resume reading.
-    """
-    if not _closed then
-      _pending_reads()
-    end
-
-  fun ref _pending_reads() =>
-    """
-    Read while data is available, guessing the next packet length as we go.
-    Once about 4 kb of read work accumulates, send ourself a resume message and
-    stop reading, to avoid starving other actors. A zero-byte datagram counts
-    as 1 byte of work so a flood of empty datagrams cannot loop here forever.
-    """
-    try
-      var sum: USize = 0
-
-      while _readable do
-        let size = _packet_size
-        let data = _read_buf = recover Array[U8] .> undefined(size) end
-        let from = recover NetAddress end
-        var count: USize = 0
-        match \exhaustive\ _SocketResultDecoder(
-          @pony_os_recvfrom(
-            _event,
-            data.cpointer(),
-            data.space(),
-            from,
-            addressof count))
-        | _SocketResultOk =>
-          data.truncate(count)
-          _notify.received(this, consume data, consume from)
-
-          // An empty datagram is delivered as OK with count 0; charge it 1
-          // byte so a flood still advances the read budget and yields.
-          sum = sum + count.max(1)
-
-          if sum > (1 << 12) then
-            _read_again()
-            return
-          end
-        | _SocketResultRetry =>
-          _readable = false
-          return
-        | _SocketResultError => error
-        end
-      end
-    else
-      _close()
-    end
-
-  fun ref _write(data: ByteSeq, to: NetAddress) =>
-    """
-    Write the datagram to the socket.
-    """
-    if not _closed then
-      // `count` (bytes sent on Ok) is discarded: UDP is unreliable, so we
-      // don't track partial-send progress. The local is required by the FFI
-      // shape. `_SocketResultRetry` (EWOULDBLOCK/EAGAIN/ENOBUFS) silently drops
-      // the datagram on every platform. A send Error closes the socket.
-      var count: USize = 0
-      match \exhaustive\ _SocketResultDecoder(
-        @pony_os_sendto(
-          _fd,
-          data.cpointer(),
-          data.size(),
-          to,
-          addressof count))
-      | _SocketResultOk => None
-      | _SocketResultRetry => None
-      | _SocketResultError => _close()
-      end
-    end
-
-  fun ref _notify_listening() =>
-    """
-    Inform the notifier that we're listening.
-    """
-    if _fd != -1 then
-      _notify.listening(this)
-    else
-      _notify.not_listening(this)
-    end
-
-  fun ref _close() =>
-    """
-    Inform the notifier that we've closed.
-    """
-    // Unsubscribe immediately. On Windows this issues a
-    // ProcessSocketNotifications REMOVE; the backend closes the fd and
-    // disposes the event once the REMOVE
-    // is seen. The `is_null` guard tolerates a failed listen (issue #5474),
-    // which leaves a null event.
-    if not _event.is_null() then
-      @pony_asio_event_unsubscribe(_event)
-      _readable = false
-    end
-
-    _closed = true
-
-    if _fd != -1 then
-      _notify.closed(this)
-      // POSIX closes the fd here; on Windows the readiness backend owns the
-      // close (when it sees the deferred REMOVE from the unsubscribe above).
-      ifdef not windows then
-        @pony_os_socket_close(_fd)
-      end
-      _fd = -1
-    end
-
-  fun ref getsockopt(
-    level: I32,
+  fun getsockopt(level: I32,
     option_name: I32,
     option_max_size: USize = 4)
     : (U32, Array[U8] iso^)
   =>
     """
-    General wrapper for UDP sockets to the `getsockopt(2)` system call.
-
-    The caller must provide an array that is pre-allocated to be
-    at least as large as the largest data structure that the kernel
-    may return for the requested option.
-
-    In case of system call success, this function returns the 2-tuple:
-    1. The integer `0`.
-    2. An `Array[U8]` of data returned by the system call's `void *`
-       4th argument.  Its size is specified by the kernel via the
-       system call's `sockopt_len_t *` 5th argument.
-
-    In case of system call failure, this function returns the 2-tuple:
-    1. The value of `errno`.
-    2. An undefined value that must be ignored.
-
-    Usage example:
-
-    ```pony
-    // listening() is a callback function for class UDPNotify
-    fun ref listening(sock: UDPSocket ref) =>
-      match sock.getsockopt(OSSockOpt.sol_socket(), OSSockOpt.so_rcvbuf(), 4)
-        | (0, let gbytes: Array[U8] iso) =>
-          try
-            let br = Reader.create().>append(consume gbytes)
-            ifdef littleendian then
-              let buffer_size = br.u32_le()?
-            else
-              let buffer_size = br.u32_be()?
-            end
-          end
-        | (let errno: U32, _) =>
-          // System call failed
-      end
-    ```
+    General interface to `getsockopt(2)`. Returns `(0, data)` on success or
+    `(errno, undefined)` on failure. Returns `(1, empty)` when the socket is
+    not open. For commonly-tuned options, prefer `get_so_rcvbuf` and
+    `get_so_sndbuf`.
     """
+    _state.getsockopt(this, level, option_name, option_max_size)
+
+  fun getsockopt_u32(level: I32, option_name: I32): (U32, U32) =>
+    """
+    Wrapper for `getsockopt(2)` where the kernel returns a C `uint32_t`.
+    Returns `(0, value)` on success or `(errno, undefined)` on failure.
+    Returns `(1, 0)` when the socket is not open.
+    """
+    _state.getsockopt_u32(this, level, option_name)
+
+  fun setsockopt(level: I32,
+    option_name: I32,
+    option: Array[U8])
+    : U32
+  =>
+    """
+    General interface to `setsockopt(2)`. The caller is responsible for the
+    correct size, byte contents, and byte order of `option`. Returns 0 on
+    success, or a non-zero errno. Returns non-zero when the socket is not
+    open. For commonly-tuned options, prefer `set_so_rcvbuf` and
+    `set_so_sndbuf`.
+    """
+    _state.setsockopt(this, level, option_name, option)
+
+  fun setsockopt_u32(level: I32, option_name: I32, option: U32): U32 =>
+    """
+    Wrapper for `setsockopt(2)` where the kernel expects a C `uint32_t`.
+    Returns 0 on success, or a non-zero errno. Returns non-zero when the
+    socket is not open.
+    """
+    _state.setsockopt_u32(this, level, option_name, option)
+
+  //
+  // Internal methods called by state classes
+  //
+  fun ref _set_state(state: _UDPSocketState[UDP] ref) =>
+    _state = state
+
+  fun ref _dispatch_io_event(flags: U32) =>
+    if AsioEvent.errored(flags) then
+      _do_close()
+      return
+    end
+
+    if AsioEvent.readable(flags) then
+      _pending_reads()
+    end
+
+  fun ref _pending_reads() =>
+    match \exhaustive\ _ler
+    | let ler: UDPLifecycleEventReceiver[UDP] ref =>
+      var total_bytes_read: USize = 0
+      var datagrams_read: USize = 0
+
+      while true do
+        if _state.is_closed() then
+          return
+        end
+
+        if total_bytes_read >= _read_buffer_size then
+          _queue_read()
+          return
+        end
+
+        if datagrams_read >= _max_datagrams_per_turn then
+          _queue_read()
+          return
+        end
+
+        let buffer =
+          recover Array[U8] .> undefined(_read_buffer_size) end
+        (let result, let count, let from) =
+          _udp.recvfrom(_event, buffer.cpointer(), _read_buffer_size)
+
+        match \exhaustive\ result
+        | SocketResultOk =>
+          buffer.truncate(count)
+          total_bytes_read = total_bytes_read + count
+          datagrams_read = datagrams_read + 1
+          match \exhaustive\ ler._on_received(consume buffer, consume from)
+          | KeepReading => None
+          | YieldReading =>
+            _queue_read()
+            return
+          end
+        | SocketResultRetry =>
+          return
+        | SocketResultError =>
+          _queue_read()
+          return
+        end
+      end
+    | None =>
+      _Unreachable()
+    end
+
+  fun ref _do_send_to(data: ByteSeq, to: NetAddress box): SendToResult =>
+    match \exhaustive\ _udp.sendto(_fd, data, to)
+    | SocketResultOk => SendToOk
+    | SocketResultRetry => SendToWouldBlock
+    | SocketResultError => SendToError
+    end
+
+  fun ref _do_close() =>
+    PonyAsio.unsubscribe(_event)
+    ifdef not windows then
+      _udp.close(_fd)
+      _fd = -1
+    end
+    _state = _UDPClosed[UDP]
+    match \exhaustive\ _ler
+    | let ler: UDPLifecycleEventReceiver[UDP] ref =>
+      ler._on_closed()
+    | None =>
+      _Unreachable()
+    end
+
+  fun ref _do_read_again() =>
+    _pending_reads()
+
+  fun ref _queue_read() =>
+    match \exhaustive\ _enclosing
+    | let e: UDPSocketActor[UDP] ref =>
+      e._read_again()
+    | None =>
+      _Unreachable()
+    end
+
+  fun ref _event_notify(event: AsioEventID, flags: U32) =>
+    if event isnt _event then
+      if AsioEvent.disposable(flags) then
+        PonyAsio.destroy(event)
+      end
+      return
+    end
+
+    _state.event_notify(this, flags)
+
+    if AsioEvent.disposable(flags) then
+      PonyAsio.destroy(event)
+      _event = AsioEvent.none()
+    end
+
+  fun ref _finish_initialization() =>
+    match _state
+    | let _: _UDPClosed[UDP] => return
+    end
+
+    match \exhaustive\ (_enclosing, _ler)
+    | (let e: UDPSocketActor[UDP] ref,
+      let ler: UDPLifecycleEventReceiver[UDP] ref) =>
+      _event = _udp.bind(e, _host, _port where ip_version = _ip_version)
+
+      if not _event.is_null() then
+        _fd = PonyAsio.event_fd(_event)
+        _state = _UDPOpen[UDP]
+        ler._on_bound()
+      else
+        _state = _UDPClosed[UDP]
+        ler._on_bind_failure()
+      end
+    | (_, _) =>
+      _Unreachable()
+    end
+
+  //
+  // Socket option delegates for state classes
+  //
+  fun _do_getsockopt(level: I32,
+    option_name: I32,
+    option_max_size: USize)
+    : (U32, Array[U8] iso^)
+  =>
     _OSSocket.getsockopt(_fd, level, option_name, option_max_size)
 
-  fun ref getsockopt_u32(level: I32, option_name: I32): (U32, U32) =>
-    """
-    Wrapper for UDP sockets to the `getsockopt(2)` system call where
-    the kernel's returned option value is a C `uint32_t` type / Pony
-    type `U32`.
-
-    In case of system call success, this function returns the 2-tuple:
-    1. The integer `0`.
-    2. The `*option_value` returned by the kernel converted to a Pony `U32`.
-
-    In case of system call failure, this function returns the 2-tuple:
-    1. The value of `errno`.
-    2. An undefined value that must be ignored.
-    """
+  fun _do_getsockopt_u32(level: I32, option_name: I32): (U32, U32) =>
     _OSSocket.getsockopt_u32(_fd, level, option_name)
 
-  fun ref setsockopt(level: I32, option_name: I32, option: Array[U8]): U32 =>
-    """
-    General wrapper for UDP sockets to the `setsockopt(2)` system call.
-
-    The caller is responsible for the correct size and byte contents of
-    the `option` array for the requested `level` and `option_name`,
-    including using the appropriate CPU endian byte order.
-
-    This function returns `0` on success, else the value of `errno` on
-    failure.
-
-    Usage example:
-
-    ```pony
-    // listening() is a callback function for class UDPNotify
-    fun ref listening(sock: UDPSocket ref) =>
-      let sb = Writer
-
-      sb.u32_le(7744)             // Our desired socket buffer size
-      let sbytes = Array[U8]
-      for bs in sb.done().values() do
-        sbytes.append(bs)
-      end
-      match sock.setsockopt(
-        OSSockOpt.sol_socket(),
-        OSSockOpt.so_rcvbuf(),
-        sbytes)
-        | 0 =>
-          // System call was successful
-        | let errno: U32 =>
-          // System call failed
-      end
-    ```
-    """
+  fun _do_setsockopt(level: I32,
+    option_name: I32,
+    option: Array[U8])
+    : U32
+  =>
     _OSSocket.setsockopt(_fd, level, option_name, option)
 
-  fun ref setsockopt_u32(level: I32, option_name: I32, option: U32): U32 =>
-    """
-    Wrapper for UDP sockets to the `setsockopt(2)` system call where
-    the kernel expects an option value of a C `uint32_t` type / Pony
-    type `U32`.
-
-    This function returns `0` on success, else the value of `errno` on
-    failure.
-    """
+  fun _do_setsockopt_u32(level: I32, option_name: I32, option: U32): U32 =>
     _OSSocket.setsockopt_u32(_fd, level, option_name, option)
-
-  fun ref get_so_error(): (U32, U32) =>
-    """
-    Wrapper for the FFI call `getsockopt(fd, SOL_SOCKET, SO_ERROR, ...)`
-    """
-    _OSSocket.get_so_error(_fd)
-
-  fun ref get_so_rcvbuf(): (U32, U32) =>
-    """
-    Wrapper for the FFI call `getsockopt(fd, SOL_SOCKET, SO_RCVBUF, ...)`
-    """
-    _OSSocket.get_so_rcvbuf(_fd)
-
-  fun ref get_so_sndbuf(): (U32, U32) =>
-    """
-    Wrapper for the FFI call `getsockopt(fd, SOL_SOCKET, SO_SNDBUF, ...)`
-    """
-    _OSSocket.get_so_sndbuf(_fd)
-
-  fun ref set_ip_multicast_loop(loopback: Bool): U32 =>
-    """
-    Wrapper for the FFI call
-    `setsockopt(fd, IPPROTO_IP, IP_MULTICAST_LOOP, ...)`
-    """
-    var word: Array[U8] ref =
-      _OSSocket.u32_to_bytes4(if loopback then 1 else 0 end)
-    _OSSocket.setsockopt(
-      _fd,
-      OSSockOpt.ipproto_ip(),
-      OSSockOpt.ip_multicast_loop(),
-      word)
-
-  fun ref set_ip_multicast_ttl(ttl: U8): U32 =>
-    """
-    Wrapper for the FFI call
-    `setsockopt(fd, IPPROTO_IP, IP_MULTICAST_TTL, ...)`
-    """
-    var word: Array[U8] ref = _OSSocket.u32_to_bytes4(ttl.u32())
-    _OSSocket.setsockopt(
-      _fd,
-      OSSockOpt.ipproto_ip(),
-      OSSockOpt.ip_multicast_ttl(),
-      word)
-
-  fun ref set_so_broadcast(state: Bool): U32 =>
-    """
-    Wrapper for the FFI call `setsockopt(fd, SOL_SOCKET, SO_BROADCAST, ...)`
-    """
-    var word: Array[U8] ref =
-      _OSSocket.u32_to_bytes4(if state then 1 else 0 end)
-    _OSSocket.setsockopt(
-      _fd,
-      OSSockOpt.sol_socket(),
-      OSSockOpt.so_broadcast(),
-      word)
-
-  fun ref set_so_rcvbuf(bufsize: U32): U32 =>
-    """
-    Wrapper for the FFI call `setsockopt(fd, SOL_SOCKET, SO_RCVBUF, ...)`
-    """
-    _OSSocket.set_so_rcvbuf(_fd, bufsize)
-
-  fun ref set_so_sndbuf(bufsize: U32): U32 =>
-    """
-    Wrapper for the FFI call `setsockopt(fd, SOL_SOCKET, SO_SNDBUF, ...)`
-    """
-    _OSSocket.set_so_sndbuf(_fd, bufsize)

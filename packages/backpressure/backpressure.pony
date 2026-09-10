@@ -33,45 +33,37 @@ it is under pressure.
 ## Example program
 
 ```pony
-// Here we have a TCPConnectionNotify that upon construction
-// is given a ApplyReleaseBackpressureAuth token. This allows the notifier
-// to inform the Pony runtime when to apply and release backpressure
-// as the connection experiences it.
-// Note the calls to
-//
-// Backpressure.apply(_auth)
-// Backpressure.release(_auth)
-//
-// that apply and release backpressure as needed
-
 use "backpressure"
-use "collections"
 use "net"
 
-class SlowDown is TCPConnectionNotify
-  let _auth: ApplyReleaseBackpressureAuth
+actor SlowConsumer is (TCPConnectionActor & ServerLifecycleEventReceiver)
+  var _tcp_connection: TCPConnection = TCPConnection.none()
+  let _bp_auth: ApplyReleaseBackpressureAuth
   let _out: OutStream
 
-  new iso create(auth: ApplyReleaseBackpressureAuth, out: OutStream) =>
-    _auth = auth
+  new create(auth: TCPServerAuth, fd: U32,
+    bp_auth: ApplyReleaseBackpressureAuth, out: OutStream)
+  =>
+    _bp_auth = bp_auth
     _out = out
+    _tcp_connection = TCPConnection.server(auth, fd, this, this)
 
-  fun ref throttled(connection: TCPConnection ref) =>
-    _out.print("Experiencing backpressure!")
-    Backpressure.apply(_auth)
+  fun ref _connection(): TCPConnection =>
+    _tcp_connection
 
-  fun ref unthrottled(connection: TCPConnection ref) =>
-    _out.print("Releasing backpressure!")
-    Backpressure.release(_auth)
-
-  fun ref connect_failed(conn: TCPConnection ref) =>
+  fun ref _on_start_failure(reason: StartFailureReason) =>
     None
 
-actor Main
-  new create(env: Env) =>
-    let socket = TCPConnection(TCPConnectAuth(env.root),
-    recover SlowDown(
-      ApplyReleaseBackpressureAuth(env.root), env.out) end, "", "7669")
+  fun ref _on_throttled() =>
+    _out.print("Experiencing backpressure!")
+    Backpressure.apply(_bp_auth)
+
+  fun ref _on_unthrottled() =>
+    _out.print("Releasing backpressure!")
+    Backpressure.release(_bp_auth)
+
+  fun ref _on_received(data: Array[U8] iso): ReadAction =>
+    KeepReading
 ```
 
 ## Caveat

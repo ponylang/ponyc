@@ -16,6 +16,7 @@ RUN dnf install -y \
       libstdc++-static \
       lldb \
       make \
+      openssl-devel \
       python3-lldb \
       python3-pip \
       systemtap-sdt-devel \

@@ -44,6 +44,8 @@ jobs:
         # in-the-moment stack is the only artifact for it. The pinned package set
         # lives in the script.
         run: .\.ci-scripts\windows-install-deps.ps1
+      - name: Install LibreSSL
+        run: .\.ci-scripts\windows-install-libressl.ps1
       - name: Restore prebuilt libs
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

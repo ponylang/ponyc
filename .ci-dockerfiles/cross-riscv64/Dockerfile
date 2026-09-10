@@ -1,4 +1,4 @@
-FROM ghcr.io/ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu24.04-builder:20240425
+FROM ghcr.io/ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu24.04-builder:20260908
 
 LABEL org.opencontainers.image.source="https://github.com/ponylang/ponyc"
 

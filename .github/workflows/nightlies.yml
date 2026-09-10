@@ -14,19 +14,19 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - image: ghcr.io/ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu24.04-builder:20250115
+          - image: ghcr.io/ponylang/ponyc-ci-x86-64-unknown-linux-ubuntu24.04-builder:20260908
             name: x86-64-unknown-linux-ubuntu24.04
             triple-os: linux-ubuntu24.04
             triple-vendor: unknown
-          - image: ghcr.io/ponylang/ponyc-ci-alpine3.23-builder:20260201
+          - image: ghcr.io/ponylang/ponyc-ci-alpine3.23-builder:20260908
             name: x86-64-unknown-linux-alpine3.23
             triple-os: linux-alpine3.23
             triple-vendor: unknown
-          - image: ghcr.io/ponylang/ponyc-ci-alpine3.24-builder:20260611
+          - image: ghcr.io/ponylang/ponyc-ci-alpine3.24-builder:20260908
             name: x86-64-unknown-linux-alpine3.24
             triple-os: linux-alpine3.24
             triple-vendor: unknown
-          - image: ghcr.io/ponylang/ponyc-ci-ubuntu26.04-builder:20260425
+          - image: ghcr.io/ponylang/ponyc-ci-ubuntu26.04-builder:20260908
             name: x86-64-unknown-linux-ubuntu26.04
             triple-os: linux-ubuntu26.04
             triple-vendor: unknown
@@ -80,16 +80,16 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - image: ghcr.io/ponylang/ponyc-ci-alpine3.23-builder:20260201
+          - image: ghcr.io/ponylang/ponyc-ci-alpine3.23-builder:20260908
             name: arm64-unknown-linux-alpine3.23
             triple-os: linux-alpine3.23
-          - image: ghcr.io/ponylang/ponyc-ci-alpine3.24-builder:20260611
+          - image: ghcr.io/ponylang/ponyc-ci-alpine3.24-builder:20260908
             name: arm64-unknown-linux-alpine3.24
             triple-os: linux-alpine3.24
-          - image: ghcr.io/ponylang/ponyc-ci-arm64-unknown-linux-ubuntu24.04-builder:20250510
+          - image: ghcr.io/ponylang/ponyc-ci-arm64-unknown-linux-ubuntu24.04-builder:20260908
             name: arm64-unknown-linux-ubuntu24.04
             triple-os: linux-ubuntu24.04
-          - image: ghcr.io/ponylang/ponyc-ci-ubuntu26.04-builder:20260425
+          - image: ghcr.io/ponylang/ponyc-ci-ubuntu26.04-builder:20260908
             name: arm64-unknown-linux-ubuntu26.04
             triple-os: linux-ubuntu26.04
 
@@ -221,6 +221,8 @@ jobs:
         uses: actions/checkout@v6.0.2
       - name: Install Dependencies
         run: python.exe -m pip install --upgrade cloudsmith-cli
+      - name: Install LibreSSL
+        run: .\.ci-scripts\windows-install-libressl.ps1
       - name: Build libs
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -276,6 +278,8 @@ jobs:
           # Remove once arm64 Windows can install the latest cloudsmith-cli
           # again.
           python.exe -m pip install --upgrade "cloudsmith-cli<1.19.0"
+      - name: Install LibreSSL
+        run: .\.ci-scripts\windows-install-libressl.ps1
       - name: Build libs
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

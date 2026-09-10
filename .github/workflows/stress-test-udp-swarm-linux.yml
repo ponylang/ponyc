@@ -1,0 +1,77 @@
+name: "Stress Test: Linux Glibc UDP Swarm"
+
+on:
+  schedule:
+    - cron: "0 3 * * *"
+    - cron: "0 18 * * *"
+  workflow_dispatch:
+    inputs:
+      sha:
+        description: 'SHA to test'
+        required: true
+        type: string
+        default: 'main'
+
+permissions:
+  packages: write
+
+concurrency:
+  group: stress-${{ github.event_name == 'workflow_dispatch' && github.run_id || 'scheduled' }}
+  cancel-in-progress: false
+
+jobs:
+  x86_64-linux-glibc:
+    runs-on: ubuntu-latest
+    timeout-minutes: 200
+
+    name: x86-64-unknown-linux-ubuntu26.04 udp swarm [debug]
+    container:
+      image: ghcr.io/ponylang/ponyc-ci-ubuntu26.04-builder:20260908
+      options: --user pony
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6.0.2
+        with:
+          ref: ${{ github.event.inputs.sha || 'main' }}
+      - name: Restore prebuilt libs
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          LIBS_IMAGE: ghcr.io/ponylang/ponyc-ci-ubuntu26.04-builder:20260908
+          LIBS_TAG: ${{ hashFiles('lib/CMakePresets.json', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/build-libs.cmake', 'lib/llvm/patches/*') }}
+          LIBS_MODE: ${{ ((github.event_name == 'workflow_dispatch' && github.event.inputs.sha != 'main') && '--branch-cache') || '--require-cache-hit --skip-on-miss' }}
+          LIBS_BUILD: ${{ ((github.event_name == 'workflow_dispatch' && github.event.inputs.sha != 'main') && '-- cmake -DJOBS=4 -P lib/build-libs.cmake') || '' }}
+        run: python3 .ci-scripts/libs-cache/resolve_libs_cache.py $LIBS_MODE --image "$LIBS_IMAGE" --tag "$LIBS_TAG" $LIBS_BUILD
+      - name: Build Debug Runtime
+        if: ${{ hashFiles('.libs-cache-miss') == '' }}
+        run: |
+          cmake --preset debug
+          cmake --build --preset debug
+      - name: Run UDP Swarm Stress Test
+        if: ${{ hashFiles('.libs-cache-miss') == '' }}
+        run: |
+          python3 test/rt-stress/udp-swarm/orchestrate_udp.py \
+            --ponyc build/debug/ponyc \
+            --start ${{ github.run_id }} --budget-seconds 3000 \
+            --timeout-seconds 5400 \
+            --out rt-stress-out
+      # cancelled() too: keep bundles from seeds that ran before a cancel.
+      - name: Upload failure bundles
+        if: ${{ (failure() || cancelled()) && hashFiles('.libs-cache-miss') == '' }}
+        uses: actions/upload-artifact@v7.0.1
+        with:
+          name: udp-swarm-bundles-linux-glibc
+          path: rt-stress-out/*.json
+          if-no-files-found: ignore
+      # cancelled() too: failure() is false when a job hits timeout-minutes.
+      - name: Send alert on failure or cancellation
+        if: ${{ (failure() || cancelled()) && github.event_name == 'schedule' }}
+        uses: zulip/github-actions-zulip/send-message@bd8ec52de371d139ae8313661b7d8318c19266aa
+        with:
+          api-key: ${{ secrets.ZULIP_SCHEDULED_JOB_FAILURE_API_KEY }}
+          email: ${{ secrets.ZULIP_SCHEDULED_JOB_FAILURE_EMAIL }}
+          organization-url: 'https://ponylang.zulipchat.com/'
+          to: notifications
+          type: stream
+          topic: ${{ github.repository }} scheduled job failure
+          content: ${{ github.server_url}}/${{ github.repository }}/actions/runs/${{ github.run_id }} failed.

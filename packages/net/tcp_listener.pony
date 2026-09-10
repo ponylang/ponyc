@@ -1,157 +1,85 @@
-use @pony_os_accept[I32](event: AsioEventID)
-use @pony_os_listen_tcp[AsioEventID](
-  owner: AsioEventNotify,
-  host: Pointer[U8] tag,
-  service: Pointer[U8] tag)
-use @pony_os_listen_tcp4[AsioEventID](
-  owner: AsioEventNotify,
-  host: Pointer[U8] tag,
-  service: Pointer[U8] tag)
-use @pony_os_listen_tcp6[AsioEventID](
-  owner: AsioEventNotify,
-  host: Pointer[U8] tag,
-  service: Pointer[U8] tag)
+use "collections"
 
-actor TCPListener is AsioEventNotify
+class TCPListener[TCP: TCPBackend ref = RuntimeBackend]
   """
-  Listens for new network connections.
-
-  The following program creates an echo server that listens for
-  connections on port 8989 and echoes back any data it receives.
-
-  ```pony
-  use "net"
-
-  class MyTCPConnectionNotify is TCPConnectionNotify
-    fun ref received(
-      conn: TCPConnection ref,
-      data: Array[U8] iso,
-      times: USize)
-      : Bool
-    =>
-      conn.write(String.from_array(consume data))
-      true
-
-    fun ref connect_failed(conn: TCPConnection ref) =>
-      None
-
-  class MyTCPListenNotify is TCPListenNotify
-    fun ref connected(listen: TCPListener ref): TCPConnectionNotify iso^ =>
-      MyTCPConnectionNotify
-
-    fun ref not_listening(listen: TCPListener ref) =>
-      None
-
-  actor Main
-    new create(env: Env) =>
-      TCPListener(TCPListenAuth(env.root),
-        recover MyTCPListenNotify end, "", "8989")
-  ```
+  The TCP listener: opens a listening socket, runs the accept loop, and
+  enforces the connection limit. A `TCPListenerActor` owns one and delegates to
+  it. Create it with `TCPListener(auth, host, port, this)`, using
+  `TCPListener.none()` as the field initializer before that.
   """
-  var _notify: TCPListenNotify
-  var _fd: U32
-  var _event: AsioEventID = AsioEvent.none()
-  var _closed: Bool = false
-  let _limit: USize
-  var _count: USize = 0
+  var _tcp: TCP = TCP
+  let _host: String
+  let _port: String
+  let _limit: (MaxSpawn | None)
+  let _ip_version: IPVersion
+  var _open_connections: U32 = 0
   var _paused: Bool = false
-  let _read_buffer_size: USize
-  let _yield_after_reading: USize
-  let _yield_after_writing: USize
+  var _event: AsioEventID = AsioEvent.none()
+  var _fd: U32 = -1
+  var _listening: Bool = false
+  var _enclosing: (TCPListenerActor[TCP] ref | None)
 
-  new create(
-    auth: TCPListenAuth,
-    notify: TCPListenNotify iso,
-    host: String = "",
-    service: String = "0",
-    limit: USize = 0,
-    read_buffer_size: USize = 16384,
-    yield_after_reading: USize = 16384,
-    yield_after_writing: USize = 16384)
+  new create(auth: TCPListenAuth,
+    host: String,
+    port: String,
+    enclosing: TCPListenerActor[TCP] ref,
+    ip_version: IPVersion = DualStack,
+    limit: (MaxSpawn | None) = DefaultMaxSpawn())
   =>
-    """
-    Listens for both IPv4 and IPv6 connections.
-    """
+    _host = host
+    _port = port
+    _ip_version = ip_version
     _limit = limit
-    _notify = consume notify
-    _event =
-      @pony_os_listen_tcp(this, host.cstring(), service.cstring())
-    _read_buffer_size = read_buffer_size
-    _yield_after_reading = yield_after_reading
-    _yield_after_writing = yield_after_writing
-    _fd = @pony_asio_event_fd(_event)
-    _notify_listening()
+    _enclosing = enclosing
+    enclosing._finish_initialization()
 
-  new ip4(
-    auth: TCPListenAuth,
-    notify: TCPListenNotify iso,
-    host: String = "",
-    service: String = "0",
-    limit: USize = 0,
-    read_buffer_size: USize = 16384,
-    yield_after_reading: USize = 16384,
-    yield_after_writing: USize = 16384)
-  =>
+  new none() =>
     """
-    Listens for IPv4 connections.
+    A placeholder listener for the actor's field before real initialization,
+    replaced by a `create` listener once the actor starts.
     """
-    _limit = limit
-    _notify = consume notify
-    _event =
-      @pony_os_listen_tcp4(this, host.cstring(), service.cstring())
-    _read_buffer_size = read_buffer_size
-    _yield_after_reading = yield_after_reading
-    _yield_after_writing = yield_after_writing
-    _fd = @pony_asio_event_fd(_event)
-    _notify_listening()
+    _host = ""
+    _port = ""
+    _limit = None
+    _ip_version = DualStack
+    _enclosing = None
 
-  new ip6(
-    auth: TCPListenAuth,
-    notify: TCPListenNotify iso,
-    host: String = "",
-    service: String = "0",
-    limit: USize = 0,
-    read_buffer_size: USize = 16384,
-    yield_after_reading: USize = 16384,
-    yield_after_writing: USize = 16384)
-  =>
-    """
-    Listens for IPv6 connections.
-    """
-    _limit = limit
-    _notify = consume notify
-    _event =
-      @pony_os_listen_tcp6(this, host.cstring(), service.cstring())
-    _read_buffer_size = read_buffer_size
-    _yield_after_reading = yield_after_reading
-    _yield_after_writing = yield_after_writing
-    _fd = @pony_asio_event_fd(_event)
-    _notify_listening()
+  fun ref close() =>
+    match \exhaustive\ _enclosing
+    | let e: TCPListenerActor[TCP] ref =>
+      // TODO: when in debug mode we should blow up if listener is closed
+      if _listening then
+        _listening = false
 
-  be set_notify(notify: TCPListenNotify iso) =>
-    """
-    Change the notifier.
-    """
-    _notify = consume notify
+        if not _event.is_null() then
+          PonyAsio.unsubscribe(_event)
+          // POSIX closes the listener fd here. On Windows the readiness backend
+          // owns the close: it happens when the deferred
+          // ProcessSocketNotifications REMOVE from the unsubscribe above is
+          // seen, so closing here would strand the disposal handshake. The
+          // accepted/rejected fds in _accept are raw (never subscribed), so
+          // those closes stay cross-platform.
+          ifdef not windows then
+            _tcp.close(_fd)
+          end
+          _fd = -1
+          e._on_closed()
+        end
+      end
+    | None =>
+      _Unreachable()
+    end
 
-  be dispose() =>
+  fun ref local_address(): NetAddress =>
     """
-    Stop listening.
-    """
-    close()
-
-  fun local_address(): NetAddress =>
-    """
-    Return the bound IP address.
+    Return the local IP address. If this TCPListener is closed then the
+    address returned is invalid.
     """
     let ip = recover NetAddress end
-    @pony_os_sockname(_fd, ip)
+    _tcp.sockname(_fd, ip)
     ip
 
-  be _event_notify(event: AsioEventID, flags: U32, arg: U32) =>
-    """
-    When we are readable, we accept new connections until none remain.
-    """
+  fun ref _event_notify(event: AsioEventID, flags: U32) =>
     if event isnt _event then
       return
     end
@@ -166,97 +94,68 @@ actor TCPListener is AsioEventNotify
     end
 
     if AsioEvent.disposable(flags) then
-      @pony_asio_event_destroy(_event)
+      PonyAsio.destroy(_event)
       _event = AsioEvent.none()
+      _listening = false
     end
 
-  be _conn_closed() =>
-    """
-    An accepted connection has closed. If we have dropped below the limit, try
-    to accept new connections.
-    """
-    _count = _count - 1
+  fun ref _accept() =>
+    match \exhaustive\ _enclosing
+    | let e: TCPListenerActor[TCP] ref =>
+      if _listening then
+        while not _at_connection_limit() do
+          var fd = _tcp.accept(_event)
 
-    if _paused and (_count < _limit) then
+          // 0: would block, -1: error
+          if fd <= 0 then
+            return
+          end
+
+          try
+            let opened = e._on_accept(fd.u32())?
+            opened._register_spawner(e)
+            _open_connections = _open_connections + 1
+          else
+            // Rejected before an event was created — raw fd, close on both
+            // platforms.
+            _tcp.close(fd.u32())
+          end
+        end
+
+        _paused = true
+      else
+        // It's possible that after closing, we got an event for a connection
+        // attempt. If the listener is not open, do not start a new connection.
+        return
+      end
+    | None =>
+      _Unreachable()
+    end
+
+  fun _at_connection_limit(): Bool =>
+    match \exhaustive\ _limit
+    | let l: MaxSpawn => _open_connections >= l()
+    | None => false
+    end
+
+  fun ref _connection_closed() =>
+    _open_connections = _open_connections - 1
+    if _paused and not _at_connection_limit() then
       _paused = false
       _accept()
     end
 
-  fun ref _accept() =>
-    """
-    Accept connections as long as we have spawned fewer than our limit.
-    """
-    if _closed then
-      return
-    end
-
-    while (_limit == 0) or (_count < _limit) do
-      var fd = @pony_os_accept(_event)
-
-      match fd
-      | -1 =>
-        // Something other than EWOULDBLOCK (a failed accept). Bail out; the
-        // ASIO event will re-notify when the socket is readable again.
-        return
-      | 0 =>
-        // EWOULDBLOCK, don't try again.
-        return
+  fun ref _finish_initialization() =>
+    match \exhaustive\ _enclosing
+    | let e: TCPListenerActor[TCP] ref =>
+      _event = _tcp.listen(e, _host, _port where ip_version = _ip_version)
+      if not _event.is_null() then
+        _fd = PonyAsio.event_fd(_event)
+        _listening = true
+        e._on_listening()
       else
-        _spawn(fd.u32())
+        e._on_listen_failure()
       end
-    end
-
-    _paused = true
-
-  fun ref _spawn(ns: U32) =>
-    """
-    Spawn a new connection.
-    """
-    try
-      TCPConnection._accept(
-        this,
-        _notify.connected(this)?,
-        ns,
-        _read_buffer_size,
-        _yield_after_reading,
-        _yield_after_writing)
-      _count = _count + 1
-    else
-      @pony_os_socket_close(ns)
-    end
-
-  fun ref _notify_listening() =>
-    """
-    Inform the notifier that we're listening.
-    """
-    if not _event.is_null() then
-      _notify.listening(this)
-    else
-      _closed = true
-      _notify.not_listening(this)
-    end
-
-  fun ref close() =>
-    """
-    Dispose of resources.
-    """
-    if _closed then
-      return
-    end
-
-    _closed = true
-
-    if not _event.is_null() then
-      @pony_asio_event_unsubscribe(_event)
-
-      // POSIX closes the listener fd here; on Windows the readiness backend
-      // owns the close (when it sees the deferred REMOVE from the unsubscribe
-      // above). The accepted/rejected fds in _accept/_spawn are raw
-      // (unsubscribed), so those closes stay cross-platform.
-      ifdef not windows then
-        @pony_os_socket_close(_fd)
-      end
-      _fd = -1
-
-      _notify.closed(this)
+    | None =>
+      _Unreachable()
     end

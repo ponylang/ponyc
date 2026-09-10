@@ -5,7 +5,8 @@
 # stock toolchain may not have, so they are excluded from the build check.
 #
 # Args (passed with -D): PONYC, EXAMPLES (the examples directory), WORKDIR (the
-# output directory to run ponyc from).
+# output directory to run ponyc from), PONY_SSL_FLAG (the SSL -D flag for the
+# net package, e.g. -Dopenssl_3.0.x; required — CMake fails if SSL is not found).
 
 if(CMAKE_HOST_WIN32)
     set(_sep ";")
@@ -37,8 +38,9 @@ foreach(_d ${_dirs})
     if(_d MATCHES "ffi-")
         continue()
     endif()
+    set(_example_args -d -s --checktree -o "${_d}" "${PONY_SSL_FLAG}")
     execute_process(
-        COMMAND "${PONYC}" -d -s --checktree -o "${_d}" "${_d}"
+        COMMAND "${PONYC}" ${_example_args} "${_d}"
         WORKING_DIRECTORY "${WORKDIR}"
         RESULT_VARIABLE _rc)
     if(NOT _rc EQUAL 0)

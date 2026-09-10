@@ -18,9 +18,9 @@
 #   ponyc-x86-64-apple-darwin.tar.gz
 #       -> macOS x86-64 nightly-released (corral, ponyup)
 #   ponyc-arm64-apple-darwin.tar.gz
-#       -> macOS arm64 nightly-released (appdirs, corral, lori, ponyup)
+#       -> macOS arm64 nightly-released (appdirs, corral, ponyup)
 #   ponyc-x86-64-pc-windows-msvc.zip
-#       -> Windows nightly-released (appdirs, corral, http, lori, ponyup,
+#       -> Windows nightly-released (appdirs, corral, ponyup,
 #          regex, ssl)
 #
 # Dispatching these events reproduces the full cascade; the downstream

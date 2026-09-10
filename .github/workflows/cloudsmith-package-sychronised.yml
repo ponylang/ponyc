@@ -55,7 +55,6 @@ jobs:
         repo:
           - ponylang/appdirs
           - ponylang/corral
-          - ponylang/lori
           - ponylang/ponyup
     steps:
       - name: Send
@@ -91,7 +90,6 @@ jobs:
         repo:
           - ponylang/appdirs
           - ponylang/corral
-          - ponylang/lori
           - ponylang/ponyup
           - ponylang/regex
           - ponylang/ssl

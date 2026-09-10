@@ -19,6 +19,8 @@ RUN apk update \
   gdb \
   lldb \
   py3-lldb \
+  libressl \
+  libressl-dev \
 && pip install --break-system-packages cloudsmith-cli
 
 # add user pony in order to not run tests as root
