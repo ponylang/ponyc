@@ -5,7 +5,8 @@ primitive Platform
   fun openbsd(): Bool => compile_intrinsic
   fun linux(): Bool => compile_intrinsic
   fun osx(): Bool => compile_intrinsic
-  fun posix(): Bool => bsd() or linux() or osx()
+  fun haiku(): Bool => compile_intrinsic
+  fun posix(): Bool => bsd() or linux() or osx() or haiku()
   fun windows(): Bool => compile_intrinsic
 
   fun x86(): Bool => compile_intrinsic

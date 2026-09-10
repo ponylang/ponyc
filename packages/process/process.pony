@@ -82,9 +82,9 @@ class ProcessClient is ProcessNotify
 
 ## Process portability
 
-The ProcessMonitor supports spawning processes on Linux, FreeBSD, OSX and
-Windows. On Linux, detecting a child's exit uses `pidfd_open`, so it requires
-kernel 5.3 or newer; on an older kernel, `StartProcess` returns a
+The ProcessMonitor supports spawning processes on Linux, FreeBSD, OSX, Haiku
+and Windows. On Linux, detecting a child's exit uses `pidfd_open`, so it
+requires kernel 5.3 or newer; on an older kernel, `StartProcess` returns a
 `ProcessError` of type `UnsupportedKernel`.
 
 ## Shutting down ProcessMonitor and external process

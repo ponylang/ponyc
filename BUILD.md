@@ -182,6 +182,31 @@ sudo cmake --install build/build_release
 
 Note that you only need to run `cmake -P lib/build-libs.cmake` once the first time you build (or if the version of LLVM in the `lib/llvm/src` Git submodule changes).
 
+## Haiku
+
+You'll need additional, non-default software packages on Haiku:
+
+- cmake
+- python3.14
+- libexecinfo_devel
+
+A quick way to install those is to run following command in the Terminal:
+
+```bash
+pkgman install cmake python3.14 libexecinfo_devel
+```
+
+Once that's done, rest of the steps are similar to other operating systems:
+
+```bash
+cmake -DPRESET=libs-haiku-x86-64 -P lib/build-libs.cmake
+cmake --preset release -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++
+cmake --build --preset release
+cmake --install build/build_release --prefix /boot/system/non-packaged/
+```
+
+Note that you only need to run `cmake -DPRESET=libs-haiku-x86-64 -P lib/build-libs.cmake` once the first time you build (or if the version of LLVM in the `lib/llvm/src` Git submodule changes).
+
 ## Windows
 
 Building on Windows requires the following:
