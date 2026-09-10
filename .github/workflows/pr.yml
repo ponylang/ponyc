@@ -81,7 +81,7 @@ jobs:
     runs-on: ubuntu-latest
     name: maybe-build libs (x86-64 Linux glibc)
     container:
-      image: ghcr.io/ponylang/ponyc-ci-ubuntu26.04-builder:20260425
+      image: ghcr.io/ponylang/ponyc-ci-ubuntu26.04-builder:20260908
       options: --user pony
     steps:
       - name: Checkout
@@ -89,7 +89,7 @@ jobs:
       - name: Ensure libs
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          LIBS_IMAGE: ghcr.io/ponylang/ponyc-ci-ubuntu26.04-builder:20260425
+          LIBS_IMAGE: ghcr.io/ponylang/ponyc-ci-ubuntu26.04-builder:20260908
           LIBS_TAG: ${{ hashFiles('lib/CMakePresets.json', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/build-libs.cmake', 'lib/llvm/patches/*') }}
         run: python3 .ci-scripts/libs-cache/pr_libs_cache.py --ensure --branch-cache --image "$LIBS_IMAGE" --tag "$LIBS_TAG" -- cmake -DJOBS=4 -P lib/build-libs.cmake
 
@@ -143,7 +143,7 @@ jobs:
     runs-on: ubuntu-latest
     name: 'ponyc: x86-64 Linux glibc'
     container:
-      image: ghcr.io/ponylang/ponyc-ci-ubuntu26.04-builder:20260425
+      image: ghcr.io/ponylang/ponyc-ci-ubuntu26.04-builder:20260908
       options: --user pony --cap-add=SYS_PTRACE --security-opt seccomp=unconfined
     steps:
       - name: Checkout
@@ -151,7 +151,7 @@ jobs:
       - name: Build libs
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          LIBS_IMAGE: ghcr.io/ponylang/ponyc-ci-ubuntu26.04-builder:20260425
+          LIBS_IMAGE: ghcr.io/ponylang/ponyc-ci-ubuntu26.04-builder:20260908
           LIBS_TAG: ${{ hashFiles('lib/CMakePresets.json', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/build-libs.cmake', 'lib/llvm/patches/*') }}
           # Referenced UNQUOTED below so an empty value (fork) vanishes instead of
           # passing as an empty arg (argparse would see it and exit 2).
@@ -226,6 +226,10 @@ jobs:
         uses: actions/checkout@v6.0.2
       - name: Install Dependencies
         run: .\.ci-scripts\windows-install-deps.ps1
+      - name: Install LibreSSL
+        run: .\.ci-scripts\windows-install-libressl.ps1
+      - name: Configure Networking
+        run: .\.ci-scripts\windows-configure-networking.ps1
       - name: Build libs
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -263,7 +267,7 @@ jobs:
     runs-on: ubuntu-latest
     name: 'pony-compiler: Linux'
     container:
-      image: ghcr.io/ponylang/ponyc-ci-ubuntu26.04-builder:20260425
+      image: ghcr.io/ponylang/ponyc-ci-ubuntu26.04-builder:20260908
       options: --user pony
     steps:
       - name: Checkout
@@ -271,7 +275,7 @@ jobs:
       - name: Build libs
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          LIBS_IMAGE: ghcr.io/ponylang/ponyc-ci-ubuntu26.04-builder:20260425
+          LIBS_IMAGE: ghcr.io/ponylang/ponyc-ci-ubuntu26.04-builder:20260908
           LIBS_TAG: ${{ hashFiles('lib/CMakePresets.json', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/build-libs.cmake', 'lib/llvm/patches/*') }}
           # Referenced UNQUOTED below so an empty value (fork) vanishes instead of
           # passing as an empty arg (argparse would see it and exit 2).
@@ -326,6 +330,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6.0.2
+      - name: Install LibreSSL
+        run: .\.ci-scripts\windows-install-libressl.ps1
       - name: Build libs
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -356,7 +362,7 @@ jobs:
     runs-on: ubuntu-latest
     name: 'Tools: Linux'
     container:
-      image: ghcr.io/ponylang/ponyc-ci-ubuntu26.04-builder:20260425
+      image: ghcr.io/ponylang/ponyc-ci-ubuntu26.04-builder:20260908
       options: --user pony
     steps:
       - name: Checkout
@@ -364,7 +370,7 @@ jobs:
       - name: Build libs
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          LIBS_IMAGE: ghcr.io/ponylang/ponyc-ci-ubuntu26.04-builder:20260425
+          LIBS_IMAGE: ghcr.io/ponylang/ponyc-ci-ubuntu26.04-builder:20260908
           LIBS_TAG: ${{ hashFiles('lib/CMakePresets.json', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/build-libs.cmake', 'lib/llvm/patches/*') }}
           # Referenced UNQUOTED below so an empty value (fork) vanishes instead of
           # passing as an empty arg (argparse would see it and exit 2).
@@ -439,6 +445,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6.0.2
+      - name: Install LibreSSL
+        run: .\.ci-scripts\windows-install-libressl.ps1
       - name: Build libs
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

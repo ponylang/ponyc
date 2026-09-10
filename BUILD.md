@@ -7,7 +7,7 @@ First of all, you need a compiler with decent C11 support. We officially support
 - MSVC >= 2017
 - GCC >= 4.7
 
-You also need [CMake](https://cmake.org/download/) version 3.25 or higher. You also need a version of [Python 3](https://www.python.org/downloads/) installed; it's required in order to build LLVM. On Unix systems, you need the zlib development headers and library installed (e.g. `zlib-dev`, `zlib1g-dev`, or `zlib-devel` depending on your distribution).
+You also need [CMake](https://cmake.org/download/) version 3.25 or higher. You also need a version of [Python 3](https://www.python.org/downloads/) installed; it's required in order to build LLVM. On Unix systems, you need the zlib development headers and library installed (e.g. `zlib-dev`, `zlib1g-dev`, or `zlib-devel` depending on your distribution). You also need an SSL development library — either OpenSSL or LibreSSL — because the standard library's `net` package requires it. CMake detects the installed library and version automatically at configure time.
 
 ## Clone this repository
 
@@ -42,7 +42,7 @@ The libs build (`cmake -P lib/build-libs.cmake`) takes the same `-DCMAKE_C_COMPI
 ## FreeBSD
 
 ```bash
-pkg install -y cmake gmake libunwind git python3
+pkg install -y cmake gmake libunwind git openssl python3
 cmake -P lib/build-libs.cmake
 cmake --preset release
 cmake --build --preset release
@@ -54,7 +54,7 @@ Note that you only need to run `cmake -P lib/build-libs.cmake` once the first ti
 ## OpenBSD
 
 ```bash
-pkg_add cmake gmake git python%3
+pkg_add cmake gmake git openssl python%3
 cmake -P lib/build-libs.cmake
 cmake --preset release
 cmake --build --preset release
@@ -80,7 +80,7 @@ Configuring (`cmake --preset release`) rejects these uses on OpenBSD with an err
 DragonFly BSD's base compiler (GCC 8.3) cannot build the vendored LLVM. Install GCC 13 and the required atomics package, then build with the packaged compiler:
 
 ```bash
-pkg install -y cmake gmake git python3 cxx_atomics gcc13
+pkg install -y cmake gmake git openssl python3 cxx_atomics gcc13
 cmake -DCMAKE_C_COMPILER=/usr/local/bin/gcc13 -DCMAKE_CXX_COMPILER=/usr/local/bin/g++13 -P lib/build-libs.cmake
 cmake --preset release -DCMAKE_C_COMPILER=/usr/local/bin/gcc13 -DCMAKE_CXX_COMPILER=/usr/local/bin/g++13
 cmake --build --preset release
@@ -118,16 +118,16 @@ Additional Requirements:
 
 Distribution | Requires
 --- | ---
-Alpine 3.17+ | clang, clang-dev, cmake, make, zlib-dev
-CentOS 8 | clang, cmake, diffutils, libatomic, libstdc++-static, make, zlib-devel
-Fedora | clang, cmake, libatomic, libstdc++-static, make, zlib-devel
-Fedora 41 | clang, cmake, libatomic, libstdc++-static, make, zlib-devel
-OpenSuse Leap | cmake, zlib-devel
-Raspbian 32-bit | cmake, zlib1g-dev
-Raspbian 64-bit | cmake, clang, zlib1g-dev
-Rocky | clang, cmake, diffutils, libatomic, libstdc++-static, make, zlib-devel
-Ubuntu | clang, cmake, make, zlib1g-dev
-Void | clang, cmake, make, libatomic, libatomic-devel, zlib-devel
+Alpine 3.17+ | clang, clang-dev, cmake, libressl-dev, make, zlib-dev
+CentOS 8 | clang, cmake, diffutils, libatomic, libstdc++-static, make, openssl-devel, zlib-devel
+Fedora | clang, cmake, libatomic, libstdc++-static, make, openssl-devel, zlib-devel
+Fedora 41 | clang, cmake, libatomic, libstdc++-static, make, openssl-devel, zlib-devel
+OpenSuse Leap | cmake, libopenssl-devel, zlib-devel
+Raspbian 32-bit | cmake, libssl-dev, zlib1g-dev
+Raspbian 64-bit | cmake, clang, libssl-dev, zlib1g-dev
+Rocky | clang, cmake, diffutils, libatomic, libstdc++-static, make, openssl-devel, zlib-devel
+Ubuntu | clang, cmake, libssl-dev, make, zlib1g-dev
+Void | clang, cmake, make, libatomic, libatomic-devel, openssl-devel, zlib-devel
 
 Note that you only need to run `cmake -P lib/build-libs.cmake` once the first time you build (or if the version of LLVM in the `lib/llvm/src` Git submodule changes).
 

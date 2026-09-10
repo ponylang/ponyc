@@ -56,11 +56,12 @@ primitive OSSockOpt
   ```
   """
 
-  // Constants are from macOS Sierra 10.12.6, Ubuntu Linux
-  // Xenial/16.04 LTS + kernel 4.4.0-109-generic,
-  // FreeBSD 11.1-RELEASE, and the Windows Winsock function
-  // reference for getsockopt & setsockopt.
-  // Harvested by recipe given in socket.c.
+  // Constants are from macOS Sierra 10.12.6, Ubuntu Linux Xenial 16.04 LTS
+  // (kernel 4.4.0-109-generic), FreeBSD 11.1-RELEASE, and the Windows Winsock
+  // getsockopt & setsockopt reference. Harvested by the recipe in socket.c.
+
+  // Levels formatted in Pony from the harvested constant list by an egrep +
+  // awk pipeline over the SOL_ / IPPROTO_ / NSPROTO_ names.
 
   // levels
   fun ipproto_3pc():I32 => @pony_os_sockopt_level(I32(4000))
@@ -205,6 +206,8 @@ primitive OSSockOpt
   fun sol_tipc():I32 => @pony_os_sockopt_level(I32(4139))
   fun sol_udp():I32 => @pony_os_sockopt_level(I32(4140))
 
+  // Options formatted in Pony from the harvested constant list by the same
+  // egrep + awk pipeline, over the remaining names.
   // options
   fun af_coip():I32 => @pony_os_sockopt_option(I32(0))
   fun af_inet():I32 => @pony_os_sockopt_option(I32(1))
@@ -662,13 +665,13 @@ primitive OSSockOpt
   fun rds_ib_gid_len():I32 => @pony_os_sockopt_option(I32(453))
   fun rds_info_connections():I32 => @pony_os_sockopt_option(I32(454))
 
-  fun rds_info_connection_flag_connected(): I32 =>
+  fun rds_info_connection_flag_connected():I32 =>
     @pony_os_sockopt_option(I32(455))
 
-  fun rds_info_connection_flag_connecting(): I32 =>
+  fun rds_info_connection_flag_connecting():I32 =>
     @pony_os_sockopt_option(I32(456))
 
-  fun rds_info_connection_flag_sending(): I32 =>
+  fun rds_info_connection_flag_sending():I32 =>
     @pony_os_sockopt_option(I32(457))
 
   fun rds_info_connection_stats():I32 => @pony_os_sockopt_option(I32(458))
@@ -927,7 +930,7 @@ primitive OSSockOpt
   fun sctp_pcb_flags_recvassocevnt():I32 => @pony_os_sockopt_option(I32(711))
   fun sctp_pcb_flags_recvdataioevnt():I32 => @pony_os_sockopt_option(I32(712))
 
-  fun sctp_pcb_flags_recvnsendfailevnt(): I32 =>
+  fun sctp_pcb_flags_recvnsendfailevnt():I32 =>
     @pony_os_sockopt_option(I32(713))
 
   fun sctp_pcb_flags_recvnxtinfo():I32 => @pony_os_sockopt_option(I32(714))
@@ -940,7 +943,7 @@ primitive OSSockOpt
   fun sctp_pcb_flags_socket_cant_read():I32 => @pony_os_sockopt_option(I32(721))
   fun sctp_pcb_flags_socket_gone():I32 => @pony_os_sockopt_option(I32(722))
 
-  fun sctp_pcb_flags_stream_changeevnt(): I32 =>
+  fun sctp_pcb_flags_stream_changeevnt():I32 =>
     @pony_os_sockopt_option(I32(723))
 
   fun sctp_pcb_flags_stream_resetevnt():I32 => @pony_os_sockopt_option(I32(724))
@@ -1119,7 +1122,7 @@ primitive OSSockOpt
   fun so_security_authentication():I32 => @pony_os_sockopt_option(I32(897))
   fun so_security_encryption_network():I32 => @pony_os_sockopt_option(I32(898))
 
-  fun so_security_encryption_transport(): I32 =>
+  fun so_security_encryption_transport():I32 =>
     @pony_os_sockopt_option(I32(899))
 
   fun so_select_err_queue():I32 => @pony_os_sockopt_option(I32(900))

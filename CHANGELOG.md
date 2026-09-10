@@ -14,6 +14,8 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Changed
 
+- Replace stdlib net package with ponylang/lori ([PR #6016](https://github.com/ponylang/ponyc/pull/6016))
+- Change TCPBackend.connect to return Array[AsioEventID] ([PR #6016](https://github.com/ponylang/ponyc/pull/6016))
 
 ## [0.71.0] - 2026-09-07
 

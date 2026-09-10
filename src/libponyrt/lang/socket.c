@@ -270,8 +270,8 @@ static asio_event_t* os_listen(pony_actor_t* owner, int fd,
   return pony_asio_event_create(owner, fd, ASIO_READ, 0, true);
 }
 
-static bool os_connect(pony_actor_t* owner, int fd, struct addrinfo *p,
-  const char* from, uint32_t asio_flags)
+static asio_event_t* os_connect(pony_actor_t* owner, int fd,
+  struct addrinfo *p, const char* from, uint32_t asio_flags)
 {
   map_any_to_loopback(p->ai_addr);
 
@@ -283,7 +283,7 @@ static bool os_connect(pony_actor_t* owner, int fd, struct addrinfo *p,
       NULL, false);
 
     if(result == NULL)
-      return false;
+      return NULL;
 
     struct addrinfo* lp = result;
     bool bound = false;
@@ -304,18 +304,11 @@ static bool os_connect(pony_actor_t* owner, int fd, struct addrinfo *p,
     if(!bound)
     {
       pony_os_socket_close(fd);
-      return false;
+      return NULL;
     }
   }
 
 #ifdef PLATFORM_IS_WINDOWS
-  // Plain non-blocking connect; expect WSAEWOULDBLOCK/WSAEINPROGRESS. Do the
-  // syscall BEFORE creating (subscribing) the event, matching POSIX ordering:
-  // a synchronous failure here then closes a raw, unsubscribed fd (immediate
-  // close is correct) instead of stranding the deferred-REMOVE handshake on a
-  // subscribed fd. The event registers for write-readiness; the connection
-  // completes as a write notification or fails as an error notification, which
-  // the stdlib disambiguates with SO_ERROR.
   int r = connect((SOCKET)fd, p->ai_addr, (int)p->ai_addrlen);
 
   if(r == SOCKET_ERROR)
@@ -325,25 +318,22 @@ static bool os_connect(pony_actor_t* owner, int fd, struct addrinfo *p,
     if((e != WSAEWOULDBLOCK) && (e != WSAEINPROGRESS))
     {
       pony_os_socket_close(fd);
-      return false;
+      return NULL;
     }
   }
 
-  pony_asio_event_create(owner, fd, asio_flags, 0, true);
+  return pony_asio_event_create(owner, fd, asio_flags, 0, true);
 #else
   int r = connect(fd, p->ai_addr, (int)p->ai_addrlen);
 
   if((r != 0) && (errno != EINPROGRESS))
   {
     pony_os_socket_close(fd);
-    return false;
+    return NULL;
   }
 
-  // Create an event and subscribe it.
-  pony_asio_event_create(owner, fd, asio_flags, 0, true);
+  return pony_asio_event_create(owner, fd, asio_flags, 0, true);
 #endif
-
-  return true;
 }
 
 /**
@@ -380,12 +370,13 @@ static asio_event_t* os_socket_listen(pony_actor_t* owner, const char* host,
 }
 
 /**
- * This starts Happy Eyeballs and returns * the number of connection attempts
- * in-flight, which may be 0.
+ * This starts Happy Eyeballs and returns the number of connection attempts
+ * in-flight, which may be 0. Created events are written into out_events
+ * (up to max_events entries).
  */
 static int os_socket_connect(pony_actor_t* owner, const char* host,
   const char* service, const char* from, int family, int socktype, int proto,
-  uint32_t asio_flags)
+  uint32_t asio_flags, asio_event_t** out_events, int max_events)
 {
   bool reuse = (from == NULL) || (from[0] != '\0');
 
@@ -404,8 +395,19 @@ static int os_socket_connect(pony_actor_t* owner, const char* host,
 
     if(fd != -1)
     {
-      if(os_connect(owner, fd, p, from, asio_flags))
-        count++;
+      if(count >= max_events)
+      {
+        pony_os_socket_close(fd);
+      }
+      else
+      {
+        asio_event_t* ev = os_connect(owner, fd, p, from, asio_flags);
+        if(ev != NULL)
+        {
+          out_events[count] = ev;
+          count++;
+        }
+      }
     }
 
     p = p->ai_next;
@@ -458,24 +460,27 @@ PONY_API asio_event_t* pony_os_listen_udp6(pony_actor_t* owner,
 }
 
 PONY_API int pony_os_connect_tcp(pony_actor_t* owner, const char* host,
-  const char* service, const char* from, uint32_t asio_flags)
+  const char* service, const char* from, uint32_t asio_flags,
+  asio_event_t** out_events, int max_events)
 {
   return os_socket_connect(owner, host, service, from, AF_UNSPEC, SOCK_STREAM,
-    IPPROTO_TCP, asio_flags);
+    IPPROTO_TCP, asio_flags, out_events, max_events);
 }
 
 PONY_API int pony_os_connect_tcp4(pony_actor_t* owner, const char* host,
-  const char* service, const char* from, uint32_t asio_flags)
+  const char* service, const char* from, uint32_t asio_flags,
+  asio_event_t** out_events, int max_events)
 {
   return os_socket_connect(owner, host, service, from, AF_INET, SOCK_STREAM,
-    IPPROTO_TCP, asio_flags);
+    IPPROTO_TCP, asio_flags, out_events, max_events);
 }
 
 PONY_API int pony_os_connect_tcp6(pony_actor_t* owner, const char* host,
-  const char* service, const char* from, uint32_t asio_flags)
+  const char* service, const char* from, uint32_t asio_flags,
+  asio_event_t** out_events, int max_events)
 {
   return os_socket_connect(owner, host, service, from, AF_INET6, SOCK_STREAM,
-    IPPROTO_TCP, asio_flags);
+    IPPROTO_TCP, asio_flags, out_events, max_events);
 }
 
 PONY_API int pony_os_accept(asio_event_t* ev)

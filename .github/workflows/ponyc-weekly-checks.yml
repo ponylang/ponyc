@@ -52,27 +52,27 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - image: ghcr.io/ponylang/ponyc-ci-ubuntu26.04-builder:20260425
+          - image: ghcr.io/ponylang/ponyc-ci-ubuntu26.04-builder:20260908
             debugger: lldb
             directives: dtrace
-          - image: ghcr.io/ponylang/ponyc-ci-ubuntu26.04-builder:20260425
+          - image: ghcr.io/ponylang/ponyc-ci-ubuntu26.04-builder:20260908
             debugger: lldb
             directives: pool_memalign
-          - image: ghcr.io/ponylang/ponyc-ci-ubuntu26.04-builder:20260425
+          - image: ghcr.io/ponylang/ponyc-ci-ubuntu26.04-builder:20260908
             debugger: lldb
             directives: pool_classic
-          - image: ghcr.io/ponylang/ponyc-ci-ubuntu26.04-builder:20260425
+          - image: ghcr.io/ponylang/ponyc-ci-ubuntu26.04-builder:20260908
             debugger: lldb
             directives: pool_classic,pool_retain
-          - image: ghcr.io/ponylang/ponyc-ci-ubuntu26.04-builder:20260425
+          - image: ghcr.io/ponylang/ponyc-ci-ubuntu26.04-builder:20260908
             debugger: lldb
             directives: runtimestats
-          - image: ghcr.io/ponylang/ponyc-ci-ubuntu26.04-builder:20260425
+          - image: ghcr.io/ponylang/ponyc-ci-ubuntu26.04-builder:20260908
             debugger: lldb
             directives: runtime_tracing
           # runtime_tracing's format specifiers for the runtimestats-gated fields
           # only compile in this combined build, so cover it explicitly.
-          - image: ghcr.io/ponylang/ponyc-ci-ubuntu26.04-builder:20260425
+          - image: ghcr.io/ponylang/ponyc-ci-ubuntu26.04-builder:20260908
             debugger: lldb
             directives: runtime_tracing,runtimestats
 
@@ -161,6 +161,10 @@ jobs:
           ref: ${{ inputs.ref || github.sha }}
       - name: Install Dependencies
         run: .\.ci-scripts\windows-install-deps.ps1
+      - name: Install LibreSSL
+        run: .\.ci-scripts\windows-install-libressl.ps1
+      - name: Configure Networking
+        run: .\.ci-scripts\windows-configure-networking.ps1
       - name: Build libs
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -207,10 +211,10 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - image: ghcr.io/ponylang/ponyc-ci-ubuntu26.04-builder:20260425
+          - image: ghcr.io/ponylang/ponyc-ci-ubuntu26.04-builder:20260908
             cc: clang
             cxx: clang++
-          - image: ghcr.io/ponylang/ponyc-ci-ubuntu26.04-builder:20260425
+          - image: ghcr.io/ponylang/ponyc-ci-ubuntu26.04-builder:20260908
             cc: gcc
             cxx: g++
 
@@ -260,7 +264,7 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - image: ghcr.io/ponylang/ponyc-ci-ubuntu26.04-builder:20260425
+          - image: ghcr.io/ponylang/ponyc-ci-ubuntu26.04-builder:20260908
 
     name: runtimebc
     container:
@@ -307,7 +311,7 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - image: ghcr.io/ponylang/ponyc-ci-ubuntu26.04-builder:20260425
+          - image: ghcr.io/ponylang/ponyc-ci-ubuntu26.04-builder:20260908
 
     name: systematic testing tests
     container:
@@ -353,7 +357,7 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - image: ghcr.io/ponylang/ponyc-ci-ubuntu26.04-builder:20260425
+          - image: ghcr.io/ponylang/ponyc-ci-ubuntu26.04-builder:20260908
             debugger: lldb
 
     name: release with always-assert
@@ -402,7 +406,7 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - image: ghcr.io/ponylang/ponyc-ci-ubuntu26.04-builder:20260425
+          - image: ghcr.io/ponylang/ponyc-ci-ubuntu26.04-builder:20260908
             debugger: lldb
             directives: pool_memalign,address_sanitizer,undefined_behavior_sanitizer
 

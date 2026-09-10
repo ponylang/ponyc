@@ -70,13 +70,77 @@ Demonstrates converting infinite loops in behaviors to tail-recursive behavior c
 
 ## Networking
 
-### [echo](echo/)
+### [echo-server](echo-server/)
 
-A TCP echo server that listens on a random port and echoes back any data received. Demonstrates the `net` package's `TCPListener`, `TCPListenNotify`, `TCPConnection`, and `TCPConnectionNotify` interfaces for event-driven I/O.
+Minimal TCP echo server demonstrating the `net` package's core pattern. Shows the three building blocks: `TCPListenerActor` for accepting connections, `TCPConnectionActor` for event plumbing, and `ServerLifecycleEventReceiver` for application callbacks.
 
-### [net](net/)
+### [connection-timeout](connection-timeout/)
 
-A ping-pong example demonstrating both TCP and UDP communication. Shows `TCPListener` and `TCPConnection` for TCP, `UDPSocket` for UDP, and `NetAddress` for IP/port handling across multiple actor roles.
+Connects to a non-routable address (RFC 5737 TEST-NET-1) with a 3-second connection timeout. Demonstrates `MakeConnectionTimeout`, `ConnectionTimeout`, and exhaustive matching on `ConnectionFailureReason`.
+
+### [framed-protocol](framed-protocol/)
+
+Length-prefixed message framing using `buffer_until()` and multi-buffer `send()`. A client and server exchange messages with 4-byte big-endian length headers, demonstrating how to switch between reading headers and variable-length payloads.
+
+### [idle-timeout](idle-timeout/)
+
+Echo server that closes idle connections after 10 seconds. Demonstrates `idle_timeout()` for setting a per-connection inactivity timer and `_on_idle_timeout()` for handling expiration, using the connection's built-in ASIO timer.
+
+### [infinite-ping-pong](infinite-ping-pong/)
+
+Client and server exchanging Ping/Pong messages in an endless loop. Shows both sides of a TCP conversation with `ServerLifecycleEventReceiver` and `ClientLifecycleEventReceiver`, using `buffer_until()` for fixed-size message delivery.
+
+### [ip-version](ip-version/)
+
+IPv4-only echo server with a built-in client. Demonstrates the `ip_version` parameter on `TCPListener` and `TCPConnection.client` to restrict connections to `IP4`. The same approach works with `IP6` for IPv6-only connections.
+
+### [net-ssl-echo-server](net-ssl-echo-server/)
+
+SSL version of the echo server. Adds `SSLContext` setup and uses `TCPConnection.ssl_server` for transparent SSL handshaking. Must be run from the project root for certificate paths to resolve.
+
+### [net-ssl-infinite-ping-pong](net-ssl-infinite-ping-pong/)
+
+SSL version of infinite ping-pong. Shows both `TCPConnection.ssl_server` and `TCPConnection.ssl_client` in the same program, with `buffer_until()` for fixed-size message delivery over TLS. Must be run from the project root.
+
+### [notifier-echo-server](notifier-echo-server/)
+
+Minimal echo server using the notifier API. Shows the same behavior as `echo-server` but with `TCPListenNotify` and `ServerTCPConnectionNotify` traits instead of implementing actor-level delegation directly.
+
+### [notifier-ping-pong](notifier-ping-pong/)
+
+Client and server exchanging messages using the notifier API. Shows `TCPListenNotify`, `ClientTCPConnectionNotify`, and `ServerTCPConnectionNotify` working together with `buffer_until()` for fixed-size message framing.
+
+### [notifier-udp-echo-server](notifier-udp-echo-server/)
+
+UDP echo server using the notifier API. Shows the same behavior as `udp-echo-server` but with a `UDPSocketNotify` trait instead of implementing `UDPSocketActor` and `UDPLifecycleEventReceiver` directly.
+
+### [read-buffer-size](read-buffer-size/)
+
+Configurable read buffer sizing with two phases: a small control phase (128 bytes) and a bulk transfer phase (8192 bytes). Demonstrates `set_read_buffer_minimum()` and `resize_read_buffer()` for dynamic buffer management.
+
+### [send-completion](send-completion/)
+
+Per-send completion tracking with `SendToken`. A client sends five labeled messages and tracks each one through `_on_sent` and `_on_send_failed` callbacks, keyed by token id, to know which sends have been handed to the OS.
+
+### [socket-options](socket-options/)
+
+Socket option tuning on a connected TCP connection. Configures `TCP_NODELAY` and OS buffer sizes using both dedicated convenience methods (`set_nodelay()`, `set_so_rcvbuf()`) and the general-purpose `getsockopt_u32()`/`setsockopt_u32()` interface.
+
+### [starttls-ping-pong](starttls-ping-pong/)
+
+STARTTLS upgrade from plaintext to TLS mid-connection. The client sends "STARTTLS", the server replies "OK", both sides call `start_tls()`, and then exchange Ping/Pong messages over the encrypted connection. Must be run from the project root.
+
+### [timer](timer/)
+
+Query-timeout simulation using `set_timer()`. A client sends a query to a non-responding server and sets a 3-second timer. When it fires, `_on_timer()` logs the timeout and closes the connection. Unlike `idle_timeout()`, this fires unconditionally regardless of I/O activity.
+
+### [udp-echo-server](udp-echo-server/)
+
+Minimal UDP echo server. A single actor binds a UDP socket and echoes every received datagram back to its sender. Shows `UDPSocketActor` for event plumbing and `UDPLifecycleEventReceiver` for application callbacks.
+
+### [yield-read](yield-read/)
+
+Demonstrates returning `YieldReading` for cooperative scheduler fairness. A flood client sends 100 messages and the server yields every 10 messages, exiting the read loop to let other actors run. Unlike `mute()`/`unmute()`, `YieldReading` is a one-shot pause that resumes automatically.
 
 ## Backpressure
 
@@ -88,9 +152,9 @@ A microbenchmark simulating thundering herd workloads with many senders, many an
 
 Floods a single `Receiver` actor with messages from multiple senders to demonstrate Pony's built-in backpressure. The runtime automatically throttles senders when the receiver's mailbox grows, preventing unbounded memory usage.
 
-### [under_pressure](under_pressure/)
+### [backpressure](backpressure/)
 
-Establishes a TCP connection and applies explicit backpressure when the send buffer fills up. Demonstrates the `backpressure` package's `Backpressure` primitive, `ApplyReleaseBackpressureAuth`, and throttled/unthrottled callbacks for detecting when the scheduler responds to pressure.
+A flood client sends 200 chunks of 64KB as fast as possible to a sink server, demonstrating the `net` package's backpressure handling. When the OS send buffer fills, `send()` returns `SendErrorNotWriteable` and `_on_throttled` fires. The client stops sending and resumes on `_on_unthrottled`, with `_on_sent` confirming each chunk reached the OS.
 
 ## File I/O, Terminal, and Signals
 
@@ -134,7 +198,7 @@ Runs microbenchmarks using the `pony_bench` package, reporting mean, median, and
 
 ### [pony_check](pony_check/)
 
-Demonstrates property-based testing with the `pony_check` package. Shows `Property1UnitTest` for defining properties, built-in and custom generators for producing test data, generator composition with `flat_map`, and async property testing over TCP.
+Demonstrates property-based testing with the `pony_check` package. Shows `Property1UnitTest` for defining properties, built-in and custom generators for producing test data, generator composition with `flat_map`, and async property testing over TCP using the `net/notifier` API.
 
 ## Benchmarks and Simulations
 

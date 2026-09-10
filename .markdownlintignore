@@ -2,7 +2,7 @@ benchmark/**
 CHANGELOG.md
 CODE_OF_CONDUCT.md
 .release-notes/**
-CLAUDE.md
+**/CLAUDE.md
 .ci-scripts/**
 .claude/**
-AGENTS.md
+**/AGENTS.md

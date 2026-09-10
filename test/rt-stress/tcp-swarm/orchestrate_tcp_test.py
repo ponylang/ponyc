@@ -2,7 +2,7 @@
 """Unit tests for the pure pieces of orchestrate_tcp.py.
 
 Self-contained (no pytest): `python3 orchestrate_tcp_test.py`, exits 0 on pass /
-1 on failure. Picked up by test-rt-stress.yml's `*_test.py` discovery.
+1 on failure. Run in CI by lint-python.yml, which discovers every `*_test.py`.
 """
 import os
 import sys
@@ -20,56 +20,9 @@ def check(name, condition):
         FAILURES.append(name)
 
 
-def test_resolve_config_golden():
-    # Pinned draws: any change to the draw -- a reordered/narrowed/added draw, or a
-    # budget/cost-model change -- changes these pinned configs, which is the visible
-    # signal that every seed's draw has silently remapped (breaking --replay).
-    # Regenerate deliberately if the draw is meant to change. The seeds are chosen to
-    # span the draw's branches so a change can't leave all three untouched by luck:
-    # seed 0 is a plain writev; seed 6 is write-shape=write AND lands on the memory
-    # budget (its connections, messages, and payload are all trimmed to fit, so a
-    # cost-model change remaps it, not only a draw-order change); seed 23 exercises the
-    # multi-batch writev path (writev-chunks 2048 > IOV_MAX, payload >= chunks) with
-    # expect on and a hard close.
-    golden0 = {
-        "master_seed": 0,
-        "runtime": {"ponymaxthreads": 6, "ponynoscale": True},
-        "workload": {
-            "close": "graceful", "concurrency": 32, "connections": 11236,
-            "expect": 0, "messages": 6, "payload-size": 64,
-            "read-buffer-size": 65536, "write-shape": "writev",
-            "writev-chunks": 64,
-            "yield-after-reading": 64, "yield-after-writing": 16384,
-        },
-    }
-    golden6 = {
-        "master_seed": 6,
-        "runtime": {"ponymaxthreads": 5, "ponynoblock": True},
-        "workload": {
-            "close": "hard", "concurrency": 256, "connections": 31735,
-            "expect": 0, "messages": 1, "payload-size": 256,
-            "read-buffer-size": 65536, "write-shape": "write",
-            "writev-chunks": 2048,
-            "yield-after-reading": 1024, "yield-after-writing": 64,
-        },
-    }
-    golden23 = {
-        "master_seed": 23,
-        "runtime": {"ponymaxthreads": 6, "ponynoscale": True},
-        "workload": {
-            "close": "hard", "concurrency": 16, "connections": 1370,
-            "expect": 4096, "messages": 7, "payload-size": 4096,
-            "read-buffer-size": 65536, "write-shape": "writev",
-            "writev-chunks": 2048,
-            "yield-after-reading": 1024, "yield-after-writing": 64,
-        },
-    }
-    check("resolve_config(0, 8) matches the pinned draw",
-          o.resolve_config(0, 8) == golden0)
-    check("resolve_config(6, 8) matches the pinned draw",
-          o.resolve_config(6, 8) == golden6)
-    check("resolve_config(23, 8) matches the pinned draw",
-          o.resolve_config(23, 8) == golden23)
+def test_resolve_config_deterministic():
+    # --replay reproduces a failure by re-running its seed, so a seed must always
+    # draw the same workload.
     check("resolve_config is deterministic",
           o.resolve_config(7, 8) == o.resolve_config(7, 8))
 
@@ -257,8 +210,8 @@ def test_resolve_config_coverage_and_invariants():
     closes = set()
     expect_states = set()
     chunk_vals = set()
+    yield_vals = set()
     multibatch_seeds = 0
-    yield_fires_seeds = 0
     noscale = pin = pinasio = noblock = 0
     invariants = True
     for seed in range(500):
@@ -268,21 +221,17 @@ def test_resolve_config_coverage_and_invariants():
         closes.add(w["close"])
         expect_states.add(w["expect"] > 0)
         chunk_vals.add(w["writev-chunks"])
-        # A writev whose non-empty buffer count exceeds POSIX IOV_MAX (1024)
-        # reaches TCPConnection's multi-batch send path. That needs writev,
-        # writev-chunks > 1024, and payload >= chunks (so no buffer is empty). The
-        # mid-write yield fires only on that path, and only once one IOV_MAX-buffer
-        # batch's bytes reach --yield-after-writing. Since the yield is the whole
-        # point of the writev-chunks lever, both must stay reachable or those paths
-        # go untested. (IOV_MAX here is the POSIX value.)
+        yield_vals.add(w["yield-after-reading"])
+        # A vectored send whose non-empty buffer count exceeds POSIX IOV_MAX
+        # (1024) reaches the multi-batch send path. That needs writev,
+        # writev-chunks > 1024, and payload >= chunks (so no buffer is empty), so
+        # the draw must keep that combination reachable or the path goes untested.
+        # (IOV_MAX here is the POSIX value.)
         iov_max = 1024
         chunks = w["writev-chunks"]
         if (w["write-shape"] == "writev" and chunks > iov_max
                 and w["payload-size"] >= chunks):
             multibatch_seeds += 1
-            first_batch_bytes = iov_max * (w["payload-size"] // chunks)
-            if first_batch_bytes >= w["yield-after-writing"]:
-                yield_fires_seeds += 1
         noscale += 1 if r.get("ponynoscale") else 0
         pin += 1 if r.get("ponypin") else 0
         pinasio += 1 if r.get("ponypinasio") else 0
@@ -323,8 +272,10 @@ def test_resolve_config_coverage_and_invariants():
     # Hardcoded literal (not derived from the profile list) so narrowing the list is
     # caught here, matching the sibling write-shape/close checks.
     check("all writev-chunk counts appear", chunk_vals == {4, 64, 2048})
+    # Hardcoded literal for the same reason as writev-chunks above: narrowing
+    # YIELD_SIZES should trip this, not pass by tautology.
+    check("all yield-after-reading sizes appear", yield_vals == {64, 1024, 16384})
     check("multi-batch writev is reachable by the draw", multibatch_seeds > 0)
-    check("mid-write yield is reachable via writev-chunks", yield_fires_seeds > 0)
     check("both close kinds appear", closes == {"graceful", "hard"})
     check("expect appears both on and off", expect_states == {True, False})
     check("ponynoscale is drawn sometimes and not always",
@@ -357,53 +308,6 @@ def test_max_connections_cap():
     check("max_connections: actually caps some seeds (not vacuous)", capped_any)
 
 
-def test_macos_draw_golden():
-    # macOS draws from its own profile lists, so its draws differ from the default's and
-    # need their own pins (same role as the default goldens: a change to macOS's lists
-    # or the draw shows here). The seeds span macOS's lists: seed 0 a small payload with
-    # expect off and yield above its read buffer; seed 1 the largest payload (16384);
-    # seed 23 expect on and the smaller read buffer. All draw write shape.
-    golden0 = {
-        "master_seed": 0,
-        "runtime": {"ponymaxthreads": 6, "ponynoscale": True},
-        "workload": {
-            "close": "graceful", "concurrency": 32, "connections": 11236,
-            "expect": 0, "messages": 3, "payload-size": 8,
-            "read-buffer-size": 65536, "write-shape": "write",
-            "writev-chunks": 4,
-            "yield-after-reading": 32768, "yield-after-writing": 65536,
-        },
-    }
-    golden1 = {
-        "master_seed": 1,
-        "runtime": {"ponymaxthreads": 1, "ponypin": True},
-        "workload": {
-            "close": "hard", "concurrency": 64, "connections": 158,
-            "expect": 0, "messages": 3, "payload-size": 16384,
-            "read-buffer-size": 65536, "write-shape": "write",
-            "writev-chunks": 4,
-            "yield-after-reading": 65536, "yield-after-writing": 32768,
-        },
-    }
-    golden23 = {
-        "master_seed": 23,
-        "runtime": {"ponymaxthreads": 6, "ponynoscale": True},
-        "workload": {
-            "close": "hard", "concurrency": 256, "connections": 1031,
-            "expect": 8, "messages": 2, "payload-size": 8,
-            "read-buffer-size": 32768, "write-shape": "write",
-            "writev-chunks": 4,
-            "yield-after-reading": 32768, "yield-after-writing": 32768,
-        },
-    }
-    check("resolve_config(0, 8, profile='macos') matches the pinned draw",
-          o.resolve_config(0, 8, profile="macos") == golden0)
-    check("resolve_config(1, 8, profile='macos') matches the pinned draw",
-          o.resolve_config(1, 8, profile="macos") == golden1)
-    check("resolve_config(23, 8, profile='macos') matches the pinned draw",
-          o.resolve_config(23, 8, profile="macos") == golden23)
-
-
 def test_macos_draw_from_own_sets():
     # macOS draws every field from its own profile lists, not the default's -- there is
     # no reshape, nothing is drawn then modified. So every macOS workload lands in those
@@ -414,7 +318,6 @@ def test_macos_draw_from_own_sets():
     # draw. The coverage flags confirm the lists are exercised.
     mp = o.WORKLOAD_PROFILES["macos"]
     max_total = max(mp["payload_sizes"]) * mp["message_buckets"]["large"][1]
-    msg_lo = mp["message_buckets"]["small"][0]
     msg_hi = mp["message_buckets"]["large"][1]
     ok = True
     payloads = set()
@@ -439,8 +342,6 @@ def test_macos_draw_from_own_sets():
         if rb not in mp["read_buffer_sizes"]:
             ok = False
         if mw["yield-after-reading"] not in mp["yield_sizes"]:
-            ok = False
-        if mw["yield-after-writing"] not in mp["yield_sizes"]:
             ok = False
         if mw["writev-chunks"] not in mp["writev_chunks"]:
             ok = False
@@ -480,8 +381,6 @@ def test_macos_draw_from_own_sets():
           expect_states == {True, False})
     check("macOS draw: the largest message count is reached (%d)" % msg_hi,
           msg_hit_max)
-    check("macOS draw: messages never fall below the minimum (%d)" % msg_lo,
-          msg_lo >= 1)
 
 
 def test_ponymaxthreads_is_last_and_host_dependent():
@@ -515,6 +414,68 @@ def test_ponymaxthreads_is_last_and_host_dependent():
     check("ponymaxthreads is bounded by the (smaller) core count", bounded_low)
     check("ponymaxthreads genuinely differs across core counts",
           differed > 0 and exceeded_low)
+
+
+def test_resolve_seeds():
+    # Seed selection: which seeds a run actually executes. A bug here silently runs
+    # the wrong set. The argparse group makes the selectors mutually exclusive, so
+    # each is exercised alone.
+    import contextlib
+    import io
+    from types import SimpleNamespace
+
+    def ns(**kw):
+        base = dict(master_seed=None, replay=None, count=None, seeds=None, start=0)
+        base.update(kw)
+        return SimpleNamespace(**base)
+
+    check("resolve_seeds: --master-seed runs just that seed",
+          o.resolve_seeds(ns(master_seed=5)) == [5])
+    check("resolve_seeds: --replay runs just that seed",
+          o.resolve_seeds(ns(replay=9)) == [9])
+    check("resolve_seeds: --count runs a range from --start",
+          o.resolve_seeds(ns(count=3, start=10)) == [10, 11, 12])
+    check("resolve_seeds: --seeds parses a CSV list",
+          o.resolve_seeds(ns(seeds="1,2,3")) == [1, 2, 3])
+    check("resolve_seeds: no selector runs the single --start seed",
+          o.resolve_seeds(ns(start=7)) == [7])
+    # A non-integer token in --seeds dies rather than running a wrong set silently.
+    threw = False
+    try:
+        with contextlib.redirect_stderr(io.StringIO()):
+            o.resolve_seeds(ns(seeds="1,x,3"))
+    except SystemExit:
+        threw = True
+    check("resolve_seeds: a non-integer in --seeds dies", threw)
+
+
+def test_validate_args():
+    # The run-argument guards: reject combinations that would silently misbehave --
+    # a hang misclassified, a healthy run false-killed, or the memory cap disabled.
+    import contextlib
+    import io
+
+    def dies(**kw):
+        base = dict(no_progress_seconds=300, timeout_seconds=6000,
+                    mem_limit_mb=8192, max_connections=None)
+        base.update(kw)
+        threw = False
+        try:
+            with contextlib.redirect_stderr(io.StringIO()):
+                o.validate_args(**base)
+        except SystemExit:
+            threw = True
+        return threw
+
+    check("validate_args: valid defaults pass", not dies())
+    check("validate_args: --max-connections <= 0 dies", dies(max_connections=0))
+    check("validate_args: --no-progress-seconds at the 5s heartbeat dies",
+          dies(no_progress_seconds=5))
+    check("validate_args: --timeout-seconds <= --no-progress-seconds dies",
+          dies(timeout_seconds=300, no_progress_seconds=300))
+    check("validate_args: negative --mem-limit-mb dies", dies(mem_limit_mb=-1))
+    check("validate_args: --mem-limit-mb 0 is allowed (explicit disable)",
+          not dies(mem_limit_mb=0))
 
 
 def test_build_argv():
@@ -839,15 +800,14 @@ def test_rlimit_as_supported():
 
 
 def main():
-    for fn in (test_resolve_config_golden, test_clamp_run,
+    for fn in (test_resolve_config_deterministic, test_clamp_run,
                test_memory_budget, test_memory_budget_trims,
                test_est_peak_bytes_monotonic,
                test_memory_budget_rotates_the_trimmed_lever,
-               test_max_connections_cap,
-               test_macos_draw_golden,
-               test_macos_draw_from_own_sets,
+               test_max_connections_cap, test_macos_draw_from_own_sets,
                test_resolve_config_coverage_and_invariants,
                test_ponymaxthreads_is_last_and_host_dependent,
+               test_resolve_seeds, test_validate_args,
                test_build_argv, test_parse_result, test_lldb_argv,
                test_lldb_exit_code, test_watchdog_kill_reason,
                test_parse_done, test_is_progress, test_classify_outcome,

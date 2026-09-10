@@ -22,6 +22,7 @@ RUN apt-get update \
   curl \
   python3-pip \
   wget \
+  libssl-dev \
   systemtap-sdt-dev \
  && rm -rf /var/lib/apt/lists/* \
  && apt-get -y autoremove --purge \

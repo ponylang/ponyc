@@ -3,7 +3,9 @@
 #
 # Args (passed with -D): PONYC, STDLIB_SRC (packages/stdlib), WORKDIR (the output
 # directory the binary is built into and run from), BUILD_NAME (stdlib-debug or
-# stdlib-release), DEBUG (ON for the debug build).
+# stdlib-release), DEBUG (ON for the debug build), PONY_SSL_FLAG (the SSL -D flag
+# for the net package, e.g. -Dopenssl_3.0.x), SOURCE_DIR (the repo root, for
+# copying test assets into WORKDIR).
 #
 # Run-time knobs read from the environment (set by the caller/CI, defaulted here):
 #   PONY_STDLIB_TEST_EXCLUDES  extra args appended, e.g. --exclude=net/Broadcast
@@ -25,7 +27,7 @@ else()
     set(ENV{PONYPATH} "${WORKDIR}")
 endif()
 
-set(_args -b "${BUILD_NAME}" --checktree)
+set(_args -b "${BUILD_NAME}" --checktree "${PONY_SSL_FLAG}")
 if(DEBUG)
     list(PREPEND _args -d)
 endif()
@@ -38,6 +40,14 @@ if(NOT CMAKE_HOST_WIN32)
     endif()
 endif()
 
+# SSL tests reference assets/cert.pem and assets/key.pem relative to the
+# working directory. Copy the assets directory into WORKDIR so the test
+# binary finds them.
+if(SOURCE_DIR AND EXISTS "${SOURCE_DIR}/assets")
+    file(COPY "${SOURCE_DIR}/assets" DESTINATION "${WORKDIR}")
+endif()
+
+message(STATUS "Compiling stdlib (${BUILD_NAME}) ...")
 execute_process(
     COMMAND "${PONYC}" ${_args} "${STDLIB_SRC}"
     WORKING_DIRECTORY "${WORKDIR}"
@@ -45,6 +55,7 @@ execute_process(
 if(NOT _rc EQUAL 0)
     message(FATAL_ERROR "compiling stdlib (${BUILD_NAME}) failed (exit ${_rc})")
 endif()
+message(STATUS "Compilation succeeded, running tests ...")
 
 # ponyc names the binary ${BUILD_NAME}.exe on Windows. Run directly, the Windows
 # loader appends .exe; but a debugger (PONY_TEST_DEBUGGER, below) gets the path
@@ -76,7 +87,8 @@ if(_debugger)
         WORKING_DIRECTORY "${WORKDIR}"
         OUTPUT_VARIABLE _out ERROR_VARIABLE _errout
         ECHO_OUTPUT_VARIABLE ECHO_ERROR_VARIABLE
-        RESULT_VARIABLE _rc)
+        RESULT_VARIABLE _rc
+        TIMEOUT 1800)
     if("${_out}${_errout}"
        MATCHES "Process [0-9]+ exited with status = ([0-9]+)")
         set(_rc "${CMAKE_MATCH_1}")
@@ -85,7 +97,8 @@ else()
     execute_process(
         COMMAND ${_run}
         WORKING_DIRECTORY "${WORKDIR}"
-        RESULT_VARIABLE _rc)
+        RESULT_VARIABLE _rc
+        TIMEOUT 1800)
 endif()
 if(NOT _rc EQUAL 0)
     message(FATAL_ERROR "stdlib tests (${BUILD_NAME}) failed (exit ${_rc})")

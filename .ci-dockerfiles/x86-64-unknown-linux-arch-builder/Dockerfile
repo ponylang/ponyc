@@ -9,7 +9,8 @@ RUN pacman -Syyu --noconfirm \
  diffutils \
  git \
  lldb \
- make
+ make \
+ openssl
 
 # add user pony in order to not run tests as root
 RUN useradd -u 1001 -ms /bin/sh -d /home/pony -g root pony

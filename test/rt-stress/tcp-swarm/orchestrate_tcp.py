@@ -1,20 +1,22 @@
 #!/usr/bin/env python3
 """Swarm orchestrator for the TCP stress engine (test/rt-stress/tcp-swarm).
 
-Standalone: it does not import the generative harness. Each master seed draws one
-TCP workload -- a random subset of the connection features plus magnitudes and a
-thin runtime backdrop -- and runs the engine (`main.pony`) once. Omission is the
-swarm mechanism: each feature is drawn independently, so different seeds enable
-different subsets and push the net stack down different code paths (see
-README.md). A failure (echo mismatch, crash, or hang) writes a bundle that
-reproduces the run from its seed alone.
+Each master seed draws one TCP workload -- a random subset of the connection
+features plus magnitudes and a thin runtime backdrop -- and runs the prebuilt
+engine binary once. Omission is the swarm mechanism: each feature is drawn
+independently, so different seeds enable different subsets and push the net package's TCP
+stack down different code paths (see README.md). A failure (echo mismatch, crash,
+or hang) writes a bundle recording the seed, which reproduces the WORKLOAD (the
+draw is deterministic; the concurrency timing that a stress test hunts is not).
 
-The run mechanism -- the no-progress watchdog (a run is a hang when its completed
-count stops advancing) + process-group kill, a non-failing backstop that stops a
-healthy over-long run, the RLIMIT_AS cap, and the optional lldb crash-backtrace
-wrapper -- is adapted from the generative harness's `stress_common.py`; it is
-copied here rather than shared so the two stress tests evolve independently (test
-plumbing, low drift cost).
+Pass `--ponyc <path>` to have this orchestrator compile the engine before
+running it (requires `--ssl` to set the SSL version flag), or build the engine
+separately with `ponyc -d -o build/debug test/rt-stress/tcp-swarm` and point
+`--binary` at the result. The run mechanism -- the no-progress watchdog (a run is a
+hang when its completed count stops advancing) + process-group kill, a
+non-failing backstop that stops a healthy over-long run, the RLIMIT_AS cap, and
+the optional lldb crash-backtrace wrapper -- is ported from ponyc's tcp-swarm
+orchestrator.
 """
 import argparse
 import json
@@ -37,30 +39,34 @@ BINARY_NAME = "tcp_swarm"
 SOURCE_DIR = os.path.dirname(os.path.abspath(__file__))
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(SOURCE_DIR)))
 
+SSL_FLAG_MAP = {
+    "3.0.x": "-Dopenssl_3.0.x",
+    "1.1.x": "-Dopenssl_1.1.x",
+    "4.0.x": "-Dopenssl_4.0.x",
+    "libressl": "-Dlibressl",
+}
+
 # The hang threshold: if the engine's HEARTBEAT `done=` count has not advanced for
 # this long, the run is stuck (a stalled connection, a teardown that never finishes)
 # and is killed as a failure. The engine emits a heartbeat on a fixed wall-clock
 # timer, far more often than this, so a healthy-but-slow run always shows `done`
-# advancing inside the window; only a genuine stall stops it.
+# advancing inside the window; only a genuine stall stops it. COUPLING: this window
+# must stay well above the engine's heartbeat interval (5s).
 DEFAULT_NO_PROGRESS_SECONDS = 300
 # The backstop: a run still advancing at this point is stopped anyway so one seed
 # can't run unbounded, but that is NOT a failure (outcome "incomplete") -- the run
 # was healthy, it just ran long. Only the no-progress hang above fails a seed.
 DEFAULT_TIMEOUT_SECONDS = 6000
-# 14 GiB, on VIRTUAL address space (RLIMIT_AS caps virtual, not RSS). Pony's pool
-# allocator reserves virtual in large MAP_NORESERVE arenas and holds the high-water mark
-# under the in-flight connection backlog, so a run's virtual footprint runs far ahead of
-# the RAM it touches -- RSS stayed ~120 MiB in every measurement below. The peak scales
-# with how deep that backlog gets, which scales with how CPU-starved the run is: the
-# failing 53k-connection seed measured ~5 GiB virtual on many fast cores but ~8.4 GiB
-# pinned to 2 cores -- and the 2-core run reproduces the CI OOM exactly (same
-# ponyint_virt_alloc abort). CI's slow 4-vCPU runner builds that deep backlog, and the old
-# 8 GiB cap sat just below the ~8.4 GiB it needed. est_peak_bytes below estimates live
-# WORKLOAD bytes (~1.2 GiB for this seed), ~4-7x under the real virtual peak, so the budget
-# did not keep the run under the cap. Virtual is nearly free (RSS is the scarce resource and
-# the runner has 16 GiB), so 14 clears the measured ~8.4 GiB worst case with margin at no RAM
-# cost; a genuine runaway still trips it (virtual >= RSS) and the runner's own OOM-killer
-# backstops. See the memory budget block below.
+# 14 GiB, on VIRTUAL address space (RLIMIT_AS caps virtual, not RSS). This budget is a copy
+# of ponyc's tcp-swarm model, where the failing seed the budget estimated at ~1.2 GiB
+# measured ~5 GiB of virtual on fast cores but ~8.4 GiB pinned to 2 cores (~120 MiB RSS
+# throughout), the 2-core run reproducing the CI OOM: the pool allocator's virtual high-water
+# mark under the in-flight backlog runs ~4-7x over est_peak_bytes' live-byte estimate and
+# grows as the run is CPU-starved. Virtual is nearly free (RSS is the scarce resource, the
+# runner has 16 GiB), so 14 clears ponyc's measured ~8.4 GiB worst case with margin at no RAM
+# cost. Those numbers are ponyc's `net` stack; the stdlib net TCP stack was not independently
+# measured and its constants were borrowed from ponyc unvalidated, so the stdlib is at least as
+# exposed -- confirm with a raised-cap run if you want the budget to be a tight bound.
 DEFAULT_MEM_LIMIT_MB = 14336
 
 
@@ -90,11 +96,11 @@ def die(message):
 DEFAULT_PROFILE = {
     "write_shapes": ["write", "writev"],
     # writev buffer counts (writev only). 2048 exceeds POSIX IOV_MAX (1024): drawn with
-    # a payload at least that large, a single writev then queues more buffers than one
-    # writev() syscall can send, so TCPConnection takes its multi-batch send path -- the
-    # only path on which the mid-write yield (yield-after-writing) fires on POSIX. 4 and
-    # 64 are ordinary small vector writes. The large value must stay above
-    # pony_os_writev_max()'s POSIX return, or the multi-batch coverage silently vanishes.
+    # a payload at least that large, a single vectored send then queues more buffers
+    # than one writev() syscall can send, so the net package's `_send_pending_writes()` takes its
+    # multi-batch path (one writev_max-sized batch per pass). 4 and 64 are ordinary
+    # small vector writes. The large value must stay above PonyTCP.writev_max()'s POSIX
+    # return, or the multi-batch coverage silently vanishes.
     "writev_chunks": [4, 64, 2048],
     "close_kinds": ["graceful", "hard"],
     # Payload sizes span the runtime's 16384-byte default read buffer: below, at, and
@@ -116,16 +122,16 @@ DEFAULT_PROFILE = {
 # The macos profile: macOS loopback shares a finite kernel buffer pool that every
 # socket draws from. A wide workload exhausts it, and a non-blocking sendmsg then
 # blocks in the kernel for many seconds -- freezing the scheduler thread that issued it
-# and hanging the run. (The runtime treats the ENOBUFS this surfaces as retryable, PR
-# #5823, but the block happens before any errno returns, so the workload has to stay
-# out of the exhaustion regime on its own.) So macOS draws from its own narrower lists,
-# chosen so every combination they can produce is block-free -- verified by drawing
-# across them at 8x the loopback pressure of a single CI process (more than CI's
-# one-at-a-time runs ever reach) and timing every send: within these lists no send
+# and hanging the run. (The runtime treats the ENOBUFS this surfaces as retryable,
+# ponylang/ponyc#5823, but the block happens before any errno returns, so the workload
+# has to stay out of the exhaustion regime on its own.) So macOS draws from its own
+# narrower lists, chosen so every combination they can produce is block-free -- verified
+# by drawing across them at 8x the loopback pressure of a single CI process (more than
+# CI's one-at-a-time runs ever reach) and timing every send: within these lists no send
 # blocks longer than about 60 ms and every run completes, versus the many seconds -- a
 # minute at worst -- a wider workload froze a scheduler thread and hung the run. Capping
-# payload alone did not do it (PR #5826, reverted): the block is driven by send shape,
-# drain rate, and per-connection byte total together, and each list below answers one.
+# payload alone did not do it (#373): the block is driven by send shape, drain rate, and
+# per-connection byte total together, and each list below answers one.
 MACOS_PROFILE = {
     # write only: a scatter-gather writev pins a kernel mbuf per iovec segment, draining
     # the shared pool faster per byte than a contiguous write -- even a 4-segment writev
@@ -216,22 +222,22 @@ def draw_bucketed(rng, buckets):
 # swarm coverage. With a random order the trimmed lever rotates: on one seed
 # writev-chunks wins the budget and concurrency/messages shrink, on another connections
 # wins and writev-chunks is forced to 4. Every lever still reaches large on some
-# fraction of seeds. This mirrors the generative harness's clamp_ttl (big chains force
-# ttl small), generalized so the sacrificed lever is not always the same one.
+# fraction of seeds, so the sacrificed lever is not always the same one.
 #
-# est_peak_bytes estimates peak live WORKLOAD bytes (pending write buffers, read buffers,
-# bytes in flight, churn). This is NOT what the cap bounds: RLIMIT_AS caps virtual, and the
-# pool allocator's virtual high-water mark under the in-flight backlog runs ~4-7x over these
-# live-byte terms and grows as the run is CPU-starved -- a 53k-connection draw the budget put
-# at ~1.2 GiB measured ~5 GiB virtual on fast cores and ~8.4 GiB pinned to 2 cores (~120 MiB
-# RSS throughout), the 2-core run reproducing the CI OOM. The churn is what the budget misses;
-# the term (connections * read_buffer) does not capture the backlog's pool reservation. We
-# chose not to re-fit the constants to virtual -- pool reservation is a high-water artifact
-# that varies with core count and stack, and would need re-measuring per stack (lori copies
-# this model) -- and raised the cap to carry the slack instead. Re-fit only if you need the
-# budget to be a tight bound.
+# est_peak_bytes estimates peak live WORKLOAD bytes (pending vectored-send buffers, live
+# read buffers, bytes in flight, per-connection churn). This is NOT what the cap bounds:
+# RLIMIT_AS caps virtual, and on ponyc's `net` stack the pool allocator's virtual high-water
+# mark under the in-flight backlog measured ~4-7x over these live-byte terms and grows as the
+# run is CPU-starved (a 53k-connection draw the budget put at ~1.2 GiB peaked ~5 GiB virtual
+# on fast cores, ~8.4 GiB on 2 cores where it reproduces the CI OOM; ~120 MiB RSS throughout).
+# The SHAPE carries over from the old ponyc net stack, but the constants were calibrated there,
+# not measured independently on this TCP stack -- so they are UNCONFIRMED and at least as
+# exposed. The response was to raise the cap so its slack absorbs the underestimate, not to
+# re-fit: pool reservation is a high-water artifact that varies with core count and stack.
+# Confirm with a raised-cap run if you want the budget to be a tight bound.
 # COUPLING: the constants track the engine's per-object and per-read-buffer memory --
-# re-measure if make_chunks, the read buffer, or TCPConnection buffering changes.
+# re-measure if _Keystream.make_chunks, the read buffer size, or TCPConnection
+# buffering changes.
 MEM_BUDGET_BYTES = 2 * 1024 * 1024 * 1024   # 2 GiB workload, well under the 14 GiB cap
 MEM_OBJ_BYTES = 2048        # per pending writev buffer object (margin over ~832 B virt)
 MEM_RB_FACTOR = 4           # live read buffers: client + server, plus headroom
@@ -340,10 +346,10 @@ def _draw_memory_levers(rng, use_writev, profile):
 
 def resolve_config(master_seed, max_threads, max_connections=None,
                    profile="default"):
-    """Draw one TCP workload from a master seed. The draw is the seed-stability
-    contract: change it and every seed remaps (breaking a historical --replay), so
-    change it deliberately and regenerate the pinned goldens in orchestrate_tcp_test.py
-    (resolve_config(0, 8) etc.). It stays deterministic per seed, so --replay holds.
+    """Draw one TCP workload from a master seed. Any change to the draw remaps every
+    seed, so a seed recorded under old code no longer reproduces its workload
+    (breaking a historical --replay) -- change the draw deliberately. It stays
+    deterministic per seed, so --replay holds within a version.
     The memory levers are drawn in a per-seed SHUFFLED order against a memory budget
     (see _draw_memory_levers) -- that shuffle is seeded only from master_seed, so it is
     host-independent. --ponymaxthreads is drawn LAST because it is the only
@@ -359,9 +365,7 @@ def resolve_config(master_seed, max_threads, max_connections=None,
     WORKLOAD_PROFILES); main() selects it from the platform. The profiles are fully
     separate, so a constrained profile (macOS) draws different values and remaps
     relative to the default -- intended, since the platform needs its own lists -- and
-    keeps its own pinned goldens in orchestrate_tcp_test.py. rng consumption is the same
-    for every profile (a choice or a bucketed draw costs the same regardless of the
-    list's size), so within a profile seeds stay stable."""
+    keeps its own pinned goldens in orchestrate_tcp_test.py."""
     rng = random.Random(master_seed)
     profile = WORKLOAD_PROFILES[profile]
 
@@ -382,7 +386,6 @@ def resolve_config(master_seed, max_threads, max_connections=None,
     workload["writev-chunks"] = mem["writev_chunks"]
     workload["read-buffer-size"] = read_buffer
     workload["yield-after-reading"] = rng.choice(profile["yield_sizes"])
-    workload["yield-after-writing"] = rng.choice(profile["yield_sizes"])
     # expect: on/off. When on, the frame must not exceed the read buffer (the
     # engine's expect() errors above it), so clamp to it -- the oracle is
     # positional over the whole stream, so any valid frame size verifies.
@@ -415,8 +418,8 @@ def resolve_config(master_seed, max_threads, max_connections=None,
     # TCPConnection teardown would be collected silently; with it off, that cycle
     # would leak the connection actor under churn (caught by the RLIMIT_AS cap or a
     # stall). Clean connection code is ORCA-collectable and passes either way. TCP
-    # churn creates/destroys actors fast, so this is a TCP-specific reason to vary
-    # it -- unlike the generative harness, which never opens a socket.
+    # churn creates/destroys actors fast, so varying the cycle detector stresses
+    # that teardown path directly.
     if rng.random() < 0.5:
         runtime["ponynoblock"] = True
     runtime["ponymaxthreads"] = rng.randint(1, max_threads)  # LAST (see above)
@@ -589,9 +592,9 @@ def _decode(raw):
 
 def lldb_argv(lldb, engine_argv):
     """Wrap the engine argv under `lldb --batch` so a crash leaves a backtrace.
-    POSIX passes SIGINT/SIGUSR2 through without stopping, mirroring the test
-    harness's pass-through list (`.ci-scripts/test-debugger.sh`); everything else
-    stops the process, which is the crash we want to capture."""
+    POSIX passes SIGINT/SIGUSR2 through without stopping (the runtime uses them for
+    shutdown/scheduler wakeups); everything else stops the process, which is the
+    crash we want to capture."""
     on_crash = ["--one-line-on-crash", "frame variable",
                 "--one-line-on-crash", "bt all",
                 "--one-line-on-crash", "quit 1"]
@@ -672,7 +675,10 @@ def run_under_lldb(binary, lldb, config, timeout, mem_limit_bytes,
 def probe_max_threads(binary):
     """The runtime's physical core count -- the ceiling --ponymaxthreads is checked
     against. Ask for an impossible count and parse the number the runtime rejects
-    with, matching its own (SMT-collapsing) definition. Falls back to cpu_count."""
+    with, matching its own (SMT-collapsing) definition. If the probe can't be read,
+    die rather than guess: os.cpu_count() counts LOGICAL cores, so on an SMT host it
+    over-draws --ponymaxthreads and the runtime then rejects every launch, turning
+    the whole run into silent false failures. A loud stop beats that."""
     cmd = [binary, "--ponymaxthreads", "1000000", "--ponynoscale",
            "--connections", "0", "--concurrency", "1"]
     try:
@@ -685,33 +691,9 @@ def probe_max_threads(binary):
             return int(match.group(1))
     except subprocess.TimeoutExpired:
         pass
-    fallback = os.cpu_count() or 1
-    info("note: could not probe physical cores; using os.cpu_count()=%d"
-         % fallback)
-    return fallback
-
-
-def ponyc_version(ponyc):
-    result = subprocess.run([ponyc, "--version"], stdout=subprocess.PIPE,
-                            stderr=subprocess.STDOUT)
-    return result.stdout.decode(errors="replace").strip()
-
-
-def compile_engine(ponyc, out_dir):
-    """Compile the engine once (always `-d`). stdlib resolves from
-    REPO_ROOT/packages."""
-    env = dict(os.environ, PONYPATH=os.path.join(REPO_ROOT, "packages"))
-    info("+ compiling engine with " + ponyc)
-    result = subprocess.run([ponyc, "-d", "-b", BINARY_NAME, "--pic", "-o",
-                             out_dir, SOURCE_DIR], env=env)
-    if result.returncode != 0:
-        die("compiling the engine failed")
-    binary = os.path.join(out_dir, BINARY_NAME)
-    if os.name == "nt":
-        binary += ".exe"
-    if not os.path.isfile(binary):
-        die("engine binary not produced at " + binary)
-    return binary
+    die("could not read the core-count ceiling from the runtime (probe output did "
+        "not match); refusing to guess with os.cpu_count(), which counts logical "
+        "cores and would false-fail every seed on an SMT host")
 
 
 def summary_line(config, result):
@@ -727,13 +709,13 @@ def summary_line(config, result):
                shape["expect"], shape["close"], detail))
 
 
-def bundle_for(config, version, argv, limits, result):
+def bundle_for(config, binary, argv, limits, result):
     return {
         "master_seed": config["master_seed"],
         "workload": config["workload"],
         "runtime_flags": config["runtime"],
         "cli": " ".join(shlex.quote(a) for a in argv),
-        "ponyc_version": version,
+        "binary": binary,
         "limits": limits,
         "outcome": result.outcome,
         "returncode": result.returncode,
@@ -750,7 +732,7 @@ def write_bundle(out_dir, bundle):
     return path
 
 
-def execute(binary, config, version, out_dir, timeout, mem_limit_bytes,
+def execute(binary, config, out_dir, timeout, mem_limit_bytes,
             no_progress_seconds, lldb):
     if lldb is not None:
         result = run_under_lldb(binary, lldb, config, timeout, mem_limit_bytes,
@@ -768,7 +750,7 @@ def execute(binary, config, version, out_dir, timeout, mem_limit_bytes,
                 else build_argv(binary, config))
         limits = {"timeout_seconds": timeout, "mem_limit_bytes": mem_limit_bytes}
         path = write_bundle(out_dir,
-                            bundle_for(config, version, argv, limits, result))
+                            bundle_for(config, binary, argv, limits, result))
         info("wrote failure bundle: " + path)
     return result
 
@@ -789,9 +771,72 @@ def resolve_seeds(args):
     return [args.start]
 
 
+def validate_args(no_progress_seconds, timeout_seconds, mem_limit_mb,
+                  max_connections):
+    """Reject argument combinations that would silently misbehave. Dies (SystemExit
+    via die) on bad input; pure otherwise, so it is unit-tested directly."""
+    if max_connections is not None and max_connections <= 0:
+        die("--max-connections must be positive (got %d)" % max_connections)
+    # The engine heartbeats every 5s (see Spawner.listener_ready). A no-progress
+    # window at or below that would kill a healthy run before its first heartbeat.
+    if no_progress_seconds <= 5:
+        die("--no-progress-seconds must exceed the engine's 5s heartbeat interval "
+            "(got %d)" % no_progress_seconds)
+    # The backstop must sit above the no-progress window, or a real hang is caught
+    # as a healthy 'incomplete' backstop instead of failing.
+    if timeout_seconds <= no_progress_seconds:
+        die("--timeout-seconds (%d) must exceed --no-progress-seconds (%d)"
+            % (timeout_seconds, no_progress_seconds))
+    if mem_limit_mb < 0:
+        die("--mem-limit-mb must be >= 0 (0 disables the cap); got %d" % mem_limit_mb)
+
+
+def detect_ssl():
+    """Probe the installed SSL library and return the ponyc -D flag."""
+    for name in ("openssl", "libressl"):
+        try:
+            result = subprocess.run([name, "version"], capture_output=True,
+                                    text=True, timeout=5)
+            if result.returncode == 0:
+                ver = result.stdout.strip()
+                if ver.lower().startswith("libressl"):
+                    return "-Dlibressl"
+                if ver.startswith("OpenSSL 4."):
+                    return "-Dopenssl_4.0.x"
+                if ver.startswith("OpenSSL 3."):
+                    return "-Dopenssl_3.0.x"
+                if ver.startswith("OpenSSL 1.1."):
+                    return "-Dopenssl_1.1.x"
+        except (FileNotFoundError, subprocess.TimeoutExpired):
+            continue
+    die("could not detect SSL library; pass --ssl explicitly")
+    return ""  # unreachable
+
+
+def compile_engine(ponyc, ssl_flag, out_dir):
+    env = dict(os.environ, PONYPATH=os.path.join(REPO_ROOT, "packages"))
+    info("+ compiling engine with " + ponyc + " (" + ssl_flag + ")")
+    result = subprocess.run([ponyc, "-d", ssl_flag, "-b", BINARY_NAME,
+                             "--pic", "-o", out_dir, SOURCE_DIR], env=env)
+    if result.returncode != 0:
+        die("compiling the engine failed")
+    binary = os.path.join(out_dir, BINARY_NAME)
+    if os.name == "nt":
+        binary += ".exe"
+    if not os.path.isfile(binary):
+        die("engine binary not produced at " + binary)
+    return binary
+
+
 def main():
     parser = argparse.ArgumentParser(description="Swarm TCP stress orchestrator")
-    parser.add_argument("--ponyc", required=True, help="path to a debug ponyc")
+    engine = parser.add_mutually_exclusive_group(required=True)
+    engine.add_argument("--ponyc",
+                        help="path to a debug ponyc (compiles the engine)")
+    engine.add_argument("--binary",
+                        help="path to a prebuilt debug engine")
+    parser.add_argument("--ssl", choices=list(SSL_FLAG_MAP.keys()),
+                        help="SSL version (auto-detected if omitted)")
     parser.add_argument("--out", default=os.path.join(os.path.expanduser("~"),
                         "tmp", "tcp-swarm-out"), help="output dir for bundles")
     parser.add_argument("--lldb", default=None,
@@ -828,12 +873,18 @@ def main():
                         help="cap each seed's drawn connection count (Windows CI "
                              "passes a small value -- Windows opens sockets slowly)")
     args = parser.parse_args()
-    if args.max_connections is not None and args.max_connections <= 0:
-        die("--max-connections must be positive (got %d)" % args.max_connections)
+    validate_args(args.no_progress_seconds, args.timeout_seconds,
+                  args.mem_limit_mb, args.max_connections)
 
+    if args.ponyc:
+        ssl_flag = SSL_FLAG_MAP[args.ssl] if args.ssl else detect_ssl()
+        binary = compile_engine(args.ponyc, ssl_flag, args.out)
+    else:
+        binary = args.binary
+        if not os.path.isfile(binary):
+            die("engine binary not found at " + binary
+                + " (build it with `ponyc -d -o build/debug test/rt-stress/tcp-swarm`)")
     os.makedirs(args.out, exist_ok=True)
-    binary = compile_engine(args.ponyc, args.out)
-    version = ponyc_version(args.ponyc)
     max_threads = probe_max_threads(binary)
     info("probed max threads: %d" % max_threads)
     mem_limit_bytes = (args.mem_limit_mb * 1024 * 1024
@@ -846,7 +897,7 @@ def main():
 
     def run_seed(seed):
         config = resolve_config(seed, max_threads, args.max_connections, profile)
-        result = execute(binary, config, version, args.out,
+        result = execute(binary, config, args.out,
                          args.timeout_seconds, mem_limit_bytes,
                          args.no_progress_seconds, args.lldb)
         if _is_failure(result.outcome):
