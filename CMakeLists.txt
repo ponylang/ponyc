@@ -88,44 +88,43 @@ if(NOT PONY_CROSS_LIBPONYRT)
     find_package(Clang REQUIRED CONFIG PATHS "build/libs/lib/cmake/clang" "build/libs/lib64/cmake/clang" NO_DEFAULT_PATH)
     find_package(GTest REQUIRED CONFIG PATHS "build/libs/lib/cmake/GTest" "build/libs/lib64/cmake/GTest" NO_DEFAULT_PATH)
     find_package(benchmark REQUIRED CONFIG PATHS "build/libs/lib/cmake/benchmark" "build/libs/lib64/cmake/benchmark" NO_DEFAULT_PATH)
-endif()
+    # Detect SSL for the stdlib net package (requires -Dopenssl_3.0.x etc.)
+    find_package(OpenSSL QUIET)
+    if(OPENSSL_FOUND)
+        # On MSVC, reject a mingw OpenSSL (.a files) — it can't link with the MSVC
+        # toolchain and its headers steer detection to the wrong SSL variant.
+        if(MSVC AND OPENSSL_SSL_LIBRARY MATCHES "\\.a$")
+            message(FATAL_ERROR
+                "Found a mingw OpenSSL at ${OPENSSL_SSL_LIBRARY} which is not "
+                "compatible with the MSVC toolchain. Set OPENSSL_ROOT_DIR to an "
+                "MSVC-compatible OpenSSL or LibreSSL installation, e.g.:\n"
+                "  cmake -DOPENSSL_ROOT_DIR=C:/libressl --preset windows-x86-64")
+        endif()
 
-# Detect SSL for the stdlib net package (requires -Dopenssl_3.0.x etc.)
-find_package(OpenSSL QUIET)
-if(OPENSSL_FOUND)
-    # On MSVC, reject a mingw OpenSSL (.a files) — it can't link with the MSVC
-    # toolchain and its headers steer detection to the wrong SSL variant.
-    if(MSVC AND OPENSSL_SSL_LIBRARY MATCHES "\\.a$")
-        message(FATAL_ERROR
-            "Found a mingw OpenSSL at ${OPENSSL_SSL_LIBRARY} which is not "
-            "compatible with the MSVC toolchain. Set OPENSSL_ROOT_DIR to an "
-            "MSVC-compatible OpenSSL or LibreSSL installation, e.g.:\n"
-            "  cmake -DOPENSSL_ROOT_DIR=C:/libressl --preset windows-x86-64")
-    endif()
+        # LibreSSL ships OpenSSL-compatible headers but defines LIBRESSL_VERSION_NUMBER.
+        # Check for it to distinguish LibreSSL from OpenSSL.
+        include(CheckSymbolExists)
+        set(CMAKE_REQUIRED_INCLUDES "${OPENSSL_INCLUDE_DIR}")
+        check_symbol_exists(LIBRESSL_VERSION_NUMBER "openssl/opensslv.h" _IS_LIBRESSL)
+        unset(CMAKE_REQUIRED_INCLUDES)
 
-    # LibreSSL ships OpenSSL-compatible headers but defines LIBRESSL_VERSION_NUMBER.
-    # Check for it to distinguish LibreSSL from OpenSSL.
-    include(CheckSymbolExists)
-    set(CMAKE_REQUIRED_INCLUDES "${OPENSSL_INCLUDE_DIR}")
-    check_symbol_exists(LIBRESSL_VERSION_NUMBER "openssl/opensslv.h" _IS_LIBRESSL)
-    unset(CMAKE_REQUIRED_INCLUDES)
-
-    if(_IS_LIBRESSL)
-        set(PONY_SSL_FLAG "-Dlibressl")
-    elseif(OPENSSL_VERSION VERSION_GREATER_EQUAL "4.0.0")
-        set(PONY_SSL_FLAG "-Dopenssl_4.0.x")
-    elseif(OPENSSL_VERSION VERSION_GREATER_EQUAL "3.0.0")
-        set(PONY_SSL_FLAG "-Dopenssl_3.0.x")
-    elseif(OPENSSL_VERSION VERSION_GREATER_EQUAL "1.1.0")
-        set(PONY_SSL_FLAG "-Dopenssl_1.1.x")
+        if(_IS_LIBRESSL)
+            set(PONY_SSL_FLAG "-Dlibressl")
+        elseif(OPENSSL_VERSION VERSION_GREATER_EQUAL "4.0.0")
+            set(PONY_SSL_FLAG "-Dopenssl_4.0.x")
+        elseif(OPENSSL_VERSION VERSION_GREATER_EQUAL "3.0.0")
+            set(PONY_SSL_FLAG "-Dopenssl_3.0.x")
+        elseif(OPENSSL_VERSION VERSION_GREATER_EQUAL "1.1.0")
+            set(PONY_SSL_FLAG "-Dopenssl_1.1.x")
+        else()
+            message(FATAL_ERROR "Unknown OpenSSL version ${OPENSSL_VERSION}; the net package requires OpenSSL 1.1.x/3.0.x/4.0.x or LibreSSL")
+        endif()
+        if(PONY_SSL_FLAG)
+            message(STATUS "SSL for stdlib net: ${PONY_SSL_FLAG} (${OPENSSL_VERSION})")
+        endif()
     else()
-        message(FATAL_ERROR "Unknown OpenSSL version ${OPENSSL_VERSION}; the net package requires OpenSSL 1.1.x/3.0.x/4.0.x or LibreSSL")
+        message(FATAL_ERROR "OpenSSL not found; the net package requires OpenSSL 1.1.x/3.0.x/4.0.x or LibreSSL (install the dev package for your distro — see BUILD.md)")
     endif()
-    if(PONY_SSL_FLAG)
-        message(STATUS "SSL for stdlib net: ${PONY_SSL_FLAG} (${OPENSSL_VERSION})")
-    endif()
-else()
-    message(FATAL_ERROR "OpenSSL not found; the net package requires OpenSSL 1.1.x/3.0.x/4.0.x or LibreSSL (install the dev package for your distro — see BUILD.md)")
 endif()
 
 # Uses
