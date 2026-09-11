@@ -65,9 +65,11 @@ Run individual tests by name:
 A single package's tests can be compiled and run without rebuilding the full stdlib suite:
 
 ```bash
-cd build/debug && ./ponyc -d -b stdlib-debug --checktree --pic --strip ../../packages/collections
+cd build/debug && ./ponyc -d -b stdlib-debug --checktree -Dopenssl_3.0.x --pic --strip ../../packages/collections
 ./stdlib-debug --sequential
 ```
+
+The SSL flag must match the installed SSL library: `-Dopenssl_3.0.x` for OpenSSL 3.x, `-Dopenssl_1.1.x` for OpenSSL 1.1.x, `-Dlibressl` for LibreSSL. CMake detects this automatically for `ctest` runs; the manual command needs it explicitly.
 
 For a release build, drop `-d` and `--strip`.
 
