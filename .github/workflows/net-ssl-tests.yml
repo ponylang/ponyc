@@ -1,0 +1,90 @@
+name: Net SSL Tests
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    paths:
+      - 'packages/net/**'
+      - '.github/workflows/net-ssl-tests.yml'
+
+concurrency:
+  group: net-ssl-tests-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  packages: write
+  contents: read
+
+jobs:
+  build:
+    if: github.event.pull_request.draft == false
+    runs-on: ubuntu-latest
+    name: Build ponyc
+    container:
+      image: ghcr.io/ponylang/ponyc-ci-ubuntu26.04-builder:20260908
+      options: --user pony
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6.0.2
+      - name: Build libs
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          LIBS_IMAGE: ghcr.io/ponylang/ponyc-ci-ubuntu26.04-builder:20260908
+          LIBS_TAG: ${{ hashFiles('lib/CMakePresets.json', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/build-libs.cmake', 'lib/llvm/patches/*') }}
+          LIBS_BRANCH_CACHE: ${{ github.event.pull_request.head.repo.full_name == github.repository && '--branch-cache' || '' }}
+        run: python3 .ci-scripts/libs-cache/pr_libs_cache.py $LIBS_BRANCH_CACHE --image "$LIBS_IMAGE" --tag "$LIBS_TAG" -- cmake -DJOBS=4 -P lib/build-libs.cmake
+      - name: Build
+        run: |
+          cmake --preset debug -DPONY_INSTALL_SYMLINKS=OFF
+          cmake --build --preset debug
+      - name: Install
+        run: cmake --install build/build_debug --prefix install
+      - name: Upload installed ponyc
+        uses: actions/upload-artifact@v4
+        with:
+          name: ponyc-installed
+          path: install/
+          retention-days: 1
+
+  test:
+    needs: build
+    runs-on: ubuntu-latest
+    name: 'net: ${{ matrix.ssl-name }}'
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - ssl-name: libressl-3.9.2
+            ssl-flag: '-Dlibressl'
+            image: ghcr.io/ponylang/ponyc-ci-ubuntu26.04-builder-with-libressl-3.9.2:20260911
+          - ssl-name: libressl-4.2.1
+            ssl-flag: '-Dlibressl'
+            image: ghcr.io/ponylang/ponyc-ci-ubuntu26.04-builder-with-libressl-4.2.1:20260911
+          - ssl-name: openssl-1.1.1w
+            ssl-flag: '-Dopenssl_1.1.x'
+            image: ghcr.io/ponylang/ponyc-ci-ubuntu26.04-builder-with-openssl-1.1.1w:20260911
+          - ssl-name: openssl-3.6.2
+            ssl-flag: '-Dopenssl_3.0.x'
+            image: ghcr.io/ponylang/ponyc-ci-ubuntu26.04-builder-with-openssl-3.6.2:20260911
+          - ssl-name: openssl-4.0.0
+            ssl-flag: '-Dopenssl_4.0.x'
+            image: ghcr.io/ponylang/ponyc-ci-ubuntu26.04-builder-with-openssl-4.0.0:20260911
+    container:
+      image: ${{ matrix.image }}
+      options: --user pony
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6.0.2
+      - name: Download ponyc
+        uses: actions/download-artifact@v4
+        with:
+          name: ponyc-installed
+          path: ponyc-installed/
+      - name: Make ponyc executable
+        run: chmod +x ponyc-installed/lib/pony/*/bin/ponyc
+      - name: Compile net tests
+        run: |
+          PONYC="$(find ponyc-installed/lib/pony -name ponyc -type f)"
+          "$PONYC" -d ${{ matrix.ssl-flag }} -b net-tests --checktree --pic --strip packages/net/
+      - name: Run net tests
+        run: ./net-tests --sequential
