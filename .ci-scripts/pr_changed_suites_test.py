@@ -49,14 +49,19 @@ SINGLE_PATH_TABLE = [
     ('lib/CMakePresets.json', (True, False, True)),
     ('cmakefoo/build.cmake', (True, False, True)),
     ('cmake/notes.md', (False, False, False)),
-    # The generative stress engine's .pony source triggers the ponyc suite
-    # (not excluded like the rest of test/rt-stress/). Python, other workloads'
-    # Pony, and rt-systematic stay excluded.
+    # generative, tcp-swarm, and udp-swarm .pony source triggers the ponyc
+    # suite (not excluded like the rest of test/rt-stress/). Python and
+    # rt-systematic stay excluded.
     ('test/rt-stress/generative/main.pony', (True, False, True)),
     ('test/rt-stress/generative/orchestrate_normal_test.py', (False, False,
                                                               False)),
     ('test/rt-stress/generative/stress_common.py', (False, False, False)),
-    ('test/rt-stress/tcp-swarm/main.pony', (False, False, False)),
+    ('test/rt-stress/tcp-swarm/tcp_swarm.pony', (True, False, True)),
+    ('test/rt-stress/tcp-swarm/orchestrate_tcp.py', (False, False, False)),
+    ('test/rt-stress/udp-swarm/udp_flood.pony', (True, False, True)),
+    ('test/rt-stress/udp-swarm/udp_swarm.pony', (True, False, True)),
+    ('test/rt-stress/udp-swarm/orchestrate_udp.py', (False, False, False)),
+    ('test/rt-stress/suspend-drain/suspend_drain.pony', (False, False, False)),
     ('test/rt-systematic/order-signature/main.pony', (False, False, False)),
     # ...but the still-built test/ subdirs (compiled by test-ci-core) stay IN,
     # and a sibling like test/rt-stress-foo/ stays IN -- guard rows so an
