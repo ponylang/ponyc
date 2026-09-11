@@ -231,3 +231,63 @@ Queries and displays runtime statistics including actor heap memory, GC metrics,
 ### [systemtap](systemtap/)
 
 Example SystemTap scripts for tracing Pony runtime behavior on Linux, covering GC events, scheduling, and telemetry. Functionally equivalent to the `dtrace` examples but using SystemTap's probe syntax, requiring a Linux kernel with UPROBES support and the compiler built with `use=dtrace`.
+
+## URI
+
+### [uri-parsing](uri-parsing/)
+
+Parses a full URI and prints each component (scheme, authority, host, port, path, query, fragment). Demonstrates `URI.query_params()`, standalone authority parsing with `ParseURIAuthority`, path segment splitting, percent-encoding and decoding, reference resolution, normalization, and equivalence checking.
+
+### [uri-building](uri-building/)
+
+Constructs a URI from scratch using `URIBuilder`'s fluent API, chaining `set_scheme()`, `set_host()`, `append_path_segment()`, `add_query_param()`, and `set_fragment()`. Also demonstrates modifying an existing URI with `URIBuilder.from()` and error handling for invalid schemes via `URIBuildError`. Start here if you're new to the `uri` package.
+
+### [uri-iri](uri-iri/)
+
+Parses a URI containing non-ASCII characters and demonstrates IRI/URI round-trip conversion with `IRIToURI` and `URIToIRI`. Covers IRI-aware percent-encoding with `IRIPercentEncode`, IRI normalization with `NormalizeIRI`, and cross-form equivalence checking with `IRIEquivalent`.
+
+### [uri-template](uri-template/)
+
+Expands URI templates (RFC 6570) by parsing a template string with `URITemplate` and binding variables with `URITemplateVariables`. Demonstrates all variable types (strings, lists, pairs), multiple operator styles (simple, reserved `+`, fragment `#`, path `/`, query `?`), the explode modifier `*`, and the prefix modifier. Also shows error handling via `URITemplateParse`.
+
+### [uri-form-urlencoded](uri-form-urlencoded/)
+
+Parses `application/x-www-form-urlencoded` strings into key-value pairs using `ParseFormURLEncoded` and `FormURLEncoded`. Demonstrates single-value lookup with `get()`, multi-value lookup with `get_all()` for duplicate keys, presence checking with `contains()`, iterating all pairs, and decoding of plus-as-space and percent-encoding. Also shows the `URI.query_params()` convenience wrapper for extracting query parameters from a parsed URI.
+
+### [uri-template-builder](uri-template-builder/)
+
+One-shot URI template expansion using `URITemplateBuilder`'s fluent API, which combines template parsing and variable binding into a single chain. Demonstrates all three variable types (`set()`, `set_list()`, `set_pairs()`) and error handling for invalid templates.
+
+## HTTP Client
+
+### [http-client-basic](http-client-basic/)
+
+Connects to `example.com:80`, sends an HTTP GET for `/`, and prints the response status, headers, and body. Demonstrates the full `HTTPClientConnectionActor` lifecycle: `on_connected` to send the request, streaming body accumulation via `ResponseCollector`, exhaustive `ConnectionFailureReason` matching, and connection close after completion. Start here if you're new to the `http_client` package.
+
+### [http-client-query-params](http-client-query-params/)
+
+Connects to `httpbin.org` over HTTPS and sends a GET request with percent-encoded query parameters. Demonstrates the `Request` builder's `.query()` method for appending RFC 3986 encoded parameters to the request path.
+
+### [http-client-bearer-auth](http-client-bearer-auth/)
+
+Connects to `httpbin.org` over HTTPS and sends a GET request with a Bearer token in the Authorization header. Demonstrates the `Request` builder's `.bearer_auth()` method for token-based authentication.
+
+### [http-client-form-post](http-client-form-post/)
+
+Connects to `httpbin.org` over HTTPS and POSTs form-encoded data. Demonstrates `Request.post()` with `.form_body()` for `application/x-www-form-urlencoded` POST requests.
+
+### [http-client-multipart-upload](http-client-multipart-upload/)
+
+Connects to `httpbin.org` over HTTPS and POSTs a multipart form with a text field and a file attachment. Demonstrates `MultipartFormData` with `Request.post().multipart_body()` for `multipart/form-data` uploads.
+
+### [http-client-json-api](http-client-json-api/)
+
+Connects to `jsonplaceholder.typicode.com` over HTTPS, fetches a JSON todo item, and decodes it into a typed `Todo` object. Demonstrates `JSONDecoder` and `DecodeJSON` for typed JSON decoding, `ResponseCollector` for body accumulation, and `HTTPClientConnection.ssl()` for TLS connections.
+
+### [http-client-redirect](http-client-redirect/)
+
+Connects to `httpbin.org` over HTTPS and requests `/redirect/3`, which returns three chained 302 redirects before a final 200. The actor's callbacks see only the final response — `RedirectFollower` handles the hops internally. Demonstrates `RedirectFollower`, `RedirectFollowerNotify`, `RedirectConnectionFactory` for cross-origin hops, and `Origin.from_uri()` for extracting connection parameters from the redirect target.
+
+### [http-client-response-timeout](http-client-response-timeout/)
+
+Connects to `httpbin.org` over HTTPS with a 3-second response deadline on a deliberately slow endpoint. The timer fires before the response arrives, demonstrating `HTTPClientConnection.set_timer()`, `HTTPClientConnection.cancel_timer()`, and `on_timer()` in a response deadline pattern.

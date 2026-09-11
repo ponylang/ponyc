@@ -9,6 +9,8 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Added
 
+- Add uri package to the standard library ([PR #6034](https://github.com/ponylang/ponyc/pull/6034))
+- Add http_client package to the standard library ([PR #6034](https://github.com/ponylang/ponyc/pull/6034))
 
 ### Changed
 
