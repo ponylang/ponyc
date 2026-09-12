@@ -3,14 +3,14 @@ name: PR
 on:
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
-    # The UNION of the three suites' path rules. It MUST trigger the workflow
+    # The UNION of the four suites' path rules. It MUST trigger the workflow
     # for any file that triggers any suite in `.ci-scripts/pr_changed_suites.py`;
     # otherwise that PR never starts the workflow and the suite silently never
-    # runs. `ponyc` is a subset of `tools`, so the union is `tools` plus
-    # `pony_compiler` plus this workflow file. The re-includes below add back
-    # the pony_compiler paths (which have no doc/yaml exclusion), this file,
-    # and the stress workloads' Pony source (compiled in the ponyc suite to
-    # catch breaks at PR time).
+    # runs. `net_ssl` is a subset of `ponyc`, and `ponyc` is a subset of
+    # `tools`, so the union is `tools` plus `pony_compiler` plus this workflow
+    # file. The re-includes below add back the pony_compiler paths (which have
+    # no doc/yaml exclusion), this file, and the stress workloads' Pony source
+    # (compiled in the ponyc suite to catch breaks at PR time).
     paths:
       - '**'
       - '!**/*.md'
@@ -48,7 +48,7 @@ permissions:
 
 jobs:
   # Home-grown paths-filter: classify the PR's changed files into the suites
-  # that must run, so a PR touching only one suite does not queue all three.
+  # that must run, so a PR touching only one suite does not queue all four.
   # Draft gating lives here only: when this job is skipped every downstream
   # output is empty, so the `== 'true'` checks all fail and every job skips.
   changes:
@@ -58,6 +58,7 @@ jobs:
       ponyc: ${{ steps.classify.outputs.ponyc }}
       pony_compiler: ${{ steps.classify.outputs.pony_compiler }}
       tools: ${{ steps.classify.outputs.tools }}
+      net_ssl: ${{ steps.classify.outputs.net_ssl }}
     steps:
       - name: Checkout
         uses: actions/checkout@v6.0.2
@@ -466,3 +467,84 @@ jobs:
         run: ctest --preset windows-x86-64-debug -R pony-lsp-tests
       - name: Test pony-dep
         run: ctest --preset windows-x86-64-debug -R pony-dep-tests
+
+  # ----- net-ssl suite -----
+
+  net-ssl-build:
+    needs: [changes, maybe-build-ubuntu]
+    if: >-
+      !cancelled() &&
+      needs.changes.outputs.net_ssl == 'true' &&
+      needs.maybe-build-ubuntu.result != 'failure'
+    runs-on: ubuntu-latest
+    name: 'net-ssl: build ponyc'
+    container:
+      image: ghcr.io/ponylang/ponyc-ci-ubuntu26.04-builder:20260908
+      options: --user pony
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6.0.2
+      - name: Build libs
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          LIBS_IMAGE: ghcr.io/ponylang/ponyc-ci-ubuntu26.04-builder:20260908
+          LIBS_TAG: ${{ hashFiles('lib/CMakePresets.json', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/build-libs.cmake', 'lib/llvm/patches/*') }}
+          # Referenced UNQUOTED below so an empty value (fork) vanishes instead of
+          # passing as an empty arg (argparse would see it and exit 2).
+          LIBS_BRANCH_CACHE: ${{ github.event.pull_request.head.repo.full_name == github.repository && '--branch-cache' || '' }}
+        run: python3 .ci-scripts/libs-cache/pr_libs_cache.py $LIBS_BRANCH_CACHE --image "$LIBS_IMAGE" --tag "$LIBS_TAG" -- cmake -DJOBS=4 -P lib/build-libs.cmake
+      - name: Build
+        run: |
+          cmake --preset debug -DPONY_INSTALL_SYMLINKS=OFF
+          cmake --build --preset debug
+      - name: Install
+        run: cmake --install build/build_debug --prefix install
+      - name: Upload installed ponyc
+        uses: actions/upload-artifact@v4
+        with:
+          name: net-ssl-ponyc
+          path: install/
+          retention-days: 1
+
+  net-ssl-test:
+    needs: net-ssl-build
+    runs-on: ubuntu-latest
+    name: 'net: ${{ matrix.ssl-name }}'
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - ssl-name: libressl-3.9.2
+            ssl-flag: '-Dlibressl'
+            image: ghcr.io/ponylang/ponyc-ci-ubuntu26.04-builder-with-libressl-3.9.2:20260911
+          - ssl-name: libressl-4.2.1
+            ssl-flag: '-Dlibressl'
+            image: ghcr.io/ponylang/ponyc-ci-ubuntu26.04-builder-with-libressl-4.2.1:20260911
+          - ssl-name: openssl-1.1.1w
+            ssl-flag: '-Dopenssl_1.1.x'
+            image: ghcr.io/ponylang/ponyc-ci-ubuntu26.04-builder-with-openssl-1.1.1w:20260911
+          - ssl-name: openssl-3.6.2
+            ssl-flag: '-Dopenssl_3.0.x'
+            image: ghcr.io/ponylang/ponyc-ci-ubuntu26.04-builder-with-openssl-3.6.2:20260911
+          - ssl-name: openssl-4.0.0
+            ssl-flag: '-Dopenssl_4.0.x'
+            image: ghcr.io/ponylang/ponyc-ci-ubuntu26.04-builder-with-openssl-4.0.0:20260911
+    container:
+      image: ${{ matrix.image }}
+      options: --user pony
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6.0.2
+      - name: Download ponyc
+        uses: actions/download-artifact@v4
+        with:
+          name: net-ssl-ponyc
+          path: ponyc-installed/
+      - name: Make ponyc executable
+        run: chmod +x ponyc-installed/lib/pony/*/bin/ponyc
+      - name: Compile net tests
+        run: |
+          PONYC="$(find ponyc-installed/lib/pony -name ponyc -type f)"
+          "$PONYC" -d ${{ matrix.ssl-flag }} -b net-tests --checktree --pic --strip packages/net/
+      - name: Run net tests
+        run: ./net-tests --sequential

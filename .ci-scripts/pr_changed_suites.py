@@ -1,13 +1,14 @@
 #!/usr/bin/env python3
 """Classify a PR's changed files into the CI suites that must run.
 
-The merged `pr.yml` workflow runs three suites -- `ponyc`, `pony_compiler`, and
-`tools` -- but most PRs touch only some of them. This is the home-grown
-paths-filter the `changes` job uses to decide which suites to start: it reads the
-PR's changed paths on stdin (one per line) and writes `<suite>=true|false` for
-each suite to stdout in `$GITHUB_OUTPUT` (`name=value`) format.
+The merged `pr.yml` workflow runs four suites -- `ponyc`, `pony_compiler`,
+`tools`, and `net_ssl` -- but most PRs touch only some of them. This is the
+home-grown paths-filter the `changes` job uses to decide which suites to start:
+it reads the PR's changed paths on stdin (one per line) and writes
+`<suite>=true|false` for each suite to stdout in `$GITHUB_OUTPUT`
+(`name=value`) format.
 
-The rules are the three suites' original `paths:` blocks, transcribed as plain
+The rules are the suites' original `paths:` blocks, transcribed as plain
 prefix/suffix/exact tests -- no glob engine -- plus two deliberate departures
 from those blocks. First, `test/rt-stress/` and `test/rt-systematic/` are
 excluded from every suite -- with one exception: the stress workloads' `.pony`
@@ -34,8 +35,8 @@ a re-include.
 The rules must stay in sync with the union `paths:` filter at the top of
 `pr.yml`: a file that triggers any suite here must also match the workflow-level
 filter, or the workflow never starts and that suite silently never runs.
-(`ponyc` is a subset of `tools`, so the union is exactly `tools` plus
-`pony_compiler`.)
+(`net_ssl` is a subset of `ponyc`, and `ponyc` is a subset of `tools`, so the
+union is exactly `tools` plus `pony_compiler`.)
 
 Editing `pr.yml` itself re-triggers every suite: each suite's original filter
 re-included its own workflow file, and now there is one shared file.
@@ -86,13 +87,19 @@ def matches_pony_compiler(path):
             or path == WORKFLOW_FILE)
 
 
+def matches_net_ssl(path):
+    return (path.startswith('packages/net/') and not excluded(path)) \
+        or path == WORKFLOW_FILE
+
+
 def matches_tools(path):
     return not excluded(path) or path == WORKFLOW_FILE
 
 
 SUITES = (('ponyc', matches_ponyc),
           ('pony_compiler', matches_pony_compiler),
-          ('tools', matches_tools))
+          ('tools', matches_tools),
+          ('net_ssl', matches_net_ssl))
 
 
 def classify(paths):
