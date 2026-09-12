@@ -936,13 +936,34 @@ else()
             -DPONY_SSL_FLAG=${PONY_SSL_FLAG}
             -P ${CMAKE_SOURCE_DIR}/cmake/RunStdlibTest.cmake)
 
-    add_test(NAME examples
-        COMMAND ${CMAKE_COMMAND}
-            -DPONYC=$<TARGET_FILE:ponyc>
-            -DEXAMPLES=${CMAKE_SOURCE_DIR}/examples
-            -DWORKDIR=${PONY_OUTPUT_DIR}
-            -DPONY_SSL_FLAG=${PONY_SSL_FLAG}
-            -P ${CMAKE_SOURCE_DIR}/cmake/RunExamples.cmake)
+    file(GLOB_RECURSE _example_pony_files "${CMAKE_SOURCE_DIR}/examples/*.pony")
+    set(_example_dirs "")
+    foreach(_f ${_example_pony_files})
+        get_filename_component(_d "${_f}" DIRECTORY)
+        list(APPEND _example_dirs "${_d}")
+    endforeach()
+    list(REMOVE_DUPLICATES _example_dirs)
+    list(SORT _example_dirs)
+
+    set(_example_test_names "")
+    foreach(_d ${_example_dirs})
+        if(_d STREQUAL "${CMAKE_SOURCE_DIR}/examples")
+            continue()
+        endif()
+        if(_d MATCHES "ffi-")
+            continue()
+        endif()
+        file(RELATIVE_PATH _rel "${CMAKE_SOURCE_DIR}/examples" "${_d}")
+        set(_tname "example/${_rel}")
+        add_test(NAME "${_tname}"
+            COMMAND ${CMAKE_COMMAND}
+                -DPONYC=$<TARGET_FILE:ponyc>
+                -DEXAMPLE_DIR=${_d}
+                -DWORKDIR=${PONY_OUTPUT_DIR}
+                -DPONY_SSL_FLAG=${PONY_SSL_FLAG}
+                -P ${CMAKE_SOURCE_DIR}/cmake/CompileExample.cmake)
+        list(APPEND _example_test_names "${_tname}")
+    endforeach()
 
     add_test(NAME validate-grammar
         COMMAND ${CMAKE_COMMAND}
@@ -953,7 +974,7 @@ else()
 
     set_tests_properties(full-programs-debug full-programs-release
         full-program-runner-rejects-broken-config
-        stdlib-debug stdlib-release examples validate-grammar
+        stdlib-debug stdlib-release ${_example_test_names} validate-grammar
         PROPERTIES LABELS ci-core)
     set_tests_properties(stdlib-debug stdlib-release
         PROPERTIES TIMEOUT 1800)

@@ -57,7 +57,7 @@ Run individual tests by name:
 - `ctest --preset debug -R stdlib-release` — stdlib test suite, release mode
 - `ctest --preset debug -R full-programs-debug` — compile-and-run integration tests, debug mode
 - `ctest --preset debug -R full-programs-release` — compile-and-run integration tests, release mode
-- `ctest --preset debug -R examples` — compiles all examples
+- `ctest --preset debug -R ^example/` — compiles all examples (each is a separate test named `example/<path>`)
 - `ctest --preset debug -R validate-grammar` — checks `pony.g` against the compiler
 
 #### Per-package stdlib tests
