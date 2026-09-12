@@ -578,7 +578,7 @@ jobs:
   # parallel burst; !cancelled() lets each platform run independently of the
   # others' pass/fail.
 
-  ci_core_linux:
+  x86_64_linux_glibc:
     needs: [check-for-changes, use_directives]
     if: >-
       !cancelled() &&
@@ -629,8 +629,8 @@ jobs:
           topic: ${{ github.repository }} scheduled job failure
           content: ${{ github.server_url}}/${{ github.repository }}/actions/runs/${{ github.run_id }} failed.
 
-  ci_core_macos:
-    needs: [check-for-changes, ci_core_linux]
+  arm64_macos:
+    needs: [check-for-changes, use_directives]
     if: >-
       !cancelled() &&
       needs.check-for-changes.outputs.has-changes == 'true'
@@ -670,8 +670,8 @@ jobs:
           topic: ${{ github.repository }} scheduled job failure
           content: ${{ github.server_url}}/${{ github.repository }}/actions/runs/${{ github.run_id }} failed.
 
-  ci_core_windows:
-    needs: [check-for-changes, ci_core_macos]
+  x86_64_windows:
+    needs: [check-for-changes, x86_64_linux_glibc, arm64_macos]
     if: >-
       !cancelled() &&
       needs.check-for-changes.outputs.has-changes == 'true'
@@ -710,6 +710,248 @@ jobs:
         run: |
           $env:PONY_TEST_DEBUGGER = & .ci-scripts/test-debugger.ps1 lldb
           ctest --preset windows-x86-64-release -L ci-core
+      - name: Send alert on failure
+        if: ${{ failure() }}
+        uses: zulip/github-actions-zulip/send-message@bd8ec52de371d139ae8313661b7d8318c19266aa
+        with:
+          api-key: ${{ secrets.ZULIP_SCHEDULED_JOB_FAILURE_API_KEY }}
+          email: ${{ secrets.ZULIP_SCHEDULED_JOB_FAILURE_EMAIL }}
+          organization-url: 'https://ponylang.zulipchat.com/'
+          to: notifications
+          type: stream
+          topic: ${{ github.repository }} scheduled job failure
+          content: ${{ github.server_url}}/${{ github.repository }}/actions/runs/${{ github.run_id }} failed.
+
+  # ----- tier-2 ci-core full matrix (moved from tier 2) -----
+  # Tier 2 runs only debug-runtime + debug-ponyc daily. These jobs cover the
+  # three remaining configurations per platform. Both runtimes are built and
+  # the full ci-core label runs against each.
+
+  x86_64_linux_musl:
+    needs: [check-for-changes, x86_64_linux_glibc, arm64_macos]
+    if: >-
+      !cancelled() &&
+      needs.check-for-changes.outputs.has-changes == 'true'
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - image: ghcr.io/ponylang/ponyc-ci-alpine3.23-builder:20260908
+            name: x86-64 Linux musl alpine3.23
+          - image: ghcr.io/ponylang/ponyc-ci-alpine3.24-builder:20260908
+            name: x86-64 Linux musl alpine3.24
+
+    name: ci-core ${{ matrix.name }}
+    container:
+      image: ${{ matrix.image }}
+      options: --user pony --cap-add=SYS_PTRACE --security-opt seccomp=unconfined
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6.0.2
+        with:
+          ref: ${{ inputs.ref || github.sha }}
+      - name: Build libs
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          LIBS_IMAGE: ${{ matrix.image }}
+          LIBS_TAG: ${{ hashFiles('lib/CMakePresets.json', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/build-libs.cmake', 'lib/llvm/patches/*') }}
+        run: python3 .ci-scripts/libs-cache/resolve_libs_cache.py --branch-cache --image "$LIBS_IMAGE" --tag "$LIBS_TAG" -- cmake -DJOBS=4 -P lib/build-libs.cmake
+      - name: Build Debug Runtime
+        run: |
+          cmake --preset x86-64-debug
+          cmake --build --preset x86-64-debug
+      - name: Test with Debug Runtime
+        run: ctest --preset x86-64-debug -L ci-core
+      - name: Build Release Runtime
+        run: |
+          cmake --preset x86-64-release
+          cmake --build --preset x86-64-release
+      - name: Test with Release Runtime
+        run: ctest --preset x86-64-release -L ci-core
+      - name: Send alert on failure
+        if: ${{ failure() }}
+        uses: zulip/github-actions-zulip/send-message@bd8ec52de371d139ae8313661b7d8318c19266aa
+        with:
+          api-key: ${{ secrets.ZULIP_SCHEDULED_JOB_FAILURE_API_KEY }}
+          email: ${{ secrets.ZULIP_SCHEDULED_JOB_FAILURE_EMAIL }}
+          organization-url: 'https://ponylang.zulipchat.com/'
+          to: notifications
+          type: stream
+          topic: ${{ github.repository }} scheduled job failure
+          content: ${{ github.server_url}}/${{ github.repository }}/actions/runs/${{ github.run_id }} failed.
+
+  x86_64_macos:
+    needs: [check-for-changes, x86_64_windows, x86_64_linux_musl]
+    if: >-
+      !cancelled() &&
+      needs.check-for-changes.outputs.has-changes == 'true'
+    runs-on: macos-15-intel
+    name: ci-core x86-64 Apple Darwin
+    env:
+      PONY_FULL_PROGRAM_TIMEOUT: "180"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6.0.2
+        with:
+          ref: ${{ inputs.ref || github.sha }}
+      - name: Build libs
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          LIBS_TAG: ${{ hashFiles('lib/CMakePresets.json', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/build-libs.cmake', 'lib/llvm/patches/*') }}
+        run: python3 .ci-scripts/libs-cache/resolve_libs_cache.py --branch-cache --platform x86-macos-15-intel --tag "$LIBS_TAG" -- cmake -DJOBS=4 -P lib/build-libs.cmake
+      - name: Build Debug Runtime
+        run: |
+          cmake --preset x86-64-debug
+          cmake --build --preset x86-64-debug
+      - name: Test with Debug Runtime
+        run: ctest --preset x86-64-debug -L ci-core
+      - name: Build Release Runtime
+        run: |
+          cmake --preset x86-64-release
+          cmake --build --preset x86-64-release
+      - name: Test with Release Runtime
+        run: ctest --preset x86-64-release -L ci-core
+      - name: Send alert on failure
+        if: ${{ failure() }}
+        uses: zulip/github-actions-zulip/send-message@bd8ec52de371d139ae8313661b7d8318c19266aa
+        with:
+          api-key: ${{ secrets.ZULIP_SCHEDULED_JOB_FAILURE_API_KEY }}
+          email: ${{ secrets.ZULIP_SCHEDULED_JOB_FAILURE_EMAIL }}
+          organization-url: 'https://ponylang.zulipchat.com/'
+          to: notifications
+          type: stream
+          topic: ${{ github.repository }} scheduled job failure
+          content: ${{ github.server_url}}/${{ github.repository }}/actions/runs/${{ github.run_id }} failed.
+
+  arm64_linux:
+    needs: [check-for-changes, x86_64_windows, x86_64_linux_musl]
+    if: >-
+      !cancelled() &&
+      needs.check-for-changes.outputs.has-changes == 'true'
+    runs-on: ubuntu-24.04-arm
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - image: ghcr.io/ponylang/ponyc-ci-ubuntu26.04-builder:20260908
+            name: arm64 Linux glibc
+          - image: ghcr.io/ponylang/ponyc-ci-alpine3.23-builder:20260908
+            name: arm64 Linux musl alpine3.23
+          - image: ghcr.io/ponylang/ponyc-ci-alpine3.24-builder:20260908
+            name: arm64 Linux musl alpine3.24
+
+    name: ci-core ${{ matrix.name }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6.0.2
+        with:
+          ref: ${{ inputs.ref || github.sha }}
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Pull Docker image
+        run: docker pull ${{ matrix.image }}
+      - name: Build libs
+        env:
+          LIBS_TAG: ${{ hashFiles('lib/CMakePresets.json', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/build-libs.cmake', 'lib/llvm/patches/*') }}
+        run: |
+          docker run --rm \
+            --user pony \
+            -e GITHUB_TOKEN=${{ secrets.GITHUB_TOKEN }} \
+            -e GITHUB_REPOSITORY \
+            -e GITHUB_ACTOR \
+            -v ${{ github.workspace }}:/home/pony/project \
+            -w /home/pony/project \
+            ${{ matrix.image }} \
+            python3 .ci-scripts/libs-cache/resolve_libs_cache.py --branch-cache --image "${{ matrix.image }}" --tag "$LIBS_TAG" -- cmake -DJOBS=4 -P lib/build-libs.cmake
+      - name: Build Debug Runtime
+        run: |
+          docker run --rm \
+            --user pony \
+            -v ${{ github.workspace }}:/home/pony/project \
+            -w /home/pony/project \
+            ${{ matrix.image }} \
+            bash -c "cmake --preset armv8-a-debug && cmake --build --preset armv8-a-debug"
+      - name: Test with Debug Runtime
+        run: |
+          docker run --rm \
+            --user pony \
+            --cap-add=SYS_PTRACE \
+            --security-opt seccomp=unconfined \
+            -v ${{ github.workspace }}:/home/pony/project \
+            -w /home/pony/project \
+            ${{ matrix.image }} \
+            ctest --preset armv8-a-debug -L ci-core
+      - name: Build Release Runtime
+        run: |
+          docker run --rm \
+            --user pony \
+            -v ${{ github.workspace }}:/home/pony/project \
+            -w /home/pony/project \
+            ${{ matrix.image }} \
+            bash -c "cmake --preset armv8-a-release && cmake --build --preset armv8-a-release"
+      - name: Test with Release Runtime
+        run: |
+          docker run --rm \
+            --user pony \
+            --cap-add=SYS_PTRACE \
+            --security-opt seccomp=unconfined \
+            -v ${{ github.workspace }}:/home/pony/project \
+            -w /home/pony/project \
+            ${{ matrix.image }} \
+            ctest --preset armv8-a-release -L ci-core
+      - name: Send alert on failure
+        if: ${{ failure() }}
+        uses: zulip/github-actions-zulip/send-message@bd8ec52de371d139ae8313661b7d8318c19266aa
+        with:
+          api-key: ${{ secrets.ZULIP_SCHEDULED_JOB_FAILURE_API_KEY }}
+          email: ${{ secrets.ZULIP_SCHEDULED_JOB_FAILURE_EMAIL }}
+          organization-url: 'https://ponylang.zulipchat.com/'
+          to: notifications
+          type: stream
+          topic: ${{ github.repository }} scheduled job failure
+          content: ${{ github.server_url}}/${{ github.repository }}/actions/runs/${{ github.run_id }} failed.
+
+  arm64_windows:
+    needs: [check-for-changes, x86_64_macos, arm64_linux]
+    if: >-
+      !cancelled() &&
+      needs.check-for-changes.outputs.has-changes == 'true'
+    runs-on: windows-11-arm
+    defaults:
+      run:
+        shell: pwsh
+    name: ci-core arm64 Windows MSVC
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6.0.2
+        with:
+          ref: ${{ inputs.ref || github.sha }}
+      - name: Install LibreSSL
+        run: .\.ci-scripts\windows-install-libressl.ps1
+      - name: Configure Networking
+        run: .\.ci-scripts\windows-configure-networking.ps1
+      - name: Build libs
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          LIBS_TAG: ${{ hashFiles('lib/CMakePresets.json', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/build-libs.cmake', 'lib/llvm/patches/*') }}
+        run: python .ci-scripts/libs-cache/resolve_libs_cache.py --branch-cache --platform windows-11-arm --tag "$env:LIBS_TAG" '--' cmake -DPRESET=libs-windows-arm64 -DJOBS=4 -P lib/build-libs.cmake
+      - name: Configure
+        run: cmake --preset windows-arm64
+      - name: Build Debug Runtime
+        run: cmake --build --preset windows-arm64-debug
+      - name: Test with Debug Runtime
+        run: ctest --preset windows-arm64-debug -L ci-core
+      - name: Build Release Runtime
+        run: cmake --build --preset windows-arm64-release
+      - name: Test with Release Runtime
+        run: ctest --preset windows-arm64-release -L ci-core
       - name: Send alert on failure
         if: ${{ failure() }}
         uses: zulip/github-actions-zulip/send-message@bd8ec52de371d139ae8313661b7d8318c19266aa
