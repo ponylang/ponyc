@@ -122,6 +122,10 @@ if(NOT PONY_CROSS_LIBPONYRT)
         if(PONY_SSL_FLAG)
             message(STATUS "SSL for stdlib net: ${PONY_SSL_FLAG} (${OPENSSL_VERSION})")
         endif()
+        # Directory containing the SSL/crypto static libraries. Tool binaries
+        # that use the net package (pony-dep) pass this as --path so ponyc's
+        # linker can find ssl.lib/crypto.lib (or libssl.a/libcrypto.a).
+        get_filename_component(PONY_SSL_LIB_DIR "${OPENSSL_SSL_LIBRARY}" DIRECTORY)
     else()
         message(FATAL_ERROR "OpenSSL not found; the net package requires OpenSSL 1.1.x/3.0.x/4.0.x or LibreSSL (install the dev package for your distro — see BUILD.md)")
     endif()
@@ -811,6 +815,7 @@ else()
     add_pony_binary(pony-dep-tests
         NAME pony-dep-tests
         SOURCE ${CMAKE_SOURCE_DIR}/tools/pony-dep/test
+        PATHS ${PONY_SSL_LIB_DIR}
         WATCH ${CMAKE_SOURCE_DIR}/tools/pony-dep)
 
     # On-demand aggregate: build every self-hosted tool test in one target. Run

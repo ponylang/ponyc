@@ -32,7 +32,12 @@ actor Main
               ])?
             CommandSpec.leaf(
               "fetch",
-              "Download and extract a package archive from a URL")?
+              "Download and extract a package archive from a URL",
+              [],
+              [
+                ArgSpec.string("url")
+                ArgSpec.string("directory")
+              ])?
             CommandSpec.leaf(
               "add",
               "Fetch a dependency, hash it, and record it")?
@@ -85,7 +90,12 @@ actor Main
         env.err.print("error: pack failed for '" + dir + "'")
         env.exitcode(1)
       end
-    | "fetch" => _not_implemented(env, "fetch")
+    | "fetch" =>
+      Fetch(
+        env,
+        _FetchHandler(env),
+        cmd.arg("url").string(),
+        cmd.arg("directory").string())
     | "add" => _not_implemented(env, "add")
     | "remove" => _not_implemented(env, "remove")
     | "clean" => _not_implemented(env, "clean")

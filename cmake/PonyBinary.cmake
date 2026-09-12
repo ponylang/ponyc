@@ -38,8 +38,8 @@ function(add_pony_binary _target)
     add_custom_command(OUTPUT ${_exe}
         COMMAND_EXPAND_LISTS
         COMMAND echo "Building ${_pb_NAME}..."
-        COMMAND $<TARGET_FILE:ponyc> ${PONY_CPU_FLAG} ${_path_args}
-            ${PONYC_SELFHOSTED_TOOL_PATH_ARGS}
+        COMMAND $<TARGET_FILE:ponyc> ${PONY_CPU_FLAG} ${PONY_SSL_FLAG}
+            ${_path_args} ${PONYC_SELFHOSTED_TOOL_PATH_ARGS}
             -b ${_pb_NAME} -o ${_out} ${_pb_SOURCE}
         DEPENDS
             ${_watch_srcs}
