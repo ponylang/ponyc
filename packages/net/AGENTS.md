@@ -95,4 +95,4 @@ How many messages one subscription delivers is platform-specific too. kqueue arm
 - Each test uses its own hardcoded port. Grep `packages/net/_test_*.pony` for a free one.
 - `\nodoc\` on test classes.
 - A new test goes in the `_test_*.pony` file for its functional area, registered in `Main.tests()` in `_test.pony`, which holds only the test runner.
-- Each example has a file-level docstring saying what it demonstrates, uses the Listener/Server/Client actor structure, and uses a unique port. Adding one means adding it to `examples/README.md`, which is ordered simplest first.
+- Each example has a file-level docstring saying what it demonstrates, uses the Listener/Server/Client actor structure, and uses a unique port. Adding one means placing it under the appropriate `examples/networking/` subdirectory and adding it to `examples/README.md` under the Networking section.
