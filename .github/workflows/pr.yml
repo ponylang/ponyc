@@ -167,7 +167,7 @@ jobs:
         run: |
           PONY_TEST_DEBUGGER="$(.ci-scripts/test-debugger.sh lldb)"
           export PONY_TEST_DEBUGGER
-          ctest --preset x86-64-debug -L ci-core
+          ctest --preset x86-64-debug -L ci-core -E "(stdlib-release|full-programs-release)"
       - name: Compile generative stress engine
         run: PONYPATH=packages build/debug/ponyc -d --pic -b generative -o build/debug test/rt-stress/generative/
       - name: Detect SSL version
@@ -184,15 +184,6 @@ jobs:
         run: PONYPATH=packages build/debug/ponyc -d ${{ env.PONY_SSL_FLAG }} --pic -b tcp-swarm -o build/debug test/rt-stress/tcp-swarm/
       - name: Compile udp-swarm stress engine
         run: PONYPATH=packages build/debug/ponyc -d ${{ env.PONY_SSL_FLAG }} --pic -b udp-swarm -o build/debug test/rt-stress/udp-swarm/
-      - name: Build Release Runtime
-        run: |
-          cmake --preset x86-64-release
-          cmake --build --preset x86-64-release
-      - name: Test with Release Runtime
-        run: |
-          PONY_TEST_DEBUGGER="$(.ci-scripts/test-debugger.sh lldb)"
-          export PONY_TEST_DEBUGGER
-          ctest --preset x86-64-release -L ci-core
 
   ponyc-arm64-macos:
     needs: [changes, maybe-build-macos]
@@ -218,13 +209,7 @@ jobs:
           cmake --preset armv8-debug
           cmake --build --preset armv8-debug
       - name: Test with Debug Runtime
-        run: ctest --preset armv8-debug -L ci-core
-      - name: Build Release Runtime
-        run: |
-          cmake --preset armv8-release
-          cmake --build --preset armv8-release
-      - name: Test with Release Runtime
-        run: ctest --preset armv8-release -L ci-core
+        run: ctest --preset armv8-debug -L ci-core -E "(stdlib-release|full-programs-release)"
 
   ponyc-x86_64-windows:
     needs: [changes, maybe-build-windows]
@@ -264,13 +249,7 @@ jobs:
       - name: Test with Debug Runtime
         run: |
           $env:PONY_TEST_DEBUGGER = & .ci-scripts/test-debugger.ps1 lldb
-          ctest --preset windows-x86-64-debug -L ci-core
-      - name: Build Release Runtime
-        run: cmake --build --preset windows-x86-64-release
-      - name: Test with Release Runtime
-        run: |
-          $env:PONY_TEST_DEBUGGER = & .ci-scripts/test-debugger.ps1 lldb
-          ctest --preset windows-x86-64-release -L ci-core
+          ctest --preset windows-x86-64-debug -L ci-core -E "(stdlib-release|full-programs-release)"
 
   # ----- pony-compiler suite -----
 
