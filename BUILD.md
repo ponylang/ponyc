@@ -281,7 +281,7 @@ The sanitizers can't be built on OpenBSD or DragonFly BSD; see [Unsupported Open
 
 Linux, FreeBSD, and macOS support collecting Pony runtime events, through SystemTap on Linux and DTrace on FreeBSD and macOS. DTrace isn't supported on DragonFly BSD or OpenBSD.
 
-On macOS, actually tracing a running program with `dtrace` requires System Integrity Protection (SIP) to permit DTrace. See the [examples/dtrace README](examples/dtrace/README.md) for details.
+On macOS, actually tracing a running program with `dtrace` requires System Integrity Protection (SIP) to permit DTrace. See the [examples/dtrace README](examples/tracing/dtrace/README.md) for details.
 
 DTrace support is enabled by setting `use=dtrace` in the configure step like:
 
