@@ -185,8 +185,14 @@ actor \nodoc\ _TestBackpressureDrainClient
 
   fun ref _on_connected() =>
     _h.complete_action("client connected")
-    // Small receive buffer so the pipe fills quickly
-    _tcp_connection.set_so_rcvbuf(4096)
+    // Small receive buffer so the pipe fills quickly.
+    // BSDs need a larger buffer to avoid TCP flow control stalls amplified
+    // by kqueue wakeup delay.
+    ifdef bsd then
+      _tcp_connection.set_so_rcvbuf(16384)
+    else
+      _tcp_connection.set_so_rcvbuf(4096)
+    end
     // Stop reading to create TCP backpressure on the server
     _tcp_connection.mute()
     // Tell the server we're ready (muted with small buffer)
@@ -389,7 +395,11 @@ actor \nodoc\ _TestWriteOnlyEventReadRecoveryClient
 
   fun ref _on_connected() =>
     _h.complete_action("client connected")
-    _tcp_connection.set_so_rcvbuf(4096)
+    ifdef bsd then
+      _tcp_connection.set_so_rcvbuf(16384)
+    else
+      _tcp_connection.set_so_rcvbuf(4096)
+    end
     _tcp_connection.mute()
     _tcp_connection.send("ready")
 
@@ -607,7 +617,11 @@ actor \nodoc\ _TestReadableEventWriteRecoveryClient
 
   fun ref _on_connected() =>
     _h.complete_action("client connected")
-    _tcp_connection.set_so_rcvbuf(4096)
+    ifdef bsd then
+      _tcp_connection.set_so_rcvbuf(16384)
+    else
+      _tcp_connection.set_so_rcvbuf(4096)
+    end
     _tcp_connection.mute()
     _tcp_connection.send("ready")
 

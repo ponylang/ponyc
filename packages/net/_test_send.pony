@@ -644,8 +644,14 @@ actor \nodoc\ _TestSendPerTokenClient
     _tcp_connection
 
   fun ref _on_connected() =>
-    // Tiny receive buffer + muted reads so the sender's pipe fills fast.
-    _tcp_connection.set_so_rcvbuf(4096)
+    // Small receive buffer + muted reads so the sender's pipe fills fast.
+    // BSDs need a larger buffer to avoid TCP flow control stalls amplified
+    // by kqueue wakeup delay.
+    ifdef bsd then
+      _tcp_connection.set_so_rcvbuf(16384)
+    else
+      _tcp_connection.set_so_rcvbuf(4096)
+    end
     _tcp_connection.mute()
     _tcp_connection.send("ready")
 
@@ -851,7 +857,11 @@ actor \nodoc\ _TestSendSSLLargeSingleSendClient
     _tcp_connection
 
   fun ref _on_connected() =>
-    _tcp_connection.set_so_rcvbuf(4096)
+    ifdef bsd then
+      _tcp_connection.set_so_rcvbuf(16384)
+    else
+      _tcp_connection.set_so_rcvbuf(4096)
+    end
     match \exhaustive\ _tcp_connection.send(
       recover val Array[U8].init('x', _expected) end)
     | SendAccepted => None
@@ -883,6 +893,7 @@ actor \nodoc\ _TestSendSSLLargeSingleSendServer
   is (TCPConnectionActor & ServerLifecycleEventReceiver)
   var _tcp_connection: TCPConnection = TCPConnection.none()
   let _h: TestHelper
+  let _pending: Array[Array[U8] val] = Array[Array[U8] val]
 
   new create(sslctx: SSLContext val, fd: U32, h: TestHelper) =>
     _h = h
@@ -901,14 +912,37 @@ actor \nodoc\ _TestSendSSLLargeSingleSendServer
     None
 
   fun ref _on_started() =>
-    _tcp_connection.set_so_rcvbuf(4096)
+    ifdef bsd then
+      _tcp_connection.set_so_rcvbuf(16384)
+    else
+      _tcp_connection.set_so_rcvbuf(4096)
+    end
 
   fun ref _on_received(data: Array[U8] iso): ReadAction =>
-    match \exhaustive\ _tcp_connection.send(consume data)
-    | SendAccepted => None
-    | let _: SendError => _h.fail("server echo failed")
+    let d: Array[U8] val = consume data
+    if _pending.size() > 0 then
+      _pending.push(d)
+    else
+      match \exhaustive\ _tcp_connection.send(d)
+      | SendAccepted => None
+      | let _: SendError => _pending.push(d)
+      end
     end
     KeepReading
+
+  fun ref _on_unthrottled() =>
+    _drain_pending()
+
+  fun ref _drain_pending() =>
+    while _pending.size() > 0 do
+      try
+        let d = _pending(0)?
+        match \exhaustive\ _tcp_connection.send(d)
+        | SendAccepted => _pending.shift()?
+        | let _: SendError => return
+        end
+      end
+    end
 
 class \nodoc\ iso _TestSendMidFlightDropBoundary is UnitTest
   """
@@ -991,7 +1025,11 @@ actor \nodoc\ _TestSendMidFlightDropClient
     _tcp_connection
 
   fun ref _on_connected() =>
-    _tcp_connection.set_so_rcvbuf(4096)
+    ifdef bsd then
+      _tcp_connection.set_so_rcvbuf(16384)
+    else
+      _tcp_connection.set_so_rcvbuf(4096)
+    end
     _tcp_connection.mute()
     _tcp_connection.send("ready")
 
@@ -1245,7 +1283,11 @@ actor \nodoc\ _TestSendSSLPerTokenClient
     _tcp_connection
 
   fun ref _on_connected() =>
-    _tcp_connection.set_so_rcvbuf(4096)
+    ifdef bsd then
+      _tcp_connection.set_so_rcvbuf(16384)
+    else
+      _tcp_connection.set_so_rcvbuf(4096)
+    end
     _tcp_connection.mute()
     _tcp_connection.send("ready")
 
@@ -1455,7 +1497,11 @@ actor \nodoc\ _TestSendSSLMidFlightDropClient
     _tcp_connection
 
   fun ref _on_connected() =>
-    _tcp_connection.set_so_rcvbuf(4096)
+    ifdef bsd then
+      _tcp_connection.set_so_rcvbuf(16384)
+    else
+      _tcp_connection.set_so_rcvbuf(4096)
+    end
     _tcp_connection.mute()
     _tcp_connection.send("ready")
 
@@ -1694,7 +1740,11 @@ actor \nodoc\ _TestSendGracefulCloseClient
     _tcp_connection
 
   fun ref _on_connected() =>
-    _tcp_connection.set_so_rcvbuf(4096)
+    ifdef bsd then
+      _tcp_connection.set_so_rcvbuf(16384)
+    else
+      _tcp_connection.set_so_rcvbuf(4096)
+    end
     _tcp_connection.mute()
     _tcp_connection.send("ready")
 
@@ -1938,7 +1988,11 @@ actor \nodoc\ _TestSendSSLGracefulCloseClient
     _tcp_connection
 
   fun ref _on_connected() =>
-    _tcp_connection.set_so_rcvbuf(4096)
+    ifdef bsd then
+      _tcp_connection.set_so_rcvbuf(16384)
+    else
+      _tcp_connection.set_so_rcvbuf(4096)
+    end
     _tcp_connection.mute()
     _tcp_connection.send("ready")
 
@@ -2159,7 +2213,11 @@ actor \nodoc\ _TestSendCloseFromThrottledClient
     _tcp_connection
 
   fun ref _on_connected() =>
-    _tcp_connection.set_so_rcvbuf(4096)
+    ifdef bsd then
+      _tcp_connection.set_so_rcvbuf(16384)
+    else
+      _tcp_connection.set_so_rcvbuf(4096)
+    end
     _tcp_connection.mute()
     _tcp_connection.send("ready")
 
@@ -2347,7 +2405,11 @@ actor \nodoc\ _TestSendHardCloseFromThrottledClient
     _tcp_connection
 
   fun ref _on_connected() =>
-    _tcp_connection.set_so_rcvbuf(4096)
+    ifdef bsd then
+      _tcp_connection.set_so_rcvbuf(16384)
+    else
+      _tcp_connection.set_so_rcvbuf(4096)
+    end
     _tcp_connection.mute()
     _tcp_connection.send("ready")
 
@@ -2527,7 +2589,11 @@ actor \nodoc\ _TestSendSSLHardCloseFromThrottledClient
     _tcp_connection
 
   fun ref _on_connected() =>
-    _tcp_connection.set_so_rcvbuf(4096)
+    ifdef bsd then
+      _tcp_connection.set_so_rcvbuf(16384)
+    else
+      _tcp_connection.set_so_rcvbuf(4096)
+    end
     _tcp_connection.mute()
     _tcp_connection.send("ready")
 
@@ -2702,7 +2768,11 @@ actor \nodoc\ _TestSendDeliveredClient
     _tcp_connection
 
   fun ref _on_connected() =>
-    _tcp_connection.set_so_rcvbuf(4096)
+    ifdef bsd then
+      _tcp_connection.set_so_rcvbuf(16384)
+    else
+      _tcp_connection.set_so_rcvbuf(4096)
+    end
     _tcp_connection.mute()
     _tcp_connection.send("ready")
 
@@ -3526,7 +3596,11 @@ actor \nodoc\ _TestSendOnSentPrecedesClient
 
   fun ref _on_connected() =>
     // Muted with a small receive buffer so the pipe fills and stays full.
-    _tcp_connection.set_so_rcvbuf(4096)
+    ifdef bsd then
+      _tcp_connection.set_so_rcvbuf(16384)
+    else
+      _tcp_connection.set_so_rcvbuf(4096)
+    end
     _tcp_connection.mute()
     match \exhaustive\ _tcp_connection.send("ready")
     | SendAccepted => None
@@ -3711,7 +3785,11 @@ actor \nodoc\ _TestSendThrottleSuppressedClient
 
   fun ref _on_connected() =>
     // Muted with a small receive buffer so the pipe fills and stays full.
-    _tcp_connection.set_so_rcvbuf(4096)
+    ifdef bsd then
+      _tcp_connection.set_so_rcvbuf(16384)
+    else
+      _tcp_connection.set_so_rcvbuf(4096)
+    end
     _tcp_connection.mute()
     match \exhaustive\ _tcp_connection.send("ready")
     | SendAccepted => None

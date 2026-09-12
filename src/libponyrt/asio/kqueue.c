@@ -15,7 +15,6 @@
 #include <string.h>
 #include <stdbool.h>
 #include <unistd.h>
-#include <stdio.h>
 #include <signal.h>
 #include <errno.h>
 
@@ -280,6 +279,14 @@ static void handle_queue(asio_backend_t* b)
   }
 }
 
+// Wake the ASIO thread when it may be blocking in kevent().
+//
+// On BSDs (not macOS), a kevent registration from another thread does not
+// interrupt a blocking kevent call. The pipe write jolts it awake so the
+// new filter is seen on the next loop iteration.
+//
+// On macOS cross-thread kevent modifications wake a blocking kevent, so the
+// pipe write is unnecessary but harmless.
 static void retry_loop(asio_backend_t* b)
 {
   char c = 0;
@@ -343,8 +350,12 @@ PONY_API void pony_asio_event_resubscribe_read(asio_event_t* ev)
   if((rc == -1) || kevent_receipt_has_error(results, i))
     pony_asio_event_send(ev, ASIO_ERROR, 0);
 
+#ifdef PLATFORM_IS_BSD
+  retry_loop(b);
+#else
   if(ev->fd == STDIN_FILENO)
     retry_loop(b);
+#endif
 }
 
 PONY_API void pony_asio_event_resubscribe_write(asio_event_t* ev)
@@ -382,8 +393,12 @@ PONY_API void pony_asio_event_resubscribe_write(asio_event_t* ev)
   if((rc == -1) || kevent_receipt_has_error(results, i))
     pony_asio_event_send(ev, ASIO_ERROR, 0);
 
+#ifdef PLATFORM_IS_BSD
+  retry_loop(b);
+#else
   if(ev->fd == STDIN_FILENO)
     retry_loop(b);
+#endif
 }
 
 // Single function for resubscribing to both reads and writes, matching the
@@ -443,10 +458,40 @@ DECLARE_THREAD_FN(ponyint_asio_backend_dispatch)
 
       if((ep->ident == (uintptr_t)b->wakeup[0]) && (ep->filter == EVFILT_READ))
       {
+#ifdef PLATFORM_IS_BSD
+        // On BSDs, retry_loop fires for every cross-thread event
+        // registration, so multiple bytes can accumulate between kevent
+        // polls. Drain them all using ep->data (the byte count the kernel
+        // reports for EVFILT_READ) to avoid leaving the pipe readable and
+        // spinning on pipe reads instead of processing real events.
+        intptr_t avail = ep->data;
+        bool do_terminate = false;
+
+        while(avail > 0 && !do_terminate)
+        {
+          char buf[128];
+          ssize_t to_read = avail < (intptr_t)sizeof(buf)
+            ? avail : (intptr_t)sizeof(buf);
+          ssize_t n = read(b->wakeup[0], buf, to_read);
+          if(n <= 0)
+            break;
+          avail -= n;
+          for(ssize_t j = 0; j < n; j++)
+          {
+            if(buf[j] == 1)
+            {
+              do_terminate = true;
+              break;
+            }
+          }
+        }
+#else
         char terminate;
         read(b->wakeup[0], &terminate, 1);
+        bool do_terminate = (terminate == 1);
+#endif
 
-        if(terminate == 1)
+        if(do_terminate)
         {
           close(b->kq);
           close(b->wakeup[0]);
@@ -753,8 +798,12 @@ PONY_API void pony_asio_event_subscribe(asio_event_t* ev)
   else if((rc == -1) || kevent_receipt_has_error(results, i))
     pony_asio_event_send(ev, ASIO_ERROR, 0);
 
+#ifdef PLATFORM_IS_BSD
+  retry_loop(b);
+#else
   if(ev->fd == STDIN_FILENO)
     retry_loop(b);
+#endif
 }
 
 PONY_API void pony_asio_event_setnsec(asio_event_t* ev, uint64_t nsec)
