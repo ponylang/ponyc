@@ -102,12 +102,13 @@ actor \nodoc\ _TestIdleTimeoutServer
 
 class \nodoc\ iso _TestIdleTimeoutReset is UnitTest
   """
-  Test that I/O activity resets the idle timer. Server sets a 1-second idle
-  timeout. Client sends data at 500ms intervals for 4 rounds (0ms, 500ms,
-  1000ms, 1500ms). The sending period extends past the 1-second timeout
-  window, so without the reset on receive, the timer would fire mid-stream.
-  The timeout should only fire after the client stops — around 1.5s + 1s =
-  2.5s.
+  Test that I/O activity resets the idle timer. Server sets a 2-second idle
+  timeout. Client sends data at 500ms intervals for 6 rounds (0ms, 500ms,
+  1000ms, 1500ms, 2000ms, 2500ms). The sending period extends past the
+  2-second timeout window, so without the reset on receive, the timer would
+  fire mid-stream. The timeout should only fire after the client stops —
+  around 2.5s + 2s = 4.5s. The 1500ms margin per send cycle (2000ms timeout
+  minus 500ms interval) keeps the test reliable under CI load.
   """
   fun name(): String => "net/IdleTimeoutReset"
 
@@ -159,7 +160,7 @@ actor \nodoc\ _TestIdleTimeoutResetClient
   var _tcp_connection: TCPConnection = TCPConnection.none()
   let _h: TestHelper
   let _timers: Timers = Timers
-  var _sends_remaining: U32 = 4
+  var _sends_remaining: U32 = 6
 
   new create(h: TestHelper) =>
     _h = h
@@ -225,21 +226,21 @@ actor \nodoc\ _TestIdleTimeoutResetServer
     None
 
   fun ref _on_started() =>
-    match MakeIdleTimeout(1_000)
+    match MakeIdleTimeout(2_000)
     | let t: IdleTimeout =>
       _tcp_connection.idle_timeout(t)
     end
 
   fun ref _on_received(data: Array[U8] iso): ReadAction =>
     _received_count = _received_count + 1
-    if _received_count == 4 then
+    if _received_count == 6 then
       _h.complete_action("data received")
     end
     KeepReading
 
   fun ref _on_idle_timeout() =>
     _h.assert_true(
-      _received_count == 4,
+      _received_count == 6,
       "idle timeout fired before all data received")
     _h.complete_action("idle timeout fired")
 
