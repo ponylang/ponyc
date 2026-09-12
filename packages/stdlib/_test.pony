@@ -17,6 +17,7 @@ use constrained_types = "constrained_types"
 use debug = "debug"
 use files = "files"
 use format = "format"
+use http_client = "http_client"
 use ini = "ini"
 use iregex = "iregex"
 use itertools = "itertools"
@@ -34,6 +35,7 @@ use signals = "signals"
 use strings = "strings"
 use term = "term"
 use time = "time"
+use uri = "uri"
 
 
 actor \nodoc\ Main is TestList
@@ -53,6 +55,7 @@ actor \nodoc\ Main is TestList
     constrained_types.Main.make().tests(test)
     files.Main.make().tests(test)
     format.Main.make().tests(test)
+    http_client.Main.make().tests(test)
     ini.Main.make().tests(test)
     iregex.Main.make().tests(test)
     itertools.Main.make().tests(test)
@@ -69,6 +72,7 @@ actor \nodoc\ Main is TestList
     strings.Main.make().tests(test)
     term.Main.make().tests(test)
     time.Main.make().tests(test)
+    uri.Main.make().tests(test)
 
   fun @runtime_override_defaults(rto: RuntimeOptions) =>
     rto.ponynoblock = true
