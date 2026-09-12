@@ -291,6 +291,113 @@ class \nodoc\ _TestArchiveDecoderRejectsAbsolutePath is UnitTest
     })
     tmp.dispose()
 
+class \nodoc\ _TestArchiveDecoderFromBytesSingleFile is UnitTest
+  fun name(): String => "ArchiveDecoder/from_bytes single file"
+
+  fun apply(h: TestHelper) ? =>
+    let tmp = _TestHelper.tmp_dir(h)?
+    let root = tmp.path
+    let dir = Directory(root)?
+
+    let f = dir.create_file("hello.pony")?
+    f.print("actor Main")
+    f.dispose()
+
+    let encoder = dep.ArchiveEncoder(root)?
+    encoder.add(root.join("hello.pony")?)?
+
+    let archive_path = root.join("test.par")?
+    encoder.write(archive_path)?
+
+    let archive_data: Array[U8] val =
+      match OpenFile(archive_path)
+      | let af: File =>
+        let data = af.read(af.size())
+        af.dispose()
+        consume data
+      else
+        error
+      end
+
+    let out_path = root.join("output")?
+    out_path.mkdir()
+    dep.ArchiveDecoder.from_bytes(archive_data, Directory(out_path)?)?
+
+    let extracted = File.open(out_path.join("hello.pony")?)
+    let content: String val = extracted.read_string(extracted.size())
+    extracted.dispose()
+    h.assert_eq[String val](content, "actor Main\n")
+    tmp.dispose()
+
+class \nodoc\ _TestArchiveDecoderFromBytesNested is UnitTest
+  fun name(): String => "ArchiveDecoder/from_bytes nested directories"
+
+  fun apply(h: TestHelper) ? =>
+    let tmp = _TestHelper.tmp_dir(h)?
+    let root = tmp.path
+    let dir = Directory(root)?
+
+    dir.mkdir("pkg")
+    dir.mkdir("pkg/sub")
+    let f1 = dir.create_file("pkg/top.pony")?
+    f1.print("primitive Top")
+    f1.dispose()
+    let f2 = dir.create_file("pkg/sub/deep.pony")?
+    f2.print("primitive Deep")
+    f2.dispose()
+
+    let encoder = dep.ArchiveEncoder(root)?
+    encoder.add(root.join("pkg")?)?
+
+    let archive_path = root.join("test.par")?
+    encoder.write(archive_path)?
+
+    let archive_data: Array[U8] val =
+      match OpenFile(archive_path)
+      | let af: File =>
+        let data = af.read(af.size())
+        af.dispose()
+        consume data
+      else
+        error
+      end
+
+    let out_path = root.join("output")?
+    out_path.mkdir()
+    dep.ArchiveDecoder.from_bytes(archive_data, Directory(out_path)?)?
+
+    let top = File.open(out_path.join("pkg/top.pony")?)
+    let top_content: String val = top.read_string(top.size())
+    top.dispose()
+    h.assert_eq[String val](top_content, "primitive Top\n")
+
+    let deep = File.open(out_path.join("pkg/sub/deep.pony")?)
+    let deep_content: String val = deep.read_string(deep.size())
+    deep.dispose()
+    h.assert_eq[String val](deep_content, "primitive Deep\n")
+    tmp.dispose()
+
+class \nodoc\ _TestArchiveDecoderFromBytesInvalid is UnitTest
+  fun name(): String => "ArchiveDecoder/from_bytes rejects invalid data"
+
+  fun apply(h: TestHelper) ? =>
+    let tmp = _TestHelper.tmp_dir(h)?
+    let root = tmp.path
+
+    let out_path = root.join("output")?
+    out_path.mkdir()
+
+    h.assert_error({() ? =>
+      dep.ArchiveDecoder.from_bytes(
+        [as U8: 99], Directory(out_path)?)?
+    })
+
+    h.assert_error({() ? =>
+      dep.ArchiveDecoder.from_bytes(
+        recover val Array[U8] end, Directory(out_path)?)?
+    })
+    tmp.dispose()
+
 primitive \nodoc\ _WriteRawArchive
   fun apply(path: FilePath, writer: Writer iso) ? =>
     match CreateFile(path)

@@ -41,6 +41,7 @@ use @SSL_CTX_load_verify_locations[I32](
   ctx: Pointer[_SSLContext] tag,
   ca_file: Pointer[U8] tag,
   ca_path: Pointer[U8] tag)
+use @SSL_CTX_set_default_verify_paths[I32](ctx: Pointer[_SSLContext] tag)
 use @X509_STORE_new[Pointer[_X509Store] tag]()
 use @CertOpenSystemStoreA[Pointer[_CertStore] tag](
   prov: Pointer[None],
@@ -295,6 +296,15 @@ class val SSLContext
         @CertCloseStore(h_store, U32(0))
       end
     end
+
+  fun ref set_default_verify_paths() ? =>
+    """
+    Load the default certificate authority locations that OpenSSL was
+    configured with at build time. Raises an error if the context has been
+    disposed or if OpenSSL could not load the default locations.
+    """
+    if _ctx.is_null() then error end
+    if @SSL_CTX_set_default_verify_paths(_ctx) != 1 then error end
 
   fun ref set_ciphers(ciphers: String) ? =>
     """

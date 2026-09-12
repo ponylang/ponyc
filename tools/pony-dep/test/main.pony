@@ -62,6 +62,9 @@ actor \nodoc\ Main is TestList
     test(_TestArchiveDecoderRejectsUnknownVersion)
     test(_TestArchiveDecoderRejectsUnknownType)
     test(_TestArchiveDecoderRejectsAbsolutePath)
+    test(_TestArchiveDecoderFromBytesSingleFile)
+    test(_TestArchiveDecoderFromBytesNested)
+    test(_TestArchiveDecoderFromBytesInvalid)
 
     // Pack tests
     test(_TestPackRoundTrip)
