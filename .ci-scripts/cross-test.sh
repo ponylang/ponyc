@@ -25,6 +25,17 @@ cross_args="$3"
 cross_runner="$4"
 stdlib_excludes="$5"
 
+# The stdlib's net package requires an SSL version define. Detect the host's
+# SSL library the same way CMakeLists.txt does (via openssl version).
+ssl_version_str=$(openssl version 2>/dev/null) || true
+case "$ssl_version_str" in
+    LibreSSL*) ssl_flag="-Dlibressl" ;;
+    "OpenSSL 4"*|"OpenSSL  4"*) ssl_flag="-Dopenssl_4.0.x" ;;
+    "OpenSSL 3"*|"OpenSSL  3"*) ssl_flag="-Dopenssl_3.0.x" ;;
+    "OpenSSL 1.1"*|"OpenSSL  1.1"*) ssl_flag="-Dopenssl_1.1.x" ;;
+    *) echo "cross-test.sh: cannot detect SSL version from: $ssl_version_str" >&2; exit 1 ;;
+esac
+
 # ponyc's output directory is named after the build type, not after the preset.
 # Map rather than strip a suffix: a preset that sets PONY_USES lands in a
 # directory with those options appended (BUILD.md).
@@ -45,12 +56,12 @@ ctest --preset "$preset" -L ci-core -E stdlib
 # cross_runner, and stdlib_excludes must word-split into multiple arguments.
 cd "build/$config"
 # shellcheck disable=SC2086
-PONYPATH=".:$cross_ponypath" ./ponyc -b stdlib-release --pic --checktree $cross_args ../../packages/stdlib
+PONYPATH=".:$cross_ponypath" ./ponyc -b stdlib-release --pic --checktree $ssl_flag $cross_args ../../packages/stdlib
 echo "Built $(pwd)/stdlib-release"
 # shellcheck disable=SC2086
 $cross_runner ./stdlib-release --sequential $stdlib_excludes
 # shellcheck disable=SC2086
-PONYPATH=".:$cross_ponypath" ./ponyc -d -b stdlib-debug --pic --strip --checktree $cross_args ../../packages/stdlib
+PONYPATH=".:$cross_ponypath" ./ponyc -d -b stdlib-debug --pic --strip --checktree $ssl_flag $cross_args ../../packages/stdlib
 echo "Built $(pwd)/stdlib-debug"
 # shellcheck disable=SC2086
 $cross_runner ./stdlib-debug --sequential $stdlib_excludes
