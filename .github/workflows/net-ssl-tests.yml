@@ -35,10 +35,10 @@ jobs:
         run: python3 .ci-scripts/libs-cache/pr_libs_cache.py $LIBS_BRANCH_CACHE --image "$LIBS_IMAGE" --tag "$LIBS_TAG" -- cmake -DJOBS=4 -P lib/build-libs.cmake
       - name: Build
         run: |
-          cmake --preset debug -DPONY_INSTALL_SYMLINKS=OFF
-          cmake --build --preset debug
+          cmake --preset x86-64-debug -DPONY_INSTALL_SYMLINKS=OFF
+          cmake --build --preset x86-64-debug
       - name: Install
-        run: cmake --install build/build_debug --prefix install
+        run: cmake --install build/build_x86-64-debug --prefix install
       - name: Upload installed ponyc
         uses: actions/upload-artifact@v4
         with:
