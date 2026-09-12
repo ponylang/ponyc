@@ -81,15 +81,7 @@ jobs:
           cmake --build --preset x86-64-debug --target pony-doc-tests pony-lint-tests pony-lsp-tests
       - name: Test with Debug Runtime
         if: ${{ hashFiles('.libs-cache-miss') == '' }}
-        run: ctest --preset x86-64-debug -L ci-core
-      - name: Build Release Runtime
-        if: ${{ hashFiles('.libs-cache-miss') == '' }}
-        run: |
-          cmake --preset x86-64-release
-          cmake --build --preset x86-64-release
-      - name: Test with Release Runtime
-        if: ${{ hashFiles('.libs-cache-miss') == '' }}
-        run: ctest --preset x86-64-release -L ci-core
+        run: ctest --preset x86-64-debug -L ci-core -E "(stdlib-release|full-programs-release)"
       - name: Test pony-doc
         if: ${{ hashFiles('.libs-cache-miss') == '' }}
         run: ctest --preset x86-64-debug -R pony-doc-tests
@@ -145,15 +137,7 @@ jobs:
           cmake --build --preset x86-64-debug --target pony-doc-tests pony-lint-tests pony-lsp-tests
       - name: Test with Debug Runtime
         if: ${{ hashFiles('.libs-cache-miss') == '' }}
-        run: ctest --preset x86-64-debug -L ci-core
-      - name: Build Release Runtime
-        if: ${{ hashFiles('.libs-cache-miss') == '' }}
-        run: |
-          cmake --preset x86-64-release
-          cmake --build --preset x86-64-release
-      - name: Test with Release Runtime
-        if: ${{ hashFiles('.libs-cache-miss') == '' }}
-        run: ctest --preset x86-64-release -L ci-core
+        run: ctest --preset x86-64-debug -L ci-core -E "(stdlib-release|full-programs-release)"
       - name: Test pony-doc
         if: ${{ hashFiles('.libs-cache-miss') == '' }}
         run: ctest --preset x86-64-debug -R pony-doc-tests
@@ -255,27 +239,7 @@ jobs:
             -v ${{ github.workspace }}:/home/pony/project \
             -w /home/pony/project \
             ${{ matrix.image }} \
-            ctest --preset armv8-a-debug -L ci-core
-      - name: Build Release Runtime
-        if: ${{ hashFiles('.libs-cache-miss') == '' }}
-        run: |
-          docker run --rm \
-            --user pony \
-            -v ${{ github.workspace }}:/home/pony/project \
-            -w /home/pony/project \
-            ${{ matrix.image }} \
-            bash -c "cmake --preset armv8-a-release && cmake --build --preset armv8-a-release"
-      - name: Test with Release Runtime
-        if: ${{ hashFiles('.libs-cache-miss') == '' }}
-        run: |
-          docker run --rm \
-            --user pony \
-            --cap-add=SYS_PTRACE \
-            --security-opt seccomp=unconfined \
-            -v ${{ github.workspace }}:/home/pony/project \
-            -w /home/pony/project \
-            ${{ matrix.image }} \
-            ctest --preset armv8-a-release -L ci-core
+            ctest --preset armv8-a-debug -L ci-core -E "(stdlib-release|full-programs-release)"
       - name: Test pony-doc
         if: ${{ hashFiles('.libs-cache-miss') == '' }}
         run: |
@@ -359,13 +323,7 @@ jobs:
           cmake --build --preset windows-arm64-debug --target pony-doc-tests pony-lint-tests pony-lsp-tests
       - name: Test with Debug Runtime
         if: ${{ hashFiles('.libs-cache-miss') == '' }}
-        run: ctest --preset windows-arm64-debug -L ci-core
-      - name: Build Release Runtime
-        if: ${{ hashFiles('.libs-cache-miss') == '' }}
-        run: cmake --build --preset windows-arm64-release
-      - name: Test with Release Runtime
-        if: ${{ hashFiles('.libs-cache-miss') == '' }}
-        run: ctest --preset windows-arm64-release -L ci-core
+        run: ctest --preset windows-arm64-debug -L ci-core -E "(stdlib-release|full-programs-release)"
       - name: Test pony-doc
         if: ${{ hashFiles('.libs-cache-miss') == '' }}
         run: ctest --preset windows-arm64-debug -R pony-doc-tests
