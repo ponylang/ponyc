@@ -18,7 +18,7 @@ use
   ;
 
 use_ffi
-  : '@' (ID | STRING) typeargs ('(' | LPAREN_NEW) params? ')' '?'?
+  : '@' (ID | STRING) typeargs ('(' | LPAREN_NEW) params? ')' ('\\' ID (',' ID)* '\\')? '?'?
   ;
 
 class_def

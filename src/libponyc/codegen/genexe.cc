@@ -8,6 +8,7 @@ LLD_HAS_DRIVER(coff)
 LLD_HAS_DRIVER(mingw)
 LLD_HAS_DRIVER(wasm)
 
+#include "gencshim.h"
 #include "genexport.h"
 #include "gencall.h"
 #include "genfun.h"
@@ -26,10 +27,12 @@ LLD_HAS_DRIVER(wasm)
 #include "../plugin/plugin.h"
 #include "../type/assemble.h"
 #include "../type/lookup.h"
+#include "../type/subtype.h"
 #include "../../libponyrt/mem/pool.h"
 #include "ponyassert.h"
 #include <string.h>
 
+#include <llvm-c/Linker.h>
 #include <llvm/Support/raw_ostream.h>
 #include <vector>
 #include <string>
@@ -2576,6 +2579,227 @@ static void reach_exported_types(compile_t* c, ast_t* program)
   }
 }
 
+static bool generate_by_value_thunks(compile_t* c, ast_t* program)
+{
+  errors_t* errors = c->opt->check.errors;
+  bool any = false;
+  bool ok = true;
+
+  for(ast_t* package = ast_child(program); package != NULL;
+    package = ast_sibling(package))
+  {
+    for(ast_t* module = ast_child(package); module != NULL;
+      module = ast_sibling(module))
+    {
+      for(ast_t* node = ast_child(module); node != NULL;
+        node = ast_sibling(node))
+      {
+        if(ast_id(node) != TK_USE)
+          continue;
+
+        // Walk children to find TK_FFIDECL.
+        ast_t* ffidecl = NULL;
+        for(ast_t* child = ast_child(node); child != NULL;
+          child = ast_sibling(child))
+        {
+          if(ast_id(child) == TK_FFIDECL)
+          {
+            ffidecl = child;
+            break;
+          }
+        }
+
+        if(ffidecl == NULL)
+          continue;
+
+        if(!ast_has_annotation(ffidecl, "by_value", c->opt->strtab))
+          continue;
+
+        any = true;
+
+        AST_GET_CHILDREN(ffidecl, id, ret_typeargs, params, named_params,
+          can_err);
+        const char* f_name = ast_name(id) + 1;
+
+        // LLVMLinkModules2 rejects duplicate symbol definitions, so skip
+        // declarations whose thunk was already generated from another module.
+        char dedup_buf[256];
+        snprintf(dedup_buf, sizeof(dedup_buf), "__pony_thunk_%s", f_name);
+        if(LLVMGetNamedFunction(c->module, dedup_buf) != NULL)
+          continue;
+
+        // Resolve return type.
+        ast_t* ret_type_ast = ast_child(ret_typeargs);
+        reach_type_t* ret_type = NULL;
+        bool ret_is_struct = false;
+
+        if(ret_type_ast != NULL)
+          ret_type = reach_type(c->reach, ret_type_ast, c->opt);
+
+        if(ret_type == NULL)
+          continue;
+
+        if(is_pointer(ret_type->ast) || is_nullable_pointer(ret_type->ast))
+        {
+          ast_error(errors, ffidecl,
+            "Pointer/NullablePointer is already passed by reference and "
+            "cannot be used with \\by_value\\ FFI '%s'", f_name);
+          ok = false;
+          continue;
+        }
+
+        if(ret_type->underlying == TK_STRUCT)
+          ret_is_struct = true;
+
+        // Resolve parameter types.
+        size_t param_count = ast_childcount(params);
+        reach_type_t** param_types = NULL;
+        size_t alloc_count = param_count;
+
+        if(param_count > 0)
+        {
+          param_types = (reach_type_t**)ponyint_pool_alloc_size(
+            alloc_count * sizeof(reach_type_t*));
+
+          ast_t* param = ast_child(params);
+          bool params_ok = true;
+          bool params_unreachable = false;
+
+          for(size_t i = 0; i < param_count; i++)
+          {
+            if(ast_id(param) == TK_ELLIPSIS)
+            {
+              ast_error(errors, param,
+                "\\by_value\\ is not compatible with variadic FFI "
+                "declarations");
+              params_ok = false;
+              break;
+            }
+
+            ast_t* p_type = ast_childidx(param, 1);
+
+            if(p_type == NULL || ast_id(p_type) != TK_NOMINAL)
+            {
+              ast_error(errors, param,
+                "cannot resolve parameter type for \\by_value\\ FFI '%s'",
+                f_name);
+              params_ok = false;
+              break;
+            }
+
+            param_types[i] = reach_type(c->reach, p_type, c->opt);
+
+            if(param_types[i] == NULL)
+            {
+              params_unreachable = true;
+              break;
+            }
+
+            if(is_pointer(param_types[i]->ast) ||
+              is_nullable_pointer(param_types[i]->ast))
+            {
+              ast_error(errors, param,
+                "Pointer/NullablePointer is already passed by reference and "
+                "cannot be used with \\by_value\\ FFI '%s'", f_name);
+              params_ok = false;
+              break;
+            }
+
+            param = ast_sibling(param);
+          }
+
+          if(params_unreachable)
+          {
+            ponyint_pool_free_size(
+              alloc_count * sizeof(reach_type_t*), param_types);
+            continue;
+          }
+
+          if(!params_ok)
+          {
+            ponyint_pool_free_size(
+              alloc_count * sizeof(reach_type_t*), param_types);
+            ok = false;
+            continue;
+          }
+        }
+
+        // Check that at least one type is actually a struct.
+        bool has_struct = ret_is_struct;
+
+        if(!has_struct)
+        {
+          for(size_t i = 0; i < param_count; i++)
+          {
+            if(param_types[i]->underlying == TK_STRUCT)
+            {
+              has_struct = true;
+              break;
+            }
+          }
+        }
+
+        if(!has_struct)
+        {
+          ast_error(errors, ffidecl,
+            "\\by_value\\ on '%s' requires at least one struct parameter or "
+            "return type", f_name);
+          if(param_types != NULL)
+            ponyint_pool_free_size(
+              alloc_count * sizeof(reach_type_t*), param_types);
+          ok = false;
+          continue;
+        }
+
+        printbuf_t* src_buf = printbuf_new();
+
+        if(!generate_thunk_source(src_buf, f_name, param_types, param_count,
+          ret_type, ret_is_struct, errors, c->opt->strtab))
+        {
+          printbuf_free(src_buf);
+          if(param_types != NULL)
+            ponyint_pool_free_size(
+              alloc_count * sizeof(reach_type_t*), param_types);
+          ok = false;
+          continue;
+        }
+
+        if(c->opt->verbosity >= VERBOSITY_INFO)
+          fprintf(stderr, " FFI thunk for %s\n", f_name);
+
+        LLVMModuleRef thunk_mod = compile_ffi_thunk(c, c->opt, src_buf->m);
+        printbuf_free(src_buf);
+
+        if(param_types != NULL)
+          ponyint_pool_free_size(
+            alloc_count * sizeof(reach_type_t*), param_types);
+
+        if(thunk_mod == NULL)
+        {
+          ast_error(errors, ffidecl,
+            "failed to compile FFI thunk for '%s'", f_name);
+          ok = false;
+          continue;
+        }
+
+        if(LLVMLinkModules2(c->module, thunk_mod))
+        {
+          ast_error(errors, ffidecl,
+            "failed to merge FFI thunk module for '%s'", f_name);
+          ok = false;
+          continue;
+        }
+      }
+    }
+  }
+
+  if(any && c->opt->verbosity >= VERBOSITY_MINIMAL)
+    fprintf(stderr, "Generated FFI by-value thunks\n");
+
+  return ok;
+}
+
+
 bool genexe(compile_t* c, ast_t* program)
 {
   errors_t* errors = c->opt->check.errors;
@@ -2654,6 +2878,13 @@ bool genexe(compile_t* c, ast_t* program)
     ast_free(main_ast);
     ast_free(env_ast);
     return true;
+  }
+
+  if(!generate_by_value_thunks(c, program))
+  {
+    ast_free(main_ast);
+    ast_free(env_ast);
+    return false;
   }
 
   if(!gentypes(c))

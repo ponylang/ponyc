@@ -1253,6 +1253,7 @@ DEF(use_ffi);
   OPT RULE("ffi parameters", params);
   AST_NODE(TK_NONE);  // Named parameters
   SKIP(NULL, TK_RPAREN);
+  ANNOTATE(annotations);
   OPT TOKEN(NULL, TK_QUESTION);
   DONE();
 

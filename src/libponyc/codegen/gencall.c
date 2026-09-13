@@ -1294,6 +1294,95 @@ LLVMValueRef gen_ffi(compile_t* c, ast_t* ast)
   pony_assert(t != NULL);
   ast_free_unattached(type);
 
+  // The merged thunk module adds an extern declaration of the real C function
+  // to c->module; checking by_value after the function lookup below would match
+  // that declaration instead of the thunk.
+  ast_t* decl = (ast_t*)ast_data(ast);
+  bool by_value = (decl != NULL) &&
+    ast_has_annotation(decl, "by_value", c->opt->strtab);
+
+  if(by_value)
+  {
+    bool ret_is_struct = (t->underlying == TK_STRUCT);
+
+    size_t name_len = strlen(f_name) + strlen("__pony_thunk_") + 1;
+    char* thunk_name = (char*)ponyint_pool_alloc_size(name_len);
+    snprintf(thunk_name, name_len, "__pony_thunk_%s", f_name);
+
+    LLVMValueRef thunk_func = LLVMGetNamedFunction(c->module, thunk_name);
+
+    if(thunk_func == NULL)
+    {
+      ast_error(c->opt->check.errors, ast,
+        "FFI thunk '%s' not found; thunk generation may have failed",
+        thunk_name);
+      ponyint_pool_free_size(name_len, thunk_name);
+      return NULL;
+    }
+
+    ponyint_pool_free_size(name_len, thunk_name);
+
+    // Generate arguments (pointers for structs, values for others).
+    int count = (int)ast_childcount(args);
+    int thunk_count = ret_is_struct ? count + 1 : count;
+    size_t buf_size = (size_t)thunk_count * sizeof(LLVMValueRef);
+    LLVMValueRef* f_args = (LLVMValueRef*)ponyint_pool_alloc_size(buf_size);
+
+    int arg_offset = 0;
+
+    if(ret_is_struct)
+    {
+      f_args[0] = gencall_allocstruct(c, t);
+      arg_offset = 1;
+    }
+
+    ast_t* arg = ast_child(args);
+
+    for(int i = 0; i < count; i++)
+    {
+      f_args[i + arg_offset] = gen_expr(c, arg);
+
+      if(f_args[i + arg_offset] == NULL)
+      {
+        ponyint_pool_free_size(buf_size, f_args);
+        return NULL;
+      }
+
+      arg = ast_sibling(arg);
+    }
+
+    LLVMTypeRef thunk_type = LLVMGlobalGetValueType(thunk_func);
+
+    LLVMValueRef ret_ptr = ret_is_struct ? f_args[0] : NULL;
+
+    LLVMValueRef result;
+    codegen_debugloc(c, ast);
+    result = LLVMBuildCall2(c->builder, thunk_type, thunk_func,
+      f_args, thunk_count, "");
+    codegen_debugloc(c, NULL);
+
+    ponyint_pool_free_size(buf_size, f_args);
+
+    compile_type_t* c_t = (compile_type_t*)t->c_type;
+
+    if(ret_is_struct)
+    {
+      result = ret_ptr;
+    }
+    else if(is_none(t->ast))
+    {
+      result = c_t->instance;
+    }
+    else
+    {
+      result = gen_assign_cast(c, c_t->use_type, result, t->ast_cap);
+    }
+
+    return result;
+  }
+
+  // Normal (non-by_value) FFI path.
+
   // Get the function. First check if the name is in use by a global and error
   // if it's the case.
   ffi_decl_t* ffi_decl;
@@ -1309,7 +1398,6 @@ LLVMValueRef gen_ffi(compile_t* c, ast_t* ast)
   if(func == NULL)
   {
     // Prototypes are mandatory, the declaration is already stored.
-    ast_t* decl = (ast_t*)ast_data(ast);
     pony_assert(decl != NULL);
 
     bool is_intrinsic = (!strncmp(f_name, "llvm.", 5) || !strncmp(f_name, "internal.", 9));
