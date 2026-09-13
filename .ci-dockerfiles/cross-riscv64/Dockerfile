@@ -23,9 +23,7 @@ RUN dpkg --add-architecture riscv64 \
  && rm -rf /var/lib/apt/lists/* \
  && apt-get -y autoremove --purge \
  && apt-get -y clean \
- && ln -sf /usr/riscv64-linux-gnu/lib/* /lib \
- && ln -s /usr/lib/riscv64-linux-gnu/libssl.* /usr/riscv64-linux-gnu/lib/ \
- && ln -s /usr/lib/riscv64-linux-gnu/libcrypto.* /usr/riscv64-linux-gnu/lib/
+ && ln -sf /usr/riscv64-linux-gnu/lib/* /lib
 
 RUN cmake --version
 
