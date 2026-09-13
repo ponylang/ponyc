@@ -11,6 +11,7 @@ All notable changes to the Pony compiler and standard library will be documented
 ### Added
 
 - Add \by_value\ FFI annotation for struct-by-value passing ([PR #6062](https://github.com/ponylang/ponyc/pull/6062))
+- Add `--lib-path` / `-L` flag for extra linker library search paths ([PR #6084](https://github.com/ponylang/ponyc/pull/6084))
 
 ### Changed
 
