@@ -78,7 +78,7 @@ The dispose/init race: `_finish_initialization` is a self→self behavior. If `d
 
 - **`close_notify` is deferred to `_Closing.drained()`, not sent in `_Open.close()`.** `ssl.close()` calls `SSL_shutdown`, which makes `SSL_read` return `SSL_ERROR_ZERO_RETURN` — buffered TLS records the read loop has not yet delivered are lost.
 
-- **`_set_unwriteable()` before `PonyAsio.resubscribe_write()`.** The ponyc epoll backend's `pony_asio_event_resubscribe()` only includes `EPOLLOUT` when `!ev->writeable`. After `_dispatch_io_event()` sets writeable, the flag stays true, so a later resubscribe is a no-op for the write side. Clear the flag first.
+- **`_set_unwriteable()` before `_asio.resubscribe_write()`.** The ponyc epoll backend's `pony_asio_event_resubscribe()` only includes `EPOLLOUT` when `!ev->writeable`. After `_dispatch_io_event()` sets writeable, the flag stays true, so a later resubscribe is a no-op for the write side. Clear the flag first.
 
 - **A stale foreign event is dropped once, in `_event_notify`, not in each state.** The check used to sit in each `foreign_event` instead. Three of those copies were removed because the suite still passed on Linux, where the second message does not arrive, and that shipped as a bug reachable only where kqueue is the backend. Do not push the check back down into the states.
 

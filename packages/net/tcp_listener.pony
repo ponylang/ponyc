@@ -1,6 +1,7 @@
 use "collections"
 
-class TCPListener[TCP: TCPBackend ref = RuntimeBackend]
+class TCPListener[TCP: TCPBackend ref = RuntimeBackend,
+  Asio: AsioBackend ref = RuntimeAsio]
   """
   The TCP listener: opens a listening socket, runs the accept loop, and
   enforces the connection limit. A `TCPListenerActor` owns one and delegates to
@@ -8,6 +9,7 @@ class TCPListener[TCP: TCPBackend ref = RuntimeBackend]
   `TCPListener.none()` as the field initializer before that.
   """
   var _tcp: TCP = TCP
+  var _asio: Asio = Asio
   let _host: String
   let _port: String
   let _limit: (MaxSpawn | None)
@@ -17,12 +19,12 @@ class TCPListener[TCP: TCPBackend ref = RuntimeBackend]
   var _event: AsioEventID = AsioEvent.none()
   var _fd: U32 = -1
   var _listening: Bool = false
-  var _enclosing: (TCPListenerActor[TCP] ref | None)
+  var _enclosing: (TCPListenerActor[TCP, Asio] ref | None)
 
   new create(auth: TCPListenAuth,
     host: String,
     port: String,
-    enclosing: TCPListenerActor[TCP] ref,
+    enclosing: TCPListenerActor[TCP, Asio] ref,
     ip_version: IPVersion = DualStack,
     limit: (MaxSpawn | None) = DefaultMaxSpawn())
   =>
@@ -46,13 +48,13 @@ class TCPListener[TCP: TCPBackend ref = RuntimeBackend]
 
   fun ref close() =>
     match \exhaustive\ _enclosing
-    | let e: TCPListenerActor[TCP] ref =>
+    | let e: TCPListenerActor[TCP, Asio] ref =>
       // TODO: when in debug mode we should blow up if listener is closed
       if _listening then
         _listening = false
 
         if not _event.is_null() then
-          PonyAsio.unsubscribe(_event)
+          _asio.unsubscribe(_event)
           // POSIX closes the listener fd here. On Windows the readiness backend
           // owns the close: it happens when the deferred
           // ProcessSocketNotifications REMOVE from the unsubscribe above is
@@ -94,14 +96,14 @@ class TCPListener[TCP: TCPBackend ref = RuntimeBackend]
     end
 
     if AsioEvent.disposable(flags) then
-      PonyAsio.destroy(_event)
+      _asio.destroy(_event)
       _event = AsioEvent.none()
       _listening = false
     end
 
   fun ref _accept() =>
     match \exhaustive\ _enclosing
-    | let e: TCPListenerActor[TCP] ref =>
+    | let e: TCPListenerActor[TCP, Asio] ref =>
       if _listening then
         while not _at_connection_limit() do
           var fd = _tcp.accept(_event)
@@ -147,10 +149,10 @@ class TCPListener[TCP: TCPBackend ref = RuntimeBackend]
 
   fun ref _finish_initialization() =>
     match \exhaustive\ _enclosing
-    | let e: TCPListenerActor[TCP] ref =>
+    | let e: TCPListenerActor[TCP, Asio] ref =>
       _event = _tcp.listen(e, _host, _port where ip_version = _ip_version)
       if not _event.is_null() then
-        _fd = PonyAsio.event_fd(_event)
+        _fd = _asio.event_fd(_event)
         _listening = true
         e._on_listening()
       else

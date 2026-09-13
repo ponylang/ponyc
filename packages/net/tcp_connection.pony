@@ -1,6 +1,7 @@
 use "collections"
 
-class TCPConnection[TCP: TCPBackend ref = RuntimeBackend]
+class TCPConnection[TCP: TCPBackend ref = RuntimeBackend,
+  Asio: AsioBackend ref = RuntimeAsio]
   """
   The TCP connection: all connection state and I/O, including SSL. A
   `TCPConnectionActor` owns one and delegates to it.
@@ -11,7 +12,8 @@ class TCPConnection[TCP: TCPBackend ref = RuntimeBackend]
   with `start_tls`. See the package documentation for the full lifecycle.
   """
   var _tcp: TCP = TCP
-  var _state: _ConnectionState[TCP] ref = _ConnectionNone[TCP]
+  var _asio: Asio = Asio
+  var _state: _ConnectionState[TCP, Asio] ref = _ConnectionNone[TCP, Asio]
   var _shutdown: Bool = false
   var _throttled: Bool = false
   var _readable: Bool = false
@@ -21,12 +23,12 @@ class TCPConnection[TCP: TCPBackend ref = RuntimeBackend]
   var _inflight_events: Array[AsioEventID] = Array[AsioEventID]
   var _fd: U32 = -1
   var _event: AsioEventID = AsioEvent.none()
-  var _spawned_by: (TCPListenerActor[TCP] | None) = None
+  var _spawned_by: (TCPListenerActor[TCP, Asio] | None) = None
   let _lifecycle_event_receiver:
-    (ClientLifecycleEventReceiver[TCP] ref
-    | ServerLifecycleEventReceiver[TCP] ref
+    (ClientLifecycleEventReceiver[TCP, Asio] ref
+    | ServerLifecycleEventReceiver[TCP, Asio] ref
     | None)
-  let _enclosing: (TCPConnectionActor[TCP] ref | None)
+  let _enclosing: (TCPConnectionActor[TCP, Asio] ref | None)
   embed _pending: _PendingWrites = _PendingWrites
   var _read_buffer: Array[U8] iso = recover Array[U8] end
   var _bytes_in_read_buffer: USize = 0
@@ -73,12 +75,18 @@ class TCPConnection[TCP: TCPBackend ref = RuntimeBackend]
     """
     _tcp
 
+  fun ref _asio_ops(): Asio =>
+    """
+    The ASIO operations backend for this connection.
+    """
+    _asio
+
   new client(auth: TCPConnectAuth,
     host: String,
     port: String,
     from: String,
-    enclosing: TCPConnectionActor[TCP] ref,
-    ler: ClientLifecycleEventReceiver[TCP] ref,
+    enclosing: TCPConnectionActor[TCP, Asio] ref,
+    ler: ClientLifecycleEventReceiver[TCP, Asio] ref,
     read_buffer_size: ReadBufferSize = DefaultReadBufferSize(),
     ip_version: IPVersion = DualStack,
     connection_timeout: (ConnectionTimeout | None) = None)
@@ -106,8 +114,8 @@ class TCPConnection[TCP: TCPBackend ref = RuntimeBackend]
 
   new server(auth: TCPServerAuth,
     fd': U32,
-    enclosing: TCPConnectionActor[TCP] ref,
-    ler: ServerLifecycleEventReceiver[TCP] ref,
+    enclosing: TCPConnectionActor[TCP, Asio] ref,
+    ler: ServerLifecycleEventReceiver[TCP, Asio] ref,
     read_buffer_size: ReadBufferSize = DefaultReadBufferSize())
   =>
     """
@@ -128,8 +136,8 @@ class TCPConnection[TCP: TCPBackend ref = RuntimeBackend]
     host: String,
     port: String,
     from: String,
-    enclosing: TCPConnectionActor[TCP] ref,
-    ler: ClientLifecycleEventReceiver[TCP] ref,
+    enclosing: TCPConnectionActor[TCP, Asio] ref,
+    ler: ClientLifecycleEventReceiver[TCP, Asio] ref,
     read_buffer_size: ReadBufferSize = DefaultReadBufferSize(),
     ip_version: IPVersion = DualStack,
     connection_timeout: (ConnectionTimeout | None) = None)
@@ -163,8 +171,8 @@ class TCPConnection[TCP: TCPBackend ref = RuntimeBackend]
   new ssl_server(auth: TCPServerAuth,
     ssl_ctx: SSLContext val,
     fd': U32,
-    enclosing: TCPConnectionActor[TCP] ref,
-    ler: ServerLifecycleEventReceiver[TCP] ref,
+    enclosing: TCPConnectionActor[TCP, Asio] ref,
+    ler: ServerLifecycleEventReceiver[TCP, Asio] ref,
     read_buffer_size: ReadBufferSize = DefaultReadBufferSize())
   =>
     """
@@ -399,7 +407,7 @@ class TCPConnection[TCP: TCPBackend ref = RuntimeBackend]
     """
     match _user_timer_token
     | let t: TimerToken if t == token =>
-      PonyAsio.unsubscribe(_user_timer_event)
+      _asio.unsubscribe(_user_timer_event)
       _user_timer_event = AsioEvent.none()
       _user_timer_token = None
     end
@@ -542,7 +550,7 @@ class TCPConnection[TCP: TCPBackend ref = RuntimeBackend]
     end
 
     match \exhaustive\ _lifecycle_event_receiver
-    | let _: EitherLifecycleEventReceiver[TCP] =>
+    | let _: EitherLifecycleEventReceiver[TCP, Asio] =>
       _buffer_until = qty
     | None =>
       _Unreachable()
@@ -589,11 +597,11 @@ class TCPConnection[TCP: TCPBackend ref = RuntimeBackend]
     any pending Happy Eyeballs socket events so the runtime can exit
     without waiting for OS-level connect timeouts.
     """
-    _state = _Closed[TCP]
+    _state = _Closed[TCP, Asio]
     _cancel_inflight_events()
     _dispose_tls()
     match _lifecycle_event_receiver
-    | let c: ClientLifecycleEventReceiver[TCP] ref =>
+    | let c: ClientLifecycleEventReceiver[TCP, Asio] ref =>
       // `_had_inflight` is state, not a cause: it records whether any TCP
       // attempt ever started, which is what separates a DNS failure from a
       // TCP one. No caller knows it.
@@ -638,7 +646,7 @@ class TCPConnection[TCP: TCPBackend ref = RuntimeBackend]
     // `_on_sent` stays a direct call so it still precedes `_on_closed`, which
     // the `_hard_close_*` methods fire after this returns.
     match _enclosing
-    | let e: TCPConnectionActor[TCP] ref =>
+    | let e: TCPConnectionActor[TCP, Asio] ref =>
       try
         while _pending_tokens.size() > 0 do
           (let offset, let token) = _pending_tokens.shift()?
@@ -661,7 +669,7 @@ class TCPConnection[TCP: TCPBackend ref = RuntimeBackend]
     _cancel_idle_timer()
     _cancel_connect_timer()
     _cancel_user_timer()
-    PonyAsio.unsubscribe(_event)
+    _asio.unsubscribe(_event)
     _set_unreadable()
     _set_unwriteable()
     _bytes_in_read_buffer = 0
@@ -714,7 +722,7 @@ class TCPConnection[TCP: TCPBackend ref = RuntimeBackend]
         end
         if _has_pending_writes() then
           _set_unwriteable()
-          PonyAsio.resubscribe_write(_event)
+          _asio.resubscribe_write(_event)
           return
         end
       end
@@ -740,9 +748,9 @@ class TCPConnection[TCP: TCPBackend ref = RuntimeBackend]
     closed. For client connections, this is a no-op.
     """
     match _lifecycle_event_receiver
-    | let e: ServerLifecycleEventReceiver[TCP] ref =>
+    | let e: ServerLifecycleEventReceiver[TCP, Asio] ref =>
       match \exhaustive\ _spawned_by
-      | let spawner: TCPListenerActor[TCP] =>
+      | let spawner: TCPListenerActor[TCP, Asio] =>
         spawner._connection_closed()
         _spawned_by = None
       | None =>
@@ -759,11 +767,11 @@ class TCPConnection[TCP: TCPBackend ref = RuntimeBackend]
     reachable from `_Open` and `_Closing` — handshake states have their own
     hard-close methods. Fires `_on_closed` and notifies the spawner.
     """
-    _state = _Closed[TCP]
+    _state = _Closed[TCP, Asio]
     _hard_close_cleanup()
 
     match \exhaustive\ _lifecycle_event_receiver
-    | let s: EitherLifecycleEventReceiver[TCP] ref =>
+    | let s: EitherLifecycleEventReceiver[TCP, Asio] ref =>
       s._on_closed()
     | None =>
       _Unreachable()
@@ -777,13 +785,13 @@ class TCPConnection[TCP: TCPBackend ref = RuntimeBackend]
     The application has not been notified — fires `_on_connection_failure`
     (client) or `_on_start_failure` (server).
     """
-    _state = _Closed[TCP]
+    _state = _Closed[TCP, Asio]
     _hard_close_cleanup()
 
     match \exhaustive\ _lifecycle_event_receiver
-    | let s: EitherLifecycleEventReceiver[TCP] ref =>
+    | let s: EitherLifecycleEventReceiver[TCP, Asio] ref =>
       match \exhaustive\ s
-      | let c: ClientLifecycleEventReceiver[TCP] ref =>
+      | let c: ClientLifecycleEventReceiver[TCP, Asio] ref =>
         let reason =
           match cause
           | _ConnectTimerFailed => ConnectionFailedTimerError
@@ -791,7 +799,7 @@ class TCPConnection[TCP: TCPBackend ref = RuntimeBackend]
           else ConnectionFailedSSL
           end
         c._on_connection_failure(reason)
-      | let srv: ServerLifecycleEventReceiver[TCP] ref =>
+      | let srv: ServerLifecycleEventReceiver[TCP, Asio] ref =>
         srv._on_start_failure(StartFailedSSL)
       end
     | None =>
@@ -806,7 +814,7 @@ class TCPConnection[TCP: TCPBackend ref = RuntimeBackend]
     The application was already notified of the plaintext connection, so
     `_on_tls_failure` fires followed by `_on_closed`.
     """
-    _state = _Closed[TCP]
+    _state = _Closed[TCP, Asio]
     _hard_close_cleanup()
 
     let reason =
@@ -816,7 +824,7 @@ class TCPConnection[TCP: TCPBackend ref = RuntimeBackend]
       end
 
     match \exhaustive\ _lifecycle_event_receiver
-    | let s: EitherLifecycleEventReceiver[TCP] ref =>
+    | let s: EitherLifecycleEventReceiver[TCP, Asio] ref =>
       s._on_tls_failure(reason)
       s._on_closed()
     | None =>
@@ -898,9 +906,9 @@ class TCPConnection[TCP: TCPBackend ref = RuntimeBackend]
     let ssl =
       try
         match \exhaustive\ _lifecycle_event_receiver
-        | let _: ClientLifecycleEventReceiver[TCP] ref =>
+        | let _: ClientLifecycleEventReceiver[TCP, Asio] ref =>
           ssl_ctx.client(host)?
-        | let _: ServerLifecycleEventReceiver[TCP] ref =>
+        | let _: ServerLifecycleEventReceiver[TCP, Asio] ref =>
           ssl_ctx.server()?
         | None =>
           _Unreachable()
@@ -911,7 +919,7 @@ class TCPConnection[TCP: TCPBackend ref = RuntimeBackend]
       end
 
     _ssl = _TLS(consume ssl)
-    _state = _TLSUpgrading[TCP]
+    _state = _TLSUpgrading[TCP, Asio]
     _ssl_flush_sends()
     None
 
@@ -1010,7 +1018,7 @@ class TCPConnection[TCP: TCPBackend ref = RuntimeBackend]
 
     if _close_notify_pending then
       _set_unwriteable()
-      PonyAsio.resubscribe_write(_event)
+      _asio.resubscribe_write(_event)
       return
     end
 
@@ -1178,7 +1186,9 @@ class TCPConnection[TCP: TCPBackend ref = RuntimeBackend]
       consume data'
     end
 
-  fun ref _fill(s: EitherLifecycleEventReceiver[TCP] ref): (USize | None) ? =>
+  fun ref _fill(s: EitherLifecycleEventReceiver[TCP, Asio] ref)
+    : (USize | None) ?
+  =>
     """
     Get more bytes off the socket. Returns the number read, or `None` when the
     socket has nothing more to give (read interest is re-armed first). Raises
@@ -1204,7 +1214,7 @@ class TCPConnection[TCP: TCPBackend ref = RuntimeBackend]
       | (SocketResultOk, let n: USize) => n
       | (SocketResultRetry, _) =>
         _set_unreadable()
-        PonyAsio.resubscribe_read(_event)
+        _asio.resubscribe_read(_event)
         return None
       | (SocketResultError, _) => error
       end
@@ -1225,7 +1235,7 @@ class TCPConnection[TCP: TCPBackend ref = RuntimeBackend]
   fun ref _read() =>
     _reset_idle_timer()
     match \exhaustive\ _lifecycle_event_receiver
-    | let s: EitherLifecycleEventReceiver[TCP] ref =>
+    | let s: EitherLifecycleEventReceiver[TCP, Asio] ref =>
       try
         var total_bytes_read: USize = 0
 
@@ -1255,9 +1265,9 @@ class TCPConnection[TCP: TCPBackend ref = RuntimeBackend]
               hard_close()
             else
               close()
-              if not PonyAsio.get_disposable(_event) then
+              if not _asio.get_disposable(_event) then
                 _set_unreadable()
-                PonyAsio.resubscribe_read(_event)
+                _asio.resubscribe_read(_event)
               end
             end
             return
@@ -1341,7 +1351,7 @@ class TCPConnection[TCP: TCPBackend ref = RuntimeBackend]
     unmuting.
     """
     match \exhaustive\ _enclosing
-    | let e: TCPConnectionActor[TCP] ref =>
+    | let e: TCPConnectionActor[TCP, Asio] ref =>
       e._read_again()
     | None =>
       _Unreachable()
@@ -1349,13 +1359,13 @@ class TCPConnection[TCP: TCPBackend ref = RuntimeBackend]
 
   fun ref _apply_backpressure() =>
     match \exhaustive\ _lifecycle_event_receiver
-    | let s: EitherLifecycleEventReceiver[TCP] =>
+    | let s: EitherLifecycleEventReceiver[TCP, Asio] =>
       if not _throttled then
         _throttled = true
         // throttled means we are also unwriteable
         // being unthrottled doesn't however mean we are writable
         _set_unwriteable()
-        PonyAsio.resubscribe_write(_event)
+        _asio.resubscribe_write(_event)
         // A hard close from the application fails every token still on the
         // queue, so report the sends this flush has completed before the
         // application runs. The `_on_sent` that reports them can itself
@@ -1372,7 +1382,7 @@ class TCPConnection[TCP: TCPBackend ref = RuntimeBackend]
 
   fun ref _release_backpressure() =>
     match \exhaustive\ _lifecycle_event_receiver
-    | let s: EitherLifecycleEventReceiver[TCP] =>
+    | let s: EitherLifecycleEventReceiver[TCP, Asio] =>
       if _throttled then
         _throttled = false
         s._on_unthrottled()
@@ -1388,7 +1398,7 @@ class TCPConnection[TCP: TCPBackend ref = RuntimeBackend]
     Dispatch _on_send_accepted to the lifecycle event receiver.
     """
     match \exhaustive\ _lifecycle_event_receiver
-    | let s: EitherLifecycleEventReceiver[TCP] ref =>
+    | let s: EitherLifecycleEventReceiver[TCP, Asio] ref =>
       s._on_send_accepted(token, data)
     | None =>
       _Unreachable()
@@ -1399,7 +1409,7 @@ class TCPConnection[TCP: TCPBackend ref = RuntimeBackend]
     Dispatch _on_sent to the lifecycle event receiver.
     """
     match \exhaustive\ _lifecycle_event_receiver
-    | let s: EitherLifecycleEventReceiver[TCP] ref =>
+    | let s: EitherLifecycleEventReceiver[TCP, Asio] ref =>
       s._on_sent(token)
     | None =>
       _Unreachable()
@@ -1411,7 +1421,7 @@ class TCPConnection[TCP: TCPBackend ref = RuntimeBackend]
     _notify_send_failed behavior on TCPConnectionActor.
     """
     match \exhaustive\ _lifecycle_event_receiver
-    | let s: EitherLifecycleEventReceiver[TCP] ref =>
+    | let s: EitherLifecycleEventReceiver[TCP, Asio] ref =>
       s._on_send_failed(token)
     | None =>
       _Unreachable()
@@ -1446,8 +1456,8 @@ class TCPConnection[TCP: TCPBackend ref = RuntimeBackend]
 
     let nsec = duration() * 1_000_000
     match \exhaustive\ _enclosing
-    | let e: TCPConnectionActor[TCP] ref =>
-      _user_timer_event = PonyAsio.create_timer_event(e, nsec)
+    | let e: TCPConnectionActor[TCP, Asio] ref =>
+      _user_timer_event = _asio.create_timer_event(e, nsec)
     | None =>
       _Unreachable()
     end
@@ -1467,8 +1477,8 @@ class TCPConnection[TCP: TCPBackend ref = RuntimeBackend]
     if _idle_timeout_nsec == 0 then return end
     if not _timer_event.is_null() then return end
     match \exhaustive\ _enclosing
-    | let e: TCPConnectionActor[TCP] ref =>
-      _timer_event = PonyAsio.create_timer_event(e, _idle_timeout_nsec)
+    | let e: TCPConnectionActor[TCP, Asio] ref =>
+      _timer_event = _asio.create_timer_event(e, _idle_timeout_nsec)
     | None =>
       _Unreachable()
     end
@@ -1480,7 +1490,7 @@ class TCPConnection[TCP: TCPBackend ref = RuntimeBackend]
     data received. Only resets an existing timer — does not create one.
     """
     if not _timer_event.is_null() then
-      PonyAsio.set_timer(_timer_event, _idle_timeout_nsec)
+      _asio.set_timer(_timer_event, _idle_timeout_nsec)
     end
 
   fun ref _cancel_idle_timer() =>
@@ -1491,7 +1501,7 @@ class TCPConnection[TCP: TCPBackend ref = RuntimeBackend]
     branch disposable check.
     """
     if not _timer_event.is_null() then
-      PonyAsio.unsubscribe(_timer_event)
+      _asio.unsubscribe(_timer_event)
       _timer_event = AsioEvent.none()
       _idle_timeout_nsec = 0
     end
@@ -1501,7 +1511,7 @@ class TCPConnection[TCP: TCPBackend ref = RuntimeBackend]
 
   fun ref _dispatch_idle_timeout() =>
     match \exhaustive\ _lifecycle_event_receiver
-    | let s: EitherLifecycleEventReceiver[TCP] ref =>
+    | let s: EitherLifecycleEventReceiver[TCP, Asio] ref =>
       s._on_idle_timeout()
     | None =>
       _Unreachable()
@@ -1522,7 +1532,7 @@ class TCPConnection[TCP: TCPBackend ref = RuntimeBackend]
     """
     _cancel_idle_timer()
     match \exhaustive\ _lifecycle_event_receiver
-    | let s: EitherLifecycleEventReceiver[TCP] ref =>
+    | let s: EitherLifecycleEventReceiver[TCP, Asio] ref =>
       s._on_idle_timer_failure()
     | None =>
       _Unreachable()
@@ -1536,9 +1546,9 @@ class TCPConnection[TCP: TCPBackend ref = RuntimeBackend]
     """
     if _connect_timeout_nsec == 0 then return end
     match \exhaustive\ _enclosing
-    | let e: TCPConnectionActor[TCP] ref =>
+    | let e: TCPConnectionActor[TCP, Asio] ref =>
       _connect_timer_event =
-        PonyAsio.create_timer_event(e, _connect_timeout_nsec)
+        _asio.create_timer_event(e, _connect_timeout_nsec)
     | None =>
       _Unreachable()
     end
@@ -1551,7 +1561,7 @@ class TCPConnection[TCP: TCPBackend ref = RuntimeBackend]
     `_event_notify`'s else branch disposable check.
     """
     if not _connect_timer_event.is_null() then
-      PonyAsio.unsubscribe(_connect_timer_event)
+      _asio.unsubscribe(_connect_timer_event)
       _connect_timer_event = AsioEvent.none()
       _connect_timeout_nsec = 0
     end
@@ -1586,10 +1596,10 @@ class TCPConnection[TCP: TCPBackend ref = RuntimeBackend]
     """
     let token = _user_timer_token
     _user_timer_token = None
-    PonyAsio.unsubscribe(_user_timer_event)
+    _asio.unsubscribe(_user_timer_event)
     _user_timer_event = AsioEvent.none()
     match \exhaustive\ (token, _lifecycle_event_receiver)
-    | (let t: TimerToken, let s: EitherLifecycleEventReceiver[TCP] ref) =>
+    | (let t: TimerToken, let s: EitherLifecycleEventReceiver[TCP, Asio] ref) =>
       s._on_timer(t)
     | (None, _) =>
       _Unreachable()
@@ -1605,7 +1615,7 @@ class TCPConnection[TCP: TCPBackend ref = RuntimeBackend]
     `_event_notify`'s else branch disposable check.
     """
     if not _user_timer_event.is_null() then
-      PonyAsio.unsubscribe(_user_timer_event)
+      _asio.unsubscribe(_user_timer_event)
       _user_timer_event = AsioEvent.none()
       _user_timer_token = None
     end
@@ -1620,7 +1630,7 @@ class TCPConnection[TCP: TCPBackend ref = RuntimeBackend]
     """
     _cancel_user_timer()
     match \exhaustive\ _lifecycle_event_receiver
-    | let s: EitherLifecycleEventReceiver[TCP] ref =>
+    | let s: EitherLifecycleEventReceiver[TCP, Asio] ref =>
       s._on_timer_failure()
     | None =>
       _Unreachable()
@@ -1668,7 +1678,7 @@ class TCPConnection[TCP: TCPBackend ref = RuntimeBackend]
     end
 
   fun ref _ssl_poll(
-    s: EitherLifecycleEventReceiver[TCP] ref,
+    s: EitherLifecycleEventReceiver[TCP, Asio] ref,
     result: SSLReceiveResult)
   =>
     """
@@ -1736,8 +1746,8 @@ class TCPConnection[TCP: TCPBackend ref = RuntimeBackend]
       // a retry_loop pipe write, doubling wakeup traffic per backpressure
       // cycle; skip it there.
       ifdef not bsd then
-        if _writeable and not PonyAsio.get_disposable(_event) then
-          PonyAsio.resubscribe_read(_event)
+        if _writeable and not _asio.get_disposable(_event) then
+          _asio.resubscribe_read(_event)
         end
       end
     end
@@ -1750,15 +1760,15 @@ class TCPConnection[TCP: TCPBackend ref = RuntimeBackend]
     // Same as above: kqueue's independent filters make this unnecessary
     // on BSDs, and the redundant resubscribe adds retry_loop overhead.
     ifdef not bsd then
-      if _throttled and not PonyAsio.get_disposable(_event) then
-        PonyAsio.resubscribe_write(_event)
+      if _throttled and not _asio.get_disposable(_event) then
+        _asio.resubscribe_write(_event)
       end
     end
 
   fun ref _do_read_again() =>
     _read()
 
-  fun ref _set_state(state: _ConnectionState[TCP] ref) =>
+  fun ref _set_state(state: _ConnectionState[TCP, Asio] ref) =>
     _state = state
 
   fun _has_inflight_events(): Bool =>
@@ -1778,7 +1788,7 @@ class TCPConnection[TCP: TCPBackend ref = RuntimeBackend]
 
     match \exhaustive\ _ssl
     | let _: _TLS =>
-      _state = _SSLHandshaking[TCP]
+      _state = _SSLHandshaking[TCP, Asio]
       // Flush ClientHello to initiate SSL handshake.
       // _on_connected() and _arm_idle_timer() deferred until
       // ssl_handshake_complete.
@@ -1786,11 +1796,11 @@ class TCPConnection[TCP: TCPBackend ref = RuntimeBackend]
     | _TLSDisposed | _TLSFailed =>
       _Unreachable()
     | _NoTLS =>
-      _state = _Open[TCP]
+      _state = _Open[TCP, Asio]
       _arm_idle_timer()
       _cancel_connect_timer()
       match _lifecycle_event_receiver
-      | let c: ClientLifecycleEventReceiver[TCP] ref =>
+      | let c: ClientLifecycleEventReceiver[TCP, Asio] ref =>
         c._on_connected()
       end
     end
@@ -1833,7 +1843,7 @@ class TCPConnection[TCP: TCPBackend ref = RuntimeBackend]
     callback.
     """
     _remove_inflight_event(event)
-    PonyAsio.unsubscribe(event)
+    _asio.unsubscribe(event)
     _close_event_fd(fd)
     _connecting_callback()
 
@@ -1843,8 +1853,8 @@ class TCPConnection[TCP: TCPBackend ref = RuntimeBackend]
     chosen. Unsubscribes the event and closes the fd.
     """
     _remove_inflight_event(event)
-    PonyAsio.unsubscribe(event)
-    _close_event_fd(PonyAsio.event_fd(event))
+    _asio.unsubscribe(event)
+    _close_event_fd(_asio.event_fd(event))
 
   fun ref _cancel_inflight_events() =>
     """
@@ -1854,8 +1864,8 @@ class TCPConnection[TCP: TCPBackend ref = RuntimeBackend]
     """
     for ev in _inflight_events.values() do
       if not ev.is_null() then
-        PonyAsio.unsubscribe(ev)
-        _close_event_fd(PonyAsio.event_fd(ev))
+        _asio.unsubscribe(ev)
+        _close_event_fd(_asio.event_fd(ev))
       end
     end
     _inflight_events.clear()
@@ -1896,13 +1906,13 @@ class TCPConnection[TCP: TCPBackend ref = RuntimeBackend]
     elseif event is _event then
       _state.own_event(this, flags)
       if AsioEvent.disposable(flags) then
-        PonyAsio.destroy(event)
+        _asio.destroy(event)
         _event = AsioEvent.none()
       end
     else
       if AsioEvent.disposable(flags) then
-        PonyAsio.destroy(event)
-      elseif PonyAsio.get_disposable(event) then
+        _asio.destroy(event)
+      elseif _asio.get_disposable(event) then
         // The message and the event struct disagree: this carries live flags
         // for an event that has already been unsubscribed. Whatever the
         // message is for was done when the event was unsubscribed, so there is
@@ -1919,13 +1929,13 @@ class TCPConnection[TCP: TCPBackend ref = RuntimeBackend]
 
   fun ref _connecting_callback() =>
     match \exhaustive\ _lifecycle_event_receiver
-    | let c: ClientLifecycleEventReceiver[TCP] ref =>
+    | let c: ClientLifecycleEventReceiver[TCP, Asio] ref =>
       if _has_inflight_events() then
         c._on_connecting(_inflight_events.size().u32())
       else
         hard_close()
       end
-    | let s: ServerLifecycleEventReceiver[TCP] ref =>
+    | let s: ServerLifecycleEventReceiver[TCP, Asio] ref =>
       _Unreachable()
     | None =>
       _Unreachable()
@@ -1935,7 +1945,7 @@ class TCPConnection[TCP: TCPBackend ref = RuntimeBackend]
     (let errno: U32, let value: U32) = _OSSocket.get_so_error(fd)
     (errno == 0) and (value == 0)
 
-  fun ref _register_spawner(listener: TCPListenerActor[TCP]) =>
+  fun ref _register_spawner(listener: TCPListenerActor[TCP, Asio]) =>
     if _spawned_by is None then
       if not _state.is_closed() then
         // We were connected by the time the spawner was registered,
@@ -1958,30 +1968,30 @@ class TCPConnection[TCP: TCPBackend ref = RuntimeBackend]
     // to _Closed via _ConnectionNone.hard_close(). When that happens, the fd
     // and TLS session are already cleaned up — skip initialization.
     match _state
-    | let _: _Closed[TCP] => return
+    | let _: _Closed[TCP, Asio] => return
     end
 
     match \exhaustive\ _lifecycle_event_receiver
-    | let s: ServerLifecycleEventReceiver[TCP] ref =>
+    | let s: ServerLifecycleEventReceiver[TCP, Asio] ref =>
       _complete_server_initialization(s)
-    | let c: ClientLifecycleEventReceiver[TCP] ref =>
+    | let c: ClientLifecycleEventReceiver[TCP, Asio] ref =>
       _complete_client_initialization(c)
     | None =>
       _Unreachable()
     end
 
   fun ref _complete_client_initialization(
-    s: ClientLifecycleEventReceiver[TCP] ref)
+    s: ClientLifecycleEventReceiver[TCP, Asio] ref)
   =>
     if _ssl is _TLSFailed then
-      _state = _Closed[TCP]
+      _state = _Closed[TCP, Asio]
       s._on_connection_failure(ConnectionFailedSSL)
       return
     end
 
     match \exhaustive\ _enclosing
-    | let e: TCPConnectionActor[TCP] ref =>
-      _state = _ClientConnecting[TCP]
+    | let e: TCPConnectionActor[TCP, Asio] ref =>
+      _state = _ClientConnecting[TCP, Asio]
 
       _inflight_events =
         _tcp.connect(
@@ -1997,7 +2007,7 @@ class TCPConnection[TCP: TCPBackend ref = RuntimeBackend]
     end
 
   fun ref _complete_server_initialization(
-    s: ServerLifecycleEventReceiver[TCP] ref)
+    s: ServerLifecycleEventReceiver[TCP, Asio] ref)
   =>
     if _ssl is _TLSFailed then
       // Raw fd: no ASIO event has been created for it yet (that happens below,
@@ -2006,20 +2016,20 @@ class TCPConnection[TCP: TCPBackend ref = RuntimeBackend]
       // backend on Windows, which would never close this never-subscribed fd.
       _tcp.close(_fd)
       _fd = -1
-      _state = _Closed[TCP]
+      _state = _Closed[TCP, Asio]
       s._on_start_failure(StartFailedSSL)
       return
     end
 
     match \exhaustive\ _enclosing
-    | let e: TCPConnectionActor[TCP] ref =>
-      _event = PonyAsio.create_event(e, _fd)
+    | let e: TCPConnectionActor[TCP, Asio] ref =>
+      _event = _asio.create_event(e, _fd)
       _set_readable()
       _set_writeable()
 
       match \exhaustive\ _ssl
       | let _: _TLS =>
-        _state = _SSLHandshaking[TCP]
+        _state = _SSLHandshaking[TCP, Asio]
         // Flush any initial SSL data (usually no-op for servers).
         // _on_started() and _arm_idle_timer() deferred until
         // ssl_handshake_complete.
@@ -2027,7 +2037,7 @@ class TCPConnection[TCP: TCPBackend ref = RuntimeBackend]
       | _TLSDisposed | _TLSFailed =>
         _Unreachable()
       | _NoTLS =>
-        _state = _Open[TCP]
+        _state = _Open[TCP, Asio]
         _arm_idle_timer()
         s._on_started()
       end
@@ -2039,17 +2049,17 @@ class TCPConnection[TCP: TCPBackend ref = RuntimeBackend]
 
   fun ref _set_readable() =>
     _readable = true
-    PonyAsio.set_readable(_event)
+    _asio.set_readable(_event)
 
   fun ref _set_unreadable() =>
     _readable = false
-    PonyAsio.set_unreadable(_event)
+    _asio.set_unreadable(_event)
 
   fun ref _set_writeable() =>
     _writeable = true
-    PonyAsio.set_writeable(_event)
+    _asio.set_writeable(_event)
     _release_backpressure()
 
   fun ref _set_unwriteable() =>
     _writeable = false
-    PonyAsio.set_unwriteable(_event)
+    _asio.set_unwriteable(_event)
