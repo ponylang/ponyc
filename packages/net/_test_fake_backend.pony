@@ -55,6 +55,13 @@ class \nodoc\ _FBSendOkRecvRetry is TCPBackend
 
   fun ref sockname(fd: U32, ip: NetAddress tag): Bool => false
 
+  fun ref create_timer(the_actor: AsioEventNotify, nsec: U64): AsioEventID =>
+    AsioEvent.none()
+
+  fun ref set_timer(event: AsioEventID, nsec: U64) => None
+
+  fun ref unsubscribe_timer(event: AsioEventID) => None
+
   fun ref writev_max(): I32 => 1024
 
   fun ref receive(event: AsioEventID,
@@ -117,6 +124,13 @@ class \nodoc\ _FBSendErrorRecvRetry is TCPBackend
 
   fun ref sockname(fd: U32, ip: NetAddress tag): Bool => false
 
+  fun ref create_timer(the_actor: AsioEventNotify, nsec: U64): AsioEventID =>
+    AsioEvent.none()
+
+  fun ref set_timer(event: AsioEventID, nsec: U64) => None
+
+  fun ref unsubscribe_timer(event: AsioEventID) => None
+
   fun ref writev_max(): I32 => 1024
 
   fun ref receive(event: AsioEventID,
@@ -173,6 +187,13 @@ class \nodoc\ _FBSendStepRecvRetryFailed is TCPBackend
   fun ref shutdown(fd: U32) => None
 
   fun ref sockname(fd: U32, ip: NetAddress tag): Bool => false
+
+  fun ref create_timer(the_actor: AsioEventNotify, nsec: U64): AsioEventID =>
+    AsioEvent.none()
+
+  fun ref set_timer(event: AsioEventID, nsec: U64) => None
+
+  fun ref unsubscribe_timer(event: AsioEventID) => None
 
   fun ref writev_max(): I32 => 1024
 
@@ -245,6 +266,13 @@ class \nodoc\ _FBSendOkRecvHello is TCPBackend
   fun ref shutdown(fd: U32) => None
 
   fun ref sockname(fd: U32, ip: NetAddress tag): Bool => false
+
+  fun ref create_timer(the_actor: AsioEventNotify, nsec: U64): AsioEventID =>
+    AsioEvent.none()
+
+  fun ref set_timer(event: AsioEventID, nsec: U64) => None
+
+  fun ref unsubscribe_timer(event: AsioEventID) => None
 
   fun ref writev_max(): I32 => 1024
 
@@ -319,6 +347,13 @@ class \nodoc\ _FBSendOkRecv10 is TCPBackend
 
   fun ref sockname(fd: U32, ip: NetAddress tag): Bool => false
 
+  fun ref create_timer(the_actor: AsioEventNotify, nsec: U64): AsioEventID =>
+    AsioEvent.none()
+
+  fun ref set_timer(event: AsioEventID, nsec: U64) => None
+
+  fun ref unsubscribe_timer(event: AsioEventID) => None
+
   fun ref writev_max(): I32 => 1024
 
   fun ref receive(event: AsioEventID,
@@ -391,6 +426,13 @@ class \nodoc\ _FBSendOkRecvHelloMute is TCPBackend
   fun ref shutdown(fd: U32) => None
 
   fun ref sockname(fd: U32, ip: NetAddress tag): Bool => false
+
+  fun ref create_timer(the_actor: AsioEventNotify, nsec: U64): AsioEventID =>
+    AsioEvent.none()
+
+  fun ref set_timer(event: AsioEventID, nsec: U64) => None
+
+  fun ref unsubscribe_timer(event: AsioEventID) => None
 
   fun ref writev_max(): I32 => 1024
 
@@ -467,6 +509,13 @@ class \nodoc\ _FBSendOkRecvFillBuffer is TCPBackend
 
   fun ref sockname(fd: U32, ip: NetAddress tag): Bool => false
 
+  fun ref create_timer(the_actor: AsioEventNotify, nsec: U64): AsioEventID =>
+    AsioEvent.none()
+
+  fun ref set_timer(event: AsioEventID, nsec: U64) => None
+
+  fun ref unsubscribe_timer(event: AsioEventID) => None
+
   fun ref writev_max(): I32 => 1024
 
   fun ref receive(event: AsioEventID,
@@ -540,6 +589,13 @@ class \nodoc\ _FBSendOkRecv10Yield is TCPBackend
 
   fun ref sockname(fd: U32, ip: NetAddress tag): Bool => false
 
+  fun ref create_timer(the_actor: AsioEventNotify, nsec: U64): AsioEventID =>
+    AsioEvent.none()
+
+  fun ref set_timer(event: AsioEventID, nsec: U64) => None
+
+  fun ref unsubscribe_timer(event: AsioEventID) => None
+
   fun ref writev_max(): I32 => 1024
 
   fun ref receive(event: AsioEventID,
@@ -610,6 +666,13 @@ class \nodoc\ _FBSendOkRecvError is TCPBackend
 
   fun ref sockname(fd: U32, ip: NetAddress tag): Bool => false
 
+  fun ref create_timer(the_actor: AsioEventNotify, nsec: U64): AsioEventID =>
+    AsioEvent.none()
+
+  fun ref set_timer(event: AsioEventID, nsec: U64) => None
+
+  fun ref unsubscribe_timer(event: AsioEventID) => None
+
   fun ref writev_max(): I32 => 1024
 
   fun ref receive(event: AsioEventID,
@@ -677,6 +740,13 @@ class \nodoc\ _FBConnect0 is TCPBackend
 
   fun ref sockname(fd: U32, ip: NetAddress tag): Bool => false
 
+  fun ref create_timer(the_actor: AsioEventNotify, nsec: U64): AsioEventID =>
+    AsioEvent.none()
+
+  fun ref set_timer(event: AsioEventID, nsec: U64) => None
+
+  fun ref unsubscribe_timer(event: AsioEventID) => None
+
   fun ref writev_max(): I32 => 1024
 
   fun ref receive(event: AsioEventID,
@@ -735,6 +805,13 @@ class \nodoc\ _FBConnect1 is TCPBackend
   fun ref shutdown(fd: U32) => None
 
   fun ref sockname(fd: U32, ip: NetAddress tag): Bool => false
+
+  fun ref create_timer(the_actor: AsioEventNotify, nsec: U64): AsioEventID =>
+    AsioEvent.none()
+
+  fun ref set_timer(event: AsioEventID, nsec: U64) => None
+
+  fun ref unsubscribe_timer(event: AsioEventID) => None
 
   fun ref writev_max(): I32 => 1024
 
@@ -799,6 +876,13 @@ class \nodoc\ _FBConnect2 is TCPBackend
 
   fun ref sockname(fd: U32, ip: NetAddress tag): Bool => false
 
+  fun ref create_timer(the_actor: AsioEventNotify, nsec: U64): AsioEventID =>
+    AsioEvent.none()
+
+  fun ref set_timer(event: AsioEventID, nsec: U64) => None
+
+  fun ref unsubscribe_timer(event: AsioEventID) => None
+
   fun ref writev_max(): I32 => 1024
 
   fun ref receive(event: AsioEventID,
@@ -862,6 +946,13 @@ class \nodoc\ _FBConnect3 is TCPBackend
 
   fun ref sockname(fd: U32, ip: NetAddress tag): Bool => false
 
+  fun ref create_timer(the_actor: AsioEventNotify, nsec: U64): AsioEventID =>
+    AsioEvent.none()
+
+  fun ref set_timer(event: AsioEventID, nsec: U64) => None
+
+  fun ref unsubscribe_timer(event: AsioEventID) => None
+
   fun ref writev_max(): I32 => 1024
 
   fun ref receive(event: AsioEventID,
@@ -918,6 +1009,13 @@ class \nodoc\ _FBListenFail is TCPBackend
   fun ref shutdown(fd: U32) => None
 
   fun ref sockname(fd: U32, ip: NetAddress tag): Bool => false
+
+  fun ref create_timer(the_actor: AsioEventNotify, nsec: U64): AsioEventID =>
+    AsioEvent.none()
+
+  fun ref set_timer(event: AsioEventID, nsec: U64) => None
+
+  fun ref unsubscribe_timer(event: AsioEventID) => None
 
   fun ref writev_max(): I32 => 1024
 
@@ -985,6 +1083,13 @@ class \nodoc\ _FBListenOk is TCPBackend
 
   fun ref sockname(fd: U32, ip: NetAddress tag): Bool => false
 
+  fun ref create_timer(the_actor: AsioEventNotify, nsec: U64): AsioEventID =>
+    AsioEvent.none()
+
+  fun ref set_timer(event: AsioEventID, nsec: U64) => None
+
+  fun ref unsubscribe_timer(event: AsioEventID) => None
+
   fun ref writev_max(): I32 => 1024
 
   fun ref receive(event: AsioEventID,
@@ -1043,6 +1148,13 @@ class \nodoc\ _FBListenOkMulti is TCPBackend
 
   fun ref sockname(fd: U32, ip: NetAddress tag): Bool => false
 
+  fun ref create_timer(the_actor: AsioEventNotify, nsec: U64): AsioEventID =>
+    AsioEvent.none()
+
+  fun ref set_timer(event: AsioEventID, nsec: U64) => None
+
+  fun ref unsubscribe_timer(event: AsioEventID) => None
+
   fun ref writev_max(): I32 => 1024
 
   fun ref receive(event: AsioEventID,
@@ -1060,6 +1172,92 @@ class \nodoc\ _FBListenOkMulti is TCPBackend
     : (SocketResult, USize)
   =>
     (SocketResultRetry, 0)
+
+// ---------------------------------------------------------------------------
+// Recording backends
+// ---------------------------------------------------------------------------
+class \nodoc\ _FBRecordingTimer is TCPBackend
+  """
+  sendv: accepts all bytes. receive: step 0 copies "hello" into buffer,
+  step 1+ returns retry. create_timer: returns a non-null fake event ID.
+  set_timer: increments `set_timer_count`.
+  """
+  var set_timer_count: USize = 0
+  var _recv_step: USize = 0
+
+  new create() => None
+
+  fun ref listen(the_actor: AsioEventNotify,
+    host: String,
+    port: String,
+    ip_version: IPVersion)
+    : AsioEventID
+  =>
+    AsioEvent.none()
+
+  fun ref accept(event: AsioEventID): I32 => 0
+
+  fun ref close(fd: U32) => @pony_os_socket_close(fd)
+
+  fun ref connect(the_actor: AsioEventNotify,
+    host: String,
+    port: String,
+    from: String,
+    asio_flags: U32,
+    ip_version: IPVersion)
+    : Array[AsioEventID]
+  =>
+    Array[AsioEventID]
+
+  fun ref keepalive(fd: U32, secs: U32) => None
+
+  fun ref peername(fd: U32, ip: NetAddress tag): Bool => false
+
+  fun ref shutdown(fd: U32) => None
+
+  fun ref sockname(fd: U32, ip: NetAddress tag): Bool => false
+
+  fun ref create_timer(the_actor: AsioEventNotify, nsec: U64): AsioEventID =>
+    AsioEvent.none().offset(1)
+
+  fun ref set_timer(event: AsioEventID, nsec: U64) =>
+    set_timer_count = set_timer_count + 1
+
+  fun ref unsubscribe_timer(event: AsioEventID) => None
+
+  fun ref writev_max(): I32 => 1024
+
+  fun ref receive(event: AsioEventID,
+    buffer: Pointer[U8] tag,
+    size: USize)
+    : (SocketResult, USize)
+  =>
+    let step = _recv_step
+    _recv_step = _recv_step + 1
+    if step == 0 then
+      let src: Array[U8] val = [as U8: 'h'; 'e'; 'l'; 'l'; 'o']
+      @memcpy(buffer, src.cpointer(), 5)
+      (SocketResultOk, 5)
+    else
+      (SocketResultRetry, 0)
+    end
+
+  fun ref sendv(event: AsioEventID,
+    data: Array[ByteSeq] box,
+    from: USize,
+    count: USize,
+    first_buffer_byte_offset: USize)
+    : (SocketResult, USize) ?
+  =>
+    var total: USize = 0
+    var i = from
+    let stop = from + count
+    while i < stop do
+      let s = data(i)?.size()
+      total = total + if i == from then s - first_buffer_byte_offset else s end
+      i = i + 1
+    end
+    (SocketResultOk, total)
 
 // ---------------------------------------------------------------------------
 // Helper: create a raw socket fd for server-side fake connections

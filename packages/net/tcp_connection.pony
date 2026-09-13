@@ -1468,7 +1468,7 @@ class TCPConnection[TCP: TCPBackend ref = RuntimeBackend]
     if not _timer_event.is_null() then return end
     match \exhaustive\ _enclosing
     | let e: TCPConnectionActor[TCP] ref =>
-      _timer_event = PonyAsio.create_timer_event(e, _idle_timeout_nsec)
+      _timer_event = _tcp.create_timer(e, _idle_timeout_nsec)
     | None =>
       _Unreachable()
     end
@@ -1480,7 +1480,7 @@ class TCPConnection[TCP: TCPBackend ref = RuntimeBackend]
     data received. Only resets an existing timer — does not create one.
     """
     if not _timer_event.is_null() then
-      PonyAsio.set_timer(_timer_event, _idle_timeout_nsec)
+      _tcp.set_timer(_timer_event, _idle_timeout_nsec)
     end
 
   fun ref _cancel_idle_timer() =>
@@ -1491,7 +1491,7 @@ class TCPConnection[TCP: TCPBackend ref = RuntimeBackend]
     branch disposable check.
     """
     if not _timer_event.is_null() then
-      PonyAsio.unsubscribe(_timer_event)
+      _tcp.unsubscribe_timer(_timer_event)
       _timer_event = AsioEvent.none()
       _idle_timeout_nsec = 0
     end

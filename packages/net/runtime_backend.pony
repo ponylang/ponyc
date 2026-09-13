@@ -189,6 +189,15 @@ class RuntimeBackend is TCPBackend
           event, iov.cpointer(), count.i32(), addressof bytes_sent))
     (result, bytes_sent)
 
+  fun create_timer(the_actor: AsioEventNotify, nsec: U64): AsioEventID =>
+    PonyAsio.create_timer_event(the_actor, nsec)
+
+  fun set_timer(event: AsioEventID, nsec: U64) =>
+    PonyAsio.set_timer(event, nsec)
+
+  fun unsubscribe_timer(event: AsioEventID) =>
+    PonyAsio.unsubscribe(event)
+
   fun writev_max(): I32 =>
     """
     Maximum number of `(pointer, size)` entries a single `sendv` call may

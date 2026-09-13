@@ -100,158 +100,127 @@ actor \nodoc\ _TestIdleTimeoutServer
   fun ref _on_idle_timeout() =>
     _h.complete(true)
 
-class \nodoc\ iso _TestIdleTimeoutReset is UnitTest
+class \nodoc\ iso _TestFakeIdleTimerResetOnReceive is UnitTest
   """
-  Test that I/O activity resets the idle timer. Server sets a 1-second idle
-  timeout. Client sends data at 500ms intervals for 4 rounds (0ms, 500ms,
-  1000ms, 1500ms). The sending period extends past the 1-second timeout
-  window, so without the reset on receive, the timer would fire mid-stream.
-  The timeout should only fire after the client stops — around 1.5s + 1s =
-  2.5s.
+  Receive resets the idle timer. A fake backend delivers data; the read path
+  resets the timer. Assert that the backend's `set_timer` was called.
   """
-  fun name(): String => "net/IdleTimeoutReset"
+  fun name(): String => "net/FakeIdleTimerResetOnReceive"
 
   fun apply(h: TestHelper) =>
-    h.expect_action("data received")
-    h.expect_action("idle timeout fired")
+    let a = _TestFakeIdleTimerResetOnReceiveActor(h)
+    h.dispose_when_done(a)
 
-    let listener = _TestIdleTimeoutResetListener(h)
-    h.dispose_when_done(listener)
+    h.long_test(5_000_000_000)
 
-    h.long_test(10_000_000_000)
-
-actor \nodoc\ _TestIdleTimeoutResetListener is TCPListenerActor
-  var _tcp_listener: TCPListener = TCPListener.none()
+actor \nodoc\ _TestFakeIdleTimerResetOnReceiveActor
+  is (TCPConnectionActor[_FBRecordingTimer]
+    & ServerLifecycleEventReceiver[_FBRecordingTimer])
+  var _tcp_connection: TCPConnection[_FBRecordingTimer] =
+    TCPConnection[_FBRecordingTimer].none()
   let _h: TestHelper
-  var _client: (_TestIdleTimeoutResetClient | None) = None
-  let _servers: Array[_TestIdleTimeoutResetServer] =
-    Array[_TestIdleTimeoutResetServer]
 
   new create(h: TestHelper) =>
     _h = h
-    _tcp_listener =
-      TCPListener(
-        TCPListenAuth(_h.env.root),
-        "localhost",
-        "7898",
-        this)
-
-  fun ref _listener(): TCPListener =>
-    _tcp_listener
-
-  fun ref _on_accept(fd: U32): _TestIdleTimeoutResetServer =>
-    let server = _TestIdleTimeoutResetServer(fd, _h)
-    _servers.push(server)
-    server
-
-  fun ref _on_closed() =>
-    try (_client as _TestIdleTimeoutResetClient).dispose() end
-    for server in _servers.values() do server.dispose() end
-
-  fun ref _on_listening() =>
-    _client = _TestIdleTimeoutResetClient(_h)
-
-  fun ref _on_listen_failure() =>
-    _h.fail("Unable to open _TestIdleTimeoutResetListener")
-
-actor \nodoc\ _TestIdleTimeoutResetClient
-  is (TCPConnectionActor & ClientLifecycleEventReceiver)
-  var _tcp_connection: TCPConnection = TCPConnection.none()
-  let _h: TestHelper
-  let _timers: Timers = Timers
-  var _sends_remaining: U32 = 4
-
-  new create(h: TestHelper) =>
-    _h = h
-    _tcp_connection =
-      TCPConnection.client(
-        TCPConnectAuth(_h.env.root),
-        "localhost",
-        "7898",
-        "",
-        this,
-        this)
-
-  fun ref _connection(): TCPConnection =>
-    _tcp_connection
-
-  fun ref _on_connection_failure(reason: ConnectionFailureReason) =>
-    None
-
-  fun ref _on_connected() =>
-    _tcp_connection.send("ping")
-    _sends_remaining = _sends_remaining - 1
-    _schedule_next_send()
-
-  fun ref _schedule_next_send() =>
-    if _sends_remaining > 0 then
-      let client: _TestIdleTimeoutResetClient tag = this
-      let timer =
-        Timer(
-          _TestIdleTimeoutResetTimerNotify(client),
-          500_000_000,
-          0)
-      _timers(consume timer)
+    try
+      let fd = _FakeServerFd()?
+      _tcp_connection =
+        TCPConnection[_FBRecordingTimer].server(
+          TCPServerAuth(_h.env.root),
+          fd,
+          this,
+          this)
+    else
+      _h.fail("could not allocate socket")
+      _h.complete(false)
     end
 
-  be _send_ping() =>
-    _tcp_connection.send("ping")
-    _sends_remaining = _sends_remaining - 1
-    _schedule_next_send()
-
-  be dispose() =>
-    _timers.dispose()
-    _tcp_connection.close()
-
-actor \nodoc\ _TestIdleTimeoutResetServer
-  is (TCPConnectionActor & ServerLifecycleEventReceiver)
-  var _tcp_connection: TCPConnection = TCPConnection.none()
-  let _h: TestHelper
-  var _received_count: U32 = 0
-
-  new create(fd: U32, h: TestHelper) =>
-    _h = h
-    _tcp_connection =
-      TCPConnection.server(
-        TCPServerAuth(_h.env.root),
-        fd,
-        this,
-        this)
-
-  fun ref _connection(): TCPConnection =>
+  fun ref _connection(): TCPConnection[_FBRecordingTimer] =>
     _tcp_connection
 
   fun ref _on_start_failure(reason: StartFailureReason) =>
     None
 
   fun ref _on_started() =>
-    match MakeIdleTimeout(1_000)
+    match \exhaustive\ MakeIdleTimeout(1_000)
     | let t: IdleTimeout =>
       _tcp_connection.idle_timeout(t)
+    | let _: ValidationFailure =>
+      _h.fail("MakeIdleTimeout(1_000) should succeed")
+      _h.complete(false)
     end
 
   fun ref _on_received(data: Array[U8] iso): ReadAction =>
-    _received_count = _received_count + 1
-    if _received_count == 4 then
-      _h.complete_action("data received")
-    end
+    let count = _tcp_connection._tcp_ops().set_timer_count
+    _h.assert_true(count > 0, "set_timer not called on receive")
+    _tcp_connection.mute()
+    _h.complete(true)
     KeepReading
 
-  fun ref _on_idle_timeout() =>
-    _h.assert_true(
-      _received_count == 4,
-      "idle timeout fired before all data received")
-    _h.complete_action("idle timeout fired")
+  be dispose() =>
+    _tcp_connection.hard_close()
 
-class \nodoc\ _TestIdleTimeoutResetTimerNotify is TimerNotify
-  let _client: _TestIdleTimeoutResetClient tag
+class \nodoc\ iso _TestFakeIdleTimerResetOnSend is UnitTest
+  """
+  Send resets the idle timer. A fake backend accepts all bytes; after a
+  successful write the timer resets. Assert that the backend's `set_timer`
+  was called.
+  """
+  fun name(): String => "net/FakeIdleTimerResetOnSend"
 
-  new iso create(client: _TestIdleTimeoutResetClient tag) =>
-    _client = client
+  fun apply(h: TestHelper) =>
+    let a = _TestFakeIdleTimerResetOnSendActor(h)
+    h.dispose_when_done(a)
 
-  fun ref apply(timer: Timer, count: U64): Bool =>
-    _client._send_ping()
-    false
+    h.long_test(5_000_000_000)
+
+actor \nodoc\ _TestFakeIdleTimerResetOnSendActor
+  is (TCPConnectionActor[_FBRecordingTimer]
+    & ServerLifecycleEventReceiver[_FBRecordingTimer])
+  var _tcp_connection: TCPConnection[_FBRecordingTimer] =
+    TCPConnection[_FBRecordingTimer].none()
+  let _h: TestHelper
+
+  new create(h: TestHelper) =>
+    _h = h
+    try
+      let fd = _FakeServerFd()?
+      _tcp_connection =
+        TCPConnection[_FBRecordingTimer].server(
+          TCPServerAuth(_h.env.root),
+          fd,
+          this,
+          this)
+    else
+      _h.fail("could not allocate socket")
+      _h.complete(false)
+    end
+
+  fun ref _connection(): TCPConnection[_FBRecordingTimer] =>
+    _tcp_connection
+
+  fun ref _on_start_failure(reason: StartFailureReason) =>
+    None
+
+  fun ref _on_started() =>
+    _tcp_connection.mute()
+    match \exhaustive\ MakeIdleTimeout(1_000)
+    | let t: IdleTimeout =>
+      _tcp_connection.idle_timeout(t)
+    | let _: ValidationFailure =>
+      _h.fail("MakeIdleTimeout(1_000) should succeed")
+      _h.complete(false)
+      return
+    end
+    let count_before = _tcp_connection._tcp_ops().set_timer_count
+    _tcp_connection.send("hello")
+    let count_after = _tcp_connection._tcp_ops().set_timer_count
+    _h.assert_true(count_after > count_before,
+      "set_timer not called on send")
+    _h.complete(true)
+
+  be dispose() =>
+    _tcp_connection.hard_close()
 
 class \nodoc\ iso _TestIdleTimeoutDisable is UnitTest
   """

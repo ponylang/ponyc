@@ -90,6 +90,21 @@ trait ref TCPBackend
     non-blocking.
     """
 
+  fun ref create_timer(the_actor: AsioEventNotify, nsec: U64): AsioEventID
+    """
+    Create an ASIO timer event that fires after `nsec` nanoseconds.
+    """
+
+  fun ref set_timer(event: AsioEventID, nsec: U64)
+    """
+    Reset an existing ASIO timer to fire after `nsec` nanoseconds.
+    """
+
+  fun ref unsubscribe_timer(event: AsioEventID)
+    """
+    Unsubscribe an ASIO timer event.
+    """
+
   fun ref writev_max(): I32
     """
     Maximum number of buffers a single `sendv` call may carry.
