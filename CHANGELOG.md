@@ -14,6 +14,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Changed
 
+- Add AsioBackend trait for mockable ASIO operations ([PR #6071](https://github.com/ponylang/ponyc/pull/6071))
 
 ## [0.72.1] - 2026-09-13
 
