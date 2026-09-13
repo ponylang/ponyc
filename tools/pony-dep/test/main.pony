@@ -74,6 +74,15 @@ actor \nodoc\ Main is TestList
     test(_TestPackSourceIsFile)
     test(_TestPackOutputInsideSource)
 
+    // FetchAll tests
+    test(_TestFetchAllBadDepType)
+    test(_TestFetchAllConfigParseError)
+    test(_TestFetchAllConfigNotFound)
+    test(_TestFetchAllSkipsPresent)
+    test(_TestFetchAllSkipsPresentUppercaseHex)
+    test(_TestFetchAllEmptyDeps)
+    test(_TestFetchAllOutputNotDirectory)
+
     // ConfigParser tests
     test(_TestConfigParserMinimalValid)
     test(_TestConfigParserSingleDep)
@@ -111,3 +120,7 @@ actor \nodoc\ Main is TestList
     test(_TestConfigParserHashBadHex)
     test(_TestConfigParserFieldMissingValue)
     test(_TestConfigParserDepNoName)
+    test(_TestConfigParserDepNameSlash)
+    test(_TestConfigParserDepNameBackslash)
+    test(_TestConfigParserDepNameDotDot)
+    test(_TestConfigParserDepNameDot)

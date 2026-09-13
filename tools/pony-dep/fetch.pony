@@ -1,5 +1,6 @@
 use "files"
 use "net"
+use "time"
 use http = "http_client"
 use uri_pkg = "uri"
 
@@ -9,14 +10,18 @@ actor Fetch is (http.HTTPClientConnectionActor & http.RedirectFollowerNotify)
 
   Supports both HTTP and HTTPS with automatic redirect following. The archive
   is buffered in memory, decoded, and extracted to the output directory.
-  Reports success or failure through a `FetchNotify`.
+  Reports success or failure through a `FetchNotify`. Fails if no data
+  arrives for 60 seconds during an active download.
   """
   let _env: Env
   let _notify: FetchNotify
   let _output_dir: String
+  let _timers: Timers = Timers
   var _redirect: http.RedirectFollower = http.RedirectFollower.none()
   var _collector: http.ResponseCollector = http.ResponseCollector
   var _request_path: String val = "/"
+  var _timeout_timer: (Timer tag | None) = None
+  var _timed_out: Bool = false
 
   new create(env: Env, notify: FetchNotify, url: String, output_dir: String) =>
     _env = env
@@ -131,10 +136,33 @@ actor Fetch is (http.HTTPClientConnectionActor & http.RedirectFollowerNotify)
   fun ref _http_client_connection(): http.HTTPClientConnection =>
     _redirect.connection()
 
+  fun ref _start_idle_timer() =>
+    _cancel_idle_timer()
+    let timer =
+      Timer(_FetchTimeoutNotify(this), 60_000_000_000, 0)
+    _timeout_timer = timer
+    _timers(consume timer)
+
+  fun ref _cancel_idle_timer() =>
+    match _timeout_timer
+    | let t: Timer tag => _timers.cancel(t)
+    end
+    _timeout_timer = None
+
+  be _idle_timeout() =>
+    if _timed_out then return end
+    _timed_out = true
+    _cancel_idle_timer()
+    _notify.fetch_failed(FetchError(
+      FetchIdleTimeout, "no data received for 60 seconds"))
+    _redirect.connection().close()
+    _timers.dispose()
+
   fun ref on_connected() =>
     let request = http.Request.get(_request_path).build()
     match \exhaustive\ _redirect.send_request(request)
-    | http.SendRequestOK => None
+    | http.SendRequestOK =>
+      _start_idle_timer()
     | http.ConnectionClosed =>
       _notify.fetch_failed(FetchError(
         FetchConnectionFailed,
@@ -144,13 +172,18 @@ actor Fetch is (http.HTTPClientConnectionActor & http.RedirectFollowerNotify)
     end
 
   fun ref on_response(response: http.Response val) =>
+    _start_idle_timer()
     _collector = http.ResponseCollector
     _collector.set_response(response)
 
   fun ref on_body_chunk(data: Array[U8] val) =>
+    _start_idle_timer()
     _collector.add_chunk(data)
 
   fun ref on_response_complete() =>
+    _cancel_idle_timer()
+    _timers.dispose()
+
     try
       let response = _collector.build()?
 
@@ -209,6 +242,12 @@ actor Fetch is (http.HTTPClientConnectionActor & http.RedirectFollowerNotify)
     end
 
   fun ref on_connection_failure(reason: ConnectionFailureReason) =>
+    """
+    Maps the connection failure reason to a human-readable message and
+    reports it through the notify.
+    """
+    _cancel_idle_timer()
+    _timers.dispose()
     let msg =
       match \exhaustive\ reason
       | ConnectionFailedDNS => "DNS resolution failed"
@@ -220,6 +259,12 @@ actor Fetch is (http.HTTPClientConnectionActor & http.RedirectFollowerNotify)
     _notify.fetch_failed(FetchError(FetchConnectionFailed, msg))
 
   fun ref on_redirect_error(err: http.RedirectError) =>
+    """
+    Maps the redirect error to a human-readable message and reports it
+    through the notify.
+    """
+    _cancel_idle_timer()
+    _timers.dispose()
     let msg =
       match \exhaustive\ err
       | http.TooManyRedirects => "too many redirects"
@@ -231,5 +276,20 @@ actor Fetch is (http.HTTPClientConnectionActor & http.RedirectFollowerNotify)
     _redirect.connection().close()
 
   fun ref on_parse_error(err: http.ParseError) =>
+    _cancel_idle_timer()
+    _timers.dispose()
     _notify.fetch_failed(
       FetchError(FetchConnectionFailed, "HTTP parse error"))
+
+class iso _FetchTimeoutNotify is TimerNotify
+  let _fetch: Fetch
+
+  new iso create(fetch: Fetch) =>
+    _fetch = fetch
+
+  fun ref apply(timer: Timer, count: U64): Bool =>
+    _fetch._idle_timeout()
+    false
+
+  fun ref cancel(timer: Timer) =>
+    None

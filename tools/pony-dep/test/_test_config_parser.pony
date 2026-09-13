@@ -684,3 +684,83 @@ class \nodoc\ _TestConfigParserHashUppercaseHex is UnitTest
     | let e: dep.ConfigError =>
       h.fail(e.string())
     end
+
+class \nodoc\ _TestConfigParserDepNameSlash is UnitTest
+  fun name(): String => "ConfigParser/error: dep name with slash"
+
+  fun apply(h: TestHelper) =>
+    let input: String val =
+      "version 1\n" +
+      "dep ../escape\n" +
+      "  type par\n" +
+      "  url x\n" +
+      "  ref y\n" +
+      "  hash skip\n" +
+      "end\n"
+    match dep.ConfigParser(input)
+    | let c: dep.ConfigFile =>
+      h.fail("expected error, got ConfigFile")
+    | let e: dep.ConfigError =>
+      h.assert_eq[USize](e.line, 2)
+      h.assert_true(e.message.contains("invalid character"))
+    end
+
+class \nodoc\ _TestConfigParserDepNameBackslash is UnitTest
+  fun name(): String => "ConfigParser/error: dep name with backslash"
+
+  fun apply(h: TestHelper) =>
+    let input: String val =
+      "version 1\n" +
+      "dep ..\\escape\n" +
+      "  type par\n" +
+      "  url x\n" +
+      "  ref y\n" +
+      "  hash skip\n" +
+      "end\n"
+    match dep.ConfigParser(input)
+    | let c: dep.ConfigFile =>
+      h.fail("expected error, got ConfigFile")
+    | let e: dep.ConfigError =>
+      h.assert_eq[USize](e.line, 2)
+      h.assert_true(e.message.contains("invalid character"))
+    end
+
+class \nodoc\ _TestConfigParserDepNameDotDot is UnitTest
+  fun name(): String => "ConfigParser/error: dep name is '..'"
+
+  fun apply(h: TestHelper) =>
+    let input: String val =
+      "version 1\n" +
+      "dep ..\n" +
+      "  type par\n" +
+      "  url x\n" +
+      "  ref y\n" +
+      "  hash skip\n" +
+      "end\n"
+    match dep.ConfigParser(input)
+    | let c: dep.ConfigFile =>
+      h.fail("expected error, got ConfigFile")
+    | let e: dep.ConfigError =>
+      h.assert_eq[USize](e.line, 2)
+      h.assert_true(e.message.contains("'.' or '..'"))
+    end
+
+class \nodoc\ _TestConfigParserDepNameDot is UnitTest
+  fun name(): String => "ConfigParser/error: dep name is '.'"
+
+  fun apply(h: TestHelper) =>
+    let input: String val =
+      "version 1\n" +
+      "dep .\n" +
+      "  type par\n" +
+      "  url x\n" +
+      "  ref y\n" +
+      "  hash skip\n" +
+      "end\n"
+    match dep.ConfigParser(input)
+    | let c: dep.ConfigFile =>
+      h.fail("expected error, got ConfigFile")
+    | let e: dep.ConfigError =>
+      h.assert_eq[USize](e.line, 2)
+      h.assert_true(e.message.contains("'.' or '..'"))
+    end
