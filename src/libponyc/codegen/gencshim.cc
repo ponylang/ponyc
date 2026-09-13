@@ -1,10 +1,14 @@
 #include "gencshim.h"
+#include "codegen.h"
 #include "genopt.h"
 #include "genexe.h"
 #include "../pkg/package.h"
 #include "../pkg/program.h"
 #include "../ast/error.h"
+#include "../ast/printbuf.h"
 #include "../ast/stringtab.h"
+#include "../reach/reach.h"
+#include "../type/subtype.h"
 #include "paths.h"
 #include "ponyassert.h"
 
@@ -30,8 +34,12 @@
 #include <clang/CodeGen/CodeGenAction.h>
 #include <clang/Frontend/CompilerInstance.h>
 #include <clang/Frontend/CompilerInvocation.h>
+#include <clang/Lex/PreprocessorOptions.h>
 #include <llvm/ADT/SmallString.h>
+#include <llvm/IR/LLVMContext.h>
+#include <llvm/IR/Module.h>
 #include <llvm/Support/CrashRecoveryContext.h>
+#include <llvm/Support/MemoryBuffer.h>
 #include <llvm/Support/TargetSelect.h>
 #include <llvm/TargetParser/Triple.h>
 
@@ -972,4 +980,437 @@ bool gencshim(ast_t* program, pass_opt_t* opt)
   }
 
   return ok;
+}
+
+
+static const char* c_type_for_pony_primitive(const char* name)
+{
+  if(strcmp(name, "Bool") == 0) return "bool";
+  if(strcmp(name, "I8") == 0) return "int8_t";
+  if(strcmp(name, "I16") == 0) return "int16_t";
+  if(strcmp(name, "I32") == 0) return "int32_t";
+  if(strcmp(name, "I64") == 0) return "int64_t";
+  if(strcmp(name, "ILong") == 0) return "long";
+  if(strcmp(name, "ISize") == 0) return "intptr_t";
+  if(strcmp(name, "U8") == 0) return "uint8_t";
+  if(strcmp(name, "U16") == 0) return "uint16_t";
+  if(strcmp(name, "U32") == 0) return "uint32_t";
+  if(strcmp(name, "U64") == 0) return "uint64_t";
+  if(strcmp(name, "ULong") == 0) return "unsigned long";
+  if(strcmp(name, "USize") == 0) return "size_t";
+  if(strcmp(name, "F32") == 0) return "float";
+  if(strcmp(name, "F64") == 0) return "double";
+  if(strcmp(name, "None") == 0) return "void";
+  return NULL;
+}
+
+
+static const char* pony_to_c_type(reach_type_t* t)
+{
+  if(t->underlying != TK_PRIMITIVE)
+    return NULL;
+
+  ast_t* def = (ast_t*)ast_data(t->ast);
+  return c_type_for_pony_primitive(ast_name(ast_child(def)));
+}
+
+
+static bool emit_c_struct_def(printbuf_t* buf, reach_type_t* t,
+  errors_t* errors, strtable_t* strtab)
+{
+  pony_assert(t->underlying == TK_STRUCT);
+
+  if(t->field_count == 0)
+  {
+    ast_error(errors, t->ast,
+      "zero-field structs are not supported with \\by_value\\ FFI");
+    return false;
+  }
+
+  ast_t* def = (ast_t*)ast_data(t->ast);
+
+  bool packed = ast_has_annotation(def, "packed", strtab);
+
+  if(packed)
+    printbuf(buf, "struct __attribute__((packed)) __pony_%s {", t->name);
+  else
+    printbuf(buf, "struct __pony_%s {", t->name);
+
+  ast_t* members = ast_childidx(def, 4);
+
+  for(uint32_t i = 0; i < t->field_count; i++)
+  {
+    reach_type_t* ft = t->fields[i].type;
+    ast_t* member = ast_childidx(members, i);
+    const char* fname = ast_name(ast_child(member));
+
+    if(ft->underlying == TK_STRUCT && t->fields[i].embed)
+    {
+      ast_error(errors, t->ast,
+        "nested embedded structs are not yet supported with \\by_value\\");
+      return false;
+    }
+
+    if(ft->underlying == TK_PRIMITIVE)
+    {
+      ast_t* ft_def = (ast_t*)ast_data(ft->ast);
+      const char* pony_name = ast_name(ast_child(ft_def));
+
+      if((strcmp(pony_name, "I128") == 0) ||
+        (strcmp(pony_name, "U128") == 0))
+      {
+        ast_error(errors, t->ast,
+          "struct field '%s' has type '%s' which is not supported with "
+          "\\by_value\\", fname, pony_name);
+        return false;
+      }
+
+      const char* c_name = pony_to_c_type(ft);
+
+      if(c_name == NULL)
+      {
+        ast_error(errors, t->ast,
+          "struct field '%s' has type '%s' which cannot be represented in C",
+          fname, pony_name);
+        return false;
+      }
+
+      printbuf(buf, " %s __f%d;", c_name, (int)i);
+    }
+    else if(is_pointer(ft->ast) || is_nullable_pointer(ft->ast))
+    {
+      printbuf(buf, " void* __f%d;", (int)i);
+    }
+    else if(ft->underlying == TK_STRUCT)
+    {
+      ast_error(errors, t->ast,
+        "nested struct fields are not yet supported with \\by_value\\ FFI "
+        "(field '%s')", fname);
+      return false;
+    }
+    else
+    {
+      ast_error(errors, t->ast,
+        "struct field '%s' has a type that cannot be represented in C "
+        "for \\by_value\\ FFI", fname);
+      return false;
+    }
+  }
+
+  printbuf(buf, " };\n");
+  return true;
+}
+
+
+bool generate_thunk_source(printbuf_t* buf, const char* f_name,
+  reach_type_t** param_types, bool* param_by_value, size_t param_count,
+  reach_type_t* ret_type, bool ret_is_struct,
+  errors_t* errors, strtable_t* strtab)
+{
+  printbuf(buf, "#include <stdint.h>\n#include <stdbool.h>\n#include <stddef.h>\n");
+
+  // reach_type returns the same pointer for the same type, so pointer
+  // equality deduplicates.
+  for(size_t i = 0; i < param_count; i++)
+  {
+    if(!param_by_value[i])
+      continue;
+
+    bool already_emitted = false;
+    for(size_t j = 0; j < i; j++)
+    {
+      if(param_by_value[j] && param_types[j] == param_types[i])
+      {
+        already_emitted = true;
+        break;
+      }
+    }
+
+    if(!already_emitted)
+    {
+      if(!emit_c_struct_def(buf, param_types[i], errors, strtab))
+        return false;
+    }
+  }
+
+  if(ret_is_struct)
+  {
+    bool already_emitted = false;
+    for(size_t i = 0; i < param_count; i++)
+    {
+      if(param_by_value[i] && param_types[i] == ret_type)
+      {
+        already_emitted = true;
+        break;
+      }
+    }
+    if(!already_emitted)
+    {
+      if(!emit_c_struct_def(buf, ret_type, errors, strtab))
+        return false;
+    }
+  }
+
+  printbuf(buf, "extern ");
+
+  if(ret_is_struct)
+  {
+    printbuf(buf, "struct __pony_%s", ret_type->name);
+  }
+  else
+  {
+    const char* c_ret = pony_to_c_type(ret_type);
+
+    if(c_ret != NULL)
+      printbuf(buf, "%s", c_ret);
+    else
+      printbuf(buf, "void*");
+  }
+
+  printbuf(buf, " %s(", f_name);
+
+  for(size_t i = 0; i < param_count; i++)
+  {
+    if(i > 0)
+      printbuf(buf, ", ");
+
+    if(param_by_value[i])
+    {
+      printbuf(buf, "struct __pony_%s", param_types[i]->name);
+    }
+    else if(param_types[i]->underlying == TK_PRIMITIVE)
+    {
+      const char* c_name = pony_to_c_type(param_types[i]);
+      printbuf(buf, "%s", (c_name != NULL) ? c_name : "void*");
+    }
+    else
+    {
+      printbuf(buf, "void*");
+    }
+  }
+
+  if(param_count == 0)
+    printbuf(buf, "void");
+
+  printbuf(buf, ");\n");
+
+  // Pony passes struct arguments as pointers; the thunk dereferences
+  // them for the C ABI.
+  if(ret_is_struct)
+  {
+    printbuf(buf, "void __pony_thunk_%s(struct __pony_%s* __ret",
+      f_name, ret_type->name);
+
+    for(size_t i = 0; i < param_count; i++)
+    {
+      if(param_by_value[i])
+      {
+        printbuf(buf, ", struct __pony_%s* __p%d",
+          param_types[i]->name, (int)i);
+      }
+      else if(param_types[i]->underlying == TK_PRIMITIVE)
+      {
+        const char* c_name = pony_to_c_type(param_types[i]);
+        printbuf(buf, ", %s __p%d", (c_name != NULL) ? c_name : "void*",
+          (int)i);
+      }
+      else
+      {
+        printbuf(buf, ", void* __p%d", (int)i);
+      }
+    }
+
+    printbuf(buf, ") { *__ret = %s(", f_name);
+  }
+  else
+  {
+    const char* c_ret = pony_to_c_type(ret_type);
+
+    if(c_ret != NULL)
+      printbuf(buf, "%s", c_ret);
+    else
+      printbuf(buf, "void*");
+
+    printbuf(buf, " __pony_thunk_%s(", f_name);
+
+    for(size_t i = 0; i < param_count; i++)
+    {
+      if(i > 0)
+        printbuf(buf, ", ");
+
+      if(param_by_value[i])
+      {
+        printbuf(buf, "struct __pony_%s* __p%d",
+          param_types[i]->name, (int)i);
+      }
+      else if(param_types[i]->underlying == TK_PRIMITIVE)
+      {
+        const char* c_name = pony_to_c_type(param_types[i]);
+        printbuf(buf, "%s __p%d", (c_name != NULL) ? c_name : "void*",
+          (int)i);
+      }
+      else
+      {
+        printbuf(buf, "void* __p%d", (int)i);
+      }
+    }
+
+    bool is_void = (c_ret != NULL) && (strcmp(c_ret, "void") == 0);
+
+    if(is_void)
+      printbuf(buf, ") { %s(", f_name);
+    else
+      printbuf(buf, ") { return %s(", f_name);
+  }
+
+  for(size_t i = 0; i < param_count; i++)
+  {
+    if(i > 0)
+      printbuf(buf, ", ");
+
+    if(param_by_value[i])
+      printbuf(buf, "*__p%d", (int)i);
+    else
+      printbuf(buf, "__p%d", (int)i);
+  }
+
+  printbuf(buf, "); }\n");
+  return true;
+}
+
+
+LLVMModuleRef compile_ffi_thunk(compile_t* c, pass_opt_t* opt,
+  const char* source)
+{
+  errors_t* errors = opt->check.errors;
+
+  std::vector<const char*> args;
+  cshim_target_args(opt, args);
+
+  args.push_back(opt->release ? "-O2" : "-O0");
+
+  if(!opt->release && !opt->strip_debug)
+    args.push_back("-debug-info-kind=standalone");
+
+  args.push_back("-funwind-tables=2");
+
+  if(!opt->release)
+    args.push_back("-mframe-pointer=all");
+
+  args.push_back("-fno-caret-diagnostics");
+
+  if(!target_is_windows(opt->triple))
+    args.push_back("-fgnuc-version=4.2.1");
+
+  const char* resource_dir = clang_resource_dir(opt, errors);
+
+  if(resource_dir == NULL)
+    return NULL;
+
+  args.push_back("-resource-dir");
+  args.push_back(resource_dir);
+
+  const char* sysroot = c_shim_sysroot(opt, errors);
+
+  if(sysroot == NULL)
+    return NULL;
+
+  char builtin_buf[FILENAME_MAX];
+  int bw = snprintf(builtin_buf, sizeof(builtin_buf), "%s%cinclude",
+    resource_dir, PATH_SLASH);
+
+  if((bw < 0) || ((size_t)bw >= sizeof(builtin_buf)))
+  {
+    errorf(errors, NULL, "clang's resource include path is too long");
+    return NULL;
+  }
+
+  const char* builtin_include = stringtab(opt->strtab, builtin_buf);
+
+#ifdef PLATFORM_IS_POSIX_BASED
+  bool builtin_include_last = target_libc_is_musl(opt);
+#else
+  bool builtin_include_last = llvm::Triple(opt->triple).isMusl();
+#endif
+
+  if(!builtin_include_last)
+  {
+    args.push_back("-internal-isystem");
+    args.push_back(builtin_include);
+  }
+
+  if(!add_system_include_args(opt, sysroot, args, errors))
+    return NULL;
+
+  if(builtin_include_last)
+  {
+    args.push_back("-internal-isystem");
+    args.push_back(builtin_include);
+  }
+
+  if((sysroot[0] != '\0') && !target_is_windows(opt->triple))
+  {
+    args.push_back("-isysroot");
+    args.push_back(sysroot);
+  }
+
+  const char* virtual_path = "__pony_thunk.c";
+
+  args.push_back("-x");
+  args.push_back("c");
+  args.push_back(virtual_path);
+
+  PonyDiagConsumer consumer(errors);
+
+  clang::CompilerInstance ci;
+  ci.createDiagnostics(&consumer, false);
+
+  if(!clang::CompilerInvocation::CreateFromArgs(ci.getInvocation(), args,
+    ci.getDiagnostics()))
+  {
+    if(consumer.getNumErrors() == 0)
+      errorf(errors, NULL,
+        "internal error: clang rejected arguments for FFI thunk");
+    return NULL;
+  }
+
+  std::unique_ptr<llvm::MemoryBuffer> src_buf =
+    llvm::MemoryBuffer::getMemBufferCopy(source, virtual_path);
+  ci.getPreprocessorOpts().addRemappedFile(virtual_path, src_buf.release());
+
+  llvm::CrashRecoveryContext::Enable();
+
+  llvm::LLVMContext* ctx = llvm::unwrap(c->context);
+  clang::EmitLLVMOnlyAction action(ctx);
+
+  bool ok = false;
+  llvm::CrashRecoveryContext crc;
+
+  bool ran = crc.RunSafely([&]() {
+    ok = ci.ExecuteAction(action);
+  });
+
+  if(!ran)
+  {
+    errorf(errors, NULL, "internal error while compiling FFI thunk "
+      "(the embedded clang crashed)");
+    return NULL;
+  }
+
+  if(!ok && consumer.getNumErrors() == 0)
+    errorf(errors, NULL, "internal error: the embedded clang failed without "
+      "reporting an error");
+
+  if(!ok || consumer.getNumErrors() > 0)
+    return NULL;
+
+  std::unique_ptr<llvm::Module> mod = action.takeModule();
+
+  if(!mod)
+  {
+    errorf(errors, NULL, "internal error: clang produced no module for thunk");
+    return NULL;
+  }
+
+  return llvm::wrap(mod.release());
 }

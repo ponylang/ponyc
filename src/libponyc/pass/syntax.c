@@ -1400,6 +1400,38 @@ static bool check_annotation_location(pass_opt_t* opt, ast_t* ast,
         "a 'packed' annotation can only appear on a struct declaration");
       return false;
     }
+  } else if(strcmp(str, "by_value") == 0) {
+    ast_t* parent = ast_parent(ast);
+    bool valid = false;
+
+    if(ast_id(parent) == TK_PARAM)
+    {
+      ast_t* params = ast_parent(parent);
+      if(params != NULL && ast_id(params) == TK_PARAMS)
+      {
+        ast_t* decl = ast_parent(params);
+        if(decl != NULL && ast_id(decl) == TK_FFIDECL)
+          valid = true;
+      }
+    }
+    else if(ast_id(parent) == TK_NOMINAL)
+    {
+      ast_t* typeargs = ast_parent(parent);
+      if(typeargs != NULL && ast_id(typeargs) == TK_TYPEARGS)
+      {
+        ast_t* decl = ast_parent(typeargs);
+        if(decl != NULL && ast_id(decl) == TK_FFIDECL)
+          valid = true;
+      }
+    }
+
+    if(!valid)
+    {
+      ast_error(opt->check.errors, loc,
+        "a 'by_value' annotation can only appear on a parameter or return "
+        "type of an FFI declaration");
+      return false;
+    }
   } else if(strcmp(str, "nosupertype") == 0) {
     switch(ast_id(ast_parent(ast)))
     {
