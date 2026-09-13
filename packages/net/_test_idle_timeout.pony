@@ -100,20 +100,20 @@ actor \nodoc\ _TestIdleTimeoutServer
   fun ref _on_idle_timeout() =>
     _h.complete(true)
 
-class \nodoc\ iso _TestFakeIdleTimerResetOnReceive is UnitTest
+class \nodoc\ iso _TestIdleTimerResetOnReceive is UnitTest
   """
   Receive resets the idle timer. A fake backend delivers data; the read path
   resets the timer. Assert that the backend's `set_timer` was called.
   """
-  fun name(): String => "net/FakeIdleTimerResetOnReceive"
+  fun name(): String => "net/IdleTimerResetOnReceive"
 
   fun apply(h: TestHelper) =>
-    let a = _TestFakeIdleTimerResetOnReceiveActor(h)
+    let a = _TestIdleTimerResetOnReceiveActor(h)
     h.dispose_when_done(a)
 
     h.long_test(5_000_000_000)
 
-actor \nodoc\ _TestFakeIdleTimerResetOnReceiveActor
+actor \nodoc\ _TestIdleTimerResetOnReceiveActor
   is (TCPConnectionActor[_FBRecordingTimer]
     & ServerLifecycleEventReceiver[_FBRecordingTimer])
   var _tcp_connection: TCPConnection[_FBRecordingTimer] =
@@ -160,21 +160,21 @@ actor \nodoc\ _TestFakeIdleTimerResetOnReceiveActor
   be dispose() =>
     _tcp_connection.hard_close()
 
-class \nodoc\ iso _TestFakeIdleTimerResetOnSend is UnitTest
+class \nodoc\ iso _TestIdleTimerResetOnSend is UnitTest
   """
   Send resets the idle timer. A fake backend accepts all bytes; after a
   successful write the timer resets. Assert that the backend's `set_timer`
   was called.
   """
-  fun name(): String => "net/FakeIdleTimerResetOnSend"
+  fun name(): String => "net/IdleTimerResetOnSend"
 
   fun apply(h: TestHelper) =>
-    let a = _TestFakeIdleTimerResetOnSendActor(h)
+    let a = _TestIdleTimerResetOnSendActor(h)
     h.dispose_when_done(a)
 
     h.long_test(5_000_000_000)
 
-actor \nodoc\ _TestFakeIdleTimerResetOnSendActor
+actor \nodoc\ _TestIdleTimerResetOnSendActor
   is (TCPConnectionActor[_FBRecordingTimer]
     & ServerLifecycleEventReceiver[_FBRecordingTimer])
   var _tcp_connection: TCPConnection[_FBRecordingTimer] =
