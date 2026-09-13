@@ -16,7 +16,7 @@ class \nodoc\ iso _TestNotifierUDPEcho is UnitTest
         net.UDPAuth(h.env.root),
         recover _TestNUEServerNotify(host, h) end,
         host,
-        "9813")
+        "0")
     h.dispose_when_done(server)
 
 class \nodoc\ _TestNUEServerNotify is UDPSocketNotify

@@ -6,15 +6,14 @@ class \nodoc\ iso _TestNotifierPingPong is UnitTest
   fun name(): String => "net/notifier/PingPong"
 
   fun apply(h: TestHelper) =>
-    let port = "9800"
     let pings_to_send: I32 = 100
 
     let listener =
       TCPListener(
         net.TCPListenAuth(h.env.root),
-        recover _TestNPPListenNotify(port, pings_to_send, h) end,
+        recover _TestNPPListenNotify(pings_to_send, h) end,
         "localhost",
-        port)
+        "0")
     h.dispose_when_done(listener)
 
     h.long_test(5_000_000_000)
@@ -87,22 +86,21 @@ class \nodoc\ _TestNPPServerNotify is ServerTCPConnectionNotify
     net.KeepReading
 
 class \nodoc\ _TestNPPListenNotify is TCPListenNotify
-  let _port: String
   let _pings_to_receive: I32
   let _h: TestHelper
 
-  new create(port: String, pings_to_receive: I32, h: TestHelper) =>
-    _port = port
+  new create(pings_to_receive: I32, h: TestHelper) =>
     _pings_to_receive = pings_to_receive
     _h = h
 
   fun ref on_listening(listen: TCPListener ref) =>
+    let port: String val = listen.local_address().port().string()
     let client =
       ClientTCPConnection(
         net.TCPConnectAuth(_h.env.root),
         recover _TestNPPClientNotify(_pings_to_receive, _h) end,
         "localhost",
-        _port)
+        port)
     _h.dispose_when_done(client)
 
   fun ref on_not_listening(listen: TCPListener ref) =>

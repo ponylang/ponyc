@@ -41,7 +41,7 @@ actor \nodoc\ _TestYieldReadListener is TCPListenerActor
       TCPListener(
         TCPListenAuth(_h.env.root),
         "localhost",
-        "7900",
+        "0",
         this)
 
   fun ref _listener(): TCPListener =>
@@ -57,7 +57,8 @@ actor \nodoc\ _TestYieldReadListener is TCPListenerActor
     for server in _servers.values() do server.dispose() end
 
   fun ref _on_listening() =>
-    _client = _TestYieldReadClient(_h)
+    let port: String val = _tcp_listener.local_address().port().string()
+    _client = _TestYieldReadClient(port, _h)
 
   fun ref _on_listen_failure() =>
     _h.fail("Unable to open _TestYieldReadListener")
@@ -67,13 +68,13 @@ actor \nodoc\ _TestYieldReadClient
   var _tcp_connection: TCPConnection = TCPConnection.none()
   let _h: TestHelper
 
-  new create(h: TestHelper) =>
+  new create(port: String, h: TestHelper) =>
     _h = h
     _tcp_connection =
       TCPConnection.client(
         TCPConnectAuth(_h.env.root),
         "localhost",
-        "7900",
+        port,
         "",
         this,
         this)
@@ -163,7 +164,6 @@ class \nodoc\ iso _TestSSLYieldRead is UnitTest
   fun name(): String => "net/SSLYieldRead"
 
   fun apply(h: TestHelper) ? =>
-    let port = "7903"
     let file_auth = FileAuth(h.env.root)
     let sslctx =
       recover
@@ -177,28 +177,26 @@ class \nodoc\ iso _TestSSLYieldRead is UnitTest
           .> set_server_verify(false)
       end
 
-    let listener = _TestSSLYieldReadListener(port, consume sslctx, h)
+    let listener = _TestSSLYieldReadListener(consume sslctx, h)
     h.dispose_when_done(listener)
 
     h.long_test(15_000_000_000)
 
 actor \nodoc\ _TestSSLYieldReadListener is TCPListenerActor
-  let _port: String
   let _sslctx: SSLContext val
   var _tcp_listener: TCPListener = TCPListener.none()
   let _h: TestHelper
   var _client: (_TestSSLYieldReadClient | None) = None
   let _servers: Array[_TestSSLYieldReadServer] = Array[_TestSSLYieldReadServer]
 
-  new create(port: String, sslctx: SSLContext val, h: TestHelper) =>
-    _port = port
+  new create(sslctx: SSLContext val, h: TestHelper) =>
     _sslctx = sslctx
     _h = h
     _tcp_listener =
       TCPListener(
         TCPListenAuth(_h.env.root),
         "localhost",
-        _port,
+        "0",
         this)
 
   fun ref _listener(): TCPListener =>
@@ -210,7 +208,8 @@ actor \nodoc\ _TestSSLYieldReadListener is TCPListenerActor
     s
 
   fun ref _on_listening() =>
-    _client = _TestSSLYieldReadClient(_port, _sslctx, _h)
+    let port: String val = _tcp_listener.local_address().port().string()
+    _client = _TestSSLYieldReadClient(port, _sslctx, _h)
 
   fun ref _on_listen_failure() =>
     _h.fail("Unable to open _TestSSLYieldReadListener")

@@ -236,7 +236,7 @@ actor \nodoc\ _TestUDPBindFailureActor[UDP: UDPBackend ref]
 
   new create(h: TestHelper) =>
     _h = h
-    _udp = UDPSocket[UDP](UDPAuth(_h.env.root), "", "9800", this, this)
+    _udp = UDPSocket[UDP](UDPAuth(_h.env.root), "", "0", this, this)
 
   fun ref _socket(): UDPSocket[UDP] => _udp
 
@@ -264,7 +264,7 @@ actor \nodoc\ _TestUDPSendOkActor[UDP: UDPBackend ref]
 
   new create(h: TestHelper) =>
     _h = h
-    _udp = UDPSocket[UDP](UDPAuth(_h.env.root), "", "9801", this, this)
+    _udp = UDPSocket[UDP](UDPAuth(_h.env.root), "", "0", this, this)
 
   fun ref _socket(): UDPSocket[UDP] => _udp
 
@@ -302,7 +302,7 @@ actor \nodoc\ _TestUDPSendWouldBlockActor[UDP: UDPBackend ref]
 
   new create(h: TestHelper) =>
     _h = h
-    _udp = UDPSocket[UDP](UDPAuth(_h.env.root), "", "9802", this, this)
+    _udp = UDPSocket[UDP](UDPAuth(_h.env.root), "", "0", this, this)
 
   fun ref _socket(): UDPSocket[UDP] => _udp
 
@@ -340,7 +340,7 @@ actor \nodoc\ _TestUDPSendErrorActor[UDP: UDPBackend ref]
 
   new create(h: TestHelper) =>
     _h = h
-    _udp = UDPSocket[UDP](UDPAuth(_h.env.root), "", "9803", this, this)
+    _udp = UDPSocket[UDP](UDPAuth(_h.env.root), "", "0", this, this)
 
   fun ref _socket(): UDPSocket[UDP] => _udp
 
@@ -378,7 +378,7 @@ actor \nodoc\ _TestUDPSendNotOpenActor[UDP: UDPBackend ref]
 
   new create(h: TestHelper) =>
     _h = h
-    _udp = UDPSocket[UDP](UDPAuth(_h.env.root), "", "9804", this, this)
+    _udp = UDPSocket[UDP](UDPAuth(_h.env.root), "", "0", this, this)
 
   fun ref _socket(): UDPSocket[UDP] => _udp
 
@@ -416,7 +416,7 @@ actor \nodoc\ _TestUDPRecvDataActor[UDP: UDPBackend ref]
 
   new create(h: TestHelper) =>
     _h = h
-    _udp = UDPSocket[UDP](UDPAuth(_h.env.root), "", "9805", this, this)
+    _udp = UDPSocket[UDP](UDPAuth(_h.env.root), "", "0", this, this)
 
   fun ref _socket(): UDPSocket[UDP] => _udp
 
@@ -456,7 +456,7 @@ actor \nodoc\ _TestUDPCloseFromReceivedActor[UDP: UDPBackend ref]
 
   new create(h: TestHelper) =>
     _h = h
-    _udp = UDPSocket[UDP](UDPAuth(_h.env.root), "", "9806", this, this)
+    _udp = UDPSocket[UDP](UDPAuth(_h.env.root), "", "0", this, this)
 
   fun ref _socket(): UDPSocket[UDP] => _udp
 
@@ -494,7 +494,6 @@ class \nodoc\ iso _TestUDPEcho is UnitTest
       _TestUDPEchoServer(
         UDPAuth(h.env.root),
         ifdef linux then "127.0.0.2" else "localhost" end,
-        "9807",
         h)
     h.dispose_when_done(server)
 
@@ -507,12 +506,11 @@ actor \nodoc\ _TestUDPEchoServer
 
   new create(auth: UDPAuth,
     host: String,
-    port: String,
     h: TestHelper)
   =>
     _h = h
     _host = host
-    _udp = UDPSocket(auth, host, port, this, this)
+    _udp = UDPSocket(auth, host, "0", this, this)
 
   fun ref _socket(): UDPSocket => _udp
 
@@ -676,7 +674,7 @@ actor \nodoc\ _TestUDPRecvErrorActor[UDP: UDPBackend ref]
 
   new create(h: TestHelper) =>
     _h = h
-    _udp = UDPSocket[UDP](UDPAuth(_h.env.root), "", "9808", this, this)
+    _udp = UDPSocket[UDP](UDPAuth(_h.env.root), "", "0", this, this)
 
   fun ref _socket(): UDPSocket[UDP] => _udp
 
@@ -722,7 +720,7 @@ actor \nodoc\ _TestUDPYieldReadingActor[UDP: UDPBackend ref]
 
   new create(h: TestHelper) =>
     _h = h
-    _udp = UDPSocket[UDP](UDPAuth(_h.env.root), "", "9809", this, this)
+    _udp = UDPSocket[UDP](UDPAuth(_h.env.root), "", "0", this, this)
 
   fun ref _socket(): UDPSocket[UDP] => _udp
 
@@ -773,7 +771,7 @@ actor \nodoc\ _TestUDPBudgetActor[UDP: UDPBackend ref]
     _h = h
     _udp =
       UDPSocket[UDP](
-        UDPAuth(_h.env.root), "", "9810", this, this
+        UDPAuth(_h.env.root), "", "0", this, this
         where max_datagrams_per_turn = 2)
 
   fun ref _socket(): UDPSocket[UDP] => _udp
@@ -822,7 +820,7 @@ actor \nodoc\ _TestUDPDisposeInitRaceActor[UDP: UDPBackend ref]
 
   new create(h: TestHelper) =>
     _h = h
-    _udp = UDPSocket[UDP](UDPAuth(_h.env.root), "", "9811", this, this)
+    _udp = UDPSocket[UDP](UDPAuth(_h.env.root), "", "0", this, this)
     _udp.close()
     _check_result()
 
@@ -866,7 +864,7 @@ actor \nodoc\ _TestUDPSocketStateActor[UDP: UDPBackend ref]
     (let err_none, _) =
       _udp.getsockopt_u32(OSSockOpt.sol_socket(), OSSockOpt.so_rcvbuf())
     _h.assert_eq[U32](1, err_none)
-    _udp = UDPSocket[UDP](UDPAuth(_h.env.root), "", "9812", this, this)
+    _udp = UDPSocket[UDP](UDPAuth(_h.env.root), "", "0", this, this)
 
   fun ref _socket(): UDPSocket[UDP] => _udp
 

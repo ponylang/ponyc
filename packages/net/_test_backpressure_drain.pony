@@ -53,7 +53,7 @@ actor \nodoc\ _TestBackpressureDrainListener is TCPListenerActor
       TCPListener(
         TCPListenAuth(_h.env.root),
         ifdef linux then "127.0.0.2" else "localhost" end,
-        "9770",
+        "0",
         this)
 
   fun ref _listener(): TCPListener =>
@@ -69,7 +69,8 @@ actor \nodoc\ _TestBackpressureDrainListener is TCPListenerActor
 
   fun ref _on_listening() =>
     _h.complete_action("listener listening")
-    _client = _TestBackpressureDrainClient(_h)
+    let port: String val = _tcp_listener.local_address().port().string()
+    _client = _TestBackpressureDrainClient(port, _h)
 
   be server_throttled(payload_size: USize) =>
     try
@@ -169,13 +170,13 @@ actor \nodoc\ _TestBackpressureDrainClient
   var _payload_size: USize = 0
   var _sent_ping: Bool = false
 
-  new create(h: TestHelper) =>
+  new create(port: String, h: TestHelper) =>
     _h = h
     _tcp_connection =
       TCPConnection.client(
         TCPConnectAuth(_h.env.root),
         ifdef linux then "127.0.0.2" else "localhost" end,
-        "9770",
+        port,
         "",
         this,
         this)
@@ -276,7 +277,7 @@ actor \nodoc\ _TestWriteOnlyEventReadRecoveryListener is TCPListenerActor
       TCPListener(
         TCPListenAuth(_h.env.root),
         ifdef linux then "127.0.0.2" else "localhost" end,
-        "9771",
+        "0",
         this)
 
   fun ref _listener(): TCPListener =>
@@ -292,7 +293,8 @@ actor \nodoc\ _TestWriteOnlyEventReadRecoveryListener is TCPListenerActor
 
   fun ref _on_listening() =>
     _h.complete_action("listener listening")
-    _client = _TestWriteOnlyEventReadRecoveryClient(_h)
+    let port: String val = _tcp_listener.local_address().port().string()
+    _client = _TestWriteOnlyEventReadRecoveryClient(port, _h)
 
   be server_throttled(payload_size: USize) =>
     try
@@ -379,13 +381,13 @@ actor \nodoc\ _TestWriteOnlyEventReadRecoveryClient
   var _payload_size: USize = 0
   var _sent_ping: Bool = false
 
-  new create(h: TestHelper) =>
+  new create(port: String, h: TestHelper) =>
     _h = h
     _tcp_connection =
       TCPConnection.client(
         TCPConnectAuth(_h.env.root),
         ifdef linux then "127.0.0.2" else "localhost" end,
-        "9771",
+        port,
         "",
         this,
         this)
@@ -484,7 +486,7 @@ actor \nodoc\ _TestReadableEventWriteRecoveryListener is TCPListenerActor
       TCPListener(
         TCPListenAuth(_h.env.root),
         ifdef linux then "127.0.0.2" else "localhost" end,
-        "9772",
+        "0",
         this)
 
   fun ref _listener(): TCPListener =>
@@ -500,7 +502,8 @@ actor \nodoc\ _TestReadableEventWriteRecoveryListener is TCPListenerActor
 
   fun ref _on_listening() =>
     _h.complete_action("listener listening")
-    _client = _TestReadableEventWriteRecoveryClient(_h)
+    let port: String val = _tcp_listener.local_address().port().string()
+    _client = _TestReadableEventWriteRecoveryClient(port, _h)
 
   be server_throttled(flood_size: USize) =>
     try
@@ -601,13 +604,13 @@ actor \nodoc\ _TestReadableEventWriteRecoveryClient
   var _total_received: USize = 0
   var _expected: USize = 0
 
-  new create(h: TestHelper) =>
+  new create(port: String, h: TestHelper) =>
     _h = h
     _tcp_connection =
       TCPConnection.client(
         TCPConnectAuth(_h.env.root),
         ifdef linux then "127.0.0.2" else "localhost" end,
-        "9772",
+        port,
         "",
         this,
         this)

@@ -8,10 +8,9 @@ class \nodoc\ iso _TestIP4PingPong is UnitTest
   fun name(): String => "net/IP4PingPong"
 
   fun apply(h: TestHelper) =>
-    let port = "7901"
     let pings_to_send: I32 = 100
 
-    let listener = _TestIP4PongerListener(port, pings_to_send, h)
+    let listener = _TestIP4PongerListener(pings_to_send, h)
     h.dispose_when_done(listener)
 
     h.long_test(5_000_000_000)
@@ -105,25 +104,22 @@ actor \nodoc\ _TestIP4Ponger
     KeepReading
 
 actor \nodoc\ _TestIP4PongerListener is TCPListenerActor
-  let _port: String
   var _tcp_listener: TCPListener = TCPListener.none()
   var _pings_to_receive: I32
   let _h: TestHelper
   var _pinger: (_TestIP4Pinger | None) = None
   let _servers: Array[_TestIP4Ponger] = Array[_TestIP4Ponger]
 
-  new create(port: String,
-    pings_to_receive: I32,
+  new create(pings_to_receive: I32,
     h: TestHelper)
   =>
-    _port = port
     _pings_to_receive = pings_to_receive
     _h = h
     _tcp_listener =
       TCPListener(
         TCPListenAuth(_h.env.root),
         "127.0.0.1",
-        _port,
+        "0",
         this where ip_version = IP4)
 
   fun ref _listener(): TCPListener =>
@@ -139,7 +135,8 @@ actor \nodoc\ _TestIP4PongerListener is TCPListenerActor
     for server in _servers.values() do server.dispose() end
 
   fun ref _on_listening() =>
-    _pinger = _TestIP4Pinger(_port, _pings_to_receive, _h)
+    let port: String val = _tcp_listener.local_address().port().string()
+    _pinger = _TestIP4Pinger(port, _pings_to_receive, _h)
 
   fun ref _on_listen_failure() =>
     _h.fail("Unable to open _TestIP4PongerListener")
@@ -171,10 +168,9 @@ class \nodoc\ iso _TestIP6PingPong is UnitTest
       end
     end
 
-    let port = "7902"
     let pings_to_send: I32 = 100
 
-    let listener = _TestIP6PongerListener(port, pings_to_send, h)
+    let listener = _TestIP6PongerListener(pings_to_send, h)
     h.dispose_when_done(listener)
 
     h.long_test(5_000_000_000)
@@ -268,25 +264,22 @@ actor \nodoc\ _TestIP6Ponger
     KeepReading
 
 actor \nodoc\ _TestIP6PongerListener is TCPListenerActor
-  let _port: String
   var _tcp_listener: TCPListener = TCPListener.none()
   var _pings_to_receive: I32
   let _h: TestHelper
   var _pinger: (_TestIP6Pinger | None) = None
   let _servers: Array[_TestIP6Ponger] = Array[_TestIP6Ponger]
 
-  new create(port: String,
-    pings_to_receive: I32,
+  new create(pings_to_receive: I32,
     h: TestHelper)
   =>
-    _port = port
     _pings_to_receive = pings_to_receive
     _h = h
     _tcp_listener =
       TCPListener(
         TCPListenAuth(_h.env.root),
         "::1",
-        _port,
+        "0",
         this where ip_version = IP6)
 
   fun ref _listener(): TCPListener =>
@@ -302,7 +295,8 @@ actor \nodoc\ _TestIP6PongerListener is TCPListenerActor
     for server in _servers.values() do server.dispose() end
 
   fun ref _on_listening() =>
-    _pinger = _TestIP6Pinger(_port, _pings_to_receive, _h)
+    let port: String val = _tcp_listener.local_address().port().string()
+    _pinger = _TestIP6Pinger(port, _pings_to_receive, _h)
 
   fun ref _on_listen_failure() =>
     _h.fail("Unable to open _TestIP6PongerListener")

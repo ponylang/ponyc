@@ -49,7 +49,7 @@ actor \nodoc\ _TestMuteListener is TCPListenerActor
       TCPListener(
         TCPListenAuth(_h.env.root),
         "localhost",
-        "6666",
+        "0",
         this)
 
   fun ref _listener(): TCPListener =>
@@ -67,7 +67,8 @@ actor \nodoc\ _TestMuteListener is TCPListenerActor
 
   fun ref _on_listening() =>
     _h.complete_action("server listen")
-    _client = _TestMuteClient(_h)
+    let port: String val = _tcp_listener.local_address().port().string()
+    _client = _TestMuteClient(port, _h)
     _h.complete_action("client create")
 
   be dispose() =>
@@ -82,13 +83,13 @@ actor \nodoc\ _TestMuteClient
   var _tcp_connection: TCPConnection = TCPConnection.none()
   let _h: TestHelper
 
-  new create(h: TestHelper) =>
+  new create(port: String, h: TestHelper) =>
     _h = h
     _tcp_connection =
       TCPConnection.client(
         TCPConnectAuth(_h.env.root),
         "localhost",
-        "6666",
+        port,
         "",
         this,
         this)
@@ -204,7 +205,7 @@ actor \nodoc\ _TestUnmuteListener is TCPListenerActor
       TCPListener(
         TCPListenAuth(_h.env.root),
         "localhost",
-        "6767",
+        "0",
         this)
 
   fun ref _listener(): TCPListener =>
@@ -222,7 +223,8 @@ actor \nodoc\ _TestUnmuteListener is TCPListenerActor
 
   fun ref _on_listening() =>
     _h.complete_action("server listen")
-    _client = _TestUnmuteClient(_h)
+    let port: String val = _tcp_listener.local_address().port().string()
+    _client = _TestUnmuteClient(port, _h)
     _h.complete_action("client create")
 
   be dispose() =>
@@ -235,13 +237,13 @@ actor \nodoc\ _TestUnmuteClient
   var _tcp_connection: TCPConnection = TCPConnection.none()
   let _h: TestHelper
 
-  new create(h: TestHelper) =>
+  new create(port: String, h: TestHelper) =>
     _h = h
     _tcp_connection =
       TCPConnection.client(
         TCPConnectAuth(_h.env.root),
         "localhost",
-        "6767",
+        port,
         "",
         this,
         this)
@@ -341,7 +343,6 @@ class \nodoc\ iso _TestSSLMute is UnitTest
   fun name(): String => "net/SSLMute"
 
   fun apply(h: TestHelper) ? =>
-    let port = "9778"
     let file_auth = FileAuth(h.env.root)
     let sslctx =
       recover
@@ -355,28 +356,26 @@ class \nodoc\ iso _TestSSLMute is UnitTest
           .> set_server_verify(false)
       end
 
-    let listener = _TestSSLMuteListener(port, consume sslctx, h)
+    let listener = _TestSSLMuteListener(consume sslctx, h)
     h.dispose_when_done(listener)
 
     h.long_test(15_000_000_000)
 
 actor \nodoc\ _TestSSLMuteListener is TCPListenerActor
-  let _port: String
   let _sslctx: SSLContext val
   var _tcp_listener: TCPListener = TCPListener.none()
   let _h: TestHelper
   var _client: (_TestSSLMuteClient | None) = None
   let _servers: Array[_TestSSLMuteServer] = Array[_TestSSLMuteServer]
 
-  new create(port: String, sslctx: SSLContext val, h: TestHelper) =>
-    _port = port
+  new create(sslctx: SSLContext val, h: TestHelper) =>
     _sslctx = sslctx
     _h = h
     _tcp_listener =
       TCPListener(
         TCPListenAuth(_h.env.root),
         "localhost",
-        _port,
+        "0",
         this)
 
   fun ref _listener(): TCPListener =>
@@ -388,7 +387,8 @@ actor \nodoc\ _TestSSLMuteListener is TCPListenerActor
     s
 
   fun ref _on_listening() =>
-    _client = _TestSSLMuteClient(_port, _sslctx, _h)
+    let port: String val = _tcp_listener.local_address().port().string()
+    _client = _TestSSLMuteClient(port, _sslctx, _h)
 
   fun ref _on_listen_failure() =>
     _h.fail("Unable to open _TestSSLMuteListener")
@@ -544,7 +544,6 @@ class \nodoc\ iso _TestSSLMuteCloseDropsHeld is UnitTest
   fun name(): String => "net/SSLMuteCloseDropsHeld"
 
   fun apply(h: TestHelper) ? =>
-    let port = "9779"
     let file_auth = FileAuth(h.env.root)
     let sslctx =
       recover
@@ -561,28 +560,26 @@ class \nodoc\ iso _TestSSLMuteCloseDropsHeld is UnitTest
     h.expect_action("server received")
     h.expect_action("server closed")
 
-    let listener = _TestSSLMuteCloseListener(port, consume sslctx, h)
+    let listener = _TestSSLMuteCloseListener(consume sslctx, h)
     h.dispose_when_done(listener)
 
     h.long_test(15_000_000_000)
 
 actor \nodoc\ _TestSSLMuteCloseListener is TCPListenerActor
-  let _port: String
   let _sslctx: SSLContext val
   var _tcp_listener: TCPListener = TCPListener.none()
   let _h: TestHelper
   var _client: (_TestSSLMuteCloseClient | None) = None
   let _servers: Array[_TestSSLMuteCloseServer] = Array[_TestSSLMuteCloseServer]
 
-  new create(port: String, sslctx: SSLContext val, h: TestHelper) =>
-    _port = port
+  new create(sslctx: SSLContext val, h: TestHelper) =>
     _sslctx = sslctx
     _h = h
     _tcp_listener =
       TCPListener(
         TCPListenAuth(_h.env.root),
         "localhost",
-        _port,
+        "0",
         this)
 
   fun ref _listener(): TCPListener =>
@@ -594,7 +591,8 @@ actor \nodoc\ _TestSSLMuteCloseListener is TCPListenerActor
     s
 
   fun ref _on_listening() =>
-    _client = _TestSSLMuteCloseClient(_port, _sslctx, _h)
+    let port: String val = _tcp_listener.local_address().port().string()
+    _client = _TestSSLMuteCloseClient(port, _sslctx, _h)
 
   fun ref _on_listen_failure() =>
     _h.fail("Unable to open _TestSSLMuteCloseListener")
@@ -729,7 +727,7 @@ actor \nodoc\ _TestMuteFromOnSentListener is TCPListenerActor
       TCPListener(
         TCPListenAuth(_h.env.root),
         "localhost",
-        "6869",
+        "0",
         this)
 
   fun ref _listener(): TCPListener =>
@@ -745,7 +743,8 @@ actor \nodoc\ _TestMuteFromOnSentListener is TCPListenerActor
     for server in _servers.values() do server.dispose() end
 
   fun ref _on_listening() =>
-    _client = _TestMuteFromOnSentClient(_h)
+    let port: String val = _tcp_listener.local_address().port().string()
+    _client = _TestMuteFromOnSentClient(port, _h)
 
   fun ref _on_listen_failure() =>
     _h.fail("Unable to open _TestMuteFromOnSentListener")
@@ -755,13 +754,13 @@ actor \nodoc\ _TestMuteFromOnSentClient
   var _tcp_connection: TCPConnection = TCPConnection.none()
   let _h: TestHelper
 
-  new create(h: TestHelper) =>
+  new create(port: String, h: TestHelper) =>
     _h = h
     _tcp_connection =
       TCPConnection.client(
         TCPConnectAuth(_h.env.root),
         "localhost",
-        "6869",
+        port,
         "",
         this,
         this)

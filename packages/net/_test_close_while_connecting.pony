@@ -20,13 +20,13 @@ actor \nodoc\ _TestHardCloseWhileConnectingClient
   var _tcp_connection: TCPConnection = TCPConnection.none()
   let _h: TestHelper
 
-  new create(h: TestHelper) =>
+  new create(port: String, h: TestHelper) =>
     _h = h
     _tcp_connection =
       TCPConnection.client(
         TCPConnectAuth(_h.env.root),
         "localhost",
-        "9735",
+        port,
         "",
         this,
         this)
@@ -57,7 +57,7 @@ actor \nodoc\ _TestHardCloseWhileConnectingListener is TCPListenerActor
       TCPListener(
         TCPListenAuth(_h.env.root),
         "localhost",
-        "9735",
+        "0",
         this)
 
   fun ref _listener(): TCPListener =>
@@ -73,7 +73,8 @@ actor \nodoc\ _TestHardCloseWhileConnectingListener is TCPListenerActor
     for server in _servers.values() do server.dispose() end
 
   fun ref _on_listening() =>
-    _client = _TestHardCloseWhileConnectingClient(_h)
+    let port: String val = _tcp_listener.local_address().port().string()
+    _client = _TestHardCloseWhileConnectingClient(port, _h)
 
   fun ref _on_listen_failure() =>
     _h.fail("Unable to open _TestHardCloseWhileConnectingListener")
@@ -98,13 +99,13 @@ actor \nodoc\ _TestCloseWhileConnectingClient
   var _tcp_connection: TCPConnection = TCPConnection.none()
   let _h: TestHelper
 
-  new create(h: TestHelper) =>
+  new create(port: String, h: TestHelper) =>
     _h = h
     _tcp_connection =
       TCPConnection.client(
         TCPConnectAuth(_h.env.root),
         "localhost",
-        "9736",
+        port,
         "",
         this,
         this)
@@ -135,7 +136,7 @@ actor \nodoc\ _TestCloseWhileConnectingListener is TCPListenerActor
       TCPListener(
         TCPListenAuth(_h.env.root),
         "localhost",
-        "9736",
+        "0",
         this)
 
   fun ref _listener(): TCPListener =>
@@ -151,7 +152,8 @@ actor \nodoc\ _TestCloseWhileConnectingListener is TCPListenerActor
     for server in _servers.values() do server.dispose() end
 
   fun ref _on_listening() =>
-    _client = _TestCloseWhileConnectingClient(_h)
+    let port: String val = _tcp_listener.local_address().port().string()
+    _client = _TestCloseWhileConnectingClient(port, _h)
 
   fun ref _on_listen_failure() =>
     _h.fail("Unable to open _TestCloseWhileConnectingListener")

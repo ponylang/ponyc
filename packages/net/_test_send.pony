@@ -31,7 +31,7 @@ actor \nodoc\ _TestSendTokenListener is TCPListenerActor
       TCPListener(
         TCPListenAuth(_h.env.root),
         "localhost",
-        "7891",
+        "0",
         this)
 
   fun ref _listener(): TCPListener =>
@@ -48,7 +48,8 @@ actor \nodoc\ _TestSendTokenListener is TCPListenerActor
 
   fun ref _on_listening() =>
     _h.complete_action("server listening")
-    _client = _TestSendTokenClient(_h)
+    let port: String val = _tcp_listener.local_address().port().string()
+    _client = _TestSendTokenClient(port, _h)
 
   fun ref _on_listen_failure() =>
     _h.fail("Unable to open _TestSendTokenListener")
@@ -59,13 +60,13 @@ actor \nodoc\ _TestSendTokenClient
   let _h: TestHelper
   var _expected_token: (SendToken | None) = None
 
-  new create(h: TestHelper) =>
+  new create(port: String, h: TestHelper) =>
     _h = h
     _tcp_connection =
       TCPConnection.client(
         TCPConnectAuth(_h.env.root),
         "localhost",
-        "7891",
+        port,
         "",
         this,
         this)
@@ -147,7 +148,7 @@ actor \nodoc\ _TestSendAfterCloseListener is TCPListenerActor
       TCPListener(
         TCPListenAuth(_h.env.root),
         "localhost",
-        "7892",
+        "0",
         this)
 
   fun ref _listener(): TCPListener =>
@@ -164,7 +165,8 @@ actor \nodoc\ _TestSendAfterCloseListener is TCPListenerActor
 
   fun ref _on_listening() =>
     _h.complete_action("server listening")
-    _client = _TestSendAfterCloseClient(_h)
+    let port: String val = _tcp_listener.local_address().port().string()
+    _client = _TestSendAfterCloseClient(port, _h)
 
   fun ref _on_listen_failure() =>
     _h.fail("Unable to open _TestSendAfterCloseListener")
@@ -175,13 +177,13 @@ actor \nodoc\ _TestSendAfterCloseClient
   let _h: TestHelper
   var _accepted_count: USize = 0
 
-  new create(h: TestHelper) =>
+  new create(port: String, h: TestHelper) =>
     _h = h
     _tcp_connection =
       TCPConnection.client(
         TCPConnectAuth(_h.env.root),
         "localhost",
-        "7892",
+        port,
         "",
         this,
         this)
@@ -263,7 +265,7 @@ actor \nodoc\ _TestSendvListener is TCPListenerActor
       TCPListener(
         TCPListenAuth(_h.env.root),
         "localhost",
-        "7893",
+        "0",
         this)
 
   fun ref _listener(): TCPListener =>
@@ -280,7 +282,8 @@ actor \nodoc\ _TestSendvListener is TCPListenerActor
 
   fun ref _on_listening() =>
     _h.complete_action("server listening")
-    _client = _TestSendvClient(_h)
+    let port: String val = _tcp_listener.local_address().port().string()
+    _client = _TestSendvClient(port, _h)
 
   fun ref _on_listen_failure() =>
     _h.fail("Unable to open _TestSendvListener")
@@ -291,13 +294,13 @@ actor \nodoc\ _TestSendvClient
   let _h: TestHelper
   var _expected_token: (SendToken | None) = None
 
-  new create(h: TestHelper) =>
+  new create(port: String, h: TestHelper) =>
     _h = h
     _tcp_connection =
       TCPConnection.client(
         TCPConnectAuth(_h.env.root),
         "localhost",
-        "7893",
+        port,
         "",
         this,
         this)
@@ -389,7 +392,7 @@ actor \nodoc\ _TestSendvEmptyListener is TCPListenerActor
       TCPListener(
         TCPListenAuth(_h.env.root),
         "localhost",
-        "7894",
+        "0",
         this)
 
   fun ref _listener(): TCPListener =>
@@ -406,7 +409,8 @@ actor \nodoc\ _TestSendvEmptyListener is TCPListenerActor
 
   fun ref _on_listening() =>
     _h.complete_action("server listening")
-    _client = _TestSendvEmptyClient(_h)
+    let port: String val = _tcp_listener.local_address().port().string()
+    _client = _TestSendvEmptyClient(port, _h)
 
   fun ref _on_listen_failure() =>
     _h.fail("Unable to open _TestSendvEmptyListener")
@@ -417,13 +421,13 @@ actor \nodoc\ _TestSendvEmptyClient
   let _h: TestHelper
   var _expected_token: (SendToken | None) = None
 
-  new create(h: TestHelper) =>
+  new create(port: String, h: TestHelper) =>
     _h = h
     _tcp_connection =
       TCPConnection.client(
         TCPConnectAuth(_h.env.root),
         "localhost",
-        "7894",
+        port,
         "",
         this,
         this)
@@ -486,7 +490,7 @@ actor \nodoc\ _TestSendvMixedEmptyListener is TCPListenerActor
       TCPListener(
         TCPListenAuth(_h.env.root),
         "localhost",
-        "7895",
+        "0",
         this)
 
   fun ref _listener(): TCPListener =>
@@ -503,7 +507,8 @@ actor \nodoc\ _TestSendvMixedEmptyListener is TCPListenerActor
 
   fun ref _on_listening() =>
     _h.complete_action("server listening")
-    _client = _TestSendvMixedEmptyClient(_h)
+    let port: String val = _tcp_listener.local_address().port().string()
+    _client = _TestSendvMixedEmptyClient(port, _h)
 
   fun ref _on_listen_failure() =>
     _h.fail("Unable to open _TestSendvMixedEmptyListener")
@@ -513,13 +518,13 @@ actor \nodoc\ _TestSendvMixedEmptyClient
   var _tcp_connection: TCPConnection = TCPConnection.none()
   let _h: TestHelper
 
-  new create(h: TestHelper) =>
+  new create(port: String, h: TestHelper) =>
     _h = h
     _tcp_connection =
       TCPConnection.client(
         TCPConnectAuth(_h.env.root),
         "localhost",
-        "7895",
+        port,
         "",
         this,
         this)
@@ -600,7 +605,7 @@ actor \nodoc\ _TestSendPerTokenListener is TCPListenerActor
       TCPListener(
         TCPListenAuth(_h.env.root),
         ifdef linux then "127.0.0.2" else "localhost" end,
-        "7910",
+        "0",
         this)
 
   fun ref _listener(): TCPListener =>
@@ -615,7 +620,8 @@ actor \nodoc\ _TestSendPerTokenListener is TCPListenerActor
     _h.fail("listener failed to start")
 
   fun ref _on_listening() =>
-    _client = _TestSendPerTokenClient(_h)
+    let port: String val = _tcp_listener.local_address().port().string()
+    _client = _TestSendPerTokenClient(port, _h)
 
   fun ref _on_closed() =>
     try (_client as _TestSendPerTokenClient).dispose() end
@@ -629,13 +635,13 @@ actor \nodoc\ _TestSendPerTokenClient
   var _tcp_connection: TCPConnection = TCPConnection.none()
   let _h: TestHelper
 
-  new create(h: TestHelper) =>
+  new create(port: String, h: TestHelper) =>
     _h = h
     _tcp_connection =
       TCPConnection.client(
         TCPConnectAuth(_h.env.root),
         ifdef linux then "127.0.0.2" else "localhost" end,
-        "7910",
+        port,
         "",
         this,
         this)
@@ -797,7 +803,7 @@ actor \nodoc\ _TestSendMidFlightDropListener is TCPListenerActor
       TCPListener(
         TCPListenAuth(_h.env.root),
         ifdef linux then "127.0.0.2" else "localhost" end,
-        "7912",
+        "0",
         this)
 
   fun ref _listener(): TCPListener =>
@@ -812,7 +818,8 @@ actor \nodoc\ _TestSendMidFlightDropListener is TCPListenerActor
     _h.fail("listener failed to start")
 
   fun ref _on_listening() =>
-    _client = _TestSendMidFlightDropClient(_h)
+    let port: String val = _tcp_listener.local_address().port().string()
+    _client = _TestSendMidFlightDropClient(port, _h)
 
   fun ref _on_closed() =>
     try (_client as _TestSendMidFlightDropClient).dispose() end
@@ -826,13 +833,13 @@ actor \nodoc\ _TestSendMidFlightDropClient
   var _tcp_connection: TCPConnection = TCPConnection.none()
   let _h: TestHelper
 
-  new create(h: TestHelper) =>
+  new create(port: String, h: TestHelper) =>
     _h = h
     _tcp_connection =
       TCPConnection.client(
         TCPConnectAuth(_h.env.root),
         ifdef linux then "127.0.0.2" else "localhost" end,
-        "7912",
+        port,
         "",
         this,
         this)
@@ -1018,7 +1025,6 @@ class \nodoc\ iso _TestSendSSLPerTokenCompletion is UnitTest
   fun name(): String => "net/SendSSLPerTokenCompletion"
 
   fun apply(h: TestHelper) ? =>
-    let port = "7913"
     let file_auth = FileAuth(h.env.root)
     let sslctx =
       recover
@@ -1032,13 +1038,12 @@ class \nodoc\ iso _TestSendSSLPerTokenCompletion is UnitTest
           .> set_server_verify(false)
       end
 
-    let listener = _TestSendSSLPerTokenListener(port, consume sslctx, h)
+    let listener = _TestSendSSLPerTokenListener(consume sslctx, h)
     h.dispose_when_done(listener)
 
     h.long_test(30_000_000_000)
 
 actor \nodoc\ _TestSendSSLPerTokenListener is TCPListenerActor
-  let _port: String
   let _sslctx: SSLContext val
   var _tcp_listener: TCPListener = TCPListener.none()
   let _h: TestHelper
@@ -1046,15 +1051,14 @@ actor \nodoc\ _TestSendSSLPerTokenListener is TCPListenerActor
     Array[_TestSendSSLPerTokenServer]
   var _client: (_TestSendSSLPerTokenClient | None) = None
 
-  new create(port: String, sslctx: SSLContext val, h: TestHelper) =>
-    _port = port
+  new create(sslctx: SSLContext val, h: TestHelper) =>
     _sslctx = sslctx
     _h = h
     _tcp_listener =
       TCPListener(
         TCPListenAuth(_h.env.root),
         "localhost",
-        _port,
+        "0",
         this)
 
   fun ref _listener(): TCPListener =>
@@ -1070,7 +1074,8 @@ actor \nodoc\ _TestSendSSLPerTokenListener is TCPListenerActor
     for server in _servers.values() do server.dispose() end
 
   fun ref _on_listening() =>
-    _client = _TestSendSSLPerTokenClient(_port, _sslctx, _h)
+    let port: String val = _tcp_listener.local_address().port().string()
+    _client = _TestSendSSLPerTokenClient(port, _sslctx, _h)
 
   fun ref _on_listen_failure() =>
     _h.fail("Unable to open _TestSendSSLPerTokenListener")
@@ -1232,7 +1237,6 @@ class \nodoc\ iso _TestSendSSLMidFlightDropBoundary is UnitTest
   fun name(): String => "net/SendSSLMidFlightDropBoundary"
 
   fun apply(h: TestHelper) ? =>
-    let port = "7914"
     let file_auth = FileAuth(h.env.root)
     let sslctx =
       recover
@@ -1246,13 +1250,12 @@ class \nodoc\ iso _TestSendSSLMidFlightDropBoundary is UnitTest
           .> set_server_verify(false)
       end
 
-    let listener = _TestSendSSLMidFlightDropListener(port, consume sslctx, h)
+    let listener = _TestSendSSLMidFlightDropListener(consume sslctx, h)
     h.dispose_when_done(listener)
 
     h.long_test(30_000_000_000)
 
 actor \nodoc\ _TestSendSSLMidFlightDropListener is TCPListenerActor
-  let _port: String
   let _sslctx: SSLContext val
   var _tcp_listener: TCPListener = TCPListener.none()
   let _h: TestHelper
@@ -1260,15 +1263,14 @@ actor \nodoc\ _TestSendSSLMidFlightDropListener is TCPListenerActor
     Array[_TestSendSSLMidFlightDropServer]
   var _client: (_TestSendSSLMidFlightDropClient | None) = None
 
-  new create(port: String, sslctx: SSLContext val, h: TestHelper) =>
-    _port = port
+  new create(sslctx: SSLContext val, h: TestHelper) =>
     _sslctx = sslctx
     _h = h
     _tcp_listener =
       TCPListener(
         TCPListenAuth(_h.env.root),
         "localhost",
-        _port,
+        "0",
         this)
 
   fun ref _listener(): TCPListener =>
@@ -1284,7 +1286,8 @@ actor \nodoc\ _TestSendSSLMidFlightDropListener is TCPListenerActor
     for server in _servers.values() do server.dispose() end
 
   fun ref _on_listening() =>
-    _client = _TestSendSSLMidFlightDropClient(_port, _sslctx, _h)
+    let port: String val = _tcp_listener.local_address().port().string()
+    _client = _TestSendSSLMidFlightDropClient(port, _sslctx, _h)
 
   fun ref _on_listen_failure() =>
     _h.fail("Unable to open _TestSendSSLMidFlightDropListener")
@@ -1506,7 +1509,7 @@ actor \nodoc\ _TestSendGracefulCloseListener is TCPListenerActor
       TCPListener(
         TCPListenAuth(_h.env.root),
         ifdef linux then "127.0.0.2" else "localhost" end,
-        "7915",
+        "0",
         this)
 
   fun ref _listener(): TCPListener =>
@@ -1521,7 +1524,8 @@ actor \nodoc\ _TestSendGracefulCloseListener is TCPListenerActor
     _h.fail("listener failed to start")
 
   fun ref _on_listening() =>
-    _client = _TestSendGracefulCloseClient(_h)
+    let port: String val = _tcp_listener.local_address().port().string()
+    _client = _TestSendGracefulCloseClient(port, _h)
 
   fun ref _on_closed() =>
     try (_client as _TestSendGracefulCloseClient).dispose() end
@@ -1541,13 +1545,13 @@ actor \nodoc\ _TestSendGracefulCloseClient
   var _total_received: USize = 0
   var _signalled: Bool = false
 
-  new create(h: TestHelper) =>
+  new create(port: String, h: TestHelper) =>
     _h = h
     _tcp_connection =
       TCPConnection.client(
         TCPConnectAuth(_h.env.root),
         ifdef linux then "127.0.0.2" else "localhost" end,
-        "7915",
+        port,
         "",
         this,
         this)
@@ -1713,7 +1717,6 @@ class \nodoc\ iso _TestSendSSLGracefulCloseWithPending is UnitTest
   fun name(): String => "net/SendSSLGracefulCloseWithPending"
 
   fun apply(h: TestHelper) ? =>
-    let port = "7916"
     let file_auth = FileAuth(h.env.root)
     let sslctx =
       recover
@@ -1731,13 +1734,12 @@ class \nodoc\ iso _TestSendSSLGracefulCloseWithPending is UnitTest
     h.expect_action("server closed")
     h.expect_action("client received all bytes")
 
-    let listener = _TestSendSSLGracefulCloseListener(port, consume sslctx, h)
+    let listener = _TestSendSSLGracefulCloseListener(consume sslctx, h)
     h.dispose_when_done(listener)
 
     h.long_test(30_000_000_000)
 
 actor \nodoc\ _TestSendSSLGracefulCloseListener is TCPListenerActor
-  let _port: String
   let _sslctx: SSLContext val
   var _tcp_listener: TCPListener = TCPListener.none()
   let _h: TestHelper
@@ -1745,15 +1747,14 @@ actor \nodoc\ _TestSendSSLGracefulCloseListener is TCPListenerActor
     Array[_TestSendSSLGracefulCloseServer]
   var _client: (_TestSendSSLGracefulCloseClient | None) = None
 
-  new create(port: String, sslctx: SSLContext val, h: TestHelper) =>
-    _port = port
+  new create(sslctx: SSLContext val, h: TestHelper) =>
     _sslctx = sslctx
     _h = h
     _tcp_listener =
       TCPListener(
         TCPListenAuth(_h.env.root),
         "localhost",
-        _port,
+        "0",
         this)
 
   fun ref _listener(): TCPListener =>
@@ -1769,7 +1770,8 @@ actor \nodoc\ _TestSendSSLGracefulCloseListener is TCPListenerActor
     for server in _servers.values() do server.dispose() end
 
   fun ref _on_listening() =>
-    _client = _TestSendSSLGracefulCloseClient(_port, _sslctx, _h)
+    let port: String val = _tcp_listener.local_address().port().string()
+    _client = _TestSendSSLGracefulCloseClient(port, _sslctx, _h)
 
   fun ref _on_listen_failure() =>
     _h.fail("Unable to open _TestSendSSLGracefulCloseListener")
@@ -1979,7 +1981,7 @@ actor \nodoc\ _TestSendCloseFromThrottledListener is TCPListenerActor
       TCPListener(
         TCPListenAuth(_h.env.root),
         ifdef linux then "127.0.0.2" else "localhost" end,
-        "9781",
+        "0",
         this)
 
   fun ref _listener(): TCPListener =>
@@ -1994,7 +1996,8 @@ actor \nodoc\ _TestSendCloseFromThrottledListener is TCPListenerActor
     _h.fail("listener failed to start")
 
   fun ref _on_listening() =>
-    _client = _TestSendCloseFromThrottledClient(_h)
+    let port: String val = _tcp_listener.local_address().port().string()
+    _client = _TestSendCloseFromThrottledClient(port, _h)
 
   fun ref _on_closed() =>
     try (_client as _TestSendCloseFromThrottledClient).dispose() end
@@ -2014,13 +2017,13 @@ actor \nodoc\ _TestSendCloseFromThrottledClient
   var _total_received: USize = 0
   var _signalled: Bool = false
 
-  new create(h: TestHelper) =>
+  new create(port: String, h: TestHelper) =>
     _h = h
     _tcp_connection =
       TCPConnection.client(
         TCPConnectAuth(_h.env.root),
         ifdef linux then "127.0.0.2" else "localhost" end,
-        "9781",
+        port,
         "",
         this,
         this)
@@ -2180,7 +2183,7 @@ actor \nodoc\ _TestSendHardCloseFromThrottledListener is TCPListenerActor
       TCPListener(
         TCPListenAuth(_h.env.root),
         ifdef linux then "127.0.0.2" else "localhost" end,
-        "9782",
+        "0",
         this)
 
   fun ref _listener(): TCPListener =>
@@ -2195,7 +2198,8 @@ actor \nodoc\ _TestSendHardCloseFromThrottledListener is TCPListenerActor
     _h.fail("listener failed to start")
 
   fun ref _on_listening() =>
-    _client = _TestSendHardCloseFromThrottledClient(_h)
+    let port: String val = _tcp_listener.local_address().port().string()
+    _client = _TestSendHardCloseFromThrottledClient(port, _h)
 
   fun ref _on_closed() =>
     try (_client as _TestSendHardCloseFromThrottledClient).dispose() end
@@ -2206,13 +2210,13 @@ actor \nodoc\ _TestSendHardCloseFromThrottledClient
   var _tcp_connection: TCPConnection = TCPConnection.none()
   let _h: TestHelper
 
-  new create(h: TestHelper) =>
+  new create(port: String, h: TestHelper) =>
     _h = h
     _tcp_connection =
       TCPConnection.client(
         TCPConnectAuth(_h.env.root),
         ifdef linux then "127.0.0.2" else "localhost" end,
-        "9782",
+        port,
         "",
         this,
         this)
@@ -2322,7 +2326,6 @@ class \nodoc\ iso _TestSendSSLHardCloseFromThrottled is UnitTest
   fun name(): String => "net/SendSSLHardCloseFromThrottled"
 
   fun apply(h: TestHelper) ? =>
-    let port = "9783"
     let file_auth = FileAuth(h.env.root)
     let sslctx =
       recover
@@ -2342,12 +2345,11 @@ class \nodoc\ iso _TestSendSSLHardCloseFromThrottled is UnitTest
 
     let listener =
       _TestSendSSLHardCloseFromThrottledListener(
-        port, consume sslctx, h)
+        consume sslctx, h)
     h.dispose_when_done(listener)
     h.long_test(30_000_000_000)
 
 actor \nodoc\ _TestSendSSLHardCloseFromThrottledListener is TCPListenerActor
-  let _port: String
   let _sslctx: SSLContext val
   var _tcp_listener: TCPListener = TCPListener.none()
   let _h: TestHelper
@@ -2355,15 +2357,14 @@ actor \nodoc\ _TestSendSSLHardCloseFromThrottledListener is TCPListenerActor
     Array[_TestSendSSLHardCloseFromThrottledServer]
   var _client: (_TestSendSSLHardCloseFromThrottledClient | None) = None
 
-  new create(port: String, sslctx: SSLContext val, h: TestHelper) =>
-    _port = port
+  new create(sslctx: SSLContext val, h: TestHelper) =>
     _sslctx = sslctx
     _h = h
     _tcp_listener =
       TCPListener(
         TCPListenAuth(_h.env.root),
         "localhost",
-        _port,
+        "0",
         this)
 
   fun ref _listener(): TCPListener =>
@@ -2379,7 +2380,8 @@ actor \nodoc\ _TestSendSSLHardCloseFromThrottledListener is TCPListenerActor
     for server in _servers.values() do server.dispose() end
 
   fun ref _on_listening() =>
-    _client = _TestSendSSLHardCloseFromThrottledClient(_port, _sslctx, _h)
+    let port: String val = _tcp_listener.local_address().port().string()
+    _client = _TestSendSSLHardCloseFromThrottledClient(port, _sslctx, _h)
 
   fun ref _on_listen_failure() =>
     _h.fail("Unable to open _TestSendSSLHardCloseFromThrottledListener")
@@ -2534,7 +2536,7 @@ actor \nodoc\ _TestSendDeliveredListener is TCPListenerActor
       TCPListener(
         TCPListenAuth(_h.env.root),
         ifdef linux then "127.0.0.2" else "localhost" end,
-        "9787",
+        "0",
         this)
 
   fun ref _listener(): TCPListener =>
@@ -2549,7 +2551,8 @@ actor \nodoc\ _TestSendDeliveredListener is TCPListenerActor
     _h.fail("listener failed to start")
 
   fun ref _on_listening() =>
-    _client = _TestSendDeliveredClient(_h, this)
+    let port: String val = _tcp_listener.local_address().port().string()
+    _client = _TestSendDeliveredClient(port, _h, this)
 
   fun ref _on_closed() =>
     try (_client as _TestSendDeliveredClient).dispose() end
@@ -2568,14 +2571,18 @@ actor \nodoc\ _TestSendDeliveredClient
   let _listener: _TestSendDeliveredListener
   var _total_received: USize = 0
 
-  new create(h: TestHelper, listener: _TestSendDeliveredListener) =>
+  new create(
+    port: String,
+    h: TestHelper,
+    listener: _TestSendDeliveredListener)
+  =>
     _h = h
     _listener = listener
     _tcp_connection =
       TCPConnection.client(
         TCPConnectAuth(_h.env.root),
         ifdef linux then "127.0.0.2" else "localhost" end,
-        "9787",
+        port,
         "",
         this,
         this)
@@ -2751,7 +2758,7 @@ actor \nodoc\ _TestSendAcceptedBeforeSentListener is TCPListenerActor
       TCPListener(
         TCPListenAuth(_h.env.root),
         "localhost",
-        "7922",
+        "0",
         this)
 
   fun ref _listener(): TCPListener =>
@@ -2767,8 +2774,9 @@ actor \nodoc\ _TestSendAcceptedBeforeSentListener is TCPListenerActor
     for server in _servers.values() do server.dispose() end
 
   fun ref _on_listening() =>
+    let port: String val = _tcp_listener.local_address().port().string()
     _h.complete_action("server listening")
-    _client = _TestSendAcceptedBeforeSentClient(_h)
+    _client = _TestSendAcceptedBeforeSentClient(port, _h)
 
   fun ref _on_listen_failure() =>
     _h.fail("Unable to open _TestSendAcceptedBeforeSentListener")
@@ -2780,13 +2788,13 @@ actor \nodoc\ _TestSendAcceptedBeforeSentClient
   embed _accepted: Array[USize] = _accepted.create()
   embed _sent: Array[USize] = _sent.create()
 
-  new create(h: TestHelper) =>
+  new create(port: String, h: TestHelper) =>
     _h = h
     _tcp_connection =
       TCPConnection.client(
         TCPConnectAuth(_h.env.root),
         "localhost",
-        "7922",
+        port,
         "",
         this,
         this)
@@ -2891,7 +2899,7 @@ actor \nodoc\ _TestSendCloseFromAcceptedListener is TCPListenerActor
       TCPListener(
         TCPListenAuth(_h.env.root),
         ifdef linux then "127.0.0.2" else "127.0.0.1" end,
-        "7923",
+        "0",
         this)
 
   fun ref _listener(): TCPListener =>
@@ -2907,7 +2915,8 @@ actor \nodoc\ _TestSendCloseFromAcceptedListener is TCPListenerActor
     for server in _servers.values() do server.dispose() end
 
   fun ref _on_listening() =>
-    _client = _TestSendCloseFromAcceptedClient(_h)
+    let port: String val = _tcp_listener.local_address().port().string()
+    _client = _TestSendCloseFromAcceptedClient(port, _h)
 
   fun ref _on_listen_failure() =>
     _h.fail("Unable to open _TestSendCloseFromAcceptedListener")
@@ -2917,13 +2926,13 @@ actor \nodoc\ _TestSendCloseFromAcceptedClient
   var _tcp_connection: TCPConnection = TCPConnection.none()
   let _h: TestHelper
 
-  new create(h: TestHelper) =>
+  new create(port: String, h: TestHelper) =>
     _h = h
     _tcp_connection =
       TCPConnection.client(
         TCPConnectAuth(_h.env.root),
         ifdef linux then "127.0.0.2" else "127.0.0.1" end,
-        "7923",
+        port,
         "",
         this,
         this)
@@ -3019,7 +3028,7 @@ actor \nodoc\ _TestSendCloseFromSentListener is TCPListenerActor
       TCPListener(
         TCPListenAuth(_h.env.root),
         ifdef linux then "127.0.0.2" else "127.0.0.1" end,
-        "7924",
+        "0",
         this)
 
   fun ref _listener(): TCPListener =>
@@ -3035,7 +3044,8 @@ actor \nodoc\ _TestSendCloseFromSentListener is TCPListenerActor
     for server in _servers.values() do server.dispose() end
 
   fun ref _on_listening() =>
-    _client = _TestSendCloseFromSentClient(_h)
+    let port: String val = _tcp_listener.local_address().port().string()
+    _client = _TestSendCloseFromSentClient(port, _h)
 
   fun ref _on_listen_failure() =>
     _h.fail("Unable to open _TestSendCloseFromSentListener")
@@ -3045,13 +3055,13 @@ actor \nodoc\ _TestSendCloseFromSentClient
   var _tcp_connection: TCPConnection = TCPConnection.none()
   let _h: TestHelper
 
-  new create(h: TestHelper) =>
+  new create(port: String, h: TestHelper) =>
     _h = h
     _tcp_connection =
       TCPConnection.client(
         TCPConnectAuth(_h.env.root),
         ifdef linux then "127.0.0.2" else "127.0.0.1" end,
-        "7924",
+        port,
         "",
         this,
         this)
@@ -3143,7 +3153,7 @@ actor \nodoc\ _TestSendHardCloseFromAcceptedListener is TCPListenerActor
       TCPListener(
         TCPListenAuth(_h.env.root),
         "localhost",
-        "7925",
+        "0",
         this)
 
   fun ref _listener(): TCPListener =>
@@ -3159,7 +3169,8 @@ actor \nodoc\ _TestSendHardCloseFromAcceptedListener is TCPListenerActor
     for server in _servers.values() do server.dispose() end
 
   fun ref _on_listening() =>
-    _client = _TestSendHardCloseFromAcceptedClient(_h)
+    let port: String val = _tcp_listener.local_address().port().string()
+    _client = _TestSendHardCloseFromAcceptedClient(port, _h)
 
   fun ref _on_listen_failure() =>
     _h.fail("Unable to open _TestSendHardCloseFromAcceptedListener")
@@ -3171,13 +3182,13 @@ actor \nodoc\ _TestSendHardCloseFromAcceptedClient
   var _token: (SendToken | None) = None
   var _closed: Bool = false
 
-  new create(h: TestHelper) =>
+  new create(port: String, h: TestHelper) =>
     _h = h
     _tcp_connection =
       TCPConnection.client(
         TCPConnectAuth(_h.env.root),
         "localhost",
-        "7925",
+        port,
         "",
         this,
         this)
@@ -3255,7 +3266,7 @@ actor \nodoc\ _TestSendReentrantFromSentListener is TCPListenerActor
       TCPListener(
         TCPListenAuth(_h.env.root),
         "localhost",
-        "7926",
+        "0",
         this)
 
   fun ref _listener(): TCPListener =>
@@ -3271,7 +3282,8 @@ actor \nodoc\ _TestSendReentrantFromSentListener is TCPListenerActor
     for server in _servers.values() do server.dispose() end
 
   fun ref _on_listening() =>
-    _client = _TestSendReentrantFromSentClient(_h)
+    let port: String val = _tcp_listener.local_address().port().string()
+    _client = _TestSendReentrantFromSentClient(port, _h)
 
   fun ref _on_listen_failure() =>
     _h.fail("Unable to open _TestSendReentrantFromSentListener")
@@ -3284,13 +3296,13 @@ actor \nodoc\ _TestSendReentrantFromSentClient
   var _issued: USize = 0
   var _next_expected: USize = 1
 
-  new create(h: TestHelper) =>
+  new create(port: String, h: TestHelper) =>
     _h = h
     _tcp_connection =
       TCPConnection.client(
         TCPConnectAuth(_h.env.root),
         "localhost",
-        "7926",
+        port,
         "",
         this,
         this)
@@ -3370,7 +3382,7 @@ actor \nodoc\ _TestSendOnSentPrecedesListener is TCPListenerActor
       TCPListener(
         TCPListenAuth(_h.env.root),
         ifdef linux then "127.0.0.2" else "localhost" end,
-        "7927",
+        "0",
         this)
 
   fun ref _listener(): TCPListener =>
@@ -3385,7 +3397,8 @@ actor \nodoc\ _TestSendOnSentPrecedesListener is TCPListenerActor
     _h.fail("listener failed to start")
 
   fun ref _on_listening() =>
-    _client = _TestSendOnSentPrecedesClient(_h)
+    let port: String val = _tcp_listener.local_address().port().string()
+    _client = _TestSendOnSentPrecedesClient(port, _h)
 
   fun ref _on_closed() =>
     try (_client as _TestSendOnSentPrecedesClient).dispose() end
@@ -3396,13 +3409,13 @@ actor \nodoc\ _TestSendOnSentPrecedesClient
   var _tcp_connection: TCPConnection = TCPConnection.none()
   let _h: TestHelper
 
-  new create(h: TestHelper) =>
+  new create(port: String, h: TestHelper) =>
     _h = h
     _tcp_connection =
       TCPConnection.client(
         TCPConnectAuth(_h.env.root),
         ifdef linux then "127.0.0.2" else "localhost" end,
-        "7927",
+        port,
         "",
         this,
         this)
@@ -3559,7 +3572,7 @@ actor \nodoc\ _TestSendThrottleSuppressedListener is TCPListenerActor
       TCPListener(
         TCPListenAuth(_h.env.root),
         ifdef linux then "127.0.0.2" else "localhost" end,
-        "7928",
+        "0",
         this)
 
   fun ref _listener(): TCPListener =>
@@ -3574,7 +3587,8 @@ actor \nodoc\ _TestSendThrottleSuppressedListener is TCPListenerActor
     _h.fail("listener failed to start")
 
   fun ref _on_listening() =>
-    _client = _TestSendThrottleSuppressedClient(_h)
+    let port: String val = _tcp_listener.local_address().port().string()
+    _client = _TestSendThrottleSuppressedClient(port, _h)
 
   fun ref _on_closed() =>
     try (_client as _TestSendThrottleSuppressedClient).dispose() end
@@ -3585,13 +3599,13 @@ actor \nodoc\ _TestSendThrottleSuppressedClient
   var _tcp_connection: TCPConnection = TCPConnection.none()
   let _h: TestHelper
 
-  new create(h: TestHelper) =>
+  new create(port: String, h: TestHelper) =>
     _h = h
     _tcp_connection =
       TCPConnection.client(
         TCPConnectAuth(_h.env.root),
         ifdef linux then "127.0.0.2" else "localhost" end,
-        "7928",
+        port,
         "",
         this,
         this)
@@ -3735,7 +3749,7 @@ actor \nodoc\ _TestSendKeepsDeliveredListener is TCPListenerActor
       TCPListener(
         TCPListenAuth(_h.env.root),
         "localhost",
-        "7929",
+        "0",
         this)
 
   fun ref _listener(): TCPListener =>
@@ -3751,7 +3765,8 @@ actor \nodoc\ _TestSendKeepsDeliveredListener is TCPListenerActor
     for server in _servers.values() do server.dispose() end
 
   fun ref _on_listening() =>
-    _client = _TestSendKeepsDeliveredClient(_h)
+    let port: String val = _tcp_listener.local_address().port().string()
+    _client = _TestSendKeepsDeliveredClient(port, _h)
 
   fun ref _on_listen_failure() =>
     _h.fail("Unable to open _TestSendKeepsDeliveredListener")
@@ -3764,13 +3779,13 @@ actor \nodoc\ _TestSendKeepsDeliveredClient
   var _closed: Bool = false
   embed _sent: Array[USize] = _sent.create()
 
-  new create(h: TestHelper) =>
+  new create(port: String, h: TestHelper) =>
     _h = h
     _tcp_connection =
       TCPConnection.client(
         TCPConnectAuth(_h.env.root),
         "localhost",
-        "7929",
+        port,
         "",
         this,
         this)
@@ -3879,7 +3894,7 @@ actor \nodoc\ _TestSendPrecedesReceivedListener is TCPListenerActor
       TCPListener(
         TCPListenAuth(_h.env.root),
         "localhost",
-        "7930",
+        "0",
         this)
 
   fun ref _listener(): TCPListener =>
@@ -3895,7 +3910,8 @@ actor \nodoc\ _TestSendPrecedesReceivedListener is TCPListenerActor
     for server in _servers.values() do server.dispose() end
 
   fun ref _on_listening() =>
-    _client = _TestSendPrecedesReceivedClient(_h)
+    let port: String val = _tcp_listener.local_address().port().string()
+    _client = _TestSendPrecedesReceivedClient(port, _h)
 
   fun ref _on_listen_failure() =>
     _h.fail("Unable to open _TestSendPrecedesReceivedListener")
@@ -3905,13 +3921,13 @@ actor \nodoc\ _TestSendPrecedesReceivedClient
   var _tcp_connection: TCPConnection = TCPConnection.none()
   let _h: TestHelper
 
-  new create(h: TestHelper) =>
+  new create(port: String, h: TestHelper) =>
     _h = h
     _tcp_connection =
       TCPConnection.client(
         TCPConnectAuth(_h.env.root),
         "localhost",
-        "7930",
+        port,
         "",
         this,
         this)

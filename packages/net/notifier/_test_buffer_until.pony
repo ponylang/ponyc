@@ -15,7 +15,7 @@ class \nodoc\ iso _TestNotifierBufferUntil is UnitTest
         net.TCPListenAuth(h.env.root),
         recover _TestNBUListenNotify(h) end,
         "localhost",
-        "9803")
+        "0")
     h.dispose_when_done(listener)
 
     h.long_test(5_000_000_000)
@@ -83,12 +83,13 @@ class \nodoc\ _TestNBUListenNotify is TCPListenNotify
 
   fun ref on_listening(listen: TCPListener ref) =>
     _h.complete_action("server listening")
+    let port: String val = listen.local_address().port().string()
     let client =
       ClientTCPConnection(
         net.TCPConnectAuth(_h.env.root),
         recover _TestNBUClientNotify(_h) end,
         "localhost",
-        "9803")
+        port)
     _h.dispose_when_done(client)
 
   fun ref on_not_listening(listen: TCPListener ref) =>
