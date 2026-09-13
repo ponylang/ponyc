@@ -232,6 +232,25 @@ primitive ConfigParser
               line_num, "dep name must be a single token")
           end
 
+          if (name_val == ".") or (name_val == "..") then
+            return ConfigError._create(
+              line_num, "dep name must not be '.' or '..'")
+          end
+
+          var ni: USize = 0
+          while ni < name_val.size() do
+            let nc =
+              try name_val(ni)?
+              else _Unreachable(); return ConfigError._create(0, "")
+              end
+            if (nc == '/') or (nc == '\\') or (nc == 0) then
+              return ConfigError._create(
+                line_num,
+                "dep name contains invalid character")
+            end
+            ni = ni + 1
+          end
+
           for existing in dep_names.values() do
             if existing == name_val then
               return ConfigError._create(

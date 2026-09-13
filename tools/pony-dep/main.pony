@@ -32,10 +32,10 @@ actor Main
               ])?
             CommandSpec.leaf(
               "fetch",
-              "Download and extract a package archive from a URL",
+              "Fetch all dependencies from a config file",
               [],
               [
-                ArgSpec.string("url")
+                ArgSpec.string("config-file")
                 ArgSpec.string("directory")
               ])?
             CommandSpec.leaf(
@@ -91,10 +91,10 @@ actor Main
         env.exitcode(1)
       end
     | "fetch" =>
-      Fetch(
+      FetchAll(
         env,
-        _FetchHandler(env),
-        cmd.arg("url").string(),
+        _FetchAllHandler(env),
+        cmd.arg("config-file").string(),
         cmd.arg("directory").string())
     | "add" => _not_implemented(env, "add")
     | "remove" => _not_implemented(env, "remove")

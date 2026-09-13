@@ -21,11 +21,17 @@ primitive FetchExtractionFailed
   decoded.
   """
 
+primitive FetchIdleTimeout
+  """
+  No data arrived for 60 seconds during an active download.
+  """
+
 type FetchErrorKind is
   ( FetchInvalidURL
   | FetchConnectionFailed
   | FetchHTTPError
-  | FetchExtractionFailed )
+  | FetchExtractionFailed
+  | FetchIdleTimeout )
 
 class val FetchError
   """

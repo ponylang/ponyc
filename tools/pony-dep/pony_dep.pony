@@ -10,7 +10,8 @@ without a solver. Use `ConfigParser` to parse a `pony.deps` file into a
 **Subcommands:**
 
 - `pack` — create an archive from a project's source for distribution.
-- `fetch` — download and extract a package archive from a URL.
+- `fetch` — read a `pony.deps` config file and fetch all dependencies
+  whose target directories are not already present.
 - `add` — fetch a dependency, compute its content hash, and record it in
   the configuration file.
 - `remove` — remove a dependency's configuration entry and its placed files.
