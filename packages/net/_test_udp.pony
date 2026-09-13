@@ -247,17 +247,17 @@ actor \nodoc\ _TestUDPBindFailureActor[UDP: UDPBackend ref]
   fun ref _on_bind_failure() =>
     _h.complete(true)
 
-class \nodoc\ iso _TestUDPFakeSendOk is UnitTest
+class \nodoc\ iso _TestUDPSendOk is UnitTest
   """
   send_to returns SendToOk when the backend's sendto returns Ok.
   """
-  fun name(): String => "net/UDPFakeSendOk"
+  fun name(): String => "net/UDPSendOk"
 
   fun apply(h: TestHelper) =>
     h.long_test(2_000_000_000)
-    _TestUDPFakeSendOkActor[_FBUDPSendOk](h)
+    _TestUDPSendOkActor[_FBUDPSendOk](h)
 
-actor \nodoc\ _TestUDPFakeSendOkActor[UDP: UDPBackend ref]
+actor \nodoc\ _TestUDPSendOkActor[UDP: UDPBackend ref]
   is (UDPSocketActor[UDP] & UDPLifecycleEventReceiver[UDP])
   var _udp: UDPSocket[UDP] = UDPSocket[UDP].none()
   let _h: TestHelper
@@ -285,17 +285,17 @@ actor \nodoc\ _TestUDPFakeSendOkActor[UDP: UDPBackend ref]
   fun ref _on_closed() =>
     _h.complete(true)
 
-class \nodoc\ iso _TestUDPFakeSendWouldBlock is UnitTest
+class \nodoc\ iso _TestUDPSendWouldBlock is UnitTest
   """
   send_to returns SendToWouldBlock when the backend's sendto returns Retry.
   """
-  fun name(): String => "net/UDPFakeSendWouldBlock"
+  fun name(): String => "net/UDPSendWouldBlock"
 
   fun apply(h: TestHelper) =>
     h.long_test(2_000_000_000)
-    _TestUDPFakeSendWouldBlockActor[_FBUDPSendWouldBlock](h)
+    _TestUDPSendWouldBlockActor[_FBUDPSendWouldBlock](h)
 
-actor \nodoc\ _TestUDPFakeSendWouldBlockActor[UDP: UDPBackend ref]
+actor \nodoc\ _TestUDPSendWouldBlockActor[UDP: UDPBackend ref]
   is (UDPSocketActor[UDP] & UDPLifecycleEventReceiver[UDP])
   var _udp: UDPSocket[UDP] = UDPSocket[UDP].none()
   let _h: TestHelper
@@ -323,17 +323,17 @@ actor \nodoc\ _TestUDPFakeSendWouldBlockActor[UDP: UDPBackend ref]
   fun ref _on_closed() =>
     _h.complete(true)
 
-class \nodoc\ iso _TestUDPFakeSendError is UnitTest
+class \nodoc\ iso _TestUDPSendError is UnitTest
   """
   send_to returns SendToError when the backend's sendto returns Error.
   """
-  fun name(): String => "net/UDPFakeSendError"
+  fun name(): String => "net/UDPSendError"
 
   fun apply(h: TestHelper) =>
     h.long_test(2_000_000_000)
-    _TestUDPFakeSendErrorActor[_FBUDPSendError](h)
+    _TestUDPSendErrorActor[_FBUDPSendError](h)
 
-actor \nodoc\ _TestUDPFakeSendErrorActor[UDP: UDPBackend ref]
+actor \nodoc\ _TestUDPSendErrorActor[UDP: UDPBackend ref]
   is (UDPSocketActor[UDP] & UDPLifecycleEventReceiver[UDP])
   var _udp: UDPSocket[UDP] = UDPSocket[UDP].none()
   let _h: TestHelper
@@ -361,17 +361,17 @@ actor \nodoc\ _TestUDPFakeSendErrorActor[UDP: UDPBackend ref]
   fun ref _on_closed() =>
     _h.complete(true)
 
-class \nodoc\ iso _TestUDPFakeSendNotOpen is UnitTest
+class \nodoc\ iso _TestUDPSendNotOpen is UnitTest
   """
   send_to returns SendToNotOpen when the socket is closed.
   """
-  fun name(): String => "net/UDPFakeSendNotOpen"
+  fun name(): String => "net/UDPSendNotOpen"
 
   fun apply(h: TestHelper) =>
     h.long_test(2_000_000_000)
-    _TestUDPFakeSendNotOpenActor[_FBUDPSendOk](h)
+    _TestUDPSendNotOpenActor[_FBUDPSendOk](h)
 
-actor \nodoc\ _TestUDPFakeSendNotOpenActor[UDP: UDPBackend ref]
+actor \nodoc\ _TestUDPSendNotOpenActor[UDP: UDPBackend ref]
   is (UDPSocketActor[UDP] & UDPLifecycleEventReceiver[UDP])
   var _udp: UDPSocket[UDP] = UDPSocket[UDP].none()
   let _h: TestHelper
@@ -399,17 +399,17 @@ actor \nodoc\ _TestUDPFakeSendNotOpenActor[UDP: UDPBackend ref]
       _h.complete(false)
     end
 
-class \nodoc\ iso _TestUDPFakeRecvData is UnitTest
+class \nodoc\ iso _TestUDPRecvData is UnitTest
   """
   _on_received delivers data from recvfrom.
   """
-  fun name(): String => "net/UDPFakeRecvData"
+  fun name(): String => "net/UDPRecvData"
 
   fun apply(h: TestHelper) =>
     h.long_test(2_000_000_000)
-    _TestUDPFakeRecvDataActor[_FBUDPRecvHello](h)
+    _TestUDPRecvDataActor[_FBUDPRecvHello](h)
 
-actor \nodoc\ _TestUDPFakeRecvDataActor[UDP: UDPBackend ref]
+actor \nodoc\ _TestUDPRecvDataActor[UDP: UDPBackend ref]
   is (UDPSocketActor[UDP] & UDPLifecycleEventReceiver[UDP])
   var _udp: UDPSocket[UDP] = UDPSocket[UDP].none()
   let _h: TestHelper
@@ -438,17 +438,17 @@ actor \nodoc\ _TestUDPFakeRecvDataActor[UDP: UDPBackend ref]
   fun ref _on_closed() =>
     _h.complete(true)
 
-class \nodoc\ iso _TestUDPFakeCloseFromReceived is UnitTest
+class \nodoc\ iso _TestUDPCloseFromReceived is UnitTest
   """
   Closing from _on_received stops the read loop immediately.
   """
-  fun name(): String => "net/UDPFakeCloseFromReceived"
+  fun name(): String => "net/UDPCloseFromReceived"
 
   fun apply(h: TestHelper) =>
     h.long_test(2_000_000_000)
-    _TestUDPFakeCloseFromReceivedActor[_FBUDPRecvAlways](h)
+    _TestUDPCloseFromReceivedActor[_FBUDPRecvAlways](h)
 
-actor \nodoc\ _TestUDPFakeCloseFromReceivedActor[UDP: UDPBackend ref]
+actor \nodoc\ _TestUDPCloseFromReceivedActor[UDP: UDPBackend ref]
   is (UDPSocketActor[UDP] & UDPLifecycleEventReceiver[UDP])
   var _udp: UDPSocket[UDP] = UDPSocket[UDP].none()
   let _h: TestHelper
@@ -657,18 +657,18 @@ class \nodoc\ _FBUDPRecvAlways is UDPBackend
 
   fun ref sockname(fd: U32, ip: NetAddress tag): Bool => false
 
-class \nodoc\ iso _TestUDPFakeRecvError is UnitTest
+class \nodoc\ iso _TestUDPRecvError is UnitTest
   """
   recvfrom returning SocketResultError exits the read loop and defers to
   _read_again. The socket stays open.
   """
-  fun name(): String => "net/UDPFakeRecvError"
+  fun name(): String => "net/UDPRecvError"
 
   fun apply(h: TestHelper) =>
     h.long_test(2_000_000_000)
-    _TestUDPFakeRecvErrorActor[_FBUDPRecvError](h)
+    _TestUDPRecvErrorActor[_FBUDPRecvError](h)
 
-actor \nodoc\ _TestUDPFakeRecvErrorActor[UDP: UDPBackend ref]
+actor \nodoc\ _TestUDPRecvErrorActor[UDP: UDPBackend ref]
   is (UDPSocketActor[UDP] & UDPLifecycleEventReceiver[UDP])
   var _udp: UDPSocket[UDP] = UDPSocket[UDP].none()
   let _h: TestHelper
@@ -703,18 +703,18 @@ actor \nodoc\ _TestUDPFakeRecvErrorActor[UDP: UDPBackend ref]
     _h.assert_true(_read_again_called)
     _h.complete(true)
 
-class \nodoc\ iso _TestUDPFakeYieldReading is UnitTest
+class \nodoc\ iso _TestUDPYieldReading is UnitTest
   """
   Returning YieldReading from _on_received stops the read loop and defers
   to _read_again.
   """
-  fun name(): String => "net/UDPFakeYieldReading"
+  fun name(): String => "net/UDPYieldReading"
 
   fun apply(h: TestHelper) =>
     h.long_test(2_000_000_000)
-    _TestUDPFakeYieldReadingActor[_FBUDPRecvAlways](h)
+    _TestUDPYieldReadingActor[_FBUDPRecvAlways](h)
 
-actor \nodoc\ _TestUDPFakeYieldReadingActor[UDP: UDPBackend ref]
+actor \nodoc\ _TestUDPYieldReadingActor[UDP: UDPBackend ref]
   is (UDPSocketActor[UDP] & UDPLifecycleEventReceiver[UDP])
   var _udp: UDPSocket[UDP] = UDPSocket[UDP].none()
   let _h: TestHelper
@@ -751,18 +751,18 @@ actor \nodoc\ _TestUDPFakeYieldReadingActor[UDP: UDPBackend ref]
     _h.assert_true(_read_again_called)
     _h.complete(true)
 
-class \nodoc\ iso _TestUDPFakeBudget is UnitTest
+class \nodoc\ iso _TestUDPBudget is UnitTest
   """
   The datagram-count budget stops the read loop after max_datagrams_per_turn
   datagrams and defers to _read_again.
   """
-  fun name(): String => "net/UDPFakeBudget"
+  fun name(): String => "net/UDPBudget"
 
   fun apply(h: TestHelper) =>
     h.long_test(2_000_000_000)
-    _TestUDPFakeBudgetActor[_FBUDPRecvAlways](h)
+    _TestUDPBudgetActor[_FBUDPRecvAlways](h)
 
-actor \nodoc\ _TestUDPFakeBudgetActor[UDP: UDPBackend ref]
+actor \nodoc\ _TestUDPBudgetActor[UDP: UDPBackend ref]
   is (UDPSocketActor[UDP] & UDPLifecycleEventReceiver[UDP])
   var _udp: UDPSocket[UDP] = UDPSocket[UDP].none()
   let _h: TestHelper

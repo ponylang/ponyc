@@ -672,22 +672,22 @@ actor \nodoc\ _TestHardCloseAfterFramedReceiveServer
 // ===========================================================================
 // Fake-backend receive tests (no real sockets for I/O)
 // ===========================================================================
-class \nodoc\ iso _TestFakeRecvError is UnitTest
+class \nodoc\ iso _TestRecvError is UnitTest
   """
   receive returns error. Verify: _on_closed fires (hard close from receive
   error). _on_received does not fire.
   """
-  fun name(): String => "net/FakeRecvError"
+  fun name(): String => "net/RecvError"
 
   fun apply(h: TestHelper) =>
     h.expect_action("on_closed")
 
-    let a = _TestFakeRecvErrorActor(h)
+    let a = _TestRecvErrorActor(h)
     h.dispose_when_done(a)
 
     h.long_test(5_000_000_000)
 
-actor \nodoc\ _TestFakeRecvErrorActor
+actor \nodoc\ _TestRecvErrorActor
   is (TCPConnectionActor[_FBSendOkRecvError]
     & ServerLifecycleEventReceiver[_FBSendOkRecvError])
   var _tcp_connection: TCPConnection[_FBSendOkRecvError] =
@@ -726,22 +726,22 @@ actor \nodoc\ _TestFakeRecvErrorActor
   be dispose() =>
     _tcp_connection.hard_close()
 
-class \nodoc\ iso _TestFakeRecvRetry is UnitTest
+class \nodoc\ iso _TestRecvRetry is UnitTest
   """
   receive returns retry. Verify: _on_received does not fire. The connection
   waits for the next readable event.
   """
-  fun name(): String => "net/FakeRecvRetry"
+  fun name(): String => "net/RecvRetry"
 
   fun apply(h: TestHelper) =>
     h.expect_action("started")
 
-    let a = _TestFakeRecvRetryActor(h)
+    let a = _TestRecvRetryActor(h)
     h.dispose_when_done(a)
 
     h.long_test(5_000_000_000)
 
-actor \nodoc\ _TestFakeRecvRetryActor
+actor \nodoc\ _TestRecvRetryActor
   is (TCPConnectionActor[_FBSendOkRecvRetry]
     & ServerLifecycleEventReceiver[_FBSendOkRecvRetry])
   var _tcp_connection: TCPConnection[_FBSendOkRecvRetry] =
@@ -781,22 +781,22 @@ actor \nodoc\ _TestFakeRecvRetryActor
   be dispose() =>
     _tcp_connection.hard_close()
 
-class \nodoc\ iso _TestFakeRecvData is UnitTest
+class \nodoc\ iso _TestRecvData is UnitTest
   """
   receive delivers "hello" on the first call, then retries. Verify:
   _on_received fires with "hello".
   """
-  fun name(): String => "net/FakeRecvData"
+  fun name(): String => "net/RecvData"
 
   fun apply(h: TestHelper) =>
     h.expect_action("received_hello")
 
-    let a = _TestFakeRecvDataActor(h)
+    let a = _TestRecvDataActor(h)
     h.dispose_when_done(a)
 
     h.long_test(5_000_000_000)
 
-actor \nodoc\ _TestFakeRecvDataActor
+actor \nodoc\ _TestRecvDataActor
   is (TCPConnectionActor[_FBSendOkRecvHello]
     & ServerLifecycleEventReceiver[_FBSendOkRecvHello])
   var _tcp_connection: TCPConnection[_FBSendOkRecvHello] =
@@ -838,22 +838,22 @@ actor \nodoc\ _TestFakeRecvDataActor
   be dispose() =>
     _tcp_connection.hard_close()
 
-class \nodoc\ iso _TestFakeRecvFramed is UnitTest
+class \nodoc\ iso _TestRecvFramed is UnitTest
   """
   receive delivers 10 bytes, buffer_until(4). Verify: _on_received fires
   twice with 4 bytes each.
   """
-  fun name(): String => "net/FakeRecvFramed"
+  fun name(): String => "net/RecvFramed"
 
   fun apply(h: TestHelper) =>
     h.expect_action("received_two_frames")
 
-    let a = _TestFakeRecvFramedActor(h)
+    let a = _TestRecvFramedActor(h)
     h.dispose_when_done(a)
 
     h.long_test(5_000_000_000)
 
-actor \nodoc\ _TestFakeRecvFramedActor
+actor \nodoc\ _TestRecvFramedActor
   is (TCPConnectionActor[_FBSendOkRecv10]
     & ServerLifecycleEventReceiver[_FBSendOkRecv10])
   var _tcp_connection: TCPConnection[_FBSendOkRecv10] =
@@ -901,22 +901,22 @@ actor \nodoc\ _TestFakeRecvFramedActor
   be dispose() =>
     _tcp_connection.hard_close()
 
-class \nodoc\ iso _TestFakeMute is UnitTest
+class \nodoc\ iso _TestMuteFromRecv is UnitTest
   """
   mute() before read loop runs prevents _on_received from firing. unmute()
   resumes delivery via _read_again.
   """
-  fun name(): String => "net/FakeMute"
+  fun name(): String => "net/MuteFromRecv"
 
   fun apply(h: TestHelper) =>
     h.expect_action("received_after_unmute")
 
-    let a = _TestFakeMuteActor(h)
+    let a = _TestMuteFromRecvActor(h)
     h.dispose_when_done(a)
 
     h.long_test(5_000_000_000)
 
-actor \nodoc\ _TestFakeMuteActor
+actor \nodoc\ _TestMuteFromRecvActor
   is (TCPConnectionActor[_FBSendOkRecvHelloMute]
     & ServerLifecycleEventReceiver[_FBSendOkRecvHelloMute])
   var _tcp_connection: TCPConnection[_FBSendOkRecvHelloMute] =
@@ -966,23 +966,23 @@ actor \nodoc\ _TestFakeMuteActor
   be dispose() =>
     _tcp_connection.hard_close()
 
-class \nodoc\ iso _TestFakeMuteFullBuffer is UnitTest
+class \nodoc\ iso _TestMuteFullBuffer is UnitTest
   """
   Muting from `_on_received` when the read buffer is full must not close the
   connection. The read loop checks `_muted` before calling `_fill()`, so a
   full buffer with nothing to read into is never reached.
   """
-  fun name(): String => "net/FakeMuteFullBuffer"
+  fun name(): String => "net/MuteFullBuffer"
 
   fun apply(h: TestHelper) =>
     h.expect_action("survived_mute")
 
-    let a = _TestFakeMuteFullBufferActor(h)
+    let a = _TestMuteFullBufferActor(h)
     h.dispose_when_done(a)
 
     h.long_test(5_000_000_000)
 
-actor \nodoc\ _TestFakeMuteFullBufferActor
+actor \nodoc\ _TestMuteFullBufferActor
   is (TCPConnectionActor[_FBSendOkRecvFillBuffer]
     & ServerLifecycleEventReceiver[_FBSendOkRecvFillBuffer])
   var _tcp_connection: TCPConnection[_FBSendOkRecvFillBuffer] =
@@ -1062,22 +1062,22 @@ actor \nodoc\ _TestFakeMuteFullBufferActor
   be dispose() =>
     _tcp_connection.hard_close()
 
-class \nodoc\ iso _TestFakeYieldReading is UnitTest
+class \nodoc\ iso _TestYieldReading is UnitTest
   """
   _on_received returns YieldReading. Verify: no further delivery until
   _read_again runs in a subsequent behavior turn.
   """
-  fun name(): String => "net/FakeYieldReading"
+  fun name(): String => "net/YieldReading"
 
   fun apply(h: TestHelper) =>
     h.expect_action("yielded_then_resumed")
 
-    let a = _TestFakeYieldReadingActor(h)
+    let a = _TestYieldReadingActor(h)
     h.dispose_when_done(a)
 
     h.long_test(5_000_000_000)
 
-actor \nodoc\ _TestFakeYieldReadingActor
+actor \nodoc\ _TestYieldReadingActor
   is (TCPConnectionActor[_FBSendOkRecv10Yield]
     & ServerLifecycleEventReceiver[_FBSendOkRecv10Yield])
   var _tcp_connection: TCPConnection[_FBSendOkRecv10Yield] =
@@ -1133,22 +1133,22 @@ actor \nodoc\ _TestFakeYieldReadingActor
 // ---------------------------------------------------------------------------
 // Client connection fake-backend tests
 // ---------------------------------------------------------------------------
-class \nodoc\ iso _TestFakeConnectDNSFailure is UnitTest
+class \nodoc\ iso _TestConnectDNSFailure is UnitTest
   """
   connect returns 0 (no addresses resolved). _on_connection_failure fires
   with ConnectionFailedDNS.
   """
-  fun name(): String => "net/FakeConnectDNSFailure"
+  fun name(): String => "net/ConnectDNSFailure"
 
   fun apply(h: TestHelper) =>
     h.expect_action("connection_failed_dns")
 
-    let a = _TestFakeConnectDNSFailureActor(h)
+    let a = _TestConnectDNSFailureActor(h)
     h.dispose_when_done(a)
 
     h.long_test(5_000_000_000)
 
-actor \nodoc\ _TestFakeConnectDNSFailureActor
+actor \nodoc\ _TestConnectDNSFailureActor
   is (TCPConnectionActor[_FBConnect0]
     & ClientLifecycleEventReceiver[_FBConnect0])
   var _tcp_connection: TCPConnection[_FBConnect0] =
@@ -1182,22 +1182,22 @@ actor \nodoc\ _TestFakeConnectDNSFailureActor
       _h.complete(false)
     end
 
-class \nodoc\ iso _TestFakeConnectInflight is UnitTest
+class \nodoc\ iso _TestConnectInflight is UnitTest
   """
   connect returns 3 (three inflight attempts). _on_connecting fires with
   count 3.
   """
-  fun name(): String => "net/FakeConnectInflight"
+  fun name(): String => "net/ConnectInflight"
 
   fun apply(h: TestHelper) =>
     h.expect_action("on_connecting_3")
 
-    let a = _TestFakeConnectInflightActor(h)
+    let a = _TestConnectInflightActor(h)
     h.dispose_when_done(a)
 
     h.long_test(5_000_000_000)
 
-actor \nodoc\ _TestFakeConnectInflightActor
+actor \nodoc\ _TestConnectInflightActor
   is (TCPConnectionActor[_FBConnect3]
     & ClientLifecycleEventReceiver[_FBConnect3])
   var _tcp_connection: TCPConnection[_FBConnect3] =
@@ -1233,21 +1233,21 @@ actor \nodoc\ _TestFakeConnectInflightActor
 // ---------------------------------------------------------------------------
 // State machine fake-backend tests
 // ---------------------------------------------------------------------------
-class \nodoc\ iso _TestFakeSendWhileConnecting is UnitTest
+class \nodoc\ iso _TestSendWhileConnecting is UnitTest
   """
   send() in _ClientConnecting returns SendErrorNotConnected.
   """
-  fun name(): String => "net/FakeSendWhileConnecting"
+  fun name(): String => "net/SendWhileConnecting"
 
   fun apply(h: TestHelper) =>
     h.expect_action("send_rejected")
 
-    let a = _TestFakeSendWhileConnectingActor(h)
+    let a = _TestSendWhileConnectingActor(h)
     h.dispose_when_done(a)
 
     h.long_test(5_000_000_000)
 
-actor \nodoc\ _TestFakeSendWhileConnectingActor
+actor \nodoc\ _TestSendWhileConnectingActor
   is (TCPConnectionActor[_FBConnect1]
     & ClientLifecycleEventReceiver[_FBConnect1])
   var _tcp_connection: TCPConnection[_FBConnect1] =
@@ -1283,21 +1283,21 @@ actor \nodoc\ _TestFakeSendWhileConnectingActor
       _h.complete(false)
     end
 
-class \nodoc\ iso _TestFakeSendWhileUnconnectedClosing is UnitTest
+class \nodoc\ iso _TestSendWhileUnconnectedClosing is UnitTest
   """
   send() in _UnconnectedClosing returns SendErrorNotConnected.
   """
-  fun name(): String => "net/FakeSendWhileUnconnectedClosing"
+  fun name(): String => "net/SendWhileUnconnectedClosing"
 
   fun apply(h: TestHelper) =>
     h.expect_action("send_rejected")
 
-    let a = _TestFakeSendWhileUnconnectedClosingActor(h)
+    let a = _TestSendWhileUnconnectedClosingActor(h)
     h.dispose_when_done(a)
 
     h.long_test(5_000_000_000)
 
-actor \nodoc\ _TestFakeSendWhileUnconnectedClosingActor
+actor \nodoc\ _TestSendWhileUnconnectedClosingActor
   is (TCPConnectionActor[_FBConnect1]
     & ClientLifecycleEventReceiver[_FBConnect1])
   var _tcp_connection: TCPConnection[_FBConnect1] =
@@ -1334,22 +1334,22 @@ actor \nodoc\ _TestFakeSendWhileUnconnectedClosingActor
       _h.complete(false)
     end
 
-class \nodoc\ iso _TestFakeHardCloseDuringUnconnectedClosing is UnitTest
+class \nodoc\ iso _TestHardCloseDuringUnconnectedClosing is UnitTest
   """
   hard_close() during _UnconnectedClosing fires _on_connection_failure
   without waiting for stragglers.
   """
-  fun name(): String => "net/FakeHardCloseDuringUnconnectedClosing"
+  fun name(): String => "net/HardCloseDuringUnconnectedClosing"
 
   fun apply(h: TestHelper) =>
     h.expect_action("connection_failed")
 
-    let a = _TestFakeHardCloseDuringUnconnectedClosingActor(h)
+    let a = _TestHardCloseDuringUnconnectedClosingActor(h)
     h.dispose_when_done(a)
 
     h.long_test(5_000_000_000)
 
-actor \nodoc\ _TestFakeHardCloseDuringUnconnectedClosingActor
+actor \nodoc\ _TestHardCloseDuringUnconnectedClosingActor
   is (TCPConnectionActor[_FBConnect2]
     & ClientLifecycleEventReceiver[_FBConnect2])
   var _tcp_connection: TCPConnection[_FBConnect2] =
@@ -1380,7 +1380,7 @@ actor \nodoc\ _TestFakeHardCloseDuringUnconnectedClosingActor
 // ---------------------------------------------------------------------------
 // Listener fake-backend tests
 // ---------------------------------------------------------------------------
-actor \nodoc\ _TestFakeServerStub[TCP: TCPBackend ref]
+actor \nodoc\ _TestServerStub[TCP: TCPBackend ref]
   is (TCPConnectionActor[TCP] & ServerLifecycleEventReceiver[TCP])
   """
   Minimal server connection for listener accept tests. Closes the fd via
@@ -1405,21 +1405,21 @@ actor \nodoc\ _TestFakeServerStub[TCP: TCPBackend ref]
   fun ref _on_started() =>
     _tcp_connection.mute()
 
-class \nodoc\ iso _TestFakeListenFailure is UnitTest
+class \nodoc\ iso _TestListenFailure is UnitTest
   """
   listen returns a null event. _on_listen_failure fires.
   """
-  fun name(): String => "net/FakeListenFailure"
+  fun name(): String => "net/ListenFailure"
 
   fun apply(h: TestHelper) =>
     h.expect_action("listen_failed")
 
-    let a = _TestFakeListenFailureActor(h)
+    let a = _TestListenFailureActor(h)
     h.dispose_when_done(a)
 
     h.long_test(5_000_000_000)
 
-actor \nodoc\ _TestFakeListenFailureActor is TCPListenerActor[_FBListenFail]
+actor \nodoc\ _TestListenFailureActor is TCPListenerActor[_FBListenFail]
   var _tcp_listener: TCPListener[_FBListenFail] =
     TCPListener[_FBListenFail].none()
   let _h: TestHelper
@@ -1436,33 +1436,33 @@ actor \nodoc\ _TestFakeListenFailureActor is TCPListenerActor[_FBListenFail]
   fun ref _listener(): TCPListener[_FBListenFail] =>
     _tcp_listener
 
-  fun ref _on_accept(fd: U32): _TestFakeServerStub[_FBListenFail] ? =>
+  fun ref _on_accept(fd: U32): _TestServerStub[_FBListenFail] ? =>
     _h.fail("_on_accept should not fire")
     error
 
   fun ref _on_listen_failure() =>
     _h.complete_action("listen_failed")
 
-class \nodoc\ iso _TestFakeAccept is UnitTest
+class \nodoc\ iso _TestAccept is UnitTest
   """
   listen succeeds and accept returns one connection. _on_accept fires
   with the fd.
   """
-  fun name(): String => "net/FakeAccept"
+  fun name(): String => "net/Accept"
 
   fun apply(h: TestHelper) =>
     h.expect_action("accepted")
 
-    let a = _TestFakeAcceptActor(h)
+    let a = _TestAcceptActor(h)
     h.dispose_when_done(a)
 
     h.long_test(5_000_000_000)
 
-actor \nodoc\ _TestFakeAcceptActor is TCPListenerActor[_FBListenOk]
+actor \nodoc\ _TestAcceptActor is TCPListenerActor[_FBListenOk]
   var _tcp_listener: TCPListener[_FBListenOk] =
     TCPListener[_FBListenOk].none()
   let _h: TestHelper
-  var _accepted: (_TestFakeServerStub[_FBListenOk] | None) = None
+  var _accepted: (_TestServerStub[_FBListenOk] | None) = None
 
   new create(h: TestHelper) =>
     _h = h
@@ -1476,8 +1476,8 @@ actor \nodoc\ _TestFakeAcceptActor is TCPListenerActor[_FBListenOk]
   fun ref _listener(): TCPListener[_FBListenOk] =>
     _tcp_listener
 
-  fun ref _on_accept(fd: U32): _TestFakeServerStub[_FBListenOk] =>
-    let stub = _TestFakeServerStub[_FBListenOk](fd, _h)
+  fun ref _on_accept(fd: U32): _TestServerStub[_FBListenOk] =>
+    let stub = _TestServerStub[_FBListenOk](fd, _h)
     _accepted = stub
     _h.complete_action("accepted")
     stub
@@ -1486,37 +1486,37 @@ actor \nodoc\ _TestFakeAcceptActor is TCPListenerActor[_FBListenOk]
     _tcp_listener._accept()
 
   fun ref _on_closed() =>
-    try (_accepted as _TestFakeServerStub[_FBListenOk]).dispose() end
+    try (_accepted as _TestServerStub[_FBListenOk]).dispose() end
 
-class \nodoc\ iso _TestFakeConnectionLimit is UnitTest
+class \nodoc\ iso _TestConnectionLimit is UnitTest
   """
   Listener with max_spawn 2 pauses after accepting 2 connections. Closing
   one resumes accepting.
   """
-  fun name(): String => "net/FakeConnectionLimit"
+  fun name(): String => "net/ConnectionLimit"
 
   fun apply(h: TestHelper) =>
     h.expect_action("accept_1")
     h.expect_action("accept_2")
     h.expect_action("accept_3")
 
-    let a = _TestFakeConnectionLimitActor(h)
+    let a = _TestConnectionLimitActor(h)
     h.dispose_when_done(a)
 
     h.long_test(5_000_000_000)
 
-actor \nodoc\ _TestFakeConnectionLimitActor
+actor \nodoc\ _TestConnectionLimitActor
   is TCPListenerActor[_FBListenOkMulti]
   var _tcp_listener: TCPListener[_FBListenOkMulti] =
     TCPListener[_FBListenOkMulti].none()
   let _h: TestHelper
   var _accept_count: U32 = 0
   var _first_accepted:
-    (_TestFakeServerStub[_FBListenOkMulti] | None) = None
+    (_TestServerStub[_FBListenOkMulti] | None) = None
   var _second_accepted:
-    (_TestFakeServerStub[_FBListenOkMulti] | None) = None
+    (_TestServerStub[_FBListenOkMulti] | None) = None
   var _third_accepted:
-    (_TestFakeServerStub[_FBListenOkMulti] | None) = None
+    (_TestServerStub[_FBListenOkMulti] | None) = None
 
   new create(h: TestHelper) =>
     _h = h
@@ -1536,10 +1536,10 @@ actor \nodoc\ _TestFakeConnectionLimitActor
     _tcp_listener
 
   fun ref _on_accept(fd: U32)
-    : _TestFakeServerStub[_FBListenOkMulti]
+    : _TestServerStub[_FBListenOkMulti]
   =>
     _accept_count = _accept_count + 1
-    let stub = _TestFakeServerStub[_FBListenOkMulti](fd, _h)
+    let stub = _TestServerStub[_FBListenOkMulti](fd, _h)
     match _accept_count
     | 1 =>
       _first_accepted = stub
@@ -1562,11 +1562,11 @@ actor \nodoc\ _TestFakeConnectionLimitActor
 
   fun ref _on_closed() =>
     try
-      (_first_accepted as _TestFakeServerStub[_FBListenOkMulti]).dispose()
+      (_first_accepted as _TestServerStub[_FBListenOkMulti]).dispose()
     end
     try
-      (_second_accepted as _TestFakeServerStub[_FBListenOkMulti]).dispose()
+      (_second_accepted as _TestServerStub[_FBListenOkMulti]).dispose()
     end
     try
-      (_third_accepted as _TestFakeServerStub[_FBListenOkMulti]).dispose()
+      (_third_accepted as _TestServerStub[_FBListenOkMulti]).dispose()
     end
