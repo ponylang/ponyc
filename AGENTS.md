@@ -38,7 +38,7 @@ The output goes in `build/debug`. Use `--preset release` for a release build. Th
 
 Tests are registered with ctest and grouped by label. Two labels matter:
 
-- **`ci-core`** — built by a normal `cmake --build --preset debug`. The C/C++ compiler tests (`libponyc.tests`), the runtime tests (`libponyrt.tests`), the stdlib suite, full-program integration tests, example compilation, and grammar validation.
+- **`ci-core`** — built by a normal `cmake --build --preset debug`. The C/C++ compiler tests (`libponyc.tests`), the runtime tests (`libponyrt.tests`), the stdlib suite, full-program integration tests, and grammar validation.
 - **`tools`** — **not** built by a normal `cmake --build --preset debug`. The self-hosted tool test suites: pony-compiler, pony-lsp, pony-lint, pony-doc, and pony-dep.
 
 ### Core tests (ci-core)
@@ -57,8 +57,8 @@ Run individual tests by name:
 - `ctest --preset debug -R stdlib-release` — stdlib test suite, release mode
 - `ctest --preset debug -R full-programs-debug` — compile-and-run integration tests, debug mode
 - `ctest --preset debug -R full-programs-release` — compile-and-run integration tests, release mode
-- `ctest --preset debug -R examples` — compiles all examples
 - `ctest --preset debug -R validate-grammar` — checks `pony.g` against the compiler
+- `ctest --preset debug -R examples` — compiles all examples (not part of `ci-core`; runs locally and in the weekly `build-examples.yml` workflow)
 
 #### Per-package stdlib tests
 
