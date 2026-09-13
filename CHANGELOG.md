@@ -2,7 +2,7 @@
 
 All notable changes to the Pony compiler and standard library will be documented in this file. This project adheres to [Semantic Versioning](http://semver.org/) and [Keep a CHANGELOG](http://keepachangelog.com/).
 
-## [unreleased] - unreleased
+## [0.72.1] - 2026-09-13
 
 ### Fixed
 
@@ -12,9 +12,6 @@ All notable changes to the Pony compiler and standard library will be documented
 
 - Add uri package to the standard library ([PR #6034](https://github.com/ponylang/ponyc/pull/6034))
 - Add http_client package to the standard library ([PR #6034](https://github.com/ponylang/ponyc/pull/6034))
-
-### Changed
-
 
 ## [0.72.0] - 2026-09-11
 
