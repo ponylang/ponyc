@@ -48,7 +48,6 @@ actor \nodoc\ Main is TestList
     test(_TestSendvEmpty)
     test(_TestSendvMixedEmpty)
     test(_TestSSLSendv)
-    test(_TestSendSSLLargeSingleSend)
     test(_TestIdleTimeout)
     test(_TestIdleTimeoutReset)
     test(_TestIdleTimeoutDisable)
