@@ -1,8 +1,10 @@
+use @pony_schedulers[U32]()
+
 trait tag _Group
   """
   Test exclusion is achieved by organising tests into groups. Each group can be
-  exclusive, ie only one test is run at a time, or simultaneous, ie all tests
-  are run concurrently.
+  exclusive, ie only one test is run at a time, or simultaneous, ie tests run
+  concurrently up to a limit.
   """
 
   be apply(runner: _TestRunner)
@@ -49,13 +51,35 @@ actor _ExclusiveGroup is _Group
 
 actor _SimultaneousGroup is _Group
   """
-  Test group in which all tests can run concurrently.
+  Test group that runs tests concurrently up to the number of scheduler
+  threads. Tests beyond the limit are queued and started as earlier tests
+  complete.
   """
 
+  embed _tests: Array[_TestRunner] = Array[_TestRunner]
+  var _next: USize = 0
+  var _running: U32 = 0
+  let _max: U32
+
+  new create() =>
+    _max = @pony_schedulers()
+
   be apply(runner: _TestRunner) =>
-    // Just run the test
-    runner.run()
+    if _running < _max then
+      _running = _running + 1
+      runner.run()
+    else
+      _tests.push(runner)
+    end
 
   be _test_complete(runner: _TestRunner) =>
-    // We don't care about tests finishing
-    None
+    _running = _running - 1
+
+    if _next < _tests.size() then
+      try
+        let next_test = _tests(_next)?
+        _next = _next + 1
+        _running = _running + 1
+        next_test.run()
+      end
+    end

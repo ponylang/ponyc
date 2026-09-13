@@ -13,8 +13,9 @@ other packages as possible. Currently the required packages are:
 * collections
 * random
 
-Each unit test is a class, with a single test function. By default all tests
-run concurrently.
+Each unit test is a class, with a single test function. By default tests run
+concurrently, up to the number of scheduler threads. Tests beyond that limit
+are queued and started as earlier tests complete.
 
 Each test run is provided with a helper object. This provides logging and
 assertion functions. By default log messages are only shown for tests that
@@ -147,9 +148,10 @@ failed.
 
 ## Exclusion groups
 
-By default all tests are run concurrently. This may be a problem for some
-tests, eg if they manipulate an external file or use a system resource. To fix
-this issue any number of tests may be put into an exclusion group.
+By default tests run concurrently, up to the number of scheduler threads.
+This may be a problem for some tests, eg if they manipulate an external file
+or use a system resource. To fix this issue any number of tests may be put
+into an exclusion group.
 
 No tests that are in the same exclusion group will be run concurrently.
 
