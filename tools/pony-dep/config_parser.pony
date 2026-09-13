@@ -24,7 +24,7 @@ class val DepEntry
   let name: String val
   let dep_type: String val
   let url: String val
-  let ref_name: String val
+  let ref_name: (String val | None)
   let hash: String val
   let documentation_url: (String val | None)
 
@@ -32,7 +32,7 @@ class val DepEntry
     name': String val,
     dep_type': String val,
     url': String val,
-    ref_name': String val,
+    ref_name': (String val | None),
     hash': String val,
     documentation_url': (String val | None))
   =>
@@ -138,14 +138,8 @@ primitive ConfigParser
                 "dep '" + dep_name +
                   "' missing required field 'url'")
             end
-          let r =
-            try fields("ref")?
-            else
-              return ConfigError._create(
-                line_num,
-                "dep '" + dep_name +
-                  "' missing required field 'ref'")
-            end
+          let r: (String val | None) =
+            try fields("ref")? else None end
           let h =
             try fields("hash")?
             else
@@ -216,39 +210,9 @@ primitive ConfigParser
           name_iso.strip()
           let name_val: String val = consume name_iso
 
-          if name_val.size() == 0 then
-            return ConfigError._create(
-              line_num, "'dep' requires a name")
-          end
-
-          try
-            name_val.find(" ")?
-            return ConfigError._create(
-              line_num, "dep name must be a single token")
-          end
-          try
-            name_val.find("\t")?
-            return ConfigError._create(
-              line_num, "dep name must be a single token")
-          end
-
-          if (name_val == ".") or (name_val == "..") then
-            return ConfigError._create(
-              line_num, "dep name must not be '.' or '..'")
-          end
-
-          var ni: USize = 0
-          while ni < name_val.size() do
-            let nc =
-              try name_val(ni)?
-              else _Unreachable(); return ConfigError._create(0, "")
-              end
-            if (nc == '/') or (nc == '\\') or (nc == 0) then
-              return ConfigError._create(
-                line_num,
-                "dep name contains invalid character")
-            end
-            ni = ni + 1
+          match DepNameValidator(name_val)
+          | let err: String val =>
+            return ConfigError._create(line_num, err)
           end
 
           for existing in dep_names.values() do

@@ -104,7 +104,7 @@ actor \nodoc\ Main is TestList
     test(_TestConfigParserMissingRequiredField)
     test(_TestConfigParserMissingType)
     test(_TestConfigParserMissingUrl)
-    test(_TestConfigParserMissingRef)
+    test(_TestConfigParserOptionalRef)
     test(_TestConfigParserDuplicateField)
     test(_TestConfigParserDuplicateDepName)
     test(_TestConfigParserNestedDep)
@@ -124,3 +124,23 @@ actor \nodoc\ Main is TestList
     test(_TestConfigParserDepNameBackslash)
     test(_TestConfigParserDepNameDotDot)
     test(_TestConfigParserDepNameDot)
+
+    // ConfigWriter tests
+    test(_TestConfigWriterAllFields)
+    test(_TestConfigWriterWithoutRef)
+    test(_TestConfigWriterWithoutDocUrl)
+    test(_TestConfigWriterRoundTrip)
+    test(_TestConfigWriterRoundTripNoRef)
+
+    // DepNameValidator tests
+    test(_TestDepNameValidatorValid)
+    test(_TestDepNameValidatorEmpty)
+    test(_TestDepNameValidatorSlash)
+    test(_TestDepNameValidatorDotDot)
+    test(_TestDepNameValidatorSpace)
+
+    // Add tests
+    test(_TestAddUnsupportedType)
+    test(_TestAddInvalidName)
+    test(_TestAddDuplicateName)
+    test(_TestAddConfigParseError)

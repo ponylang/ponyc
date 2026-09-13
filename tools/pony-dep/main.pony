@@ -40,7 +40,21 @@ actor Main
               ])?
             CommandSpec.leaf(
               "add",
-              "Fetch a dependency, hash it, and record it")?
+              "Fetch a dependency, hash it, and add it to config",
+              [
+                OptionSpec.string(
+                  "type", "Fetch protocol" where short' = 't', default' = "par")
+                OptionSpec.string(
+                  "ref", "Version reference" where short' = 'r', default' = "")
+                OptionSpec.string(
+                  "documentation-url", "Documentation URL"
+                  where default' = "")
+              ],
+              [
+                ArgSpec.string("name")
+                ArgSpec.string("url")
+                ArgSpec.string("config-file")
+              ])?
             CommandSpec.leaf(
               "remove",
               "Remove a dependency and its placed files")?
@@ -93,10 +107,32 @@ actor Main
     | "fetch" =>
       FetchAll(
         env,
+        ConfigAccess(auth, cmd.arg("config-file").string()),
         _FetchAllHandler(env),
-        cmd.arg("config-file").string(),
         cmd.arg("directory").string())
-    | "add" => _not_implemented(env, "add")
+    | "add" =>
+      let ref_str = cmd.option("ref").string()
+      let ref_opt: (String val | None) =
+        if ref_str.size() == 0 then None else ref_str end
+      let doc_str = cmd.option("documentation-url").string()
+      let doc_url: (String val | None) =
+        if doc_str.size() == 0 then None else doc_str end
+      let config_path = cmd.arg("config-file").string()
+      let config_dir = Path.dir(config_path)
+      let config = ConfigAccess(auth, config_path)
+      Add(
+        env,
+        config,
+        _AddHandler(env),
+        cmd.arg("name").string(),
+        cmd.arg("url").string()
+        where work_dir =
+            if config_dir.size() == 0 then "."
+            else config_dir
+            end,
+          dep_type = cmd.option("type").string(),
+          ref_name = ref_opt,
+          documentation_url = doc_url)
     | "remove" => _not_implemented(env, "remove")
     | "clean" => _not_implemented(env, "clean")
     else
@@ -114,3 +150,16 @@ actor Main
   fun _not_implemented(env: Env, name: String) =>
     env.err.print(name + ": not yet implemented")
     env.exitcode(1)
+
+actor _AddHandler is AddNotify
+  let _env: Env
+
+  new create(env: Env) =>
+    _env = env
+
+  be add_failed(message: String val) =>
+    _env.err.print("error: " + message)
+    _env.exitcode(1)
+
+  be add_succeeded() =>
+    None
