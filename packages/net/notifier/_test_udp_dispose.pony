@@ -18,7 +18,7 @@ class \nodoc\ iso _TestNotifierUDPDispose is UnitTest
         net.UDPAuth(h.env.root),
         recover _TestNUDNotify(h) end,
         host,
-        "9814")
+        "0")
     h.dispose_when_done(sock)
 
     h.long_test(5_000_000_000)

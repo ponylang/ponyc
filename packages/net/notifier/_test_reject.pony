@@ -20,7 +20,7 @@ class \nodoc\ iso _TestNotifierRejectConnection is UnitTest
             net.TCPConnectAuth(h.env.root), h)
         end,
         "localhost",
-        "9805")
+        "0")
     h.dispose_when_done(listener)
 
     h.long_test(5_000_000_000)
@@ -39,12 +39,13 @@ class \nodoc\ _TestNRCListenNotify is TCPListenNotify
 
   fun ref on_listening(listen: TCPListener ref) =>
     _h.complete_action("listening")
+    let port: String val = listen.local_address().port().string()
     let client =
       ClientTCPConnection(
         _connect_auth,
-        recover _TestNRCClientNotify(_connect_auth, _h) end,
+        recover _TestNRCClientNotify(_connect_auth, port, _h) end,
         "localhost",
-        "9805")
+        port)
     _h.dispose_when_done(client)
 
   fun ref on_not_listening(listen: TCPListener ref) =>
@@ -63,13 +64,16 @@ class \nodoc\ _TestNRCListenNotify is TCPListenNotify
 
 class \nodoc\ _TestNRCClientNotify is ClientTCPConnectionNotify
   let _connect_auth: net.TCPConnectAuth
+  let _port: String
   let _h: TestHelper
 
   new create(
     connect_auth: net.TCPConnectAuth,
+    port: String,
     h: TestHelper)
   =>
     _connect_auth = connect_auth
+    _port = port
     _h = h
 
   fun ref on_connected(conn: ClientTCPConnection ref) =>
@@ -81,7 +85,7 @@ class \nodoc\ _TestNRCClientNotify is ClientTCPConnectionNotify
         _connect_auth,
         recover _TestNRCSecondClientNotify(_h) end,
         "localhost",
-        "9805")
+        _port)
     _h.dispose_when_done(client)
 
   fun ref on_connect_failed(conn: ClientTCPConnection ref,

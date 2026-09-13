@@ -16,7 +16,7 @@ class \nodoc\ iso _TestNotifierDispose is UnitTest
         net.TCPListenAuth(h.env.root),
         recover _TestNDListenNotify(h) end,
         "localhost",
-        "9804")
+        "0")
     h.dispose_when_done(listener)
 
     h.long_test(5_000_000_000)

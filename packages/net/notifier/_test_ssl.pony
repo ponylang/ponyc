@@ -7,7 +7,6 @@ class \nodoc\ iso _TestNotifierSSLPingPong is UnitTest
   fun name(): String => "net/notifier/SSLPingPong"
 
   fun apply(h: TestHelper) ? =>
-    let port = "9802"
     let pings_to_send: I32 = 100
     let file_auth = FileAuth(h.env.root)
     let sslctx: net.SSLContext val =
@@ -25,10 +24,10 @@ class \nodoc\ iso _TestNotifierSSLPingPong is UnitTest
     let listener =
       TCPListener.ssl(
         net.TCPListenAuth(h.env.root),
-        recover _TestNSSLListenNotify(port, sslctx, pings_to_send, h) end,
+        recover _TestNSSLListenNotify(sslctx, pings_to_send, h) end,
         sslctx,
         "localhost",
-        port)
+        "0")
     h.dispose_when_done(listener)
 
     h.long_test(5_000_000_000)
@@ -101,30 +100,28 @@ class \nodoc\ _TestNSSLServerNotify is ServerTCPConnectionNotify
     net.KeepReading
 
 class \nodoc\ _TestNSSLListenNotify is TCPListenNotify
-  let _port: String
   let _sslctx: net.SSLContext val
   let _pings_to_receive: I32
   let _h: TestHelper
 
   new create(
-    port: String,
     sslctx: net.SSLContext val,
     pings_to_receive: I32,
     h: TestHelper)
   =>
-    _port = port
     _sslctx = sslctx
     _pings_to_receive = pings_to_receive
     _h = h
 
   fun ref on_listening(listen: TCPListener ref) =>
+    let port: String val = listen.local_address().port().string()
     let client =
       ClientTCPConnection.ssl(
         net.TCPConnectAuth(_h.env.root),
         recover _TestNSSLClientNotify(_pings_to_receive, _h) end,
         _sslctx,
         "localhost",
-        _port)
+        port)
     _h.dispose_when_done(client)
 
   fun ref on_not_listening(listen: TCPListener ref) =>

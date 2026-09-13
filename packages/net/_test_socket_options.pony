@@ -24,7 +24,7 @@ actor \nodoc\ _TestSocketOptionsListener is TCPListenerActor
     _h = h
     _tcp_listener =
       TCPListener(
-        TCPListenAuth(h.env.root), "127.0.0.1", "7708", this)
+        TCPListenAuth(h.env.root), "127.0.0.1", "0", this)
 
   fun ref _listener(): TCPListener =>
     _tcp_listener
@@ -35,9 +35,10 @@ actor \nodoc\ _TestSocketOptionsListener is TCPListenerActor
     server
 
   fun ref _on_listening() =>
+    let port: String val = _tcp_listener.local_address().port().string()
     _client =
       _TestSocketOptionsClient(
-        TCPConnectAuth(_h.env.root), "127.0.0.1", "7708")
+        TCPConnectAuth(_h.env.root), "127.0.0.1", port)
 
   fun ref _on_closed() =>
     try (_client as _TestSocketOptionsClient).dispose() end

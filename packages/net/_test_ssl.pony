@@ -10,7 +10,6 @@ class \nodoc\ iso _TestSSLPingPong is UnitTest
   fun name(): String => "net/SSLPingPong"
 
   fun apply(h: TestHelper) ? =>
-    let port = "1417"
     let file_auth = FileAuth(h.env.root)
     let sslctx =
       recover
@@ -28,7 +27,7 @@ class \nodoc\ iso _TestSSLPingPong is UnitTest
 
     let listener =
       _TestSSLPongerListener(
-        port, consume sslctx, pings_to_send, h)
+        consume sslctx, pings_to_send, h)
     h.dispose_when_done(listener)
 
     h.long_test(5_000_000_000)
@@ -126,7 +125,6 @@ actor \nodoc\ _TestSSLPonger
     KeepReading
 
 actor \nodoc\ _TestSSLPongerListener is TCPListenerActor
-  let _port: String
   let _sslctx: SSLContext val
   var _tcp_listener: TCPListener = TCPListener.none()
   var _pings_to_receive: I32
@@ -134,12 +132,10 @@ actor \nodoc\ _TestSSLPongerListener is TCPListenerActor
   var _pinger: (_TestSSLPinger | None) = None
   let _servers: Array[_TestSSLPonger] = Array[_TestSSLPonger]
 
-  new create(port: String,
-    sslctx: SSLContext val,
+  new create(sslctx: SSLContext val,
     pings_to_receive: I32,
     h: TestHelper)
   =>
-    _port = port
     _sslctx = sslctx
     _pings_to_receive = pings_to_receive
     _h = h
@@ -147,7 +143,7 @@ actor \nodoc\ _TestSSLPongerListener is TCPListenerActor
       TCPListener(
         TCPListenAuth(_h.env.root),
         "localhost",
-        _port,
+        "0",
         this)
 
   fun ref _listener(): TCPListener =>
@@ -163,9 +159,10 @@ actor \nodoc\ _TestSSLPongerListener is TCPListenerActor
     for server in _servers.values() do server.dispose() end
 
   fun ref _on_listening() =>
+    let port: String val = _tcp_listener.local_address().port().string()
     _pinger =
       _TestSSLPinger(
-        _port, _sslctx, _pings_to_receive, _h)
+        port, _sslctx, _pings_to_receive, _h)
 
   fun ref _on_listen_failure() =>
     _h.fail("Unable to open _TestSSLPongerListener")
@@ -178,7 +175,6 @@ class \nodoc\ iso _TestSSLSendv is UnitTest
   fun name(): String => "net/SSLSendv"
 
   fun apply(h: TestHelper) ? =>
-    let port = "7896"
     let file_auth = FileAuth(h.env.root)
     let sslctx =
       recover
@@ -199,31 +195,28 @@ class \nodoc\ iso _TestSSLSendv is UnitTest
 
     let listener =
       _TestSSLSendvListener(
-        port, consume sslctx, h)
+        consume sslctx, h)
     h.dispose_when_done(listener)
 
     h.long_test(5_000_000_000)
 
 actor \nodoc\ _TestSSLSendvListener is TCPListenerActor
-  let _port: String
   let _sslctx: SSLContext val
   var _tcp_listener: TCPListener = TCPListener.none()
   let _h: TestHelper
   var _client: (_TestSSLSendvClient | None) = None
   let _servers: Array[_TestSSLSendvServer] = Array[_TestSSLSendvServer]
 
-  new create(port: String,
-    sslctx: SSLContext val,
+  new create(sslctx: SSLContext val,
     h: TestHelper)
   =>
-    _port = port
     _sslctx = sslctx
     _h = h
     _tcp_listener =
       TCPListener(
         TCPListenAuth(_h.env.root),
         "localhost",
-        _port,
+        "0",
         this)
 
   fun ref _listener(): TCPListener =>
@@ -240,7 +233,8 @@ actor \nodoc\ _TestSSLSendvListener is TCPListenerActor
 
   fun ref _on_listening() =>
     _h.complete_action("server listening")
-    _client = _TestSSLSendvClient(_port, _sslctx, _h)
+    let port: String val = _tcp_listener.local_address().port().string()
+    _client = _TestSSLSendvClient(port, _sslctx, _h)
 
   fun ref _on_listen_failure() =>
     _h.fail("Unable to open _TestSSLSendvListener")
@@ -338,7 +332,6 @@ class \nodoc\ iso _TestSSLHandshakeFailureClient is UnitTest
   fun name(): String => "net/SSLHandshakeFailureClient"
 
   fun apply(h: TestHelper) ? =>
-    let port = "9757"
     let file_auth = FileAuth(h.env.root)
     let sslctx =
       recover
@@ -356,7 +349,7 @@ class \nodoc\ iso _TestSSLHandshakeFailureClient is UnitTest
 
     let listener =
       _TestSSLHandshakeFailureClientListener(
-        port, consume sslctx, h)
+        consume sslctx, h)
     h.dispose_when_done(listener)
 
     h.long_test(5_000_000_000)
@@ -366,7 +359,6 @@ actor \nodoc\ _TestSSLHandshakeFailureClientListener is TCPListenerActor
   Plain TCP listener that accepts connections, sends garbage to break the
   SSL handshake, and closes.
   """
-  let _port: String
   let _sslctx: SSLContext val
   var _tcp_listener: TCPListener = TCPListener.none()
   let _h: TestHelper
@@ -374,15 +366,14 @@ actor \nodoc\ _TestSSLHandshakeFailureClientListener is TCPListenerActor
   let _servers: Array[_TestSSLHandshakeFailurePlainServer] =
     Array[_TestSSLHandshakeFailurePlainServer]
 
-  new create(port: String, sslctx: SSLContext val, h: TestHelper) =>
-    _port = port
+  new create(sslctx: SSLContext val, h: TestHelper) =>
     _sslctx = sslctx
     _h = h
     _tcp_listener =
       TCPListener(
         TCPListenAuth(_h.env.root),
         "localhost",
-        _port,
+        "0",
         this)
 
   fun ref _listener(): TCPListener =>
@@ -398,9 +389,10 @@ actor \nodoc\ _TestSSLHandshakeFailureClientListener is TCPListenerActor
     for server in _servers.values() do server.dispose() end
 
   fun ref _on_listening() =>
+    let port: String val = _tcp_listener.local_address().port().string()
     _client =
       _TestSSLHandshakeFailureSSLClient(
-        _port, _sslctx, _h)
+        port, _sslctx, _h)
 
   fun ref _on_listen_failure() =>
     _h.fail("Unable to open _TestSSLHandshakeFailureClientListener")
@@ -474,7 +466,6 @@ class \nodoc\ iso _TestSSLHandshakeFailureServer is UnitTest
   fun name(): String => "net/SSLHandshakeFailureServer"
 
   fun apply(h: TestHelper) ? =>
-    let port = "9758"
     let file_auth = FileAuth(h.env.root)
     let sslctx =
       recover
@@ -492,7 +483,7 @@ class \nodoc\ iso _TestSSLHandshakeFailureServer is UnitTest
 
     let listener =
       _TestSSLHandshakeFailureServerListener(
-        port, consume sslctx, h)
+        consume sslctx, h)
     h.dispose_when_done(listener)
 
     h.long_test(5_000_000_000)
@@ -502,7 +493,6 @@ actor \nodoc\ _TestSSLHandshakeFailureServerListener is TCPListenerActor
   Listener that creates SSL servers. A plain TCP client connects and sends
   garbage to break the SSL handshake.
   """
-  let _port: String
   let _sslctx: SSLContext val
   var _tcp_listener: TCPListener = TCPListener.none()
   let _h: TestHelper
@@ -510,15 +500,14 @@ actor \nodoc\ _TestSSLHandshakeFailureServerListener is TCPListenerActor
   let _servers: Array[_TestSSLHandshakeFailureSSLServer] =
     Array[_TestSSLHandshakeFailureSSLServer]
 
-  new create(port: String, sslctx: SSLContext val, h: TestHelper) =>
-    _port = port
+  new create(sslctx: SSLContext val, h: TestHelper) =>
     _sslctx = sslctx
     _h = h
     _tcp_listener =
       TCPListener(
         TCPListenAuth(_h.env.root),
         "localhost",
-        _port,
+        "0",
         this)
 
   fun ref _listener(): TCPListener =>
@@ -534,7 +523,8 @@ actor \nodoc\ _TestSSLHandshakeFailureServerListener is TCPListenerActor
     for server in _servers.values() do server.dispose() end
 
   fun ref _on_listening() =>
-    _client = _TestSSLHandshakeFailurePlainClient(_port, _h)
+    let port: String val = _tcp_listener.local_address().port().string()
+    _client = _TestSSLHandshakeFailurePlainClient(port, _h)
 
   fun ref _on_listen_failure() =>
     _h.fail("Unable to open _TestSSLHandshakeFailureServerListener")
@@ -605,7 +595,6 @@ class \nodoc\ iso _TestSSLHandshakeCompleteTransitionsToOpen is UnitTest
   fun name(): String => "net/SSLHandshakeCompleteTransitionsToOpen"
 
   fun apply(h: TestHelper) ? =>
-    let port = "9759"
     let file_auth = FileAuth(h.env.root)
     let sslctx =
       recover
@@ -623,13 +612,12 @@ class \nodoc\ iso _TestSSLHandshakeCompleteTransitionsToOpen is UnitTest
 
     let listener =
       _TestSSLTransitionToOpenListener(
-        port, consume sslctx, h)
+        consume sslctx, h)
     h.dispose_when_done(listener)
 
     h.long_test(5_000_000_000)
 
 actor \nodoc\ _TestSSLTransitionToOpenListener is TCPListenerActor
-  let _port: String
   let _sslctx: SSLContext val
   var _tcp_listener: TCPListener = TCPListener.none()
   let _h: TestHelper
@@ -637,15 +625,14 @@ actor \nodoc\ _TestSSLTransitionToOpenListener is TCPListenerActor
   let _servers: Array[_TestSSLTransitionToOpenServer] =
     Array[_TestSSLTransitionToOpenServer]
 
-  new create(port: String, sslctx: SSLContext val, h: TestHelper) =>
-    _port = port
+  new create(sslctx: SSLContext val, h: TestHelper) =>
     _sslctx = sslctx
     _h = h
     _tcp_listener =
       TCPListener(
         TCPListenAuth(_h.env.root),
         "localhost",
-        _port,
+        "0",
         this)
 
   fun ref _listener(): TCPListener =>
@@ -661,7 +648,8 @@ actor \nodoc\ _TestSSLTransitionToOpenListener is TCPListenerActor
     for server in _servers.values() do server.dispose() end
 
   fun ref _on_listening() =>
-    _client = _TestSSLTransitionToOpenClient(_port, _sslctx, _h)
+    let port: String val = _tcp_listener.local_address().port().string()
+    _client = _TestSSLTransitionToOpenClient(port, _sslctx, _h)
 
   fun ref _on_listen_failure() =>
     _h.fail("Unable to open _TestSSLTransitionToOpenListener")
@@ -732,7 +720,6 @@ class \nodoc\ iso _TestSSLIsWriteableDuringHandshake is UnitTest
   fun name(): String => "net/SSLIsWriteableDuringHandshake"
 
   fun apply(h: TestHelper) ? =>
-    let port = "9763"
     let file_auth = FileAuth(h.env.root)
     let sslctx =
       recover
@@ -750,13 +737,12 @@ class \nodoc\ iso _TestSSLIsWriteableDuringHandshake is UnitTest
 
     let listener =
       _TestSSLIsWriteableListener(
-        port, consume sslctx, h)
+        consume sslctx, h)
     h.dispose_when_done(listener)
 
     h.long_test(5_000_000_000)
 
 actor \nodoc\ _TestSSLIsWriteableListener is TCPListenerActor
-  let _port: String
   let _sslctx: SSLContext val
   var _tcp_listener: TCPListener = TCPListener.none()
   let _h: TestHelper
@@ -764,15 +750,14 @@ actor \nodoc\ _TestSSLIsWriteableListener is TCPListenerActor
   let _servers: Array[_TestSSLIsWriteableServer] =
     Array[_TestSSLIsWriteableServer]
 
-  new create(port: String, sslctx: SSLContext val, h: TestHelper) =>
-    _port = port
+  new create(sslctx: SSLContext val, h: TestHelper) =>
     _sslctx = sslctx
     _h = h
     _tcp_listener =
       TCPListener(
         TCPListenAuth(_h.env.root),
         "localhost",
-        _port,
+        "0",
         this)
 
   fun ref _listener(): TCPListener =>
@@ -788,7 +773,8 @@ actor \nodoc\ _TestSSLIsWriteableListener is TCPListenerActor
     try (_client as _TestSSLIsWriteablePlainClient).dispose() end
 
   fun ref _on_listening() =>
-    _client = _TestSSLIsWriteablePlainClient(_port, _h)
+    let port: String val = _tcp_listener.local_address().port().string()
+    _client = _TestSSLIsWriteablePlainClient(port, _h)
 
   fun ref _on_listen_failure() =>
     _h.fail("Unable to open _TestSSLIsWriteableListener")
@@ -871,7 +857,6 @@ class \nodoc\ iso _TestSSLHardCloseDuringReceive is UnitTest
   fun name(): String => "net/SSLHardCloseDuringReceive"
 
   fun apply(h: TestHelper) ? =>
-    let port = "9773"
     let file_auth = FileAuth(h.env.root)
     let sslctx =
       recover
@@ -888,13 +873,12 @@ class \nodoc\ iso _TestSSLHardCloseDuringReceive is UnitTest
     h.expect_action("server received")
     h.expect_action("server closed")
 
-    let listener = _TestSSLHardCloseReceiveListener(port, consume sslctx, h)
+    let listener = _TestSSLHardCloseReceiveListener(consume sslctx, h)
     h.dispose_when_done(listener)
 
     h.long_test(5_000_000_000)
 
 actor \nodoc\ _TestSSLHardCloseReceiveListener is TCPListenerActor
-  let _port: String
   let _sslctx: SSLContext val
   var _tcp_listener: TCPListener = TCPListener.none()
   let _h: TestHelper
@@ -902,15 +886,14 @@ actor \nodoc\ _TestSSLHardCloseReceiveListener is TCPListenerActor
   let _servers: Array[_TestSSLHardCloseReceiveServer] =
     Array[_TestSSLHardCloseReceiveServer]
 
-  new create(port: String, sslctx: SSLContext val, h: TestHelper) =>
-    _port = port
+  new create(sslctx: SSLContext val, h: TestHelper) =>
     _sslctx = sslctx
     _h = h
     _tcp_listener =
       TCPListener(
         TCPListenAuth(_h.env.root),
         "localhost",
-        _port,
+        "0",
         this)
 
   fun ref _listener(): TCPListener =>
@@ -926,7 +909,8 @@ actor \nodoc\ _TestSSLHardCloseReceiveListener is TCPListenerActor
     try (_client as _TestSSLHardCloseReceiveClient).dispose() end
 
   fun ref _on_listening() =>
-    _client = _TestSSLHardCloseReceiveClient(_port, _sslctx, _h)
+    let port: String val = _tcp_listener.local_address().port().string()
+    _client = _TestSSLHardCloseReceiveClient(port, _sslctx, _h)
 
   fun ref _on_listen_failure() =>
     _h.fail("Unable to open _TestSSLHardCloseReceiveListener")
@@ -1007,7 +991,6 @@ class \nodoc\ iso _TestSSLHardCloseOnConnected is UnitTest
   fun name(): String => "net/SSLHardCloseOnConnected"
 
   fun apply(h: TestHelper) ? =>
-    let port = "9774"
     let file_auth = FileAuth(h.env.root)
     let sslctx =
       recover
@@ -1025,13 +1008,12 @@ class \nodoc\ iso _TestSSLHardCloseOnConnected is UnitTest
 
     let listener =
       _TestSSLHardCloseOnConnectedListener(
-        port, consume sslctx, h)
+        consume sslctx, h)
     h.dispose_when_done(listener)
 
     h.long_test(5_000_000_000)
 
 actor \nodoc\ _TestSSLHardCloseOnConnectedListener is TCPListenerActor
-  let _port: String
   let _sslctx: SSLContext val
   var _tcp_listener: TCPListener = TCPListener.none()
   let _h: TestHelper
@@ -1039,15 +1021,14 @@ actor \nodoc\ _TestSSLHardCloseOnConnectedListener is TCPListenerActor
   let _servers: Array[_TestSSLHardCloseOnConnectedServer] =
     Array[_TestSSLHardCloseOnConnectedServer]
 
-  new create(port: String, sslctx: SSLContext val, h: TestHelper) =>
-    _port = port
+  new create(sslctx: SSLContext val, h: TestHelper) =>
     _sslctx = sslctx
     _h = h
     _tcp_listener =
       TCPListener(
         TCPListenAuth(_h.env.root),
         "localhost",
-        _port,
+        "0",
         this)
 
   fun ref _listener(): TCPListener =>
@@ -1063,7 +1044,8 @@ actor \nodoc\ _TestSSLHardCloseOnConnectedListener is TCPListenerActor
     try (_client as _TestSSLHardCloseOnConnectedClient).dispose() end
 
   fun ref _on_listening() =>
-    _client = _TestSSLHardCloseOnConnectedClient(_port, _sslctx, _h)
+    let port: String val = _tcp_listener.local_address().port().string()
+    _client = _TestSSLHardCloseOnConnectedClient(port, _sslctx, _h)
 
   fun ref _on_listen_failure() =>
     _h.fail("Unable to open _TestSSLHardCloseOnConnectedListener")
@@ -1132,7 +1114,6 @@ class \nodoc\ iso _TestSSLHardCloseOnStarted is UnitTest
   fun name(): String => "net/SSLHardCloseOnStarted"
 
   fun apply(h: TestHelper) ? =>
-    let port = "9775"
     let file_auth = FileAuth(h.env.root)
     let sslctx =
       recover
@@ -1148,13 +1129,12 @@ class \nodoc\ iso _TestSSLHardCloseOnStarted is UnitTest
 
     h.expect_action("server closed")
 
-    let listener = _TestSSLHardCloseOnStartedListener(port, consume sslctx, h)
+    let listener = _TestSSLHardCloseOnStartedListener(consume sslctx, h)
     h.dispose_when_done(listener)
 
     h.long_test(5_000_000_000)
 
 actor \nodoc\ _TestSSLHardCloseOnStartedListener is TCPListenerActor
-  let _port: String
   let _sslctx: SSLContext val
   var _tcp_listener: TCPListener = TCPListener.none()
   let _h: TestHelper
@@ -1162,15 +1142,14 @@ actor \nodoc\ _TestSSLHardCloseOnStartedListener is TCPListenerActor
   let _servers: Array[_TestSSLHardCloseOnStartedServer] =
     Array[_TestSSLHardCloseOnStartedServer]
 
-  new create(port: String, sslctx: SSLContext val, h: TestHelper) =>
-    _port = port
+  new create(sslctx: SSLContext val, h: TestHelper) =>
     _sslctx = sslctx
     _h = h
     _tcp_listener =
       TCPListener(
         TCPListenAuth(_h.env.root),
         "localhost",
-        _port,
+        "0",
         this)
 
   fun ref _listener(): TCPListener =>
@@ -1186,7 +1165,8 @@ actor \nodoc\ _TestSSLHardCloseOnStartedListener is TCPListenerActor
     try (_client as _TestSSLHardCloseOnStartedClient).dispose() end
 
   fun ref _on_listening() =>
-    _client = _TestSSLHardCloseOnStartedClient(_port, _sslctx, _h)
+    let port: String val = _tcp_listener.local_address().port().string()
+    _client = _TestSSLHardCloseOnStartedClient(port, _sslctx, _h)
 
   fun ref _on_listen_failure() =>
     _h.fail("Unable to open _TestSSLHardCloseOnStartedListener")
@@ -1255,7 +1235,6 @@ class \nodoc\ iso _TestSSLCloseDuringReceive is UnitTest
   fun name(): String => "net/SSLCloseDuringReceive"
 
   fun apply(h: TestHelper) ? =>
-    let port = "9777"
     let file_auth = FileAuth(h.env.root)
     let sslctx =
       recover
@@ -1272,13 +1251,12 @@ class \nodoc\ iso _TestSSLCloseDuringReceive is UnitTest
     h.expect_action("both records delivered")
     h.expect_action("server closed")
 
-    let listener = _TestSSLCloseReceiveListener(port, consume sslctx, h)
+    let listener = _TestSSLCloseReceiveListener(consume sslctx, h)
     h.dispose_when_done(listener)
 
     h.long_test(5_000_000_000)
 
 actor \nodoc\ _TestSSLCloseReceiveListener is TCPListenerActor
-  let _port: String
   let _sslctx: SSLContext val
   var _tcp_listener: TCPListener = TCPListener.none()
   let _h: TestHelper
@@ -1286,15 +1264,14 @@ actor \nodoc\ _TestSSLCloseReceiveListener is TCPListenerActor
   let _servers: Array[_TestSSLCloseReceiveServer] =
     Array[_TestSSLCloseReceiveServer]
 
-  new create(port: String, sslctx: SSLContext val, h: TestHelper) =>
-    _port = port
+  new create(sslctx: SSLContext val, h: TestHelper) =>
     _sslctx = sslctx
     _h = h
     _tcp_listener =
       TCPListener(
         TCPListenAuth(_h.env.root),
         "localhost",
-        _port,
+        "0",
         this)
 
   fun ref _listener(): TCPListener =>
@@ -1310,7 +1287,8 @@ actor \nodoc\ _TestSSLCloseReceiveListener is TCPListenerActor
     try (_client as _TestSSLCloseReceiveClient).dispose() end
 
   fun ref _on_listening() =>
-    _client = _TestSSLCloseReceiveClient(_port, _sslctx, _h)
+    let port: String val = _tcp_listener.local_address().port().string()
+    _client = _TestSSLCloseReceiveClient(port, _sslctx, _h)
 
   fun ref _on_listen_failure() =>
     _h.fail("Unable to open _TestSSLCloseReceiveListener")
@@ -1399,7 +1377,6 @@ class \nodoc\ iso _TestSSLLargePayload is UnitTest
   fun name(): String => "net/SSLLargePayload"
 
   fun apply(h: TestHelper) ? =>
-    let port = "9780"
     let file_auth = FileAuth(h.env.root)
     let sslctx =
       recover
@@ -1413,13 +1390,12 @@ class \nodoc\ iso _TestSSLLargePayload is UnitTest
           .> set_server_verify(false)
       end
 
-    let listener = _TestSSLLargePayloadListener(port, consume sslctx, h)
+    let listener = _TestSSLLargePayloadListener(consume sslctx, h)
     h.dispose_when_done(listener)
 
     h.long_test(30_000_000_000)
 
 actor \nodoc\ _TestSSLLargePayloadListener is TCPListenerActor
-  let _port: String
   let _sslctx: SSLContext val
   var _tcp_listener: TCPListener = TCPListener.none()
   let _h: TestHelper
@@ -1427,15 +1403,14 @@ actor \nodoc\ _TestSSLLargePayloadListener is TCPListenerActor
   let _servers: Array[_TestSSLLargePayloadServer] =
     Array[_TestSSLLargePayloadServer]
 
-  new create(port: String, sslctx: SSLContext val, h: TestHelper) =>
-    _port = port
+  new create(sslctx: SSLContext val, h: TestHelper) =>
     _sslctx = sslctx
     _h = h
     _tcp_listener =
       TCPListener(
         TCPListenAuth(_h.env.root),
         "localhost",
-        _port,
+        "0",
         this)
 
   fun ref _listener(): TCPListener =>
@@ -1447,7 +1422,8 @@ actor \nodoc\ _TestSSLLargePayloadListener is TCPListenerActor
     s
 
   fun ref _on_listening() =>
-    _client = _TestSSLLargePayloadClient(_port, _sslctx, _h)
+    let port: String val = _tcp_listener.local_address().port().string()
+    _client = _TestSSLLargePayloadClient(port, _sslctx, _h)
 
   fun ref _on_listen_failure() =>
     _h.fail("Unable to open _TestSSLLargePayloadListener")
@@ -1566,7 +1542,6 @@ class \nodoc\ iso _TestSSLSendDuringHandshake is UnitTest
   fun name(): String => "net/SSLSendDuringHandshake"
 
   fun apply(h: TestHelper) ? =>
-    let port = "9766"
     let file_auth = FileAuth(h.env.root)
     let sslctx =
       recover
@@ -1584,13 +1559,12 @@ class \nodoc\ iso _TestSSLSendDuringHandshake is UnitTest
 
     let listener =
       _TestSSLSendDuringHandshakeListener(
-        port, consume sslctx, h)
+        consume sslctx, h)
     h.dispose_when_done(listener)
 
     h.long_test(5_000_000_000)
 
 actor \nodoc\ _TestSSLSendDuringHandshakeListener is TCPListenerActor
-  let _port: String
   let _sslctx: SSLContext val
   var _tcp_listener: TCPListener = TCPListener.none()
   let _h: TestHelper
@@ -1598,15 +1572,14 @@ actor \nodoc\ _TestSSLSendDuringHandshakeListener is TCPListenerActor
   let _servers: Array[_TestSSLSendDuringHandshakeServer] =
     Array[_TestSSLSendDuringHandshakeServer]
 
-  new create(port: String, sslctx: SSLContext val, h: TestHelper) =>
-    _port = port
+  new create(sslctx: SSLContext val, h: TestHelper) =>
     _sslctx = sslctx
     _h = h
     _tcp_listener =
       TCPListener(
         TCPListenAuth(_h.env.root),
         "localhost",
-        _port,
+        "0",
         this)
 
   fun ref _listener(): TCPListener =>
@@ -1624,7 +1597,8 @@ actor \nodoc\ _TestSSLSendDuringHandshakeListener is TCPListenerActor
     end
 
   fun ref _on_listening() =>
-    _client = _TestSSLSendDuringHandshakePlainClient(_port, _h)
+    let port: String val = _tcp_listener.local_address().port().string()
+    _client = _TestSSLSendDuringHandshakePlainClient(port, _h)
 
   fun ref _on_listen_failure() =>
     _h.fail("Unable to open _TestSSLSendDuringHandshakeListener")
@@ -1704,7 +1678,6 @@ class \nodoc\ iso _TestSSLCloseDuringHandshake is UnitTest
   fun name(): String => "net/SSLCloseDuringHandshake"
 
   fun apply(h: TestHelper) ? =>
-    let port = "9767"
     let file_auth = FileAuth(h.env.root)
     let sslctx =
       recover
@@ -1719,13 +1692,12 @@ class \nodoc\ iso _TestSSLCloseDuringHandshake is UnitTest
 
     let listener =
       _TestSSLCloseDuringHandshakeListener(
-        port, consume sslctx, h)
+        consume sslctx, h)
     h.dispose_when_done(listener)
 
     h.long_test(15_000_000_000)
 
 actor \nodoc\ _TestSSLCloseDuringHandshakeListener is TCPListenerActor
-  let _port: String
   let _sslctx: SSLContext val
   var _tcp_listener: TCPListener = TCPListener.none()
   let _h: TestHelper
@@ -1733,15 +1705,14 @@ actor \nodoc\ _TestSSLCloseDuringHandshakeListener is TCPListenerActor
   let _servers: Array[_TestDoNothingServerActor] =
     Array[_TestDoNothingServerActor]
 
-  new create(port: String, sslctx: SSLContext val, h: TestHelper) =>
-    _port = port
+  new create(sslctx: SSLContext val, h: TestHelper) =>
     _sslctx = sslctx
     _h = h
     _tcp_listener =
       TCPListener(
         TCPListenAuth(_h.env.root),
         "localhost",
-        _port,
+        "0",
         this)
 
   fun ref _listener(): TCPListener =>
@@ -1757,8 +1728,9 @@ actor \nodoc\ _TestSSLCloseDuringHandshakeListener is TCPListenerActor
     for server in _servers.values() do server.dispose() end
 
   fun ref _on_listening() =>
+    let port: String val = _tcp_listener.local_address().port().string()
     _client =
-      _TestSSLCloseDuringHandshakeClient(_port, _sslctx, _h)
+      _TestSSLCloseDuringHandshakeClient(port, _sslctx, _h)
 
   fun ref _on_listen_failure() =>
     _h.fail("Unable to open _TestSSLCloseDuringHandshakeListener")
@@ -1840,7 +1812,6 @@ class \nodoc\ iso _TestSSLHardCloseDuringHandshake is UnitTest
   fun name(): String => "net/SSLHardCloseDuringHandshake"
 
   fun apply(h: TestHelper) ? =>
-    let port = "9768"
     let file_auth = FileAuth(h.env.root)
     let sslctx =
       recover
@@ -1855,13 +1826,12 @@ class \nodoc\ iso _TestSSLHardCloseDuringHandshake is UnitTest
 
     let listener =
       _TestSSLHardCloseDuringHandshakeListener(
-        port, consume sslctx, h)
+        consume sslctx, h)
     h.dispose_when_done(listener)
 
     h.long_test(15_000_000_000)
 
 actor \nodoc\ _TestSSLHardCloseDuringHandshakeListener is TCPListenerActor
-  let _port: String
   let _sslctx: SSLContext val
   var _tcp_listener: TCPListener = TCPListener.none()
   let _h: TestHelper
@@ -1869,15 +1839,14 @@ actor \nodoc\ _TestSSLHardCloseDuringHandshakeListener is TCPListenerActor
   let _servers: Array[_TestDoNothingServerActor] =
     Array[_TestDoNothingServerActor]
 
-  new create(port: String, sslctx: SSLContext val, h: TestHelper) =>
-    _port = port
+  new create(sslctx: SSLContext val, h: TestHelper) =>
     _sslctx = sslctx
     _h = h
     _tcp_listener =
       TCPListener(
         TCPListenAuth(_h.env.root),
         "localhost",
-        _port,
+        "0",
         this)
 
   fun ref _listener(): TCPListener =>
@@ -1893,8 +1862,9 @@ actor \nodoc\ _TestSSLHardCloseDuringHandshakeListener is TCPListenerActor
     for server in _servers.values() do server.dispose() end
 
   fun ref _on_listening() =>
+    let port: String val = _tcp_listener.local_address().port().string()
     _client =
-      _TestSSLHardCloseDuringHandshakeClient(_port, _sslctx, _h)
+      _TestSSLHardCloseDuringHandshakeClient(port, _sslctx, _h)
 
   fun ref _on_listen_failure() =>
     _h.fail("Unable to open _TestSSLHardCloseDuringHandshakeListener")
@@ -1978,7 +1948,6 @@ class \nodoc\ iso _TestSSLServerHardCloseDuringHandshake is UnitTest
   fun name(): String => "net/SSLServerHardCloseDuringHandshake"
 
   fun apply(h: TestHelper) ? =>
-    let port = "9769"
     let file_auth = FileAuth(h.env.root)
     let sslctx =
       recover
@@ -1996,13 +1965,12 @@ class \nodoc\ iso _TestSSLServerHardCloseDuringHandshake is UnitTest
 
     let listener =
       _TestSSLServerHardCloseHandshakeListener(
-        port, consume sslctx, h)
+        consume sslctx, h)
     h.dispose_when_done(listener)
 
     h.long_test(5_000_000_000)
 
 actor \nodoc\ _TestSSLServerHardCloseHandshakeListener is TCPListenerActor
-  let _port: String
   let _sslctx: SSLContext val
   var _tcp_listener: TCPListener = TCPListener.none()
   let _h: TestHelper
@@ -2010,15 +1978,14 @@ actor \nodoc\ _TestSSLServerHardCloseHandshakeListener is TCPListenerActor
   let _servers: Array[_TestSSLServerHardCloseHandshakeServer] =
     Array[_TestSSLServerHardCloseHandshakeServer]
 
-  new create(port: String, sslctx: SSLContext val, h: TestHelper) =>
-    _port = port
+  new create(sslctx: SSLContext val, h: TestHelper) =>
     _sslctx = sslctx
     _h = h
     _tcp_listener =
       TCPListener(
         TCPListenAuth(_h.env.root),
         "localhost",
-        _port,
+        "0",
         this)
 
   fun ref _listener(): TCPListener =>
@@ -2037,8 +2004,9 @@ actor \nodoc\ _TestSSLServerHardCloseHandshakeListener is TCPListenerActor
     end
 
   fun ref _on_listening() =>
+    let port: String val = _tcp_listener.local_address().port().string()
     _client =
-      _TestSSLServerHardCloseHandshakePlainClient(_port, _h)
+      _TestSSLServerHardCloseHandshakePlainClient(port, _h)
 
   fun ref _on_listen_failure() =>
     _h.fail(

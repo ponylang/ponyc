@@ -24,7 +24,7 @@ actor \nodoc\ _TestReadBufferConstructorSizeListener is TCPListenerActor
     _h = h
     _tcp_listener =
       TCPListener(
-        TCPListenAuth(h.env.root), "127.0.0.1", "7700", this)
+        TCPListenAuth(h.env.root), "127.0.0.1", "0", this)
 
   fun ref _listener(): TCPListener =>
     _tcp_listener
@@ -35,9 +35,10 @@ actor \nodoc\ _TestReadBufferConstructorSizeListener is TCPListenerActor
     server
 
   fun ref _on_listening() =>
+    let port: String val = _tcp_listener.local_address().port().string()
     _client =
       _TestReadBufferTriggerClient(
-        TCPConnectAuth(_h.env.root), "127.0.0.1", "7700")
+        TCPConnectAuth(_h.env.root), "127.0.0.1", port)
 
   fun ref _on_closed() =>
     try (_client as _TestReadBufferTriggerClient).dispose() end
@@ -118,7 +119,7 @@ actor \nodoc\ _TestSetReadBufferMinSuccessListener is TCPListenerActor
     _h = h
     _tcp_listener =
       TCPListener(
-        TCPListenAuth(h.env.root), "127.0.0.1", "7701", this)
+        TCPListenAuth(h.env.root), "127.0.0.1", "0", this)
 
   fun ref _listener(): TCPListener =>
     _tcp_listener
@@ -129,9 +130,10 @@ actor \nodoc\ _TestSetReadBufferMinSuccessListener is TCPListenerActor
     server
 
   fun ref _on_listening() =>
+    let port: String val = _tcp_listener.local_address().port().string()
     _client =
       _TestReadBufferTriggerClient(
-        TCPConnectAuth(_h.env.root), "127.0.0.1", "7701")
+        TCPConnectAuth(_h.env.root), "127.0.0.1", port)
 
   fun ref _on_closed() =>
     try (_client as _TestReadBufferTriggerClient).dispose() end
@@ -214,7 +216,7 @@ actor \nodoc\ _TestSetReadBufferMinBelowBufferSizeListener is TCPListenerActor
     _h = h
     _tcp_listener =
       TCPListener(
-        TCPListenAuth(h.env.root), "127.0.0.1", "7702", this)
+        TCPListenAuth(h.env.root), "127.0.0.1", "0", this)
 
   fun ref _listener(): TCPListener =>
     _tcp_listener
@@ -225,9 +227,10 @@ actor \nodoc\ _TestSetReadBufferMinBelowBufferSizeListener is TCPListenerActor
     server
 
   fun ref _on_listening() =>
+    let port: String val = _tcp_listener.local_address().port().string()
     _client =
       _TestReadBufferTriggerClient(
-        TCPConnectAuth(_h.env.root), "127.0.0.1", "7702")
+        TCPConnectAuth(_h.env.root), "127.0.0.1", port)
 
   fun ref _on_closed() =>
     try (_client as _TestReadBufferTriggerClient).dispose() end
@@ -311,7 +314,7 @@ actor \nodoc\ _TestResizeReadBufferSuccessListener is TCPListenerActor
     _h = h
     _tcp_listener =
       TCPListener(
-        TCPListenAuth(h.env.root), "127.0.0.1", "7703", this)
+        TCPListenAuth(h.env.root), "127.0.0.1", "0", this)
 
   fun ref _listener(): TCPListener =>
     _tcp_listener
@@ -322,9 +325,10 @@ actor \nodoc\ _TestResizeReadBufferSuccessListener is TCPListenerActor
     server
 
   fun ref _on_listening() =>
+    let port: String val = _tcp_listener.local_address().port().string()
     _client =
       _TestReadBufferTriggerClient(
-        TCPConnectAuth(_h.env.root), "127.0.0.1", "7703")
+        TCPConnectAuth(_h.env.root), "127.0.0.1", port)
 
   fun ref _on_closed() =>
     try (_client as _TestReadBufferTriggerClient).dispose() end
@@ -411,7 +415,7 @@ actor \nodoc\ _TestResizeReadBufferBelowBufferSizeListener is TCPListenerActor
     _h = h
     _tcp_listener =
       TCPListener(
-        TCPListenAuth(h.env.root), "127.0.0.1", "7704", this)
+        TCPListenAuth(h.env.root), "127.0.0.1", "0", this)
 
   fun ref _listener(): TCPListener =>
     _tcp_listener
@@ -422,9 +426,10 @@ actor \nodoc\ _TestResizeReadBufferBelowBufferSizeListener is TCPListenerActor
     server
 
   fun ref _on_listening() =>
+    let port: String val = _tcp_listener.local_address().port().string()
     _client =
       _TestReadBufferTriggerClient(
-        TCPConnectAuth(_h.env.root), "127.0.0.1", "7704")
+        TCPConnectAuth(_h.env.root), "127.0.0.1", port)
 
   fun ref _on_closed() =>
     try (_client as _TestReadBufferTriggerClient).dispose() end
@@ -499,7 +504,7 @@ actor \nodoc\ _TestResizeReadBufferBelowMinListener is TCPListenerActor
     _h = h
     _tcp_listener =
       TCPListener(
-        TCPListenAuth(h.env.root), "127.0.0.1", "7705", this)
+        TCPListenAuth(h.env.root), "127.0.0.1", "0", this)
 
   fun ref _listener(): TCPListener =>
     _tcp_listener
@@ -510,9 +515,10 @@ actor \nodoc\ _TestResizeReadBufferBelowMinListener is TCPListenerActor
     server
 
   fun ref _on_listening() =>
+    let port: String val = _tcp_listener.local_address().port().string()
     _client =
       _TestReadBufferTriggerClient(
-        TCPConnectAuth(_h.env.root), "127.0.0.1", "7705")
+        TCPConnectAuth(_h.env.root), "127.0.0.1", port)
 
   fun ref _on_closed() =>
     try (_client as _TestReadBufferTriggerClient).dispose() end
@@ -606,7 +612,7 @@ actor \nodoc\ _TestBufferSizeAboveMinListener is TCPListenerActor
     _h = h
     _tcp_listener =
       TCPListener(
-        TCPListenAuth(h.env.root), "127.0.0.1", "7706", this)
+        TCPListenAuth(h.env.root), "127.0.0.1", "0", this)
 
   fun ref _listener(): TCPListener =>
     _tcp_listener
@@ -617,9 +623,10 @@ actor \nodoc\ _TestBufferSizeAboveMinListener is TCPListenerActor
     server
 
   fun ref _on_listening() =>
+    let port: String val = _tcp_listener.local_address().port().string()
     _client =
       _TestReadBufferTriggerClient(
-        TCPConnectAuth(_h.env.root), "127.0.0.1", "7706")
+        TCPConnectAuth(_h.env.root), "127.0.0.1", port)
 
   fun ref _on_closed() =>
     try (_client as _TestReadBufferTriggerClient).dispose() end
@@ -689,7 +696,7 @@ actor \nodoc\ _TestBufferSizeAtMinListener is TCPListenerActor
     _h = h
     _tcp_listener =
       TCPListener(
-        TCPListenAuth(h.env.root), "127.0.0.1", "7707", this)
+        TCPListenAuth(h.env.root), "127.0.0.1", "0", this)
 
   fun ref _listener(): TCPListener =>
     _tcp_listener
@@ -700,9 +707,10 @@ actor \nodoc\ _TestBufferSizeAtMinListener is TCPListenerActor
     server
 
   fun ref _on_listening() =>
+    let port: String val = _tcp_listener.local_address().port().string()
     _client =
       _TestReadBufferTriggerClient(
-        TCPConnectAuth(_h.env.root), "127.0.0.1", "7707")
+        TCPConnectAuth(_h.env.root), "127.0.0.1", port)
 
   fun ref _on_closed() =>
     try (_client as _TestReadBufferTriggerClient).dispose() end

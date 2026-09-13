@@ -28,7 +28,7 @@ actor \nodoc\ _TestIdleTimeoutListener is TCPListenerActor
       TCPListener(
         TCPListenAuth(_h.env.root),
         "localhost",
-        "7897",
+        "0",
         this)
 
   fun ref _listener(): TCPListener =>
@@ -44,7 +44,8 @@ actor \nodoc\ _TestIdleTimeoutListener is TCPListenerActor
     for server in _servers.values() do server.dispose() end
 
   fun ref _on_listening() =>
-    _client = _TestIdleTimeoutClient(_h)
+    let port: String val = _tcp_listener.local_address().port().string()
+    _client = _TestIdleTimeoutClient(port, _h)
 
   fun ref _on_listen_failure() =>
     _h.fail("Unable to open _TestIdleTimeoutListener")
@@ -54,13 +55,13 @@ actor \nodoc\ _TestIdleTimeoutClient
   var _tcp_connection: TCPConnection = TCPConnection.none()
   let _h: TestHelper
 
-  new create(h: TestHelper) =>
+  new create(port: String, h: TestHelper) =>
     _h = h
     _tcp_connection =
       TCPConnection.client(
         TCPConnectAuth(_h.env.root),
         "localhost",
-        "7897",
+        port,
         "",
         this,
         this)
@@ -133,7 +134,7 @@ actor \nodoc\ _TestIdleTimeoutResetListener is TCPListenerActor
       TCPListener(
         TCPListenAuth(_h.env.root),
         "localhost",
-        "7898",
+        "0",
         this)
 
   fun ref _listener(): TCPListener =>
@@ -149,7 +150,8 @@ actor \nodoc\ _TestIdleTimeoutResetListener is TCPListenerActor
     for server in _servers.values() do server.dispose() end
 
   fun ref _on_listening() =>
-    _client = _TestIdleTimeoutResetClient(_h)
+    let port: String val = _tcp_listener.local_address().port().string()
+    _client = _TestIdleTimeoutResetClient(port, _h)
 
   fun ref _on_listen_failure() =>
     _h.fail("Unable to open _TestIdleTimeoutResetListener")
@@ -161,13 +163,13 @@ actor \nodoc\ _TestIdleTimeoutResetClient
   let _timers: Timers = Timers
   var _sends_remaining: U32 = 4
 
-  new create(h: TestHelper) =>
+  new create(port: String, h: TestHelper) =>
     _h = h
     _tcp_connection =
       TCPConnection.client(
         TCPConnectAuth(_h.env.root),
         "localhost",
-        "7898",
+        port,
         "",
         this,
         this)
@@ -281,7 +283,7 @@ actor \nodoc\ _TestIdleTimeoutDisableListener is TCPListenerActor
       TCPListener(
         TCPListenAuth(_h.env.root),
         "localhost",
-        "7899",
+        "0",
         this)
 
   fun ref _listener(): TCPListener =>
@@ -297,7 +299,8 @@ actor \nodoc\ _TestIdleTimeoutDisableListener is TCPListenerActor
     for server in _servers.values() do server.dispose() end
 
   fun ref _on_listening() =>
-    _client = _TestIdleTimeoutDisableClient(_h)
+    let port: String val = _tcp_listener.local_address().port().string()
+    _client = _TestIdleTimeoutDisableClient(port, _h)
 
   fun ref _on_listen_failure() =>
     _h.fail("Unable to open _TestIdleTimeoutDisableListener")
@@ -307,13 +310,13 @@ actor \nodoc\ _TestIdleTimeoutDisableClient
   var _tcp_connection: TCPConnection = TCPConnection.none()
   let _h: TestHelper
 
-  new create(h: TestHelper) =>
+  new create(port: String, h: TestHelper) =>
     _h = h
     _tcp_connection =
       TCPConnection.client(
         TCPConnectAuth(_h.env.root),
         "localhost",
-        "7899",
+        port,
         "",
         this,
         this)
@@ -423,7 +426,7 @@ actor \nodoc\ _TestSSLIdleTimeoutListener is TCPListenerActor
       TCPListener(
         TCPListenAuth(_h.env.root),
         "localhost",
-        "9743",
+        "0",
         this)
 
   fun ref _listener(): TCPListener =>
@@ -439,7 +442,8 @@ actor \nodoc\ _TestSSLIdleTimeoutListener is TCPListenerActor
     for server in _servers.values() do server.dispose() end
 
   fun ref _on_listening() =>
-    _client = _TestSSLIdleTimeoutClient(_sslctx, _h)
+    let port: String val = _tcp_listener.local_address().port().string()
+    _client = _TestSSLIdleTimeoutClient(port, _sslctx, _h)
 
   fun ref _on_listen_failure() =>
     _h.fail("Unable to open _TestSSLIdleTimeoutListener")
@@ -449,14 +453,14 @@ actor \nodoc\ _TestSSLIdleTimeoutClient
   var _tcp_connection: TCPConnection = TCPConnection.none()
   let _h: TestHelper
 
-  new create(sslctx: SSLContext val, h: TestHelper) =>
+  new create(port: String, sslctx: SSLContext val, h: TestHelper) =>
     _h = h
     _tcp_connection =
       TCPConnection.ssl_client(
         TCPConnectAuth(_h.env.root),
         sslctx,
         "localhost",
-        "9743",
+        port,
         "",
         this,
         this)
@@ -536,7 +540,7 @@ actor \nodoc\ _TestSSLIdleTimeoutNotArmedListener is TCPListenerActor
       TCPListener(
         TCPListenAuth(_h.env.root),
         "localhost",
-        "9744",
+        "0",
         this)
 
   fun ref _listener(): TCPListener =>
@@ -552,7 +556,8 @@ actor \nodoc\ _TestSSLIdleTimeoutNotArmedListener is TCPListenerActor
     for server in _servers.values() do server.dispose() end
 
   fun ref _on_listening() =>
-    _client = _TestSSLIdleTimeoutNotArmedClient(_sslctx, _h)
+    let port: String val = _tcp_listener.local_address().port().string()
+    _client = _TestSSLIdleTimeoutNotArmedClient(port, _sslctx, _h)
 
   fun ref _on_listen_failure() =>
     _h.fail("Unable to open _TestSSLIdleTimeoutNotArmedListener")
@@ -562,7 +567,7 @@ actor \nodoc\ _TestSSLIdleTimeoutNotArmedClient
   var _tcp_connection: TCPConnection = TCPConnection.none()
   let _h: TestHelper
 
-  new create(sslctx: SSLContext val, h: TestHelper) =>
+  new create(port: String, sslctx: SSLContext val, h: TestHelper) =>
     _h = h
     match \exhaustive\ (MakeIdleTimeout(1_000), MakeConnectionTimeout(5_000))
     | (let it: IdleTimeout, let ct: ConnectionTimeout) =>
@@ -571,7 +576,7 @@ actor \nodoc\ _TestSSLIdleTimeoutNotArmedClient
           TCPConnectAuth(_h.env.root),
           sslctx,
           "localhost",
-          "9744",
+          port,
           "",
           this,
           this
@@ -668,7 +673,7 @@ actor \nodoc\ _TestSSLIdleTimeoutDeferredArmListener is TCPListenerActor
       TCPListener(
         TCPListenAuth(_h.env.root),
         "localhost",
-        "9745",
+        "0",
         this)
 
   fun ref _listener(): TCPListener =>
@@ -684,7 +689,8 @@ actor \nodoc\ _TestSSLIdleTimeoutDeferredArmListener is TCPListenerActor
     for server in _servers.values() do server.dispose() end
 
   fun ref _on_listening() =>
-    _client = _TestSSLIdleTimeoutDeferredArmClient(_sslctx, _h)
+    let port: String val = _tcp_listener.local_address().port().string()
+    _client = _TestSSLIdleTimeoutDeferredArmClient(port, _sslctx, _h)
 
   fun ref _on_listen_failure() =>
     _h.fail("Unable to open _TestSSLIdleTimeoutDeferredArmListener")
@@ -694,14 +700,14 @@ actor \nodoc\ _TestSSLIdleTimeoutDeferredArmClient
   var _tcp_connection: TCPConnection = TCPConnection.none()
   let _h: TestHelper
 
-  new create(sslctx: SSLContext val, h: TestHelper) =>
+  new create(port: String, sslctx: SSLContext val, h: TestHelper) =>
     _h = h
     _tcp_connection =
       TCPConnection.ssl_client(
         TCPConnectAuth(_h.env.root),
         sslctx,
         "localhost",
-        "9745",
+        port,
         "",
         this,
         this)
@@ -772,7 +778,7 @@ actor \nodoc\ _TestIdleTimeoutRearmsListener is TCPListenerActor
       TCPListener(
         TCPListenAuth(_h.env.root),
         "localhost",
-        "9784",
+        "0",
         this)
 
   fun ref _listener(): TCPListener =>
@@ -788,7 +794,8 @@ actor \nodoc\ _TestIdleTimeoutRearmsListener is TCPListenerActor
     for server in _servers.values() do server.dispose() end
 
   fun ref _on_listening() =>
-    _client = _TestIdleTimeoutRearmsClient(_h)
+    let port: String val = _tcp_listener.local_address().port().string()
+    _client = _TestIdleTimeoutRearmsClient(port, _h)
 
   fun ref _on_listen_failure() =>
     _h.fail("Unable to open _TestIdleTimeoutRearmsListener")
@@ -798,13 +805,13 @@ actor \nodoc\ _TestIdleTimeoutRearmsClient
   var _tcp_connection: TCPConnection = TCPConnection.none()
   let _h: TestHelper
 
-  new create(h: TestHelper) =>
+  new create(port: String, h: TestHelper) =>
     _h = h
     _tcp_connection =
       TCPConnection.client(
         TCPConnectAuth(_h.env.root),
         "localhost",
-        "9784",
+        port,
         "",
         this,
         this)
@@ -862,7 +869,6 @@ class \nodoc\ iso _TestIdleTimeoutRearmsDuringTLSUpgrade is UnitTest
   fun name(): String => "net/IdleTimeoutRearmsDuringTLSUpgrade"
 
   fun apply(h: TestHelper) ? =>
-    let port = "9786"
     let file_auth = FileAuth(h.env.root)
     let sslctx =
       recover
@@ -878,13 +884,12 @@ class \nodoc\ iso _TestIdleTimeoutRearmsDuringTLSUpgrade is UnitTest
 
     h.expect_action("idle timeout fired twice during TLS upgrade")
 
-    let listener = _TestIdleTimeoutTLSUpgradeListener(port, consume sslctx, h)
+    let listener = _TestIdleTimeoutTLSUpgradeListener(consume sslctx, h)
     h.dispose_when_done(listener)
 
     h.long_test(5_000_000_000)
 
 actor \nodoc\ _TestIdleTimeoutTLSUpgradeListener is TCPListenerActor
-  let _port: String
   let _sslctx: SSLContext val
   var _tcp_listener: TCPListener = TCPListener.none()
   let _h: TestHelper
@@ -892,15 +897,14 @@ actor \nodoc\ _TestIdleTimeoutTLSUpgradeListener is TCPListenerActor
     Array[_TestDoNothingServerActor]
   var _client: (_TestIdleTimeoutTLSUpgradeClient | None) = None
 
-  new create(port: String, sslctx: SSLContext val, h: TestHelper) =>
-    _port = port
+  new create(sslctx: SSLContext val, h: TestHelper) =>
     _sslctx = sslctx
     _h = h
     _tcp_listener =
       TCPListener(
         TCPListenAuth(_h.env.root),
         "localhost",
-        _port,
+        "0",
         this)
 
   fun ref _listener(): TCPListener =>
@@ -916,7 +920,8 @@ actor \nodoc\ _TestIdleTimeoutTLSUpgradeListener is TCPListenerActor
     for server in _servers.values() do server.dispose() end
 
   fun ref _on_listening() =>
-    _client = _TestIdleTimeoutTLSUpgradeClient(_port, _sslctx, _h)
+    let port: String val = _tcp_listener.local_address().port().string()
+    _client = _TestIdleTimeoutTLSUpgradeClient(port, _sslctx, _h)
 
   fun ref _on_listen_failure() =>
     _h.fail("Unable to open _TestIdleTimeoutTLSUpgradeListener")

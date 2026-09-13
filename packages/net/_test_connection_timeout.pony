@@ -81,7 +81,7 @@ actor \nodoc\ _TestConnectionTimeoutCancelListener is TCPListenerActor
       TCPListener(
         TCPListenAuth(_h.env.root),
         "localhost",
-        "9738",
+        "0",
         this)
 
   fun ref _listener(): TCPListener =>
@@ -97,7 +97,8 @@ actor \nodoc\ _TestConnectionTimeoutCancelListener is TCPListenerActor
     for server in _servers.values() do server.dispose() end
 
   fun ref _on_listening() =>
-    _client = _TestConnectionTimeoutCancelClient(_h)
+    let port: String val = _tcp_listener.local_address().port().string()
+    _client = _TestConnectionTimeoutCancelClient(port, _h)
 
   fun ref _on_listen_failure() =>
     _h.fail("Unable to open _TestConnectionTimeoutCancelListener")
@@ -107,7 +108,7 @@ actor \nodoc\ _TestConnectionTimeoutCancelClient
   var _tcp_connection: TCPConnection = TCPConnection.none()
   let _h: TestHelper
 
-  new create(h: TestHelper) =>
+  new create(port: String, h: TestHelper) =>
     _h = h
     match \exhaustive\ MakeConnectionTimeout(30_000)
     | let ct: ConnectionTimeout =>
@@ -115,7 +116,7 @@ actor \nodoc\ _TestConnectionTimeoutCancelClient
         TCPConnection.client(
           TCPConnectAuth(_h.env.root),
           "localhost",
-          "9738",
+          port,
           "",
           this,
           this
@@ -196,7 +197,7 @@ actor \nodoc\ _TestSSLConnectionTimeoutFiresListener is TCPListenerActor
       TCPListener(
         TCPListenAuth(_h.env.root),
         "localhost",
-        "9739",
+        "0",
         this)
 
   fun ref _listener(): TCPListener =>
@@ -212,7 +213,8 @@ actor \nodoc\ _TestSSLConnectionTimeoutFiresListener is TCPListenerActor
     for server in _servers.values() do server.dispose() end
 
   fun ref _on_listening() =>
-    _client = _TestSSLConnectionTimeoutFiresClient(_sslctx, _h)
+    let port: String val = _tcp_listener.local_address().port().string()
+    _client = _TestSSLConnectionTimeoutFiresClient(port, _sslctx, _h)
 
   fun ref _on_listen_failure() =>
     _h.fail("Unable to open _TestSSLConnectionTimeoutFiresListener")
@@ -222,7 +224,7 @@ actor \nodoc\ _TestSSLConnectionTimeoutFiresClient
   var _tcp_connection: TCPConnection = TCPConnection.none()
   let _h: TestHelper
 
-  new create(sslctx: SSLContext val, h: TestHelper) =>
+  new create(port: String, sslctx: SSLContext val, h: TestHelper) =>
     _h = h
     match \exhaustive\ MakeConnectionTimeout(2_000)
     | let ct: ConnectionTimeout =>
@@ -231,7 +233,7 @@ actor \nodoc\ _TestSSLConnectionTimeoutFiresClient
           TCPConnectAuth(_h.env.root),
           sslctx,
           "localhost",
-          "9739",
+          port,
           "",
           this,
           this
@@ -323,7 +325,7 @@ actor \nodoc\ _TestSSLConnectionTimeoutCancelListener is TCPListenerActor
       TCPListener(
         TCPListenAuth(_h.env.root),
         "localhost",
-        "9740",
+        "0",
         this)
 
   fun ref _listener(): TCPListener =>
@@ -339,7 +341,8 @@ actor \nodoc\ _TestSSLConnectionTimeoutCancelListener is TCPListenerActor
     for server in _servers.values() do server.dispose() end
 
   fun ref _on_listening() =>
-    _client = _TestSSLConnectionTimeoutCancelClient(_sslctx, _h)
+    let port: String val = _tcp_listener.local_address().port().string()
+    _client = _TestSSLConnectionTimeoutCancelClient(port, _sslctx, _h)
 
   fun ref _on_listen_failure() =>
     _h.fail("Unable to open _TestSSLConnectionTimeoutCancelListener")
@@ -349,7 +352,7 @@ actor \nodoc\ _TestSSLConnectionTimeoutCancelClient
   var _tcp_connection: TCPConnection = TCPConnection.none()
   let _h: TestHelper
 
-  new create(sslctx: SSLContext val, h: TestHelper) =>
+  new create(port: String, sslctx: SSLContext val, h: TestHelper) =>
     _h = h
     match \exhaustive\ MakeConnectionTimeout(30_000)
     | let ct: ConnectionTimeout =>
@@ -358,7 +361,7 @@ actor \nodoc\ _TestSSLConnectionTimeoutCancelClient
           TCPConnectAuth(_h.env.root),
           sslctx,
           "localhost",
-          "9740",
+          port,
           "",
           this,
           this
@@ -417,7 +420,7 @@ actor \nodoc\ _TestCloseWhileConnectingWithTimeoutClient
   var _tcp_connection: TCPConnection = TCPConnection.none()
   let _h: TestHelper
 
-  new create(h: TestHelper) =>
+  new create(port: String, h: TestHelper) =>
     _h = h
     match \exhaustive\ MakeConnectionTimeout(30_000)
     | let ct: ConnectionTimeout =>
@@ -425,7 +428,7 @@ actor \nodoc\ _TestCloseWhileConnectingWithTimeoutClient
         TCPConnection.client(
           TCPConnectAuth(_h.env.root),
           "localhost",
-          "9741",
+          port,
           "",
           this,
           this
@@ -466,7 +469,7 @@ actor \nodoc\ _TestCloseWhileConnectingWithTimeoutListener is TCPListenerActor
       TCPListener(
         TCPListenAuth(_h.env.root),
         "localhost",
-        "9741",
+        "0",
         this)
 
   fun ref _listener(): TCPListener =>
@@ -484,7 +487,8 @@ actor \nodoc\ _TestCloseWhileConnectingWithTimeoutListener is TCPListenerActor
     for server in _servers.values() do server.dispose() end
 
   fun ref _on_listening() =>
-    _client = _TestCloseWhileConnectingWithTimeoutClient(_h)
+    let port: String val = _tcp_listener.local_address().port().string()
+    _client = _TestCloseWhileConnectingWithTimeoutClient(port, _h)
 
   fun ref _on_listen_failure() =>
     _h.fail("Unable to open _TestCloseWhileConnectingWithTimeoutListener")
@@ -508,7 +512,7 @@ actor \nodoc\ _TestHardCloseWhileConnectingWithTimeoutClient
   var _tcp_connection: TCPConnection = TCPConnection.none()
   let _h: TestHelper
 
-  new create(h: TestHelper) =>
+  new create(port: String, h: TestHelper) =>
     _h = h
     match \exhaustive\ MakeConnectionTimeout(30_000)
     | let ct: ConnectionTimeout =>
@@ -516,7 +520,7 @@ actor \nodoc\ _TestHardCloseWhileConnectingWithTimeoutClient
         TCPConnection.client(
           TCPConnectAuth(_h.env.root),
           "localhost",
-          "9742",
+          port,
           "",
           this,
           this
@@ -558,7 +562,7 @@ actor \nodoc\ _TestHardCloseWhileConnectingWithTimeoutListener
       TCPListener(
         TCPListenAuth(_h.env.root),
         "localhost",
-        "9742",
+        "0",
         this)
 
   fun ref _listener(): TCPListener =>
@@ -576,7 +580,8 @@ actor \nodoc\ _TestHardCloseWhileConnectingWithTimeoutListener
     for server in _servers.values() do server.dispose() end
 
   fun ref _on_listening() =>
-    _client = _TestHardCloseWhileConnectingWithTimeoutClient(_h)
+    let port: String val = _tcp_listener.local_address().port().string()
+    _client = _TestHardCloseWhileConnectingWithTimeoutClient(port, _h)
 
   fun ref _on_listen_failure() =>
     _h.fail(

@@ -47,10 +47,9 @@ class \nodoc\ iso _TestPingPong is UnitTest
   fun name(): String => "net/PingPong"
 
   fun apply(h: TestHelper) =>
-    let port = "7664"
     let pings_to_send: I32 = 100
 
-    let listener = _TestPongerListener(port, pings_to_send, h)
+    let listener = _TestPongerListener(pings_to_send, h)
     h.dispose_when_done(listener)
 
     h.long_test(5_000_000_000)
@@ -142,25 +141,22 @@ actor \nodoc\ _TestPonger is (TCPConnectionActor & ServerLifecycleEventReceiver)
     KeepReading
 
 actor \nodoc\ _TestPongerListener is TCPListenerActor
-  let _port: String
   var _tcp_listener: TCPListener = TCPListener.none()
   var _pings_to_receive: I32
   let _h: TestHelper
   var _pinger: (_TestPinger | None) = None
   let _servers: Array[_TestPonger] = Array[_TestPonger]
 
-  new create(port: String,
-    pings_to_receive: I32,
+  new create(pings_to_receive: I32,
     h: TestHelper)
   =>
-    _port = port
     _pings_to_receive = pings_to_receive
     _h = h
     _tcp_listener =
       TCPListener(
         TCPListenAuth(_h.env.root),
         "localhost",
-        _port,
+        "0",
         this)
 
   fun ref _listener(): TCPListener =>
@@ -176,7 +172,8 @@ actor \nodoc\ _TestPongerListener is TCPListenerActor
     for server in _servers.values() do server.dispose() end
 
   fun ref _on_listening() =>
-    _pinger = _TestPinger(_port, _pings_to_receive, _h)
+    let port: String val = _tcp_listener.local_address().port().string()
+    _pinger = _TestPinger(port, _pings_to_receive, _h)
 
   fun ref _on_listen_failure() =>
     _h.fail("Unable to open _TestPongerListener")
@@ -200,13 +197,13 @@ actor \nodoc\ _TestBasicBufferUntilClient
   var _tcp_connection: TCPConnection = TCPConnection.none()
   let _h: TestHelper
 
-  new create(h: TestHelper) =>
+  new create(port: String, h: TestHelper) =>
     _h = h
     _tcp_connection =
       TCPConnection.client(
         TCPConnectAuth(_h.env.root),
         "localhost",
-        "9728",
+        port,
         "",
         this,
         this)
@@ -238,7 +235,7 @@ actor \nodoc\ _TestBasicBufferUntilListener is TCPListenerActor
       TCPListener(
         TCPListenAuth(_h.env.root),
         "localhost",
-        "9728",
+        "0",
         this)
 
   fun ref _listener(): TCPListener =>
@@ -255,7 +252,8 @@ actor \nodoc\ _TestBasicBufferUntilListener is TCPListenerActor
 
   fun ref _on_listening() =>
     _h.complete_action("server listening")
-    _client = _TestBasicBufferUntilClient(_h)
+    let port: String val = _tcp_listener.local_address().port().string()
+    _client = _TestBasicBufferUntilClient(port, _h)
 
   fun ref _on_listen_failure() =>
     _h.fail("Unable to open _TestBasicBufferUntilListener")
@@ -327,7 +325,7 @@ actor \nodoc\ _TestCanListenListener is TCPListenerActor
       TCPListener(
         TCPListenAuth(_h.env.root),
         "localhost",
-        "5786",
+        "0",
         this)
 
   fun ref _on_accept(fd: U32): _TestDoNothingServerActor =>
@@ -448,7 +446,7 @@ actor \nodoc\ _TestHardCloseDuringReceiveListener is TCPListenerActor
       TCPListener(
         TCPListenAuth(_h.env.root),
         "localhost",
-        "7920",
+        "0",
         this)
 
   fun ref _listener(): TCPListener =>
@@ -465,7 +463,8 @@ actor \nodoc\ _TestHardCloseDuringReceiveListener is TCPListenerActor
 
   fun ref _on_listening() =>
     _h.complete_action("server listening")
-    _client = _TestHardCloseDuringReceiveClient(_h)
+    let port: String val = _tcp_listener.local_address().port().string()
+    _client = _TestHardCloseDuringReceiveClient(port, _h)
 
   fun ref _on_listen_failure() =>
     _h.fail("Unable to open _TestHardCloseDuringReceiveListener")
@@ -475,13 +474,13 @@ actor \nodoc\ _TestHardCloseDuringReceiveClient
   var _tcp_connection: TCPConnection = TCPConnection.none()
   let _h: TestHelper
 
-  new create(h: TestHelper) =>
+  new create(port: String, h: TestHelper) =>
     _h = h
     _tcp_connection =
       TCPConnection.client(
         TCPConnectAuth(_h.env.root),
         "localhost",
-        "7920",
+        port,
         "",
         this,
         this)
@@ -574,7 +573,7 @@ actor \nodoc\ _TestHardCloseAfterFramedReceiveListener is TCPListenerActor
       TCPListener(
         TCPListenAuth(_h.env.root),
         "localhost",
-        "7921",
+        "0",
         this)
 
   fun ref _listener(): TCPListener =>
@@ -590,7 +589,8 @@ actor \nodoc\ _TestHardCloseAfterFramedReceiveListener is TCPListenerActor
     for server in _servers.values() do server.dispose() end
 
   fun ref _on_listening() =>
-    _client = _TestHardCloseAfterFramedReceiveClient(_h)
+    let port: String val = _tcp_listener.local_address().port().string()
+    _client = _TestHardCloseAfterFramedReceiveClient(port, _h)
 
   fun ref _on_listen_failure() =>
     _h.fail("Unable to open _TestHardCloseAfterFramedReceiveListener")
@@ -600,13 +600,13 @@ actor \nodoc\ _TestHardCloseAfterFramedReceiveClient
   var _tcp_connection: TCPConnection = TCPConnection.none()
   let _h: TestHelper
 
-  new create(h: TestHelper) =>
+  new create(port: String, h: TestHelper) =>
     _h = h
     _tcp_connection =
       TCPConnection.client(
         TCPConnectAuth(_h.env.root),
         "localhost",
-        "7921",
+        port,
         "",
         this,
         this)

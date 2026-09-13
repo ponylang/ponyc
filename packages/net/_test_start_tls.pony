@@ -12,7 +12,6 @@ class \nodoc\ iso _TestStartTLSPingPong is UnitTest
   fun name(): String => "net/StartTLSPingPong"
 
   fun apply(h: TestHelper) ? =>
-    let port = "9733"
     let file_auth = FileAuth(h.env.root)
     let sslctx =
       recover
@@ -32,7 +31,7 @@ class \nodoc\ iso _TestStartTLSPingPong is UnitTest
 
     let listener =
       _TestStartTLSListener(
-        port, consume sslctx, h)
+        consume sslctx, h)
     h.dispose_when_done(listener)
 
     h.long_test(5_000_000_000)
@@ -151,25 +150,22 @@ actor \nodoc\ _TestStartTLSServer
     _h.fail("Server TLS handshake failed")
 
 actor \nodoc\ _TestStartTLSListener is TCPListenerActor
-  let _port: String
   let _sslctx: SSLContext val
   var _tcp_listener: TCPListener = TCPListener.none()
   let _h: TestHelper
   var _client: (_TestStartTLSClient | None) = None
   let _servers: Array[_TestStartTLSServer] = Array[_TestStartTLSServer]
 
-  new create(port: String,
-    sslctx: SSLContext val,
+  new create(sslctx: SSLContext val,
     h: TestHelper)
   =>
-    _port = port
     _sslctx = sslctx
     _h = h
     _tcp_listener =
       TCPListener(
         TCPListenAuth(_h.env.root),
         "localhost",
-        _port,
+        "0",
         this)
 
   fun ref _listener(): TCPListener =>
@@ -185,9 +181,10 @@ actor \nodoc\ _TestStartTLSListener is TCPListenerActor
     for server in _servers.values() do server.dispose() end
 
   fun ref _on_listening() =>
+    let port: String val = _tcp_listener.local_address().port().string()
     _client =
       _TestStartTLSClient(
-        _port, _sslctx, _h)
+        port, _sslctx, _h)
 
   fun ref _on_listen_failure() =>
     _h.fail("Unable to open _TestStartTLSListener")
@@ -372,7 +369,7 @@ actor \nodoc\ _TestStartTLSPreconditionsListener is TCPListenerActor
       TCPListener(
         TCPListenAuth(_h.env.root),
         "localhost",
-        "9734",
+        "0",
         this)
 
   fun ref _listener(): TCPListener =>
@@ -399,7 +396,7 @@ actor \nodoc\ _TestStartTLSPreconditionsListener is TCPListenerActor
     for server in _servers.values() do server.dispose() end
 
   fun ref _on_listening() =>
-    let port = "9734"
+    let port: String val = _tcp_listener.local_address().port().string()
     _not_connected_client =
       _TestStartTLSPreconditionsNotConnectedClient(port, _sslctx, _h)
     _already_tls_client =
@@ -420,7 +417,6 @@ class \nodoc\ iso _TestStartTLSSendDuringUpgrade is UnitTest
   fun name(): String => "net/StartTLSSendDuringUpgrade"
 
   fun apply(h: TestHelper) ? =>
-    let port = "9760"
     let file_auth = FileAuth(h.env.root)
     let sslctx =
       recover
@@ -438,7 +434,7 @@ class \nodoc\ iso _TestStartTLSSendDuringUpgrade is UnitTest
 
     let listener =
       _TestStartTLSSendDuringUpgradeListener(
-        port, consume sslctx, h)
+        consume sslctx, h)
     h.dispose_when_done(listener)
 
     h.long_test(5_000_000_000)
@@ -494,7 +490,6 @@ actor \nodoc\ _TestStartTLSSendDuringUpgradeClient
     _accepted_count = _accepted_count + 1
 
 actor \nodoc\ _TestStartTLSSendDuringUpgradeListener is TCPListenerActor
-  let _port: String
   let _sslctx: SSLContext val
   var _tcp_listener: TCPListener = TCPListener.none()
   let _h: TestHelper
@@ -502,15 +497,14 @@ actor \nodoc\ _TestStartTLSSendDuringUpgradeListener is TCPListenerActor
   let _servers: Array[_TestDoNothingServerActor] =
     Array[_TestDoNothingServerActor]
 
-  new create(port: String, sslctx: SSLContext val, h: TestHelper) =>
-    _port = port
+  new create(sslctx: SSLContext val, h: TestHelper) =>
     _sslctx = sslctx
     _h = h
     _tcp_listener =
       TCPListener(
         TCPListenAuth(_h.env.root),
         "localhost",
-        _port,
+        "0",
         this)
 
   fun ref _listener(): TCPListener =>
@@ -526,9 +520,10 @@ actor \nodoc\ _TestStartTLSSendDuringUpgradeListener is TCPListenerActor
     try (_client as _TestStartTLSSendDuringUpgradeClient).dispose() end
 
   fun ref _on_listening() =>
+    let port: String val = _tcp_listener.local_address().port().string()
     _client =
       _TestStartTLSSendDuringUpgradeClient(
-        _port, _sslctx, _h)
+        port, _sslctx, _h)
 
   fun ref _on_listen_failure() =>
     _h.fail("Unable to open _TestStartTLSSendDuringUpgradeListener")
@@ -543,7 +538,6 @@ class \nodoc\ iso _TestStartTLSHandshakeFailure is UnitTest
   fun name(): String => "net/StartTLSHandshakeFailure"
 
   fun apply(h: TestHelper) ? =>
-    let port = "9761"
     let file_auth = FileAuth(h.env.root)
     let sslctx =
       recover
@@ -562,7 +556,7 @@ class \nodoc\ iso _TestStartTLSHandshakeFailure is UnitTest
 
     let listener =
       _TestStartTLSHandshakeFailureListener(
-        port, consume sslctx, h)
+        consume sslctx, h)
     h.dispose_when_done(listener)
 
     h.long_test(5_000_000_000)
@@ -667,7 +661,6 @@ actor \nodoc\ _TestStartTLSHandshakeFailureServer
     KeepReading
 
 actor \nodoc\ _TestStartTLSHandshakeFailureListener is TCPListenerActor
-  let _port: String
   let _sslctx: SSLContext val
   var _tcp_listener: TCPListener = TCPListener.none()
   let _h: TestHelper
@@ -675,15 +668,14 @@ actor \nodoc\ _TestStartTLSHandshakeFailureListener is TCPListenerActor
   let _servers: Array[_TestStartTLSHandshakeFailureServer] =
     Array[_TestStartTLSHandshakeFailureServer]
 
-  new create(port: String, sslctx: SSLContext val, h: TestHelper) =>
-    _port = port
+  new create(sslctx: SSLContext val, h: TestHelper) =>
     _sslctx = sslctx
     _h = h
     _tcp_listener =
       TCPListener(
         TCPListenAuth(_h.env.root),
         "localhost",
-        _port,
+        "0",
         this)
 
   fun ref _listener(): TCPListener =>
@@ -699,9 +691,10 @@ actor \nodoc\ _TestStartTLSHandshakeFailureListener is TCPListenerActor
     try (_client as _TestStartTLSHandshakeFailureClient).dispose() end
 
   fun ref _on_listening() =>
+    let port: String val = _tcp_listener.local_address().port().string()
     _client =
       _TestStartTLSHandshakeFailureClient(
-        _port, _sslctx, _h)
+        port, _sslctx, _h)
 
   fun ref _on_listen_failure() =>
     _h.fail("Unable to open _TestStartTLSHandshakeFailureListener")
@@ -715,7 +708,6 @@ class \nodoc\ iso _TestStartTLSIsWriteableDuringUpgrade is UnitTest
   fun name(): String => "net/StartTLSIsWriteableDuringUpgrade"
 
   fun apply(h: TestHelper) ? =>
-    let port = "9762"
     let file_auth = FileAuth(h.env.root)
     let sslctx =
       recover
@@ -733,7 +725,7 @@ class \nodoc\ iso _TestStartTLSIsWriteableDuringUpgrade is UnitTest
 
     let listener =
       _TestStartTLSIsWriteableListener(
-        port, consume sslctx, h)
+        consume sslctx, h)
     h.dispose_when_done(listener)
 
     h.long_test(5_000_000_000)
@@ -777,7 +769,6 @@ actor \nodoc\ _TestStartTLSIsWriteableClient
     end
 
 actor \nodoc\ _TestStartTLSIsWriteableListener is TCPListenerActor
-  let _port: String
   let _sslctx: SSLContext val
   var _tcp_listener: TCPListener = TCPListener.none()
   let _h: TestHelper
@@ -785,15 +776,14 @@ actor \nodoc\ _TestStartTLSIsWriteableListener is TCPListenerActor
   let _servers: Array[_TestDoNothingServerActor] =
     Array[_TestDoNothingServerActor]
 
-  new create(port: String, sslctx: SSLContext val, h: TestHelper) =>
-    _port = port
+  new create(sslctx: SSLContext val, h: TestHelper) =>
     _sslctx = sslctx
     _h = h
     _tcp_listener =
       TCPListener(
         TCPListenAuth(_h.env.root),
         "localhost",
-        _port,
+        "0",
         this)
 
   fun ref _listener(): TCPListener =>
@@ -809,9 +799,10 @@ actor \nodoc\ _TestStartTLSIsWriteableListener is TCPListenerActor
     try (_client as _TestStartTLSIsWriteableClient).dispose() end
 
   fun ref _on_listening() =>
+    let port: String val = _tcp_listener.local_address().port().string()
     _client =
       _TestStartTLSIsWriteableClient(
-        _port, _sslctx, _h)
+        port, _sslctx, _h)
 
   fun ref _on_listen_failure() =>
     _h.fail("Unable to open _TestStartTLSIsWriteableListener")
@@ -827,7 +818,6 @@ class \nodoc\ iso _TestStartTLSAuthFailure is UnitTest
   fun name(): String => "net/StartTLSAuthFailure"
 
   fun apply(h: TestHelper) ? =>
-    let port = "9764"
     let file_auth = FileAuth(h.env.root)
     let server_sslctx =
       recover
@@ -852,7 +842,7 @@ class \nodoc\ iso _TestStartTLSAuthFailure is UnitTest
 
     let listener =
       _TestStartTLSAuthFailureListener(
-        port, consume server_sslctx, consume client_sslctx, h)
+        consume server_sslctx, consume client_sslctx, h)
     h.dispose_when_done(listener)
 
     h.long_test(5_000_000_000)
@@ -963,7 +953,6 @@ actor \nodoc\ _TestStartTLSAuthFailureServer
     KeepReading
 
 actor \nodoc\ _TestStartTLSAuthFailureListener is TCPListenerActor
-  let _port: String
   let _server_sslctx: SSLContext val
   let _client_sslctx: SSLContext val
   var _tcp_listener: TCPListener = TCPListener.none()
@@ -972,12 +961,10 @@ actor \nodoc\ _TestStartTLSAuthFailureListener is TCPListenerActor
   let _servers: Array[_TestStartTLSAuthFailureServer] =
     Array[_TestStartTLSAuthFailureServer]
 
-  new create(port: String,
-    server_sslctx: SSLContext val,
+  new create(server_sslctx: SSLContext val,
     client_sslctx: SSLContext val,
     h: TestHelper)
   =>
-    _port = port
     _server_sslctx = server_sslctx
     _client_sslctx = client_sslctx
     _h = h
@@ -985,7 +972,7 @@ actor \nodoc\ _TestStartTLSAuthFailureListener is TCPListenerActor
       TCPListener(
         TCPListenAuth(_h.env.root),
         "localhost",
-        _port,
+        "0",
         this)
 
   fun ref _listener(): TCPListener =>
@@ -1001,9 +988,10 @@ actor \nodoc\ _TestStartTLSAuthFailureListener is TCPListenerActor
     try (_client as _TestStartTLSAuthFailureClient).dispose() end
 
   fun ref _on_listening() =>
+    let port: String val = _tcp_listener.local_address().port().string()
     _client =
       _TestStartTLSAuthFailureClient(
-        _port, _client_sslctx, _h)
+        port, _client_sslctx, _h)
 
   fun ref _on_listen_failure() =>
     _h.fail("Unable to open _TestStartTLSAuthFailureListener")
@@ -1018,7 +1006,6 @@ class \nodoc\ iso _TestSetTimerAfterTLSUpgrade is UnitTest
   fun name(): String => "net/SetTimerAfterTLSUpgrade"
 
   fun apply(h: TestHelper) ? =>
-    let port = "9765"
     let file_auth = FileAuth(h.env.root)
     let sslctx =
       recover
@@ -1037,7 +1024,7 @@ class \nodoc\ iso _TestSetTimerAfterTLSUpgrade is UnitTest
 
     let listener =
       _TestSetTimerAfterTLSUpgradeListener(
-        port, consume sslctx, h)
+        consume sslctx, h)
     h.dispose_when_done(listener)
 
     h.long_test(5_000_000_000)
@@ -1166,7 +1153,6 @@ actor \nodoc\ _TestSetTimerAfterTLSUpgradeServer
     _h.fail("Server TLS handshake failed")
 
 actor \nodoc\ _TestSetTimerAfterTLSUpgradeListener is TCPListenerActor
-  let _port: String
   let _sslctx: SSLContext val
   var _tcp_listener: TCPListener = TCPListener.none()
   let _h: TestHelper
@@ -1174,18 +1160,16 @@ actor \nodoc\ _TestSetTimerAfterTLSUpgradeListener is TCPListenerActor
   let _servers: Array[_TestSetTimerAfterTLSUpgradeServer] =
     Array[_TestSetTimerAfterTLSUpgradeServer]
 
-  new create(port: String,
-    sslctx: SSLContext val,
+  new create(sslctx: SSLContext val,
     h: TestHelper)
   =>
-    _port = port
     _sslctx = sslctx
     _h = h
     _tcp_listener =
       TCPListener(
         TCPListenAuth(_h.env.root),
         "localhost",
-        _port,
+        "0",
         this)
 
   fun ref _listener(): TCPListener =>
@@ -1201,9 +1185,10 @@ actor \nodoc\ _TestSetTimerAfterTLSUpgradeListener is TCPListenerActor
     try (_client as _TestSetTimerAfterTLSUpgradeClient).dispose() end
 
   fun ref _on_listening() =>
+    let port: String val = _tcp_listener.local_address().port().string()
     _client =
       _TestSetTimerAfterTLSUpgradeClient(
-        _port, _sslctx, _h)
+        port, _sslctx, _h)
 
   fun ref _on_listen_failure() =>
     _h.fail("Unable to open _TestSetTimerAfterTLSUpgradeListener")
@@ -1218,7 +1203,6 @@ class \nodoc\ iso _TestStartTLSHardCloseOnTLSReady is UnitTest
   fun name(): String => "net/StartTLSHardCloseOnTLSReady"
 
   fun apply(h: TestHelper) ? =>
-    let port = "9776"
     let file_auth = FileAuth(h.env.root)
     let sslctx =
       recover
@@ -1235,13 +1219,12 @@ class \nodoc\ iso _TestStartTLSHardCloseOnTLSReady is UnitTest
     h.expect_action("client tls ready")
     h.expect_action("client closed")
 
-    let listener = _TestStartTLSHardCloseListener(port, consume sslctx, h)
+    let listener = _TestStartTLSHardCloseListener(consume sslctx, h)
     h.dispose_when_done(listener)
 
     h.long_test(5_000_000_000)
 
 actor \nodoc\ _TestStartTLSHardCloseListener is TCPListenerActor
-  let _port: String
   let _sslctx: SSLContext val
   var _tcp_listener: TCPListener = TCPListener.none()
   let _h: TestHelper
@@ -1249,15 +1232,14 @@ actor \nodoc\ _TestStartTLSHardCloseListener is TCPListenerActor
   let _servers: Array[_TestStartTLSHardCloseServer] =
     Array[_TestStartTLSHardCloseServer]
 
-  new create(port: String, sslctx: SSLContext val, h: TestHelper) =>
-    _port = port
+  new create(sslctx: SSLContext val, h: TestHelper) =>
     _sslctx = sslctx
     _h = h
     _tcp_listener =
       TCPListener(
         TCPListenAuth(_h.env.root),
         "localhost",
-        _port,
+        "0",
         this)
 
   fun ref _listener(): TCPListener =>
@@ -1273,7 +1255,8 @@ actor \nodoc\ _TestStartTLSHardCloseListener is TCPListenerActor
     try (_client as _TestStartTLSHardCloseClient).dispose() end
 
   fun ref _on_listening() =>
-    _client = _TestStartTLSHardCloseClient(_port, _sslctx, _h)
+    let port: String val = _tcp_listener.local_address().port().string()
+    _client = _TestStartTLSHardCloseClient(port, _sslctx, _h)
 
   fun ref _on_listen_failure() =>
     _h.fail("Unable to open _TestStartTLSHardCloseListener")

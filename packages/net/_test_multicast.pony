@@ -28,7 +28,7 @@ actor \nodoc\ _TestMulticastSockoptActor
   new create(auth: UDPAuth, h: TestHelper) =>
     _h = h
     let host = ifdef linux then "127.0.0.2" else "localhost" end
-    _udp = UDPSocket(auth, host, "9824", this, this where ip_version = IP4)
+    _udp = UDPSocket(auth, host, "0", this, this where ip_version = IP4)
 
   fun ref _socket(): UDPSocket => _udp
 
@@ -90,7 +90,7 @@ actor \nodoc\ _TestMulticastIP4Actor
     _h = h
     _group = group
     let host = ifdef linux then "127.0.0.2" else "localhost" end
-    _udp = UDPSocket(auth, host, "9825", this, this where ip_version = IP4)
+    _udp = UDPSocket(auth, host, "0", this, this where ip_version = IP4)
 
   fun ref _socket(): UDPSocket => _udp
 
@@ -304,7 +304,7 @@ actor \nodoc\ _TestMulticastIP6Actor
     _h = h
     _dns_auth = dns_auth
     _group = group
-    _udp = UDPSocket(auth, "", "9826", this, this where ip_version = IP6)
+    _udp = UDPSocket(auth, "", "0", this, this where ip_version = IP6)
 
   fun ref _socket(): UDPSocket => _udp
 

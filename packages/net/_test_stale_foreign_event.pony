@@ -25,13 +25,13 @@ actor \nodoc\ _TestStaleForeignEventClient
   var _tcp_connection: TCPConnection = TCPConnection.none()
   let _h: TestHelper
 
-  new create(h: TestHelper) =>
+  new create(port: String, h: TestHelper) =>
     _h = h
     _tcp_connection =
       TCPConnection.client(
         TCPConnectAuth(_h.env.root),
         "127.0.0.1",
-        "7931",
+        port,
         "",
         this,
         this where ip_version = IP4)
@@ -76,7 +76,7 @@ actor \nodoc\ _TestStaleForeignEventListener is TCPListenerActor
       TCPListener(
         TCPListenAuth(_h.env.root),
         "127.0.0.1",
-        "7931",
+        "0",
         this where ip_version = IP4)
 
   fun ref _listener(): TCPListener =>
@@ -92,7 +92,8 @@ actor \nodoc\ _TestStaleForeignEventListener is TCPListenerActor
     for server in _servers.values() do server.dispose() end
 
   fun ref _on_listening() =>
-    _client = _TestStaleForeignEventClient(_h)
+    let port: String val = _tcp_listener.local_address().port().string()
+    _client = _TestStaleForeignEventClient(port, _h)
 
   fun ref _on_listen_failure() =>
     _h.fail("Unable to open _TestStaleForeignEventListener")
