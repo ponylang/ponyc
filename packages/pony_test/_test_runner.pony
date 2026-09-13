@@ -157,7 +157,7 @@ actor _TestRunner
 
     for (i, action) in _expect_actions.pairs() do
       if action == name then
-        try _expect_actions.delete(i)? end
+        try _expect_actions.delete(i)? else _Unreachable() end
         break
       end
     end

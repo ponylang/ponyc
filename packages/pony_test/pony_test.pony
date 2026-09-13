@@ -436,6 +436,8 @@ actor PonyTest
             " started, " + _finished.string() + " complete: " +
             _records(id)?.name + " started")
       end
+    else
+      _Unreachable()
     end
 
   be _test_complete(id: USize, pass: Bool, log: Array[String] val) =>
@@ -455,6 +457,8 @@ actor PonyTest
             " started, " + _finished.string() + " complete: " +
             _records(id)?.name + " complete")
       end
+    else
+      _Unreachable()
     end
 
     if _all_started and (_finished == _records.size()) then
