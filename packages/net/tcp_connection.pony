@@ -1729,8 +1729,16 @@ class TCPConnection[TCP: TCPBackend ref = RuntimeBackend]
       // fd, so a write-only event drops read interest. Re-arm reads, guarded by
       // `_writeable` to skip a closed or backpressured fd. Do not weaken; the
       // reasoning and the deadlock it prevents are in #294, #296.
-      if _writeable and not PonyAsio.get_disposable(_event) then
-        PonyAsio.resubscribe_read(_event)
+      //
+      // kqueue fires EVFILT_READ and EVFILT_WRITE as independent one-shot
+      // filters: a write event does not disarm read interest, so the re-arm
+      // is unnecessary there. On BSDs the redundant resubscribe also triggers
+      // a retry_loop pipe write, doubling wakeup traffic per backpressure
+      // cycle; skip it there.
+      ifdef not bsd then
+        if _writeable and not PonyAsio.get_disposable(_event) then
+          PonyAsio.resubscribe_read(_event)
+        end
       end
     end
 
@@ -1738,8 +1746,13 @@ class TCPConnection[TCP: TCPBackend ref = RuntimeBackend]
     // a read that mutes or yields before EAGAIN never re-arms it, so a
     // backpressured write wedges. Re-arm it, guarded by `_throttled`.
     // Do not weaken; see #294, #296.
-    if _throttled and not PonyAsio.get_disposable(_event) then
-      PonyAsio.resubscribe_write(_event)
+    //
+    // Same as above: kqueue's independent filters make this unnecessary
+    // on BSDs, and the redundant resubscribe adds retry_loop overhead.
+    ifdef not bsd then
+      if _throttled and not PonyAsio.get_disposable(_event) then
+        PonyAsio.resubscribe_write(_event)
+      end
     end
 
   fun ref _do_read_again() =>
