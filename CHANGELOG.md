@@ -6,6 +6,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
+- Fix TCP backpressure stalls on BSDs ([PR #6037](https://github.com/ponylang/ponyc/pull/6037))
 
 ### Added
 
