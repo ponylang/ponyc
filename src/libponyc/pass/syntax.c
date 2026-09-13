@@ -1400,6 +1400,13 @@ static bool check_annotation_location(pass_opt_t* opt, ast_t* ast,
         "a 'packed' annotation can only appear on a struct declaration");
       return false;
     }
+  } else if(strcmp(str, "by_value") == 0) {
+    if(ast_id(ast_parent(ast)) != TK_FFIDECL)
+    {
+      ast_error(opt->check.errors, loc,
+        "a 'by_value' annotation can only appear on an FFI declaration");
+      return false;
+    }
   } else if(strcmp(str, "nosupertype") == 0) {
     switch(ast_id(ast_parent(ast)))
     {

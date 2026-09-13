@@ -111,7 +111,7 @@ TEST_F(AnnotationsTest, InternalAnnotation)
 TEST_F(AnnotationsTest, StandardAnnotationLocationBad)
 {
   const char* src =
-    "class \\packed, exhaustive\\ Foo\n"
+    "class \\packed, exhaustive, by_value\\ Foo\n"
     "  fun foo() =>\n"
     "    try \\likely\\ bar else None end\n"
     "    repeat \\unlikely\\ None until bar end";
@@ -119,6 +119,7 @@ TEST_F(AnnotationsTest, StandardAnnotationLocationBad)
   const char* errs[] = {
     "a 'packed' annotation can only appear on a struct declaration",
     "an 'exhaustive' annotation can only appear on a match expression",
+    "a 'by_value' annotation can only appear on an FFI declaration",
     "a 'likely' annotation can only appear on the condition of an if, while, "
       "or until, or on the case of a match",
     "a 'unlikely' annotation can only appear on the condition of an if, while, "
