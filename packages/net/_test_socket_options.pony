@@ -15,7 +15,7 @@ class \nodoc\ iso _TestSocketOptionsConnected is UnitTest
 
 actor \nodoc\ _TestSocketOptionsListener is TCPListenerActor
   var _tcp_listener: TCPListener = TCPListener.none()
-  var _client: (_TestReadBufferTriggerClient | None) = None
+  var _client: (_TestSocketOptionsClient | None) = None
   let _servers: Array[_TestSocketOptionsServer] =
     Array[_TestSocketOptionsServer]
   let _h: TestHelper
@@ -36,11 +36,11 @@ actor \nodoc\ _TestSocketOptionsListener is TCPListenerActor
 
   fun ref _on_listening() =>
     _client =
-      _TestReadBufferTriggerClient(
+      _TestSocketOptionsClient(
         TCPConnectAuth(_h.env.root), "127.0.0.1", "7708")
 
   fun ref _on_closed() =>
-    try (_client as _TestReadBufferTriggerClient).dispose() end
+    try (_client as _TestSocketOptionsClient).dispose() end
     for server in _servers.values() do server.dispose() end
 
   fun ref _on_listen_failure() =>
@@ -198,3 +198,29 @@ class \nodoc\ iso _TestSocketOptionsNotConnected is UnitTest
     h.assert_true(
       gen_errno != 0,
       "getsockopt on none should return non-zero errno")
+
+actor \nodoc\ _TestSocketOptionsClient is
+  (TCPConnectionActor & ClientLifecycleEventReceiver)
+  """
+  Client that connects and stays connected until disposed. Unlike
+  _TestReadBufferTriggerClient, this does not close on connect — OpenBSD
+  rejects setsockopt(SO_RCVBUF) once a FIN has been delivered to the
+  receive buffer, so closing the client before the server tests socket
+  options causes a race.
+  """
+  var _tcp_connection: TCPConnection = TCPConnection.none()
+
+  new create(auth: TCPConnectAuth, host: String, port: String) =>
+    _tcp_connection = TCPConnection.client(auth, host, port, "", this, this)
+
+  fun ref _connection(): TCPConnection =>
+    _tcp_connection
+
+  fun ref _on_connection_failure(reason: ConnectionFailureReason) =>
+    None
+
+  fun ref _on_connected() =>
+    None
+
+  be dispose() =>
+    _tcp_connection.close()
