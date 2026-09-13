@@ -96,6 +96,8 @@ actor \nodoc\ Main is TestList
     test(_TestTimerDurationValidationRejectsZero)
     test(_TestTimerDurationValidationAcceptsBoundary)
     test(_TestFakeTimerSurvivesClose)
+    test(_TestIdleTimerResetOnReceive)
+    test(_TestIdleTimerResetOnSend)
     test(_TestSetTimerNotOpenDuringSSLHandshake)
     test(_TestSetTimerNotOpenDuringSSLHandshakeServer)
     test(_TestSSLHandshakeFailureClient)

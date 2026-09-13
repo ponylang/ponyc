@@ -1,4 +1,5 @@
-trait ClientLifecycleEventReceiver[TCP: TCPBackend ref = RuntimeBackend]
+trait ClientLifecycleEventReceiver[TCP: TCPBackend ref = RuntimeBackend,
+  Asio: AsioBackend ref = RuntimeAsio]
   """
   Application-level callbacks for client-side TCP connections.
   One receiver per connection, no chaining.
@@ -7,7 +8,7 @@ trait ClientLifecycleEventReceiver[TCP: TCPBackend ref = RuntimeBackend]
   which must be implemented because ignoring a failed connection is never
   correct.
   """
-  fun ref _connection(): TCPConnection[TCP]
+  fun ref _connection(): TCPConnection[TCP, Asio]
 
   fun ref _on_connecting(inflight_connections: U32) =>
     """
@@ -233,5 +234,7 @@ trait ClientLifecycleEventReceiver[TCP: TCPBackend ref = RuntimeBackend]
     """
     None
 
-type EitherLifecycleEventReceiver[TCP: TCPBackend ref = RuntimeBackend] is
-  (ServerLifecycleEventReceiver[TCP] | ClientLifecycleEventReceiver[TCP])
+type EitherLifecycleEventReceiver[TCP: TCPBackend ref = RuntimeBackend,
+  Asio: AsioBackend ref = RuntimeAsio] is
+  ( ServerLifecycleEventReceiver[TCP, Asio]
+  | ClientLifecycleEventReceiver[TCP, Asio] )

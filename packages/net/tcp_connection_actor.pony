@@ -1,4 +1,5 @@
-trait tag TCPConnectionActor[TCP: TCPBackend ref = RuntimeBackend]
+trait tag TCPConnectionActor[TCP: TCPBackend ref = RuntimeBackend,
+  Asio: AsioBackend ref = RuntimeAsio]
   is AsioEventNotify
   """
   The actor trait a connection actor implements. Provide `_connection()`
@@ -7,7 +8,7 @@ trait tag TCPConnectionActor[TCP: TCPBackend ref = RuntimeBackend]
   together with a `ClientLifecycleEventReceiver` or
   `ServerLifecycleEventReceiver` for the connection callbacks.
   """
-  fun ref _connection(): TCPConnection[TCP]
+  fun ref _connection(): TCPConnection[TCP, Asio]
 
   be dispose() =>
     """
@@ -29,7 +30,7 @@ trait tag TCPConnectionActor[TCP: TCPBackend ref = RuntimeBackend]
     """
     _connection().read_again()
 
-  be _register_spawner(listener: TCPListenerActor[TCP]) =>
+  be _register_spawner(listener: TCPListenerActor[TCP, Asio]) =>
     """
     Register the listener as the spawner of this connection
     """
