@@ -209,6 +209,8 @@ actor \nodoc\ _MultiSeedCollector
         end
         i = i + 1
       end
+    else
+      _Unreachable()
     end
     _h.assert_true(
       found_different,
@@ -254,7 +256,7 @@ actor \nodoc\ _PerSeedCollector is OutStream
       let order: Array[String] iso = recover iso Array[String] end
       var i: USize = 1  // skip "Test seed: N" line
       while i < _received.size() do
-        try order.push(_received(i)?) end
+        try order.push(_received(i)?) else _Unreachable() end
         i = i + 1
       end
       _parent.receive(consume order)

@@ -46,6 +46,8 @@ actor _ExclusiveGroup is _Group
         _next = _next + 1
         _in_test = true
         next_test.run()
+      else
+        _Unreachable()
       end
     end
 
@@ -81,5 +83,7 @@ actor _SimultaneousGroup is _Group
         _next = _next + 1
         _running = _running + 1
         next_test.run()
+      else
+        _Unreachable()
       end
     end
