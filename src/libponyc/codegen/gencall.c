@@ -1294,8 +1294,150 @@ LLVMValueRef gen_ffi(compile_t* c, ast_t* ast)
   pony_assert(t != NULL);
   ast_free_unattached(type);
 
-  // Get the function. First check if the name is in use by a global and error
-  // if it's the case.
+  // Must run before the function lookup below: the thunk module adds an
+  // extern declaration of the real C function to c->module.
+  ast_t* decl = (ast_t*)ast_data(ast);
+  bool by_value = false;
+
+  if(decl != NULL)
+  {
+    AST_GET_CHILDREN(decl, decl_id, decl_ret_typeargs, decl_params,
+      decl_named_params, decl_can_err);
+
+    ast_t* ret_type_node = ast_child(decl_ret_typeargs);
+    if(ret_type_node != NULL &&
+      ast_has_annotation(ret_type_node, "by_value", c->opt->strtab))
+    {
+      by_value = true;
+    }
+
+    if(!by_value)
+    {
+      ast_t* dparam = ast_child(decl_params);
+      while(dparam != NULL)
+      {
+        if(ast_has_annotation(dparam, "by_value", c->opt->strtab))
+        {
+          by_value = true;
+          break;
+        }
+        dparam = ast_sibling(dparam);
+      }
+    }
+  }
+
+  if(by_value)
+  {
+    AST_GET_CHILDREN(decl, decl_id2, decl_ret2, decl_params2,
+      decl_named2, decl_can_err2);
+    ast_t* ret_ann = ast_child(decl_ret2);
+
+    // The thunk has a fixed signature matching the declaration. Reject
+    // call sites that vary the return type.
+    if(ret_ann != NULL)
+    {
+      reach_type_t* decl_t = reach_type(c->reach, ret_ann, c->opt);
+
+      if(decl_t != t)
+      {
+        ast_error(c->opt->check.errors, ast,
+          "conflicting calls for FFI function: return values have "
+          "incompatible types");
+        ast_error_continue(c->opt->check.errors, decl,
+          "first declaration is here");
+        return NULL;
+      }
+    }
+
+    bool ret_is_struct = (t->underlying == TK_STRUCT) &&
+      (ret_ann != NULL) &&
+      ast_has_annotation(ret_ann, "by_value", c->opt->strtab);
+
+    size_t name_len = strlen(f_name) + strlen("__pony_thunk_") + 1;
+    char* thunk_name = (char*)ponyint_pool_alloc_size(name_len);
+    snprintf(thunk_name, name_len, "__pony_thunk_%s", f_name);
+
+    LLVMValueRef thunk_func = LLVMGetNamedFunction(c->module, thunk_name);
+
+    if(thunk_func == NULL)
+    {
+      ast_error(c->opt->check.errors, ast,
+        "FFI thunk '%s' not found; thunk generation may have failed",
+        thunk_name);
+      ponyint_pool_free_size(name_len, thunk_name);
+      return NULL;
+    }
+
+    ponyint_pool_free_size(name_len, thunk_name);
+
+    int count = (int)ast_childcount(args);
+    int thunk_count = ret_is_struct ? count + 1 : count;
+    size_t buf_size = (size_t)thunk_count * sizeof(LLVMValueRef);
+    LLVMValueRef* f_args = (LLVMValueRef*)ponyint_pool_alloc_size(buf_size);
+
+    int arg_offset = 0;
+
+    if(ret_is_struct)
+    {
+      f_args[0] = gencall_allocstruct(c, t);
+      arg_offset = 1;
+    }
+
+    ast_t* arg = ast_child(args);
+
+    LLVMTypeRef thunk_type = LLVMGlobalGetValueType(thunk_func);
+    size_t params_size = (size_t)thunk_count * sizeof(LLVMTypeRef);
+    LLVMTypeRef* f_params =
+      (LLVMTypeRef*)ponyint_pool_alloc_size(params_size);
+    LLVMGetParamTypes(thunk_type, f_params);
+
+    for(int i = 0; i < count; i++)
+    {
+      f_args[i + arg_offset] = gen_expr(c, arg);
+
+      f_args[i + arg_offset] = cast_ffi_arg(c, NULL, ast,
+        f_args[i + arg_offset], f_params[i + arg_offset], "parameters");
+
+      if(f_args[i + arg_offset] == NULL)
+      {
+        ponyint_pool_free_size(params_size, f_params);
+        ponyint_pool_free_size(buf_size, f_args);
+        return NULL;
+      }
+
+      arg = ast_sibling(arg);
+    }
+
+    LLVMValueRef ret_ptr = ret_is_struct ? f_args[0] : NULL;
+
+    LLVMValueRef result;
+    codegen_debugloc(c, ast);
+    result = LLVMBuildCall2(c->builder, thunk_type, thunk_func,
+      f_args, thunk_count, "");
+    codegen_debugloc(c, NULL);
+
+    ponyint_pool_free_size(params_size, f_params);
+    ponyint_pool_free_size(buf_size, f_args);
+
+    compile_type_t* c_t = (compile_type_t*)t->c_type;
+
+    if(ret_is_struct)
+    {
+      result = ret_ptr;
+    }
+    else if(is_none(t->ast))
+    {
+      result = c_t->instance;
+    }
+    else
+    {
+      result = gen_assign_cast(c, c_t->use_type, result, t->ast_cap);
+    }
+
+    return result;
+  }
+
+  // Normal (non-by_value) FFI path.
   ffi_decl_t* ffi_decl;
   bool is_func = false;
   LLVMValueRef func = LLVMGetNamedGlobal(c->module, f_name);
@@ -1309,7 +1451,6 @@ LLVMValueRef gen_ffi(compile_t* c, ast_t* ast)
   if(func == NULL)
   {
     // Prototypes are mandatory, the declaration is already stored.
-    ast_t* decl = (ast_t*)ast_data(ast);
     pony_assert(decl != NULL);
 
     bool is_intrinsic = (!strncmp(f_name, "llvm.", 5) || !strncmp(f_name, "internal.", 9));

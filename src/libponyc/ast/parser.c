@@ -1242,15 +1242,48 @@ DEF(use_uri);
   TOKEN(NULL, TK_STRING);
   DONE();
 
-// AT (ID | STRING) typeparams (LPAREN | LPAREN_NEW) [params] RPAREN [QUESTION]
+// type | typeargliteral | typeargconst (with optional annotation for FFI)
+DEF(ffi_ret_typearg);
+  RULE("type argument", type, typeargliteral, typeargconst);
+  ANNOTATE(annotations);
+  DONE();
+
+// LSQUARE ffi_ret_typearg {COMMA ffi_ret_typearg} RSQUARE
+DEF(ffi_ret_typeargs);
+  AST_NODE(TK_TYPEARGS);
+  SKIP(NULL, TK_LSQUARE);
+  RULE("type argument", ffi_ret_typearg);
+  WHILE(TK_COMMA, RULE("type argument", ffi_ret_typearg));
+  TERMINATE("type arguments", TK_RSQUARE);
+  DONE();
+
+// ID COLON type (with optional annotation for FFI)
+DEF(ffi_param);
+  AST_NODE(TK_PARAM);
+  TOKEN("parameter name", TK_ID);
+  SKIP("mandatory type declaration on parameter", TK_COLON);
+  RULE("parameter type", type);
+  ANNOTATE(annotations);
+  IF(TK_ASSIGN, RULE("default value", defaultarg));
+  DONE();
+
+// ffi_param {COMMA ffi_param}
+DEF(ffi_params);
+  AST_NODE(TK_PARAMS);
+  RULE("parameter", ffi_param, ellipsis);
+  WHILE(TK_COMMA, RULE("parameter", ffi_param, ellipsis));
+  DONE();
+
+// AT (ID | STRING) ffi_ret_typeargs (LPAREN | LPAREN_NEW) [ffi_params] RPAREN
+// [QUESTION]
 DEF(use_ffi);
   TOKEN(NULL, TK_AT);
   MAP_ID(TK_AT, TK_FFIDECL);
   SCOPE();
   TOKEN("ffi name", TK_ID, TK_STRING);
-  RULE("return type", typeargs);
+  RULE("return type", ffi_ret_typeargs);
   SKIP(NULL, TK_LPAREN, TK_LPAREN_NEW);
-  OPT RULE("ffi parameters", params);
+  OPT RULE("ffi parameters", ffi_params);
   AST_NODE(TK_NONE);  // Named parameters
   SKIP(NULL, TK_RPAREN);
   OPT TOKEN(NULL, TK_QUESTION);

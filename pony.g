@@ -18,7 +18,23 @@ use
   ;
 
 use_ffi
-  : '@' (ID | STRING) typeargs ('(' | LPAREN_NEW) params? ')' '?'?
+  : '@' (ID | STRING) ffi_ret_typeargs ('(' | LPAREN_NEW) ffi_params? ')' '?'?
+  ;
+
+ffi_params
+  : (ffi_param | '...') (',' (ffi_param | '...'))*
+  ;
+
+ffi_param
+  : ID ':' type ('\\' ID (',' ID)* '\\')? ('=' infix)?
+  ;
+
+ffi_ret_typeargs
+  : '[' ffi_ret_typearg (',' ffi_ret_typearg)* ']'
+  ;
+
+ffi_ret_typearg
+  : (type | literal | ('#' postfix)) ('\\' ID (',' ID)* '\\')?
   ;
 
 class_def
