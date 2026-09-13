@@ -1363,7 +1363,7 @@ actor \nodoc\ _TestSetTimerNotOpenSSLServerConn
     _h.fail("SSL handshake should not complete against plain TCP client")
     _h.complete(false)
 
-class \nodoc\ iso _TestFakeTimerSurvivesClose is UnitTest
+class \nodoc\ iso _TestTimerSurvivesClose is UnitTest
   """
   An already-active timer fires after close() (graceful shutdown).
 
@@ -1371,15 +1371,15 @@ class \nodoc\ iso _TestFakeTimerSurvivesClose is UnitTest
   in _Closing (no EOF to complete the close handshake). The timer fires from
   _Closing without any real TCP half-close to interfere.
   """
-  fun name(): String => "net/FakeTimerSurvivesClose"
+  fun name(): String => "net/TimerSurvivesClose"
 
   fun apply(h: TestHelper) =>
-    let a = _TestFakeTimerSurvivesCloseActor(h)
+    let a = _TestTimerSurvivesCloseActor(h)
     h.dispose_when_done(a)
 
     h.long_test(5_000_000_000)
 
-actor \nodoc\ _TestFakeTimerSurvivesCloseActor
+actor \nodoc\ _TestTimerSurvivesCloseActor
   is (TCPConnectionActor[_FBSendOkRecvRetry]
     & ServerLifecycleEventReceiver[_FBSendOkRecvRetry])
   var _tcp_connection: TCPConnection[_FBSendOkRecvRetry] =

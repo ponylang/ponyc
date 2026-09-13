@@ -3981,24 +3981,24 @@ actor \nodoc\ _TestSendPrecedesReceivedServer
 // ===========================================================================
 // Fake-backend send tests (no real sockets for I/O)
 // ===========================================================================
-class \nodoc\ iso _TestFakeSendOk is UnitTest
+class \nodoc\ iso _TestSendOk is UnitTest
   """
   sendv accepts all bytes. Verify: send returns SendAccepted,
   _on_send_accepted fires with a token and the data, _on_sent fires with
   the same token.
   """
-  fun name(): String => "net/FakeSendOk"
+  fun name(): String => "net/SendOk"
 
   fun apply(h: TestHelper) =>
     h.expect_action("on_send_accepted")
     h.expect_action("on_sent")
 
-    let a = _TestFakeSendOkActor(h)
+    let a = _TestSendOkActor(h)
     h.dispose_when_done(a)
 
     h.long_test(5_000_000_000)
 
-actor \nodoc\ _TestFakeSendOkActor
+actor \nodoc\ _TestSendOkActor
   is (TCPConnectionActor[_FBSendOkRecvRetry]
     & ServerLifecycleEventReceiver[_FBSendOkRecvRetry])
   var _tcp_connection: TCPConnection[_FBSendOkRecvRetry] =
@@ -4055,22 +4055,22 @@ actor \nodoc\ _TestFakeSendOkActor
   be dispose() =>
     _tcp_connection.hard_close()
 
-class \nodoc\ iso _TestFakeSendMultipleTokenOrder is UnitTest
+class \nodoc\ iso _TestSendMultipleTokenOrder is UnitTest
   """
   Three sends all succeed. Verify: _on_send_accepted fires three times with
   distinct tokens, and _on_sent fires three times in the same order.
   """
-  fun name(): String => "net/FakeSendMultipleTokenOrder"
+  fun name(): String => "net/SendMultipleTokenOrder"
 
   fun apply(h: TestHelper) =>
     h.expect_action("all_sent")
 
-    let a = _TestFakeSendMultipleTokenOrderActor(h)
+    let a = _TestSendMultipleTokenOrderActor(h)
     h.dispose_when_done(a)
 
     h.long_test(5_000_000_000)
 
-actor \nodoc\ _TestFakeSendMultipleTokenOrderActor
+actor \nodoc\ _TestSendMultipleTokenOrderActor
   is (TCPConnectionActor[_FBSendOkRecvRetry]
     & ServerLifecycleEventReceiver[_FBSendOkRecvRetry])
   var _tcp_connection: TCPConnection[_FBSendOkRecvRetry] =
@@ -4135,22 +4135,22 @@ actor \nodoc\ _TestFakeSendMultipleTokenOrderActor
   be dispose() =>
     _tcp_connection.hard_close()
 
-class \nodoc\ iso _TestFakeSendOnClosed is UnitTest
+class \nodoc\ iso _TestSendOnClosed is UnitTest
   """
   send() on a hard-closed connection returns SendErrorNotConnected without
   firing _on_send_accepted.
   """
-  fun name(): String => "net/FakeSendOnClosed"
+  fun name(): String => "net/SendOnClosed"
 
   fun apply(h: TestHelper) =>
     h.expect_action("send_error_verified")
 
-    let a = _TestFakeSendOnClosedActor(h)
+    let a = _TestSendOnClosedActor(h)
     h.dispose_when_done(a)
 
     h.long_test(5_000_000_000)
 
-actor \nodoc\ _TestFakeSendOnClosedActor
+actor \nodoc\ _TestSendOnClosedActor
   is (TCPConnectionActor[_FBSendOkRecvRetry]
     & ServerLifecycleEventReceiver[_FBSendOkRecvRetry])
   var _tcp_connection: TCPConnection[_FBSendOkRecvRetry] =
@@ -4206,25 +4206,25 @@ actor \nodoc\ _TestFakeSendOnClosedActor
   be dispose() =>
     _tcp_connection.hard_close()
 
-class \nodoc\ iso _TestFakeSendError is UnitTest
+class \nodoc\ iso _TestSendError is UnitTest
   """
   sendv returns error. Verify: _on_send_accepted fires (token minted before
   flush), then _on_closed fires (hard close from sendv error), then
   _on_send_failed fires with the token (deferred).
   """
-  fun name(): String => "net/FakeSendError"
+  fun name(): String => "net/SendError"
 
   fun apply(h: TestHelper) =>
     h.expect_action("on_send_accepted")
     h.expect_action("on_closed")
     h.expect_action("on_send_failed")
 
-    let a = _TestFakeSendErrorActor(h)
+    let a = _TestSendErrorActor(h)
     h.dispose_when_done(a)
 
     h.long_test(5_000_000_000)
 
-actor \nodoc\ _TestFakeSendErrorActor
+actor \nodoc\ _TestSendErrorActor
   is (TCPConnectionActor[_FBSendErrorRecvRetry]
     & ServerLifecycleEventReceiver[_FBSendErrorRecvRetry])
   var _tcp_connection: TCPConnection[_FBSendErrorRecvRetry] =
@@ -4284,25 +4284,25 @@ actor \nodoc\ _TestFakeSendErrorActor
   be dispose() =>
     _tcp_connection.hard_close()
 
-class \nodoc\ iso _TestFakeSendFailedAfterClosed is UnitTest
+class \nodoc\ iso _TestSendFailedAfterClosed is UnitTest
   """
   _on_send_failed must arrive after _on_closed when hard_close is called with
   queued sends. Verify: send queues bytes (sendv returns retry), hard_close
   fires _on_closed synchronously, then _on_send_failed arrives in a
   subsequent behavior turn.
   """
-  fun name(): String => "net/FakeSendFailedAfterClosed"
+  fun name(): String => "net/SendFailedAfterClosed"
 
   fun apply(h: TestHelper) =>
     h.expect_action("on_closed")
     h.expect_action("on_send_failed_after_closed")
 
-    let a = _TestFakeSendFailedAfterClosedActor(h)
+    let a = _TestSendFailedAfterClosedActor(h)
     h.dispose_when_done(a)
 
     h.long_test(5_000_000_000)
 
-actor \nodoc\ _TestFakeSendFailedAfterClosedActor
+actor \nodoc\ _TestSendFailedAfterClosedActor
   is (TCPConnectionActor[_FBSendStepRecvRetryFailed]
     & ServerLifecycleEventReceiver[_FBSendStepRecvRetryFailed])
   var _tcp_connection: TCPConnection[_FBSendStepRecvRetryFailed] =
@@ -4370,24 +4370,24 @@ actor \nodoc\ _TestFakeSendFailedAfterClosedActor
   be dispose() =>
     _tcp_connection.hard_close()
 
-class \nodoc\ iso _TestFakeGracefulClose is UnitTest
+class \nodoc\ iso _TestGracefulClose is UnitTest
   """
   Graceful close after a completed send. Verify: _on_sent fires, and
   close() makes subsequent send() return SendErrorNotConnected (_Closing
   rejects sends the same way _Closed does).
   """
-  fun name(): String => "net/FakeGracefulClose"
+  fun name(): String => "net/GracefulClose"
 
   fun apply(h: TestHelper) =>
     h.expect_action("on_sent")
     h.expect_action("close_rejects_send")
 
-    let a = _TestFakeGracefulCloseActor(h)
+    let a = _TestGracefulCloseActor(h)
     h.dispose_when_done(a)
 
     h.long_test(5_000_000_000)
 
-actor \nodoc\ _TestFakeGracefulCloseActor
+actor \nodoc\ _TestGracefulCloseActor
   is (TCPConnectionActor[_FBSendOkRecvRetry]
     & ServerLifecycleEventReceiver[_FBSendOkRecvRetry])
   var _tcp_connection: TCPConnection[_FBSendOkRecvRetry] =
