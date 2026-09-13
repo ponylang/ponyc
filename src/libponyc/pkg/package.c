@@ -953,6 +953,34 @@ void package_add_paths(const char* paths, pass_opt_t* opt)
 }
 
 
+void package_add_lib_path(const char* path, pass_opt_t* opt)
+{
+#ifdef PLATFORM_IS_WINDOWS
+  char buf[FILENAME_MAX];
+  strcpy(buf, path);
+  size_t len = strlen(path);
+
+  if(path[len - 1] == '\\')
+  {
+    buf[len - 1] = '\0';
+    path = buf;
+  }
+#endif
+
+  struct stat s;
+  int err = stat(path, &s);
+
+  if((err != -1) && S_ISDIR(s.st_mode))
+  {
+    path = stringtab(opt->strtab, path);
+    strlist_t* search = opt->lib_search_paths;
+
+    if(strlist_find(search, path) == NULL)
+      opt->lib_search_paths = strlist_append(search, path);
+  }
+}
+
+
 bool package_add_safe(const char* paths, pass_opt_t* opt)
 {
   add_safe("builtin", opt);
@@ -1673,6 +1701,9 @@ void package_done(pass_opt_t* opt)
 {
   strlist_free(opt->package_search_paths);
   opt->package_search_paths = NULL;
+
+  strlist_free(opt->lib_search_paths);
+  opt->lib_search_paths = NULL;
 
   strlist_free(opt->safe_packages);
   opt->safe_packages = NULL;

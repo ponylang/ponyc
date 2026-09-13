@@ -46,6 +46,7 @@ enum
   OPT_PASS_TIMINGS_JSON,
   OPT_LINK_ARCH,
   OPT_SYSROOT,
+  OPT_LIB_PATH,
   OPT_PLUGIN,
 
   OPT_VERBOSE,
@@ -91,6 +92,7 @@ static opt_arg_t std_args[] =
   {"pass-timings-json", '\0', OPT_ARG_REQUIRED, OPT_PASS_TIMINGS_JSON},
   {"link-arch", '\0', OPT_ARG_REQUIRED, OPT_LINK_ARCH},
   {"sysroot", '\0', OPT_ARG_REQUIRED, OPT_SYSROOT},
+  {"lib-path", 'L', OPT_ARG_REQUIRED, OPT_LIB_PATH},
   {"plugin", '\0', OPT_ARG_REQUIRED, OPT_PLUGIN},
 
   {"verbose", 'V', OPT_ARG_REQUIRED, OPT_VERBOSE},
@@ -170,6 +172,9 @@ static void usage(void)
     "    =path          Used by embedded LLD to find libc CRT objects and\n"
     "                   system libraries. Defaults to host root for native\n"
     "                   builds; auto-detected for cross-compilation.\n"
+    "  --lib-path, -L   Add an extra library search path for the linker.\n"
+    "    =path          Searched before auto-discovered paths. Can be\n"
+    "                   specified multiple times.\n"
     "  --plugin         Use the specified plugin(s).\n"
     "    =name\n"
     "  --define, -D     Set a compile time definition.\n"
@@ -332,6 +337,9 @@ ponyc_opt_process_t ponyc_opt_process(opt_state_t* s, pass_opt_t* opt,
         break;
       case OPT_LINK_ARCH: opt->link_arch = s->arg_val; break;
       case OPT_SYSROOT: opt->sysroot = s->arg_val; break;
+      case OPT_LIB_PATH:
+        package_add_lib_path(s->arg_val, opt);
+        break;
       case OPT_PLUGIN:
         if(!plugin_load(opt, s->arg_val))
         {

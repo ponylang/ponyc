@@ -1241,7 +1241,20 @@ static bool link_exe_lld_elf(compile_t* c, ast_t* program,
     args.push_back(stringtab(c->opt->strtab, buf));
   }
 
-  // Library search paths: sysroot dirs first, then GCC, then ponyc/user.
+  // Library search paths: --lib-path first, then sysroot, GCC, ponyc/user.
+  for(strlist_t* p = c->opt->lib_search_paths; p != NULL; p = strlist_next(p))
+  {
+    const char* path = strlist_data(p);
+    snprintf(buf, sizeof(buf), "-L%s", path);
+    args.push_back(stringtab(c->opt->strtab, buf));
+
+    if(!c->opt->staticbin)
+    {
+      args.push_back("-rpath");
+      args.push_back(path);
+    }
+  }
+
   snprintf(buf, sizeof(buf), "-L%s", libc_crt_dir);
   args.push_back(stringtab(c->opt->strtab, buf));
 
@@ -1922,6 +1935,14 @@ static bool link_exe_lld_macho(compile_t* c, ast_t* program,
   args.push_back(platform_ver);
   args.push_back("0.0.0");
 
+  // --lib-path entries first, before SDK and other auto-discovered paths.
+  for(strlist_t* p = c->opt->lib_search_paths; p != NULL; p = strlist_next(p))
+  {
+    const char* path = strlist_data(p);
+    snprintf(buf, sizeof(buf), "-L%s", path);
+    args.push_back(stringtab(c->opt->strtab, buf));
+  }
+
   // SDK library path.
   snprintf(buf, sizeof(buf), "-L%s", sdk_lib_path);
   args.push_back(stringtab(c->opt->strtab, buf));
@@ -2125,6 +2146,14 @@ static bool link_exe_lld_coff(compile_t* c, ast_t* program,
   size_t c_object_count = program_c_object_count(program);
   for(size_t i = 0; i < c_object_count; i++)
     args.push_back(program_c_object_at(program, i));
+
+  // --lib-path entries first, before SDK and other auto-discovered paths.
+  for(strlist_t* p = c->opt->lib_search_paths; p != NULL; p = strlist_next(p))
+  {
+    const char* path = strlist_data(p);
+    snprintf(buf, sizeof(buf), "/LIBPATH:%s", path);
+    args.push_back(stringtab(c->opt->strtab, buf));
+  }
 
   // UCRT library path (Windows 10+ SDK).
   if(strlen(vcvars.ucrt) > 0)
