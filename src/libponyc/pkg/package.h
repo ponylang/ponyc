@@ -52,6 +52,12 @@ bool package_init_lib(pass_opt_t* opt, const char* pony_installation);
 void package_add_paths(const char* paths, pass_opt_t* opt);
 
 /**
+ * Add a library search path for the linker. The path is searched before
+ * auto-discovered system paths and does not affect Pony package resolution.
+ */
+void package_add_lib_path(const char* path, pass_opt_t* opt);
+
+/**
  * Appends a list of paths to the list of packages allowed to do C FFI.
  * The list is semicolon (;) separated on Windows and colon (:) separated on
  * Linux and MacOS.

@@ -352,6 +352,8 @@ typedef struct pass_opt_t
   // --pass-timings-json, or NULL when timing is off. Opaque; timing.h declares
   // it and its operations are NULL-safe. Owned by this pass_opt.
   pass_timers_t* timers;
+
+  strlist_t* lib_search_paths;
 } pass_opt_t;
 
 /** Limit processing to the specified pass. All passes up to and including the

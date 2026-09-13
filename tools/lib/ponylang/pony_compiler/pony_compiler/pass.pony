@@ -251,5 +251,6 @@ struct _PassOpt
   // (src/libponyc/pass/pass.h). A layout placeholder: the Pony tools
   // do not use it.
   var timers: Pointer[_PassTimers] ref = timers.create()
+  var lib_search_paths: Pointer[_StrList] = lib_search_paths.create()
 
   new ref create() => None
