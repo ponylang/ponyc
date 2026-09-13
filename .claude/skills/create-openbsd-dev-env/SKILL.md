@@ -59,7 +59,7 @@ build lives on a dedicated data disk. These matter:
   **do** persist.
 - **Raise the `datasize` limit.** OpenBSD caps a process's data segment in
   `/etc/login.conf` (1536M on the stock 7.9 image); the LLVM build needs more, so Step 6
-  raises `datasize-max`/`-cur` to at least 4096M. Without it the libs build dies with
+  raises `datasize-max`/`-cur` to at least 6144M. Without it the libs build dies with
   allocation failures partway through. The edit is on the root disk and persists.
 - **OpenBSD's base system has no `bash`.** `/bin/sh` is a POSIX `ksh`; in-VM scripts must
   be POSIX `sh`. Don't reach for bashisms in a `$SSH /bin/sh` heredoc.
@@ -200,7 +200,7 @@ qemu-system-x86_64 \
 
 (`accel=kvm:hvf` picks KVM on Linux or HVF on macOS and errors if neither is available — it
 never silently falls back to slow TCG; CI uses bare `accel=kvm` because it always runs on
-Linux. `-smp`/`-m` are speed knobs; CI uses 4 CPUs / 6G. The build is capped by the 4096M
+Linux. `-smp`/`-m` are speed knobs; CI uses 4 CPUs / 6G. The build is capped by the 6144M
 `datasize` limit per process, not by total RAM. `hostfwd 2222->22` is the ssh port — to run
 two OpenBSD VMs at once, give each its own `$VMDIR` and a distinct hostfwd port, and pass
 that port to every ssh/scp/rsync `-p`. The seed is attached as a **cdrom** — that is how
@@ -270,12 +270,12 @@ see Gotchas). Then raise the per-process `datasize` ceiling for the `openbsd` us
 treat this as intent, not a fixed substitution. OpenBSD's `/etc/login.conf` caps each
 process's data segment in the `default` login class (the class the `openbsd` user falls
 under), and the LLVM build needs roughly 4 GB, so both `datasize-cur` and `datasize-max`
-must end up at least `4096M` (what CI sets). On the stock OpenBSD 7.9 image both default to
-`1536M`, so the two `sed`s below do it. But the goal is the `4096M` ceiling, not the literal
+must end up at least `6144M` (what CI sets). On the stock OpenBSD 7.9 image both default to
+`1536M`, so the two `sed`s below do it. But the goal is the `6144M` ceiling, not the literal
 `1536M`: if a future image ships a different default the `sed`s match nothing, so read the
-current values (the trailing `grep` prints them) and, if either is below `4096M`, raise it
-to `4096M` directly — adjust the `sed` pattern or edit `/etc/login.conf`. Confirm both read
-`4096M` before continuing; too low and the libs build dies with allocation failures partway
+current values (the trailing `grep` prints them) and, if either is below `6144M`, raise it
+to `6144M` directly — adjust the `sed` pattern or edit `/etc/login.conf`. Confirm both read
+`6144M` before continuing; too low and the libs build dies with allocation failures partway
 through, far from this step. The edit persists on the root disk and re-running is a no-op.
 
 ```sh
@@ -284,12 +284,12 @@ SSH="ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel
 $SSH /bin/sh <<'EOF'
 set -e
 doas pkg_add -u && doas pkg_add cmake gmake git python%3 rsync--
-# Raise the openbsd user's datasize cap to 4096M. The stock 7.9 image
+# Raise the openbsd user's datasize cap to 6144M. The stock 7.9 image
 # defaults both to 1536M; if a future image differs, the sed matches
-# nothing — read the grep below and set both to 4096M however fits.
-doas sed -i 's/datasize-max=1536M/datasize-max=4096M/' /etc/login.conf
-doas sed -i 's/datasize-cur=1536M/datasize-cur=4096M/' /etc/login.conf
-grep -E 'datasize-(cur|max)=' /etc/login.conf   # confirm both now read 4096M
+# nothing — read the grep below and set both to 6144M however fits.
+doas sed -i 's/datasize-max=1536M/datasize-max=6144M/' /etc/login.conf
+doas sed -i 's/datasize-cur=1536M/datasize-cur=6144M/' /etc/login.conf
+grep -E 'datasize-(cur|max)=' /etc/login.conf   # confirm both now read 6144M
 EOF
 ```
 
@@ -313,7 +313,7 @@ The build uses OpenBSD's base clang — no `CC`/`CXX`/`LD_LIBRARY_PATH` exports 
 DragonFly-only gcc13 dance). `cmake -P lib/build-libs.cmake` builds the vendored LLVM and is the multi-hour long
 pole — run it detached, then poll the log until it ends with `libs DONE rc=0` (a nonzero rc
 means it failed — read the log above the marker). Keep `-DJOBS=4` (what CI uses):
-each parallel compile is bounded by the 4096M `datasize` cap, so higher parallelism is the
+each parallel compile is bounded by the 6144M `datasize` cap, so higher parallelism is the
 first thing to suspect on a libs out-of-memory.
 
 ```sh
