@@ -958,7 +958,7 @@ else()
 
     set_tests_properties(full-programs-debug full-programs-release
         full-program-runner-rejects-broken-config
-        stdlib-debug stdlib-release examples validate-grammar
+        stdlib-debug stdlib-release validate-grammar
         PROPERTIES LABELS ci-core)
     set_tests_properties(stdlib-debug stdlib-release
         PROPERTIES TIMEOUT 1800)

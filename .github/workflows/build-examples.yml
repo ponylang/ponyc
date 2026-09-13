@@ -1,0 +1,29 @@
+name: Build Examples
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 5 * * 6"
+
+jobs:
+  build-examples:
+    runs-on: ubuntu-latest
+    name: Build examples with nightly ponyc
+    container:
+      image: ghcr.io/ponylang/shared-docker-ci-standard-builder-with-libressl-4.2.1:nightly
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6.0.2
+      - name: Build examples
+        run: sh .ci-scripts/build-examples.sh ponyc -Dlibressl
+      - name: Send alert on failure
+        if: ${{ failure() }}
+        uses: zulip/github-actions-zulip/send-message@bd8ec52de371d139ae8313661b7d8318c19266aa
+        with:
+          api-key: ${{ secrets.ZULIP_SCHEDULED_JOB_FAILURE_API_KEY }}
+          email: ${{ secrets.ZULIP_SCHEDULED_JOB_FAILURE_EMAIL }}
+          organization-url: 'https://ponylang.zulipchat.com/'
+          to: notifications
+          type: stream
+          topic: ${{ github.repository }} scheduled job failure
+          content: ${{ github.server_url}}/${{ github.repository }}/actions/runs/${{ github.run_id }} failed.
