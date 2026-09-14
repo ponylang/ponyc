@@ -1,13 +1,13 @@
 use "files"
 use "runtime_info"
 
-actor FetchAll
+actor FetchAll is ConfigReadNotify
   """
-  Reads a `pony.deps` configuration file and fetches all dependencies
-  whose target directories are not already present. Fetches run in
-  parallel up to the number of scheduler threads. The target directory
-  for a dependency is `<name>@<64 hex chars>` where the hex is the
-  sha256 content hash computed from the extracted files.
+  Reads a `pony.deps` configuration file via a `ConfigAccess` actor and
+  fetches all dependencies whose target directories are not already
+  present. Fetches run in parallel up to the number of scheduler threads.
+  The target directory for a dependency is `<name>@<64 hex chars>` where
+  the hex is the sha256 content hash computed from the extracted files.
   """
   let _env: Env
   let _notify: FetchAllNotify
@@ -24,8 +24,8 @@ actor FetchAll
 
   new create(
     env: Env,
+    config: ConfigReader,
     notify: FetchAllNotify,
-    config_path: String,
     output_dir: String)
   =>
     _env = env
@@ -35,58 +35,44 @@ actor FetchAll
     _max_parallel =
       Scheduler.schedulers(SchedulerInfoAuth(env.root)).usize()
 
-    let file_path = FilePath(_auth, config_path)
-    let content: String val =
-      match OpenFile(file_path)
-      | let f: File =>
-        let data = f.read_string(f.size())
-        f.dispose()
-        consume data
-      else
-        notify.fetch_all_failed(
-          "cannot read config file: " + config_path)
-        return
-      end
+    config.read_config(this)
 
-    let config =
-      match \exhaustive\ ConfigParser(content)
-      | let c: ConfigFile => c
-      | let e: ConfigError =>
-        notify.fetch_all_failed(config_path + ":" + e.string())
-        return
-      end
-
-    for dep in config.deps.values() do
+  be config_loaded(cf: ConfigFile val) =>
+    """
+    Called when the config file has been read and parsed.
+    """
+    for dep in cf.deps.values() do
       if dep.dep_type != "par" then
-        notify.fetch_all_failed(
+        _notify.fetch_all_failed(
           "unsupported dep type '" + dep.dep_type +
             "' for dep '" + dep.name + "'")
         return
       end
     end
 
-    let out_path = FilePath(_auth, output_dir)
+    let out_path = FilePath(_auth, _output_dir)
     if not out_path.mkdir() then
       try
         if not FileInfo(out_path)?.directory then
-          notify.fetch_all_failed(
-            "output path is not a directory: " + output_dir)
+          _notify.fetch_all_failed(
+            "output path is not a directory: " + _output_dir)
           return
         end
       else
-        notify.fetch_all_failed(
-          "cannot create output directory: " + output_dir)
+        _notify.fetch_all_failed(
+          "cannot create output directory: " + _output_dir)
         return
       end
     end
 
     let to_fetch = Array[DepEntry val]
-    for dep in config.deps.values() do
+    for dep in cf.deps.values() do
       if dep.hash == "skip" then
         to_fetch.push(dep)
       else
         let hex = _config_hex(dep.hash)
-        let target = Path.join(output_dir, dep.name + "@" + hex)
+        let target =
+          Path.join(_output_dir, dep.name + "@" + hex)
         try
           if FileInfo(FilePath(_auth, target))?.directory then
             _skipped = _skipped + 1
@@ -98,8 +84,10 @@ actor FetchAll
     end
 
     if to_fetch.size() == 0 then
-      notify.fetch_all_complete(
-        recover val Array[(String val, String val)] end, 0, _skipped)
+      _notify.fetch_all_complete(
+        recover val Array[(String val, String val)] end,
+        0,
+        _skipped)
       return
     end
 
@@ -110,6 +98,13 @@ actor FetchAll
     end
     _launch_queued()
 
+  be config_not_found() =>
+    _notify.fetch_all_failed(
+      "config file not found")
+
+  be config_error(message: String val) =>
+    _notify.fetch_all_failed(message)
+
   fun ref _launch_queued() =>
     while (_in_flight < _max_parallel) and (_queue.size() > 0) do
       try
@@ -117,7 +112,10 @@ actor FetchAll
         let temp_path = FilePath(_auth, _temp_dir(dep.name))
         temp_path.remove()
         Fetch(
-          _env, _DepFetchNotify(this, dep), dep.url, _temp_dir(dep.name))
+          _env,
+          _DepFetchNotify(this, dep),
+          dep.url,
+          _temp_dir(dep.name))
         _in_flight = _in_flight + 1
       else
         _Unreachable()

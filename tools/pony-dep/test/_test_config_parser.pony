@@ -40,7 +40,10 @@ class \nodoc\ _TestConfigParserSingleDep is UnitTest
         h.assert_eq[String](d.dep_type, "git")
         h.assert_eq[String](d.url,
           "https://github.com/ponylang/pony-msgpack.git")
-        h.assert_eq[String](d.ref_name, "0.3.0")
+        match d.ref_name
+        | let r: String val => h.assert_eq[String](r, "0.3.0")
+        | None => h.fail("expected ref_name '0.3.0' but got None")
+        end
         h.assert_eq[String](d.hash, hash)
         match d.documentation_url
         | let s: String => h.fail("expected None, got '" + s + "'")
@@ -114,7 +117,10 @@ class \nodoc\ _TestConfigParserMultipleDeps is UnitTest
         h.assert_eq[String](c.deps(1)?.name, "http")
         h.assert_eq[String](c.deps(1)?.url,
           "https://github.com/ponylang/pony-http.git")
-        h.assert_eq[String](c.deps(1)?.ref_name, "0.6.0")
+        match c.deps(1)?.ref_name
+        | let r: String val => h.assert_eq[String](r, "0.6.0")
+        | None => h.fail("expected ref_name '0.6.0' but got None")
+        end
       else
         h.fail("deps out of bounds")
       end
@@ -386,8 +392,8 @@ class \nodoc\ _TestConfigParserMissingUrl is UnitTest
       h.assert_true(e.message.contains("'url'"))
     end
 
-class \nodoc\ _TestConfigParserMissingRef is UnitTest
-  fun name(): String => "ConfigParser/error: missing ref field"
+class \nodoc\ _TestConfigParserOptionalRef is UnitTest
+  fun name(): String => "ConfigParser/dep without ref"
 
   fun apply(h: TestHelper) =>
     let input: String val =
@@ -399,10 +405,19 @@ class \nodoc\ _TestConfigParserMissingRef is UnitTest
       "end\n"
     match dep.ConfigParser(input)
     | let c: dep.ConfigFile =>
-      h.fail("expected error, got ConfigFile")
+      h.assert_eq[USize](c.deps.size(), 1)
+      try
+        let d = c.deps(0)?
+        h.assert_eq[String](d.name, "foo")
+        match d.ref_name
+        | let _: String val => h.fail("expected None ref_name")
+        | None => None
+        end
+      else
+        h.fail("deps(0) out of bounds")
+      end
     | let e: dep.ConfigError =>
-      h.assert_eq[USize](e.line, 6)
-      h.assert_true(e.message.contains("'ref'"))
+      h.fail(e.string())
     end
 
 class \nodoc\ _TestConfigParserDuplicateField is UnitTest

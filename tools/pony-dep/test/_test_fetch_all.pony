@@ -76,12 +76,14 @@ class \nodoc\ _TestFetchAllBadDepType is UnitTest
       "  ref v1.0.0\n" +
       "  hash skip\n" +
       "end\n")?
+    let auth = FileAuth(h.env.root)
     let out_dir = Path.join(tmp.path.path, "out")
     dep.FetchAll(
       h.env,
+      dep.ConfigAccess(auth, config_path),
       _TestFetchAllNotify(
-        h where expect_failed = true, expected_message = "unsupported dep type"),
-      config_path,
+        h where expect_failed = true,
+        expected_message = "unsupported dep type"),
       out_dir)
 
 class \nodoc\ _TestFetchAllConfigParseError is UnitTest
@@ -91,13 +93,16 @@ class \nodoc\ _TestFetchAllConfigParseError is UnitTest
     h.long_test(5_000_000_000)
     let tmp = _TestHelper.tmp_dir(h)?
     let config_path =
-      _FetchAllTestHelper.write_config(tmp.path, "garbage content\n")?
+      _FetchAllTestHelper.write_config(
+        tmp.path, "garbage content\n")?
+    let auth = FileAuth(h.env.root)
     let out_dir = Path.join(tmp.path.path, "out")
     dep.FetchAll(
       h.env,
+      dep.ConfigAccess(auth, config_path),
       _TestFetchAllNotify(
-        h where expect_failed = true, expected_message = "expected 'version"),
-      config_path,
+        h where expect_failed = true,
+        expected_message = "expected 'version"),
       out_dir)
 
 class \nodoc\ _TestFetchAllConfigNotFound is UnitTest
@@ -106,12 +111,16 @@ class \nodoc\ _TestFetchAllConfigNotFound is UnitTest
   fun apply(h: TestHelper) ? =>
     h.long_test(5_000_000_000)
     let tmp = _TestHelper.tmp_dir(h)?
+    let auth = FileAuth(h.env.root)
     let out_dir = Path.join(tmp.path.path, "out")
     dep.FetchAll(
       h.env,
+      dep.ConfigAccess(
+        auth,
+        Path.join(tmp.path.path, "nonexistent.deps")),
       _TestFetchAllNotify(
-        h where expect_failed = true, expected_message = "cannot read config"),
-      Path.join(tmp.path.path, "nonexistent.deps"),
+        h where expect_failed = true,
+        expected_message = "config file not found"),
       out_dir)
 
 class \nodoc\ _TestFetchAllSkipsPresent is UnitTest
@@ -122,9 +131,11 @@ class \nodoc\ _TestFetchAllSkipsPresent is UnitTest
     let tmp = _TestHelper.tmp_dir(h)?
 
     let hash_a =
-      "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      "e3b0c44298fc1c149afbf4c8996fb924" +
+      "27ae41e4649b934ca495991b7852b855"
     let hash_b =
-      "ca978112ca1bbdcafac231b39a23dc4da786eff8147c4e72b9807785afee48bb"
+      "ca978112ca1bbdcafac231b39a23dc4d" +
+      "a786eff8147c4e72b9807785afee48bb"
 
     let config_path = _FetchAllTestHelper.write_config(tmp.path,
       "version 1\n" +
@@ -143,19 +154,20 @@ class \nodoc\ _TestFetchAllSkipsPresent is UnitTest
       "  hash sha256:" + hash_b + "\n" +
       "end\n")?
 
+    let auth = FileAuth(h.env.root)
     let out_dir = Path.join(tmp.path.path, "out")
-    let out_path = FilePath(FileAuth(h.env.root), out_dir)
+    let out_path = FilePath(auth, out_dir)
     out_path.mkdir()
 
-    FilePath(FileAuth(h.env.root),
+    FilePath(auth,
       Path.join(out_dir, "foo@" + hash_a)).mkdir()
-    FilePath(FileAuth(h.env.root),
+    FilePath(auth,
       Path.join(out_dir, "bar@" + hash_b)).mkdir()
 
     dep.FetchAll(
       h.env,
+      dep.ConfigAccess(auth, config_path),
       _TestFetchAllNotify(h where expected_skipped = 2),
-      config_path,
       out_dir)
 
 class \nodoc\ _TestFetchAllSkipsPresentUppercaseHex is UnitTest
@@ -167,9 +179,11 @@ class \nodoc\ _TestFetchAllSkipsPresentUppercaseHex is UnitTest
     let tmp = _TestHelper.tmp_dir(h)?
 
     let hash_upper =
-      "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+      "E3B0C44298FC1C149AFBF4C8996FB924" +
+      "27AE41E4649B934CA495991B7852B855"
     let hash_lower =
-      "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      "e3b0c44298fc1c149afbf4c8996fb924" +
+      "27ae41e4649b934ca495991b7852b855"
 
     let config_path = _FetchAllTestHelper.write_config(tmp.path,
       "version 1\n" +
@@ -181,17 +195,18 @@ class \nodoc\ _TestFetchAllSkipsPresentUppercaseHex is UnitTest
       "  hash sha256:" + hash_upper + "\n" +
       "end\n")?
 
+    let auth = FileAuth(h.env.root)
     let out_dir = Path.join(tmp.path.path, "out")
-    let out_path = FilePath(FileAuth(h.env.root), out_dir)
+    let out_path = FilePath(auth, out_dir)
     out_path.mkdir()
 
-    FilePath(FileAuth(h.env.root),
+    FilePath(auth,
       Path.join(out_dir, "foo@" + hash_lower)).mkdir()
 
     dep.FetchAll(
       h.env,
+      dep.ConfigAccess(auth, config_path),
       _TestFetchAllNotify(h where expected_skipped = 1),
-      config_path,
       out_dir)
 
 class \nodoc\ _TestFetchAllEmptyDeps is UnitTest
@@ -201,12 +216,14 @@ class \nodoc\ _TestFetchAllEmptyDeps is UnitTest
     h.long_test(5_000_000_000)
     let tmp = _TestHelper.tmp_dir(h)?
     let config_path =
-      _FetchAllTestHelper.write_config(tmp.path, "version 1\n")?
+      _FetchAllTestHelper.write_config(
+        tmp.path, "version 1\n")?
+    let auth = FileAuth(h.env.root)
     let out_dir = Path.join(tmp.path.path, "out")
     dep.FetchAll(
       h.env,
+      dep.ConfigAccess(auth, config_path),
       _TestFetchAllNotify(h),
-      config_path,
       out_dir)
 
 class \nodoc\ _TestFetchAllOutputNotDirectory is UnitTest
@@ -226,16 +243,17 @@ class \nodoc\ _TestFetchAllOutputNotDirectory is UnitTest
         "  hash skip\n" +
         "end\n")?
 
+    let auth = FileAuth(h.env.root)
     let out_dir = Path.join(tmp.path.path, "out")
-    let out_file = FilePath(FileAuth(h.env.root), out_dir)
+    let out_file = FilePath(auth, out_dir)
     let f = CreateFile(out_file) as File
     f.print("not a directory")
     f.dispose()
 
     dep.FetchAll(
       h.env,
+      dep.ConfigAccess(auth, config_path),
       _TestFetchAllNotify(
         h where expect_failed = true,
         expected_message = "not a directory"),
-      config_path,
       out_dir)
