@@ -56,3 +56,26 @@ Long-running programs that repeatedly create and destroy pairs of actors holding
 
 Found and diagnosed by @In2infinity, who also provided a working fix that guided this change.
 
+## Add `is_socket_connected` to `TCPBackend` trait
+
+`TCPBackend` now has an `is_socket_connected(fd: U32): Bool` method. The production `RuntimeBackend` checks `SO_ERROR` on the socket. Mock backends can return `true` or `false` to control the connect outcome without a real socket.
+
+## `TCPBackend` implementations must add `is_socket_connected`
+
+`TCPBackend` has a new required method: `is_socket_connected(fd: U32): Bool`. Existing implementations must add it.
+
+Before:
+
+```pony
+class MyBackend is TCPBackend
+  // ... existing methods
+```
+
+After:
+
+```pony
+class MyBackend is TCPBackend
+  fun is_socket_connected(fd: U32): Bool => false
+  // ... existing methods
+```
+

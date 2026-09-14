@@ -53,6 +53,8 @@ class \nodoc\ _FBSendOkRecvRetry is TCPBackend
 
   fun ref sockname(fd: U32, ip: NetAddress tag): Bool => false
 
+  fun is_socket_connected(fd: U32): Bool => false
+
   fun ref writev_max(): I32 => 1024
 
   fun ref receive(event: AsioEventID,
@@ -115,6 +117,8 @@ class \nodoc\ _FBSendErrorRecvRetry is TCPBackend
 
   fun ref sockname(fd: U32, ip: NetAddress tag): Bool => false
 
+  fun is_socket_connected(fd: U32): Bool => false
+
   fun ref writev_max(): I32 => 1024
 
   fun ref receive(event: AsioEventID,
@@ -171,6 +175,8 @@ class \nodoc\ _FBSendStepRecvRetryFailed is TCPBackend
   fun ref shutdown(fd: U32) => None
 
   fun ref sockname(fd: U32, ip: NetAddress tag): Bool => false
+
+  fun is_socket_connected(fd: U32): Bool => false
 
   fun ref writev_max(): I32 => 1024
 
@@ -243,6 +249,8 @@ class \nodoc\ _FBSendOkRecvHello is TCPBackend
   fun ref shutdown(fd: U32) => None
 
   fun ref sockname(fd: U32, ip: NetAddress tag): Bool => false
+
+  fun is_socket_connected(fd: U32): Bool => false
 
   fun ref writev_max(): I32 => 1024
 
@@ -317,6 +325,8 @@ class \nodoc\ _FBSendOkRecv10 is TCPBackend
 
   fun ref sockname(fd: U32, ip: NetAddress tag): Bool => false
 
+  fun is_socket_connected(fd: U32): Bool => false
+
   fun ref writev_max(): I32 => 1024
 
   fun ref receive(event: AsioEventID,
@@ -389,6 +399,8 @@ class \nodoc\ _FBSendOkRecvHelloMute is TCPBackend
   fun ref shutdown(fd: U32) => None
 
   fun ref sockname(fd: U32, ip: NetAddress tag): Bool => false
+
+  fun is_socket_connected(fd: U32): Bool => false
 
   fun ref writev_max(): I32 => 1024
 
@@ -465,6 +477,8 @@ class \nodoc\ _FBSendOkRecvFillBuffer is TCPBackend
 
   fun ref sockname(fd: U32, ip: NetAddress tag): Bool => false
 
+  fun is_socket_connected(fd: U32): Bool => false
+
   fun ref writev_max(): I32 => 1024
 
   fun ref receive(event: AsioEventID,
@@ -538,6 +552,8 @@ class \nodoc\ _FBSendOkRecv10Yield is TCPBackend
 
   fun ref sockname(fd: U32, ip: NetAddress tag): Bool => false
 
+  fun is_socket_connected(fd: U32): Bool => false
+
   fun ref writev_max(): I32 => 1024
 
   fun ref receive(event: AsioEventID,
@@ -608,6 +624,8 @@ class \nodoc\ _FBSendOkRecvError is TCPBackend
 
   fun ref sockname(fd: U32, ip: NetAddress tag): Bool => false
 
+  fun is_socket_connected(fd: U32): Bool => false
+
   fun ref writev_max(): I32 => 1024
 
   fun ref receive(event: AsioEventID,
@@ -675,6 +693,8 @@ class \nodoc\ _FBConnect0 is TCPBackend
 
   fun ref sockname(fd: U32, ip: NetAddress tag): Bool => false
 
+  fun is_socket_connected(fd: U32): Bool => false
+
   fun ref writev_max(): I32 => 1024
 
   fun ref receive(event: AsioEventID,
@@ -733,6 +753,8 @@ class \nodoc\ _FBConnect1 is TCPBackend
   fun ref shutdown(fd: U32) => None
 
   fun ref sockname(fd: U32, ip: NetAddress tag): Bool => false
+
+  fun is_socket_connected(fd: U32): Bool => false
 
   fun ref writev_max(): I32 => 1024
 
@@ -797,6 +819,8 @@ class \nodoc\ _FBConnect2 is TCPBackend
 
   fun ref sockname(fd: U32, ip: NetAddress tag): Bool => false
 
+  fun is_socket_connected(fd: U32): Bool => false
+
   fun ref writev_max(): I32 => 1024
 
   fun ref receive(event: AsioEventID,
@@ -853,6 +877,8 @@ class \nodoc\ _FBListenFail is TCPBackend
   fun ref shutdown(fd: U32) => None
 
   fun ref sockname(fd: U32, ip: NetAddress tag): Bool => false
+
+  fun is_socket_connected(fd: U32): Bool => false
 
   fun ref writev_max(): I32 => 1024
 
@@ -920,6 +946,8 @@ class \nodoc\ _FBListenOk is TCPBackend
 
   fun ref sockname(fd: U32, ip: NetAddress tag): Bool => false
 
+  fun is_socket_connected(fd: U32): Bool => false
+
   fun ref writev_max(): I32 => 1024
 
   fun ref receive(event: AsioEventID,
@@ -977,6 +1005,8 @@ class \nodoc\ _FBListenOkMulti is TCPBackend
   fun ref shutdown(fd: U32) => None
 
   fun ref sockname(fd: U32, ip: NetAddress tag): Bool => false
+
+  fun is_socket_connected(fd: U32): Bool => false
 
   fun ref writev_max(): I32 => 1024
 

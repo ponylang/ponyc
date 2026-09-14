@@ -189,6 +189,14 @@ class RuntimeBackend is TCPBackend
           event, iov.cpointer(), count.i32(), addressof bytes_sent))
     (result, bytes_sent)
 
+  fun box is_socket_connected(fd: U32): Bool =>
+    """
+    True when `SO_ERROR` on `fd` is zero, meaning the non-blocking
+    connect completed without error.
+    """
+    (let errno: U32, let value: U32) = _OSSocket.get_so_error(fd)
+    (errno == 0) and (value == 0)
+
   fun writev_max(): I32 =>
     """
     Maximum number of `(pointer, size)` entries a single `sendv` call may

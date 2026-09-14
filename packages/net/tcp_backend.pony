@@ -90,6 +90,12 @@ trait ref TCPBackend
     non-blocking.
     """
 
+  fun is_socket_connected(fd: U32): Bool
+    """
+    True when the socket at `fd` has completed a non-blocking connect
+    without error.
+    """
+
   fun ref writev_max(): I32
     """
     Maximum number of buffers a single `sendv` call may carry.

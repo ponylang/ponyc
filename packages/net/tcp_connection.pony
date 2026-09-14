@@ -1942,8 +1942,7 @@ class TCPConnection[TCP: TCPBackend ref = RuntimeBackend,
     end
 
   fun _is_socket_connected(fd: U32): Bool =>
-    (let errno: U32, let value: U32) = _OSSocket.get_so_error(fd)
-    (errno == 0) and (value == 0)
+    _tcp.is_socket_connected(fd)
 
   fun ref _register_spawner(listener: TCPListenerActor[TCP, Asio]) =>
     if _spawned_by is None then
