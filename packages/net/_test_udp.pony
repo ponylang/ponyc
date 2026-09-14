@@ -7,7 +7,7 @@ primitive \nodoc\ _FakeUDPFd
   backend handles all I/O.
   """
   fun apply(): U32 ? =>
-    let fd = @socket(I32(2), I32(2), I32(0))
+    let fd = @socket(_AF.inet(), _SOCK.dgram(), _SO.none())
     if fd < 0 then error end
     fd.u32()
 
