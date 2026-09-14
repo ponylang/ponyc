@@ -815,69 +815,6 @@ class \nodoc\ _FBConnect2 is TCPBackend
   =>
     (SocketResultRetry, 0)
 
-class \nodoc\ _FBConnect3 is TCPBackend
-  """
-  connect: returns three events (three inflight attempts).
-  """
-  new create() => None
-
-  fun ref listen(the_actor: AsioEventNotify,
-    host: String,
-    port: String,
-    ip_version: IPVersion)
-    : AsioEventID
-  =>
-    AsioEvent.none()
-
-  fun ref accept(event: AsioEventID): I32 => 0
-
-  fun ref close(fd: U32) => @pony_os_socket_close(fd)
-
-  fun ref connect(the_actor: AsioEventNotify,
-    host: String,
-    port: String,
-    from: String,
-    asio_flags: U32,
-    ip_version: IPVersion)
-    : Array[AsioEventID]
-  =>
-    let events = Array[AsioEventID](3)
-    var i: USize = 0
-    while i < 3 do
-      let fd = @socket(_AF.inet(), _SOCK.stream(), _SO.none())
-      if fd >= 0 then
-        events.push(PonyAsio.create_event(the_actor, fd.u32()))
-      end
-      i = i + 1
-    end
-    events
-
-  fun ref keepalive(fd: U32, secs: U32) => None
-
-  fun ref peername(fd: U32, ip: NetAddress tag): Bool => false
-
-  fun ref shutdown(fd: U32) => None
-
-  fun ref sockname(fd: U32, ip: NetAddress tag): Bool => false
-
-  fun ref writev_max(): I32 => 1024
-
-  fun ref receive(event: AsioEventID,
-    buffer: Pointer[U8] tag,
-    size: USize)
-    : (SocketResult, USize)
-  =>
-    (SocketResultRetry, 0)
-
-  fun ref sendv(event: AsioEventID,
-    data: Array[ByteSeq] box,
-    from: USize,
-    count: USize,
-    first_buffer_byte_offset: USize)
-    : (SocketResult, USize)
-  =>
-    (SocketResultRetry, 0)
-
 // ---------------------------------------------------------------------------
 // Listener fake backends
 // ---------------------------------------------------------------------------

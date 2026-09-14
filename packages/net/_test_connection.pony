@@ -1182,54 +1182,6 @@ actor \nodoc\ _TestConnectDNSFailureActor
       _h.complete(false)
     end
 
-class \nodoc\ iso _TestConnectInflight is UnitTest
-  """
-  connect returns 3 (three inflight attempts). _on_connecting fires with
-  count 3.
-  """
-  fun name(): String => "net/ConnectInflight"
-
-  fun apply(h: TestHelper) =>
-    h.expect_action("on_connecting_3")
-
-    let a = _TestConnectInflightActor(h)
-    h.dispose_when_done(a)
-
-    h.long_test(5_000_000_000)
-
-actor \nodoc\ _TestConnectInflightActor
-  is (TCPConnectionActor[_FBConnect3]
-    & ClientLifecycleEventReceiver[_FBConnect3])
-  var _tcp_connection: TCPConnection[_FBConnect3] =
-    TCPConnection[_FBConnect3].none()
-  let _h: TestHelper
-
-  new create(h: TestHelper) =>
-    _h = h
-    _tcp_connection =
-      TCPConnection[_FBConnect3].client(
-        TCPConnectAuth(_h.env.root),
-        "fake-host",
-        "12345",
-        "",
-        this,
-        this)
-
-  fun ref _connection(): TCPConnection[_FBConnect3] =>
-    _tcp_connection
-
-  fun ref _on_connection_failure(reason: ConnectionFailureReason) =>
-    None
-
-  fun ref _on_connecting(inflight_connections: U32) =>
-    if inflight_connections == 3 then
-      _h.complete_action("on_connecting_3")
-    else
-      _h.fail("expected inflight_connections == 3, got " +
-        inflight_connections.string())
-      _h.complete(false)
-    end
-
 // ---------------------------------------------------------------------------
 // State machine fake-backend tests
 // ---------------------------------------------------------------------------

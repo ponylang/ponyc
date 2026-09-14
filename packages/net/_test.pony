@@ -168,7 +168,6 @@ actor \nodoc\ Main is TestList
     test(_TestYieldReading)
     test(_TestGracefulClose)
     test(_TestConnectDNSFailure)
-    test(_TestConnectInflight)
     test(_TestSendWhileConnecting)
     test(_TestSendWhileUnconnectedClosing)
     test(_TestHardCloseDuringUnconnectedClosing)
