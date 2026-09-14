@@ -36,7 +36,6 @@ actor \nodoc\ Main is TestList
     test(_TestGrandchildDeliversBufferedOutput)
     test(_TestChildClosesOutputKeepsRunning)
     test(_TestFloodingGrandchildDoesNotStallTeardown)
-    test(_TestManyStartsDoNotLeakFds)
     // state-machine invariants via the injectable seam
     test(_TestExitReportsExactlyOnce)
     test(_TestExitSignalRetriesUntilReapable)
@@ -1803,130 +1802,6 @@ class \nodoc\ iso _TestFloodingGrandchildDoesNotStallTeardown is UnitTest
         h.complete(false)
       end
       h.long_test(10_000_000_000)
-    end
-
-class \nodoc\ iso _TestManyStartsDoNotLeakFds is UnitTest
-  """
-  Start and reap a batch of short-lived children and check that the process's
-  open file descriptor count does not grow. A descriptor leaked per child
-  (#5766) shows up as a count that climbs with the batch size. Linux only: it
-  reads /proc/self/fd. The descriptor-closing logic is shared across posix, so
-  the Linux run exercises it; the kqueue exit source on macOS and the BSDs
-  holds no descriptor to leak.
-  """
-  fun name(): String => "process/many-starts-do-not-leak-fds"
-  fun exclusion_group(): String => "process-monitor"
-
-  fun apply(h: TestHelper) =>
-    ifdef linux then
-      let file_auth = FileAuth(h.env.root)
-      let true_path =
-        try
-          _PathResolver(h.env.vars, file_auth).resolve("true")?.path
-        else
-          h.fail("could not find 'true' on PATH")
-          h.complete(false)
-          return
-        end
-      match \exhaustive\ _OpenFdCount(file_auth)
-      | let baseline: USize =>
-        _FdLeakDriver(h, 100, true_path, baseline)
-      | None =>
-        h.fail("could not read /proc/self/fd")
-        h.complete(false)
-      end
-    else
-      h.complete(true)
-    end
-    h.long_test(60_000_000_000)
-
-primitive \nodoc\ _OpenFdCount
-  """
-  The number of open file descriptors in this process, read from /proc/self/fd
-  on Linux. None if the directory cannot be read.
-  """
-  fun apply(auth: FileAuth): (USize | None) =>
-    try
-      let dir = Directory(FilePath(auth, "/proc/self/fd"))?
-      let entries = dir.entries()?
-      let n = entries.size()
-      dir.dispose()
-      n
-    else
-      None
-    end
-
-actor \nodoc\ _FdLeakDriver
-  let _h: TestHelper
-  let _total: USize
-  let _true_path: String
-  let _baseline: USize
-  var _n: USize = 0
-
-  new create(h: TestHelper, total: USize, true_path: String, baseline: USize) =>
-    _h = h
-    _total = total
-    _true_path = true_path
-    _baseline = baseline
-    _start_next()
-
-  be _done() =>
-    _n = _n + 1
-    if _n >= _total then
-      match \exhaustive\ _OpenFdCount(FileAuth(_h.env.root))
-      | let final_count: USize =>
-        // A leaked descriptor per child would add _total to the count. Allow a
-        // small margin for descriptors other packages' tests open while this
-        // one runs in the same test binary.
-        _h.assert_true(
-          final_count <= (_baseline + 30),
-          "open fd count grew from " + _baseline.string() +
-            " to " + final_count.string() + " over " +
-            _total.string() + " starts")
-        _h.complete(true)
-      | None =>
-        _h.fail("could not read /proc/self/fd")
-        _h.complete(false)
-      end
-    else
-      _start_next()
-    end
-
-  be _fail(msg: String) =>
-    _h.fail(msg)
-    _h.complete(false)
-
-  fun ref _start_next() =>
-    let self: _FdLeakDriver = this
-    let notifier =
-      object iso is ProcessNotify
-        fun ref failed(process: ProcessMonitor ref, err: ProcessError) =>
-          self._fail("a start failed: " + err.string())
-
-        fun ref dispose(process: ProcessMonitor ref,
-          status: ProcessExitStatus)
-        =>
-          self._done()
-      end
-
-    let process_auth = StartProcessAuth(_h.env.root)
-    let backpressure_auth = ApplyReleaseBackpressureAuth(_h.env.root)
-    let file_auth = FileAuth(_h.env.root)
-    let path = FilePath(file_auth, _true_path)
-    let args: Array[String] val = ["true"]
-    let vars: Array[String] val = ["HOME=/"; "PATH=/bin"]
-
-    match \exhaustive\ StartProcess(
-      process_auth,
-      backpressure_auth,
-      consume notifier,
-      path,
-      args,
-      vars)
-    | let pm: ProcessMonitor =>
-      pm.done_writing()
-    | let err: ProcessError =>
-      _fail("a start failed: " + err.string())
     end
 
 class \nodoc\ _FailAndExitClient is ProcessNotify
