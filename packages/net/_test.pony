@@ -181,8 +181,6 @@ actor \nodoc\ Main is TestList
     ifdef posix then test(_TestSendMidFlightDropBoundary) end
     ifdef posix then test(_TestSendSSLPerTokenCompletion) end
     ifdef posix then test(_TestSendSSLMidFlightDropBoundary) end
-    ifdef posix then test(_TestSendGracefulCloseWithPending) end
-    ifdef posix then test(_TestSendSSLGracefulCloseWithPending) end
     ifdef posix then test(_TestSendCloseFromThrottled) end
     ifdef posix then test(_TestSendHardCloseFromThrottled) end
     ifdef posix then test(_TestSendSSLHardCloseFromThrottled) end
@@ -196,6 +194,7 @@ actor \nodoc\ Main is TestList
     test(_TestMockSendFailed)
     test(_TestServerDisconnect)
     test(_TestDisconnectDuringBackpressure)
+    test(_TestGracefulCloseWithPending)
 
     // SSL/DTLS session tests (transport-independent)
     test(_TestALPNProtocolListEncoding)
