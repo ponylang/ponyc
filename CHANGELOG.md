@@ -7,6 +7,7 @@ All notable changes to the Pony compiler and standard library will be documented
 ### Fixed
 
 - Bound PonyTest concurrent execution to scheduler thread count ([PR #6072](https://github.com/ponylang/ponyc/pull/6072))
+- Fix cycle detector memory leak for mutually-referencing actors ([PR #6099](https://github.com/ponylang/ponyc/pull/6099))
 
 ### Added
 
