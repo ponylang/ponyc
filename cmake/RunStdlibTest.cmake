@@ -60,7 +60,7 @@ message(STATUS "Compilation succeeded, running tests ...")
 # ponyc names the binary ${BUILD_NAME}.exe on Windows. Run directly, the Windows
 # loader appends .exe; but a debugger (PONY_TEST_DEBUGGER, below) gets the path
 # as a literal argument and won't, so name the binary exactly.
-set(_run "${WORKDIR}/${BUILD_NAME}${_exe}" --sequential)
+set(_run "${WORKDIR}/${BUILD_NAME}${_exe}")
 if(DEFINED ENV{PONY_STDLIB_TEST_EXCLUDES} AND NOT "$ENV{PONY_STDLIB_TEST_EXCLUDES}" STREQUAL "")
     separate_arguments(_extra UNIX_COMMAND "$ENV{PONY_STDLIB_TEST_EXCLUDES}")
     list(APPEND _run ${_extra})
