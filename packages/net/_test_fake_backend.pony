@@ -722,7 +722,7 @@ class \nodoc\ _FBConnect1 is TCPBackend
     : Array[AsioEventID]
   =>
     let events = Array[AsioEventID](1)
-    let fd = @socket(I32(2), I32(1), I32(0))
+    let fd = @socket(AF.inet(), SOCK.stream(), SO.none())
     if fd >= 0 then
       events.push(PonyAsio.create_event(the_actor, fd.u32()))
     end
@@ -783,7 +783,7 @@ class \nodoc\ _FBConnect2 is TCPBackend
     let events = Array[AsioEventID](2)
     var i: USize = 0
     while i < 2 do
-      let fd = @socket(I32(2), I32(1), I32(0))
+      let fd = @socket(AF.inet(), SOCK.stream(), SO.none())
       if fd >= 0 then
         events.push(PonyAsio.create_event(the_actor, fd.u32()))
       end
@@ -846,7 +846,7 @@ class \nodoc\ _FBConnect3 is TCPBackend
     let events = Array[AsioEventID](3)
     var i: USize = 0
     while i < 3 do
-      let fd = @socket(I32(2), I32(1), I32(0))
+      let fd = @socket(AF.inet(), SOCK.stream(), SO.none())
       if fd >= 0 then
         events.push(PonyAsio.create_event(the_actor, fd.u32()))
       end
@@ -952,7 +952,7 @@ class \nodoc\ _FBListenOk is TCPBackend
     ip_version: IPVersion)
     : AsioEventID
   =>
-    let fd = @socket(I32(2), I32(1), I32(0))
+    let fd = @socket(AF.inet(), SOCK.stream(), SO.none())
     if fd < 0 then return AsioEvent.none() end
     PonyAsio.create_event(the_actor, fd.u32())
 
@@ -960,7 +960,7 @@ class \nodoc\ _FBListenOk is TCPBackend
     let step = _step
     _step = _step + 1
     if step == 0 then
-      @socket(I32(2), I32(1), I32(0))
+      @socket(AF.inet(), SOCK.stream(), SO.none())
     else
       0
     end
@@ -1016,12 +1016,12 @@ class \nodoc\ _FBListenOkMulti is TCPBackend
     ip_version: IPVersion)
     : AsioEventID
   =>
-    let fd = @socket(I32(2), I32(1), I32(0))
+    let fd = @socket(AF.inet(), SOCK.stream(), SO.none())
     if fd < 0 then return AsioEvent.none() end
     PonyAsio.create_event(the_actor, fd.u32())
 
   fun ref accept(event: AsioEventID): I32 =>
-    @socket(I32(2), I32(1), I32(0))
+    @socket(AF.inet(), SOCK.stream(), SO.none())
 
   fun ref close(fd: U32) => @pony_os_socket_close(fd)
 
@@ -1071,6 +1071,6 @@ primitive \nodoc\ _FakeServerFd
   descriptor. The fake backend handles all I/O.
   """
   fun apply(): U32 ? =>
-    let fd = @socket(I32(2), I32(1), I32(0))
+    let fd = @socket(AF.inet(), SOCK.stream(), SO.none())
     if fd < 0 then error end
     fd.u32()

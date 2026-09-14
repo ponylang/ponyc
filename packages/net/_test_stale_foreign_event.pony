@@ -2,6 +2,16 @@ use "pony_test"
 
 use @socket[I32](domain: I32, sock_type: I32, protocol: I32)
 
+primitive \nodoc\ AF
+  fun inet(): I32 => 2
+
+primitive \nodoc\ SOCK
+  fun stream(): I32 => 1
+  fun dgram(): I32 => 2
+
+primitive \nodoc\ SO
+  fun none(): I32 => 0
+
 class \nodoc\ iso _TestStaleForeignEventDropped is UnitTest
   """
   A readiness message can arrive for a connection attempt's event after that
@@ -49,7 +59,7 @@ actor \nodoc\ _TestStaleForeignEventClient
     // The socket is one this test owns: a regression cleans the event up a
     // second time, and the fd it closes should be ours rather than whatever
     // the runtime has open.
-    let fd = @socket(I32(2), I32(1), I32(0))
+    let fd = @socket(AF.inet(), SOCK.stream(), SO.none())
     let event = PonyAsio.create_event(this, fd.u32())
     PonyAsio.unsubscribe(event)
 
