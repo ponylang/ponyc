@@ -120,7 +120,7 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - image: ghcr.io/ponylang/ponyc-ci-cross-riscv64:20260912
+          - image: ghcr.io/ponylang/ponyc-ci-cross-riscv64:20260913
             name: riscv64 Linux glibc
 
     name: ${{ matrix.name }}
@@ -166,7 +166,7 @@ jobs:
       # kernels on x86, arm64 macOS, and the BSD VMs.
       - name: Test with Debug Cross-Compiled Runtime
         if: ${{ hashFiles('.libs-cache-miss') == '' }}
-        run: sh .ci-scripts/cross-test.sh x86-64-debug ../rv64gc/debug "--triple=riscv64-unknown-linux-gnu --cpu=generic-rv64 --link-arch=rv64gc --sysroot=/usr/riscv64-linux-gnu --abi=lp64d --features=+m,+a,+f,+d,+c" "qemu-riscv64 -L /usr/riscv64-linux-gnu/lib/" "--exclude=net/"
+        run: sh .ci-scripts/cross-test.sh x86-64-debug ../rv64gc/debug "--triple=riscv64-unknown-linux-gnu --cpu=generic-rv64 --link-arch=rv64gc --sysroot=/usr/riscv64-linux-gnu --abi=lp64d --features=+m,+a,+f,+d,+c --lib-path=/usr/lib/riscv64-linux-gnu" "qemu-riscv64 -L /usr/riscv64-linux-gnu/lib/" "--exclude=net/"
       - name: Build Release Runtime
         if: ${{ hashFiles('.libs-cache-miss') == '' }}
         run: |
@@ -178,7 +178,7 @@ jobs:
       # See the debug step above for why net/ tests are excluded under qemu-user.
       - name: Test with Release Cross-Compiled Runtime
         if: ${{ hashFiles('.libs-cache-miss') == '' }}
-        run: sh .ci-scripts/cross-test.sh x86-64-release ../rv64gc/release "--triple=riscv64-unknown-linux-gnu --cpu=generic-rv64 --link-arch=rv64gc --sysroot=/usr/riscv64-linux-gnu --abi=lp64d --features=+m,+a,+f,+d,+c" "qemu-riscv64 -L /usr/riscv64-linux-gnu/lib/" "--exclude=net/"
+        run: sh .ci-scripts/cross-test.sh x86-64-release ../rv64gc/release "--triple=riscv64-unknown-linux-gnu --cpu=generic-rv64 --link-arch=rv64gc --sysroot=/usr/riscv64-linux-gnu --abi=lp64d --features=+m,+a,+f,+d,+c --lib-path=/usr/lib/riscv64-linux-gnu" "qemu-riscv64 -L /usr/riscv64-linux-gnu/lib/" "--exclude=net/"
       - name: Test pony-doc
         if: ${{ hashFiles('.libs-cache-miss') == '' }}
         run: ctest --preset x86-64-debug -R pony-doc-tests
