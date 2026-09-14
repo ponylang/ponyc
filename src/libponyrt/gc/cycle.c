@@ -234,14 +234,62 @@ static void view_free(view_t* view)
 {
   view->view_rc--;
 
-  if(view->view_rc == 0)
+  if(view->view_rc > 0)
+    return;
+
+  Stack* pending = NULL;
+
+  while(true)
   {
 #ifdef USE_RUNTIMESTATS
     track_mem_view_free(view);
 #endif
 
+    size_t i = HASHMAP_BEGIN;
+    viewref_t* ref;
+
+    while((ref = ponyint_viewrefmap_next(&view->map, &i)) != NULL)
+    {
+      view_t* child = ref->view;
+      ponyint_viewrefmap_removeindex(&view->map, i);
+      i--;
+      viewref_free(ref);
+
+      child->view_rc--;
+
+      if(child->view_rc == 0)
+        pending = ponyint_stack_push(pending, child);
+    }
+
     ponyint_viewrefmap_destroy(&view->map);
     POOL_FREE(view_t, view);
+
+    if(pending == NULL)
+      break;
+
+    pending = ponyint_stack_pop(pending, (void**)&view);
+  }
+}
+
+static void view_release_outgoing(view_t* view)
+{
+  size_t i = HASHMAP_BEGIN;
+  viewref_t* ref;
+
+  while((ref = ponyint_viewrefmap_next(&view->map, &i)) != NULL)
+  {
+    view_t* child = ref->view;
+    ponyint_viewrefmap_removeindex(&view->map, i);
+    i--;
+
+#ifdef USE_RUNTIMESTATS
+    detector_t* d = (detector_t*)cycle_detector;
+    d->mem_used -= sizeof(viewref_t);
+    d->mem_allocated -= POOL_ALLOC_SIZE(viewref_t);
+#endif
+
+    viewref_free(ref);
+    view_free(child);
   }
 }
 
@@ -892,6 +940,11 @@ static void collect(pony_ctx_t* ctx, detector_t* d, perceived_t* per)
   for(k = 0; k < size; k++)
     ponyint_actor_sendrelease(ctx, members[k]->actor);
 
+  // release outgoing references from each member so mutual view_rc counts
+  // within the cycle are broken before the views are freed
+  for(k = 0; k < size; k++)
+    view_release_outgoing(members[k]);
+
   // destroy the actor and free the view on the actor. This pass frees the
   // members, so `members` must not be re-sorted or re-walked for view/actor
   // data after this loop begins (the comparator reads ->actor).
@@ -934,6 +987,13 @@ static void collect(pony_ctx_t* ctx, detector_t* d, perceived_t* per)
 
   while((view = ponyint_viewmap_next(&per->map, &i)) != NULL)
     ponyint_actor_sendrelease(ctx, view->actor);
+
+  // release outgoing references from each member so mutual view_rc counts
+  // within the cycle are broken before the views are freed
+  i = HASHMAP_BEGIN;
+
+  while((view = ponyint_viewmap_next(&per->map, &i)) != NULL)
+    view_release_outgoing(view);
 
   // destroy the actor and free the view on the actor
   i = HASHMAP_BEGIN;
@@ -1053,6 +1113,9 @@ static void block(detector_t* d, pony_ctx_t* ctx, pony_actor_t* actor,
 
       // if we're in a perceived cycle, that cycle is invalid
       expire(d, view);
+
+      // release outgoing references before freeing the view
+      view_release_outgoing(view);
 
       // free the view on the actor
       ponyint_viewmap_remove(&d->views, view);
