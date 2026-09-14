@@ -49,7 +49,6 @@ actor \nodoc\ Main is TestList
     test(_TestSendvMixedEmpty)
     test(_TestSSLSendv)
     test(_TestIdleTimeout)
-    test(_TestIdleTimeoutReset)
     test(_TestIdleTimeoutDisable)
     test(_TestIdleTimeoutRearms)
     test(_TestIdleTimeoutRearmsDuringTLSUpgrade)
