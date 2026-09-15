@@ -1,0 +1,496 @@
+use "pony_test"
+
+class \nodoc\ _FABackpressureRetry is AsioBackend
+  var _target: (_AsioEventInjectable tag | None) = None
+  var _main_event: AsioEventID = AsioEvent.none()
+  var _timer_event: AsioEventID = AsioEvent.none()
+  var _fd: U32 = 0
+  var _main_disposed: Bool = false
+  var _timer_disposed: Bool = false
+  var _write_injected: Bool = false
+
+  new create() => None
+
+  fun ref set_target(target: _AsioEventInjectable tag) =>
+    _target = target
+
+  fun ref create_event(the_actor: AsioEventNotify, fd: U32): AsioEventID =>
+    _fd = fd
+    _main_event =
+      _SyntheticEvent()
+    _main_event
+
+  fun ref destroy(event: AsioEventID) => None
+
+  fun ref unsubscribe(event: AsioEventID) =>
+    if event is _main_event then
+      _main_disposed = true
+      match _target
+      | let t: _AsioEventInjectable tag =>
+        t._inject_asio_event(event, AsioEvent.dispose())
+      end
+    elseif event is _timer_event then
+      _timer_disposed = true
+      match _target
+      | let t: _AsioEventInjectable tag =>
+        t._inject_asio_event(event, AsioEvent.dispose())
+      end
+    end
+
+  fun ref resubscribe_read(event: AsioEventID) => None
+
+  fun ref resubscribe_write(event: AsioEventID) =>
+    if not _write_injected then
+      _write_injected = true
+      match _target
+      | let t: _AsioEventInjectable tag =>
+        t._inject_asio_event(event, AsioEvent.write())
+      end
+    end
+
+  fun ref create_timer_event(the_actor: AsioEventNotify, nsec: U64)
+    : AsioEventID
+  =>
+    _timer_event =
+      _SyntheticEvent()
+    _timer_event
+
+  fun ref set_timer(event: AsioEventID, nsec: U64) => None
+  fun ref set_readable(event: AsioEventID) => None
+  fun ref set_unreadable(event: AsioEventID) => None
+  fun ref set_writeable(event: AsioEventID) => None
+  fun ref set_unwriteable(event: AsioEventID) => None
+
+  fun ref event_fd(event: AsioEventID): U32 => _fd
+
+  fun ref get_disposable(event: AsioEventID): Bool =>
+    if event is _main_event then
+      _main_disposed
+    elseif event is _timer_event then
+      _timer_disposed
+    else
+      false
+    end
+
+class \nodoc\ _FBBackpressureRetry is TCPBackend
+  var _step: USize = 0
+
+  new create() => None
+
+  fun ref listen(the_actor: AsioEventNotify,
+    host: String,
+    port: String,
+    ip_version: IPVersion)
+    : AsioEventID
+  =>
+    AsioEvent.none()
+
+  fun ref accept(event: AsioEventID): I32 => 0
+
+  fun ref close(fd: U32) =>
+    if fd != _SyntheticFd() then
+      @pony_os_socket_close(fd)
+    end
+
+  fun ref connect(the_actor: AsioEventNotify,
+    host: String,
+    port: String,
+    from: String,
+    asio_flags: U32,
+    ip_version: IPVersion)
+    : Array[AsioEventID]
+  =>
+    Array[AsioEventID]
+
+  fun ref keepalive(fd: U32, secs: U32) => None
+  fun ref peername(fd: U32, ip: NetAddress tag): Bool => false
+  fun ref shutdown(fd: U32) => None
+  fun ref sockname(fd: U32, ip: NetAddress tag): Bool => false
+
+  fun is_socket_connected(fd: U32): Bool => false
+
+  fun ref writev_max(): I32 => 1024
+
+  fun ref receive(event: AsioEventID,
+    buffer: Pointer[U8] tag,
+    size: USize)
+    : (SocketResult, USize)
+  =>
+    (SocketResultRetry, 0)
+
+  fun ref sendv(event: AsioEventID,
+    data: Array[ByteSeq] box,
+    from: USize,
+    count: USize,
+    first_buffer_byte_offset: USize)
+    : (SocketResult, USize) ?
+  =>
+    let step = _step
+    _step = _step + 1
+    if step == 0 then
+      (SocketResultRetry, 0)
+    else
+      var total: USize = 0
+      var i = from
+      let stop = from + count
+      while i < stop do
+        let s = data(i)?.size()
+        total =
+          total + if i == from then s - first_buffer_byte_offset else s end
+        i = i + 1
+      end
+      (SocketResultOk, total)
+    end
+
+class \nodoc\ _FBPartialWrite is TCPBackend
+  var _step: USize = 0
+
+  new create() => None
+
+  fun ref listen(the_actor: AsioEventNotify,
+    host: String,
+    port: String,
+    ip_version: IPVersion)
+    : AsioEventID
+  =>
+    AsioEvent.none()
+
+  fun ref accept(event: AsioEventID): I32 => 0
+
+  fun ref close(fd: U32) =>
+    if fd != _SyntheticFd() then
+      @pony_os_socket_close(fd)
+    end
+
+  fun ref connect(the_actor: AsioEventNotify,
+    host: String,
+    port: String,
+    from: String,
+    asio_flags: U32,
+    ip_version: IPVersion)
+    : Array[AsioEventID]
+  =>
+    Array[AsioEventID]
+
+  fun ref keepalive(fd: U32, secs: U32) => None
+  fun ref peername(fd: U32, ip: NetAddress tag): Bool => false
+  fun ref shutdown(fd: U32) => None
+  fun ref sockname(fd: U32, ip: NetAddress tag): Bool => false
+
+  fun is_socket_connected(fd: U32): Bool => false
+
+  fun ref writev_max(): I32 => 1024
+
+  fun ref receive(event: AsioEventID,
+    buffer: Pointer[U8] tag,
+    size: USize)
+    : (SocketResult, USize)
+  =>
+    (SocketResultRetry, 0)
+
+  fun ref sendv(event: AsioEventID,
+    data: Array[ByteSeq] box,
+    from: USize,
+    count: USize,
+    first_buffer_byte_offset: USize)
+    : (SocketResult, USize) ?
+  =>
+    var total: USize = 0
+    var i = from
+    let stop = from + count
+    while i < stop do
+      let s = data(i)?.size()
+      total =
+        total + if i == from then s - first_buffer_byte_offset else s end
+      i = i + 1
+    end
+    let step = _step
+    _step = _step + 1
+    if step == 0 then
+      (SocketResultOk, total / 2)
+    else
+      (SocketResultOk, total)
+    end
+
+class \nodoc\ _FANoWriteable is AsioBackend
+  var _target: (_AsioEventInjectable tag | None) = None
+  var _main_event: AsioEventID = AsioEvent.none()
+  var _timer_event: AsioEventID = AsioEvent.none()
+  var _fd: U32 = 0
+  var _main_disposed: Bool = false
+  var _timer_disposed: Bool = false
+
+  new create() => None
+
+  fun ref set_target(target: _AsioEventInjectable tag) =>
+    _target = target
+
+  fun ref create_event(the_actor: AsioEventNotify, fd: U32): AsioEventID =>
+    _fd = fd
+    _main_event =
+      _SyntheticEvent()
+    _main_event
+
+  fun ref destroy(event: AsioEventID) => None
+
+  fun ref unsubscribe(event: AsioEventID) =>
+    if event is _main_event then
+      _main_disposed = true
+      match _target
+      | let t: _AsioEventInjectable tag =>
+        t._inject_asio_event(event, AsioEvent.dispose())
+      end
+    elseif event is _timer_event then
+      _timer_disposed = true
+      match _target
+      | let t: _AsioEventInjectable tag =>
+        t._inject_asio_event(event, AsioEvent.dispose())
+      end
+    end
+
+  fun ref resubscribe_read(event: AsioEventID) => None
+  fun ref resubscribe_write(event: AsioEventID) => None
+
+  fun ref create_timer_event(the_actor: AsioEventNotify, nsec: U64)
+    : AsioEventID
+  =>
+    _timer_event =
+      _SyntheticEvent()
+    _timer_event
+
+  fun ref set_timer(event: AsioEventID, nsec: U64) => None
+  fun ref set_readable(event: AsioEventID) => None
+  fun ref set_unreadable(event: AsioEventID) => None
+  fun ref set_writeable(event: AsioEventID) => None
+  fun ref set_unwriteable(event: AsioEventID) => None
+
+  fun ref event_fd(event: AsioEventID): U32 => _fd
+
+  fun ref get_disposable(event: AsioEventID): Bool =>
+    if event is _main_event then
+      _main_disposed
+    elseif event is _timer_event then
+      _timer_disposed
+    else
+      false
+    end
+
+class \nodoc\ iso _TestBackpressureRetry is UnitTest
+  fun name(): String => "net/mock/BackpressureRetry"
+
+  fun apply(h: TestHelper) =>
+    h.expect_action("started")
+    h.expect_action("throttled")
+    h.expect_action("sent")
+    h.expect_action("unthrottled")
+    h.expect_action("closed")
+
+    let a = _TestBackpressureRetryActor(h)
+    h.dispose_when_done(a)
+    h.long_test(5_000_000_000)
+
+actor \nodoc\ _TestBackpressureRetryActor
+  is (TCPConnectionActor[_FBBackpressureRetry, _FABackpressureRetry]
+    & ServerLifecycleEventReceiver[_FBBackpressureRetry,
+        _FABackpressureRetry]
+    & _AsioEventInjectable)
+  var _tcp_connection:
+    TCPConnection[_FBBackpressureRetry, _FABackpressureRetry] =
+    TCPConnection[_FBBackpressureRetry, _FABackpressureRetry].none()
+  let _h: TestHelper
+  var _step: USize = 0
+
+  new create(h: TestHelper) =>
+    _h = h
+    _tcp_connection =
+      TCPConnection[_FBBackpressureRetry, _FABackpressureRetry].server(
+        TCPServerAuth(_h.env.root),
+        _SyntheticFd(),
+        this,
+        this)
+    _tcp_connection._asio_ops().set_target(this)
+
+  fun ref _connection():
+    TCPConnection[_FBBackpressureRetry, _FABackpressureRetry]
+  =>
+    _tcp_connection
+
+  be _inject_asio_event(event: AsioEventID, flags: U32) =>
+    _connection()._event_notify(event, flags)
+
+  fun ref _on_start_failure(reason: StartFailureReason) => None
+
+  fun ref _on_started() =>
+    _h.assert_true(_step == 0, "started: step " + _step.string())
+    _step = _step + 1
+    _h.log("step 0: started")
+    _h.complete_action("started")
+    _tcp_connection.send("hello world")
+
+  fun ref _on_throttled() =>
+    _h.assert_true(_step == 1, "throttled: step " + _step.string())
+    _step = _step + 1
+    _h.log("step 1: throttled")
+    _h.complete_action("throttled")
+
+  fun ref _on_unthrottled() =>
+    _h.assert_true(_step == 2, "unthrottled: step " + _step.string())
+    _step = _step + 1
+    _h.log("step 2: unthrottled")
+    _h.complete_action("unthrottled")
+
+  fun ref _on_sent(token: SendToken) =>
+    _h.assert_true(_step == 3, "sent: step " + _step.string())
+    _step = _step + 1
+    _h.log("step 3: sent")
+    _h.complete_action("sent")
+    _tcp_connection.hard_close()
+
+  fun ref _on_closed() =>
+    _h.complete_action("closed")
+
+  be dispose() =>
+    _tcp_connection.hard_close()
+
+class \nodoc\ iso _TestPartialWrite is UnitTest
+  fun name(): String => "net/mock/PartialWrite"
+
+  fun apply(h: TestHelper) =>
+    h.expect_action("started")
+    h.expect_action("throttled")
+    h.expect_action("unthrottled")
+    h.expect_action("sent")
+    h.expect_action("closed")
+
+    let a = _TestPartialWriteActor(h)
+    h.dispose_when_done(a)
+    h.long_test(5_000_000_000)
+
+actor \nodoc\ _TestPartialWriteActor
+  is (TCPConnectionActor[_FBPartialWrite, _FABackpressureRetry]
+    & ServerLifecycleEventReceiver[_FBPartialWrite, _FABackpressureRetry]
+    & _AsioEventInjectable)
+  var _tcp_connection:
+    TCPConnection[_FBPartialWrite, _FABackpressureRetry] =
+    TCPConnection[_FBPartialWrite, _FABackpressureRetry].none()
+  let _h: TestHelper
+  var _step: USize = 0
+
+  new create(h: TestHelper) =>
+    _h = h
+    _tcp_connection =
+      TCPConnection[_FBPartialWrite, _FABackpressureRetry].server(
+        TCPServerAuth(_h.env.root),
+        _SyntheticFd(),
+        this,
+        this)
+    _tcp_connection._asio_ops().set_target(this)
+
+  fun ref _connection():
+    TCPConnection[_FBPartialWrite, _FABackpressureRetry]
+  =>
+    _tcp_connection
+
+  be _inject_asio_event(event: AsioEventID, flags: U32) =>
+    _connection()._event_notify(event, flags)
+
+  fun ref _on_start_failure(reason: StartFailureReason) => None
+
+  fun ref _on_started() =>
+    _h.assert_true(_step == 0, "started: step " + _step.string())
+    _step = _step + 1
+    _h.log("step 0: started")
+    _h.complete_action("started")
+    _tcp_connection.send("hello world")
+
+  fun ref _on_throttled() =>
+    _h.assert_true(_step == 1, "throttled: step " + _step.string())
+    _step = _step + 1
+    _h.log("step 1: throttled")
+    _h.complete_action("throttled")
+
+  fun ref _on_unthrottled() =>
+    _h.assert_true(_step == 2, "unthrottled: step " + _step.string())
+    _step = _step + 1
+    _h.log("step 2: unthrottled")
+    _h.complete_action("unthrottled")
+
+  fun ref _on_sent(token: SendToken) =>
+    _h.assert_true(_step == 3, "sent: step " + _step.string())
+    _step = _step + 1
+    _h.log("step 3: sent")
+    _h.complete_action("sent")
+    _tcp_connection.hard_close()
+
+  fun ref _on_closed() =>
+    _h.complete_action("closed")
+
+  be dispose() =>
+    _tcp_connection.hard_close()
+
+class \nodoc\ iso _TestMockSendFailed is UnitTest
+  fun name(): String => "net/mock/SendFailed"
+
+  fun apply(h: TestHelper) =>
+    h.expect_action("started")
+    h.expect_action("throttled")
+    h.expect_action("closed")
+    h.expect_action("send_failed")
+
+    let a = _TestMockSendFailedActor(h)
+    h.dispose_when_done(a)
+    h.long_test(5_000_000_000)
+
+actor \nodoc\ _TestMockSendFailedActor
+  is (TCPConnectionActor[_FBBackpressureRetry, _FANoWriteable]
+    & ServerLifecycleEventReceiver[_FBBackpressureRetry, _FANoWriteable]
+    & _AsioEventInjectable)
+  var _tcp_connection:
+    TCPConnection[_FBBackpressureRetry, _FANoWriteable] =
+    TCPConnection[_FBBackpressureRetry, _FANoWriteable].none()
+  let _h: TestHelper
+  var _closed_first: Bool = false
+
+  new create(h: TestHelper) =>
+    _h = h
+    _tcp_connection =
+      TCPConnection[_FBBackpressureRetry, _FANoWriteable].server(
+        TCPServerAuth(_h.env.root),
+        _SyntheticFd(),
+        this,
+        this)
+    _tcp_connection._asio_ops().set_target(this)
+
+  fun ref _connection():
+    TCPConnection[_FBBackpressureRetry, _FANoWriteable]
+  =>
+    _tcp_connection
+
+  be _inject_asio_event(event: AsioEventID, flags: U32) =>
+    _connection()._event_notify(event, flags)
+
+  fun ref _on_start_failure(reason: StartFailureReason) => None
+
+  fun ref _on_started() =>
+    _h.complete_action("started")
+    _tcp_connection.send("hello world")
+
+  fun ref _on_throttled() =>
+    _h.complete_action("throttled")
+    _do_hard_close()
+
+  be _do_hard_close() =>
+    _tcp_connection.hard_close()
+
+  fun ref _on_send_failed(token: SendToken) =>
+    _h.assert_true(
+      _closed_first,
+      "_on_closed must precede _on_send_failed")
+    _h.complete_action("send_failed")
+
+  fun ref _on_closed() =>
+    _closed_first = true
+    _h.complete_action("closed")
+
+  be dispose() =>
+    _tcp_connection.hard_close()

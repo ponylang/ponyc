@@ -190,6 +190,13 @@ actor \nodoc\ Main is TestList
     ifdef posix then test(_TestSendOnSentPrecedesThrottleAndClose) end
     ifdef posix then test(_TestSendThrottleSuppressedByHardClose) end
 
+    // Mock ASIO tests (no real sockets, no ASIO runtime)
+    test(_TestBackpressureRetry)
+    test(_TestPartialWrite)
+    test(_TestMockSendFailed)
+    test(_TestServerDisconnect)
+    test(_TestDisconnectDuringBackpressure)
+
     // SSL/DTLS session tests (transport-independent)
     test(_TestALPNProtocolListEncoding)
     test(_TestALPNProtocolListDecode)

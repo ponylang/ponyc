@@ -13,10 +13,12 @@ All notable changes to the Pony compiler and standard library will be documented
 
 - Add \by_value\ FFI annotation for struct-by-value passing ([PR #6062](https://github.com/ponylang/ponyc/pull/6062))
 - Add `--lib-path` / `-L` flag for extra linker library search paths ([PR #6084](https://github.com/ponylang/ponyc/pull/6084))
+- Add `is_socket_connected` to `TCPBackend` trait ([PR #6094](https://github.com/ponylang/ponyc/pull/6094))
 
 ### Changed
 
 - Add AsioBackend trait for mockable ASIO operations ([PR #6071](https://github.com/ponylang/ponyc/pull/6071))
+- `TCPBackend` implementations must add `is_socket_connected` ([PR #6094](https://github.com/ponylang/ponyc/pull/6094))
 
 ## [0.72.1] - 2026-09-13
 
