@@ -1092,6 +1092,46 @@ primitive Generators
         fun generate(rnd: Randomness): ISize ? => rnd.isize(lo, hi)?
       end)
 
+  fun f32(
+    from: F32 = 0.0,
+    to: F32 = 1.0)
+    : Generator[F32]
+  =>
+    """
+    Generate F32 values in `[from, to]`. Order does not matter.
+
+    Errors if `from` or `to` is NaN.
+    """
+    let lo = from.min(to)
+    let hi = from.max(to)
+    let nan = lo.nan()
+    Generator[F32](
+      object is GenObj[F32]
+        fun generate(rnd: Randomness): F32 ? =>
+          if nan then error end
+          rnd.f32(lo, hi)?
+      end)
+
+  fun f64(
+    from: F64 = 0.0,
+    to: F64 = 1.0)
+    : Generator[F64]
+  =>
+    """
+    Generate F64 values in `[from, to]`. Order does not matter.
+
+    Errors if `from` or `to` is NaN.
+    """
+    let lo = from.min(to)
+    let hi = from.max(to)
+    let nan = lo.nan()
+    Generator[F64](
+      object is GenObj[F64]
+        fun generate(rnd: Randomness): F64 ? =>
+          if nan then error end
+          rnd.f64(lo, hi)?
+      end)
+
   fun byte_string(
     gen: Generator[U8],
     from: USize = 0,
