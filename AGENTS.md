@@ -97,6 +97,16 @@ cd build/debug && PONYPATH=../../tools/lib/ponylang/pony_compiler ./pony-lint ..
 
 The same works for `../../tools/pony-lsp/`, `../../tools/pony-doc/`, and `../../tools/pony-dep/`.
 
+## Opening PRs
+
+Before opening a PR, verify:
+
+- **Debug build succeeds** (if compiled code was changed): `cmake --build --preset debug` completes without errors.
+- **Relevant tests pass locally**: Run the tests that cover your change — see the Testing section above for the right commands. Don't skip a test suite because "CI will catch it."
+- **pony-lint passes** (if Pony source was changed): Lint any Pony code you touched. See "Linting tool source" above for the command.
+- **Grammar validation passes** (if the parser or `pony.g` was changed): `ctest --preset debug -R validate-grammar`.
+- **Release notes updated** (if the change is user-facing): Load the `pony-release-notes` skill for what needs updating and how.
+
 ## Adding threads or locks
 
 Never add a mutex or a new thread unless the idea came from the human operator or a committer expressly approved it. Pony's runtime is built on a deliberate concurrency model, and adding either is an architectural decision, not an implementation detail. If a change looks like it needs one, stop and raise it rather than writing it.
