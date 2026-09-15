@@ -60,7 +60,7 @@ class \nodoc\ _TestAddDuplicateName is UnitTest
   fun apply(h: TestHelper) ? =>
     h.long_test(5_000_000_000)
     let tmp = _TestHelper.tmp_dir(h)?
-    let config_path = _FetchAllTestHelper.write_config(tmp.path,
+    let config_path = _ConfigTestHelper.write_config(tmp.path,
       "version 1\n" +
       "\n" +
       "dep foo\n" +
@@ -102,7 +102,7 @@ class \nodoc\ _TestAddConfigParseError is UnitTest
     h.long_test(5_000_000_000)
     let tmp = _TestHelper.tmp_dir(h)?
     let config_path =
-      _FetchAllTestHelper.write_config(tmp.path, "garbage content\n")?
+      _ConfigTestHelper.write_config(tmp.path, "garbage content\n")?
     let auth = FileAuth(h.env.root)
     dep.Add(
       h.env,

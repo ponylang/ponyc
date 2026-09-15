@@ -1,4 +1,4 @@
-actor _FetchAllHandler is FetchAllNotify
+actor _ResolveHandler is ResolveNotify
   """
   CLI result handler for the fetch subcommand. Prints errors to stderr
   and sets the exit code. Silent on success.
@@ -8,11 +8,11 @@ actor _FetchAllHandler is FetchAllNotify
   new create(env: Env) =>
     _env = env
 
-  be fetch_all_failed(message: String val) =>
+  be resolve_failed(message: String val) =>
     _env.err.print("error: " + message)
     _env.exitcode(1)
 
-  be fetch_all_complete(
+  be resolve_complete(
     errors: Array[(String val, String val)] val,
     fetched: USize,
     skipped: USize)
