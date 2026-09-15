@@ -38,6 +38,9 @@ void* ponyint_virt_alloc(size_t bytes)
 #elif defined(PLATFORM_IS_OPENBSD)
   p = mmap(0, bytes, PROT_READ | PROT_WRITE,
     MAP_PRIVATE | MAP_ANON, -1, 0);
+#elif defined(PLATFORM_IS_HAIKU)
+  p = mmap(0, bytes, PROT_READ | PROT_WRITE,
+    MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE, -1, 0);
 #elif defined(PLATFORM_IS_BSD)
 #ifndef MAP_ALIGNED_SUPER
 #define MAP_ALIGNED_SUPER 0
@@ -102,6 +105,9 @@ void* ponyint_virt_reserve_aligned(size_t size)
 #elif defined(PLATFORM_IS_OPENBSD)
   base = mmap(0, span, PROT_READ | PROT_WRITE,
     MAP_PRIVATE | MAP_ANON, -1, 0);
+#elif defined(PLATFORM_IS_HAIKU)
+  base = mmap(0, span, PROT_READ | PROT_WRITE,
+    MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE, -1, 0);
 #elif defined(PLATFORM_IS_BSD)
   // No MAP_ALIGNED_SUPER here, unlike ponyint_virt_alloc: the mapping is
   // trimmed to a self-computed alignment right below, so superpage

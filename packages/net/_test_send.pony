@@ -653,7 +653,7 @@ actor \nodoc\ _TestSendPerTokenClient
     // Small receive buffer + muted reads so the sender's pipe fills fast.
     // BSDs need a larger buffer to avoid TCP flow control stalls amplified
     // by kqueue wakeup delay.
-    ifdef bsd then
+    ifdef bsd or haiku then
       _tcp_connection.set_so_rcvbuf(16384)
     else
       _tcp_connection.set_so_rcvbuf(4096)
@@ -848,7 +848,7 @@ actor \nodoc\ _TestSendMidFlightDropClient
     _tcp_connection
 
   fun ref _on_connected() =>
-    ifdef bsd then
+    ifdef bsd or haiku then
       _tcp_connection.set_so_rcvbuf(16384)
     else
       _tcp_connection.set_so_rcvbuf(4096)
@@ -1104,7 +1104,7 @@ actor \nodoc\ _TestSendSSLPerTokenClient
     _tcp_connection
 
   fun ref _on_connected() =>
-    ifdef bsd then
+    ifdef bsd or haiku then
       _tcp_connection.set_so_rcvbuf(16384)
     else
       _tcp_connection.set_so_rcvbuf(4096)
@@ -1316,7 +1316,7 @@ actor \nodoc\ _TestSendSSLMidFlightDropClient
     _tcp_connection
 
   fun ref _on_connected() =>
-    ifdef bsd then
+    ifdef bsd or haiku then
       _tcp_connection.set_so_rcvbuf(16384)
     else
       _tcp_connection.set_so_rcvbuf(4096)
@@ -1559,7 +1559,7 @@ actor \nodoc\ _TestSendCloseFromThrottledClient
     _tcp_connection
 
   fun ref _on_connected() =>
-    ifdef bsd then
+    ifdef bsd or haiku then
       _tcp_connection.set_so_rcvbuf(16384)
     else
       _tcp_connection.set_so_rcvbuf(4096)
@@ -1752,7 +1752,7 @@ actor \nodoc\ _TestSendHardCloseFromThrottledClient
     _tcp_connection
 
   fun ref _on_connected() =>
-    ifdef bsd then
+    ifdef bsd or haiku then
       _tcp_connection.set_so_rcvbuf(16384)
     else
       _tcp_connection.set_so_rcvbuf(4096)
@@ -1934,7 +1934,7 @@ actor \nodoc\ _TestSendSSLHardCloseFromThrottledClient
     _tcp_connection
 
   fun ref _on_connected() =>
-    ifdef bsd then
+    ifdef bsd or haiku then
       _tcp_connection.set_so_rcvbuf(16384)
     else
       _tcp_connection.set_so_rcvbuf(4096)
@@ -2717,7 +2717,7 @@ actor \nodoc\ _TestSendOnSentPrecedesClient
 
   fun ref _on_connected() =>
     // Muted with a small receive buffer so the pipe fills and stays full.
-    ifdef bsd then
+    ifdef bsd or haiku then
       _tcp_connection.set_so_rcvbuf(16384)
     else
       _tcp_connection.set_so_rcvbuf(4096)
@@ -2907,7 +2907,7 @@ actor \nodoc\ _TestSendThrottleSuppressedClient
 
   fun ref _on_connected() =>
     // Muted with a small receive buffer so the pipe fills and stays full.
-    ifdef bsd then
+    ifdef bsd or haiku then
       _tcp_connection.set_so_rcvbuf(16384)
     else
       _tcp_connection.set_so_rcvbuf(4096)
