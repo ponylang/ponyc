@@ -195,6 +195,7 @@ actor \nodoc\ Main is TestList
     test(_TestServerDisconnect)
     test(_TestDisconnectDuringBackpressure)
     test(_TestGracefulCloseWithPending)
+    test(_TestSendDeliveredNotFailedOnHardClose)
 
     // SSL/DTLS session tests (transport-independent)
     test(_TestALPNProtocolListEncoding)
