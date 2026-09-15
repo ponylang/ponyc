@@ -228,6 +228,7 @@ static bool view_cmp(view_t* a, view_t* b)
 
 #ifdef USE_RUNTIMESTATS
 static void track_mem_view_free(view_t* view);
+static void track_mem_viewref_free(void);
 #endif
 
 static void view_free(view_t* view)
@@ -283,9 +284,7 @@ static void view_release_outgoing(view_t* view)
     i--;
 
 #ifdef USE_RUNTIMESTATS
-    detector_t* d = (detector_t*)cycle_detector;
-    d->mem_used -= sizeof(viewref_t);
-    d->mem_allocated -= POOL_ALLOC_SIZE(viewref_t);
+    track_mem_viewref_free();
 #endif
 
     viewref_free(ref);
@@ -362,6 +361,13 @@ typedef struct detector_t
 static pony_actor_t* cycle_detector;
 
 #ifdef USE_RUNTIMESTATS
+static void track_mem_viewref_free(void)
+{
+  detector_t* d = (detector_t*)cycle_detector;
+  d->mem_used -= sizeof(viewref_t);
+  d->mem_allocated -= POOL_ALLOC_SIZE(viewref_t);
+}
+
 static void track_mem_view_free(view_t* view)
 {
   detector_t* d = (detector_t*)cycle_detector;
