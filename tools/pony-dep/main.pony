@@ -105,10 +105,10 @@ actor Main
         env.exitcode(1)
       end
     | "fetch" =>
-      FetchAll(
+      ResolveDeps(
         env,
-        ConfigAccess(auth, cmd.arg("config-file").string()),
-        _FetchAllHandler(env),
+        cmd.arg("config-file").string(),
+        _ResolveHandler(env),
         cmd.arg("directory").string())
     | "add" =>
       let ref_str = cmd.option("ref").string()

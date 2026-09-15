@@ -5,7 +5,7 @@ actor Add is (ConfigCheckNotify & ConfigWriteNotify)
   Fetches a dependency archive, computes its content hash, and hands the
   entry to a `ConfigAccess` actor for recording in the `pony.deps` file.
   Does not place the dependency in an output directory — that is
-  `FetchAll`'s job.
+  `ResolveDeps`' job.
   """
   let _env: Env
   let _config: (ConfigChecker & ConfigAdder)

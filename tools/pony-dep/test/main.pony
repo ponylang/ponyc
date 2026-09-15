@@ -74,15 +74,6 @@ actor \nodoc\ Main is TestList
     test(_TestPackSourceIsFile)
     test(_TestPackOutputInsideSource)
 
-    // FetchAll tests
-    test(_TestFetchAllBadDepType)
-    test(_TestFetchAllConfigParseError)
-    test(_TestFetchAllConfigNotFound)
-    test(_TestFetchAllSkipsPresent)
-    test(_TestFetchAllSkipsPresentUppercaseHex)
-    test(_TestFetchAllEmptyDeps)
-    test(_TestFetchAllOutputNotDirectory)
-
     // ConfigParser tests
     test(_TestConfigParserMinimalValid)
     test(_TestConfigParserSingleDep)
@@ -138,6 +129,17 @@ actor \nodoc\ Main is TestList
     test(_TestDepNameValidatorSlash)
     test(_TestDepNameValidatorDotDot)
     test(_TestDepNameValidatorSpace)
+
+    // ResolveDeps tests
+    test(_TestResolveNoDeps)
+    test(_TestResolveNoTransitiveDeps)
+    test(_TestResolveOneTransitiveLevel)
+    test(_TestResolveTwoTransitiveLevels)
+    test(_TestResolveDiamondDeps)
+    test(_TestResolveRootConfigNotFound)
+    test(_TestResolveRootConfigParseError)
+    test(_TestResolveTransitiveConfigParseError)
+    test(_TestResolveTransitiveUnsupportedDepType)
 
     // Add tests
     test(_TestAddUnsupportedType)

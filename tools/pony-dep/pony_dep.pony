@@ -11,7 +11,9 @@ without a solver. Use `ConfigParser` to parse a `pony.deps` file into a
 
 - `pack` — create an archive from a project's source for distribution.
 - `fetch` — read a `pony.deps` config file and fetch all dependencies
-  whose target directories are not already present.
+  transitively: after placing each dependency, scan its directory for a
+  `pony.deps` file and fetch those dependencies too, repeating until the
+  full closure is present.
 - `add` — fetch a dependency, compute its content hash, and record it in
   the configuration file.
 - `remove` — remove a dependency's configuration entry and its placed files.

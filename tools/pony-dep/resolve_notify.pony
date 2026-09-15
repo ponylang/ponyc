@@ -1,15 +1,15 @@
-interface tag FetchAllNotify
+interface tag ResolveNotify
   """
-  Callback for a `FetchAll` operation over a `pony.deps` file.
+  Callback for a dependency resolution operation over a `pony.deps` file.
   """
 
-  be fetch_all_failed(message: String val)
+  be resolve_failed(message: String val)
     """
     The operation cannot start: the config file is unreadable, fails to
     parse, or contains an unsupported dep type.
     """
 
-  be fetch_all_complete(
+  be resolve_complete(
     errors: Array[(String val, String val)] val,
     fetched: USize,
     skipped: USize)
