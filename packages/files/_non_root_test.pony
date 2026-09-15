@@ -586,6 +586,8 @@ class \nodoc\ iso _TestFileCreateExistsNotWriteable is _NonRootTest
       h.assert_eq[USize](0, line.size(), "read on invalid file succeeded")
     end
 
+    mode.owner_write = true
+    h.assert_true(filepath.chmod(mode))
     h.assert_true(filepath.remove())
 
 class \nodoc\ iso _TestFileCreateDirNotWriteable is _NonRootTest
