@@ -18,6 +18,14 @@ actor \nodoc\ Main is TestList
     test(_ForAll2Test)
     test(_ForAll3Test)
     test(_ForAll4Test)
+    test(_GenF32Test)
+    test(_GenF32ReversedTest)
+    test(_GenF32FullRangeTest)
+    test(_GenF32NaNTest)
+    test(_GenF64Test)
+    test(_GenF64ReversedTest)
+    test(_GenF64FullRangeTest)
+    test(_GenF64NaNTest)
     test(_GenFilterTest)
     test(_GenFrequencySafeTest)
     test(_GenFrequencyTest)
@@ -52,6 +60,10 @@ actor \nodoc\ Main is TestList
     test(_PersistentSetOfEmptyTest)
     test(_PersistentSetOfMaxTest)
     test(_PersistentSetOfMinTest)
+    test(Property1UnitTest[(F32, F32)](
+      _RandomnessProperty[F32, _RandomCaseF32]("F32")))
+    test(Property1UnitTest[(F64, F64)](
+      _RandomnessProperty[F64, _RandomCaseF64]("F64")))
     test(Property1UnitTest[(I8, I8)](
       _RandomnessProperty[I8, _RandomCaseI8]("I8")))
     test(Property1UnitTest[(I16, I16)](
@@ -873,6 +885,102 @@ class \nodoc\ iso _ASCIIRangeTest is UnitTest
         "\"" + sample + "\" not valid ascii")
     end
 
+class \nodoc\ iso _GenF32Test is UnitTest
+  fun name(): String => "Gen/f32"
+
+  fun apply(h: TestHelper) ? =>
+    let rnd = Randomness(Time.millis())
+    let gen = Generators.f32(where from = 5.0, to = 10.0)
+    for i in Range[USize](0, 100) do
+      let sample = gen.generate(rnd)?
+      h.assert_true(sample >= 5.0, "f32 below min")
+      h.assert_true(sample <= 10.0, "f32 above max")
+    end
+
+class \nodoc\ iso _GenF32ReversedTest is UnitTest
+  fun name(): String => "Gen/f32_from_to_reversed"
+
+  fun apply(h: TestHelper) ? =>
+    let rnd = Randomness(Time.millis())
+    let gen = Generators.f32(where from = 10.0, to = 5.0)
+    for i in Range[USize](0, 100) do
+      let sample = gen.generate(rnd)?
+      h.assert_true(sample >= 5.0, "f32 below min when from > to")
+      h.assert_true(sample <= 10.0, "f32 above max when from > to")
+    end
+
+class \nodoc\ iso _GenF32FullRangeTest is UnitTest
+  fun name(): String => "Gen/f32_full_range"
+
+  fun apply(h: TestHelper) ? =>
+    let rnd = Randomness(Time.millis())
+    let gen =
+      Generators.f32(where from = -F32.max_value(), to = F32.max_value())
+    for i in Range[USize](0, 100) do
+      let sample = gen.generate(rnd)?
+      h.assert_true(sample.finite(), "f32 full range produced non-finite")
+    end
+
+class \nodoc\ iso _GenF32NaNTest is UnitTest
+  fun name(): String => "Gen/f32_nan_errors"
+
+  fun apply(h: TestHelper) =>
+    let rnd = Randomness(Time.millis())
+    let nan = F32(0) / F32(0)
+    let gen = Generators.f32(where from = nan, to = 1.0)
+    try
+      gen.generate(rnd)?
+      h.fail("f32 NaN input should error")
+    end
+
+class \nodoc\ iso _GenF64Test is UnitTest
+  fun name(): String => "Gen/f64"
+
+  fun apply(h: TestHelper) ? =>
+    let rnd = Randomness(Time.millis())
+    let gen = Generators.f64(where from = 50.0, to = 100.0)
+    for i in Range[USize](0, 100) do
+      let sample = gen.generate(rnd)?
+      h.assert_true(sample >= 50.0, "f64 below min")
+      h.assert_true(sample <= 100.0, "f64 above max")
+    end
+
+class \nodoc\ iso _GenF64ReversedTest is UnitTest
+  fun name(): String => "Gen/f64_from_to_reversed"
+
+  fun apply(h: TestHelper) ? =>
+    let rnd = Randomness(Time.millis())
+    let gen = Generators.f64(where from = 100.0, to = 50.0)
+    for i in Range[USize](0, 100) do
+      let sample = gen.generate(rnd)?
+      h.assert_true(sample >= 50.0, "f64 below min when from > to")
+      h.assert_true(sample <= 100.0, "f64 above max when from > to")
+    end
+
+class \nodoc\ iso _GenF64FullRangeTest is UnitTest
+  fun name(): String => "Gen/f64_full_range"
+
+  fun apply(h: TestHelper) ? =>
+    let rnd = Randomness(Time.millis())
+    let gen =
+      Generators.f64(where from = -F64.max_value(), to = F64.max_value())
+    for i in Range[USize](0, 100) do
+      let sample = gen.generate(rnd)?
+      h.assert_true(sample.finite(), "f64 full range produced non-finite")
+    end
+
+class \nodoc\ iso _GenF64NaNTest is UnitTest
+  fun name(): String => "Gen/f64_nan_errors"
+
+  fun apply(h: TestHelper) =>
+    let rnd = Randomness(Time.millis())
+    let nan = F64(0) / F64(0)
+    let gen = Generators.f64(where from = nan, to = 1.0)
+    try
+      gen.generate(rnd)?
+      h.fail("f64 NaN input should error")
+    end
+
 class \nodoc\ iso _UTF32CodePointStringTest is UnitTest
   fun name(): String => "Gen/utf32_codepoint_string"
 
@@ -1161,6 +1269,22 @@ interface \nodoc\ val _RandomCase[A: Comparable[A] #read]
   fun test(min: A, max: A): A ?
 
   fun generator(): Generator[A]
+
+primitive \nodoc\ _RandomCaseF32 is _RandomCase[F32]
+  fun test(min: F32, max: F32): F32 ? =>
+    let rnd = Randomness(Time.millis())
+    rnd.f32(min, max)?
+
+  fun generator(): Generator[F32] =>
+    Generators.f32(where from = -F32.max_value(), to = F32.max_value())
+
+primitive \nodoc\ _RandomCaseF64 is _RandomCase[F64]
+  fun test(min: F64, max: F64): F64 ? =>
+    let rnd = Randomness(Time.millis())
+    rnd.f64(min, max)?
+
+  fun generator(): Generator[F64] =>
+    Generators.f64(where from = -F64.max_value(), to = F64.max_value())
 
 primitive \nodoc\ _RandomCaseU8 is _RandomCase[U8]
   fun test(min: U8, max: U8): U8 ? =>

@@ -319,12 +319,22 @@ class ref Randomness
       end
     end
 
+  fun _float_in_range(real: F64, min: F64, max: F64): F64 =>
+    let span = max - min
+    if span.finite() then
+      (real * span) + min
+    else
+      let half = (max * 0.5) - (min * 0.5)
+      let mid = (min * 0.5) + (max * 0.5)
+      mid + (((real + real) - 1.0) * half)
+    end
+
   fun ref _draw_float(min: F64, max: F64): F64 ? =>
     match \exhaustive\ _mode
     | _ModePlain =>
-      (_random.real() * (max - min)) + min
+      _float_in_range(_random.real(), min, max)
     | _ModeRecording =>
-      let v = (_random.real() * (max - min)) + min
+      let v = _float_in_range(_random.real(), min, max)
       _choices.push(_FloatChoice(v, min, max))
       v
     | _ModeReplaying =>

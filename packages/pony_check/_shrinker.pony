@@ -171,8 +171,9 @@ class ref _DeleteSpansIter is Iterator[Array[_Choice val] val]
 
 class ref _LowerChoicesIter is Iterator[Array[_Choice val] val]
   """
-  For each IntChoice or U128Choice, binary-search its value toward
-  shrink_towards. For each BoolChoice with value true, try false.
+  For each IntChoice, U128Choice, or FloatChoice, binary-search its value
+  toward shrink_towards (0.0 clamped to [min, max] for floats).
+  For each BoolChoice with value true, try false.
 
   After producing a candidate, the iterator checks whether the shrinker's
   baseline changed (candidate accepted) or stayed the same (rejected).
@@ -185,9 +186,12 @@ class ref _LowerChoicesIter is Iterator[Array[_Choice val] val]
   var _hi: I128 = 0
   var _lo_u: U128 = 0
   var _hi_u: U128 = 0
+  var _lo_f: F64 = 0
+  var _hi_f: F64 = 0
   var _active: Bool = false
   var _pending_mid: (I128 | None) = None
   var _pending_mid_u: (U128 | None) = None
+  var _pending_mid_f: (F64 | None) = None
 
   new ref create(shrinker: _Shrinker ref) =>
     _shrinker = shrinker
@@ -203,7 +207,7 @@ class ref _LowerChoicesIter is Iterator[Array[_Choice val] val]
     let choices = _shrinker.current_choices()
     let choice = choices(_idx)?
 
-    match choice
+    match \exhaustive\ choice
     | let ic: _IntChoice =>
       let mid = _lo + ((_hi - _lo) / 2)
       let candidate =
@@ -232,18 +236,27 @@ class ref _LowerChoicesIter is Iterator[Array[_Choice val] val]
         _pending_mid_u = mid
       end
       candidate
+    | let fc: _FloatChoice =>
+      let mid = _lo_f + ((_hi_f - _lo_f) / 2)
+      let candidate =
+        _replace_choice(
+          _idx,
+          _FloatChoice(mid, fc.min, fc.max))?
+      if mid == _lo_f then
+        _active = false
+        _idx = _idx + 1
+        _pending_mid_f = None
+      else
+        _pending_mid_f = mid
+      end
+      candidate
     | let bc: _BoolChoice =>
       _active = false
       _idx = _idx + 1
       _pending_mid = None
       _pending_mid_u = None
+      _pending_mid_f = None
       _replace_choice(_idx - 1, _BoolChoice(false))?
-    else
-      _active = false
-      _idx = _idx + 1
-      _pending_mid = None
-      _pending_mid_u = None
-      error
     end
 
   fun ref _resolve_pending() =>
@@ -277,12 +290,27 @@ class ref _LowerChoicesIter is Iterator[Array[_Choice val] val]
       end
       _pending_mid_u = None
     end
+    match _pending_mid_f
+    | let mid: F64 =>
+      try
+        let choices = _shrinker.current_choices()
+        match choices(_idx)?
+        | let fc: _FloatChoice =>
+          if fc.value == mid then
+            _hi_f = mid
+          else
+            _lo_f = mid
+          end
+        end
+      end
+      _pending_mid_f = None
+    end
 
   fun ref _advance() =>
     try
       let choices = _shrinker.current_choices()
       while _idx < choices.size() do
-        match choices(_idx)?
+        match \exhaustive\ choices(_idx)?
         | let ic: _IntChoice =>
           if ic.value != ic.shrink_towards then
             _lo = ic.shrink_towards
@@ -294,6 +322,14 @@ class ref _LowerChoicesIter is Iterator[Array[_Choice val] val]
           if uc.value != uc.shrink_towards then
             _lo_u = uc.shrink_towards
             _hi_u = uc.value
+            _active = true
+            return
+          end
+        | let fc: _FloatChoice =>
+          let target = F64(0).max(fc.min).min(fc.max)
+          if fc.value != target then
+            _lo_f = target
+            _hi_f = fc.value
             _active = true
             return
           end
