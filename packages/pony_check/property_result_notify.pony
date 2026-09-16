@@ -1,5 +1,6 @@
 use "debug"
 use "collections"
+use "format"
 
 class val _Shrink is Equatable[_Round]
   """
@@ -106,13 +107,20 @@ actor PropertyRunner[T]
   var _shrink_candidates: (Iterator[Array[_Choice val] val] | None) = None
   var _sample_repr: String = ""
   var _pass: Bool = true
+  let _label_counts: Map[String, USize] = Map[String, USize]
+  let _tabulated_counts: Map[String, Map[String, USize]] =
+    Map[String, Map[String, USize]]
+  let _cover_requirements: Map[String, F64] = Map[String, F64]
+  var _samples_run: USize = 0
+  let _classification_notify: (ClassificationNotify | None)
 
   new create(
     p1: Property1[T] iso,
     params: PropertyParams,
     notify: PropertyResultNotify,
     logger: PropertyLogger,
-    env: Env
+    env: Env,
+    classification_notify: (ClassificationNotify | None) = None
   ) =>
     _env = env
     _prop1 = consume p1
@@ -121,8 +129,8 @@ actor PropertyRunner[T]
     _notify = notify
     _rnd = Randomness(_params.seed)
     _gen = _prop1.gen()
+    _classification_notify = classification_notify
 
-// RUNNING PROPERTIES //
   be complete_run(round: _Round, success: Bool) =>
     """
     Complete a property run.
@@ -205,6 +213,7 @@ actor PropertyRunner[T]
         return
       end
 
+    _samples_run = _samples_run + 1
     (sample, _sample_repr) = _Stringify.apply[T](consume sample)
     let run_notify = recover val this~complete_run() end
     let helper =
@@ -442,6 +451,62 @@ actor PropertyRunner[T]
           round.string() + ". ignoring.")
     end
 
+  be classify(label: String, round: _Round) =>
+    if round != this._current_round then
+      _logger.log(
+        "unexpected classify \"" + label +
+          "\" call for " + round.string() +
+          ". Currently at " +
+          this._current_round.string(),
+        true)
+      return
+    end
+    match round
+    | let _: _Run =>
+      _label_counts.upsert(label, 1, {(old, x) => old + x })
+    end
+
+  be tabulate(heading: String, label: String, round: _Round) =>
+    if round != this._current_round then
+      _logger.log(
+        "unexpected tabulate \"" + heading + ": " + label +
+          "\" call for " + round.string() +
+          ". Currently at " +
+          this._current_round.string(),
+        true)
+      return
+    end
+    match round
+    | let _: _Run =>
+      let heading_map =
+        try
+          _tabulated_counts(heading)?
+        else
+          let m = Map[String, USize]
+          _tabulated_counts(heading) = m
+          m
+        end
+      heading_map.upsert(label, 1, {(old, x) => old + x })
+    end
+
+  be cover(condition: Bool, label: String, min_pct: F64, round: _Round) =>
+    if round != this._current_round then
+      _logger.log(
+        "unexpected cover \"" + label +
+          "\" call for " + round.string() +
+          ". Currently at " +
+          this._current_round.string(),
+        true)
+      return
+    end
+    match round
+    | let _: _Run =>
+      _cover_requirements(label) = min_pct
+      if condition then
+        _label_counts.upsert(label, 1, {(old, x) => old + x })
+      end
+    end
+
   be dispose_when_done(disposable: DisposableActor, round: _Round) =>
     if round != this._current_round then
       _logger.log("Unexpected dispose_when_done for " + round.string() +
@@ -468,13 +533,20 @@ actor PropertyRunner[T]
     """
     Complete the Property execution successfully.
     """
-    _notify.complete(true)
+    _report_labels()
+    if _check_coverage() then
+      _notify.complete(true)
+    else
+      _notify.fail("Property failed: insufficient coverage")
+      _notify.complete(false)
+    end
 
   fun ref fail(repr: String, rounds: USize = 0, err: Bool = false) =>
     """
     Complete the Property execution
     while signalling failure to the `PropertyResultNotify`.
     """
+    _report_labels()
     if err then
       _report_error(repr, rounds)
     else
@@ -510,6 +582,86 @@ actor PropertyRunner[T]
         shrink_rounds.string() +
         " shrinks)"
     )
+
+  fun ref _report_labels() =>
+    let has_flat = _label_counts.size() > 0
+    let has_tabulated = _tabulated_counts.size() > 0
+    let total = _samples_run
+
+    if has_flat or has_tabulated then
+      _logger.log("")
+
+      if has_flat then
+        let keys = Array[String](_label_counts.size())
+        for k in _label_counts.keys() do
+          keys.push(k)
+        end
+        Sort[Array[String], String](keys)
+        for label in keys.values() do
+          let count = try _label_counts(label)? else 0 end
+          let pct = (count.f64() / total.f64()) * 100.0
+          _logger.log(
+            Format.float[F64](pct where fmt = FormatFix, prec = 1) +
+              "% " + label +
+              " (" + count.string() + "/" + total.string() + ")")
+        end
+      end
+
+      if has_tabulated then
+        let headings = Array[String](_tabulated_counts.size())
+        for h in _tabulated_counts.keys() do
+          headings.push(h)
+        end
+        Sort[Array[String], String](headings)
+        var first_heading = true
+        for heading in headings.values() do
+          if has_flat or (not first_heading) then _logger.log("") end
+          first_heading = false
+          _logger.log(heading + ":")
+          try
+            let heading_map = _tabulated_counts(heading)?
+            let keys = Array[String](heading_map.size())
+            for k in heading_map.keys() do keys.push(k) end
+            Sort[Array[String], String](keys)
+            for label in keys.values() do
+              let count = try heading_map(label)? else 0 end
+              let pct = (count.f64() / total.f64()) * 100.0
+              _logger.log(
+                "  " +
+                  Format.float[F64](pct where fmt = FormatFix, prec = 1) +
+                  "% " + label +
+                  " (" + count.string() + "/" + total.string() + ")")
+            end
+          else
+            _Unreachable()
+          end
+        end
+      end
+    end
+
+    match _classification_notify
+    | let cn: ClassificationNotify =>
+      cn.classification(_label_counts, _tabulated_counts, total)
+    end
+
+  fun _check_coverage(): Bool =>
+    if _cover_requirements.size() == 0 then return true end
+    var ok = true
+    let total = _samples_run
+    for (label, min_pct) in _cover_requirements.pairs() do
+      let count = try _label_counts(label)? else 0 end
+      let actual_pct = (count.f64() / total.f64()) * 100.0
+      if actual_pct < min_pct then
+        ok = false
+        _logger.log(
+          "Insufficient coverage: " + label + " " +
+            Format.float[F64](actual_pct where fmt = FormatFix, prec = 1) +
+            "% < " +
+            Format.float[F64](min_pct where fmt = FormatFix, prec = 1) +
+            "% required")
+      end
+    end
+    ok
 
 primitive _Stringify
   fun apply[T](t: T): (T^, String) =>
