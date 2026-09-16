@@ -99,6 +99,27 @@ the framework automatically shrinks the failing sample by replaying the
 generator against mutated choice sequences, producing a smaller and more
 informative counterexample for reporting.
 
+## Classification
+
+[PropertyHelper](pony_check-PropertyHelper.md) provides four methods for
+inspecting generated sample distributions:
+
+* `classify(label)` — assign a label to the current sample. On completion
+  the runner prints a distribution table showing each label's count and
+  percentage. A sample may carry multiple labels.
+* `collect(value)` — convenience for `classify(value.string())`.
+* `tabulate(heading, label)` — classify under a named heading. Labels
+  under different headings are independent counters.
+* `cover(condition, label, min_pct)` — require that at least `min_pct`
+  percent of samples carry `label`. When `condition` is true, the sample
+  is classified. If any requirement is not met, the property fails without
+  shrinking.
+
+For programmatic access to classification counts, pass a
+[ClassificationNotify](pony_check-ClassificationNotify.md) when
+constructing the
+[PropertyRunner](pony_check-PropertyRunner.md).
+
 """
 use "pony_test"
 

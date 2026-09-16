@@ -142,6 +142,23 @@ actor \nodoc\ Main is TestList
     test(_VecOfMaxTest)
     test(_VecOfMinTest)
     test(_UTF32CodePointStringTest)
+    test(_ClassifySingleDimensionTest)
+    test(_ClassifyMultiLabelTest)
+    test(_ClassifyFailingPropertyTest)
+    test(_ClassifyShrinkNoContaminationTest)
+    test(_ClassifyMultipleLabelsCountTest)
+    test(_ClassifyForAllTest)
+    test(_CoverSatisfiedTest)
+    test(_CoverUnsatisfiedTest)
+    test(_CoverNoShrinkTest)
+    test(_CoverLastWinsTest)
+    test(_CoverAndClassifyTest)
+    test(_CollectStringableTest)
+    test(_TabulateSingleHeadingTest)
+    test(_TabulateMultipleHeadingsTest)
+    test(_TabulateShrinkNoContaminationTest)
+    test(_TabulateAndClassifyTest)
+    test(_TabulateSameLabelDifferentHeadingsTest)
 
 class \nodoc\ iso _StringifyTest is UnitTest
   fun name(): String => "stringify"
@@ -2411,3 +2428,792 @@ class \nodoc\ iso _ShrinkerSortSpansLengthTest is UnitTest
     | let ic: _IntChoice => h.assert_eq[I128](ic.value, 1)
     else h.fail("expected IntChoice at 2")
     end
+
+// --- Classification tests ---
+class \nodoc\ val _AssertClassification is ClassificationNotify
+  let _h: TestHelper
+  let _expected_labels: Array[(String, USize)] val
+  let _expected_total: USize
+
+  new val create(
+    h: TestHelper,
+    expected_labels: Array[(String, USize)] val,
+    expected_total: USize)
+  =>
+    _h = h
+    _expected_labels = expected_labels
+    _expected_total = expected_total
+
+  fun classification(
+    label_counts: Map[String, USize] box,
+    tabulated_counts: Map[String, Map[String, USize]] box,
+    num_samples: USize)
+  =>
+    _h.complete_action("classification")
+    _h.assert_eq[USize](
+      num_samples, _expected_total, "num_samples mismatch")
+    _h.assert_eq[USize](
+      label_counts.size(),
+      _expected_labels.size(),
+      "unexpected number of labels")
+    for (label, expected_count) in _expected_labels.values() do
+      let actual = try label_counts(label)? else USize(0) end
+      _h.assert_eq[USize](
+        actual, expected_count, "count mismatch for label: " + label)
+    end
+
+class \nodoc\ val _AssertTabulatedClassification is ClassificationNotify
+  let _h: TestHelper
+  let _expected_flat: Array[(String, USize)] val
+  let _expected_tabulated:
+    Array[(String, Array[(String, USize)] val)] val
+  let _expected_total: USize
+
+  new val create(
+    h: TestHelper,
+    expected_flat: Array[(String, USize)] val,
+    expected_tabulated:
+      Array[(String, Array[(String, USize)] val)] val,
+    expected_total: USize)
+  =>
+    _h = h
+    _expected_flat = expected_flat
+    _expected_tabulated = expected_tabulated
+    _expected_total = expected_total
+
+  fun classification(
+    label_counts: Map[String, USize] box,
+    tabulated_counts: Map[String, Map[String, USize]] box,
+    num_samples: USize)
+  =>
+    _h.complete_action("classification")
+    _h.assert_eq[USize](
+      num_samples, _expected_total, "num_samples mismatch")
+    _h.assert_eq[USize](
+      label_counts.size(),
+      _expected_flat.size(),
+      "unexpected number of flat labels")
+    for (label, expected_count) in _expected_flat.values() do
+      let actual = try label_counts(label)? else USize(0) end
+      _h.assert_eq[USize](
+        actual,
+        expected_count,
+        "flat count mismatch for label: " + label)
+    end
+    _h.assert_eq[USize](
+      tabulated_counts.size(),
+      _expected_tabulated.size(),
+      "unexpected number of tabulated headings")
+    for (heading, labels) in _expected_tabulated.values() do
+      try
+        let heading_map = tabulated_counts(heading)?
+        for (label, expected_count) in labels.values() do
+          let actual = try heading_map(label)? else USize(0) end
+          _h.assert_eq[USize](
+            actual,
+            expected_count,
+            "tabulated count mismatch for " + heading + "/" + label)
+        end
+      else
+        _h.fail("missing heading: " + heading)
+      end
+    end
+
+// --- classify() tests ---
+class \nodoc\ iso _ClassifyAllSameProperty is Property1[U8]
+  fun name(): String => "classify/single_dimension/property"
+
+  fun gen(): Generator[U8] => Generators.u8(0, 10)
+
+  fun params(): PropertyParams =>
+    PropertyParams(where num_samples' = 10, seed' = 1)
+
+  fun ref property(sample: U8, h: PropertyHelper) =>
+    h.classify("all")
+
+class \nodoc\ iso _ClassifySingleDimensionTest is UnitTest
+  fun name(): String => "classify/single_dimension"
+
+  fun apply(h: TestHelper) =>
+    let property = recover iso _ClassifyAllSameProperty end
+    let params = property.params()
+    h.long_test(params.timeout)
+    h.expect_action("classification")
+    let cn =
+      _AssertClassification(
+        h, recover val [("all", USize(10))] end, 10)
+    let runner =
+      PropertyRunner[U8](
+        consume property,
+        params,
+        _UnitTestPropertyNotify(h, true),
+        _UnitTestPropertyLogger(h),
+        h.env,
+        cn)
+    runner.run()
+
+class \nodoc\ iso _ClassifyMultiLabelProperty is Property1[U8]
+  fun name(): String => "classify/multi_label/property"
+
+  fun gen(): Generator[U8] => Generators.u8(0, 1)
+
+  fun params(): PropertyParams =>
+    PropertyParams(where num_samples' = 10, seed' = 1)
+
+  fun ref property(sample: U8, h: PropertyHelper) =>
+    h.classify("all")
+    h.classify("duplicate")
+
+class \nodoc\ iso _ClassifyMultiLabelTest is UnitTest
+  fun name(): String => "classify/multi_label"
+
+  fun apply(h: TestHelper) =>
+    let property = recover iso _ClassifyMultiLabelProperty end
+    let params = property.params()
+    h.long_test(params.timeout)
+    h.expect_action("classification")
+    let cn =
+      _AssertClassification(
+        h,
+        recover val [("all", USize(10)); ("duplicate", USize(10))] end,
+        10)
+    let runner =
+      PropertyRunner[U8](
+        consume property,
+        params,
+        _UnitTestPropertyNotify(h, true),
+        _UnitTestPropertyLogger(h),
+        h.env,
+        cn)
+    runner.run()
+
+class \nodoc\ iso _ClassifyFailingProperty is Property1[U8]
+  fun name(): String => "classify/failing/property"
+
+  fun gen(): Generator[U8] => Generators.u8(0, 10)
+
+  fun params(): PropertyParams =>
+    PropertyParams(where num_samples' = 10, seed' = 1)
+
+  fun ref property(sample: U8, h: PropertyHelper) =>
+    h.classify("counted")
+    h.assert_true(sample < 3)
+
+class \nodoc\ iso _ClassifyFailingPropertyTest is UnitTest
+  fun name(): String => "classify/failing"
+
+  fun apply(h: TestHelper) =>
+    let property = recover iso _ClassifyFailingProperty end
+    let params = property.params()
+    h.long_test(params.timeout)
+    h.expect_action("classification")
+    let cn =
+      object val is ClassificationNotify
+        let _h: TestHelper = h
+
+        fun classification(
+          label_counts: Map[String, USize] box,
+          tabulated_counts: Map[String, Map[String, USize]] box,
+          num_samples: USize)
+        =>
+          _h.complete_action("classification")
+          let count = try label_counts("counted")? else USize(0) end
+          _h.assert_true(count > 0, "no labels recorded before failure")
+          _h.assert_true(
+            num_samples > 0,
+            "num_samples should reflect samples run")
+          _h.assert_eq[USize](
+            count, num_samples, "every sample should be counted")
+      end
+    let runner =
+      PropertyRunner[U8](
+        consume property,
+        params,
+        _UnitTestPropertyNotify(h, false),
+        _UnitTestPropertyLogger(h),
+        h.env,
+        cn)
+    runner.run()
+
+class \nodoc\ iso _ClassifyShrinkProperty is Property1[U8]
+  fun name(): String => "classify/shrink/property"
+
+  fun gen(): Generator[U8] => Generators.u8(0, 100)
+
+  fun params(): PropertyParams =>
+    PropertyParams(where num_samples' = 100, seed' = 42)
+
+  fun ref property(sample: U8, h: PropertyHelper) =>
+    h.classify("run")
+    h.assert_true(sample < 50)
+
+class \nodoc\ iso _ClassifyShrinkNoContaminationTest is UnitTest
+  fun name(): String => "classify/shrink_no_contamination"
+
+  fun apply(h: TestHelper) =>
+    let property = recover iso _ClassifyShrinkProperty end
+    let params = property.params()
+    h.long_test(params.timeout)
+    h.expect_action("classification")
+    let cn =
+      object val is ClassificationNotify
+        let _h: TestHelper = h
+
+        fun classification(
+          label_counts: Map[String, USize] box,
+          tabulated_counts: Map[String, Map[String, USize]] box,
+          num_samples: USize)
+        =>
+          _h.complete_action("classification")
+          let count = try label_counts("run")? else USize(0) end
+          _h.assert_eq[USize](
+            count,
+            num_samples,
+            "shrink rounds should not inflate label counts")
+      end
+    let runner =
+      PropertyRunner[U8](
+        consume property,
+        params,
+        _UnitTestPropertyNotify(h, false),
+        _UnitTestPropertyLogger(h),
+        h.env,
+        cn)
+    runner.run()
+
+class \nodoc\ iso _ClassifyAlphabeticalProperty is Property1[U8]
+  fun name(): String => "classify/alphabetical/property"
+
+  fun gen(): Generator[U8] => Generators.u8(0, 10)
+
+  fun params(): PropertyParams =>
+    PropertyParams(where num_samples' = 10, seed' = 1)
+
+  fun ref property(sample: U8, h: PropertyHelper) =>
+    h.classify("zebra")
+    h.classify("apple")
+    h.classify("mango")
+
+class \nodoc\ iso _ClassifyMultipleLabelsCountTest is UnitTest
+  fun name(): String => "classify/multiple_labels_count"
+
+  fun apply(h: TestHelper) =>
+    let property = recover iso _ClassifyAlphabeticalProperty end
+    let params = property.params()
+    h.long_test(params.timeout)
+    h.expect_action("classification")
+    let cn =
+      object val is ClassificationNotify
+        let _h: TestHelper = h
+
+        fun classification(
+          label_counts: Map[String, USize] box,
+          tabulated_counts: Map[String, Map[String, USize]] box,
+          num_samples: USize)
+        =>
+          _h.complete_action("classification")
+          _h.assert_eq[USize](
+            label_counts.size(), 3, "should have 3 labels")
+          let apple = try label_counts("apple")? else USize(0) end
+          let mango = try label_counts("mango")? else USize(0) end
+          let zebra = try label_counts("zebra")? else USize(0) end
+          _h.assert_eq[USize](apple, USize(10), "apple count")
+          _h.assert_eq[USize](mango, USize(10), "mango count")
+          _h.assert_eq[USize](zebra, USize(10), "zebra count")
+      end
+    let runner =
+      PropertyRunner[U8](
+        consume property,
+        params,
+        _UnitTestPropertyNotify(h, true),
+        _UnitTestPropertyLogger(h),
+        h.env,
+        cn)
+    runner.run()
+
+class \nodoc\ iso _ClassifyForAllTest is UnitTest
+  fun name(): String => "classify/for_all"
+
+  fun apply(h: TestHelper) ? =>
+    PonyCheck.for_all[U8](recover Generators.u8(0, 10) end, h)(
+      {(sample, ph) =>
+        ph.classify("inline")
+      })?
+
+// --- cover() tests ---
+class \nodoc\ iso _CoverSatisfiedProperty is Property1[U8]
+  fun name(): String => "cover/satisfied/property"
+
+  fun gen(): Generator[U8] => Generators.u8(0, 1)
+
+  fun params(): PropertyParams =>
+    PropertyParams(where num_samples' = 100, seed' = 1)
+
+  fun ref property(sample: U8, h: PropertyHelper) =>
+    h.cover(true, "always", 50.0)
+
+class \nodoc\ iso _CoverSatisfiedTest is UnitTest
+  fun name(): String => "cover/satisfied"
+
+  fun apply(h: TestHelper) =>
+    let property = recover iso _CoverSatisfiedProperty end
+    let params = property.params()
+    h.long_test(params.timeout)
+    let runner =
+      PropertyRunner[U8](
+        consume property,
+        params,
+        _UnitTestPropertyNotify(h, true),
+        _UnitTestPropertyLogger(h),
+        h.env)
+    runner.run()
+
+class \nodoc\ iso _CoverUnsatisfiedProperty is Property1[U8]
+  fun name(): String => "cover/unsatisfied/property"
+
+  fun gen(): Generator[U8] => Generators.u8(0, 100)
+
+  fun params(): PropertyParams =>
+    PropertyParams(where num_samples' = 100, seed' = 1)
+
+  fun ref property(sample: U8, h: PropertyHelper) =>
+    h.cover(sample == 0, "zero", 90.0)
+
+class \nodoc\ iso _CoverUnsatisfiedTest is UnitTest
+  fun name(): String => "cover/unsatisfied"
+
+  fun apply(h: TestHelper) =>
+    let property = recover iso _CoverUnsatisfiedProperty end
+    let params = property.params()
+    h.long_test(params.timeout)
+    let runner =
+      PropertyRunner[U8](
+        consume property,
+        params,
+        _UnitTestPropertyNotify(h, false),
+        _UnitTestPropertyLogger(h),
+        h.env)
+    runner.run()
+
+class \nodoc\ iso _CoverNoShrinkProperty is Property1[U8]
+  fun name(): String => "cover/no_shrink/property"
+
+  fun gen(): Generator[U8] => Generators.u8(0, 10)
+
+  fun params(): PropertyParams =>
+    PropertyParams(where num_samples' = 10, seed' = 1)
+
+  fun ref property(sample: U8, h: PropertyHelper) =>
+    h.cover(false, "impossible", 5.0)
+
+class \nodoc\ iso _CoverNoShrinkTest is UnitTest
+  fun name(): String => "cover/no_shrink"
+
+  fun apply(h: TestHelper) =>
+    let property = recover iso _CoverNoShrinkProperty end
+    let params = property.params()
+    h.long_test(params.timeout)
+    let notify =
+      object val is PropertyResultNotify
+        let _h: TestHelper = h
+
+        fun fail(msg: String) =>
+          _h.assert_true(
+            msg.contains("insufficient coverage"),
+            "failure should be coverage, not shrink: " + msg)
+
+        fun complete(success: Bool) =>
+          _h.assert_false(success, "property should fail")
+          _h.complete(true)
+      end
+    let runner =
+      PropertyRunner[U8](
+        consume property,
+        params,
+        notify,
+        _UnitTestPropertyLogger(h),
+        h.env)
+    runner.run()
+
+class \nodoc\ iso _CoverAndClassifyProperty is Property1[U8]
+  fun name(): String => "cover/and_classify/property"
+
+  fun gen(): Generator[U8] => Generators.u8(0, 1)
+
+  fun params(): PropertyParams =>
+    PropertyParams(where num_samples' = 10, seed' = 1)
+
+  fun ref property(sample: U8, h: PropertyHelper) =>
+    h.classify("all")
+    h.cover(true, "covered", 50.0)
+
+class \nodoc\ iso _CoverAndClassifyTest is UnitTest
+  fun name(): String => "cover/and_classify"
+
+  fun apply(h: TestHelper) =>
+    let property = recover iso _CoverAndClassifyProperty end
+    let params = property.params()
+    h.long_test(params.timeout)
+    h.expect_action("classification")
+    let cn =
+      _AssertClassification(
+        h,
+        recover val [("all", USize(10)); ("covered", USize(10))] end,
+        10)
+    let runner =
+      PropertyRunner[U8](
+        consume property,
+        params,
+        _UnitTestPropertyNotify(h, true),
+        _UnitTestPropertyLogger(h),
+        h.env,
+        cn)
+    runner.run()
+
+// --- collect() tests ---
+class \nodoc\ iso _CollectStringableProperty is Property1[U8]
+  fun name(): String => "collect/stringable/property"
+
+  fun gen(): Generator[U8] => Generators.unit[U8](42)
+
+  fun params(): PropertyParams =>
+    PropertyParams(where num_samples' = 5, seed' = 1)
+
+  fun ref property(sample: U8, h: PropertyHelper) =>
+    h.collect(sample)
+
+class \nodoc\ iso _CollectStringableTest is UnitTest
+  fun name(): String => "collect/stringable"
+
+  fun apply(h: TestHelper) =>
+    let property = recover iso _CollectStringableProperty end
+    let params = property.params()
+    h.long_test(params.timeout)
+    h.expect_action("classification")
+    let cn =
+      _AssertClassification(
+        h, recover val [("42", USize(5))] end, 5)
+    let runner =
+      PropertyRunner[U8](
+        consume property,
+        params,
+        _UnitTestPropertyNotify(h, true),
+        _UnitTestPropertyLogger(h),
+        h.env,
+        cn)
+    runner.run()
+
+// --- tabulate() tests ---
+class \nodoc\ iso _TabulateSingleHeadingProperty is Property1[U8]
+  fun name(): String => "tabulate/single_heading/property"
+
+  fun gen(): Generator[U8] => Generators.u8(0, 1)
+
+  fun params(): PropertyParams =>
+    PropertyParams(where num_samples' = 10, seed' = 1)
+
+  fun ref property(sample: U8, h: PropertyHelper) =>
+    h.tabulate(
+      "parity",
+      if (sample %% 2) == 0 then "even" else "odd" end)
+
+class \nodoc\ iso _TabulateSingleHeadingTest is UnitTest
+  fun name(): String => "tabulate/single_heading"
+
+  fun apply(h: TestHelper) =>
+    let property = recover iso _TabulateSingleHeadingProperty end
+    let params = property.params()
+    h.long_test(params.timeout)
+    h.expect_action("classification")
+    let cn =
+      object val is ClassificationNotify
+        let _h: TestHelper = h
+
+        fun classification(
+          label_counts: Map[String, USize] box,
+          tabulated_counts: Map[String, Map[String, USize]] box,
+          num_samples: USize)
+        =>
+          _h.complete_action("classification")
+          _h.assert_eq[USize](
+            label_counts.size(), 0, "flat counts should be empty")
+          _h.assert_eq[USize](
+            tabulated_counts.size(), 1, "should have one heading")
+          try
+            let parity = tabulated_counts("parity")?
+            let even_count = try parity("even")? else USize(0) end
+            let odd_count = try parity("odd")? else USize(0) end
+            _h.assert_eq[USize](
+              even_count + odd_count,
+              num_samples,
+              "even + odd should equal total samples")
+            _h.assert_true(even_count > 0, "should have some even")
+            _h.assert_true(odd_count > 0, "should have some odd")
+          else
+            _h.fail("missing 'parity' heading")
+          end
+      end
+    let runner =
+      PropertyRunner[U8](
+        consume property,
+        params,
+        _UnitTestPropertyNotify(h, true),
+        _UnitTestPropertyLogger(h),
+        h.env,
+        cn)
+    runner.run()
+
+class \nodoc\ iso _TabulateMultipleHeadingsProperty is Property1[U8]
+  fun name(): String => "tabulate/multiple_headings/property"
+
+  fun gen(): Generator[U8] => Generators.u8(0, 10)
+
+  fun params(): PropertyParams =>
+    PropertyParams(where num_samples' = 10, seed' = 1)
+
+  fun ref property(sample: U8, h: PropertyHelper) =>
+    h.tabulate(
+      "size",
+      if sample < 5 then "small" else "large" end)
+    h.tabulate(
+      "parity",
+      if (sample %% 2) == 0 then "even" else "odd" end)
+
+class \nodoc\ iso _TabulateMultipleHeadingsTest is UnitTest
+  fun name(): String => "tabulate/multiple_headings"
+
+  fun apply(h: TestHelper) =>
+    let property = recover iso _TabulateMultipleHeadingsProperty end
+    let params = property.params()
+    h.long_test(params.timeout)
+    h.expect_action("classification")
+    let cn =
+      object val is ClassificationNotify
+        let _h: TestHelper = h
+
+        fun classification(
+          label_counts: Map[String, USize] box,
+          tabulated_counts: Map[String, Map[String, USize]] box,
+          num_samples: USize)
+        =>
+          _h.complete_action("classification")
+          _h.assert_eq[USize](
+            tabulated_counts.size(), 2, "should have two headings")
+          try
+            let size_map = tabulated_counts("size")?
+            let small = try size_map("small")? else USize(0) end
+            let large = try size_map("large")? else USize(0) end
+            _h.assert_eq[USize](
+              small + large,
+              num_samples,
+              "size labels should sum to total")
+          else
+            _h.fail("missing 'size' heading")
+          end
+          try
+            let parity_map = tabulated_counts("parity")?
+            let even_count = try parity_map("even")? else USize(0) end
+            let odd_count = try parity_map("odd")? else USize(0) end
+            _h.assert_eq[USize](
+              even_count + odd_count,
+              num_samples,
+              "parity labels should sum to total")
+          else
+            _h.fail("missing 'parity' heading")
+          end
+      end
+    let runner =
+      PropertyRunner[U8](
+        consume property,
+        params,
+        _UnitTestPropertyNotify(h, true),
+        _UnitTestPropertyLogger(h),
+        h.env,
+        cn)
+    runner.run()
+
+class \nodoc\ iso _TabulateAndClassifyProperty is Property1[U8]
+  fun name(): String => "tabulate/and_classify/property"
+
+  fun gen(): Generator[U8] => Generators.u8(0, 1)
+
+  fun params(): PropertyParams =>
+    PropertyParams(where num_samples' = 10, seed' = 1)
+
+  fun ref property(sample: U8, h: PropertyHelper) =>
+    h.classify("flat")
+    h.tabulate("grouped", "label")
+
+class \nodoc\ iso _TabulateAndClassifyTest is UnitTest
+  fun name(): String => "tabulate/and_classify"
+
+  fun apply(h: TestHelper) =>
+    let property = recover iso _TabulateAndClassifyProperty end
+    let params = property.params()
+    h.long_test(params.timeout)
+    h.expect_action("classification")
+    let cn =
+      _AssertTabulatedClassification(
+        h,
+        recover val [("flat", USize(10))] end,
+        recover val
+          [("grouped", recover val [("label", USize(10))] end)]
+        end,
+        10)
+    let runner =
+      PropertyRunner[U8](
+        consume property,
+        params,
+        _UnitTestPropertyNotify(h, true),
+        _UnitTestPropertyLogger(h),
+        h.env,
+        cn)
+    runner.run()
+
+class \nodoc\ iso _CoverLastWinsProperty is Property1[U8]
+  fun name(): String => "cover/last_wins/property"
+
+  fun gen(): Generator[U8] => Generators.u8(0, 100)
+
+  fun params(): PropertyParams =>
+    PropertyParams(where num_samples' = 100, seed' = 1)
+
+  fun ref property(sample: U8, h: PropertyHelper) =>
+    h.cover(false, "mid", 99.0)
+    h.cover(sample > 50, "mid", 1.0)
+
+class \nodoc\ iso _CoverLastWinsTest is UnitTest
+  """
+  The first cover() registers a 99% requirement that the actual coverage
+  (~50%) cannot meet. The second overwrites it to 1%. The property
+  passes only if the last min_pct is the one checked.
+  """
+
+  fun name(): String => "cover/last_wins"
+
+  fun apply(h: TestHelper) =>
+    let property = recover iso _CoverLastWinsProperty end
+    let params = property.params()
+    h.long_test(params.timeout)
+    let runner =
+      PropertyRunner[U8](
+        consume property,
+        params,
+        _UnitTestPropertyNotify(h, true),
+        _UnitTestPropertyLogger(h),
+        h.env)
+    runner.run()
+
+class \nodoc\ iso _TabulateShrinkProperty is Property1[U8]
+  fun name(): String => "tabulate/shrink/property"
+
+  fun gen(): Generator[U8] => Generators.u8(0, 100)
+
+  fun params(): PropertyParams =>
+    PropertyParams(where num_samples' = 100, seed' = 42)
+
+  fun ref property(sample: U8, h: PropertyHelper) =>
+    h.tabulate(
+      "parity",
+      if (sample %% 2) == 0 then "even" else "odd" end)
+    h.assert_true(sample < 50)
+
+class \nodoc\ iso _TabulateShrinkNoContaminationTest is UnitTest
+  fun name(): String => "tabulate/shrink_no_contamination"
+
+  fun apply(h: TestHelper) =>
+    let property = recover iso _TabulateShrinkProperty end
+    let params = property.params()
+    h.long_test(params.timeout)
+    h.expect_action("classification")
+    let cn =
+      object val is ClassificationNotify
+        let _h: TestHelper = h
+
+        fun classification(
+          label_counts: Map[String, USize] box,
+          tabulated_counts: Map[String, Map[String, USize]] box,
+          num_samples: USize)
+        =>
+          _h.complete_action("classification")
+          try
+            let parity = tabulated_counts("parity")?
+            let even_count = try parity("even")? else USize(0) end
+            let odd_count = try parity("odd")? else USize(0) end
+            _h.assert_eq[USize](
+              even_count + odd_count,
+              num_samples,
+              "shrink rounds should not inflate tabulated counts")
+          else
+            _h.fail("missing 'parity' heading")
+          end
+      end
+    let runner =
+      PropertyRunner[U8](
+        consume property,
+        params,
+        _UnitTestPropertyNotify(h, false),
+        _UnitTestPropertyLogger(h),
+        h.env,
+        cn)
+    runner.run()
+
+class \nodoc\ iso _TabulateSameLabelDiffHeadingsProperty is Property1[U8]
+  fun name(): String => "tabulate/same_label_diff_headings/property"
+
+  fun gen(): Generator[U8] => Generators.u8(0, 1)
+
+  fun params(): PropertyParams =>
+    PropertyParams(where num_samples' = 10, seed' = 1)
+
+  fun ref property(sample: U8, h: PropertyHelper) =>
+    h.tabulate("alpha", "shared")
+    h.tabulate("beta", "shared")
+
+class \nodoc\ iso _TabulateSameLabelDifferentHeadingsTest is UnitTest
+  fun name(): String => "tabulate/same_label_different_headings"
+
+  fun apply(h: TestHelper) =>
+    let property =
+      recover iso _TabulateSameLabelDiffHeadingsProperty end
+    let params = property.params()
+    h.long_test(params.timeout)
+    h.expect_action("classification")
+    let cn =
+      object val is ClassificationNotify
+        let _h: TestHelper = h
+
+        fun classification(
+          label_counts: Map[String, USize] box,
+          tabulated_counts: Map[String, Map[String, USize]] box,
+          num_samples: USize)
+        =>
+          _h.complete_action("classification")
+          _h.assert_eq[USize](
+            tabulated_counts.size(), 2, "should have two headings")
+          try
+            let alpha = tabulated_counts("alpha")?
+            let alpha_count = try alpha("shared")? else USize(0) end
+            _h.assert_eq[USize](
+              alpha_count, USize(10), "alpha/shared should be 10")
+          else
+            _h.fail("missing 'alpha' heading")
+          end
+          try
+            let beta = tabulated_counts("beta")?
+            let beta_count = try beta("shared")? else USize(0) end
+            _h.assert_eq[USize](
+              beta_count, USize(10), "beta/shared should be 10")
+          else
+            _h.fail("missing 'beta' heading")
+          end
+      end
+    let runner =
+      PropertyRunner[U8](
+        consume property,
+        params,
+        _UnitTestPropertyNotify(h, true),
+        _UnitTestPropertyLogger(h),
+        h.env,
+        cn)
+    runner.run()

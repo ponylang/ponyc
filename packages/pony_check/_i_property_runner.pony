@@ -18,6 +18,12 @@ interface tag _IPropertyRunner
 
   be fail_action(name: String, round: _Round, ph: PropertyHelper)
 
+  be classify(label: String, round: _Round)
+
+  be tabulate(heading: String, label: String, round: _Round)
+
+  be cover(condition: Bool, label: String, min_pct: F64, round: _Round)
+
   be dispose_when_done(disposable: DisposableActor, round: _Round)
 
   be log(msg: String, verbose: Bool = false)
@@ -388,6 +394,58 @@ class val PropertyHelper
     "[len=" + array.size().string() + ": " + ", ".join(array.values()) + "]"
 
   /****** END DUPLICATION FROM TESTHELPER *********/
+  fun classify(label: String) =>
+    """
+    Assign a label to the current sample for distribution reporting.
+
+    A sample may carry multiple labels; each is counted independently.
+    Percentages in the output need not sum to 100.
+
+    Labels are recorded only during normal runs, never during shrinking.
+    After all samples run, the runner prints a distribution table showing
+    each label's count and percentage of samples run.
+
+    In async properties, a classify() that arrives after the round
+    advances is discarded.
+    """
+    _runner.classify(label, _run)
+
+  fun collect(value: Stringable) =>
+    """
+    Classify the current sample using the string representation of value.
+
+    Convenience for `classify(value.string())`.
+    """
+    classify(value.string())
+
+  fun tabulate(heading: String, label: String) =>
+    """
+    Classify the current sample under a named heading.
+
+    Labels under different headings are independent counters.
+    Labels under a heading are also separate from flat classify labels.
+
+    Headings and labels within each heading are sorted alphabetically
+    in the output.
+    """
+    _runner.tabulate(heading, label, _run)
+
+  fun cover(condition: Bool, label: String, min_pct: F64) =>
+    """
+    Require that at least `min_pct` percent of samples carry `label`.
+
+    Call on every sample. When `condition` is true, the current sample
+    is classified with `label`. The coverage requirement is registered
+    regardless of `condition`, so a label that never matches still fails.
+
+    Coverage is checked after all samples run. If any requirement is not
+    met, the property fails without shrinking.
+
+    Multiple calls with the same label use the last `min_pct` value.
+    `min_pct` should be in the range 0.0 to 100.0.
+    """
+    _runner.cover(condition, label, min_pct, _run)
+
   fun expect_action(name: String) =>
     """
     Expect some action of the given name to complete
