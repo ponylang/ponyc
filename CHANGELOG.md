@@ -15,6 +15,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Add `--lib-path` / `-L` flag for extra linker library search paths ([PR #6084](https://github.com/ponylang/ponyc/pull/6084))
 - Add `is_socket_connected` to `TCPBackend` trait ([PR #6094](https://github.com/ponylang/ponyc/pull/6094))
 - Add Generators.f32 and Generators.f64 to PonyCheck ([PR #6103](https://github.com/ponylang/ponyc/pull/6103))
+- Add classification API to PonyCheck ([PR #6107](https://github.com/ponylang/ponyc/pull/6107))
 
 ### Changed
 
