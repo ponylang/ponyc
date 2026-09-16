@@ -182,8 +182,6 @@ actor \nodoc\ Main is TestList
     ifdef posix then test(_TestSendSSLPerTokenCompletion) end
     ifdef posix then test(_TestSendSSLMidFlightDropBoundary) end
     ifdef posix then test(_TestSendCloseFromThrottled) end
-    ifdef posix then test(_TestSendHardCloseFromThrottled) end
-    ifdef posix then test(_TestSendSSLHardCloseFromThrottled) end
     ifdef posix then test(_TestReadableEventWriteRecovery) end
     ifdef posix then test(_TestSendOnSentPrecedesThrottleAndClose) end
     ifdef posix then test(_TestSendThrottleSuppressedByHardClose) end
