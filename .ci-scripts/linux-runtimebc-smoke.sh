@@ -25,6 +25,16 @@ echo "libponyrt.bc built: $(wc -c < build/release/libponyrt.bc) bytes"
 
 ponyc=build/release/ponyc
 
+# The stdlib's net package requires an SSL version define.
+ssl_version_str=$(openssl version 2>/dev/null) || true
+case "$ssl_version_str" in
+    LibreSSL*) ssl_flag="-Dlibressl" ;;
+    "OpenSSL 4"*|"OpenSSL  4"*) ssl_flag="-Dopenssl_4.0.x" ;;
+    "OpenSSL 3"*|"OpenSSL  3"*) ssl_flag="-Dopenssl_3.0.x" ;;
+    "OpenSSL 1.1"*|"OpenSSL  1.1"*) ssl_flag="-Dopenssl_1.1.x" ;;
+    *) echo "linux-runtimebc-smoke.sh: cannot detect SSL version from: $ssl_version_str" >&2; exit 1 ;;
+esac
+
 # Compile and run a trivial program with --runtimebc.
 smoke=/tmp/runtimebc-smoke
 rm -rf "$smoke"
@@ -45,7 +55,7 @@ echo "$out_text"
 echo "$out_text" | grep -q "runtimebc smoke ok"
 
 # Compile and run the stdlib test suite with --runtimebc.
-PONYPATH=build/release "$ponyc" --runtimebc --pic -b stdlib-runtimebc -o build/release packages/stdlib
+PONYPATH=build/release "$ponyc" --runtimebc --pic "$ssl_flag" -b stdlib-runtimebc -o build/release packages/stdlib
 build/release/stdlib-runtimebc --sequential
 
 echo "runtimebc smoke test passed"
