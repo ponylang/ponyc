@@ -84,13 +84,57 @@ void* ponyint_virt_reserve_aligned(size_t size)
   return VirtualAlloc2(GetCurrentProcess(), NULL, size, MEM_RESERVE,
     PAGE_READWRITE, &param, 1);
 #elif defined(PLATFORM_IS_POSIX_BASED)
-  // Map twice the size, then unmap the slack on each side of the aligned
-  // span. This is what makes the result's address a multiple of its size;
-  // no POSIX mapping call takes an alignment.
+  // The non-Linux POSIX paths map twice the size, then unmap the slack on
+  // each side of the aligned span. Linux uses MAP_FIXED_NOREPLACE first
+  // and falls back to the 2x approach only when that fails.
   size_t span = size * 2;
   void* base;
 
-#if defined(PLATFORM_IS_LINUX) || defined(PLATFORM_IS_EMSCRIPTEN)
+#if defined(PLATFORM_IS_LINUX)
+  // MAP_FIXED_NOREPLACE (Linux 4.17+) lets us request a specific aligned
+  // address without clobbering existing mappings. This avoids the 2x
+  // overallocation that otherwise wastes half the address space on ILP32.
+  {
+    // Probe for free space, then try aligned addresses nearby.
+    void* probe = mmap(0, size, PROT_READ | PROT_WRITE,
+      MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE, -1, 0);
+
+    if(probe != MAP_FAILED)
+    {
+      uintptr_t hint = (uintptr_t)probe;
+
+      // If the kernel handed back an aligned address, keep it.
+      if((hint & ((uintptr_t)size - 1)) == 0)
+        return probe;
+
+      munmap(probe, size);
+
+      uintptr_t try = (hint + (size - 1)) & ~((uintptr_t)size - 1);
+
+      for(int i = 0; i < 32; i++)
+      {
+        if(try < size)
+          break;
+
+        base = mmap((void*)try, size, PROT_READ | PROT_WRITE,
+          MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE | MAP_FIXED_NOREPLACE,
+          -1, 0);
+
+        if(base != MAP_FAILED)
+          return base;
+
+        if(try > (SIZE_MAX - size))
+          break;
+
+        try += size;
+      }
+    }
+
+    // Fall back to the 2x overallocation.
+    base = mmap(0, span, PROT_READ | PROT_WRITE,
+      MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE, -1, 0);
+  }
+#elif defined(PLATFORM_IS_EMSCRIPTEN)
   base = mmap(0, span, PROT_READ | PROT_WRITE,
     MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE, -1, 0);
 #elif defined(PLATFORM_IS_MACOSX)
