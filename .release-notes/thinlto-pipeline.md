@@ -6,4 +6,4 @@ The compiler no longer runs the full LLVM optimization pipeline and backend in a
 
 A new `--pass split-bc` emits the partition bitcode files without linking. A new `--thinlto-partitions=N` flag (default 4) controls how many partitions the module is split into. There is no direct replacement for `--pass asm` or `--pass obj` — `--pass bitcode` emits a single bitcode file before splitting, and `--pass split-bc` emits the partition bitcode files.
 
-Debug info (`-d` flag) is not yet supported with ThinLTO builds. Debug builds compile and link correctly but do not emit DWARF info. This will be addressed in a future release.
+

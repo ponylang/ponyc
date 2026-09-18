@@ -617,7 +617,7 @@ static bool pony_opt_module(compile_t* c, LLVMModuleRef module,
 
 bool pony_specific_opt(compile_t* c)
 {
-  if(c->opt->release || (c->per_module_count > 0))
+  if(c->opt->release)
     c->opt->strip_debug = true;
 
   if(c->per_module_count > 0)
