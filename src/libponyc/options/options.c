@@ -49,8 +49,6 @@ enum
   OPT_LIB_PATH,
   OPT_PLUGIN,
 
-  OPT_THINLTO_PARTITIONS,
-
   OPT_VERBOSE,
   OPT_PASSES,
   OPT_AST,
@@ -96,8 +94,6 @@ static opt_arg_t std_args[] =
   {"sysroot", '\0', OPT_ARG_REQUIRED, OPT_SYSROOT},
   {"lib-path", 'L', OPT_ARG_REQUIRED, OPT_LIB_PATH},
   {"plugin", '\0', OPT_ARG_REQUIRED, OPT_PLUGIN},
-  {"thinlto-partitions", '\0', OPT_ARG_REQUIRED, OPT_THINLTO_PARTITIONS},
-
   {"verbose", 'V', OPT_ARG_REQUIRED, OPT_VERBOSE},
   {"pass", 'r', OPT_ARG_REQUIRED, OPT_PASSES},
   {"ast", 'a', OPT_ARG_NONE, OPT_AST},
@@ -180,8 +176,6 @@ static void usage(void)
     "                   specified multiple times.\n"
     "  --plugin         Use the specified plugin(s).\n"
     "    =name\n"
-    "  --thinlto-partitions\n"
-    "    =N             Number of ThinLTO module partitions (default 4).\n"
     "  --define, -D     Set a compile time definition.\n"
 #ifndef NDEBUG
     "  --llvm-args      Pass LLVM-specific arguments.\n"
@@ -286,8 +280,6 @@ ponyc_opt_process_t ponyc_opt_process(opt_state_t* s, pass_opt_t* opt,
   // default to running verify pass. require it to be turned off.
   opt->verify = true;
 
-  opt->thinlto_partitions = 4;
-
   while((id = ponyint_opt_next(s)) != -1)
   {
     switch(id)
@@ -354,21 +346,6 @@ ponyc_opt_process_t ponyc_opt_process(opt_state_t* s, pass_opt_t* opt,
           exit_code = EXIT_255;
         }
         break;
-      case OPT_THINLTO_PARTITIONS:
-      {
-        int n = atoi(s->arg_val);
-        if(n < 1)
-        {
-          printf("Error: --thinlto-partitions must be at least 1\n");
-          exit_code = EXIT_255;
-        }
-        else
-        {
-          opt->thinlto_partitions = (unsigned int)n;
-        }
-        break;
-      }
-
       case OPT_AST: *print_program_ast = true; break;
       case OPT_ASTPACKAGE: *print_package_ast = true; break;
       case OPT_TRACE: opt->parse_trace = true; break;

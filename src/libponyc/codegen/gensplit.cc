@@ -9,7 +9,6 @@
 #include <llvm/Analysis/ModuleSummaryAnalysis.h>
 #include <llvm/Analysis/ProfileSummaryInfo.h>
 #include <llvm/Bitcode/BitcodeWriter.h>
-#include <llvm/Transforms/Utils/SplitModule.h>
 #include <llvm/Support/raw_ostream.h>
 
 #include "llvm_config_end.h"
@@ -135,55 +134,7 @@ static bool emit_per_module_bitcode(compile_t* c, const char*** out_files,
 bool split_and_emit_bitcode(compile_t* c, const char*** out_files,
   size_t* out_count)
 {
-  if(c->per_module_count > 0)
-    return emit_per_module_bitcode(c, out_files, out_count);
-
-  errors_t* errors = c->opt->check.errors;
-  unsigned int n = c->opt->thinlto_partitions;
-
-  if(n < 1)
-    n = 1;
-
-  if(c->opt->verbosity >= VERBOSITY_MINIMAL)
-    fprintf(stderr, "Splitting module into %u partitions\n", n);
-
-  std::vector<std::unique_ptr<Module>> partitions;
-  partitions.reserve(n);
-
-  SplitModule(*unwrap(c->module), n,
-    [&](std::unique_ptr<Module> MPart) {
-      partitions.push_back(std::move(MPart));
-    },
-    /*PreserveLocals=*/false);
-
-  size_t count = partitions.size();
-  const char** files = (const char**)ponyint_pool_alloc_size(
-    count * sizeof(const char*));
-
-  for(size_t i = 0; i < count; i++)
-  {
-    Module& part = *partitions[i];
-
-    char suffix[32];
-    snprintf(suffix, sizeof(suffix), ".%zu.bc", i);
-    const char* file_bc = suffix_filename(c, c->opt->output, "",
-      c->filename, suffix);
-
-    if(!write_module_bitcode(c, part, file_bc, errors))
-    {
-      for(size_t j = 0; j < i; j++)
-        unlink_file(files[j]);
-
-      ponyint_pool_free_size(count * sizeof(const char*), files);
-      return false;
-    }
-
-    files[i] = file_bc;
-  }
-
-  *out_files = files;
-  *out_count = count;
-  return true;
+  return emit_per_module_bitcode(c, out_files, out_count);
 }
 
 void cleanup_bc_files(const char** files, size_t count)

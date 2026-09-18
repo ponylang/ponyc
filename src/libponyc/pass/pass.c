@@ -104,7 +104,6 @@ void pass_opt_init(pass_opt_t* options)
   // Start with an empty typechecker frame.
   memset(options, 0, sizeof(pass_opt_t));
   options->limit = PASS_ALL;
-  options->thinlto_partitions = 4;
   options->verbosity = VERBOSITY_INFO;
   // The interned-string table must exist before anything that interns into it.
   options->strtab = stringtab_new();
