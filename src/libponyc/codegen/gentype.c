@@ -49,6 +49,14 @@ static void allocate_compile_types(compile_t* c)
     c_t->free_fn = compile_type_free;
     t->c_type = (compile_opaque_t*)c_t;
 
+    if((c->per_module_count > 0) && (ast_id(t->ast) == TK_NOMINAL))
+    {
+      ast_t* def = (ast_t*)ast_data(t->ast);
+      ast_t* pkg = ast_nearest(def, TK_PACKAGE);
+      const char* pkg_sym = package_symbol(pkg);
+      c_t->module_index = codegen_module_index_for_package(c, pkg_sym);
+    }
+
     genfun_allocate_compile_methods(c, t);
   }
 }
@@ -328,7 +336,7 @@ static void make_global_instance(compile_t* c, reach_type_t* t)
   c_t->instance = LLVMAddGlobal(c->module, c_t->structure, inst_name);
   LLVMSetInitializer(c_t->instance, value);
   LLVMSetGlobalConstant(c_t->instance, true);
-  LLVMSetLinkage(c_t->instance, LLVMPrivateLinkage);
+  LLVMSetLinkage(c_t->instance, LLVMExternalLinkage);
 }
 
 #if defined(USE_RUNTIME_TRACING)
@@ -731,6 +739,7 @@ static bool make_trace(compile_t* c, reach_type_t* t)
 
       if(trace_fn != NULL)
       {
+        trace_fn = codegen_resolve_function(c, trace_fn);
         LLVMTypeRef trace_fn_type = LLVMGlobalGetValueType(trace_fn);
         LLVMValueRef args[2];
         args[0] = ctx;
@@ -744,6 +753,15 @@ static bool make_trace(compile_t* c, reach_type_t* t)
   genfun_build_ret_void(c);
   codegen_finishfun(c);
   return true;
+}
+
+static void switch_to_type_module(compile_t* c, reach_type_t* t)
+{
+  if(c->per_module_count > 0)
+  {
+    compile_type_t* c_t = (compile_type_t*)t->c_type;
+    codegen_switch_module(c, c_t->module_index);
+  }
 }
 
 bool gentypes(compile_t* c)
@@ -772,6 +790,8 @@ bool gentypes(compile_t* c)
 
   while((t = reach_types_next(&c->reach->types, &i)) != NULL)
   {
+    switch_to_type_module(c, t);
+
     if(!make_opaque_struct(c, t))
       return false;
 
@@ -785,6 +805,9 @@ bool gentypes(compile_t* c)
     gentrace_prototype(c, t);
   }
 
+  // Numeric size table goes in the main module.
+  if(c->per_module_count > 0)
+    codegen_switch_module(c, 0);
   c->numeric_sizes = gen_numeric_size_table(c);
 
   if(c->opt->verbosity >= VERBOSITY_INFO)
@@ -794,6 +817,8 @@ bool gentypes(compile_t* c)
 
   while((t = reach_types_next(&c->reach->types, &i)) != NULL)
   {
+    switch_to_type_module(c, t);
+
     if(!make_struct(c, t))
       return false;
 
@@ -814,6 +839,7 @@ bool gentypes(compile_t* c)
 
   while((t = reach_types_next(&c->reach->types, &i)) != NULL)
   {
+    switch_to_type_module(c, t);
     compile_type_t* c_t = (compile_type_t*)t->c_type;
 
     // The ABI size for machine words and tuples is the boxed size.
@@ -834,10 +860,15 @@ bool gentypes(compile_t* c)
 
   while((t = reach_types_next(&c->reach->types, &i)) != NULL)
   {
+    switch_to_type_module(c, t);
+
     if(!genfun_method_bodies(c, t))
       return false;
   }
 
+  // Primitive init/final go in the main module.
+  if(c->per_module_count > 0)
+    codegen_switch_module(c, 0);
   genfun_primitive_calls(c);
 
   if(c->opt->verbosity >= VERBOSITY_INFO)
@@ -847,11 +878,18 @@ bool gentypes(compile_t* c)
 
   while((t = reach_types_next(&c->reach->types, &i)) != NULL)
   {
+    switch_to_type_module(c, t);
+
     if(!make_trace(c, t))
       return false;
 
     gendesc_init(c, t);
   }
+
+  // Switch back to the main module so callers (gen_main, gen_export_wrappers)
+  // emit into the right place.
+  if(c->per_module_count > 0)
+    codegen_switch_module(c, 0);
 
   return true;
 }

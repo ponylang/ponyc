@@ -5,607 +5,28 @@
 #include "llvm_config_begin.h"
 
 #include <llvm/IR/Module.h>
-#include <llvm/IR/AbstractCallSite.h>
 #include <llvm/IR/IRBuilder.h>
-#include <llvm/IR/Dominators.h>
-#include <llvm/IR/DebugInfo.h>
 
 #include <llvm/IR/PassManager.h>
 #include <llvm/Analysis/AliasAnalysis.h>
-#include <llvm/Analysis/CGSCCPassManager.h>
-#include <llvm/Analysis/LazyCallGraph.h>
-#include <llvm/Passes/OptimizationLevel.h>
 #include <llvm/Passes/PassBuilder.h>
 
-#include <llvm/Target/TargetMachine.h>
+#include <llvm/Analysis/CGSCCPassManager.h>
 #include <llvm/Analysis/Lint.h>
-#include <llvm/Transforms/IPO.h>
+#include <llvm/Transforms/IPO/Inliner.h>
 #include <llvm/Transforms/IPO/StripSymbols.h>
-#include <llvm/Transforms/Utils/Cloning.h>
-#include <llvm/ADT/SmallSet.h>
+#include <llvm/Transforms/InstCombine/InstCombine.h>
+#include <llvm/Transforms/Scalar/SROA.h>
+#include <llvm/IR/DebugInfo.h>
 
 #include <llvm-c/DebugInfo.h>
 
 #include "llvm_config_end.h"
 
-#include "../../libponyrt/mem/heap.h"
 #include "../ast/stringtab.h"
 #include "ponyassert.h"
 
-#include <sys/stat.h>
-
 using namespace llvm;
-
-static void print_transform(compile_t* c, Instruction* i, const char* s)
-{
-  errors_t* errors = c->opt->check.errors;
-
-  if((c == NULL) || !c->opt->print_stats)
-    return;
-
-  /* Starting with LLVM 3.7.0-final getDebugLog may return a
-   * DebugLoc without a valid underlying MDNode* for instructions
-   * that have no direct source location, instead of returning 0
-   * for getLine().
-   */
-  while(!i->getDebugLoc())
-  {
-    i = i->getNextNode();
-
-    if(i == nullptr)
-      return;
-  }
-
-  DebugLoc loc = i->getDebugLoc();
-
-  DILocation* location = loc.get();
-  DIScope* scope = location->getScope();
-  DILocation* at = location->getInlinedAt();
-
-  if(at != NULL)
-  {
-    DIScope* scope_at = at->getScope();
-
-    errorf(errors, NULL, "[%s] %s:%u:%u@%s:%u:%u: %s",
-      i->getParent()->getParent()->getName().str().c_str(),
-      scope->getFilename().str().c_str(), loc.getLine(), loc.getCol(),
-      scope_at->getFilename().str().c_str(), at->getLine(),
-      at->getColumn(), s);
-  }
-  else {
-    errorf(errors, NULL, "[%s] %s:%u:%u: %s",
-      i->getParent()->getParent()->getName().str().c_str(),
-      scope->getFilename().str().c_str(), loc.getLine(), loc.getCol(), s);
-  }
-}
-
-// Pass to move Pony heap allocations to the stack.
-class HeapToStack : public PassInfoMixin<HeapToStack>
-{
-public:
-  compile_t* c;
-
-  HeapToStack(compile_t* compiler) : PassInfoMixin<HeapToStack>()
-  {
-    c = compiler;
-  }
-
-  PreservedAnalyses run(LazyCallGraph::SCC &C, CGSCCAnalysisManager &AM,
-    LazyCallGraph &CG, CGSCCUpdateResult &UR)
-  {
-    auto &FAM =
-      AM.getResult<FunctionAnalysisManagerCGSCCProxy>(C, CG).getManager();
-
-    bool changed = false;
-
-    // Collect functions upfront to avoid iterator invalidation if
-    // updateCGAndAnalysisManagerForCGSCCPass splits the SCC.
-    SmallVector<Function*, 4> functions;
-    for(LazyCallGraph::Node &N : C)
-      functions.push_back(&N.getFunction());
-
-    for(Function *fp : functions)
-    {
-      if(fp->isDeclaration())
-        continue;
-
-      if(runOnFunction(*fp, FAM, CG, AM, UR))
-        changed = true;
-    }
-
-    return changed ? PreservedAnalyses::none() : PreservedAnalyses::all();
-  }
-
-  bool runOnFunction(Function &f, FunctionAnalysisManager &FAM,
-    LazyCallGraph &CG, CGSCCAnalysisManager &AM, CGSCCUpdateResult &UR)
-  {
-    bool changed = false;
-    bool restart;
-
-    do
-    {
-      restart = false;
-      DominatorTree& dt = FAM.getResult<DominatorTreeAnalysis>(f);
-      BasicBlock& entry = f.getEntryBlock();
-      IRBuilder<> builder(&entry, entry.begin());
-
-      for(auto block = f.begin(); block != f.end(); ++block)
-      {
-        for(auto iter = block->begin(); iter != block->end();)
-        {
-          Instruction* inst = &(*iter);
-
-          if(runOnInstruction(builder, inst, dt, f))
-          {
-            changed = restart = true;
-
-            FAM.invalidate(f, PreservedAnalyses::none());
-
-            auto *FN = CG.lookup(f);
-            if(FN)
-            {
-              auto *FC = CG.lookupSCC(*FN);
-              if(FC)
-              {
-                updateCGAndAnalysisManagerForCGSCCPass(
-                  CG, *FC, *FN, AM, UR, FAM);
-              }
-            }
-
-            break;
-          }
-
-          ++iter;
-        }
-
-        if(restart)
-          break;
-      }
-    } while(restart);
-
-    return changed;
-  }
-
-  bool runOnInstruction(IRBuilder<>& builder, Instruction* inst,
-    DominatorTree& dt, Function& f)
-  {
-    auto call_base = dyn_cast<CallBase>(inst);
-    if (!call_base)
-    {
-      return false;
-    }
-
-    CallBase& call = *call_base;
-
-    Function* fun = call.getCalledFunction();
-
-    if(fun == NULL)
-      return false;
-
-    bool small = false;
-
-    if(fun->getName().compare("pony_alloc") == 0)
-    {
-      // Nothing.
-    } else if(fun->getName().compare("pony_alloc_small") == 0) {
-      small = true;
-    } else {
-      return false;
-    }
-
-    Value* size = call.getArgOperand(1);
-    c->opt->check.stats.heap_alloc++;
-    ConstantInt* int_size = dyn_cast_or_null<ConstantInt>(size);
-
-    if(int_size == NULL)
-    {
-      print_transform(c, inst, "variable size allocation");
-      return false;
-    }
-
-    uint64_t alloc_size = int_size->getZExtValue();
-
-    if(small)
-    {
-      // Convert a heap index to a size.
-      int_size = ConstantInt::get(builder.getInt64Ty(),
-        ((int64_t)1) << (alloc_size + HEAP_MINBITS));
-    } else {
-      if(alloc_size > 1024)
-      {
-        print_transform(c, inst, "large allocation");
-        return false;
-      }
-    }
-
-    SmallVector<CallInst*, 4> tail;
-    SmallVector<Instruction*, 4> new_calls;
-
-    if(!canStackAlloc(inst, dt, tail, new_calls))
-      return false;
-
-    for(auto iter = tail.begin(), end = tail.end(); iter != end; ++iter)
-      (*iter)->setTailCall(false);
-
-    // TODO: for variable size alloca, don't insert at the beginning.
-    BasicBlock::iterator begin = call.getCaller()->getEntryBlock().begin();
-
-    // The alloca's alignment comes from the allocator's `align` return
-    // attribute, declared in init_runtime (codegen.c). Keep that attribute
-    // truthful to the runtime's guarantee: too weak here under-aligns object
-    // fields (e.g. U128) and crashes optimised builds (#5462); stronger than
-    // the runtime actually provides would be undefined behaviour.
-    AllocaInst* replace = new AllocaInst(builder.getInt8Ty(), 0, int_size,
-      inst->getPointerAlignment(*unwrap(c->target_data)), "", begin);
-
-    replace->setDebugLoc(inst->getDebugLoc());
-
-    inst->replaceAllUsesWith(replace);
-
-    auto invoke = dyn_cast<InvokeInst>(static_cast<Instruction*>(&call));
-    if (invoke)
-    {
-      BranchInst::Create(invoke->getNormalDest(), invoke->getIterator());
-      invoke->getUnwindDest()->removePredecessor(call.getParent());
-    }
-
-    inst->eraseFromParent();
-
-    for(auto new_call: new_calls)
-    {
-      // Force constructor inlining to see if fields can be stack-allocated.
-      InlineFunctionInfo ifi{};
-
-      auto new_call_base = dyn_cast<CallBase>(new_call);
-      if (new_call_base)
-      {
-        InlineFunction(*new_call_base, ifi);
-      }
-    }
-
-    print_transform(c, replace, "stack allocation");
-    c->opt->check.stats.heap_alloc--;
-    c->opt->check.stats.stack_alloc++;
-
-    return true;
-  }
-
-  bool canStackAlloc(Instruction* alloc, DominatorTree& dt,
-    SmallVector<CallInst*, 4>& tail, SmallVector<Instruction*, 4>& new_calls)
-  {
-    // This is based on the pass in the LDC compiler.
-    SmallVector<Use*, 16> work;
-    SmallSet<Use*, 16> visited;
-
-    for(auto iter = alloc->use_begin(), end = alloc->use_end();
-      iter != end; ++iter)
-    {
-      Use* use = &(*iter);
-      visited.insert(use);
-      work.push_back(use);
-    }
-
-    while(!work.empty())
-    {
-      Use* use = work.pop_back_val();
-      Instruction* inst = cast<Instruction>(use->getUser());
-      Value* value = use->get();
-
-      switch(inst->getOpcode())
-      {
-        case Instruction::Call:
-        case Instruction::Invoke:
-        {
-          // Record any calls that are tail calls so they can be marked as
-          // "tail false" if we do a HeapToStack change. Accessing `alloca`
-          // memory from a call that is marked as "tail" is unsafe and can
-          // result in incorrect optimizations down the road.
-          //
-          // See: https://github.com/ponylang/ponyc/issues/4340
-          //
-          // Technically we don't need to do this for every call, just calls
-          // that touch alloca'd memory. However, without doing some alias
-          // analysis at this point, our next best bet is to simply mark
-          // every call as "not tail" if we do any HeapToStack change. It's
-          // "the safest" thing to do.
-          //
-          // N.B. the contents of the `tail` list will only be set to
-          // "tail false" if we return `true` from this `canStackAlloc`
-          // function.
-          auto ci = dyn_cast<CallInst>(inst);
-          if (ci && ci->isTailCall())
-          {
-            tail.push_back(ci);
-          }
-
-          auto call_base = dyn_cast<CallBase>(inst);
-          if (!call_base)
-          {
-            return false;
-          }
-
-          CallBase& call = *call_base;
-
-          if(call.onlyReadsMemory())
-          {
-            // If the function is readnone or readonly, and the return value
-            // isn't and does not contain a pointer, it isn't captured.
-            Type* type = inst->getType();
-
-            if(type->isVoidTy() ||
-              type->isFPOrFPVectorTy() ||
-              type->isIntOrIntVectorTy()
-              )
-            {
-              // Doesn't return any pointers, so it isn't captured.
-              break;
-            }
-          }
-
-          if(inst->getMetadata("pony.newcall") != NULL)
-            new_calls.push_back(inst);
-
-          auto first = call.arg_begin();
-
-          for(auto iter = first, end = call.arg_end(); iter != end; ++iter)
-          {
-            if(iter->get() == value)
-            {
-              // If it's not marked as nocapture, it's captured.
-              if(!call.doesNotCapture((unsigned)(iter - first)))
-              {
-                print_transform(c, alloc, "captured allocation");
-                print_transform(c, inst, "captured here (call arg)");
-                return false;
-              }
-            }
-          }
-          break;
-        }
-
-        case Instruction::Load:
-          break;
-
-        case Instruction::Store:
-        {
-          if(value == inst->getOperand(0))
-          {
-            Value* dest = inst->getOperand(1);
-            const DataLayout& dl =
-              inst->getModule()->getDataLayout();
-
-            APInt store_offset(64, 0);
-            Value* store_base =
-              dest->stripAndAccumulateConstantOffsets(dl, store_offset,
-                true);
-
-            if(!isa<AllocaInst>(store_base))
-            {
-              print_transform(c, alloc, "captured allocation");
-              print_transform(c, inst, "captured here (store to non-stack)");
-              return false;
-            }
-
-            // Walk every use of the alloca to find loads from the same
-            // (base, offset). Those loads may produce our pointer.
-            AllocaInst* slot = cast<AllocaInst>(store_base);
-            SmallVector<Value*, 8> slot_ptrs;
-            SmallSet<Value*, 8> slot_seen;
-            slot_ptrs.push_back(slot);
-            slot_seen.insert(slot);
-
-            while(!slot_ptrs.empty())
-            {
-              Value* ptr = slot_ptrs.pop_back_val();
-
-              for(auto ui = ptr->user_begin(), ue = ptr->user_end();
-                ui != ue; ++ui)
-              {
-                Instruction* user = dyn_cast<Instruction>(*ui);
-                if(user == nullptr)
-                  continue;
-
-                if(isa<GetElementPtrInst>(user) ||
-                  isa<BitCastInst>(user))
-                {
-                  if(slot_seen.insert(user).second)
-                    slot_ptrs.push_back(user);
-                }
-                else if(auto *li = dyn_cast<LoadInst>(user))
-                {
-                  Value* load_addr = li->getPointerOperand();
-                  APInt load_offset(64, 0);
-                  Value* load_base =
-                    load_addr->stripAndAccumulateConstantOffsets(
-                      dl, load_offset, true);
-
-                  // Skip only when we can prove the load accesses a
-                  // different field: same base, different offset.
-                  if(load_base == store_base &&
-                    load_offset != store_offset)
-                    continue;
-
-                  if(canBeReused(li, alloc, dt))
-                    return false;
-
-                  for(auto lui = li->use_begin(), lue = li->use_end();
-                    lui != lue; ++lui)
-                  {
-                    Use* load_use = &(*lui);
-
-                    if(visited.insert(load_use).second)
-                      work.push_back(load_use);
-                  }
-                }
-                else if(auto *si = dyn_cast<StoreInst>(user))
-                {
-                  if(si->getValueOperand() == ptr)
-                  {
-                    print_transform(c, alloc, "captured allocation");
-                    print_transform(c, inst,
-                      "captured here (alloca address stored)");
-                    return false;
-                  }
-                }
-                else
-                {
-                  print_transform(c, alloc, "captured allocation");
-                  print_transform(c, inst,
-                    "captured here (alloca use in call/unknown)");
-                  return false;
-                }
-              }
-            }
-          }
-          break;
-        }
-
-        case Instruction::BitCast:
-        case Instruction::GetElementPtr:
-        case Instruction::PHI:
-        case Instruction::Select:
-        {
-          // If a derived pointer can be reused, it can't be stack allocated.
-          if(canBeReused(inst, alloc, dt))
-            return false;
-
-          // Check that the new value isn't captured.
-          for(auto iter = inst->use_begin(), end = inst->use_end();
-            iter != end; ++iter)
-          {
-            Use* use = &(*iter);
-
-            if(visited.insert(use).second)
-              work.push_back(use);
-          }
-          break;
-        }
-
-        default:
-        {
-          // If it's anything else, assume it's captured just in case.
-          print_transform(c, alloc, "captured allocation");
-          print_transform(c, inst, "captured here (unknown)");
-          return false;
-        }
-      }
-    }
-
-    return true;
-  }
-
-  bool canBeReused(Instruction* def, Instruction* alloc, DominatorTree& dt)
-  {
-    if(def->use_empty() || !dt.dominates(def, alloc))
-      return false;
-
-    BasicBlock* def_block = def->getParent();
-    BasicBlock* alloc_block = alloc->getParent();
-
-    SmallSet<User*, 16> users;
-    SmallSet<BasicBlock*, 16> user_blocks;
-
-    for(auto iter = def->use_begin(), end = def->use_end();
-      iter != end; ++iter)
-    {
-      Use* use = &(*iter);
-      Instruction* user = cast<Instruction>(use->getUser());
-      BasicBlock* user_block = user->getParent();
-
-      if((alloc_block != user_block) && dt.dominates(alloc_block, user_block))
-      {
-        print_transform(c, alloc, "captured allocation");
-        print_transform(c, def, "captured here (dominated reuse)");
-        return true;
-      }
-
-      if(!isa<PHINode>(user))
-      {
-        users.insert(user);
-        user_blocks.insert(user_block);
-      }
-    }
-
-    typedef std::pair<BasicBlock*, Instruction*> Work;
-    SmallVector<Work, 16> work;
-    SmallSet<BasicBlock*, 16> visited;
-
-    Instruction* start = alloc->getNextNode();
-    work.push_back(Work(alloc_block, start));
-
-    while(!work.empty())
-    {
-      Work w = work.pop_back_val();
-      BasicBlock* bb = w.first;
-      Instruction* inst = w.second;
-
-      if(user_blocks.count(bb))
-      {
-        if((bb != def_block) && (bb != alloc_block))
-        {
-          print_transform(c, alloc, "captured allocation");
-          print_transform(c, def,
-            "captured here (block contains neither alloc nor def)");
-          return true;
-        }
-
-        while(inst != nullptr)
-        {
-          if((inst == def) || (inst == alloc))
-            break;
-
-          if(users.count(inst))
-          {
-            print_transform(c, alloc, "captured allocation");
-            print_transform(c, inst, "captured here (reused)");
-            return true;
-          }
-
-          inst = inst->getNextNode();
-        }
-      }
-      else if((bb == def_block) || ((bb == alloc_block) && (inst != start)))
-      {
-        continue;
-      }
-
-      Instruction* term = bb->getTerminator();
-      unsigned count = term->getNumSuccessors();
-
-      for(unsigned i = 0; i < count; i++)
-      {
-        BasicBlock* successor = term->getSuccessor(i);
-        inst = &successor->front();
-        bool found = false;
-
-        while(isa<PHINode>(inst))
-        {
-          if(def == cast<PHINode>(inst)->getIncomingValueForBlock(bb))
-          {
-            print_transform(c, alloc, "captured allocation");
-            print_transform(c, inst, "captured here (phi use)");
-            return true;
-          }
-
-          if(def == inst)
-            found = true;
-
-          inst = inst->getNextNode();
-        }
-
-        if(!found &&
-          visited.insert(successor).second &&
-          dt.dominates(def_block, successor))
-        {
-          work.push_back(Work(successor, inst));
-        }
-      }
-    }
-
-    return false;
-  }
-
-};
 
 // Pass to replace pony_ctx calls in a dispatch function by the context passed
 // to the function.
@@ -1116,104 +537,69 @@ public:
   }
 };
 
-static void optimise(compile_t* c, bool pony_specific)
-{
-  // Most of this is the standard ceremony for running standard LLVM passes.
-  // See <https://llvm.org/docs/NewPassManager.html> for details.
-
-  PassBuilder PB;
-  LoopAnalysisManager LAM;
-  FunctionAnalysisManager FAM;
-  CGSCCAnalysisManager CGAM;
-  ModuleAnalysisManager MAM;
-
-  // Wire in the Pony-specific passes if requested.
-  if(pony_specific)
-  {
-    PB.registerCGSCCOptimizerLateEPCallback(
-      [&](CGSCCPassManager &cgpm, OptimizationLevel level) {
-        if(level.getSpeedupLevel() >= 2) {
-          cgpm.addPass(HeapToStack(c));
-        }
-      }
-    );
-    PB.registerScalarOptimizerLateEPCallback(
-      [&](FunctionPassManager &fpm, OptimizationLevel level) {
-        if(level.getSpeedupLevel() >= 2) {
-          fpm.addPass(DispatchPonyCtx());
-          fpm.addPass(MergeMessageSend(c));
-        }
-      }
-    );
-  }
-
-  // Add a linting pass at the start, if requested.
-  if (c->opt->lint_llvm) {
-    PB.registerOptimizerEarlyEPCallback(
-      [&](ModulePassManager &mpm, OptimizationLevel level,
-          ThinOrFullLTOPhase phase) {
-        mpm.addPass(createModuleToFunctionPassAdaptor(LintPass(false)));
-      }
-    );
-  }
-
-  // There is a problem with optimised debug info in certain cases. This is
-  // due to unknown bugs in the way ponyc is generating debug info. When they
-  // are found and fixed, an optimised build should not always strip debug
-  // info.
-  if(c->opt->release)
-    c->opt->strip_debug = true;
-
-  // Add a debug-info-stripping pass at the end, if requested.
-  if(c->opt->strip_debug) {
-    PB.registerOptimizerLastEPCallback(
-      [&](ModulePassManager &mpm, OptimizationLevel level,
-          ThinOrFullLTOPhase phase) {
-        mpm.addPass(StripSymbolsPass());
-      }
-    );
-  }
-
-  // Enable the default alias analysis pipeline.
-  FAM.registerPass([&] { return PB.buildDefaultAAPipeline(); });
-
-  // Wire in all of the analysis managers.
-  PB.registerModuleAnalyses(MAM);
-  PB.registerCGSCCAnalyses(CGAM);
-  PB.registerFunctionAnalyses(FAM);
-  PB.registerLoopAnalyses(LAM);
-  PB.crossRegisterProxies(LAM, FAM, CGAM, MAM);
-
-  // Create the top-level module pass manager using the default LLVM pipeline.
-  // Choose the appropriate optimization level based on if we're in a release.
-  ModulePassManager MPM;
-
-  if (c->opt->release) {
-    MPM = PB.buildPerModuleDefaultPipeline(OptimizationLevel::O3);
-  } else {
-    MPM = PB.buildO0DefaultPipeline(OptimizationLevel::O0);
-  }
-
-  // Run the passes.
-  MPM.run(*unwrap(c->module), MAM);
-}
-
-bool genopt(compile_t* c, bool pony_specific)
+static bool pony_opt_module(compile_t* c, LLVMModuleRef module,
+  LLVMDIBuilderRef di)
 {
   errors_t* errors = c->opt->check.errors;
 
-  // Finalise the debug info.
-  LLVMDIBuilderFinalize(c->di);
-  optimise(c, pony_specific);
+  if(c->opt->strip_debug)
+    StripDebugInfo(*unwrap(module));
+  else
+    LLVMDIBuilderFinalize(di);
+
+  {
+    PassBuilder PB;
+    LoopAnalysisManager LAM;
+    FunctionAnalysisManager FAM;
+    CGSCCAnalysisManager CGAM;
+    ModuleAnalysisManager MAM;
+
+    FAM.registerPass([&] { return PB.buildDefaultAAPipeline(); });
+
+    PB.registerModuleAnalyses(MAM);
+    PB.registerCGSCCAnalyses(CGAM);
+    PB.registerFunctionAnalyses(FAM);
+    PB.registerLoopAnalyses(LAM);
+    PB.crossRegisterProxies(LAM, FAM, CGAM, MAM);
+
+    ModulePassManager MPM;
+
+    if(c->opt->release)
+    {
+      FunctionPassManager canon;
+      canon.addPass(SROAPass(SROAOptions::ModifyCFG));
+      canon.addPass(InstCombinePass());
+      MPM.addPass(createModuleToFunctionPassAdaptor(std::move(canon)));
+
+      CGSCCPassManager CGPM;
+      CGPM.addPass(InlinerPass());
+      MPM.addPass(createModuleToPostOrderCGSCCPassAdaptor(std::move(CGPM)));
+
+      FunctionPassManager pony_fn;
+      pony_fn.addPass(DispatchPonyCtx());
+      pony_fn.addPass(MergeMessageSend(c));
+      MPM.addPass(createModuleToFunctionPassAdaptor(std::move(pony_fn)));
+    }
+
+    if(c->opt->lint_llvm)
+      MPM.addPass(createModuleToFunctionPassAdaptor(LintPass(false)));
+
+    if(c->opt->strip_debug)
+      MPM.addPass(StripSymbolsPass());
+
+    MPM.run(*unwrap(module), MAM);
+  }
 
   if(c->opt->verify)
   {
+    size_t mod_name_len = 0;
+    const char* mod_name = LLVMGetModuleIdentifier(module, &mod_name_len);
     if(c->opt->verbosity >= VERBOSITY_MINIMAL)
-      fprintf(stderr, "Verifying\n");
+      fprintf(stderr, "Verifying %s\n", mod_name);
 
     char* msg = NULL;
 
-    if(LLVMVerifyModule(c->module, LLVMPrintMessageAction, &msg) != 0)
+    if(LLVMVerifyModule(module, LLVMPrintMessageAction, &msg) != 0)
     {
       errorf(errors, NULL, "Module verification failed: %s", msg);
       errorf_continue(errors, NULL,
@@ -1227,6 +613,25 @@ bool genopt(compile_t* c, bool pony_specific)
   }
 
   return true;
+}
+
+bool pony_specific_opt(compile_t* c)
+{
+  if(c->opt->release || (c->per_module_count > 0))
+    c->opt->strip_debug = true;
+
+  if(c->per_module_count > 0)
+  {
+    for(size_t i = 0; i < c->per_module_count; i++)
+    {
+      if(!pony_opt_module(c, c->per_module_states[i].module,
+        c->per_module_states[i].di))
+        return false;
+    }
+    return true;
+  }
+
+  return pony_opt_module(c, c->module, c->di);
 }
 
 bool target_is_linux(char* t)

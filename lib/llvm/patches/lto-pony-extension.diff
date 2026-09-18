@@ -1,0 +1,22 @@
+diff --git a/llvm/lib/LTO/LTOBackend.cpp b/llvm/lib/LTO/LTOBackend.cpp
+--- a/llvm/lib/LTO/LTOBackend.cpp
++++ b/llvm/lib/LTO/LTOBackend.cpp
+@@ -183,6 +183,9 @@ Error Config::addSaveTemps(std::string OutputFileName, bool UseInputModulePath,
+ #include "llvm/Support/Extension.def"
+ #undef HANDLE_EXTENSION
+ 
++// Pony's HeapToStack pass, linked statically from libponylto.
++llvm::PassPluginLibraryInfo getPonyLTOPluginInfo();
++
+ static void RegisterPassPlugins(ArrayRef<std::string> PassPlugins,
+                                 PassBuilder &PB) {
+ #define HANDLE_EXTENSION(Ext)                                                  \
+@@ -190,6 +193,8 @@ static void RegisterPassPlugins(ArrayRef<std::string> PassPlugins,
+ #include "llvm/Support/Extension.def"
+ #undef HANDLE_EXTENSION
+ 
++  getPonyLTOPluginInfo().RegisterPassBuilderCallbacks(PB);
++
+   // Load requested pass plugins and let them register pass builder callbacks
+   for (auto &PluginFN : PassPlugins) {
+     auto PassPlugin = PassPlugin::Load(PluginFN);

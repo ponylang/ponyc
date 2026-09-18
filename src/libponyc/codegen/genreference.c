@@ -593,7 +593,7 @@ LLVMValueRef gen_string(compile_t* c, ast_t* ast)
   size_t len = ast_name_len(ast);
 
   LLVMValueRef args[4];
-  args[0] = c_t->desc;
+  args[0] = codegen_resolve_global(c, c_t->desc);
   args[1] = LLVMConstInt(c->intptr, len, false);
   args[2] = LLVMConstInt(c->intptr, len + 1, false);
   args[3] = codegen_string(c, name, len);

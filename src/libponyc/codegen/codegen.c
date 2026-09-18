@@ -102,147 +102,8 @@ static LLVMTargetMachineRef make_machine(pass_opt_t* opt)
   return machine;
 }
 
-static void init_runtime(compile_t* c)
+static void init_runtime_decls(compile_t* c)
 {
-  c->str_builtin = stringtab(c->opt->strtab, "$0");
-  c->str_Bool = stringtab(c->opt->strtab, "Bool");
-  c->str_I8 = stringtab(c->opt->strtab, "I8");
-  c->str_I16 = stringtab(c->opt->strtab, "I16");
-  c->str_I32 = stringtab(c->opt->strtab, "I32");
-  c->str_I64 = stringtab(c->opt->strtab, "I64");
-  c->str_I128 = stringtab(c->opt->strtab, "I128");
-  c->str_ILong = stringtab(c->opt->strtab, "ILong");
-  c->str_ISize = stringtab(c->opt->strtab, "ISize");
-  c->str_U8 = stringtab(c->opt->strtab, "U8");
-  c->str_U16 = stringtab(c->opt->strtab, "U16");
-  c->str_U32 = stringtab(c->opt->strtab, "U32");
-  c->str_U64 = stringtab(c->opt->strtab, "U64");
-  c->str_U128 = stringtab(c->opt->strtab, "U128");
-  c->str_ULong = stringtab(c->opt->strtab, "ULong");
-  c->str_USize = stringtab(c->opt->strtab, "USize");
-  c->str_F32 = stringtab(c->opt->strtab, "F32");
-  c->str_F64 = stringtab(c->opt->strtab, "F64");
-  c->str_Pointer = stringtab(c->opt->strtab, "Pointer");
-  c->str_NullablePointer = stringtab(c->opt->strtab, "NullablePointer");
-  c->str_DoNotOptimise = stringtab(c->opt->strtab, "DoNotOptimise");
-  c->str_Array = stringtab(c->opt->strtab, "Array");
-  c->str_String = stringtab(c->opt->strtab, "String");
-  c->str_Platform = stringtab(c->opt->strtab, "Platform");
-  c->str_Main = stringtab(c->opt->strtab, "Main");
-  c->str_Env = stringtab(c->opt->strtab, "Env");
-
-  c->str_add = stringtab(c->opt->strtab, "add");
-  c->str_sub = stringtab(c->opt->strtab, "sub");
-  c->str_mul = stringtab(c->opt->strtab, "mul");
-  c->str_div = stringtab(c->opt->strtab, "div");
-  c->str_rem = stringtab(c->opt->strtab, "rem");
-  c->str_neg = stringtab(c->opt->strtab, "neg");
-  c->str_add_unsafe = stringtab(c->opt->strtab, "add_unsafe");
-  c->str_sub_unsafe = stringtab(c->opt->strtab, "sub_unsafe");
-  c->str_mul_unsafe = stringtab(c->opt->strtab, "mul_unsafe");
-  c->str_div_unsafe = stringtab(c->opt->strtab, "div_unsafe");
-  c->str_rem_unsafe = stringtab(c->opt->strtab, "rem_unsafe");
-  c->str_neg_unsafe = stringtab(c->opt->strtab, "neg_unsafe");
-  c->str_and = stringtab(c->opt->strtab, "op_and");
-  c->str_or = stringtab(c->opt->strtab, "op_or");
-  c->str_xor = stringtab(c->opt->strtab, "op_xor");
-  c->str_not = stringtab(c->opt->strtab, "op_not");
-  c->str_shl = stringtab(c->opt->strtab, "shl");
-  c->str_shr = stringtab(c->opt->strtab, "shr");
-  c->str_shl_unsafe = stringtab(c->opt->strtab, "shl_unsafe");
-  c->str_shr_unsafe = stringtab(c->opt->strtab, "shr_unsafe");
-  c->str_eq = stringtab(c->opt->strtab, "eq");
-  c->str_ne = stringtab(c->opt->strtab, "ne");
-  c->str_lt = stringtab(c->opt->strtab, "lt");
-  c->str_le = stringtab(c->opt->strtab, "le");
-  c->str_ge = stringtab(c->opt->strtab, "ge");
-  c->str_gt = stringtab(c->opt->strtab, "gt");
-  c->str_eq_unsafe = stringtab(c->opt->strtab, "eq_unsafe");
-  c->str_ne_unsafe = stringtab(c->opt->strtab, "ne_unsafe");
-  c->str_lt_unsafe = stringtab(c->opt->strtab, "lt_unsafe");
-  c->str_le_unsafe = stringtab(c->opt->strtab, "le_unsafe");
-  c->str_ge_unsafe = stringtab(c->opt->strtab, "ge_unsafe");
-  c->str_gt_unsafe = stringtab(c->opt->strtab, "gt_unsafe");
-
-  c->str_this = stringtab(c->opt->strtab, "this");
-  c->str_create = stringtab(c->opt->strtab, "create");
-  c->str__create = stringtab(c->opt->strtab, "_create");
-  c->str__init = stringtab(c->opt->strtab, "_init");
-  c->str__final = stringtab(c->opt->strtab, "_final");
-  c->str__event_notify = stringtab(c->opt->strtab, "_event_notify");
-
-  LLVMTypeRef type;
-  LLVMTypeRef params[5];
-  LLVMValueRef value;
-
-  c->void_type = LLVMVoidTypeInContext(c->context);
-  c->i1 = LLVMInt1TypeInContext(c->context);
-  c->i8 = LLVMInt8TypeInContext(c->context);
-  c->i16 = LLVMInt16TypeInContext(c->context);
-  c->i32 = LLVMInt32TypeInContext(c->context);
-  c->i64 = LLVMInt64TypeInContext(c->context);
-  c->i128 = LLVMIntTypeInContext(c->context, 128);
-  c->f32 = LLVMFloatTypeInContext(c->context);
-  c->f64 = LLVMDoubleTypeInContext(c->context);
-  c->intptr = LLVMIntPtrTypeInContext(c->context, c->target_data);
-
-  // In LLVM IR, all pointers have the same type (there is no element type).
-  c->ptr = LLVMPointerType(c->i8, 0);
-
-  // forward declare object
-  c->object_type = LLVMStructCreateNamed(c->context, "__object");
-
-  // padding required in an actor between the descriptor and fields
-  c->actor_pad = LLVMArrayType(c->i8, PONY_ACTOR_PAD_SIZE);
-
-  // message
-  params[0] = c->i32; // size
-  params[1] = c->i32; // id
-  c->msg_type = LLVMStructCreateNamed(c->context, "__message");
-  LLVMStructSetBody(c->msg_type, params, 2, false);
-
-  // trace
-  // void (*)(i8*, __object*)
-  params[0] = c->ptr;
-  params[1] = c->ptr;
-  c->trace_fn = LLVMFunctionType(c->void_type, params, 2, false);
-
-#if defined(USE_RUNTIME_TRACING)
-  // get_behavior_name
-  // void (*)(i8*, __object*, $message*)
-  params[0] = c->i32;
-  c->get_behavior_name_fn = LLVMFunctionType(c->ptr, params, 1, false);
-#endif
-
-  // dispatch
-  // void (*)(i8*, __object*, $message*)
-  params[0] = c->ptr;
-  params[1] = c->ptr;
-  params[2] = c->ptr;
-  c->dispatch_fn = LLVMFunctionType(c->void_type, params, 3, false);
-
-  // void (*)(__object*)
-  params[0] = c->ptr;
-  c->final_fn = LLVMFunctionType(c->void_type, params, 1, false);
-
-  // descriptor, opaque version
-  // We need this in order to build our own structure.
-  const char* desc_name = genname_descriptor(NULL, c->opt->strtab);
-  c->descriptor_type = LLVMStructCreateNamed(c->context, desc_name);
-
-  // field descriptor
-  // Also needed to build a descriptor structure.
-  params[0] = c->i32;
-  params[1] = c->ptr;
-  c->field_descriptor = LLVMStructTypeInContext(c->context, params, 2, false);
-
-  // descriptor, filled in
-  gendesc_basetype(c, c->descriptor_type);
-
-  // define object
-  params[0] = c->ptr;
-  LLVMStructSetBody(c->object_type, params, 1, false);
-
   unsigned int ptr_size = target_is_ilp32(c->opt->triple) ? 4 : 8;
 
   LLVM_DECLARE_ATTRIBUTEREF(nounwind_attr, nounwind, 0);
@@ -257,15 +118,8 @@ static void init_runtime(compile_t* c)
   LLVM_DECLARE_ATTRIBUTEREF(noreturn_attr, noreturn, 0);
   LLVM_DECLARE_ATTRIBUTEREF(deref_actor_attr, dereferenceable,
     PONY_ACTOR_PAD_SIZE + ptr_size);
-  // Declare the true minimum alignment the runtime guarantees for each
-  // allocator's returned memory: HEAP_MIN for heap (object) allocations and
-  // POOL_MIN for pool allocations (actors and messages). These must not exceed
-  // what the runtime actually provides (see HEAP_MIN in heap.h, POOL_MIN in
-  // pool.h) or the optimiser will assume an alignment the memory doesn't have.
-  // For heap allocations this is additionally load-bearing for the HeapToStack
-  // pass, which derives a promoted stack alloca's alignment from this attribute
-  // (genopt.cc); under-declaring it produced allocas too weakly aligned for
-  // fields such as U128, crashing under optimisation. See issue #5462.
+  // HeapToStack (heap_to_stack.cc) derives promoted alloca alignment from
+  // this attribute. Must match the runtime's guarantee (HEAP_MIN in heap.h).
   LLVM_DECLARE_ATTRIBUTEREF(align_heap_attr, align, HEAP_MIN);
   LLVM_DECLARE_ATTRIBUTEREF(align_pool_attr, align, POOL_MIN);
   LLVM_DECLARE_ATTRIBUTEREF(deref_or_null_alloc_attr, dereferenceable_or_null,
@@ -273,6 +127,10 @@ static void init_runtime(compile_t* c)
   LLVM_DECLARE_ATTRIBUTEREF(deref_alloc_small_attr, dereferenceable, HEAP_MIN);
   LLVM_DECLARE_ATTRIBUTEREF(deref_alloc_large_attr, dereferenceable,
     HEAP_MAX << 1);
+
+  LLVMTypeRef type;
+  LLVMTypeRef params[5];
+  LLVMValueRef value;
 
   // i8* pony_ctx()
   type = LLVMFunctionType(c->ptr, NULL, 0, false);
@@ -529,8 +387,6 @@ static void init_runtime(compile_t* c)
     inacc_or_arg_mem_attr);
 
   // i1 pony_start(i32*, i8*)
-  // This prototype and the call emitted in genexe.cc must match libponyrt's
-  // actual pony_start signature.
   params[0] = c->ptr;
   params[1] = c->ptr;
   type = LLVMFunctionType(c->i1, params, 2, false);
@@ -571,6 +427,148 @@ static void init_runtime(compile_t* c)
   value = LLVMAddFunction(c->module, "puts", type);
 }
 
+static void init_runtime(compile_t* c)
+{
+  c->str_builtin = stringtab(c->opt->strtab, "$0");
+  c->str_Bool = stringtab(c->opt->strtab, "Bool");
+  c->str_I8 = stringtab(c->opt->strtab, "I8");
+  c->str_I16 = stringtab(c->opt->strtab, "I16");
+  c->str_I32 = stringtab(c->opt->strtab, "I32");
+  c->str_I64 = stringtab(c->opt->strtab, "I64");
+  c->str_I128 = stringtab(c->opt->strtab, "I128");
+  c->str_ILong = stringtab(c->opt->strtab, "ILong");
+  c->str_ISize = stringtab(c->opt->strtab, "ISize");
+  c->str_U8 = stringtab(c->opt->strtab, "U8");
+  c->str_U16 = stringtab(c->opt->strtab, "U16");
+  c->str_U32 = stringtab(c->opt->strtab, "U32");
+  c->str_U64 = stringtab(c->opt->strtab, "U64");
+  c->str_U128 = stringtab(c->opt->strtab, "U128");
+  c->str_ULong = stringtab(c->opt->strtab, "ULong");
+  c->str_USize = stringtab(c->opt->strtab, "USize");
+  c->str_F32 = stringtab(c->opt->strtab, "F32");
+  c->str_F64 = stringtab(c->opt->strtab, "F64");
+  c->str_Pointer = stringtab(c->opt->strtab, "Pointer");
+  c->str_NullablePointer = stringtab(c->opt->strtab, "NullablePointer");
+  c->str_DoNotOptimise = stringtab(c->opt->strtab, "DoNotOptimise");
+  c->str_Array = stringtab(c->opt->strtab, "Array");
+  c->str_String = stringtab(c->opt->strtab, "String");
+  c->str_Platform = stringtab(c->opt->strtab, "Platform");
+  c->str_Main = stringtab(c->opt->strtab, "Main");
+  c->str_Env = stringtab(c->opt->strtab, "Env");
+
+  c->str_add = stringtab(c->opt->strtab, "add");
+  c->str_sub = stringtab(c->opt->strtab, "sub");
+  c->str_mul = stringtab(c->opt->strtab, "mul");
+  c->str_div = stringtab(c->opt->strtab, "div");
+  c->str_rem = stringtab(c->opt->strtab, "rem");
+  c->str_neg = stringtab(c->opt->strtab, "neg");
+  c->str_add_unsafe = stringtab(c->opt->strtab, "add_unsafe");
+  c->str_sub_unsafe = stringtab(c->opt->strtab, "sub_unsafe");
+  c->str_mul_unsafe = stringtab(c->opt->strtab, "mul_unsafe");
+  c->str_div_unsafe = stringtab(c->opt->strtab, "div_unsafe");
+  c->str_rem_unsafe = stringtab(c->opt->strtab, "rem_unsafe");
+  c->str_neg_unsafe = stringtab(c->opt->strtab, "neg_unsafe");
+  c->str_and = stringtab(c->opt->strtab, "op_and");
+  c->str_or = stringtab(c->opt->strtab, "op_or");
+  c->str_xor = stringtab(c->opt->strtab, "op_xor");
+  c->str_not = stringtab(c->opt->strtab, "op_not");
+  c->str_shl = stringtab(c->opt->strtab, "shl");
+  c->str_shr = stringtab(c->opt->strtab, "shr");
+  c->str_shl_unsafe = stringtab(c->opt->strtab, "shl_unsafe");
+  c->str_shr_unsafe = stringtab(c->opt->strtab, "shr_unsafe");
+  c->str_eq = stringtab(c->opt->strtab, "eq");
+  c->str_ne = stringtab(c->opt->strtab, "ne");
+  c->str_lt = stringtab(c->opt->strtab, "lt");
+  c->str_le = stringtab(c->opt->strtab, "le");
+  c->str_ge = stringtab(c->opt->strtab, "ge");
+  c->str_gt = stringtab(c->opt->strtab, "gt");
+  c->str_eq_unsafe = stringtab(c->opt->strtab, "eq_unsafe");
+  c->str_ne_unsafe = stringtab(c->opt->strtab, "ne_unsafe");
+  c->str_lt_unsafe = stringtab(c->opt->strtab, "lt_unsafe");
+  c->str_le_unsafe = stringtab(c->opt->strtab, "le_unsafe");
+  c->str_ge_unsafe = stringtab(c->opt->strtab, "ge_unsafe");
+  c->str_gt_unsafe = stringtab(c->opt->strtab, "gt_unsafe");
+
+  c->str_this = stringtab(c->opt->strtab, "this");
+  c->str_create = stringtab(c->opt->strtab, "create");
+  c->str__create = stringtab(c->opt->strtab, "_create");
+  c->str__init = stringtab(c->opt->strtab, "_init");
+  c->str__final = stringtab(c->opt->strtab, "_final");
+  c->str__event_notify = stringtab(c->opt->strtab, "_event_notify");
+
+  LLVMTypeRef params[5];
+
+  c->void_type = LLVMVoidTypeInContext(c->context);
+  c->i1 = LLVMInt1TypeInContext(c->context);
+  c->i8 = LLVMInt8TypeInContext(c->context);
+  c->i16 = LLVMInt16TypeInContext(c->context);
+  c->i32 = LLVMInt32TypeInContext(c->context);
+  c->i64 = LLVMInt64TypeInContext(c->context);
+  c->i128 = LLVMIntTypeInContext(c->context, 128);
+  c->f32 = LLVMFloatTypeInContext(c->context);
+  c->f64 = LLVMDoubleTypeInContext(c->context);
+  c->intptr = LLVMIntPtrTypeInContext(c->context, c->target_data);
+
+  // In LLVM IR, all pointers have the same type (there is no element type).
+  c->ptr = LLVMPointerType(c->i8, 0);
+
+  // forward declare object
+  c->object_type = LLVMStructCreateNamed(c->context, "__object");
+
+  // padding required in an actor between the descriptor and fields
+  c->actor_pad = LLVMArrayType(c->i8, PONY_ACTOR_PAD_SIZE);
+
+  // message
+  params[0] = c->i32; // size
+  params[1] = c->i32; // id
+  c->msg_type = LLVMStructCreateNamed(c->context, "__message");
+  LLVMStructSetBody(c->msg_type, params, 2, false);
+
+  // trace
+  // void (*)(i8*, __object*)
+  params[0] = c->ptr;
+  params[1] = c->ptr;
+  c->trace_fn = LLVMFunctionType(c->void_type, params, 2, false);
+
+#if defined(USE_RUNTIME_TRACING)
+  // get_behavior_name
+  // void (*)(i8*, __object*, $message*)
+  params[0] = c->i32;
+  c->get_behavior_name_fn = LLVMFunctionType(c->ptr, params, 1, false);
+#endif
+
+  // dispatch
+  // void (*)(i8*, __object*, $message*)
+  params[0] = c->ptr;
+  params[1] = c->ptr;
+  params[2] = c->ptr;
+  c->dispatch_fn = LLVMFunctionType(c->void_type, params, 3, false);
+
+  // void (*)(__object*)
+  params[0] = c->ptr;
+  c->final_fn = LLVMFunctionType(c->void_type, params, 1, false);
+
+  // descriptor, opaque version
+  // We need this in order to build our own structure.
+  const char* desc_name = genname_descriptor(NULL, c->opt->strtab);
+  c->descriptor_type = LLVMStructCreateNamed(c->context, desc_name);
+
+  // field descriptor
+  // Also needed to build a descriptor structure.
+  params[0] = c->i32;
+  params[1] = c->ptr;
+  c->field_descriptor = LLVMStructTypeInContext(c->context, params, 2, false);
+
+  // descriptor, filled in
+  gendesc_basetype(c, c->descriptor_type);
+
+  // define object
+  params[0] = c->ptr;
+  LLVMStructSetBody(c->object_type, params, 1, false);
+
+  init_runtime_decls(c);
+}
+
 static bool init_module(compile_t* c, ast_t* program, pass_opt_t* opt)
 {
   c->opt = opt;
@@ -592,10 +590,9 @@ static bool init_module(compile_t* c, ast_t* program, pass_opt_t* opt)
   else
     c->callconv = LLVMFastCallConv;
 
-  if(!c->opt->release || c->opt->extfun)
-    c->linkage = LLVMExternalLinkage;
-  else
-    c->linkage = LLVMPrivateLinkage;
+  // All symbols get external linkage. ThinLTO's internalization pass
+  // determines final visibility regardless of the input module count.
+  c->linkage = LLVMExternalLinkage;
 
   c->machine = make_machine(opt);
 
@@ -850,6 +847,7 @@ bool codegen(ast_t* program, pass_opt_t* opt)
     return false;
 
   init_runtime(&c);
+  codegen_init_modules(&c, program);
   genprim_reachable_init(&c, program);
 
   bool ok = genexe(&c, program);
@@ -872,6 +870,7 @@ bool codegen_gen_test(compile_t* c, ast_t* program, pass_opt_t* opt,
       return false;
 
     init_runtime(c);
+    codegen_init_modules(c, program);
     genprim_reachable_init(c, program);
 
     const char* main_actor = c->str_Main;
@@ -934,15 +933,270 @@ void codegen_cleanup(compile_t* c)
   while(c->frame != NULL)
     pop_frame(c);
 
-  LLVMDIBuilderDestroy(c->di);
+  if(c->per_module_count > 0)
+  {
+    // Save active state back before cleanup.
+    per_module_state_t* cur = &c->per_module_states[c->current_module_index];
+    cur->module = c->module;
+    cur->di = c->di;
+    cur->di_unit = c->di_unit;
+    cur->strings = c->strings;
+    cur->ffi_decls = c->ffi_decls;
+
+    for(size_t i = 0; i < c->per_module_count; i++)
+    {
+      per_module_state_t* s = &c->per_module_states[i];
+      LLVMDIBuilderDestroy(s->di);
+      LLVMDisposeModule(s->module);
+      genned_strings_destroy(&s->strings);
+      ffi_decls_destroy(&s->ffi_decls);
+    }
+
+    ponyint_pool_free_size(
+      c->per_module_count * sizeof(per_module_state_t),
+      c->per_module_states);
+  }
+  else
+  {
+    LLVMDIBuilderDestroy(c->di);
+    LLVMDisposeModule(c->module);
+    genned_strings_destroy(&c->strings);
+    ffi_decls_destroy(&c->ffi_decls);
+  }
+
   LLVMDisposeBuilder(c->builder);
-  LLVMDisposeModule(c->module);
   LLVMContextDispose(c->context);
   LLVMDisposeTargetData(c->target_data);
   LLVMDisposeTargetMachine(c->machine);
-  genned_strings_destroy(&c->strings);
-  ffi_decls_destroy(&c->ffi_decls);
   reach_free(c->reach);
+}
+
+void codegen_switch_module(compile_t* c, size_t index)
+{
+  pony_assert(index < c->per_module_count);
+
+  if(index == c->current_module_index)
+    return;
+
+  per_module_state_t* old = &c->per_module_states[c->current_module_index];
+  old->module = c->module;
+  old->di = c->di;
+  old->di_unit = c->di_unit;
+  old->strings = c->strings;
+  old->ffi_decls = c->ffi_decls;
+
+  per_module_state_t* next = &c->per_module_states[index];
+  c->module = next->module;
+  c->di = next->di;
+  c->di_unit = next->di_unit;
+  c->strings = next->strings;
+  c->ffi_decls = next->ffi_decls;
+
+  c->current_module_index = index;
+}
+
+size_t codegen_create_per_module_state(compile_t* c, const char* pkg_sym,
+  ast_t* package)
+{
+  size_t index = c->per_module_count;
+  c->per_module_count++;
+  c->per_module_states = (per_module_state_t*)ponyint_pool_realloc_size(
+    (index == 0) ? 0 : index * sizeof(per_module_state_t),
+    c->per_module_count * sizeof(per_module_state_t),
+    c->per_module_states);
+
+  per_module_state_t* state = &c->per_module_states[index];
+  memset(state, 0, sizeof(per_module_state_t));
+
+  state->package_symbol = pkg_sym;
+
+  char module_name[256];
+  snprintf(module_name, sizeof(module_name), "%s.%s",
+    c->filename, pkg_sym);
+  state->module = LLVMModuleCreateWithNameInContext(module_name, c->context);
+
+  char* layout = LLVMCopyStringRepOfTargetData(c->target_data);
+  LLVMSetTarget(state->module, c->opt->triple);
+  LLVMSetDataLayout(state->module, layout);
+  LLVMDisposeMessage(layout);
+
+  state->di = LLVMNewDIBuilder(state->module);
+
+  const char* filename = package_filename(package);
+  const char* dirname = package_path(package);
+  const char* version = "ponyc-" PONY_VERSION;
+  LLVMMetadataRef fileRef = LLVMDIBuilderCreateFile(state->di, filename,
+    strlen(filename), dirname, strlen(dirname));
+  state->di_unit = LLVMDIBuilderCreateCompileUnit(state->di,
+    LLVMDWARFSourceLanguageC_plus_plus, fileRef,
+    version, strlen(version), c->opt->release,
+    c->opt->all_args ? c->opt->all_args : "",
+    c->opt->all_args ? strlen(c->opt->all_args) : 0,
+    0, "", 0, LLVMDWARFEmissionFull, 0,
+    false, false, "", 0, "", 0);
+
+  genned_strings_init(&state->strings, 64);
+  ffi_decls_init(&state->ffi_decls, 64);
+
+  return index;
+}
+
+void codegen_init_modules(compile_t* c, ast_t* program)
+{
+  c->per_module_count = 0;
+  c->per_module_states = NULL;
+  c->current_module_index = 0;
+
+  ast_t* main_package = ast_child(program);
+
+  // Element 0: adopt the main module already created by init_module.
+  size_t main_idx = c->per_module_count;
+  c->per_module_count = 1;
+  c->per_module_states = (per_module_state_t*)ponyint_pool_alloc_size(
+    sizeof(per_module_state_t));
+  memset(&c->per_module_states[main_idx], 0, sizeof(per_module_state_t));
+
+  per_module_state_t* ms = &c->per_module_states[main_idx];
+  ms->package_symbol = package_symbol(main_package);
+  ms->module = c->module;
+  ms->di = c->di;
+  ms->di_unit = c->di_unit;
+  ms->strings = c->strings;
+  ms->ffi_decls = c->ffi_decls;
+
+  // Create modules for remaining packages.
+  ast_t* package = ast_sibling(main_package);
+
+  while(package != NULL)
+  {
+    if(ast_id(package) == TK_PACKAGE)
+    {
+      const char* pkg_sym = package_symbol(package);
+      bool found = false;
+
+      for(size_t i = 0; i < c->per_module_count; i++)
+      {
+        if(c->per_module_states[i].package_symbol == pkg_sym)
+        {
+          found = true;
+          break;
+        }
+      }
+
+      if(!found)
+      {
+        size_t idx = codegen_create_per_module_state(c, pkg_sym,
+          package);
+        codegen_switch_module(c, idx);
+        init_runtime_decls(c);
+      }
+    }
+
+    package = ast_sibling(package);
+  }
+
+  // Switch back to the main module.
+  codegen_switch_module(c, 0);
+}
+
+size_t codegen_module_index_for_package(compile_t* c,
+  const char* pkg_sym)
+{
+  for(size_t i = 0; i < c->per_module_count; i++)
+  {
+    if(c->per_module_states[i].package_symbol == pkg_sym)
+      return i;
+  }
+
+  pony_assert(0);
+  return 0;
+}
+
+LLVMValueRef codegen_resolve_function(compile_t* c, LLVMValueRef fn)
+{
+  if(c->per_module_count == 0)
+    return fn;
+
+  LLVMModuleRef fn_module = LLVMGetGlobalParent(fn);
+
+  if(fn_module == c->module)
+    return fn;
+
+  const char* name = LLVMGetValueName(fn);
+  LLVMValueRef resolved = LLVMGetNamedFunction(c->module, name);
+
+  if(resolved != NULL)
+    return resolved;
+
+  LLVMTypeRef fn_type = LLVMGlobalGetValueType(fn);
+  resolved = LLVMAddFunction(c->module, name, fn_type);
+  LLVMSetLinkage(resolved, LLVMExternalLinkage);
+  return resolved;
+}
+
+LLVMValueRef codegen_resolve_global(compile_t* c, LLVMValueRef global)
+{
+  if(c->per_module_count == 0)
+    return global;
+
+  LLVMModuleRef g_module = LLVMGetGlobalParent(global);
+
+  if(g_module == c->module)
+    return global;
+
+  const char* name = LLVMGetValueName(global);
+  LLVMValueRef resolved = LLVMGetNamedGlobal(c->module, name);
+
+  if(resolved != NULL)
+    return resolved;
+
+  LLVMTypeRef g_type = LLVMGlobalGetValueType(global);
+  resolved = LLVMAddGlobal(c->module, g_type, name);
+  LLVMSetLinkage(resolved, LLVMExternalLinkage);
+  return resolved;
+}
+
+static void stamp_module_target_attrs(compile_t* c, LLVMModuleRef module)
+{
+  const char* cpu = c->opt->cpu;
+  const char* features = c->opt->features;
+
+  LLVMAttributeRef cpu_attr = LLVMCreateStringAttribute(
+    c->context, "target-cpu", 10, cpu, (unsigned)strlen(cpu));
+  LLVMAttributeRef feat_attr = LLVMCreateStringAttribute(
+    c->context, "target-features", 15, features, (unsigned)strlen(features));
+
+  LLVMValueRef fn = LLVMGetFirstFunction(module);
+
+  while(fn != NULL)
+  {
+    if(!LLVMIsDeclaration(fn))
+    {
+      LLVMAddAttributeAtIndex(fn, LLVMAttributeFunctionIndex, cpu_attr);
+      LLVMAddAttributeAtIndex(fn, LLVMAttributeFunctionIndex, feat_attr);
+    }
+
+    fn = LLVMGetNextFunction(fn);
+  }
+
+  if(c->opt->abi != NULL)
+  {
+    LLVMMetadataRef abi_md = LLVMMDStringInContext2(
+      c->context, c->opt->abi, strlen(c->opt->abi));
+    LLVMAddModuleFlag(module, LLVMModuleFlagBehaviorError,
+      "target-abi", 10, abi_md);
+  }
+}
+
+void codegen_stamp_target_attrs(compile_t* c)
+{
+  if(c->per_module_count > 0)
+  {
+    for(size_t i = 0; i < c->per_module_count; i++)
+      stamp_module_target_attrs(c, c->per_module_states[i].module);
+  } else {
+    stamp_module_target_attrs(c, c->module);
+  }
 }
 
 LLVMValueRef codegen_addfun(compile_t* c, const char* name, LLVMTypeRef type,
@@ -966,6 +1220,11 @@ LLVMValueRef codegen_addfun(compile_t* c, const char* name, LLVMTypeRef type,
 void codegen_startfun(compile_t* c, LLVMValueRef fun, LLVMMetadataRef file,
   LLVMMetadataRef scope, deferred_reification_t* reify, bool bare)
 {
+  if(c->per_module_count > 0)
+  {
+    pony_assert(LLVMGetGlobalParent(fun) == c->module);
+  }
+
   compile_frame_t* frame = push_frame(c);
 
   frame->fun = fun;

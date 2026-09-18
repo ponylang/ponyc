@@ -74,8 +74,7 @@ const char* pass_name(pass_id pass)
     case PASS_PAINT: return "paint";
     case PASS_LLVM_IR: return "ir";
     case PASS_BITCODE: return "bitcode";
-    case PASS_ASM: return "asm";
-    case PASS_OBJ: return "obj";
+    case PASS_SPLIT_BITCODE: return "split-bc";
     case PASS_ALL: return "all";
     default: return "error";
   }
@@ -105,6 +104,7 @@ void pass_opt_init(pass_opt_t* options)
   // Start with an empty typechecker frame.
   memset(options, 0, sizeof(pass_opt_t));
   options->limit = PASS_ALL;
+  options->thinlto_partitions = 4;
   options->verbosity = VERBOSITY_INFO;
   // The interned-string table must exist before anything that interns into it.
   options->strtab = stringtab_new();
@@ -137,13 +137,9 @@ void pass_opt_done(pass_opt_t* options)
       "\nStats:"
       "\n  Names: " __zu
       "\n  Default caps: " __zu
-      "\n  Heap alloc: " __zu
-      "\n  Stack alloc: " __zu
       "\n",
       options->check.stats.names_count,
-      options->check.stats.default_caps_count,
-      options->check.stats.heap_alloc,
-      options->check.stats.stack_alloc
+      options->check.stats.default_caps_count
       );
   }
 

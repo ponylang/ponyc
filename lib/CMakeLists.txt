@@ -69,7 +69,7 @@ ExternalProject_Add(googletest
 find_package(Git)
 
 set(LLVM_DESIRED_HASH "fc4aad7b5db3fff421df9a9637605b9ca5667881")
-set(PATCHES_DESIRED_HASH "49d865c5ab194d7b59781e8e99c68e1b8bc8b27e0cdaa0d1b498c5474e7ed060")
+set(PATCHES_DESIRED_HASH "31e700ac2d163db7759b66c7d19b09d42bc5bde67dbcdc4ca0186b56757fcf34")
 
 if(GIT_FOUND)
     if(EXISTS "${PROJECT_SOURCE_DIR}/../.git")
@@ -244,6 +244,7 @@ set(LLVM_ENABLE_Z3_SOLVER OFF CACHE BOOL "ponyc specific override of LLVM cache 
 set(LLVM_INCLUDE_BENCHMARKS OFF CACHE BOOL "ponyc specific override of LLVM cache entry")
 set(LLVM_INCLUDE_TESTS OFF CACHE BOOL "ponyc specific override of LLVM cache entry")
 set(LLVM_TOOL_REMARKS_SHLIB_BUILD OFF CACHE BOOL "ponyc specific override of LLVM cache entry")
+set(LLVM_TOOL_LTO_BUILD OFF CACHE BOOL "ponyc: skip libLTO.so — ponyc uses the static libLLVMLTO.a and the shared lib cannot resolve getPonyLTOPluginInfo")
 if(NOT MSVC)
   set(LLVM_ENABLE_ZLIB FORCE_ON CACHE STRING "ponyc specific override of LLVM cache entry")
 else()

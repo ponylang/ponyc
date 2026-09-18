@@ -704,7 +704,7 @@ static LLVMValueRef box_is_box(compile_t* c, reach_type_t* left_type,
     // thing and pretend the array[i32] is an array[i8].
     args[0] = LLVMBuildZExt(c->builder, l_typeid, c->intptr, "");
     LLVMValueRef size = LLVMBuildInBoundsGEP2(c->builder, c->i8,
-      c->numeric_sizes, args, 1, "");
+      codegen_resolve_global(c, c->numeric_sizes), args, 1, "");
     size = LLVMBuildLoad2(c->builder, c->i32, size, "");
     LLVMSetAlignment(size, 4);
 
@@ -1023,7 +1023,7 @@ LLVMValueRef gen_numeric_size_table(compile_t* c)
   LLVMSetInitializer(table, value);
   LLVMSetGlobalConstant(table, true);
   LLVMSetAlignment(table, 4);
-  LLVMSetLinkage(table, LLVMPrivateLinkage);
+  LLVMSetLinkage(table, LLVMExternalLinkage);
 
   ponyint_pool_free_size(size, args);
 

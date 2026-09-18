@@ -160,4 +160,3 @@ On OpenSSL 3.0.x and 4.0.x, `Digest.shake128` and `Digest.shake256` produce vari
 The package also includes `HmacSha256` for message authentication, `Pbkdf2Sha256` for key derivation, `RandBytes` for cryptographically secure random bytes, and `ConstantTimeCompare` for timing-safe comparison.
 
 If your code depended on `ponylang/ssl` for crypto, switch to `use "crypto"` with no code changes beyond the import path.
-

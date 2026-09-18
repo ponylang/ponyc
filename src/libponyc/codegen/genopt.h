@@ -6,7 +6,7 @@
 
 PONY_EXTERN_C_BEGIN
 
-bool genopt(compile_t* c, bool pony_specific);
+bool pony_specific_opt(compile_t* c);
 bool target_is_linux(char* triple);
 bool target_is_bsd(char* triple);
 bool target_is_freebsd(char* triple);
