@@ -12,6 +12,9 @@
 #include <sys/types.h>
 #include <sys/sysctl.h>
 #include <sys/stat.h>
+#elif defined(PLATFORM_IS_HAIKU)
+#include <unistd.h>
+#include <sys/stat.h>
 #endif
 
 #ifdef PLATFORM_IS_WINDOWS
@@ -228,7 +231,7 @@ bool get_compiler_exe_path(char* output_path, const char* argv0)
 
   if(success)
     output_path[r] = '\0';
-#elif defined PLATFORM_IS_OPENBSD
+#elif defined PLATFORM_IS_OPENBSD || defined PLATFORM_IS_HAIKU
   if (argv0 != NULL && (*argv0 == '/' || *argv0 == '.'))
   {
     if (pony_realpath(argv0, output_path) != NULL)

@@ -75,7 +75,9 @@ static void cond_normalise(ast_t** astp, pass_opt_t* opt)
             NODE(TK_IFDEFOR,
               NODE(TK_IFDEFFLAG, ID(OS_LINUX_NAME))
               NODE(TK_IFDEFFLAG, ID(OS_MACOSX_NAME)))
-            NODE(TK_IFDEFFLAG, ID(OS_BSD_NAME))));
+            NODE(TK_IFDEFOR,
+              NODE(TK_IFDEFFLAG, ID(OS_BSD_NAME))
+              NODE(TK_IFDEFFLAG, ID(OS_HAIKU_NAME)))));
         break;
       }
 

@@ -1745,7 +1745,8 @@ class TCPConnection[TCP: TCPBackend ref = RuntimeBackend,
       // is unnecessary there. On BSDs the redundant resubscribe also triggers
       // a retry_loop pipe write, doubling wakeup traffic per backpressure
       // cycle; skip it there.
-      ifdef not bsd then
+      // Same for Haiku and our use of its wait_for_objects API call.
+      ifdef not bsd and not haiku then
         if _writeable and not _asio.get_disposable(_event) then
           _asio.resubscribe_read(_event)
         end
@@ -1759,7 +1760,8 @@ class TCPConnection[TCP: TCPBackend ref = RuntimeBackend,
     //
     // Same as above: kqueue's independent filters make this unnecessary
     // on BSDs, and the redundant resubscribe adds retry_loop overhead.
-    ifdef not bsd then
+    // Same for Haiku and our use of its wait_for_objects API call.
+    ifdef not bsd and not haiku then
       if _throttled and not _asio.get_disposable(_event) then
         _asio.resubscribe_write(_event)
       end

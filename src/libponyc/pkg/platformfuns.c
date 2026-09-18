@@ -59,6 +59,12 @@ bool os_is_target(const char* attribute, bool release, bool* out_is_target, pass
     return true;
   }
 
+  if(!strcmp(attribute, OS_HAIKU_NAME))
+  {
+    *out_is_target = target_is_haiku(options->triple);
+    return true;
+  }
+
   if(!strcmp(attribute, OS_X86_NAME))
   {
     *out_is_target = target_is_x86(options->triple);

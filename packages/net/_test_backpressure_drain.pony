@@ -189,7 +189,7 @@ actor \nodoc\ _TestBackpressureDrainClient
     // Small receive buffer so the pipe fills quickly.
     // BSDs need a larger buffer to avoid TCP flow control stalls amplified
     // by kqueue wakeup delay.
-    ifdef bsd then
+    ifdef bsd or haiku then
       _tcp_connection.set_so_rcvbuf(16384)
     else
       _tcp_connection.set_so_rcvbuf(4096)
@@ -397,7 +397,7 @@ actor \nodoc\ _TestWriteOnlyEventReadRecoveryClient
 
   fun ref _on_connected() =>
     _h.complete_action("client connected")
-    ifdef bsd then
+    ifdef bsd or haiku then
       _tcp_connection.set_so_rcvbuf(16384)
     else
       _tcp_connection.set_so_rcvbuf(4096)
@@ -620,7 +620,7 @@ actor \nodoc\ _TestReadableEventWriteRecoveryClient
 
   fun ref _on_connected() =>
     _h.complete_action("client connected")
-    ifdef bsd then
+    ifdef bsd or haiku then
       _tcp_connection.set_so_rcvbuf(16384)
     else
       _tcp_connection.set_so_rcvbuf(4096)
