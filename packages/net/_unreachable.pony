@@ -1,18 +1,24 @@
+use @pony_os_stderr[Pointer[U8]]()
+use @fprintf[I32](stream: Pointer[U8] tag, fmt: Pointer[U8] tag, ...)
 use @exit[None](status: I32)
-use @fprintf[I32](stream: Pointer[None] tag, fmt: Pointer[U8] tag, ...)
-use @pony_os_stderr[Pointer[None]]()
 
 primitive _Unreachable
   """
-  To be used in places that the compiler can't prove is unreachable but we are
-  certain is unreachable and if we reach it, we'd be silently hiding a bug.
+  Panic for code paths that should be structurally impossible.
+
+  Prints file and line to stderr, then exits. Use this instead of silently
+  swallowing errors when a failure would indicate a bug in the program logic,
+  not an expected runtime condition.
   """
+
   fun apply(loc: SourceLoc = __loc) =>
     @fprintf(
       @pony_os_stderr(),
-      ("The unreachable was reached in %s at line %s\n" +
-        "Please open an issue at https://github.com/ponylang/ponyc/issues")
-        .cstring(),
+      ("Unreachable code reached at %s:%lu in %s.%s\n" +
+        "Please file an issue at " +
+        "https://github.com/ponylang/ponyc/issues\n").cstring(),
       loc.file().cstring(),
-      loc.line().string().cstring())
+      loc.line(),
+      loc.type_name().cstring(),
+      loc.method_name().cstring())
     @exit(1)
