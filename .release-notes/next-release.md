@@ -131,3 +131,33 @@ On 32-bit Linux (ILP32), compiling large programs could crash with "out of memor
 
 The allocator now uses `MAP_FIXED_NOREPLACE` (available since Linux 4.17, within ponyc's existing 5.3 kernel minimum) to request aligned addresses directly, avoiding the overallocation. It falls back to the old approach when the aligned probes fail.
 
+## Add crypto package to the standard library
+
+The `crypto` package provides cryptographic primitives backed by OpenSSL's libcrypto.
+
+One-shot hash functions cover the common case where all the data is available at once:
+
+```pony
+use "crypto"
+
+let hash = SHA256("Hello, World!")
+env.out.print(ToHexString(hash))
+```
+
+Available one-shot functions: `MD4`, `MD5`, `RIPEMD160`, `SHA1`, `SHA224`, `SHA256`, `SHA384`, `SHA512`.
+
+The streaming `Digest` class hashes data that arrives in pieces:
+
+```pony
+let d = Digest.sha256()?
+d.append("Hello, ")?
+d.append("World!")?
+let hash = d.final()?
+```
+
+On OpenSSL 3.0.x and 4.0.x, `Digest.shake128` and `Digest.shake256` produce variable-length output.
+
+The package also includes `HmacSha256` for message authentication, `Pbkdf2Sha256` for key derivation, `RandBytes` for cryptographically secure random bytes, and `ConstantTimeCompare` for timing-safe comparison.
+
+If your code depended on `ponylang/ssl` for crypto, switch to `use "crypto"` with no code changes beyond the import path.
+
