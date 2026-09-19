@@ -120,6 +120,25 @@ For programmatic access to classification counts, pass a
 constructing the
 [PropertyRunner](pony_check-PropertyRunner.md).
 
+## Stateful Property Testing
+
+[StatefulProperty](pony_check-StatefulProperty.md) tests a system whose
+behavior depends on accumulated state. Each sample creates a fresh system
+under test and a reference model, draws a random step count, then
+interleaves command generation, execution, and invariant checks. On
+failure, the choice sequence is shrunk to find a minimal reproducing
+trace.
+
+Define a [StatefulProperty](pony_check-StatefulProperty.md) by
+implementing `initial_sut()`, `initial_model()`, `step()`, and optionally
+`invariant()` and `final_check()`. Register it with PonyTest using
+[StatefulPropertyUnitTest](pony_check-StatefulPropertyUnitTest.md):
+
+```pony
+test(StatefulPropertyUnitTest[MyQueue ref, MyModel ref, MyCmd](
+  _MyQueueProperty))
+```
+
 """
 use "pony_test"
 
