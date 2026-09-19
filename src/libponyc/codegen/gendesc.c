@@ -54,7 +54,8 @@ static LLVMValueRef make_unbox_function(compile_t* c, reach_type_t* t,
 {
   // Create a new unboxing function that forwards to the real function.
   compile_method_t* c_m = (compile_method_t*)m->c_method;
-  LLVMTypeRef f_type = LLVMGlobalGetValueType(c_m->func);
+  LLVMValueRef resolved_func = codegen_resolve_function(c, c_m->func);
+  LLVMTypeRef f_type = LLVMGlobalGetValueType(resolved_func);
   int count = LLVMCountParamTypes(f_type);
 
   // Leave space for a receiver if it's a constructor vtable entry.
@@ -112,8 +113,8 @@ static LLVMValueRef make_unbox_function(compile_t* c, reach_type_t* t,
       args[i] = LLVMGetParam(unbox_fun, i + 1);
   }
 
-  LLVMValueRef result = codegen_call(c, LLVMGlobalGetValueType(c_m->func),
-    c_m->func, args, count, m->cap != TK_AT);
+  LLVMValueRef result = codegen_call(c, LLVMGlobalGetValueType(resolved_func),
+    resolved_func, args, count, m->cap != TK_AT);
 
   genfun_build_ret(c, result);
 
@@ -211,9 +212,8 @@ static LLVMValueRef make_trait_bitmap(compile_t* c, reach_type_t* t)
   const char* name = genname_traitmap(t->name, c->opt->strtab);
   LLVMValueRef global = LLVMAddGlobal(c->module, map_type, name);
   LLVMSetGlobalConstant(global, true);
-  LLVMSetLinkage(global, LLVMPrivateLinkage);
+  LLVMSetLinkage(global, LLVMExternalLinkage);
   LLVMSetInitializer(global, bitmap_array);
-  LLVMSetUnnamedAddr(global, true);
 
   return global;
 }
@@ -302,7 +302,7 @@ static LLVMValueRef make_field_list(compile_t* c, reach_type_t* t)
     if(f_c_t->desc != NULL)
     {
       // We are a concrete type.
-      fdesc[1] = f_c_t->desc;
+      fdesc[1] = codegen_resolve_global(c, f_c_t->desc);
     } else {
       // We aren't a concrete type.
       fdesc[1] = LLVMConstNull(c->ptr);
@@ -317,9 +317,8 @@ static LLVMValueRef make_field_list(compile_t* c, reach_type_t* t)
   const char* name = genname_fieldlist(t->name, c->opt->strtab);
   LLVMValueRef global = LLVMAddGlobal(c->module, field_type, name);
   LLVMSetGlobalConstant(global, true);
-  LLVMSetLinkage(global, LLVMPrivateLinkage);
+  LLVMSetLinkage(global, LLVMExternalLinkage);
   LLVMSetInitializer(global, field_array);
-  LLVMSetUnnamedAddr(global, true);
 
   ponyint_pool_free_size(buf_size, list);
   return global;
@@ -353,7 +352,8 @@ static LLVMValueRef make_vtable(compile_t* c, reach_type_t* t)
       if((c_t->primitive != NULL) && !m->internal)
         vtable[index] = make_unbox_function(c, t, m);
       else
-        vtable[index] = make_desc_ptr(c, c_m->func);
+        vtable[index] = make_desc_ptr(c,
+          codegen_resolve_function(c, c_m->func));
     }
   }
 
@@ -440,7 +440,7 @@ void gendesc_type(compile_t* c, reach_type_t* t)
 
   c_t->desc = LLVMAddGlobal(c->module, c_t->desc_type, desc_name);
   LLVMSetGlobalConstant(c_t->desc, true);
-  LLVMSetLinkage(c_t->desc, LLVMPrivateLinkage);
+  LLVMSetLinkage(c_t->desc, LLVMExternalLinkage);
 }
 
 void gendesc_init(compile_t* c, reach_type_t* t)
@@ -664,5 +664,6 @@ LLVMValueRef gendesc_isentity(compile_t* c, LLVMValueRef desc, ast_t* type)
     return GEN_NOVALUE;
 
   compile_type_t* c_t = (compile_type_t*)t->c_type;
-  return LLVMBuildICmp(c->builder, LLVMIntEQ, desc, c_t->desc, "");
+  return LLVMBuildICmp(c->builder, LLVMIntEQ, desc,
+    codegen_resolve_global(c, c_t->desc), "");
 }

@@ -62,9 +62,9 @@ LLVMMetadataRef LLVMDIBuilderCreateMethod(LLVMDIBuilderRef d,
   DISubprogram::DISPFlags sp_flags = DISubprogram::toSPFlags(false, true,
     optimized ? true : false);
 
-  DISubprogram* di_method = pd->createMethod(unwrap<DIScope>(scope),
+  DISubprogram* di_method = pd->createFunction(unwrap<DIScope>(file),
     name, linkage, unwrap<DIFile>(file), line, unwrap<DISubroutineType>(type),
-    0, 0, nullptr, DINode::FlagZero, sp_flags, nullptr, nullptr);
+    line, DINode::FlagZero, sp_flags, nullptr, nullptr, nullptr);
 
   f->setSubprogram(di_method);
   return wrap(di_method);

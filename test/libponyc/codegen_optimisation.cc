@@ -2,6 +2,7 @@
 #include <platform.h>
 
 #include <codegen/genopt.h>
+#include <heap_to_stack.h>
 
 #include "util.h"
 
@@ -9,6 +10,9 @@
 
 #include <llvm/IR/Module.h>
 #include <llvm/IR/InstrTypes.h>
+#include <llvm/Passes/PassBuilder.h>
+#include <llvm/Analysis/AliasAnalysis.h>
+#include <llvm/Analysis/CGSCCPassManager.h>
 
 #include "llvm_config_end.h"
 
@@ -18,16 +22,6 @@
 class CodegenOptimisationTest : public PassTest
 {
 protected:
-  // Run the Pony-specific optimisation passes (including MergeMessageSend) over
-  // the compiled module, the same way genexe does for a real build. The unit
-  // test compile path stops at gentypes and never optimises, so without this a
-  // test of an optimisation pass would never actually run it.
-  //
-  // The functions are forced to external linkage first: a release build gives
-  // generated functions private linkage, and because the test module has no
-  // gen_main entry point, the O3 pipeline's global dead-code elimination would
-  // otherwise delete every (unreferenced) function before the scan below could
-  // see the merged sends.
   void optimise()
   {
     auto module = llvm::unwrap(compile->module);
@@ -38,9 +32,39 @@ protected:
         function.setLinkage(llvm::GlobalValue::ExternalLinkage);
     }
 
-    // genopt runs the module verifier (opt.verify is set by PassTest), so an
-    // invalid-IR merge aborts the test here.
-    ASSERT_TRUE(genopt(compile, true));
+    ASSERT_TRUE(pony_specific_opt(compile));
+  }
+
+  // Run pony_specific_opt followed by HeapToStack via its own CGSCC pipeline.
+  // In a real build HeapToStack runs during LTO; this exercises it on the
+  // single in-memory module the test fixture produces.
+  void optimise_with_heap_to_stack()
+  {
+    optimise();
+
+    auto module = llvm::unwrap(compile->module);
+
+    llvm::PassBuilder PB;
+    llvm::LoopAnalysisManager LAM;
+    llvm::FunctionAnalysisManager FAM;
+    llvm::CGSCCAnalysisManager CGAM;
+    llvm::ModuleAnalysisManager MAM;
+
+    FAM.registerPass([&] { return PB.buildDefaultAAPipeline(); });
+
+    PB.registerModuleAnalyses(MAM);
+    PB.registerCGSCCAnalyses(CGAM);
+    PB.registerFunctionAnalyses(FAM);
+    PB.registerLoopAnalyses(LAM);
+    PB.crossRegisterProxies(LAM, FAM, CGAM, MAM);
+
+    llvm::CGSCCPassManager CGPM;
+    CGPM.addPass(pony::HeapToStack());
+
+    llvm::ModulePassManager MPM;
+    MPM.addPass(
+      llvm::createModuleToPostOrderCGSCCPassAdaptor(std::move(CGPM)));
+    MPM.run(*module, MAM);
   }
 
   // Count direct calls to the named function across the whole module.
@@ -174,7 +198,7 @@ TEST_F(CodegenOptimisationTest, HeapToStackStoreToAlloca)
   TEST_COMPILE(src);
 
   size_t before = count_calls_to("pony_alloc_small");
-  DO(optimise());
+  DO(optimise_with_heap_to_stack());
   size_t after = count_calls_to("pony_alloc_small");
 
   ASSERT_LT(after, before);
@@ -211,7 +235,7 @@ TEST_F(CodegenOptimisationTest, HeapToStackStoreToEscapingNotPromoted)
   TEST_COMPILE(src);
 
   size_t before = count_calls_to("pony_alloc_small");
-  DO(optimise());
+  DO(optimise_with_heap_to_stack());
   size_t after = count_calls_to("pony_alloc_small");
 
   ASSERT_GE(after, before);

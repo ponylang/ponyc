@@ -337,7 +337,7 @@ static LLVMValueRef try_single_subtype_devirt(compile_t* c,
   compile_method_t* c_m_sub = (compile_method_t*)m_sub->c_method;
 
   if((c_m_sub != NULL) && (c_m_sub->func != NULL))
-    return c_m_sub->func;
+    return codegen_resolve_function(c, c_m_sub->func);
 
   return NULL;
 }
@@ -380,7 +380,7 @@ static LLVMValueRef dispatch_function(compile_t* c, reach_type_t* t,
     case TK_ACTOR:
     {
       // Static, get the actual function.
-      return c_m->func;
+      return codegen_resolve_function(c, c_m->func);
     }
 
     default: {}
@@ -422,7 +422,7 @@ static void set_descriptor(compile_t* c, reach_type_t* t, LLVMValueRef value)
 
   LLVMValueRef desc_ptr = LLVMBuildStructGEP2(c->builder, c_t->structure,
     value, 0, "");
-  LLVMBuildStore(c->builder, c_t->desc, desc_ptr);
+  LLVMBuildStore(c->builder, codegen_resolve_global(c, c_t->desc), desc_ptr);
 }
 
 // This function builds a stack of indices such that for an AST nested in an
@@ -943,7 +943,7 @@ LLVMValueRef gen_call(compile_t* c, ast_t* ast)
         break;
 
       default:
-        r = c->none_instance;
+        r = codegen_resolve_global(c, c->none_instance);
         break;
     }
   } else {
@@ -1035,7 +1035,7 @@ LLVMValueRef gen_call(compile_t* c, ast_t* ast)
   // Bare methods with None return type return void, special case a None return
   // value.
   if(bare && is_none(m->result->ast))
-    r = c->none_instance;
+    r = codegen_resolve_global(c, c->none_instance);
 
   // Class constructors return void, expression result is the receiver.
   if(((ast_id(postfix) == TK_NEWREF) || (ast_id(postfix) == TK_NEWBEREF)) &&
@@ -1427,7 +1427,7 @@ LLVMValueRef gen_ffi(compile_t* c, ast_t* ast)
     }
     else if(is_none(t->ast))
     {
-      result = c_t->instance;
+      result = codegen_resolve_global(c, c_t->instance);
     }
     else
     {
@@ -1457,6 +1457,112 @@ LLVMValueRef gen_ffi(compile_t* c, ast_t* ast)
     AST_GET_CHILDREN(decl, decl_id, decl_ret, decl_params, decl_named_params, decl_err);
 
     func = declare_ffi(c, f_name, t, decl_params, is_intrinsic);
+
+    // With per-module, check other modules for a conflicting declaration
+    // of the same FFI function.
+    if(c->per_module_count > 0)
+    {
+      for(size_t mi = 0; mi < c->per_module_count; mi++)
+      {
+        if(mi == c->current_module_index)
+          continue;
+
+        LLVMValueRef other_func =
+          LLVMGetNamedFunction(c->per_module_states[mi].module, f_name);
+
+        if(other_func != NULL)
+        {
+          LLVMTypeRef this_type = LLVMGlobalGetValueType(func);
+          LLVMTypeRef other_type = LLVMGlobalGetValueType(other_func);
+
+          if(this_type != other_type)
+          {
+            int this_count = (int)LLVMCountParamTypes(this_type);
+            int other_count = (int)LLVMCountParamTypes(other_type);
+
+            ffi_decl_t kk;
+            kk.func = other_func;
+            size_t idx2 = HASHMAP_UNKNOWN;
+            ffi_decl_t* other_decl = ffi_decls_get(
+              &c->per_module_states[mi].ffi_decls, &kk, &idx2);
+
+            if(this_count != other_count)
+            {
+              ast_error(c->opt->check.errors, ast,
+                "conflicting declarations for FFI function: declarations "
+                "have an incompatible number of parameters");
+
+              if(other_decl != NULL)
+                ast_error_continue(c->opt->check.errors, other_decl->decl,
+                  "first declaration is here");
+              return NULL;
+            }
+
+            LLVMTypeRef this_ret = LLVMGetReturnType(this_type);
+            LLVMTypeRef other_ret = LLVMGetReturnType(other_type);
+
+            bool ret_void_mismatch =
+              (this_ret == c->void_type) != (other_ret == c->void_type);
+            bool ret_size_mismatch = !ret_void_mismatch &&
+              (this_ret != other_ret) &&
+              (this_ret != c->void_type) &&
+              (LLVMABISizeOfType(c->target_data, this_ret) !=
+               LLVMABISizeOfType(c->target_data, other_ret));
+
+            if(ret_void_mismatch || ret_size_mismatch)
+            {
+              ast_error(c->opt->check.errors, ast,
+                "conflicting calls for FFI function: return values "
+                "have incompatible types");
+
+              if(other_decl != NULL)
+                ast_error_continue(c->opt->check.errors, other_decl->decl,
+                  "first declaration is here");
+              return NULL;
+            }
+
+            if(this_count > 0)
+            {
+              size_t psz = this_count * sizeof(LLVMTypeRef);
+              LLVMTypeRef* this_params =
+                (LLVMTypeRef*)ponyint_pool_alloc_size(psz);
+              LLVMTypeRef* other_params =
+                (LLVMTypeRef*)ponyint_pool_alloc_size(psz);
+              LLVMGetParamTypes(this_type, this_params);
+              LLVMGetParamTypes(other_type, other_params);
+
+              bool param_compat = true;
+              for(int pi = 0; pi < this_count; pi++)
+              {
+                if(this_params[pi] != other_params[pi] &&
+                  LLVMABISizeOfType(c->target_data, this_params[pi]) !=
+                  LLVMABISizeOfType(c->target_data, other_params[pi]))
+                {
+                  param_compat = false;
+                  break;
+                }
+              }
+
+              ponyint_pool_free_size(psz, this_params);
+              ponyint_pool_free_size(psz, other_params);
+
+              if(!param_compat)
+              {
+                ast_error(c->opt->check.errors, ast,
+                  "conflicting calls for FFI function: parameters "
+                  "have incompatible types");
+
+                if(other_decl != NULL)
+                  ast_error_continue(c->opt->check.errors, other_decl->decl,
+                    "first declaration is here");
+                return NULL;
+              }
+            }
+          }
+          break;
+        }
+      }
+    }
 
     size_t index = HASHMAP_UNKNOWN;
 
@@ -1556,7 +1662,7 @@ LLVMValueRef gen_ffi(compile_t* c, ast_t* ast)
 
   if(isnone && isvoid)
   {
-    result = c_t->instance;
+    result = codegen_resolve_global(c, c_t->instance);
   } else if(isnone != isvoid) {
     report_ffi_type_err(c, ffi_decl, ast, "return values");
     return NULL;
@@ -1592,7 +1698,7 @@ LLVMValueRef gencall_create(compile_t* c, reach_type_t* t, ast_t* call)
 
   LLVMValueRef args[3];
   args[0] = codegen_ctx(c);
-  args[1] = c_t->desc;
+  args[1] = codegen_resolve_global(c, c_t->desc);
   args[2] = LLVMConstInt(c->i1, no_inc_rc ? 1 : 0, false);
 
   return gencall_runtime(c, "pony_create", args, 3, "");
@@ -1612,7 +1718,7 @@ LLVMValueRef gencall_alloc(compile_t* c, reach_type_t* t, ast_t* call)
 
   // Use the global instance if we have one.
   if(c_t->instance != NULL)
-    return c_t->instance;
+    return codegen_resolve_global(c, c_t->instance);
 
   if(t->underlying == TK_ACTOR)
     return gencall_create(c, t, call);

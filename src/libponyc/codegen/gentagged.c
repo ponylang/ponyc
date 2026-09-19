@@ -188,8 +188,9 @@ static LLVMValueRef gentagged_fetch_desc(compile_t* c, LLVMValueRef tagged,
     LLVMAddCase(type_switch, LLVMConstInt(c->i32, sub->type_id, false),
       case_block);
     LLVMPositionBuilderAtEnd(c->builder, case_block);
+    LLVMValueRef resolved_desc = codegen_resolve_global(c, c_sub->desc);
     LLVMBuildBr(c->builder, merge_block);
-    LLVMAddIncoming(phi, &c_sub->desc, &case_block, 1);
+    LLVMAddIncoming(phi, &resolved_desc, &case_block, 1);
     case_count++;
   }
 
@@ -230,8 +231,9 @@ static LLVMValueRef gentagged_fetch_desc_all(compile_t* c, LLVMValueRef tagged)
     LLVMAddCase(type_switch, LLVMConstInt(c->i32, sub->type_id, false),
       case_block);
     LLVMPositionBuilderAtEnd(c->builder, case_block);
+    LLVMValueRef resolved_desc = codegen_resolve_global(c, c_sub->desc);
     LLVMBuildBr(c->builder, merge_block);
-    LLVMAddIncoming(phi, &c_sub->desc, &case_block, 1);
+    LLVMAddIncoming(phi, &resolved_desc, &case_block, 1);
     case_count++;
   }
 

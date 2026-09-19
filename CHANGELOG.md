@@ -21,6 +21,8 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Changed
 
+- Replace optimize-then-emit pipeline with per-package codegen ([PR #6109](https://github.com/ponylang/ponyc/pull/6109))
+- Remove `--pass asm` and `--pass obj` ([PR #6109](https://github.com/ponylang/ponyc/pull/6109))
 - Add AsioBackend trait for mockable ASIO operations ([PR #6071](https://github.com/ponylang/ponyc/pull/6071))
 - `TCPBackend` implementations must add `is_socket_connected` ([PR #6094](https://github.com/ponylang/ponyc/pull/6094))
 

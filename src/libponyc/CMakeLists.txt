@@ -36,6 +36,7 @@ add_library(libponyc STATIC
     codegen/gentagged.c
     codegen/genobj.c
     codegen/genoperator.c
+    codegen/gensplit.cc
     codegen/genprim.c
     codegen/genreference.c
     codegen/gentrace.c
@@ -141,8 +142,8 @@ if (MSVC)
     set(libponyc_standalone_path "${CMAKE_BINARY_DIR}/${libponyc_standalone_file}")
     add_custom_target(libponyc-standalone ALL
         # CMAKE_AR finds the appropriate version of lib.exe according to desired target and host architecture
-        COMMAND ${CMAKE_AR} /NOLOGO /VERBOSE /OUT:${libponyc_standalone_path} "$<TARGET_FILE:libponyc>" ${LLVM_OBJS} ${LLD_OBJS} ${CLANG_OBJS}
-        DEPENDS libponyc)
+        COMMAND ${CMAKE_AR} /NOLOGO /VERBOSE /OUT:${libponyc_standalone_path} "$<TARGET_FILE:libponyc>" "$<TARGET_FILE:libponylto>" ${LLVM_OBJS} ${LLD_OBJS} ${CLANG_OBJS}
+        DEPENDS libponyc libponylto)
     add_custom_command(TARGET libponyc-standalone POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E copy ${libponyc_standalone_path} ${PONY_OUTPUT_DIR}/${libponyc_standalone_file}
     )
@@ -154,8 +155,8 @@ elseif(${CMAKE_HOST_SYSTEM_NAME} MATCHES "Darwin")
     file(GLOB_RECURSE LLD_OBJS "${PROJECT_SOURCE_DIR}/../../build/libs/lib/liblld*.a")
     file(GLOB_RECURSE CLANG_OBJS "${PROJECT_SOURCE_DIR}/../../build/libs/lib/libclang*.a")
     add_custom_target(libponyc-standalone ALL
-        COMMAND libtool -static -o libponyc-standalone.a $<TARGET_FILE:libponyc> ${LLVM_OBJS} ${LLD_OBJS} ${CLANG_OBJS}
-        DEPENDS $<TARGET_FILE:libponyc> ${STANDALONE_ARCHIVES}
+        COMMAND libtool -static -o libponyc-standalone.a $<TARGET_FILE:libponyc> $<TARGET_FILE:libponylto> ${LLVM_OBJS} ${LLD_OBJS} ${CLANG_OBJS}
+        DEPENDS $<TARGET_FILE:libponyc> $<TARGET_FILE:libponylto> ${STANDALONE_ARCHIVES}
     )
     # copy the generated file after it is built
     add_custom_command(TARGET libponyc-standalone POST_BUILD
@@ -171,14 +172,15 @@ elseif(${CMAKE_HOST_SYSTEM_NAME} MATCHES "FreeBSD")
         COMMAND find ${PROJECT_SOURCE_DIR}/../../build/libs/ -name "liblld*.a" | xargs -I % -n 1 echo 'addlib %' >> standalone.mri
         COMMAND find ${PROJECT_SOURCE_DIR}/../../build/libs/ -name "libclang*.a" | xargs -I % -n 1 echo 'addlib %' >> standalone.mri
         COMMAND echo "addlib $<TARGET_FILE:libponyc>" >> standalone.mri
+        COMMAND echo "addlib $<TARGET_FILE:libponylto>" >> standalone.mri
         COMMAND echo "save" >> standalone.mri
         COMMAND echo "end" >> standalone.mri
         COMMAND ${CMAKE_AR} -M < standalone.mri
-        DEPENDS $<TARGET_FILE:libponyc> ${STANDALONE_ARCHIVES}
+        DEPENDS $<TARGET_FILE:libponyc> $<TARGET_FILE:libponylto> ${STANDALONE_ARCHIVES}
     )
     # add a separate target that depends on the standalone library file
     add_custom_target(libponyc-standalone ALL
-        DEPENDS libponyc
+        DEPENDS libponyc libponylto
         SOURCES libponyc-standalone.a
     )
     # copy the generated file after it is built
@@ -195,14 +197,15 @@ elseif(${CMAKE_HOST_SYSTEM_NAME} MATCHES "OpenBSD")
         COMMAND find ${PROJECT_SOURCE_DIR}/../../build/libs/ -name "liblld*.a" | xargs -I % -n 1 echo 'addlib %' >> standalone.mri
         COMMAND find ${PROJECT_SOURCE_DIR}/../../build/libs/ -name "libclang*.a" | xargs -I % -n 1 echo 'addlib %' >> standalone.mri
         COMMAND echo "addlib $<TARGET_FILE:libponyc>" >> standalone.mri
+        COMMAND echo "addlib $<TARGET_FILE:libponylto>" >> standalone.mri
         COMMAND echo "save" >> standalone.mri
         COMMAND echo "end" >> standalone.mri
         COMMAND ${CMAKE_AR} -M < standalone.mri
-        DEPENDS $<TARGET_FILE:libponyc> ${STANDALONE_ARCHIVES}
+        DEPENDS $<TARGET_FILE:libponyc> $<TARGET_FILE:libponylto> ${STANDALONE_ARCHIVES}
     )
     # add a separate target that depends on the standalone library file
     add_custom_target(libponyc-standalone ALL
-        DEPENDS libponyc
+        DEPENDS libponyc libponylto
         SOURCES libponyc-standalone.a
     )
     # copy the generated file after it is built
@@ -219,14 +222,15 @@ elseif(${CMAKE_HOST_SYSTEM_NAME} MATCHES "DragonFly")
         COMMAND find ${PROJECT_SOURCE_DIR}/../../build/libs/ -name "liblld*.a" | xargs -I % -n 1 echo 'addlib %' >> standalone.mri
         COMMAND find ${PROJECT_SOURCE_DIR}/../../build/libs/ -name "libclang*.a" | xargs -I % -n 1 echo 'addlib %' >> standalone.mri
         COMMAND echo "addlib $<TARGET_FILE:libponyc>" >> standalone.mri
+        COMMAND echo "addlib $<TARGET_FILE:libponylto>" >> standalone.mri
         COMMAND echo "save" >> standalone.mri
         COMMAND echo "end" >> standalone.mri
         COMMAND ${CMAKE_AR} -M < standalone.mri
-        DEPENDS $<TARGET_FILE:libponyc> ${STANDALONE_ARCHIVES}
+        DEPENDS $<TARGET_FILE:libponyc> $<TARGET_FILE:libponylto> ${STANDALONE_ARCHIVES}
     )
     # add a separate target that depends on the standalone library file
     add_custom_target(libponyc-standalone ALL
-        DEPENDS libponyc
+        DEPENDS libponyc libponylto
         SOURCES libponyc-standalone.a
     )
     # copy the generated file after it is built
@@ -261,14 +265,15 @@ else()
         COMMAND find ${PROJECT_SOURCE_DIR}/../../build/libs/ -name "liblld*.a" | xargs -I % -n 1 echo 'addlib %' >> standalone.mri
         COMMAND find ${PROJECT_SOURCE_DIR}/../../build/libs/ -name "libclang*.a" | xargs -I % -n 1 echo 'addlib %' >> standalone.mri
         COMMAND echo "addlib $<TARGET_FILE:libponyc>" >> standalone.mri
+        COMMAND echo "addlib $<TARGET_FILE:libponylto>" >> standalone.mri
         COMMAND echo "save" >> standalone.mri
         COMMAND echo "end" >> standalone.mri
         COMMAND ${CMAKE_AR} -M < standalone.mri
-        DEPENDS $<TARGET_FILE:libponyc> ${STANDALONE_ARCHIVES}
+        DEPENDS $<TARGET_FILE:libponyc> $<TARGET_FILE:libponylto> ${STANDALONE_ARCHIVES}
     )
     # add a separate target that depends on the standalone library file
     add_custom_target(libponyc-standalone ALL
-        DEPENDS libponyc
+        DEPENDS libponyc libponylto
         SOURCES libponyc-standalone.a
     )
     # copy the generated file after it is built

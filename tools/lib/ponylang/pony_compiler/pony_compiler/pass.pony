@@ -9,8 +9,7 @@ type PassId is
   | PassRefer      | PassExpr           | PassCompleteness
   | PassVerify     | PassFinaliser      | PassC
   | PassReach      | PassPaint          | PassLLVMIR
-  | PassBitcode    | PassASM            | PassObj
-  | PassAll )
+  | PassBitcode    | PassSplitBitcode   | PassAll )
 
 primitive PassParse
   """
@@ -144,23 +143,17 @@ primitive PassBitcode
   """
   fun apply(): I32 => 18
 
-primitive PassASM
+primitive PassSplitBitcode
   """
-  Emits assembly.
+  Emits ThinLTO partition bitcode files.
   """
   fun apply(): I32 => 19
-
-primitive PassObj
-  """
-  Emits an object file.
-  """
-  fun apply(): I32 => 20
 
 primitive PassAll
   """
   Limit value: compile through all passes.
   """
-  fun apply(): I32 => 21
+  fun apply(): I32 => 20
 
 primitive _StrList
   """
@@ -252,5 +245,6 @@ struct _PassOpt
   // do not use it.
   var timers: Pointer[_PassTimers] ref = timers.create()
   var lib_search_paths: Pointer[_StrList] = lib_search_paths.create()
+  var fat_lto: Bool = true
 
   new ref create() => None

@@ -1,0 +1,95 @@
+diff --git i/llvm/lib/Target/ARM/ARMISelLowering.cpp w/llvm/lib/Target/ARM/ARMISelLowering.cpp
+index d7c32d764..61099d07c 100644
+--- i/llvm/lib/Target/ARM/ARMISelLowering.cpp
++++ w/llvm/lib/Target/ARM/ARMISelLowering.cpp
+@@ -1335,6 +1335,16 @@ ARMTargetLowering::ARMTargetLowering(const TargetMachine &TM_,
+     setOperationAction(ISD::FMINIMUM, MVT::v4f32, Legal);
+     setOperationAction(ISD::FMAXIMUM, MVT::v4f32, Legal);
+ 
++    // NEON vmin/vmax only operate on f32 lanes, so f64 has no Legal
++    // instruction.  The generic Expand uses IS_FPCLASS for the
++    // signed-zero fixup, which the ARM backend cannot select for f64.
++    // Lower it ourselves using FMAXNUM/FMINNUM (vmaxnm.f64/vminnm.f64,
++    // legal on FP-ARMv8) plus explicit NaN and signed-zero handling.
++    if (Subtarget->hasFP64() && Subtarget->hasFPARMv8Base()) {
++      setOperationAction(ISD::FMINIMUM, MVT::f64, Custom);
++      setOperationAction(ISD::FMAXIMUM, MVT::f64, Custom);
++    }
++
+     if (Subtarget->hasV8Ops()) {
+       setOperationAction(ISD::FFLOOR, MVT::v2f32, Legal);
+       setOperationAction(ISD::FFLOOR, MVT::v4f32, Legal);
+@@ -5746,6 +5756,64 @@ SDValue ARMTargetLowering::LowerINT_TO_FP(SDValue Op, SelectionDAG &DAG) const {
+   return Op;
+ }
+ 
++// Lower FMAXIMUM/FMINIMUM on f64 for targets where FMAXNUM/FMINNUM f64 is
++// Legal (vmaxnm.f64/vminnm.f64 on FP-ARMv8) but there is no corresponding
++// f64 instruction for the IEEE 754-2019 semantics.  The generic Expand uses
++// IS_FPCLASS for the signed-zero fixup, which the 32-bit ARM backend cannot
++// select for f64.
++static SDValue LowerFMAXIMUM_FMINIMUM(SDValue Op, SelectionDAG &DAG) {
++  SDLoc DL(Op);
++  EVT VT = Op.getValueType();
++  SDValue LHS = Op.getOperand(0);
++  SDValue RHS = Op.getOperand(1);
++  unsigned Opc = Op.getOpcode();
++  bool IsMax = (Opc == ISD::FMAXIMUM);
++
++  EVT CCVT = MVT::i32;
++
++  // 1. Base result from FMAXNUM/FMINNUM (vmaxnm.f64/vminnm.f64).
++  unsigned BaseOpc = IsMax ? ISD::FMAXNUM : ISD::FMINNUM;
++  SDValue Result = DAG.getNode(BaseOpc, DL, VT, LHS, RHS);
++
++  // 2. NaN propagation: if either operand is NaN, result is NaN.
++  SDValue IsUnordered = DAG.getSetCC(DL, CCVT, LHS, RHS, ISD::SETUO);
++  SDValue NaN = DAG.getConstantFP(
++      APFloat::getNaN(APFloat::IEEEdouble()), DL, VT);
++  Result = DAG.getSelect(DL, VT, IsUnordered, NaN, Result);
++
++  // 3. Signed-zero: IEEE 754-2019 maximum(-0,+0) = +0 (and minimum = -0).
++  //    vmaxnm treats +0 == -0 and may return either.  When the result is
++  //    zero, pick the correct sign.
++  //
++  //    For maximum: result is -0 only when both inputs are -0.
++  //      => bitcast_f64(bitcast_i64(LHS) AND bitcast_i64(RHS))
++  //    For minimum: result is +0 only when both inputs are +0.
++  //      => bitcast_f64(bitcast_i64(LHS) OR  bitcast_i64(RHS))
++  //
++  //    Use VMOVRRD/VMOVDRR to move between f64 and i32 pairs — i64 is not
++  //    a legal type on 32-bit ARM.
++  SDValue IsZero = DAG.getSetCC(DL, CCVT, Result,
++                                DAG.getConstantFP(0.0, DL, VT), ISD::SETOEQ);
++
++  SDValue LHSPair = DAG.getNode(ARMISD::VMOVRRD, DL,
++      DAG.getVTList(MVT::i32, MVT::i32), LHS);
++  SDValue RHSPair = DAG.getNode(ARMISD::VMOVRRD, DL,
++      DAG.getVTList(MVT::i32, MVT::i32), RHS);
++
++  unsigned CombineOpc = IsMax ? ISD::AND : ISD::OR;
++  SDValue ZeroLo = DAG.getNode(CombineOpc, DL, MVT::i32,
++      LHSPair.getValue(0), RHSPair.getValue(0));
++  SDValue ZeroHi = DAG.getNode(CombineOpc, DL, MVT::i32,
++      LHSPair.getValue(1), RHSPair.getValue(1));
++
++  SDValue ZeroResult = DAG.getNode(ARMISD::VMOVDRR, DL, MVT::f64,
++      ZeroLo, ZeroHi);
++
++  Result = DAG.getSelect(DL, VT, IsZero, ZeroResult, Result);
++
++  return Result;
++}
++
+ SDValue ARMTargetLowering::LowerFCOPYSIGN(SDValue Op, SelectionDAG &DAG) const {
+   // Implement fcopysign with a fabs and a conditional fneg.
+   SDValue Tmp0 = Op.getOperand(0);
+@@ -10332,6 +10400,8 @@ SDValue ARMTargetLowering::LowerOperation(SDValue Op, SelectionDAG &DAG) const {
+   case ISD::FP_TO_UINT:    return LowerFP_TO_INT(Op, DAG);
+   case ISD::FP_TO_SINT_SAT:
+   case ISD::FP_TO_UINT_SAT: return LowerFP_TO_INT_SAT(Op, DAG, Subtarget);
++  case ISD::FMAXIMUM:
++  case ISD::FMINIMUM:      return LowerFMAXIMUM_FMINIMUM(Op, DAG);
+   case ISD::FCOPYSIGN:     return LowerFCOPYSIGN(Op, DAG);
+   case ISD::RETURNADDR:    return LowerRETURNADDR(Op, DAG);
+   case ISD::FRAMEADDR:     return LowerFRAMEADDR(Op, DAG);

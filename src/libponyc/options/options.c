@@ -63,6 +63,9 @@ enum
   OPT_LINT_LLVM,
   OPT_LLVM_ARGS,
 
+  OPT_FAT_LTO,
+  OPT_THIN_LTO,
+
   OPT_BNF,
   OPT_ANTLR,
   OPT_ANTLRRAW
@@ -94,7 +97,8 @@ static opt_arg_t std_args[] =
   {"sysroot", '\0', OPT_ARG_REQUIRED, OPT_SYSROOT},
   {"lib-path", 'L', OPT_ARG_REQUIRED, OPT_LIB_PATH},
   {"plugin", '\0', OPT_ARG_REQUIRED, OPT_PLUGIN},
-
+  {"fat-lto", '\0', OPT_ARG_NONE, OPT_FAT_LTO},
+  {"thin-lto", '\0', OPT_ARG_NONE, OPT_THIN_LTO},
   {"verbose", 'V', OPT_ARG_REQUIRED, OPT_VERBOSE},
   {"pass", 'r', OPT_ARG_REQUIRED, OPT_PASSES},
   {"ast", 'a', OPT_ARG_NONE, OPT_AST},
@@ -177,6 +181,10 @@ static void usage(void)
     "                   specified multiple times.\n"
     "  --plugin         Use the specified plugin(s).\n"
     "    =name\n"
+    "  --fat-lto        Use full LTO (best optimisation, slower compile).\n"
+    "                   Default on 64-bit targets.\n"
+    "  --thin-lto       Use ThinLTO (faster compile, slightly less\n"
+    "                   optimisation). Default on 32-bit targets.\n"
     "  --define, -D     Set a compile time definition.\n"
 #ifndef NDEBUG
     "  --llvm-args      Pass LLVM-specific arguments.\n"
@@ -347,7 +355,8 @@ ponyc_opt_process_t ponyc_opt_process(opt_state_t* s, pass_opt_t* opt,
           exit_code = EXIT_255;
         }
         break;
-
+      case OPT_FAT_LTO: opt->fat_lto = true; break;
+      case OPT_THIN_LTO: opt->fat_lto = false; break;
       case OPT_AST: *print_program_ast = true; break;
       case OPT_ASTPACKAGE: *print_package_ast = true; break;
       case OPT_TRACE: opt->parse_trace = true; break;

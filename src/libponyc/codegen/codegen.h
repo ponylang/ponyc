@@ -75,6 +75,16 @@ DECLARE_HASHMAP(compile_locals, compile_locals_t, compile_local_t);
 typedef struct ffi_decl_t ffi_decl_t;
 DECLARE_HASHMAP(ffi_decls, ffi_decls_t, ffi_decl_t);
 
+typedef struct per_module_state_t
+{
+  LLVMModuleRef module;
+  LLVMDIBuilderRef di;
+  LLVMMetadataRef di_unit;
+  genned_strings_t strings;
+  ffi_decls_t ffi_decls;
+  const char* package_symbol;
+} per_module_state_t;
+
 typedef struct compile_frame_t
 {
   LLVMValueRef fun;
@@ -213,6 +223,10 @@ typedef struct compile_t
   LLVMTypeRef final_fn;
 
   compile_frame_t* frame;
+
+  per_module_state_t* per_module_states;
+  size_t per_module_count;
+  size_t current_module_index;
 } compile_t;
 
 bool codegen_merge_runtime_bitcode(compile_t* c);
@@ -233,6 +247,22 @@ bool codegen_gen_test(compile_t* c, ast_t* program, pass_opt_t* opt,
   pass_id last_pass);
 
 void codegen_cleanup(compile_t* c);
+
+void codegen_stamp_target_attrs(compile_t* c);
+
+void codegen_switch_module(compile_t* c, size_t index);
+
+size_t codegen_create_per_module_state(compile_t* c, const char* pkg_sym,
+  ast_t* package);
+
+void codegen_init_modules(compile_t* c, ast_t* program);
+
+size_t codegen_module_index_for_package(compile_t* c,
+  const char* pkg_sym);
+
+LLVMValueRef codegen_resolve_function(compile_t* c, LLVMValueRef fn);
+
+LLVMValueRef codegen_resolve_global(compile_t* c, LLVMValueRef global);
 
 LLVMValueRef codegen_addfun(compile_t* c, const char* name, LLVMTypeRef type,
   bool pony_abi);

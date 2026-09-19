@@ -15,6 +15,7 @@ LLD_HAS_DRIVER(wasm)
 #include "genname.h"
 #include "genobj.h"
 #include "genopt.h"
+#include "gensplit.h"
 #include "genprim.h"
 #include "../pass/timing.h"
 #include "../reach/paint.h"
@@ -70,7 +71,7 @@ static LLVMValueRef create_main(compile_t* c, reach_type_t* t,
   // Create the main actor and become it.
   LLVMValueRef args[3];
   args[0] = ctx;
-  args[1] = ((compile_type_t*)t->c_type)->desc;
+  args[1] = codegen_resolve_global(c, ((compile_type_t*)t->c_type)->desc);
   args[2] = LLVMConstInt(c->i1, 0, false);
   LLVMValueRef actor = gencall_runtime(c, "pony_create", args, 3, "");
 
@@ -160,9 +161,10 @@ LLVMValueRef gen_main(compile_t* c, reach_type_t* t_main, reach_type_t* t_env)
   env_args[1] = args[0];
   env_args[2] = args[1];
   env_args[3] = args[2];
-  codegen_call(c,
-    LLVMGlobalGetValueType(((compile_method_t*)m->c_method)->func),
-    ((compile_method_t*)m->c_method)->func, env_args, 4, true);
+  LLVMValueRef env_create_fn = codegen_resolve_function(c,
+    ((compile_method_t*)m->c_method)->func);
+  codegen_call(c, LLVMGlobalGetValueType(env_create_fn),
+    env_create_fn, env_args, 4, true);
   LLVMValueRef env = env_args[0];
 
   // Run primitive initialisers using the main actor's heap.
@@ -200,7 +202,7 @@ LLVMValueRef gen_main(compile_t* c, reach_type_t* t_main, reach_type_t* t_env)
 
   args[0] = ctx;
   args[1] = env;
-  args[2] = ((compile_type_t*)t_env->c_type)->desc;
+  args[2] = codegen_resolve_global(c, ((compile_type_t*)t_env->c_type)->desc);
   args[3] = LLVMConstInt(c->i32, PONY_TRACE_IMMUTABLE, false);
   gencall_runtime(c, "pony_traceknown", args, 4, "");
 
@@ -962,7 +964,7 @@ static const char* resolve_sysroot(compile_t* c, const char* sys_triple,
 }
 
 static bool link_exe_lld_elf(compile_t* c, ast_t* program,
-  const char* file_o)
+  const char** bc_files, size_t bc_count)
 {
   errors_t* errors = c->opt->check.errors;
 
@@ -1389,7 +1391,7 @@ static bool link_exe_lld_elf(compile_t* c, ast_t* program,
   // additionally keeps the host-arch-absolute fragment out of any cross link
   // routed here.
   //
-  // The fragment is spliced as one contiguous block immediately before file_o.
+  // The fragment is spliced as one contiguous block before the bitcode inputs.
   // That order is correct for every piece on both platforms: objects and static
   // archives that provide symbols (clang's whole-archived clang_rt, gcc's
   // preinit object) must precede the instrumented object/runtime so their
@@ -1438,8 +1440,8 @@ static bool link_exe_lld_elf(compile_t* c, ast_t* program,
   // already emits earlier in this function (the same dir libgcov.a and the gcc
   // sanitizer libs live in). Position is immaterial: LLD resolves __gcov_init
   // from libgcov.a whether -lgcov precedes or follows the instrumented libponyrt
-  // archive, so splicing here (before file_o, alongside the sanitizer fragment)
-  // is fine.
+  // archive, so splicing here (before the bitcode inputs, alongside the
+  // sanitizer fragment) is fine.
   if((target_is_linux(c->opt->triple) || target_is_freebsd(c->opt->triple)
     || target_is_dragonfly(c->opt->triple)) && !is_cross_compiling(c->opt))
   {
@@ -1448,12 +1450,24 @@ static bool link_exe_lld_elf(compile_t* c, ast_t* program,
   }
 #endif
 
-  // Object file.
-  args.push_back(file_o);
+  // LTO optimization level. lld auto-detects full vs thin LTO from the
+  // bitcode content: regular bitcode triggers full LTO, bitcode with
+  // ThinLTO summary indices triggers ThinLTO.
+  args.push_back(c->opt->release ? "--lto-O3" : "--lto-O0");
+
+  // On ILP32 targets with ThinLTO, serialize lld's backend compilations. The
+  // default (all hardware threads) runs multiple large modules in parallel,
+  // exceeding available memory on typical 32-bit boards.
+  if(!c->opt->fat_lto && target_is_ilp32(c->opt->triple))
+    args.push_back("--thinlto-jobs=1");
+
+  // Bitcode partition files.
+  for(size_t i = 0; i < bc_count; i++)
+    args.push_back(bc_files[i]);
 
   // C shim objects (gencshim), in deterministic package-walk order. Objects are
-  // always fully included, so they sit after the Pony object and before the
-  // user libraries that may satisfy their references.
+  // always fully included, so they sit after the bitcode partitions and before
+  // the user libraries that may satisfy their references.
   size_t c_object_count = program_c_object_count(program);
   for(size_t i = 0; i < c_object_count; i++)
     args.push_back(program_c_object_at(program, i));
@@ -1883,7 +1897,7 @@ static void remove_directory_tree(const char* path)
 }
 
 static bool link_exe_lld_macho(compile_t* c, ast_t* program,
-  const char* file_o)
+  const char** bc_files, size_t bc_count)
 {
   errors_t* errors = c->opt->check.errors;
 
@@ -1977,12 +1991,18 @@ static bool link_exe_lld_macho(compile_t* c, ast_t* program,
     }
   }
 
-  // Object file.
-  args.push_back(file_o);
+  // LTO optimization level. ld64.lld defaults to --lto-O=2; set explicitly
+  // so debug builds get O0 and release builds get O3.
+  args.push_back(c->opt->release ? "--lto-O3" : "--lto-O0");
+
+  // Bitcode partition files. ld64.lld auto-detects ThinLTO when the bitcode
+  // contains summary indices, and uses full LTO for regular bitcode.
+  for(size_t i = 0; i < bc_count; i++)
+    args.push_back(bc_files[i]);
 
   // C shim objects (gencshim), in deterministic package-walk order. Objects are
-  // always fully included, so they sit after the Pony object and before the
-  // user libraries that may satisfy their references.
+  // always fully included, so they sit after the bitcode partitions and before
+  // the user libraries that may satisfy their references.
   size_t c_object_count = program_c_object_count(program);
   for(size_t i = 0; i < c_object_count; i++)
     args.push_back(program_c_object_at(program, i));
@@ -2093,7 +2113,7 @@ static bool link_exe_lld_macho(compile_t* c, ast_t* program,
 
 #ifdef PLATFORM_IS_WINDOWS
 static bool link_exe_lld_coff(compile_t* c, ast_t* program,
-  const char* file_o)
+  const char** bc_files, size_t bc_count)
 {
   errors_t* errors = c->opt->check.errors;
 
@@ -2137,8 +2157,12 @@ static bool link_exe_lld_coff(compile_t* c, ast_t* program,
   snprintf(buf, sizeof(buf), "/OUT:%s", file_exe);
   args.push_back(stringtab(c->opt->strtab, buf));
 
-  // Object file.
-  args.push_back(file_o);
+  // LTO optimization level. lld-link auto-detects full vs thin LTO from
+  // the bitcode content.
+  args.push_back(c->opt->release ? "/opt:lldlto=3" : "/opt:lldlto=0");
+
+  for(size_t i = 0; i < bc_count; i++)
+    args.push_back(bc_files[i]);
 
   // C shim objects (gencshim), in deterministic package-walk order. These are
   // absolute object paths, so they don't depend on the /LIBPATH entries
@@ -2255,7 +2279,7 @@ static bool link_exe_lld_coff(compile_t* c, ast_t* program,
 #endif
 
 static bool link_exe(compile_t* c, ast_t* program,
-  const char* file_o)
+  const char** bc_files, size_t bc_count)
 {
   // Link with embedded LLD, selecting the driver by target triple. On Linux,
   // FreeBSD, and macOS, native sanitizer builds use embedded LLD too: the ELF
@@ -2267,10 +2291,10 @@ static bool link_exe(compile_t* c, ast_t* program,
   // uses LLD.
 #ifdef PLATFORM_IS_POSIX_BASED
   if(target_is_linux(c->opt->triple))
-    return link_exe_lld_elf(c, program, file_o);
+    return link_exe_lld_elf(c, program, bc_files, bc_count);
 
   if(target_is_macosx(c->opt->triple))
-    return link_exe_lld_macho(c, program, file_o);
+    return link_exe_lld_macho(c, program, bc_files, bc_count);
 
   // FreeBSD always links through embedded LLD, including use=dtrace builds:
   // link_exe_lld_elf adds the -ldtrace_probes/-lelf linking dtrace needs.
@@ -2297,14 +2321,14 @@ static bool link_exe(compile_t* c, ast_t* program,
 #endif
     )
   {
-    return link_exe_lld_elf(c, program, file_o);
+    return link_exe_lld_elf(c, program, bc_files, bc_count);
   }
 
   errorf(c->opt->check.errors, NULL,
     "ponyc has no linker support for target %s", c->opt->triple);
   return false;
 #elif defined(PLATFORM_IS_WINDOWS)
-  return link_exe_lld_coff(c, program, file_o);
+  return link_exe_lld_coff(c, program, bc_files, bc_count);
 #else
   errorf(c->opt->check.errors, NULL,
     "ponyc has no linker support for target %s", c->opt->triple);
@@ -2367,7 +2391,7 @@ static void gen_export_wrapper(compile_t* c, reach_type_t* t,
   if(is_primitive)
   {
     compile_type_t* c_t = (compile_type_t*)t->c_type;
-    args[0] = c_t->instance;
+    args[0] = codegen_resolve_global(c, c_t->instance);
 
     for(unsigned i = 1; i < inner_param_count; i++)
       args[i] = LLVMGetParam(wrapper, i - 1);
@@ -2378,7 +2402,8 @@ static void gen_export_wrapper(compile_t* c, reach_type_t* t,
       args[i] = LLVMGetParam(wrapper, i);
   }
 
-  LLVMValueRef result = LLVMBuildCall2(c->builder, func_type, c_m->func,
+  LLVMValueRef resolved_fn = codegen_resolve_function(c, c_m->func);
+  LLVMValueRef result = LLVMBuildCall2(c->builder, func_type, resolved_fn,
     args, inner_param_count, "");
   LLVMSetInstructionCallConv(result, c->callconv);
 
@@ -2998,49 +3023,61 @@ bool genexe(compile_t* c, ast_t* program)
 
   plugin_visit_compile(c, c->opt);
 
-  if(!genopt(c, true))
+  if(!pony_specific_opt(c))
     return false;
 
   if(c->opt->runtimebc)
   {
     if(!codegen_merge_runtime_bitcode(c))
       return false;
-
-    // Rerun the optimiser without the Pony-specific optimisation passes.
-    // Inlining runtime functions can screw up these passes so we can't
-    // run the optimiser only once after merging.
-    if(!genopt(c, false))
-      return false;
   }
 
-  const char* file_o = genobj(c);
+  codegen_stamp_target_attrs(c);
 
-  if(file_o == NULL)
+  if(c->opt->limit <= PASS_BITCODE)
+  {
+    const char* file_o = genobj(c);
+    return file_o != NULL;
+  }
+
+  // ILP32 targets can't use fat LTO — merging all modules into one for
+  // full-program optimization exceeds available memory on typical 32-bit
+  // boards.  Silently downgrade to ThinLTO.
+  if(c->opt->fat_lto && target_is_ilp32(c->opt->triple))
+    c->opt->fat_lto = false;
+
+  const char** bc_files = NULL;
+  size_t bc_count = 0;
+
+  if(!split_and_emit_bitcode(c, &bc_files, &bc_count))
     return false;
 
-  if(c->opt->limit < PASS_ALL)
+  if(c->opt->limit == PASS_SPLIT_BITCODE)
+  {
+    ponyint_pool_free_size(bc_count * sizeof(const char*), (void*)bc_files);
     return true;
+  }
 
-  if(!link_exe(c, program, file_o))
+  if(!link_exe(c, program, bc_files, bc_count))
+  {
+    cleanup_bc_files(bc_files, bc_count);
     return false;
+  }
 
-  // Shim objects share the Pony object's lifetime: removed only here, after
-  // a successful PASS_ALL link. Under --pass c/obj/asm/ir they persist
-  // (handing objects to another linker is the point of those modes), and a
-  // failed link leaves them too.
+  // Shim objects are removed only here, after a successful PASS_ALL link.
+  // Under --pass levels below PASS_ALL they persist, and a failed link
+  // leaves them too.
   size_t c_object_count = program_c_object_count(program);
 
 #ifdef PLATFORM_IS_WINDOWS
-  _unlink(file_o);
-
   for(size_t i = 0; i < c_object_count; i++)
     _unlink(program_c_object_at(program, i));
 #else
-  unlink(file_o);
-
   for(size_t i = 0; i < c_object_count; i++)
     unlink(program_c_object_at(program, i));
 #endif
+
+  cleanup_bc_files(bc_files, bc_count);
 
   return true;
 }

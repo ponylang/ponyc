@@ -738,6 +738,7 @@ if (PONY_CROSS_LIBPONYRT)
     install(TARGETS libponyrt DESTINATION ${PONY_INSTALL_LIBDIR})
 else()
     add_subdirectory(src/libponyc)
+    add_subdirectory(src/libponylto)
     add_subdirectory(src/libponyrt)
     add_subdirectory(src/ponyc)
 
