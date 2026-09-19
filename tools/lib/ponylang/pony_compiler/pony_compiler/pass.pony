@@ -245,6 +245,5 @@ struct _PassOpt
   // do not use it.
   var timers: Pointer[_PassTimers] ref = timers.create()
   var lib_search_paths: Pointer[_StrList] = lib_search_paths.create()
-  var thinlto_partitions: U32 = 4
 
   new ref create() => None
