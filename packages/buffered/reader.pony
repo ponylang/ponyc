@@ -87,8 +87,10 @@ class Reader
       | let data': String => data'.array()
       end
 
-    _available = _available + data_array.size()
-    _chunks.push((data_array, 0))
+    if data_array.size() > 0 then
+      _available = _available + data_array.size()
+      _chunks.push((data_array, 0))
+    end
 
   fun ref skip(n: USize) ? =>
     """
@@ -551,7 +553,7 @@ class Reader
 
   fun ref i128_be(): I128 ? =>
     """
-    Get a big-endian I129.
+    Get a big-endian I128.
     """
     u128_be()?.i128()
 
@@ -702,7 +704,7 @@ class Reader
 
   fun peek_i128_be(offset: USize = 0): I128 ? =>
     """
-    Peek at a big-endian I129.
+    Peek at a big-endian I128.
     """
     peek_u128_be(offset)?.i128()
 
