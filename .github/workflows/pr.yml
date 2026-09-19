@@ -6,7 +6,7 @@ on:
     # The UNION of the four suites' path rules. It MUST trigger the workflow
     # for any file that triggers any suite in `.ci-scripts/pr_changed_suites.py`;
     # otherwise that PR never starts the workflow and the suite silently never
-    # runs. `net_ssl` is a subset of `ponyc`, and `ponyc` is a subset of
+    # runs. `ssl_backends` is a subset of `ponyc`, and `ponyc` is a subset of
     # `tools`, so the union is `tools` plus `pony_compiler` plus this workflow
     # file. The re-includes below add back the pony_compiler paths (which have
     # no doc/yaml exclusion), this file, and the stress workloads' Pony source
@@ -58,7 +58,7 @@ jobs:
       ponyc: ${{ steps.classify.outputs.ponyc }}
       pony_compiler: ${{ steps.classify.outputs.pony_compiler }}
       tools: ${{ steps.classify.outputs.tools }}
-      net_ssl: ${{ steps.classify.outputs.net_ssl }}
+      ssl_backends: ${{ steps.classify.outputs.ssl_backends }}
     steps:
       - name: Checkout
         uses: actions/checkout@v6.0.2
@@ -468,16 +468,16 @@ jobs:
       - name: Test pony-dep
         run: ctest --preset windows-x86-64-debug -R pony-dep-tests
 
-  # ----- net-ssl suite -----
+  # ----- ssl-backends suite -----
 
-  net-ssl-build:
+  ssl-backends-build:
     needs: [changes, maybe-build-ubuntu]
     if: >-
       !cancelled() &&
-      needs.changes.outputs.net_ssl == 'true' &&
+      needs.changes.outputs.ssl_backends == 'true' &&
       needs.maybe-build-ubuntu.result != 'failure'
     runs-on: ubuntu-latest
-    name: 'net-ssl: build ponyc'
+    name: 'ssl-backends: build ponyc'
     container:
       image: ghcr.io/ponylang/ponyc-ci-ubuntu26.04-builder:20260908
       options: --user pony
@@ -502,14 +502,14 @@ jobs:
       - name: Upload installed ponyc
         uses: actions/upload-artifact@v4
         with:
-          name: net-ssl-ponyc
+          name: ssl-backends-ponyc
           path: install/
           retention-days: 1
 
-  net-ssl-test:
-    needs: net-ssl-build
+  ssl-backends-test:
+    needs: ssl-backends-build
     runs-on: ubuntu-latest
-    name: 'net: ${{ matrix.ssl-name }}'
+    name: 'ssl-backends: ${{ matrix.ssl-name }}'
     strategy:
       fail-fast: false
       matrix:
@@ -538,7 +538,7 @@ jobs:
       - name: Download ponyc
         uses: actions/download-artifact@v4
         with:
-          name: net-ssl-ponyc
+          name: ssl-backends-ponyc
           path: ponyc-installed/
       - name: Make ponyc executable
         run: chmod +x ponyc-installed/lib/pony/*/bin/ponyc
@@ -548,3 +548,9 @@ jobs:
           "$PONYC" -d ${{ matrix.ssl-flag }} -b net-tests --checktree --pic --strip packages/net/
       - name: Run net tests
         run: ./net-tests --sequential
+      - name: Compile crypto tests
+        run: |
+          PONYC="$(find ponyc-installed/lib/pony -name ponyc -type f)"
+          "$PONYC" -d ${{ matrix.ssl-flag }} -b crypto-tests --checktree --pic --strip packages/crypto/
+      - name: Run crypto tests
+        run: ./crypto-tests --sequential

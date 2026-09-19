@@ -14,6 +14,7 @@ use cli = "cli"
 use collections = "collections"
 use collections_persistent = "collections/persistent"
 use constrained_types = "constrained_types"
+use crypto = "crypto"
 use debug = "debug"
 use files = "files"
 use format = "format"
@@ -53,6 +54,7 @@ actor \nodoc\ Main is TestList
     collections.Main.make().tests(test)
     collections_persistent.Main.make().tests(test)
     constrained_types.Main.make().tests(test)
+    crypto.Main.make().tests(test)
     files.Main.make().tests(test)
     format.Main.make().tests(test)
     http_client.Main.make().tests(test)
