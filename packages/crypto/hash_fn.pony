@@ -9,8 +9,6 @@ use @SHA256[Pointer[U8]](d: Pointer[U8] tag, n: USize, md: Pointer[U8] tag)
 use @SHA384[Pointer[U8]](d: Pointer[U8] tag, n: USize, md: Pointer[U8] tag)
 use @SHA512[Pointer[U8]](d: Pointer[U8] tag, n: USize, md: Pointer[U8] tag)
 
-use "format"
-
 interface val HashFn
   """
   Produces a fixed-length byte array based on the input sequence.
@@ -136,9 +134,17 @@ primitive ToHexString
   ```
   """
   fun apply(bs: Array[U8] val): String =>
+    """
+    The lowercase hex encoding of `bs`, two characters per byte.
+    """
+    let hex = "0123456789abcdef"
     let out = recover String(bs.size() * 2) end
     for c in bs.values() do
-      out.append(Format.int[U8](c where
-        fmt = FormatHexSmallBare, width = 2, fill = '0'))
+      try
+        out.push(hex((c >> 4).usize())?)
+        out.push(hex((c and 0x0f).usize())?)
+      else
+        _Unreachable()
+      end
     end
     consume out
