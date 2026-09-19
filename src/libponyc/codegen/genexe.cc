@@ -1450,14 +1450,15 @@ static bool link_exe_lld_elf(compile_t* c, ast_t* program,
   }
 #endif
 
-  // LTO optimization level. The bitcode partitions carry ThinLTO summary
-  // indices, so lld auto-detects ThinLTO mode without --lto=thin.
+  // LTO optimization level. lld auto-detects full vs thin LTO from the
+  // bitcode content: regular bitcode triggers full LTO, bitcode with
+  // ThinLTO summary indices triggers ThinLTO.
   args.push_back(c->opt->release ? "--lto-O3" : "--lto-O0");
 
-  // On ILP32 targets, serialize lld's ThinLTO backend compilations. The
+  // On ILP32 targets with ThinLTO, serialize lld's backend compilations. The
   // default (all hardware threads) runs multiple large modules in parallel,
   // exceeding available memory on typical 32-bit boards.
-  if(target_is_ilp32(c->opt->triple))
+  if(!c->opt->fat_lto && target_is_ilp32(c->opt->triple))
     args.push_back("--thinlto-jobs=1");
 
   // Bitcode partition files.
@@ -1994,8 +1995,8 @@ static bool link_exe_lld_macho(compile_t* c, ast_t* program,
   // so debug builds get O0 and release builds get O3.
   args.push_back(c->opt->release ? "--lto-O3" : "--lto-O0");
 
-  // Bitcode partition files. ld64.lld triggers ThinLTO automatically when
-  // inputs contain bitcode with embedded summaries.
+  // Bitcode partition files. ld64.lld auto-detects ThinLTO when the bitcode
+  // contains summary indices, and uses full LTO for regular bitcode.
   for(size_t i = 0; i < bc_count; i++)
     args.push_back(bc_files[i]);
 
@@ -2156,8 +2157,8 @@ static bool link_exe_lld_coff(compile_t* c, ast_t* program,
   snprintf(buf, sizeof(buf), "/OUT:%s", file_exe);
   args.push_back(stringtab(c->opt->strtab, buf));
 
-  // LTO optimization level. The bitcode partitions carry ThinLTO summary
-  // indices, so lld-link auto-detects ThinLTO mode.
+  // LTO optimization level. lld-link auto-detects full vs thin LTO from
+  // the bitcode content.
   args.push_back(c->opt->release ? "/opt:lldlto=3" : "/opt:lldlto=0");
 
   for(size_t i = 0; i < bc_count; i++)
@@ -3038,6 +3039,12 @@ bool genexe(compile_t* c, ast_t* program)
     const char* file_o = genobj(c);
     return file_o != NULL;
   }
+
+  // ILP32 targets can't use fat LTO — merging all modules into one for
+  // full-program optimization exceeds available memory on typical 32-bit
+  // boards.  Silently downgrade to ThinLTO.
+  if(c->opt->fat_lto && target_is_ilp32(c->opt->triple))
+    c->opt->fat_lto = false;
 
   const char** bc_files = NULL;
   size_t bc_count = 0;

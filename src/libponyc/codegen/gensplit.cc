@@ -30,12 +30,6 @@ using namespace llvm;
 static bool write_module_bitcode(compile_t* c, Module& mod,
   const char* file_bc, errors_t* errors)
 {
-  ProfileSummaryInfo PSI(mod);
-  ModuleSummaryIndex index = buildModuleSummaryIndex(
-    mod,
-    /*GetBFICallback=*/nullptr,
-    &PSI);
-
   if(c->opt->verbosity >= VERBOSITY_MINIMAL)
     fprintf(stderr, "Writing %s\n", file_bc);
 
@@ -49,10 +43,21 @@ static bool write_module_bitcode(compile_t* c, Module& mod,
     return false;
   }
 
-  WriteBitcodeToFile(mod, out,
-    /*ShouldPreserveUseListOrder=*/false,
-    &index,
-    /*GenerateHash=*/true);
+  if(c->opt->fat_lto)
+  {
+    WriteBitcodeToFile(mod, out);
+  } else {
+    ProfileSummaryInfo PSI(mod);
+    ModuleSummaryIndex index = buildModuleSummaryIndex(
+      mod,
+      /*GetBFICallback=*/nullptr,
+      &PSI);
+
+    WriteBitcodeToFile(mod, out,
+      /*ShouldPreserveUseListOrder=*/false,
+      &index,
+      /*GenerateHash=*/true);
+  }
 
   out.flush();
 

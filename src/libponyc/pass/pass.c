@@ -109,6 +109,7 @@ void pass_opt_init(pass_opt_t* options)
   options->strtab = stringtab_new();
   options->check.errors = errors_alloc();
   options->ast_print_width = 80;
+  options->fat_lto = true;
   options->user_flags = userflags_create(options->strtab);
   frame_push(&options->check, NULL);
 }

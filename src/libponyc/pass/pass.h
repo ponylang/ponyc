@@ -352,6 +352,8 @@ typedef struct pass_opt_t
   pass_timers_t* timers;
 
   strlist_t* lib_search_paths;
+
+  bool fat_lto;
 } pass_opt_t;
 
 /** Limit processing to the specified pass. All passes up to and including the
