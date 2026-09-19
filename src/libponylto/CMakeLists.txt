@@ -11,6 +11,10 @@ target_include_directories(libponylto
     PRIVATE ../../build/libs/include
 )
 
+if(MSVC)
+    target_compile_options(libponylto PRIVATE /wd4624)
+endif()
+
 if(${CMAKE_HOST_SYSTEM_NAME} MATCHES "Darwin")
     set(CMAKE_OSX_DEPLOYMENT_TARGET ${PONY_OSX_PLATFORM})
 endif()
