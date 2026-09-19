@@ -1454,6 +1454,12 @@ static bool link_exe_lld_elf(compile_t* c, ast_t* program,
   // indices, so lld auto-detects ThinLTO mode without --lto=thin.
   args.push_back(c->opt->release ? "--lto-O3" : "--lto-O0");
 
+  // On ILP32 targets, serialize lld's ThinLTO backend compilations. The
+  // default (all hardware threads) runs multiple large modules in parallel,
+  // exceeding available memory on typical 32-bit boards.
+  if(target_is_ilp32(c->opt->triple))
+    args.push_back("--thinlto-jobs=1");
+
   // Bitcode partition files.
   for(size_t i = 0; i < bc_count; i++)
     args.push_back(bc_files[i]);
