@@ -50,7 +50,7 @@ class val Position is (Comparable[Position] & Hashable & Stringable)
   fun column(): USize => _column
 
 // TODO: needed?
-class val FilePosition is (Comparable[FilePosition] & Hashable & Stringable)
+class val FilePosition is (Equatable[FilePosition] & Hashable & Stringable)
   """
   Position in a certain file.
   """

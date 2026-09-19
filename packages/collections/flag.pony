@@ -10,7 +10,7 @@ interface val Flag[A: (Unsigned & Integer[A] val)]
     """
 
 class Flags[A: Flag[B] val, B: (Unsigned & Integer[B] val) = U64] is
-  Comparable[Flags[A, B] box]
+  Equatable[Flags[A, B] box]
   """
   Flags is a set of flags. The flags that are recognised should be passed as
   a union type for type parameter A. For example:
@@ -168,30 +168,27 @@ class Flags[A: Flag[B] val, B: (Unsigned & Integer[B] val) = U64] is
   fun lt(that: Flags[A, B] box): Bool =>
     """
     Returns true if the flags set on this are a strict subset of the flags set
-    on that. Flags is only partially ordered, so lt is not the opposite of ge.
+    on that.
     """
     (_value != that._value) and ((_value and not that._value) == 0)
 
   fun le(that: Flags[A, B] box): Bool =>
     """
     Returns true if the flags set on this are a subset of the flags set on
-    that or they are the same. Flags is only partially ordered, so le is not
-    the opposite of gt.
+    that or they are the same.
     """
     ((_value and not that._value) == 0)
 
   fun gt(that: Flags[A, B] box): Bool =>
     """
-    Returns true if the flags set on this are a struct superset of the flags
-    set on that. Flags is only partially ordered, so gt is not the opposite of
-    le.
+    Returns true if the flags set on this are a strict superset of the flags
+    set on that.
     """
     (_value != that._value) and ((that._value and not _value) == 0)
 
   fun ge(that: Flags[A, B] box): Bool =>
     """
     Returns true if the flags set on this are a superset of the flags set on
-    that or they are the same. Flags is only partially ordered, so ge is not
-    the opposite of lt.
+    that or they are the same.
     """
     ((that._value and not _value) == 0)

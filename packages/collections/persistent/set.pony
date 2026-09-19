@@ -5,7 +5,7 @@ type Set[A: (mut.Hashable val & Equatable[A] val)] is HashSet[A, mut.HashEq[A]]
 type SetIs[A: Any #share] is HashSet[A, mut.HashIs[A]]
 
 class val HashSet[A: Any #share, H: mut.HashFunction[A] val]
-  is Comparable[HashSet[A, H] box]
+  is Equatable[HashSet[A, H] box]
   """
   A set, built on top of persistent Map. This is implemented as map of an
   alias of a type to itself.
