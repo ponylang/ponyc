@@ -11,6 +11,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Fix out-of-memory crash on ILP32 Linux from address space fragmentation ([PR #6111](https://github.com/ponylang/ponyc/pull/6111))
 - Fix unnecessary per-byte allocation in ToHexString ([PR #6119](https://github.com/ponylang/ponyc/pull/6119))
 - ConstantTimeCompare now uses OpenSSL's CRYPTO_memcmp ([PR #6120](https://github.com/ponylang/ponyc/pull/6120))
+- Fix Reader crash when appending empty data ([PR #5945](https://github.com/ponylang/ponyc/pull/5945))
 
 ### Added
 
