@@ -171,3 +171,7 @@ LLVM may replace the pure-Pony XOR-accumulate loop in `ConstantTimeCompare` with
 
 `ConstantTimeCompare` now calls OpenSSL's `CRYPTO_memcmp`, which is guaranteed constant-time. The `crypto` package already links libcrypto, so no new dependency is needed.
 
+## Fix Reader crash when appending empty data
+
+Calling `Reader.append` with an empty `Array[U8]` or empty `String` pushed a zero-length chunk into the internal chunk list. A subsequent read — even with sufficient data from other appends — would error when trying to index into the empty chunk.
+
