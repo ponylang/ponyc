@@ -258,6 +258,7 @@ set(LLVM_TOOL_GOLD_BUILD OFF CACHE BOOL "ponyc: unresolved getPonyLTOPluginInfo"
 set(LLVM_TOOL_OPT_BUILD OFF CACHE BOOL "ponyc: unresolved getPonyLTOPluginInfo")
 set(LLD_BUILD_TOOLS OFF CACHE BOOL "ponyc: unresolved getPonyLTOPluginInfo — lld libraries still build")
 set(CLANG_TOOL_CLANG_SHLIB_BUILD OFF CACHE BOOL "ponyc: unresolved getPonyLTOPluginInfo — clang static libs still build")
+set(CLANG_TOOL_CLANG_IMPORT_TEST_BUILD OFF CACHE BOOL "ponyc: unresolved getPonyLTOPluginInfo — links clangCodeGen")
 if(NOT MSVC)
   set(LLVM_ENABLE_ZLIB FORCE_ON CACHE STRING "ponyc specific override of LLVM cache entry")
 else()
