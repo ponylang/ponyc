@@ -240,6 +240,16 @@ Registers two handlers for SIGINT, raises the signal programmatically, and unsub
 
 Demonstrates the `json` standard library package: building JSON documents with `JsonObject` and `JsonArray`, serializing any value with `JsonPrinter`, parsing JSON text with `JsonParser`, reading nested values with `JsonNav`, composable get/set/remove with `JsonLens`, and string-based queries with `JsonPath` including filters, slicing, and function extensions (`match`, `search`, `length`, `count`).
 
+## Crypto
+
+### [hash-fn](crypto/hash-fn/)
+
+Computes MD5, SHA1, and SHA256 hashes of a string in a single call each and prints the results. Shows the one-shot convenience functions `MD5`, `SHA1`, and `SHA256` from the `crypto` package, plus `ToHexString` for formatting the resulting `Array[U8] val`. Start here if you're new to the package.
+
+### [digest](crypto/digest/)
+
+Hashes data in chunks using the streaming `Digest` API. Creates a `Digest.sha256()`, appends two string pieces with `append()`, and finalizes with `final()` to produce the hash. Also demonstrates `Digest.shake256(n)` for variable-length output on OpenSSL 3.0.x and 4.0.x, guarded by an `ifdef`.
+
 ## C FFI
 
 ### [cshim](c-ffi/cshim/)

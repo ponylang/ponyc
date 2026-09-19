@@ -17,11 +17,11 @@ def check(label, got, want):
         FAILURES.append(f"{label}: got {got!r}, want {want!r}")
 
 
-# (path, expected (ponyc, pony_compiler, tools, net_ssl)) -- one row per
+# (path, expected (ponyc, pony_compiler, tools, ssl_backends)) -- one row per
 # distinguishing case. Each suite predicate is exercised at every boundary it
 # draws.
 SINGLE_PATH_TABLE = [
-    # runtime code: ponyc + tools, but not the compiler suite or net_ssl.
+    # runtime code: ponyc + tools, but not the compiler suite or ssl_backends.
     ('src/libponyrt/foo.c', (True, False, True, False)),
     # libponyc source triggers ponyc, pony_compiler, and tools.
     ('src/libponyc/foo.c', (True, True, True, False)),
@@ -34,14 +34,20 @@ SINGLE_PATH_TABLE = [
     # the pony_compiler library lives under tools/, so ponyc (no tools/) skips
     # it while pony_compiler and tools both run.
     ('tools/lib/ponylang/pony_compiler/pass.pony', (False, True, True, False)),
-    # plain stdlib code (not under packages/net/): ponyc + tools.
+    # plain stdlib code (not under packages/net/ or packages/crypto/):
+    # ponyc + tools.
     ('packages/json/json.pony', (True, False, True, False)),
-    # packages/net/ code triggers net_ssl as well as ponyc + tools.
+    # packages/net/ code triggers ssl_backends as well as ponyc + tools.
     ('packages/net/ssl.pony', (True, False, True, True)),
     ('packages/net/_ssl.pony', (True, False, True, True)),
     ('packages/net/tcp_listener.pony', (True, False, True, True)),
     # a doc under packages/net/ is excluded from everything.
     ('packages/net/README.md', (False, False, False, False)),
+    # packages/crypto/ triggers ssl_backends as well as ponyc + tools.
+    ('packages/crypto/digest.pony', (True, False, True, True)),
+    ('packages/crypto/_test.pony', (True, False, True, True)),
+    # a doc under packages/crypto/ is excluded from everything.
+    ('packages/crypto/README.md', (False, False, False, False)),
     # the shared CMake build system builds pony-compiler-tests, so it triggers
     # pony_compiler too (as well as ponyc and tools via their broad rules).
     ('cmake/PonyBinary.cmake', (True, True, True, False)),
@@ -100,7 +106,7 @@ def test_single_path_table():
     for path, want in SINGLE_PATH_TABLE:
         result = c.classify([path])
         got = (result['ponyc'], result['pony_compiler'], result['tools'],
-               result['net_ssl'])
+               result['ssl_backends'])
         check(f"classify([{path!r}])", got, want)
 
 
@@ -110,20 +116,23 @@ def test_or_aggregation():
     check("aggregate ponyc", result['ponyc'], True)
     check("aggregate pony_compiler", result['pony_compiler'], True)
     check("aggregate tools", result['tools'], True)
-    check("aggregate net_ssl", result['net_ssl'], False)
-    # net_ssl lights up when a packages/net/ file is in the mix.
+    check("aggregate ssl_backends", result['ssl_backends'], False)
+    # ssl_backends lights up when a packages/net/ or packages/crypto/ file is
+    # in the mix.
     result2 = c.classify(['README.md', 'packages/net/ssl.pony'])
-    check("aggregate net_ssl on", result2['net_ssl'], True)
+    check("aggregate ssl_backends on (net)", result2['ssl_backends'], True)
+    result3 = c.classify(['README.md', 'packages/crypto/digest.pony'])
+    check("aggregate ssl_backends on (crypto)", result3['ssl_backends'], True)
     # Doc-only change triggers nothing.
     docs = c.classify(['README.md', 'docs/guide.md'])
     check("docs-only", docs, {'ponyc': False, 'pony_compiler': False,
-                              'tools': False, 'net_ssl': False})
+                              'tools': False, 'ssl_backends': False})
 
 
 def test_empty_changeset():
     check("empty", c.classify([]),
           {'ponyc': False, 'pony_compiler': False, 'tools': False,
-           'net_ssl': False})
+           'ssl_backends': False})
 
 
 def test_ponyc_subset_of_tools():
@@ -135,20 +144,20 @@ def test_ponyc_subset_of_tools():
             check(f"{path!r} ponyc=>tools", r['tools'], True)
 
 
-def test_net_ssl_subset_of_ponyc():
-    # net_ssl must be a subset of ponyc, so the union (tools plus
+def test_ssl_backends_subset_of_ponyc():
+    # ssl_backends must be a subset of ponyc, so the union (tools plus
     # pony_compiler) covers it transitively.
     for path, _ in SINGLE_PATH_TABLE:
         r = c.classify([path])
-        if r['net_ssl']:
-            check(f"{path!r} net_ssl=>ponyc", r['ponyc'], True)
+        if r['ssl_backends']:
+            check(f"{path!r} ssl_backends=>ponyc", r['ponyc'], True)
 
 
 def test_render_format():
     rendered = c.render({'ponyc': True, 'pony_compiler': False, 'tools': True,
-                         'net_ssl': True})
+                         'ssl_backends': True})
     check("render", rendered,
-          "ponyc=true\npony_compiler=false\ntools=true\nnet_ssl=true\n")
+          "ponyc=true\npony_compiler=false\ntools=true\nssl_backends=true\n")
 
 
 def test_truncation_constant():
@@ -168,13 +177,13 @@ def run_main(stdin_text):
         sys.stdin, sys.stdout, sys.stderr = old_in, old_out, old_err
 
 
-ALL_TRUE = ("ponyc=true\npony_compiler=true\ntools=true\nnet_ssl=true\n")
+ALL_TRUE = ("ponyc=true\npony_compiler=true\ntools=true\nssl_backends=true\n")
 
 
 def test_main_integration():
     out, _ = run_main("src/libponyc/README.md\n")
     check("main gotcha", out,
-          "ponyc=false\npony_compiler=true\ntools=false\nnet_ssl=false\n")
+          "ponyc=false\npony_compiler=true\ntools=false\nssl_backends=false\n")
 
 
 def test_main_empty_runs_all():
@@ -200,7 +209,7 @@ def test_main_truncation_runs_all():
 
 
 TESTS = [test_single_path_table, test_or_aggregation, test_empty_changeset,
-         test_ponyc_subset_of_tools, test_net_ssl_subset_of_ponyc,
+         test_ponyc_subset_of_tools, test_ssl_backends_subset_of_ponyc,
          test_render_format, test_truncation_constant, test_main_integration,
          test_main_empty_runs_all, test_main_truncation_runs_all]
 

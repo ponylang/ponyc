@@ -2,7 +2,7 @@
 """Classify a PR's changed files into the CI suites that must run.
 
 The merged `pr.yml` workflow runs four suites -- `ponyc`, `pony_compiler`,
-`tools`, and `net_ssl` -- but most PRs touch only some of them. This is the
+`tools`, and `ssl_backends` -- but most PRs touch only some of them. This is the
 home-grown paths-filter the `changes` job uses to decide which suites to start:
 it reads the PR's changed paths on stdin (one per line) and writes
 `<suite>=true|false` for each suite to stdout in `$GITHUB_OUTPUT`
@@ -35,8 +35,8 @@ a re-include.
 The rules must stay in sync with the union `paths:` filter at the top of
 `pr.yml`: a file that triggers any suite here must also match the workflow-level
 filter, or the workflow never starts and that suite silently never runs.
-(`net_ssl` is a subset of `ponyc`, and `ponyc` is a subset of `tools`, so the
-union is exactly `tools` plus `pony_compiler`.)
+(`ssl_backends` is a subset of `ponyc`, and `ponyc` is a subset of `tools`, so
+the union is exactly `tools` plus `pony_compiler`.)
 
 Editing `pr.yml` itself re-triggers every suite: each suite's original filter
 re-included its own workflow file, and now there is one shared file.
@@ -87,8 +87,10 @@ def matches_pony_compiler(path):
             or path == WORKFLOW_FILE)
 
 
-def matches_net_ssl(path):
-    return (path.startswith('packages/net/') and not excluded(path)) \
+def matches_ssl_backends(path):
+    return (not excluded(path)
+            and (path.startswith('packages/net/')
+                 or path.startswith('packages/crypto/'))) \
         or path == WORKFLOW_FILE
 
 
@@ -99,7 +101,7 @@ def matches_tools(path):
 SUITES = (('ponyc', matches_ponyc),
           ('pony_compiler', matches_pony_compiler),
           ('tools', matches_tools),
-          ('net_ssl', matches_net_ssl))
+          ('ssl_backends', matches_ssl_backends))
 
 
 def classify(paths):
