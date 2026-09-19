@@ -21,6 +21,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Add Generators.f32 and Generators.f64 to PonyCheck ([PR #6103](https://github.com/ponylang/ponyc/pull/6103))
 - Add classification API to PonyCheck ([PR #6107](https://github.com/ponylang/ponyc/pull/6107))
 - Add crypto package to the standard library ([PR #6114](https://github.com/ponylang/ponyc/pull/6114))
+- Add stateful property testing to PonyCheck ([PR #6121](https://github.com/ponylang/ponyc/pull/6121))
 
 ### Changed
 
