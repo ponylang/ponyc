@@ -815,7 +815,7 @@ else()
     add_pony_binary(pony-dep-tests
         NAME pony-dep-tests
         SOURCE ${CMAKE_SOURCE_DIR}/tools/pony-dep/test
-        PATHS ${PONY_SSL_LIB_DIR}
+        PATHS ${CMAKE_SOURCE_DIR}/tools/lib/ponylang/pony_compiler ${PONY_SSL_LIB_DIR}
         WATCH ${CMAKE_SOURCE_DIR}/tools/pony-dep)
 
     # On-demand aggregate: build every self-hosted tool test in one target. Run
@@ -862,7 +862,7 @@ else()
     add_test(NAME pony-dep-tests
         COMMAND ${PONY_OUTPUT_DIR}/pony-dep-tests${CMAKE_EXECUTABLE_SUFFIX} --sequential
         WORKING_DIRECTORY ${PONY_OUTPUT_DIR})
-    set_tests_properties(pony-lint-tests pony-doc-tests PROPERTIES
+    set_tests_properties(pony-lint-tests pony-doc-tests pony-dep-tests PROPERTIES
         ENVIRONMENT "PONYPATH=${CMAKE_SOURCE_DIR}/packages")
     add_test(NAME pony-compiler-tests
         COMMAND ${PONY_OUTPUT_DIR}/pony-compiler-tests${CMAKE_EXECUTABLE_SUFFIX} --sequential
