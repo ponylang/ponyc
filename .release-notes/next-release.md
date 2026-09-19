@@ -161,3 +161,7 @@ The package also includes `HmacSha256` for message authentication, `Pbkdf2Sha256
 
 If your code depended on `ponylang/ssl` for crypto, switch to `use "crypto"` with no code changes beyond the import path.
 
+## Fix unnecessary per-byte allocation in ToHexString
+
+`ToHexString` allocated a temporary string for every input byte. Converting a SHA-512 hash to hex produced 64 intermediate strings. The conversion now runs with a single allocation for the output.
+
