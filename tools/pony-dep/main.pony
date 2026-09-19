@@ -1,5 +1,14 @@
 use "cli"
 use "files"
+use "path:../lib/ponylang/pony_compiler/"
+use ast = "pony_compiler"
+
+use @get_compiler_exe_directory[Bool](
+  output_path: Pointer[U8] tag,
+  argv0: Pointer[U8] tag)
+use @ponyint_pool_alloc_size[Pointer[U8] val](size: USize)
+use @ponyint_pool_free_size[None](
+  size: USize, p: Pointer[U8] tag)
 
 actor Main
   """
@@ -60,7 +69,12 @@ actor Main
               "Remove a dependency and its placed files")?
             CommandSpec.leaf(
               "clean",
-              "Remove placed packages that nothing references")?
+              "Remove placed packages that nothing references",
+              [],
+              [
+                ArgSpec.string("src-dir")
+                ArgSpec.string("ext-dir")
+              ])?
           ])? .> add_help()?
       else
         env.err.print("internal error: invalid command spec")
@@ -134,7 +148,41 @@ actor Main
           ref_name = ref_opt,
           documentation_url = doc_url)
     | "remove" => _not_implemented(env, "remove")
-    | "clean" => _not_implemented(env, "clean")
+    | "clean" =>
+      let package_paths = _build_package_paths(env)
+      match \exhaustive\ Clean(
+        auth,
+        cmd.arg("src-dir").string(),
+        cmd.arg("ext-dir").string(),
+        package_paths)
+      | let removed: Array[String val] val =>
+        for name in removed.values() do
+          env.out.print("removed " + name)
+        end
+      | CleanSourceNotFound =>
+        env.err.print(
+          "error: source directory not found: " +
+            cmd.arg("src-dir").string())
+        env.exitcode(1)
+      | CleanSourceNotDirectory =>
+        env.err.print(
+          "error: source path is not a directory: " +
+            cmd.arg("src-dir").string())
+        env.exitcode(1)
+      | CleanExtNotFound =>
+        env.err.print(
+          "error: ext directory not found: " +
+            cmd.arg("ext-dir").string())
+        env.exitcode(1)
+      | CleanExtNotDirectory =>
+        env.err.print(
+          "error: ext path is not a directory: " +
+            cmd.arg("ext-dir").string())
+        env.exitcode(1)
+      | let e: CleanFailed =>
+        env.err.print("error: " + e.message)
+        env.exitcode(1)
+      end
     else
       env.err.print("error: no subcommand specified")
       env.exitcode(1)
@@ -150,6 +198,54 @@ actor Main
   fun _not_implemented(env: Env, name: String) =>
     env.err.print(name + ": not yet implemented")
     env.exitcode(1)
+
+  fun _build_package_paths(env: Env): Array[String val] val =>
+    let pony_paths = _get_ponypath_entries(env.vars)
+    recover val
+      let paths = Array[String val]
+      match _find_exe_directory(env.args)
+      | let dir: String val =>
+        paths.push(Path.join(dir, "../packages"))
+        paths.push(Path.join(dir, "../../packages"))
+      end
+      for p in pony_paths.values() do
+        paths.push(p)
+      end
+      paths
+    end
+
+  fun _get_ponypath_entries(
+    vars: (Array[String val] val | None))
+    : Array[String val] val
+  =>
+    match vars
+    | let env_vars: Array[String val] val =>
+      for pair in env_vars.values() do
+        if pair.at("PONYPATH=") then
+          return Path.split_list(pair.substring(ISize(9)))
+        end
+      end
+    end
+    recover val Array[String val] end
+
+  fun _find_exe_directory(
+    args: Array[String val] val)
+    : (String val | None)
+  =>
+    let argv0 =
+      try args(0)?
+      else return None
+      end
+    let buf_size: USize = 4096
+    let buf = @ponyint_pool_alloc_size(buf_size)
+    if @get_compiler_exe_directory(buf, argv0.cstring()) then
+      let result = recover val String.copy_cstring(buf) end
+      @ponyint_pool_free_size(buf_size, buf)
+      result
+    else
+      @ponyint_pool_free_size(buf_size, buf)
+      None
+    end
 
 actor _AddHandler is AddNotify
   let _env: Env

@@ -141,6 +141,23 @@ actor \nodoc\ Main is TestList
     test(_TestResolveTransitiveConfigParseError)
     test(_TestResolveTransitiveUnsupportedDepType)
 
+    // Clean tests
+    test(_TestCleanEmptyExt)
+    test(_TestCleanUnreferencedRemoved)
+    test(_TestCleanReferencedKept)
+    test(_TestCleanTransitiveKept)
+    test(_TestCleanTransitiveWithUnreferenced)
+    test(_TestCleanMixed)
+    test(_TestCleanSourceNotFound)
+    test(_TestCleanSourceNotDirectory)
+    test(_TestCleanExtNotFound)
+    test(_TestCleanExtNotDirectory)
+    test(_TestCleanUnparseableSourceFails)
+    test(_TestCleanUnparseablePackageStillReachable)
+    test(_TestCleanCyclicRefsTerminate)
+    test(_TestCleanAliasedUseKept)
+    test(_TestCleanFilesInExtIgnored)
+
     // Add tests
     test(_TestAddUnsupportedType)
     test(_TestAddInvalidName)
