@@ -763,6 +763,29 @@ bool expr_assign(pass_opt_t* opt, ast_t* ast)
   bool ok_mutable = safe_to_mutate(left);
   if(!ok_mutable)
   {
+    if(ast_id(left) == TK_FVARREF && ast_child(left) != NULL &&
+      ast_id(ast_child(left)) == TK_THIS)
+    {
+      ast_t* fn = ast_nearest(left, TK_FUN);
+
+      if(fn != NULL)
+      {
+        ast_t* cap = ast_child(fn);
+        pony_assert(cap != NULL);
+        token_id cap_id = ast_id(cap);
+
+        if(cap_id == TK_BOX || cap_id == TK_VAL || cap_id == TK_TAG)
+        {
+          ast_error(opt->check.errors, ast,
+            "cannot write to a field in a %s function. If you are trying to "
+            "change state in a function use fun ref",
+            lexer_print(cap_id));
+          ast_free_unattached(wl_type);
+          return false;
+        }
+      }
+    }
+
     ast_error(opt->check.errors, ast,
       "left side is immutable");
     ast_free_unattached(wl_type);
@@ -773,30 +796,6 @@ bool expr_assign(pass_opt_t* opt, ast_t* ast)
 
   if(!ok_safe)
   {
-    if(ast_id(left) == TK_FVARREF && ast_child(left) != NULL &&
-      ast_id(ast_child(left)) == TK_THIS)
-    {
-      // We are writing to a field in this
-      ast_t* fn = ast_nearest(left, TK_FUN);
-
-      if(fn != NULL)
-      {
-        ast_t* iso = ast_child(fn);
-        pony_assert(iso != NULL);
-        token_id iso_id = ast_id(iso);
-
-        if(iso_id == TK_BOX || iso_id == TK_VAL || iso_id == TK_TAG)
-        {
-          ast_error(opt->check.errors, ast,
-            "cannot write to a field in a %s function. If you are trying to "
-            "change state in a function use fun ref",
-            lexer_print(iso_id));
-          ast_free_unattached(wl_type);
-          return false;
-        }
-      }
-    }
-
     ast_error(opt->check.errors, ast,
       "not safe to write right side to left side");
     ast_error_continue(opt->check.errors, wl_type, "right side type: %s",
