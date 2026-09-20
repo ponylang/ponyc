@@ -92,7 +92,6 @@ jobs:
           - ponylang/corral
           - ponylang/ponyup
           - ponylang/regex
-          - ponylang/ssl
     steps:
       - name: Send
         # v2.1.1
