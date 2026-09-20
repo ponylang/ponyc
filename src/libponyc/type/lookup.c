@@ -151,8 +151,34 @@ static deferred_reification_t* lookup_nominal(pass_opt_t* opt, ast_t* from,
   if(find == NULL)
   {
     if(errors)
-      ast_error(opt->check.errors, from, "couldn't find '%s' in '%s'", name,
-        type_name);
+    {
+      if(type_name[0] == '$')
+      {
+        ast_error(opt->check.errors, from,
+          "couldn't find '%s' in anonymous type", name);
+
+        ast_t* members = ast_childidx(def, 4);
+        ast_t* member = ast_child(members);
+
+        while(member != NULL)
+        {
+          if((ast_id(member) == TK_FUN) || (ast_id(member) == TK_BE))
+          {
+            ast_t* member_id = ast_childidx(member, 1);
+            const char* member_name = ast_name(member_id);
+
+            if(member_name[0] != '$' && member_name[0] != '_')
+              ast_error_continue(opt->check.errors, member,
+                "it has a method named '%s'", member_name);
+          }
+
+          member = ast_sibling(member);
+        }
+      } else {
+        ast_error(opt->check.errors, from,
+          "couldn't find '%s' in '%s'", name, type_name);
+      }
+    }
 
     return NULL;
   }
