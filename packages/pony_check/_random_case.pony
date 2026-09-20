@@ -168,6 +168,13 @@ actor \nodoc\ Main is TestList
     test(_TabulateShrinkNoContaminationTest)
     test(_TabulateAndClassifyTest)
     test(_TabulateSameLabelDifferentHeadingsTest)
+    test(_HealthCheckFilterDiscardWarningTest)
+    test(_HealthCheckChoiceSequenceWarningTest)
+    test(_HealthCheckSlowSampleWarningTest)
+    test(_HealthCheckNoWarningTest)
+    test(_HealthCheckDisabledByZeroTest)
+    test(_HealthCheckAllDisabledByZeroTest)
+    test(_HealthCheckStatefulSlowSampleTest)
 
 class \nodoc\ iso _StringifyTest is UnitTest
   fun name(): String => "stringify"
@@ -3225,4 +3232,320 @@ class \nodoc\ iso _TabulateSameLabelDifferentHeadingsTest is UnitTest
         _UnitTestPropertyLogger(h),
         h.env,
         cn)
+    runner.run()
+
+actor \nodoc\ _HealthCheckLogCollector
+  """
+  Collects log messages so tests can check them after a property run
+  completes.
+  """
+  embed _logs: Array[String] = Array[String]
+  let _h: TestHelper
+
+  new create(h: TestHelper) =>
+    _h = h
+
+  be push(msg: String) =>
+    _logs.push(msg)
+    _h.log("[PROPERTY] " + msg)
+
+  be check_contains(substring: String, expect: Bool) =>
+    var found = false
+    for msg in _logs.values() do
+      if msg.contains(substring) then
+        found = true
+        break
+      end
+    end
+    if expect then
+      _h.assert_true(found, substring + " not found in logs")
+      _h.complete(found)
+    else
+      _h.assert_false(found, "unexpected: " + substring)
+      _h.complete(not found)
+    end
+
+class \nodoc\ val _HealthCheckLogger is PropertyLogger
+  let _collector: _HealthCheckLogCollector
+
+  new val create(collector: _HealthCheckLogCollector) =>
+    _collector = collector
+
+  fun log(msg: String, verbose: Bool) =>
+    _collector.push(msg)
+
+class \nodoc\ val _HealthCheckNotify is PropertyResultNotify
+  let _collector: _HealthCheckLogCollector
+  let _substring: String
+  let _expect: Bool
+
+  new val create(
+    collector: _HealthCheckLogCollector,
+    substring: String,
+    expect: Bool = true)
+  =>
+    _collector = collector
+    _substring = substring
+    _expect = expect
+
+  fun fail(msg: String) =>
+    _collector.push("FAIL: " + msg)
+
+  fun complete(success: Bool) =>
+    _collector.check_contains(_substring, _expect)
+
+class \nodoc\ iso _NarrowFilterProperty is Property1[U8]
+  fun name(): String => "health_check/narrow_filter/property"
+
+  fun params(): PropertyParams =>
+    PropertyParams(where
+      num_samples' = 10,
+      seed' = 42,
+      max_filter_discard_ratio' = 1.0)
+
+  fun gen(): Generator[U8] =>
+    Generators.u8(0, 255)
+      .filter({(u: U8): (U8^, Bool) => (u, (u % 20) == 0) })
+
+  fun ref property(arg1: U8, h: PropertyHelper) =>
+    h.assert_true((arg1 % 20) == 0)
+
+class \nodoc\ iso _HealthCheckFilterDiscardWarningTest is UnitTest
+  fun name(): String => "health_check/filter_discard_warning"
+
+  fun apply(h: TestHelper) =>
+    let property = recover iso _NarrowFilterProperty end
+    let params = property.params()
+    h.long_test(params.timeout)
+    let collector = _HealthCheckLogCollector(h)
+    let runner =
+      PropertyRunner[U8](
+        consume property,
+        params,
+        _HealthCheckNotify(collector, "WARNING: filter discarded"),
+        _HealthCheckLogger(collector),
+        h.env)
+    runner.run()
+
+class \nodoc\ iso _LargeChoiceProperty is Property1[Array[U8]]
+  fun name(): String => "health_check/large_choices/property"
+
+  fun params(): PropertyParams =>
+    PropertyParams(where
+      num_samples' = 5,
+      seed' = 42,
+      max_choice_sequence_size' = 10)
+
+  fun gen(): Generator[Array[U8]] =>
+    Generators.array_of[U8](Generators.u8() where from = 20, to = 50)
+
+  fun ref property(sample: Array[U8], h: PropertyHelper) =>
+    None
+
+class \nodoc\ iso _HealthCheckChoiceSequenceWarningTest is UnitTest
+  fun name(): String => "health_check/choice_sequence_warning"
+
+  fun apply(h: TestHelper) =>
+    let property = recover iso _LargeChoiceProperty end
+    let params = property.params()
+    h.long_test(params.timeout)
+    let collector = _HealthCheckLogCollector(h)
+    let runner =
+      PropertyRunner[Array[U8]](
+        consume property,
+        params,
+        _HealthCheckNotify(
+          collector, "WARNING: largest choice sequence was"),
+        _HealthCheckLogger(collector),
+        h.env)
+    runner.run()
+
+class \nodoc\ iso _SlowSampleProperty is Property1[U8]
+  fun name(): String => "health_check/slow_sample/property"
+
+  fun params(): PropertyParams =>
+    PropertyParams(where
+      num_samples' = 3,
+      seed' = 42,
+      max_sample_nanos' = 1)
+
+  fun gen(): Generator[U8] => Generators.u8()
+
+  fun ref property(arg1: U8, h: PropertyHelper) =>
+    None
+
+class \nodoc\ iso _HealthCheckSlowSampleWarningTest is UnitTest
+  fun name(): String => "health_check/slow_sample_warning"
+
+  fun apply(h: TestHelper) =>
+    let property = recover iso _SlowSampleProperty end
+    let params = property.params()
+    h.long_test(params.timeout)
+    let collector = _HealthCheckLogCollector(h)
+    let runner =
+      PropertyRunner[U8](
+        consume property,
+        params,
+        _HealthCheckNotify(
+          collector, "WARNING: slowest sample took"),
+        _HealthCheckLogger(collector),
+        h.env)
+    runner.run()
+
+class \nodoc\ iso _CleanProperty is Property1[U8]
+  fun name(): String => "health_check/clean/property"
+
+  fun params(): PropertyParams =>
+    PropertyParams(where num_samples' = 10, seed' = 42)
+
+  fun gen(): Generator[U8] => Generators.u8()
+
+  fun ref property(arg1: U8, h: PropertyHelper) =>
+    None
+
+class \nodoc\ iso _HealthCheckNoWarningTest is UnitTest
+  fun name(): String => "health_check/no_warning"
+
+  fun apply(h: TestHelper) =>
+    let property = recover iso _CleanProperty end
+    let params = property.params()
+    h.long_test(params.timeout)
+    let collector = _HealthCheckLogCollector(h)
+    let runner =
+      PropertyRunner[U8](
+        consume property,
+        params,
+        _HealthCheckNotify(collector, "WARNING:", false),
+        _HealthCheckLogger(collector),
+        h.env)
+    runner.run()
+
+class \nodoc\ iso _DisabledCheckProperty is Property1[U8]
+  fun name(): String => "health_check/disabled/property"
+
+  fun params(): PropertyParams =>
+    PropertyParams(where
+      num_samples' = 3,
+      seed' = 42,
+      max_sample_nanos' = 0)
+
+  fun gen(): Generator[U8] => Generators.u8()
+
+  fun ref property(arg1: U8, h: PropertyHelper) =>
+    None
+
+class \nodoc\ iso _HealthCheckDisabledByZeroTest is UnitTest
+  fun name(): String => "health_check/disabled_by_zero"
+
+  fun apply(h: TestHelper) =>
+    let property = recover iso _DisabledCheckProperty end
+    let params = property.params()
+    h.long_test(params.timeout)
+    let collector = _HealthCheckLogCollector(h)
+    let runner =
+      PropertyRunner[U8](
+        consume property,
+        params,
+        _HealthCheckNotify(
+          collector, "WARNING: slowest sample took", false),
+        _HealthCheckLogger(collector),
+        h.env)
+    runner.run()
+
+class \nodoc\ iso _AllDisabledCheckProperty is Property1[U8]
+  fun name(): String => "health_check/all_disabled/property"
+
+  fun params(): PropertyParams =>
+    PropertyParams(where
+      num_samples' = 3,
+      seed' = 42,
+      max_filter_discard_ratio' = 0,
+      max_choice_sequence_size' = 0,
+      max_sample_nanos' = 0)
+
+  fun gen(): Generator[U8] =>
+    Generators.u8(0, 255)
+      .filter({(u: U8): (U8^, Bool) => (u, (u % 20) == 0) })
+
+  fun ref property(arg1: U8, h: PropertyHelper) =>
+    None
+
+class \nodoc\ iso _HealthCheckAllDisabledByZeroTest is UnitTest
+  fun name(): String => "health_check/all_disabled_by_zero"
+
+  fun apply(h: TestHelper) =>
+    let property = recover iso _AllDisabledCheckProperty end
+    let params = property.params()
+    h.long_test(params.timeout)
+    let collector = _HealthCheckLogCollector(h)
+    let runner =
+      PropertyRunner[U8](
+        consume property,
+        params,
+        _HealthCheckNotify(collector, "WARNING:", false),
+        _HealthCheckLogger(collector),
+        h.env)
+    runner.run()
+
+primitive \nodoc\ _NoOp is Stringable
+  fun string(): String iso^ => "no-op".string()
+
+class \nodoc\ iso _StatefulSlowSampleProperty
+  is StatefulProperty[USize, USize, _NoOp]
+  fun name(): String => "health_check/stateful_slow_sample/property"
+
+  fun params(): PropertyParams =>
+    PropertyParams(where
+      num_samples' = 3,
+      seed' = 42,
+      max_sample_nanos' = 1)
+
+  fun max_steps(): USize => 2
+
+  fun initial_sut(): USize => 0
+
+  fun initial_model(): USize => 0
+
+  fun ref step(
+    ctx: StatefulContext[USize, USize],
+    rnd: Randomness,
+    h: PropertyHelper)
+    : _NoOp ?
+  =>
+    let v = rnd.usize(0, 10)?
+    ctx.sut = ctx.sut + v
+    ctx.model = ctx.model + v
+    _NoOp
+
+  fun invariant(
+    ctx: StatefulContext[USize, USize] box,
+    h: PropertyHelper)
+    : Bool
+  =>
+    ctx.sut == ctx.model
+
+  fun final_check(
+    ctx: StatefulContext[USize, USize] box,
+    h: PropertyHelper)
+    : Bool
+  =>
+    ctx.sut == ctx.model
+
+class \nodoc\ iso _HealthCheckStatefulSlowSampleTest is UnitTest
+  fun name(): String => "health_check/stateful_slow_sample"
+
+  fun apply(h: TestHelper) =>
+    let property = recover iso _StatefulSlowSampleProperty end
+    let params = property.params()
+    h.long_test(params.timeout)
+    let collector = _HealthCheckLogCollector(h)
+    let runner =
+      StatefulPropertyRunner[USize, USize, _NoOp](
+        consume property,
+        params,
+        _HealthCheckNotify(
+          collector, "WARNING: slowest sample took"),
+        _HealthCheckLogger(collector),
+        h.env)
+    h.dispose_when_done(runner)
     runner.run()
