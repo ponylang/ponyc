@@ -1,6 +1,7 @@
 use "debug"
 use "collections"
 use "format"
+use "time"
 
 class val _Shrink is Equatable[_Round]
   """
@@ -113,6 +114,11 @@ actor PropertyRunner[T]
   let _cover_requirements: Map[String, F64] = Map[String, F64]
   var _samples_run: USize = 0
   let _classification_notify: (ClassificationNotify | None)
+  var _total_filter_discards: USize = 0
+  var _total_filter_accepts: USize = 0
+  var _max_choices: USize = 0
+  var _peak_sample_nanos: U64 = 0
+  var _sample_start_nanos: U64 = 0
 
   new create(
     p1: Property1[T] iso,
@@ -152,6 +158,9 @@ actor PropertyRunner[T]
     _pass = success
 
     if not success then
+      match this._current_round
+      | let _: _Run => _collect_health_metrics()
+      end
       _failing_choices = _rnd._get_choices()
       _failing_spans = _rnd._get_spans()
 
@@ -165,6 +174,9 @@ actor PropertyRunner[T]
         do_shrink(_sample_repr)
       end
     else
+      match this._current_round
+      | let _: _Run => _collect_health_metrics()
+      end
       _prepare_next_round()
       run()
     end
@@ -198,6 +210,7 @@ actor PropertyRunner[T]
       return
     end
 
+    _sample_start_nanos = Time.nanos()
     _rnd._start_recording()
 
     var sample: T =
@@ -205,6 +218,7 @@ actor PropertyRunner[T]
         _generate_with_retry(_params.max_generator_retries)?
       else
         _rnd._reset()
+        _report_health_checks()
         _notify.fail(
           "Unable to generate samples from the given iterator, tried " +
           _params.max_generator_retries.string() + " times." +
@@ -228,6 +242,7 @@ actor PropertyRunner[T]
     try
       _prop1.property(consume sample, helper)?
     else
+      _collect_health_metrics()
       _failing_choices = _rnd._get_choices()
       _failing_spans = _rnd._get_spans()
       _prepare_next_round()
@@ -529,11 +544,75 @@ actor PropertyRunner[T]
     _logger.log(msg, verbose)
 
   // end interface towards PropertyHelper
+  fun ref _collect_health_metrics() =>
+    let elapsed = Time.nanos() - _sample_start_nanos
+    if elapsed > _peak_sample_nanos then
+      _peak_sample_nanos = elapsed
+    end
+    let choices_size = _rnd._choices_size()
+    if choices_size > _max_choices then
+      _max_choices = choices_size
+    end
+    (let discards, let accepts) = _rnd._count_filter_spans()
+    _total_filter_discards = _total_filter_discards + discards
+    _total_filter_accepts = _total_filter_accepts + accepts
+
+  fun ref _report_health_checks() =>
+    if _params.max_filter_discard_ratio > 0 then
+      if _total_filter_accepts > 0 then
+        let ratio =
+          _total_filter_discards.f64() / _total_filter_accepts.f64()
+        if ratio > _params.max_filter_discard_ratio then
+          _logger.log(
+            "WARNING: filter discarded " +
+              _total_filter_discards.string() +
+              " candidates across " + _samples_run.string() +
+              " samples (" +
+              Format.float[F64](ratio where fmt = FormatFix, prec = 1) +
+              "x discard ratio, threshold " +
+              Format.float[F64](
+                _params.max_filter_discard_ratio where fmt = FormatFix,
+                prec = 1) +
+              "x). Generator may be too narrow for the filter predicate.")
+        end
+      end
+    end
+
+    if (_params.max_choice_sequence_size > 0) and
+      (_max_choices > _params.max_choice_sequence_size)
+    then
+      _logger.log(
+        "WARNING: largest choice sequence was " +
+          _max_choices.string() +
+          " entries (threshold " +
+          _params.max_choice_sequence_size.string() +
+          "). Consider simplifying the generator or reducing " +
+          "collection sizes.")
+    end
+
+    if (_params.max_sample_nanos > 0) and
+      (_peak_sample_nanos > _params.max_sample_nanos)
+    then
+      let secs =
+        _peak_sample_nanos.f64() / 1_000_000_000.0
+      let threshold_secs =
+        _params.max_sample_nanos.f64() / 1_000_000_000.0
+      _logger.log(
+        "WARNING: slowest sample took " +
+          Format.float[F64](secs where fmt = FormatFix, prec = 1) +
+          "s (threshold " +
+          Format.float[F64](
+            threshold_secs where fmt = FormatFix, prec = 1) +
+          "s). Consider reducing num_samples or simplifying " +
+          "the property.")
+    end
+
   fun ref complete() =>
     """
     Complete the Property execution successfully.
     """
     _report_labels()
+    _report_health_checks()
     if _check_coverage() then
       _notify.complete(true)
     else
@@ -547,6 +626,7 @@ actor PropertyRunner[T]
     while signalling failure to the `PropertyResultNotify`.
     """
     _report_labels()
+    _report_health_checks()
     if err then
       _report_error(repr, rounds)
     else

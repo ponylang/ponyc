@@ -19,3 +19,4 @@ actor \nodoc\ Main is TestList
       Property1UnitTest[
         (USize, Array[_OperationOnCollection[String]])](
         _OperationOnCollectionProperty))
+    test(Property1UnitTest[U8](_HealthCheckProperty))

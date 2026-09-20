@@ -295,6 +295,37 @@ class ref Randomness
   fun _consumed(): USize =>
     _replay_idx
 
+  fun ref _choices_size(): USize =>
+    let old = (_choices = recover iso Array[_Choice val] end)
+    let s = old.size()
+    _choices = consume old
+    s
+
+  fun ref _count_filter_spans(): (USize, USize) =>
+    let old = (_spans = recover iso Array[_Span val] end)
+    var discards: USize = 0
+    var accepts: USize = 0
+    var i: USize = 0
+    let len = old.size()
+    while i < len do
+      try
+        let span = old(i)?
+        match span.label
+        | SpanFilter =>
+          if span.discarded then
+            discards = discards + 1
+          else
+            accepts = accepts + 1
+          end
+        end
+      else
+        _Unreachable()
+      end
+      i = i + 1
+    end
+    _spans = consume old
+    (discards, accepts)
+
   // --- Internal draw helpers ---
   fun ref _draw_int(min: I128, max: I128, shrink_towards: I128): I128 ? =>
     match \exhaustive\ _mode

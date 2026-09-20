@@ -1,8 +1,16 @@
 use "time"
 
+primitive PropertyParamsDefaults
+  """
+  Default thresholds for health check warnings.
+  """
+  fun max_filter_discard_ratio(): F64 => 10.0
+  fun max_choice_sequence_size(): USize => 10_000
+  fun max_sample_nanos(): U64 => 1_000_000_000
+
 class val PropertyParams is Stringable
   """
-  Parameters to control Property Execution.
+  Parameters to control property execution.
 
   * seed: the seed for the source of Randomness
   * num_samples: the number of samples to produce from the property generator
@@ -12,6 +20,14 @@ class val PropertyParams is Stringable
   * timeout: the timeout for the PonyTest runner, in nanoseconds
   * async: if true the property is expected to finish asynchronously by calling
     `PropertyHelper.complete(...)`
+  * max_filter_discard_ratio: the maximum allowed ratio of filter discards to
+    accepts across the run. 10.0 allows up to 10 rejections per accepted
+    value (~91% rejection rate). 0 or negative disables the check.
+  * max_choice_sequence_size: the maximum number of choice-sequence entries
+    allowed in any single sample before a warning is logged. 0 disables the
+    check.
+  * max_sample_nanos: the maximum wall-clock duration in nanoseconds allowed
+    for any single sample before a warning is logged. 0 disables the check.
   """
   let seed: U64
   let num_samples: USize
@@ -19,6 +35,9 @@ class val PropertyParams is Stringable
   let max_generator_retries: USize
   let timeout: U64
   let async: Bool
+  let max_filter_discard_ratio: F64
+  let max_choice_sequence_size: USize
+  let max_sample_nanos: U64
 
   new val create(
     num_samples': USize = 100,
@@ -26,7 +45,13 @@ class val PropertyParams is Stringable
     max_shrink_reductions': USize = 100,
     max_generator_retries': USize = 5,
     timeout': U64 = 60_000_000_000,
-    async': Bool = false)
+    async': Bool = false,
+    max_filter_discard_ratio': F64 =
+      PropertyParamsDefaults.max_filter_discard_ratio(),
+    max_choice_sequence_size': USize =
+      PropertyParamsDefaults.max_choice_sequence_size(),
+    max_sample_nanos': U64 =
+      PropertyParamsDefaults.max_sample_nanos())
   =>
     num_samples = num_samples'
     seed = seed'
@@ -34,13 +59,38 @@ class val PropertyParams is Stringable
     max_generator_retries = max_generator_retries'
     timeout = timeout'
     async = async'
+    max_filter_discard_ratio = max_filter_discard_ratio'
+    max_choice_sequence_size = max_choice_sequence_size'
+    max_sample_nanos = max_sample_nanos'
 
   fun string(): String iso^ =>
     recover
-      String()
+      let s = String()
         .> append("Params(seed=")
         .> append(seed.string())
-        .> append(")")
+      if max_filter_discard_ratio !=
+        PropertyParamsDefaults.max_filter_discard_ratio()
+      then
+        s
+          .> append(", max_filter_discard_ratio=")
+          .> append(max_filter_discard_ratio.string())
+      end
+      if max_choice_sequence_size !=
+        PropertyParamsDefaults.max_choice_sequence_size()
+      then
+        s
+          .> append(", max_choice_sequence_size=")
+          .> append(max_choice_sequence_size.string())
+      end
+      if max_sample_nanos !=
+        PropertyParamsDefaults.max_sample_nanos()
+      then
+        s
+          .> append(", max_sample_nanos=")
+          .> append(max_sample_nanos.string())
+      end
+      s .> append(")")
+      s
     end
 
 trait Property1[T]

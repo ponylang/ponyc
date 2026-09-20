@@ -1,5 +1,6 @@
 use "collections"
 use "format"
+use "time"
 
 actor StatefulPropertyRunner[S, M, Cmd: Stringable val]
   is _IPropertyRunner
@@ -37,6 +38,11 @@ actor StatefulPropertyRunner[S, M, Cmd: Stringable val]
   let _cover_requirements: Map[String, F64] = Map[String, F64]
   var _samples_run: USize = 0
   var _consecutive_errors: USize = 0
+  var _total_filter_discards: USize = 0
+  var _total_filter_accepts: USize = 0
+  var _max_choices: USize = 0
+  var _peak_sample_nanos: U64 = 0
+  var _sample_start_nanos: U64 = 0
 
   new create(
     prop: StatefulProperty[S, M, Cmd] iso,
@@ -71,6 +77,7 @@ actor StatefulPropertyRunner[S, M, Cmd: Stringable val]
       return
     end
 
+    _sample_start_nanos = Time.nanos()
     _rnd._start_recording()
 
     let num_steps =
@@ -107,6 +114,7 @@ actor StatefulPropertyRunner[S, M, Cmd: Stringable val]
           _rnd._reset()
           _consecutive_errors = _consecutive_errors + 1
           if _consecutive_errors > _params.max_generator_retries then
+            _report_health_checks()
             _notify.fail(
               "Unable to generate valid commands, " +
               _consecutive_errors.string() +
@@ -142,6 +150,7 @@ actor StatefulPropertyRunner[S, M, Cmd: Stringable val]
 
     match \exhaustive\ failed_at_step
     | let step: USize =>
+      _collect_health_metrics()
       _failing_choices = _rnd._get_choices()
       _failing_spans = _rnd._get_spans()
 
@@ -156,6 +165,7 @@ actor StatefulPropertyRunner[S, M, Cmd: Stringable val]
         do_shrink(repr)
       end
     | None =>
+      _collect_health_metrics()
       _run_finished(this._current_round)
     end
 
@@ -179,6 +189,9 @@ actor StatefulPropertyRunner[S, M, Cmd: Stringable val]
     _pass = success
 
     if not success then
+      match this._current_round
+      | let _: _Run => _collect_health_metrics()
+      end
       _failing_choices = _rnd._get_choices()
       _failing_spans = _rnd._get_spans()
 
@@ -560,8 +573,75 @@ actor StatefulPropertyRunner[S, M, Cmd: Stringable val]
   be log(msg: String, verbose: Bool = false) =>
     _logger.log(msg, verbose)
 
+  fun ref _collect_health_metrics() =>
+    let elapsed = Time.nanos() - _sample_start_nanos
+    if elapsed > _peak_sample_nanos then
+      _peak_sample_nanos = elapsed
+    end
+    let choices_size = _rnd._choices_size()
+    if choices_size > _max_choices then
+      _max_choices = choices_size
+    end
+    (let discards, let accepts) = _rnd._count_filter_spans()
+    _total_filter_discards = _total_filter_discards + discards
+    _total_filter_accepts = _total_filter_accepts + accepts
+
+  fun ref _report_health_checks() =>
+    if _params.max_filter_discard_ratio > 0 then
+      if _total_filter_accepts > 0 then
+        let ratio =
+          _total_filter_discards.f64() / _total_filter_accepts.f64()
+        if ratio > _params.max_filter_discard_ratio then
+          _logger.log(
+            "WARNING: filter discarded " +
+              _total_filter_discards.string() +
+              " candidates across " + _samples_run.string() +
+              " samples (" +
+              Format.float[F64](ratio where fmt = FormatFix, prec = 1) +
+              "x discard ratio, threshold " +
+              Format.float[F64](
+                _params.max_filter_discard_ratio where fmt = FormatFix,
+                prec = 1) +
+              "x). Generator may be too narrow for the filter predicate.")
+        end
+      end
+    end
+
+    if (_params.max_choice_sequence_size > 0) and
+      (_max_choices > _params.max_choice_sequence_size)
+    then
+      _logger.log(
+        "WARNING: largest choice sequence was " +
+          _max_choices.string() +
+          " entries (threshold " +
+          _params.max_choice_sequence_size.string() +
+          "). Consider simplifying the generator or reducing " +
+          "collection sizes.")
+    end
+
+    if (_params.max_sample_nanos > 0) and
+      (_peak_sample_nanos > _params.max_sample_nanos)
+    then
+      let secs =
+        _peak_sample_nanos.f64() / 1_000_000_000.0
+      let threshold_secs =
+        _params.max_sample_nanos.f64() / 1_000_000_000.0
+      _logger.log(
+        "WARNING: slowest sample took " +
+          Format.float[F64](secs where fmt = FormatFix, prec = 1) +
+          "s (threshold " +
+          Format.float[F64](
+            threshold_secs where fmt = FormatFix, prec = 1) +
+          "s). Consider reducing num_samples or simplifying " +
+          "the property.")
+    end
+
   fun ref complete() =>
+    """
+    Complete the property execution successfully.
+    """
     _report_labels()
+    _report_health_checks()
     if _check_coverage() then
       _notify.complete(true)
     else
@@ -570,7 +650,11 @@ actor StatefulPropertyRunner[S, M, Cmd: Stringable val]
     end
 
   fun ref fail(repr: String, shrink_rounds: USize = 0, err: Bool = false) =>
+    """
+    Complete the property execution while signalling failure.
+    """
     _report_labels()
+    _report_health_checks()
     if err then
       _report_error(repr, shrink_rounds)
     else

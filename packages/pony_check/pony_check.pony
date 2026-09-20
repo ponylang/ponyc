@@ -139,6 +139,38 @@ test(StatefulPropertyUnitTest[MyQueue ref, MyModel ref, MyCmd](
   _MyQueueProperty))
 ```
 
+## Health Checks
+
+After a property run completes, the runner logs warnings for conditions
+that often indicate a poorly tuned generator or an unexpectedly expensive
+property. Health checks never cause a test to fail — they produce
+`WARNING:` log lines only.
+
+Three checks are available, each controlled by a field on
+[PropertyParams](pony_check-PropertyParams.md):
+
+* `max_filter_discard_ratio` (default `10.0`) — warns when the ratio of
+  filter rejections to acceptances exceeds this value across all samples.
+  A ratio of 10.0 allows up to 10 rejections per accepted value. Set to
+  0 to disable.
+* `max_choice_sequence_size` (default `10_000`) — warns when any single
+  sample's recorded choice sequence exceeds this many entries. Large
+  sequences slow down shrinking. Set to 0 to disable.
+* `max_sample_nanos` (default `1_000_000_000`) — warns when any single
+  sample exceeds this wall-clock duration in nanoseconds. Set to 0 to
+  disable.
+
+Override the defaults by returning a custom
+[PropertyParams](pony_check-PropertyParams.md) from `params()`:
+
+```pony
+fun params(): PropertyParams =>
+  PropertyParams(where
+    max_filter_discard_ratio' = 5.0,
+    max_choice_sequence_size' = 500,
+    max_sample_nanos' = 500_000_000)
+```
+
 """
 use "pony_test"
 
