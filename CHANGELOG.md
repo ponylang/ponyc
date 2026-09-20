@@ -15,6 +15,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Improve error message when writing to a field in an immutable method ([PR #6123](https://github.com/ponylang/ponyc/pull/6123))
 - Fix error message for nested field writes in immutable methods ([PR #6125](https://github.com/ponylang/ponyc/pull/6125))
 - Fix File losing data on large writes ([PR #6124](https://github.com/ponylang/ponyc/pull/6124))
+- Improve error messages for method lookup on anonymous types ([PR #6127](https://github.com/ponylang/ponyc/pull/6127))
 
 ### Added
 
