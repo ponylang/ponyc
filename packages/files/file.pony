@@ -317,7 +317,7 @@ class File
   fun ref write(data: ByteSeq box): Bool =>
     """
     Returns false if the file wasn't opened with write permission.
-    Returns false and closes the file if not all the bytes were written.
+    Returns false and disposes the file on a write error.
     """
     queue(data)
 
@@ -362,28 +362,35 @@ class File
     """
     Write pending data.
     Returns false if the file wasn't opened with write permission.
-    Returns false and closes the file and discards all pending data
-    if not all the bytes were written.
-    Returns true if it sent all pending data.
+    Returns false and disposes the file on a write error.
+    Returns true if all pending data was written.
     """
     try
-      (let result, let num_written, let new_pending_total) =
-        _write_to_disk()?
-      _pending_writev_total = new_pending_total
-      if _pending_writev_total == 0 then
-        _pending_writev.clear()
-        _unsynced_data = true
-        _unsynced_metadata = true
-      else
-        if num_written > 0 then
+      repeat
+        (let result, let num_written, let new_pending_total,
+          let partial_offset) = _write_to_disk()?
+        _pending_writev_total = new_pending_total
+
+        if (num_written > 0) or (partial_offset > 0) then
           _unsynced_data = true
           _unsynced_metadata = true
         end
+
         for d in Range[USize](0, num_written, 1) do
           _pending_writev.shift()?
         end
-      end
-      return result
+
+        if partial_offset > 0 then
+          let entry = _pending_writev(0)?
+          _pending_writev(0)? =
+            (entry._1.offset(partial_offset), entry._2 - partial_offset)
+        end
+
+        if not result then return false end
+      until _pending_writev_total == 0 end
+
+      _pending_writev.clear()
+      return true
     else
       // TODO: error recovery? EINTR?
 
@@ -394,21 +401,22 @@ class File
       return false
     end
 
-  fun _write_to_disk(): (Bool, USize, USize) ? =>
+  fun _write_to_disk(): (Bool, USize, USize, USize) ? =>
     """
-    Write pending data.
+    Write pending data to the file descriptor.
     Returns false if the file wasn't opened with write permission.
-    Raises an error if not all the bytes were written.
-    Returns true if it sent all pending data.
-    Returns num_processed and new pending_total also.
+    Raises an error on a write failure.
+    Returns (writeable, num_buffers_consumed, remaining_pending_total,
+    partial_buffer_offset).
     """
     var num_to_send: I32 = 0
     var num_sent: USize = 0
     var bytes_to_send: USize = 0
     var pending_total = _pending_writev_total
+    var partial_offset: USize = 0
 
     if (not writeable) or (_fd == -1) then
-      return (false, num_sent, pending_total)
+      return (false, num_sent, pending_total, partial_offset)
     end
 
     // TODO: Make writev_batch_size user configurable
@@ -427,32 +435,51 @@ class File
         repeat
           bytes_to_send = bytes_to_send + _pending_writev(counter.usize())?._2
           counter = counter + 1
-        until counter >= num_to_send end
+        until counter >= (num_sent.i32() + num_to_send) end
       end
 
-      // Write as much data as possible (vectored i/o).
-      // On Windows only write 1 buffer at a time.
-      var len =
-        ifdef windows then
-          @_write(
-            _fd,
-            _pending_writev(num_sent)?._1,
-            bytes_to_send.i32()).isize()
+      if bytes_to_send == 0 then
+        num_sent = num_sent + num_to_send.usize()
+      else
+        // Write as much data as possible (vectored i/o).
+        // On Windows only write 1 buffer at a time.
+        var len =
+          ifdef windows then
+            @_write(
+              _fd,
+              _pending_writev(num_sent)?._1,
+              bytes_to_send.i32()).isize()
+          else
+            @writev(
+              _fd,
+              _pending_writev.cpointer(num_sent),
+              num_to_send).isize()
+          end
+
+        if len <= 0 then error end
+
+        if len.usize() < bytes_to_send then
+          var bytes_written = len.usize()
+          pending_total = pending_total - bytes_written
+          while bytes_written > 0 do
+            let buf_size = _pending_writev(num_sent)?._2
+            if bytes_written >= buf_size then
+              bytes_written = bytes_written - buf_size
+              num_sent = num_sent + 1
+            else
+              partial_offset = bytes_written
+              bytes_written = 0
+            end
+          end
+          break
         else
-          @writev(
-            _fd,
-            _pending_writev.cpointer(num_sent),
-            num_to_send).isize()
+          pending_total = pending_total - bytes_to_send
+          num_sent = num_sent + num_to_send.usize()
         end
-
-      if len < bytes_to_send.isize() then error end
-
-      // We've sent all the data we requested in this batch.
-      pending_total = pending_total - bytes_to_send
-      num_sent = num_sent + num_to_send.usize()
+      end
     end
 
-    (true, num_sent, pending_total)
+    (true, num_sent, pending_total, partial_offset)
 
   fun ref position(): USize =>
     """
