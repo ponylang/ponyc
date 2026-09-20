@@ -4298,3 +4298,57 @@ TEST_F(BadPonyTest, WriteNestedEmbedFieldInBoxFunction)
   TEST_ERRORS_1(src, "cannot write to a field in a box function");
 }
 
+TEST_F(BadPonyTest, LambdaLookupShowsAnonymousType)
+{
+  // From issue #4015
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let f = {() => None}\n"
+    "    f.string()";
+
+  const char* errs[] = {
+    "couldn't find 'string' in anonymous type", NULL};
+  const char* frames[] = {
+    "it has a method named 'apply'",
+    "it has a method named 'eq'",
+    "it has a method named 'ne'", NULL};
+  const char** all_frames[] = {frames, NULL};
+  DO(test_expected_error_frames(src, "ir", errs, all_frames));
+}
+
+TEST_F(BadPonyTest, ObjectLiteralLookupShowsAnonymousType)
+{
+  // From issue #4015
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let obj = object\n"
+    "      fun hello(): String => \"hi\"\n"
+    "    end\n"
+    "    obj.string()";
+
+  const char* errs[] = {
+    "couldn't find 'string' in anonymous type", NULL};
+  const char* frames[] = {
+    "it has a method named 'hello'",
+    "it has a method named 'eq'",
+    "it has a method named 'ne'", NULL};
+  const char** all_frames[] = {frames, NULL};
+  DO(test_expected_error_frames(src, "ir", errs, all_frames));
+}
+
+TEST_F(BadPonyTest, PartialApplicationLookupShowsAnonymousType)
+{
+  // From issue #4015
+  const char* src =
+    "actor Main\n"
+    "  new create(env: Env) =>\n"
+    "    let f = this~create()\n"
+    "    f.string()";
+
+  TEST_ERROR_WITH_NOTE(src,
+    "couldn't find 'string' in anonymous type",
+    "it has a method named 'apply'");
+}
+
