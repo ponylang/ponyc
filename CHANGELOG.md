@@ -13,6 +13,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - ConstantTimeCompare now uses OpenSSL's CRYPTO_memcmp ([PR #6120](https://github.com/ponylang/ponyc/pull/6120))
 - Fix Reader crash when appending empty data ([PR #5945](https://github.com/ponylang/ponyc/pull/5945))
 - Improve error message when writing to a field in an immutable method ([PR #6123](https://github.com/ponylang/ponyc/pull/6123))
+- Fix error message for nested field writes in immutable methods ([PR #6125](https://github.com/ponylang/ponyc/pull/6125))
 
 ### Added
 
