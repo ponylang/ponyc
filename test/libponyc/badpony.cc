@@ -4237,4 +4237,64 @@ TEST_F(BadPonyTest, WriteFieldInValFunction)
   TEST_ERRORS_1(src, "cannot write to a field in a val function");
 }
 
+TEST_F(BadPonyTest, WriteNestedFieldInBoxFunction)
+{
+  const char* src =
+    "class Inner\n"
+    "  var x: USize = 0\n"
+
+    "class Outer\n"
+    "  let inner: Inner = Inner\n"
+
+    "actor Main\n"
+    "  let my_outer: Outer = Outer\n"
+    "  new create(env: Env) => None\n"
+    "  fun test() =>\n"
+    "    my_outer.inner.x = 1";
+
+  TEST_ERRORS_1(src, "cannot write to a field in a box function");
+}
+
+TEST_F(BadPonyTest, WriteFieldOfFieldInBoxFunction)
+{
+  const char* src =
+    "class TestClass\n"
+    "  var x: USize = 0\n"
+
+    "actor Main\n"
+    "  let my_test_class: TestClass = TestClass\n"
+    "  new create(env: Env) => None\n"
+    "  fun test() =>\n"
+    "    my_test_class.x = 1";
+
+  TEST_ERRORS_1(src, "cannot write to a field in a box function");
+}
+
+TEST_F(BadPonyTest, WriteNestedFieldInValFunction)
+{
+  const char* src =
+    "class Inner\n"
+    "  var x: USize = 0\n"
+
+    "class Outer\n"
+    "  let inner: Inner = Inner\n"
+    "  fun val test() =>\n"
+    "    inner.x = 1";
+
+  TEST_ERRORS_1(src, "cannot write to a field in a val function");
+}
+
+TEST_F(BadPonyTest, WriteNestedEmbedFieldInBoxFunction)
+{
+  const char* src =
+    "class Inner\n"
+    "  var x: USize = 0\n"
+
+    "class Outer\n"
+    "  embed inner: Inner = Inner\n"
+    "  fun test() =>\n"
+    "    inner.x = 1";
+
+  TEST_ERRORS_1(src, "cannot write to a field in a box function");
+}
 
