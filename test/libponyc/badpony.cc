@@ -4215,3 +4215,26 @@ TEST_F(BadPonyTest, UnresolvedTypeParamInObjectLiteralBody)
   TEST_ERRORS_1(src, "can't find definition of 'A'");
 }
 
+TEST_F(BadPonyTest, WriteFieldInBoxFunction)
+{
+  const char* src =
+    "class Foo\n"
+    "  var x: U32 = 0\n"
+    "  fun foo() =>\n"
+    "    x = 42";
+
+  TEST_ERRORS_1(src, "cannot write to a field in a box function");
+}
+
+TEST_F(BadPonyTest, WriteFieldInValFunction)
+{
+  const char* src =
+    "class Foo\n"
+    "  var x: U32 = 0\n"
+    "  fun val foo() =>\n"
+    "    x = 42";
+
+  TEST_ERRORS_1(src, "cannot write to a field in a val function");
+}
+
+
