@@ -59,15 +59,20 @@ LLVMMetadataRef LLVMDIBuilderCreateMethod(LLVMDIBuilderRef d,
   DIBuilder* pd = unwrap(d);
   Function* f = unwrap<Function>(func);
 
+  DISubprogram* decl = pd->createMethod(unwrap<DIScope>(scope),
+    name, linkage, unwrap<DIFile>(file), line, unwrap<DISubroutineType>(type),
+    0, 0, nullptr, DINode::FlagZero, DISubprogram::SPFlagZero,
+    nullptr, nullptr);
+
   DISubprogram::DISPFlags sp_flags = DISubprogram::toSPFlags(false, true,
     optimized ? true : false);
 
-  DISubprogram* di_method = pd->createMethod(unwrap<DIScope>(scope),
+  DISubprogram* def = pd->createFunction(unwrap<DIScope>(file),
     name, linkage, unwrap<DIFile>(file), line, unwrap<DISubroutineType>(type),
-    0, 0, nullptr, DINode::FlagZero, sp_flags, nullptr, nullptr);
+    line, DINode::FlagZero, sp_flags, nullptr, decl, nullptr);
 
-  f->setSubprogram(di_method);
-  return wrap(di_method);
+  f->setSubprogram(def);
+  return wrap(def);
 }
 
 LLVMMetadataRef LLVMDIBuilderCreateAutoVariable(LLVMDIBuilderRef d,

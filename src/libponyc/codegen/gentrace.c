@@ -517,7 +517,7 @@ static void trace_known(compile_t* c, LLVMValueRef ctx, LLVMValueRef object,
   LLVMValueRef args[4];
   args[0] = ctx;
   args[1] = object;
-  args[2] = ((compile_type_t*)t->c_type)->desc;
+  args[2] = codegen_resolve_global(c, ((compile_type_t*)t->c_type)->desc);
   args[3] = LLVMConstInt(c->i32, mutability, false);
 
   gencall_runtime(c, "pony_traceknown", args, 4, "");

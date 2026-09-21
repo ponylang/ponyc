@@ -14,6 +14,7 @@ typedef struct compile_type_t
   compile_opaque_free_fn free_fn;
 
   size_t abi_size;
+  size_t module_index;
 
   LLVMTypeRef structure;
   LLVMTypeRef structure_ptr;

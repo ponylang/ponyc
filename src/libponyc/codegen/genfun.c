@@ -443,6 +443,7 @@ static void call_embed_finalisers(compile_t* c, reach_type_t* t,
     if(final_fn == NULL)
       continue;
 
+    final_fn = codegen_resolve_function(c, final_fn);
     LLVMTypeRef final_fn_type = LLVMGlobalGetValueType(final_fn);
 
     LLVMValueRef field_ref = LLVMBuildStructGEP2(c->builder, c_t->structure,
@@ -599,7 +600,7 @@ static bool genfun_be(compile_t* c, reach_type_t* t, reach_method_t* m)
   gen_send_message(c, m, param_vals, params);
 
   // Return None.
-  genfun_build_ret(c, c->none_instance);
+  genfun_build_ret(c, codegen_resolve_global(c, c->none_instance));
   codegen_finishfun(c);
 
   ponyint_pool_free_size(buf_size, param_vals);
@@ -852,8 +853,9 @@ static bool genfun_forward(compile_t* c, reach_type_t* t,
   }
 
   codegen_debugloc(c, m2->fun->ast);
-  LLVMValueRef ret = codegen_call(c, LLVMGlobalGetValueType(c_m2->func),
-    c_m2->func, args, count, m->cap != TK_AT);
+  LLVMValueRef fwd_fn = codegen_resolve_function(c, c_m2->func);
+  LLVMValueRef ret = codegen_call(c, LLVMGlobalGetValueType(fwd_fn),
+    fwd_fn, args, count, m->cap != TK_AT);
   codegen_debugloc(c, NULL);
 
   if(c_m->is_partial)
@@ -1232,8 +1234,10 @@ static void primitive_call(compile_t* c, const char* method)
 
     compile_type_t* c_t = (compile_type_t*)t->c_type;
     compile_method_t* c_m = (compile_method_t*)m->c_method;
-    LLVMValueRef value = codegen_call(c, LLVMGlobalGetValueType(c_m->func),
-      c_m->func, &c_t->instance, 1, true);
+    LLVMValueRef resolved_fn = codegen_resolve_function(c, c_m->func);
+    LLVMValueRef resolved_inst = codegen_resolve_global(c, c_t->instance);
+    LLVMValueRef value = codegen_call(c, LLVMGlobalGetValueType(resolved_fn),
+      resolved_fn, &resolved_inst, 1, true);
 
     if(c->str__final == method)
       LLVMSetInstructionCallConv(value, LLVMCCallConv);

@@ -1,3 +1,17 @@
+# What: OpenBSD ELF support for lld: OSABI parsing, versioned shared
+#        library search, and OpenBSD-specific section merging.
+# Why: Stock lld does not recognize the _obsd emulation suffix, cannot
+#      find OpenBSD's versioned shared libraries (libNAME.so.MAJOR.MINOR
+#      with no libNAME.so symlink), and does not preserve OpenBSD-specific
+#      sections (.openbsd.randomdata, .openbsd.mutable). Without this
+#      patch, ponyc cannot link on OpenBSD.
+# Upstream: Modeled on the OpenBSD lld fork. Not submitted to upstream
+#           LLVM — upstream has historically not accepted OS-specific
+#           library search logic.
+# Still needed: Yes, for OpenBSD support.
+# Test: Remove the patch, rebuild, try to link a Pony program on
+#       OpenBSD. Linking fails because lld cannot find shared libraries.
+
 diff --git i/lld/ELF/Driver.cpp w/lld/ELF/Driver.cpp
 index ee5a10171..ce31c39fa 100644
 --- i/lld/ELF/Driver.cpp

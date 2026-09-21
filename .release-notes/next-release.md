@@ -334,3 +334,38 @@ elseif my_flags < other_flags then
   // strict subset
 end
 ```
+
+## Fix out-of-memory when compiling large programs on 32-bit platforms
+
+Compiling large programs on 32-bit platforms (such as RPi4 in 32-bit mode) could exhaust address space because the compiler held the entire program in a single LLVM module. Peak memory is now proportional to the largest package rather than the whole program. The stdlib compiles on RPi4 with ponyc peaking at 2918MB and the linker at 2060MB, both under the ~3GB ILP32 limit.
+
+## Fix debug info generation so release builds no longer need to strip DWARF data
+
+The compiler's DWARF generation had bugs that caused crashes or invalid debug info in optimized builds. The old workaround auto-set `--strip` on every release build, discarding all debug info. The underlying DWARF issues are fixed in the new per-package codegen pipeline, so the forced stripping is removed. Release builds now produce valid debug info by default. Pass `--strip` explicitly if you want binaries without debug info.
+
+## `--print_stats` no longer reports heap-to-stack promotion counts
+
+The `heap_alloc` and `stack_alloc` counters are removed from `--print_stats` output. HeapToStack now runs during LTO linking rather than inside the compiler, so the compiler has no access to the promotion counts. A debug build of ponyc logs each promotion decision to stderr via LLVM's debug output (`-debug-only=pony-heap-to-stack`) and tracks aggregate counts via LLVM's `STATISTIC` mechanism (`NumHeapAlloc`, `NumStackAlloc`).
+
+## Release builds no longer strip debug info automatically
+
+Release builds previously auto-set `--strip`, removing all debug info from the binary. That was a workaround for bugs in DWARF generation, not intentional policy. Those bugs are fixed, so the forced stripping is removed. Binaries built with `--release` now include debug info unless `--strip` is passed explicitly. If your build scripts or packaging rely on release binaries having no debug info, add `--strip` to your ponyc invocation.
+
+## Remove `--extfun` flag
+
+The `--extfun` flag forced external linkage on all functions, which was useful for making release-build symbols visible to debuggers and profilers. All symbols now start with external linkage so the LTO linker can determine final visibility, making `--extfun` redundant. Passing it is no longer accepted.
+
+## Replace optimize-then-emit pipeline with per-package codegen
+
+The compiler now optimizes and generates code one package at a time instead of processing the entire program at once. Peak memory during compilation is proportional to the largest package rather than the whole program. This makes it possible to compile large programs on memory-constrained targets like 32-bit ARM (RPi4) that previously ran out of memory.
+
+Two LTO modes control how the linker combines the per-package output:
+
+- `--fat-lto` (default): full LTO merges everything into one unit before optimizing. Best optimization, higher memory use during linking.
+- `--thin-lto`: ThinLTO optimizes each package individually with cross-module information. Faster linking, lower memory use, slightly less optimization.
+
+`--pass ir` emits per-package LLVM IR. `--pass bitcode` emits per-package bitcode files.
+
+## Remove `--pass asm` and `--pass obj`
+
+The compiler no longer drives the LLVM backend directly — the linker handles optimization and native codegen during LTO linking. `--pass asm` and `--pass obj` have no equivalent in this pipeline.

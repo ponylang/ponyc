@@ -59,9 +59,11 @@ enum
   OPT_NOVERIFY,
   OPT_FILENAMES,
   OPT_CHECKTREE,
-  OPT_EXTFUN,
   OPT_LINT_LLVM,
   OPT_LLVM_ARGS,
+
+  OPT_FAT_LTO,
+  OPT_THIN_LTO,
 
   OPT_BNF,
   OPT_ANTLR,
@@ -94,7 +96,8 @@ static opt_arg_t std_args[] =
   {"sysroot", '\0', OPT_ARG_REQUIRED, OPT_SYSROOT},
   {"lib-path", 'L', OPT_ARG_REQUIRED, OPT_LIB_PATH},
   {"plugin", '\0', OPT_ARG_REQUIRED, OPT_PLUGIN},
-
+  {"fat-lto", '\0', OPT_ARG_NONE, OPT_FAT_LTO},
+  {"thin-lto", '\0', OPT_ARG_NONE, OPT_THIN_LTO},
   {"verbose", 'V', OPT_ARG_REQUIRED, OPT_VERBOSE},
   {"pass", 'r', OPT_ARG_REQUIRED, OPT_PASSES},
   {"ast", 'a', OPT_ARG_NONE, OPT_AST},
@@ -105,7 +108,6 @@ static opt_arg_t std_args[] =
   {"noverify", '\0', OPT_ARG_NONE, OPT_NOVERIFY},
   {"files", '\0', OPT_ARG_NONE, OPT_FILENAMES},
   {"checktree", '\0', OPT_ARG_NONE, OPT_CHECKTREE},
-  {"extfun", '\0', OPT_ARG_NONE, OPT_EXTFUN},
   {"lint-llvm", '\0', OPT_ARG_NONE, OPT_LINT_LLVM},
 #ifndef NDEBUG
   {"llvm-args", '\0', OPT_ARG_REQUIRED, OPT_LLVM_ARGS},
@@ -177,6 +179,9 @@ static void usage(void)
     "                   specified multiple times.\n"
     "  --plugin         Use the specified plugin(s).\n"
     "    =name\n"
+    "  --fat-lto        Use full LTO (default; best optimisation, slower compile).\n"
+    "  --thin-lto       Use ThinLTO (faster compile, slightly less\n"
+    "                   optimisation).\n"
     "  --define, -D     Set a compile time definition.\n"
 #ifndef NDEBUG
     "  --llvm-args      Pass LLVM-specific arguments.\n"
@@ -198,7 +203,6 @@ static void usage(void)
     "  --immerr         Report errors immediately rather than deferring.\n"
     "  --checktree      Verify AST well-formedness.\n"
     "  --noverify       Don't verify LLVM IR.\n"
-    "  --extfun         Set function default linkage to external.\n"
     "  --files          Print source file names as each is processed.\n"
     "  --bnf            Print out the Pony grammar as human readable BNF.\n"
     "  --antlr          Print out the Pony grammar as an ANTLR file.\n"
@@ -347,14 +351,14 @@ ponyc_opt_process_t ponyc_opt_process(opt_state_t* s, pass_opt_t* opt,
           exit_code = EXIT_255;
         }
         break;
-
+      case OPT_FAT_LTO: opt->fat_lto = true; break;
+      case OPT_THIN_LTO: opt->fat_lto = false; break;
       case OPT_AST: *print_program_ast = true; break;
       case OPT_ASTPACKAGE: *print_package_ast = true; break;
       case OPT_TRACE: opt->parse_trace = true; break;
       case OPT_WIDTH: opt->ast_print_width = atoi(s->arg_val); break;
       case OPT_IMMERR: errors_set_immediate(opt->check.errors, true); break;
       case OPT_NOVERIFY: opt->verify = false; break;
-      case OPT_EXTFUN: opt->extfun = true; break;
       case OPT_FILENAMES: opt->print_filenames = true; break;
       case OPT_CHECKTREE: opt->check_tree = true; break;
       case OPT_LINT_LLVM: opt->lint_llvm = true; break;

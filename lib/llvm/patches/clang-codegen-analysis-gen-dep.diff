@@ -1,3 +1,16 @@
+# What: Add missing CMake dependency on analysis_gen in clangCodeGen.
+# Why: CodeGenModule.cpp and CodeGenAction.cpp include
+#      llvm/Analysis/TargetLibraryInfo.h, whose TargetLibraryInfo.inc
+#      is produced by the analysis_gen tablegen target. Without this
+#      dependency a parallel build can compile before the header is
+#      generated, causing a build failure.
+# Upstream: Should be submitted. This is a straightforward build fix.
+# Still needed: Yes, until upstream adds it or reorganizes the include.
+# Test: Remove the patch, run a parallel build from clean
+#       (cmake --build --preset debug -j$(nproc)). May fail with
+#       "TargetLibraryInfo.inc: No such file or directory" on the
+#       first build.
+
 diff --git i/clang/lib/CodeGen/CMakeLists.txt w/clang/lib/CodeGen/CMakeLists.txt
 index dbbc35b37..87bfbfa3c 100644
 --- i/clang/lib/CodeGen/CMakeLists.txt

@@ -738,8 +738,10 @@ if (PONY_CROSS_LIBPONYRT)
     install(TARGETS libponyrt DESTINATION ${PONY_INSTALL_LIBDIR})
 else()
     add_subdirectory(src/libponyc)
+    add_subdirectory(src/libponylto)
     add_subdirectory(src/libponyrt)
     add_subdirectory(src/ponyc)
+    add_subdirectory(src/ponylink)
 
     add_subdirectory(test/libponyc)
     add_subdirectory(test/libponyrt)
@@ -966,7 +968,7 @@ else()
     # Binaries. ponyc is the only real executable target; the tools are custom
     # targets producing a file next to ponyc, so they install by path as
     # PROGRAMS. Test and benchmark binaries are not installed.
-    install(TARGETS ponyc DESTINATION ${PONY_VERSIONED_DIR}/bin)
+    install(TARGETS ponyc ponylink DESTINATION ${PONY_VERSIONED_DIR}/bin)
     install(PROGRAMS
         ${PONY_OUTPUT_DIR}/pony-lsp${CMAKE_EXECUTABLE_SUFFIX}
         ${PONY_OUTPUT_DIR}/pony-lint${CMAKE_EXECUTABLE_SUFFIX}

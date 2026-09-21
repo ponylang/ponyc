@@ -243,8 +243,6 @@ typedef enum pass_id
   PASS_PAINT,
   PASS_LLVM_IR,
   PASS_BITCODE,
-  PASS_ASM,
-  PASS_OBJ,
   PASS_ALL
 } pass_id;
 
@@ -270,9 +268,7 @@ typedef enum pass_id
     "    =reach\n" \
     "    =paint\n" \
     "    =ir            Output LLVM IR.\n" \
-    "    =bitcode       Output LLVM bitcode.\n" \
-    "    =asm           Output assembly.\n" \
-    "    =obj           Output an object file.\n" \
+    "    =bitcode       Output per-package bitcode files.\n" \
     "    =all           The default: generate an executable.\n"
 
 typedef struct magic_package_t magic_package_t;
@@ -298,7 +294,6 @@ typedef struct pass_opt_t
   bool pic;
   bool print_stats;
   bool verify;
-  bool extfun;
   bool strip_debug;
   bool print_filenames;
   bool check_tree;
@@ -354,6 +349,8 @@ typedef struct pass_opt_t
   pass_timers_t* timers;
 
   strlist_t* lib_search_paths;
+
+  bool fat_lto;
 } pass_opt_t;
 
 /** Limit processing to the specified pass. All passes up to and including the
