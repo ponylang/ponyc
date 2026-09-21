@@ -261,3 +261,76 @@ fun params(): PropertyParams =>
     max_sample_nanos' = 500_000_000)
 ```
 
+## `HashSet` no longer provides `is Comparable`
+
+`HashSet` now implements `Equatable` instead of `Comparable`. The comparison operators (`<`, `<=`, `>`, `>=`, `==`, `!=`) are defined directly on `HashSet` and continue to work. Only the inherited `compare` method is removed.
+
+`HashSet`'s `lt` defines a strict-subset relation, which is a partial order. `Comparable`'s default `compare` assumes a total order, so it returned `Greater` for two disjoint sets in both directions.
+
+Code that calls `.compare()` on a `HashSet` or passes one where `Comparable[HashSet[...]]` is required needs updating:
+
+Before:
+
+```pony
+let ordering = set1.compare(set2)
+```
+
+After:
+
+```pony
+if set1 == set2 then
+  // equal
+elseif set1 < set2 then
+  // strict subset
+end
+```
+
+## persistent `HashSet` no longer provides `is Comparable`
+
+The persistent `HashSet` in `collections/persistent` now implements `Equatable` instead of `Comparable`. The comparison operators continue to work. Only the inherited `compare` method is removed.
+
+The same partial-order issue applies: `lt` defines strict subset, and `Comparable`'s default `compare` returned `Greater` for disjoint sets in both directions.
+
+Before:
+
+```pony
+use "collections/persistent"
+
+let ordering = set1.compare(set2)
+```
+
+After:
+
+```pony
+use "collections/persistent"
+
+if set1 == set2 then
+  // equal
+elseif set1 < set2 then
+  // strict subset
+end
+```
+
+## `Flags` no longer provides `is Comparable`
+
+`Flags` now implements `Equatable` instead of `Comparable`. The comparison operators (`<`, `<=`, `>`, `>=`, `==`, `!=`) are defined directly on `Flags` and continue to work. Only the inherited `compare` method is removed.
+
+`Flags`'s `lt` defines a strict-subset relation on the set of enabled flags, which is a partial order. `Comparable`'s default `compare` returned `Greater` for two flag values with disjoint bits in both directions.
+
+Code that calls `.compare()` on a `Flags` value (including `FileCaps`) or passes one where `Comparable[Flags[...]]` is required needs updating:
+
+Before:
+
+```pony
+let ordering = my_flags.compare(other_flags)
+```
+
+After:
+
+```pony
+if my_flags == other_flags then
+  // same flags set
+elseif my_flags < other_flags then
+  // strict subset
+end
+```

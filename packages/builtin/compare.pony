@@ -20,6 +20,11 @@ interface Equatable[A: Equatable[A] #read]
   fun ne(that: box->A): Bool => not eq(that)
 
 interface Comparable[A: Comparable[A] #read] is Equatable[A]
+  """
+  Total ordering. The default `compare`, `le`, `ge`, and `gt` assume `lt`
+  defines a total order. Types with a partial order should implement
+  `Equatable` instead and define their own comparison methods.
+  """
   fun lt(that: box->A): Bool
   fun le(that: box->A): Bool => lt(that) or eq(that)
   fun ge(that: box->A): Bool => not lt(that)

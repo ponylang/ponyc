@@ -32,6 +32,9 @@ All notable changes to the Pony compiler and standard library will be documented
 
 - Add AsioBackend trait for mockable ASIO operations ([PR #6071](https://github.com/ponylang/ponyc/pull/6071))
 - `TCPBackend` implementations must add `is_socket_connected` ([PR #6094](https://github.com/ponylang/ponyc/pull/6094))
+- `HashSet` no longer provides `is Comparable` ([PR #6122](https://github.com/ponylang/ponyc/pull/6122))
+- persistent `HashSet` no longer provides `is Comparable` ([PR #6122](https://github.com/ponylang/ponyc/pull/6122))
+- `Flags` no longer provides `is Comparable` ([PR #6122](https://github.com/ponylang/ponyc/pull/6122))
 
 ## [0.72.1] - 2026-09-13
 
