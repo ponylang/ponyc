@@ -89,6 +89,22 @@ if(NOT PONY_CROSS_LIBPONYRT)
     find_package(GTest REQUIRED CONFIG PATHS "build/libs/lib/cmake/GTest" "build/libs/lib64/cmake/GTest" NO_DEFAULT_PATH)
     find_package(benchmark REQUIRED CONFIG PATHS "build/libs/lib/cmake/benchmark" "build/libs/lib64/cmake/benchmark" NO_DEFAULT_PATH)
     # Detect SSL for the stdlib net package (requires -Dopenssl_3.0.x etc.)
+    # On macOS, Homebrew installs SSL as keg-only (not symlinked into the
+    # standard prefix), so find_package won't find it without a hint.  Check
+    # the well-known Homebrew paths when the caller hasn't set one.
+    if(APPLE AND NOT OPENSSL_ROOT_DIR)
+        foreach(_brew_prefix /opt/homebrew /usr/local)
+            foreach(_ssl_name libressl openssl@3)
+                if(IS_DIRECTORY "${_brew_prefix}/opt/${_ssl_name}")
+                    set(OPENSSL_ROOT_DIR "${_brew_prefix}/opt/${_ssl_name}")
+                    break()
+                endif()
+            endforeach()
+            if(OPENSSL_ROOT_DIR)
+                break()
+            endif()
+        endforeach()
+    endif()
     find_package(OpenSSL QUIET)
     if(OPENSSL_FOUND)
         # On MSVC, reject a mingw OpenSSL (.a files) — it can't link with the MSVC
