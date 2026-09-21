@@ -1,3 +1,18 @@
+# What: Fall back to the absolute path when a sysroot-prefixed path
+#        does not exist in lld's linker script parser.
+# Why: Cross-toolchains (e.g. Debian gcc-cross packages) install linker
+#      scripts with fully-qualified paths that already include the
+#      sysroot prefix. When lld prepends the sysroot again, the path
+#      does not exist. Without this fallback, cross-compilation fails
+#      with "cannot find /usr/lib/... inside /usr/...".
+# Upstream: Not submitted. Upstream may prefer a different approach
+#           to sysroot handling in linker scripts.
+# Still needed: Yes, for cross-compilation with Debian-packaged
+#               cross-toolchains (e.g. gcc-riscv64-linux-gnu).
+# Test: Remove the patch, rebuild, cross-compile for riscv64 with
+#       --sysroot pointing at a Debian cross-toolchain. Linking fails
+#       with "cannot find ... inside ...".
+
 diff --git i/lld/ELF/ScriptParser.cpp w/lld/ELF/ScriptParser.cpp
 index ddfa24d9c..3753e0929 100644
 --- i/lld/ELF/ScriptParser.cpp

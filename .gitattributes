@@ -10,6 +10,7 @@
 *.bash pony
 
 *.bat win
+*.diff pony
 
 # A full-program test's stdin.txt is what the tester writes to the program's
 # stdin, byte for byte. Nothing may rewrite its line endings.

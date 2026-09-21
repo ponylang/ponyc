@@ -6,6 +6,8 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
+- Fix out-of-memory when compiling large programs on 32-bit platforms ([PR #6109](https://github.com/ponylang/ponyc/pull/6109))
+- Fix debug info generation so release builds no longer need to strip DWARF data ([PR #6109](https://github.com/ponylang/ponyc/pull/6109))
 - Bound PonyTest concurrent execution to scheduler thread count ([PR #6072](https://github.com/ponylang/ponyc/pull/6072))
 - Fix cycle detector memory leak for mutually-referencing actors ([PR #6099](https://github.com/ponylang/ponyc/pull/6099))
 - Fix out-of-memory crash on ILP32 Linux from address space fragmentation ([PR #6111](https://github.com/ponylang/ponyc/pull/6111))
@@ -30,6 +32,11 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Changed
 
+- `--print_stats` no longer reports heap-to-stack promotion counts ([PR #6109](https://github.com/ponylang/ponyc/pull/6109))
+- Release builds no longer strip debug info automatically ([PR #6109](https://github.com/ponylang/ponyc/pull/6109))
+- Remove `--extfun` flag ([PR #6109](https://github.com/ponylang/ponyc/pull/6109))
+- Replace optimize-then-emit pipeline with per-package codegen ([PR #6109](https://github.com/ponylang/ponyc/pull/6109))
+- Remove `--pass asm` and `--pass obj` ([PR #6109](https://github.com/ponylang/ponyc/pull/6109))
 - Add AsioBackend trait for mockable ASIO operations ([PR #6071](https://github.com/ponylang/ponyc/pull/6071))
 - `TCPBackend` implementations must add `is_socket_connected` ([PR #6094](https://github.com/ponylang/ponyc/pull/6094))
 - `HashSet` no longer provides `is Comparable` ([PR #6122](https://github.com/ponylang/ponyc/pull/6122))

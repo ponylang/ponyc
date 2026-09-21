@@ -35,8 +35,6 @@ struct _TypecheckFrame
 struct _TypecheckStats
   var names_count: USize = 0
   var default_caps_count: USize = 0
-  var heap_alloc: USize = 0
-  var stack_alloc: USize = 0
 
 class val Error
   """

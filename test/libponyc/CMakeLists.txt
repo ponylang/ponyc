@@ -69,6 +69,7 @@ target_compile_definitions(libponyc.tests PRIVATE
 target_include_directories(libponyc.tests
     PRIVATE ../../src/common
     PRIVATE ../../src/libponyc
+    PRIVATE ../../src/libponylto
     PRIVATE ../../build/libs/include
 )
 
@@ -135,5 +136,5 @@ else()
 endif (MSVC)
 
 if(NOT PONY_CROSS_LIBPONYRT)
-    target_link_libraries(libponyc.tests PRIVATE ${PONYC_CLANG_LIBS} ${PONYC_LLVM_LIBS} ${PONYC_LLD_LIBS} ${PONYC_EXTRA_LIBS})
+    target_link_libraries(libponyc.tests PRIVATE ${PONYC_CLANG_LIBS} ${PONYC_LLVM_LIBS} ${PONYC_LLD_LIBS} ${PONYC_EXTRA_LIBS} "$<LINK_LIBRARY:WHOLE_ARCHIVE,libponylto>")
 endif()
