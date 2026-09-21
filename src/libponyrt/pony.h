@@ -13,9 +13,11 @@ extern "C" {
 
 #if defined(_MSC_VER)
 #  define ATTRIBUTE_MALLOC __declspec(restrict)
+#  define PONY_NOINLINE __declspec(noinline)
 #  define PONY_API __declspec(dllexport)
 #else
 #  define ATTRIBUTE_MALLOC __attribute__((malloc))
+#  define PONY_NOINLINE __attribute__((noinline))
 #  if defined(_WIN32)
 #    define PONY_API __attribute__((dllexport))
 #  else

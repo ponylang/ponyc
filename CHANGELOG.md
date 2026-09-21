@@ -18,6 +18,8 @@ All notable changes to the Pony compiler and standard library will be documented
 - Fix error message for nested field writes in immutable methods ([PR #6125](https://github.com/ponylang/ponyc/pull/6125))
 - Fix File losing data on large writes ([PR #6124](https://github.com/ponylang/ponyc/pull/6124))
 - Improve error messages for method lookup on anonymous types ([PR #6127](https://github.com/ponylang/ponyc/pull/6127))
+- Fix `--runtimebc` performance ([PR #6133](https://github.com/ponylang/ponyc/pull/6133))
+- Inline `pony_alloc` and `pony_alloc_small` calls that HeapToStack does not promote ([PR #6133](https://github.com/ponylang/ponyc/pull/6133))
 
 ### Added
 

@@ -1173,7 +1173,14 @@ void ponyint_sendi_inject(pony_actor_t* to, uint32_t id, intptr_t i)
   ponyint_sendv_inject(to, &m->msg);
 }
 
-PONY_API void* pony_alloc(pony_ctx_t* ctx, size_t size)
+// HeapToStack (libponylto) matches pony_alloc and pony_alloc_small by name
+// at call sites to promote heap allocations to the stack. With -O2 bitcode
+// the CGSCC inliner would inline these before HeapToStack runs, removing the
+// call sites HeapToStack needs. noinline preserves them through the inliner;
+// InlineRemainingAllocPass (plugin.cc) strips it afterward and inlines the
+// surviving calls.
+PONY_API PONY_NOINLINE
+void* pony_alloc(pony_ctx_t* ctx, size_t size)
 {
   pony_assert(ctx->current != NULL);
   DTRACE3(HEAP_ALLOC, (uintptr_t)ctx->scheduler, (uintptr_t)ctx->current, size);
@@ -1182,7 +1189,8 @@ PONY_API void* pony_alloc(pony_ctx_t* ctx, size_t size)
     TRACK_NO_FINALISERS);
 }
 
-PONY_API void* pony_alloc_small(pony_ctx_t* ctx, uint32_t sizeclass)
+PONY_API PONY_NOINLINE
+void* pony_alloc_small(pony_ctx_t* ctx, uint32_t sizeclass)
 {
   pony_assert(ctx->current != NULL);
   DTRACE3(HEAP_ALLOC, (uintptr_t)ctx->scheduler, (uintptr_t)ctx->current, HEAP_MIN << sizeclass);

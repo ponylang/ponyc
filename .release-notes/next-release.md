@@ -369,3 +369,13 @@ Two LTO modes control how the linker combines the per-package output:
 ## Remove `--pass asm` and `--pass obj`
 
 The compiler no longer drives the LLVM backend directly — the linker handles optimization and native codegen during LTO linking. `--pass asm` and `--pass obj` have no equivalent in this pipeline.
+
+## Fix `--runtimebc` performance
+
+Programs compiled with `--runtimebc` ran up to 2x slower than programs compiled without it. The runtime bitcode was compiled with no optimization flags, preventing the optimizer from inlining runtime functions into user code.
+
+The runtime bitcode is now compiled at `-O2`. Programs compiled with `--runtimebc` now perform as well as or better than programs compiled without it.
+
+## Inline `pony_alloc` and `pony_alloc_small` calls that HeapToStack does not promote
+
+When compiling with `--runtimebc`, runtime allocation calls that could not be promoted to the stack were left as function calls. A new LTO pass now inlines these remaining call sites after heap-to-stack promotion, eliminating the call overhead. In message-heavy workloads this makes `--runtimebc` faster than compiling without it.
