@@ -150,6 +150,10 @@ bool HeapToStack::runOnInstruction(IRBuilder<> &builder, Instruction *inst,
 
   bool small = false;
 
+  // These names must match the definitions in actor.c. Those functions carry
+  // PONY_NOINLINE so the CGSCC inliner preserves these call sites until
+  // HeapToStack has run; InlineRemainingAllocPass (plugin.cc) strips the
+  // attribute and inlines whatever call sites remain afterward.
   if(fun->getName().compare("pony_alloc") == 0)
   {
   }
