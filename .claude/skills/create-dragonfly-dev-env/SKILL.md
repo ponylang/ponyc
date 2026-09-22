@@ -37,10 +37,10 @@ several steps:
   `ssh ... root@localhost /bin/sh <<'EOF' ... EOF`. A bare
   `ssh ... root@localhost 'cmd with $(...)'` fails with `Illegal variable name.`
 - **Boot timing is handled by the script.** `dfly_configure_vm.py` takes periodic VGA
-  screendumps and waits for the screen to stabilize before attempting login, then retries
-  the login + serial shell start until the serial port responds. If something goes wrong,
-  check the diagnostic screendump the script saves, or use the manual screendump helper
-  (Step 5) to see the VM state.
+  screendumps and waits for the screen to stabilize before attempting login. It then types
+  three short commands via sendkey (login, mount the seed ISO, run the setup script) and
+  verifies SSH becomes reachable. If something goes wrong, check the diagnostic screendump
+  the script saves, or use the manual screendump helper (Step 5) to see the VM state.
 - **A daemonized QEMU `chdir`s to `/`.** The monitor `screendump` (and any relative path
   the daemon writes) needs an **absolute** path, or it fails `Permission denied`.
 - **No `sudo` needed (and often unavailable).** CI loop-mounts the ISO with `sudo` to get
@@ -48,8 +48,9 @@ several steps:
 - **Detach long in-VM builds.** The libs build (LLVM) takes hours; run it
   `nohup … > /build/x.log 2>&1 &` and poll the log, so an ssh drop doesn't kill it.
 - **Reuse the CI console script verbatim.** `.ci-scripts/bsd/dfly_configure_vm.py`
-  bootstraps a serial shell via QEMU sendkey, then runs setup commands through the serial
-  console with prompt detection. Copy it, don't reimplement the bootstrap or setup.
+  types login + mount + setup via QEMU sendkey, then verifies SSH is reachable. The setup
+  script lives on the seed ISO created in Step 4. Copy the Python script, don't reimplement
+  the bootstrap or setup.
 
 ## Step 0 — verify prerequisites (do NOT assume they're installed)
 
@@ -62,6 +63,7 @@ This skill needs, on the host:
   disk), ~2 GB for the image/ISO files, and network access to mirror-master.dragonflybsd.org
 - `qemu-system-x86_64` and `qemu-img`
 - `bsdtar` (a libarchive tar that reads ISO9660; the default `tar` on macOS, FreeBSD, and DragonFly)
+- `genisoimage` (or `mkisofs`) for creating the seed ISO
 - `bunzip2`, `rsync`, `git`, `curl`, `python3`
 - an OpenSSH client (`ssh`, `scp`, `ssh-keygen`)
 - a PPM-to-PNG converter: any one of magick/convert, ffmpeg, or pnmtopng
@@ -75,7 +77,7 @@ package manager**, then re-run the check before proceeding.
 
 ```sh
 missing=""
-for t in qemu-system-x86_64 qemu-img bsdtar bunzip2 rsync git ssh scp ssh-keygen curl python3; do
+for t in qemu-system-x86_64 qemu-img bsdtar bunzip2 rsync git ssh scp ssh-keygen curl python3 genisoimage; do
   command -v "$t" >/dev/null 2>&1 || missing="$missing $t"
 done
 command -v magick >/dev/null 2>&1 || command -v convert >/dev/null 2>&1 \
@@ -145,16 +147,39 @@ bsdtar -cf dfly-include.tar -C iso-stage/usr include
 rm -rf iso-stage
 ```
 
-### 4. Key + boot (daemonized, persistent)
+### 4. Key + seed ISO + boot (daemonized, persistent)
+
+Create the SSH key, a seed ISO with the key and a setup script, then boot with the ISO
+attached as a CD-ROM. The setup script on the ISO configures networking, sshd, and SSH
+keys — the sendkey bootstrap only needs to type three short commands (login, mount, run
+script) instead of piping long commands through the fragile VGA console.
 
 ```sh
 VMDIR=~/vms/dragonfly-6.4.2; DFLY_VER=6.4.2; cd "$VMDIR"
 test -f vm_key || ssh-keygen -t ed25519 -f vm_key -N "" -q
+cat > setup.sh <<'SETUP'
+#!/bin/sh
+set -e
+if pgrep -x sshd >/dev/null 2>&1; then
+  exit 0
+fi
+dhclient vtnet0
+echo "PermitRootLogin yes" >> /etc/ssh/sshd_config
+echo "PermitEmptyPasswords yes" >> /etc/ssh/sshd_config
+mkdir -p /root/.ssh && chmod 700 /root/.ssh
+cp /mnt/authorized_keys /root/.ssh/authorized_keys
+chmod 600 /root/.ssh/authorized_keys
+ssh-keygen -A
+/usr/sbin/sshd
+SETUP
+cp vm_key.pub authorized_keys
+genisoimage -output seed.iso -volid CIDATA -joliet -rock setup.sh authorized_keys
 qemu-system-x86_64 \
   -name dragonfly-${DFLY_VER} \
   -machine pc,accel=kvm:hvf -cpu host -smp 8 -m 12G \
   -drive file=dfly.qcow2,format=qcow2,if=virtio \
   -drive file=dfly-data.qcow2,format=qcow2,if=virtio \
+  -drive file=seed.iso,media=cdrom \
   -netdev user,id=net0,hostfwd=tcp::2222-:22 \
   -device virtio-net-pci,netdev=net0 \
   -object rng-random,id=rng0,filename=/dev/urandom \
@@ -171,19 +196,17 @@ it never silently falls back to slow TCG. `-smp`/`-m` are speed knobs; CI uses 4
 ### 5. Run the console setup script
 
 The CI console script takes periodic VGA screendumps to detect when boot finishes, then
-bootstraps a serial shell via sendkey with retries, and runs all setup commands through
-the serial console with prompt detection. It handles boot timing internally.
+types three short commands via sendkey (login as root, mount the seed ISO, run the setup
+script). It verifies SSH becomes reachable after each attempt, retrying if needed.
 
 The script lives in the repo at `.ci-scripts/bsd/dfly_configure_vm.py`. Copy it into
-`$VMDIR` (it connects to `dfly-monitor.sock` and `dfly-serial.sock` in its working
-directory) and run it there. Set `DFLY_ARTIFACTS_DIR` to the VM directory so the script
-can write screendumps for boot detection and diagnostics. It logs in, brings up
-networking, configures sshd, and installs your key:
+`$VMDIR` (it connects to `dfly-monitor.sock` in its working directory) and run it there.
+Set `DFLY_ARTIFACTS_DIR` to the VM directory so the script can write screendumps for boot
+detection and diagnostics:
 
 ```sh
 VMDIR=~/vms/dragonfly-6.4.2; cd "$VMDIR"
 cp "$(git rev-parse --show-toplevel)/.ci-scripts/bsd/dfly_configure_vm.py" "$VMDIR/"
-export PUB_KEY="$(cat vm_key.pub)"
 export DFLY_ARTIFACTS_DIR="$VMDIR"
 python3 dfly_configure_vm.py
 ```
@@ -218,9 +241,8 @@ to_png "$VMDIR/console1.ppm" "$VMDIR/console1.png"
 
 ### 6. Wait for ssh
 
-If ssh never comes up within the budget, the console script likely ran before the VM was
-ready (Step 5) — re-screendump to check the console state, and re-run Step 5 if it's not
-logged in.
+Step 5 already verifies SSH is reachable, so this is a belt-and-suspenders check. If it
+fails, re-screendump to check the console state, and re-run Step 5.
 
 ```sh
 VMDIR=~/vms/dragonfly-6.4.2; cd "$VMDIR"
@@ -365,11 +387,10 @@ ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERRO
 kill "$(cat dfly.pid)" 2>/dev/null || pkill -f "qemu-system-x86_64 -name dragonfly"
 ```
 
-To restart later, re-run the step-4 boot command (the disks and installed deps persist;
-you do not redo setup). Note: this VM's sshd start and `/build` mount were done once by
-`dfly_configure_vm.py` and are not persisted across a guest reboot — for a long-lived
-VM, make `sshd_enable` permanent in `/etc/rc.conf` and add the `/build` mount to
-`/etc/fstab`.
+To restart later, re-run Steps 4–7 (the disks and installed deps persist; the key and ISO
+creation are idempotent, and Steps 5–7 re-establish sshd and the `/build` mount, which
+are not persisted across a guest reboot). For a long-lived VM, make `sshd_enable`
+permanent in `/etc/rc.conf` and add the `/build` mount to `/etc/fstab`.
 
 ## How this relates to CI (don't re-add the CI-only steps)
 
@@ -386,8 +407,8 @@ unchanged**. The local setup deliberately differs from CI, and each difference i
   `known_hosts` entry from a prior VM. CI's ephemeral runners never reuse the port, so
   `dragonfly-provision.bash` doesn't bother.
 - `-smp 8` for build speed (CI uses 4).
-- Both use the serial console script with screendump-based boot detection; locally you
-  can also use the manual screendump helper for ad-hoc debugging.
+- Both use the seed ISO + sendkey approach with screendump-based boot detection; locally
+  you can also use the manual screendump helper for ad-hoc debugging.
 - No GHCR libs cache (that's token-gated CI plumbing) — you just run `cmake -P lib/build-libs.cmake` once.
 
 The FreeBSD and OpenBSD CI VMs follow the same shape

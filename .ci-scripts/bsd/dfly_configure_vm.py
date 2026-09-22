@@ -1,24 +1,20 @@
 #!/usr/bin/env python3
-"""Drive the DragonFly BSD VM setup via QEMU serial console.
+"""Drive the DragonFly BSD VM setup via QEMU sendkey and a seed ISO.
 
-DragonFly raw images boot to a passwordless root login with no cloud-init.
-Typing every command blind via VGA sendkey fails when boot is slow enough that
-keystrokes arrive before the login prompt.  This script uses a two-phase
-approach:
+The provision script creates a seed ISO containing a setup script and the SSH
+public key, attached as a CD-ROM.  This script:
 
-  Phase 1 (sendkey bootstrap): Wait for the boot to finish by taking periodic
-  VGA screendumps and detecting when the screen stabilizes (consecutive
-  identical frames).  Once stable — the login prompt is showing — type the root
-  login and a command that starts a /bin/sh on the serial port, all via QEMU
-  sendkey into the VGA console.  A retry loop handles the case where the first
-  attempt doesn't produce a serial shell.
+  1. Waits for boot to finish (VGA screendump stability).
+  2. Types three short commands via sendkey: root login, mount the seed ISO,
+     run the setup script.
+  3. Verifies SSH becomes reachable on the forwarded port.
 
-  Phase 2 (serial setup): Run all setup commands (network, sshd, ssh key)
-  through the serial console with prompt detection, so each command is confirmed
-  before the next is sent.
+Each sendkey attempt is followed by an SSH reachability check.  On failure the
+commands are retyped — the setup script on the ISO is idempotent (it exits
+immediately if sshd is already running).
 
-Reads PUB_KEY, DFLY_MONITOR_SOCK, DFLY_SERIAL_SOCK, and (optionally)
-DFLY_ARTIFACTS_DIR from the environment.  Called by dragonfly-provision.bash.
+Reads DFLY_MONITOR_SOCK and (optionally) DFLY_ARTIFACTS_DIR from the
+environment.  Called by dragonfly-provision.bash.
 """
 import hashlib
 import os
@@ -44,24 +40,31 @@ BIOS_WAIT = 5
 BOOT_TIMEOUT = 360
 STABLE_SECONDS = 10
 SCREENDUMP_INTERVAL = 5
-COMMAND_TIMEOUT = 60
-LOGIN_TIMEOUT = 300
-MAX_BOOTSTRAP_ATTEMPTS = 20
-SERIAL_DEVICE = '/dev/cuaa0'
+INTER_KEY_DELAY = 0.08
+SSH_PORT = 2222
+SSH_CHECK_INTERVAL = 5
+SSH_CHECK_TIMEOUT = 90
+MAX_ATTEMPTS = 5
 
 
 def send_hmp(sock, cmd):
+    """Send a command to the QEMU monitor and wait for the prompt."""
     sock.sendall((cmd + '\n').encode())
-    time.sleep(0.1)
-    sock.settimeout(0.3)
+    data = b''
+    sock.settimeout(2.0)
     try:
-        sock.recv(4096)
+        while b'(qemu)' not in data:
+            chunk = sock.recv(4096)
+            if not chunk:
+                break
+            data += chunk
     except socket.timeout:
         pass
     sock.settimeout(None)
 
 
 def send_line(sock, text):
+    """Type a line of text into the VGA console via QEMU sendkey."""
     for ch in text + '\n':
         if ch in KEYMAP:
             key = KEYMAP[ch]
@@ -72,49 +75,7 @@ def send_line(sock, text):
         else:
             continue
         send_hmp(sock, f'sendkey {key}')
-        time.sleep(0.03)
-
-
-def serial_recv(sock, timeout=3):
-    sock.settimeout(timeout)
-    data = b''
-    try:
-        while True:
-            chunk = sock.recv(4096)
-            if not chunk:
-                break
-            data += chunk
-    except socket.timeout:
-        pass
-    sock.settimeout(None)
-    return data.decode(errors='replace')
-
-
-def serial_drain(sock):
-    sock.settimeout(0.3)
-    try:
-        while sock.recv(4096):
-            pass
-    except socket.timeout:
-        pass
-    sock.settimeout(None)
-
-
-def serial_cmd(sock, cmd, timeout=COMMAND_TIMEOUT):
-    """Send a command over serial and wait for the next shell prompt.
-
-    Returns the output on success, raises RuntimeError on timeout.
-    """
-    sock.sendall((cmd + '\n').encode())
-    output = ''
-    deadline = time.time() + timeout
-    while time.time() < deadline:
-        remaining = deadline - time.time()
-        chunk = serial_recv(sock, timeout=min(2, max(0.1, remaining)))
-        output += chunk
-        if output.rstrip().endswith('#'):
-            return output
-    raise RuntimeError(f"serial_cmd timed out after {timeout}s: {cmd!r}")
+        time.sleep(INTER_KEY_DELAY)
 
 
 def screendump(monitor, path):
@@ -194,55 +155,21 @@ def wait_for_boot(monitor, artifacts_dir):
     return False
 
 
-def bootstrap_serial_shell(monitor, serial, artifacts_dir):
-    """Log in via VGA sendkey and start a serial shell; retry until it works.
-
-    Returns True once a shell prompt appears on the serial socket.
-    """
-    print("Waiting for boot to finish (screendump stability)...")
-    boot_ok = wait_for_boot(monitor, artifacts_dir)
-
-    if not boot_ok:
-        print("  WARNING: boot did not stabilize within timeout; "
-              "trying login anyway")
-
-    deadline = time.time() + LOGIN_TIMEOUT
-    for attempt in range(1, MAX_BOOTSTRAP_ATTEMPTS + 1):
-        if time.time() > deadline:
-            break
-
-        print(f"  attempt {attempt}: sendkey login + serial shell...")
-
-        send_hmp(monitor, 'sendkey ctrl-c')
-        time.sleep(0.3)
-
-        send_line(monitor, '')
-        time.sleep(0.5)
-        send_line(monitor, 'root')
-        time.sleep(2)
-
-        send_line(monitor, 'pkill -f cuaa0')
-        time.sleep(1)
-        cmd = f"/bin/sh -c '/bin/sh <{SERIAL_DEVICE} >{SERIAL_DEVICE} 2>&1 &'"
-        send_line(monitor, cmd)
-        time.sleep(2)
-
-        serial.sendall(b'\n')
-        response = serial_recv(serial, timeout=3)
-        if '#' in response or '$' in response:
-            print(f"  serial shell up after {attempt} attempt(s)")
-            return True
-
-        print(f"  no serial prompt (got: {response!r})")
-        time.sleep(10)
-
-    return False
+def ssh_reachable():
+    """Check if SSH is reachable on the forwarded port."""
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        s.settimeout(3)
+        s.connect(('127.0.0.1', SSH_PORT))
+        banner = s.recv(256)
+        s.close()
+        return b'SSH' in banner
+    except (socket.timeout, ConnectionRefusedError, OSError):
+        return False
 
 
 def main():
-    pub_key = os.environ["PUB_KEY"]
     monitor_sock = os.environ.get("DFLY_MONITOR_SOCK", "dfly-monitor.sock")
-    serial_sock = os.environ.get("DFLY_SERIAL_SOCK", "dfly-serial.sock")
     artifacts_dir = os.environ.get("DFLY_ARTIFACTS_DIR", "")
 
     monitor = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
@@ -250,49 +177,54 @@ def main():
     time.sleep(0.5)
     monitor.recv(4096)
 
-    serial = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-    serial.connect(serial_sock)
-    serial_drain(serial)
-
     try:
-        print("Bootstrapping serial shell via sendkey...")
-        if not bootstrap_serial_shell(monitor, serial, artifacts_dir):
-            print("ERROR: serial shell never came up", file=sys.stderr)
+        print("Waiting for boot to finish (screendump stability)...")
+        boot_ok = wait_for_boot(monitor, artifacts_dir)
+        if not boot_ok:
+            print("  WARNING: boot did not stabilize within timeout; "
+                  "trying anyway")
+
+        for attempt in range(1, MAX_ATTEMPTS + 1):
+            print(f"  attempt {attempt}: sendkey login + mount + setup...")
+
+            send_hmp(monitor, 'sendkey ctrl-c')
+            time.sleep(0.5)
+            send_line(monitor, '')
+            time.sleep(0.5)
+
+            send_line(monitor, 'root')
+            time.sleep(5)
+
+            send_line(monitor, 'mount_cd9660 /dev/cd0 /mnt')
+            time.sleep(2)
+
+            send_line(monitor, 'sh /mnt/setup.sh')
+
+            print(f"    waiting up to {SSH_CHECK_TIMEOUT}s for SSH...")
+            deadline = time.time() + SSH_CHECK_TIMEOUT
+            while time.time() < deadline:
+                time.sleep(SSH_CHECK_INTERVAL)
+                if ssh_reachable():
+                    print(f"  SSH reachable after attempt {attempt}")
+                    return 0
+
+            print("    SSH not reachable")
+
             if artifacts_dir:
-                last = os.path.join(artifacts_dir, 'last-console.ppm')
-                if os.path.exists(last):
-                    sz = os.path.getsize(last)
-                    print(f"  diagnostic screendump saved: {last} ({sz} bytes)",
-                          file=sys.stderr)
-            return 1
+                screendump(monitor,
+                           os.path.join(artifacts_dir, 'last-console.ppm'))
 
-        serial_drain(serial)
-
-        print("Configuring VM via serial console...")
-
-        serial_cmd(serial, 'dhclient vtnet0', timeout=COMMAND_TIMEOUT)
-
-        serial_cmd(serial,
-                   'echo "PermitRootLogin yes" >> /etc/ssh/sshd_config')
-        serial_cmd(serial,
-                   'echo "PermitEmptyPasswords yes" >> /etc/ssh/sshd_config')
-
-        serial_cmd(serial, 'mkdir -p /root/.ssh && chmod 700 /root/.ssh')
-        serial_cmd(serial,
-                   f'echo "{pub_key}" > /root/.ssh/authorized_keys')
-        serial_cmd(serial, 'chmod 600 /root/.ssh/authorized_keys')
-
-        serial_cmd(serial, 'ssh-keygen -A', timeout=COMMAND_TIMEOUT)
-        serial_cmd(serial, '/usr/sbin/sshd')
-
-        print("VM configured successfully")
-        return 0
-    except RuntimeError as exc:
-        print(f"ERROR: {exc}", file=sys.stderr)
+        print("ERROR: VM setup failed — SSH never became reachable",
+              file=sys.stderr)
+        if artifacts_dir:
+            last = os.path.join(artifacts_dir, 'last-console.ppm')
+            if os.path.exists(last):
+                sz = os.path.getsize(last)
+                print(f"  diagnostic screendump saved: {last} ({sz} bytes)",
+                      file=sys.stderr)
         return 1
     finally:
         monitor.close()
-        serial.close()
 
 
 if __name__ == "__main__":

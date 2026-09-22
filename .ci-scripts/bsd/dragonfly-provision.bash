@@ -25,7 +25,7 @@ echo "::endgroup::"
 
 echo "::group::Install QEMU"
 sudo apt-get update -q
-sudo apt-get install -y -q qemu-utils qemu-system-x86
+sudo apt-get install -y -q qemu-utils qemu-system-x86 genisoimage
 sudo chmod 666 /dev/kvm
 echo "::endgroup::"
 
@@ -56,6 +56,29 @@ echo "::endgroup::"
 
 echo "::group::Prepare VM access"
 ssh-keygen -t ed25519 -f vm_key -N ""
+
+# Create a seed ISO with the SSH key and a setup script.  The VM mounts this
+# as a CD-ROM, so the sendkey bootstrap only has to type three short commands
+# (login, mount, run script) instead of piping dozens of characters through
+# the fragile VGA sendkey path.
+cat > "$VM_ARTIFACTS/setup.sh" <<'SETUP'
+#!/bin/sh
+set -e
+if pgrep -x sshd >/dev/null 2>&1; then
+  exit 0
+fi
+dhclient vtnet0
+echo "PermitRootLogin yes" >> /etc/ssh/sshd_config
+echo "PermitEmptyPasswords yes" >> /etc/ssh/sshd_config
+mkdir -p /root/.ssh && chmod 700 /root/.ssh
+cp /mnt/authorized_keys /root/.ssh/authorized_keys
+chmod 600 /root/.ssh/authorized_keys
+ssh-keygen -A
+/usr/sbin/sshd
+SETUP
+cp vm_key.pub "$VM_ARTIFACTS/authorized_keys"
+genisoimage -output "$VM_ARTIFACTS/seed.iso" -volid CIDATA -joliet -rock \
+  "$VM_ARTIFACTS/setup.sh" "$VM_ARTIFACTS/authorized_keys"
 echo "::endgroup::"
 
 echo "::group::Boot DragonFly BSD VM"
@@ -66,6 +89,7 @@ qemu-system-x86_64 \
   -m 12G \
   -drive file="$VM_ARTIFACTS/dfly.qcow2",format=qcow2,if=virtio \
   -drive file="$VM_ARTIFACTS/dfly-data.qcow2",format=qcow2,if=virtio \
+  -drive file="$VM_ARTIFACTS/seed.iso",media=cdrom \
   -netdev user,id=net0,hostfwd=tcp::2222-:22 \
   -device virtio-net-pci,netdev=net0 \
   -object rng-random,id=rng0,filename=/dev/urandom \
@@ -77,30 +101,12 @@ qemu-system-x86_64 \
 echo "::endgroup::"
 
 echo "::group::Configure and wait for VM"
-# Declare then export PUB_KEY separately (SC2155) so dfly_configure_vm.py can
-# read the VM ssh public key from the environment.
-PUB_KEY="$(cat vm_key.pub)"
-export PUB_KEY
-
 # dfly_configure_vm.py detects when boot finishes (VGA screendump stability),
-# then bootstraps a serial shell via sendkey and runs all setup commands through
-# it with prompt detection. It retries internally, so this script needs no
-# retry loop.
+# types login + mount + setup via sendkey, then verifies SSH is reachable.
+# The setup script lives on the seed ISO created above.
 DFLY_MONITOR_SOCK="$VM_ARTIFACTS/dfly-monitor.sock" \
-  DFLY_SERIAL_SOCK="$VM_ARTIFACTS/dfly-serial.sock" \
   DFLY_ARTIFACTS_DIR="$VM_ARTIFACTS" \
   python3 .ci-scripts/bsd/dfly_configure_vm.py
-
-# Verify ssh is reachable after the serial-driven setup.
-if ! timeout 120 bash -c '
-  while ! ssh -o StrictHostKeyChecking=no -o ConnectTimeout=2 -i vm_key -p 2222 \
-      root@localhost true 2>/dev/null; do
-    sleep 2
-  done
-'; then
-  echo "::error::DragonFly VM never became ssh-reachable"
-  exit 1
-fi
 echo "SSH available"
 echo "::endgroup::"
 
