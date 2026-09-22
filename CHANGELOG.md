@@ -44,6 +44,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - `HashSet` no longer provides `is Comparable` ([PR #6122](https://github.com/ponylang/ponyc/pull/6122))
 - persistent `HashSet` no longer provides `is Comparable` ([PR #6122](https://github.com/ponylang/ponyc/pull/6122))
 - `Flags` no longer provides `is Comparable` ([PR #6122](https://github.com/ponylang/ponyc/pull/6122))
+- Remove DTrace and SystemTap support ([PR #6136](https://github.com/ponylang/ponyc/pull/6136))
 
 ## [0.72.1] - 2026-09-13
 
