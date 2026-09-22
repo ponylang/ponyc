@@ -4,7 +4,6 @@
 #include "../mem/pool.h"
 #include "ponyassert.h"
 #include <string.h>
-#include <dtrace.h>
 
 #ifdef USE_VALGRIND
 #include <valgrind/helgrind.h>
@@ -121,134 +120,36 @@ void ponyint_messageq_destroy(messageq_t* q, bool maybe_non_empty)
 }
 
 bool ponyint_actor_messageq_push(messageq_t* q, pony_msg_t* first,
-  pony_msg_t* last
-#ifdef USE_DYNAMIC_TRACE
-  , scheduler_t* sched,
-  pony_actor_t* from_actor, pony_actor_t* to_actor
-#endif
-  )
+  pony_msg_t* last)
 {
-#ifdef USE_DYNAMIC_TRACE
-  if(DTRACE_ENABLED(ACTOR_MSG_PUSH))
-  {
-    pony_msg_t* m = first;
-    int32_t index = (sched == NULL) ? PONY_UNKNOWN_SCHEDULER_INDEX : sched->index;
-
-    while(m != last)
-    {
-      DTRACE4(ACTOR_MSG_PUSH, index, m->id,
-        (uintptr_t)from_actor, (uintptr_t)to_actor);
-      m = atomic_load_explicit(&m->next, memory_order_relaxed);
-    }
-
-    DTRACE4(ACTOR_MSG_PUSH, index, last->id,
-      (uintptr_t)from_actor, (uintptr_t)to_actor);
-    /* Hush compiler warnings when DTrace isn't available */
-    (void)index;
-    (void)from_actor;
-    (void)to_actor;
-  }
-#endif
   return messageq_push(q, first, last);
 }
 
 bool ponyint_thread_messageq_push(messageq_t* q, pony_msg_t* first,
-  pony_msg_t* last
-#ifdef USE_DYNAMIC_TRACE
-  , uintptr_t from_thr, uintptr_t to_thr
-#endif
-  )
+  pony_msg_t* last)
 {
-#ifdef USE_DYNAMIC_TRACE
-  if(DTRACE_ENABLED(THREAD_MSG_PUSH))
-  {
-    pony_msg_t* m = first;
-
-    while(m != last)
-    {
-      DTRACE3(THREAD_MSG_PUSH, m->id, from_thr, to_thr);
-      m = atomic_load_explicit(&m->next, memory_order_relaxed);
-    }
-
-    DTRACE3(THREAD_MSG_PUSH, last->id, from_thr, to_thr);
-    /* Hush compiler warnings when DTrace isn't available */
-    (void)from_thr;
-    (void)to_thr;
-  }
-#endif
   return messageq_push(q, first, last);
 }
 
 bool ponyint_actor_messageq_push_single(messageq_t* q,
-  pony_msg_t* first, pony_msg_t* last
-#ifdef USE_DYNAMIC_TRACE
-  , scheduler_t* sched, pony_actor_t* from_actor, pony_actor_t* to_actor
-#endif
-  )
+  pony_msg_t* first, pony_msg_t* last)
 {
-#ifdef USE_DYNAMIC_TRACE
-  if(DTRACE_ENABLED(ACTOR_MSG_PUSH))
-  {
-    pony_msg_t* m = first;
-    int32_t index = (sched == NULL) ? PONY_UNKNOWN_SCHEDULER_INDEX : sched->index;
-
-    while(m != last)
-    {
-      DTRACE4(ACTOR_MSG_PUSH, index, m->id,
-        (uintptr_t)from_actor, (uintptr_t)to_actor);
-      m = atomic_load_explicit(&m->next, memory_order_relaxed);
-    }
-
-    DTRACE4(ACTOR_MSG_PUSH, index, m->id,
-      (uintptr_t)from_actor, (uintptr_t)to_actor);
-    /* Hush compiler warnings when DTrace isn't available */
-    (void)index;
-    (void)from_actor;
-    (void)to_actor;
-  }
-#endif
   return messageq_push_single(q, first, last);
 }
 
 bool ponyint_thread_messageq_push_single(messageq_t* q,
-  pony_msg_t* first, pony_msg_t* last
-#ifdef USE_DYNAMIC_TRACE
-  , uintptr_t from_thr, uintptr_t to_thr
-#endif
-  )
+  pony_msg_t* first, pony_msg_t* last)
 {
-#ifdef USE_DYNAMIC_TRACE
-  if(DTRACE_ENABLED(THREAD_MSG_PUSH))
-  {
-    pony_msg_t* m = first;
-
-    while(m != last)
-    {
-      DTRACE3(THREAD_MSG_PUSH, m->id, from_thr, to_thr);
-      m = atomic_load_explicit(&m->next, memory_order_relaxed);
-    }
-
-    DTRACE3(THREAD_MSG_PUSH, m->id, from_thr, to_thr);
-    /* Hush compiler warnings when DTrace isn't available */
-    (void)from_thr;
-    (void)to_thr;
-  }
-#endif
   return messageq_push_single(q, first, last);
 }
 
-pony_msg_t* ponyint_actor_messageq_pop(messageq_t* q
-#ifdef USE_DYNAMIC_TRACE
-  , scheduler_t* sched, pony_actor_t* actor
-#endif
-  )
+pony_msg_t* ponyint_actor_messageq_pop(messageq_t* q)
 {
   pony_msg_t* tail = q->tail;
   pony_msg_t* next = atomic_load_explicit(&tail->next, memory_order_acquire);
 
   if(next != NULL)
   {
-    DTRACE3(ACTOR_MSG_POP, sched->index, (uint32_t) next->id, (uintptr_t) actor);
     q->tail = next;
     atomic_thread_fence(memory_order_acquire);
 #ifdef USE_VALGRIND
@@ -261,18 +162,13 @@ pony_msg_t* ponyint_actor_messageq_pop(messageq_t* q
   return next;
 }
 
-pony_msg_t* ponyint_thread_messageq_pop(messageq_t* q
-#ifdef USE_DYNAMIC_TRACE
-  , uintptr_t thr
-#endif
-  )
+pony_msg_t* ponyint_thread_messageq_pop(messageq_t* q)
 {
   pony_msg_t* tail = q->tail;
   pony_msg_t* next = atomic_load_explicit(&tail->next, memory_order_relaxed);
 
   if(next != NULL)
   {
-    DTRACE2(THREAD_MSG_POP, (uint32_t) next->id, (uintptr_t) thr);
     q->tail = next;
     atomic_thread_fence(memory_order_acquire);
 #ifdef USE_VALGRIND

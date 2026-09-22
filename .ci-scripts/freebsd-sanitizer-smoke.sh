@@ -33,9 +33,7 @@ fi
 # build left a build dir behind, and reconfiguring it in place re-runs the
 # standalone-library rule over a read-only leftover (`libc++.a` is 0444, so the
 # copied `libcpp.a` is too) which fails. Removing build/build_debug clears it;
-# the prebuilt LLVM in build/libs is a separate dir and is untouched. This runs
-# before the dtrace smoke, which does the same remove+reconfigure, so the order
-# is deliberate.
+# the prebuilt LLVM in build/libs is a separate dir and is untouched.
 rm -rf build/build_debug
 cmake --preset debug \
   -DPONY_USES=pool_memalign,address_sanitizer,undefined_behavior_sanitizer

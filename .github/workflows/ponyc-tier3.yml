@@ -280,15 +280,10 @@ jobs:
           cmake --preset release
           cmake --build --preset release
           ctest --preset release -L ci-core
-          # native sanitizer link smoke test — see the script for details. Runs
-          # before the dtrace smoke: both clean and reconfigure the debug build,
-          # so the order is deliberate.
+          # native sanitizer link smoke test — see the script for details.
           sh .ci-scripts/freebsd-sanitizer-smoke.sh
-          # use=dtrace smoke test — see the script for details.
-          sh .ci-scripts/freebsd-dtrace-smoke.sh
-          # use=coverage smoke test — see the script for details. Runs last of
-          # the smokes in this step; it does the same clean+reconfigure of the
-          # debug build as the smokes above. (The use=valgrind smoke runs after,
+          # use=coverage smoke test — see the script for details. Both smokes
+          # clean and reconfigure the debug build. (The use=valgrind smoke runs after,
           # in its own step; the script does its own clean+configure+build.)
           sh .ci-scripts/freebsd-coverage-smoke.sh
           EOF

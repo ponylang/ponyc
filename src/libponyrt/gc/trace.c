@@ -5,7 +5,6 @@
 #include "../actor/actor.h"
 #include "../tracing/tracing.h"
 #include "ponyassert.h"
-#include <dtrace.h>
 
 PONY_API void pony_gc_send(pony_ctx_t* ctx, pony_actor_t* to)
 {
@@ -22,8 +21,6 @@ PONY_API void pony_gc_send(pony_ctx_t* ctx, pony_actor_t* to)
   // that pass rewrites a later message's pony_gc_send into pony_send_next via
   // setCalledFunction, which keeps the destination operand.
   ctx->msg_target = to;
-
-  DTRACE2(GC_SEND_START, (uintptr_t)ctx->scheduler, (uintptr_t)ctx->current);
 }
 
 PONY_API void pony_gc_recv(pony_ctx_t* ctx)
@@ -32,8 +29,6 @@ PONY_API void pony_gc_recv(pony_ctx_t* ctx)
   pony_assert(ctx->stack == NULL);
   ctx->trace_object = ponyint_gc_recvobject;
   ctx->trace_actor = ponyint_gc_recvactor;
-
-  DTRACE2(GC_RECV_START, (uintptr_t)ctx->scheduler, (uintptr_t)ctx->current);
 }
 
 void ponyint_gc_mark(pony_ctx_t* ctx)
@@ -54,8 +49,6 @@ PONY_API void pony_send_done(pony_ctx_t* ctx)
   // lingers past the trace. Defensive: every pony_gc_send sets it afresh (the
   // ASIO and bootstrap paths pass NULL), so nothing reads a stale value.
   ctx->msg_target = NULL;
-
-  DTRACE2(GC_SEND_END, (uintptr_t)ctx->scheduler, (uintptr_t)ctx->current);
 }
 
 PONY_API void pony_recv_done(pony_ctx_t* ctx)
@@ -63,8 +56,6 @@ PONY_API void pony_recv_done(pony_ctx_t* ctx)
   pony_assert(ctx->current != NULL);
   ponyint_gc_handlestack(ctx);
   ponyint_gc_done(ponyint_actor_gc(ctx->current));
-
-  DTRACE2(GC_RECV_END, (uintptr_t)ctx->scheduler, (uintptr_t)ctx->current);
 }
 
 void ponyint_mark_done(pony_ctx_t* ctx)

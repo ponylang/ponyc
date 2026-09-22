@@ -1485,27 +1485,6 @@ static bool link_exe_lld_elf(compile_t* c, ast_t* program,
     }
   }
 
-#if defined(USE_DYNAMIC_TRACE)
-  // FreeBSD use=dtrace builds: pull in the DOF object and its probe-
-  // registration constructor. `dtrace -G` on FreeBSD rewrites the probe
-  // sites inside libponyrt's objects and emits the DOF plus a constructor
-  // into a separate libdtrace_probes.a (see src/libponyrt/CMakeLists.txt);
-  // the constructor is otherwise unreferenced, so --whole-archive is what
-  // keeps it in the link. libdtrace_probes.a sits in the same lib dir as
-  // libponyrt.a, so it resolves from the -L paths already pushed above; the
-  // DOF object needs libelf, found on the system -L paths. These come before
-  // -lponyrt (pushed below). Gated on is_freebsd (target), not the build
-  // platform: DragonFly/OpenBSD have no dtrace_probes/libelf and never route
-  // here for dtrace builds.
-  if(is_freebsd)
-  {
-    args.push_back("--whole-archive");
-    args.push_back("-ldtrace_probes");
-    args.push_back("--no-whole-archive");
-    args.push_back("-lelf");
-  }
-#endif
-
   // Pony runtime.
   if(!c->opt->runtimebc)
   {
@@ -2344,13 +2323,6 @@ static bool link_exe(compile_t* c, ast_t* program,
   if(target_is_macosx(c->opt->triple))
     return link_exe_lld_macho(c, program, bc_files, bc_count);
 
-  // FreeBSD always links through embedded LLD, including use=dtrace builds:
-  // link_exe_lld_elf adds the -ldtrace_probes/-lelf linking dtrace needs.
-  // DragonFly and OpenBSD route here only when ponyc was NOT built with
-  // dtrace — they have no dtrace_probes/libelf, so their use=dtrace builds
-  // fall through to the error below (a configure-time rejection is tracked in
-  // #5447).
-  //
   // In a sanitizer build, native FreeBSD also routes here: link_exe_lld_elf
   // splices in the captured sanitizer fragment, verified against FreeBSD base
   // clang. Native DragonFly and OpenBSD sanitizer builds are rejected at
@@ -2358,11 +2330,8 @@ static bool link_exe(compile_t* c, ast_t* program,
   // any cross link, whose runtime is host-arch-absolute and handled by the
   // !is_cross_compiling gate at the splice).
   bool bsd_embed = target_is_freebsd(c->opt->triple)
-#if !defined(USE_DYNAMIC_TRACE)
     || target_is_dragonfly(c->opt->triple)
-    || target_is_openbsd(c->opt->triple)
-#endif
-    ;
+    || target_is_openbsd(c->opt->triple);
   if(bsd_embed
 #if defined(PONY_SANITIZER)
     && (is_cross_compiling(c->opt) || target_is_freebsd(c->opt->triple))

@@ -1150,11 +1150,7 @@ static void block(detector_t* d, pony_ctx_t* ctx, pony_actor_t* actor,
     // the expected ones from the cycle detector
     while(!ponyint_messageq_markempty(&actor->q))
     {
-      while((msg = ponyint_actor_messageq_pop(&actor->q
-  #ifdef USE_DYNAMIC_TRACE
-        , ctx->scheduler, actor
-  #endif
-        )) != NULL)
+      while((msg = ponyint_actor_messageq_pop(&actor->q)) != NULL)
       {
         pony_assert((msg->id == ACTORMSG_CONF) || (msg->id == ACTORMSG_ISBLOCKED));
       }
@@ -1262,11 +1258,7 @@ static void final(pony_ctx_t* ctx, pony_actor_t* self)
 
   do
   {
-    while((msg = ponyint_actor_messageq_pop(&self->q
-#ifdef USE_DYNAMIC_TRACE
-      , ctx->scheduler, self
-#endif
-      )) != NULL)
+    while((msg = ponyint_actor_messageq_pop(&self->q)) != NULL)
     {
       if(msg->id == ACTORMSG_BLOCK)
       {

@@ -746,11 +746,7 @@ static void flight_recorder_dump_signal_handler(int sig, siginfo_t* siginfo, voi
     // manually before we set the signal handler to make sure it is safe to call here.
     flight_recorder_dump_message.num_stack_frames = backtrace(flight_recorder_dump_message.stack_frames, PONY_TRACING_MAX_STACK_FRAME_DEPTH);
 
-    ponyint_thread_messageq_push(&tracing_thread.mq, (pony_msg_t*)(&flight_recorder_dump_message), (pony_msg_t*)(&flight_recorder_dump_message)
-      #ifdef USE_DYNAMIC_TRACE
-          , this_tracing_scheduler->sched->index, this_tracing_scheduler->sched->index
-      #endif
-          );
+    ponyint_thread_messageq_push(&tracing_thread.mq, (pony_msg_t*)(&flight_recorder_dump_message), (pony_msg_t*)(&flight_recorder_dump_message));
 
     uint8_t sleep_counter = 0;
 
@@ -879,11 +875,7 @@ static void windows_flight_recorder_dump(int signal_number, const char* signal_n
     flight_recorder_dump_message.num_stack_frames = (stack_depth_t)RtlCaptureStackBackTrace(
       0, PONY_TRACING_MAX_STACK_FRAME_DEPTH, flight_recorder_dump_message.stack_frames, NULL);
 
-    ponyint_thread_messageq_push(&tracing_thread.mq, (pony_msg_t*)(&flight_recorder_dump_message), (pony_msg_t*)(&flight_recorder_dump_message)
-      #ifdef USE_DYNAMIC_TRACE
-          , PONY_TRACING_THREAD_INDEX, PONY_TRACING_THREAD_INDEX
-      #endif
-          );
+    ponyint_thread_messageq_push(&tracing_thread.mq, (pony_msg_t*)(&flight_recorder_dump_message), (pony_msg_t*)(&flight_recorder_dump_message));
 
 
     uint8_t sleep_counter = 0;
@@ -1282,11 +1274,7 @@ static void send_trace_message(pony_msg_t* msg)
   else
   {
     // TODO: batching of messages for efficiency/minimizing contention on tracing thread mailbox?
-    bool was_empty = ponyint_thread_messageq_push(&tracing_thread.mq, msg, msg
-  #ifdef USE_DYNAMIC_TRACE
-      , this_tracing_scheduler->sched->index, this_tracing_scheduler->sched->index
-  #endif
-      );
+    bool was_empty = ponyint_thread_messageq_push(&tracing_thread.mq, msg, msg);
 
     // No wake: the tracing thread reads its queue at its next tick.
     (void)was_empty;
@@ -3080,11 +3068,7 @@ static void handle_queue()
 {
   pony_msg_t* msg;
 
-  while((msg = ponyint_thread_messageq_pop(&tracing_thread.mq
-#ifdef USE_DYNAMIC_TRACE
-    , PONY_TRACING_THREAD_INDEX
-#endif
-    )) != NULL)
+  while((msg = ponyint_thread_messageq_pop(&tracing_thread.mq)) != NULL)
   {
     handle_message(msg);
   }

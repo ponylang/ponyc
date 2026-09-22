@@ -193,8 +193,8 @@ boot the VM, install dependencies, and rsync the checkout in. DragonFly's script
 shells out to `.ci-scripts/bsd/dfly_configure_vm.py`, the QEMU `sendkey` console
 automation, which reads the ssh public key from `PUB_KEY`. Change VM setup in the
 script, not in two copies of YAML. `freebsd-provision.bash` takes
-`FREEBSD_VERSION` and installs `doas` plus a `doas.conf` unconditionally — tier3's
-dtrace smoke test needs it, and it is harmless to the warmer.
+`FREEBSD_VERSION` and installs `doas` plus a `doas.conf` unconditionally — it
+is harmless to the warmer and simplifies any operation that needs root in the VM.
 
 The in-VM libs handling is shared per platform the same way the provisioning is.
 Both workflows call `.ci-scripts/bsd/{freebsd,openbsd,dragonfly}-libs-cache.bash <operation>`

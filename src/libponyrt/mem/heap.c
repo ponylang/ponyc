@@ -6,7 +6,6 @@
 #include <string.h>
 
 #include <platform.h>
-#include <dtrace.h>
 
 #ifdef USE_ADDRESS_SANITIZER
 #include <sanitizer/asan_interface.h>
@@ -603,7 +602,6 @@ void ponyint_heap_setnextgcfactor(double factor)
   if(factor < 1.0)
     factor = 1.0;
 
-  DTRACE1(GC_THRESHOLD, factor);
   heap_nextgc_factor = factor;
 }
 

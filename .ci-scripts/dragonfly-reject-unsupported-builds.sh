@@ -5,9 +5,8 @@
 #
 # DragonFly builds ponyc with the gcc13 package, whose toolchain ships no
 # AddressSanitizer/ThreadSanitizer/UndefinedBehaviorSanitizer runtime (GCC's
-# libsanitizer has no DragonFly target), so those use= options can't link there;
-# and DragonFly can't build a working dtrace-instrumented runtime, so use=dtrace
-# is rejected too. cmake's use= validation rejects them with a clear error, and
+# libsanitizer has no DragonFly target), so those use= options can't link there.
+# cmake's use= validation rejects them with a clear error, and
 # it runs before LLVM is required, so this assertion needs no LLVM build or gcc13
 # toolchain. Check each fails AND fails for the documented
 # reason: a typo in the OS string would otherwise silently regress to the
@@ -22,7 +21,7 @@ set -eu
 # The base compiler is all the validation needs, and a poisoned build_release
 # would pin the release build to the wrong toolchain. The options below must
 # match the DragonFly rejections in cmake/PonyUses.cmake.
-for u in address_sanitizer thread_sanitizer undefined_behavior_sanitizer dtrace; do
+for u in address_sanitizer thread_sanitizer undefined_behavior_sanitizer; do
   rm -rf build/build_reject-probe
   if out=$(cmake -B build/build_reject-probe -S . -DPONY_USES="$u" 2>&1); then
     echo "FAIL: use=$u was not rejected on DragonFly"
