@@ -379,3 +379,9 @@ The runtime bitcode is now compiled at `-O2`. Programs compiled with `--runtimeb
 ## Inline `pony_alloc` and `pony_alloc_small` calls that HeapToStack does not promote
 
 When compiling with `--runtimebc`, runtime allocation calls that could not be promoted to the stack were left as function calls. A new LTO pass now inlines these remaining call sites after heap-to-stack promotion, eliminating the call overhead. In message-heavy workloads this makes `--runtimebc` faster than compiling without it.
+## Remove DTrace and SystemTap support
+
+DTrace and SystemTap USDT probes are no longer available. The `use=dtrace` build option has been removed.
+
+The probes were incompatible with compiling the runtime as bitcode (`--runtimebc`), and they were only available on a subset of supported platforms (macOS, Linux, FreeBSD). The runtime's built-in tracing system (`runtime_info`, flight recorder) is not affected.
+
