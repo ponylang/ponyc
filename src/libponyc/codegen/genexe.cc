@@ -2043,6 +2043,20 @@ static bool link_exe_lld_macho(compile_t* c, ast_t* program,
   // so debug builds get O0 and release builds get O3.
   args.push_back(c->opt->release ? "--lto-O3" : "--lto-O0");
 
+  // Tell lld where to persist LTO object files so dsymutil can read them.
+  // Without this, lld writes them to a temporary file and deletes it before
+  // dsymutil runs, losing all debug symbols from bitcode-compiled code.
+  char lto_obj_path[PATH_MAX];
+  bool have_lto_obj_path = false;
+  if(!c->opt->strip_debug)
+  {
+    snprintf(lto_obj_path, sizeof(lto_obj_path),
+      "%s.lto_objects", file_exe);
+    args.push_back("-object_path_lto");
+    args.push_back(lto_obj_path);
+    have_lto_obj_path = true;
+  }
+
   // Bitcode partition files. ld64.lld auto-detects ThinLTO when the bitcode
   // contains summary indices, and uses full LTO for regular bitcode.
   for(size_t i = 0; i < bc_count; i++)
@@ -2131,6 +2145,8 @@ static bool link_exe_lld_macho(compile_t* c, ast_t* program,
   if(result.retCode != 0)
   {
     errorf(errors, NULL, "unable to link: %s", lld_stderr_str.c_str());
+    if(have_lto_obj_path)
+      remove_directory_tree(lto_obj_path);
     return false;
   }
 
@@ -2153,6 +2169,9 @@ static bool link_exe_lld_macho(compile_t* c, ast_t* program,
       errorf(errors, NULL, "unable to create dsym");
 
     ponyint_pool_free_size(dsym_path_len, dsym_path);
+
+    if(have_lto_obj_path)
+      remove_directory_tree(lto_obj_path);
   }
 
   return true;
