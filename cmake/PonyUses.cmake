@@ -23,8 +23,7 @@ set(PONY_USES "" CACHE STRING
 # NOT overwrite a value already in the cache -- from a previous configure of
 # this dir, or a stray -DPONY_USE_* -- so without it, an option cleared from
 # PONY_USES would linger. CACHE INTERNAL keeps them visible to the
-# subdirectories that read them (e.g. src/libponyrt reads PONY_USE_DTRACE)
-# without exposing them in the GUI.
+# subdirectories that read them without exposing them in the GUI.
 macro(_pony_set_use _name _value)
     set(PONY_USE_${_name} ${_value} CACHE INTERNAL "use= build option" FORCE)
 endmacro()
@@ -38,7 +37,6 @@ set(_pony_known_uses
     undefined_behavior_sanitizer
     coverage
     pooltrack
-    dtrace
     systematic_testing
     runtimestats
     runtimestats_messages
@@ -130,20 +128,6 @@ foreach(_use IN LISTS _pony_uses)
         _pony_set_use(COVERAGE ON)
     elseif(_use STREQUAL "pooltrack")
         _pony_set_use(POOLTRACK ON)
-    elseif(_use STREQUAL "dtrace")
-        # OS rejections MUST precede the tool check so the BSD reject scripts
-        # see "not supported on <OS>" rather than the missing-tool message.
-        if(CMAKE_HOST_SYSTEM_NAME STREQUAL "OpenBSD")
-            message(FATAL_ERROR "DTrace is not supported on OpenBSD. See BUILD.md")
-        endif()
-        if(CMAKE_HOST_SYSTEM_NAME STREQUAL "DragonFly")
-            message(FATAL_ERROR "DTrace is not supported on DragonFly. See BUILD.md")
-        endif()
-        find_program(PONY_DTRACE_EXECUTABLE dtrace)
-        if(NOT PONY_DTRACE_EXECUTABLE)
-            message(FATAL_ERROR "No dtrace compatible user application static probe generation tool found")
-        endif()
-        _pony_set_use(DTRACE ON)
     elseif(_use STREQUAL "systematic_testing")
         _pony_set_use(SYSTEMATIC_TESTING ON)
     elseif(_use STREQUAL "runtimestats")

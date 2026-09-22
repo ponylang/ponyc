@@ -192,11 +192,6 @@ if(PONY_USE_POOLTRACK)
     add_compile_options(-DUSE_POOLTRACK)
 endif()
 
-if(PONY_USE_DTRACE)
-    set(PONY_OUTPUT_SUFFIX "${PONY_OUTPUT_SUFFIX}-dtrace")
-    add_compile_options(-DUSE_DYNAMIC_TRACE)
-endif()
-
 if(PONY_USE_RUNTIMESTATS)
     set(PONY_OUTPUT_SUFFIX "${PONY_OUTPUT_SUFFIX}-runtimestats")
     add_compile_options(-DUSE_RUNTIMESTATS)
@@ -801,8 +796,8 @@ else()
 
     # Test binaries compiled with the just-built ponyc. Built on demand, NOT under
     # ALL: each runs ponyc to compile builtin and the stdlib packages, so building
-    # them is expensive, and a plain build -- including the sanitizer, coverage, and
-    # dtrace smokes that build everything but never run these -- must not pay for
+    # them is expensive, and a plain build -- including the sanitizer and coverage
+    # smokes that build everything but never run these -- must not pay for
     # them. Building four self-hosted tools under a sanitizer on a memory-constrained
     # CI VM OOMs. The tool-tests aggregate target below builds all four; CI and
     # developers build it before `ctest -L tools`.
@@ -996,14 +991,12 @@ else()
     # (PONY_INSTALL_LIBDIR: ../lib/<arch> on Unix, flat on Windows -- see above).
     # libponyrt and libponyc are real targets. libponyc-standalone.a (an ar-built
     # archive wrapped in a custom target), libponyrt-pic.a (Linux), the crt
-    # objects (Linux), and libdtrace_probes.a (FreeBSD + use=dtrace) are
-    # custom-command outputs, installed by path and OPTIONAL so a platform that
-    # doesn't produce one doesn't fail the install.
+    # objects (Linux) are custom-command outputs, installed by path and OPTIONAL
+    # so a platform that doesn't produce one doesn't fail the install.
     install(TARGETS libponyrt libponyc DESTINATION ${PONY_INSTALL_LIBDIR})
     install(FILES
         ${PONY_OUTPUT_DIR}/libponyc-standalone.a
         ${PONY_OUTPUT_DIR}/libponyrt-pic.a
-        ${PONY_OUTPUT_DIR}/libdtrace_probes.a
         ${PONY_OUTPUT_DIR}/crtbeginS.o
         ${PONY_OUTPUT_DIR}/crtendS.o
         ${PONY_OUTPUT_DIR}/crtbeginT.o
@@ -1073,7 +1066,7 @@ else()
                     include/pony.h include/ponyassert.h include/platform.h
                     include/threads.h include/paths.h
                     include/pony/detail/atomics.h lib/libponyrt.a
-                    lib/libponyrt-pic.a lib/libdtrace_probes.a)
+                    lib/libponyrt-pic.a)
                 set(_ll \"\${_prefix}/\${_legacy}\")
                 if(IS_SYMLINK \"\${_ll}\")
                     file(READ_SYMLINK \"\${_ll}\" _lt)

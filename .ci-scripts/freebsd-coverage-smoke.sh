@@ -16,11 +16,9 @@ set -eu
 
 # Configure the debug build from scratch with coverage (remove the cmake build dir
 # first); the prebuilt LLVM in build/libs is a separate dir and untouched, so it
-# is not rebuilt. A from-scratch
-# configure is required because the coverage instrumentation flags differ from
-# the plain debug build the job already made. This runs after the sanitizer and
-# dtrace smokes, which perform the same clean+reconfigure, so the order is
-# deliberate.
+# is not rebuilt. A from-scratch configure is required because the coverage
+# instrumentation flags differ from the plain debug build the job already made.
+# This runs after the sanitizer smoke, which performs the same clean+reconfigure.
 rm -rf build/build_debug
 cmake --preset debug -DPONY_USES=coverage
 # The `cmake --build` below is itself the first assertion: it compiles the

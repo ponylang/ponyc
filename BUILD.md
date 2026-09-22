@@ -71,7 +71,6 @@ Several `use=` build options aren't supported on OpenBSD, because OpenBSD doesn'
 - `use=undefined_behavior_sanitizer` — OpenBSD ships only the minimal UndefinedBehaviorSanitizer runtime (`libclang_rt.ubsan_minimal.a`), not the standalone runtime ponyc links against, so the link fails.
 - `use=coverage` — OpenBSD's base profiling runtime (`libclang_rt.profile.a`) is incomplete, so coverage-instrumented builds fail to link.
 - `use=valgrind` — Valgrind has no OpenBSD port, so its development headers aren't available to build against.
-- `use=dtrace` — not supported on OpenBSD.
 
 Configuring (`cmake --preset release`) rejects these uses on OpenBSD with an error rather than letting the build fail partway through with a confusing compiler, linker, or missing-tool message.
 
@@ -98,8 +97,6 @@ The sanitizer `use=` build options aren't supported on DragonFly, because the `g
 - `use=undefined_behavior_sanitizer` — no UndefinedBehaviorSanitizer runtime, so the link fails (`cannot find -lubsan`).
 
 Configuring rejects these uses on DragonFly with an error rather than letting the build fail partway through with a confusing linker message.
-
-`use=dtrace` isn't supported on DragonFly either, and configuring rejects it.
 
 `use=coverage` works on DragonFly: ponyc splices the gcc coverage runtime (`libgcov`) into the Pony programs it links, so coverage-instrumented programs build and run.
 
@@ -277,19 +274,6 @@ ASAN_OPTIONS=detect_leaks=0 ./build/debug-address_sanitizer-undefined_behavior_s
 
 The sanitizers can't be built on OpenBSD or DragonFly BSD; see [Unsupported OpenBSD build options](#unsupported-openbsd-build-options) and [Unsupported DragonFly BSD build options](#unsupported-dragonfly-bsd-build-options).
 
-### dtrace
-
-Linux, FreeBSD, and macOS support collecting Pony runtime events, through SystemTap on Linux and DTrace on FreeBSD and macOS. DTrace isn't supported on DragonFly BSD or OpenBSD.
-
-On macOS, actually tracing a running program with `dtrace` requires System Integrity Protection (SIP) to permit DTrace. See the [examples/dtrace README](examples/tracing/dtrace/README.md) for details.
-
-DTrace support is enabled by setting `use=dtrace` in the configure step like:
-
-```bash
-cmake --preset release -DPONY_USES=dtrace
-cmake --build --preset release
-```
-
 ### lto
 
 Link-time optimizations provide a performance improvement. You should strongly consider turning on LTO if you build ponyc from source. It's off by default as it comes with some caveats:
@@ -323,8 +307,6 @@ ponyc --runtimebc
 This requires `llvm-link`, which is one of the LLVM tools `cmake -P lib/build-libs.cmake` builds.
 
 This functionality boils down to "super LTO" for the runtime. The Pony compiler will have full knowledge of the runtime and will perform advanced interprocedural optimisations between your Pony code and the runtime. If you're looking for maximum performance, you should consider this option. Note that this can result in very long optimisation times.
-
-`--runtimebc` cannot be combined with a compiler built using `use=dtrace`. The bitcode runtime has no DTrace/SystemTap probes (probe generation works on native object files, not bitcode), so ponyc rejects the combination with an error.
 
 ### systematic testing
 

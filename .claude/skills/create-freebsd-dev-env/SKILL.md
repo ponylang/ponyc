@@ -10,8 +10,8 @@ Stand up a local FreeBSD VM that matches the ponyc tier-3 CI job, so you can bui
 and test ponyc on FreeBSD without GitHub Actions.
 
 FreeBSD's tier-3 job exercises paths the clang-on-Linux jobs never do: the embedded-LLD
-`--static` link recipe, the native sanitizer link path, the dtrace/illumos provider
-path, and FreeBSD's base libc++/libunwind. So this VM is the authoritative local
+`--static` link recipe, the native sanitizer link path, and FreeBSD's base
+libc++/libunwind. So this VM is the authoritative local
 environment for **FreeBSD-platform** ponyc issues. (It is clang-based — FreeBSD's base
 compiler is clang, not gcc. For **gcc-specific** issues use the DragonFly skill instead.)
 
@@ -37,8 +37,7 @@ there is no VGA-console automation), but these still matter:
   `freebsd` user and sets root's password to `ciroot`. Build and test run **as
   `freebsd`** (no root needed). Root is only needed twice during setup — the one-time
   `expect`/`su` bootstrap below installs the packages and configures passwordless `doas`,
-  after which the rare root operation (e.g. loading the dtrace kernel module) goes through
-  `doas`.
+  after which the rare root operation goes through `doas`.
 - **Cloud-init means no console driving.** Unlike the DragonFly skill there is no QEMU
   `sendkey`/screendump/monitor dance — just boot and wait for ssh. But the **first** boot
   runs `nuageinit` (key install) and `growfs` (root-fs auto-resize), so ssh is not
@@ -306,8 +305,7 @@ detached + polled). For exact CI parity, the tier-3 `freebsd` job
 (`.github/workflows/ponyc-tier3.yml`) runs more than this — a `--static` embedded-LLD link
 smoke, the self-hosted tool tests (`pony-doc-tests`/`pony-lint-tests`/`pony-lsp-tests`), a
 release build + the `ci-core` suite, and two extra smokes:
-`.ci-scripts/freebsd-sanitizer-smoke.sh` and `.ci-scripts/freebsd-dtrace-smoke.sh` (the
-dtrace one needs the `doas` configured in Step 5). Consult that job when validating a
+`.ci-scripts/freebsd-sanitizer-smoke.sh`. Consult that job when validating a
 CI-matching issue.
 
 ## Lifecycle

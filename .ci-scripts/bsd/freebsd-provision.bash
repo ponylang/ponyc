@@ -102,8 +102,6 @@ expect {
   "#" {}
   timeout { puts "Timeout during pkg install"; exit 1 }
 }
-# Let the freebsd user load the dtrace kernel module and run dtrace
-# non-interactively for the use=dtrace probe-firing smoke test.
 send "echo 'permit nopass freebsd' > /usr/local/etc/doas.conf\r"
 expect {
   "#" {}

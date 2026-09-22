@@ -10,7 +10,6 @@
 #include "../mem/pagemap.h"
 #include "../mem/pool.h"
 #include "ponyassert.h"
-#include <dtrace.h>
 #include <inttypes.h>
 #include <string.h>
 #include "mutemap.h"
@@ -200,11 +199,7 @@ static void send_msg_pinned_actor_thread(uint32_t from, sched_msg_t msg, intptr_
 
   m->i = arg;
 
-  ponyint_thread_messageq_push(&pinned_actor_scheduler->mq, &m->msg, &m->msg
-#ifdef USE_DYNAMIC_TRACE
-    , from, PONY_PINNED_ACTOR_THREAD_INDEX
-#endif
-    );
+  ponyint_thread_messageq_push(&pinned_actor_scheduler->mq, &m->msg, &m->msg);
   (void)from;
 }
 
@@ -226,11 +221,7 @@ static void send_msg(uint32_t from, uint32_t to, sched_msg_t msg, intptr_t arg)
 #endif
 
   m->i = arg;
-  ponyint_thread_messageq_push(&scheduler[to].mq, &m->msg, &m->msg
-#ifdef USE_DYNAMIC_TRACE
-    , from, to
-#endif
-    );
+  ponyint_thread_messageq_push(&scheduler[to].mq, &m->msg, &m->msg);
   (void)from;
 }
 
@@ -333,11 +324,7 @@ static bool read_msg(scheduler_t* sched, pony_actor_t* actor,
 
   bool run_queue_changed = false;
 
-  while((m = (pony_msgi_t*)ponyint_thread_messageq_pop(&sched->mq
-#ifdef USE_DYNAMIC_TRACE
-    , sched->index
-#endif
-    )) != NULL)
+  while((m = (pony_msgi_t*)ponyint_thread_messageq_pop(&sched->mq)) != NULL)
   {
 #ifdef USE_RUNTIMESTATS_MESSAGES
     sched->ctx.schedulerstats.num_inflight_messages--;
@@ -639,8 +626,6 @@ static pony_actor_t* passive_wait(scheduler_t* sched)
   atomic_fetch_sub_explicit(&active_scheduler_gauge, 1,
     memory_order_relaxed);
 
-  // dtrace suspend notification
-  DTRACE1(THREAD_SUSPEND, (uintptr_t)sched);
   TRACING_THREAD_SUSPEND();
 
   uint64_t tick_ns = SCHED_TICK_MIN_NS;
@@ -738,8 +723,6 @@ static pony_actor_t* passive_wait(scheduler_t* sched)
   atomic_fetch_add_explicit(&active_scheduler_gauge, 1,
     memory_order_relaxed);
 
-  // dtrace resume notification
-  DTRACE1(THREAD_RESUME, (uintptr_t)sched);
   TRACING_THREAD_RESUME();
 
   return actor;
@@ -785,7 +768,6 @@ static pony_actor_t* steal(scheduler_t* sched)
 
     if(quiescent(sched, tsc, tsc2))
     {
-      DTRACE2(WORK_STEAL_FAILURE, (uintptr_t)sched, (uintptr_t)victim);
       return NULL;
     }
 
@@ -904,7 +886,6 @@ static pony_actor_t* steal(scheduler_t* sched)
             (sched->asio_stoppable || !sched->asio_noisy))
           {
             // Run the cycle detector and get the next actor
-            DTRACE2(ACTOR_SCHEDULED, (uintptr_t)sched, (uintptr_t)actor);
             bool reschedule = ponyint_actor_run(&sched->ctx, actor);
             sched->ctx.current = NULL;
             pony_actor_t* next = pop_global(sched);
@@ -917,7 +898,6 @@ static pony_actor_t* steal(scheduler_t* sched)
                 // of the queue only if it needs to be rescheduled
                 if(reschedule)
                   push(sched, actor);
-                DTRACE2(ACTOR_DESCHEDULED, (uintptr_t)sched, (uintptr_t)actor);
                 actor = next;
               }
 
@@ -950,7 +930,6 @@ static pony_actor_t* steal(scheduler_t* sched)
     sched->blocked = false;
   }
 
-  DTRACE3(WORK_STEAL_SUCCESSFUL, (uintptr_t)sched, (uintptr_t)victim, (uintptr_t)actor);
   return actor;
 }
 
@@ -1013,10 +992,6 @@ static void run(scheduler_t* sched)
   }
 
   pony_actor_t* actor = pop_global(sched);
-
-  if (DTRACE_ENABLED(ACTOR_SCHEDULED) && actor != NULL) {
-    DTRACE2(ACTOR_SCHEDULED, (uintptr_t)sched, (uintptr_t)actor);
-  }
 
   while(true)
   {
@@ -1106,7 +1081,6 @@ static void run(scheduler_t* sched)
         SYSTEMATIC_TESTING_STOP_THREAD();
         return;
       }
-      DTRACE2(ACTOR_SCHEDULED, (uintptr_t)sched, (uintptr_t)actor);
     }
 
     // We have at least one muted actor...
@@ -1136,9 +1110,7 @@ static void run(scheduler_t* sched)
         // If we have a next actor, we go on the back of the queue. Otherwise,
         // we continue to run this actor.
         push(sched, actor);
-        DTRACE2(ACTOR_DESCHEDULED, (uintptr_t)sched, (uintptr_t)actor);
         actor = next;
-        DTRACE2(ACTOR_SCHEDULED, (uintptr_t)sched, (uintptr_t)actor);
 
         // We have at least two actors worth of work; the one we just finished
         // running a batch for that needs to be rescheduled and the next one we
@@ -1152,11 +1124,7 @@ static void run(scheduler_t* sched)
     } else {
       // We aren't rescheduling, so run the next actor. This may be NULL if our
       // queue was empty.
-      DTRACE2(ACTOR_DESCHEDULED, (uintptr_t)sched, (uintptr_t)actor);
       actor = next;
-      if (DTRACE_ENABLED(ACTOR_SCHEDULED) && actor != NULL) {
-        DTRACE2(ACTOR_SCHEDULED, (uintptr_t)sched, (uintptr_t)actor);
-      }
     }
   }
 }
@@ -1266,8 +1234,6 @@ static void run_pinned_actors()
 
       if(passive)
       {
-        // dtrace resume notification
-        DTRACE1(THREAD_RESUME, (uintptr_t)sched);
         TRACING_THREAD_RESUME();
       }
 
@@ -1299,8 +1265,6 @@ static void run_pinned_actors()
       {
         passive = true;
 
-        // dtrace suspend notification
-        DTRACE1(THREAD_SUSPEND, (uintptr_t)sched);
         TRACING_THREAD_SUSPEND();
       }
 
@@ -1341,8 +1305,6 @@ static void run_pinned_actors()
         passive = false;
         tick_ns = SCHED_TICK_MIN_NS;
 
-        // dtrace resume notification
-        DTRACE1(THREAD_RESUME, (uintptr_t)sched);
         TRACING_THREAD_RESUME();
       }
 
@@ -1362,18 +1324,12 @@ static void run_pinned_actors()
           // If we have a next actor, we go on the back of the queue. Otherwise,
           // we continue to run this actor.
           push(sched, actor);
-          DTRACE2(ACTOR_DESCHEDULED, (uintptr_t)sched, (uintptr_t)actor);
           actor = next;
-          DTRACE2(ACTOR_SCHEDULED, (uintptr_t)sched, (uintptr_t)actor);
         }
       } else {
         // We aren't rescheduling, so run the next actor. This may be NULL if our
         // queue was empty.
-        DTRACE2(ACTOR_DESCHEDULED, (uintptr_t)sched, (uintptr_t)actor);
         actor = next;
-        if (DTRACE_ENABLED(ACTOR_SCHEDULED) && actor != NULL) {
-          DTRACE2(ACTOR_SCHEDULED, (uintptr_t)sched, (uintptr_t)actor);
-        }
       }
     }
   }
@@ -1391,16 +1347,11 @@ static void ponyint_sched_shutdown()
       start++;
   }
 
-  DTRACE0(RT_END);
   ponyint_cycle_terminate(&this_scheduler->ctx);
 
   for(uint32_t i = 0; i < scheduler_count; i++)
   {
-    while(ponyint_thread_messageq_pop(&scheduler[i].mq
-#ifdef USE_DYNAMIC_TRACE
-      , i
-#endif
-      ) != NULL) { ; }
+    while(ponyint_thread_messageq_pop(&scheduler[i].mq) != NULL) { ; }
     ponyint_mutemap_destroy(&scheduler[i].mute_mapping);
     ponyint_messageq_destroy(&scheduler[i].mq, false);
     ponyint_mpmcq_destroy(&scheduler[i].q);
@@ -1556,7 +1507,6 @@ bool ponyint_sched_start()
   if(!ponyint_asio_start())
     return false;
 
-  DTRACE0(RT_START);
   uint32_t start = 0;
 
   for(uint32_t i = start; i < scheduler_count; i++)
@@ -1574,11 +1524,7 @@ bool ponyint_sched_start()
   TRACING_THREAD_STOP();
   ponyint_pool_thread_cleanup();
 
-  while(ponyint_thread_messageq_pop(&this_scheduler->mq
-#ifdef USE_DYNAMIC_TRACE
-    , PONY_PINNED_ACTOR_THREAD_INDEX
-#endif
-    ) != NULL) { ; }
+  while(ponyint_thread_messageq_pop(&this_scheduler->mq) != NULL) { ; }
   ponyint_mutemap_destroy(&this_scheduler->mute_mapping);
   ponyint_messageq_destroy(&this_scheduler->mq, false);
   ponyint_mpmcq_destroy(&this_scheduler->q);
@@ -1801,7 +1747,6 @@ static void sched_reschedule_unmuted(pony_ctx_t* ctx, pony_actor_t* actor)
 {
   ponyint_unmute_actor(actor);
   ponyint_sched_add(ctx, actor);
-  DTRACE2(ACTOR_SCHEDULED, (uintptr_t)ctx->scheduler, (uintptr_t)actor);
   ponyint_sched_start_global_unmute(ctx->scheduler->index, actor);
 }
 

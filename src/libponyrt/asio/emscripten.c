@@ -71,11 +71,7 @@ static void handle_queue(asio_backend_t* b)
 {
   asio_msg_t* msg;
 
-  while((msg = (asio_msg_t*)ponyint_thread_messageq_pop(&b->q
-#ifdef USE_DYNAMIC_TRACE
-    , pony_scheduler_index()
-#endif
-    )) != NULL)
+  while((msg = (asio_msg_t*)ponyint_thread_messageq_pop(&b->q)) != NULL)
   {
     asio_event_t* ev = msg->event;
 

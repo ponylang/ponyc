@@ -2,7 +2,6 @@
 #define _GNU_SOURCE
 #endif
 #include <platform.h>
-#include <dtrace.h>
 
 #if defined(PLATFORM_IS_LINUX) || defined(PLATFORM_IS_BSD)
   #include <sched.h>
@@ -400,7 +399,6 @@ void ponyint_cpu_core_pause(uint64_t tsc, uint64_t tsc2, bool yield)
 #ifdef PLATFORM_IS_WINDOWS
     SleepEx(ts, true);
 #else
-    DTRACE1(CPU_NANOSLEEP, ts.tv_nsec);
     nanosleep(&ts, NULL);
 #endif
   }
@@ -424,7 +422,6 @@ void ponyint_cpu_sleep_ns(uint64_t ns)
   struct timespec ts;
   ts.tv_sec = (time_t)(ns / 1000000000);
   ts.tv_nsec = (long)(ns % 1000000000);
-  DTRACE1(CPU_NANOSLEEP, (uint64_t)ts.tv_nsec);
   nanosleep(&ts, NULL);
 #endif
 }

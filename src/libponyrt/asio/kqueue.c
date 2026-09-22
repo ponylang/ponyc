@@ -155,12 +155,7 @@ static void handle_queue(asio_backend_t* b)
 {
   asio_msg_t* msg;
 
-  while((msg = (asio_msg_t*)ponyint_thread_messageq_pop(
-    &b->q
-#ifdef USE_DYNAMIC_TRACE
-    , pony_scheduler_index()
-#endif
-    )) != NULL)
+  while((msg = (asio_msg_t*)ponyint_thread_messageq_pop(&b->q)) != NULL)
   {
     asio_event_t* ev = msg->event;
 
@@ -306,11 +301,7 @@ static void send_request(asio_event_t* ev, int req)
     POOL_INDEX(sizeof(asio_msg_t)), 0);
   msg->event = ev;
   msg->flags = req;
-  ponyint_thread_messageq_push(&b->q, (pony_msg_t*)msg, (pony_msg_t*)msg
-#ifdef USE_DYNAMIC_TRACE
-    , pony_scheduler_index(), pony_scheduler_index()
-#endif
-    );
+  ponyint_thread_messageq_push(&b->q, (pony_msg_t*)msg, (pony_msg_t*)msg);
 
   retry_loop(b);
 }
@@ -916,11 +907,7 @@ PONY_API void pony_asio_event_unsubscribe(asio_event_t* ev)
     POOL_INDEX(sizeof(asio_msg_t)), 0);
   msg->event = ev;
   msg->flags = ASIO_DISPOSABLE;
-  ponyint_thread_messageq_push(&b->q, (pony_msg_t*)msg, (pony_msg_t*)msg
-#ifdef USE_DYNAMIC_TRACE
-    , pony_scheduler_index(), pony_scheduler_index()
-#endif
-    );
+  ponyint_thread_messageq_push(&b->q, (pony_msg_t*)msg, (pony_msg_t*)msg);
 
   retry_loop(b);
 }

@@ -11,7 +11,6 @@
 #include "ponyassert.h"
 #include <assert.h>
 #include <string.h>
-#include <dtrace.h>
 
 #ifdef USE_RUNTIMESTATS
 #include <stdio.h>
@@ -149,14 +148,12 @@ static void mute_actor(pony_actor_t* actor)
 {
   set_sync_flag(actor, ACTOR_SYNC_FLAG_MUTED);
   TRACING_ACTOR_MUTED(actor);
-  DTRACE1(ACTOR_MUTED, (uintptr_t)actor);
 }
 
 void ponyint_unmute_actor(pony_actor_t* actor)
 {
   unset_sync_flag(actor, ACTOR_SYNC_FLAG_MUTED);
   TRACING_ACTOR_UNMUTED(actor);
-  DTRACE1(ACTOR_UNMUTED, (uintptr_t)actor);
 }
 
 static bool triggers_muting(pony_actor_t* actor)
@@ -170,7 +167,6 @@ static void actor_setoverloaded(pony_actor_t* actor)
   pony_assert(!ponyint_is_cycle(actor));
   set_sync_flag(actor, ACTOR_SYNC_FLAG_OVERLOADED);
   TRACING_ACTOR_OVERLOADED(actor);
-  DTRACE1(ACTOR_OVERLOADED, (uintptr_t)actor);
 }
 
 static void actor_unsetoverloaded(pony_actor_t* actor)
@@ -178,7 +174,6 @@ static void actor_unsetoverloaded(pony_actor_t* actor)
   pony_ctx_t* ctx = pony_ctx();
   unset_sync_flag(actor, ACTOR_SYNC_FLAG_OVERLOADED);
   TRACING_ACTOR_NOTOVERLOADED(actor);
-  DTRACE1(ACTOR_OVERLOADED_CLEARED, (uintptr_t)actor);
   if (!has_sync_flag(actor, ACTOR_SYNC_FLAG_UNDER_PRESSURE))
   {
     ponyint_sched_start_global_unmute(ctx->scheduler->index, actor);
@@ -260,7 +255,6 @@ static void try_gc(pony_ctx_t* ctx, pony_actor_t* actor)
     ctx->schedulerstats.misc_cpu += used_cpu;
 #endif
 
-  DTRACE2(GC_START, (uintptr_t)ctx->scheduler, (uintptr_t)actor);
   TRACING_ACTOR_GC_START(actor);
   TRACING_ACTOR_GC_MARK_START(actor);
 
@@ -289,7 +283,6 @@ static void try_gc(pony_ctx_t* ctx, pony_actor_t* actor)
     actor->actorstats.gc_sweep_cpu += used_cpu;
 #endif
 
-  DTRACE2(GC_END, (uintptr_t)ctx->scheduler, (uintptr_t)actor);
   TRACING_ACTOR_GC_HEAP_SWEEP_END(actor);
   TRACING_ACTOR_GC_SWEEP_END(actor);
   TRACING_ACTOR_GC_END(actor);
@@ -385,7 +378,6 @@ static bool handle_message(pony_ctx_t* ctx, pony_actor_t* actor,
 #endif
 
       pony_assert(ponyint_is_cycle(actor));
-      DTRACE3(ACTOR_MSG_RUN, (uintptr_t)ctx->scheduler, (uintptr_t)actor, msg->id);
       actor->type->dispatch(ctx, actor, msg);
       return false;
     }
@@ -443,7 +435,6 @@ static bool handle_message(pony_ctx_t* ctx, pony_actor_t* actor,
       // runtimestats messages tracked in cycle detector
 
       pony_assert(ponyint_is_cycle(actor));
-      DTRACE3(ACTOR_MSG_RUN, (uintptr_t)ctx->scheduler, (uintptr_t)actor, msg->id);
       actor->type->dispatch(ctx, actor, msg);
       return false;
     }
@@ -456,7 +447,6 @@ static bool handle_message(pony_ctx_t* ctx, pony_actor_t* actor,
 #endif
 
       pony_assert(ponyint_is_cycle(actor));
-      DTRACE3(ACTOR_MSG_RUN, (uintptr_t)ctx->scheduler, (uintptr_t)actor, msg->id);
       actor->type->dispatch(ctx, actor, msg);
       return false;
     }
@@ -469,7 +459,6 @@ static bool handle_message(pony_ctx_t* ctx, pony_actor_t* actor,
 #endif
 
       pony_assert(ponyint_is_cycle(actor));
-      DTRACE3(ACTOR_MSG_RUN, (uintptr_t)ctx->scheduler, (uintptr_t)actor, msg->id);
       actor->type->dispatch(ctx, actor, msg);
       return false;
     }
@@ -484,7 +473,6 @@ static bool handle_message(pony_ctx_t* ctx, pony_actor_t* actor,
       pony_assert(!ponyint_is_cycle(actor));
       maybe_unblock(actor);
 
-      DTRACE3(ACTOR_MSG_RUN, (uintptr_t)ctx->scheduler, (uintptr_t)actor, msg->id);
       actor->type->dispatch(ctx, actor, msg);
 
       return true;
@@ -560,11 +548,7 @@ bool ponyint_actor_run(pony_ctx_t* ctx, pony_actor_t* actor)
   // If we have been scheduled, the head will not be marked as empty.
   pony_msg_t* head = atomic_load_explicit(&actor->q.head, memory_order_acquire);
 
-  while((msg = ponyint_actor_messageq_pop(&actor->q
-#ifdef USE_DYNAMIC_TRACE
-    , ctx->scheduler, ctx->current
-#endif
-    )) != NULL)
+  while((msg = ponyint_actor_messageq_pop(&actor->q)) != NULL)
   {
 #ifdef USE_RUNTIMESTATS
     uint64_t used_cpu = ponyint_sched_cpu_used(ctx);
@@ -909,7 +893,6 @@ PONY_API pony_actor_t* pony_create(pony_ctx_t* ctx, pony_type_t* type,
   }
 
   TRACING_ACTOR_CREATED(actor);
-  DTRACE2(ACTOR_ALLOC, (uintptr_t)ctx->scheduler, (uintptr_t)actor);
   return actor;
 }
 
@@ -982,29 +965,10 @@ PONY_API void pony_sendv(pony_ctx_t* ctx, pony_actor_t* to, pony_msg_t* first,
   // to be destroyed.
   pony_assert(!ponyint_actor_pendingdestroy(to));
 
-  if(DTRACE_ENABLED(ACTOR_MSG_SEND))
-  {
-    pony_msg_t* m = first;
-
-    while(m != last)
-    {
-      DTRACE4(ACTOR_MSG_SEND, (uintptr_t)ctx->scheduler, m->id,
-        (uintptr_t)ctx->current, (uintptr_t)to);
-      m = atomic_load_explicit(&m->next, memory_order_relaxed);
-    }
-
-    DTRACE4(ACTOR_MSG_SEND, (uintptr_t)ctx->scheduler, last->id,
-        (uintptr_t)ctx->current, (uintptr_t)to);
-  }
-
   if(has_app_msg)
     maybe_mark_should_mute(ctx, to);
 
-  if(ponyint_actor_messageq_push(&to->q, first, last
-#ifdef USE_DYNAMIC_TRACE
-    , ctx->scheduler, ctx->current, to
-#endif
-    ))
+  if(ponyint_actor_messageq_push(&to->q, first, last))
   {
     if(!has_sync_flag(to, ACTOR_SYNC_FLAG_MUTED))
     {
@@ -1039,29 +1003,10 @@ PONY_API void pony_sendv_single(pony_ctx_t* ctx, pony_actor_t* to,
   // that is about to be destroyed
   pony_assert(!ponyint_actor_pendingdestroy(to));
 
-  if(DTRACE_ENABLED(ACTOR_MSG_SEND))
-  {
-    pony_msg_t* m = first;
-
-    while(m != last)
-    {
-      DTRACE4(ACTOR_MSG_SEND, (uintptr_t)ctx->scheduler, m->id,
-        (uintptr_t)ctx->current, (uintptr_t)to);
-      m = atomic_load_explicit(&m->next, memory_order_relaxed);
-    }
-
-    DTRACE4(ACTOR_MSG_SEND, (uintptr_t)ctx->scheduler, last->id,
-        (uintptr_t)ctx->current, (uintptr_t)to);
-  }
-
   if(has_app_msg)
     maybe_mark_should_mute(ctx, to);
 
-  if(ponyint_actor_messageq_push_single(&to->q, first, last
-#ifdef USE_DYNAMIC_TRACE
-    , ctx->scheduler, ctx->current, to
-#endif
-    ))
+  if(ponyint_actor_messageq_push_single(&to->q, first, last))
   {
     if(!has_sync_flag(to, ACTOR_SYNC_FLAG_MUTED))
     {
@@ -1128,17 +1073,7 @@ void ponyint_sendv_inject(pony_actor_t* to, pony_msg_t* msg)
 
   pony_assert(!ponyint_actor_pendingdestroy(to));
 
-  if(DTRACE_ENABLED(ACTOR_MSG_SEND))
-  {
-    DTRACE4(ACTOR_MSG_SEND, (uintptr_t)ctx->scheduler, msg->id,
-      (uintptr_t)ctx->current, (uintptr_t)to);
-  }
-
-  if(ponyint_actor_messageq_push(&to->q, msg, msg
-#ifdef USE_DYNAMIC_TRACE
-    , ctx->scheduler, ctx->current, to
-#endif
-    ))
+  if(ponyint_actor_messageq_push(&to->q, msg, msg))
   {
     if(!has_sync_flag(to, ACTOR_SYNC_FLAG_MUTED))
     {
@@ -1183,7 +1118,6 @@ PONY_API PONY_NOINLINE
 void* pony_alloc(pony_ctx_t* ctx, size_t size)
 {
   pony_assert(ctx->current != NULL);
-  DTRACE3(HEAP_ALLOC, (uintptr_t)ctx->scheduler, (uintptr_t)ctx->current, size);
 
   return ponyint_heap_alloc(ctx->current, &ctx->current->heap, size,
     TRACK_NO_FINALISERS);
@@ -1193,7 +1127,6 @@ PONY_API PONY_NOINLINE
 void* pony_alloc_small(pony_ctx_t* ctx, uint32_t sizeclass)
 {
   pony_assert(ctx->current != NULL);
-  DTRACE3(HEAP_ALLOC, (uintptr_t)ctx->scheduler, (uintptr_t)ctx->current, HEAP_MIN << sizeclass);
 
   return ponyint_heap_alloc_small(ctx->current, &ctx->current->heap, sizeclass,
     TRACK_NO_FINALISERS);
@@ -1202,7 +1135,6 @@ void* pony_alloc_small(pony_ctx_t* ctx, uint32_t sizeclass)
 PONY_API void* pony_alloc_large(pony_ctx_t* ctx, size_t size)
 {
   pony_assert(ctx->current != NULL);
-  DTRACE3(HEAP_ALLOC, (uintptr_t)ctx->scheduler, (uintptr_t)ctx->current, size);
 
   return ponyint_heap_alloc_large(ctx->current, &ctx->current->heap, size,
     TRACK_NO_FINALISERS);
@@ -1211,7 +1143,6 @@ PONY_API void* pony_alloc_large(pony_ctx_t* ctx, size_t size)
 PONY_API void* pony_realloc(pony_ctx_t* ctx, void* p, size_t size, size_t copy)
 {
   pony_assert(ctx->current != NULL);
-  DTRACE3(HEAP_ALLOC, (uintptr_t)ctx->scheduler, (uintptr_t)ctx->current, size);
 
   return ponyint_heap_realloc(ctx->current, &ctx->current->heap, p, size, copy);
 }
@@ -1219,7 +1150,6 @@ PONY_API void* pony_realloc(pony_ctx_t* ctx, void* p, size_t size, size_t copy)
 PONY_API void* pony_alloc_final(pony_ctx_t* ctx, size_t size)
 {
   pony_assert(ctx->current != NULL);
-  DTRACE3(HEAP_ALLOC, (uintptr_t)ctx->scheduler, (uintptr_t)ctx->current, size);
 
   return ponyint_heap_alloc(ctx->current, &ctx->current->heap, size,
     TRACK_ALL_FINALISERS);
@@ -1228,7 +1158,6 @@ PONY_API void* pony_alloc_final(pony_ctx_t* ctx, size_t size)
 PONY_API void* pony_alloc_small_final(pony_ctx_t* ctx, uint32_t sizeclass)
 {
   pony_assert(ctx->current != NULL);
-  DTRACE3(HEAP_ALLOC, (uintptr_t)ctx->scheduler, (uintptr_t)ctx->current, HEAP_MIN << sizeclass);
 
   return ponyint_heap_alloc_small(ctx->current, &ctx->current->heap,
     sizeclass, TRACK_ALL_FINALISERS);
@@ -1237,7 +1166,6 @@ PONY_API void* pony_alloc_small_final(pony_ctx_t* ctx, uint32_t sizeclass)
 PONY_API void* pony_alloc_large_final(pony_ctx_t* ctx, size_t size)
 {
   pony_assert(ctx->current != NULL);
-  DTRACE3(HEAP_ALLOC, (uintptr_t)ctx->scheduler, (uintptr_t)ctx->current, size);
 
   return ponyint_heap_alloc_large(ctx->current, &ctx->current->heap,
     size, TRACK_ALL_FINALISERS);
@@ -1306,7 +1234,6 @@ PONY_API void pony_apply_backpressure()
   pony_ctx_t* ctx = pony_ctx();
   set_sync_flag(ctx->current, ACTOR_SYNC_FLAG_UNDER_PRESSURE);
   TRACING_ACTOR_UNDERPRESSURE(ctx->current);
-  DTRACE1(ACTOR_UNDER_PRESSURE, (uintptr_t)ctx->current);
 }
 
 PONY_API void pony_release_backpressure()
@@ -1314,7 +1241,6 @@ PONY_API void pony_release_backpressure()
   pony_ctx_t* ctx = pony_ctx();
   unset_sync_flag(ctx->current, ACTOR_SYNC_FLAG_UNDER_PRESSURE);
   TRACING_ACTOR_NOTUNDERPRESSURE(ctx->current);
-  DTRACE1(ACTOR_PRESSURE_RELEASED, (uintptr_t)ctx->current);
   if (!has_sync_flag(ctx->current, ACTOR_SYNC_FLAG_OVERLOADED))
     ponyint_sched_start_global_unmute(ctx->scheduler->index, ctx->current);
 }

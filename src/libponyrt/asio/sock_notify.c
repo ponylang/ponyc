@@ -160,11 +160,7 @@ static void send_request(asio_event_t* ev, int req)
   msg->event = ev;
   msg->flags = req;
 
-  ponyint_thread_messageq_push(&b->q, (pony_msg_t*)msg, (pony_msg_t*)msg
-#ifdef USE_DYNAMIC_TRACE
-    , pony_scheduler_index(), pony_scheduler_index()
-#endif
-    );
+  ponyint_thread_messageq_push(&b->q, (pony_msg_t*)msg, (pony_msg_t*)msg);
 
   PostQueuedCompletionStatus(b->port, 0, KEY_WAKEUP, NULL);
 }
@@ -724,11 +720,7 @@ DECLARE_THREAD_FN(ponyint_asio_backend_dispatch)
     // a KEY_WAKEUP packet is just the nudge that woke us.
     asio_msg_t* msg;
 
-    while((msg = (asio_msg_t*)ponyint_thread_messageq_pop(&b->q
-#ifdef USE_DYNAMIC_TRACE
-      , pony_scheduler_index()
-#endif
-      )) != NULL)
+    while((msg = (asio_msg_t*)ponyint_thread_messageq_pop(&b->q)) != NULL)
     {
       asio_event_t* ev = msg->event;
 

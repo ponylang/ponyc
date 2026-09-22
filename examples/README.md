@@ -292,16 +292,8 @@ Plots the Mandelbrot set using divide-and-conquer parallelization across `Worker
 
 Simulates gravitational interaction among five planetary bodies (Sun, Jupiter, Saturn, Uranus, Neptune) using Newtonian physics. Demonstrates classes with multiple factory constructors, `F64` floating-point arithmetic, and pairwise force calculations with velocity and position integration.
 
-## Dynamic Tracing
-
-### [dtrace](tracing/dtrace/)
-
-Example DTrace scripts for tracing Pony runtime behavior on macOS and FreeBSD, including GC events, actor scheduling, and message throughput. Demonstrates the Pony runtime's DTrace provider interface with probes for garbage collection, scheduling, and telemetry aggregation.
+## Runtime Observability
 
 ### [runtime_info](tracing/runtime_info/)
 
 Queries and displays runtime statistics including actor heap memory, GC metrics, CPU time, and scheduler state. Demonstrates the `runtime_info` package's `ActorStats` and `SchedulerStats` with auth-gated access via `ActorStatsAuth` and `SchedulerStatsAuth`. Requires the compiler to be built with `use=runtimestats_messages`.
-
-### [systemtap](tracing/systemtap/)
-
-Example SystemTap scripts for tracing Pony runtime behavior on Linux, covering GC events, scheduling, and telemetry. Functionally equivalent to the `dtrace` examples but using SystemTap's probe syntax, requiring a Linux kernel with UPROBES support and the compiler built with `use=dtrace`.

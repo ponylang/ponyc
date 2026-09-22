@@ -13,7 +13,6 @@
 #include "../options/options.h"
 #include "../tracing/tracing.h"
 #include "ponyassert.h"
-#include <dtrace.h>
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -305,7 +304,6 @@ PONY_API int pony_init(int argc, char** argv)
   pony_assert(
     atomic_load_explicit(&running, memory_order_relaxed) == NOT_RUNNING);
 
-  DTRACE0(RT_INIT);
   options_t opt;
   memset(&opt, 0, sizeof(options_t));
 

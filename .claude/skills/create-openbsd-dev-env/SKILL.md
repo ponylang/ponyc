@@ -356,7 +356,7 @@ detached + polled). For exact CI parity, the tier-3 `openbsd` job
 (`.github/workflows/ponyc-tier3.yml`) runs more than this. In order: an
 unsupported-build-rejection smoke that runs **before** the libs build (it needs no LLVM —
 `.ci-scripts/openbsd-reject-unsupported-builds.sh` asserts `use=address_sanitizer`,
-`thread_sanitizer`, `undefined_behavior_sanitizer`, `coverage`, `valgrind`, and `dtrace` are
+`thread_sanitizer`, `undefined_behavior_sanitizer`, `coverage`, and `valgrind` are
 each rejected with "not supported on OpenBSD"); then debug configure/build; a `--static`
 embedded-LLD link smoke (OpenBSD static is static-PIE, so the binary's `file` output reads
 "shared object" — the smoke instead asserts `readelf -d` shows **no** `(NEEDED)` entries);
@@ -404,7 +404,7 @@ safe:
 
 The FreeBSD and DragonFly CI VMs follow the same shape
 (`.ci-scripts/bsd/{freebsd,dragonfly}-provision.bash`) and each has its own skill:
-`create-freebsd-dev-env` (also cloud-init, but base libc++/dtrace, an `expect`/`su` root
+`create-freebsd-dev-env` (also cloud-init, but base libc++, an `expect`/`su` root
 bootstrap, and the source under `/home/freebsd` rather than a `/build` disk) and
 `create-dragonfly-dev-env` (gcc-only, and it drives a VGA console). This skill is
 OpenBSD-only; load a sibling if you need one of those.
