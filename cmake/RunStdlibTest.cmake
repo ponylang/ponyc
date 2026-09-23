@@ -4,8 +4,10 @@
 # Args (passed with -D): PONYC, STDLIB_SRC (packages/stdlib), WORKDIR (the output
 # directory the binary is built into and run from), BUILD_NAME (stdlib-debug or
 # stdlib-release), DEBUG (ON for the debug build), PONY_SSL_FLAG (the SSL -D flag
-# for the net package, e.g. -Dopenssl_3.0.x), SOURCE_DIR (the repo root, for
-# copying test assets into WORKDIR).
+# for the net package, e.g. -Dopenssl_3.0.x), PONY_SSL_LIB_DIR (directory
+# containing the SSL/crypto libraries, added to PONYPATH so the linker can find
+# them on platforms where SSL is not in a standard search path), SOURCE_DIR (the
+# repo root, for copying test assets into WORKDIR).
 #
 # Run-time knobs read from the environment (set by the caller/CI, defaulted here):
 #   PONY_STDLIB_TEST_EXCLUDES  extra args appended, e.g. --exclude=net/Broadcast
@@ -25,6 +27,9 @@ if(DEFINED ENV{PONYPATH} AND NOT "$ENV{PONYPATH}" STREQUAL "")
     set(ENV{PONYPATH} "${WORKDIR}${_sep}$ENV{PONYPATH}")
 else()
     set(ENV{PONYPATH} "${WORKDIR}")
+endif()
+if(PONY_SSL_LIB_DIR AND NOT "${PONY_SSL_LIB_DIR}" STREQUAL "")
+    set(ENV{PONYPATH} "$ENV{PONYPATH}${_sep}${PONY_SSL_LIB_DIR}")
 endif()
 
 set(_args -b "${BUILD_NAME}" --checktree "${PONY_SSL_FLAG}")
