@@ -228,6 +228,8 @@ typedef struct compile_t
   per_module_state_t* per_module_states;
   size_t per_module_count;
   size_t current_module_index;
+
+  bool runtime_bitcode_merged;
 } compile_t;
 
 bool codegen_merge_runtime_bitcode(compile_t* c);

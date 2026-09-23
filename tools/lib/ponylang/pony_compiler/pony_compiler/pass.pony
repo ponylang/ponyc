@@ -185,7 +185,6 @@ struct _PassOpt
   var programm_pass: I32 = PassParse()
   var release: Bool = false
   var library: Bool = false
-  var runtimebc: Bool = false
   var staticbin: Bool = false
   var pic: Bool = false
   var print_stats: Bool = false

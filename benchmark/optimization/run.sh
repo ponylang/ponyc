@@ -5,8 +5,8 @@
 # Usage: ./run.sh <ponyc-A> <ponyc-B> [runs]
 #
 # <ponyc-A> and <ponyc-B> are paths to ponyc binaries (e.g. build/release/ponyc).
-# Compiles each benchmark with both, in plain and --runtimebc modes, then runs
-# each [runs] times (default 7) and reports median wall-clock time.
+# Compiles each benchmark with both builds, then runs each [runs] times
+# (default 7) and reports median wall-clock time.
 #
 # All benchmarks run with --ponymaxthreads=1 --ponynoyield (single actor, no
 # scheduler yielding). Runs are interleaved A/B to reduce thermal bias.
@@ -40,18 +40,13 @@ echo ""
 # ponyc defaults to release mode (no -d flag needed).
 echo "Compiling..."
 for bench in "${BENCHMARKS[@]}"; do
-  for mode in plain runtimebc; do
-    flag=""
-    [[ "$mode" == "runtimebc" ]] && flag="--runtimebc"
+  "$PONYC_A" -b "a-${bench}" --output "$WORK" \
+    "$SCRIPT_DIR/$bench" > /dev/null 2>&1 \
+    || die "A failed to compile $bench"
 
-    "$PONYC_A" $flag -b "a-${bench}-${mode}" --output "$WORK" \
-      "$SCRIPT_DIR/$bench" > /dev/null 2>&1 \
-      || die "A failed to compile $bench ($mode)"
-
-    "$PONYC_B" $flag -b "b-${bench}-${mode}" --output "$WORK" \
-      "$SCRIPT_DIR/$bench" > /dev/null 2>&1 \
-      || die "B failed to compile $bench ($mode)"
-  done
+  "$PONYC_B" -b "b-${bench}" --output "$WORK" \
+    "$SCRIPT_DIR/$bench" > /dev/null 2>&1 \
+    || die "B failed to compile $bench"
 done
 echo "Done."
 echo ""
@@ -83,42 +78,37 @@ printf "%-32s %10s %14s %10s %14s %10s\n" \
   "----------" "--------------" "----------"
 
 for bench in "${BENCHMARKS[@]}"; do
-  for mode in plain runtimebc; do
-    label="$bench"
-    [[ "$mode" == "runtimebc" ]] && label="$bench (rbc)"
+  bin_a="$WORK/a-${bench}"
+  bin_b="$WORK/b-${bench}"
 
-    bin_a="$WORK/a-${bench}-${mode}"
-    bin_b="$WORK/b-${bench}-${mode}"
+  # warmup (fail early if a binary crashes)
+  "$bin_a" --ponymaxthreads=1 --ponynoyield > /dev/null 2>&1 \
+    || die "warmup crashed: $bin_a"
+  "$bin_b" --ponymaxthreads=1 --ponynoyield > /dev/null 2>&1 \
+    || die "warmup crashed: $bin_b"
 
-    # warmup (fail early if a binary crashes)
-    "$bin_a" --ponymaxthreads=1 --ponynoyield > /dev/null 2>&1 \
-      || die "warmup crashed: $bin_a"
-    "$bin_b" --ponymaxthreads=1 --ponynoyield > /dev/null 2>&1 \
-      || die "warmup crashed: $bin_b"
+  times_a=""
+  times_b=""
+  for ((r = 1; r <= RUNS; r++)); do
+    t=$(time_one "$bin_a")
+    times_a+="${t}"$'\n'
 
-    times_a=""
-    times_b=""
-    for ((r = 1; r <= RUNS; r++)); do
-      t=$(time_one "$bin_a")
-      times_a+="${t}"$'\n'
-
-      t=$(time_one "$bin_b")
-      times_b+="${t}"$'\n'
-    done
-
-    med_a=$(printf '%s' "$times_a" | grep -v '^$' | median "$RUNS")
-    med_b=$(printf '%s' "$times_b" | grep -v '^$' | median "$RUNS")
-    rng_a=$(printf '%s' "$times_a" | grep -v '^$' | minmax)
-    rng_b=$(printf '%s' "$times_b" | grep -v '^$' | minmax)
-
-    delta=$(awk "BEGIN {
-      if ($med_a > 0)
-        printf \"%+.1f%%\", (($med_b - $med_a) / $med_a) * 100
-      else
-        print \"n/a\"
-    }")
-
-    printf "%-32s %9ss %13ss %9ss %13ss %10s\n" \
-      "$label" "$med_a" "$rng_a" "$med_b" "$rng_b" "$delta"
+    t=$(time_one "$bin_b")
+    times_b+="${t}"$'\n'
   done
+
+  med_a=$(printf '%s' "$times_a" | grep -v '^$' | median "$RUNS")
+  med_b=$(printf '%s' "$times_b" | grep -v '^$' | median "$RUNS")
+  rng_a=$(printf '%s' "$times_a" | grep -v '^$' | minmax)
+  rng_b=$(printf '%s' "$times_b" | grep -v '^$' | minmax)
+
+  delta=$(awk "BEGIN {
+    if ($med_a > 0)
+      printf \"%+.1f%%\", (($med_b - $med_a) / $med_a) * 100
+    else
+      print \"n/a\"
+  }")
+
+  printf "%-32s %9ss %13ss %9ss %13ss %10s\n" \
+    "$bench" "$med_a" "$rng_a" "$med_b" "$rng_b" "$delta"
 done

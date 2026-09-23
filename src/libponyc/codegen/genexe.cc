@@ -1486,7 +1486,7 @@ static bool link_exe_lld_elf(compile_t* c, ast_t* program,
   }
 
   // Pony runtime.
-  if(!c->opt->runtimebc)
+  if(!c->runtime_bitcode_merged)
   {
     // FreeBSD and DragonFly ship a single libponyrt.a (PIC-enabled) and no
     // compiler-rt CRT, so ponyc_crt_dir is NULL on those targets; resolve
@@ -2083,10 +2083,18 @@ static bool link_exe_lld_macho(compile_t* c, ast_t* program,
   // System library and Pony runtime.
   args.push_back("-lSystem");
 
-  if(!c->opt->runtimebc)
+  if(!c->runtime_bitcode_merged)
   {
     // macOS has no separate PIC runtime library — all code is PIC by default.
     args.push_back("-lponyrt");
+  }
+  else
+  {
+    // When runtime bitcode is merged into the program, LTO may internalize
+    // PONY_API functions that nothing in the program itself calls. Shared
+    // libraries loaded at runtime (e.g. test fixtures, FFI plugins) need
+    // these symbols to be visible. Tell the Mach-O linker to keep them.
+    args.push_back("-export_dynamic");
   }
 
   args.push_back("-o");
@@ -2280,7 +2288,7 @@ static bool link_exe_lld_coff(compile_t* c, ast_t* program,
   }
 
   // Pony runtime.
-  if(!c->opt->runtimebc)
+  if(!c->runtime_bitcode_merged)
   {
     args.push_back("libponyrt.lib");
   }
@@ -3062,11 +3070,8 @@ bool genexe(compile_t* c, ast_t* program)
   if(!pony_specific_opt(c))
     return false;
 
-  if(c->opt->runtimebc)
-  {
-    if(!codegen_merge_runtime_bitcode(c))
-      return false;
-  }
+  if(!codegen_merge_runtime_bitcode(c))
+    return false;
 
   codegen_stamp_target_attrs(c);
 

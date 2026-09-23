@@ -291,22 +291,14 @@ cmake --build --preset release
 
 ### runtime-bitcode
 
-If you're compiling with Clang, you can build the Pony runtime as an LLVM bitcode file by setting `PONY_RUNTIME_BITCODE` to `true` in the configure step:
+On clang builds, `PONY_RUNTIME_BITCODE` defaults to `ON`. The build compiles every libponyrt source file to LLVM bitcode and links them into `libponyrt.bc` with `llvm-link` (built by `cmake -P lib/build-libs.cmake`). At compile time, ponyc looks for `libponyrt.bc` in its search paths and merges it into the program's IR before optimisation, enabling interprocedural optimisation between Pony code and the runtime. When `libponyrt.bc` is not found (e.g. on Windows/MSVC builds), ponyc links `libponyrt.a` as usual.
+
+To disable runtime bitcode on a clang build:
 
 ```bash
-cmake --preset release -DPONY_RUNTIME_BITCODE=true
+cmake --preset release -DPONY_RUNTIME_BITCODE=OFF
 cmake --build --preset release
 ```
-
-Then, you can pass the `--runtimebc` option to ponyc in order to use the bitcode file instead of the static library to link in the runtime:
-
-```bash
-ponyc --runtimebc
-```
-
-This requires `llvm-link`, which is one of the LLVM tools `cmake -P lib/build-libs.cmake` builds.
-
-This functionality boils down to "super LTO" for the runtime. The Pony compiler will have full knowledge of the runtime and will perform advanced interprocedural optimisations between your Pony code and the runtime. If you're looking for maximum performance, you should consider this option. Note that this can result in very long optimisation times.
 
 ### systematic testing
 

@@ -102,10 +102,113 @@ static LLVMTargetMachineRef make_machine(pass_opt_t* opt)
   return machine;
 }
 
-static void init_runtime_decls(compile_t* c)
+// Return attributes for runtime allocator functions. These describe
+// properties of the returned pointer (alignment, dereferenceable bytes,
+// noalias) that the runtime guarantees but clang cannot infer from the C
+// source.
+//
+// LLVMLinkModules2 replaces our declarations with bitcode definitions
+// whose attributes come from clang; anything clang couldn't infer is
+// lost. Calling this after the merge puts it back.
+static void set_runtime_return_attrs(compile_t* c)
 {
   unsigned int ptr_size = target_is_ilp32(c->opt->triple) ? 4 : 8;
 
+  LLVM_DECLARE_ATTRIBUTEREF(noalias_attr, noalias, 0);
+  LLVM_DECLARE_ATTRIBUTEREF(deref_actor_attr, dereferenceable,
+    PONY_ACTOR_PAD_SIZE + ptr_size);
+  // The alignment values must match what the runtime actually provides:
+  // HEAP_MIN for heap allocations, POOL_MIN for pool allocations.
+  // For heap allocations this is load-bearing for HeapToStack, which
+  // derives the promoted alloca's alignment from this attribute.
+  LLVM_DECLARE_ATTRIBUTEREF(align_heap_attr, align, HEAP_MIN);
+  LLVM_DECLARE_ATTRIBUTEREF(align_pool_attr, align, POOL_MIN);
+  LLVM_DECLARE_ATTRIBUTEREF(deref_or_null_alloc_attr, dereferenceable_or_null,
+    HEAP_MIN);
+  LLVM_DECLARE_ATTRIBUTEREF(deref_alloc_small_attr, dereferenceable, HEAP_MIN);
+  LLVM_DECLARE_ATTRIBUTEREF(deref_alloc_large_attr, dereferenceable,
+    HEAP_MAX << 1);
+
+  LLVMValueRef fn;
+
+  fn = LLVMGetNamedFunction(c->module, "pony_create");
+  if(fn != NULL)
+  {
+    LLVMAddAttributeAtIndex(fn, LLVMAttributeReturnIndex, noalias_attr);
+    LLVMAddAttributeAtIndex(fn, LLVMAttributeReturnIndex, deref_actor_attr);
+    LLVMAddAttributeAtIndex(fn, LLVMAttributeReturnIndex, align_pool_attr);
+  }
+
+  fn = LLVMGetNamedFunction(c->module, "pony_alloc");
+  if(fn != NULL)
+  {
+    LLVMAddAttributeAtIndex(fn, LLVMAttributeReturnIndex, noalias_attr);
+    LLVMAddAttributeAtIndex(fn, LLVMAttributeReturnIndex,
+      deref_or_null_alloc_attr);
+    LLVMAddAttributeAtIndex(fn, LLVMAttributeReturnIndex, align_heap_attr);
+  }
+
+  fn = LLVMGetNamedFunction(c->module, "pony_alloc_small");
+  if(fn != NULL)
+  {
+    LLVMAddAttributeAtIndex(fn, LLVMAttributeReturnIndex, noalias_attr);
+    LLVMAddAttributeAtIndex(fn, LLVMAttributeReturnIndex,
+      deref_alloc_small_attr);
+    LLVMAddAttributeAtIndex(fn, LLVMAttributeReturnIndex, align_heap_attr);
+  }
+
+  fn = LLVMGetNamedFunction(c->module, "pony_alloc_large");
+  if(fn != NULL)
+  {
+    LLVMAddAttributeAtIndex(fn, LLVMAttributeReturnIndex, noalias_attr);
+    LLVMAddAttributeAtIndex(fn, LLVMAttributeReturnIndex,
+      deref_alloc_large_attr);
+    LLVMAddAttributeAtIndex(fn, LLVMAttributeReturnIndex, align_heap_attr);
+  }
+
+  fn = LLVMGetNamedFunction(c->module, "pony_realloc");
+  if(fn != NULL)
+  {
+    LLVMAddAttributeAtIndex(fn, LLVMAttributeReturnIndex, noalias_attr);
+    LLVMAddAttributeAtIndex(fn, LLVMAttributeReturnIndex,
+      deref_or_null_alloc_attr);
+    LLVMAddAttributeAtIndex(fn, LLVMAttributeReturnIndex, align_heap_attr);
+  }
+
+  fn = LLVMGetNamedFunction(c->module, "pony_alloc_final");
+  if(fn != NULL)
+  {
+    LLVMAddAttributeAtIndex(fn, LLVMAttributeReturnIndex,
+      deref_or_null_alloc_attr);
+    LLVMAddAttributeAtIndex(fn, LLVMAttributeReturnIndex, align_heap_attr);
+  }
+
+  fn = LLVMGetNamedFunction(c->module, "pony_alloc_small_final");
+  if(fn != NULL)
+  {
+    LLVMAddAttributeAtIndex(fn, LLVMAttributeReturnIndex,
+      deref_alloc_small_attr);
+    LLVMAddAttributeAtIndex(fn, LLVMAttributeReturnIndex, align_heap_attr);
+  }
+
+  fn = LLVMGetNamedFunction(c->module, "pony_alloc_large_final");
+  if(fn != NULL)
+  {
+    LLVMAddAttributeAtIndex(fn, LLVMAttributeReturnIndex,
+      deref_alloc_large_attr);
+    LLVMAddAttributeAtIndex(fn, LLVMAttributeReturnIndex, align_heap_attr);
+  }
+
+  fn = LLVMGetNamedFunction(c->module, "pony_alloc_msg");
+  if(fn != NULL)
+  {
+    LLVMAddAttributeAtIndex(fn, LLVMAttributeReturnIndex, noalias_attr);
+    LLVMAddAttributeAtIndex(fn, LLVMAttributeReturnIndex, align_pool_attr);
+  }
+}
+
+static void init_runtime_decls(compile_t* c)
+{
   LLVM_DECLARE_ATTRIBUTEREF(nounwind_attr, nounwind, 0);
   LLVM_DECLARE_ATTRIBUTEREF(readnone_attr, readnone, 0);
   LLVM_DECLARE_ATTRIBUTEREF(readonly_attr, readonly, 0);
@@ -114,26 +217,7 @@ static void init_runtime_decls(compile_t* c)
   LLVM_DECLARE_ATTRIBUTEREF(inacc_or_arg_mem_attr, memory,
     LLVM_MEMORYEFFECTS_ARG(LLVM_MEMORYEFFECTS_READWRITE) |
     LLVM_MEMORYEFFECTS_INACCESSIBLEMEM(LLVM_MEMORYEFFECTS_READWRITE));
-  LLVM_DECLARE_ATTRIBUTEREF(noalias_attr, noalias, 0);
   LLVM_DECLARE_ATTRIBUTEREF(noreturn_attr, noreturn, 0);
-  LLVM_DECLARE_ATTRIBUTEREF(deref_actor_attr, dereferenceable,
-    PONY_ACTOR_PAD_SIZE + ptr_size);
-  // Declare the true minimum alignment the runtime guarantees for each
-  // allocator's returned memory: HEAP_MIN for heap (object) allocations and
-  // POOL_MIN for pool allocations (actors and messages). These must not exceed
-  // what the runtime actually provides (see HEAP_MIN in heap.h, POOL_MIN in
-  // pool.h) or the optimiser will assume an alignment the memory doesn't have.
-  // For heap allocations this is additionally load-bearing for the HeapToStack
-  // pass, which derives a promoted stack alloca's alignment from this attribute
-  // (heap_to_stack.cc); under-declaring it produced allocas too weakly aligned
-  // for fields such as U128, crashing under optimisation. See issue #5462.
-  LLVM_DECLARE_ATTRIBUTEREF(align_heap_attr, align, HEAP_MIN);
-  LLVM_DECLARE_ATTRIBUTEREF(align_pool_attr, align, POOL_MIN);
-  LLVM_DECLARE_ATTRIBUTEREF(deref_or_null_alloc_attr, dereferenceable_or_null,
-    HEAP_MIN);
-  LLVM_DECLARE_ATTRIBUTEREF(deref_alloc_small_attr, dereferenceable, HEAP_MIN);
-  LLVM_DECLARE_ATTRIBUTEREF(deref_alloc_large_attr, dereferenceable,
-    HEAP_MAX << 1);
 
   LLVMTypeRef type;
   LLVMTypeRef params[5];
@@ -156,9 +240,6 @@ static void init_runtime_decls(compile_t* c)
   LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex, nounwind_attr);
   LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex,
     inacc_or_arg_mem_attr);
-  LLVMAddAttributeAtIndex(value, LLVMAttributeReturnIndex, noalias_attr);
-  LLVMAddAttributeAtIndex(value, LLVMAttributeReturnIndex, deref_actor_attr);
-  LLVMAddAttributeAtIndex(value, LLVMAttributeReturnIndex, align_pool_attr);
 
   // void ponyint_destroy(__object*)
   params[0] = c->ptr;
@@ -203,10 +284,6 @@ static void init_runtime_decls(compile_t* c)
   LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex, nounwind_attr);
   LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex,
     inacc_or_arg_mem_attr);
-  LLVMAddAttributeAtIndex(value, LLVMAttributeReturnIndex, noalias_attr);
-  LLVMAddAttributeAtIndex(value, LLVMAttributeReturnIndex,
-    deref_or_null_alloc_attr);
-  LLVMAddAttributeAtIndex(value, LLVMAttributeReturnIndex, align_heap_attr);
 
   // i8* pony_alloc_small(i8*, i32)
   params[0] = c->ptr;
@@ -217,10 +294,6 @@ static void init_runtime_decls(compile_t* c)
   LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex, nounwind_attr);
   LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex,
     inacc_or_arg_mem_attr);
-  LLVMAddAttributeAtIndex(value, LLVMAttributeReturnIndex, noalias_attr);
-  LLVMAddAttributeAtIndex(value, LLVMAttributeReturnIndex,
-    deref_alloc_small_attr);
-  LLVMAddAttributeAtIndex(value, LLVMAttributeReturnIndex, align_heap_attr);
 
   // i8* pony_alloc_large(i8*, intptr)
   params[0] = c->ptr;
@@ -231,10 +304,6 @@ static void init_runtime_decls(compile_t* c)
   LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex, nounwind_attr);
   LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex,
     inacc_or_arg_mem_attr);
-  LLVMAddAttributeAtIndex(value, LLVMAttributeReturnIndex, noalias_attr);
-  LLVMAddAttributeAtIndex(value, LLVMAttributeReturnIndex,
-    deref_alloc_large_attr);
-  LLVMAddAttributeAtIndex(value, LLVMAttributeReturnIndex, align_heap_attr);
 
   // i8* pony_realloc(i8*, i8*, intptr, intptr)
   params[0] = c->ptr;
@@ -247,10 +316,6 @@ static void init_runtime_decls(compile_t* c)
   LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex, nounwind_attr);
   LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex,
     inacc_or_arg_mem_attr);
-  LLVMAddAttributeAtIndex(value, LLVMAttributeReturnIndex, noalias_attr);
-  LLVMAddAttributeAtIndex(value, LLVMAttributeReturnIndex,
-    deref_or_null_alloc_attr);
-  LLVMAddAttributeAtIndex(value, LLVMAttributeReturnIndex, align_heap_attr);
 
   // i8* pony_alloc_final(i8*, intptr)
   params[0] = c->ptr;
@@ -261,9 +326,6 @@ static void init_runtime_decls(compile_t* c)
   LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex, nounwind_attr);
   LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex,
     inacc_or_arg_mem_attr);
-  LLVMAddAttributeAtIndex(value, LLVMAttributeReturnIndex,
-    deref_or_null_alloc_attr);
-  LLVMAddAttributeAtIndex(value, LLVMAttributeReturnIndex, align_heap_attr);
 
   // i8* pony_alloc_small_final(i8*, i32)
   params[0] = c->ptr;
@@ -274,9 +336,6 @@ static void init_runtime_decls(compile_t* c)
   LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex, nounwind_attr);
   LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex,
     inacc_or_arg_mem_attr);
-  LLVMAddAttributeAtIndex(value, LLVMAttributeReturnIndex,
-    deref_alloc_small_attr);
-  LLVMAddAttributeAtIndex(value, LLVMAttributeReturnIndex, align_heap_attr);
 
   // i8* pony_alloc_large_final(i8*, intptr)
   params[0] = c->ptr;
@@ -287,9 +346,6 @@ static void init_runtime_decls(compile_t* c)
   LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex, nounwind_attr);
   LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex,
     inacc_or_arg_mem_attr);
-  LLVMAddAttributeAtIndex(value, LLVMAttributeReturnIndex,
-    deref_alloc_large_attr);
-  LLVMAddAttributeAtIndex(value, LLVMAttributeReturnIndex, align_heap_attr);
 
   // $message* pony_alloc_msg(i32, i32)
   params[0] = c->i32;
@@ -300,8 +356,6 @@ static void init_runtime_decls(compile_t* c)
   LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex, nounwind_attr);
   LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex,
     inacc_or_arg_mem_attr);
-  LLVMAddAttributeAtIndex(value, LLVMAttributeReturnIndex, noalias_attr);
-  LLVMAddAttributeAtIndex(value, LLVMAttributeReturnIndex, align_pool_attr);
 
   // void pony_trace(i8*, i8*)
   params[0] = c->ptr;
@@ -434,6 +488,8 @@ static void init_runtime_decls(compile_t* c)
   params[0] = c->ptr;
   type = LLVMFunctionType(c->i32, params, 1, false);
   value = LLVMAddFunction(c->module, "puts", type);
+
+  set_runtime_return_attrs(c);
 }
 
 static void init_runtime(compile_t* c)
@@ -662,16 +718,16 @@ bool codegen_merge_runtime_bitcode(compile_t* c)
     runtime = LLVMParseIRFileInContext(c->context, path);
   }
 
-  errors_t* errors = c->opt->check.errors;
-
   if(runtime == NULL)
   {
-    errorf(errors, NULL, "couldn't find libponyrt.bc");
-    return false;
+    c->runtime_bitcode_merged = false;
+    return true;
   }
 
   if(c->opt->verbosity >= VERBOSITY_MINIMAL)
     fprintf(stderr, "Merging runtime\n");
+
+  errors_t* errors = c->opt->check.errors;
 
   // runtime is freed by the function.
   if(LLVMLinkModules2(c->module, runtime))
@@ -680,6 +736,9 @@ bool codegen_merge_runtime_bitcode(compile_t* c)
     return false;
   }
 
+  set_runtime_return_attrs(c);
+
+  c->runtime_bitcode_merged = true;
   return true;
 }
 

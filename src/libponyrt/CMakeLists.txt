@@ -120,6 +120,10 @@ if(PONY_RUNTIME_BITCODE)
     set(_c_flags ${CMAKE_C_FLAGS})
     separate_arguments(_c_flags)
 
+    if(CMAKE_C_COMPILER_ID STREQUAL "AppleClang")
+        list(APPEND _c_flags -fno-stack-check)
+    endif()
+
     set(_ll_src_all ${_c_src})
     foreach(_src_file ${_ll_src_all})
         #message("${libponyrt_SOURCE_DIR}/${_src_file} -> ${libponyrt_BINARY_DIR}/${_src_file}.bc")
