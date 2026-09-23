@@ -1,4 +1,4 @@
-name: ponyc Release CI
+name: ponyc Release-Mode Checks
 
 on:
   workflow_dispatch:
@@ -11,7 +11,7 @@ on:
     - cron: "0 2 * * 2,4,6"
 
 concurrency:
-  group: ponyc-release-ci-${{ github.ref }}
+  group: ponyc-release-mode-checks-${{ github.ref }}
   cancel-in-progress: true
 
 permissions:
