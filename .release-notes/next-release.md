@@ -401,3 +401,7 @@ The ELF linker now passes `--export-dynamic` whenever runtime bitcode is merged,
 
 After the runtime was linked into the program, LLVM attributes on runtime functions were lost. Without them, unnecessary unwind paths remained at every runtime call site and memory operations could not be moved past allocator calls. The attributes are now preserved across linking.
 
+## Add inacc_or_arg_mem to pony_send_done and pony_recv_done
+
+`pony_send_done` and `pony_recv_done` now carry the `inacc_or_arg_mem` memory attribute, matching the trace functions they call internally. This lets LLVM hoist and sink loads across GC completion calls, improving optimization of code around message sends and receives.
+
