@@ -241,6 +241,17 @@ if(PONY_ALWAYS_ASSERT)
     add_compile_options(-DPONY_ALWAYS_ASSERT)
 endif()
 
+# Build runtime bitcode (libponyrt.bc) by default on clang. ponyc merges this
+# into the program's IR before optimisation, enabling cross-module
+# interprocedural optimisation between Pony code and the runtime.
+if(NOT DEFINED PONY_RUNTIME_BITCODE)
+    if(CMAKE_C_COMPILER_ID MATCHES "Clang")
+        set(PONY_RUNTIME_BITCODE ON)
+    else()
+        set(PONY_RUNTIME_BITCODE OFF)
+    endif()
+endif()
+
 # The build's output directory, a sibling of the CMake binary directory. CMake
 # places the executables via CMAKE_RUNTIME_OUTPUT_DIRECTORY, set here from
 # PONY_OUTPUT_DIR; the static libraries and other artifacts are copied into the
@@ -863,6 +874,14 @@ else()
     set_tests_properties(check-version output-layout libponyrt.tests libponyc.tests
         PROPERTIES LABELS ci-core)
 
+    if(PONY_RUNTIME_BITCODE)
+        add_test(NAME check-runtime-bitcode
+            COMMAND ${CMAKE_COMMAND}
+                -DDIR=${PONY_OUTPUT_DIR}
+                -P ${CMAKE_SOURCE_DIR}/cmake/CheckRuntimeBitcode.cmake)
+        set_tests_properties(check-runtime-bitcode PROPERTIES LABELS ci-core)
+    endif()
+
     add_test(NAME pony-doc-tests
         COMMAND ${PONY_OUTPUT_DIR}/pony-doc-tests${CMAKE_EXECUTABLE_SUFFIX} --sequential
         WORKING_DIRECTORY ${PONY_OUTPUT_DIR})
@@ -1004,6 +1023,7 @@ else()
         ${PONY_OUTPUT_DIR}/crtendS.o
         ${PONY_OUTPUT_DIR}/crtbeginT.o
         ${PONY_OUTPUT_DIR}/crtend.o
+        ${PONY_OUTPUT_DIR}/libponyrt.bc
         DESTINATION ${PONY_INSTALL_LIBDIR} OPTIONAL)
 
     # The stdlib packages.

@@ -24,7 +24,21 @@ foreach(test_c_source ${test_c_sources})
     )
   else()
     add_library(${test_lib_name} SHARED ${test_c_source})
-    target_link_libraries(${test_lib_name} PRIVATE libponyrt)
+    # Don't link libponyrt into test shared libraries. When runtime bitcode is
+    # merged into the executable, linking libponyrt here would create a second
+    # copy of runtime globals (e.g. rt_exit_code), and on macOS the dylib's
+    # two-level namespace would bind to its own copy instead of the exe's.
+    # On macOS, -undefined dynamic_lookup lets the dylib resolve runtime
+    # symbols from the executable at load time (the exe exports them via
+    # -export_dynamic when bitcode is merged). On ELF platforms the default
+    # flat namespace handles this automatically.
+    target_include_directories(${test_lib_name} PRIVATE
+      ${CMAKE_SOURCE_DIR}/src/common
+      ${CMAKE_SOURCE_DIR}/src/libponyrt
+    )
+    if(APPLE)
+      target_link_options(${test_lib_name} PRIVATE -undefined dynamic_lookup)
+    endif()
   endif()
 
   add_custom_command(TARGET ${test_lib_name} POST_BUILD

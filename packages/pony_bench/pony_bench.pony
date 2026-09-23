@@ -101,8 +101,8 @@ Benchmark Overhead    552 ns      552 ns    ±0.39%      300000
 _Timer (10000 ns)   10780 ns    10800 ns    ±3.60%       10000
 ```
 
-It is recommended that a PonyBench program is compiled with the `--runtimebc`
-option, if possible, and run with the `--ponynoyield` option.
+It is recommended that a PonyBench program is run with the `--ponynoyield`
+option.
 """
 // TODO more examples in tutorial
 

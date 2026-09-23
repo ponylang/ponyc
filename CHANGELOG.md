@@ -18,7 +18,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Fix error message for nested field writes in immutable methods ([PR #6125](https://github.com/ponylang/ponyc/pull/6125))
 - Fix File losing data on large writes ([PR #6124](https://github.com/ponylang/ponyc/pull/6124))
 - Improve error messages for method lookup on anonymous types ([PR #6127](https://github.com/ponylang/ponyc/pull/6127))
-- Fix `--runtimebc` performance ([PR #6133](https://github.com/ponylang/ponyc/pull/6133))
+- Fix runtime bitcode performance ([PR #6133](https://github.com/ponylang/ponyc/pull/6133))
 - Inline `pony_alloc` and `pony_alloc_small` calls that HeapToStack does not promote ([PR #6133](https://github.com/ponylang/ponyc/pull/6133))
 
 ### Added
@@ -45,6 +45,9 @@ All notable changes to the Pony compiler and standard library will be documented
 - persistent `HashSet` no longer provides `is Comparable` ([PR #6122](https://github.com/ponylang/ponyc/pull/6122))
 - `Flags` no longer provides `is Comparable` ([PR #6122](https://github.com/ponylang/ponyc/pull/6122))
 - Remove DTrace and SystemTap support ([PR #6136](https://github.com/ponylang/ponyc/pull/6136))
+- Make runtime bitcode the default on clang-based platforms ([PR #6137](https://github.com/ponylang/ponyc/pull/6137))
+- Remove `--runtimebc` CLI flag ([PR #6137](https://github.com/ponylang/ponyc/pull/6137))
+- macOS shared libraries must use `-undefined dynamic_lookup` instead of linking `libponyrt` ([PR #6137](https://github.com/ponylang/ponyc/pull/6137))
 
 ## [0.72.1] - 2026-09-13
 

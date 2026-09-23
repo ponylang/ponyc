@@ -370,18 +370,16 @@ Two LTO modes control how the linker combines the per-package output:
 
 The compiler no longer drives the LLVM backend directly — the linker handles optimization and native codegen during LTO linking. `--pass asm` and `--pass obj` have no equivalent in this pipeline.
 
-## Fix `--runtimebc` performance
+## Fix runtime bitcode performance
 
-Programs compiled with `--runtimebc` ran up to 2x slower than programs compiled without it. The runtime bitcode was compiled with no optimization flags, preventing the optimizer from inlining runtime functions into user code.
-
-The runtime bitcode is now compiled at `-O2`. Programs compiled with `--runtimebc` now perform as well as or better than programs compiled without it.
+Programs compiled with runtime bitcode ran up to 2x slower than programs compiled without it. The runtime bitcode was compiled with no optimization flags, preventing the optimizer from inlining runtime functions into user code. It is now compiled at `-O2`.
 
 ## Inline `pony_alloc` and `pony_alloc_small` calls that HeapToStack does not promote
 
-When compiling with `--runtimebc`, runtime allocation calls that could not be promoted to the stack were left as function calls. A new LTO pass now inlines these remaining call sites after heap-to-stack promotion, eliminating the call overhead. In message-heavy workloads this makes `--runtimebc` faster than compiling without it.
+Runtime allocation calls that could not be promoted to the stack were left as function calls. A new LTO pass now inlines these remaining call sites after heap-to-stack promotion, eliminating the call overhead. In message-heavy workloads this produces faster binaries than linking the native runtime library.
+
 ## Remove DTrace and SystemTap support
 
 DTrace and SystemTap USDT probes are no longer available. The `use=dtrace` build option has been removed.
 
-The probes were incompatible with compiling the runtime as bitcode (`--runtimebc`), and they were only available on a subset of supported platforms (macOS, Linux, FreeBSD). The runtime's built-in tracing system (`runtime_info`, flight recorder) is not affected.
-
+The probes were incompatible with compiling the runtime as bitcode, and they were only available on a subset of supported platforms (macOS, Linux, FreeBSD). The runtime's built-in tracing system (`runtime_info`, flight recorder) is not affected.

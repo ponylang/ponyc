@@ -211,10 +211,6 @@ PONY_API ATTRIBUTE_MALLOC void* pony_realloc(pony_ctx_t* ctx, void* p, size_t si
  *
  * Attach a finaliser that will be run on memory when it is collected. Such
  * memory cannot be safely realloc'd.
- *
- * _final allocators must not have ATTRIBUTE_MALLOC: the GC reads the type
- * descriptor through the heap chunk pointer, not the returned pointer, so
- * noalias lets LLVM eliminate the descriptor store under --runtimebc LTO.
  */
 PONY_API void* pony_alloc_final(pony_ctx_t* ctx, size_t size);
 
