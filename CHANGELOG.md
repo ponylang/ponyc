@@ -48,6 +48,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Make runtime bitcode the default on clang-based platforms ([PR #6137](https://github.com/ponylang/ponyc/pull/6137))
 - Remove `--runtimebc` CLI flag ([PR #6137](https://github.com/ponylang/ponyc/pull/6137))
 - macOS shared libraries must use `-undefined dynamic_lookup` instead of linking `libponyrt` ([PR #6137](https://github.com/ponylang/ponyc/pull/6137))
+- Make runtime bitcode the default ([PR #6137](https://github.com/ponylang/ponyc/pull/6137))
 
 ## [0.72.1] - 2026-09-13
 
