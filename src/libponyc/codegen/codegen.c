@@ -102,18 +102,29 @@ static LLVMTargetMachineRef make_machine(pass_opt_t* opt)
   return machine;
 }
 
-// Return attributes for runtime allocator functions. These describe
-// properties of the returned pointer (alignment, dereferenceable bytes,
-// noalias) that the runtime guarantees but clang cannot infer from the C
-// source.
+// Attributes for runtime function declarations that the runtime guarantees
+// but clang cannot infer from the C source.
 //
 // LLVMLinkModules2 replaces our declarations with bitcode definitions
 // whose attributes come from clang; anything clang couldn't infer is
-// lost. Calling this after the merge puts it back.
-static void set_runtime_return_attrs(compile_t* c)
+// lost.  This is the single place that defines these attributes.
+static void set_runtime_attrs(compile_t* c)
 {
   unsigned int ptr_size = target_is_ilp32(c->opt->triple) ? 4 : 8;
 
+  // Function-level attributes.
+  LLVM_DECLARE_ATTRIBUTEREF(nounwind_attr, nounwind, 0);
+  LLVM_DECLARE_ATTRIBUTEREF(inacc_or_arg_mem_attr, memory,
+    LLVM_MEMORYEFFECTS_ARG(LLVM_MEMORYEFFECTS_READWRITE) |
+    LLVM_MEMORYEFFECTS_INACCESSIBLEMEM(LLVM_MEMORYEFFECTS_READWRITE));
+  LLVM_DECLARE_ATTRIBUTEREF(memory_readnone, memory, LLVM_MEMORYEFFECTS_NONE);
+  LLVM_DECLARE_ATTRIBUTEREF(memory_readonly, memory, LLVM_MEMORYEFFECTS_READ);
+
+  // Parameter-level attributes.
+  LLVM_DECLARE_ATTRIBUTEREF(readnone_attr, readnone, 0);
+  LLVM_DECLARE_ATTRIBUTEREF(readonly_attr, readonly, 0);
+
+  // Return-level attributes.
   LLVM_DECLARE_ATTRIBUTEREF(noalias_attr, noalias, 0);
   LLVM_DECLARE_ATTRIBUTEREF(deref_actor_attr, dereferenceable,
     PONY_ACTOR_PAD_SIZE + ptr_size);
@@ -131,17 +142,54 @@ static void set_runtime_return_attrs(compile_t* c)
 
   LLVMValueRef fn;
 
+  fn = LLVMGetNamedFunction(c->module, "pony_ctx");
+  if(fn != NULL)
+  {
+    LLVMAddAttributeAtIndex(fn, LLVMAttributeFunctionIndex, nounwind_attr);
+    LLVMAddAttributeAtIndex(fn, LLVMAttributeFunctionIndex, memory_readnone);
+  }
+
   fn = LLVMGetNamedFunction(c->module, "pony_create");
   if(fn != NULL)
   {
+    LLVMAddAttributeAtIndex(fn, LLVMAttributeFunctionIndex, nounwind_attr);
+    LLVMAddAttributeAtIndex(fn, LLVMAttributeFunctionIndex,
+      inacc_or_arg_mem_attr);
     LLVMAddAttributeAtIndex(fn, LLVMAttributeReturnIndex, noalias_attr);
     LLVMAddAttributeAtIndex(fn, LLVMAttributeReturnIndex, deref_actor_attr);
     LLVMAddAttributeAtIndex(fn, LLVMAttributeReturnIndex, align_pool_attr);
   }
 
+  fn = LLVMGetNamedFunction(c->module, "ponyint_destroy");
+  if(fn != NULL)
+  {
+    LLVMAddAttributeAtIndex(fn, LLVMAttributeFunctionIndex, nounwind_attr);
+    LLVMAddAttributeAtIndex(fn, LLVMAttributeFunctionIndex,
+      inacc_or_arg_mem_attr);
+  }
+
+  fn = LLVMGetNamedFunction(c->module, "pony_sendv");
+  if(fn != NULL)
+  {
+    LLVMAddAttributeAtIndex(fn, LLVMAttributeFunctionIndex, nounwind_attr);
+    LLVMAddAttributeAtIndex(fn, LLVMAttributeFunctionIndex,
+      inacc_or_arg_mem_attr);
+  }
+
+  fn = LLVMGetNamedFunction(c->module, "pony_sendv_single");
+  if(fn != NULL)
+  {
+    LLVMAddAttributeAtIndex(fn, LLVMAttributeFunctionIndex, nounwind_attr);
+    LLVMAddAttributeAtIndex(fn, LLVMAttributeFunctionIndex,
+      inacc_or_arg_mem_attr);
+  }
+
   fn = LLVMGetNamedFunction(c->module, "pony_alloc");
   if(fn != NULL)
   {
+    LLVMAddAttributeAtIndex(fn, LLVMAttributeFunctionIndex, nounwind_attr);
+    LLVMAddAttributeAtIndex(fn, LLVMAttributeFunctionIndex,
+      inacc_or_arg_mem_attr);
     LLVMAddAttributeAtIndex(fn, LLVMAttributeReturnIndex, noalias_attr);
     LLVMAddAttributeAtIndex(fn, LLVMAttributeReturnIndex,
       deref_or_null_alloc_attr);
@@ -151,6 +199,9 @@ static void set_runtime_return_attrs(compile_t* c)
   fn = LLVMGetNamedFunction(c->module, "pony_alloc_small");
   if(fn != NULL)
   {
+    LLVMAddAttributeAtIndex(fn, LLVMAttributeFunctionIndex, nounwind_attr);
+    LLVMAddAttributeAtIndex(fn, LLVMAttributeFunctionIndex,
+      inacc_or_arg_mem_attr);
     LLVMAddAttributeAtIndex(fn, LLVMAttributeReturnIndex, noalias_attr);
     LLVMAddAttributeAtIndex(fn, LLVMAttributeReturnIndex,
       deref_alloc_small_attr);
@@ -160,6 +211,9 @@ static void set_runtime_return_attrs(compile_t* c)
   fn = LLVMGetNamedFunction(c->module, "pony_alloc_large");
   if(fn != NULL)
   {
+    LLVMAddAttributeAtIndex(fn, LLVMAttributeFunctionIndex, nounwind_attr);
+    LLVMAddAttributeAtIndex(fn, LLVMAttributeFunctionIndex,
+      inacc_or_arg_mem_attr);
     LLVMAddAttributeAtIndex(fn, LLVMAttributeReturnIndex, noalias_attr);
     LLVMAddAttributeAtIndex(fn, LLVMAttributeReturnIndex,
       deref_alloc_large_attr);
@@ -169,6 +223,9 @@ static void set_runtime_return_attrs(compile_t* c)
   fn = LLVMGetNamedFunction(c->module, "pony_realloc");
   if(fn != NULL)
   {
+    LLVMAddAttributeAtIndex(fn, LLVMAttributeFunctionIndex, nounwind_attr);
+    LLVMAddAttributeAtIndex(fn, LLVMAttributeFunctionIndex,
+      inacc_or_arg_mem_attr);
     LLVMAddAttributeAtIndex(fn, LLVMAttributeReturnIndex, noalias_attr);
     LLVMAddAttributeAtIndex(fn, LLVMAttributeReturnIndex,
       deref_or_null_alloc_attr);
@@ -178,6 +235,9 @@ static void set_runtime_return_attrs(compile_t* c)
   fn = LLVMGetNamedFunction(c->module, "pony_alloc_final");
   if(fn != NULL)
   {
+    LLVMAddAttributeAtIndex(fn, LLVMAttributeFunctionIndex, nounwind_attr);
+    LLVMAddAttributeAtIndex(fn, LLVMAttributeFunctionIndex,
+      inacc_or_arg_mem_attr);
     LLVMAddAttributeAtIndex(fn, LLVMAttributeReturnIndex,
       deref_or_null_alloc_attr);
     LLVMAddAttributeAtIndex(fn, LLVMAttributeReturnIndex, align_heap_attr);
@@ -186,6 +246,9 @@ static void set_runtime_return_attrs(compile_t* c)
   fn = LLVMGetNamedFunction(c->module, "pony_alloc_small_final");
   if(fn != NULL)
   {
+    LLVMAddAttributeAtIndex(fn, LLVMAttributeFunctionIndex, nounwind_attr);
+    LLVMAddAttributeAtIndex(fn, LLVMAttributeFunctionIndex,
+      inacc_or_arg_mem_attr);
     LLVMAddAttributeAtIndex(fn, LLVMAttributeReturnIndex,
       deref_alloc_small_attr);
     LLVMAddAttributeAtIndex(fn, LLVMAttributeReturnIndex, align_heap_attr);
@@ -194,6 +257,9 @@ static void set_runtime_return_attrs(compile_t* c)
   fn = LLVMGetNamedFunction(c->module, "pony_alloc_large_final");
   if(fn != NULL)
   {
+    LLVMAddAttributeAtIndex(fn, LLVMAttributeFunctionIndex, nounwind_attr);
+    LLVMAddAttributeAtIndex(fn, LLVMAttributeFunctionIndex,
+      inacc_or_arg_mem_attr);
     LLVMAddAttributeAtIndex(fn, LLVMAttributeReturnIndex,
       deref_alloc_large_attr);
     LLVMAddAttributeAtIndex(fn, LLVMAttributeReturnIndex, align_heap_attr);
@@ -202,21 +268,106 @@ static void set_runtime_return_attrs(compile_t* c)
   fn = LLVMGetNamedFunction(c->module, "pony_alloc_msg");
   if(fn != NULL)
   {
+    LLVMAddAttributeAtIndex(fn, LLVMAttributeFunctionIndex, nounwind_attr);
+    LLVMAddAttributeAtIndex(fn, LLVMAttributeFunctionIndex,
+      inacc_or_arg_mem_attr);
     LLVMAddAttributeAtIndex(fn, LLVMAttributeReturnIndex, noalias_attr);
     LLVMAddAttributeAtIndex(fn, LLVMAttributeReturnIndex, align_pool_attr);
+  }
+
+  fn = LLVMGetNamedFunction(c->module, "pony_trace");
+  if(fn != NULL)
+  {
+    LLVMAddAttributeAtIndex(fn, LLVMAttributeFunctionIndex, nounwind_attr);
+    LLVMAddAttributeAtIndex(fn, LLVMAttributeFunctionIndex,
+      inacc_or_arg_mem_attr);
+    LLVMAddAttributeAtIndex(fn, 2, readnone_attr);
+  }
+
+  fn = LLVMGetNamedFunction(c->module, "pony_traceknown");
+  if(fn != NULL)
+  {
+    LLVMAddAttributeAtIndex(fn, LLVMAttributeFunctionIndex, nounwind_attr);
+    LLVMAddAttributeAtIndex(fn, LLVMAttributeFunctionIndex,
+      inacc_or_arg_mem_attr);
+    LLVMAddAttributeAtIndex(fn, 2, readonly_attr);
+  }
+
+  fn = LLVMGetNamedFunction(c->module, "pony_traceunknown");
+  if(fn != NULL)
+  {
+    LLVMAddAttributeAtIndex(fn, LLVMAttributeFunctionIndex, nounwind_attr);
+    LLVMAddAttributeAtIndex(fn, LLVMAttributeFunctionIndex,
+      inacc_or_arg_mem_attr);
+    LLVMAddAttributeAtIndex(fn, 2, readonly_attr);
+  }
+
+  fn = LLVMGetNamedFunction(c->module, "pony_gc_send");
+  if(fn != NULL)
+  {
+    LLVMAddAttributeAtIndex(fn, LLVMAttributeFunctionIndex, nounwind_attr);
+    LLVMAddAttributeAtIndex(fn, LLVMAttributeFunctionIndex,
+      inacc_or_arg_mem_attr);
+    LLVMAddAttributeAtIndex(fn, 2, readnone_attr);
+  }
+
+  fn = LLVMGetNamedFunction(c->module, "pony_gc_recv");
+  if(fn != NULL)
+  {
+    LLVMAddAttributeAtIndex(fn, LLVMAttributeFunctionIndex, nounwind_attr);
+    LLVMAddAttributeAtIndex(fn, LLVMAttributeFunctionIndex,
+      inacc_or_arg_mem_attr);
+  }
+
+  fn = LLVMGetNamedFunction(c->module, "pony_send_done");
+  if(fn != NULL)
+  {
+    LLVMAddAttributeAtIndex(fn, LLVMAttributeFunctionIndex, nounwind_attr);
+  }
+
+  fn = LLVMGetNamedFunction(c->module, "pony_recv_done");
+  if(fn != NULL)
+  {
+    LLVMAddAttributeAtIndex(fn, LLVMAttributeFunctionIndex, nounwind_attr);
+  }
+
+  fn = LLVMGetNamedFunction(c->module, "pony_init");
+  if(fn != NULL)
+  {
+    LLVMAddAttributeAtIndex(fn, LLVMAttributeFunctionIndex, nounwind_attr);
+    LLVMAddAttributeAtIndex(fn, LLVMAttributeFunctionIndex,
+      inacc_or_arg_mem_attr);
+  }
+
+  fn = LLVMGetNamedFunction(c->module, "ponyint_become");
+  if(fn != NULL)
+  {
+    LLVMAddAttributeAtIndex(fn, LLVMAttributeFunctionIndex, nounwind_attr);
+    LLVMAddAttributeAtIndex(fn, LLVMAttributeFunctionIndex,
+      inacc_or_arg_mem_attr);
+  }
+
+  fn = LLVMGetNamedFunction(c->module, "pony_start");
+  if(fn != NULL)
+  {
+    LLVMAddAttributeAtIndex(fn, LLVMAttributeFunctionIndex, nounwind_attr);
+    LLVMAddAttributeAtIndex(fn, LLVMAttributeFunctionIndex,
+      inacc_or_arg_mem_attr);
+  }
+
+  fn = LLVMGetNamedFunction(c->module, "pony_get_exitcode");
+  if(fn != NULL)
+  {
+    LLVMAddAttributeAtIndex(fn, LLVMAttributeFunctionIndex, nounwind_attr);
+    LLVMAddAttributeAtIndex(fn, LLVMAttributeFunctionIndex, memory_readonly);
   }
 }
 
 static void init_runtime_decls(compile_t* c)
 {
   LLVM_DECLARE_ATTRIBUTEREF(nounwind_attr, nounwind, 0);
-  LLVM_DECLARE_ATTRIBUTEREF(readnone_attr, readnone, 0);
   LLVM_DECLARE_ATTRIBUTEREF(readonly_attr, readonly, 0);
-  LLVM_DECLARE_ATTRIBUTEREF(memory_readnone, memory, LLVM_MEMORYEFFECTS_NONE);
   LLVM_DECLARE_ATTRIBUTEREF(memory_readonly, memory, LLVM_MEMORYEFFECTS_READ);
-  LLVM_DECLARE_ATTRIBUTEREF(inacc_or_arg_mem_attr, memory,
-    LLVM_MEMORYEFFECTS_ARG(LLVM_MEMORYEFFECTS_READWRITE) |
-    LLVM_MEMORYEFFECTS_INACCESSIBLEMEM(LLVM_MEMORYEFFECTS_READWRITE));
   LLVM_DECLARE_ATTRIBUTEREF(noreturn_attr, noreturn, 0);
 
   LLVMTypeRef type;
@@ -227,9 +378,6 @@ static void init_runtime_decls(compile_t* c)
   type = LLVMFunctionType(c->ptr, NULL, 0, false);
   value = LLVMAddFunction(c->module, "pony_ctx", type);
 
-  LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex, nounwind_attr);
-  LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex, memory_readnone);
-
   // __object* pony_create(i8*, __Desc*, i1)
   params[0] = c->ptr;
   params[1] = c->ptr;
@@ -237,17 +385,10 @@ static void init_runtime_decls(compile_t* c)
   type = LLVMFunctionType(c->ptr, params, 3, false);
   value = LLVMAddFunction(c->module, "pony_create", type);
 
-  LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex, nounwind_attr);
-  LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex,
-    inacc_or_arg_mem_attr);
-
   // void ponyint_destroy(__object*)
   params[0] = c->ptr;
   type = LLVMFunctionType(c->void_type, params, 1, false);
   value = LLVMAddFunction(c->module, "ponyint_destroy", type);
-  LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex, nounwind_attr);
-  LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex,
-    inacc_or_arg_mem_attr);
 
   // void pony_sendv(i8*, __object*, $message*, $message*, i1)
   params[0] = c->ptr;
@@ -258,10 +399,6 @@ static void init_runtime_decls(compile_t* c)
   type = LLVMFunctionType(c->void_type, params, 5, false);
   value = LLVMAddFunction(c->module, "pony_sendv", type);
 
-  LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex, nounwind_attr);
-  LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex,
-    inacc_or_arg_mem_attr);
-
   // void pony_sendv_single(i8*, __object*, $message*, $message*, i1)
   params[0] = c->ptr;
   params[1] = c->ptr;
@@ -271,19 +408,11 @@ static void init_runtime_decls(compile_t* c)
   type = LLVMFunctionType(c->void_type, params, 5, false);
   value = LLVMAddFunction(c->module, "pony_sendv_single", type);
 
-  LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex, nounwind_attr);
-  LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex,
-    inacc_or_arg_mem_attr);
-
   // i8* pony_alloc(i8*, intptr)
   params[0] = c->ptr;
   params[1] = c->intptr;
   type = LLVMFunctionType(c->ptr, params, 2, false);
   value = LLVMAddFunction(c->module, "pony_alloc", type);
-
-  LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex, nounwind_attr);
-  LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex,
-    inacc_or_arg_mem_attr);
 
   // i8* pony_alloc_small(i8*, i32)
   params[0] = c->ptr;
@@ -291,19 +420,11 @@ static void init_runtime_decls(compile_t* c)
   type = LLVMFunctionType(c->ptr, params, 2, false);
   value = LLVMAddFunction(c->module, "pony_alloc_small", type);
 
-  LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex, nounwind_attr);
-  LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex,
-    inacc_or_arg_mem_attr);
-
   // i8* pony_alloc_large(i8*, intptr)
   params[0] = c->ptr;
   params[1] = c->intptr;
   type = LLVMFunctionType(c->ptr, params, 2, false);
   value = LLVMAddFunction(c->module, "pony_alloc_large", type);
-
-  LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex, nounwind_attr);
-  LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex,
-    inacc_or_arg_mem_attr);
 
   // i8* pony_realloc(i8*, i8*, intptr, intptr)
   params[0] = c->ptr;
@@ -313,19 +434,11 @@ static void init_runtime_decls(compile_t* c)
   type = LLVMFunctionType(c->ptr, params, 4, false);
   value = LLVMAddFunction(c->module, "pony_realloc", type);
 
-  LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex, nounwind_attr);
-  LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex,
-    inacc_or_arg_mem_attr);
-
   // i8* pony_alloc_final(i8*, intptr)
   params[0] = c->ptr;
   params[1] = c->intptr;
   type = LLVMFunctionType(c->ptr, params, 2, false);
   value = LLVMAddFunction(c->module, "pony_alloc_final", type);
-
-  LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex, nounwind_attr);
-  LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex,
-    inacc_or_arg_mem_attr);
 
   // i8* pony_alloc_small_final(i8*, i32)
   params[0] = c->ptr;
@@ -333,19 +446,11 @@ static void init_runtime_decls(compile_t* c)
   type = LLVMFunctionType(c->ptr, params, 2, false);
   value = LLVMAddFunction(c->module, "pony_alloc_small_final", type);
 
-  LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex, nounwind_attr);
-  LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex,
-    inacc_or_arg_mem_attr);
-
   // i8* pony_alloc_large_final(i8*, intptr)
   params[0] = c->ptr;
   params[1] = c->intptr;
   type = LLVMFunctionType(c->ptr, params, 2, false);
   value = LLVMAddFunction(c->module, "pony_alloc_large_final", type);
-
-  LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex, nounwind_attr);
-  LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex,
-    inacc_or_arg_mem_attr);
 
   // $message* pony_alloc_msg(i32, i32)
   params[0] = c->i32;
@@ -353,20 +458,11 @@ static void init_runtime_decls(compile_t* c)
   type = LLVMFunctionType(c->ptr, params, 2, false);
   value = LLVMAddFunction(c->module, "pony_alloc_msg", type);
 
-  LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex, nounwind_attr);
-  LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex,
-    inacc_or_arg_mem_attr);
-
   // void pony_trace(i8*, i8*)
   params[0] = c->ptr;
   params[1] = c->ptr;
   type = LLVMFunctionType(c->void_type, params, 2, false);
   value = LLVMAddFunction(c->module, "pony_trace", type);
-
-  LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex, nounwind_attr);
-  LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex,
-    inacc_or_arg_mem_attr);
-  LLVMAddAttributeAtIndex(value, 2, readnone_attr);
 
   // void pony_traceknown(i8*, __object*, __Desc*, i32)
   params[0] = c->ptr;
@@ -376,11 +472,6 @@ static void init_runtime_decls(compile_t* c)
   type = LLVMFunctionType(c->void_type, params, 4, false);
   value = LLVMAddFunction(c->module, "pony_traceknown", type);
 
-  LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex, nounwind_attr);
-  LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex,
-    inacc_or_arg_mem_attr);
-  LLVMAddAttributeAtIndex(value, 2, readonly_attr);
-
   // void pony_traceunknown(i8*, __object*, i32)
   params[0] = c->ptr;
   params[1] = c->ptr;
@@ -388,44 +479,26 @@ static void init_runtime_decls(compile_t* c)
   type = LLVMFunctionType(c->void_type, params, 3, false);
   value = LLVMAddFunction(c->module, "pony_traceunknown", type);
 
-  LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex, nounwind_attr);
-  LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex,
-    inacc_or_arg_mem_attr);
-  LLVMAddAttributeAtIndex(value, 2, readonly_attr);
-
   // void pony_gc_send(i8*, __actor*)
   params[0] = c->ptr;
   params[1] = c->ptr;
   type = LLVMFunctionType(c->void_type, params, 2, false);
   value = LLVMAddFunction(c->module, "pony_gc_send", type);
 
-  LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex, nounwind_attr);
-  LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex,
-    inacc_or_arg_mem_attr);
-  LLVMAddAttributeAtIndex(value, 2, readnone_attr);
-
   // void pony_gc_recv(i8*)
   params[0] = c->ptr;
   type = LLVMFunctionType(c->void_type, params, 1, false);
   value = LLVMAddFunction(c->module, "pony_gc_recv", type);
-
-  LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex, nounwind_attr);
-  LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex,
-    inacc_or_arg_mem_attr);
 
   // void pony_send_done(i8*)
   params[0] = c->ptr;
   type = LLVMFunctionType(c->void_type, params, 1, false);
   value = LLVMAddFunction(c->module, "pony_send_done", type);
 
-  LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex, nounwind_attr);
-
   // void pony_recv_done(i8*)
   params[0] = c->ptr;
   type = LLVMFunctionType(c->void_type, params, 1, false);
   value = LLVMAddFunction(c->module, "pony_recv_done", type);
-
-  LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex, nounwind_attr);
 
   // i32 pony_init(i32, i8**)
   params[0] = c->i32;
@@ -433,19 +506,11 @@ static void init_runtime_decls(compile_t* c)
   type = LLVMFunctionType(c->i32, params, 2, false);
   value = LLVMAddFunction(c->module, "pony_init", type);
 
-  LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex, nounwind_attr);
-  LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex,
-    inacc_or_arg_mem_attr);
-
   // void ponyint_become(i8*, __object*)
   params[0] = c->ptr;
   params[1] = c->ptr;
   type = LLVMFunctionType(c->void_type, params, 2, false);
   value = LLVMAddFunction(c->module, "ponyint_become", type);
-
-  LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex, nounwind_attr);
-  LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex,
-    inacc_or_arg_mem_attr);
 
   // i1 pony_start(i32*, i8*)
   // This prototype and the call emitted in genexe.cc must match libponyrt's
@@ -455,16 +520,9 @@ static void init_runtime_decls(compile_t* c)
   type = LLVMFunctionType(c->i1, params, 2, false);
   value = LLVMAddFunction(c->module, "pony_start", type);
 
-  LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex, nounwind_attr);
-  LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex,
-    inacc_or_arg_mem_attr);
-
   // i32 pony_get_exitcode()
   type = LLVMFunctionType(c->i32, NULL, 0, false);
   value = LLVMAddFunction(c->module, "pony_get_exitcode", type);
-
-  LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex, nounwind_attr);
-  LLVMAddAttributeAtIndex(value, LLVMAttributeFunctionIndex, memory_readonly);
 
   // void abort()
   type = LLVMFunctionType(c->void_type, NULL, 0, false);
@@ -489,7 +547,7 @@ static void init_runtime_decls(compile_t* c)
   type = LLVMFunctionType(c->i32, params, 1, false);
   value = LLVMAddFunction(c->module, "puts", type);
 
-  set_runtime_return_attrs(c);
+  set_runtime_attrs(c);
 }
 
 static void init_runtime(compile_t* c)
@@ -736,7 +794,7 @@ bool codegen_merge_runtime_bitcode(compile_t* c)
     return false;
   }
 
-  set_runtime_return_attrs(c);
+  set_runtime_attrs(c);
 
   c->runtime_bitcode_merged = true;
   return true;
