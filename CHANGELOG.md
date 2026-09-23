@@ -20,6 +20,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Improve error messages for method lookup on anonymous types ([PR #6127](https://github.com/ponylang/ponyc/pull/6127))
 - Fix runtime bitcode performance ([PR #6133](https://github.com/ponylang/ponyc/pull/6133))
 - Inline `pony_alloc` and `pony_alloc_small` calls that HeapToStack does not promote ([PR #6133](https://github.com/ponylang/ponyc/pull/6133))
+- Export PONY_API symbols on ELF platforms when runtime bitcode is merged ([PR #6146](https://github.com/ponylang/ponyc/pull/6146))
 
 ### Added
 
