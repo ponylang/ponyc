@@ -397,3 +397,7 @@ On ELF platforms (Linux, FreeBSD, DragonFly, OpenBSD), the linker flag `--export
 
 The ELF linker now passes `--export-dynamic` whenever runtime bitcode is merged, matching the macOS linker path.
 
+## Fix optimizer attributes lost after runtime linking
+
+After the runtime was linked into the program, LLVM attributes on runtime functions were lost. Without them, unnecessary unwind paths remained at every runtime call site and memory operations could not be moved past allocator calls. The attributes are now preserved across linking.
+
