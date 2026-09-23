@@ -943,6 +943,7 @@ else()
             -DSOURCE_DIR=${CMAKE_SOURCE_DIR}
             -DBUILD_NAME=stdlib-debug -DDEBUG=ON
             -DPONY_SSL_FLAG=${PONY_SSL_FLAG}
+            -DPONY_SSL_LIB_DIR=${PONY_SSL_LIB_DIR}
             -P ${CMAKE_SOURCE_DIR}/cmake/RunStdlibTest.cmake)
     add_test(NAME stdlib-release
         COMMAND ${CMAKE_COMMAND}
@@ -952,6 +953,7 @@ else()
             -DSOURCE_DIR=${CMAKE_SOURCE_DIR}
             -DBUILD_NAME=stdlib-release -DDEBUG=OFF
             -DPONY_SSL_FLAG=${PONY_SSL_FLAG}
+            -DPONY_SSL_LIB_DIR=${PONY_SSL_LIB_DIR}
             -P ${CMAKE_SOURCE_DIR}/cmake/RunStdlibTest.cmake)
 
     add_test(NAME examples
@@ -960,6 +962,7 @@ else()
             -DEXAMPLES=${CMAKE_SOURCE_DIR}/examples
             -DWORKDIR=${PONY_OUTPUT_DIR}
             -DPONY_SSL_FLAG=${PONY_SSL_FLAG}
+            -DPONY_SSL_LIB_DIR=${PONY_SSL_LIB_DIR}
             -P ${CMAKE_SOURCE_DIR}/cmake/RunExamples.cmake)
 
     add_test(NAME validate-grammar
