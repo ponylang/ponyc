@@ -1171,10 +1171,14 @@ static bool link_exe_lld_elf(compile_t* c, ast_t* program,
     args.push_back(dynlinker);
   }
 
-// The use of NDEBUG instead of PONY_NDEBUG here is intentional.
-#ifndef NDEBUG
-  args.push_back("--export-dynamic");
-#endif
+  if(c->runtime_bitcode_merged)
+  {
+    // When runtime bitcode is merged into the program, LTO may internalize
+    // PONY_API functions that nothing in the program itself calls. Shared
+    // libraries loaded at runtime (e.g. test fixtures, FFI plugins) need
+    // these symbols to be visible. Tell the ELF linker to keep them.
+    args.push_back("--export-dynamic");
+  }
 
   if(c->opt->strip_debug)
     args.push_back("--strip-debug");
