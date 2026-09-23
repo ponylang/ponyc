@@ -323,12 +323,16 @@ static void set_runtime_attrs(compile_t* c)
   if(fn != NULL)
   {
     LLVMAddAttributeAtIndex(fn, LLVMAttributeFunctionIndex, nounwind_attr);
+    LLVMAddAttributeAtIndex(fn, LLVMAttributeFunctionIndex,
+      inacc_or_arg_mem_attr);
   }
 
   fn = LLVMGetNamedFunction(c->module, "pony_recv_done");
   if(fn != NULL)
   {
     LLVMAddAttributeAtIndex(fn, LLVMAttributeFunctionIndex, nounwind_attr);
+    LLVMAddAttributeAtIndex(fn, LLVMAttributeFunctionIndex,
+      inacc_or_arg_mem_attr);
   }
 
   fn = LLVMGetNamedFunction(c->module, "pony_init");
