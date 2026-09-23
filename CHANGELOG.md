@@ -33,6 +33,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Add crypto package to the standard library ([PR #6114](https://github.com/ponylang/ponyc/pull/6114))
 - Add stateful property testing to PonyCheck ([PR #6121](https://github.com/ponylang/ponyc/pull/6121))
 - Add health check warnings to PonyCheck ([PR #6128](https://github.com/ponylang/ponyc/pull/6128))
+- Add inacc_or_arg_mem to pony_send_done and pony_recv_done ([PR #6150](https://github.com/ponylang/ponyc/pull/6150))
 
 ### Changed
 
