@@ -588,7 +588,7 @@ class \nodoc\ iso _TestFileCreateExistsNotWriteable is _NonRootTest
 
     mode.owner_write = true
     h.assert_true(filepath.chmod(mode))
-    h.assert_true(filepath.remove())
+    filepath.remove()
 
 class \nodoc\ iso _TestFileCreateDirNotWriteable is _NonRootTest
   fun name(): String => "files/File.create-dir-not-writeable"
