@@ -6,9 +6,9 @@
 # It does two things:
 #   1. The host ponyc's own suites run natively -- the gtest suites, full-program
 #      tests, examples, grammar (everything in ci-core except the stdlib, which we
-#      cross-build below). This is `ctest -L ci-core -E stdlib`.
+#      cross-build below), in both codegen modes (PONY_DEBUG=1 and without).
 #   2. The stdlib is cross-compiled with the host ponyc pointed at the cross
-#      libponyrt (PONYPATH) and run under the emulator, for both configs.
+#      libponyrt (PONYPATH) and run under the emulator, in both codegen modes.
 #
 # Usage: cross-test.sh <preset> <cross_ponypath> <cross_args> <cross_runner> <stdlib_excludes>
 #   preset          the CMake preset the host ponyc was configured with
@@ -49,19 +49,20 @@ case "$preset" in
 esac
 
 # 1. Host-native tests: all of ci-core except the stdlib (cross-built below).
-ctest --preset "$preset" -L ci-core -E stdlib
+PONY_DEBUG=1 ctest --preset "$preset" -L ci-core -E stdlib
+ctest --preset "$preset" -R "^full-programs$"
 
 # 2. Cross-compile the stdlib with the host ponyc + the cross libponyrt, run it
-# under the emulator. Both configs. cross_args,
-# cross_runner, and stdlib_excludes must word-split into multiple arguments.
+# under the emulator in both codegen modes. cross_args, cross_runner, and
+# stdlib_excludes must word-split into multiple arguments.
 cd "build/$config"
 # shellcheck disable=SC2086
-PONYPATH=".:$cross_ponypath" ./ponyc -b stdlib-release --pic --checktree $ssl_flag $cross_args ../../packages/stdlib
-echo "Built $(pwd)/stdlib-release"
+PONYPATH=".:$cross_ponypath" ./ponyc -b stdlib --pic --checktree $ssl_flag $cross_args ../../packages/stdlib
+echo "Built $(pwd)/stdlib (release codegen)"
 # shellcheck disable=SC2086
-$cross_runner ./stdlib-release --sequential $stdlib_excludes
+$cross_runner ./stdlib --sequential $stdlib_excludes
 # shellcheck disable=SC2086
-PONYPATH=".:$cross_ponypath" ./ponyc -d -b stdlib-debug --pic --strip --checktree $ssl_flag $cross_args ../../packages/stdlib
-echo "Built $(pwd)/stdlib-debug"
+PONYPATH=".:$cross_ponypath" ./ponyc -d -b stdlib --pic --checktree $ssl_flag $cross_args ../../packages/stdlib
+echo "Built $(pwd)/stdlib (debug codegen)"
 # shellcheck disable=SC2086
-$cross_runner ./stdlib-debug --sequential $stdlib_excludes
+$cross_runner ./stdlib --sequential $stdlib_excludes

@@ -59,7 +59,8 @@ jobs:
         run: |
           PONY_TEST_DEBUGGER="$(.ci-scripts/test-debugger.sh lldb)"
           export PONY_TEST_DEBUGGER
-          ctest --preset debug -L ci-core
+          PONY_DEBUG=1 ctest --preset debug -L ci-core
+          ctest --preset debug -R "^(stdlib|full-programs)$"
       - name: Build Release Runtime
         run: |
           cmake --preset release
@@ -68,7 +69,8 @@ jobs:
         run: |
           PONY_TEST_DEBUGGER="$(.ci-scripts/test-debugger.sh lldb)"
           export PONY_TEST_DEBUGGER
-          ctest --preset release -L ci-core
+          PONY_DEBUG=1 ctest --preset release -L ci-core
+          ctest --preset release -R "^(stdlib|full-programs)$"
       - name: Send alert on failure
         if: ${{ failure() }}
         uses: zulip/github-actions-zulip/send-message@bd8ec52de371d139ae8313661b7d8318c19266aa

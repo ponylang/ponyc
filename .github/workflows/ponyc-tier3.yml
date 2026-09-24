@@ -79,17 +79,23 @@ jobs:
           cmake --preset x86-64-debug
           cmake --build --preset x86-64-debug
           cmake --build --preset x86-64-debug --target pony-doc-tests pony-lint-tests pony-lsp-tests
-      - name: Test with Debug Runtime
+      - name: Test with Debug Runtime (debug codegen)
         if: ${{ hashFiles('.libs-cache-miss') == '' }}
-        run: ctest --preset x86-64-debug -L ci-core
+        run: PONY_DEBUG=1 ctest --preset x86-64-debug -L ci-core
+      - name: Test with Debug Runtime (release codegen)
+        if: ${{ hashFiles('.libs-cache-miss') == '' }}
+        run: ctest --preset x86-64-debug -R "^(stdlib|full-programs)$"
       - name: Build Release Runtime
         if: ${{ hashFiles('.libs-cache-miss') == '' }}
         run: |
           cmake --preset x86-64-release
           cmake --build --preset x86-64-release
-      - name: Test with Release Runtime
+      - name: Test with Release Runtime (debug codegen)
         if: ${{ hashFiles('.libs-cache-miss') == '' }}
-        run: ctest --preset x86-64-release -L ci-core
+        run: PONY_DEBUG=1 ctest --preset x86-64-release -L ci-core
+      - name: Test with Release Runtime (release codegen)
+        if: ${{ hashFiles('.libs-cache-miss') == '' }}
+        run: ctest --preset x86-64-release -R "^(stdlib|full-programs)$"
       - name: Test pony-doc
         if: ${{ hashFiles('.libs-cache-miss') == '' }}
         run: ctest --preset x86-64-debug -R pony-doc-tests
@@ -273,13 +279,15 @@ jobs:
           PONYPATH="$PWD/packages" ./build/debug/ponyc --static -o /tmp/static-smoke /tmp/static-smoke
           file /tmp/static-smoke/static-smoke | grep -q 'statically linked'
           /tmp/static-smoke/static-smoke
-          ctest --preset debug -L ci-core
+          PONY_DEBUG=1 ctest --preset debug -L ci-core
+          ctest --preset debug -R "^(stdlib|full-programs)$"
           ctest --preset debug -R pony-doc-tests
           ctest --preset debug -R pony-lint-tests
           ctest --preset debug -R pony-lsp-tests
           cmake --preset release
           cmake --build --preset release
-          ctest --preset release -L ci-core
+          PONY_DEBUG=1 ctest --preset release -L ci-core
+          ctest --preset release -R "^(stdlib|full-programs)$"
           # native sanitizer link smoke test — see the script for details.
           sh .ci-scripts/freebsd-sanitizer-smoke.sh
           # use=coverage smoke test — see the script for details. Both smokes
@@ -401,13 +409,15 @@ jobs:
           PONYPATH="$PWD/packages" ./build/debug/ponyc --static -o /tmp/static-smoke /tmp/static-smoke
           ! readelf -d /tmp/static-smoke/static-smoke | grep -q '(NEEDED)'
           /tmp/static-smoke/static-smoke | grep -q 'static ok'
-          ctest --preset debug -L ci-core
+          PONY_DEBUG=1 ctest --preset debug -L ci-core
+          ctest --preset debug -R "^(stdlib|full-programs)$"
           ctest --preset debug -R pony-doc-tests
           ctest --preset debug -R pony-lint-tests
           ctest --preset debug -R pony-lsp-tests
           cmake --preset release
           cmake --build --preset release
-          ctest --preset release -L ci-core
+          PONY_DEBUG=1 ctest --preset release -L ci-core
+          ctest --preset release -R "^(stdlib|full-programs)$"
           EOF
       - name: Shutdown VM
         if: ${{ always() && hashFiles('.libs-cache-miss') == '' }}
@@ -509,13 +519,15 @@ jobs:
           PONYPATH="$PWD/packages" ./build/debug/ponyc --static -o /build/static-smoke /build/static-smoke
           file /build/static-smoke/static-smoke | grep -q 'statically linked'
           /build/static-smoke/static-smoke
-          ctest --preset debug -L ci-core
+          PONY_DEBUG=1 ctest --preset debug -L ci-core
+          ctest --preset debug -R "^(stdlib|full-programs)$"
           ctest --preset debug -R pony-doc-tests
           ctest --preset debug -R pony-lint-tests
           ctest --preset debug -R pony-lsp-tests
           cmake --preset release -DCMAKE_C_COMPILER="$CC" -DCMAKE_CXX_COMPILER="$CXX"
           cmake --build --preset release
-          ctest --preset release -L ci-core
+          PONY_DEBUG=1 ctest --preset release -L ci-core
+          ctest --preset release -R "^(stdlib|full-programs)$"
           # gcc use=coverage smoke test — see the script for details. It does a
           # clean + reconfigure of the debug build with use=coverage, so it runs
           # last, after the release tests that depend on the prior builds.

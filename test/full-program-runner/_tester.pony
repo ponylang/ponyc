@@ -118,6 +118,9 @@ actor _Tester
       if _options.debug then
         args.push("--debug")
       end
+      if _options.thin_lto then
+        args.push("--thin-lto")
+      end
       if _options.test_lib.size() > 0 then
         args.push("--path=" + _options.test_lib)
       end

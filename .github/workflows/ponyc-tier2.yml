@@ -81,7 +81,7 @@ jobs:
           cmake --build --preset x86-64-debug --target pony-doc-tests pony-lint-tests pony-lsp-tests
       - name: Test with Debug Runtime
         if: ${{ hashFiles('.libs-cache-miss') == '' }}
-        run: ctest --preset x86-64-debug -L ci-core -E "(stdlib-release|full-programs-release)"
+        run: PONY_DEBUG=1 ctest --preset x86-64-debug -L ci-core
       - name: Test pony-doc
         if: ${{ hashFiles('.libs-cache-miss') == '' }}
         run: ctest --preset x86-64-debug -R pony-doc-tests
@@ -137,7 +137,7 @@ jobs:
           cmake --build --preset x86-64-debug --target pony-doc-tests pony-lint-tests pony-lsp-tests
       - name: Test with Debug Runtime
         if: ${{ hashFiles('.libs-cache-miss') == '' }}
-        run: ctest --preset x86-64-debug -L ci-core -E "(stdlib-release|full-programs-release)"
+        run: PONY_DEBUG=1 ctest --preset x86-64-debug -L ci-core
       - name: Test pony-doc
         if: ${{ hashFiles('.libs-cache-miss') == '' }}
         run: ctest --preset x86-64-debug -R pony-doc-tests
@@ -238,8 +238,9 @@ jobs:
             --security-opt seccomp=unconfined \
             -v ${{ github.workspace }}:/home/pony/project \
             -w /home/pony/project \
+            -e PONY_DEBUG=1 \
             ${{ matrix.image }} \
-            ctest --preset armv8-a-debug -L ci-core -E "(stdlib-release|full-programs-release)"
+            ctest --preset armv8-a-debug -L ci-core
       - name: Test pony-doc
         if: ${{ hashFiles('.libs-cache-miss') == '' }}
         run: |
@@ -323,7 +324,9 @@ jobs:
           cmake --build --preset windows-arm64-debug --target pony-doc-tests pony-lint-tests pony-lsp-tests
       - name: Test with Debug Runtime
         if: ${{ hashFiles('.libs-cache-miss') == '' }}
-        run: ctest --preset windows-arm64-debug -L ci-core -E "(stdlib-release|full-programs-release)"
+        run: |
+          $env:PONY_DEBUG = "1"
+          ctest --preset windows-arm64-debug -L ci-core
       - name: Test pony-doc
         if: ${{ hashFiles('.libs-cache-miss') == '' }}
         run: ctest --preset windows-arm64-debug -R pony-doc-tests

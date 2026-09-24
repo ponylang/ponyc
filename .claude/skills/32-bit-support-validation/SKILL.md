@@ -159,23 +159,20 @@ read the log above the exit code line for the error.
 
 ## Test matrix
 
-Two runtime builds (debug and release), each running the same tests. The tests
-include both debug-mode and release-mode variants — "debug" and "release" here
-refer to how the test programs themselves are compiled by ponyc, not the runtime
-build type.
+Two runtime builds (debug and release), each running the tests twice: once with
+`PONY_DEBUG=1` (debug codegen) and once without (release codegen). The env var
+controls whether ponyc compiles Pony sources with `-d`.
 
-Each runtime build runs these tests:
+Each runtime build runs these tests in both codegen modes:
 
-**ci-core** (10 tests, built by the normal `cmake --build`):
+**ci-core** (8 tests, built by the normal `cmake --build`):
 
 - **check-version** — ponyc `--version` exits successfully
 - **output-layout** — build output directory has the expected structure
 - **libponyc.tests** — compiler C/C++ unit tests (GTest)
 - **libponyrt.tests** — runtime C/C++ unit tests (GTest)
-- **stdlib-debug** — stdlib test suite, compiled with `-d` (debug mode)
-- **stdlib-release** — stdlib test suite, compiled without `-d` (release mode)
-- **full-programs-debug** — compile-and-run integration tests, debug mode
-- **full-programs-release** — compile-and-run integration tests, release mode
+- **stdlib** — stdlib test suite
+- **full-programs** — compile-and-run integration tests
 - **full-program-runner-rejects-broken-config** — verifies the test runner rejects bad config
 - **validate-grammar** — `pony.g` validated against the compiler
 
@@ -253,14 +250,24 @@ Poll and wait for `TOOL_BUILD_EXIT_CODE=0`.
 ### Run ci-core tests (debug runtime)
 
 The stdlib and full-program tests take a long time on the RPi — run detached.
+Both codegen modes run in sequence: first with `PONY_DEBUG=1`, then without.
 
 ```bash
 ssh pi@pony-rpi4-32 bash << 'ENDSSH'
 cat > /home/pi/run-debug-ci-core.sh << 'SCRIPT'
 #!/bin/bash
 cd /home/pi/code/ponylang/ponyc
-ctest --preset debug -L ci-core > /home/pi/debug-ci-core.log 2>&1
-echo "DEBUG_CI_CORE_EXIT_CODE=$?" >> /home/pi/debug-ci-core.log
+echo "=== debug codegen ===" > /home/pi/debug-ci-core.log
+PONY_DEBUG=1 ctest --preset debug -L ci-core >> /home/pi/debug-ci-core.log 2>&1
+rc1=$?
+echo "=== release codegen ===" >> /home/pi/debug-ci-core.log
+ctest --preset debug -R "^(stdlib|full-programs)$" >> /home/pi/debug-ci-core.log 2>&1
+rc2=$?
+if [ $rc1 -eq 0 ] && [ $rc2 -eq 0 ]; then
+  echo "DEBUG_CI_CORE_EXIT_CODE=0" >> /home/pi/debug-ci-core.log
+else
+  echo "DEBUG_CI_CORE_EXIT_CODE=1 (debug_codegen=$rc1 release_codegen=$rc2)" >> /home/pi/debug-ci-core.log
+fi
 SCRIPT
 chmod +x /home/pi/run-debug-ci-core.sh
 nohup /home/pi/run-debug-ci-core.sh > /dev/null 2>&1 &
@@ -274,10 +281,7 @@ Poll:
 ssh pi@pony-rpi4-32 bash -c '"tail -5 /home/pi/debug-ci-core.log"'
 ```
 
-Wait for `DEBUG_CI_CORE_EXIT_CODE=0`. This runs all ten ci-core tests:
-`check-version`, `output-layout`, `libponyc.tests`, `libponyrt.tests`,
-`stdlib-debug`, `stdlib-release`, `full-programs-debug`, `full-programs-release`,
-`full-program-runner-rejects-broken-config`, and `validate-grammar`.
+Wait for `DEBUG_CI_CORE_EXIT_CODE=0`.
 
 ### Run tool tests (debug runtime)
 
@@ -365,8 +369,17 @@ ssh pi@pony-rpi4-32 bash << 'ENDSSH'
 cat > /home/pi/run-release-ci-core.sh << 'SCRIPT'
 #!/bin/bash
 cd /home/pi/code/ponylang/ponyc
-ctest --preset release -L ci-core > /home/pi/release-ci-core.log 2>&1
-echo "RELEASE_CI_CORE_EXIT_CODE=$?" >> /home/pi/release-ci-core.log
+echo "=== debug codegen ===" > /home/pi/release-ci-core.log
+PONY_DEBUG=1 ctest --preset release -L ci-core >> /home/pi/release-ci-core.log 2>&1
+rc1=$?
+echo "=== release codegen ===" >> /home/pi/release-ci-core.log
+ctest --preset release -R "^(stdlib|full-programs)$" >> /home/pi/release-ci-core.log 2>&1
+rc2=$?
+if [ $rc1 -eq 0 ] && [ $rc2 -eq 0 ]; then
+  echo "RELEASE_CI_CORE_EXIT_CODE=0" >> /home/pi/release-ci-core.log
+else
+  echo "RELEASE_CI_CORE_EXIT_CODE=1 (debug_codegen=$rc1 release_codegen=$rc2)" >> /home/pi/release-ci-core.log
+fi
 SCRIPT
 chmod +x /home/pi/run-release-ci-core.sh
 nohup /home/pi/run-release-ci-core.sh > /dev/null 2>&1 &
@@ -380,8 +393,7 @@ Poll:
 ssh pi@pony-rpi4-32 bash -c '"tail -5 /home/pi/release-ci-core.log"'
 ```
 
-Wait for `RELEASE_CI_CORE_EXIT_CODE=0`. This runs the same ten ci-core tests as
-the debug runtime — now using the release-built ponyc.
+Wait for `RELEASE_CI_CORE_EXIT_CODE=0`.
 
 ### Run tool tests (release runtime)
 
@@ -415,37 +427,13 @@ Summarize which steps passed and which failed. A build or test failure means the
 
 - LLVM version and whether it needed rebuilding
 - Debug runtime build: pass/fail
-- Debug runtime — check-version: pass/fail
-- Debug runtime — output-layout: pass/fail
-- Debug runtime — libponyc.tests: pass/fail
-- Debug runtime — libponyrt.tests: pass/fail
-- Debug runtime — stdlib-debug: pass/fail
-- Debug runtime — stdlib-release: pass/fail
-- Debug runtime — full-programs-debug: pass/fail
-- Debug runtime — full-programs-release: pass/fail
-- Debug runtime — full-program-runner-rejects-broken-config: pass/fail
-- Debug runtime — validate-grammar: pass/fail
-- Debug runtime — pony-compiler-tests: pass/fail
-- Debug runtime — pony-doc-tests: pass/fail
-- Debug runtime — pony-lint-tests: pass/fail
-- Debug runtime — pony-lsp-tests: pass/fail
-- Debug runtime — pony-dep-tests: pass/fail
+- Debug runtime — ci-core (debug codegen): pass/fail
+- Debug runtime — ci-core (release codegen): pass/fail
+- Debug runtime — tool tests: pass/fail
 - Release runtime build: pass/fail
-- Release runtime — check-version: pass/fail
-- Release runtime — output-layout: pass/fail
-- Release runtime — libponyc.tests: pass/fail
-- Release runtime — libponyrt.tests: pass/fail
-- Release runtime — stdlib-debug: pass/fail
-- Release runtime — stdlib-release: pass/fail
-- Release runtime — full-programs-debug: pass/fail
-- Release runtime — full-programs-release: pass/fail
-- Release runtime — full-program-runner-rejects-broken-config: pass/fail
-- Release runtime — validate-grammar: pass/fail
-- Release runtime — pony-compiler-tests: pass/fail
-- Release runtime — pony-doc-tests: pass/fail
-- Release runtime — pony-lint-tests: pass/fail
-- Release runtime — pony-lsp-tests: pass/fail
-- Release runtime — pony-dep-tests: pass/fail
+- Release runtime — ci-core (debug codegen): pass/fail
+- Release runtime — ci-core (release codegen): pass/fail
+- Release runtime — tool tests: pass/fail
 
 ## Cleanup
 

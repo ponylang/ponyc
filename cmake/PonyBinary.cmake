@@ -10,6 +10,10 @@
 # the self-hosted tool binaries (pony-lint/doc/lsp, which pass ALL) and the
 # pony-*-tests binaries.
 #
+# Reads PONY_DEBUG and PONY_THIN_LTO from the environment at build time via a
+# cmake -P wrapper (BuildPonyBinary.cmake), so the flags are not baked in at
+# configure time.
+#
 # Rebuilds when any watched .pony source changes, when the shared tool libraries
 # change (TOOLS_LIB_STAMP), or when ponyc itself is rebuilt.
 
@@ -35,12 +39,24 @@ function(add_pony_binary _target)
         list(APPEND _watch_srcs ${_found})
     endforeach()
 
+    # Write the base arguments (one per line) to a file. file(GENERATE)
+    # evaluates generator expressions ($<CONFIG> etc.) at generation time.
+    # The cmake -P wrapper reads this file, prepends/appends env-var-driven
+    # flags, and invokes ponyc.
+    set(_ponyc_args
+        ${PONY_CPU_FLAG} ${PONY_SSL_FLAG}
+        ${_path_args} ${PONYC_SELFHOSTED_TOOL_PATH_ARGS}
+        -b ${_pb_NAME} -o ${_out} ${_pb_SOURCE})
+    set(_argsfile "${CMAKE_CURRENT_BINARY_DIR}/${_pb_NAME}-ponyc-args-$<CONFIG>.txt")
+    list(JOIN _ponyc_args "\n" _args_content)
+    file(GENERATE OUTPUT ${_argsfile} CONTENT "${_args_content}\n")
+
     add_custom_command(OUTPUT ${_exe}
-        COMMAND_EXPAND_LISTS
         COMMAND echo "Building ${_pb_NAME}..."
-        COMMAND $<TARGET_FILE:ponyc> ${PONY_CPU_FLAG} ${PONY_SSL_FLAG}
-            ${_path_args} ${PONYC_SELFHOSTED_TOOL_PATH_ARGS}
-            -b ${_pb_NAME} -o ${_out} ${_pb_SOURCE}
+        COMMAND ${CMAKE_COMMAND}
+            -DPONYC=$<TARGET_FILE:ponyc>
+            -DARGSFILE=${_argsfile}
+            -P ${CMAKE_SOURCE_DIR}/cmake/BuildPonyBinary.cmake
         DEPENDS
             ${_watch_srcs}
             ${TOOLS_LIB_STAMP}
