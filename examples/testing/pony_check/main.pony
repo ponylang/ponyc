@@ -20,3 +20,10 @@ actor \nodoc\ Main is TestList
         (USize, Array[_OperationOnCollection[String]])](
         _OperationOnCollectionProperty))
     test(Property1UnitTest[U8](_HealthCheckProperty))
+    test(
+      StatefulPropertyUnitTest[_Counter, USize, _CounterCommand](
+        _CounterProperty))
+    test(
+      StatefulPropertyUnitTest[
+        _ActorCounter tag, USize, _ActorCounterCommand](
+        _AsyncCounterProperty))

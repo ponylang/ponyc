@@ -8,7 +8,8 @@ class ref StatefulContext[S, M]
   and written. In `invariant` and `final_check`, the context is `box` —
   viewpoint adaptation makes `ctx.sut` and `ctx.model` read-only.
 
-  S and M should be `ref` or `val` capability types. `iso` gives `tag`
+  S and M should be `ref`, `val`, or `tag` capability types. `tag` is
+  appropriate when the system under test is an actor. `iso` gives `tag`
   through the `box` view (unusable); `trn` gives `box` where mutation
   was expected.
   """
@@ -24,8 +25,8 @@ trait StatefulProperty[S, M, Cmd: Stringable val]
   A stateful property test with interleaved command generation and
   execution.
 
-  S is the system under test (`ref` or `val` capability). M is the
-  reference model (`ref` or `val`). Cmd is a union of `val` command
+  S is the system under test (`ref`, `val`, or `tag` for actors). M is
+  the reference model (`ref` or `val`). Cmd is a union of `val` command
   classes, each `Stringable`.
 
   Each sample creates fresh state via `initial_sut()` and
@@ -53,7 +54,12 @@ trait StatefulProperty[S, M, Cmd: Stringable val]
   A property with no `invariant` override and no in-step assertions
   only verifies that `step` does not error.
 
-  `PropertyParams.async` is not supported for stateful properties.
+  Setting `PropertyParams.async` to `true` enables async mode for
+  testing actors. In async mode, each step runs as a separate behavior,
+  and the next step waits until all expected actions complete. The
+  invariant can use `h.expect_action` / `h.complete_action` /
+  `h.fail_action` to verify actor state asynchronously, returning
+  `true` to indicate that async checks have started.
   """
 
   fun name(): String
@@ -124,6 +130,11 @@ trait StatefulProperty[S, M, Cmd: Stringable val]
         fun invariant(ctx: ..., h: PropertyHelper): Bool =>
           h.assert_eq[USize](ctx.model.size(), ctx.sut.size()) and
             h.assert_true(ctx.sut.size() <= ctx.sut.capacity())
+
+    In async mode, use `h.expect_action` / `h.complete_action` /
+    `h.fail_action` for asynchronous verification. Return `true` to
+    indicate that async checks have started — the next step runs after
+    all expected actions complete.
 
     Default returns `true` (no failure).
     """

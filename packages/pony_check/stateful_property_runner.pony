@@ -3,16 +3,20 @@ use "collections"
 actor StatefulPropertyRunner[S, M, Cmd: Stringable val]
   is _IPropertyRunner
   """
-  Executes a StatefulProperty using recursive behaviours with
-  interleaved step execution.
+  Executes a StatefulProperty as a behavior chain.
 
-  Each sample: draw step count, create fresh state via factory methods,
-  execute steps with interleaved draws from Randomness, check invariants,
-  run final_check. On failure, the choice sequence is handed to _Shrinker
-  unchanged for replay-based shrinking.
+  Each sample draws a step count, creates fresh SUT and model state,
+  then runs steps one at a time. The next step starts only after all
+  expected actions from the invariant have completed; when no actions
+  are registered, the next step starts immediately. Exactly one
+  advancement occurs per step regardless of completion order.
+
+  On failure, the recorded choice sequence is replayed through
+  successively smaller candidates to shrink the counterexample.
   """
   let _prop: StatefulProperty[S, M, Cmd]
   let _params: PropertyParams
+  let _params_string: String
   let _env: Env
   let _notify: PropertyResultNotify
   let _logger: PropertyLogger
@@ -24,6 +28,11 @@ actor StatefulPropertyRunner[S, M, Cmd: Stringable val]
   let _expected_actions: Set[String] = Set[String]
   let _disposables: Array[DisposableActor] = Array[DisposableActor]
   var _consecutive_errors: USize = 0
+  var _ctx: (StatefulContext[S, M] | None) = None
+  var _num_steps: USize = 0
+  var _failed_at_step: (USize | None) = None
+  var _step_advanced: Bool = false
+  var _current_step_idx: USize = 0
 
   new create(
     prop: StatefulProperty[S, M, Cmd] iso,
@@ -35,6 +44,7 @@ actor StatefulPropertyRunner[S, M, Cmd: Stringable val]
     _env = env
     _prop = consume prop
     _params = params
+    _params_string = _params.string()
     _notify = notify
     _logger = logger
     _max_steps = _prop.max_steps()
@@ -42,16 +52,13 @@ actor StatefulPropertyRunner[S, M, Cmd: Stringable val]
     if _max_steps == 0 then
       _notify.fail("max_steps() must be at least 1")
       _notify.complete(false)
-    elseif _params.async then
-      _notify.fail("StatefulProperty does not support async mode")
-      _notify.complete(false)
     end
 
   be run() =>
     """
     Execute the property test.
     """
-    if (_max_steps == 0) or _params.async then return end
+    if _max_steps == 0 then return end
 
     if not _engine.regression_checked() then
       _engine.mark_regression_checked()
@@ -81,7 +88,102 @@ actor StatefulPropertyRunner[S, M, Cmd: Stringable val]
       StatefulContext[S, M](
         _prop.initial_sut(),
         _prop.initial_model())
+    _ctx = ctx
+    _num_steps = num_steps
     _cmd_trace = Array[Cmd](num_steps)
+    _pass = true
+    _failed_at_step = None
+
+    _run_step(0)
+
+  fun ref _run_step(step_idx: USize) =>
+    let ctx =
+      match _ctx
+      | let c: StatefulContext[S, M] => c
+      else
+        _Unreachable()
+        return
+      end
+
+    _expected_actions.clear()
+
+    let step_notify = recover val this~_step_completed(step_idx) end
+    let helper =
+      PropertyHelper(
+        _env,
+        this,
+        step_notify,
+        this._current_round,
+        _params_string)
+
+    let cmd =
+      try
+        _prop.step(ctx, _engine.rnd(), helper)?
+      else
+        _engine.reset_rnd()
+        _consecutive_errors = _consecutive_errors + 1
+        if _consecutive_errors > _params.max_generator_retries then
+          _engine.report_health_checks(_logger)
+          _notify.fail(
+            "Unable to generate valid commands, " +
+            _consecutive_errors.string() +
+            " consecutive step errors")
+          _notify.complete(false)
+          return
+        end
+        _ctx = None
+        _prepare_next_round()
+        run()
+        return
+      end
+    _cmd_trace.push(cmd)
+
+    if (_failed_at_step is None) and
+      (not _prop.invariant(ctx, helper))
+    then
+      _failed_at_step = step_idx
+    end
+
+    _current_step_idx = step_idx
+    _step_advanced = false
+    _step_finished(step_idx, this._current_round)
+
+  be _step_completed(step_idx: USize, round: _Round, success: Bool) =>
+    if round != this._current_round then return end
+    if step_idx != _current_step_idx then return end
+
+    if not success then
+      _failed_at_step = step_idx
+    end
+
+    if not _step_advanced then
+      _step_advanced = true
+      _advance_step(step_idx)
+    end
+
+  be _step_finished(step_idx: USize, round: _Round) =>
+    if round != this._current_round then return end
+    if step_idx != _current_step_idx then return end
+    if (not _step_advanced) and (_expected_actions.size() == 0) then
+      _step_advanced = true
+      _advance_step(step_idx)
+    end
+
+  fun ref _advance_step(step_idx: USize) =>
+    if (step_idx + 1) < _num_steps then
+      _run_step(step_idx + 1)
+    else
+      _finish_sample()
+    end
+
+  fun ref _finish_sample() =>
+    let ctx =
+      match _ctx
+      | let c: StatefulContext[S, M] => c
+      else
+        _Unreachable()
+        return
+      end
 
     let run_notify = recover val this~complete_run() end
     let helper =
@@ -90,54 +192,18 @@ actor StatefulPropertyRunner[S, M, Cmd: Stringable val]
         this,
         run_notify,
         this._current_round,
-        _params.string())
-    _pass = true
+        _params_string)
 
-    var failed_at_step: (USize | None) = None
-    var i: USize = 0
-    while i < num_steps do
-      let cmd =
-        try
-          _prop.step(ctx, _engine.rnd(), helper)?
-        else
-          _engine.reset_rnd()
-          _consecutive_errors = _consecutive_errors + 1
-          if _consecutive_errors > _params.max_generator_retries then
-            _engine.report_health_checks(_logger)
-            _notify.fail(
-              "Unable to generate valid commands, " +
-              _consecutive_errors.string() +
-              " consecutive step errors")
-            _notify.complete(false)
-            return
-          end
-          _prepare_next_round()
-          run()
-          return
-        end
-      _cmd_trace.push(cmd)
-
-      if (failed_at_step is None) and
-        (not _prop.invariant(ctx, helper))
-      then
-        failed_at_step = i
-      end
-
-      i = i + 1
+    let final_ok = _prop.final_check(ctx, helper)
+    if (_failed_at_step is None) and (not final_ok) then
+      _failed_at_step = _num_steps
     end
 
-    if failed_at_step is None then
-      if not _prop.final_check(ctx, helper) then
-        failed_at_step = num_steps
-      end
-    else
-      _prop.final_check(ctx, helper)
-    end
-
+    _ctx = None
     _consecutive_errors = 0
     _engine.inc_samples_run()
 
-    match \exhaustive\ failed_at_step
+    match \exhaustive\ _failed_at_step
     | let step: USize =>
       _engine.collect_health_metrics()
       _engine.capture_failure()
@@ -154,11 +220,16 @@ actor StatefulPropertyRunner[S, M, Cmd: Stringable val]
       end
     | None =>
       _engine.collect_health_metrics()
-      _run_finished(this._current_round)
+      _sample_finished(this._current_round)
     end
 
-  be _run_finished(round: _Round) =>
-    if _pass then
+  be _sample_finished(round: _Round) =>
+    """
+    Advances to the next sample after final_check, but only when no
+    async actions are still outstanding.
+    """
+    if round != this._current_round then return end
+    if _pass and (_expected_actions.size() == 0) then
       complete_run(round, true)
     end
 
@@ -181,54 +252,120 @@ actor StatefulPropertyRunner[S, M, Cmd: Stringable val]
       StatefulContext[S, M](
         _prop.initial_sut(),
         _prop.initial_model())
+    _ctx = ctx
+    _num_steps = num_steps
     _cmd_trace = Array[Cmd](num_steps)
+    _pass = true
+    _failed_at_step = None
 
     _logger.log(
       "Replaying stored regression for \"" + _prop.name() + "\"")
 
-    let run_notify = recover val this~complete_run() end
+    _replay_regression_step(0)
+
+  fun ref _replay_regression_step(step_idx: USize) =>
+    let ctx =
+      match _ctx
+      | let c: StatefulContext[S, M] => c
+      else
+        _Unreachable()
+        return
+      end
+
+    _expected_actions.clear()
+
+    let step_notify =
+      recover val this~_regression_step_completed(step_idx) end
+    let helper =
+      PropertyHelper(
+        _env,
+        this,
+        step_notify,
+        this._current_round,
+        _params_string)
+
+    let cmd =
+      try
+        _prop.step(ctx, _engine.rnd(), helper)?
+      else
+        _logger.log(
+          "Stored regression stale for \"" + _prop.name() +
+            "\", removing")
+        _ctx = None
+        _engine.clear_regression(_logger)
+        run()
+        return
+      end
+    _cmd_trace.push(cmd)
+
+    if (_failed_at_step is None) and
+      (not _prop.invariant(ctx, helper))
+    then
+      _failed_at_step = step_idx
+    end
+
+    _current_step_idx = step_idx
+    _step_advanced = false
+    _regression_step_finished(step_idx, this._current_round)
+
+  be _regression_step_completed(
+    step_idx: USize,
+    round: _Round,
+    success: Bool)
+  =>
+    if round != this._current_round then return end
+    if step_idx != _current_step_idx then return end
+
+    if not success then
+      _failed_at_step = step_idx
+    end
+
+    if not _step_advanced then
+      _step_advanced = true
+      _advance_regression_step(step_idx)
+    end
+
+  be _regression_step_finished(step_idx: USize, round: _Round) =>
+    if round != this._current_round then return end
+    if step_idx != _current_step_idx then return end
+    if (not _step_advanced) and (_expected_actions.size() == 0) then
+      _step_advanced = true
+      _advance_regression_step(step_idx)
+    end
+
+  fun ref _advance_regression_step(step_idx: USize) =>
+    if (step_idx + 1) < _num_steps then
+      _replay_regression_step(step_idx + 1)
+    else
+      _finish_regression_sample()
+    end
+
+  fun ref _finish_regression_sample() =>
+    let ctx =
+      match _ctx
+      | let c: StatefulContext[S, M] => c
+      else
+        _Unreachable()
+        return
+      end
+
+    let run_notify = recover val this~_regression_result() end
     let helper =
       PropertyHelper(
         _env,
         this,
         run_notify,
         this._current_round,
-        _params.string())
+        _params_string)
 
-    var failed_at_step: (USize | None) = None
-    var i: USize = 0
-    while i < num_steps do
-      let cmd =
-        try
-          _prop.step(ctx, _engine.rnd(), helper)?
-        else
-          _logger.log(
-            "Stored regression stale for \"" + _prop.name() +
-              "\", removing")
-          _engine.clear_regression(_logger)
-          run()
-          return
-        end
-      _cmd_trace.push(cmd)
-
-      if (failed_at_step is None) and
-        (not _prop.invariant(ctx, helper))
-      then
-        failed_at_step = i
-      end
-
-      i = i + 1
+    let final_ok = _prop.final_check(ctx, helper)
+    if (_failed_at_step is None) and (not final_ok) then
+      _failed_at_step = _num_steps
     end
 
-    if failed_at_step is None then
-      if not _prop.final_check(ctx, helper) then
-        failed_at_step = num_steps
-      end
-    else
-      _prop.final_check(ctx, helper)
-    end
+    _ctx = None
 
-    match \exhaustive\ failed_at_step
+    match \exhaustive\ _failed_at_step
     | let step: USize =>
       _prepare_next_round()
       _notify.fail(
@@ -236,6 +373,23 @@ actor StatefulPropertyRunner[S, M, Cmd: Stringable val]
           "\": " + _format_sample_repr(step))
       _notify.complete(false)
     | None =>
+      _regression_finished(this._current_round)
+    end
+
+  be _regression_finished(round: _Round) =>
+    """
+    Advances after a passing regression replay completes final_check,
+    but only when no async actions are still outstanding.
+    """
+    if round != this._current_round then return end
+    if _pass and (_expected_actions.size() == 0) then
+      _regression_result(round, true)
+    end
+
+  be _regression_result(round: _Round, success: Bool) =>
+    if round != this._current_round then return end
+    _pass = success
+    if _pass then
       _logger.log(
         "Regression replay passed for \"" + _prop.name() +
           "\" — clearing stored regression")
@@ -245,6 +399,12 @@ actor StatefulPropertyRunner[S, M, Cmd: Stringable val]
         disposable.dispose()
       end
       run()
+    else
+      _prepare_next_round()
+      _notify.fail(
+        "Stored regression still fails for \"" + _prop.name() +
+          "\": " + _format_sample_repr(_failed_at_step))
+      _notify.complete(false)
     end
 
   be complete_run(round: _Round, success: Bool) =>
@@ -348,10 +508,118 @@ actor StatefulPropertyRunner[S, M, Cmd: Stringable val]
       StatefulContext[S, M](
         _prop.initial_sut(),
         _prop.initial_model())
+    _ctx = ctx
+    _num_steps = num_steps
     _cmd_trace = Array[Cmd](num_steps)
+    _failed_at_step = None
+    _pass = true
 
-    // Captures untrimmed candidate: an async h.fail() during the step
-    // loop can accept it before new_choices is computed.
+    _shrink_step(0, failed_repr, candidate)
+
+  fun ref _shrink_step(
+    step_idx: USize,
+    failed_repr: String,
+    candidate: Array[_Choice val] val)
+  =>
+    let ctx =
+      match _ctx
+      | let c: StatefulContext[S, M] => c
+      else
+        _Unreachable()
+        return
+      end
+
+    _expected_actions.clear()
+
+    let step_notify =
+      recover val
+        this~_shrink_step_completed(step_idx, failed_repr, candidate)
+      end
+    let helper =
+      PropertyHelper(
+        _env,
+        this,
+        step_notify,
+        this._current_round,
+        _params_string)
+
+    let cmd =
+      try
+        _prop.step(ctx, _engine.rnd(), helper)?
+      else
+        _ctx = None
+        _prepare_next_round()
+        _try_next_candidate(failed_repr)
+        return
+      end
+    _cmd_trace.push(cmd)
+
+    if (_failed_at_step is None) and
+      (not _prop.invariant(ctx, helper))
+    then
+      _failed_at_step = step_idx
+    end
+
+    _current_step_idx = step_idx
+    _step_advanced = false
+    _shrink_step_finished(
+      step_idx, failed_repr, candidate, this._current_round)
+
+  be _shrink_step_completed(
+    step_idx: USize,
+    failed_repr: String,
+    candidate: Array[_Choice val] val,
+    round: _Round,
+    success: Bool)
+  =>
+    if round != this._current_round then return end
+    if step_idx != _current_step_idx then return end
+
+    if not success then
+      _failed_at_step = step_idx
+    end
+
+    if not _step_advanced then
+      _step_advanced = true
+      _advance_shrink_step(step_idx, failed_repr, candidate)
+    end
+
+  be _shrink_step_finished(
+    step_idx: USize,
+    failed_repr: String,
+    candidate: Array[_Choice val] val,
+    round: _Round)
+  =>
+    if round != this._current_round then return end
+    if step_idx != _current_step_idx then return end
+    if (not _step_advanced) and (_expected_actions.size() == 0) then
+      _step_advanced = true
+      _advance_shrink_step(step_idx, failed_repr, candidate)
+    end
+
+  fun ref _advance_shrink_step(
+    step_idx: USize,
+    failed_repr: String,
+    candidate: Array[_Choice val] val)
+  =>
+    if (step_idx + 1) < _num_steps then
+      _shrink_step(step_idx + 1, failed_repr, candidate)
+    else
+      _finish_shrink_sample(failed_repr, candidate)
+    end
+
+  fun ref _finish_shrink_sample(
+    failed_repr: String,
+    candidate: Array[_Choice val] val)
+  =>
+    let ctx =
+      match _ctx
+      | let c: StatefulContext[S, M] => c
+      else
+        _Unreachable()
+        return
+      end
+
     let run_notify =
       recover val
         this~_shrink_candidate_result(
@@ -366,45 +634,21 @@ actor StatefulPropertyRunner[S, M, Cmd: Stringable val]
         this,
         run_notify,
         this._current_round,
-        _params.string())
-    _pass = true
+        _params_string)
 
-    var failed_at_step: (USize | None) = None
-    var i: USize = 0
-    while i < num_steps do
-      let cmd =
-        try
-          _prop.step(ctx, _engine.rnd(), helper)?
-        else
-          _prepare_next_round()
-          _try_next_candidate(failed_repr)
-          return
-        end
-      _cmd_trace.push(cmd)
-
-      if (failed_at_step is None) and
-        (not _prop.invariant(ctx, helper))
-      then
-        failed_at_step = i
-      end
-
-      i = i + 1
+    let final_ok = _prop.final_check(ctx, helper)
+    if (_failed_at_step is None) and (not final_ok) then
+      _failed_at_step = _num_steps
     end
 
-    if failed_at_step is None then
-      if not _prop.final_check(ctx, helper) then
-        failed_at_step = num_steps
-      end
-    else
-      _prop.final_check(ctx, helper)
-    end
+    _ctx = None
 
     let new_choices = _engine.trim_to_consumed(candidate)
     let new_spans = _engine.get_spans()
 
-    match \exhaustive\ failed_at_step
+    match \exhaustive\ _failed_at_step
     | let _: USize =>
-      let current_repr = _format_sample_repr(failed_at_step)
+      let current_repr = _format_sample_repr(_failed_at_step)
       _engine.accept_shrink(new_choices, new_spans)
       _prepare_next_round()
       _try_next_candidate(current_repr)
@@ -442,7 +686,12 @@ actor StatefulPropertyRunner[S, M, Cmd: Stringable val]
     new_spans: Array[_Span val] val,
     round: _Round)
   =>
-    if _pass then
+    """
+    Advances after a shrink candidate completes final_check, but only
+    when no async actions are still outstanding.
+    """
+    if round != this._current_round then return end
+    if _pass and (_expected_actions.size() == 0) then
       _shrink_candidate_result(
         failed_repr,
         current_repr,

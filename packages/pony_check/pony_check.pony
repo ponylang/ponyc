@@ -139,6 +139,15 @@ test(StatefulPropertyUnitTest[MyQueue ref, MyModel ref, MyCmd](
   _MyQueueProperty))
 ```
 
+### Async Stateful Properties
+
+Setting `PropertyParams.async` to `true` enables testing actors. In
+async mode, each step runs as a separate behavior, and the runner
+waits for all expected actions to complete before advancing to the
+next step. The system under test can be a `tag` reference (an actor),
+and the invariant uses `h.expect_action` / `h.complete_action` /
+`h.fail_action` for asynchronous verification.
+
 ## Health Checks
 
 After a property run completes, the runner logs warnings for conditions

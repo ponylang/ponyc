@@ -37,11 +37,19 @@ Once `pony_check` has been compiled, in the same directory as this README file, 
 ---- Passed: async/tcp_sender
 ---- Passed: collections/operation_on_random_collection_elements
 ---- Passed: health_check/narrow_filter
+---- Passed: stateful/counter
+---- Passed: stateful/async_counter
 ----
----- 9 tests ran.
----- Passed: 9
+---- 11 tests ran.
+---- Passed: 11
 ```
 
 The `health_check/narrow_filter` test demonstrates health check configuration.
 Run with `--verbose` to see the `WARNING:` lines it produces about filter
 discard rate and slow samples.
+
+The `stateful/counter` test verifies a simple in-memory counter with
+`StatefulProperty`, checking that increments and decrements keep the
+counter in sync with a model. The `stateful/async_counter` test does the
+same against an actor-based counter, with the invariant querying the
+actor's state asynchronously through the action mechanism.

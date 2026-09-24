@@ -147,39 +147,145 @@ class \nodoc\ iso _StatefulMaxStepsZeroTest is UnitTest
     h.dispose_when_done(runner)
     runner.run()
 
-class \nodoc\ iso _StatefulAsyncRejectedProperty
-  is StatefulProperty[_TestCounter, USize, _CounterCmd]
-  fun name(): String => "stateful/async_rejected"
+actor \nodoc\ _AsyncCounter
+  var _count: USize = 0
+
+  be increment() => _count = _count + 1
+
+  be decrement() =>
+    if _count > 0 then _count = _count - 1 end
+
+  be get_count(cb: {(USize)} val) => cb(_count)
+
+primitive \nodoc\ _AsyncIncrement is Stringable
+  fun string(): String iso^ => "increment".string()
+
+primitive \nodoc\ _AsyncDecrement is Stringable
+  fun string(): String iso^ => "decrement".string()
+
+type _AsyncCounterCmd is (_AsyncIncrement | _AsyncDecrement)
+
+class \nodoc\ iso _AsyncStatefulProperty
+  is StatefulProperty[_AsyncCounter tag, USize, _AsyncCounterCmd]
+  fun name(): String => "stateful/async/counter"
 
   fun params(): PropertyParams =>
-    PropertyParams(where async' = true,
-      regression_db' = false)
+    PropertyParams(where num_samples' = 30, async' = true)
 
-  fun max_steps(): USize => 5
+  fun max_steps(): USize => 10
 
-  fun initial_sut(): _TestCounter => _TestCounter
+  fun initial_sut(): _AsyncCounter tag => _AsyncCounter
 
   fun initial_model(): USize => 0
 
   fun ref step(
-    ctx: StatefulContext[_TestCounter, USize],
+    ctx: StatefulContext[_AsyncCounter tag, USize],
     rnd: Randomness,
     h: PropertyHelper)
-    : _CounterCmd
+    : _AsyncCounterCmd ?
   =>
-    _Increment
+    if rnd.bool()? then
+      ctx.model = ctx.model + 1
+      ctx.sut.increment()
+      _AsyncIncrement
+    else
+      if ctx.model > 0 then ctx.model = ctx.model - 1 end
+      ctx.sut.decrement()
+      _AsyncDecrement
+    end
 
-class \nodoc\ iso _StatefulAsyncRejectedTest is UnitTest
-  fun name(): String => "stateful/async_rejected"
+  fun invariant(
+    ctx: StatefulContext[_AsyncCounter tag, USize] box,
+    h: PropertyHelper)
+    : Bool
+  =>
+    let expected = ctx.model
+    h.expect_action("check_count")
+    ctx.sut.get_count({(actual: USize)(expected, h) =>
+      if expected != actual then
+        h.fail_action("check_count")
+      else
+        h.complete_action("check_count")
+      end
+    } val)
+    true
+
+class \nodoc\ iso _AsyncStatefulPropertyTest is UnitTest
+  fun name(): String => "stateful/async/counter"
 
   fun apply(h: TestHelper) =>
-    let property = recover iso _StatefulAsyncRejectedProperty end
+    let property = recover iso _AsyncStatefulProperty end
+    let notify = _UnitTestPropertyNotify(h, true)
+    let logger = _UnitTestPropertyLogger(h)
+    let params = property.params()
+    h.long_test(params.timeout)
+    let runner =
+      StatefulPropertyRunner[_AsyncCounter tag, USize, _AsyncCounterCmd](
+        consume property, params, notify, logger, h.env)
+    h.dispose_when_done(runner)
+    runner.run()
+
+class \nodoc\ iso _AsyncStatefulFailingProperty
+  is StatefulProperty[_AsyncCounter tag, USize, _AsyncCounterCmd]
+  fun name(): String => "stateful/async/failing"
+
+  fun params(): PropertyParams =>
+    PropertyParams(where num_samples' = 30, async' = true,
+      regression_db' = false)
+
+  fun max_steps(): USize => 10
+
+  fun initial_sut(): _AsyncCounter tag => _AsyncCounter
+
+  fun initial_model(): USize => 0
+
+  fun ref step(
+    ctx: StatefulContext[_AsyncCounter tag, USize],
+    rnd: Randomness,
+    h: PropertyHelper)
+    : _AsyncCounterCmd ?
+  =>
+    if rnd.bool()? then
+      ctx.model = ctx.model + 1
+      ctx.sut.increment()
+      _AsyncIncrement
+    else
+      if ctx.model > 0 then ctx.model = ctx.model - 1 end
+      ctx.sut.decrement()
+      _AsyncDecrement
+    end
+
+  fun invariant(
+    ctx: StatefulContext[_AsyncCounter tag, USize] box,
+    h: PropertyHelper)
+    : Bool
+  =>
+    let expected = ctx.model
+    h.expect_action("check_count")
+    ctx.sut.get_count({(actual: USize)(expected, h) =>
+      if expected != actual then
+        h.fail_action("check_count")
+      else
+        if expected > 1 then
+          h.fail_action("check_count")
+        else
+          h.complete_action("check_count")
+        end
+      end
+    } val)
+    true
+
+class \nodoc\ iso _AsyncStatefulFailingPropertyTest is UnitTest
+  fun name(): String => "stateful/async/failing"
+
+  fun apply(h: TestHelper) =>
+    let property = recover iso _AsyncStatefulFailingProperty end
     let notify = _UnitTestPropertyNotify(h, false)
     let logger = _UnitTestPropertyLogger(h)
     let params = property.params()
     h.long_test(params.timeout)
     let runner =
-      StatefulPropertyRunner[_TestCounter, USize, _CounterCmd](
+      StatefulPropertyRunner[_AsyncCounter tag, USize, _AsyncCounterCmd](
         consume property, params, notify, logger, h.env)
     h.dispose_when_done(runner)
     runner.run()
