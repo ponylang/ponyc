@@ -138,8 +138,8 @@ actor Main
       _size = len
       _alloc = (_size + 1).max(Pointer[U8]._min_alloc())
       _ptr = Pointer[U8]._alloc(_alloc)
-      // copy only the content (plus terminator slot); _alloc may be larger.
-      str._copy_to(_ptr, _size + 1)
+      str._copy_to(_ptr, _size)
+      _set(_size, 0)
     end
 
   new copy_cstring(str: Pointer[U8] box) =>
