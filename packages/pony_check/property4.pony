@@ -28,6 +28,11 @@ class val PropertyParams is Stringable
     check.
   * max_sample_nanos: the maximum wall-clock duration in nanoseconds allowed
     for any single sample before a warning is logged. 0 disables the check.
+  * regression_db: if true (the default), failing choice sequences are saved
+    to a `.ponycheck/` directory and replayed on subsequent runs. Set to
+    false for properties that are expected to fail (e.g. in tests of the
+    framework itself). See the package docstring for environment variable
+    overrides.
   """
   let seed: U64
   let num_samples: USize
@@ -38,6 +43,7 @@ class val PropertyParams is Stringable
   let max_filter_discard_ratio: F64
   let max_choice_sequence_size: USize
   let max_sample_nanos: U64
+  let regression_db: Bool
 
   new val create(
     num_samples': USize = 100,
@@ -51,7 +57,8 @@ class val PropertyParams is Stringable
     max_choice_sequence_size': USize =
       PropertyParamsDefaults.max_choice_sequence_size(),
     max_sample_nanos': U64 =
-      PropertyParamsDefaults.max_sample_nanos())
+      PropertyParamsDefaults.max_sample_nanos(),
+    regression_db': Bool = true)
   =>
     num_samples = num_samples'
     seed = seed'
@@ -62,6 +69,7 @@ class val PropertyParams is Stringable
     max_filter_discard_ratio = max_filter_discard_ratio'
     max_choice_sequence_size = max_choice_sequence_size'
     max_sample_nanos = max_sample_nanos'
+    regression_db = regression_db'
 
   fun string(): String iso^ =>
     recover

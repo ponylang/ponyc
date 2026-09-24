@@ -175,6 +175,21 @@ actor \nodoc\ Main is TestList
     test(_HealthCheckDisabledByZeroTest)
     test(_HealthCheckAllDisabledByZeroTest)
     test(_HealthCheckStatefulSlowSampleTest)
+    test(_SerializerRoundTripAllTypesTest)
+    test(_SerializerEmptyArrayTest)
+    test(_SerializerBadHeaderTest)
+    test(_SerializerBadLineTest)
+    test(_SerializerFloatExactBitsTest)
+    test(_SerializerNaNRoundTripTest)
+    test(_EncodeNameSafeCharsTest)
+    test(_EncodeNameSpecialCharsTest)
+    test(_RegressionDbSaveLoadClearTest)
+    test(_RegressionDbLoadMissingTest)
+    test(_RegressionDbCorruptDeletesTest)
+    test(_RegressionDbCreatesDirTest)
+    test(_RegressionSaveOnFailTest)
+    test(_RegressionDbDisabledTest)
+    test(_StatefulRegressionSaveOnFailTest)
 
 class \nodoc\ iso _StringifyTest is UnitTest
   fun name(): String => "stringify"
@@ -224,6 +239,9 @@ class \nodoc\ iso _SuccessfulPropertyTest is UnitTest
 class \nodoc\ iso _FailingProperty is Property1[U8]
   fun name(): String => "as_unit_test/failing/property"
 
+  fun params(): PropertyParams =>
+    PropertyParams(where regression_db' = false)
+
   fun gen(): Generator[U8] => Generators.u8(0, 10)
 
   fun ref property(arg1: U8, h: PropertyHelper) =>
@@ -249,6 +267,9 @@ class \nodoc\ iso _FailingPropertyTest is UnitTest
 
 class \nodoc\ iso _ErroringProperty is Property1[U8]
   fun name(): String => "as_unit_test/erroring/property"
+
+  fun params(): PropertyParams =>
+    PropertyParams(where regression_db' = false)
 
   fun gen(): Generator[U8] => Generators.u8(0, 1)
 
@@ -1086,6 +1107,9 @@ class \nodoc\ iso _SuccessfulIntPairPropertyTest is UnitTest
 class \nodoc\ iso _ErroringGeneratorProperty is Property1[String]
   fun name(): String => "property_runner/erroring_generator/property"
 
+  fun params(): PropertyParams =>
+    PropertyParams(where regression_db' = false)
+
   fun gen(): Generator[String] =>
     Generator[String](
       object is GenObj[String]
@@ -1159,6 +1183,9 @@ class \nodoc\ iso _RunnerSometimesErroringGeneratorTest is UnitTest
 
 class \nodoc\ iso _ReportFailedSampleProperty is Property1[U8]
   fun name(): String => "property_runner/sample_reporting/property"
+
+  fun params(): PropertyParams =>
+    PropertyParams(where regression_db' = false)
 
   fun gen(): Generator[U8] => Generators.u8(0, 1)
 
@@ -1288,7 +1315,7 @@ class \nodoc\ iso _AsyncProperty is Property1[String]
   fun name(): String => "property_runner/async/property"
 
   fun params(): PropertyParams =>
-    PropertyParams(where async' = true)
+    PropertyParams(where async' = true, regression_db' = false)
 
   fun gen(): Generator[String] =>
     Generators.ascii_printable()
@@ -1800,7 +1827,8 @@ class \nodoc\ iso _ShrinkIntToMinTest is UnitTest
     let property = recover iso _ShrinkIntToMinProperty end
     let params =
       PropertyParams(where num_samples' = 100,
-        max_shrink_reductions' = 100, seed' = 42)
+        max_shrink_reductions' = 100, seed' = 42,
+        regression_db' = false)
 
     h.long_test(params.timeout)
 
@@ -1849,7 +1877,8 @@ class \nodoc\ iso _ShrinkIntAboveThresholdTest is UnitTest
     let property = recover iso _ShrinkIntAboveThresholdProperty end
     let params =
       PropertyParams(where num_samples' = 100,
-        max_shrink_reductions' = 100, seed' = 42)
+        max_shrink_reductions' = 100, seed' = 42,
+        regression_db' = false)
 
     h.long_test(params.timeout)
 
@@ -1900,7 +1929,8 @@ class \nodoc\ iso _ShrinkArrayToMinTest is UnitTest
     let property = recover iso _ShrinkArrayToMinProperty end
     let params =
       PropertyParams(where num_samples' = 100,
-        max_shrink_reductions' = 100, seed' = 42)
+        max_shrink_reductions' = 100, seed' = 42,
+        regression_db' = false)
 
     h.long_test(params.timeout)
 
@@ -1957,7 +1987,8 @@ class \nodoc\ iso _ShrinkFilterPreservationTest is UnitTest
     let property = recover iso _ShrinkFilterPreservationProperty end
     let params =
       PropertyParams(where num_samples' = 100,
-        max_shrink_reductions' = 100, seed' = 42)
+        max_shrink_reductions' = 100, seed' = 42,
+        regression_db' = false)
 
     h.long_test(params.timeout)
 
@@ -2020,7 +2051,8 @@ class \nodoc\ iso _ShrinkFlatMapTest is UnitTest
     let property = recover iso _ShrinkFlatMapProperty end
     let params =
       PropertyParams(where num_samples' = 100,
-        max_shrink_reductions' = 200, seed' = 42)
+        max_shrink_reductions' = 200, seed' = 42,
+        regression_db' = false)
 
     h.long_test(params.timeout)
 
@@ -2609,7 +2641,8 @@ class \nodoc\ iso _ClassifyFailingProperty is Property1[U8]
   fun gen(): Generator[U8] => Generators.u8(0, 10)
 
   fun params(): PropertyParams =>
-    PropertyParams(where num_samples' = 10, seed' = 1)
+    PropertyParams(where num_samples' = 10, seed' = 1,
+      regression_db' = false)
 
   fun ref property(sample: U8, h: PropertyHelper) =>
     h.classify("counted")
@@ -2657,7 +2690,8 @@ class \nodoc\ iso _ClassifyShrinkProperty is Property1[U8]
   fun gen(): Generator[U8] => Generators.u8(0, 100)
 
   fun params(): PropertyParams =>
-    PropertyParams(where num_samples' = 100, seed' = 42)
+    PropertyParams(where num_samples' = 100, seed' = 42,
+      regression_db' = false)
 
   fun ref property(sample: U8, h: PropertyHelper) =>
     h.classify("run")
@@ -2790,7 +2824,8 @@ class \nodoc\ iso _CoverUnsatisfiedProperty is Property1[U8]
   fun gen(): Generator[U8] => Generators.u8(0, 100)
 
   fun params(): PropertyParams =>
-    PropertyParams(where num_samples' = 100, seed' = 1)
+    PropertyParams(where num_samples' = 100, seed' = 1,
+      regression_db' = false)
 
   fun ref property(sample: U8, h: PropertyHelper) =>
     h.cover(sample == 0, "zero", 90.0)
@@ -2817,7 +2852,8 @@ class \nodoc\ iso _CoverNoShrinkProperty is Property1[U8]
   fun gen(): Generator[U8] => Generators.u8(0, 10)
 
   fun params(): PropertyParams =>
-    PropertyParams(where num_samples' = 10, seed' = 1)
+    PropertyParams(where num_samples' = 10, seed' = 1,
+      regression_db' = false)
 
   fun ref property(sample: U8, h: PropertyHelper) =>
     h.cover(false, "impossible", 5.0)
@@ -3126,7 +3162,8 @@ class \nodoc\ iso _TabulateShrinkProperty is Property1[U8]
   fun gen(): Generator[U8] => Generators.u8(0, 100)
 
   fun params(): PropertyParams =>
-    PropertyParams(where num_samples' = 100, seed' = 42)
+    PropertyParams(where num_samples' = 100, seed' = 42,
+      regression_db' = false)
 
   fun ref property(sample: U8, h: PropertyHelper) =>
     h.tabulate(
