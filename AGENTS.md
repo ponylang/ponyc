@@ -49,14 +49,19 @@ Run the full core suite:
 ctest --preset debug -L ci-core
 ```
 
+Two environment variables control Pony compilation features at test time:
+
+- `PONY_DEBUG=1` — compile Pony sources with `-d` (debug codegen)
+- `PONY_THIN_LTO=1` — compile Pony sources with `--thin-lto`
+
+These apply to stdlib tests, full-program tests, examples, and tool builds. Set them as command-line prefixes (`PONY_DEBUG=1 ctest ...`) or `export` them. CI runs tests in both codegen modes — the first `ctest` pass sets `PONY_DEBUG=1`, the second runs only the Pony-compilation tests (`stdlib`, `full-programs`) without it. PR builds run only debug codegen; release-mode-checks, weekly-checks, and tier-3 run both.
+
 Run individual tests by name:
 
 - `ctest --preset debug -R libponyc.tests` — compiler C/C++ unit tests (GTest)
 - `ctest --preset debug -R libponyrt.tests` — runtime C/C++ unit tests (GTest)
-- `ctest --preset debug -R stdlib-debug` — stdlib test suite, compiled and run in debug mode
-- `ctest --preset debug -R stdlib-release` — stdlib test suite, release mode
-- `ctest --preset debug -R full-programs-debug` — compile-and-run integration tests, debug mode
-- `ctest --preset debug -R full-programs-release` — compile-and-run integration tests, release mode
+- `ctest --preset debug -R stdlib` — stdlib test suite
+- `ctest --preset debug -R full-programs` — compile-and-run integration tests
 - `ctest --preset debug -R validate-grammar` — checks `pony.g` against the compiler
 - `ctest --preset debug -R examples` — compiles all examples (not part of `ci-core`; runs locally and in the weekly `build-examples.yml` workflow)
 
@@ -65,13 +70,13 @@ Run individual tests by name:
 A single package's tests can be compiled and run without rebuilding the full stdlib suite:
 
 ```bash
-cd build/debug && ./ponyc -d -b stdlib-debug --checktree -Dopenssl_3.0.x --pic --strip ../../packages/collections
-./stdlib-debug --sequential
+cd build/debug && ./ponyc -b stdlib --checktree -Dopenssl_3.0.x --pic ../../packages/collections
+./stdlib --sequential
 ```
 
-The SSL flag must match the installed SSL library: `-Dopenssl_3.0.x` for OpenSSL 3.x, `-Dopenssl_1.1.x` for OpenSSL 1.1.x, `-Dlibressl` for LibreSSL. CMake detects this automatically for `ctest` runs; the manual command needs it explicitly.
+To compile with debug codegen, add `-d`: `./ponyc -d -b stdlib ...`. To compile with thin LTO, add `--thin-lto`.
 
-For a release build, drop `-d` and `--strip`.
+The SSL flag must match the installed SSL library: `-Dopenssl_3.0.x` for OpenSSL 3.x, `-Dopenssl_1.1.x` for OpenSSL 1.1.x, `-Dlibressl` for LibreSSL. CMake detects this automatically for `ctest` runs; the manual command needs it explicitly.
 
 ### Tool tests
 

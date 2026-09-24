@@ -153,8 +153,7 @@ ctest --preset release -L ci-core
 ```
 
 The `ci-core` label covers `libponyc.tests`, where the codegen assertions live,
-along with the full-program, stdlib, and examples tests. Running only
-`full-programs-release` skips the codegen gtests.
+along with the full-program, stdlib, and examples tests.
 
 This is narrower than what the PR will run: CI runs `ci-core` in both debug and
 release on Linux, macOS, and Windows, and separately builds and runs

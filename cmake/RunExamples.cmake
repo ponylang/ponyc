@@ -1,8 +1,9 @@
 # ctest wrapper: compile every example under examples/ with the freshly built
-# ponyc. Each example directory holding
-# .pony files is compiled with `-d -s --checktree -o <dir> <dir>`. Directories
-# whose path contains "ffi-" are skipped: those examples link against C the
-# stock toolchain may not have, so they are excluded from the build check.
+# ponyc. Each example directory holding .pony files is compiled with
+# `-s --checktree -o <dir> <dir>` plus any flags from the PONY_DEBUG and
+# PONY_THIN_LTO environment variables. Directories whose path contains "ffi-"
+# are skipped: those examples link against C the stock toolchain may not have,
+# so they are excluded from the build check.
 #
 # Args (passed with -D): PONYC, EXAMPLES (the examples directory), WORKDIR (the
 # output directory to run ponyc from), PONY_SSL_FLAG (the SSL -D flag for the
@@ -44,7 +45,13 @@ foreach(_d ${_dirs})
     if(_d MATCHES "ffi-")
         continue()
     endif()
-    set(_example_args -d -s --checktree -o "${_d}" "${PONY_SSL_FLAG}")
+    set(_example_args -s --checktree -o "${_d}" "${PONY_SSL_FLAG}")
+    if(DEFINED ENV{PONY_DEBUG} AND "$ENV{PONY_DEBUG}" STREQUAL "1")
+        list(PREPEND _example_args -d)
+    endif()
+    if(DEFINED ENV{PONY_THIN_LTO} AND "$ENV{PONY_THIN_LTO}" STREQUAL "1")
+        list(APPEND _example_args --thin-lto)
+    endif()
     execute_process(
         COMMAND "${PONYC}" ${_example_args} "${_d}"
         WORKING_DIRECTORY "${WORKDIR}"

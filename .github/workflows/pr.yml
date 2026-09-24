@@ -168,7 +168,7 @@ jobs:
         run: |
           PONY_TEST_DEBUGGER="$(.ci-scripts/test-debugger.sh lldb)"
           export PONY_TEST_DEBUGGER
-          ctest --preset x86-64-debug -L ci-core -E "(stdlib-release|full-programs-release)"
+          PONY_DEBUG=1 ctest --preset x86-64-debug -L ci-core
       - name: Compile generative stress engine
         run: PONYPATH=packages build/debug/ponyc -d --pic -b generative -o build/debug test/rt-stress/generative/
       - name: Detect SSL version
@@ -210,7 +210,7 @@ jobs:
           cmake --preset armv8-debug
           cmake --build --preset armv8-debug
       - name: Test with Debug Runtime
-        run: ctest --preset armv8-debug -L ci-core -E "(stdlib-release|full-programs-release)"
+        run: PONY_DEBUG=1 ctest --preset armv8-debug -L ci-core
 
   ponyc-x86_64-windows:
     needs: [changes, maybe-build-windows]
@@ -250,7 +250,8 @@ jobs:
       - name: Test with Debug Runtime
         run: |
           $env:PONY_TEST_DEBUGGER = & .ci-scripts/test-debugger.ps1 lldb
-          ctest --preset windows-x86-64-debug -L ci-core -E "(stdlib-release|full-programs-release)"
+          $env:PONY_DEBUG = "1"
+          ctest --preset windows-x86-64-debug -L ci-core
 
   # ----- pony-compiler suite -----
 

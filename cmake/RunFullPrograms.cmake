@@ -3,9 +3,11 @@
 # rest of the invocation is fixed and passed in via -D.
 #
 # Args (passed with -D): RUNNER, COMPILER, OUTPUT, TEST_LIB, TESTS (the test dir),
-# WORKDIR, DEBUG (ON adds --debug for the debug-runtime build).
+# WORKDIR.
 #
 # Run-time knobs from the environment:
+#   PONY_DEBUG                 set to 1 to pass --debug to the runner
+#   PONY_THIN_LTO              set to 1 to pass --thin-lto to the runner
 #   PONY_FULL_PROGRAM_TIMEOUT  per-program timeout in seconds
 #                              (default: 60; 120 on Windows)
 #   PONY_TEST_DEBUGGER         debugger command the runner runs each program under
@@ -35,8 +37,11 @@ set(_run "${RUNNER}"
     "--compiler=${COMPILER}"
     "--output=${OUTPUT}"
     "--test_lib=${TEST_LIB}")
-if(DEBUG)
+if(DEFINED ENV{PONY_DEBUG} AND "$ENV{PONY_DEBUG}" STREQUAL "1")
     list(APPEND _run --debug)
+endif()
+if(DEFINED ENV{PONY_THIN_LTO} AND "$ENV{PONY_THIN_LTO}" STREQUAL "1")
+    list(APPEND _run --thin-lto)
 endif()
 list(APPEND _run "${TESTS}")
 

@@ -939,23 +939,14 @@ else()
     # a $<CONFIG> genex, so the path isn't known at configure time.
     # RunFullPrograms.cmake creates its --output dir at test time instead.
 
-    add_test(NAME full-programs-debug
+    add_test(NAME full-programs
         COMMAND ${CMAKE_COMMAND}
             -DRUNNER=${_full_program_runner}
             -DCOMPILER=$<TARGET_FILE:ponyc>
-            -DOUTPUT=${PONY_OUTPUT_DIR}/full-program-tests/debug
+            -DOUTPUT=${PONY_OUTPUT_DIR}/full-program-tests
             -DTEST_LIB=${PONY_OUTPUT_DIR}/test_lib
             -DTESTS=${CMAKE_SOURCE_DIR}/test/full-program-tests
-            -DWORKDIR=${PONY_OUTPUT_DIR} -DDEBUG=ON
-            -P ${CMAKE_SOURCE_DIR}/cmake/RunFullPrograms.cmake)
-    add_test(NAME full-programs-release
-        COMMAND ${CMAKE_COMMAND}
-            -DRUNNER=${_full_program_runner}
-            -DCOMPILER=$<TARGET_FILE:ponyc>
-            -DOUTPUT=${PONY_OUTPUT_DIR}/full-program-tests/release
-            -DTEST_LIB=${PONY_OUTPUT_DIR}/test_lib
-            -DTESTS=${CMAKE_SOURCE_DIR}/test/full-program-tests
-            -DWORKDIR=${PONY_OUTPUT_DIR} -DDEBUG=OFF
+            -DWORKDIR=${PONY_OUTPUT_DIR}
             -P ${CMAKE_SOURCE_DIR}/cmake/RunFullPrograms.cmake)
 
     add_test(NAME full-program-runner-rejects-broken-config
@@ -964,23 +955,13 @@ else()
             -DWORKDIR=${PONY_OUTPUT_DIR}
             -P ${CMAKE_SOURCE_DIR}/cmake/RunBrokenConfig.cmake)
 
-    add_test(NAME stdlib-debug
+    add_test(NAME stdlib
         COMMAND ${CMAKE_COMMAND}
             -DPONYC=$<TARGET_FILE:ponyc>
             -DSTDLIB_SRC=${CMAKE_SOURCE_DIR}/packages/stdlib
             -DWORKDIR=${PONY_OUTPUT_DIR}
             -DSOURCE_DIR=${CMAKE_SOURCE_DIR}
-            -DBUILD_NAME=stdlib-debug -DDEBUG=ON
-            -DPONY_SSL_FLAG=${PONY_SSL_FLAG}
-            -DPONY_SSL_LIB_DIR=${PONY_SSL_LIB_DIR}
-            -P ${CMAKE_SOURCE_DIR}/cmake/RunStdlibTest.cmake)
-    add_test(NAME stdlib-release
-        COMMAND ${CMAKE_COMMAND}
-            -DPONYC=$<TARGET_FILE:ponyc>
-            -DSTDLIB_SRC=${CMAKE_SOURCE_DIR}/packages/stdlib
-            -DWORKDIR=${PONY_OUTPUT_DIR}
-            -DSOURCE_DIR=${CMAKE_SOURCE_DIR}
-            -DBUILD_NAME=stdlib-release -DDEBUG=OFF
+            -DBUILD_NAME=stdlib
             -DPONY_SSL_FLAG=${PONY_SSL_FLAG}
             -DPONY_SSL_LIB_DIR=${PONY_SSL_LIB_DIR}
             -P ${CMAKE_SOURCE_DIR}/cmake/RunStdlibTest.cmake)
@@ -1001,11 +982,11 @@ else()
             -DWORKDIR=${PONY_OUTPUT_DIR}
             -P ${CMAKE_SOURCE_DIR}/cmake/CheckGrammar.cmake)
 
-    set_tests_properties(full-programs-debug full-programs-release
+    set_tests_properties(full-programs
         full-program-runner-rejects-broken-config
-        stdlib-debug stdlib-release validate-grammar
+        stdlib validate-grammar
         PROPERTIES LABELS ci-core)
-    set_tests_properties(stdlib-debug stdlib-release
+    set_tests_properties(stdlib
         PROPERTIES TIMEOUT 1800)
 
     # Binaries. ponyc is the only real executable target; the tools are custom
