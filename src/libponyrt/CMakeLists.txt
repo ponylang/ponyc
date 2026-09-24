@@ -120,6 +120,14 @@ if(PONY_RUNTIME_BITCODE)
     set(_c_flags ${CMAKE_C_FLAGS})
     separate_arguments(_c_flags)
 
+    if(${CMAKE_SYSTEM_PROCESSOR} STREQUAL "x86-64"
+        OR ${CMAKE_SYSTEM_PROCESSOR} STREQUAL "x86_64"
+        OR ${CMAKE_SYSTEM_PROCESSOR} STREQUAL "amd64"
+        OR ${CMAKE_SYSTEM_PROCESSOR} STREQUAL "AMD64"
+        OR ${CMAKE_SYSTEM_PROCESSOR} STREQUAL "x86")
+        list(APPEND _c_flags -mcx16)
+    endif()
+
     if(CMAKE_C_COMPILER_ID STREQUAL "AppleClang")
         list(APPEND _c_flags -fno-stack-check)
     endif()
