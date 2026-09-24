@@ -362,6 +362,22 @@ class \nodoc\ iso _RegressionSaveOnFailProperty is Property1[U8]
   fun ref property(arg1: U8, h: PropertyHelper) =>
     h.assert_true(arg1 == U8(0))
 
+primitive \nodoc\ _RegressionTestEnv
+  fun apply(env: Env, db_dir: String): Env val =>
+    let vars: Array[String] val =
+      recover val
+        Array[String]
+          .> push("PONYCHECK_DB_DIR=" + db_dir)
+      end
+    Env.create(
+      env.root,
+      env.input,
+      env.out,
+      env.err,
+      env.args,
+      vars,
+      env.exitcode)
+
 class \nodoc\ iso _RegressionSaveOnFailTest is UnitTest
   fun name(): String => "regression/integration/save_on_fail"
 
@@ -371,13 +387,9 @@ class \nodoc\ iso _RegressionSaveOnFailTest is UnitTest
     let params = property.params()
     h.long_test(params.timeout)
 
-    let regression_dir =
-      match \exhaustive\ _RegressionDb.resolve_dir(h.env)
-      | let dir: FilePath => dir
-      | None =>
-        h.fail("resolve_dir returned None — PONYCHECK_NO_DB set?")
-        return
-      end
+    let dir_name: String val =
+      ".ponycheck-test-save-" + Time.nanos().string()
+    let regression_dir = FilePath(FileAuth(h.env.root), dir_name)
     let expected_filename: String val =
       _RegressionDb._encode_name(prop_name) + ".choices"
     let expected_path =
@@ -388,6 +400,7 @@ class \nodoc\ iso _RegressionSaveOnFailTest is UnitTest
         return
       end
 
+    let test_env = _RegressionTestEnv(h.env, dir_name)
     let notify =
       _RegressionSaveOnFailNotify(h, expected_path, regression_dir)
     let logger = _UnitTestPropertyLogger(h)
@@ -398,7 +411,7 @@ class \nodoc\ iso _RegressionSaveOnFailTest is UnitTest
         params,
         notify,
         logger,
-        h.env)
+        test_env)
     runner.run()
 
 class \nodoc\ val _RegressionSaveOnFailNotify is PropertyResultNotify
@@ -536,13 +549,9 @@ class \nodoc\ iso _StatefulRegressionSaveOnFailTest is UnitTest
     let params = property.params()
     h.long_test(params.timeout)
 
-    let regression_dir =
-      match \exhaustive\ _RegressionDb.resolve_dir(h.env)
-      | let dir: FilePath => dir
-      | None =>
-        h.fail("resolve_dir returned None — PONYCHECK_NO_DB set?")
-        return
-      end
+    let dir_name: String val =
+      ".ponycheck-test-stateful-save-" + Time.nanos().string()
+    let regression_dir = FilePath(FileAuth(h.env.root), dir_name)
     let expected_filename: String val =
       _RegressionDb._encode_name(prop_name) + ".choices"
     let expected_path =
@@ -553,12 +562,13 @@ class \nodoc\ iso _StatefulRegressionSaveOnFailTest is UnitTest
         return
       end
 
+    let test_env = _RegressionTestEnv(h.env, dir_name)
     let notify =
       _RegressionSaveOnFailNotify(h, expected_path, regression_dir)
     let logger = _UnitTestPropertyLogger(h)
 
     let runner =
       StatefulPropertyRunner[USize, USize, _StatefulRegressionIncrement](
-        consume property, params, notify, logger, h.env)
+        consume property, params, notify, logger, test_env)
     h.dispose_when_done(runner)
     runner.run()
