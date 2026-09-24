@@ -148,9 +148,16 @@ if(NOT PONY_CROSS_LIBPONYRT)
 endif()
 
 # Uses
+#
+# PONY_RUNTIME_DEFINES collects the -D flags that the use= directives add.
+# add_compile_options() applies them to the normal (object-code) build; the
+# bitcode build (src/libponyrt/CMakeLists.txt) constructs its own clang
+# command and reads this variable to stay in sync.
+set(PONY_RUNTIME_DEFINES "")
+
 if(PONY_USE_VALGRIND)
     set(PONY_OUTPUT_SUFFIX "${PONY_OUTPUT_SUFFIX}-valgrind")
-    add_compile_options(-DUSE_VALGRIND)
+    list(APPEND PONY_RUNTIME_DEFINES -DUSE_VALGRIND)
 endif()
 
 if(PONY_USE_THREAD_SANITIZER)
@@ -161,7 +168,7 @@ endif()
 if(PONY_USE_ADDRESS_SANITIZER)
     set(PONY_OUTPUT_SUFFIX "${PONY_OUTPUT_SUFFIX}-address_sanitizer")
     list(APPEND PONY_SANITIZERS_ENABLED "address")
-    add_compile_options(-DUSE_ADDRESS_SANITIZER)
+    list(APPEND PONY_RUNTIME_DEFINES -DUSE_ADDRESS_SANITIZER)
     add_link_options(-DUSE_ADDRESS_SANITIZER)
 endif()
 
@@ -172,7 +179,8 @@ endif()
 
 if(PONY_SANITIZERS_ENABLED)
     list(JOIN PONY_SANITIZERS_ENABLED "," PONY_SANITIZERS_VALUE)
-    add_compile_options(-fsanitize=${PONY_SANITIZERS_VALUE} -DPONY_SANITIZER=\"${PONY_SANITIZERS_VALUE}\")
+    list(APPEND PONY_RUNTIME_DEFINES -DPONY_SANITIZER=\"${PONY_SANITIZERS_VALUE}\")
+    add_compile_options(-fsanitize=${PONY_SANITIZERS_VALUE})
     add_link_options(-fsanitize=${PONY_SANITIZERS_VALUE} -DPONY_SANITIZER=\"${PONY_SANITIZERS_VALUE}\")
 endif()
 
@@ -189,47 +197,47 @@ endif()
 
 if(PONY_USE_POOLTRACK)
     set(PONY_OUTPUT_SUFFIX "${PONY_OUTPUT_SUFFIX}-pooltrack")
-    add_compile_options(-DUSE_POOLTRACK)
+    list(APPEND PONY_RUNTIME_DEFINES -DUSE_POOLTRACK)
 endif()
 
 if(PONY_USE_RUNTIMESTATS)
     set(PONY_OUTPUT_SUFFIX "${PONY_OUTPUT_SUFFIX}-runtimestats")
-    add_compile_options(-DUSE_RUNTIMESTATS)
+    list(APPEND PONY_RUNTIME_DEFINES -DUSE_RUNTIMESTATS)
 endif()
 
 if(PONY_USE_SYSTEMATIC_TESTING)
     set(PONY_OUTPUT_SUFFIX "${PONY_OUTPUT_SUFFIX}-systematic_testing")
-    add_compile_options(-DUSE_SYSTEMATIC_TESTING)
+    list(APPEND PONY_RUNTIME_DEFINES -DUSE_SYSTEMATIC_TESTING)
 endif()
 
 if(PONY_USE_RUNTIMESTATS_MESSAGES)
     set(PONY_OUTPUT_SUFFIX "${PONY_OUTPUT_SUFFIX}-runtimestats_messages")
-    add_compile_options(-DUSE_RUNTIMESTATS -DUSE_RUNTIMESTATS_MESSAGES)
+    list(APPEND PONY_RUNTIME_DEFINES -DUSE_RUNTIMESTATS -DUSE_RUNTIMESTATS_MESSAGES)
 endif()
 
 if(PONY_USE_POOL_MEMALIGN)
     set(PONY_OUTPUT_SUFFIX "${PONY_OUTPUT_SUFFIX}-pool_memalign")
-    add_compile_options(-DUSE_POOL_MEMALIGN)
+    list(APPEND PONY_RUNTIME_DEFINES -DUSE_POOL_MEMALIGN)
 endif()
 
 if(PONY_USE_POOL_CLASSIC)
     set(PONY_OUTPUT_SUFFIX "${PONY_OUTPUT_SUFFIX}-pool_classic")
-    add_compile_options(-DUSE_POOL_CLASSIC)
+    list(APPEND PONY_RUNTIME_DEFINES -DUSE_POOL_CLASSIC)
 endif()
 
 if(PONY_USE_POOL_RETAIN)
     set(PONY_OUTPUT_SUFFIX "${PONY_OUTPUT_SUFFIX}-pool_retain")
-    add_compile_options(-DUSE_POOL_RETAIN)
+    list(APPEND PONY_RUNTIME_DEFINES -DUSE_POOL_RETAIN)
 endif()
 
 if(PONY_USE_RUNTIME_TRACING)
     set(PONY_OUTPUT_SUFFIX "${PONY_OUTPUT_SUFFIX}-runtime_tracing")
-    add_compile_options(-DUSE_RUNTIME_TRACING)
+    list(APPEND PONY_RUNTIME_DEFINES -DUSE_RUNTIME_TRACING)
 endif()
 
 if(PONY_USE_REACH_INSTRUMENT)
     set(PONY_OUTPUT_SUFFIX "${PONY_OUTPUT_SUFFIX}-reach_instrument")
-    add_compile_options(-DUSE_REACH_INSTRUMENT)
+    list(APPEND PONY_RUNTIME_DEFINES -DUSE_REACH_INSTRUMENT)
 endif()
 
 # Keep the runtime's asserts -- pony_assert and the arena allocator's integrity
@@ -238,8 +246,10 @@ endif()
 # knob the weekly checks flip with -DPONY_ALWAYS_ASSERT=ON to run the arena's
 # checks against optimized code.
 if(PONY_ALWAYS_ASSERT)
-    add_compile_options(-DPONY_ALWAYS_ASSERT)
+    list(APPEND PONY_RUNTIME_DEFINES -DPONY_ALWAYS_ASSERT)
 endif()
+
+add_compile_options(${PONY_RUNTIME_DEFINES})
 
 # Build runtime bitcode (libponyrt.bc) by default on clang. ponyc merges this
 # into the program's IR before optimisation, enabling cross-module
