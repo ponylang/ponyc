@@ -1,5 +1,6 @@
 use "debug"
 use "collections"
+use "files"
 use "format"
 use "time"
 
@@ -119,6 +120,8 @@ actor PropertyRunner[T]
   var _max_choices: USize = 0
   var _peak_sample_nanos: U64 = 0
   var _sample_start_nanos: U64 = 0
+  var _regression_dir: (FilePath | None) = None
+  var _regression_checked: Bool = false
 
   new create(
     p1: Property1[T] iso,
@@ -136,6 +139,9 @@ actor PropertyRunner[T]
     _rnd = Randomness(_params.seed)
     _gen = _prop1.gen()
     _classification_notify = classification_notify
+    if _params.regression_db and (_prop1.name().size() > 0) then
+      _regression_dir = _RegressionDb.resolve_dir(_env)
+    end
 
   be complete_run(round: _Round, success: Bool) =>
     """
@@ -205,6 +211,18 @@ actor PropertyRunner[T]
     """
     Execute the next property sample.
     """
+    if not _regression_checked then
+      _regression_checked = true
+      match _regression_dir
+      | let dir: FilePath =>
+        match _RegressionDb.load(dir, _prop1.name(), _logger)
+        | let choices: Array[_Choice val] val =>
+          _replay_regression(choices)
+          return
+        end
+      end
+    end
+
     if this._current_round.round() >= _params.num_samples then
       complete()
       return
@@ -255,6 +273,83 @@ actor PropertyRunner[T]
     if not _params.async and _pass then
       complete_run(round, true)
     end
+
+// REGRESSION REPLAY //
+  fun ref _replay_regression(choices: Array[_Choice val] val) =>
+    _rnd._replay(choices)
+    var sample: T =
+      try
+        _gen.generate(_rnd)?
+      else
+        _logger.log(
+          "Stored regression stale for \"" + _prop1.name() +
+            "\", removing")
+        match _regression_dir
+        | let dir: FilePath =>
+          _RegressionDb.clear(dir, _prop1.name(), _logger)
+        end
+        run()
+        return
+      end
+
+    (sample, _sample_repr) = _Stringify.apply[T](consume sample)
+    _logger.log(
+      "Replaying stored regression for \"" + _prop1.name() + "\"")
+
+    let run_notify = recover val this~_regression_result() end
+    let helper =
+      PropertyHelper(
+        _env,
+        this,
+        run_notify,
+        this._current_round,
+        _params.string())
+    _pass = true
+
+    try
+      _prop1.property(consume sample, helper)?
+    else
+      _report_regression_failure()
+      return
+    end
+    _replay_regression_finished(this._current_round)
+
+  be _replay_regression_finished(round: _Round) =>
+    if not _params.async and _pass then
+      _regression_result(round, true)
+    end
+
+  be _regression_result(round: _Round, success: Bool) =>
+    if round != this._current_round then return end
+    _pass = success
+    _check_regression_result()
+
+  fun ref _check_regression_result() =>
+    match _regression_dir
+    | let dir: FilePath =>
+      if _pass then
+        _logger.log(
+          "Regression replay passed for \"" + _prop1.name() +
+            "\" — clearing stored regression")
+        _RegressionDb.clear(dir, _prop1.name(), _logger)
+        this._expected_actions.clear()
+        for disposable in Poperator[DisposableActor](this._disposables) do
+          disposable.dispose()
+        end
+        run()
+      else
+        _report_regression_failure()
+      end
+    else
+      _Unreachable()
+    end
+
+  fun ref _report_regression_failure() =>
+    _prepare_next_round()
+    _notify.fail(
+      "Stored regression still fails for \"" + _prop1.name() +
+        "\": " + _sample_repr)
+    _notify.complete(false)
 
 // SHRINKING //
   be do_shrink(failed_repr: String) =>
@@ -627,6 +722,12 @@ actor PropertyRunner[T]
     """
     _report_labels()
     _report_health_checks()
+    match _regression_dir
+    | let dir: FilePath =>
+      if _failing_choices.size() > 0 then
+        _RegressionDb.save(dir, _prop1.name(), _failing_choices, _logger)
+      end
+    end
     if err then
       _report_error(repr, rounds)
     else

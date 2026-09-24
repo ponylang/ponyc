@@ -60,7 +60,8 @@ class \nodoc\ iso _FailingStatefulProperty
   fun name(): String => "stateful/counter/failing"
 
   fun params(): PropertyParams =>
-    PropertyParams(where num_samples' = 50)
+    PropertyParams(where num_samples' = 50,
+      regression_db' = false)
 
   fun max_steps(): USize => 10
 
@@ -114,6 +115,9 @@ class \nodoc\ iso _StatefulMaxStepsZeroProperty
   is StatefulProperty[_TestCounter, USize, _CounterCmd]
   fun name(): String => "stateful/max_steps_zero"
 
+  fun params(): PropertyParams =>
+    PropertyParams(where regression_db' = false)
+
   fun max_steps(): USize => 0
 
   fun initial_sut(): _TestCounter => _TestCounter
@@ -148,7 +152,8 @@ class \nodoc\ iso _StatefulAsyncRejectedProperty
   fun name(): String => "stateful/async_rejected"
 
   fun params(): PropertyParams =>
-    PropertyParams(where async' = true)
+    PropertyParams(where async' = true,
+      regression_db' = false)
 
   fun max_steps(): USize => 5
 
@@ -184,7 +189,8 @@ class \nodoc\ iso _StatefulStepAlwaysErrorsProperty
   fun name(): String => "stateful/step_always_errors"
 
   fun params(): PropertyParams =>
-    PropertyParams(where num_samples' = 10, max_generator_retries' = 3)
+    PropertyParams(where num_samples' = 10, max_generator_retries' = 3,
+      regression_db' = false)
 
   fun max_steps(): USize => 5
 
@@ -220,7 +226,8 @@ class \nodoc\ iso _StatefulFinalCheckFailureProperty
   fun name(): String => "stateful/final_check_failure"
 
   fun params(): PropertyParams =>
-    PropertyParams(where num_samples' = 50)
+    PropertyParams(where num_samples' = 50,
+      regression_db' = false)
 
   fun max_steps(): USize => 5
 

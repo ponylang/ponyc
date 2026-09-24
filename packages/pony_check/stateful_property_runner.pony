@@ -1,4 +1,5 @@
 use "collections"
+use "files"
 use "format"
 use "time"
 
@@ -43,6 +44,8 @@ actor StatefulPropertyRunner[S, M, Cmd: Stringable val]
   var _max_choices: USize = 0
   var _peak_sample_nanos: U64 = 0
   var _sample_start_nanos: U64 = 0
+  var _regression_dir: (FilePath | None) = None
+  var _regression_checked: Bool = false
 
   new create(
     prop: StatefulProperty[S, M, Cmd] iso,
@@ -65,12 +68,27 @@ actor StatefulPropertyRunner[S, M, Cmd: Stringable val]
       _notify.fail("StatefulProperty does not support async mode")
       _notify.complete(false)
     end
+    if _params.regression_db and (_prop.name().size() > 0) then
+      _regression_dir = _RegressionDb.resolve_dir(_env)
+    end
 
   be run() =>
     """
     Execute the property test.
     """
     if (_max_steps == 0) or _params.async then return end
+
+    if not _regression_checked then
+      _regression_checked = true
+      match _regression_dir
+      | let dir: FilePath =>
+        match _RegressionDb.load(dir, _prop.name(), _logger)
+        | let choices: Array[_Choice val] val =>
+          _replay_regression(choices)
+          return
+        end
+      end
+    end
 
     if this._current_round.round() >= _params.num_samples then
       complete()
@@ -172,6 +190,102 @@ actor StatefulPropertyRunner[S, M, Cmd: Stringable val]
   be _run_finished(round: _Round) =>
     if _pass then
       complete_run(round, true)
+    end
+
+  fun ref _replay_regression(choices: Array[_Choice val] val) =>
+    _rnd._replay(choices)
+
+    let num_steps =
+      try
+        _rnd.usize(1, _max_steps)?
+      else
+        _logger.log(
+          "Stored regression stale for \"" + _prop.name() +
+            "\", removing")
+        match _regression_dir
+        | let dir: FilePath =>
+          _RegressionDb.clear(dir, _prop.name(), _logger)
+        end
+        run()
+        return
+      end
+
+    let ctx =
+      StatefulContext[S, M](
+        _prop.initial_sut(),
+        _prop.initial_model())
+    _cmd_trace = Array[Cmd](num_steps)
+
+    _logger.log(
+      "Replaying stored regression for \"" + _prop.name() + "\"")
+
+    let run_notify = recover val this~complete_run() end
+    let helper =
+      PropertyHelper(
+        _env,
+        this,
+        run_notify,
+        this._current_round,
+        _params.string())
+
+    var failed_at_step: (USize | None) = None
+    var i: USize = 0
+    while i < num_steps do
+      let cmd =
+        try
+          _prop.step(ctx, _rnd, helper)?
+        else
+          _logger.log(
+            "Stored regression stale for \"" + _prop.name() +
+              "\", removing")
+          match _regression_dir
+          | let dir: FilePath =>
+            _RegressionDb.clear(dir, _prop.name(), _logger)
+          end
+          run()
+          return
+        end
+      _cmd_trace.push(cmd)
+
+      if (failed_at_step is None) and
+        (not _prop.invariant(ctx, helper))
+      then
+        failed_at_step = i
+      end
+
+      i = i + 1
+    end
+
+    if failed_at_step is None then
+      if not _prop.final_check(ctx, helper) then
+        failed_at_step = num_steps
+      end
+    else
+      _prop.final_check(ctx, helper)
+    end
+
+    match \exhaustive\ failed_at_step
+    | let step: USize =>
+      _prepare_next_round()
+      _notify.fail(
+        "Stored regression still fails for \"" + _prop.name() +
+          "\": " + _format_sample_repr(step))
+      _notify.complete(false)
+    | None =>
+      _logger.log(
+        "Regression replay passed for \"" + _prop.name() +
+          "\" — clearing stored regression")
+      match _regression_dir
+      | let dir: FilePath =>
+        _RegressionDb.clear(dir, _prop.name(), _logger)
+      else
+        _Unreachable()
+      end
+      this._expected_actions.clear()
+      for disposable in Poperator[DisposableActor](this._disposables) do
+        disposable.dispose()
+      end
+      run()
     end
 
   be complete_run(round: _Round, success: Bool) =>
@@ -655,6 +769,12 @@ actor StatefulPropertyRunner[S, M, Cmd: Stringable val]
     """
     _report_labels()
     _report_health_checks()
+    match _regression_dir
+    | let dir: FilePath =>
+      if _failing_choices.size() > 0 then
+        _RegressionDb.save(dir, _prop.name(), _failing_choices, _logger)
+      end
+    end
     if err then
       _report_error(repr, shrink_rounds)
     else

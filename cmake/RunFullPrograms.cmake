@@ -3,7 +3,7 @@
 # rest of the invocation is fixed and passed in via -D.
 #
 # Args (passed with -D): RUNNER, COMPILER, OUTPUT, TEST_LIB, TESTS (the test dir),
-# WORKDIR.
+# WORKDIR, SOURCE_DIR (the repo root).
 #
 # Run-time knobs from the environment:
 #   PONY_DEBUG                 set to 1 to pass --debug to the runner
@@ -29,6 +29,11 @@ endif()
 # so the runner's --output dir may not exist yet; make it here. Harmless on Unix,
 # where it already exists.
 file(MAKE_DIRECTORY "${OUTPUT}")
+
+# PonyCheck regression persistence: store regression files in the source tree
+# so they can be committed, not in the build directory where make clean removes
+# them.
+set(ENV{PONYCHECK_DB_DIR} "${SOURCE_DIR}/.ponycheck/full-programs")
 
 set(_run "${RUNNER}"
     "--debugger=$ENV{PONY_TEST_DEBUGGER}"

@@ -171,6 +171,34 @@ fun params(): PropertyParams =>
     max_sample_nanos' = 500_000_000)
 ```
 
+## Regression Persistence
+
+When a property fails, the shrunk failing choice sequence is saved to a
+file in a `.ponycheck/` directory under the working directory. On the
+next run, the stored sequence is replayed before any random samples are
+generated. If the replay still fails, the property fails immediately
+with the same minimal counterexample. If it passes, the file is deleted
+and all configured random samples run normally.
+
+Both [Property1](pony_check-Property1.md) and
+[StatefulProperty](pony_check-StatefulProperty.md) support regression
+persistence. Properties registered through
+[PonyCheck.for_all](pony_check-PonyCheck.md#for_all) do not — they have
+no name, and the filename is derived from the property name.
+
+Persistence is on by default. Disable it for a single property:
+
+```pony
+fun params(): PropertyParams =>
+  PropertyParams(where regression_db' = false)
+```
+
+Two environment variables control persistence globally:
+
+* `PONYCHECK_NO_DB=1` — disables persistence for all properties.
+* `PONYCHECK_DB_DIR=path` — changes the storage directory from
+  `.ponycheck/` to the given path.
+
 """
 use "pony_test"
 
