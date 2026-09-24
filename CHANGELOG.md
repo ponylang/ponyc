@@ -22,6 +22,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Inline `pony_alloc` and `pony_alloc_small` calls that HeapToStack does not promote ([PR #6133](https://github.com/ponylang/ponyc/pull/6133))
 - Export PONY_API symbols on ELF platforms when runtime bitcode is merged ([PR #6146](https://github.com/ponylang/ponyc/pull/6146))
 - Fix optimizer attributes lost after runtime linking ([PR #6148](https://github.com/ponylang/ponyc/pull/6148))
+- Fix String.copy_cpointer reading one byte past the source buffer ([PR #6158](https://github.com/ponylang/ponyc/pull/6158))
 
 ### Added
 
