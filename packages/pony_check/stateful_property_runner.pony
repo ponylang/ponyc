@@ -1,7 +1,4 @@
 use "collections"
-use "files"
-use "format"
-use "time"
 
 actor StatefulPropertyRunner[S, M, Cmd: Stringable val]
   is _IPropertyRunner
@@ -20,32 +17,13 @@ actor StatefulPropertyRunner[S, M, Cmd: Stringable val]
   let _notify: PropertyResultNotify
   let _logger: PropertyLogger
   let _max_steps: USize
-  let _rnd: Randomness
+  embed _engine: _GenerationEngine
   var _current_round: _Round = _Run.create(0)
   var _pass: Bool = true
-  var _failing_choices: Array[_Choice val] val =
-    recover val Array[_Choice val] end
-  var _failing_spans: Array[_Span val] val =
-    recover val Array[_Span val] end
-  var _shrink_shrinker: (_Shrinker ref | None) = None
-  var _shrink_candidates: (Iterator[Array[_Choice val] val] | None) = None
   var _cmd_trace: Array[Cmd] = Array[Cmd]
-  var _shrink_count: USize = 0
   let _expected_actions: Set[String] = Set[String]
   let _disposables: Array[DisposableActor] = Array[DisposableActor]
-  let _label_counts: Map[String, USize] = Map[String, USize]
-  let _tabulated_counts: Map[String, Map[String, USize]] =
-    Map[String, Map[String, USize]]
-  let _cover_requirements: Map[String, F64] = Map[String, F64]
-  var _samples_run: USize = 0
   var _consecutive_errors: USize = 0
-  var _total_filter_discards: USize = 0
-  var _total_filter_accepts: USize = 0
-  var _max_choices: USize = 0
-  var _peak_sample_nanos: U64 = 0
-  var _sample_start_nanos: U64 = 0
-  var _regression_dir: (FilePath | None) = None
-  var _regression_checked: Bool = false
 
   new create(
     prop: StatefulProperty[S, M, Cmd] iso,
@@ -59,17 +37,14 @@ actor StatefulPropertyRunner[S, M, Cmd: Stringable val]
     _params = params
     _notify = notify
     _logger = logger
-    _rnd = Randomness(_params.seed)
     _max_steps = _prop.max_steps()
+    _engine = _GenerationEngine(params, _prop.name(), env)
     if _max_steps == 0 then
       _notify.fail("max_steps() must be at least 1")
       _notify.complete(false)
     elseif _params.async then
       _notify.fail("StatefulProperty does not support async mode")
       _notify.complete(false)
-    end
-    if _params.regression_db and (_prop.name().size() > 0) then
-      _regression_dir = _RegressionDb.resolve_dir(_env)
     end
 
   be run() =>
@@ -78,15 +53,12 @@ actor StatefulPropertyRunner[S, M, Cmd: Stringable val]
     """
     if (_max_steps == 0) or _params.async then return end
 
-    if not _regression_checked then
-      _regression_checked = true
-      match _regression_dir
-      | let dir: FilePath =>
-        match _RegressionDb.load(dir, _prop.name(), _logger)
-        | let choices: Array[_Choice val] val =>
-          _replay_regression(choices)
-          return
-        end
+    if not _engine.regression_checked() then
+      _engine.mark_regression_checked()
+      match _engine.load_regressions(_logger)
+      | let choices: Array[_Choice val] val =>
+        _replay_regression(choices)
+        return
       end
     end
 
@@ -95,12 +67,11 @@ actor StatefulPropertyRunner[S, M, Cmd: Stringable val]
       return
     end
 
-    _sample_start_nanos = Time.nanos()
-    _rnd._start_recording()
+    _engine.begin_sample()
 
     let num_steps =
       try
-        _rnd.usize(1, _max_steps)?
+        _engine.rnd().usize(1, _max_steps)?
       else
         _Unreachable()
         return
@@ -127,12 +98,12 @@ actor StatefulPropertyRunner[S, M, Cmd: Stringable val]
     while i < num_steps do
       let cmd =
         try
-          _prop.step(ctx, _rnd, helper)?
+          _prop.step(ctx, _engine.rnd(), helper)?
         else
-          _rnd._reset()
+          _engine.reset_rnd()
           _consecutive_errors = _consecutive_errors + 1
           if _consecutive_errors > _params.max_generator_retries then
-            _report_health_checks()
+            _engine.report_health_checks(_logger)
             _notify.fail(
               "Unable to generate valid commands, " +
               _consecutive_errors.string() +
@@ -164,15 +135,14 @@ actor StatefulPropertyRunner[S, M, Cmd: Stringable val]
     end
 
     _consecutive_errors = 0
-    _samples_run = _samples_run + 1
+    _engine.inc_samples_run()
 
     match \exhaustive\ failed_at_step
     | let step: USize =>
-      _collect_health_metrics()
-      _failing_choices = _rnd._get_choices()
-      _failing_spans = _rnd._get_spans()
+      _engine.collect_health_metrics()
+      _engine.capture_failure()
 
-      if _failing_choices.size() == 0 then
+      if _engine.failing_choices().size() == 0 then
         _logger.log("no choices recorded, cannot shrink")
         _prepare_next_round()
         fail(_format_sample_repr(step), 0)
@@ -183,7 +153,7 @@ actor StatefulPropertyRunner[S, M, Cmd: Stringable val]
         do_shrink(repr)
       end
     | None =>
-      _collect_health_metrics()
+      _engine.collect_health_metrics()
       _run_finished(this._current_round)
     end
 
@@ -193,19 +163,16 @@ actor StatefulPropertyRunner[S, M, Cmd: Stringable val]
     end
 
   fun ref _replay_regression(choices: Array[_Choice val] val) =>
-    _rnd._replay(choices)
+    _engine.replay(choices)
 
     let num_steps =
       try
-        _rnd.usize(1, _max_steps)?
+        _engine.rnd().usize(1, _max_steps)?
       else
         _logger.log(
           "Stored regression stale for \"" + _prop.name() +
             "\", removing")
-        match _regression_dir
-        | let dir: FilePath =>
-          _RegressionDb.clear(dir, _prop.name(), _logger)
-        end
+        _engine.clear_regression(_logger)
         run()
         return
       end
@@ -233,15 +200,12 @@ actor StatefulPropertyRunner[S, M, Cmd: Stringable val]
     while i < num_steps do
       let cmd =
         try
-          _prop.step(ctx, _rnd, helper)?
+          _prop.step(ctx, _engine.rnd(), helper)?
         else
           _logger.log(
             "Stored regression stale for \"" + _prop.name() +
               "\", removing")
-          match _regression_dir
-          | let dir: FilePath =>
-            _RegressionDb.clear(dir, _prop.name(), _logger)
-          end
+          _engine.clear_regression(_logger)
           run()
           return
         end
@@ -275,12 +239,7 @@ actor StatefulPropertyRunner[S, M, Cmd: Stringable val]
       _logger.log(
         "Regression replay passed for \"" + _prop.name() +
           "\" — clearing stored regression")
-      match _regression_dir
-      | let dir: FilePath =>
-        _RegressionDb.clear(dir, _prop.name(), _logger)
-      else
-        _Unreachable()
-      end
+      _engine.clear_regression(_logger)
       this._expected_actions.clear()
       for disposable in Poperator[DisposableActor](this._disposables) do
         disposable.dispose()
@@ -304,12 +263,11 @@ actor StatefulPropertyRunner[S, M, Cmd: Stringable val]
 
     if not success then
       match this._current_round
-      | let _: _Run => _collect_health_metrics()
+      | let _: _Run => _engine.collect_health_metrics()
       end
-      _failing_choices = _rnd._get_choices()
-      _failing_spans = _rnd._get_spans()
+      _engine.capture_failure()
 
-      if _failing_choices.size() == 0 then
+      if _engine.failing_choices().size() == 0 then
         _logger.log("no choices recorded, cannot shrink")
         _prepare_next_round()
         fail("", 0)
@@ -364,42 +322,23 @@ actor StatefulPropertyRunner[S, M, Cmd: Stringable val]
     """
     Begin shrinking the failing choice sequence.
     """
-    let shrinker =
-      _Shrinker(
-        _failing_choices,
-        _failing_spans,
-        _params.max_shrink_reductions)
-    _shrink_shrinker = shrinker
-    _shrink_candidates = shrinker.candidates()
+    _engine.begin_shrink()
     _try_next_candidate(failed_repr)
 
   be _try_next_candidate(failed_repr: String) =>
-    let candidates =
-      match _shrink_candidates
-      | let c: Iterator[Array[_Choice val] val] => c
-      else
-        fail(failed_repr, _shrink_count)
-        return
-      end
-
-    if not candidates.has_next() then
-      fail(failed_repr, _shrink_count)
-      return
-    end
-
     let candidate =
-      try
-        candidates.next()?
+      match _engine.next_shrink_candidate()
+      | let c: Array[_Choice val] val => c
       else
-        fail(failed_repr, _shrink_count)
+        fail(failed_repr, _engine.shrink_reductions())
         return
       end
 
-    _rnd._replay(candidate)
+    _engine.replay(candidate)
 
     let num_steps =
       try
-        _rnd.usize(1, _max_steps)?
+        _engine.rnd().usize(1, _max_steps)?
       else
         _try_next_candidate(failed_repr)
         return
@@ -411,8 +350,8 @@ actor StatefulPropertyRunner[S, M, Cmd: Stringable val]
         _prop.initial_model())
     _cmd_trace = Array[Cmd](num_steps)
 
-    // Captures the untrimmed candidate so that an async h.fail() during
-    // the step loop can accept it before new_choices is computed.
+    // Captures untrimmed candidate: an async h.fail() during the step
+    // loop can accept it before new_choices is computed.
     let run_notify =
       recover val
         this~_shrink_candidate_result(
@@ -435,7 +374,7 @@ actor StatefulPropertyRunner[S, M, Cmd: Stringable val]
     while i < num_steps do
       let cmd =
         try
-          _prop.step(ctx, _rnd, helper)?
+          _prop.step(ctx, _engine.rnd(), helper)?
         else
           _prepare_next_round()
           _try_next_candidate(failed_repr)
@@ -460,30 +399,13 @@ actor StatefulPropertyRunner[S, M, Cmd: Stringable val]
       _prop.final_check(ctx, helper)
     end
 
-    let consumed = _rnd._consumed()
-    let new_choices =
-      if consumed < candidate.size() then
-        recover val
-          let trimmed = Array[_Choice val](consumed)
-          try
-            var j: USize = 0
-            while j < consumed do
-              trimmed.push(candidate(j)?)
-              j = j + 1
-            end
-          end
-          trimmed
-        end
-      else
-        candidate
-      end
-    let new_spans = _rnd._get_spans()
+    let new_choices = _engine.trim_to_consumed(candidate)
+    let new_spans = _engine.get_spans()
 
     match \exhaustive\ failed_at_step
     | let _: USize =>
       let current_repr = _format_sample_repr(failed_at_step)
-      _accept_shrink_candidate(new_choices, new_spans)
-      _shrink_count = _shrink_count + 1
+      _engine.accept_shrink(new_choices, new_spans)
       _prepare_next_round()
       _try_next_candidate(current_repr)
     | None =>
@@ -494,17 +416,6 @@ actor StatefulPropertyRunner[S, M, Cmd: Stringable val]
         new_spans,
         this._current_round)
     end
-
-  fun ref _accept_shrink_candidate(
-    new_choices: Array[_Choice val] val,
-    new_spans: Array[_Span val] val)
-  =>
-    match _shrink_shrinker
-    | let s: _Shrinker ref =>
-      s.accept(new_choices, new_spans)
-    end
-    _failing_choices = new_choices
-    _failing_spans = new_spans
 
   be _shrink_candidate_result(
     failed_repr: String,
@@ -519,8 +430,7 @@ actor StatefulPropertyRunner[S, M, Cmd: Stringable val]
       _prepare_next_round()
       _try_next_candidate(failed_repr)
     else
-      _accept_shrink_candidate(new_choices, new_spans)
-      _shrink_count = _shrink_count + 1
+      _engine.accept_shrink(new_choices, new_spans)
       _prepare_next_round()
       _try_next_candidate(current_repr)
     end
@@ -622,7 +532,7 @@ actor StatefulPropertyRunner[S, M, Cmd: Stringable val]
     end
     match round
     | let _: _Run =>
-      _label_counts.upsert(label, 1, {(old, x) => old + x })
+      _engine.classify(label)
     end
 
   be tabulate(heading: String, label: String, round: _Round) =>
@@ -637,15 +547,7 @@ actor StatefulPropertyRunner[S, M, Cmd: Stringable val]
     end
     match round
     | let _: _Run =>
-      let heading_map =
-        try
-          _tabulated_counts(heading)?
-        else
-          let m = Map[String, USize]
-          _tabulated_counts(heading) = m
-          m
-        end
-      heading_map.upsert(label, 1, {(old, x) => old + x })
+      _engine.tabulate(heading, label)
     end
 
   be cover(condition: Bool, label: String, min_pct: F64, round: _Round) =>
@@ -660,10 +562,7 @@ actor StatefulPropertyRunner[S, M, Cmd: Stringable val]
     end
     match round
     | let _: _Run =>
-      _cover_requirements(label) = min_pct
-      if condition then
-        _label_counts.upsert(label, 1, {(old, x) => old + x })
-      end
+      _engine.cover(condition, label, min_pct)
     end
 
   be dispose_when_done(disposable: DisposableActor, round: _Round) =>
@@ -687,76 +586,13 @@ actor StatefulPropertyRunner[S, M, Cmd: Stringable val]
   be log(msg: String, verbose: Bool = false) =>
     _logger.log(msg, verbose)
 
-  fun ref _collect_health_metrics() =>
-    let elapsed = Time.nanos() - _sample_start_nanos
-    if elapsed > _peak_sample_nanos then
-      _peak_sample_nanos = elapsed
-    end
-    let choices_size = _rnd._choices_size()
-    if choices_size > _max_choices then
-      _max_choices = choices_size
-    end
-    (let discards, let accepts) = _rnd._count_filter_spans()
-    _total_filter_discards = _total_filter_discards + discards
-    _total_filter_accepts = _total_filter_accepts + accepts
-
-  fun ref _report_health_checks() =>
-    if _params.max_filter_discard_ratio > 0 then
-      if _total_filter_accepts > 0 then
-        let ratio =
-          _total_filter_discards.f64() / _total_filter_accepts.f64()
-        if ratio > _params.max_filter_discard_ratio then
-          _logger.log(
-            "WARNING: filter discarded " +
-              _total_filter_discards.string() +
-              " candidates across " + _samples_run.string() +
-              " samples (" +
-              Format.float[F64](ratio where fmt = FormatFix, prec = 1) +
-              "x discard ratio, threshold " +
-              Format.float[F64](
-                _params.max_filter_discard_ratio where fmt = FormatFix,
-                prec = 1) +
-              "x). Generator may be too narrow for the filter predicate.")
-        end
-      end
-    end
-
-    if (_params.max_choice_sequence_size > 0) and
-      (_max_choices > _params.max_choice_sequence_size)
-    then
-      _logger.log(
-        "WARNING: largest choice sequence was " +
-          _max_choices.string() +
-          " entries (threshold " +
-          _params.max_choice_sequence_size.string() +
-          "). Consider simplifying the generator or reducing " +
-          "collection sizes.")
-    end
-
-    if (_params.max_sample_nanos > 0) and
-      (_peak_sample_nanos > _params.max_sample_nanos)
-    then
-      let secs =
-        _peak_sample_nanos.f64() / 1_000_000_000.0
-      let threshold_secs =
-        _params.max_sample_nanos.f64() / 1_000_000_000.0
-      _logger.log(
-        "WARNING: slowest sample took " +
-          Format.float[F64](secs where fmt = FormatFix, prec = 1) +
-          "s (threshold " +
-          Format.float[F64](
-            threshold_secs where fmt = FormatFix, prec = 1) +
-          "s). Consider reducing num_samples or simplifying " +
-          "the property.")
-    end
-
   fun ref complete() =>
     """
     Complete the property execution successfully.
     """
-    _report_labels()
-    _report_health_checks()
-    if _check_coverage() then
+    _engine.report_labels(_logger)
+    _engine.report_health_checks(_logger)
+    if _engine.check_coverage(_logger) then
       _notify.complete(true)
     else
       _notify.fail("Property failed: insufficient coverage")
@@ -767,14 +603,9 @@ actor StatefulPropertyRunner[S, M, Cmd: Stringable val]
     """
     Complete the property execution while signalling failure.
     """
-    _report_labels()
-    _report_health_checks()
-    match _regression_dir
-    | let dir: FilePath =>
-      if _failing_choices.size() > 0 then
-        _RegressionDb.save(dir, _prop.name(), _failing_choices, _logger)
-      end
-    end
+    _engine.report_labels(_logger)
+    _engine.report_health_checks(_logger)
+    _engine.save_regression(_logger)
     if err then
       _report_error(repr, shrink_rounds)
     else
@@ -797,78 +628,3 @@ actor StatefulPropertyRunner[S, M, Cmd: Stringable val]
         " (after " +
         shrink_rounds.string() +
         " shrinks)")
-
-  fun ref _report_labels() =>
-    let has_flat = _label_counts.size() > 0
-    let has_tabulated = _tabulated_counts.size() > 0
-    let total = _samples_run
-
-    if has_flat or has_tabulated then
-      _logger.log("")
-
-      if has_flat then
-        let keys = Array[String](_label_counts.size())
-        for k in _label_counts.keys() do
-          keys.push(k)
-        end
-        Sort[Array[String], String](keys)
-        for label in keys.values() do
-          let count = try _label_counts(label)? else 0 end
-          let pct = (count.f64() / total.f64()) * 100.0
-          _logger.log(
-            Format.float[F64](pct where fmt = FormatFix, prec = 1) +
-              "% " + label +
-              " (" + count.string() + "/" + total.string() + ")")
-        end
-      end
-
-      if has_tabulated then
-        let headings = Array[String](_tabulated_counts.size())
-        for h in _tabulated_counts.keys() do
-          headings.push(h)
-        end
-        Sort[Array[String], String](headings)
-        var first_heading = true
-        for heading in headings.values() do
-          if has_flat or (not first_heading) then _logger.log("") end
-          first_heading = false
-          _logger.log(heading + ":")
-          try
-            let heading_map = _tabulated_counts(heading)?
-            let keys = Array[String](heading_map.size())
-            for k in heading_map.keys() do keys.push(k) end
-            Sort[Array[String], String](keys)
-            for label in keys.values() do
-              let count = try heading_map(label)? else 0 end
-              let pct = (count.f64() / total.f64()) * 100.0
-              _logger.log(
-                "  " +
-                  Format.float[F64](pct where fmt = FormatFix, prec = 1) +
-                  "% " + label +
-                  " (" + count.string() + "/" + total.string() + ")")
-            end
-          else
-            _Unreachable()
-          end
-        end
-      end
-    end
-
-  fun _check_coverage(): Bool =>
-    if _cover_requirements.size() == 0 then return true end
-    var ok = true
-    let total = _samples_run
-    for (label, min_pct) in _cover_requirements.pairs() do
-      let count = try _label_counts(label)? else 0 end
-      let actual_pct = (count.f64() / total.f64()) * 100.0
-      if actual_pct < min_pct then
-        ok = false
-        _logger.log(
-          "Insufficient coverage: " + label + " " +
-            Format.float[F64](actual_pct where fmt = FormatFix, prec = 1) +
-            "% < " +
-            Format.float[F64](min_pct where fmt = FormatFix, prec = 1) +
-            "% required")
-      end
-    end
-    ok
