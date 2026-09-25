@@ -109,7 +109,7 @@ echo "::endgroup::"
 
 echo "::group::Raise datasize limit"
 ssh -o StrictHostKeyChecking=no -i vm_key -p 2222 openbsd@localhost \
-  "doas sed -i 's/datasize-max=1536M/datasize-max=8192M/' /etc/login.conf && doas sed -i 's/datasize-cur=1536M/datasize-cur=8192M/' /etc/login.conf"
+  "doas sed -i 's/datasize-max=1536M/datasize-max=infinity/' /etc/login.conf && doas sed -i 's/datasize-cur=1536M/datasize-cur=infinity/' /etc/login.conf"
 echo "::endgroup::"
 
 echo "::group::Copy source to VM"
