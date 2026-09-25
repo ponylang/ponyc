@@ -494,12 +494,58 @@ def main():
         check("DFLY_SERIAL_SOCK override is honored",
               serial_path_override.connected_path == "/custom/serial.sock")
 
+    # ---- _looks_like_text
+    check("_looks_like_text: empty is False",
+          not d._looks_like_text(b''))
+    check("_looks_like_text: readable text is True",
+          d._looks_like_text(b'login: '))
+    check("_looks_like_text: boot messages are True",
+          d._looks_like_text(b'Booting...\r\nkernel text\r\n'))
+    check("_looks_like_text: all-printable short string is True",
+          d._looks_like_text(b'XMMNNOO'))
+    check("_looks_like_text: high bytes are False",
+          not d._looks_like_text(bytes(range(0x80, 0x90))))
+    check("_looks_like_text: mixed mostly-printable is True",
+          d._looks_like_text(b'hello world\x00'))
+    check("_looks_like_text: exactly 60% printable is True",
+          d._looks_like_text(b'helloo\x80\x81\x82\x83'))
+    check("_looks_like_text: below 60% printable is False",
+          not d._looks_like_text(b'hello\x80\x81\x82\x83\x84'))
+
+    # ---- full flow: garbled serial falls back to sendkey
+    serial_garble = FakeSerialSock(initial=b'\x80\x81\x82\x83\x84')
+    with tempfile.TemporaryDirectory() as tmpdir:
+        env = {"DFLY_ARTIFACTS_DIR": tmpdir}
+        rc_garble, _mon_garble, typed_garble = run_main(
+            env, serial_sock=serial_garble, serial_available=True)
+        check("garbled serial: main returns 0 (sendkey fallback)",
+              rc_garble == 0)
+        check("garbled serial: root typed via sendkey",
+              'root' in typed_garble)
+        check("garbled serial: screendump saved at transition",
+              os.path.exists(os.path.join(tmpdir, 'serial-fallback.ppm')))
+
+    # ---- full flow: garbled serial on both reads falls back to sendkey
+    class AlwaysGarbledSerial(FakeSerialSock):
+        def recv(self, n):
+            return b'\x80\x81\x82\x83\x84'
+
+    serial_garble2 = AlwaysGarbledSerial()
+    with tempfile.TemporaryDirectory() as tmpdir:
+        env = {"DFLY_ARTIFACTS_DIR": tmpdir}
+        rc_g2, _mon_g2, typed_g2 = run_main(
+            env, serial_sock=serial_garble2, serial_available=True)
+        check("garbled boot_data: main returns 0 (sendkey fallback)",
+              rc_g2 == 0)
+        check("garbled boot_data: root typed via sendkey",
+              'root' in typed_g2)
+
     # ---- ssh_reachable with real sockets
     check("ssh_reachable: returns False on unlistened port",
           not d.ssh_reachable())
 
     # ---- summary
-    total = 50
+    total = 63
     if failures:
         print(f"dfly_configure_vm_test: FAIL ({len(failures)}): "
               f"{', '.join(failures)}")

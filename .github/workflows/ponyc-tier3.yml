@@ -537,6 +537,15 @@ jobs:
         if: ${{ always() && hashFiles('.libs-cache-miss') == '' }}
         run: |
           pkill -f qemu-system-x86 || true
+      - name: Upload VM diagnostics
+        if: ${{ failure() && hashFiles('.libs-cache-miss') == '' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: dragonfly-vm-diagnostics
+          path: |
+            ${{ runner.temp }}/vm-artifacts/*.ppm
+          if-no-files-found: ignore
+          retention-days: 7
       - name: Send alert on failure
         if: ${{ failure() }}
         uses: zulip/github-actions-zulip/send-message@bd8ec52de371d139ae8313661b7d8318c19266aa
