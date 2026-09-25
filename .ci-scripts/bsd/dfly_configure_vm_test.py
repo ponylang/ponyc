@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """Tests for dfly_configure_vm.
 
-Guards the KEYMAP de-escaping (backslash, backtick, dollar were shell-escaped in
-the original heredoc), send_line key mapping, the socket-path contract with
-dragonfly-provision.bash (DFLY_MONITOR_SOCK), the sendkey + SSH bootstrap flow,
-screendump-based boot detection, and the PPM pixel hash helper.  No VM required.
+Guards the KEYMAP, send_line key mapping, the socket-path contract with
+dragonfly-provision.bash, the sendkey + SSH bootstrap flow, screendump-based
+boot detection, PPM pixel hash, the serial console setup path, and the
+fallback from serial to VGA sendkey.  No VM required.
 """
 import os
 import socket
@@ -68,11 +68,7 @@ class MonitorSock:
 
 
 class ScreendumpMonitorSock(MonitorSock):
-    """Monitor socket that writes fake PPM files on screendump commands.
-
-    Writes a different image for the first N screendumps (simulating boot),
-    then a stable image for the rest (simulating the login prompt).
-    """
+    """Monitor socket that writes fake PPM files on screendump commands."""
 
     def __init__(self, unstable_count=2):
         super().__init__()
@@ -97,33 +93,105 @@ class ScreendumpMonitorSock(MonitorSock):
                 pass
 
 
-def run_main(env, monitor_cls=None, ssh_succeed_on_attempt=1):
-    """Run main() with stubbed sockets and SSH check.
+class FakeSerialSock:
+    """Mock serial socket that returns scripted responses.
 
-    ssh_succeed_on_attempt: SSH becomes reachable on this sendkey attempt
-    number (1-based).  Set to 0 for "never reachable".
+    *responses* maps a sent-data substring to the bytes that should appear
+    in the receive buffer after that send.  *initial* is data already in
+    the buffer when the first recv is called (e.g. the loader prompt that
+    appears after the VGA ``set console=comconsole`` command).
     """
-    saved_env = dict(os.environ)
-    saved_socket = d.socket.socket
-    saved_send_line = d.send_line
-    saved_ssh = d.ssh_reachable
-    saved_bios_wait = d.BIOS_WAIT
-    saved_boot_timeout = d.BOOT_TIMEOUT
-    saved_stable = d.STABLE_SECONDS
-    saved_interval = d.SCREENDUMP_INTERVAL
-    saved_ssh_timeout = d.SSH_CHECK_TIMEOUT
-    saved_ssh_interval = d.SSH_CHECK_INTERVAL
-    saved_max_attempts = d.MAX_ATTEMPTS
 
+    def __init__(self, responses=None, initial=b''):
+        self._responses = responses or {}
+        self._buffer = bytearray(initial)
+        self.sent = []
+        self._connected = False
+
+    def connect(self, path):
+        self._connected = True
+        self.connected_path = path
+
+    def settimeout(self, _):
+        pass
+
+    def recv(self, n):
+        if self._buffer:
+            data = bytes(self._buffer[:n])
+            del self._buffer[:n]
+            return data
+        raise socket.timeout
+
+    def sendall(self, data):
+        self.sent.append(data)
+        for pattern, response in self._responses.items():
+            if pattern in data:
+                self._buffer.extend(response)
+
+    def close(self):
+        pass
+
+
+def _patch_constants():
+    """Zero out all timeouts for fast tests.  Returns a restore callable."""
+    saved = {
+        'BIOS_WAIT': d.BIOS_WAIT,
+        'BOOT_TIMEOUT': d.BOOT_TIMEOUT,
+        'STABLE_SECONDS': d.STABLE_SECONDS,
+        'SCREENDUMP_INTERVAL': d.SCREENDUMP_INTERVAL,
+        'SSH_CHECK_TIMEOUT': d.SSH_CHECK_TIMEOUT,
+        'SSH_CHECK_INTERVAL': d.SSH_CHECK_INTERVAL,
+        'MAX_ATTEMPTS': d.MAX_ATTEMPTS,
+        'LOADER_WAIT': d.LOADER_WAIT,
+        'SERIAL_DETECT_TIMEOUT': d.SERIAL_DETECT_TIMEOUT,
+        'SERIAL_BOOT_DETECT_TIMEOUT': d.SERIAL_BOOT_DETECT_TIMEOUT,
+        'SERIAL_BOOT_TIMEOUT': d.SERIAL_BOOT_TIMEOUT,
+        'SERIAL_CMD_TIMEOUT': d.SERIAL_CMD_TIMEOUT,
+        'POST_BOOT_DELAY': d.POST_BOOT_DELAY,
+    }
     d.BIOS_WAIT = 0
     d.BOOT_TIMEOUT = 5
     d.STABLE_SECONDS = 0
     d.SCREENDUMP_INTERVAL = 0
     d.SSH_CHECK_TIMEOUT = 0.01
     d.SSH_CHECK_INTERVAL = 0
+    d.MAX_ATTEMPTS = 5
+    d.LOADER_WAIT = 0
+    d.SERIAL_DETECT_TIMEOUT = 0.01
+    d.SERIAL_BOOT_DETECT_TIMEOUT = 0.01
+    d.SERIAL_BOOT_TIMEOUT = 0.01
+    d.SERIAL_CMD_TIMEOUT = 0.01
+    d.POST_BOOT_DELAY = 0
+
+    def restore():
+        for k, v in saved.items():
+            setattr(d, k, v)
+    return restore
+
+
+def run_main(env, monitor_cls=None, ssh_succeed_on_attempt=1,
+             serial_sock=None, serial_available=False):
+    """Run main() with stubbed sockets and SSH check.
+
+    ssh_succeed_on_attempt: SSH becomes reachable on this sendkey attempt
+    number (1-based).  Set to 0 for "never reachable".
+
+    serial_sock: a FakeSerialSock (or None).  When *serial_available* is
+    True and *serial_sock* is None, a default no-output serial is created.
+    """
+    saved_env = dict(os.environ)
+    saved_socket = d.socket.socket
+    saved_send_line = d.send_line
+    saved_ssh = d.ssh_reachable
+    saved_create_serial = d._create_serial_socket
+
+    restore = _patch_constants()
 
     monitor = (monitor_cls() if monitor_cls else
                ScreendumpMonitorSock(unstable_count=0))
+
+    if serial_available and serial_sock is None:
+        serial_sock = FakeSerialSock()
 
     def fake_socket(*_a, **_k):
         return monitor
@@ -137,9 +205,16 @@ def run_main(env, monitor_cls=None, ssh_succeed_on_attempt=1):
     def fake_ssh_reachable():
         if ssh_succeed_on_attempt == 0:
             return False
-        # Count attempts by how many times 'setup.sh' has been typed
-        current = sum(1 for t in typed if 'setup.sh' in t)
-        return current >= ssh_succeed_on_attempt
+        if ssh_succeed_on_attempt == 1:
+            return True
+        attempt_count = sum(1 for t in typed if t == 'root')
+        return attempt_count >= ssh_succeed_on_attempt
+
+    def fake_create_serial(path):
+        if serial_sock is not None:
+            serial_sock.connect(path)
+            return serial_sock
+        return None
 
     if ssh_succeed_on_attempt == 0:
         d.MAX_ATTEMPTS = 2
@@ -149,19 +224,15 @@ def run_main(env, monitor_cls=None, ssh_succeed_on_attempt=1):
     d.socket.socket = fake_socket
     d.send_line = capturing_send_line
     d.ssh_reachable = fake_ssh_reachable
+    d._create_serial_socket = fake_create_serial
     try:
         rc = d.main()
     finally:
         d.send_line = saved_send_line
         d.socket.socket = saved_socket
         d.ssh_reachable = saved_ssh
-        d.BIOS_WAIT = saved_bios_wait
-        d.BOOT_TIMEOUT = saved_boot_timeout
-        d.STABLE_SECONDS = saved_stable
-        d.SCREENDUMP_INTERVAL = saved_interval
-        d.SSH_CHECK_TIMEOUT = saved_ssh_timeout
-        d.SSH_CHECK_INTERVAL = saved_ssh_interval
-        d.MAX_ATTEMPTS = saved_max_attempts
+        d._create_serial_socket = saved_create_serial
+        restore()
         os.environ.clear()
         os.environ.update(saved_env)
 
@@ -175,21 +246,22 @@ def main():
         if not cond:
             failures.append(name)
 
-    # -- KEYMAP: chars that were backslash-escaped in the original heredoc --
+    # ---- KEYMAP: chars that were backslash-escaped in the original heredoc
     check("backslash maps to 'backslash'", d.KEYMAP['\\'] == 'backslash')
     check("backtick maps to 'grave_accent'", d.KEYMAP['`'] == 'grave_accent')
     check("dollar maps to 'shift-4'", d.KEYMAP['$'] == 'shift-4')
 
-    # -- send_line key mapping --
+    # ---- send_line key mapping
     check("send_line appends ret", keys_for('') == ['ret'])
     check("'$' -> shift-4, ret", keys_for('$') == ['shift-4', 'ret'])
     check("backslash -> backslash, ret", keys_for('\\') == ['backslash', 'ret'])
-    check("backtick -> grave_accent, ret", keys_for('`') == ['grave_accent', 'ret'])
+    check("backtick -> grave_accent, ret",
+          keys_for('`') == ['grave_accent', 'ret'])
     check("'aB' -> a, shift-b, ret", keys_for('aB') == ['a', 'shift-b', 'ret'])
     check("'7' -> 7, ret", keys_for('7') == ['7', 'ret'])
     check("tab is skipped", keys_for('\t') == ['ret'])
 
-    # -- _ppm_pixel_hash --
+    # ---- _ppm_pixel_hash
     ppm = b'P6\n10 1\n255\n' + bytes(30)
     h1 = d._ppm_pixel_hash(ppm)
     h2 = d._ppm_pixel_hash(ppm)
@@ -204,16 +276,9 @@ def main():
     check("ppm_pixel_hash: handles non-PPM",
           d._ppm_pixel_hash(b'not a ppm') is not None)
 
-    # -- wait_for_boot with screendumps --
+    # ---- wait_for_boot with screendumps
     with tempfile.TemporaryDirectory() as tmpdir:
-        saved_bios = d.BIOS_WAIT
-        saved_timeout = d.BOOT_TIMEOUT
-        saved_stable = d.STABLE_SECONDS
-        saved_interval = d.SCREENDUMP_INTERVAL
-        d.BIOS_WAIT = 0
-        d.BOOT_TIMEOUT = 5
-        d.STABLE_SECONDS = 0
-        d.SCREENDUMP_INTERVAL = 0
+        restore = _patch_constants()
         try:
             mon = ScreendumpMonitorSock(unstable_count=1)
             result = d.wait_for_boot(mon, tmpdir)
@@ -222,63 +287,172 @@ def main():
             check("wait_for_boot: saves last-console.ppm",
                   os.path.exists(last))
         finally:
-            d.BIOS_WAIT = saved_bios
-            d.BOOT_TIMEOUT = saved_timeout
-            d.STABLE_SECONDS = saved_stable
-            d.SCREENDUMP_INTERVAL = saved_interval
+            restore()
 
-    # -- wait_for_boot with no artifacts_dir --
-    saved_bios = d.BIOS_WAIT
-    saved_timeout = d.BOOT_TIMEOUT
-    saved_stable = d.STABLE_SECONDS
-    saved_interval = d.SCREENDUMP_INTERVAL
-    d.BIOS_WAIT = 0
+    # ---- wait_for_boot with no artifacts_dir
+    restore = _patch_constants()
     d.BOOT_TIMEOUT = 0.01
-    d.STABLE_SECONDS = 0
-    d.SCREENDUMP_INTERVAL = 0
     try:
         mon_no_dir = ScreendumpMonitorSock(unstable_count=100)
         result_no_dir = d.wait_for_boot(mon_no_dir, "")
         check("wait_for_boot: returns False on timeout (no dir)",
               not result_no_dir)
     finally:
-        d.BIOS_WAIT = saved_bios
-        d.BOOT_TIMEOUT = saved_timeout
-        d.STABLE_SECONDS = saved_stable
-        d.SCREENDUMP_INTERVAL = saved_interval
+        restore()
 
-    # -- full flow: SSH reachable on first attempt --
+    # ---- wait_for_boot with skip_bios_wait
+    with tempfile.TemporaryDirectory() as tmpdir:
+        restore = _patch_constants()
+        try:
+            mon_skip = ScreendumpMonitorSock(unstable_count=0)
+            result_skip = d.wait_for_boot(
+                mon_skip, tmpdir, skip_bios_wait=True)
+            check("wait_for_boot: skip_bios_wait works", result_skip)
+        finally:
+            restore()
+
+    # ---- serial: _serial_read with data
+    serial_r = FakeSerialSock(initial=b'hello world')
+    restore = _patch_constants()
+    try:
+        data = d._serial_read(serial_r, timeout=0.01)
+        check("_serial_read: returns available data", data == b'hello world')
+    finally:
+        restore()
+
+    # ---- serial: _serial_read with no data
+    serial_empty = FakeSerialSock()
+    restore = _patch_constants()
+    try:
+        data = d._serial_read(serial_empty, timeout=0.01)
+        check("_serial_read: returns empty on timeout", data == b'')
+    finally:
+        restore()
+
+    # ---- serial: serial_read_until finds pattern
+    serial_pat = FakeSerialSock(initial=b'booting...\r\nlogin: ')
+    restore = _patch_constants()
+    try:
+        buf, found = d.serial_read_until(serial_pat, b'login:', 0.01)
+        check("serial_read_until: finds pattern", found)
+        check("serial_read_until: returns buffer", b'login:' in buf)
+    finally:
+        restore()
+
+    # ---- serial: serial_read_until timeout
+    serial_nopat = FakeSerialSock(initial=b'no match here')
+    restore = _patch_constants()
+    try:
+        buf, found = d.serial_read_until(serial_nopat, b'login:', 0.01)
+        check("serial_read_until: returns False on timeout", not found)
+    finally:
+        restore()
+
+    # ---- serial: serial_send
+    serial_s = FakeSerialSock()
+    d.serial_send(serial_s, 'boot\r')
+    check("serial_send: data is sent", serial_s.sent == [b'boot\r'])
+
+    # ---- full flow: serial setup succeeds
+    serial_ok = FakeSerialSock(
+        initial=b'\r\nOK ',
+        responses={
+            b'boot\r': b'Booting...\r\nlogin: ',
+            b'root\r': b'root\r\nLast login: Thu Jan 1\r\n# ',
+            b'mount_cd9660 /dev/cd0 /mnt\r': b'# ',
+            b'sh /mnt/setup.sh\r': b'Starting sshd.\r\n# ',
+        },
+    )
     with tempfile.TemporaryDirectory() as tmpdir:
         env = {"DFLY_ARTIFACTS_DIR": tmpdir}
-        rc, monitor, typed = run_main(env)
+        rc, monitor, typed = run_main(
+            env, serial_sock=serial_ok, serial_available=True)
+        check("serial success: main returns 0", rc == 0)
+        check("serial success: boot sent via serial",
+              b'boot\r' in serial_ok.sent)
+        check("serial success: root sent via serial",
+              b'root\r' in serial_ok.sent)
+        check("serial success: mount sent via serial",
+              b'mount_cd9660 /dev/cd0 /mnt\r' in serial_ok.sent)
+        check("serial success: setup sent via serial",
+              b'sh /mnt/setup.sh\r' in serial_ok.sent)
+        # VGA sendkey should NOT have typed login commands
+        check("serial success: no VGA root login",
+              'root' not in typed)
+        check("serial success: comconsole set via VGA",
+              any('set console=comconsole' in t for t in typed))
 
-        check("main returns 0 on success", rc == 0)
+    # ---- full flow: serial not available, falls back to sendkey
+    with tempfile.TemporaryDirectory() as tmpdir:
+        env = {"DFLY_ARTIFACTS_DIR": tmpdir}
+        rc, monitor, typed = run_main(env, serial_available=False)
+        check("no serial: main returns 0", rc == 0)
+        check("no serial: root typed via sendkey", 'root' in typed)
+        check("no serial: mount typed via sendkey",
+              any('mount_cd9660' in t for t in typed))
+        check("no serial: setup typed via sendkey",
+              any('setup.sh' in t for t in typed))
 
-        sendkeys = [c.removeprefix('sendkey ')
-                    for c in monitor.sent if c.startswith('sendkey ')]
+    # ---- full flow: serial available but no output (console switch failed)
+    serial_silent = FakeSerialSock()
+    with tempfile.TemporaryDirectory() as tmpdir:
+        env = {"DFLY_ARTIFACTS_DIR": tmpdir}
+        rc, monitor, typed = run_main(
+            env, serial_sock=serial_silent, serial_available=True)
+        check("silent serial: main returns 0 (sendkey fallback)", rc == 0)
+        check("silent serial: root typed via sendkey", 'root' in typed)
 
-        check(
-            "screendump commands are sent",
-            any("screendump" in c for c in monitor.sent),
-        )
-        check(
-            "console is reset (ctrl-c) before login",
-            sendkeys[0] == 'ctrl-c',
-        )
-        check(
-            "root login is typed",
-            'root' in typed,
-        )
-        check(
-            "mount command is typed",
-            any('mount_cd9660' in line for line in typed),
-        )
-        check(
-            "setup script is typed",
-            any('setup.sh' in line for line in typed),
-        )
+    # ---- full flow: serial OSError falls back to sendkey
+    serial_err = FakeSerialSock(initial=b'\r\nOK ')
+    _err_orig = serial_err.sendall
 
-    # -- socket path defaults --
+    def _err_sendall(data):
+        if b'boot' in data:
+            raise BrokenPipeError("serial disconnected")
+        _err_orig(data)
+
+    serial_err.sendall = _err_sendall
+    with tempfile.TemporaryDirectory() as tmpdir:
+        env = {"DFLY_ARTIFACTS_DIR": tmpdir}
+        rc_err, _mon_err, typed_err = run_main(
+            env, serial_sock=serial_err, serial_available=True)
+        check("serial OSError: main returns 0 (sendkey fallback)",
+              rc_err == 0)
+        check("serial OSError: root typed via sendkey",
+              'root' in typed_err)
+
+    # ---- full flow: serial with login prompt already present
+    serial_login = FakeSerialSock(
+        initial=b'\r\nlogin: ',
+        responses={
+            b'root\r': b'root\r\n# ',
+            b'mount_cd9660 /dev/cd0 /mnt\r': b'# ',
+            b'sh /mnt/setup.sh\r': b'Starting sshd.\r\n# ',
+        },
+    )
+    with tempfile.TemporaryDirectory() as tmpdir:
+        env = {"DFLY_ARTIFACTS_DIR": tmpdir}
+        rc_login, _mon_login, typed_login = run_main(
+            env, serial_sock=serial_login, serial_available=True)
+        check("serial login present: main returns 0", rc_login == 0)
+        check("serial login present: boot not sent via serial",
+              b'boot\r' not in serial_login.sent)
+
+    # ---- full flow: sendkey retry (SSH reachable on attempt 2)
+    with tempfile.TemporaryDirectory() as tmpdir:
+        env_retry = {"DFLY_ARTIFACTS_DIR": tmpdir}
+        rc_retry, _mon_r, typed_r = run_main(
+            env_retry, ssh_succeed_on_attempt=2)
+        check("retry: main returns 0", rc_retry == 0)
+        check("retry: root typed at least twice",
+              sum(1 for t in typed_r if t == 'root') >= 2)
+
+    # ---- full flow: complete failure (SSH never reachable)
+    rc_fail, _mon_f, _typed_f = run_main(
+        {}, ssh_succeed_on_attempt=0)
+    check("failure: main returns 1", rc_fail == 1)
+
+    # ---- socket path defaults
     env_default = {}
     _rc_d, mon_d, _typed_d = run_main(env_default)
     check(
@@ -286,37 +460,46 @@ def main():
         mon_d.connected_path == "dfly-monitor.sock",
     )
 
-    # -- socket path overrides --
-    env_override = {
-        "DFLY_MONITOR_SOCK": "/tmp/vm/mon.sock",
-    }
+    # ---- socket path overrides
+    env_override = {"DFLY_MONITOR_SOCK": "/tmp/vm/mon.sock"}
     _rc2, mon2, _typed2 = run_main(env_override)
     check(
         "DFLY_MONITOR_SOCK override is honored",
         mon2.connected_path == "/tmp/vm/mon.sock",
     )
 
-    # -- retry: SSH not reachable on first attempt, succeeds on second --
+    # ---- serial socket path derivation
+    serial_path_check = FakeSerialSock()
     with tempfile.TemporaryDirectory() as tmpdir:
-        env_retry = {"DFLY_ARTIFACTS_DIR": tmpdir}
-        rc_retry, _mon_r, typed_r = run_main(
-            env_retry, ssh_succeed_on_attempt=2,
-        )
-        check("retry: main returns 0", rc_retry == 0)
-        root_count = sum(1 for t in typed_r if t == 'root')
-        check("retry: typed root at least twice", root_count >= 2)
+        env = {
+            "DFLY_MONITOR_SOCK": os.path.join(tmpdir, "dfly-monitor.sock"),
+            "DFLY_ARTIFACTS_DIR": tmpdir,
+        }
+        _rc3, _mon3, _typed3 = run_main(
+            env, serial_sock=serial_path_check, serial_available=True)
+        expected_serial = os.path.join(tmpdir, "dfly-serial.sock")
+        check("serial socket path derived from monitor path",
+              serial_path_check.connected_path == expected_serial)
 
-    # -- failure: SSH never reachable --
-    rc_fail, _mon_f, _typed_f = run_main(
-        {}, ssh_succeed_on_attempt=0,
-    )
-    check("failure: main returns 1", rc_fail == 1)
+    # ---- serial socket path override
+    serial_path_override = FakeSerialSock()
+    with tempfile.TemporaryDirectory() as tmpdir:
+        env = {
+            "DFLY_MONITOR_SOCK": os.path.join(tmpdir, "dfly-monitor.sock"),
+            "DFLY_SERIAL_SOCK": "/custom/serial.sock",
+            "DFLY_ARTIFACTS_DIR": tmpdir,
+        }
+        _rc4, _mon4, _typed4 = run_main(
+            env, serial_sock=serial_path_override, serial_available=True)
+        check("DFLY_SERIAL_SOCK override is honored",
+              serial_path_override.connected_path == "/custom/serial.sock")
 
-    # -- ssh_reachable with real sockets --
+    # ---- ssh_reachable with real sockets
     check("ssh_reachable: returns False on unlistened port",
           not d.ssh_reachable())
 
-    total = 27
+    # ---- summary
+    total = 50
     if failures:
         print(f"dfly_configure_vm_test: FAIL ({len(failures)}): "
               f"{', '.join(failures)}")
