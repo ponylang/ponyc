@@ -40,7 +40,7 @@ KEYMAP = {
     '(': 'shift-9', ')': 'shift-0',
 }
 
-BIOS_WAIT = 5
+BIOS_WAIT = 8
 BOOT_TIMEOUT = 360
 STABLE_SECONDS = 10
 SCREENDUMP_INTERVAL = 5
@@ -185,6 +185,18 @@ def _log_serial(data):
     sys.stdout.flush()
 
 
+def _looks_like_text(data):
+    """Check whether data is readable serial console output.
+
+    Returns True when at least 60% of the bytes are printable ASCII,
+    CR, LF, or tab.
+    """
+    if not data:
+        return False
+    ok = sum(1 for b in data if 0x20 <= b <= 0x7e or b in (0x0a, 0x0d, 0x09))
+    return ok >= len(data) * 0.6
+
+
 def _create_serial_socket(path):
     """Connect to the QEMU serial Unix socket.  Returns socket or None."""
     try:
@@ -257,11 +269,11 @@ def try_serial_setup(monitor, serial, artifacts_dir):
     Returns True if SSH becomes reachable, False to fall back to sendkey.
     """
     # -- Bootloader interception ------------------------------------------
-    time.sleep(BIOS_WAIT)
+    time.sleep(3)
     print("  interrupting bootloader...")
-    send_hmp(monitor, 'sendkey esc')
-    time.sleep(2)
-    send_hmp(monitor, 'sendkey esc')
+    for _ in range(6):
+        send_hmp(monitor, 'sendkey esc')
+        time.sleep(1)
     time.sleep(LOADER_WAIT)
 
     print("  enabling serial console at loader prompt...")
@@ -272,6 +284,12 @@ def try_serial_setup(monitor, serial, artifacts_dir):
     print("  checking for serial output...")
     initial = _serial_read(serial, timeout=SERIAL_DETECT_TIMEOUT)
 
+    if initial and not _looks_like_text(initial):
+        print(f"  serial data received but not readable text "
+              f"(hex: {initial.hex()})")
+        print(f"  repr: {initial!r}")
+        initial = b''
+
     if not initial:
         # Console may not have switched.  Send ``boot`` via VGA sendkey in
         # case the loader is still waiting on VGA (otherwise the VM never
@@ -280,8 +298,13 @@ def try_serial_setup(monitor, serial, artifacts_dir):
         send_line(monitor, 'boot')
         # Give the kernel time to start; check whether serial wakes up.
         boot_data = _serial_read(serial, timeout=SERIAL_BOOT_DETECT_TIMEOUT)
-        if not boot_data:
-            print("  still no serial output — serial console not available")
+        if not boot_data or not _looks_like_text(boot_data):
+            if boot_data:
+                print(f"  serial data after boot not readable "
+                      f"(hex: {boot_data.hex()})")
+            else:
+                print("  still no serial output")
+            print("  serial console not available")
             return False
         print("  serial output detected after VGA boot")
         initial = boot_data
@@ -449,6 +472,10 @@ def main():
                 print(f"  serial setup error: {e}")
             serial.close()
             serial = None
+            if artifacts_dir:
+                print("  saving screendump at serial→VGA transition...")
+                screendump(monitor, os.path.join(
+                    artifacts_dir, 'serial-fallback.ppm'))
             print("Serial approach did not succeed — "
                   "falling back to VGA sendkey")
         else:

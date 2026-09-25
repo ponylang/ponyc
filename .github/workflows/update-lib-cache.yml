@@ -408,6 +408,15 @@ jobs:
         if: always()
         run: |
           pkill -f qemu-system-x86 || true
+      - name: Upload VM diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dragonfly-warmer-vm-diagnostics
+          path: |
+            ${{ runner.temp }}/vm-artifacts/*.ppm
+          if-no-files-found: ignore
+          retention-days: 7
 
   # Keep storage bounded: keep the 2 newest versions of each ponyc-libs-cache/*
   # package, delete older ones. Only the warmer pushes (on every main commit), so
