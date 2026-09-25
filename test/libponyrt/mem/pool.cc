@@ -1317,7 +1317,7 @@ TEST(PoolArenaDeath, BlockInteriorFree)
 {
   SKIP_WITHOUT_ARENA_CHECKS();
   testing::FLAGS_gtest_death_test_style = "threadsafe";
-  size_t block = 2 * 1024 * 1024;
+  size_t block = TEST_ARENA_FILLING_BLOCK;
   char* p = (char*)ponyint_pool_alloc_size(block);
 
   // Not at the block's start, same unit: the base check fires. One unit
@@ -1338,9 +1338,9 @@ TEST(PoolArenaDeath, BlockDoubleFree)
     // The pin keeps the arena mapped, so the second free reaches the
     // check instead of faulting on an unmapped header.
     void* pin = ponyint_pool_alloc(0);
-    void* p = ponyint_pool_alloc_size(2 * 1024 * 1024);
-    ponyint_pool_free_size(2 * 1024 * 1024, p);
-    ponyint_pool_free_size(2 * 1024 * 1024, p);
+    void* p = ponyint_pool_alloc_size(TEST_ARENA_FILLING_BLOCK);
+    ponyint_pool_free_size(TEST_ARENA_FILLING_BLOCK, p);
+    ponyint_pool_free_size(TEST_ARENA_FILLING_BLOCK, p);
     (void)pin;
   }, "UNIT_STATE_HEAD");
 }
@@ -1428,8 +1428,8 @@ TEST(PoolArenaDeath, CreditRunTailInFreeUnit)
 
   EXPECT_DEATH({
     void* pin = ponyint_pool_alloc(0); // keeps the arena occupied
-    char* p = (char*)ponyint_pool_alloc_size(2 * 1024 * 1024);
-    ponyint_pool_free_size(2 * 1024 * 1024, p);
+    char* p = (char*)ponyint_pool_alloc_size(TEST_ARENA_FILLING_BLOCK);
+    ponyint_pool_free_size(TEST_ARENA_FILLING_BLOCK, p);
     // The released span's pages went back to the operating system, so take
     // them back before forging a header in them. The unit stays free either
     // way, and a run whose tail sits in a free unit is what the credit must
@@ -1496,7 +1496,7 @@ TEST(PoolArenaDeath, CreditRunBlockLenNotOne)
 
   EXPECT_DEATH({
     void* pin = ponyint_pool_alloc(0);
-    char* b = (char*)ponyint_pool_alloc_size(2 * 1024 * 1024);
+    char* b = (char*)ponyint_pool_alloc_size(TEST_ARENA_FILLING_BLOCK);
     forged_run_t* h = (forged_run_t*)b;
     h->next_run = NULL;
     h->first = b;
@@ -1515,7 +1515,7 @@ TEST(PoolArenaDeath, CreditRunBlockFirstNotBase)
 
   EXPECT_DEATH({
     void* pin = ponyint_pool_alloc(0);
-    char* b = (char*)ponyint_pool_alloc_size(2 * 1024 * 1024);
+    char* b = (char*)ponyint_pool_alloc_size(TEST_ARENA_FILLING_BLOCK);
     forged_run_t* h = (forged_run_t*)b;
     h->next_run = NULL;
     h->first = b + 64;
