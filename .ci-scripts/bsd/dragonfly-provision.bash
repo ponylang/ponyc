@@ -57,10 +57,10 @@ echo "::endgroup::"
 echo "::group::Prepare VM access"
 ssh-keygen -t ed25519 -f vm_key -N ""
 
-# Create a seed ISO with the SSH key and a setup script.  The VM mounts this
-# as a CD-ROM, so the sendkey bootstrap only has to type three short commands
-# (login, mount, run script) instead of piping dozens of characters through
-# the fragile VGA sendkey path.
+# Create a seed ISO with the SSH key and a setup script.  The serial console
+# path mounts it and runs the script directly; the VGA sendkey fallback only
+# has to type three short commands (login, mount, run script) instead of
+# piping dozens of characters through VGA sendkey.
 cat > "$VM_ARTIFACTS/setup.sh" <<'SETUP'
 #!/bin/sh
 set -e
@@ -101,9 +101,9 @@ qemu-system-x86_64 \
 echo "::endgroup::"
 
 echo "::group::Configure and wait for VM"
-# dfly_configure_vm.py detects when boot finishes (VGA screendump stability),
-# types login + mount + setup via sendkey, then verifies SSH is reachable.
-# The setup script lives on the seed ISO created above.
+# dfly_configure_vm.py intercepts the bootloader to enable serial console,
+# then logs in, mounts the seed ISO, and runs setup via serial.  Falls back
+# to VGA sendkey if serial is unavailable.
 DFLY_MONITOR_SOCK="$VM_ARTIFACTS/dfly-monitor.sock" \
   DFLY_ARTIFACTS_DIR="$VM_ARTIFACTS" \
   python3 .ci-scripts/bsd/dfly_configure_vm.py
