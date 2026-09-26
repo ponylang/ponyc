@@ -1,5 +1,4 @@
 use "pony_test"
-use "pony_check"
 
 actor \nodoc\ Main is TestList
   new create(env: Env) =>
@@ -9,11 +8,11 @@ actor \nodoc\ Main is TestList
 
   fun tag tests(test: PonyTest) =>
     // Property tests
-    test(Property1UnitTest[(String, String)](_IRegexpIsMatchImpliesSearchProperty))
-    test(Property1UnitTest[String](_IRegexpLiteralRoundtripProperty))
-    test(Property1UnitTest[(String, String)](_IRegexpMatchSafetyProperty))
-    test(Property1UnitTest[String](_IRegexpParserSafetyProperty))
-    test(Property1UnitTest[(String, String)](_IRegexpSearchSubstringProperty))
+    test(PropertyTest[(String, String)](_IRegexpIsMatchImpliesSearchProperty))
+    test(PropertyTest[String](_IRegexpLiteralRoundtripProperty))
+    test(PropertyTest[(String, String)](_IRegexpMatchSafetyProperty))
+    test(PropertyTest[String](_IRegexpParserSafetyProperty))
+    test(PropertyTest[(String, String)](_IRegexpSearchSubstringProperty))
     // Example tests
     test(_TestIRegexpEdgeCases)
     test(_TestIRegexpEscapes)
@@ -94,20 +93,20 @@ primitive \nodoc\ _IRegexpGen
 // ===================================================================
 // Property Tests — I-Regexp
 // ===================================================================
-class \nodoc\ iso _IRegexpParserSafetyProperty is Property1[String]
+class \nodoc\ iso _IRegexpParserSafetyProperty is Property[String]
   fun name(): String => "iregex/parser-safety"
 
   fun gen(): Generator[String] =>
     Generators.ascii(0, 50)
 
-  fun ref property(sample: String, ph: PropertyHelper) =>
+  fun ref property(sample: String, ph: TestHelper) =>
     // parse() should always return a result, never crash
     match \exhaustive\ IRegexpCompiler.parse(sample)
     | let _: IRegexp => None
     | let _: IRegexpParseError => None
     end
 
-class \nodoc\ iso _IRegexpMatchSafetyProperty is Property1[(String, String)]
+class \nodoc\ iso _IRegexpMatchSafetyProperty is Property[(String, String)]
   fun name(): String => "iregex/match-safety"
 
   fun gen(): Generator[(String, String)] =>
@@ -115,7 +114,7 @@ class \nodoc\ iso _IRegexpMatchSafetyProperty is Property1[(String, String)]
       _IRegexpGen(2),
       Generators.ascii(0, 30))
 
-  fun ref property(sample: (String, String), ph: PropertyHelper) =>
+  fun ref property(sample: (String, String), ph: TestHelper) =>
     (let pattern, let input) = sample
     match \exhaustive\ IRegexpCompiler.parse(pattern)
     | let re: IRegexp =>
@@ -127,7 +126,7 @@ class \nodoc\ iso _IRegexpMatchSafetyProperty is Property1[(String, String)]
     end
 
 class \nodoc\ iso _IRegexpIsMatchImpliesSearchProperty
-  is Property1[(String, String)]
+  is Property[(String, String)]
   fun name(): String => "iregex/is_match-implies-search"
 
   fun gen(): Generator[(String, String)] =>
@@ -135,7 +134,7 @@ class \nodoc\ iso _IRegexpIsMatchImpliesSearchProperty
       _IRegexpGen(2),
       Generators.ascii(0, 30))
 
-  fun ref property(sample: (String, String), ph: PropertyHelper) =>
+  fun ref property(sample: (String, String), ph: TestHelper) =>
     (let pattern, let input) = sample
     match \exhaustive\ IRegexpCompiler.parse(pattern)
     | let re: IRegexp =>
@@ -147,13 +146,13 @@ class \nodoc\ iso _IRegexpIsMatchImpliesSearchProperty
     | let _: IRegexpParseError => None
     end
 
-class \nodoc\ iso _IRegexpLiteralRoundtripProperty is Property1[String]
+class \nodoc\ iso _IRegexpLiteralRoundtripProperty is Property[String]
   fun name(): String => "iregex/literal-roundtrip"
 
   fun gen(): Generator[String] =>
     Generators.ascii(1, 20)
 
-  fun ref property(sample: String, ph: PropertyHelper) =>
+  fun ref property(sample: String, ph: TestHelper) =>
     // Escape metacharacters to make a literal pattern
     let buf = String(sample.size() * 2)
     for byte in sample.values() do
@@ -177,7 +176,7 @@ class \nodoc\ iso _IRegexpLiteralRoundtripProperty is Property1[String]
     end
 
 class \nodoc\ iso _IRegexpSearchSubstringProperty
-  is Property1[(String, String)]
+  is Property[(String, String)]
   fun name(): String => "iregex/search-substring"
 
   fun gen(): Generator[(String, String)] =>
@@ -185,7 +184,7 @@ class \nodoc\ iso _IRegexpSearchSubstringProperty
       Generators.ascii_letters(1, 5),
       Generators.ascii(0, 30))
 
-  fun ref property(sample: (String, String), ph: PropertyHelper) =>
+  fun ref property(sample: (String, String), ph: TestHelper) =>
     (let pattern, let input) = sample
     match \exhaustive\ IRegexpCompiler.parse(pattern)
     | let re: IRegexp =>

@@ -1,4 +1,3 @@
-use "pony_check"
 use "pony_test"
 
 // ---------------------------------------------------------------------------
@@ -6,7 +5,7 @@ use "pony_test"
 // ---------------------------------------------------------------------------
 
 class \nodoc\ iso _PropertySerializerContainsMethod
-  is Property1[String val]
+  is Property[String val]
   """Method string appears in the serialized request line."""
   fun name(): String => "serializer/contains_method"
 
@@ -15,7 +14,7 @@ class \nodoc\ iso _PropertySerializerContainsMethod
       [ "GET"; "POST"; "PUT"; "DELETE"; "HEAD"
         "OPTIONS"; "PATCH"; "TRACE"])
 
-  fun ref property(arg1: String val, ph: PropertyHelper) =>
+  fun ref property(arg1: String val, ph: TestHelper) =>
     let method =
       match Methods.parse(arg1)
       | let m: Method => m
@@ -32,7 +31,7 @@ class \nodoc\ iso _PropertySerializerContainsMethod
       "request line should contain method: " + arg1)
 
 class \nodoc\ iso _PropertySerializerContainsPath
-  is Property1[String val]
+  is Property[String val]
   """Path appears in the serialized request line."""
   fun name(): String => "serializer/contains_path"
 
@@ -42,7 +41,7 @@ class \nodoc\ iso _PropertySerializerContainsPath
       Generators.ascii_letters(0, 20),
       {(slash, rest) => slash + rest })
 
-  fun ref property(arg1: String val, ph: PropertyHelper) =>
+  fun ref property(arg1: String val, ph: TestHelper) =>
     let request = HTTPRequest(GET, arg1)
     let serialized: String val =
       String.from_iso_array(_RequestSerializer(request, "example.com", "80"))
@@ -51,7 +50,7 @@ class \nodoc\ iso _PropertySerializerContainsPath
       "request line should contain path: " + arg1)
 
 class \nodoc\ iso _PropertySerializerAutoHost
-  is Property1[String val]
+  is Property[String val]
   """Host header is auto-set from host parameter."""
   fun name(): String => "serializer/auto_host"
 
@@ -59,7 +58,7 @@ class \nodoc\ iso _PropertySerializerAutoHost
     Generators.one_of[String val](
       ["example.com"; "api.test.org"; "localhost"])
 
-  fun ref property(arg1: String val, ph: PropertyHelper) =>
+  fun ref property(arg1: String val, ph: TestHelper) =>
     let request = HTTPRequest(GET, "/")
     let serialized: String val =
       String.from_iso_array(_RequestSerializer(request, arg1, "80"))
@@ -68,14 +67,14 @@ class \nodoc\ iso _PropertySerializerAutoHost
       "should contain Host: " + arg1)
 
 class \nodoc\ iso _PropertySerializerAutoContentLength
-  is Property1[USize]
+  is Property[USize]
   """Content-Length is auto-set from body size."""
   fun name(): String => "serializer/auto_content_length"
 
   fun gen(): Generator[USize] =>
     Generators.usize(1, 100)
 
-  fun ref property(arg1: USize, ph: PropertyHelper) =>
+  fun ref property(arg1: USize, ph: TestHelper) =>
     let body =
       recover val
         let b = Array[U8](arg1)

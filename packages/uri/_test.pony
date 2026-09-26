@@ -1,5 +1,4 @@
 use "pony_test"
-use "pony_check"
 use template = "./template"
 
 actor \nodoc\ Main is TestList
@@ -13,38 +12,38 @@ actor \nodoc\ Main is TestList
     template.Main.make().tests(test)
 
     // Percent-encoding tests
-    test(Property1UnitTest[String val](_PropertyPercentRoundtrip))
-    test(Property1UnitTest[String val](
+    test(PropertyTest[String val](_PropertyPercentRoundtrip))
+    test(PropertyTest[String val](
       _PropertyPercentEncodeOutputLegal))
-    test(Property1UnitTest[String val](
+    test(PropertyTest[String val](
       _PropertyInvalidPercentSequenceRejected))
-    test(Property1UnitTest[(String val, Bool)](
+    test(PropertyTest[(String val, Bool)](
       _PropertyPercentDecodeBoundary))
     test(_TestPercentEncodeKnownGood)
 
     // URI parsing tests
-    test(Property1UnitTest[_ValidURIInput](_PropertyURIRoundtrip))
-    test(Property1UnitTest[String val](_PropertyInvalidSchemeRejected))
+    test(PropertyTest[_ValidURIInput](_PropertyURIRoundtrip))
+    test(PropertyTest[String val](_PropertyInvalidSchemeRejected))
     test(_TestParseURIKnownGood)
 
     // Authority parsing tests
-    test(Property1UnitTest[_ValidAuthorityInput](
+    test(PropertyTest[_ValidAuthorityInput](
       _PropertyAuthorityRoundtrip))
-    test(Property1UnitTest[String val](_PropertyInvalidPortRejected))
-    test(Property1UnitTest[String val](_PropertyInvalidHostRejected))
+    test(PropertyTest[String val](_PropertyInvalidPortRejected))
+    test(PropertyTest[String val](_PropertyInvalidHostRejected))
     test(_TestParseURIAuthorityKnownGood)
 
     // Path segment tests
-    test(Property1UnitTest[String val](_PropertyPathSegmentCount))
-    test(Property1UnitTest[String val](_PropertyPathSegmentRoundtrip))
-    test(Property1UnitTest[String val](_PropertyPathSegmentInvalidRejected))
+    test(PropertyTest[String val](_PropertyPathSegmentCount))
+    test(PropertyTest[String val](_PropertyPathSegmentRoundtrip))
+    test(PropertyTest[String val](_PropertyPathSegmentInvalidRejected))
     test(_TestPathSegmentsKnownGood)
 
     // Form URL-encoded tests
-    test(Property1UnitTest[Array[(String val, String val)] val](
+    test(PropertyTest[Array[(String val, String val)] val](
       _PropertyFormURLEncodedRoundtrip))
-    test(Property1UnitTest[String val](_PropertyFormURLEncodedPlusDecodes))
-    test(Property1UnitTest[String val](
+    test(PropertyTest[String val](_PropertyFormURLEncodedPlusDecodes))
+    test(PropertyTest[String val](
       _PropertyFormURLEncodedInvalidRejected))
     test(_TestFormURLEncodedKnownGood)
     test(_TestURIQueryParams)
@@ -54,48 +53,48 @@ actor \nodoc\ Main is TestList
     test(_TestFormURLEncodedSize)
 
     // RemoveDotSegments tests
-    test(Property1UnitTest[String val](_PropertyDotSegmentsIdempotent))
-    test(Property1UnitTest[String val](_PropertyDotSegmentsNoDots))
-    test(Property1UnitTest[String val](
+    test(PropertyTest[String val](_PropertyDotSegmentsIdempotent))
+    test(PropertyTest[String val](_PropertyDotSegmentsNoDots))
+    test(PropertyTest[String val](
       _PropertyDotSegmentsPreservesAbsolute))
     test(_TestRemoveDotSegmentsKnownGood)
 
     // ResolveURI tests
-    test(Property1UnitTest[_ResolveInput](
+    test(PropertyTest[_ResolveInput](
       _PropertyResolveResultAbsolute))
-    test(Property1UnitTest[_AbsoluteURIInput](
+    test(PropertyTest[_AbsoluteURIInput](
       _PropertyResolveEmptyRef))
-    test(Property1UnitTest[(_AbsoluteURIInput, _AbsoluteURIInput)](
+    test(PropertyTest[(_AbsoluteURIInput, _AbsoluteURIInput)](
       _PropertyAbsoluteRefIgnoresBase))
-    test(Property1UnitTest[_ValidURIInput](
+    test(PropertyTest[_ValidURIInput](
       _PropertyNonAbsoluteBaseRejected))
-    test(Property1UnitTest[_ResolveInput](_PropertyResolveRoundtrip))
+    test(PropertyTest[_ResolveInput](_PropertyResolveRoundtrip))
     test(_TestResolveURIRFCNormal)
     test(_TestResolveURIRFCAbnormal)
     test(_TestResolveURIEdgeCases)
 
     // NormalizeURI tests
-    test(Property1UnitTest[_NormalizableURIInput](
+    test(PropertyTest[_NormalizableURIInput](
       _PropertyNormalizeIdempotent))
-    test(Property1UnitTest[_NormalizableURIInput](
+    test(PropertyTest[_NormalizableURIInput](
       _PropertyNormalizeSchemeLowercase))
-    test(Property1UnitTest[_NormalizableURIInput](
+    test(PropertyTest[_NormalizableURIInput](
       _PropertyNormalizeHostLowercase))
-    test(Property1UnitTest[_NormalizableURIInput](
+    test(PropertyTest[_NormalizableURIInput](
       _PropertyNormalizeNoEncodedUnreserved))
-    test(Property1UnitTest[_NormalizableURIInput](
+    test(PropertyTest[_NormalizableURIInput](
       _PropertyNormalizeUppercaseHex))
-    test(Property1UnitTest[_NormalizableURIInput](
+    test(PropertyTest[_NormalizableURIInput](
       _PropertyNormalizeNoDotSegments))
-    test(Property1UnitTest[_NormalizableURIInput](
+    test(PropertyTest[_NormalizableURIInput](
       _PropertyNormalizeParseRoundtrip))
-    test(Property1UnitTest[_NormalizableURIInput](
+    test(PropertyTest[_NormalizableURIInput](
       _PropertyNormalizeNoDefaultPort))
-    test(Property1UnitTest[_NormalizableURIInput](
+    test(PropertyTest[_NormalizableURIInput](
       _PropertyNormalizeNoEmptyPathWithAuthority))
-    test(Property1UnitTest[(_NormalizableURIInput, _NormalizableURIInput)](
+    test(PropertyTest[(_NormalizableURIInput, _NormalizableURIInput)](
       _PropertyNormalizeEquivalentConsistent))
-    test(Property1UnitTest[String val](
+    test(PropertyTest[String val](
       _PropertyNormalizeInvalidPercentRejected))
     test(_TestNormalizeURIKnownGood)
     test(_TestURIEquivalentKnownGood)
@@ -121,25 +120,25 @@ actor \nodoc\ Main is TestList
     test(_TestBuildPortAutoAuthority)
     test(_TestBuildQuerySetThenAdd)
     test(_TestBuildAuthorityNoScheme)
-    test(Property1UnitTest[_ValidURIInput](_PropertyBuildFromRoundtrip))
-    test(Property1UnitTest[_BuildInput](_PropertyBuildParseRoundtrip))
-    test(Property1UnitTest[String val](_PropertyBuildInvalidSchemeFails))
+    test(PropertyTest[_ValidURIInput](_PropertyBuildFromRoundtrip))
+    test(PropertyTest[_BuildInput](_PropertyBuildParseRoundtrip))
+    test(PropertyTest[String val](_PropertyBuildInvalidSchemeFails))
 
     // IRI tests (RFC 3987)
-    test(Property1UnitTest[String val](_PropertyIRIToURINoNonASCII))
-    test(Property1UnitTest[String val](_PropertyURIToIRINoEncodedUcschar))
-    test(Property1UnitTest[String val](_PropertyIRIToURIIdempotent))
-    test(Property1UnitTest[String val](_PropertyURIToIRIIdempotent))
-    test(Property1UnitTest[String val](_PropertyIRIToURIRoundtrip))
-    test(Property1UnitTest[_NormalizableURIInput](
+    test(PropertyTest[String val](_PropertyIRIToURINoNonASCII))
+    test(PropertyTest[String val](_PropertyURIToIRINoEncodedUcschar))
+    test(PropertyTest[String val](_PropertyIRIToURIIdempotent))
+    test(PropertyTest[String val](_PropertyURIToIRIIdempotent))
+    test(PropertyTest[String val](_PropertyIRIToURIRoundtrip))
+    test(PropertyTest[_NormalizableURIInput](
       _PropertyNormalizeIRIIdempotent))
-    test(Property1UnitTest[_NormalizableURIInput](
+    test(PropertyTest[_NormalizableURIInput](
       _PropertyIRIEquivalentReflexive))
-    test(Property1UnitTest[String val](
+    test(PropertyTest[String val](
       _PropertyIRIEquivalentCrossForms))
-    test(Property1UnitTest[String val](
+    test(PropertyTest[String val](
       _PropertyIRIPercentEncodePreservesUcschar))
-    test(Property1UnitTest[String val](
+    test(PropertyTest[String val](
       _PropertyIRIPercentEncodeEncodesNonAllowed))
     test(_TestIRICharsBoundary)
     test(_TestIRIToURIKnownGood)

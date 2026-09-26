@@ -1,5 +1,4 @@
 use "pony_test"
-use "pony_check"
 use notifier = "notifier"
 
 actor \nodoc\ Main is TestList
@@ -199,7 +198,7 @@ actor \nodoc\ Main is TestList
     test(_TestALPNProtocolListEncoding)
     test(_TestALPNProtocolListDecode)
     test(_TestALPNProtocolListOffsetOf)
-    test(Property1UnitTest[Array[String]](
+    test(PropertyTest[Array[String]](
       _TestALPNProtocolListOffsetOfRoundtrip))
     test(_TestALPNStandardProtocolResolver)
     test(_TestSSLHandshakeInMemory)
@@ -304,7 +303,7 @@ actor \nodoc\ Main is TestList
     test(_TestDTLSWriteBlockedInClosed)
     test(_TestDTLSBidirectionalCloseRoundtrip)
     test(_TestDTLSWriteBlockedInClosing)
-    test(Property1UnitTest[Array[String]](_TestALPNProtocolListRoundTrip))
+    test(PropertyTest[Array[String]](_TestALPNProtocolListRoundTrip))
     test(_TestMatchNameEmptyName)
     test(_TestMatchNameExactCaseInsensitive)
     test(_TestMatchNameNoMatch)

@@ -5,22 +5,22 @@ use "time"
 
 class ref _GenerationEngine
   """
-  State and operations shared by `PropertyRunner` and
-  `StatefulPropertyRunner`.
+  State and operations shared by `_PropertyExec` and
+  `_StatefulPropertyExec`.
 
   Owns randomness, classification state, health-check metrics, shrink
-  orchestration, and regression persistence. Both runners hold an engine
-  instance and delegate to it.
+  orchestration, and regression persistence. Both execution classes
+  hold an engine instance and delegate to it.
   """
   let _params: PropertyParams
   let _name: String
   let _env: Env
   let _rnd: Randomness
   let _classification_notify: (ClassificationNotify | None)
-  let _label_counts: Map[String, USize] = Map[String, USize]
-  let _tabulated_counts: Map[String, Map[String, USize]] =
+  embed _label_counts: Map[String, USize] = Map[String, USize]
+  embed _tabulated_counts: Map[String, Map[String, USize]] =
     Map[String, Map[String, USize]]
-  let _cover_requirements: Map[String, F64] = Map[String, F64]
+  embed _cover_requirements: Map[String, F64] = Map[String, F64]
   var _samples_run: USize = 0
   var _failing_choices: Array[_Choice val] val =
     recover val Array[_Choice val] end
@@ -108,10 +108,11 @@ class ref _GenerationEngine
       _label_counts.upsert(label, 1, {(old, x) => old + x })
     end
 
-  fun ref report_labels(logger: PropertyLogger) =>
+  fun ref report_labels(logger: _PropertyLogger) =>
     let has_flat = _label_counts.size() > 0
     let has_tabulated = _tabulated_counts.size() > 0
     let total = _samples_run
+    if total == 0 then return end
 
     if has_flat or has_tabulated then
       logger.log("")
@@ -169,10 +170,11 @@ class ref _GenerationEngine
       cn.classification(_label_counts, _tabulated_counts, total)
     end
 
-  fun check_coverage(logger: PropertyLogger): Bool =>
+  fun check_coverage(logger: _PropertyLogger): Bool =>
     if _cover_requirements.size() == 0 then return true end
-    var ok = true
     let total = _samples_run
+    if total == 0 then return true end
+    var ok = true
     for (label, min_pct) in _cover_requirements.pairs() do
       let count = try _label_counts(label)? else 0 end
       let actual_pct = (count.f64() / total.f64()) * 100.0
@@ -188,7 +190,7 @@ class ref _GenerationEngine
     end
     ok
 
-  fun report_health_checks(logger: PropertyLogger) =>
+  fun report_health_checks(logger: _PropertyLogger) =>
     if _params.max_filter_discard_ratio > 0 then
       if _total_filter_accepts > 0 then
         let ratio =
@@ -308,7 +310,7 @@ class ref _GenerationEngine
   fun ref mark_regression_checked() =>
     _regression_checked = true
 
-  fun ref load_regressions(logger: PropertyLogger)
+  fun ref load_regressions(logger: _PropertyLogger)
     : (Array[_Choice val] val | None)
   =>
     match _regression_dir
@@ -318,7 +320,7 @@ class ref _GenerationEngine
       None
     end
 
-  fun ref save_regression(logger: PropertyLogger) =>
+  fun ref save_regression(logger: _PropertyLogger) =>
     match _regression_dir
     | let dir: FilePath =>
       if _failing_choices.size() > 0 then
@@ -326,7 +328,7 @@ class ref _GenerationEngine
       end
     end
 
-  fun ref clear_regression(logger: PropertyLogger) =>
+  fun ref clear_regression(logger: _PropertyLogger) =>
     match _regression_dir
     | let dir: FilePath =>
       _RegressionDb.clear(dir, _name, logger)

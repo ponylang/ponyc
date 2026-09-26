@@ -1,8 +1,7 @@
 use "pony_test"
-use "pony_check"
 
 class \nodoc\ iso _PropertyAuthorityRoundtrip
-  is Property1[_ValidAuthorityInput]
+  is Property[_ValidAuthorityInput]
   """
   For generated valid authorities, ParseURIAuthority(auth.string()) produces
   an equal authority.
@@ -12,7 +11,7 @@ class \nodoc\ iso _PropertyAuthorityRoundtrip
   fun gen(): Generator[_ValidAuthorityInput] =>
     _ValidAuthorityInputGenerator()
 
-  fun ref property(arg1: _ValidAuthorityInput, ph: PropertyHelper) =>
+  fun ref property(arg1: _ValidAuthorityInput, ph: TestHelper) =>
     let original = URIAuthority(arg1.userinfo, arg1.host, arg1.port)
     let serialized = original.string()
     match \exhaustive\ ParseURIAuthority(consume serialized)
@@ -25,7 +24,7 @@ class \nodoc\ iso _PropertyAuthorityRoundtrip
         " error: " + err.string())
     end
 
-class \nodoc\ iso _PropertyInvalidPortRejected is Property1[String val]
+class \nodoc\ iso _PropertyInvalidPortRejected is Property[String val]
   """Invalid ports (non-numeric, > 65535) produce InvalidPort."""
   fun name(): String => "uri/parse_uri_authority/invalid_port"
 
@@ -41,7 +40,7 @@ class \nodoc\ iso _PropertyInvalidPortRejected is Property1[String val]
           ["host:65536"; "host:99999"; "host:100000"]))
       ])
 
-  fun ref property(arg1: String val, ph: PropertyHelper) =>
+  fun ref property(arg1: String val, ph: TestHelper) =>
     match \exhaustive\ ParseURIAuthority(arg1)
     | let a: URIAuthority val =>
       ph.fail("expected InvalidPort for: " + arg1)
@@ -51,7 +50,7 @@ class \nodoc\ iso _PropertyInvalidPortRejected is Property1[String val]
         "expected InvalidPort, got: " + err.string() + " for: " + arg1)
     end
 
-class \nodoc\ iso _PropertyInvalidHostRejected is Property1[String val]
+class \nodoc\ iso _PropertyInvalidHostRejected is Property[String val]
   """Malformed IPv6 hosts (unmatched brackets) produce InvalidHost."""
   fun name(): String => "uri/parse_uri_authority/invalid_host"
 
@@ -68,7 +67,7 @@ class \nodoc\ iso _PropertyInvalidHostRejected is Property1[String val]
         "[::1]garbage"
       ])
 
-  fun ref property(arg1: String val, ph: PropertyHelper) =>
+  fun ref property(arg1: String val, ph: TestHelper) =>
     match \exhaustive\ ParseURIAuthority(arg1)
     | let a: URIAuthority val =>
       ph.fail("expected InvalidHost for: " + arg1)

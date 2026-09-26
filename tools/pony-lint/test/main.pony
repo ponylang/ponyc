@@ -1,5 +1,4 @@
 use "pony_test"
-use "pony_check"
 use lint = ".."
 
 actor \nodoc\ Main is TestList
@@ -158,11 +157,11 @@ actor \nodoc\ Main is TestList
     test(_TestGlobMatchDoubleStarNotComponent)
     test(_TestGlobMatchDoubleStarAlone)
     test(_TestGlobMatchEdgeCases)
-    test(Property1UnitTest[String](
+    test(PropertyTest[String](
       _TestGlobMatchLiteralSelfMatchProperty))
-    test(Property1UnitTest[String](
+    test(PropertyTest[String](
       _TestGlobMatchStarNoCrossSlashProperty))
-    test(Property1UnitTest[String](
+    test(PropertyTest[String](
       _TestGlobMatchDoubleStarMatchesAllProperty))
 
     // PatternParser tests
@@ -216,13 +215,13 @@ actor \nodoc\ Main is TestList
     test(_TestIsSnakeCaseInvalid)
     test(_TestHasLoweredAcronym)
     test(_TestToSnakeCase)
-    test(Property1UnitTest[String](
+    test(PropertyTest[String](
       _TestCamelCaseValidProperty))
-    test(Property1UnitTest[String](
+    test(PropertyTest[String](
       _TestCamelCaseInvalidProperty))
-    test(Property1UnitTest[String](
+    test(PropertyTest[String](
       _TestSnakeCaseValidProperty))
-    test(Property1UnitTest[String](
+    test(PropertyTest[String](
       _TestSnakeCaseInvalidProperty))
 
     // TypeNaming tests

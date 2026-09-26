@@ -1,7 +1,7 @@
-use "pony_check"
+use "pony_test"
 
 class \nodoc\ iso _PropertyHeadersCaseInsensitive
-  is Property1[(String val, String val)]
+  is Property[(String val, String val)]
   """
   Adding a header and retrieving it with a different case variant returns
   the same value.
@@ -15,7 +15,7 @@ class \nodoc\ iso _PropertyHeadersCaseInsensitive
 
   fun ref property(
     arg1: (String val, String val),
-    ph: PropertyHelper)
+    ph: TestHelper)
   =>
     (let header_name, let value) = arg1
     let headers = Headers
@@ -37,7 +37,7 @@ class \nodoc\ iso _PropertyHeadersCaseInsensitive
     end
 
 class \nodoc\ iso _PropertyHeadersSetReplaces
-  is Property1[(String val, String val, String val)]
+  is Property[(String val, String val, String val)]
   """
   Calling `set()` twice for the same name keeps only the second value.
   """
@@ -51,7 +51,7 @@ class \nodoc\ iso _PropertyHeadersSetReplaces
 
   fun ref property(
     arg1: (String val, String val, String val),
-    ph: PropertyHelper)
+    ph: TestHelper)
   =>
     (let header_name, let v1, let v2) = arg1
     let headers = Headers
@@ -71,7 +71,7 @@ class \nodoc\ iso _PropertyHeadersSetReplaces
     end
 
 class \nodoc\ iso _PropertyHeadersAddPreserves
-  is Property1[(String val, String val, String val)]
+  is Property[(String val, String val, String val)]
   """
   Calling `add()` twice for the same name keeps both values. `get()` returns
   the first, and `size()` reflects both entries.
@@ -86,7 +86,7 @@ class \nodoc\ iso _PropertyHeadersAddPreserves
 
   fun ref property(
     arg1: (String val, String val, String val),
-    ph: PropertyHelper)
+    ph: TestHelper)
   =>
     (let header_name, let v1, let v2) = arg1
     let headers = Headers

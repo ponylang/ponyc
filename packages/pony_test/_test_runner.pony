@@ -1,8 +1,14 @@
+use "collections"
 use "time"
 
 actor _TestRunner
   """
   Per unit test actor that runs the test and keeps the log for it.
+
+  Also drives property-based tests: when a property test calls
+  `_start_property`, this actor enters property mode and drives the
+  sample loop, shrinking, and regression replay using recursive
+  behaviours.
   """
 
   let _ponytest: PonyTest
@@ -23,6 +29,13 @@ actor _TestRunner
   var _tearing_down: Bool = false
   var _test_timers: Array[Timer tag] = Array[Timer tag]
 
+  // Property mode state
+  var _property_exec: (_PropertyExecution | None) = None
+  embed _property_queue: Array[_PropertyExecution iso] = Array[_PropertyExecution iso]
+  var _prop_sample_id: USize = 0
+  embed _prop_actions: Set[String] = Set[String]
+  var _prop_sample_pass: Bool = true
+
   new create(
     ponytest: PonyTest,
     id: USize,
@@ -33,7 +46,7 @@ actor _TestRunner
     timers: Timers)
   =>
     """
-    Create a new TestHelper.
+    Create a new test runner.
     ponytest - The authority we report everything to.
     id - Test identifier needed when reporting to ponytest.
     test - The test to run.
@@ -92,7 +105,7 @@ actor _TestRunner
     _pass = false
     _log(msg, false)
 
-  be complete(success: Bool) =>
+  be complete(success: Bool, sample_id: USize = USize.max_value()) =>
     """
     MUST be called by each long test to indicate the test has finished, unless
     a timeout occurs.
@@ -102,7 +115,15 @@ actor _TestRunner
     failure, regardless of the value of this parameter.
 
     Once this is called tear_down() may be called at any time.
+
+    When called from a property sample (sample_id != USize.max_value()),
+    completes the current sample rather than the whole test.
     """
+    if sample_id != USize.max_value() then
+      _property_sample_complete(success, sample_id)
+      return
+    end
+
     if not success then
       _pass = false
       _log("Complete(false) called", false)
@@ -111,7 +132,6 @@ actor _TestRunner
     end
 
     for timer in _test_timers.values() do
-      // Cancel timeout, if in operation.
       _timers.cancel(timer)
     end
     _test_timers.clear()
@@ -119,7 +139,7 @@ actor _TestRunner
     _completed = true
     _tear_down()
 
-  be expect_action(name: String) =>
+  be expect_action(name: String, sample_id: USize = USize.max_value()) =>
     """
     Can be called in a long test to set up expectations for one or more actions
     that, when all completed, will complete the test.
@@ -128,10 +148,27 @@ actor _TestRunner
     to happen to complete your test, but don't want to have to collect them
     all yourself into a single actor that calls the complete method.
     """
+    if sample_id != USize.max_value() then
+      if sample_id != _prop_sample_id then
+        _log(
+          "unexpected expect action \"" + name +
+            "\" for sample " + sample_id.string() +
+            ". Currently at sample " + _prop_sample_id.string(),
+          true)
+        return
+      end
+      _log("Action expected: " + name, true)
+      _prop_actions.set(name)
+      return
+    end
     _log("Action expected: " + name, true)
     _expect_actions.push(name)
 
-  be complete_action(name: String, success: Bool) =>
+  be complete_action(
+    name: String,
+    success: Bool,
+    sample_id: USize = USize.max_value())
+  =>
     """
     MUST be called for each action expectation that was set up in a long test
     to fulfill the expectations. Any expectations that are still outstanding
@@ -147,6 +184,11 @@ actor _TestRunner
     fail immediately, without waiting the rest of the outstanding actions.
     The name of the failed action will be included in the failure output.
     """
+    if sample_id != USize.max_value() then
+      _property_action_complete(name, success, sample_id)
+      return
+    end
+
     if success then
       _log("Action completed: " + name, true)
     else
@@ -166,13 +208,25 @@ actor _TestRunner
       complete(true)
     end
 
-  be dispose_when_done(disposable: DisposableActor) =>
+  be dispose_when_done(
+    disposable: DisposableActor,
+    sample_id: USize = USize.max_value())
+  =>
     """
     Pass a disposable actor to be disposed of when the test is complete.
     The actor will be disposed no matter whether the test succeeds or fails.
 
     If the test is already tearing down, the actor will be disposed immediately.
     """
+    if sample_id != USize.max_value() then
+      if sample_id != _prop_sample_id then
+        _log("Unexpected dispose_when_done for sample " +
+          sample_id.string() + ". Currently at sample " +
+          _prop_sample_id.string(), true)
+        disposable.dispose()
+        return
+      end
+    end
     if _tearing_down then
       disposable.dispose()
     else
@@ -272,11 +326,213 @@ actor _TestRunner
     """
     Close down this test and send a report.
     """
-    // First tell the ponytest that we've completed, then our group.
-    // When we tell the group another test may be started. If we did that first
-    // then the ponytest might report the start of that new test before the end
-    // of this one, which would make it look like exclusion wasn't working.
     let complete_log = _test_log = recover Array[String] end
     _ponytest._test_complete(_id, _pass, consume complete_log)
 
     _group._test_complete(this)
+
+  // Property mode support
+
+  be _start_property(exec: _PropertyExecution iso) =>
+    if _property_exec isnt None then
+      _property_queue.push(consume exec)
+      return
+    end
+    _property_exec = consume exec
+    _prop_sample_id = 0
+    _prop_sample_pass = true
+    _next_property_sample()
+
+  be _next_property_sample() =>
+    match _property_exec
+    | let exec: _PropertyExecution =>
+      let helper = TestHelper._create_sample(this, _env, _prop_sample_id)
+      if exec.check_regression(helper) then
+        if exec.generator_failed() then
+          fail(exec.error_message())
+          _property_queue.clear()
+          complete(false)
+        else
+          _next_property_sample()
+        end
+        return
+      end
+
+      if not exec.has_more_samples() then
+        _property_finish(exec)
+        return
+      end
+
+      _prop_sample_id = _prop_sample_id + 1
+      _prop_actions.clear()
+      _prop_sample_pass = true
+
+      let sample_helper =
+        TestHelper._create_sample(this, _env, _prop_sample_id)
+      exec.run_sample(sample_helper)
+
+      if exec.generator_failed() then
+        fail(exec.error_message())
+        _property_queue.clear()
+        complete(false)
+      elseif not exec.last_sample_passed() then
+        _property_handle_failure(exec)
+      else
+        exec.sample_passed()
+        _next_property_sample()
+      end
+    end
+
+  fun ref _property_sample_complete(success: Bool, sample_id: USize) =>
+    if sample_id != _prop_sample_id then
+      _log(
+        "unexpected sample complete for sample " +
+          sample_id.string() +
+          ". Currently at sample " +
+          _prop_sample_id.string(),
+        true)
+      return
+    end
+
+    match _property_exec
+    | let exec: _PropertyExecution =>
+      if not success then
+        _pass = false
+        _prop_sample_pass = false
+        _property_handle_failure(exec)
+      else
+        exec.sample_passed()
+        _next_property_sample()
+      end
+    end
+
+  fun ref _property_action_complete(
+    name: String,
+    success: Bool,
+    sample_id: USize)
+  =>
+    if sample_id != _prop_sample_id then
+      _log(
+        "unexpected action \"" + name +
+          "\" for sample " + sample_id.string() +
+          ". Currently at sample " + _prop_sample_id.string(),
+        true)
+      return
+    end
+
+    if success then
+      _log("Action completed: " + name, true)
+    else
+      _log("Action failed: " + name, false)
+      _property_sample_complete(false, sample_id)
+      return
+    end
+
+    try
+      _prop_actions.extract(name)?
+      if _prop_actions.size() == 0 then
+        _property_sample_complete(true, sample_id)
+      end
+    else
+      _log(
+        "Action '" + name +
+          "' finished unexpectedly at sample " +
+          sample_id.string() + ". ignoring.",
+        true)
+    end
+
+  fun ref _property_handle_failure(exec: _PropertyExecution) =>
+    exec.sample_failed()
+    _prop_actions.clear()
+
+    if exec.needs_shrink() then
+      exec.begin_shrink()
+      _property_shrink(exec)
+    else
+      _log("no choices recorded, cannot shrink", false)
+      exec.save_regression()
+      exec.report()
+      fail(
+        "Property failed for sample " + exec.sample_repr() +
+          " (after 0 shrinks)")
+      _property_queue.clear()
+      complete(false)
+    end
+
+  be _property_shrink_step() =>
+    match _property_exec
+    | let exec: _PropertyExecution =>
+      _property_shrink(exec)
+    end
+
+  fun ref _property_shrink(exec: _PropertyExecution) =>
+    _prop_sample_id = _prop_sample_id + 1
+    _prop_actions.clear()
+    _prop_sample_pass = true
+
+    let helper = TestHelper._create_sample(this, _env, _prop_sample_id)
+    exec.run_shrink_candidate(helper)
+
+    if exec.shrink_exhausted() then
+      exec.save_regression()
+      exec.report()
+      let repr = exec.sample_repr()
+      let rounds = exec.shrink_reductions()
+      fail(
+        "Property failed for sample " + repr +
+          " (after " + rounds.string() + " shrinks)")
+      _property_queue.clear()
+      complete(false)
+    else
+      _property_shrink_step()
+    end
+
+  fun ref _property_finish(exec: _PropertyExecution) =>
+    exec.report()
+    if not exec.coverage_passed() then
+      fail("Property failed: insufficient coverage")
+      _property_queue.clear()
+      complete(false)
+      return
+    end
+    if _property_queue.size() > 0 then
+      try
+        let next = _property_queue.shift()?
+        _property_exec = consume next
+        _prop_sample_id = 0
+        _prop_sample_pass = true
+        _next_property_sample()
+      end
+    else
+      complete(true)
+    end
+
+  be _property_classify(label: String, sample_id: USize) =>
+    if sample_id != _prop_sample_id then return end
+    match _property_exec
+    | let exec: _PropertyExecution =>
+      exec.classify(label)
+    end
+
+  be _property_tabulate(
+    heading: String,
+    label: String,
+    sample_id: USize)
+  =>
+    if sample_id != _prop_sample_id then return end
+    match _property_exec
+    | let exec: _PropertyExecution =>
+      exec.tabulate(heading, label)
+    end
+
+  be _property_cover(
+    condition: Bool,
+    label: String,
+    min_pct: F64,
+    sample_id: USize)
+  =>
+    if sample_id != _prop_sample_id then return end
+    match _property_exec
+    | let exec: _PropertyExecution =>
+      exec.cover(condition, label, min_pct)
+    end

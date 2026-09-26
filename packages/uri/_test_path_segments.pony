@@ -1,7 +1,6 @@
 use "pony_test"
-use "pony_check"
 
-class \nodoc\ iso _PropertyPathSegmentCount is Property1[String val]
+class \nodoc\ iso _PropertyPathSegmentCount is Property[String val]
   """
   PathSegments count equals the number of `/`-delimited parts in a valid path.
   """
@@ -14,7 +13,7 @@ class \nodoc\ iso _PropertyPathSegmentCount is Property1[String val]
         "/index.html"; "/path/to/resource"
       ])
 
-  fun ref property(arg1: String val, ph: PropertyHelper) =>
+  fun ref property(arg1: String val, ph: TestHelper) =>
     // Count expected segments: split on '/'
     var expected: USize = 1
     for c in arg1.values() do
@@ -28,7 +27,7 @@ class \nodoc\ iso _PropertyPathSegmentCount is Property1[String val]
       ph.fail("unexpected error for: " + arg1)
     end
 
-class \nodoc\ iso _PropertyPathSegmentRoundtrip is Property1[String val]
+class \nodoc\ iso _PropertyPathSegmentRoundtrip is Property[String val]
   """
   Percent-encoding segments and joining with `/` reconstructs a path that
   produces the same segments when re-parsed.
@@ -42,7 +41,7 @@ class \nodoc\ iso _PropertyPathSegmentRoundtrip is Property1[String val]
         "/path/to/resource"; "/index.html"
       ])
 
-  fun ref property(arg1: String val, ph: PropertyHelper) =>
+  fun ref property(arg1: String val, ph: TestHelper) =>
     match \exhaustive\ PathSegments(arg1)
     | let segs: Array[String val] val =>
       // Re-encode and join
@@ -76,7 +75,7 @@ class \nodoc\ iso _PropertyPathSegmentRoundtrip is Property1[String val]
     end
 
 class \nodoc\ iso _PropertyPathSegmentInvalidRejected
-  is Property1[String val]
+  is Property[String val]
   """Paths with invalid percent-encoding produce InvalidPercentEncoding."""
   fun name(): String => "uri/path_segments/invalid_rejected"
 
@@ -86,7 +85,7 @@ class \nodoc\ iso _PropertyPathSegmentInvalidRejected
         "/a%2"; "/a%GG/b"; "/path/%"; "/%XX"; "/a/b%2"
       ])
 
-  fun ref property(arg1: String val, ph: PropertyHelper) =>
+  fun ref property(arg1: String val, ph: TestHelper) =>
     match \exhaustive\ PathSegments(arg1)
     | let segs: Array[String val] val =>
       ph.fail("expected error for: " + arg1)

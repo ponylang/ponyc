@@ -1,7 +1,6 @@
 use "pony_test"
-use "pony_check"
 
-class \nodoc\ iso _PropertyDotSegmentsIdempotent is Property1[String val]
+class \nodoc\ iso _PropertyDotSegmentsIdempotent is Property[String val]
   """
   Applying RemoveDotSegments twice produces the same result as once.
   """
@@ -10,13 +9,13 @@ class \nodoc\ iso _PropertyDotSegmentsIdempotent is Property1[String val]
   fun gen(): Generator[String val] =>
     _AnyPathGenerator()
 
-  fun ref property(arg1: String val, ph: PropertyHelper) =>
+  fun ref property(arg1: String val, ph: TestHelper) =>
     let once = RemoveDotSegments(arg1)
     let twice = RemoveDotSegments(once)
     ph.assert_eq[String val](
       once, twice, "not idempotent for: " + arg1)
 
-class \nodoc\ iso _PropertyDotSegmentsNoDots is Property1[String val]
+class \nodoc\ iso _PropertyDotSegmentsNoDots is Property[String val]
   """
   The output of RemoveDotSegments never contains standalone "." or ".."
   segments.
@@ -26,7 +25,7 @@ class \nodoc\ iso _PropertyDotSegmentsNoDots is Property1[String val]
   fun gen(): Generator[String val] =>
     _DotPathGenerator()
 
-  fun ref property(arg1: String val, ph: PropertyHelper) =>
+  fun ref property(arg1: String val, ph: TestHelper) =>
     let result = RemoveDotSegments(arg1)
     // Check that none of the segments are "." or ".."
     ph.assert_true(
@@ -65,7 +64,7 @@ class \nodoc\ iso _PropertyDotSegmentsNoDots is Property1[String val]
     false
 
 class \nodoc\ iso _PropertyDotSegmentsPreservesAbsolute
-  is Property1[String val]
+  is Property[String val]
   """
   If the input starts with "/" the output also starts with "/".
   """
@@ -74,7 +73,7 @@ class \nodoc\ iso _PropertyDotSegmentsPreservesAbsolute
   fun gen(): Generator[String val] =>
     _DotPathGenerator.absolute()
 
-  fun ref property(arg1: String val, ph: PropertyHelper) =>
+  fun ref property(arg1: String val, ph: TestHelper) =>
     let result = RemoveDotSegments(arg1)
     ph.assert_true(
       try result(0)? == '/' else false end,

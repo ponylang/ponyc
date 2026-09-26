@@ -1,7 +1,6 @@
-use "pony_check"
 use "pony_test"
 
-class _HealthCheckProperty is Property1[U8]
+class _HealthCheckProperty is Property[U8]
   """
   A property with a narrow filter and tightened health check thresholds.
 
@@ -26,5 +25,5 @@ class _HealthCheckProperty is Property1[U8]
     Generators.u8(0, 255)
       .filter({(u: U8): (U8^, Bool) => (u, (u % 50) == 0) })
 
-  fun ref property(arg1: U8, h: PropertyHelper) =>
+  fun ref property(arg1: U8, h: TestHelper) =>
     h.assert_true((arg1 % 50) == 0)

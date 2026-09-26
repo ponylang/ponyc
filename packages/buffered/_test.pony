@@ -1,5 +1,4 @@
 use "pony_test"
-use "pony_check"
 
 actor \nodoc\ Main is TestList
   new create(env: Env) => PonyTest(env, this)
@@ -9,33 +8,33 @@ actor \nodoc\ Main is TestList
     // Tests below function across all systems and are listed alphabetically
     test(_TestReader)
     test(_TestWriter)
-    test(Property1UnitTest[U8](_PropU8Roundtrip))
-    test(Property1UnitTest[U16](_PropU16Roundtrip))
-    test(Property1UnitTest[U32](_PropU32Roundtrip))
-    test(Property1UnitTest[U64](_PropU64Roundtrip))
-    test(Property1UnitTest[U128](_PropU128Roundtrip))
-    test(Property1UnitTest[(U16, U16)](_PropU16ChunkedRoundtrip))
-    test(Property1UnitTest[(U32, U16)](_PropU32ChunkedRoundtrip))
-    test(Property1UnitTest[(U64, U16)](_PropU64ChunkedRoundtrip))
-    test(Property1UnitTest[(U128, U16)](_PropU128ChunkedRoundtrip))
-    test(Property1UnitTest[U128](_PropPeekConsistency))
-    test(Property1UnitTest[(U128, U16)](_PropPeekChunked))
-    test(Property1UnitTest[Array[U8]](_PropBlockRoundtrip))
-    test(Property1UnitTest[(Array[U8], U16)](_PropBlockChunked))
-    test(Property1UnitTest[(Array[U8], U8)](_PropSkipRead))
-    test(Property1UnitTest[(String, Bool)](_PropLineRoundtrip))
-    test(Property1UnitTest[(Array[U8], U8)](_PropReadUntil))
-    test(Property1UnitTest[(U64, U64)](_PropWriterDoneReset))
-    test(Property1UnitTest[U16](_PropEndianCrossCheckU16))
-    test(Property1UnitTest[U32](_PropEndianCrossCheckU32))
-    test(Property1UnitTest[U64](_PropEndianCrossCheckU64))
-    test(Property1UnitTest[U128](_PropEndianCrossCheckU128))
-    test(Property1UnitTest[U32](_PropEndianCrossCheckF32))
-    test(Property1UnitTest[U64](_PropEndianCrossCheckF64))
-    test(Property1UnitTest[((U8, U16), (U32, U64))](
+    test(PropertyTest[U8](_PropU8Roundtrip))
+    test(PropertyTest[U16](_PropU16Roundtrip))
+    test(PropertyTest[U32](_PropU32Roundtrip))
+    test(PropertyTest[U64](_PropU64Roundtrip))
+    test(PropertyTest[U128](_PropU128Roundtrip))
+    test(PropertyTest[(U16, U16)](_PropU16ChunkedRoundtrip))
+    test(PropertyTest[(U32, U16)](_PropU32ChunkedRoundtrip))
+    test(PropertyTest[(U64, U16)](_PropU64ChunkedRoundtrip))
+    test(PropertyTest[(U128, U16)](_PropU128ChunkedRoundtrip))
+    test(PropertyTest[U128](_PropPeekConsistency))
+    test(PropertyTest[(U128, U16)](_PropPeekChunked))
+    test(PropertyTest[Array[U8]](_PropBlockRoundtrip))
+    test(PropertyTest[(Array[U8], U16)](_PropBlockChunked))
+    test(PropertyTest[(Array[U8], U8)](_PropSkipRead))
+    test(PropertyTest[(String, Bool)](_PropLineRoundtrip))
+    test(PropertyTest[(Array[U8], U8)](_PropReadUntil))
+    test(PropertyTest[(U64, U64)](_PropWriterDoneReset))
+    test(PropertyTest[U16](_PropEndianCrossCheckU16))
+    test(PropertyTest[U32](_PropEndianCrossCheckU32))
+    test(PropertyTest[U64](_PropEndianCrossCheckU64))
+    test(PropertyTest[U128](_PropEndianCrossCheckU128))
+    test(PropertyTest[U32](_PropEndianCrossCheckF32))
+    test(PropertyTest[U64](_PropEndianCrossCheckF64))
+    test(PropertyTest[((U8, U16), (U32, U64))](
       _PropMultiValueRoundtrip))
-    test(Property1UnitTest[Array[U8]](_PropWriterSize))
-    test(Property1UnitTest[Array[U8]](_PropEmptyAppend))
+    test(PropertyTest[Array[U8]](_PropWriterSize))
+    test(PropertyTest[Array[U8]](_PropEmptyAppend))
 
 class \nodoc\ iso _TestReader is UnitTest
   """
@@ -358,7 +357,7 @@ primitive \nodoc\ _BH
       chunks
     end
 
-class \nodoc\ iso _PropU8Roundtrip is Property1[U8]
+class \nodoc\ iso _PropU8Roundtrip is Property[U8]
   fun name(): String => "buffered/PropU8Roundtrip"
 
   fun gen(): Generator[U8] =>
@@ -368,7 +367,7 @@ class \nodoc\ iso _PropU8Roundtrip is Property1[U8]
         (1, Generators.one_of[U8]([as U8: 0; 1; 0x7F; 0x80; 0xFF]))
       ])
 
-  fun ref property(v: U8, ph: PropertyHelper) ? =>
+  fun ref property(v: U8, ph: TestHelper) ? =>
     let wb = Writer
     wb.u8(v)
     let rb = Reader
@@ -376,7 +375,7 @@ class \nodoc\ iso _PropU8Roundtrip is Property1[U8]
     ph.assert_eq[U8](rb.u8()?, v)
     ph.assert_eq[USize](rb.size(), 0)
 
-class \nodoc\ iso _PropU16Roundtrip is Property1[U16]
+class \nodoc\ iso _PropU16Roundtrip is Property[U16]
   fun name(): String => "buffered/PropU16Roundtrip"
 
   fun gen(): Generator[U16] =>
@@ -387,7 +386,7 @@ class \nodoc\ iso _PropU16Roundtrip is Property1[U16]
           [as U16: 0; 1; 0xFF; 0x100; 0x7FFF; 0x8000; 0xFFFF]))
       ])
 
-  fun ref property(v: U16, ph: PropertyHelper) ? =>
+  fun ref property(v: U16, ph: TestHelper) ? =>
     // U16 BE
     var wb = Writer
     wb.u16_be(v)
@@ -416,7 +415,7 @@ class \nodoc\ iso _PropU16Roundtrip is Property1[U16]
     for chunk in (wb.done()).values() do rb.append(chunk) end
     ph.assert_eq[I16](rb.i16_le()?, v.i16())
 
-class \nodoc\ iso _PropU32Roundtrip is Property1[U32]
+class \nodoc\ iso _PropU32Roundtrip is Property[U32]
   fun name(): String => "buffered/PropU32Roundtrip"
 
   fun gen(): Generator[U32] =>
@@ -428,7 +427,7 @@ class \nodoc\ iso _PropU32Roundtrip is Property1[U32]
             0x7FFFFFFF; 0x80000000; 0xFFFFFFFF]))
       ])
 
-  fun ref property(v: U32, ph: PropertyHelper) ? =>
+  fun ref property(v: U32, ph: TestHelper) ? =>
     // U32 BE
     var wb = Writer
     wb.u32_be(v)
@@ -472,7 +471,7 @@ class \nodoc\ iso _PropU32Roundtrip is Property1[U32]
     for chunk in (wb.done()).values() do rb.append(chunk) end
     ph.assert_eq[U32](rb.f32_le()?.bits(), v)
 
-class \nodoc\ iso _PropU64Roundtrip is Property1[U64]
+class \nodoc\ iso _PropU64Roundtrip is Property[U64]
   fun name(): String => "buffered/PropU64Roundtrip"
 
   fun gen(): Generator[U64] =>
@@ -484,7 +483,7 @@ class \nodoc\ iso _PropU64Roundtrip is Property1[U64]
             0xFFFFFFFF; 0x100000000; U64.max_value()]))
       ])
 
-  fun ref property(v: U64, ph: PropertyHelper) ? =>
+  fun ref property(v: U64, ph: TestHelper) ? =>
     // U64 BE
     var wb = Writer
     wb.u64_be(v)
@@ -528,7 +527,7 @@ class \nodoc\ iso _PropU64Roundtrip is Property1[U64]
     for chunk in (wb.done()).values() do rb.append(chunk) end
     ph.assert_eq[U64](rb.f64_le()?.bits(), v)
 
-class \nodoc\ iso _PropU128Roundtrip is Property1[U128]
+class \nodoc\ iso _PropU128Roundtrip is Property[U128]
   fun name(): String => "buffered/PropU128Roundtrip"
 
   fun gen(): Generator[U128] =>
@@ -541,7 +540,7 @@ class \nodoc\ iso _PropU128Roundtrip is Property1[U128]
             0xFFFFFFFFFFFFFFFF; U128.max_value()]))
       ])
 
-  fun ref property(v: U128, ph: PropertyHelper) ? =>
+  fun ref property(v: U128, ph: TestHelper) ? =>
     // U128 BE
     var wb = Writer
     wb.u128_be(v)
@@ -570,7 +569,7 @@ class \nodoc\ iso _PropU128Roundtrip is Property1[U128]
     for chunk in (wb.done()).values() do rb.append(chunk) end
     ph.assert_eq[I128](rb.i128_le()?, v.i128())
 
-class \nodoc\ iso _PropU16ChunkedRoundtrip is Property1[(U16, U16)]
+class \nodoc\ iso _PropU16ChunkedRoundtrip is Property[(U16, U16)]
   """
   Tests the slow path: bytes split across multiple chunks.
   """
@@ -586,7 +585,7 @@ class \nodoc\ iso _PropU16ChunkedRoundtrip is Property1[(U16, U16)]
         ]),
       Generators.u16())
 
-  fun ref property(arg: (U16, U16), ph: PropertyHelper) ? =>
+  fun ref property(arg: (U16, U16), ph: TestHelper) ? =>
     (let v, let mask) = arg
     // BE
     var wb = Writer
@@ -604,7 +603,7 @@ class \nodoc\ iso _PropU16ChunkedRoundtrip is Property1[(U16, U16)]
     for c in _BH.split_chunks(flat, mask)?.values() do rb.append(c) end
     ph.assert_eq[U16](rb.u16_le()?, v)
 
-class \nodoc\ iso _PropU32ChunkedRoundtrip is Property1[(U32, U16)]
+class \nodoc\ iso _PropU32ChunkedRoundtrip is Property[(U32, U16)]
   fun name(): String => "buffered/PropU32ChunkedRoundtrip"
 
   fun gen(): Generator[(U32, U16)] =>
@@ -618,7 +617,7 @@ class \nodoc\ iso _PropU32ChunkedRoundtrip is Property1[(U32, U16)]
         ]),
       Generators.u16())
 
-  fun ref property(arg: (U32, U16), ph: PropertyHelper) ? =>
+  fun ref property(arg: (U32, U16), ph: TestHelper) ? =>
     (let v, let mask) = arg
     // BE
     var wb = Writer
@@ -636,7 +635,7 @@ class \nodoc\ iso _PropU32ChunkedRoundtrip is Property1[(U32, U16)]
     for c in _BH.split_chunks(flat, mask)?.values() do rb.append(c) end
     ph.assert_eq[U32](rb.u32_le()?, v)
 
-class \nodoc\ iso _PropU64ChunkedRoundtrip is Property1[(U64, U16)]
+class \nodoc\ iso _PropU64ChunkedRoundtrip is Property[(U64, U16)]
   fun name(): String => "buffered/PropU64ChunkedRoundtrip"
 
   fun gen(): Generator[(U64, U16)] =>
@@ -650,7 +649,7 @@ class \nodoc\ iso _PropU64ChunkedRoundtrip is Property1[(U64, U16)]
         ]),
       Generators.u16())
 
-  fun ref property(arg: (U64, U16), ph: PropertyHelper) ? =>
+  fun ref property(arg: (U64, U16), ph: TestHelper) ? =>
     (let v, let mask) = arg
     // BE
     var wb = Writer
@@ -668,7 +667,7 @@ class \nodoc\ iso _PropU64ChunkedRoundtrip is Property1[(U64, U16)]
     for c in _BH.split_chunks(flat, mask)?.values() do rb.append(c) end
     ph.assert_eq[U64](rb.u64_le()?, v)
 
-class \nodoc\ iso _PropU128ChunkedRoundtrip is Property1[(U128, U16)]
+class \nodoc\ iso _PropU128ChunkedRoundtrip is Property[(U128, U16)]
   fun name(): String => "buffered/PropU128ChunkedRoundtrip"
 
   fun gen(): Generator[(U128, U16)] =>
@@ -683,7 +682,7 @@ class \nodoc\ iso _PropU128ChunkedRoundtrip is Property1[(U128, U16)]
         ]),
       Generators.u16())
 
-  fun ref property(arg: (U128, U16), ph: PropertyHelper) ? =>
+  fun ref property(arg: (U128, U16), ph: TestHelper) ? =>
     (let v, let mask) = arg
     // BE
     var wb = Writer
@@ -701,7 +700,7 @@ class \nodoc\ iso _PropU128ChunkedRoundtrip is Property1[(U128, U16)]
     for c in _BH.split_chunks(flat, mask)?.values() do rb.append(c) end
     ph.assert_eq[U128](rb.u128_le()?, v)
 
-class \nodoc\ iso _PropPeekConsistency is Property1[U128]
+class \nodoc\ iso _PropPeekConsistency is Property[U128]
   """
   Peek returns correct values without consuming data.
   """
@@ -714,7 +713,7 @@ class \nodoc\ iso _PropPeekConsistency is Property1[U128]
         (1, Generators.one_of[U128]([as U128: 0; 1; U128.max_value()]))
       ])
 
-  fun ref property(v: U128, ph: PropertyHelper) ? =>
+  fun ref property(v: U128, ph: TestHelper) ? =>
     let wb = Writer
     wb.u128_be(v)
     let rb = Reader
@@ -758,7 +757,7 @@ class \nodoc\ iso _PropPeekConsistency is Property1[U128]
     ph.assert_eq[U128](rb.u128_be()?, v)
     ph.assert_eq[USize](rb.size(), 0)
 
-class \nodoc\ iso _PropPeekChunked is Property1[(U128, U16)]
+class \nodoc\ iso _PropPeekChunked is Property[(U128, U16)]
   """
   Peek across chunk boundaries, through _peek_byte's chunk traversal.
   """
@@ -774,7 +773,7 @@ class \nodoc\ iso _PropPeekChunked is Property1[(U128, U16)]
         ]),
       Generators.u16())
 
-  fun ref property(arg: (U128, U16), ph: PropertyHelper) ? =>
+  fun ref property(arg: (U128, U16), ph: TestHelper) ? =>
     (let v, let mask) = arg
     let wb = Writer
     wb.u128_be(v)
@@ -794,13 +793,13 @@ class \nodoc\ iso _PropPeekChunked is Property1[(U128, U16)]
     ph.assert_eq[U128](rb.peek_u128_be()?, v)
     ph.assert_eq[USize](rb.size(), 16)
 
-class \nodoc\ iso _PropBlockRoundtrip is Property1[Array[U8]]
+class \nodoc\ iso _PropBlockRoundtrip is Property[Array[U8]]
   fun name(): String => "buffered/PropBlockRoundtrip"
 
   fun gen(): Generator[Array[U8]] =>
     Generators.array_of[U8](Generators.u8() where from = 1, to = 200)
 
-  fun ref property(data: Array[U8], ph: PropertyHelper) ? =>
+  fun ref property(data: Array[U8], ph: TestHelper) ? =>
     let data_val = _BH.ref_to_val(data)
     let wb = Writer
     wb.write(data_val)
@@ -815,7 +814,7 @@ class \nodoc\ iso _PropBlockRoundtrip is Property1[Array[U8]]
     end
     ph.assert_eq[USize](rb.size(), 0)
 
-class \nodoc\ iso _PropBlockChunked is Property1[(Array[U8], U16)]
+class \nodoc\ iso _PropBlockChunked is Property[(Array[U8], U16)]
   """
   Block read across chunk boundaries, through the block assembly loop.
   """
@@ -826,7 +825,7 @@ class \nodoc\ iso _PropBlockChunked is Property1[(Array[U8], U16)]
       Generators.array_of[U8](Generators.u8() where from = 1, to = 64),
       Generators.u16())
 
-  fun ref property(arg: (Array[U8], U16), ph: PropertyHelper) ? =>
+  fun ref property(arg: (Array[U8], U16), ph: TestHelper) ? =>
     (let data, let mask) = arg
     let data_val = _BH.ref_to_val(data)
     let rb = Reader
@@ -839,7 +838,7 @@ class \nodoc\ iso _PropBlockChunked is Property1[(Array[U8], U16)]
       i = i + 1
     end
 
-class \nodoc\ iso _PropSkipRead is Property1[(Array[U8], U8)]
+class \nodoc\ iso _PropSkipRead is Property[(Array[U8], U8)]
   fun name(): String => "buffered/PropSkipRead"
 
   fun gen(): Generator[(Array[U8], U8)] =>
@@ -847,7 +846,7 @@ class \nodoc\ iso _PropSkipRead is Property1[(Array[U8], U8)]
       Generators.array_of[U8](Generators.u8() where from = 1, to = 100),
       Generators.u8())
 
-  fun ref property(arg: (Array[U8], U8), ph: PropertyHelper) ? =>
+  fun ref property(arg: (Array[U8], U8), ph: TestHelper) ? =>
     (let data, let skip_raw) = arg
     let data_val = _BH.ref_to_val(data)
     let skip_amount = skip_raw.usize() % data_val.size()
@@ -866,7 +865,7 @@ class \nodoc\ iso _PropSkipRead is Property1[(Array[U8], U8)]
       i = i + 1
     end
 
-class \nodoc\ iso _PropLineRoundtrip is Property1[(String, Bool)]
+class \nodoc\ iso _PropLineRoundtrip is Property[(String, Bool)]
   fun name(): String => "buffered/PropLineRoundtrip"
 
   fun gen(): Generator[(String, Bool)] =>
@@ -874,7 +873,7 @@ class \nodoc\ iso _PropLineRoundtrip is Property1[(String, Bool)]
       Generators.ascii(where from = 0, to = 50),
       Generators.bool())
 
-  fun ref property(arg: (String, Bool), ph: PropertyHelper) ? =>
+  fun ref property(arg: (String, Bool), ph: TestHelper) ? =>
     (let content, let use_crlf) = arg
     let content_val: String val = content.clone()
     let clean =
@@ -902,7 +901,7 @@ class \nodoc\ iso _PropLineRoundtrip is Property1[(String, Bool)]
     rb.append(terminated)
     ph.assert_eq[String](rb.line(true)?, terminated)
 
-class \nodoc\ iso _PropReadUntil is Property1[(Array[U8], U8)]
+class \nodoc\ iso _PropReadUntil is Property[(Array[U8], U8)]
   fun name(): String => "buffered/PropReadUntil"
 
   fun gen(): Generator[(Array[U8], U8)] =>
@@ -910,7 +909,7 @@ class \nodoc\ iso _PropReadUntil is Property1[(Array[U8], U8)]
       Generators.array_of[U8](Generators.u8() where from = 0, to = 50),
       Generators.u8())
 
-  fun ref property(arg: (Array[U8], U8), ph: PropertyHelper) ? =>
+  fun ref property(arg: (Array[U8], U8), ph: TestHelper) ? =>
     (let data, let sep) = arg
     let data_val = _BH.ref_to_val(data)
     let prefix =
@@ -935,13 +934,13 @@ class \nodoc\ iso _PropReadUntil is Property1[(Array[U8], U8)]
     end
     ph.assert_eq[USize](rb.size(), 0)
 
-class \nodoc\ iso _PropWriterDoneReset is Property1[(U64, U64)]
+class \nodoc\ iso _PropWriterDoneReset is Property[(U64, U64)]
   fun name(): String => "buffered/PropWriterDoneReset"
 
   fun gen(): Generator[(U64, U64)] =>
     Generators.zip2[U64, U64](Generators.u64(), Generators.u64())
 
-  fun ref property(arg: (U64, U64), ph: PropertyHelper) ? =>
+  fun ref property(arg: (U64, U64), ph: TestHelper) ? =>
     (let v1, let v2) = arg
     let wb = Writer
     wb.u64_be(v1)
@@ -961,7 +960,7 @@ class \nodoc\ iso _PropWriterDoneReset is Property1[(U64, U64)]
     for chunk in second.values() do rb2.append(chunk) end
     ph.assert_eq[U64](rb2.u64_be()?, v2)
 
-class \nodoc\ iso _PropEndianCrossCheckU16 is Property1[U16]
+class \nodoc\ iso _PropEndianCrossCheckU16 is Property[U16]
   """
   BE and LE byte sequences are the reverse of each other for U16.
   """
@@ -975,7 +974,7 @@ class \nodoc\ iso _PropEndianCrossCheckU16 is Property1[U16]
           [as U16: 0; 1; 0xFF; 0x100; 0x7FFF; 0x8000; 0xFFFF]))
       ])
 
-  fun ref property(v: U16, ph: PropertyHelper) ? =>
+  fun ref property(v: U16, ph: TestHelper) ? =>
     var wb = Writer
     wb.u16_be(v)
     let bytes_be = _BH.writer_bytes(wb.done())
@@ -992,7 +991,7 @@ class \nodoc\ iso _PropEndianCrossCheckU16 is Property1[U16]
       i = i + 1
     end
 
-class \nodoc\ iso _PropEndianCrossCheckU32 is Property1[U32]
+class \nodoc\ iso _PropEndianCrossCheckU32 is Property[U32]
   """
   BE and LE byte sequences are the reverse of each other for U32.
   """
@@ -1006,7 +1005,7 @@ class \nodoc\ iso _PropEndianCrossCheckU32 is Property1[U32]
           [as U32: 0; 1; 0x01020304; 0xDEADBEEF; 0xFFFFFFFF]))
       ])
 
-  fun ref property(v: U32, ph: PropertyHelper) ? =>
+  fun ref property(v: U32, ph: TestHelper) ? =>
     var wb = Writer
     wb.u32_be(v)
     let bytes_be = _BH.writer_bytes(wb.done())
@@ -1023,7 +1022,7 @@ class \nodoc\ iso _PropEndianCrossCheckU32 is Property1[U32]
       i = i + 1
     end
 
-class \nodoc\ iso _PropEndianCrossCheckU64 is Property1[U64]
+class \nodoc\ iso _PropEndianCrossCheckU64 is Property[U64]
   """
   BE and LE byte sequences are the reverse of each other for U64.
   """
@@ -1038,7 +1037,7 @@ class \nodoc\ iso _PropEndianCrossCheckU64 is Property1[U64]
             0xFFFFFFFF; 0x100000000; U64.max_value()]))
       ])
 
-  fun ref property(v: U64, ph: PropertyHelper) ? =>
+  fun ref property(v: U64, ph: TestHelper) ? =>
     var wb = Writer
     wb.u64_be(v)
     let bytes_be = _BH.writer_bytes(wb.done())
@@ -1055,7 +1054,7 @@ class \nodoc\ iso _PropEndianCrossCheckU64 is Property1[U64]
       i = i + 1
     end
 
-class \nodoc\ iso _PropEndianCrossCheckU128 is Property1[U128]
+class \nodoc\ iso _PropEndianCrossCheckU128 is Property[U128]
   """
   BE and LE byte sequences are the reverse of each other for U128.
   """
@@ -1071,7 +1070,7 @@ class \nodoc\ iso _PropEndianCrossCheckU128 is Property1[U128]
             U128.max_value()]))
       ])
 
-  fun ref property(v: U128, ph: PropertyHelper) ? =>
+  fun ref property(v: U128, ph: TestHelper) ? =>
     var wb = Writer
     wb.u128_be(v)
     let bytes_be = _BH.writer_bytes(wb.done())
@@ -1088,7 +1087,7 @@ class \nodoc\ iso _PropEndianCrossCheckU128 is Property1[U128]
       i = i + 1
     end
 
-class \nodoc\ iso _PropEndianCrossCheckF32 is Property1[U32]
+class \nodoc\ iso _PropEndianCrossCheckF32 is Property[U32]
   """
   BE and LE byte sequences are the reverse of each other for F32.
   """
@@ -1103,7 +1102,7 @@ class \nodoc\ iso _PropEndianCrossCheckF32 is Property1[U32]
             0x7FC00000; 0x3F800000; 0xFFFFFFFF]))
       ])
 
-  fun ref property(bits: U32, ph: PropertyHelper) ? =>
+  fun ref property(bits: U32, ph: TestHelper) ? =>
     let v = F32.from_bits(bits)
     var wb = Writer
     wb.f32_be(v)
@@ -1121,7 +1120,7 @@ class \nodoc\ iso _PropEndianCrossCheckF32 is Property1[U32]
       i = i + 1
     end
 
-class \nodoc\ iso _PropEndianCrossCheckF64 is Property1[U64]
+class \nodoc\ iso _PropEndianCrossCheckF64 is Property[U64]
   """
   BE and LE byte sequences are the reverse of each other for F64.
   """
@@ -1137,7 +1136,7 @@ class \nodoc\ iso _PropEndianCrossCheckF64 is Property1[U64]
             0x3FF0000000000000; U64.max_value()]))
       ])
 
-  fun ref property(bits: U64, ph: PropertyHelper) ? =>
+  fun ref property(bits: U64, ph: TestHelper) ? =>
     let v = F64.from_bits(bits)
     var wb = Writer
     wb.f64_be(v)
@@ -1156,7 +1155,7 @@ class \nodoc\ iso _PropEndianCrossCheckF64 is Property1[U64]
     end
 
 class \nodoc\ iso _PropMultiValueRoundtrip
-  is Property1[((U8, U16), (U32, U64))]
+  is Property[((U8, U16), (U32, U64))]
   """
   Sequential writes of different types, read back in order, with offset
   tracking across multiple reads.
@@ -1168,7 +1167,7 @@ class \nodoc\ iso _PropMultiValueRoundtrip
       Generators.zip2[U8, U16](Generators.u8(), Generators.u16()),
       Generators.zip2[U32, U64](Generators.u32(), Generators.u64()))
 
-  fun ref property(arg: ((U8, U16), (U32, U64)), ph: PropertyHelper) ? =>
+  fun ref property(arg: ((U8, U16), (U32, U64)), ph: TestHelper) ? =>
     ((let a, let b), (let c, let d)) = arg
     let wb = Writer
     wb.u8(a)
@@ -1186,7 +1185,7 @@ class \nodoc\ iso _PropMultiValueRoundtrip
     ph.assert_eq[U64](rb.u64_be()?, d)
     ph.assert_eq[USize](rb.size(), 0)
 
-class \nodoc\ iso _PropWriterSize is Property1[Array[U8]]
+class \nodoc\ iso _PropWriterSize is Property[Array[U8]]
   """
   Writer.size() with individual u8() writes and write() above the
   coalescing threshold.
@@ -1196,7 +1195,7 @@ class \nodoc\ iso _PropWriterSize is Property1[Array[U8]]
   fun gen(): Generator[Array[U8]] =>
     Generators.array_of[U8](Generators.u8() where from = 0, to = 200)
 
-  fun ref property(data: Array[U8], ph: PropertyHelper) ? =>
+  fun ref property(data: Array[U8], ph: TestHelper) ? =>
     let data_val = _BH.ref_to_val(data)
     var wb = Writer
     for byte in data_val.values() do wb.u8(byte) end
@@ -1218,7 +1217,7 @@ class \nodoc\ iso _PropWriterSize is Property1[Array[U8]]
       end
     end
 
-class \nodoc\ iso _PropEmptyAppend is Property1[Array[U8]]
+class \nodoc\ iso _PropEmptyAppend is Property[Array[U8]]
   """
   Empty appends do not corrupt the Reader's chunk list.
   """
@@ -1227,7 +1226,7 @@ class \nodoc\ iso _PropEmptyAppend is Property1[Array[U8]]
   fun gen(): Generator[Array[U8]] =>
     Generators.array_of[U8](Generators.u8() where from = 1, to = 50)
 
-  fun ref property(data: Array[U8], ph: PropertyHelper) ? =>
+  fun ref property(data: Array[U8], ph: TestHelper) ? =>
     let data_val = _BH.ref_to_val(data)
     let rb = Reader
     rb.append(recover val Array[U8] end)

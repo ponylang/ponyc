@@ -1,5 +1,4 @@
 use json = "json"
-use "pony_check"
 use "pony_test"
 
 // ---------------------------------------------------------------------------
@@ -62,7 +61,7 @@ primitive \nodoc\ _ValidJSONGen
 // Property-based tests
 // ---------------------------------------------------------------------------
 class \nodoc\ iso _PropertyDecodeJSONParseErrorPropagation
-  is Property1[String val]
+  is Property[String val]
   """
   Invalid JSON always yields JSONParseError, never success or decode error.
   """
@@ -70,7 +69,7 @@ class \nodoc\ iso _PropertyDecodeJSONParseErrorPropagation
 
   fun gen(): Generator[String val] => _InvalidJSONGen()
 
-  fun property(sample: String val, h: PropertyHelper) =>
+  fun property(sample: String val, h: TestHelper) =>
     let response = _MakeJSONResponse(sample)
     match \exhaustive\ DecodeJSON[String](response, _AlwaysSucceedDecoder)
     | let s: String =>
@@ -81,13 +80,13 @@ class \nodoc\ iso _PropertyDecodeJSONParseErrorPropagation
     end
 
 class \nodoc\ iso _PropertyDecodeJSONDecodeErrorPropagation
-  is Property1[String val]
+  is Property[String val]
   """Valid JSON with always-fail decoder yields JSONDecodeError."""
   fun name(): String => "json_decoder/property/decode_error_propagation"
 
   fun gen(): Generator[String val] => _ValidJSONGen()
 
-  fun property(sample: String val, h: PropertyHelper) =>
+  fun property(sample: String val, h: TestHelper) =>
     let response = _MakeJSONResponse(sample)
     match \exhaustive\ DecodeJSON[String](response, _AlwaysFailDecoder)
     | let s: String =>
@@ -97,13 +96,13 @@ class \nodoc\ iso _PropertyDecodeJSONDecodeErrorPropagation
     | let err: JSONDecodeError => None
     end
 
-class \nodoc\ iso _PropertyDecodeJSONIdentityDecoder is Property1[String val]
+class \nodoc\ iso _PropertyDecodeJSONIdentityDecoder is Property[String val]
   """Valid JSON with always-succeed decoder yields success."""
   fun name(): String => "json_decoder/property/identity_decoder"
 
   fun gen(): Generator[String val] => _ValidJSONGen()
 
-  fun property(sample: String val, h: PropertyHelper) =>
+  fun property(sample: String val, h: TestHelper) =>
     let response = _MakeJSONResponse(sample)
     match \exhaustive\ DecodeJSON[String](response, _AlwaysSucceedDecoder)
     | let s: String => None

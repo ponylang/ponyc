@@ -270,9 +270,9 @@ Passes Pony structs to C functions, showing both `embed` fields (inline like C n
 
 Runs microbenchmarks using the `pony_bench` package, reporting mean, median, and deviation. Demonstrates synchronous benchmarks with the `MicroBenchmark` trait, asynchronous benchmarks with `AsyncMicroBenchmark`, and `DoNotOptimise` to prevent dead code elimination.
 
-### [pony_check](testing/pony_check/)
+### [property_testing](testing/property_testing/)
 
-Demonstrates property-based testing with the `pony_check` package. Shows `Property1UnitTest` for defining properties, built-in and custom generators for producing test data, generator composition with `flat_map`, and async property testing over TCP using the `net/notifier` API.
+Demonstrates property-based testing with the `pony_test` package. Shows `PropertyTest` for defining properties, built-in and custom generators for producing test data, generator composition with `flat_map`, and async property testing over TCP using the `net/notifier` API.
 
 ## Benchmarks and Simulations
 

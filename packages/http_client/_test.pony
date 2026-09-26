@@ -1,5 +1,4 @@
 use "pony_test"
-use "pony_check"
 
 actor \nodoc\ Main is TestList
   new create(env: Env) =>
@@ -10,31 +9,31 @@ actor \nodoc\ Main is TestList
 
   fun tag tests(test: PonyTest) =>
     // Method tests
-    test(Property1UnitTest[String val](_PropertyValidMethodParsesCorrectly))
-    test(Property1UnitTest[String val](_PropertyInvalidMethodReturnsNone))
-    test(Property1UnitTest[(String val, Bool)](
+    test(PropertyTest[String val](_PropertyValidMethodParsesCorrectly))
+    test(PropertyTest[String val](_PropertyInvalidMethodReturnsNone))
+    test(PropertyTest[(String val, Bool)](
       _PropertyMethodParseBoundary))
 
     // Headers tests
-    test(Property1UnitTest[(String val, String val)](
+    test(PropertyTest[(String val, String val)](
       _PropertyHeadersCaseInsensitive))
-    test(Property1UnitTest[(String val, String val, String val)](
+    test(PropertyTest[(String val, String val, String val)](
       _PropertyHeadersSetReplaces))
-    test(Property1UnitTest[(String val, String val, String val)](
+    test(PropertyTest[(String val, String val, String val)](
       _PropertyHeadersAddPreserves))
 
     // Parser property-based tests
-    test(Property1UnitTest[(U16, String val)](
+    test(PropertyTest[(U16, String val)](
       _PropertyValidStatusLineParsesCorrectly))
-    test(Property1UnitTest[String val](
+    test(PropertyTest[String val](
       _PropertyInvalidStatusLineRejected))
-    test(Property1UnitTest[Array[(String val, String val)] ref](
+    test(PropertyTest[Array[(String val, String val)] ref](
       _PropertyHeadersRoundtrip))
-    test(Property1UnitTest[USize](
+    test(PropertyTest[USize](
       _PropertyFixedBodyDelivered))
-    test(Property1UnitTest[Array[USize] ref](
+    test(PropertyTest[Array[USize] ref](
       _PropertyChunkedBodyDelivered))
-    test(Property1UnitTest[(String val, Bool)](
+    test(PropertyTest[(String val, Bool)](
       _PropertyStatusLineBoundary))
 
     // Parser example-based tests
@@ -61,13 +60,13 @@ actor \nodoc\ Main is TestList
     test(_TestMultiple1xx)
 
     // Serializer property-based tests
-    test(Property1UnitTest[String val](
+    test(PropertyTest[String val](
       _PropertySerializerContainsMethod))
-    test(Property1UnitTest[String val](
+    test(PropertyTest[String val](
       _PropertySerializerContainsPath))
-    test(Property1UnitTest[String val](
+    test(PropertyTest[String val](
       _PropertySerializerAutoHost))
-    test(Property1UnitTest[USize](
+    test(PropertyTest[USize](
       _PropertySerializerAutoContentLength))
 
     // Serializer example-based tests
@@ -79,9 +78,9 @@ actor \nodoc\ Main is TestList
     test(_TestSerializerNoBody)
 
     // Response collector property-based tests
-    test(Property1UnitTest[Array[USize] ref](
+    test(PropertyTest[Array[USize] ref](
       _PropertyCollectorChunkAccumulation))
-    test(Property1UnitTest[U16](
+    test(PropertyTest[U16](
       _PropertyCollectorPreservesResponseMetadata))
 
     // Response collector example-based tests
@@ -91,13 +90,13 @@ actor \nodoc\ Main is TestList
     test(_TestCollectorBuildWithoutResponse)
 
     // Percent encoder property-based tests
-    test(Property1UnitTest[String val](
+    test(PropertyTest[String val](
       _PropertyQueryUnreservedPassthrough))
-    test(Property1UnitTest[U8](
+    test(PropertyTest[U8](
       _PropertyQueryReservedEncoded))
-    test(Property1UnitTest[USize](
+    test(PropertyTest[USize](
       _PropertyFormSpacesToPlus))
-    test(Property1UnitTest[(String val, String val)](
+    test(PropertyTest[(String val, String val)](
       _PropertyQueryParamsRoundtrip))
 
     // Percent encoder / query params example-based tests
@@ -109,9 +108,9 @@ actor \nodoc\ Main is TestList
     test(_TestFormEncoderSpecialChars)
 
     // Auth property-based tests
-    test(Property1UnitTest[(String val, String val)](
+    test(PropertyTest[(String val, String val)](
       _PropertyBasicAuthFormat))
-    test(Property1UnitTest[String val](
+    test(PropertyTest[String val](
       _PropertyBearerAuthFormat))
 
     // Auth example-based tests
@@ -119,7 +118,7 @@ actor \nodoc\ Main is TestList
     test(_TestBearerAuthKnownGood)
 
     // Request builder property-based tests
-    test(Property1UnitTest[String val](
+    test(PropertyTest[String val](
       _PropertyBuilderMethodCorrect))
 
     // Request builder example-based tests
@@ -141,11 +140,11 @@ actor \nodoc\ Main is TestList
     test(_TestResponseJSONEmptyBody)
 
     // JSON decoder property-based tests
-    test(Property1UnitTest[String val](
+    test(PropertyTest[String val](
       _PropertyDecodeJSONParseErrorPropagation))
-    test(Property1UnitTest[String val](
+    test(PropertyTest[String val](
       _PropertyDecodeJSONDecodeErrorPropagation))
-    test(Property1UnitTest[String val](_PropertyDecodeJSONIdentityDecoder))
+    test(PropertyTest[String val](_PropertyDecodeJSONIdentityDecoder))
 
     // JSON decoder example-based tests
     test(_TestJSONDecoderSuccessfulDecode)
@@ -157,7 +156,7 @@ actor \nodoc\ Main is TestList
     test(_TestJSONDecodeErrorString)
 
     // Multipart property-based tests
-    test(Property1UnitTest[USize](_PropertyMultipartBodyStructure))
+    test(PropertyTest[USize](_PropertyMultipartBodyStructure))
 
     // Multipart example-based tests
     test(_TestMultipartBoundaryFormat)
@@ -170,7 +169,7 @@ actor \nodoc\ Main is TestList
     test(_TestMultipartNonAsciiFilename)
 
     // Multipart escaping property-based tests
-    test(Property1UnitTest[String val](
+    test(PropertyTest[String val](
       _PropertyMultipartEscapedNamesWellFormed))
 
     // Multipart escaping example-based tests
@@ -200,7 +199,7 @@ actor \nodoc\ Main is TestList
     test(_TestRedirectEmptyPathWithQuery)
     test(_TestRedirectEmptyHostRejected)
     test(_TestRedirectMixedCaseScheme)
-    test(Property1UnitTest[(U16, String val)](
+    test(PropertyTest[(U16, String val)](
       _PropertyRedirectStripsCredentials))
 
     // Redirect follower tests

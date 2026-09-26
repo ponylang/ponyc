@@ -1,5 +1,4 @@
 use "pony_test"
-use "pony_check"
 use lint = ".."
 
 class \nodoc\ _TestGlobMatchLiteral is UnitTest
@@ -133,7 +132,7 @@ class \nodoc\ _TestGlobMatchEdgeCases is UnitTest
     h.assert_true(lint.GlobMatch.matches("**/a/**/b", "x/a/y/b"))
     h.assert_true(lint.GlobMatch.matches("**/a/**/b", "x/y/a/z/w/b"))
 
-class \nodoc\ _TestGlobMatchLiteralSelfMatchProperty is Property1[String]
+class \nodoc\ _TestGlobMatchLiteralSelfMatchProperty is Property[String]
   """Any string without glob metacharacters matches itself."""
 
   fun name(): String =>
@@ -156,12 +155,12 @@ class \nodoc\ _TestGlobMatchLiteralSelfMatchProperty is Property1[String]
           consume s
       end)
 
-  fun ref property(arg1: String, ph: PropertyHelper) =>
+  fun ref property(arg1: String, ph: TestHelper) =>
     ph.assert_true(
       lint.GlobMatch.matches(arg1, arg1),
       "Expected self-match: " + arg1)
 
-class \nodoc\ _TestGlobMatchStarNoCrossSlashProperty is Property1[String]
+class \nodoc\ _TestGlobMatchStarNoCrossSlashProperty is Property[String]
   """* matches a string iff it contains no /."""
 
   fun name(): String =>
@@ -186,7 +185,7 @@ class \nodoc\ _TestGlobMatchStarNoCrossSlashProperty is Property1[String]
           consume s
       end)
 
-  fun ref property(arg1: String, ph: PropertyHelper) =>
+  fun ref property(arg1: String, ph: TestHelper) =>
     let expected = not arg1.contains("/")
     ph.assert_eq[Bool](
       expected,
@@ -194,7 +193,7 @@ class \nodoc\ _TestGlobMatchStarNoCrossSlashProperty is Property1[String]
       "* vs '" + arg1 + "': expected " +
         if expected then "match" else "no match" end)
 
-class \nodoc\ _TestGlobMatchDoubleStarMatchesAllProperty is Property1[String]
+class \nodoc\ _TestGlobMatchDoubleStarMatchesAllProperty is Property[String]
   """** matches every string."""
 
   fun name(): String =>
@@ -219,7 +218,7 @@ class \nodoc\ _TestGlobMatchDoubleStarMatchesAllProperty is Property1[String]
           consume s
       end)
 
-  fun ref property(arg1: String, ph: PropertyHelper) =>
+  fun ref property(arg1: String, ph: TestHelper) =>
     ph.assert_true(
       lint.GlobMatch.matches("**", arg1),
       "Expected ** to match: " + arg1)

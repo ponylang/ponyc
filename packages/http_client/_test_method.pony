@@ -1,6 +1,6 @@
-use "pony_check"
+use "pony_test"
 
-class \nodoc\ iso _PropertyValidMethodParsesCorrectly is Property1[String val]
+class \nodoc\ iso _PropertyValidMethodParsesCorrectly is Property[String val]
   fun name(): String => "method/valid_parse"
 
   fun gen(): Generator[String val] =>
@@ -8,7 +8,7 @@ class \nodoc\ iso _PropertyValidMethodParsesCorrectly is Property1[String val]
       [ "GET"; "HEAD"; "POST"; "PUT"; "DELETE"
         "CONNECT"; "OPTIONS"; "TRACE"; "PATCH"])
 
-  fun ref property(arg1: String val, ph: PropertyHelper) =>
+  fun ref property(arg1: String val, ph: TestHelper) =>
     match Methods.parse(arg1)
     | let m: Method =>
       ph.assert_eq[String val](arg1, m.string())
@@ -16,7 +16,7 @@ class \nodoc\ iso _PropertyValidMethodParsesCorrectly is Property1[String val]
       ph.fail("valid method string should parse: " + arg1)
     end
 
-class \nodoc\ iso _PropertyInvalidMethodReturnsNone is Property1[String val]
+class \nodoc\ iso _PropertyInvalidMethodReturnsNone is Property[String val]
   fun name(): String => "method/invalid_returns_none"
 
   fun gen(): Generator[String val] =>
@@ -43,13 +43,13 @@ class \nodoc\ iso _PropertyInvalidMethodReturnsNone is Property1[String val]
         (2, Generators.ascii(1, 20))
       ])
 
-  fun ref property(arg1: String val, ph: PropertyHelper) =>
+  fun ref property(arg1: String val, ph: TestHelper) =>
     ph.assert_true(
       Methods.parse(arg1) is None,
       "invalid method string should not parse: " + arg1)
 
 class \nodoc\ iso _PropertyMethodParseBoundary
-  is Property1[(String val, Bool)]
+  is Property[(String val, Bool)]
   fun name(): String => "method/parse_boundary"
 
   fun gen(): Generator[(String val, Bool)] =>
@@ -81,7 +81,7 @@ class \nodoc\ iso _PropertyMethodParseBoundary
         (1, invalid_gen)
       ])
 
-  fun ref property(arg1: (String val, Bool), ph: PropertyHelper) =>
+  fun ref property(arg1: (String val, Bool), ph: TestHelper) =>
     (let input, let should_parse) = arg1
     let result = Methods.parse(input)
     if should_parse then

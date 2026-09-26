@@ -905,13 +905,13 @@ else()
         COMMAND ${PONY_OUTPUT_DIR}/pony-dep-tests${CMAKE_EXECUTABLE_SUFFIX} --sequential
         WORKING_DIRECTORY ${PONY_OUTPUT_DIR})
     set_tests_properties(pony-lint-tests PROPERTIES
-        ENVIRONMENT "PONYPATH=${CMAKE_SOURCE_DIR}/packages;PONYCHECK_DB_DIR=${CMAKE_SOURCE_DIR}/.ponycheck/pony-lint-tests")
+        ENVIRONMENT "PONYPATH=${CMAKE_SOURCE_DIR}/packages;PONYTEST_DB_DIR=${CMAKE_SOURCE_DIR}/.ponytest/pony-lint-tests")
     set_tests_properties(pony-doc-tests PROPERTIES
-        ENVIRONMENT "PONYPATH=${CMAKE_SOURCE_DIR}/packages;PONYCHECK_DB_DIR=${CMAKE_SOURCE_DIR}/.ponycheck/pony-doc-tests")
+        ENVIRONMENT "PONYPATH=${CMAKE_SOURCE_DIR}/packages;PONYTEST_DB_DIR=${CMAKE_SOURCE_DIR}/.ponytest/pony-doc-tests")
     set_tests_properties(pony-dep-tests PROPERTIES
-        ENVIRONMENT "PONYPATH=${CMAKE_SOURCE_DIR}/packages;PONYCHECK_DB_DIR=${CMAKE_SOURCE_DIR}/.ponycheck/pony-dep-tests")
+        ENVIRONMENT "PONYPATH=${CMAKE_SOURCE_DIR}/packages;PONYTEST_DB_DIR=${CMAKE_SOURCE_DIR}/.ponytest/pony-dep-tests")
     set_tests_properties(pony-lsp-tests PROPERTIES
-        ENVIRONMENT "PONYCHECK_DB_DIR=${CMAKE_SOURCE_DIR}/.ponycheck/pony-lsp-tests")
+        ENVIRONMENT "PONYTEST_DB_DIR=${CMAKE_SOURCE_DIR}/.ponytest/pony-lsp-tests")
     add_test(NAME pony-compiler-tests
         COMMAND ${PONY_OUTPUT_DIR}/pony-compiler-tests${CMAKE_EXECUTABLE_SUFFIX} --sequential
         WORKING_DIRECTORY ${PONY_OUTPUT_DIR})
@@ -921,10 +921,10 @@ else()
     # so it needs no separator and no platform branch.)
     if(WIN32)
         set_tests_properties(pony-compiler-tests PROPERTIES
-            ENVIRONMENT "PONYPATH=${CMAKE_SOURCE_DIR}/tools/lib/ponylang/pony_compiler\;${CMAKE_SOURCE_DIR}/packages;PONYCHECK_DB_DIR=${CMAKE_SOURCE_DIR}/.ponycheck/pony-compiler-tests")
+            ENVIRONMENT "PONYPATH=${CMAKE_SOURCE_DIR}/tools/lib/ponylang/pony_compiler\;${CMAKE_SOURCE_DIR}/packages;PONYTEST_DB_DIR=${CMAKE_SOURCE_DIR}/.ponytest/pony-compiler-tests")
     else()
         set_tests_properties(pony-compiler-tests PROPERTIES
-            ENVIRONMENT "PONYPATH=${CMAKE_SOURCE_DIR}/tools/lib/ponylang/pony_compiler:${CMAKE_SOURCE_DIR}/packages;PONYCHECK_DB_DIR=${CMAKE_SOURCE_DIR}/.ponycheck/pony-compiler-tests")
+            ENVIRONMENT "PONYPATH=${CMAKE_SOURCE_DIR}/tools/lib/ponylang/pony_compiler:${CMAKE_SOURCE_DIR}/packages;PONYTEST_DB_DIR=${CMAKE_SOURCE_DIR}/.ponytest/pony-compiler-tests")
     endif()
     set_tests_properties(pony-doc-tests pony-lsp-tests pony-lint-tests pony-compiler-tests
         pony-dep-tests PROPERTIES LABELS tools)

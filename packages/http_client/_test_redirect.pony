@@ -1,5 +1,4 @@
 use uri = "uri"
-use "pony_check"
 use "pony_test"
 
 primitive \nodoc\ _RedirectTestKit
@@ -455,7 +454,7 @@ class \nodoc\ iso _TestRedirectMixedCaseScheme is UnitTest
     end
 
 class \nodoc\ iso _PropertyRedirectStripsCredentials
-  is Property1[(U16, String val)]
+  is Property[(U16, String val)]
   """
   For every redirect status and any safe header, a cross-origin hop carrying
   authorization, cookie, proxy-authorization, host, and referer drops all
@@ -468,7 +467,7 @@ class \nodoc\ iso _PropertyRedirectStripsCredentials
       Generators.one_of[U16]([as U16: 301; 302; 303; 307; 308]),
       Generators.ascii_letters(where from = 1, to = 12))
 
-  fun ref property(arg1: (U16, String val), ph: PropertyHelper) =>
+  fun ref property(arg1: (U16, String val), ph: TestHelper) =>
     (let status, let safe_name_raw) = arg1
     // Keep the generated safe header clear of sensitive and body names.
     let safe_name: String val = "x-" + safe_name_raw.lower()

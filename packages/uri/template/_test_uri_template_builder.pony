@@ -1,5 +1,4 @@
 use "pony_test"
-use "pony_check"
 
 class \nodoc\ iso _TestBuilderSimpleExpansion is UnitTest
   """String variables produce correct expansion via builder."""
@@ -84,7 +83,7 @@ class \nodoc\ iso _TestBuilderChaining is UnitTest
       h.fail("build should not fail")
     end
 
-class \nodoc\ iso _TestPropertyBuilderMatchesExpand is Property1[String]
+class \nodoc\ iso _TestPropertyBuilderMatchesExpand is Property[String]
   """
   Property: builder with .set("x", value).build() on template "{x}" produces
   the same result as URITemplate("{x}")?.expand(vars) for any unreserved value.
@@ -95,7 +94,7 @@ class \nodoc\ iso _TestPropertyBuilderMatchesExpand is Property1[String]
   fun gen(): Generator[String] =>
     _TemplateGenerators.unreserved_string(1, 30)
 
-  fun ref property(arg1: String, h: PropertyHelper) =>
+  fun ref property(arg1: String, h: TestHelper) =>
     // Direct path: parse + expand
     let vars = URITemplateVariables
     vars.set("x", arg1)
@@ -122,7 +121,7 @@ class \nodoc\ iso _TestPropertyBuilderMatchesExpand is Property1[String]
 
     h.assert_eq[String val](direct, built)
 
-class \nodoc\ iso _TestPropertyBuilderInvalidFails is Property1[String]
+class \nodoc\ iso _TestPropertyBuilderInvalidFails is Property[String]
   """Property: for any invalid template, build() errors."""
   fun name(): String =>
     "uri/template/builder/property: invalid templates fail"
@@ -130,7 +129,7 @@ class \nodoc\ iso _TestPropertyBuilderInvalidFails is Property1[String]
   fun gen(): Generator[String] =>
     _TemplateGenerators.invalid_template()
 
-  fun ref property(arg1: String, h: PropertyHelper) =>
+  fun ref property(arg1: String, h: TestHelper) =>
     try
       URITemplateBuilder(arg1).build()?
       h.fail("invalid template should not build: '" + arg1 + "'")

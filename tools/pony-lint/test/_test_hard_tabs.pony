@@ -1,5 +1,4 @@
 use "pony_test"
-use "pony_check"
 use lint = ".."
 
 class \nodoc\ _TestHardTabsSingleTab is UnitTest
@@ -60,19 +59,19 @@ class \nodoc\ _TestHardTabsProperty is UnitTest
 
   fun apply(h: TestHelper) ? =>
     // Clean lines (only spaces and letters)
-    PonyCheck.for_all[String](
+    h.for_all[String](
       recover val Generators.ascii(where from = 0, to = 40,
-        range = ASCIILetters) end, h)(
-      {(content: String, ph: PropertyHelper) =>
+        range = ASCIILetters) end)(
+      {(content: String, ph: TestHelper) =>
         let sf = lint.SourceFile("/tmp/t.pony", content, "/tmp")
         let diags = lint.HardTabs.check(sf)
         ph.assert_eq[USize](0, diags.size())
       })?
     // Lines with a tab always flagged
-    PonyCheck.for_all[String](
+    h.for_all[String](
       recover val Generators.ascii(where from = 1, to = 20,
-        range = ASCIILetters) end, h)(
-      {(content: String, ph: PropertyHelper) =>
+        range = ASCIILetters) end)(
+      {(content: String, ph: TestHelper) =>
         let line: String val = content + "\t"
         let sf = lint.SourceFile("/tmp/t.pony", line, "/tmp")
         let diags = lint.HardTabs.check(sf)

@@ -1,5 +1,4 @@
 use "pony_test"
-use "pony_check"
 use mut = "collections"
 
 actor \nodoc\ Main is TestList
@@ -41,18 +40,18 @@ actor \nodoc\ Main is TestList
     test(_TestVecRemoveOverrun)
     test(_TestVecReverse)
     test(_TestVecSlice)
-    test(Property1UnitTest[Array[USize]](_ListIteratorsProperty))
-    test(Property1UnitTest[(Array[USize], Array[USize], USize)](
+    test(PropertyTest[Array[USize]](_ListIteratorsProperty))
+    test(PropertyTest[(Array[USize], Array[USize], USize)](
       _ListLawsProperty))
-    test(Property1UnitTest[(USize, Array[_ListAction])](_ListModelProperty))
-    test(Property1UnitTest[Array[_MapAction]](_MapIteratorsProperty))
-    test(Property1UnitTest[(USize, Array[_MapAction])](_MapModelProperty))
-    test(Property1UnitTest[Array[_MapAction]](_MapStructureProperty))
-    test(Property1UnitTest[(Array[USize], USize)](_VecFindContainsProperty))
-    test(Property1UnitTest[Array[USize]](_VecIteratorsProperty))
-    test(Property1UnitTest[(Array[USize], USize, USize)](_VecLawsProperty))
-    test(Property1UnitTest[(USize, Array[_VecAction])](_VecModelProperty))
-    test(Property1UnitTest[(USize, Array[_VecAction])](_VecStructureProperty))
+    test(PropertyTest[(USize, Array[_ListAction])](_ListModelProperty))
+    test(PropertyTest[Array[_MapAction]](_MapIteratorsProperty))
+    test(PropertyTest[(USize, Array[_MapAction])](_MapModelProperty))
+    test(PropertyTest[Array[_MapAction]](_MapStructureProperty))
+    test(PropertyTest[(Array[USize], USize)](_VecFindContainsProperty))
+    test(PropertyTest[Array[USize]](_VecIteratorsProperty))
+    test(PropertyTest[(Array[USize], USize, USize)](_VecLawsProperty))
+    test(PropertyTest[(USize, Array[_VecAction])](_VecModelProperty))
+    test(PropertyTest[(USize, Array[_VecAction])](_VecStructureProperty))
 
 class \nodoc\ iso _TestListPrepend is UnitTest
   fun name(): String => "collections/persistent/List (prepend)"
@@ -781,7 +780,7 @@ primitive \nodoc\ _ListCheck
     end
     (out, false)
 
-class \nodoc\ iso _ListModelProperty is Property1[(USize, Array[_ListAction])]
+class \nodoc\ iso _ListModelProperty is Property[(USize, Array[_ListAction])]
   """
   Apply a generated sequence of operations to a `List` and to an `Array` used
   as a model, then check that the two hold the same elements.
@@ -816,7 +815,7 @@ class \nodoc\ iso _ListModelProperty is Property1[(USize, Array[_ListAction])]
               })
         })
 
-  fun ref property(arg1: (USize, Array[_ListAction]), h: PropertyHelper) =>
+  fun ref property(arg1: (USize, Array[_ListAction]), h: TestHelper) =>
     (let config, let actions) = arg1
     var l: List[USize] = Nil[USize]
     var model = Array[USize]
@@ -875,7 +874,7 @@ class \nodoc\ iso _ListModelProperty is Property1[(USize, Array[_ListAction])]
     end
 
 class \nodoc\ iso _ListLawsProperty
-  is Property1[(Array[USize], Array[USize], USize)]
+  is Property[(Array[USize], Array[USize], USize)]
   """
   Laws that relate the operations to each other, each of which must hold for
   any list.
@@ -892,7 +891,7 @@ class \nodoc\ iso _ListLawsProperty
 
   fun ref property(
     arg1: (Array[USize], Array[USize], USize),
-    h: PropertyHelper)
+    h: TestHelper)
     ?
   =>
     (let xs, let ys, let k) = arg1
@@ -972,7 +971,7 @@ class \nodoc\ iso _ListLawsProperty
     h.assert_array_eq[USize](
       xs, _ListCheck.contents(Lists[USize](xs)), "Lists.apply")
 
-class \nodoc\ iso _ListIteratorsProperty is Property1[Array[USize]]
+class \nodoc\ iso _ListIteratorsProperty is Property[Array[USize]]
   """
   `values()` agrees with reading the list through `head` and `tail`, keeps the
   `Iterator` contract, and leaves the list it came from alone.
@@ -986,7 +985,7 @@ class \nodoc\ iso _ListIteratorsProperty is Property1[Array[USize]]
 
   fun gen(): Generator[Array[USize]] => _ListGen.contents()
 
-  fun ref property(arg1: Array[USize], h: PropertyHelper) =>
+  fun ref property(arg1: Array[USize], h: TestHelper) =>
     let l = _ListGen.build(arg1)
 
     (let drained, let broke) = _ListCheck.drain(l)
@@ -1098,7 +1097,7 @@ primitive \nodoc\ _VecCheck
     end
     out
 
-class \nodoc\ iso _VecModelProperty is Property1[(USize, Array[_VecAction])]
+class \nodoc\ iso _VecModelProperty is Property[(USize, Array[_VecAction])]
   """
   Apply a generated sequence of operations to a `Vec` and to an `Array` used as
   a model, then check that the two hold the same elements.
@@ -1111,7 +1110,7 @@ class \nodoc\ iso _VecModelProperty is Property1[(USize, Array[_VecAction])]
   fun gen(): Generator[(USize, Array[_VecAction])] =>
     _VecGen.configured_actions(100)
 
-  fun ref property(arg1: (USize, Array[_VecAction]), h: PropertyHelper) ? =>
+  fun ref property(arg1: (USize, Array[_VecAction]), h: TestHelper) ? =>
     (let config, let actions) = arg1
     var v = Vec[USize]
     let model = Array[USize]
@@ -1170,7 +1169,7 @@ class \nodoc\ iso _VecModelProperty is Property1[(USize, Array[_VecAction])]
     h.assert_array_eq[USize](
       model, _VecCheck.contents(v), "contents, config " + config.string())
 
-class \nodoc\ iso _VecLawsProperty is Property1[(Array[USize], USize, USize)]
+class \nodoc\ iso _VecLawsProperty is Property[(Array[USize], USize, USize)]
   """
   Laws that relate the operations to each other, each of which must hold for
   any vector.
@@ -1181,7 +1180,7 @@ class \nodoc\ iso _VecLawsProperty is Property1[(Array[USize], USize, USize)]
     Generators.zip3[Array[USize], USize, USize](
       _VecGen.contents(), Generators.usize(0, 1_000), Generators.usize(0, 99))
 
-  fun ref property(arg1: (Array[USize], USize, USize), h: PropertyHelper) ? =>
+  fun ref property(arg1: (Array[USize], USize, USize), h: TestHelper) ? =>
     (let elements, let idx, let value) = arg1
     let v = _VecGen.build(elements)
     let n = elements.size()
@@ -1216,7 +1215,7 @@ class \nodoc\ iso _VecLawsProperty is Property1[(Array[USize], USize, USize)]
       _VecCheck.contents(v.slice(0, k).concat(v.slice(k).values())),
       "slice . concat")
 
-class \nodoc\ iso _VecIteratorsProperty is Property1[Array[USize]]
+class \nodoc\ iso _VecIteratorsProperty is Property[Array[USize]]
   """
   The three iterators agree with `apply`, with each other, and leave the vector
   they were created from alone.
@@ -1225,7 +1224,7 @@ class \nodoc\ iso _VecIteratorsProperty is Property1[Array[USize]]
 
   fun gen(): Generator[Array[USize]] => _VecGen.contents()
 
-  fun ref property(arg1: Array[USize], h: PropertyHelper) =>
+  fun ref property(arg1: Array[USize], h: TestHelper) =>
     let n = arg1.size()
     let v = _VecGen.build(arg1)
 
@@ -1252,7 +1251,7 @@ class \nodoc\ iso _VecIteratorsProperty is Property1[Array[USize]]
     // the iterators consume a copy of the leaf nodes, not the vector
     h.assert_array_eq[USize](arg1, _VecCheck.contents(v), "source after iteration")
 
-class \nodoc\ iso _VecFindContainsProperty is Property1[(Array[USize], USize)]
+class \nodoc\ iso _VecFindContainsProperty is Property[(Array[USize], USize)]
   """
   `find` and `contains` agree with a scan of the elements, including which
   appearance `nth` selects and where `offset` starts.
@@ -1273,7 +1272,7 @@ class \nodoc\ iso _VecFindContainsProperty is Property1[(Array[USize], USize)]
               (elements.clone(), probe) })
       })
 
-  fun ref property(arg1: (Array[USize], USize), h: PropertyHelper) ? =>
+  fun ref property(arg1: (Array[USize], USize), h: TestHelper) ? =>
     (let elements, let probe) = arg1
     let v = _VecGen.build(elements)
 
@@ -1434,7 +1433,7 @@ primitive \nodoc\ _VecShape
     for _ in mut.Range(0, depth) do cap = cap * 32 end
     cap
 
-class \nodoc\ iso _VecStructureProperty is Property1[(USize, Array[_VecAction])]
+class \nodoc\ iso _VecStructureProperty is Property[(USize, Array[_VecAction])]
   """
   The trie's shape after every operation, checked against the invariants the
   vector code maintains rather than against what a read returns.
@@ -1459,7 +1458,7 @@ class \nodoc\ iso _VecStructureProperty is Property1[(USize, Array[_VecAction])]
   fun gen(): Generator[(USize, Array[_VecAction])] =>
     _VecGen.configured_actions(60)
 
-  fun ref property(arg1: (USize, Array[_VecAction]), h: PropertyHelper) ? =>
+  fun ref property(arg1: (USize, Array[_VecAction]), h: TestHelper) ? =>
     (let config, let actions) = arg1
     var v = Vec[USize]
     var size: USize = 0
@@ -1753,7 +1752,7 @@ primitive \nodoc\ _MapCheck
     end
     (out, false)
 
-class \nodoc\ iso _MapModelProperty is Property1[(USize, Array[_MapAction])]
+class \nodoc\ iso _MapModelProperty is Property[(USize, Array[_MapAction])]
   """
   Apply a generated sequence of operations to a persistent map and to a
   mutable map used as a model, then check that the two hold the same pairs.
@@ -1783,7 +1782,7 @@ class \nodoc\ iso _MapModelProperty is Property1[(USize, Array[_MapAction])]
               })
         })
 
-  fun ref property(arg1: (USize, Array[_MapAction]), h: PropertyHelper) ? =>
+  fun ref property(arg1: (USize, Array[_MapAction]), h: TestHelper) ? =>
     (let config, let actions) = arg1
     let msg: String val = ", config " + config.string()
     var m = _TrieMap
@@ -1888,7 +1887,7 @@ class \nodoc\ iso _MapModelProperty is Property1[(USize, Array[_MapAction])]
       seen.set(k)
     end
 
-class \nodoc\ iso _MapIteratorsProperty is Property1[Array[_MapAction]]
+class \nodoc\ iso _MapIteratorsProperty is Property[Array[_MapAction]]
   """
   The three iterators agree with `apply`, agree with each other, and report
   exhaustion honestly. Driven through `has_next` and `next` directly, because
@@ -1900,7 +1899,7 @@ class \nodoc\ iso _MapIteratorsProperty is Property1[Array[_MapAction]]
     Generators.seq_of[_MapAction, Array[_MapAction]](
       _MapGen.actions(Generators.one_of[U8]([as U8: 0; 1])), 0, 60)
 
-  fun ref property(arg1: Array[_MapAction], h: PropertyHelper) ? =>
+  fun ref property(arg1: Array[_MapAction], h: TestHelper) ? =>
     var m = _TrieMap
     let model = mut.Map[U64, U64]
 
@@ -2125,7 +2124,7 @@ primitive \nodoc\ _MapShape
     end
     (found, "")
 
-class \nodoc\ iso _MapStructureProperty is Property1[Array[_MapAction]]
+class \nodoc\ iso _MapStructureProperty is Property[Array[_MapAction]]
   """
   The trie's shape after every operation, checked against the invariants the
   node code maintains rather than against what a lookup returns.
@@ -2136,7 +2135,7 @@ class \nodoc\ iso _MapStructureProperty is Property1[Array[_MapAction]]
     Generators.seq_of[_MapAction, Array[_MapAction]](
       _MapGen.actions(Generators.one_of[U8]([as U8: 0; 1; 2])), 0, 60)
 
-  fun ref property(arg1: Array[_MapAction], h: PropertyHelper) ? =>
+  fun ref property(arg1: Array[_MapAction], h: TestHelper) ? =>
     var m = _TrieMap
     let model = mut.Map[U64, U64]
 

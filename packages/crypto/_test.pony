@@ -1,5 +1,4 @@
 use "pony_test"
-use "pony_check"
 
 use @memset[Pointer[None]](dst: Pointer[None], value: I32, n: USize)
 use @pony_ctx[Pointer[None]]()
@@ -30,36 +29,36 @@ actor \nodoc\ Main is TestList
     test(_TestHmacSha256EmptyMessage)
     test(_TestRandBytesSizeTooLarge)
     test(_TestPbkdf2Sha256ArgumentsTooLarge)
-    test(Property1UnitTest[USize](_TestHmacSha256OutputLength))
-    test(Property1UnitTest[USize](_TestHmacSha256Deterministic))
-    test(Property1UnitTest[USize](_TestRandBytesOutputLength))
-    test(Property1UnitTest[USize](_TestRandBytesNonConstant))
+    test(PropertyTest[USize](_TestHmacSha256OutputLength))
+    test(PropertyTest[USize](_TestHmacSha256Deterministic))
+    test(PropertyTest[USize](_TestRandBytesOutputLength))
+    test(PropertyTest[USize](_TestRandBytesNonConstant))
     ifdef
       "openssl_1.1.x" or "openssl_3.0.x" or "openssl_4.0.x" or "libressl"
     then
       test(_TestPbkdf2Sha256Rfc7914)
       test(_TestPbkdf2Sha256Scram)
-      test(Property1UnitTest[USize](_TestPbkdf2Sha256OutputLength))
-      test(Property1UnitTest[USize](_TestPbkdf2Sha256Deterministic))
+      test(PropertyTest[USize](_TestPbkdf2Sha256OutputLength))
+      test(PropertyTest[USize](_TestPbkdf2Sha256Deterministic))
     end
     ifdef "openssl_3.0.x" or "openssl_4.0.x" then
       test(_TestShake128KnownAnswer)
       test(_TestShake256KnownAnswer)
-      test(Property1UnitTest[USize](_TestShake128XofPrefixSmall))
-      test(Property1UnitTest[USize](_TestShake256XofPrefixSmall))
-      test(Property1UnitTest[USize](_TestShake128XofPrefix))
-      test(Property1UnitTest[USize](_TestShake256XofPrefix))
+      test(PropertyTest[USize](_TestShake128XofPrefixSmall))
+      test(PropertyTest[USize](_TestShake256XofPrefixSmall))
+      test(PropertyTest[USize](_TestShake128XofPrefix))
+      test(PropertyTest[USize](_TestShake256XofPrefix))
     end
     test(_TestHashFnBoxReceiver)
-    test(Property1UnitTest[USize](_TestHashFnOutputLength))
-    test(Property1UnitTest[USize](_TestHashFnDeterministic))
-    test(Property1UnitTest[USize](_TestHashFnDigestEquivalence))
-    test(Property2UnitTest[USize, USize](_TestDigestConcatenation))
-    test(Property1UnitTest[USize](_TestDigestOutputLength))
-    test(Property1UnitTest[USize](_TestConstantTimeCompareReflexive))
-    test(Property2UnitTest[USize, USize](_TestConstantTimeCompareSensitive))
-    test(Property1UnitTest[USize](_TestToHexStringLength))
-    test(Property1UnitTest[U8](_TestToHexStringValidHex))
+    test(PropertyTest[USize](_TestHashFnOutputLength))
+    test(PropertyTest[USize](_TestHashFnDeterministic))
+    test(PropertyTest[USize](_TestHashFnDigestEquivalence))
+    test(PropertyTest[(USize, USize)](_TestDigestConcatenation))
+    test(PropertyTest[USize](_TestDigestOutputLength))
+    test(PropertyTest[USize](_TestConstantTimeCompareReflexive))
+    test(PropertyTest[(USize, USize)](_TestConstantTimeCompareSensitive))
+    test(PropertyTest[USize](_TestToHexStringLength))
+    test(PropertyTest[U8](_TestToHexStringValidHex))
 
 class \nodoc\ iso _TestConstantTimeCompare is UnitTest
   fun name(): String => "crypto/ConstantTimeCompare"
@@ -668,35 +667,35 @@ class \nodoc\ iso _TestPbkdf2Sha256ArgumentsTooLarge is UnitTest
       h.fail("Pbkdf2Sha256 should not raise on sane arguments")
     end
 
-class \nodoc\ iso _TestHmacSha256OutputLength is Property1[USize]
+class \nodoc\ iso _TestHmacSha256OutputLength is Property[USize]
   fun name(): String => "crypto/HmacSha256/property/output_length"
 
   fun gen(): Generator[USize] =>
     Generators.usize(0, 256)
 
-  fun ref property(sample: USize, h: PropertyHelper) ? =>
+  fun ref property(sample: USize, h: TestHelper) ? =>
     let key = recover val Array[U8].init(0x42, sample) end
     let data = recover val Array[U8].init(0xAB, sample) end
     h.assert_eq[USize](32, HmacSha256(key, data)?.size())
 
-class \nodoc\ iso _TestHmacSha256Deterministic is Property1[USize]
+class \nodoc\ iso _TestHmacSha256Deterministic is Property[USize]
   fun name(): String => "crypto/HmacSha256/property/deterministic"
 
   fun gen(): Generator[USize] =>
     Generators.usize(0, 256)
 
-  fun ref property(sample: USize, h: PropertyHelper) ? =>
+  fun ref property(sample: USize, h: TestHelper) ? =>
     let key = recover val Array[U8].init(0x42, sample) end
     let data = recover val Array[U8].init(0xAB, sample) end
     h.assert_array_eq[U8](HmacSha256(key, data)?, HmacSha256(key, data)?)
 
-class \nodoc\ iso _TestPbkdf2Sha256OutputLength is Property1[USize]
+class \nodoc\ iso _TestPbkdf2Sha256OutputLength is Property[USize]
   fun name(): String => "crypto/Pbkdf2Sha256/property/output_length"
 
   fun gen(): Generator[USize] =>
     Generators.usize(1, 128)
 
-  fun ref property(sample: USize, h: PropertyHelper) ? =>
+  fun ref property(sample: USize, h: TestHelper) ? =>
     ifdef
       "openssl_1.1.x" or "openssl_3.0.x" or "openssl_4.0.x" or "libressl"
     then
@@ -704,13 +703,13 @@ class \nodoc\ iso _TestPbkdf2Sha256OutputLength is Property1[USize]
         sample, Pbkdf2Sha256("p", "s", 1, sample)?.size())
     end
 
-class \nodoc\ iso _TestPbkdf2Sha256Deterministic is Property1[USize]
+class \nodoc\ iso _TestPbkdf2Sha256Deterministic is Property[USize]
   fun name(): String => "crypto/Pbkdf2Sha256/property/deterministic"
 
   fun gen(): Generator[USize] =>
     Generators.usize(1, 64)
 
-  fun ref property(sample: USize, h: PropertyHelper) ? =>
+  fun ref property(sample: USize, h: TestHelper) ? =>
     ifdef
       "openssl_1.1.x" or "openssl_3.0.x" or "openssl_4.0.x" or "libressl"
     then
@@ -719,22 +718,22 @@ class \nodoc\ iso _TestPbkdf2Sha256Deterministic is Property1[USize]
         Pbkdf2Sha256("p", "s", 1, sample)?)
     end
 
-class \nodoc\ iso _TestRandBytesOutputLength is Property1[USize]
+class \nodoc\ iso _TestRandBytesOutputLength is Property[USize]
   fun name(): String => "crypto/RandBytes/property/output_length"
 
   fun gen(): Generator[USize] =>
     Generators.usize(0, 256)
 
-  fun ref property(sample: USize, h: PropertyHelper) ? =>
+  fun ref property(sample: USize, h: TestHelper) ? =>
     h.assert_eq[USize](sample, RandBytes(sample)?.size())
 
-class \nodoc\ iso _TestRandBytesNonConstant is Property1[USize]
+class \nodoc\ iso _TestRandBytesNonConstant is Property[USize]
   fun name(): String => "crypto/RandBytes/property/non_constant"
 
   fun gen(): Generator[USize] =>
     Generators.usize(16, 256)
 
-  fun ref property(sample: USize, h: PropertyHelper) ? =>
+  fun ref property(sample: USize, h: TestHelper) ? =>
     let a = RandBytes(sample)?
     let b = RandBytes(sample)?
     h.assert_false(ConstantTimeCompare(a, b))
@@ -794,7 +793,7 @@ class \nodoc\ iso _TestShake256KnownAnswer is UnitTest
         ToHexString(d128.final()?))
     end
 
-class \nodoc\ iso _TestShake128XofPrefixSmall is Property1[USize]
+class \nodoc\ iso _TestShake128XofPrefixSmall is Property[USize]
   """
   SHAKE128 prefix property at small output sizes (2..15 bytes). Exercises
   the truncation path where off-by-one partial-block bugs typically live.
@@ -807,7 +806,7 @@ class \nodoc\ iso _TestShake128XofPrefixSmall is Property1[USize]
   fun gen(): Generator[USize] =>
     Generators.usize(2, 15)
 
-  fun ref property(sample: USize, h: PropertyHelper) ? =>
+  fun ref property(sample: USize, h: TestHelper) ? =>
     ifdef "openssl_3.0.x" or "openssl_4.0.x" then
       let small_size = sample / 2
       let large_size = sample
@@ -834,7 +833,7 @@ class \nodoc\ iso _TestShake128XofPrefixSmall is Property1[USize]
         ToHexString(large_result))
     end
 
-class \nodoc\ iso _TestShake128XofPrefix is Property1[USize]
+class \nodoc\ iso _TestShake128XofPrefix is Property[USize]
   """
   SHAKE128 prefix property: the first N bytes of output at length M (M > N)
   are identical to the full output at length N. A KAT anchor at the full
@@ -848,7 +847,7 @@ class \nodoc\ iso _TestShake128XofPrefix is Property1[USize]
     // Minimum 16 so the 16-byte KAT anchor below always applies.
     Generators.usize(16, 256)
 
-  fun ref property(sample: USize, h: PropertyHelper) ? =>
+  fun ref property(sample: USize, h: TestHelper) ? =>
     ifdef "openssl_3.0.x" or "openssl_4.0.x" then
       let small_size = sample / 2
       let large_size = sample
@@ -870,7 +869,7 @@ class \nodoc\ iso _TestShake128XofPrefix is Property1[USize]
         ToHexString(large_result.trim(0, 16)))
     end
 
-class \nodoc\ iso _TestShake256XofPrefixSmall is Property1[USize]
+class \nodoc\ iso _TestShake256XofPrefixSmall is Property[USize]
   """
   SHAKE256 prefix property at small output sizes (2..31 bytes). Exercises
   the truncation path where off-by-one partial-block bugs typically live.
@@ -883,7 +882,7 @@ class \nodoc\ iso _TestShake256XofPrefixSmall is Property1[USize]
   fun gen(): Generator[USize] =>
     Generators.usize(2, 31)
 
-  fun ref property(sample: USize, h: PropertyHelper) ? =>
+  fun ref property(sample: USize, h: TestHelper) ? =>
     ifdef "openssl_3.0.x" or "openssl_4.0.x" then
       let small_size = sample / 2
       let large_size = sample
@@ -911,7 +910,7 @@ class \nodoc\ iso _TestShake256XofPrefixSmall is Property1[USize]
         ToHexString(large_result))
     end
 
-class \nodoc\ iso _TestShake256XofPrefix is Property1[USize]
+class \nodoc\ iso _TestShake256XofPrefix is Property[USize]
   """
   SHAKE256 prefix property: the first N bytes of output at length M (M > N)
   are identical to the full output at length N. A KAT anchor at the full
@@ -925,7 +924,7 @@ class \nodoc\ iso _TestShake256XofPrefix is Property1[USize]
     // Minimum 32 so the 32-byte KAT anchor below always applies.
     Generators.usize(32, 256)
 
-  fun ref property(sample: USize, h: PropertyHelper) ? =>
+  fun ref property(sample: USize, h: TestHelper) ? =>
     ifdef "openssl_3.0.x" or "openssl_4.0.x" then
       let small_size = sample / 2
       let large_size = sample
@@ -962,13 +961,13 @@ class \nodoc\ iso _TestHashFnBoxReceiver is UnitTest
     let f: HashFn val = _BoxReceiverHashFn
     h.assert_array_eq[U8]([as U8: 0x2A; 0x2A; 0x2A], f("abc"))
 
-class \nodoc\ iso _TestHashFnOutputLength is Property1[USize]
+class \nodoc\ iso _TestHashFnOutputLength is Property[USize]
   fun name(): String => "crypto/HashFn/property/output_length"
 
   fun gen(): Generator[USize] =>
     Generators.usize(0, 256)
 
-  fun ref property(sample: USize, h: PropertyHelper) =>
+  fun ref property(sample: USize, h: TestHelper) =>
     let input = recover val Array[U8].init(0x42, sample) end
     h.assert_eq[USize](16, MD4(input).size())
     h.assert_eq[USize](16, MD5(input).size())
@@ -979,13 +978,13 @@ class \nodoc\ iso _TestHashFnOutputLength is Property1[USize]
     h.assert_eq[USize](48, SHA384(input).size())
     h.assert_eq[USize](64, SHA512(input).size())
 
-class \nodoc\ iso _TestHashFnDeterministic is Property1[USize]
+class \nodoc\ iso _TestHashFnDeterministic is Property[USize]
   fun name(): String => "crypto/HashFn/property/deterministic"
 
   fun gen(): Generator[USize] =>
     Generators.usize(0, 256)
 
-  fun ref property(sample: USize, h: PropertyHelper) =>
+  fun ref property(sample: USize, h: TestHelper) =>
     let input = recover val Array[U8].init(0x42, sample) end
     h.assert_array_eq[U8](MD4(input), MD4(input))
     h.assert_array_eq[U8](MD5(input), MD5(input))
@@ -996,13 +995,13 @@ class \nodoc\ iso _TestHashFnDeterministic is Property1[USize]
     h.assert_array_eq[U8](SHA384(input), SHA384(input))
     h.assert_array_eq[U8](SHA512(input), SHA512(input))
 
-class \nodoc\ iso _TestHashFnDigestEquivalence is Property1[USize]
+class \nodoc\ iso _TestHashFnDigestEquivalence is Property[USize]
   fun name(): String => "crypto/HashFn/property/digest_equivalence"
 
   fun gen(): Generator[USize] =>
     Generators.usize(0, 256)
 
-  fun ref property(sample: USize, h: PropertyHelper) ? =>
+  fun ref property(sample: USize, h: TestHelper) ? =>
     let input = recover val Array[U8].init(0x42, sample) end
 
     let md5 = Digest.md5()?
@@ -1042,7 +1041,7 @@ class \nodoc\ iso _TestDigestConcatenation is Property2[USize, USize]
   fun gen2(): Generator[USize] =>
     Generators.usize(0, 128)
 
-  fun ref property2(size1: USize, size2: USize, h: PropertyHelper) ? =>
+  fun ref property2(size1: USize, size2: USize, h: TestHelper) ? =>
     let part1 = recover val Array[U8].init(0xAA, size1) end
     let part2 = recover val Array[U8].init(0xBB, size2) end
     let combined =
@@ -1057,13 +1056,13 @@ class \nodoc\ iso _TestDigestConcatenation is Property2[USize, USize]
     d.append(part2)?
     h.assert_array_eq[U8](SHA256(combined), d.final()?)
 
-class \nodoc\ iso _TestDigestOutputLength is Property1[USize]
+class \nodoc\ iso _TestDigestOutputLength is Property[USize]
   fun name(): String => "crypto/Digest/property/output_length"
 
   fun gen(): Generator[USize] =>
     Generators.usize(0, 256)
 
-  fun ref property(sample: USize, h: PropertyHelper) ? =>
+  fun ref property(sample: USize, h: TestHelper) ? =>
     let input = recover val Array[U8].init(0x42, sample) end
 
     let md5 = Digest.md5()?
@@ -1094,14 +1093,14 @@ class \nodoc\ iso _TestDigestOutputLength is Property1[USize]
     sha512.append(input)?
     h.assert_eq[USize](sha512.digest_size(), sha512.final()?.size())
 
-class \nodoc\ iso _TestConstantTimeCompareReflexive is Property1[USize]
+class \nodoc\ iso _TestConstantTimeCompareReflexive is Property[USize]
   fun name(): String =>
     "crypto/ConstantTimeCompare/property/reflexive"
 
   fun gen(): Generator[USize] =>
     Generators.usize(0, 256)
 
-  fun ref property(sample: USize, h: PropertyHelper) =>
+  fun ref property(sample: USize, h: TestHelper) =>
     let input = recover val Array[U8].init(0x42, sample) end
     h.assert_true(ConstantTimeCompare(input, input))
 
@@ -1116,7 +1115,7 @@ class \nodoc\ iso _TestConstantTimeCompareSensitive
   fun gen2(): Generator[USize] =>
     Generators.usize(0, 255)
 
-  fun ref property2(size: USize, hint: USize, h: PropertyHelper) ? =>
+  fun ref property2(size: USize, hint: USize, h: TestHelper) ? =>
     let pos = hint % size
     let original = recover val Array[U8].init(0x42, size) end
     let modified =
@@ -1127,23 +1126,23 @@ class \nodoc\ iso _TestConstantTimeCompareSensitive
       end
     h.assert_false(ConstantTimeCompare(original, modified))
 
-class \nodoc\ iso _TestToHexStringLength is Property1[USize]
+class \nodoc\ iso _TestToHexStringLength is Property[USize]
   fun name(): String => "crypto/ToHexString/property/length"
 
   fun gen(): Generator[USize] =>
     Generators.usize(0, 256)
 
-  fun ref property(sample: USize, h: PropertyHelper) =>
+  fun ref property(sample: USize, h: TestHelper) =>
     let input = recover val Array[U8].init(0x42, sample) end
     h.assert_eq[USize](input.size() * 2, ToHexString(input).size())
 
-class \nodoc\ iso _TestToHexStringValidHex is Property1[U8]
+class \nodoc\ iso _TestToHexStringValidHex is Property[U8]
   fun name(): String => "crypto/ToHexString/property/valid_hex"
 
   fun gen(): Generator[U8] =>
     Generators.u8()
 
-  fun ref property(sample: U8, h: PropertyHelper) =>
+  fun ref property(sample: U8, h: TestHelper) =>
     let input = recover val [sample] end
     let hex = ToHexString(input)
     for c in hex.values() do

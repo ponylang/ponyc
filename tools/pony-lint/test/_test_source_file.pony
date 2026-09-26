@@ -1,6 +1,5 @@
 use "files"
 use "pony_test"
-use "pony_check"
 use lint = ".."
 
 class \nodoc\ _TestSourceFileSplitPreservesContent is UnitTest
@@ -11,10 +10,10 @@ class \nodoc\ _TestSourceFileSplitPreservesContent is UnitTest
   fun name(): String => "SourceFile: splitting preserves content"
 
   fun apply(h: TestHelper) ? =>
-    PonyCheck.for_all[String](
+    h.for_all[String](
       recover val Generators.ascii(where from = 0, to = 200,
-        range = ASCIIPrintable) end, h)(
-      {(content: String, ph: PropertyHelper) =>
+        range = ASCIIPrintable) end)(
+      {(content: String, ph: TestHelper) =>
         let stripped = content.clone()
         stripped.remove("\r")
         let expected: String val = consume stripped
@@ -28,9 +27,9 @@ class \nodoc\ _TestSourceFileNoCR is UnitTest
   fun name(): String => "SourceFile: no \\r in lines"
 
   fun apply(h: TestHelper) ? =>
-    PonyCheck.for_all[String](
-      recover val Generators.ascii(where from = 0, to = 200) end, h)(
-      {(content: String, ph: PropertyHelper) =>
+    h.for_all[String](
+      recover val Generators.ascii(where from = 0, to = 200) end)(
+      {(content: String, ph: TestHelper) =>
         let sf = lint.SourceFile("/tmp/test.pony", content, "/tmp")
         for line in sf.lines.values() do
           ph.assert_false(
@@ -44,10 +43,10 @@ class \nodoc\ _TestSourceFileLineCount is UnitTest
   fun name(): String => "SourceFile: line count = newline count + 1"
 
   fun apply(h: TestHelper) ? =>
-    PonyCheck.for_all[String](
+    h.for_all[String](
       recover val Generators.ascii(where from = 0, to = 200,
-        range = ASCIIPrintable) end, h)(
-      {(content: String, ph: PropertyHelper) =>
+        range = ASCIIPrintable) end)(
+      {(content: String, ph: TestHelper) =>
         let stripped = content.clone()
         stripped.remove("\r")
         let stripped': String val = consume stripped

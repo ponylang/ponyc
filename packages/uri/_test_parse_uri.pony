@@ -1,7 +1,6 @@
 use "pony_test"
-use "pony_check"
 
-class \nodoc\ iso _PropertyURIRoundtrip is Property1[_ValidURIInput]
+class \nodoc\ iso _PropertyURIRoundtrip is Property[_ValidURIInput]
   """
   For generated valid URIs, ParseURI(uri.string()) produces an equal URI.
   """
@@ -10,7 +9,7 @@ class \nodoc\ iso _PropertyURIRoundtrip is Property1[_ValidURIInput]
   fun gen(): Generator[_ValidURIInput] =>
     _ValidURIInputGenerator()
 
-  fun ref property(arg1: _ValidURIInput, ph: PropertyHelper) =>
+  fun ref property(arg1: _ValidURIInput, ph: TestHelper) =>
     let original =
       URI(
         arg1.scheme,
@@ -29,7 +28,7 @@ class \nodoc\ iso _PropertyURIRoundtrip is Property1[_ValidURIInput]
         " error: " + err.string())
     end
 
-class \nodoc\ iso _PropertyInvalidSchemeRejected is Property1[String val]
+class \nodoc\ iso _PropertyInvalidSchemeRejected is Property[String val]
   """
   Invalid schemes (starting with digit, containing illegal chars) produce
   InvalidScheme.
@@ -48,7 +47,7 @@ class \nodoc\ iso _PropertyInvalidSchemeRejected is Property1[String val]
           ["sch eme://host"; "sch@eme://host"; "sch[eme://host"]))
       ])
 
-  fun ref property(arg1: String val, ph: PropertyHelper) =>
+  fun ref property(arg1: String val, ph: TestHelper) =>
     // These should either parse as relative references (no scheme)
     // or produce an error. They should NOT parse with a scheme.
     match \exhaustive\ ParseURI(arg1)

@@ -1,5 +1,4 @@
 use "pony_test"
-use "pony_check"
 use ast = "pony_compiler"
 use lint = ".."
 
@@ -71,10 +70,10 @@ class \nodoc\ _TestLineLengthProperty is UnitTest
 
   fun apply(h: TestHelper) ? =>
     // Lines up to 80 chars never produce diagnostics
-    PonyCheck.for_all[String](
+    h.for_all[String](
       recover val Generators.ascii(where from = 0, to = 80,
-        range = ASCIIPrintable) end, h)(
-      {(content: String, ph: PropertyHelper) =>
+        range = ASCIIPrintable) end)(
+      {(content: String, ph: TestHelper) =>
         let line = content.clone()
         line.remove("\n")
         let safe_line: String val = consume line
@@ -85,9 +84,9 @@ class \nodoc\ _TestLineLengthProperty is UnitTest
         end
       })?
     // Space at column 80 ensures neither word crosses the boundary.
-    PonyCheck.for_all[USize](
-      recover val Generators.usize(where from = 81, to = 120) end, h)(
-      {(n: USize, ph: PropertyHelper) =>
+    h.for_all[USize](
+      recover val Generators.usize(where from = 81, to = 120) end)(
+      {(n: USize, ph: TestHelper) =>
         let line: String val =
           recover val
             String
@@ -331,8 +330,8 @@ class \nodoc\ _TestLineLengthStringFlaggedWhenDeepProperty is UnitTest
   fun apply(h: TestHelper) ? =>
     let gen =
       recover val Generators.usize(where from = 67, to = 200) end
-    PonyCheck.for_all[USize](gen, h)(
-      {(str_len: USize, ph: PropertyHelper) =>
+    h.for_all[USize](gen)(
+      {(str_len: USize, ph: TestHelper) =>
         let line: String val =
           recover val
             String
@@ -356,8 +355,8 @@ class \nodoc\ _TestLineLengthStringFlaggedProperty is UnitTest
   fun apply(h: TestHelper) ? =>
     let gen =
       recover val Generators.usize(where from = 1, to = 134) end
-    PonyCheck.for_all[USize](gen, h)(
-      {(n2: USize, ph: PropertyHelper) =>
+    h.for_all[USize](gen)(
+      {(n2: USize, ph: TestHelper) =>
         // Prefix `    let x = "` = 13 chars. The string is at word
         // position 4 (let, x, =, "aaa...").
         let line: String val =
@@ -793,8 +792,8 @@ class \nodoc\ _TestLineLengthWordExemptProperty is UnitTest
   fun apply(h: TestHelper) ? =>
     let gen =
       recover val Generators.usize(where from = 81, to = 200) end
-    PonyCheck.for_all[USize](gen, h)(
-      {(n: USize, ph: PropertyHelper) =>
+    h.for_all[USize](gen)(
+      {(n: USize, ph: TestHelper) =>
         let line: String val =
           recover val String .> append("a".mul(n)) end
         ph.assert_true(line.codepoints() > 80)

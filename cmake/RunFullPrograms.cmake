@@ -30,10 +30,10 @@ endif()
 # where it already exists.
 file(MAKE_DIRECTORY "${OUTPUT}")
 
-# PonyCheck regression persistence: store regression files in the source tree
-# so they can be committed, not in the build directory where make clean removes
-# them.
-set(ENV{PONYCHECK_DB_DIR} "${SOURCE_DIR}/.ponycheck/full-programs")
+# Property test regression persistence: store regression files in the source
+# tree so they can be committed, not in the build directory where make clean
+# removes them.
+set(ENV{PONYTEST_DB_DIR} "${SOURCE_DIR}/.ponytest/full-programs")
 
 set(_run "${RUNNER}"
     "--debugger=$ENV{PONY_TEST_DEBUGGER}"
