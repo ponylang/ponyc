@@ -493,11 +493,16 @@ DEF(thisliteral);
   TOKEN(NULL, TK_THIS);
   DONE();
 
-// ID
+// ID [COLON type]
+// A colon and type here is not a valid reference. The suffix is consumed so
+// the syntax pass can report a missing let or var instead of leaving the
+// colon unparsed. IF() would insert TK_NONE on every valid reference;
+// IFELSE with an empty else does not.
 DEF(ref);
   PRINT_INLINE();
   AST_NODE(TK_REFERENCE);
   TOKEN("name", TK_ID);
+  IFELSE(TK_COLON, RULE("variable type", type), {});
   DONE();
 
 // __LOC

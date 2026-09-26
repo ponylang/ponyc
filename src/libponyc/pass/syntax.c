@@ -876,6 +876,26 @@ static ast_result_t syntax_local(pass_opt_t* opt, ast_t* ast)
 }
 
 
+// Valid references are TK_REFERENCE(ID). A second child is a type, accepted by
+// the parser only so a missing let or var can be rejected here. The diagnostic
+// is declaration-oriented: the same form is invalid in a match arm and in an
+// ordinary expression.
+static ast_result_t syntax_reference(pass_opt_t* opt, ast_t* ast)
+{
+  ast_t* id = ast_child(ast);
+  pony_assert(id != NULL);
+
+  if(ast_sibling(id) != NULL)
+  {
+    ast_error(opt->check.errors, id,
+      "a variable declaration requires 'let' or 'var'");
+    return AST_ERROR;
+  }
+
+  return AST_OK;
+}
+
+
 static ast_result_t syntax_embed(pass_opt_t* opt, ast_t* ast)
 {
   if(ast_id(ast_parent(ast)) != TK_MEMBERS)
@@ -1629,6 +1649,7 @@ ast_result_t pass_syntax(ast_t** astp, pass_opt_t* options)
     case TK_ERROR:      r = syntax_return(options, ast, 0); break;
     case TK_LET:
     case TK_VAR:        r = syntax_local(options, ast); break;
+    case TK_REFERENCE:  r = syntax_reference(options, ast); break;
     case TK_EMBED:      r = syntax_embed(options, ast); break;
     case TK_TYPEPARAM:  r = syntax_type_param(options, ast); break;
     case TK_IFDEF:      r = syntax_ifdef(options, ast); break;
