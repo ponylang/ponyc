@@ -329,7 +329,8 @@ static LLVMValueRef assign_local(compile_t* c, LLVMValueRef l_value,
 }
 
 static LLVMValueRef assign_field(compile_t* c, LLVMValueRef l_value,
-  LLVMValueRef r_value, ast_t* l_type, ast_t* r_type)
+  LLVMValueRef r_value, ast_t* l_type, ast_t* r_type,
+  bool owner_has_finaliser)
 {
   reach_type_t* t = reach_type(c->reach, l_type, c->opt);
   pony_assert(t != NULL);
@@ -343,8 +344,10 @@ static LLVMValueRef assign_field(compile_t* c, LLVMValueRef l_value,
   if(r_value == NULL)
     return NULL;
 
-  // Store to the field.
-  LLVMBuildStore(c->builder, r_value, l_value);
+  LLVMValueRef store = LLVMBuildStore(c->builder, r_value, l_value);
+
+  if(owner_has_finaliser)
+    LLVMSetVolatile(store, true);
 
   return gen_assign_cast(c, c_t->use_type, result, l_type);
 }
@@ -456,7 +459,12 @@ static LLVMValueRef assign_rvalue(compile_t* c, ast_t* left, ast_t* r_type,
       ast_t* p_type = deferred_reify(reify, ast_type(ast_child(left)), c->opt);
       ast_t* l_type = deferred_reify(reify, ast_type(left), c->opt);
 
-      LLVMValueRef ret = assign_field(c, l_value, r_value, l_type, r_type);
+      reach_type_t* p_t = reach_type(c->reach, p_type, c->opt);
+      bool has_finaliser = (p_t != NULL) &&
+        (((compile_type_t*)p_t->c_type)->final_fn != NULL);
+
+      LLVMValueRef ret = assign_field(c, l_value, r_value, l_type, r_type,
+        has_finaliser);
 
       ast_free_unattached(p_type);
       ast_free_unattached(l_type);
@@ -470,7 +478,8 @@ static LLVMValueRef assign_rvalue(compile_t* c, ast_t* left, ast_t* r_type,
       ast_t* p_type = deferred_reify(reify, ast_type(ast_child(left)), c->opt);
       ast_t* l_type = deferred_reify(reify, ast_type(left), c->opt);
 
-      LLVMValueRef r = assign_field(c, l_value, r_value, l_type, r_type);
+      LLVMValueRef r = assign_field(c, l_value, r_value, l_type, r_type,
+        false);
 
       ast_free_unattached(p_type);
       ast_free_unattached(l_type);
