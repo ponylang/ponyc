@@ -942,6 +942,26 @@ bool codegen_pass_init(pass_opt_t* opt)
   else
     opt->cpu = LLVMGetHostCPUName();
 
+  // The runtime's 128-bit atomics (mpmcq, pool) compile to cmpxchg16b on
+  // x86-64, which requires the cx16 target feature. When ponyc merges the
+  // runtime bitcode and stamps target attributes, a features string without
+  // cx16 causes LLVM to lower the 128-bit CAS to a libcall that doesn't exist
+  // on macOS. Ensure cx16 is always present for x86-64 targets.
+  if(target_is_x86(opt->triple) && !target_is_ilp32(opt->triple)
+    && (strstr(opt->features, "cx16") == NULL))
+  {
+    size_t len = strlen(opt->features);
+    // "+cx16" when features is empty, ",+cx16" otherwise.
+    const char* suffix = (len == 0) ? "+cx16" : ",+cx16";
+    size_t slen = strlen(suffix);
+    char* extended = (char*)malloc(len + slen + 1);
+    memcpy(extended, opt->features, len);
+    memcpy(extended + len, suffix, slen + 1);
+    LLVMDisposeMessage(opt->features);
+    opt->features = LLVMCreateMessage(extended);
+    free(extended);
+  }
+
   return true;
 }
 
