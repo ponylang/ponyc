@@ -429,3 +429,17 @@ Persistence is off for properties registered through the `ForAll` convenience AP
 
 `String.copy_cpointer` copied `len + 1` bytes from the source pointer, assuming a null terminator existed at position `len`. The method's contract is to copy a fixed number of bytes — not a C string — so any source buffer without a trailing null was overread by one byte. This affected FFI callbacks that receive length-delimited buffers, such as the OpenSSL ALPN select callback.
 
+## Improve diagnostic for a match capture missing `let` or `var`
+
+A match arm written as `| count: U64 => ...` without `let` or `var` used to be reported as an unterminated match. The compiler now points at the identifier and reports that a variable declaration requires `let` or `var`.
+
+The form is still invalid. A capture is a variable declaration, so `let` or `var` is required:
+
+```pony
+match value
+| let count: U64 => count.string()
+else
+  "other"
+end
+```
+
