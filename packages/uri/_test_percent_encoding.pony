@@ -1,7 +1,6 @@
 use "pony_test"
-use "pony_check"
 
-class \nodoc\ iso _PropertyPercentRoundtrip is Property1[String val]
+class \nodoc\ iso _PropertyPercentRoundtrip is Property[String val]
   """
   PercentDecode(PercentEncode(s, part)) roundtrips for arbitrary strings.
   Tests with URIPartPath as representative; the encode/decode cycle should
@@ -12,7 +11,7 @@ class \nodoc\ iso _PropertyPercentRoundtrip is Property1[String val]
   fun gen(): Generator[String val] =>
     Generators.ascii(0, 100)
 
-  fun ref property(arg1: String val, ph: PropertyHelper) =>
+  fun ref property(arg1: String val, ph: TestHelper) =>
     let encoded = PercentEncode(arg1, URIPartPath)
     match \exhaustive\ PercentDecode(encoded)
     | let decoded: String val =>
@@ -22,7 +21,7 @@ class \nodoc\ iso _PropertyPercentRoundtrip is Property1[String val]
     end
 
 class \nodoc\ iso _PropertyPercentEncodeOutputLegal
-  is Property1[String val]
+  is Property[String val]
   """
   PercentEncode output for path contains only RFC 3986-legal characters
   for the path component: unreserved, sub-delims, ':', '@', '/', and
@@ -33,7 +32,7 @@ class \nodoc\ iso _PropertyPercentEncodeOutputLegal
   fun gen(): Generator[String val] =>
     Generators.ascii(1, 100)
 
-  fun ref property(arg1: String val, ph: PropertyHelper) =>
+  fun ref property(arg1: String val, ph: TestHelper) =>
     let encoded = PercentEncode(arg1, URIPartPath)
     var i: USize = 0
     while i < encoded.size() do
@@ -98,7 +97,7 @@ class \nodoc\ iso _PropertyPercentEncodeOutputLegal
     end
 
 class \nodoc\ iso _PropertyInvalidPercentSequenceRejected
-  is Property1[String val]
+  is Property[String val]
   """
   Invalid percent sequences — truncated, non-hex digits — produce
   InvalidPercentEncoding.
@@ -123,7 +122,7 @@ class \nodoc\ iso _PropertyInvalidPercentSequenceRejected
           .map[String val]({(s) => s + "%AZ" }))
       ])
 
-  fun ref property(arg1: String val, ph: PropertyHelper) =>
+  fun ref property(arg1: String val, ph: TestHelper) =>
     match \exhaustive\ PercentDecode(arg1)
     | let s: String val =>
       ph.fail("should have rejected: " + arg1)
@@ -132,7 +131,7 @@ class \nodoc\ iso _PropertyInvalidPercentSequenceRejected
     end
 
 class \nodoc\ iso _PropertyPercentDecodeBoundary
-  is Property1[(String val, Bool)]
+  is Property[(String val, Bool)]
   """
   Mixed valid/invalid generator — PercentDecode succeeds iff input is the
   valid variant.
@@ -166,7 +165,7 @@ class \nodoc\ iso _PropertyPercentDecodeBoundary
         (1, invalid_gen)
       ])
 
-  fun ref property(arg1: (String val, Bool), ph: PropertyHelper) =>
+  fun ref property(arg1: (String val, Bool), ph: TestHelper) =>
     (let input, let should_succeed) = arg1
     let result = PercentDecode(input)
     if should_succeed then

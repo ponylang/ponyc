@@ -209,6 +209,64 @@ and each run uses a different seed so test coupling surfaces over time.
 `--list --shuffle=SEED` prints the test names in the shuffled order that the
 given seed would produce.
 
+## Property-Based Testing
+
+PonyTest includes property-based testing. A property test generates random
+inputs and verifies that a property holds for all of them. When a property
+fails, the framework automatically shrinks the failing input to a minimal
+reproducing case.
+
+### Standalone property
+
+Define a class that implements `Property[T]` and register it with
+`PropertyTest`:
+
+```pony
+use "pony_test"
+
+class iso _ListReverseProperty is Property[Array[USize]]
+  fun name(): String => "list/reverse"
+
+  fun gen(): Generator[Array[USize]] =>
+    Generators.seq_of[USize, Array[USize]](Generators.usize())
+
+  fun ref property(arg1: Array[USize], h: TestHelper) =>
+    h.assert_array_eq[USize](arg1, arg1.reverse().reverse())
+```
+
+Register it in your test list:
+
+```pony
+fun tag tests(test: PonyTest) =>
+  test(PropertyTest[Array[USize]](_ListReverseProperty))
+```
+
+### Inline property
+
+For quick one-off checks, use `for_all` directly from a `UnitTest`:
+
+```pony
+class iso _MyTest is UnitTest
+  fun name(): String => "my_test"
+
+  fun apply(h: TestHelper) ? =>
+    h.for_all[U8](recover Generators.u8() end)(
+      {(u, h) => h.assert_true(u <= U8.max_value()) })?
+```
+
+### Multi-argument properties
+
+`Property2[T1, T2]`, `Property3[T1, T2, T3]`, and
+`Property4[T1, T2, T3, T4]` test properties with multiple generated
+arguments. Corresponding `for_all2`, `for_all3`, and `for_all4` methods
+are available on `TestHelper`.
+
+### Stateful properties
+
+`StatefulProperty[S, M, Cmd]` tests stateful systems by generating
+sequences of commands, checking an invariant after each step, and
+running a final check. Register with `StatefulPropertyTest`.
+
 ## Setting up and tearing down a test environment
 
 ### Set Up

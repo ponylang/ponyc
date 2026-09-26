@@ -1,5 +1,4 @@
 use "pony_test"
-use "pony_check"
 use lint = ".."
 
 class \nodoc\ _TestTrailingWhitespaceSpace is UnitTest
@@ -73,10 +72,10 @@ class \nodoc\ _TestTrailingWhitespaceProperty is UnitTest
 
   fun apply(h: TestHelper) ? =>
     // Clean lines: no trailing whitespace
-    PonyCheck.for_all[String](
+    h.for_all[String](
       recover val Generators.ascii(where from = 0, to = 40,
-        range = ASCIILetters) end, h)(
-      {(content: String, ph: PropertyHelper) =>
+        range = ASCIILetters) end)(
+      {(content: String, ph: TestHelper) =>
         let line = content.clone()
         line.rstrip(" \t")
         let clean: String val = consume line
@@ -85,10 +84,10 @@ class \nodoc\ _TestTrailingWhitespaceProperty is UnitTest
         ph.assert_eq[USize](0, diags.size())
       })?
     // Lines with trailing space always flagged
-    PonyCheck.for_all[String](
+    h.for_all[String](
       recover val Generators.ascii(where from = 1, to = 20,
-        range = ASCIILetters) end, h)(
-      {(content: String, ph: PropertyHelper) =>
+        range = ASCIILetters) end)(
+      {(content: String, ph: TestHelper) =>
         let line: String val = content + " "
         let sf = lint.SourceFile("/tmp/t.pony", line, "/tmp")
         let diags = lint.TrailingWhitespace.check(sf)

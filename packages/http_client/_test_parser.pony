@@ -1,5 +1,4 @@
 use "format"
-use "pony_check"
 use "pony_test"
 
 // ---------------------------------------------------------------------------
@@ -44,7 +43,7 @@ class \nodoc\ _TestResponseParserNotify is _ResponseParserNotify
 // Property-based tests
 // ---------------------------------------------------------------------------
 class \nodoc\ iso _PropertyValidStatusLineParsesCorrectly
-  is Property1[(U16, String val)]
+  is Property[(U16, String val)]
   """
   Valid (status, reason) pairs serialized as HTTP/1.1 status lines parse
   correctly, delivering response_received with matching values and then
@@ -59,7 +58,7 @@ class \nodoc\ iso _PropertyValidStatusLineParsesCorrectly
         [ "OK"; "Not Found"; "Internal Server Error"
           "Created"; "Moved Permanently"; "" ]))
 
-  fun ref property(arg1: (U16, String val), ph: PropertyHelper) =>
+  fun ref property(arg1: (U16, String val), ph: TestHelper) =>
     (let status, let reason) = arg1
     let raw: String val =
       "HTTP/1.1 " + status.string() + " " + reason +
@@ -84,7 +83,7 @@ class \nodoc\ iso _PropertyValidStatusLineParsesCorrectly
     end
 
 class \nodoc\ iso _PropertyInvalidStatusLineRejected
-  is Property1[String val]
+  is Property[String val]
   """
   Malformed status lines produce parse errors.
   """
@@ -106,7 +105,7 @@ class \nodoc\ iso _PropertyInvalidStatusLineRejected
           .map[String val]({(s) => s + "\r\n\r\n" }))
       ])
 
-  fun ref property(arg1: String val, ph: PropertyHelper) =>
+  fun ref property(arg1: String val, ph: TestHelper) =>
     let notify: _TestResponseParserNotify ref = _TestResponseParserNotify
     let parser = _ResponseParser(notify)
     parser.parse(recover arg1.array().clone() end)
@@ -121,7 +120,7 @@ class \nodoc\ iso _PropertyInvalidStatusLineRejected
       "should have 1 error for: " + arg1)
 
 class \nodoc\ iso _PropertyHeadersRoundtrip
-  is Property1[Array[(String val, String val)] ref]
+  is Property[Array[(String val, String val)] ref]
   """
   Headers in a response are correctly parsed and available in the
   delivered Headers collection.
@@ -138,7 +137,7 @@ class \nodoc\ iso _PropertyHeadersRoundtrip
 
   fun ref property(
     arg1: Array[(String val, String val)] ref,
-    ph: PropertyHelper)
+    ph: TestHelper)
   =>
     var raw: String val = "HTTP/1.1 200 OK\r\n"
     raw = raw + "Content-Length: 0\r\n"
@@ -182,7 +181,7 @@ class \nodoc\ iso _PropertyHeadersRoundtrip
     end
 
 class \nodoc\ iso _PropertyFixedBodyDelivered
-  is Property1[USize]
+  is Property[USize]
   """
   Responses with Content-Length have their body delivered completely via
   body_chunk callbacks, followed by response_complete.
@@ -192,7 +191,7 @@ class \nodoc\ iso _PropertyFixedBodyDelivered
   fun gen(): Generator[USize] =>
     Generators.usize(1, 200)
 
-  fun ref property(arg1: USize, ph: PropertyHelper) =>
+  fun ref property(arg1: USize, ph: TestHelper) =>
     let body =
       recover val
         let b = Array[U8](arg1)
@@ -247,7 +246,7 @@ class \nodoc\ iso _PropertyFixedBodyDelivered
     end
 
 class \nodoc\ iso _PropertyChunkedBodyDelivered
-  is Property1[Array[USize] ref]
+  is Property[Array[USize] ref]
   """
   Chunked transfer encoding delivers the complete body and
   response_complete.
@@ -257,7 +256,7 @@ class \nodoc\ iso _PropertyChunkedBodyDelivered
   fun gen(): Generator[Array[USize] ref] =>
     Generators.array_of[USize](Generators.usize(1, 50), 1, 5)
 
-  fun ref property(arg1: Array[USize] ref, ph: PropertyHelper) =>
+  fun ref property(arg1: Array[USize] ref, ph: TestHelper) =>
     var total_size: USize = 0
     var raw: String val =
       "HTTP/1.1 200 OK\r\n" +
@@ -303,7 +302,7 @@ class \nodoc\ iso _PropertyChunkedBodyDelivered
       "total body size mismatch")
 
 class \nodoc\ iso _PropertyStatusLineBoundary
-  is Property1[(String val, Bool)]
+  is Property[(String val, Bool)]
   """
   Mixed valid/invalid status lines: valid ones produce response_received,
   invalid ones produce parse_error.
@@ -341,7 +340,7 @@ class \nodoc\ iso _PropertyStatusLineBoundary
         (1, invalid_gen)
       ])
 
-  fun ref property(arg1: (String val, Bool), ph: PropertyHelper) =>
+  fun ref property(arg1: (String val, Bool), ph: TestHelper) =>
     (let raw, let should_succeed) = arg1
     let notify: _TestResponseParserNotify ref = _TestResponseParserNotify
     let parser = _ResponseParser(notify)

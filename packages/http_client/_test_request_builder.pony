@@ -1,4 +1,3 @@
-use "pony_check"
 use "pony_test"
 
 // ---------------------------------------------------------------------------
@@ -6,7 +5,7 @@ use "pony_test"
 // ---------------------------------------------------------------------------
 
 class \nodoc\ iso _PropertyBuilderMethodCorrect
-  is Property1[String val]
+  is Property[String val]
   """
   Each factory method produces a request with the correct HTTP method.
   """
@@ -16,7 +15,7 @@ class \nodoc\ iso _PropertyBuilderMethodCorrect
     Generators.one_of[String val](
       ["GET"; "HEAD"; "POST"; "PUT"; "DELETE"; "OPTIONS"; "PATCH"])
 
-  fun ref property(arg1: String val, ph: PropertyHelper) =>
+  fun ref property(arg1: String val, ph: TestHelper) =>
     let req =
       match arg1
       | "GET" => Request.get("/").build()

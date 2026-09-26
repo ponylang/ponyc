@@ -1,12 +1,11 @@
 use "pony_test"
-use "pony_check"
 
 // ============================================================================
 // Property-based tests
 // ============================================================================
 
 class \nodoc\ iso _PropertyIRIToURINoNonASCII
-  is Property1[String val]
+  is Property[String val]
   """
   IRIToURI output has no literal non-ASCII bytes in any component.
   """
@@ -15,7 +14,7 @@ class \nodoc\ iso _PropertyIRIToURINoNonASCII
   fun gen(): Generator[String val] =>
     _IRIStringGenerator()
 
-  fun ref property(arg1: String val, ph: PropertyHelper) =>
+  fun ref property(arg1: String val, ph: TestHelper) =>
     match \exhaustive\ ParseURI(arg1)
     | let iri: URI val =>
       let uri = IRIToURI(iri)
@@ -31,7 +30,7 @@ class \nodoc\ iso _PropertyIRIToURINoNonASCII
     end
 
 class \nodoc\ iso _PropertyURIToIRINoEncodedUcschar
-  is Property1[String val]
+  is Property[String val]
   """
   URIToIRI output has no percent-encoded sequences that decode to ucschar.
   """
@@ -40,7 +39,7 @@ class \nodoc\ iso _PropertyURIToIRINoEncodedUcschar
   fun gen(): Generator[String val] =>
     _URIWithEncodedNonASCIIGenerator()
 
-  fun ref property(arg1: String val, ph: PropertyHelper) =>
+  fun ref property(arg1: String val, ph: TestHelper) =>
     match \exhaustive\ ParseURI(arg1)
     | let uri: URI val =>
       let iri = URIToIRI(uri)
@@ -50,7 +49,7 @@ class \nodoc\ iso _PropertyURIToIRINoEncodedUcschar
     end
 
   fun _check_no_encoded_ucschar(
-    ph: PropertyHelper,
+    ph: TestHelper,
     s: String val)
   =>
     var i: USize = 0
@@ -127,7 +126,7 @@ class \nodoc\ iso _PropertyURIToIRINoEncodedUcschar
     end
 
 class \nodoc\ iso _PropertyIRIToURIIdempotent
-  is Property1[String val]
+  is Property[String val]
   """
   Applying IRIToURI twice produces the same result as once.
   """
@@ -136,7 +135,7 @@ class \nodoc\ iso _PropertyIRIToURIIdempotent
   fun gen(): Generator[String val] =>
     _IRIStringGenerator()
 
-  fun ref property(arg1: String val, ph: PropertyHelper) =>
+  fun ref property(arg1: String val, ph: TestHelper) =>
     match \exhaustive\ ParseURI(arg1)
     | let iri: URI val =>
       let once = IRIToURI(iri)
@@ -150,7 +149,7 @@ class \nodoc\ iso _PropertyIRIToURIIdempotent
     end
 
 class \nodoc\ iso _PropertyURIToIRIIdempotent
-  is Property1[String val]
+  is Property[String val]
   """
   Applying URIToIRI twice produces the same result as once.
   """
@@ -159,7 +158,7 @@ class \nodoc\ iso _PropertyURIToIRIIdempotent
   fun gen(): Generator[String val] =>
     _URIWithEncodedNonASCIIGenerator()
 
-  fun ref property(arg1: String val, ph: PropertyHelper) =>
+  fun ref property(arg1: String val, ph: TestHelper) =>
     match \exhaustive\ ParseURI(arg1)
     | let uri: URI val =>
       let once = URIToIRI(uri)
@@ -173,7 +172,7 @@ class \nodoc\ iso _PropertyURIToIRIIdempotent
     end
 
 class \nodoc\ iso _PropertyIRIToURIRoundtrip
-  is Property1[String val]
+  is Property[String val]
   """
   For IRIs containing only ucschar non-ASCII codepoints (no iprivate),
   URIToIRI(IRIToURI(iri)) produces the original URI structure.
@@ -183,7 +182,7 @@ class \nodoc\ iso _PropertyIRIToURIRoundtrip
   fun gen(): Generator[String val] =>
     _IRIUcscharOnlyGenerator()
 
-  fun ref property(arg1: String val, ph: PropertyHelper) =>
+  fun ref property(arg1: String val, ph: TestHelper) =>
     match \exhaustive\ ParseURI(arg1)
     | let iri: URI val =>
       let uri_form = IRIToURI(iri)
@@ -197,7 +196,7 @@ class \nodoc\ iso _PropertyIRIToURIRoundtrip
     end
 
 class \nodoc\ iso _PropertyNormalizeIRIIdempotent
-  is Property1[_NormalizableURIInput]
+  is Property[_NormalizableURIInput]
   """
   Normalizing an already-normalized IRI produces the same IRI.
   """
@@ -206,7 +205,7 @@ class \nodoc\ iso _PropertyNormalizeIRIIdempotent
   fun gen(): Generator[_NormalizableURIInput] =>
     _NormalizableURIInputGenerator()
 
-  fun ref property(arg1: _NormalizableURIInput, ph: PropertyHelper) =>
+  fun ref property(arg1: _NormalizableURIInput, ph: TestHelper) =>
     let uri = arg1.uri
     match \exhaustive\ NormalizeIRI(uri)
     | let once: URI val =>
@@ -225,7 +224,7 @@ class \nodoc\ iso _PropertyNormalizeIRIIdempotent
     end
 
 class \nodoc\ iso _PropertyIRIEquivalentReflexive
-  is Property1[_NormalizableURIInput]
+  is Property[_NormalizableURIInput]
   """
   Every valid URI/IRI is equivalent to itself.
   """
@@ -234,7 +233,7 @@ class \nodoc\ iso _PropertyIRIEquivalentReflexive
   fun gen(): Generator[_NormalizableURIInput] =>
     _NormalizableURIInputGenerator()
 
-  fun ref property(arg1: _NormalizableURIInput, ph: PropertyHelper) =>
+  fun ref property(arg1: _NormalizableURIInput, ph: TestHelper) =>
     let uri = arg1.uri
     match \exhaustive\ IRIEquivalent(uri, uri)
     | let result: Bool =>
@@ -245,7 +244,7 @@ class \nodoc\ iso _PropertyIRIEquivalentReflexive
     end
 
 class \nodoc\ iso _PropertyIRIEquivalentCrossForms
-  is Property1[String val]
+  is Property[String val]
   """
   An IRI and its URI form (via IRIToURI) are equivalent.
   """
@@ -254,7 +253,7 @@ class \nodoc\ iso _PropertyIRIEquivalentCrossForms
   fun gen(): Generator[String val] =>
     _IRIUcscharOnlyGenerator()
 
-  fun ref property(arg1: String val, ph: PropertyHelper) =>
+  fun ref property(arg1: String val, ph: TestHelper) =>
     match \exhaustive\ ParseURI(arg1)
     | let iri: URI val =>
       let uri_form = IRIToURI(iri)
@@ -271,7 +270,7 @@ class \nodoc\ iso _PropertyIRIEquivalentCrossForms
     end
 
 class \nodoc\ iso _PropertyIRIPercentEncodePreservesUcschar
-  is Property1[String val]
+  is Property[String val]
   """
   IRIPercentEncode preserves ucschar codepoints as literal UTF-8.
   """
@@ -280,7 +279,7 @@ class \nodoc\ iso _PropertyIRIPercentEncodePreservesUcschar
   fun gen(): Generator[String val] =>
     _UcscharStringGenerator()
 
-  fun ref property(arg1: String val, ph: PropertyHelper) =>
+  fun ref property(arg1: String val, ph: TestHelper) =>
     let encoded = IRIPercentEncode(arg1, URIPartPath)
     // Count non-ASCII codepoints in input and output — ucschar should
     // survive as literal UTF-8, so the count must match.
@@ -314,7 +313,7 @@ class \nodoc\ iso _PropertyIRIPercentEncodePreservesUcschar
     count
 
 class \nodoc\ iso _PropertyIRIPercentEncodeEncodesNonAllowed
-  is Property1[String val]
+  is Property[String val]
   """
   IRIPercentEncode encodes non-ASCII characters outside ucschar/iprivate.
   """
@@ -332,7 +331,7 @@ class \nodoc\ iso _PropertyIRIPercentEncodeEncodesNonAllowed
         "\u200F"  // U+200F (RLM — bidi formatting)
       ])
 
-  fun ref property(arg1: String val, ph: PropertyHelper) =>
+  fun ref property(arg1: String val, ph: TestHelper) =>
     let encoded = IRIPercentEncode(arg1, URIPartPath)
     // All non-ASCII bytes should be percent-encoded
     for c in encoded.values() do

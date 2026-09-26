@@ -1,4 +1,4 @@
-use "pony_check"
+use "pony_test"
 
 primitive Blue is Stringable
   """
@@ -56,7 +56,7 @@ class MyLittlePony is Stringable
             color.string() + ")")
     end
 
-class _CustomClassMapProperty is Property1[MyLittlePony]
+class _CustomClassMapProperty is Property[MyLittlePony]
   """
   The go-to approach for creating custom classes are the
   `Generators.map2`, `Generators.map3` and `Generators.map4`
@@ -79,10 +79,10 @@ class _CustomClassMapProperty is Property1[MyLittlePony]
         MyLittlePony(name, cuteness, color)
       })
 
-  fun ref property(pony: MyLittlePony, ph: PropertyHelper) =>
+  fun ref property(pony: MyLittlePony, ph: TestHelper) =>
     ph.assert_true(pony.is_cute())
 
-class _CustomClassFlatMapProperty is Property1[MyLittlePony]
+class _CustomClassFlatMapProperty is Property[MyLittlePony]
   """
   It is possible to create a generator using `flat_map` on a
   source generator, creating a new Generator in the `flat_map`
@@ -118,11 +118,11 @@ class _CustomClassFlatMapProperty is Property1[MyLittlePony]
               })
         })
 
-  fun ref property(pony: MyLittlePony, ph: PropertyHelper) =>
+  fun ref property(pony: MyLittlePony, ph: TestHelper) =>
     ph.assert_true(pony.is_cute())
 
 class _CustomClassCustomGeneratorProperty
-  is Property1[MyLittlePony]
+  is Property[MyLittlePony]
   """
   Generating your class given a custom generator using a
   GenObj. The generate method draws from Randomness to build
@@ -152,5 +152,5 @@ class _CustomClassCustomGeneratorProperty
             consume color')
       end)
 
-  fun ref property(pony: MyLittlePony, ph: PropertyHelper) =>
+  fun ref property(pony: MyLittlePony, ph: TestHelper) =>
     ph.assert_true(pony.is_cute())

@@ -1,10 +1,9 @@
 use "pony_test"
-use "pony_check"
 
 // -- Property-based tests --
 
 class \nodoc\ iso _PropertyNormalizeIdempotent
-  is Property1[_NormalizableURIInput]
+  is Property[_NormalizableURIInput]
   """
   Normalizing an already-normalized URI produces the same URI.
   """
@@ -13,7 +12,7 @@ class \nodoc\ iso _PropertyNormalizeIdempotent
   fun gen(): Generator[_NormalizableURIInput] =>
     _NormalizableURIInputGenerator()
 
-  fun ref property(arg1: _NormalizableURIInput, ph: PropertyHelper) =>
+  fun ref property(arg1: _NormalizableURIInput, ph: TestHelper) =>
     let uri = arg1.uri
     match \exhaustive\ NormalizeURI(uri)
     | let once: URI val =>
@@ -32,7 +31,7 @@ class \nodoc\ iso _PropertyNormalizeIdempotent
     end
 
 class \nodoc\ iso _PropertyNormalizeSchemeLowercase
-  is Property1[_NormalizableURIInput]
+  is Property[_NormalizableURIInput]
   """
   After normalization, the scheme contains no uppercase ASCII.
   """
@@ -41,7 +40,7 @@ class \nodoc\ iso _PropertyNormalizeSchemeLowercase
   fun gen(): Generator[_NormalizableURIInput] =>
     _NormalizableURIInputGenerator()
 
-  fun ref property(arg1: _NormalizableURIInput, ph: PropertyHelper) =>
+  fun ref property(arg1: _NormalizableURIInput, ph: TestHelper) =>
     match \exhaustive\ NormalizeURI(arg1.uri)
     | let u: URI val =>
       match u.scheme
@@ -55,7 +54,7 @@ class \nodoc\ iso _PropertyNormalizeSchemeLowercase
     end
 
 class \nodoc\ iso _PropertyNormalizeHostLowercase
-  is Property1[_NormalizableURIInput]
+  is Property[_NormalizableURIInput]
   """
   After normalization, non-percent-encoded characters in host have no
   uppercase ASCII.
@@ -65,7 +64,7 @@ class \nodoc\ iso _PropertyNormalizeHostLowercase
   fun gen(): Generator[_NormalizableURIInput] =>
     _NormalizableURIInputGenerator()
 
-  fun ref property(arg1: _NormalizableURIInput, ph: PropertyHelper) =>
+  fun ref property(arg1: _NormalizableURIInput, ph: TestHelper) =>
     match \exhaustive\ NormalizeURI(arg1.uri)
     | let u: URI val =>
       match u.authority
@@ -79,7 +78,7 @@ class \nodoc\ iso _PropertyNormalizeHostLowercase
     end
 
 class \nodoc\ iso _PropertyNormalizeNoEncodedUnreserved
-  is Property1[_NormalizableURIInput]
+  is Property[_NormalizableURIInput]
   """
   After normalization, no %XX sequence decodes to an unreserved character.
   """
@@ -88,7 +87,7 @@ class \nodoc\ iso _PropertyNormalizeNoEncodedUnreserved
   fun gen(): Generator[_NormalizableURIInput] =>
     _NormalizableURIInputGenerator()
 
-  fun ref property(arg1: _NormalizableURIInput, ph: PropertyHelper) =>
+  fun ref property(arg1: _NormalizableURIInput, ph: TestHelper) =>
     match \exhaustive\ NormalizeURI(arg1.uri)
     | let u: URI val =>
       _check_no_encoded_unreserved(ph, u.path, "path")
@@ -113,7 +112,7 @@ class \nodoc\ iso _PropertyNormalizeNoEncodedUnreserved
     end
 
   fun _check_no_encoded_unreserved(
-    ph: PropertyHelper,
+    ph: TestHelper,
     s: String val,
     label: String)
   =>
@@ -140,7 +139,7 @@ class \nodoc\ iso _PropertyNormalizeNoEncodedUnreserved
     end
 
 class \nodoc\ iso _PropertyNormalizeUppercaseHex
-  is Property1[_NormalizableURIInput]
+  is Property[_NormalizableURIInput]
   """
   After normalization, all %XX sequences use uppercase hex digits.
   """
@@ -149,7 +148,7 @@ class \nodoc\ iso _PropertyNormalizeUppercaseHex
   fun gen(): Generator[_NormalizableURIInput] =>
     _NormalizableURIInputGenerator()
 
-  fun ref property(arg1: _NormalizableURIInput, ph: PropertyHelper) =>
+  fun ref property(arg1: _NormalizableURIInput, ph: TestHelper) =>
     match \exhaustive\ NormalizeURI(arg1.uri)
     | let u: URI val =>
       _check_uppercase_hex(ph, u.path, "path")
@@ -174,7 +173,7 @@ class \nodoc\ iso _PropertyNormalizeUppercaseHex
     end
 
   fun _check_uppercase_hex(
-    ph: PropertyHelper,
+    ph: TestHelper,
     s: String val,
     label: String)
   =>
@@ -201,7 +200,7 @@ class \nodoc\ iso _PropertyNormalizeUppercaseHex
     end
 
 class \nodoc\ iso _PropertyNormalizeNoDotSegments
-  is Property1[_NormalizableURIInput]
+  is Property[_NormalizableURIInput]
   """
   After normalization, the path has no dot segments.
   """
@@ -210,7 +209,7 @@ class \nodoc\ iso _PropertyNormalizeNoDotSegments
   fun gen(): Generator[_NormalizableURIInput] =>
     _NormalizableURIInputGenerator()
 
-  fun ref property(arg1: _NormalizableURIInput, ph: PropertyHelper) =>
+  fun ref property(arg1: _NormalizableURIInput, ph: TestHelper) =>
     match \exhaustive\ NormalizeURI(arg1.uri)
     | let u: URI val =>
       let path = u.path
@@ -224,7 +223,7 @@ class \nodoc\ iso _PropertyNormalizeNoDotSegments
     end
 
 class \nodoc\ iso _PropertyNormalizeParseRoundtrip
-  is Property1[_NormalizableURIInput]
+  is Property[_NormalizableURIInput]
   """
   Parsing the string form of a normalized URI produces an equal URI.
   """
@@ -233,7 +232,7 @@ class \nodoc\ iso _PropertyNormalizeParseRoundtrip
   fun gen(): Generator[_NormalizableURIInput] =>
     _NormalizableURIInputGenerator()
 
-  fun ref property(arg1: _NormalizableURIInput, ph: PropertyHelper) =>
+  fun ref property(arg1: _NormalizableURIInput, ph: TestHelper) =>
     match \exhaustive\ NormalizeURI(arg1.uri)
     | let normalized: URI val =>
       match \exhaustive\ ParseURI(normalized.string())
@@ -251,7 +250,7 @@ class \nodoc\ iso _PropertyNormalizeParseRoundtrip
     end
 
 class \nodoc\ iso _PropertyNormalizeNoDefaultPort
-  is Property1[_NormalizableURIInput]
+  is Property[_NormalizableURIInput]
   """
   After normalization, if the scheme has a known default port, the port
   is not that default.
@@ -261,7 +260,7 @@ class \nodoc\ iso _PropertyNormalizeNoDefaultPort
   fun gen(): Generator[_NormalizableURIInput] =>
     _NormalizableURIInputGenerator()
 
-  fun ref property(arg1: _NormalizableURIInput, ph: PropertyHelper) =>
+  fun ref property(arg1: _NormalizableURIInput, ph: TestHelper) =>
     match \exhaustive\ NormalizeURI(arg1.uri)
     | let u: URI val =>
       match u.scheme
@@ -285,7 +284,7 @@ class \nodoc\ iso _PropertyNormalizeNoDefaultPort
     end
 
 class \nodoc\ iso _PropertyNormalizeNoEmptyPathWithAuthority
-  is Property1[_NormalizableURIInput]
+  is Property[_NormalizableURIInput]
   """
   After normalization, if the scheme is http or https and authority is
   present, the path is not empty.
@@ -295,7 +294,7 @@ class \nodoc\ iso _PropertyNormalizeNoEmptyPathWithAuthority
   fun gen(): Generator[_NormalizableURIInput] =>
     _NormalizableURIInputGenerator()
 
-  fun ref property(arg1: _NormalizableURIInput, ph: PropertyHelper) =>
+  fun ref property(arg1: _NormalizableURIInput, ph: TestHelper) =>
     match \exhaustive\ NormalizeURI(arg1.uri)
     | let u: URI val =>
       match u.scheme
@@ -315,7 +314,7 @@ class \nodoc\ iso _PropertyNormalizeNoEmptyPathWithAuthority
     end
 
 class \nodoc\ iso _PropertyNormalizeEquivalentConsistent
-  is Property1[(_NormalizableURIInput, _NormalizableURIInput)]
+  is Property[(_NormalizableURIInput, _NormalizableURIInput)]
   """
   URIEquivalent(a, b) is consistent with NormalizeURI(a) == NormalizeURI(b).
   """
@@ -328,7 +327,7 @@ class \nodoc\ iso _PropertyNormalizeEquivalentConsistent
 
   fun ref property(
     arg1: (_NormalizableURIInput, _NormalizableURIInput),
-    ph: PropertyHelper)
+    ph: TestHelper)
   =>
     (let a_in, let b_in) = arg1
     let a = a_in.uri
@@ -356,7 +355,7 @@ class \nodoc\ iso _PropertyNormalizeEquivalentConsistent
     end
 
 class \nodoc\ iso _PropertyNormalizeInvalidPercentRejected
-  is Property1[String val]
+  is Property[String val]
   """
   URIs with malformed percent-encoding produce InvalidPercentEncoding.
   """
@@ -374,7 +373,7 @@ class \nodoc\ iso _PropertyNormalizeInvalidPercentRejected
       "http://user%info@example.com/path"
     ])
 
-  fun ref property(arg1: String val, ph: PropertyHelper) =>
+  fun ref property(arg1: String val, ph: TestHelper) =>
     match \exhaustive\ ParseURI(arg1)
     | let u: URI val =>
       match \exhaustive\ NormalizeURI(u)

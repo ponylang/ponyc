@@ -1,4 +1,3 @@
-use "pony_check"
 use "pony_test"
 
 // ---------------------------------------------------------------------------
@@ -6,7 +5,7 @@ use "pony_test"
 // ---------------------------------------------------------------------------
 
 class \nodoc\ iso _PropertyMultipartBodyStructure
-  is Property1[USize]
+  is Property[USize]
   """
   For a form with N parts, the serialized body contains exactly N+1
   boundary occurrences (N part boundaries + 1 closing boundary).
@@ -16,7 +15,7 @@ class \nodoc\ iso _PropertyMultipartBodyStructure
   fun gen(): Generator[USize] =>
     Generators.usize(0, 10)
 
-  fun ref property(arg1: USize, ph: PropertyHelper) =>
+  fun ref property(arg1: USize, ph: TestHelper) =>
     let form = MultipartFormData
     var i: USize = 0
     while i < arg1 do
@@ -305,7 +304,7 @@ class \nodoc\ iso _TestMultipartNonAsciiFilename is UnitTest
 // Escaped quoting tests
 // ---------------------------------------------------------------------------
 class \nodoc\ iso _PropertyMultipartEscapedNamesWellFormed
-  is Property1[String val]
+  is Property[String val]
   """
   For any generated string used as a field name, the serialized body's
   Content-Disposition quoted-strings are well-formed: each opening `"`
@@ -323,7 +322,7 @@ class \nodoc\ iso _PropertyMultipartEscapedNamesWellFormed
           'a'; 'b'; 'c'; 'd'; '.'; ' '; '=' ])
     Generators.byte_string(byte_gen, 1, 20)
 
-  fun ref property(arg1: String val, ph: PropertyHelper) =>
+  fun ref property(arg1: String val, ph: TestHelper) =>
     let form = MultipartFormData
     form.field(arg1, "val")
     let data: Array[U8] val = recover val [as U8: 0x00] end

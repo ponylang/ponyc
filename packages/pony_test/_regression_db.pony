@@ -6,18 +6,18 @@ primitive _RegressionDb
   """
   fun resolve_dir(env: Env): (FilePath | None) =>
     """
-    Resolve the regression directory path. Returns None if PONYCHECK_NO_DB
+    Resolve the regression directory path. Returns None if PONYTEST_NO_DB
     is set. Does not create the directory — save() handles that on first
     write.
     """
-    if _env_var(env, "PONYCHECK_NO_DB") isnt None then
+    if _env_var(env, "PONYTEST_NO_DB") isnt None then
       return None
     end
 
     let dir_name =
-      match \exhaustive\ _env_var(env, "PONYCHECK_DB_DIR")
+      match \exhaustive\ _env_var(env, "PONYTEST_DB_DIR")
       | let s: String => s
-      | None => ".ponycheck"
+      | None => ".ponytest"
       end
 
     FilePath(FileAuth(env.root), dir_name)
@@ -25,7 +25,7 @@ primitive _RegressionDb
   fun load(
     dir: FilePath,
     property_name: String,
-    logger: PropertyLogger)
+    logger: _PropertyLogger)
     : (Array[_Choice val] val | None)
   =>
     """
@@ -67,7 +67,7 @@ primitive _RegressionDb
     dir: FilePath,
     property_name: String,
     choices: Array[_Choice val] val,
-    logger: PropertyLogger)
+    logger: _PropertyLogger)
   =>
     """
     Write a failing choice sequence to disk. Creates the directory if
@@ -109,7 +109,7 @@ primitive _RegressionDb
   fun clear(
     dir: FilePath,
     property_name: String,
-    logger: PropertyLogger)
+    logger: _PropertyLogger)
   =>
     """
     Delete the regression file for a property.

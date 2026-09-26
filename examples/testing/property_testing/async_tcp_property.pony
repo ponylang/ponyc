@@ -2,7 +2,6 @@ use "constrained_types"
 use "itertools"
 use "net"
 use notifier = "net/notifier"
-use "pony_check"
 use "pony_test"
 
 class _SenderNotify is notifier.ClientTCPConnectionNotify
@@ -52,10 +51,10 @@ class _VerifyNotify is notifier.ServerTCPConnectionNotify
   """
   Verifies that received data matches the expected string.
   """
-  let _ph: PropertyHelper
+  let _ph: TestHelper
   let _expected: String
 
-  new create(ph: PropertyHelper, expected: String) =>
+  new create(ph: TestHelper, expected: String) =>
     _ph = ph
     _expected = expected
 
@@ -83,12 +82,12 @@ class _VerifyNotify is notifier.ServerTCPConnectionNotify
 
 class _SenderListenNotify is notifier.TCPListenNotify
   let _sender: TCPSender
-  let _ph: PropertyHelper
+  let _ph: TestHelper
   let _expected: String
 
   new create(
     sender: TCPSender,
-    ph: PropertyHelper,
+    ph: TestHelper,
     expected: String) =>
     _sender = sender
     _ph = ph
@@ -118,17 +117,16 @@ class _SenderListenNotify is notifier.TCPListenNotify
   fun ref on_not_listening(listen: notifier.TCPListener ref) =>
     _ph.fail("not listening")
 
-class _AsyncTCPSenderProperty is Property1[String]
+class _AsyncTCPSenderProperty is Property[String]
   fun name(): String => "async/tcp_sender"
 
   fun params(): PropertyParams =>
-    PropertyParams(
-      where async' = true, timeout' = 5_000_000_000)
+    PropertyParams(where timeout' = 5_000_000_000)
 
   fun gen(): Generator[String] =>
     Generators.unicode()
 
-  fun ref property(sample: String, ph: PropertyHelper) =>
+  fun ref property(sample: String, ph: TestHelper) =>
     let sender =
       TCPSender(TCPConnectAuth(ph.env.root))
     ph.dispose_when_done(

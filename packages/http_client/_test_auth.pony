@@ -1,4 +1,3 @@
-use "pony_check"
 use "pony_test"
 
 // ---------------------------------------------------------------------------
@@ -6,7 +5,7 @@ use "pony_test"
 // ---------------------------------------------------------------------------
 
 class \nodoc\ iso _PropertyBasicAuthFormat
-  is Property1[(String val, String val)]
+  is Property[(String val, String val)]
   """
   BasicAuth always returns ("authorization", "Basic <encoded>") where the
   encoded part is non-empty.
@@ -20,7 +19,7 @@ class \nodoc\ iso _PropertyBasicAuthFormat
 
   fun ref property(
     arg1: (String val, String val),
-    ph: PropertyHelper)
+    ph: TestHelper)
   =>
     (let username, let password) = arg1
     (let hdr_name, let hdr_value) = BasicAuth(username, password)
@@ -33,7 +32,7 @@ class \nodoc\ iso _PropertyBasicAuthFormat
       "encoded credentials should be non-empty")
 
 class \nodoc\ iso _PropertyBearerAuthFormat
-  is Property1[String val]
+  is Property[String val]
   """
   BearerAuth always returns ("authorization", "Bearer <token>").
   """
@@ -42,7 +41,7 @@ class \nodoc\ iso _PropertyBearerAuthFormat
   fun gen(): Generator[String val] =>
     Generators.ascii_printable(1, 50)
 
-  fun ref property(arg1: String val, ph: PropertyHelper) =>
+  fun ref property(arg1: String val, ph: TestHelper) =>
     (let hdr_name, let hdr_value) = BearerAuth(arg1)
     ph.assert_eq[String val]("authorization", hdr_name)
     ph.assert_eq[String val]("Bearer " + arg1, hdr_value)

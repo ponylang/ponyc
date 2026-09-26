@@ -79,9 +79,9 @@ class MyBackend is TCPBackend
   // ... existing methods
 ```
 
-## Add Generators.f32 and Generators.f64 to PonyCheck
+## Add Generators.f32 and Generators.f64 to PonyTest
 
-PonyCheck now has built-in `F32` and `F64` generators. Both accept `from` and `to` parameters (defaulting to `0.0` and `1.0`) and normalize argument order, matching the integer generator API.
+PonyTest now has built-in `F32` and `F64` generators. Both accept `from` and `to` parameters (defaulting to `0.0` and `1.0`) and normalize argument order, matching the integer generator API.
 
 ```pony
 // Generate F64 values in [0.0, 1.0] (the default)
@@ -95,19 +95,19 @@ The generators work across the full type range, including `Generators.f64(where 
 
 Previously, floating-point generation required `Generators.repeatedly` with a lambda, which produced values that could not be shrunk.
 
-## Add classification API to PonyCheck
+## Add classification API to PonyTest
 
-Property-based tests can now report how their generated inputs distribute across categories. We added four methods to `PropertyHelper` following the classify/tabulate/cover pattern from QuickCheck and Hypothesis:
+Property-based tests can now report how their generated inputs distribute across categories. We added four methods to `TestHelper` following the classify/tabulate/cover pattern from QuickCheck and Hypothesis:
 
 ```pony
-use "pony_check"
+use "pony_test"
 
-class iso MyProperty is Property1[U8]
+class iso MyProperty is Property[U8]
   fun name(): String => "my property"
 
   fun gen(): Generator[U8] => Generators.u8(0, 100)
 
-  fun ref property(sample: U8, h: PropertyHelper) =>
+  fun ref property(sample: U8, h: TestHelper) =>
     // flat label — reported as a percentage of all samples
     h.classify(if sample < 10 then "small" else "large" end)
 
@@ -175,12 +175,12 @@ LLVM may replace the pure-Pony XOR-accumulate loop in `ConstantTimeCompare` with
 
 Calling `Reader.append` with an empty `Array[U8]` or empty `String` pushed a zero-length chunk into the internal chunk list. A subsequent read — even with sufficient data from other appends — would error when trying to index into the empty chunk.
 
-## Add stateful property testing to PonyCheck
+## Add stateful property testing to PonyTest
 
-PonyCheck now supports stateful property testing, where each sample creates a system under test and a reference model, then runs a sequence of randomly generated steps that operate on both. After each step, an invariant checks that the model and the SUT agree. On failure, the choice sequence is shrunk to find a minimal reproducing case.
+PonyTest now supports stateful property testing, where each sample creates a system under test and a reference model, then runs a sequence of randomly generated steps that operate on both. After each step, an invariant checks that the model and the SUT agree. On failure, the choice sequence is shrunk to find a minimal reproducing case.
 
 ```pony
-use "pony_check"
+use "pony_test"
 
 class iso _CounterProperty
   is StatefulProperty[_Counter, USize, _Increment]
@@ -192,7 +192,7 @@ class iso _CounterProperty
   fun ref step(
     ctx: StatefulContext[_Counter, USize],
     rnd: Randomness,
-    h: PropertyHelper)
+    h: TestHelper)
     : _Increment
   =>
     ctx.sut.increment()
@@ -201,16 +201,16 @@ class iso _CounterProperty
 
   fun invariant(
     ctx: StatefulContext[_Counter, USize] box,
-    h: PropertyHelper)
+    h: TestHelper)
     : Bool
   =>
     h.assert_eq[USize](ctx.model, ctx.sut.count)
 ```
 
-Register with PonyTest using the `StatefulPropertyUnitTest` adapter:
+Register with PonyTest using the `StatefulPropertyTest` adapter:
 
 ```pony
-test(StatefulPropertyUnitTest[_Counter, USize, _Increment](
+test(StatefulPropertyTest[_Counter, USize, _Increment](
   _CounterProperty))
 ```
 
@@ -247,9 +247,9 @@ couldn't find 'string' in anonymous type
     it has a method named 'apply'
 ```
 
-## Add health check warnings to PonyCheck
+## Add health check warnings to PonyTest
 
-PonyCheck now logs diagnostic warnings after a property run completes when it detects patterns that often signal a problem with the generator or property: a high filter rejection rate, an unusually large choice sequence, or a slow sample. The warnings never cause test failure — they appear in the test log when running with `--verbose`.
+PonyTest now logs diagnostic warnings after a property run completes when it detects patterns that often signal a problem with the generator or property: a high filter rejection rate, an unusually large choice sequence, or a slow sample. The warnings never cause test failure — they appear in the test log when running with `--verbose`.
 
 Three new fields on `PropertyParams` control the thresholds. All three default to values that avoid false positives on typical properties. Setting any threshold to 0 disables that check.
 
@@ -405,16 +405,16 @@ After the runtime was linked into the program, LLVM attributes on runtime functi
 
 `pony_send_done` and `pony_recv_done` now carry the `inacc_or_arg_mem` memory attribute, matching the trace functions they call internally. This lets LLVM hoist and sink loads across GC completion calls, improving optimization of code around message sends and receives.
 
-## Add regression persistence to PonyCheck
+## Add regression persistence to PonyTest
 
 When a property test fails, the shrunk failing choice sequence is saved to disk. On the next run, the stored sequence is replayed before random samples are generated. If it still fails, the property fails immediately with the same minimal case. If it passes, the stored regression is cleared and all configured random samples run normally.
 
-Both `Property1` and `StatefulProperty` support regression persistence. Regressions are stored in a `.ponycheck/` directory under the working directory, one file per property.
+Both `Property` and `StatefulProperty` support regression persistence. Regressions are stored in a `.ponytest/` directory under the working directory, one file per property.
 
 Two environment variables control the behavior:
 
-- `PONYCHECK_NO_DB=1` disables persistence entirely.
-- `PONYCHECK_DB_DIR=path` changes the storage directory.
+- `PONYTEST_NO_DB=1` disables persistence entirely.
+- `PONYTEST_DB_DIR=path` changes the storage directory.
 
 Individual properties can opt out via `PropertyParams`:
 
@@ -428,4 +428,51 @@ Persistence is off for properties registered through the `ForAll` convenience AP
 ## Fix String.copy_cpointer reading one byte past the source buffer
 
 `String.copy_cpointer` copied `len + 1` bytes from the source pointer, assuming a null terminator existed at position `len`. The method's contract is to copy a fixed number of bytes — not a C string — so any source buffer without a trailing null was overread by one byte. This affected FFI callbacks that receive length-delimited buffers, such as the OpenSSL ALPN select callback.
+
+## Merge property testing into PonyTest
+
+The `pony_check` package is removed. All property testing types and functions are now in `pony_test`.
+
+Before:
+
+```pony
+use "pony_check"
+
+class iso MyProperty is Property1[U8]
+  fun name(): String => "my property"
+  fun gen(): Generator[U8] => Generators.u8()
+  fun ref property(sample: U8, h: PropertyHelper) ? =>
+    h.assert_true(sample < 200)
+```
+
+After:
+
+```pony
+use "pony_test"
+
+class iso MyProperty is Property[U8]
+  fun name(): String => "my property"
+  fun gen(): Generator[U8] => Generators.u8()
+  fun ref property(sample: U8, h: TestHelper) ? =>
+    h.assert_true(sample < 200)
+```
+
+Full migration list:
+
+- `use "pony_check"` → `use "pony_test"`
+- `Property1[T]` → `Property[T]`
+- `PropertyHelper` → `TestHelper`
+- `Property1UnitTest[T]` → `PropertyTest[T]`
+- `StatefulPropertyUnitTest[S, M, Cmd]` → `StatefulPropertyTest[S, M, Cmd]`
+- `PONYCHECK_NO_DB` → `PONYTEST_NO_DB`
+- `PONYCHECK_DB_DIR` → `PONYTEST_DB_DIR`
+- `.ponycheck/` regression directory → `.ponytest/`
+
+`Property2`, `Property3`, `Property4`, `Generators`, `Randomness`, `StatefulProperty`, `StatefulContext`, `ForAll`, and `ClassificationNotify` are unchanged.
+
+`PropertyParams` drops the `async` field. Remove `async' = true` from any `PropertyParams` constructor call. Async completion now works automatically through `TestHelper.complete` / `expect_action` / `complete_action`.
+
+## Fix property test failures not triggering shrinking
+
+When a property function raised an error or a stateful property's invariant or final_check returned false, the runner did not detect the failure synchronously. It checked a field that could only be set by asynchronous behaviours, so synchronous failures were treated as passes. Failing properties now trigger shrinking and regression persistence.
 

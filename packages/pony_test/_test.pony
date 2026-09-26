@@ -7,6 +7,188 @@ actor \nodoc\ Main is TestList
     test(_TestShuffleVariesAcrossSeeds)
     test(_TestListShuffleSeedZero)
 
+    // Generator tests
+    test(_GenRndTest)
+    test(_GenFilterTest)
+    test(_GenUnionTest)
+    test(_GenFrequencyTest)
+    test(_GenFrequencySafeTest)
+    test(_GenOneOfTest)
+    test(_GenOneOfSafeTest)
+    test(_SeqOfTest)
+    test(_SetOfTest)
+    test(_SetOfMaxTest)
+    test(_SetOfEmptyTest)
+    test(_SetIsOfIdentityTest)
+    test(_MapOfEmptyTest)
+    test(_MapOfMaxTest)
+    test(_MapOfIdentityTest)
+    test(_MapIsOfEmptyTest)
+    test(_MapIsOfMaxTest)
+    test(_MapIsOfIdentityTest)
+    test(_SetOfMinTest)
+    test(_SetIsOfMinTest)
+    test(_MapOfMinTest)
+    test(_MapIsOfMinTest)
+    test(_ASCIIRangeTest)
+    test(_GenF32Test)
+    test(_GenF32ReversedTest)
+    test(_GenF32FullRangeTest)
+    test(_GenF32NaNTest)
+    test(_GenF64Test)
+    test(_GenF64ReversedTest)
+    test(_GenF64FullRangeTest)
+    test(_GenF64NaNTest)
+    test(_UTF32CodePointStringTest)
+    test(_VecOfEmptyTest)
+    test(_VecOfFromToReversedTest)
+    test(_VecOfMaxTest)
+    test(_VecOfMinTest)
+
+    // Persistent collection generator tests
+    test(_PersistentListOfEmptyTest)
+    test(_PersistentListOfMaxTest)
+    test(_PersistentListOfMinTest)
+    test(_PersistentSetIsOfIdentityTest)
+    test(_PersistentSetOfEmptyTest)
+    test(_PersistentSetOfMaxTest)
+    test(_PersistentSetOfMinTest)
+    test(_PersistentSetIsOfEmptyTest)
+    test(_PersistentSetIsOfMaxTest)
+    test(_PersistentSetIsOfMinTest)
+    test(_PersistentMapOfIdentityTest)
+    test(_PersistentMapIsOfIdentityTest)
+    test(_PersistentMapOfEmptyTest)
+    test(_PersistentMapOfMaxTest)
+    test(_PersistentMapOfMinTest)
+    test(_PersistentMapIsOfEmptyTest)
+    test(_PersistentMapIsOfMaxTest)
+    test(_PersistentMapIsOfMinTest)
+
+    // Stringify test
+    test(_StringifyTest)
+
+    // Replay and structure tests
+    test(_ReplayDeterminismTest)
+    test(_BooleanPerElementStructureTest)
+
+    // Shrinker unit tests
+    test(_ShrinkerDeleteSpanTest)
+    test(_ShrinkerLowerChoicesTest)
+    test(_ShrinkerConvergenceLoopTest)
+    test(_ShrinkerRedistributeTest)
+    test(_ShrinkerShortenTest)
+    test(_ShrinkerSortSpansTest)
+    test(_ShrinkerBoolLoweringTest)
+    test(_ShrinkerForcedBoolSkipTest)
+    test(_ShrinkerLowerU128Test)
+    test(_ShrinkerDeleteDiscardedSpanTest)
+    test(_ShrinkerSortSpansLengthTest)
+
+    // Serializer tests
+    test(_SerializerRoundTripAllTypesTest)
+    test(_SerializerEmptyArrayTest)
+    test(_SerializerBadHeaderTest)
+    test(_SerializerBadLineTest)
+    test(_SerializerFloatExactBitsTest)
+    test(_SerializerNaNRoundTripTest)
+
+    // Regression DB tests
+    test(_EncodeNameSafeCharsTest)
+    test(_EncodeNameSpecialCharsTest)
+    test(_RegressionDbSaveLoadClearTest)
+    test(_RegressionDbLoadMissingTest)
+    test(_RegressionDbCorruptDeletesTest)
+    test(_RegressionDbCreatesDirTest)
+
+    // Property tests (passing)
+    test(PropertyTest[U8](_SuccessfulProperty))
+    test(PropertyTest[(U8, U8)](_SuccessfulProperty2))
+    test(PropertyTest[(U8, U8, U8)](_SuccessfulProperty3))
+    test(PropertyTest[(U8, U8, U8, U8)](_SuccessfulProperty4))
+    test(PropertyTest[IntPropertySample](_SuccessfulIntProperty))
+    test(PropertyTest[IntPairPropertySample](_SuccessfulIntPairProperty))
+
+    // Randomness property tests
+    test(PropertyTest[(F32, F32)](
+      _RandomnessProperty[F32, _RandomCaseF32]("f32")))
+    test(PropertyTest[(F64, F64)](
+      _RandomnessProperty[F64, _RandomCaseF64]("f64")))
+    test(PropertyTest[(U8, U8)](
+      _RandomnessProperty[U8, _RandomCaseU8]("u8")))
+    test(PropertyTest[(U16, U16)](
+      _RandomnessProperty[U16, _RandomCaseU16]("u16")))
+    test(PropertyTest[(U32, U32)](
+      _RandomnessProperty[U32, _RandomCaseU32]("u32")))
+    test(PropertyTest[(U64, U64)](
+      _RandomnessProperty[U64, _RandomCaseU64]("u64")))
+    test(PropertyTest[(U128, U128)](
+      _RandomnessProperty[U128, _RandomCaseU128]("u128")))
+    test(PropertyTest[(I8, I8)](
+      _RandomnessProperty[I8, _RandomCaseI8]("i8")))
+    test(PropertyTest[(I16, I16)](
+      _RandomnessProperty[I16, _RandomCaseI16]("i16")))
+    test(PropertyTest[(I32, I32)](
+      _RandomnessProperty[I32, _RandomCaseI32]("i32")))
+    test(PropertyTest[(I64, I64)](
+      _RandomnessProperty[I64, _RandomCaseI64]("i64")))
+    test(PropertyTest[(I128, I128)](
+      _RandomnessProperty[I128, _RandomCaseI128]("i128")))
+    test(PropertyTest[(ISize, ISize)](
+      _RandomnessProperty[ISize, _RandomCaseISize]("isize")))
+    test(PropertyTest[(ILong, ILong)](
+      _RandomnessProperty[ILong, _RandomCaseILong]("ilong")))
+
+    // For-all inline tests
+    test(_ForAllTest)
+    test(_ForAll2Test)
+    test(_ForAll3Test)
+    test(_ForAll4Test)
+    test(_ClassifyForAllTest)
+
+    // Classification/coverage property tests (passing)
+    test(PropertyTest[U8](_ClassifyAllSameProperty))
+    test(PropertyTest[U8](_ClassifyMultiLabelProperty))
+    test(PropertyTest[U8](_ClassifyAlphabeticalProperty))
+    test(PropertyTest[U8](_CoverSatisfiedProperty))
+    test(PropertyTest[U8](_CoverAndClassifyProperty))
+    test(PropertyTest[U8](_CoverLastWinsProperty))
+    test(PropertyTest[U8](_CollectStringableProperty))
+    test(PropertyTest[U8](_TabulateSingleHeadingProperty))
+    test(PropertyTest[U8](_TabulateMultipleHeadingsProperty))
+    test(PropertyTest[U8](_TabulateAndClassifyProperty))
+    test(PropertyTest[U8](_TabulateSameLabelDiffHeadingsProperty))
+
+    // Health check property tests (passing)
+    test(PropertyTest[U8](_CleanProperty))
+    test(PropertyTest[U8](_DisabledCheckProperty))
+    test(PropertyTest[U8](_AllDisabledCheckProperty))
+
+    // Stateful property tests (passing)
+    test(_SuccessfulStatefulPropertyTest)
+    test(_StatefulUnitTestAdapterTest)
+    test(_StatefulMaxStepsZeroTest)
+    test(_MultiCommandStatefulPropertyTest)
+
+    // Multiple for_all test
+    test(_MultipleForAllTest)
+
+    // Direct property execution tests
+    test(_DirectErroringPropertyTest)
+    test(_DirectErroringGeneratorTest)
+    test(_DirectSometimesErroringGeneratorTest)
+    test(_DirectFailingStatefulTest)
+    test(_DirectStepAlwaysErrorsTest)
+    test(_DirectFinalCheckFailureTest)
+    test(_DirectStatefulShrinkQualityTest)
+    test(_DirectCoverUnsatisfiedTest)
+    test(_DirectCoverNoShrinkTest)
+    test(_DirectShrinkIntToMinTest)
+    test(_DirectShrinkIntAboveThresholdTest)
+    test(_DirectShrinkArrayToMinTest)
+    test(_DirectShrinkFilterPreservationTest)
+    test(_DirectShrinkFlatMapTest)
+
 class \nodoc\ iso _TestListPreservesOrder is UnitTest
   """
   --list without --shuffle prints test names in registration order.
@@ -266,3 +448,4 @@ actor \nodoc\ _PerSeedCollector is OutStream
   be printv(data: ByteSeqIter) => None
   be writev(data: ByteSeqIter) => None
   be flush() => None
+

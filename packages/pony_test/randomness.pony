@@ -296,10 +296,7 @@ class ref Randomness
     _replay_idx
 
   fun ref _choices_size(): USize =>
-    let old = (_choices = recover iso Array[_Choice val] end)
-    let s = old.size()
-    _choices = consume old
-    s
+    _choices.size()
 
   fun ref _count_filter_spans(): (USize, USize) =>
     let old = (_spans = recover iso Array[_Span val] end)

@@ -15,7 +15,7 @@ This way, given a certain seed in the `PropertyParams` we can
 actually reliably reproduce a failed example.
 */
 use "collections"
-use "pony_check"
+use "pony_test"
 
 class val _OperationOnCollection[T, R = String]
   is Stringable
@@ -38,7 +38,7 @@ class val _OperationOnCollection[T, R = String]
     end
 
 class _OperationOnCollectionProperty
-  is Property1[
+  is Property[
     (USize, Array[_OperationOnCollection[String]])]
   fun name(): String =>
     "collections/operation_on_random_collection_elements"
@@ -118,7 +118,7 @@ class _OperationOnCollectionProperty
   fun ref property(
     sample: (USize,
       Array[_OperationOnCollection[String]]),
-    h: PropertyHelper)
+    h: TestHelper)
   =>
     (let len, let ops) = sample
 

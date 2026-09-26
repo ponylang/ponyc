@@ -23,21 +23,24 @@ All notable changes to the Pony compiler and standard library will be documented
 - Export PONY_API symbols on ELF platforms when runtime bitcode is merged ([PR #6146](https://github.com/ponylang/ponyc/pull/6146))
 - Fix optimizer attributes lost after runtime linking ([PR #6148](https://github.com/ponylang/ponyc/pull/6148))
 - Fix String.copy_cpointer reading one byte past the source buffer ([PR #6158](https://github.com/ponylang/ponyc/pull/6158))
+- Fix property test failures not triggering shrinking ([PR #6171](https://github.com/ponylang/ponyc/pull/6171))
 
 ### Added
 
 - Add \by_value\ FFI annotation for struct-by-value passing ([PR #6062](https://github.com/ponylang/ponyc/pull/6062))
 - Add `--lib-path` / `-L` flag for extra linker library search paths ([PR #6084](https://github.com/ponylang/ponyc/pull/6084))
 - Add `is_socket_connected` to `TCPBackend` trait ([PR #6094](https://github.com/ponylang/ponyc/pull/6094))
-- Add Generators.f32 and Generators.f64 to PonyCheck ([PR #6103](https://github.com/ponylang/ponyc/pull/6103))
-- Add classification API to PonyCheck ([PR #6107](https://github.com/ponylang/ponyc/pull/6107))
+- Add Generators.f32 and Generators.f64 to PonyTest ([PR #6103](https://github.com/ponylang/ponyc/pull/6103))
+- Add classification API to PonyTest ([PR #6107](https://github.com/ponylang/ponyc/pull/6107))
 - Add crypto package to the standard library ([PR #6114](https://github.com/ponylang/ponyc/pull/6114))
-- Add stateful property testing to PonyCheck ([PR #6121](https://github.com/ponylang/ponyc/pull/6121))
-- Add health check warnings to PonyCheck ([PR #6128](https://github.com/ponylang/ponyc/pull/6128))
+- Add stateful property testing to PonyTest ([PR #6121](https://github.com/ponylang/ponyc/pull/6121))
+- Add health check warnings to PonyTest ([PR #6128](https://github.com/ponylang/ponyc/pull/6128))
 - Add inacc_or_arg_mem to pony_send_done and pony_recv_done ([PR #6150](https://github.com/ponylang/ponyc/pull/6150))
-- Add regression persistence to PonyCheck ([PR #6154](https://github.com/ponylang/ponyc/pull/6154))
+- Add regression persistence to PonyTest ([PR #6154](https://github.com/ponylang/ponyc/pull/6154))
 
 ### Changed
+
+- Merge property testing into PonyTest ([PR #6171](https://github.com/ponylang/ponyc/pull/6171))
 
 - `--print_stats` no longer reports heap-to-stack promotion counts ([PR #6109](https://github.com/ponylang/ponyc/pull/6109))
 - Release builds no longer strip debug info automatically ([PR #6109](https://github.com/ponylang/ponyc/pull/6109))

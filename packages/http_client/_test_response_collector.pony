@@ -1,4 +1,3 @@
-use "pony_check"
 use "pony_test"
 
 // ---------------------------------------------------------------------------
@@ -6,7 +5,7 @@ use "pony_test"
 // ---------------------------------------------------------------------------
 
 class \nodoc\ iso _PropertyCollectorChunkAccumulation
-  is Property1[Array[USize] ref]
+  is Property[Array[USize] ref]
   """
   Given N chunks of varying sizes, the built response body has the correct
   total size and the response metadata is preserved.
@@ -16,7 +15,7 @@ class \nodoc\ iso _PropertyCollectorChunkAccumulation
   fun gen(): Generator[Array[USize] ref] =>
     Generators.array_of[USize](Generators.usize(0, 100) where from = 0)
 
-  fun ref property(arg1: Array[USize] ref, ph: PropertyHelper) =>
+  fun ref property(arg1: Array[USize] ref, ph: TestHelper) =>
     let response = _make_response()
     let collector = ResponseCollector
     collector.set_response(response)
@@ -52,7 +51,7 @@ class \nodoc\ iso _PropertyCollectorChunkAccumulation
     Response(HTTP11, 200, "OK", headers)
 
 class \nodoc\ iso _PropertyCollectorPreservesResponseMetadata
-  is Property1[U16]
+  is Property[U16]
   """
   The built HTTPResponse preserves the status code from the original Response.
   """
@@ -61,7 +60,7 @@ class \nodoc\ iso _PropertyCollectorPreservesResponseMetadata
   fun gen(): Generator[U16] =>
     Generators.u16(100, 599)
 
-  fun ref property(arg1: U16, ph: PropertyHelper) =>
+  fun ref property(arg1: U16, ph: TestHelper) =>
     let response = Response(HTTP11, arg1, "Test", recover val Headers end)
     let collector = ResponseCollector
     collector.set_response(response)

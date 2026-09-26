@@ -25,6 +25,7 @@ class val TestHelper
   """
 
   let _runner: _TestRunner
+  let _sample_id: USize
   let env: Env
     """
     The process environment.
@@ -35,11 +36,18 @@ class val TestHelper
     """
 
   new val _create(runner: _TestRunner, env': Env) =>
-    """
-    Create a new TestHelper.
-    """
     env = env'
     _runner = runner
+    _sample_id = USize.max_value()
+
+  new val _create_sample(
+    runner: _TestRunner,
+    env': Env,
+    sample_id': USize)
+  =>
+    env = env'
+    _runner = runner
+    _sample_id = sample_id'
 
   fun log(msg: String, verbose: Bool = false) =>
     """
@@ -401,7 +409,7 @@ class val TestHelper
 
     Once this is called tear_down() may be called at any time.
     """
-    _runner.complete(success)
+    _runner.complete(success, _sample_id)
 
   fun expect_action(name: String) =>
     """
@@ -415,7 +423,7 @@ class val TestHelper
     The order of calls to expect_action don't matter - the actions may be
     completed in any other order to complete the test.
     """
-    _runner.expect_action(name)
+    _runner.expect_action(name, _sample_id)
 
   fun complete_action(name: String) =>
     """
@@ -429,7 +437,7 @@ class val TestHelper
     Calling the complete method will finish the test immediately, without
     waiting for any outstanding actions to be completed.
     """
-    _runner.complete_action(name, true)
+    _runner.complete_action(name, true, _sample_id)
 
   fun fail_action(name: String) =>
     """
@@ -441,7 +449,7 @@ class val TestHelper
     Usually the action name should be an expected action set up by a call to
     expect_action, but failing unexpected actions will also fail the test.
     """
-    _runner.complete_action(name, false)
+    _runner.complete_action(name, false, _sample_id)
 
   fun dispose_when_done(disposable: DisposableActor) =>
     """
@@ -450,4 +458,76 @@ class val TestHelper
 
     If the test is already tearing down, the actor will be disposed immediately.
     """
-    _runner.dispose_when_done(disposable)
+    _runner.dispose_when_done(disposable, _sample_id)
+
+  fun classify(label: String) =>
+    """
+    Classify the current property sample with the given label.
+    """
+    _runner._property_classify(label, _sample_id)
+
+  fun collect(value: Stringable) =>
+    """
+    Classify the current property sample using the string representation
+    of `value`.
+    """
+    classify(value.string())
+
+  fun tabulate(heading: String, label: String) =>
+    """
+    Tabulate the current property sample under `heading` with the given
+    `label`.
+    """
+    _runner._property_tabulate(heading, label, _sample_id)
+
+  fun cover(condition: Bool, label: String, min_pct: F64 = 0.0) =>
+    """
+    Check that `condition` holds for at least `min_pct` percent of samples.
+    """
+    _runner._property_cover(condition, label, min_pct, _sample_id)
+
+  fun val for_all[T](gen: Generator[T] val): ForAll[T] =>
+    """
+    Run an inline property check with one generated argument.
+    """
+    ForAll[T](gen, this)
+
+  fun val for_all2[T1, T2](
+    gen1: Generator[T1] val,
+    gen2: Generator[T2] val)
+    : ForAll2[T1, T2]
+  =>
+    """
+    Run an inline property check with two generated arguments.
+    """
+    ForAll2[T1, T2](gen1, gen2, this)
+
+  fun val for_all3[T1, T2, T3](
+    gen1: Generator[T1] val,
+    gen2: Generator[T2] val,
+    gen3: Generator[T3] val)
+    : ForAll3[T1, T2, T3]
+  =>
+    """
+    Run an inline property check with three generated arguments.
+    """
+    ForAll3[T1, T2, T3](gen1, gen2, gen3, this)
+
+  fun val for_all4[T1, T2, T3, T4](
+    gen1: Generator[T1] val,
+    gen2: Generator[T2] val,
+    gen3: Generator[T3] val,
+    gen4: Generator[T4] val)
+    : ForAll4[T1, T2, T3, T4]
+  =>
+    """
+    Run an inline property check with four generated arguments.
+    """
+    ForAll4[T1, T2, T3, T4](gen1, gen2, gen3, gen4, this)
+
+  fun _start_property(exec: _PropertyExecution iso) =>
+    """
+    Enter property mode. Called from PropertyTest/StatefulPropertyTest
+    wrappers.
+    """
+    _runner._start_property(consume exec)

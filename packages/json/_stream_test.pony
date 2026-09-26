@@ -1,5 +1,4 @@
 use "pony_test"
-use "pony_check"
 
 primitive \nodoc\ _StreamHelp
   """Drives JSONTokenParser + JSONReassembler for the streaming tests."""
@@ -820,13 +819,13 @@ class \nodoc\ _IdCollector is JSONTokenNotify
       _want = false
     end
 
-class \nodoc\ iso _StreamMatchesBatchProperty is Property1[String]
+class \nodoc\ iso _StreamMatchesBatchProperty is Property[String]
   """Chunked token+reassembler yields the same value as the batch parser."""
   fun name(): String => "json/stream/property/matches-batch"
 
   fun gen(): Generator[String] => _JSONDocStringGen(3)
 
-  fun ref property(doc: String, ph: PropertyHelper) =>
+  fun ref property(doc: String, ph: TestHelper) =>
     match \exhaustive\ JSONParser.parse(doc)
     | let bv: JSONValue =>
       let batch: String val = JSONPrinter.print(bv)
@@ -845,13 +844,13 @@ class \nodoc\ iso _StreamMatchesBatchProperty is Property1[String]
       ph.fail("batch failed on generated doc " + doc + ": " + e.string())
     end
 
-class \nodoc\ iso _StreamSplitInvariantProperty is Property1[String]
+class \nodoc\ iso _StreamSplitInvariantProperty is Property[String]
   """The result is identical no matter where the document is split."""
   fun name(): String => "json/stream/property/split-invariant"
 
   fun gen(): Generator[String] => _JSONDocStringGen(3)
 
-  fun ref property(doc: String, ph: PropertyHelper) =>
+  fun ref property(doc: String, ph: TestHelper) =>
     match \exhaustive\ _StreamHelp.all(doc)
     | let whole_vs: Array[JSONValue] =>
       let whole: String val = _StreamHelp.render(whole_vs)

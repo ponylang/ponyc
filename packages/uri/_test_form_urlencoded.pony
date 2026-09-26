@@ -1,8 +1,7 @@
 use "pony_test"
-use "pony_check"
 
 class \nodoc\ iso _PropertyFormURLEncodedRoundtrip
-  is Property1[Array[(String val, String val)] val]
+  is Property[Array[(String val, String val)] val]
   """
   Generated key-value pairs serialized as `k=v&k2=v2` parse back to
   matching pairs.
@@ -34,7 +33,7 @@ class \nodoc\ iso _PropertyFormURLEncodedRoundtrip
 
   fun ref property(
     arg1: Array[(String val, String val)] val,
-    ph: PropertyHelper)
+    ph: TestHelper)
   =>
     // Serialize
     let parts = Array[String val](arg1.size())
@@ -65,7 +64,7 @@ class \nodoc\ iso _PropertyFormURLEncodedRoundtrip
       ph.fail("roundtrip parse failed")
     end
 
-class \nodoc\ iso _PropertyFormURLEncodedPlusDecodes is Property1[String val]
+class \nodoc\ iso _PropertyFormURLEncodedPlusDecodes is Property[String val]
   """`+` in query values decodes as space."""
   fun name(): String => "uri/form_urlencoded/plus_decodes"
 
@@ -73,7 +72,7 @@ class \nodoc\ iso _PropertyFormURLEncodedPlusDecodes is Property1[String val]
     Generators.one_of[String val](
       ["hello+world"; "a+b+c"; "+"; "no+spaces+here"; "++"])
 
-  fun ref property(arg1: String val, ph: PropertyHelper) =>
+  fun ref property(arg1: String val, ph: TestHelper) =>
     let query = "key=" + arg1
     match \exhaustive\ ParseFormURLEncoded(consume query)
     | let parsed: FormURLEncoded val =>
@@ -91,7 +90,7 @@ class \nodoc\ iso _PropertyFormURLEncodedPlusDecodes is Property1[String val]
     end
 
 class \nodoc\ iso _PropertyFormURLEncodedInvalidRejected
-  is Property1[String val]
+  is Property[String val]
   """Strings with invalid percent-encoding produce errors."""
   fun name(): String => "uri/form_urlencoded/invalid_rejected"
 
@@ -101,7 +100,7 @@ class \nodoc\ iso _PropertyFormURLEncodedInvalidRejected
         "key=%GG"; "k=%2"; "a=b&c=%"; "bad=%XX&good=1"; "%ZZ=val"
       ])
 
-  fun ref property(arg1: String val, ph: PropertyHelper) =>
+  fun ref property(arg1: String val, ph: TestHelper) =>
     match \exhaustive\ ParseFormURLEncoded(arg1)
     | let parsed: FormURLEncoded val =>
       ph.fail("expected error for: " + arg1)

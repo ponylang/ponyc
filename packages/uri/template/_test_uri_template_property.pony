@@ -1,7 +1,6 @@
 use "pony_test"
-use "pony_check"
 
-class \nodoc\ iso _TestPropertyNoBracesInExpansion is Property1[String]
+class \nodoc\ iso _TestPropertyNoBracesInExpansion is Property[String]
   """Property: expansion output contains no raw braces."""
   fun name(): String => "uri/template/property: no braces in expansion"
 
@@ -9,7 +8,7 @@ class \nodoc\ iso _TestPropertyNoBracesInExpansion is Property1[String]
     // Generate valid templates from building blocks
     _TemplateGenerators.valid_template()
 
-  fun ref property(arg1: String, h: PropertyHelper) =>
+  fun ref property(arg1: String, h: TestHelper) =>
     match \exhaustive\ URITemplateParse(arg1)
     | let tpl: URITemplate =>
       let vars = _RFC6570Vars()
@@ -29,7 +28,7 @@ class \nodoc\ iso _TestPropertyNoBracesInExpansion is Property1[String]
         " error: " + err.string())
     end
 
-class \nodoc\ iso _TestPropertyUnreservedPassthrough is Property1[String]
+class \nodoc\ iso _TestPropertyUnreservedPassthrough is Property[String]
   """Property: unreserved values in simple expansion pass through unchanged."""
   fun name(): String =>
     "uri/template/property: unreserved value passthrough"
@@ -37,7 +36,7 @@ class \nodoc\ iso _TestPropertyUnreservedPassthrough is Property1[String]
   fun gen(): Generator[String] =>
     _TemplateGenerators.unreserved_string(1, 30)
 
-  fun ref property(arg1: String, h: PropertyHelper) =>
+  fun ref property(arg1: String, h: TestHelper) =>
     let vars = URITemplateVariables
     vars.set("x", arg1)
     try
@@ -48,14 +47,14 @@ class \nodoc\ iso _TestPropertyUnreservedPassthrough is Property1[String]
       h.fail("failed to parse {x}")
     end
 
-class \nodoc\ iso _TestPropertyValidTemplatesParse is Property1[String]
+class \nodoc\ iso _TestPropertyValidTemplatesParse is Property[String]
   """Property: valid generated templates always parse successfully."""
   fun name(): String => "uri/template/property: valid templates parse"
 
   fun gen(): Generator[String] =>
     _TemplateGenerators.valid_template()
 
-  fun ref property(arg1: String, h: PropertyHelper) =>
+  fun ref property(arg1: String, h: TestHelper) =>
     match \exhaustive\ URITemplateParse(arg1)
     | let _: URITemplate => None
     | let err: URITemplateParseError =>
@@ -63,21 +62,21 @@ class \nodoc\ iso _TestPropertyValidTemplatesParse is Property1[String]
         "' error: " + err.string())
     end
 
-class \nodoc\ iso _TestPropertyInvalidTemplatesFail is Property1[String]
+class \nodoc\ iso _TestPropertyInvalidTemplatesFail is Property[String]
   """Property: invalid generated templates always fail to parse."""
   fun name(): String => "uri/template/property: invalid templates fail"
 
   fun gen(): Generator[String] =>
     _TemplateGenerators.invalid_template()
 
-  fun ref property(arg1: String, h: PropertyHelper) =>
+  fun ref property(arg1: String, h: TestHelper) =>
     match \exhaustive\ URITemplateParse(arg1)
     | let _: URITemplate =>
       h.fail("invalid template should not parse: '" + arg1 + "'")
     | let _: URITemplateParseError => None
     end
 
-class \nodoc\ iso _TestPropertyMixedTemplates is Property1[(String, Bool)]
+class \nodoc\ iso _TestPropertyMixedTemplates is Property[(String, Bool)]
   """
   Property: mixed valid/invalid templates succeed iff they're the valid variant.
   """
@@ -86,7 +85,7 @@ class \nodoc\ iso _TestPropertyMixedTemplates is Property1[(String, Bool)]
   fun gen(): Generator[(String, Bool)] =>
     _TemplateGenerators.mixed_template()
 
-  fun ref property(arg1: (String, Bool), h: PropertyHelper) =>
+  fun ref property(arg1: (String, Bool), h: TestHelper) =>
     (let template, let is_valid) = arg1
     match \exhaustive\ URITemplateParse(template)
     | let _: URITemplate =>

@@ -1,6 +1,6 @@
-# pony_check
+# property_testing
 
-A program showing example tests using the PonyCheck property based testing package.
+A program showing example property-based tests using the PonyTest package.
 
 ## How to compile
 
@@ -17,13 +17,13 @@ Generating
  Functions
  Descriptors
 Optimising
-Writing ./pony_check.o
-Linking ./pony_check
+Writing ./property_testing.o
+Linking ./property_testing
 ```
 
 ## How to Run
 
-Once `pony_check` has been compiled, in the same directory as this README file, run `./pony_check`. You should see a PonyTest runner output showing the tests run and their results; just like you would with PonyTest in general, except the tests in question are PonyCheck tests.
+Once `property_testing` has been compiled, in the same directory as this README file, run `./property_testing`. You should see a PonyTest runner output showing the tests run and their results.
 
 ```console
 1 test started, 0 complete: list/reverse/one started
@@ -42,6 +42,5 @@ Once `pony_check` has been compiled, in the same directory as this README file, 
 ---- Passed: 9
 ```
 
-The `health_check/narrow_filter` test demonstrates health check configuration.
-Run with `--verbose` to see the `WARNING:` lines it produces about filter
-discard rate and slow samples.
+Run `health_check/narrow_filter` with `--verbose` to see health check
+warnings about filter discard rate and slow samples.

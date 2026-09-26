@@ -1,5 +1,3 @@
-use "pony_test"
-
 class ForAll[T]
   """
   Runs a single-argument property check inline within a `UnitTest`.
@@ -11,17 +9,14 @@ class ForAll[T]
     _gen = gen'
     _helper = test_helper
 
-  fun ref apply(prop: {(T, PropertyHelper) ?} val) ? =>
-    """
-    execute
-    """
-    Property1UnitTest[T](
-      object iso is Property1[T]
+  fun ref apply(prop: {(T, TestHelper) ?} val) ? =>
+    PropertyTest[T](
+      object iso is Property[T]
         fun name(): String => ""
 
         fun gen(): Generator[T] => _gen
 
-        fun ref property(arg1: T, h: PropertyHelper) ? =>
+        fun ref property(arg1: T, h: TestHelper) ? =>
           prop(consume arg1, h)?
       end
     ).apply(_helper)?
@@ -43,13 +38,13 @@ class ForAll2[T1, T2]
     _gen2 = gen2'
     _helper = h
 
-  fun ref apply(prop: {(T1, T2, PropertyHelper) ?} val) ? =>
-    Property2UnitTest[T1, T2](
+  fun ref apply(prop: {(T1, T2, TestHelper) ?} val) ? =>
+    PropertyTest[(T1, T2)](
       object iso is Property2[T1, T2]
         fun name(): String => ""
         fun gen1(): Generator[T1] => _gen1
         fun gen2(): Generator[T2] => _gen2
-        fun ref property2(arg1: T1, arg2: T2, h: PropertyHelper) ? =>
+        fun ref property2(arg1: T1, arg2: T2, h: TestHelper) ? =>
           prop(consume arg1, consume arg2, h)?
       end
     ).apply(_helper)?
@@ -74,14 +69,14 @@ class ForAll3[T1, T2, T3]
     _gen3 = gen3'
     _helper = h
 
-  fun ref apply(prop: {(T1, T2, T3, PropertyHelper) ?} val) ? =>
-    Property3UnitTest[T1, T2, T3](
+  fun ref apply(prop: {(T1, T2, T3, TestHelper) ?} val) ? =>
+    PropertyTest[(T1, T2, T3)](
       object iso is Property3[T1, T2, T3]
         fun name(): String => ""
         fun gen1(): Generator[T1] => _gen1
         fun gen2(): Generator[T2] => _gen2
         fun gen3(): Generator[T3] => _gen3
-        fun ref property3(arg1: T1, arg2: T2, arg3: T3, h: PropertyHelper) ? =>
+        fun ref property3(arg1: T1, arg2: T2, arg3: T3, h: TestHelper) ? =>
           prop(consume arg1, consume arg2, consume arg3, h)?
       end
     ).apply(_helper)?
@@ -109,8 +104,8 @@ class ForAll4[T1, T2, T3, T4]
     _gen4 = gen4'
     _helper = h
 
-  fun ref apply(prop: {(T1, T2, T3, T4, PropertyHelper) ?} val) ? =>
-    Property4UnitTest[T1, T2, T3, T4](
+  fun ref apply(prop: {(T1, T2, T3, T4, TestHelper) ?} val) ? =>
+    PropertyTest[(T1, T2, T3, T4)](
       object iso is Property4[T1, T2, T3, T4]
         fun name(): String => ""
         fun gen1(): Generator[T1] => _gen1
@@ -122,7 +117,7 @@ class ForAll4[T1, T2, T3, T4]
           arg2: T2,
           arg3: T3,
           arg4: T4,
-          h: PropertyHelper)
+          h: TestHelper)
           ?
         =>
           prop(
@@ -133,4 +128,3 @@ class ForAll4[T1, T2, T3, T4]
             h)?
       end
     ).apply(_helper)?
-

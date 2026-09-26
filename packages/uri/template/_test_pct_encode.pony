@@ -1,5 +1,4 @@
 use "pony_test"
-use "pony_check"
 
 class \nodoc\ iso _TestPctEncodeUnreservedPassthrough is UnitTest
   """Unreserved characters are never pct-encoded in either mode."""
@@ -87,7 +86,7 @@ class \nodoc\ iso _TestPctEncodeMixedContent is UnitTest
     h.assert_eq[String val](
       "hello%20world", _PctEncode.encode("hello world", true))
 
-class \nodoc\ iso _TestPctEncodePropertyUnreserved is Property1[String]
+class \nodoc\ iso _TestPctEncodePropertyUnreserved is Property[String]
   """Property: unreserved-only strings pass through unchanged."""
   fun name(): String =>
     "uri/template/pct_encode/property: unreserved passthrough"
@@ -118,18 +117,18 @@ class \nodoc\ iso _TestPctEncodePropertyUnreserved is Property1[String]
           50)
       })
 
-  fun ref property(arg1: String, h: PropertyHelper) =>
+  fun ref property(arg1: String, h: TestHelper) =>
     let result: String val = _PctEncode.encode(arg1, false)
     h.assert_eq[String val](arg1, result)
 
-class \nodoc\ iso _TestPctEncodePropertyRoundtrip is Property1[String]
+class \nodoc\ iso _TestPctEncodePropertyRoundtrip is Property[String]
   """Property: decoding an unreserved-mode encoding yields the original."""
   fun name(): String => "uri/template/pct_encode/property: roundtrip"
 
   fun gen(): Generator[String] =>
     Generators.ascii_printable(0, 50)
 
-  fun ref property(arg1: String, h: PropertyHelper) =>
+  fun ref property(arg1: String, h: TestHelper) =>
     let encoded: String val = _PctEncode.encode(arg1, false)
     let decoded = _pct_decode(encoded)
     h.assert_eq[String val](arg1, decoded)
@@ -165,7 +164,7 @@ class \nodoc\ iso _TestPctEncodePropertyRoundtrip is Property1[String]
       0
     end
 
-class \nodoc\ iso _TestPctEncodePropertyReservedSuperset is Property1[String]
+class \nodoc\ iso _TestPctEncodePropertyReservedSuperset is Property[String]
   """
   Property: reserved encoding passes through everything unreserved does,
   plus more.
@@ -175,7 +174,7 @@ class \nodoc\ iso _TestPctEncodePropertyReservedSuperset is Property1[String]
   fun gen(): Generator[String] =>
     Generators.ascii_printable(1, 50)
 
-  fun ref property(arg1: String, h: PropertyHelper) =>
+  fun ref property(arg1: String, h: TestHelper) =>
     let unreserved_result: String val = _PctEncode.encode(arg1, false)
     let reserved_result: String val = _PctEncode.encode(arg1, true)
     // Reserved encoding should be same length or shorter (fewer things encoded)

@@ -1,4 +1,3 @@
-use "pony_check"
 use "pony_test"
 
 // ---------------------------------------------------------------------------
@@ -6,7 +5,7 @@ use "pony_test"
 // ---------------------------------------------------------------------------
 
 class \nodoc\ iso _PropertyQueryUnreservedPassthrough
-  is Property1[String val]
+  is Property[String val]
   """
   RFC 3986 unreserved characters (A-Z a-z 0-9 - . _ ~) pass through
   query encoding unchanged.
@@ -29,12 +28,12 @@ class \nodoc\ iso _PropertyQueryUnreservedPassthrough
         (s, ok)
       })
 
-  fun ref property(arg1: String val, ph: PropertyHelper) =>
+  fun ref property(arg1: String val, ph: TestHelper) =>
     let encoded: String val = _PercentEncoder.query(arg1)
     ph.assert_eq[String val](arg1, encoded)
 
 class \nodoc\ iso _PropertyQueryReservedEncoded
-  is Property1[U8]
+  is Property[U8]
   """
   Reserved/non-unreserved bytes are encoded as %XX in query encoding.
   """
@@ -50,7 +49,7 @@ class \nodoc\ iso _PropertyQueryReservedEncoded
       (byte, not is_unreserved)
     })
 
-  fun ref property(arg1: U8, ph: PropertyHelper) =>
+  fun ref property(arg1: U8, ph: TestHelper) =>
     let input = recover val String .> push(arg1) end
     let encoded: String val = _PercentEncoder.query(input)
     ph.assert_eq[USize](
@@ -67,7 +66,7 @@ class \nodoc\ iso _PropertyQueryReservedEncoded
     end
 
 class \nodoc\ iso _PropertyFormSpacesToPlus
-  is Property1[USize]
+  is Property[USize]
   """
   Spaces in form encoding become '+'.
   """
@@ -76,7 +75,7 @@ class \nodoc\ iso _PropertyFormSpacesToPlus
   fun gen(): Generator[USize] =>
     Generators.usize(1, 20)
 
-  fun ref property(arg1: USize, ph: PropertyHelper) =>
+  fun ref property(arg1: USize, ph: TestHelper) =>
     var input = recover iso String(arg1) end
     var i: USize = 0
     while i < arg1 do
@@ -90,7 +89,7 @@ class \nodoc\ iso _PropertyFormSpacesToPlus
     end
 
 class \nodoc\ iso _PropertyQueryParamsRoundtrip
-  is Property1[(String val, String val)]
+  is Property[(String val, String val)]
   """
   QueryParams output contains the encoded key and value separated by =.
   """
@@ -103,7 +102,7 @@ class \nodoc\ iso _PropertyQueryParamsRoundtrip
 
   fun ref property(
     arg1: (String val, String val),
-    ph: PropertyHelper)
+    ph: TestHelper)
   =>
     (let key, let value) = arg1
     let params = recover val [(key, value)] end

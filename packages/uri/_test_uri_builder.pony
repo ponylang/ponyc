@@ -1,5 +1,4 @@
 use "pony_test"
-use "pony_check"
 
 // -- Example-based tests --
 
@@ -397,7 +396,7 @@ class \nodoc\ iso _TestBuildAuthorityNoScheme is UnitTest
     end
 
 // -- Property-based tests --
-class \nodoc\ iso _PropertyBuildFromRoundtrip is Property1[_ValidURIInput]
+class \nodoc\ iso _PropertyBuildFromRoundtrip is Property[_ValidURIInput]
   """
   For generated valid URIs, URIBuilder.from(uri).build() produces a URI
   that string-equals the original.
@@ -407,7 +406,7 @@ class \nodoc\ iso _PropertyBuildFromRoundtrip is Property1[_ValidURIInput]
   fun gen(): Generator[_ValidURIInput] =>
     _ValidURIInputGenerator()
 
-  fun ref property(arg1: _ValidURIInput, ph: PropertyHelper) =>
+  fun ref property(arg1: _ValidURIInput, ph: TestHelper) =>
     let original =
       URI(
         arg1.scheme,
@@ -427,7 +426,7 @@ class \nodoc\ iso _PropertyBuildFromRoundtrip is Property1[_ValidURIInput]
         " error: " + e.string())
     end
 
-class \nodoc\ iso _PropertyBuildParseRoundtrip is Property1[_BuildInput]
+class \nodoc\ iso _PropertyBuildParseRoundtrip is Property[_BuildInput]
   """
   For generated raw components, build a URI then parse it back —
   components match.
@@ -437,7 +436,7 @@ class \nodoc\ iso _PropertyBuildParseRoundtrip is Property1[_BuildInput]
   fun gen(): Generator[_BuildInput] =>
     _BuildInputGenerator()
 
-  fun ref property(arg1: _BuildInput, ph: PropertyHelper) =>
+  fun ref property(arg1: _BuildInput, ph: TestHelper) =>
     let builder = URIBuilder
       .set_scheme(arg1.scheme)
       .set_host(arg1.host)
@@ -472,7 +471,7 @@ class \nodoc\ iso _PropertyBuildParseRoundtrip is Property1[_BuildInput]
     end
 
 class \nodoc\ iso _PropertyBuildInvalidSchemeFails
-  is Property1[String val]
+  is Property[String val]
   """
   Generated invalid scheme strings always produce InvalidScheme on build().
   """
@@ -481,7 +480,7 @@ class \nodoc\ iso _PropertyBuildInvalidSchemeFails
   fun gen(): Generator[String val] =>
     _InvalidSchemeGenerator()
 
-  fun ref property(arg1: String val, ph: PropertyHelper) =>
+  fun ref property(arg1: String val, ph: TestHelper) =>
     match \exhaustive\ URIBuilder.set_scheme(arg1).build()
     | let _: URI val =>
       ph.fail("expected InvalidScheme for: " + arg1)
