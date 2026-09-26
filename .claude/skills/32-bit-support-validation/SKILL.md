@@ -6,13 +6,33 @@ disable-model-invocation: false
 
 # Validating 32-bit support
 
-Run the full test suite on a 32-bit ARM machine to verify nothing is broken.
+Run the test suite on a 32-bit ARM machine to verify nothing is broken.
 The default test machine is `pony-rpi4-32` (user `pi`, checkout at
 `/home/pi/code/ponylang/ponyc`). It has a persistent checkout and a built LLVM
 that only needs rebuilding when the vendored LLVM changes.
 
 This is slow — LLVM builds take many hours, ponyc builds take roughly an hour each,
 and the test suites add more on top. Run long steps detached and poll their logs.
+
+## Known ILP32 failures
+
+The 32-bit address space (~3 GB user) constrains what can be compiled and
+linked as a single binary. These are current failures, not accepted
+limitations — they need to be fixed.
+
+- **The monolithic stdlib test** (`ctest -R stdlib`) compiles every stdlib
+  package into one binary. LLVM runs out of memory during code generation
+  (the "Function prototypes" phase), regardless of LTO mode, jemalloc, or
+  debug/release codegen. Stdlib tests are run per-package instead
+  (step 4c / 5c) as a workaround.
+
+- **pony-doc** links against the full stdlib plus the pony_compiler
+  library, exceeding the ILP32 link-time memory limit. The linker OOMs
+  during the build. The remaining binaries (ponyc, pony-compiler,
+  pony-lint, pony-lsp, pony-dep) build normally.
+
+- **pony-doc-tests** cannot run because the binary cannot be built. The
+  other four tool test suites run normally.
 
 ## Gotchas (read first)
 
@@ -34,8 +54,9 @@ and the test suites add more on top. Run long steps detached and poll their logs
 - **Detach long builds.** Write a bash script to the machine, run it with `nohup`,
   and poll the log file. Don't use `tee` over SSH — it keeps the connection alive
   and the SSH session will time out. Redirect to a file instead.
-- **OpenSSL version is auto-detected.** cmake detects the installed OpenSSL/LibreSSL
-  version; no manual flag is needed.
+- **OpenSSL version matters for per-package tests.** cmake auto-detects the SSL
+  library for ctest, but per-package compilation (steps 4c/5c) needs the flag
+  passed explicitly. The scripts detect it via `openssl version`.
 - **LLVM build parallelism.** LLVM is memory-hungry. On machines with limited RAM,
   use `-DJOBS=2` (or lower) to avoid OOM during the LLVM build.
 
@@ -165,28 +186,32 @@ controls whether ponyc compiles Pony sources with `-d`.
 
 Each runtime build runs these tests in both codegen modes:
 
-**ci-core** (8 tests, built by the normal `cmake --build`):
+**ci-core minus stdlib** (run via ctest, excludes the monolithic stdlib test):
 
 - **check-version** — ponyc `--version` exits successfully
-- **output-layout** — build output directory has the expected structure
 - **libponyc.tests** — compiler C/C++ unit tests (GTest)
 - **libponyrt.tests** — runtime C/C++ unit tests (GTest)
-- **stdlib** — stdlib test suite
 - **full-programs** — compile-and-run integration tests
 - **full-program-runner-rejects-broken-config** — verifies the test runner rejects bad config
 - **validate-grammar** — `pony.g` validated against the compiler
 
-**tools** (5 tests, binaries must be built explicitly with `--target tool-tests`):
+**stdlib per-package** (run via ponyc directly, one package at a time):
+
+Each stdlib package is compiled and tested individually to stay within the
+ILP32 address space limit. The full list of testable packages is derived from
+`packages/stdlib/_test.pony`.
+
+**tools** (4 of 5 tests; pony-doc-tests cannot run until the ILP32
+linker OOM is fixed):
 
 - **pony-compiler-tests** — self-hosted compiler tool tests
-- **pony-doc-tests** — documentation tool tests
+- **pony-dep-tests** — dependency tool tests
 - **pony-lint-tests** — linter tool tests
 - **pony-lsp-tests** — language server tool tests
-- **pony-dep-tests** — dependency tool tests
 
 ## Step 4 — build and test with debug runtime
 
-### Configure
+### 4a. Configure
 
 ```bash
 ssh pi@pony-rpi4-32 bash << 'ENDSSH'
@@ -202,7 +227,12 @@ ENDSSH
 
 Verify "Configuring done" and "Build files have been written" in the output.
 
-### Build ponyc (detached)
+### 4b. Build ponyc (detached)
+
+The build will fail with a nonzero exit code because pony-doc OOMs during
+linking (see "Known ILP32 failures"). After the build finishes, verify that
+ponyc, pony-compiler, pony-dep, pony-lint, and pony-lsp were built
+successfully.
 
 ```bash
 ssh pi@pony-rpi4-32 bash << 'ENDSSH'
@@ -224,33 +254,139 @@ Poll:
 ssh pi@pony-rpi4-32 bash -c '"tail -3 /home/pi/debug-build.log"'
 ```
 
-Wait for `DEBUG_BUILD_EXIT_CODE=0`.
-
-### Build tool test binaries (after ponyc build completes)
-
-The tool test binaries are Pony programs compiled by ponyc and must be built
-separately. Wait for the ponyc build to complete before starting this.
+Wait for `DEBUG_BUILD_EXIT_CODE` to appear (it will be nonzero). Then verify:
 
 ```bash
 ssh pi@pony-rpi4-32 bash << 'ENDSSH'
-cat > /home/pi/run-debug-tool-build.sh << 'SCRIPT'
-#!/bin/bash
-cd /home/pi/code/ponylang/ponyc
-cmake --build --preset debug --target tool-tests > /home/pi/debug-tool-build.log 2>&1
-echo "TOOL_BUILD_EXIT_CODE=$?" >> /home/pi/debug-tool-build.log
-SCRIPT
-chmod +x /home/pi/run-debug-tool-build.sh
-nohup /home/pi/run-debug-tool-build.sh > /dev/null 2>&1 &
-echo "tool build started pid $!"
+cd /home/pi/code/ponylang/ponyc/build/debug
+for bin in ponyc pony-compiler pony-dep pony-lint pony-lsp; do
+  test -x "$bin" && echo "$bin: OK" || echo "$bin: MISSING"
+done
+for bin in pony-doc; do
+  test -x "$bin" && echo "$bin: OK" || echo "$bin: MISSING (known ILP32 failure)"
+done
 ENDSSH
 ```
 
-Poll and wait for `TOOL_BUILD_EXIT_CODE=0`.
+ponyc, pony-compiler, pony-dep, pony-lint, and pony-lsp must all show OK.
+pony-doc will show MISSING until the ILP32 linker OOM is fixed.
 
-### Run ci-core tests (debug runtime)
+### 4c. Run stdlib tests per-package (debug runtime)
 
-The stdlib and full-program tests take a long time on the RPi — run detached.
-Both codegen modes run in sequence: first with `PONY_DEBUG=1`, then without.
+Detect the SSL flag, then compile and run each testable package individually
+in both codegen modes. Run detached — this iterates over ~30 packages.
+
+```bash
+ssh pi@pony-rpi4-32 bash << 'ENDSSH'
+cat > /home/pi/run-debug-stdlib-perpkg.sh << 'SCRIPT'
+#!/bin/bash
+set -u
+cd /home/pi/code/ponylang/ponyc
+
+PONYC=./build/debug/ponyc
+OUTDIR=./build/debug
+PKGDIR=./packages
+
+# Detect OpenSSL version for the SSL flag
+ssl_ver=$(openssl version 2>/dev/null | head -1)
+case "$ssl_ver" in
+  OpenSSL\ 3.*) SSL_FLAG=-Dopenssl_3.0.x ;;
+  OpenSSL\ 1.1.*) SSL_FLAG=-Dopenssl_1.1.x ;;
+  LibreSSL*) SSL_FLAG=-Dlibressl ;;
+  *) echo "ERROR: cannot detect OpenSSL version: $ssl_ver" >&2; exit 1 ;;
+esac
+echo "Detected SSL: $ssl_ver -> $SSL_FLAG"
+
+# Packages with tests, from packages/stdlib/_test.pony
+PACKAGES=(
+  actor_pinning
+  encode/base64
+  buffered
+  builtin_test
+  bureaucracy
+  cli
+  collections
+  collections/persistent
+  constrained_types
+  crypto
+  files
+  format
+  http_client
+  ini
+  iregex
+  itertools
+  json
+  math
+  net
+  pony_check
+  pony_test
+  process
+  promises
+  random
+  runtime_info
+  signals
+  strings
+  term
+  time
+  uri
+)
+
+LOGFILE=/home/pi/debug-stdlib-perpkg.log
+> "$LOGFILE"
+overall_rc=0
+
+for codegen in debug release; do
+  echo "=== $codegen codegen ===" >> "$LOGFILE"
+  for pkg in "${PACKAGES[@]}"; do
+    name=$(echo "$pkg" | tr '/' '_')
+    debug_flag=""
+    if [ "$codegen" = "debug" ]; then
+      debug_flag="-d"
+    fi
+
+    echo -n "  $pkg ($codegen): " >> "$LOGFILE"
+
+    # Compile
+    $PONYC $debug_flag -b stdlib_test --checktree $SSL_FLAG --pic \
+      "$PKGDIR/$pkg" -o "$OUTDIR" >> "$LOGFILE" 2>&1
+    if [ $? -ne 0 ]; then
+      echo "COMPILE FAILED" >> "$LOGFILE"
+      overall_rc=1
+      continue
+    fi
+
+    # Run
+    "$OUTDIR/stdlib_test" --sequential >> "$LOGFILE" 2>&1
+    if [ $? -ne 0 ]; then
+      echo "TEST FAILED" >> "$LOGFILE"
+      overall_rc=1
+      continue
+    fi
+
+    echo "PASS" >> "$LOGFILE"
+    rm -f "$OUTDIR/stdlib_test"
+  done
+done
+
+echo "DEBUG_STDLIB_PERPKG_EXIT_CODE=$overall_rc" >> "$LOGFILE"
+SCRIPT
+chmod +x /home/pi/run-debug-stdlib-perpkg.sh
+nohup /home/pi/run-debug-stdlib-perpkg.sh > /dev/null 2>&1 &
+echo "debug per-package stdlib tests started pid $!"
+ENDSSH
+```
+
+Poll:
+
+```bash
+ssh pi@pony-rpi4-32 bash -c '"tail -5 /home/pi/debug-stdlib-perpkg.log"'
+```
+
+Wait for `DEBUG_STDLIB_PERPKG_EXIT_CODE=0`.
+
+### 4d. Run ci-core tests minus stdlib (debug runtime)
+
+Run the ci-core tests excluding the monolithic stdlib, in both codegen modes.
 
 ```bash
 ssh pi@pony-rpi4-32 bash << 'ENDSSH'
@@ -258,11 +394,12 @@ cat > /home/pi/run-debug-ci-core.sh << 'SCRIPT'
 #!/bin/bash
 cd /home/pi/code/ponylang/ponyc
 echo "=== debug codegen ===" > /home/pi/debug-ci-core.log
-PONY_DEBUG=1 ctest --preset debug -L ci-core >> /home/pi/debug-ci-core.log 2>&1
+PONY_DEBUG=1 ctest --preset debug -L ci-core -E "^stdlib$" >> /home/pi/debug-ci-core.log 2>&1
 rc1=$?
 echo "=== release codegen ===" >> /home/pi/debug-ci-core.log
-ctest --preset debug -R "^(stdlib|full-programs)$" >> /home/pi/debug-ci-core.log 2>&1
+ctest --preset debug -R "^full-programs$" >> /home/pi/debug-ci-core.log 2>&1
 rc2=$?
+
 if [ $rc1 -eq 0 ] && [ $rc2 -eq 0 ]; then
   echo "DEBUG_CI_CORE_EXIT_CODE=0" >> /home/pi/debug-ci-core.log
 else
@@ -283,15 +420,49 @@ ssh pi@pony-rpi4-32 bash -c '"tail -5 /home/pi/debug-ci-core.log"'
 
 Wait for `DEBUG_CI_CORE_EXIT_CODE=0`.
 
-### Run tool tests (debug runtime)
+### 4e. Build tool test binaries (after ponyc build completes)
+
+Build only the tool test binaries that can link on ILP32. The `tool-tests`
+target tries all five and will fail on pony-doc-tests (linker OOM).
+Build the four that work individually instead.
+
+```bash
+ssh pi@pony-rpi4-32 bash << 'ENDSSH'
+cat > /home/pi/run-debug-tool-build.sh << 'SCRIPT'
+#!/bin/bash
+cd /home/pi/code/ponylang/ponyc
+rc=0
+for target in pony-compiler-tests pony-dep-tests pony-lint-tests pony-lsp-tests; do
+  echo "=== building $target ===" >> /home/pi/debug-tool-build.log
+  cmake --build --preset debug --target "$target" >> /home/pi/debug-tool-build.log 2>&1
+  if [ $? -ne 0 ]; then
+    echo "$target: BUILD FAILED" >> /home/pi/debug-tool-build.log
+    rc=1
+  fi
+done
+echo "TOOL_BUILD_EXIT_CODE=$rc" >> /home/pi/debug-tool-build.log
+SCRIPT
+chmod +x /home/pi/run-debug-tool-build.sh
+nohup /home/pi/run-debug-tool-build.sh > /dev/null 2>&1 &
+echo "tool build started pid $!"
+ENDSSH
+```
+
+Poll and wait for `TOOL_BUILD_EXIT_CODE=0`.
+
+### 4f. Run tool tests (debug runtime)
 
 ```bash
 ssh pi@pony-rpi4-32 bash << 'ENDSSH'
 cat > /home/pi/run-debug-tools.sh << 'SCRIPT'
 #!/bin/bash
 cd /home/pi/code/ponylang/ponyc
-ctest --preset debug -L tools > /home/pi/debug-tools.log 2>&1
-echo "DEBUG_TOOLS_EXIT_CODE=$?" >> /home/pi/debug-tools.log
+rc=0
+for test in pony-compiler-tests pony-dep-tests pony-lint-tests pony-lsp-tests; do
+  ctest --preset debug -R "^${test}$" >> /home/pi/debug-tools.log 2>&1
+  if [ $? -ne 0 ]; then rc=1; fi
+done
+echo "DEBUG_TOOLS_EXIT_CODE=$rc" >> /home/pi/debug-tools.log
 SCRIPT
 chmod +x /home/pi/run-debug-tools.sh
 nohup /home/pi/run-debug-tools.sh > /dev/null 2>&1 &
@@ -305,14 +476,13 @@ Poll:
 ssh pi@pony-rpi4-32 bash -c '"tail -5 /home/pi/debug-tools.log"'
 ```
 
-Wait for `DEBUG_TOOLS_EXIT_CODE=0`. This runs: `pony-compiler-tests`,
-`pony-doc-tests`, `pony-lint-tests`, `pony-lsp-tests`, and `pony-dep-tests`.
+Wait for `DEBUG_TOOLS_EXIT_CODE=0`.
 
 ## Step 5 — build and test with release runtime
 
 Repeat the full test matrix with a release-built runtime and compiler.
 
-### Configure
+### 5a. Configure
 
 ```bash
 ssh pi@pony-rpi4-32 bash << 'ENDSSH'
@@ -326,7 +496,10 @@ cmake --preset release \
 ENDSSH
 ```
 
-### Build ponyc (detached)
+### 5b. Build ponyc (detached)
+
+Same as step 4b — pony-doc will OOM (known ILP32 failure); verify the
+other five binaries built.
 
 ```bash
 ssh pi@pony-rpi4-32 bash << 'ENDSSH'
@@ -342,27 +515,115 @@ echo "release build started pid $!"
 ENDSSH
 ```
 
-Poll and wait for `RELEASE_BUILD_EXIT_CODE=0`.
+Poll and wait for `RELEASE_BUILD_EXIT_CODE` to appear. Verify binaries as in 4b
+(using `build/release` instead of `build/debug`).
 
-### Build tool test binaries (after ponyc build completes)
+### 5c. Run stdlib tests per-package (release runtime)
+
+Same as step 4c but using the release ponyc.
 
 ```bash
 ssh pi@pony-rpi4-32 bash << 'ENDSSH'
-cat > /home/pi/run-release-tool-build.sh << 'SCRIPT'
+cat > /home/pi/run-release-stdlib-perpkg.sh << 'SCRIPT'
 #!/bin/bash
+set -u
 cd /home/pi/code/ponylang/ponyc
-cmake --build --preset release --target tool-tests > /home/pi/release-tool-build.log 2>&1
-echo "TOOL_BUILD_EXIT_CODE=$?" >> /home/pi/release-tool-build.log
+
+PONYC=./build/release/ponyc
+OUTDIR=./build/release
+PKGDIR=./packages
+
+# Detect OpenSSL version for the SSL flag
+ssl_ver=$(openssl version 2>/dev/null | head -1)
+case "$ssl_ver" in
+  OpenSSL\ 3.*) SSL_FLAG=-Dopenssl_3.0.x ;;
+  OpenSSL\ 1.1.*) SSL_FLAG=-Dopenssl_1.1.x ;;
+  LibreSSL*) SSL_FLAG=-Dlibressl ;;
+  *) echo "ERROR: cannot detect OpenSSL version: $ssl_ver" >&2; exit 1 ;;
+esac
+echo "Detected SSL: $ssl_ver -> $SSL_FLAG"
+
+PACKAGES=(
+  actor_pinning
+  encode/base64
+  buffered
+  builtin_test
+  bureaucracy
+  cli
+  collections
+  collections/persistent
+  constrained_types
+  crypto
+  files
+  format
+  http_client
+  ini
+  iregex
+  itertools
+  json
+  math
+  net
+  pony_check
+  pony_test
+  process
+  promises
+  random
+  runtime_info
+  signals
+  strings
+  term
+  time
+  uri
+)
+
+LOGFILE=/home/pi/release-stdlib-perpkg.log
+> "$LOGFILE"
+overall_rc=0
+
+for codegen in debug release; do
+  echo "=== $codegen codegen ===" >> "$LOGFILE"
+  for pkg in "${PACKAGES[@]}"; do
+    name=$(echo "$pkg" | tr '/' '_')
+    debug_flag=""
+    if [ "$codegen" = "debug" ]; then
+      debug_flag="-d"
+    fi
+
+    echo -n "  $pkg ($codegen): " >> "$LOGFILE"
+
+    $PONYC $debug_flag -b stdlib_test --checktree $SSL_FLAG --pic \
+      "$PKGDIR/$pkg" -o "$OUTDIR" >> "$LOGFILE" 2>&1
+    if [ $? -ne 0 ]; then
+      echo "COMPILE FAILED" >> "$LOGFILE"
+      overall_rc=1
+      continue
+    fi
+
+    "$OUTDIR/stdlib_test" --sequential >> "$LOGFILE" 2>&1
+    if [ $? -ne 0 ]; then
+      echo "TEST FAILED" >> "$LOGFILE"
+      overall_rc=1
+      continue
+    fi
+
+    echo "PASS" >> "$LOGFILE"
+    rm -f "$OUTDIR/stdlib_test"
+  done
+done
+
+echo "RELEASE_STDLIB_PERPKG_EXIT_CODE=$overall_rc" >> "$LOGFILE"
 SCRIPT
-chmod +x /home/pi/run-release-tool-build.sh
-nohup /home/pi/run-release-tool-build.sh > /dev/null 2>&1 &
-echo "tool build started pid $!"
+chmod +x /home/pi/run-release-stdlib-perpkg.sh
+nohup /home/pi/run-release-stdlib-perpkg.sh > /dev/null 2>&1 &
+echo "release per-package stdlib tests started pid $!"
 ENDSSH
 ```
 
-Poll and wait for `TOOL_BUILD_EXIT_CODE=0`.
+Poll and wait for `RELEASE_STDLIB_PERPKG_EXIT_CODE=0`.
 
-### Run ci-core tests (release runtime)
+### 5d. Run ci-core tests minus stdlib (release runtime)
+
+Same as step 4d but using the release preset.
 
 ```bash
 ssh pi@pony-rpi4-32 bash << 'ENDSSH'
@@ -370,11 +631,12 @@ cat > /home/pi/run-release-ci-core.sh << 'SCRIPT'
 #!/bin/bash
 cd /home/pi/code/ponylang/ponyc
 echo "=== debug codegen ===" > /home/pi/release-ci-core.log
-PONY_DEBUG=1 ctest --preset release -L ci-core >> /home/pi/release-ci-core.log 2>&1
+PONY_DEBUG=1 ctest --preset release -L ci-core -E "^stdlib$" >> /home/pi/release-ci-core.log 2>&1
 rc1=$?
 echo "=== release codegen ===" >> /home/pi/release-ci-core.log
-ctest --preset release -R "^(stdlib|full-programs)$" >> /home/pi/release-ci-core.log 2>&1
+ctest --preset release -R "^full-programs$" >> /home/pi/release-ci-core.log 2>&1
 rc2=$?
+
 if [ $rc1 -eq 0 ] && [ $rc2 -eq 0 ]; then
   echo "RELEASE_CI_CORE_EXIT_CODE=0" >> /home/pi/release-ci-core.log
 else
@@ -387,23 +649,47 @@ echo "ci-core tests started pid $!"
 ENDSSH
 ```
 
-Poll:
+Poll and wait for `RELEASE_CI_CORE_EXIT_CODE=0`.
+
+### 5e. Build and run tool tests (release runtime)
+
+Same as steps 4e/4f but using the release preset.
 
 ```bash
-ssh pi@pony-rpi4-32 bash -c '"tail -5 /home/pi/release-ci-core.log"'
+ssh pi@pony-rpi4-32 bash << 'ENDSSH'
+cat > /home/pi/run-release-tool-build.sh << 'SCRIPT'
+#!/bin/bash
+cd /home/pi/code/ponylang/ponyc
+rc=0
+for target in pony-compiler-tests pony-dep-tests pony-lint-tests pony-lsp-tests; do
+  echo "=== building $target ===" >> /home/pi/release-tool-build.log
+  cmake --build --preset release --target "$target" >> /home/pi/release-tool-build.log 2>&1
+  if [ $? -ne 0 ]; then
+    echo "$target: BUILD FAILED" >> /home/pi/release-tool-build.log
+    rc=1
+  fi
+done
+echo "TOOL_BUILD_EXIT_CODE=$rc" >> /home/pi/release-tool-build.log
+SCRIPT
+chmod +x /home/pi/run-release-tool-build.sh
+nohup /home/pi/run-release-tool-build.sh > /dev/null 2>&1 &
+echo "tool build started pid $!"
+ENDSSH
 ```
 
-Wait for `RELEASE_CI_CORE_EXIT_CODE=0`.
-
-### Run tool tests (release runtime)
+Poll and wait for `TOOL_BUILD_EXIT_CODE=0`.
 
 ```bash
 ssh pi@pony-rpi4-32 bash << 'ENDSSH'
 cat > /home/pi/run-release-tools.sh << 'SCRIPT'
 #!/bin/bash
 cd /home/pi/code/ponylang/ponyc
-ctest --preset release -L tools > /home/pi/release-tools.log 2>&1
-echo "RELEASE_TOOLS_EXIT_CODE=$?" >> /home/pi/release-tools.log
+rc=0
+for test in pony-compiler-tests pony-dep-tests pony-lint-tests pony-lsp-tests; do
+  ctest --preset release -R "^${test}$" >> /home/pi/release-tools.log 2>&1
+  if [ $? -ne 0 ]; then rc=1; fi
+done
+echo "RELEASE_TOOLS_EXIT_CODE=$rc" >> /home/pi/release-tools.log
 SCRIPT
 chmod +x /home/pi/run-release-tools.sh
 nohup /home/pi/run-release-tools.sh > /dev/null 2>&1 &
@@ -411,28 +697,25 @@ echo "tool tests started pid $!"
 ENDSSH
 ```
 
-Poll:
-
-```bash
-ssh pi@pony-rpi4-32 bash -c '"tail -5 /home/pi/release-tools.log"'
-```
-
-Wait for `RELEASE_TOOLS_EXIT_CODE=0`. This runs: `pony-compiler-tests`,
-`pony-doc-tests`, `pony-lint-tests`, `pony-lsp-tests`, and `pony-dep-tests`.
+Poll and wait for `RELEASE_TOOLS_EXIT_CODE=0`.
 
 ## Step 6 — report results
 
-Summarize which steps passed and which failed. A build or test failure means the
-32-bit support has a problem that needs fixing. Report each result individually:
+Summarize which steps passed and which failed. Report each result individually:
 
 - LLVM version and whether it needed rebuilding
-- Debug runtime build: pass/fail
-- Debug runtime — ci-core (debug codegen): pass/fail
-- Debug runtime — ci-core (release codegen): pass/fail
-- Debug runtime — tool tests: pass/fail
-- Release runtime build: pass/fail
-- Release runtime — ci-core (debug codegen): pass/fail
-- Release runtime — ci-core (release codegen): pass/fail
+- Debug runtime build: pass/fail (ponyc, pony-compiler, pony-dep, pony-lint,
+  pony-lsp built; pony-doc fails — known ILP32 linker OOM)
+- Debug runtime — ci-core minus stdlib (debug codegen): pass/fail
+- Debug runtime — ci-core minus stdlib (release codegen): pass/fail
+- Debug runtime — stdlib per-package (debug codegen): pass/fail per package
+- Debug runtime — stdlib per-package (release codegen): pass/fail per package
+- Debug runtime — tool tests (pony-compiler, pony-dep, pony-lint, pony-lsp): pass/fail
+- Release runtime build: pass/fail (pony-doc fails — known ILP32 linker OOM)
+- Release runtime — ci-core minus stdlib (debug codegen): pass/fail
+- Release runtime — ci-core minus stdlib (release codegen): pass/fail
+- Release runtime — stdlib per-package (debug codegen): pass/fail per package
+- Release runtime — stdlib per-package (release codegen): pass/fail per package
 - Release runtime — tool tests: pass/fail
 
 ## Cleanup
@@ -443,7 +726,8 @@ Kill any orphaned build processes and remove log files when done:
 ssh pi@pony-rpi4-32 bash << 'ENDSSH'
 pkill -f "cmake --build" 2>/dev/null
 pkill -f "ctest --preset" 2>/dev/null
-rm -f /home/pi/run-*.sh /home/pi/*-build.log /home/pi/*-tool-build.log /home/pi/*-ci-core.log /home/pi/*-tools.log
+pkill -f "run-.*\.sh" 2>/dev/null
+rm -f /home/pi/run-*.sh /home/pi/*-build.log /home/pi/*-tool-build.log /home/pi/*-ci-core.log /home/pi/*-tools.log /home/pi/*-stdlib-perpkg.log
 ENDSSH
 ```
 
