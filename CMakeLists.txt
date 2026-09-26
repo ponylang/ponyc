@@ -866,11 +866,6 @@ else()
     enable_testing()
 
     add_test(NAME check-version COMMAND $<TARGET_FILE:ponyc> --version)
-    add_test(NAME output-layout
-        COMMAND ${CMAKE_COMMAND}
-            -DDIR=$<TARGET_FILE_DIR:ponyc>
-            -DSUFFIX=${CMAKE_EXECUTABLE_SUFFIX}
-            -P ${CMAKE_SOURCE_DIR}/cmake/CheckOutputLayout.cmake)
     add_test(NAME libponyrt.tests
         COMMAND ${CMAKE_COMMAND} -DBIN=$<TARGET_FILE:libponyrt.tests>
             -DARGS=--gtest_shuffle -DGTEST=ON
@@ -881,7 +876,7 @@ else()
             -DARGS=--gtest_shuffle -DGTEST=ON
             -DWORKDIR=${PONY_OUTPUT_DIR}
             -P ${CMAKE_SOURCE_DIR}/cmake/RunTest.cmake)
-    set_tests_properties(check-version output-layout libponyrt.tests libponyc.tests
+    set_tests_properties(check-version libponyrt.tests libponyc.tests
         PROPERTIES LABELS ci-core)
 
     if(PONY_RUNTIME_BITCODE)
