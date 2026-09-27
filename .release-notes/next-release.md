@@ -429,3 +429,17 @@ Persistence is off for properties registered through the `ForAll` convenience AP
 
 `String.copy_cpointer` copied `len + 1` bytes from the source pointer, assuming a null terminator existed at position `len`. The method's contract is to copy a fixed number of bytes — not a C string — so any source buffer without a trailing null was overread by one byte. This affected FFI callbacks that receive length-delimited buffers, such as the OpenSSL ALPN select callback.
 
+## Optimize constant val array literals
+
+Array literals whose elements are all constants inside a `recover val` block are now compiled the same way string literals are -- as a single constant instead of one function call per element.
+
+```pony
+let png_header: Array[U8] val = recover val
+  [as U8: 0x89; 0x50; 0x4E; 0x47]
+end
+```
+
+This applies to arrays of any integer, float, or bool type. The elements must all be literals and the array must be `val`.
+
+Programs that embed large binary data as byte-array literals now use far less memory during compilation. On 32-bit ARM targets, this was enough to prevent LTO from exhausting the address space during linking.
+
