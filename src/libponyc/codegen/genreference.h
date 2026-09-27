@@ -38,6 +38,8 @@ LLVMValueRef gen_float(compile_t* c, ast_t* ast);
 
 LLVMValueRef gen_string(compile_t* c, ast_t* ast);
 
+LLVMValueRef gen_array_const(compile_t* c, ast_t* recover);
+
 PONY_EXTERN_C_END
 
 #endif
