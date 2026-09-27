@@ -24,6 +24,7 @@ bool ponyint_tracing_enabled = false;
 #  include <unistd.h>
 #  if defined(__GLIBC__) || defined(PLATFORM_IS_BSD) || defined(ALPINE_LINUX) || defined(PLATFORM_IS_MACOSX)
 #    include <execinfo.h>
+#    define PONY_HAS_EXECINFO
 #  endif
 #endif
 
@@ -744,7 +745,11 @@ static void flight_recorder_dump_signal_handler(int sig, siginfo_t* siginfo, voi
     // `backtrace` is not async signal safe, but according to the man page that's
     // only if libgcc isn't already loaded. we ensure it is by calling `backtrace`
     // manually before we set the signal handler to make sure it is safe to call here.
+#if defined(PONY_HAS_EXECINFO)
     flight_recorder_dump_message.num_stack_frames = backtrace(flight_recorder_dump_message.stack_frames, PONY_TRACING_MAX_STACK_FRAME_DEPTH);
+#else
+    flight_recorder_dump_message.num_stack_frames = 0;
+#endif
 
     ponyint_thread_messageq_push(&tracing_thread.mq, (pony_msg_t*)(&flight_recorder_dump_message), (pony_msg_t*)(&flight_recorder_dump_message));
 
@@ -1340,6 +1345,7 @@ void ponyint_tracing_thread_start(scheduler_t* sched)
       }
     }
 #else
+#if defined(PONY_HAS_EXECINFO)
     // linux specific: but probably not harmful on other platforms
     // call `backtrace` to load `libgcc` so that we can use it in the signal handler safely
     // per the `backtrace` man page:
@@ -1350,6 +1356,7 @@ void ponyint_tracing_thread_start(scheduler_t* sched)
     stack_depth_t nptrs = backtrace(buffer, 1);
     char** strings = backtrace_symbols(buffer, nptrs);
     free(strings);
+#endif
 
     // Make sure we handle signals related to pausing all threads
     struct sigaction pause_action;
@@ -2981,7 +2988,7 @@ static void handle_message(pony_msg_t* msg)
       HANDLE dbg_process = GetCurrentProcess();
       SymInitialize(dbg_process, NULL, TRUE);
       char frame_str[MAX_SYM_NAME + 64];
-#else
+#elif defined(PONY_HAS_EXECINFO)
       char** strings = backtrace_symbols(m->stack_frames, m->num_stack_frames);
 #endif
 
@@ -2992,7 +2999,7 @@ static void handle_message(pony_msg_t* msg)
           fprintf(log_file, ",");
 #if defined(PLATFORM_IS_WINDOWS)
         fprintf(log_file, "\"%s\"", windows_format_frame(dbg_process, m->stack_frames[i], frame_str, sizeof(frame_str)));
-#else
+#elif defined(PONY_HAS_EXECINFO)
         fprintf(log_file, "\"%s\"", strings[i]);
 #endif
       }
@@ -3025,13 +3032,13 @@ static void handle_message(pony_msg_t* msg)
       for(stack_depth_t i = 0; i < m->num_stack_frames; i++)
 #if defined(PLATFORM_IS_WINDOWS)
         fprintf(stderr, "  %s\n", windows_format_frame(dbg_process, m->stack_frames[i], frame_str, sizeof(frame_str)));
-#else
+#elif defined(PONY_HAS_EXECINFO)
         fprintf(stderr, "  %s\n", strings[i]);
 #endif
 
 #if defined(PLATFORM_IS_WINDOWS)
       SymCleanup(dbg_process);
-#else
+#elif defined(PONY_HAS_EXECINFO)
       free(strings);
 #endif
 
