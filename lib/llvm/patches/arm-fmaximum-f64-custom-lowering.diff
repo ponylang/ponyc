@@ -13,10 +13,10 @@
 #       "Cannot select: ... IS_FPCLASS".
 
 diff --git i/llvm/lib/Target/ARM/ARMISelLowering.cpp w/llvm/lib/Target/ARM/ARMISelLowering.cpp
-index d7c32d764..61099d07c 100644
+index 998e09384dab..3f72415ecf4c 100644
 --- i/llvm/lib/Target/ARM/ARMISelLowering.cpp
 +++ w/llvm/lib/Target/ARM/ARMISelLowering.cpp
-@@ -1335,6 +1335,16 @@ ARMTargetLowering::ARMTargetLowering(const TargetMachine &TM_,
+@@ -1349,6 +1349,16 @@ ARMTargetLowering::ARMTargetLowering(const TargetMachine &TM_,
      setOperationAction(ISD::FMINIMUM, MVT::v4f32, Legal);
      setOperationAction(ISD::FMAXIMUM, MVT::v4f32, Legal);
  
@@ -31,9 +31,9 @@ index d7c32d764..61099d07c 100644
 +    }
 +
      if (Subtarget->hasV8Ops()) {
-       setOperationAction(ISD::FFLOOR, MVT::v2f32, Legal);
-       setOperationAction(ISD::FFLOOR, MVT::v4f32, Legal);
-@@ -5746,6 +5756,64 @@ SDValue ARMTargetLowering::LowerINT_TO_FP(SDValue Op, SelectionDAG &DAG) const {
+       for (auto Op : {ISD::FROUND, ISD::STRICT_FROUND, ISD::FROUNDEVEN,
+                       ISD::STRICT_FROUNDEVEN, ISD::FTRUNC, ISD::STRICT_FTRUNC,
+@@ -5851,6 +5861,64 @@ SDValue ARMTargetLowering::LowerINT_TO_FP(SDValue Op, SelectionDAG &DAG) const {
    return Op;
  }
  
@@ -98,7 +98,7 @@ index d7c32d764..61099d07c 100644
  SDValue ARMTargetLowering::LowerFCOPYSIGN(SDValue Op, SelectionDAG &DAG) const {
    // Implement fcopysign with a fabs and a conditional fneg.
    SDValue Tmp0 = Op.getOperand(0);
-@@ -10332,6 +10400,8 @@ SDValue ARMTargetLowering::LowerOperation(SDValue Op, SelectionDAG &DAG) const {
+@@ -10519,6 +10587,8 @@ SDValue ARMTargetLowering::LowerOperation(SDValue Op, SelectionDAG &DAG) const {
    case ISD::FP_TO_UINT:    return LowerFP_TO_INT(Op, DAG);
    case ISD::FP_TO_SINT_SAT:
    case ISD::FP_TO_UINT_SAT: return LowerFP_TO_INT_SAT(Op, DAG, Subtarget);
