@@ -30,6 +30,7 @@ actor \nodoc\ Main is TestList
     test(_TestHandleableSignalRejectsFatal)
     test(_TestHandleableSignalRejectsUncatchable)
     test(_TestHandleableSignalRejectsUnknown)
+    test(_TestHandleableSignalRejectsRuntimeReserved)
     test(_TestHandleableSignalRTBoundaries)
     test(_TestSignalINT)
     // Sig.usr2() is a compile error on Windows (no SIGUSR2); register the
@@ -37,7 +38,6 @@ actor \nodoc\ Main is TestList
     ifdef not windows then
       test(_TestSignalUSR2)
     end
-    test(_TestOSRefusedRegistration)
     test(_TestMultipleHandlers)
     test(_TestDispose)
     test(_TestDisposeRestoresDefaultDisposition)
@@ -100,7 +100,6 @@ class \nodoc\ iso _TestHandleableSignalAccepts is UnitTest
       _assert_valid(h, Sig.vtalrm())
       _assert_valid(h, Sig.prof())
       _assert_valid(h, Sig.winch())
-      _assert_valid(h, Sig.info())
       _assert_valid(h, Sig.usr1())
       _assert_valid(h, Sig.usr2())
       _assert_valid(h, Sig.sys())
@@ -194,6 +193,37 @@ class \nodoc\ iso _TestHandleableSignalRejectsUnknown is UnitTest
     | let _: ValidationFailure => None
     end
 
+class \nodoc\ iso _TestHandleableSignalRejectsRuntimeReserved is UnitTest
+  """
+  Verify that signals reserved by the runtime for tracing are rejected:
+  SIGINFO on BSD and macOS, the four lowest real-time signals on Linux.
+  """
+  fun name(): String =>
+    "signals/HandleableSignal rejects runtime-reserved"
+
+  fun apply(h: TestHelper) =>
+    ifdef bsd or osx then
+      _assert_invalid(h, Sig.info())
+    elseif linux then
+      try
+        _assert_invalid(h, Sig.rt(0)?)
+        _assert_invalid(h, Sig.rt(1)?)
+        _assert_invalid(h, Sig.rt(2)?)
+        _assert_invalid(h, Sig.rt(3)?)
+      else
+        h.fail("Sig.rt errored")
+      end
+    end
+
+  fun _assert_invalid(h: TestHelper, sig: U32) =>
+    match \exhaustive\ MakeHandleableSignal(sig)
+    | let _: HandleableSignal =>
+      h.fail(
+        "signal " + sig.string() +
+          " should be rejected (runtime-reserved)")
+    | let _: ValidationFailure => None
+    end
+
 class \nodoc\ iso _TestHandleableSignalRTBoundaries is UnitTest
   """
   Pin the real-time signal ranges at their boundaries: the first and last
@@ -206,11 +236,12 @@ class \nodoc\ iso _TestHandleableSignalRTBoundaries is UnitTest
   fun apply(h: TestHelper) =>
     ifdef linux then
       try
-        _assert_valid(h, Sig.rt(0)?)
+        _assert_valid(h, Sig.rt(4)?)
         _assert_valid(h, Sig.rt(32)?)
       else
         h.fail("in-range Sig.rt errored")
       end
+      _assert_invalid(h, 35)
       _assert_invalid(h, 65)
     elseif bsd then
       try
@@ -861,70 +892,3 @@ class \nodoc\ iso _TestSubscriberLimit is UnitTest
 
   fun ref tear_down(h: TestHelper) =>
     try (_coordinator as _SubscriberLimitCoordinator).dispose_all() end
-
-class \nodoc\ _RefusedNotify is SignalNotify
-  let _h: TestHelper
-  let _action: String
-  var _failed: Bool = false
-
-  new iso create(h: TestHelper, action: String) =>
-    _h = h
-    _action = action
-
-  fun ref apply(count: U32): Bool =>
-    _h.fail("handler for an OS-refused signal received a signal")
-    true
-
-  fun ref registration_failed(reason: SignalRegistrationError) =>
-    match \exhaustive\ reason
-    | SignalRegistrationRefused =>
-      _failed = true
-    | SignalSubscriberLimit =>
-      _h.fail("OS-refused registration reported the subscriber limit")
-    end
-
-  fun ref disposed() =>
-    // Completing only here keeps the auto-dispose half of the failure
-    // contract load-bearing: registration_failed alone must not pass.
-    if _failed then
-      _h.complete_action(_action)
-    else
-      _h.fail("refused handler was disposed without registration_failed")
-    end
-
-class \nodoc\ iso _TestOSRefusedRegistration is UnitTest
-  """
-  Verify the documented contract for registrations the OS refuses: glibc
-  and musl both reject sigaction for real-time signal 32 (reserved for the
-  libc's threading internals) even though the whitelist admits it; the
-  notify must get registration_failed with SignalRegistrationRefused and
-  then dispose, with apply never run. The second handler proves the
-  failure path resets the registration state — a regression that left it
-  mid-install would strand the second subscribe and surface here as a
-  timeout.
-  """
-  fun name(): String => "signals/OS-refused registration auto-disposes"
-  fun exclusion_group(): String => "signals"
-
-  fun ref apply(h: TestHelper) =>
-    ifdef linux then
-      let auth = SignalAuth(h.env.root)
-      try
-        match \exhaustive\ MakeHandleableSignal(Sig.rt(0)?)
-        | let sig: HandleableSignal =>
-          h.expect_action("refused-1")
-          h.expect_action("refused-2")
-          SignalHandler(auth, _RefusedNotify(h, "refused-1"), sig)
-          SignalHandler(auth, _RefusedNotify(h, "refused-2"), sig)
-          h.long_test(10_000_000_000)
-        | let _: ValidationFailure =>
-          h.fail("rt(0) should validate")
-        end
-      else
-        h.fail("Sig.rt(0) errored")
-      end
-    end
-
-  fun timed_out(h: TestHelper) =>
-    h.fail("timeout")
-    h.complete(false)

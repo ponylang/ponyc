@@ -10,16 +10,16 @@ primitive HandleableSignalValidator is Validator[U32]
   numbers are rejected. SIGUSR2 is handleable like any other signal; the
   runtime's scheduler no longer uses it, so the runtime reserves nothing.
 
-  Validation is necessary but not sufficient: the operating system can
-  still refuse a registration the whitelist admits (for example, glibc
-  reserves the two lowest real-time signals for its own threading
-  internals, and musl the three lowest). Such a refusal surfaces through
-  the normal failure path — the notify's `registration_failed` is called
-  and the handler is automatically disposed.
+  The runtime reserves a pause signal for tracing (SIGRTMIN on Linux,
+  SIGINFO on BSD and macOS) and rejects it. On Linux, real-time signals
+  32 through 35 are also rejected because the C library and the runtime
+  each claim signals in that range.
 
-  The runtime reserves a pause signal for tracing — SIGRTMIN on Linux,
-  SIGINFO on BSD and macOS — and handling that signal breaks runtime
-  tracing.
+  Validation is necessary but not sufficient: the operating system can
+  still refuse a registration the whitelist admits. Such a refusal
+  surfaces through the normal failure path — the notify's
+  `registration_failed` is called and the handler is automatically
+  disposed.
   """
   fun apply(sig: U32): ValidationResult =>
     """
@@ -52,7 +52,7 @@ primitive HandleableSignalValidator is Validator[U32]
         (sig == Sig.cont()) or (sig == Sig.chld()) or (sig == Sig.ttin()) or
         (sig == Sig.ttou()) or (sig == Sig.io()) or (sig == Sig.xcpu()) or
         (sig == Sig.xfsz()) or (sig == Sig.vtalrm()) or (sig == Sig.prof()) or
-        (sig == Sig.winch()) or (sig == Sig.info()) or (sig == Sig.usr1()) or
+        (sig == Sig.winch()) or (sig == Sig.usr1()) or
         (sig == Sig.sys()) or
         _usr2_handleable(sig) or
         _is_rt(sig)
@@ -80,7 +80,7 @@ primitive HandleableSignalValidator is Validator[U32]
     ifdef bsd then
       (sig >= 65) and (sig <= 126)
     elseif linux then
-      (sig >= 32) and (sig <= 64)
+      (sig >= 36) and (sig <= 64)
     else
       false
     end
