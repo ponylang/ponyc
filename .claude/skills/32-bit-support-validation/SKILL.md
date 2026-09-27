@@ -26,14 +26,6 @@ limitations — they need to be fixed.
   debug/release codegen. Stdlib tests are run per-package instead
   (step 4c / 5c) as a workaround.
 
-- **pony-doc** links against the full stdlib plus the pony_compiler
-  library, exceeding the ILP32 link-time memory limit. The linker OOMs
-  during the build. The remaining binaries (ponyc, pony-compiler,
-  pony-lint, pony-lsp, pony-dep) build normally.
-
-- **pony-doc-tests** cannot run because the binary cannot be built. The
-  other four tool test suites run normally.
-
 ## Gotchas (read first)
 
 - **Check the login shell.** If the machine's login shell is not bash (e.g. fish),
@@ -201,11 +193,11 @@ Each stdlib package is compiled and tested individually to stay within the
 ILP32 address space limit. The full list of testable packages is derived from
 `packages/stdlib/_test.pony`.
 
-**tools** (4 of 5 tests; pony-doc-tests cannot run until the ILP32
-linker OOM is fixed):
+**tools** (all 5 tool test suites):
 
 - **pony-compiler-tests** — self-hosted compiler tool tests
 - **pony-dep-tests** — dependency tool tests
+- **pony-doc-tests** — documentation tool tests
 - **pony-lint-tests** — linter tool tests
 - **pony-lsp-tests** — language server tool tests
 
@@ -229,11 +221,6 @@ Verify "Configuring done" and "Build files have been written" in the output.
 
 ### 4b. Build ponyc (detached)
 
-The build will fail with a nonzero exit code because pony-doc OOMs during
-linking (see "Known ILP32 failures"). After the build finishes, verify that
-ponyc, pony-compiler, pony-dep, pony-lint, and pony-lsp were built
-successfully.
-
 ```bash
 ssh pi@pony-rpi4-32 bash << 'ENDSSH'
 cat > /home/pi/run-debug-build.sh << 'SCRIPT'
@@ -254,22 +241,18 @@ Poll:
 ssh pi@pony-rpi4-32 bash -c '"tail -3 /home/pi/debug-build.log"'
 ```
 
-Wait for `DEBUG_BUILD_EXIT_CODE` to appear (it will be nonzero). Then verify:
+Wait for `DEBUG_BUILD_EXIT_CODE=0`. Then verify all binaries built:
 
 ```bash
 ssh pi@pony-rpi4-32 bash << 'ENDSSH'
 cd /home/pi/code/ponylang/ponyc/build/debug
-for bin in ponyc pony-compiler pony-dep pony-lint pony-lsp; do
+for bin in ponyc pony-compiler pony-dep pony-doc pony-lint pony-lsp; do
   test -x "$bin" && echo "$bin: OK" || echo "$bin: MISSING"
-done
-for bin in pony-doc; do
-  test -x "$bin" && echo "$bin: OK" || echo "$bin: MISSING (known ILP32 failure)"
 done
 ENDSSH
 ```
 
-ponyc, pony-compiler, pony-dep, pony-lint, and pony-lsp must all show OK.
-pony-doc will show MISSING until the ILP32 linker OOM is fixed.
+All six must show OK.
 
 ### 4c. Run stdlib tests per-package (debug runtime)
 
@@ -422,25 +405,13 @@ Wait for `DEBUG_CI_CORE_EXIT_CODE=0`.
 
 ### 4e. Build tool test binaries (after ponyc build completes)
 
-Build only the tool test binaries that can link on ILP32. The `tool-tests`
-target tries all five and will fail on pony-doc-tests (linker OOM).
-Build the four that work individually instead.
-
 ```bash
 ssh pi@pony-rpi4-32 bash << 'ENDSSH'
 cat > /home/pi/run-debug-tool-build.sh << 'SCRIPT'
 #!/bin/bash
 cd /home/pi/code/ponylang/ponyc
-rc=0
-for target in pony-compiler-tests pony-dep-tests pony-lint-tests pony-lsp-tests; do
-  echo "=== building $target ===" >> /home/pi/debug-tool-build.log
-  cmake --build --preset debug --target "$target" >> /home/pi/debug-tool-build.log 2>&1
-  if [ $? -ne 0 ]; then
-    echo "$target: BUILD FAILED" >> /home/pi/debug-tool-build.log
-    rc=1
-  fi
-done
-echo "TOOL_BUILD_EXIT_CODE=$rc" >> /home/pi/debug-tool-build.log
+cmake --build --preset debug --target tool-tests > /home/pi/debug-tool-build.log 2>&1
+echo "TOOL_BUILD_EXIT_CODE=$?" >> /home/pi/debug-tool-build.log
 SCRIPT
 chmod +x /home/pi/run-debug-tool-build.sh
 nohup /home/pi/run-debug-tool-build.sh > /dev/null 2>&1 &
@@ -458,10 +429,8 @@ cat > /home/pi/run-debug-tools.sh << 'SCRIPT'
 #!/bin/bash
 cd /home/pi/code/ponylang/ponyc
 rc=0
-for test in pony-compiler-tests pony-dep-tests pony-lint-tests pony-lsp-tests; do
-  ctest --preset debug -R "^${test}$" >> /home/pi/debug-tools.log 2>&1
-  if [ $? -ne 0 ]; then rc=1; fi
-done
+ctest --preset debug -L tools >> /home/pi/debug-tools.log 2>&1
+rc=$?
 echo "DEBUG_TOOLS_EXIT_CODE=$rc" >> /home/pi/debug-tools.log
 SCRIPT
 chmod +x /home/pi/run-debug-tools.sh
@@ -498,8 +467,7 @@ ENDSSH
 
 ### 5b. Build ponyc (detached)
 
-Same as step 4b — pony-doc will OOM (known ILP32 failure); verify the
-other five binaries built.
+Same as step 4b but using the release preset.
 
 ```bash
 ssh pi@pony-rpi4-32 bash << 'ENDSSH'
@@ -515,7 +483,7 @@ echo "release build started pid $!"
 ENDSSH
 ```
 
-Poll and wait for `RELEASE_BUILD_EXIT_CODE` to appear. Verify binaries as in 4b
+Poll and wait for `RELEASE_BUILD_EXIT_CODE=0`. Verify binaries as in 4b
 (using `build/release` instead of `build/debug`).
 
 ### 5c. Run stdlib tests per-package (release runtime)
@@ -660,16 +628,8 @@ ssh pi@pony-rpi4-32 bash << 'ENDSSH'
 cat > /home/pi/run-release-tool-build.sh << 'SCRIPT'
 #!/bin/bash
 cd /home/pi/code/ponylang/ponyc
-rc=0
-for target in pony-compiler-tests pony-dep-tests pony-lint-tests pony-lsp-tests; do
-  echo "=== building $target ===" >> /home/pi/release-tool-build.log
-  cmake --build --preset release --target "$target" >> /home/pi/release-tool-build.log 2>&1
-  if [ $? -ne 0 ]; then
-    echo "$target: BUILD FAILED" >> /home/pi/release-tool-build.log
-    rc=1
-  fi
-done
-echo "TOOL_BUILD_EXIT_CODE=$rc" >> /home/pi/release-tool-build.log
+cmake --build --preset release --target tool-tests > /home/pi/release-tool-build.log 2>&1
+echo "TOOL_BUILD_EXIT_CODE=$?" >> /home/pi/release-tool-build.log
 SCRIPT
 chmod +x /home/pi/run-release-tool-build.sh
 nohup /home/pi/run-release-tool-build.sh > /dev/null 2>&1 &
@@ -684,11 +644,8 @@ ssh pi@pony-rpi4-32 bash << 'ENDSSH'
 cat > /home/pi/run-release-tools.sh << 'SCRIPT'
 #!/bin/bash
 cd /home/pi/code/ponylang/ponyc
-rc=0
-for test in pony-compiler-tests pony-dep-tests pony-lint-tests pony-lsp-tests; do
-  ctest --preset release -R "^${test}$" >> /home/pi/release-tools.log 2>&1
-  if [ $? -ne 0 ]; then rc=1; fi
-done
+ctest --preset release -L tools > /home/pi/release-tools.log 2>&1
+rc=$?
 echo "RELEASE_TOOLS_EXIT_CODE=$rc" >> /home/pi/release-tools.log
 SCRIPT
 chmod +x /home/pi/run-release-tools.sh
@@ -704,14 +661,14 @@ Poll and wait for `RELEASE_TOOLS_EXIT_CODE=0`.
 Summarize which steps passed and which failed. Report each result individually:
 
 - LLVM version and whether it needed rebuilding
-- Debug runtime build: pass/fail (ponyc, pony-compiler, pony-dep, pony-lint,
-  pony-lsp built; pony-doc fails — known ILP32 linker OOM)
+- Debug runtime build: pass/fail (ponyc, pony-compiler, pony-dep, pony-doc,
+  pony-lint, pony-lsp built)
 - Debug runtime — ci-core minus stdlib (debug codegen): pass/fail
 - Debug runtime — ci-core minus stdlib (release codegen): pass/fail
 - Debug runtime — stdlib per-package (debug codegen): pass/fail per package
 - Debug runtime — stdlib per-package (release codegen): pass/fail per package
-- Debug runtime — tool tests (pony-compiler, pony-dep, pony-lint, pony-lsp): pass/fail
-- Release runtime build: pass/fail (pony-doc fails — known ILP32 linker OOM)
+- Debug runtime — tool tests: pass/fail
+- Release runtime build: pass/fail
 - Release runtime — ci-core minus stdlib (debug codegen): pass/fail
 - Release runtime — ci-core minus stdlib (release codegen): pass/fail
 - Release runtime — stdlib per-package (debug codegen): pass/fail per package
