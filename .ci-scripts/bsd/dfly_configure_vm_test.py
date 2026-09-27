@@ -355,7 +355,7 @@ def main():
 
     # ---- full flow: serial setup succeeds
     serial_ok = FakeSerialSock(
-        initial=b'\r\nOK ',
+        initial=b'\r\nOK set console=comconsole\r\nOK ',
         responses={
             b'boot\r': b'Booting...\r\nlogin: ',
             b'root\r': b'root\r\nLast login: Thu Jan 1\r\n# ',
@@ -403,7 +403,7 @@ def main():
         check("silent serial: root typed via sendkey", 'root' in typed)
 
     # ---- full flow: serial OSError falls back to sendkey
-    serial_err = FakeSerialSock(initial=b'\r\nOK ')
+    serial_err = FakeSerialSock(initial=b'\r\nOK set console=comconsole\r\nOK ')
     _err_orig = serial_err.sendall
 
     def _err_sendall(data):
@@ -423,7 +423,7 @@ def main():
 
     # ---- full flow: serial with login prompt already present
     serial_login = FakeSerialSock(
-        initial=b'\r\nlogin: ',
+        initial=b'\r\nDragonFly console\r\nlogin: ',
         responses={
             b'root\r': b'root\r\n# ',
             b'mount_cd9660 /dev/cd0 /mnt\r': b'# ',
@@ -498,19 +498,51 @@ def main():
     check("_looks_like_text: empty is False",
           not d._looks_like_text(b''))
     check("_looks_like_text: readable text is True",
-          d._looks_like_text(b'login: '))
+          d._looks_like_text(b'login: root password: '))
     check("_looks_like_text: boot messages are True",
           d._looks_like_text(b'Booting...\r\nkernel text\r\n'))
-    check("_looks_like_text: all-printable short string is True",
-          d._looks_like_text(b'XMMNNOO'))
+    check("_looks_like_text: short printable is True",
+          d._looks_like_text(b'OK '))
     check("_looks_like_text: high bytes are False",
           not d._looks_like_text(bytes(range(0x80, 0x90))))
-    check("_looks_like_text: mixed mostly-printable is True",
-          d._looks_like_text(b'hello world\x00'))
+    check("_looks_like_text: mixed mostly-printable long enough is True",
+          d._looks_like_text(b'hello world, this is text'))
     check("_looks_like_text: exactly 60% printable is True",
-          d._looks_like_text(b'helloo\x80\x81\x82\x83'))
+          d._looks_like_text(b'abcdefghijkl\x80\x81\x82\x83\x84\x85\x86\x87'))
     check("_looks_like_text: below 60% printable is False",
-          not d._looks_like_text(b'hello\x80\x81\x82\x83\x84'))
+          not d._looks_like_text(
+              b'abcdefgh\x80\x81\x82\x83\x84\x85\x86\x87\x88\x89\x8a\x8b'))
+
+    # ---- full flow: BIOS garbage on serial
+    # Simulates the real failure: BIOS sends a few ASCII bytes (e.g.
+    # "XMMNNOO") that pass the printability check.  The serial path
+    # proceeds but login never arrives; the fallback sends boot via VGA.
+    serial_bios = FakeSerialSock(initial=b'XMMNNOO')
+    with tempfile.TemporaryDirectory() as tmpdir:
+        env = {"DFLY_ARTIFACTS_DIR": tmpdir}
+        rc_bios, _mon_bios, typed_bios = run_main(
+            env, serial_sock=serial_bios, serial_available=True)
+        check("BIOS garbage: main returns 0 (sendkey fallback)",
+              rc_bios == 0)
+        check("BIOS garbage: root typed via sendkey",
+              'root' in typed_bios)
+        check("BIOS garbage: boot typed via VGA",
+              'boot' in typed_bios)
+
+    # ---- full flow: serial boot timeout sends boot via VGA before fallback
+    serial_no_login = FakeSerialSock(
+        initial=b'\r\nOK set console=comconsole\r\nOK ',
+    )
+    with tempfile.TemporaryDirectory() as tmpdir:
+        env = {"DFLY_ARTIFACTS_DIR": tmpdir}
+        rc_nologin, _mon_nologin, typed_nologin = run_main(
+            env, serial_sock=serial_no_login, serial_available=True)
+        check("serial no login: main returns 0 (sendkey fallback)",
+              rc_nologin == 0)
+        check("serial no login: boot sent via VGA before fallback",
+              'boot' in typed_nologin)
+        check("serial no login: root typed via sendkey",
+              'root' in typed_nologin)
 
     # ---- full flow: garbled serial falls back to sendkey
     serial_garble = FakeSerialSock(initial=b'\x80\x81\x82\x83\x84')
@@ -545,7 +577,7 @@ def main():
           not d.ssh_reachable())
 
     # ---- summary
-    total = 63
+    total = 70
     if failures:
         print(f"dfly_configure_vm_test: FAIL ({len(failures)}): "
               f"{', '.join(failures)}")
