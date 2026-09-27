@@ -276,6 +276,12 @@ def try_serial_setup(monitor, serial, artifacts_dir):
         time.sleep(1)
     time.sleep(LOADER_WAIT)
 
+    # Flush any stray Escape characters that accumulated on the loader's
+    # input line — without this, the ``set`` command gets garbled into
+    # something like ``«««set console=comconsole`` which the loader rejects.
+    send_line(monitor, '')
+    time.sleep(LOADER_WAIT)
+
     print("  enabling serial console at loader prompt...")
     send_line(monitor, 'set console=comconsole')
     time.sleep(LOADER_WAIT)
@@ -322,6 +328,13 @@ def try_serial_setup(monitor, serial, artifacts_dir):
             serial, b'login:', SERIAL_BOOT_TIMEOUT)
         if not found:
             print("  login prompt not found on serial")
+            # The ``boot`` we sent over serial may not have reached the
+            # bootloader (e.g. the ``set console=comconsole`` failed, so the
+            # bootloader is still reading VGA).  Send ``boot`` via VGA sendkey
+            # so the kernel starts before the VGA fallback runs — otherwise
+            # sendkey_setup finds the bootloader prompt, not a login prompt.
+            print("  sending boot via VGA sendkey before fallback...")
+            send_line(monitor, 'boot')
             return False
     else:
         print("  login prompt already on serial")
