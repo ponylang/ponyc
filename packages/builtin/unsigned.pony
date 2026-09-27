@@ -676,6 +676,60 @@ primitive U128 is UnsignedInteger[U128]
   fun string(): String iso^ =>
     _ToString._u128(this, false)
 
+  fun add(y: U128): U128 =>
+    ifdef native128 then
+      this + y
+    else
+      let this_lo = this.u64()
+      let y_lo = y.u64()
+      (let sum_lo: U64, let carry: Bool) = this_lo.addc(y_lo)
+      let this_hi = (this >> 64).u64()
+      let y_hi = (y >> 64).u64()
+      let sum_hi = this_hi + y_hi + (if carry then U64(1) else U64(0) end)
+      (sum_hi.u128() << 64) or sum_lo.u128()
+    end
+
+  fun sub(y: U128): U128 =>
+    ifdef native128 then
+      this - y
+    else
+      let this_lo = this.u64()
+      let y_lo = y.u64()
+      (let diff_lo: U64, let borrow: Bool) = this_lo.subc(y_lo)
+      let this_hi = (this >> 64).u64()
+      let y_hi = (y >> 64).u64()
+      let diff_hi = this_hi - y_hi - (if borrow then U64(1) else U64(0) end)
+      (diff_hi.u128() << 64) or diff_lo.u128()
+    end
+
+  fun neg(): U128 =>
+    ifdef native128 then
+      -this
+    else
+      (not this).add(1)
+    end
+
+  fun add_unsafe(y: U128): U128 =>
+    ifdef native128 then
+      this +~ y
+    else
+      this.add(y)
+    end
+
+  fun sub_unsafe(y: U128): U128 =>
+    ifdef native128 then
+      this -~ y
+    else
+      this.sub(y)
+    end
+
+  fun neg_unsafe(): U128 =>
+    ifdef native128 then
+      -~this
+    else
+      this.neg()
+    end
+
   fun mul(y: U128): U128 =>
     ifdef native128 then
       this * y
@@ -858,8 +912,8 @@ primitive U128 is UnsignedInteger[U128]
     ifdef native128 then
       @"llvm.uadd.with.overflow.i128"(this, y)
     else
-      let overflow = this > (max_value() - y)
-      (this + y, overflow)
+      let overflow = this > (max_value().sub(y))
+      (this.add(y), overflow)
     end
 
   fun subc(y: U128): (U128, Bool) =>
@@ -867,7 +921,7 @@ primitive U128 is UnsignedInteger[U128]
       @"llvm.usub.with.overflow.i128"(this, y)
     else
       let overflow = this < y
-      (this - y, overflow)
+      (this.sub(y), overflow)
     end
 
   fun mulc(y: U128): (U128, Bool) =>

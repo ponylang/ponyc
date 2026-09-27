@@ -748,6 +748,48 @@ primitive I128 is SignedInteger[I128, U128]
   fun string(): String iso^ =>
     _ToString._u128(abs().u128(), this < 0)
 
+  fun add(y: I128): I128 =>
+    ifdef native128 then
+      this + y
+    else
+      (u128().add(y.u128())).i128()
+    end
+
+  fun sub(y: I128): I128 =>
+    ifdef native128 then
+      this - y
+    else
+      (u128().sub(y.u128())).i128()
+    end
+
+  fun neg(): I128 =>
+    ifdef native128 then
+      -this
+    else
+      (u128().neg()).i128()
+    end
+
+  fun add_unsafe(y: I128): I128 =>
+    ifdef native128 then
+      this +~ y
+    else
+      this.add(y)
+    end
+
+  fun sub_unsafe(y: I128): I128 =>
+    ifdef native128 then
+      this -~ y
+    else
+      this.sub(y)
+    end
+
+  fun neg_unsafe(): I128 =>
+    ifdef native128 then
+      -~this
+    else
+      this.neg()
+    end
+
   fun mul(y: I128): I128 =>
     (u128() * y.u128()).i128()
 
@@ -871,12 +913,12 @@ primitive I128 is SignedInteger[I128, U128]
     else
       let overflow =
         if y > 0 then
-          (this > (max_value() - y))
+          (this > (max_value().sub(y)))
         else
-          (this < (min_value() - y))
+          (this < (min_value().sub(y)))
         end
 
-      (this + y, overflow)
+      (this.add(y), overflow)
     end
 
   fun subc(y: I128): (I128, Bool) =>
@@ -885,12 +927,12 @@ primitive I128 is SignedInteger[I128, U128]
     else
       let overflow =
         if y > 0 then
-          (this < (min_value() + y))
+          (this < (min_value().add(y)))
         else
-          (this > (max_value() + y))
+          (this > (max_value().add(y)))
         end
 
-      (this - y, overflow)
+      (this.sub(y), overflow)
     end
 
   fun mulc(y: I128): (I128, Bool) =>
