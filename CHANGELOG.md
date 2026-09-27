@@ -13,6 +13,7 @@ All notable changes to the Pony compiler and standard library will be documented
 ### Changed
 
 - Update to LLVM 23.1.2 ([PR #6168](https://github.com/ponylang/ponyc/pull/6168))
+- Reject runtime-reserved signals in HandleableSignalValidator ([PR #6188](https://github.com/ponylang/ponyc/pull/6188))
 
 ## [0.73.0] - 2026-09-27
 
