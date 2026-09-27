@@ -333,7 +333,6 @@ static void make_prototype(compile_t* c, reach_type_t* t,
   }
 }
 
-#if defined(USE_RUNTIME_TRACING)
 static void add_get_behavior_name_case(compile_t* c, reach_type_t* t,
   const char* be_name, uint32_t index)
 {
@@ -353,7 +352,6 @@ static void add_get_behavior_name_case(compile_t* c, reach_type_t* t,
   genfun_build_ret(c, ret);
   codegen_finishfun(c);
 }
-#endif
 
 static void add_dispatch_case(compile_t* c, reach_type_t* t,
   reach_param_t* params, uint32_t index, LLVMValueRef handler,
@@ -609,10 +607,7 @@ static bool genfun_be(compile_t* c, reach_type_t* t, reach_method_t* m)
   add_dispatch_case(c, t, m->params, m->vtable_index, c_m->func_handler,
     c_m->func_type, c_m->msg_type);
 
-#if defined(USE_RUNTIME_TRACING)
-  // Add the get behavior name case.
   add_get_behavior_name_case(c, t, m->name, m->vtable_index);
-#endif
 
   return true;
 }
@@ -708,10 +703,7 @@ static bool genfun_newbe(compile_t* c, reach_type_t* t, reach_method_t* m)
   add_dispatch_case(c, t, m->params, m->vtable_index, c_m->func_handler,
     c_m->func_type, c_m->msg_type);
 
-#if defined(USE_RUNTIME_TRACING)
-  // Add the get behavior name case.
   add_get_behavior_name_case(c, t, m->name, m->vtable_index);
-#endif
 
   return true;
 }
@@ -942,9 +934,7 @@ static bool genfun_forward(compile_t* c, reach_type_t* t,
         add_dispatch_case(c, t, m->params, m->vtable_index,
           c_m2->func_handler, c_m2->func_type, c_m->msg_type);
 
-#if defined(USE_RUNTIME_TRACING)
         add_get_behavior_name_case(c, t, m->name, m->vtable_index);
-#endif
       }
     }
   }

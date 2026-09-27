@@ -2,7 +2,7 @@
 
 #include "tracing.h"
 
-#if defined(USE_RUNTIME_TRACING)
+bool ponyint_tracing_enabled = false;
 
 #include <inttypes.h>
 #include <signal.h>
@@ -3231,6 +3231,9 @@ void ponyint_tracing_init(char* format, char* output, char* enabled_categories_p
   tracing_thread.cpu = -1;
 
   ponyint_messageq_init(&tracing_thread.mq);
+
+  ponyint_tracing_enabled = (enabled_categories_bitmask != 0)
+    || flight_recorder_enabled;
 }
 
 void ponyint_tracing_schedulers_init(uint32_t sched_count, uint32_t tracing_cpu)
@@ -3386,5 +3389,3 @@ void ponyint_tracing_stop()
   ponyint_pool_free_size(sizeof(tracing_scheduler_t) * total_sched_count, tracing_schedulers);
   tracing_schedulers = NULL;
 }
-
-#endif

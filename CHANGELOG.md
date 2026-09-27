@@ -49,6 +49,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Add inacc_or_arg_mem to pony_send_done and pony_recv_done ([PR #6150](https://github.com/ponylang/ponyc/pull/6150))
 - Add regression persistence to PonyCheck ([PR #6154](https://github.com/ponylang/ponyc/pull/6154))
 - Optimize constant val array literals ([PR #6177](https://github.com/ponylang/ponyc/pull/6177))
+- Runtime tracing flags available in all builds ([PR #6182](https://github.com/ponylang/ponyc/pull/6182))
 
 ### Changed
 
@@ -67,6 +68,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Remove `--runtimebc` CLI flag ([PR #6137](https://github.com/ponylang/ponyc/pull/6137))
 - macOS shared libraries must use `-undefined dynamic_lookup` instead of linking `libponyrt` ([PR #6137](https://github.com/ponylang/ponyc/pull/6137))
 - Make runtime bitcode the default ([PR #6137](https://github.com/ponylang/ponyc/pull/6137))
+- Remove `runtime_tracing` build option ([PR #6182](https://github.com/ponylang/ponyc/pull/6182))
 
 ## [0.72.1] - 2026-09-13
 

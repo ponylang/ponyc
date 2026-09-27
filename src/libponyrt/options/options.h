@@ -8,7 +8,6 @@
 #define OPT_ARG_NONE     1 << 2
 #define OPT_ARGS_FINISH {NULL, 0, UINT32_MAX, UINT32_MAX}
 
-#if defined(USE_RUNTIME_TRACING)
 #define PONYRT_TRACING_HELP \
   "  --ponytracingmode\n" \
   "                   Mode for tracing. Valid options are:\n" \
@@ -56,9 +55,6 @@
   "                   Pin the tracing thread to a CPU the way scheduler threads\n" \
   "                   are pinned to CPUs. Requires `--ponypin` to be set to have\n" \
   "                   any effect.\n"
-#else
-#define PONYRT_TRACING_HELP
-#endif
 
 /* NOTE: if you change any of the argument help details, update the docstrings
  *       in `RuntimeOptions` in the `builtin` package to keep them in sync.

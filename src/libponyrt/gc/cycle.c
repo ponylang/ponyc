@@ -1467,10 +1467,8 @@ static pony_type_t cycle_type =
   0,
   0,
   NULL,
-#if defined(USE_RUNTIME_TRACING)
   "cycle detector",
   NULL,
-#endif
   NULL,
   cycle_dispatch,
   NULL,
@@ -1495,11 +1493,8 @@ void ponyint_cycle_create(pony_ctx_t* ctx, uint32_t detect_interval, bool force_
   cycle_detector = pony_create(ctx, &cycle_type, false);
   ponyint_actor_setsystem(cycle_detector);
 
-  (void)force_cycle_detector_tracing;
-#ifdef USE_RUNTIME_TRACING
   if(force_cycle_detector_tracing)
     ponyint_cycle_detector_enable_tracing(cycle_detector);
-#endif
 
   detector_t* d = (detector_t*)cycle_detector;
 

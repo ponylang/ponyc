@@ -72,14 +72,6 @@ jobs:
           - image: ghcr.io/ponylang/ponyc-ci-ubuntu26.04-builder:20260908
             debugger: lldb
             directives: runtimestats
-          - image: ghcr.io/ponylang/ponyc-ci-ubuntu26.04-builder:20260908
-            debugger: lldb
-            directives: runtime_tracing
-          # runtime_tracing's format specifiers for the runtimestats-gated fields
-          # only compile in this combined build, so cover it explicitly.
-          - image: ghcr.io/ponylang/ponyc-ci-ubuntu26.04-builder:20260908
-            debugger: lldb
-            directives: runtime_tracing,runtimestats
 
     name: use ${{ matrix.directives }}
     container:
@@ -205,10 +197,6 @@ jobs:
       max-parallel: 2
       matrix:
         include:
-          - directives: runtime_tracing
-          # runtime_tracing's format specifiers for the runtimestats-gated fields
-          # only compile in this combined build, so cover it explicitly.
-          - directives: runtime_tracing,runtimestats
           # Windows defaults to the arena allocator, so this row builds the
           # classic pool there, as PonyUses.cmake requires for every entry in
           # its Windows allowlist.
@@ -231,7 +219,7 @@ jobs:
           LIBS_TAG: ${{ hashFiles('lib/CMakePresets.json', 'CMakeLists.txt', 'lib/CMakeLists.txt', 'lib/build-libs.cmake', 'lib/llvm/patches/*') }}
         run: python .ci-scripts/libs-cache/resolve_libs_cache.py --branch-cache --platform windows-2025-vs2026 --tag "$env:LIBS_TAG" '--' cmake -DPRESET=libs-windows-x86-64 -DJOBS=4 -P lib/build-libs.cmake
       - name: Configure
-        # Quote the arg: a matrix value with a comma (e.g. runtime_tracing,runtimestats)
+        # Quote the arg: a matrix value with a comma (e.g. pool_classic,pool_retain)
         # is otherwise parsed by pwsh as an array and breaks the command.
         run: cmake --preset windows-x86-64 "-DPONY_USES=${{ matrix.directives }}"
       - name: Build Debug Runtime

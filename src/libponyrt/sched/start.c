@@ -39,7 +39,6 @@ typedef struct options_t
 #if defined(USE_SYSTEMATIC_TESTING)
   uint64_t systematic_testing_seed;
 #endif
-#if defined(USE_RUNTIME_TRACING)
   char* tracing_format;
   char* tracing_output;
   char* tracing_enabled_categories_patterns;
@@ -48,7 +47,6 @@ typedef struct options_t
   size_t tracing_flight_recorder_events_size;
   bool tracing_flight_recorder_handle_term_int;
   bool pintracing;
-#endif
 } options_t;
 
 typedef enum running_kind_t
@@ -84,7 +82,6 @@ enum
 #if defined(USE_SYSTEMATIC_TESTING)
   OPT_SYSTEMATIC_TESTING_SEED,
 #endif
-#if defined(USE_RUNTIME_TRACING)
   OPT_TRACING_FORMAT,
   OPT_TRACING_OUTPUT,
   OPT_TRACING_ENABLED_CATEGORIES_PATTERNS,
@@ -93,7 +90,6 @@ enum
   OPT_TRACING_FLIGHT_RECORDER_EVENTS_SIZE,
   OPT_TRACING_FLIGHT_RECORDER_HANDLE_TERM_INT,
   OPT_PINTRACING,
-#endif
   OPT_PONYHELP
 };
 
@@ -118,7 +114,6 @@ static opt_arg_t args[] =
   {"ponysystematictestingseed", 0, OPT_ARG_REQUIRED, OPT_SYSTEMATIC_TESTING_SEED},
 #endif
   {"ponyhelp", 0, OPT_ARG_NONE, OPT_PONYHELP},
-#if defined(USE_RUNTIME_TRACING)
   {"ponytracingformat", 0, OPT_ARG_REQUIRED, OPT_TRACING_FORMAT},
   {"ponytracingoutput", 0, OPT_ARG_REQUIRED, OPT_TRACING_OUTPUT},
   {"ponytracingcategories", 0, OPT_ARG_REQUIRED, OPT_TRACING_ENABLED_CATEGORIES_PATTERNS},
@@ -127,7 +122,6 @@ static opt_arg_t args[] =
   {"ponytracingflightrecorderbuffer", 0, OPT_ARG_REQUIRED, OPT_TRACING_FLIGHT_RECORDER_EVENTS_SIZE},
   {"ponytracingflightrecorderhandletermint", 0, OPT_ARG_NONE, OPT_TRACING_FLIGHT_RECORDER_HANDLE_TERM_INT},
   {"ponypintracingthread", 0, OPT_ARG_NONE, OPT_PINTRACING},
-#endif
 
   OPT_ARGS_FINISH
 };
@@ -259,7 +253,6 @@ static int parse_opts(int argc, char** argv, options_t* opt)
       case OPT_SYSTEMATIC_TESTING_SEED: if(parse_uint64(&opt->systematic_testing_seed, 1, s.arg_val)) err_out(id, "can't be less than 1"); break;
 #endif
       case OPT_PONYHELP: opt->ponyhelp = true; break;
-#if defined(USE_RUNTIME_TRACING)
       case OPT_TRACING_FORMAT: opt->tracing_format = s.arg_val; break;
       case OPT_TRACING_OUTPUT: opt->tracing_output = s.arg_val; break;
       case OPT_TRACING_ENABLED_CATEGORIES_PATTERNS: opt->tracing_enabled_categories_patterns = s.arg_val; break;
@@ -268,7 +261,6 @@ static int parse_opts(int argc, char** argv, options_t* opt)
       case OPT_TRACING_FLIGHT_RECORDER_EVENTS_SIZE: if(parse_size(&opt->tracing_flight_recorder_events_size, 1, s.arg_val)) err_out(id, "can't be less than 1"); break;
       case OPT_TRACING_FLIGHT_RECORDER_HANDLE_TERM_INT: opt->tracing_flight_recorder_handle_term_int = true; break;
       case OPT_PINTRACING: opt->pintracing = true; break;
-#endif
 
       case -2:
         // an error message has been printed by ponyint_opt_next
@@ -317,7 +309,6 @@ PONY_API int pony_init(int argc, char** argv)
 #if defined(USE_SYSTEMATIC_TESTING)
   opt.systematic_testing_seed = 0;
 #endif
-#if defined(USE_RUNTIME_TRACING)
   opt.tracing_format = "json";
   opt.tracing_output = "ponytrace.json";
   opt.tracing_enabled_categories_patterns = "";
@@ -326,7 +317,6 @@ PONY_API int pony_init(int argc, char** argv)
   opt.tracing_flight_recorder_events_size = 16384;
   opt.tracing_flight_recorder_handle_term_int = false;
   opt.pintracing = false;
-#endif
 
   ponyint_register_thread();
 
@@ -392,15 +382,9 @@ PONY_API int pony_init(int argc, char** argv)
 
   pony_exitcode(0);
 
-#if defined(USE_RUNTIME_TRACING)
-  // initialize tracing backend before any threads/actors are created in case they generate tracing data..
   TRACING_INIT(opt.tracing_format, opt.tracing_output, opt.tracing_enabled_categories_patterns, opt.tracing_mode, opt.tracing_flight_recorder_events_size, opt.tracing_flight_recorder_handle_term_int, opt.tracing_force_actor_tracing);
 #define PIN_TRACING_CPU opt.pintracing
 #define TRACING_FORCE_CYCLE_DETECTOR_TRACING (strcmp(opt.tracing_force_actor_tracing, "cd_only") == 0)
-#else
-#define PIN_TRACING_CPU false
-#define TRACING_FORCE_CYCLE_DETECTOR_TRACING false
-#endif
 
   pony_ctx_t* ctx = ponyint_sched_init(opt.threads, opt.noyield, opt.pin,
     opt.pinasio, opt.pinpat, opt.min_threads, opt.thread_suspend_threshold,

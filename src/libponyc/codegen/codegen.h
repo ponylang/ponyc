@@ -218,9 +218,7 @@ typedef struct compile_t
   LLVMTypeRef actor_pad;
   LLVMTypeRef trace_fn;
   LLVMTypeRef dispatch_fn;
-#if defined(USE_RUNTIME_TRACING)
   LLVMTypeRef get_behavior_name_fn;
-#endif
   LLVMTypeRef final_fn;
 
   compile_frame_t* frame;
