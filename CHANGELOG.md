@@ -36,6 +36,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Add health check warnings to PonyCheck ([PR #6128](https://github.com/ponylang/ponyc/pull/6128))
 - Add inacc_or_arg_mem to pony_send_done and pony_recv_done ([PR #6150](https://github.com/ponylang/ponyc/pull/6150))
 - Add regression persistence to PonyCheck ([PR #6154](https://github.com/ponylang/ponyc/pull/6154))
+- Optimize constant val array literals ([PR #6177](https://github.com/ponylang/ponyc/pull/6177))
 
 ### Changed
 
