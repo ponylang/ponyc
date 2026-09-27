@@ -573,6 +573,128 @@ LLVMValueRef gen_float(compile_t* c, ast_t* ast)
   return LLVMConstReal(c_t->primitive, ast_float(ast));
 }
 
+LLVMValueRef gen_array_const(compile_t* c, ast_t* recover)
+{
+  ast_t* body = ast_childidx(recover, 1);
+  ast_t* seq = ast_child(body);
+
+  // Get the Array[T] type from the recover node (which has cap val).
+  deferred_reification_t* reify = c->frame->reify;
+  ast_t* array_type = deferred_reify(reify, ast_type(recover), c->opt);
+
+  reach_type_t* t = reach_type(c->reach, array_type, c->opt);
+  compile_type_t* c_t = (compile_type_t*)t->c_type;
+
+  // Extract the element type T from Array[T].
+  ast_t* typeargs = ast_childidx(array_type, 2);
+  ast_t* elem_type = ast_child(typeargs);
+  reach_type_t* elem_t = reach_type(c->reach, elem_type, c->opt);
+  compile_type_t* elem_c_t = (compile_type_t*)elem_t->c_type;
+  LLVMTypeRef elem_llvm_type = elem_c_t->primitive;
+
+  // Count elements: every TK_CALL child of the TK_SEQ after the first
+  // child (the TK_ASSIGN) and before the last (the TK_REFERENCE) is a
+  // push() call.
+  size_t count = 0;
+  ast_t* child = ast_sibling(ast_child(seq));
+  while(child != NULL && ast_id(child) == TK_CALL)
+  {
+    count++;
+    child = ast_sibling(child);
+  }
+
+  LLVMValueRef* elements =
+    (LLVMValueRef*)ponyint_pool_alloc_size(count * sizeof(LLVMValueRef));
+
+  size_t i = 0;
+  child = ast_sibling(ast_child(seq));
+  while(child != NULL && ast_id(child) == TK_CALL)
+  {
+    // TK_CALL → child(1) TK_POSITIONALARGS → child(0) TK_SEQ → child(0)
+    ast_t* pos_args = ast_childidx(child, 1);
+    ast_t* arg_seq = ast_child(pos_args);
+    ast_t* lit = ast_child(arg_seq);
+
+    switch(ast_id(lit))
+    {
+      case TK_INT:
+      {
+        lexint_t* value = ast_int(lit);
+        if((elem_llvm_type == c->f32) || (elem_llvm_type == c->f64))
+        {
+          double d = (double)value->high * 18446744073709551616.0
+            + (double)value->low;
+          elements[i] = LLVMConstReal(elem_llvm_type, d);
+        }
+        else if(elem_llvm_type == c->i128)
+        {
+          uint64_t words[2] = { value->low, value->high };
+          elements[i] = LLVMConstIntOfArbitraryPrecision(c->i128, 2, words);
+        }
+        else
+        {
+          elements[i] = LLVMConstInt(elem_llvm_type, value->low, false);
+        }
+        break;
+      }
+
+      case TK_FLOAT:
+        elements[i] = LLVMConstReal(elem_llvm_type, ast_float(lit));
+        break;
+
+      case TK_TRUE:
+        elements[i] = LLVMConstInt(elem_llvm_type, 1, false);
+        break;
+
+      case TK_FALSE:
+        elements[i] = LLVMConstInt(elem_llvm_type, 0, false);
+        break;
+
+      default:
+        pony_assert(0);
+        break;
+    }
+    i++;
+    child = ast_sibling(child);
+  }
+
+  pony_assert(i == count);
+
+  LLVMValueRef const_data =
+    LLVMConstArray(elem_llvm_type, elements, (unsigned)count);
+  LLVMTypeRef data_type = LLVMArrayType(elem_llvm_type, (unsigned)count);
+  LLVMValueRef g_data = LLVMAddGlobal(c->module, data_type, "");
+  LLVMSetLinkage(g_data, LLVMPrivateLinkage);
+  LLVMSetInitializer(g_data, const_data);
+  LLVMSetGlobalConstant(g_data, true);
+  LLVMSetUnnamedAddr(g_data, true);
+
+  ponyint_pool_free_size(count * sizeof(LLVMValueRef), elements);
+
+  LLVMValueRef gep_indices[2];
+  gep_indices[0] = LLVMConstInt(c->i32, 0, false);
+  gep_indices[1] = LLVMConstInt(c->i32, 0, false);
+  LLVMValueRef data_ptr =
+    LLVMConstInBoundsGEP2(data_type, g_data, gep_indices, 2);
+
+  // Build the Array struct: {descriptor, _size, _alloc, _ptr}.
+  LLVMValueRef args[4];
+  args[0] = codegen_resolve_global(c, c_t->desc);
+  args[1] = LLVMConstInt(c->intptr, count, false);
+  args[2] = LLVMConstInt(c->intptr, count, false);
+  args[3] = data_ptr;
+
+  LLVMValueRef inst = LLVMConstNamedStruct(c_t->structure, args, 4);
+  LLVMValueRef g_inst = LLVMAddGlobal(c->module, c_t->structure, "");
+  LLVMSetInitializer(g_inst, inst);
+  LLVMSetGlobalConstant(g_inst, true);
+  LLVMSetLinkage(g_inst, LLVMPrivateLinkage);
+  LLVMSetUnnamedAddr(g_inst, true);
+
+  ast_free_unattached(array_type);
+  return g_inst;
+}
+
 LLVMValueRef gen_string(compile_t* c, ast_t* ast)
 {
   const char* name = ast_name(ast);

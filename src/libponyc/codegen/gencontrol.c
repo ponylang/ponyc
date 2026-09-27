@@ -3,6 +3,7 @@
 #include "genexpr.h"
 #include "genfun.h"
 #include "genname.h"
+#include "genreference.h"
 #include "../pass/expr.h"
 #include "../type/subtype.h"
 #include "../../libponyrt/mem/pool.h"
@@ -500,8 +501,24 @@ LLVMValueRef gen_repeat(compile_t* c, ast_t* ast)
 
 LLVMValueRef gen_recover(compile_t* c, ast_t* ast)
 {
+  ast_t* cap = ast_child(ast);
   ast_t* body = ast_childidx(ast, 1);
-  LLVMValueRef ret = gen_expr(c, body);
+
+  // When the body is a single constant array literal inside a val recover,
+  // emit it as a global constant in the data section — the same approach
+  // gen_string() uses for string literals.
+  ast_t* sole_child = ast_child(body);
+  LLVMValueRef ret;
+  if((sole_child != NULL) && (ast_sibling(sole_child) == NULL) &&
+     ast_checkflag(sole_child, AST_FLAG_CONST_ARRAY) &&
+     (ast_id(cap) == TK_VAL))
+  {
+    ret = gen_array_const(c, ast);
+  }
+  else
+  {
+    ret = gen_expr(c, body);
+  }
 
   if(ret == GEN_NOVALUE)
     return GEN_NOVALUE;

@@ -564,6 +564,23 @@ bool expr_array(pass_opt_t* opt, ast_t** astp)
     ast_free_unattached(aliasable_type);
   }
 
+  // When every element is a constant literal of a machine-word type, codegen
+  // can emit the array as a single global constant instead of N push() calls.
+  bool const_array = (size > 0) && is_machine_word(type);
+  if(const_array)
+  {
+    for(ast_t* ele = ast_child(elements); ele != NULL; ele = ast_sibling(ele))
+    {
+      token_id id = ast_id(ele);
+      if((id != TK_INT) && (id != TK_FLOAT) &&
+         (id != TK_TRUE) && (id != TK_FALSE))
+      {
+        const_array = false;
+        break;
+      }
+    }
+  }
+
   // Desugar the literal to a flat sequence that fills the array through a temp
   // local:
   //   (let $array = Array[T].create(N); $array.push(e1); ...; $array)
@@ -630,6 +647,9 @@ bool expr_array(pass_opt_t* opt, ast_t** astp)
     ast_add_sibling(last, array_ref);
 
     ast_replace(astp, seq);
+
+    if(const_array)
+      ast_setflag(*astp, AST_FLAG_CONST_ARRAY);
   }
 
   // Run the front-end passes over the spliced-in nodes. The already-processed
