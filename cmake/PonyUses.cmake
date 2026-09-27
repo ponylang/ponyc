@@ -43,7 +43,6 @@ set(_pony_known_uses
     pool_memalign
     pool_classic
     pool_retain
-    runtime_tracing
     reach_instrument)
 
 # The subset of the above that Windows (MSVC) accepts. See the MSVC check
@@ -60,7 +59,6 @@ set(_pony_windows_uses
     pooltrack
     runtimestats
     runtimestats_messages
-    runtime_tracing
     reach_instrument)
 
 # Reset every option off before applying PONY_USES.
@@ -141,7 +139,10 @@ foreach(_use IN LISTS _pony_uses)
     elseif(_use STREQUAL "pool_retain")
         _pony_set_use(POOL_RETAIN ON)
     elseif(_use STREQUAL "runtime_tracing")
-        _pony_set_use(RUNTIME_TRACING ON)
+        message(FATAL_ERROR
+            "runtime_tracing was removed: tracing is now always compiled in "
+            "and configured at startup via --ponytracingmode and related "
+            "flags. Drop it from PONY_USES.")
     elseif(_use STREQUAL "reach_instrument")
         _pony_set_use(REACH_INSTRUMENT ON)
     elseif(_use STREQUAL "scheduler_scaling_pthreads")

@@ -109,10 +109,8 @@ typedef const struct _pony_type_t
   uint32_t field_count;
   uint32_t field_offset;
   void* instance;
-  #if defined(USE_RUNTIME_TRACING)
   char* name;
   pony_behavior_name_fn get_behavior_name;
-  #endif
   pony_trace_fn trace;
   pony_dispatch_fn dispatch;
   pony_final_fn final;

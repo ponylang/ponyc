@@ -945,19 +945,18 @@ PONY_API void pony_sendv(pony_ctx_t* ctx, pony_actor_t* to, pony_msg_t* first,
   // The function takes a prebuilt chain instead of varargs because the latter
   // is expensive and very hard to optimise.
 
-#if defined(USE_RUNTIME_TRACING)
+  if(ponyint_tracing_enabled)
   {
     pony_msg_t* m = first;
 
     while(m != last)
     {
-      TRACING_ACTOR_BEHAVIOR_RUN_SCHEDULE(ctx->current, to, m, m->id);
+      ponyint_tracing_actor_behavior_run_schedule(ctx->current, to, m, m->id);
       m = atomic_load_explicit(&m->next, memory_order_relaxed);
     }
 
-    TRACING_ACTOR_BEHAVIOR_RUN_SCHEDULE(ctx->current, to, m, m->id);
+    ponyint_tracing_actor_behavior_run_schedule(ctx->current, to, m, m->id);
   }
-#endif
 
   pony_assert(well_formed_msg_chain(first, last));
 
@@ -983,19 +982,18 @@ PONY_API void pony_sendv_single(pony_ctx_t* ctx, pony_actor_t* to,
   // The function takes a prebuilt chain instead of varargs because the latter
   // is expensive and very hard to optimise.
 
-#if defined(USE_RUNTIME_TRACING)
+  if(ponyint_tracing_enabled)
   {
     pony_msg_t* m = first;
 
     while(m != last)
     {
-      TRACING_ACTOR_BEHAVIOR_RUN_SCHEDULE(ctx->current, to, m, m->id);
+      ponyint_tracing_actor_behavior_run_schedule(ctx->current, to, m, m->id);
       m = atomic_load_explicit(&m->next, memory_order_relaxed);
     }
 
-    TRACING_ACTOR_BEHAVIOR_RUN_SCHEDULE(ctx->current, to, m, m->id);
+    ponyint_tracing_actor_behavior_run_schedule(ctx->current, to, m, m->id);
   }
-#endif
 
   pony_assert(well_formed_msg_chain(first, last));
 
@@ -1199,7 +1197,6 @@ void ponyint_become(pony_ctx_t* ctx, pony_actor_t* actor)
   ctx->current = actor;
 }
 
-#ifdef USE_RUNTIME_TRACING
 void ponyint_cycle_detector_enable_tracing(pony_actor_t* actor)
 {
   pony_assert(ponyint_is_cycle(actor));
@@ -1207,8 +1204,6 @@ void ponyint_cycle_detector_enable_tracing(pony_actor_t* actor)
   TRACING_ACTOR_TRACING_ENABLED(actor);
 }
 
-// TODO: expose these properly via runtime_tracing package/pony API
-//       can be called direcly via c-ffi from pony for now
 bool ponyint_actor_tracing_enabled(pony_actor_t* actor)
 {
   return has_internal_flag(actor, ACTOR_FLAG_TRACE);
@@ -1227,7 +1222,6 @@ void ponyint_actor_disable_tracing()
   unset_internal_flag(actor, ACTOR_FLAG_TRACE);
   TRACING_ACTOR_TRACING_DISABLED(actor);
 }
-#endif
 
 PONY_API void pony_apply_backpressure()
 {

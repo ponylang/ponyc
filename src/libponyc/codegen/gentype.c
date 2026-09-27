@@ -338,7 +338,6 @@ static void make_global_instance(compile_t* c, reach_type_t* t)
   LLVMSetLinkage(c_t->instance, LLVMExternalLinkage);
 }
 
-#if defined(USE_RUNTIME_TRACING)
 static void make_get_behavior_name(compile_t* c, reach_type_t* t)
 {
   // Do nothing if we're not an actor.
@@ -370,7 +369,6 @@ static void make_get_behavior_name(compile_t* c, reach_type_t* t)
 
   codegen_finishfun(c);
 }
-#endif
 
 static void make_dispatch(compile_t* c, reach_type_t* t)
 {
@@ -798,9 +796,7 @@ bool gentypes(compile_t* c)
     make_debug_info(c, t);
     make_box_type(c, t);
     make_dispatch(c, t);
-#if defined(USE_RUNTIME_TRACING)
     make_get_behavior_name(c, t);
-#endif
     gentrace_prototype(c, t);
   }
 

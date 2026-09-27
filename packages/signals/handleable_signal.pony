@@ -16,9 +16,10 @@ primitive HandleableSignalValidator is Validator[U32]
   internals, and musl the three lowest). Such a refusal surfaces through
   the normal failure path — the notify's `registration_failed` is called
   and the handler is automatically disposed.
-  Diagnostic runtime builds (`use=runtime_tracing`) additionally reserve a
-  pause signal — SIGRTMIN on Linux, SIGINFO on BSD and macOS — and
-  handling that signal in such a build breaks runtime tracing.
+
+  The runtime reserves a pause signal for tracing — SIGRTMIN on Linux,
+  SIGINFO on BSD and macOS — and handling that signal breaks runtime
+  tracing.
   """
   fun apply(sig: U32): ValidationResult =>
     """

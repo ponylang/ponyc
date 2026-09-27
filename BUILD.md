@@ -206,7 +206,7 @@ Note that you only need to run `cmake -P lib/build-libs.cmake` once the first ti
 
 ### Unsupported Windows build options
 
-Several `use=` build options aren't supported on Windows (MSVC). The supported ones are `systematic_testing`, `pool_classic`, `pool_retain`, `pooltrack`, `runtimestats`, `runtimestats_messages`, and `runtime_tracing`. The rest depend on POSIX interfaces or Clang/GCC toolchain features MSVC doesn't provide: `pool_memalign` needs `posix_memalign`, the sanitizers and `coverage` need the Clang/GCC `-fsanitize=`/`-fprofile-arcs` interfaces. `cmake --preset windows-x86-64 -DPONY_USES=...` rejects the unsupported options with a clear error rather than failing partway through the build.
+Several `use=` build options aren't supported on Windows (MSVC). The supported ones are `systematic_testing`, `pool_classic`, `pool_retain`, `pooltrack`, `runtimestats`, and `runtimestats_messages`. The rest depend on POSIX interfaces or Clang/GCC toolchain features MSVC doesn't provide: `pool_memalign` needs `posix_memalign`, the sanitizers and `coverage` need the Clang/GCC `-fsanitize=`/`-fprofile-arcs` interfaces. `cmake --preset windows-x86-64 -DPONY_USES=...` rejects the unsupported options with a clear error rather than failing partway through the build.
 
 Supported doesn't mean each one builds alone: `pool_retain` and `pooltrack` need `pool_classic` alongside them, on Windows as on every other platform. See the runtime allocator section below.
 

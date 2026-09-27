@@ -20,12 +20,10 @@ const char* genname_trace(const char* type, strtable_t* strtab);
 
 const char* genname_dispatch(const char* type, strtable_t* strtab);
 
-#if defined(USE_RUNTIME_TRACING)
 const char* genname_get_behavior_name(const char* type, strtable_t* strtab);
 
 const char* genname_behavior_name(const char* type, const char* name,
   strtable_t* strtab);
-#endif
 
 const char* genname_descriptor(const char* type, strtable_t* strtab);
 
