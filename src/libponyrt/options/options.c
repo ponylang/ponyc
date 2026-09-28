@@ -130,7 +130,7 @@ static void parse_long_opt_arg(opt_state_t* s)
     s->arg_val = s->opt_end + 1;
     s->opt_start += strlen(s->opt_start);
   }
-  else if(s->argv[s->idx + 1][0] != '-')
+  else if(s->argv[s->idx + 1][0] != '-' || s->argv[s->idx + 1][1] == '\0')
   {
     s->arg_val = s->argv[s->idx + 1];
     s->opt_start += strlen(s->opt_start);

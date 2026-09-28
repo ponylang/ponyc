@@ -23,8 +23,8 @@
   "                   defaults to: json\n" \
   "  --ponytracingoutput\n" \
   "                   Output file for tracing in file mode. Valid options are:\n" \
-  "                       - - stdout\n" \
-  "                       ~ - stderr\n" \
+  "                       '-' - stdout\n" \
+  "                       '~' - stderr\n" \
   "                       <STRING> - filename/path to write to\n" \
   "                   defaults to: ponytrace.json\n" \
   "  --ponytracingcategories\n" \
