@@ -18,3 +18,10 @@ The `pony_type_t` struct layout changed: `name` and `get_behavior_name` fields a
 
 Programs that registered a `SignalHandler` for one of these signals will now get a `ValidationFailure` from `MakeHandleableSignal` instead of silently replacing the runtime's handler.
 
+## Fix ARM64 Windows LTO crash
+
+Building ponyc from source on ARM64 Windows crashed during LTO linking with an access violation in LLVM's type legalizer. MSVC generates incorrect ARM64 machine code for functions in this pass. The vendored LLVM libraries are now built with clang-cl on this platform.
+
+## Build vendored LLVM libraries with clang-cl on ARM64 Windows
+
+The vendored LLVM libraries on ARM64 Windows are now built with clang-cl instead of MSVC. If you build ponyc from source on ARM64 Windows, install the "C++ Clang Compiler for Windows" component in your Visual Studio installation — it is not part of the default "Desktop Development with C++" workload.

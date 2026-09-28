@@ -53,6 +53,13 @@ endif()
 
 # Libraries
 
+# The MSVC generator injects /EHsc (C++ exceptions) into the default CXX flags
+# for MSVC proper, but not for clang-cl. Pass it explicitly so sub-builds that
+# use exceptions (Google Benchmark's test suite) compile under clang-cl.
+if(MSVC AND CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+    set(PONY_PIC_FLAG "/EHsc")
+endif()
+
 set(PONYC_GBENCHMARK_URL https://github.com/google/benchmark/archive/v1.9.5.tar.gz)
 ExternalProject_Add(gbenchmark
     URL ${PONYC_GBENCHMARK_URL}
