@@ -25,6 +25,9 @@ bool ponyint_tracing_enabled = false;
 #  if defined(__GLIBC__) || defined(PLATFORM_IS_BSD) || defined(ALPINE_LINUX) || defined(PLATFORM_IS_MACOSX)
 #    include <execinfo.h>
 #  endif
+#  if defined(PLATFORM_IS_FREEBSD) || defined(PLATFORM_IS_DRAGONFLY)
+#    include <pthread_np.h>
+#  endif
 #endif
 
 #define PONY_TRACING_THREAD_INDEX -998
@@ -1300,8 +1303,12 @@ void ponyint_tracing_thread_start(scheduler_t* sched)
   this_tracing_scheduler->tid = (uint64_t)GetCurrentThreadId();
 #elif defined(PLATFORM_IS_LINUX)
   this_tracing_scheduler->tid = gettid();
-#else
+#elif defined(PLATFORM_IS_MACOSX)
   pthread_threadid_np(NULL, &this_tracing_scheduler->tid);
+#elif defined(PLATFORM_IS_OPENBSD)
+  this_tracing_scheduler->tid = (uint64_t)getthrid();
+#elif defined(PLATFORM_IS_BSD)
+  this_tracing_scheduler->tid = (uint64_t)pthread_getthreadid_np();
 #endif
 
   if(flight_recorder_enabled)
@@ -3014,7 +3021,7 @@ static void handle_message(pony_msg_t* msg)
 
 #if defined(PLATFORM_IS_WINDOWS)
       fprintf(stderr, "\nFatal signal encountered: %s\n", sig_name);
-#elif defined(PLATFORM_IS_MACOSX)
+#elif defined(PLATFORM_IS_MACOSX) || defined(PLATFORM_IS_OPENBSD)
       psignal(m->siginfo->si_signo, "\nFatal signal encountered");
 #else
       psiginfo(m->siginfo, "\nFatal signal encountered");
