@@ -198,11 +198,21 @@ cmake --preset windows-x86-64
 cmake --build --preset windows-x86-64-release
 ```
 
-The Visual Studio generator is multi-config, so one `cmake --preset windows-x86-64` configures the build and you pick debug or release at build time: `cmake --build --preset windows-x86-64-debug` or `windows-x86-64-release`. On an arm64 host use the `windows-arm64` presets and `-DPRESET=libs-windows-arm64`.
+The Visual Studio generator is multi-config, so one `cmake --preset windows-x86-64` configures the build and you pick debug or release at build time: `cmake --build --preset windows-x86-64-debug` or `windows-x86-64-release`.
 
 Following building, to make `ponyc.exe` globally available, add it to your `PATH` either by using Advanced System Settings->Environment Variables to extend `PATH` or by using the `setx` command, e.g. `setx PATH "%PATH%;<ponyc repo>\build\release"`
 
 Note that you only need to run `cmake -P lib/build-libs.cmake` once the first time you build (or if the version of LLVM in the `lib/llvm/src` Git submodule changes).
+
+### ARM64 Windows
+
+On an ARM64 host, use the `windows-arm64` presets and `-DPRESET=libs-windows-arm64`. The LLVM libs build uses clang-cl on this platform; install the **C++ Clang Compiler for Windows** component in Visual Studio (it is not included in the default `Desktop Development with C++` workload).
+
+```powershell
+cmake -DPRESET=libs-windows-arm64 -P lib/build-libs.cmake
+cmake --preset windows-arm64
+cmake --build --preset windows-arm64-release
+```
 
 ### Unsupported Windows build options
 
