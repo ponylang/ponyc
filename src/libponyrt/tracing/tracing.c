@@ -681,6 +681,10 @@ static uint64_t get_time_nanos()
   clock_gettime(CLOCK_MONOTONIC, &ts);
   return (ts.tv_sec * 1000000000) + (ts.tv_nsec);
 #   endif
+#elif defined PLATFORM_IS_RISCV
+  struct timespec ts;
+  clock_gettime(CLOCK_MONOTONIC_RAW, &ts);
+  return (ts.tv_sec * 1000000000) + (ts.tv_nsec);
 #endif
 }
 
