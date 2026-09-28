@@ -7,6 +7,7 @@ All notable changes to the Pony compiler and standard library will be documented
 ### Fixed
 
 - Fix ARM64 Windows LTO crash caused by MSVC miscompilation of LLVM ([PR #6189](https://github.com/ponylang/ponyc/pull/6189))
+- Fix compiling with runtime tracing on the BSDs ([PR #6192](https://github.com/ponylang/ponyc/pull/6192))
 
 ### Added
 
