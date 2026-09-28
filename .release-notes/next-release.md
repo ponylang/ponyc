@@ -25,3 +25,7 @@ Building ponyc from source on ARM64 Windows crashed during LTO linking with an a
 ## Build vendored LLVM libraries with clang-cl on ARM64 Windows
 
 The vendored LLVM libraries on ARM64 Windows are now built with clang-cl instead of MSVC. If you build ponyc from source on ARM64 Windows, install the "C++ Clang Compiler for Windows" component in your Visual Studio installation — it is not part of the default "Desktop Development with C++" workload.
+## Fix compiling with runtime tracing on the BSDs
+
+Compiling with runtime tracing on the BSDs failed because no one had ever tried before and noticed that it didn't work. FreeBSD, OpenBSD and Dragonfly have all been fixed.
+
