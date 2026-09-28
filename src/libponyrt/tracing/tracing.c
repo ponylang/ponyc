@@ -782,9 +782,11 @@ static void flight_recorder_dump_signal_handler(int sig, siginfo_t* siginfo, voi
       // something went wrong in the tracing thread dump process.
       char* strsig = strsignal(sig);
       char* msg = "Flight recorder dump timed out.\n Exiting program without waiting for it to complete.\n Signal encountered: ";
-      write(1, msg, strlen(msg));
-      write(1, strsig, strlen(strsig));
-      write(1, "\n", 1);
+      ssize_t ign;
+      ign = write(1, msg, strlen(msg));
+      ign = write(1, strsig, strlen(strsig));
+      ign = write(1, "\n", 1);
+      (void)ign;
     }
 
     // reset the signal handler to the default for this signal type so that the
