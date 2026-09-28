@@ -2,6 +2,7 @@ use "collections"
 use "files"
 use "itertools"
 use "pony_test"
+use "runtime_info"
 
 use "../pony_compiler"
 
@@ -656,7 +657,10 @@ class \nodoc\ _ParallelCompilerTest is UnitTest
         FileAuth(h.env.root),
         Path.join(
           Path.dir(__loc.file()), "constructs"))
-    for i in Range(0, 10) do
+    let count =
+      Scheduler.schedulers(
+        SchedulerInfoAuth(h.env.root)).usize().max(2)
+    for i in Range(0, count) do
       let token: String val = i.string()
       h.expect_action(token)
       ParallelCompiler.create(
