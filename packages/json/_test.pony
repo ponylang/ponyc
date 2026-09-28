@@ -1,5 +1,4 @@
 use "pony_test"
-use "pony_check"
 
 actor \nodoc\ Main is TestList
   new create(env: Env) =>
@@ -9,23 +8,21 @@ actor \nodoc\ Main is TestList
 
   fun tag tests(test: PonyTest) =>
     // Property tests
-    test(Property1UnitTest[I64](_ArrayPushApplyProperty))
-    test(Property1UnitTest[I64](_ArrayPushPopProperty))
-    test(Property1UnitTest[USize](_ArraySizeProperty))
-    test(Property1UnitTest[F64](_F64RoundtripProperty))
-    test(Property1UnitTest[String](_FilterSafetyProperty))
-    test(Property1UnitTest[(String, String)](
-      _FunctionCountLengthEquivalenceProperty))
-    test(Property1UnitTest[(String, String)](
-      _FunctionMatchImpliesSearchProperty))
-    test(Property1UnitTest[(String, String)](_FunctionSafetyProperty))
-    test(Property1UnitTest[I64](_I64RoundtripProperty))
-    test(Property1UnitTest[String](_JSONPathSafetyProperty))
-    test(Property1UnitTest[String](_ObjectRemoveProperty))
-    test(Property1UnitTest[(String, String)](_ObjectSizeProperty))
-    test(Property1UnitTest[(String, I64)](_ObjectUpdateApplyProperty))
-    test(Property1UnitTest[String](_ParsePrintRoundtripProperty))
-    test(Property1UnitTest[String](_StringEscapeRoundtripProperty))
+    test.property(_ArrayPushApplyProperty)
+    test.property(_ArrayPushPopProperty)
+    test.property(_ArraySizeProperty)
+    test.property(_F64RoundtripProperty)
+    test.property(_FilterSafetyProperty)
+    test.property(_FunctionCountLengthEquivalenceProperty)
+    test.property(_FunctionMatchImpliesSearchProperty)
+    test.property(_FunctionSafetyProperty)
+    test.property(_I64RoundtripProperty)
+    test.property(_JSONPathSafetyProperty)
+    test.property(_ObjectRemoveProperty)
+    test.property(_ObjectSizeProperty)
+    test.property(_ObjectUpdateApplyProperty)
+    test.property(_ParsePrintRoundtripProperty)
+    test.property(_StringEscapeRoundtripProperty)
     // Example tests
     test(_TestArrayUpdate)
     test(_TestJSONPathFilterAbsoluteQuery)
@@ -114,8 +111,8 @@ actor \nodoc\ Main is TestList
     test(_TestStreamReentrancyGuarded)
     test(_TestStreamZeroCopyView)
     test(_TestStreamLargeChunked)
-    test(Property1UnitTest[String](_StreamMatchesBatchProperty))
-    test(Property1UnitTest[String](_StreamSplitInvariantProperty))
+    test.property(_StreamMatchesBatchProperty)
+    test.property(_StreamSplitInvariantProperty)
 
 // ===================================================================
 // Generators
@@ -245,7 +242,7 @@ primitive \nodoc\ _JSONValueStringGen
 // ===================================================================
 // Property Tests — Roundtrip
 // ===================================================================
-class \nodoc\ iso _ParsePrintRoundtripProperty is Property1[String]
+class \nodoc\ iso _ParsePrintRoundtripProperty is Property[String]
   fun name(): String => "json/roundtrip/compact"
 
   fun gen(): Generator[String] =>
@@ -268,7 +265,7 @@ class \nodoc\ iso _ParsePrintRoundtripProperty is Property1[String]
       ph.fail("Initial parse failed for: " + sample + " — " + e.string())
     end
 
-class \nodoc\ iso _I64RoundtripProperty is Property1[I64]
+class \nodoc\ iso _I64RoundtripProperty is Property[I64]
   fun name(): String => "json/roundtrip/i64"
 
   fun gen(): Generator[I64] =>
@@ -290,7 +287,7 @@ class \nodoc\ iso _I64RoundtripProperty is Property1[I64]
       ph.fail("Parse failed for: " + s + " — " + e.string())
     end
 
-class \nodoc\ iso _F64RoundtripProperty is Property1[F64]
+class \nodoc\ iso _F64RoundtripProperty is Property[F64]
   fun name(): String => "json/roundtrip/f64"
 
   fun params(): PropertyParams =>
@@ -333,7 +330,7 @@ class \nodoc\ iso _F64RoundtripProperty is Property1[F64]
         " printed=" + s + " — " + e.string())
     end
 
-class \nodoc\ iso _StringEscapeRoundtripProperty is Property1[String]
+class \nodoc\ iso _StringEscapeRoundtripProperty is Property[String]
   fun name(): String => "json/roundtrip/string-escape"
 
   fun gen(): Generator[String] =>
@@ -359,7 +356,7 @@ class \nodoc\ iso _StringEscapeRoundtripProperty is Property1[String]
 // ===================================================================
 // Property Tests — JSONObject
 // ===================================================================
-class \nodoc\ iso _ObjectUpdateApplyProperty is Property1[(String, I64)]
+class \nodoc\ iso _ObjectUpdateApplyProperty is Property[(String, I64)]
   fun name(): String => "json/object/update-apply"
 
   fun gen(): Generator[(String, I64)] =>
@@ -373,7 +370,7 @@ class \nodoc\ iso _ObjectUpdateApplyProperty is Property1[(String, I64)]
     let got = obj(key)? as I64
     ph.assert_eq[I64](value, got)
 
-class \nodoc\ iso _ObjectRemoveProperty is Property1[String]
+class \nodoc\ iso _ObjectRemoveProperty is Property[String]
   fun name(): String => "json/object/remove"
 
   fun gen(): Generator[String] =>
@@ -385,7 +382,7 @@ class \nodoc\ iso _ObjectRemoveProperty is Property1[String]
     let removed = obj.remove(sample)
     ph.assert_false(removed.contains(sample))
 
-class \nodoc\ iso _ObjectSizeProperty is Property1[(String, String)]
+class \nodoc\ iso _ObjectSizeProperty is Property[(String, String)]
   fun name(): String => "json/object/size"
 
   fun gen(): Generator[(String, String)] =>
@@ -414,7 +411,7 @@ class \nodoc\ iso _ObjectSizeProperty is Property1[(String, String)]
 // ===================================================================
 // Property Tests — JSONArray
 // ===================================================================
-class \nodoc\ iso _ArrayPushApplyProperty is Property1[I64]
+class \nodoc\ iso _ArrayPushApplyProperty is Property[I64]
   fun name(): String => "json/array/push-apply"
 
   fun gen(): Generator[I64] =>
@@ -425,7 +422,7 @@ class \nodoc\ iso _ArrayPushApplyProperty is Property1[I64]
     let got = arr(arr.size() - 1)? as I64
     ph.assert_eq[I64](sample, got)
 
-class \nodoc\ iso _ArrayPushPopProperty is Property1[I64]
+class \nodoc\ iso _ArrayPushPopProperty is Property[I64]
   fun name(): String => "json/array/push-pop"
 
   fun gen(): Generator[I64] =>
@@ -439,7 +436,7 @@ class \nodoc\ iso _ArrayPushPopProperty is Property1[I64]
     ph.assert_eq[I64](sample, got)
     ph.assert_eq[USize](base.size(), popped.size())
 
-class \nodoc\ iso _ArraySizeProperty is Property1[USize]
+class \nodoc\ iso _ArraySizeProperty is Property[USize]
   fun name(): String => "json/array/size"
 
   fun gen(): Generator[USize] =>
@@ -457,7 +454,7 @@ class \nodoc\ iso _ArraySizeProperty is Property1[USize]
 // ===================================================================
 // Property Tests — JSONPath Safety
 // ===================================================================
-class \nodoc\ iso _JSONPathSafetyProperty is Property1[String]
+class \nodoc\ iso _JSONPathSafetyProperty is Property[String]
   fun name(): String => "json/jsonpath/safety"
 
   fun gen(): Generator[String] =>
@@ -1828,7 +1825,7 @@ class \nodoc\ iso _TestTokenParserAbort is UnitTest
 // ===================================================================
 // Property Tests — JSONPath Filter Safety
 // ===================================================================
-class \nodoc\ iso _FilterSafetyProperty is Property1[String]
+class \nodoc\ iso _FilterSafetyProperty is Property[String]
   fun name(): String => "json/jsonpath/filter/safety"
 
   fun gen(): Generator[String] =>
@@ -1920,7 +1917,7 @@ primitive \nodoc\ _SafeIRegexpGen
     end
 
 class \nodoc\ iso _FunctionMatchImpliesSearchProperty
-  is Property1[(String, String)]
+  is Property[(String, String)]
   """
   If match(@.v, pattern) selects a node, search(@.v, pattern) must also
   select it. Full-string match is a special case of substring search.
@@ -1955,7 +1952,7 @@ class \nodoc\ iso _FunctionMatchImpliesSearchProperty
     end
 
 class \nodoc\ iso _FunctionCountLengthEquivalenceProperty
-  is Property1[(String, String)]
+  is Property[(String, String)]
   """
   For array values, count(@[*]) must equal length(@). These are two
   independent code paths that should agree on array cardinality.
@@ -1995,7 +1992,7 @@ class \nodoc\ iso _FunctionCountLengthEquivalenceProperty
     end
 
 class \nodoc\ iso _FunctionSafetyProperty
-  is Property1[(String, String)]
+  is Property[(String, String)]
   """
   Function extension paths with generated I-Regexp patterns must never
   crash, regardless of the JSON document or pattern content.

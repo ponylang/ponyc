@@ -45,10 +45,10 @@ if(NOT CMAKE_HOST_WIN32)
     list(APPEND _args --pic)
 endif()
 
-# PonyCheck regression persistence: store regression files in the source tree
-# so they can be committed, not in the build directory where make clean removes
-# them.
-set(ENV{PONYCHECK_DB_DIR} "${SOURCE_DIR}/.ponycheck/stdlib")
+# Property test regression persistence: store regression files in the source
+# tree so they can be committed, not in the build directory where make clean
+# removes them.
+set(ENV{PONYTEST_DB_DIR} "${SOURCE_DIR}/.ponytest/stdlib")
 
 # SSL tests reference assets/cert.pem and assets/key.pem relative to the
 # working directory. Copy the assets directory into WORKDIR so the test

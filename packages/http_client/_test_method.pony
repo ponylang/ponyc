@@ -1,6 +1,6 @@
-use "pony_check"
+use "pony_test"
 
-class \nodoc\ iso _PropertyValidMethodParsesCorrectly is Property1[String val]
+class \nodoc\ iso _PropertyValidMethodParsesCorrectly is Property[String val]
   fun name(): String => "method/valid_parse"
 
   fun gen(): Generator[String val] =>
@@ -16,7 +16,7 @@ class \nodoc\ iso _PropertyValidMethodParsesCorrectly is Property1[String val]
       ph.fail("valid method string should parse: " + arg1)
     end
 
-class \nodoc\ iso _PropertyInvalidMethodReturnsNone is Property1[String val]
+class \nodoc\ iso _PropertyInvalidMethodReturnsNone is Property[String val]
   fun name(): String => "method/invalid_returns_none"
 
   fun gen(): Generator[String val] =>
@@ -49,7 +49,7 @@ class \nodoc\ iso _PropertyInvalidMethodReturnsNone is Property1[String val]
       "invalid method string should not parse: " + arg1)
 
 class \nodoc\ iso _PropertyMethodParseBoundary
-  is Property1[(String val, Bool)]
+  is Property[(String val, Bool)]
   fun name(): String => "method/parse_boundary"
 
   fun gen(): Generator[(String val, Bool)] =>

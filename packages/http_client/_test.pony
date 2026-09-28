@@ -1,5 +1,4 @@
 use "pony_test"
-use "pony_check"
 
 actor \nodoc\ Main is TestList
   new create(env: Env) =>
@@ -10,32 +9,22 @@ actor \nodoc\ Main is TestList
 
   fun tag tests(test: PonyTest) =>
     // Method tests
-    test(Property1UnitTest[String val](_PropertyValidMethodParsesCorrectly))
-    test(Property1UnitTest[String val](_PropertyInvalidMethodReturnsNone))
-    test(Property1UnitTest[(String val, Bool)](
-      _PropertyMethodParseBoundary))
+    test.property(_PropertyValidMethodParsesCorrectly)
+    test.property(_PropertyInvalidMethodReturnsNone)
+    test.property(_PropertyMethodParseBoundary)
 
     // Headers tests
-    test(Property1UnitTest[(String val, String val)](
-      _PropertyHeadersCaseInsensitive))
-    test(Property1UnitTest[(String val, String val, String val)](
-      _PropertyHeadersSetReplaces))
-    test(Property1UnitTest[(String val, String val, String val)](
-      _PropertyHeadersAddPreserves))
+    test.property(_PropertyHeadersCaseInsensitive)
+    test.property(_PropertyHeadersSetReplaces)
+    test.property(_PropertyHeadersAddPreserves)
 
     // Parser property-based tests
-    test(Property1UnitTest[(U16, String val)](
-      _PropertyValidStatusLineParsesCorrectly))
-    test(Property1UnitTest[String val](
-      _PropertyInvalidStatusLineRejected))
-    test(Property1UnitTest[Array[(String val, String val)] ref](
-      _PropertyHeadersRoundtrip))
-    test(Property1UnitTest[USize](
-      _PropertyFixedBodyDelivered))
-    test(Property1UnitTest[Array[USize] ref](
-      _PropertyChunkedBodyDelivered))
-    test(Property1UnitTest[(String val, Bool)](
-      _PropertyStatusLineBoundary))
+    test.property(_PropertyValidStatusLineParsesCorrectly)
+    test.property(_PropertyInvalidStatusLineRejected)
+    test.property(_PropertyHeadersRoundtrip)
+    test.property(_PropertyFixedBodyDelivered)
+    test.property(_PropertyChunkedBodyDelivered)
+    test.property(_PropertyStatusLineBoundary)
 
     // Parser example-based tests
     test(_TestParserKnownGoodResponses)
@@ -61,14 +50,10 @@ actor \nodoc\ Main is TestList
     test(_TestMultiple1xx)
 
     // Serializer property-based tests
-    test(Property1UnitTest[String val](
-      _PropertySerializerContainsMethod))
-    test(Property1UnitTest[String val](
-      _PropertySerializerContainsPath))
-    test(Property1UnitTest[String val](
-      _PropertySerializerAutoHost))
-    test(Property1UnitTest[USize](
-      _PropertySerializerAutoContentLength))
+    test.property(_PropertySerializerContainsMethod)
+    test.property(_PropertySerializerContainsPath)
+    test.property(_PropertySerializerAutoHost)
+    test.property(_PropertySerializerAutoContentLength)
 
     // Serializer example-based tests
     test(_TestSerializerKnownGood)
@@ -79,10 +64,8 @@ actor \nodoc\ Main is TestList
     test(_TestSerializerNoBody)
 
     // Response collector property-based tests
-    test(Property1UnitTest[Array[USize] ref](
-      _PropertyCollectorChunkAccumulation))
-    test(Property1UnitTest[U16](
-      _PropertyCollectorPreservesResponseMetadata))
+    test.property(_PropertyCollectorChunkAccumulation)
+    test.property(_PropertyCollectorPreservesResponseMetadata)
 
     // Response collector example-based tests
     test(_TestCollectorBuildCorrectness)
@@ -91,14 +74,10 @@ actor \nodoc\ Main is TestList
     test(_TestCollectorBuildWithoutResponse)
 
     // Percent encoder property-based tests
-    test(Property1UnitTest[String val](
-      _PropertyQueryUnreservedPassthrough))
-    test(Property1UnitTest[U8](
-      _PropertyQueryReservedEncoded))
-    test(Property1UnitTest[USize](
-      _PropertyFormSpacesToPlus))
-    test(Property1UnitTest[(String val, String val)](
-      _PropertyQueryParamsRoundtrip))
+    test.property(_PropertyQueryUnreservedPassthrough)
+    test.property(_PropertyQueryReservedEncoded)
+    test.property(_PropertyFormSpacesToPlus)
+    test.property(_PropertyQueryParamsRoundtrip)
 
     // Percent encoder / query params example-based tests
     test(_TestQueryParamsKnownGood)
@@ -109,18 +88,15 @@ actor \nodoc\ Main is TestList
     test(_TestFormEncoderSpecialChars)
 
     // Auth property-based tests
-    test(Property1UnitTest[(String val, String val)](
-      _PropertyBasicAuthFormat))
-    test(Property1UnitTest[String val](
-      _PropertyBearerAuthFormat))
+    test.property(_PropertyBasicAuthFormat)
+    test.property(_PropertyBearerAuthFormat)
 
     // Auth example-based tests
     test(_TestBasicAuthKnownGood)
     test(_TestBearerAuthKnownGood)
 
     // Request builder property-based tests
-    test(Property1UnitTest[String val](
-      _PropertyBuilderMethodCorrect))
+    test.property(_PropertyBuilderMethodCorrect)
 
     // Request builder example-based tests
     test(_TestBuilderGetBasic)
@@ -141,11 +117,9 @@ actor \nodoc\ Main is TestList
     test(_TestResponseJSONEmptyBody)
 
     // JSON decoder property-based tests
-    test(Property1UnitTest[String val](
-      _PropertyDecodeJSONParseErrorPropagation))
-    test(Property1UnitTest[String val](
-      _PropertyDecodeJSONDecodeErrorPropagation))
-    test(Property1UnitTest[String val](_PropertyDecodeJSONIdentityDecoder))
+    test.property(_PropertyDecodeJSONParseErrorPropagation)
+    test.property(_PropertyDecodeJSONDecodeErrorPropagation)
+    test.property(_PropertyDecodeJSONIdentityDecoder)
 
     // JSON decoder example-based tests
     test(_TestJSONDecoderSuccessfulDecode)
@@ -157,7 +131,7 @@ actor \nodoc\ Main is TestList
     test(_TestJSONDecodeErrorString)
 
     // Multipart property-based tests
-    test(Property1UnitTest[USize](_PropertyMultipartBodyStructure))
+    test.property(_PropertyMultipartBodyStructure)
 
     // Multipart example-based tests
     test(_TestMultipartBoundaryFormat)
@@ -170,8 +144,7 @@ actor \nodoc\ Main is TestList
     test(_TestMultipartNonAsciiFilename)
 
     // Multipart escaping property-based tests
-    test(Property1UnitTest[String val](
-      _PropertyMultipartEscapedNamesWellFormed))
+    test.property(_PropertyMultipartEscapedNamesWellFormed)
 
     // Multipart escaping example-based tests
     test(_TestMultipartFieldNameWithQuote)
@@ -200,8 +173,7 @@ actor \nodoc\ Main is TestList
     test(_TestRedirectEmptyPathWithQuery)
     test(_TestRedirectEmptyHostRejected)
     test(_TestRedirectMixedCaseScheme)
-    test(Property1UnitTest[(U16, String val)](
-      _PropertyRedirectStripsCredentials))
+    test.property(_PropertyRedirectStripsCredentials)
 
     // Redirect follower tests
     test(_TestFollowerForwardsNonRedirect)

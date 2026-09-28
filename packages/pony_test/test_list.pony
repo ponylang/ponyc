@@ -12,6 +12,7 @@ trait TestList
     fun tests(test: PonyTest) =>
       test(_TestClass1)
       test(_TestClass2)
-      test(_TestClass3)
+      test.property(MyProperty)
+      test.stateful_property(MyStatefulProperty)
     ```
     """

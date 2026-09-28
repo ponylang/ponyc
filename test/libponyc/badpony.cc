@@ -2572,7 +2572,7 @@ TEST_F(BadPonyTest, MatchGenericCaptureFromAliasedUnion)
   // type is now seen as a TK_TYPEALIASREF rather than its expanded form,
   // and the soundness check must unfold the alias to find the ephemeral
   // member that makes the generic capture sound. This mirrors the failing
-  // pattern in pony_check's Generator.value_iter.
+  // pattern in pony_test's Generator.value_iter.
   const char* src =
     "type AliasedResult[T2] is (T2^ | (T2^, U32))\n"
 

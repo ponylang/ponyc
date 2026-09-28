@@ -1,5 +1,4 @@
 use "collections"
-use "pony_check"
 use "pony_test"
 use "time"
 
@@ -12,27 +11,27 @@ actor \nodoc\ Main is TestList
     test(_TestIterAll)
     test(_TestIterAny)
     test(_TestIterChain)
-    test(Property1UnitTest[Array[USize]](_IterChainProperty))
+    test.property(_IterChainProperty)
     test(_TestIterChainDeepPath)
     test(_TestIterCollect)
     test(_TestIterCount)
     test(_TestIterCycle)
     test(_TestIterDedup)
-    test(Property1UnitTest[Array[USize]](_IterDedupProperty))
+    test.property(_IterDedupProperty)
     test(_TestIterDedupDeepPath)
     test(_TestIterDedupEdgeCases)
     test(_TestIterEnum)
     test(_TestIterFilter)
-    test(Property1UnitTest[Array[USize]](_IterFilterProperty))
+    test.property(_IterFilterProperty)
     test(_TestIterFilterDeepPath)
     test(_TestIterFilterEdgeCases)
     test(_TestIterFilterMap)
-    test(Property1UnitTest[Array[USize]](_IterFilterMapProperty))
+    test.property(_IterFilterMapProperty)
     test(_TestIterFilterMapDeepPath)
     test(_TestIterFilterMapEdgeCases)
     test(_TestIterFind)
     test(_TestIterFlatMap)
-    test(Property1UnitTest[Array[USize]](_IterFlatMapProperty))
+    test.property(_IterFlatMapProperty)
     test(_TestIterFlatMapDeepPath)
     test(_TestIterFold)
     test(_TestIterInterleave)
@@ -51,7 +50,7 @@ actor \nodoc\ Main is TestList
     test(_TestIterTake)
     test(_TestIterTakeWhile)
     test(_TestIterUnique)
-    test(Property1UnitTest[Array[USize]](_IterUniqueProperty))
+    test.property(_IterUniqueProperty)
     test(_TestIterUniqueDeepPath)
     test(_TestIterUniqueEdgeCases)
     test(_TestIterZip)
@@ -658,7 +657,7 @@ class \nodoc\ iso _TestIterZip is UnitTest
     h.assert_array_eq[I32](expected4, actual4)
     h.assert_array_eq[USize](expected5, actual5)
 
-class \nodoc\ iso _IterChainProperty is Property1[Array[USize]]
+class \nodoc\ iso _IterChainProperty is Property[Array[USize]]
   fun name(): String => "itertools/Iter.chain (property)"
 
   fun gen(): Generator[Array[USize]] =>
@@ -681,7 +680,7 @@ class \nodoc\ iso _IterChainProperty is Property1[Array[USize]]
         .collect(Array[USize])
     h.assert_array_eq[USize](input, result)
 
-class \nodoc\ iso _IterDedupProperty is Property1[Array[USize]]
+class \nodoc\ iso _IterDedupProperty is Property[Array[USize]]
   fun name(): String => "itertools/Iter.dedup (property)"
 
   fun gen(): Generator[Array[USize]] =>
@@ -714,7 +713,7 @@ class \nodoc\ iso _IterDedupProperty is Property1[Array[USize]]
       last = v
     end
 
-class \nodoc\ iso _IterFilterProperty is Property1[Array[USize]]
+class \nodoc\ iso _IterFilterProperty is Property[Array[USize]]
   fun name(): String => "itertools/Iter.filter (property)"
 
   fun gen(): Generator[Array[USize]] =>
@@ -731,7 +730,7 @@ class \nodoc\ iso _IterFilterProperty is Property1[Array[USize]]
         .collect(Array[USize])
     h.assert_array_eq[USize](expected, actual)
 
-class \nodoc\ iso _IterFilterMapProperty is Property1[Array[USize]]
+class \nodoc\ iso _IterFilterMapProperty is Property[Array[USize]]
   fun name(): String => "itertools/Iter.filter_map (property)"
 
   fun gen(): Generator[Array[USize]] =>
@@ -750,7 +749,7 @@ class \nodoc\ iso _IterFilterMapProperty is Property1[Array[USize]]
         .collect(Array[USize])
     h.assert_array_eq[USize](expected, actual)
 
-class \nodoc\ iso _IterFlatMapProperty is Property1[Array[USize]]
+class \nodoc\ iso _IterFlatMapProperty is Property[Array[USize]]
   fun name(): String => "itertools/Iter.flat_map (property)"
 
   fun gen(): Generator[Array[USize]] =>
@@ -767,7 +766,7 @@ class \nodoc\ iso _IterFlatMapProperty is Property1[Array[USize]]
         .collect(Array[USize])
     h.assert_array_eq[USize](expected, actual)
 
-class \nodoc\ iso _IterUniqueProperty is Property1[Array[USize]]
+class \nodoc\ iso _IterUniqueProperty is Property[Array[USize]]
   fun name(): String => "itertools/Iter.unique (property)"
 
   fun gen(): Generator[Array[USize]] =>

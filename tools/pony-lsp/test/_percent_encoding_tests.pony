@@ -1,4 +1,3 @@
-use "pony_check"
 use "pony_test"
 use ".."
 
@@ -142,11 +141,10 @@ class \nodoc\ iso _PercentEncodingRoundTripPropertyTest is UnitTest
   fun name(): String => "percent_encoding/round_trip/property"
 
   fun apply(h: TestHelper) ? =>
-    PonyCheck.for_all[String](
+    h.for_all[String](
       recover val
         Generators.byte_string(Generators.u8(1, 255), 0, 30)
-      end,
-      h)(
+      end)(
       {(s: String, ph: PropertyHelper) =>
         ph.assert_eq[String](
           s,

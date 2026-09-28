@@ -1,5 +1,4 @@
 use "pony_test"
-use "pony_check"
 
 actor \nodoc\ Main is TestList
   new create(env: Env) =>
@@ -15,9 +14,9 @@ actor \nodoc\ Main is TestList
     test(_TestPctEncodeMultibyteUtf8)
     test(_TestPctEncodeExistingTriplets)
     test(_TestPctEncodeMixedContent)
-    test(Property1UnitTest[String](_TestPctEncodePropertyUnreserved))
-    test(Property1UnitTest[String](_TestPctEncodePropertyRoundtrip))
-    test(Property1UnitTest[String](_TestPctEncodePropertyReservedSuperset))
+    test.property(_TestPctEncodePropertyUnreserved)
+    test.property(_TestPctEncodePropertyRoundtrip)
+    test.property(_TestPctEncodePropertyReservedSuperset)
 
     // URI template expansion — RFC 6570 test vectors
     test(_TestSimpleExpansion)
@@ -51,12 +50,11 @@ actor \nodoc\ Main is TestList
     test(_TestPrefixUnicode)
 
     // Property-based tests
-    test(Property1UnitTest[String](_TestPropertyNoBracesInExpansion))
-    test(Property1UnitTest[String](_TestPropertyUnreservedPassthrough))
-    test(Property1UnitTest[String](_TestPropertyValidTemplatesParse))
-    test(Property1UnitTest[String](_TestPropertyInvalidTemplatesFail))
-    test(Property1UnitTest[(String, Bool)](
-      _TestPropertyMixedTemplates))
+    test.property(_TestPropertyNoBracesInExpansion)
+    test.property(_TestPropertyUnreservedPassthrough)
+    test.property(_TestPropertyValidTemplatesParse)
+    test.property(_TestPropertyInvalidTemplatesFail)
+    test.property(_TestPropertyMixedTemplates)
 
     // Builder tests
     test(_TestBuilderSimpleExpansion)
@@ -64,5 +62,5 @@ actor \nodoc\ Main is TestList
     test(_TestBuilderInvalidTemplate)
     test(_TestBuilderEmptyVars)
     test(_TestBuilderChaining)
-    test(Property1UnitTest[String](_TestPropertyBuilderMatchesExpand))
-    test(Property1UnitTest[String](_TestPropertyBuilderInvalidFails))
+    test.property(_TestPropertyBuilderMatchesExpand)
+    test.property(_TestPropertyBuilderInvalidFails)

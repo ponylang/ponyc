@@ -1,4 +1,4 @@
-use "pony_check"
+use "pony_test"
 use @pony_exitcode[None](code: I32)
 
 // Regression test for https://github.com/ponylang/ponyc/issues/4838

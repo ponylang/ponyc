@@ -1,8 +1,7 @@
 use "pony_test"
-use "pony_check"
 
 class \nodoc\ iso _PropertyFormURLEncodedRoundtrip
-  is Property1[Array[(String val, String val)] val]
+  is Property[Array[(String val, String val)] val]
   """
   Generated key-value pairs serialized as `k=v&k2=v2` parse back to
   matching pairs.
@@ -65,7 +64,7 @@ class \nodoc\ iso _PropertyFormURLEncodedRoundtrip
       ph.fail("roundtrip parse failed")
     end
 
-class \nodoc\ iso _PropertyFormURLEncodedPlusDecodes is Property1[String val]
+class \nodoc\ iso _PropertyFormURLEncodedPlusDecodes is Property[String val]
   """`+` in query values decodes as space."""
   fun name(): String => "uri/form_urlencoded/plus_decodes"
 
@@ -91,7 +90,7 @@ class \nodoc\ iso _PropertyFormURLEncodedPlusDecodes is Property1[String val]
     end
 
 class \nodoc\ iso _PropertyFormURLEncodedInvalidRejected
-  is Property1[String val]
+  is Property[String val]
   """Strings with invalid percent-encoding produce errors."""
   fun name(): String => "uri/form_urlencoded/invalid_rejected"
 

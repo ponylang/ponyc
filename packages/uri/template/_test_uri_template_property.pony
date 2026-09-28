@@ -1,7 +1,6 @@
 use "pony_test"
-use "pony_check"
 
-class \nodoc\ iso _TestPropertyNoBracesInExpansion is Property1[String]
+class \nodoc\ iso _TestPropertyNoBracesInExpansion is Property[String]
   """Property: expansion output contains no raw braces."""
   fun name(): String => "uri/template/property: no braces in expansion"
 
@@ -29,7 +28,7 @@ class \nodoc\ iso _TestPropertyNoBracesInExpansion is Property1[String]
         " error: " + err.string())
     end
 
-class \nodoc\ iso _TestPropertyUnreservedPassthrough is Property1[String]
+class \nodoc\ iso _TestPropertyUnreservedPassthrough is Property[String]
   """Property: unreserved values in simple expansion pass through unchanged."""
   fun name(): String =>
     "uri/template/property: unreserved value passthrough"
@@ -48,7 +47,7 @@ class \nodoc\ iso _TestPropertyUnreservedPassthrough is Property1[String]
       h.fail("failed to parse {x}")
     end
 
-class \nodoc\ iso _TestPropertyValidTemplatesParse is Property1[String]
+class \nodoc\ iso _TestPropertyValidTemplatesParse is Property[String]
   """Property: valid generated templates always parse successfully."""
   fun name(): String => "uri/template/property: valid templates parse"
 
@@ -63,7 +62,7 @@ class \nodoc\ iso _TestPropertyValidTemplatesParse is Property1[String]
         "' error: " + err.string())
     end
 
-class \nodoc\ iso _TestPropertyInvalidTemplatesFail is Property1[String]
+class \nodoc\ iso _TestPropertyInvalidTemplatesFail is Property[String]
   """Property: invalid generated templates always fail to parse."""
   fun name(): String => "uri/template/property: invalid templates fail"
 
@@ -77,7 +76,7 @@ class \nodoc\ iso _TestPropertyInvalidTemplatesFail is Property1[String]
     | let _: URITemplateParseError => None
     end
 
-class \nodoc\ iso _TestPropertyMixedTemplates is Property1[(String, Bool)]
+class \nodoc\ iso _TestPropertyMixedTemplates is Property[(String, Bool)]
   """
   Property: mixed valid/invalid templates succeed iff they're the valid variant.
   """

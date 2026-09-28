@@ -1,7 +1,6 @@
 use "pony_test"
-use "pony_check"
 
-class \nodoc\ iso _PropertyPathSegmentCount is Property1[String val]
+class \nodoc\ iso _PropertyPathSegmentCount is Property[String val]
   """
   PathSegments count equals the number of `/`-delimited parts in a valid path.
   """
@@ -28,7 +27,7 @@ class \nodoc\ iso _PropertyPathSegmentCount is Property1[String val]
       ph.fail("unexpected error for: " + arg1)
     end
 
-class \nodoc\ iso _PropertyPathSegmentRoundtrip is Property1[String val]
+class \nodoc\ iso _PropertyPathSegmentRoundtrip is Property[String val]
   """
   Percent-encoding segments and joining with `/` reconstructs a path that
   produces the same segments when re-parsed.
@@ -76,7 +75,7 @@ class \nodoc\ iso _PropertyPathSegmentRoundtrip is Property1[String val]
     end
 
 class \nodoc\ iso _PropertyPathSegmentInvalidRejected
-  is Property1[String val]
+  is Property[String val]
   """Paths with invalid percent-encoding produce InvalidPercentEncoding."""
   fun name(): String => "uri/path_segments/invalid_rejected"
 

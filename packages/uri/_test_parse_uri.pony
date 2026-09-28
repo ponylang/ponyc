@@ -1,7 +1,6 @@
 use "pony_test"
-use "pony_check"
 
-class \nodoc\ iso _PropertyURIRoundtrip is Property1[_ValidURIInput]
+class \nodoc\ iso _PropertyURIRoundtrip is Property[_ValidURIInput]
   """
   For generated valid URIs, ParseURI(uri.string()) produces an equal URI.
   """
@@ -29,7 +28,7 @@ class \nodoc\ iso _PropertyURIRoundtrip is Property1[_ValidURIInput]
         " error: " + err.string())
     end
 
-class \nodoc\ iso _PropertyInvalidSchemeRejected is Property1[String val]
+class \nodoc\ iso _PropertyInvalidSchemeRejected is Property[String val]
   """
   Invalid schemes (starting with digit, containing illegal chars) produce
   InvalidScheme.
@@ -57,7 +56,7 @@ class \nodoc\ iso _PropertyInvalidSchemeRejected is Property1[String val]
         u.scheme is None,
         "expected no scheme for: " + arg1)
     | let err: URIParseError val =>
-      ph.assert_true(true) // error is also acceptable
+      None // error is also acceptable
     end
 
 class \nodoc\ iso _TestParseURIKnownGood is UnitTest
@@ -352,7 +351,7 @@ class \nodoc\ val _ValidURIInput
 
 primitive \nodoc\ _ValidURIInputGenerator
   fun apply(): Generator[_ValidURIInput] =>
-    // PonyCheck has map4 max, so we combine scheme+authority into one
+    // Generators has map4 max, so we combine scheme+authority into one
     // generator via map2, then compose with path, query, fragment.
     Generators.map4[
       (String val | None, URIAuthority val | None),

@@ -1,5 +1,4 @@
 use "pony_test"
-use "pony_check"
 use mut = "collections"
 
 actor \nodoc\ Main is TestList
@@ -41,18 +40,17 @@ actor \nodoc\ Main is TestList
     test(_TestVecRemoveOverrun)
     test(_TestVecReverse)
     test(_TestVecSlice)
-    test(Property1UnitTest[Array[USize]](_ListIteratorsProperty))
-    test(Property1UnitTest[(Array[USize], Array[USize], USize)](
-      _ListLawsProperty))
-    test(Property1UnitTest[(USize, Array[_ListAction])](_ListModelProperty))
-    test(Property1UnitTest[Array[_MapAction]](_MapIteratorsProperty))
-    test(Property1UnitTest[(USize, Array[_MapAction])](_MapModelProperty))
-    test(Property1UnitTest[Array[_MapAction]](_MapStructureProperty))
-    test(Property1UnitTest[(Array[USize], USize)](_VecFindContainsProperty))
-    test(Property1UnitTest[Array[USize]](_VecIteratorsProperty))
-    test(Property1UnitTest[(Array[USize], USize, USize)](_VecLawsProperty))
-    test(Property1UnitTest[(USize, Array[_VecAction])](_VecModelProperty))
-    test(Property1UnitTest[(USize, Array[_VecAction])](_VecStructureProperty))
+    test.property(_ListIteratorsProperty)
+    test.property(_ListLawsProperty)
+    test.property(_ListModelProperty)
+    test.property(_MapIteratorsProperty)
+    test.property(_MapModelProperty)
+    test.property(_MapStructureProperty)
+    test.property(_VecFindContainsProperty)
+    test.property(_VecIteratorsProperty)
+    test.property(_VecLawsProperty)
+    test.property(_VecModelProperty)
+    test.property(_VecStructureProperty)
 
 class \nodoc\ iso _TestListPrepend is UnitTest
   fun name(): String => "collections/persistent/List (prepend)"
@@ -781,7 +779,7 @@ primitive \nodoc\ _ListCheck
     end
     (out, false)
 
-class \nodoc\ iso _ListModelProperty is Property1[(USize, Array[_ListAction])]
+class \nodoc\ iso _ListModelProperty is Property[(USize, Array[_ListAction])]
   """
   Apply a generated sequence of operations to a `List` and to an `Array` used
   as a model, then check that the two hold the same elements.
@@ -875,7 +873,7 @@ class \nodoc\ iso _ListModelProperty is Property1[(USize, Array[_ListAction])]
     end
 
 class \nodoc\ iso _ListLawsProperty
-  is Property1[(Array[USize], Array[USize], USize)]
+  is Property[(Array[USize], Array[USize], USize)]
   """
   Laws that relate the operations to each other, each of which must hold for
   any list.
@@ -972,7 +970,7 @@ class \nodoc\ iso _ListLawsProperty
     h.assert_array_eq[USize](
       xs, _ListCheck.contents(Lists[USize](xs)), "Lists.apply")
 
-class \nodoc\ iso _ListIteratorsProperty is Property1[Array[USize]]
+class \nodoc\ iso _ListIteratorsProperty is Property[Array[USize]]
   """
   `values()` agrees with reading the list through `head` and `tail`, keeps the
   `Iterator` contract, and leaves the list it came from alone.
@@ -1098,7 +1096,7 @@ primitive \nodoc\ _VecCheck
     end
     out
 
-class \nodoc\ iso _VecModelProperty is Property1[(USize, Array[_VecAction])]
+class \nodoc\ iso _VecModelProperty is Property[(USize, Array[_VecAction])]
   """
   Apply a generated sequence of operations to a `Vec` and to an `Array` used as
   a model, then check that the two hold the same elements.
@@ -1170,7 +1168,7 @@ class \nodoc\ iso _VecModelProperty is Property1[(USize, Array[_VecAction])]
     h.assert_array_eq[USize](
       model, _VecCheck.contents(v), "contents, config " + config.string())
 
-class \nodoc\ iso _VecLawsProperty is Property1[(Array[USize], USize, USize)]
+class \nodoc\ iso _VecLawsProperty is Property[(Array[USize], USize, USize)]
   """
   Laws that relate the operations to each other, each of which must hold for
   any vector.
@@ -1216,7 +1214,7 @@ class \nodoc\ iso _VecLawsProperty is Property1[(Array[USize], USize, USize)]
       _VecCheck.contents(v.slice(0, k).concat(v.slice(k).values())),
       "slice . concat")
 
-class \nodoc\ iso _VecIteratorsProperty is Property1[Array[USize]]
+class \nodoc\ iso _VecIteratorsProperty is Property[Array[USize]]
   """
   The three iterators agree with `apply`, with each other, and leave the vector
   they were created from alone.
@@ -1252,7 +1250,7 @@ class \nodoc\ iso _VecIteratorsProperty is Property1[Array[USize]]
     // the iterators consume a copy of the leaf nodes, not the vector
     h.assert_array_eq[USize](arg1, _VecCheck.contents(v), "source after iteration")
 
-class \nodoc\ iso _VecFindContainsProperty is Property1[(Array[USize], USize)]
+class \nodoc\ iso _VecFindContainsProperty is Property[(Array[USize], USize)]
   """
   `find` and `contains` agree with a scan of the elements, including which
   appearance `nth` selects and where `offset` starts.
@@ -1434,7 +1432,7 @@ primitive \nodoc\ _VecShape
     for _ in mut.Range(0, depth) do cap = cap * 32 end
     cap
 
-class \nodoc\ iso _VecStructureProperty is Property1[(USize, Array[_VecAction])]
+class \nodoc\ iso _VecStructureProperty is Property[(USize, Array[_VecAction])]
   """
   The trie's shape after every operation, checked against the invariants the
   vector code maintains rather than against what a read returns.
@@ -1677,8 +1675,8 @@ class \nodoc\ val _MapAction is Stringable
 
   A class rather than a tuple so that a failing sample prints the operations
   that produced it. An array of tuples is not `ReadSeq[Stringable]`, so
-  PonyCheck reports it as a digest, which for a map says nothing about which
-  keys were involved.
+  the property test framework reports it as a digest, which
+  for a map says nothing about which keys were involved.
   """
   let op: U8
   let seed: U64
@@ -1753,7 +1751,7 @@ primitive \nodoc\ _MapCheck
     end
     (out, false)
 
-class \nodoc\ iso _MapModelProperty is Property1[(USize, Array[_MapAction])]
+class \nodoc\ iso _MapModelProperty is Property[(USize, Array[_MapAction])]
   """
   Apply a generated sequence of operations to a persistent map and to a
   mutable map used as a model, then check that the two hold the same pairs.
@@ -1888,7 +1886,7 @@ class \nodoc\ iso _MapModelProperty is Property1[(USize, Array[_MapAction])]
       seen.set(k)
     end
 
-class \nodoc\ iso _MapIteratorsProperty is Property1[Array[_MapAction]]
+class \nodoc\ iso _MapIteratorsProperty is Property[Array[_MapAction]]
   """
   The three iterators agree with `apply`, agree with each other, and report
   exhaustion honestly. Driven through `has_next` and `next` directly, because
@@ -2125,7 +2123,7 @@ primitive \nodoc\ _MapShape
     end
     (found, "")
 
-class \nodoc\ iso _MapStructureProperty is Property1[Array[_MapAction]]
+class \nodoc\ iso _MapStructureProperty is Property[Array[_MapAction]]
   """
   The trie's shape after every operation, checked against the invariants the
   node code maintains rather than against what a lookup returns.

@@ -1,7 +1,6 @@
 use "pony_test"
-use "pony_check"
 
-class \nodoc\ iso _PropertyPercentRoundtrip is Property1[String val]
+class \nodoc\ iso _PropertyPercentRoundtrip is Property[String val]
   """
   PercentDecode(PercentEncode(s, part)) roundtrips for arbitrary strings.
   Tests with URIPartPath as representative; the encode/decode cycle should
@@ -22,7 +21,7 @@ class \nodoc\ iso _PropertyPercentRoundtrip is Property1[String val]
     end
 
 class \nodoc\ iso _PropertyPercentEncodeOutputLegal
-  is Property1[String val]
+  is Property[String val]
   """
   PercentEncode output for path contains only RFC 3986-legal characters
   for the path component: unreserved, sub-delims, ':', '@', '/', and
@@ -98,7 +97,7 @@ class \nodoc\ iso _PropertyPercentEncodeOutputLegal
     end
 
 class \nodoc\ iso _PropertyInvalidPercentSequenceRejected
-  is Property1[String val]
+  is Property[String val]
   """
   Invalid percent sequences — truncated, non-hex digits — produce
   InvalidPercentEncoding.
@@ -132,7 +131,7 @@ class \nodoc\ iso _PropertyInvalidPercentSequenceRejected
     end
 
 class \nodoc\ iso _PropertyPercentDecodeBoundary
-  is Property1[(String val, Bool)]
+  is Property[(String val, Bool)]
   """
   Mixed valid/invalid generator — PercentDecode succeeds iff input is the
   valid variant.

@@ -1,5 +1,4 @@
 use "format"
-use "pony_check"
 use "pony_test"
 
 // ---------------------------------------------------------------------------
@@ -44,7 +43,7 @@ class \nodoc\ _TestResponseParserNotify is _ResponseParserNotify
 // Property-based tests
 // ---------------------------------------------------------------------------
 class \nodoc\ iso _PropertyValidStatusLineParsesCorrectly
-  is Property1[(U16, String val)]
+  is Property[(U16, String val)]
   """
   Valid (status, reason) pairs serialized as HTTP/1.1 status lines parse
   correctly, delivering response_received with matching values and then
@@ -84,7 +83,7 @@ class \nodoc\ iso _PropertyValidStatusLineParsesCorrectly
     end
 
 class \nodoc\ iso _PropertyInvalidStatusLineRejected
-  is Property1[String val]
+  is Property[String val]
   """
   Malformed status lines produce parse errors.
   """
@@ -121,7 +120,7 @@ class \nodoc\ iso _PropertyInvalidStatusLineRejected
       "should have 1 error for: " + arg1)
 
 class \nodoc\ iso _PropertyHeadersRoundtrip
-  is Property1[Array[(String val, String val)] ref]
+  is Property[Array[(String val, String val)] ref]
   """
   Headers in a response are correctly parsed and available in the
   delivered Headers collection.
@@ -182,7 +181,7 @@ class \nodoc\ iso _PropertyHeadersRoundtrip
     end
 
 class \nodoc\ iso _PropertyFixedBodyDelivered
-  is Property1[USize]
+  is Property[USize]
   """
   Responses with Content-Length have their body delivered completely via
   body_chunk callbacks, followed by response_complete.
@@ -247,7 +246,7 @@ class \nodoc\ iso _PropertyFixedBodyDelivered
     end
 
 class \nodoc\ iso _PropertyChunkedBodyDelivered
-  is Property1[Array[USize] ref]
+  is Property[Array[USize] ref]
   """
   Chunked transfer encoding delivers the complete body and
   response_complete.
@@ -303,7 +302,7 @@ class \nodoc\ iso _PropertyChunkedBodyDelivered
       "total body size mismatch")
 
 class \nodoc\ iso _PropertyStatusLineBoundary
-  is Property1[(String val, Bool)]
+  is Property[(String val, Bool)]
   """
   Mixed valid/invalid status lines: valid ones produce response_received,
   invalid ones produce parse_error.

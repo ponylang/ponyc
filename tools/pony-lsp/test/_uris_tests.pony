@@ -1,4 +1,3 @@
-use "pony_check"
 use "pony_test"
 use ".."
 
@@ -209,11 +208,10 @@ class \nodoc\ iso _URIRoundTripPropertyTest is UnitTest
   fun name(): String => "uris/round_trip/property"
 
   fun apply(h: TestHelper) ? =>
-    PonyCheck.for_all[String](
+    h.for_all[String](
       recover val
         Generators.ascii(where from = 0, to = 30, range = ASCIIPrintable)
-      end,
-      h)(
+      end)(
       {(segment: String, ph: PropertyHelper) =>
         let cleaned = segment.clone()
         cleaned.remove("/")

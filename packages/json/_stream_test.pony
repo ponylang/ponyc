@@ -1,5 +1,4 @@
 use "pony_test"
-use "pony_check"
 
 primitive \nodoc\ _StreamHelp
   """Drives JSONTokenParser + JSONReassembler for the streaming tests."""
@@ -820,7 +819,7 @@ class \nodoc\ _IdCollector is JSONTokenNotify
       _want = false
     end
 
-class \nodoc\ iso _StreamMatchesBatchProperty is Property1[String]
+class \nodoc\ iso _StreamMatchesBatchProperty is Property[String]
   """Chunked token+reassembler yields the same value as the batch parser."""
   fun name(): String => "json/stream/property/matches-batch"
 
@@ -845,7 +844,7 @@ class \nodoc\ iso _StreamMatchesBatchProperty is Property1[String]
       ph.fail("batch failed on generated doc " + doc + ": " + e.string())
     end
 
-class \nodoc\ iso _StreamSplitInvariantProperty is Property1[String]
+class \nodoc\ iso _StreamSplitInvariantProperty is Property[String]
   """The result is identical no matter where the document is split."""
   fun name(): String => "json/stream/property/split-invariant"
 

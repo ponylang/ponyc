@@ -1,6 +1,5 @@
 use "files"
 use "pony_test"
-use "pony_check"
 use lint = ".."
 
 class \nodoc\ _TestSourceFileSplitPreservesContent is UnitTest
@@ -11,9 +10,9 @@ class \nodoc\ _TestSourceFileSplitPreservesContent is UnitTest
   fun name(): String => "SourceFile: splitting preserves content"
 
   fun apply(h: TestHelper) ? =>
-    PonyCheck.for_all[String](
+    h.for_all[String](
       recover val Generators.ascii(where from = 0, to = 200,
-        range = ASCIIPrintable) end, h)(
+        range = ASCIIPrintable) end)(
       {(content: String, ph: PropertyHelper) =>
         let stripped = content.clone()
         stripped.remove("\r")
@@ -28,8 +27,8 @@ class \nodoc\ _TestSourceFileNoCR is UnitTest
   fun name(): String => "SourceFile: no \\r in lines"
 
   fun apply(h: TestHelper) ? =>
-    PonyCheck.for_all[String](
-      recover val Generators.ascii(where from = 0, to = 200) end, h)(
+    h.for_all[String](
+      recover val Generators.ascii(where from = 0, to = 200) end)(
       {(content: String, ph: PropertyHelper) =>
         let sf = lint.SourceFile("/tmp/test.pony", content, "/tmp")
         for line in sf.lines.values() do
@@ -44,9 +43,9 @@ class \nodoc\ _TestSourceFileLineCount is UnitTest
   fun name(): String => "SourceFile: line count = newline count + 1"
 
   fun apply(h: TestHelper) ? =>
-    PonyCheck.for_all[String](
+    h.for_all[String](
       recover val Generators.ascii(where from = 0, to = 200,
-        range = ASCIIPrintable) end, h)(
+        range = ASCIIPrintable) end)(
       {(content: String, ph: PropertyHelper) =>
         let stripped = content.clone()
         stripped.remove("\r")
