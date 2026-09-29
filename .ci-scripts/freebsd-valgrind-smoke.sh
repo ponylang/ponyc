@@ -28,12 +28,12 @@ set -eu
 # debug build already present (the tier-3 job builds one, and the earlier smokes
 # leave their own). This script is self-contained: it rebuilds from scratch, so
 # it can run as its own CI step regardless of what came before.
-rm -rf build/build_debug
-cmake --preset debug -DPONY_USES=pool_classic,valgrind
+rm -rf build/build_x86-64-debug
+cmake --preset x86-64-debug -DPONY_USES=pool_classic,valgrind
 # The `cmake --build` below is itself the first assertion: it compiles ponyc with
 # the Valgrind-annotated runtime. A use=valgrind build that can't compile or
 # link fails here, at build time.
-cmake --build --preset debug
+cmake --build --preset x86-64-debug
 
 # The use options set PONY_OUTPUT_SUFFIX, so the build output lands in
 # build/debug-valgrind-pool_classic. Derive it rather than hardcoding (the
