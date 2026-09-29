@@ -15,6 +15,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Added
 
+- Add pluggable test result reporting ([PR #6206](https://github.com/ponylang/ponyc/pull/6206))
 
 ### Changed
 
