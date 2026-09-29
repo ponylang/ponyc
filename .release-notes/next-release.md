@@ -281,3 +281,7 @@ Two built-in reporters simplify meta-testing (running a sub-PonyTest within a te
 
 When a property used `classify`, `cover`, `tabulate`, or `collect` and had a stored regression, the regression replay sample's classifications were counted alongside the normal samples. The replay added to the classification numerator but not to the sample count denominator, so reported percentages exceeded 100% (e.g., 110.0% instead of 100.0% for a label that every sample carried).
 
+## Fix malformed documentation for constructors with generic-typed default values
+
+Generated documentation for constructors whose parameters had default values with type arguments — such as `Array[OptionSpec]()` — included the rest of the source file in the code block instead of just the constructor signature. The `CommandSpec.parent` and `CommandSpec.leaf` constructors in the `cli` package were the most visible example.
+
