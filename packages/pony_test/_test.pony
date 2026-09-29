@@ -229,9 +229,9 @@ actor \nodoc\ Main is TestList
 
 class \nodoc\ iso _TestListPreservesOrder is UnitTest
   """
-  --list without --shuffle prints test names in registration order.
+  Without --shuffle, tests complete in registration order.
   """
-  fun name(): String => "pony_test/list/preserves_order"
+  fun name(): String => "pony_test/dispatch/preserves_order"
 
   fun apply(h: TestHelper) =>
     h.long_test(2_000_000_000)
@@ -245,20 +245,19 @@ class \nodoc\ iso _TestListPreservesOrder is UnitTest
           test(_NamedTest("E"))
       end
     let expected = recover val ["A"; "B"; "C"; "D"; "E"] end
-    _RunList(h, ["test"; "--list"], list, expected)
+    let reporter = _CompletionOrderReporter(h, expected)
+    let env = _TestEnv(h, recover val ["test"; "--sequential"] end)
+    PonyTest(env, list, reporter)
 
 class \nodoc\ iso _TestShuffleVariesAcrossSeeds is UnitTest
   """
-  Across 10 different seeds, the shuffled test order varies. Each seed is run
-  through the full PonyTest code path (argument parsing, buffered dispatch,
-  shuffle, output) and the resulting orderings are collected. The test passes
-  when at least two orderings differ.
+  Across 10 different seeds, the shuffled test order varies. At least two
+  orderings must differ.
   """
   fun name(): String => "pony_test/shuffle/varies_across_seeds"
 
   fun apply(h: TestHelper) =>
     h.long_test(5_000_000_000)
-    let num_tests: USize = 10
     let num_seeds: USize = 10
     let collector = _MultiSeedCollector(h, num_seeds)
     var seed: U64 = 1
@@ -279,10 +278,11 @@ class \nodoc\ iso _TestShuffleVariesAcrossSeeds is UnitTest
         end
       let args =
         recover val
-          ["test"; "--list"; "--shuffle=" + seed.string()]
+          ["test"; "--sequential"; "--shuffle=" + seed.string()]
         end
-      let out = _PerSeedCollector(collector, num_tests + 1)
-      _RunListWith(h, args, list, out)
+      let reporter = _PerSeedReporter(collector)
+      let env = _TestEnv(h, args)
+      PonyTest(env, list, reporter)
       seed = seed + 1
     end
 
@@ -290,7 +290,7 @@ class \nodoc\ iso _TestListShuffleSeedZero is UnitTest
   """
   Seed 0 is valid and not confused with "no seed provided".
   """
-  fun name(): String => "pony_test/list/shuffle_seed_zero"
+  fun name(): String => "pony_test/shuffle/seed_zero"
 
   fun apply(h: TestHelper) =>
     h.long_test(2_000_000_000)
@@ -305,46 +305,29 @@ class \nodoc\ iso _TestListShuffleSeedZero is UnitTest
       end
     let expected =
       recover val
-        ["Test seed: 0"; "E"; "A"; "C"; "D"; "B"]
+        ["E"; "A"; "C"; "D"; "B"]
       end
-    _RunList(h, ["test"; "--list"; "--shuffle=0"], list, expected)
+    let reporter = _CompletionOrderReporter(h, expected)
+    let env =
+      _TestEnv(h, recover val ["test"; "--sequential"; "--shuffle=0"] end)
+    PonyTest(env, list, reporter)
 
 // ---------------------------------------------------------------------------
 // Test infrastructure
 // ---------------------------------------------------------------------------
-primitive \nodoc\ _RunList
+primitive \nodoc\ _TestEnv
   """
-  Create a PonyTest in --list mode with controlled args and verify its output.
+  Create a sandboxed Env for a sub-PonyTest with controlled arguments.
   """
-  fun apply(
-    h: TestHelper,
-    args: Array[String] val,
-    list: TestList tag,
-    expected: Array[String] val)
-  =>
-    let collector = _OutputCollector(h, expected, 1)
-    _RunListWith(h, args, list, collector)
-
-primitive \nodoc\ _RunListWith
-  """
-  Create a PonyTest in --list mode, sending output to the given collector.
-  """
-  fun apply(
-    h: TestHelper,
-    args: Array[String] val,
-    list: TestList tag,
-    collector: OutStream)
-  =>
-    let env =
-      Env.create(
-        h.env.root,
-        h.env.input,
-        collector,
-        h.env.err,
-        args,
-        h.env.vars,
-        {(code: I32) => None })
-    PonyTest(env, list)
+  fun apply(h: TestHelper, args: Array[String] val): Env =>
+    Env.create(
+      h.env.root,
+      h.env.input,
+      h.env.out,
+      h.env.err,
+      args,
+      h.env.vars,
+      {(code: I32) => None })
 
 class \nodoc\ iso _NamedTest is UnitTest
   """
@@ -356,51 +339,31 @@ class \nodoc\ iso _NamedTest is UnitTest
   fun name(): String => _name
   fun apply(h: TestHelper) => None
 
-actor \nodoc\ _OutputCollector is OutStream
+actor \nodoc\ _CompletionOrderReporter is TestReporter
   """
-  Captures print output from a PonyTest instance and verifies it against
-  expected lines. Supports multiple runs: _runs_remaining counts how many
-  complete sets of expected output must be received before signaling
-  completion. Each run must produce output identical to _expected.
+  Asserts that tests complete in the expected order.
   """
   let _h: TestHelper
   let _expected: Array[String] val
-  var _runs_remaining: USize
-  embed _received: Array[String] = Array[String]
+  embed _completion_order: Array[String] = Array[String]
 
-  new create(
-    h: TestHelper,
-    expected: Array[String] val,
-    runs: USize = 1)
-  =>
+  new create(h: TestHelper, expected: Array[String] val) =>
     _h = h
     _expected = expected
-    _runs_remaining = runs
 
-  be print(data: ByteSeq) =>
-    if _runs_remaining == 0 then return end
-    match \exhaustive\ data
-    | let s: String => _received.push(s)
-    | let a: Array[U8] val => _received.push(String.from_array(a))
-    end
-    if _received.size() == _expected.size() then
-      _h.assert_array_eq[String](_expected, _received)
-      _received.clear()
-      _runs_remaining = _runs_remaining - 1
-      if _runs_remaining == 0 then
-        _h.complete(true)
-      end
-    end
+  be test_started(name: String) => None
 
-  be write(data: ByteSeq) => None
-  be printv(data: ByteSeqIter) => None
-  be writev(data: ByteSeqIter) => None
-  be flush() => None
+  be test_complete(result: TestResult val) =>
+    _completion_order.push(result.name)
+
+  be testing_complete(results: Array[TestResult val] val) =>
+    _h.assert_array_eq[String](_expected, _completion_order)
+    _h.complete(true)
 
 actor \nodoc\ _MultiSeedCollector
   """
-  Collects shuffled test orders from multiple PonyTest runs (one per seed)
-  and verifies that at least two different orderings were produced.
+  Receives shuffled test orders from multiple seeds and verifies that at
+  least two orderings differ.
   """
   let _h: TestHelper
   let _total: USize
@@ -450,40 +413,26 @@ actor \nodoc\ _MultiSeedCollector
     end
     true
 
-actor \nodoc\ _PerSeedCollector is OutStream
+actor \nodoc\ _PerSeedReporter is TestReporter
   """
-  Captures output from a single --list --shuffle=SEED run. After receiving
-  all expected lines, strips the seed line and sends just the test name
-  ordering to the parent _MultiSeedCollector.
+  Delivers one seed's completion order to the parent _MultiSeedCollector.
   """
   let _parent: _MultiSeedCollector
-  let _expected_lines: USize
-  var _done: Bool = false
-  embed _received: Array[String] = Array[String]
+  embed _completion_order: Array[String] = Array[String]
 
-  new create(parent: _MultiSeedCollector, expected_lines: USize) =>
+  new create(parent: _MultiSeedCollector) =>
     _parent = parent
-    _expected_lines = expected_lines
 
-  be print(data: ByteSeq) =>
-    if _done then return end
-    match \exhaustive\ data
-    | let s: String => _received.push(s)
-    | let a: Array[U8] val => _received.push(String.from_array(a))
-    end
-    if _received.size() == _expected_lines then
-      _done = true
-      let order: Array[String] iso = recover iso Array[String] end
-      var i: USize = 1  // skip "Test seed: N" line
-      while i < _received.size() do
-        try order.push(_received(i)?) else _Unreachable() end
-        i = i + 1
-      end
-      _parent.receive(consume order)
-    end
+  be test_started(name: String) => None
 
-  be write(data: ByteSeq) => None
-  be printv(data: ByteSeqIter) => None
-  be writev(data: ByteSeqIter) => None
-  be flush() => None
+  be test_complete(result: TestResult val) =>
+    _completion_order.push(result.name)
+
+  be testing_complete(results: Array[TestResult val] val) =>
+    let sz = _completion_order.size()
+    let order = recover iso Array[String](sz) end
+    for n in _completion_order.values() do
+      order.push(n)
+    end
+    _parent.receive(consume order)
 
