@@ -347,6 +347,54 @@ class iso TempDirTest
     // do something inside the temporary directory
 ```
 
+## Custom reporters
+
+By default, PonyTest prints results to stdout. To receive structured results
+programmatically, pass a `TestReporter` to the `PonyTest` constructor.
+
+A `TestReporter` is any actor with three behaviours:
+
+- `test_started(name: String)` — a test began executing.
+- `test_complete(result: TestResult val)` — a test finished. `TestResult`
+  carries the test name, pass/fail status, and log messages. Results arrive
+  in completion order.
+- `testing_complete(results: Array[TestResult val] val)` — all tests
+  finished. The array is in registration order.
+
+```pony
+use "pony_test"
+
+actor MyReporter
+  be test_started(name: String) =>
+    // ...
+
+  be test_complete(result: TestResult val) =>
+    // ...
+
+  be testing_complete(results: Array[TestResult val] val) =>
+    // ...
+
+actor Main is TestList
+  new create(env: Env) =>
+    PonyTest(env, this, MyReporter)
+
+  new make() => None
+
+  fun tag tests(test: PonyTest) =>
+    test(_MyTest)
+```
+
+When a reporter is supplied, PonyTest does not set the process exit code.
+The reporter receives the results and the caller decides how to handle
+failures. Without a reporter, PonyTest calls `env.exitcode(-1)` when any
+test fails.
+
+Two built-in reporters simplify meta-testing (running a sub-PonyTest from
+within a test):
+
+- `PassReporter(h)` completes the outer `TestHelper` when all sub-tests pass.
+- `FailReporter(h)` completes the outer `TestHelper` when any sub-test fails.
+
 """
 
 use "random"
@@ -380,8 +428,8 @@ type _TestOrdering is (_InOrder | _Shuffled)
 
 actor PonyTest
   """
-  Main test framework actor that organises tests, collates information and
-  prints results.
+  Main test framework actor that organises tests, collates results,
+  and reports them.
   """
 
   embed _groups: Array[(String, _Group)] = Array[(String, _Group)]
@@ -390,6 +438,8 @@ actor PonyTest
   embed _list_names: Array[String] = Array[String]
   let _env: Env
   let _timers: Timers = Timers
+  var _reporter: TestReporter
+  let _has_custom_reporter: Bool
   var _ordering: _TestOrdering = _InOrder
   var _do_nothing: Bool = false
   var _verbose: Bool = false
@@ -405,13 +455,31 @@ actor PonyTest
   var _label: String = ""
   var _only: String = ""
 
-  new create(env: Env, list: TestList tag) =>
+  new create(
+    env: Env,
+    list: TestList tag,
+    reporter: (TestReporter | _StandardReporter) = _StandardReporter)
+  =>
     """
     Create a PonyTest object and use it to run the tests from the given
-    TestList
+    TestList.
+
+    An optional `reporter` receives structured test results. When
+    omitted, PonyTest uses the standard console output.
     """
     _env = env
+    _has_custom_reporter =
+      match reporter
+      | let _: TestReporter => true
+      else false
+      end
+    _reporter = _DefaultReporter(env.out, false, false)
     _process_opts()
+    _reporter =
+      match reporter
+      | let r: TestReporter => r
+      else _DefaultReporter(_env.out, _verbose, _no_prog)
+      end
     _groups.push(("", _SimultaneousGroup))
     @ponyint_assert_disable_popups()
     list.tests(this)
@@ -467,7 +535,7 @@ actor PonyTest
     end
 
     var index = _records.size()
-    _records.push(_TestRecord(_env, name))
+    _records.push(_TestRecord(name))
 
     var group = _find_group(test.exclusion_group())
     let runner =
@@ -508,47 +576,33 @@ actor PonyTest
 
   be _test_started(id: USize) =>
     """
-    A test has started running, update status info.
-    The id parameter is the test identifier handed out when we created the test
-    helper.
+    A test has started running. Updates status tracking and notifies
+    the reporter.
     """
     _started = _started + 1
 
     try
-      if not _no_prog then
-        _env.out.print(
-          _started.string() + " test" + _plural(_started) +
-            " started, " + _finished.string() + " complete: " +
-            _records(id)?.name + " started")
-      end
+      _reporter.test_started(_records(id)?.name)
     else
       _Unreachable()
     end
 
   be _test_complete(id: USize, pass: Bool, log: Array[String] val) =>
     """
-    A test has completed, restore its result and update our status info.
-    The id parameter is the test identifier handed out when we created the test
-    helper.
+    A test has completed. Records the result, updates status tracking,
+    and notifies the reporter.
     """
     _finished = _finished + 1
 
     try
       _records(id)?._result(pass, log)
-
-      if not _no_prog then
-        _env.out.print(
-          _started.string() + " test" + _plural(_started) +
-            " started, " + _finished.string() + " complete: " +
-            _records(id)?.name + " complete")
-      end
+      _reporter.test_complete(_records(id)?._to_result())
     else
       _Unreachable()
     end
 
     if _all_started and (_finished == _records.size()) then
-      // All tests have completed
-      _print_report()
+      _finish()
     end
 
   be _all_tests_applied() =>
@@ -593,8 +647,7 @@ actor PonyTest
 
     _all_started = true
     if _finished == _records.size() then
-      // All tests have completed
-      _print_report()
+      _finish()
     end
 
   fun ref _process_opts() =>
@@ -659,49 +712,21 @@ actor PonyTest
       end
     end
 
-  fun _print_report() =>
+  fun _finish() =>
     """
-    The tests are all complete, print out the results.
+    All tests have completed. Notifies the reporter and, absent a
+    custom reporter, sets a nonzero exit code on failure.
     """
-    var pass_count: USize = 0
+    let size = _records.size()
+    var results: Array[TestResult val] iso =
+      recover iso Array[TestResult val](size) end
     var fail_count: USize = 0
-
-    // First we print the result summary for each test, in the order that they
-    // were given to us.
     for rec in _records.values() do
-      if rec._report(_verbose) then
-        pass_count = pass_count + 1
-      else
-        fail_count = fail_count + 1
-      end
+      let r = rec._to_result()
+      if not r.passed then fail_count = fail_count + 1 end
+      results.push(r)
     end
-
-    // Next we print the pass / fail stats.
-    _env.out.print("----")
-    _env.out.print("---- " + _records.size().string() + " test" +
-      _plural(_records.size()) + " ran.")
-    _env.out.print(_Color.green() + "---- Passed: " + pass_count.string() +
-      _Color.reset())
-
-    if fail_count == 0 then
-      // Success, nothing failed.
-      return
+    _reporter.testing_complete(consume results)
+    if (fail_count > 0) and (not _has_custom_reporter) then
+      _env.exitcode(-1)
     end
-
-    // Not everything passed.
-    _env.out.print(_Color.red() + "**** FAILED: " + fail_count.string() +
-      " test" + _plural(fail_count) + ", listed below:" + _Color.reset())
-
-    // Finally print our list of failed tests.
-    for rec in _records.values() do
-      rec._list_failed()
-    end
-
-    _env.exitcode(-1)
-
-  fun _plural(n: USize): String =>
-    """
-    Return a "s" or an empty string depending on whether the given number is 1.
-    For use when printing possibly plural words, eg "test" or "tests".
-    """
-    if n == 1 then "" else "s" end
