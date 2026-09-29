@@ -285,3 +285,9 @@ When a property used `classify`, `cover`, `tabulate`, or `collect` and had a sto
 
 Generated documentation for constructors whose parameters had default values with type arguments — such as `Array[OptionSpec]()` — included the rest of the source file in the code block instead of just the constructor signature. The `CommandSpec.parent` and `CommandSpec.leaf` constructors in the `cli` package were the most visible example.
 
+## Fix multiple for_all calls sharing first property's timeout
+
+When a `UnitTest` called `for_all` more than once and each property called `long_test()`, only the first property's timeout took effect. The second and subsequent properties reused the first property's timer because `_TestRunner` did not reset its long-test state between queued properties.
+
+Each `for_all` property now gets its own independent timeout when it calls `long_test()`.
+
