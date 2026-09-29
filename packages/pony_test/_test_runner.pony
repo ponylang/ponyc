@@ -696,9 +696,15 @@ actor _TestRunner
       if _property_queue.size() > 0 then
         try
           let next = _property_queue.shift()?
+          for timer in _test_timers.values() do
+            _timers.cancel(timer)
+          end
+          _test_timers.clear()
+          _is_long_test = false
           _property_exec = consume next
           _prop_sample_id = 0
           _prop_sample_pass = true
+          _prop_actions.clear()
           _prop_disposables_base = _disposables.size()
           _property_phase = _SyncSampling
           _start_property_first_sample()
@@ -892,6 +898,11 @@ actor _TestRunner
     if _property_queue.size() > 0 then
       try
         let next = _property_queue.shift()?
+        for timer in _test_timers.values() do
+          _timers.cancel(timer)
+        end
+        _test_timers.clear()
+        _is_long_test = false
         _property_exec = consume next
         _prop_sample_id = 0
         _prop_sample_pass = true

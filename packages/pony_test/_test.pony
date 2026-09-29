@@ -196,6 +196,7 @@ actor \nodoc\ Main is TestList
     // Meta-tests (run a sub-PonyTest and verify its output)
     test(_AssertionOnlyFailTest)
     test(_AsyncPropertyTest)
+    test(_MultipleForAllAsyncTest)
     test(_AsyncFailingPropertyTest)
     test(_AsyncStatefulPropertyTest)
 
