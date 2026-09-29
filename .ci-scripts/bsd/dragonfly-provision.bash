@@ -84,7 +84,7 @@ echo "::endgroup::"
 echo "::group::Boot DragonFly BSD VM"
 qemu-system-x86_64 \
   -machine pc,accel=kvm \
-  -cpu host \
+  -cpu host,+invtsc \
   -smp 4 \
   -m 12G \
   -drive file="$VM_ARTIFACTS/dfly.qcow2",format=qcow2,if=virtio \
