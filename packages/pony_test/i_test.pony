@@ -114,7 +114,7 @@ class val TestHelper
       true
     else
       fail(_format_loc(loc) + "Assert no error failed. " + msg)
-      true
+      false
     end
 
   fun assert_is[A](
