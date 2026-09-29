@@ -220,8 +220,9 @@ actor \nodoc\ Main is TestList
     test(_AsyncFailThenCompleteTest)
     test(_AsyncCompleteThenFailTest)
 
-    // Classification shrink contamination unit test
+    // Classification contamination tests
     test(_ClassifyShrinkContaminationTest)
+    test(_ClassifyRegressionReplayTest)
 
     // Regression save-on-fail meta-tests
     test(_RegressionSaveOnFailTest)

@@ -36,7 +36,6 @@ actor _TestRunner
   embed _prop_actions: Set[String] = Set[String]
   var _prop_sample_pass: Bool = true
   var _prop_disposables_base: USize = 0
-  var _in_regression_replay: Bool = false
 
   new create(
     ponytest: PonyTest,
@@ -315,6 +314,8 @@ actor _TestRunner
       match _property_phase
       | _SyncSampling => _property_phase = _AsyncSampling
       | _SyncShrinking => _property_phase = _AsyncShrinking
+      | _SyncRegressionReplay =>
+        _property_phase = _AsyncRegressionReplay
       end
 
       if _completed then
@@ -409,7 +410,6 @@ actor _TestRunner
     _prop_sample_id = 0
     _prop_sample_pass = true
     _prop_disposables_base = _disposables.size()
-    _in_regression_replay = false
 
     if _is_long_test then
       _property_phase = _AsyncSampling
@@ -428,6 +428,7 @@ actor _TestRunner
     match _property_exec
     | let exec: _PropertyExecution =>
       _dispose_sample_resources()
+      _property_phase = _SyncRegressionReplay
       let reg_helper =
         PropertyHelper._create(
           TestHelper._create(this, _env), _prop_sample_id)
@@ -443,6 +444,8 @@ actor _TestRunner
         _regression_replay_done()
         return
       end
+
+      _property_phase = _SyncSampling
 
       if not exec.has_more_samples() then
         _property_finish_sync(exec)
@@ -483,14 +486,13 @@ actor _TestRunner
     match _property_exec
     | let exec: _PropertyExecution =>
       if _is_long_test and (_prop_actions.size() > 0) then
-        _in_regression_replay = true
+        _property_phase = _AsyncRegressionReplay
         return
       end
       _finish_regression_replay(exec)
     end
 
   fun ref _finish_regression_replay(exec: _PropertyExecution) =>
-    _in_regression_replay = false
     if not _prop_sample_pass then
       _pass = false
       _log(
@@ -714,6 +716,7 @@ actor _TestRunner
     match _property_exec
     | let exec: _PropertyExecution =>
       _dispose_sample_resources()
+      _property_phase = _AsyncRegressionReplay
       let helper =
         PropertyHelper._create(
           TestHelper._create(this, _env), _prop_sample_id)
@@ -728,6 +731,7 @@ actor _TestRunner
         end
         return
       end
+      _property_phase = _AsyncSampling
 
       if not exec.has_more_samples() then
         _property_finish(exec)
@@ -804,15 +808,12 @@ actor _TestRunner
       "Action '" + name + "' finished unexpectedly. ignoring.",
       true)
 
-  fun ref _check_regression_replay(
+  fun ref _replay_sample_complete(
     success: Bool,
     exec: _PropertyExecution)
-    : Bool
   =>
-    if not _in_regression_replay then return false end
     if not success then _prop_sample_pass = false end
     _finish_regression_replay(exec)
-    true
 
   fun ref _dispose_sample_resources() =>
     while _disposables.size() > _prop_disposables_base do
@@ -908,6 +909,7 @@ actor _TestRunner
 
   be _property_classify(label: String, sample_id: USize) =>
     if sample_id != _prop_sample_id then return end
+    if _property_phase.in_replay() then return end
     match _property_exec
     | let exec: _PropertyExecution =>
       exec.classify(label)
@@ -919,6 +921,7 @@ actor _TestRunner
     sample_id: USize)
   =>
     if sample_id != _prop_sample_id then return end
+    if _property_phase.in_replay() then return end
     match _property_exec
     | let exec: _PropertyExecution =>
       exec.tabulate(heading, label)
@@ -931,6 +934,7 @@ actor _TestRunner
     sample_id: USize)
   =>
     if sample_id != _prop_sample_id then return end
+    if _property_phase.in_replay() then return end
     match _property_exec
     | let exec: _PropertyExecution =>
       exec.cover(condition, label, min_pct)
