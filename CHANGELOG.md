@@ -21,6 +21,8 @@ All notable changes to the Pony compiler and standard library will be documented
 - Merge property testing into PonyTest ([PR #6171](https://github.com/ponylang/ponyc/pull/6171))
 - Update to LLVM 23.1.2 ([PR #6168](https://github.com/ponylang/ponyc/pull/6168))
 - Reject runtime-reserved signals in HandleableSignalValidator ([PR #6188](https://github.com/ponylang/ponyc/pull/6188))
+- Distinguish rejected commands from SUT failures in StatefulProperty.step() ([PR #6203](https://github.com/ponylang/ponyc/pull/6203))
+- Make Randomness draw methods non-partial ([PR #6203](https://github.com/ponylang/ponyc/pull/6203))
 
 ## [0.73.0] - 2026-09-27
 

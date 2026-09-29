@@ -85,7 +85,7 @@ class box Generator[T] is GenObj[T]
     Generator[(T | U)](
       object is GenObj[(T | U)]
         fun generate(rnd: Randomness): (T^ | U^) ? =>
-          if rnd.bool()? then
+          if rnd.bool() then
             _gen.generate(rnd)?
           else
             other.generate(rnd)?
@@ -156,9 +156,9 @@ primitive Generators
             rnd.start_span(SpanElement)
             let cont =
               if count < lo then
-                rnd.forced_bool(true)?
+                rnd.forced_bool(true)
               else
-                rnd.bool()?
+                rnd.bool()
               end
             if cont then
               let elem = _gen.generate(rnd)?
@@ -196,9 +196,9 @@ primitive Generators
             rnd.start_span(SpanElement)
             let cont =
               if count < lo then
-                rnd.forced_bool(true)?
+                rnd.forced_bool(true)
               else
-                rnd.bool()?
+                rnd.bool()
               end
             if cont then
               let elem = _gen.generate(rnd)?
@@ -236,9 +236,9 @@ primitive Generators
             rnd.start_span(SpanElement)
             let cont =
               if count < lo then
-                rnd.forced_bool(true)?
+                rnd.forced_bool(true)
               else
-                rnd.bool()?
+                rnd.bool()
               end
             if cont then
               let elem = _gen.generate(rnd)?
@@ -316,9 +316,9 @@ primitive Generators
             rnd.start_span(SpanElement)
             let cont =
               if result.size() < lo then
-                rnd.forced_bool(true)?
+                rnd.forced_bool(true)
               else
-                rnd.bool()?
+                rnd.bool()
               end
             if cont then
               let prev = result.size()
@@ -358,9 +358,9 @@ primitive Generators
             rnd.start_span(SpanElement)
             let cont =
               if result.size() < lo then
-                rnd.forced_bool(true)?
+                rnd.forced_bool(true)
               else
-                rnd.bool()?
+                rnd.bool()
               end
             if cont then
               let prev = result.size()
@@ -400,9 +400,9 @@ primitive Generators
             rnd.start_span(SpanElement)
             let cont =
               if result.size() < lo then
-                rnd.forced_bool(true)?
+                rnd.forced_bool(true)
               else
-                rnd.bool()?
+                rnd.bool()
               end
             if cont then
               let prev = result.size()
@@ -443,9 +443,9 @@ primitive Generators
             rnd.start_span(SpanElement)
             let cont =
               if result.size() < lo then
-                rnd.forced_bool(true)?
+                rnd.forced_bool(true)
               else
-                rnd.bool()?
+                rnd.bool()
               end
             if cont then
               let prev = result.size()
@@ -487,9 +487,9 @@ primitive Generators
             rnd.start_span(SpanElement)
             let cont =
               if count < lo then
-                rnd.forced_bool(true)?
+                rnd.forced_bool(true)
               else
-                rnd.bool()?
+                rnd.bool()
               end
             if cont then
               result = result.push(_gen.generate(rnd)?)
@@ -525,9 +525,9 @@ primitive Generators
             rnd.start_span(SpanElement)
             let cont =
               if count < lo then
-                rnd.forced_bool(true)?
+                rnd.forced_bool(true)
               else
-                rnd.bool()?
+                rnd.bool()
               end
             if cont then
               result = result.prepend(_gen.generate(rnd)?)
@@ -563,9 +563,9 @@ primitive Generators
             rnd.start_span(SpanElement)
             let cont =
               if result.size() < lo then
-                rnd.forced_bool(true)?
+                rnd.forced_bool(true)
               else
-                rnd.bool()?
+                rnd.bool()
               end
             if cont then
               let prev = result.size()
@@ -606,9 +606,9 @@ primitive Generators
             rnd.start_span(SpanElement)
             let cont =
               if result.size() < lo then
-                rnd.forced_bool(true)?
+                rnd.forced_bool(true)
               else
-                rnd.bool()?
+                rnd.bool()
               end
             if cont then
               let prev = result.size()
@@ -650,9 +650,9 @@ primitive Generators
             rnd.start_span(SpanElement)
             let cont =
               if result.size() < lo then
-                rnd.forced_bool(true)?
+                rnd.forced_bool(true)
               else
-                rnd.bool()?
+                rnd.bool()
               end
             if cont then
               let prev = result.size()
@@ -693,9 +693,9 @@ primitive Generators
             rnd.start_span(SpanElement)
             let cont =
               if result.size() < lo then
-                rnd.forced_bool(true)?
+                rnd.forced_bool(true)
               else
-                rnd.bool()?
+                rnd.bool()
               end
             if cont then
               let prev = result.size()
@@ -723,7 +723,7 @@ primitive Generators
     Generator[box->T](
       object is GenObj[box->T]
         fun generate(rnd: Randomness): box->T ? =>
-          xs(rnd.usize(0, xs.size() - 1)?)?
+          xs(rnd.usize(0, xs.size() - 1))?
       end)
 
   fun one_of_safe[T](xs: ReadSeq[T]): Generator[box->T] ? =>
@@ -751,7 +751,7 @@ primitive Generators
                 {(acc: USize, weighted_gen: WeightedGenerator[T]): USize^ =>
                   weighted_gen._1 + acc
                 })
-          let desired_sum = rnd.usize(0, weight_sum)?
+          let desired_sum = rnd.usize(0, weight_sum)
           var running_sum: USize = 0
           for weighted_gen in weighted_generators.values() do
             let new_sum = running_sum + weighted_gen._1
@@ -879,7 +879,7 @@ primitive Generators
     """
     Generator[Bool](
       object is GenObj[Bool]
-        fun generate(rnd: Randomness): Bool ? => rnd.bool()?
+        fun generate(rnd: Randomness): Bool => rnd.bool()
       end)
 
   fun u8(
@@ -894,7 +894,7 @@ primitive Generators
     let hi = from.max(to)
     Generator[U8](
       object is GenObj[U8]
-        fun generate(rnd: Randomness): U8 ? => rnd.u8(lo, hi)?
+        fun generate(rnd: Randomness): U8 => rnd.u8(lo, hi)
       end)
 
   fun u16(
@@ -909,7 +909,7 @@ primitive Generators
     let hi = from.max(to)
     Generator[U16](
       object is GenObj[U16]
-        fun generate(rnd: Randomness): U16 ? => rnd.u16(lo, hi)?
+        fun generate(rnd: Randomness): U16 => rnd.u16(lo, hi)
       end)
 
   fun u32(
@@ -924,7 +924,7 @@ primitive Generators
     let hi = from.max(to)
     Generator[U32](
       object is GenObj[U32]
-        fun generate(rnd: Randomness): U32 ? => rnd.u32(lo, hi)?
+        fun generate(rnd: Randomness): U32 => rnd.u32(lo, hi)
       end)
 
   fun u64(
@@ -939,7 +939,7 @@ primitive Generators
     let hi = from.max(to)
     Generator[U64](
       object is GenObj[U64]
-        fun generate(rnd: Randomness): U64 ? => rnd.u64(lo, hi)?
+        fun generate(rnd: Randomness): U64 => rnd.u64(lo, hi)
       end)
 
   fun u128(
@@ -954,7 +954,7 @@ primitive Generators
     let hi = from.max(to)
     Generator[U128](
       object is GenObj[U128]
-        fun generate(rnd: Randomness): U128 ? => rnd.u128(lo, hi)?
+        fun generate(rnd: Randomness): U128 => rnd.u128(lo, hi)
       end)
 
   fun usize(
@@ -969,7 +969,7 @@ primitive Generators
     let hi = from.max(to)
     Generator[USize](
       object is GenObj[USize]
-        fun generate(rnd: Randomness): USize ? => rnd.usize(lo, hi)?
+        fun generate(rnd: Randomness): USize => rnd.usize(lo, hi)
       end)
 
   fun ulong(
@@ -984,7 +984,7 @@ primitive Generators
     let hi = from.max(to)
     Generator[ULong](
       object is GenObj[ULong]
-        fun generate(rnd: Randomness): ULong ? => rnd.ulong(lo, hi)?
+        fun generate(rnd: Randomness): ULong => rnd.ulong(lo, hi)
       end)
 
   fun i8(
@@ -999,7 +999,7 @@ primitive Generators
     let hi = from.max(to)
     Generator[I8](
       object is GenObj[I8]
-        fun generate(rnd: Randomness): I8 ? => rnd.i8(lo, hi)?
+        fun generate(rnd: Randomness): I8 => rnd.i8(lo, hi)
       end)
 
   fun i16(
@@ -1014,7 +1014,7 @@ primitive Generators
     let hi = from.max(to)
     Generator[I16](
       object is GenObj[I16]
-        fun generate(rnd: Randomness): I16 ? => rnd.i16(lo, hi)?
+        fun generate(rnd: Randomness): I16 => rnd.i16(lo, hi)
       end)
 
   fun i32(
@@ -1029,7 +1029,7 @@ primitive Generators
     let hi = from.max(to)
     Generator[I32](
       object is GenObj[I32]
-        fun generate(rnd: Randomness): I32 ? => rnd.i32(lo, hi)?
+        fun generate(rnd: Randomness): I32 => rnd.i32(lo, hi)
       end)
 
   fun i64(
@@ -1044,7 +1044,7 @@ primitive Generators
     let hi = from.max(to)
     Generator[I64](
       object is GenObj[I64]
-        fun generate(rnd: Randomness): I64 ? => rnd.i64(lo, hi)?
+        fun generate(rnd: Randomness): I64 => rnd.i64(lo, hi)
       end)
 
   fun i128(
@@ -1059,7 +1059,7 @@ primitive Generators
     let hi = from.max(to)
     Generator[I128](
       object is GenObj[I128]
-        fun generate(rnd: Randomness): I128 ? => rnd.i128(lo, hi)?
+        fun generate(rnd: Randomness): I128 => rnd.i128(lo, hi)
       end)
 
   fun ilong(
@@ -1074,7 +1074,7 @@ primitive Generators
     let hi = from.max(to)
     Generator[ILong](
       object is GenObj[ILong]
-        fun generate(rnd: Randomness): ILong ? => rnd.ilong(lo, hi)?
+        fun generate(rnd: Randomness): ILong => rnd.ilong(lo, hi)
       end)
 
   fun isize(
@@ -1089,7 +1089,7 @@ primitive Generators
     let hi = from.max(to)
     Generator[ISize](
       object is GenObj[ISize]
-        fun generate(rnd: Randomness): ISize ? => rnd.isize(lo, hi)?
+        fun generate(rnd: Randomness): ISize => rnd.isize(lo, hi)
       end)
 
   fun f32(
@@ -1109,7 +1109,7 @@ primitive Generators
       object is GenObj[F32]
         fun generate(rnd: Randomness): F32 ? =>
           if nan then error end
-          rnd.f32(lo, hi)?
+          rnd.f32(lo, hi)
       end)
 
   fun f64(
@@ -1129,7 +1129,7 @@ primitive Generators
       object is GenObj[F64]
         fun generate(rnd: Randomness): F64 ? =>
           if nan then error end
-          rnd.f64(lo, hi)?
+          rnd.f64(lo, hi)
       end)
 
   fun byte_string(
@@ -1154,9 +1154,9 @@ primitive Generators
             rnd.start_span(SpanElement)
             let cont =
               if count < lo then
-                rnd.forced_bool(true)?
+                rnd.forced_bool(true)
               else
-                rnd.bool()?
+                rnd.bool()
               end
             if cont then
               arr.push(gen.generate(rnd)?)
@@ -1243,9 +1243,9 @@ primitive Generators
             rnd.start_span(SpanElement)
             let cont =
               if count < lo then
-                rnd.forced_bool(true)?
+                rnd.forced_bool(true)
               else
-                rnd.bool()?
+                rnd.bool()
               end
             if cont then
               var cp = gen.generate(rnd)?

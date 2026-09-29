@@ -8,9 +8,9 @@ primitive _ModeReplaying
 
 class ref Randomness
   """
-  All draw methods are partial: they error during replay when the recorded
-  choice sequence is exhausted or when a type/range mismatch is detected.
-  In plain mode (user-constructed Randomness), draws never error.
+  Draw methods are non-partial. During replay, if the recorded choice
+  sequence is exhausted or a type mismatch is detected, draw methods
+  fall back to fresh generation and the runner detects it.
 
   Integer methods generate values in the closed interval [min, max].
   Floating-point methods scale onto [min, max]; `min` is always reachable,
@@ -32,153 +32,156 @@ class ref Randomness
     _random = Rand(seed1, seed2)
 
   // --- Public draw methods ---
-  fun ref u8(min: U8 = U8.min_value(), max: U8 = U8.max_value()): U8 ? =>
+  fun ref u8(min: U8 = U8.min_value(), max: U8 = U8.max_value()): U8 =>
     """
     Generate a U8 in closed interval [min, max].
     """
-    _draw_int(min.i128(), max.i128(), min.i128())?.u8()
+    _draw_int(min.i128(), max.i128(), min.i128()).u8()
 
-  fun ref u16(min: U16 = U16.min_value(), max: U16 = U16.max_value()): U16 ? =>
+  fun ref u16(min: U16 = U16.min_value(), max: U16 = U16.max_value()): U16 =>
     """
     Generate a U16 in closed interval [min, max].
     """
-    _draw_int(min.i128(), max.i128(), min.i128())?.u16()
+    _draw_int(min.i128(), max.i128(), min.i128()).u16()
 
-  fun ref u32(min: U32 = U32.min_value(), max: U32 = U32.max_value()): U32 ? =>
+  fun ref u32(min: U32 = U32.min_value(), max: U32 = U32.max_value()): U32 =>
     """
     Generate a U32 in closed interval [min, max].
     """
-    _draw_int(min.i128(), max.i128(), min.i128())?.u32()
+    _draw_int(min.i128(), max.i128(), min.i128()).u32()
 
-  fun ref u64(min: U64 = U64.min_value(), max: U64 = U64.max_value()): U64 ? =>
+  fun ref u64(min: U64 = U64.min_value(), max: U64 = U64.max_value()): U64 =>
     """
     Generate a U64 in closed interval [min, max].
     """
-    _draw_int(min.i128(), max.i128(), min.i128())?.u64()
+    _draw_int(min.i128(), max.i128(), min.i128()).u64()
 
   fun ref u128(
     min: U128 = U128.min_value(),
     max: U128 = U128.max_value())
-    : U128 ?
+    : U128
   =>
     """
     Generate a U128 in closed interval [min, max].
     """
-    _draw_u128(min, max, min)?
+    _draw_u128(min, max, min)
 
   fun ref ulong(
     min: ULong = ULong.min_value(),
     max: ULong = ULong.max_value())
-    : ULong ?
+    : ULong
   =>
     """
     Generate a ULong in closed interval [min, max].
     """
-    _draw_int(min.i128(), max.i128(), min.i128())?.ulong()
+    _draw_int(min.i128(), max.i128(), min.i128()).ulong()
 
   fun ref usize(
     min: USize = USize.min_value(),
     max: USize = USize.max_value())
-    : USize ?
+    : USize
   =>
     """
     Generate a USize in closed interval [min, max].
     """
-    _draw_int(min.i128(), max.i128(), min.i128())?.usize()
+    _draw_int(min.i128(), max.i128(), min.i128()).usize()
 
-  fun ref i8(min: I8 = I8.min_value(), max: I8 = I8.max_value()): I8 ? =>
+  fun ref i8(min: I8 = I8.min_value(), max: I8 = I8.max_value()): I8 =>
     """
     Generate an I8 in closed interval [min, max].
     """
-    _draw_int(min.i128(), max.i128(), 0)?.i8()
+    _draw_int(min.i128(), max.i128(), 0).i8()
 
-  fun ref i16(min: I16 = I16.min_value(), max: I16 = I16.max_value()): I16 ? =>
+  fun ref i16(min: I16 = I16.min_value(), max: I16 = I16.max_value()): I16 =>
     """
     Generate an I16 in closed interval [min, max].
     """
-    _draw_int(min.i128(), max.i128(), 0)?.i16()
+    _draw_int(min.i128(), max.i128(), 0).i16()
 
-  fun ref i32(min: I32 = I32.min_value(), max: I32 = I32.max_value()): I32 ? =>
+  fun ref i32(min: I32 = I32.min_value(), max: I32 = I32.max_value()): I32 =>
     """
     Generate an I32 in closed interval [min, max].
     """
-    _draw_int(min.i128(), max.i128(), 0)?.i32()
+    _draw_int(min.i128(), max.i128(), 0).i32()
 
-  fun ref i64(min: I64 = I64.min_value(), max: I64 = I64.max_value()): I64 ? =>
+  fun ref i64(min: I64 = I64.min_value(), max: I64 = I64.max_value()): I64 =>
     """
     Generate an I64 in closed interval [min, max].
     """
-    _draw_int(min.i128(), max.i128(), 0)?.i64()
+    _draw_int(min.i128(), max.i128(), 0).i64()
 
   fun ref i128(
     min: I128 = I128.min_value(),
     max: I128 = I128.max_value())
-    : I128 ?
+    : I128
   =>
     """
     Generate an I128 in closed interval [min, max].
     """
-    _draw_int(min, max, 0)?
+    _draw_int(min, max, 0)
 
   fun ref ilong(
     min: ILong = ILong.min_value(),
     max: ILong = ILong.max_value())
-    : ILong ?
+    : ILong
   =>
     """
     Generate an ILong in closed interval [min, max].
     """
-    _draw_int(min.i128(), max.i128(), 0)?.ilong()
+    _draw_int(min.i128(), max.i128(), 0).ilong()
 
   fun ref isize(
     min: ISize = ISize.min_value(),
     max: ISize = ISize.max_value())
-    : ISize ?
+    : ISize
   =>
     """
     Generate an ISize in closed interval [min, max].
     """
-    _draw_int(min.i128(), max.i128(), 0)?.isize()
+    _draw_int(min.i128(), max.i128(), 0).isize()
 
-  fun ref f32(min: F32 = 0.0, max: F32 = 1.0): F32 ? =>
+  fun ref f32(min: F32 = 0.0, max: F32 = 1.0): F32 =>
     """
     Generate an F32 in the range from `min` to `max`.
     """
-    _draw_float(min.f64(), max.f64())?.f32()
+    _draw_float(min.f64(), max.f64()).f32()
 
-  fun ref f64(min: F64 = 0.0, max: F64 = 1.0): F64 ? =>
+  fun ref f64(min: F64 = 0.0, max: F64 = 1.0): F64 =>
     """
     Generate an F64 in the range from `min` to `max`.
     """
-    _draw_float(min, max)?
+    _draw_float(min, max)
 
-  fun ref bool(): Bool ? =>
+  fun ref bool(): Bool =>
     """
     Generate a random Bool value.
     """
     match \exhaustive\ _mode
     | _ModePlain =>
-      let v = (_random.next() % 2) == 0
-      v
+      (_random.next() % 2) == 0
     | _ModeRecording =>
       let v = (_random.next() % 2) == 0
       _choices.push(_BoolChoice(v))
       v
     | _ModeReplaying =>
-      if _replay_idx >= _replay_seq.size() then
-        _replay_exhausted_flag = true
-        error
+      if _replay_idx < _replay_seq.size() then
+        try
+          match _replay_seq(_replay_idx)?
+          | let bc: _BoolChoice =>
+            _replay_idx = _replay_idx + 1
+            return bc.value
+          end
+        else
+          _Unreachable()
+        end
       end
-      match _replay_seq(_replay_idx)?
-      | let bc: _BoolChoice =>
-        _replay_idx = _replay_idx + 1
-        bc.value
-      else
-        error
-      end
+      _replay_exhausted_flag = true
+      let v = (_random.next() % 2) == 0
+      _choices.push(_BoolChoice(v))
+      v
     end
 
-  fun ref forced_bool(value: Bool): Bool ? =>
+  fun ref forced_bool(value: Bool): Bool =>
     """
     Record a predetermined Bool. This choice is excluded from
     shrinking. Use when the outcome is fixed by the
@@ -191,17 +194,20 @@ class ref Randomness
       _choices.push(_BoolChoice(value, true))
       value
     | _ModeReplaying =>
-      if _replay_idx >= _replay_seq.size() then
-        _replay_exhausted_flag = true
-        error
+      if _replay_idx < _replay_seq.size() then
+        try
+          match _replay_seq(_replay_idx)?
+          | let bc: _BoolChoice =>
+            _replay_idx = _replay_idx + 1
+            return value
+          end
+        else
+          _Unreachable()
+        end
       end
-      match _replay_seq(_replay_idx)?
-      | let bc: _BoolChoice =>
-        _replay_idx = _replay_idx + 1
-        value
-      else
-        error
-      end
+      _replay_exhausted_flag = true
+      _choices.push(_BoolChoice(value, true))
+      value
     end
 
   fun ref shuffle[T](array: Array[T] ref) ? =>
@@ -214,7 +220,7 @@ class ref Randomness
     start_span(SpanShuffle)
     var i = n - 1
     while i > 0 do
-      let j = usize(0, i)?
+      let j = usize(0, i)
       try
         array.swap_elements(i, j)?
       else
@@ -310,6 +316,9 @@ class ref Randomness
   fun _consumed(): USize =>
     _replay_idx
 
+  fun _replay_exhausted(): Bool =>
+    _replay_exhausted_flag
+
   fun ref _choices_size(): USize =>
     _choices.size()
 
@@ -321,7 +330,7 @@ class ref Randomness
     (discards, accepts)
 
   // --- Internal draw helpers ---
-  fun ref _draw_int(min: I128, max: I128, shrink_towards: I128): I128 ? =>
+  fun ref _draw_int(min: I128, max: I128, shrink_towards: I128): I128 =>
     match \exhaustive\ _mode
     | _ModePlain =>
       _raw_int(min, max)
@@ -331,17 +340,22 @@ class ref Randomness
       _choices.push(_IntChoice(v, min, max, towards))
       v
     | _ModeReplaying =>
-      if _replay_idx >= _replay_seq.size() then
-        _replay_exhausted_flag = true
-        error
+      if _replay_idx < _replay_seq.size() then
+        try
+          match _replay_seq(_replay_idx)?
+          | let ic: _IntChoice =>
+            _replay_idx = _replay_idx + 1
+            return ic.value.max(min).min(max)
+          end
+        else
+          _Unreachable()
+        end
       end
-      match _replay_seq(_replay_idx)?
-      | let ic: _IntChoice =>
-        _replay_idx = _replay_idx + 1
-        ic.value.max(min).min(max)
-      else
-        error
-      end
+      _replay_exhausted_flag = true
+      let v = _raw_int(min, max)
+      let towards = shrink_towards.max(min).min(max)
+      _choices.push(_IntChoice(v, min, max, towards))
+      v
     end
 
   fun _float_in_range(real: F64, min: F64, max: F64): F64 =>
@@ -354,7 +368,7 @@ class ref Randomness
       mid + (((real + real) - 1.0) * half)
     end
 
-  fun ref _draw_float(min: F64, max: F64): F64 ? =>
+  fun ref _draw_float(min: F64, max: F64): F64 =>
     match \exhaustive\ _mode
     | _ModePlain =>
       _float_in_range(_random.real(), min, max)
@@ -363,20 +377,24 @@ class ref Randomness
       _choices.push(_FloatChoice(v, min, max))
       v
     | _ModeReplaying =>
-      if _replay_idx >= _replay_seq.size() then
-        _replay_exhausted_flag = true
-        error
+      if _replay_idx < _replay_seq.size() then
+        try
+          match _replay_seq(_replay_idx)?
+          | let fc: _FloatChoice =>
+            _replay_idx = _replay_idx + 1
+            return fc.value.max(min).min(max)
+          end
+        else
+          _Unreachable()
+        end
       end
-      match _replay_seq(_replay_idx)?
-      | let fc: _FloatChoice =>
-        _replay_idx = _replay_idx + 1
-        fc.value.max(min).min(max)
-      else
-        error
-      end
+      _replay_exhausted_flag = true
+      let v = _float_in_range(_random.real(), min, max)
+      _choices.push(_FloatChoice(v, min, max))
+      v
     end
 
-  fun ref _draw_u128(min: U128, max: U128, shrink_towards: U128): U128 ? =>
+  fun ref _draw_u128(min: U128, max: U128, shrink_towards: U128): U128 =>
     match \exhaustive\ _mode
     | _ModePlain =>
       _raw_u128(min, max)
@@ -386,17 +404,22 @@ class ref Randomness
       _choices.push(_U128Choice(v, min, max, towards))
       v
     | _ModeReplaying =>
-      if _replay_idx >= _replay_seq.size() then
-        _replay_exhausted_flag = true
-        error
+      if _replay_idx < _replay_seq.size() then
+        try
+          match _replay_seq(_replay_idx)?
+          | let uc: _U128Choice =>
+            _replay_idx = _replay_idx + 1
+            return uc.value.max(min).min(max)
+          end
+        else
+          _Unreachable()
+        end
       end
-      match _replay_seq(_replay_idx)?
-      | let uc: _U128Choice =>
-        _replay_idx = _replay_idx + 1
-        uc.value.max(min).min(max)
-      else
-        error
-      end
+      _replay_exhausted_flag = true
+      let v = _raw_u128(min, max)
+      let towards = shrink_towards.max(min).min(max)
+      _choices.push(_U128Choice(v, min, max, towards))
+      v
     end
 
   fun ref _raw_u128(min: U128, max: U128): U128 =>

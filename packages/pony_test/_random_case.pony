@@ -675,7 +675,7 @@ class \nodoc\ iso _SometimesErroringGeneratorProperty is Property[String]
     Generator[String](
       object is GenObj[String]
         fun generate(r: Randomness): String^ ? =>
-          match (r.u64()? % 2)
+          match (r.u64() % 2)
           | 0 => "foo"
           else
             error
@@ -689,118 +689,118 @@ class \nodoc\ iso _SometimesErroringGeneratorProperty is Property[String]
 interface \nodoc\ val _RandomCase[A: Comparable[A] #read]
   new val create()
 
-  fun test(min: A, max: A): A ?
+  fun test(min: A, max: A): A
 
   fun generator(): Generator[A]
 
 primitive \nodoc\ _RandomCaseF32 is _RandomCase[F32]
-  fun test(min: F32, max: F32): F32 ? =>
+  fun test(min: F32, max: F32): F32 =>
     let rnd = Randomness(Time.millis())
-    rnd.f32(min, max)?
+    rnd.f32(min, max)
 
   fun generator(): Generator[F32] =>
     Generators.f32(where from = -F32.max_value(), to = F32.max_value())
 
 primitive \nodoc\ _RandomCaseF64 is _RandomCase[F64]
-  fun test(min: F64, max: F64): F64 ? =>
+  fun test(min: F64, max: F64): F64 =>
     let rnd = Randomness(Time.millis())
-    rnd.f64(min, max)?
+    rnd.f64(min, max)
 
   fun generator(): Generator[F64] =>
     Generators.f64(where from = -F64.max_value(), to = F64.max_value())
 
 primitive \nodoc\ _RandomCaseU8 is _RandomCase[U8]
-  fun test(min: U8, max: U8): U8 ? =>
+  fun test(min: U8, max: U8): U8 =>
     let rnd = Randomness(Time.millis())
-    rnd.u8(min, max)?
+    rnd.u8(min, max)
 
   fun generator(): Generator[U8] =>
     Generators.u8()
 
 primitive \nodoc\ _RandomCaseU16 is _RandomCase[U16]
-  fun test(min: U16, max: U16): U16 ? =>
+  fun test(min: U16, max: U16): U16 =>
     let rnd = Randomness(Time.millis())
-    rnd.u16(min, max)?
+    rnd.u16(min, max)
 
   fun generator(): Generator[U16] =>
     Generators.u16()
 
 primitive \nodoc\ _RandomCaseU32 is _RandomCase[U32]
-  fun test(min: U32, max: U32): U32 ? =>
+  fun test(min: U32, max: U32): U32 =>
     let rnd = Randomness(Time.millis())
-    rnd.u32(min, max)?
+    rnd.u32(min, max)
 
   fun generator(): Generator[U32] =>
     Generators.u32()
 
 primitive \nodoc\ _RandomCaseU64 is _RandomCase[U64]
-  fun test(min: U64, max: U64): U64 ? =>
+  fun test(min: U64, max: U64): U64 =>
     let rnd = Randomness(Time.millis())
-    rnd.u64(min, max)?
+    rnd.u64(min, max)
 
   fun generator(): Generator[U64] =>
     Generators.u64()
 
 primitive \nodoc\ _RandomCaseU128 is _RandomCase[U128]
-  fun test(min: U128, max: U128): U128 ? =>
+  fun test(min: U128, max: U128): U128 =>
     let rnd = Randomness(Time.millis())
-    rnd.u128(min, max)?
+    rnd.u128(min, max)
 
   fun generator(): Generator[U128] =>
     Generators.u128()
 
 primitive \nodoc\ _RandomCaseI8 is _RandomCase[I8]
-  fun test(min: I8, max: I8): I8 ? =>
+  fun test(min: I8, max: I8): I8 =>
     let rnd = Randomness(Time.millis())
-    rnd.i8(min, max)?
+    rnd.i8(min, max)
 
   fun generator(): Generator[I8] =>
     Generators.i8()
 
 primitive \nodoc\ _RandomCaseI16 is _RandomCase[I16]
-  fun test(min: I16, max: I16): I16 ? =>
+  fun test(min: I16, max: I16): I16 =>
     let rnd = Randomness(Time.millis())
-    rnd.i16(min, max)?
+    rnd.i16(min, max)
 
   fun generator(): Generator[I16] =>
     Generators.i16()
 
 primitive \nodoc\ _RandomCaseI32 is _RandomCase[I32]
-  fun test(min: I32, max: I32): I32 ? =>
+  fun test(min: I32, max: I32): I32 =>
     let rnd = Randomness(Time.millis())
-    rnd.i32(min, max)?
+    rnd.i32(min, max)
 
   fun generator(): Generator[I32] =>
     Generators.i32()
 
 primitive \nodoc\ _RandomCaseI64 is _RandomCase[I64]
-  fun test(min: I64, max: I64): I64 ? =>
+  fun test(min: I64, max: I64): I64 =>
     let rnd = Randomness(Time.millis())
-    rnd.i64(min, max)?
+    rnd.i64(min, max)
 
   fun generator(): Generator[I64] =>
     Generators.i64()
 
 primitive \nodoc\ _RandomCaseI128 is _RandomCase[I128]
-  fun test(min: I128, max: I128): I128 ? =>
+  fun test(min: I128, max: I128): I128 =>
     let rnd = Randomness(Time.millis())
-    rnd.i128(min, max)?
+    rnd.i128(min, max)
 
   fun generator(): Generator[I128] =>
     Generators.i128()
 
 primitive \nodoc\ _RandomCaseISize is _RandomCase[ISize]
-  fun test(min: ISize, max: ISize): ISize ? =>
+  fun test(min: ISize, max: ISize): ISize =>
     let rnd = Randomness(Time.millis())
-    rnd.isize(min, max)?
+    rnd.isize(min, max)
 
   fun generator(): Generator[ISize] =>
     Generators.isize()
 
 primitive \nodoc\ _RandomCaseILong is _RandomCase[ILong]
-  fun test(min: ILong, max: ILong): ILong ? =>
+  fun test(min: ILong, max: ILong): ILong =>
     let rnd = Randomness(Time.millis())
-    rnd.ilong(min, max)?
+    rnd.ilong(min, max)
 
   fun generator(): Generator[ILong] =>
     Generators.ilong()
@@ -823,10 +823,10 @@ class \nodoc\ iso _RandomnessProperty[
         {(pair) => (pair, (pair._1 <= pair._2)) }
       )
 
-  fun property(arg1: (A, A), h: PropertyHelper) ? =>
+  fun property(arg1: (A, A), h: PropertyHelper) =>
     (let min, let max) = arg1
 
-    let value = R.test(min, max)?
+    let value = R.test(min, max)
     h.assert_true(value >= min)
     h.assert_true(value <= max)
 
@@ -1781,9 +1781,9 @@ class \nodoc\ iso _CounterProperty
     ctx: StatefulContext[USize, USize],
     rnd: Randomness,
     h: PropertyHelper)
-    : _CounterCmd ?
+    : StepResult[_CounterCmd]
   =>
-    if rnd.bool()? then
+    if rnd.bool() then
       ctx.sut = ctx.sut + 1
       ctx.model = ctx.model + 1
       _Inc
@@ -1823,9 +1823,9 @@ class \nodoc\ iso _FailingCounterProperty
     ctx: StatefulContext[USize, USize],
     rnd: Randomness,
     h: PropertyHelper)
-    : _CounterCmd ?
+    : StepResult[_CounterCmd]
   =>
-    if rnd.bool()? then
+    if rnd.bool() then
       ctx.sut = ctx.sut + 1
       ctx.model = ctx.model + 1
       _Inc
@@ -1863,7 +1863,7 @@ class \nodoc\ iso _StatefulMaxStepsZeroProperty
     ctx: StatefulContext[USize, USize],
     rnd: Randomness,
     h: PropertyHelper)
-    : _NoOp
+    : StepResult[_NoOp]
   =>
     h.fail("step should never be called with max_steps = 0")
     _NoOp
@@ -1875,9 +1875,9 @@ class \nodoc\ iso _StatefulMaxStepsZeroTest is UnitTest
     _StatefulPropertyTest[USize, USize, _NoOp](
       _StatefulMaxStepsZeroProperty).apply(h)?
 
-class \nodoc\ iso _StatefulStepAlwaysErrorsProperty
+class \nodoc\ iso _StatefulStepAlwaysRejectsProperty
   is StatefulProperty[USize, USize, _NoOp]
-  fun name(): String => "stateful/step_always_errors/property"
+  fun name(): String => "stateful/step_always_rejects/property"
 
   fun params(): PropertyParams =>
     PropertyParams(where num_samples' = 3, seed' = 42,
@@ -1893,14 +1893,14 @@ class \nodoc\ iso _StatefulStepAlwaysErrorsProperty
     ctx: StatefulContext[USize, USize],
     rnd: Randomness,
     h: PropertyHelper)
-    : _NoOp ?
+    : StepResult[_NoOp]
   =>
-    error
+    StepReject
 
 class \nodoc\ iso _StatefulStepRetriesProperty
   is StatefulProperty[USize, USize, _NoOp]
   """
-  Step errors on the first call, succeeds on all subsequent calls.
+  Step rejects on the first call, succeeds on all subsequent calls.
   Exercises the retry path: the first sample is discarded and a fresh
   one starts.
   """
@@ -1922,11 +1922,11 @@ class \nodoc\ iso _StatefulStepRetriesProperty
     ctx: StatefulContext[USize, USize],
     rnd: Randomness,
     h: PropertyHelper)
-    : _NoOp ?
+    : StepResult[_NoOp]
   =>
     if _first_step then
       _first_step = false
-      error
+      return StepReject
     end
     _NoOp
 
@@ -1948,9 +1948,9 @@ class \nodoc\ iso _StatefulFinalCheckFailureProperty
     ctx: StatefulContext[USize, USize],
     rnd: Randomness,
     h: PropertyHelper)
-    : _NoOp ?
+    : StepResult[_NoOp]
   =>
-    let v = rnd.usize(0, 10)?
+    let v = rnd.usize(0, 10)
     ctx.sut = ctx.sut + v
     ctx.model = ctx.model + v
     _NoOp
@@ -1964,6 +1964,39 @@ class \nodoc\ iso _StatefulFinalCheckFailureProperty
     ctx: StatefulContext[USize, USize] box, h: PropertyHelper): Bool
   =>
     false
+
+class \nodoc\ iso _StatefulStepSutErrorProperty
+  is StatefulProperty[USize, USize, _Inc]
+  """
+  Returns StepFail when the SUT reaches 3, exercising the step-failure
+  path through shrinking.
+  """
+  fun name(): String => "stateful/step_sut_error/property"
+
+  fun params(): PropertyParams =>
+    PropertyParams(where num_samples' = 50, seed' = 42,
+      max_shrink_reductions' = 100,
+      regression_db' = false)
+
+  fun max_steps(): USize => 20
+
+  fun initial_sut(): USize => 0
+
+  fun initial_model(): USize => 0
+
+  fun ref step(
+    ctx: StatefulContext[USize, USize],
+    rnd: Randomness,
+    h: PropertyHelper)
+    : StepResult[_Inc]
+  =>
+    ctx.sut = ctx.sut + 1
+    ctx.model = ctx.model + 1
+    if ctx.sut >= 3 then
+      StepFail
+    else
+      _Inc
+    end
 
 class \nodoc\ iso _StatefulShrinkQualityProperty
   is StatefulProperty[USize, USize, _CounterCmd]
@@ -1984,9 +2017,9 @@ class \nodoc\ iso _StatefulShrinkQualityProperty
     ctx: StatefulContext[USize, USize],
     rnd: Randomness,
     h: PropertyHelper)
-    : _CounterCmd ?
+    : StepResult[_CounterCmd]
   =>
-    if rnd.bool()? then
+    if rnd.bool() then
       ctx.sut = ctx.sut + 1
       ctx.model = ctx.model + 1
       _Inc
@@ -2020,9 +2053,9 @@ class \nodoc\ iso _MultiCommandProperty
     ctx: StatefulContext[USize, USize],
     rnd: Randomness,
     h: PropertyHelper)
-    : _CounterCmd ?
+    : StepResult[_CounterCmd]
   =>
-    if rnd.bool()? then
+    if rnd.bool() then
       ctx.sut = ctx.sut + 1
       ctx.model = ctx.model + 1
       _Inc
@@ -2064,7 +2097,7 @@ class \nodoc\ iso _AsyncStatefulProperty
     ctx: StatefulContext[USize, USize],
     rnd: Randomness,
     h: PropertyHelper)
-    : _Inc
+    : StepResult[_Inc]
   =>
     h.long_test(10_000_000_000)
     h.expect_action("step")
@@ -2404,11 +2437,11 @@ class \nodoc\ iso _DirectFailingStatefulTest is UnitTest
       found_failure,
       "failing counter should produce a failing sample")
 
-class \nodoc\ iso _DirectStepAlwaysErrorsTest is UnitTest
-  fun name(): String => "stateful/direct/step_always_errors"
+class \nodoc\ iso _DirectStepAlwaysRejectsTest is UnitTest
+  fun name(): String => "stateful/direct/step_always_rejects"
 
   fun apply(h: TestHelper) =>
-    let prop = _StatefulStepAlwaysErrorsProperty
+    let prop = _StatefulStepAlwaysRejectsProperty
     let params = prop.params()
     let exec =
       _StatefulPropertyExec[USize, USize, _NoOp](
@@ -2519,6 +2552,46 @@ class \nodoc\ iso _DirectStatefulShrinkQualityTest is UnitTest
     h.assert_true(
       repr.contains("Invariant failure"),
       "shrunk trace should show invariant failure, got: " + repr)
+
+class \nodoc\ iso _DirectStepSutErrorTest is UnitTest
+  fun name(): String => "stateful/direct/step_sut_error"
+
+  fun apply(h: TestHelper) =>
+    let prop = _StatefulStepSutErrorProperty
+    let params = prop.params()
+    let exec =
+      _StatefulPropertyExec[USize, USize, _Inc](
+        consume prop, params, h, h.env)
+    let ph = PropertyHelper._create(h, 0)
+    var found_failure = false
+    while exec.has_more_samples() do
+      exec.run_sample(ph)
+      if not exec.last_sample_passed() then
+        found_failure = true
+        break
+      end
+      exec.sample_passed()
+    end
+    if not found_failure then
+      h.fail("expected property to fail")
+      return
+    end
+    exec.sample_failed()
+    if not exec.needs_shrink() then
+      h.fail("expected shrinker to have choices")
+      return
+    end
+    exec.begin_shrink()
+    while not exec.shrink_exhausted() do
+      exec.run_shrink_candidate(ph)
+    end
+    let repr = exec.sample_repr()
+    h.assert_true(
+      repr.contains("Step failure"),
+      "trace should show step failure, got: " + repr)
+    h.assert_false(
+      repr.contains("20. "),
+      "shrunk trace should be shorter than 20 steps, got: " + repr)
 
 class \nodoc\ iso _DirectCoverUnsatisfiedTest is UnitTest
   fun name(): String => "cover/direct/unsatisfied"
@@ -3456,7 +3529,7 @@ class \nodoc\ iso _StatefulRegressionSaveProperty
     ctx: StatefulContext[USize, USize],
     rnd: Randomness,
     h: PropertyHelper)
-    : _Inc
+    : StepResult[_Inc]
   =>
     ctx.sut = ctx.sut + 1
     ctx.model = ctx.model + 2

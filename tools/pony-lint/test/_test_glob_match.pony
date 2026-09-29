@@ -141,12 +141,12 @@ class \nodoc\ _TestGlobMatchLiteralSelfMatchProperty is Property[String]
   fun gen(): Generator[String] =>
     Generator[String](
       object is GenObj[String]
-        fun generate(rnd: Randomness): String^ ? =>
-          let len = rnd.u8(0, 20)?.usize()
+        fun generate(rnd: Randomness): String^ =>
+          let len = rnd.u8(0, 20).usize()
           let s = recover iso String(len) end
           var i: USize = 0
           while i < len do
-            var ch = rnd.u8(33, 126)?
+            var ch = rnd.u8(33, 126)
             if ch == '*' then ch = 'a' end
             if ch == '/' then ch = 'b' end
             s.push(ch)
@@ -169,16 +169,16 @@ class \nodoc\ _TestGlobMatchStarNoCrossSlashProperty is Property[String]
   fun gen(): Generator[String] =>
     Generator[String](
       object is GenObj[String]
-        fun generate(rnd: Randomness): String^ ? =>
-          let len = rnd.u8(0, 15)?.usize()
+        fun generate(rnd: Randomness): String^ =>
+          let len = rnd.u8(0, 15).usize()
           let s = recover iso String(len) end
           var i: USize = 0
           while i < len do
-            let mode = rnd.u8(0, 3)?
+            let mode = rnd.u8(0, 3)
             if mode == 0 then
               s.push('/')
             else
-              s.push('a' + rnd.u8(0, 25)?)
+              s.push('a' + rnd.u8(0, 25))
             end
             i = i + 1
           end
@@ -202,16 +202,16 @@ class \nodoc\ _TestGlobMatchDoubleStarMatchesAllProperty is Property[String]
   fun gen(): Generator[String] =>
     Generator[String](
       object is GenObj[String]
-        fun generate(rnd: Randomness): String^ ? =>
-          let len = rnd.u8(0, 30)?.usize()
+        fun generate(rnd: Randomness): String^ =>
+          let len = rnd.u8(0, 30).usize()
           let s = recover iso String(len) end
           var i: USize = 0
           while i < len do
-            let mode = rnd.u8(0, 3)?
+            let mode = rnd.u8(0, 3)
             if mode == 0 then
               s.push('/')
             else
-              s.push('a' + rnd.u8(0, 25)?)
+              s.push('a' + rnd.u8(0, 25))
             end
             i = i + 1
           end

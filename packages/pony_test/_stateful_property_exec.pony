@@ -21,7 +21,8 @@ class ref _StatefulPropertyExec[S, M, Cmd: Stringable val]
   var _shrink_last_choices: (Array[_Choice val] val | None) = None
   var _shrink_last_spans: (Array[_Span val] val | None) = None
   var _shrink_last_repr: String = ""
-  var _consecutive_errors: USize = 0
+  var _consecutive_rejections: USize = 0
+  var _step_errored: Bool = false
   var _failed_at_step: (USize | None) = None
 
   new create(
@@ -53,20 +54,22 @@ class ref _StatefulPropertyExec[S, M, Cmd: Stringable val]
   =>
     _engine.replay(choices)
 
+    _step_errored = false
+
     let num_steps: USize =
       if _max_steps == 0 then
         0
       else
-        try
-          _engine.rnd().usize(1, _max_steps)?
-        else
-          _logger.log(
-            "Stored regression stale for \"" + _prop.name() +
-              "\", removing")
-          _engine.clear_regression(_logger)
-          return
-        end
+        _engine.rnd().usize(1, _max_steps)
       end
+
+    if _engine.rnd()._replay_exhausted() then
+      _logger.log(
+        "Stored regression stale for \"" + _prop.name() +
+          "\", removing")
+      _engine.clear_regression(_logger)
+      return
+    end
 
     let ctx =
       StatefulContext[S, M](
@@ -80,22 +83,25 @@ class ref _StatefulPropertyExec[S, M, Cmd: Stringable val]
     var failed_at_step: (USize | None) = None
     var i: USize = 0
     while i < num_steps do
-      let cmd =
-        try
-          _prop.step(ctx, _engine.rnd(), h)?
-        else
-          _logger.log(
-            "Stored regression stale for \"" + _prop.name() +
-              "\", removing")
-          _engine.clear_regression(_logger)
-          return
-        end
-      _cmd_trace.push(cmd)
+      match \exhaustive\ _prop.step(ctx, _engine.rnd(), h)
+      | let cmd: Cmd =>
+        _cmd_trace.push(cmd)
 
-      if (failed_at_step is None) and
-        (not _prop.invariant(ctx, h))
-      then
+        if (failed_at_step is None) and
+          (not _prop.invariant(ctx, h))
+        then
+          failed_at_step = i
+        end
+      | StepReject =>
+        _logger.log(
+          "Stored regression stale for \"" + _prop.name() +
+            "\", removing")
+        _engine.clear_regression(_logger)
+        return
+      | StepFail =>
+        _step_errored = true
         failed_at_step = i
+        break
       end
 
       i = i + 1
@@ -106,7 +112,9 @@ class ref _StatefulPropertyExec[S, M, Cmd: Stringable val]
         failed_at_step = num_steps
       end
     else
-      _prop.final_check(ctx, h)
+      if not _step_errored then
+        _prop.final_check(ctx, h)
+      end
     end
 
     match \exhaustive\ failed_at_step
@@ -128,18 +136,14 @@ class ref _StatefulPropertyExec[S, M, Cmd: Stringable val]
   fun ref run_sample(h: PropertyHelper) =>
     _has_error = false
     _error_msg = ""
+    _step_errored = false
     _engine.begin_sample()
 
     let num_steps: USize =
       if _max_steps == 0 then
         0
       else
-        try
-          _engine.rnd().usize(1, _max_steps)?
-        else
-          _Unreachable()
-          return
-        end
+        _engine.rnd().usize(1, _max_steps)
       end
 
     let ctx =
@@ -153,35 +157,38 @@ class ref _StatefulPropertyExec[S, M, Cmd: Stringable val]
     _failed_at_step = None
     var i: USize = 0
     while i < num_steps do
-      let cmd =
-        try
-          _prop.step(ctx, _engine.rnd(), h)?
-        else
-          _engine.reset_rnd()
-          _consecutive_errors = _consecutive_errors + 1
-          if _consecutive_errors > _params.max_generator_retries then
-            _engine.report_health_checks(_logger)
-            _pass = false
-            _has_error = true
-            _error_msg =
-              "Unable to generate valid commands, " +
-              _consecutive_errors.string() +
-              " consecutive samples with step errors"
-            return
-          end
-          _current_sample = _current_sample + 1
-          if _current_sample >= _params.num_samples then
-            return
-          end
-          run_sample(h)
+      match \exhaustive\ _prop.step(ctx, _engine.rnd(), h)
+      | let cmd: Cmd =>
+        _cmd_trace.push(cmd)
+
+        if (_failed_at_step is None) and
+          (not _prop.invariant(ctx, h))
+        then
+          _failed_at_step = i
+        end
+      | StepReject =>
+        _engine.reset_rnd()
+        _consecutive_rejections = _consecutive_rejections + 1
+        if _consecutive_rejections > _params.max_generator_retries then
+          _engine.report_health_checks(_logger)
+          _pass = false
+          _has_error = true
+          _error_msg =
+            "Unable to generate valid commands, " +
+            _consecutive_rejections.string() +
+            " consecutive samples rejected"
           return
         end
-      _cmd_trace.push(cmd)
-
-      if (_failed_at_step is None) and
-        (not _prop.invariant(ctx, h))
-      then
+        _current_sample = _current_sample + 1
+        if _current_sample >= _params.num_samples then
+          return
+        end
+        run_sample(h)
+        return
+      | StepFail =>
+        _step_errored = true
         _failed_at_step = i
+        break
       end
 
       i = i + 1
@@ -192,10 +199,12 @@ class ref _StatefulPropertyExec[S, M, Cmd: Stringable val]
         _failed_at_step = num_steps
       end
     else
-      _prop.final_check(ctx, h)
+      if not _step_errored then
+        _prop.final_check(ctx, h)
+      end
     end
 
-    _consecutive_errors = 0
+    _consecutive_rejections = 0
     _engine.inc_samples_run()
 
     match \exhaustive\ _failed_at_step
@@ -245,17 +254,18 @@ class ref _StatefulPropertyExec[S, M, Cmd: Stringable val]
       end
 
     _engine.replay(candidate)
+    _step_errored = false
 
     let num_steps: USize =
       if _max_steps == 0 then
         0
       else
-        try
-          _engine.rnd().usize(1, _max_steps)?
-        else
-          return
-        end
+        _engine.rnd().usize(1, _max_steps)
       end
+
+    if _engine.rnd()._replay_exhausted() then
+      return
+    end
 
     let ctx =
       StatefulContext[S, M](
@@ -268,18 +278,21 @@ class ref _StatefulPropertyExec[S, M, Cmd: Stringable val]
     var failed_at_step: (USize | None) = None
     var i: USize = 0
     while i < num_steps do
-      let cmd =
-        try
-          _prop.step(ctx, _engine.rnd(), h)?
-        else
-          return
-        end
-      _cmd_trace.push(cmd)
+      match \exhaustive\ _prop.step(ctx, _engine.rnd(), h)
+      | let cmd: Cmd =>
+        _cmd_trace.push(cmd)
 
-      if (failed_at_step is None) and
-        (not _prop.invariant(ctx, h))
-      then
+        if (failed_at_step is None) and
+          (not _prop.invariant(ctx, h))
+        then
+          failed_at_step = i
+        end
+      | StepReject =>
+        return
+      | StepFail =>
+        _step_errored = true
         failed_at_step = i
+        break
       end
 
       i = i + 1
@@ -290,7 +303,9 @@ class ref _StatefulPropertyExec[S, M, Cmd: Stringable val]
         failed_at_step = num_steps
       end
     else
-      _prop.final_check(ctx, h)
+      if not _step_errored then
+        _prop.final_check(ctx, h)
+      end
     end
 
     let new_choices = _engine.trim_to_consumed(candidate)
@@ -381,7 +396,10 @@ class ref _StatefulPropertyExec[S, M, Cmd: Stringable val]
     end
     match failed_step
     | let step: USize =>
-      if step < _cmd_trace.size() then
+      if _step_errored then
+        s.append("  Step failure at step ")
+        s.append((step + 1).string())
+      elseif step < _cmd_trace.size() then
         s.append("  Invariant failure at step ")
         s.append((step + 1).string())
       else
