@@ -299,9 +299,10 @@ jobs:
         if: ${{ hashFiles('.libs-cache-miss') == '' }}
         # use=valgrind smoke — see the script for details. FreeBSD ships a modern
         # Valgrind, so unlike DragonFly a Pony program can run to completion under
-        # it. Whether 15.1's Valgrind actually does is unverified; this runs it
-        # and we find out when tier-3 runs. Its own step because the script does
-        # its own clean+configure+build, so it's self-contained.
+        # it. The script builds with the x86-64 baseline arch because the runner
+        # CPU supports AVX-512, which Valgrind can't emulate. Its own step
+        # because the script does its own clean+configure+build, so it's
+        # self-contained.
         run: |
           ssh -o StrictHostKeyChecking=no -i vm_key -p 2222 freebsd@localhost <<'EOF'
           set -e
