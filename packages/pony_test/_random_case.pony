@@ -2126,17 +2126,17 @@ class \nodoc\ iso _AsyncStatefulPropertyTest is UnitTest
         fun tag tests(test: PonyTest) =>
           test.stateful_property(_AsyncStatefulProperty)
       end
-    let collector = _PassCollector(h)
+    let reporter = PassReporter(h)
     let env =
       Env.create(
         h.env.root,
         h.env.input,
-        collector,
-        collector,
+        h.env.out,
+        h.env.err,
         recover val ["test"] end,
         h.env.vars,
         {(code: I32) => None })
-    PonyTest(env, list)
+    PonyTest(env, list, reporter)
 
 // --- classify/tabulate/cover/collect property definitions ---
 class \nodoc\ iso _ClassifyAllSameProperty is Property[U8]
@@ -2908,17 +2908,17 @@ class \nodoc\ iso _AssertionOnlyFailTest is UnitTest
         fun tag tests(test: PonyTest) =>
           test.property(_AssertionOnlyFailProperty)
       end
-    let detector = _FailDetector(h)
+    let reporter = FailReporter(h)
     let env =
       Env.create(
         h.env.root,
         h.env.input,
-        detector,
-        detector,
+        h.env.out,
+        h.env.err,
         recover val ["test"] end,
         h.env.vars,
-        {(code: I32) => detector.done() })
-    PonyTest(env, list)
+        {(code: I32) => None })
+    PonyTest(env, list, reporter)
 
 class \nodoc\ iso _AsyncSimpleProperty is Property[U8]
   """
@@ -2952,17 +2952,17 @@ class \nodoc\ iso _AsyncPropertyTest is UnitTest
         fun tag tests(test: PonyTest) =>
           test.property(_AsyncSimpleProperty)
       end
-    let collector = _PassCollector(h)
+    let reporter = PassReporter(h)
     let env =
       Env.create(
         h.env.root,
         h.env.input,
-        collector,
-        collector,
+        h.env.out,
+        h.env.err,
         recover val ["test"] end,
         h.env.vars,
         {(code: I32) => None })
-    PonyTest(env, list)
+    PonyTest(env, list, reporter)
 
 class \nodoc\ iso _AsyncFailingProperty is Property[U8]
   """
@@ -2996,75 +2996,17 @@ class \nodoc\ iso _AsyncFailingPropertyTest is UnitTest
         fun tag tests(test: PonyTest) =>
           test.property(_AsyncFailingProperty)
       end
-    let detector = _FailDetector(h)
+    let reporter = FailReporter(h)
     let env =
       Env.create(
         h.env.root,
         h.env.input,
-        detector,
-        detector,
+        h.env.out,
+        h.env.err,
         recover val ["test"] end,
         h.env.vars,
-        {(code: I32) => detector.done() })
-    PonyTest(env, list)
-
-actor \nodoc\ _PassCollector is OutStream
-  """
-  Collects output from a sub-PonyTest run and verifies that all
-  tests passed. Detects completion by watching for the summary
-  output rather than the exit callback, because PonyTest only
-  calls exitcode on failure.
-  """
-  let _h: TestHelper
-  var _saw_passed: Bool = false
-  var _saw_failed: Bool = false
-
-  new create(h: TestHelper) =>
-    _h = h
-
-  be print(data: ByteSeq) =>
-    let s: String =
-      match \exhaustive\ data
-      | let str: String => str
-      | let a: Array[U8] val => String.from_array(a)
-      end
-    if s.contains("---- Passed:") then
-      _saw_passed = true
-      _check_done()
-    end
-    if s.contains("FAILED:") then
-      _saw_failed = true
-    end
-
-  be write(data: ByteSeq) => None
-  be printv(data: ByteSeqIter) => None
-  be writev(data: ByteSeqIter) => None
-  be flush() => None
-
-  fun ref _check_done() =>
-    if _saw_passed and (not _saw_failed) then
-      _h.complete(true)
-    end
-
-actor \nodoc\ _FailDetector is OutStream
-  """
-  Detects failure in a sub-PonyTest run via the exit callback.
-  PonyTest calls `exitcode(-1)` on failure, so the exit callback
-  firing is sufficient to detect failure — no output parsing needed.
-  """
-  let _h: TestHelper
-
-  new create(h: TestHelper) =>
-    _h = h
-
-  be print(data: ByteSeq) => None
-  be write(data: ByteSeq) => None
-  be printv(data: ByteSeqIter) => None
-  be writev(data: ByteSeqIter) => None
-  be flush() => None
-
-  be done() =>
-    _h.complete(true)
+        {(code: I32) => None })
+    PonyTest(env, list, reporter)
 
 // --- Async property test (rewritten for new architecture) ---
 class \nodoc\ iso _ClassifyForAllTest is UnitTest
@@ -3213,17 +3155,17 @@ class \nodoc\ iso _AsyncCompleteTest is UnitTest
         fun tag tests(test: PonyTest) =>
           test.property(_AsyncCompleteProperty)
       end
-    let collector = _PassCollector(h)
+    let reporter = PassReporter(h)
     let env =
       Env.create(
         h.env.root,
         h.env.input,
-        collector,
-        collector,
+        h.env.out,
+        h.env.err,
         recover val ["test"] end,
         h.env.vars,
         {(code: I32) => None })
-    PonyTest(env, list)
+    PonyTest(env, list, reporter)
 
 class \nodoc\ iso _AsyncCompleteFalseProperty is Property[U8]
   fun name(): String => "meta/async_complete_false/property"
@@ -3247,17 +3189,17 @@ class \nodoc\ iso _AsyncCompleteFalseTest is UnitTest
         fun tag tests(test: PonyTest) =>
           test.property(_AsyncCompleteFalseProperty)
       end
-    let detector = _FailDetector(h)
+    let reporter = FailReporter(h)
     let env =
       Env.create(
         h.env.root,
         h.env.input,
-        detector,
-        detector,
+        h.env.out,
+        h.env.err,
         recover val ["test"] end,
         h.env.vars,
-        {(code: I32) => detector.done() })
-    PonyTest(env, list)
+        {(code: I32) => None })
+    PonyTest(env, list, reporter)
 
 class \nodoc\ iso _AsyncFailProperty is Property[U8]
   fun name(): String => "meta/async_fail/property"
@@ -3281,17 +3223,17 @@ class \nodoc\ iso _AsyncFailTest is UnitTest
         fun tag tests(test: PonyTest) =>
           test.property(_AsyncFailProperty)
       end
-    let detector = _FailDetector(h)
+    let reporter = FailReporter(h)
     let env =
       Env.create(
         h.env.root,
         h.env.input,
-        detector,
-        detector,
+        h.env.out,
+        h.env.err,
         recover val ["test"] end,
         h.env.vars,
-        {(code: I32) => detector.done() })
-    PonyTest(env, list)
+        {(code: I32) => None })
+    PonyTest(env, list, reporter)
 
 class \nodoc\ iso _AsyncExpectCompleteProperty is Property[U8]
   fun name(): String => "meta/async_expect_complete/property"
@@ -3316,17 +3258,17 @@ class \nodoc\ iso _AsyncExpectCompleteTest is UnitTest
         fun tag tests(test: PonyTest) =>
           test.property(_AsyncExpectCompleteProperty)
       end
-    let collector = _PassCollector(h)
+    let reporter = PassReporter(h)
     let env =
       Env.create(
         h.env.root,
         h.env.input,
-        collector,
-        collector,
+        h.env.out,
+        h.env.err,
         recover val ["test"] end,
         h.env.vars,
         {(code: I32) => None })
-    PonyTest(env, list)
+    PonyTest(env, list, reporter)
 
 class \nodoc\ iso _AsyncExpectFailProperty is Property[U8]
   fun name(): String => "meta/async_expect_fail/property"
@@ -3351,17 +3293,17 @@ class \nodoc\ iso _AsyncExpectFailTest is UnitTest
         fun tag tests(test: PonyTest) =>
           test.property(_AsyncExpectFailProperty)
       end
-    let detector = _FailDetector(h)
+    let reporter = FailReporter(h)
     let env =
       Env.create(
         h.env.root,
         h.env.input,
-        detector,
-        detector,
+        h.env.out,
+        h.env.err,
         recover val ["test"] end,
         h.env.vars,
-        {(code: I32) => detector.done() })
-    PonyTest(env, list)
+        {(code: I32) => None })
+    PonyTest(env, list, reporter)
 
 class \nodoc\ iso _AsyncFailThenCompleteProperty is Property[U8]
   fun name(): String => "meta/async_fail_then_complete/property"
@@ -3387,17 +3329,17 @@ class \nodoc\ iso _AsyncFailThenCompleteTest is UnitTest
         fun tag tests(test: PonyTest) =>
           test.property(_AsyncFailThenCompleteProperty)
       end
-    let detector = _FailDetector(h)
+    let reporter = FailReporter(h)
     let env =
       Env.create(
         h.env.root,
         h.env.input,
-        detector,
-        detector,
+        h.env.out,
+        h.env.err,
         recover val ["test"] end,
         h.env.vars,
-        {(code: I32) => detector.done() })
-    PonyTest(env, list)
+        {(code: I32) => None })
+    PonyTest(env, list, reporter)
 
 class \nodoc\ iso _AsyncCompleteThenFailProperty is Property[U8]
   fun name(): String => "meta/async_complete_then_fail/property"
@@ -3423,17 +3365,17 @@ class \nodoc\ iso _AsyncCompleteThenFailTest is UnitTest
         fun tag tests(test: PonyTest) =>
           test.property(_AsyncCompleteThenFailProperty)
       end
-    let detector = _FailDetector(h)
+    let reporter = FailReporter(h)
     let env =
       Env.create(
         h.env.root,
         h.env.input,
-        detector,
-        detector,
+        h.env.out,
+        h.env.err,
         recover val ["test"] end,
         h.env.vars,
-        {(code: I32) => detector.done() })
-    PonyTest(env, list)
+        {(code: I32) => None })
+    PonyTest(env, list, reporter)
 
 // --- Classification shrink contamination unit test ---
 class \nodoc\ iso _ClassifyShrinkContaminationTest is UnitTest
