@@ -150,19 +150,19 @@ class \nodoc\ _TestCamelCaseValidProperty is Property[String]
   fun gen(): Generator[String] =>
     Generator[String](
       object is GenObj[String]
-        fun generate(rnd: Randomness): String^ ? =>
-          let len = rnd.u8(1, 10)?.usize()
+        fun generate(rnd: Randomness): String^ =>
+          let len = rnd.u8(1, 10).usize()
           let s = recover iso String(len + 2) end
           // Optional leading underscore (~25%)
-          if rnd.bool()? and rnd.bool()? then
+          if rnd.bool() and rnd.bool() then
             s.push('_')
           end
           // First significant char: uppercase
-          s.push('A' + rnd.u8(0, 25)?)
+          s.push('A' + rnd.u8(0, 25))
           // Remaining: alphanumeric only
           var i: USize = 1
           while i < len do
-            let ch = rnd.u8(0, 61)?
+            let ch = rnd.u8(0, 61)
             if ch < 26 then
               s.push('A' + ch)
             elseif ch < 52 then
@@ -190,8 +190,8 @@ class \nodoc\ _TestCamelCaseInvalidProperty is Property[String]
   fun gen(): Generator[String] =>
     Generator[String](
       object is GenObj[String]
-        fun generate(rnd: Randomness): String^ ? =>
-          let mode = rnd.u8(0, 4)?
+        fun generate(rnd: Randomness): String^ =>
+          let mode = rnd.u8(0, 4)
           let s = recover iso String(12) end
           if mode == 0 then
             // Empty string
@@ -201,23 +201,23 @@ class \nodoc\ _TestCamelCaseInvalidProperty is Property[String]
             s.push('_')
           elseif mode == 2 then
             // Starts with lowercase
-            if rnd.bool()? then s.push('_') end
-            s.push('a' + rnd.u8(0, 25)?)
-            var extra = rnd.u8(0, 5)?.usize()
+            if rnd.bool() then s.push('_') end
+            s.push('a' + rnd.u8(0, 25))
+            var extra = rnd.u8(0, 5).usize()
             while extra > 0 do
-              s.push('a' + rnd.u8(0, 25)?)
+              s.push('a' + rnd.u8(0, 25))
               extra = extra - 1
             end
           elseif mode == 3 then
             // Underscore in body
-            s.push('A' + rnd.u8(0, 25)?)
-            s.push('a' + rnd.u8(0, 25)?)
+            s.push('A' + rnd.u8(0, 25))
+            s.push('a' + rnd.u8(0, 25))
             s.push('_')
-            s.push('A' + rnd.u8(0, 25)?)
+            s.push('A' + rnd.u8(0, 25))
           else
             // Starts with digit
-            s.push('0' + rnd.u8(0, 9)?)
-            s.push('a' + rnd.u8(0, 25)?)
+            s.push('0' + rnd.u8(0, 9))
+            s.push('a' + rnd.u8(0, 25))
           end
           consume s
       end)
@@ -237,19 +237,19 @@ class \nodoc\ _TestSnakeCaseValidProperty is Property[String]
   fun gen(): Generator[String] =>
     Generator[String](
       object is GenObj[String]
-        fun generate(rnd: Randomness): String^ ? =>
-          let len = rnd.u8(1, 10)?.usize()
+        fun generate(rnd: Randomness): String^ =>
+          let len = rnd.u8(1, 10).usize()
           let s = recover iso String(len + 2) end
           // Optional leading underscore (~25%)
-          if rnd.bool()? and rnd.bool()? then
+          if rnd.bool() and rnd.bool() then
             s.push('_')
           end
           // First significant char: lowercase
-          s.push('a' + rnd.u8(0, 25)?)
+          s.push('a' + rnd.u8(0, 25))
           // Remaining: lowercase, digits, underscores
           var i: USize = 1
           while i < len do
-            let ch = rnd.u8(0, 36)?
+            let ch = rnd.u8(0, 36)
             if ch < 26 then
               s.push('a' + ch)
             elseif ch < 36 then
@@ -277,8 +277,8 @@ class \nodoc\ _TestSnakeCaseInvalidProperty is Property[String]
   fun gen(): Generator[String] =>
     Generator[String](
       object is GenObj[String]
-        fun generate(rnd: Randomness): String^ ? =>
-          let mode = rnd.u8(0, 3)?
+        fun generate(rnd: Randomness): String^ =>
+          let mode = rnd.u8(0, 3)
           let s = recover iso String(12) end
           if mode == 0 then
             // Empty string
@@ -288,19 +288,19 @@ class \nodoc\ _TestSnakeCaseInvalidProperty is Property[String]
             s.push('_')
           elseif mode == 2 then
             // Starts with uppercase
-            if rnd.bool()? then s.push('_') end
-            s.push('A' + rnd.u8(0, 25)?)
-            var extra = rnd.u8(0, 5)?.usize()
+            if rnd.bool() then s.push('_') end
+            s.push('A' + rnd.u8(0, 25))
+            var extra = rnd.u8(0, 5).usize()
             while extra > 0 do
-              s.push('a' + rnd.u8(0, 25)?)
+              s.push('a' + rnd.u8(0, 25))
               extra = extra - 1
             end
           else
             // Uppercase in body
-            s.push('a' + rnd.u8(0, 25)?)
-            s.push('a' + rnd.u8(0, 25)?)
-            s.push('A' + rnd.u8(0, 25)?)
-            s.push('a' + rnd.u8(0, 25)?)
+            s.push('a' + rnd.u8(0, 25))
+            s.push('a' + rnd.u8(0, 25))
+            s.push('A' + rnd.u8(0, 25))
+            s.push('a' + rnd.u8(0, 25))
           end
           consume s
       end)

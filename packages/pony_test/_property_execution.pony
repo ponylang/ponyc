@@ -102,6 +102,14 @@ class ref _PropertyExec[T] is _PropertyExecution
         return
       end
 
+    if _engine.rnd()._replay_exhausted() then
+      _logger.log(
+        "Stored regression stale for \"" + _prop.name() +
+          "\", removing")
+      _engine.clear_regression(_logger)
+      return
+    end
+
     (sample, _sample_repr) = _Stringify.apply[T](consume sample)
     _logger.log(
       "Replaying stored regression for \"" + _prop.name() + "\"")
@@ -200,6 +208,10 @@ class ref _PropertyExec[T] is _PropertyExecution
       else
         return
       end
+
+    if _engine.rnd()._replay_exhausted() then
+      return
+    end
 
     let new_choices = _engine.trim_to_consumed(candidate)
 

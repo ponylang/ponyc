@@ -62,7 +62,7 @@ class iso MyProperty is Property[U8]
     h.assert_true(sample < 200)
 ```
 
-`Property2`, `Property3`, `Property4`, `PropertyHelper`, `Generators`, `Randomness`, `StatefulProperty`, `StatefulContext`, and `ForAll` are unchanged. Internal types that were previously public, including `PropertyRunner` and `StatefulPropertyRunner`, are now private to `pony_test`.
+`Property2`, `Property3`, `Property4`, `PropertyHelper`, `Generators`, `StatefulContext`, and `ForAll` are unchanged. Internal types that were previously public, including `PropertyRunner` and `StatefulPropertyRunner`, are now private to `pony_test`.
 
 ### Property test registration API changes
 
@@ -123,6 +123,80 @@ Properties that don't call `long_test` run in sync mode, which is faster.
 - `PONYCHECK_NO_DB` → `PONYTEST_NO_DB`
 - `PONYCHECK_DB_DIR` → `PONYTEST_DB_DIR`
 - `.ponycheck/` regression directory → `.ponytest/`. If you rename `.ponycheck/` to `.ponytest/`, old files in it are deleted when tests first run because the format is incompatible. Regressions must be regenerated.
+
+### Distinguish rejected commands from SUT failures in StatefulProperty.step()
+
+`StatefulProperty.step()` returned `Cmd ?` — an error meant "rejected command, try another sample." That left no way to report that the system under test actually failed, so real failures were treated as rejections and never shrunk.
+
+`step()` now returns `StepResult[Cmd]`, a type alias for `(Cmd | StepReject | StepFail)`. `StepReject` replaces the old error-means-reject convention. `StepFail` records the failing step and activates the shrinker. When `step()` returns `StepFail`, the runner skips `final_check` and goes straight to shrinking.
+
+Before:
+
+```pony
+fun ref step(
+  ctx: StatefulContext[S, M],
+  rnd: Randomness,
+  h: PropertyHelper)
+  : Cmd ?
+=>
+  let cmd = rnd.u8(0, 2)?
+  match cmd
+  | 0 => if ctx.model.is_empty() then error end  // reject
+         ctx.sut.pop()?                           // might fail — no way to say so
+         Pop
+  | 1 => let v = rnd.u8()?
+         ctx.sut.push(v)
+         Push(v)
+  else
+    error  // reject
+  end
+```
+
+After:
+
+```pony
+fun ref step(
+  ctx: StatefulContext[S, M],
+  rnd: Randomness,
+  h: PropertyHelper)
+  : StepResult[Cmd]
+=>
+  let cmd = rnd.u8(0, 2)
+  match cmd
+  | 0 => if ctx.model.is_empty() then return StepReject end
+         try ctx.sut.pop()? else return StepFail end
+         Pop
+  | 1 => let v = rnd.u8()
+         ctx.sut.push(v)
+         Push(v)
+  else
+    StepReject
+  end
+```
+
+### Make Randomness draw methods non-partial
+
+All integer, float, and bool draw methods on `Randomness` no longer raise errors. Remove `?` from all draw calls in `step()`, `generate()`, and anywhere else that uses them. `shuffle()` remains partial.
+
+Before:
+
+```pony
+fun generate(rnd: Randomness): MyType^ ? =>
+  let x = rnd.u8()?
+  let flag = rnd.bool()?
+  MyType(x, flag)
+```
+
+After:
+
+```pony
+fun generate(rnd: Randomness): MyType^ ? =>
+  let x = rnd.u8()
+  let flag = rnd.bool()
+  MyType(x, flag)
+```
+
+The `generate()` method signature itself stays partial — generators can still raise errors for their own reasons (e.g., NaN checks in float generators). Only the `Randomness` draw calls lost their `?`.
 
 ## Fix property test failures not triggering shrinking
 

@@ -1,3 +1,20 @@
+type StepResult[Cmd] is (Cmd | StepReject | StepFail)
+  """
+  The return type of `StatefulProperty.step()`.
+  """
+
+primitive StepReject
+  """
+  Returned from `step()` when a command is invalid for the current state.
+  The runner discards the sample and starts fresh.
+  """
+
+primitive StepFail
+  """
+  Returned from `step()` when the system under test fails. The runner
+  records the failing step and activates the shrinker.
+  """
+
 class ref StatefulContext[S, M]
   """
   The system under test and the reference model for the current sample.
@@ -32,6 +49,11 @@ trait StatefulProperty[S, M, Cmd: Stringable val]
   execute a command, followed by `invariant` to check model-SUT
   agreement. After all steps, `final_check` runs once. On failure, the
   choice sequence is replayed with shrunken candidates.
+
+  `step()` returns `StepResult[Cmd]`. Return the command
+  on success, `StepReject` when the command is invalid for the current
+  state (the sample is discarded), or `StepFail` when the system under
+  test breaks (triggers shrinking).
 
   Factory methods must be deterministic: given the same starting point,
   they produce equivalent state. They are called once per sample and
@@ -76,9 +98,14 @@ trait StatefulProperty[S, M, Cmd: Stringable val]
     ctx: StatefulContext[S, M],
     rnd: Randomness,
     h: PropertyHelper)
-    : Cmd ?
+    : StepResult[Cmd]
     """
-    Apply a command to `ctx.sut` and `ctx.model`, return the command.
+    Generate and apply a command to `ctx.sut` and `ctx.model`.
+
+    Return the command on success, `StepReject` when the command is
+    invalid for the current state, or `StepFail` when the system under
+    test breaks. `StepReject` discards the sample and retries.
+    `StepFail` records the step and triggers shrinking.
     """
 
   fun invariant(ctx: StatefulContext[S, M] box, h: PropertyHelper): Bool =>
@@ -98,8 +125,9 @@ trait StatefulProperty[S, M, Cmd: Stringable val]
 
   fun final_check(ctx: StatefulContext[S, M] box, h: PropertyHelper): Bool =>
     """
-    End-of-sequence check after all steps complete. The context is `box`
-    (read-only). Default returns `true` (no failure).
+    End-of-sequence check after all steps complete. Not called when
+    `step()` returns `StepFail`. The context is `box` (read-only).
+    Default returns `true` (no failure).
     """
     true
 
