@@ -48,21 +48,43 @@ case "$preset" in
         ;;
 esac
 
+# ponyc searches its own executable directory for libponyrt.bc before PONYPATH.
+# Move the host-arch .bc aside for the entire test run: the native tests don't
+# need runtime bitcode merge (it adds per-compilation LTO overhead that makes
+# the full-programs suite impractically slow), and the cross builds need the
+# target-arch copy from the cross PONYPATH, not the host copy.
+# Run check-runtime-bitcode first since it verifies the file exists.
+ctest --preset "$preset" -R check-runtime-bitcode
+cd "build/$config"
+mv libponyrt.bc libponyrt.bc.host
+cd ../..
+
 # 1. Host-native tests: all of ci-core except the stdlib (cross-built below).
-PONY_DEBUG=1 ctest --preset "$preset" -L ci-core -E stdlib
+PONY_DEBUG=1 ctest --preset "$preset" -L ci-core -E "stdlib|check-runtime-bitcode"
 ctest --preset "$preset" -R "^full-programs$"
 
 # 2. Cross-compile the stdlib with the host ponyc + the cross libponyrt, run it
 # under the emulator in both codegen modes. cross_args, cross_runner, and
 # stdlib_excludes must word-split into multiple arguments.
+#
+# Also move the cross libponyrt.bc aside: the cross build produces it for end
+# users who want LTO, but merging it into the stdlib test binary makes qemu
+# runs impractically slow. The test verifies cross-compilation works, not LTO.
 cd "build/$config"
+if [ -f "$cross_ponypath/libponyrt.bc" ]; then
+    mv "$cross_ponypath/libponyrt.bc" "$cross_ponypath/libponyrt.bc.aside"
+fi
 # shellcheck disable=SC2086
-PONYPATH=".:$cross_ponypath" ./ponyc -b stdlib --pic --checktree $ssl_flag $cross_args ../../packages/stdlib
+PONYPATH="$cross_ponypath:." ./ponyc -b stdlib --pic --checktree $ssl_flag $cross_args ../../packages/stdlib
 echo "Built $(pwd)/stdlib (release codegen)"
 # shellcheck disable=SC2086
 $cross_runner ./stdlib --sequential $stdlib_excludes
 # shellcheck disable=SC2086
-PONYPATH=".:$cross_ponypath" ./ponyc -d -b stdlib --pic --checktree $ssl_flag $cross_args ../../packages/stdlib
+PONYPATH="$cross_ponypath:." ./ponyc -d -b stdlib --pic --checktree $ssl_flag $cross_args ../../packages/stdlib
 echo "Built $(pwd)/stdlib (debug codegen)"
 # shellcheck disable=SC2086
 $cross_runner ./stdlib --sequential $stdlib_excludes
+if [ -f "$cross_ponypath/libponyrt.bc.aside" ]; then
+    mv "$cross_ponypath/libponyrt.bc.aside" "$cross_ponypath/libponyrt.bc"
+fi
+mv libponyrt.bc.host libponyrt.bc
