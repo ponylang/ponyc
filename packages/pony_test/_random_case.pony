@@ -3525,6 +3525,132 @@ class \nodoc\ iso _StatefulRegressionSaveOnFailTest is UnitTest
         {(code: I32) => collector.done() })
     PonyTest(env, list)
 
+class \nodoc\ iso _ClassifyReplayProperty is Property[U8]
+  fun name(): String => "meta/classify_replay/property"
+
+  fun gen(): Generator[U8] => Generators.u8(0, 255)
+
+  fun params(): PropertyParams =>
+    PropertyParams(where num_samples' = 10, seed' = 99)
+
+  fun ref property(sample: U8, h: PropertyHelper) =>
+    h.classify("all")
+
+class \nodoc\ iso _ClassifyRegressionReplayTest is UnitTest
+  """
+  Verifies that classification calls during regression replay do not
+  contaminate the distribution report.
+  """
+  fun name(): String => "classify/regression_replay_no_contamination"
+
+  fun apply(h: TestHelper) =>
+    h.long_test(30_000_000_000)
+    let nanos = Time.nanos().string()
+    let dir_name: String val =
+      ".ponytest-classify-replay-" + consume nanos
+    let regression_dir =
+      FilePath(FileAuth(h.env.root), dir_name)
+    if not regression_dir.mkdir() then
+      h.fail("could not create regression directory")
+      return
+    end
+
+    let choices: Array[_Choice val] val =
+      [_IntChoice(42, 0, 255, 0)]
+    _RegressionDb.save(
+      regression_dir,
+      "meta/classify_replay/property",
+      choices,
+      h)
+
+    let list =
+      object tag is TestList
+        fun tag tests(test: PonyTest) =>
+          test.property(_ClassifyReplayProperty)
+      end
+    let collector =
+      _ClassifyOutputCollector(h, regression_dir)
+    let db_var: String val =
+      "PONYTEST_DB_DIR=" + dir_name
+    let vars: Array[String] val = [db_var]
+    let env =
+      Env.create(
+        h.env.root,
+        h.env.input,
+        collector,
+        collector,
+        recover val ["test"; "--verbose"] end,
+        vars,
+        {(code: I32) => collector.done() })
+    PonyTest(env, list)
+
+actor \nodoc\ _ClassifyOutputCollector is OutStream
+  let _h: TestHelper
+  let _regression_dir: FilePath
+  embed _lines: Array[String] = Array[String]
+  var _done: Bool = false
+
+  new create(h: TestHelper, regression_dir: FilePath) =>
+    _h = h
+    _regression_dir = regression_dir
+
+  fun ref _push(data: ByteSeq) =>
+    match \exhaustive\ data
+    | let s: String =>
+      _lines.push(s)
+      if s.contains("test") and s.contains("ran.") then
+        _check_results()
+      end
+    | let a: Array[U8] val =>
+      let s = String.from_array(a)
+      _lines.push(s)
+      if s.contains("test") and s.contains("ran.") then
+        _check_results()
+      end
+    end
+
+  be print(data: ByteSeq) => _push(data)
+  be write(data: ByteSeq) => _push(data)
+
+  be printv(data: ByteSeqIter) =>
+    for d in data.values() do _push(d) end
+
+  be writev(data: ByteSeqIter) =>
+    for d in data.values() do _push(d) end
+
+  be flush() => None
+
+  be done() => _check_results()
+
+  fun ref _check_results() =>
+    if _done then return end
+    _done = true
+
+    var found_classification = false
+    for line in _lines.values() do
+      if line.contains("% all (") then
+        found_classification = true
+        if not line.contains("100.0% all (10/10)") then
+          _h.fail(
+            "classification contaminated by regression replay: " +
+              line)
+        end
+      end
+    end
+    if not found_classification then
+      _h.fail("classification output not found in test log")
+    end
+
+    try
+      let filename: String val =
+        _RegressionDb._encode_name(
+          "meta/classify_replay/property") + ".choices"
+      _regression_dir.join(filename)?.remove()
+    end
+    _regression_dir.remove()
+
+    _h.complete(found_classification)
+
 actor \nodoc\ _RegressionFileCollector is OutStream
   let _h: TestHelper
   let _expected_path: FilePath
