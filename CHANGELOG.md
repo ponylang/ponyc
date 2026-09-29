@@ -14,6 +14,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Fix assert_no_error returning true on failure ([PR #6204](https://github.com/ponylang/ponyc/pull/6204))
 - Fix classification percentages skewed by regression replay ([PR #6205](https://github.com/ponylang/ponyc/pull/6205))
 - Fix malformed documentation for constructors with generic-typed default values ([PR #6210](https://github.com/ponylang/ponyc/pull/6210))
+- Fix multiple for_all calls sharing first property's timeout ([PR #6211](https://github.com/ponylang/ponyc/pull/6211))
 
 ### Added
 
