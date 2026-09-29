@@ -12,6 +12,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Fix property test failures not triggering shrinking ([PR #6171](https://github.com/ponylang/ponyc/pull/6171))
 - Fix type argument inference through intermediate traits ([PR #6202](https://github.com/ponylang/ponyc/pull/6202))
 - Fix assert_no_error returning true on failure ([PR #6204](https://github.com/ponylang/ponyc/pull/6204))
+- Fix classification percentages skewed by regression replay ([PR #6205](https://github.com/ponylang/ponyc/pull/6205))
 
 ### Added
 
