@@ -25,6 +25,8 @@ class ref Randomness
   var _replay_exhausted_flag: Bool = false
   var _span_stack: Array[USize] ref = Array[USize]
   var _span_labels: Array[SpanLabel] ref = Array[SpanLabel]
+  var _filter_discards: USize = 0
+  var _filter_accepts: USize = 0
 
   new ref create(seed1: U64 = 42, seed2: U64 = 0) =>
     _random = Rand(seed1, seed2)
@@ -254,6 +256,13 @@ class ref Randomness
       | _ModeRecording => _choices.size()
       | _ModeReplaying => _replay_idx
       end
+    if label is SpanFilter then
+      if discard then
+        _filter_discards = _filter_discards + 1
+      else
+        _filter_accepts = _filter_accepts + 1
+      end
+    end
     _spans.push(_Span(start, end_pos, label, discard))
 
   // --- Package-private mode control ---
@@ -263,6 +272,8 @@ class ref Randomness
     _spans = recover iso Array[_Span val] end
     _span_stack = Array[USize]
     _span_labels = Array[SpanLabel]
+    _filter_discards = 0
+    _filter_accepts = 0
 
   fun ref _replay(choices: Array[_Choice val] val) =>
     _mode = _ModeReplaying
@@ -273,6 +284,8 @@ class ref Randomness
     _spans = recover iso Array[_Span val] end
     _span_stack = Array[USize]
     _span_labels = Array[SpanLabel]
+    _filter_discards = 0
+    _filter_accepts = 0
 
   fun ref _reset() =>
     _mode = _ModePlain
@@ -283,6 +296,8 @@ class ref Randomness
     _replay_seq = recover val Array[_Choice val] end
     _replay_idx = 0
     _replay_exhausted_flag = false
+    _filter_discards = 0
+    _filter_accepts = 0
 
   fun ref _get_choices(): Array[_Choice val] val =>
     _choices =
@@ -299,28 +314,10 @@ class ref Randomness
     _choices.size()
 
   fun ref _count_filter_spans(): (USize, USize) =>
-    let old = (_spans = recover iso Array[_Span val] end)
-    var discards: USize = 0
-    var accepts: USize = 0
-    var i: USize = 0
-    let len = old.size()
-    while i < len do
-      try
-        let span = old(i)?
-        match span.label
-        | SpanFilter =>
-          if span.discarded then
-            discards = discards + 1
-          else
-            accepts = accepts + 1
-          end
-        end
-      else
-        _Unreachable()
-      end
-      i = i + 1
-    end
-    _spans = consume old
+    let discards = _filter_discards
+    let accepts = _filter_accepts
+    _filter_discards = 0
+    _filter_accepts = 0
     (discards, accepts)
 
   // --- Internal draw helpers ---
