@@ -162,7 +162,7 @@ jobs:
           cmake --build --preset x86-64-debug --target pony-doc-tests pony-lint-tests pony-lsp-tests
       - name: Build Debug Cross-Compiled Runtime
         if: ${{ hashFiles('.libs-cache-miss') == '' }}
-        run: sh .ci-scripts/cross-libponyrt.sh debug riscv64-linux-gnu-gcc-10 riscv64-linux-gnu-g++-10 rv64gc "-march=rv64gc -mtune=rocket"
+        run: sh .ci-scripts/cross-libponyrt.sh debug clang clang++ rv64gc "--target=riscv64-linux-gnu --sysroot=/usr/riscv64-linux-gnu --gcc-toolchain=/usr -march=rv64gc -mtune=rocket" riscv64-linux-gnu
       # net/ tests are excluded on the qemu-user cross legs. User-mode emulation
       # translates instructions faithfully -- so codegen is still exercised --
       # but does not faithfully emulate the kernel: e.g. setsockopt
@@ -180,7 +180,7 @@ jobs:
           cmake --build --preset x86-64-release
       - name: Build Release Cross-Compiled Runtime
         if: ${{ hashFiles('.libs-cache-miss') == '' }}
-        run: sh .ci-scripts/cross-libponyrt.sh release riscv64-linux-gnu-gcc-10 riscv64-linux-gnu-g++-10 rv64gc "-march=rv64gc -mtune=rocket"
+        run: sh .ci-scripts/cross-libponyrt.sh release clang clang++ rv64gc "--target=riscv64-linux-gnu --sysroot=/usr/riscv64-linux-gnu --gcc-toolchain=/usr -march=rv64gc -mtune=rocket" riscv64-linux-gnu
       # See the debug step above for why net/ tests are excluded under qemu-user.
       - name: Test with Release Cross-Compiled Runtime
         if: ${{ hashFiles('.libs-cache-miss') == '' }}

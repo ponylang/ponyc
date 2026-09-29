@@ -1361,7 +1361,8 @@ static void stamp_module_target_attrs(compile_t* c, LLVMModuleRef module)
     fn = LLVMGetNextFunction(fn);
   }
 
-  if(c->opt->abi != NULL)
+  if(c->opt->abi != NULL &&
+    LLVMGetModuleFlag(module, "target-abi", 10) == NULL)
   {
     LLVMMetadataRef abi_md = LLVMMDStringInContext2(
       c->context, c->opt->abi, strlen(c->opt->abi));

@@ -5,16 +5,21 @@ project(ponyc_crt LANGUAGES C)
 set(CRT_SRC_DIR ${CMAKE_SOURCE_DIR}/lib/llvm/src/compiler-rt/lib/builtins)
 set(CRT_COMMON_FLAGS -DCRT_HAS_INITFINI_ARRAY -DEH_USE_FRAME_REGISTRY)
 
+# CMAKE_C_FLAGS carries cross-compilation flags (--target=, --sysroot=, etc.)
+# that custom commands need but don't inherit automatically.
+set(_crt_c_flags ${CMAKE_C_FLAGS})
+separate_arguments(_crt_c_flags)
+
 # PIE/shared variants (for dynamic linking — the default)
 add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/crtbeginS.o
-    COMMAND ${CMAKE_C_COMPILER} -c ${PONY_PIC_FLAG} ${CRT_COMMON_FLAGS}
+    COMMAND ${CMAKE_C_COMPILER} ${_crt_c_flags} -c ${PONY_PIC_FLAG} ${CRT_COMMON_FLAGS}
         -o ${CMAKE_CURRENT_BINARY_DIR}/crtbeginS.o
         ${CRT_SRC_DIR}/crtbegin.c
     DEPENDS ${CRT_SRC_DIR}/crtbegin.c
     COMMENT "Compiling crtbeginS.o (PIC)")
 
 add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/crtendS.o
-    COMMAND ${CMAKE_C_COMPILER} -c ${PONY_PIC_FLAG} ${CRT_COMMON_FLAGS}
+    COMMAND ${CMAKE_C_COMPILER} ${_crt_c_flags} -c ${PONY_PIC_FLAG} ${CRT_COMMON_FLAGS}
         -o ${CMAKE_CURRENT_BINARY_DIR}/crtendS.o
         ${CRT_SRC_DIR}/crtend.c
     DEPENDS ${CRT_SRC_DIR}/crtend.c
@@ -22,14 +27,14 @@ add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/crtendS.o
 
 # Static variants (for --static linking)
 add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/crtbeginT.o
-    COMMAND ${CMAKE_C_COMPILER} -c ${CRT_COMMON_FLAGS}
+    COMMAND ${CMAKE_C_COMPILER} ${_crt_c_flags} -c ${CRT_COMMON_FLAGS}
         -o ${CMAKE_CURRENT_BINARY_DIR}/crtbeginT.o
         ${CRT_SRC_DIR}/crtbegin.c
     DEPENDS ${CRT_SRC_DIR}/crtbegin.c
     COMMENT "Compiling crtbeginT.o (static)")
 
 add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/crtend.o
-    COMMAND ${CMAKE_C_COMPILER} -c ${CRT_COMMON_FLAGS}
+    COMMAND ${CMAKE_C_COMPILER} ${_crt_c_flags} -c ${CRT_COMMON_FLAGS}
         -o ${CMAKE_CURRENT_BINARY_DIR}/crtend.o
         ${CRT_SRC_DIR}/crtend.c
     DEPENDS ${CRT_SRC_DIR}/crtend.c
