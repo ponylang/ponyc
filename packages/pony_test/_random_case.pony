@@ -2876,6 +2876,41 @@ class \nodoc\ iso _DirectShrinkFlatMapTest is UnitTest
       exec.sample_repr())
 
 // --- Meta-tests: run a sub-PonyTest and verify its output ---
+actor \nodoc\ _ShrinkVerifyReporter
+  """
+  Reporter for sub-PonyTest runs expected to fail with shrinking.
+
+  Completes the given `TestHelper` with success when any test
+  fails and its log contains nonzero shrinks. Fails the helper
+  when a test fails without shrinking. If all tests pass, does
+  nothing — the outer test's timeout handles that case.
+  """
+  let _h: TestHelper
+
+  new create(h: TestHelper) =>
+    _h = h
+
+  be test_started(name: String) => None
+
+  be test_complete(result: TestResult val) => None
+
+  be testing_complete(results: Array[TestResult val] val) =>
+    for r in results.values() do
+      if not r.passed then
+        for line in r.log.values() do
+          if line.contains("shrinks)") and
+            (not line.contains("(after 0 shrinks)"))
+          then
+            _h.complete(true)
+            return
+          end
+        end
+        _h.fail("test failed but log has no evidence of shrinking")
+        _h.complete(true)
+        return
+      end
+    end
+
 class \nodoc\ iso _AssertionOnlyFailProperty is Property[U8]
   """
   A property that fails only via h.assert_true(false) — it never
@@ -2908,7 +2943,7 @@ class \nodoc\ iso _AssertionOnlyFailTest is UnitTest
         fun tag tests(test: PonyTest) =>
           test.property(_AssertionOnlyFailProperty)
       end
-    let reporter = FailReporter(h)
+    let reporter = _ShrinkVerifyReporter(h)
     let env =
       Env.create(
         h.env.root,
@@ -2985,7 +3020,7 @@ class \nodoc\ iso _AsyncFailingProperty is Property[U8]
 class \nodoc\ iso _AsyncFailingPropertyTest is UnitTest
   """
   Runs a sub-PonyTest with an async property that fails, verifying
-  that the failure is detected and reported.
+  that the failure is detected and shrinking occurs.
   """
   fun name(): String => "property/async_failing"
 
@@ -2996,7 +3031,7 @@ class \nodoc\ iso _AsyncFailingPropertyTest is UnitTest
         fun tag tests(test: PonyTest) =>
           test.property(_AsyncFailingProperty)
       end
-    let reporter = FailReporter(h)
+    let reporter = _ShrinkVerifyReporter(h)
     let env =
       Env.create(
         h.env.root,
