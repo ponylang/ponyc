@@ -1,5 +1,4 @@
 use "pony_test"
-use "pony_check"
 
 // -- Example-based tests --
 
@@ -397,7 +396,7 @@ class \nodoc\ iso _TestBuildAuthorityNoScheme is UnitTest
     end
 
 // -- Property-based tests --
-class \nodoc\ iso _PropertyBuildFromRoundtrip is Property1[_ValidURIInput]
+class \nodoc\ iso _PropertyBuildFromRoundtrip is Property[_ValidURIInput]
   """
   For generated valid URIs, URIBuilder.from(uri).build() produces a URI
   that string-equals the original.
@@ -427,7 +426,7 @@ class \nodoc\ iso _PropertyBuildFromRoundtrip is Property1[_ValidURIInput]
         " error: " + e.string())
     end
 
-class \nodoc\ iso _PropertyBuildParseRoundtrip is Property1[_BuildInput]
+class \nodoc\ iso _PropertyBuildParseRoundtrip is Property[_BuildInput]
   """
   For generated raw components, build a URI then parse it back —
   components match.
@@ -472,7 +471,7 @@ class \nodoc\ iso _PropertyBuildParseRoundtrip is Property1[_BuildInput]
     end
 
 class \nodoc\ iso _PropertyBuildInvalidSchemeFails
-  is Property1[String val]
+  is Property[String val]
   """
   Generated invalid scheme strings always produce InvalidScheme on build().
   """

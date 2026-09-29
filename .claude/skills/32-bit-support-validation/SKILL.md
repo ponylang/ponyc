@@ -301,7 +301,6 @@ PACKAGES=(
   json
   math
   net
-  pony_check
   pony_test
   process
   promises
@@ -531,7 +530,6 @@ PACKAGES=(
   json
   math
   net
-  pony_check
   pony_test
   process
   promises

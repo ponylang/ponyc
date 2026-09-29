@@ -1,5 +1,4 @@
 use "pony_test"
-use "pony_check"
 use ast = "pony_compiler"
 use lint = ".."
 
@@ -71,9 +70,9 @@ class \nodoc\ _TestLineLengthProperty is UnitTest
 
   fun apply(h: TestHelper) ? =>
     // Lines up to 80 chars never produce diagnostics
-    PonyCheck.for_all[String](
+    h.for_all[String](
       recover val Generators.ascii(where from = 0, to = 80,
-        range = ASCIIPrintable) end, h)(
+        range = ASCIIPrintable) end)(
       {(content: String, ph: PropertyHelper) =>
         let line = content.clone()
         line.remove("\n")
@@ -85,8 +84,8 @@ class \nodoc\ _TestLineLengthProperty is UnitTest
         end
       })?
     // Space at column 80 ensures neither word crosses the boundary.
-    PonyCheck.for_all[USize](
-      recover val Generators.usize(where from = 81, to = 120) end, h)(
+    h.for_all[USize](
+      recover val Generators.usize(where from = 81, to = 120) end)(
       {(n: USize, ph: PropertyHelper) =>
         let line: String val =
           recover val
@@ -331,7 +330,7 @@ class \nodoc\ _TestLineLengthStringFlaggedWhenDeepProperty is UnitTest
   fun apply(h: TestHelper) ? =>
     let gen =
       recover val Generators.usize(where from = 67, to = 200) end
-    PonyCheck.for_all[USize](gen, h)(
+    h.for_all[USize](gen)(
       {(str_len: USize, ph: PropertyHelper) =>
         let line: String val =
           recover val
@@ -356,7 +355,7 @@ class \nodoc\ _TestLineLengthStringFlaggedProperty is UnitTest
   fun apply(h: TestHelper) ? =>
     let gen =
       recover val Generators.usize(where from = 1, to = 134) end
-    PonyCheck.for_all[USize](gen, h)(
+    h.for_all[USize](gen)(
       {(n2: USize, ph: PropertyHelper) =>
         // Prefix `    let x = "` = 13 chars. The string is at word
         // position 4 (let, x, =, "aaa...").
@@ -793,7 +792,7 @@ class \nodoc\ _TestLineLengthWordExemptProperty is UnitTest
   fun apply(h: TestHelper) ? =>
     let gen =
       recover val Generators.usize(where from = 81, to = 200) end
-    PonyCheck.for_all[USize](gen, h)(
+    h.for_all[USize](gen)(
       {(n: USize, ph: PropertyHelper) =>
         let line: String val =
           recover val String .> append("a".mul(n)) end

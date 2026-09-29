@@ -5,14 +5,6 @@ The PonyTest package provides a unit testing framework. It is designed to be as
 simple as possible to use, both for the unit test writer and the user running
 the tests.
 
-To help simplify test writing and distribution this package depends on as few
-other packages as possible. Currently the required packages are:
-
-* builtin
-* time
-* collections
-* random
-
 Each unit test is a class, with a single test function. By default tests run
 concurrently, up to the number of scheduler threads. Tests beyond that limit
 are queued and started as earlier tests complete.
@@ -209,6 +201,82 @@ and each run uses a different seed so test coupling surfaces over time.
 `--list --shuffle=SEED` prints the test names in the shuffled order that the
 given seed would produce.
 
+## Property-Based Testing
+
+PonyTest includes property-based testing. A property test generates random
+inputs and verifies that a property holds for all of them. When a property
+fails, the failing input is automatically shrunk to a minimal reproducing
+case.
+
+### Standalone property
+
+Define a class that implements `Property[T]` and register it:
+
+```pony
+use "pony_test"
+
+class iso _ListReverseProperty is Property[Array[USize]]
+  fun name(): String => "list/reverse"
+
+  fun gen(): Generator[Array[USize]] =>
+    Generators.seq_of[USize, Array[USize]](Generators.usize())
+
+  fun ref property(arg1: Array[USize], h: PropertyHelper) =>
+    h.assert_array_eq[USize](arg1, arg1.reverse().reverse())
+```
+
+Register it in your test list:
+
+```pony
+fun tag tests(test: PonyTest) =>
+  test.property(_ListReverseProperty)
+```
+
+### Inline property
+
+For quick one-off checks, use `for_all` directly from a `UnitTest`:
+
+```pony
+class iso _MyTest is UnitTest
+  fun name(): String => "my_test"
+
+  fun apply(h: TestHelper) ? =>
+    h.for_all[U8](recover Generators.u8() end)(
+      {(u, h) => h.assert_true(u <= U8.max_value()) })?
+```
+
+### Multi-argument properties
+
+`Property2[T1, T2]`, `Property3[T1, T2, T3]`, and
+`Property4[T1, T2, T3, T4]` test properties with multiple generated
+arguments. Corresponding `for_all2`, `for_all3`, and `for_all4` methods
+are available on `TestHelper`.
+
+### Stateful properties
+
+`StatefulProperty[S, M, Cmd]` tests stateful systems by generating
+sequences of commands, checking an invariant after each step, and
+running a final check. Register with `test.stateful_property()`.
+
+### Classification
+
+Property tests can collect distribution statistics to verify that
+generated inputs cover the intended range. Call `h.classify(label)`
+to tag each sample, `h.tabulate(heading, label)` for cross-tabulation,
+or `h.cover(condition, label, min_pct)` to require that at least
+`min_pct` percent of samples satisfy a condition. Statistics print
+after all samples run.
+
+### Regression persistence
+
+When a property test fails, the failing input's choice sequence is
+saved to `.ponytest/<property-name>.choices`. On the next
+run, the saved regression replays first: if it still fails, the test
+fails immediately; if it passes, the saved regression is cleared.
+
+Set `PONYTEST_NO_DB=1` to disable persistence entirely, or
+`PONYTEST_DB_DIR=path` to change the storage directory.
+
 ## Setting up and tearing down a test environment
 
 ### Set Up
@@ -348,6 +416,23 @@ actor PonyTest
     @ponyint_assert_disable_popups()
     list.tests(this)
     _all_tests_applied()
+
+  fun tag property[T](prop: Property[T] iso,
+    name': (String | None) = None)
+  =>
+    """
+    Register a property test.
+    """
+    this(_PropertyTest[T](consume prop, name'))
+
+  fun tag stateful_property[S, M, Cmd: Stringable val](
+    prop: StatefulProperty[S, M, Cmd] iso,
+    name': (String | None) = None)
+  =>
+    """
+    Register a stateful property test.
+    """
+    this(_StatefulPropertyTest[S, M, Cmd](consume prop, name'))
 
   be apply(test: UnitTest iso) =>
     """

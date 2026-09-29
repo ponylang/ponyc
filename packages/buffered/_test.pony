@@ -1,5 +1,4 @@
 use "pony_test"
-use "pony_check"
 
 actor \nodoc\ Main is TestList
   new create(env: Env) => PonyTest(env, this)
@@ -9,33 +8,32 @@ actor \nodoc\ Main is TestList
     // Tests below function across all systems and are listed alphabetically
     test(_TestReader)
     test(_TestWriter)
-    test(Property1UnitTest[U8](_PropU8Roundtrip))
-    test(Property1UnitTest[U16](_PropU16Roundtrip))
-    test(Property1UnitTest[U32](_PropU32Roundtrip))
-    test(Property1UnitTest[U64](_PropU64Roundtrip))
-    test(Property1UnitTest[U128](_PropU128Roundtrip))
-    test(Property1UnitTest[(U16, U16)](_PropU16ChunkedRoundtrip))
-    test(Property1UnitTest[(U32, U16)](_PropU32ChunkedRoundtrip))
-    test(Property1UnitTest[(U64, U16)](_PropU64ChunkedRoundtrip))
-    test(Property1UnitTest[(U128, U16)](_PropU128ChunkedRoundtrip))
-    test(Property1UnitTest[U128](_PropPeekConsistency))
-    test(Property1UnitTest[(U128, U16)](_PropPeekChunked))
-    test(Property1UnitTest[Array[U8]](_PropBlockRoundtrip))
-    test(Property1UnitTest[(Array[U8], U16)](_PropBlockChunked))
-    test(Property1UnitTest[(Array[U8], U8)](_PropSkipRead))
-    test(Property1UnitTest[(String, Bool)](_PropLineRoundtrip))
-    test(Property1UnitTest[(Array[U8], U8)](_PropReadUntil))
-    test(Property1UnitTest[(U64, U64)](_PropWriterDoneReset))
-    test(Property1UnitTest[U16](_PropEndianCrossCheckU16))
-    test(Property1UnitTest[U32](_PropEndianCrossCheckU32))
-    test(Property1UnitTest[U64](_PropEndianCrossCheckU64))
-    test(Property1UnitTest[U128](_PropEndianCrossCheckU128))
-    test(Property1UnitTest[U32](_PropEndianCrossCheckF32))
-    test(Property1UnitTest[U64](_PropEndianCrossCheckF64))
-    test(Property1UnitTest[((U8, U16), (U32, U64))](
-      _PropMultiValueRoundtrip))
-    test(Property1UnitTest[Array[U8]](_PropWriterSize))
-    test(Property1UnitTest[Array[U8]](_PropEmptyAppend))
+    test.property(_PropU8Roundtrip)
+    test.property(_PropU16Roundtrip)
+    test.property(_PropU32Roundtrip)
+    test.property(_PropU64Roundtrip)
+    test.property(_PropU128Roundtrip)
+    test.property(_PropU16ChunkedRoundtrip)
+    test.property(_PropU32ChunkedRoundtrip)
+    test.property(_PropU64ChunkedRoundtrip)
+    test.property(_PropU128ChunkedRoundtrip)
+    test.property(_PropPeekConsistency)
+    test.property(_PropPeekChunked)
+    test.property(_PropBlockRoundtrip)
+    test.property(_PropBlockChunked)
+    test.property(_PropSkipRead)
+    test.property(_PropLineRoundtrip)
+    test.property(_PropReadUntil)
+    test.property(_PropWriterDoneReset)
+    test.property(_PropEndianCrossCheckU16)
+    test.property(_PropEndianCrossCheckU32)
+    test.property(_PropEndianCrossCheckU64)
+    test.property(_PropEndianCrossCheckU128)
+    test.property(_PropEndianCrossCheckF32)
+    test.property(_PropEndianCrossCheckF64)
+    test.property(_PropMultiValueRoundtrip)
+    test.property(_PropWriterSize)
+    test.property(_PropEmptyAppend)
 
 class \nodoc\ iso _TestReader is UnitTest
   """
@@ -358,7 +356,7 @@ primitive \nodoc\ _BH
       chunks
     end
 
-class \nodoc\ iso _PropU8Roundtrip is Property1[U8]
+class \nodoc\ iso _PropU8Roundtrip is Property[U8]
   fun name(): String => "buffered/PropU8Roundtrip"
 
   fun gen(): Generator[U8] =>
@@ -376,7 +374,7 @@ class \nodoc\ iso _PropU8Roundtrip is Property1[U8]
     ph.assert_eq[U8](rb.u8()?, v)
     ph.assert_eq[USize](rb.size(), 0)
 
-class \nodoc\ iso _PropU16Roundtrip is Property1[U16]
+class \nodoc\ iso _PropU16Roundtrip is Property[U16]
   fun name(): String => "buffered/PropU16Roundtrip"
 
   fun gen(): Generator[U16] =>
@@ -416,7 +414,7 @@ class \nodoc\ iso _PropU16Roundtrip is Property1[U16]
     for chunk in (wb.done()).values() do rb.append(chunk) end
     ph.assert_eq[I16](rb.i16_le()?, v.i16())
 
-class \nodoc\ iso _PropU32Roundtrip is Property1[U32]
+class \nodoc\ iso _PropU32Roundtrip is Property[U32]
   fun name(): String => "buffered/PropU32Roundtrip"
 
   fun gen(): Generator[U32] =>
@@ -472,7 +470,7 @@ class \nodoc\ iso _PropU32Roundtrip is Property1[U32]
     for chunk in (wb.done()).values() do rb.append(chunk) end
     ph.assert_eq[U32](rb.f32_le()?.bits(), v)
 
-class \nodoc\ iso _PropU64Roundtrip is Property1[U64]
+class \nodoc\ iso _PropU64Roundtrip is Property[U64]
   fun name(): String => "buffered/PropU64Roundtrip"
 
   fun gen(): Generator[U64] =>
@@ -528,7 +526,7 @@ class \nodoc\ iso _PropU64Roundtrip is Property1[U64]
     for chunk in (wb.done()).values() do rb.append(chunk) end
     ph.assert_eq[U64](rb.f64_le()?.bits(), v)
 
-class \nodoc\ iso _PropU128Roundtrip is Property1[U128]
+class \nodoc\ iso _PropU128Roundtrip is Property[U128]
   fun name(): String => "buffered/PropU128Roundtrip"
 
   fun gen(): Generator[U128] =>
@@ -570,7 +568,7 @@ class \nodoc\ iso _PropU128Roundtrip is Property1[U128]
     for chunk in (wb.done()).values() do rb.append(chunk) end
     ph.assert_eq[I128](rb.i128_le()?, v.i128())
 
-class \nodoc\ iso _PropU16ChunkedRoundtrip is Property1[(U16, U16)]
+class \nodoc\ iso _PropU16ChunkedRoundtrip is Property[(U16, U16)]
   """
   Tests the slow path: bytes split across multiple chunks.
   """
@@ -604,7 +602,7 @@ class \nodoc\ iso _PropU16ChunkedRoundtrip is Property1[(U16, U16)]
     for c in _BH.split_chunks(flat, mask)?.values() do rb.append(c) end
     ph.assert_eq[U16](rb.u16_le()?, v)
 
-class \nodoc\ iso _PropU32ChunkedRoundtrip is Property1[(U32, U16)]
+class \nodoc\ iso _PropU32ChunkedRoundtrip is Property[(U32, U16)]
   fun name(): String => "buffered/PropU32ChunkedRoundtrip"
 
   fun gen(): Generator[(U32, U16)] =>
@@ -636,7 +634,7 @@ class \nodoc\ iso _PropU32ChunkedRoundtrip is Property1[(U32, U16)]
     for c in _BH.split_chunks(flat, mask)?.values() do rb.append(c) end
     ph.assert_eq[U32](rb.u32_le()?, v)
 
-class \nodoc\ iso _PropU64ChunkedRoundtrip is Property1[(U64, U16)]
+class \nodoc\ iso _PropU64ChunkedRoundtrip is Property[(U64, U16)]
   fun name(): String => "buffered/PropU64ChunkedRoundtrip"
 
   fun gen(): Generator[(U64, U16)] =>
@@ -668,7 +666,7 @@ class \nodoc\ iso _PropU64ChunkedRoundtrip is Property1[(U64, U16)]
     for c in _BH.split_chunks(flat, mask)?.values() do rb.append(c) end
     ph.assert_eq[U64](rb.u64_le()?, v)
 
-class \nodoc\ iso _PropU128ChunkedRoundtrip is Property1[(U128, U16)]
+class \nodoc\ iso _PropU128ChunkedRoundtrip is Property[(U128, U16)]
   fun name(): String => "buffered/PropU128ChunkedRoundtrip"
 
   fun gen(): Generator[(U128, U16)] =>
@@ -701,7 +699,7 @@ class \nodoc\ iso _PropU128ChunkedRoundtrip is Property1[(U128, U16)]
     for c in _BH.split_chunks(flat, mask)?.values() do rb.append(c) end
     ph.assert_eq[U128](rb.u128_le()?, v)
 
-class \nodoc\ iso _PropPeekConsistency is Property1[U128]
+class \nodoc\ iso _PropPeekConsistency is Property[U128]
   """
   Peek returns correct values without consuming data.
   """
@@ -758,7 +756,7 @@ class \nodoc\ iso _PropPeekConsistency is Property1[U128]
     ph.assert_eq[U128](rb.u128_be()?, v)
     ph.assert_eq[USize](rb.size(), 0)
 
-class \nodoc\ iso _PropPeekChunked is Property1[(U128, U16)]
+class \nodoc\ iso _PropPeekChunked is Property[(U128, U16)]
   """
   Peek across chunk boundaries, through _peek_byte's chunk traversal.
   """
@@ -794,7 +792,7 @@ class \nodoc\ iso _PropPeekChunked is Property1[(U128, U16)]
     ph.assert_eq[U128](rb.peek_u128_be()?, v)
     ph.assert_eq[USize](rb.size(), 16)
 
-class \nodoc\ iso _PropBlockRoundtrip is Property1[Array[U8]]
+class \nodoc\ iso _PropBlockRoundtrip is Property[Array[U8]]
   fun name(): String => "buffered/PropBlockRoundtrip"
 
   fun gen(): Generator[Array[U8]] =>
@@ -815,7 +813,7 @@ class \nodoc\ iso _PropBlockRoundtrip is Property1[Array[U8]]
     end
     ph.assert_eq[USize](rb.size(), 0)
 
-class \nodoc\ iso _PropBlockChunked is Property1[(Array[U8], U16)]
+class \nodoc\ iso _PropBlockChunked is Property[(Array[U8], U16)]
   """
   Block read across chunk boundaries, through the block assembly loop.
   """
@@ -839,7 +837,7 @@ class \nodoc\ iso _PropBlockChunked is Property1[(Array[U8], U16)]
       i = i + 1
     end
 
-class \nodoc\ iso _PropSkipRead is Property1[(Array[U8], U8)]
+class \nodoc\ iso _PropSkipRead is Property[(Array[U8], U8)]
   fun name(): String => "buffered/PropSkipRead"
 
   fun gen(): Generator[(Array[U8], U8)] =>
@@ -866,7 +864,7 @@ class \nodoc\ iso _PropSkipRead is Property1[(Array[U8], U8)]
       i = i + 1
     end
 
-class \nodoc\ iso _PropLineRoundtrip is Property1[(String, Bool)]
+class \nodoc\ iso _PropLineRoundtrip is Property[(String, Bool)]
   fun name(): String => "buffered/PropLineRoundtrip"
 
   fun gen(): Generator[(String, Bool)] =>
@@ -902,7 +900,7 @@ class \nodoc\ iso _PropLineRoundtrip is Property1[(String, Bool)]
     rb.append(terminated)
     ph.assert_eq[String](rb.line(true)?, terminated)
 
-class \nodoc\ iso _PropReadUntil is Property1[(Array[U8], U8)]
+class \nodoc\ iso _PropReadUntil is Property[(Array[U8], U8)]
   fun name(): String => "buffered/PropReadUntil"
 
   fun gen(): Generator[(Array[U8], U8)] =>
@@ -935,7 +933,7 @@ class \nodoc\ iso _PropReadUntil is Property1[(Array[U8], U8)]
     end
     ph.assert_eq[USize](rb.size(), 0)
 
-class \nodoc\ iso _PropWriterDoneReset is Property1[(U64, U64)]
+class \nodoc\ iso _PropWriterDoneReset is Property[(U64, U64)]
   fun name(): String => "buffered/PropWriterDoneReset"
 
   fun gen(): Generator[(U64, U64)] =>
@@ -961,7 +959,7 @@ class \nodoc\ iso _PropWriterDoneReset is Property1[(U64, U64)]
     for chunk in second.values() do rb2.append(chunk) end
     ph.assert_eq[U64](rb2.u64_be()?, v2)
 
-class \nodoc\ iso _PropEndianCrossCheckU16 is Property1[U16]
+class \nodoc\ iso _PropEndianCrossCheckU16 is Property[U16]
   """
   BE and LE byte sequences are the reverse of each other for U16.
   """
@@ -992,7 +990,7 @@ class \nodoc\ iso _PropEndianCrossCheckU16 is Property1[U16]
       i = i + 1
     end
 
-class \nodoc\ iso _PropEndianCrossCheckU32 is Property1[U32]
+class \nodoc\ iso _PropEndianCrossCheckU32 is Property[U32]
   """
   BE and LE byte sequences are the reverse of each other for U32.
   """
@@ -1023,7 +1021,7 @@ class \nodoc\ iso _PropEndianCrossCheckU32 is Property1[U32]
       i = i + 1
     end
 
-class \nodoc\ iso _PropEndianCrossCheckU64 is Property1[U64]
+class \nodoc\ iso _PropEndianCrossCheckU64 is Property[U64]
   """
   BE and LE byte sequences are the reverse of each other for U64.
   """
@@ -1055,7 +1053,7 @@ class \nodoc\ iso _PropEndianCrossCheckU64 is Property1[U64]
       i = i + 1
     end
 
-class \nodoc\ iso _PropEndianCrossCheckU128 is Property1[U128]
+class \nodoc\ iso _PropEndianCrossCheckU128 is Property[U128]
   """
   BE and LE byte sequences are the reverse of each other for U128.
   """
@@ -1088,7 +1086,7 @@ class \nodoc\ iso _PropEndianCrossCheckU128 is Property1[U128]
       i = i + 1
     end
 
-class \nodoc\ iso _PropEndianCrossCheckF32 is Property1[U32]
+class \nodoc\ iso _PropEndianCrossCheckF32 is Property[U32]
   """
   BE and LE byte sequences are the reverse of each other for F32.
   """
@@ -1121,7 +1119,7 @@ class \nodoc\ iso _PropEndianCrossCheckF32 is Property1[U32]
       i = i + 1
     end
 
-class \nodoc\ iso _PropEndianCrossCheckF64 is Property1[U64]
+class \nodoc\ iso _PropEndianCrossCheckF64 is Property[U64]
   """
   BE and LE byte sequences are the reverse of each other for F64.
   """
@@ -1156,7 +1154,7 @@ class \nodoc\ iso _PropEndianCrossCheckF64 is Property1[U64]
     end
 
 class \nodoc\ iso _PropMultiValueRoundtrip
-  is Property1[((U8, U16), (U32, U64))]
+  is Property[((U8, U16), (U32, U64))]
   """
   Sequential writes of different types, read back in order, with offset
   tracking across multiple reads.
@@ -1186,7 +1184,7 @@ class \nodoc\ iso _PropMultiValueRoundtrip
     ph.assert_eq[U64](rb.u64_be()?, d)
     ph.assert_eq[USize](rb.size(), 0)
 
-class \nodoc\ iso _PropWriterSize is Property1[Array[U8]]
+class \nodoc\ iso _PropWriterSize is Property[Array[U8]]
   """
   Writer.size() with individual u8() writes and write() above the
   coalescing threshold.
@@ -1218,7 +1216,7 @@ class \nodoc\ iso _PropWriterSize is Property1[Array[U8]]
       end
     end
 
-class \nodoc\ iso _PropEmptyAppend is Property1[Array[U8]]
+class \nodoc\ iso _PropEmptyAppend is Property[Array[U8]]
   """
   Empty appends do not corrupt the Reader's chunk list.
   """

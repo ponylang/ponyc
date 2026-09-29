@@ -1,5 +1,4 @@
 use "pony_test"
-use "pony_check"
 use "files"
 use "itertools"
 
@@ -115,7 +114,7 @@ class \nodoc\ iso _TestALPNProtocolListOffsetOf is UnitTest
       "raise on a zero length prefix")
 
 class \nodoc\ iso _TestALPNProtocolListOffsetOfRoundtrip
-  is Property1[Array[String]]
+  is Property[Array[String]]
   """
   Every name `from_array` packs into a list is found by `offset_of`, at an
   offset whose bytes are that name.
@@ -3061,7 +3060,7 @@ class \nodoc\ iso _TestSSLContextServerAfterDispose is UnitTest
       h.fail("server() on a disposed context should raise")
     end
 
-class \nodoc\ iso _TestALPNProtocolListRoundTrip is Property1[Array[String]]
+class \nodoc\ iso _TestALPNProtocolListRoundTrip is Property[Array[String]]
   fun name(): String =>
     "net/ssl/_ALPNProtocolList/property/roundtrip"
 

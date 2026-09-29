@@ -1,4 +1,3 @@
-use "pony_check"
 use "pony_test"
 
 // ---------------------------------------------------------------------------
@@ -6,7 +5,7 @@ use "pony_test"
 // ---------------------------------------------------------------------------
 
 class \nodoc\ iso _PropertySerializerContainsMethod
-  is Property1[String val]
+  is Property[String val]
   """Method string appears in the serialized request line."""
   fun name(): String => "serializer/contains_method"
 
@@ -32,7 +31,7 @@ class \nodoc\ iso _PropertySerializerContainsMethod
       "request line should contain method: " + arg1)
 
 class \nodoc\ iso _PropertySerializerContainsPath
-  is Property1[String val]
+  is Property[String val]
   """Path appears in the serialized request line."""
   fun name(): String => "serializer/contains_path"
 
@@ -51,7 +50,7 @@ class \nodoc\ iso _PropertySerializerContainsPath
       "request line should contain path: " + arg1)
 
 class \nodoc\ iso _PropertySerializerAutoHost
-  is Property1[String val]
+  is Property[String val]
   """Host header is auto-set from host parameter."""
   fun name(): String => "serializer/auto_host"
 
@@ -68,7 +67,7 @@ class \nodoc\ iso _PropertySerializerAutoHost
       "should contain Host: " + arg1)
 
 class \nodoc\ iso _PropertySerializerAutoContentLength
-  is Property1[USize]
+  is Property[USize]
   """Content-Length is auto-set from body size."""
   fun name(): String => "serializer/auto_content_length"
 

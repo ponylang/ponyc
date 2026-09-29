@@ -1,8 +1,14 @@
+use "collections"
 use "time"
 
 actor _TestRunner
   """
   Per unit test actor that runs the test and keeps the log for it.
+
+  Also drives property-based tests in sync mode (default) or async
+  mode (when the test calls `long_test`). Both modes defer after
+  each sample so that `fail` behaviors from assertions arrive before
+  the pass/fail decision.
   """
 
   let _ponytest: PonyTest
@@ -22,6 +28,15 @@ actor _TestRunner
   var _completed: Bool = false
   var _tearing_down: Bool = false
   var _test_timers: Array[Timer tag] = Array[Timer tag]
+  var _property_exec: (_PropertyExecution | None) = None
+  embed _property_queue: Array[_PropertyExecution iso] =
+    Array[_PropertyExecution iso]
+  var _property_phase: _PropertyPhase val = _PropertyIdle
+  var _prop_sample_id: USize = 0
+  embed _prop_actions: Set[String] = Set[String]
+  var _prop_sample_pass: Bool = true
+  var _prop_disposables_base: USize = 0
+  var _in_regression_replay: Bool = false
 
   new create(
     ponytest: PonyTest,
@@ -33,7 +48,7 @@ actor _TestRunner
     timers: Timers)
   =>
     """
-    Create a new TestHelper.
+    Create a new test runner.
     ponytest - The authority we report everything to.
     id - Test identifier needed when reporting to ponytest.
     test - The test to run.
@@ -90,9 +105,28 @@ actor _TestRunner
     Flag the test as having failed.
     """
     _pass = false
+    if _property_exec isnt None then
+      _prop_sample_pass = false
+    end
     _log(msg, false)
 
-  be complete(success: Bool) =>
+  be _fail_sample(msg: String, sample_id: USize) =>
+    """
+    Flag a property sample as having failed, guarded by sample_id.
+    Stale failures from earlier samples are discarded.
+    """
+    if sample_id != _prop_sample_id then
+      _log(
+        "unexpected fail for sample " + sample_id.string() +
+          ". Currently at sample " + _prop_sample_id.string(),
+        true)
+      return
+    end
+    _pass = false
+    _prop_sample_pass = false
+    _log(msg, false)
+
+  be complete(success: Bool, sample_id: USize = USize.max_value()) =>
     """
     MUST be called by each long test to indicate the test has finished, unless
     a timeout occurs.
@@ -102,7 +136,27 @@ actor _TestRunner
     failure, regardless of the value of this parameter.
 
     Once this is called tear_down() may be called at any time.
+
+    When called from a property sample (sample_id != USize.max_value()),
+    completes the current sample rather than the whole test.
     """
+    if sample_id != USize.max_value() then
+      if sample_id != _prop_sample_id then
+        _log(
+          "unexpected sample complete for sample " +
+            sample_id.string() +
+            ". Currently at sample " +
+            _prop_sample_id.string(),
+          true)
+        return
+      end
+      match _property_exec
+      | let exec: _PropertyExecution =>
+        _property_phase.sample_complete(success, exec, this)
+      end
+      return
+    end
+
     if not success then
       _pass = false
       _log("Complete(false) called", false)
@@ -111,7 +165,6 @@ actor _TestRunner
     end
 
     for timer in _test_timers.values() do
-      // Cancel timeout, if in operation.
       _timers.cancel(timer)
     end
     _test_timers.clear()
@@ -119,7 +172,7 @@ actor _TestRunner
     _completed = true
     _tear_down()
 
-  be expect_action(name: String) =>
+  be expect_action(name: String, sample_id: USize = USize.max_value()) =>
     """
     Can be called in a long test to set up expectations for one or more actions
     that, when all completed, will complete the test.
@@ -128,10 +181,26 @@ actor _TestRunner
     to happen to complete your test, but don't want to have to collect them
     all yourself into a single actor that calls the complete method.
     """
+    if sample_id != USize.max_value() then
+      if sample_id != _prop_sample_id then
+        _log(
+          "unexpected expect action \"" + name +
+            "\" for sample " + sample_id.string() +
+            ". Currently at sample " + _prop_sample_id.string(),
+          true)
+        return
+      end
+      _property_phase.expect_action(name, this)
+      return
+    end
     _log("Action expected: " + name, true)
     _expect_actions.push(name)
 
-  be complete_action(name: String, success: Bool) =>
+  be complete_action(
+    name: String,
+    success: Bool,
+    sample_id: USize = USize.max_value())
+  =>
     """
     MUST be called for each action expectation that was set up in a long test
     to fulfill the expectations. Any expectations that are still outstanding
@@ -147,6 +216,22 @@ actor _TestRunner
     fail immediately, without waiting the rest of the outstanding actions.
     The name of the failed action will be included in the failure output.
     """
+    if sample_id != USize.max_value() then
+      if sample_id != _prop_sample_id then
+        _log(
+          "unexpected action \"" + name +
+            "\" for sample " + sample_id.string() +
+            ". Currently at sample " + _prop_sample_id.string(),
+          true)
+        return
+      end
+      match _property_exec
+      | let exec: _PropertyExecution =>
+        _property_phase.action_complete(name, success, exec, this)
+      end
+      return
+    end
+
     if success then
       _log("Action completed: " + name, true)
     else
@@ -166,13 +251,25 @@ actor _TestRunner
       complete(true)
     end
 
-  be dispose_when_done(disposable: DisposableActor) =>
+  be dispose_when_done(
+    disposable: DisposableActor,
+    sample_id: USize = USize.max_value())
+  =>
     """
     Pass a disposable actor to be disposed of when the test is complete.
     The actor will be disposed no matter whether the test succeeds or fails.
 
     If the test is already tearing down, the actor will be disposed immediately.
     """
+    if sample_id != USize.max_value() then
+      if sample_id != _prop_sample_id then
+        _log("Unexpected dispose_when_done for sample " +
+          sample_id.string() + ". Currently at sample " +
+          _prop_sample_id.string(), true)
+        disposable.dispose()
+        return
+      end
+    end
     if _tearing_down then
       disposable.dispose()
     else
@@ -184,12 +281,27 @@ actor _TestRunner
     Called when the test function completes.
     If long_test() is going to be called, it must have been by now.
     """
+    _fun_finished = true
+
+    if _property_exec isnt None then
+      _property_apply_done()
+      return
+    end
+
     if not _is_long_test then
       _log("Short test finished", true)
       _completed = true
     end
 
-    _fun_finished = true
+    _tear_down()
+
+  be _property_apply_done() =>
+    if _property_exec isnt None then
+      return
+    end
+    if not _is_long_test then
+      _completed = true
+    end
     _tear_down()
 
   be long_test(timeout: U64) =>
@@ -200,8 +312,12 @@ actor _TestRunner
       _is_long_test = true
       _log("Long test, timeout " + timeout.string(), true)
 
+      match _property_phase
+      | _SyncSampling => _property_phase = _AsyncSampling
+      | _SyncShrinking => _property_phase = _AsyncShrinking
+      end
+
       if _completed then
-        // We've already completed, don't start the timer
         return
       end
 
@@ -235,6 +351,9 @@ actor _TestRunner
     _log("Test timed out without completing", false)
     for action in _expect_actions.values() do
       _log("Action never completed: " + action, false)
+    end
+    for action in _prop_actions.values() do
+      _log("Property action never completed: " + action, false)
     end
     _pass = false
     _completed = true
@@ -272,11 +391,547 @@ actor _TestRunner
     """
     Close down this test and send a report.
     """
-    // First tell the ponytest that we've completed, then our group.
-    // When we tell the group another test may be started. If we did that first
-    // then the ponytest might report the start of that new test before the end
-    // of this one, which would make it look like exclusion wasn't working.
+    // Tell ponytest before the group. The group may start a new test, and
+    // ponytest must record this test's completion first or exclusion
+    // reporting looks broken.
     let complete_log = _test_log = recover Array[String] end
     _ponytest._test_complete(_id, _pass, consume complete_log)
 
     _group._test_complete(this)
+
+  // Property mode support
+  be _start_property(exec: _PropertyExecution iso) =>
+    if _property_exec isnt None then
+      _property_queue.push(consume exec)
+      return
+    end
+    _property_exec = consume exec
+    _prop_sample_id = 0
+    _prop_sample_pass = true
+    _prop_disposables_base = _disposables.size()
+    _in_regression_replay = false
+
+    if _is_long_test then
+      _property_phase = _AsyncSampling
+      _next_property_sample()
+    else
+      _property_phase = _SyncSampling
+      _start_property_first_sample()
+    end
+
+  fun ref _start_property_first_sample() =>
+    """
+    Run the regression check and first sample, then defer
+    to `_decide_property_mode` so that a `long_test` call
+    from within `property()` can switch to async mode.
+    """
+    match _property_exec
+    | let exec: _PropertyExecution =>
+      _dispose_sample_resources()
+      let reg_helper =
+        PropertyHelper._create(
+          TestHelper._create(this, _env), _prop_sample_id)
+      if exec.check_regression(reg_helper) then
+        if exec.has_error() then
+          _pass = false
+          _log(exec.error_message(), false)
+          _property_queue.clear()
+          _property_phase = _PropertyIdle
+          _property_exec = None
+          return
+        end
+        _regression_replay_done()
+        return
+      end
+
+      if not exec.has_more_samples() then
+        _property_finish_sync(exec)
+        return
+      end
+
+      _prop_sample_id = _prop_sample_id + 1
+      _dispose_sample_resources()
+
+      let helper =
+        PropertyHelper._create(
+          TestHelper._create(this, _env), _prop_sample_id)
+      exec.run_sample(helper)
+
+      if exec.has_error() then
+        _pass = false
+        _log(exec.error_message(), false)
+        _property_queue.clear()
+        _property_phase = _PropertyIdle
+        _property_exec = None
+        return
+      end
+
+      if not exec.last_sample_passed() then
+        exec.sample_failed()
+        _property_handle_failure_sync(exec)
+        return
+      end
+
+      _decide_property_mode()
+    end
+
+  be _regression_replay_done() =>
+    """
+    Deferred after the regression replay so that `fail`
+    behaviors from assertion calls arrive first.
+    """
+    match _property_exec
+    | let exec: _PropertyExecution =>
+      if _is_long_test and (_prop_actions.size() > 0) then
+        _in_regression_replay = true
+        return
+      end
+      _finish_regression_replay(exec)
+    end
+
+  fun ref _finish_regression_replay(exec: _PropertyExecution) =>
+    _in_regression_replay = false
+    if not _prop_sample_pass then
+      _pass = false
+      _log(
+        "Stored regression still fails for \"" + _test.name() +
+          "\": " + exec.regression_repr(),
+        false)
+      _property_queue.clear()
+      _property_phase = _PropertyIdle
+      _property_exec = None
+      if _is_long_test then
+        complete(false)
+      else
+        _property_apply_done()
+      end
+      return
+    end
+    exec.clear_regression()
+    if _is_long_test then
+      _property_phase = _AsyncSampling
+      _next_property_sample()
+    else
+      _start_property_first_sample()
+    end
+
+  be _decide_property_mode() =>
+    """
+    Deferred after the first sample so that a `long_test`
+    behavior sent from within `property()` arrives first.
+    Also catches assertion-only failures from the first
+    sample, since `fail` behaviors arrive before this does.
+    """
+    match _property_exec
+    | let exec: _PropertyExecution =>
+      if not _prop_sample_pass then
+        exec.sample_failed()
+        _property_handle_failure_sync(exec)
+        return
+      end
+      exec.sample_passed()
+      if _is_long_test then
+        _property_phase = _AsyncSampling
+        _next_property_sample()
+      else
+        _run_one_sync_sample()
+      end
+    end
+
+  fun ref _run_one_sync_sample() =>
+    """
+    Run a single sync sample and defer to `_sync_sample_done`
+    so that `fail` behaviors from assertion calls arrive
+    before the pass/fail decision.
+    """
+    match _property_exec
+    | let exec: _PropertyExecution =>
+      if not exec.has_more_samples() then
+        _property_finish_sync(exec)
+        return
+      end
+
+      _prop_sample_id = _prop_sample_id + 1
+      _dispose_sample_resources()
+      _prop_sample_pass = true
+
+      let helper =
+        PropertyHelper._create(
+          TestHelper._create(this, _env), _prop_sample_id)
+      exec.run_sample(helper)
+
+      if exec.has_error() then
+        _pass = false
+        _log(exec.error_message(), false)
+        _property_queue.clear()
+        _property_phase = _PropertyIdle
+        _property_exec = None
+        return
+      end
+
+      if not exec.last_sample_passed() then
+        exec.sample_failed()
+        _property_handle_failure_sync(exec)
+        return
+      end
+
+      _sync_sample_done()
+    end
+
+  be _sync_sample_done() =>
+    """
+    Deferred after each sync sample so that `fail` behaviors
+    from assertion calls arrive before we decide whether the
+    sample passed.
+    """
+    match _property_exec
+    | let exec: _PropertyExecution =>
+      if not _prop_sample_pass then
+        exec.sample_failed()
+        _property_handle_failure_sync(exec)
+      else
+        exec.sample_passed()
+        _run_one_sync_sample()
+      end
+    end
+
+  fun ref _property_handle_failure_sync(exec: _PropertyExecution) =>
+    if exec.needs_shrink() then
+      exec.begin_shrink()
+      _property_phase = _SyncShrinking
+      _begin_shrink_phase()
+    else
+      _log("no choices recorded, cannot shrink", false)
+      exec.save_regression()
+      exec.report()
+      _pass = false
+      _log(
+        "Property failed for sample " + exec.sample_repr() +
+          " (after 0 shrinks)", false)
+      _property_queue.clear()
+      _property_phase = _PropertyIdle
+      _property_exec = None
+      _property_apply_done()
+    end
+
+  be _begin_shrink_phase() =>
+    """
+    Deferred so that stale `fail` behaviors from the original
+    failing sample are processed before the first shrink
+    candidate runs. Without this deferral, a property that
+    both calls `fail` and throws would have the queued `fail`
+    arrive during the first shrink candidate, corrupting the
+    shrink result.
+    """
+    _prop_sample_pass = true
+    match _property_exec
+    | let exec: _PropertyExecution =>
+      if _is_long_test then
+        _property_shrink(exec)
+      else
+        _property_run_one_shrink(exec)
+      end
+    end
+
+  fun ref _property_run_one_shrink(exec: _PropertyExecution) =>
+    if exec.shrink_exhausted() then
+      _property_shrink_done(exec)
+      return
+    end
+
+    _dispose_sample_resources()
+    _prop_sample_id = _prop_sample_id + 1
+    _prop_sample_pass = true
+
+    let helper =
+      PropertyHelper._create(
+        TestHelper._create(this, _env), _prop_sample_id)
+    exec.run_shrink_candidate(helper)
+    _sync_shrink_done()
+
+  be _sync_shrink_done() =>
+    match _property_exec
+    | let exec: _PropertyExecution =>
+      if not _prop_sample_pass then
+        exec.accept_last_shrink()
+      end
+      _property_run_one_shrink(exec)
+    end
+
+  fun ref _property_shrink_done(exec: _PropertyExecution) =>
+    exec.save_regression()
+    exec.report()
+    _pass = false
+    _log(
+      "Property failed for sample " + exec.sample_repr() +
+        " (after " + exec.shrink_reductions().string() + " shrinks)",
+      false)
+    _property_queue.clear()
+    _property_phase = _PropertyIdle
+    _property_exec = None
+    _property_apply_done()
+
+  fun ref _property_finish_sync(exec: _PropertyExecution) =>
+    exec.report()
+    _property_check_coverage_sync()
+
+  be _property_check_coverage_sync() =>
+    """
+    Deferred so that queued classify/tabulate/cover behaviors
+    from sync-mode samples arrive before the coverage check.
+    """
+    match _property_exec
+    | let exec: _PropertyExecution =>
+      if not exec.coverage_passed() then
+        _pass = false
+        _log("Property failed: insufficient coverage", false)
+        _property_queue.clear()
+        _property_phase = _PropertyIdle
+        _property_exec = None
+        _property_apply_done()
+        return
+      end
+      if _property_queue.size() > 0 then
+        try
+          let next = _property_queue.shift()?
+          _property_exec = consume next
+          _prop_sample_id = 0
+          _prop_sample_pass = true
+          _prop_disposables_base = _disposables.size()
+          _property_phase = _SyncSampling
+          _start_property_first_sample()
+        else
+          _Unreachable()
+        end
+      else
+        _property_phase = _PropertyIdle
+        _property_exec = None
+        _property_apply_done()
+      end
+    end
+
+  be _next_property_sample() =>
+    match _property_exec
+    | let exec: _PropertyExecution =>
+      _dispose_sample_resources()
+      let helper =
+        PropertyHelper._create(
+          TestHelper._create(this, _env), _prop_sample_id)
+      if exec.check_regression(helper) then
+        if exec.has_error() then
+          fail(exec.error_message())
+          _property_queue.clear()
+          _property_phase = _PropertyIdle
+          complete(false)
+        else
+          _regression_replay_done()
+        end
+        return
+      end
+
+      if not exec.has_more_samples() then
+        _property_finish(exec)
+        return
+      end
+
+      _prop_sample_id = _prop_sample_id + 1
+      _prop_actions.clear()
+      _prop_sample_pass = true
+
+      let sample_helper =
+        PropertyHelper._create(
+          TestHelper._create(this, _env), _prop_sample_id)
+      exec.run_sample(sample_helper)
+
+      if exec.has_error() then
+        fail(exec.error_message())
+        _property_queue.clear()
+        _property_phase = _PropertyIdle
+        complete(false)
+      elseif not exec.last_sample_passed() then
+        _property_handle_failure(exec)
+      else
+        _auto_complete_sample(_prop_sample_id)
+      end
+    end
+
+  be _auto_complete_sample(sample_id: USize) =>
+    if sample_id != _prop_sample_id then return end
+    if _prop_actions.size() > 0 then return end
+    match _property_exec
+    | let exec: _PropertyExecution =>
+      _property_phase.sample_complete(_prop_sample_pass, exec, this)
+    end
+
+  be _auto_complete_shrink(sample_id: USize) =>
+    if sample_id != _prop_sample_id then return end
+    if _prop_actions.size() > 0 then return end
+    match _property_exec
+    | let exec: _PropertyExecution =>
+      _property_phase.sample_complete(_prop_sample_pass, exec, this)
+    end
+
+  // Package-private methods for _PropertyPhase implementers
+  fun ref _async_sample_failed(exec: _PropertyExecution) =>
+    _pass = false
+    _prop_sample_pass = false
+    _property_handle_failure(exec)
+
+  fun ref _advance_shrink_step() =>
+    _prop_sample_id = _prop_sample_id + 1
+    _property_shrink_step()
+
+  fun ref _shrink_candidate_failed() =>
+    _prop_sample_pass = false
+
+  fun ref _add_prop_action(name: String) =>
+    _log("Action expected: " + name, true)
+    _prop_actions.set(name)
+
+  fun ref _remove_prop_action(name: String): Bool =>
+    try
+      _prop_actions.extract(name)?
+      true
+    else
+      false
+    end
+
+  fun _has_pending_actions(): Bool =>
+    _prop_actions.size() > 0
+
+  fun ref _log_unexpected_action(name: String) =>
+    _log(
+      "Action '" + name + "' finished unexpectedly. ignoring.",
+      true)
+
+  fun ref _check_regression_replay(
+    success: Bool,
+    exec: _PropertyExecution)
+    : Bool
+  =>
+    if not _in_regression_replay then return false end
+    if not success then _prop_sample_pass = false end
+    _finish_regression_replay(exec)
+    true
+
+  fun ref _dispose_sample_resources() =>
+    while _disposables.size() > _prop_disposables_base do
+      try
+        _disposables.pop()?.dispose()
+      else
+        _Unreachable()
+      end
+    end
+
+  fun ref _property_handle_failure(exec: _PropertyExecution) =>
+    exec.sample_failed()
+    _prop_actions.clear()
+
+    if exec.needs_shrink() then
+      exec.begin_shrink()
+      _property_phase = _AsyncShrinking
+      _prop_sample_id = _prop_sample_id + 1
+      _begin_shrink_phase()
+    else
+      _log("no choices recorded, cannot shrink", false)
+      exec.save_regression()
+      exec.report()
+      fail(
+        "Property failed for sample " + exec.sample_repr() +
+          " (after 0 shrinks)")
+      _property_queue.clear()
+      _property_phase = _PropertyIdle
+      complete(false)
+    end
+
+  be _property_shrink_step() =>
+    match _property_exec
+    | let exec: _PropertyExecution =>
+      if not _prop_sample_pass then
+        exec.accept_last_shrink()
+      end
+      _property_shrink(exec)
+    end
+
+  fun ref _property_shrink(exec: _PropertyExecution) =>
+    if exec.shrink_exhausted() then
+      exec.save_regression()
+      exec.report()
+      let repr = exec.sample_repr()
+      let rounds = exec.shrink_reductions()
+      fail(
+        "Property failed for sample " + repr +
+          " (after " + rounds.string() + " shrinks)")
+      _property_queue.clear()
+      _property_phase = _PropertyIdle
+      complete(false)
+      return
+    end
+
+    _dispose_sample_resources()
+    _prop_actions.clear()
+    _prop_sample_pass = true
+
+    let helper =
+      PropertyHelper._create(
+        TestHelper._create(this, _env), _prop_sample_id)
+    exec.run_shrink_candidate(helper)
+
+    _auto_complete_shrink(_prop_sample_id)
+
+  fun ref _property_finish(exec: _PropertyExecution) =>
+    exec.report()
+    if not exec.coverage_passed() then
+      fail("Property failed: insufficient coverage")
+      _property_queue.clear()
+      _property_phase = _PropertyIdle
+      complete(false)
+      return
+    end
+    if _property_queue.size() > 0 then
+      try
+        let next = _property_queue.shift()?
+        _property_exec = consume next
+        _prop_sample_id = 0
+        _prop_sample_pass = true
+        _prop_actions.clear()
+        _prop_disposables_base = _disposables.size()
+        _property_phase = _AsyncSampling
+        _next_property_sample()
+      else
+        _Unreachable()
+      end
+    else
+      _property_phase = _PropertyIdle
+      complete(true)
+    end
+
+  be _property_classify(label: String, sample_id: USize) =>
+    if sample_id != _prop_sample_id then return end
+    match _property_exec
+    | let exec: _PropertyExecution =>
+      exec.classify(label)
+    end
+
+  be _property_tabulate(
+    heading: String,
+    label: String,
+    sample_id: USize)
+  =>
+    if sample_id != _prop_sample_id then return end
+    match _property_exec
+    | let exec: _PropertyExecution =>
+      exec.tabulate(heading, label)
+    end
+
+  be _property_cover(
+    condition: Bool,
+    label: String,
+    min_pct: F64,
+    sample_id: USize)
+  =>
+    if sample_id != _prop_sample_id then return end
+    match _property_exec
+    | let exec: _PropertyExecution =>
+      exec.cover(condition, label, min_pct)
+    end

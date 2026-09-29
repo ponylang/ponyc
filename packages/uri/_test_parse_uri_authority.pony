@@ -1,8 +1,7 @@
 use "pony_test"
-use "pony_check"
 
 class \nodoc\ iso _PropertyAuthorityRoundtrip
-  is Property1[_ValidAuthorityInput]
+  is Property[_ValidAuthorityInput]
   """
   For generated valid authorities, ParseURIAuthority(auth.string()) produces
   an equal authority.
@@ -25,7 +24,7 @@ class \nodoc\ iso _PropertyAuthorityRoundtrip
         " error: " + err.string())
     end
 
-class \nodoc\ iso _PropertyInvalidPortRejected is Property1[String val]
+class \nodoc\ iso _PropertyInvalidPortRejected is Property[String val]
   """Invalid ports (non-numeric, > 65535) produce InvalidPort."""
   fun name(): String => "uri/parse_uri_authority/invalid_port"
 
@@ -51,7 +50,7 @@ class \nodoc\ iso _PropertyInvalidPortRejected is Property1[String val]
         "expected InvalidPort, got: " + err.string() + " for: " + arg1)
     end
 
-class \nodoc\ iso _PropertyInvalidHostRejected is Property1[String val]
+class \nodoc\ iso _PropertyInvalidHostRejected is Property[String val]
   """Malformed IPv6 hosts (unmatched brackets) produce InvalidHost."""
   fun name(): String => "uri/parse_uri_authority/invalid_host"
 

@@ -1,8 +1,7 @@
 use "pony_test"
-use "pony_check"
 
 class \nodoc\ iso _PropertyResolveResultAbsolute
-  is Property1[_ResolveInput]
+  is Property[_ResolveInput]
   """
   For any absolute base and any reference, the resolved URI always has a
   scheme.
@@ -41,7 +40,7 @@ class \nodoc\ iso _PropertyResolveResultAbsolute
     end
 
 class \nodoc\ iso _PropertyResolveEmptyRef
-  is Property1[_AbsoluteURIInput]
+  is Property[_AbsoluteURIInput]
   """
   Resolving an empty reference against a base returns the base URI with the
   fragment dropped (fragment always comes from the reference, and an empty
@@ -78,7 +77,7 @@ class \nodoc\ iso _PropertyResolveEmptyRef
     end
 
 class \nodoc\ iso _PropertyAbsoluteRefIgnoresBase
-  is Property1[(_AbsoluteURIInput, _AbsoluteURIInput)]
+  is Property[(_AbsoluteURIInput, _AbsoluteURIInput)]
   """
   When the reference has a scheme, the result's scheme matches the
   reference's scheme regardless of the base.
@@ -122,7 +121,7 @@ class \nodoc\ iso _PropertyAbsoluteRefIgnoresBase
     end
 
 class \nodoc\ iso _PropertyNonAbsoluteBaseRejected
-  is Property1[_ValidURIInput]
+  is Property[_ValidURIInput]
   """
   A base URI without a scheme always produces BaseURINotAbsolute, regardless
   of the reference.
@@ -148,7 +147,7 @@ class \nodoc\ iso _PropertyNonAbsoluteBaseRejected
     end
 
 class \nodoc\ iso _PropertyResolveRoundtrip
-  is Property1[_ResolveInput]
+  is Property[_ResolveInput]
   """
   The resolved URI roundtrips through string() and ParseURI: parsing the
   string form produces an equal URI.

@@ -1,12 +1,11 @@
 use "pony_test"
-use "pony_check"
 
 // ============================================================================
 // Property-based tests
 // ============================================================================
 
 class \nodoc\ iso _PropertyIRIToURINoNonASCII
-  is Property1[String val]
+  is Property[String val]
   """
   IRIToURI output has no literal non-ASCII bytes in any component.
   """
@@ -31,7 +30,7 @@ class \nodoc\ iso _PropertyIRIToURINoNonASCII
     end
 
 class \nodoc\ iso _PropertyURIToIRINoEncodedUcschar
-  is Property1[String val]
+  is Property[String val]
   """
   URIToIRI output has no percent-encoded sequences that decode to ucschar.
   """
@@ -127,7 +126,7 @@ class \nodoc\ iso _PropertyURIToIRINoEncodedUcschar
     end
 
 class \nodoc\ iso _PropertyIRIToURIIdempotent
-  is Property1[String val]
+  is Property[String val]
   """
   Applying IRIToURI twice produces the same result as once.
   """
@@ -150,7 +149,7 @@ class \nodoc\ iso _PropertyIRIToURIIdempotent
     end
 
 class \nodoc\ iso _PropertyURIToIRIIdempotent
-  is Property1[String val]
+  is Property[String val]
   """
   Applying URIToIRI twice produces the same result as once.
   """
@@ -173,7 +172,7 @@ class \nodoc\ iso _PropertyURIToIRIIdempotent
     end
 
 class \nodoc\ iso _PropertyIRIToURIRoundtrip
-  is Property1[String val]
+  is Property[String val]
   """
   For IRIs containing only ucschar non-ASCII codepoints (no iprivate),
   URIToIRI(IRIToURI(iri)) produces the original URI structure.
@@ -197,7 +196,7 @@ class \nodoc\ iso _PropertyIRIToURIRoundtrip
     end
 
 class \nodoc\ iso _PropertyNormalizeIRIIdempotent
-  is Property1[_NormalizableURIInput]
+  is Property[_NormalizableURIInput]
   """
   Normalizing an already-normalized IRI produces the same IRI.
   """
@@ -225,7 +224,7 @@ class \nodoc\ iso _PropertyNormalizeIRIIdempotent
     end
 
 class \nodoc\ iso _PropertyIRIEquivalentReflexive
-  is Property1[_NormalizableURIInput]
+  is Property[_NormalizableURIInput]
   """
   Every valid URI/IRI is equivalent to itself.
   """
@@ -245,7 +244,7 @@ class \nodoc\ iso _PropertyIRIEquivalentReflexive
     end
 
 class \nodoc\ iso _PropertyIRIEquivalentCrossForms
-  is Property1[String val]
+  is Property[String val]
   """
   An IRI and its URI form (via IRIToURI) are equivalent.
   """
@@ -271,7 +270,7 @@ class \nodoc\ iso _PropertyIRIEquivalentCrossForms
     end
 
 class \nodoc\ iso _PropertyIRIPercentEncodePreservesUcschar
-  is Property1[String val]
+  is Property[String val]
   """
   IRIPercentEncode preserves ucschar codepoints as literal UTF-8.
   """
@@ -314,7 +313,7 @@ class \nodoc\ iso _PropertyIRIPercentEncodePreservesUcschar
     count
 
 class \nodoc\ iso _PropertyIRIPercentEncodeEncodesNonAllowed
-  is Property1[String val]
+  is Property[String val]
   """
   IRIPercentEncode encodes non-ASCII characters outside ucschar/iprivate.
   """

@@ -1,5 +1,4 @@
 use "pony_test"
-use "pony_check"
 use lint = ".."
 
 // --- is_camel_case ---
@@ -142,7 +141,7 @@ class \nodoc\ _TestToSnakeCase is UnitTest
       lint.NamingHelpers.to_snake_case("_A"))
 
 // --- Property tests ---
-class \nodoc\ _TestCamelCaseValidProperty is Property1[String]
+class \nodoc\ _TestCamelCaseValidProperty is Property[String]
   """Property: generated valid CamelCase always passes is_camel_case."""
 
   fun name(): String =>
@@ -182,7 +181,7 @@ class \nodoc\ _TestCamelCaseValidProperty is Property1[String]
       lint.NamingHelpers.is_camel_case(n),
       "Expected valid CamelCase: " + n)
 
-class \nodoc\ _TestCamelCaseInvalidProperty is Property1[String]
+class \nodoc\ _TestCamelCaseInvalidProperty is Property[String]
   """Property: generated invalid CamelCase always fails."""
 
   fun name(): String =>
@@ -229,7 +228,7 @@ class \nodoc\ _TestCamelCaseInvalidProperty is Property1[String]
       lint.NamingHelpers.is_camel_case(n),
       "Expected invalid CamelCase: " + n)
 
-class \nodoc\ _TestSnakeCaseValidProperty is Property1[String]
+class \nodoc\ _TestSnakeCaseValidProperty is Property[String]
   """Property: generated valid snake_case always passes."""
 
   fun name(): String =>
@@ -269,7 +268,7 @@ class \nodoc\ _TestSnakeCaseValidProperty is Property1[String]
       lint.NamingHelpers.is_snake_case(n),
       "Expected valid snake_case: " + n)
 
-class \nodoc\ _TestSnakeCaseInvalidProperty is Property1[String]
+class \nodoc\ _TestSnakeCaseInvalidProperty is Property[String]
   """Property: generated invalid snake_case always fails."""
 
   fun name(): String =>

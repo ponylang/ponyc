@@ -1,5 +1,4 @@
 use "pony_test"
-use "pony_check"
 
 actor \nodoc\ Main is TestList
   new create(env: Env) =>
@@ -9,11 +8,11 @@ actor \nodoc\ Main is TestList
 
   fun tag tests(test: PonyTest) =>
     // Property tests
-    test(Property1UnitTest[(String, String)](_IRegexpIsMatchImpliesSearchProperty))
-    test(Property1UnitTest[String](_IRegexpLiteralRoundtripProperty))
-    test(Property1UnitTest[(String, String)](_IRegexpMatchSafetyProperty))
-    test(Property1UnitTest[String](_IRegexpParserSafetyProperty))
-    test(Property1UnitTest[(String, String)](_IRegexpSearchSubstringProperty))
+    test.property(_IRegexpIsMatchImpliesSearchProperty)
+    test.property(_IRegexpLiteralRoundtripProperty)
+    test.property(_IRegexpMatchSafetyProperty)
+    test.property(_IRegexpParserSafetyProperty)
+    test.property(_IRegexpSearchSubstringProperty)
     // Example tests
     test(_TestIRegexpEdgeCases)
     test(_TestIRegexpEscapes)
@@ -94,7 +93,7 @@ primitive \nodoc\ _IRegexpGen
 // ===================================================================
 // Property Tests — I-Regexp
 // ===================================================================
-class \nodoc\ iso _IRegexpParserSafetyProperty is Property1[String]
+class \nodoc\ iso _IRegexpParserSafetyProperty is Property[String]
   fun name(): String => "iregex/parser-safety"
 
   fun gen(): Generator[String] =>
@@ -107,7 +106,7 @@ class \nodoc\ iso _IRegexpParserSafetyProperty is Property1[String]
     | let _: IRegexpParseError => None
     end
 
-class \nodoc\ iso _IRegexpMatchSafetyProperty is Property1[(String, String)]
+class \nodoc\ iso _IRegexpMatchSafetyProperty is Property[(String, String)]
   fun name(): String => "iregex/match-safety"
 
   fun gen(): Generator[(String, String)] =>
@@ -127,7 +126,7 @@ class \nodoc\ iso _IRegexpMatchSafetyProperty is Property1[(String, String)]
     end
 
 class \nodoc\ iso _IRegexpIsMatchImpliesSearchProperty
-  is Property1[(String, String)]
+  is Property[(String, String)]
   fun name(): String => "iregex/is_match-implies-search"
 
   fun gen(): Generator[(String, String)] =>
@@ -147,7 +146,7 @@ class \nodoc\ iso _IRegexpIsMatchImpliesSearchProperty
     | let _: IRegexpParseError => None
     end
 
-class \nodoc\ iso _IRegexpLiteralRoundtripProperty is Property1[String]
+class \nodoc\ iso _IRegexpLiteralRoundtripProperty is Property[String]
   fun name(): String => "iregex/literal-roundtrip"
 
   fun gen(): Generator[String] =>
@@ -177,7 +176,7 @@ class \nodoc\ iso _IRegexpLiteralRoundtripProperty is Property1[String]
     end
 
 class \nodoc\ iso _IRegexpSearchSubstringProperty
-  is Property1[(String, String)]
+  is Property[(String, String)]
   fun name(): String => "iregex/search-substring"
 
   fun gen(): Generator[(String, String)] =>

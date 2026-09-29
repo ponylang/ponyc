@@ -1,5 +1,4 @@
 use json = "json"
-use "pony_check"
 use "pony_test"
 
 // ---------------------------------------------------------------------------
@@ -62,7 +61,7 @@ primitive \nodoc\ _ValidJSONGen
 // Property-based tests
 // ---------------------------------------------------------------------------
 class \nodoc\ iso _PropertyDecodeJSONParseErrorPropagation
-  is Property1[String val]
+  is Property[String val]
   """
   Invalid JSON always yields JSONParseError, never success or decode error.
   """
@@ -81,7 +80,7 @@ class \nodoc\ iso _PropertyDecodeJSONParseErrorPropagation
     end
 
 class \nodoc\ iso _PropertyDecodeJSONDecodeErrorPropagation
-  is Property1[String val]
+  is Property[String val]
   """Valid JSON with always-fail decoder yields JSONDecodeError."""
   fun name(): String => "json_decoder/property/decode_error_propagation"
 
@@ -97,7 +96,7 @@ class \nodoc\ iso _PropertyDecodeJSONDecodeErrorPropagation
     | let err: JSONDecodeError => None
     end
 
-class \nodoc\ iso _PropertyDecodeJSONIdentityDecoder is Property1[String val]
+class \nodoc\ iso _PropertyDecodeJSONIdentityDecoder is Property[String val]
   """Valid JSON with always-succeed decoder yields success."""
   fun name(): String => "json_decoder/property/identity_decoder"
 

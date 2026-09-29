@@ -1,4 +1,3 @@
-use "pony_check"
 use "pony_test"
 
 // ---------------------------------------------------------------------------
@@ -6,7 +5,7 @@ use "pony_test"
 // ---------------------------------------------------------------------------
 
 class \nodoc\ iso _PropertyBuilderMethodCorrect
-  is Property1[String val]
+  is Property[String val]
   """
   Each factory method produces a request with the correct HTTP method.
   """

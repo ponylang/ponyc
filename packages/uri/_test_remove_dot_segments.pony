@@ -1,7 +1,6 @@
 use "pony_test"
-use "pony_check"
 
-class \nodoc\ iso _PropertyDotSegmentsIdempotent is Property1[String val]
+class \nodoc\ iso _PropertyDotSegmentsIdempotent is Property[String val]
   """
   Applying RemoveDotSegments twice produces the same result as once.
   """
@@ -16,7 +15,7 @@ class \nodoc\ iso _PropertyDotSegmentsIdempotent is Property1[String val]
     ph.assert_eq[String val](
       once, twice, "not idempotent for: " + arg1)
 
-class \nodoc\ iso _PropertyDotSegmentsNoDots is Property1[String val]
+class \nodoc\ iso _PropertyDotSegmentsNoDots is Property[String val]
   """
   The output of RemoveDotSegments never contains standalone "." or ".."
   segments.
@@ -65,7 +64,7 @@ class \nodoc\ iso _PropertyDotSegmentsNoDots is Property1[String val]
     false
 
 class \nodoc\ iso _PropertyDotSegmentsPreservesAbsolute
-  is Property1[String val]
+  is Property[String val]
   """
   If the input starts with "/" the output also starts with "/".
   """

@@ -35,9 +35,6 @@ class val TestHelper
     """
 
   new val _create(runner: _TestRunner, env': Env) =>
-    """
-    Create a new TestHelper.
-    """
     env = env'
     _runner = runner
 
@@ -384,7 +381,7 @@ class val TestHelper
     test function exits.
     Once this function is called, complete() must be called to finish the test,
     unless a timeout occurs.
-    The timeout is specified in nanseconds.
+    The timeout is specified in nanoseconds.
     """
     _runner.long_test(timeout)
 
@@ -451,3 +448,88 @@ class val TestHelper
     If the test is already tearing down, the actor will be disposed immediately.
     """
     _runner.dispose_when_done(disposable)
+
+  fun val for_all[T](gen: Generator[T] val): ForAll[T] =>
+    """
+    Run an inline property check with one generated argument.
+    """
+    ForAll[T](gen, this)
+
+  fun val for_all2[T1, T2](
+    gen1: Generator[T1] val,
+    gen2: Generator[T2] val)
+    : ForAll2[T1, T2]
+  =>
+    """
+    Run an inline property check with two generated arguments.
+    """
+    ForAll2[T1, T2](gen1, gen2, this)
+
+  fun val for_all3[T1, T2, T3](
+    gen1: Generator[T1] val,
+    gen2: Generator[T2] val,
+    gen3: Generator[T3] val)
+    : ForAll3[T1, T2, T3]
+  =>
+    """
+    Run an inline property check with three generated arguments.
+    """
+    ForAll3[T1, T2, T3](gen1, gen2, gen3, this)
+
+  fun val for_all4[T1, T2, T3, T4](
+    gen1: Generator[T1] val,
+    gen2: Generator[T2] val,
+    gen3: Generator[T3] val,
+    gen4: Generator[T4] val)
+    : ForAll4[T1, T2, T3, T4]
+  =>
+    """
+    Run an inline property check with four generated arguments.
+    """
+    ForAll4[T1, T2, T3, T4](gen1, gen2, gen3, gen4, this)
+
+  fun _fail_sample(msg: String, sample_id: USize) =>
+    _runner._fail_sample(msg, sample_id)
+
+  fun _complete_sample(success: Bool, sample_id: USize) =>
+    _runner.complete(success, sample_id)
+
+  fun _expect_action_sample(name: String, sample_id: USize) =>
+    _runner.expect_action(name, sample_id)
+
+  fun _complete_action_sample(
+    name: String,
+    success: Bool,
+    sample_id: USize)
+  =>
+    _runner.complete_action(name, success, sample_id)
+
+  fun _dispose_when_done_sample(
+    disposable: DisposableActor,
+    sample_id: USize)
+  =>
+    _runner.dispose_when_done(disposable, sample_id)
+
+  fun _property_classify(label: String, sample_id: USize) =>
+    _runner._property_classify(label, sample_id)
+
+  fun _property_tabulate(
+    heading: String,
+    label: String,
+    sample_id: USize)
+  =>
+    _runner._property_tabulate(heading, label, sample_id)
+
+  fun _property_cover(
+    condition: Bool,
+    label: String,
+    min_pct: F64,
+    sample_id: USize)
+  =>
+    _runner._property_cover(condition, label, min_pct, sample_id)
+
+  fun _start_property(exec: _PropertyExecution iso) =>
+    """
+    Enter property mode.
+    """
+    _runner._start_property(consume exec)

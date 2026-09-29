@@ -1,5 +1,4 @@
 use "pony_test"
-use "pony_check"
 use lint = ".."
 
 actor \nodoc\ Main is TestList
@@ -158,12 +157,9 @@ actor \nodoc\ Main is TestList
     test(_TestGlobMatchDoubleStarNotComponent)
     test(_TestGlobMatchDoubleStarAlone)
     test(_TestGlobMatchEdgeCases)
-    test(Property1UnitTest[String](
-      _TestGlobMatchLiteralSelfMatchProperty))
-    test(Property1UnitTest[String](
-      _TestGlobMatchStarNoCrossSlashProperty))
-    test(Property1UnitTest[String](
-      _TestGlobMatchDoubleStarMatchesAllProperty))
+    test.property(_TestGlobMatchLiteralSelfMatchProperty)
+    test.property(_TestGlobMatchStarNoCrossSlashProperty)
+    test.property(_TestGlobMatchDoubleStarMatchesAllProperty)
 
     // PatternParser tests
     test(_TestPatternParserBlankLine)
@@ -216,14 +212,10 @@ actor \nodoc\ Main is TestList
     test(_TestIsSnakeCaseInvalid)
     test(_TestHasLoweredAcronym)
     test(_TestToSnakeCase)
-    test(Property1UnitTest[String](
-      _TestCamelCaseValidProperty))
-    test(Property1UnitTest[String](
-      _TestCamelCaseInvalidProperty))
-    test(Property1UnitTest[String](
-      _TestSnakeCaseValidProperty))
-    test(Property1UnitTest[String](
-      _TestSnakeCaseInvalidProperty))
+    test.property(_TestCamelCaseValidProperty)
+    test.property(_TestCamelCaseInvalidProperty)
+    test.property(_TestSnakeCaseValidProperty)
+    test.property(_TestSnakeCaseInvalidProperty)
 
     // TypeNaming tests
     test(_TestTypeNamingClean)

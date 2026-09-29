@@ -1,4 +1,3 @@
-use "pony_check"
 use "pony_test"
 
 // ---------------------------------------------------------------------------
@@ -6,7 +5,7 @@ use "pony_test"
 // ---------------------------------------------------------------------------
 
 class \nodoc\ iso _PropertyMultipartBodyStructure
-  is Property1[USize]
+  is Property[USize]
   """
   For a form with N parts, the serialized body contains exactly N+1
   boundary occurrences (N part boundaries + 1 closing boundary).
@@ -305,7 +304,7 @@ class \nodoc\ iso _TestMultipartNonAsciiFilename is UnitTest
 // Escaped quoting tests
 // ---------------------------------------------------------------------------
 class \nodoc\ iso _PropertyMultipartEscapedNamesWellFormed
-  is Property1[String val]
+  is Property[String val]
   """
   For any generated string used as a field name, the serialized body's
   Content-Disposition quoted-strings are well-formed: each opening `"`

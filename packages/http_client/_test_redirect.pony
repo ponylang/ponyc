@@ -1,5 +1,4 @@
 use uri = "uri"
-use "pony_check"
 use "pony_test"
 
 primitive \nodoc\ _RedirectTestKit
@@ -455,7 +454,7 @@ class \nodoc\ iso _TestRedirectMixedCaseScheme is UnitTest
     end
 
 class \nodoc\ iso _PropertyRedirectStripsCredentials
-  is Property1[(U16, String val)]
+  is Property[(U16, String val)]
   """
   For every redirect status and any safe header, a cross-origin hop carrying
   authorization, cookie, proxy-authorization, host, and referer drops all

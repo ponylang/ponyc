@@ -1,4 +1,3 @@
-use "pony_check"
 use "pony_test"
 
 // ---------------------------------------------------------------------------
@@ -6,7 +5,7 @@ use "pony_test"
 // ---------------------------------------------------------------------------
 
 class \nodoc\ iso _PropertyBasicAuthFormat
-  is Property1[(String val, String val)]
+  is Property[(String val, String val)]
   """
   BasicAuth always returns ("authorization", "Basic <encoded>") where the
   encoded part is non-empty.
@@ -33,7 +32,7 @@ class \nodoc\ iso _PropertyBasicAuthFormat
       "encoded credentials should be non-empty")
 
 class \nodoc\ iso _PropertyBearerAuthFormat
-  is Property1[String val]
+  is Property[String val]
   """
   BearerAuth always returns ("authorization", "Bearer <token>").
   """

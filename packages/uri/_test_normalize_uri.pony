@@ -1,10 +1,9 @@
 use "pony_test"
-use "pony_check"
 
 // -- Property-based tests --
 
 class \nodoc\ iso _PropertyNormalizeIdempotent
-  is Property1[_NormalizableURIInput]
+  is Property[_NormalizableURIInput]
   """
   Normalizing an already-normalized URI produces the same URI.
   """
@@ -32,7 +31,7 @@ class \nodoc\ iso _PropertyNormalizeIdempotent
     end
 
 class \nodoc\ iso _PropertyNormalizeSchemeLowercase
-  is Property1[_NormalizableURIInput]
+  is Property[_NormalizableURIInput]
   """
   After normalization, the scheme contains no uppercase ASCII.
   """
@@ -55,7 +54,7 @@ class \nodoc\ iso _PropertyNormalizeSchemeLowercase
     end
 
 class \nodoc\ iso _PropertyNormalizeHostLowercase
-  is Property1[_NormalizableURIInput]
+  is Property[_NormalizableURIInput]
   """
   After normalization, non-percent-encoded characters in host have no
   uppercase ASCII.
@@ -79,7 +78,7 @@ class \nodoc\ iso _PropertyNormalizeHostLowercase
     end
 
 class \nodoc\ iso _PropertyNormalizeNoEncodedUnreserved
-  is Property1[_NormalizableURIInput]
+  is Property[_NormalizableURIInput]
   """
   After normalization, no %XX sequence decodes to an unreserved character.
   """
@@ -119,28 +118,33 @@ class \nodoc\ iso _PropertyNormalizeNoEncodedUnreserved
   =>
     var i: USize = 0
     while i < s.size() do
-      try
-        if s(i)? == '%' then
-          if (i + 2) < s.size() then
-            let hi = PercentDecode._hex_value(s(i + 1)?)?
-            let lo = PercentDecode._hex_value(s(i + 2)?)?
-            let byte = (hi * 16) + lo
-            ph.assert_false(
-              PercentEncode._is_unreserved(byte),
-              label + " has encoded unreserved char: " +
-                s.substring(i.isize(), (i + 3).isize()))
+      (let is_pct, let byte: U8, let advance: USize) =
+        try
+          if s(i)? == '%' then
+            if (i + 2) < s.size() then
+              let hi = PercentDecode._hex_value(s(i + 1)?)?
+              let lo = PercentDecode._hex_value(s(i + 2)?)?
+              (true, (hi * 16) + lo, USize(3))
+            else
+              (false, U8(0), USize(3))
+            end
+          else
+            (false, U8(0), USize(1))
           end
-          i = i + 3
         else
-          i = i + 1
+          return
         end
-      else
-        return
+      if is_pct then
+        ph.assert_false(
+          PercentEncode._is_unreserved(byte),
+          label + " has encoded unreserved char: " +
+            s.substring(i.isize(), (i + advance).isize()))
       end
+      i = i + advance
     end
 
 class \nodoc\ iso _PropertyNormalizeUppercaseHex
-  is Property1[_NormalizableURIInput]
+  is Property[_NormalizableURIInput]
   """
   After normalization, all %XX sequences use uppercase hex digits.
   """
@@ -180,28 +184,32 @@ class \nodoc\ iso _PropertyNormalizeUppercaseHex
   =>
     var i: USize = 0
     while i < s.size() do
-      try
-        if s(i)? == '%' then
-          if (i + 2) < s.size() then
-            let h1 = s(i + 1)?
-            let h2 = s(i + 2)?
-            ph.assert_false(
-              ((h1 >= 'a') and (h1 <= 'f')) or
-                ((h2 >= 'a') and (h2 <= 'f')),
-              label + " has lowercase hex: " +
-                s.substring(i.isize(), (i + 3).isize()))
+      (let is_pct, let h1: U8, let h2: U8, let advance: USize) =
+        try
+          if s(i)? == '%' then
+            if (i + 2) < s.size() then
+              (true, s(i + 1)?, s(i + 2)?, USize(3))
+            else
+              (false, U8(0), U8(0), USize(3))
+            end
+          else
+            (false, U8(0), U8(0), USize(1))
           end
-          i = i + 3
         else
-          i = i + 1
+          return
         end
-      else
-        return
+      if is_pct then
+        ph.assert_false(
+          ((h1 >= 'a') and (h1 <= 'f')) or
+            ((h2 >= 'a') and (h2 <= 'f')),
+          label + " has lowercase hex: " +
+            s.substring(i.isize(), (i + advance).isize()))
       end
+      i = i + advance
     end
 
 class \nodoc\ iso _PropertyNormalizeNoDotSegments
-  is Property1[_NormalizableURIInput]
+  is Property[_NormalizableURIInput]
   """
   After normalization, the path has no dot segments.
   """
@@ -224,7 +232,7 @@ class \nodoc\ iso _PropertyNormalizeNoDotSegments
     end
 
 class \nodoc\ iso _PropertyNormalizeParseRoundtrip
-  is Property1[_NormalizableURIInput]
+  is Property[_NormalizableURIInput]
   """
   Parsing the string form of a normalized URI produces an equal URI.
   """
@@ -251,7 +259,7 @@ class \nodoc\ iso _PropertyNormalizeParseRoundtrip
     end
 
 class \nodoc\ iso _PropertyNormalizeNoDefaultPort
-  is Property1[_NormalizableURIInput]
+  is Property[_NormalizableURIInput]
   """
   After normalization, if the scheme has a known default port, the port
   is not that default.
@@ -285,7 +293,7 @@ class \nodoc\ iso _PropertyNormalizeNoDefaultPort
     end
 
 class \nodoc\ iso _PropertyNormalizeNoEmptyPathWithAuthority
-  is Property1[_NormalizableURIInput]
+  is Property[_NormalizableURIInput]
   """
   After normalization, if the scheme is http or https and authority is
   present, the path is not empty.
@@ -315,7 +323,7 @@ class \nodoc\ iso _PropertyNormalizeNoEmptyPathWithAuthority
     end
 
 class \nodoc\ iso _PropertyNormalizeEquivalentConsistent
-  is Property1[(_NormalizableURIInput, _NormalizableURIInput)]
+  is Property[(_NormalizableURIInput, _NormalizableURIInput)]
   """
   URIEquivalent(a, b) is consistent with NormalizeURI(a) == NormalizeURI(b).
   """
@@ -356,7 +364,7 @@ class \nodoc\ iso _PropertyNormalizeEquivalentConsistent
     end
 
 class \nodoc\ iso _PropertyNormalizeInvalidPercentRejected
-  is Property1[String val]
+  is Property[String val]
   """
   URIs with malformed percent-encoding produce InvalidPercentEncoding.
   """

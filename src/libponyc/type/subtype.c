@@ -2054,10 +2054,10 @@ static bool is_x_sub_x(ast_t* sub, ast_t* super, check_cap_t check_cap,
     // those change, revisit this guard.
     //
     // SAME_DEF_LIMIT was inherited from upstream's empirical floor in
-    // 0483f9d99: K=2 was refuted by pony_check shapes that need more
+    // 0483f9d99: K=2 was refuted by pony_test shapes that need more
     // than one drifting round to converge; K=4 leaves headroom.
-    // Lowering K requires re-validating against pony_check
-    // (packages/pony_check/) and any other stdlib shape that exercises
+    // Lowering K requires re-validating against pony_test
+    // (packages/pony_test/) and any other stdlib shape that exercises
     // drifting same-def recursion. Raising K is always safe.
     if((ast_id(sub) == TK_NOMINAL) && (ast_id(super) == TK_NOMINAL))
     {

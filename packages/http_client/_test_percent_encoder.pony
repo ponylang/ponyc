@@ -1,4 +1,3 @@
-use "pony_check"
 use "pony_test"
 
 // ---------------------------------------------------------------------------
@@ -6,7 +5,7 @@ use "pony_test"
 // ---------------------------------------------------------------------------
 
 class \nodoc\ iso _PropertyQueryUnreservedPassthrough
-  is Property1[String val]
+  is Property[String val]
   """
   RFC 3986 unreserved characters (A-Z a-z 0-9 - . _ ~) pass through
   query encoding unchanged.
@@ -34,7 +33,7 @@ class \nodoc\ iso _PropertyQueryUnreservedPassthrough
     ph.assert_eq[String val](arg1, encoded)
 
 class \nodoc\ iso _PropertyQueryReservedEncoded
-  is Property1[U8]
+  is Property[U8]
   """
   Reserved/non-unreserved bytes are encoded as %XX in query encoding.
   """
@@ -67,7 +66,7 @@ class \nodoc\ iso _PropertyQueryReservedEncoded
     end
 
 class \nodoc\ iso _PropertyFormSpacesToPlus
-  is Property1[USize]
+  is Property[USize]
   """
   Spaces in form encoding become '+'.
   """
@@ -90,7 +89,7 @@ class \nodoc\ iso _PropertyFormSpacesToPlus
     end
 
 class \nodoc\ iso _PropertyQueryParamsRoundtrip
-  is Property1[(String val, String val)]
+  is Property[(String val, String val)]
   """
   QueryParams output contains the encoded key and value separated by =.
   """
