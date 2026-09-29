@@ -1750,7 +1750,7 @@ class \nodoc\ iso _RegressionDbCreatesDirTest is UnitTest
 primitive \nodoc\ _TempDir
   fun apply(env: Env): FilePath ? =>
     let auth = FileAuth(env.root)
-    FilePath.mkdtemp(auth, "/tmp/ponytest-property-")?
+    FilePath.mkdtemp(auth, "ponytest-property-")?
 
 // --- Stateful property tests ---
 primitive \nodoc\ _NoOp is Stringable
