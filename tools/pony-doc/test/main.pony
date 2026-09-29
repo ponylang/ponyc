@@ -44,6 +44,9 @@ actor \nodoc\ Main is TestList
     test(_TestDefaultValueRecoverBlock)
     test(_TestDefaultValueMultiLine)
     test(_TestDefaultValueNone)
+    test(_TestDefaultValueConstructorWithTypeArgs)
+    test(_TestDefaultValueNestedGenerics)
+    test(_TestDefaultValueStringWithDelimiters)
 
     // TypeRenderer tests
     test(_TestRenderNominalNoLink)

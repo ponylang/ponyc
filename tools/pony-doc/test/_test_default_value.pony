@@ -189,10 +189,74 @@ class \nodoc\ _TestDefaultValueNone is UnitTest
       h.fail("extraction failed")
     end
 
+class \nodoc\ _TestDefaultValueConstructorWithTypeArgs is UnitTest
+  """
+  Constructor calls with type arguments like `Array[Opts]()` must not
+  overflow past the expression boundary. After type resolution, the
+  nominal type's AST children carry positions from the definition site,
+  which causes `source_span()` to report an end position far past the
+  actual expression.
+  """
+  fun name(): String => "DefaultValue/constructor-with-type-args"
+
+  fun apply(h: TestHelper) =>
+    let source =
+      "class Opts\n" +
+      "class Foo\n" +
+      "  new create(\n" +
+      "    name: String = \"\",\n" +
+      "    items: Array[Opts] box = Array[Opts]())\n" +
+      "  =>\n" +
+      "    None\n"
+    try
+      let defaults = _DefaultValueTestHelper.extract_defaults(h, source)?
+      h.assert_eq[USize](defaults.size(), 2)
+      h.assert_eq[String](defaults(0)?, "\"\"")
+      h.assert_eq[String](defaults(1)?, "Array[Opts]()")
+    else
+      h.fail("extraction failed")
+    end
+
+class \nodoc\ _TestDefaultValueNestedGenerics is UnitTest
+  fun name(): String => "DefaultValue/nested-generics"
+
+  fun apply(h: TestHelper) =>
+    let source =
+      "use \"collections\"\n" +
+      "primitive Foo\n" +
+      "  fun apply(\n" +
+      "    m: Map[String, Array[U8]] box = Map[String, Array[U8]]())\n" +
+      "    : None\n" +
+      "  => None\n"
+    try
+      let defaults = _DefaultValueTestHelper.extract_defaults(h, source)?
+      h.assert_eq[USize](defaults.size(), 1)
+      h.assert_eq[String](defaults(0)?,
+        "Map[String, Array[U8]]()")
+    else
+      h.fail("extraction failed")
+    end
+
+class \nodoc\ _TestDefaultValueStringWithDelimiters is UnitTest
+  fun name(): String => "DefaultValue/string-with-delimiters"
+
+  fun apply(h: TestHelper) =>
+    let source =
+      "primitive Foo\n" +
+      "  fun apply(s: String = \",)\", n: USize = 0): None => None\n"
+    try
+      let defaults = _DefaultValueTestHelper.extract_defaults(h, source)?
+      h.assert_eq[USize](defaults.size(), 2)
+      h.assert_eq[String](defaults(0)?, "\",)\"")
+      h.assert_eq[String](defaults(1)?, "0")
+    else
+      h.fail("extraction failed")
+    end
+
 primitive \nodoc\ _DefaultValueTestHelper
   """
   Compiles Pony source through PassTraits and extracts default parameter
-  values from the original source text via `source_span()`.
+  values by scanning forward from each node's source position.
   """
   fun extract_defaults(
     h: TestHelper,
@@ -243,130 +307,72 @@ primitive \nodoc\ _DefaultValueTestHelper
     if def_val.id() != ast.TokenIds.tk_none() then
       try
         let src = (def_val.source_contents() as String box)
-        (let start_pos, let end_pos') = def_val.source_span()
-        let start_offset = _pos_to_offset(src, start_pos)?
-        var end_offset = _pos_to_offset(src, end_pos')?
-        if end_offset >= start_offset then
-          var extracted: String val =
-            recover val
-              src.substring(
-                ISize.from[USize](start_offset),
-                ISize.from[USize](end_offset + 1))
-                .> strip()
-            end
-
-          var missing_ends = _count_unmatched_ends(extracted)
-          while missing_ends > 0 do
-            end_offset = _scan_to_next_end(src, end_offset + 1)?
-            missing_ends = missing_ends - 1
+        let start_offset = _pos_to_offset(src, def_val.position())?
+        let term_offset = _find_expr_end(src, start_offset)?
+        if term_offset > start_offset then
+          recover val
+            src.substring(
+              ISize.from[USize](start_offset),
+              ISize.from[USize](term_offset))
+              .> strip()
           end
-
-          if missing_ends == 0 then
-            extracted =
-              recover val
-                src.substring(
-                  ISize.from[USize](start_offset),
-                  ISize.from[USize](end_offset + 1))
-                  .> strip()
-              end
-          end
-          extracted
         end
       end
     end
 
-  fun _count_unmatched_ends(text: String val): USize =>
-    let openers =
-      [ as String:
-        "recover"; "if"; "ifdef"; "iftype"; "match"; "while"; "for"
-        "repeat"; "object"; "lambda"; "try"]
-    var opens: USize = 0
-    var ends: USize = 0
-    var i: USize = 0
-    let size = text.size()
+  fun _find_expr_end(src: String box, from: USize): USize ? =>
+    var i = from
+    var depth: USize = 0
+    let size = src.size()
     while i < size do
-      try
-        while (i < size) and not _is_word_char(text(i)?) do
-          if text(i)? == '"' then
-            i = i + 1
-            if ((i + 1) < size) and (text(i)? == '"') and
-              (text(i + 1)? == '"')
-            then
-              i = i + 2
-              while (i + 2) < size do
-                if (text(i)? == '"') and (text(i + 1)? == '"') and
-                  (text(i + 2)? == '"')
-                then
-                  i = i + 3
-                  break
-                end
-                i = i + 1
-              end
-            else
-              while (i < size) and (text(i)? != '"') do
-                i = i + 1
-              end
-              if i < size then i = i + 1 end
-            end
-          else
-            i = i + 1
-          end
-        end
+      let c = src(i)?
+      if c == '"' then
+        i = _skip_string(src, i + 1, size)?
+        continue
       end
-      let word_start = i
-      try
-        while (i < size) and _is_word_char(text(i)?) do
+      if (c == '/') and ((i + 1) < size) and (src(i + 1)? == '/') then
+        while (i < size) and (src(i)? != '\n') do
           i = i + 1
         end
+        continue
       end
-      if i > word_start then
-        let word: String val =
-          text.substring(
-            ISize.from[USize](word_start),
-            ISize.from[USize](i))
-        if word == "end" then
-          ends = ends + 1
-        else
-          for opener in openers.values() do
-            if word == opener then
-              opens = opens + 1
-              break
-            end
-          end
-        end
+      if (c == '(') or (c == '[') or (c == '{') then
+        depth = depth + 1
+      elseif (c == ']') or (c == '}') then
+        if depth > 0 then depth = depth - 1 end
+      elseif c == ')' then
+        if depth == 0 then return i end
+        depth = depth - 1
+      elseif (c == ',') and (depth == 0) then
+        return i
       end
+      i = i + 1
     end
-    if opens > ends then opens - ends else 0 end
+    error
 
-  fun _is_word_char(c: U8): Bool =>
-    ((c >= 'a') and (c <= 'z')) or
-    ((c >= 'A') and (c <= 'Z')) or
-    ((c >= '0') and (c <= '9')) or
-    (c == '_')
-
-  fun _scan_to_next_end(
+  fun _skip_string(
     src: String box,
-    from: USize)
+    from: USize,
+    size: USize)
     : USize ?
   =>
     var i = from
-    let size = src.size()
-    while i < size do
-      if not _is_word_char(src(i)?) then
-        i = i + 1
-      else
-        let word_start = i
-        while (i < size) and _is_word_char(src(i)?) do
-          i = i + 1
-        end
-        if (src.substring(
-          ISize.from[USize](word_start), ISize.from[USize](i)) == "end")
+    if ((i + 1) < size) and (src(i)? == '"') and (src(i + 1)? == '"') then
+      i = i + 2
+      while (i + 2) < size do
+        if (src(i)? == '"') and (src(i + 1)? == '"') and
+          (src(i + 2)? == '"')
         then
-          return i - 1
+          return i + 3
         end
+        i = i + 1
       end
+      return size
     end
-    error
+    while (i < size) and (src(i)? != '"') do
+      i = i + 1
+    end
+    if i < size then i + 1 else size end
 
   fun _pos_to_offset(
     src: String box,
