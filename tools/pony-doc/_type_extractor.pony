@@ -300,158 +300,92 @@ primitive _TypeExtractor
     the user's spelling (e.g. `ISize.max_value()`, `-1`) regardless of
     how the compiler transforms the AST.
 
-    Block constructs (`recover`, `if`, `object`, etc.) have a closing
-    `end` keyword that the parser consumes without leaving an AST node.
-    After extracting via `source_span()`, any unmatched block openers
-    are balanced by scanning forward for matching `end` keywords.
+    Does not use `source_span()` because resolved type references
+    carry AST children whose positions point to the definition site,
+    not the use site, which overflows the span past the actual
+    expression.
     """
     if def_val.id() != ast.TokenIds.tk_none() then
       try
         let src = (def_val.source_contents() as String box)
-        (let start_pos, let end_pos') = def_val.source_span()
-        let start_offset = _pos_to_offset(src, start_pos)?
-        var end_offset = _pos_to_offset(src, end_pos')?
-        if end_offset >= start_offset then
-          var extracted: String val =
-            recover val
-              src.substring(
-                ISize.from[USize](start_offset),
-                ISize.from[USize](end_offset + 1))
-                .> strip()
-            end
-
-          // Block constructs lose their closing `end` in the AST.
-          // Count unmatched openers and scan forward for each.
-          var missing_ends = _count_unmatched_ends(extracted)
-          while missing_ends > 0 do
-            end_offset = _scan_to_next_end(src, end_offset + 1)?
-            missing_ends = missing_ends - 1
+        let start_offset = _pos_to_offset(src, def_val.position())?
+        let term_offset = _find_expr_end(src, start_offset)?
+        if term_offset > start_offset then
+          recover val
+            src.substring(
+              ISize.from[USize](start_offset),
+              ISize.from[USize](term_offset))
+              .> strip()
           end
-
-          if missing_ends == 0 then
-            extracted =
-              recover val
-                src.substring(
-                  ISize.from[USize](start_offset),
-                  ISize.from[USize](end_offset + 1))
-                  .> strip()
-              end
-          end
-          extracted
         end
       end
     end
 
-  fun _count_unmatched_ends(text: String val): USize =>
+  fun _find_expr_end(src: String box, from: USize): USize ? =>
     """
-    Count block-opening keywords minus `end` keywords. Returns the
-    number of `end` keywords missing from the extracted text.
+    Scan forward from byte offset `from` to find the boundary of a
+    default value expression in a parameter list. Tracks balanced
+    `()`, `[]`, and `{}` delimiters and skips string literals and line
+    comments. Returns the byte offset of the first `,` or unmatched
+    `)` at nesting depth zero.
     """
-    let openers =
-      [ as String:
-        "recover"; "if"; "ifdef"; "iftype"; "match"; "while"; "for"
-        "repeat"; "object"; "lambda"; "try"]
-    var opens: USize = 0
-    var ends: USize = 0
-
-    // Split on whitespace and count keyword tokens
-    var i: USize = 0
-    let size = text.size()
+    var i = from
+    var depth: USize = 0
+    let size = src.size()
     while i < size do
-      // Skip non-word characters
-      try
-        while (i < size) and not _is_word_char(text(i)?) do
-          // Skip string literals
-          if text(i)? == '"' then
-            i = i + 1
-            if ((i + 1) < size) and (text(i)? == '"') and
-              (text(i + 1)? == '"')
-            then
-              // Triple-quoted string
-              i = i + 2
-              while (i + 2) < size do
-                if (text(i)? == '"') and (text(i + 1)? == '"') and
-                  (text(i + 2)? == '"')
-                then
-                  i = i + 3
-                  break
-                end
-                i = i + 1
-              end
-            else
-              while (i < size) and (text(i)? != '"') do
-                i = i + 1
-              end
-              if i < size then i = i + 1 end
-            end
-          else
-            i = i + 1
-          end
-        end
+      let c = src(i)?
+      if c == '"' then
+        i = _skip_string(src, i + 1, size)?
+        continue
       end
-
-      // Extract word
-      let word_start = i
-      try
-        while (i < size) and _is_word_char(text(i)?) do
+      if (c == '/') and ((i + 1) < size) and (src(i + 1)? == '/') then
+        while (i < size) and (src(i)? != '\n') do
           i = i + 1
         end
+        continue
       end
-
-      if i > word_start then
-        let word: String val =
-          text.substring(
-            ISize.from[USize](word_start),
-            ISize.from[USize](i))
-        if word == "end" then
-          ends = ends + 1
-        else
-          for opener in openers.values() do
-            if word == opener then
-              opens = opens + 1
-              break
-            end
-          end
-        end
+      if (c == '(') or (c == '[') or (c == '{') then
+        depth = depth + 1
+      elseif (c == ']') or (c == '}') then
+        if depth > 0 then depth = depth - 1 end
+      elseif c == ')' then
+        if depth == 0 then return i end
+        depth = depth - 1
+      elseif (c == ',') and (depth == 0) then
+        return i
       end
+      i = i + 1
     end
+    error
 
-    if opens > ends then opens - ends else 0 end
-
-  fun _is_word_char(c: U8): Bool =>
-    ((c >= 'a') and (c <= 'z')) or
-    ((c >= 'A') and (c <= 'Z')) or
-    ((c >= '0') and (c <= '9')) or
-    (c == '_')
-
-  fun _scan_to_next_end(
+  fun _skip_string(
     src: String box,
-    from: USize)
+    from: USize,
+    size: USize)
     : USize ?
   =>
     """
-    Scan forward from byte offset `from` to find the next `end` keyword
-    (a standalone word, not a substring of another identifier). Returns
-    the byte offset of the last character of that `end` token.
+    Skip past a string literal body starting after the opening `"`.
+    Handles both regular and triple-quoted strings. Returns the byte
+    offset immediately after the closing quote(s).
     """
     var i = from
-    let size = src.size()
-    while i < size do
-      if not _is_word_char(src(i)?) then
-        i = i + 1
-      else
-        let word_start = i
-        while (i < size) and _is_word_char(src(i)?) do
-          i = i + 1
-        end
-        if (src.substring(
-          ISize.from[USize](word_start), ISize.from[USize](i)) == "end")
+    if ((i + 1) < size) and (src(i)? == '"') and (src(i + 1)? == '"') then
+      i = i + 2
+      while (i + 2) < size do
+        if (src(i)? == '"') and (src(i + 1)? == '"') and
+          (src(i + 2)? == '"')
         then
-          return i - 1
+          return i + 3
         end
+        i = i + 1
       end
+      return size
     end
-    error
+    while (i < size) and (src(i)? != '"') do
+      i = i + 1
+    end
+    if i < size then i + 1 else size end
 
   fun _pos_to_offset(
     src: String box,
