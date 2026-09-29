@@ -656,7 +656,8 @@ static void extract_nested(infer_record_t* records, ast_t* typeparams,
   ast_t* other_typeparams, ast_t* param_type, ast_t* arg_type, ast_t* arg,
   pass_opt_t* opt);
 
-// Walk the provides list of arg_type's def to find param_type's def.
+// Walk the provides list of arg_type's def, transitively, to find
+// param_type's def.
 static void provides_walk(infer_record_t* records, ast_t* typeparams,
   ast_t* other_typeparams, ast_t* param_type, ast_t* arg_type, ast_t* arg,
   pass_opt_t* opt)
@@ -706,6 +707,11 @@ static void provides_walk(infer_record_t* records, ast_t* typeparams,
 
         ast_free_unattached(reified_entry);
         return;
+      }
+      else
+      {
+        extract_nested(records, typeparams, other_typeparams,
+          param_type, reified_entry, arg, opt);
       }
     }
     else if(ast_id(reified_entry) != TK_ARROW)

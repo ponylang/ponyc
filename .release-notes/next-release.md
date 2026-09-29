@@ -69,14 +69,12 @@ class iso MyProperty is Property[U8]
 Register property tests through methods on `TestList` instead of wrapper classes:
 
 - `test(Property1UnitTest[T](prop))` → `test.property(prop)`
-- `test(Property2UnitTest[T1, T2](prop))` → `test.property[(T1, T2)](prop)`
-- `test(Property3UnitTest[T1, T2, T3](prop))` → `test.property[(T1, T2, T3)](prop)`
-- `test(Property4UnitTest[T1, T2, T3, T4](prop))` → `test.property[(T1, T2, T3, T4)](prop)`
-- `test(IntUnitTest(prop))` → `test.property[IntPropertySample](prop)`
-- `test(IntPairUnitTest(prop))` → `test.property[IntPairPropertySample](prop)`
+- `test(Property2UnitTest[T1, T2](prop))` → `test.property(prop)`
+- `test(Property3UnitTest[T1, T2, T3](prop))` → `test.property(prop)`
+- `test(Property4UnitTest[T1, T2, T3, T4](prop))` → `test.property(prop)`
+- `test(IntUnitTest(prop))` → `test.property(prop)`
+- `test(IntPairUnitTest(prop))` → `test.property(prop)`
 - `test(StatefulPropertyUnitTest[S, M, Cmd](prop))` → `test.stateful_property(prop)`
-
-`Property2`/`Property3`/`Property4`, `IntProperty`, and `IntPairProperty` subclasses need explicit type arguments on `test.property()` because the sample type is not inferred through the intermediate trait. Classes that implement `Property[T]` directly don't need type arguments.
 
 ### Inline property tests use TestHelper
 
