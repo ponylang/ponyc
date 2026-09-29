@@ -2999,6 +2999,50 @@ class \nodoc\ iso _AsyncPropertyTest is UnitTest
         {(code: I32) => None })
     PonyTest(env, list, reporter)
 
+class \nodoc\ iso _MultipleForAllAsyncInner is UnitTest
+  """
+  Two for_all calls that each call long_test to enter async mode.
+  """
+  fun name(): String => "meta/multiple_for_all_async/inner"
+
+  fun apply(h: TestHelper) ? =>
+    h.for_all[U8](recover val Generators.u8(0, 10) end)(
+      {(u, ph) =>
+        ph.long_test(10_000_000_000)
+        ph.assert_true(u <= 10)
+      })?
+    h.for_all[U8](recover val Generators.u8(0, 5) end)(
+      {(u, ph) =>
+        ph.long_test(10_000_000_000)
+        ph.assert_true(u <= 5)
+      })?
+
+class \nodoc\ iso _MultipleForAllAsyncTest is UnitTest
+  """
+  Verifies that multiple for_all calls within one UnitTest can each
+  independently call long_test to register their own timeout.
+  """
+  fun name(): String => "property/multiple_for_all_async"
+
+  fun apply(h: TestHelper) =>
+    h.long_test(30_000_000_000)
+    let list =
+      object tag is TestList
+        fun tag tests(test: PonyTest) =>
+          test(_MultipleForAllAsyncInner)
+      end
+    let reporter = PassReporter(h)
+    let env =
+      Env.create(
+        h.env.root,
+        h.env.input,
+        h.env.out,
+        h.env.err,
+        recover val ["test"] end,
+        h.env.vars,
+        {(code: I32) => None })
+    PonyTest(env, list, reporter)
+
 class \nodoc\ iso _AsyncFailingProperty is Property[U8]
   """
   A property that signals async mode via long_test and then fails
