@@ -499,6 +499,15 @@ static LLVMValueRef gen_guarded_devirt_call(compile_t* c, reach_type_t* t,
     result = LLVMConstNull(c->ptr);
   }
 
+  // Guarded devirt cascades inflate the function's inline cost past LLVM's
+  // default threshold. Raise the threshold for these functions so LTO inlines
+  // them into callers where concrete types become visible.
+  LLVMValueRef fn = codegen_fun(c);
+  LLVMAttributeRef threshold_attr = LLVMCreateStringAttribute(
+    c->context, "function-inline-threshold",
+    strlen("function-inline-threshold"), "500", 3);
+  LLVMAddAttributeAtIndex(fn, LLVMAttributeFunctionIndex, threshold_attr);
+
   return result;
 }
 
