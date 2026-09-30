@@ -68,6 +68,8 @@ actor \nodoc\ _TestUDPReadBufferReceiver
     let got: Array[U8] = consume data
     _h.assert_eq[USize](got.size(), _expected.size())
     _h.assert_array_eq[U8](_expected, got)
+    _h.assert_true(from.ip4(), "sender address must be IPv4")
+    _h.assert_true(from.port() != 0, "sender port must be non-zero")
     _udp.close()
     KeepReading
 
