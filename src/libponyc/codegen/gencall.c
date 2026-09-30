@@ -515,10 +515,9 @@ static LLVMValueRef gen_guarded_devirt_call(compile_t* c, reach_type_t* t,
 
   for(size_t i = 0; i < count; i++)
   {
-    LLVMBasicBlockRef call_block = codegen_block(c, "gdevirt_hit");
-
     if(i < count - 1)
     {
+      LLVMBasicBlockRef call_block = codegen_block(c, "gdevirt_hit");
       LLVMBasicBlockRef next_block = codegen_block(c, "gdevirt_next");
 
       compile_type_t* c_sub = (compile_type_t*)candidates[i].sub->c_type;
@@ -539,12 +538,7 @@ static LLVMValueRef gen_guarded_devirt_call(compile_t* c, reach_type_t* t,
     }
     else
     {
-      // Last candidate: no guard needed, it must match.
-      LLVMBuildBr(c->builder, call_block);
-
-      LLVMMoveBasicBlockAfter(call_block,
-        LLVMGetInsertBlock(c->builder));
-      LLVMPositionBuilderAtEnd(c->builder, call_block);
+      // Last candidate: call directly in current block (no extra branch).
       results[i] = codegen_call(c, func_type, candidates[i].func, args,
         arg_count, set_noalias);
       from_blocks[i] = LLVMGetInsertBlock(c->builder);
