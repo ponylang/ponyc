@@ -9,6 +9,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Added
 
+- Add guarded devirtualization for multi-subtype interface dispatch ([PR #6217](https://github.com/ponylang/ponyc/pull/6217))
 
 ### Changed
 
