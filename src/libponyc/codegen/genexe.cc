@@ -1462,6 +1462,14 @@ static bool link_exe_lld_elf(compile_t* c, ast_t* program,
   // ThinLTO summary indices triggers ThinLTO.
   args.push_back(c->opt->release ? "--lto-O3" : "--lto-O0");
 
+  // Experiment: raise SimpleLoopUnswitch threshold to allow unswitching
+  // of loops with guarded devirt cascades.
+  if(c->opt->release)
+  {
+    args.push_back("-mllvm");
+    args.push_back("-unswitch-threshold=500");
+  }
+
   // Bitcode partition files.
   for(size_t i = 0; i < bc_count; i++)
     args.push_back(bc_files[i]);
