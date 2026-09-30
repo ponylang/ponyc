@@ -12,6 +12,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Changed
 
+- Make HashFn.apply partial so callers can detect OpenSSL failure ([PR #6213](https://github.com/ponylang/ponyc/pull/6213))
 
 ## [0.74.0] - 2026-09-30
 
