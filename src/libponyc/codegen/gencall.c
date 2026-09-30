@@ -422,6 +422,73 @@ static size_t collect_guarded_devirt_candidates(compile_t* c,
   return candidate_count;
 }
 
+static compile_frame_t* find_function_frame(compile_t* c)
+{
+  compile_frame_t* frame = c->frame;
+  while(frame != NULL && !frame->is_function)
+    frame = frame->prev;
+  return frame;
+}
+
+// Two receivers are the same source if they are the same SSA value, or if
+// they are both loads from the same pointer.
+static bool same_receiver_source(LLVMValueRef a, LLVMValueRef b)
+{
+  if(a == b)
+    return true;
+
+  if(!LLVMIsALoadInst(a) || !LLVMIsALoadInst(b))
+    return false;
+
+  return LLVMGetOperand(a, 0) == LLVMGetOperand(b, 0);
+}
+
+static LLVMValueRef cached_desc_fetch(compile_t* c, LLVMValueRef receiver,
+  reach_type_t* t)
+{
+  compile_frame_t* frame = find_function_frame(c);
+  if(frame == NULL)
+    return gentagged_fetch_desc_or_heap(c, receiver, t, "gdevirt");
+
+  for(size_t i = 0; i < frame->desc_cache_count; i++)
+  {
+    if(same_receiver_source(frame->desc_cache_receiver[i], receiver))
+      return LLVMBuildLoad2(c->builder, c->ptr, frame->desc_cache_desc[i],
+        "desc_cached");
+  }
+
+  LLVMValueRef desc = gentagged_fetch_desc_or_heap(c, receiver, t, "gdevirt");
+
+  if(frame->desc_cache_count < DESC_CACHE_SIZE)
+  {
+    // Store the descriptor in an alloca so later cascade sites can reload it.
+    // The alloca goes in the entry block (dominates everything); the store
+    // goes at the current position (after the descriptor load).
+    LLVMBasicBlockRef current_block = LLVMGetInsertBlock(c->builder);
+    LLVMBasicBlockRef entry_block = LLVMGetEntryBasicBlock(frame->fun);
+    LLVMValueRef entry_terminator = LLVMGetBasicBlockTerminator(entry_block);
+    LLVMMetadataRef saved_loc = LLVMGetCurrentDebugLocation2(c->builder);
+
+    if(entry_terminator != NULL)
+      LLVMPositionBuilderBefore(c->builder, entry_terminator);
+    else
+      LLVMPositionBuilderAtEnd(c->builder, entry_block);
+
+    LLVMSetCurrentDebugLocation2(c->builder, NULL);
+    LLVMValueRef slot = LLVMBuildAlloca(c->builder, c->ptr, "desc_cache");
+
+    LLVMPositionBuilderAtEnd(c->builder, current_block);
+    LLVMSetCurrentDebugLocation2(c->builder, saved_loc);
+    LLVMBuildStore(c->builder, desc, slot);
+
+    frame->desc_cache_receiver[frame->desc_cache_count] = receiver;
+    frame->desc_cache_desc[frame->desc_cache_count] = slot;
+    frame->desc_cache_count++;
+  }
+
+  return desc;
+}
+
 // Emit a guarded devirtualization cascade for 2–GUARDED_DEVIRT_MAX concrete
 // subtypes. The last candidate has no guard. Returns the call result, or NULL
 // if guarded devirt is not applicable.
@@ -437,7 +504,8 @@ static LLVMValueRef gen_guarded_devirt_call(compile_t* c, reach_type_t* t,
   if(count < 2)
     return NULL;
 
-  LLVMValueRef desc = gentagged_fetch_desc_or_heap(c, l_value, t, "gdevirt");
+  LLVMValueRef desc = cached_desc_fetch(c, l_value, t);
+
   LLVMTypeRef ret_type = LLVMGetReturnType(func_type);
 
   LLVMBasicBlockRef merge_block = codegen_block(c, "gdevirt_merge");

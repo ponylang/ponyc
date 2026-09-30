@@ -86,6 +86,8 @@ typedef struct per_module_state_t
   ast_t* package;
 } per_module_state_t;
 
+#define DESC_CACHE_SIZE 8
+
 typedef struct compile_frame_t
 {
   LLVMValueRef fun;
@@ -104,6 +106,10 @@ typedef struct compile_frame_t
   bool bare_function;
   bool is_partial;
   deferred_reification_t* reify;
+
+  LLVMValueRef desc_cache_receiver[DESC_CACHE_SIZE];
+  LLVMValueRef desc_cache_desc[DESC_CACHE_SIZE];
+  size_t desc_cache_count;
 
   struct compile_frame_t* prev;
 } compile_frame_t;
