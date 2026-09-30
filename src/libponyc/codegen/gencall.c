@@ -287,6 +287,37 @@ static bool has_boxed_param_mismatch(reach_method_t* m,
   return false;
 }
 
+// Check whether a concrete subtype's method is safe for devirtualization.
+// Returns the resolved function pointer, or NULL if the candidate must be
+// skipped.
+static LLVMValueRef devirt_candidate_func(compile_t* c, reach_type_t* sub,
+  reach_method_t* m, const char* method_name)
+{
+  if(sub->can_be_boxed)
+    return NULL;
+
+  reach_method_t* m_sub = reach_method(sub, m->cap, method_name,
+    m->typeargs, c->opt);
+
+  if(m_sub == NULL)
+    return NULL;
+
+  // Differences like partiality change the mangled name and may require a
+  // forwarding wrapper with a different calling convention.
+  if(m_sub->mangled_name != m->mangled_name)
+    return NULL;
+
+  if(has_boxed_param_mismatch(m, m_sub))
+    return NULL;
+
+  compile_method_t* c_m_sub = (compile_method_t*)m_sub->c_method;
+
+  if((c_m_sub != NULL) && (c_m_sub->func != NULL))
+    return codegen_resolve_function(c, c_m_sub->func);
+
+  return NULL;
+}
+
 static LLVMValueRef try_single_subtype_devirt(compile_t* c,
   reach_type_t* t, reach_method_t* m, const char* method_name)
 {
@@ -315,31 +346,214 @@ static LLVMValueRef try_single_subtype_devirt(compile_t* c,
     }
   }
 
-  if((concrete_count != 1) || (only_sub == NULL) || only_sub->can_be_boxed)
+  if((concrete_count != 1) || (only_sub == NULL))
     return NULL;
 
-  reach_method_t* m_sub = reach_method(only_sub, m->cap, method_name,
-    m->typeargs, c->opt);
+  return devirt_candidate_func(c, only_sub, m, method_name);
+}
 
-  if(m_sub == NULL)
+#define GUARDED_DEVIRT_MAX 4
+
+typedef struct guarded_devirt_candidate_t
+{
+  reach_type_t* sub;
+  LLVMValueRef func;
+} guarded_devirt_candidate_t;
+
+// Collect concrete subtypes eligible for guarded devirtualization. Returns
+// the number of candidates found (0 means guarded devirt should not fire).
+static size_t collect_guarded_devirt_candidates(compile_t* c,
+  reach_type_t* t, reach_method_t* m, const char* method_name,
+  guarded_devirt_candidate_t* candidates)
+{
+  size_t concrete_count = 0;
+  size_t candidate_count = 0;
+  size_t si = HASHMAP_BEGIN;
+  reach_type_t* sub;
+
+  while((sub = reach_type_cache_next(&t->subtypes, &si)) != NULL)
+  {
+    switch(sub->underlying)
+    {
+      case TK_PRIMITIVE:
+      case TK_CLASS:
+      case TK_ACTOR:
+        concrete_count++;
+
+        if(concrete_count > GUARDED_DEVIRT_MAX)
+          return 0;
+
+        break;
+
+      default:
+        break;
+    }
+  }
+
+  if(concrete_count < 2)
+    return 0;
+
+  si = HASHMAP_BEGIN;
+
+  while((sub = reach_type_cache_next(&t->subtypes, &si)) != NULL)
+  {
+    switch(sub->underlying)
+    {
+      case TK_PRIMITIVE:
+      case TK_CLASS:
+      case TK_ACTOR:
+      {
+        LLVMValueRef func = devirt_candidate_func(c, sub, m, method_name);
+
+        if(func == NULL)
+          return 0;
+
+        candidates[candidate_count].sub = sub;
+        candidates[candidate_count].func = func;
+        candidate_count++;
+        break;
+      }
+
+      default:
+        break;
+    }
+  }
+
+  return candidate_count;
+}
+
+// Emit a guarded devirtualization cascade for 2–GUARDED_DEVIRT_MAX concrete
+// subtypes. The last candidate has no guard. Returns the call result, or NULL
+// if guarded devirt is not applicable.
+static LLVMValueRef gen_guarded_devirt_call(compile_t* c, reach_type_t* t,
+  reach_method_t* m, LLVMValueRef l_value, const char* method_name,
+  LLVMTypeRef func_type, LLVMValueRef* args, size_t arg_count, bool set_noalias)
+{
+  guarded_devirt_candidate_t candidates[GUARDED_DEVIRT_MAX];
+
+  size_t count = collect_guarded_devirt_candidates(c, t, m, method_name,
+    candidates);
+
+  if(count < 2)
     return NULL;
 
-  // The resolved method on the concrete type must have the same mangled name
-  // as the interface method. Partiality, different receiver capabilities, or
-  // other differences change the mangled name and may require a forwarding
-  // wrapper with a different calling convention.
-  if(m_sub->mangled_name != m->mangled_name)
-    return NULL;
+  LLVMValueRef desc = gentagged_fetch_desc_or_heap(c, l_value, t, "gdevirt");
+  LLVMTypeRef ret_type = LLVMGetReturnType(func_type);
 
-  if(has_boxed_param_mismatch(m, m_sub))
-    return NULL;
+  LLVMBasicBlockRef merge_block = codegen_block(c, "gdevirt_merge");
 
-  compile_method_t* c_m_sub = (compile_method_t*)m_sub->c_method;
+  LLVMValueRef results[GUARDED_DEVIRT_MAX];
+  LLVMBasicBlockRef from_blocks[GUARDED_DEVIRT_MAX];
 
-  if((c_m_sub != NULL) && (c_m_sub->func != NULL))
-    return codegen_resolve_function(c, c_m_sub->func);
+  for(size_t i = 0; i < count; i++)
+  {
+    LLVMBasicBlockRef call_block = codegen_block(c, "gdevirt_hit");
 
-  return NULL;
+    if(i < count - 1)
+    {
+      LLVMBasicBlockRef next_block = codegen_block(c, "gdevirt_next");
+
+      compile_type_t* c_sub = (compile_type_t*)candidates[i].sub->c_type;
+      LLVMValueRef is_match = LLVMBuildICmp(c->builder, LLVMIntEQ, desc,
+        codegen_resolve_global(c, c_sub->desc), "");
+      LLVMBuildCondBr(c->builder, is_match, call_block, next_block);
+
+      LLVMMoveBasicBlockAfter(call_block,
+        LLVMGetInsertBlock(c->builder));
+      LLVMPositionBuilderAtEnd(c->builder, call_block);
+      results[i] = codegen_call(c, func_type, candidates[i].func, args,
+        arg_count, set_noalias);
+      from_blocks[i] = LLVMGetInsertBlock(c->builder);
+      LLVMBuildBr(c->builder, merge_block);
+
+      LLVMMoveBasicBlockAfter(next_block, from_blocks[i]);
+      LLVMPositionBuilderAtEnd(c->builder, next_block);
+    }
+    else
+    {
+      // Last candidate: no guard needed, it must match.
+      LLVMBuildBr(c->builder, call_block);
+
+      LLVMMoveBasicBlockAfter(call_block,
+        LLVMGetInsertBlock(c->builder));
+      LLVMPositionBuilderAtEnd(c->builder, call_block);
+      results[i] = codegen_call(c, func_type, candidates[i].func, args,
+        arg_count, set_noalias);
+      from_blocks[i] = LLVMGetInsertBlock(c->builder);
+      LLVMBuildBr(c->builder, merge_block);
+    }
+  }
+
+  LLVMMoveBasicBlockAfter(merge_block, from_blocks[count - 1]);
+  LLVMPositionBuilderAtEnd(c->builder, merge_block);
+
+  LLVMValueRef result;
+
+  if(ret_type != c->void_type)
+  {
+    result = LLVMBuildPhi(c->builder, ret_type, "");
+    LLVMAddIncoming(result, results, from_blocks, (unsigned int)count);
+  }
+  else
+  {
+    result = LLVMConstNull(c->ptr);
+  }
+
+  return result;
+}
+
+// If the callee is partial, extract the error flag from r, branch to the
+// error target (or propagate), and unwrap the result on the non-error path.
+static LLVMValueRef handle_partial_call(compile_t* c, reach_method_t* m,
+  LLVMTypeRef func_type, LLVMValueRef r)
+{
+  compile_method_t* c_m = (compile_method_t*)m->c_method;
+
+  if(!c_m->is_partial)
+    return r;
+
+  // Callee returns {T, i1} or i1. Extract the error flag and branch.
+  LLVMValueRef error_flag = unwrap_error(c, r);
+  LLVMBasicBlockRef error_block = codegen_block(c, "call_error");
+  LLVMBasicBlockRef continue_block = codegen_block(c, "call_continue");
+  LLVMBuildCondBr(c->builder, error_flag, error_block, continue_block);
+
+  LLVMPositionBuilderAtEnd(c->builder, error_block);
+  if(c->frame->error_target != NULL)
+  {
+    LLVMBuildBr(c->builder, c->frame->error_target);
+  }
+  else
+  {
+    // Propagate error return. This path is only valid when the
+    // enclosing function is partial.
+    pony_assert(c->frame->is_partial);
+
+    LLVMTypeRef f_type = LLVMGlobalGetValueType(codegen_fun(c));
+    LLVMTypeRef ret_type = LLVMGetReturnType(f_type);
+
+    if(ret_type == c->i1)
+    {
+      genfun_build_ret(c, LLVMConstInt(c->i1, 1, false));
+    }
+    else
+    {
+      LLVMValueRef undef_val =
+        LLVMGetUndef(LLVMStructGetTypeAtIndex(ret_type, 0));
+      LLVMValueRef err_ret = wrap_result(c, undef_val,
+        LLVMConstInt(c->i1, 1, false));
+      genfun_build_ret(c, err_ret);
+    }
+  }
+
+  LLVMPositionBuilderAtEnd(c->builder, continue_block);
+
+  // Extract the real value from the non-error return.
+  LLVMTypeRef callee_ret = LLVMGetReturnType(func_type);
+  if(callee_ret != c->i1)
+    r = unwrap_result(c, r);
+
+  return r;
 }
 
 static LLVMValueRef dispatch_function(compile_t* c, reach_type_t* t,
@@ -841,8 +1055,6 @@ LLVMValueRef gen_call(compile_t* c, ast_t* ast)
     args[0] = LLVMConstNull(((compile_type_t*)t->c_type)->use_type);
   }
 
-  // Static or virtual dispatch.
-  LLVMValueRef func = dispatch_function(c, t, m, args[0], method_name);
   LLVMTypeRef func_type = ((compile_method_t*)m->c_method)->func_type;
 
   bool is_message = false;
@@ -914,64 +1126,56 @@ LLVMValueRef gen_call(compile_t* c, ast_t* ast)
       i--;
     }
 
-    if(func != NULL)
+    if(!bare)
     {
-      codegen_debugloc(c, ast);
-      r = codegen_call(c, func_type, func, args + arg_offset, i, !bare);
-
-      if(is_new_call)
+      switch(t->underlying)
       {
-        LLVMValueRef md = LLVMMDNodeInContext(c->context, NULL, 0);
-        LLVMSetMetadataStr(r, "pony.newcall", md);
-      }
-
-      compile_method_t* c_m = (compile_method_t*)m->c_method;
-      if(c_m->is_partial)
-      {
-        // Callee returns {T, i1} or i1. Extract the error flag and branch.
-        LLVMValueRef error_flag = unwrap_error(c, r);
-        LLVMBasicBlockRef error_block = codegen_block(c, "call_error");
-        LLVMBasicBlockRef continue_block = codegen_block(c, "call_continue");
-        LLVMBuildCondBr(c->builder, error_flag, error_block, continue_block);
-
-        LLVMPositionBuilderAtEnd(c->builder, error_block);
-        if(c->frame->error_target != NULL)
+        case TK_UNIONTYPE:
+        case TK_ISECTTYPE:
+        case TK_INTERFACE:
+        case TK_TRAIT:
         {
-          LLVMBuildBr(c->builder, c->frame->error_target);
-        }
-        else
-        {
-          // Propagate error return. This path is only valid when the
-          // enclosing function is partial.
-          pony_assert(c->frame->is_partial);
+          codegen_debugloc(c, ast);
+          r = gen_guarded_devirt_call(c, t, m, args[0], method_name,
+            func_type, args + arg_offset, i, true);
 
-          LLVMTypeRef f_type = LLVMGlobalGetValueType(codegen_fun(c));
-          LLVMTypeRef ret_type = LLVMGetReturnType(f_type);
+          if(r == NULL)
+            codegen_debugloc(c, NULL);
 
-          if(ret_type == c->i1)
-          {
-            genfun_build_ret(c, LLVMConstInt(c->i1, 1, false));
-          }
-          else
-          {
-            LLVMValueRef undef_val =
-              LLVMGetUndef(LLVMStructGetTypeAtIndex(ret_type, 0));
-            LLVMValueRef err_ret = wrap_result(c, undef_val,
-              LLVMConstInt(c->i1, 1, false));
-            genfun_build_ret(c, err_ret);
-          }
+          break;
         }
 
-        LLVMPositionBuilderAtEnd(c->builder, continue_block);
-
-        // Extract the real value from the non-error return.
-        LLVMTypeRef callee_ret = LLVMGetReturnType(func_type);
-        if(callee_ret != c->i1)
-          r = unwrap_result(c, r);
+        default:
+          break;
       }
+    }
 
+    if(r != NULL)
+    {
+      r = handle_partial_call(c, m, func_type, r);
       codegen_debugloc(c, NULL);
       ponyint_pool_free_size(buf_size, params);
+    }
+    else
+    {
+      // Normal dispatch path (static, single-subtype devirt, or vtable).
+      LLVMValueRef func = dispatch_function(c, t, m, args[0], method_name);
+
+      if(func != NULL)
+      {
+        codegen_debugloc(c, ast);
+        r = codegen_call(c, func_type, func, args + arg_offset, i, !bare);
+
+        if(is_new_call)
+        {
+          LLVMValueRef md = LLVMMDNodeInContext(c->context, NULL, 0);
+          LLVMSetMetadataStr(r, "pony.newcall", md);
+        }
+
+        r = handle_partial_call(c, m, func_type, r);
+        codegen_debugloc(c, NULL);
+        ponyint_pool_free_size(buf_size, params);
+      }
     }
   }
 
