@@ -982,6 +982,8 @@ PONY_API pony_socket_result_t pony_os_recvfrom(asio_event_t* ev, char* buf,
       // == buffer length), matching POSIX recvfrom without MSG_TRUNC, which
       // delivers the truncated prefix (issue #5551). Stream sockets never
       // raise this -- a byte stream has no message boundary to overflow.
+      // Winsock also populates the sender address on this failure (verified
+      // by _TestUDPOversizedDatagramTruncated on Windows CI, issue #5720).
       *count_out = len;
       return PONY_SOCKET_OK;
     }
