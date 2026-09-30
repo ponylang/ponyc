@@ -13,10 +13,11 @@ interface val HashFn
   """
   Produces a fixed-length byte array based on the input sequence.
   """
-  fun apply(input: ByteSeq): Array[U8] val
+  fun apply(input: ByteSeq): Array[U8] val ?
     """
     The digest of `input`. The same input always gives the same digest, and
-    every digest an implementation gives back has the same length.
+    every digest an implementation gives back has the same length. Raises an
+    error when the underlying OpenSSL function fails.
     """
 
 primitive MD4 is HashFn
@@ -26,11 +27,13 @@ primitive MD4 is HashFn
   One-shot only — `Digest` does not offer an MD4 constructor because the
   algorithm is cryptographically broken and deprecated in OpenSSL 3.x.
   """
-  fun apply(input: ByteSeq): Array[U8] val =>
+  fun apply(input: ByteSeq): Array[U8] val ? =>
     recover
       let size: USize = 16
       let arr = Array[U8].init(0, size)
-      @MD4(input.cpointer(), input.size(), arr.cpointer())
+      if @MD4(input.cpointer(), input.size(), arr.cpointer()).is_null() then
+        error
+      end
       arr
     end
 
@@ -38,11 +41,13 @@ primitive MD5 is HashFn
   """
   Compute the MD5 message digest conforming to RFC 1321. Returns 16 bytes.
   """
-  fun apply(input: ByteSeq): Array[U8] val =>
+  fun apply(input: ByteSeq): Array[U8] val ? =>
     recover
       let size: USize = 16
       let arr = Array[U8].init(0, size)
-      @MD5(input.cpointer(), input.size(), arr.cpointer())
+      if @MD5(input.cpointer(), input.size(), arr.cpointer()).is_null() then
+        error
+      end
       arr
     end
 
@@ -51,11 +56,14 @@ primitive RIPEMD160 is HashFn
   Compute the RIPEMD160 message digest conforming to ISO/IEC 10118-3. Returns
   20 bytes.
   """
-  fun apply(input: ByteSeq): Array[U8] val =>
+  fun apply(input: ByteSeq): Array[U8] val ? =>
     recover
       let size: USize = 20
       let arr = Array[U8].init(0, size)
-      @RIPEMD160(input.cpointer(), input.size(), arr.cpointer())
+      if @RIPEMD160(input.cpointer(), input.size(), arr.cpointer()).is_null()
+      then
+        error
+      end
       arr
     end
 
@@ -64,11 +72,13 @@ primitive SHA1 is HashFn
   Compute the SHA1 message digest conforming to US Federal Information
   Processing Standard FIPS PUB 180-4. Returns 20 bytes.
   """
-  fun apply(input: ByteSeq): Array[U8] val =>
+  fun apply(input: ByteSeq): Array[U8] val ? =>
     recover
       let size: USize = 20
       let arr = Array[U8].init(0, size)
-      @SHA1(input.cpointer(), input.size(), arr.cpointer())
+      if @SHA1(input.cpointer(), input.size(), arr.cpointer()).is_null() then
+        error
+      end
       arr
     end
 
@@ -77,11 +87,13 @@ primitive SHA224 is HashFn
   Compute the SHA224 message digest conforming to US Federal Information
   Processing Standard FIPS PUB 180-4. Returns 28 bytes.
   """
-  fun apply(input: ByteSeq): Array[U8] val =>
+  fun apply(input: ByteSeq): Array[U8] val ? =>
     recover
       let size: USize = 28
       let arr = Array[U8].init(0, size)
-      @SHA224(input.cpointer(), input.size(), arr.cpointer())
+      if @SHA224(input.cpointer(), input.size(), arr.cpointer()).is_null() then
+        error
+      end
       arr
     end
 
@@ -90,11 +102,13 @@ primitive SHA256 is HashFn
   Compute the SHA256 message digest conforming to US Federal Information
   Processing Standard FIPS PUB 180-4. Returns 32 bytes.
   """
-  fun apply(input: ByteSeq): Array[U8] val =>
+  fun apply(input: ByteSeq): Array[U8] val ? =>
     recover
       let size: USize = 32
       let arr = Array[U8].init(0, size)
-      @SHA256(input.cpointer(), input.size(), arr.cpointer())
+      if @SHA256(input.cpointer(), input.size(), arr.cpointer()).is_null() then
+        error
+      end
       arr
     end
 
@@ -103,11 +117,13 @@ primitive SHA384 is HashFn
   Compute the SHA384 message digest conforming to US Federal Information
   Processing Standard FIPS PUB 180-4. Returns 48 bytes.
   """
-  fun apply(input: ByteSeq): Array[U8] val =>
+  fun apply(input: ByteSeq): Array[U8] val ? =>
     recover
       let size: USize = 48
       let arr = Array[U8].init(0, size)
-      @SHA384(input.cpointer(), input.size(), arr.cpointer())
+      if @SHA384(input.cpointer(), input.size(), arr.cpointer()).is_null() then
+        error
+      end
       arr
     end
 
@@ -116,11 +132,13 @@ primitive SHA512 is HashFn
   Compute the SHA512 message digest conforming to US Federal Information
   Processing Standard FIPS PUB 180-4. Returns 64 bytes.
   """
-  fun apply(input: ByteSeq): Array[U8] val =>
+  fun apply(input: ByteSeq): Array[U8] val ? =>
     recover
       let size: USize = 64
       let arr = Array[U8].init(0, size)
-      @SHA512(input.cpointer(), input.size(), arr.cpointer())
+      if @SHA512(input.cpointer(), input.size(), arr.cpointer()).is_null() then
+        error
+      end
       arr
     end
 
@@ -130,7 +148,7 @@ primitive ToHexString
   of U8.
 
   ```pony
-  let hex = ToHexString(SHA256("Hello World"))
+  let hex = ToHexString(SHA256("Hello World")?)
   ```
   """
   fun apply(bs: Array[U8] val): String =>
