@@ -502,11 +502,30 @@ static LLVMValueRef gen_guarded_devirt_call(compile_t* c, reach_type_t* t,
   // Guarded devirt cascades inflate the function's inline cost past LLVM's
   // default threshold. Raise the threshold for these functions so LTO inlines
   // them into callers where concrete types become visible.
+  // Skip if the user already set an inline annotation (\inline\, \inline(N)\,
+  // or \noinline\) — those take precedence.
   LLVMValueRef fn = codegen_fun(c);
-  LLVMAttributeRef threshold_attr = LLVMCreateStringAttribute(
-    c->context, "function-inline-threshold",
-    strlen("function-inline-threshold"), "500", 3);
-  LLVMAddAttributeAtIndex(fn, LLVMAttributeFunctionIndex, threshold_attr);
+  unsigned always_kind =
+    LLVMGetEnumAttributeKindForName("alwaysinline", 12);
+  unsigned noinline_kind =
+    LLVMGetEnumAttributeKindForName("noinline", 8);
+
+  bool has_user_inline =
+    (LLVMGetEnumAttributeAtIndex(fn, LLVMAttributeFunctionIndex,
+      always_kind) != NULL) ||
+    (LLVMGetEnumAttributeAtIndex(fn, LLVMAttributeFunctionIndex,
+      noinline_kind) != NULL) ||
+    (LLVMGetStringAttributeAtIndex(fn, LLVMAttributeFunctionIndex,
+      "function-inline-threshold",
+      strlen("function-inline-threshold")) != NULL);
+
+  if(!has_user_inline)
+  {
+    LLVMAttributeRef threshold_attr = LLVMCreateStringAttribute(
+      c->context, "function-inline-threshold",
+      strlen("function-inline-threshold"), "500", 3);
+    LLVMAddAttributeAtIndex(fn, LLVMAttributeFunctionIndex, threshold_attr);
+  }
 
   return result;
 }

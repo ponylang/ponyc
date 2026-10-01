@@ -107,6 +107,8 @@ ast_t* ast_annotation(ast_t* ast);
 void ast_setannotation(ast_t* ast, ast_t* annotation);
 ast_t* ast_consumeannotation(ast_t* ast);
 bool ast_has_annotation(ast_t* ast, const char* name, strtable_t* strtab);
+bool ast_annotation_value(ast_t* ast, const char* name, strtable_t* strtab,
+  lexint_t** value);
 void ast_erase(ast_t* ast);
 
 ast_t* ast_nearest(ast_t* ast, token_id id);

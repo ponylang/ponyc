@@ -307,6 +307,36 @@ static void make_prototype(compile_t* c, reach_type_t* t,
     ponyint_pool_free_size(buf_size, tparams);
   }
 
+  if(ast_id(m->fun->ast) == TK_FUN)
+  {
+    lexint_t* inline_val = NULL;
+
+    if(ast_annotation_value(m->fun->ast, "inline", c->opt->strtab,
+      &inline_val))
+    {
+      if(inline_val != NULL)
+      {
+        char buf[32];
+        int len = snprintf(buf, sizeof(buf), "%llu",
+          (unsigned long long)inline_val->low);
+        LLVMAttributeRef attr = LLVMCreateStringAttribute(
+          c->context, "function-inline-threshold",
+          strlen("function-inline-threshold"), buf, (unsigned)len);
+        LLVMAddAttributeAtIndex(c_m->func, LLVMAttributeFunctionIndex, attr);
+      } else {
+        LLVMAttributeRef attr = LLVMCreateEnumAttribute(
+          c->context, LLVMGetEnumAttributeKindForName("alwaysinline", 12), 0);
+        LLVMAddAttributeAtIndex(c_m->func, LLVMAttributeFunctionIndex, attr);
+      }
+    }
+    else if(ast_has_annotation(m->fun->ast, "noinline", c->opt->strtab))
+    {
+      LLVMAttributeRef attr = LLVMCreateEnumAttribute(
+        c->context, LLVMGetEnumAttributeKindForName("noinline", 8), 0);
+      LLVMAddAttributeAtIndex(c_m->func, LLVMAttributeFunctionIndex, attr);
+    }
+  }
+
   compile_type_t* c_t = (compile_type_t*)t->c_type;
 
   if(n->name == c->str__final)
