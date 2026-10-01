@@ -418,6 +418,41 @@ static int os_socket_connect(pony_actor_t* owner, const char* host,
   return count;
 }
 
+// UDP connect: set the default peer on an already-bound UDP socket. Unlike TCP,
+// UDP connect is synchronous — it sets the peer address in the kernel and
+// returns immediately.
+static int os_udp_connect(int fd, const char* host, const char* service,
+  int family)
+{
+  struct addrinfo* result = os_addrinfo_intern(family, SOCK_DGRAM, IPPROTO_UDP,
+    host, service, false);
+
+  if(result == NULL)
+    return -1;
+
+  struct addrinfo* p = result;
+
+  while(p != NULL)
+  {
+    map_any_to_loopback(p->ai_addr);
+
+#ifdef PLATFORM_IS_WINDOWS
+    if(connect((SOCKET)fd, p->ai_addr, (int)p->ai_addrlen) == 0)
+#else
+    if(connect(fd, p->ai_addr, p->ai_addrlen) == 0)
+#endif
+    {
+      freeaddrinfo(result);
+      return 0;
+    }
+
+    p = p->ai_next;
+  }
+
+  freeaddrinfo(result);
+  return -1;
+}
+
 PONY_API asio_event_t* pony_os_listen_tcp(pony_actor_t* owner, const char* host,
   const char* service)
 {
@@ -458,6 +493,24 @@ PONY_API asio_event_t* pony_os_listen_udp6(pony_actor_t* owner,
 {
   return os_socket_listen(owner, host, service, AF_INET6, SOCK_DGRAM,
     IPPROTO_UDP);
+}
+
+PONY_API int pony_os_udp_connect(int fd, const char* host,
+  const char* service)
+{
+  return os_udp_connect(fd, host, service, AF_UNSPEC);
+}
+
+PONY_API int pony_os_udp_connect4(int fd, const char* host,
+  const char* service)
+{
+  return os_udp_connect(fd, host, service, AF_INET);
+}
+
+PONY_API int pony_os_udp_connect6(int fd, const char* host,
+  const char* service)
+{
+  return os_udp_connect(fd, host, service, AF_INET6);
 }
 
 PONY_API int pony_os_connect_tcp(pony_actor_t* owner, const char* host,
@@ -937,6 +990,47 @@ PONY_API pony_socket_result_t pony_os_sendto(int fd, const char* buf,
   {
     // ENOBUFS is retryable transient buffer exhaustion; see pony_os_sendv. For
     // UDP the retry result drops the datagram rather than closing the socket.
+    if(errno == EWOULDBLOCK || errno == EAGAIN || errno == ENOBUFS)
+    {
+      *count_out = 0;
+      return PONY_SOCKET_RETRY;
+    }
+
+    *count_out = 0;
+    return PONY_SOCKET_ERROR;
+  }
+
+  *count_out = (size_t)sent;
+  return PONY_SOCKET_OK;
+#endif
+}
+
+PONY_API pony_socket_result_t pony_os_udp_send(int fd, const char* buf,
+  size_t len, size_t* count_out)
+{
+#ifdef PLATFORM_IS_WINDOWS
+  int sent = send((SOCKET)fd, buf, (int)len, 0);
+
+  if(sent == SOCKET_ERROR)
+  {
+    int wsa_err = WSAGetLastError();
+    if(wsa_err == WSAEWOULDBLOCK || wsa_err == WSAENOBUFS)
+    {
+      *count_out = 0;
+      return PONY_SOCKET_RETRY;
+    }
+
+    *count_out = 0;
+    return PONY_SOCKET_ERROR;
+  }
+
+  *count_out = (size_t)sent;
+  return PONY_SOCKET_OK;
+#else
+  ssize_t sent = send(fd, buf, len, MSG_DONTWAIT);
+
+  if(sent < 0)
+  {
     if(errno == EWOULDBLOCK || errno == EAGAIN || errno == ENOBUFS)
     {
       *count_out = 0;

@@ -144,6 +144,26 @@ actor \nodoc\ Main is TestList
     test(_TestUDPEmptyDatagramDelivered)
     test(_TestUDPSmallReadBufferTruncates)
 
+    // Connected UDP tests (real sockets)
+    test(_TestConnectedUDPEcho)
+    test(_TestConnectedUDPRemoteAddress)
+    test(_TestConnectedUDPConnectFailure)
+
+    // Connected UDP tests (fake backends)
+    test(_TestConnectedUDPSendOk)
+    test(_TestConnectedUDPSendWouldBlock)
+    test(_TestConnectedUDPSendErr)
+    test(_TestConnectedUDPSendNotOpen)
+    test(_TestConnectedUDPBindFail)
+    test(_TestConnectedUDPConnectFail)
+    test(_TestConnectedUDPSocketState)
+    test(_TestConnectedUDPRecvData)
+    test(_TestConnectedUDPRecvError)
+    test(_TestConnectedUDPCloseFromReceived)
+    test(_TestConnectedUDPYieldReading)
+    test(_TestConnectedUDPBudget)
+    test(_TestConnectedUDPDisposeInitRace)
+
     // Broadcast tests (real sockets)
     ifdef not osx then test(_TestBroadcast) end
     ifdef linux then test(_TestBroadcastReceive) end

@@ -114,6 +114,10 @@ Query-timeout simulation using `set_timer()`. A client sends a query to a non-re
 
 Joins an IPv4 multicast group on the loopback interface and prints received datagrams. Demonstrates `join_multicast_group_v4`, `set_multicast_interface_v4`, and `set_multicast_loopback_v4`.
 
+### [connected-udp](networking/connected-udp/)
+
+Connected UDP socket that binds locally and connects to a single peer. The kernel filters incoming datagrams by source address and `send(data)` goes to the connected peer without specifying a destination on every call. Shows `ConnectedUDPSocketActor`, `ConnectedUDPLifecycleEventReceiver`, and the three-way initialization outcome (bind failure, connect failure, success).
+
 ### [udp-echo-server](networking/udp-echo-server/)
 
 Minimal UDP echo server. A single actor binds a UDP socket and echoes every received datagram back to its sender. Shows `UDPSocketActor` for event plumbing and `UDPLifecycleEventReceiver` for application callbacks.

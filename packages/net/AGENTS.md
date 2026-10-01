@@ -64,6 +64,18 @@ _UDPOpen    → _UDPClosed (close or error)
 
 The dispose/init race: `_finish_initialization` is a self→self behavior. If `dispose()` arrives first, `_UDPNone.close()` transitions to `_UDPClosed`, and `_finish_initialization` checks for that and skips the bind.
 
+### Connected UDP lifecycle
+
+`ConnectedUDPSocket` uses the same state-object pattern. Initialization has three outcomes: bind failure, connect failure, or success.
+
+```
+_ConnectedUDPNone    → _ConnectedUDPOpen   (bind and connect succeeded)
+                     → _ConnectedUDPClosed (bind failed, connect failed, or dispose/init race)
+_ConnectedUDPOpen    → _ConnectedUDPClosed (close or error)
+```
+
+The dispose/init race works the same way as `UDPSocket`. The peer is fixed at creation — there is no disconnect or reconnect.
+
 ## Traps
 
 - **One read loop; keep `_on_received` out of `_ssl_poll()`.** An earlier design had `_ssl_poll()` deliver application data from a second loop of its own, so mute and the liveness check had to be written twice. Both shipped as bugs before the second copy existed.
@@ -92,7 +104,7 @@ How many messages one subscription delivers is platform-specific too. kqueue arm
 
 - `_Unreachable()` in a branch the compiler cannot prove impossible, rather than an empty `else`.
 - The runtime will not exit while an actor holds a live I/O resource, so a test has to dispose any actor that might still hold one when it ends, or CI hangs. That is the client a listener creates in `_on_listening` and every server actor returned from `_on_accept`. Happy Eyeballs can deliver more than one connection per client connect (one per resolved address), so store accepted servers in `let _servers: Array[Type]`, push in `_on_accept`, and iterate in `dispose`/`_on_closed`.
-- Tests bind listeners and sockets to port `"0"` (OS-assigned ephemeral port) and retrieve the actual port from `local_address()` in the ready callback (`_on_listening` for TCP, `on_bound` for UDP notifiers). This avoids conflicts when multiple test runs execute concurrently on the same machine.
+- Tests bind listeners and sockets to port `"0"` (OS-assigned ephemeral port) and retrieve the actual port from `local_address()` in the ready callback (`_on_listening` for TCP, `_on_bound` for UDP, `_on_connected` for connected UDP). This avoids conflicts when multiple test runs execute concurrently on the same machine.
 - `\nodoc\` on test classes.
 - A new test goes in the `_test_*.pony` file for its functional area, registered in `Main.tests()` in `_test.pony`, which holds only the test runner.
 - Each example has a file-level docstring saying what it demonstrates, uses the Listener/Server/Client actor structure, and uses a unique port. Adding one means placing it under the appropriate `examples/networking/` subdirectory and adding it to `examples/README.md` under the Networking section.
