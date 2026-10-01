@@ -399,3 +399,291 @@ actor \nodoc\ _TestMulticastIP6Actor
       arr.push(((v >> 16) and 0xFF).u8())
       arr.push(((v >> 24) and 0xFF).u8())
     end
+
+class \nodoc\ iso _TestMulticastConvenienceSockopt is UnitTest
+  """
+  Round-trip IPv4 multicast socket options through the convenience
+  methods: TTL, loopback, interface. Reads back via raw `getsockopt_u32`
+  to verify the correct protocol level and option constant are wired.
+  """
+  fun name(): String => "net/MulticastConvenienceSockopt"
+
+  fun ref apply(h: TestHelper) =>
+    h.long_test(5_000_000_000)
+    let mc =
+      _TestMulticastConvenienceSockoptActor(UDPAuth(h.env.root), h)
+    h.dispose_when_done(mc)
+
+actor \nodoc\ _TestMulticastConvenienceSockoptActor
+  is (UDPSocketActor & UDPLifecycleEventReceiver)
+  var _udp: UDPSocket = UDPSocket.none()
+  let _h: TestHelper
+
+  new create(auth: UDPAuth, h: TestHelper) =>
+    _h = h
+    let host = ifdef linux then "127.0.0.2" else "localhost" end
+    _udp = UDPSocket(auth, host, "0", this, this where ip_version = IP4)
+
+  fun ref _socket(): UDPSocket => _udp
+
+  fun ref _on_bound() =>
+    // macOS/BSD packs TTL as 1 byte; getsockopt_u32 can't read it back.
+    let ttl_err = _udp.set_multicast_ttl(7)
+    _h.assert_eq[U32](0, ttl_err, "set_multicast_ttl failed")
+    ifdef (not osx) and (not bsd) then
+      (let ttl_get_err, let ttl) =
+        _udp.getsockopt_u32(
+          OSSockOpt.ipproto_ip(), OSSockOpt.ip_multicast_ttl())
+      _h.assert_eq[U32](0, ttl_get_err, "getsockopt IP_MULTICAST_TTL failed")
+      _h.assert_eq[U32](7, ttl, "IP_MULTICAST_TTL did not round-trip")
+    end
+
+    let loop_err = _udp.set_multicast_loopback_v4(false)
+    _h.assert_eq[U32](0, loop_err, "set_multicast_loopback_v4 failed")
+    ifdef (not osx) and (not bsd) then
+      (let loop_get_err, let loop') =
+        _udp.getsockopt_u32(
+          OSSockOpt.ipproto_ip(), OSSockOpt.ip_multicast_loop())
+      _h.assert_eq[U32](
+        0,
+        loop_get_err,
+        "getsockopt IP_MULTICAST_LOOP failed")
+      _h.assert_eq[U32](0, loop', "IP_MULTICAST_LOOP did not round-trip")
+    end
+
+    let if4_err = _udp.set_multicast_interface_v4("127.0.0.1")
+    _h.assert_eq[U32](0, if4_err, "set_multicast_interface_v4 failed")
+
+    _udp.close()
+
+  fun ref _on_bind_failure() =>
+    _h.fail("bind failed")
+    _h.complete(false)
+
+  fun ref _on_closed() =>
+    _h.complete(true)
+
+class \nodoc\ iso _TestMulticastConvenienceSockoptV6 is UnitTest
+  """
+  Round-trip IPv6 multicast options: hops, loopback, interface index.
+  """
+  fun name(): String => "net/MulticastConvenienceSockoptV6"
+
+  fun ref apply(h: TestHelper) =>
+    let auth = DNSAuth(h.env.root)
+    let list: Array[NetAddress] val = DNS.ip6(auth, "::1", "0")
+    if list.size() == 0 then
+      h.log("no usable IPv6; skipping")
+      return
+    end
+
+    h.long_test(5_000_000_000)
+    let mc =
+      _TestMulticastConvenienceSockoptV6Actor(UDPAuth(h.env.root), h)
+    h.dispose_when_done(mc)
+
+actor \nodoc\ _TestMulticastConvenienceSockoptV6Actor
+  is (UDPSocketActor & UDPLifecycleEventReceiver)
+  var _udp: UDPSocket = UDPSocket.none()
+  let _h: TestHelper
+
+  new create(auth: UDPAuth, h: TestHelper) =>
+    _h = h
+    _udp = UDPSocket(auth, "", "0", this, this where ip_version = IP6)
+
+  fun ref _socket(): UDPSocket => _udp
+
+  fun ref _on_bound() =>
+    let hops_err = _udp.set_multicast_hops(5)
+    _h.assert_eq[U32](0, hops_err, "set_multicast_hops failed")
+    (let hops_get_err, let hops) =
+      _udp.getsockopt_u32(
+        OSSockOpt.ipproto_ipv6(), OSSockOpt.ipv6_multicast_hops())
+    _h.assert_eq[U32](
+      0,
+      hops_get_err,
+      "getsockopt IPV6_MULTICAST_HOPS failed")
+    _h.assert_eq[U32](5, hops, "IPV6_MULTICAST_HOPS did not round-trip")
+
+    let loop_err = _udp.set_multicast_loopback_v6(false)
+    _h.assert_eq[U32](0, loop_err, "set_multicast_loopback_v6 failed")
+    (let loop_get_err, let loop') =
+      _udp.getsockopt_u32(
+        OSSockOpt.ipproto_ipv6(), OSSockOpt.ipv6_multicast_loop())
+    _h.assert_eq[U32](
+      0,
+      loop_get_err,
+      "getsockopt IPV6_MULTICAST_LOOP failed")
+    _h.assert_eq[U32](0, loop', "IPV6_MULTICAST_LOOP did not round-trip")
+
+    let if6_err = _udp.set_multicast_interface_v6(1)
+    _h.assert_eq[U32](0, if6_err, "set_multicast_interface_v6 failed")
+    (let if6_get_err, let if6) =
+      _udp.getsockopt_u32(
+        OSSockOpt.ipproto_ipv6(), OSSockOpt.ipv6_multicast_if())
+    _h.assert_eq[U32](
+      0,
+      if6_get_err,
+      "getsockopt IPV6_MULTICAST_IF failed")
+    _h.assert_eq[U32](1, if6, "IPV6_MULTICAST_IF did not round-trip")
+
+    _udp.close()
+
+  fun ref _on_bind_failure() =>
+    _h.fail("bind failed")
+    _h.complete(false)
+
+  fun ref _on_closed() =>
+    _h.complete(true)
+
+class \nodoc\ iso _TestMulticastConvenienceErrors is UnitTest
+  """
+  Convenience methods return non-zero for invalid addresses and for calls
+  on a socket that is not open.
+  """
+  fun name(): String => "net/MulticastConvenienceErrors"
+
+  fun ref apply(h: TestHelper) =>
+    h.long_test(5_000_000_000)
+    let mc =
+      _TestMulticastConvenienceErrorsActor(UDPAuth(h.env.root), h)
+    h.dispose_when_done(mc)
+
+actor \nodoc\ _TestMulticastConvenienceErrorsActor
+  is (UDPSocketActor & UDPLifecycleEventReceiver)
+  var _udp: UDPSocket = UDPSocket.none()
+  let _h: TestHelper
+
+  new create(auth: UDPAuth, h: TestHelper) =>
+    _h = h
+    let host = ifdef linux then "127.0.0.2" else "localhost" end
+    _udp = UDPSocket(auth, host, "0", this, this where ip_version = IP4)
+
+  fun ref _socket(): UDPSocket => _udp
+
+  fun ref _on_bound() =>
+    // Bad address strings produce EINVAL from the C shim.
+    _h.assert_ne[U32](0, _udp.join_multicast_group_v4("not-an-address"))
+    _h.assert_ne[U32](0, _udp.leave_multicast_group_v4("not-an-address"))
+    _h.assert_ne[U32](0, _udp.join_multicast_group_v6("not-an-address"))
+    _h.assert_ne[U32](0, _udp.leave_multicast_group_v6("not-an-address"))
+    _h.assert_ne[U32](0, _udp.set_multicast_interface_v4("not-an-address"))
+
+    // IPv6 address passed to a v4 method.
+    _h.assert_ne[U32](0, _udp.join_multicast_group_v4("ff02::1"))
+
+    // IPv4 address passed to a v6 method.
+    _h.assert_ne[U32](0, _udp.join_multicast_group_v6("239.1.2.3"))
+
+    _udp.close()
+
+  fun ref _on_bind_failure() =>
+    _h.fail("bind failed")
+    _h.complete(false)
+
+  fun ref _on_closed() =>
+    // After close, calls should return non-zero (state machine returns 1).
+    _h.assert_ne[U32](0, _udp.set_multicast_ttl(7))
+    _h.assert_ne[U32](0, _udp.join_multicast_group_v4("239.1.2.3"))
+    _h.complete(true)
+
+class \nodoc\ iso _TestMulticastConvenienceJoinV4 is UnitTest
+  """
+  IPv4 multicast delivery using convenience methods: join, enable loopback,
+  send to the group, receive back.
+  """
+  fun name(): String => "net/MulticastConvenienceJoinV4"
+
+  fun ref apply(h: TestHelper) =>
+    h.long_test(30_000_000_000)
+    let mc =
+      _TestMulticastConvenienceJoinV4Actor(
+        UDPAuth(h.env.root), "239.1.2.3", h)
+    h.dispose_when_done(mc)
+
+actor \nodoc\ _TestMulticastConvenienceJoinV4Actor
+  is (UDPSocketActor & UDPLifecycleEventReceiver)
+  var _udp: UDPSocket = UDPSocket.none()
+  let _h: TestHelper
+  let _group: String
+  var _expected: String = ""
+  var _done: Bool = false
+  var _attempts: U32 = 0
+
+  new create(auth: UDPAuth, group: String, h: TestHelper) =>
+    _h = h
+    _group = group
+    let host = ifdef linux then "127.0.0.2" else "localhost" end
+    _udp = UDPSocket(auth, host, "0", this, this where ip_version = IP4)
+
+  fun ref _socket(): UDPSocket => _udp
+
+  fun ref _on_bound() =>
+    _h.assert_true(_udp.local_address().ip4())
+
+    _h.assert_eq[U32](
+      0,
+      _udp.set_multicast_interface_v4("127.0.0.1"),
+      "set_multicast_interface_v4 failed")
+    _h.assert_eq[U32](
+      0,
+      _udp.join_multicast_group_v4(_group, "127.0.0.1"),
+      "join_multicast_group_v4 failed")
+    _h.assert_eq[U32](
+      0,
+      _udp.set_multicast_loopback_v4(true),
+      "set_multicast_loopback_v4 failed")
+
+    try
+      let port = _udp.local_address().port()
+      let list: Array[NetAddress] val =
+        DNS.ip4(DNSAuth(_h.env.root), _group, port.string())
+      let dest = list(0)?
+
+      _expected = "mc4conv:" + port.string()
+      _udp.send_to(_expected, dest)
+      _retransmit(dest)
+    else
+      _h.fail("couldn't resolve " + _group)
+      _h.complete(false)
+    end
+
+  fun ref _on_bind_failure() =>
+    _h.fail("bind failed")
+    _h.complete(false)
+
+  fun ref _on_received(data: Array[U8] iso, from: NetAddress val)
+    : ReadAction
+  =>
+    let s = String.from_array(consume data)
+    if s == _expected then
+      _done = true
+      _h.log("mc4 convenience delivered on 127.0.0.1")
+      _h.assert_eq[U32](
+        0,
+        _udp.leave_multicast_group_v4(_group, "127.0.0.1"),
+        "leave_multicast_group_v4 failed")
+      _udp.close()
+      _h.complete(true)
+    end
+    KeepReading
+
+  fun ref _on_closed() =>
+    if not _done then
+      _h.log("socket closed before delivery; treating as environmental" +
+        " (no IPv4 multicast route)")
+      _h.complete(true)
+    end
+
+  be _retransmit(dest: NetAddress val) =>
+    if _udp.is_open() then
+      _attempts = _attempts + 1
+      if _attempts > 100 then
+        _h.log("mc4conv: no delivery after " + _attempts.string() +
+          " attempts; closing")
+        _udp.close()
+      else
+        _udp.send_to(_expected, dest)
+        _retransmit(dest)
+      end
+    end

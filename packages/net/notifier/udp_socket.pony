@@ -105,6 +105,76 @@ actor UDPSocket is (net.UDPSocketActor & net.UDPLifecycleEventReceiver)
     """
     _udp.set_so_sndbuf(bufsize)
 
+  fun join_multicast_group_v4(group: String,
+    interface_addr: String = "0.0.0.0"): U32
+  =>
+    """
+    Join an IPv4 multicast group. Returns 0 on success, or errno.
+    """
+    _udp.join_multicast_group_v4(group, interface_addr)
+
+  fun leave_multicast_group_v4(group: String,
+    interface_addr: String = "0.0.0.0"): U32
+  =>
+    """
+    Leave an IPv4 multicast group. Returns 0 on success, or errno.
+    """
+    _udp.leave_multicast_group_v4(group, interface_addr)
+
+  fun join_multicast_group_v6(group: String,
+    interface_index: U32 = 0): U32
+  =>
+    """
+    Join an IPv6 multicast group. Returns 0 on success, or errno.
+    """
+    _udp.join_multicast_group_v6(group, interface_index)
+
+  fun leave_multicast_group_v6(group: String,
+    interface_index: U32 = 0): U32
+  =>
+    """
+    Leave an IPv6 multicast group. Returns 0 on success, or errno.
+    """
+    _udp.leave_multicast_group_v6(group, interface_index)
+
+  fun set_multicast_ttl(ttl: U8): U32 =>
+    """
+    Set IPv4 multicast TTL. Returns 0 on success, or errno.
+    """
+    _udp.set_multicast_ttl(ttl)
+
+  fun set_multicast_hops(hops: U32): U32 =>
+    """
+    Set IPv6 multicast hop limit. Returns 0 on success, or errno.
+    """
+    _udp.set_multicast_hops(hops)
+
+  fun set_multicast_loopback_v4(loopback: Bool): U32 =>
+    """
+    Enable or disable IPv4 multicast loopback. Returns 0 on success, or
+    errno.
+    """
+    _udp.set_multicast_loopback_v4(loopback)
+
+  fun set_multicast_loopback_v6(loopback: Bool): U32 =>
+    """
+    Enable or disable IPv6 multicast loopback. Returns 0 on success, or
+    errno.
+    """
+    _udp.set_multicast_loopback_v6(loopback)
+
+  fun set_multicast_interface_v4(interface_addr: String): U32 =>
+    """
+    Set IPv4 outgoing multicast interface. Returns 0 on success, or errno.
+    """
+    _udp.set_multicast_interface_v4(interface_addr)
+
+  fun set_multicast_interface_v6(interface_index: U32): U32 =>
+    """
+    Set IPv6 outgoing multicast interface. Returns 0 on success, or errno.
+    """
+    _udp.set_multicast_interface_v6(interface_index)
+
   fun getsockopt_u32(level: I32, option_name: I32): (U32, U32) =>
     """
     Get a socket option as a U32. Returns (errno, value).
