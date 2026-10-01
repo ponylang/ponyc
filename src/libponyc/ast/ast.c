@@ -963,6 +963,37 @@ bool ast_has_annotation(ast_t* ast, const char* name, strtable_t* strtab)
   return false;
 }
 
+bool ast_annotation_value(ast_t* ast, const char* name, strtable_t* strtab,
+  lexint_t** value)
+{
+  pony_assert(ast != NULL);
+  pony_assert(value != NULL);
+
+  ast_t* annotation = ast_annotation(ast);
+
+  if((annotation != NULL) && (ast_id(annotation) == TK_ANNOTATION))
+  {
+    const char* strtab_name = stringtab(strtab, name);
+    ast_t* elem = ast_child(annotation);
+    while(elem != NULL)
+    {
+      if(ast_name(elem) == strtab_name)
+      {
+        ast_t* arg = ast_child(elem);
+        if((arg != NULL) && (ast_id(arg) == TK_INT))
+          *value = ast_int(arg);
+        else
+          *value = NULL;
+        return true;
+      }
+      elem = ast_sibling(elem);
+    }
+  }
+
+  *value = NULL;
+  return false;
+}
+
 void ast_erase(ast_t* ast)
 {
   pony_assert(ast != NULL);

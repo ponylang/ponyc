@@ -130,3 +130,179 @@ TEST_F(AnnotationsTest, StandardAnnotationLocationBad)
 
   DO(test_expected_errors(src, "syntax", errs));
 }
+
+TEST_F(AnnotationsTest, InlineOnBehavior)
+{
+  const char* src =
+    "actor A\n"
+    "  be \\inline\\ foo() => None";
+
+  const char* errs[] = {
+    "an 'inline' annotation can only appear on a fun declaration",
+    NULL
+  };
+
+  DO(test_expected_errors(src, "syntax", errs));
+}
+
+TEST_F(AnnotationsTest, InlineOnConstructor)
+{
+  const char* src =
+    "class C\n"
+    "  new \\inline\\ create() => None";
+
+  const char* errs[] = {
+    "an 'inline' annotation can only appear on a fun declaration",
+    NULL
+  };
+
+  DO(test_expected_errors(src, "syntax", errs));
+}
+
+TEST_F(AnnotationsTest, NoinlineOnConstructor)
+{
+  const char* src =
+    "class C\n"
+    "  new \\noinline\\ create() => None";
+
+  const char* errs[] = {
+    "a 'noinline' annotation can only appear on a fun declaration",
+    NULL
+  };
+
+  DO(test_expected_errors(src, "syntax", errs));
+}
+
+TEST_F(AnnotationsTest, NoinlineOnBehavior)
+{
+  const char* src =
+    "actor A\n"
+    "  be \\noinline\\ foo() => None";
+
+  const char* errs[] = {
+    "a 'noinline' annotation can only appear on a fun declaration",
+    NULL
+  };
+
+  DO(test_expected_errors(src, "syntax", errs));
+}
+
+TEST_F(AnnotationsTest, NoinlineWithArgument)
+{
+  const char* src =
+    "class C\n"
+    "  fun \\noinline(42)\\ foo(): U64 => 42";
+
+  const char* errs[] = {
+    "annotation 'noinline' does not accept an argument",
+    NULL
+  };
+
+  DO(test_expected_errors(src, "syntax", errs));
+}
+
+TEST_F(AnnotationsTest, InlineArgumentTooLarge)
+{
+  const char* src =
+    "class C\n"
+    "  fun \\inline(18446744073709551616)\\ foo(): U64 => 42";
+
+  const char* errs[] = {
+    "'inline' argument is too large",
+    NULL
+  };
+
+  DO(test_expected_errors(src, "syntax", errs));
+}
+
+TEST_F(AnnotationsTest, DuplicateInline)
+{
+  const char* src =
+    "class C\n"
+    "  fun \\inline, inline(500)\\ foo(): U64 => 42";
+
+  const char* errs[] = {
+    "duplicate 'inline' annotations on the same method",
+    "duplicate 'inline' annotations on the same method",
+    NULL
+  };
+
+  DO(test_expected_errors(src, "syntax", errs));
+}
+
+TEST_F(AnnotationsTest, InlineAndNoinlineConflict)
+{
+  const char* src =
+    "class C\n"
+    "  fun \\inline, noinline\\ foo(): U64 => 42";
+
+  const char* errs[] = {
+    "'inline' and 'noinline' cannot both appear on the same method",
+    "'inline' and 'noinline' cannot both appear on the same method",
+    NULL
+  };
+
+  DO(test_expected_errors(src, "syntax", errs));
+}
+
+TEST_F(AnnotationsTest, InlineZeroArgument)
+{
+  const char* src =
+    "class C\n"
+    "  fun \\inline(0)\\ foo(): U64 => 42";
+
+  const char* errs[] = {
+    "'inline' argument must be a positive integer",
+    NULL
+  };
+
+  DO(test_expected_errors(src, "syntax", errs));
+}
+
+TEST_F(AnnotationsTest, NonInlineAnnotationWithArgument)
+{
+  const char* src =
+    "actor \\nodoc(42)\\ A";
+
+  const char* errs[] = {
+    "annotation 'nodoc' does not accept an argument",
+    NULL
+  };
+
+  DO(test_expected_errors(src, "syntax", errs));
+}
+
+TEST_F(AnnotationsTest, AnnotationWithValue)
+{
+  const char* src =
+    "class C\n"
+    "  fun \\inline(500)\\ foo(): U64 => 42";
+
+  TEST_COMPILE(src, "scope");
+
+  ast_t* c_type = lookup_type("C");
+  ast_t* ast = lookup_in(c_type, "foo");
+
+  lexint_t* value = NULL;
+  ASSERT_TRUE(ast_annotation_value(ast, "inline", opt.strtab, &value));
+  ASSERT_TRUE(value != NULL);
+  ASSERT_EQ(value->low, (uint64_t)500);
+
+  ASSERT_FALSE(ast_annotation_value(ast, "noinline", opt.strtab, &value));
+}
+
+TEST_F(AnnotationsTest, InlineWithoutValue)
+{
+  const char* src =
+    "class C\n"
+    "  fun \\inline\\ foo(): U64 => 42";
+
+  TEST_COMPILE(src, "scope");
+
+  ast_t* c_type = lookup_type("C");
+  ast_t* ast = lookup_in(c_type, "foo");
+
+  lexint_t* value = NULL;
+  ASSERT_TRUE(ast_annotation_value(ast, "inline", opt.strtab, &value));
+  ASSERT_TRUE(value == NULL);
+}

@@ -320,13 +320,22 @@ DEF(positional);
   WHILE(TK_COMMA, RULE("argument", rawseq));
   DONE();
 
-// '\' ID {COMMA ID} '\'
+// ID ['(' INT ')']
+DEF(annotationelem);
+  TOKEN("annotation", TK_ID);
+  IF(TK_LPAREN,
+    TOKEN("annotation argument", TK_INT);
+    SKIP(NULL, TK_RPAREN);
+  );
+  DONE();
+
+// '\' annotationelem {COMMA annotationelem} '\'
 DEF(annotations);
   PRINT_INLINE();
   TOKEN(NULL, TK_BACKSLASH);
   MAP_ID(TK_BACKSLASH, TK_ANNOTATION);
-  TOKEN("annotation", TK_ID);
-  WHILE(TK_COMMA, TOKEN("annotation", TK_ID));
+  RULE("annotation", annotationelem);
+  WHILE(TK_COMMA, RULE("annotation", annotationelem));
   TERMINATE("annotations", TK_BACKSLASH);
   DONE();
 

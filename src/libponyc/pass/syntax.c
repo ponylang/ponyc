@@ -1474,6 +1474,70 @@ static bool check_annotation_location(pass_opt_t* opt, ast_t* ast,
 
         return false;
     }
+  } else if(strcmp(str, "inline") == 0) {
+    if(ast_id(ast_parent(ast)) != TK_FUN)
+    {
+      ast_error(opt->check.errors, loc,
+        "an 'inline' annotation can only appear on a fun declaration");
+      return false;
+    }
+
+    if(ast_has_annotation(ast_parent(ast), "noinline", opt->strtab))
+    {
+      ast_error(opt->check.errors, loc,
+        "'inline' and 'noinline' cannot both appear on the same method");
+      return false;
+    }
+
+    const char* inline_name = stringtab(opt->strtab, "inline");
+    int inline_count = 0;
+    ast_t* elem = ast_child(ast);
+    while(elem != NULL)
+    {
+      if(ast_name(elem) == inline_name)
+        inline_count++;
+      elem = ast_sibling(elem);
+    }
+
+    if(inline_count > 1)
+    {
+      ast_error(opt->check.errors, loc,
+        "duplicate 'inline' annotations on the same method");
+      return false;
+    }
+
+    ast_t* arg = ast_child(loc);
+    if((arg != NULL) && (ast_id(arg) == TK_INT))
+    {
+      lexint_t* val = ast_int(arg);
+      if(lexint_cmp64(val, 0) == 0)
+      {
+        ast_error(opt->check.errors, loc,
+          "'inline' argument must be a positive integer");
+        return false;
+      }
+
+      if(val->high != 0)
+      {
+        ast_error(opt->check.errors, loc,
+          "'inline' argument is too large");
+        return false;
+      }
+    }
+  } else if(strcmp(str, "noinline") == 0) {
+    if(ast_id(ast_parent(ast)) != TK_FUN)
+    {
+      ast_error(opt->check.errors, loc,
+        "a 'noinline' annotation can only appear on a fun declaration");
+      return false;
+    }
+
+    if(ast_has_annotation(ast_parent(ast), "inline", opt->strtab))
+    {
+      ast_error(opt->check.errors, loc,
+        "'inline' and 'noinline' cannot both appear on the same method");
+      return false;
+    }
   } else if(strcmp(str, "c_api") == 0) {
     ast_t* parent = ast_parent(ast);
     token_id parent_id = ast_id(parent);
@@ -1560,6 +1624,16 @@ static ast_result_t syntax_annotation(pass_opt_t* opt, ast_t* ast)
     {
       ast_error(opt->check.errors, child,
         "annotations starting with 'ponyint' are reserved for internal use");
+      ok = AST_ERROR;
+      continue;
+    }
+
+    ast_t* arg = ast_child(child);
+    if((arg != NULL) && (ast_id(arg) == TK_INT) &&
+      (strcmp(str, "inline") != 0))
+    {
+      ast_error(opt->check.errors, child,
+        "annotation '%s' does not accept an argument", str);
       ok = AST_ERROR;
       continue;
     }
