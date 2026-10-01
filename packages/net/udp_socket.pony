@@ -1,3 +1,12 @@
+use @pony_os_pack_ip_mreq[I32](group: Pointer[U8] tag,
+  iface: Pointer[U8] tag, out_buf: Pointer[U8] tag)
+use @pony_os_pack_ipv6_mreq[I32](group: Pointer[U8] tag,
+  iface_index: U32, out_buf: Pointer[U8] tag)
+use @pony_os_pack_in_addr[I32](addr: Pointer[U8] tag,
+  out_buf: Pointer[U8] tag)
+use @pony_os_pack_multicast_ttl[I32](ttl: U8, out_buf: Pointer[U8] tag)
+use @pony_os_pack_multicast_loop[I32](loop: Bool, out_buf: Pointer[U8] tag)
+
 class UDPSocket[UDP: UDPBackend ref = UDPRuntimeBackend]
   """
   A UDP socket: bind, send datagrams, receive datagrams, and close. A
@@ -123,6 +132,136 @@ class UDPSocket[UDP: UDPBackend ref = UDPRuntimeBackend]
     Returns 0 on success, or a non-zero errno.
     """
     setsockopt_u32(OSSockOpt.sol_socket(), OSSockOpt.so_sndbuf(), bufsize)
+
+  fun join_multicast_group_v4(group: String,
+    interface_addr: String = "0.0.0.0"): U32
+  =>
+    """
+    Join an IPv4 multicast group. `group` is a dotted-decimal multicast
+    address (e.g. `"239.1.2.3"`). `interface_addr` selects the local
+    interface; `"0.0.0.0"` lets the OS choose. Returns 0 on success, or a
+    non-zero errno.
+    """
+    let buf = Array[U8] .> undefined(8)
+    let err =
+      @pony_os_pack_ip_mreq(
+        group.cstring(), interface_addr.cstring(), buf.cpointer())
+    if err != 0 then return err.u32() end
+    setsockopt(
+      OSSockOpt.ipproto_ip(), OSSockOpt.ip_add_membership(), buf)
+
+  fun leave_multicast_group_v4(group: String,
+    interface_addr: String = "0.0.0.0"): U32
+  =>
+    """
+    Leave an IPv4 multicast group previously joined with
+    `join_multicast_group_v4`. Returns 0 on success, or a non-zero errno.
+    """
+    let buf = Array[U8] .> undefined(8)
+    let err =
+      @pony_os_pack_ip_mreq(
+        group.cstring(), interface_addr.cstring(), buf.cpointer())
+    if err != 0 then return err.u32() end
+    setsockopt(
+      OSSockOpt.ipproto_ip(), OSSockOpt.ip_drop_membership(), buf)
+
+  fun join_multicast_group_v6(group: String,
+    interface_index: U32 = 0): U32
+  =>
+    """
+    Join an IPv6 multicast group. `group` is an IPv6 multicast address
+    (e.g. `"ff12::1"`). `interface_index` selects the local
+    interface by its OS index; 0 lets the OS choose. Returns 0 on success,
+    or a non-zero errno.
+    """
+    let buf = Array[U8] .> undefined(20)
+    let err =
+      @pony_os_pack_ipv6_mreq(
+        group.cstring(), interface_index, buf.cpointer())
+    if err != 0 then return err.u32() end
+    setsockopt(
+      OSSockOpt.ipproto_ipv6(), OSSockOpt.ipv6_add_membership(), buf)
+
+  fun leave_multicast_group_v6(group: String,
+    interface_index: U32 = 0): U32
+  =>
+    """
+    Leave an IPv6 multicast group previously joined with
+    `join_multicast_group_v6`. Returns 0 on success, or a non-zero errno.
+    """
+    let buf = Array[U8] .> undefined(20)
+    let err =
+      @pony_os_pack_ipv6_mreq(
+        group.cstring(), interface_index, buf.cpointer())
+    if err != 0 then return err.u32() end
+    setsockopt(
+      OSSockOpt.ipproto_ipv6(), OSSockOpt.ipv6_drop_membership(), buf)
+
+  fun set_multicast_ttl(ttl: U8): U32 =>
+    """
+    Set the IPv4 multicast time-to-live. The IPv6 counterpart is
+    `set_multicast_hops`. Returns 0 on success, or a non-zero errno.
+    """
+    let buf = Array[U8] .> undefined(4)
+    let size = @pony_os_pack_multicast_ttl(ttl, buf.cpointer())
+    buf.truncate(size.usize())
+    setsockopt(
+      OSSockOpt.ipproto_ip(), OSSockOpt.ip_multicast_ttl(), buf)
+
+  fun set_multicast_hops(hops: U32): U32 =>
+    """
+    Set the IPv6 multicast hop limit. The IPv4 counterpart is
+    `set_multicast_ttl`. Returns 0 on success, or a non-zero errno.
+    """
+    setsockopt_u32(
+      OSSockOpt.ipproto_ipv6(), OSSockOpt.ipv6_multicast_hops(), hops)
+
+  fun set_multicast_loopback_v4(loopback: Bool): U32 =>
+    """
+    Enable or disable IPv4 multicast loopback. When enabled, datagrams
+    sent to a joined group are delivered back to this socket. Returns 0
+    on success, or a non-zero errno.
+    """
+    let buf = Array[U8] .> undefined(4)
+    let size = @pony_os_pack_multicast_loop(loopback, buf.cpointer())
+    buf.truncate(size.usize())
+    setsockopt(
+      OSSockOpt.ipproto_ip(), OSSockOpt.ip_multicast_loop(), buf)
+
+  fun set_multicast_loopback_v6(loopback: Bool): U32 =>
+    """
+    Enable or disable IPv6 multicast loopback. When enabled, datagrams
+    sent to a joined group are delivered back to this socket. Returns 0
+    on success, or a non-zero errno.
+    """
+    setsockopt_u32(
+      OSSockOpt.ipproto_ipv6(),
+      OSSockOpt.ipv6_multicast_loop(),
+      if loopback then U32(1) else U32(0) end)
+
+  fun set_multicast_interface_v4(interface_addr: String): U32 =>
+    """
+    Set the default IPv4 interface for outgoing multicast datagrams.
+    `interface_addr` is a dotted-decimal address of the local interface.
+    Returns 0 on success, or a non-zero errno.
+    """
+    let buf = Array[U8] .> undefined(4)
+    let err = @pony_os_pack_in_addr(interface_addr.cstring(), buf.cpointer())
+    if err != 0 then return err.u32() end
+    setsockopt(
+      OSSockOpt.ipproto_ip(), OSSockOpt.ip_multicast_if(), buf)
+
+  fun set_multicast_interface_v6(interface_index: U32): U32 =>
+    """
+    Set the default IPv6 interface for outgoing multicast datagrams.
+    `interface_index` is the OS interface index (0 means the default
+    route on Linux but is rejected on macOS/BSD). Returns 0 on success,
+    or a non-zero errno.
+    """
+    setsockopt_u32(
+      OSSockOpt.ipproto_ipv6(),
+      OSSockOpt.ipv6_multicast_if(),
+      interface_index)
 
   fun getsockopt(level: I32,
     option_name: I32,

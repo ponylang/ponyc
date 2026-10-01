@@ -152,6 +152,10 @@ actor \nodoc\ Main is TestList
     ifdef (not osx) and (not bsd) then test(_TestMulticastSockopt) end
     test(_TestMulticastIP4)
     test(_TestMulticastIP6)
+    test(_TestMulticastConvenienceSockopt)
+    test(_TestMulticastConvenienceSockoptV6)
+    test(_TestMulticastConvenienceErrors)
+    test(_TestMulticastConvenienceJoinV4)
 
     // Fake-backend tests (no real sockets for I/O)
     test(_TestSendOk)

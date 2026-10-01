@@ -110,6 +110,10 @@ Socket option tuning on a connected TCP connection. Configures `TCP_NODELAY` and
 
 Query-timeout simulation using `set_timer()`. A client sends a query to a non-responding server and sets a 3-second timer. When it fires, `_on_timer()` logs the timeout and closes the connection. Unlike `idle_timeout()`, this fires unconditionally regardless of I/O activity.
 
+### [multicast-receiver](networking/multicast-receiver/)
+
+Joins an IPv4 multicast group on the loopback interface and prints received datagrams. Demonstrates `join_multicast_group_v4`, `set_multicast_interface_v4`, and `set_multicast_loopback_v4`.
+
 ### [udp-echo-server](networking/udp-echo-server/)
 
 Minimal UDP echo server. A single actor binds a UDP socket and echoes every received datagram back to its sender. Shows `UDPSocketActor` for event plumbing and `UDPLifecycleEventReceiver` for application callbacks.

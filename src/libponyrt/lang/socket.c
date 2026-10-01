@@ -11,6 +11,7 @@
 #include "ponyassert.h"
 #include <stdbool.h>
 #include <string.h>
+#include <errno.h>
 
 #ifdef PLATFORM_IS_WINDOWS
 // Disable warnings about deprecated non-unicode WSA functions.
@@ -1298,6 +1299,63 @@ PONY_API void pony_os_multicast_join(int fd, const char* group, const char* to)
 PONY_API void pony_os_multicast_leave(int fd, const char* group, const char* to)
 {
   multicast_change(fd, group, to, false);
+}
+
+PONY_API int pony_os_pack_ip_mreq(
+  const char* group, const char* iface, char* out_buf)
+{
+  struct ip_mreq* mreq = (struct ip_mreq*)out_buf;
+
+  if(inet_pton(AF_INET, group, &mreq->imr_multiaddr) != 1)
+    return EINVAL;
+
+  if(inet_pton(AF_INET, iface, &mreq->imr_interface) != 1)
+    return EINVAL;
+
+  return 0;
+}
+
+PONY_API int pony_os_pack_ipv6_mreq(
+  const char* group, uint32_t iface_index, char* out_buf)
+{
+  struct ipv6_mreq* mreq = (struct ipv6_mreq*)out_buf;
+
+  if(inet_pton(AF_INET6, group, &mreq->ipv6mr_multiaddr) != 1)
+    return EINVAL;
+
+  mreq->ipv6mr_interface = iface_index;
+  return 0;
+}
+
+PONY_API int pony_os_pack_in_addr(const char* addr, char* out_buf)
+{
+  if(inet_pton(AF_INET, addr, out_buf) != 1)
+    return EINVAL;
+
+  return 0;
+}
+
+PONY_API int pony_os_pack_multicast_ttl(uint8_t ttl, char* out_buf)
+{
+#if defined(PLATFORM_IS_MACOSX) || defined(PLATFORM_IS_BSD)
+  out_buf[0] = (char)ttl;
+  return 1;
+#else
+  *(uint32_t*)out_buf = (uint32_t)ttl;
+  return 4;
+#endif
+}
+
+PONY_API int pony_os_pack_multicast_loop(bool loop, char* out_buf)
+{
+#if defined(PLATFORM_IS_MACOSX) || defined(PLATFORM_IS_BSD)
+  out_buf[0] = loop ? 1 : 0;
+  return 1;
+#else
+  uint32_t val = loop ? 1 : 0;
+  *(uint32_t*)out_buf = val;
+  return 4;
+#endif
 }
 
 /* Constants are from
