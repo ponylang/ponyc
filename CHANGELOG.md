@@ -11,6 +11,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 - Add guarded devirtualization for multi-subtype interface dispatch ([PR #6217](https://github.com/ponylang/ponyc/pull/6217))
 - Add multi-failure reporting to PonyCheck ([PR #6215](https://github.com/ponylang/ponyc/pull/6215))
+- Add multicast convenience methods to UDPSocket ([PR #6220](https://github.com/ponylang/ponyc/pull/6220))
 
 ### Changed
 
