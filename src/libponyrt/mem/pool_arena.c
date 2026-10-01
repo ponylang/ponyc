@@ -448,7 +448,9 @@ static __pony_thread_local uint32_t pool_cache_count[POOL_COUNT];
 // assert slab release/geometry or chain delivery the cache would otherwise
 // defer. cache_cap reads it only where the checks are active, so a release
 // build never consults it and pays no hot-path cost.
+#if !defined(PONY_NDEBUG) || defined(PONY_ALWAYS_ASSERT)
 static __pony_thread_local bool pool_cache_disabled = false;
+#endif
 
 // Two per-class cache terms, both set per memory profile
 // (ponyint_pool_set_memory_profile): the floor is the count cache_cap holds
@@ -2271,20 +2273,23 @@ bool ponyint_pool_arena_inbox_empty_for_test()
 /// Test seam: flush and disable the thread cache so frees bypass it — own
 /// blocks to the slab path, foreign blocks to the chain path — and deliver
 /// every pending chain. Lets tests assert slab release/geometry or chain
-/// delivery the cache defers. The disable takes effect only where cache_cap
-/// consults the flag (checks-active builds); in release the flag is set but
-/// never read.
+/// delivery the cache defers. The disable takes effect only in checks-active
+/// builds (debug, or release with PONY_ALWAYS_ASSERT).
 void ponyint_pool_arena_cache_disable_for_test()
 {
   cache_flush_routed();
   chains_flush_all();
+#if !defined(PONY_NDEBUG) || defined(PONY_ALWAYS_ASSERT)
   pool_cache_disabled = true;
+#endif
 }
 
 /// Test seam: re-enable the thread cache.
 void ponyint_pool_arena_cache_enable_for_test()
 {
+#if !defined(PONY_NDEBUG) || defined(PONY_ALWAYS_ASSERT)
   pool_cache_disabled = false;
+#endif
 }
 
 /// Test seam: how many blocks of a size class sit in the thread cache now.
