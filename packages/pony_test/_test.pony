@@ -242,6 +242,19 @@ actor \nodoc\ Main is TestList
     test(_ChoiceEqTest)
     test(_ChoiceSeqEqTest)
 
+    // Mutator tests
+    test(_MutatorBoundsTest)
+    test(_MutatorEmptyTest)
+    test(_MutatorForcedBoolTest)
+    test(_MutatorPreservesLengthTest)
+
+    // Target pool tests
+    test(_TargetPoolUpdateTest)
+    test(_EffectiveChoicesTest)
+
+    // Targeted property test
+    test.property(_TargetedMaxU8Property)
+
 class \nodoc\ iso _TestListPreservesOrder is UnitTest
   """
   Without --shuffle, tests complete in registration order.

@@ -4153,3 +4153,220 @@ class \nodoc\ iso _ChoiceSeqEqTest is UnitTest
     h.assert_false(_ChoiceSeqEq(a, c))
     h.assert_false(_ChoiceSeqEq(a, d))
     h.assert_true(_ChoiceSeqEq(empty, empty))
+
+class \nodoc\ iso _MutatorBoundsTest is UnitTest
+  """
+  Mutated values stay within the original choice bounds.
+  """
+  fun name(): String => "mutator/bounds"
+
+  fun apply(h: TestHelper) =>
+    let choices: Array[_Choice val] val =
+      [ _IntChoice(50, 0, 100, 0)
+        _FloatChoice(0.5, 0.0, 1.0)
+        _BoolChoice(true)
+        _U128Choice(500, 0, 1000, 0)
+      ]
+    let rnd = Randomness(12345)
+    var i: USize = 0
+    while i < 100 do
+      let mutated = _ChoiceMutator(choices, rnd)
+      h.assert_eq[USize](mutated.size(), choices.size())
+      try
+        match mutated(0)?
+        | let ic: _IntChoice =>
+          h.assert_true((ic.value >= 0) and (ic.value <= 100))
+        else
+          h.fail("expected IntChoice at index 0")
+        end
+        match mutated(1)?
+        | let fc: _FloatChoice =>
+          h.assert_true((fc.value >= 0.0) and (fc.value <= 1.0))
+        else
+          h.fail("expected FloatChoice at index 1")
+        end
+        match mutated(2)?
+        | let bc: _BoolChoice => None
+        else
+          h.fail("expected BoolChoice at index 2")
+        end
+        match mutated(3)?
+        | let uc: _U128Choice =>
+          h.assert_true((uc.value >= 0) and (uc.value <= 1000))
+        else
+          h.fail("expected U128Choice at index 3")
+        end
+      else
+        h.fail("index out of bounds in mutated array")
+      end
+      i = i + 1
+    end
+
+class \nodoc\ iso _MutatorEmptyTest is UnitTest
+  fun name(): String => "mutator/empty"
+
+  fun apply(h: TestHelper) =>
+    let empty: Array[_Choice val] val =
+      recover val Array[_Choice val] end
+    let rnd = Randomness(42)
+    let result = _ChoiceMutator(empty, rnd)
+    h.assert_eq[USize](result.size(), 0)
+
+class \nodoc\ iso _MutatorForcedBoolTest is UnitTest
+  """
+  Forced bools are never flipped by mutation.
+  """
+  fun name(): String => "mutator/forced_bool"
+
+  fun apply(h: TestHelper) =>
+    let choices: Array[_Choice val] val =
+      [_BoolChoice(true, true)]
+    let rnd = Randomness(42)
+    var i: USize = 0
+    while i < 100 do
+      let mutated = _ChoiceMutator(choices, rnd)
+      try
+        match mutated(0)?
+        | let bc: _BoolChoice =>
+          h.assert_true(bc.value)
+        else
+          h.fail("expected BoolChoice")
+        end
+      else
+        h.fail("index out of bounds")
+      end
+      i = i + 1
+    end
+
+class \nodoc\ iso _MutatorPreservesLengthTest is UnitTest
+  fun name(): String => "mutator/preserves_length"
+
+  fun apply(h: TestHelper) =>
+    let choices: Array[_Choice val] val =
+      [ _IntChoice(10, 0, 20, 0)
+        _IntChoice(15, 0, 20, 0)
+        _FloatChoice(0.3, 0.0, 1.0)
+        _BoolChoice(false)
+        _U128Choice(42, 0, 100, 0)
+      ]
+    let rnd = Randomness(99)
+    var i: USize = 0
+    while i < 50 do
+      let mutated = _ChoiceMutator(choices, rnd)
+      h.assert_eq[USize](mutated.size(), choices.size())
+      i = i + 1
+    end
+
+class \nodoc\ iso _TargetPoolUpdateTest is UnitTest
+  """
+  observe_target keeps the best score per label and ignores worse ones.
+  """
+  fun name(): String => "target_pool/update"
+
+  fun apply(h: TestHelper) =>
+    let params = PropertyParams(where num_samples' = 10)
+    let engine = _GenerationEngine(params, "test", h.env)
+
+    engine.begin_sample()
+    engine.rnd().u8()
+    engine.observe_target(1.0, "a")
+    engine.collect_health_metrics()
+    engine.inc_samples_run()
+
+    engine.begin_sample()
+    engine.rnd().u8()
+    engine.observe_target(5.0, "a")
+    engine.collect_health_metrics()
+    engine.inc_samples_run()
+
+    // Score 3.0 < 5.0 should not replace
+    engine.begin_sample()
+    engine.rnd().u8()
+    engine.observe_target(3.0, "a")
+    engine.collect_health_metrics()
+    engine.inc_samples_run()
+
+    // Separate label
+    engine.begin_sample()
+    engine.rnd().u8()
+    engine.observe_target(10.0, "b")
+    engine.collect_health_metrics()
+    engine.inc_samples_run()
+
+    h.assert_true(engine._has_targets())
+
+    // Best score for "a" is 5.0, not 3.0 (the worse score was rejected)
+    match engine._target_score("a")
+    | let s: F64 => h.assert_eq[F64](s, 5.0)
+    else h.fail("expected score for label 'a'")
+    end
+
+    match engine._target_score("b")
+    | let s: F64 => h.assert_eq[F64](s, 10.0)
+    else h.fail("expected score for label 'b'")
+    end
+
+    // Non-existent label returns None
+    h.assert_true(engine._target_score("z") is None)
+
+class \nodoc\ iso _EffectiveChoicesTest is UnitTest
+  """
+  After a targeted replay, capture_failure preserves the full choice
+  sequence (replayed prefix + any fresh choices).
+  """
+  fun name(): String => "target_pool/effective_choices"
+
+  fun apply(h: TestHelper) =>
+    let params = PropertyParams(where num_samples' = 100)
+    let engine = _GenerationEngine(params, "test", h.env)
+
+    engine.begin_sample()
+    engine.rnd().u8(0, 100)
+    engine.rnd().u8(0, 50)
+    engine.observe_target(10.0, "x")
+    engine.collect_health_metrics()
+    engine.inc_samples_run()
+
+    var found_targeted = false
+    var attempt: USize = 0
+    while (not found_targeted) and (attempt < 200) do
+      engine.begin_sample()
+      if engine._is_targeted() then
+        engine.rnd().u8(0, 100)
+        engine.rnd().u8(0, 50)
+        engine.capture_failure()
+        let choices = engine.failing_choices()
+        h.assert_true(
+          choices.size() >= 2,
+          "targeted sample produced " + choices.size().string() +
+            " choices, expected >= 2")
+        found_targeted = true
+      else
+        engine.rnd().u8(0, 100)
+        engine.rnd().u8(0, 50)
+        engine.observe_target(5.0, "x")
+      end
+      engine.collect_health_metrics()
+      engine.inc_samples_run()
+      attempt = attempt + 1
+    end
+
+    h.assert_true(
+      found_targeted,
+      "no targeted sample appeared in 200 attempts")
+
+class \nodoc\ iso _TargetedMaxU8Property is Property[U8]
+  """
+  Targets the generated value itself as score. The targeting feedback
+  loop should bias later samples toward higher U8 values.
+  """
+  fun name(): String => "targeted/max_u8"
+
+  fun params(): PropertyParams =>
+    PropertyParams(where num_samples' = 200, seed' = 42)
+
+  fun gen(): Generator[U8] => Generators.u8()
+
+  fun ref property(arg1: U8, h: PropertyHelper) =>
+    h.target(arg1.f64())
+    h.assert_true(arg1 <= U8.max_value())

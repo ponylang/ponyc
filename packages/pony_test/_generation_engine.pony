@@ -32,6 +32,12 @@ class ref _GenerationEngine
   var _sample_start_nanos: U64 = 0
   var _regression_dir: (FilePath | None) = None
   var _regression_checked: Bool = false
+  embed _target_pool: Map[String, (Array[_Choice val] val, F64)] =
+    Map[String, (Array[_Choice val] val, F64)]
+  embed _target_labels: Array[String] = Array[String]
+  var _target_label_idx: USize = 0
+  var _targeting_active: Bool = false
+  var _targeted_candidate: (Array[_Choice val] val | None) = None
 
   new ref create(
     params: PropertyParams,
@@ -54,6 +60,26 @@ class ref _GenerationEngine
 
   fun ref begin_sample() =>
     _sample_start_nanos = Time.nanos()
+    _targeted_candidate = None
+
+    if _targeting_active and (_target_pool.size() > 0) then
+      // Coin flip before switching to recording mode so the draw
+      // doesn't become part of the recorded choice sequence.
+      let coin = _rnd._raw_int(0, 1)
+      if coin == 1 then
+        try
+          let n = _target_labels.size()
+          let label = _target_labels(_target_label_idx % n)?
+          _target_label_idx = _target_label_idx + 1
+          (let best_choices, _) = _target_pool(label)?
+          let mutated = _ChoiceMutator(best_choices, _rnd)
+          _targeted_candidate = mutated
+          _rnd._replay(mutated)
+          return
+        end
+      end
+    end
+
     _rnd._start_recording()
 
   fun ref collect_health_metrics() =>
@@ -61,7 +87,14 @@ class ref _GenerationEngine
     if elapsed > _peak_sample_nanos then
       _peak_sample_nanos = elapsed
     end
-    let choices_size = _rnd._choices_size()
+    let choices_size =
+      match _targeted_candidate
+      | let candidate: Array[_Choice val] val =>
+        let consumed = _rnd._consumed()
+        consumed.min(candidate.size()) + _rnd._choices_size()
+      else
+        _rnd._choices_size()
+      end
     if choices_size > _max_choices then
       _max_choices = choices_size
     end
@@ -69,8 +102,78 @@ class ref _GenerationEngine
     _total_filter_discards = _total_filter_discards + discards
     _total_filter_accepts = _total_filter_accepts + accepts
 
+  fun _has_targets(): Bool => _targeting_active
+
+  fun _is_targeted(): Bool => _targeted_candidate isnt None
+
+  fun _target_score(label: String): (F64 | None) =>
+    try
+      (_, let score) = _target_pool(label)?
+      score
+    end
+
+  fun ref observe_target(score: F64, label: String) =>
+    let current_choices = _get_effective_choices()
+
+    let dominated =
+      try
+        (_, let best_score) = _target_pool(label)?
+        score <= best_score
+      else
+        false
+      end
+
+    if not dominated then
+      _target_pool(label) = (current_choices, score)
+      if not _targeting_active then
+        _targeting_active = true
+      end
+      var found = false
+      for existing in _target_labels.values() do
+        if existing == label then
+          found = true
+          break
+        end
+      end
+      if not found then
+        _target_labels.push(label)
+      end
+    end
+
+  fun ref _get_effective_choices(): Array[_Choice val] val =>
+    """
+    For a targeted sample, reconstructs the full sequence from the
+    replayed prefix plus any fresh choices generated after exhaustion.
+    For a normal sample, snapshots the recorded choices.
+    """
+    match _targeted_candidate
+    | let candidate: Array[_Choice val] val =>
+      let consumed = _rnd._consumed()
+      let fresh = _rnd._snapshot_choices()
+      let prefix_len = consumed.min(candidate.size())
+      let total = prefix_len + fresh.size()
+      recover val
+        let result = Array[_Choice val](total)
+        try
+          var i: USize = 0
+          while i < prefix_len do
+            result.push(candidate(i)?)
+            i = i + 1
+          end
+          i = 0
+          while i < fresh.size() do
+            result.push(fresh(i)?)
+            i = i + 1
+          end
+        end
+        result
+      end
+    else
+      _rnd._snapshot_choices()
+    end
+
   fun ref capture_failure() =>
-    _failing_choices = _rnd._get_choices()
+    _failing_choices = _get_effective_choices()
     _failing_spans = _rnd._get_spans()
 
   fun ref get_spans(): Array[_Span val] val =>

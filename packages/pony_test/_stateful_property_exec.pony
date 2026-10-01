@@ -366,6 +366,9 @@ class ref _StatefulPropertyExec[S, M, Cmd: Stringable val]
   fun ref cover(condition: Bool, label: String, min_pct: F64) =>
     if not _shrinking then _engine.cover(condition, label, min_pct) end
 
+  fun ref target(score: F64, label: String) =>
+    if not _shrinking then _engine.observe_target(score, label) end
+
   fun ref is_shrinking(): Bool => _shrinking
 
   fun ref sample_repr(): String =>
