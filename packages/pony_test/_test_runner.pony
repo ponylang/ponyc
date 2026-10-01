@@ -602,6 +602,29 @@ actor _TestRunner
       exec.begin_shrink()
       _property_phase = _SyncShrinking
       _begin_shrink_phase()
+    elseif exec.max_distinct_failures() > 1 then
+      if not exec.is_duplicate_failure() then
+        exec.record_failure(exec.sample_repr(), 0)
+        _pass = false
+        _log(
+          "Property failed for sample " + exec.sample_repr() +
+            " (after 0 shrinks) [failure " +
+            exec.recorded_failure_count().string() + ", continuing]",
+          false)
+      end
+      if exec.recorded_failure_count() >= exec.max_distinct_failures()
+      then
+        exec.report()
+        exec.report_all_failures()
+        exec.save_all_regressions()
+        _property_queue.clear()
+        _property_phase = _PropertyIdle
+        _property_exec = None
+        _property_apply_done()
+      else
+        exec.resume_after_failure()
+        _run_one_sync_sample()
+      end
     else
       _log("no choices recorded, cannot shrink", false)
       exec.save_regression()
@@ -661,17 +684,44 @@ actor _TestRunner
     end
 
   fun ref _property_shrink_done(exec: _PropertyExecution) =>
-    exec.save_regression()
-    exec.report()
-    _pass = false
-    _log(
-      "Property failed for sample " + exec.sample_repr() +
-        " (after " + exec.shrink_reductions().string() + " shrinks)",
-      false)
-    _property_queue.clear()
-    _property_phase = _PropertyIdle
-    _property_exec = None
-    _property_apply_done()
+    if exec.max_distinct_failures() > 1 then
+      if not exec.is_duplicate_failure() then
+        exec.record_failure(exec.sample_repr(), exec.shrink_reductions())
+        _pass = false
+        _log(
+          "Property failed for sample " + exec.sample_repr() +
+            " (after " + exec.shrink_reductions().string() +
+            " shrinks) [failure " +
+            exec.recorded_failure_count().string() + ", continuing]",
+          false)
+      end
+      if exec.recorded_failure_count() >= exec.max_distinct_failures()
+      then
+        exec.report()
+        exec.report_all_failures()
+        exec.save_all_regressions()
+        _property_queue.clear()
+        _property_phase = _PropertyIdle
+        _property_exec = None
+        _property_apply_done()
+      else
+        exec.resume_after_failure()
+        _property_phase = _SyncSampling
+        _run_one_sync_sample()
+      end
+    else
+      exec.save_regression()
+      exec.report()
+      _pass = false
+      _log(
+        "Property failed for sample " + exec.sample_repr() +
+          " (after " + exec.shrink_reductions().string() + " shrinks)",
+        false)
+      _property_queue.clear()
+      _property_phase = _PropertyIdle
+      _property_exec = None
+      _property_apply_done()
+    end
 
   fun ref _property_finish_sync(exec: _PropertyExecution) =>
     exec.report()
@@ -687,6 +737,16 @@ actor _TestRunner
       if not exec.coverage_passed() then
         _pass = false
         _log("Property failed: insufficient coverage", false)
+        _property_queue.clear()
+        _property_phase = _PropertyIdle
+        _property_exec = None
+        _property_apply_done()
+        return
+      end
+      if exec.recorded_failure_count() > 0 then
+        exec.report_all_failures()
+        exec.save_all_regressions()
+        _pass = false
         _property_queue.clear()
         _property_phase = _PropertyIdle
         _property_exec = None
@@ -839,6 +899,30 @@ actor _TestRunner
       _property_phase = _AsyncShrinking
       _prop_sample_id = _prop_sample_id + 1
       _begin_shrink_phase()
+    elseif exec.max_distinct_failures() > 1 then
+      _pass = false
+      if not exec.is_duplicate_failure() then
+        exec.record_failure(exec.sample_repr(), 0)
+        _log(
+          "Property failed for sample " + exec.sample_repr() +
+            " (after 0 shrinks) [failure " +
+            exec.recorded_failure_count().string() + ", continuing]",
+          false)
+      end
+      if exec.recorded_failure_count() >= exec.max_distinct_failures()
+      then
+        exec.report()
+        exec.report_all_failures()
+        exec.save_all_regressions()
+        _property_queue.clear()
+        _property_phase = _PropertyIdle
+        complete(false)
+      else
+        exec.resume_after_failure()
+        _prop_actions.clear()
+        _property_phase = _AsyncSampling
+        _next_property_sample()
+      end
     else
       _log("no choices recorded, cannot shrink", false)
       exec.save_regression()
@@ -862,16 +946,43 @@ actor _TestRunner
 
   fun ref _property_shrink(exec: _PropertyExecution) =>
     if exec.shrink_exhausted() then
-      exec.save_regression()
-      exec.report()
-      let repr = exec.sample_repr()
-      let rounds = exec.shrink_reductions()
-      fail(
-        "Property failed for sample " + repr +
-          " (after " + rounds.string() + " shrinks)")
-      _property_queue.clear()
-      _property_phase = _PropertyIdle
-      complete(false)
+      if exec.max_distinct_failures() > 1 then
+        _pass = false
+        if not exec.is_duplicate_failure() then
+          exec.record_failure(exec.sample_repr(), exec.shrink_reductions())
+          _log(
+            "Property failed for sample " + exec.sample_repr() +
+              " (after " + exec.shrink_reductions().string() +
+              " shrinks) [failure " +
+              exec.recorded_failure_count().string() + ", continuing]",
+            false)
+        end
+        if exec.recorded_failure_count() >= exec.max_distinct_failures()
+        then
+          exec.report()
+          exec.report_all_failures()
+          exec.save_all_regressions()
+          _property_queue.clear()
+          _property_phase = _PropertyIdle
+          complete(false)
+        else
+          exec.resume_after_failure()
+          _prop_actions.clear()
+          _property_phase = _AsyncSampling
+          _next_property_sample()
+        end
+      else
+        exec.save_regression()
+        exec.report()
+        let repr = exec.sample_repr()
+        let rounds = exec.shrink_reductions()
+        fail(
+          "Property failed for sample " + repr +
+            " (after " + rounds.string() + " shrinks)")
+        _property_queue.clear()
+        _property_phase = _PropertyIdle
+        complete(false)
+      end
       return
     end
 
@@ -890,6 +1001,14 @@ actor _TestRunner
     exec.report()
     if not exec.coverage_passed() then
       fail("Property failed: insufficient coverage")
+      _property_queue.clear()
+      _property_phase = _PropertyIdle
+      complete(false)
+      return
+    end
+    if exec.recorded_failure_count() > 0 then
+      exec.report_all_failures()
+      exec.save_all_regressions()
       _property_queue.clear()
       _property_phase = _PropertyIdle
       complete(false)

@@ -229,6 +229,19 @@ actor \nodoc\ Main is TestList
     test(_RegressionSaveOnFailTest)
     test(_StatefulRegressionSaveOnFailTest)
 
+    // Multi-regression replay
+    test(_MultiRegressionReplayTest)
+
+    // Multi-failure tests
+    test(_MultiFailureTest)
+    test(_MultiFailureDedupTest)
+    test(_SingleFailurePreservesTest)
+    test(_PropertyParamsClampingTest)
+    test(_RegressionDbMultiSaveLoadClearTest)
+    test(_AsyncMultiFailureTest)
+    test(_ChoiceEqTest)
+    test(_ChoiceSeqEqTest)
+
 class \nodoc\ iso _TestListPreservesOrder is UnitTest
   """
   Without --shuffle, tests complete in registration order.

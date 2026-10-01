@@ -3,6 +3,10 @@ use "files"
 primitive _RegressionDb
   """
   Manages regression files for property-based tests.
+
+  Supports multiple regressions per property for multi-failure mode.
+  The bare property name is used for the first (or only) regression;
+  indexed variants use `"name#2"`, `"name#3"`, etc.
   """
   fun resolve_dir(env: Env): (FilePath | None) =>
     """
@@ -26,14 +30,52 @@ primitive _RegressionDb
     dir: FilePath,
     property_name: String,
     logger: _PropertyLogger)
-    : (Array[_Choice val] val | None)
+    : Array[Array[_Choice val] val] val
   =>
     """
-    Load a stored regression for the named property.
-    Returns None if no file exists, file is corrupt, or read fails.
-    Deletes corrupt files.
+    Load all stored regressions for the named property.
+    Returns an empty array if none exist.
     """
-    let filename: String val = _encode_name(property_name) + ".choices"
+    let result = recover iso Array[Array[_Choice val] val] end
+    let encoded = _encode_name(property_name)
+    let suffix: String val = ".choices"
+
+    match _load_one(dir, encoded + suffix, property_name, logger)
+    | let choices: Array[_Choice val] val =>
+      result.push(choices)
+    end
+
+    let prefix: String val = encoded + "%23"
+    try
+      let d = Directory(dir)?
+      let entries = d.entries()?
+      for entry in (consume entries).values() do
+        if
+          entry.at(prefix) and entry.at(
+            suffix, entry.size().isize() - suffix.size().isize())
+        then
+          let mid =
+            entry.substring(
+              prefix.size().isize(),
+              entry.size().isize() - suffix.size().isize())
+          try mid.usize()? else continue end
+          match _load_one(dir, entry, property_name, logger)
+          | let choices: Array[_Choice val] val =>
+            result.push(choices)
+          end
+        end
+      end
+    end
+
+    consume result
+
+  fun _load_one(
+    dir: FilePath,
+    filename: String,
+    property_name: String,
+    logger: _PropertyLogger)
+    : (Array[_Choice val] val | None)
+  =>
     let path =
       try
         dir.join(filename)?
@@ -58,7 +100,8 @@ primitive _RegressionDb
       choices
     | None =>
       logger.log(
-        "Corrupt regression file for \"" + property_name + "\", removing")
+        "Corrupt regression file for \"" + property_name +
+          "\", removing")
       path.remove()
       None
     end
@@ -112,11 +155,30 @@ primitive _RegressionDb
     logger: _PropertyLogger)
   =>
     """
-    Delete the regression file for a property.
+    Delete all regression files for a property (bare and indexed).
     """
-    let filename: String val = _encode_name(property_name) + ".choices"
+    let encoded = _encode_name(property_name)
+    let suffix: String val = ".choices"
+
+    try dir.join(encoded + suffix)?.remove() end
+
+    let prefix: String val = encoded + "%23"
     try
-      dir.join(filename)?.remove()
+      let d = Directory(dir)?
+      let entries = d.entries()?
+      for entry in (consume entries).values() do
+        if
+          entry.at(prefix) and entry.at(
+            suffix, entry.size().isize() - suffix.size().isize())
+        then
+          let mid =
+            entry.substring(
+              prefix.size().isize(),
+              entry.size().isize() - suffix.size().isize())
+          try mid.usize()? else continue end
+          try dir.join(entry)?.remove() end
+        end
+      end
     end
 
   fun _encode_name(name: String): String =>
