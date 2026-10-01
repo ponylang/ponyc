@@ -16,3 +16,4 @@ actor \nodoc\ Main is TestList
     test.property(_AsyncTCPSenderProperty)
     test.property(_OperationOnCollectionProperty)
     test.property(_HealthCheckProperty)
+    test.property(_MultiFailureProperty)

@@ -449,44 +449,55 @@ class val TestHelper
     """
     _runner.dispose_when_done(disposable)
 
-  fun val for_all[T](gen: Generator[T] val): ForAll[T] =>
+  fun val for_all[T](
+    gen: Generator[T] val,
+    params: PropertyParams = PropertyParams)
+    : ForAll[T]
+  =>
     """
     Run an inline property check with one generated argument.
+    Pass `params` to override the default `PropertyParams`.
     """
-    ForAll[T](gen, this)
+    ForAll[T](gen, this, params)
 
   fun val for_all2[T1, T2](
     gen1: Generator[T1] val,
-    gen2: Generator[T2] val)
+    gen2: Generator[T2] val,
+    params: PropertyParams = PropertyParams)
     : ForAll2[T1, T2]
   =>
     """
     Run an inline property check with two generated arguments.
+    Pass `params` to override the default `PropertyParams`.
     """
-    ForAll2[T1, T2](gen1, gen2, this)
+    ForAll2[T1, T2](gen1, gen2, this, params)
 
   fun val for_all3[T1, T2, T3](
     gen1: Generator[T1] val,
     gen2: Generator[T2] val,
-    gen3: Generator[T3] val)
+    gen3: Generator[T3] val,
+    params: PropertyParams = PropertyParams)
     : ForAll3[T1, T2, T3]
   =>
     """
     Run an inline property check with three generated arguments.
+    Pass `params` to override the default `PropertyParams`.
     """
-    ForAll3[T1, T2, T3](gen1, gen2, gen3, this)
+    ForAll3[T1, T2, T3](gen1, gen2, gen3, this, params)
 
   fun val for_all4[T1, T2, T3, T4](
     gen1: Generator[T1] val,
     gen2: Generator[T2] val,
     gen3: Generator[T3] val,
-    gen4: Generator[T4] val)
+    gen4: Generator[T4] val,
+    params: PropertyParams = PropertyParams)
     : ForAll4[T1, T2, T3, T4]
   =>
     """
     Run an inline property check with four generated arguments.
+    Pass `params` to override the default `PropertyParams`.
     """
-    ForAll4[T1, T2, T3, T4](gen1, gen2, gen3, gen4, this)
+    ForAll4[T1, T2, T3, T4](gen1, gen2, gen3, gen4, this, params)
 
   fun _fail_sample(msg: String, sample_id: USize) =>
     _runner._fail_sample(msg, sample_id)

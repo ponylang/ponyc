@@ -109,3 +109,32 @@ class val _BoolChoice is (Equatable[_BoolChoice] & Stringable)
     ("BoolChoice(" + value.string() + f + ")").string()
 
 type _Choice is (_IntChoice | _FloatChoice | _BoolChoice | _U128Choice)
+
+primitive _ChoiceEq
+  fun apply(a: _Choice val, b: _Choice val): Bool =>
+    match (a, b)
+    | (let x: _IntChoice, let y: _IntChoice) => x == y
+    | (let x: _FloatChoice, let y: _FloatChoice) => x == y
+    | (let x: _BoolChoice, let y: _BoolChoice) => x == y
+    | (let x: _U128Choice, let y: _U128Choice) => x == y
+    else
+      false
+    end
+
+primitive _ChoiceSeqEq
+  fun apply(
+    a: Array[_Choice val] val,
+    b: Array[_Choice val] val)
+    : Bool
+  =>
+    if a.size() != b.size() then return false end
+    try
+      var i: USize = 0
+      while i < a.size() do
+        if not _ChoiceEq(a(i)?, b(i)?) then return false end
+        i = i + 1
+      end
+    else
+      return false
+    end
+    true

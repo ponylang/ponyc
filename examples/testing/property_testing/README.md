@@ -37,10 +37,17 @@ Once `property_testing` has been compiled, in the same directory as this README 
 ---- Passed: async/tcp_sender
 ---- Passed: collections/operation_on_random_collection_elements
 ---- Passed: health_check/narrow_filter
+---- FAILED: multi_failure/two_bugs
 ----
----- 9 tests ran.
+---- 10 tests ran.
 ---- Passed: 9
+---- FAILED: 1 test, listed below:
+---- FAILED: multi_failure/two_bugs
 ```
+
+The `multi_failure/two_bugs` test deliberately fails — it demonstrates
+multi-failure mode, where sampling continues after a failure to find
+additional distinct bugs in a single run.
 
 Run `health_check/narrow_filter` with `--verbose` to see health check
 warnings about filter discard rate and slow samples.

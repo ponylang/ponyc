@@ -29,6 +29,12 @@ class val PropertyParams is Stringable
     health check warns.
   - `regression_db` — whether to persist and replay failing choice
     sequences via the `.ponytest/` directory.
+  - `max_distinct_failures` — how many distinct failures to collect
+    before stopping. Defaults to 1 (current behavior). Values > 1
+    enable multi-failure mode: after shrinking a failure, sampling
+    resumes to find additional distinct failures. Two failures are
+    distinct when their shrunken choice sequences differ. Clamped
+    to >= 1.
   """
   let seed: U64
   let num_samples: USize
@@ -39,6 +45,7 @@ class val PropertyParams is Stringable
   let max_choice_sequence_size: USize
   let max_sample_nanos: U64
   let regression_db: Bool
+  let max_distinct_failures: USize
 
   new val create(
     num_samples': USize = 100,
@@ -52,7 +59,8 @@ class val PropertyParams is Stringable
       PropertyParamsDefaults.max_choice_sequence_size(),
     max_sample_nanos': U64 =
       PropertyParamsDefaults.max_sample_nanos(),
-    regression_db': Bool = true)
+    regression_db': Bool = true,
+    max_distinct_failures': USize = 1)
   =>
     num_samples = num_samples'
     seed = seed'
@@ -63,6 +71,7 @@ class val PropertyParams is Stringable
     max_choice_sequence_size = max_choice_sequence_size'
     max_sample_nanos = max_sample_nanos'
     regression_db = regression_db'
+    max_distinct_failures = max_distinct_failures'.max(1)
 
   fun string(): String iso^ =>
     recover
@@ -89,6 +98,11 @@ class val PropertyParams is Stringable
         s
           .> append(", max_sample_nanos=")
           .> append(max_sample_nanos.string())
+      end
+      if max_distinct_failures != 1 then
+        s
+          .> append(", max_distinct_failures=")
+          .> append(max_distinct_failures.string())
       end
       s .> append(")")
       s

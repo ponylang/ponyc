@@ -264,13 +264,13 @@ class ref _GenerationEngine
     _regression_checked = true
 
   fun ref load_regressions(logger: _PropertyLogger)
-    : (Array[_Choice val] val | None)
+    : Array[Array[_Choice val] val] val
   =>
     match _regression_dir
     | let dir: FilePath =>
       _RegressionDb.load(dir, _name, logger)
     else
-      None
+      recover val Array[Array[_Choice val] val] end
     end
 
   fun ref save_regression(logger: _PropertyLogger) =>
@@ -278,6 +278,30 @@ class ref _GenerationEngine
     | let dir: FilePath =>
       if _failing_choices.size() > 0 then
         _RegressionDb.save(dir, _name, _failing_choices, logger)
+      end
+    end
+
+  fun ref clear_shrink_state() =>
+    _shrink_shrinker = None
+    _shrink_candidates = None
+    _failing_choices = recover val Array[_Choice val] end
+    _failing_spans = recover val Array[_Span val] end
+
+  fun ref save_regression_for(
+    choices: Array[_Choice val] val,
+    index: USize,
+    logger: _PropertyLogger)
+  =>
+    match _regression_dir
+    | let dir: FilePath =>
+      if choices.size() > 0 then
+        let key =
+          if index == 0 then
+            _name
+          else
+            _name + "#" + (index + 1).string()
+          end
+        _RegressionDb.save(dir, key, choices, logger)
       end
     end
 

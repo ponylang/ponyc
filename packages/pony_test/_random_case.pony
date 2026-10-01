@@ -1694,32 +1694,26 @@ class \nodoc\ iso _RegressionDbSaveLoadClearTest is UnitTest
     let choices: Array[_Choice val] val =
       [_IntChoice(42, 0, 100, 0)]
     _RegressionDb.save(dir, "test_prop", choices, h)
-    match _RegressionDb.load(dir, "test_prop", h)
-    | let loaded: Array[_Choice val] val =>
-      h.assert_eq[USize](loaded.size(), 1)
-      match loaded(0)?
-      | let ic: _IntChoice =>
-        h.assert_eq[I128](ic.value, 42)
-      else h.fail("expected IntChoice")
-      end
-    else
-      h.fail("expected loaded choices")
+    let loaded = _RegressionDb.load(dir, "test_prop", h)
+    h.assert_eq[USize](loaded.size(), 1)
+    let first = loaded(0)?
+    h.assert_eq[USize](first.size(), 1)
+    match first(0)?
+    | let ic: _IntChoice =>
+      h.assert_eq[I128](ic.value, 42)
+    else h.fail("expected IntChoice")
     end
     _RegressionDb.clear(dir, "test_prop", h)
-    match _RegressionDb.load(dir, "test_prop", h)
-    | let _: Array[_Choice val] val =>
-      h.fail("expected None after clear")
-    end
+    let after_clear = _RegressionDb.load(dir, "test_prop", h)
+    h.assert_eq[USize](after_clear.size(), 0)
 
 class \nodoc\ iso _RegressionDbLoadMissingTest is UnitTest
   fun name(): String => "regression_db/load_missing"
 
   fun apply(h: TestHelper) ? =>
     let dir = _TempDir(h.env)?
-    match _RegressionDb.load(dir, "nonexistent", h)
-    | let _: Array[_Choice val] val =>
-      h.fail("expected None for missing prop")
-    end
+    let loaded = _RegressionDb.load(dir, "nonexistent", h)
+    h.assert_eq[USize](loaded.size(), 0)
 
 class \nodoc\ iso _RegressionDbCorruptDeletesTest is UnitTest
   fun name(): String => "regression_db/corrupt_deletes"
@@ -1730,10 +1724,8 @@ class \nodoc\ iso _RegressionDbCorruptDeletesTest is UnitTest
     let file = CreateFile(file_path) as File
     file.print("CORRUPT_DATA")
     file.dispose()
-    match _RegressionDb.load(dir, "nonexistent", h)
-    | let _: Array[_Choice val] val =>
-      h.fail("expected None for corrupt data")
-    end
+    let loaded = _RegressionDb.load(dir, "nonexistent", h)
+    h.assert_eq[USize](loaded.size(), 0)
     h.assert_false(file_path.exists(), "corrupt file should be deleted")
 
 class \nodoc\ iso _RegressionDbCreatesDirTest is UnitTest
@@ -3757,3 +3749,407 @@ actor \nodoc\ _RegressionFileCollector is OutStream
     _expected_path.remove()
     _regression_dir.remove()
     _h.complete(true)
+
+class \nodoc\ iso _MultiRegressionReplayProperty is Property[U8]
+  fun name(): String => "meta/multi_regression_replay/property"
+
+  fun gen(): Generator[U8] => Generators.u8(0, 100)
+
+  fun params(): PropertyParams =>
+    PropertyParams(where num_samples' = 10, seed' = 42,
+      regression_db' = true)
+
+  fun ref property(sample: U8, h: PropertyHelper) =>
+    None
+
+class \nodoc\ iso _MultiRegressionReplayTest is UnitTest
+  fun name(): String =>
+    "regression/integration/multi_replay_clears"
+
+  fun apply(h: TestHelper) =>
+    h.long_test(30_000_000_000)
+    let nanos = Time.nanos().string()
+    let dir_name: String val =
+      ".ponytest-multi-replay-" + consume nanos
+    let regression_dir =
+      FilePath(FileAuth(h.env.root), dir_name)
+    if not regression_dir.mkdir() then
+      h.fail("could not create regression dir")
+      return
+    end
+    let prop_name = "meta/multi_regression_replay/property"
+    let choices1: Array[_Choice val] val =
+      [_IntChoice(10, 0, 100, 0)]
+    let choices2: Array[_Choice val] val =
+      [_IntChoice(20, 0, 100, 0)]
+    _RegressionDb.save(regression_dir, prop_name, choices1, h)
+    _RegressionDb.save(
+      regression_dir, prop_name + "#2", choices2, h)
+    let loaded =
+      _RegressionDb.load(regression_dir, prop_name, h)
+    if loaded.size() != 2 then
+      h.fail(
+        "pre-seeded regressions not found: " +
+          loaded.size().string())
+      regression_dir.remove()
+      return
+    end
+
+    let list =
+      object tag is TestList
+        fun tag tests(test: PonyTest) =>
+          test.property(_MultiRegressionReplayProperty)
+      end
+    let reporter =
+      _MultiRegressionClearedReporter(
+        h, regression_dir, prop_name)
+    let db_var: String val =
+      "PONYTEST_DB_DIR=" + dir_name
+    let vars: Array[String] val = [db_var]
+    let env =
+      Env.create(
+        h.env.root,
+        h.env.input,
+        h.env.out,
+        h.env.err,
+        recover val ["test"] end,
+        vars,
+        {(code: I32) => None })
+    PonyTest(env, list, reporter)
+
+actor \nodoc\ _MultiRegressionClearedReporter
+  let _h: TestHelper
+  let _regression_dir: FilePath
+  let _prop_name: String
+
+  new create(
+    h: TestHelper,
+    regression_dir: FilePath,
+    prop_name: String)
+  =>
+    _h = h
+    _regression_dir = regression_dir
+    _prop_name = prop_name
+
+  be test_started(name: String) => None
+
+  be test_complete(result: TestResult val) => None
+
+  be testing_complete(results: Array[TestResult val] val) =>
+    for r in results.values() do
+      if not r.passed then
+        _h.fail("inner property should have passed")
+        _regression_dir.remove()
+        _h.complete(true)
+        return
+      end
+    end
+    let remaining =
+      _RegressionDb.load(_regression_dir, _prop_name, _h)
+    if remaining.size() != 0 then
+      _h.fail(
+        "regressions should be cleared after replay, found " +
+          remaining.size().string())
+    end
+    _regression_dir.remove()
+    _h.complete(true)
+
+// --- Multi-failure tests ---
+class \nodoc\ iso _MultiFailureProperty is Property[U8]
+  fun name(): String => "meta/multi_failure/property"
+
+  fun gen(): Generator[U8] => Generators.u8(0, 100)
+
+  fun params(): PropertyParams =>
+    PropertyParams(where num_samples' = 200, seed' = 42,
+      max_shrink_reductions' = 50, regression_db' = false,
+      max_distinct_failures' = 5)
+
+  fun ref property(sample: U8, h: PropertyHelper) ? =>
+    if (sample % 2) == 0 then error end
+    if (sample % 7) == 0 then error end
+
+actor \nodoc\ _MultiFailureReporter
+  let _h: TestHelper
+  let _min_failures: USize
+
+  new create(h: TestHelper, min_failures: USize) =>
+    _h = h
+    _min_failures = min_failures
+
+  be test_started(name: String) => None
+
+  be test_complete(result: TestResult val) => None
+
+  be testing_complete(results: Array[TestResult val] val) =>
+    for r in results.values() do
+      if not r.passed then
+        for line in r.log.values() do
+          if line.contains("distinct failures found") then
+            try
+              let idx = line.find("distinct")?
+              let count_str = line.substring(0, idx - 1)
+              let count =
+                try count_str.usize()? else 0 end
+              if count >= _min_failures then
+                _h.complete(true)
+                return
+              else
+                _h.fail(
+                  "expected >= " + _min_failures.string() +
+                    " failures, got " + count.string())
+                _h.complete(true)
+                return
+              end
+            end
+          end
+        end
+        _h.fail("failed but no 'distinct failures found' in log")
+        _h.complete(true)
+        return
+      end
+    end
+    _h.fail("property should have failed")
+    _h.complete(true)
+
+class \nodoc\ iso _MultiFailureTest is UnitTest
+  fun name(): String => "property/multi_failure/two_distinct"
+
+  fun apply(h: TestHelper) =>
+    h.long_test(30_000_000_000)
+    let list =
+      object tag is TestList
+        fun tag tests(test: PonyTest) =>
+          test.property(_MultiFailureProperty)
+      end
+    let reporter = _MultiFailureReporter(h, 2)
+    let env =
+      Env.create(
+        h.env.root,
+        h.env.input,
+        h.env.out,
+        h.env.err,
+        recover val ["test"] end,
+        h.env.vars,
+        {(code: I32) => None })
+    PonyTest(env, list, reporter)
+
+class \nodoc\ iso _MultiFailureDedupProperty is Property[U8]
+  fun name(): String => "meta/multi_failure_dedup/property"
+
+  fun gen(): Generator[U8] => Generators.u8(0, 100)
+
+  fun params(): PropertyParams =>
+    PropertyParams(where num_samples' = 200, seed' = 42,
+      max_shrink_reductions' = 100, regression_db' = false,
+      max_distinct_failures' = 3)
+
+  fun ref property(sample: U8, h: PropertyHelper) ? =>
+    error
+
+actor \nodoc\ _ExactFailureCountReporter
+  let _h: TestHelper
+  let _expected: USize
+
+  new create(h: TestHelper, expected: USize) =>
+    _h = h
+    _expected = expected
+
+  be test_started(name: String) => None
+
+  be test_complete(result: TestResult val) => None
+
+  be testing_complete(results: Array[TestResult val] val) =>
+    for r in results.values() do
+      if not r.passed then
+        for line in r.log.values() do
+          if line.contains("distinct failures found") then
+            try
+              let idx = line.find("distinct")?
+              let count_str = line.substring(0, idx - 1)
+              let count =
+                try count_str.usize()? else 0 end
+              if count == _expected then
+                _h.complete(true)
+                return
+              else
+                _h.fail(
+                  "expected " + _expected.string() +
+                    " failures, got " + count.string())
+                _h.complete(true)
+                return
+              end
+            end
+          end
+        end
+        _h.fail("failed but no 'distinct failures found' in log")
+        _h.complete(true)
+        return
+      end
+    end
+    _h.fail("property should have failed")
+    _h.complete(true)
+
+class \nodoc\ iso _MultiFailureDedupTest is UnitTest
+  fun name(): String => "property/multi_failure/dedup"
+
+  fun apply(h: TestHelper) =>
+    h.long_test(30_000_000_000)
+    let list =
+      object tag is TestList
+        fun tag tests(test: PonyTest) =>
+          test.property(_MultiFailureDedupProperty)
+      end
+    let reporter = _ExactFailureCountReporter(h, 1)
+    let env =
+      Env.create(
+        h.env.root,
+        h.env.input,
+        h.env.out,
+        h.env.err,
+        recover val ["test"] end,
+        h.env.vars,
+        {(code: I32) => None })
+    PonyTest(env, list, reporter)
+
+class \nodoc\ iso _SingleFailureProperty is Property[U8]
+  fun name(): String => "meta/single_failure/property"
+
+  fun gen(): Generator[U8] => Generators.u8(0, 100)
+
+  fun params(): PropertyParams =>
+    PropertyParams(where num_samples' = 200, seed' = 42,
+      max_shrink_reductions' = 50, regression_db' = false)
+
+  fun ref property(sample: U8, h: PropertyHelper) ? =>
+    if (sample % 2) == 0 then error end
+
+class \nodoc\ iso _SingleFailurePreservesTest is UnitTest
+  fun name(): String => "property/multi_failure/single_preserves"
+
+  fun apply(h: TestHelper) =>
+    h.long_test(30_000_000_000)
+    let list =
+      object tag is TestList
+        fun tag tests(test: PonyTest) =>
+          test.property(_SingleFailureProperty)
+      end
+    let reporter = FailReporter(h)
+    let env =
+      Env.create(
+        h.env.root,
+        h.env.input,
+        h.env.out,
+        h.env.err,
+        recover val ["test"] end,
+        h.env.vars,
+        {(code: I32) => None })
+    PonyTest(env, list, reporter)
+
+class \nodoc\ iso _PropertyParamsClampingTest is UnitTest
+  fun name(): String => "property_params/max_distinct_failures_clamping"
+
+  fun apply(h: TestHelper) =>
+    let p0 = PropertyParams(where max_distinct_failures' = 0)
+    h.assert_eq[USize](p0.max_distinct_failures, 1)
+    let p1 = PropertyParams(where max_distinct_failures' = 1)
+    h.assert_eq[USize](p1.max_distinct_failures, 1)
+    let p5 = PropertyParams(where max_distinct_failures' = 5)
+    h.assert_eq[USize](p5.max_distinct_failures, 5)
+
+class \nodoc\ iso _RegressionDbMultiSaveLoadClearTest is UnitTest
+  fun name(): String => "regression_db/multi_save_load_clear"
+
+  fun apply(h: TestHelper) ? =>
+    let dir = _TempDir(h.env)?
+    let c1: Array[_Choice val] val = [_IntChoice(1, 0, 10, 0)]
+    let c2: Array[_Choice val] val = [_IntChoice(2, 0, 10, 0)]
+    let c3: Array[_Choice val] val = [_IntChoice(3, 0, 10, 0)]
+    _RegressionDb.save(dir, "multi_prop", c1, h)
+    _RegressionDb.save(dir, "multi_prop#2", c2, h)
+    _RegressionDb.save(dir, "multi_prop#3", c3, h)
+    let loaded = _RegressionDb.load(dir, "multi_prop", h)
+    h.assert_eq[USize](loaded.size(), 3)
+    _RegressionDb.clear(dir, "multi_prop", h)
+    let after = _RegressionDb.load(dir, "multi_prop", h)
+    h.assert_eq[USize](after.size(), 0)
+
+class \nodoc\ iso _AsyncMultiFailureProperty is Property[U8]
+  fun name(): String => "meta/async_multi_failure/property"
+
+  fun gen(): Generator[U8] => Generators.u8(0, 100)
+
+  fun params(): PropertyParams =>
+    PropertyParams(where num_samples' = 200, seed' = 42,
+      max_shrink_reductions' = 50, regression_db' = false,
+      max_distinct_failures' = 5)
+
+  fun ref property(sample: U8, h: PropertyHelper) ? =>
+    h.long_test(10_000_000_000)
+    if (sample % 2) == 0 then error end
+    if (sample % 7) == 0 then error end
+
+class \nodoc\ iso _AsyncMultiFailureTest is UnitTest
+  fun name(): String => "property/multi_failure/async"
+
+  fun apply(h: TestHelper) =>
+    h.long_test(30_000_000_000)
+    let list =
+      object tag is TestList
+        fun tag tests(test: PonyTest) =>
+          test.property(_AsyncMultiFailureProperty)
+      end
+    let reporter = _MultiFailureReporter(h, 2)
+    let env =
+      Env.create(
+        h.env.root,
+        h.env.input,
+        h.env.out,
+        h.env.err,
+        recover val ["test"] end,
+        h.env.vars,
+        {(code: I32) => None })
+    PonyTest(env, list, reporter)
+
+class \nodoc\ iso _ChoiceEqTest is UnitTest
+  fun name(): String => "choice_eq/basic"
+
+  fun apply(h: TestHelper) =>
+    h.assert_true(
+      _ChoiceEq(_IntChoice(1, 0, 10, 0), _IntChoice(1, 0, 10, 0)))
+    h.assert_false(
+      _ChoiceEq(_IntChoice(1, 0, 10, 0), _IntChoice(2, 0, 10, 0)))
+    h.assert_true(
+      _ChoiceEq(_BoolChoice(true), _BoolChoice(true)))
+    h.assert_false(
+      _ChoiceEq(_BoolChoice(true), _BoolChoice(false)))
+    h.assert_true(
+      _ChoiceEq(_FloatChoice(1.0, 0.0, 2.0), _FloatChoice(1.0, 0.0, 2.0)))
+    h.assert_false(
+      _ChoiceEq(_FloatChoice(1.0, 0.0, 2.0), _FloatChoice(1.5, 0.0, 2.0)))
+    h.assert_true(
+      _ChoiceEq(_U128Choice(42, 0, 100, 0), _U128Choice(42, 0, 100, 0)))
+    h.assert_false(
+      _ChoiceEq(_U128Choice(42, 0, 100, 0), _U128Choice(43, 0, 100, 0)))
+    // Cross-type
+    h.assert_false(
+      _ChoiceEq(_IntChoice(1, 0, 10, 0), _BoolChoice(true)))
+
+class \nodoc\ iso _ChoiceSeqEqTest is UnitTest
+  fun name(): String => "choice_seq_eq/basic"
+
+  fun apply(h: TestHelper) =>
+    let a: Array[_Choice val] val =
+      [_IntChoice(1, 0, 10, 0); _BoolChoice(true)]
+    let b: Array[_Choice val] val =
+      [_IntChoice(1, 0, 10, 0); _BoolChoice(true)]
+    let c: Array[_Choice val] val =
+      [_IntChoice(1, 0, 10, 0); _BoolChoice(false)]
+    let d: Array[_Choice val] val =
+      [_IntChoice(1, 0, 10, 0)]
+    let empty: Array[_Choice val] val =
+      recover val Array[_Choice val] end
+    h.assert_true(_ChoiceSeqEq(a, b))
+    h.assert_false(_ChoiceSeqEq(a, c))
+    h.assert_false(_ChoiceSeqEq(a, d))
+    h.assert_true(_ChoiceSeqEq(empty, empty))
