@@ -1,4 +1,4 @@
-use @pony_os_errno[I32]()
+use @pony_os_socket_errno[I32]()
 use @getsockopt[I32](fd: U32, level: I32, option_name: I32,
   option_value: Pointer[U8] tag, option_len: Pointer[USize])
 use @setsockopt[I32](fd: U32, level: I32, option_name: I32,
@@ -62,7 +62,7 @@ primitive _OSSocket
        system call's `sockopt_len_t *` 5th argument.
 
     In case of system call failure, this function returns the 2-tuple:
-    1. The value of `errno`.
+    1. The OS error code (`errno` on POSIX, the Winsock error on Windows).
     2. An undefined value that must be ignored.
     """
     get_so(fd, level, option_name, option_max_size)
@@ -77,7 +77,7 @@ primitive _OSSocket
     2. The `*option_value` returned by the kernel converted to a Pony `U32`.
 
     In case of system call failure, this function returns the 2-tuple:
-    1. The value of `errno`.
+    1. The OS error code (`errno` on POSIX, the Winsock error on Windows).
     2. An undefined value that must be ignored.
 
     Some kernels return certain options in fewer than 4 bytes (e.g. macOS
@@ -110,8 +110,8 @@ primitive _OSSocket
     the `option` array for the requested `level` and `option_name`,
     including using the appropriate CPU endian byte order.
 
-    This function returns `0` on success, else the value of `errno` on
-    failure.
+    This function returns `0` on success, else the OS error code
+    (`errno` on POSIX, the Winsock error on Windows) on failure.
     """
     set_so(fd, level, option_name, option)
 
@@ -121,8 +121,8 @@ primitive _OSSocket
     the kernel expects an option value of a C `uint32_t` type / Pony
     type `U32`.
 
-    This function returns `0` on success, else the value of `errno` on
-    failure.
+    This function returns `0` on success, else the OS error code
+    (`errno` on POSIX, the Winsock error on Windows) on failure.
     """
     var word: Array[U8] ref = u32_to_bytes4(option)
     set_so(fd, level, option_name, word)
@@ -142,8 +142,9 @@ primitive _OSSocket
        4th argument.  Its size is specified by the kernel via the
        system call's `sockopt_len_t *` 5th argument.
 
-    In case of system call failure, `errno` is returned in the first
-    element of the 2-tuple, and the second element's value is junk.
+    In case of system call failure, the OS error code (`errno` on POSIX,
+    the Winsock error on Windows) is returned in the first element of the
+    2-tuple, and the second element's value is junk.
     """
     var option: Array[U8] iso =
       recover option.create() .> undefined(option_max_size) end
@@ -157,7 +158,7 @@ primitive _OSSocket
       (0, consume option)
     else
       option.truncate(0)
-      (@pony_os_errno().u32(), consume option)
+      (@pony_os_socket_errno().u32(), consume option)
     end
 
   fun set_so(fd: U32, level: I32, option_name: I32, option: Array[U8]): U32 =>
@@ -165,8 +166,8 @@ primitive _OSSocket
     """
     Low-level interface to `setsockopt(2)`.
 
-    This function returns `0` on success, else the value of `errno` on
-    failure.
+    This function returns `0` on success, else the OS error code
+    (`errno` on POSIX, the Winsock error on Windows) on failure.
     """
     let result: I32 =
       @setsockopt(
@@ -175,7 +176,7 @@ primitive _OSSocket
     if result == 0 then
       0
     else
-      @pony_os_errno().u32()
+      @pony_os_socket_errno().u32()
     end
 
   fun _bytes_to_u32(b: Array[U8] box): U32 ? =>

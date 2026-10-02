@@ -8,6 +8,7 @@ PONY_EXTERN_C_BEGIN
 
 PONY_API void pony_os_clear_errno();
 PONY_API int pony_os_errno();
+PONY_API int pony_os_socket_errno();
 
 PONY_EXTERN_C_END
 
