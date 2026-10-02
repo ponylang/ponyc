@@ -7,6 +7,7 @@ All notable changes to the Pony compiler and standard library will be documented
 ### Fixed
 
 - Fix getsockopt_u32 failing on platforms that return sub-4-byte socket options ([PR #6229](https://github.com/ponylang/ponyc/pull/6229))
+- Fix wrong error codes for socket operations on Windows ([PR #6231](https://github.com/ponylang/ponyc/pull/6231))
 
 ### Added
 
