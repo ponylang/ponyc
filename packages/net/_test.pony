@@ -74,6 +74,7 @@ actor \nodoc\ Main is TestList
     test(_TestBufferSizeAtMinimum)
     test(_TestSocketOptionsConnected)
     test(_TestSocketOptionsNotConnected)
+    test(_TestBytesToU32)
     test(_TestConnectionTimeoutFires)
     test(_TestConnectionTimeoutCancelledOnConnect)
     test(_TestSSLConnectionTimeoutFires)
@@ -169,7 +170,7 @@ actor \nodoc\ Main is TestList
     ifdef linux then test(_TestBroadcastReceive) end
 
     // Multicast tests (real sockets)
-    ifdef (not osx) and (not bsd) then test(_TestMulticastSockopt) end
+    test(_TestMulticastSockopt)
     test(_TestMulticastIP4)
     test(_TestMulticastIP6)
     test(_TestMulticastConvenienceSockopt)

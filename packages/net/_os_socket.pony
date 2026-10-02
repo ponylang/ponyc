@@ -70,8 +70,7 @@ primitive _OSSocket
   fun getsockopt_u32(fd: U32, level: I32, option_name: I32): (U32, U32) =>
     """
     Wrapper for sockets to the `getsockopt(2)` system call where
-    the kernel's returned option value is a C `uint32_t` type / Pony
-    type `U32`.
+    the option value fits in a Pony `U32`.
 
     In case of system call success, this function returns the 2-tuple:
     1. The integer `0`.
@@ -80,13 +79,17 @@ primitive _OSSocket
     In case of system call failure, this function returns the 2-tuple:
     1. The value of `errno`.
     2. An undefined value that must be ignored.
+
+    Some kernels return certain options in fewer than 4 bytes (e.g. macOS
+    returns IPv4 multicast options as 1-byte `u_char`). The value is
+    zero-extended to U32 regardless of the returned size.
     """
     (let errno: U32, let buffer: Array[U8] iso) =
       get_so(fd, level, option_name, 4)
 
     if errno == 0 then
       try
-          (errno, bytes4_to_u32(consume buffer)?)
+        (errno, _bytes_to_u32(consume buffer)?)
       else
         (1, 0)
       end
@@ -175,8 +178,14 @@ primitive _OSSocket
       @pony_os_errno().u32()
     end
 
-  fun bytes4_to_u32(b: Array[U8]): U32 ? =>
-    b.read_u32(0)?
+  fun _bytes_to_u32(b: Array[U8] box): U32 ? =>
+    match b.size()
+    | 4 => b.read_u32(0)?
+    | 2 => b.read_u16(0)?.u32()
+    | 1 => b(0)?.u32()
+    else
+      error
+    end
 
   fun u32_to_bytes4(option: U32): Array[U8] =>
     Array[U8](4) .> push_u32(option)
