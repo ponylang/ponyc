@@ -13,6 +13,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Add multi-failure reporting to PonyCheck ([PR #6215](https://github.com/ponylang/ponyc/pull/6215))
 - Add multicast convenience methods to UDPSocket ([PR #6220](https://github.com/ponylang/ponyc/pull/6220))
 - Add \inline\, \inline(N)\, and \noinline\ annotations ([PR #6221](https://github.com/ponylang/ponyc/pull/6221))
+- Add targeted testing to PonyCheck ([PR #6224](https://github.com/ponylang/ponyc/pull/6224))
 
 ### Changed
 
