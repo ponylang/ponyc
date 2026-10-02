@@ -712,6 +712,76 @@ static void add_rmethod_to_subtypes(reach_t* r, reach_type_t* t,
   }
 }
 
+static bool evaluate_guard(deferred_reification_t* fun, ast_t* guard,
+  pass_opt_t* opt)
+{
+  switch(ast_id(guard))
+  {
+    case TK_IFTYPEGUARD:
+    {
+      AST_GET_CHILDREN(guard, subtype, supertype);
+      ast_t* r_sub = deferred_reify(fun, subtype, opt);
+      ast_t* r_super = deferred_reify(fun, supertype, opt);
+      bool matches = is_subtype_constraint(r_sub, r_super, NULL, opt);
+      ast_free_unattached(r_sub);
+      ast_free_unattached(r_super);
+      return matches;
+    }
+
+    case TK_IFTYPEGUARD_AND:
+    {
+      ast_t* child = ast_child(guard);
+      while(child != NULL)
+      {
+        if(!evaluate_guard(fun, child, opt))
+          return false;
+        child = ast_sibling(child);
+      }
+      return true;
+    }
+
+    case TK_IFTYPEGUARD_OR:
+    {
+      ast_t* child = ast_child(guard);
+      while(child != NULL)
+      {
+        if(evaluate_guard(fun, child, opt))
+          return true;
+        child = ast_sibling(child);
+      }
+      return false;
+    }
+
+    default:
+      pony_assert(0);
+      return false;
+  }
+}
+
+static ast_t* select_specialization(deferred_reification_t* fun,
+  pass_opt_t* opt)
+{
+  ast_t* default_method = fun->ast;
+  ast_t* parent = ast_parent(default_method);
+
+  if((parent == NULL) || (ast_id(parent) != TK_METHODGROUP))
+    return NULL;
+
+  ast_t* spec = ast_sibling(default_method);
+
+  while(spec != NULL)
+  {
+    ast_t* guard = ast_childidx(spec, 5);
+
+    if(evaluate_guard(fun, guard, opt))
+      return spec;
+
+    spec = ast_sibling(spec);
+  }
+
+  return NULL;
+}
+
 static reach_method_t* add_rmethod(reach_t* r, reach_type_t* t,
   reach_method_name_t* n, token_id cap, ast_t* typeargs, pass_opt_t* opt,
   bool internal)
@@ -749,6 +819,10 @@ static reach_method_t* add_rmethod(reach_t* r, reach_type_t* t,
     ast_t* r_ast = set_cap_and_ephemeral(t->ast, cap, TK_NONE);
     deferred_reification_t* fun = lookup(opt, NULL, r_ast, n->name);
     pony_assert(fun != NULL);
+
+    ast_t* spec = select_specialization(fun, opt);
+    if(spec != NULL)
+      fun->ast = spec;
 
     // The typeargs and thistype are in the scope of r_ast but we're going to
     // free it. Change the scope to a durable AST.
@@ -1421,11 +1495,16 @@ static reach_type_t* add_nominal(reach_t* r, ast_t* type, pass_opt_t* opt)
 
     while(member != NULL)
     {
-      if((ast_id(member) == TK_FUN) && (ast_id(ast_child(member)) == TK_AT))
+      ast_t* m = member;
+
+      if(ast_id(m) == TK_METHODGROUP)
+        m = ast_child(m);
+
+      if((ast_id(m) == TK_FUN) && (ast_id(ast_child(m)) == TK_AT))
       {
         // Only one bare method per bare type.
         pony_assert(bare_method == NULL);
-        bare_method = member;
+        bare_method = m;
 #ifdef PONY_NDEBUG
         break;
 #endif
@@ -1958,7 +2037,7 @@ static void handle_method_stack(reach_t* r, pass_opt_t* opt)
     reach_method_t* m;
     r->method_stack = reach_method_stack_pop(r->method_stack, &m);
 
-    ast_t* body = ast_childidx(m->fun->ast, 6);
+    ast_t* body = ast_childidx(m->fun->ast, 7);
     reachable_expr(r, m->fun, body, opt);
   }
 }
@@ -2092,11 +2171,11 @@ uint32_t reach_vtable_index(reach_type_t* t, const char* name, pass_opt_t* opt)
 
 bool reach_method_is_partial(reach_method_t* m)
 {
-  // Child index 5 of a method's AST is its error/partial token (fixed by the
+  // Child index 6 of a method's AST is its error/partial token (fixed by the
   // parser's method REORDER). Requires m->fun != NULL (internal methods have
   // none); see the reach.h docstring for the bare-method exclusion rationale.
   pony_assert(m->fun != NULL);
-  ast_t* can_error = ast_childidx(m->fun->ast, 5);
+  ast_t* can_error = ast_childidx(m->fun->ast, 6);
   return (m->cap != TK_AT) && (ast_id(can_error) == TK_QUESTION);
 }
 

@@ -44,7 +44,7 @@ primitive BlankLines is ASTRule
     """
     let result = recover iso Array[Diagnostic val] end
 
-    // Find first body content line — docstring (child 6) or first member
+    // Find first body content line — docstring or first member
     let docstring_line = _docstring_line(node)
     let members_node =
       try node(4)?
@@ -216,7 +216,8 @@ primitive BlankLines is ASTRule
   fun _is_method(token_id: ast.TokenId): Bool =>
     (token_id == ast.TokenIds.tk_fun()) or
       (token_id == ast.TokenIds.tk_new()) or
-      (token_id == ast.TokenIds.tk_be())
+      (token_id == ast.TokenIds.tk_be()) or
+      (token_id == ast.TokenIds.tk_methodgroup())
 
   fun _max_line(node: ast.AST box): USize =>
     """

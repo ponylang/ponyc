@@ -447,7 +447,7 @@ ast_t* find_antecedent_type(pass_opt_t* opt, ast_t* ast, bool* is_recovered,
     // For a function body, use the declared return type of the function.
     case TK_FUN:
     {
-      ast_t* body = ast_childidx(parent, 6);
+      ast_t* body = ast_childidx(parent, 7);
       (void)body;
       pony_assert(ast == body);
 

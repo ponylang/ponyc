@@ -71,7 +71,8 @@ static ast_t* eq_param_type(compile_t* c, ast_t* pattern)
   // the subtype machinery (is_bare) can intern into this compilation's table.
   deferred_reification_t* fun = lookup(c->opt, NULL, pattern_type, c->str_eq);
 
-  AST_GET_CHILDREN(fun->ast, cap, id, typeparams, params, result, partial);
+  AST_GET_CHILDREN(fun->ast, cap, id, typeparams, params, result, guard,
+    partial);
   ast_t* param = ast_child(params);
   ast_t* type = ast_childidx(param, 1);
 

@@ -65,7 +65,7 @@ static bool check_partial_function_call(pass_opt_t* opt, ast_t* ast)
 
   // Verify that the call partiality matches that of the method.
   bool r = true;
-  ast_t* method_error = ast_childidx(method_ast, 5);
+  ast_t* method_error = ast_childidx(method_ast, 6);
   if(ast_id(method_error) == TK_QUESTION)
   {
     ast_seterror(ast);

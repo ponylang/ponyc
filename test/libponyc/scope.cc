@@ -306,6 +306,178 @@ TEST_F(ScopeTest, MethodOverloading)
 }
 
 
+TEST_F(ScopeTest, IftypeSpecMixMethodKindsInGroup)
+{
+  const char* src =
+    "class Foo[A: Any val]\n"
+    "  fun foo(): None => None\n"
+    "  fun foo(): None iftype A <: Stringable val => None\n"
+    "  be foo() iftype A <: Hashable val => None";
+
+  TEST_ERROR(src);
+}
+
+
+TEST_F(ScopeTest, IftypeSpecDuplicateDefault)
+{
+  const char* src =
+    "class Foo[A: Any val]\n"
+    "  fun foo(): None => None\n"
+    "  fun foo(): None iftype A <: Stringable val => None\n"
+    "  fun foo(): None => None";
+
+  TEST_ERROR(src);
+}
+
+
+TEST_F(ScopeTest, IftypeSpecOnTrait)
+{
+  const char* src =
+    "trait Foo[A: Any val]\n"
+    "  fun foo(): None => None\n"
+    "  fun foo(): None iftype A <: Stringable val => None";
+
+  TEST_COMPILE(src);
+}
+
+
+TEST_F(ScopeTest, IftypeSpecOnInterface)
+{
+  const char* src =
+    "interface Foo[A: Any val]\n"
+    "  fun foo(): None\n"
+    "  fun foo(): None iftype A <: Stringable val";
+
+  TEST_COMPILE(src);
+}
+
+
+TEST_F(ScopeTest, IftypeSpecMixMethodKindsFirstGroup)
+{
+  const char* src =
+    "class Foo[A: Any val]\n"
+    "  fun foo(): None => None\n"
+    "  be foo() iftype A <: Stringable val => None";
+
+  TEST_ERROR(src);
+}
+
+
+TEST_F(ScopeTest, IftypeSpecTwoGuardsNoDefault)
+{
+  const char* src =
+    "class Foo[A: Any val]\n"
+    "  fun foo(): None iftype A <: Stringable val => None\n"
+    "  fun foo(): None iftype A <: Hashable val => None";
+
+  TEST_ERROR(src);
+}
+
+
+TEST_F(ScopeTest, IftypeGuardSubtypeNotTypeParam)
+{
+  const char* src =
+    "class Foo[A: Any val]\n"
+    "  fun foo(): None => None\n"
+    "  fun foo(): None iftype String <: Stringable val => None";
+
+  TEST_ERROR(src);
+}
+
+
+TEST_F(ScopeTest, IftypeGuardTupleSubNonTupleSuper)
+{
+  const char* src =
+    "class Foo[A: Any val, B: Any val]\n"
+    "  fun foo(): None => None\n"
+    "  fun foo(): None iftype (A, B) <: Stringable val => None";
+
+  TEST_ERROR(src);
+}
+
+
+TEST_F(ScopeTest, IftypeGuardTupleCardinalityMismatch)
+{
+  const char* src =
+    "class Foo[A: Any val, B: Any val]\n"
+    "  fun foo(): None => None\n"
+    "  fun foo(): None iftype (A, B) <: (Stringable val, Hashable val, Any val) => None";
+
+  TEST_ERROR(src);
+}
+
+
+TEST_F(ScopeTest, IftypeGuardNonNominalSubtype)
+{
+  const char* src =
+    "class Foo[A: Any val]\n"
+    "  fun foo(): None => None\n"
+    "  fun foo(): None iftype (A | None) <: Stringable val => None";
+
+  TEST_ERROR(src);
+}
+
+
+TEST_F(ScopeTest, IftypeSpecCompiles)
+{
+  const char* src =
+    "class Foo[A: Any val]\n"
+    "  fun foo(): None => None\n"
+    "  fun foo(): None iftype A <: Stringable val => None";
+
+  TEST_COMPILE(src);
+}
+
+
+TEST_F(ScopeTest, IftypeSpecConjunctionGuard)
+{
+  const char* src =
+    "class Foo[A: Any val, B: Any val]\n"
+    "  fun foo(): None => None\n"
+    "  fun foo(): None iftype A <: Stringable val and B <: Stringable val"
+    " => None";
+
+  TEST_COMPILE(src);
+}
+
+
+TEST_F(ScopeTest, IftypeSpecDisjunctionGuard)
+{
+  const char* src =
+    "class Foo[A: Any val]\n"
+    "  fun foo(): None => None\n"
+    "  fun foo(): None iftype A <: Stringable val or A <: Hashable val"
+    " => None";
+
+  TEST_COMPILE(src);
+}
+
+
+TEST_F(ScopeTest, IftypeSpecDisjunctionDifferentParams)
+{
+  const char* src =
+    "class Foo[A: Any val, B: Any val]\n"
+    "  fun foo(): None => None\n"
+    "  fun foo(): None iftype A <: Stringable val or B <: Stringable val"
+    " => None";
+
+  TEST_ERROR(src);
+}
+
+
+TEST_F(ScopeTest, IftypeSpecTraitProvidesGroup)
+{
+  const char* src =
+    "trait Bar[A: Any val]\n"
+    "  fun bar(): None => None\n"
+    "  fun bar(): None iftype A <: Stringable val => None\n"
+    "\n"
+    "class Foo[A: Any val] is Bar[A]";
+
+  TEST_COMPILE(src);
+}
+
+
 /*
 TEST_F(ScopeTest, Use)
 {

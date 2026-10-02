@@ -43,6 +43,8 @@ void symtab_free(symtab_t* symtab);
 bool symtab_add(symtab_t* symtab, const char* name, ast_t* def,
   sym_status_t status, strtable_t* strtab);
 
+bool symtab_replace(symtab_t* symtab, const char* name, ast_t* def);
+
 ast_t* symtab_find(symtab_t* symtab, const char* name, sym_status_t* status);
 
 ast_t* symtab_find_case(symtab_t* symtab, const char* name,

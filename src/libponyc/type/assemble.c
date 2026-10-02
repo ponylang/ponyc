@@ -374,8 +374,10 @@ ast_t* type_isect_fun(pass_opt_t* opt, ast_t* a, ast_t* b)
   if(((ta == TK_NEW) || (tb == TK_NEW)) && (ta != tb))
     return NULL;
 
-  AST_GET_CHILDREN(a, a_cap, a_id, a_typeparams, a_params, a_result, a_throw);
-  AST_GET_CHILDREN(b, b_cap, b_id, b_typeparams, b_params, b_result, b_throw);
+  AST_GET_CHILDREN(a, a_cap, a_id, a_typeparams, a_params, a_result, a_guard,
+    a_throw);
+  AST_GET_CHILDREN(b, b_cap, b_id, b_typeparams, b_params, b_result, b_guard,
+    b_throw);
 
   // Must have the same name.
   if(ast_name(a_id) != ast_name(b_id))

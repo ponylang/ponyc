@@ -70,13 +70,17 @@ static bool case_expr_matches_type_alone(pass_opt_t* opt, ast_t* case_expr)
     return false;
 
   ast_t* eq_def = ast_get(def, stringtab(opt->strtab, "eq"), NULL);
+
+  if(ast_id(eq_def) == TK_METHODGROUP)
+    eq_def = ast_child(eq_def);
+
   pony_assert(ast_id(eq_def) == TK_FUN);
 
   ast_t* eq_params = ast_childidx(eq_def, 3);
   pony_assert(ast_id(eq_params) == TK_PARAMS);
   pony_assert(ast_childcount(eq_params) == 1);
 
-  ast_t* eq_body = ast_childidx(eq_def, 6);
+  ast_t* eq_body = ast_childidx(eq_def, 7);
   pony_assert(ast_id(eq_body) == TK_SEQ);
 
   // Expect to see a body containing the following AST:
@@ -616,7 +620,7 @@ static ast_t* make_pattern_type(pass_opt_t* opt, ast_t* pattern)
 
   ast_t* r_fun = deferred_reify_method_def(fun, fun->ast, opt);
 
-  AST_GET_CHILDREN(r_fun, cap, id, typeparams, params, result, partial);
+  AST_GET_CHILDREN(r_fun, cap, id, typeparams, params, result, guard, partial);
   bool ok = true;
 
   if(ast_id(typeparams) != TK_NONE)

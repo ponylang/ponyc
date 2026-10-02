@@ -140,7 +140,7 @@ bool frame_push(typecheck_t* t, ast_t* ast)
         case TK_FUN:
         {
           AST_GET_CHILDREN(parent,
-            cap, id, typeparams, params, result, error, body);
+            cap, id, typeparams, params, result, guard, error, body);
 
           if(params == ast)
           {
@@ -152,6 +152,9 @@ bool frame_push(typecheck_t* t, ast_t* ast)
           } else if(body == ast) {
             pop = push_frame(t);
             t->frame->method_body = ast;
+
+            if(ast_id(guard) != TK_NONE)
+              t->frame->iftype_body = ast;
           }
           break;
         }

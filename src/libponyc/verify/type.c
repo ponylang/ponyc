@@ -107,17 +107,28 @@ bool verify_interface(pass_opt_t* opt, ast_t* ast)
       case TK_FUN:
       case TK_BE:
       {
-        AST_GET_CHILDREN(member, cap, id, type_params, params, return_type,
-          error, body, docstring);
-
-        const char* type_id_name = ast_name(id);
+        const char* type_id_name = ast_name(ast_childidx(member, 1));
 
         if(is_name_private(type_id_name))
         {
-          ast_error(opt->check.errors, id,
+          ast_error(opt->check.errors, ast_childidx(member, 1),
             "interfaces can't have private methods, only traits can");
           ok = false;
         }
+        break;
+      }
+      case TK_METHODGROUP:
+      {
+        ast_t* default_method = ast_child(member);
+        const char* type_id_name = ast_name(ast_childidx(default_method, 1));
+
+        if(is_name_private(type_id_name))
+        {
+          ast_error(opt->check.errors, ast_childidx(default_method, 1),
+            "interfaces can't have private methods, only traits can");
+          ok = false;
+        }
+        break;
       }
       default: {}
     }

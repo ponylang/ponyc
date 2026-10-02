@@ -58,17 +58,23 @@ static ast_t* detect_apply_element_type(pass_opt_t* opt, ast_t* ast, ast_t* def)
 {
   // The interface must have an apply method for us to find it.
   ast_t* apply = ast_get(def, stringtab(opt->strtab, "apply"), NULL);
+
+  if((apply != NULL) && (ast_id(apply) == TK_METHODGROUP))
+    apply = ast_child(apply);
+
   if((apply == NULL) || (ast_id(apply) != TK_FUN))
     return NULL;
 
   // The apply method must match the signature we're expecting.
   AST_GET_CHILDREN(apply, receiver_cap, apply_name, type_params, params,
-    ret_type, question);
+    ret_type, guard, question);
   if((ast_id(receiver_cap) != TK_BOX) ||
     (ast_id(type_params) != TK_NONE) ||
     (ast_childcount(params) != 1) ||
     (ast_id(question) != TK_QUESTION))
     return NULL;
+
+  (void)guard;
 
   ast_t* param = ast_child(params);
   ast_t* param_type = ast_childidx(param, 1);
@@ -91,17 +97,23 @@ static ast_t* detect_values_element_type(pass_opt_t* opt, ast_t* ast,
 {
   // The interface must have an apply method for us to find it.
   ast_t* values = ast_get(def, stringtab(opt->strtab, "values"), NULL);
+
+  if((values != NULL) && (ast_id(values) == TK_METHODGROUP))
+    values = ast_child(values);
+
   if((values == NULL) || (ast_id(values) != TK_FUN))
     return NULL;
 
   // The values method must match the signature we're expecting.
   AST_GET_CHILDREN(values, receiver_cap, apply_name, type_params, params,
-    ret_type, question);
+    ret_type, guard_v, question);
   if((ast_id(receiver_cap) != TK_BOX) ||
     (ast_id(type_params) != TK_NONE) ||
     (ast_childcount(params) != 0) ||
     (ast_id(question) != TK_NONE))
     return NULL;
+
+  (void)guard_v;
 
   if((ast_id(ret_type) != TK_NOMINAL) ||
     (ast_name(ast_childidx(ret_type, 1)) != stringtab(opt->strtab, "Iterator")) ||

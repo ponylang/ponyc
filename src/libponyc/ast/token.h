@@ -264,6 +264,11 @@ typedef enum token_id
 
   TK_DISPOSING_BLOCK,
 
+  TK_IFTYPEGUARD,
+  TK_IFTYPEGUARD_AND,
+  TK_IFTYPEGUARD_OR,
+  TK_METHODGROUP,
+
   // Pseudo tokens that never actually exist
   TK_NEWLINE,  // Used by parser macros
   TK_FLATTEN,  // Used by parser macros for tree building

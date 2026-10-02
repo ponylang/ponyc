@@ -197,10 +197,10 @@ static bool is_reified_fun_sub_fun(ast_t* sub, ast_t* super,
   errorframe_t* errorf, pass_opt_t* opt)
 {
   AST_GET_CHILDREN(sub, sub_cap, sub_id, sub_typeparams, sub_params,
-    sub_result, sub_throws);
+    sub_result, sub_guard, sub_throws);
 
   AST_GET_CHILDREN(super, super_cap, super_id, super_typeparams, super_params,
-    super_result, super_throws);
+    super_result, super_guard, super_throws);
 
   switch(ast_id(sub))
   {
@@ -1037,6 +1037,46 @@ static bool is_nominal_sub_entity(ast_t* sub, ast_t* super,
   return ret;
 }
 
+static bool guards_equivalent(ast_t* a, ast_t* b, pass_opt_t* opt)
+{
+  if(ast_id(a) != ast_id(b))
+    return false;
+
+  switch(ast_id(a))
+  {
+    case TK_IFTYPEGUARD:
+    {
+      ast_t* a_sub = ast_child(a);
+      ast_t* a_super = ast_sibling(a_sub);
+      ast_t* b_sub = ast_child(b);
+      ast_t* b_super = ast_sibling(b_sub);
+      return is_eqtype(a_sub, b_sub, NULL, opt) &&
+        is_eqtype(a_super, b_super, NULL, opt);
+    }
+
+    case TK_IFTYPEGUARD_AND:
+    case TK_IFTYPEGUARD_OR:
+    {
+      if(ast_childcount(a) != ast_childcount(b))
+        return false;
+
+      ast_t* a_child = ast_child(a);
+      ast_t* b_child = ast_child(b);
+      while(a_child != NULL)
+      {
+        if(!guards_equivalent(a_child, b_child, opt))
+          return false;
+        a_child = ast_sibling(a_child);
+        b_child = ast_sibling(b_child);
+      }
+      return true;
+    }
+
+    default:
+      return false;
+  }
+}
+
 static bool is_nominal_sub_structural(ast_t* sub, ast_t* super,
   errorframe_t* errorf, pass_opt_t* opt)
 {
@@ -1091,12 +1131,24 @@ static bool is_nominal_sub_structural(ast_t* sub, ast_t* super,
 
   while(super_member != NULL)
   {
-    ast_t* super_member_id = ast_childidx(super_member, 1);
-    ast_t* sub_member = ast_get(sub_def, ast_name(super_member_id), NULL);
+    ast_t* super_default = super_member;
+    ast_t* super_group = NULL;
+    if(ast_id(super_default) == TK_METHODGROUP)
+    {
+      super_group = super_default;
+      super_default = ast_child(super_default);
+    }
+
+    ast_t* super_member_id = ast_childidx(super_default, 1);
+    ast_t* sub_raw = ast_get(sub_def, ast_name(super_member_id), NULL);
+
+    ast_t* sub_default = sub_raw;
+    if(sub_default != NULL && ast_id(sub_default) == TK_METHODGROUP)
+      sub_default = ast_child(sub_default);
 
     // If we don't provide a method, we aren't a subtype.
-    if((sub_member == NULL) || (ast_id(sub_member) != TK_FUN &&
-      ast_id(sub_member) != TK_BE && ast_id(sub_member) != TK_NEW))
+    if((sub_default == NULL) || (ast_id(sub_default) != TK_FUN &&
+      ast_id(sub_default) != TK_BE && ast_id(sub_default) != TK_NEW))
     {
       if(errorf != NULL)
       {
@@ -1111,17 +1163,17 @@ static bool is_nominal_sub_structural(ast_t* sub, ast_t* super,
       continue;
     }
 
-    // Reify the method on the subtype.
-    ast_t* r_sub_member = reify_method_def(sub_member, sub_typeparams,
+    // Reify the default on the subtype.
+    ast_t* r_sub_member = reify_method_def(sub_default, sub_typeparams,
       sub_typeargs, opt);
     pony_assert(r_sub_member != NULL);
 
-    // Reify the method on the supertype.
-    ast_t* r_super_member = reify_method_def(super_member, super_typeparams,
+    // Reify the default on the supertype.
+    ast_t* r_super_member = reify_method_def(super_default, super_typeparams,
       super_typeargs, opt);
     pony_assert(r_super_member != NULL);
 
-    // Check the reified methods.
+    // Check the reified default methods.
     bool ok = is_fun_sub_fun(r_sub_member, r_super_member, errorf, opt);
     ast_free_unattached(r_sub_member);
     ast_free_unattached(r_super_member);
@@ -1132,11 +1184,75 @@ static bool is_nominal_sub_structural(ast_t* sub, ast_t* super,
 
       if(errorf != NULL)
       {
-        ast_error_frame(errorf, sub_member,
+        ast_error_frame(errorf, sub_default,
           "%s is not a subtype of %s: "
           "method '%s' has an incompatible signature",
           ast_print_type(sub, opt->strtab), ast_print_type(super, opt->strtab),
           ast_name(super_member_id));
+      }
+    }
+
+    // If the super has specializations, check them against the sub.
+    if((super_group != NULL) && (ast_sibling(super_default) != NULL))
+    {
+      if((sub_raw == NULL) || (ast_id(sub_raw) != TK_METHODGROUP))
+      {
+        if(errorf != NULL)
+        {
+          ast_error_frame(errorf, sub,
+            "%s is not a subtype of %s: method '%s' requires "
+            "specializations",
+            ast_print_type(sub, opt->strtab),
+            ast_print_type(super, opt->strtab),
+            ast_name(super_member_id));
+        }
+        ret = false;
+      }
+      else
+      {
+        ast_t* super_spec = ast_sibling(super_default);
+        while(super_spec != NULL)
+        {
+          ast_t* r_super_spec = reify_method_def(super_spec,
+            super_typeparams, super_typeargs, opt);
+          pony_assert(r_super_spec != NULL);
+
+          ast_t* sub_spec = ast_sibling(ast_child(sub_raw));
+          bool found = false;
+          while(sub_spec != NULL)
+          {
+            ast_t* r_sub_spec = reify_method_def(sub_spec,
+              sub_typeparams, sub_typeargs, opt);
+            pony_assert(r_sub_spec != NULL);
+
+            if(is_fun_sub_fun(r_sub_spec, r_super_spec, NULL, opt) &&
+              guards_equivalent(ast_childidx(r_sub_spec, 5),
+                ast_childidx(r_super_spec, 5), opt))
+              found = true;
+
+            ast_free_unattached(r_sub_spec);
+            if(found)
+              break;
+            sub_spec = ast_sibling(sub_spec);
+          }
+
+          if(!found)
+          {
+            if(errorf != NULL)
+            {
+              ast_error_frame(errorf, sub,
+                "%s is not a subtype of %s: method '%s' is missing a "
+                "required specialization",
+                ast_print_type(sub, opt->strtab),
+                ast_print_type(super, opt->strtab),
+                ast_name(super_member_id));
+            }
+            ret = false;
+          }
+
+          ast_free_unattached(r_super_spec);
+          super_spec = ast_sibling(super_spec);
+        }
       }
     }
 
@@ -2387,6 +2503,12 @@ bool is_constructable(ast_t* type)
           {
             if(ast_id(member) == TK_NEW)
               return true;
+
+            if(ast_id(member) == TK_METHODGROUP)
+            {
+              if(ast_id(ast_child(member)) == TK_NEW)
+                return true;
+            }
 
             member = ast_sibling(member);
           }

@@ -242,7 +242,7 @@ static bool check_method(pass_opt_t* opt, ast_t* ast, int method_def_index)
   }
 
   AST_GET_CHILDREN(ast, cap, id, type_params, params, return_type,
-    error, body, docstring);
+    guard, error, body, docstring);
 
   if(ast_id(cap) == TK_AT)
   {
@@ -1295,7 +1295,8 @@ static ast_result_t syntax_object(pass_opt_t* opt, ast_t* ast)
 static ast_result_t syntax_fun(pass_opt_t* opt, ast_t* ast)
 {
   pony_assert(ast_id(ast) == TK_FUN);
-  AST_GET_CHILDREN(ast, cap, id, typeparams, params, type, can_error, body);
+  AST_GET_CHILDREN(ast, cap, id, typeparams, params, type, guard, can_error,
+    body);
   switch(ast_id(type))
   {
     case TK_ISO:

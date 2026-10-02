@@ -260,6 +260,9 @@ static void find_possible_fun_defs(pass_opt_t* opt, ast_t* ast,
       // That one method is the fun def that we're looking for.
       ast_t* fun_def = ast_child(members);
 
+      if(ast_id(fun_def) == TK_METHODGROUP)
+        fun_def = ast_child(fun_def);
+
       // If the interface type has type parameters, we need to reify.
       ast_t* typeargs = ast_childidx(ast, 2);
       ast_t* typeparams = ast_childidx(def, 1);
@@ -388,7 +391,9 @@ bool expr_lambda(pass_opt_t* opt, ast_t** astp)
       }
 
       AST_GET_CHILDREN(fun_def, def_receiver_cap, def_name, def_t_params,
-        def_params, def_ret_type, def_raises);
+        def_params, def_ret_type, def_guard, def_raises);
+
+      (void)def_guard;
 
       // Must have the same number of parameters.
       if(ast_childcount(params) != ast_childcount(def_params))
@@ -565,6 +570,7 @@ bool expr_lambda(pass_opt_t* opt, ast_t** astp)
       TREE(t_params)
       TREE(params)
       TREE(ret_type)
+      NONE
       TREE(raises)
       TREE(body)
       NONE)); // Doc string
@@ -758,12 +764,29 @@ static bool capture_from_type(pass_opt_t* opt, ast_t* ctx, ast_t** def,
       {
         if(ast_id(ast_child(p)) != TK_AT)
         {
-          ast_t* body = ast_childidx(p, 6);
+          ast_t* body = ast_childidx(p, 7);
 
           if(!capture_from_expr(opt, ctx, body, capture, last_capture))
             ok = false;
         }
 
+        break;
+      }
+
+      case TK_METHODGROUP:
+      {
+        ast_t* mg_child = ast_child(p);
+        while(mg_child != NULL)
+        {
+          if(ast_id(ast_child(mg_child)) != TK_AT)
+          {
+            ast_t* body = ast_childidx(mg_child, 7);
+
+            if(!capture_from_expr(opt, ctx, body, capture, last_capture))
+              ok = false;
+          }
+          mg_child = ast_sibling(mg_child);
+        }
         break;
       }
 
@@ -942,6 +965,7 @@ bool expr_object(pass_opt_t* opt, ast_t** astp)
       NODE(TK_PARAMS)
       NONE
       NONE
+      NONE
       NODE(TK_SEQ,
         NODE(TK_TRUE))
       NONE));
@@ -968,7 +992,7 @@ bool expr_object(pass_opt_t* opt, ast_t** astp)
       NONE));
 
   ast_t* create_params = ast_childidx(create, 3);
-  ast_t* create_body = ast_childidx(create, 6);
+  ast_t* create_body = ast_childidx(create, 7);
   ast_t* call_args = ast_childidx(call, 1);
   ast_t* class_members = ast_childidx(def, 4);
   ast_t* member = ast_child(members);

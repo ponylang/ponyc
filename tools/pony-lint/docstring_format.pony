@@ -51,8 +51,11 @@ primitive DocstringFormat is ASTRule
     if is_method then
       // Skip methods inside \nodoc\-annotated entities
       try
-        let entity =
-          (node.parent() as ast.AST).parent() as ast.AST
+        var members = node.parent() as ast.AST
+        if members.id() == ast.TokenIds.tk_methodgroup() then
+          members = members.parent() as ast.AST
+        end
+        let entity = members.parent() as ast.AST
         if entity.has_annotation("nodoc") then
           return recover val Array[Diagnostic val] end
         end
@@ -62,15 +65,15 @@ primitive DocstringFormat is ASTRule
     // Find the docstring node
     let doc_node: ast.AST box =
       if is_method then
-        // Check child 7 first (abstract method docstring), then body(0)
+        // Check child 8 first (abstract method docstring), then body(0)
         let found =
           try
-            let c7 = node(7)?
-            if c7.id() == ast.TokenIds.tk_string() then
-              c7
+            let c8 = node(8)?
+            if c8.id() == ast.TokenIds.tk_string() then
+              c8
             else
               try
-                let body = node(6)?
+                let body = node(7)?
                 if body.id() != ast.TokenIds.tk_none() then
                   let b0 = body(0)?
                   if b0.id() == ast.TokenIds.tk_string() then

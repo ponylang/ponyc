@@ -112,6 +112,19 @@ bool symtab_add(symtab_t* symtab, const char* name, ast_t* def,
   return true;
 }
 
+bool symtab_replace(symtab_t* symtab, const char* name, ast_t* def)
+{
+  symbol_t s1 = {name, NULL, SYM_NONE, 0};
+  size_t index = HASHMAP_UNKNOWN;
+  symbol_t* s2 = symtab_get(symtab, &s1, &index);
+
+  if(s2 == NULL)
+    return false;
+
+  s2->def = def;
+  return true;
+}
+
 ast_t* symtab_find(symtab_t* symtab, const char* name, sym_status_t* status)
 {
   symbol_t s1 = {name, NULL, SYM_NONE, 0};

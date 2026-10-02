@@ -68,7 +68,7 @@ TEST_F(AnnotationsTest, AnnotateSugar)
 
   // Get the sugared `while` node.
   ast_t* ast = lookup_in(c_type, "test_for");
-  ast = ast_childidx(ast_child(ast_childidx(ast, 6)), 1);
+  ast = ast_childidx(ast_child(ast_childidx(ast, 7)), 1);
 
   ASSERT_TRUE(ast_has_annotation(ast, "a", opt.strtab));
   ASSERT_FALSE(ast_has_annotation(ast, "b", opt.strtab));
@@ -76,7 +76,7 @@ TEST_F(AnnotationsTest, AnnotateSugar)
 
   // Get the sugared `with` node.
   ast = lookup_in(c_type, "test_with");
-  ast = ast_childidx(ast_child(ast_childidx(ast, 6)), 1);
+  ast = ast_childidx(ast_child(ast_childidx(ast, 7)), 1);
 
   ASSERT_TRUE(ast_has_annotation(ast, "a", opt.strtab));
   ASSERT_FALSE(ast_has_annotation(ast, "b", opt.strtab));

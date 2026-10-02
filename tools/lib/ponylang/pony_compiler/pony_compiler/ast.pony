@@ -225,7 +225,7 @@ class val AST is (Stringable & Hashable & Equatable[AST box])
     | TokenIds.tk_type() =>
       _ASTReorderedChildIter(this, [5; 2; 0; 1; 3; 6; 4])
     | TokenIds.tk_fun() | TokenIds.tk_new() | TokenIds.tk_be() =>
-      _ASTReorderedChildIter(this, [0; 1; 2; 3; 4; 5; 7; 6])
+      _ASTReorderedChildIter(this, [0; 1; 2; 3; 4; 5; 6; 8; 7])
     | TokenIds.tk_ifdef() =>
       _ASTReorderedChildIter(this, [0; 3; 1; 2])
     else

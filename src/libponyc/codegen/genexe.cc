@@ -2667,10 +2667,15 @@ static void reach_exported_types(compile_t* c, ast_t* program)
         for(ast_t* member = ast_child(members); member != NULL;
           member = ast_sibling(member))
         {
-          if(ast_id(member) == TK_FUN &&
-            should_export_method(member, class_typeparams, typeargs))
+          ast_t* fun = member;
+
+          if(ast_id(fun) == TK_METHODGROUP)
+            fun = ast_child(fun);
+
+          if(ast_id(fun) == TK_FUN &&
+            should_export_method(fun, class_typeparams, typeargs))
           {
-            const char* method_name = ast_name(ast_childidx(member, 1));
+            const char* method_name = ast_name(ast_childidx(fun, 1));
             reach(c->reach, nominal, method_name, NULL, c->opt);
           }
         }

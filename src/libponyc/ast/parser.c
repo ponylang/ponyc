@@ -1184,8 +1184,42 @@ DEF(annotatedseq);
   SCOPE();
   DONE();
 
+// type SUBTYPE type (single constraint)
+DEF(iftypeguardsingle);
+  AST_NODE(TK_IFTYPEGUARD);
+  RULE("subtype", type);
+  SKIP(NULL, TK_SUBTYPE);
+  RULE("supertype", type);
+  AST_NODE(TK_NONE);
+  DONE();
+
+// AND iftypeguardsingle {AND iftypeguardsingle}
+DEF(iftypeguardandext);
+  INFIX_BUILD();
+  TOKEN(NULL, TK_AND);
+  MAP_ID(TK_AND, TK_IFTYPEGUARD_AND);
+  RULE("constraint", iftypeguardsingle);
+  WHILE(TK_AND, RULE("constraint", iftypeguardsingle));
+  DONE();
+
+// OR iftypeguardsingle {OR iftypeguardsingle}
+DEF(iftypeguardorext);
+  INFIX_BUILD();
+  TOKEN(NULL, TK_OR);
+  MAP_ID(TK_OR, TK_IFTYPEGUARD_OR);
+  RULE("constraint", iftypeguardsingle);
+  WHILE(TK_OR, RULE("constraint", iftypeguardsingle));
+  DONE();
+
+// IFTYPE_SET iftypeguardsingle [iftypeguardandext | iftypeguardorext]
+DEF(iftypeguard);
+  RULE("constraint", iftypeguardsingle);
+  OPT_NO_DFLT RULE("compound guard", iftypeguardandext, iftypeguardorext);
+  DONE();
+
 // (FUN | BE | NEW) [annotations] [CAP | AT] ID [typeparams]
-// (LPAREN | LPAREN_NEW) [params] RPAREN [COLON type] [QUESTION] [ARROW rawseq]
+// (LPAREN | LPAREN_NEW) [params] RPAREN [COLON type] [IFTYPE_SET guard]
+// [QUESTION] [STRING] [DBLARROW rawseq]
 DEF(method);
   TOKEN(NULL, TK_FUN, TK_BE, TK_NEW);
   ANNOTATE(annotations);
@@ -1197,12 +1231,13 @@ DEF(method);
   OPT RULE("parameters", params);
   SKIP(NULL, TK_RPAREN);
   IF(TK_COLON, RULE("return type", type));
+  IF(TK_IFTYPE_SET, RULE("iftype guard", iftypeguard));
   OPT TOKEN(NULL, TK_QUESTION);
   OPT TOKEN(NULL, TK_STRING);
   IF(TK_DBLARROW, RULE("method body", rawseq));
   // Order should be:
-  // cap id type_params params return_type error body docstring
-  REORDER(0, 1, 2, 3, 4, 5, 7, 6);
+  // cap id type_params params return_type guard error body docstring
+  REORDER(0, 1, 2, 3, 4, 5, 6, 8, 7);
   DONE();
 
 // (VAR | LET | EMBED) ID [COLON type] [ASSIGN infix]

@@ -57,9 +57,11 @@ RULE(class_def,
 
 RULE(provides, ONE_OR_MORE(type), TK_PROVIDES);
 
+RULE(method_group, ONE_OR_MORE(method), TK_METHODGROUP);
+
 RULE(members,
   ZERO_OR_MORE(field)
-  ZERO_OR_MORE(method),
+  ZERO_OR_MORE(method, method_group),
   TK_MEMBERS);
 
 RULE(field,
@@ -78,6 +80,7 @@ RULE(method,
   CHILD(type_params, none)
   CHILD(params, none)
   CHILD(type, none) // Return type
+  CHILD(iftypeguard, iftypeguard_and, iftypeguard_or, none) // Iftype guard
   CHILD(question, none)
   CHILD(rawseq, none)  // Body
   CHILD(string, none),
@@ -290,6 +293,20 @@ RULE(ifdef_not,
 RULE(ifdef_flag,
   CHILD(id),
   TK_IFDEFFLAG);
+
+RULE(iftypeguard,
+  CHILD(type) // Subtype
+  CHILD(type) // Supertype
+  CHILD(type_params, none), // Narrowed type parameters
+  TK_IFTYPEGUARD);
+
+RULE(iftypeguard_and,
+  CHILDREN(2, -1, iftypeguard),
+  TK_IFTYPEGUARD_AND);
+
+RULE(iftypeguard_or,
+  CHILDREN(2, -1, iftypeguard),
+  TK_IFTYPEGUARD_OR);
 
 RULE(iftypeset,
   IS_SCOPE

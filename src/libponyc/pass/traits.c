@@ -91,6 +91,15 @@ static method_t* attach_method_t(ast_t* method)
 
 
 // Setup a method_t structure for each method in the given type.
+static void setup_one_method(ast_t* entity, ast_t* method)
+{
+  method_t* info = attach_method_t(method);
+  info->local_define = true;
+
+  if(ast_id(ast_childidx(method, 7)) != TK_NONE)
+    info->body_donor = entity;
+}
+
 static void setup_local_methods(ast_t* ast)
 {
   pony_assert(ast != NULL);
@@ -102,15 +111,29 @@ static void setup_local_methods(ast_t* ast)
   {
     if(is_method(p))
     {
-      method_t* info = attach_method_t(p);
-      info->local_define = true;
-
-      if(ast_id(ast_childidx(p, 6)) != TK_NONE)
-        info->body_donor = ast;
+      setup_one_method(ast, p);
+    }
+    else if(ast_id(p) == TK_METHODGROUP)
+    {
+      for(ast_t* m = ast_child(p); m != NULL; m = ast_sibling(m))
+        setup_one_method(ast, m);
     }
   }
 }
 
+
+static void tidy_up_method(ast_t* entity, ast_t* method)
+{
+  method_t* info = (method_t*)ast_data(method);
+  pony_assert(info != NULL);
+  ast_t* body_donor = info->body_donor;
+  POOL_FREE(method_t, info);
+
+  if(body_donor == NULL)
+    body_donor = entity;
+
+  ast_setdata(method, body_donor);
+}
 
 // Tidy up the method_t structures in the given entity.
 static void tidy_up(ast_t* entity)
@@ -124,16 +147,12 @@ static void tidy_up(ast_t* entity)
   {
     if(is_method(p))
     {
-      method_t* info = (method_t*)ast_data(p);
-      pony_assert(info != NULL);
-      ast_t* body_donor = info->body_donor;
-      POOL_FREE(method_t, info);
-
-      if(body_donor == NULL)
-        // No body, donor should indicate containing type.
-        body_donor = entity;
-
-      ast_setdata(p, body_donor);
+      tidy_up_method(entity, p);
+    }
+    else if(ast_id(p) == TK_METHODGROUP)
+    {
+      for(ast_t* m = ast_child(p); m != NULL; m = ast_sibling(m))
+        tidy_up_method(entity, m);
     }
   }
 }
@@ -159,16 +178,18 @@ static bool compare_signatures(ast_t* sig_a, ast_t* sig_b)
     case TK_FUN:
     case TK_NEW:
     {
-      // Check everything except body and docstring, ie first 6 children.
+      // Check children 0-4 (cap, id, typeparams, params, result) and child 6
+      // (can_error). Skip child 5 (guard) — it distinguishes specializations,
+      // not conforming signatures.
       ast_t* a_child = ast_child(sig_a);
       ast_t* b_child = ast_child(sig_b);
 
-      for(int i = 0; i < 6; i++)
+      for(int i = 0; i < 7; i++)
       {
         if(a_child == NULL || b_child == NULL)
           return false;
 
-        if(!compare_signatures(a_child, b_child))
+        if(i != 5 && !compare_signatures(a_child, b_child))
           return false;
 
         a_child = ast_sibling(a_child);
@@ -259,7 +280,7 @@ static ast_t* reify_provides_type(ast_t* method, ast_t* trait_ref,
     return NULL;
 
   AST_GET_CHILDREN(reified, cap, id, typeparams, params, result,
-    can_error, body, doc);
+    guard, can_error, body, doc);
 
   return reified;
 }
@@ -278,7 +299,7 @@ static ast_t* find_method(ast_t* entity, const char* name)
   if(method == NULL)
     return NULL;
 
-  if(is_method(method))
+  if(is_method(method) || (ast_id(method) == TK_METHODGROUP))
     return method;
 
   return NULL;
@@ -360,6 +381,10 @@ static ast_t* add_method(ast_t* entity, ast_t* trait_ref, ast_t* basis_method,
         clash_name = ast_name(ast_childidx(case_clash, 1));
         break;
 
+      case TK_METHODGROUP:
+        clash_name = ast_name(ast_childidx(ast_child(case_clash), 1));
+        break;
+
       case TK_LET:
       case TK_VAR:
       case TK_EMBED:
@@ -380,7 +405,7 @@ static ast_t* add_method(ast_t* entity, ast_t* trait_ref, ast_t* basis_method,
   }
 
   AST_GET_CHILDREN(basis_method, cap, id, typeparams, params, result,
-    can_error, body, doc);
+    guard, can_error, body, doc);
 
   // Ignore docstring.
   if(ast_id(doc) == TK_STRING)
@@ -510,11 +535,14 @@ static bool add_method_from_trait(ast_t* entity, ast_t* method,
   pony_assert(method != NULL);
   pony_assert(trait_ref != NULL);
 
-  AST_GET_CHILDREN(method, cap, id, t_params, params, result, error,
+  AST_GET_CHILDREN(method, cap, id, t_params, params, result, guard, error,
     method_body);
 
   const char* method_name = ast_name(id);
   ast_t* existing_method = find_method(entity, method_name);
+
+  if(existing_method != NULL && ast_id(existing_method) == TK_METHODGROUP)
+    existing_method = ast_child(existing_method);
 
   if(existing_method == NULL)
   {
@@ -529,7 +557,7 @@ static bool add_method_from_trait(ast_t* entity, ast_t* method,
     if(m == NULL)
       return false;
 
-    if(ast_id(ast_childidx(m, 6)) != TK_NONE)
+    if(ast_id(ast_childidx(m, 7)) != TK_NONE)
     {
       if(body_donor != NULL)
         import_use_aliases(entity, body_donor, opt);
@@ -572,7 +600,7 @@ static bool add_method_from_trait(ast_t* entity, ast_t* method,
   }
 
   // Resolve bodies, if any.
-  ast_t* existing_body = ast_childidx(existing_method, 6);
+  ast_t* existing_body = ast_childidx(existing_method, 7);
 
   bool multiple_bodies =
     (info->body_donor != NULL) &&
@@ -610,6 +638,66 @@ static bool add_method_from_trait(ast_t* entity, ast_t* method,
 }
 
 
+static bool add_methodgroup_from_trait(ast_t* entity, ast_t* group,
+  ast_t* trait_ref, pass_opt_t* opt)
+{
+  pony_assert(ast_id(group) == TK_METHODGROUP);
+
+  ast_t* default_method = ast_child(group);
+  pony_assert(default_method != NULL);
+
+  const char* method_name = ast_name(ast_childidx(default_method, 1));
+  ast_t* existing = find_method(entity, method_name);
+
+  if(existing == NULL)
+  {
+    // No existing method — add the entire group.
+    ast_t* body_donor = (ast_t*)ast_data(default_method);
+
+    ast_t* local = ast_append(ast_childidx(entity, 4), group);
+    ast_set(entity, method_name, local, SYM_DEFINED, false, opt->strtab);
+
+    // Set up method_t on each child. Save each method's body donor before
+    // attach_method_t overwrites ast_data with the method_t pointer.
+    for(ast_t* m = ast_child(local); m != NULL; m = ast_sibling(m))
+    {
+      ast_t* m_donor = (ast_t*)ast_data(m);
+      method_t* info = attach_method_t(m);
+      info->trait_ref = trait_ref;
+
+      ast_t* m_body = ast_childidx(m, 7);
+      if(ast_id(m_body) != TK_NONE)
+        info->body_donor = m_donor;
+
+      // Strip docstrings.
+      ast_t* doc = ast_childidx(m, 8);
+      if(ast_id(doc) == TK_STRING)
+      {
+        ast_set_name(doc, "", opt->strtab);
+        ast_setid(doc, TK_NONE);
+        ast_settype(doc, NULL);
+      }
+    }
+
+    if(body_donor != NULL)
+      import_use_aliases(entity, body_donor, opt);
+
+    ast_visit(&local, rescope, NULL, opt, PASS_ALL);
+    return true;
+  }
+
+  // Existing method — fall back to individual method inheritance.
+  // The default and specializations are added one at a time, which handles
+  // signature matching and body resolution for each.
+  for(ast_t* m = ast_child(group); m != NULL; m = ast_sibling(m))
+  {
+    if(!add_method_from_trait(entity, m, trait_ref, opt))
+      return false;
+  }
+
+  return true;
+}
+
 // Process the methods provided to the given entity from all traits in its
 // provides list.
 static bool provided_methods(ast_t* entity, pass_opt_t* opt)
@@ -632,24 +720,59 @@ static bool provided_methods(ast_t* entity, pass_opt_t* opt)
     ast_t* members = ast_childidx(trait, 4);
 
     // Run through the methods of each provided type.
-    for(ast_t* method = ast_child(members); method != NULL;
-      method = ast_sibling(method))
+    for(ast_t* member = ast_child(members); member != NULL;
+      member = ast_sibling(member))
     {
-      pony_assert(is_method(method));
-
-      ast_t* reified = reify_provides_type(method, trait_ref, opt);
-
-      if(reified == NULL)
+      if(ast_id(member) == TK_METHODGROUP)
       {
-        // Reification error, already reported.
-        r = false;
+        // Build a reified copy of the entire group.
+        ast_t* reified_group = ast_from(member, TK_METHODGROUP);
+        bool group_ok = true;
+
+        for(ast_t* method = ast_child(member); method != NULL;
+          method = ast_sibling(method))
+        {
+          pony_assert(is_method(method));
+          ast_t* reified = reify_provides_type(method, trait_ref, opt);
+
+          if(reified == NULL)
+          {
+            group_ok = false;
+            break;
+          }
+
+          ast_append(reified_group, reified);
+        }
+
+        if(group_ok)
+        {
+          if(!add_methodgroup_from_trait(entity, reified_group, trait_ref, opt))
+            r = false;
+        }
+        else
+        {
+          r = false;
+        }
+
+        ast_free_unattached(reified_group);
       }
       else
       {
-        if(!add_method_from_trait(entity, reified, trait_ref, opt))
-          r = false;
+        pony_assert(is_method(member));
 
-        ast_free_unattached(reified);
+        ast_t* reified = reify_provides_type(member, trait_ref, opt);
+
+        if(reified == NULL)
+        {
+          r = false;
+        }
+        else
+        {
+          if(!add_method_from_trait(entity, reified, trait_ref, opt))
+            r = false;
+
+          ast_free_unattached(reified);
+        }
       }
     }
   }
@@ -685,18 +808,44 @@ static bool check_concrete_bodies(ast_t* entity, pass_opt_t* opt)
 
         if(ast_checkflag(p, AST_FLAG_AMBIGUOUS))
         {
-          // Concrete types must not have ambiguous bodies.
           ast_error(opt->check.errors, entity, "multiple possible bodies for "
             "method %s, local disambiguation required", name);
           r = false;
         }
         else if(info->body_donor == NULL)
         {
-          // Concrete types must have method bodies.
           pony_assert(info->trait_ref != NULL);
           ast_error(opt->check.errors, info->trait_ref,
             "no body found for method '%s'", name);
           r = false;
+        }
+      }
+    }
+    else if(ast_id(p) == TK_METHODGROUP)
+    {
+      for(ast_t* m = ast_child(p); m != NULL; m = ast_sibling(m))
+      {
+        method_t* info = (method_t*)ast_data(m);
+        pony_assert(info != NULL);
+
+        if(!info->failed)
+        {
+          const char* name = ast_name(ast_childidx(m, 1));
+
+          if(ast_checkflag(m, AST_FLAG_AMBIGUOUS))
+          {
+            ast_error(opt->check.errors, entity,
+              "multiple possible bodies for "
+              "method %s, local disambiguation required", name);
+            r = false;
+          }
+          else if(info->body_donor == NULL)
+          {
+            pony_assert(info->trait_ref != NULL);
+            ast_error(opt->check.errors, info->trait_ref,
+              "no body found for method '%s'", name);
+            r = false;
+          }
         }
       }
     }
@@ -869,6 +1018,7 @@ static bool add_comparable(ast_t* ast, pass_opt_t* opt)
             NONE))
         NODE(TK_NOMINAL, NONE ID("Bool") NONE NONE NONE)
         NONE
+        NONE
         NODE(TK_SEQ,
           NODE(TK_IS,
             NODE(TK_THIS)
@@ -900,6 +1050,7 @@ static bool add_comparable(ast_t* ast, pass_opt_t* opt)
             NODE(TK_NOMINAL, NONE TREE(id) TREE(typeargs) NONE NONE)
             NONE))
         NODE(TK_NOMINAL, NONE ID("Bool") NONE NONE NONE)
+        NONE
         NONE
         NODE(TK_SEQ,
           NODE(TK_ISNT,

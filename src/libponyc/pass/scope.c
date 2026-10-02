@@ -38,6 +38,7 @@ static bool set_scope(pass_opt_t* opt, ast_t* scope, ast_t* name, ast_t* value,
     case TK_NEW:
     case TK_BE:
     case TK_FUN:
+    case TK_METHODGROUP:
       break;
 
     case TK_VAR:
@@ -104,6 +105,11 @@ bool use_package(ast_t* ast, const char* path, ast_t* name,
   return true;
 }
 
+static bool has_guard(ast_t* method)
+{
+  return ast_id(ast_childidx(method, 5)) != TK_NONE;
+}
+
 static bool scope_method(pass_opt_t* opt, ast_t* ast)
 {
   ast_t* id = ast_childidx(ast, 1);
@@ -127,6 +133,8 @@ static ast_result_t scope_entity(pass_opt_t* opt, ast_t* ast)
 
   while(member != NULL)
   {
+    ast_t* next = ast_sibling(member);
+
     switch(ast_id(member))
     {
       case TK_FVAR:
@@ -139,8 +147,117 @@ static ast_result_t scope_entity(pass_opt_t* opt, ast_t* ast)
       case TK_NEW:
       case TK_BE:
       case TK_FUN:
-        if(!scope_method(opt, member))
-          return AST_ERROR;
+      {
+        const char* name = ast_name(ast_childidx(member, 1));
+        ast_t* existing = ast_get(ast, name, NULL);
+
+        if(existing == NULL)
+        {
+          if(!scope_method(opt, member))
+            return AST_ERROR;
+        }
+        else if(ast_id(existing) == TK_METHODGROUP)
+        {
+          if(ast_id(member) != ast_id(ast_child(existing)))
+          {
+            ast_error(opt->check.errors, member,
+              "can't mix method kinds in overloaded '%s'", name);
+            ast_error_continue(opt->check.errors, ast_child(existing),
+              "first definition is here");
+            return AST_ERROR;
+          }
+
+          if(!has_guard(member))
+          {
+            ast_error(opt->check.errors, member,
+              "duplicate default for overloaded '%s'", name);
+            ast_t* child = ast_child(existing);
+            while(child != NULL)
+            {
+              if(!has_guard(child))
+              {
+                ast_error_continue(opt->check.errors, child,
+                  "previous default is here");
+                break;
+              }
+              child = ast_sibling(child);
+            }
+            return AST_ERROR;
+          }
+
+          // Detach member from the members list without freeing it.
+          ast_t* placeholder = ast_from(member, TK_NONE);
+          ast_swap(member, placeholder);
+          ast_remove(placeholder);
+
+          ast_append(existing, member);
+        }
+        else
+        {
+          ast_t* existing_guard = ast_childidx(existing, 5);
+          ast_t* member_guard = ast_childidx(member, 5);
+          bool existing_has_guard = ast_id(existing_guard) != TK_NONE;
+          bool member_has_guard = ast_id(member_guard) != TK_NONE;
+
+          if(!existing_has_guard && !member_has_guard)
+          {
+            ast_error(opt->check.errors, member,
+              "can't reuse name '%s'", name);
+            ast_error_continue(opt->check.errors, existing,
+              "previous use of '%s'", name);
+            return AST_ERROR;
+          }
+
+          if(ast_id(member) != ast_id(existing))
+          {
+            ast_error(opt->check.errors, member,
+              "can't mix method kinds in overloaded '%s'", name);
+            ast_error_continue(opt->check.errors, existing,
+              "first definition is here");
+            return AST_ERROR;
+          }
+
+          ast_t* group = ast_from(existing, TK_METHODGROUP);
+
+          if(existing_has_guard)
+          {
+            if(member_has_guard)
+            {
+              ast_free_unattached(group);
+              ast_error(opt->check.errors, member,
+                "overloaded '%s' has no default method "
+                "(without a guard)", name);
+              ast_error_continue(opt->check.errors, existing,
+                "other definition is here");
+              return AST_ERROR;
+            }
+            // member is the default, existing is a specialization.
+            // Default goes first.
+            ast_t* placeholder = ast_from(member, TK_NONE);
+            ast_swap(member, placeholder);
+            ast_remove(placeholder);
+            ast_append(group, member);
+            ast_swap(existing, group);
+            ast_append(group, existing);
+          }
+          else
+          {
+            // existing is the default, member is a specialization.
+            ast_t* placeholder = ast_from(member, TK_NONE);
+            ast_swap(member, placeholder);
+            ast_remove(placeholder);
+            ast_swap(existing, group);
+            ast_append(group, existing);
+            ast_append(group, member);
+          }
+
+          symtab_t* symtab = ast_get_symtab(ast);
+          symtab_replace(symtab, name, group);
+        }
+        break;
+      }
+
+      case TK_METHODGROUP:
         break;
 
       default:
@@ -148,7 +265,7 @@ static ast_result_t scope_entity(pass_opt_t* opt, ast_t* ast)
         return AST_FATAL;
     }
 
-    member = ast_sibling(member);
+    member = next;
   }
 
   return AST_OK;
@@ -356,6 +473,250 @@ static bool scope_assign(pass_opt_t* opt, ast_t* ast)
   return true;
 }
 
+static bool set_scope_guard(pass_opt_t* opt, ast_t* method, ast_t* typeparam)
+{
+  ast_t* id = ast_child(typeparam);
+  pony_assert(ast_id(id) == TK_ID);
+  const char* name = ast_name(id);
+
+  if(ast_set(method, name, typeparam, SYM_NONE, true, opt->strtab))
+    return true;
+
+  // The name already exists in the method's local scope. This happens when
+  // an AND guard constrains the same type parameter twice, or when the guard
+  // constrains a method-level type parameter. In both cases
+  // make_iftype_typeparam already built the correct narrowed constraint from
+  // the existing entry; replace it.
+  symtab_t* symtab = ast_get_symtab(method);
+
+  if((symtab != NULL) && symtab_replace(symtab, name, typeparam))
+    return true;
+
+  ast_error(opt->check.errors, id, "can't reuse name '%s'", name);
+  return false;
+}
+
+static ast_result_t scope_iftype_guard(pass_opt_t* opt, ast_t* ast)
+{
+  pony_assert(ast_id(ast) == TK_IFTYPEGUARD);
+
+  AST_GET_CHILDREN(ast, subtype, supertype, typeparam_store);
+  ast_t* parent = ast_parent(ast);
+
+  // Disjunction children are handled by scope_iftype_guard_or.
+  if(ast_id(parent) == TK_IFTYPEGUARD_OR)
+    return AST_OK;
+
+  // Walk past compound guard nodes to find the method.
+  ast_t* method = parent;
+  if(ast_id(method) == TK_IFTYPEGUARD_AND)
+    method = ast_parent(method);
+
+  if(ast_id(typeparam_store) != TK_NONE)
+  {
+    for(ast_t* typeparam = ast_child(typeparam_store); typeparam != NULL;
+      typeparam = ast_sibling(typeparam))
+    {
+      if(!set_scope_guard(opt, method, typeparam))
+        return AST_ERROR;
+    }
+
+    return AST_OK;
+  }
+
+  ast_t* typeparams = ast_from(ast, TK_TYPEPARAMS);
+
+  switch(ast_id(subtype))
+  {
+    case TK_NOMINAL:
+    {
+      ast_t* typeparam = make_iftype_typeparam(opt, subtype, supertype,
+        method);
+      if(typeparam == NULL)
+      {
+        ast_free_unattached(typeparams);
+        return AST_ERROR;
+      }
+
+      if(!set_scope_guard(opt, method, typeparam))
+      {
+        ast_free_unattached(typeparams);
+        return AST_ERROR;
+      }
+
+      ast_add(typeparams, typeparam);
+      break;
+    }
+
+    case TK_TUPLETYPE:
+    {
+      if(ast_id(supertype) != TK_TUPLETYPE)
+      {
+        ast_error(opt->check.errors, subtype, "the subtype in an iftype guard "
+          "is a tuple but the supertype is not");
+        ast_free_unattached(typeparams);
+        return AST_ERROR;
+      }
+
+      if(ast_childcount(subtype) != ast_childcount(supertype))
+      {
+        ast_error(opt->check.errors, subtype, "the subtype and the supertype "
+          "in an iftype guard must have the same cardinality");
+        ast_free_unattached(typeparams);
+        return AST_ERROR;
+      }
+
+      ast_t* sub_child = ast_child(subtype);
+      ast_t* super_child = ast_child(supertype);
+      while(sub_child != NULL)
+      {
+        ast_t* typeparam = make_iftype_typeparam(opt, sub_child, super_child,
+          method);
+        if(typeparam == NULL)
+        {
+          ast_free_unattached(typeparams);
+          return AST_ERROR;
+        }
+
+        if(!set_scope_guard(opt, method, typeparam))
+        {
+          ast_free_unattached(typeparams);
+          return AST_ERROR;
+        }
+
+        ast_add(typeparams, typeparam);
+        sub_child = ast_sibling(sub_child);
+        super_child = ast_sibling(super_child);
+      }
+
+      break;
+    }
+
+    default:
+      ast_error(opt->check.errors, subtype, "the subtype in an iftype guard "
+        "must be a type parameter or a tuple of type parameters");
+      ast_free_unattached(typeparams);
+      return AST_ERROR;
+  }
+
+  ast_swap(typeparam_store, typeparams);
+  ast_free_unattached(typeparam_store);
+
+  return AST_OK;
+}
+
+static ast_result_t scope_iftype_guard_or(pass_opt_t* opt, ast_t* ast)
+{
+  pony_assert(ast_id(ast) == TK_IFTYPEGUARD_OR);
+
+  ast_t* method = ast_parent(ast);
+
+  // Collect all unique type parameter names across branches, then build a
+  // union constraint for each.
+
+  // First child drives which parameters get narrowed. Each parameter's
+  // supertype is unioned with matching supertypes from subsequent children.
+  ast_t* first = ast_child(ast);
+  pony_assert(ast_id(first) == TK_IFTYPEGUARD);
+
+  AST_GET_CHILDREN(first, first_sub, first_super, first_store);
+
+  if(ast_id(first_store) != TK_NONE)
+  {
+    // Already processed. Set scope from stored typeparams on first child only.
+    for(ast_t* tp = ast_child(first_store); tp != NULL;
+      tp = ast_sibling(tp))
+    {
+      if(!set_scope(opt, method, ast_child(tp), tp, true))
+        return AST_ERROR;
+    }
+    return AST_OK;
+  }
+
+  if(ast_id(first_sub) != TK_NOMINAL)
+  {
+    ast_error(opt->check.errors, first_sub,
+      "the subtype in an iftype guard must be a type parameter "
+      "or a tuple of type parameters");
+    return AST_ERROR;
+  }
+
+  const char* name = ast_name(ast_childidx(first_sub, 1));
+  ast_t* def = ast_get(method, name, NULL);
+  if(def == NULL)
+  {
+    ast_error(opt->check.errors, first_sub,
+      "can't find definition of '%s'", name);
+    return AST_ERROR;
+  }
+
+  if(ast_id(def) != TK_TYPEPARAM)
+  {
+    ast_error(opt->check.errors, first_sub,
+      "the subtype in an iftype guard must be a type parameter "
+      "or a tuple of type parameters");
+    return AST_ERROR;
+  }
+
+  // Build union of supertypes from all branches. All branches must constrain
+  // the same type parameter.
+  ast_t* union_super = ast_dup(first_super);
+
+  ast_t* other = ast_sibling(first);
+  while(other != NULL)
+  {
+    pony_assert(ast_id(other) == TK_IFTYPEGUARD);
+    ast_t* o_sub = ast_child(other);
+    ast_t* o_super = ast_childidx(other, 1);
+
+    if(ast_id(o_sub) != TK_NOMINAL)
+    {
+      ast_error(opt->check.errors, o_sub,
+        "the subtype in an iftype guard must be a type parameter "
+        "or a tuple of type parameters");
+      ast_free_unattached(union_super);
+      return AST_ERROR;
+    }
+
+    const char* o_name = ast_name(ast_childidx(o_sub, 1));
+    if(o_name != name)
+    {
+      ast_error(opt->check.errors, o_sub,
+        "all branches of an 'or' guard must constrain the same type "
+        "parameter");
+      ast_error_continue(opt->check.errors, first_sub,
+        "first branch constrains '%s'", name);
+      ast_free_unattached(union_super);
+      return AST_ERROR;
+    }
+
+    BUILD(u, union_super,
+      NODE(TK_UNIONTYPE,
+        TREE(union_super)
+        TREE(ast_dup(o_super))));
+    union_super = u;
+
+    other = ast_sibling(other);
+  }
+
+  ast_t* typeparam = make_iftype_typeparam(opt, first_sub, union_super, method);
+  ast_free_unattached(union_super);
+
+  if(typeparam == NULL)
+    return AST_ERROR;
+
+  if(!set_scope(opt, method, ast_child(typeparam), typeparam, true))
+    return AST_ERROR;
+
+  // Store the narrowed typeparam on the first child's typeparam_store.
+  ast_t* typeparams = ast_from(first, TK_TYPEPARAMS);
+  ast_add(typeparams, typeparam);
+  ast_swap(first_store, typeparams);
+  ast_free_unattached(first_store);
+
+  return AST_OK;
+}
+
 ast_result_t pass_scope(ast_t** astp, pass_opt_t* options)
 {
   ast_t* ast = *astp;
@@ -394,6 +755,12 @@ ast_result_t pass_scope(ast_t** astp, pass_opt_t* options)
 
     case TK_IFTYPE:
       return scope_iftype(options, ast);
+
+    case TK_IFTYPEGUARD:
+      return scope_iftype_guard(options, ast);
+
+    case TK_IFTYPEGUARD_OR:
+      return scope_iftype_guard_or(options, ast);
 
     case TK_CALL:
       if(!scope_call(options, ast))

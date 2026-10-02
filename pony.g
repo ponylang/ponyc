@@ -50,7 +50,23 @@ field
   ;
 
 method
-  : ('fun' | 'be' | 'new') ('\\' annotationelem (',' annotationelem)* '\\')? (cap | '@')? ID typeparams? ('(' | LPAREN_NEW) params? ')' (':' type)? '?'? STRING? ('=>' rawseq)?
+  : ('fun' | 'be' | 'new') ('\\' annotationelem (',' annotationelem)* '\\')? (cap | '@')? ID typeparams? ('(' | LPAREN_NEW) params? ')' (':' type)? ('iftype' iftypeguard)? '?'? STRING? ('=>' rawseq)?
+  ;
+
+iftypeguard
+  : iftypeguardsingle (iftypeguardandext | iftypeguardorext)?
+  ;
+
+iftypeguardorext
+  : 'or' iftypeguardsingle ('or' iftypeguardsingle)*
+  ;
+
+iftypeguardandext
+  : 'and' iftypeguardsingle ('and' iftypeguardsingle)*
+  ;
+
+iftypeguardsingle
+  : type '<:' type
   ;
 
 annotatedrawseq

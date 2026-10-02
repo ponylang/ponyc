@@ -322,6 +322,10 @@ static bool is_constructed_from(ast_t* ast)
       }
 
       ast_t* find = ast_get(typedefn, ast_name(right), NULL);
+
+      if((find != NULL) && (ast_id(find) == TK_METHODGROUP))
+        find = ast_child(find);
+
       bool result = (find != NULL) && (ast_id(find) == TK_NEW);
 
       if(unfolded != NULL)
@@ -533,6 +537,7 @@ bool refer_reference(pass_opt_t* opt, ast_t** astp)
     case TK_FVAR:
     case TK_FLET:
     case TK_EMBED:
+    case TK_METHODGROUP:
     case TK_NEW:
     case TK_BE:
     case TK_FUN:
@@ -1288,6 +1293,10 @@ static bool refer_pre_new(pass_opt_t* opt, ast_t* ast)
 
   // Set all fields to undefined at the start of this scope.
   ast_t* members = ast_parent(ast);
+
+  if(ast_id(members) == TK_METHODGROUP)
+    members = ast_parent(members);
+
   ast_t* member = ast_child(members);
   while(member != NULL)
   {

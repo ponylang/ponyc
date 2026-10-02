@@ -107,9 +107,9 @@ primitive MethodDeclarationFormat is ASTRule
       end
     end
 
-    // Check '=>' alignment (child 6 = body)
+    // Check '=>' alignment (child 7 = body)
     try
-      let body = node(6)?
+      let body = node(7)?
       if body.id() != ast.TokenIds.tk_none() then
         let body_line = body.line()
         if body_line > keyword_line then

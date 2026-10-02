@@ -518,8 +518,8 @@ static bool genfun_fun(compile_t* c, reach_type_t* t, reach_method_t* m)
   compile_method_t* c_m = (compile_method_t*)m->c_method;
   pony_assert(c_m->func != NULL);
 
-  AST_GET_CHILDREN(m->fun->ast, cap, id, typeparams, params, result, can_error,
-    body);
+  AST_GET_CHILDREN(m->fun->ast, cap, id, typeparams, params, result, guard,
+    can_error, body);
 
   codegen_startfun(c, c_m->func, c_m->di_file, c_m->di_method, m->fun,
     ast_id(cap) == TK_AT);
@@ -599,8 +599,8 @@ static bool genfun_be(compile_t* c, reach_type_t* t, reach_method_t* m)
   pony_assert(c_m->func != NULL);
   pony_assert(c_m->func_handler != NULL);
 
-  AST_GET_CHILDREN(m->fun->ast, cap, id, typeparams, params, result, can_error,
-    body);
+  AST_GET_CHILDREN(m->fun->ast, cap, id, typeparams, params, result, guard,
+    can_error, body);
 
   // Generate the handler.
   codegen_startfun(c, c_m->func_handler, c_m->di_file, c_m->di_method, m->fun,
@@ -648,8 +648,8 @@ static bool genfun_new(compile_t* c, reach_type_t* t, reach_method_t* m)
   compile_method_t* c_m = (compile_method_t*)m->c_method;
   pony_assert(c_m->func != NULL);
 
-  AST_GET_CHILDREN(m->fun->ast, cap, id, typeparams, params, result, can_error,
-    body);
+  AST_GET_CHILDREN(m->fun->ast, cap, id, typeparams, params, result, guard,
+    can_error, body);
 
   codegen_startfun(c, c_m->func, c_m->di_file, c_m->di_method, m->fun, false);
   c->frame->is_partial = c_m->is_partial;
@@ -697,8 +697,8 @@ static bool genfun_newbe(compile_t* c, reach_type_t* t, reach_method_t* m)
   pony_assert(c_m->func != NULL);
   pony_assert(c_m->func_handler != NULL);
 
-  AST_GET_CHILDREN(m->fun->ast, cap, id, typeparams, params, result, can_error,
-    body);
+  AST_GET_CHILDREN(m->fun->ast, cap, id, typeparams, params, result, guard,
+    can_error, body);
 
   // Generate the handler.
   codegen_startfun(c, c_m->func_handler, c_m->di_file, c_m->di_method, m->fun,
