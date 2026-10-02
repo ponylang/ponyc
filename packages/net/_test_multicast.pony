@@ -8,10 +8,6 @@ class \nodoc\ iso _TestMulticastSockopt is UnitTest
   `setsockopt_u32`/`getsockopt_u32` at `IPPROTO_IP` level. Setting them at
   the wrong level (the prior `SOL_SOCKET` bug) either fails the `setsockopt`
   or reads back the wrong value.
-
-  Platform: not macOS/BSD — those return multicast options as 1-byte
-  `u_char` instead of 4-byte `u32`, so `getsockopt_u32` fails regardless of
-  correctness.
   """
   fun name(): String => "net/MulticastSockopt"
 
@@ -427,29 +423,24 @@ actor \nodoc\ _TestMulticastConvenienceSockoptActor
   fun ref _socket(): UDPSocket => _udp
 
   fun ref _on_bound() =>
-    // macOS/BSD packs TTL as 1 byte; getsockopt_u32 can't read it back.
     let ttl_err = _udp.set_multicast_ttl(7)
     _h.assert_eq[U32](0, ttl_err, "set_multicast_ttl failed")
-    ifdef (not osx) and (not bsd) then
-      (let ttl_get_err, let ttl) =
-        _udp.getsockopt_u32(
-          OSSockOpt.ipproto_ip(), OSSockOpt.ip_multicast_ttl())
-      _h.assert_eq[U32](0, ttl_get_err, "getsockopt IP_MULTICAST_TTL failed")
-      _h.assert_eq[U32](7, ttl, "IP_MULTICAST_TTL did not round-trip")
-    end
+    (let ttl_get_err, let ttl) =
+      _udp.getsockopt_u32(
+        OSSockOpt.ipproto_ip(), OSSockOpt.ip_multicast_ttl())
+    _h.assert_eq[U32](0, ttl_get_err, "getsockopt IP_MULTICAST_TTL failed")
+    _h.assert_eq[U32](7, ttl, "IP_MULTICAST_TTL did not round-trip")
 
     let loop_err = _udp.set_multicast_loopback_v4(false)
     _h.assert_eq[U32](0, loop_err, "set_multicast_loopback_v4 failed")
-    ifdef (not osx) and (not bsd) then
-      (let loop_get_err, let loop') =
-        _udp.getsockopt_u32(
-          OSSockOpt.ipproto_ip(), OSSockOpt.ip_multicast_loop())
-      _h.assert_eq[U32](
-        0,
-        loop_get_err,
-        "getsockopt IP_MULTICAST_LOOP failed")
-      _h.assert_eq[U32](0, loop', "IP_MULTICAST_LOOP did not round-trip")
-    end
+    (let loop_get_err, let loop') =
+      _udp.getsockopt_u32(
+        OSSockOpt.ipproto_ip(), OSSockOpt.ip_multicast_loop())
+    _h.assert_eq[U32](
+      0,
+      loop_get_err,
+      "getsockopt IP_MULTICAST_LOOP failed")
+    _h.assert_eq[U32](0, loop', "IP_MULTICAST_LOOP did not round-trip")
 
     let if4_err = _udp.set_multicast_interface_v4("127.0.0.1")
     _h.assert_eq[U32](0, if4_err, "set_multicast_interface_v4 failed")

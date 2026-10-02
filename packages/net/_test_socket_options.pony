@@ -200,6 +200,56 @@ class \nodoc\ iso _TestSocketOptionsNotConnected is UnitTest
       gen_errno != 0,
       "getsockopt on none should return non-zero errno")
 
+class \nodoc\ iso _TestBytesToU32 is UnitTest
+  """
+  `_OSSocket._bytes_to_u32` converts 1, 2, and 4-byte arrays to U32 and
+  errors on other sizes.
+  """
+  fun name(): String => "net/BytesToU32"
+
+  fun apply(h: TestHelper) =>
+    // 4-byte: native-endian round-trip through push_u32/read_u32
+    try
+      let b4 = Array[U8](4) .> push_u32(0x12345678)
+      h.assert_eq[U32](0x12345678, _OSSocket._bytes_to_u32(b4)?)
+    else
+      h.fail("4-byte conversion raised error")
+    end
+
+    // 2-byte: native-endian round-trip through push_u16/read_u16
+    try
+      let b2 = Array[U8](2) .> push_u16(0x1234)
+      h.assert_eq[U32](0x1234, _OSSocket._bytes_to_u32(b2)?)
+    else
+      h.fail("2-byte conversion raised error")
+    end
+
+    // 1-byte: zero-extended
+    try
+      let b1: Array[U8] = [as U8: 0xAB]
+      h.assert_eq[U32](0xAB, _OSSocket._bytes_to_u32(b1)?)
+    else
+      h.fail("1-byte conversion raised error")
+    end
+
+    // 0 bytes: must error
+    try
+      _OSSocket._bytes_to_u32(Array[U8])?
+      h.fail("0-byte should have raised error")
+    end
+
+    // 3 bytes: must error
+    try
+      _OSSocket._bytes_to_u32([as U8: 1; 2; 3])?
+      h.fail("3-byte should have raised error")
+    end
+
+    // 5 bytes: must error
+    try
+      _OSSocket._bytes_to_u32([as U8: 1; 2; 3; 4; 5])?
+      h.fail("5-byte should have raised error")
+    end
+
 actor \nodoc\ _TestSocketOptionsClient is
   (TCPConnectionActor & ClientLifecycleEventReceiver)
   """
