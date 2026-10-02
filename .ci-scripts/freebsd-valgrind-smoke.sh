@@ -55,7 +55,7 @@ PONY
 
 # Compile a program with the Valgrind-annotated ponyc — confirms it produces a
 # working binary.
-PONYPATH="$PWD/packages" "$out/ponyc" --debug -o "$smoke" "$smoke"
+PONYPATH="$PWD/packages" "$out/ponyc" --debug --cpu x86-64 -o "$smoke" "$smoke"
 
 # Run the program UNDER Valgrind. The whole point: a Pony program runs to
 # completion under Valgrind on FreeBSD, where DragonFly's older Valgrind hangs on
