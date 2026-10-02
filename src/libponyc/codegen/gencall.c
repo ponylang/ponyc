@@ -502,6 +502,9 @@ static LLVMValueRef gen_guarded_devirt_call(compile_t* c, reach_type_t* t,
   // Guarded devirt cascades inflate the function's inline cost past LLVM's
   // default threshold. Raise the threshold for these functions so LTO inlines
   // them into callers where concrete types become visible.
+  // Skip in sanitizer builds — the extra inlining is a performance
+  // optimization that multiplies compile time under instrumentation.
+#if !defined(PONY_SANITIZER)
   // Skip if the user already set an inline annotation (\inline\, \inline(N)\,
   // or \noinline\) — those take precedence.
   LLVMValueRef fn = codegen_fun(c);
@@ -526,6 +529,7 @@ static LLVMValueRef gen_guarded_devirt_call(compile_t* c, reach_type_t* t,
       strlen("function-inline-threshold"), "500", 3);
     LLVMAddAttributeAtIndex(fn, LLVMAttributeFunctionIndex, threshold_attr);
   }
+#endif
 
   return result;
 }
