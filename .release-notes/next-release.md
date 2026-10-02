@@ -151,3 +151,7 @@ The architecture mirrors `UDPSocket`: a `ConnectedUDPSocket` class holds the sta
 
 Initialization has three outcomes: bind failure (`_on_bind_failure`), connect failure (`_on_connect_failure`), or success (`_on_connected`). The peer is fixed at creation — there is no disconnect or reconnect.
 
+## Fix getsockopt_u32 failing on platforms that return sub-4-byte socket options
+
+On some platforms, the kernel returns certain socket options in fewer than 4 bytes. For example, arm64 Windows returns IPv6 multicast options in fewer bytes, and macOS returns IPv4 multicast options as a 1-byte `u_char`. Previously, `getsockopt_u32` required exactly 4 bytes and reported an error when it received fewer. Now it correctly handles 1, 2, and 4-byte returns by zero-extending to `U32`.
+
