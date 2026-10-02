@@ -539,6 +539,9 @@ class val TestHelper
   =>
     _runner._property_cover(condition, label, min_pct, sample_id)
 
+  fun _property_target(score: F64, label: String, sample_id: USize) =>
+    _runner._property_target(score, label, sample_id)
+
   fun _start_property(exec: _PropertyExecution iso) =>
     """
     Enter property mode.

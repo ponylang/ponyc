@@ -42,6 +42,14 @@ class val PropertyHelper
     """
     _h._property_cover(condition, label, min_pct, _sample_id)
 
+  fun target(score: F64, label: String = "") =>
+    """
+    Bias future generation toward inputs that maximize `score`.
+    Call with different labels to track multiple independent
+    objectives. To minimize, negate the score.
+    """
+    _h._property_target(score, label, _sample_id)
+
   fun log(msg: String, verbose: Bool = false) =>
     """
     Log a message. When `verbose` is true, the message is only shown

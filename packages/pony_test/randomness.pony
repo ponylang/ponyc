@@ -313,6 +313,18 @@ class ref Randomness
     _spans =
       recover iso Array[_Span val] end
 
+  fun ref _snapshot_choices(): Array[_Choice val] val =>
+    let n = _choices.size()
+    var result = recover iso Array[_Choice val](n) end
+    try
+      var i: USize = 0
+      while i < n do
+        result.push(_choices(i)?)
+        i = i + 1
+      end
+    end
+    consume result
+
   fun _consumed(): USize =>
     _replay_idx
 

@@ -1069,3 +1069,11 @@ actor _TestRunner
     | let exec: _PropertyExecution =>
       exec.cover(condition, label, min_pct)
     end
+
+  be _property_target(score: F64, label: String, sample_id: USize) =>
+    if sample_id != _prop_sample_id then return end
+    if _property_phase.in_replay() then return end
+    match _property_exec
+    | let exec: _PropertyExecution =>
+      exec.target(score, label)
+    end
