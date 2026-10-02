@@ -158,13 +158,13 @@ primitive _OSSocket
     end
 
   fun set_so(fd: U32, level: I32, option_name: I32, option: Array[U8]): U32 =>
-    var option_size: U32 = option.size().u32()
     """
     Low-level interface to `setsockopt(2)`.
 
     This function returns `0` on success, else the value of `errno` on
     failure.
     """
+    var option_size: U32 = option.size().u32()
     let result: I32 =
       @setsockopt(
         fd, level, option_name, option.cpointer(), option_size)
