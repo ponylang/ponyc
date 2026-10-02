@@ -6,7 +6,7 @@ actor scheduling. The I/O state machine lives in a plain class that your actor
 delegates to. This separation gives you control over how your actor is
 structured while the library handles the low-level I/O.
 
-The net package covers TCP and UDP.
+The net package covers TCP, UDP, and connected UDP.
 
 ## TCP
 
@@ -684,6 +684,51 @@ processing a buffer's worth of bytes or the per-turn datagram ceiling
 
 Unlike TCP, there is no `mute()`/`unmute()`. Datagrams that arrive while the
 read loop is yielded may be dropped by the kernel.
+
+## Connected UDP
+
+A connected UDP socket calls POSIX `connect()` on its file descriptor, which
+sets a default peer and tells the kernel to filter incoming datagrams by source
+address. Use [`ConnectedUDPSocket`](/net/net-ConnectedUDPSocket/) when a
+socket talks to exactly one peer.
+
+Your actor implements
+[`ConnectedUDPSocketActor`](/net/net-ConnectedUDPSocketActor/) and
+[`ConnectedUDPLifecycleEventReceiver`](/net/net-ConnectedUDPLifecycleEventReceiver/).
+Initialization has three outcomes: bind failure, connect failure, or success.
+The peer is fixed at creation — there is no disconnect or reconnect.
+
+```pony
+use "net"
+
+actor MyClient
+  is (ConnectedUDPSocketActor & ConnectedUDPLifecycleEventReceiver)
+  var _udp: ConnectedUDPSocket = ConnectedUDPSocket.none()
+
+  new create(auth: UDPAuth,
+    peer_host: String, peer_port: String)
+  =>
+    _udp = ConnectedUDPSocket(auth, "", "0",
+      peer_host, peer_port, this, this)
+
+  fun ref _socket(): ConnectedUDPSocket => _udp
+
+  fun ref _on_connected() =>
+    match \exhaustive\ _udp.send("hello")
+    | UDPSendOk => None
+    | let _: UDPSendFailure => None
+    end
+
+  fun ref _on_bind_failure() => None
+  fun ref _on_connect_failure() => None
+
+  fun ref _on_received(data: Array[U8] iso): ReadAction =>
+    KeepReading
+```
+
+`send` returns a [`UDPSendResult`](/net/net-UDPSendResult/) — the same
+synchronous, all-or-nothing semantics as unconnected UDP's `send_to`, without
+the destination address.
 
 ## Auth Hierarchy
 

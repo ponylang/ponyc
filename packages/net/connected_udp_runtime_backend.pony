@@ -1,26 +1,20 @@
-use @pony_os_listen_udp[AsioEventID](the_actor: AsioEventNotify,
+use @pony_os_udp_connect[I32](fd: U32,
   host: Pointer[U8] tag,
   port: Pointer[U8] tag)
-use @pony_os_listen_udp4[AsioEventID](the_actor: AsioEventNotify,
+use @pony_os_udp_connect4[I32](fd: U32,
   host: Pointer[U8] tag,
   port: Pointer[U8] tag)
-use @pony_os_listen_udp6[AsioEventID](the_actor: AsioEventNotify,
+use @pony_os_udp_connect6[I32](fd: U32,
   host: Pointer[U8] tag,
   port: Pointer[U8] tag)
-use @pony_os_recvfrom[U8](event: AsioEventID,
-  buffer: Pointer[U8] tag,
-  size: USize,
-  from: NetAddress tag,
-  count_out: Pointer[USize])
-use @pony_os_sendto[U8](fd: U32,
+use @pony_os_udp_send[U8](fd: U32,
   data: Pointer[U8] tag,
   size: USize,
-  to: NetAddress box,
   count_out: Pointer[USize])
 
-class UDPRuntimeBackend is UDPBackend
+class ConnectedUDPRuntimeBackend is ConnectedUDPBackend
   """
-  Wrappers for the runtime's `pony_os_*` UDP functions.
+  Wrappers for the runtime's `pony_os_*` connected UDP functions.
   """
   new create() => None
 
@@ -38,6 +32,23 @@ class UDPRuntimeBackend is UDPBackend
     | DualStack =>
       @pony_os_listen_udp(the_actor, host.cstring(), port.cstring())
     end
+
+  fun ref connect(fd: U32,
+    host: String,
+    port: String,
+    ip_version: IPVersion = DualStack)
+    : Bool
+  =>
+    let result: I32 =
+      match \exhaustive\ ip_version
+      | IP4 =>
+        @pony_os_udp_connect4(fd, host.cstring(), port.cstring())
+      | IP6 =>
+        @pony_os_udp_connect6(fd, host.cstring(), port.cstring())
+      | DualStack =>
+        @pony_os_udp_connect(fd, host.cstring(), port.cstring())
+      end
+    result == 0
 
   fun ref close(fd: U32) =>
     @pony_os_socket_close(fd)
@@ -57,14 +68,13 @@ class UDPRuntimeBackend is UDPBackend
         @pony_os_recvfrom(event, buffer, size, from, addressof count))
     (result, count, consume from)
 
-  fun ref sendto(fd: U32,
-    data: ByteSeq,
-    to: NetAddress box)
-    : SocketResult
-  =>
+  fun ref send(fd: U32, data: ByteSeq): SocketResult =>
     var count: USize = 0
     SocketResultDecoder(
-      @pony_os_sendto(fd, data.cpointer(), data.size(), to, addressof count))
+      @pony_os_udp_send(fd, data.cpointer(), data.size(), addressof count))
 
   fun ref sockname(fd: U32, ip: NetAddress tag): Bool =>
     @pony_os_sockname(fd, ip)
+
+  fun ref peername(fd: U32, ip: NetAddress tag): Bool =>
+    @pony_os_peername(fd, ip)

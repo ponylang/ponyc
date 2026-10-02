@@ -26,6 +26,10 @@ and notifier traits cover the common cases without any actor boilerplate.
 
 - `UDPSocket` + `UDPSocketNotify` — UDP sockets
 
+### Connected UDP
+
+- `ConnectedUDPSocket` + `ConnectedUDPSocketNotify` — connected UDP sockets
+
 The actors are concrete — only the notifiers are traits.
 
 ## Echo Server
@@ -108,8 +112,8 @@ calls `send_to` internally and discards the result.
 
 ## Naming
 
-`TCPListener` and `UDPSocket` exist in both `net` and `net/notifier`. When
-using both packages, qualify the import:
+`TCPListener`, `UDPSocket`, and `ConnectedUDPSocket` exist in both `net` and
+`net/notifier`. When using both packages, qualify the import:
 
 ```pony
 use "net"
@@ -126,5 +130,11 @@ let u1: UDPSocket = ...
 
 // notifier's actor-based UDP socket
 let u2: notifier.UDPSocket = ...
+
+// net's class-based connected UDP socket
+let c1: ConnectedUDPSocket = ...
+
+// notifier's actor-based connected UDP socket
+let c2: notifier.ConnectedUDPSocket = ...
 ```
 """

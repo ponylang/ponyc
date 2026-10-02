@@ -108,6 +108,18 @@ PONY_API pony_socket_result_t pony_os_writev(asio_event_t* ev,
   const struct iovec* iov, int iovcnt, size_t* count_out);
 #endif
 
+PONY_API int pony_os_udp_connect(int fd, const char* host,
+  const char* service);
+
+PONY_API int pony_os_udp_connect4(int fd, const char* host,
+  const char* service);
+
+PONY_API int pony_os_udp_connect6(int fd, const char* host,
+  const char* service);
+
+PONY_API pony_socket_result_t pony_os_udp_send(int fd, const char* buf,
+  size_t len, size_t* count_out);
+
 bool ponyint_os_sockets_init();
 
 void ponyint_os_sockets_final();
