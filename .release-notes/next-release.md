@@ -155,3 +155,7 @@ Initialization has three outcomes: bind failure (`_on_bind_failure`), connect fa
 
 On some platforms, the kernel returns certain socket options in fewer than 4 bytes. For example, arm64 Windows returns IPv6 multicast options in fewer bytes, and macOS returns IPv4 multicast options as a 1-byte `u_char`. Previously, `getsockopt_u32` required exactly 4 bytes and reported an error when it received fewer. Now it correctly handles 1, 2, and 4-byte returns by zero-extending to `U32`.
 
+## Fix wrong error codes for socket operations on Windows
+
+On Windows, socket operations that failed could report stale or incorrect error codes. The failure was detected correctly, but the error code returned to the caller came from the wrong source. Error codes for socket operations on Windows are now correct.
+
