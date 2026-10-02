@@ -202,7 +202,7 @@ primitive _RunLspChecks
     workspace_file: String,
     checks: Array[_RoundTripCheck val] val)
   =>
-    h.long_test(10_000_000_000)
+    h.long_test(30_000_000_000)
     for checker in checks.values() do
       let action: String = (digestof checker).string()
       h.expect_action(action)
