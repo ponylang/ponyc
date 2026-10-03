@@ -95,7 +95,12 @@
   "                   so the balanced default sits low on it.\n" \
   "  --ponynoyield    Do not yield the CPU when no work is available.\n" \
   "  --ponynoblock    Do not send block messages to the cycle detector.\n" \
-  "                   Turning this on with disable the cycle detector.\n" \
+  "                   Turning this on will disable the cycle detector.\n" \
+  "  --ponydistributedcd\n" \
+  "                   Use distributed cycle detection instead of the\n" \
+  "                   centralized cycle detector. Actors detect cycles\n" \
+  "                   among themselves via message passing. Mutually\n" \
+  "                   exclusive with --ponynoblock.\n" \
   "  --ponypin        Pin scheduler threads to CPU cores. The ASIO thread\n" \
   "                   can also be pinned if `--ponypinasio` is set.\n" \
   "  --ponypinasio    Pin the ASIO thread to a CPU the way scheduler\n" \
