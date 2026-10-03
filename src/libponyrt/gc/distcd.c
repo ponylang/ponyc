@@ -82,6 +82,37 @@ static bool actor_in_cycle(pony_actor_t* actor, cycle_record_t* cycle)
   return false;
 }
 
+static bool cycle_within_members(cycle_record_t* cycle,
+  pony_actor_t** members, size_t member_count)
+{
+  size_t mi = 0;
+  for(size_t i = 0; i < cycle->count; i++)
+  {
+    while(mi < member_count && members[mi] < cycle->members[i])
+      mi++;
+    if(mi >= member_count || members[mi] != cycle->members[i])
+      return false;
+    mi++;
+  }
+  return true;
+}
+
+static size_t count_appearances_in_component(pony_actor_t* actor,
+  cycle_record_t* known_cycles, pony_actor_t** comp_members,
+  size_t comp_count)
+{
+  size_t count = 0;
+  cycle_record_t* cur = known_cycles;
+  while(cur != NULL)
+  {
+    if(actor_in_cycle(actor, cur) &&
+      cycle_within_members(cur, comp_members, comp_count))
+      count++;
+    cur = cur->next;
+  }
+  return count;
+}
+
 static void cycle_record_free(cycle_record_t* rec)
 {
   ponyint_pool_free_size(rec->count * sizeof(pony_actor_t*), rec->members);
@@ -757,6 +788,13 @@ void ponyint_distcd_handle_confirm_blocked(pony_ctx_t* ctx,
   bool blocked = ponyint_messageq_isempty(&actor->q)
     && (actor->live_asio_events == 0);
 
+  if(blocked && distcd->known_cycles != NULL)
+  {
+    size_t appearances = count_appearances_in_component(
+      actor, distcd->known_cycles, m->members, m->count);
+    blocked = (actor->gc.rc == appearances);
+  }
+
   if(blocked)
   {
     send_confirm_msg(ctx, m->leader, ACTORMSG_CONFIRMED_DCD,
@@ -786,10 +824,14 @@ void ponyint_distcd_handle_confirmed(pony_ctx_t* ctx,
   // All members except leader confirmed?
   if(distcd->candidate->confirmed_count >= distcd->candidate->count - 1)
   {
-    // Re-verify leader's queue before sending RELEASE
+    // Re-verify leader's conditions before sending RELEASE
     bool queue_ok = ponyint_messageq_isempty(&actor->q);
+    size_t appearances = count_appearances_in_component(
+      actor, distcd->known_cycles, distcd->candidate->members,
+      distcd->candidate->count);
+    bool rc_ok = (actor->gc.rc == appearances);
 
-    if(queue_ok)
+    if(queue_ok && rc_ok)
     {
       for(size_t i = 0; i < distcd->candidate->count; i++)
       {
@@ -990,6 +1032,14 @@ void ponyint_distcd_try_confirm(pony_ctx_t* ctx, pony_actor_t* actor)
     comp_members, comp_count);
 
   if(leader != actor)
+  {
+    ponyint_pool_free_size(comp_count * sizeof(pony_actor_t*), comp_members);
+    return;
+  }
+
+  size_t appearances = count_appearances_in_component(
+    actor, distcd->known_cycles, comp_members, comp_count);
+  if(actor->gc.rc != appearances)
   {
     ponyint_pool_free_size(comp_count * sizeof(pony_actor_t*), comp_members);
     return;
