@@ -788,7 +788,7 @@ void ponyint_distcd_handle_confirm_blocked(pony_ctx_t* ctx,
   bool blocked = ponyint_messageq_isempty(&actor->q)
     && (actor->live_asio_events == 0);
 
-  if(blocked && distcd->known_cycles != NULL)
+  if(blocked)
   {
     size_t appearances = count_appearances_in_component(
       actor, distcd->known_cycles, m->members, m->count);
