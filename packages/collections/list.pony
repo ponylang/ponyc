@@ -530,6 +530,18 @@ class List[A] is Seq[A]
     end
     out
 
+  fun clone(): List[this->A!] iso^ iftype A <: Any val =>
+    """
+    When the element type is `val`, the cloned list is `iso` and can be
+    sent to other actors or converted to `val`.
+    """
+    let out = recover iso List[this->A!] end
+
+    for v in values() do
+      out.push(v)
+    end
+    out
+
   fun map[B](f: {(this->A!): B^} box): List[B]^ =>
     """
     Builds a new `List` by applying a function to every element of the `List`.

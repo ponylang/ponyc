@@ -218,6 +218,21 @@ class HashSet[A, H: HashFunction[A!] val] is Equatable[HashSet[A, H] box]
     end
     r
 
+  fun clone[K: HashFunction[this->A!] val = H]()
+    : HashSet[this->A!, K] iso^
+    iftype A <: Any val
+  =>
+    """
+    When the element type is `val`, the cloned set is `iso` and can be
+    sent to other actors or converted to `val`.
+    """
+    let r = recover iso HashSet[this->A!, K](size()) end
+
+    for value in values() do
+      r.set(value)
+    end
+    r
+
   fun eq(that: HashSet[A, H] box): Bool =>
     """
     Returns true if the sets contain the same elements.
