@@ -761,13 +761,13 @@ static bool evaluate_guard(deferred_reification_t* fun, ast_t* guard,
 static ast_t* select_specialization(deferred_reification_t* fun,
   pass_opt_t* opt)
 {
-  ast_t* default_method = fun->ast;
-  ast_t* parent = ast_parent(default_method);
+  ast_t* method = fun->ast;
+  ast_t* parent = ast_parent(method);
 
   if((parent == NULL) || (ast_id(parent) != TK_METHODGROUP))
     return NULL;
 
-  ast_t* spec = ast_sibling(default_method);
+  ast_t* spec = ast_sibling(ast_child(parent));
 
   while(spec != NULL)
   {

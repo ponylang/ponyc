@@ -69,6 +69,94 @@ static ast_t* downcast_iso_trn_receiver_to_ref(ast_t* receiver, pass_opt_t* opt)
   }
 }
 
+static bool lookup_evaluate_guard(deferred_reification_t* fun, ast_t* guard,
+  pass_opt_t* opt)
+{
+  switch(ast_id(guard))
+  {
+    case TK_IFTYPEGUARD:
+    {
+      AST_GET_CHILDREN(guard, subtype, supertype);
+      ast_t* r_sub = deferred_reify(fun, subtype, opt);
+      ast_t* r_super = deferred_reify(fun, supertype, opt);
+      bool matches = is_subtype_constraint(r_sub, r_super, NULL, opt);
+      ast_free_unattached(r_sub);
+      ast_free_unattached(r_super);
+      return matches;
+    }
+
+    case TK_IFTYPEGUARD_AND:
+    {
+      ast_t* child = ast_child(guard);
+      while(child != NULL)
+      {
+        if(!lookup_evaluate_guard(fun, child, opt))
+          return false;
+        child = ast_sibling(child);
+      }
+      return true;
+    }
+
+    case TK_IFTYPEGUARD_OR:
+    {
+      ast_t* child = ast_child(guard);
+      while(child != NULL)
+      {
+        if(lookup_evaluate_guard(fun, child, opt))
+          return true;
+        child = ast_sibling(child);
+      }
+      return false;
+    }
+
+    default:
+      pony_assert(0);
+      return false;
+  }
+}
+
+static ast_t* lookup_select_specialization(ast_t* default_method,
+  ast_t* typeparams, ast_t* typeargs, ast_t* thistype, pass_opt_t* opt)
+{
+  ast_t* parent = ast_parent(default_method);
+
+  if((parent == NULL) || (ast_id(parent) != TK_METHODGROUP))
+    return NULL;
+
+  // Only evaluate guards when all type arguments are concrete.
+  // When any type argument is still a type parameter reference, the guard
+  // cannot be resolved — defer to codegen (reach.c) where concrete types
+  // are known.
+  ast_t* targ = ast_child(typeargs);
+  while(targ != NULL)
+  {
+    if(ast_id(targ) == TK_TYPEPARAMREF)
+      return NULL;
+    targ = ast_sibling(targ);
+  }
+
+  deferred_reification_t* temp = deferred_reify_new(default_method,
+    typeparams, typeargs, thistype);
+  ast_t* spec = ast_sibling(default_method);
+  ast_t* result = NULL;
+
+  while(spec != NULL)
+  {
+    ast_t* guard = ast_childidx(spec, 5);
+
+    if(lookup_evaluate_guard(temp, guard, opt))
+    {
+      result = spec;
+      break;
+    }
+
+    spec = ast_sibling(spec);
+  }
+
+  deferred_reify_free(temp);
+  return result;
+}
+
 static deferred_reification_t* lookup_nominal(pass_opt_t* opt, ast_t* from,
   ast_t* orig, ast_t* type, const char* name, bool errors, bool allow_private)
 {
@@ -107,8 +195,24 @@ static deferred_reification_t* lookup_nominal(pass_opt_t* opt, ast_t* from,
         break;
 
       case TK_METHODGROUP:
-        find = ast_child(find);
-        // fallthrough
+      {
+        ast_t* default_method = ast_child(find);
+        ast_t* typeargs = ast_childidx(type, 2);
+
+        if(opt != NULL)
+        {
+          ast_t* spec = lookup_select_specialization(default_method,
+            typeparams, typeargs, orig, opt);
+          find = (spec != NULL) ? spec : default_method;
+        }
+        else
+        {
+          find = default_method;
+        }
+
+        // fallthrough to typecheck default args
+      }
+      // fallthrough
 
       case TK_NEW:
       case TK_BE:

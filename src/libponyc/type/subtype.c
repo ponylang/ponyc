@@ -1718,13 +1718,16 @@ static bool is_typeparam_sub_arrow(ast_t* sub, ast_t* super,
   ast_t* r_sub = viewpoint_reifytypeparam(sub, sub, opt);
   ast_t* r_super = viewpoint_reifytypeparam(super, sub, opt);
 
-  if(r_sub != NULL)
+  if((r_sub != NULL) && (r_super != NULL))
   {
     bool ok = is_x_sub_x(r_sub, r_super, check_cap, errorf, opt);
     ast_free_unattached(r_sub);
     ast_free_unattached(r_super);
     return ok;
   }
+
+  ast_free_unattached(r_sub);
+  ast_free_unattached(r_super);
 
   // If there is only a single instantiation, calculate the lower bounds.
   //
@@ -1897,13 +1900,16 @@ static bool is_arrow_sub_typeparam(ast_t* sub, ast_t* super,
   ast_t* r_sub = viewpoint_reifytypeparam(sub, super, opt);
   ast_t* r_super = viewpoint_reifytypeparam(super, super, opt);
 
-  if(r_sub != NULL)
+  if((r_sub != NULL) && (r_super != NULL))
   {
     bool ok = is_x_sub_x(r_sub, r_super, check_cap, errorf, opt);
     ast_free_unattached(r_sub);
     ast_free_unattached(r_super);
     return ok;
   }
+
+  ast_free_unattached(r_sub);
+  ast_free_unattached(r_super);
 
   // If there is only a single instantiation, treat as a nominal type.
   return is_arrow_sub_nominal(sub, super, check_cap, errorf, opt);
@@ -2036,7 +2042,9 @@ static bool is_x_sub_x(ast_t* sub, ast_t* super, check_cap_t check_cap,
   errorframe_t* errorf, pass_opt_t* opt)
 {
   pony_assert(sub != NULL);
-  pony_assert(super != NULL);
+
+  if(super == NULL)
+    return false;
 
   if((ast_id(sub) == TK_NOMINAL) && (ast_data(sub) == NULL))
     return false;

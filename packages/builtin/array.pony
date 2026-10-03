@@ -848,6 +848,17 @@ class Array[A] is Seq[A]
     out._size = _size
     out
 
+  fun clone(): Array[this->A!] iso^ iftype A <: Any val =>
+    """
+    When the element type is `val`, the cloned array is `iso` and can be
+    sent to other actors or converted to `val`.
+    """
+    let len = _size
+    let out = recover iso Array[this->A!](len) end
+    _ptr._copy_to(out._ptr._unsafe(), len)
+    out._size = len
+    out
+
   fun slice(
     from: USize = 0,
     to: USize = -1,

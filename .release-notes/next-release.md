@@ -165,7 +165,7 @@ On Windows, `setsockopt` and `getsockopt` calls that specified a protocol level 
 
 ## Add iftype specialization for method overloading on type parameters
 
-Methods on generic types can now have multiple definitions distinguished by `iftype` guards on type parameters. The matching body is selected at reification time, so there is no runtime dispatch cost.
+Methods on generic types can now have multiple definitions distinguished by `iftype` guards on type parameters. The matching body and return type are selected at reification time, so there is no runtime dispatch cost. Callers see the specialized return type when the type arguments satisfy the guard.
 
 ```pony
 class Container[A: Any val]
@@ -215,4 +215,57 @@ When a concrete type provides its own definition, it overrides the trait's speci
 An `or` guard requires all branches to constrain the same type parameter. An `and` guard can constrain different type parameters. Mixing `and` and `or` in a single guard is not allowed.
 
 Specializations must have the same parameter types, receiver capability, and method kind as the default. The return type of a specialization must be a subtype of the default's return type. A specialization can only be partial (`?`) if the default is partial.
+
+## Collection clone methods return iso when element types are val
+
+`clone()` on `Array`, `List`, `HashSet`, and `HashMap` now returns `iso^` when the element types are `val`. The cloned collection can be sent to another actor or converted to `val` without a `recover` block.
+
+```pony
+let arr: Array[U32] val = [1; 2; 3]
+let cloned: Array[U32] iso = arr.clone()
+// send to another actor
+other_actor.accept(consume cloned)
+```
+
+Code that clones a val-element collection and uses the result as `ref` needs an explicit type annotation:
+
+Before:
+
+```pony
+let tokens = argv.clone()
+tokens.shift()?
+```
+
+After:
+
+```pony
+let tokens: Array[String] ref = argv.clone()
+tokens.shift()?
+```
+
+Without the annotation, `tokens` is inferred as `iso`. Methods that take non-sendable arguments cannot use automatic receiver recovery on an `iso` receiver, so calls that worked before may not compile. The annotation restores the previous `ref` behavior.
+
+Inside a `recover` block, the cloned variable is `iso` and must be explicitly consumed to recover:
+
+Before:
+
+```pony
+recover val
+  let a = original.clone()
+  a(0)? = 0xFF
+  a
+end
+```
+
+After:
+
+```pony
+recover val
+  let a = original.clone()
+  a(0)? = 0xFF
+  consume a
+end
+```
+
+Without `consume`, the non-ephemeral `iso` cannot be lifted to `val` by the recover block. `consume` produces `iso^`, which can become any capability.
 

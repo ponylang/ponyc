@@ -134,7 +134,7 @@ actor PonyCompiler is LspCompiler
         end
         tmp.append(_pony_path_from_settings)
         tmp.append(paths)
-        tmp
+        consume tmp
       end
     let result =
       Compiler.compile(
