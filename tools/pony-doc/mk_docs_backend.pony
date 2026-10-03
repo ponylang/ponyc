@@ -176,13 +176,22 @@ primitive MkDocsBackend is Backend
     content.append("  logo: assets/logo.png\n")
     content.append("  favicon: assets/logo.png\n")
     content.append("  palette:\n")
-    content.append("    scheme: ponylang\n")
-    content.append("    primary: brown\n")
-    content.append("    accent: amber\n")
+    content.append("    # Light mode\n")
+    content.append("    - scheme: default\n")
+    content.append("      primary: brown\n")
+    content.append("      accent: amber\n")
+    content.append("      toggle:\n")
+    content.append("        icon: material/brightness-4\n")
+    content.append("        name: Switch to dark mode\n")
+    content.append("    # Dark mode\n")
+    content.append("    - scheme: slate\n")
+    content.append("      primary: brown\n")
+    content.append("      accent: amber\n")
+    content.append("      toggle:\n")
+    content.append("        icon: material/brightness-4\n")
+    content.append("        name: Switch to light mode\n")
     content.append("  features:\n")
     content.append("    - navigation.top\n")
-    content.append("extra_css:\n")
-    content.append("  - assets/ponylang.css\n")
     content.append("markdown_extensions:\n")
     content.append("  - pymdownx.highlight:\n")
     content.append("      anchor_linenums: true\n")
@@ -606,9 +615,8 @@ primitive MkDocsBackend is Backend
 
   fun _write_assets(assets_dir: FilePath) ? =>
     """
-    Write CSS and logo PNG files.
+    Write logo PNG file.
     """
-    _write_file(assets_dir, "ponylang.css", _Assets.css())?
     _write_binary(assets_dir, "logo.png", _Assets.logo())?
 
   fun _source_link(

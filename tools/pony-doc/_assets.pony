@@ -3,14 +3,6 @@ primitive _Assets
   Embedded assets for the MkDocs documentation theme.
   """
 
-  fun css(): String =>
-    """
-    CSS for the ponylang MkDocs color scheme.
-    """
-    "[data-md-color-scheme=\"ponylang\"] {\n" +
-      "  --md-typeset-a-color: var(--md-primary-fg-color);\n" +
-      "}"
-
   fun logo(): Array[U8] val =>
     """
     Ponylang logo PNG (15,558 bytes).
