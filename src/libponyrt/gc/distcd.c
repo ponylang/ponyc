@@ -825,13 +825,18 @@ void ponyint_distcd_handle_confirmed(pony_ctx_t* ctx,
   if(distcd->candidate->confirmed_count >= distcd->candidate->count - 1)
   {
     // Re-verify leader's conditions before sending RELEASE
-    bool queue_ok = ponyint_messageq_isempty(&actor->q);
-    size_t appearances = count_appearances_in_component(
-      actor, distcd->known_cycles, distcd->candidate->members,
-      distcd->candidate->count);
-    bool rc_ok = (actor->gc.rc == appearances);
+    bool blocked = ponyint_messageq_isempty(&actor->q)
+      && (actor->live_asio_events == 0);
 
-    if(queue_ok && rc_ok)
+    if(blocked)
+    {
+      size_t appearances = count_appearances_in_component(
+        actor, distcd->known_cycles, distcd->candidate->members,
+        distcd->candidate->count);
+      blocked = (actor->gc.rc == appearances);
+    }
+
+    if(blocked)
     {
       for(size_t i = 0; i < distcd->candidate->count; i++)
       {
@@ -935,21 +940,37 @@ void ponyint_distcd_handle_release(pony_ctx_t* ctx,
   pony_actor_t* actor, confirm_msg_t* m)
 {
   (void)ctx;
-  ponyint_pool_free_size(m->count * sizeof(pony_actor_t*), m->members);
 
   distcd_t* distcd = actor->distcd;
   if(distcd != NULL)
   {
+    if(distcd->released)
+    {
+      ponyint_pool_free_size(m->count * sizeof(pony_actor_t*), m->members);
+      return;
+    }
+
+    bool blocked = ponyint_messageq_isempty(&actor->q)
+      && (actor->live_asio_events == 0);
+
+    if(blocked)
+    {
+      size_t appearances = count_appearances_in_component(
+        actor, distcd->known_cycles, m->members, m->count);
+      blocked = (actor->gc.rc == appearances);
+    }
+
+    ponyint_pool_free_size(m->count * sizeof(pony_actor_t*), m->members);
+
+    if(!blocked)
+    {
+      distcd->conf_state = DISTCD_CONF_NONE;
+      return;
+    }
+
     distcd->released = true;
 
-    cycle_record_t* cur = distcd->known_cycles;
-    while(cur != NULL)
-    {
-      cycle_record_t* next = cur->next;
-      ponyint_pool_free_size(cur->count * sizeof(pony_actor_t*), cur->members);
-      ponyint_pool_free_size(sizeof(cycle_record_t), cur);
-      cur = next;
-    }
+    free_cycle_list(distcd->known_cycles);
     distcd->known_cycles = NULL;
 
     if(distcd->candidate != NULL)
@@ -961,6 +982,8 @@ void ponyint_distcd_handle_release(pony_ctx_t* ctx,
       distcd->candidate = NULL;
     }
     distcd->conf_state = DISTCD_CONF_NONE;
+  } else {
+    ponyint_pool_free_size(m->count * sizeof(pony_actor_t*), m->members);
   }
 }
 
