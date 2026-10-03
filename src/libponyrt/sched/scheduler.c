@@ -18,6 +18,10 @@
 #include <stdlib.h>
 #endif
 
+#if defined(PLATFORM_IS_HAIKU)
+#  include <os/kernel/OS.h>
+#endif
+
 #ifdef USE_RUNTIMESTATS
 #include <stdio.h>
 #endif
@@ -1136,6 +1140,10 @@ static DECLARE_THREAD_FN(run_thread)
   ponyint_cpu_affinity(sched->cpu);
   TRACING_THREAD_START(this_scheduler);
 
+#if defined(PLATFORM_IS_HAIKU)
+  rename_thread(get_pthread_thread_id(pthread_self()), "scheduler::run_thread");
+#endif
+
   run(sched);
 
   TRACING_THREAD_STOP();
@@ -1464,7 +1472,7 @@ pony_ctx_t* ponyint_sched_init(uint32_t threads, bool noyield, bool pin,
   uint32_t asio_cpu = ponyint_cpu_assign(scheduler_count, scheduler, pin,
     pinasio, pinpat, pin_tracing_thread, &tracing_cpu);
 
-  // make sure tracing knows how mant schedulers there are
+  // make sure tracing knows how many schedulers there are
   TRACING_SCHEDULERS_INIT(scheduler_count, tracing_cpu);
 
   for(uint32_t i = 0; i < scheduler_count; i++)
