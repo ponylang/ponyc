@@ -766,9 +766,10 @@ void ponyint_distcd_handle_confirm_blocked(pony_ctx_t* ctx,
     return;
   }
 
-  bool queue_ok = ponyint_messageq_isempty(&actor->q);
+  bool blocked = ponyint_messageq_isempty(&actor->q)
+    && (actor->live_asio_events == 0);
 
-  if(queue_ok)
+  if(blocked)
   {
     send_confirm_msg(ctx, m->leader, ACTORMSG_CONFIRMED_DCD,
       m->members, m->count, m->leader);
@@ -976,6 +977,11 @@ void ponyint_distcd_try_confirm(pony_ctx_t* ctx, pony_actor_t* actor)
 
   // If we're naturally the leader of a component, try to confirm
   if(distcd->conf_state != DISTCD_CONF_NONE || distcd->known_cycles == NULL)
+    return;
+
+  // Don't initiate confirmation if we have live ASIO events — we're
+  // waiting for I/O, not truly idle.
+  if(actor->live_asio_events > 0)
     return;
 
   pony_actor_t** comp_members;
