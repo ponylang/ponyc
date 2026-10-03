@@ -22,6 +22,119 @@
 #include <ws2tcpip.h>
 #include <mstcpip.h>
 #include <mswsock.h>
+
+// ws2def.h and ws2ipdef.h define several socket constants as enum values, not
+// preprocessor macros. #ifdef guards in pony_os_sockopt_level and
+// pony_os_sockopt_option check whether each constant exists, but #ifdef only
+// sees macros. Without these defines, an unrecognized constant maps to -1
+// instead of the real value, producing WSAEINVAL from setsockopt/getsockopt.
+#ifndef IPPROTO_HOPOPTS
+#define IPPROTO_HOPOPTS IPPROTO_HOPOPTS
+#endif
+#ifndef IPPROTO_ICMP
+#define IPPROTO_ICMP IPPROTO_ICMP
+#endif
+#ifndef IPPROTO_IGMP
+#define IPPROTO_IGMP IPPROTO_IGMP
+#endif
+#ifndef IPPROTO_GGP
+#define IPPROTO_GGP IPPROTO_GGP
+#endif
+#ifndef IPPROTO_IPV4
+#define IPPROTO_IPV4 IPPROTO_IPV4
+#endif
+#ifndef IPPROTO_ST
+#define IPPROTO_ST IPPROTO_ST
+#endif
+#ifndef IPPROTO_TCP
+#define IPPROTO_TCP IPPROTO_TCP
+#endif
+#ifndef IPPROTO_CBT
+#define IPPROTO_CBT IPPROTO_CBT
+#endif
+#ifndef IPPROTO_EGP
+#define IPPROTO_EGP IPPROTO_EGP
+#endif
+#ifndef IPPROTO_IGP
+#define IPPROTO_IGP IPPROTO_IGP
+#endif
+#ifndef IPPROTO_PUP
+#define IPPROTO_PUP IPPROTO_PUP
+#endif
+#ifndef IPPROTO_UDP
+#define IPPROTO_UDP IPPROTO_UDP
+#endif
+#ifndef IPPROTO_IDP
+#define IPPROTO_IDP IPPROTO_IDP
+#endif
+#ifndef IPPROTO_RDP
+#define IPPROTO_RDP IPPROTO_RDP
+#endif
+#ifndef IPPROTO_IPV6
+#define IPPROTO_IPV6 IPPROTO_IPV6
+#endif
+#ifndef IPPROTO_ROUTING
+#define IPPROTO_ROUTING IPPROTO_ROUTING
+#endif
+#ifndef IPPROTO_FRAGMENT
+#define IPPROTO_FRAGMENT IPPROTO_FRAGMENT
+#endif
+#ifndef IPPROTO_ESP
+#define IPPROTO_ESP IPPROTO_ESP
+#endif
+#ifndef IPPROTO_AH
+#define IPPROTO_AH IPPROTO_AH
+#endif
+#ifndef IPPROTO_ICMPV6
+#define IPPROTO_ICMPV6 IPPROTO_ICMPV6
+#endif
+#ifndef IPPROTO_NONE
+#define IPPROTO_NONE IPPROTO_NONE
+#endif
+#ifndef IPPROTO_DSTOPTS
+#define IPPROTO_DSTOPTS IPPROTO_DSTOPTS
+#endif
+#ifndef IPPROTO_ND
+#define IPPROTO_ND IPPROTO_ND
+#endif
+#ifndef IPPROTO_PIM
+#define IPPROTO_PIM IPPROTO_PIM
+#endif
+#ifndef IPPROTO_PGM
+#define IPPROTO_PGM IPPROTO_PGM
+#endif
+#ifndef IPPROTO_L2TP
+#define IPPROTO_L2TP IPPROTO_L2TP
+#endif
+#ifndef IPPROTO_SCTP
+#define IPPROTO_SCTP IPPROTO_SCTP
+#endif
+#ifndef IPPROTO_RAW
+#define IPPROTO_RAW IPPROTO_RAW
+#endif
+#ifndef IPPROTO_MAX
+#define IPPROTO_MAX IPPROTO_MAX
+#endif
+
+// ws2ipdef.h: _PMTUD_STATE enum
+#ifndef IP_PMTUDISC_DO
+#define IP_PMTUDISC_DO IP_PMTUDISC_DO
+#endif
+#ifndef IP_PMTUDISC_DONT
+#define IP_PMTUDISC_DONT IP_PMTUDISC_DONT
+#endif
+#ifndef IP_PMTUDISC_PROBE
+#define IP_PMTUDISC_PROBE IP_PMTUDISC_PROBE
+#endif
+
+// ws2ipdef.h: MULTICAST_MODE_TYPE enum
+#ifndef MCAST_INCLUDE
+#define MCAST_INCLUDE MCAST_INCLUDE
+#endif
+#ifndef MCAST_EXCLUDE
+#define MCAST_EXCLUDE MCAST_EXCLUDE
+#endif
+
 #else
 #include <sys/types.h>
 #include <sys/socket.h>
