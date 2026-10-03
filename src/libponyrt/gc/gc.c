@@ -83,8 +83,7 @@ static void send_remote_actor(pony_ctx_t* ctx, gc_t* gc, actorref_t* aref)
     aref->rc--;
   }
 
-  // only update if cycle detector is enabled
-  if(!ponyint_actor_getnoblock())
+  if(!ponyint_actor_getnoblock() && !ponyint_actor_getdistributedcd())
     gc->delta = ponyint_deltamap_update(gc->delta, aref->actor, aref->rc);
 }
 
@@ -102,8 +101,7 @@ static void recv_remote_actor(pony_ctx_t* ctx, gc_t* gc, actorref_t* aref)
   aref->mark = gc->mark;
   aref->rc++;
 
-  // only update if cycle detector is enabled
-  if(!ponyint_actor_getnoblock())
+  if(!ponyint_actor_getnoblock() && !ponyint_actor_getdistributedcd())
     gc->delta = ponyint_deltamap_update(gc->delta, aref->actor, aref->rc);
 }
 
@@ -123,8 +121,7 @@ static void mark_remote_actor(pony_ctx_t* ctx, gc_t* gc, actorref_t* aref)
     aref->rc += GC_INC_MORE;
     acquire_actor(ctx, aref->actor);
 
-    // only update if cycle detector is enabled
-    if(!ponyint_actor_getnoblock())
+    if(!ponyint_actor_getnoblock() && !ponyint_actor_getdistributedcd())
       gc->delta = ponyint_deltamap_update(gc->delta, aref->actor, aref->rc);
   }
 }
@@ -522,8 +519,7 @@ void ponyint_gc_createactor(pony_actor_t* current, pony_actor_t* actor)
   actorref_t* aref = ponyint_actormap_getorput(&gc->foreign, actor, gc->mark);
   aref->rc = GC_INC_MORE;
 
-  // only update if cycle detector is enabled
-  if(!ponyint_actor_getnoblock())
+  if(!ponyint_actor_getnoblock() && !ponyint_actor_getdistributedcd())
     gc->delta = ponyint_deltamap_update(gc->delta, actor, aref->rc);
 
   // Increase apparent used memory to provoke GC.
@@ -586,12 +582,13 @@ void ponyint_gc_sweep(pony_ctx_t* ctx, gc_t* gc)
 
   TRACING_ACTOR_GC_ACTORMAP_SWEEP_START(ctx->current);
 
+  bool skip_delta = ponyint_actor_getnoblock() || ponyint_actor_getdistributedcd();
   gc->delta = ponyint_actormap_sweep(ctx, &gc->foreign, gc->mark, gc->delta,
 #ifdef USE_RUNTIMESTATS
-    ponyint_actor_getnoblock(), &objectmap_mem_used_freed,
+    skip_delta, &objectmap_mem_used_freed,
     &objectmap_mem_allocated_freed);
 #else
-    ponyint_actor_getnoblock());
+    skip_delta);
 #endif
 
 #ifdef USE_RUNTIMESTATS
@@ -759,12 +756,19 @@ void ponyint_gc_sendrelease(pony_ctx_t* ctx, gc_t* gc)
   size_t objectmap_mem_allocated_freed = 0;
 #endif
 
+  // DCD mode: every foreign entry must release its full rc during cycle
+  // destruction. Advancing mark makes the sweep treat all entries as
+  // unreachable.
+  if(ponyint_actor_getdistributedcd())
+    gc->mark++;
+
+  bool skip_delta = ponyint_actor_getnoblock() || ponyint_actor_getdistributedcd();
   gc->delta = ponyint_actormap_sweep(ctx, &gc->foreign, gc->mark, gc->delta,
 #ifdef USE_RUNTIMESTATS
-    ponyint_actor_getnoblock(), &objectmap_mem_used_freed,
+    skip_delta, &objectmap_mem_used_freed,
     &objectmap_mem_allocated_freed);
 #else
-    ponyint_actor_getnoblock());
+    skip_delta);
 #endif
 
 #ifdef USE_RUNTIMESTATS

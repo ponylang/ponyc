@@ -664,7 +664,8 @@ static pony_actor_t* passive_wait(scheduler_t* sched)
     // reaches that check.  Without this, dead actors are never
     // collected when scheduler 0 goes passive before the detector
     // fires — the program hangs because collection never starts.
-    if((sched->index == 0) && !ponyint_actor_getnoblock())
+    if((sched->index == 0) && !ponyint_actor_getnoblock()
+      && !ponyint_actor_getdistributedcd())
     {
       uint64_t current_tsc = sched_clock();
       if(ponyint_cycle_check_blocked(last_cd_tsc, current_tsc))
@@ -862,7 +863,8 @@ static pony_actor_t* steal(scheduler_t* sched)
     }
 
     // if we're scheduler 0 and cycle detection is enabled
-    if(!ponyint_actor_getnoblock() && (sched->index == 0))
+    if(!ponyint_actor_getnoblock()
+      && !ponyint_actor_getdistributedcd() && (sched->index == 0))
     {
       // trigger cycle detector by sending it a message if it is time
       uint64_t current_tsc = sched_clock();
@@ -1015,7 +1017,7 @@ static void run(scheduler_t* sched)
     if(sched->index == 0)
     {
       // if cycle detection is enabled
-      if(!ponyint_actor_getnoblock())
+      if(!ponyint_actor_getnoblock() && !ponyint_actor_getdistributedcd())
       {
         // trigger cycle detector by sending it a message if it is time
         uint64_t current_tsc = sched_clock();
