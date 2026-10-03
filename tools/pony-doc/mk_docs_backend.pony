@@ -193,7 +193,6 @@ primitive MkDocsBackend is Backend
     content.append("  features:\n")
     content.append("    - navigation.top\n")
     content.append("extra_css:\n")
-    content.append("  - assets/ponylang.css\n")
     content.append("markdown_extensions:\n")
     content.append("  - pymdownx.highlight:\n")
     content.append("      anchor_linenums: true\n")
@@ -617,9 +616,8 @@ primitive MkDocsBackend is Backend
 
   fun _write_assets(assets_dir: FilePath) ? =>
     """
-    Write CSS and logo PNG files.
+    Write logo PNG file.
     """
-    _write_file(assets_dir, "ponylang.css", _Assets.css())?
     _write_binary(assets_dir, "logo.png", _Assets.logo())?
 
   fun _source_link(
