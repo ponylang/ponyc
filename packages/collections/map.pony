@@ -303,6 +303,21 @@ class HashMap[K, V, H: HashFunction[K] val]
     end
     r
 
+  fun clone[H2: HashFunction[this->K!] val = H]()
+    : HashMap[this->K!, this->V!, H2] iso^
+    iftype (K, V) <: (Any val, Any val)
+  =>
+    """
+    When both the key and value types are `val`, the cloned map is `iso` and
+    can be sent to other actors or converted to `val`.
+    """
+    let r = recover iso HashMap[this->K!, this->V!, H2](_size) end
+
+    for (k, v) in pairs() do
+      r(k) = v
+    end
+    r
+
   fun ref clear() =>
     """
     Remove all entries.

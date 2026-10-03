@@ -5,6 +5,7 @@
 #include "../type/compattype.h"
 #include "../type/lookup.h"
 #include "../type/subtype.h"
+#include "../type/typeparam.h"
 #include "../../libponyrt/mem/pool.h"
 #include "ponyassert.h"
 #include <string.h>
@@ -735,6 +736,38 @@ static bool guard_shadows(ast_t* earlier, ast_t* later, pass_opt_t* opt)
   return false;
 }
 
+static void narrow_type_from_guard(ast_t* type, ast_t* guard)
+{
+  switch(ast_id(guard))
+  {
+    case TK_IFTYPEGUARD:
+    {
+      ast_t* store = ast_childidx(guard, 2);
+      if(ast_id(store) == TK_TYPEPARAMS)
+        typeparam_narrow(type, store);
+      break;
+    }
+    case TK_IFTYPEGUARD_AND:
+    {
+      ast_t* child = ast_child(guard);
+      while(child != NULL)
+      {
+        narrow_type_from_guard(type, child);
+        child = ast_sibling(child);
+      }
+      break;
+    }
+    case TK_IFTYPEGUARD_OR:
+    {
+      ast_t* first = ast_child(guard);
+      narrow_type_from_guard(type, first);
+      break;
+    }
+    default:
+      break;
+  }
+}
+
 bool verify_methodgroup(pass_opt_t* opt, ast_t* ast)
 {
   pony_assert(ast_id(ast) == TK_METHODGROUP);
@@ -758,7 +791,6 @@ bool verify_methodgroup(pass_opt_t* opt, ast_t* ast)
     AST_GET_CHILDREN(spec, s_cap, s_id, s_typeparams, s_params,
       s_result, s_guard_s, s_can_error, s_body, s_docstring);
 
-    (void)s_guard_s;
     (void)s_body;
     (void)s_docstring;
 
@@ -807,8 +839,13 @@ bool verify_methodgroup(pass_opt_t* opt, ast_t* ast)
       ast_t* d_constraint = ast_childidx(d_tp, 1);
       ast_t* s_constraint = ast_childidx(s_tp, 1);
 
-      if(!is_eqtype(d_constraint, s_constraint, NULL, opt))
+      ast_t* d_constraint_cmp = ast_dup(d_constraint);
+      if(ast_id(s_guard_s) != TK_NONE)
+        narrow_type_from_guard(d_constraint_cmp, s_guard_s);
+
+      if(!is_eqtype(d_constraint_cmp, s_constraint, NULL, opt))
       {
+        ast_free_unattached(d_constraint_cmp);
         ast_error(opt->check.errors, s_constraint,
           "specialization type parameter constraint does not match "
           "the default");
@@ -817,6 +854,7 @@ bool verify_methodgroup(pass_opt_t* opt, ast_t* ast)
         return false;
       }
 
+      ast_free_unattached(d_constraint_cmp);
       d_tp = ast_sibling(d_tp);
       s_tp = ast_sibling(s_tp);
     }
@@ -862,7 +900,23 @@ bool verify_methodgroup(pass_opt_t* opt, ast_t* ast)
 
     if(params_ok)
     {
-      ast_t* d_param = ast_child(d_params);
+      // The guard narrows class-level type parameters in the specialization's
+      // scope (e.g. A becomes A val under "iftype A <: Any val"). The
+      // specialization's return type references the narrowed version while the
+      // default's references the original. Duplicate the default's param and
+      // return types and apply the guard narrowing so both sides use the same
+      // type parameter representation.
+      ast_t* d_params_cmp = ast_dup(d_params);
+      ast_t* d_result_cmp = ast_dup(d_result);
+
+      if(ast_id(s_guard_s) != TK_NONE)
+      {
+        narrow_type_from_guard(d_params_cmp, s_guard_s);
+        narrow_type_from_guard(d_result_cmp, s_guard_s);
+      }
+
+      ast_t* d_param = ast_child(d_params_cmp);
+      ast_t* d_param_orig = ast_child(d_params);
       ast_t* s_param = ast_child(s_params);
 
       while(d_param != NULL)
@@ -874,25 +928,29 @@ bool verify_methodgroup(pass_opt_t* opt, ast_t* ast)
         {
           ast_error(opt->check.errors, s_ptype,
             "specialization parameter type does not match the default");
-          ast_error_continue(opt->check.errors, d_ptype,
+          ast_error_continue(opt->check.errors, ast_childidx(d_param_orig, 1),
             "default parameter type is defined here");
           params_ok = false;
           break;
         }
 
         d_param = ast_sibling(d_param);
+        d_param_orig = ast_sibling(d_param_orig);
         s_param = ast_sibling(s_param);
       }
-    }
 
-    if(params_ok && !is_subtype(s_result, d_result, NULL, opt))
-    {
-      ast_error(opt->check.errors, s_result,
-        "specialization return type is not a subtype of the default return "
-        "type");
-      ast_error_continue(opt->check.errors, d_result,
-        "default return type is defined here");
-      result_ok = false;
+      if(params_ok && !is_subtype(s_result, d_result_cmp, NULL, opt))
+      {
+        ast_error(opt->check.errors, s_result,
+          "specialization return type is not a subtype of the default return "
+          "type");
+        ast_error_continue(opt->check.errors, d_result,
+          "default return type is defined here");
+        result_ok = false;
+      }
+
+      ast_free_unattached(d_params_cmp);
+      ast_free_unattached(d_result_cmp);
     }
 
     // Restore the specialization's type parameter data pointers.

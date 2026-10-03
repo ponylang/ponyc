@@ -27,7 +27,7 @@ class CommandParser
     Parses all of the command line tokens and env vars and returns a Command,
     or the first SyntaxError.
     """
-    let tokens = argv.clone()
+    let tokens: Array[String] ref = argv.clone()
     try tokens.shift()? end  // argv[0] is the program name, so skip it
     let options: Map[String,Option] ref = options.create()
     let args: Map[String,Arg] ref = args.create()
