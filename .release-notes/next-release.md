@@ -269,3 +269,7 @@ end
 
 Without `consume`, the non-ephemeral `iso` cannot be lifted to `val` by the recover block. `consume` produces `iso^`, which can become any capability.
 
+## Add darkmode toggle to pony-doc generated documentation
+
+This PR adds the darkmode toggle to documentation created by `pony-doc`.  It adds no new requirements (mkdocs-material is already required), and brings a cohesive visual experience tabbing between the tutorial and stdlib documentation.
+
