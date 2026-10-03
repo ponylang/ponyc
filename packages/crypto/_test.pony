@@ -1123,7 +1123,7 @@ class \nodoc\ iso _TestConstantTimeCompareSensitive
       recover val
         let a = original.clone()
         a(pos)? = a(pos)? xor 0xFF
-        a
+        consume a
       end
     h.assert_false(ConstantTimeCompare(original, modified))
 

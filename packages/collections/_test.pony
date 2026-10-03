@@ -41,7 +41,7 @@ class \nodoc\ iso _TestList is UnitTest
     let a = List[U32]
     a .> push(0) .> push(1) .> push(2)
 
-    let b = a.clone()
+    let b: List[U32] ref = a.clone()
     h.assert_eq[USize](b.size(), 3)
     h.assert_eq[U32](b(0)?, 0)
     h.assert_eq[U32](b(1)?, 1)
